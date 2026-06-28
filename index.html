@@ -423,7 +423,7 @@ h1,h2,h3{ margin:0; line-height:1.05; }
   <section class="screen home active" id="screen-home">
     <h1 class="logo">OTAKU<br>QUIZ</h1>
     <div class="subtitle">Quem é o Personagem?</div>
-    <p class="tagline">Descubra o personagem secreto com o <b>menor número de pistas</b> possível. Quanto mais rápido, mais pontos! 🔥</p>
+    <p class="tagline">Adivinhe o <b>PERSONAGEM</b> secreto (não o nome do anime!) com o <b>menor número de pistas</b> possível. Quanto mais rápido, mais pontos! 🔥</p>
 
     <div class="diff-wrap">
       <div class="diff-label">⚔️ ESCOLHA A DIFICULDADE</div>
@@ -492,7 +492,7 @@ h1,h2,h3{ margin:0; line-height:1.05; }
     <div class="card-stage">
       <div class="char-card" id="char-card">
         <div class="card-face card-front">
-          <span class="card-tag" id="card-tag">❓ PERSONAGEM MISTERIOSO</span>
+          <span class="card-tag" id="card-tag">❓ QUE PERSONAGEM É ESTE?</span>
           <div class="clue-list" id="clue-list"></div>
         </div>
         <div class="card-face card-back" id="card-back">
@@ -505,9 +505,9 @@ h1,h2,h3{ margin:0; line-height:1.05; }
 
     <!-- Palpite -->
     <div class="guess-area">
-      <div class="feedback" id="feedback">Quem será...? 🤔</div>
+      <div class="feedback" id="feedback">Adivinhe o PERSONAGEM... 🤔</div>
       <div class="input-row">
-        <input class="guess-input" id="guess-input" type="text" placeholder="Digite o nome do personagem..." autocomplete="off" />
+        <input class="guess-input" id="guess-input" type="text" placeholder="Nome do PERSONAGEM (não do anime)..." autocomplete="off" />
         <button class="btn-go" id="btn-guess">CHUTAR!</button>
       </div>
       <div class="action-row">
@@ -582,41 +582,91 @@ h1,h2,h3{ margin:0; line-height:1.05; }
    pistas progressivas (da mais vaga -> mais óbvia) e nomes aceitos (alt).
    ------------------------------------------------------------------------- */
 const CHARACTERS = [
-  // ---------- FÁCEIS (lendas) ----------
+  // =================== FÁCEIS (personagens super famosos) ===================
   { nome:"Naruto Uzumaki", anime:"Naruto", dif:"facil", emoji:"🍥",
-    alt:["naruto","naruto uzumaki","uzumaki naruto","uzumaki","naruto kun"],
+    alt:["naruto","naruto uzumaki","uzumaki naruto","uzumaki","naroto"],
     clues:[
-      "Anime do gênero <b>Shonen</b> de ninjas.",
+      "Este personagem é de um anime <b>Shonen</b> de ninjas.",
       "Tem cabelo <b>loiro</b> espetado e olhos azuis.",
       "Possui marcas que parecem <b>bigodes</b> no rosto.",
       "Sonha em se tornar o líder de sua vila (o <b>Hokage</b>).",
       "Bordão: <b>\"Dattebayo!\"</b> / \"Acredite!\"",
       "Tem uma raposa de nove caudas selada dentro de si." ] },
 
-  { nome:"Goku", anime:"Dragon Ball", dif:"facil", emoji:"🐉",
-    alt:["goku","son goku","songoku","goku son","son gokou","kakaroto","kakarot","kakarotto","gokou"],
+  { nome:"Sasuke Uchiha", anime:"Naruto", dif:"facil", emoji:"🦅",
+    alt:["sasuke","sasuke uchiha","uchiha sasuke","sasque"],
     clues:[
-      "Anime <b>Shonen</b> clássico de lutas e poderes.",
+      "Este personagem é de um anime <b>Shonen</b> de ninjas.",
+      "Tem cabelo <b>preto-azulado</b> e um olhar frio.",
+      "É o eterno <b>rival</b> do protagonista loiro.",
+      "Usa o olho vermelho <b>Sharingan</b>.",
+      "Busca vingança contra o irmão, <b>Itachi</b>.",
+      "É o último sobrevivente (com Itachi) do clã <b>Uchiha</b>." ] },
+
+  { nome:"Goku", anime:"Dragon Ball", dif:"facil", emoji:"🐉",
+    alt:["goku","son goku","songoku","goku son","kakaroto","kakarot","kakarotto","gokou"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> clássico de lutas.",
       "Tem cabelo <b>preto</b> espetado (que fica dourado quando se transforma).",
       "Sua técnica mais famosa é o <b>Kamehameha</b>.",
       "É um <b>Saiyajin</b> criado na Terra.",
       "Pode virar <b>Super Saiyajin</b> (cabelo dourado).",
       "Coleciona esferas mágicas que realizam desejos." ] },
 
-  { nome:"Monkey D. Luffy", anime:"One Piece", dif:"facil", emoji:"👒",
-    alt:["luffy","monkey d luffy","monkey d. luffy","monkey luffy","mugiwara","chapeu de palha","luffy chapeu de palha","rufi","lufi"],
+  { nome:"Vegeta", anime:"Dragon Ball", dif:"facil", emoji:"🥦",
+    alt:["vegeta","principe vegeta","vegeta principe","vejita","vegita"],
     clues:[
-      "Anime <b>Shonen</b> de piratas e aventura no mar.",
+      "Este personagem é de um anime <b>Shonen</b> de lutas e transformações.",
+      "Cabelo preto espetado em formato de <b>chama</b>.",
+      "É o orgulhoso <b>Príncipe</b> de sua raça.",
+      "Eterno rival do protagonista de cabelo espetado.",
+      "Cena clássica: <b>\"O poder de luta dele é mais de 8000!\"</b>",
+      "Ataque: <b>Final Flash</b> / Galick Ho." ] },
+
+  { nome:"Monkey D. Luffy", anime:"One Piece", dif:"facil", emoji:"👒",
+    alt:["luffy","monkey d luffy","monkey d. luffy","monkey luffy","mugiwara","chapeu de palha","rufi","lufi"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de piratas.",
       "Usa um <b>chapéu de palha</b> característico.",
       "Comeu uma fruta que deixou seu corpo de <b>borracha</b>.",
       "Quer encontrar o tesouro <b>One Piece</b> e ser Rei dos Piratas.",
       "Capitão dos <b>Piratas do Chapéu de Palha</b>.",
       "Ataque: <b>Gomu Gomu no...</b>!" ] },
 
-  { nome:"Sailor Moon", anime:"Sailor Moon", dif:"facil", emoji:"🌙",
-    alt:["sailor moon","sailormoon","usagi","usagi tsukino","tsukino usagi","serena","serena tsukino","bunny","princesa serenity"],
+  { nome:"Roronoa Zoro", anime:"One Piece", dif:"facil", emoji:"⚔️",
+    alt:["zoro","roronoa zoro","roronoa","zolo","zoro roronoa"],
     clues:[
-      "Anime <b>Shoujo</b> mágico clássico dos anos 90.",
+      "Este personagem é de um anime <b>Shonen</b> de piratas.",
+      "Tem cabelo <b>verde</b> e três brincos numa orelha.",
+      "Luta com <b>três espadas</b> (uma na boca!).",
+      "Tem um péssimo <b>senso de direção</b> e se perde fácil.",
+      "É o espadachim do bando do Chapéu de Palha.",
+      "Quer ser o <b>maior espadachim do mundo</b>." ] },
+
+  { nome:"Vinsmoke Sanji", anime:"One Piece", dif:"medio", emoji:"🚬",
+    alt:["sanji","vinsmoke sanji","perna preta","black leg","sanji vinsmoke"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de piratas.",
+      "Tem cabelo <b>loiro</b> cobrindo um dos olhos e sobrancelha enrolada.",
+      "Luta apenas com <b>chutes</b> para proteger as mãos de cozinheiro.",
+      "É o <b>cozinheiro</b> do bando e vive apaixonado por mulheres.",
+      "Apelido: <b>Perna Preta</b>.",
+      "Vive brigando com o espadachim de cabelo verde." ] },
+
+  { nome:"Nami", anime:"One Piece", dif:"medio", emoji:"🍊",
+    alt:["nami","gata ladra","cat burglar"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de piratas.",
+      "Mulher de cabelo <b>laranja</b>, esperta e ambiciosa.",
+      "Adora <b>dinheiro</b> e tangerinas.",
+      "É a <b>navegadora</b> do bando do Chapéu de Palha.",
+      "Sonha em desenhar um mapa do mundo inteiro.",
+      "Luta com um bastão do clima (<b>Clima-Tact</b>)." ] },
+
+  { nome:"Sailor Moon", anime:"Sailor Moon", dif:"facil", emoji:"🌙",
+    alt:["sailor moon","sailormoon","usagi","usagi tsukino","serena","serena tsukino","bunny"],
+    clues:[
+      "Este personagem é de um anime <b>Shoujo</b> mágico dos anos 90.",
       "Tem cabelo <b>loiro</b> em dois coques com longas tranças.",
       "Se transforma em uma guerreira em nome da <b>Lua</b>.",
       "Bordão: <b>\"Em nome da Lua, eu vou te castigar!\"</b>",
@@ -624,9 +674,9 @@ const CHARACTERS = [
       "Lidera as Sailor Scouts (Guerreiras)." ] },
 
   { nome:"Pikachu", anime:"Pokémon", dif:"facil", emoji:"⚡",
-    alt:["pikachu","pika","pikatchu","pikatxu"],
+    alt:["pikachu","pika","pikatchu"],
     clues:[
-      "Anime de <b>aventura</b> com monstrinhos de bolso.",
+      "Este personagem é de um anime de <b>aventura</b> com monstrinhos de bolso.",
       "É <b>amarelo</b> com bochechas vermelhas e orelhas pontudas.",
       "Solta ataques <b>elétricos</b>.",
       "Bordão: só repete o próprio <b>nome</b>.",
@@ -634,120 +684,260 @@ const CHARACTERS = [
       "Ataque famoso: <b>Choque do Trovão</b>!" ] },
 
   { nome:"Tanjiro Kamado", anime:"Demon Slayer", dif:"facil", emoji:"🩹",
-    alt:["tanjiro","tanjiro kamado","kamado tanjiro","tanjirou","kamado tanjirou","tanjiro san"],
+    alt:["tanjiro","tanjiro kamado","kamado tanjiro","tanjirou","tanjiru"],
     clues:[
-      "Anime <b>Shonen</b> moderno de caçadores de demônios.",
+      "Este personagem é de um anime <b>Shonen</b> de caçadores de demônios.",
       "Tem uma <b>cicatriz</b> na testa e brincos.",
       "Usa a <b>Respiração da Água</b> (e depois do Sol).",
       "Sua irmã <b>Nezuko</b> virou um demônio.",
-      "Faz parte da <b>Equipe de Caçadores de Demônios</b>.",
+      "Faz parte da Equipe de Caçadores de Demônios.",
       "Tem <b>olfato</b> extremamente apurado." ] },
 
-  { nome:"Saitama", anime:"One Punch Man", dif:"facil", emoji:"👊",
-    alt:["saitama","one punch man","one punch","homem de um soco","homem de um soco so","careca","caped baldy"],
+  { nome:"Nezuko Kamado", anime:"Demon Slayer", dif:"facil", emoji:"🎍",
+    alt:["nezuko","nezuko kamado","kamado nezuko","nezuco"],
     clues:[
-      "Anime <b>Seinen</b> de heróis com muita comédia.",
+      "Este personagem é de um anime <b>Shonen</b> de caçadores de demônios.",
+      "Garota que virou um <b>demônio</b>, mas não ataca humanos.",
+      "Anda com um <b>bambu</b> na boca.",
+      "É a irmã mais nova do protagonista.",
+      "Pode <b>diminuir e aumentar</b> de tamanho.",
+      "Usa o Sangue Demoníaco de <b>fogo</b>." ] },
+
+  { nome:"Zenitsu Agatsuma", anime:"Demon Slayer", dif:"medio", emoji:"⚡",
+    alt:["zenitsu","zenitsu agatsuma","agatsuma zenitsu","zenitsu"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de caçadores de demônios.",
+      "Tem cabelo <b>amarelo</b> e é extremamente <b>covarde</b> e chorão.",
+      "Só luta de verdade quando <b>desmaia/dorme</b>.",
+      "Usa a <b>Respiração do Trovão</b>.",
+      "Domina principalmente a <b>Primeira Forma</b> (super veloz).",
+      "É apaixonado pela Nezuko." ] },
+
+  { nome:"Inosuke Hashibira", anime:"Demon Slayer", dif:"medio", emoji:"🐗",
+    alt:["inosuke","inosuke hashibira","hashibira inosuke","inosuque"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de caçadores de demônios.",
+      "Usa uma <b>cabeça de javali</b> como máscara.",
+      "Foi <b>criado por javalis</b> na montanha.",
+      "Luta com <b>duas espadas serrilhadas</b>.",
+      "Usa a Respiração da <b>Fera</b>.",
+      "É muito musculoso e vive desafiando todo mundo." ] },
+
+  { nome:"Saitama", anime:"One Punch Man", dif:"facil", emoji:"👊",
+    alt:["saitama","one punch man","one punch","homem de um soco","careca","caped baldy"],
+    clues:[
+      "Este personagem é de um anime <b>Seinen</b> de heróis com comédia.",
       "É completamente <b>careca</b> e tem expressão entediada.",
       "Derrota qualquer inimigo com um <b>único soco</b>.",
       "Ficou tão forte que perdeu a emoção das lutas.",
-      "Treinou fazendo 100 flexões, 100 abdominais e correndo 10km.",
-      "Usa uma capa amarela e luvas vermelhas de herói." ] },
+      "Treinou com 100 flexões, 100 abdominais e 10km de corrida.",
+      "Usa capa amarela e luvas vermelhas de herói." ] },
 
   { nome:"Eren Yeager", anime:"Attack on Titan", dif:"facil", emoji:"🗿",
-    alt:["eren","eren yeager","eren jaeger","eren jager","yeager eren","jaeger eren"],
+    alt:["eren","eren yeager","eren jaeger","eren jager","yeager eren"],
     clues:[
-      "Anime <b>Seinen</b> sombrio sobre humanos cercados por muralhas.",
+      "Este personagem é de um anime <b>Seinen</b> sombrio sobre muralhas.",
       "Tem cabelo castanho e um olhar <b>determinado</b> (e furioso).",
       "Pode se transformar em um <b>Titã</b>.",
       "Jurou exterminar todos os <b>titãs</b> do mundo.",
       "Bordão sobre buscar a <b>liberdade</b>.",
       "Possui o Titã de Ataque e o Titã Fundador." ] },
 
-  { nome:"Light Yagami", anime:"Death Note", dif:"facil", emoji:"📓",
-    alt:["light","light yagami","yagami light","kira","raito","raito yagami"],
-    clues:[
-      "Anime <b>Seinen</b> de suspense psicológico.",
-      "Estudante <b>genial</b> de cabelo castanho.",
-      "Mata pessoas apenas <b>escrevendo o nome</b> num caderno.",
-      "Adota o pseudônimo de justiceiro <b>Kira</b>.",
-      "Tem um shinigami chamado <b>Ryuk</b> que adora maçãs.",
-      "É caçado pelo detetive <b>L</b>." ] },
-
   { nome:"Levi Ackerman", anime:"Attack on Titan", dif:"facil", emoji:"🧹",
-    alt:["levi","levi ackerman","ackerman levi","rivaille","capitao levi","soldado levi","heichou"],
+    alt:["levi","levi ackerman","ackerman levi","rivaille","capitao levi","heichou","levy"],
     clues:[
-      "Anime <b>Seinen</b> sobre humanos e gigantes.",
+      "Este personagem é de um anime <b>Seinen</b> sobre humanos e gigantes.",
       "Baixo, cabelo preto com corte <b>undercut</b>.",
       "Usa o equipamento de manobras 3D com maestria mortal.",
-      "É conhecido como o <b>soldado mais forte da humanidade</b>.",
+      "É o <b>soldado mais forte da humanidade</b>.",
       "Tem mania de <b>limpeza</b> e é meio ranzinza.",
       "Lidera o Esquadrão de Operações Especiais." ] },
 
-  // ---------- MÉDIOS ----------
   { nome:"Mikasa Ackerman", anime:"Attack on Titan", dif:"medio", emoji:"🧣",
     alt:["mikasa","mikasa ackerman","ackerman mikasa"],
     clues:[
-      "Anime <b>Seinen</b> sobre titãs e muralhas.",
+      "Este personagem é de um anime <b>Seinen</b> sobre titãs e muralhas.",
       "Mulher de cabelo <b>preto</b> curto, força sobre-humana.",
       "Usa sempre um <b>cachecol vermelho</b>.",
       "É extremamente protetora com o <b>Eren</b>.",
       "Pertence ao clã <b>Ackerman</b>.",
       "Considerada equivalente a 100 soldados." ] },
 
-  { nome:"Gon Freecss", anime:"Hunter x Hunter", dif:"medio", emoji:"🎣",
-    alt:["gon","gon freecss","gon freecs","freecss gon","gon freecess"],
+  { nome:"Light Yagami", anime:"Death Note", dif:"facil", emoji:"📓",
+    alt:["light","light yagami","yagami light","kira","raito","raito yagami"],
     clues:[
-      "Anime <b>Shonen</b> sobre caçadores licenciados.",
-      "Menino de cabelo <b>verde-escuro</b> espetado.",
-      "Usa energia vital chamada <b>Nen</b>.",
-      "Procura o pai, o lendário caçador <b>Ging</b>.",
-      "Melhor amigo do <b>Killua</b>.",
-      "Ataque baseado em pedra/papel/tesoura: <b>Jajanken</b>." ] },
+      "Este personagem é de um anime <b>Seinen</b> de suspense psicológico.",
+      "Estudante <b>genial</b> de cabelo castanho.",
+      "Mata pessoas apenas <b>escrevendo o nome</b> num caderno.",
+      "Adota o pseudônimo de justiceiro <b>Kira</b>.",
+      "Tem um shinigami chamado <b>Ryuk</b> que adora maçãs.",
+      "É caçado pelo detetive <b>L</b>." ] },
 
-  { nome:"Edward Elric", anime:"Fullmetal Alchemist", dif:"medio", emoji:"⚗️",
-    alt:["edward","edward elric","ed elric","ed","elric edward","fullmetal","alquimista de aco","alquimista de aco","metal alchemist"],
+  { nome:"L Lawliet", anime:"Death Note", dif:"medio", emoji:"🍰",
+    alt:["l","lawliet","l lawliet","ryuzaki","elle"],
     clues:[
-      "Anime <b>Shonen</b> sobre alquimia e equivalência de troca.",
+      "Este personagem é de um anime <b>Seinen</b> de suspense psicológico.",
+      "Detetive de cabelo <b>preto bagunçado</b> e olheiras.",
+      "Senta de forma <b>estranha</b> (agachado) e adora doces.",
+      "É conhecido apenas por uma <b>única letra</b>.",
+      "Caça o assassino conhecido como <b>Kira</b>.",
+      "Trabalha com seu sucessor, Near e Mello." ] },
+
+  { nome:"Edward Elric", anime:"Fullmetal Alchemist", dif:"facil", emoji:"⚗️",
+    alt:["edward","edward elric","ed elric","ed","elric edward","fullmetal","alquimista de aco"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre alquimia.",
       "Baixo, cabelo <b>loiro</b> trançado, casaco vermelho.",
       "Tem um <b>braço e perna de metal</b> (automail).",
-      "Bate transformando em arma sem círculo de transmutação.",
+      "Bate transformando matéria sem círculo de transmutação.",
       "Busca a <b>Pedra Filosofal</b> com o irmão Alphonse.",
       "Apelido: <b>Alquimista de Aço</b>." ] },
 
-  { nome:"Ichigo Kurosaki", anime:"Bleach", dif:"medio", emoji:"⚔️",
+  { nome:"Alphonse Elric", anime:"Fullmetal Alchemist", dif:"medio", emoji:"🛡️",
+    alt:["alphonse","alphonse elric","al elric","al","alfonse"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre alquimia.",
+      "Sua alma está presa em uma <b>enorme armadura</b> de metal.",
+      "É o <b>irmão mais novo</b> (mas parece bem maior).",
+      "Perdeu o corpo numa transmutação proibida.",
+      "É gentil e adora <b>gatos</b>.",
+      "Viaja junto do Alquimista de Aço." ] },
+
+  { nome:"Ichigo Kurosaki", anime:"Bleach", dif:"facil", emoji:"🗡️",
     alt:["ichigo","ichigo kurosaki","kurosaki ichigo","itigo"],
     clues:[
-      "Anime <b>Shonen</b> sobre ceifadores de almas.",
+      "Este personagem é de um anime <b>Shonen</b> sobre ceifadores de almas.",
       "Adolescente de cabelo <b>laranja</b> e cara fechada.",
       "Vira um <b>Shinigami</b> (Ceifador de Almas).",
       "Sua espada gigante se chama <b>Zangetsu</b>.",
       "Luta contra Hollows para proteger os vivos.",
       "Técnica: <b>Getsuga Tensho</b>!" ] },
 
-  { nome:"Vegeta", anime:"Dragon Ball", dif:"medio", emoji:"🥦",
-    alt:["vegeta","principe vegeta","vegeta principe","vejita","vegita"],
+  { nome:"Gon Freecss", anime:"Hunter x Hunter", dif:"facil", emoji:"🎣",
+    alt:["gon","gon freecss","gon freecs","freecss gon"],
     clues:[
-      "Anime <b>Shonen</b> de lutas e transformações.",
-      "Cabelo preto espetado em formato de <b>chama</b>.",
-      "É o orgulhoso <b>Príncipe</b> de sua raça.",
-      "Eterno rival do Goku.",
-      "Bordão: <b>\"O poder de luta dele é mais de 8000!\"</b> (cena clássica).",
-      "Ataque: <b>Final Flash</b> / Galick Ho." ] },
+      "Este personagem é de um anime <b>Shonen</b> sobre caçadores licenciados.",
+      "Menino de cabelo <b>verde-escuro</b> espetado.",
+      "Usa energia vital chamada <b>Nen</b>.",
+      "Procura o pai, o lendário caçador <b>Ging</b>.",
+      "Melhor amigo do <b>Killua</b>.",
+      "Ataque baseado em pedra/papel/tesoura: <b>Jajanken</b>." ] },
 
+  { nome:"Killua Zoldyck", anime:"Hunter x Hunter", dif:"facil", emoji:"🎮",
+    alt:["killua","killua zoldyck","zoldyck killua","killua zaoldyeck","kirua","kilua"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre caçadores e Nen.",
+      "Menino de cabelo <b>branco/prateado</b>.",
+      "Vem de uma família de <b>assassinos</b> profissionais.",
+      "Melhor amigo do <b>Gon</b>.",
+      "Domina eletricidade no corpo.",
+      "Adora doces, especialmente chocolate." ] },
+
+  { nome:"Izuku Midoriya", anime:"My Hero Academia", dif:"facil", emoji:"💚",
+    alt:["deku","izuku","izuku midoriya","midoriya","midoria","izuku midoria"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre escola de heróis.",
+      "Menino de cabelo <b>verde</b> cacheado e sardas.",
+      "Nasceu <b>sem poder</b> e ganhou um de presente.",
+      "Apelido: <b>Deku</b>.",
+      "Herdou o poder <b>One For All</b> do All Might.",
+      "Vive quebrando os próprios braços ao usar o poder." ] },
+
+  { nome:"All Might", anime:"My Hero Academia", dif:"medio", emoji:"💪",
+    alt:["all might","allmight","toshinori","toshinori yagi","simbolo da paz"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre heróis.",
+      "Musculoso, sorriso gigante e dois tufos de cabelo loiro.",
+      "É o <b>Símbolo da Paz</b> número um.",
+      "Bordão: <b>\"I am here!\"</b> / \"Eu estou aqui!\"",
+      "Fica <b>esquelético</b> na forma verdadeira.",
+      "Passou seu poder One For All para o Deku." ] },
+
+  { nome:"Katsuki Bakugo", anime:"My Hero Academia", dif:"medio", emoji:"💥",
+    alt:["bakugo","bakugou","katsuki bakugo","kacchan","katsuki"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre heróis.",
+      "Cabelo <b>loiro</b> espetado e temperamento explosivo (literalmente).",
+      "Solta <b>explosões</b> pelas mãos.",
+      "É o rival ranzinza do protagonista de cabelo verde.",
+      "Apelido de infância: <b>Kacchan</b>.",
+      "Grita muito e quer ser o herói número um." ] },
+
+  { nome:"Shoto Todoroki", anime:"My Hero Academia", dif:"medio", emoji:"🔥",
+    alt:["todoroki","shoto todoroki","shoto","todoroki shoto"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre heróis.",
+      "Cabelo metade <b>branco</b>, metade <b>vermelho</b>; cicatriz no olho.",
+      "Controla <b>gelo</b> de um lado e <b>fogo</b> do outro.",
+      "Tem uma relação difícil com o pai, o herói Endeavor.",
+      "É calmo e reservado.",
+      "Estuda na turma 1-A da U.A." ] },
+
+  { nome:"Satoru Gojo", anime:"Jujutsu Kaisen", dif:"facil", emoji:"🕶️",
+    alt:["gojo","satoru gojo","gojo satoru","gojou"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> moderno de feiticeiros.",
+      "Cabelo <b>branco</b> e olhos azuis, geralmente de venda.",
+      "É considerado o <b>feiticeiro mais forte</b> do mundo.",
+      "Usa o Olho dos Seis (<b>Rikugan</b>) e o Infinito.",
+      "É professor numa escola de feiticeiros.",
+      "Técnica máxima: <b>Roxo</b> (Hollow Purple)." ] },
+
+  { nome:"Yuji Itadori", anime:"Jujutsu Kaisen", dif:"medio", emoji:"👆",
+    alt:["itadori","yuji itadori","yuji","itadori yuji"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> moderno de feiticeiros.",
+      "Cabelo <b>rosado</b>, super atlético e gente boa.",
+      "Engoliu um <b>dedo amaldiçoado</b>.",
+      "Divide o corpo com o rei das maldições, <b>Sukuna</b>.",
+      "Quer dar uma 'morte digna' às pessoas.",
+      "É aluno da Escola Técnica de Jujutsu de Tóquio." ] },
+
+  { nome:"Asta", anime:"Black Clover", dif:"medio", emoji:"🍀",
+    alt:["asta"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> sobre magos.",
+      "Baixinho, musculoso e <b>grita o tempo todo</b>.",
+      "Nasceu <b>sem nenhuma magia</b>.",
+      "Usa espadas <b>anti-magia</b> de um grimório de trevo de 5 folhas.",
+      "Sonha em se tornar o <b>Rei Mago</b>.",
+      "Faz parte dos Touros Negros." ] },
+
+  { nome:"Inuyasha", anime:"Inuyasha", dif:"facil", emoji:"🐶",
+    alt:["inuyasha","inu yasha","inuiasha"],
+    clues:[
+      "Este personagem é de um anime de fantasia na <b>era feudal</b>.",
+      "Tem cabelo <b>prateado</b> e <b>orelhas de cachorro</b>.",
+      "É um <b>meio-youkai</b> (metade humano, metade demônio).",
+      "Usa a espada <b>Tessaiga</b>.",
+      "Cai no chão quando a Kagome diz <b>\"Senta!\"</b>.",
+      "Procura os fragmentos da Joia de Quatro Almas." ] },
+
+  // =================== MÉDIOS ===================
   { nome:"Itachi Uchiha", anime:"Naruto", dif:"medio", emoji:"🐦‍⬛",
     alt:["itachi","itachi uchiha","uchiha itachi","itati"],
     clues:[
-      "Anime <b>Shonen</b> de ninjas.",
+      "Este personagem é de um anime <b>Shonen</b> de ninjas.",
       "Cabelo preto comprido, marcas de cansaço no rosto.",
       "Massacrou o <b>próprio clã</b> em uma noite.",
       "Usa o poderoso olho <b>Sharingan</b> (e Mangekyo).",
       "Irmão mais velho do <b>Sasuke</b>.",
       "Membro da organização <b>Akatsuki</b>." ] },
 
-  { nome:"Spike Spiegel", anime:"Cowboy Bebop", dif:"medio", emoji:"🚬",
-    alt:["spike","spike spiegel","spiegel spike","spike spigel"],
+  { nome:"Kakashi Hatake", anime:"Naruto", dif:"medio", emoji:"📖",
+    alt:["kakashi","kakashi hatake","hatake kakashi","ninja copiador"],
     clues:[
-      "Anime <b>Seinen</b> de ficção científica e jazz.",
+      "Este personagem é de um anime <b>Shonen</b> de ninjas.",
+      "Cabelo <b>prateado</b> espetado e rosto coberto por máscara.",
+      "Cobre um olho que esconde um <b>Sharingan</b>.",
+      "Vive lendo um livrinho '<b>Icha Icha</b>'.",
+      "É o <b>sensei</b> do Time 7.",
+      "Apelido: <b>Ninja Copiador</b>." ] },
+
+  { nome:"Spike Spiegel", anime:"Cowboy Bebop", dif:"medio", emoji:"🔫",
+    alt:["spike","spike spiegel","spiegel spike"],
+    clues:[
+      "Este personagem é de um anime <b>Seinen</b> de ficção científica e jazz.",
       "Homem magro de cabelo <b>verde</b> bagunçado.",
       "É um <b>caçador de recompensas</b> espacial.",
       "Pilota a nave <b>Bebop</b> com seus parceiros.",
@@ -755,101 +945,271 @@ const CHARACTERS = [
       "Frase: <b>\"See you space cowboy...\"</b>" ] },
 
   { nome:"Yusuke Urameshi", anime:"Yu Yu Hakusho", dif:"medio", emoji:"👻",
-    alt:["yusuke","yusuke urameshi","urameshi yusuke","urameshi","yuusuke"],
+    alt:["yusuke","yusuke urameshi","urameshi","yuusuke","urameshi yusuke"],
     clues:[
-      "Anime <b>Shonen</b> clássico sobre o mundo espiritual.",
+      "Este personagem é de um anime <b>Shonen</b> sobre o mundo espiritual.",
       "Delinquente de cabelo preto penteado para trás.",
       "Morreu e virou um <b>Detetive Espiritual</b>.",
       "Ataque famoso: o <b>Reigan</b> (Pistola Espiritual).",
       "Concentra energia espiritual no dedo indicador.",
       "Rival e amigo do Kuwabara." ] },
 
-  { nome:"Killua Zoldyck", anime:"Hunter x Hunter", dif:"medio", emoji:"🎮",
-    alt:["killua","killua zoldyck","zoldyck killua","killua zaoldyeck","kirua","kilua"],
+  { nome:"Hiei", anime:"Yu Yu Hakusho", dif:"dificil", emoji:"🔥",
+    alt:["hiei","hiei jaganshi"],
     clues:[
-      "Anime <b>Shonen</b> sobre caçadores e Nen.",
-      "Menino de cabelo <b>branco/prateado</b>.",
-      "Vem de uma família de <b>assassinos</b> profissionais.",
-      "Melhor amigo do <b>Gon</b>.",
-      "Domina eletricidade no corpo (Nen do tipo transformação).",
-      "Adora doces (especialmente chocolate)." ] },
+      "Este personagem é de um anime <b>Shonen</b> sobre o mundo espiritual.",
+      "Baixo, cabelo preto espetado com um tufo branco.",
+      "Tem um <b>terceiro olho</b> (Jagan) na testa.",
+      "Controla <b>chamas negras</b>.",
+      "Usa o <b>Dragão das Trevas</b> no braço.",
+      "É frio, orgulhoso e meio-youkai do gelo." ] },
 
-  // ---------- DIFÍCEIS ----------
-  { nome:"Guts", anime:"Berserk", dif:"dificil", emoji:"🗡️",
-    alt:["guts","gatsu","gattsu","espadachim negro","black swordsman"],
+  { nome:"Natsu Dragneel", anime:"Fairy Tail", dif:"medio", emoji:"🔥",
+    alt:["natsu","natsu dragneel","dragneel","natsu dragnel"],
     clues:[
-      "Anime/mangá <b>Seinen</b> sombrio e brutal de fantasia medieval.",
-      "Homem enorme com cicatrizes, um <b>olho</b> e um <b>braço</b> a menos.",
-      "Carrega uma espada gigantesca chamada <b>Matadora de Dragões</b>.",
-      "É marcado por um <b>Sacrifício</b> (marca que atrai demônios).",
-      "Conhecido como o <b>Espadachim Negro</b>.",
-      "Caça o antigo amigo que o traiu: <b>Griffith</b>." ] },
+      "Este personagem é de um anime <b>Shonen</b> sobre uma guilda de magos.",
+      "Cabelo <b>rosa</b> e um cachecol de escamas.",
+      "É um <b>Dragon Slayer</b> que come fogo.",
+      "Foi criado por um dragão chamado <b>Igneel</b>.",
+      "Enjoa em qualquer meio de transporte.",
+      "Pertence à guilda <b>Fairy Tail</b>." ] },
 
-  { nome:"Lelouch Lamperouge", anime:"Code Geass", dif:"dificil", emoji:"♟️",
-    alt:["lelouch","lelouch lamperouge","lelouch lamperogue","lelouch vi britannia","zero","lulu","leloush"],
+  { nome:"Erza Scarlet", anime:"Fairy Tail", dif:"dificil", emoji:"🗡️",
+    alt:["erza","erza scarlet","titania"," erza scarlett"],
     clues:[
-      "Anime sobre mechas e rebelião política.",
-      "Estudante brilhante e estrategista frio.",
-      "Ganha o poder <b>Geass</b> que força obediência absoluta.",
-      "Lidera uma rebelião usando a máscara de <b>Zero</b>.",
-      "Pilota o Knightmare Frame e quer destruir o Império de Britannia.",
-      "Plano final: o <b>Zero Requiem</b>." ] },
+      "Este personagem é de um anime <b>Shonen</b> sobre uma guilda de magos.",
+      "Mulher de cabelo <b>vermelho</b> e armadura.",
+      "Usa magia de <b>reequipar</b> (troca de armaduras e armas).",
+      "É temida e respeitada, apelidada de <b>Titânia</b>.",
+      "Adora bolo de morango.",
+      "É uma das mais fortes da Fairy Tail." ] },
 
-  { nome:"Shinji Ikari", anime:"Neon Genesis Evangelion", dif:"dificil", emoji:"🎧",
-    alt:["shinji","shinji ikari","ikari shinji","shinji ikary"],
+  { nome:"Gintoki Sakata", anime:"Gintama", dif:"dificil", emoji:"🍓",
+    alt:["gintoki","gintoki sakata","gin","sakata gintoki","gin chan"],
     clues:[
-      "Anime de mechas com forte carga <b>psicológica</b>.",
-      "Garoto inseguro e ansioso de cabelo escuro.",
-      "Pilota o robô biológico <b>EVA-01</b>.",
-      "Frase interna: <b>\"Eu não posso fugir\"</b>.",
-      "Filho do comandante Gendo, da organização NERV.",
-      "Luta contra os seres chamados <b>Anjos</b>." ] },
+      "Este personagem é de um anime de comédia com <b>samurais</b> e aliens.",
+      "Cabelo <b>prateado</b> ondulado e olhar de peixe morto.",
+      "Vive endividado e adora <b>doces</b> e revistas.",
+      "Faz <b>biscates</b> com seus dois ajudantes.",
+      "Usa uma espada de <b>madeira</b> (bokutô).",
+      "É o 'samurai da alma de prata'." ] },
+
+  { nome:"Ken Kaneki", anime:"Tokyo Ghoul", dif:"medio", emoji:"🩸",
+    alt:["kaneki","ken kaneki","kaneki ken","cabelo branco"],
+    clues:[
+      "Este personagem é de um anime <b>Seinen</b> sombrio sobre devoradores de humanos.",
+      "No começo era um estudante tímido e normal.",
+      "Vira um <b>meio-ghoul</b> após um transplante.",
+      "Seu cabelo fica <b>branco</b> depois de ser torturado.",
+      "Tem um <b>kagune</b> (tentáculos) que sai das costas.",
+      "Cena famosa: contando até 1000 de 7 em 7." ] },
+
+  { nome:"Denji", anime:"Chainsaw Man", dif:"medio", emoji:"🪚",
+    alt:["denji","chainsaw man","homem motosserra"],
+    clues:[
+      "Este personagem é de um anime <b>Seinen</b> moderno de caçadores de demônios.",
+      "Jovem pobre que vivia endividado.",
+      "Tem um demônio-cachorro chamado <b>Pochita</b>.",
+      "Vira o <b>Homem-Motosserra</b> puxando um cordão no peito.",
+      "Sonhos simples: comer bem e... encostar numa garota.",
+      "Tem <b>motosserras</b> saindo da cabeça e dos braços." ] },
+
+  { nome:"Power", anime:"Chainsaw Man", dif:"dificil", emoji:"🩸",
+    alt:["power","power demonio"],
+    clues:[
+      "Este personagem é de um anime <b>Seinen</b> moderno de demônios.",
+      "Mulher de cabelo <b>rosa-claro</b> com <b>chifres</b>.",
+      "É a <b>Demônio do Sangue</b>.",
+      "Egoísta, mentirosa e adora seu gato Meowy.",
+      "Pode transformar o próprio sangue em armas.",
+      "Vive com o Denji e a Makima." ] },
+
+  { nome:"Anya Forger", anime:"Spy x Family", dif:"medio", emoji:"🥜",
+    alt:["anya","anya forger","forger anya"],
+    clues:[
+      "Este personagem é de um anime de comédia sobre uma <b>família espiã</b>.",
+      "Garotinha de cabelo <b>rosa</b> com dois enfeites pontudos.",
+      "Consegue <b>ler mentes</b>.",
+      "Adora amendoim e o desenho 'Spy Wars'.",
+      "Expressão facial icônica: <b>'heh'</b> (sorriso maroto).",
+      "É filha adotiva de um espião e uma assassina." ] },
+
+  { nome:"Loid Forger", anime:"Spy x Family", dif:"dificil", emoji:"🕵️",
+    alt:["loid","loid forger","twilight","agente twilight"],
+    clues:[
+      "Este personagem é de um anime de comédia sobre uma <b>família espiã</b>.",
+      "Homem loiro, charmoso e extremamente competente.",
+      "É um <b>espião</b> de codinome <b>Twilight</b>.",
+      "Montou uma família falsa para uma missão.",
+      "Trabalha disfarçado de psiquiatra.",
+      "Não sabe que a filha lê mentes e a esposa é assassina." ] },
 
   { nome:"Thorfinn", anime:"Vinland Saga", dif:"dificil", emoji:"🪓",
-    alt:["thorfinn","thorfinn karlsefni","thorfin","torfinn","torfin"],
+    alt:["thorfinn","thorfinn karlsefni","thorfin","torfinn"],
     clues:[
-      "Anime <b>Seinen</b> histórico sobre <b>vikings</b>.",
+      "Este personagem é de um anime <b>Seinen</b> histórico sobre vikings.",
       "Jovem guerreiro com duas <b>adagas</b>.",
       "Busca vingança pela morte do <b>pai (Thors)</b>.",
       "Quer matar <b>Askeladd</b>.",
       "Depois busca uma terra de paz: <b>Vinland</b>.",
-      "Famoso pela frase: <b>\"Eu não tenho inimigos\"</b>." ] },
+      "Frase: <b>\"Eu não tenho inimigos\"</b>." ] },
 
   { nome:"Senku Ishigami", anime:"Dr. Stone", dif:"dificil", emoji:"🧪",
-    alt:["senku","senku ishigami","ishigami senku","senkuu","senko"],
+    alt:["senku","senku ishigami","ishigami senku","senkuu"],
     clues:[
-      "Anime <b>Shonen</b> de sobrevivência e ciência.",
+      "Este personagem é de um anime <b>Shonen</b> de sobrevivência e ciência.",
       "Cabelo verde com pontas brancas, sorriso confiante.",
       "Quer reconstruir a civilização com <b>ciência</b>.",
-      "Bordão: <b>\"Isso é 10 bilhões por cento empolgante!\"</b>.",
       "Acordou após a humanidade virar <b>pedra</b>.",
-      "Frase: <b>\"Get excited!\"</b> / Ciência!" ] },
+      "Bordão: <b>\"Isso é 10 bilhões por cento empolgante!\"</b>.",
+      "Frase: <b>\"Get excited!\"</b>" ] },
 
-  { nome:"Roy Mustang", anime:"Fullmetal Alchemist", dif:"dificil", emoji:"🔥",
-    alt:["roy mustang","mustang","roy","mustang roy","alquimista de fogo","alquimista de chamas","flame alchemist"],
+  { nome:"Roy Mustang", anime:"Fullmetal Alchemist", dif:"medio", emoji:"🔥",
+    alt:["roy mustang","mustang","roy","alquimista de fogo","flame alchemist"],
     clues:[
-      "Anime <b>Shonen</b> sobre alquimia.",
+      "Este personagem é de um anime <b>Shonen</b> sobre alquimia.",
       "Militar de cabelo preto, charmoso e ambicioso.",
       "Manipula <b>fogo</b> estalando os dedos com luvas especiais.",
       "Apelido: <b>Alquimista de Chamas</b>.",
       "Quer chegar ao topo dos militares de Amestris.",
       "Tem como subordinada leal a Tenente Riza Hawkeye." ] },
 
-  { nome:"Kenshin Himura", anime:"Rurouni Kenshin", dif:"dificil", emoji:"🌸",
-    alt:["kenshin","kenshin himura","himura kenshin","battousai","batousai","samurai x","hitokiri battousai"],
+  { nome:"Joseph Joestar", anime:"JoJo's Bizarre Adventure", dif:"medio", emoji:"🧣",
+    alt:["joseph","joseph joestar","jojo","jojo joestar"],
     clues:[
-      "Anime sobre <b>samurais</b> na era Meiji.",
+      "Este personagem é de um anime <b>Shonen</b> cheio de poses e 'stands'.",
+      "Alto, esperto e brincalhão.",
+      "Bordão: <b>\"Sua próxima fala será...\"</b>.",
+      "Adora dizer <b>\"OH MY GOD\"</b>.",
+      "Luta usando inteligência e blefes (e ondas/Hamon).",
+      "Faz parte da família <b>Joestar</b>." ] },
+
+  { nome:"Jotaro Kujo", anime:"JoJo's Bizarre Adventure", dif:"medio", emoji:"🌟",
+    alt:["jotaro","jotaro kujo","jojo","kujo jotaro"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de poses e 'stands'.",
+      "Alto, boné colado no cabelo e jaqueta longa.",
+      "Bordão: <b>\"Yare yare daze...\"</b>.",
+      "Seu stand é o <b>Star Platinum</b>.",
+      "Grito de ataque: <b>\"ORA ORA ORA!\"</b>.",
+      "Neto do Joseph Joestar." ] },
+
+  // =================== DIFÍCEIS ===================
+  { nome:"Guts", anime:"Berserk", dif:"dificil", emoji:"🗡️",
+    alt:["guts","gatsu","gattsu","espadachim negro","black swordsman"],
+    clues:[
+      "Este personagem é de um anime/mangá <b>Seinen</b> medieval brutal.",
+      "Homem enorme com cicatrizes, um <b>olho</b> e um <b>braço</b> a menos.",
+      "Carrega uma espada gigantesca chamada <b>Matadora de Dragões</b>.",
+      "É marcado por um <b>Sacrifício</b> que atrai demônios.",
+      "Conhecido como o <b>Espadachim Negro</b>.",
+      "Caça o antigo amigo que o traiu: <b>Griffith</b>." ] },
+
+  { nome:"Casca", anime:"Berserk", dif:"otaku", emoji:"🛡️",
+    alt:["casca","caska","cassca","kaska"],
+    clues:[
+      "Este personagem é de um anime/mangá <b>Seinen</b> medieval brutal.",
+      "Guerreira de pele morena e cabelo curto.",
+      "Única mulher comandante do <b>Bando do Falcão</b>.",
+      "Tem uma relação intensa com Guts e Griffith.",
+      "Sofre profundamente após o evento do <b>Eclipse</b>.",
+      "Era a braço-direito de Griffith." ] },
+
+  { nome:"Lelouch Lamperouge", anime:"Code Geass", dif:"dificil", emoji:"♟️",
+    alt:["lelouch","lelouch lamperouge","lelouch vi britannia","zero","lulu","leloush"],
+    clues:[
+      "Este personagem é de um anime sobre mechas e rebelião.",
+      "Estudante brilhante e estrategista frio.",
+      "Ganha o poder <b>Geass</b> que força obediência absoluta.",
+      "Lidera uma rebelião usando a máscara de <b>Zero</b>.",
+      "Quer destruir o Império de Britannia.",
+      "Plano final: o <b>Zero Requiem</b>." ] },
+
+  { nome:"Shinji Ikari", anime:"Neon Genesis Evangelion", dif:"dificil", emoji:"🎧",
+    alt:["shinji","shinji ikari","ikari shinji"],
+    clues:[
+      "Este personagem é de um anime de mechas com forte carga <b>psicológica</b>.",
+      "Garoto inseguro e ansioso de cabelo escuro.",
+      "Pilota o robô biológico <b>EVA-01</b>.",
+      "Frase interna: <b>\"Eu não posso fugir\"</b>.",
+      "Filho do comandante Gendo, da NERV.",
+      "Luta contra os seres chamados <b>Anjos</b>." ] },
+
+  { nome:"Kenshin Himura", anime:"Rurouni Kenshin", dif:"dificil", emoji:"🌸",
+    alt:["kenshin","kenshin himura","himura kenshin","battousai","batousai","samurai x"],
+    clues:[
+      "Este personagem é de um anime sobre <b>samurais</b> na era Meiji.",
       "Espadachim de cabelo <b>ruivo</b> com cicatriz em X no rosto.",
-      "Usa uma espada de lâmina invertida (<b>sakabato</b>) para não matar.",
+      "Usa uma espada de lâmina invertida (<b>sakabato</b>).",
       "Foi um lendário assassino chamado <b>Battousai</b>.",
       "Bordão gentil: <b>\"Oro?\"</b>.",
-      "No Brasil o anime ficou famoso como <b>Samurai X</b>." ] },
+      "No Brasil ficou famoso como <b>Samurai X</b>." ] },
 
-  // ---------- MODO OTAKU (obscuros) ----------
+  { nome:"Yato", anime:"Noragami", dif:"otaku", emoji:"⛩️",
+    alt:["yato","yato gami","yaboku"],
+    clues:[
+      "Este personagem é de um anime sobre <b>deuses</b> e espíritos.",
+      "Usa um agasalho esportivo e um cachecol.",
+      "É um <b>deus</b> menor e sem templo, que cobra 5 ienes por serviço.",
+      "Sonha em ter muitos seguidores e um santuário.",
+      "Sua arma é um espírito (Yukine).",
+      "Escreve o número de telefone dele em paredes." ] },
+
+  { nome:"Shigeo Kageyama", anime:"Mob Psycho 100", dif:"dificil", emoji:"🌀",
+    alt:["mob","shigeo","shigeo kageyama","kageyama shigeo","mob psycho"],
+    clues:[
+      "Este personagem é de um anime de comédia sobre <b>poderes psíquicos</b>.",
+      "Garoto comum, sem expressão, com corte de cabelo tigelinha.",
+      "Apelido: <b>Mob</b>.",
+      "Tem poderes psíquicos <b>imensos</b> que explodem ao 100%.",
+      "Trabalha para um vidente trapaceiro (Reigen).",
+      "Só quer ser uma pessoa normal e popular." ] },
+
+  { nome:"Meliodas", anime:"The Seven Deadly Sins", dif:"dificil", emoji:"🐗",
+    alt:["meliodas","meliodaz","pecado da ira"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de fantasia sobre cavaleiros pecadores.",
+      "Parece um <b>garotinho</b> loiro, mas é muito mais velho e forte.",
+      "É o líder dos <b>Sete Pecados Capitais</b>.",
+      "Representa o pecado da <b>Ira</b> (dragão).",
+      "Dono de um bar/taverna ambulante.",
+      "É apaixonado pela Elizabeth." ] },
+
+  { nome:"Mugen", anime:"Samurai Champloo", dif:"otaku", emoji:"🎧",
+    alt:["mugen"],
+    clues:[
+      "Este personagem é de um anime de <b>samurais</b> com trilha de hip-hop.",
+      "Espadachim selvagem e impulsivo, estilo <b>breakdance</b>.",
+      "Tem tatuagens nos braços e tornozelos.",
+      "Viaja com um rônin calmo (Jin) e a garota Fuu.",
+      "Luta de um jeito totalmente imprevisível.",
+      "Procuram um 'samurai que cheira a girassóis'." ] },
+
+  { nome:"Dio Brando", anime:"JoJo's Bizarre Adventure", dif:"dificil", emoji:"🧛",
+    alt:["dio","dio brando","brando","za warudo"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de poses e 'stands'.",
+      "Vilão loiro, carismático e cruel.",
+      "Virou um <b>vampiro</b> com uma máscara de pedra.",
+      "Seu stand, The World, <b>para o tempo</b>.",
+      "Bordão: <b>\"ZA WARUDO!\"</b> e \"MUDA MUDA MUDA!\".",
+      "Inimigo eterno da família Joestar." ] },
+
+  { nome:"Escanor", anime:"The Seven Deadly Sins", dif:"otaku", emoji:"☀️",
+    alt:["escanor","escanor leao","pecado do orgulho"],
+    clues:[
+      "Este personagem é de um anime <b>Shonen</b> de fantasia sobre pecados.",
+      "Durante o dia é <b>gigante e poderosíssimo</b>; à noite, fraco e tímido.",
+      "Representa o pecado do <b>Orgulho</b> (leão).",
+      "Seu poder cresce conforme o sol sobe.",
+      "Frase: <b>\"Você está bem? Pergunto por educação.\"</b>",
+      "Usa o poder Sunshine e o machado Rhitta." ] },
+
+  // =================== MODO OTAKU (obscuros) ===================
   { nome:"Okabe Rintarou", anime:"Steins;Gate", dif:"otaku", emoji:"🥼",
     alt:["okabe","okabe rintarou","rintarou okabe","hououin kyouma","houoin kyoma","kyouma","okarin"],
     clues:[
-      "Anime de ficção científica sobre <b>viagem no tempo</b>.",
+      "Este personagem é de um anime de ficção científica sobre <b>viagem no tempo</b>.",
       "Cientista maluco autoproclamado de jaleco branco.",
       "Se apelida de <b>Hououin Kyouma</b>.",
       "Manda mensagens ao passado via <b>forno de micro-ondas</b>.",
@@ -857,9 +1217,9 @@ const CHARACTERS = [
       "Fala em telefones imaginários com 'a organização'." ] },
 
   { nome:"Johan Liebert", anime:"Monster", dif:"otaku", emoji:"🩸",
-    alt:["johan","johan liebert","liebert johan","joham","o monstro"],
+    alt:["johan","johan liebert","liebert johan","o monstro"],
     clues:[
-      "Anime <b>Seinen</b> de suspense psicológico sombrio.",
+      "Este personagem é de um anime <b>Seinen</b> de suspense psicológico sombrio.",
       "Homem loiro de aparência angelical e calma.",
       "É considerado <b>o monstro</b> sem nome (o vilão perfeito).",
       "Foi salvo pelo Dr. <b>Tenma</b> quando criança.",
@@ -869,7 +1229,7 @@ const CHARACTERS = [
   { nome:"Ginko", anime:"Mushishi", dif:"otaku", emoji:"🍄",
     alt:["ginko","gingko","guinko"],
     clues:[
-      "Anime contemplativo e melancólico de folclore japonês.",
+      "Este personagem é de um anime contemplativo de folclore japonês.",
       "Homem de cabelo <b>branco</b> e um único olho verde.",
       "Estuda seres etéreos chamados <b>Mushi</b>.",
       "Viaja sozinho fumando para afastar os Mushi.",
@@ -877,54 +1237,84 @@ const CHARACTERS = [
       "O anime tem episódios quase independentes e poéticos." ] },
 
   { nome:"Revy", anime:"Black Lagoon", dif:"otaku", emoji:"🔫",
-    alt:["revy","revi","two hands","rebecca","rebecca lee","revy two hands"],
+    alt:["revy","revi","two hands","rebecca","rebecca lee"],
     clues:[
-      "Anime <b>Seinen</b> de ação violenta com mercenários.",
+      "Este personagem é de um anime <b>Seinen</b> de ação violenta com mercenários.",
       "Mulher de cabelo escuro, regata e tatuagem no braço.",
       "Pistoleira que usa <b>duas armas</b> ao mesmo tempo.",
       "Apelido: <b>Two Hands</b> (Duas Mãos).",
-      "Faz parte da empresa de transporte/contrabando Lagoon.",
+      "Faz parte da empresa de contrabando Lagoon.",
       "Tem temperamento explosivo e boca suja." ] },
 
   { nome:"Kino", anime:"Kino's Journey", dif:"otaku", emoji:"🏍️",
     alt:["kino","quino","kinno"],
     clues:[
-      "Anime filosófico e episódico sobre <b>viagens</b>.",
+      "Este personagem é de um anime filosófico e episódico sobre <b>viagens</b>.",
       "Viajante jovem de aparência andrógina, com chapéu e óculos.",
-      "Viaja por países diferentes ficando só <b>3 dias</b> em cada.",
+      "Fica só <b>3 dias</b> em cada país que visita.",
       "Conversa com uma <b>motocicleta falante</b> chamada Hermes.",
       "Carrega revólveres apelidados de 'Cânone' e 'Floresta'.",
       "Lema: <b>\"O mundo não é belo, e por isso ele é.\"</b>" ] },
 
-  { nome:"Ergo Proxy", anime:"Ergo Proxy", dif:"otaku", emoji:"🕶️",
+  { nome:"Vincent Law", anime:"Ergo Proxy", dif:"otaku", emoji:"🕶️",
     alt:["ergo proxy","ergoproxy","ergo","vincent law","proxy"],
     clues:[
-      "Anime cyberpunk sombrio e filosófico.",
-      "Criatura/entidade ligada a uma cidade-cúpula distópica.",
+      "Este personagem é de um anime cyberpunk sombrio e filosófico.",
+      "Ligado a uma cidade-cúpula distópica.",
       "Anda com humanos e androides chamados <b>AutoReivs</b>.",
-      "Investiga uma doença que dá <b>consciência</b> aos robôs (Cogito).",
-      "Está ligado ao misterioso <b>Vincent Law</b>.",
-      "Tema central: <b>\"Cogito ergo sum\"</b> (penso, logo existo)." ] },
-
-  { nome:"Casca", anime:"Berserk", dif:"otaku", emoji:"🛡️",
-    alt:["casca","caska","cassca","kaska"],
-    clues:[
-      "Anime/mangá <b>Seinen</b> medieval brutal.",
-      "Guerreira de pele morena e cabelo curto.",
-      "Única mulher comandante do <b>Bando do Falcão</b>.",
-      "Tem uma relação intensa com Guts e Griffith.",
-      "Sofre profundamente após o evento do <b>Eclipse</b>.",
-      "Era a braço-direito de Griffith antes de tudo desmoronar." ] },
+      "Investiga uma doença que dá <b>consciência</b> aos robôs.",
+      "Está ligado a uma entidade misteriosa, o <b>Proxy</b>.",
+      "Tema: <b>\"Cogito ergo sum\"</b> (penso, logo existo)." ] },
 
   { nome:"Vash the Stampede", anime:"Trigun", dif:"otaku", emoji:"🌵",
-    alt:["vash","vash the stampede","vash stampede","vache","furacao humano","humanoid typhoon"],
+    alt:["vash","vash the stampede","vash stampede","furacao humano","humanoid typhoon"],
     clues:[
-      "Anime de faroeste futurista em um planeta deserto.",
+      "Este personagem é de um anime de faroeste futurista num planeta deserto.",
       "Homem de cabelo <b>loiro</b> espetado e casacão vermelho.",
       "Tem uma recompensa absurda de <b>60 bilhões</b> pela cabeça.",
       "Apesar da fama, se recusa a <b>matar</b> qualquer pessoa.",
       "Apelido: <b>O Furacão Humano</b>.",
-      "Frase: <b>\"Love and Peace!\"</b>" ] }
+      "Frase: <b>\"Love and Peace!\"</b>" ] },
+
+  { nome:"Lain Iwakura", anime:"Serial Experiments Lain", dif:"otaku", emoji:"🖥️",
+    alt:["lain","lain iwakura","iwakura lain"],
+    clues:[
+      "Este personagem é de um anime cyberpunk perturbador sobre a internet (a 'Wired').",
+      "Garota tímida com um <b>gorro/pijama de urso</b>.",
+      "Recebe e-mails de uma colega que <b>morreu</b>.",
+      "Sua identidade se mistura entre o mundo real e a rede.",
+      "Pergunta central: <b>\"Você está aí?\"</b>.",
+      "Frase: <b>\"Present day, present time!\"</b>" ] },
+
+  { nome:"Shinichi Izumi", anime:"Parasyte", dif:"otaku", emoji:"✋",
+    alt:["shinichi","shinichi izumi","izumi shinichi","shinichi izume"],
+    clues:[
+      "Este personagem é de um anime <b>Seinen</b> de terror sobre alienígenas parasitas.",
+      "Estudante normal que usa óculos.",
+      "Um parasita tomou sua <b>mão direita</b> em vez do cérebro.",
+      "Sua mão vira uma criatura inteligente chamada <b>Migi</b>.",
+      "Luta contra outros parasitas que devoram humanos.",
+      "Aos poucos questiona o que significa ser humano." ] },
+
+  { nome:"Simon", anime:"Gurren Lagann", dif:"otaku", emoji:"🌀",
+    alt:["simon","simon the digger","cavador"],
+    clues:[
+      "Este personagem é de um anime de mechas exagerado e épico.",
+      "Começa como um menino tímido <b>cavador</b> de túneis.",
+      "Pilota um robô gigante com a chave em forma de <b>broca</b>.",
+      "É inspirado pelo irmão de consideração, <b>Kamina</b>.",
+      "Bordão: <b>\"Quem você pensa que eu sou?!\"</b>.",
+      "Sua arma simbólica é uma <b>furadeira</b> (drill)." ] },
+
+  { nome:"Kamina", anime:"Gurren Lagann", dif:"otaku", emoji:"🕶️",
+    alt:["kamina"],
+    clues:[
+      "Este personagem é de um anime de mechas exagerado e épico.",
+      "Homem confiante de cabelo azul, óculos na testa e capa.",
+      "Peito de fora e atitude de líder destemido.",
+      "Frase: <b>\"Acredite no Kamina que acredita em você!\"</b>.",
+      "Inspira o jovem Simon a lutar.",
+      "Manda <b>furar os céus</b> com sua broca." ] }
 ];
 
 /* -------------------------------------------------------------------------
@@ -1247,9 +1637,9 @@ function nextRound(){
 
   // reset visual da carta
   $("char-card").classList.remove("flipped");
-  $("card-tag").textContent="❓ PERSONAGEM MISTERIOSO";
+  $("card-tag").textContent="❓ QUE PERSONAGEM É ESTE?";
   renderClues();
-  setFeedback("Quem será...? 🤔","info");
+  setFeedback("Adivinhe o PERSONAGEM... 🤔","info");
   $("guess-input").value="";
   $("guess-input").disabled=false;
   $("btn-guess").disabled=false;
