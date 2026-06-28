@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>OTAKU QUIZ — Quem é o Personagem?</title>
+
+<!-- Fontes estilo mangá / anime via Google Fonts CDN -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Russo+One&family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet" />
+
+<style>
+/* =========================================================================
+   OTAKU QUIZ — estilos
+   Estética anime: gradientes neon, cantos arredondados, fontes mangá.
+   ========================================================================= */
+
+:root{
+  --neon-pink:   #ff3cac;
+  --neon-purple: #784ba0;
+  --neon-blue:   #2b86c5;
+  --neon-cyan:   #00f0ff;
+  --neon-yellow: #ffd60a;
+  --neon-green:  #39ff14;
+  --bg-0:        #0b0220;
+  --bg-1:        #1a0840;
+  --card:        rgba(25, 8, 60, 0.72);
+  --card-line:   rgba(255, 60, 172, 0.45);
+  --text:        #f5f0ff;
+  --text-dim:    #b9a7e0;
+  --shadow:      0 10px 40px rgba(0,0,0,.55);
+}
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+html,body{
+  margin:0; padding:0; min-height:100%;
+  font-family:'Baloo 2', system-ui, sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(1200px 800px at 10% -10%, rgba(120,75,160,.35), transparent 60%),
+    radial-gradient(1000px 700px at 110% 10%, rgba(0,240,255,.18), transparent 55%),
+    radial-gradient(900px 900px at 50% 120%, rgba(255,60,172,.25), transparent 60%),
+    linear-gradient(160deg, var(--bg-0), var(--bg-1) 70%);
+  background-attachment:fixed;
+  overflow-x:hidden;
+}
+
+/* Linhas de velocidade / fundo animado estilo anime */
+body::before{
+  content:""; position:fixed; inset:-50%; z-index:-1; pointer-events:none;
+  background:
+    repeating-conic-gradient(from 0deg at 50% 50%,
+      rgba(255,255,255,0.00) 0deg,
+      rgba(255,255,255,0.00) 6deg,
+      rgba(255,255,255,0.025) 6.4deg,
+      rgba(255,255,255,0.00) 7deg);
+  animation:spin 90s linear infinite;
+  opacity:.6;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+.app{
+  max-width:560px; margin:0 auto; padding:16px 16px 40px;
+  min-height:100vh; display:flex; flex-direction:column;
+}
+
+/* ---------- Tipografia ---------- */
+h1,h2,h3{ margin:0; line-height:1.05; }
+.title-font{ font-family:'Bangers', cursive; letter-spacing:1.5px; }
+.brand-font{ font-family:'Russo One', sans-serif; }
+
+/* ---------- Telas ---------- */
+.screen{ display:none; flex:1; flex-direction:column; animation:fadeIn .35s ease; }
+.screen.active{ display:flex; }
+@keyframes fadeIn{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+
+/* =========================================================================
+   TELA INICIAL
+   ========================================================================= */
+.home{ align-items:center; justify-content:center; text-align:center; gap:18px; }
+
+.logo{
+  font-family:'Bangers', cursive;
+  font-size:clamp(48px, 14vw, 86px);
+  line-height:.92;
+  text-transform:uppercase;
+  background:linear-gradient(90deg, var(--neon-yellow), var(--neon-pink), var(--neon-cyan));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 4px 0 rgba(0,0,0,.4));
+  letter-spacing:2px;
+  transform:rotate(-3deg);
+  animation:pop 2.4s ease-in-out infinite;
+}
+@keyframes pop{ 0%,100%{transform:rotate(-3deg) scale(1);} 50%{transform:rotate(-3deg) scale(1.04);} }
+
+.subtitle{
+  font-family:'Russo One', sans-serif;
+  font-size:clamp(16px,4.5vw,22px);
+  color:var(--neon-cyan);
+  text-shadow:0 0 14px rgba(0,240,255,.6);
+  margin-top:-6px;
+}
+.tagline{ color:var(--text-dim); max-width:340px; font-size:15px; }
+
+/* Seletor de dificuldade */
+.diff-wrap{ width:100%; max-width:360px; }
+.diff-label{ font-family:'Russo One'; font-size:13px; color:var(--text-dim); margin-bottom:8px; letter-spacing:1px; }
+.diff-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.diff-btn{
+  font-family:'Baloo 2'; font-weight:800; font-size:15px;
+  padding:12px 8px; border-radius:16px; cursor:pointer;
+  border:2px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.05); color:var(--text);
+  transition:transform .12s, border-color .2s, background .2s, box-shadow .2s;
+}
+.diff-btn small{ display:block; font-weight:500; font-size:11px; color:var(--text-dim); margin-top:2px; }
+.diff-btn:hover{ transform:translateY(-2px); }
+.diff-btn.sel{
+  border-color:var(--neon-pink);
+  background:linear-gradient(160deg, rgba(255,60,172,.25), rgba(120,75,160,.25));
+  box-shadow:0 0 22px rgba(255,60,172,.45);
+}
+.diff-btn.sel small{ color:#ffd9f0; }
+
+/* Botão principal pulsante */
+.btn-primary{
+  font-family:'Bangers', cursive; letter-spacing:2px;
+  font-size:clamp(26px,7vw,34px);
+  padding:14px 46px; border:none; border-radius:50px; cursor:pointer;
+  color:#1a0033;
+  background:linear-gradient(90deg, var(--neon-yellow), var(--neon-pink));
+  box-shadow:0 8px 0 #a3006f, 0 14px 30px rgba(255,60,172,.5);
+  transition:transform .1s, box-shadow .1s;
+  animation:pulse 1.6s ease-in-out infinite;
+}
+.btn-primary:active{ transform:translateY(6px); box-shadow:0 2px 0 #a3006f, 0 6px 16px rgba(255,60,172,.5); }
+@keyframes pulse{ 0%,100%{ box-shadow:0 8px 0 #a3006f, 0 14px 30px rgba(255,60,172,.5);} 50%{ box-shadow:0 8px 0 #a3006f, 0 14px 46px rgba(255,214,10,.7);} }
+
+.home-extra{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+.ghost-btn{
+  font-family:'Russo One'; font-size:13px; letter-spacing:.5px;
+  background:rgba(255,255,255,.06); color:var(--text);
+  border:2px solid rgba(255,255,255,.14); border-radius:30px;
+  padding:9px 16px; cursor:pointer; transition:.2s;
+}
+.ghost-btn:hover{ border-color:var(--neon-cyan); color:var(--neon-cyan); }
+
+.toggle-row{ display:flex; align-items:center; gap:10px; color:var(--text-dim); font-size:14px; }
+.switch{ position:relative; width:46px; height:26px; }
+.switch input{ opacity:0; width:0; height:0; }
+.slider{ position:absolute; inset:0; background:rgba(255,255,255,.15); border-radius:30px; transition:.25s; cursor:pointer; }
+.slider::before{ content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.25s; }
+.switch input:checked + .slider{ background:linear-gradient(90deg,var(--neon-pink),var(--neon-purple)); }
+.switch input:checked + .slider::before{ transform:translateX(20px); }
+
+/* =========================================================================
+   HUD / TELA DE JOGO
+   ========================================================================= */
+.hud{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  margin-bottom:12px;
+}
+.hud-left,.hud-right{ display:flex; flex-direction:column; gap:2px; }
+.hud-right{ align-items:flex-end; }
+.hud-label{ font-family:'Russo One'; font-size:10px; letter-spacing:1px; color:var(--text-dim); }
+.hud-value{ font-family:'Bangers', cursive; font-size:26px; letter-spacing:1px; }
+.hearts{ font-size:22px; letter-spacing:2px; }
+.heart-lost{ filter:grayscale(1) brightness(.5); opacity:.5; }
+
+.score-pop{ display:inline-block; animation:scoreBump .35s ease; }
+@keyframes scoreBump{ 0%{transform:scale(1);} 40%{transform:scale(1.4); color:var(--neon-yellow);} 100%{transform:scale(1);} }
+
+/* Barra de XP + rank */
+.rank-bar{
+  background:var(--card); border:1px solid var(--card-line);
+  border-radius:16px; padding:10px 12px; margin-bottom:12px; box-shadow:var(--shadow);
+}
+.rank-top{ display:flex; justify-content:space-between; align-items:center; font-size:14px; }
+.rank-name{ font-family:'Russo One'; letter-spacing:.5px; }
+.rank-xp-text{ color:var(--text-dim); font-size:12px; }
+.xp-track{ height:12px; background:rgba(0,0,0,.4); border-radius:30px; margin-top:7px; overflow:hidden; }
+.xp-fill{
+  height:100%; width:0%;
+  background:linear-gradient(90deg, var(--neon-cyan), var(--neon-pink), var(--neon-yellow));
+  background-size:200% 100%;
+  border-radius:30px; transition:width .6s cubic-bezier(.2,.9,.3,1);
+  animation:xpShine 2s linear infinite;
+}
+@keyframes xpShine{ to{ background-position:200% 0; } }
+
+/* Combo + timer */
+.subhud{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:10px; }
+.combo-badge{
+  font-family:'Bangers'; font-size:18px; letter-spacing:1px;
+  padding:4px 14px; border-radius:30px;
+  background:linear-gradient(90deg,var(--neon-pink),var(--neon-purple));
+  box-shadow:0 0 18px rgba(255,60,172,.6); opacity:0; transform:scale(.6);
+  transition:.25s;
+}
+.combo-badge.on{ opacity:1; transform:scale(1); }
+.combo-badge.fire{ animation:fireShake .4s ease infinite; }
+@keyframes fireShake{ 0%,100%{transform:rotate(-2deg) scale(1.05);} 50%{transform:rotate(2deg) scale(1.1);} }
+
+.timer-wrap{ flex:1; max-width:200px; }
+.timer-track{ height:8px; background:rgba(0,0,0,.4); border-radius:30px; overflow:hidden; }
+.timer-fill{ height:100%; width:100%; background:linear-gradient(90deg,var(--neon-green),var(--neon-yellow)); transition:width .2s linear; }
+.timer-fill.low{ background:linear-gradient(90deg,#ff5252,#ff1744); }
+
+/* Carta do personagem */
+.card-stage{ perspective:1200px; margin-bottom:14px; }
+.char-card{
+  position:relative; min-height:150px; border-radius:22px;
+  transform-style:preserve-3d; transition:transform .7s cubic-bezier(.2,.8,.2,1);
+}
+.char-card.flipped{ transform:rotateY(180deg); }
+.card-face{
+  position:absolute; inset:0; backface-visibility:hidden;
+  border-radius:22px; padding:18px; display:flex; flex-direction:column;
+  border:2px solid var(--card-line); box-shadow:var(--shadow);
+}
+.card-front{
+  background:linear-gradient(160deg, rgba(43,134,197,.30), rgba(120,75,160,.30)), var(--card);
+}
+.card-back{
+  transform:rotateY(180deg);
+  background:linear-gradient(160deg, rgba(255,60,172,.35), rgba(255,214,10,.25)), var(--card);
+  align-items:center; justify-content:center; text-align:center;
+}
+/* posição relativa para o lado da frente fluir no documento */
+.char-card{ position:relative; }
+.char-card > .card-front{ position:relative; }
+
+.card-tag{
+  align-self:flex-start; font-family:'Russo One'; font-size:11px; letter-spacing:1px;
+  background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.15);
+  padding:4px 12px; border-radius:30px; color:var(--neon-cyan); margin-bottom:10px;
+}
+.clue-list{ display:flex; flex-direction:column; gap:9px; }
+.clue{
+  display:flex; gap:10px; align-items:flex-start;
+  background:rgba(0,0,0,.25); border-left:3px solid var(--neon-pink);
+  padding:9px 12px; border-radius:10px;
+  animation:clueIn .4s ease;
+}
+@keyframes clueIn{ from{opacity:0; transform:translateX(-12px);} to{opacity:1; transform:none;} }
+.clue-num{
+  font-family:'Bangers'; font-size:18px; color:var(--neon-yellow);
+  min-width:26px; text-align:center; line-height:1.3;
+}
+.clue-text{ font-size:15px; line-height:1.35; }
+.clue-text b{ color:var(--neon-cyan); }
+
+.reveal-emoji{ font-size:64px; animation:bounceIn .6s ease; }
+@keyframes bounceIn{ 0%{transform:scale(0);} 60%{transform:scale(1.3);} 100%{transform:scale(1);} }
+.reveal-name{ font-family:'Bangers'; font-size:38px; letter-spacing:1px; margin-top:6px; }
+.reveal-anime{ color:var(--text-dim); font-size:15px; }
+
+/* Área de palpite */
+.guess-area{ margin-top:auto; }
+.feedback{
+  text-align:center; min-height:30px; font-family:'Russo One';
+  font-size:18px; margin-bottom:8px; letter-spacing:.5px;
+}
+.feedback.good{ color:var(--neon-green); text-shadow:0 0 14px rgba(57,255,20,.6); }
+.feedback.bad{ color:#ff5d73; text-shadow:0 0 14px rgba(255,93,115,.5); }
+.feedback.info{ color:var(--neon-cyan); }
+
+.input-row{ display:flex; gap:8px; }
+.guess-input{
+  flex:1; font-family:'Baloo 2'; font-weight:700; font-size:17px;
+  padding:13px 16px; border-radius:16px; outline:none;
+  border:2px solid rgba(255,255,255,.18);
+  background:rgba(0,0,0,.35); color:var(--text);
+}
+.guess-input:focus{ border-color:var(--neon-cyan); box-shadow:0 0 18px rgba(0,240,255,.35); }
+.guess-input::placeholder{ color:var(--text-dim); }
+
+.btn-go{
+  font-family:'Bangers'; letter-spacing:1px; font-size:20px;
+  padding:0 22px; border:none; border-radius:16px; cursor:pointer; color:#1a0033;
+  background:linear-gradient(90deg,var(--neon-yellow),var(--neon-green));
+  box-shadow:0 4px 0 #2e8b0c;
+  transition:transform .1s, box-shadow .1s;
+}
+.btn-go:active{ transform:translateY(3px); box-shadow:0 1px 0 #2e8b0c; }
+
+.action-row{ display:flex; gap:8px; margin-top:8px; }
+.btn-secondary{
+  flex:1; font-family:'Russo One'; font-size:14px; letter-spacing:.5px;
+  padding:12px; border-radius:14px; cursor:pointer; color:var(--text);
+  border:2px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05);
+  transition:.18s;
+}
+.btn-secondary:hover{ border-color:var(--neon-cyan); }
+.btn-secondary:disabled{ opacity:.4; cursor:not-allowed; }
+.btn-skip{ border-color:rgba(255,93,115,.5); }
+.btn-skip:hover{ border-color:#ff5d73; color:#ff5d73; }
+
+.round-value{
+  text-align:center; font-family:'Russo One'; font-size:13px; color:var(--text-dim);
+  margin-top:10px;
+}
+.round-value b{ color:var(--neon-yellow); font-size:16px; }
+
+/* =========================================================================
+   TELA GAME OVER
+   ========================================================================= */
+.over{ align-items:center; justify-content:center; text-align:center; gap:14px; }
+.over-title{
+  font-family:'Bangers'; font-size:clamp(40px,12vw,64px);
+  background:linear-gradient(90deg,var(--neon-pink),var(--neon-yellow));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  transform:rotate(-2deg);
+}
+.over-rank{ font-size:54px; }
+.over-rank-name{ font-family:'Russo One'; font-size:20px; color:var(--neon-cyan); }
+.final-score{
+  font-family:'Bangers'; font-size:clamp(44px,14vw,72px);
+  color:var(--neon-yellow); text-shadow:0 0 24px rgba(255,214,10,.5); line-height:1;
+}
+.final-label{ font-family:'Russo One'; font-size:13px; color:var(--text-dim); letter-spacing:1px; }
+.over-stats{ display:flex; gap:18px; justify-content:center; flex-wrap:wrap; color:var(--text-dim); font-size:14px; }
+.over-stats b{ color:var(--text); }
+
+.badge-tray{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:420px; }
+.badge{
+  display:flex; align-items:center; gap:6px; font-size:13px;
+  background:linear-gradient(160deg, rgba(255,214,10,.2), rgba(255,60,172,.18));
+  border:1px solid rgba(255,214,10,.4); border-radius:30px; padding:6px 12px;
+  animation:bounceIn .5s ease;
+}
+.badge .be{ font-size:18px; }
+
+.newrecord{
+  font-family:'Bangers'; font-size:24px; color:var(--neon-green);
+  animation:fireShake .5s ease infinite; letter-spacing:1px;
+}
+
+/* Tabela de recordes */
+.scores-box{ width:100%; max-width:420px; background:var(--card); border:1px solid var(--card-line); border-radius:18px; padding:14px 16px; box-shadow:var(--shadow); }
+.scores-box h3{ font-family:'Russo One'; font-size:14px; color:var(--neon-cyan); letter-spacing:1px; margin-bottom:8px; }
+.score-row{ display:flex; justify-content:space-between; align-items:center; padding:7px 6px; border-bottom:1px dashed rgba(255,255,255,.1); font-size:14px; }
+.score-row:last-child{ border-bottom:none; }
+.score-row .pos{ font-family:'Bangers'; font-size:18px; color:var(--neon-yellow); min-width:30px; }
+.score-row.you{ background:rgba(255,60,172,.18); border-radius:8px; }
+.score-row .pts{ font-family:'Russo One'; }
+.score-empty{ color:var(--text-dim); font-size:13px; text-align:center; padding:8px; }
+
+/* =========================================================================
+   OVERLAYS: subida de rank, modal de conquistas/recordes
+   ========================================================================= */
+.overlay{
+  position:fixed; inset:0; z-index:50; display:none;
+  align-items:center; justify-content:center; padding:20px;
+  background:rgba(5,0,20,.78); backdrop-filter:blur(4px);
+}
+.overlay.show{ display:flex; animation:fadeIn .25s ease; }
+.modal{
+  width:100%; max-width:440px; background:linear-gradient(160deg, var(--bg-1), var(--bg-0));
+  border:2px solid var(--card-line); border-radius:22px; padding:22px; box-shadow:var(--shadow);
+  max-height:85vh; overflow:auto;
+}
+.modal h2{ font-family:'Bangers'; font-size:30px; letter-spacing:1px; text-align:center; margin-bottom:14px; }
+.modal-close{ display:block; margin:16px auto 0; }
+
+.rankup-card{ text-align:center; }
+.rankup-emoji{ font-size:90px; animation:bounceIn .7s ease; }
+.rankup-title{ font-family:'Bangers'; font-size:40px; color:var(--neon-yellow); letter-spacing:1px; transform:rotate(-2deg); }
+.rankup-name{ font-family:'Russo One'; font-size:22px; color:var(--neon-cyan); }
+.rankup-flash{ animation:flashBg 1s ease; }
+@keyframes flashBg{ 0%{filter:brightness(2.5);} 100%{filter:brightness(1);} }
+
+/* Lista completa de conquistas no modal */
+.ach-list{ display:flex; flex-direction:column; gap:8px; }
+.ach-item{ display:flex; gap:12px; align-items:center; padding:10px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); }
+.ach-item.locked{ opacity:.45; filter:grayscale(.7); }
+.ach-emoji{ font-size:28px; }
+.ach-info b{ display:block; font-size:15px; }
+.ach-info span{ font-size:12px; color:var(--text-dim); }
+.ach-item.locked .ach-info b::after{ content:" 🔒"; }
+
+/* =========================================================================
+   EFEITOS: confete + tremor de tela + toast de conquista
+   ========================================================================= */
+#confetti{ position:fixed; inset:0; pointer-events:none; z-index:60; }
+.shake{ animation:shake .4s cubic-bezier(.36,.07,.19,.97) both; }
+@keyframes shake{
+  10%,90%{ transform:translateX(-2px);} 20%,80%{ transform:translateX(4px);}
+  30%,50%,70%{ transform:translateX(-8px);} 40%,60%{ transform:translateX(8px);}
+}
+
+.toast-tray{ position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:70; display:flex; flex-direction:column; gap:8px; width:90%; max-width:380px; }
+.toast{
+  display:flex; align-items:center; gap:10px;
+  background:linear-gradient(90deg, rgba(255,214,10,.95), rgba(255,60,172,.95));
+  color:#1a0033; font-family:'Baloo 2'; font-weight:800; font-size:14px;
+  padding:10px 14px; border-radius:14px; box-shadow:var(--shadow);
+  animation:toastIn .4s ease, toastOut .4s ease 3.2s forwards;
+}
+.toast .te{ font-size:24px; }
+.toast small{ display:block; font-weight:600; font-size:11px; opacity:.8; }
+@keyframes toastIn{ from{ transform:translateY(-30px); opacity:0;} to{ transform:none; opacity:1;} }
+@keyframes toastOut{ to{ transform:translateY(-30px); opacity:0;} }
+
+.daily-banner{
+  font-family:'Russo One'; font-size:12px; letter-spacing:.5px;
+  background:linear-gradient(90deg, rgba(0,240,255,.2), rgba(255,60,172,.2));
+  border:1px solid rgba(0,240,255,.4); color:var(--neon-cyan);
+  padding:8px 14px; border-radius:30px; text-align:center; margin-bottom:10px;
+}
+
+.footer-note{ text-align:center; color:var(--text-dim); font-size:11px; margin-top:18px; }
+</style>
+</head>
+<body>
+
+<!-- ============================= APP ============================= -->
+<div class="app" id="app">
+
+  <!-- ---------- TELA INICIAL ---------- -->
+  <section class="screen home active" id="screen-home">
+    <h1 class="logo">OTAKU<br>QUIZ</h1>
+    <div class="subtitle">Quem é o Personagem?</div>
+    <p class="tagline">Descubra o personagem secreto com o <b>menor número de pistas</b> possível. Quanto mais rápido, mais pontos! 🔥</p>
+
+    <div class="diff-wrap">
+      <div class="diff-label">⚔️ ESCOLHA A DIFICULDADE</div>
+      <div class="diff-grid" id="diff-grid">
+        <button class="diff-btn sel" data-diff="facil">😎 Fácil<small>Lendas que todo mundo conhece</small></button>
+        <button class="diff-btn" data-diff="medio">🤔 Médio<small>Precisa ser otaku</small></button>
+        <button class="diff-btn" data-diff="dificil">😤 Difícil<small>Só pra veteranos</small></button>
+        <button class="diff-btn" data-diff="otaku">💀 Modo Otaku<small>Personagens obscuros</small></button>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" id="timer-toggle" checked><span class="slider"></span></label>
+      <span>⏱️ Cronômetro (pontos bônus por rapidez)</span>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" id="sound-toggle" checked><span class="slider"></span></label>
+      <span>🔊 Efeitos sonoros</span>
+    </div>
+
+    <button class="btn-primary" id="btn-play">JOGAR!</button>
+
+    <div class="home-extra">
+      <button class="ghost-btn" id="btn-daily">📅 Desafio Diário</button>
+      <button class="ghost-btn" id="btn-records">🏆 Recordes</button>
+      <button class="ghost-btn" id="btn-ach">⭐ Conquistas</button>
+    </div>
+  </section>
+
+  <!-- ---------- TELA DE JOGO ---------- -->
+  <section class="screen" id="screen-game">
+    <div class="daily-banner" id="daily-banner" style="display:none;">📅 DESAFIO DIÁRIO — personagem do dia!</div>
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-left">
+        <div class="hud-label">PONTOS</div>
+        <div class="hud-value" id="hud-score">0</div>
+      </div>
+      <div class="hud-left" style="align-items:center;">
+        <div class="hud-label">ACERTOS</div>
+        <div class="hud-value" id="hud-correct">0</div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-label">VIDAS</div>
+        <div class="hearts" id="hud-hearts">❤️❤️❤️</div>
+      </div>
+    </div>
+
+    <!-- Rank + XP -->
+    <div class="rank-bar">
+      <div class="rank-top">
+        <span class="rank-name" id="rank-name">🥚 Novato</span>
+        <span class="rank-xp-text" id="rank-xp">0 / 500 XP</span>
+      </div>
+      <div class="xp-track"><div class="xp-fill" id="xp-fill"></div></div>
+    </div>
+
+    <!-- Combo + Timer -->
+    <div class="subhud">
+      <div class="combo-badge" id="combo-badge">🔥 COMBO x1.5</div>
+      <div class="timer-wrap" id="timer-wrap"><div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div></div>
+    </div>
+
+    <!-- Carta do personagem -->
+    <div class="card-stage">
+      <div class="char-card" id="char-card">
+        <div class="card-face card-front">
+          <span class="card-tag" id="card-tag">❓ PERSONAGEM MISTERIOSO</span>
+          <div class="clue-list" id="clue-list"></div>
+        </div>
+        <div class="card-face card-back" id="card-back">
+          <div class="reveal-emoji" id="reveal-emoji">🎴</div>
+          <div class="reveal-name" id="reveal-name">???</div>
+          <div class="reveal-anime" id="reveal-anime"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Palpite -->
+    <div class="guess-area">
+      <div class="feedback" id="feedback">Quem será...? 🤔</div>
+      <div class="input-row">
+        <input class="guess-input" id="guess-input" type="text" placeholder="Digite o nome do personagem..." autocomplete="off" />
+        <button class="btn-go" id="btn-guess">CHUTAR!</button>
+      </div>
+      <div class="action-row">
+        <button class="btn-secondary" id="btn-clue">💡 Próxima Pista</button>
+        <button class="btn-secondary btn-skip" id="btn-skip">⏭️ Pular (perde 1 ❤️)</button>
+      </div>
+      <div class="round-value">Valor desta rodada: <b id="round-value">1000</b> pts</div>
+    </div>
+  </section>
+
+  <!-- ---------- TELA GAME OVER ---------- -->
+  <section class="screen over" id="screen-over">
+    <div class="over-title" id="over-title">GAME OVER</div>
+    <div class="over-rank" id="over-rank-emoji">🥚</div>
+    <div class="over-rank-name" id="over-rank-name">Novato</div>
+
+    <div>
+      <div class="final-score" id="final-score">0</div>
+      <div class="final-label">PONTUAÇÃO FINAL</div>
+    </div>
+
+    <div class="newrecord" id="newrecord" style="display:none;">🎉 NOVO RECORDE! 🎉</div>
+
+    <div class="over-stats" id="over-stats"></div>
+
+    <div class="badge-tray" id="badge-tray"></div>
+
+    <div class="scores-box">
+      <h3>🏆 TOP 5 RECORDES</h3>
+      <div id="over-scores"></div>
+    </div>
+
+    <button class="btn-primary" id="btn-again" style="font-size:26px; padding:12px 36px;">JOGAR DE NOVO</button>
+    <button class="ghost-btn" id="btn-home">🏠 Menu Principal</button>
+  </section>
+
+</div>
+
+<!-- Overlays -->
+<div class="overlay" id="overlay-rankup">
+  <div class="modal rankup-card" id="rankup-modal">
+    <div class="rankup-title">RANK UP!</div>
+    <div class="rankup-emoji" id="rankup-emoji">⚡</div>
+    <div class="rankup-name" id="rankup-name">Chunin</div>
+    <p style="color:var(--text-dim); margin-top:8px;">Você evoluiu, otaku! Continue assim! 🔥</p>
+    <button class="btn-secondary modal-close" id="rankup-close">CONTINUAR</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay-modal">
+  <div class="modal">
+    <h2 id="modal-title">TÍTULO</h2>
+    <div id="modal-body"></div>
+    <button class="btn-secondary modal-close" id="modal-close">FECHAR</button>
+  </div>
+</div>
+
+<!-- Efeitos -->
+<canvas id="confetti"></canvas>
+<div class="toast-tray" id="toast-tray"></div>
+
+<script>
+/* =========================================================================
+   OTAKU QUIZ — lógica do jogo
+   Tudo em vanilla JS. Sem dependências.
+   ========================================================================= */
+"use strict";
+
+/* -------------------------------------------------------------------------
+   BANCO DE PERSONAGENS (30+)
+   Cada personagem: nome, anime, dificuldade, emoji (silhueta),
+   pistas progressivas (da mais vaga -> mais óbvia) e nomes aceitos (alt).
+   ------------------------------------------------------------------------- */
+const CHARACTERS = [
+  // ---------- FÁCEIS (lendas) ----------
+  { nome:"Naruto Uzumaki", anime:"Naruto", dif:"facil", emoji:"🍥",
+    alt:["naruto","naruto uzumaki","uzumaki naruto"],
+    clues:[
+      "Anime do gênero <b>Shonen</b> de ninjas.",
+      "Tem cabelo <b>loiro</b> espetado e olhos azuis.",
+      "Possui marcas que parecem <b>bigodes</b> no rosto.",
+      "Sonha em se tornar o líder de sua vila (o <b>Hokage</b>).",
+      "Bordão: <b>\"Dattebayo!\"</b> / \"Acredite!\"",
+      "Tem uma raposa de nove caudas selada dentro de si." ] },
+
+  { nome:"Goku", anime:"Dragon Ball", dif:"facil", emoji:"🐉",
+    alt:["goku","son goku","kakaroto","kakarot"],
+    clues:[
+      "Anime <b>Shonen</b> clássico de lutas e poderes.",
+      "Tem cabelo <b>preto</b> espetado (que fica dourado quando se transforma).",
+      "Sua técnica mais famosa é o <b>Kamehameha</b>.",
+      "É um <b>Saiyajin</b> criado na Terra.",
+      "Pode virar <b>Super Saiyajin</b> (cabelo dourado).",
+      "Coleciona esferas mágicas que realizam desejos." ] },
+
+  { nome:"Monkey D. Luffy", anime:"One Piece", dif:"facil", emoji:"👒",
+    alt:["luffy","monkey d luffy","monkey d. luffy","chapeu de palha"],
+    clues:[
+      "Anime <b>Shonen</b> de piratas e aventura no mar.",
+      "Usa um <b>chapéu de palha</b> característico.",
+      "Comeu uma fruta que deixou seu corpo de <b>borracha</b>.",
+      "Quer encontrar o tesouro <b>One Piece</b> e ser Rei dos Piratas.",
+      "Capitão dos <b>Piratas do Chapéu de Palha</b>.",
+      "Ataque: <b>Gomu Gomu no...</b>!" ] },
+
+  { nome:"Sailor Moon", anime:"Sailor Moon", dif:"facil", emoji:"🌙",
+    alt:["sailor moon","usagi","usagi tsukino","serena"],
+    clues:[
+      "Anime <b>Shoujo</b> mágico clássico dos anos 90.",
+      "Tem cabelo <b>loiro</b> em dois coques com longas tranças.",
+      "Se transforma em uma guerreira em nome da <b>Lua</b>.",
+      "Bordão: <b>\"Em nome da Lua, eu vou te castigar!\"</b>",
+      "Sua identidade civil é a desastrada <b>Usagi/Serena</b>.",
+      "Lidera as Sailor Scouts (Guerreiras)." ] },
+
+  { nome:"Pikachu", anime:"Pokémon", dif:"facil", emoji:"⚡",
+    alt:["pikachu","pika"],
+    clues:[
+      "Anime de <b>aventura</b> com monstrinhos de bolso.",
+      "É <b>amarelo</b> com bochechas vermelhas e orelhas pontudas.",
+      "Solta ataques <b>elétricos</b>.",
+      "Bordão: só repete o próprio <b>nome</b>.",
+      "É o parceiro inseparável do treinador <b>Ash/Satoshi</b>.",
+      "Ataque famoso: <b>Choque do Trovão</b>!" ] },
+
+  { nome:"Tanjiro Kamado", anime:"Demon Slayer", dif:"facil", emoji:"🩹",
+    alt:["tanjiro","tanjiro kamado","kamado tanjiro"],
+    clues:[
+      "Anime <b>Shonen</b> moderno de caçadores de demônios.",
+      "Tem uma <b>cicatriz</b> na testa e brincos.",
+      "Usa a <b>Respiração da Água</b> (e depois do Sol).",
+      "Sua irmã <b>Nezuko</b> virou um demônio.",
+      "Faz parte da <b>Equipe de Caçadores de Demônios</b>.",
+      "Tem <b>olfato</b> extremamente apurado." ] },
+
+  { nome:"Saitama", anime:"One Punch Man", dif:"facil", emoji:"👊",
+    alt:["saitama","one punch man","homem de um soco","careca"],
+    clues:[
+      "Anime <b>Seinen</b> de heróis com muita comédia.",
+      "É completamente <b>careca</b> e tem expressão entediada.",
+      "Derrota qualquer inimigo com um <b>único soco</b>.",
+      "Ficou tão forte que perdeu a emoção das lutas.",
+      "Treinou fazendo 100 flexões, 100 abdominais e correndo 10km.",
+      "Usa uma capa amarela e luvas vermelhas de herói." ] },
+
+  { nome:"Eren Yeager", anime:"Attack on Titan", dif:"facil", emoji:"🗿",
+    alt:["eren","eren yeager","eren jaeger"],
+    clues:[
+      "Anime <b>Seinen</b> sombrio sobre humanos cercados por muralhas.",
+      "Tem cabelo castanho e um olhar <b>determinado</b> (e furioso).",
+      "Pode se transformar em um <b>Titã</b>.",
+      "Jurou exterminar todos os <b>titãs</b> do mundo.",
+      "Bordão sobre buscar a <b>liberdade</b>.",
+      "Possui o Titã de Ataque e o Titã Fundador." ] },
+
+  { nome:"Light Yagami", anime:"Death Note", dif:"facil", emoji:"📓",
+    alt:["light","light yagami","kira","yagami light"],
+    clues:[
+      "Anime <b>Seinen</b> de suspense psicológico.",
+      "Estudante <b>genial</b> de cabelo castanho.",
+      "Mata pessoas apenas <b>escrevendo o nome</b> num caderno.",
+      "Adota o pseudônimo de justiceiro <b>Kira</b>.",
+      "Tem um shinigami chamado <b>Ryuk</b> que adora maçãs.",
+      "É caçado pelo detetive <b>L</b>." ] },
+
+  { nome:"Levi Ackerman", anime:"Attack on Titan", dif:"facil", emoji:"🧹",
+    alt:["levi","levi ackerman","capitao levi","soldado levi"],
+    clues:[
+      "Anime <b>Seinen</b> sobre humanos e gigantes.",
+      "Baixo, cabelo preto com corte <b>undercut</b>.",
+      "Usa o equipamento de manobras 3D com maestria mortal.",
+      "É conhecido como o <b>soldado mais forte da humanidade</b>.",
+      "Tem mania de <b>limpeza</b> e é meio ranzinza.",
+      "Lidera o Esquadrão de Operações Especiais." ] },
+
+  // ---------- MÉDIOS ----------
+  { nome:"Mikasa Ackerman", anime:"Attack on Titan", dif:"medio", emoji:"🧣",
+    alt:["mikasa","mikasa ackerman"],
+    clues:[
+      "Anime <b>Seinen</b> sobre titãs e muralhas.",
+      "Mulher de cabelo <b>preto</b> curto, força sobre-humana.",
+      "Usa sempre um <b>cachecol vermelho</b>.",
+      "É extremamente protetora com o <b>Eren</b>.",
+      "Pertence ao clã <b>Ackerman</b>.",
+      "Considerada equivalente a 100 soldados." ] },
+
+  { nome:"Gon Freecss", anime:"Hunter x Hunter", dif:"medio", emoji:"🎣",
+    alt:["gon","gon freecss","gon freecs"],
+    clues:[
+      "Anime <b>Shonen</b> sobre caçadores licenciados.",
+      "Menino de cabelo <b>verde-escuro</b> espetado.",
+      "Usa energia vital chamada <b>Nen</b>.",
+      "Procura o pai, o lendário caçador <b>Ging</b>.",
+      "Melhor amigo do <b>Killua</b>.",
+      "Ataque baseado em pedra/papel/tesoura: <b>Jajanken</b>." ] },
+
+  { nome:"Edward Elric", anime:"Fullmetal Alchemist", dif:"medio", emoji:"⚗️",
+    alt:["edward","edward elric","ed elric","fullmetal","alquimista de aco"],
+    clues:[
+      "Anime <b>Shonen</b> sobre alquimia e equivalência de troca.",
+      "Baixo, cabelo <b>loiro</b> trançado, casaco vermelho.",
+      "Tem um <b>braço e perna de metal</b> (automail).",
+      "Bate transformando em arma sem círculo de transmutação.",
+      "Busca a <b>Pedra Filosofal</b> com o irmão Alphonse.",
+      "Apelido: <b>Alquimista de Aço</b>." ] },
+
+  { nome:"Ichigo Kurosaki", anime:"Bleach", dif:"medio", emoji:"⚔️",
+    alt:["ichigo","ichigo kurosaki","kurosaki ichigo"],
+    clues:[
+      "Anime <b>Shonen</b> sobre ceifadores de almas.",
+      "Adolescente de cabelo <b>laranja</b> e cara fechada.",
+      "Vira um <b>Shinigami</b> (Ceifador de Almas).",
+      "Sua espada gigante se chama <b>Zangetsu</b>.",
+      "Luta contra Hollows para proteger os vivos.",
+      "Técnica: <b>Getsuga Tensho</b>!" ] },
+
+  { nome:"Vegeta", anime:"Dragon Ball", dif:"medio", emoji:"🥦",
+    alt:["vegeta","principe vegeta"],
+    clues:[
+      "Anime <b>Shonen</b> de lutas e transformações.",
+      "Cabelo preto espetado em formato de <b>chama</b>.",
+      "É o orgulhoso <b>Príncipe</b> de sua raça.",
+      "Eterno rival do Goku.",
+      "Bordão: <b>\"O poder de luta dele é mais de 8000!\"</b> (cena clássica).",
+      "Ataque: <b>Final Flash</b> / Galick Ho." ] },
+
+  { nome:"Itachi Uchiha", anime:"Naruto", dif:"medio", emoji:"🐦‍⬛",
+    alt:["itachi","itachi uchiha","uchiha itachi"],
+    clues:[
+      "Anime <b>Shonen</b> de ninjas.",
+      "Cabelo preto comprido, marcas de cansaço no rosto.",
+      "Massacrou o <b>próprio clã</b> em uma noite.",
+      "Usa o poderoso olho <b>Sharingan</b> (e Mangekyo).",
+      "Irmão mais velho do <b>Sasuke</b>.",
+      "Membro da organização <b>Akatsuki</b>." ] },
+
+  { nome:"Spike Spiegel", anime:"Cowboy Bebop", dif:"medio", emoji:"🚬",
+    alt:["spike","spike spiegel"],
+    clues:[
+      "Anime <b>Seinen</b> de ficção científica e jazz.",
+      "Homem magro de cabelo <b>verde</b> bagunçado.",
+      "É um <b>caçador de recompensas</b> espacial.",
+      "Pilota a nave <b>Bebop</b> com seus parceiros.",
+      "Pratica artes marciais (Jeet Kune Do).",
+      "Frase: <b>\"See you space cowboy...\"</b>" ] },
+
+  { nome:"Yusuke Urameshi", anime:"Yu Yu Hakusho", dif:"medio", emoji:"👻",
+    alt:["yusuke","yusuke urameshi","urameshi"],
+    clues:[
+      "Anime <b>Shonen</b> clássico sobre o mundo espiritual.",
+      "Delinquente de cabelo preto penteado para trás.",
+      "Morreu e virou um <b>Detetive Espiritual</b>.",
+      "Ataque famoso: o <b>Reigan</b> (Pistola Espiritual).",
+      "Concentra energia espiritual no dedo indicador.",
+      "Rival e amigo do Kuwabara." ] },
+
+  { nome:"Killua Zoldyck", anime:"Hunter x Hunter", dif:"medio", emoji:"🎮",
+    alt:["killua","killua zoldyck","killua zaoldyeck"],
+    clues:[
+      "Anime <b>Shonen</b> sobre caçadores e Nen.",
+      "Menino de cabelo <b>branco/prateado</b>.",
+      "Vem de uma família de <b>assassinos</b> profissionais.",
+      "Melhor amigo do <b>Gon</b>.",
+      "Domina eletricidade no corpo (Nen do tipo transformação).",
+      "Adora doces (especialmente chocolate)." ] },
+
+  // ---------- DIFÍCEIS ----------
+  { nome:"Guts", anime:"Berserk", dif:"dificil", emoji:"🗡️",
+    alt:["guts","gatsu","espadachim negro"],
+    clues:[
+      "Anime/mangá <b>Seinen</b> sombrio e brutal de fantasia medieval.",
+      "Homem enorme com cicatrizes, um <b>olho</b> e um <b>braço</b> a menos.",
+      "Carrega uma espada gigantesca chamada <b>Matadora de Dragões</b>.",
+      "É marcado por um <b>Sacrifício</b> (marca que atrai demônios).",
+      "Conhecido como o <b>Espadachim Negro</b>.",
+      "Caça o antigo amigo que o traiu: <b>Griffith</b>." ] },
+
+  { nome:"Lelouch Lamperouge", anime:"Code Geass", dif:"dificil", emoji:"♟️",
+    alt:["lelouch","lelouch lamperouge","lelouch vi britannia","zero"],
+    clues:[
+      "Anime sobre mechas e rebelião política.",
+      "Estudante brilhante e estrategista frio.",
+      "Ganha o poder <b>Geass</b> que força obediência absoluta.",
+      "Lidera uma rebelião usando a máscara de <b>Zero</b>.",
+      "Pilota o Knightmare Frame e quer destruir o Império de Britannia.",
+      "Plano final: o <b>Zero Requiem</b>." ] },
+
+  { nome:"Shinji Ikari", anime:"Neon Genesis Evangelion", dif:"dificil", emoji:"🎧",
+    alt:["shinji","shinji ikari","ikari shinji"],
+    clues:[
+      "Anime de mechas com forte carga <b>psicológica</b>.",
+      "Garoto inseguro e ansioso de cabelo escuro.",
+      "Pilota o robô biológico <b>EVA-01</b>.",
+      "Frase interna: <b>\"Eu não posso fugir\"</b>.",
+      "Filho do comandante Gendo, da organização NERV.",
+      "Luta contra os seres chamados <b>Anjos</b>." ] },
+
+  { nome:"Thorfinn", anime:"Vinland Saga", dif:"dificil", emoji:"🪓",
+    alt:["thorfinn","thorfinn karlsefni"],
+    clues:[
+      "Anime <b>Seinen</b> histórico sobre <b>vikings</b>.",
+      "Jovem guerreiro com duas <b>adagas</b>.",
+      "Busca vingança pela morte do <b>pai (Thors)</b>.",
+      "Quer matar <b>Askeladd</b>.",
+      "Depois busca uma terra de paz: <b>Vinland</b>.",
+      "Famoso pela frase: <b>\"Eu não tenho inimigos\"</b>." ] },
+
+  { nome:"Senku Ishigami", anime:"Dr. Stone", dif:"dificil", emoji:"🧪",
+    alt:["senku","senku ishigami"],
+    clues:[
+      "Anime <b>Shonen</b> de sobrevivência e ciência.",
+      "Cabelo verde com pontas brancas, sorriso confiante.",
+      "Quer reconstruir a civilização com <b>ciência</b>.",
+      "Bordão: <b>\"Isso é 10 bilhões por cento empolgante!\"</b>.",
+      "Acordou após a humanidade virar <b>pedra</b>.",
+      "Frase: <b>\"Get excited!\"</b> / Ciência!" ] },
+
+  { nome:"Roy Mustang", anime:"Fullmetal Alchemist", dif:"dificil", emoji:"🔥",
+    alt:["roy mustang","mustang","alquimista de fogo"],
+    clues:[
+      "Anime <b>Shonen</b> sobre alquimia.",
+      "Militar de cabelo preto, charmoso e ambicioso.",
+      "Manipula <b>fogo</b> estalando os dedos com luvas especiais.",
+      "Apelido: <b>Alquimista de Chamas</b>.",
+      "Quer chegar ao topo dos militares de Amestris.",
+      "Tem como subordinada leal a Tenente Riza Hawkeye." ] },
+
+  { nome:"Kenshin Himura", anime:"Rurouni Kenshin", dif:"dificil", emoji:"🌸",
+    alt:["kenshin","kenshin himura","himura kenshin","battousai","samurai x"],
+    clues:[
+      "Anime sobre <b>samurais</b> na era Meiji.",
+      "Espadachim de cabelo <b>ruivo</b> com cicatriz em X no rosto.",
+      "Usa uma espada de lâmina invertida (<b>sakabato</b>) para não matar.",
+      "Foi um lendário assassino chamado <b>Battousai</b>.",
+      "Bordão gentil: <b>\"Oro?\"</b>.",
+      "No Brasil o anime ficou famoso como <b>Samurai X</b>." ] },
+
+  // ---------- MODO OTAKU (obscuros) ----------
+  { nome:"Okabe Rintarou", anime:"Steins;Gate", dif:"otaku", emoji:"🥼",
+    alt:["okabe","okabe rintarou","hououin kyouma","kyouma"],
+    clues:[
+      "Anime de ficção científica sobre <b>viagem no tempo</b>.",
+      "Cientista maluco autoproclamado de jaleco branco.",
+      "Se apelida de <b>Hououin Kyouma</b>.",
+      "Manda mensagens ao passado via <b>forno de micro-ondas</b>.",
+      "Bordão maníaco: <b>\"El Psy Congroo\"</b>.",
+      "Fala em telefones imaginários com 'a organização'." ] },
+
+  { nome:"Johan Liebert", anime:"Monster", dif:"otaku", emoji:"🩸",
+    alt:["johan","johan liebert"],
+    clues:[
+      "Anime <b>Seinen</b> de suspense psicológico sombrio.",
+      "Homem loiro de aparência angelical e calma.",
+      "É considerado <b>o monstro</b> sem nome (o vilão perfeito).",
+      "Foi salvo pelo Dr. <b>Tenma</b> quando criança.",
+      "Tem uma irmã gêmea, <b>Anna/Nina</b>.",
+      "Manipula pessoas para que se destruam sozinhas." ] },
+
+  { nome:"Ginko", anime:"Mushishi", dif:"otaku", emoji:"🍄",
+    alt:["ginko"],
+    clues:[
+      "Anime contemplativo e melancólico de folclore japonês.",
+      "Homem de cabelo <b>branco</b> e um único olho verde.",
+      "Estuda seres etéreos chamados <b>Mushi</b>.",
+      "Viaja sozinho fumando para afastar os Mushi.",
+      "É um <b>Mushishi</b> (mestre dos Mushi).",
+      "O anime tem episódios quase independentes e poéticos." ] },
+
+  { nome:"Revy", anime:"Black Lagoon", dif:"otaku", emoji:"🔫",
+    alt:["revy","two hands","rebecca"],
+    clues:[
+      "Anime <b>Seinen</b> de ação violenta com mercenários.",
+      "Mulher de cabelo escuro, regata e tatuagem no braço.",
+      "Pistoleira que usa <b>duas armas</b> ao mesmo tempo.",
+      "Apelido: <b>Two Hands</b> (Duas Mãos).",
+      "Faz parte da empresa de transporte/contrabando Lagoon.",
+      "Tem temperamento explosivo e boca suja." ] },
+
+  { nome:"Kino", anime:"Kino's Journey", dif:"otaku", emoji:"🏍️",
+    alt:["kino"],
+    clues:[
+      "Anime filosófico e episódico sobre <b>viagens</b>.",
+      "Viajante jovem de aparência andrógina, com chapéu e óculos.",
+      "Viaja por países diferentes ficando só <b>3 dias</b> em cada.",
+      "Conversa com uma <b>motocicleta falante</b> chamada Hermes.",
+      "Carrega revólveres apelidados de 'Cânone' e 'Floresta'.",
+      "Lema: <b>\"O mundo não é belo, e por isso ele é.\"</b>" ] },
+
+  { nome:"Ergo Proxy", anime:"Ergo Proxy", dif:"otaku", emoji:"🕶️",
+    alt:["ergo proxy","vincent law","proxy"],
+    clues:[
+      "Anime cyberpunk sombrio e filosófico.",
+      "Criatura/entidade ligada a uma cidade-cúpula distópica.",
+      "Anda com humanos e androides chamados <b>AutoReivs</b>.",
+      "Investiga uma doença que dá <b>consciência</b> aos robôs (Cogito).",
+      "Está ligado ao misterioso <b>Vincent Law</b>.",
+      "Tema central: <b>\"Cogito ergo sum\"</b> (penso, logo existo)." ] },
+
+  { nome:"Casca", anime:"Berserk", dif:"otaku", emoji:"🛡️",
+    alt:["casca","caska"],
+    clues:[
+      "Anime/mangá <b>Seinen</b> medieval brutal.",
+      "Guerreira de pele morena e cabelo curto.",
+      "Única mulher comandante do <b>Bando do Falcão</b>.",
+      "Tem uma relação intensa com Guts e Griffith.",
+      "Sofre profundamente após o evento do <b>Eclipse</b>.",
+      "Era a braço-direito de Griffith antes de tudo desmoronar." ] },
+
+  { nome:"Vash the Stampede", anime:"Trigun", dif:"otaku", emoji:"🌵",
+    alt:["vash","vash the stampede","trigun"],
+    clues:[
+      "Anime de faroeste futurista em um planeta deserto.",
+      "Homem de cabelo <b>loiro</b> espetado e casacão vermelho.",
+      "Tem uma recompensa absurda de <b>60 bilhões</b> pela cabeça.",
+      "Apesar da fama, se recusa a <b>matar</b> qualquer pessoa.",
+      "Apelido: <b>O Furacão Humano</b>.",
+      "Frase: <b>\"Love and Peace!\"</b>" ] }
+];
+
+/* -------------------------------------------------------------------------
+   RANKS (estilo anime) por XP acumulado
+   ------------------------------------------------------------------------- */
+const RANKS = [
+  { nome:"Novato",       emoji:"🥚", xp:0 },
+  { nome:"Genin",        emoji:"🌱", xp:500 },
+  { nome:"Chunin",       emoji:"⚡", xp:1500 },
+  { nome:"Jounin",       emoji:"🔥", xp:3500 },
+  { nome:"Elite",        emoji:"💎", xp:7000 },
+  { nome:"Hokage Otaku", emoji:"👑", xp:12000 }
+];
+
+/* -------------------------------------------------------------------------
+   CONQUISTAS / BADGES
+   ------------------------------------------------------------------------- */
+const ACHIEVEMENTS = [
+  { id:"adivinho",     emoji:"🔮", nome:"Adivinho",     desc:"Acerte logo na 1ª pista." },
+  { id:"emchamas",     emoji:"🔥", nome:"Em Chamas",    desc:"Faça um combo de 5 acertos." },
+  { id:"maratonista",  emoji:"🏃", nome:"Maratonista",  desc:"Acerte 10 vezes em uma partida." },
+  { id:"sortudo",      emoji:"🍀", nome:"Sortudo",      desc:"Acerte com apenas 1 vida restante." },
+  { id:"perfeccionista", emoji:"💯", nome:"Perfeccionista", desc:"Acerte 5 personagens sem usar pistas extras." },
+  { id:"hokage",       emoji:"👑", nome:"Lenda Otaku",  desc:"Alcance o rank Hokage Otaku." },
+  { id:"velocista",    emoji:"⚡", nome:"Velocista",    desc:"Acerte com o cronômetro acima de 80%." },
+  { id:"maocheia",     emoji:"💰", nome:"Mão Cheia",    desc:"Faça 1000 pontos em uma única rodada." }
+];
+
+/* -------------------------------------------------------------------------
+   CONFIG de pontuação
+   ------------------------------------------------------------------------- */
+const CLUE_POINTS = [1000, 800, 600, 400, 200, 100]; // por nº de pistas reveladas
+const ROUND_TIME  = 25;     // segundos por rodada (modo cronômetro)
+const TIME_BONUS_MAX = 300; // bônus máximo por rapidez
+const LS_SCORES = "otakuquiz_scores_v1";
+const LS_XP     = "otakuquiz_xp_v1";
+
+/* -------------------------------------------------------------------------
+   ESTADO do jogo
+   ------------------------------------------------------------------------- */
+const state = {
+  difficulty:"facil",
+  useTimer:true,
+  useSound:true,
+  dailyMode:false,
+  pool:[],            // personagens disponíveis na partida
+  current:null,       // personagem atual
+  cluesShown:1,       // pistas reveladas nesta rodada
+  score:0,
+  lives:3,
+  combo:0,            // sequência de acertos
+  correctCount:0,     // acertos na partida
+  noExtraClueStreak:0,// acertos seguidos sem pedir pista extra
+  totalXP:0,          // XP persistente (entre partidas)
+  startXP:0,          // XP no início da partida (p/ detectar rank up)
+  earnedBadges:new Set(),  // conquistas desta partida
+  timer:null,
+  timeLeft:ROUND_TIME,
+  roundAnswered:false
+};
+
+/* -------------------------------------------------------------------------
+   UTILIDADES
+   ------------------------------------------------------------------------- */
+const $ = (id)=>document.getElementById(id);
+
+// Normaliza texto: minúsculas, sem acento, sem pontuação, sem espaços extras
+function normalize(str){
+  return str.toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g,"") // remove acentos
+    .replace(/[^a-z0-9\s]/g,"")                       // remove pontuação
+    .replace(/\s+/g," ").trim();
+}
+
+// Distância de Levenshtein (tolerância a erros de digitação)
+function levenshtein(a,b){
+  const m=a.length, n=b.length;
+  if(!m) return n; if(!n) return m;
+  const dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const cost = a[i-1]===b[j-1]?0:1;
+      dp[i][j]=Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
+    }
+  }
+  return dp[m][n];
+}
+
+// Verifica se um palpite bate com algum nome aceito (com tolerância)
+function matchesGuess(guess, character){
+  const g = normalize(guess);
+  if(!g) return false;
+  const candidates = [character.nome, ...character.alt].map(normalize);
+  for(const c of candidates){
+    if(g===c) return true;
+    // tolerância proporcional ao tamanho da palavra
+    const tol = c.length<=4 ? 1 : c.length<=8 ? 2 : 3;
+    if(levenshtein(g,c)<=tol) return true;
+    // se o palpite for o sobrenome/parte principal
+    const parts = c.split(" ");
+    for(const p of parts){
+      if(p.length>=4 && (g===p || levenshtein(g,p)<= (p.length<=6?1:2))) return true;
+    }
+  }
+  return false;
+}
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+/* -------------------------------------------------------------------------
+   ÁUDIO (Web Audio API) — bips gerados, sem arquivos
+   ------------------------------------------------------------------------- */
+let audioCtx=null;
+function ensureAudio(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ audioCtx=null; }
+  }
+}
+function beep(freq, dur, type="square", vol=0.15){
+  if(!state.useSound || !audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+dur);
+}
+function sndCorrect(){ // arpejo alegre
+  if(!state.useSound) return;
+  [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.18,"square",0.18),i*70));
+}
+function sndWrong(){ // descida grave
+  if(!state.useSound) return;
+  [300,220].forEach((f,i)=>setTimeout(()=>beep(f,0.22,"sawtooth",0.18),i*120));
+}
+function sndClue(){ beep(660,0.08,"triangle",0.12); }
+function sndRankUp(){
+  if(!state.useSound) return;
+  [523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>beep(f,0.22,"square",0.2),i*90));
+}
+function sndBadge(){ [880,1100].forEach((f,i)=>setTimeout(()=>beep(f,0.12,"triangle",0.15),i*90)); }
+
+/* -------------------------------------------------------------------------
+   PERSISTÊNCIA (localStorage)
+   ------------------------------------------------------------------------- */
+function loadScores(){
+  try{ return JSON.parse(localStorage.getItem(LS_SCORES))||[]; }catch(e){ return []; }
+}
+function saveScore(score){
+  const scores=loadScores();
+  scores.push({ score, date:new Date().toISOString().slice(0,10), diff:state.difficulty });
+  scores.sort((a,b)=>b.score-a.score);
+  const top=scores.slice(0,5);
+  try{ localStorage.setItem(LS_SCORES, JSON.stringify(top)); }catch(e){}
+  return top.some(s=>s.score===score) && score>0 && (scores.length===1 || score>=(scores[1]?.score||0)) ;
+}
+function isNewRecord(score){
+  const scores=loadScores();
+  return score>0 && (scores.length===0 || score>scores[0].score - (scores.find(s=>s.score===score)?0:0) && score>= (scores[0]?.score||0));
+}
+function loadXP(){ try{ return parseInt(localStorage.getItem(LS_XP))||0; }catch(e){ return 0; } }
+function saveXP(xp){ try{ localStorage.setItem(LS_XP, String(xp)); }catch(e){} }
+
+/* -------------------------------------------------------------------------
+   RANK helpers
+   ------------------------------------------------------------------------- */
+function getRank(xp){
+  let r=RANKS[0];
+  for(const rank of RANKS){ if(xp>=rank.xp) r=rank; }
+  return r;
+}
+function getNextRank(xp){
+  for(const rank of RANKS){ if(xp<rank.xp) return rank; }
+  return null; // já é o máximo
+}
+function updateRankUI(){
+  const xp=state.totalXP;
+  const cur=getRank(xp), next=getNextRank(xp);
+  $("rank-name").textContent = `${cur.emoji} ${cur.nome}`;
+  if(next){
+    const base=cur.xp, span=next.xp-cur.xp, prog=xp-base;
+    const pct=Math.max(0,Math.min(100, (prog/span)*100));
+    $("xp-fill").style.width = pct+"%";
+    $("rank-xp").textContent = `${xp} / ${next.xp} XP`;
+  }else{
+    $("xp-fill").style.width = "100%";
+    $("rank-xp").textContent = `${xp} XP — MÁXIMO! 👑`;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   EFEITOS VISUAIS
+   ------------------------------------------------------------------------- */
+// Confete via canvas
+const confettiCanvas=$("confetti");
+const cctx=confettiCanvas.getContext("2d");
+let confettiParticles=[];
+function resizeCanvas(){ confettiCanvas.width=window.innerWidth; confettiCanvas.height=window.innerHeight; }
+window.addEventListener("resize", resizeCanvas); resizeCanvas();
+function burstConfetti(){
+  const colors=["#ff3cac","#ffd60a","#00f0ff","#39ff14","#784ba0","#ffffff"];
+  for(let i=0;i<120;i++){
+    confettiParticles.push({
+      x:window.innerWidth/2 + (Math.random()-0.5)*120,
+      y:window.innerHeight/2,
+      vx:(Math.random()-0.5)*14,
+      vy:Math.random()*-16-4,
+      g:0.4+Math.random()*0.2,
+      size:6+Math.random()*8,
+      color:colors[Math.floor(Math.random()*colors.length)],
+      rot:Math.random()*Math.PI, vr:(Math.random()-0.5)*0.3,
+      life:90+Math.random()*40
+    });
+  }
+  if(!confettiRunning) runConfetti();
+}
+let confettiRunning=false;
+function runConfetti(){
+  confettiRunning=true;
+  function frame(){
+    cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+    confettiParticles.forEach(p=>{
+      p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; p.life--;
+      cctx.save();
+      cctx.translate(p.x,p.y); cctx.rotate(p.rot);
+      cctx.fillStyle=p.color;
+      cctx.fillRect(-p.size/2,-p.size/2,p.size,p.size*0.6);
+      cctx.restore();
+    });
+    confettiParticles=confettiParticles.filter(p=>p.life>0 && p.y<confettiCanvas.height+30);
+    if(confettiParticles.length>0){ requestAnimationFrame(frame); }
+    else{ confettiRunning=false; cctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height); }
+  }
+  requestAnimationFrame(frame);
+}
+
+function screenShake(){
+  $("app").classList.remove("shake");
+  void $("app").offsetWidth; // reflow p/ reiniciar animação
+  $("app").classList.add("shake");
+}
+
+// Toast de conquista
+function showToast(emoji, nome, desc){
+  const t=document.createElement("div");
+  t.className="toast";
+  t.innerHTML=`<span class="te">${emoji}</span><div><div>Conquista: ${nome}</div><small>${desc}</small></div>`;
+  $("toast-tray").appendChild(t);
+  setTimeout(()=>t.remove(),3800);
+}
+
+/* -------------------------------------------------------------------------
+   CONQUISTAS
+   ------------------------------------------------------------------------- */
+function unlockBadge(id){
+  if(state.earnedBadges.has(id)) return;
+  state.earnedBadges.add(id);
+  const a=ACHIEVEMENTS.find(x=>x.id===id);
+  if(a){ showToast(a.emoji,a.nome,a.desc); sndBadge(); }
+}
+
+/* -------------------------------------------------------------------------
+   FLUXO DO JOGO
+   ------------------------------------------------------------------------- */
+function startGame(daily=false){
+  ensureAudio();
+  state.dailyMode=daily;
+  state.score=0; state.lives=3; state.combo=0;
+  state.correctCount=0; state.noExtraClueStreak=0;
+  state.earnedBadges=new Set();
+  state.totalXP=loadXP();
+  state.startXP=state.totalXP;
+
+  $("daily-banner").style.display = daily ? "block" : "none";
+
+  if(daily){
+    // Desafio diário: personagem fixo por dia (mesmo p/ todos no mesmo dia)
+    const day=new Date();
+    const seed=day.getFullYear()*1000 + (day.getMonth()*31+day.getDate());
+    const idx=seed % CHARACTERS.length;
+    state.pool=[CHARACTERS[idx]]; // apenas 1 personagem no modo diário
+  }else{
+    // Filtra por dificuldade; se vazio, usa todos
+    let filtered=CHARACTERS.filter(c=>c.dif===state.difficulty);
+    if(filtered.length<3) filtered=CHARACTERS;
+    state.pool=shuffle(filtered);
+  }
+
+  showScreen("screen-game");
+  updateHUD();
+  updateRankUI();
+  nextRound();
+}
+
+function nextRound(){
+  // Fim do modo diário após 1 personagem
+  if(state.dailyMode && state.correctCount+ (3-state.lives) >=1 && state.pool.length===0){
+    return endGame();
+  }
+  if(state.pool.length===0){
+    // reabastece (partida infinita até perder as vidas)
+    let filtered=CHARACTERS.filter(c=>c.dif===state.difficulty);
+    if(filtered.length<3) filtered=CHARACTERS;
+    state.pool=shuffle(filtered);
+  }
+
+  state.current=state.pool.pop();
+  state.cluesShown=1;
+  state.roundAnswered=false;
+
+  // reset visual da carta
+  $("char-card").classList.remove("flipped");
+  $("card-tag").textContent="❓ PERSONAGEM MISTERIOSO";
+  renderClues();
+  setFeedback("Quem será...? 🤔","info");
+  $("guess-input").value="";
+  $("guess-input").disabled=false;
+  $("btn-guess").disabled=false;
+  $("btn-clue").disabled=false;
+  $("btn-skip").disabled=false;
+  $("guess-input").focus();
+  updateRoundValue();
+  startTimer();
+}
+
+function renderClues(){
+  const list=$("clue-list");
+  list.innerHTML="";
+  for(let i=0;i<state.cluesShown;i++){
+    const div=document.createElement("div");
+    div.className="clue";
+    div.innerHTML=`<span class="clue-num">${i+1}</span><span class="clue-text">${state.current.clues[i]}</span>`;
+    list.appendChild(div);
+  }
+  // botão de pista desabilita quando acabarem
+  $("btn-clue").disabled = state.cluesShown>=state.current.clues.length;
+  if(state.cluesShown>=state.current.clues.length){
+    $("btn-clue").textContent="💡 Sem mais pistas";
+  }else{
+    $("btn-clue").textContent="💡 Próxima Pista";
+  }
+}
+
+function currentRoundValue(){
+  const base = CLUE_POINTS[Math.min(state.cluesShown-1, CLUE_POINTS.length-1)];
+  let timeBonus=0;
+  if(state.useTimer){ timeBonus=Math.round(TIME_BONUS_MAX*(state.timeLeft/ROUND_TIME)); }
+  const mult=comboMultiplier();
+  return { base, timeBonus, mult, total:Math.round((base+timeBonus)*mult) };
+}
+function updateRoundValue(){
+  const v=currentRoundValue();
+  let txt = `${v.base}`;
+  if(v.timeBonus>0) txt+=` +${v.timeBonus}⏱️`;
+  if(v.mult>1) txt+=` ×${v.mult}🔥`;
+  $("round-value").innerHTML = txt + ` = <b>${v.total}</b>`;
+}
+
+function comboMultiplier(){
+  // combo 0/1 = x1, 2 = x1.5, 3 = x2, 4 = x2.5, 5+ = x3
+  if(state.combo>=5) return 3;
+  if(state.combo>=4) return 2.5;
+  if(state.combo>=3) return 2;
+  if(state.combo>=2) return 1.5;
+  return 1;
+}
+function updateCombo(){
+  const badge=$("combo-badge");
+  const m=comboMultiplier();
+  if(state.combo>=2){
+    badge.classList.add("on");
+    badge.textContent=`🔥 COMBO x${m}`;
+    badge.classList.toggle("fire", state.combo>=5);
+  }else{
+    badge.classList.remove("on","fire");
+  }
+}
+
+/* ---------- Timer ---------- */
+function startTimer(){
+  stopTimer();
+  state.timeLeft=ROUND_TIME;
+  if(!state.useTimer){ $("timer-wrap").style.display="none"; return; }
+  $("timer-wrap").style.display="block";
+  $("timer-fill").style.width="100%";
+  $("timer-fill").classList.remove("low");
+  state.timer=setInterval(()=>{
+    state.timeLeft-=0.1;
+    const pct=Math.max(0,(state.timeLeft/ROUND_TIME)*100);
+    $("timer-fill").style.width=pct+"%";
+    $("timer-fill").classList.toggle("low", pct<30);
+    updateRoundValue();
+    if(state.timeLeft<=0){
+      stopTimer();
+      timeUp();
+    }
+  },100);
+}
+function stopTimer(){ if(state.timer){ clearInterval(state.timer); state.timer=null; } }
+
+function timeUp(){
+  if(state.roundAnswered) return;
+  setFeedback("⏰ TEMPO ESGOTADO! Que pena...","bad");
+  sndWrong(); screenShake();
+  loseLifeAndReveal();
+}
+
+/* ---------- Ações ---------- */
+function setFeedback(msg, type){
+  const f=$("feedback");
+  f.textContent=msg;
+  f.className="feedback "+(type||"");
+}
+
+function onGuess(){
+  if(state.roundAnswered) return;
+  const guess=$("guess-input").value;
+  if(!guess.trim()){ $("guess-input").focus(); return; }
+
+  if(matchesGuess(guess, state.current)){
+    correctAnswer();
+  }else{
+    wrongAnswer();
+  }
+}
+
+function correctAnswer(){
+  state.roundAnswered=true;
+  stopTimer();
+
+  const v=currentRoundValue();
+  // checa "perfeccionista": acertou sem pedir pista extra (cluesShown==1)
+  if(state.cluesShown===1){
+    state.noExtraClueStreak++;
+    unlockBadge("adivinho");
+  }else{
+    state.noExtraClueStreak=0;
+  }
+
+  // pontuação
+  state.score+=v.total;
+  state.combo++;
+  state.correctCount++;
+  state.totalXP+=Math.round(v.total*0.5); // XP = metade dos pontos
+  saveXP(state.totalXP);
+
+  // animação de pontos
+  $("hud-score").innerHTML=`<span class="score-pop">${state.score}</span>`;
+
+  // conquistas
+  if(state.combo>=5) unlockBadge("emchamas");
+  if(state.correctCount>=10) unlockBadge("maratonista");
+  if(state.lives===1) unlockBadge("sortudo");
+  if(state.noExtraClueStreak>=5) unlockBadge("perfeccionista");
+  if(v.total>=1000) unlockBadge("maocheia");
+  if(state.useTimer && (state.timeLeft/ROUND_TIME)>=0.8) unlockBadge("velocista");
+
+  // feedback exagerado
+  const msgs=["NANI?! VOCÊ ACERTOU! 🔥","IMPRESSIONANTE, OTAKU! ✨","ISSO! PODER DESPERTADO! ⚡","SUGOI! MANDOU BEM! 🎉","SHANNARO! ACERTOU! 💥"];
+  setFeedback(msgs[Math.floor(Math.random()*msgs.length)],"good");
+
+  revealCharacter();
+  sndCorrect();
+  burstConfetti();
+  updateHUD();
+  updateCombo();
+
+  // rank up?
+  checkRankUp();
+
+  // próxima rodada após pausa
+  setTimeout(()=>{
+    if(state.dailyMode){ endGame(); }
+    else { nextRound(); }
+  }, 2200);
+}
+
+function wrongAnswer(){
+  setFeedback(["Que pena... tente de novo! 💢","Esse poder ainda não despertou… 😖","Quase! Pense melhor, otaku! 🤔"][Math.floor(Math.random()*3)],"bad");
+  sndWrong();
+  screenShake();
+  state.combo=0;
+  state.lives--;
+  updateHUD();
+  updateCombo();
+  $("guess-input").value="";
+  $("guess-input").focus();
+  if(state.lives<=0){
+    revealCharacter();
+    setFeedback("💀 Acabaram suas vidas!","bad");
+    setTimeout(endGame, 2000);
+  }
+}
+
+function loseLifeAndReveal(){
+  state.roundAnswered=true;
+  state.combo=0;
+  state.lives--;
+  revealCharacter();
+  updateHUD();
+  updateCombo();
+  setTimeout(()=>{
+    if(state.lives<=0){ endGame(); }
+    else if(state.dailyMode){ endGame(); }
+    else { nextRound(); }
+  }, 2000);
+}
+
+function revealCharacter(){
+  $("reveal-emoji").textContent=state.current.emoji;
+  $("reveal-name").textContent=state.current.nome;
+  $("reveal-anime").textContent="📺 "+state.current.anime;
+  $("char-card").classList.add("flipped");
+  $("guess-input").disabled=true;
+  $("btn-guess").disabled=true;
+  $("btn-clue").disabled=true;
+  $("btn-skip").disabled=true;
+}
+
+function onNextClue(){
+  if(state.roundAnswered) return;
+  if(state.cluesShown>=state.current.clues.length) return;
+  state.cluesShown++;
+  renderClues();
+  updateRoundValue();
+  sndClue();
+  $("guess-input").focus();
+}
+
+function onSkip(){
+  if(state.roundAnswered) return;
+  stopTimer();
+  setFeedback("⏭️ Você pulou! Era esse:","info");
+  sndWrong();
+  loseLifeAndReveal();
+}
+
+function updateHUD(){
+  $("hud-score").textContent=state.score;
+  $("hud-correct").textContent=state.correctCount;
+  let hearts="";
+  for(let i=0;i<3;i++){
+    hearts += i<state.lives ? "❤️" : `<span class="heart-lost">🖤</span>`;
+  }
+  $("hud-hearts").innerHTML=hearts;
+  updateRankUI();
+}
+
+/* ---------- Rank up ---------- */
+function checkRankUp(){
+  const before=getRank(state.startXP);
+  const now=getRank(state.totalXP);
+  if(now.nome!==before.nome){
+    // subiu de rank desde o início da partida — mostra a cada novo nível
+    state.startXP = state.totalXP; // evita repetir no mesmo nível
+    if(now.nome==="Hokage Otaku") unlockBadge("hokage");
+    showRankUp(now);
+  }
+}
+function showRankUp(rank){
+  $("rankup-emoji").textContent=rank.emoji;
+  $("rankup-name").textContent=rank.nome;
+  const ov=$("overlay-rankup");
+  ov.classList.add("show");
+  $("rankup-modal").classList.remove("rankup-flash");
+  void $("rankup-modal").offsetWidth;
+  $("rankup-modal").classList.add("rankup-flash");
+  sndRankUp();
+  burstConfetti();
+}
+
+/* ---------- Game Over ---------- */
+function endGame(){
+  stopTimer();
+  saveXP(state.totalXP);
+  const newRecord = (loadScores()[0]?.score||0) < state.score && state.score>0;
+  saveScore(state.score);
+
+  const rank=getRank(state.totalXP);
+  $("over-rank-emoji").textContent=rank.emoji;
+  $("over-rank-name").textContent="Rank: "+rank.nome;
+  $("final-score").textContent=state.score;
+  $("newrecord").style.display = newRecord ? "block" : "none";
+
+  $("over-title").textContent = state.dailyMode ? "DESAFIO DIÁRIO" : "GAME OVER";
+
+  // estatísticas
+  $("over-stats").innerHTML=
+    `<div>Acertos: <b>${state.correctCount}</b></div>`+
+    `<div>Melhor combo: <b>x${comboMultiplier()===1?1:comboMultiplier()}</b></div>`+
+    `<div>XP total: <b>${state.totalXP}</b></div>`;
+
+  // badges da partida
+  const tray=$("badge-tray");
+  tray.innerHTML="";
+  if(state.earnedBadges.size===0){
+    tray.innerHTML=`<span style="color:var(--text-dim);font-size:13px;">Nenhuma conquista desta vez… tente de novo! 💪</span>`;
+  }else{
+    state.earnedBadges.forEach(id=>{
+      const a=ACHIEVEMENTS.find(x=>x.id===id);
+      if(a){
+        const b=document.createElement("div");
+        b.className="badge";
+        b.innerHTML=`<span class="be">${a.emoji}</span> ${a.nome}`;
+        tray.appendChild(b);
+      }
+    });
+  }
+
+  renderScoreTable($("over-scores"), state.score);
+  showScreen("screen-over");
+}
+
+function renderScoreTable(container, highlightScore){
+  const scores=loadScores();
+  if(scores.length===0){
+    container.innerHTML=`<div class="score-empty">Nenhum recorde ainda. Seja o primeiro! 🏆</div>`;
+    return;
+  }
+  let highlighted=false;
+  container.innerHTML=scores.map((s,i)=>{
+    const you = (!highlighted && s.score===highlightScore) ? (highlighted=true,"you") : "";
+    return `<div class="score-row ${you}">
+      <span class="pos">${i+1}º</span>
+      <span class="pts">${s.score} pts</span>
+      <span style="color:var(--text-dim);font-size:12px;">${s.diff||""} · ${s.date||""}</span>
+    </div>`;
+  }).join("");
+}
+
+/* -------------------------------------------------------------------------
+   MODAIS (recordes / conquistas)
+   ------------------------------------------------------------------------- */
+function openModal(title, html){
+  $("modal-title").textContent=title;
+  $("modal-body").innerHTML=html;
+  $("overlay-modal").classList.add("show");
+}
+function showRecordsModal(){
+  const div=document.createElement("div");
+  renderScoreTable(div,-1);
+  openModal("🏆 TOP 5 RECORDES", `<div class="scores-box" style="border:none;padding:0;background:none;box-shadow:none;">${div.innerHTML}</div>`);
+}
+function showAchievementsModal(){
+  const earned = loadEarnedAll();
+  const html=`<div class="ach-list">`+ACHIEVEMENTS.map(a=>{
+    const locked = !earned.has(a.id);
+    return `<div class="ach-item ${locked?'locked':''}">
+      <span class="ach-emoji">${a.emoji}</span>
+      <div class="ach-info"><b>${a.nome}</b><span>${a.desc}</span></div>
+    </div>`;
+  }).join("")+`</div>`;
+  openModal("⭐ CONQUISTAS", html);
+}
+// Conquistas já desbloqueadas (persistidas) — guardamos lista acumulada
+const LS_ACH="otakuquiz_ach_v1";
+function loadEarnedAll(){
+  try{ return new Set(JSON.parse(localStorage.getItem(LS_ACH))||[]); }catch(e){ return new Set(); }
+}
+function persistEarned(){
+  const all=loadEarnedAll();
+  state.earnedBadges.forEach(id=>all.add(id));
+  try{ localStorage.setItem(LS_ACH, JSON.stringify([...all])); }catch(e){}
+}
+
+/* -------------------------------------------------------------------------
+   EVENTOS / BIND
+   ------------------------------------------------------------------------- */
+// Seletor de dificuldade
+$("diff-grid").addEventListener("click", e=>{
+  const btn=e.target.closest(".diff-btn"); if(!btn) return;
+  document.querySelectorAll(".diff-btn").forEach(b=>b.classList.remove("sel"));
+  btn.classList.add("sel");
+  state.difficulty=btn.dataset.diff;
+  ensureAudio(); sndClue();
+});
+
+$("timer-toggle").addEventListener("change", e=>{ state.useTimer=e.target.checked; });
+$("sound-toggle").addEventListener("change", e=>{ state.useSound=e.target.checked; ensureAudio(); if(e.target.checked) sndClue(); });
+
+$("btn-play").addEventListener("click", ()=>{ ensureAudio(); startGame(false); });
+$("btn-daily").addEventListener("click", ()=>{ ensureAudio(); startGame(true); });
+$("btn-records").addEventListener("click", showRecordsModal);
+$("btn-ach").addEventListener("click", showAchievementsModal);
+
+$("btn-guess").addEventListener("click", onGuess);
+$("guess-input").addEventListener("keydown", e=>{ if(e.key==="Enter") onGuess(); });
+$("btn-clue").addEventListener("click", onNextClue);
+$("btn-skip").addEventListener("click", onSkip);
+
+$("btn-again").addEventListener("click", ()=>{ persistEarned(); startGame(state.dailyMode); });
+$("btn-home").addEventListener("click", ()=>{ persistEarned(); showScreen("screen-home"); });
+
+$("rankup-close").addEventListener("click", ()=>{ $("overlay-rankup").classList.remove("show"); $("guess-input").focus(); });
+$("modal-close").addEventListener("click", ()=>{ $("overlay-modal").classList.remove("show"); });
+// fechar overlays clicando fora
+$("overlay-modal").addEventListener("click", e=>{ if(e.target.id==="overlay-modal") $("overlay-modal").classList.remove("show"); });
+$("overlay-rankup").addEventListener("click", e=>{ if(e.target.id==="overlay-rankup") $("overlay-rankup").classList.remove("show"); });
+
+// guarda conquistas ao sair/fechar
+window.addEventListener("beforeunload", persistEarned);
+
+// Inicializa rank UI na home (mostra progresso salvo)
+state.totalXP=loadXP();
+
+</script>
+</body>
+</html>
