@@ -184,6 +184,31 @@ canvas{image-rendering:pixelated;}
 .lab-sm{font-size:11px;color:var(--dim);font-family:'Cinzel';text-transform:uppercase;letter-spacing:.5px;}
 .kvs{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:13px;}
 .kvs b{color:var(--gold);font-weight:600;text-align:right;}
+
+/* --- partículas / juice --- */
+.pt{position:absolute;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:6;
+  box-shadow:0 0 6px currentColor;animation:ptfly .7s ease-out forwards;}
+@keyframes ptfly{0%{opacity:1;transform:translate(0,0) scale(1.2);}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.3);}}
+.dgn-stage::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:4;
+  box-shadow:inset 0 0 70px rgba(0,0,0,.85), inset 0 0 26px rgba(0,0,0,.5);border-radius:14px;}
+#lootFx{position:fixed;inset:0;pointer-events:none;z-index:75;display:flex;align-items:center;justify-content:center;}
+.lb-ring{position:absolute;width:40px;height:40px;border-radius:50%;border:3px solid #fff;animation:lbring .6s ease-out forwards;}
+@keyframes lbring{0%{opacity:.9;transform:scale(.2);}100%{opacity:0;transform:scale(7);}}
+.lb-spark{position:absolute;width:7px;height:7px;border-radius:50%;box-shadow:0 0 10px currentColor;animation:lbspark .8s ease-out forwards;}
+@keyframes lbspark{0%{opacity:1;transform:translate(0,0) scale(1.4);}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2);}}
+.boss-card{position:absolute;left:0;right:0;top:40%;text-align:center;z-index:8;pointer-events:none;animation:bcard 2.6s ease forwards;}
+.boss-card .bc-n{font-family:'Cinzel';font-weight:900;font-size:26px;color:#ff7a3c;text-shadow:0 0 16px rgba(255,80,40,.7),0 3px 0 rgba(0,0,0,.6);letter-spacing:1px;}
+.boss-card.secret .bc-n{color:#c98bff;text-shadow:0 0 18px rgba(161,75,255,.8);}
+.boss-card .bc-i{font-size:12px;color:#f3e9d8;font-style:italic;margin-top:4px;}
+@keyframes bcard{0%{opacity:0;transform:scale(.7);}12%{opacity:1;transform:scale(1);}80%{opacity:1;}100%{opacity:0;transform:scale(1.05);}}
+.tide-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11.5px;
+  font-family:'Cinzel';font-weight:600;background:rgba(125,108,255,.18);border:1px solid var(--magic);color:var(--magic-2);}
+.combo-badge{font-family:'Cinzel';font-weight:900;font-size:13px;color:var(--ember);text-shadow:0 0 10px rgba(255,122,60,.6);}
+.audio-btn{width:38px;height:38px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line);font-size:17px;display:flex;align-items:center;justify-content:center;}
+.vol-row{display:flex;align-items:center;gap:8px;margin:8px 0;}
+.vol-row input[type=range]{flex:1;accent-color:var(--gold);}
+.reward-pop{animation:rpop .5s ease;}
+@keyframes rpop{0%{transform:scale(.6);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}
 .recipe{display:flex;gap:10px;align-items:center;padding:9px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line-soft);}
 .recipe .rico{font-size:28px;}
 </style>
@@ -218,6 +243,126 @@ function weighted(map){ // map: {key:weight}
 const RARS=['comum','raro','epico','lendario','mitico','secreto'];
 const RAR_NAME={comum:'Comum',raro:'Raro',epico:'Épico',lendario:'Lendário',mitico:'Mítico',secreto:'Secreto'};
 const RAR_COLOR={comum:'#cfcfcf',raro:'#67d8ff',epico:'#b07bff',lendario:'#ffb347',mitico:'#ff5fa8',secreto:'#a14bff'};
+
+/* ====================== ÁUDIO — tudo procedural (Web Audio API) ======================
+   Trilhas geradas a partir de progressões de acordes + SFX sintetizados. */
+function mtof(m){return 440*Math.pow(2,(m-69)/12);}
+const SCALES={maior:[0,2,4,5,7,9,11],menor:[0,2,3,5,7,8,10],dorica:[0,2,3,5,7,9,10],frigia:[0,1,3,5,7,8,10]};
+function buildScale(root,mode){const iv=SCALES[mode]||SCALES.menor;const out=[];for(let o=0;o<3;o++)for(let i=0;i<7;i++)out.push(root+o*12+iv[i]);return out;}
+function buildTrack(def){
+  const sc=buildScale(def.root,def.mode);const bars=def.prog.length,len=16*bars;
+  const bass=new Array(len).fill(null),arp=new Array(len).fill(null),lead=new Array(len).fill(null),pad=new Array(bars);
+  const drum=new Array(len).fill(null);
+  const motif=def.motif||[0,2,4,2,3,1,0,-1];
+  for(let b=0;b<bars;b++){
+    const deg=def.prog[b];
+    const chord=[sc[deg],sc[deg+2],sc[deg+4]];
+    pad[b]=chord;
+    for(let s=0;s<16;s++){
+      const gi=b*16+s;
+      // baixo
+      if(s===0||s===8||(def.style==='drive'&&(s===4||s===12)))bass[gi]=chord[0]-12;
+      // arpejo
+      const every=def.style==='calm'?4:(def.style==='drive'?2:2);
+      if(s%every===0)arp[gi]=chord[(s/every)%3]+12;
+      // lead esparso
+      if(def.leadOn&&((s===2||s===10||(s===6&&b%2===1)))){const mi=motif[(b*3+(s>>2))%motif.length];lead[gi]=sc[((deg+mi)%14+14)%14]+12;}
+      // bateria
+      if(def.drums){
+        if(s===0||s===8)drum[gi]='k';
+        else if(s===4||s===12)drum[gi]='s';
+        if(def.style==='drive'&&s%2===0)drum[gi]=drum[gi]||'h';
+        if(def.style==='boss'&&(s===0||s===6||s===8||s===14))drum[gi]='k';
+      }
+    }
+  }
+  return {bpm:def.bpm,len,bass,arp,lead,pad,drum,style:def.style,padType:def.padType||'triangle',leadType:def.leadType||'square',bassType:def.bassType||'sawtooth'};
+}
+const TRACK_DEFS={
+  camp:{bpm:78,root:57,mode:'maior',prog:[0,4,5,3],style:'calm',leadOn:true,padType:'triangle',leadType:'triangle',motif:[0,2,4,5,4,2]},
+  explore:{bpm:96,root:55,mode:'dorica',prog:[0,5,3,4],style:'calm',leadOn:true,padType:'triangle',leadType:'triangle',bassType:'triangle',motif:[0,2,3,2,0,-1,0]},
+  battle:{bpm:140,root:52,mode:'menor',prog:[0,3,4,0,0,3,5,4],style:'drive',drums:true,leadOn:true,leadType:'square',bassType:'sawtooth',motif:[0,4,3,2,4,5,4,2]},
+  boss:{bpm:120,root:45,mode:'frigia',prog:[0,1,0,5,0,1,3,4],style:'boss',drums:true,leadOn:true,leadType:'sawtooth',bassType:'sawtooth',padType:'sawtooth',motif:[0,1,0,-1,0,3,2,1]},
+  secret:{bpm:104,root:49,mode:'frigia',prog:[0,5,1,4],style:'boss',drums:true,leadOn:true,leadType:'sine',bassType:'sawtooth',motif:[0,3,1,4,2]},
+  victory:{bpm:128,root:60,mode:'maior',prog:[0,4,5,4],style:'calm',leadOn:true,leadType:'square',padType:'triangle',motif:[0,2,4,7,4,2,4]},
+};
+const Sound={
+  ctx:null,master:null,musGain:null,sfxGain:null,on:true,musVol:0.4,sfxVol:0.5,
+  cache:{},track:null,trackName:null,_int:null,_step:0,_next:0,
+  init(){
+    if(this.ctx)return;
+    try{const AC=window.AudioContext||window.webkitAudioContext;this.ctx=new AC();
+      this.master=this.ctx.createGain();this.master.gain.value=0.9;this.master.connect(this.ctx.destination);
+      this.musGain=this.ctx.createGain();this.musGain.connect(this.master);
+      this.sfxGain=this.ctx.createGain();this.sfxGain.connect(this.master);
+      const p=G.meta&&G.meta.audio;if(p){this.on=p.on!==false;this.musVol=p.musVol??0.4;this.sfxVol=p.sfxVol??0.5;}
+      this.musGain.gain.value=this.on?this.musVol:0;this.sfxGain.gain.value=this.on?this.sfxVol:0;
+    }catch(e){this.ctx=null;}
+  },
+  resume(){if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();},
+  savePrefs(){if(G.meta){G.meta.audio={on:this.on,musVol:this.musVol,sfxVol:this.sfxVol};saveGame();}},
+  setMus(v){this.musVol=v;if(this.musGain)this.musGain.gain.value=this.on?v:0;this.savePrefs();},
+  setSfx(v){this.sfxVol=v;if(this.sfxGain)this.sfxGain.gain.value=this.on?v:0;this.savePrefs();},
+  toggle(){this.on=!this.on;if(this.musGain)this.musGain.gain.value=this.on?this.musVol:0;if(this.sfxGain)this.sfxGain.gain.value=this.on?this.sfxVol:0;this.savePrefs();if(this.on)this.resume();return this.on;},
+  tone(t,freq,dur,o={}){if(!this.ctx)return;const c=this.ctx;const osc=c.createOscillator();const g=c.createGain();
+    osc.type=o.type||'square';osc.frequency.setValueAtTime(freq,t);
+    if(o.slideTo)osc.frequency.exponentialRampToValueAtTime(Math.max(1,o.slideTo),t+dur);
+    if(o.detune)osc.detune.value=o.detune;
+    const peak=o.gain??0.2;const a=o.a??0.005,r=o.r??0.06;
+    g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);
+    g.gain.setValueAtTime(peak,t+Math.max(a,dur-r));g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    osc.connect(g);g.connect(o.dest||this.sfxGain);osc.start(t);osc.stop(t+dur+0.02);},
+  noise(t,dur,o={}){if(!this.ctx)return;const c=this.ctx;const n=Math.floor(c.sampleRate*dur);
+    const buf=c.createBuffer(1,n,c.sampleRate);const d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+    const src=c.createBufferSource();src.buffer=buf;const g=c.createGain();g.gain.value=o.gain??0.2;
+    let node=src;if(o.hp||o.lp){const f=c.createBiquadFilter();f.type=o.hp?'highpass':'lowpass';f.frequency.value=o.hp||o.lp;src.connect(f);node=f;}
+    node.connect(g);g.connect(o.dest||this.sfxGain);src.start(t);src.stop(t+dur);},
+  music(name){
+    this.init();if(!this.ctx)return;this.resume();
+    if(this.trackName===name)return;this.trackName=name;
+    if(!TRACK_DEFS[name]){this.stop();return;}
+    if(!this.cache[name])this.cache[name]=buildTrack(TRACK_DEFS[name]);
+    this.track=this.cache[name];this._step=0;this._next=this.ctx.currentTime+0.06;
+    if(!this._int)this._int=setInterval(()=>this._sched(),25);
+  },
+  stop(){this.trackName=null;this.track=null;if(this._int){clearInterval(this._int);this._int=null;}},
+  _sched(){const tr=this.track;if(!tr||!this.ctx)return;const c=this.ctx;const spb=60/tr.bpm/4;
+    while(this._next<c.currentTime+0.12){this._emit(tr,this._step%tr.len,this._next,spb);this._next+=spb;this._step++;}},
+  _emit(tr,s,t,spb){const md=this.musGain;
+    if(tr.bass[s]!=null)this.tone(t,mtof(tr.bass[s]),spb*3,{type:tr.bassType,gain:0.16,dest:md,r:0.05});
+    if(tr.arp[s]!=null)this.tone(t,mtof(tr.arp[s]),spb*1.4,{type:tr.padType,gain:0.05,dest:md,r:0.05});
+    if(tr.lead[s]!=null)this.tone(t,mtof(tr.lead[s]),spb*2.5,{type:tr.leadType,gain:0.07,dest:md,a:0.01,r:0.1});
+    if(s%16===0){const ch=tr.pad[(s/16)%tr.pad.length];if(ch)ch.forEach(m=>this.tone(t,mtof(m),spb*15,{type:tr.padType,gain:0.025,dest:md,a:0.08,r:0.3}));}
+    const d=tr.drum[s];if(d==='k'){this.tone(t,150,0.14,{type:'sine',gain:0.4,slideTo:48,dest:md,r:0.1});}
+    else if(d==='s'){this.noise(t,0.12,{gain:0.18,hp:1200,dest:md});this.tone(t,200,0.08,{type:'triangle',gain:0.08,dest:md});}
+    else if(d==='h'){this.noise(t,0.03,{gain:0.05,hp:7000,dest:md});}},
+  // ---- SFX ----
+  sfx(name){this.init();if(!this.ctx||!this.on)return;this.resume();const t=this.ctx.currentTime;
+    switch(name){
+      case 'click':this.tone(t,520,0.06,{type:'square',gain:0.12});break;
+      case 'hover':this.tone(t,700,0.03,{type:'sine',gain:0.05});break;
+      case 'hit':this.noise(t,0.08,{gain:0.18,hp:800});this.tone(t,180,0.1,{type:'square',gain:0.12,slideTo:90});break;
+      case 'crit':this.noise(t,0.12,{gain:0.25,hp:600});this.tone(t,300,0.16,{type:'sawtooth',gain:0.16,slideTo:120});this.tone(t+0.02,900,0.1,{type:'square',gain:0.1,slideTo:1400});break;
+      case 'enemyhit':this.noise(t,0.06,{gain:0.1,hp:1500});this.tone(t,420,0.08,{type:'triangle',gain:0.08,slideTo:260});break;
+      case 'heal':[0,4,7,12].forEach((n,i)=>this.tone(t+i*0.05,mtof(72+n),0.18,{type:'sine',gain:0.12,r:0.12}));break;
+      case 'levelup':[0,4,7,12,16].forEach((n,i)=>this.tone(t+i*0.06,mtof(64+n),0.2,{type:'square',gain:0.13,r:0.12}));break;
+      case 'coin':[0,7].forEach((n,i)=>this.tone(t+i*0.05,mtof(84+n),0.1,{type:'square',gain:0.12}));break;
+      case 'loot':[0,4,9].forEach((n,i)=>this.tone(t+i*0.05,mtof(76+n),0.14,{type:'triangle',gain:0.12}));break;
+      case 'epic':[0,5,9,12,17].forEach((n,i)=>this.tone(t+i*0.07,mtof(72+n),0.24,{type:'square',gain:0.13,r:0.15}));break;
+      case 'secret':[0,3,7,10,12].forEach((n,i)=>this.tone(t+i*0.08,mtof(70+n),0.3,{type:'sine',gain:0.13,detune:6,r:0.2}));break;
+      case 'trap':this.noise(t,0.2,{gain:0.2,lp:1800});this.tone(t,300,0.25,{type:'sawtooth',gain:0.14,slideTo:70});break;
+      case 'treasure':[0,4,7,12].forEach((n,i)=>this.tone(t+i*0.06,mtof(79+n),0.16,{type:'square',gain:0.12}));break;
+      case 'unlock':[0,7,12,16,19].forEach((n,i)=>this.tone(t+i*0.08,mtof(67+n),0.3,{type:'triangle',gain:0.14,r:0.2}));break;
+      case 'roar':this.noise(t,0.5,{gain:0.3,lp:600});this.tone(t,80,0.6,{type:'sawtooth',gain:0.2,slideTo:40,r:0.3});break;
+      case 'death':[0,-2,-4,-7,-12].forEach((n,i)=>this.tone(t+i*0.12,mtof(60+n),0.4,{type:'triangle',gain:0.14,r:0.3}));break;
+      case 'descend':this.tone(t,400,0.3,{type:'sine',gain:0.12,slideTo:200});break;
+      case 'chest':this.noise(t,0.1,{gain:0.12,hp:2000});[0,4,7,12,16,19].forEach((n,i)=>this.tone(t+0.1+i*0.07,mtof(72+n),0.22,{type:'square',gain:0.13,r:0.15}));break;
+      case 'win':[0,4,7,12,7,12,16].forEach((n,i)=>this.tone(t+i*0.1,mtof(67+n),0.3,{type:'square',gain:0.14,r:0.18}));break;
+    }
+  }
+};
+function sfx(n){try{Sound.sfx(n);}catch(e){}}
+function music(n){try{Sound.music(n);}catch(e){}}
 
 /* ====================== MOTOR DE PIXEL ART ======================
    Sprites são grades de caracteres. Cada char vira uma cor da paleta.
@@ -833,7 +978,7 @@ function condMet(h){const u=h.unlock;if(!u)return true;const m=G.meta;
 function checkUnlocks(){let changed=false;
   HEROES.forEach(h=>{const st=G.meta.heroes[h.id];
     if(!st.unlocked && h.unlock && h.unlock.type!=='essence' && condMet(h)){
-      st.unlocked=true;changed=true;toast('🔓 '+h.icon+' '+h.name+' juntou-se ao acampamento!','lendario');
+      st.unlocked=true;changed=true;sfx('unlock');toast('🔓 '+h.icon+' '+h.name+' juntou-se ao acampamento!','lendario');
     }});
   if(changed)saveGame();
   return changed;
@@ -844,6 +989,14 @@ function toast(msg,rar){const host=$('#toasts');const t=document.createElement('
   t.className='toast';if(rar)t.style.borderColor=RAR_COLOR[rar]||'var(--gold)';
   t.innerHTML=msg;host.appendChild(t);setTimeout(()=>t.remove(),3000);}
 function openModal(html){$('#modal').innerHTML='<button class="x-close" onclick="closeModal()">✕</button>'+html;$('#overlay').classList.add('show');}
+function openAudioSettings(){Sound.init();
+  openModal(`<h3>🎵 Áudio</h3>
+    <div class="row mt"><button class="btn ${Sound.on?'':'ghost'}" onclick="audioToggle(this)">${Sound.on?'🔊 Som Ligado':'🔇 Som Desligado'}</button></div>
+    <div class="vol-row"><span class="lab-sm" style="width:64px">Música</span><input type="range" min="0" max="1" step="0.05" value="${Sound.musVol}" oninput="Sound.setMus(+this.value)"></div>
+    <div class="vol-row"><span class="lab-sm" style="width:64px">Efeitos</span><input type="range" min="0" max="1" step="0.05" value="${Sound.sfxVol}" oninput="Sound.setSfx(+this.value);sfx('click')"></div>
+    <p class="tiny muted mt6">Trilha e efeitos são gerados em tempo real no seu navegador.</p>`);}
+function audioToggle(btn){const on=Sound.toggle();btn.textContent=on?'🔊 Som Ligado':'🔇 Som Desligado';btn.classList.toggle('ghost',!on);if(on)applyMusic();
+  const ab=document.querySelector('.audio-btn');if(ab)ab.textContent=on?'🔊':'🔇';}
 function closeModal(){$('#overlay').classList.remove('show');}
 $('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal();});
 
@@ -876,10 +1029,9 @@ function xpForLevel(L){return Math.floor(20+L*L*8+L*14);}
 const CUR={screen:'home',tab:'esquadrao'};
 function go(screen,tab){CUR.screen=screen;if(tab)CUR.tab=tab;render();}
 function render(){
-  if(CUR.screen==='home')return renderHome();
-  if(CUR.screen==='camp')return renderCamp();
-  if(CUR.screen==='dungeon')return; // a engine controla
-  if(CUR.screen==='result')return; // controlado
+  if(CUR.screen==='home')renderHome();
+  else if(CUR.screen==='camp')renderCamp();
+  if(_audioReady)applyMusic();
 }
 function resBar(){
   return `<div class="res">
@@ -957,7 +1109,8 @@ function renderCamp(){
   if(!CAMP_TABS.find(t=>t[0]===CUR.tab))CUR.tab='esquadrao';
   checkResearch();
   APP.innerHTML=`<div class="screen camp active">
-    <div class="topbar"><span class="brand">🏕️ Acampamento</span>${resBar()}</div>
+    <div class="topbar"><span class="brand">🏕️ Acampamento</span>${resBar()}
+      <button class="audio-btn" onclick="openAudioSettings()" title="Áudio">${Sound.on?'🔊':'🔇'}</button></div>
     <div class="tabs">${CAMP_TABS.map(t=>`<button class="tab ${CUR.tab===t[0]?'active':''}" onclick="go('camp','${t[0]}')">${t[1]}</button>`).join('')}</div>
     <div id="tabBody"></div>
   </div>`;
@@ -1230,26 +1383,65 @@ function tabCodex(b){
 /* ============================================================================
    MOTOR DA INCURSÃO (DUNGEON)
    ============================================================================ */
+/* ---- MARÉS DA ADRANJA: modificadores aleatórios por incursão ---- */
+const TIDES=[
+ {id:'ouro',name:'Maré de Ouro',icon:'🪙',good:true,desc:'+60% de ouro e tesouros mais frequentes.',apply:r=>{r.tideGold=1.6;r.tideTreasure=1.5;}},
+ {id:'sombria',name:'Maré Sombria',icon:'🌑',good:false,desc:'Inimigos +25% de vida, mas +40% de Essência.',apply:r=>{r.tideEnemyHp=1.25;r.tideEssence=1.4;}},
+ {id:'veloz',name:'Maré Veloz',icon:'💨',good:true,desc:'Grupo +25% de velocidade e ataca primeiro.',apply:r=>{r.passive.partySpd=(r.passive.partySpd||0)+0.25;r.passive.firstStrike=1;}},
+ {id:'fragil',name:'Maré Frágil',icon:'💔',good:false,desc:'Grupo com -25% de vida, mas +70% de XP.',apply:r=>{r.tideHp=0.75;r.passive.xpBonus=(r.passive.xpBonus||0)+0.7;}},
+ {id:'rica',name:'Maré da Abundância',icon:'💎',good:true,desc:'Materiais e equipamentos em dobro.',apply:r=>{r.passive.lootBonus=(r.passive.lootBonus||0)+1;r.passive.materialBonus=(r.passive.materialBonus||0)+1;}},
+ {id:'caos',name:'Maré do Caos',icon:'🌀',good:true,desc:'Eventos e salas secretas muito mais frequentes.',apply:r=>{r.tideEvent=2;r.passive.secretFind=(r.passive.secretFind||0)+0.12;}},
+ {id:'sangue',name:'Maré de Sangue',icon:'🩸',good:false,desc:'Sem salas de descanso, mas dano +30%.',apply:r=>{r.tideNoRest=1;r.passive.partyAtk=(r.passive.partyAtk||0)+0.3;}},
+ {id:'arcana',name:'Maré Arcana',icon:'🔮',good:true,desc:'Dano mágico +35% e mais essência dos chefes.',apply:r=>{r.passive.spellAmp=(r.passive.spellAmp||0)+0.35;r.tideEssence=(r.tideEssence||1)*1.2;}},
+ {id:'mapa',name:'Bênção do Cartógrafo',icon:'🗺️',good:true,desc:'Familiaridade do mapa ganha em dobro.',apply:r=>{r.passive.mapBonus=(r.passive.mapBonus||0)+1;}},
+ {id:'cacada',name:'Maré da Caçada',icon:'🏹',good:true,desc:'+25% de crítico e dano contra Feras.',apply:r=>{r.passive.critBonus=(r.passive.critBonus||0)+0.25;r.passive.beastBane=(r.passive.beastBane||0)+0.3;}},
+];
+function rollTides(){const n=chance(0.35)?2:1;return shuffle(TIDES).slice(0,n);}
+
 function startRunFlow(){
   const party=G.meta.party.filter(id=>G.meta.heroes[id].unlocked);
   if(party.length===0){toast('Monte uma equipe primeiro.','warn');return;}
+  Sound.init();Sound.resume();
+  const tides=rollTides();
+  RUN_PENDING={party,tides};
+  openModal(`<h2 style="color:var(--gold)">⚓ Marés da Adranja</h2>
+    <p class="small muted">A masmorra se reorganiza. Sinta as correntes mágicas desta incursão:</p>
+    <div class="col mt">${tides.map(t=>`<div class="recipe" style="border-color:${t.good?'var(--ok)':'var(--bad)'}">
+       <div class="rico">${t.icon}</div><div style="flex:1"><b>${t.name}</b> ${t.good?'<span class="chip" style="color:var(--ok)">bônus</span>':'<span class="chip" style="color:var(--bad)">risco</span>'}<br>
+       <span class="tiny">${t.desc}</span></div></div>`).join('')}</div>
+    <div class="row mt"><button class="btn" onclick="confirmStartRun()">Entrar na Adranja ▶</button>
+    <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>
+    <p class="tiny muted mt6">Cada incursão é única — partidas diferentes, recompensas diferentes.</p>`);
+}
+let RUN_PENDING=null;
+function rerollAndShow(){RUN_PENDING.tides=rollTides();const p=RUN_PENDING.party,t=RUN_PENDING.tides;
+  startRunFlowShow(p,t);}
+function startRunFlowShow(party,tides){RUN_PENDING={party,tides};
+  openModal(`<h2 style="color:var(--gold)">⚓ Marés da Adranja</h2>
+    <p class="small muted">A masmorra se reorganiza. Sinta as correntes mágicas desta incursão:</p>
+    <div class="col mt">${tides.map(t=>`<div class="recipe" style="border-color:${t.good?'var(--ok)':'var(--bad)'}">
+       <div class="rico">${t.icon}</div><div style="flex:1"><b>${t.name}</b> ${t.good?'<span class="chip" style="color:var(--ok)">bônus</span>':'<span class="chip" style="color:var(--bad)">risco</span>'}<br>
+       <span class="tiny">${t.desc}</span></div></div>`).join('')}</div>
+    <div class="row mt"><button class="btn" onclick="confirmStartRun()">Entrar na Adranja ▶</button>
+    <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>`);}
+function confirmStartRun(){closeModal();const{party,tides}=RUN_PENDING;
   G.meta.runs++;saveGame();
-  initRun(party);
-  CUR.screen='dungeon';
-  renderDungeon();
-  // começa após um respiro
-  RUN.speed=1;
+  initRun(party,tides);
+  CUR.screen='dungeon';renderDungeon();
+  RUN.speed=1;music('explore');
   setTimeout(()=>stepBegin(),700);
 }
-function initRun(party){
+function initRun(party,tides){
   RUN={
     party:party.map(buildCombatant),
-    floor:1, room:0, roomsTotal:0, kills:0, gold:0, essence:0,
+    floor:1, room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
     log:[], scene:{mode:'idle',enemies:[],walk:0,shake:0,flashEnemy:-1},
     passive:{}, alive:true, paused:false, speed:1, fxNodes:[],
+    tides:tides||[], tideGold:1, tideTreasure:1, tideEnemyHp:1, tideEssence:1, tideHp:1, tideEvent:1, tideNoRest:0,
     pendingBoss:null, keysThisRun:[], retreated:false, encounters:[]
   };
   computePartyPassives();
+  (tides||[]).forEach(t=>t.apply(RUN));
   RUN.party.forEach(c=>applyPassiveStart(c));
 }
 function buildCombatant(id){
@@ -1273,7 +1465,9 @@ function applyPassiveStart(c){
   if(p.partyAtk)c.st.atk=Math.round(c.st.atk*(1+p.partyAtk));
   if(p.partyDef)c.st.def=Math.round(c.st.def*(1+p.partyDef));
   if(p.partySpd)c.st.spd=Math.round(c.st.spd*(1+p.partySpd));
-  if(G.meta.flags.off_heal){c.maxhp=Math.round(c.maxhp*1.1);c.hp=c.maxhp;c.st.maxhp=c.maxhp;}
+  if(G.meta.flags.off_heal){c.maxhp=Math.round(c.maxhp*1.1);}
+  if(RUN.tideHp&&RUN.tideHp!==1){c.maxhp=Math.round(c.maxhp*RUN.tideHp);}
+  c.hp=c.maxhp;c.st.maxhp=c.maxhp;
 }
 
 /* ---- TELA DA INCURSÃO ---- */
@@ -1289,10 +1483,15 @@ function renderDungeon(){
       </div>
     </div>
     <div class="dgn-stage" id="stage"><canvas id="scene" width="360" height="200"></canvas></div>
+    <div class="row wrap mt6" style="gap:6px">
+      ${(RUN.tides||[]).map(t=>`<span class="tide-chip" title="${t.desc}">${t.icon} ${t.name}</span>`).join('')}
+      <span id="comboHud"></span>
+    </div>
     <div class="party-mini mt6" id="partyMini"></div>
     <div class="dgn-hud">
       <button class="btn ghost sm" id="spdBtn" onclick="cycleSpeed()">⏩ Velocidade x1</button>
       <button class="btn ghost sm" onclick="toggleWorkshop()">🛠️ Oficina</button>
+      <button class="audio-btn" onclick="openAudioSettings()" title="Áudio">${Sound.on?'🔊':'🔇'}</button>
       <button class="btn danger sm" onclick="confirmRetreat()">🏃 Recuar</button>
     </div>
     <div class="log mt6" id="log"></div>
@@ -1407,7 +1606,32 @@ function floatText(side,i,txt,color){
   else{d.style.left='44%';d.style.top='30%';}
   stage.appendChild(d);setTimeout(()=>d.remove(),1000);
 }
-function cycleSpeed(){RUN.speed=RUN.speed>=4?1:RUN.speed*2;const b=$('#spdBtn');if(b)b.textContent='⏩ Velocidade x'+RUN.speed;}
+/* ====================== JUICE: partículas, bursts, cards ====================== */
+function burstAt(side,i,color){const stage=$('#stage');if(!stage)return;
+  const x=side==='hero'?(10+i*9):(60-i*9), y=side==='hero'?52:42;
+  for(let k=0;k<10;k++){const p=document.createElement('div');p.className='pt';p.style.color=color||'#ffd166';
+    p.style.left=x+'%';p.style.top=y+'%';const ang=Math.random()*6.28,d=14+Math.random()*26;
+    p.style.setProperty('--dx',Math.cos(ang)*d+'px');p.style.setProperty('--dy',(Math.sin(ang)*d-18)+'px');
+    p.style.background=color||'#ffd166';stage.appendChild(p);setTimeout(()=>p.remove(),720);}}
+function sceneSpark(side,i,color){const stage=$('#stage');if(!stage)return;
+  const x=side==='hero'?(10+i*9):(60-i*9), y=side==='hero'?52:42;
+  for(let k=0;k<6;k++){const p=document.createElement('div');p.className='pt';p.style.color=color||'#fff';
+    p.style.left=x+'%';p.style.top=y+'%';const ang=Math.random()*6.28,d=8+Math.random()*16;
+    p.style.setProperty('--dx',Math.cos(ang)*d+'px');p.style.setProperty('--dy',Math.sin(ang)*d+'px');
+    p.style.background=color||'#fff';stage.appendChild(p);setTimeout(()=>p.remove(),720);}}
+function lootBurst(rarity){if(RARS.indexOf(rarity)<2&&rarity!=='secreto')return; // só raridade alta
+  let host=$('#lootFx');if(!host){host=document.createElement('div');host.id='lootFx';document.body.appendChild(host);}
+  const col=RAR_COLOR[rarity]||'#ffd166';
+  const ring=document.createElement('div');ring.className='lb-ring';ring.style.borderColor=col;host.appendChild(ring);setTimeout(()=>ring.remove(),650);
+  for(let k=0;k<18;k++){const s=document.createElement('div');s.className='lb-spark';s.style.color=col;s.style.background=col;
+    const ang=Math.random()*6.28,d=60+Math.random()*120;s.style.setProperty('--dx',Math.cos(ang)*d+'px');s.style.setProperty('--dy',Math.sin(ang)*d+'px');
+    host.appendChild(s);setTimeout(()=>s.remove(),820);}}
+function bossCard(name,intro,secret){const stage=$('#stage');if(!stage)return;
+  const c=document.createElement('div');c.className='boss-card'+(secret?' secret':'');
+  c.innerHTML=`<div class="bc-n">${secret?'⟁ ':'☠ '}${name}${secret?' ⟁':' ☠'}</div><div class="bc-i">${intro||''}</div>`;
+  stage.appendChild(c);setTimeout(()=>c.remove(),2700);}
+
+function cycleSpeed(){RUN.speed=RUN.speed>=4?1:RUN.speed*2;const b=$('#spdBtn');if(b)b.textContent='⏩ Velocidade x'+RUN.speed;sfx('click');}
 function confirmRetreat(){RUN.paused=true;
   openModal(`<h3>🏃 Recuar da Adranja?</h3>
    <p class="small">Você volta ao acampamento em segurança. <b>Mantém tudo</b> que coletou (itens, essência, habilidades, segredos). Mas a memória dos níveis se perde — na próxima incursão começam do Nível 1.</p>
@@ -1470,8 +1694,9 @@ function floorClimax(){
 }
 function descend(){
   if(maybeSecretBoss())return;
-  RUN.floor++;
-  if(RUN.floor>G.meta.deepestFloor){G.meta.deepestFloor=RUN.floor;checkUnlocks();}
+  floorClearRewards();
+  RUN.floor++;sfx('descend');
+  if(RUN.floor>G.meta.deepestFloor){G.meta.deepestFloor=RUN.floor;milestoneCheck();checkUnlocks();}
   saveGame();
   rtimeout(stepBegin,500);
 }
@@ -1482,7 +1707,8 @@ function doEncounter(){
   // passagem secreta?
   const secretFind=(RUN.passive.secretFind||0)+(G.meta.research.meta_loot?0.05:0);
   if(secretFind>0&&chance(secretFind)){return encSecretPassage();}
-  const w={combate:42,tesouro:15,armadilha:12,evento:13,descanso:8};
+  const w={combate:42,tesouro:Math.round(15*(RUN.tideTreasure||1)),armadilha:12,evento:Math.round(13*(RUN.tideEvent||1))};
+  if(!RUN.tideNoRest)w.descanso=8;
   if(RUN.floor>=4)w.fonte=3;
   if(RUN.floor>=6)w.altar=5;
   w.mercador=3+Math.round(avgLuck()/4);
@@ -1495,7 +1721,7 @@ function avgLuck(){return RUN.party.filter(c=>c.alive).reduce((a,c)=>a+c.st.lck,
 /* ---- TESOURO ---- */
 function encTreasure(){
   const flavor=pick(['Um baú empoeirado repousa num canto.','Ossos de um aventureiro guardam uma bolsa.','Um cofre rúnico zumbe baixinho.','Tesouros reluzem sob escombros.']);
-  logline('💰 '+flavor,'lt');RUN.scene.mode='idle';
+  logline('💰 '+flavor,'lt');RUN.scene.mode='idle';sfx('treasure');
   const lootMult=1+(RUN.passive.lootBonus||0)+(G.meta.research.meta_loot?0.2:0);
   rtimeout(()=>{
     const gold=Math.round(ri(8,20)*RUN.floor*lootMult);grantGold(gold);
@@ -1511,7 +1737,7 @@ function encTrap(){
   const tr=pick(traps);
   if(chance(evade)){logline('🪤 '+tr+' — mas a equipe a desarma a tempo! '+RAR_NAME.raro,'dn');
     if(chance(0.3))grantMaterial();rtimeout(advanceRoom,700);return;}
-  logline('🪤 Armadilha! '+tr+' atinge o grupo!','bd');RUN.scene.shake=6;
+  logline('🪤 Armadilha! '+tr+' atinge o grupo!','bd');RUN.scene.shake=6;sfx('trap');
   const dmg=Math.round(ri(4,9)*RUN.floor*0.6);
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=Math.max(0,c.hp-dmg);floatText('hero',i,'-'+dmg,'#ff5d6c');if(c.hp===0)downHero(c);});
   refreshBars();checkWipe()||rtimeout(advanceRoom,800);
@@ -1589,7 +1815,26 @@ function encSecretPassage(){
 }
 
 /* ---- RECOMPENSAS ---- */
-function grantGold(n){let m=1;if(G.meta.flags.off_gold)m+=0.5;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();
+function runEssence(base){let b=base;if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;const added=addEssence(Math.round(b));if(RUN)RUN.essence+=added;updateRunRes();return added;}
+function floorClearRewards(){
+  RUN.combo++;
+  const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
+  const ess=Math.round((6+RUN.floor*2)*comboMult);runEssence(ess);
+  logline(`🪜 Andar ${RUN.floor} concluído! <span class="dn">+${ess} essência</span>${RUN.combo>=3?` <span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:''}`,'ev');
+  updateComboHud();
+}
+const MILESTONES=[{f:3,e:40},{f:5,e:80,item:'pocao_forca'},{f:8,e:150},{f:10,e:250,item:'cota_malha'},{f:12,e:400},{f:15,e:700,item:'manto_arcano'},{f:20,e:1500,item:'armadura_dragao'}];
+function milestoneCheck(){
+  MILESTONES.forEach(m=>{if(RUN.floor>=m.f&&!G.meta.flags['ms_'+m.f]){G.meta.flags['ms_'+m.f]=true;
+    const got=runEssence(m.e);if(m.item)addItem(m.item,1);
+    sfx('unlock');lootBurst('lendario');
+    toast(`🏅 Recorde: Andar ${m.f}! +${got} essência${m.item?' + '+IMAP[m.item].icon:''}`,'lendario');
+    logline(`🏅 <b>Primeira vez no Andar ${m.f}!</b> Recompensa de marco: +${got} essência${m.item?' + '+IMAP[m.item].icon+' '+IMAP[m.item].name:''}.`,'sc');
+  }});saveGame();
+}
+function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=2?`<span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:'';}
+
+function grantGold(n){let m=1;if(G.meta.flags.off_gold)m+=0.5;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
 function rarityRoll(minRar){
   // tabela melhora com andar
@@ -1606,7 +1851,7 @@ function grantMaterial(minRar){
   const exact=ITEMS.filter(i=>i.type==='mat'&&i.rarity===rar);
   const it=pick(exact.length?exact:pool);
   if(!it)return;addItem(it.id,1);logline('🧱 +1 '+it.icon+' '+it.name+' ('+RAR_NAME[it.rarity]+')','lt');
-  toast('🧱 '+it.icon+' '+it.name,it.rarity);
+  sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');toast('🧱 '+it.icon+' '+it.name,it.rarity);
 }
 function grantEquipment(minRar){
   const rar=rarityRoll(minRar);
@@ -1615,7 +1860,7 @@ function grantEquipment(minRar){
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i));
   const it=pick(pool);addItem(it.id,1);
   logline('🎁 Equipamento: '+it.icon+' <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b>!','lt');
-  toast('🎁 '+it.icon+' '+it.name,it.rarity);
+  sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);toast('🎁 '+it.icon+' '+it.name,it.rarity);
 }
 function grantSecretKey(){
   // decide qual chave secreta dropar
@@ -1627,7 +1872,7 @@ function grantSecretKey(){
   if(!pool.length)pool.push('cristal_invocacao');
   const id=pick(pool);addItem(id,1);discover('items',id);
   const it=IMAP[id];logline('🗝️ <b class="tag-secret">ITEM SECRETO:</b> '+it.icon+' '+it.name+'!','sc');
-  toast('🗝️ '+it.icon+' '+it.name,'secreto');
+  sfx('secret');lootBurst('secreto');toast('🗝️ '+it.icon+' '+it.name,'secreto');
   if(id==='chave_negra')unlockSecret('chave_negra');
   if(id==='olho_abissal'&&invQty('chave_negra')>0)unlockSecret('eco_vazio');
   if(id==='coroa_partida'){if(coroaCount()>=3)unlockSecret('coroa');}
@@ -1644,7 +1889,7 @@ function grantXP(c,amt){
   refreshBars();
 }
 function levelUp(c){
-  c.level++;
+  c.level++;sfx('levelup');burstAt('hero',RUN.party.indexOf(c),'#ffd166');
   const ns=heroStats(c.id,c.level);
   const dh=ns.maxhp-c.maxhp;c.maxhp=ns.maxhp;c.hp=Math.min(c.maxhp,c.hp+dh);
   c.st=ns;applyPassiveStart(c);
@@ -1711,7 +1956,8 @@ function makeEnemy(monster,floor,boss){
   const hpS=boss?1:(1+floor*0.34), atkS=boss?1:(1+floor*0.20), defS=boss?1:(1+floor*0.14), spdS=boss?1:(1+floor*0.04);
   // chefes ganham leve escala se reencontrados além do andar de origem
   const bScale=boss?(1+Math.max(0,floor-monster.floor)*0.05):1;
-  const maxhp=Math.round(b.hp*hpS*bScale);
+  const tideHp=(RUN&&RUN.tideEnemyHp)||1;
+  const maxhp=Math.round(b.hp*hpS*bScale*tideHp);
   return {m:monster,name:monster.name,boss:!!boss,family:monster.family,el:monster.el,
     st:{atk:Math.round(b.atk*atkS*bScale),mag:Math.round(b.atk*atkS*bScale),def:Math.round(b.def*defS*bScale),spd:Math.round(b.spd*spdS),lck:5},
     maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{}};
@@ -1740,7 +1986,7 @@ function startBossFight(){
   const e=makeEnemy(boss,RUN.floor,true);
   logline('<span class="bd">═══ CHEFE: '+boss.name+' ═══</span>','bd');
   logline('<i>'+boss.intro+'</i>','sy');discover('bosses',boss.id);
-  showBossBar(e);
+  sfx('roar');bossCard(boss.name,boss.intro,false);showBossBar(e);
   beginCombat([e],{boss:true,bossDef:boss,onWin:()=>onBossWin(boss,e)});
 }
 function onBossWin(boss,e){
@@ -1749,7 +1995,7 @@ function onBossWin(boss,e){
   RUN.kills++;G.meta.totalKills++;
   const xp=e.maxhp*0.4+RUN.floor*40;
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp));
-  const ess=Math.round((30+RUN.floor*8));RUN.essence+=ess;addEssence(ess);
+  const ess=runEssence(30+RUN.floor*8);
   grantGold(Math.round(40*RUN.floor));
   grantEquipment(RUN.floor>=15?'lendario':'epico');grantMaterial('raro');
   if(RUN.floor>=10)grantSecretKey();
@@ -1773,6 +2019,7 @@ function aliveEnemies(){return RUN.combat.enemies.filter(e=>e.alive);}
 function beginCombat(enemies,opts){
   RUN.scene.mode='combat';RUN.scene.enemies=enemies;RUN.scene.shake=4;
   RUN.combat={enemies,opts,minions:[],round:0,queue:[],boss:opts.boss};
+  if(_audioReady)applyMusic();
   // invocações iniciais por passiva
   RUN.party.filter(c=>c.alive).forEach(c=>{const sm=c.h.passive.tags&&c.h.passive.tags.summon;if(sm)spawnMinion(c,sm);});
   // poção/bomba automática no início (consumível)
@@ -1856,6 +2103,7 @@ function heroAct(c){
 function performSkill(c,skill){
   c.anim.hit=skill.kind==='heal'||skill.kind==='buff'?0.3:1;
   if(skill.kind==='heal'){
+    sfx('heal');
     if(skill.fx==='revive'){const d=RUN.party.find(p=>!p.alive);if(d){d.alive=true;d.hp=Math.round(d.maxhp*0.45);
       logline('✨ '+actorName(c)+' usa <b>'+skill.n+'</b>! '+actorName(d)+' renasce!','dn');floatText('hero',RUN.party.indexOf(d),'REVIVE','#67d8ff');refreshBars();}}
     else{const tgts=skill.tgt==='allies'?allies():[mostHurt()];
@@ -1906,6 +2154,7 @@ function actDelay(){return 360;}
 /* ---- aplicação de dano ---- */
 function hitEnemy(att,e,skill){
   const r=computeDamage(att,e,skill);
+  sfx(r.crit?'crit':'hit');
   applyDamageToEnemy(e,r.dmg,r.crit,skill?skill.el:att.el);
   // efeitos no inimigo
   if(skill){const f=skill.fx;
@@ -1949,6 +2198,7 @@ function applyDamageToEnemy(e,dmg,crit,el){
   e.hp-=dmg;e.hit=1;e.flash=1;RUN.scene.shake=Math.max(RUN.scene.shake,crit?5:2);
   const idx=RUN.scene.enemies.indexOf(e);
   floatText('enemy',Math.max(0,idx),(crit?'✸':'')+dmg,crit?'#ffd166':'#fff');
+  sceneSpark('enemy',Math.max(0,idx),crit?'#ffd166':'#ff9a6c');
   // espinhos do guerreiro? (thorns aplicado em hero defense)
   if(e.boss)updateBossBar(e);
 }
@@ -1964,10 +2214,11 @@ function killEnemy(e){if(e.dead)return;e.alive=false;e.dead=true;e.hp=0;
 function winCombat(){
   RUN.scene.mode='idle';RUN.scene.enemies=[];
   RUN.party.forEach(c=>{c.fx={};});
+  const onWin=RUN.combat.opts.onWin;const wasBoss=RUN.combat.boss;
   RUN.combat.minions=[];
-  // bênção constante (clériga) e regen druida ao limpar sala
   if(RUN.passive.healRoom){RUN.party.filter(c=>c.alive).forEach(c=>{c.hp=Math.min(c.maxhp,c.hp+Math.round(c.maxhp*RUN.passive.healRoom));});refreshBars();}
-  const onWin=RUN.combat.opts.onWin;
+  // volta à trilha de exploração
+  RUN.combat.opts={};RUN.combat.boss=false;if(_audioReady)applyMusic();
   rtimeout(()=>{if(onWin)onWin();},700);
 }
 function enemyAct(e){
@@ -1989,8 +2240,8 @@ function applyDamageToHero(c,dmg,crit,attacker){
   const t=(c.h&&c.h.passive.tags)||{};
   let avoid=(t.dodge||0)+(t.phase||0);if(c.fx.evade)avoid=1;
   if(avoid>0&&chance(avoid)){if(idx>=0)floatText('hero',idx,'esquiva!','#67d8ff');logline(actorName(c)+' esquiva do golpe!','muted');c.fx.evade=0;return;}
-  c.hp-=dmg;RUN.scene.shake=Math.max(RUN.scene.shake,crit?6:3);
-  if(idx>=0)floatText('hero',idx,'-'+dmg,crit?'#ff5d6c':'#ffb0b0');
+  c.hp-=dmg;RUN.scene.shake=Math.max(RUN.scene.shake,crit?6:3);sfx('enemyhit');
+  if(idx>=0){floatText('hero',idx,'-'+dmg,crit?'#ff5d6c':'#ffb0b0');sceneSpark('hero',idx,'#ff5d6c');}
   // espinhos / thorns
   if(attacker&&attacker.alive){const th=(t.thorns||0)+(RUN.passive.thorns&&c.fx.taunt?0:0);
     if(t.thorns){const ref=Math.round(dmg*t.thorns);attacker.hp-=ref;const ei=RUN.scene.enemies.indexOf(attacker);floatText('enemy',Math.max(0,ei),'-'+ref,'#ffd166');if(attacker.hp<=0)killEnemy(attacker);if(attacker.boss)updateBossBar(attacker);}}
@@ -2020,14 +2271,14 @@ function startSecretBoss(id){
   logline('<span class="sc">⟁⟁⟁ A realidade racha... ⟁⟁⟁</span>','sc');
   logline('<b class="tag-secret">CHEFE SECRETO: '+boss.name+'</b>','sc');
   logline('<i>'+boss.intro+'</i>','sy');discover('bosses',id);
-  showBossBar(e);
-  beginCombat([e],{boss:true,onWin:()=>onSecretBossWin(boss,e)});
+  sfx('roar');bossCard(boss.name,boss.intro,true);showBossBar(e);
+  beginCombat([e],{boss:true,secret:true,onWin:()=>onSecretBossWin(boss,e)});
 }
 function onSecretBossWin(boss,e){
   hideBossBar();if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
   RUN.kills++;G.meta.totalKills++;
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,e.maxhp*0.5+200));
-  const ess=200+RUN.floor*12;RUN.essence+=ess;addEssence(ess);
+  const ess=runEssence(200+RUN.floor*12);
   grantEquipment('lendario');if(chance(0.5))grantEquipment('mitico');
   if(!G.meta.relics.includes('lampada_eterna')&&chance(0.5)){addItem('lampada_eterna',1);discover('items','lampada_eterna');}
   logline('🌟 <b>'+boss.name+' caiu!</b> Poder imenso é seu. +'+ess+' essência.','sc');
@@ -2055,6 +2306,7 @@ function endRun(reason){
 }
 function showResult(s){
   const death=s.reason==='death';
+  if(death){Sound.stop();sfx('death');}else{music('camp');sfx('chest');}
   APP.innerHTML=`<div class="screen active" style="justify-content:center">
     <div class="panel parch center" style="max-width:520px;margin:auto">
       <div style="font-size:60px">${death?'💀':'🏕️'}</div>
@@ -2080,6 +2332,7 @@ function showResult(s){
 }
 function victoryEnding(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
+  music('victory');sfx('win');
   const s={floor:RUN.floor,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence};
   RUN=null;G.meta.flags.beatGame=true;saveGame();CUR.screen='result';
   APP.innerHTML=`<div class="screen active" style="justify-content:center">
@@ -2097,16 +2350,35 @@ function victoryEnding(){
     </div></div>`;
 }
 
+/* ====================== ÁUDIO: contexto/transições ====================== */
+function desiredTrack(){
+  if(CUR.screen==='home'||CUR.screen==='camp')return 'camp';
+  if(CUR.screen==='result')return RUN?null:'camp';
+  if(CUR.screen==='dungeon'){
+    if(RUN&&RUN.combat){const o=RUN.combat.opts||{};
+      if(o.secret)return 'secret';if(o.bossDef||o.boss)return 'boss';return 'battle';}
+    return 'explore';
+  }
+  return 'camp';
+}
+function applyMusic(){const t=desiredTrack();if(t)music(t);else Sound.stop();}
+let _audioReady=false;
+function firstGesture(){if(_audioReady)return;_audioReady=true;Sound.init();Sound.resume();applyMusic();}
+
 /* ====================== BOOT ====================== */
 function boot(){
   loadGame();checkUnlocks();
   go('home');
+  // primeira interação destrava o áudio (política de autoplay)
+  ['pointerdown','keydown','touchstart'].forEach(ev=>window.addEventListener(ev,firstGesture,{once:false}));
+  // som de clique em botões/abas
+  document.addEventListener('pointerdown',e=>{const b=e.target.closest('.btn,.tab,.hero-card,.item,.x-close');if(b)sfx('click');},true);
   setInterval(()=>{
     if(!G.meta)return;
     checkResearch();
     if(CUR.screen==='camp'&&CUR.tab==='biblioteca')renderTab();
   },1000);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)saveGame();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){saveGame();if(Sound.ctx)Sound.musGain&&(Sound.musGain.gain.value=0);}else{if(Sound.ctx&&Sound.on)Sound.musGain.gain.value=Sound.musVol;}});
 }
 window.addEventListener('DOMContentLoaded',boot);
 </script>
