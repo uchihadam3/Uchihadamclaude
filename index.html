@@ -563,7 +563,7 @@ const HEROES=[
  pal:{H:'#caa15a',S:'#f0c08a',e:'#2a1a30',K:'#f0c08a',A:'#eef0f4',B:'#ffd166',P:'#cfd2da',O:'#9a9da6',M:'#d6dde6',R:'#ffd166',L:'#ffe9a8',W:'#7a5a36'},
  base:{hp:50,atk:6,def:8,mag:11,spd:7,lck:7},
  growth:{hp:9,atk:.9,def:1.3,mag:1.8,spd:1,lck:1.1},
- passive:{name:'Bênção Constante',tags:{healRoom:0.08},
+ passive:{name:'Bênção Constante',tags:{healRoom:0.04},
    desc:'Cura 8% da vida de todo o grupo ao limpar cada sala.'},
  skills:[
   SK('Luz Curativa',1,'heal',1.6,'ally',{txt:'Cura o aliado mais ferido.'}),
@@ -666,7 +666,7 @@ const HEROES=[
  head:'none',weapon:'staff',
  pal:{H:'#3a6a2a',S:'#d8b888',e:'#5fd17a',K:'#d8b888',A:'#5a7a3a',B:'#8a5a2a',P:'#3a4a22',O:'#1a2410',G:'#5fd17a',W:'#5a3a1a'},
  base:{hp:56,atk:9,def:8,mag:11,spd:8,lck:8},growth:{hp:10,atk:1.4,def:1.3,mag:1.7,spd:1.1,lck:1},
- passive:{name:'Forma Selvagem',tags:{shapeshift:1,healRoom:0.05},desc:'Transforma-se em fera no combate (mais ataque) e regenera 5% por sala.'},
+ passive:{name:'Forma Selvagem',tags:{shapeshift:1,healRoom:0.03},desc:'Transforma-se em fera no combate (mais ataque) e regenera 3% por sala.'},
  skills:[SK('Garras',1,'phys',1.4,'one',{fx:'shift'}),SK('Espinhos',3,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
   SK('Toque da Vida',5,'heal',1.5,'ally'),SK('Fúria de Urso',8,'phys',1.8,'one',{fx:'shift'}),
   SK('Ira da Floresta',14,'mag',2.2,'all',{el:'arcano',fx:'poison'})],
@@ -816,8 +816,45 @@ const BOSSES=[
  pal:{a:'#3a2a1a',b:'#ffd166',e:'#a14bff',c:'#7a5a36',m:'#e8c074'},
  grid:G16(["..m.m.m.m.m...","..mmmmmmmmm...","...baaaaab....","...aeaaaea....","...aaaaaaa....","..baabbbaab...","..baaaaaaab...","...aaaaaaa....","...a.aaa.a....","..a..a.a..a...","..m..a.a..m...","..mm.....mm.."]),
  skills:['decreto','corte_real','exilio','apocalipse'],intro:'Coroado pela própria Adranja. Aquele que se recusou a esquecer.'},
+/* chefes nomeados de marco em andares profundos */
+{id:'titereiro',name:'Vorlag, o Titereiro de Ossos',family:'morto-vivo',el:'sombrio',floor:30,
+ base:{hp:5200,atk:78,def:40,spd:16},
+ pal:{a:'#2a2238',b:'#7dff8f',e:'#ff5d6c',c:'#a14bff',m:'#cfd6dd'},
+ grid:G16(["....ccccc.....","...caaaaac....","...caeaeac....","...caaaaac....","....cabac.....","...baaaaab....","..b.aaaaa.b...","..b.ababa.b...","....aaaaa.....","...a.a.a.a....","..a..a.a..a...","..c.......c..."]),
+ skills:['necromancia','maldicao','apocalipse'],intro:'Mil cordões de osso descem do teto. Você é apenas mais um boneco.'},
+{id:'inferno',name:'Ash\'gorath, Senhor das Brasas',family:'demonio',el:'fogo',floor:50,
+ base:{hp:11000,atk:120,def:55,spd:18},
+ pal:{a:'#c8324a',b:'#ff7a3c',e:'#ffd166',c:'#8a1a2a',m:'#3a0a0a'},
+ grid:G16(["b...........b.",".bb.......bb..","..baaaaaaab...","..baeaaaeab...","..baaaccaaab..",".baaaaaaaaab.","baaaaaaaaaaaab","b.aaaaaaaaaa.b","..bb.aaaa.bb..","....b.aa.b....","..m..b..b..m..","..m........m.."]),
+ skills:['sopro','inferno','garra'],intro:'O ar ferve. As paredes choram lava. Ele sorri.'},
+{id:'arconte',name:'O Arconte do Vazio',family:'aberracao',el:'arcano',floor:75,
+ base:{hp:24000,atk:175,def:70,spd:22},
+ pal:{a:'#1a1030',b:'#a14bff',e:'#ff5fa8',c:'#b39bff'},
+ grid:G16(["..b..b..b..b..","...caaaaaac...","..caaaaaaaac..","..caeaccaeac..","..caaccccaac..","..caaaaaaaac..","...caaaaaac...","..b.cccccc.b..","..b.c....c.b..","....b....b...."]),
+ skills:['colapso','espelho','vazio','apocalipse'],intro:'Entre os andares, algo que jamais teve forma assume a sua.'},
+{id:'coracao',name:'O Coração da Adranja',family:'aberracao',el:'arcano',floor:100,
+ base:{hp:60000,atk:280,def:95,spd:26},
+ pal:{a:'#3a0a2a',b:'#ff5fa8',e:'#ffd166',c:'#a14bff',m:'#67d8ff'},
+ grid:G16([".....mm.mm....","...mcccccccm..","..mcc cccc cm.","..ccaeaaaeacc.","..ccaaaaaaacc.","..ccaabbaaacc.","...ccaaaaacc..","....cc cc cc..","..b..cc cc..b.","..b...c c...b.","...b.......b..","....mm...mm..."]),
+ skills:['decreto','colapso','inferno','apocalipse','vazio'],intro:'No fundo de tudo, a masmorra tem um coração. Ele bate uma vez. Sente você.'},
 ];
 const BMAP={};BOSSES.forEach(b=>BMAP[b.id]=b);
+/* ---- gerador de chefes para QUALQUER andar múltiplo de 5 (até 100+) ---- */
+const DEEP_BOSS_NAMES=['Carcereiro Eterno','Devorador de Andares','Colosso Rúnico','Tirano Espectral','Behemoth Cristalino','Sentinela Proibida','Pesadelo Vivo','Leviatã do Abismo','Algoz das Profundezas','Verdugo de Pedra'];
+function getBossForFloor(floor){
+  const named=BOSSES.find(b=>b.floor===floor&&!b.secret);
+  if(named)return named;
+  if(floor%5!==0)return null;
+  const tmpls=BOSSES.filter(b=>!b.secret&&b.floor<floor);
+  const tmpl=tmpls[(Math.floor(floor/5))%tmpls.length]||BMAP.guardiao;
+  const nm=DEEP_BOSS_NAMES[(Math.floor(floor/5))%DEEP_BOSS_NAMES.length];
+  // base escalada para o andar (chefe sente como ~3x um inimigo normal do andar)
+  const k=floor;
+  return {id:'lord_'+floor,name:nm+' · Andar '+floor,family:tmpl.family,el:tmpl.el,floor,proc:true,
+    base:{hp:Math.round(260+k*k*5.2+k*60), atk:Math.round(16+k*2.2+k*k*0.05), def:Math.round(10+k*1.0+k*k*0.012), spd:Math.round(8+k*0.14)},
+    grid:tmpl.grid,pal:tmpl.pal,skills:['esmagar','tremor'],
+    intro:'Um senhor das profundezas barra o caminho. A Adranja não quer que você desça mais.'};
+}
 
 /* ====================== ITENS ======================
    type: arma|armadura|acessorio|mat|consumivel|relíquia|chave
@@ -1023,7 +1060,7 @@ function knownSkills(heroId,uptoLevel){
 }
 function heroMaxLevel(heroId){return G.meta.heroes[heroId].maxLevelEver;}
 // XP necessária p/ subir do nível L -> L+1
-function xpForLevel(L){return Math.floor(20+L*L*8+L*14);}
+function xpForLevel(L){return Math.floor(18+L*L*6+L*12);}
 
 /* ====================== ROTEADOR / TELAS ====================== */
 const CUR={screen:'home',tab:'esquadrao'};
@@ -1520,16 +1557,18 @@ function logline(html,cls){RUN.log.push({html,cls});if(RUN.log.length>120)RUN.lo
     while(el.children.length>60)el.removeChild(el.firstChild);el.scrollTop=el.scrollHeight;}}
 
 /* ---- TEMA VISUAL POR ANDAR ---- */
-function floorTheme(f){
-  const bands=[
-    {brick:'#3a2a44',brick2:'#2a1d34',floor:'#241830',torch:'#ffb347',tint:'rgba(125,108,255,.05)'}, //1-4 cripta roxa
-    {brick:'#2a3a3a',brick2:'#1d2a2a',floor:'#16221f',torch:'#67d8ff',tint:'rgba(103,216,255,.06)'}, //5-8 gelo
-    {brick:'#3a2a22',brick2:'#2a1d16',floor:'#221610',torch:'#ff7a3c',tint:'rgba(255,122,60,.07)'}, //9-12 lava
-    {brick:'#22302a',brick2:'#16221c',floor:'#10180f',torch:'#5fd17a',tint:'rgba(95,209,122,.06)'}, //13-16 floresta
-    {brick:'#1a1030',brick2:'#100a20',floor:'#0c0818',torch:'#a14bff',tint:'rgba(161,75,255,.10)'}, //17+ vazio
-  ];
-  return bands[clamp(Math.floor((f-1)/4),0,bands.length-1)];
-}
+const FLOOR_BANDS=[
+  {name:'Cripta',brick:'#3a2a44',brick2:'#2a1d34',floor:'#241830',torch:'#ffb347',tint:'rgba(125,108,255,.05)'},
+  {name:'Cavernas de Gelo',brick:'#2a3a3a',brick2:'#1d2a2a',floor:'#16221f',torch:'#67d8ff',tint:'rgba(103,216,255,.06)'},
+  {name:'Forjas de Lava',brick:'#3a2a22',brick2:'#2a1d16',floor:'#221610',torch:'#ff7a3c',tint:'rgba(255,122,60,.08)'},
+  {name:'Bosque Profano',brick:'#22302a',brick2:'#16221c',floor:'#10180f',torch:'#5fd17a',tint:'rgba(95,209,122,.06)'},
+  {name:'Salões Reais',brick:'#3a3020',brick2:'#2a2214',floor:'#1c1608',torch:'#ffd166',tint:'rgba(232,192,116,.08)'},
+  {name:'Catacumbas',brick:'#2a2630',brick2:'#1a1620',floor:'#100c16',torch:'#b39bff',tint:'rgba(125,108,255,.07)'},
+  {name:'Abismo Carmesim',brick:'#3a1a22',brick2:'#2a1016',floor:'#1c0a10',torch:'#ff5d6c',tint:'rgba(200,50,74,.09)'},
+  {name:'O Vazio',brick:'#1a1030',brick2:'#100a20',floor:'#0c0818',torch:'#a14bff',tint:'rgba(161,75,255,.12)'},
+];
+function floorBandIndex(f){return Math.floor((f-1)/4)%FLOOR_BANDS.length;}
+function floorTheme(f){return FLOOR_BANDS[floorBandIndex(f)];}
 function startSceneLoop(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);
   const cv=$('#scene');if(!cv)return;const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
@@ -1745,7 +1784,7 @@ function encTrap(){
 /* ---- DESCANSO ---- */
 function encRest(){
   logline('🏕️ Uma sala silenciosa e segura. O grupo recupera o fôlego.','dn');RUN.scene.mode='idle';
-  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.35);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});
+  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.2);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});
     refreshBars();advanceRoom();},700);
 }
 /* ---- FONTE DAS MEMÓRIAS (segredo) ---- */
@@ -1819,11 +1858,12 @@ function runEssence(base){let b=base;if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;
 function floorClearRewards(){
   RUN.combo++;
   const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
-  const ess=Math.round((6+RUN.floor*2)*comboMult);runEssence(ess);
+  const ess=Math.round((10+RUN.floor*3)*comboMult);runEssence(ess);
   logline(`🪜 Andar ${RUN.floor} concluído! <span class="dn">+${ess} essência</span>${RUN.combo>=3?` <span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:''}`,'ev');
   updateComboHud();
 }
-const MILESTONES=[{f:3,e:40},{f:5,e:80,item:'pocao_forca'},{f:8,e:150},{f:10,e:250,item:'cota_malha'},{f:12,e:400},{f:15,e:700,item:'manto_arcano'},{f:20,e:1500,item:'armadura_dragao'}];
+const MILESTONES=[{f:3,e:40},{f:5,e:80,item:'pocao_forca'},{f:8,e:150},{f:10,e:250,item:'cota_malha'},{f:12,e:400},{f:15,e:700,item:'manto_arcano'},{f:20,e:1500,item:'armadura_dragao'},
+  {f:25,e:2200},{f:30,e:3000,item:'cetro_arcano'},{f:40,e:5000,item:'pingente_alma'},{f:50,e:8000,item:'armadura_dragao'},{f:60,e:12000},{f:75,e:20000,item:'lampada_eterna'},{f:90,e:35000},{f:100,e:60000}];
 function milestoneCheck(){
   MILESTONES.forEach(m=>{if(RUN.floor>=m.f&&!G.meta.flags['ms_'+m.f]){G.meta.flags['ms_'+m.f]=true;
     const got=runEssence(m.e);if(m.item)addItem(m.item,1);
@@ -1952,27 +1992,35 @@ function dmgAll(frac,why){RUN.scene.shake=5;RUN.party.filter(c=>c.alive).forEach
 
 /* ====================== COMBATE ====================== */
 function makeEnemy(monster,floor,boss){
-  const b=monster.base;
-  const hpS=boss?1:(1+floor*0.34), atkS=boss?1:(1+floor*0.20), defS=boss?1:(1+floor*0.14), spdS=boss?1:(1+floor*0.04);
-  // chefes ganham leve escala se reencontrados além do andar de origem
-  const bScale=boss?(1+Math.max(0,floor-monster.floor)*0.05):1;
-  const tideHp=(RUN&&RUN.tideEnemyHp)||1;
-  const maxhp=Math.round(b.hp*hpS*bScale*tideHp);
-  return {m:monster,name:monster.name,boss:!!boss,family:monster.family,el:monster.el,
-    st:{atk:Math.round(b.atk*atkS*bScale),mag:Math.round(b.atk*atkS*bScale),def:Math.round(b.def*defS*bScale),spd:Math.round(b.spd*spdS),lck:5},
+  const b=monster.base;const tideHp=(RUN&&RUN.tideEnemyHp)||1;
+  if(boss){
+    // TODO chefes escalam por andar automaticamente (vale p/ os 100 andares)
+    const hp=Math.round((170+floor*floor*6.5+floor*110)*tideHp);
+    const atk=Math.round(12+floor*2.6+floor*floor*0.02);
+    const def=Math.round(8+floor*1.1);
+    const spd=Math.round(8+floor*0.18);
+    return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
+      st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
+  }
+  // inimigo normal: andares iniciais suaves, profundos brutais (quadrático domina tarde)
+  const hpS=1+floor*0.32+floor*floor*0.005, atkS=1+floor*0.155+floor*floor*0.0022, defS=1+floor*0.14, spdS=1+floor*0.05;
+  const maxhp=Math.round(b.hp*hpS*tideHp);
+  return {m:monster,name:monster.name,boss:false,family:monster.family,el:monster.el,
+    st:{atk:Math.round(b.atk*atkS),mag:Math.round(b.atk*atkS),def:Math.round(b.def*defS),spd:Math.round(b.spd*spdS),lck:5},
     maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{}};
 }
 function enemyPoolFor(floor){return MONSTERS.filter(m=>floor>=m.floors[0]&&floor<=m.floors[1]);}
 function encCombat(){
   let pool=enemyPoolFor(RUN.floor);if(!pool.length)pool=MONSTERS;
-  let count=1+ (chance(0.55)?1:0) + (RUN.floor>=4&&chance(0.35)?1:0);
+  let count=1+ (chance(0.6)?1:0) + (RUN.floor>=4&&chance(0.45)?1:0) + (RUN.floor>=10&&chance(0.45)?1:0) + (RUN.floor>=22&&chance(0.4)?1:0);
+  count=Math.min(count,5);
   if(RUN.passive.alterFloor&&chance(RUN.passive.alterFloor))count=Math.max(1,count-1);
   const enemies=[];for(let i=0;i<count;i++){const m=MMAP[weighted(Object.fromEntries(pool.map(x=>[x.id,x.weight])))]||pick(pool);enemies.push(makeEnemy(m,RUN.floor,false));}
   logline('⚔️ Encontro: '+enemies.map(e=>e.name).join(', ')+'!','cb');
   enemies.forEach(e=>discover('bestiary',e.m.id));
   beginCombat(enemies,{boss:false,onWin:()=>{
     const xp=enemies.reduce((a,e)=>a+e.maxhp*0.5+e.st.atk*3,0)*0.6;
-    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp/Math.max(1,RUN.party.filter(p=>p.alive).length)*2));
+    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp/Math.max(1,RUN.party.filter(p=>p.alive).length)*3));
     grantGold(Math.round(ri(4,10)*RUN.floor));
     RUN.kills+=enemies.length;G.meta.totalKills+=enemies.length;
     if(chance(0.5))grantMaterial();if(chance(0.18))grantEquipment();
@@ -1980,8 +2028,7 @@ function encCombat(){
   }});
 }
 function startBossFight(){
-  // chefe secreto entre andares? (verificado em descend) — aqui o chefe normal do andar
-  const boss=BOSSES.find(b=>b.floor===RUN.floor&&!b.secret);
+  const boss=getBossForFloor(RUN.floor);
   if(!boss){logline('🪜 Escada para o próximo andar.','ev');return rtimeout(descend,800);}
   const e=makeEnemy(boss,RUN.floor,true);
   logline('<span class="bd">═══ CHEFE: '+boss.name+' ═══</span>','bd');
@@ -1997,13 +2044,16 @@ function onBossWin(boss,e){
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp));
   const ess=runEssence(30+RUN.floor*8);
   grantGold(Math.round(40*RUN.floor));
-  grantEquipment(RUN.floor>=15?'lendario':'epico');grantMaterial('raro');
+  grantEquipment(RUN.floor>=30?'mitico':RUN.floor>=15?'lendario':'epico');grantMaterial(RUN.floor>=20?'lendario':'raro');
   if(RUN.floor>=10)grantSecretKey();
   logline('🏆 <b>'+boss.name+' foi derrotado!</b> +'+ess+' essência.','dn');
   toast('🏆 Chefe derrotado: '+boss.name+'!','lendario');
   checkUnlocks();saveGame();
-  // vitória final?
-  if(boss.id==='dragao'){return victoryEnding();}
+  // marcos narrativos
+  if(boss.id==='dragao'){G.meta.flags.beatDragon=true;saveGame();
+    logline('🐉 Você derrotou o lendário Valthrax... mas a escada continua a <b>descer</b>. A Adranja é mais funda do que se imaginava.','sc');}
+  // vitória final só no Coração da Adranja (Andar 100)
+  if(boss.id==='coracao'){return victoryEnding();}
   rtimeout(()=>maybeSecretBoss()||descend(),1100);
 }
 function showBossBar(e){const stage=$('#stage');if(!stage)return;
@@ -2039,7 +2089,7 @@ function spawnMinion(owner,kind){
 function avgPartyPow(){const a=allies();return a.reduce((s,c)=>s+Math.max(c.st.atk,c.st.mag),0)/Math.max(1,a.length);}
 
 function combatRound(){
-  if(!RUN||!RUN.alive)return;
+  if(!RUN||!RUN.alive||!RUN.combat||!RUN.combat.enemies)return;
   if(aliveEnemies().length===0)return winCombat();
   if(allies().length===0)return; // wipe tratado em downHero/checkWipe
   RUN.combat.round++;
@@ -2057,7 +2107,7 @@ function combatRound(){
   nextActor();
 }
 function nextActor(){
-  if(!RUN||!RUN.alive)return;
+  if(!RUN||!RUN.alive||!RUN.combat||!RUN.combat.enemies)return;
   if(aliveEnemies().length===0)return winCombat();
   if(allies().length===0)return checkWipe();
   const q=RUN.combat.queue;
@@ -2107,7 +2157,7 @@ function performSkill(c,skill){
     if(skill.fx==='revive'){const d=RUN.party.find(p=>!p.alive);if(d){d.alive=true;d.hp=Math.round(d.maxhp*0.45);
       logline('✨ '+actorName(c)+' usa <b>'+skill.n+'</b>! '+actorName(d)+' renasce!','dn');floatText('hero',RUN.party.indexOf(d),'REVIVE','#67d8ff');refreshBars();}}
     else{const tgts=skill.tgt==='allies'?allies():[mostHurt()];
-      const amt=Math.round((c.st.mag*1.1*skill.pow)+8);
+      const amt=Math.round((c.st.mag*0.8*skill.pow)+4);
       tgts.forEach(t=>{if(!t)return;t.hp=Math.min(t.maxhp,t.hp+amt);if(t.h)floatText('hero',RUN.party.indexOf(t),'+'+amt,'#5fd17a');});
       logline('💚 '+actorName(c)+' usa <b>'+skill.n+'</b> (+'+amt+' PV).','dn');refreshBars();}
     return rtimeout(nextActor,actDelay());
@@ -2212,6 +2262,7 @@ function killEnemy(e){if(e.dead)return;e.alive=false;e.dead=true;e.hp=0;
   }
 }
 function winCombat(){
+  if(!RUN||!RUN.combat)return;
   RUN.scene.mode='idle';RUN.scene.enemies=[];
   RUN.party.forEach(c=>{c.fx={};});
   const onWin=RUN.combat.opts.onWin;const wasBoss=RUN.combat.boss;
@@ -2291,8 +2342,8 @@ function onSecretBossWin(boss,e){
 }
 
 function autoConsumables(){
-  const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.28);
-  if(low&&invQty('pocao_vida')>0){removeItem('pocao_vida',1);const h=Math.round(low.maxhp*0.5);
+  const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.22);
+  if(low&&invQty('pocao_vida')>0){removeItem('pocao_vida',1);const h=Math.round(low.maxhp*0.4);
     low.hp=Math.min(low.maxhp,low.hp+h);floatText('hero',RUN.party.indexOf(low),'+'+h,'#5fd17a');
     logline('🧪 Poção de Vida usada automaticamente em '+actorName(low)+'.','dn');refreshBars();}
 }
@@ -2337,13 +2388,13 @@ function victoryEnding(){
   RUN=null;G.meta.flags.beatGame=true;saveGame();CUR.screen='result';
   APP.innerHTML=`<div class="screen active" style="justify-content:center">
     <div class="panel parch center" style="max-width:540px;margin:auto;border-color:var(--gold)">
-      <div style="font-size:64px">🐉👑</div>
+      <div style="font-size:64px">💖👑✨</div>
       <h1 class="logo" style="font-size:40px">VITÓRIA</h1>
-      <p class="small mt6">Valthrax, o Dragão Adormecido, tomba. No silêncio que se segue, a Adranja <b>treme</b> — e pela primeira vez, lembra de você.</p>
-      <p class="small muted">Mas masmorras mágicas nunca dormem por muito tempo. Há andares mais fundos. Há chefes secretos. Há um Rei que se recusou a esquecer... e algo no Vazio que observa.</p>
+      <p class="small mt6">No <b>Andar 100</b>, o Coração da Adranja para de bater. A masmorra inteira estremece, suas paredes se dissolvem em luz — e, pela primeira vez em eras, ela <b>lembra de você</b>.</p>
+      <p class="small muted">Você conquistou as 100 profundidades da Adranja. Pouquíssimos chegaram tão fundo. Mas a masmorra é mágica... e sempre há um segredo a mais para quem ousa voltar.</p>
       <div class="divider"></div>
-      <p class="small">Chegou ao Andar <b>${s.floor}</b> · ${s.kills} abates nesta incursão.</p>
-      <p class="tiny tag-secret mt6">A jornada continua: encontre TODOS os segredos para desafiar o que existe além do fim.</p>
+      <p class="small">Chegou ao <b>Andar ${s.floor}</b> · ${s.kills} abates nesta incursão.</p>
+      <p class="tiny tag-secret mt6">🏆 Lenda da Adranja — você zerou as 100 profundidades!</p>
       <div class="row center mt" style="justify-content:center">
         <button class="btn" onclick="go('camp','esquadrao')">Voltar ao Acampamento 🏕️</button>
       </div>
