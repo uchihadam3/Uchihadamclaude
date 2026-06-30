@@ -219,6 +219,52 @@ canvas{image-rendering:pixelated;}
 .sellrow.selsel{border-color:var(--gold);background:rgba(255,209,102,.10);}
 .sellrow .selbox{font-size:20px;width:24px;text-align:center;color:var(--gold);}
 .sellbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,209,102,.08);border:1px solid var(--line-soft);position:sticky;top:0;z-index:5;}
+
+/* ============ POLIMENTO VISUAL (estética mais gamificada) ============ */
+/* tag de raridade INLINE (corrige o pill que era absolute e sumia) */
+.rpill{display:inline-flex;align-items:center;vertical-align:middle;padding:1px 8px;border-radius:999px;
+  font-family:'Cinzel',serif;font-weight:800;font-size:10px;letter-spacing:.4px;text-transform:uppercase;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 1px 3px rgba(0,0,0,.4);border:1px solid rgba(0,0,0,.25);}
+.rpill.comum{background:linear-gradient(180deg,#a8acb4,#74787f);color:#16181c;}
+.rpill.raro{background:linear-gradient(180deg,#8fe3ff,#2aa6dd);color:#04222e;}
+.rpill.epico{background:linear-gradient(180deg,#caa2ff,#8b4ff0);color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.4);}
+.rpill.lendario{background:linear-gradient(180deg,#ffd98a,#f0972a);color:#3a2300;}
+.rpill.mitico{background:linear-gradient(180deg,#ff9ed0,#ff3f9a);color:#3a0020;text-shadow:0 1px 1px rgba(0,0,0,.3);}
+.rpill.divino{background:linear-gradient(180deg,#fff3b0,#ffcf2e);color:#3a2c00;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 9px rgba(255,209,46,.55);}
+.rpill.celestial{background:linear-gradient(180deg,#d4fbff,#62e6ff);color:#053a44;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 0 10px rgba(98,230,255,.6);}
+.rpill.secreto{background:linear-gradient(180deg,#d8b6ff,#a14bff);color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.4);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 0 9px rgba(161,75,255,.6);}
+/* botões com brilho de vidro */
+.btn{box-shadow:0 6px 0 var(--gold-deep),0 12px 24px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.55),inset 0 -3px 6px rgba(122,84,24,.35);position:relative;overflow:hidden;}
+.btn::after{content:"";position:absolute;left:0;right:0;top:0;height:45%;border-radius:12px 12px 40% 40%;
+  background:linear-gradient(180deg,rgba(255,255,255,.40),transparent);pointer-events:none;}
+.btn.ghost{box-shadow:0 5px 0 rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);}
+.btn.ghost::after{background:linear-gradient(180deg,rgba(255,255,255,.10),transparent);}
+/* HUD de recursos no topo — pílulas maiores e brilhantes */
+.res .chip{padding:6px 12px;font-size:13px;border-radius:999px;
+  background:linear-gradient(180deg,rgba(48,30,64,.95),rgba(24,14,38,.95));
+  border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 4px 10px rgba(0,0,0,.4);}
+.res .chip b{color:var(--gold);text-shadow:0 0 8px rgba(232,192,116,.4);}
+/* abas: ativa com brilho */
+.tab{box-shadow:inset 0 1px 0 rgba(255,255,255,.06);transition:transform .1s,box-shadow .1s,color .1s;}
+.tab.active{box-shadow:0 4px 0 var(--gold-deep),0 6px 14px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.5);transform:translateY(-1px);}
+/* painéis com leve realce superior */
+.panel{box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.06);}
+.panel::before{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 30%);}
+/* títulos de seção com barrinha dourada */
+.panel > h3, .panel > h4, #tabBody h4{position:relative;}
+h3{font-size:18px;}
+.chip{box-shadow:inset 0 1px 0 rgba(255,255,255,.08);}
+/* cartões de herói com brilho ao passar */
+.hero-card{box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 6px 16px rgba(0,0,0,.35);}
+.hero-card:hover{border-color:var(--gold);transform:translateY(-2px);}
+.hero-card.sel::after{content:"";position:absolute;inset:0;border-radius:14px;pointer-events:none;box-shadow:inset 0 0 18px rgba(232,192,116,.25);}
+.hero-card > .rpill{position:absolute;top:6px;right:6px;z-index:2;}   /* raridade vira selo de canto no card */
+/* recipe/itens com leve gradiente e hover */
+.recipe{background:linear-gradient(180deg,rgba(44,28,64,.92),rgba(30,18,48,.92));box-shadow:inset 0 1px 0 rgba(255,255,255,.05);transition:border-color .12s;}
+.recipe:hover{border-color:var(--line);}
+/* slotline mais definida */
+.slotline{transition:border-color .12s,background .12s;}
 </style>
 </head>
 <body>
@@ -1779,7 +1825,7 @@ function closeModal(){$('#overlay').classList.remove('show');_nav=[];}
 $('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')navClose();});
 
 function statBar(lab,val,max,cls){return `<div class="stat-row"><span class="lab">${lab}</span><div class="bar ${cls||''}"><i style="width:${clamp(val/max*100,3,100)}%"></i></div><span class="vv">${Math.round(val)}</span></div>`;}
-function rarPill(rar){return `<span class="rar ${rar}">${RAR_NAME[rar]}</span>`;}
+function rarPill(rar){return `<span class="rpill ${rar}">${RAR_NAME[rar]}</span>`;}
 
 /* stats efetivos de um herói num dado nível (com equipamento + pesquisas) */
 function heroStats(heroId,level){
