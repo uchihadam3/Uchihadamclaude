@@ -133,6 +133,81 @@ h2.cz{font-size:26px;letter-spacing:4px;color:#e8dcc4;margin-bottom:6px;}
 .help-grid{display:grid;grid-template-columns:auto 1fr;gap:8px 18px;text-align:left;font-size:15px;max-width:420px;margin:14px auto;}
 .help-grid .k{font-family:'Cinzel';color:var(--gold);text-align:right;}
 .err{color:#e88;font-family:'Cinzel';}
+
+/* ============================================================================
+   MOBILE / TOUCH CONTROLS
+   ============================================================================ */
+#mc{position:fixed;inset:0;z-index:20;pointer-events:none;display:none;touch-action:none;user-select:none;-webkit-user-select:none;}
+#mc.on{display:block;}
+/* left dynamic joystick */
+#joy{position:absolute;width:128px;height:128px;border-radius:50%;pointer-events:none;
+  border:2px solid rgba(216,207,192,.28);background:radial-gradient(circle,rgba(20,20,28,.30),rgba(8,8,12,.12));
+  box-shadow:inset 0 0 24px rgba(0,0,0,.4);opacity:0;transition:opacity .12s;transform:translate(-50%,-50%);}
+#joy.show{opacity:1;}
+#joyKnob{position:absolute;width:56px;height:56px;border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(circle at 38% 32%,rgba(216,207,192,.85),rgba(120,110,96,.6));
+  border:1px solid rgba(255,255,255,.35);box-shadow:0 3px 10px rgba(0,0,0,.5);}
+#joyRun{position:absolute;left:50%;top:-26px;transform:translateX(-50%);font-family:'Cinzel';font-size:11px;letter-spacing:2px;
+  color:var(--gold);opacity:0;text-shadow:0 1px 3px #000;}
+#joy.run #joyRun{opacity:1;}
+#joy.run{border-color:var(--gold);}
+
+/* right action cluster */
+.mc-btn{position:absolute;pointer-events:auto;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 40% 35%,rgba(40,38,34,.78),rgba(12,12,16,.82));
+  border:1.5px solid rgba(200,161,74,.45);color:#e8dcc4;box-shadow:0 4px 14px rgba(0,0,0,.5);
+  font-family:'Cinzel';transition:transform .06s, background .1s, border-color .1s;}
+.mc-btn .ic{font-size:24px;line-height:1;}
+.mc-btn .lb{font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:1px;}
+.mc-btn .ct{position:absolute;top:-4px;right:-4px;background:#1a140a;border:1px solid var(--gold);color:var(--gold);
+  font-size:12px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.mc-btn.press{transform:scale(.9);background:radial-gradient(circle,rgba(120,94,31,.9),rgba(60,46,18,.95));border-color:var(--gold);}
+.mc-btn.held{border-color:var(--veil-2);box-shadow:0 0 14px rgba(165,148,255,.4);}
+.mc-btn:active{transform:scale(.9);}
+
+#btnAttack{width:88px;height:88px;} #btnAttack .ic{font-size:34px;}
+#btnDodge{width:74px;height:74px;}
+#btnHeavy{width:66px;height:66px;}
+#btnGuard{width:66px;height:66px;}
+#btnHeal{width:62px;height:62px;}
+#btnLock{width:50px;height:50px;} #btnLock .ic{font-size:20px;}
+#btnSwap{width:48px;height:48px;} #btnSwap .ic{font-size:18px;}
+#mcPause{width:42px;height:42px;} #mcPause .ic{font-size:18px;}
+#btnInteract{pointer-events:auto;position:absolute;left:50%;bottom:30%;transform:translateX(-50%);display:none;
+  padding:12px 22px;border-radius:30px;background:rgba(20,18,14,.85);border:1.5px solid var(--gold);color:#e8dcc4;
+  font-family:'Cinzel';letter-spacing:1px;font-size:15px;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.6);}
+#btnInteract.show{display:flex;}
+
+/* portrait hint */
+#rotate{position:fixed;inset:0;z-index:60;background:#05060a;display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px;text-align:center;padding:30px;}
+#rotate .ic{font-size:60px;animation:rotPulse 1.6s ease-in-out infinite;}
+@keyframes rotPulse{0%,100%{transform:rotate(-12deg);}50%{transform:rotate(78deg);}}
+#rotate .t{font-family:'Cinzel';letter-spacing:3px;color:var(--gold);}
+#rotate .s{color:var(--dim);max-width:320px;}
+body.portrait.touch #rotate{display:flex;}
+
+/* touch devices: relayout the HUD around the thumb controls (any width) */
+body.touch #flask{display:none;}                 /* flask count lives on the heal button */
+body.touch #interact{display:none !important;}    /* replaced by the on-screen interact button */
+body.touch #weaponHud{top:58px;left:10px;right:auto;bottom:auto;text-align:left;}
+body.touch #weaponHud .ws{display:none;}
+body.touch #topright{top:12px;right:64px;}        /* clear the pause/lock/swap cluster */
+body.touch #echoes{font-size:18px;}
+body.touch #echoes small{font-size:8px;letter-spacing:1px;}
+body.touch #bossbar{bottom:auto;top:64px;width:62vw;} /* top-center; thumb arc owns the bottom */
+body.touch .bars{width:42vw;top:10px;left:10px;}
+body.touch .bar.hp{height:15px;} body.touch .bar.sta{height:9px;} body.touch .bar.foc{height:7px;}
+
+/* font/menu scaling for small / phone-sized screens */
+@media (max-width:1024px){
+  #bossbar{width:80vw;} #bossbar .bn{font-size:13px;letter-spacing:2px;}
+  .frame{padding:18px;} .btn{min-width:0;width:100%;padding:14px;font-size:15px;}
+  .classgrid{grid-template-columns:1fr 1fr;gap:8px;} .classcard{padding:10px;}
+  .classcard .desc{min-height:0;font-size:12px;} .tagline{font-size:15px;margin:12px auto;}
+  .help-grid{font-size:13px;gap:6px 12px;} .statline .desc{display:none;}
+  #bigmsg .t{font-size:clamp(28px,8vw,60px);letter-spacing:3px;} .toast{font-size:14px;padding:8px 12px;}
+}
+@media (max-height:430px){ #bigmsg .t{font-size:38px;} .logo{font-size:clamp(34px,8vw,60px);} .tagline{font-size:13px;margin:8px auto;} }
 </style>
 </head>
 <body>
@@ -153,6 +228,21 @@ h2.cz{font-size:26px;letter-spacing:4px;color:#e8dcc4;margin-bottom:6px;}
   <div id="bigmsg"><div class="t cz"></div><div class="s"></div></div>
   <div id="toasts"></div>
 </div>
+
+<!-- MOBILE / TOUCH CONTROLS -->
+<div id="mc">
+  <div id="joy"><div id="joyRun">SPRINT</div><div id="joyKnob"></div></div>
+  <div class="mc-btn" id="mcPause"  data-mc="pause"    style="top:12px;right:12px;"><span class="ic">⏸</span></div>
+  <div class="mc-btn" id="btnSwap"   data-mc="swap"     style="top:64px;right:14px;"><span class="ic">⇄</span></div>
+  <div class="mc-btn" id="btnLock"   data-mc="lock"     style="top:64px;right:72px;"><span class="ic">◎</span></div>
+  <div class="mc-btn" id="btnHeal"   data-mc="heal"     style="bottom:188px;right:150px;"><span class="ic">⚱️</span><span class="ct" id="mcFlask">5</span></div>
+  <div class="mc-btn" id="btnGuard"  data-mc="guard"    style="bottom:178px;right:32px;"><span class="ic">🛡</span><span class="lb">GUARD</span></div>
+  <div class="mc-btn" id="btnHeavy"  data-mc="heavy"    style="bottom:120px;right:128px;"><span class="ic">⚔</span><span class="lb">HEAVY</span></div>
+  <div class="mc-btn" id="btnDodge"  data-mc="dodge"    style="bottom:30px;right:128px;"><span class="ic">↻</span><span class="lb">DODGE</span></div>
+  <div class="mc-btn" id="btnAttack" data-mc="attack"   style="bottom:46px;right:24px;"><span class="ic">🗡</span></div>
+  <div id="btnInteract" data-mc="interact"><span class="ic">✋</span><span id="mcInteractTxt">Rest</span></div>
+</div>
+<div id="rotate"><div class="ic">📱</div><div class="t cz">ROTATE YOUR DEVICE</div><div class="s">Eclipse of the Veil plays best in landscape. Turn your phone sideways to enter Caelmoor.</div></div>
 
 <div id="loading"><div class="spark"></div><div class="lt">KINDLING THE VEIL…</div></div>
 <div id="menus"></div>
@@ -180,8 +270,9 @@ const $id=s=>document.getElementById(s);
 
 /* ===== global engine state ===== */
 let THREE, renderer, scene, camera, clock;
-const GAME={state:'boot', t:0, dt:0, paused:false};
+const GAME={state:'boot', t:0, dt:0, paused:false, touch:false};
 const KEY={}, MOUSE={dx:0,dy:0,down:[false,false,false],locked:false};
+const INPUT={moveX:0, moveY:0, active:false, sprint:false, guard:false, lookDX:0, lookDY:0};
 let world=null, player=null, cam=null;
 const colliders={walls:[], floors:[]};   // walls: {minX,maxX,minZ,maxZ,top}; floors: {minX,maxX,minZ,maxZ,top}
 const enemies=[];
@@ -208,6 +299,7 @@ function boot(){
   clock=new THREE.Clock();
   addEventListener('resize',onResize);
   setupInput();
+  TouchControls.setup(); checkOrientation();
   buildLights();
   buildWorld();
   player=new Player();
@@ -670,6 +762,8 @@ class Player{
   inputDir(){ const f=new THREE.Vector3(), r=new THREE.Vector3();
     const cy=cam.yaw; f.set(Math.sin(cy),0,Math.cos(cy)); r.set(Math.sin(cy+Math.PI/2),0,Math.cos(cy+Math.PI/2));
     const d=new THREE.Vector3();
+    if(INPUT.active){ d.addScaledVector(f, INPUT.moveY); d.addScaledVector(r, INPUT.moveX);
+      if(d.length()>1)d.normalize(); return d; }
     if(KEY.KeyW)d.add(f); if(KEY.KeyS)d.sub(f); if(KEY.KeyD)d.add(r); if(KEY.KeyA)d.sub(r);
     if(d.lengthSq()>0)d.normalize(); return d; }
 
@@ -707,15 +801,16 @@ class Player{
     this.focus=Math.min(this.maxfocus,this.focus+this.maxfocus*0.04*dt);
 
     // attack inputs (LMB/RMB) edge handled in onMouseDown -> tryAttack; block hold handled here
-    this.blockHeld=KEY.KeyF&&!this.weapon.cast&&!this.dead;
+    this.blockHeld=(KEY.KeyF||INPUT.guard)&&!this.weapon.cast&&!this.dead;
     if(!this.blockHeld&&this.state==='block') this.state='idle';
 
     const mv=this.dead?new THREE.Vector3():this.inputDir();
-    const sprint=KEY.ShiftLeft&&this.stamina>0;
+    const len=clamp(mv.length(),0,1);
+    const sprint=(KEY.ShiftLeft||INPUT.sprint||(INPUT.active&&len>0.96))&&this.stamina>0;
     let speed=0;
     const canMove=['idle','move','block'].includes(this.state);
     if(canMove && mv.lengthSq()>0.01){
-      speed=sprint?7.2:4.2;
+      speed=sprint?7.4:lerp(2.2,4.4,len);
       if(sprint){ this.stamina=Math.max(0,this.stamina-12*dt); this.staRegenDelay=0.4; }
       const tgtYaw=Math.atan2(mv.x,mv.z);
       this.yaw=angLerp(this.yaw,tgtYaw,1-Math.pow(0.0001,dt));
@@ -754,7 +849,7 @@ class Player{
     this.model.position.copy(this.pos); this.model.rotation.y=this.yaw;
     this.animate(dt, speed);
     // proximity systems
-    checkFogGate(this); checkNotes(this); checkShrineProximity(this); checkBloodstain();
+    updateInteract(this); checkNotes(this); checkBloodstain();
   }
   updateAttack(dt){
     const w=this.weapon; const dur=this.state==='heavy'?w.heavy:w.light;
@@ -835,6 +930,7 @@ class CameraRig{
     this.target=new THREE.Vector3(0,3,8); this.sens=0.0024; }
   update(dt){
     if(MOUSE.locked && !GAME.paused){ this.yaw-=MOUSE._dx*this.sens*(SETTINGS.sens); this.pitch=clamp(this.pitch+MOUSE._dy*this.sens*(SETTINGS.sens),-0.5,0.95); }
+    if(INPUT.lookDX||INPUT.lookDY){ this.yaw-=INPUT.lookDX*0.0038*SETTINGS.sens; this.pitch=clamp(this.pitch+INPUT.lookDY*0.0038*SETTINGS.sens,-0.5,0.95); INPUT.lookDX=0; INPUT.lookDY=0; }
     const p=player.pos;
     // lock-on: aim camera so target is framed
     if(player.lockTarget && !player.lockTarget.dead){
@@ -867,10 +963,106 @@ class CameraRig{
     const off=new THREE.Vector3(Math.sin(this.yaw)*Math.cos(this.pitch),Math.sin(this.pitch),Math.cos(this.yaw)*Math.cos(this.pitch));
     camera.position.copy(t.clone().add(off.multiplyScalar(8))); camera.lookAt(t); }
 }
-function onMouseDown(btn){ if(GAME.state!=='play'||GAME.paused||!player)return;
+function onMouseDown(btn){ if(GAME.state!=='play'||GAME.paused||!player||GAME.touch)return;
   if(btn===0) player.tryAttack(false);
   if(btn===2) player.tryAttack(true);
 }
+
+/* ============================================================================
+   TOUCH CONTROLS — dynamic stick (left), camera drag (right), action arc
+   ============================================================================ */
+const TouchControls={
+  joy:{id:null, baseX:0, baseY:0, R:58}, look:{id:null, x:0, y:0}, btnIds:{},
+  enabled:false,
+  setup(){
+    const mc=$id('mc'); if(!mc)return;
+    // buttons
+    mc.querySelectorAll('[data-mc]').forEach(b=>{
+      const act=b.getAttribute('data-mc');
+      b.addEventListener('touchstart',e=>{ e.preventDefault(); e.stopPropagation(); GAME.touch=true;
+        for(const t of e.changedTouches) this.btnIds[t.identifier]=act;
+        b.classList.add('press'); this.press(act,b); }, {passive:false});
+      b.addEventListener('touchend',e=>{ e.preventDefault(); e.stopPropagation();
+        for(const t of e.changedTouches){ if(this.btnIds[t.identifier]===act) delete this.btnIds[t.identifier]; }
+        b.classList.remove('press'); this.release(act,b); }, {passive:false});
+      b.addEventListener('touchcancel',e=>{ b.classList.remove('press'); this.release(act,b); });
+    });
+    // global movement/look on the document (touches not on a button)
+    addEventListener('touchstart', e=>this.onStart(e), {passive:false});
+    addEventListener('touchmove',  e=>this.onMove(e),  {passive:false});
+    addEventListener('touchend',   e=>this.onEnd(e),   {passive:false});
+    addEventListener('touchcancel',e=>this.onEnd(e),   {passive:false});
+    addEventListener('orientationchange', ()=>setTimeout(checkOrientation,200));
+    addEventListener('resize', checkOrientation);
+  },
+  isButton(t){ const el=document.elementFromPoint(t.clientX,t.clientY); return el&&el.closest('[data-mc]'); },
+  onStart(e){
+    if(GAME.state!=='play'||GAME.paused) return;
+    GAME.touch=true;
+    for(const t of e.changedTouches){
+      if(this.isButton(t)) continue; // handled by button
+      if(t.clientX < innerWidth*0.46 && this.joy.id===null){
+        this.joy.id=t.identifier; this.joy.baseX=t.clientX; this.joy.baseY=t.clientY;
+        const j=$id('joy'); j.style.left=t.clientX+'px'; j.style.top=t.clientY+'px'; j.classList.add('show');
+        this.updateJoy(t.clientX,t.clientY);
+      } else if(this.look.id===null){
+        this.look.id=t.identifier; this.look.x=t.clientX; this.look.y=t.clientY;
+      }
+    }
+    if(this.joy.id!==null||this.look.id!==null) e.preventDefault();
+  },
+  onMove(e){
+    let used=false;
+    for(const t of e.changedTouches){
+      if(t.identifier===this.joy.id){ this.updateJoy(t.clientX,t.clientY); used=true; }
+      else if(t.identifier===this.look.id){ INPUT.lookDX+=(t.clientX-this.look.x); INPUT.lookDY+=(t.clientY-this.look.y); this.look.x=t.clientX; this.look.y=t.clientY; used=true; }
+    }
+    if(used) e.preventDefault();
+  },
+  onEnd(e){
+    for(const t of e.changedTouches){
+      if(t.identifier===this.joy.id){ this.joy.id=null; INPUT.active=false; INPUT.moveX=0; INPUT.moveY=0; INPUT.sprint=false;
+        const j=$id('joy'); j.classList.remove('show','run'); $id('joyKnob').style.transform='translate(-50%,-50%)'; }
+      else if(t.identifier===this.look.id){ this.look.id=null; }
+      else if(this.btnIds[t.identifier]){ const act=this.btnIds[t.identifier]; delete this.btnIds[t.identifier];
+        const b=document.querySelector(`[data-mc="${act}"]`); if(b)b.classList.remove('press'); this.release(act,b); }
+    }
+  },
+  updateJoy(x,y){
+    let dx=x-this.joy.baseX, dy=y-this.joy.baseY; const R=this.joy.R;
+    const d=Math.hypot(dx,dy); if(d>R){ dx=dx/d*R; dy=dy/d*R; }
+    const knob=$id('joyKnob'); knob.style.transform=`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    INPUT.active=true; INPUT.moveX=dx/R; INPUT.moveY=-dy/R; // up = forward
+    const mag=Math.min(d/R,1); INPUT.sprint = mag>0.96;
+    $id('joy').classList.toggle('run', INPUT.sprint);
+  },
+  press(act,b){
+    if(GAME.state!=='play') { if(act==='pause'){} else return; }
+    if(GAME.paused && act!=='pause') return;
+    switch(act){
+      case 'attack': player&&player.tryAttack(false); break;
+      case 'heavy':  player&&player.tryAttack(true); break;
+      case 'dodge':  player&&player.tryDodge(); break;
+      case 'guard':  INPUT.guard=true; b&&b.classList.add('held'); player&&player.tryParryBlockStart(); break;
+      case 'heal':   player&&player.tryHeal(); break;
+      case 'lock':   player&&player.toggleLockOn(); b&&b.classList.toggle('held', !!player.lockTarget); break;
+      case 'swap':   player&&player.cycleWeapon(1); break;
+      case 'interact': tryInteract(); break;
+      case 'pause':  togglePause(); break;
+    }
+  },
+  release(act,b){
+    if(act==='guard'){ INPUT.guard=false; b&&b.classList.remove('held'); }
+  },
+  show(on){ const mc=$id('mc'); if(!mc)return; this.enabled=on&&GAME.touch; mc.classList.toggle('on', on&&GAME.touch);
+    if(!on){ this.joy.id=null; this.look.id=null; INPUT.active=false; INPUT.moveX=INPUT.moveY=0; INPUT.guard=false; INPUT.sprint=false;
+      $id('joy').classList.remove('show','run'); } },
+  flask(n){ const f=$id('mcFlask'); if(f)f.textContent=n; },
+  interact(txt){ const b=$id('btnInteract'); if(!b)return; if(txt&&GAME.touch){ b.classList.add('show'); $id('mcInteractTxt').textContent=txt; } else b.classList.remove('show'); },
+};
+function checkOrientation(){ const portrait=innerHeight>innerWidth; document.body.classList.toggle('portrait', portrait); }
+// detect touch capability early
+if(('ontouchstart' in window)||navigator.maxTouchPoints>0){ document.body.classList.add('touch'); GAME.touch=true; }
 
 /* ============================================================================
    FX — sparks, slashes, projectiles, hit flashes
@@ -918,22 +1110,25 @@ function nearestEnemyInView(from,maxD){ let best=null,bd=maxD;
 function nextEnemyTarget(cur,dir){ const live=enemies.filter(e=>!e.dead); if(live.length<2)return cur;
   live.sort((a,b)=>a.pos.x-b.pos.x); const i=live.indexOf(cur); return live[(i+dir+live.length)%live.length]; }
 
-/* ===== proximity ===== */
-function checkFogGate(p){ const fg=world.fogGate; if(!fg||fg.passed)return;
-  if(p.pos.distanceTo(fg.pos)<2.2 && p.pos.z<fg.pos.z+0.5 && KEY.KeyW){
-    fg.passed=true; enterBossArena();
-  }
+/* ===== proximity / interaction ===== */
+function updateInteract(p){
+  let it=null;
+  const sh=world.shrine; if(sh && !GAME.atShrine && p.pos.distanceTo(sh.pos)<3.0) it={type:'shrine',label:'Rest at the Veil-Shrine'};
+  const fg=world.fogGate; if(!it && fg && !fg.passed && p.pos.distanceTo(fg.pos)<2.8) it={type:'fog',label:'Enter the fog'};
+  GAME.interact=it;
+  HUD.interact(it?it.label:null);
+  TouchControls.interact(it?it.label:null);
+  // desktop convenience: walk through fog with W
+  if(it&&it.type==='fog'&&KEY.KeyW) tryInteract();
 }
 function checkNotes(p){ if(!world.notes)return;
   let near=null; for(const n of world.notes){ if(p.pos.distanceTo(n.pos)<2.6){ near=n; break; } }
   if(near && !near.seen){ near.seen=true; HUD.toast(near.s, near.t); Audio.sfx('note'); }
 }
-function checkShrineProximity(p){ const sh=world.shrine; if(!sh)return;
-  const near=p.pos.distanceTo(sh.pos)<3.0;
-  HUD.interact(near&&!GAME.atShrine? 'Rest at the Veil-Shrine' : null);
-  GAME.nearShrine=near;
+function tryInteract(){ const it=GAME.interact; if(!it)return;
+  if(it.type==='shrine'){ Shrine.open(); }
+  else if(it.type==='fog'){ world.fogGate.passed=true; TouchControls.interact(null); HUD.interact(null); enterBossArena(); }
 }
-function tryInteract(){ if(GAME.nearShrine){ Shrine.open(); } }
 
 /* ============================================================================
    SETTINGS / SAVE
@@ -971,7 +1166,7 @@ const HUD={
     else $id('bossbar').classList.add('hidden');
   },
   weapon(w){ $id('wpName').textContent=w.name; $id('wpStance').textContent=w.cast?'Catalyst · LMB Bolt · RMB Mend':'LMB Light · RMB Heavy'; },
-  flask(){ $id('flaskCount').textContent=player.flasks; },
+  flask(){ $id('flaskCount').textContent=player.flasks; TouchControls.flask(player.flasks); },
   echoes(){ $id('echoes').childNodes[0].nodeValue=player.echoes; },
   lock(t){ if(!t)$id('lockon').classList.add('hidden'); },
   interact(txt){ const el=$id('interact'); if(txt){ el.classList.remove('hidden'); el.innerHTML=`<span class="kbd">E</span> ${txt}`; } else el.classList.add('hidden'); },
@@ -990,7 +1185,7 @@ const HUD={
 const Menus={
   el(){ return $id('menus'); },
   clear(){ this.el().innerHTML=''; },
-  title(){ GAME.state='title'; $id('hud').classList.add('hidden');
+  title(){ GAME.state='title'; $id('hud').classList.add('hidden'); TouchControls.show(false);
     const cont=hasSave();
     this.el().innerHTML=`<div class="scrim"><div class="frame">
       <div class="logo">ECLIPSE<br>OF THE VEIL</div>
@@ -1021,8 +1216,20 @@ const Menus={
   _pick(id){ this._sel=id; document.querySelectorAll('#og .classcard').forEach(c=>c.classList.toggle('sel',c.dataset.o===id)); },
   _begin(){ const o=ORIGINS.find(x=>x.id===this._sel); startGame(o, null); },
   continueGame(){ const s=loadSave(); const o=ORIGINS.find(x=>x.id===s.origin)||ORIGINS[0]; startGame(o, s); },
-  help(){ this.el().innerHTML=`<div class="scrim"><div class="frame panel">
+  help(){ const touch=document.body.classList.contains('touch');
+    const touchHelp=`<div class="help-grid">
+        <span class="k">Move</span><span>Left thumbstick (push to edge = sprint)</span>
+        <span class="k">Camera</span><span>Drag anywhere on the right</span>
+        <span class="k">Attack</span><span>🗡 button · Heavy = ⚔ button</span>
+        <span class="k">Dodge</span><span>↻ button (i-frames)</span>
+        <span class="k">Guard</span><span>Hold 🛡 button</span>
+        <span class="k">Lock-On</span><span>◎ button</span>
+        <span class="k">Heal</span><span>⚱️ button · Swap = ⇄</span>
+        <span class="k">Interact</span><span>✋ button when it appears</span>
+        <span class="k">Pause</span><span>⏸ button</span></div>`;
+    this.el().innerHTML=`<div class="scrim"><div class="frame panel">
       <h2 class="cz">CONTROLS</h2>
+      ${touch?touchHelp+'<div class="subtle" style="margin:12px 0 4px">KEYBOARD &amp; MOUSE</div>':''}
       <div class="help-grid">
         <span class="k">Move</span><span>W A S D</span>
         <span class="k">Camera</span><span>Mouse (click to capture)</span>
@@ -1046,7 +1253,7 @@ const Menus={
         <div class="kv"><span>SFX Volume</span><input type="range" min="0" max="1" step="0.05" value="${SETTINGS.sfx}" oninput="SETTINGS.sfx=+this.value;Audio.setSfx(+this.value)"></div>
       </div>
       <button class="btn primary" onclick="(GAME.state==='play'?Menus.pause():Menus.title())">BACK</button></div></div>`; },
-  pause(){ GAME.paused=true; if(document.exitPointerLock)document.exitPointerLock();
+  pause(){ GAME.paused=true; TouchControls.show(false); if(document.exitPointerLock)document.exitPointerLock();
     this.el().innerHTML=`<div class="scrim"><div class="frame">
       <h2 class="cz" style="font-size:34px;letter-spacing:6px">PAUSED</h2>
       <div class="col" style="max-width:280px;margin:18px auto">
@@ -1055,7 +1262,7 @@ const Menus={
         <button class="btn" onclick="Menus.settings()">SETTINGS</button>
         <button class="btn" onclick="saveGame();Menus.title()">SAVE & QUIT TO TITLE</button>
       </div></div></div>`; },
-  resume(){ GAME.paused=false; this.clear(); },
+  resume(){ GAME.paused=false; this.clear(); if(GAME.state==='play')TouchControls.show(true); },
 };
 function togglePause(){ if(GAME.paused){ Menus.resume(); } else { Menus.pause(); } }
 
@@ -1063,7 +1270,7 @@ function togglePause(){ if(GAME.paused){ Menus.resume(); } else { Menus.pause();
    SHRINE (bonfire) — rest / level up
    ============================================================================ */
 const Shrine={
-  open(){ GAME.paused=true; GAME.atShrine=true; if(document.exitPointerLock)document.exitPointerLock();
+  open(){ GAME.paused=true; GAME.atShrine=true; TouchControls.show(false); if(document.exitPointerLock)document.exitPointerLock();
     this.render(); Audio.sfx('rest'); Audio.setMood('calm'); },
   render(){
     const lvlCost=levelCost(player.level);
@@ -1090,7 +1297,7 @@ const Shrine={
     Audio.sfx('levelup'); saveGame(); this.render(); },
   rest(){ player.hp=player.maxhp; player.stamina=player.maxsta; player.focus=player.maxfocus; player.flasks=player.maxFlasks; HUD.flask();
     respawnEnemies(); saveGame(); this.leave(); HUD.big('','',''); },
-  leave(){ GAME.paused=false; GAME.atShrine=false; Menus.clear(); Audio.setMood(GAME.boss&&!GAME.boss.dead?'boss':'explore'); },
+  leave(){ GAME.paused=false; GAME.atShrine=false; Menus.clear(); TouchControls.show(true); Audio.setMood(GAME.boss&&!GAME.boss.dead?'boss':'explore'); },
 };
 function levelCost(lv){ return Math.round(80 + Math.pow(lv,1.6)*16); }
 
@@ -1412,6 +1619,7 @@ function startGame(origin, save){
   if(GAME.bossDefeated && world.shortcutGate){ world.shortcutGate.open=true; world.shortcutGate.mesh.position.y=-4; }
   Menus.clear(); $id('hud').classList.remove('hidden');
   GAME.state='play'; GAME.paused=false;
+  TouchControls.show(true);
   HUD.weapon(player.weapon); HUD.flask(); HUD.echoes();
   HUD.big('CAELMOOR','the bastion of the broken sun','msg-area',3200);
   Audio.start(); Audio.setMood('explore');
