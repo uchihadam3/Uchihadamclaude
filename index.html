@@ -150,19 +150,6 @@ canvas{image-rendering:pixelated;}
   box-shadow:var(--shadow);animation:tin .35s ease, tout .4s ease 2.4s forwards;display:flex;gap:9px;align-items:center;}
 @keyframes tin{from{opacity:0;transform:translateY(14px) scale(.9);}to{opacity:1;transform:none;}}
 @keyframes tout{to{opacity:0;transform:translateY(-8px);}}
-/* cartão de drop bonito (canto da cena, não no log nem no meio) */
-#dropStream{position:absolute;right:8px;top:38px;z-index:40;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:62%;}
-.drop-card{display:flex;align-items:center;gap:9px;padding:7px 11px 7px 8px;border-radius:12px;border:2px solid var(--gold);
-  background:linear-gradient(100deg,rgba(20,16,30,.96),rgba(36,28,52,.96));box-shadow:0 6px 22px rgba(0,0,0,.55);
-  animation:dropIn .45s cubic-bezier(.2,1.4,.4,1), dropOut .5s ease 2.3s forwards;backdrop-filter:blur(2px);}
-.drop-card .di{width:40px;height:40px;flex:0 0 40px;border-radius:9px;display:flex;align-items:center;justify-content:center;
-  font-size:24px;background:rgba(0,0,0,.35);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);overflow:hidden;}
-.drop-card .di canvas{image-rendering:pixelated;}
-.drop-card .dn{font-family:Cinzel,serif;font-weight:700;font-size:13px;line-height:1.15;}
-.drop-card .dr{font-size:10px;letter-spacing:.4px;text-transform:uppercase;opacity:.9;}
-.drop-card .dtag{font-size:9px;opacity:.7;}
-@keyframes dropIn{from{opacity:0;transform:translateX(40px) scale(.9);}to{opacity:1;transform:none;}}
-@keyframes dropOut{to{opacity:0;transform:translateX(30px) scale(.96);}}
 
 .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px;}
 .item{position:relative;background:var(--panel-2);border:1px solid var(--line-soft);border-radius:11px;
@@ -2604,20 +2591,6 @@ function sceneSpark(side,i,color){const stage=$('#stage');if(!stage)return;
     p.style.setProperty('--dx',Math.cos(ang)*d+'px');p.style.setProperty('--dy',Math.sin(ang)*d+'px');
     p.style.background=color||'#fff';stage.appendChild(p);setTimeout(()=>p.remove(),720);}}
 /* cartão de drop animado no canto da cena (bonito, fora do log) */
-function lootCard(id,tag){const it=IMAP[id];if(!it)return;
-  const stage=$('#stage');let host=$('#dropStream');
-  if(!host){host=document.createElement('div');host.id='dropStream';(stage||document.body).appendChild(host);}
-  const col=RAR_COLOR[it.rarity]||'#ffd166';
-  const card=document.createElement('div');card.className='drop-card';card.style.borderColor=col;
-  card.innerHTML=`<div class="di" data-dropico></div><div><div class="dn" style="color:${col}">${it.name}</div>
-    <div class="dr" style="color:${col}">${RAR_NAME[it.rarity]||it.rarity}${tag?` · <span class="dtag">${tag}</span>`:''}</div></div>`;
-  host.appendChild(card);
-  const ic=card.querySelector('[data-dropico]');
-  try{mountCanvas(ic,itemSprite(it,3));}catch(e){ic.textContent=it.icon;}
-  setTimeout(()=>card.remove(),2900);
-  // mantém no máximo 4 cartões visíveis
-  while(host.children.length>4)host.firstChild.remove();
-}
 function lootBurst(rarity){if(RARS.indexOf(rarity)<2&&rarity!=='secreto')return; // só raridade alta
   let host=$('#lootFx');if(!host){host=document.createElement('div');host.id='lootFx';document.body.appendChild(host);}
   const col=RAR_COLOR[rarity]||'#ffd166';
@@ -2926,9 +2899,10 @@ function grantMaterial(minRar){
   // tende ao material da raridade sorteada
   const exact=ITEMS.filter(i=>i.type==='mat'&&i.rarity===rar);
   const it=pick(exact.length?exact:pool);
-  if(!it)return;let qty=1;if(G.meta.research.meta_mat&&chance(0.3))qty=2;addItem(it.id,qty);logline('🧱 +'+qty+' '+it.name+' ('+RAR_NAME[it.rarity]+')','lt');
+  if(!it)return;let qty=1;if(G.meta.research.meta_mat&&chance(0.3))qty=2;addItem(it.id,qty);
+  logline('🧱 +'+qty+' <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');
-  if(typeof RUN!=='undefined'&&RUN&&RARS.indexOf(it.rarity)>=2)lootCard(it.id,'material ×'+qty); else toast('🧱 '+it.name,it.rarity);
+  if(!(typeof RUN!=='undefined'&&RUN))toast('🧱 '+it.name,it.rarity);
 }
 function grantEquipment(minRar){
   const rar=rarityRoll(minRar);
@@ -2936,9 +2910,9 @@ function grantEquipment(minRar){
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar));
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i));
   const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;
-  logline('🎁 Equipamento: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b>!','lt');
+  logline('🎁 Equipamento achado: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);
-  if(typeof RUN!=='undefined'&&RUN)lootCard(it.id,'equipamento'); else toast('🎁 '+it.name,it.rarity);
+  if(!(typeof RUN!=='undefined'&&RUN))toast('🎁 '+it.name,it.rarity);
 }
 function grantSecretKey(){
   // decide qual chave secreta dropar
