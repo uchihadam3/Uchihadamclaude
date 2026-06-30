@@ -1621,6 +1621,8 @@ function playerStats(){const m=G.meta;return {name:m.playerName||'?', score:comp
   deepest:m.deepestFloor||0, torre:m.torreDeepest||0, heroes:heroesUnlockedCount(),
   bosses:(m.bossesKilled||[]).length, kills:m.totalKills||0,
   beatGame:!!(m.flags&&m.flags.beatGame), beatTorre:!!(m.flags&&m.flags.beatTorre), updated:Date.now()};}
+// "dono do jogo" = quem configurou neste aparelho (vê o botão de config; visitantes não)
+function isOwner(){try{return localStorage.getItem('adranja_owner')==='1';}catch(e){return false;}}
 // config efetiva: o que o dono colou na tela (localStorage) tem prioridade sobre o do código
 function getFirebaseConfig(){
   try{const raw=localStorage.getItem('adranja_fb');if(raw){const c=JSON.parse(raw);if(c&&c.apiKey&&c.projectId)return c;}}catch(e){}
@@ -1847,8 +1849,8 @@ async function showRanking(){
   openModal(`<div class="center"><div style="font-size:36px">🏆</div><h2 style="color:var(--gold)">Ranking de Adranja</h2></div>
     <p class="small muted center" id="rkSub">Carregando os maiores aventureiros...</p>
     <div id="rkList" class="col mt"></div>
-    <div class="divider"></div>
-    <p class="tiny muted center"><a href="#" onclick="rankSetupModal();return false;" style="color:var(--magic-2)">⚙️ Configurar ranking online (dono do jogo)</a></p>`);
+    ${(!Rank.configured()||isOwner())?`<div class="divider"></div>
+    <p class="tiny muted center"><a href="#" onclick="rankSetupModal();return false;" style="color:var(--magic-2)">⚙️ Configurar ranking online (dono do jogo)</a></p>`:''}`);
   await Rank.submit();   // garante que sua pontuação atual esteja lá antes de listar
   const list=await Rank.top(50);
   const sub=$('#rkSub'),host=$('#rkList'); if(!host)return;
@@ -1891,7 +1893,8 @@ async function saveFirebaseConfig(){
   Rank.reset();
   msg.style.color='var(--gold)';msg.textContent='Conectando ao Firebase...';
   const ok=await Rank.init();
-  if(ok){ msg.style.color='var(--ok)';msg.textContent='✅ Ranking online ativado!'; toast('🌐 Ranking online ativado!','lendario'); setTimeout(()=>{closeModal();showRanking();},900); }
+  if(ok){ try{localStorage.setItem('adranja_owner','1');}catch(e){}   // marca este aparelho como dono
+    msg.style.color='var(--ok)';msg.textContent='✅ Ranking online ativado!'; toast('🌐 Ranking online ativado!','lendario'); setTimeout(()=>{closeModal();showRanking();},900); }
   else { msg.style.color='var(--bad)';msg.textContent='Salvei, mas não consegui conectar. Confira a config e se o Firestore foi criado.'; }
 }
 function clearFirebaseConfig(){localStorage.removeItem('adranja_fb');Rank.reset();toast('📴 Ranking voltou ao modo local.','epico');closeModal();showRanking();}
@@ -3950,6 +3953,8 @@ function firstGesture(){if(_audioReady)return;_audioReady=true;Sound.init();Soun
 function boot(){
   loadGame();checkUnlocks();
   go('home');
+  // acesso oculto à configuração do ranking (só o dono usa): abra a URL com #setup
+  if(location.hash==='#setup'||location.hash==='#rank-setup'){ try{localStorage.setItem('adranja_owner','1');}catch(e){} setTimeout(()=>{try{rankSetupModal();}catch(e){}},300); }
   // primeira interação destrava o áudio (política de autoplay)
   ['pointerdown','keydown','touchstart'].forEach(ev=>window.addEventListener(ev,firstGesture,{once:false}));
   // som de clique em botões/abas
