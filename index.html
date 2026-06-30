@@ -2199,13 +2199,15 @@ function confirmStartRun(){closeModal();const{party,tides,startFloor}=RUN_PENDIN
   setTimeout(()=>stepBegin(),700);
 }
 function initRun(party,tides,startFloor){
+  const sf=Math.max(1,startFloor||1);
   RUN={
     party:party.map(buildCombatant),
-    floor:Math.max(1,startFloor||1), room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
+    floor:sf, startFloor:sf, room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
     log:[], scene:{mode:'idle',enemies:[],walk:0,shake:0,flashEnemy:-1},
     passive:{}, alive:true, paused:false, speed:1, fxNodes:[],
     tides:tides||[], tideGold:1, tideTreasure:1, tideEnemyHp:1, tideEssence:1, tideHp:1, tideEvent:1, tideNoRest:0,
-    pendingBoss:null, keysThisRun:[], retreated:false, encounters:[]
+    pendingBoss:null, keysThisRun:[], retreated:false, encounters:[],
+    bestCombo:0, bossKills:0, equipFound:0, secretsFound:0, _t0:Date.now()
   };
   computePartyPassives();
   (tides||[]).forEach(t=>t.apply(RUN));
@@ -2732,7 +2734,7 @@ function encSecretPassage(){
 /* ---- RECOMPENSAS ---- */
 function runEssence(base){let b=base;if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;const added=addEssence(Math.round(b));if(RUN)RUN.essence+=added;updateRunRes();return added;}
 function floorClearRewards(){
-  RUN.combo++;
+  RUN.combo++;RUN.bestCombo=Math.max(RUN.bestCombo||0,RUN.combo);
   const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
   const ess=Math.round((6+RUN.floor*2)*comboMult);runEssence(ess);
   // alívio ao alcançar a escadaria: cura modesta (não salva de lutas brutais, evita morte só por desgaste)
@@ -2785,7 +2787,7 @@ function grantEquipment(minRar){
   let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar);
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar));
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i));
-  const it=pick(pool);addItem(it.id,1);
+  const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🎁 Equipamento: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b>!','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);
   if(typeof RUN!=='undefined'&&RUN)lootCard(it.id,'equipamento'); else toast('🎁 '+it.name,it.rarity);
@@ -2938,7 +2940,7 @@ function startBossFight(){
 function onBossWin(boss,e){
   hideBossBar();
   if(!G.meta.bossesKilled.includes(boss.id)){G.meta.bossesKilled.push(boss.id);}
-  RUN.kills++;G.meta.totalKills++;
+  RUN.kills++;G.meta.totalKills++;RUN.bossKills=(RUN.bossKills||0)+1;
   const xp=18+RUN.floor*5;   // chefe: bom empurrão
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp));
   const ess=runEssence(30+RUN.floor*8);
@@ -3257,7 +3259,7 @@ const SECRET_BOSS_DROP={eco:'olho_onividente',rei_esquecido:'armadura_rei',levia
 const SECRET_BOSSES=['eco','rei_esquecido','leviata','arauto_estelar','cronarca'];
 function onSecretBossWin(boss,e){
   hideBossBar();if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
-  RUN.kills++;G.meta.totalKills++;
+  RUN.kills++;G.meta.totalKills++;RUN.bossKills=(RUN.bossKills||0)+1;
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,35+RUN.floor*7));
   const ess=runEssence(200+RUN.floor*12);
   // equipamento secreto exclusivo do chefe
@@ -3290,32 +3292,78 @@ function autoConsumables(){
 }
 
 /* ====================== FIM DA INCURSÃO ====================== */
+const PLAY_URL='https://uchihadam3.github.io/Uchihadamclaude/';   // link público do jogo (para compartilhar)
 function endRun(reason){
-  if(!RUN)return;const summary={reason,floor:RUN.floor,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence};
+  if(!RUN)return;
+  const dur=Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000));
+  const summary={reason,floor:RUN.floor,startFloor:RUN.startFloor||1,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence,
+    bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur,
+    dungeon:RUN.dungeon||'adranja'};
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   RUN=null;checkUnlocks();saveGame();
   CUR.screen='result';showResult(summary);
 }
+function runShareText(s){
+  const where=s.dungeon==='torre'?'na Torre dos Tiranos':'na Adranja';
+  return `⚔️ Joguei Adranja! Cheguei ao Andar ${s.floor} ${where}, derrotei ${s.kills} monstros e ${s.bossKills} chefes (recorde: Andar ${G.meta.deepestFloor}). Joga você também:`;
+}
+function shareRun(via,s){
+  const txt=runShareText(s); const url=PLAY_URL;
+  const enc=encodeURIComponent(txt+' '+url);
+  let link='';
+  if(via==='whatsapp')link='https://wa.me/?text='+enc;
+  else if(via==='messenger')link='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(url)+'&quote='+encodeURIComponent(txt);
+  else if(via==='twitter')link='https://twitter.com/intent/tweet?text='+encodeURIComponent(txt)+'&url='+encodeURIComponent(url);
+  else if(via==='telegram')link='https://t.me/share/url?url='+encodeURIComponent(url)+'&text='+encodeURIComponent(txt);
+  else if(via==='email')link='mailto:?subject='+encodeURIComponent('Adranja — Andar '+s.floor)+'&body='+enc;
+  if(via==='copy'){ try{navigator.clipboard.writeText(txt+' '+url);toast('📋 Copiado!','epico');}catch(e){toast('Não foi possível copiar.','warn');} return; }
+  try{
+    if(navigator.share&&(via==='whatsapp'||via==='messenger')){navigator.share({text:txt,url}).catch(()=>window.open(link,'_blank'));return;}
+  }catch(e){}
+  window.open(link,'_blank');
+}
 function showResult(s){
-  const death=s.reason==='death';
+  const death=s.reason==='death'; const torre=s.dungeon==='torre';
   if(death){Sound.stop();sfx('death');}else{music('camp');sfx('chest');}
-  APP.innerHTML=`<div class="screen active" style="justify-content:center">
-    <div class="panel parch center" style="max-width:520px;margin:auto">
-      <div style="font-size:60px">${death?'💀':'🏕️'}</div>
-      <h1 style="color:${death?'var(--bad)':'var(--gold)'};font-size:30px">${death?'A Adranja te consumiu':'Você recuou em segurança'}</h1>
-      <p class="small muted mt6">${death
-        ?'Seus heróis caem na escuridão... mas a Adranja os cospe de volta ao acampamento. <b>Nada é perdido</b> — níveis, habilidades, itens e segredos continuam com você. Volte mais forte.'
-        :'De volta ao acampamento, sãos e salvos. Tudo que você conquistou continua seu.'}</p>
+  const floors=Math.max(0,s.floor-(s.startFloor||1));
+  const mm=Math.floor(s.dur/60), ss=s.dur%60; const durStr=(mm?mm+'m ':'')+ss+'s';
+  const title=death?(torre?'A Torre te esmagou':'A Adranja te consumiu'):'Você recuou em segurança';
+  // medalha de desempenho
+  const rank=s.floor>=150?'SS':s.floor>=100?'S':s.floor>=60?'A':s.floor>=30?'B':s.floor>=12?'C':'D';
+  const shareBtn=(via,lab,col)=>`<button class="btn ghost sm" style="border-color:${col}" onclick='shareRun("${via}",${JSON.stringify(s)})'>${lab}</button>`;
+  APP.innerHTML=`<div class="screen active" style="justify-content:flex-start;overflow:auto;padding:14px">
+    <div class="panel parch center" style="max-width:540px;margin:auto">
+      <div style="font-size:56px">${death?'💀':(torre?'🗼':'🏕️')}</div>
+      <h1 style="color:${death?'var(--bad)':'var(--gold)'};font-size:26px;margin:2px 0">${title}</h1>
+      <div class="row center" style="justify-content:center;gap:8px;margin:6px 0">
+        <span class="chip" style="font-size:20px;font-family:Cinzel;color:var(--gold);border-color:var(--gold)">Rank ${rank}</span>
+        <span class="chip">${torre?'🗼 Torre dos Tiranos':'🏰 Adranja'}</span>
+      </div>
+      <p class="small muted">${death?'Seus heróis caem... mas a masmorra os cospe de volta. <b>Nada é perdido</b> — níveis, habilidades, itens e segredos continuam com você.':'De volta ao acampamento, sãos e salvos. Tudo que você conquistou continua seu.'}</p>
       <div class="divider"></div>
-      <div class="kvs" style="max-width:280px;margin:0 auto">
+      <div class="kvs" style="max-width:340px;margin:0 auto">
         <span>🏰 Andar alcançado</span><b>${s.floor}</b>
+        <span>🪜 Andares descidos</span><b>${floors}</b>
         <span>💀 Monstros derrotados</span><b>${s.kills}</b>
+        <span>👑 Chefes derrotados</span><b>${s.bossKills}</b>
+        <span>🔥 Maior sequência</span><b>x${s.bestCombo}</b>
+        <span>🎁 Equipamentos achados</span><b>${s.equipFound}</b>
         <span>🪙 Ouro coletado</span><b>${fmt(s.gold)}</b>
         <span>💠 Essência ganha</span><b>${fmt(s.essence)}</b>
+        <span>⏱️ Duração</span><b>${durStr}</b>
         <span>🏆 Recorde de profundidade</span><b>${G.meta.deepestFloor}</b>
       </div>
       <div class="divider"></div>
-      <p class="tiny muted">Tudo coletado foi enviado ao seu acampamento automaticamente.</p>
+      <p class="tiny muted" style="margin-bottom:6px">📣 Compartilhe sua incursão:</p>
+      <div class="row center wrap" style="justify-content:center;gap:6px">
+        ${shareBtn('whatsapp','🟢 WhatsApp','#25D366')}
+        ${shareBtn('messenger','🔵 Messenger','#0084FF')}
+        ${shareBtn('telegram','✈️ Telegram','#229ED9')}
+        ${shareBtn('twitter','✖️ X','#888')}
+        ${shareBtn('email','✉️ E-mail','#caa15a')}
+        ${shareBtn('copy','📋 Copiar','#caa15a')}
+      </div>
+      <div class="divider"></div>
       <div class="row center mt" style="justify-content:center">
         <button class="btn" onclick="go('camp','esquadrao')">Voltar ao Acampamento</button>
         <button class="btn ghost" onclick="startRunFlow()">Nova Incursão ▶</button>
