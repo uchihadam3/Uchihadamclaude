@@ -1621,16 +1621,29 @@ function playerStats(){const m=G.meta;return {name:m.playerName||'?', score:comp
   deepest:m.deepestFloor||0, torre:m.torreDeepest||0, heroes:heroesUnlockedCount(),
   bosses:(m.bossesKilled||[]).length, kills:m.totalKills||0,
   beatGame:!!(m.flags&&m.flags.beatGame), beatTorre:!!(m.flags&&m.flags.beatTorre), updated:Date.now()};}
+// config efetiva: o que o dono colou na tela (localStorage) tem prioridade sobre o do código
+function getFirebaseConfig(){
+  try{const raw=localStorage.getItem('adranja_fb');if(raw){const c=JSON.parse(raw);if(c&&c.apiKey&&c.projectId)return c;}}catch(e){}
+  return FIREBASE_CONFIG;
+}
+// extrai os campos do trecho que o Firebase mostra (aceita JS ou JSON, aspas simples/duplas)
+function parseFirebaseSnippet(txt){
+  const cfg={};['apiKey','authDomain','projectId','storageBucket','messagingSenderId','appId','measurementId'].forEach(k=>{
+    const m=(txt||'').match(new RegExp(k+'\\s*[:=]\\s*[\'"]([^\'"]+)[\'"]'));if(m)cfg[k]=m[1];});
+  return cfg;
+}
 const Rank={
   ready:false, online:false, db:null, _load:null,
-  configured(){return FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey&&!/COLE_|SEU_PROJETO|YOUR_/.test(FIREBASE_CONFIG.apiKey);},
+  configured(){const c=getFirebaseConfig();return !!(c&&c.apiKey&&c.projectId&&!/COLE_|SEU_PROJETO|YOUR_/.test(c.apiKey));},
+  reset(){this.ready=false;this.online=false;this.db=null;       // re-inicia após salvar nova config
+    try{ if(window.firebase&&firebase.apps&&firebase.apps.length)firebase.apps.slice().forEach(a=>a.delete()); }catch(e){} },
   _loadSdk(){ if(this._load)return this._load;
     this._load=new Promise((res,rej)=>{let i=0;const next=()=>{ if(i>=FB_SCRIPTS.length)return res();
       const sc=document.createElement('script');sc.src=FB_SCRIPTS[i++];sc.onload=next;sc.onerror=()=>rej(new Error('sdk'));document.head.appendChild(sc);};next();});
     return this._load;},
   async init(){ if(this.ready)return this.online;
     if(!this.configured()){this.ready=true;this.online=false;return false;}
-    try{ await this._loadSdk(); if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+    try{ await this._loadSdk(); if(!firebase.apps.length)firebase.initializeApp(getFirebaseConfig());
       this.db=firebase.firestore(); this.online=true; }
     catch(e){ console.warn('Ranking em modo local (Firebase indisponível):',e&&e.message); this.online=false; }
     this.ready=true; return this.online; },
@@ -1833,7 +1846,9 @@ function rankMedal(i){return ['🥇','🥈','🥉'][i]||('#'+(i+1));}
 async function showRanking(){
   openModal(`<div class="center"><div style="font-size:36px">🏆</div><h2 style="color:var(--gold)">Ranking de Adranja</h2></div>
     <p class="small muted center" id="rkSub">Carregando os maiores aventureiros...</p>
-    <div id="rkList" class="col mt"></div>`);
+    <div id="rkList" class="col mt"></div>
+    <div class="divider"></div>
+    <p class="tiny muted center"><a href="#" onclick="rankSetupModal();return false;" style="color:var(--magic-2)">⚙️ Configurar ranking online (dono do jogo)</a></p>`);
   await Rank.submit();   // garante que sua pontuação atual esteja lá antes de listar
   const list=await Rank.top(50);
   const sub=$('#rkSub'),host=$('#rkList'); if(!host)return;
@@ -1849,6 +1864,37 @@ async function showRanking(){
       <div style="text-align:right"><b style="color:var(--gold)">${fmt(p.score||0)}</b><br><span class="tiny muted">pts</span></div></div>`;
   }).join('');
 }
+function rankSetupModal(){
+  const cur=getFirebaseConfig();const on=Rank.configured();
+  openModal(`<div class="center"><div style="font-size:34px">⚙️</div><h2 style="color:var(--gold)">Ativar Ranking Online</h2></div>
+    <p class="small">Status atual: ${on?'<b style="color:var(--ok)">🌐 configurado</b>':'<b style="color:var(--bad)">📴 modo local</b>'}.</p>
+    <ol class="small" style="text-align:left;padding-left:18px;margin:8px 0;line-height:1.5">
+      <li>Acesse <b>console.firebase.google.com</b> e crie um projeto (botão <i>Adicionar projeto</i>).</li>
+      <li>Dentro do projeto, clique no ícone <b>&lt;/&gt;</b> (Web) para registrar um app web.</li>
+      <li>O Firebase vai mostrar um trecho com <b>const firebaseConfig = {…}</b>. <b>Copie tudo</b> e cole aqui embaixo.</li>
+      <li>No menu <b>Build → Firestore Database</b>, clique <i>Criar banco de dados</i> → <b>modo de teste</b>.</li>
+    </ol>
+    <textarea id="fbInput" placeholder="Cole aqui o trecho:&#10;const firebaseConfig = {&#10;  apiKey: ...&#10;};"
+      style="width:100%;height:120px;padding:10px;border-radius:10px;border:1px solid var(--line-soft);background:var(--panel-2);color:var(--ink);font-family:monospace;font-size:12px">${on?JSON.stringify(cur,null,2):''}</textarea>
+    <p id="fbMsg" class="tiny" style="min-height:16px;margin:6px 2px"></p>
+    <div class="row mt" style="gap:6px;flex-wrap:wrap">
+      <button class="btn" onclick="saveFirebaseConfig()">Salvar e ativar 🌐</button>
+      ${on?'<button class="btn ghost sm" onclick="clearFirebaseConfig()">Desativar (voltar p/ local)</button>':''}
+    </div>
+    <p class="tiny muted mt6">A configuração fica salva neste navegador. Para já vir ativada pra todo mundo no seu site, me peça que eu deixo fixa no arquivo.</p>`);
+}
+async function saveFirebaseConfig(){
+  const ta=$('#fbInput'),msg=$('#fbMsg');if(!ta)return;
+  const cfg=parseFirebaseSnippet(ta.value);
+  if(!cfg.apiKey||!cfg.projectId){ msg.style.color='var(--bad)';msg.textContent='Não achei apiKey/projectId. Cole o trecho completo do Firebase.';return; }
+  localStorage.setItem('adranja_fb',JSON.stringify(cfg));
+  Rank.reset();
+  msg.style.color='var(--gold)';msg.textContent='Conectando ao Firebase...';
+  const ok=await Rank.init();
+  if(ok){ msg.style.color='var(--ok)';msg.textContent='✅ Ranking online ativado!'; toast('🌐 Ranking online ativado!','lendario'); setTimeout(()=>{closeModal();showRanking();},900); }
+  else { msg.style.color='var(--bad)';msg.textContent='Salvei, mas não consegui conectar. Confira a config e se o Firestore foi criado.'; }
+}
+function clearFirebaseConfig(){localStorage.removeItem('adranja_fb');Rank.reset();toast('📴 Ranking voltou ao modo local.','epico');closeModal();showRanking();}
 function showIntro(){openModal(`<h2 style="color:var(--gold)">O Acampamento</h2>
   <p class="small">Diante de você, a entrada da <b>Adranja</b> pulsa em luz violácea. Lenda diz que ela <i>reorganiza-se</i> a cada visitante e devora suas lembranças na queda.</p>
   <p class="small">Mas o que os heróis <b>aprendem</b> — habilidades, relíquias, mapas — fica gravado na alma. A cada incursão você volta um pouco mais forte. Some os fragmentos. Encontre os segredos. Chegue ao fundo.</p>
