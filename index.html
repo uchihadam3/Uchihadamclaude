@@ -1548,7 +1548,8 @@ function defaultMeta(){
     research:{}, researchActive:null, // {id,end}
     codex:{bestiary:[],items:[],secrets:[],bosses:[]},
     flags:{}, mapKnowledge:{}, // floorN -> familiaridade 0..1
-    slots:3, relics:[], seenIntro:false, upgrades:{}
+    slots:3, relics:[], seenIntro:false, upgrades:{},
+    playerName:null, playerSecret:null   // identidade no ranking
   };
 }
 function loadGame(){
@@ -1568,6 +1569,96 @@ function saveGame(){clearTimeout(_saveT);_saveT=setTimeout(()=>{
   try{localStorage.setItem(SAVE_KEY,JSON.stringify(G.meta));}catch(e){}
 },200);}
 function hardReset(){localStorage.removeItem(SAVE_KEY);G.meta=defaultMeta();saveGame();}
+
+/* ============================================================================
+   🏆 RANKING ONLINE (Firebase Firestore)
+   --------------------------------------------------------------------------
+   COMO ATIVAR (5 min):
+   1) Crie um projeto grátis em https://console.firebase.google.com
+   2) Adicione um app "Web" e copie o objeto firebaseConfig
+   3) Cole os valores abaixo em FIREBASE_CONFIG
+   4) No console, abra Firestore Database → "Criar banco de dados" → modo de teste
+      (depois troque as regras pelas recomendadas no comentário abaixo)
+   Enquanto não estiver configurado, o jogo roda em MODO LOCAL: você escolhe um
+   nome e vê seu próprio progresso; nada quebra.
+
+   Regras de segurança recomendadas (Firestore → Regras), simples p/ jogo casual:
+     rules_version = '2';
+     service cloud.firestore {
+       match /databases/{db}/documents {
+         match /players/{id} {
+           allow read: if true;
+           allow create: if request.resource.data.score is number;
+           allow update: if request.resource.data.score >= resource.data.score; // só melhora
+         }
+       }
+     }
+   ============================================================================ */
+const FIREBASE_CONFIG={
+  apiKey:"COLE_SUA_API_KEY_AQUI",
+  authDomain:"SEU_PROJETO.firebaseapp.com",
+  projectId:"SEU_PROJETO",
+  storageBucket:"SEU_PROJETO.appspot.com",
+  messagingSenderId:"000000000000",
+  appId:"1:000000000000:web:0000000000000000000000"
+};
+const FB_SCRIPTS=[
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'
+];
+function normName(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'_').replace(/[\/.#$\[\]]/g,'').slice(0,16);}
+function heroesUnlockedCount(){return Object.values(G.meta.heroes||{}).filter(h=>h.unlocked).length;}
+function computeScore(){const m=G.meta;
+  return Math.round((m.deepestFloor||0)*100 + (m.torreDeepest||0)*300 + (m.bossesKilled||[]).length*180
+    + heroesUnlockedCount()*350 + (m.totalKills||0)*2
+    + ((m.flags&&m.flags.beatGame)?6000:0) + ((m.flags&&m.flags.beatTorre)?12000:0));}
+function playerStats(){const m=G.meta;return {name:m.playerName||'?', score:computeScore(),
+  deepest:m.deepestFloor||0, torre:m.torreDeepest||0, heroes:heroesUnlockedCount(),
+  bosses:(m.bossesKilled||[]).length, kills:m.totalKills||0,
+  beatGame:!!(m.flags&&m.flags.beatGame), beatTorre:!!(m.flags&&m.flags.beatTorre), updated:Date.now()};}
+const Rank={
+  ready:false, online:false, db:null, _load:null,
+  configured(){return FIREBASE_CONFIG&&FIREBASE_CONFIG.apiKey&&!/COLE_|SEU_PROJETO|YOUR_/.test(FIREBASE_CONFIG.apiKey);},
+  _loadSdk(){ if(this._load)return this._load;
+    this._load=new Promise((res,rej)=>{let i=0;const next=()=>{ if(i>=FB_SCRIPTS.length)return res();
+      const sc=document.createElement('script');sc.src=FB_SCRIPTS[i++];sc.onload=next;sc.onerror=()=>rej(new Error('sdk'));document.head.appendChild(sc);};next();});
+    return this._load;},
+  async init(){ if(this.ready)return this.online;
+    if(!this.configured()){this.ready=true;this.online=false;return false;}
+    try{ await this._loadSdk(); if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+      this.db=firebase.firestore(); this.online=true; }
+    catch(e){ console.warn('Ranking em modo local (Firebase indisponível):',e&&e.message); this.online=false; }
+    this.ready=true; return this.online; },
+  _localNames(){try{return JSON.parse(localStorage.getItem('adranja_names')||'{}');}catch(e){return {};}},
+  async claim(rawName){
+    const name=(rawName||'').trim(); const id=normName(name);
+    if(id.length<2)return {ok:false,reason:'Nome muito curto (mín. 2 letras).'};
+    if(name.length>16)return {ok:false,reason:'Nome muito longo (máx. 16).'};
+    await this.init();
+    const secret=Math.random().toString(36).slice(2)+Date.now().toString(36);
+    if(!this.online){ const t=this._localNames();
+      if(t[id]&&t[id].name!==name){/* local não garante global; segue */}
+      t[id]={name}; try{localStorage.setItem('adranja_names',JSON.stringify(t));}catch(e){}
+      return {ok:true, name, secret, local:true}; }
+    try{
+      const ref=this.db.collection('players').doc(id);
+      return await this.db.runTransaction(async(tx)=>{
+        const snap=await tx.get(ref);
+        if(snap.exists)return {ok:false,reason:'Esse nome já está em uso. Escolha outro.'};
+        tx.set(ref, Object.assign({}, playerStats(), {name, secret, created:Date.now()}));
+        return {ok:true, name, secret};
+      });
+    }catch(e){ return {ok:false,reason:'Erro de conexão com o ranking. Tente novamente.'}; }
+  },
+  async submit(){ if(!G.meta.playerName)return; await this.init(); if(!this.online)return;
+    try{ const id=normName(G.meta.playerName);
+      await this.db.collection('players').doc(id).set(Object.assign({},playerStats(),{secret:G.meta.playerSecret}),{merge:true});
+    }catch(e){} },
+  async top(n){ await this.init();
+    if(!this.online){ return G.meta.playerName?[Object.assign({},playerStats())]:[]; }
+    try{ const q=await this.db.collection('players').orderBy('score','desc').limit(n||50).get();
+      return q.docs.map(d=>d.data()); }catch(e){ return []; } }
+};
 
 // inventário
 function invQty(id){return G.meta.inventory[id]||0;}
@@ -1696,8 +1787,10 @@ function renderHome(){
     <div class="logo-sub">⚔️ Masmorra Mágica · Roguelike de Exploração ✨</div>
     <canvas id="homeArt" width="320" height="180" style="width:min(86vw,360px);margin:10px 0;filter:drop-shadow(0 10px 30px rgba(0,0,0,.6))"></canvas>
     <p class="home-tip">Monte um esquadrão de heróis e mande-os explorar a Adranja, a masmorra viva e infindável. Seus heróis <b>guardam para sempre</b> tudo que conquistam — níveis, habilidades, itens e segredos. Suba devagar, fique forte, desça fundo. Descubra tudo.</p>
+    ${G.meta.playerName?`<p class="home-tip" style="margin-top:-2px">🏆 Aventureiro(a): <b style="color:var(--gold)">${G.meta.playerName}</b></p>`:''}
     <div class="row wrap center" style="justify-content:center">
       <button class="btn" onclick="enterCamp()">${G.meta.runs>0?'Continuar Jornada':'Começar Jornada'} ▶</button>
+      <button class="btn ghost" onclick="showRanking()">🏆 Ranking</button>
       ${G.meta.runs>0?'<button class="btn ghost sm" onclick="confirmReset()">Reiniciar Tudo</button>':''}
     </div>
     <p class="muted tiny mt">v1 · seu progresso é salvo automaticamente neste navegador</p>
@@ -1706,7 +1799,51 @@ function renderHome(){
 }
 function confirmReset(){openModal(`<h3>Reiniciar tudo?</h3><p class="muted">Você perderá TODO o progresso permanente (heróis, itens, segredos, essência). Isto não pode ser desfeito.</p>
   <div class="row mt"><button class="btn danger" onclick="hardReset();closeModal();go('home')">Sim, apagar</button><button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`);}
-function enterCamp(){if(!G.meta.seenIntro){G.meta.seenIntro=true;saveGame();showIntro();}else go('camp');}
+function enterCamp(){
+  if(!G.meta.playerName){ chooseNameModal(()=>enterCamp()); return; }   // exige nome único antes de jogar
+  if(!G.meta.seenIntro){G.meta.seenIntro=true;saveGame();showIntro();}else go('camp');
+}
+function chooseNameModal(onDone){
+  openModal(`<div class="center"><div style="font-size:42px">🏆</div>
+     <h2 style="color:var(--gold)">Escolha seu nome</h2></div>
+     <p class="small muted mt6">Esse será seu nome de aventureiro no <b>ranking global</b> de Adranja. Precisa ser <b>único</b> — se já estiver em uso, escolha outro.</p>
+     <input id="nameInput" maxlength="16" placeholder="Seu nome (2–16 letras)" autocomplete="off"
+        style="width:100%;margin-top:12px;padding:11px 12px;border-radius:10px;border:1px solid var(--line-soft);background:var(--panel-2);color:var(--ink);font-size:16px;font-family:inherit"/>
+     <p id="nameErr" class="tiny" style="color:var(--bad);min-height:16px;margin:6px 2px"></p>
+     <div class="row mt"><button class="btn" id="nameOk" onclick="submitName()">Confirmar nome ▶</button></div>
+     <p class="tiny muted mt6">${Rank.configured()?'🌐 Ranking online ativo.':'📴 Ranking em modo local (o dono do jogo pode ativar o ranking global).'}</p>`);
+  setTimeout(()=>{const inp=$('#nameInput');if(inp){inp.focus();inp.addEventListener('keydown',e=>{if(e.key==='Enter')submitName();});}},60);
+  window._afterName=onDone;
+}
+async function submitName(){
+  const inp=$('#nameInput'),err=$('#nameErr'),btn=$('#nameOk');if(!inp)return;
+  const name=inp.value;err.textContent='';btn.disabled=true;btn.textContent='Verificando...';
+  const r=await Rank.claim(name);
+  if(!r.ok){ err.textContent=r.reason||'Não foi possível usar esse nome.'; btn.disabled=false;btn.textContent='Confirmar nome ▶'; return; }
+  G.meta.playerName=r.name; G.meta.playerSecret=r.secret; saveGame();
+  closeModal(); toast('🏆 Bem-vindo(a), '+r.name+'!','lendario');
+  const cb=window._afterName;window._afterName=null;if(cb)cb();
+}
+function rankMedal(i){return ['🥇','🥈','🥉'][i]||('#'+(i+1));}
+async function showRanking(){
+  openModal(`<div class="center"><div style="font-size:36px">🏆</div><h2 style="color:var(--gold)">Ranking de Adranja</h2></div>
+    <p class="small muted center" id="rkSub">Carregando os maiores aventureiros...</p>
+    <div id="rkList" class="col mt"></div>`);
+  await Rank.submit();   // garante que sua pontuação atual esteja lá antes de listar
+  const list=await Rank.top(50);
+  const sub=$('#rkSub'),host=$('#rkList'); if(!host)return;
+  if(!list.length){ sub.textContent=Rank.online?'Ainda não há jogadores no ranking. Seja o primeiro!':'Ranking em modo local — jogue e volte para ver sua pontuação.'; return; }
+  sub.innerHTML=Rank.online?'🌐 Os melhores do mundo, por pontuação de conquistas.':'📴 Modo local (só você). O dono do jogo pode ativar o ranking global.';
+  const me=normName(G.meta.playerName||'');
+  host.innerHTML=list.map((p,i)=>{
+    const mine=normName(p.name||'')===me;
+    return `<div class="slotline ${mine?'b-lendario':''}" style="${mine?'border-color:var(--gold);background:rgba(255,209,102,.08)':''}">
+      <div class="sl-ico" style="font-size:18px;width:34px">${rankMedal(i)}</div>
+      <div class="sl-n"><b>${(p.name||'?')}</b>${mine?' <span class="chip" style="color:var(--gold)">você</span>':''}${p.beatTorre?' 🗼':''}${p.beatGame?' 👑':''}<br>
+        <span class="tiny muted">🏰 Andar ${p.deepest||0} · 🗼 ${p.torre||0} · 🦸 ${p.heroes||0} heróis · 👑 ${p.bosses||0} chefes</span></div>
+      <div style="text-align:right"><b style="color:var(--gold)">${fmt(p.score||0)}</b><br><span class="tiny muted">pts</span></div></div>`;
+  }).join('');
+}
 function showIntro(){openModal(`<h2 style="color:var(--gold)">O Acampamento</h2>
   <p class="small">Diante de você, a entrada da <b>Adranja</b> pulsa em luz violácea. Lenda diz que ela <i>reorganiza-se</i> a cada visitante e devora suas lembranças na queda.</p>
   <p class="small">Mas o que os heróis <b>aprendem</b> — habilidades, relíquias, mapas — fica gravado na alma. A cada incursão você volta um pouco mais forte. Some os fragmentos. Encontre os segredos. Chegue ao fundo.</p>
@@ -1760,6 +1897,7 @@ function renderCamp(){
   const runActive=RUN&&RUN.alive;
   APP.innerHTML=`<div class="screen camp active">
     <div class="topbar"><span class="brand">🏕️ Acampamento</span>${resBar()}
+      <button class="audio-btn" onclick="showRanking()" title="Ranking">🏆</button>
       <button class="audio-btn" onclick="openAudioSettings()" title="Áudio">${Sound.on?'🔊':'🔇'}</button></div>
     ${runActive?`<div class="panel mb" id="campRunBanner" style="border-color:var(--magic);background:rgba(125,108,255,.12);padding:10px 12px">
        <div class="row between wrap">
@@ -3512,7 +3650,7 @@ function onTorreBossWin(boss,e){
 function torreVictory(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   music('victory');sfx('win');
-  G.meta.flags.beatTorre=true;saveGame();
+  G.meta.flags.beatTorre=true;saveGame();try{Rank.submit();}catch(e){}
   const s={reason:'torre_win',floor:RUN.floor,startFloor:RUN.startFloor||1,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence,
     bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur:Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000)),dungeon:'torre'};
   RUN=null;checkUnlocks();saveGame();CUR.screen='result';
@@ -3623,6 +3761,7 @@ function endRun(reason){
     dungeon:RUN.dungeon||'adranja'};
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   RUN=null;checkUnlocks();saveGame();
+  try{Rank.submit();}catch(e){}   // envia conquistas ao ranking
   CUR.screen='result';showResult(summary);
 }
 function showResult(s){
@@ -3664,9 +3803,10 @@ function showResult(s){
         <button class="btn ghost sm" onclick='copyShareText(${sj})'>📋 Copiar texto</button>
       </div>
       <div class="divider"></div>
-      <div class="row center mt" style="justify-content:center">
+      <div class="row center mt wrap" style="justify-content:center">
         <button class="btn" onclick="go('camp','esquadrao')">Voltar ao Acampamento</button>
         <button class="btn ghost" onclick="startRunFlow()">Nova Incursão ▶</button>
+        <button class="btn ghost" onclick="showRanking()">🏆 Ranking</button>
       </div>
     </div></div>`;
 }
@@ -3674,7 +3814,7 @@ function victoryEnding(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   music('victory');sfx('win');
   const s={floor:RUN.floor,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence};
-  RUN=null;G.meta.flags.beatGame=true;saveGame();CUR.screen='result';
+  RUN=null;G.meta.flags.beatGame=true;saveGame();try{Rank.submit();}catch(e){}CUR.screen='result';
   APP.innerHTML=`<div class="screen active" style="justify-content:center">
     <div class="panel parch center" style="max-width:540px;margin:auto;border-color:var(--gold)">
       <div style="font-size:64px">💖👑✨</div>
