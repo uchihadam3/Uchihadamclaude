@@ -725,6 +725,61 @@ const HEROES=[
 ];
 const HMAP={};HEROES.forEach(h=>HMAP[h.id]=h);
 
+/* ====================== HABILIDADES AVANÇADAS + REESCALONAMENTO ======================
+   Cada herói ganha +2 habilidades, e TODAS são reespaçadas para níveis mais altos,
+   virando uma progressão de longo prazo (a última destrava por volta do nível 24-30). */
+const EXTRA_SKILLS={
+  cartografo:[ SK('Triangulação',0,'mag',2.4,'all',{el:'arcano',fx:'crit+',txt:'Marca todos os pontos fracos do andar: dano arcano e +crítico do grupo.'}),
+    SK('Atlas Proibido',0,'mag',3.6,'all',{el:'arcano',fx:'curse',txt:'Reescreve a realidade da sala: dano massivo e maldição.'}) ],
+  guerreiro:[ SK('Quebra-Mundo',0,'phys',2.0,'all',{fx:'stun',txt:'Golpe sísmico que atordoa todos.'}),
+    SK('Juramento de Aço',0,'phys',3.4,'one',{fx:'execute',txt:'Investida final que executa inimigos feridos.'}) ],
+  maga:[ SK('Singularidade',0,'mag',2.6,'all',{el:'arcano',fx:'slow',txt:'Buraco arcano que suga e desacelera.'}),
+    SK('Cometa Cataclísmico',0,'mag',4.4,'all',{el:'fogo',fx:'burn',txt:'O céu desaba em chamas sobre todos.'}) ],
+  ladina:[ SK('Dança das Sombras',0,'phys',0.7,'all',{fx:'triple',txt:'Atravessa todos os inimigos três vezes.'}),
+    SK('Execução Silenciosa',0,'phys',3.2,'one',{el:'veneno',fx:'execute',txt:'Golpe mortal envenenado que executa.'}) ],
+  cleriga:[ SK('Milagre',0,'heal',2.6,'allies',{txt:'Restaura grande parte da vida de todo o grupo.'}),
+    SK('Juízo Final',0,'mag',3.0,'all',{el:'sagrado',txt:'Luz purificadora arrasa o mal.'}) ],
+  cacador:[ SK('Marca do Predador',0,'phys',2.2,'one',{fx:'crit+',txt:'Marca a presa: tiro com crítico garantido.'}),
+    SK('Dilúvio de Flechas',0,'phys',2.8,'all',{txt:'Escurece o céu com flechas.'}) ],
+  barbaro:[ SK('Sede de Sangue',0,'phys',1.6,'one',{fx:'lifesteal',txt:'Golpe brutal que rouba vida.'}),
+    SK('Aniquilação',0,'phys',3.8,'all',{fx:'execute',txt:'Massacre que executa os fracos.'}) ],
+  necromante:[ SK('Legião dos Mortos',0,'buff',0,'self',{fx:'summon',txt:'Ergue um exército de esqueletos.'}),
+    SK('Praga Final',0,'mag',3.2,'all',{el:'veneno',fx:'poison',txt:'Uma peste que devora toda carne.'}) ],
+  paladino:[ SK('Aura Sagrada',0,'buff',0,'allies',{fx:'allup',txt:'Eleva todos os atributos do grupo.'}),
+    SK('Cruzada',0,'mag',3.2,'all',{el:'sagrado',fx:'shield',txt:'Investida santa com escudo divino.'}) ],
+  arqueiro:[ SK('Flecha Perfurante',0,'phys',2.4,'all',{fx:'crit+',txt:'Trespassa toda a fileira.'}),
+    SK('Disparo do Eclipse',0,'mag',4.2,'one',{el:'arcano',fx:'critmax',txt:'Um tiro do crepúsculo, crítico absoluto.'}) ],
+  alquimista:[ SK('Catalisador',0,'buff',0,'allies',{fx:'haste',txt:'Acelera o metabolismo do grupo.'}),
+    SK('Reação em Cadeia',0,'mag',3.4,'all',{el:'fogo',fx:'burn',txt:'Explosões que se propagam.'}) ],
+  monge:[ SK('Cem Mãos',0,'phys',0.6,'one',{fx:'triple',txt:'Cem golpes num instante.'}),
+    SK('Punho do Cosmos',0,'phys',3.6,'one',{fx:'stun',txt:'Soco que abala o firmamento.'}) ],
+  invocador:[ SK('Convergência',0,'buff',0,'self',{fx:'summon',txt:'Funde espíritos num avatar aliado.'}),
+    SK('Senhor dos Elementos',0,'mag',3.8,'all',{el:'fogo',fx:'burn',txt:'Comanda fogo, gelo e raio de uma vez.'}) ],
+  bardo:[ SK('Hino da Vitória',0,'buff',0,'allies',{fx:'allup',txt:'Uma canção que ergue o grupo inteiro.'}),
+    SK('Réquiem',0,'mag',3.0,'all',{el:'arcano',fx:'slow',txt:'Melodia fúnebre que paralisa.'}) ],
+  druida:[ SK('Forma do Titã',0,'phys',2.8,'one',{fx:'shift',txt:'Assume a forma de uma fera colossal.'}),
+    SK('Despertar da Floresta',0,'mag',3.4,'all',{el:'veneno',fx:'poison',txt:'A mata desperta e devora.'}) ],
+  cavaleiro_sombrio:[ SK('Pacto Sombrio',0,'mag',2.4,'all',{el:'sombrio',fx:'lifesteal',txt:'Drena a vida de todos os inimigos.'}),
+    SK('Fim Sombrio',0,'phys',4.0,'one',{el:'sombrio',fx:'execute',txt:'A ceifa que ninguém escapa.'}) ],
+  domadora:[ SK('Alfa da Matilha',0,'buff',0,'self',{fx:'summon',txt:'Convoca uma matilha leal.'}),
+    SK('Estouro da Manada',0,'phys',2.8,'all',{txt:'Uma debandada que esmaga tudo.'}) ],
+  cronomante:[ SK('Estase',0,'buff',0,'self',{fx:'timestop',txt:'Congela o tempo dos inimigos.'}),
+    SK('Colapso Temporal',0,'mag',4.0,'all',{el:'arcano',fx:'slow',txt:'O tempo se dobra e despedaça.'}) ],
+  geomante:[ SK('Falha Tectônica',0,'mag',2.8,'all',{el:'terra',fx:'stun',txt:'Rasga a terra sob os pés inimigos.'}),
+    SK('Fim do Continente',0,'mag',4.2,'all',{el:'terra',fx:'stun',txt:'Um cataclismo que afunda reinos.'}) ],
+  andarilho:[ SK('Não-Existência',0,'mag',3.4,'all',{el:'sombrio',fx:'execute',txt:'Apaga inimigos da realidade.'}),
+    SK('O Vazio Olha de Volta',0,'mag',5.2,'all',{el:'sombrio',fx:'execute',txt:'O fim de tudo, contemplado.'}) ],
+};
+const SKILL_LEVELS=[1,4,8,13,18,24,30,37,45,54];
+function skillLevelFor(i){ return i<SKILL_LEVELS.length?SKILL_LEVELS[i]:SKILL_LEVELS[SKILL_LEVELS.length-1]+(i-SKILL_LEVELS.length+1)*9; }
+(function expandSkills(){
+  HEROES.forEach(h=>{
+    const ex=EXTRA_SKILLS[h.id]||[];
+    h.skills=h.skills.concat(ex.map(s=>Object.assign({},s)));
+    h.skills.forEach((sk,i)=>{ sk.lvl=skillLevelFor(i); });
+  });
+})();
+
 /* ====================== MONSTROS ======================
    grids 16x16, paleta inline. family usada por passivas (beastBane etc). */
 function G16(rows){const o=[];for(let i=0;i<16;i++){let r=rows[i]||"";o.push((r+"................".slice(0,16)).slice(0,16));}return o;}
