@@ -1430,6 +1430,41 @@ const ITEMS=[
 {id:'coroa_celeste',name:'Coroa Celestial',icon:'👑',type:'acessorio',slot:'acessorio',rarity:'celestial',stats:{atk:16,mag:16,hp:60,lck:18},desc:'Só os verdadeiros soberanos a portam.'},
 {id:'talisma_celeste',name:'Talismã Celestial',icon:'🌠',type:'talisma',slot:'talisma',rarity:'celestial',stats:{atk:20,mag:20,def:16,spd:8,lck:12},desc:'Contém uma fagulha da criação.'},
 ];
+/* ===== EQUIPAMENTO PROGRESSIVO POR PROFUNDIDADE =====
+   Gera famílias de itens por FAIXA de andar. Itens mais fundos têm o mesmo
+   "tipo" mas ficam levemente mais fortes (nomes próprios por faixa), e dentro
+   de cada faixa a raridade ordena o poder (comum < raro < épico). Isso faz o
+   loot evoluir de forma suave em vez de estagnar. */
+const GEN_BANDS=20; // faixa a cada 10 andares (andar 1-10, 11-20, ...)
+function bandTier(floor){return Math.max(0,Math.min(GEN_BANDS-1,Math.floor(((floor||1)-1)/10)));}
+(function genEquipment(){
+  const TIERS=['de Ferro','de Bronze','de Aço','de Prata','de Cobalto','de Mitrila','de Obsidiana','de Cristal','de Ônix','Rúnico','Élfico','Dracônico','do Abismo','de Ametista','das Marés','das Sombras','das Estrelas','do Eclipse','do Vazio','Primordial'];
+  const RGEN=[['comum',1.0,''],['raro',1.5,'✦'],['epico',2.2,'✦✦']];
+  const FAMS=[
+    {slot:'arma',key:'espada',noun:'Espada',main:'atk',base:6,ex:{}},
+    {slot:'arma',key:'machado',noun:'Machado',main:'atk',base:7,ex:{def:1}},
+    {slot:'arma',key:'cajado',noun:'Cajado',main:'mag',base:6,ex:{lck:1}},
+    {slot:'arma',key:'arco',noun:'Arco',main:'atk',base:5,ex:{spd:2}},
+    {slot:'elmo',key:'elmo',noun:'Elmo',main:'def',base:4,ex:{hp:8}},
+    {slot:'armadura',key:'armadura',noun:'Armadura',main:'hp',base:14,ex:{def:4}},
+    {slot:'bracelete',key:'manopla',noun:'Manopla',main:'atk',base:4,ex:{def:2}},
+    {slot:'grevas',key:'botas',noun:'Botas',main:'spd',base:4,ex:{def:2}},
+    {slot:'acessorio',key:'anel',noun:'Anel',main:'lck',base:5,ex:{hp:8}},
+    {slot:'talisma',key:'talisma',noun:'Talismã',main:'mag',base:4,ex:{atk:4}},
+  ];
+  for(let band=0;band<GEN_BANDS;band++){
+    const bandMul=1+band*0.15;                  // +15% por faixa (suave)
+    FAMS.forEach(f=>{
+      RGEN.forEach(([rar,rmul,sym])=>{
+        const mul=rmul*bandMul;
+        const stats={}; stats[f.main]=Math.max(1,Math.round(f.base*mul));
+        for(const k in f.ex)stats[k]=Math.max(1,Math.round(f.ex[k]*mul*0.7));
+        ITEMS.push({id:`g_${f.key}_${band}_${rar}`, name:`${f.noun} ${TIERS[band]}${sym?' '+sym:''}`,
+          icon:'⚔️', type:f.slot, slot:f.slot, rarity:rar, stats, band, _gen:true});
+      });
+    });
+  }
+})();
 const IMAP={};ITEMS.forEach(i=>IMAP[i.id]=i);
 const EQUIP_SLOTS=['arma','elmo','armadura','bracelete','grevas','acessorio','talisma'];
 const SLOT_LABEL={arma:'Arma',elmo:'Elmo',armadura:'Armadura',bracelete:'Bracelete',grevas:'Grevas',acessorio:'Acessório',talisma:'Talismã'};
@@ -3211,8 +3246,16 @@ function grantMaterial(minRar,cap){
 }
 function grantEquipment(minRar,cap){
   const rar=rarityRoll(minRar,cap);
+  const curTier=bandTier((typeof RUN!=='undefined'&&RUN)?RUN.floor:1);
   let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar);
-  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar));
+  // se há itens GERADOS desta raridade, restringe à faixa de profundidade (loot evolui com o andar)
+  const banded=pool.filter(i=>i.band!==undefined);
+  if(banded.length){
+    const avail=banded.filter(i=>i.band<=curTier);
+    const useTier=avail.length?Math.max(...avail.map(i=>i.band)):Math.min(...banded.map(i=>i.band));
+    pool=banded.filter(i=>i.band===useTier);
+  }
+  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar)&&i.band===undefined);
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i));
   const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🎁 Equipamento achado: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
