@@ -760,7 +760,7 @@ const HEROES=[
  head:'veil',weapon:'orb',
  pal:{H:'#caa15a',S:'#f0c08a',e:'#ffffff',K:'#f0c08a',A:'#3a2a6a',B:'#ffd166',P:'#22184a',O:'#120c2a',C:'#b39bff',M:'#ffd166',W:'#7a5a36'},
  base:{hp:46,atk:6,def:6,mag:13,spd:11,lck:16},growth:{hp:7,atk:.7,def:1,mag:1.9,spd:1.3,lck:1.9},
- passive:{name:'Olhos do Destino',tags:{critBonus:0.3,extraTurn:0.15,secretFind:0.2},desc:'Vê fraquezas (+30% crítico), o futuro (15% de agir 2x) e segredos (+20% de achar passagens secretas).'},
+ passive:{name:'Olhos do Destino',tags:{critBonus:0.3,extraTurn:0.15,secretFind:0.2,tideMaster:1},desc:'Vê fraquezas (+30% crítico), o futuro (15% de agir 2x) e segredos (+20%). Mestra das Marés: ameniza um risco da incursão.'},
  skills:[SK('Presságio',1,'mag',1.5,'one',{el:'arcano',fx:'crit+'}),
   SK('Visão Reveladora',3,'buff',0,'allies',{fx:'scout'}),
   SK('Linha do Destino',6,'mag',1.7,'one',{el:'arcano',fx:'critmax'}),
@@ -932,15 +932,99 @@ const MONSTERS=[
  base:{hp:180,atk:30,def:14,spd:10},pal:{a:'#c8324a',b:'#ff7a3c',e:'#ffd166',r:'#8a1a2a',c:'#ffcf5b'},
  grid:G16(["..r.......r...","..rr.....rr...","...baaaaab....","..baeaaaeab...","..baaccaab....","..baaaaaab....","..rbaaaabr....","..r.baaab.r...","....r.r.r.....","...r..r..r...."])},
 {id:'colosso_void',name:'Colosso do Vazio',family:'aberracao',el:'arcano',floors:[30,120],weight:9,
- base:{hp:420,atk:42,def:26,spd:7},pal:{a:'#1a1030',b:'#a14bff',e:'#ff5fa8',c:'#67d8ff',m:'#b39bff'},
+ base:{hp:300,atk:40,def:26,spd:7},pal:{a:'#1a1030',b:'#a14bff',e:'#ff5fa8',c:'#67d8ff',m:'#b39bff'},
  grid:G16(["m..m..m..m..m.",".caaaaaaaaac..","caaeaccaeaaac.","caaccccccaaac.","caaaaaaaaaaac.","caabaaaabaaac.",".caaaaaaaaac..","m.caaaaaaca.m.","m..c.c.c.c..m.","....m...m....."])},
 {id:'serpe_estelar',name:'Serpe Estelar',family:'dragao',el:'arcano',floors:[45,200],weight:7,
- base:{hp:700,atk:60,def:30,spd:13},pal:{a:'#3a2a6a',b:'#67d8ff',e:'#ffd166',c:'#b39bff',m:'#ff5fa8'},
+ base:{hp:380,atk:46,def:30,spd:13},pal:{a:'#3a2a6a',b:'#67d8ff',e:'#ffd166',c:'#b39bff',m:'#ff5fa8'},
  grid:G16(["....mmm.......","...maeam......","...maaam...mmm","....maamccmaam","....maaaaaaaam","...maaaaaaaam.","..maaaaaaam...",".maaaaaam.....","maaaaam.......","maaam.........",".mm..........."])},
 {id:'arauto_fim',name:'Arauto do Fim',family:'aberracao',el:'sombrio',floors:[70,200],weight:6,
- base:{hp:1100,atk:90,def:40,spd:15},pal:{a:'#0e0818',b:'#a14bff',e:'#ff5fa8',c:'#6a4bff',m:'#b39bff'},
+ base:{hp:540,atk:62,def:40,spd:15},pal:{a:'#0e0818',b:'#a14bff',e:'#ff5fa8',c:'#6a4bff',m:'#b39bff'},
  grid:G16(["b..b..b..b..b.","mcaaaaaaaaacm.","mcaeaccccaeacm","mcaaccccccaacm","mcaaaaaaaaaacm","mcaabbmmbbaacm","mcaaaaaaaaaacm",".mcaaaaaaaacm.","..b.cccccc.b..","..b.c....c.b..","....b....b...."])},
 ];
+/* ===== GERADOR PROCEDURAL DE INIMIGOS — leva o bestiário a 200+ criaturas únicas =====
+   Reaproveita as FORMAS (sprites pixel-art) desenhadas à mão, recolorindo-as com
+   esquemas de paleta variados e gerando nomes, elementos e atributos por faixa de andar. */
+(function genMonsters(){
+  const schemes=[
+    {body:'#c8324a',dark:'#8a1a2a',eye:'#ffd166',accent:'#ff7a3c',metal:'#e0a070',rim:'#ff5d6c'},
+    {body:'#3a8a5a',dark:'#1a4a2a',eye:'#ffd166',accent:'#7dff8f',metal:'#9ad0a0',rim:'#5fd17a'},
+    {body:'#3a5a9a',dark:'#1a2a5a',eye:'#67d8ff',accent:'#a0c8ff',metal:'#8aa0d0',rim:'#67d8ff'},
+    {body:'#7a3a8a',dark:'#3a1a4a',eye:'#ff5fa8',accent:'#b39bff',metal:'#a14bff',rim:'#ff5fa8'},
+    {body:'#8a6a3a',dark:'#4a3418',eye:'#ffd166',accent:'#d8b888',metal:'#caa15a',rim:'#ff7a3c'},
+    {body:'#5a6a80',dark:'#2a3444',eye:'#67d8ff',accent:'#a8b8d0',metal:'#8a9ab0',rim:'#cfe0ff'},
+    {body:'#1a1030',dark:'#0a0618',eye:'#a14bff',accent:'#6a4bff',metal:'#b39bff',rim:'#ff5fa8'},
+    {body:'#2a6a6a',dark:'#103838',eye:'#a0eaff',accent:'#67d8ff',metal:'#7ad0d0',rim:'#a0ffff'},
+    {body:'#9a3a2a',dark:'#5a1a10',eye:'#ffd166',accent:'#ff9a6c',metal:'#e0a070',rim:'#ff7a3c'},
+    {body:'#4a4a5a',dark:'#222230',eye:'#ff5d6c',accent:'#8a8a9a',metal:'#a0a0b0',rim:'#c8324a'},
+    {body:'#3a7a4a',dark:'#1a3a22',eye:'#ffd166',accent:'#9ad06a',metal:'#b8d888',rim:'#5fd17a'},
+    {body:'#6a2a4a',dark:'#3a1028',eye:'#ff5fa8',accent:'#c85a8a',metal:'#e090b0',rim:'#ff5fa8'},
+    {body:'#2a3a6a',dark:'#141c3a',eye:'#67d8ff',accent:'#5a7aff',metal:'#8aa0e0',rim:'#a0c8ff'},
+    {body:'#7a7a3a',dark:'#3a3a18',eye:'#ffd166',accent:'#d8d888',metal:'#c0c060',rim:'#ffea8a'},
+    {body:'#aa4a2a',dark:'#5a2410',eye:'#ffea8a',accent:'#ff9a4c',metal:'#e0b080',rim:'#ff7a3c'},
+    {body:'#2a2a3a',dark:'#12121a',eye:'#67d8ff',accent:'#5a5a7a',metal:'#9a9ab0',rim:'#b39bff'},
+    {body:'#5a8a8a',dark:'#2a4a4a',eye:'#ffd166',accent:'#9ad0d0',metal:'#b8e0e0',rim:'#a0ffff'},
+    {body:'#8a3a5a',dark:'#4a1828',eye:'#ffd166',accent:'#d06a8a',metal:'#e090a8',rim:'#ff5fa8'}
+  ];
+  function roleColor(k,s){
+    if(k==='e')return s.eye; if(k==='a')return s.body; if(k==='b')return s.dark;
+    if(k==='c')return s.accent; if(k==='m')return s.metal; if(k==='r')return s.rim;
+    if(k==='w')return '#7a5a36'; return s.accent;
+  }
+  function recolor(formPal,s){const p={};for(const k in formPal)p[k]=roleColor(k,s);return p;}
+  // nomes por família
+  const NOUNS={
+    limo:['Gosma','Geleia','Lodo','Visgo','Limo','Mucilagem','Putrescência'],
+    fera:['Fera','Besta','Garra','Presa','Quimera','Bicho','Predador','Caçador'],
+    'morto-vivo':['Esqueleto','Espectro','Carcaça','Ossada','Lich','Carniçal','Aparição','Wraith'],
+    inseto:['Aranha','Escaravelho','Vespa','Ferrão','Mandíbula','Praga','Enxame','Carrapato'],
+    humanoide:['Cultista','Bandido','Bruxo','Mercenário','Saqueador','Herege','Algoz','Fanático'],
+    demonio:['Demônio','Diabrete','Carrasco','Súcubo','Infernal','Tormento','Belzefiro','Carniceiro'],
+    planta:['Micônide','Trepadeira','Esporo','Raiz','Carnívora','Mandrágora','Espinho','Vinha'],
+    aberracao:['Aberração','Horror','Anomalia','Tumor','Olho','Quimera','Pavor','Profanação'],
+    elemental:['Golem','Elemental','Totem','Núcleo','Colosso','Sentinela','Guardião','Avatar'],
+    dragao:['Dragão','Serpe','Wyvern','Naga','Hidra','Basilisco','Draco','Salamandra']
+  };
+  const PREFIX=['Ancião','Corrompido','Abissal','Estelar','Putrefato','Sombrio','Flamejante','Glacial','Espectral','Voraz','Maldito','Carmesim','Vil','Profano','Eterno','Faminto','Pálido','Cinéreo','Lúgubre','Rúnico'];
+  const TITLE=['das Profundezas','do Vazio','da Ruína','do Caos','das Sombras','do Abismo','da Tormenta','do Crepúsculo','dos Mortos','da Praga','do Pesadelo','de Adranja','do Lamento','da Névoa','do Esquecimento','dos Selos'];
+  const ELS=['fisico','veneno','sombrio','gelo','fogo','arcano','terra','sagrado'];
+  const forms=MONSTERS.filter(m=>!m.elite&&m.grid);   // formas-base (sprites) para reaproveitar
+  const bands=[[1,9],[5,16],[11,26],[20,42],[34,65],[52,95],[78,135],[110,180],[150,200]];
+  const usedNames=new Set(MONSTERS.map(m=>m.name));
+  const usedIds=new Set(MONSTERS.map(m=>m.id));
+  let gi=0, target=200;
+  bands.forEach((band,bi)=>{
+    const per=Math.ceil(target/bands.length);
+    for(let i=0;i<per;i++){
+      const form=forms[(bi*7+i*3+gi)%forms.length];
+      const fam=form.family;
+      const scheme=schemes[(gi*5+bi)%schemes.length];
+      const el=(bi>=4&&i%4===0)?'sagrado':ELS[(gi+bi)%ELS.length];
+      // nome único
+      const nouns=NOUNS[fam]||['Criatura'];
+      let name, tries=0;
+      do{ const n=nouns[(gi+tries)%nouns.length];
+          name=(tries%2===0)?`${n} ${PREFIX[(gi*3+tries)%PREFIX.length]}`:`${n} ${TITLE[(gi*2+tries)%TITLE.length]}`;
+          tries++; }while(usedNames.has(name)&&tries<60);
+      if(usedNames.has(name))name+=' '+(gi); usedNames.add(name);
+      let id='gm_'+fam.replace('-','')+'_'+gi; while(usedIds.has(id))id+='x'; usedIds.add(id);
+      // atributos: BASE controlada por faixa (modesta) — o makeEnemy é quem escala pelo andar.
+      // (não herda a base da forma: formas profundas têm base enorme e explodiriam o HP)
+      const bandBase=[{hp:30,atk:8,def:4,spd:8},{hp:38,atk:10,def:5,spd:9},{hp:46,atk:13,def:6,spd:9},
+        {hp:54,atk:16,def:8,spd:10},{hp:62,atk:19,def:9,spd:11},{hp:70,atk:22,def:11,spd:12},
+        {hp:80,atk:26,def:13,spd:13},{hp:90,atk:30,def:15,spd:14},{hp:100,atk:34,def:17,spd:15}][bi];
+      const jit=()=>0.82+Math.random()*0.36;
+      const base={hp:Math.round(bandBase.hp*jit()), atk:Math.round(bandBase.atk*jit()),
+        def:Math.round(bandBase.def*jit()), spd:Math.max(3,Math.round(bandBase.spd*(0.9+Math.random()*0.25)))};
+      const weight=Math.max(4,Math.round(16-bi*1.2));
+      const elite=(bi>=2&&i%9===0);   // alguns elites procedurais nas faixas médias/altas
+      if(elite){base.hp=Math.round(base.hp*2.6);base.atk=Math.round(base.atk*1.5);base.def=Math.round(base.def*1.6);}
+      MONSTERS.push({id,name:elite?('⭐ '+name):name,family:fam,el,floors:[band[0],band[1]],
+        weight:elite?Math.max(2,weight-8):weight, elite, base,
+        pal:recolor(form.pal,scheme), grid:form.grid, _proc:true});
+      gi++;
+    }
+  });
+})();
 const MMAP={};MONSTERS.forEach(m=>MMAP[m.id]=m);
 
 /* ---- CHEFES (incluindo secretos) ---- */
@@ -1907,15 +1991,36 @@ const TIDES=[
  {id:'arcana',name:'Maré Arcana',icon:'🔮',good:true,desc:'Dano mágico +35% e mais essência dos chefes.',apply:r=>{r.passive.spellAmp=(r.passive.spellAmp||0)+0.35;r.tideEssence=(r.tideEssence||1)*1.2;}},
  {id:'mapa',name:'Bênção do Cartógrafo',icon:'🗺️',good:true,desc:'Familiaridade do mapa ganha em dobro.',apply:r=>{r.passive.mapBonus=(r.passive.mapBonus||0)+1;}},
  {id:'cacada',name:'Maré da Caçada',icon:'🏹',good:true,desc:'+25% de crítico e dano contra Feras.',apply:r=>{r.passive.critBonus=(r.passive.critBonus||0)+0.25;r.passive.beastBane=(r.passive.beastBane||0)+0.3;}},
+ // --- mais marés boas ---
+ {id:'fortuna',name:'Maré da Fortuna',icon:'🍀',good:true,desc:'+30% de crítico e muito mais sorte nos drops.',apply:r=>{r.passive.critBonus=(r.passive.critBonus||0)+0.3;r.passive.lootBonus=(r.passive.lootBonus||0)+0.5;}},
+ {id:'regen',name:'Maré Regenerativa',icon:'🌿',good:true,desc:'Cura +5% do grupo ao limpar cada sala.',apply:r=>{r.passive.healRoom=(r.passive.healRoom||0)+0.05;}},
+ {id:'forja',name:'Maré da Forja',icon:'⚒️',good:true,desc:'Materiais de criação muito mais frequentes.',apply:r=>{r.passive.materialBonus=(r.passive.materialBonus||0)+1.2;}},
+ {id:'bencao',name:'Bênção Antiga',icon:'✨',good:true,desc:'Grupo +15% de defesa e +15% de vida.',apply:r=>{r.passive.partyDef=(r.passive.partyDef||0)+0.15;r.tideHp=(r.tideHp||1)*1.15;}},
+ {id:'erudicao',name:'Maré da Erudição',icon:'📖',good:true,desc:'+50% de XP de combate.',apply:r=>{r.passive.xpBonus=(r.passive.xpBonus||0)+0.5;}},
+ // --- mais marés ruins ---
+ {id:'maldicao',name:'Maré Maldita',icon:'☠️',good:false,desc:'Inimigos +20% de dano, mas +50% de ouro.',apply:r=>{r.passive.enemyDmg=(r.passive.enemyDmg||0)+0.2;r.tideGold=(r.tideGold||1)*1.5;}},
+ {id:'neblina',name:'Maré da Neblina',icon:'🌫️',good:false,desc:'Grupo -20% de velocidade, mas +18% de chance de segredos.',apply:r=>{r.passive.partySpd=(r.passive.partySpd||0)-0.2;r.passive.secretFind=(r.passive.secretFind||0)+0.18;}},
+ {id:'fome',name:'Maré da Fome',icon:'🦴',good:false,desc:'Cura recebida pela metade, mas +40% de Essência.',apply:r=>{r.passive.healCut=(r.passive.healCut||0)+0.5;r.tideEssence=(r.tideEssence||1)*1.4;}},
+ {id:'tormenta',name:'Maré da Tormenta',icon:'⚡',good:false,desc:'Inimigos +30% de velocidade, mas soltam materiais raros.',apply:r=>{r.tideEnemySpd=1.3;r.passive.materialBonus=(r.passive.materialBonus||0)+0.6;}},
+ {id:'colapso',name:'Maré do Colapso',icon:'🕳️',good:false,desc:'Andares mais perigosos: armadilhas dobram, mas tesouros também.',apply:r=>{r.tideTrap=2;r.tideTreasure=(r.tideTreasure||1)*1.6;}},
 ];
-function rollTides(){const n=chance(0.35)?2:1;return shuffle(TIDES).slice(0,n);}
+const TMAP={};TIDES.forEach(t=>TMAP[t.id]=t);
+// monta a maré da incursão: SEMPRE 2 boas + 2 ruins (heróis com "tideMaster" trocam 1 ruim por 1 boa)
+function rollTides(party){
+  const good=shuffle(TIDES.filter(t=>t.good)), bad=shuffle(TIDES.filter(t=>!t.good));
+  let nGood=2, nBad=2;
+  const pIds=party||G.meta.party.filter(id=>G.meta.heroes[id].unlocked);
+  const shifters=pIds.filter(id=>{const t=(HMAP[id]&&HMAP[id].passive.tags)||{};return t.tideMaster;}).length;
+  for(let i=0;i<shifters&&nBad>1;i++){nBad--;nGood++;}   // cada mestre-das-marés ameniza um risco
+  return good.slice(0,nGood).concat(bad.slice(0,nBad));
+}
 
 function startRunFlow(){
   if(RUN&&RUN.alive){ returnToRun(); return; }
   const party=G.meta.party.filter(id=>G.meta.heroes[id].unlocked);
   if(party.length===0){toast('Monte uma equipe primeiro.','warn');return;}
   Sound.init();Sound.resume();
-  const tides=rollTides();
+  const tides=rollTides(party);
   RUN_PENDING={party,tides};
   openModal(`<h2 style="color:var(--gold)">⚓ Marés da Adranja</h2>
     <p class="small muted">A masmorra se reorganiza. Sinta as correntes mágicas desta incursão:</p>
@@ -1941,7 +2046,7 @@ function confirmStartRun(){closeModal();const{party,tides}=RUN_PENDING;
   G.meta.runs++;saveGame();
   initRun(party,tides);
   CUR.screen='dungeon';renderDungeon();
-  RUN.speed=1;music('explore');
+  RUN.speed=(G.meta.settings&&G.meta.settings.speed)||1;music('explore');
   setTimeout(()=>stepBegin(),700);
 }
 function initRun(party,tides){
@@ -2018,7 +2123,7 @@ function renderDungeon(){
   updatePartyMini();updateRunRes();
   // recoloca o histórico do log ao reabrir a incursão
   const lg=$('#log');if(lg&&RUN.log){lg.innerHTML='';RUN.log.slice(-40).forEach(e=>{const d=document.createElement('div');d.className='ln '+(e.cls||'');d.innerHTML=e.html;lg.appendChild(d);});lg.scrollTop=lg.scrollHeight;}
-  const sb=$('#spdBtn');if(sb)sb.textContent='⏩ Velocidade x'+RUN.speed;
+  const sb=$('#spdBtn');if(sb)sb.textContent='⏩ x'+(RUN.speed===0.5?'½':RUN.speed);
   startSceneLoop();
 }
 /* navega para o acampamento SEM encerrar a incursão (ela continua no fundo) */
@@ -2212,7 +2317,10 @@ function bossCard(name,intro,secret){const stage=$('#stage');if(!stage)return;
   c.innerHTML=`<div class="bc-n">${secret?'⟁ ':'☠ '}${name}${secret?' ⟁':' ☠'}</div><div class="bc-i">${intro||''}</div>`;
   stage.appendChild(c);setTimeout(()=>c.remove(),2700);}
 
-function cycleSpeed(){RUN.speed=RUN.speed>=4?1:RUN.speed*2;const b=$('#spdBtn');if(b)b.textContent='⏩ Velocidade x'+RUN.speed;sfx('click');}
+const SPEED_STEPS=[0.5,1,2,4,8];
+function cycleSpeed(){const i=SPEED_STEPS.indexOf(RUN.speed);RUN.speed=SPEED_STEPS[(i+1)%SPEED_STEPS.length]||1;
+  G.meta.settings=G.meta.settings||{};G.meta.settings.speed=RUN.speed;saveGame();
+  const b=$('#spdBtn');if(b)b.textContent='⏩ x'+(RUN.speed===0.5?'½':RUN.speed);sfx('click');}
 function confirmRetreat(){RUN.paused=true;
   openModal(`<h3>🏃 Recuar da Adranja?</h3>
    <p class="small">Você volta ao acampamento em segurança. <b>Mantém tudo</b> que coletou — itens, essência, níveis, habilidades e segredos. Nada se perde ao recuar.</p>
@@ -2298,7 +2406,7 @@ function doEncounter(){
   if(chance(secretFind)){return encSecretPassage();}
   // elite raro (chance pequena, cresce com a profundidade)
   if(RUN.floor>=6 && chance(0.025+Math.min(RUN.floor,40)*0.0015)){return encElite();}
-  const w={combate:42,tesouro:Math.round(15*(RUN.tideTreasure||1)),armadilha:12,evento:Math.round(13*(RUN.tideEvent||1))};
+  const w={combate:42,tesouro:Math.round(15*(RUN.tideTreasure||1)),armadilha:Math.round(12*(RUN.tideTrap||1)),evento:Math.round(13*(RUN.tideEvent||1))};
   if(!RUN.tideNoRest)w.descanso=8;
   if(RUN.floor>=4)w.fonte=3;
   if(RUN.floor>=6)w.altar=5;
@@ -2593,7 +2701,8 @@ function encEvent(){
   const ev=pick(EVENTS);logline('❖ '+ev.t,'ev');RUN.scene.mode='idle';
   rtimeout(()=>{ev.go();refreshBars();if(!checkWipe())advanceRoom();},800);
 }
-function healAll(frac,why){RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*frac);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});if(why)logline('💚 '+why+'.','dn');refreshBars();}
+function healMul(){return 1-((RUN&&RUN.passive&&RUN.passive.healCut)||0);}   // Maré da Fome corta cura
+function healAll(frac,why){const hm=healMul();RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*frac*hm);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});if(why)logline('💚 '+why+'.','dn');refreshBars();}
 function dmgAll(frac,why){RUN.scene.shake=5;RUN.party.filter(c=>c.alive).forEach((c,i)=>{const d=Math.round(c.maxhp*frac)+ri(1,3);c.hp=Math.max(0,c.hp-d);floatText('hero',i,'-'+d,'#ff5d6c');if(c.hp===0)downHero(c);});if(why)logline('💢 '+why+' fere o grupo.','bd');refreshBars();}
 
 /* ====================== COMBATE ====================== */
@@ -2610,9 +2719,10 @@ function makeEnemy(monster,floor,boss){
   }
   // inimigo normal: andares iniciais suaves, profundos brutais (quadrático domina tarde)
   const hpS=1+floor*0.20+floor*floor*0.006, atkS=1+floor*0.10+floor*floor*0.005, defS=1+floor*0.15, spdS=1+floor*0.05;
+  const tideSpd=(RUN&&RUN.tideEnemySpd)||1;   // Maré da Tormenta acelera inimigos
   const maxhp=Math.round(b.hp*hpS*tideHp);
   return {m:monster,name:monster.name,boss:false,family:monster.family,el:monster.el,
-    st:{atk:Math.round(b.atk*atkS),mag:Math.round(b.atk*atkS),def:Math.round(b.def*defS),spd:Math.round(b.spd*spdS),lck:5},
+    st:{atk:Math.round(b.atk*atkS),mag:Math.round(b.atk*atkS),def:Math.round(b.def*defS),spd:Math.round(b.spd*spdS*tideSpd),lck:5},
     maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{}};
 }
 function enemyPoolFor(floor){return MONSTERS.filter(m=>floor>=m.floors[0]&&floor<=m.floors[1]);}
@@ -2775,7 +2885,7 @@ function performSkill(c,skill){
     if(skill.fx==='revive'){const d=RUN.party.find(p=>!p.alive);if(d){d.alive=true;d.hp=Math.round(d.maxhp*0.45);
       logline('✨ '+actorName(c)+' usa <b>'+skill.n+'</b>! '+actorName(d)+' renasce!','dn');floatText('hero',RUN.party.indexOf(d),'REVIVE','#67d8ff');refreshBars();}}
     else{const tgts=skill.tgt==='allies'?allies():[mostHurt()];
-      const amt=Math.round((c.st.mag*0.4*skill.pow)+2);
+      const amt=Math.round(((c.st.mag*0.4*skill.pow)+2)*healMul());
       tgts.forEach(t=>{if(!t)return;t.hp=Math.min(t.maxhp,t.hp+amt);if(t.h)floatText('hero',RUN.party.indexOf(t),'+'+amt,'#5fd17a');});
       logline('💚 '+actorName(c)+' usa <b>'+skill.n+'</b> (+'+amt+' PV).','dn');refreshBars();}
     return rtimeout(nextActor,actDelay());
@@ -2916,6 +3026,7 @@ function applyDamageToHero(c,dmg,crit,attacker){
   const t=(c.h&&c.h.passive.tags)||{};
   let avoid=(t.dodge||0)+(t.phase||0);if(c.fx.evade)avoid=1;
   if(avoid>0&&chance(avoid)){if(idx>=0)floatText('hero',idx,'esquiva!','#67d8ff');logline(actorName(c)+' esquiva do golpe!','muted');c.fx.evade=0;return;}
+  if(RUN.passive.enemyDmg)dmg=Math.round(dmg*(1+RUN.passive.enemyDmg));   // marés que reforçam inimigos
   c.hp-=dmg;RUN.scene.shake=Math.max(RUN.scene.shake,crit?6:3);sfx('enemyhit');
   if(idx>=0){floatText('hero',idx,'-'+dmg,crit?'#ff5d6c':'#ffb0b0');sceneSpark('hero',idx,'#ff5d6c');}
   // espinhos / thorns
@@ -2935,18 +3046,22 @@ function processDoT(){
 
 /* ---- CHEFES SECRETOS ---- */
 function maybeSecretBoss(){
-  // chefes secretos só emboscam em profundidade adequada — nunca nos primeiros andares
-  if(invQty('chave_negra')>0&&invQty('olho_abissal')>0&&RUN.floor>=8&&!G.meta.bossesKilled.includes('eco')){
-    startSecretBoss('eco');return true;}
-  if(coroaCount()>=3&&RUN.floor>=12&&!G.meta.bossesKilled.includes('rei_esquecido')){
-    startSecretBoss('rei_esquecido');return true;}
-  if(invQty('selo_leviata')>0&&RUN.floor>=14&&!G.meta.bossesKilled.includes('leviata')){
-    startSecretBoss('leviata');return true;}
-  if(invQty('coracao_estelar')>0&&RUN.floor>=35&&!G.meta.bossesKilled.includes('arauto_estelar')){
-    startSecretBoss('arauto_estelar');return true;}
-  if(invQty('fragmento_tempo')>=3&&RUN.floor>=22&&!G.meta.bossesKilled.includes('cronarca')){
-    startSecretBoss('cronarca');return true;}
-  return false;
+  // no máximo UM chefe secreto por incursão, e nunca garantido — cada run é diferente
+  if(RUN._secretBossDone)return false;
+  // monta a lista de chefes secretos ELEGÍVEIS (item + profundidade + ainda não derrotado)
+  const elig=[];
+  if(invQty('chave_negra')>0&&invQty('olho_abissal')>0&&RUN.floor>=8&&!G.meta.bossesKilled.includes('eco'))elig.push('eco');
+  if(coroaCount()>=3&&RUN.floor>=12&&!G.meta.bossesKilled.includes('rei_esquecido'))elig.push('rei_esquecido');
+  if(invQty('selo_leviata')>0&&RUN.floor>=14&&!G.meta.bossesKilled.includes('leviata'))elig.push('leviata');
+  if(invQty('coracao_estelar')>0&&RUN.floor>=35&&!G.meta.bossesKilled.includes('arauto_estelar'))elig.push('arauto_estelar');
+  if(invQty('fragmento_tempo')>=3&&RUN.floor>=22&&!G.meta.bossesKilled.includes('cronarca'))elig.push('cronarca');
+  if(!elig.length)return false;
+  // chance crescente com a profundidade (não aparece toda hora; aumenta quanto mais fundo você está)
+  const ch=0.18+Math.min(RUN.floor,80)*0.004;   // ~21% no andar 8, ~50% no andar 80
+  if(!chance(ch))return false;
+  RUN._secretBossDone=true;
+  startSecretBoss(pick(elig));
+  return true;
 }
 function startSecretBoss(id){
   const boss=BMAP[id];const fl=Math.max(RUN.floor,boss===BMAP.rei_esquecido?14:10);
@@ -2986,9 +3101,9 @@ function onSecretBossWin(boss,e){
 function autoConsumables(){
   const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.15);
   if(!low)return;
-  if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);low.hp=Math.min(low.maxhp,low.hp+Math.round(low.maxhp*0.6));
-    floatText('hero',RUN.party.indexOf(low),'CURA','#67d8ff');logline('🍶 Elixir Maior usado em '+actorName(low)+' (cura total).','dn');refreshBars();return;}
-  if(invQty("pocao_vida")>0){removeItem("pocao_vida",1);const h=Math.round(low.maxhp*0.25);
+  if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);low.hp=Math.min(low.maxhp,low.hp+Math.round(low.maxhp*0.6*healMul()));
+    floatText('hero',RUN.party.indexOf(low),'CURA','#67d8ff');logline('🍶 Elixir Maior usado em '+actorName(low)+'.','dn');refreshBars();return;}
+  if(invQty("pocao_vida")>0){removeItem("pocao_vida",1);const h=Math.round(low.maxhp*0.25*healMul());
     low.hp=Math.min(low.maxhp,low.hp+h);floatText('hero',RUN.party.indexOf(low),'+'+h,'#5fd17a');
     logline('🧪 Poção de Vida usada automaticamente em '+actorName(low)+'.','dn');refreshBars();}
 }
