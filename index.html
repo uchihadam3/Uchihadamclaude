@@ -114,7 +114,7 @@ canvas{image-rendering:pixelated;}
 .stat-row .lab{width:36px;color:var(--dim);font-family:'Cinzel';font-weight:600;}
 .stat-row .vv{width:34px;text-align:right;color:var(--gold);font-family:'Cinzel';}
 .bar{flex:1;height:8px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden;border:1px solid var(--line-soft);}
-.bar > i{display:block;height:100%;border-radius:6px;}
+.bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
 .hpbar > i{background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
 .xpbar > i{background:linear-gradient(90deg,var(--magic),var(--magic-2));}
 
@@ -1609,7 +1609,13 @@ function checkUnlocks(){let changed=false;
 function toast(msg,rar){const host=$('#toasts');const t=document.createElement('div');
   t.className='toast';if(rar)t.style.borderColor=RAR_COLOR[rar]||'var(--gold)';
   t.innerHTML=msg;host.appendChild(t);setTimeout(()=>t.remove(),3000);}
-function openModal(html){$('#modal').innerHTML='<button class="x-close" onclick="closeModal()">✕</button>'+html;$('#overlay').classList.add('show');mountItemIcons($('#modal'));}
+/* ---- navegação de modais (pilha): ✕ volta UMA tela, não fecha tudo ---- */
+let _nav=[]; let _navGuard=false;
+function navTo(fn){_nav.push(fn);_navGuard=true;try{fn();}finally{_navGuard=false;}}
+function navBack(){_nav.pop();const t=_nav[_nav.length-1];if(t){_navGuard=true;try{t();}finally{_navGuard=false;}}else closeModal();}
+function navClose(){_nav=[];closeModal();}
+function openModal(html){if(!_navGuard)_nav=[];   // modal direto (não-navegável) reinicia a pilha
+  $('#modal').innerHTML='<button class="x-close" onclick="navBack()">✕</button>'+html;$('#overlay').classList.add('show');mountItemIcons($('#modal'));}
 function openAudioSettings(){Sound.init();
   openModal(`<h3>🎵 Áudio</h3>
     <div class="row mt"><button class="btn ${Sound.on?'':'ghost'}" onclick="audioToggle(this)">${Sound.on?'🔊 Som Ligado':'🔇 Som Desligado'}</button></div>
@@ -1618,8 +1624,8 @@ function openAudioSettings(){Sound.init();
     <p class="tiny muted mt6">Trilha e efeitos são gerados em tempo real no seu navegador.</p>`);}
 function audioToggle(btn){const on=Sound.toggle();btn.textContent=on?'🔊 Som Ligado':'🔇 Som Desligado';btn.classList.toggle('ghost',!on);if(on)applyMusic();
   const ab=document.querySelector('.audio-btn');if(ab)ab.textContent=on?'🔊':'🔇';}
-function closeModal(){$('#overlay').classList.remove('show');}
-$('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal();});
+function closeModal(){$('#overlay').classList.remove('show');_nav=[];}
+$('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')navClose();});
 
 function statBar(lab,val,max,cls){return `<div class="stat-row"><span class="lab">${lab}</span><div class="bar ${cls||''}"><i style="width:${clamp(val/max*100,3,100)}%"></i></div><span class="vv">${Math.round(val)}</span></div>`;}
 function rarPill(rar){return `<span class="rar ${rar}">${RAR_NAME[rar]}</span>`;}
@@ -1803,7 +1809,7 @@ function tabSquad(b){
 function partySlot(id,i){
   if(!id)return `<div class="hero-card" style="opacity:.5;border-style:dashed"><div style="height:74px;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--dim)">＋</div><div class="role">vazio</div></div>`;
   const h=HMAP[id];const cv=heroSprite(h,5);
-  return `<div class="hero-card sel" onclick="openHero('${id}')">
+  return `<div class="hero-card sel" onclick="navTo(()=>openHero('${id}'))">
     <span class="lvl">Lv ${heroMaxLevel(id)}</span>
     <div data-sprite="${id}"></div>
     <div class="nm">${h.name.split(',')[0]}</div>
@@ -1818,7 +1824,7 @@ function rosterCard(h){
       ${rarPill(h.rarity)}<div style="height:74px;display:flex;align-items:center;justify-content:center;font-size:40px">🔒</div>
       <div class="nm">${h.icon} ???</div><div class="role">${h.role}</div></div>`;
   }
-  return `<div class="hero-card ${inParty?'sel':''}" onclick="openHero('${h.id}')">
+  return `<div class="hero-card ${inParty?'sel':''}" onclick="navTo(()=>openHero('${h.id}'))">
     ${rarPill(h.rarity)}<span class="lvl">Lv ${heroMaxLevel(h.id)}</span>
     <div data-sprite="${h.id}"></div>
     <div class="nm">${h.name.split(',')[0]}</div><div class="role">${h.role}</div>
@@ -1851,7 +1857,7 @@ function openHero(id){
   const h=HMAP[id],st=G.meta.heroes[id],lv=heroMaxLevel(id);
   const s=heroStats(id,lv);const inParty=G.meta.party.includes(id);
   const skills=h.skills.map((sk,si)=>{const known=sk.lvl<=lv;
-    return `<div class="slotline clickable" style="${known?'':'opacity:.45'};cursor:pointer" onclick="openSkillInfo('${id}',${si})">
+    return `<div class="slotline clickable" style="${known?'':'opacity:.45'};cursor:pointer" onclick="navTo(()=>openSkillInfo('${id}',${si}))">
       <div class="sl-ico">${known?skKindIcon(sk):'🔒'}</div>
       <div class="sl-n"><b>${sk.n}</b> <span class="tiny muted">Nv ${sk.lvl}${known?' · aprendida':''}</span><br><span class="tiny">${sk.txt||skKindLabel(sk)}</span></div>
       <span class="tiny muted" style="align-self:center">ⓘ</span></div>`;
@@ -1859,7 +1865,7 @@ function openHero(id){
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
     return `<div class="slotline"><div class="sl-ico">${it?itemIco(it,3):slotIcon(sl)}</div>
       <div class="sl-n"><span class="tiny muted">${slotLabel(sl)}</span><br>${it?`<b>${it.name}${upgLevel(it.id)>0?` <span style="color:var(--gold)">+${upgLevel(it.id)}</span>`:''}</b>`:'<span class="muted">— vazio —</span>'}</div>
-      <button class="btn ghost sm" onclick="pickEquip('${id}','${sl}')">${it?'Trocar':'Equipar'}</button></div>`;
+      <button class="btn ghost sm" onclick="navTo(()=>pickEquip('${id}','${sl}'))">${it?'Trocar':'Equipar'}</button></div>`;
   }).join('');
   openModal(`
     <div class="row" style="align-items:flex-start;gap:14px">
@@ -1923,7 +1929,7 @@ function openSkillInfo(heroId,si){
     <p class="small mt" style="text-align:center">${sk.txt||skKindLabel(sk)}</p>
     <div class="panel mt" style="text-align:left">${skillFullDesc(sk)}</div>
     ${known?'':`<p class="tiny muted mt6 center">Liberada quando ${h.name.split(',')[0]} alcançar o Nível ${sk.lvl}.</p>`}
-    <div class="row mt" style="justify-content:center"><button class="btn ghost" onclick="openHero('${heroId}')">← Voltar ao herói</button></div>`);
+    <div class="row mt" style="justify-content:center"><button class="btn ghost" onclick="navBack()">← Voltar ao herói</button></div>`);
 }
 function slotIcon(sl){return {arma:'🗡️',elmo:'⛑️',armadura:'👕',bracelete:'🧤',grevas:'🥾',acessorio:'💍',talisma:'📿'}[sl];}
 function slotLabel(sl){return SLOT_LABEL[sl]||cap(sl);}
@@ -1932,9 +1938,28 @@ function slotLabel(sl){return SLOT_LABEL[sl]||cap(sl);}
 function equippedByOthers(itemId,slot,exceptHeroId){
   return Object.keys(G.meta.heroes).filter(hid=>G.meta.heroes[hid].unlocked && hid!==exceptHeroId && G.meta.heroes[hid].equip[slot]===itemId);
 }
+// stats efetivos de um item (com aprimoramento +N)
+function effItemStats(it){if(!it||!it.stats)return {};const m=1+upgLevel(it.id)*0.14;const o={};for(const k in it.stats)o[k]=Math.round(it.stats[k]*m);return o;}
+// comparação candidato vs equipado atual no slot -> HTML de deltas (verde sobe / vermelho desce)
+function equipCompareHTML(slot,cand,heroId){
+  const st=G.meta.heroes[heroId];const curId=st.equip[slot];
+  if(curId===cand.id)return '';
+  const cur=curId?IMAP[curId]:null;
+  const a=effItemStats(cur), b=effItemStats(cand);
+  const keys=[...new Set([...Object.keys(a),...Object.keys(b)])];
+  const parts=keys.map(k=>{const d=(b[k]||0)-(a[k]||0);if(d===0)return '';
+    const col=d>0?'#5fd17a':'#ff5d6c';return `<span style="color:${col}">${d>0?'▲+'+d:'▼'+d} ${k.toUpperCase()}</span>`;}).filter(Boolean);
+  if(!cur)return `<br><span class="tiny" style="color:var(--ok)">✦ slot vazio — ${parts.join('  ')||'novo'}</span>`;
+  if(!parts.length)return `<br><span class="tiny muted">↔ mesmos atributos do atual</span>`;
+  // veredito geral por soma simples dos deltas
+  const sum=keys.reduce((s,k)=>s+((b[k]||0)-(a[k]||0)),0);
+  const verd=sum>0?'<b style="color:#5fd17a">▲ Melhor</b>':sum<0?'<b style="color:#ff5d6c">▼ Pior</b>':'<b class="muted">↔ Igual</b>';
+  return `<br><span class="tiny">vs atual: ${verd} &nbsp; ${parts.join('  ')}</span>`;
+}
 /* escolher equipamento para um slot — itens equipados em OUTROS heróis ficam bloqueados */
 function pickEquip(heroId,slot){
-  const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&it.slot===slot&&invQty(it.id)>0);
+  const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&it.slot===slot&&invQty(it.id)>0)
+    .sort((a,b)=>RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
   const st=G.meta.heroes[heroId];const cur=st.equip[slot];
   const list=owned.map(it=>{
     const others=equippedByOthers(it.id,slot,heroId);
@@ -1946,13 +1971,15 @@ function pickEquip(heroId,slot){
     else if(freeForThis>0){ right=`<button class="btn sm" onclick="doEquip('${heroId}','${slot}','${it.id}')">Equipar${invQty(it.id)>1?` <span class="tiny">(${freeForThis} livre${freeForThis>1?'s':''})</span>`:''}</button>`; }
     else { right=`<button class="btn sm" disabled>indisponível</button>`; }
     const uL=upgLevel(it.id);
+    const cmp=isCur?'':equipCompareHTML(slot,it,heroId);
     return `<div class="slotline b-${it.rarity}">
       <div class="sl-ico">${itemIco(it,3)}</div>
-      <div class="sl-n"><b>${it.name}${uL>0?` <span style="color:var(--gold)">+${uL}</span>`:''}</b> ${rarPill(it.rarity)}<br><span class="tiny" style="color:var(--gold)">${statsStr(it.stats,uL)}</span>${note}</div>
+      <div class="sl-n"><b>${it.name}${uL>0?` <span style="color:var(--gold)">+${uL}</span>`:''}</b> ${rarPill(it.rarity)}<br><span class="tiny" style="color:var(--gold)">${statsStr(it.stats,uL)}</span>${cmp}${note}</div>
       ${right}</div>`;
   }).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
+  const curIt=cur?IMAP[cur]:null;
   openModal(`<h3>${slotIcon(slot)} Equipar ${slotLabel(slot)}</h3>
-    <p class="tiny muted mt6">Cada cópia de um item só pode estar em um herói. Desequipe para liberar.</p>
+    <p class="tiny muted mt6">${curIt?`Equipado: <b>${curIt.name}${upgLevel(cur)>0?' +'+upgLevel(cur):''}</b> — ${statsStr(curIt.stats,upgLevel(cur))}`:'Nenhum item equipado neste espaço.'} As setas mostram se cada item é <span style="color:#5fd17a">▲ melhor</span> ou <span style="color:#ff5d6c">▼ pior</span>.</p>
     ${cur?`<button class="btn ghost sm mt6" onclick="doEquip('${heroId}','${slot}',null)">Desequipar atual</button>`:''}
     <div class="col mt">${list}</div>`);
 }
@@ -1963,7 +1990,7 @@ function doEquip(heroId,slot,itemId){
     const others=equippedByOthers(itemId,slot,heroId);
     if(invQty(itemId)-others.length<=0){ toast('Esse item já está equipado em outro herói.','warn'); return; }
   }
-  st.equip[slot]=itemId;saveGame();closeModal();openHero(heroId);
+  st.equip[slot]=itemId;saveGame();navBack();   // volta à ficha do herói (atualizada), sem fechar tudo
 }
 
 /* ---- TAB EQUIPAR / INVENTÁRIO ---- */
