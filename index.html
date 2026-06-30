@@ -2082,17 +2082,23 @@ const UPG_MAX=12;
 function upgMax(){return G.meta.research.forja5?12:6;}
 function upgGoldCost(id){const lv=upgLevel(id);const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
   let c=(140+lv*lv*70)*rTier; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}
-function upgMatCost(id){const lv=upgLevel(id);const it=IMAP[id];
-  // material exigido sobe de raridade conforme o nível E conforme a raridade do item
-  const tier=Math.min(4,Math.floor(lv/3)+Math.max(0,RARS.indexOf(it.rarity)-2)); const mat=['ferro','cristal','obsidiana','alma','po_estelar'][Math.min(4,tier)]||'ferro';
-  return {mat, qty:1+Math.floor(lv/2)+Math.max(0,RARS.indexOf(it.rarity)-1)};}
-// aprimoramentos ALTOS (+4 em diante) também consomem ESSÊNCIA — dá uso real ao recurso mágico
-function upgEssCost(id){const lv=upgLevel(id);if(lv<2)return 0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
-  return Math.round((lv-1)*(lv-1)*110*rTier*(1+rTier*0.18));}
-function canUpgrade(id){if(upgLevel(id)>=upgMax())return false;const c=upgMatCost(id);
-  return G.meta.gold>=upgGoldCost(id)&&invQty(c.mat)>=c.qty&&G.meta.essence>=upgEssCost(id);}
-function doUpgrade(id){if(!canUpgrade(id))return;const c=upgMatCost(id);const ess=upgEssCost(id);
-  G.meta.gold-=upgGoldCost(id);removeItem(c.mat,c.qty);if(ess>0)G.meta.essence-=ess;
+// MATERIAIS exigidos: específicos pela raridade do item (+1 material nobre a partir de +4)
+function upgMats(id){
+  const lv=upgLevel(id), rt=RARS.indexOf(IMAP[id].rarity);
+  const prim=['ferro','cristal','obsidiana','alma','po_estelar','po_estelar','po_estelar','po_estelar'][rt]||'ferro';
+  const out=[{mat:prim, qty:1+Math.floor(lv/2)+Math.floor(rt/2)}];
+  if(lv>=4){ const sec=['couro','pano','seda','essencia_sombria','fragmento','fragmento','nucleo','nucleo'][rt]||'seda';
+    out.push({mat:sec, qty:1+Math.floor((lv-4)/2)}); }
+  return out;
+}
+// ESSÊNCIA agora é bem MENOR e linear (antes crescia ao quadrado e explodia)
+function upgEssCost(id){const lv=upgLevel(id);if(lv<3)return 0;const rTier=RARS.indexOf(IMAP[id].rarity)+1;
+  return Math.round((lv-2)*24*rTier);}
+function canUpgrade(id){if(upgLevel(id)>=upgMax())return false;
+  if(G.meta.gold<upgGoldCost(id))return false; if(G.meta.essence<upgEssCost(id))return false;
+  return upgMats(id).every(c=>invQty(c.mat)>=c.qty);}
+function doUpgrade(id){if(!canUpgrade(id))return;const ess=upgEssCost(id);
+  G.meta.gold-=upgGoldCost(id); upgMats(id).forEach(c=>removeItem(c.mat,c.qty)); if(ess>0)G.meta.essence-=ess;
   G.meta.upgrades=G.meta.upgrades||{};G.meta.upgrades[id]=(G.meta.upgrades[id]||0)+1;
   saveGame();sfx('levelup');toast('🔨 '+IMAP[id].icon+' '+IMAP[id].name+' +'+upgLevel(id)+'!','lendario');renderTab();}
 // XP necessária p/ subir do nível L -> L+1
@@ -2583,14 +2589,15 @@ function tabForge(b){
   const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&isEquip(it)&&invQty(it.id)>0)
     .sort((a,b)=>(totalEquipped(b.id)>0)-(totalEquipped(a.id)>0) || RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
   const equippedOn=id=>Object.keys(G.meta.heroes).filter(hid=>G.meta.heroes[hid].unlocked&&EQUIP_SLOTS.some(s=>G.meta.heroes[hid].equip[s]===id)).map(hid=>HMAP[hid].name.split(',')[0]);
-  const upgCard=it=>{const lv=upgLevel(it.id);const c=upgMatCost(it.id);const max=lv>=upgMax();
+  const upgCard=it=>{const lv=upgLevel(it.id);const mats=upgMats(it.id);const max=lv>=upgMax();
     const can=canUpgrade(it.id);const eqOn=equippedOn(it.id);
+    const matsStr=mats.map(c=>{const have=invQty(c.mat);const ok=have>=c.qty;return `<span style="color:${ok?'var(--ok)':'var(--bad)'}">${IMAP[c.mat]?IMAP[c.mat].icon:'🧱'}${have}/${c.qty}</span>`;}).join(' · ');
     return `<div class="recipe ${'b-'+it.rarity}" style="${eqOn.length?'border-color:var(--gold)':''}">
       <div class="rico">${itemIco(it,3)}</div>
       <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)}${eqOn.length?` <span class="chip" style="color:var(--gold);border-color:var(--gold)">🛡️ ${eqOn.join(', ')}</span>`:''}<br>
         <span class="tiny" style="color:var(--gold)">${statsStr(it.stats,lv)}</span><br>
         ${max?'<span class="tiny" style="color:var(--gold)">★ Aprimoramento máximo</span>'
-          :`<span class="tiny muted">🪙 ${upgGoldCost(it.id)} · ${IMAP[c.mat].icon}${invQty(c.mat)}/${c.qty}${upgEssCost(it.id)>0?` · 💠 ${upgEssCost(it.id)}`:''}</span>`}</div>
+          :`<span class="tiny muted">🪙 ${upgGoldCost(it.id)} · ${matsStr}${upgEssCost(it.id)>0?` · 💠 ${upgEssCost(it.id)}`:''}</span>`}</div>
       ${max?'':`<button class="btn sm" ${can?'':'disabled'} onclick="doUpgrade('${it.id}')">Aprimorar +${lv+1}</button>`}</div>`;};
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${bal(G.meta.gold)} · 💠 ${bal(G.meta.essence)}</span></div>
      <p class="muted small mt6">Crie e <b>aprimore</b> equipamento. Cada aprimoramento (+N) dá +14% nos atributos do item.</p></div>
