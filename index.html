@@ -228,6 +228,7 @@ canvas{image-rendering:pixelated;}
 const $=(s,el=document)=>el.querySelector(s);
 const $$=(s,el=document)=>[...el.querySelectorAll(s)];
 const APP=$('#app');
+const TAU=Math.PI*2;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const ri=(a,b)=>Math.floor(rnd(a,b+1));
@@ -1262,27 +1263,39 @@ function openHero(id){
 function skKindLabel(sk){return {phys:'Dano físico',mag:'Dano mágico',heal:'Cura',buff:'Suporte'}[sk.kind]||'';}
 function slotIcon(sl){return {arma:'🗡️',armadura:'👕',acessorio:'💍'}[sl];}
 
-/* escolher equipamento para um slot */
+/* quantos heróis (exceto um) estão usando esse item neste slot */
+function equippedByOthers(itemId,slot,exceptHeroId){
+  return Object.keys(G.meta.heroes).filter(hid=>G.meta.heroes[hid].unlocked && hid!==exceptHeroId && G.meta.heroes[hid].equip[slot]===itemId);
+}
+/* escolher equipamento para um slot — itens equipados em OUTROS heróis ficam bloqueados */
 function pickEquip(heroId,slot){
   const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&it.slot===slot&&invQty(it.id)>0);
   const st=G.meta.heroes[heroId];const cur=st.equip[slot];
-  const list=owned.map(it=>{const equippedBy=Object.keys(G.meta.heroes).find(hid=>G.meta.heroes[hid].equip[slot]===it.id);
-    const used=equippedBy&&equippedBy!==heroId;
-    return `<div class="slotline ${('b-'+it.rarity)}">
+  const list=owned.map(it=>{
+    const others=equippedByOthers(it.id,slot,heroId);
+    const isCur=cur===it.id;
+    const freeForThis=invQty(it.id)-others.length; // cópias não usadas por outros (inclui a deste herói)
+    let right, note='';
+    if(others.length) note=`<br><span class="tiny" style="color:var(--bad)">🔒 equipado em ${others.map(h=>HMAP[h].name.split(',')[0]).join(', ')}</span>`;
+    if(isCur){ right=`<span class="chip" style="color:var(--gold)">✔ equipado aqui</span>`; }
+    else if(freeForThis>0){ right=`<button class="btn sm" onclick="doEquip('${heroId}','${slot}','${it.id}')">Equipar${invQty(it.id)>1?` <span class="tiny">(${freeForThis} livre${freeForThis>1?'s':''})</span>`:''}</button>`; }
+    else { right=`<button class="btn sm" disabled>indisponível</button>`; }
+    return `<div class="slotline b-${it.rarity}">
       <div class="sl-ico">${it.icon}</div>
-      <div class="sl-n"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny" style="color:var(--gold)">${statsStr(it.stats)}</span>
-      ${used?`<br><span class="tiny muted">equipado em ${HMAP[equippedBy].name.split(',')[0]}</span>`:''}</div>
-      <button class="btn sm" onclick="doEquip('${heroId}','${slot}','${it.id}')">${cur===it.id?'Reequipar':'Equipar'}</button></div>`;
+      <div class="sl-n"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny" style="color:var(--gold)">${statsStr(it.stats)}</span>${note}</div>
+      ${right}</div>`;
   }).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
   openModal(`<h3>${slotIcon(slot)} Equipar ${cap(slot)}</h3>
+    <p class="tiny muted mt6">Cada cópia de um item só pode estar em um herói. Desequipe para liberar.</p>
     ${cur?`<button class="btn ghost sm mt6" onclick="doEquip('${heroId}','${slot}',null)">Desequipar atual</button>`:''}
     <div class="col mt">${list}</div>`);
 }
 function statsStr(st){if(!st)return '';return Object.keys(st).map(k=>`+${st[k]} ${k.toUpperCase()}`).join('  ');}
 function doEquip(heroId,slot,itemId){
   const st=G.meta.heroes[heroId];
-  if(itemId){ // remove de quem mais usa (1 cópia por item único? permitimos compartilhar removendo)
-    Object.keys(G.meta.heroes).forEach(hid=>{if(hid!==heroId&&G.meta.heroes[hid].equip[slot]===itemId)G.meta.heroes[hid].equip[slot]=null;});
+  if(itemId){ // só equipa se houver uma cópia livre (não rouba de outro herói)
+    const others=equippedByOthers(itemId,slot,heroId);
+    if(invQty(itemId)-others.length<=0){ toast('Esse item já está equipado em outro herói.','warn'); return; }
   }
   st.equip[slot]=itemId;saveGame();closeModal();openHero(heroId);
 }
@@ -1511,7 +1524,8 @@ function applyPassiveStart(c){
 function renderDungeon(){
   APP.innerHTML=`<div class="screen dungeon active">
     <div class="topbar">
-      <span class="floor-badge">🏰 Andar ${RUN.floor}</span>
+      <span class="floor-badge" id="floorBadge">🏰 Andar ${RUN.floor}</span>
+      <span class="chip" id="regionChip" style="color:var(--magic-2)"></span>
       <span class="chip" id="famChip"></span>
       <div class="res">
         <span class="chip">💠 <b id="rEss">0</b></span>
@@ -1538,18 +1552,24 @@ function renderDungeon(){
   startSceneLoop();
 }
 function updateRunRes(){const e=$('#rEss'),g=$('#rGold'),k=$('#rKills');if(e)e.textContent=fmt(RUN.essence);if(g)g.textContent=fmt(RUN.gold);if(k)k.textContent=RUN.kills;
-  const fam=$('#famChip');if(fam){const f=Math.round((G.meta.mapKnowledge[RUN.floor]||0)*100);fam.textContent='🗺️ '+f+'%';}}
+  const fam=$('#famChip');if(fam){const f=Math.round((G.meta.mapKnowledge[RUN.floor]||0)*100);fam.textContent='🗺️ '+f+'%';}
+  updateFloorBadge();}
+function updateFloorBadge(){const fb=$('#floorBadge');if(fb)fb.textContent='🏰 Andar '+RUN.floor;
+  const rc=$('#regionChip');if(rc)rc.textContent=floorTheme(RUN.floor).name;}
 function updatePartyMini(){const host=$('#partyMini');if(!host)return;
   host.innerHTML=RUN.party.map(c=>`<div class="pm ${c.alive?'':'dead'}" id="pm_${c.id}">
     <div data-sprite-mini="${c.id}"></div>
-    <div style="flex:1"><div class="pn">${c.h.name.split(',')[0]} <span class="tiny muted">Lv${c.level}</span></div>
-    <div class="bar hpbar" style="margin:2px 0"><i id="hp_${c.id}" style="width:${c.hp/c.maxhp*100}%"></i></div>
+    <div style="flex:1"><div class="pn">${c.h.name.split(',')[0]} <span class="tiny" style="color:var(--gold)" id="lvl_${c.id}">Lv ${c.level}</span></div>
+    <div class="bar hpbar" style="margin:2px 0;position:relative"><i id="hp_${c.id}" style="width:${c.hp/c.maxhp*100}%"></i>
+      <span id="hpn_${c.id}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'Cinzel';color:#fff;text-shadow:0 1px 2px #000;line-height:1">${Math.ceil(c.hp)}/${c.maxhp}</span></div>
     <div class="bar xpbar"><i id="xp_${c.id}" style="width:${c.xp/xpForLevel(c.level)*100}%"></i></div></div></div>`).join('');
   $$('[data-sprite-mini]').forEach(el=>{const id=el.getAttribute('data-sprite-mini');mountCanvas(el,heroSprite(HMAP[id],3));});
 }
-function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'+c.id),pm=$('#pm_'+c.id);
+function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'+c.id),pm=$('#pm_'+c.id),lv=$('#lvl_'+c.id),hpn=$('#hpn_'+c.id);
   if(hp)hp.style.width=clamp(c.hp/c.maxhp*100,0,100)+'%';
   if(xp)xp.style.width=clamp(c.xp/xpForLevel(c.level)*100,0,100)+'%';
+  if(lv)lv.textContent='Lv '+c.level;
+  if(hpn)hpn.textContent=Math.ceil(Math.max(0,c.hp))+'/'+c.maxhp;
   if(pm)pm.classList.toggle('dead',!c.alive);});}
 
 function logline(html,cls){RUN.log.push({html,cls});if(RUN.log.length>120)RUN.log.shift();
@@ -1567,8 +1587,9 @@ const FLOOR_BANDS=[
   {name:'Abismo Carmesim',brick:'#3a1a22',brick2:'#2a1016',floor:'#1c0a10',torch:'#ff5d6c',tint:'rgba(200,50,74,.09)'},
   {name:'O Vazio',brick:'#1a1030',brick2:'#100a20',floor:'#0c0818',torch:'#a14bff',tint:'rgba(161,75,255,.12)'},
 ];
-function floorBandIndex(f){return Math.floor((f-1)/4)%FLOOR_BANDS.length;}
-function floorTheme(f){return FLOOR_BANDS[floorBandIndex(f)];}
+const FLOOR_BAND_NAMES=['Cripta','Cavernas de Gelo','Forjas de Lava','Bosque Profano','Salões Reais','Catacumbas','Abismo Carmesim','O Vazio'];
+function floorBandIndex(f){return Math.floor((f-1)/5)%FLOOR_BANDS.length;}  // novo cenário a cada 5 andares
+function floorTheme(f){const b=FLOOR_BANDS[floorBandIndex(f)];b.deco=['crypt','ice','lava','forest','royal','catacomb','crimson','void'][floorBandIndex(f)];return b;}
 function startSceneLoop(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);
   const cv=$('#scene');if(!cv)return;const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
@@ -1602,6 +1623,7 @@ function drawScene(ctx,cv,t){
   // chão
   ctx.fillStyle=th.floor;ctx.fillRect(0,H-46,W,46);
   ctx.fillStyle='rgba(0,0,0,.3)';for(let x=-off;x<W;x+=32)ctx.fillRect(x,H-46,2,46);
+  drawRegionDecor(ctx,W,H,th,t,sc.walk);
   ctx.fillStyle=th.tint;ctx.fillRect(0,0,W,H);
   // poeira/partículas do vazio em andares fundos
   if(RUN.floor>=13){for(let i=0;i<14;i++){ctx.fillStyle='rgba(161,75,255,'+(0.1+((i*7)%5)/12)+')';
@@ -1635,6 +1657,48 @@ function drawScene(ctx,cv,t){
     if(!en.boss){const bw=34;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(bx,by-7,bw,4);
       ctx.fillStyle='#ff5d6c';ctx.fillRect(bx,by-7,bw*clamp(en.hp/en.maxhp,0,1),4);}
   });
+  ctx.restore();
+}
+/* ---- decoração específica por região (a cada 5 andares muda totalmente) ---- */
+function drawRegionDecor(ctx,W,H,th,t,walk){
+  const sx=(walk*0.5)%64; const deco=th.deco;
+  ctx.save();
+  if(deco==='crypt'){ // correntes penduradas
+    ctx.strokeStyle='rgba(120,120,140,.5)';ctx.lineWidth=2;
+    for(let i=0;i<6;i++){const x=((i*90)-sx*0.6+540)%540-20; for(let y=0;y<46;y+=6){ctx.beginPath();ctx.arc(x,y,3,0,TAU);ctx.stroke();}}
+  } else if(deco==='ice'){ // estalactites de gelo no teto
+    for(let i=0;i<10;i++){const x=((i*64)-sx+640)%640-30; const h=14+((i*13)%18);
+      ctx.fillStyle='rgba(150,220,255,.45)';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+10,0);ctx.lineTo(x+5,h);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.25)';ctx.fillRect(x+4,0,1,h*0.7);}
+  } else if(deco==='lava'){ // rachaduras brilhantes no chão + brasas subindo
+    for(let i=0;i<8;i++){const x=((i*70)-sx*1.2+560)%560-20; const g=0.4+Math.sin(t*4+i)*0.25;
+      ctx.strokeStyle='rgba(255,'+Math.floor(90+g*80)+',30,'+g+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(x,H-44);ctx.lineTo(x+8,H-30);ctx.lineTo(x+4,H-16);ctx.stroke();}
+    for(let i=0;i<16;i++){ctx.fillStyle='rgba(255,140,40,'+(0.5-((t*0.6+i)%1)*0.5)+')';
+      ctx.fillRect((i*41-t*22)%W+(i%2?0:W),H-20-((t*30+i*40)%H),2,2);}
+  } else if(deco==='forest'){ // raízes/vinhas penduradas + vaga-lumes
+    ctx.strokeStyle='rgba(60,120,60,.5)';ctx.lineWidth=3;
+    for(let i=0;i<7;i++){const x=((i*80)-sx*0.7+560)%560-20;ctx.beginPath();ctx.moveTo(x,0);
+      ctx.quadraticCurveTo(x+6,12,x+2,26);ctx.stroke();}
+    for(let i=0;i<10;i++){const a=0.4+Math.sin(t*3+i)*0.4;ctx.fillStyle='rgba(160,255,120,'+a+')';
+      ctx.fillRect((i*57-t*8)%W,(40+Math.sin(t+i)*20),2,2);}
+  } else if(deco==='royal'){ // estandartes dourados
+    for(let i=0;i<5;i++){const x=((i*110)-sx*0.5+550)%550-30;
+      ctx.fillStyle='rgba(180,40,40,.55)';ctx.fillRect(x,0,22,30);
+      ctx.fillStyle='rgba(232,192,116,.8)';ctx.fillRect(x+8,4,6,6);
+      ctx.beginPath();ctx.moveTo(x,30);ctx.lineTo(x+22,30);ctx.lineTo(x+11,38);ctx.closePath();ctx.fill();}
+  } else if(deco==='catacomb'){ // crânios na base
+    for(let i=0;i<12;i++){const x=((i*52)-sx*0.9+624)%624-20;ctx.fillStyle='rgba(210,200,180,.6)';
+      ctx.beginPath();ctx.arc(x,H-44,5,0,TAU);ctx.fill();ctx.fillStyle='#000';ctx.fillRect(x-3,H-45,2,2);ctx.fillRect(x+1,H-45,2,2);}
+  } else if(deco==='crimson'){ // brilho pulsante vermelho + gotejar
+    const g=0.1+Math.sin(t*2)*0.06;ctx.fillStyle='rgba(200,40,60,'+g+')';ctx.fillRect(0,0,W,H);
+    for(let i=0;i<10;i++){ctx.fillStyle='rgba(180,20,40,.5)';ctx.fillRect((i*61-sx)%W,((t*40+i*30)%H),2,8);}
+  } else if(deco==='void'){ // fendas roxas flutuantes + estrelas
+    for(let i=0;i<26;i++){ctx.fillStyle='rgba(200,180,255,'+(0.2+((i*7)%5)/10)+')';
+      ctx.fillRect((i*37-t*6)%W,(i*53+t*3)%H,2,2);}
+    for(let i=0;i<4;i++){const x=((i*150)-sx*1.5+600)%600-40,y=20+i*30;const a=0.3+Math.sin(t*1.5+i)*0.2;
+      ctx.strokeStyle='rgba(161,75,255,'+a+')';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(x,y,16,4,0.6,0,TAU);ctx.stroke();}
+  }
   ctx.restore();
 }
 function floatText(side,i,txt,color){
@@ -1696,8 +1760,15 @@ function workshopHTML(){
 /* ====================== MÁQUINA DE EXPLORAÇÃO ====================== */
 function stepBegin(){
   if(!RUN.alive)return;
+  updateFloorBadge();
+  // anúncio de nova região a cada 5 andares
+  const region=floorTheme(RUN.floor);
+  if(RUN._lastRegion!==region.name){ RUN._lastRegion=region.name;
+    logline(`<span class="sc">🌌 Você adentra uma nova região: <b>${region.name}</b>.</span>`,'sc');
+    toast('🌌 '+region.name,'epico');
+  }
   const isBoss=RUN.floor%5===0;
-  logline(`<span class="sy">⌁ Andar ${RUN.floor}${isBoss?' — você sente uma presença colossal à frente...':' da Adranja.'}</span>`,'ev');
+  logline(`<span class="sy">⌁ Andar ${RUN.floor}${isBoss?' — você sente uma presença colossal à frente...':' — '+region.name+'.'}</span>`,'ev');
   RUN.roomsTotal=computeRooms();RUN.room=0;
   rtimeout(walkNext,600);
 }
@@ -2019,8 +2090,10 @@ function encCombat(){
   logline('⚔️ Encontro: '+enemies.map(e=>e.name).join(', ')+'!','cb');
   enemies.forEach(e=>discover('bestiary',e.m.id));
   beginCombat(enemies,{boss:false,onWin:()=>{
-    const xp=enemies.reduce((a,e)=>a+e.maxhp*0.5+e.st.atk*3,0)*0.6;
-    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp/Math.max(1,RUN.party.filter(p=>p.alive).length)*3));
+    // XP modesto baseado em quantidade e andar (NÃO no PV inflado dos inimigos)
+    const total=enemies.length*(9+RUN.floor*3.2);
+    const alive=Math.max(1,RUN.party.filter(p=>p.alive).length);
+    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c, total/alive));
     grantGold(Math.round(ri(4,10)*RUN.floor));
     RUN.kills+=enemies.length;G.meta.totalKills+=enemies.length;
     if(chance(0.5))grantMaterial();if(chance(0.18))grantEquipment();
@@ -2040,7 +2113,7 @@ function onBossWin(boss,e){
   hideBossBar();
   if(!G.meta.bossesKilled.includes(boss.id)){G.meta.bossesKilled.push(boss.id);}
   RUN.kills++;G.meta.totalKills++;
-  const xp=e.maxhp*0.4+RUN.floor*40;
+  const xp=20+RUN.floor*8;   // chefe dá um bom empurrão, mas controlado
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp));
   const ess=runEssence(30+RUN.floor*8);
   grantGold(Math.round(40*RUN.floor));
@@ -2328,7 +2401,7 @@ function startSecretBoss(id){
 function onSecretBossWin(boss,e){
   hideBossBar();if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
   RUN.kills++;G.meta.totalKills++;
-  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,e.maxhp*0.5+200));
+  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,40+RUN.floor*10));
   const ess=runEssence(200+RUN.floor*12);
   grantEquipment('lendario');if(chance(0.5))grantEquipment('mitico');
   if(!G.meta.relics.includes('lampada_eterna')&&chance(0.5)){addItem('lampada_eterna',1);discover('items','lampada_eterna');}
