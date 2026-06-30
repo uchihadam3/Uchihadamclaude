@@ -256,9 +256,9 @@ function weighted(map){ // map: {key:weight}
   let t=0;for(const k in map)t+=map[k];let r=Math.random()*t;
   for(const k in map){r-=map[k];if(r<=0)return k;}return Object.keys(map)[0];
 }
-const RARS=['comum','raro','epico','lendario','mitico','secreto'];
-const RAR_NAME={comum:'Comum',raro:'Raro',epico:'Épico',lendario:'Lendário',mitico:'Mítico',secreto:'Secreto'};
-const RAR_COLOR={comum:'#cfcfcf',raro:'#67d8ff',epico:'#b07bff',lendario:'#ffb347',mitico:'#ff5fa8',secreto:'#a14bff'};
+const RARS=['comum','raro','epico','lendario','mitico','divino','celestial','secreto'];
+const RAR_NAME={comum:'Comum',raro:'Raro',epico:'Épico',lendario:'Lendário',mitico:'Mítico',divino:'Divino',celestial:'Celestial',secreto:'Único'};
+const RAR_COLOR={comum:'#cfcfcf',raro:'#67d8ff',epico:'#b07bff',lendario:'#ffb347',mitico:'#ff5fa8',divino:'#ffd93b',celestial:'#7af0ff',secreto:'#c77dff'};
 
 /* ====================== ÁUDIO — tudo procedural (Web Audio API) ======================
    Trilhas geradas a partir de progressões de acordes + SFX sintetizados. */
@@ -571,10 +571,10 @@ function itemCategory(it){
   return 'key';
 }
 function itemPal(it){
-  const ri=RARS.indexOf(it.rarity);
-  const metal= ri>=5?'#c89bff' : ri>=4?'#ff9ed0' : ri>=3?'#ffd98a' : ri>=2?'#d8b46a' : ri>=1?'#bfe6ff' : '#c2cad4';
-  const dark = ri>=5?'#6a3a9a' : ri>=4?'#a8407a' : ri>=3?'#b8862e' : ri>=2?'#8a6a32' : ri>=1?'#5a8aa8' : '#7c8794';
-  const gem  = RAR_COLOR[it.rarity]||'#cfcfcf';
+  const r=it.rarity;
+  const metal={comum:'#c2cad4',raro:'#bfe6ff',epico:'#ffd98a',lendario:'#ffcf6a',mitico:'#ff9ed0',divino:'#fff0a0',celestial:'#b8f6ff',secreto:'#c89bff'}[r]||'#c2cad4';
+  const dark ={comum:'#7c8794',raro:'#5a8aa8',epico:'#b8862e',lendario:'#b8761e',mitico:'#a8407a',divino:'#caa12e',celestial:'#3a9ab8',secreto:'#6a3a9a'}[r]||'#7c8794';
+  const gem  = RAR_COLOR[r]||'#cfcfcf';
   return {a:metal,b:dark,c:'#f2f5fa',e:gem,g:gem,h:'#7a5a36'};
 }
 function itemSprite(it,scale){
@@ -1420,6 +1420,20 @@ const ITEMS=[
 {id:'grevas_titanicas',name:'Grevas Titânicas',icon:'🗿',type:'grevas',slot:'grevas',rarity:'lendario',stats:{def:20,hp:44}},
 {id:'botas_estelares',name:'Botas Estelares',icon:'🌟',type:'grevas',slot:'grevas',rarity:'mitico',stats:{spd:16,def:10,lck:10}},
 {id:'passos_vazio',name:'Passos do Vazio',icon:'🌀',type:'grevas',slot:'grevas',rarity:'secreto',secret:true,stats:{spd:18,atk:10,lck:10},desc:'Caminham entre realidades.'},
+/* ---- DIVINO (acima de mítico — extremamente raro) ---- */
+{id:'lamina_divina',name:'Lâmina Divina',icon:'⚔️',type:'arma',slot:'arma',rarity:'divino',stats:{atk:36,mag:10,lck:8},desc:'Forjada com a luz de uma estrela morta.'},
+{id:'cetro_divino',name:'Cetro Divino',icon:'🔱',type:'arma',slot:'arma',rarity:'divino',stats:{mag:38,lck:8,hp:20},desc:'Canaliza o poder dos céus.'},
+{id:'elmo_divino',name:'Elmo Divino',icon:'👑',type:'elmo',slot:'elmo',rarity:'divino',stats:{def:18,mag:22,hp:50},desc:'A coroa dos justos.'},
+{id:'egide_divina',name:'Égide Divina',icon:'🛡️',type:'armadura',slot:'armadura',rarity:'divino',stats:{hp:110,def:30,atk:6},desc:'Nenhuma lâmina mortal a perfura.'},
+{id:'punho_divino',name:'Punho Divino',icon:'✊',type:'bracelete',slot:'bracelete',rarity:'divino',stats:{atk:22,def:10,spd:6},desc:'O soco de um deus menor.'},
+{id:'passos_divinos',name:'Passos Divinos',icon:'🥾',type:'grevas',slot:'grevas',rarity:'divino',stats:{spd:18,def:14,lck:8},desc:'Caminham sobre as nuvens.'},
+{id:'anel_divino',name:'Anel Divino',icon:'💍',type:'acessorio',slot:'acessorio',rarity:'divino',stats:{atk:14,mag:14,hp:30,lck:10},desc:'Selado por um pacto celeste.'},
+{id:'talisma_divino',name:'Talismã Divino',icon:'📿',type:'talisma',slot:'talisma',rarity:'divino',stats:{atk:16,mag:16,def:12,lck:10},desc:'Sussurra bênçãos antigas.'},
+/* ---- CELESTIAL (ápice — raríssimo, só nas profundezas extremas) ---- */
+{id:'lamina_celeste',name:'Lâmina Celestial',icon:'🌟',type:'arma',slot:'arma',rarity:'celestial',stats:{atk:48,mag:24,lck:14},desc:'Corta o próprio firmamento.'},
+{id:'manto_celeste',name:'Manto Celestial',icon:'✨',type:'armadura',slot:'armadura',rarity:'celestial',stats:{hp:150,def:40,mag:20,spd:8},desc:'Tecido com a aurora do mundo.'},
+{id:'coroa_celeste',name:'Coroa Celestial',icon:'👑',type:'acessorio',slot:'acessorio',rarity:'celestial',stats:{atk:16,mag:16,hp:60,lck:18},desc:'Só os verdadeiros soberanos a portam.'},
+{id:'talisma_celeste',name:'Talismã Celestial',icon:'🌠',type:'talisma',slot:'talisma',rarity:'celestial',stats:{atk:20,mag:20,def:16,spd:8,lck:12},desc:'Contém uma fagulha da criação.'},
 ];
 const IMAP={};ITEMS.forEach(i=>IMAP[i.id]=i);
 const EQUIP_SLOTS=['arma','elmo','armadura','bracelete','grevas','acessorio','talisma'];
@@ -2169,7 +2183,11 @@ function tabHelp(b){
    ${sec('🔥 Sequência (Combo)',`Toda vez que você limpa um andar <b>sem ninguém morrer</b>, sua <b>Sequência</b> aumenta. Quanto maior a sequência, <b>mais Essência</b> você ganha ao concluir cada andar (até +60%). Se a party é dizimada, a sequência zera. É um incentivo para descer com cuidado e manter todos vivos.`)}
    ${sec('💀 Morte é permanente? Não!',`Quando a party cai, vocês voltam ao acampamento. <b>Você mantém tudo</b>: níveis, habilidades, itens, ouro, essência e segredos. Os heróis <b>nunca voltam ao nível 1</b>. Cada incursão te deixa permanentemente mais forte — morrer faz parte do progresso.`)}
    ${sec('⭐ Nível & Habilidades',`Os heróis ganham XP em combate e sobem de nível <b>permanentemente</b>. Novas habilidades são liberadas em níveis cada vez mais altos. Em combate a IA escolhe a melhor ação: cura quem está ferido, ressuscita aliados, usa buffs no início e foca os golpes mais fortes. Clique em qualquer habilidade (no Esquadrão) para ver o que ela faz.`)}
-   ${sec('🎒 Equipamentos (7 tipos)',`Há <b>7 espaços</b>: Arma, Armadura, Elmo (cabeça), Bracelete (braço), Grevas (perna), Acessório e Talismã. Equipamentos dão atributos. Você consegue mais por drops, criando na Forja ou comprando no Mercado.`)}
+   ${sec('🎒 Equipamentos (7 tipos)',`Há <b>7 espaços</b>: Arma, Armadura, Elmo (cabeça), Bracelete (braço), Grevas (perna), Acessório e Talismã. Equipamentos dão atributos. Você consegue mais por drops, criando na Forja ou comprando no Mercado. Ao equipar, as setas mostram se o item é <span style="color:#5fd17a">▲ melhor</span> ou <span style="color:#ff5d6c">▼ pior</span> que o atual.`)}
+   ${sec('✦ Raridades',`Do mais comum ao lendário e além — quanto mais alta, mais forte e MUITO mais rara de cair:<br>
+     ${RARS.map(r=>`<span class="chip" style="color:${RAR_COLOR[r]};border-color:${RAR_COLOR[r]}">${RAR_NAME[r]}</span>`).join(' ')}<br><br>
+     <b>Comum → Raro → Épico → Lendário → Mítico → Divino → Celestial → Único</b>.
+     Lendário+ são <b>eventos raros</b>: aparecem mais fundo (Lendário a partir do Andar ~22, Mítico ~36, Divino ~60, Celestial ~95) e em chefes. <b>Único</b> é exclusivo dos chefes secretos. Drops são propositalmente escassos — cada peça boa importa.`)}
    ${sec('🔨 Forja & Aprimoramento',`Na Forja você <b>cria</b> itens com materiais e <b>aprimora</b> equipamentos (+1, +2...). Cada nível de aprimoramento dá +14% nos atributos do item. Aprimoramentos altos custam <b>ouro + materiais + Essência</b>.`)}
    ${sec('🪙 Ouro & 💠 Essência',`<b>Ouro</b> é a moeda comum: compra itens no Mercado e paga aprimoramentos. <b>Essência</b> é a moeda mágica e mais rara: usada no Santuário (pesquisas e oferendas permanentes), com o Mercador Errante e em aprimoramentos de alto nível. Essência é valiosa — gaste com sabedoria.`)}
    ${sec('⚓ Marés da Adranja',`Antes de entrar, a incursão recebe <b>4 marés</b>: sempre <b>2 bênçãos</b> (bônus) e <b>2 riscos</b> (penalidades). Elas mudam toda incursão, deixando cada partida única. A heroína <b>Oráculo</b> tem "Mestra das Marés": troca um risco por um bônus.`)}
@@ -2195,7 +2213,7 @@ function tabCodex(b){
   const secretBosses=BOSSES.filter(x=>x.secret);
   const secKilled=secretBosses.filter(x=>cdx.bosses.includes(x.id)).length;
   const its=ITEMS.filter(i=>i.secret).map(i=>cdx.items.includes(i.id)?`<span class="chip" style="color:var(--shadow-c)">${i.icon} ${i.name}</span>`:`<span class="chip" style="opacity:.4">🔒 ???</span>`).join(' ');
-  const legend=ITEMS.filter(i=>isEquip(i)&&(i.rarity==='lendario'||i.rarity==='mitico'||i.rarity==='secreto'));
+  const legend=ITEMS.filter(i=>isEquip(i)&&['lendario','mitico','divino','celestial','secreto'].includes(i.rarity));
   const legLine=i=>invQty(i.id)>0?`<span class="chip" style="color:${RAR_COLOR[i.rarity]}">${i.icon} ${i.name}</span>`:`<span class="chip" style="opacity:.4">🔒 ${RAR_NAME[i.rarity]} ???</span>`;
   const haveLeg=legend.filter(i=>invQty(i.id)>0).length;
   const secs=SECRETS.map(s=>cdx.secrets.includes(s.id)?`<div class="slotline"><div class="sl-ico">${s.icon}</div><div class="sl-n"><b>${s.name}</b><br><span class="tiny">${s.desc}</span></div></div>`
@@ -2719,8 +2737,8 @@ function encTreasure(){
   const lootMult=1+(RUN.passive.lootBonus||0)+(G.meta.research.meta_loot?0.2:0);
   rtimeout(()=>{
     const gold=Math.round(ri(8,20)*RUN.floor*lootMult);grantGold(gold);
-    if(chance(0.45*lootMult))grantMaterial();
-    if(chance(0.16*lootMult))grantEquipment();
+    if(chance(0.26*lootMult))grantMaterial();
+    if(chance(0.07*lootMult))grantEquipment();
     advanceRoom();
   },700);
 }
@@ -2887,14 +2905,16 @@ function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=
 function grantGold(n){let m=1;if(G.meta.flags.off_gold)m+=0.5;if(G.meta.research.meta_gold)m+=0.5;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
 function rarityRoll(minRar){
-  // tabela MUITO mais avara: coisas boas são raras de verdade
-  const f=RUN.floor,bonus=(G.meta.research.meta_loot?1:0);
+  // tabela EXTREMAMENTE avara — itens bons são raros de verdade; lendário+ é evento
+  const f=(RUN&&RUN.floor)||1,bonus=(G.meta.research.meta_loot?1:0);
   const w={
-    comum:  Math.max(20,70-f*1.2),
-    raro:   14+f*0.5,
-    epico:  Math.max(0,(f-6)*0.5)+bonus*2,
-    lendario:Math.max(0,(f-14)*0.28)+bonus,
-    mitico: Math.max(0,(f-24)*0.12),
+    comum:  Math.max(40,90-f*0.7),
+    raro:   16+f*0.28,
+    epico:  Math.max(0,(f-10)*0.20)+bonus*1.2,
+    lendario:Math.max(0,(f-22)*0.085)+bonus*0.4,
+    mitico: Math.max(0,(f-36)*0.04),
+    divino: Math.max(0,(f-60)*0.018),
+    celestial: Math.max(0,(f-95)*0.009),
   };
   let r=weighted(w);
   if(minRar){const order=RARS.indexOf(minRar);if(RARS.indexOf(r)<order)r=minRar;}
@@ -3000,7 +3020,7 @@ const EVENTS=[
 {t:'📜 Um pergaminho mágico flutua no ar. Alguém o lê.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));grantXP(c,xpForLevel(c.level)*0.2);logline(c.h.name.split(',')[0]+' absorve conhecimento arcano! +XP','dn');}},
 {t:'🕳️ O chão cede! O grupo despenca para o próximo andar.',go:()=>{logline('Vocês caem um andar abaixo — atalho perigoso!','bd');dmgAll(0.06,'a queda');RUN.room=RUN.roomsTotal;}},
 {t:'👻 Um espírito gentil oferece uma bênção.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));c.st.atk=Math.round(c.st.atk*1.15);logline(c.h.name.split(',')[0]+' recebe +15% de ataque permanente nesta incursão!','sc');}},
-{t:'💀 Restos de um esquadrão anterior. Saquear seus corpos?',go:()=>{grantEquipment();if(chance(0.4))grantMaterial();logline('Você honra os caídos pegando seu equipamento.','lt');}},
+{t:'💀 Restos de um esquadrão anterior. Saquear seus corpos?',go:()=>{if(chance(0.45))grantEquipment();else if(chance(0.5))grantMaterial();else{grantGold(Math.round(ri(10,25)*RUN.floor));logline('Só restaram algumas moedas.','muted');}}},
 {t:'🔔 Um sino fantasma toca. Monstros se aproximam, mas largam tesouro ao fugir da luz.',go:()=>{grantGold(Math.round(ri(15,30)*RUN.floor));}},
 {t:'🌫️ Névoa de memórias. Por um instante, a Adranja se revela.',go:()=>{gainFamiliarity(0.3);logline('🗺️ O mapa deste andar fica muito mais claro!','sc');}},
 {t:'⚖️ Uma balança encantada: troque PV por essência.',go:()=>{const e=Math.round(ri(8,16)*RUN.floor);RUN.party.filter(p=>p.alive).forEach(c=>c.hp=Math.max(1,Math.round(c.hp*0.85)));RUN.essence+=e;addEssence(e);logline('+'+e+' essência ao custo de vitalidade.','sc');refreshBars();}},
@@ -3052,7 +3072,7 @@ function encCombat(){
     RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c, total/alive));
     grantGold(Math.round(ri(4,10)*RUN.floor));
     RUN.kills+=enemies.length;G.meta.totalKills+=enemies.length;
-    if(chance(0.28))grantMaterial();if(chance(0.06))grantEquipment();
+    if(chance(0.15))grantMaterial();if(chance(0.022))grantEquipment();
     checkUnlocks();saveGame();advanceRoom();
   }});
 }
@@ -3075,7 +3095,7 @@ function onBossWin(boss,e){
   // recompensa por vencer o chefe: cura parcial do grupo (sobreviver ao chefe permite seguir adiante)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.2);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   grantGold(Math.round(40*RUN.floor));
-  grantEquipment(RUN.floor>=30?'mitico':RUN.floor>=15?'lendario':'epico');grantMaterial(RUN.floor>=20?'lendario':'raro');
+  grantEquipment(RUN.floor>=90?'divino':RUN.floor>=45?'mitico':RUN.floor>=20?'lendario':'epico');grantMaterial(RUN.floor>=20?'lendario':'raro');
   if(RUN.floor>=10)grantSecretKey();
   logline('🏆 <b>'+boss.name+' foi derrotado!</b> +'+ess+' essência.','dn');
   toast('🏆 Chefe derrotado: '+boss.name+'!','lendario');
@@ -3393,7 +3413,7 @@ function onSecretBossWin(boss,e){
   // equipamento secreto exclusivo do chefe
   const drop=SECRET_BOSS_DROP[boss.id];
   if(drop){addItem(drop,1);discover('items',drop);logline('🏆 <b class="tag-secret">DESPOJO SECRETO:</b> '+IMAP[drop].icon+' '+IMAP[drop].name+'!','sc');lootBurst('secreto');}
-  grantEquipment('mitico');
+  grantEquipment('divino');
   if(!G.meta.relics.includes('lampada_eterna')&&chance(0.5)){addItem('lampada_eterna',1);discover('items','lampada_eterna');}
   logline('🌟 <b>'+boss.name+' caiu!</b> Poder imenso é seu. +'+ess+' essência.','sc');
   toast('🌟 Chefe SECRETO derrotado!','mitico');
@@ -3488,9 +3508,9 @@ function onTorreBossWin(boss,e){
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,40+tf*9));
   const ess=runEssence(60+tf*16);
   grantGold(Math.round(120*tf));
-  grantEquipment(tf>=40?'mitico':tf>=20?'lendario':'epico');
+  grantEquipment(tf>=45?'celestial':tf>=35?'divino':tf>=18?'mitico':tf>=8?'lendario':'epico');
   grantMaterial(tf>=25?'lendario':'epico');
-  if(tf%5===0)grantEquipment(tf>=30?'mitico':'lendario');
+  if(tf%5===0)grantEquipment(tf>=40?'divino':tf>=25?'mitico':'lendario');
   // cura parcial entre tiranos (a torre não tem salas de descanso)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.22);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   logline('🏆 <b>'+boss.name+' tombou!</b> +'+ess+' essência.','dn');
