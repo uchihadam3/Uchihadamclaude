@@ -1641,21 +1641,23 @@ function defaultMeta(){
     playerName:null, playerSecret:null   // identidade no ranking
   };
 }
+// preenche campos que faltam em saves antigos / vindos da nuvem
+function migrateMeta(){
+  HEROES.forEach(h=>{const st=G.meta.heroes[h.id];
+    if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null}};}
+    else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; EQUIP_SLOTS.forEach(sl=>{if(st.equip[sl]===undefined)st.equip[sl]=null;}); }});
+  if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
+  if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
+}
 function loadGame(){
-  try{const raw=localStorage.getItem(SAVE_KEY);if(raw){G.meta=JSON.parse(raw);
-    // merge p/ heróis novos em saves antigos
-    HEROES.forEach(h=>{const st=G.meta.heroes[h.id];
-      if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null}};}
-      else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; EQUIP_SLOTS.forEach(sl=>{if(st.equip[sl]===undefined)st.equip[sl]=null;}); }});
-    if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
-    if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
-    return true;}
+  try{const raw=localStorage.getItem(SAVE_KEY);if(raw){G.meta=JSON.parse(raw);migrateMeta();return true;}
   }catch(e){console.warn('save corrompido',e);}
   G.meta=defaultMeta();return false;
 }
 let _saveT=null;
-function saveGame(){clearTimeout(_saveT);_saveT=setTimeout(()=>{
-  try{localStorage.setItem(SAVE_KEY,JSON.stringify(G.meta));}catch(e){}
+function saveLocal(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(G.meta));}catch(e){}}   // grava local na hora
+function saveGame(){clearTimeout(_saveT);_saveT=setTimeout(()=>{ saveLocal();
+  try{if(typeof Account!=='undefined'&&Account.slot!=null)Account.scheduleCloudSave();}catch(e){}
 },200);}
 function hardReset(){localStorage.removeItem(SAVE_KEY);G.meta=defaultMeta();saveGame();}
 
@@ -1694,14 +1696,28 @@ const FIREBASE_CONFIG={
 };
 const FB_SCRIPTS=[
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js'
 ];
+function authErr(e){const c=(e&&e.code)||'';const m={
+  'auth/email-already-in-use':'Esse e-mail já tem uma conta. Faça login.',
+  'auth/invalid-email':'E-mail inválido.',
+  'auth/weak-password':'Senha fraca (mínimo 6 caracteres).',
+  'auth/wrong-password':'Senha incorreta.',
+  'auth/user-not-found':'Não existe conta com esse e-mail.',
+  'auth/invalid-credential':'E-mail ou senha incorretos.',
+  'auth/too-many-requests':'Muitas tentativas. Aguarde um pouco.',
+  'auth/network-request-failed':'Sem conexão. Tente de novo.',
+  'auth/operation-not-allowed':'Login por e-mail/senha não está ativado no Firebase (Authentication → Sign-in method).'
+};return m[c]||((e&&e.message)||'Erro inesperado.');}
 function normName(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'_').replace(/[\/.#$\[\]]/g,'').slice(0,16);}
 function heroesUnlockedCount(){return Object.values(G.meta.heroes||{}).filter(h=>h.unlocked).length;}
-function computeScore(){const m=G.meta;
+function computeScoreOf(m){m=m||G.meta;
+  const heroes=Object.values(m.heroes||{}).filter(h=>h.unlocked).length;
   return Math.round((m.deepestFloor||0)*100 + (m.torreDeepest||0)*300 + (m.bossesKilled||[]).length*180
-    + heroesUnlockedCount()*350 + (m.totalKills||0)*2
+    + heroes*350 + (m.totalKills||0)*2
     + ((m.flags&&m.flags.beatGame)?6000:0) + ((m.flags&&m.flags.beatTorre)?12000:0));}
+function computeScore(){return computeScoreOf(G.meta);}
 function playerStats(){const m=G.meta;return {name:m.playerName||'?', score:computeScore(),
   deepest:m.deepestFloor||0, torre:m.torreDeepest||0, heroes:heroesUnlockedCount(),
   bosses:(m.bossesKilled||[]).length, kills:m.totalKills||0,
@@ -1764,6 +1780,205 @@ const Rank={
     try{ const q=await this.db.collection('players').orderBy('score','desc').limit(n||50).get();
       return q.docs.map(d=>d.data()); }catch(e){ return []; } }
 };
+
+/* ============================================================================
+   👤 CONTAS (Firebase Auth) + 3 SLOTS DE SAVE com sincronização na nuvem
+   ============================================================================ */
+const Account={
+  user:null, slot:null, _auth:null,
+  available(){return Rank.configured();},
+  async ensureAuth(){ await Rank.init(); if(!Rank.online)return false;
+    if(!this._auth){ try{this._auth=firebase.auth();}catch(e){return false;} } return true; },
+  uid(){return this.user&&this.user.uid;},
+  loggedIn(){return !!this.user;},
+  verified(){return !!(this.user&&this.user.emailVerified);},
+  accRef(){return Rank.db.collection('accounts').doc(this.uid());},
+  saveRef(i){return this.accRef().collection('saves').doc('s'+i);},
+  // observa estado de login (sessão persiste entre aparelhos)
+  watch(cb){ this.ensureAuth().then(ok=>{ if(!ok){cb(null);return;}
+    this._auth.onAuthStateChanged(u=>{this.user=u;
+      if(u){ try{const s=JSON.parse(localStorage.getItem('adranja_slot')||'null');if(s&&s.uid===u.uid)this.slot=s.i;}catch(e){} }
+      else this.slot=null;
+      cb(u);}); }).catch(()=>cb(null)); },
+  _persist(i){try{localStorage.setItem('adranja_slot',JSON.stringify({uid:this.uid(),i}));}catch(e){}},
+  async signUp(email,pass){ if(!await this.ensureAuth())return {ok:false,reason:'Sem conexão com o servidor.'};
+    try{ const cred=await this._auth.createUserWithEmailAndPassword(email.trim(),pass); this.user=cred.user;
+      try{await cred.user.sendEmailVerification();}catch(e){}
+      return {ok:true,verifySent:true}; }catch(e){return {ok:false,reason:authErr(e)};} },
+  async signIn(email,pass){ if(!await this.ensureAuth())return {ok:false,reason:'Sem conexão com o servidor.'};
+    try{ const cred=await this._auth.signInWithEmailAndPassword(email.trim(),pass); this.user=cred.user; return {ok:true}; }
+    catch(e){return {ok:false,reason:authErr(e)};} },
+  async resendVerify(){ try{await this.user.reloadUserInfo?this.user.reload():0;}catch(e){} try{await this.user.sendEmailVerification();return true;}catch(e){return false;} },
+  async refresh(){ try{await this.user.reload(); this.user=this._auth.currentUser; }catch(e){} return this.verified(); },
+  async resetPassword(email){ if(!await this.ensureAuth())return false; try{await this._auth.sendPasswordResetEmail(email.trim());return true;}catch(e){return false;} },
+  async signOut(){ try{await this._auth.signOut();}catch(e){} this.user=null; this.slot=null; try{localStorage.removeItem('adranja_slot');}catch(e){} },
+  // lista os 3 slots (metadados): [{name,score,deepest,...}|null x3]
+  async listSlots(){ try{ const snap=await this.accRef().get(); const d=snap.exists?snap.data():{}; const s=d.slots||{};
+      return [0,1,2].map(i=> s[i]?Object.assign({},s[i]):null ); }catch(e){ return [null,null,null]; } },
+  // cria slot novo com nome único (claim global). retorna {ok}|{ok:false,reason}
+  async createSlot(i,rawName,importLocal){
+    const name=(rawName||'').trim(), id=normName(name);
+    if(id.length<2)return {ok:false,reason:'Nome muito curto (mín. 2 letras).'};
+    if(name.length>16)return {ok:false,reason:'Nome muito longo (máx. 16).'};
+    if(!await this.ensureAuth())return {ok:false,reason:'Sem conexão.'};
+    const secret=Math.random().toString(36).slice(2)+Date.now().toString(36);
+    try{
+      // garante nome único no ranking (transação)
+      const pref=Rank.db.collection('players').doc(id);
+      const claim=await Rank.db.runTransaction(async tx=>{ const sn=await tx.get(pref);
+        if(sn.exists)return {ok:false,reason:'Esse nome já está em uso. Escolha outro.'};
+        tx.set(pref,{name,score:0,deepest:0,torre:0,heroes:0,bosses:0,kills:0,beatGame:false,beatTorre:false,owner:this.uid(),slot:i,secret,created:Date.now()});
+        return {ok:true}; });
+      if(!claim.ok)return claim;
+      // base do save: importa o progresso local ou começa do zero
+      const base = importLocal ? JSON.parse(JSON.stringify(G.meta)) : defaultMeta();
+      base.playerName=name; base.playerSecret=secret;
+      await this.saveRef(i).set({meta:JSON.stringify(base)});
+      const st={name,secret,score:computeScoreOf(base),deepest:base.deepestFloor||0,torre:base.torreDeepest||0,heroes:Object.values(base.heroes||{}).filter(h=>h.unlocked).length,bosses:(base.bossesKilled||[]).length,updated:Date.now()};
+      await this.accRef().set({email:this.user.email,slots:{[i]:st}},{merge:true});
+      // ativa
+      G.meta=base; this.slot=i; this._persist(i); saveLocal();
+      // se importou e o nome já estava no ranking local, atualiza pontuação
+      Rank.submit();
+      return {ok:true};
+    }catch(e){ return {ok:false,reason:'Erro ao criar o save. Tente de novo.'}; }
+  },
+  // carrega um slot existente da nuvem
+  async loadSlot(i){ if(!await this.ensureAuth())return false;
+    try{ const snap=await this.saveRef(i).get(); if(!snap.exists)return false;
+      const meta=JSON.parse(snap.data().meta); G.meta=meta; migrateMeta(); this.slot=i; this._persist(i); saveLocal(); return true;
+    }catch(e){ return false; } },
+  // exclui um slot: libera o nome e some do ranking
+  async deleteSlot(i){ if(!await this.ensureAuth())return false;
+    try{ const slots=await this.listSlots(); const sl=slots[i];
+      if(sl&&sl.name){ try{await Rank.db.collection('players').doc(normName(sl.name)).delete();}catch(e){} }
+      try{await this.saveRef(i).delete();}catch(e){}
+      const upd={}; upd['slots.'+i]=firebase.firestore.FieldValue.delete();
+      try{await this.accRef().update(upd);}catch(e){}
+      if(this.slot===i)this.slot=null; return true;
+    }catch(e){ return false; } },
+  // sincroniza o save ativo para a nuvem (debounced)
+  _syncT:null,
+  scheduleCloudSave(){ if(this.slot==null||!Rank.online)return; clearTimeout(this._syncT);
+    this._syncT=setTimeout(()=>this.cloudSaveNow(),12000); },
+  async cloudSaveNow(){ if(this.slot==null||!Rank.online||!this.uid())return;
+    try{ const i=this.slot;
+      await this.saveRef(i).set({meta:JSON.stringify(G.meta)});
+      const st={name:G.meta.playerName,secret:G.meta.playerSecret,score:computeScore(),deepest:G.meta.deepestFloor||0,torre:G.meta.torreDeepest||0,heroes:heroesUnlockedCount(),bosses:(G.meta.bossesKilled||[]).length,updated:Date.now()};
+      await this.accRef().set({email:this.user.email,slots:{[i]:st}},{merge:true});
+      Rank.submit();
+    }catch(e){} }
+};
+
+/* ---- TELA DE CONTA (login / criar conta) ---- */
+const _instyle="width:100%;margin-top:10px;padding:11px 12px;border-radius:10px;border:1px solid var(--line-soft);background:var(--panel-2);color:var(--text);font-size:16px;font-family:inherit";
+let AUTH_MODE='in';
+function setAuthMode(m){AUTH_MODE=m;renderAuth();}
+function renderAuth(){
+  APP.innerHTML=`<div class="screen active" style="justify-content:center;padding:16px">
+    <div class="panel parch" style="max-width:440px;margin:auto;width:100%">
+      <div class="center"><div style="font-size:38px">🌐</div><h2 style="color:var(--gold)">Conta Adranja</h2>
+      <p class="small muted">Entre com e-mail e senha para jogar com a <b>mesma conta</b> no celular, no PC ou em qualquer aparelho — com até <b>3 saves</b>.</p></div>
+      <div class="tabs" style="justify-content:center;margin:12px 0">
+        <button class="tab ${AUTH_MODE==='in'?'active':''}" onclick="setAuthMode('in')">Entrar</button>
+        <button class="tab ${AUTH_MODE==='up'?'active':''}" onclick="setAuthMode('up')">Criar conta</button>
+      </div>
+      <input id="auEmail" type="email" autocomplete="email" placeholder="Seu e-mail" style="${_instyle}"/>
+      ${AUTH_MODE==='up'?`<input id="auEmail2" type="email" autocomplete="off" placeholder="Confirmar e-mail" style="${_instyle}"/>`:''}
+      <input id="auPass" type="password" autocomplete="current-password" placeholder="Senha (mín. 6 caracteres)" style="${_instyle}"/>
+      <p id="auMsg" class="tiny" style="min-height:18px;margin:8px 2px;color:var(--bad)"></p>
+      <button class="btn" id="auBtn" style="width:100%" onclick="${AUTH_MODE==='up'?'doSignUp()':'doSignIn()'}">${AUTH_MODE==='up'?'Criar conta ▶':'Entrar ▶'}</button>
+      ${AUTH_MODE==='in'?`<p class="tiny center" style="margin-top:8px"><a href="#" onclick="doResetPw();return false;" style="color:var(--magic-2)">Esqueci minha senha</a></p>`:''}
+      <div class="divider"></div>
+      <button class="btn ghost sm" style="width:100%" onclick="go('home')">← Voltar (jogar só neste aparelho)</button>
+    </div></div>`;
+}
+function _auMsg(t,ok){const e=$('#auMsg');if(e){e.style.color=ok?'var(--ok)':'var(--bad)';e.textContent=t;}}
+async function doSignUp(){
+  const email=($('#auEmail').value||'').trim(), email2=($('#auEmail2').value||'').trim(), pass=$('#auPass').value||'';
+  if(!/.+@.+\..+/.test(email)){_auMsg('Digite um e-mail válido.');return;}
+  if(email!==email2){_auMsg('Os e-mails não são iguais. Confira.');return;}
+  if(pass.length<6){_auMsg('A senha precisa de pelo menos 6 caracteres.');return;}
+  const btn=$('#auBtn');btn.disabled=true;btn.textContent='Criando...';
+  const r=await Account.signUp(email,pass);
+  btn.disabled=false;btn.textContent='Criar conta ▶';
+  if(!r.ok){_auMsg(r.reason);return;}
+  toast('✅ Conta criada! Enviamos um e-mail de confirmação.','lendario');go('slots');
+}
+async function doSignIn(){
+  const email=($('#auEmail').value||'').trim(), pass=$('#auPass').value||'';
+  if(!/.+@.+\..+/.test(email)){_auMsg('Digite um e-mail válido.');return;}
+  const btn=$('#auBtn');btn.disabled=true;btn.textContent='Entrando...';
+  const r=await Account.signIn(email,pass);
+  btn.disabled=false;btn.textContent='Entrar ▶';
+  if(!r.ok){_auMsg(r.reason);return;}
+  go('slots');
+}
+async function doResetPw(){
+  const email=($('#auEmail').value||'').trim();
+  if(!/.+@.+\..+/.test(email)){_auMsg('Digite seu e-mail no campo acima primeiro.');return;}
+  const ok=await Account.resetPassword(email);
+  _auMsg(ok?'📧 Enviamos um link para redefinir a senha.':'Não foi possível enviar. Confira o e-mail.',ok);
+}
+/* ---- TELA DE SLOTS (3 saves) ---- */
+async function renderSlots(){
+  APP.innerHTML=`<div class="screen active" style="justify-content:center;padding:16px"><div class="panel parch center" style="max-width:480px;margin:auto"><h2 style="color:var(--gold)">Seus Saves</h2><p class="small muted mt6">Carregando...</p></div></div>`;
+  const slots=await Account.listSlots();
+  const email=Account.user?Account.user.email:'';
+  const verifyBanner=(!Account.verified())?`<div class="panel mb" style="border-color:var(--warn);background:rgba(255,207,91,.1)">
+     <p class="small">📧 <b>Confirme seu e-mail.</b> Enviamos um link para <b>${email}</b>. Verifique a caixa de entrada (e o spam).</p>
+     <div class="row mt6"><button class="btn ghost sm" onclick="resendVerify()">Reenviar e-mail</button><button class="btn ghost sm" onclick="recheckVerify()">Já confirmei ✓</button></div></div>`:'';
+  const slotCard=(s,i)=>{
+    if(s&&s.name){ return `<div class="panel mb" style="border-color:var(--gold)">
+       <div class="row between"><div><b style="font-size:17px;color:var(--gold)">${s.name}</b>
+         <div class="tiny muted">🏰 Andar ${s.deepest||0} · 🗼 ${s.torre||0} · 🦸 ${s.heroes||0} heróis · ⭐ ${fmt(s.score||0)} pts</div></div>
+         <div class="col" style="gap:5px"><button class="btn sm" onclick="playSlot(${i})">Jogar ▶</button>
+         <button class="btn ghost sm" onclick="askDeleteSlot(${i},'${(s.name||'').replace(/'/g,'')}')">Excluir</button></div></div></div>`; }
+    return `<div class="panel mb" style="border-style:dashed;opacity:.92">
+       <div class="row between"><div><b class="muted">Slot ${i+1} — vazio</b><div class="tiny muted">Crie um novo aventureiro</div></div>
+       <button class="btn sm" onclick="slotCreateModal(${i})">＋ Criar save</button></div></div>`;
+  };
+  APP.innerHTML=`<div class="screen active" style="justify-content:flex-start;padding:16px;overflow:auto">
+    <div style="max-width:480px;margin:auto;width:100%">
+      <div class="topbar"><span class="brand">👤 ${email||'Conta'}</span>
+        <button class="btn ghost sm" style="margin-left:auto" onclick="doSignOut()">Sair</button></div>
+      ${verifyBanner}
+      <p class="small muted mb">Escolha um save para jogar. Cada save é um aventureiro com nome próprio (que aparece no ranking).</p>
+      ${slots.map(slotCard).join('')}
+    </div></div>`;
+}
+async function resendVerify(){const ok=await Account.resendVerify();toast(ok?'📧 E-mail reenviado.':'Não foi possível reenviar.',ok?'epico':'warn');}
+async function recheckVerify(){await Account.refresh();renderSlots();if(Account.verified())toast('✅ E-mail confirmado!','lendario');}
+async function doSignOut(){await Account.signOut();go('home');}
+async function playSlot(i){toast('Carregando save...','epico');const ok=await Account.loadSlot(i);
+  if(!ok){toast('Não consegui carregar esse save.','warn');return;}
+  if(!G.meta.seenIntro){G.meta.seenIntro=true;saveGame();showIntro();}else go('camp');}
+function slotCreateModal(i){
+  const hasLocal=(G.meta&&(G.meta.deepestFloor||0)>1);
+  openModal(`<div class="center"><div style="font-size:34px">🆕</div><h2 style="color:var(--gold)">Novo save</h2></div>
+    <p class="small muted mt6">Dê um nome ao seu aventureiro. Ele precisa ser <b>único</b> (aparece no ranking).</p>
+    <input id="slName" maxlength="16" placeholder="Nome (2–16 letras)" style="${_instyle}"/>
+    ${hasLocal?`<label class="row" style="gap:8px;margin-top:10px;align-items:center;cursor:pointer"><input type="checkbox" id="slImport" style="width:18px;height:18px"/> <span class="small">Trazer meu progresso atual deste aparelho (Andar ${G.meta.deepestFloor})</span></label>`:''}
+    <p id="slMsg" class="tiny" style="min-height:16px;margin:6px 2px;color:var(--bad)"></p>
+    <button class="btn" id="slBtn" style="width:100%;margin-top:6px" onclick="doCreateSlot(${i})">Criar e jogar ▶</button>`);
+  setTimeout(()=>{const el=$('#slName');if(el)el.focus();},60);
+}
+async function doCreateSlot(i){
+  const name=($('#slName').value||'').trim();const imp=$('#slImport')&&$('#slImport').checked;
+  const msg=$('#slMsg'),btn=$('#slBtn');msg.textContent='';btn.disabled=true;btn.textContent='Criando...';
+  const r=await Account.createSlot(i,name,imp);
+  btn.disabled=false;btn.textContent='Criar e jogar ▶';
+  if(!r.ok){msg.textContent=r.reason;return;}
+  closeModal();toast('🏆 Bem-vindo(a), '+name+'!','lendario');
+  if(!G.meta.seenIntro){G.meta.seenIntro=true;saveGame();showIntro();}else go('camp');
+}
+function askDeleteSlot(i,name){
+  openModal(`<div class="center"><div style="font-size:34px">🗑️</div><h3>Excluir o save "${name}"?</h3></div>
+    <p class="small muted mt6">Isso apaga este aventureiro <b>para sempre</b>, remove-o do ranking e <b>libera o nome</b> para ser usado de novo. Não dá para desfazer.</p>
+    <div class="row mt" style="gap:6px"><button class="btn danger" onclick="confirmDeleteSlot(${i})">Excluir para sempre</button>
+    <button class="btn ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function confirmDeleteSlot(i){closeModal();toast('Excluindo...','warn');await Account.deleteSlot(i);renderSlots();}
 
 // inventário
 function invQty(id){return G.meta.inventory[id]||0;}
@@ -1876,6 +2091,8 @@ function go(screen,tab){CUR.screen=screen;if(tab)CUR.tab=tab;render();}
 function render(){
   if(CUR.screen==='home')renderHome();
   else if(CUR.screen==='camp')renderCamp();
+  else if(CUR.screen==='auth')renderAuth();
+  else if(CUR.screen==='slots')renderSlots();
   if(_audioReady)applyMusic();
 }
 function resBar(){
@@ -1892,13 +2109,18 @@ function renderHome(){
     <div class="logo-sub">⚔️ Masmorra Mágica · Roguelike de Exploração ✨</div>
     <canvas id="homeArt" width="320" height="180" style="width:min(86vw,360px);margin:10px 0;filter:drop-shadow(0 10px 30px rgba(0,0,0,.6))"></canvas>
     <p class="home-tip">Monte um esquadrão de heróis e mande-os explorar a Adranja, a masmorra viva e infindável. Seus heróis <b>guardam para sempre</b> tudo que conquistam — níveis, habilidades, itens e segredos. Suba devagar, fique forte, desça fundo. Descubra tudo.</p>
-    ${G.meta.playerName?`<p class="home-tip" style="margin-top:-2px">🏆 Aventureiro(a): <b style="color:var(--gold)">${G.meta.playerName}</b></p>`:''}
+    ${G.meta.playerName?`<p class="home-tip" style="margin-top:-2px">🏆 Aventureiro(a): <b style="color:var(--gold)">${G.meta.playerName}</b>${Account.loggedIn()?' <span class="chip" style="color:var(--ok)">🌐 conta</span>':''}</p>`:''}
     <div class="row wrap center" style="justify-content:center">
       <button class="btn" onclick="enterCamp()">${G.meta.runs>0?'Continuar Jornada':'Começar Jornada'} ▶</button>
       <button class="btn ghost" onclick="showRanking()">🏆 Ranking</button>
+    </div>
+    ${Account.available()?`<div class="row wrap center" style="justify-content:center;margin-top:4px">
+      <button class="btn ghost sm" onclick="${Account.loggedIn()?"go('slots')":"go('auth')"}">🌐 ${Account.loggedIn()?'Meus saves (nuvem)':'Entrar / Criar conta — jogar em vários aparelhos'}</button>
+    </div>`:''}
+    <div class="row wrap center" style="justify-content:center;margin-top:4px">
       ${G.meta.runs>0?'<button class="btn ghost sm" onclick="confirmReset()">Reiniciar Tudo</button>':''}
     </div>
-    <p class="muted tiny mt">v1 · seu progresso é salvo automaticamente neste navegador</p>
+    <p class="muted tiny mt">${Account.loggedIn()?'🌐 Save na nuvem — jogue em qualquer aparelho com sua conta':'Progresso salvo neste aparelho · entre numa conta para sincronizar'}</p>
   </div>`;
   drawHomeArt();
 }
@@ -3894,7 +4116,7 @@ function onTorreBossWin(boss,e){
 function torreVictory(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   music('victory');sfx('win');
-  G.meta.flags.beatTorre=true;saveGame();try{Rank.submit();}catch(e){}
+  G.meta.flags.beatTorre=true;saveGame();try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}
   const s={reason:'torre_win',floor:RUN.floor,startFloor:RUN.startFloor||1,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence,
     bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur:Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000)),dungeon:'torre'};
   RUN=null;checkUnlocks();saveGame();CUR.screen='result';
@@ -4005,7 +4227,7 @@ function endRun(reason){
     dungeon:RUN.dungeon||'adranja'};
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   RUN=null;checkUnlocks();saveGame();
-  try{Rank.submit();}catch(e){}   // envia conquistas ao ranking
+  try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}   // envia conquistas ao ranking
   CUR.screen='result';showResult(summary);
 }
 function showResult(s){
@@ -4058,7 +4280,7 @@ function victoryEnding(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   music('victory');sfx('win');
   const s={floor:RUN.floor,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence};
-  RUN=null;G.meta.flags.beatGame=true;saveGame();try{Rank.submit();}catch(e){}CUR.screen='result';
+  RUN=null;G.meta.flags.beatGame=true;saveGame();try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}CUR.screen='result';
   APP.innerHTML=`<div class="screen active" style="justify-content:center">
     <div class="panel parch center" style="max-width:540px;margin:auto;border-color:var(--gold)">
       <div style="font-size:64px">💖👑✨</div>
@@ -4095,6 +4317,8 @@ function boot(){
   go('home');
   // acesso oculto à configuração do ranking (só o dono usa): abra a URL com #setup
   if(location.hash==='#setup'||location.hash==='#rank-setup'){ try{localStorage.setItem('adranja_owner','1');}catch(e){} setTimeout(()=>{try{rankSetupModal();}catch(e){}},300); }
+  // detecta sessão de conta (assíncrono); ao resolver, atualiza a home p/ mostrar "Meus saves"
+  try{ if(Account.available())Account.watch(()=>{ if(CUR.screen==='home')renderHome(); }); }catch(e){}
   // primeira interação destrava o áudio (política de autoplay)
   ['pointerdown','keydown','touchstart'].forEach(ev=>window.addEventListener(ev,firstGesture,{once:false}));
   // som de clique em botões/abas
