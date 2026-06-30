@@ -673,7 +673,7 @@ const HEROES=[
   SK('Flecha Dupla',3,'phys',0.9,'one',{fx:'double'}),SK('Tiro Perfurante',6,'phys',1.6,'all',{txt:'Atravessa a fileira inimiga.'}),
   SK('Armadilha de Caça',9,'buff',0,'self',{fx:'trap',txt:'Prende o inimigo mais forte.'}),
   SK('Chuva de Flechas',13,'phys',1.5,'all',{txt:'Salva mortal sobre todos.'})],
- unlock:{type:'floor',v:6,desc:'Alcance o Andar 6 da Adranja.'}},
+ unlock:{type:'floor',v:10,desc:'Alcance o Andar 10 da Adranja.'}},
 {id:'barbaro',name:'Korg, o Bárbaro',role:'Bárbaro',rarity:'raro',icon:'🪓',
  head:'horns',weapon:'axe',
  pal:{H:'#8a3a22',S:'#e0a070',e:'#3a0a0a',K:'#e0a070',A:'#6a3a22',B:'#c8324a',P:'#4a2a18',O:'#241408',M:'#cfb0a0',R:'#e8e0d0',W:'#7a5a36'},
@@ -682,7 +682,7 @@ const HEROES=[
  skills:[SK('Machadada',1,'phys',1.5,'one'),SK('Grito de Guerra',3,'buff',0,'allies',{fx:'atkup',txt:'+ataque do grupo.'}),
   SK('Frenesi',5,'phys',0.9,'one',{fx:'double'}),SK('Terremoto',9,'phys',1.6,'all',{fx:'stun'}),
   SK('Devastar',14,'phys',2.6,'one',{fx:'execute',txt:'Dano massivo, executa inimigos fracos.'})],
- unlock:{type:'kills',v:250,desc:'Derrote 250 monstros no total.'}},
+ unlock:{type:'kills',v:600,desc:'Derrote 600 monstros no total.'}},
 {id:'necromante',name:'Vael, o Necromante',role:'Necromante',rarity:'epico',icon:'💀',
  head:'hood',weapon:'staff',
  pal:{H:'#2a2a2a',S:'#b8c0b0',e:'#7dff8f',K:'#b8c0b0',A:'#2a2238',B:'#5fd17a',P:'#1a1626',O:'#0e0a16',D:'#2a2238',G:'#7dff8f',W:'#3a2a1a'},
@@ -693,7 +693,7 @@ const HEROES=[
   SK('Nuvem Pútrida',6,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
   SK('Maldição',8,'buff',0,'one',{fx:'curse',txt:'Inimigo recebe +dano.'}),
   SK('Apocalipse Sombrio',15,'mag',2.6,'all',{el:'sombrio',fx:'lifesteal'})],
- unlock:{type:'essence',v:450,reqFloor:8,desc:'Gaste 450 de Essência (requer Andar 8).'}},
+ unlock:{type:'essence',v:1100,reqFloor:14,desc:'Gaste 1100 de Essência (requer Andar 14).'}},
 {id:'paladino',name:'Auron, o Paladino',role:'Paladino',rarity:'epico',icon:'🛡️',
  head:'helm',weapon:'sword',
  pal:{H:'#caa15a',S:'#f0c08a',e:'#2a1a30',K:'#f0c08a',A:'#e8e8f0',B:'#ffd166',P:'#9aa0b0',O:'#6a7080',M:'#fff0c0',W:'#7a5a36'},
@@ -712,7 +712,7 @@ const HEROES=[
  skills:[SK('Tiro Élfico',1,'phys',1.5,'one',{fx:'crit+'}),SK('Flecha Lunar',4,'mag',1.6,'one',{el:'arcano',fx:'crit+'}),
   SK('Disparo Triplo',6,'phys',0.7,'all'),SK('Olho de Águia',9,'buff',0,'self',{fx:'critmax',txt:'Próximos tiros são críticos garantidos.'}),
   SK('Flecha do Crepúsculo',14,'mag',3.0,'one',{el:'arcano',fx:'crit+'})],
- unlock:{type:'codex',v:9,desc:'Descubra 9 segredos no Códex.'}},
+ unlock:{type:'codex',v:14,desc:'Descubra 14 segredos no Códex.'}},
 {id:'alquimista',name:'Pim, o Alquimista',role:'Alquimista',rarity:'raro',icon:'⚗️',
  head:'hat',weapon:'orb',
  pal:{H:'#6a8a3a',S:'#ecc09a',e:'#2a1a30',K:'#ecc09a',A:'#3a8a6a',B:'#ffd166',P:'#2a5a4a',O:'#183228',T:'#3a8a6a',G:'#ff7a3c',C:'#5fd17a',W:'#7a5a36'},
@@ -723,7 +723,7 @@ const HEROES=[
   SK('Elixir',5,'heal',1.4,'allies',{txt:'Poção curativa para o grupo.'}),
   SK('Gás Tóxico',8,'mag',1.0,'all',{el:'veneno',fx:'poison'}),
   SK('Pedra Filosofal',13,'buff',0,'allies',{fx:'allup',txt:'Aumenta todos os atributos do grupo.'})],
- unlock:{type:'craft',v:50,desc:'Crie 50 itens na Forja.'}},
+ unlock:{type:'craft',v:120,desc:'Crie 120 itens na Forja.'}},
 {id:'monge',name:'Tenzin, o Monge',role:'Monge',rarity:'raro',icon:'👊',
  head:'none',weapon:'fist',
  pal:{H:'#1a1a1a',S:'#e0a878',e:'#2a1a20',K:'#e0a878',A:'#d8743a',B:'#ffd166',P:'#a85a2a',O:'#6a3a1a',W:'#7a5a36'},
@@ -732,7 +732,7 @@ const HEROES=[
  skills:[SK('Palma de Ferro',1,'phys',1.3,'one',{fx:'combo'}),SK('Rajada de Socos',3,'phys',0.6,'one',{fx:'triple'}),
   SK('Postura Defensiva',5,'buff',0,'self',{fx:'dodgeup'}),SK('Chute Giratório',8,'phys',1.4,'all'),
   SK('Punho do Dragão',14,'phys',2.8,'one',{fx:'stun'})],
- unlock:{type:'floor',v:16,desc:'Alcance o Andar 16 da Adranja.'}},
+ unlock:{type:'floor',v:22,desc:'Alcance o Andar 22 da Adranja.'}},
 {id:'invocador',name:'Iris, a Invocadora',role:'Invocadora',rarity:'epico',icon:'🌀',
  head:'hood',weapon:'orb',
  pal:{H:'#5a8aff',S:'#ecc09a',e:'#67d8ff',K:'#ecc09a',A:'#2a3a8a',B:'#67d8ff',P:'#1a2256',O:'#101640',D:'#2a3a8a',C:'#67d8ff',W:'#7a5a36'},
@@ -752,7 +752,7 @@ const HEROES=[
  skills:[SK('Acorde Cortante',1,'mag',1.3,'one',{el:'arcano'}),SK('Canção de Coragem',3,'buff',0,'allies',{fx:'atkup'}),
   SK('Balada Curativa',5,'heal',1.1,'allies'),SK('Dissonância',8,'mag',1.4,'all',{el:'arcano',fx:'slow'}),
   SK('Sinfonia Final',14,'buff',0,'allies',{fx:'allup'})],
- unlock:{type:'essence',v:280,reqFloor:6,desc:'Gaste 280 de Essência (requer Andar 6).'}},
+ unlock:{type:'essence',v:700,reqFloor:10,desc:'Gaste 700 de Essência (requer Andar 10).'}},
 {id:'druida',name:'Mira, a Druida',role:'Druida',rarity:'epico',icon:'🐾',
  head:'none',weapon:'staff',
  pal:{H:'#3a6a2a',S:'#d8b888',e:'#5fd17a',K:'#d8b888',A:'#5a7a3a',B:'#8a5a2a',P:'#3a4a22',O:'#1a2410',G:'#5fd17a',W:'#5a3a1a'},
@@ -761,7 +761,7 @@ const HEROES=[
  skills:[SK('Garras',1,'phys',1.4,'one',{fx:'shift'}),SK('Espinhos',3,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
   SK('Toque da Vida',5,'heal',1.5,'ally'),SK('Fúria de Urso',8,'phys',1.8,'one',{fx:'shift'}),
   SK('Ira da Floresta',14,'mag',2.2,'all',{el:'arcano',fx:'poison'})],
- unlock:{type:'floor',v:24,desc:'Alcance o Andar 24 da Adranja.'}},
+ unlock:{type:'floor',v:34,desc:'Alcance o Andar 34 da Adranja.'}},
 {id:'cavaleiro_sombrio',name:'Mordred, Cavaleiro Sombrio',role:'Cavaleiro Sombrio',rarity:'epico',icon:'🗡️',
  head:'helm',weapon:'sword',
  pal:{H:'#2a2a3a',S:'#c0b0c0',e:'#ff5d6c',K:'#c0b0c0',A:'#2a2238',B:'#a14bff',P:'#1a1626',O:'#0e0a16',M:'#5a4a7a',W:'#3a2a1a'},
@@ -781,7 +781,7 @@ const HEROES=[
  skills:[SK('Lançada',1,'phys',1.4,'one'),SK('Chamado Selvagem',3,'buff',0,'self',{fx:'summon',txt:'Invoca um lobo aliado.'}),
   SK('Investida do Lobo',6,'phys',1.6,'one',{fx:'double'}),SK('Rugido',8,'buff',0,'allies',{fx:'atkup'}),
   SK('Matilha Fantasma',14,'phys',1.4,'all',{fx:'summon'})],
- unlock:{type:'tame',v:18,desc:'Dome 18 Feras em combate.'}},
+ unlock:{type:'tame',v:40,desc:'Dome 40 Feras em combate.'}},
 {id:'cronomante',name:'Zephir, o Cronomante',role:'Cronomante',rarity:'lendario',icon:'⏳',
  head:'hat',weapon:'orb',
  pal:{H:'#8a8aff',S:'#ecc09a',e:'#67d8ff',K:'#ecc09a',A:'#3a3a6a',B:'#67d8ff',P:'#22224a',O:'#141430',T:'#3a3a6a',G:'#ffd166',C:'#b39bff',W:'#7a5a36'},
@@ -792,7 +792,7 @@ const HEROES=[
   SK('Reverter',5,'heal',1.4,'ally',{txt:'Volta o tempo das feridas.'}),
   SK('Parar o Tempo',9,'buff',0,'self',{fx:'timestop',txt:'Inimigos perdem o turno.'}),
   SK('Paradoxo',16,'mag',3.2,'all',{el:'arcano',fx:'slow'})],
- unlock:{type:'floor',v:38,desc:'Alcance o Andar 38 da Adranja.'}},
+ unlock:{type:'floor',v:55,desc:'Alcance o Andar 55 da Adranja.'}},
 {id:'geomante',name:'Terron, o Geomante',role:'Geomante',rarity:'lendario',icon:'🪨',
  head:'none',weapon:'mace',
  pal:{H:'#5a4a3a',S:'#d8a878',e:'#ffd166',K:'#d8a878',A:'#7a6a4a',B:'#ff7a3c',P:'#4a3a28',O:'#241a10',M:'#a89070',R:'#5fd17a',W:'#7a5a36'},
@@ -801,7 +801,7 @@ const HEROES=[
  skills:[SK('Punho de Pedra',1,'phys',1.4,'one',{el:'terra'}),SK('Muralha Rochosa',3,'buff',0,'allies',{fx:'shield'}),
   SK('Estilhaços',5,'mag',1.5,'all',{el:'terra'}),SK('Terremoto',9,'mag',1.8,'all',{el:'terra',fx:'stun'}),
   SK('Cataclismo',15,'mag',3.0,'all',{el:'terra',fx:'stun'})],
- unlock:{type:'essence',v:2500,reqFloor:28,desc:'Gaste 2500 de Essência (requer Andar 28).'}},
+ unlock:{type:'essence',v:6000,reqFloor:40,desc:'Gaste 6000 de Essência (requer Andar 40).'}},
 {id:'andarilho',name:'???, o Andarilho do Vazio',role:'Andarilho do Vazio',rarity:'mitico',icon:'🌌',
  head:'veil',weapon:'scythe',
  pal:{H:'#1a1030',S:'#9a8ad0',e:'#ff5fa8',K:'#9a8ad0',A:'#1a1030',B:'#a14bff',P:'#0e0820',O:'#060410',C:'#a14bff',M:'#b39bff',W:'#2a1a3a'},
@@ -823,7 +823,7 @@ const HEROES=[
   SK('Bomba-Relógio',5,'mag',1.5,'one',{el:'fogo',fx:'burn'}),
   SK('Tique-Taque',8,'buff',0,'self',{fx:'critmax'}),
   SK('Hora Zero',14,'mag',2.4,'all',{el:'arcano',fx:'slow'})],
- unlock:{type:'craft',v:30,desc:'Crie 30 itens na Forja.'}},
+ unlock:{type:'craft',v:75,desc:'Crie 75 itens na Forja.'}},
 {id:'gladiadora',name:'Brakka, a Fera da Arena',role:'Gladiadora',rarity:'raro',icon:'🛡️',
  head:'helm',weapon:'axe',
  pal:{H:'#7a3a22',S:'#e0a070',e:'#ffd166',K:'#e0a070',A:'#8a5a2a',B:'#c8324a',P:'#5a3a22',O:'#241408',M:'#cfb0a0',W:'#7a5a36'},
@@ -834,7 +834,7 @@ const HEROES=[
   SK('Investida Brutal',5,'phys',1.7,'one',{fx:'stun'}),
   SK('Roda de Lâminas',9,'phys',1.3,'all'),
   SK('Glória ou Morte',14,'phys',2.8,'one',{fx:'execute'})],
- unlock:{type:'kills',v:120,desc:'Derrote 120 monstros no total.'}},
+ unlock:{type:'kills',v:350,desc:'Derrote 350 monstros no total.'}},
 {id:'pestilenta',name:'Vesper, a Praga',role:'Pestilenta',rarity:'epico',icon:'☠️',
  head:'hood',weapon:'staff',
  pal:{H:'#3a4a2a',S:'#b8c0a0',e:'#7dff8f',K:'#b8c0a0',A:'#2a3a22',B:'#5fd17a',P:'#1a2416',O:'#0e160a',D:'#2a3a22',G:'#7dff8f',W:'#3a2a1a'},
@@ -845,7 +845,7 @@ const HEROES=[
   SK('Carícia Mórbida',5,'mag',1.6,'one',{el:'sombrio',fx:'lifesteal'}),
   SK('Maldição Pútrida',8,'buff',0,'one',{fx:'curse'}),
   SK('Pandemia',14,'mag',2.2,'all',{el:'veneno',fx:'poison'})],
- unlock:{type:'floor',v:18,desc:'Alcance o Andar 18 da Adranja.'}},
+ unlock:{type:'floor',v:26,desc:'Alcance o Andar 26 da Adranja.'}},
 {id:'oracula',name:'Oracula, a Cega',role:'Oráculo',rarity:'lendario',icon:'👁️‍🗨️',
  head:'veil',weapon:'orb',
  pal:{H:'#caa15a',S:'#f0c08a',e:'#ffffff',K:'#f0c08a',A:'#3a2a6a',B:'#ffd166',P:'#22184a',O:'#120c2a',C:'#b39bff',M:'#ffd166',W:'#7a5a36'},
@@ -856,7 +856,7 @@ const HEROES=[
   SK('Linha do Destino',6,'mag',1.7,'one',{el:'arcano',fx:'critmax'}),
   SK('Profecia Sombria',9,'mag',1.9,'all',{el:'sombrio'}),
   SK('Fim Previsto',16,'mag',3.0,'one',{el:'arcano',fx:'execute'})],
- unlock:{type:'floor',v:30,desc:'Alcance o Andar 30 da Adranja.'}},
+ unlock:{type:'floor',v:44,desc:'Alcance o Andar 44 da Adranja.'}},
 {id:'mascarado',name:'Nemo, o Sem-Rosto',role:'Mil Faces',rarity:'mitico',icon:'🎭',
  head:'veil',weapon:'dagger',
  pal:{H:'#2a2a3a',S:'#d0d0e0',e:'#ff5fa8',K:'#d0d0e0',A:'#1a1a2a',B:'#b39bff',P:'#0e0e1a',O:'#060610',C:'#b39bff',M:'#cfd6dd',W:'#3a2a1a'},
@@ -867,7 +867,7 @@ const HEROES=[
   SK('Eco Cortante',5,'phys',1.2,'all',{fx:'crit+'}),
   SK('Reflexo Fatal',9,'phys',2.0,'one',{fx:'execute'}),
   SK('Todos e Ninguém',16,'mag',3.0,'all',{el:'arcano',fx:'lifesteal'})],
- unlock:{type:'essence',v:6000,reqFloor:45,desc:'Recrute por 6000 de Essência (requer Andar 45).'}},
+ unlock:{type:'essence',v:15000,reqFloor:60,desc:'Recrute por 15000 de Essência (requer Andar 60).'}},
 ];
 const HMAP={};HEROES.forEach(h=>HMAP[h.id]=h);
 
@@ -1499,27 +1499,27 @@ const RECIPES=[
 /* ====================== PESQUISAS (Biblioteca) ======================
    custo em essência + tempo. efeitos permanentes / desbloqueios. */
 const RESEARCH=[
-{id:'forja2',name:'Metalurgia',cost:60,time:25,desc:'Desbloqueia receitas de Ferreiro (nível 2).',req:null},
-{id:'forja3',name:'Forja Rúnica',cost:160,time:45,desc:'Receitas avançadas (nível 3).',req:'forja2'},
-{id:'forja4',name:'Forja Lendária',cost:400,time:80,desc:'Receitas lendárias (nível 4).',req:'forja3'},
-{id:'slot4',name:'Tática de Esquadrão',cost:220,time:60,desc:'Permite levar um 4º herói na incursão.',req:null},
-{id:'meta_xp',name:'Memória Persistente',cost:120,time:40,desc:'+25% de XP em todas as incursões (permanente).',req:null},
-{id:'meta_hp',name:'Vitalidade Ancestral',cost:140,time:40,desc:'+15% de vida máxima de todos os heróis.',req:null},
-{id:'meta_essence',name:'Cristalomancia',cost:200,time:55,desc:'+30% de Essência ganha por incursão.',req:'meta_xp'},
-{id:'meta_loot',name:'Cartografia de Tesouros',cost:180,time:50,desc:'+20% de chance de tesouros e raridade melhor.',req:null},
-{id:'meta_revive',name:'Pacto do Acampamento',cost:500,time:120,desc:'O grupo revive uma vez por incursão automaticamente.',req:'meta_hp'},
+{id:'forja2',name:'Metalurgia',cost:150,time:25,desc:'Desbloqueia receitas de Ferreiro (nível 2).',req:null},
+{id:'forja3',name:'Forja Rúnica',cost:400,time:45,desc:'Receitas avançadas (nível 3).',req:'forja2'},
+{id:'forja4',name:'Forja Lendária',cost:1000,time:80,desc:'Receitas lendárias (nível 4).',req:'forja3'},
+{id:'slot4',name:'Tática de Esquadrão',cost:550,time:60,desc:'Permite levar um 4º herói na incursão.',req:null},
+{id:'meta_xp',name:'Memória Persistente',cost:300,time:40,desc:'+25% de XP em todas as incursões (permanente).',req:null},
+{id:'meta_hp',name:'Vitalidade Ancestral',cost:350,time:40,desc:'+15% de vida máxima de todos os heróis.',req:null},
+{id:'meta_essence',name:'Cristalomancia',cost:500,time:55,desc:'+30% de Essência ganha por incursão.',req:'meta_xp'},
+{id:'meta_loot',name:'Cartografia de Tesouros',cost:450,time:50,desc:'+20% de chance de tesouros e raridade melhor.',req:null},
+{id:'meta_revive',name:'Pacto do Acampamento',cost:1250,time:120,desc:'O grupo revive uma vez por incursão automaticamente.',req:'meta_hp'},
 // ---- novas pesquisas ----
-{id:'forja5',name:'Forja Mítica',cost:1200,time:160,desc:'Permite aprimorar equipamento além de +6 e libera receitas míticas.',req:'forja4'},
-{id:'slot5',name:'Comando de Guerra',cost:1400,time:180,desc:'Permite levar um 5º herói na incursão.',req:'slot4'},
-{id:'meta_atk',name:'Doutrina de Combate',cost:300,time:60,desc:'+12% de ataque e dano mágico de todos os heróis.',req:null},
-{id:'meta_def',name:'Pele de Pedra',cost:300,time:60,desc:'+15% de defesa de todos os heróis.',req:null},
-{id:'meta_stam',name:'Fôlego Infindável',cost:260,time:55,desc:'+10% de vida e cura recebida.',req:'meta_hp'},
-{id:'meta_gold',name:'Veia de Ouro',cost:240,time:50,desc:'+50% de ouro coletado na Adranja.',req:null},
-{id:'meta_mat',name:'Geologia Profunda',cost:280,time:55,desc:'+30% de materiais coletados.',req:'meta_loot'},
-{id:'meta_secret',name:'Olhar do Cartógrafo',cost:360,time:70,desc:'+10% de chance de passagens secretas em toda incursão.',req:'meta_loot'},
-{id:'meta_xp2',name:'Sabedoria Ancestral',cost:600,time:110,desc:'+25% de XP adicional (acumula com Memória Persistente).',req:'meta_xp'},
-{id:'meta_crit',name:'Arte da Precisão',cost:340,time:65,desc:'+8% de chance de crítico de todo o grupo.',req:null},
-{id:'meta_upg',name:'Mestre Aprimorador',cost:500,time:90,desc:'Aprimoramentos custam 30% menos ouro.',req:'forja3'},
+{id:'forja5',name:'Forja Mítica',cost:3000,time:160,desc:'Permite aprimorar equipamento além de +6 e libera receitas míticas.',req:'forja4'},
+{id:'slot5',name:'Comando de Guerra',cost:3500,time:180,desc:'Permite levar um 5º herói na incursão.',req:'slot4'},
+{id:'meta_atk',name:'Doutrina de Combate',cost:750,time:60,desc:'+12% de ataque e dano mágico de todos os heróis.',req:null},
+{id:'meta_def',name:'Pele de Pedra',cost:750,time:60,desc:'+15% de defesa de todos os heróis.',req:null},
+{id:'meta_stam',name:'Fôlego Infindável',cost:650,time:55,desc:'+10% de vida e cura recebida.',req:'meta_hp'},
+{id:'meta_gold',name:'Veia de Ouro',cost:600,time:50,desc:'+50% de ouro coletado na Adranja.',req:null},
+{id:'meta_mat',name:'Geologia Profunda',cost:700,time:55,desc:'+30% de materiais coletados.',req:'meta_loot'},
+{id:'meta_secret',name:'Olhar do Cartógrafo',cost:900,time:70,desc:'+10% de chance de passagens secretas em toda incursão.',req:'meta_loot'},
+{id:'meta_xp2',name:'Sabedoria Ancestral',cost:1500,time:110,desc:'+25% de XP adicional (acumula com Memória Persistente).',req:'meta_xp'},
+{id:'meta_crit',name:'Arte da Precisão',cost:850,time:65,desc:'+8% de chance de crítico de todo o grupo.',req:null},
+{id:'meta_upg',name:'Mestre Aprimorador',cost:1250,time:90,desc:'Aprimoramentos custam 30% menos ouro.',req:'forja3'},
 ];
 const RMAP={};RESEARCH.forEach(r=>RMAP[r.id]=r);
 
@@ -1592,7 +1592,7 @@ function payCost(cost){for(const k in cost)removeItem(k,cost[k]);}
 function discover(cat,id){const arr=G.meta.codex[cat];if(arr&&!arr.includes(id)){arr.push(id);saveGame();checkUnlocks();return true;}return false;}
 function hasResearch(id){return id?!!G.meta.research[id]:true;}
 // essência
-function addEssence(n){let mult=0.7;if(G.meta.research.meta_essence)mult+=.3;if(G.meta.relics.includes('lampada_eterna'))mult*=2;  // essência mais escassa: vale mais
+function addEssence(n){let mult=0.45;if(G.meta.research.meta_essence)mult+=.3;if(G.meta.relics.includes('lampada_eterna'))mult*=2;  // essência muito escassa: vale muito
   n=Math.round(n*mult);G.meta.essence+=n;saveGame();return n;}
 
 /* ---- DESBLOQUEIOS ---- */
@@ -1670,14 +1670,14 @@ function upgLevel(id){return (G.meta.upgrades&&G.meta.upgrades[id])||0;}
 const UPG_MAX=12;
 function upgMax(){return G.meta.research.forja5?12:6;}
 function upgGoldCost(id){const lv=upgLevel(id);const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
-  let c=(40+lv*lv*25)*rTier; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}
+  let c=(140+lv*lv*70)*rTier; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}
 function upgMatCost(id){const lv=upgLevel(id);const it=IMAP[id];
   // material exigido sobe de raridade conforme o nível
   const tier=Math.min(4,Math.floor(lv/3)); const mat=['ferro','cristal','obsidiana','alma','po_estelar'][tier]||'ferro';
   return {mat, qty:1+Math.floor(lv/2)};}
 // aprimoramentos ALTOS (+4 em diante) também consomem ESSÊNCIA — dá uso real ao recurso mágico
-function upgEssCost(id){const lv=upgLevel(id);if(lv<3)return 0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
-  return Math.round((lv-2)*(lv-2)*45*rTier*(1+rTier*0.15));}
+function upgEssCost(id){const lv=upgLevel(id);if(lv<2)return 0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
+  return Math.round((lv-1)*(lv-1)*110*rTier*(1+rTier*0.18));}
 function canUpgrade(id){if(upgLevel(id)>=upgMax())return false;const c=upgMatCost(id);
   return G.meta.gold>=upgGoldCost(id)&&invQty(c.mat)>=c.qty&&G.meta.essence>=upgEssCost(id);}
 function doUpgrade(id){if(!canUpgrade(id))return;const c=upgMatCost(id);const ess=upgEssCost(id);
@@ -2074,15 +2074,15 @@ function craft(rid){const r=RECIPES.find(x=>x.id===rid);if(!r||!canAfford(r.cost
   toast(`🔨 Criou ${IMAP[r.out].icon} ${IMAP[r.out].name}!`,IMAP[r.out].rarity);renderTab();}
 
 /* ---- TAB MERCADO (gastar/ganhar ouro) ---- */
-const SELL_VALUE={comum:6,raro:22,epico:70,lendario:240,mitico:650,secreto:1500};
+const SELL_VALUE={comum:4,raro:13,epico:42,lendario:140,mitico:380,divino:800,celestial:1500,secreto:1200};
 const BUY_SHOP=[
-  {id:'couro',gold:14},{id:'osso',gold:14},{id:'erva',gold:14},{id:'ferro',gold:18},{id:'pano',gold:18},
-  {id:'lingote',gold:40},{id:'cristal',gold:55},{id:'pena',gold:60},{id:'chifre',gold:60},
-  {id:'pocao_vida',gold:30},{id:'antidoto',gold:24},{id:'pocao_grande',gold:120},
-  {id:'seda',gold:130},{id:'essencia_sombria',gold:160},{id:'obsidiana',gold:240},{id:'nucleo',gold:260},
+  {id:'couro',gold:45},{id:'osso',gold:45},{id:'erva',gold:45},{id:'ferro',gold:60},{id:'pano',gold:60},
+  {id:'lingote',gold:140},{id:'cristal',gold:200},{id:'pena',gold:210},{id:'chifre',gold:210},
+  {id:'pocao_vida',gold:110},{id:'antidoto',gold:85},{id:'pocao_grande',gold:420},
+  {id:'seda',gold:450},{id:'essencia_sombria',gold:560},{id:'obsidiana',gold:850},{id:'nucleo',gold:950},
 ];
-function sellValue(id){const it=IMAP[id];if(!it)return 0;let v=SELL_VALUE[it.rarity]||5;
-  if(isEquip(it))v=Math.round(v*1.6); if(it.type==='mat')v=Math.round(v*0.5); v+=upgLevel(id)*40; return v;}
+function sellValue(id){const it=IMAP[id];if(!it)return 0;let v=SELL_VALUE[it.rarity]||4;
+  if(isEquip(it))v=Math.round(v*1.5); if(it.type==='mat')v=Math.round(v*0.5); v+=upgLevel(id)*60; return v;}
 function totalEquipped(id){return Object.values(G.meta.heroes).reduce((n,h)=>n+EQUIP_SLOTS.filter(s=>h.equip&&h.equip[s]===id).length,0);}
 function sellItem(id){const have=invQty(id);const locked=totalEquipped(id);
   if(have-locked<=0){toast('Esse item está equipado — desequipe antes de vender.','warn');return;}
@@ -2154,16 +2154,16 @@ function tabShrine(b){
      <div class="panel"><h4 class="mb">✨ Oferendas Permanentes</h4>
        <p class="tiny muted" style="margin:-2px 0 8px">Poder eterno comprado com Essência — vale para TODA incursão, nas duas dungeons.</p>
        <div class="col">
-         ${offering('off_heal','🩹 Vigor de Acampamento','+10% PV inicial do grupo',150,'off_heal')}
-         ${offering('off_dmg','🔥 Bênção de Guerra','+10% de dano do grupo',180,'off_dmg')}
-         ${offering('off_def','🛡️ Égide Ancestral','+12% de defesa do grupo',200,'off_def')}
-         ${offering('off_spd','💨 Passos do Vento','+8% de velocidade do grupo',190,'off_spd')}
-         ${offering('off_crit','🎯 Olhar Mortal','+8% de chance de crítico',260,'off_crit')}
-         ${offering('off_gold','🪙 Mãos de Ouro','+50% de ouro coletado',160,'off_gold')}
-         ${offering('off_loot','🎁 Sorte do Saqueador','+15% de drops e materiais',240,'off_loot')}
-         ${offering('off_xp','📖 Sabedoria Eterna','+15% de XP de combate',300,'off_xp')}
-         ${offering('off_secret','🔮 Visão Oculta','+10% de achar segredos',220,'off_secret')}
-         ${offering('off_revive','✨ Pacto da Renascença','Revive o grupo uma vez por incursão',600,'off_revive')}
+         ${offering('off_heal','🩹 Vigor de Acampamento','+10% PV inicial do grupo',330,'off_heal')}
+         ${offering('off_dmg','🔥 Bênção de Guerra','+10% de dano do grupo',396,'off_dmg')}
+         ${offering('off_def','🛡️ Égide Ancestral','+12% de defesa do grupo',440,'off_def')}
+         ${offering('off_spd','💨 Passos do Vento','+8% de velocidade do grupo',418,'off_spd')}
+         ${offering('off_crit','🎯 Olhar Mortal','+8% de chance de crítico',572,'off_crit')}
+         ${offering('off_gold','🪙 Mãos de Ouro','+50% de ouro coletado',352,'off_gold')}
+         ${offering('off_loot','🎁 Sorte do Saqueador','+15% de drops e materiais',528,'off_loot')}
+         ${offering('off_xp','📖 Sabedoria Eterna','+15% de XP de combate',660,'off_xp')}
+         ${offering('off_secret','🔮 Visão Oculta','+10% de achar segredos',484,'off_secret')}
+         ${offering('off_revive','✨ Pacto da Renascença','Revive o grupo uma vez por incursão',1320,'off_revive')}
        </div></div>`;
 }
 function offering(id,name,desc,cost,flag){const owned=!!G.meta.flags[flag];
@@ -2795,9 +2795,9 @@ function altarChoose(opt){
 }
 /* ---- MERCADOR ERRANTE (segredo) ---- */
 const MERCH_GOODS={
-  mat:{cost:30,label:'Material raro 🧱'}, equip:{cost:80,label:'Equipamento aleatório 🎁'},
-  potion:{cost:25,label:'Poção de Vida 🧪',item:'pocao_vida'}, ether:{cost:35,label:'Elixir Maior 🍶',item:'pocao_grande'},
-  bomb:{cost:35,label:'Bomba Arcana 💣',item:'bomba'}, heal:{cost:40,label:'Curar grupo agora ✨'},
+  mat:{cost:80,label:'Material raro 🧱'}, equip:{cost:220,label:'Equipamento aleatório 🎁'},
+  potion:{cost:70,label:'Poção de Vida 🧪',item:'pocao_vida'}, ether:{cost:100,label:'Elixir Maior 🍶',item:'pocao_grande'},
+  bomb:{cost:95,label:'Bomba Arcana 💣',item:'bomba'}, heal:{cost:120,label:'Curar grupo agora ✨'},
 };
 function encMerchant(){
   // AUTOMÁTICO: conforme a preferência definida antes da incursão (mercado do acampamento)
@@ -2882,7 +2882,7 @@ function runEssence(base){let b=base;if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;
 function floorClearRewards(){
   RUN.combo++;RUN.bestCombo=Math.max(RUN.bestCombo||0,RUN.combo);
   const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
-  const ess=Math.round((6+RUN.floor*2)*comboMult);runEssence(ess);
+  const ess=Math.round((4+RUN.floor*1.2)*comboMult);runEssence(ess);
   // alívio ao alcançar a escadaria: cura modesta (não salva de lutas brutais, evita morte só por desgaste)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.12);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});
   refreshBars();
@@ -2902,7 +2902,7 @@ function milestoneCheck(){
 }
 function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=2?`<span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:'';}
 
-function grantGold(n){let m=1;if(G.meta.flags.off_gold)m+=0.5;if(G.meta.research.meta_gold)m+=0.5;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();
+function grantGold(n){let m=0.4;if(G.meta.flags.off_gold)m+=0.5;if(G.meta.research.meta_gold)m+=0.5;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
 function rarityRoll(minRar){
   // tabela EXTREMAMENTE avara — itens bons são raros de verdade; lendário+ é evento
@@ -3536,8 +3536,8 @@ function torreVictory(){
       <h1 style="color:var(--gold);font-size:26px">Você conquistou a Torre dos Tiranos!</h1>
       <p class="small muted mt6">Os 50 tiranos caíram. Do alto da Torre, a Adranja inteira se curva. Você é uma lenda viva — e tudo que conquistou é permanente.</p>
       <div class="row center wrap mt" style="justify-content:center;gap:6px">
-        <button class="btn ghost sm" onclick='shareRun("whatsapp",${JSON.stringify(s)})'>🟢 WhatsApp</button>
-        <button class="btn ghost sm" onclick='shareRun("copy",${JSON.stringify(s)})'>📋 Copiar</button>
+        <button class="btn sm" onclick='shareResultImage(${JSON.stringify(s).replace(/'/g,"&#39;")})'>📤 Compartilhar imagem</button>
+        <button class="btn ghost sm" onclick='saveResultImage(${JSON.stringify(s).replace(/'/g,"&#39;")})'>💾 Baixar imagem</button>
       </div>
       <div class="row center mt" style="justify-content:center"><button class="btn" onclick="go('camp','esquadrao')">Voltar ao Acampamento</button></div>
     </div></div>`;
@@ -3565,7 +3565,70 @@ function autoConsumables(){
 }
 
 /* ====================== FIM DA INCURSÃO ====================== */
-const PLAY_URL='https://uchihadam3.github.io/Uchihadamclaude/';   // link público do jogo (para compartilhar)
+function runShareText(s){
+  const where=s.dungeon==='torre'?'na Torre dos Tiranos':'na Adranja';
+  return `⚔️ Adranja — cheguei ao Andar ${s.floor} ${where}, derrotei ${s.kills} monstros e ${s.bossKills} chefes! (recorde: Andar ${G.meta.deepestFloor})`;
+}
+// desenha um CARTÃO-IMAGEM do resultado da incursão (para compartilhar como imagem, não link)
+function genResultCanvas(s){
+  const W=620,H=760,cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const x=cv.getContext('2d');
+  const death=s.reason==='death',torre=s.dungeon==='torre',win=s.reason==='torre_win'||s.reason==='win';
+  // fundo
+  const bg=x.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#1a1330');bg.addColorStop(1,'#0e0a18');x.fillStyle=bg;x.fillRect(0,0,W,H);
+  // moldura
+  x.strokeStyle=death?'#c8324a':'#ffd166';x.lineWidth=6;x.strokeRect(14,14,W-28,H-28);
+  x.strokeStyle='rgba(255,209,102,.25)';x.lineWidth=1;x.strokeRect(24,24,W-48,H-48);
+  x.textAlign='center';
+  // título do jogo
+  x.fillStyle='#ffd166';x.font='bold 30px Georgia, serif';x.fillText('⚔ ADRANJA ⚔',W/2,72);
+  x.fillStyle='#b39bff';x.font='15px Georgia, serif';x.fillText(torre?'TORRE DOS TIRANOS':'A Masmorra Viva',W/2,98);
+  // emoji grande
+  x.font='72px serif';x.fillText(death?'💀':(win?'👑':(torre?'🗼':'🏕️')),W/2,182);
+  // título resultado
+  x.fillStyle=death?'#ff6b78':'#ffd166';x.font='bold 26px Georgia, serif';
+  x.fillText(win?'VITÓRIA!':(death?'Tombou na masmorra':'Recuou em segurança'),W/2,224);
+  // rank badge
+  const rank=s.floor>=150?'SS':s.floor>=100?'S':s.floor>=60?'A':s.floor>=30?'B':s.floor>=12?'C':'D';
+  x.beginPath();x.arc(W/2,300,52,0,Math.PI*2);x.fillStyle='rgba(255,209,102,.12)';x.fill();
+  x.strokeStyle='#ffd166';x.lineWidth=4;x.stroke();
+  x.fillStyle='#ffd166';x.font='bold 46px Georgia, serif';x.fillText('Rank '.length?rank:rank,W/2,316);
+  x.fillStyle='#cbd0d8';x.font='14px Georgia, serif';x.fillText('RANK',W/2,272);
+  // stats
+  const floors=Math.max(0,s.floor-(s.startFloor||1));
+  const mm=Math.floor(s.dur/60),ss=s.dur%60;const durStr=(mm?mm+'m ':'')+ss+'s';
+  const rows=[['🏰 Andar alcançado',s.floor],['🪜 Andares descidos',floors],['💀 Monstros',s.kills],['👑 Chefes',s.bossKills],
+    ['🔥 Maior sequência','x'+s.bestCombo],['🎁 Equipamentos',s.equipFound],['🪙 Ouro',fmt(s.gold)],['💠 Essência',fmt(s.essence)],
+    ['⏱️ Duração',durStr],['🏆 Recorde',('Andar '+G.meta.deepestFloor)]];
+  let yy=390;x.font='18px Georgia, serif';
+  rows.forEach((r,i)=>{
+    const ry=yy+i*33;
+    if(i%2===0){x.fillStyle='rgba(255,255,255,.04)';x.fillRect(60,ry-22,W-120,30);}
+    x.textAlign='left';x.fillStyle='#d8dde6';x.fillText(r[0],74,ry);
+    x.textAlign='right';x.fillStyle='#ffd166';x.font='bold 18px Georgia, serif';x.fillText(''+r[1],W-74,ry);
+    x.font='18px Georgia, serif';
+  });
+  x.textAlign='center';x.fillStyle='#8a8fa0';x.font='13px Georgia, serif';
+  x.fillText('Adranja • RPG roguelike • jogue você também',W/2,H-40);
+  return cv;
+}
+function downloadCanvas(cv,name){const a=document.createElement('a');a.download=name;a.href=cv.toDataURL('image/png');a.click();}
+function shareResultImage(s){
+  const cv=genResultCanvas(s);const name='adranja-andar-'+s.floor+'.png';
+  if(cv.toBlob){
+    cv.toBlob(async(blob)=>{
+      try{
+        const file=new File([blob],name,{type:'image/png'});
+        if(navigator.canShare&&navigator.canShare({files:[file]})){
+          await navigator.share({files:[file],text:runShareText(s),title:'Adranja'});return;
+        }
+      }catch(e){ if(e&&e.name==='AbortError')return; }
+      downloadCanvas(cv,name);toast('💾 Imagem salva! Compartilhe onde quiser.','epico');
+    },'image/png');
+  } else { downloadCanvas(cv,name);toast('💾 Imagem salva!','epico'); }
+}
+function saveResultImage(s){downloadCanvas(genResultCanvas(s),'adranja-andar-'+s.floor+'.png');toast('💾 Imagem salva!','epico');}
+function copyShareText(s){try{navigator.clipboard.writeText(runShareText(s));toast('📋 Texto copiado!','epico');}catch(e){toast('Não foi possível copiar.','warn');}}
 function endRun(reason){
   if(!RUN)return;
   const dur=Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000));
@@ -3576,25 +3639,6 @@ function endRun(reason){
   RUN=null;checkUnlocks();saveGame();
   CUR.screen='result';showResult(summary);
 }
-function runShareText(s){
-  const where=s.dungeon==='torre'?'na Torre dos Tiranos':'na Adranja';
-  return `⚔️ Joguei Adranja! Cheguei ao Andar ${s.floor} ${where}, derrotei ${s.kills} monstros e ${s.bossKills} chefes (recorde: Andar ${G.meta.deepestFloor}). Joga você também:`;
-}
-function shareRun(via,s){
-  const txt=runShareText(s); const url=PLAY_URL;
-  const enc=encodeURIComponent(txt+' '+url);
-  let link='';
-  if(via==='whatsapp')link='https://wa.me/?text='+enc;
-  else if(via==='messenger')link='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(url)+'&quote='+encodeURIComponent(txt);
-  else if(via==='twitter')link='https://twitter.com/intent/tweet?text='+encodeURIComponent(txt)+'&url='+encodeURIComponent(url);
-  else if(via==='telegram')link='https://t.me/share/url?url='+encodeURIComponent(url)+'&text='+encodeURIComponent(txt);
-  else if(via==='email')link='mailto:?subject='+encodeURIComponent('Adranja — Andar '+s.floor)+'&body='+enc;
-  if(via==='copy'){ try{navigator.clipboard.writeText(txt+' '+url);toast('📋 Copiado!','epico');}catch(e){toast('Não foi possível copiar.','warn');} return; }
-  try{
-    if(navigator.share&&(via==='whatsapp'||via==='messenger')){navigator.share({text:txt,url}).catch(()=>window.open(link,'_blank'));return;}
-  }catch(e){}
-  window.open(link,'_blank');
-}
 function showResult(s){
   const death=s.reason==='death'; const torre=s.dungeon==='torre';
   if(death){Sound.stop();sfx('death');}else{music('camp');sfx('chest');}
@@ -3603,7 +3647,7 @@ function showResult(s){
   const title=death?(torre?'A Torre te esmagou':'A Adranja te consumiu'):'Você recuou em segurança';
   // medalha de desempenho
   const rank=s.floor>=150?'SS':s.floor>=100?'S':s.floor>=60?'A':s.floor>=30?'B':s.floor>=12?'C':'D';
-  const shareBtn=(via,lab,col)=>`<button class="btn ghost sm" style="border-color:${col}" onclick='shareRun("${via}",${JSON.stringify(s)})'>${lab}</button>`;
+  const sj=JSON.stringify(s).replace(/'/g,'&#39;');
   APP.innerHTML=`<div class="screen active" style="justify-content:flex-start;overflow:auto;padding:14px">
     <div class="panel parch center" style="max-width:540px;margin:auto">
       <div style="font-size:56px">${death?'💀':(torre?'🗼':'🏕️')}</div>
@@ -3627,14 +3671,11 @@ function showResult(s){
         <span>🏆 Recorde de profundidade</span><b>${G.meta.deepestFloor}</b>
       </div>
       <div class="divider"></div>
-      <p class="tiny muted" style="margin-bottom:6px">📣 Compartilhe sua incursão:</p>
+      <p class="tiny muted" style="margin-bottom:6px">📣 Compartilhe uma <b>imagem</b> do resultado:</p>
       <div class="row center wrap" style="justify-content:center;gap:6px">
-        ${shareBtn('whatsapp','🟢 WhatsApp','#25D366')}
-        ${shareBtn('messenger','🔵 Messenger','#0084FF')}
-        ${shareBtn('telegram','✈️ Telegram','#229ED9')}
-        ${shareBtn('twitter','✖️ X','#888')}
-        ${shareBtn('email','✉️ E-mail','#caa15a')}
-        ${shareBtn('copy','📋 Copiar','#caa15a')}
+        <button class="btn sm" onclick='shareResultImage(${sj})'>📤 Compartilhar imagem</button>
+        <button class="btn ghost sm" onclick='saveResultImage(${sj})'>💾 Baixar imagem</button>
+        <button class="btn ghost sm" onclick='copyShareText(${sj})'>📋 Copiar texto</button>
       </div>
       <div class="divider"></div>
       <div class="row center mt" style="justify-content:center">
