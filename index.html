@@ -999,10 +999,52 @@ const ITEMS=[
 {id:'selo_leviata',name:'Selo do Leviatã',icon:'🔱',type:'chave',rarity:'secreto',secret:true,desc:'Um selo encharcado. Invoca o Leviatã nas profundezas inundadas (Andar 14+).'},
 {id:'coracao_estelar',name:'Coração Estelar',icon:'💜',type:'chave',rarity:'secreto',secret:true,desc:'Pulsa com a luz de uma estrela morta. Algo dorme além do Andar 35.'},
 {id:'fragmento_tempo',name:'Fragmento do Tempo',icon:'⏳',type:'chave',rarity:'secreto',secret:true,desc:'Um caco de eternidade. Três deles param o tempo e despertam o Cronarca.'},
+// ===== NOVOS MATERIAIS (árvores de criação mais profundas) =====
+{id:'ferro',name:'Ferro Bruto',icon:'⛏️',type:'mat',rarity:'comum'},
+{id:'pano',name:'Pano Curtido',icon:'🧵',type:'mat',rarity:'comum'},
+{id:'pena',name:'Pena Etérea',icon:'🪶',type:'mat',rarity:'raro'},
+{id:'chifre',name:'Chifre de Fera',icon:'🦬',type:'mat',rarity:'raro'},
+{id:'obsidiana',name:'Obsidiana',icon:'⬛',type:'mat',rarity:'epico'},
+{id:'nucleo',name:'Núcleo Elemental',icon:'🔆',type:'mat',rarity:'epico'},
+{id:'alma',name:'Alma Cristalizada',icon:'🔮',type:'mat',rarity:'lendario'},
+{id:'po_estelar',name:'Pó Estelar',icon:'✨',type:'mat',rarity:'lendario'},
+// ===== NOVAS ARMAS (criáveis) =====
+{id:'punhal_osso',name:'Punhal de Osso',icon:'🦴',type:'arma',slot:'arma',rarity:'comum',stats:{atk:4,spd:2}},
+{id:'lanca_caca',name:'Lança de Caça',icon:'🔱',type:'arma',slot:'arma',rarity:'comum',stats:{atk:6,spd:1}},
+{id:'foice_ceifa',name:'Foice Ceifadora',icon:'⚰️',type:'arma',slot:'arma',rarity:'raro',stats:{atk:9,lck:3}},
+{id:'maca_estrela',name:'Maça Estrela',icon:'⚒️',type:'arma',slot:'arma',rarity:'raro',stats:{atk:8,def:4}},
+{id:'florete',name:'Florete Veloz',icon:'🤺',type:'arma',slot:'arma',rarity:'epico',stats:{atk:11,spd:6}},
+{id:'orbe_caos',name:'Orbe do Caos',icon:'🌐',type:'arma',slot:'arma',rarity:'epico',stats:{mag:16,lck:4}},
+{id:'lamina_gemea',name:'Lâminas Gêmeas',icon:'⚔️',type:'arma',slot:'arma',rarity:'epico',stats:{atk:13,spd:5}},
+// ===== NOVAS ARMADURAS =====
+{id:'gibao',name:'Gibão de Couro',icon:'🥼',type:'armadura',slot:'armadura',rarity:'comum',stats:{hp:16,def:3}},
+{id:'peitoral_ferro',name:'Peitoral de Ferro',icon:'🦺',type:'armadura',slot:'armadura',rarity:'raro',stats:{hp:30,def:9}},
+{id:'manto_penas',name:'Manto de Penas',icon:'🧣',type:'armadura',slot:'armadura',rarity:'raro',stats:{hp:18,spd:5,lck:3}},
+{id:'placas_obsidiana',name:'Placas de Obsidiana',icon:'🛡️',type:'armadura',slot:'armadura',rarity:'epico',stats:{hp:48,def:16}},
+{id:'veste_arcana',name:'Veste do Conclave',icon:'👘',type:'armadura',slot:'armadura',rarity:'epico',stats:{hp:30,mag:14,def:6}},
+// ===== NOVOS ACESSÓRIOS =====
+{id:'bracelete',name:'Bracelete de Aço',icon:'⌚',type:'acessorio',slot:'acessorio',rarity:'comum',stats:{def:4,hp:8}},
+{id:'capa_sombras',name:'Capa das Sombras',icon:'🧥',type:'acessorio',slot:'acessorio',rarity:'raro',stats:{spd:6,lck:5}},
+{id:'medalha_guerra',name:'Medalha de Guerra',icon:'🎖️',type:'acessorio',slot:'acessorio',rarity:'epico',stats:{atk:9,def:6,hp:14}},
+// ===== TALISMÃS (NOVO TIPO de equipamento — efeitos únicos) =====
+{id:'talisma_brasa',name:'Talismã da Brasa',icon:'🔥',type:'talisma',slot:'talisma',rarity:'raro',stats:{atk:5,mag:5}},
+{id:'talisma_vigor',name:'Talismã do Vigor',icon:'💗',type:'talisma',slot:'talisma',rarity:'raro',stats:{hp:30}},
+{id:'talisma_fortuna',name:'Talismã da Fortuna',icon:'🍀',type:'talisma',slot:'talisma',rarity:'epico',stats:{lck:14}},
+{id:'talisma_aegis',name:'Talismã Égide',icon:'🛡️',type:'talisma',slot:'talisma',rarity:'epico',stats:{def:12,hp:20}},
+{id:'talisma_furia',name:'Talismã da Fúria',icon:'😤',type:'talisma',slot:'talisma',rarity:'lendario',stats:{atk:16,spd:4}},
+{id:'talisma_sabio',name:'Talismã do Sábio',icon:'📜',type:'talisma',slot:'talisma',rarity:'lendario',stats:{mag:20,lck:5}},
+{id:'talisma_vazio',name:'Talismã do Vazio',icon:'🌑',type:'talisma',slot:'talisma',rarity:'mitico',secret:true,stats:{atk:14,mag:14,lck:10,spd:6},desc:'Pulsa com o nada entre os andares.'},
+// ===== NOVOS CONSUMÍVEIS (mais variedade) =====
+{id:'pocao_grande',name:'Elixir Maior',icon:'🍶',type:'consumivel',rarity:'raro',use:{heal:1.0},desc:'Cura totalmente o herói mais ferido (auto).'},
+{id:'pocao_foco',name:'Tônico Arcano',icon:'🧴',type:'consumivel',rarity:'raro',use:{magup:0.3},desc:'+30% de dano mágico do grupo num combate (auto no chefe).'},
+{id:'pergaminho_fogo',name:'Pergaminho de Fogo',icon:'📜',type:'consumivel',rarity:'epico',use:{dmgall:3.0},desc:'Incinera todos os inimigos no início de um combate (auto).'},
+{id:'incenso',name:'Incenso Sagrado',icon:'🕯️',type:'consumivel',rarity:'epico',use:{shield:1},desc:'Escudo para o grupo no início do próximo chefe (auto).'},
+{id:'antidoto',name:'Antídoto',icon:'🌿',type:'consumivel',rarity:'comum',use:{cleanse:1},desc:'Remove venenos do grupo (auto).'},
 ];
 const IMAP={};ITEMS.forEach(i=>IMAP[i.id]=i);
-const EQUIP_SLOTS=['arma','armadura','acessorio'];
-const isEquip=it=>EQUIP_SLOTS.includes(it.type);
+const EQUIP_SLOTS=['arma','armadura','acessorio','talisma'];
+const SLOT_LABEL={arma:'Arma',armadura:'Armadura',acessorio:'Acessório',talisma:'Talismã'};
+const isEquip=it=>EQUIP_SLOTS.includes(it.type)||EQUIP_SLOTS.includes(it.slot);
 
 /* ====================== RECEITAS (Forja) ====================== */
 const RECIPES=[
@@ -1020,6 +1062,44 @@ const RECIPES=[
 {id:'r_cetro',out:'cetro_arcano',cost:{fragmento:2,cristal:5,essencia_sombria:3},research:'forja4'},
 {id:'r_armadura_dragao',out:'armadura_dragao',cost:{fragmento:3,lingote:8,seda:4},research:'forja4'},
 {id:'r_pingente',out:'pingente_alma',cost:{fragmento:2,essencia_sombria:4,seda:3},research:'forja4'},
+// ---- básicas (sem pesquisa) ----
+{id:'r_punhal_osso',out:'punhal_osso',cost:{osso:2,couro:1},research:null},
+{id:'r_gibao',out:'gibao',cost:{couro:2,pano:1},research:null},
+{id:'r_lanca',out:'lanca_caca',cost:{ferro:2,osso:1},research:null},
+{id:'r_bracelete',out:'bracelete',cost:{ferro:2,couro:1},research:null},
+{id:'r_antidoto',out:'antidoto',cost:{erva:3},research:null},
+// ---- Metalurgia (forja2) ----
+{id:'r_peitoral',out:'peitoral_ferro',cost:{ferro:4,couro:2},research:'forja2'},
+{id:'r_foice',out:'foice_ceifa',cost:{ferro:3,osso:2},research:'forja2'},
+{id:'r_maca_estrela',out:'maca_estrela',cost:{ferro:4,cristal:1},research:'forja2'},
+{id:'r_pocao_grande',out:'pocao_grande',cost:{erva:3,cristal:1},research:'forja2'},
+{id:'r_capa',out:'capa_sombras',cost:{seda:2,essencia_sombria:1},research:'forja2'},
+{id:'r_tal_brasa',out:'talisma_brasa',cost:{cristal:2,essencia_sombria:1},research:'forja2'},
+{id:'r_tal_vigor',out:'talisma_vigor',cost:{couro:3,cristal:2},research:'forja2'},
+// ---- Forja Rúnica (forja3) ----
+{id:'r_florete',out:'florete',cost:{ferro:5,pena:2},research:'forja3'},
+{id:'r_orbe',out:'orbe_caos',cost:{cristal:3,obsidiana:1},research:'forja3'},
+{id:'r_lamina_gemea',out:'lamina_gemea',cost:{ferro:6,cristal:2},research:'forja3'},
+{id:'r_manto_penas',out:'manto_penas',cost:{pena:3,seda:2},research:'forja3'},
+{id:'r_placas_obs',out:'placas_obsidiana',cost:{obsidiana:2,ferro:5},research:'forja3'},
+{id:'r_veste',out:'veste_arcana',cost:{seda:3,cristal:3,nucleo:1},research:'forja3'},
+{id:'r_medalha',out:'medalha_guerra',cost:{lingote:4,chifre:2},research:'forja3'},
+{id:'r_tal_fortuna',out:'talisma_fortuna',cost:{cristal:4,pena:2},research:'forja3'},
+{id:'r_tal_aegis',out:'talisma_aegis',cost:{obsidiana:2,cristal:2},research:'forja3'},
+{id:'r_pocao_foco',out:'pocao_foco',cost:{cristal:2,erva:2},research:'forja3'},
+{id:'r_perg_fogo',out:'pergaminho_fogo',cost:{nucleo:1,cristal:2},research:'forja3'},
+{id:'r_incenso',out:'incenso',cost:{erva:4,fragmento:1},research:'forja3'},
+// ---- Forja Lendária (forja4) ----
+{id:'r_lamina_aurora',out:'lamina_aurora',cost:{po_estelar:2,lingote:6,alma:1},research:'forja4'},
+{id:'r_machado_titan',out:'machado_titan',cost:{obsidiana:3,ferro:8,chifre:3},research:'forja4'},
+{id:'r_arco_tempestade',out:'arco_tempestade',cost:{pena:5,cristal:4,po_estelar:1},research:'forja4'},
+{id:'r_egide_real',out:'egide_real',cost:{obsidiana:4,lingote:8,alma:2},research:'forja4'},
+{id:'r_anel_abissal',out:'anel_abissal',cost:{essencia_sombria:5,alma:1},research:'forja4'},
+{id:'r_tal_furia',out:'talisma_furia',cost:{chifre:4,alma:1,obsidiana:2},research:'forja4'},
+{id:'r_tal_sabio',out:'talisma_sabio',cost:{po_estelar:2,alma:1,cristal:5},research:'forja4'},
+{id:'r_grimorio',out:'grimorio_vazio',cost:{alma:3,po_estelar:3,essencia_sombria:4},research:'forja4'},
+{id:'r_manto_estelar',out:'manto_estelar',cost:{po_estelar:4,seda:5,alma:2},research:'forja4'},
+{id:'r_coroa_eterna',out:'coroa_eterna',cost:{po_estelar:3,alma:3,fragmento:3},research:'forja4'},
 ];
 
 /* ====================== PESQUISAS (Biblioteca) ======================
@@ -1067,7 +1147,7 @@ function rtimeout(fn,ms){const id=setTimeout(()=>{if(RUN&&!RUN.paused)fn();else 
 
 function defaultMeta(){
   const heroes={};
-  HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,maxLevelEver:1,equip:{arma:null,armadura:null,acessorio:null}};});
+  HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,armadura:null,acessorio:null,talisma:null}};});
   return{
     version:1, essence:0, gold:0, deepestFloor:0, runs:0, totalKills:0,
     tamedCount:0, craftedCount:0, bossesKilled:[], bestiaryKills:{}, eliteKills:0,
@@ -1081,7 +1161,9 @@ function defaultMeta(){
 function loadGame(){
   try{const raw=localStorage.getItem(SAVE_KEY);if(raw){G.meta=JSON.parse(raw);
     // merge p/ heróis novos em saves antigos
-    HEROES.forEach(h=>{if(!G.meta.heroes[h.id])G.meta.heroes[h.id]={unlocked:!!h.start,maxLevelEver:1,equip:{arma:null,armadura:null,acessorio:null}};});
+    HEROES.forEach(h=>{const st=G.meta.heroes[h.id];
+      if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,armadura:null,acessorio:null,talisma:null}};}
+      else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; if(st.equip.talisma===undefined)st.equip.talisma=null; }});
     if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
     return true;}
   }catch(e){console.warn('save corrompido',e);}
@@ -1167,9 +1249,9 @@ function heroStats(heroId,level){
 function knownSkills(heroId,uptoLevel){
   const h=HMAP[heroId];return h.skills.filter(sk=>sk.lvl<=uptoLevel);
 }
-function heroMaxLevel(heroId){return G.meta.heroes[heroId].maxLevelEver;}
+function heroMaxLevel(heroId){return G.meta.heroes[heroId].level||1;}
 // XP necessária p/ subir do nível L -> L+1
-function xpForLevel(L){return Math.floor(18+L*L*6+L*12);}
+function xpForLevel(L){return Math.floor(40+L*L*14+L*30);}  // curva íngreme: subir de nível demora bastante
 
 /* ====================== ROTEADOR / TELAS ====================== */
 const CUR={screen:'home',tab:'esquadrao'};
@@ -1192,7 +1274,7 @@ function renderHome(){
     <div class="logo">A Adranja</div>
     <div class="logo-sub">⚔️ Masmorra Mágica · Roguelike de Exploração ✨</div>
     <canvas id="homeArt" width="320" height="180" style="width:min(86vw,360px);margin:10px 0;filter:drop-shadow(0 10px 30px rgba(0,0,0,.6))"></canvas>
-    <p class="home-tip">Monte um esquadrão de heróis e mande-os explorar a Adranja, a masmorra viva que rouba memórias. Caia, e voltam ao Nível 1 — mas <b>habilidades, itens e segredos são para sempre</b>. Desça fundo. Descubra tudo.</p>
+    <p class="home-tip">Monte um esquadrão de heróis e mande-os explorar a Adranja, a masmorra viva e infindável. Seus heróis <b>guardam para sempre</b> tudo que conquistam — níveis, habilidades, itens e segredos. Suba devagar, fique forte, desça fundo. Descubra tudo.</p>
     <div class="row wrap center" style="justify-content:center">
       <button class="btn" onclick="enterCamp()">${G.meta.runs>0?'Continuar Jornada':'Começar Jornada'} ▶</button>
       ${G.meta.runs>0?'<button class="btn ghost sm" onclick="confirmReset()">Reiniciar Tudo</button>':''}
@@ -1356,7 +1438,7 @@ function openHero(id){
   }).join('');
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
     return `<div class="slotline"><div class="sl-ico">${it?it.icon:slotIcon(sl)}</div>
-      <div class="sl-n"><span class="tiny muted">${cap(sl)}</span><br>${it?`<b>${it.name}</b>`:'<span class="muted">— vazio —</span>'}</div>
+      <div class="sl-n"><span class="tiny muted">${slotLabel(sl)}</span><br>${it?`<b>${it.name}</b>`:'<span class="muted">— vazio —</span>'}</div>
       <button class="btn ghost sm" onclick="pickEquip('${id}','${sl}')">${it?'Trocar':'Equipar'}</button></div>`;
   }).join('');
   openModal(`
@@ -1385,7 +1467,8 @@ function openHero(id){
   const big=$('[data-sprite-big]');if(big)mountCanvas(big,heroSprite(h,7));
 }
 function skKindLabel(sk){return {phys:'Dano físico',mag:'Dano mágico',heal:'Cura',buff:'Suporte'}[sk.kind]||'';}
-function slotIcon(sl){return {arma:'🗡️',armadura:'👕',acessorio:'💍'}[sl];}
+function slotIcon(sl){return {arma:'🗡️',armadura:'👕',acessorio:'💍',talisma:'📿'}[sl];}
+function slotLabel(sl){return SLOT_LABEL[sl]||cap(sl);}
 
 /* quantos heróis (exceto um) estão usando esse item neste slot */
 function equippedByOthers(itemId,slot,exceptHeroId){
@@ -1409,7 +1492,7 @@ function pickEquip(heroId,slot){
       <div class="sl-n"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny" style="color:var(--gold)">${statsStr(it.stats)}</span>${note}</div>
       ${right}</div>`;
   }).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
-  openModal(`<h3>${slotIcon(slot)} Equipar ${cap(slot)}</h3>
+  openModal(`<h3>${slotIcon(slot)} Equipar ${slotLabel(slot)}</h3>
     <p class="tiny muted mt6">Cada cópia de um item só pode estar em um herói. Desequipe para liberar.</p>
     ${cur?`<button class="btn ghost sm mt6" onclick="doEquip('${heroId}','${slot}',null)">Desequipar atual</button>`:''}
     <div class="col mt">${list}</div>`);
@@ -1651,9 +1734,10 @@ function initRun(party,tides){
   RUN.party.forEach(c=>applyPassiveStart(c));
 }
 function buildCombatant(id){
-  const h=HMAP[id];const level=1;const s=heroStats(id,level);
-  return {id,h,level,xp:0,maxhp:s.maxhp,hp:s.maxhp,st:s,alive:true,
-    skills:knownSkills(id,Math.max(level,heroMaxLevel(id))), // já sabe permanentes
+  const h=HMAP[id];const st=G.meta.heroes[id];
+  const level=st.level||1; const xp=st.xp||0; const s=heroStats(id,level);
+  return {id,h,level,xp,maxhp:s.maxhp,hp:s.maxhp,st:s,alive:true,
+    skills:knownSkills(id,level), // nível e habilidades são PERMANENTES (não resetam ao morrer)
     fx:{}, summons:[], anim:{x:0,hit:0}};
 }
 function computePartyPassives(){
@@ -1905,7 +1989,7 @@ function bossCard(name,intro,secret){const stage=$('#stage');if(!stage)return;
 function cycleSpeed(){RUN.speed=RUN.speed>=4?1:RUN.speed*2;const b=$('#spdBtn');if(b)b.textContent='⏩ Velocidade x'+RUN.speed;sfx('click');}
 function confirmRetreat(){RUN.paused=true;
   openModal(`<h3>🏃 Recuar da Adranja?</h3>
-   <p class="small">Você volta ao acampamento em segurança. <b>Mantém tudo</b> que coletou (itens, essência, habilidades, segredos). Mas a memória dos níveis se perde — na próxima incursão começam do Nível 1.</p>
+   <p class="small">Você volta ao acampamento em segurança. <b>Mantém tudo</b> que coletou — itens, essência, níveis, habilidades e segredos. Nada se perde ao recuar.</p>
    <div class="row mt"><button class="btn" onclick="closeModal();endRun('retreat')">Recuar com segurança</button>
    <button class="btn ghost" onclick="closeModal();RUN.paused=false">Continuar explorando</button></div>`);}
 function toggleWorkshop(){const w=$('#workshop');if(!w)return;
@@ -2006,8 +2090,8 @@ function encTreasure(){
   const lootMult=1+(RUN.passive.lootBonus||0)+(G.meta.research.meta_loot?0.2:0);
   rtimeout(()=>{
     const gold=Math.round(ri(8,20)*RUN.floor*lootMult);grantGold(gold);
-    if(chance(0.7*lootMult))grantMaterial();
-    if(chance(0.35*lootMult))grantEquipment();
+    if(chance(0.45*lootMult))grantMaterial();
+    if(chance(0.16*lootMult))grantEquipment();
     advanceRoom();
   },700);
 }
@@ -2034,7 +2118,7 @@ function encFountain(){
   unlockSecret('fonte');
   logline('⛲ A <b>Fonte das Memórias</b> brilha. Beber dela restaura corpo e mente.','sc');RUN.scene.mode='idle';
   rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#67d8ff');});
-    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.5));
+    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.18));
     refreshBars();advanceRoom();},800);
 }
 /* ---- ALTAR PROIBIDO (segredo) ---- */
@@ -2059,26 +2143,35 @@ function altarChoose(opt){closeModal();RUN.paused=false;
   rtimeout(advanceRoom,600);
 }
 /* ---- MERCADOR ERRANTE (segredo) ---- */
+const MERCH_GOODS={
+  mat:{cost:30,label:'Material raro 🧱'}, equip:{cost:80,label:'Equipamento aleatório 🎁'},
+  potion:{cost:25,label:'Poção de Vida 🧪',item:'pocao_vida'}, ether:{cost:35,label:'Elixir Maior 🍶',item:'pocao_grande'},
+  bomb:{cost:35,label:'Bomba Arcana 💣',item:'bomba'}, heal:{cost:40,label:'Curar grupo agora ✨'},
+};
 function encMerchant(){
   unlockSecret('mercador');RUN.paused=true;
-  const offers=[];for(let i=0;i<3;i++){const r=pick(['mat','equip','potion','heal']);offers.push(r);}
-  const lines=offers.map((o,idx)=>{
-    if(o==='mat')return `<button class="btn ghost" onclick="merchBuy('mat',${idx},25)">💠25 → Material raro 🧱</button>`;
-    if(o==='equip')return `<button class="btn ghost" onclick="merchBuy('equip',${idx},60)">💠60 → Equipamento aleatório 🎁</button>`;
-    if(o==='potion')return `<button class="btn ghost" onclick="merchBuy('potion',${idx},20)">💠20 → Poção de Vida 🧪</button>`;
-    return `<button class="btn ghost" onclick="merchBuy('heal',${idx},35)">💠35 → Curar grupo ✨</button>`;}).join('');
+  // 3 ofertas ÚNICAS — cada uma só pode ser comprada uma vez
+  const keys=shuffle(Object.keys(MERCH_GOODS)).slice(0,3);
+  RUN._merch=keys.map(k=>({k,sold:false}));
+  renderMerchant();
+}
+function renderMerchant(){
+  const lines=RUN._merch.map((o,idx)=>{const g=MERCH_GOODS[o.k];const can=!o.sold&&G.meta.essence>=g.cost;
+    return `<button class="btn ghost" ${can?'':'disabled'} onclick="merchBuy(${idx})">${o.sold?'✔ comprado':('💠'+g.cost+' → '+g.label)}</button>`;}).join('');
   openModal(`<h3 class="tag-secret">🧙 O Mercador Errante</h3>
    <p class="small">Um vulto encapuzado abre seu manto cheio de bugigangas. "Só aceito Essência, viajante..."</p>
    <div class="row mt"><span class="chip">💠 ${fmt(G.meta.essence)}</span></div>
    <div class="col mt">${lines}<button class="btn" onclick="closeModal();RUN.paused=false;rtimeout(advanceRoom,400)">Seguir viagem</button></div>`);
 }
-function merchBuy(kind,idx,cost){if(G.meta.essence<cost){toast('Essência insuficiente.','warn');return;}
-  G.meta.essence-=cost;
-  if(kind==='mat')grantMaterial('raro');
-  else if(kind==='equip')grantEquipment();
-  else if(kind==='potion')addItem('pocao_vida',1);
-  else if(kind==='heal'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#5fd17a');});refreshBars();}
+function merchBuy(idx){const o=RUN._merch&&RUN._merch[idx];if(!o||o.sold)return;const g=MERCH_GOODS[o.k];
+  if(G.meta.essence<g.cost){toast('Essência insuficiente.','warn');return;}
+  G.meta.essence-=g.cost; o.sold=true;
+  if(o.k==='mat')grantMaterial('raro');
+  else if(o.k==='equip')grantEquipment();
+  else if(g.item)addItem(g.item,1);
+  else if(o.k==='heal'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#5fd17a');});refreshBars();}
   saveGame();toast('🧙 Negócio fechado.','epico');
+  renderMerchant(); // re-renderiza: a opção comprada some
 }
 /* ---- PASSAGEM SECRETA ---- */
 function encElite(){
@@ -2088,7 +2181,7 @@ function encElite(){
   logline('⭐ <b class="sc">Um campeão esquecido bloqueia o caminho: '+m.name+'!</b>','sc');
   const e=makeEnemy(m,RUN.floor,false);
   beginCombat([e],{boss:false,onWin:()=>{
-    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*4));
+    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,10+RUN.floor*2.5));
     RUN.kills++;G.meta.totalKills++;checkUnlocks();saveGame();advanceRoom();
   }});
 }
@@ -2110,14 +2203,14 @@ function encSecretPassage(){
     } else if(variant==='shrine'){
       logline('⛲ Um santuário oculto restaura corpo e mente.','sc');
       RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#67d8ff');}); refreshBars();
-      RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.4)); advanceRoom();
+      RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.15)); advanceRoom();
     } else { // guardião: elite guarda o tesouro
       const pool=MONSTERS.filter(m=>m.elite&&RUN.floor>=m.floors[0]);
       if(pool.length){ const m=pick(pool);unlockSecret('elite');discover('bestiary',m.id);
         logline('⚔️ <b class="sc">Um guardião secreto protege o tesouro: '+m.name+'!</b>','sc');
         const e=makeEnemy(m,RUN.floor,false);
         beginCombat([e],{boss:false,onWin:()=>{ grantEquipment(RUN.floor>=20?'mitico':'lendario'); grantGold(Math.round(ri(30,50)*RUN.floor));
-          RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*4)); RUN.kills++;G.meta.totalKills++;checkUnlocks();saveGame();advanceRoom(); }});
+          RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,10+RUN.floor*2.5)); RUN.kills++;G.meta.totalKills++;checkUnlocks();saveGame();advanceRoom(); }});
       } else { grantEquipment('lendario'); advanceRoom(); }
     }
   },800);
@@ -2147,9 +2240,15 @@ function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=
 function grantGold(n){let m=1;if(G.meta.flags.off_gold)m+=0.5;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
 function rarityRoll(minRar){
-  // tabela melhora com andar
+  // tabela MUITO mais avara: coisas boas são raras de verdade
   const f=RUN.floor,bonus=(G.meta.research.meta_loot?1:0);
-  const w={comum:Math.max(2,30-f*2),raro:18+f,epico:6+f*0.8+bonus*4,lendario:Math.max(0,f-6)+bonus*2,mitico:Math.max(0,f-12)};
+  const w={
+    comum:  Math.max(20,70-f*1.2),
+    raro:   14+f*0.5,
+    epico:  Math.max(0,(f-6)*0.5)+bonus*2,
+    lendario:Math.max(0,(f-14)*0.28)+bonus,
+    mitico: Math.max(0,(f-24)*0.12),
+  };
   let r=weighted(w);
   if(minRar){const order=RARS.indexOf(minRar);if(RARS.indexOf(r)<order)r=minRar;}
   return r;
@@ -2199,6 +2298,8 @@ function grantXP(c,amt){
   let m=1;if(G.meta.research.meta_xp)m+=0.25;if(RUN.passive.xpBonus)m+=RUN.passive.xpBonus;
   c.xp+=Math.round(amt*m);
   while(c.xp>=xpForLevel(c.level)){c.xp-=xpForLevel(c.level);levelUp(c);}
+  // nível e XP são PERMANENTES — grava no acampamento
+  const st=G.meta.heroes[c.id];st.level=c.level;st.xp=c.xp;
   refreshBars();
 }
 function levelUp(c){
@@ -2213,8 +2314,10 @@ function levelUp(c){
   newSkills.forEach(sk=>{c.skills.push(sk);
     logline('✦ <b class="sy">Nova habilidade PERMANENTE:</b> '+sk.n+'!','sc');
     toast('✦ '+c.h.name.split(',')[0]+' aprendeu '+sk.n+'!','epico');});
-  // memória persistente: registra maior nível atingido
-  if(c.level>G.meta.heroes[c.id].maxLevelEver){G.meta.heroes[c.id].maxLevelEver=c.level;saveGame();}
+  // nível permanente: grava no acampamento
+  const st=G.meta.heroes[c.id];st.level=c.level;st.xp=c.xp;
+  if(c.level>(st.maxLevelEver||1))st.maxLevelEver=c.level;
+  saveGame();
 }
 function downHero(c){c.alive=false;c.hp=0;
   logline('☠️ <b>'+c.h.name.split(',')[0]+'</b> caiu!','bd');
@@ -2245,7 +2348,7 @@ const EVENTS=[
 {t:'🗿 Uma estátua antiga te encara. Seus olhos seguem o grupo.',go:()=>{
   if(chance(0.5)){grantGold(Math.round(ri(10,25)*RUN.floor));logline('A estátua revela uma cavidade com moedas.','lt');}
   else{logline('A estátua não faz nada... ou faz?','muted');if(chance(0.3))grantMaterial();}}},
-{t:'📜 Um pergaminho mágico flutua no ar. Alguém o lê.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));grantXP(c,xpForLevel(c.level)*0.6);logline(c.h.name.split(',')[0]+' absorve conhecimento arcano! +XP','dn');}},
+{t:'📜 Um pergaminho mágico flutua no ar. Alguém o lê.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));grantXP(c,xpForLevel(c.level)*0.2);logline(c.h.name.split(',')[0]+' absorve conhecimento arcano! +XP','dn');}},
 {t:'🕳️ O chão cede! O grupo despenca para o próximo andar.',go:()=>{logline('Vocês caem um andar abaixo — atalho perigoso!','bd');dmgAll(0.06,'a queda');RUN.room=RUN.roomsTotal;}},
 {t:'👻 Um espírito gentil oferece uma bênção.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));c.st.atk=Math.round(c.st.atk*1.15);logline(c.h.name.split(',')[0]+' recebe +15% de ataque permanente nesta incursão!','sc');}},
 {t:'💀 Restos de um esquadrão anterior. Saquear seus corpos?',go:()=>{grantEquipment();if(chance(0.4))grantMaterial();logline('Você honra os caídos pegando seu equipamento.','lt');}},
@@ -2293,12 +2396,12 @@ function encCombat(){
   enemies.forEach(e=>discover('bestiary',e.m.id));
   beginCombat(enemies,{boss:false,onWin:()=>{
     // XP modesto baseado em quantidade e andar (NÃO no PV inflado dos inimigos)
-    const total=enemies.length*(9+RUN.floor*3.2);
+    const total=enemies.length*(4+RUN.floor*1.3);
     const alive=Math.max(1,RUN.party.filter(p=>p.alive).length);
     RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c, total/alive));
     grantGold(Math.round(ri(4,10)*RUN.floor));
     RUN.kills+=enemies.length;G.meta.totalKills+=enemies.length;
-    if(chance(0.5))grantMaterial();if(chance(0.18))grantEquipment();
+    if(chance(0.28))grantMaterial();if(chance(0.06))grantEquipment();
     checkUnlocks();saveGame();advanceRoom();
   }});
 }
@@ -2315,7 +2418,7 @@ function onBossWin(boss,e){
   hideBossBar();
   if(!G.meta.bossesKilled.includes(boss.id)){G.meta.bossesKilled.push(boss.id);}
   RUN.kills++;G.meta.totalKills++;
-  const xp=20+RUN.floor*8;   // chefe dá um bom empurrão, mas controlado
+  const xp=18+RUN.floor*5;   // chefe: bom empurrão
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp));
   const ess=runEssence(30+RUN.floor*8);
   grantGold(Math.round(40*RUN.floor));
@@ -2347,9 +2450,16 @@ function beginCombat(enemies,opts){
   if(_audioReady)applyMusic();
   // invocações iniciais por passiva
   RUN.party.filter(c=>c.alive).forEach(c=>{const sm=c.h.passive.tags&&c.h.passive.tags.summon;if(sm)spawnMinion(c,sm);});
-  // poção/bomba automática no início (consumível)
-  if(opts.boss&&invQty('bomba')>0){removeItem('bomba',1);logline('💣 Bomba Arcana lançada no chefe!','cb');
-    enemies.forEach(e=>{const d=Math.round(avgPartyPow()*2);applyDamageToEnemy(e,d,false,'fogo');if(e.hp<=0)killEnemy(e);});}
+  // consumíveis automáticos no início do combate
+  if(opts.boss){
+    if(invQty('pergaminho_fogo')>0){removeItem('pergaminho_fogo',1);logline('📜 Pergaminho de Fogo incinera os inimigos!','cb');
+      enemies.forEach(e=>{const d=Math.round(avgPartyPow()*3);applyDamageToEnemy(e,d,false,'fogo');if(e.hp<=0)killEnemy(e);});}
+    else if(invQty('bomba')>0){removeItem('bomba',1);logline('💣 Bomba Arcana lançada no chefe!','cb');
+      enemies.forEach(e=>{const d=Math.round(avgPartyPow()*2);applyDamageToEnemy(e,d,false,'fogo');if(e.hp<=0)killEnemy(e);});}
+    if(invQty('pocao_forca')>0){removeItem('pocao_forca',1);RUN.party.filter(c=>c.alive).forEach(c=>c.st.atk=Math.round(c.st.atk*1.3));logline('⚗️ Poção de Força: +ataque do grupo!','cb');}
+    if(invQty('pocao_foco')>0){removeItem('pocao_foco',1);RUN.party.filter(c=>c.alive).forEach(c=>c.st.mag=Math.round(c.st.mag*1.3));logline('🧴 Tônico Arcano: +dano mágico!','cb');}
+    if(invQty('incenso')>0){removeItem('incenso',1);RUN.party.filter(c=>c.alive).forEach(c=>c.fx.shield=3);logline('🕯️ Incenso Sagrado: escudo no grupo!','cb');}
+  }
   rtimeout(()=>combatRound(),500);
 }
 function spawnMinion(owner,kind){
@@ -2618,7 +2728,7 @@ const SECRET_BOSSES=['eco','rei_esquecido','leviata','arauto_estelar','cronarca'
 function onSecretBossWin(boss,e){
   hideBossBar();if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
   RUN.kills++;G.meta.totalKills++;
-  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,40+RUN.floor*10));
+  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,35+RUN.floor*7));
   const ess=runEssence(200+RUN.floor*12);
   // equipamento secreto exclusivo do chefe
   const drop=SECRET_BOSS_DROP[boss.id];
@@ -2641,7 +2751,10 @@ function onSecretBossWin(boss,e){
 
 function autoConsumables(){
   const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.22);
-  if(low&&invQty('pocao_vida')>0){removeItem('pocao_vida',1);const h=Math.round(low.maxhp*0.4);
+  if(!low)return;
+  if(invQty('pocao_grande')>0){removeItem('pocao_grande',1);low.hp=low.maxhp;
+    floatText('hero',RUN.party.indexOf(low),'CURA','#67d8ff');logline('🍶 Elixir Maior usado em '+actorName(low)+' (cura total).','dn');refreshBars();return;}
+  if(invQty('pocao_vida')>0){removeItem('pocao_vida',1);const h=Math.round(low.maxhp*0.4);
     low.hp=Math.min(low.maxhp,low.hp+h);floatText('hero',RUN.party.indexOf(low),'+'+h,'#5fd17a');
     logline('🧪 Poção de Vida usada automaticamente em '+actorName(low)+'.','dn');refreshBars();}
 }
@@ -2661,8 +2774,8 @@ function showResult(s){
       <div style="font-size:60px">${death?'💀':'🏕️'}</div>
       <h1 style="color:${death?'var(--bad)':'var(--gold)'};font-size:30px">${death?'A Adranja te consumiu':'Você recuou em segurança'}</h1>
       <p class="small muted mt6">${death
-        ?'Seus heróis caem na escuridão... e a masmorra rouba suas memórias. Os níveis se perdem — mas as <b>habilidades, itens e segredos permanecem para sempre</b>.'
-        :'De volta ao acampamento, sãos e salvos. Os níveis se desfazem, mas tudo que você conquistou é seu.'}</p>
+        ?'Seus heróis caem na escuridão... mas a Adranja os cospe de volta ao acampamento. <b>Nada é perdido</b> — níveis, habilidades, itens e segredos continuam com você. Volte mais forte.'
+        :'De volta ao acampamento, sãos e salvos. Tudo que você conquistou continua seu.'}</p>
       <div class="divider"></div>
       <div class="kvs" style="max-width:280px;margin:0 auto">
         <span>🏰 Andar alcançado</span><b>${s.floor}</b>
