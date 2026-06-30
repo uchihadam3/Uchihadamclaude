@@ -2114,13 +2114,13 @@ function render(){
   else if(CUR.screen==='slots')renderSlots();
   if(_audioReady)applyMusic();
 }
-function resBar(){
-  return `<div class="res">
-    <span class="chip">💠 <b>${bal(G.meta.essence)}</b> ess</span>
+function resBarInner(){
+  return `<span class="chip">💠 <b>${bal(G.meta.essence)}</b> ess</span>
     <span class="chip">🪙 <b>${bal(G.meta.gold)}</b></span>
-    <span class="chip">🏰 Andar máx <b>${G.meta.deepestFloor}</b></span>
-  </div>`;
+    <span class="chip">🏰 Andar máx <b>${G.meta.deepestFloor}</b></span>`;
 }
+function resBar(){return `<div class="res" id="resBar">${resBarInner()}</div>`;}
+function updateResBar(){const el=$('#resBar');if(el)el.innerHTML=resBarInner();}   // atualiza o HUD do topo na hora
 function renderHome(){
   APP.innerHTML=`<div class="screen home active">
     <div style="height:6vh"></div>
@@ -2298,6 +2298,7 @@ function renderTab(){
   const b=$('#tabBody');if(!b)return;
   ({esquadrao:tabSquad,equipar:tabEquip,forja:tabForge,mercado:tabMarket,biblioteca:tabLibrary,santuario:tabShrine,codex:tabCodex,ajuda:tabHelp}[CUR.tab]||tabSquad)(b);
   mountSprites();
+  updateResBar();   // mantém o saldo do topo (ouro/essência) sempre certo após gastar/ganhar
 }
 
 /* ---- TAB ESQUADRÃO ---- */
