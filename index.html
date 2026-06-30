@@ -169,6 +169,8 @@ canvas{image-rendering:pixelated;}
   padding:7px 4px 5px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:transform .08s;}
 .item:active{transform:scale(.94);}
 .item .ico{font-size:24px;line-height:1;}
+.iico{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;line-height:0;}
+.iico canvas{image-rendering:pixelated;}
 .item .qn{position:absolute;bottom:3px;right:5px;font-size:11px;font-family:'Cinzel';color:var(--gold);}
 .item .tn{font-size:10px;color:var(--dim);text-align:center;line-height:1.05;}
 .b-comum{border-color:#5a5a5a;}
@@ -527,6 +529,63 @@ function heroSprite(hero,scale=5){
   _spriteCache[key]=cv;return cv;
 }
 function mountCanvas(host,cv){host.innerHTML='';host.appendChild(cv);}
+
+/* ===== ÍCONES DE ITENS EM PIXEL-ART (gerados — sem emojis) ===== */
+function P12(rows){const o=[];for(let i=0;i<12;i++){let r=rows[i]||'';o.push((r+'............').slice(0,12));}return o;}
+const ITEM_TEMPLATES={
+  sword:P12(['.....a......','.....aa.....','.....ba.....','.....ba.....','.....ba.....','.....ba.....','...geeeg....','.....hh.....','.....hh.....','....g..g....','............','............']),
+  dagger:P12(['.....a......','.....aa.....','.....ba.....','.....ba.....','...geeeg....','.....hh.....','.....hh.....','............','............','............','............','............']),
+  staff:P12(['......e.....','.....eee....','.....eae....','......h.....','......h.....','......h.....','......h.....','......h.....','......h.....','......h.....','......h.....','............']),
+  bow:P12(['....aa......','...a..a.....','..a....c....','..a....c....','..a....c....','..a....c....','..a....c....','..a....c....','...a..a.....','....aa......','............','............']),
+  mace:P12(['....aaa.....','...aeeea....','..aeeeeea...','...aeeea....','....aaa.....','.....h......','.....h......','.....h......','.....h......','.....h......','.....h......','............']),
+  helm:P12(['............','...aaaaa....','..aaaaaaa...','.aaaaaaaaa..','.aaeeeeeaa..','.aaaaaaaaa..','.aabaaabaa..','..a.aa.a....','............','............','............','............']),
+  armor:P12(['..a......a..','..aa....aa..','..aaaaaaaa..','.aaaeeeeaaa.','.aaaeeeeaaa.','.aaaaaaaaaa.','.aaaaaaaaaa.','.aaaaaaaaaa.','..aaaaaaaa..','...a....a...','............','............']),
+  glove:P12(['....a.a.....','....aaaa....','..a.aaaa....','..aaaaaa....','..aaaaaa....','...aaaaa....','...aeeea....','...aaaaa....','............','............','............','............']),
+  boot:P12(['...aa.......','...aa.......','...aa.......','...aa.......','...aaa......','...aaaa.....','...aaaaaa...','...aaaaaaa..','..eaaaaaaa..','..aaaaaaaa..','............','............']),
+  ring:P12(['.....e......','....eae.....','...e...e....','..a.....a...','..a.....a...','..a.....a...','...a...a....','....aaa.....','............','............','............','............']),
+  amulet:P12(['..a.....a...','..aa...aa...','...a...a....','...a...a....','....aea.....','...eaaae....','...eaaae....','....eee.....','............','............','............','............']),
+  talisman:P12(['.....h......','....aaa.....','...aeeea....','...aeeea....','...aeeea....','....aaa.....','.....a......','............','............','............','............','............']),
+  potion:P12(['.....hh.....','.....hh.....','....cccc....','....c..c....','...c....c...','...c.gg.c...','...cgggc....','...cggggc...','...cggggc...','....cccc....','............','............']),
+  bomb:P12(['........h...','.......h....','......h.....','....aaa.....','...aaaaa....','..aaaeaaa...','..aaaaaaa...','..aaaaaaa...','...aaaaa....','....aaa.....','............','............']),
+  scroll:P12(['..hhhhhhhh..','.h.cccccc.h.','.h.c....c.h.','.h.cc.cc..h.','.h.c....c.h.','.h.cc.ccc.h.','.h.c....c.h.','.h.cccccc.h.','..hhhhhhhh..','............','............','............']),
+  ore:P12(['............','.....aa.....','....aaaa....','...aaeaaa...','..aaaeeaaa..','..aaeeeaaa..','...aaaaaa...','....aaaa....','............','............','............','............']),
+  gem:P12(['.....e......','....eae.....','...eaaae....','..eaaaaae...','...eaaae....','....eae.....','.....e......','............','............','............','............','............']),
+  key:P12(['...eee......','..e...e.....','..e...e.....','..e...e.....','...eee......','....a.......','....a.......','....aa......','....a.a.....','............','............','............'])
+};
+function itemCategory(it){
+  const id=it.id||'';
+  if(it.type==='arma'){const s=it.stats||{};
+    if(/arco|besta/.test(id))return 'bow';
+    if(/martelo|maca|porrete|montante|alabarda|cetro/.test(id))return 'mace';
+    if((s.mag||0)>(s.atk||0)||/cajado|varinha|grimorio|orbe/.test(id))return 'staff';
+    if(/adaga|punhal|katar|sabre|florete|foice|lamina_gemea/.test(id))return 'dagger';
+    return 'sword';}
+  if(it.type==='elmo')return 'helm';
+  if(it.type==='armadura')return 'armor';
+  if(it.type==='bracelete')return 'glove';
+  if(it.type==='grevas')return 'boot';
+  if(it.type==='acessorio')return /amuleto|colar|pingente|broche|coracao|lagrima|dente/.test(id)?'amulet':'ring';
+  if(it.type==='talisma')return 'talisman';
+  if(it.type==='consumivel')return /bomba/.test(id)?'bomb':/pergaminho/.test(id)?'scroll':'potion';
+  if(it.type==='mat')return /cristal|po_estelar|alma|gema/.test(id)?'gem':'ore';
+  return 'key';
+}
+function itemPal(it){
+  const ri=RARS.indexOf(it.rarity);
+  const metal= ri>=5?'#c89bff' : ri>=4?'#ff9ed0' : ri>=3?'#ffd98a' : ri>=2?'#d8b46a' : ri>=1?'#bfe6ff' : '#c2cad4';
+  const dark = ri>=5?'#6a3a9a' : ri>=4?'#a8407a' : ri>=3?'#b8862e' : ri>=2?'#8a6a32' : ri>=1?'#5a8aa8' : '#7c8794';
+  const gem  = RAR_COLOR[it.rarity]||'#cfcfcf';
+  return {a:metal,b:dark,c:'#f2f5fa',e:gem,g:gem,h:'#7a5a36'};
+}
+function itemSprite(it,scale){
+  if(!it._ig){it._ig=ITEM_TEMPLATES[itemCategory(it)]||ITEM_TEMPLATES.gem;it._ip=itemPal(it);}
+  return spriteCanvas(it._ig,it._ip,scale||3);
+}
+// HTML placeholder + montagem (chame mountItemIcons após renderizar)
+function itemIco(it,scale){return `<span class="iico" data-iico="${it.id}" data-isc="${scale||3}"></span>`;}
+function mountItemIcons(root){(root||document).querySelectorAll('.iico[data-iico]').forEach(el=>{
+  const it=IMAP[el.getAttribute('data-iico')];if(!it)return; if(el.firstChild)return;
+  mountCanvas(el,itemSprite(it,+el.getAttribute('data-isc')||3));});}
 
 /* ====================== HERÓIS (20) ======================
    pal: cores das letras dos sprites. head/weapon: overlays.
@@ -1550,7 +1609,7 @@ function checkUnlocks(){let changed=false;
 function toast(msg,rar){const host=$('#toasts');const t=document.createElement('div');
   t.className='toast';if(rar)t.style.borderColor=RAR_COLOR[rar]||'var(--gold)';
   t.innerHTML=msg;host.appendChild(t);setTimeout(()=>t.remove(),3000);}
-function openModal(html){$('#modal').innerHTML='<button class="x-close" onclick="closeModal()">✕</button>'+html;$('#overlay').classList.add('show');}
+function openModal(html){$('#modal').innerHTML='<button class="x-close" onclick="closeModal()">✕</button>'+html;$('#overlay').classList.add('show');mountItemIcons($('#modal'));}
 function openAudioSettings(){Sound.init();
   openModal(`<h3>🎵 Áudio</h3>
     <div class="row mt"><button class="btn ${Sound.on?'':'ghost'}" onclick="audioToggle(this)">${Sound.on?'🔊 Som Ligado':'🔇 Som Desligado'}</button></div>
@@ -1766,7 +1825,7 @@ function rosterCard(h){
     ${inParty?'<span class="chip" style="color:var(--gold)">na equipe</span>':`<button class="btn sm" onclick="event.stopPropagation();togglePartyMember('${h.id}')">+ Equipe</button>`}
   </div>`;
 }
-function mountSprites(){$$('[data-sprite]').forEach(el=>{const id=el.getAttribute('data-sprite');const h=HMAP[id];if(h)mountCanvas(el,heroSprite(h,5));});}
+function mountSprites(){$$('[data-sprite]').forEach(el=>{const id=el.getAttribute('data-sprite');const h=HMAP[id];if(h)mountCanvas(el,heroSprite(h,5));});mountItemIcons(document);}
 function togglePartyMember(id){
   const p=G.meta.party;const i=p.indexOf(id);
   if(i>=0){p.splice(i,1);}
@@ -1798,7 +1857,7 @@ function openHero(id){
       <span class="tiny muted" style="align-self:center">ⓘ</span></div>`;
   }).join('');
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
-    return `<div class="slotline"><div class="sl-ico">${it?it.icon:slotIcon(sl)}</div>
+    return `<div class="slotline"><div class="sl-ico">${it?itemIco(it,3):slotIcon(sl)}</div>
       <div class="sl-n"><span class="tiny muted">${slotLabel(sl)}</span><br>${it?`<b>${it.name}${upgLevel(it.id)>0?` <span style="color:var(--gold)">+${upgLevel(it.id)}</span>`:''}</b>`:'<span class="muted">— vazio —</span>'}</div>
       <button class="btn ghost sm" onclick="pickEquip('${id}','${sl}')">${it?'Trocar':'Equipar'}</button></div>`;
   }).join('');
@@ -1888,7 +1947,7 @@ function pickEquip(heroId,slot){
     else { right=`<button class="btn sm" disabled>indisponível</button>`; }
     const uL=upgLevel(it.id);
     return `<div class="slotline b-${it.rarity}">
-      <div class="sl-ico">${it.icon}</div>
+      <div class="sl-ico">${itemIco(it,3)}</div>
       <div class="sl-n"><b>${it.name}${uL>0?` <span style="color:var(--gold)">+${uL}</span>`:''}</b> ${rarPill(it.rarity)}<br><span class="tiny" style="color:var(--gold)">${statsStr(it.stats,uL)}</span>${note}</div>
       ${right}</div>`;
   }).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
@@ -1925,9 +1984,9 @@ function tabEquip(b){
      <div class="panel">${html}</div>`;
 }
 function itemCell(it){return `<div class="item ${'b-'+it.rarity}" onclick="openItem('${it.id}')">
-  <div class="ico">${it.icon}</div><div class="tn">${it.name}</div><span class="qn">${invQty(it.id)}</span></div>`;}
+  <div class="ico">${itemIco(it,4)}</div><div class="tn">${it.name}</div><span class="qn">${invQty(it.id)}</span></div>`;}
 function openItem(id){const it=IMAP[id];
-  openModal(`<div class="center"><div style="font-size:48px">${it.icon}</div>
+  openModal(`<div class="center"><div style="display:flex;justify-content:center">${itemIco(it,6)}</div>
     <h3 ${it.secret?'class="tag-secret"':''}>${it.name}</h3>${rarPill(it.rarity)}
     <p class="small mt">${it.desc||typeDesc(it)}</p>
     ${it.stats?`<p class="small" style="color:var(--gold)">${statsStr(it.stats)}</p>`:''}
@@ -1943,7 +2002,7 @@ function tabForge(b){
   const locked=RECIPES.filter(r=>!hasResearch(r.research));
   const card=r=>{const out=IMAP[r.out];const can=canAfford(r.cost);
     return `<div class="recipe">
-      <div class="rico">${out.icon}</div>
+      <div class="rico">${itemIco(out,3)}</div>
       <div style="flex:1"><b>${out.name}</b> ${rarPill(out.rarity)}<br>
         <span class="tiny" style="color:var(--gold)">${out.stats?statsStr(out.stats):typeDesc(out)}</span><br>
         <span class="tiny muted">${Object.keys(r.cost).map(k=>`${IMAP[k].icon}${IMAP[k].name.split(' ')[0]} ${invQty(k)}/${r.cost[k]}`).join(' · ')}</span></div>
@@ -1954,7 +2013,7 @@ function tabForge(b){
   const upgCard=it=>{const lv=upgLevel(it.id);const c=upgMatCost(it.id);const max=lv>=upgMax();
     const can=canUpgrade(it.id);
     return `<div class="recipe ${'b-'+it.rarity}">
-      <div class="rico">${it.icon}</div>
+      <div class="rico">${itemIco(it,3)}</div>
       <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)}<br>
         <span class="tiny" style="color:var(--gold)">${statsStr(it.stats,lv)}</span><br>
         ${max?'<span class="tiny" style="color:var(--gold)">★ Aprimoramento máximo</span>'
@@ -1993,11 +2052,11 @@ function tabMarket(b){
   const sellable=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&invQty(it.id)>0&&!it.secret&&it.type!=='chave'&&it.type!=='relíquia')
     .sort((a,b)=>RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
   const sellCard=it=>{const have=invQty(it.id);const free=have-totalEquipped(it.id);
-    return `<div class="recipe ${'b-'+it.rarity}"><div class="rico">${it.icon}</div>
+    return `<div class="recipe ${'b-'+it.rarity}"><div class="rico">${itemIco(it,3)}</div>
       <div style="flex:1"><b>${it.name}${upgLevel(it.id)>0?' +'+upgLevel(it.id):''}</b> ${rarPill(it.rarity)}<br>
         <span class="tiny muted">você tem ${have}${free<have?` (${have-free} equipado)`:''}</span></div>
       <button class="btn sm" ${free>0?'':'disabled'} onclick="sellItem('${it.id}')">Vender 🪙${sellValue(it.id)}</button></div>`;};
-  const buyCard=g=>{const it=IMAP[g.id];return `<div class="recipe"><div class="rico">${it.icon}</div>
+  const buyCard=g=>{const it=IMAP[g.id];return `<div class="recipe"><div class="rico">${itemIco(it,3)}</div>
       <div style="flex:1"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny muted">tem ${invQty(g.id)}</span></div>
       <button class="btn sm" ${G.meta.gold>=g.gold?'':'disabled'} onclick="buyGood('${g.id}',${g.gold})">🪙${g.gold}</button></div>`;};
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🛒 Mercado</h3><span class="chip">🪙 <b>${fmt(G.meta.gold)}</b> ouro</span></div>
@@ -2493,8 +2552,7 @@ function lootCard(id,tag){const it=IMAP[id];if(!it)return;
     <div class="dr" style="color:${col}">${RAR_NAME[it.rarity]||it.rarity}${tag?` · <span class="dtag">${tag}</span>`:''}</div></div>`;
   host.appendChild(card);
   const ic=card.querySelector('[data-dropico]');
-  if(it.grid&&typeof spriteCanvas==='function'){try{mountCanvas(ic,spriteCanvas(it.grid,it.pal,2));}catch(e){ic.textContent=it.icon;}}
-  else ic.textContent=it.icon;
+  try{mountCanvas(ic,itemSprite(it,3));}catch(e){ic.textContent=it.icon;}
   setTimeout(()=>card.remove(),2900);
   // mantém no máximo 4 cartões visíveis
   while(host.children.length>4)host.firstChild.remove();
@@ -2521,7 +2579,7 @@ function confirmRetreat(){RUN.paused=true;
    <div class="row mt"><button class="btn" onclick="closeModal();endRun('retreat')">Recuar com segurança</button>
    <button class="btn ghost" onclick="closeModal();RUN.paused=false">Continuar explorando</button></div>`);}
 function toggleWorkshop(){const w=$('#workshop');if(!w)return;
-  if(w.style.display==='none'){w.style.display='block';w.innerHTML=workshopHTML();}
+  if(w.style.display==='none'){w.style.display='block';w.innerHTML=workshopHTML();mountItemIcons(w);}
   else w.style.display='none';}
 function workshopHTML(){
   // mini oficina: criar itens disponíveis enquanto explora
@@ -2531,7 +2589,7 @@ function workshopHTML(){
     <p class="muted tiny mt6">Crie itens sem parar a exploração. Pesquisas continuam no acampamento.</p>
     <div class="col mt6" style="max-height:180px;overflow:auto">
     ${avail.map(r=>{const out=IMAP[r.out];const can=canAfford(r.cost);
-      return `<div class="recipe"><div class="rico">${out.icon}</div>
+      return `<div class="recipe"><div class="rico">${itemIco(out,3)}</div>
       <div style="flex:1"><b style="font-size:13px">${out.name}</b><br><span class="tiny muted">${Object.keys(r.cost).map(k=>`${IMAP[k].icon}${invQty(k)}/${r.cost[k]}`).join(' ')}</span></div>
       <button class="btn sm" ${can?'':'disabled'} onclick="craft('${r.id}');toggleWorkshop();toggleWorkshop()">Criar</button></div>`;}).join('')}
     </div></div>`;
