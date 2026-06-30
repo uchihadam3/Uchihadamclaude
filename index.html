@@ -1254,13 +1254,24 @@ const CAMP_TABS=[
 function renderCamp(){
   if(!CAMP_TABS.find(t=>t[0]===CUR.tab))CUR.tab='esquadrao';
   checkResearch();
+  const runActive=RUN&&RUN.alive;
   APP.innerHTML=`<div class="screen camp active">
     <div class="topbar"><span class="brand">🏕️ Acampamento</span>${resBar()}
       <button class="audio-btn" onclick="openAudioSettings()" title="Áudio">${Sound.on?'🔊':'🔇'}</button></div>
+    ${runActive?`<div class="panel mb" id="campRunBanner" style="border-color:var(--magic);background:rgba(125,108,255,.12);padding:10px 12px">
+       <div class="row between wrap">
+         <div><b class="sy" id="crbFloor">🏰 Andar ${RUN.floor}</b>
+           <span class="tiny muted"> — incursão em andamento</span><br>
+           <span class="tiny" id="crbHp"></span></div>
+         <button class="btn sm" onclick="returnToRun()">▶ Voltar à Incursão</button>
+       </div>
+       <p class="tiny muted mt6">Sua party explora sozinha. Aproveite para criar itens, pesquisar e organizar — vale para a incursão atual e a próxima.</p>
+     </div>`:''}
     <div class="tabs">${CAMP_TABS.map(t=>`<button class="tab ${CUR.tab===t[0]?'active':''}" onclick="go('camp','${t[0]}')">${t[1]}</button>`).join('')}</div>
     <div id="tabBody"></div>
   </div>`;
   renderTab();
+  updateCampBanner();
 }
 function renderTab(){
   const b=$('#tabBody');if(!b)return;
@@ -1276,8 +1287,9 @@ function tabSquad(b){
   b.innerHTML=`
    <div class="panel parch mb">
      <div class="row between"><h3>Sua Equipe (${party.length}/${slots})</h3>
-       <button class="btn" ${party.length===0?'disabled':''} onclick="startRunFlow()">Entrar na Adranja ▶</button></div>
-     <p class="muted small mt6">Escolha até ${slots} heróis. Toque num herói abaixo para ver detalhes, equipar e adicionar/remover da equipe.</p>
+       ${(RUN&&RUN.alive)?`<button class="btn" onclick="returnToRun()">▶ Voltar à Incursão</button>`
+         :`<button class="btn" ${party.length===0?'disabled':''} onclick="startRunFlow()">Entrar na Adranja ▶</button>`}</div>
+     <p class="muted small mt6">${(RUN&&RUN.alive)?'Uma incursão está em andamento. Mudanças de equipe e equipamento valerão para a <b>próxima</b> incursão.':`Escolha até ${slots} heróis. Toque num herói abaixo para ver detalhes, equipar e adicionar/remover da equipe.`}</p>
      <div class="grid c3 mt" id="partyRow">${[0,1,2,3].slice(0,slots).map(i=>partySlot(party[i],i)).join('')}</div>
    </div>
    <div class="panel">
@@ -1592,6 +1604,7 @@ const TIDES=[
 function rollTides(){const n=chance(0.35)?2:1;return shuffle(TIDES).slice(0,n);}
 
 function startRunFlow(){
+  if(RUN&&RUN.alive){ returnToRun(); return; }
   const party=G.meta.party.filter(id=>G.meta.heroes[id].unlocked);
   if(party.length===0){toast('Monte uma equipe primeiro.','warn');return;}
   Sound.init();Sound.resume();
@@ -1684,6 +1697,7 @@ function renderDungeon(){
     <div class="party-mini mt6" id="partyMini"></div>
     <div class="dgn-hud">
       <button class="btn ghost sm" id="spdBtn" onclick="cycleSpeed()">⏩ Velocidade x1</button>
+      <button class="btn ghost sm" onclick="viewCamp()">🏕️ Acampamento</button>
       <button class="btn ghost sm" onclick="toggleWorkshop()">🛠️ Oficina</button>
       <button class="audio-btn" onclick="openAudioSettings()" title="Áudio">${Sound.on?'🔊':'🔇'}</button>
       <button class="btn danger sm" onclick="confirmRetreat()">🏃 Recuar</button>
@@ -1692,11 +1706,19 @@ function renderDungeon(){
     <div id="workshop" style="display:none"></div>
   </div>`;
   updatePartyMini();updateRunRes();
+  // recoloca o histórico do log ao reabrir a incursão
+  const lg=$('#log');if(lg&&RUN.log){lg.innerHTML='';RUN.log.slice(-40).forEach(e=>{const d=document.createElement('div');d.className='ln '+(e.cls||'');d.innerHTML=e.html;lg.appendChild(d);});lg.scrollTop=lg.scrollHeight;}
+  const sb=$('#spdBtn');if(sb)sb.textContent='⏩ Velocidade x'+RUN.speed;
   startSceneLoop();
 }
+/* navega para o acampamento SEM encerrar a incursão (ela continua no fundo) */
+function viewCamp(){ CUR.screen='camp'; renderCamp(); }
+function returnToRun(){ if(!RUN){go('camp');return;} CUR.screen='dungeon'; renderDungeon(); }
 function updateRunRes(){const e=$('#rEss'),g=$('#rGold'),k=$('#rKills');if(e)e.textContent=fmt(RUN.essence);if(g)g.textContent=fmt(RUN.gold);if(k)k.textContent=RUN.kills;
   const fam=$('#famChip');if(fam){const f=Math.round((G.meta.mapKnowledge[RUN.floor]||0)*100);fam.textContent='🗺️ '+f+'%';}
-  updateFloorBadge();}
+  updateFloorBadge();updateCampBanner();}
+function updateCampBanner(){ if(!RUN)return; const fl=$('#crbFloor'); if(fl)fl.textContent='🏰 Andar '+RUN.floor;
+  const hp=$('#crbHp'); if(hp)hp.innerHTML=RUN.party.map(c=>`<span style="color:${c.alive?(c.hp/c.maxhp<0.35?'var(--bad)':'var(--ok)'):'#666'}">${c.h.name.split(',')[0].slice(0,4)} ${c.alive?Math.ceil(c.hp):'☠'}</span>`).join(' · '); }
 function updateFloorBadge(){const fb=$('#floorBadge');if(fb)fb.textContent='🏰 Andar '+RUN.floor;
   const rc=$('#regionChip');if(rc)rc.textContent=floorTheme(RUN.floor).name;}
 function updatePartyMini(){const host=$('#partyMini');if(!host)return;
@@ -1713,7 +1735,8 @@ function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'
   if(xp)xp.style.width=clamp(c.xp/xpForLevel(c.level)*100,0,100)+'%';
   if(lv)lv.textContent='Lv '+c.level;
   if(hpn)hpn.textContent=Math.ceil(Math.max(0,c.hp))+'/'+c.maxhp;
-  if(pm)pm.classList.toggle('dead',!c.alive);});}
+  if(pm)pm.classList.toggle('dead',!c.alive);});
+  updateCampBanner();}
 
 function logline(html,cls){RUN.log.push({html,cls});if(RUN.log.length>120)RUN.log.shift();
   const el=$('#log');if(el){const d=document.createElement('div');d.className='ln '+(cls||'');d.innerHTML=html;el.appendChild(d);
@@ -1739,6 +1762,8 @@ function startSceneLoop(){
   let t=0;
   function frame(){
     t++;const sc=RUN&&RUN.scene;if(!RUN){return;}
+    // só desenha quando a incursão está visível (economiza CPU no acampamento)
+    if(CUR.screen!=='dungeon'||!cv.isConnected){ _sceneRAF=requestAnimationFrame(frame); return; }
     if(!RUN.paused&&sc.mode==='walk')sc.walk+=1.6*RUN.speed;
     drawScene(ctx,cv,t);
     _sceneRAF=requestAnimationFrame(frame);
