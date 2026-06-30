@@ -1267,10 +1267,42 @@ const ITEMS=[
 {id:'talisma_vento',name:'Talismã do Vento',icon:'🌬️',type:'talisma',slot:'talisma',rarity:'raro',stats:{spd:7,lck:3}},
 {id:'talisma_chama',name:'Talismã da Chama Eterna',icon:'🔥',type:'talisma',slot:'talisma',rarity:'epico',stats:{atk:8,mag:8,lck:4}},
 {id:'talisma_lua',name:'Talismã da Lua',icon:'🌙',type:'talisma',slot:'talisma',rarity:'lendario',stats:{mag:18,hp:24}},
+/* ---- ELMO (cabeça) ---- */
+{id:'capacete_couro',name:'Capacete de Couro',icon:'🪖',type:'elmo',slot:'elmo',rarity:'comum',stats:{def:3,hp:8}},
+{id:'elmo_ferro',name:'Elmo de Ferro',icon:'⛑️',type:'elmo',slot:'elmo',rarity:'comum',stats:{def:4,hp:10}},
+{id:'capuz_arcano',name:'Capuz Arcano',icon:'🎩',type:'elmo',slot:'elmo',rarity:'raro',stats:{mag:8,hp:10}},
+{id:'elmo_chifrudo',name:'Elmo Chifrudo',icon:'🐃',type:'elmo',slot:'elmo',rarity:'raro',stats:{atk:5,def:6,hp:12}},
+{id:'coroa_visao',name:'Coroa da Visão',icon:'👁️',type:'elmo',slot:'elmo',rarity:'epico',stats:{mag:10,lck:6,spd:3}},
+{id:'elmo_dragao',name:'Elmo do Dragão',icon:'🐲',type:'elmo',slot:'elmo',rarity:'epico',stats:{def:10,hp:24,atk:4}},
+{id:'tiara_alma',name:'Tiara da Alma',icon:'💠',type:'elmo',slot:'elmo',rarity:'lendario',stats:{mag:18,hp:30,lck:6}},
+{id:'elmo_titanico',name:'Elmo Titânico',icon:'🛡️',type:'elmo',slot:'elmo',rarity:'lendario',stats:{def:20,hp:50}},
+{id:'diadema_eterno',name:'Diadema Eterno',icon:'👑',type:'elmo',slot:'elmo',rarity:'mitico',stats:{mag:16,def:14,hp:40,lck:8}},
+{id:'coroa_rei_morto',name:'Coroa do Rei Morto',icon:'☠️',type:'elmo',slot:'elmo',rarity:'secreto',secret:true,stats:{atk:14,def:18,hp:60,lck:10},desc:'Pertenceu ao Rei Esquecido.'},
+/* ---- BRACELETE (braço) ---- */
+{id:'bracadeira_couro',name:'Braçadeira de Couro',icon:'🧤',type:'bracelete',slot:'bracelete',rarity:'comum',stats:{atk:2,def:2}},
+{id:'manopla_ferro',name:'Manopla de Ferro',icon:'🥊',type:'bracelete',slot:'bracelete',rarity:'comum',stats:{atk:4,def:2}},
+{id:'bracelete_runico',name:'Bracelete Rúnico',icon:'📿',type:'bracelete',slot:'bracelete',rarity:'raro',stats:{mag:7,spd:2}},
+{id:'manopla_furia',name:'Manopla da Fúria',icon:'👊',type:'bracelete',slot:'bracelete',rarity:'raro',stats:{atk:8,spd:2}},
+{id:'punho_titan',name:'Punho do Titã',icon:'💪',type:'bracelete',slot:'bracelete',rarity:'epico',stats:{atk:12,def:5}},
+{id:'bracadeira_arcana',name:'Braçadeira Arcana',icon:'✨',type:'bracelete',slot:'bracelete',rarity:'epico',stats:{mag:13,lck:4}},
+{id:'garra_dragao',name:'Garra do Dragão',icon:'🐾',type:'bracelete',slot:'bracelete',rarity:'lendario',stats:{atk:18,spd:5,lck:4}},
+{id:'manopla_vazio',name:'Manopla do Vazio',icon:'🕳️',type:'bracelete',slot:'bracelete',rarity:'mitico',stats:{atk:16,mag:16,spd:6}},
+{id:'garra_leviata',name:'Garra do Leviatã',icon:'🦞',type:'bracelete',slot:'bracelete',rarity:'secreto',secret:true,stats:{atk:22,spd:8,lck:8},desc:'Arrancada do abismo inundado.'},
+/* ---- GREVAS (perna) ---- */
+{id:'botas_couro',name:'Botas de Couro',icon:'🥾',type:'grevas',slot:'grevas',rarity:'comum',stats:{spd:3,def:1}},
+{id:'grevas_ferro',name:'Grevas de Ferro',icon:'🦿',type:'grevas',slot:'grevas',rarity:'comum',stats:{def:4,hp:6}},
+{id:'botas_aladas',name:'Botas Aladas',icon:'🪽',type:'grevas',slot:'grevas',rarity:'raro',stats:{spd:7,lck:2}},
+{id:'grevas_cravadas',name:'Grevas Cravejadas',icon:'⚙️',type:'grevas',slot:'grevas',rarity:'raro',stats:{def:6,atk:3}},
+{id:'botas_sombra',name:'Botas das Sombras',icon:'👤',type:'grevas',slot:'grevas',rarity:'epico',stats:{spd:9,lck:5}},
+{id:'grevas_dragao',name:'Grevas do Dragão',icon:'🐉',type:'grevas',slot:'grevas',rarity:'epico',stats:{def:11,hp:22,spd:3}},
+{id:'passos_tempo',name:'Passos do Tempo',icon:'⏱️',type:'grevas',slot:'grevas',rarity:'lendario',stats:{spd:14,lck:6}},
+{id:'grevas_titanicas',name:'Grevas Titânicas',icon:'🗿',type:'grevas',slot:'grevas',rarity:'lendario',stats:{def:20,hp:44}},
+{id:'botas_estelares',name:'Botas Estelares',icon:'🌟',type:'grevas',slot:'grevas',rarity:'mitico',stats:{spd:16,def:10,lck:10}},
+{id:'passos_vazio',name:'Passos do Vazio',icon:'🌀',type:'grevas',slot:'grevas',rarity:'secreto',secret:true,stats:{spd:18,atk:10,lck:10},desc:'Caminham entre realidades.'},
 ];
 const IMAP={};ITEMS.forEach(i=>IMAP[i.id]=i);
-const EQUIP_SLOTS=['arma','armadura','acessorio','talisma'];
-const SLOT_LABEL={arma:'Arma',armadura:'Armadura',acessorio:'Acessório',talisma:'Talismã'};
+const EQUIP_SLOTS=['arma','elmo','armadura','bracelete','grevas','acessorio','talisma'];
+const SLOT_LABEL={arma:'Arma',elmo:'Elmo',armadura:'Armadura',bracelete:'Bracelete',grevas:'Grevas',acessorio:'Acessório',talisma:'Talismã'};
 const isEquip=it=>EQUIP_SLOTS.includes(it.type)||EQUIP_SLOTS.includes(it.slot);
 
 /* ====================== RECEITAS (Forja) ====================== */
@@ -1386,7 +1418,7 @@ function rtimeout(fn,ms){const id=setTimeout(()=>{if(RUN&&!RUN.paused)fn();else 
 
 function defaultMeta(){
   const heroes={};
-  HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,armadura:null,acessorio:null,talisma:null}};});
+  HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null}};});
   return{
     version:1, essence:0, gold:0, deepestFloor:0, runs:0, totalKills:0,
     tamedCount:0, craftedCount:0, bossesKilled:[], bestiaryKills:{}, eliteKills:0,
@@ -1401,8 +1433,8 @@ function loadGame(){
   try{const raw=localStorage.getItem(SAVE_KEY);if(raw){G.meta=JSON.parse(raw);
     // merge p/ heróis novos em saves antigos
     HEROES.forEach(h=>{const st=G.meta.heroes[h.id];
-      if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,armadura:null,acessorio:null,talisma:null}};}
-      else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; if(st.equip.talisma===undefined)st.equip.talisma=null; }});
+      if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null}};}
+      else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; EQUIP_SLOTS.forEach(sl=>{if(st.equip[sl]===undefined)st.equip[sl]=null;}); }});
     if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
     if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
     return true;}
@@ -1425,7 +1457,7 @@ function payCost(cost){for(const k in cost)removeItem(k,cost[k]);}
 function discover(cat,id){const arr=G.meta.codex[cat];if(arr&&!arr.includes(id)){arr.push(id);saveGame();checkUnlocks();return true;}return false;}
 function hasResearch(id){return id?!!G.meta.research[id]:true;}
 // essência
-function addEssence(n){let mult=1;if(G.meta.research.meta_essence)mult+=.3;if(G.meta.relics.includes('lampada_eterna'))mult*=2;
+function addEssence(n){let mult=0.7;if(G.meta.research.meta_essence)mult+=.3;if(G.meta.relics.includes('lampada_eterna'))mult*=2;  // essência mais escassa: vale mais
   n=Math.round(n*mult);G.meta.essence+=n;saveGame();return n;}
 
 /* ---- DESBLOQUEIOS ---- */
@@ -1502,10 +1534,13 @@ function upgMatCost(id){const lv=upgLevel(id);const it=IMAP[id];
   // material exigido sobe de raridade conforme o nível
   const tier=Math.min(4,Math.floor(lv/3)); const mat=['ferro','cristal','obsidiana','alma','po_estelar'][tier]||'ferro';
   return {mat, qty:1+Math.floor(lv/2)};}
+// aprimoramentos ALTOS (+4 em diante) também consomem ESSÊNCIA — dá uso real ao recurso mágico
+function upgEssCost(id){const lv=upgLevel(id);if(lv<3)return 0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
+  return Math.round((lv-2)*(lv-2)*45*rTier*(1+rTier*0.15));}
 function canUpgrade(id){if(upgLevel(id)>=upgMax())return false;const c=upgMatCost(id);
-  return G.meta.gold>=upgGoldCost(id)&&invQty(c.mat)>=c.qty;}
-function doUpgrade(id){if(!canUpgrade(id))return;const c=upgMatCost(id);
-  G.meta.gold-=upgGoldCost(id);removeItem(c.mat,c.qty);
+  return G.meta.gold>=upgGoldCost(id)&&invQty(c.mat)>=c.qty&&G.meta.essence>=upgEssCost(id);}
+function doUpgrade(id){if(!canUpgrade(id))return;const c=upgMatCost(id);const ess=upgEssCost(id);
+  G.meta.gold-=upgGoldCost(id);removeItem(c.mat,c.qty);if(ess>0)G.meta.essence-=ess;
   G.meta.upgrades=G.meta.upgrades||{};G.meta.upgrades[id]=(G.meta.upgrades[id]||0)+1;
   saveGame();sfx('levelup');toast('🔨 '+IMAP[id].icon+' '+IMAP[id].name+' +'+upgLevel(id)+'!','lendario');renderTab();}
 // XP necessária p/ subir do nível L -> L+1
@@ -1764,7 +1799,7 @@ function openSkillInfo(heroId,si){
     ${known?'':`<p class="tiny muted mt6 center">Liberada quando ${h.name.split(',')[0]} alcançar o Nível ${sk.lvl}.</p>`}
     <div class="row mt" style="justify-content:center"><button class="btn ghost" onclick="openHero('${heroId}')">← Voltar ao herói</button></div>`);
 }
-function slotIcon(sl){return {arma:'🗡️',armadura:'👕',acessorio:'💍',talisma:'📿'}[sl];}
+function slotIcon(sl){return {arma:'🗡️',elmo:'⛑️',armadura:'👕',bracelete:'🧤',grevas:'🥾',acessorio:'💍',talisma:'📿'}[sl];}
 function slotLabel(sl){return SLOT_LABEL[sl]||cap(sl);}
 
 /* quantos heróis (exceto um) estão usando esse item neste slot */
@@ -1807,7 +1842,7 @@ function doEquip(heroId,slot,itemId){
 
 /* ---- TAB EQUIPAR / INVENTÁRIO ---- */
 function tabEquip(b){
-  const groups=[['arma','🗡️ Armas'],['armadura','🛡️ Armaduras'],['acessorio','💍 Acessórios'],['consumivel','🧪 Consumíveis'],['mat','🧱 Materiais'],['key','🗝️ Relíquias & Chaves']];
+  const groups=[['arma','🗡️ Armas'],['elmo','⛑️ Elmos'],['armadura','🛡️ Armaduras'],['bracelete','🧤 Braceletes'],['grevas','🥾 Grevas'],['acessorio','💍 Acessórios'],['talisma','📿 Talismãs'],['consumivel','🧪 Consumíveis'],['mat','🧱 Materiais'],['key','🗝️ Relíquias & Chaves']];
   const itemsByGroup=g=>Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>{
     if(!it)return false;
     if(g==='key')return it.type==='chave'||it.type==='relíquia';
@@ -1856,9 +1891,9 @@ function tabForge(b){
       <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)}<br>
         <span class="tiny" style="color:var(--gold)">${statsStr(it.stats,lv)}</span><br>
         ${max?'<span class="tiny" style="color:var(--gold)">★ Aprimoramento máximo</span>'
-          :`<span class="tiny muted">🪙 ${upgGoldCost(it.id)} · ${IMAP[c.mat].icon}${invQty(c.mat)}/${c.qty}</span>`}</div>
+          :`<span class="tiny muted">🪙 ${upgGoldCost(it.id)} · ${IMAP[c.mat].icon}${invQty(c.mat)}/${c.qty}${upgEssCost(it.id)>0?` · 💠 ${upgEssCost(it.id)}`:''}</span>`}</div>
       ${max?'':`<button class="btn sm" ${can?'':'disabled'} onclick="doUpgrade('${it.id}')">Aprimorar +${lv+1}</button>`}</div>`;};
-  b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${fmt(G.meta.gold)}</span></div>
+  b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${fmt(G.meta.gold)} · 💠 ${fmt(G.meta.essence)}</span></div>
      <p class="muted small mt6">Crie e <b>aprimore</b> equipamento. Cada aprimoramento (+N) dá +14% nos atributos do item.</p></div>
      <div class="panel mb"><div class="row between"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${G.meta.research.forja5?'':' (Forja Mítica destrava +12)'}</span></div>
        <div class="col mt6">${owned.length?owned.map(upgCard).join(''):'<p class="muted small">Você ainda não tem equipamento. Crie abaixo ou ache na Adranja.</p>'}</div></div>
@@ -2639,7 +2674,7 @@ function runEssence(base){let b=base;if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;
 function floorClearRewards(){
   RUN.combo++;
   const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
-  const ess=Math.round((10+RUN.floor*3)*comboMult);runEssence(ess);
+  const ess=Math.round((6+RUN.floor*2)*comboMult);runEssence(ess);
   // alívio ao alcançar a escadaria: cura modesta (não salva de lutas brutais, evita morte só por desgaste)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.12);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});
   refreshBars();
