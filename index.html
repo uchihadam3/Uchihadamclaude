@@ -141,9 +141,10 @@ canvas{image-rendering:pixelated;}
 .pm canvas{width:40px;height:40px;flex:0 0 auto;}
 .pm .pn{font-size:12px;font-family:'Cinzel';font-weight:700;}
 .pm.dead{filter:grayscale(1) brightness(.5);}
-.fct{position:absolute;font-family:'Cinzel';font-weight:900;font-size:18px;pointer-events:none;
-  text-shadow:0 2px 0 rgba(0,0,0,.6);animation:fctup 1s ease forwards;z-index:5;}
-@keyframes fctup{0%{opacity:0;transform:translateY(6px) scale(.6);}20%{opacity:1;transform:translateY(-2px) scale(1.1);}100%{opacity:0;transform:translateY(-34px) scale(1);}}
+.fct{position:absolute;font-family:'Cinzel';font-weight:900;font-size:17px;pointer-events:none;white-space:nowrap;
+  text-shadow:0 0 4px rgba(0,0,0,.9),0 2px 2px rgba(0,0,0,.9),-1px -1px 0 rgba(0,0,0,.7),1px 1px 0 rgba(0,0,0,.7);
+  animation:fctup 1.05s ease forwards;z-index:5;}
+@keyframes fctup{0%{opacity:0;transform:translateY(6px) scale(.5);}18%{opacity:1;transform:translateY(-3px) scale(1.15);}100%{opacity:0;transform:translateY(-40px) scale(1);}}
 
 .toasts{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:7px;align-items:center;pointer-events:none;}
 .toast{background:var(--panel-2);border:1px solid var(--gold);border-radius:12px;padding:9px 14px;font-size:14px;
@@ -1773,9 +1774,9 @@ function upgMax(){return G.meta.research.forja5?12:6;}
 function upgGoldCost(id){const lv=upgLevel(id);const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
   let c=(140+lv*lv*70)*rTier; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}
 function upgMatCost(id){const lv=upgLevel(id);const it=IMAP[id];
-  // material exigido sobe de raridade conforme o nível
-  const tier=Math.min(4,Math.floor(lv/3)); const mat=['ferro','cristal','obsidiana','alma','po_estelar'][tier]||'ferro';
-  return {mat, qty:1+Math.floor(lv/2)};}
+  // material exigido sobe de raridade conforme o nível E conforme a raridade do item
+  const tier=Math.min(4,Math.floor(lv/3)+Math.max(0,RARS.indexOf(it.rarity)-2)); const mat=['ferro','cristal','obsidiana','alma','po_estelar'][Math.min(4,tier)]||'ferro';
+  return {mat, qty:1+Math.floor(lv/2)+Math.max(0,RARS.indexOf(it.rarity)-1)};}
 // aprimoramentos ALTOS (+4 em diante) também consomem ESSÊNCIA — dá uso real ao recurso mágico
 function upgEssCost(id){const lv=upgLevel(id);if(lv<2)return 0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
   return Math.round((lv-1)*(lv-1)*110*rTier*(1+rTier*0.18));}
@@ -2080,7 +2081,7 @@ function openHero(id){
       <b style="color:var(--magic-2)">⟡ Passiva — ${h.passive.name}</b>
       <p class="small mt6" style="margin:4px 0 0">${h.passive.desc}</p>
     </div>
-    <h4 class="mt">🎒 Equipamento</h4><div class="col mt6">${eq}</div>
+    <div class="row between mt"><h4>🎒 Equipamento</h4><button class="btn sm" onclick="autoEquipBest('${id}')">⚙️ Equipar melhores</button></div><div class="col mt6">${eq}</div>
     <h4 class="mt">✦ Habilidades</h4><div class="col mt6">${skills}</div>
     <div class="row mt">
       ${inParty?`<button class="btn ghost" onclick="togglePartyMember('${id}');closeModal();renderCamp()">Remover da Equipe</button>`
@@ -2136,6 +2137,29 @@ function equippedByOthers(itemId,slot,exceptHeroId){
 }
 // stats efetivos de um item (com aprimoramento +N)
 function effItemStats(it){if(!it||!it.stats)return {};const m=1+upgLevel(it.id)*0.14;const o={};for(const k in it.stats)o[k]=Math.round(it.stats[k]*m);return o;}
+// herói é focado em magia? (define a ordenação e o "melhor" item)
+function heroIsMage(heroId){const h=HMAP[heroId];if(!h)return false;return (h.base.mag||0)>(h.base.atk||0);}
+// pontua o quanto um item serve a um herói (prioriza o atributo principal dele)
+function itemScoreFor(it,mage){const s=effItemStats(it);
+  const prim=mage?(s.mag||0):(s.atk||0), off=mage?(s.atk||0):(s.mag||0);
+  return prim*2.2 + off*0.5 + (s.def||0)*0.8 + (s.hp||0)*0.25 + (s.spd||0)*0.6 + (s.lck||0)*0.5;}
+// cópias livres deste item para ESTE herói (não roubando de outros)
+function freeFor(itemId,slot,heroId){return invQty(itemId)-equippedByOthers(itemId,slot,heroId).length;}
+// equipa automaticamente o MELHOR item disponível em cada slot (respeitando o que está em outros heróis)
+function autoEquipBest(heroId){
+  const st=G.meta.heroes[heroId];const mage=heroIsMage(heroId);let changed=0;
+  EQUIP_SLOTS.forEach(slot=>{
+    const cands=Object.keys(G.meta.inventory).map(id=>IMAP[id])
+      .filter(it=>it&&it.slot===slot&&freeFor(it.id,slot,heroId)>0)
+      .sort((a,b)=>itemScoreFor(b,mage)-itemScoreFor(a,mage));
+    if(!cands.length)return;
+    const best=cands[0];
+    if(st.equip[slot]!==best.id){ st.equip[slot]=best.id; changed++; }
+  });
+  saveGame();sfx(changed?'levelup':'click');
+  toast(changed?('⚙️ Melhores equipamentos colocados em '+changed+' espaço(s)!'):'Já está usando os melhores disponíveis.',changed?'epico':'warn');
+  _navGuard=true;try{openHero(heroId);}finally{_navGuard=false;}   // re-renderiza sem mexer na pilha de telas
+}
 // comparação candidato vs equipado atual no slot -> HTML de deltas (verde sobe / vermelho desce)
 function equipCompareHTML(slot,cand,heroId){
   const st=G.meta.heroes[heroId];const curId=st.equip[slot];
@@ -2154,8 +2178,10 @@ function equipCompareHTML(slot,cand,heroId){
 }
 /* escolher equipamento para um slot — itens equipados em OUTROS heróis ficam bloqueados */
 function pickEquip(heroId,slot){
+  const mage=heroIsMage(heroId);
+  // ordena pelos MELHORES para este herói (atributo principal dele primeiro); raridade desempata
   const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&it.slot===slot&&invQty(it.id)>0)
-    .sort((a,b)=>RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
+    .sort((a,b)=>itemScoreFor(b,mage)-itemScoreFor(a,mage) || RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
   const st=G.meta.heroes[heroId];const cur=st.equip[slot];
   const list=owned.map(it=>{
     const others=equippedByOthers(it.id,slot,heroId);
@@ -2231,13 +2257,15 @@ function tabForge(b){
         <span class="tiny muted">${Object.keys(r.cost).map(k=>`${IMAP[k].icon}${IMAP[k].name.split(' ')[0]} ${invQty(k)}/${r.cost[k]}`).join(' · ')}</span></div>
       <button class="btn sm" ${can?'':'disabled'} onclick="craft('${r.id}')">Criar</button></div>`;};
   // ---- aprimoramento de equipamento que você possui ----
+  // EQUIPADOS no topo; depois por raridade
   const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&isEquip(it)&&invQty(it.id)>0)
-    .sort((a,b)=>RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
+    .sort((a,b)=>(totalEquipped(b.id)>0)-(totalEquipped(a.id)>0) || RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
+  const equippedOn=id=>Object.keys(G.meta.heroes).filter(hid=>G.meta.heroes[hid].unlocked&&EQUIP_SLOTS.some(s=>G.meta.heroes[hid].equip[s]===id)).map(hid=>HMAP[hid].name.split(',')[0]);
   const upgCard=it=>{const lv=upgLevel(it.id);const c=upgMatCost(it.id);const max=lv>=upgMax();
-    const can=canUpgrade(it.id);
-    return `<div class="recipe ${'b-'+it.rarity}">
+    const can=canUpgrade(it.id);const eqOn=equippedOn(it.id);
+    return `<div class="recipe ${'b-'+it.rarity}" style="${eqOn.length?'border-color:var(--gold)':''}">
       <div class="rico">${itemIco(it,3)}</div>
-      <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)}<br>
+      <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)}${eqOn.length?` <span class="chip" style="color:var(--gold);border-color:var(--gold)">🛡️ ${eqOn.join(', ')}</span>`:''}<br>
         <span class="tiny" style="color:var(--gold)">${statsStr(it.stats,lv)}</span><br>
         ${max?'<span class="tiny" style="color:var(--gold)">★ Aprimoramento máximo</span>'
           :`<span class="tiny muted">🪙 ${upgGoldCost(it.id)} · ${IMAP[c.mat].icon}${invQty(c.mat)}/${c.qty}${upgEssCost(it.id)>0?` · 💠 ${upgEssCost(it.id)}`:''}</span>`}</div>
@@ -2275,11 +2303,19 @@ let SELL_SEL=new Set();
 function sellList(){return Object.keys(G.meta.inventory).map(id=>IMAP[id])
   .filter(it=>it&&invQty(it.id)>0&&!it.secret&&it.type!=='chave'&&it.type!=='relíquia'&&sellFree(it.id)>0)
   .sort((a,b)=>RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));}
+let SELL_FILTER='all';   // all | equip | mats
+function setSellFilter(f){SELL_FILTER=f;renderTab();}
+function sellFiltered(){const l=sellList();
+  if(SELL_FILTER==='equip')return l.filter(it=>isEquip(it));
+  if(SELL_FILTER==='mats')return l.filter(it=>!isEquip(it));
+  return l;}
 function toggleSell(id){if(SELL_SEL.has(id))SELL_SEL.delete(id);else SELL_SEL.add(id);renderTab();}
 function sellQuick(mode){
-  const list=sellList();
+  const list=sellFiltered();   // respeita o filtro de categoria atual
   if(mode==='clear'){SELL_SEL.clear();}
   else if(mode==='all'){list.forEach(it=>SELL_SEL.add(it.id));}
+  else if(mode==='equip'){list.forEach(it=>{if(isEquip(it))SELL_SEL.add(it.id);});}
+  else if(mode==='mats'){list.forEach(it=>{if(!isEquip(it))SELL_SEL.add(it.id);});}
   else if(mode==='dupes'){list.forEach(it=>{if(sellFree(it.id)>=2)SELL_SEL.add(it.id);});}
   else {const cap=RARS.indexOf(mode);list.forEach(it=>{if(RARS.indexOf(it.rarity)<=cap)SELL_SEL.add(it.id);});}
   renderTab();
@@ -2297,11 +2333,11 @@ function tabMarket(b){
   const sellable=sellList();
   // limpa seleção de itens que não existem mais
   [...SELL_SEL].forEach(id=>{if(!sellable.find(it=>it.id===id))SELL_SEL.delete(id);});
-  const sellCard=it=>{const free=sellFree(it.id);const have=invQty(it.id);const sel=SELL_SEL.has(it.id);
+  const sellCard=it=>{const free=sellFree(it.id);const have=invQty(it.id);const sel=SELL_SEL.has(it.id);const eq=isEquip(it);
     return `<div class="recipe sellrow ${'b-'+it.rarity} ${sel?'selsel':''}" onclick="toggleSell('${it.id}')">
       <div class="selbox">${sel?'☑':'☐'}</div>
       <div class="rico">${itemIco(it,3)}</div>
-      <div style="flex:1"><b>${it.name}${upgLevel(it.id)>0?' +'+upgLevel(it.id):''}</b> ${rarPill(it.rarity)}<br>
+      <div style="flex:1"><b>${it.name}${upgLevel(it.id)>0?' +'+upgLevel(it.id):''}</b> <span class="chip" style="opacity:.85">${eq?'⚔️ Equip.':'🧱 Item'}</span> ${rarPill(it.rarity)}<br>
         <span class="tiny muted">livre: ${free}${have>free?` (${have-free} equipado)`:''} · 🪙${sellValue(it.id)} cada</span></div>
       <div style="text-align:right"><b style="color:var(--gold)">🪙${fmt(sellValue(it.id)*free)}</b></div></div>`;};
   const buyCard=g=>{const it=IMAP[g.id];return `<div class="recipe"><div class="rico">${itemIco(it,3)}</div>
@@ -2312,18 +2348,27 @@ function tabMarket(b){
      <p class="muted small mt6">Venda o que sobra por ouro e compre materiais & consumíveis. O ouro também aprimora equipamento na Forja.</p></div>
      <div class="panel mb"><h4 class="mb">🪙 Comprar (com ouro)</h4><div class="col">${BUY_SHOP.map(buyCard).join('')}</div></div>
      <div class="panel"><h4 class="mb">💰 Vender em lote</h4>
-       ${sellable.length?`<p class="tiny muted">Toque nos itens para selecionar e venda tudo de uma vez. Seleção rápida:</p>
+       ${sellList().length?`
        <div class="row wrap mt6" style="gap:5px">
+         <button class="btn ${SELL_FILTER==='all'?'':'ghost'} sm" onclick="setSellFilter('all')">Tudo</button>
+         <button class="btn ${SELL_FILTER==='equip'?'':'ghost'} sm" onclick="setSellFilter('equip')">⚔️ Equipamentos</button>
+         <button class="btn ${SELL_FILTER==='mats'?'':'ghost'} sm" onclick="setSellFilter('mats')">🧱 Materiais</button>
+       </div>
+       <p class="tiny muted mt6">Toque para selecionar e venda tudo de uma vez. Seleção rápida (na categoria atual):</p>
+       <div class="row wrap mt6" style="gap:5px">
+         <button class="btn ghost sm" onclick="sellQuick('all')">Selecionar tudo</button>
+         <button class="btn ghost sm" onclick="sellQuick('equip')">Só equipamentos</button>
+         <button class="btn ghost sm" onclick="sellQuick('mats')">Só materiais</button>
          <button class="btn ghost sm" onclick="sellQuick('comum')">Comuns</button>
          <button class="btn ghost sm" onclick="sellQuick('raro')">+ Raros</button>
          <button class="btn ghost sm" onclick="sellQuick('epico')">+ Épicos</button>
+         <button class="btn ghost sm" onclick="sellQuick('lendario')">+ Lendários</button>
          <button class="btn ghost sm" onclick="sellQuick('dupes')">Duplicados</button>
-         <button class="btn ghost sm" onclick="sellQuick('all')">Tudo</button>
          <button class="btn ghost sm" onclick="sellQuick('clear')">Limpar</button>
        </div>
-       <div class="sellbar"><span><b>${selN}</b> selecionado${selN===1?'':'s'} · <b style="color:var(--gold)">🪙 ${fmt(selG)}</b></span>
+       <div class="sellbar"><span><b>${selN}</b> selecionado${selN===1?'':'s'} · <b style="color:var(--gold)">🪙 ${bal(selG)}</b></span>
          <button class="btn sm" ${selN?'':'disabled'} onclick="sellSelected()">Vender selecionados</button></div>
-       <div class="col mt6">${sellable.map(sellCard).join('')}</div>`
+       <div class="col mt6">${(sellFiltered().length?sellFiltered():[]).map(sellCard).join('')||'<p class="muted small">Nada nesta categoria.</p>'}</div>`
        :'<p class="muted small">Nada para vender no momento.</p>'}</div>`;
 }
 
@@ -2814,13 +2859,16 @@ function drawRegionDecor(ctx,W,H,th,t,walk){
   }
   ctx.restore();
 }
+let _fctSeq=0;
 function floatText(side,i,txt,color){
   const stage=$('#stage');if(!stage)return;const d=document.createElement('div');
   d.className='fct';d.textContent=txt;d.style.color=color||'#fff';
-  if(side==='hero'){d.style.left=(8+i*9)+'%';d.style.top='52%';}
-  else if(side==='enemy'){d.style.left=(62-i*9)+'%';d.style.top='40%';}
-  else{d.style.left='44%';d.style.top='30%';}
-  stage.appendChild(d);setTimeout(()=>d.remove(),1000);
+  // jitter para números de dano em área não ficarem empilhados/ilegíveis
+  const seq=_fctSeq++; const jx=(Math.random()*8-4)+(seq%3-1)*5; const jy=(Math.random()*16-8)-(seq%4)*4;
+  if(side==='hero'){d.style.left=clamp(8+i*9+jx,2,90)+'%';d.style.top=clamp(52+jy,20,80)+'%';}
+  else if(side==='enemy'){d.style.left=clamp(62-i*9+jx,2,92)+'%';d.style.top=clamp(40+jy,12,72)+'%';}
+  else{d.style.left=clamp(44+jx,2,92)+'%';d.style.top=clamp(30+jy,8,70)+'%';}
+  stage.appendChild(d);setTimeout(()=>d.remove(),1050);
 }
 /* ====================== JUICE: partículas, bursts, cards ====================== */
 function burstAt(side,i,color){const stage=$('#stage');if(!stage)return;
@@ -3120,7 +3168,7 @@ function milestoneCheck(){
 }
 function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=2?`<span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:'';}
 
-function grantGold(n){let m=0.32;if(G.meta.flags.off_gold)m+=0.45;if(G.meta.research.meta_gold)m+=0.45;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso
+function grantGold(n){let m=0.22;if(G.meta.flags.off_gold)m+=0.4;if(G.meta.research.meta_gold)m+=0.4;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
 // TETO de raridade por profundidade: nada de lendário/épico nos andares rasos,
 // nem mesmo de baús/segredos forçados. Achados raros são EVENTO de andar fundo.
