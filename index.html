@@ -150,6 +150,19 @@ canvas{image-rendering:pixelated;}
   box-shadow:var(--shadow);animation:tin .35s ease, tout .4s ease 2.4s forwards;display:flex;gap:9px;align-items:center;}
 @keyframes tin{from{opacity:0;transform:translateY(14px) scale(.9);}to{opacity:1;transform:none;}}
 @keyframes tout{to{opacity:0;transform:translateY(-8px);}}
+/* cartão de drop bonito (canto da cena, não no log nem no meio) */
+#dropStream{position:absolute;right:8px;top:38px;z-index:40;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:62%;}
+.drop-card{display:flex;align-items:center;gap:9px;padding:7px 11px 7px 8px;border-radius:12px;border:2px solid var(--gold);
+  background:linear-gradient(100deg,rgba(20,16,30,.96),rgba(36,28,52,.96));box-shadow:0 6px 22px rgba(0,0,0,.55);
+  animation:dropIn .45s cubic-bezier(.2,1.4,.4,1), dropOut .5s ease 2.3s forwards;backdrop-filter:blur(2px);}
+.drop-card .di{width:40px;height:40px;flex:0 0 40px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  font-size:24px;background:rgba(0,0,0,.35);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);overflow:hidden;}
+.drop-card .di canvas{image-rendering:pixelated;}
+.drop-card .dn{font-family:Cinzel,serif;font-weight:700;font-size:13px;line-height:1.15;}
+.drop-card .dr{font-size:10px;letter-spacing:.4px;text-transform:uppercase;opacity:.9;}
+.drop-card .dtag{font-size:9px;opacity:.7;}
+@keyframes dropIn{from{opacity:0;transform:translateX(40px) scale(.9);}to{opacity:1;transform:none;}}
+@keyframes dropOut{to{opacity:0;transform:translateX(30px) scale(.96);}}
 
 .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px;}
 .item{position:relative;background:var(--panel-2);border:1px solid var(--line-soft);border-radius:11px;
@@ -509,8 +522,8 @@ const HEROES=[
  pal:{H:'#caa15a',S:'#f0c08a',e:'#3a2330',K:'#f0c08a',A:'#3f6e4a',B:'#d8b76a',P:'#5a4a32',O:'#2e2218',M:'#cfd6dd',W:'#7a5a36'},
  base:{hp:42,atk:8,def:6,mag:5,spd:9,lck:8},
  growth:{hp:7,atk:1.4,def:1.1,mag:1,spd:1.4,lck:1.2},
- passive:{name:'Cartografia Viva',tags:{mapBonus:0.18,secretFind:0.15},
-   desc:'Mapeia a Adranja enquanto explora. Cada andar fica +18% mais familiar (exploração mais rápida e segura) e +15% chance de revelar passagens secretas. O conhecimento do mapa é permanente.'},
+ passive:{name:'Cartografia Viva',tags:{mapBonus:0.18,secretFind:0.15,trapEvade:0.4},
+   desc:'Mapeia a Adranja enquanto explora: +18% de familiaridade por andar, +15% de revelar passagens secretas e <b>40% de detectar e desarmar armadilhas</b>. O conhecimento do mapa é permanente.'},
  skills:[
   SK('Lâmina de Bússola',2,'phys',1.3,'one',{txt:'Golpe preciso guiado pelo norte.'}),
   SK('Olho do Topógrafo',4,'buff',0,'allies',{fx:'scout',txt:'Revela a sala à frente; +crítico do grupo.'}),
@@ -836,12 +849,43 @@ const EXTRA_SKILLS={
   mascarado:[ SK('Mil Lâminas Emprestadas',0,'phys',0.7,'all',{fx:'triple',txt:'As armas de todos, ao mesmo tempo.'}),
     SK('A Última Máscara',0,'mag',4.6,'all',{el:'sombrio',fx:'execute',txt:'Tira a máscara. Não há nada por baixo.'}) ],
 };
-const SKILL_LEVELS=[1,4,8,13,18,24,30,37,45,54];
-function skillLevelFor(i){ return i<SKILL_LEVELS.length?SKILL_LEVELS[i]:SKILL_LEVELS[SKILL_LEVELS.length-1]+(i-SKILL_LEVELS.length+1)*9; }
+// HABILIDADE SUPREMA (capstone) por herói — liberada bem fundo na jornada
+const CAPSTONE_SKILLS={
+  cartografo:SK('Mapa do Fim',0,'mag',5.0,'all',{el:'arcano',fx:'execute',txt:'Risca da existência tudo que está mapeado.'}),
+  guerreiro:SK('Lenda Imortal',0,'phys',5.2,'all',{fx:'execute',txt:'Um golpe que ecoa por mil batalhas.'}),
+  maga:SK('Fim dos Tempos',0,'mag',5.8,'all',{el:'fogo',fx:'burn',txt:'O universo recomeça em chamas.'}),
+  ladina:SK('Lâmina do Vazio',0,'phys',5.0,'all',{el:'sombrio',fx:'execute',txt:'Mil cortes em silêncio absoluto.'}),
+  cleriga:SK('Ressurreição Divina',0,'heal',4.0,'allies',{fx:'revive',txt:'Ergue os caídos e cura o grupo inteiro.'}),
+  cacador:SK('Tiro do Apocalipse',0,'phys',5.6,'one',{fx:'critmax',txt:'Uma flecha. Um fim.'}),
+  barbaro:SK('Ragnarök',0,'phys',5.4,'all',{fx:'execute',txt:'A fúria que encerra eras.'}),
+  necromante:SK('Apocalipse dos Mortos',0,'mag',5.0,'all',{el:'sombrio',fx:'lifesteal',txt:'Toda a morte responde ao seu chamado.'}),
+  paladino:SK('Julgamento Celestial',0,'mag',5.2,'all',{el:'sagrado',fx:'stun',txt:'O céu desce em juízo.'}),
+  arqueiro:SK('Chuva do Crepúsculo',0,'mag',5.0,'all',{el:'arcano',fx:'crit+',txt:'O firmamento inteiro é sua aljava.'}),
+  alquimista:SK('Transmutação Final',0,'mag',5.4,'all',{el:'fogo',fx:'burn',txt:'Transforma os inimigos em pó dourado.'}),
+  monge:SK('Punho do Vazio',0,'phys',5.6,'one',{fx:'stun',txt:'Um soco que para corações e estrelas.'}),
+  invocador:SK('Avatar Primordial',0,'mag',5.4,'all',{el:'fogo',fx:'burn',txt:'Invoca a fúria de todos os elementos.'}),
+  bardo:SK('Sinfonia do Apocalipse',0,'mag',5.0,'all',{el:'arcano',fx:'slow',txt:'A última canção que o mundo ouvirá.'}),
+  druida:SK('Ira de Gaia',0,'mag',5.4,'all',{el:'veneno',fx:'poison',txt:'A própria natureza se levanta para punir.'}),
+  cavaleiro_sombrio:SK('Eclipse Eterno',0,'phys',5.6,'all',{el:'sombrio',fx:'execute',txt:'A escuridão engole toda a luz.'}),
+  domadora:SK('A Grande Caçada',0,'phys',5.0,'all',{fx:'lifesteal',txt:'Toda a vida selvagem caça ao seu lado.'}),
+  cronomante:SK('Reinício Universal',0,'mag',5.8,'all',{el:'arcano',fx:'slow',txt:'Rebobina o tempo até o fim de tudo.'}),
+  geomante:SK('Gênese',0,'mag',5.6,'all',{el:'terra',fx:'stun',txt:'Refaz o mundo do zero — sobre os inimigos.'}),
+  andarilho:SK('O Fim',0,'mag',6.2,'all',{el:'sombrio',fx:'execute',txt:'Não há mais nada. Nunca houve.'}),
+  relojoeiro:SK('Hora Zero',0,'mag',5.6,'all',{el:'arcano',fx:'stun',txt:'Todos os relógios param. Para sempre.'}),
+  gladiadora:SK('Imperatriz da Arena',0,'phys',5.6,'all',{fx:'execute',txt:'A arena inteira se ajoelha.'}),
+  pestilenta:SK('Extinção',0,'mag',5.4,'all',{el:'veneno',fx:'poison',txt:'Uma praga que não deixa sobreviventes.'}),
+  oracula:SK('O Último Vislumbre',0,'mag',6.0,'all',{el:'arcano',fx:'execute',txt:'Ela vê o fim de todos — e o concretiza.'}),
+  mascarado:SK('Sem Rosto, Sem Fim',0,'mag',6.0,'all',{el:'sombrio',fx:'execute',txt:'Veste mil mortes ao mesmo tempo.'}),
+};
+// níveis de liberação MUITO mais espaçados (o jogo vai ao Andar 200; heróis sobem por muitas incursões)
+const SKILL_LEVELS=[1,5,11,18,27,38,52,68,90];
+function skillLevelFor(i){ return i<SKILL_LEVELS.length?SKILL_LEVELS[i]:SKILL_LEVELS[SKILL_LEVELS.length-1]+(i-SKILL_LEVELS.length+1)*15; }
 (function expandSkills(){
   HEROES.forEach(h=>{
     const ex=EXTRA_SKILLS[h.id]||[];
+    const cap=CAPSTONE_SKILLS[h.id];
     h.skills=h.skills.concat(ex.map(s=>Object.assign({},s)));
+    if(cap)h.skills.push(Object.assign({},cap));
     h.skills.forEach((sk,i)=>{ sk.lvl=skillLevelFor(i); });
   });
 })();
@@ -2410,6 +2454,22 @@ function sceneSpark(side,i,color){const stage=$('#stage');if(!stage)return;
     p.style.left=x+'%';p.style.top=y+'%';const ang=Math.random()*6.28,d=8+Math.random()*16;
     p.style.setProperty('--dx',Math.cos(ang)*d+'px');p.style.setProperty('--dy',Math.sin(ang)*d+'px');
     p.style.background=color||'#fff';stage.appendChild(p);setTimeout(()=>p.remove(),720);}}
+/* cartão de drop animado no canto da cena (bonito, fora do log) */
+function lootCard(id,tag){const it=IMAP[id];if(!it)return;
+  const stage=$('#stage');let host=$('#dropStream');
+  if(!host){host=document.createElement('div');host.id='dropStream';(stage||document.body).appendChild(host);}
+  const col=RAR_COLOR[it.rarity]||'#ffd166';
+  const card=document.createElement('div');card.className='drop-card';card.style.borderColor=col;
+  card.innerHTML=`<div class="di" data-dropico></div><div><div class="dn" style="color:${col}">${it.name}</div>
+    <div class="dr" style="color:${col}">${RAR_NAME[it.rarity]||it.rarity}${tag?` · <span class="dtag">${tag}</span>`:''}</div></div>`;
+  host.appendChild(card);
+  const ic=card.querySelector('[data-dropico]');
+  if(it.grid&&typeof spriteCanvas==='function'){try{mountCanvas(ic,spriteCanvas(it.grid,it.pal,2));}catch(e){ic.textContent=it.icon;}}
+  else ic.textContent=it.icon;
+  setTimeout(()=>card.remove(),2900);
+  // mantém no máximo 4 cartões visíveis
+  while(host.children.length>4)host.firstChild.remove();
+}
 function lootBurst(rarity){if(RARS.indexOf(rarity)<2&&rarity!=='secreto')return; // só raridade alta
   let host=$('#lootFx');if(!host){host=document.createElement('div');host.id='lootFx';document.body.appendChild(host);}
   const col=RAR_COLOR[rarity]||'#ffd166';
@@ -2466,10 +2526,10 @@ function stepBegin(){
 function computeRooms(){
   const fam=G.meta.mapKnowledge[RUN.floor]||0;
   // andares bem mais longos e que crescem com a profundidade
-  let base=7+Math.min(RUN.floor,14)+ri(0,3);
-  base=Math.round(base*(1-fam*0.18));            // mapa conhecido ajuda só um pouco
+  let base=10+Math.min(RUN.floor,24)+ri(1,4);
+  base=Math.round(base*(1-fam*0.15));            // mapa conhecido ajuda só um pouco
   if(RUN.passive.alterFloor)base=Math.round(base*(1-RUN.passive.alterFloor));
-  return Math.max(6,base);
+  return Math.max(9,base);
 }
 function gainFamiliarity(amt){
   const m=1+(RUN.passive.mapBonus||0);
@@ -2716,8 +2776,9 @@ function grantMaterial(minRar){
   // tende ao material da raridade sorteada
   const exact=ITEMS.filter(i=>i.type==='mat'&&i.rarity===rar);
   const it=pick(exact.length?exact:pool);
-  if(!it)return;let qty=1;if(G.meta.research.meta_mat&&chance(0.3))qty=2;addItem(it.id,qty);logline('🧱 +'+qty+' '+it.icon+' '+it.name+' ('+RAR_NAME[it.rarity]+')','lt');
-  sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');toast('🧱 '+it.icon+' '+it.name,it.rarity);
+  if(!it)return;let qty=1;if(G.meta.research.meta_mat&&chance(0.3))qty=2;addItem(it.id,qty);logline('🧱 +'+qty+' '+it.name+' ('+RAR_NAME[it.rarity]+')','lt');
+  sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');
+  if(typeof RUN!=='undefined'&&RUN&&RARS.indexOf(it.rarity)>=2)lootCard(it.id,'material ×'+qty); else toast('🧱 '+it.name,it.rarity);
 }
 function grantEquipment(minRar){
   const rar=rarityRoll(minRar);
@@ -2725,8 +2786,9 @@ function grantEquipment(minRar){
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar));
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i));
   const it=pick(pool);addItem(it.id,1);
-  logline('🎁 Equipamento: '+it.icon+' <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b>!','lt');
-  sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);toast('🎁 '+it.icon+' '+it.name,it.rarity);
+  logline('🎁 Equipamento: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b>!','lt');
+  sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);
+  if(typeof RUN!=='undefined'&&RUN)lootCard(it.id,'equipamento'); else toast('🎁 '+it.name,it.rarity);
 }
 function grantSecretKey(){
   // decide qual chave secreta dropar
