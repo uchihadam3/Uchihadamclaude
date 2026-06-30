@@ -322,6 +322,7 @@ function setupInput(){
   addEventListener('mouseup',e=>{ MOUSE.down[e.button]=false; });
   addEventListener('mousemove',e=>{ if(MOUSE.locked){ MOUSE.dx+=e.movementX; MOUSE.dy+=e.movementY; } });
   document.addEventListener('pointerlockchange',()=>{ MOUSE.locked=(document.pointerLockElement===cv); });
+  ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{ onResize(); if(typeof checkOrientation==='function')checkOrientation(); }));
   cv.addEventListener('contextmenu',e=>e.preventDefault());
   addEventListener('wheel',e=>{ if(GAME.state==='play'&&player) player.cycleWeapon(e.deltaY>0?1:-1); },{passive:true});
 }
@@ -1134,6 +1135,20 @@ function tryInteract(){ const it=GAME.interact; if(!it)return;
    SETTINGS / SAVE
    ============================================================================ */
 const SETTINGS={sens:1.0, music:0.5, sfx:0.6};
+
+/* ===== Fullscreen ===== */
+const Fullscreen={
+  supported(){ const e=document.documentElement; return !!(e.requestFullscreen||e.webkitRequestFullscreen||e.msRequestFullscreen); },
+  active(){ return !!(document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement); },
+  toggle(){ try{
+    if(this.active()){ (document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen).call(document); }
+    else { const e=document.documentElement; (e.requestFullscreen||e.webkitRequestFullscreen||e.msRequestFullscreen).call(e); }
+  }catch(err){} },
+  label(){ return this.active()?'EXIT FULLSCREEN':'ENTER FULLSCREEN'; },
+};
+function toggleFullscreen(reRender){ Fullscreen.toggle();
+  // re-render the open menu shortly after, so the label updates
+  if(reRender) setTimeout(()=>{ if(reRender==='title')Menus.title(); else if(reRender==='settings')Menus.settings(); else if(reRender==='pause')Menus.pause(); }, 120); }
 const SAVE_KEY='eotv_save_v1';
 function saveGame(){ if(!player)return; try{ localStorage.setItem(SAVE_KEY, JSON.stringify({
   attr:player.attr, level:player.level, echoes:player.echoes, flasks:player.maxFlasks,
@@ -1197,8 +1212,9 @@ const Menus={
         <button class="btn ${cont?'':'primary'}" onclick="Menus.origins()">${cont?'NEW JOURNEY':'BEGIN'}</button>
         <button class="btn" onclick="Menus.help()">CONTROLS</button>
         <button class="btn" onclick="Menus.settings()">SETTINGS</button>
+        ${Fullscreen.supported()?`<button class="btn" onclick="toggleFullscreen('title')">${Fullscreen.label()}</button>`:''}
       </div>
-      <div style="margin-top:18px;color:var(--dim);font-size:12px;letter-spacing:2px">v1 · headphones recommended</div>
+      <div style="margin-top:18px;color:var(--dim);font-size:12px;letter-spacing:2px">v1 · headphones recommended · fullscreen supported</div>
     </div></div>`; },
   origins(){ let sel=ORIGINS[0].id;
     this.el().innerHTML=`<div class="scrim"><div class="frame">
@@ -1252,12 +1268,14 @@ const Menus={
         <div class="kv"><span>Music Volume</span><input type="range" min="0" max="1" step="0.05" value="${SETTINGS.music}" oninput="SETTINGS.music=+this.value;Audio.setMusic(+this.value)"></div>
         <div class="kv"><span>SFX Volume</span><input type="range" min="0" max="1" step="0.05" value="${SETTINGS.sfx}" oninput="SETTINGS.sfx=+this.value;Audio.setSfx(+this.value)"></div>
       </div>
+      ${Fullscreen.supported()?`<button class="btn" style="margin-bottom:10px" onclick="toggleFullscreen('settings')">${Fullscreen.label()}</button>`:''}
       <button class="btn primary" onclick="(GAME.state==='play'?Menus.pause():Menus.title())">BACK</button></div></div>`; },
   pause(){ GAME.paused=true; TouchControls.show(false); if(document.exitPointerLock)document.exitPointerLock();
     this.el().innerHTML=`<div class="scrim"><div class="frame">
       <h2 class="cz" style="font-size:34px;letter-spacing:6px">PAUSED</h2>
       <div class="col" style="max-width:280px;margin:18px auto">
         <button class="btn primary" onclick="Menus.resume()">RESUME</button>
+        ${Fullscreen.supported()?`<button class="btn" onclick="toggleFullscreen('pause')">${Fullscreen.label()}</button>`:''}
         <button class="btn" onclick="Menus.help()">CONTROLS</button>
         <button class="btn" onclick="Menus.settings()">SETTINGS</button>
         <button class="btn" onclick="saveGame();Menus.title()">SAVE & QUIT TO TITLE</button>
