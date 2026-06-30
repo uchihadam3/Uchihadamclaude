@@ -243,6 +243,8 @@ const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
 const chance=p=>Math.random()<p;
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const fmt=n=>{n=Math.round(n);return n>=1000?(n/1000).toFixed(n>=10000?0:1).replace('.0','')+'k':''+n;};
+// número EXATO com separador de milhar (ex.: 2.543) — usado em saldos de ouro/essência
+const bal=n=>{n=Math.round(n||0);return (''+n).replace(/\B(?=(\d{3})+(?!\d))/g,'.');};
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function weighted(map){ // map: {key:weight}
   let t=0;for(const k in map)t+=map[k];let r=Math.random()*t;
@@ -1796,8 +1798,8 @@ function render(){
 }
 function resBar(){
   return `<div class="res">
-    <span class="chip">💠 <b>${fmt(G.meta.essence)}</b> ess</span>
-    <span class="chip">🪙 <b>${fmt(G.meta.gold)}</b></span>
+    <span class="chip">💠 <b>${bal(G.meta.essence)}</b> ess</span>
+    <span class="chip">🪙 <b>${bal(G.meta.gold)}</b></span>
     <span class="chip">🏰 Andar máx <b>${G.meta.deepestFloor}</b></span>
   </div>`;
 }
@@ -2240,7 +2242,7 @@ function tabForge(b){
         ${max?'<span class="tiny" style="color:var(--gold)">★ Aprimoramento máximo</span>'
           :`<span class="tiny muted">🪙 ${upgGoldCost(it.id)} · ${IMAP[c.mat].icon}${invQty(c.mat)}/${c.qty}${upgEssCost(it.id)>0?` · 💠 ${upgEssCost(it.id)}`:''}</span>`}</div>
       ${max?'':`<button class="btn sm" ${can?'':'disabled'} onclick="doUpgrade('${it.id}')">Aprimorar +${lv+1}</button>`}</div>`;};
-  b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${fmt(G.meta.gold)} · 💠 ${fmt(G.meta.essence)}</span></div>
+  b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${bal(G.meta.gold)} · 💠 ${bal(G.meta.essence)}</span></div>
      <p class="muted small mt6">Crie e <b>aprimore</b> equipamento. Cada aprimoramento (+N) dá +14% nos atributos do item.</p></div>
      <div class="panel mb"><div class="row between"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${G.meta.research.forja5?'':' (Forja Mítica destrava +12)'}</span></div>
        <div class="col mt6">${owned.length?owned.map(upgCard).join(''):'<p class="muted small">Você ainda não tem equipamento. Crie abaixo ou ache na Adranja.</p>'}</div></div>
@@ -2306,7 +2308,7 @@ function tabMarket(b){
       <div style="flex:1"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny muted">tem ${invQty(g.id)}</span></div>
       <button class="btn sm" ${G.meta.gold>=g.gold?'':'disabled'} onclick="buyGood('${g.id}',${g.gold})">🪙${g.gold}</button></div>`;};
   const selN=SELL_SEL.size, selG=sellSelTotal();
-  b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🛒 Mercado</h3><span class="chip">🪙 <b>${fmt(G.meta.gold)}</b> ouro</span></div>
+  b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🛒 Mercado</h3><span class="chip">🪙 <b>${bal(G.meta.gold)}</b> ouro</span></div>
      <p class="muted small mt6">Venda o que sobra por ouro e compre materiais & consumíveis. O ouro também aprimora equipamento na Forja.</p></div>
      <div class="panel mb"><h4 class="mb">🪙 Comprar (com ouro)</h4><div class="col">${BUY_SHOP.map(buyCard).join('')}</div></div>
      <div class="panel"><h4 class="mb">💰 Vender em lote</h4>
@@ -2363,7 +2365,7 @@ function tabShrine(b){
   const essHeroes=HEROES.filter(h=>h.unlock&&h.unlock.type==='essence'&&!G.meta.heroes[h.id].unlocked);
   b.innerHTML=`<div class="panel parch mb"><h3>💠 Santuário de Cristal</h3>
      <p class="muted small mt6">A Essência condensa-se das almas da Adranja. Troque-a por heróis raros e poder permanente.</p>
-     <div class="row mt"><span class="chip">Você tem 💠 <b>${fmt(G.meta.essence)}</b> de Essência</span></div></div>
+     <div class="row mt"><span class="chip">Você tem 💠 <b>${bal(G.meta.essence)}</b> de Essência</span></div></div>
      <div class="panel mb"><h4 class="mb">🦸 Recrutar Heróis</h4>
        <div class="col">${essHeroes.length?essHeroes.map(h=>`<div class="recipe">
          <div class="rico">${h.icon}</div><div style="flex:1"><b>${h.name}</b> ${rarPill(h.rarity)}<br>
@@ -2657,7 +2659,7 @@ function renderDungeon(){
 /* navega para o acampamento SEM encerrar a incursão (ela continua no fundo) */
 function viewCamp(){ CUR.screen='camp'; renderCamp(); }
 function returnToRun(){ if(!RUN){go('camp');return;} CUR.screen='dungeon'; renderDungeon(); }
-function updateRunRes(){const e=$('#rEss'),g=$('#rGold'),k=$('#rKills');if(e)e.textContent=fmt(RUN.essence);if(g)g.textContent=fmt(RUN.gold);if(k)k.textContent=RUN.kills;
+function updateRunRes(){const e=$('#rEss'),g=$('#rGold'),k=$('#rKills');if(e)e.textContent=bal(RUN.essence);if(g)g.textContent=bal(RUN.gold);if(k)k.textContent=RUN.kills;
   const fam=$('#famChip');if(fam){const f=Math.round((G.meta.mapKnowledge[RUN.floor]||0)*100);fam.textContent='🗺️ '+f+'%';}
   updateFloorBadge();updateCampBanner();}
 function updateCampBanner(){ if(!RUN)return; const fl=$('#crbFloor'); if(fl)fl.textContent='🏰 Andar '+RUN.floor;
@@ -2862,7 +2864,7 @@ function workshopHTML(){
   // mini oficina: criar itens disponíveis enquanto explora
   const avail=RECIPES.filter(r=>hasResearch(r.research));
   return `<div class="panel mt6"><div class="row between"><h4>🛠️ Oficina de Campo</h4>
-    <span class="chip">💠 ${fmt(G.meta.essence)}</span></div>
+    <span class="chip">💠 ${bal(G.meta.essence)}</span></div>
     <p class="muted tiny mt6">Crie itens sem parar a exploração. Pesquisas continuam no acampamento.</p>
     <div class="col mt6" style="max-height:180px;overflow:auto">
     ${avail.map(r=>{const out=IMAP[r.out];const can=canAfford(r.cost);
@@ -3118,7 +3120,7 @@ function milestoneCheck(){
 }
 function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=2?`<span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:'';}
 
-function grantGold(n){let m=0.4;if(G.meta.flags.off_gold)m+=0.5;if(G.meta.research.meta_gold)m+=0.5;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso
+function grantGold(n){let m=0.32;if(G.meta.flags.off_gold)m+=0.45;if(G.meta.research.meta_gold)m+=0.45;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
 // TETO de raridade por profundidade: nada de lendário/épico nos andares rasos,
 // nem mesmo de baús/segredos forçados. Achados raros são EVENTO de andar fundo.
