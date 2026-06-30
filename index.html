@@ -1589,7 +1589,7 @@ function drawHomeArt(){
 /* ====================== ACAMPAMENTO ====================== */
 const CAMP_TABS=[
   ['esquadrao','⚔️ Esquadrão'],['equipar','🎒 Equipar'],['forja','🔨 Forja'],
-  ['mercado','🛒 Mercado'],['biblioteca','📚 Biblioteca'],['santuario','💠 Santuário'],['codex','📖 Códex']
+  ['mercado','🛒 Mercado'],['biblioteca','📚 Biblioteca'],['santuario','💠 Santuário'],['codex','📖 Códex'],['ajuda','❓ Ajuda']
 ];
 function renderCamp(){
   if(!CAMP_TABS.find(t=>t[0]===CUR.tab))CUR.tab='esquadrao';
@@ -1615,7 +1615,7 @@ function renderCamp(){
 }
 function renderTab(){
   const b=$('#tabBody');if(!b)return;
-  ({esquadrao:tabSquad,equipar:tabEquip,forja:tabForge,mercado:tabMarket,biblioteca:tabLibrary,santuario:tabShrine,codex:tabCodex}[CUR.tab]||tabSquad)(b);
+  ({esquadrao:tabSquad,equipar:tabEquip,forja:tabForge,mercado:tabMarket,biblioteca:tabLibrary,santuario:tabShrine,codex:tabCodex,ajuda:tabHelp}[CUR.tab]||tabSquad)(b);
   mountSprites();
 }
 
@@ -1689,10 +1689,11 @@ function buyEssenceHero(id){const h=HMAP[id];const cost=h.unlock.v;const reqF=h.
 function openHero(id){
   const h=HMAP[id],st=G.meta.heroes[id],lv=heroMaxLevel(id);
   const s=heroStats(id,lv);const inParty=G.meta.party.includes(id);
-  const skills=h.skills.map(sk=>{const known=sk.lvl<=lv;
-    return `<div class="slotline" style="${known?'':'opacity:.45'}">
-      <div class="sl-ico">${known?'✦':'🔒'}</div>
-      <div class="sl-n"><b>${sk.n}</b> <span class="tiny muted">Nv ${sk.lvl}${known?' · aprendida':''}</span><br><span class="tiny">${sk.txt||skKindLabel(sk)}</span></div></div>`;
+  const skills=h.skills.map((sk,si)=>{const known=sk.lvl<=lv;
+    return `<div class="slotline clickable" style="${known?'':'opacity:.45'};cursor:pointer" onclick="openSkillInfo('${id}',${si})">
+      <div class="sl-ico">${known?skKindIcon(sk):'🔒'}</div>
+      <div class="sl-n"><b>${sk.n}</b> <span class="tiny muted">Nv ${sk.lvl}${known?' · aprendida':''}</span><br><span class="tiny">${sk.txt||skKindLabel(sk)}</span></div>
+      <span class="tiny muted" style="align-self:center">ⓘ</span></div>`;
   }).join('');
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
     return `<div class="slotline"><div class="sl-ico">${it?it.icon:slotIcon(sl)}</div>
@@ -1725,6 +1726,44 @@ function openHero(id){
   const big=$('[data-sprite-big]');if(big)mountCanvas(big,heroSprite(h,7));
 }
 function skKindLabel(sk){return {phys:'Dano físico',mag:'Dano mágico',heal:'Cura',buff:'Suporte'}[sk.kind]||'';}
+function skKindIcon(sk){return {phys:'⚔️',mag:'🔮',heal:'💚',buff:'🜂'}[sk.kind]||'✦';}
+const SK_TGT_DESC={one:'um inimigo',all:'todos os inimigos',ally:'o aliado mais ferido',allies:'todo o grupo',self:'o próprio herói'};
+const SK_FX_DESC={
+  double:'Atinge 2 vezes.',triple:'Atinge 3 vezes.',combo:'Encadeia golpes.',
+  burn:'Causa Queimadura (dano por turno).',poison:'Causa Veneno (dano por turno).',
+  slow:'Reduz a velocidade do alvo.',stun:'Atordoa (alvo perde o turno).',curse:'Amaldiçoa (alvo recebe +25% de dano).',
+  execute:'Executa inimigos com pouca vida.','crit+':'+30% de chance de crítico neste golpe.',
+  critmax:'Próximos golpes são críticos garantidos.',lifesteal:'Rouba vida proporcional ao dano.',
+  shift:'Transforma-se em fera (mais ataque).',revive:'Ressuscita um aliado caído.',
+  taunt:'Atrai os ataques e resiste a eles.',shield:'Escudo no grupo (−50% de dano).',
+  resist:'Reduz o dano recebido pelo grupo.',atkup:'+18% de ataque do grupo.',
+  allup:'+ todos os atributos do grupo.',haste:'+30% de velocidade do grupo.',
+  evade:'Prepara uma esquiva.',dodgeup:'Aumenta a esquiva.',phase:'Chance de ignorar golpes.',
+  timestop:'Congela o tempo: inimigos perdem o turno.',summon:'Invoca um aliado para lutar.',
+  trap:'Prende o inimigo mais forte.',sacrifice:'Sacrifica vida por dano massivo.','secret+':'Procura ativamente passagens secretas.'
+};
+function skillFullDesc(sk){
+  const parts=[];
+  parts.push('<b>Tipo:</b> '+skKindLabel(sk));
+  if(sk.kind==='phys'||sk.kind==='mag'){
+    const p=sk.pow||1; const tier=p>=2.4?'devastador':p>=1.6?'forte':p>=1.1?'médio':'rápido';
+    parts.push('<b>Poder:</b> ×'+p.toFixed(1)+' ('+tier+')');
+  } else if(sk.kind==='heal'){ parts.push('<b>Poder de cura:</b> ×'+(sk.pow||1).toFixed(1)); }
+  if(sk.tgt)parts.push('<b>Alvo:</b> '+(SK_TGT_DESC[sk.tgt]||sk.tgt));
+  if(sk.el)parts.push('<b>Elemento:</b> '+sk.el);
+  if(sk.fx&&SK_FX_DESC[sk.fx])parts.push('<b>Efeito:</b> '+SK_FX_DESC[sk.fx]);
+  return parts.join('<br>');
+}
+function openSkillInfo(heroId,si){
+  const h=HMAP[heroId];const sk=h.skills[si];if(!sk)return;const lv=heroMaxLevel(heroId);const known=sk.lvl<=lv;
+  openModal(`<div class="center"><div style="font-size:40px">${skKindIcon(sk)}</div>
+    <h3>${sk.n}</h3>
+    <div class="row center" style="justify-content:center;gap:6px"><span class="chip">Nível ${sk.lvl}</span>${known?'<span class="chip" style="color:var(--ok)">aprendida</span>':'<span class="chip" style="color:var(--bad)">bloqueada</span>'}</div></div>
+    <p class="small mt" style="text-align:center">${sk.txt||skKindLabel(sk)}</p>
+    <div class="panel mt" style="text-align:left">${skillFullDesc(sk)}</div>
+    ${known?'':`<p class="tiny muted mt6 center">Liberada quando ${h.name.split(',')[0]} alcançar o Nível ${sk.lvl}.</p>`}
+    <div class="row mt" style="justify-content:center"><button class="btn ghost" onclick="openHero('${heroId}')">← Voltar ao herói</button></div>`);
+}
 function slotIcon(sl){return {arma:'🗡️',armadura:'👕',acessorio:'💍',talisma:'📿'}[sl];}
 function slotLabel(sl){return SLOT_LABEL[sl]||cap(sl);}
 
@@ -1925,6 +1964,25 @@ function buyOffering(flag,cost){if(G.meta.essence<cost){toast('Essência insufic
   G.meta.essence-=cost;G.meta.flags[flag]=true;saveGame();toast('✨ Oferenda aceita!','epico');renderTab();}
 
 /* ---- TAB CÓDEX ---- */
+function tabHelp(b){
+  const sec=(t,body)=>`<div class="panel mb"><h4>${t}</h4><div class="small mt6">${body}</div></div>`;
+  b.innerHTML=`
+   <div class="panel parch mb"><h3>❓ Como Jogar Adranja</h3>
+     <p class="small muted mt6">Adranja é um <b>RPG roguelike automático</b>: você monta a equipe e equipa os heróis no acampamento; dentro da masmorra eles exploram, lutam e decidem <b>sozinhos</b>. Você não precisa clicar em nada durante a incursão — só assistir, ajustar a velocidade e voltar ao acampamento quando quiser.</p></div>
+   ${sec('🗺️ A Incursão (Dungeon)',`Cada incursão desce por andares cada vez mais perigosos (até o <b>Andar 200</b>). Cada andar tem várias salas: combates, tesouros, armadilhas, eventos, fontes, altares e o mercador errante — tudo resolvido automaticamente. A cada <b>5 andares</b> há um <b>Chefe</b>. Quanto mais fundo, mais forte. Você pode recuar a qualquer momento sem perder nada.`)}
+   ${sec('🔥 Sequência (Combo)',`Toda vez que você limpa um andar <b>sem ninguém morrer</b>, sua <b>Sequência</b> aumenta. Quanto maior a sequência, <b>mais Essência</b> você ganha ao concluir cada andar (até +60%). Se a party é dizimada, a sequência zera. É um incentivo para descer com cuidado e manter todos vivos.`)}
+   ${sec('💀 Morte é permanente? Não!',`Quando a party cai, vocês voltam ao acampamento. <b>Você mantém tudo</b>: níveis, habilidades, itens, ouro, essência e segredos. Os heróis <b>nunca voltam ao nível 1</b>. Cada incursão te deixa permanentemente mais forte — morrer faz parte do progresso.`)}
+   ${sec('⭐ Nível & Habilidades',`Os heróis ganham XP em combate e sobem de nível <b>permanentemente</b>. Novas habilidades são liberadas em níveis cada vez mais altos. Em combate a IA escolhe a melhor ação: cura quem está ferido, ressuscita aliados, usa buffs no início e foca os golpes mais fortes. Clique em qualquer habilidade (no Esquadrão) para ver o que ela faz.`)}
+   ${sec('🎒 Equipamentos (7 tipos)',`Há <b>7 espaços</b>: Arma, Armadura, Elmo (cabeça), Bracelete (braço), Grevas (perna), Acessório e Talismã. Equipamentos dão atributos. Você consegue mais por drops, criando na Forja ou comprando no Mercado.`)}
+   ${sec('🔨 Forja & Aprimoramento',`Na Forja você <b>cria</b> itens com materiais e <b>aprimora</b> equipamentos (+1, +2...). Cada nível de aprimoramento dá +14% nos atributos do item. Aprimoramentos altos custam <b>ouro + materiais + Essência</b>.`)}
+   ${sec('🪙 Ouro & 💠 Essência',`<b>Ouro</b> é a moeda comum: compra itens no Mercado e paga aprimoramentos. <b>Essência</b> é a moeda mágica e mais rara: usada no Santuário (pesquisas e oferendas permanentes), com o Mercador Errante e em aprimoramentos de alto nível. Essência é valiosa — gaste com sabedoria.`)}
+   ${sec('⚓ Marés da Adranja',`Antes de entrar, a incursão recebe <b>4 marés</b>: sempre <b>2 bênçãos</b> (bônus) e <b>2 riscos</b> (penalidades). Elas mudam toda incursão, deixando cada partida única. A heroína <b>Oráculo</b> tem "Mestra das Marés": troca um risco por um bônus.`)}
+   ${sec('🪤 Armadilhas & Segredos',`Armadilhas ferem o grupo. Alguns heróis (como o Cartógrafo) têm chance de <b>detectar e desarmar</b> armadilhas. Pelos andares há <b>passagens secretas</b>, cofres proibidos, fontes, e <b>chefes secretos</b> opcionais que aparecem por chance na profundidade — derrotá-los revela equipamentos e heróis únicos.`)}
+   ${sec('🪜 Checkpoints',`Ao alcançar os andares <b>10, 20, 30...</b> pela primeira vez, você desbloqueia a opção de <b>iniciar a incursão direto daquele andar</b> (escolha na tela de início). Ótimo para treinar fundo sem repetir o começo.`)}
+   ${sec('⏩ Velocidade',`Ajuste a velocidade da incursão: <b>½x</b> (assistir com calma), 1x, 2x, 4x e <b>8x</b> (correr). Sua preferência é lembrada.`)}
+   ${sec('🌑 Duas Dungeons',`Além da Adranja (200 andares), existe a <b>Torre dos Tiranos</b>: 50 andares, <b>um chefe gigante por andar</b>, batalhas longas e brutais. Bem mais difícil — desbloqueie-a e enfrente-a quando estiver forte o bastante.`)}
+   <div class="panel"><p class="tiny muted center">Dica: deixe a party explorar enquanto você organiza o acampamento. Tudo que ela coleta vai direto para você.</p></div>`;
+}
 function tabCodex(b){
   const cdx=G.meta.codex; const kills=G.meta.bestiaryKills||{};
   const seenMon=MONSTERS.filter(m=>cdx.bestiary.includes(m.id)).length;
@@ -2015,44 +2073,56 @@ function rollTides(party){
   return good.slice(0,nGood).concat(bad.slice(0,nBad));
 }
 
+let RUN_PENDING=null;
 function startRunFlow(){
   if(RUN&&RUN.alive){ returnToRun(); return; }
   const party=G.meta.party.filter(id=>G.meta.heroes[id].unlocked);
   if(party.length===0){toast('Monte uma equipe primeiro.','warn');return;}
   Sound.init();Sound.resume();
   const tides=rollTides(party);
-  RUN_PENDING={party,tides};
-  openModal(`<h2 style="color:var(--gold)">⚓ Marés da Adranja</h2>
-    <p class="small muted">A masmorra se reorganiza. Sinta as correntes mágicas desta incursão:</p>
-    <div class="col mt">${tides.map(t=>`<div class="recipe" style="border-color:${t.good?'var(--ok)':'var(--bad)'}">
-       <div class="rico">${t.icon}</div><div style="flex:1"><b>${t.name}</b> ${t.good?'<span class="chip" style="color:var(--ok)">bônus</span>':'<span class="chip" style="color:var(--bad)">risco</span>'}<br>
-       <span class="tiny">${t.desc}</span></div></div>`).join('')}</div>
-    <div class="row mt"><button class="btn" onclick="confirmStartRun()">Entrar na Adranja ▶</button>
-    <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>
-    <p class="tiny muted mt6">Cada incursão é única — partidas diferentes, recompensas diferentes.</p>`);
+  RUN_PENDING={party,tides,startFloor:1};
+  showPreRunScreen();
 }
-let RUN_PENDING=null;
-function rerollAndShow(){RUN_PENDING.tides=rollTides();const p=RUN_PENDING.party,t=RUN_PENDING.tides;
-  startRunFlowShow(p,t);}
-function startRunFlowShow(party,tides){RUN_PENDING={party,tides};
+function rerollAndShow(){RUN_PENDING.tides=rollTides(RUN_PENDING.party);showPreRunScreen();}
+function setStartFloor(f){RUN_PENDING.startFloor=f;showPreRunScreen();}
+function cycleMerchAuto(){G.meta.settings=G.meta.settings||{};
+  const order=['smart','buy','skip'];const cur=G.meta.settings.merchantAuto||'smart';
+  G.meta.settings.merchantAuto=order[(order.indexOf(cur)+1)%order.length];saveGame();showPreRunScreen();}
+function startFloorOptions(){
+  const deep=G.meta.deepestFloor||1; const opts=[1];
+  for(let f=10;f<=Math.min(deep,200);f+=10)opts.push(f);   // checkpoints a cada 10 andares alcançados
+  return opts;
+}
+function showPreRunScreen(){
+  const {tides,startFloor}=RUN_PENDING;
+  const opts=startFloorOptions();
+  const merch=(G.meta.settings&&G.meta.settings.merchantAuto)||'smart';
+  const merchLabel={smart:'🧠 Inteligente (com reserva)',buy:'🛒 Comprar tudo que puder',skip:'🚫 Não comprar (poupar)'}[merch];
   openModal(`<h2 style="color:var(--gold)">⚓ Marés da Adranja</h2>
-    <p class="small muted">A masmorra se reorganiza. Sinta as correntes mágicas desta incursão:</p>
+    <p class="small muted">A masmorra se reorganiza. Sinta as correntes mágicas desta incursão — sempre <b style="color:var(--ok)">2 bênçãos</b> e <b style="color:var(--bad)">2 riscos</b>:</p>
     <div class="col mt">${tides.map(t=>`<div class="recipe" style="border-color:${t.good?'var(--ok)':'var(--bad)'}">
        <div class="rico">${t.icon}</div><div style="flex:1"><b>${t.name}</b> ${t.good?'<span class="chip" style="color:var(--ok)">bônus</span>':'<span class="chip" style="color:var(--bad)">risco</span>'}<br>
        <span class="tiny">${t.desc}</span></div></div>`).join('')}</div>
+    ${opts.length>1?`<div class="divider"></div><div class="row between"><b class="small">🪜 Começar do andar</b></div>
+      <div class="row wrap mt6">${opts.map(f=>`<button class="btn ${f===startFloor?'':'ghost'} sm" onclick="setStartFloor(${f})">${f===1?'Andar 1':'Andar '+f}</button>`).join('')}</div>
+      <p class="tiny muted mt6">Você desbloqueia checkpoints a cada 10 andares alcançados.</p>`:''}
+    <div class="divider"></div>
+    <div class="row between"><b class="small">🧙 Mercador Errante</b><button class="btn ghost sm" onclick="cycleMerchAuto()">${merchLabel}</button></div>
+    <p class="tiny muted mt6">Define o que o grupo faz ao encontrar o mercador (a dungeon é 100% automática).</p>
     <div class="row mt"><button class="btn" onclick="confirmStartRun()">Entrar na Adranja ▶</button>
-    <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>`);}
-function confirmStartRun(){closeModal();const{party,tides}=RUN_PENDING;
+    <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>`);
+}
+function confirmStartRun(){closeModal();const{party,tides,startFloor}=RUN_PENDING;
   G.meta.runs++;saveGame();
-  initRun(party,tides);
+  initRun(party,tides,startFloor||1);
   CUR.screen='dungeon';renderDungeon();
   RUN.speed=(G.meta.settings&&G.meta.settings.speed)||1;music('explore');
   setTimeout(()=>stepBegin(),700);
 }
-function initRun(party,tides){
+function initRun(party,tides,startFloor){
   RUN={
     party:party.map(buildCombatant),
-    floor:1, room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
+    floor:Math.max(1,startFloor||1), room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
     log:[], scene:{mode:'idle',enemies:[],walk:0,shake:0,flashEnemy:-1},
     passive:{}, alive:true, paused:false, speed:1, fxNodes:[],
     tides:tides||[], tideGold:1, tideTreasure:1, tideEnemyHp:1, tideEssence:1, tideHp:1, tideEvent:1, tideNoRest:0,
@@ -2457,23 +2527,27 @@ function encFountain(){
 }
 /* ---- ALTAR PROIBIDO (segredo) ---- */
 function encAltar(){
-  unlockSecret('altar_proibido');RUN.paused=true;
-  openModal(`<h3 class="tag-secret">🩸 Altar Proibido</h3>
-   <p class="small">Um altar sussurra promessas. "Dê-me vida e te darei poder..."</p>
-   <div class="col mt">
-     <button class="btn" onclick="altarChoose('blood')">🩸 Sacrificar 30% de PV → equipamento épico+</button>
-     <button class="btn ghost" onclick="altarChoose('ess')">💠 Oferecer essência (${20*RUN.floor}) → relíquia/material raro</button>
-     <button class="btn ghost" onclick="altarChoose('skip')">🚶 Ignorar e seguir</button>
-   </div>`);
+  // AUTOMÁTICO: o grupo decide sozinho conforme o estado (sem cliques)
+  unlockSecret('altar_proibido');RUN.scene.mode='idle';
+  logline('🩸 <b class="tag-secret">Altar Proibido</b> — "Dê-me vida e te darei poder..."','sc');
+  rtimeout(()=>{ altarChoose(altarAutoChoice()); },700);
 }
-function altarChoose(opt){closeModal();RUN.paused=false;
+function altarAutoChoice(){
+  const alive=RUN.party.filter(c=>c.alive);
+  const avgHp=alive.reduce((a,c)=>a+c.hp/c.maxhp,0)/Math.max(1,alive.length);
+  // grupo saudável sacrifica sangue por equipamento; senão oferece essência se sobrar; senão ignora
+  if(avgHp>0.6)return 'blood';
+  if(G.meta.essence>=20*RUN.floor*2)return 'ess';
+  return 'skip';
+}
+function altarChoose(opt){
   if(opt==='blood'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=Math.max(1,Math.round(c.hp*0.7));floatText('hero',i,'sacrifício','#c8324a');});refreshBars();
-    grantEquipment('epico');logline('🩸 O altar aceita o sangue. Um artefato materializa-se.','sc');}
-  else if(opt==='ess'){const cost=20*RUN.floor;if(G.meta.essence>=cost){G.meta.essence-=cost;
+    grantEquipment('epico');logline('🩸 O grupo oferece sangue ao altar. Um artefato materializa-se.','sc');}
+  else if(opt==='ess'){const cost=20*RUN.floor;if(G.meta.essence>=cost){G.meta.essence-=cost;updateRunRes();
     if(chance(0.25)){addItem('lampada_eterna',1);discover('items','lampada_eterna');logline('🏮 O altar concede uma RELÍQUIA MÍTICA!','sc');}
     else{grantMaterial('lendario');logline('💠 O altar concede um material raro.','sc');}saveGame();}
     else{logline('💠 Essência insuficiente. O altar silencia.','muted');}}
-  else logline('🚶 Você ignora o altar. Algo range nas sombras.','muted');
+  else logline('🚶 O grupo ignora o altar e segue em frente.','muted');
   rtimeout(advanceRoom,600);
 }
 /* ---- MERCADOR ERRANTE (segredo) ---- */
@@ -2483,29 +2557,39 @@ const MERCH_GOODS={
   bomb:{cost:35,label:'Bomba Arcana 💣',item:'bomba'}, heal:{cost:40,label:'Curar grupo agora ✨'},
 };
 function encMerchant(){
-  unlockSecret('mercador');RUN.paused=true;
-  // 3 ofertas ÚNICAS — cada uma só pode ser comprada uma vez
+  // AUTOMÁTICO: conforme a preferência definida antes da incursão (mercado do acampamento)
+  unlockSecret('mercador');RUN.scene.mode='idle';
+  logline('🧙 <b class="tag-secret">O Mercador Errante</b> surge das sombras. "Só aceito Essência, viajante..."','sc');
+  const mode=(G.meta.settings&&G.meta.settings.merchantAuto)||'smart';
+  rtimeout(()=>{ merchAutoBuy(mode); rtimeout(advanceRoom,500); },700);
+}
+function merchAutoBuy(mode){
+  if(mode==='skip'){logline('🧙 O grupo poupa Essência e segue viagem.','muted');return;}
   const keys=shuffle(Object.keys(MERCH_GOODS)).slice(0,3);
-  RUN._merch=keys.map(k=>({k,sold:false}));
-  renderMerchant();
-}
-function renderMerchant(){
-  const lines=RUN._merch.map((o,idx)=>{const g=MERCH_GOODS[o.k];const can=!o.sold&&G.meta.essence>=g.cost;
-    return `<button class="btn ghost" ${can?'':'disabled'} onclick="merchBuy(${idx})">${o.sold?'✔ comprado':('💠'+g.cost+' → '+g.label)}</button>`;}).join('');
-  openModal(`<h3 class="tag-secret">🧙 O Mercador Errante</h3>
-   <p class="small">Um vulto encapuzado abre seu manto cheio de bugigangas. "Só aceito Essência, viajante..."</p>
-   <div class="row mt"><span class="chip">💠 ${fmt(G.meta.essence)}</span></div>
-   <div class="col mt">${lines}<button class="btn" onclick="closeModal();RUN.paused=false;rtimeout(advanceRoom,400)">Seguir viagem</button></div>`);
-}
-function merchBuy(idx){const o=RUN._merch&&RUN._merch[idx];if(!o||o.sold)return;const g=MERCH_GOODS[o.k];
-  if(G.meta.essence<g.cost){toast('Essência insuficiente.','warn');return;}
-  G.meta.essence-=g.cost; o.sold=true;
-  if(o.k==='mat')grantMaterial('raro');
-  else if(o.k==='equip')grantEquipment();
-  else if(g.item)addItem(g.item,1);
-  else if(o.k==='heal'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#5fd17a');});refreshBars();}
-  saveGame();toast('🧙 Negócio fechado.','epico');
-  renderMerchant(); // re-renderiza: a opção comprada some
+  let bought=0;
+  keys.forEach(k=>{
+    const g=MERCH_GOODS[k]; if(G.meta.essence<g.cost)return;
+    let buy=false;
+    if(mode==='buy')buy=true;                    // compra tudo que puder pagar
+    else { // 'smart': compra com bom senso, sem torrar tudo
+      const alive=RUN.party.filter(c=>c.alive);
+      const avgHp=alive.reduce((a,c)=>a+c.hp/c.maxhp,0)/Math.max(1,alive.length);
+      const reserve=80+RUN.floor*6;              // mantém uma reserva de essência
+      if(G.meta.essence-g.cost<reserve)return;
+      if((k==='heal'||k==='potion'||k==='ether')&&avgHp<0.6)buy=true;
+      else if((k==='equip'||k==='mat')&&chance(0.5))buy=true;
+      else if(k==='bomb'&&chance(0.4))buy=true;
+    }
+    if(buy){ G.meta.essence-=g.cost; updateRunRes();
+      if(k==='mat')grantMaterial('raro');
+      else if(k==='equip')grantEquipment();
+      else if(g.item)addItem(g.item,1);
+      else if(k==='heal'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#5fd17a');});refreshBars();}
+      logline('🧙 Comprado: '+g.label+' (−'+g.cost+' 💠).','dn'); bought++;
+    }
+  });
+  if(!bought)logline('🧙 Nada que valha a Essência agora. O grupo segue.','muted');
+  saveGame();
 }
 /* ---- PASSAGEM SECRETA ---- */
 function encElite(){
