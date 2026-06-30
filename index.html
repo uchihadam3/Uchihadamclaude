@@ -265,6 +265,14 @@ h3{font-size:18px;}
 .recipe:hover{border-color:var(--line);}
 /* slotline mais definida */
 .slotline{transition:border-color .12s,background .12s;}
+/* ganhos do "equipar melhores" */
+.statgain{color:#7dff8f;font-family:'Cinzel',serif;font-weight:900;font-size:11px;margin-left:2px;
+  text-shadow:0 0 8px rgba(125,255,143,.6);animation:gainpop .45s ease;display:inline-block;}
+.gainbanner{margin-top:8px;padding:7px 11px;border-radius:10px;font-size:12.5px;
+  color:#bfffce;background:linear-gradient(180deg,rgba(95,209,122,.20),rgba(95,209,122,.08));
+  border:1px solid rgba(125,255,143,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.12);animation:gainpop .4s ease;}
+.gainbanner b{color:#7dff8f;}
+@keyframes gainpop{0%{opacity:0;transform:translateY(-4px) scale(.8);}60%{transform:translateY(0) scale(1.12);}100%{opacity:1;transform:scale(1);}}
 </style>
 </head>
 <body>
@@ -2036,10 +2044,15 @@ function openAudioSettings(){Sound.init();
     <p class="tiny muted mt6">Trilha e efeitos são gerados em tempo real no seu navegador.</p>`);}
 function audioToggle(btn){const on=Sound.toggle();btn.textContent=on?'🔊 Som Ligado':'🔇 Som Desligado';btn.classList.toggle('ghost',!on);if(on)applyMusic();
   const ab=document.querySelector('.audio-btn');if(ab)ab.textContent=on?'🔊':'🔇';}
-function closeModal(){$('#overlay').classList.remove('show');_nav=[];}
+let _equipGains=null;   // ganhos do "equipar melhores", mostrados até sair da ficha
+function closeModal(){$('#overlay').classList.remove('show');_nav=[];_equipGains=null;}
 $('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')navClose();});
 
-function statBar(lab,val,max,cls){return `<div class="stat-row"><span class="lab">${lab}</span><div class="bar ${cls||''}"><i style="width:${clamp(val/max*100,3,100)}%"></i></div><span class="vv">${Math.round(val)}</span></div>`;}
+const STAT_LBL={hp:'PV',atk:'ATQ',def:'DEF',mag:'MAG',spd:'VEL',lck:'SOR'};
+const LBL_ORDER=['hp','atk','def','mag','spd','lck'];
+function statBar(lab,val,max,cls,delta){
+  const dl=delta?` <span class="statgain">+${Math.round(delta)}</span>`:'';
+  return `<div class="stat-row"><span class="lab">${lab}</span><div class="bar ${cls||''}"><i style="width:${clamp(val/max*100,3,100)}%"></i></div><span class="vv">${Math.round(val)}</span>${dl}</div>`;}
 function rarPill(rar){return `<span class="rpill ${rar}">${RAR_NAME[rar]}</span>`;}
 
 /* stats efetivos de um herói num dado nível (com equipamento + pesquisas) */
@@ -2374,10 +2387,12 @@ function openHero(id){
         <h2 style="font-size:19px">${h.name}</h2>
         <div class="role muted small">${h.role} · Nível ${lv}</div>
         <div class="mt6">
-          ${statBar('PV',s.hp,Math.max(120,s.hp),'hpbar')}
-          ${statBar('ATQ',s.atk,40)}${statBar('DEF',s.def,40)}
-          ${statBar('MAG',s.mag,40)}${statBar('VEL',s.spd,30)}${statBar('SOR',s.lck,30)}
+          ${(()=>{const g=(_equipGains&&_equipGains.id===id)?_equipGains.d:{};
+            return statBar('PV',s.hp,Math.max(120,s.hp),'hpbar',g.hp)
+              +statBar('ATQ',s.atk,40,'',g.atk)+statBar('DEF',s.def,40,'',g.def)
+              +statBar('MAG',s.mag,40,'',g.mag)+statBar('VEL',s.spd,30,'',g.spd)+statBar('SOR',s.lck,30,'',g.lck);})()}
         </div>
+        ${(_equipGains&&_equipGains.id===id&&Object.keys(_equipGains.d).length)?`<div class="gainbanner">⚙️ Melhores equipados! ${LBL_ORDER.filter(k=>_equipGains.d[k]).map(k=>`<b>+${Math.round(_equipGains.d[k])} ${STAT_LBL[k]}</b>`).join('  ')}</div>`:''}
       </div>
     </div>
     <div class="panel" style="background:rgba(125,108,255,.12);border-color:var(--magic);padding:10px;margin-top:10px">
@@ -2451,6 +2466,7 @@ function freeFor(itemId,slot,heroId){return invQty(itemId)-equippedByOthers(item
 // equipa automaticamente o MELHOR item disponível em cada slot (respeitando o que está em outros heróis)
 function autoEquipBest(heroId){
   const st=G.meta.heroes[heroId];const mage=heroIsMage(heroId);let changed=0;
+  const lv=heroMaxLevel(heroId); const before=heroStats(heroId,lv);   // antes
   EQUIP_SLOTS.forEach(slot=>{
     const cands=Object.keys(G.meta.inventory).map(id=>IMAP[id])
       .filter(it=>it&&it.slot===slot&&freeFor(it.id,slot,heroId)>0)
@@ -2459,9 +2475,12 @@ function autoEquipBest(heroId){
     const best=cands[0];
     if(st.equip[slot]!==best.id){ st.equip[slot]=best.id; changed++; }
   });
+  const after=heroStats(heroId,lv);   // depois
+  const d={}; LBL_ORDER.forEach(k=>{const diff=Math.round((after[k]||0)-(before[k]||0));if(diff)d[k]=diff;});
+  _equipGains=(changed&&Object.keys(d).length)?{id:heroId,d}:null;
   saveGame();sfx(changed?'levelup':'click');
-  toast(changed?('⚙️ Melhores equipamentos colocados em '+changed+' espaço(s)!'):'Já está usando os melhores disponíveis.',changed?'epico':'warn');
-  _navGuard=true;try{openHero(heroId);}finally{_navGuard=false;}   // re-renderiza sem mexer na pilha de telas
+  if(!changed)toast('Já está usando os melhores disponíveis.','warn');
+  _navGuard=true;try{openHero(heroId);}finally{_navGuard=false;}   // re-renderiza mostrando os ganhos
 }
 // comparação candidato vs equipado atual no slot -> HTML de deltas (verde sobe / vermelho desce)
 function equipCompareHTML(slot,cand,heroId){
