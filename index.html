@@ -2688,7 +2688,7 @@ function descend(){
 function doEncounter(){
   if(!RUN.alive)return;
   // passagem secreta? (todos têm uma base; cresce com profundidade e passivas)
-  const secretFind=0.06+Math.min(RUN.floor,20)*0.004+(RUN.passive.secretFind||0)+(G.meta.research.meta_loot?0.05:0);
+  const secretFind=0.03+Math.min(RUN.floor,30)*0.0025+(RUN.passive.secretFind||0)*0.6+(G.meta.research.meta_loot?0.03:0);
   if(chance(secretFind)){return encSecretPassage();}
   // elite raro (chance pequena, cresce com a profundidade)
   if(RUN.floor>=6 && chance(0.025+Math.min(RUN.floor,40)*0.0015)){return encElite();}
@@ -2710,8 +2710,8 @@ function encTreasure(){
   const lootMult=1+(RUN.passive.lootBonus||0)+(G.meta.research.meta_loot?0.2:0);
   rtimeout(()=>{
     const gold=Math.round(ri(8,20)*RUN.floor*lootMult);grantGold(gold);
-    if(chance(0.26*lootMult))grantMaterial();
-    if(chance(0.07*lootMult))grantEquipment();
+    if(chance(0.18*lootMult))grantMaterial();
+    if(chance(0.04*lootMult))grantEquipment();
     advanceRoom();
   },700);
 }
@@ -2877,24 +2877,36 @@ function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=
 
 function grantGold(n){let m=0.4;if(G.meta.flags.off_gold)m+=0.5;if(G.meta.research.meta_gold)m+=0.5;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
-function rarityRoll(minRar){
+// TETO de raridade por profundidade: nada de lendário/épico nos andares rasos,
+// nem mesmo de baús/segredos forçados. Achados raros são EVENTO de andar fundo.
+function floorRarCap(f){
+  if(f<6)return 'comum';
+  if(f<12)return 'raro';
+  if(f<24)return 'epico';
+  if(f<40)return 'lendario';
+  if(f<60)return 'mitico';
+  if(f<90)return 'divino';
+  return 'celestial';
+}
+function rarityRoll(minRar,cap){
   // tabela EXTREMAMENTE avara — itens bons são raros de verdade; lendário+ é evento
   const f=(RUN&&RUN.floor)||1,bonus=(G.meta.research.meta_loot?1:0);
   const w={
-    comum:  Math.max(40,90-f*0.7),
-    raro:   16+f*0.28,
-    epico:  Math.max(0,(f-10)*0.20)+bonus*1.2,
-    lendario:Math.max(0,(f-22)*0.085)+bonus*0.4,
-    mitico: Math.max(0,(f-36)*0.04),
-    divino: Math.max(0,(f-60)*0.018),
-    celestial: Math.max(0,(f-95)*0.009),
+    comum:  Math.max(55,110-f*0.6),
+    raro:   12+f*0.22,
+    epico:  Math.max(0,(f-12)*0.13)+bonus*0.8,
+    lendario:Math.max(0,(f-26)*0.05)+bonus*0.25,
+    mitico: Math.max(0,(f-42)*0.022),
+    divino: Math.max(0,(f-68)*0.010),
+    celestial: Math.max(0,(f-100)*0.005),
   };
   let r=weighted(w);
   if(minRar){const order=RARS.indexOf(minRar);if(RARS.indexOf(r)<order)r=minRar;}
+  if(cap!==false){const c=floorRarCap(f);if(RARS.indexOf(r)>RARS.indexOf(c))r=c;}   // teto por andar
   return r;
 }
-function grantMaterial(minRar){
-  const rar=rarityRoll(minRar);
+function grantMaterial(minRar,cap){
+  const rar=rarityRoll(minRar,cap);
   let pool=ITEMS.filter(i=>i.type==='mat'&&RARS.indexOf(i.rarity)<=Math.max(RARS.indexOf(rar),1));
   // tende ao material da raridade sorteada
   const exact=ITEMS.filter(i=>i.type==='mat'&&i.rarity===rar);
@@ -2904,8 +2916,8 @@ function grantMaterial(minRar){
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');
   if(!(typeof RUN!=='undefined'&&RUN))toast('🧱 '+it.name,it.rarity);
 }
-function grantEquipment(minRar){
-  const rar=rarityRoll(minRar);
+function grantEquipment(minRar,cap){
+  const rar=rarityRoll(minRar,cap);
   let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar);
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar));
   if(!pool.length)pool=ITEMS.filter(i=>isEquip(i));
@@ -3046,7 +3058,7 @@ function encCombat(){
     RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c, total/alive));
     grantGold(Math.round(ri(4,10)*RUN.floor));
     RUN.kills+=enemies.length;G.meta.totalKills+=enemies.length;
-    if(chance(0.15))grantMaterial();if(chance(0.022))grantEquipment();
+    if(chance(0.10))grantMaterial();if(chance(0.012))grantEquipment();
     checkUnlocks();saveGame();advanceRoom();
   }});
 }
@@ -3069,7 +3081,7 @@ function onBossWin(boss,e){
   // recompensa por vencer o chefe: cura parcial do grupo (sobreviver ao chefe permite seguir adiante)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.2);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   grantGold(Math.round(40*RUN.floor));
-  grantEquipment(RUN.floor>=90?'divino':RUN.floor>=45?'mitico':RUN.floor>=20?'lendario':'epico');grantMaterial(RUN.floor>=20?'lendario':'raro');
+  grantEquipment(RUN.floor>=90?'divino':RUN.floor>=45?'mitico':RUN.floor>=22?'lendario':RUN.floor>=10?'epico':'raro',false);grantMaterial(RUN.floor>=20?'lendario':'raro',false);
   if(RUN.floor>=10)grantSecretKey();
   logline('🏆 <b>'+boss.name+' foi derrotado!</b> +'+ess+' essência.','dn');
   toast('🏆 Chefe derrotado: '+boss.name+'!','lendario');
@@ -3387,7 +3399,7 @@ function onSecretBossWin(boss,e){
   // equipamento secreto exclusivo do chefe
   const drop=SECRET_BOSS_DROP[boss.id];
   if(drop){addItem(drop,1);discover('items',drop);logline('🏆 <b class="tag-secret">DESPOJO SECRETO:</b> '+IMAP[drop].icon+' '+IMAP[drop].name+'!','sc');lootBurst('secreto');}
-  grantEquipment('divino');
+  grantEquipment('divino',false);
   if(!G.meta.relics.includes('lampada_eterna')&&chance(0.5)){addItem('lampada_eterna',1);discover('items','lampada_eterna');}
   logline('🌟 <b>'+boss.name+' caiu!</b> Poder imenso é seu. +'+ess+' essência.','sc');
   toast('🌟 Chefe SECRETO derrotado!','mitico');
@@ -3458,8 +3470,8 @@ function torreSecret(){
   unlockSecret('cofre');
   const v=weighted({cofre:30,forja:26,fonte:22,chave:12,relicario:10});
   if(v==='cofre'){logline('🗄️ <b class="sc">Câmara selada da Torre!</b> Tesouro antigo.','sc');
-    grantGold(Math.round(ri(60,120)*RUN.floor));grantEquipment(RUN.floor>=20?'mitico':'lendario');grantMaterial('lendario');}
-  else if(v==='forja'){logline('⚒️ Uma forja abandonada zumbe de poder.','sc');grantMaterial('lendario');grantMaterial('epico');if(chance(0.6))grantEquipment('epico');}
+    grantGold(Math.round(ri(60,120)*RUN.floor));grantEquipment(RUN.floor>=20?'mitico':'lendario',false);grantMaterial('lendario',false);}
+  else if(v==='forja'){logline('⚒️ Uma forja abandonada zumbe de poder.','sc');grantMaterial('lendario',false);grantMaterial('epico',false);if(chance(0.6))grantEquipment('epico',false);}
   else if(v==='fonte'){logline('⛲ Uma fonte ancestral restaura o grupo.','sc');RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#67d8ff');});refreshBars();}
   else if(v==='chave'){logline('🗝️ Um relicário pulsa entre os degraus...','sc');grantSecretKey();}
   else {logline('🏮 Uma relíquia esquecida repousa num altar.','sc');grantMaterial('lendario');if(!G.meta.relics.includes('lampada_eterna')&&chance(0.4)){addItem('lampada_eterna',1);discover('items','lampada_eterna');}}
@@ -3482,9 +3494,9 @@ function onTorreBossWin(boss,e){
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,40+tf*9));
   const ess=runEssence(60+tf*16);
   grantGold(Math.round(120*tf));
-  grantEquipment(tf>=45?'celestial':tf>=35?'divino':tf>=18?'mitico':tf>=8?'lendario':'epico');
+  grantEquipment(tf>=45?'celestial':tf>=35?'divino':tf>=18?'mitico':tf>=8?'lendario':'epico',false);
   grantMaterial(tf>=25?'lendario':'epico');
-  if(tf%5===0)grantEquipment(tf>=40?'divino':tf>=25?'mitico':'lendario');
+  if(tf%5===0)grantEquipment(tf>=40?'divino':tf>=25?'mitico':'lendario',false);
   // cura parcial entre tiranos (a torre não tem salas de descanso)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.22);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   logline('🏆 <b>'+boss.name+' tombou!</b> +'+ess+' essência.','dn');
