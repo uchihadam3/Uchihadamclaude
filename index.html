@@ -213,6 +213,11 @@ canvas{image-rendering:pixelated;}
 @keyframes rpop{0%{transform:scale(.6);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}
 .recipe{display:flex;gap:10px;align-items:center;padding:9px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line-soft);}
 .recipe .rico{font-size:28px;}
+.sellrow{cursor:pointer;user-select:none;transition:background .12s,border-color .12s;}
+.sellrow:hover{border-color:var(--gold);}
+.sellrow.selsel{border-color:var(--gold);background:rgba(255,209,102,.10);}
+.sellrow .selbox{font-size:20px;width:24px;text-align:center;color:var(--gold);}
+.sellbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;border-radius:10px;background:rgba(255,209,102,.08);border:1px solid var(--line-soft);position:sticky;top:0;z-index:5;}
 </style>
 </head>
 <body>
@@ -2209,26 +2214,65 @@ const BUY_SHOP=[
 function sellValue(id){const it=IMAP[id];if(!it)return 0;let v=SELL_VALUE[it.rarity]||4;
   if(isEquip(it))v=Math.round(v*1.5); if(it.type==='mat')v=Math.round(v*0.5); v+=upgLevel(id)*60; return v;}
 function totalEquipped(id){return Object.values(G.meta.heroes).reduce((n,h)=>n+EQUIP_SLOTS.filter(s=>h.equip&&h.equip[s]===id).length,0);}
+function sellFree(id){return Math.max(0,invQty(id)-totalEquipped(id));}   // cópias livres (não equipadas)
 function sellItem(id){const have=invQty(id);const locked=totalEquipped(id);
   if(have-locked<=0){toast('Esse item está equipado — desequipe antes de vender.','warn');return;}
   removeItem(id,1);G.meta.gold+=sellValue(id);saveGame();sfx('coin');renderTab();}
+/* ---- venda em LOTE: selecionar vários e vender de uma vez ---- */
+let SELL_SEL=new Set();
+function sellList(){return Object.keys(G.meta.inventory).map(id=>IMAP[id])
+  .filter(it=>it&&invQty(it.id)>0&&!it.secret&&it.type!=='chave'&&it.type!=='relíquia'&&sellFree(it.id)>0)
+  .sort((a,b)=>RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));}
+function toggleSell(id){if(SELL_SEL.has(id))SELL_SEL.delete(id);else SELL_SEL.add(id);renderTab();}
+function sellQuick(mode){
+  const list=sellList();
+  if(mode==='clear'){SELL_SEL.clear();}
+  else if(mode==='all'){list.forEach(it=>SELL_SEL.add(it.id));}
+  else if(mode==='dupes'){list.forEach(it=>{if(sellFree(it.id)>=2)SELL_SEL.add(it.id);});}
+  else {const cap=RARS.indexOf(mode);list.forEach(it=>{if(RARS.indexOf(it.rarity)<=cap)SELL_SEL.add(it.id);});}
+  renderTab();
+}
+function sellSelTotal(){let g=0;SELL_SEL.forEach(id=>{g+=sellValue(id)*sellFree(id);});return g;}
+function sellSelected(){
+  if(!SELL_SEL.size){toast('Selecione itens para vender.','warn');return;}
+  let gold=0,count=0;
+  SELL_SEL.forEach(id=>{const f=sellFree(id);if(f<=0)return;gold+=sellValue(id)*f;count+=f;removeItem(id,f);});
+  G.meta.gold+=gold;SELL_SEL.clear();saveGame();sfx('coin');
+  toast('💰 Vendeu '+count+' '+(count===1?'item':'itens')+' por 🪙 '+fmt(gold),'epico');renderTab();}
 function buyGood(id,gold){if(G.meta.gold<gold){toast('Ouro insuficiente.','warn');return;}
   G.meta.gold-=gold;addItem(id,1);saveGame();sfx('coin');toast('🛒 Comprou '+IMAP[id].icon+' '+IMAP[id].name,IMAP[id].rarity);renderTab();}
 function tabMarket(b){
-  const sellable=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&invQty(it.id)>0&&!it.secret&&it.type!=='chave'&&it.type!=='relíquia')
-    .sort((a,b)=>RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
-  const sellCard=it=>{const have=invQty(it.id);const free=have-totalEquipped(it.id);
-    return `<div class="recipe ${'b-'+it.rarity}"><div class="rico">${itemIco(it,3)}</div>
+  const sellable=sellList();
+  // limpa seleção de itens que não existem mais
+  [...SELL_SEL].forEach(id=>{if(!sellable.find(it=>it.id===id))SELL_SEL.delete(id);});
+  const sellCard=it=>{const free=sellFree(it.id);const have=invQty(it.id);const sel=SELL_SEL.has(it.id);
+    return `<div class="recipe sellrow ${'b-'+it.rarity} ${sel?'selsel':''}" onclick="toggleSell('${it.id}')">
+      <div class="selbox">${sel?'☑':'☐'}</div>
+      <div class="rico">${itemIco(it,3)}</div>
       <div style="flex:1"><b>${it.name}${upgLevel(it.id)>0?' +'+upgLevel(it.id):''}</b> ${rarPill(it.rarity)}<br>
-        <span class="tiny muted">você tem ${have}${free<have?` (${have-free} equipado)`:''}</span></div>
-      <button class="btn sm" ${free>0?'':'disabled'} onclick="sellItem('${it.id}')">Vender 🪙${sellValue(it.id)}</button></div>`;};
+        <span class="tiny muted">livre: ${free}${have>free?` (${have-free} equipado)`:''} · 🪙${sellValue(it.id)} cada</span></div>
+      <div style="text-align:right"><b style="color:var(--gold)">🪙${fmt(sellValue(it.id)*free)}</b></div></div>`;};
   const buyCard=g=>{const it=IMAP[g.id];return `<div class="recipe"><div class="rico">${itemIco(it,3)}</div>
       <div style="flex:1"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny muted">tem ${invQty(g.id)}</span></div>
       <button class="btn sm" ${G.meta.gold>=g.gold?'':'disabled'} onclick="buyGood('${g.id}',${g.gold})">🪙${g.gold}</button></div>`;};
+  const selN=SELL_SEL.size, selG=sellSelTotal();
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🛒 Mercado</h3><span class="chip">🪙 <b>${fmt(G.meta.gold)}</b> ouro</span></div>
      <p class="muted small mt6">Venda o que sobra por ouro e compre materiais & consumíveis. O ouro também aprimora equipamento na Forja.</p></div>
      <div class="panel mb"><h4 class="mb">🪙 Comprar (com ouro)</h4><div class="col">${BUY_SHOP.map(buyCard).join('')}</div></div>
-     <div class="panel"><h4 class="mb">💰 Vender</h4><div class="col">${sellable.length?sellable.map(sellCard).join(''):'<p class="muted small">Nada para vender no momento.</p>'}</div></div>`;
+     <div class="panel"><h4 class="mb">💰 Vender em lote</h4>
+       ${sellable.length?`<p class="tiny muted">Toque nos itens para selecionar e venda tudo de uma vez. Seleção rápida:</p>
+       <div class="row wrap mt6" style="gap:5px">
+         <button class="btn ghost sm" onclick="sellQuick('comum')">Comuns</button>
+         <button class="btn ghost sm" onclick="sellQuick('raro')">+ Raros</button>
+         <button class="btn ghost sm" onclick="sellQuick('epico')">+ Épicos</button>
+         <button class="btn ghost sm" onclick="sellQuick('dupes')">Duplicados</button>
+         <button class="btn ghost sm" onclick="sellQuick('all')">Tudo</button>
+         <button class="btn ghost sm" onclick="sellQuick('clear')">Limpar</button>
+       </div>
+       <div class="sellbar"><span><b>${selN}</b> selecionado${selN===1?'':'s'} · <b style="color:var(--gold)">🪙 ${fmt(selG)}</b></span>
+         <button class="btn sm" ${selN?'':'disabled'} onclick="sellSelected()">Vender selecionados</button></div>
+       <div class="col mt6">${sellable.map(sellCard).join('')}</div>`
+       :'<p class="muted small">Nada para vender no momento.</p>'}</div>`;
 }
 
 /* ---- TAB BIBLIOTECA (pesquisa) ---- */
@@ -2338,9 +2382,19 @@ function tabCodex(b){
   const secretBosses=BOSSES.filter(x=>x.secret);
   const secKilled=secretBosses.filter(x=>cdx.bosses.includes(x.id)).length;
   const its=ITEMS.filter(i=>i.secret).map(i=>cdx.items.includes(i.id)?`<span class="chip" style="color:var(--shadow-c)">${i.icon} ${i.name}</span>`:`<span class="chip" style="opacity:.4">🔒 ???</span>`).join(' ');
-  const legend=ITEMS.filter(i=>isEquip(i)&&['lendario','mitico','divino','celestial','secreto'].includes(i.rarity));
-  const legLine=i=>invQty(i.id)>0?`<span class="chip" style="color:${RAR_COLOR[i.rarity]}">${i.icon} ${i.name}</span>`:`<span class="chip" style="opacity:.4">🔒 ${RAR_NAME[i.rarity]} ???</span>`;
+  const RARE_TIERS=['lendario','mitico','divino','celestial','secreto'];
+  const legend=ITEMS.filter(i=>isEquip(i)&&RARE_TIERS.includes(i.rarity));
   const haveLeg=legend.filter(i=>invQty(i.id)>0).length;
+  // agrupado por raridade — mostra TODOS os tiers raros (Lendário → Único)
+  const rareGroups=RARE_TIERS.map(r=>{
+    const items=ITEMS.filter(i=>isEquip(i)&&i.rarity===r); if(!items.length)return '';
+    const have=items.filter(i=>invQty(i.id)>0).length;
+    const chips=items.map(i=>invQty(i.id)>0
+      ? `<span class="chip" style="color:${RAR_COLOR[r]};border-color:${RAR_COLOR[r]}">${i.icon} ${i.name}${upgLevel(i.id)>0?' +'+upgLevel(i.id):''}</span>`
+      : `<span class="chip" style="opacity:.38">🔒 ???</span>`).join(' ');
+    return `<div class="mt6"><div class="row between"><b style="color:${RAR_COLOR[r]}">${RAR_NAME[r]}</b><span class="tiny muted">${have}/${items.length}</span></div>
+      <div class="row wrap mt6">${chips}</div></div>`;
+  }).join('');
   const secs=SECRETS.map(s=>cdx.secrets.includes(s.id)?`<div class="slotline"><div class="sl-ico">${s.icon}</div><div class="sl-n"><b>${s.name}</b><br><span class="tiny">${s.desc}</span></div></div>`
     :`<div class="slotline" style="opacity:.5"><div class="sl-ico">❓</div><div class="sl-n"><b>Segredo não descoberto</b><br><span class="tiny muted">💡 ${s.hint}</span></div></div>`).join('');
   const total=MONSTERS.length+BOSSES.length+ITEMS.filter(i=>i.secret).length+SECRETS.length;
@@ -2355,8 +2409,9 @@ function tabCodex(b){
        <div class="divider"></div><div class="row between"><h4 class="tag-secret">🌑 Chefes Secretos</h4><span class="chip" style="color:var(--shadow-c)">${secKilled}/${secretBosses.length}</span></div>
        <div class="row wrap mt6">${secretBosses.map(sbosLine).join(' ')}</div>
        ${secKilled<secretBosses.length?`<p class="tiny muted mt6">Derrote todos os ${secretBosses.length} chefes secretos para revelar o herói mítico final.</p>`:'<p class="tiny tag-secret mt6">✔ Todos os chefes secretos foram derrotados!</p>'}</div>
-     <div class="panel mb"><div class="row between"><h4>⚜️ Equipamentos Lendários</h4><span class="chip">${haveLeg}/${legend.length}</span></div>
-       <div class="row wrap mt6">${legend.map(legLine).join(' ')}</div></div>
+     <div class="panel mb"><div class="row between"><h4>⚜️ Equipamentos Raros</h4><span class="chip">${haveLeg}/${legend.length}</span></div>
+       <p class="tiny muted mt6">Do Lendário ao Único — colecione os equipamentos mais raros das duas dungeons.</p>
+       ${rareGroups}</div>
      <div class="panel mb"><h4>🗝️ Itens Secretos</h4><div class="row wrap mt6">${its}</div></div>
      <div class="panel"><h4>🔮 Segredos da Adranja</h4><div class="col mt6">${secs}</div></div>`;
   // monta sprites dos monstros descobertos
