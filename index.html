@@ -702,7 +702,7 @@ const HEROES=[
   SK('Reverter',5,'heal',1.4,'ally',{txt:'Volta o tempo das feridas.'}),
   SK('Parar o Tempo',9,'buff',0,'self',{fx:'timestop',txt:'Inimigos perdem o turno.'}),
   SK('Paradoxo',16,'mag',3.2,'all',{el:'arcano',fx:'slow'})],
- unlock:{type:'floor',v:15,desc:'Alcance o Andar 15 da Adranja.'}},
+ unlock:{type:'floor',v:22,desc:'Alcance o Andar 22 da Adranja.'}},
 {id:'geomante',name:'Terron, o Geomante',role:'Geomante',rarity:'lendario',icon:'🪨',
  head:'none',weapon:'mace',
  pal:{H:'#5a4a3a',S:'#d8a878',e:'#ffd166',K:'#d8a878',A:'#7a6a4a',B:'#ff7a3c',P:'#4a3a28',O:'#241a10',M:'#a89070',R:'#5fd17a',W:'#7a5a36'},
@@ -711,7 +711,7 @@ const HEROES=[
  skills:[SK('Punho de Pedra',1,'phys',1.4,'one',{el:'terra'}),SK('Muralha Rochosa',3,'buff',0,'allies',{fx:'shield'}),
   SK('Estilhaços',5,'mag',1.5,'all',{el:'terra'}),SK('Terremoto',9,'mag',1.8,'all',{el:'terra',fx:'stun'}),
   SK('Cataclismo',15,'mag',3.0,'all',{el:'terra',fx:'stun'})],
- unlock:{type:'essence',v:300,desc:'Gaste 300 de Essência no Santuário.'}},
+ unlock:{type:'essence',v:700,reqFloor:15,desc:'Gaste 700 de Essência (requer Andar 15 alcançado).'}},
 {id:'andarilho',name:'???, o Andarilho do Vazio',role:'Andarilho do Vazio',rarity:'mitico',icon:'🌌',
  head:'veil',weapon:'scythe',
  pal:{H:'#1a1030',S:'#9a8ad0',e:'#ff5fa8',K:'#9a8ad0',A:'#1a1030',B:'#a14bff',P:'#0e0820',O:'#060410',C:'#a14bff',M:'#b39bff',W:'#2a1a3a'},
@@ -836,6 +836,19 @@ const MONSTERS=[
  base:{hp:42,atk:14,def:4,spd:13},
  pal:{a:'#a8b8d0',b:'#67d8ff',e:'#1a1a2a'},
  grid:G16(["","....aaaaaa....","..aaaaaaaaaa..","..aaeaaaaeaa..","..aaaaaaaaaa..","..aaabaabaaa..","..aaaaaaaaaa..","..aaaaaaaaaa..","..a.aa.aa.aa..",".a..a..a..a.a."])},
+// ---- ELITES SECRETOS (raros, fortes, recompensa enorme) ----
+{id:'cavaleiro_caido',name:'Cavaleiro Caído',family:'morto-vivo',el:'sombrio',floors:[6,100],weight:3,elite:true,
+ base:{hp:160,atk:24,def:14,spd:9},
+ pal:{a:'#3a3450',b:'#a14bff',e:'#ff5d6c',m:'#8a8a9a'},
+ grid:G16(["","....mmmm......","...maaaaam....","...maeaeam....","...maaaaam....","....mabam.....","...maaaaam....","..m.aaaaa.m...","..m.ababa.m...","....a.a.a.....","...a..a..a....","..m.......m.."])},
+{id:'aberracao',name:'Aberração Faminta',family:'aberracao',el:'sombrio',floors:[10,100],weight:3,elite:true,
+ base:{hp:200,atk:28,def:10,spd:11},
+ pal:{a:'#1a1030',b:'#a14bff',e:'#ff5fa8',c:'#67d8ff'},
+ grid:G16(["b..b..b..b..b.",".caaaaaaaaac..","caaeaccaeaaac.","caaccccccaaac.","caaaaaaaaaaac.",".caaaaaaaaac..","b.caaaaaaac.b.","b..c.c.c.c..b.","....b...b....","..b...b...b..."])},
+{id:'golem_ancestral',name:'Golem Ancestral',family:'elemental',el:'terra',floors:[14,100],weight:2,elite:true,
+ base:{hp:320,atk:30,def:24,spd:5},
+ pal:{a:'#6a6250',b:'#ffd166',e:'#ff7a3c',c:'#4a4438',m:'#9a9080'},
+ grid:G16(["..mmmmmmmm....","..maaaaaaam...","..maebaaeam...","..maaaaaaam...","..maaaabaam...",".cmaaaaaaamc..",".cmaaaaaaamc..","..maaa.aaam...","..maaa.aaam...","..ccc...ccc.."])},
 ];
 const MMAP={};MONSTERS.forEach(m=>MMAP[m.id]=m);
 
@@ -872,6 +885,21 @@ const BOSSES=[
  pal:{a:'#3a2a1a',b:'#ffd166',e:'#a14bff',c:'#7a5a36',m:'#e8c074'},
  grid:G16(["..m.m.m.m.m...","..mmmmmmmmm...","...baaaaab....","...aeaaaea....","...aaaaaaa....","..baabbbaab...","..baaaaaaab...","...aaaaaaa....","...a.aaa.a....","..a..a.a..a...","..m..a.a..m...","..mm.....mm.."]),
  skills:['decreto','corte_real','exilio','apocalipse'],intro:'Coroado pela própria Adranja. Aquele que se recusou a esquecer.'},
+{id:'leviata',name:'O Leviatã do Abismo',family:'fera',el:'gelo',floor:0,secret:true,
+ base:{hp:4200,atk:64,def:30,spd:14},
+ pal:{a:'#1a3a4a',b:'#67d8ff',e:'#ffd166',c:'#0a2430'},
+ grid:G16(["a..........a..",".aa........aa.","..aaaaaaaaaa..",".aaeaccccaeaa.","aaaaaaaaaaaaaa","aaccaaaaaaccaa",".aaaaaaaaaaaa.","..aaaaaaaaaa..","...aa.aa.aa...","..a..a..a..a..",".a..........a"]),
+ skills:['mare','esmagar','tremor'],intro:'As profundezas se inundam. Algo imenso desperta sob as águas negras.'},
+{id:'arauto_estelar',name:'O Arauto da Estrela Morta',family:'aberracao',el:'arcano',floor:0,secret:true,
+ base:{hp:6800,atk:96,def:36,spd:18},
+ pal:{a:'#2a1a4a',b:'#b39bff',e:'#67d8ff',c:'#ff5fa8',m:'#ffd166'},
+ grid:G16(["..m..m..m..m..",".cmcmcmcmcmc..","..caaaaaaac...","..caeaaaeac...","..caaccaaac...","..caaaaaaac...","mcmcaaaacmcm..","..b.cccc.b....","..b.c..c.b....","....b..b......","...m....m....."]),
+ skills:['supernova','colapso','vazio','apocalipse'],intro:'Uma estrela morreu há eras. Sua última mensagem, enfim, chega — e queima.'},
+{id:'cronarca',name:'O Cronarca',family:'aberracao',el:'arcano',floor:0,secret:true,
+ base:{hp:9000,atk:110,def:40,spd:22},
+ pal:{a:'#3a3a6a',b:'#ffd166',e:'#67d8ff',c:'#b39bff',m:'#a594ff'},
+ grid:G16(["....mmmmm.....","..mcccccccm...","..caeacaeac...","..caaaaaaac...","..caacccaac...","..caaaaaaac...","..mcccccccm...","..b.m.m.m.b...","..b.......b...","...mm...mm...."]),
+ skills:['parar_tempo','paradoxo','supernova','apocalipse'],intro:'Ele já viu este combate. Já viu seu fim. Já viu você desistir.'},
 /* chefes nomeados de marco em andares profundos */
 {id:'titereiro',name:'Vorlag, o Titereiro de Ossos',family:'morto-vivo',el:'sombrio',floor:30,
  base:{hp:5200,atk:78,def:40,spd:16},
@@ -951,6 +979,26 @@ const ITEMS=[
 {id:'olho_abissal',name:'Olho do Abismo',icon:'👁️',type:'chave',rarity:'secreto',secret:true,desc:'Revela o Eco do Vazio quando combinado com a Chave Negra.'},
 {id:'coroa_partida',name:'Coroa Partida',icon:'👑',type:'chave',rarity:'secreto',secret:true,desc:'Fragmento de um rei esquecido. Três partes existem na Adranja.'},
 {id:'lampada_eterna',name:'Lâmpada Eterna',icon:'🏮',type:'relíquia',rarity:'mitico',secret:true,desc:'Relíquia mítica: dobra a Essência ganha em incursões. Permanente.'},
+// --- equipamentos LENDÁRIOS (caça em andares profundos / elites) ---
+{id:'lamina_aurora',name:'Lâmina da Aurora',icon:'🌅',type:'arma',slot:'arma',rarity:'lendario',stats:{atk:22,lck:6}},
+{id:'machado_titan',name:'Machado do Titã',icon:'🪓',type:'arma',slot:'arma',rarity:'lendario',stats:{atk:28,def:6}},
+{id:'arco_tempestade',name:'Arco da Tempestade',icon:'🏹',type:'arma',slot:'arma',rarity:'lendario',stats:{atk:18,spd:8,lck:6}},
+{id:'egide_real',name:'Égide Real',icon:'🛡️',type:'armadura',slot:'armadura',rarity:'lendario',stats:{hp:90,def:24}},
+{id:'anel_abissal',name:'Anel Abissal',icon:'💍',type:'acessorio',slot:'acessorio',rarity:'lendario',stats:{atk:10,mag:10,lck:8}},
+// --- equipamentos MÍTICOS (elites profundos / forja lendária) ---
+{id:'grimorio_vazio',name:'Grimório do Vazio',icon:'📕',type:'arma',slot:'arma',rarity:'mitico',stats:{mag:34,lck:8}},
+{id:'manto_estelar',name:'Manto Estelar',icon:'🌠',type:'armadura',slot:'armadura',rarity:'mitico',stats:{hp:80,mag:16,def:12,spd:6}},
+{id:'coroa_eterna',name:'Coroa Eterna',icon:'👑',type:'acessorio',slot:'acessorio',rarity:'mitico',stats:{hp:50,atk:9,mag:9,lck:12}},
+// --- equipamentos SECRETOS (somente de chefes secretos) ---
+{id:'lamina_vazio',name:'Lâmina do Vazio',icon:'⚫',type:'arma',slot:'arma',rarity:'secreto',secret:true,stats:{atk:38,mag:20,lck:12},desc:'Corta o próprio tecido da realidade.'},
+{id:'armadura_rei',name:'Armadura do Rei Esquecido',icon:'⚜️',type:'armadura',slot:'armadura',rarity:'secreto',secret:true,stats:{hp:160,def:38,atk:10},desc:'Pesa como um reino inteiro.'},
+{id:'olho_onividente',name:'Olho Onividente',icon:'👁️',type:'acessorio',slot:'acessorio',rarity:'secreto',secret:true,stats:{lck:20,mag:16,spd:10},desc:'Vê todos os segredos da Adranja.'},
+{id:'lamina_leviata',name:'Presa do Leviatã',icon:'🦷',type:'arma',slot:'arma',rarity:'secreto',secret:true,stats:{atk:44,spd:6},desc:'Arrancada das profundezas inundadas.'},
+{id:'manto_arauto',name:'Manto do Arauto',icon:'✴️',type:'armadura',slot:'armadura',rarity:'secreto',secret:true,stats:{hp:120,mag:28,lck:10},desc:'Tecido com luz de estrelas mortas.'},
+// --- chaves de chefes secretos novos ---
+{id:'selo_leviata',name:'Selo do Leviatã',icon:'🔱',type:'chave',rarity:'secreto',secret:true,desc:'Um selo encharcado. Invoca o Leviatã nas profundezas inundadas (Andar 14+).'},
+{id:'coracao_estelar',name:'Coração Estelar',icon:'💜',type:'chave',rarity:'secreto',secret:true,desc:'Pulsa com a luz de uma estrela morta. Algo dorme além do Andar 35.'},
+{id:'fragmento_tempo',name:'Fragmento do Tempo',icon:'⏳',type:'chave',rarity:'secreto',secret:true,desc:'Um caco de eternidade. Três deles param o tempo e despertam o Cronarca.'},
 ];
 const IMAP={};ITEMS.forEach(i=>IMAP[i.id]=i);
 const EQUIP_SLOTS=['arma','armadura','acessorio'];
@@ -998,7 +1046,12 @@ const SECRETS=[
 {id:'chave_negra',name:'A Chave Negra',icon:'🗝️',desc:'Uma chave que abre portas para níveis que não deveriam existir.',hint:'Largada por chefes a partir do Andar 10.'},
 {id:'eco_vazio',name:'O Eco do Vazio',icon:'👁️',desc:'Combine a Chave Negra e o Olho do Abismo para invocar um chefe secreto.',hint:'Duas chaves, uma porta proibida.'},
 {id:'coroa',name:'O Rei Esquecido',icon:'👑',desc:'Três fragmentos de uma coroa partida reconstroem um trono — e seu rei.',hint:'Três Coroas Partidas espalhadas pelas profundezas.'},
-{id:'andarilho',name:'O Andarilho do Vazio',icon:'🌌',desc:'Derrotar ambos os chefes secretos abre passagem ao herói mítico final.',hint:'Apenas para quem desvendou todos os segredos sombrios.'},
+{id:'leviata',name:'O Leviatã do Abismo',icon:'🔱',desc:'Sob certos andares profundos há água negra. O Selo do Leviatã invoca o que dorme ali.',hint:'Encontre o Selo do Leviatã (Andar 14+) e use-o nas profundezas.'},
+{id:'arauto_estelar',name:'O Arauto da Estrela Morta',icon:'✴️',desc:'A luz de uma estrela há muito morta ainda viaja. O Coração Estelar a chama.',hint:'O Coração Estelar surge além do Andar 35.'},
+{id:'cronarca',name:'O Cronarca',icon:'⏳',desc:'Três Fragmentos do Tempo reunidos despertam o senhor das eras.',hint:'Junte 3 Fragmentos do Tempo nas profundezas.'},
+{id:'elite',name:'Os Elites Esquecidos',icon:'⭐',desc:'Raros campeões caídos vagam pela Adranja, guardando despojos lendários.',hint:'Inimigos com brilho diferente — Cavaleiro Caído, Aberração Faminta, Golem Ancestral.'},
+{id:'cofre',name:'O Cofre Proibido',icon:'🗄️',desc:'Câmaras seladas guardam equipamento lendário para quem as encontra.',hint:'Passagens secretas profundas escondem cofres lendários.'},
+{id:'andarilho',name:'O Andarilho do Vazio',icon:'🌌',desc:'Derrotar TODOS os cinco chefes secretos abre passagem ao herói mítico final.',hint:'Eco, Rei Esquecido, Leviatã, Arauto Estelar e Cronarca — todos devem cair.'},
 ];
 const SECMAP={};SECRETS.forEach(s=>SECMAP[s.id]=s);
 function unlockSecret(id){if(!G.meta.codex.secrets.includes(id)){G.meta.codex.secrets.push(id);saveGame();
@@ -1017,7 +1070,7 @@ function defaultMeta(){
   HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,maxLevelEver:1,equip:{arma:null,armadura:null,acessorio:null}};});
   return{
     version:1, essence:0, gold:0, deepestFloor:0, runs:0, totalKills:0,
-    tamedCount:0, craftedCount:0, bossesKilled:[],
+    tamedCount:0, craftedCount:0, bossesKilled:[], bestiaryKills:{}, eliteKills:0,
     heroes, inventory:{}, party:['cartografo','guerreiro','cleriga'],
     research:{}, researchActive:null, // {id,end}
     codex:{bestiary:[],items:[],secrets:[],bosses:[]},
@@ -1271,9 +1324,13 @@ function openLocked(id){const h=HMAP[id];
     <p class="small mt">${h.unlock?h.unlock.desc:'Misterioso.'}</p>
     ${h.unlock&&h.unlock.type==='essence'?essenceBuyBtn(h):''}
     <p class="muted tiny mt">${condMet(h)?'✅ Requisito cumprido!':'Requisito ainda não cumprido.'}</p></div>`);}
-function essenceBuyBtn(h){const cost=h.unlock.v;const can=G.meta.essence>=cost;
-  return `<button class="btn mt ${can?'':''}" ${can?'':'disabled'} onclick="buyEssenceHero('${h.id}')">Recrutar por 💠 ${cost} Essência</button>`;}
-function buyEssenceHero(id){const h=HMAP[id];const cost=h.unlock.v;if(G.meta.essence<cost){toast('Essência insuficiente.','warn');return;}
+function essenceBuyBtn(h){const cost=h.unlock.v;const reqF=h.unlock.reqFloor||0;const floorOk=G.meta.deepestFloor>=reqF;
+  const can=G.meta.essence>=cost&&floorOk;
+  return `<button class="btn mt" ${can?'':'disabled'} onclick="buyEssenceHero('${h.id}')">Recrutar por 💠 ${cost} Essência</button>
+    ${!floorOk?`<p class="tiny" style="color:var(--bad)">🔒 Requer Andar ${reqF} alcançado (você: ${G.meta.deepestFloor}).</p>`:''}`;}
+function buyEssenceHero(id){const h=HMAP[id];const cost=h.unlock.v;const reqF=h.unlock.reqFloor||0;
+  if(G.meta.deepestFloor<reqF){toast('Requer Andar '+reqF+' alcançado.','warn');return;}
+  if(G.meta.essence<cost){toast('Essência insuficiente.','warn');return;}
   G.meta.essence-=cost;G.meta.flags['bought_'+id]=true;G.meta.heroes[id].unlocked=true;saveGame();
   closeModal();toast('🔓 '+h.icon+' '+h.name+' recrutado!','lendario');renderCamp();}
 
@@ -1466,23 +1523,54 @@ function buyOffering(flag,cost){if(G.meta.essence<cost){toast('Essência insufic
 
 /* ---- TAB CÓDEX ---- */
 function tabCodex(b){
-  const cdx=G.meta.codex;
-  const mon=MONSTERS.map(m=>cdx.bestiary.includes(m.id)?`<span class="chip">${m.name}</span>`:`<span class="chip" style="opacity:.4">??? ${m.family}</span>`).join(' ');
-  const bos=BOSSES.filter(x=>!x.secret).map(m=>cdx.bosses.includes(m.id)?`<span class="chip" style="color:var(--ember)">${m.name}</span>`:`<span class="chip" style="opacity:.4">🔒 Chefe Andar ${m.floor}</span>`).join(' ');
-  const sbos=BOSSES.filter(x=>x.secret).map(m=>cdx.bosses.includes(m.id)?`<span class="chip tag-secret">${m.name}</span>`:`<span class="chip" style="opacity:.4">🌑 Chefe Secreto ???</span>`).join(' ');
-  const its=ITEMS.filter(i=>i.secret).map(i=>cdx.items.includes(i.id)?`<span class="chip">${i.icon} ${i.name}</span>`:`<span class="chip" style="opacity:.4">🔒 Item Secreto ???</span>`).join(' ');
+  const cdx=G.meta.codex; const kills=G.meta.bestiaryKills||{};
+  const seenMon=MONSTERS.filter(m=>cdx.bestiary.includes(m.id)).length;
+  const totalKills=Object.values(kills).reduce((a,n)=>a+n,0);
+  const monCard=m=>{ const seen=cdx.bestiary.includes(m.id); const k=kills[m.id]||0;
+    if(!seen) return `<div class="hero-card locked"><div style="height:60px;display:flex;align-items:center;justify-content:center;font-size:30px">❓</div>
+      <div class="nm">???</div><div class="role">${m.family}</div><div class="tiny muted">Andar ${m.floors[0]}–${m.floors[1]}</div></div>`;
+    return `<div class="hero-card" onclick="openMonster('${m.id}')">${m.elite?'<span class="rar mitico" style="font-size:9px">elite</span>':''}
+      <div data-mon="${m.id}"></div><div class="nm" style="font-size:12px">${m.name}</div>
+      <div class="role">${m.family}</div><div class="tiny" style="color:var(--gold)">💀 ${k} abatidos</div></div>`; };
+  const normalBosses=BOSSES.filter(x=>!x.secret).sort((a,b)=>a.floor-b.floor);
+  const bosLine=m=>cdx.bosses.includes(m.id)?`<span class="chip" style="color:var(--ember)">✔ ${m.name}</span>`:`<span class="chip" style="opacity:.45">🔒 Chefe · Andar ${m.floor}</span>`;
+  const sbosLine=m=>cdx.bosses.includes(m.id)?`<span class="chip tag-secret">✔ ${m.name}</span>`:`<span class="chip" style="opacity:.45">🌑 Chefe Secreto ???</span>`;
+  const secretBosses=BOSSES.filter(x=>x.secret);
+  const secKilled=secretBosses.filter(x=>cdx.bosses.includes(x.id)).length;
+  const its=ITEMS.filter(i=>i.secret).map(i=>cdx.items.includes(i.id)?`<span class="chip" style="color:var(--shadow-c)">${i.icon} ${i.name}</span>`:`<span class="chip" style="opacity:.4">🔒 ???</span>`).join(' ');
+  const legend=ITEMS.filter(i=>isEquip(i)&&(i.rarity==='lendario'||i.rarity==='mitico'||i.rarity==='secreto'));
+  const legLine=i=>invQty(i.id)>0?`<span class="chip" style="color:${RAR_COLOR[i.rarity]}">${i.icon} ${i.name}</span>`:`<span class="chip" style="opacity:.4">🔒 ${RAR_NAME[i.rarity]} ???</span>`;
+  const haveLeg=legend.filter(i=>invQty(i.id)>0).length;
   const secs=SECRETS.map(s=>cdx.secrets.includes(s.id)?`<div class="slotline"><div class="sl-ico">${s.icon}</div><div class="sl-n"><b>${s.name}</b><br><span class="tiny">${s.desc}</span></div></div>`
-    :`<div class="slotline" style="opacity:.45"><div class="sl-ico">❓</div><div class="sl-n"><b>Segredo não descoberto</b><br><span class="tiny muted">${s.hint}</span></div></div>`).join('');
+    :`<div class="slotline" style="opacity:.5"><div class="sl-ico">❓</div><div class="sl-n"><b>Segredo não descoberto</b><br><span class="tiny muted">💡 ${s.hint}</span></div></div>`).join('');
   const total=MONSTERS.length+BOSSES.length+ITEMS.filter(i=>i.secret).length+SECRETS.length;
   const found=cdx.bestiary.length+cdx.bosses.length+cdx.items.length+cdx.secrets.length;
   b.innerHTML=`<div class="panel parch mb"><h3>📖 Códex da Adranja</h3>
      <div class="progress mt6"><i style="width:${found/total*100}%"></i></div>
-     <p class="muted small mt6">Descoberto: <b>${found}/${total}</b> (${Math.round(found/total*100)}%)</p></div>
-     <div class="panel mb"><h4>👹 Bestiário</h4><div class="row wrap mt6">${mon}</div></div>
-     <div class="panel mb"><h4>👑 Chefes</h4><div class="row wrap mt6">${bos}</div>
-       <div class="divider"></div><h4 class="tag-secret">🌑 Chefes Secretos</h4><div class="row wrap mt6">${sbos}</div></div>
+     <p class="muted small mt6">Compêndio: <b>${found}/${total}</b> (${Math.round(found/total*100)}%) · Total de abates: <b style="color:var(--gold)">${totalKills}</b></p></div>
+     <div class="panel mb"><div class="row between"><h4>👹 Bestiário</h4><span class="chip">${seenMon}/${MONSTERS.length} · faltam ${MONSTERS.length-seenMon}</span></div>
+       <div class="grid auto mt" id="bestiaryGrid">${MONSTERS.map(monCard).join('')}</div></div>
+     <div class="panel mb"><div class="row between"><h4>👑 Chefes</h4><span class="chip">${normalBosses.filter(x=>cdx.bosses.includes(x.id)).length}/${normalBosses.length}</span></div>
+       <div class="row wrap mt6">${normalBosses.map(bosLine).join(' ')}</div>
+       <div class="divider"></div><div class="row between"><h4 class="tag-secret">🌑 Chefes Secretos</h4><span class="chip" style="color:var(--shadow-c)">${secKilled}/${secretBosses.length}</span></div>
+       <div class="row wrap mt6">${secretBosses.map(sbosLine).join(' ')}</div>
+       ${secKilled<secretBosses.length?`<p class="tiny muted mt6">Derrote todos os ${secretBosses.length} chefes secretos para revelar o herói mítico final.</p>`:'<p class="tiny tag-secret mt6">✔ Todos os chefes secretos foram derrotados!</p>'}</div>
+     <div class="panel mb"><div class="row between"><h4>⚜️ Equipamentos Lendários</h4><span class="chip">${haveLeg}/${legend.length}</span></div>
+       <div class="row wrap mt6">${legend.map(legLine).join(' ')}</div></div>
      <div class="panel mb"><h4>🗝️ Itens Secretos</h4><div class="row wrap mt6">${its}</div></div>
      <div class="panel"><h4>🔮 Segredos da Adranja</h4><div class="col mt6">${secs}</div></div>`;
+  // monta sprites dos monstros descobertos
+  $$('[data-mon]').forEach(el=>{const m=MMAP[el.getAttribute('data-mon')];if(m)mountCanvas(el,spriteCanvas(m.grid,m.pal,4));});
+}
+function openMonster(id){const m=MMAP[id];const k=(G.meta.bestiaryKills||{})[id]||0;
+  openModal(`<div class="center"><div data-mon-big></div>
+    <h3>${m.name}</h3><div class="row center" style="justify-content:center;gap:6px">
+      <span class="chip">${m.family}</span><span class="chip">elem: ${m.el}</span>${m.elite?'<span class="rar mitico">elite</span>':''}</div>
+    <div class="kvs mt" style="max-width:240px;margin:10px auto;text-align:left">
+      <span>Andares</span><b>${m.floors[0]}–${m.floors[1]}</b>
+      <span>PV base</span><b>${m.base.hp}</b><span>Ataque base</span><b>${m.base.atk}</b>
+      <span>Abatidos</span><b>${k}</b></div></div>`);
+  const big=$('[data-mon-big]');if(big)mountCanvas(big,spriteCanvas(m.grid,m.pal,7));
 }
 
 /* ============================================================================
@@ -1829,10 +1917,11 @@ function stepBegin(){
 }
 function computeRooms(){
   const fam=G.meta.mapKnowledge[RUN.floor]||0;
-  let base=4+Math.min(RUN.floor,7)+ri(0,2);
-  base=Math.round(base*(1-fam*0.4));
+  // andares bem mais longos e que crescem com a profundidade
+  let base=7+Math.min(RUN.floor,14)+ri(0,3);
+  base=Math.round(base*(1-fam*0.18));            // mapa conhecido ajuda só um pouco
   if(RUN.passive.alterFloor)base=Math.round(base*(1-RUN.passive.alterFloor));
-  return Math.max(3,base);
+  return Math.max(6,base);
 }
 function gainFamiliarity(amt){
   const m=1+(RUN.passive.mapBonus||0);
@@ -1869,9 +1958,11 @@ function descend(){
 /* ---- gerador de encontro ---- */
 function doEncounter(){
   if(!RUN.alive)return;
-  // passagem secreta?
-  const secretFind=(RUN.passive.secretFind||0)+(G.meta.research.meta_loot?0.05:0);
-  if(secretFind>0&&chance(secretFind)){return encSecretPassage();}
+  // passagem secreta? (todos têm uma base; cresce com profundidade e passivas)
+  const secretFind=0.06+Math.min(RUN.floor,20)*0.004+(RUN.passive.secretFind||0)+(G.meta.research.meta_loot?0.05:0);
+  if(chance(secretFind)){return encSecretPassage();}
+  // elite raro (chance pequena, cresce com a profundidade)
+  if(RUN.floor>=6 && chance(0.025+Math.min(RUN.floor,40)*0.0015)){return encElite();}
   const w={combate:42,tesouro:Math.round(15*(RUN.tideTreasure||1)),armadilha:12,evento:Math.round(13*(RUN.tideEvent||1))};
   if(!RUN.tideNoRest)w.descanso=8;
   if(RUN.floor>=4)w.fonte=3;
@@ -1965,17 +2056,45 @@ function merchBuy(kind,idx,cost){if(G.meta.essence<cost){toast('Essência insufi
   saveGame();toast('🧙 Negócio fechado.','epico');
 }
 /* ---- PASSAGEM SECRETA ---- */
+function encElite(){
+  const pool=MONSTERS.filter(m=>m.elite&&RUN.floor>=m.floors[0]);
+  if(!pool.length)return encCombat();
+  const m=pick(pool);unlockSecret('elite');discover('bestiary',m.id);
+  logline('⭐ <b class="sc">Um campeão esquecido bloqueia o caminho: '+m.name+'!</b>','sc');
+  const e=makeEnemy(m,RUN.floor,false);
+  beginCombat([e],{boss:false,onWin:()=>{
+    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*4));
+    RUN.kills++;G.meta.totalKills++;checkUnlocks();saveGame();advanceRoom();
+  }});
+}
 function encSecretPassage(){
   unlockSecret('sala_eco');
-  logline('🫧 <b>'+pick(['Uma parede falsa desliza','A Cartógrafa nota um padrão estranho e revela uma fenda','Um tijolo solto abre','Correntes de ar denunciam'])+'</b> uma passagem secreta!','sc');
+  logline('🫧 <b>'+pick(['Uma parede falsa desliza','A Cartógrafa nota um padrão estranho e revela uma fenda','Um tijolo solto abre','Correntes de ar denunciam','Uma runa esquecida se acende'])+'</b> uma passagem secreta!','sc');
   RUN.scene.mode='idle';
+  const variant=weighted({vault:28, cache:26, key:18, guardian:16, shrine:12});
   rtimeout(()=>{
-    logline('✨ Câmara escondida! Recompensas generosas aguardam.','sc');
-    grantGold(Math.round(ri(20,40)*RUN.floor));
-    grantMaterial('raro');
-    if(chance(0.6))grantEquipment('raro');
-    if(chance(0.18))grantSecretKey();
-    advanceRoom();
+    if(variant==='vault'){ unlockSecret('cofre');
+      logline('🗄️ <b class="sc">COFRE PROIBIDO!</b> Equipamento lendário selado por eras.','sc');
+      grantGold(Math.round(ri(30,60)*RUN.floor)); grantEquipment(RUN.floor>=20?'mitico':'lendario'); grantMaterial('lendario');
+      if(chance(0.25))grantSecretKey(); advanceRoom();
+    } else if(variant==='cache'){
+      logline('✨ Câmara escondida com tesouros generosos.','sc');
+      grantGold(Math.round(ri(20,40)*RUN.floor)); grantMaterial('epico'); if(chance(0.7))grantEquipment('epico'); advanceRoom();
+    } else if(variant==='key'){
+      logline('🗝️ Um relicário selado pulsa no escuro...','sc'); grantSecretKey(); if(chance(0.5))grantMaterial('raro'); advanceRoom();
+    } else if(variant==='shrine'){
+      logline('⛲ Um santuário oculto restaura corpo e mente.','sc');
+      RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#67d8ff');}); refreshBars();
+      RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.4)); advanceRoom();
+    } else { // guardião: elite guarda o tesouro
+      const pool=MONSTERS.filter(m=>m.elite&&RUN.floor>=m.floors[0]);
+      if(pool.length){ const m=pick(pool);unlockSecret('elite');discover('bestiary',m.id);
+        logline('⚔️ <b class="sc">Um guardião secreto protege o tesouro: '+m.name+'!</b>','sc');
+        const e=makeEnemy(m,RUN.floor,false);
+        beginCombat([e],{boss:false,onWin:()=>{ grantEquipment(RUN.floor>=20?'mitico':'lendario'); grantGold(Math.round(ri(30,50)*RUN.floor));
+          RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*4)); RUN.kills++;G.meta.totalKills++;checkUnlocks();saveGame();advanceRoom(); }});
+      } else { grantEquipment('lendario'); advanceRoom(); }
+    }
   },800);
 }
 
@@ -2033,9 +2152,12 @@ function grantSecretKey(){
   const f=RUN.floor;const pool=[];
   if(f>=10&&invQty('chave_negra')<1)pool.push('chave_negra');
   if(f>=10&&invQty('olho_abissal')<1&&G.meta.codex.secrets.includes('chave_negra'))pool.push('olho_abissal');
-  if(f>=8)pool.push('cristal_invocacao');
+  if(f>=8&&invQty('cristal_invocacao')<1)pool.push('cristal_invocacao');
   if(f>=12&&coroaCount()<3)pool.push('coroa_partida');
-  if(!pool.length)pool.push('cristal_invocacao');
+  if(f>=14&&invQty('selo_leviata')<1)pool.push('selo_leviata');
+  if(f>=18&&invQty('fragmento_tempo')<3)pool.push('fragmento_tempo');
+  if(f>=35&&invQty('coracao_estelar')<1)pool.push('coracao_estelar');
+  if(!pool.length)pool.push(pick(['cristal_invocacao','fragmento_tempo']));
   const id=pick(pool);addItem(id,1);discover('items',id);
   const it=IMAP[id];logline('🗝️ <b class="tag-secret">ITEM SECRETO:</b> '+it.icon+' '+it.name+'!','sc');
   sfx('secret');lootBurst('secreto');toast('🗝️ '+it.icon+' '+it.name,'secreto');
@@ -2382,6 +2504,13 @@ function applyDamageToEnemy(e,dmg,crit,el){
 }
 function killEnemy(e){if(e.dead)return;e.alive=false;e.dead=true;e.hp=0;
   logline('💀 '+e.name+' foi derrotado.','dn');
+  // contabiliza no bestiário
+  if(e.m&&e.m.id){G.meta.bestiaryKills=G.meta.bestiaryKills||{};G.meta.bestiaryKills[e.m.id]=(G.meta.bestiaryKills[e.m.id]||0)+1;}
+  // elites dão recompensa extra
+  if(e.m&&e.m.elite){G.meta.eliteKills=(G.meta.eliteKills||0)+1;
+    logline('⭐ <b class="sc">Elite abatido!</b> Recompensa rara.','sc');
+    const ess=runEssence(15+RUN.floor*4);grantEquipment(RUN.floor>=20?'lendario':'epico');grantMaterial('epico');
+    if(chance(0.2))grantSecretKey();sfx('secret');}
   // domar fera?
   const tamer=RUN.party.find(c=>c.alive&&c.h.passive.tags&&c.h.passive.tags.tameChance);
   if(tamer&&e.family==='fera'&&chance(tamer.h.passive.tags.tameChance)){
@@ -2442,6 +2571,12 @@ function maybeSecretBoss(){
     startSecretBoss('eco');return true;}
   if(coroaCount()>=3&&!G.meta.bossesKilled.includes('rei_esquecido')){
     startSecretBoss('rei_esquecido');return true;}
+  if(invQty('selo_leviata')>0&&RUN.floor>=14&&!G.meta.bossesKilled.includes('leviata')){
+    startSecretBoss('leviata');return true;}
+  if(invQty('coracao_estelar')>0&&RUN.floor>=35&&!G.meta.bossesKilled.includes('arauto_estelar')){
+    startSecretBoss('arauto_estelar');return true;}
+  if(invQty('fragmento_tempo')>=3&&!G.meta.bossesKilled.includes('cronarca')){
+    startSecretBoss('cronarca');return true;}
   return false;
 }
 function startSecretBoss(id){
@@ -2453,18 +2588,28 @@ function startSecretBoss(id){
   sfx('roar');bossCard(boss.name,boss.intro,true);showBossBar(e);
   beginCombat([e],{boss:true,secret:true,onWin:()=>onSecretBossWin(boss,e)});
 }
+const SECRET_BOSS_DROP={eco:'olho_onividente',rei_esquecido:'armadura_rei',leviata:'lamina_leviata',arauto_estelar:'manto_arauto',cronarca:'lamina_vazio'};
+const SECRET_BOSSES=['eco','rei_esquecido','leviata','arauto_estelar','cronarca'];
 function onSecretBossWin(boss,e){
   hideBossBar();if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
   RUN.kills++;G.meta.totalKills++;
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,40+RUN.floor*10));
   const ess=runEssence(200+RUN.floor*12);
-  grantEquipment('lendario');if(chance(0.5))grantEquipment('mitico');
+  // equipamento secreto exclusivo do chefe
+  const drop=SECRET_BOSS_DROP[boss.id];
+  if(drop){addItem(drop,1);discover('items',drop);logline('🏆 <b class="tag-secret">DESPOJO SECRETO:</b> '+IMAP[drop].icon+' '+IMAP[drop].name+'!','sc');lootBurst('secreto');}
+  grantEquipment('mitico');
   if(!G.meta.relics.includes('lampada_eterna')&&chance(0.5)){addItem('lampada_eterna',1);discover('items','lampada_eterna');}
   logline('🌟 <b>'+boss.name+' caiu!</b> Poder imenso é seu. +'+ess+' essência.','sc');
   toast('🌟 Chefe SECRETO derrotado!','mitico');
-  // desbloqueio do Andarilho
-  if(G.meta.bossesKilled.includes('eco')&&G.meta.bossesKilled.includes('rei_esquecido')){
+  // desbloqueio do Andarilho (mítico) — exige DERROTAR TODOS os chefes secretos
+  const allSecret=SECRET_BOSSES.every(id=>G.meta.bossesKilled.includes(id));
+  if(allSecret && !G.meta.flags.andarilho){
     G.meta.flags.andarilho=true;unlockSecret('andarilho');checkUnlocks();
+    logline('🌌 <b class="tag-secret">Todos os segredos sombrios foram desvendados. O Andarilho do Vazio se revela...</b>','sc');
+  } else if(!allSecret){
+    const left=SECRET_BOSSES.filter(id=>!G.meta.bossesKilled.includes(id)).length;
+    logline('🌑 Chefes secretos restantes para revelar o Andarilho: <b>'+left+'</b>.','sy');
   }
   saveGame();rtimeout(()=>descend(),1200);
 }
