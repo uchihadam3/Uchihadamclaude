@@ -1645,7 +1645,7 @@ function defaultMeta(){
     research:{}, researchActive:null, // {id,end}
     codex:{bestiary:[],items:[],secrets:[],bosses:[]},
     flags:{}, mapKnowledge:{}, // floorN -> familiaridade 0..1
-    slots:3, relics:[], seenIntro:false, upgrades:{},
+    slots:3, relics:[], seenIntro:false, upgrades:{}, equipUpg:{},
     playerName:null, playerSecret:null   // identidade no ranking
   };
 }
@@ -1656,6 +1656,17 @@ function migrateMeta(){
     else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; EQUIP_SLOTS.forEach(sl=>{if(st.equip[sl]===undefined)st.equip[sl]=null;}); }});
   if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
   if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
+  // aprimoramento por HERÓI+item (separado por personagem). Migra do antigo store compartilhado.
+  if(!G.meta.equipUpg){
+    G.meta.equipUpg={};
+    if(G.meta.upgrades){
+      Object.keys(G.meta.heroes||{}).forEach(hid=>{
+        const eq=G.meta.heroes[hid].equip||{};
+        EQUIP_SLOTS.forEach(sl=>{const id=eq[sl];
+          if(id&&G.meta.upgrades[id])G.meta.equipUpg[hid+'|'+id]=G.meta.upgrades[id];});
+      });
+    }
+  }
 }
 function loadGame(){
   try{const raw=localStorage.getItem(SAVE_KEY);if(raw){G.meta=JSON.parse(raw);migrateMeta();return true;}
@@ -2062,7 +2073,7 @@ function heroStats(heroId,level){
     s[k]=h.base[k]+(h.growth[k]||0)*(level-1);
   });
   // equipamento (com nível de aprimoramento +N → +14% por nível)
-  EQUIP_SLOTS.forEach(sl=>{const it=st.equip[sl];if(it&&IMAP[it]&&IMAP[it].stats){const u=1+upgLevel(it)*0.14;
+  EQUIP_SLOTS.forEach(sl=>{const it=st.equip[sl];if(it&&IMAP[it]&&IMAP[it].stats){const u=1+eqUpg(heroId,it)*0.14;
     for(const k in IMAP[it].stats)s[k]+=IMAP[it].stats[k]*u;}});
   // pesquisas meta
   const R=G.meta.research;
@@ -2076,15 +2087,18 @@ function knownSkills(heroId,uptoLevel){
   const h=HMAP[heroId];return h.skills.filter(sk=>sk.lvl<=uptoLevel);
 }
 function heroMaxLevel(heroId){return G.meta.heroes[heroId].level||1;}
-/* aprimoramento de equipamento por id (+N) */
-function upgLevel(id){return (G.meta.upgrades&&G.meta.upgrades[id])||0;}
+/* aprimoramento de equipamento — SEPARADO por herói (cada herói melhora a SUA cópia) */
+function eqKey(heroId,itemId){return heroId+'|'+itemId;}
+function eqUpg(heroId,itemId){return (G.meta.equipUpg&&G.meta.equipUpg[eqKey(heroId,itemId)])||0;}
+function upgLevel(id){return (G.meta.upgrades&&G.meta.upgrades[id])||0;}  // legado (não usado p/ heróis)
 const UPG_MAX=12;
 function upgMax(){return G.meta.research.forja5?12:6;}
-function upgGoldCost(id){const lv=upgLevel(id);const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
+// custos calculados a partir do nível ATUAL informado (lv = aprimoramento daquele herói)
+function upgGoldCost(id,lv){lv=lv||0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
   let c=(140+lv*lv*70)*rTier; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}
 // MATERIAIS exigidos: específicos pela raridade do item (+1 material nobre a partir de +4)
-function upgMats(id){
-  const lv=upgLevel(id), rt=RARS.indexOf(IMAP[id].rarity);
+function upgMats(id,lv){
+  lv=lv||0; const rt=RARS.indexOf(IMAP[id].rarity);
   const prim=['ferro','cristal','obsidiana','alma','po_estelar','po_estelar','po_estelar','po_estelar'][rt]||'ferro';
   const out=[{mat:prim, qty:1+Math.floor(lv/2)+Math.floor(rt/2)}];
   if(lv>=4){ const sec=['couro','pano','seda','essencia_sombria','fragmento','fragmento','nucleo','nucleo'][rt]||'seda';
@@ -2092,15 +2106,15 @@ function upgMats(id){
   return out;
 }
 // ESSÊNCIA agora é bem MENOR e linear (antes crescia ao quadrado e explodia)
-function upgEssCost(id){const lv=upgLevel(id);if(lv<3)return 0;const rTier=RARS.indexOf(IMAP[id].rarity)+1;
+function upgEssCost(id,lv){lv=lv||0;if(lv<3)return 0;const rTier=RARS.indexOf(IMAP[id].rarity)+1;
   return Math.round((lv-2)*24*rTier);}
-function canUpgrade(id){if(upgLevel(id)>=upgMax())return false;
-  if(G.meta.gold<upgGoldCost(id))return false; if(G.meta.essence<upgEssCost(id))return false;
-  return upgMats(id).every(c=>invQty(c.mat)>=c.qty);}
-function doUpgrade(id){if(!canUpgrade(id))return;const ess=upgEssCost(id);
-  G.meta.gold-=upgGoldCost(id); upgMats(id).forEach(c=>removeItem(c.mat,c.qty)); if(ess>0)G.meta.essence-=ess;
-  G.meta.upgrades=G.meta.upgrades||{};G.meta.upgrades[id]=(G.meta.upgrades[id]||0)+1;
-  saveGame();sfx('levelup');toast('🔨 '+IMAP[id].icon+' '+IMAP[id].name+' +'+upgLevel(id)+'!','lendario');renderTab();}
+function canUpgrade(heroId,itemId){const lv=eqUpg(heroId,itemId);if(lv>=upgMax())return false;
+  if(G.meta.gold<upgGoldCost(itemId,lv))return false; if(G.meta.essence<upgEssCost(itemId,lv))return false;
+  return upgMats(itemId,lv).every(c=>invQty(c.mat)>=c.qty);}
+function doUpgrade(heroId,itemId){if(!canUpgrade(heroId,itemId))return;const lv=eqUpg(heroId,itemId);const ess=upgEssCost(itemId,lv);
+  G.meta.gold-=upgGoldCost(itemId,lv); upgMats(itemId,lv).forEach(c=>removeItem(c.mat,c.qty)); if(ess>0)G.meta.essence-=ess;
+  G.meta.equipUpg=G.meta.equipUpg||{};G.meta.equipUpg[eqKey(heroId,itemId)]=lv+1;
+  saveGame();sfx('levelup');toast('🔨 '+HMAP[heroId].name.split(',')[0]+' · '+IMAP[itemId].icon+' '+IMAP[itemId].name+' +'+(lv+1)+'!','lendario');renderTab();}
 // XP necessária p/ subir do nível L -> L+1
 function xpForLevel(L){return Math.floor(40+L*L*14+L*30);}  // curva íngreme: subir de nível demora bastante
 
@@ -2384,7 +2398,7 @@ function openHero(id){
   }).join('');
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
     return `<div class="slotline"><div class="sl-ico">${it?itemIco(it,3):slotIcon(sl)}</div>
-      <div class="sl-n"><span class="tiny muted">${slotLabel(sl)}</span><br>${it?`<b>${it.name}${upgLevel(it.id)>0?` <span style="color:var(--gold)">+${upgLevel(it.id)}</span>`:''}</b>`:'<span class="muted">— vazio —</span>'}</div>
+      <div class="sl-n"><span class="tiny muted">${slotLabel(sl)}</span><br>${it?`<b>${it.name}${eqUpg(id,it.id)>0?` <span style="color:var(--gold)">+${eqUpg(id,it.id)}</span>`:''}</b>`:'<span class="muted">— vazio —</span>'}</div>
       <button class="btn ghost sm" onclick="navTo(()=>pickEquip('${id}','${sl}'))">${it?'Trocar':'Equipar'}</button></div>`;
   }).join('');
   openModal(`
@@ -2460,8 +2474,8 @@ function slotLabel(sl){return SLOT_LABEL[sl]||cap(sl);}
 function equippedByOthers(itemId,slot,exceptHeroId){
   return Object.keys(G.meta.heroes).filter(hid=>G.meta.heroes[hid].unlocked && hid!==exceptHeroId && G.meta.heroes[hid].equip[slot]===itemId);
 }
-// stats efetivos de um item (com aprimoramento +N)
-function effItemStats(it){if(!it||!it.stats)return {};const m=1+upgLevel(it.id)*0.14;const o={};for(const k in it.stats)o[k]=Math.round(it.stats[k]*m);return o;}
+// stats efetivos de um item (com aprimoramento +N — lv é o nível daquela cópia)
+function effItemStats(it,lv){if(!it||!it.stats)return {};const m=1+((lv||0)*0.14);const o={};for(const k in it.stats)o[k]=Math.round(it.stats[k]*m);return o;}
 // herói é focado em magia? (define a ordenação e o "melhor" item)
 function heroIsMage(heroId){const h=HMAP[heroId];if(!h)return false;return (h.base.mag||0)>(h.base.atk||0);}
 // pontua o quanto um item serve a um herói (prioriza o atributo principal dele)
@@ -2494,7 +2508,7 @@ function equipCompareHTML(slot,cand,heroId){
   const st=G.meta.heroes[heroId];const curId=st.equip[slot];
   if(curId===cand.id)return '';
   const cur=curId?IMAP[curId]:null;
-  const a=effItemStats(cur), b=effItemStats(cand);
+  const a=effItemStats(cur,curId?eqUpg(heroId,curId):0), b=effItemStats(cand,eqUpg(heroId,cand.id));
   const keys=[...new Set([...Object.keys(a),...Object.keys(b)])];
   const parts=keys.map(k=>{const d=(b[k]||0)-(a[k]||0);if(d===0)return '';
     const col=d>0?'#5fd17a':'#ff5d6c';return `<span style="color:${col}">${d>0?'▲+'+d:'▼'+d} ${k.toUpperCase()}</span>`;}).filter(Boolean);
@@ -2521,7 +2535,7 @@ function pickEquip(heroId,slot){
     if(isCur){ right=`<span class="chip" style="color:var(--gold)">✔ equipado aqui</span>`; }
     else if(freeForThis>0){ right=`<button class="btn sm" onclick="doEquip('${heroId}','${slot}','${it.id}')">Equipar${invQty(it.id)>1?` <span class="tiny">(${freeForThis} livre${freeForThis>1?'s':''})</span>`:''}</button>`; }
     else { right=`<button class="btn sm" disabled>indisponível</button>`; }
-    const uL=upgLevel(it.id);
+    const uL=eqUpg(heroId,it.id);
     const cmp=isCur?'':equipCompareHTML(slot,it,heroId);
     return `<div class="slotline b-${it.rarity}">
       <div class="sl-ico">${itemIco(it,3)}</div>
@@ -2530,7 +2544,7 @@ function pickEquip(heroId,slot){
   }).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
   const curIt=cur?IMAP[cur]:null;
   openModal(`<h3>${slotIcon(slot)} Equipar ${slotLabel(slot)}</h3>
-    <p class="tiny muted mt6">${curIt?`Equipado: <b>${curIt.name}${upgLevel(cur)>0?' +'+upgLevel(cur):''}</b> — ${statsStr(curIt.stats,upgLevel(cur))}`:'Nenhum item equipado neste espaço.'} As setas mostram se cada item é <span style="color:#5fd17a">▲ melhor</span> ou <span style="color:#ff5d6c">▼ pior</span>.</p>
+    <p class="tiny muted mt6">${curIt?`Equipado: <b>${curIt.name}${eqUpg(heroId,cur)>0?' +'+eqUpg(heroId,cur):''}</b> — ${statsStr(curIt.stats,eqUpg(heroId,cur))}`:'Nenhum item equipado neste espaço.'} As setas mostram se cada item é <span style="color:#5fd17a">▲ melhor</span> ou <span style="color:#ff5d6c">▼ pior</span>.</p>
     ${cur?`<button class="btn ghost sm mt6" onclick="doEquip('${heroId}','${slot}',null)">Desequipar atual</button>`:''}
     <div class="col mt">${list}</div>`);
 }
@@ -2585,25 +2599,29 @@ function tabForge(b){
         <span class="tiny" style="color:var(--gold)">${out.stats?statsStr(out.stats):typeDesc(out)}</span><br>
         <span class="tiny muted">${Object.keys(r.cost).map(k=>`${IMAP[k].icon}${IMAP[k].name.split(' ')[0]} ${invQty(k)}/${r.cost[k]}`).join(' · ')}</span></div>
       <button class="btn sm" ${can?'':'disabled'} onclick="craft('${r.id}')">Criar</button></div>`;};
-  // ---- aprimoramento de equipamento que você possui ----
-  // EQUIPADOS no topo; depois por raridade
-  const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&isEquip(it)&&invQty(it.id)>0)
-    .sort((a,b)=>(totalEquipped(b.id)>0)-(totalEquipped(a.id)>0) || RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
-  const equippedOn=id=>Object.keys(G.meta.heroes).filter(hid=>G.meta.heroes[hid].unlocked&&EQUIP_SLOTS.some(s=>G.meta.heroes[hid].equip[s]===id)).map(hid=>HMAP[hid].name.split(',')[0]);
-  const upgCard=it=>{const lv=upgLevel(it.id);const mats=upgMats(it.id);const max=lv>=upgMax();
-    const can=canUpgrade(it.id);const eqOn=equippedOn(it.id);
+  // ---- aprimoramento SEPARADO por herói: cada cópia equipada é melhorada individualmente ----
+  // monta uma linha por (herói × item equipado), agrupado por herói
+  const upgRows=[];
+  G.meta.party.concat(Object.keys(G.meta.heroes).filter(h=>!G.meta.party.includes(h)))
+    .filter(hid=>G.meta.heroes[hid]&&G.meta.heroes[hid].unlocked).forEach(hid=>{
+      const eq=G.meta.heroes[hid].equip||{};
+      EQUIP_SLOTS.forEach(sl=>{const id=eq[sl];if(id&&IMAP[id]&&isEquip(IMAP[id]))upgRows.push({hid,sl,it:IMAP[id]});});
+    });
+  const upgCard=({hid,it})=>{const lv=eqUpg(hid,it.id);const mats=upgMats(it.id,lv);const max=lv>=upgMax();
+    const can=canUpgrade(hid,it.id);const hero=HMAP[hid];
     const matsStr=mats.map(c=>{const have=invQty(c.mat);const ok=have>=c.qty;return `<span style="color:${ok?'var(--ok)':'var(--bad)'}">${IMAP[c.mat]?IMAP[c.mat].icon:'🧱'}${have}/${c.qty}</span>`;}).join(' · ');
-    return `<div class="recipe ${'b-'+it.rarity}" style="${eqOn.length?'border-color:var(--gold)':''}">
+    return `<div class="recipe ${'b-'+it.rarity}" style="border-color:var(--gold)">
       <div class="rico">${itemIco(it,3)}</div>
-      <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)}${eqOn.length?` <span class="chip" style="color:var(--gold);border-color:var(--gold)">🛡️ ${eqOn.join(', ')}</span>`:''}<br>
+      <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)} <span class="chip" style="color:var(--gold);border-color:var(--gold)">${hero.icon} ${hero.name.split(',')[0]}</span><br>
         <span class="tiny" style="color:var(--gold)">${statsStr(it.stats,lv)}</span><br>
         ${max?'<span class="tiny" style="color:var(--gold)">★ Aprimoramento máximo</span>'
-          :`<span class="tiny muted">🪙 ${upgGoldCost(it.id)} · ${matsStr}${upgEssCost(it.id)>0?` · 💠 ${upgEssCost(it.id)}`:''}</span>`}</div>
-      ${max?'':`<button class="btn sm" ${can?'':'disabled'} onclick="doUpgrade('${it.id}')">Aprimorar +${lv+1}</button>`}</div>`;};
+          :`<span class="tiny muted">🪙 ${upgGoldCost(it.id,lv)} · ${matsStr}${upgEssCost(it.id,lv)>0?` · 💠 ${upgEssCost(it.id,lv)}`:''}</span>`}</div>
+      ${max?'':`<button class="btn sm" ${can?'':'disabled'} onclick="doUpgrade('${hid}','${it.id}')">Aprimorar +${lv+1}</button>`}</div>`;};
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${bal(G.meta.gold)} · 💠 ${bal(G.meta.essence)}</span></div>
      <p class="muted small mt6">Crie e <b>aprimore</b> equipamento. Cada aprimoramento (+N) dá +14% nos atributos do item.</p></div>
      <div class="panel mb"><div class="row between"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${G.meta.research.forja5?'':' (Forja Mítica destrava +12)'}</span></div>
-       <div class="col mt6">${owned.length?owned.map(upgCard).join(''):'<p class="muted small">Você ainda não tem equipamento. Crie abaixo ou ache na Adranja.</p>'}</div></div>
+       <p class="tiny muted mt6">Cada cópia é aprimorada <b>por herói</b> — melhorar a manopla do Guerreiro não afeta a do outro.</p>
+       <div class="col mt6">${upgRows.length?upgRows.map(upgCard).join(''):'<p class="muted small">Nenhum herói tem equipamento. Equipe itens nos heróis para poder aprimorá-los.</p>'}</div></div>
      <div class="panel"><h4 class="mb">🛠️ Criar Equipamento & Itens</h4>
      <div class="col">${avail.map(card).join('')}</div>
      ${locked.length?`<div class="divider"></div><p class="lab-sm">🔒 Receitas bloqueadas (pesquise na Biblioteca)</p>
@@ -2622,7 +2640,7 @@ const BUY_SHOP=[
   {id:'seda',gold:450},{id:'essencia_sombria',gold:560},{id:'obsidiana',gold:850},{id:'nucleo',gold:950},
 ];
 function sellValue(id){const it=IMAP[id];if(!it)return 0;let v=SELL_VALUE[it.rarity]||4;
-  if(isEquip(it))v=Math.round(v*1.5); if(it.type==='mat')v=Math.round(v*0.5); v+=upgLevel(id)*60; return v;}
+  if(isEquip(it))v=Math.round(v*1.5); if(it.type==='mat')v=Math.round(v*0.5); return v;}
 function totalEquipped(id){return Object.values(G.meta.heroes).reduce((n,h)=>n+EQUIP_SLOTS.filter(s=>h.equip&&h.equip[s]===id).length,0);}
 function sellFree(id){return Math.max(0,invQty(id)-totalEquipped(id));}   // cópias livres (não equipadas)
 function sellItem(id){const have=invQty(id);const locked=totalEquipped(id);
@@ -2667,7 +2685,7 @@ function tabMarket(b){
     return `<div class="recipe sellrow ${'b-'+it.rarity} ${sel?'selsel':''}" onclick="toggleSell('${it.id}')">
       <div class="selbox">${sel?'☑':'☐'}</div>
       <div class="rico">${itemIco(it,3)}</div>
-      <div style="flex:1"><b>${it.name}${upgLevel(it.id)>0?' +'+upgLevel(it.id):''}</b> <span class="chip" style="opacity:.85">${eq?'⚔️ Equip.':'🧱 Item'}</span> ${rarPill(it.rarity)}<br>
+      <div style="flex:1"><b>${it.name}</b> <span class="chip" style="opacity:.85">${eq?'⚔️ Equip.':'🧱 Item'}</span> ${rarPill(it.rarity)}<br>
         <span class="tiny muted">livre: ${free}${have>free?` (${have-free} equipado)`:''} · 🪙${sellValue(it.id)} cada</span></div>
       <div style="text-align:right"><b style="color:var(--gold)">🪙${fmt(sellValue(it.id)*free)}</b></div></div>`;};
   const buyCard=g=>{const it=IMAP[g.id];return `<div class="recipe"><div class="rico">${itemIco(it,3)}</div>
@@ -2817,7 +2835,7 @@ function tabCodex(b){
     const items=ITEMS.filter(i=>isEquip(i)&&i.rarity===r); if(!items.length)return '';
     const have=items.filter(i=>invQty(i.id)>0).length;
     const chips=items.map(i=>invQty(i.id)>0
-      ? `<span class="chip" style="color:${RAR_COLOR[r]};border-color:${RAR_COLOR[r]}">${i.icon} ${i.name}${upgLevel(i.id)>0?' +'+upgLevel(i.id):''}</span>`
+      ? `<span class="chip" style="color:${RAR_COLOR[r]};border-color:${RAR_COLOR[r]}">${i.icon} ${i.name}</span>`
       : `<span class="chip" style="opacity:.38">🔒 ???</span>`).join(' ');
     return `<div class="mt6"><div class="row between"><b style="color:${RAR_COLOR[r]}">${RAR_NAME[r]}</b><span class="tiny muted">${have}/${items.length}</span></div>
       <div class="row wrap mt6">${chips}</div></div>`;
