@@ -137,9 +137,10 @@ canvas{image-rendering:pixelated;}
 .log .ev{color:var(--gold);} .log .cb{color:#ff9a6c;} .log .lt{color:var(--rare);}
 .log .sc{color:var(--shadow-c);} .log .dn{color:var(--ok);} .log .bd{color:var(--bad);} .log .sy{color:var(--magic-2);}
 .party-mini{display:flex;gap:6px;flex-wrap:wrap;}
-.pm{flex:1;min-width:118px;background:var(--panel);border:1px solid var(--line-soft);border-radius:10px;padding:6px 8px;display:flex;gap:8px;align-items:center;}
+.pm{flex:1;min-width:150px;background:var(--panel);border:1px solid var(--line-soft);border-radius:10px;padding:6px 8px;display:flex;gap:8px;align-items:center;}
 .pm canvas{width:40px;height:40px;flex:0 0 auto;}
 .pm .pn{font-size:12px;font-family:'Cinzel';font-weight:700;}
+.pm .hpbar{height:15px;}   /* mais alta p/ os números de PV não ficarem cortados */
 .pm.dead{filter:grayscale(1) brightness(.5);}
 .fct{position:absolute;font-family:'Cinzel';font-weight:900;font-size:17px;pointer-events:none;white-space:nowrap;
   text-shadow:0 0 4px rgba(0,0,0,.9),0 2px 2px rgba(0,0,0,.9),-1px -1px 0 rgba(0,0,0,.7),1px 1px 0 rgba(0,0,0,.7);
@@ -1483,6 +1484,24 @@ const ITEMS=[
 {id:'manto_celeste',name:'Manto Celestial',icon:'✨',type:'armadura',slot:'armadura',rarity:'celestial',stats:{hp:150,def:40,mag:20,spd:8},desc:'Tecido com a aurora do mundo.'},
 {id:'coroa_celeste',name:'Coroa Celestial',icon:'👑',type:'acessorio',slot:'acessorio',rarity:'celestial',stats:{atk:16,mag:16,hp:60,lck:18},desc:'Só os verdadeiros soberanos a portam.'},
 {id:'talisma_celeste',name:'Talismã Celestial',icon:'🌠',type:'talisma',slot:'talisma',rarity:'celestial',stats:{atk:20,mag:20,def:16,spd:8,lck:12},desc:'Contém uma fagulha da criação.'},
+/* ---- ÚNICOS DA DIFICULDADE DIFÍCIL (só dropam no modo Difícil/Inferno) ---- */
+{id:'dh_arma_atk',name:'Carrasco do Pesadelo',icon:'⚔️',type:'arma',slot:'arma',rarity:'celestial',mode:'dificil',stats:{atk:60,def:12,lck:10},desc:'Forjado na primeira descida ao Difícil.'},
+{id:'dh_arma_mag',name:'Grimório Incandescente',icon:'📕',type:'arma',slot:'arma',rarity:'celestial',mode:'dificil',stats:{mag:62,lck:12,hp:30},desc:'Suas páginas queimam sem se consumir.'},
+{id:'dh_armadura',name:'Couraça do Inferno Menor',icon:'🛡️',type:'armadura',slot:'armadura',rarity:'celestial',mode:'dificil',stats:{hp:200,def:55,atk:10},desc:'Temperada no fogo do modo Difícil.'},
+{id:'dh_elmo',name:'Elmo dos Condenados',icon:'💀',type:'elmo',slot:'elmo',rarity:'celestial',mode:'dificil',stats:{def:30,mag:26,hp:70},desc:'Carrega a fúria dos que caíram.'},
+{id:'dh_bracelete',name:'Garras Flamejantes',icon:'🔥',type:'bracelete',slot:'bracelete',rarity:'celestial',mode:'dificil',stats:{atk:30,spd:10,def:12},desc:'Brasas vivas em forma de garra.'},
+{id:'dh_grevas',name:'Cascos do Tormento',icon:'🦿',type:'grevas',slot:'grevas',rarity:'celestial',mode:'dificil',stats:{spd:24,def:18,lck:10},desc:'Pisam onde poucos ousam.'},
+{id:'dh_acessorio',name:'Selo Carmesim',icon:'🔴',type:'acessorio',slot:'acessorio',rarity:'celestial',mode:'dificil',stats:{atk:22,mag:22,hp:70,lck:16},desc:'Marca de quem venceu o Difícil.'},
+{id:'dh_talisma',name:'Talismã das Brasas',icon:'🜂',type:'talisma',slot:'talisma',rarity:'celestial',mode:'dificil',stats:{atk:24,mag:24,def:20,lck:14},desc:'Pulsa com calor infernal.'},
+/* ---- ÚNICOS DO INFERNO (só dropam no modo Inferno — os mais fortes do jogo) ---- */
+{id:'inf_arma_atk',name:'Devoradora de Mundos',icon:'🗡️',type:'arma',slot:'arma',rarity:'secreto',mode:'inferno',stats:{atk:95,mag:30,lck:18},desc:'Cada golpe ecoa o fim de uma era.'},
+{id:'inf_arma_mag',name:'Cetro do Apocalipse',icon:'🔱',type:'arma',slot:'arma',rarity:'secreto',mode:'inferno',stats:{mag:98,lck:18,hp:50},desc:'Convoca o juízo final.'},
+{id:'inf_armadura',name:'Égide do Inferno',icon:'🩸',type:'armadura',slot:'armadura',rarity:'secreto',mode:'inferno',stats:{hp:320,def:85,mag:25},desc:'Nada que o Inferno cuspa a atravessa.'},
+{id:'inf_elmo',name:'Coroa do Abismo Ardente',icon:'👑',type:'elmo',slot:'elmo',rarity:'secreto',mode:'inferno',stats:{def:45,mag:40,hp:110},desc:'A coroa do Senhor das Brasas.'},
+{id:'inf_bracelete',name:'Punho do Cataclismo',icon:'☄️',type:'bracelete',slot:'bracelete',rarity:'secreto',mode:'inferno',stats:{atk:46,def:18,spd:12},desc:'Um soco que racha o chão do Inferno.'},
+{id:'inf_grevas',name:'Passos do Fim',icon:'🌋',type:'grevas',slot:'grevas',rarity:'secreto',mode:'inferno',stats:{spd:34,def:26,lck:16},desc:'Onde pisam, a terra arde.'},
+{id:'inf_acessorio',name:'Coração do Inferno',icon:'❤️‍🔥',type:'acessorio',slot:'acessorio',rarity:'secreto',mode:'inferno',stats:{atk:30,mag:30,hp:120,lck:26},desc:'Ainda bate, ainda queima.'},
+{id:'inf_talisma',name:'Talismã do Inferno',icon:'🔆',type:'talisma',slot:'talisma',rarity:'secreto',mode:'inferno',stats:{atk:34,mag:34,def:30,spd:12,lck:20},desc:'O selo final dos que dominaram o Inferno.'},
 ];
 /* ===== EQUIPAMENTO PROGRESSIVO POR PROFUNDIDADE =====
    Gera famílias de itens por FAIXA de andar. Itens mais fundos têm o mesmo
@@ -2912,6 +2931,20 @@ function rollTides(party){
   return good.slice(0,nGood).concat(bad.slice(0,nBad));
 }
 
+/* ====================== DIFICULDADES DA ADRANJA ====================== */
+const DIFFS={
+  normal: {id:'normal', name:'Normal',  icon:'🗺️', hp:1,   stat:1,    col:'var(--ok)',     desc:'A Adranja como ela é.'},
+  dificil:{id:'dificil',name:'Difícil', icon:'🔥', hp:2.4, stat:1.6,  col:'var(--gold)',   desc:'Todos os inimigos e chefes muito mais fortes — mais vida e mais dano. Dropa itens únicos do Difícil.'},
+  inferno:{id:'inferno',name:'Inferno', icon:'💀', hp:6,   stat:2.6,  col:'var(--bad)',    desc:'Brutal. Tudo aumenta ainda mais. Dropa os equipamentos mais fortes do jogo.'},
+};
+const DIFF_ORDER=['normal','dificil','inferno'];
+function diffUnlocked(d){ if(d==='normal')return true; if(d==='dificil')return !!(G.meta.flags&&G.meta.flags.beatGame); if(d==='inferno')return !!(G.meta.flags&&G.meta.flags.beatHard); return false; }
+function diffMul(){ const d=(RUN&&RUN.dungeon==='adranja'&&RUN.diff)||'normal'; return DIFFS[d]||DIFFS.normal; }
+// item exclusivo de modo só pode cair no modo correspondente (ou mais difícil)
+function modeOK(it){ if(!it||!it.mode)return true; const d=(RUN&&RUN.dungeon==='adranja'&&RUN.diff)||'normal';
+  if(it.mode==='dificil')return d==='dificil'||d==='inferno';
+  if(it.mode==='inferno')return d==='inferno'; return false; }
+
 let RUN_PENDING=null;
 function startRunFlow(){
   if(RUN&&RUN.alive){ returnToRun(); return; }
@@ -2919,9 +2952,10 @@ function startRunFlow(){
   if(party.length===0){toast('Monte uma equipe primeiro.','warn');return;}
   Sound.init();Sound.resume();
   const tides=rollTides(party);
-  RUN_PENDING={party,tides,startFloor:1};
+  RUN_PENDING={party,tides,startFloor:1,diff:'normal'};
   showPreRunScreen();
 }
+function setDiff(d){ if(!diffUnlocked(d)){toast('Modo bloqueado.','warn');return;} RUN_PENDING.diff=d; showPreRunScreen(); }
 function rerollAndShow(){RUN_PENDING.tides=rollTides(RUN_PENDING.party);showPreRunScreen();}
 function setStartFloor(f){RUN_PENDING.startFloor=f;showPreRunScreen();}
 function cycleMerchAuto(){G.meta.settings=G.meta.settings||{};
@@ -2939,12 +2973,18 @@ function showPreRunScreen(){
   const opts=startFloorOptions();
   const merch=(G.meta.settings&&G.meta.settings.merchantAuto)||'smart';
   const merchLabel={smart:'🧠 Inteligente (com reserva)',buy:'🛒 Comprar tudo que puder',skip:'🚫 Não comprar (poupar)'}[merch];
+  const curDiff=RUN_PENDING.diff||'normal';
+  const diffSel=torre?'':`<div class="divider"></div><div class="row between"><b class="small">⚔️ Dificuldade</b></div>
+    <div class="row wrap mt6" style="gap:6px">${DIFF_ORDER.map(d=>{const D=DIFFS[d];const unl=diffUnlocked(d);
+      return `<button class="btn ${d===curDiff?'':'ghost'} sm" ${unl?'':'disabled'} style="${d===curDiff?'border-color:'+D.col+';color:'+D.col:''}" onclick="setDiff('${d}')">${D.icon} ${D.name}${unl?'':' 🔒'}</button>`;}).join('')}</div>
+    <p class="tiny muted mt6">${DIFFS[curDiff].desc}${!diffUnlocked('dificil')?' · 🔒 Zere o Andar 200 no Normal para abrir o Difícil.':(!diffUnlocked('inferno')?' · 🔒 Zere o Andar 200 no Difícil para abrir o Inferno.':'')}</p>`;
   openModal(`<h2 style="color:var(--gold)">${torre?'🗼 Torre dos Tiranos':'⚓ Marés da Adranja'}</h2>
     ${torre?'<p class="small" style="color:var(--bad)"><b>Aviso:</b> 50 andares, um tirano colossal por andar. Batalhas longas e brutais. Bem mais difícil que a Adranja.</p>':''}
     <p class="small muted">${torre?'As correntes mágicas também alcançam a Torre':'A masmorra se reorganiza'} — sempre <b style="color:var(--ok)">2 bênçãos</b> e <b style="color:var(--bad)">2 riscos</b>:</p>
     <div class="col mt">${tides.map(t=>`<div class="recipe" style="border-color:${t.good?'var(--ok)':'var(--bad)'}">
        <div class="rico">${t.icon}</div><div style="flex:1"><b>${t.name}</b> ${t.good?'<span class="chip" style="color:var(--ok)">bônus</span>':'<span class="chip" style="color:var(--bad)">risco</span>'}<br>
        <span class="tiny">${t.desc}</span></div></div>`).join('')}</div>
+    ${diffSel}
     ${opts.length>1?`<div class="divider"></div><div class="row between"><b class="small">🪜 Começar do andar</b></div>
       <div class="row wrap mt6">${opts.map(f=>`<button class="btn ${f===startFloor?'':'ghost'} sm" onclick="setStartFloor(${f})">${f===1?'Andar 1':'Andar '+f}</button>`).join('')}</div>
       <p class="tiny muted mt6">Você desbloqueia checkpoints a cada ${torre?5:10} andares alcançados.</p>`:''}
@@ -2954,21 +2994,21 @@ function showPreRunScreen(){
     <div class="row mt"><button class="btn" onclick="confirmStartRun()">${torre?'Escalar a Torre 🗼':'Entrar na Adranja ▶'}</button>
     <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>`);
 }
-function confirmStartRun(){closeModal();const{party,tides,startFloor,dungeon}=RUN_PENDING;
+function confirmStartRun(){closeModal();const{party,tides,startFloor,dungeon,diff}=RUN_PENDING;
   G.meta.runs++;saveGame();
-  initRun(party,tides,startFloor||1,dungeon||'adranja');
+  initRun(party,tides,startFloor||1,dungeon||'adranja',diff||'normal');
   CUR.screen='dungeon';renderDungeon();
-  RUN.speed=(G.meta.settings&&G.meta.settings.speed)||1;music('explore');
+  music('explore');
   setTimeout(()=>{ (RUN.dungeon==='torre'?torreBegin:stepBegin)(); },700);
 }
-function initRun(party,tides,startFloor,dungeon){
+function initRun(party,tides,startFloor,dungeon,diff){
   const sf=Math.max(1,startFloor||1);
   RUN={
     party:party.map(buildCombatant),
-    dungeon:dungeon||'adranja', maxFloor:(dungeon==='torre'?TORRE_MAX:200),
+    dungeon:dungeon||'adranja', diff:(dungeon==='torre'?'normal':(diff||'normal')), maxFloor:(dungeon==='torre'?TORRE_MAX:200),
     floor:sf, startFloor:sf, room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
     log:[], scene:{mode:'idle',enemies:[],walk:0,shake:0,flashEnemy:-1},
-    passive:{}, alive:true, paused:false, speed:1, fxNodes:[],
+    passive:{}, alive:true, paused:false, speed:(G.meta.settings&&G.meta.settings.speed)||1, fxNodes:[],
     tides:tides||[], tideGold:1, tideTreasure:1, tideEnemyHp:1, tideEssence:1, tideHp:1, tideEvent:1, tideNoRest:0,
     pendingBoss:null, keysThisRun:[], retreated:false, encounters:[],
     bestCombo:0, bossKills:0, equipFound:0, secretsFound:0, _t0:Date.now()
@@ -3019,6 +3059,7 @@ function renderDungeon(){
   APP.innerHTML=`<div class="screen dungeon active">
     <div class="topbar">
       <span class="floor-badge" id="floorBadge">🏰 Andar ${RUN.floor}</span>
+      ${(RUN.dungeon==='adranja'&&RUN.diff&&RUN.diff!=='normal')?`<span class="chip" style="color:${DIFFS[RUN.diff].col};border-color:${DIFFS[RUN.diff].col}">${DIFFS[RUN.diff].icon} ${DIFFS[RUN.diff].name}</span>`:''}
       <span class="chip" id="regionChip" style="color:var(--magic-2)"></span>
       <span class="chip" id="famChip"></span>
       <div class="res">
@@ -3378,7 +3419,7 @@ function encRest(){
 function encFountain(){
   unlockSecret('fonte');
   logline('⛲ A <b>Fonte das Memórias</b> brilha. Beber dela restaura corpo e mente.','sc');RUN.scene.mode='idle';
-  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#67d8ff');});
+  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');});
     RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.18));
     refreshBars();advanceRoom();},800);
 }
@@ -3441,7 +3482,7 @@ function merchAutoBuy(mode){
       if(k==='mat')grantMaterial('raro');
       else if(k==='equip')grantEquipment();
       else if(g.item)addItem(g.item,1);
-      else if(k==='heal'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#5fd17a');});refreshBars();}
+      else if(k==='heal'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');});refreshBars();}
       logline('🧙 Comprado: '+g.label+' (−'+g.cost+' 💠).','dn'); bought++;
     }
   });
@@ -3477,7 +3518,7 @@ function encSecretPassage(){
       logline('🗝️ Um relicário selado pulsa no escuro...','sc'); grantSecretKey(); if(chance(0.5))grantMaterial('raro'); advanceRoom();
     } else if(variant==='shrine'){
       logline('⛲ Um santuário oculto restaura corpo e mente.','sc');
-      RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#67d8ff');}); refreshBars();
+      RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');}); refreshBars();
       RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.15)); advanceRoom();
     } else { // guardião: elite guarda o tesouro
       const pool=MONSTERS.filter(m=>m.elite&&RUN.floor>=m.floors[0]);
@@ -3558,9 +3599,18 @@ function grantMaterial(minRar,cap){
   if(!(typeof RUN!=='undefined'&&RUN))toast('🧱 '+it.name,it.rarity);
 }
 function grantEquipment(minRar,cap){
+  // chance dedicada de soltar um ÚNICO do modo atual (Difícil/Inferno)
+  const dmode=(RUN&&RUN.dungeon==='adranja'&&RUN.diff)||'normal';
+  if(dmode!=='normal'&&chance(dmode==='inferno'?0.16:0.10)){
+    const wants=dmode==='inferno'?(chance(0.5)?'inferno':'dificil'):'dificil';
+    const mpool=ITEMS.filter(i=>isEquip(i)&&i.mode===wants);
+    if(mpool.length){const mi=pick(mpool);addItem(mi.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;discover('items',mi.id);
+      logline('🔥 <b style="color:'+RAR_COLOR[mi.rarity]+'">'+mi.name+'</b> <span class="tiny muted">(único do '+(DIFFS[wants]?DIFFS[wants].name:wants)+')</span>','lt');
+      sfx('epic');lootBurst(mi.rarity);if(!RUN)toast('🔥 '+mi.name,mi.rarity);return;}
+  }
   const rar=rarityRoll(minRar,cap);
   const curTier=bandTier((typeof RUN!=='undefined'&&RUN)?RUN.floor:1);
-  let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar);
+  let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar&&modeOK(i));
   // se há itens GERADOS desta raridade, restringe à faixa de profundidade (loot evolui com o andar)
   const banded=pool.filter(i=>i.band!==undefined);
   if(banded.length){
@@ -3568,8 +3618,8 @@ function grantEquipment(minRar,cap){
     const useTier=avail.length?Math.max(...avail.map(i=>i.band)):Math.min(...banded.map(i=>i.band));
     pool=banded.filter(i=>i.band===useTier);
   }
-  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar)&&i.band===undefined);
-  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i));
+  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar)&&i.band===undefined&&modeOK(i));
+  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&modeOK(i));
   const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🎁 Equipamento achado: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);
@@ -3674,11 +3724,12 @@ function dmgAll(frac,why){RUN.scene.shake=5;RUN.party.filter(c=>c.alive).forEach
 /* ====================== COMBATE ====================== */
 function makeEnemy(monster,floor,boss){
   const b=monster.base;const tideHp=(RUN&&RUN.tideEnemyHp)||1;
+  const dm=diffMul();   // multiplicador do modo (Normal/Difícil/Inferno) — só na Adranja
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
-    const hp=Math.round((250+floor*floor*15+floor*180)*tideHp);
-    const atk=Math.round(20+floor*4.2+floor*floor*0.036);
-    const def=Math.round(13+floor*1.6);
+    const hp=Math.round((250+floor*floor*15+floor*180)*tideHp*dm.hp);
+    const atk=Math.round((20+floor*4.2+floor*floor*0.036)*dm.stat);
+    const def=Math.round((13+floor*1.6)*dm.stat);
     const spd=Math.round(8+floor*0.18);
     return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
       st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
@@ -3686,9 +3737,9 @@ function makeEnemy(monster,floor,boss){
   // inimigo normal: andares iniciais suaves, profundos brutais (quadrático domina tarde)
   const hpS=1+floor*0.20+floor*floor*0.006, atkS=1+floor*0.10+floor*floor*0.005, defS=1+floor*0.15, spdS=1+floor*0.05;
   const tideSpd=(RUN&&RUN.tideEnemySpd)||1;   // Maré da Tormenta acelera inimigos
-  const maxhp=Math.round(b.hp*hpS*tideHp);
+  const maxhp=Math.round(b.hp*hpS*tideHp*dm.hp);
   return {m:monster,name:monster.name,boss:false,family:monster.family,el:monster.el,
-    st:{atk:Math.round(b.atk*atkS),mag:Math.round(b.atk*atkS),def:Math.round(b.def*defS),spd:Math.round(b.spd*spdS*tideSpd),lck:5},
+    st:{atk:Math.round(b.atk*atkS*dm.stat),mag:Math.round(b.atk*atkS*dm.stat),def:Math.round(b.def*defS*dm.stat),spd:Math.round(b.spd*spdS*tideSpd),lck:5},
     maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{}};
 }
 function enemyPoolFor(floor){return MONSTERS.filter(m=>floor>=m.floors[0]&&floor<=m.floors[1]);}
@@ -4121,7 +4172,7 @@ function torreSecret(){
   if(v==='cofre'){logline('🗄️ <b class="sc">Câmara selada da Torre!</b> Tesouro antigo.','sc');
     grantGold(Math.round(ri(60,120)*RUN.floor));grantEquipment(RUN.floor>=20?'mitico':'lendario',false);grantMaterial('lendario',false);}
   else if(v==='forja'){logline('⚒️ Uma forja abandonada zumbe de poder.','sc');grantMaterial('lendario',false);grantMaterial('epico',false);if(chance(0.6))grantEquipment('epico',false);}
-  else if(v==='fonte'){logline('⛲ Uma fonte ancestral restaura o grupo.','sc');RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=c.maxhp;floatText('hero',i,'CURA','#67d8ff');});refreshBars();}
+  else if(v==='fonte'){logline('⛲ Uma fonte ancestral restaura o grupo.','sc');RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');});refreshBars();}
   else if(v==='chave'){logline('🗝️ Um relicário pulsa entre os degraus...','sc');grantSecretKey();}
   else {logline('🏮 Uma relíquia esquecida repousa num altar.','sc');grantMaterial('lendario');if(!G.meta.relics.includes('lampada_eterna')&&chance(0.4)){addItem('lampada_eterna',1);discover('items','lampada_eterna');}}
   rtimeout(startTorreBoss,900);
@@ -4192,8 +4243,8 @@ function startTorreFlow(){
 function autoConsumables(){
   const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.15);
   if(!low)return;
-  if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);low.hp=Math.min(low.maxhp,low.hp+Math.round(low.maxhp*0.6*healMul()));
-    floatText('hero',RUN.party.indexOf(low),'CURA','#67d8ff');logline('🍶 Elixir Maior usado em '+actorName(low)+'.','dn');refreshBars();return;}
+  if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);const _h=Math.round(Math.min(low.maxhp-low.hp,low.maxhp*0.6*healMul()));low.hp=Math.min(low.maxhp,low.hp+_h);
+    floatText('hero',RUN.party.indexOf(low),'+'+_h,'#5fd17a');logline('🍶 Elixir Maior usado em '+actorName(low)+'.','dn');refreshBars();return;}
   if(invQty("pocao_vida")>0){removeItem("pocao_vida",1);const h=Math.round(low.maxhp*0.25*healMul());
     low.hp=Math.min(low.maxhp,low.hp+h);floatText('hero',RUN.party.indexOf(low),'+'+h,'#5fd17a');
     logline('🧪 Poção de Vida usada automaticamente em '+actorName(low)+'.','dn');refreshBars();}
@@ -4269,7 +4320,7 @@ function endRun(reason){
   const dur=Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000));
   const summary={reason,floor:RUN.floor,startFloor:RUN.startFloor||1,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence,
     bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur,
-    dungeon:RUN.dungeon||'adranja'};
+    dungeon:RUN.dungeon||'adranja', diff:RUN.diff||'normal'};
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   RUN=null;checkUnlocks();saveGame();
   try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}   // envia conquistas ao ranking
@@ -4291,6 +4342,7 @@ function showResult(s){
       <div class="row center" style="justify-content:center;gap:8px;margin:6px 0">
         <span class="chip" style="font-size:20px;font-family:Cinzel;color:var(--gold);border-color:var(--gold)">Rank ${rank}</span>
         <span class="chip">${torre?'🗼 Torre dos Tiranos':'🏰 Adranja'}</span>
+        ${(!torre&&s.diff&&s.diff!=='normal')?`<span class="chip" style="color:${DIFFS[s.diff].col};border-color:${DIFFS[s.diff].col}">${DIFFS[s.diff].icon} ${DIFFS[s.diff].name}</span>`:''}
       </div>
       <p class="small muted">${death?'Seus heróis caem... mas a masmorra os cospe de volta. <b>Nada é perdido</b> — níveis, habilidades, itens e segredos continuam com você.':'De volta ao acampamento, sãos e salvos. Tudo que você conquistou continua seu.'}</p>
       <div class="divider"></div>
@@ -4324,8 +4376,19 @@ function showResult(s){
 function victoryEnding(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   music('victory');sfx('win');
-  const s={floor:RUN.floor,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence};
-  RUN=null;G.meta.flags.beatGame=true;saveGame();try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}CUR.screen='result';
+  const diff=(RUN&&RUN.diff)||'normal';
+  const s={floor:RUN.floor,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence,diff};
+  const wasHard=!!G.meta.flags.beatHard, wasInf=!!G.meta.flags.beatInferno;
+  RUN=null;G.meta.flags.beatGame=true;
+  if(diff==='dificil'||diff==='inferno')G.meta.flags.beatHard=true;
+  if(diff==='inferno')G.meta.flags.beatInferno=true;
+  // mensagem do que foi destravado agora
+  let unlockMsg='';
+  if(diff==='normal')unlockMsg='🔥 Modo <b>Difícil</b> destravado! Inimigos muito mais fortes e itens únicos te aguardam.';
+  else if(diff==='dificil'&&!wasHard)unlockMsg='💀 Modo <b>Inferno</b> destravado! O desafio final — e os equipamentos mais fortes do jogo.';
+  else if(diff==='inferno'&&!wasInf)unlockMsg='👑 Você dominou o <b>Inferno</b> da Adranja. Não há mais fundo a descer... por ora.';
+  s.unlockMsg=unlockMsg;
+  saveGame();try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}CUR.screen='result';
   APP.innerHTML=`<div class="screen active" style="justify-content:center">
     <div class="panel parch center" style="max-width:540px;margin:auto;border-color:var(--gold)">
       <div style="font-size:64px">💖👑✨</div>
@@ -4334,7 +4397,9 @@ function victoryEnding(){
       <p class="small muted">Você conquistou as 100 profundidades da Adranja. Pouquíssimos chegaram tão fundo. Mas a masmorra é mágica... e sempre há um segredo a mais para quem ousa voltar.</p>
       <div class="divider"></div>
       <p class="small">Chegou ao <b>Andar ${s.floor}</b> · ${s.kills} abates nesta incursão.</p>
-      <p class="tiny tag-secret mt6">🏆 Lenda da Adranja — você zerou as 100 profundidades!</p>
+      <p class="small mt6">Modo: <b style="color:${(DIFFS[s.diff]||DIFFS.normal).col}">${(DIFFS[s.diff]||DIFFS.normal).icon} ${(DIFFS[s.diff]||DIFFS.normal).name}</b></p>
+      ${s.unlockMsg?`<p class="small mt6" style="color:var(--gold)">${s.unlockMsg}</p>`:''}
+      <p class="tiny tag-secret mt6">🏆 Lenda da Adranja — você zerou as 200 profundidades!</p>
       <div class="row center mt" style="justify-content:center">
         <button class="btn" onclick="go('camp','esquadrao')">Voltar ao Acampamento 🏕️</button>
       </div>
