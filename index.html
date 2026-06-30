@@ -2111,10 +2111,18 @@ function tabShrine(b){
          <button class="btn sm" ${G.meta.essence>=h.unlock.v?'':'disabled'} onclick="buyEssenceHero('${h.id}')">💠 ${h.unlock.v}</button></div>`).join('')
          :'<p class="muted small">Todos os heróis de essência foram recrutados. Procure os outros nas profundezas e segredos!</p>'}</div></div>
      <div class="panel"><h4 class="mb">✨ Oferendas Permanentes</h4>
+       <p class="tiny muted" style="margin:-2px 0 8px">Poder eterno comprado com Essência — vale para TODA incursão, nas duas dungeons.</p>
        <div class="col">
-         ${offering('off_heal','🩹 Cura de Acampamento','+10% PV inicial em toda incursão',150,'off_heal')}
+         ${offering('off_heal','🩹 Vigor de Acampamento','+10% PV inicial do grupo',150,'off_heal')}
          ${offering('off_dmg','🔥 Bênção de Guerra','+10% de dano do grupo',180,'off_dmg')}
-         ${offering('off_gold','🪙 Mãos de Ouro','+50% de ouro coletado',120,'off_gold')}
+         ${offering('off_def','🛡️ Égide Ancestral','+12% de defesa do grupo',200,'off_def')}
+         ${offering('off_spd','💨 Passos do Vento','+8% de velocidade do grupo',190,'off_spd')}
+         ${offering('off_crit','🎯 Olhar Mortal','+8% de chance de crítico',260,'off_crit')}
+         ${offering('off_gold','🪙 Mãos de Ouro','+50% de ouro coletado',160,'off_gold')}
+         ${offering('off_loot','🎁 Sorte do Saqueador','+15% de drops e materiais',240,'off_loot')}
+         ${offering('off_xp','📖 Sabedoria Eterna','+15% de XP de combate',300,'off_xp')}
+         ${offering('off_secret','🔮 Visão Oculta','+10% de achar segredos',220,'off_secret')}
+         ${offering('off_revive','✨ Pacto da Renascença','Revive o grupo uma vez por incursão',600,'off_revive')}
        </div></div>`;
 }
 function offering(id,name,desc,cost,flag){const owned=!!G.meta.flags[flag];
@@ -2312,7 +2320,15 @@ function computePartyPassives(){
     if(typeof t[k]==='number')p[k]=(p[k]||0)+t[k];else p[k]=t[k];
   }});
   // oferendas e pesquisas
-  if(G.meta.flags.off_dmg)p.partyAtk=(p.partyAtk||0)+0.1;
+  const F=G.meta.flags;
+  if(F.off_dmg)p.partyAtk=(p.partyAtk||0)+0.1;
+  if(F.off_def)p.partyDef=(p.partyDef||0)+0.12;
+  if(F.off_spd)p.partySpd=(p.partySpd||0)+0.08;
+  if(F.off_crit)p.critBonus=(p.critBonus||0)+0.08;
+  if(F.off_loot){p.lootBonus=(p.lootBonus||0)+0.15;p.materialBonus=(p.materialBonus||0)+0.15;}
+  if(F.off_xp)p.xpBonus=(p.xpBonus||0)+0.15;
+  if(F.off_secret)p.secretFind=(p.secretFind||0)+0.1;
+  if(F.off_revive)p.reviveOnce=1;
   if(G.meta.research.meta_crit)p.critBonus=(p.critBonus||0)+0.08;
   if(G.meta.research.meta_secret)p.secretFind=(p.secretFind||0)+0.1;
   RUN.passive=p;
