@@ -117,6 +117,15 @@ canvas{image-rendering:pixelated;}
 .bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
 .hpbar > i{background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
 .xpbar > i{background:linear-gradient(90deg,var(--magic),var(--magic-2));}
+.atbbar{height:5px;margin-top:2px;background:rgba(0,0,0,.5);}
+.atbbar > i{background:linear-gradient(90deg,#ffd166,#7dff8f);transition:width .06s linear;}
+.atbbar.boss{height:7px;}
+.pm.acting{border-color:var(--gold);box-shadow:0 0 10px rgba(255,209,102,.5);}
+.turn-banner{position:absolute;left:50%;top:30%;transform:translateX(-50%);font-family:'Cinzel';font-weight:700;
+  font-size:11.5px;text-shadow:0 2px 3px #000;padding:3px 11px;background:rgba(0,0,0,.55);border-radius:8px;
+  pointer-events:none;opacity:0;z-index:7;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis;}
+.tb-anim{animation:tbShow 1.15s ease forwards;}
+@keyframes tbShow{0%{opacity:0;transform:translateX(-50%) translateY(-6px);}14%{opacity:1;transform:translateX(-50%) translateY(0);}78%{opacity:1;}100%{opacity:0;}}
 
 .overlay{position:fixed;inset:0;background:rgba(5,2,12,.74);backdrop-filter:blur(4px);
   display:none;align-items:center;justify-content:center;z-index:60;padding:14px;}
@@ -3459,7 +3468,7 @@ function buildCombatant(id){
   const active=st.activeSkills||[];
   return {id,h,level,xp,maxhp:s.maxhp,hp:s.maxhp,st:s,alive:true,
     skills:knownSkills(id,level).filter(sk=>active.includes(sk.n)), // só as habilidades ATIVAS entram na incursão
-    fx:{}, cd:{}, summons:[], anim:{x:0,hit:0}};
+    fx:{}, cd:{}, atb:0, turnCount:0, summons:[], anim:{x:0,hit:0}};
 }
 function computePartyPassives(){
   const p={};
@@ -3569,7 +3578,8 @@ function updatePartyMini(){const host=$('#partyMini');if(!host)return;
     <div style="flex:1"><div class="pn">${c.h.name.split(',')[0]} <span class="tiny" style="color:var(--gold)" id="lvl_${c.id}">Lv ${c.level}</span><span id="fx_${c.id}">${fxBadges(c)}</span></div>
     <div class="bar hpbar" style="margin:2px 0;position:relative"><i id="hp_${c.id}" style="width:${c.hp/c.maxhp*100}%"></i>
       <span id="hpn_${c.id}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'Cinzel';color:#fff;text-shadow:0 1px 2px #000;line-height:1">${Math.ceil(c.hp)}/${c.maxhp}</span></div>
-    <div class="bar xpbar"><i id="xp_${c.id}" style="width:${c.xp/xpForLevel(c.level)*100}%"></i></div></div></div>`).join('');
+    <div class="bar xpbar"><i id="xp_${c.id}" style="width:${c.xp/xpForLevel(c.level)*100}%"></i></div>
+    <div class="bar atbbar"><i id="atb_${c.id}" style="width:${c.atb||0}%"></i></div></div></div>`).join('');
   $$('[data-sprite-mini]').forEach(el=>{const id=el.getAttribute('data-sprite-mini');mountCanvas(el,heroSprite(HMAP[id],3));});
 }
 function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'+c.id),pm=$('#pm_'+c.id),lv=$('#lvl_'+c.id),hpn=$('#hpn_'+c.id),fx=$('#fx_'+c.id);
@@ -3580,6 +3590,12 @@ function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'
   if(fx)fx.innerHTML=fxBadges(c);
   if(pm)pm.classList.toggle('dead',!c.alive);});
   updateCampBanner();}
+/* ATB — atualizado a cada frame (leve: só mexe no width, não recria HTML) */
+function updateAtbUI(cs){
+  RUN.party.forEach(c=>{const b=$('#atb_'+c.id);if(b)b.style.width=clamp(c.atb||0,0,100)+'%';
+    const pm=$('#pm_'+c.id);if(pm)pm.classList.toggle('acting',RUN.combat&&RUN.combat.acting===c);});
+  if(RUN.combat)RUN.combat.enemies.filter(e=>e.boss).forEach(e=>{const b=$('#bossAtb');if(b)b.style.width=clamp(e.atb||0,0,100)+'%';});
+}
 
 function logline(html,cls){RUN.log.push({html,cls});if(RUN.log.length>120)RUN.log.shift();
   const el=$('#log');if(el){const d=document.createElement('div');d.className='ln '+(cls||'');d.innerHTML=html;el.appendChild(d);
@@ -3602,16 +3618,18 @@ function floorTheme(f){const b=FLOOR_BANDS[floorBandIndex(f)];b.deco=['crypt','i
 function startSceneLoop(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);
   const cv=$('#scene');if(!cv)return;const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
-  let t=0;
-  function frame(){
+  let t=0,last=performance.now();
+  function frame(now){
+    const dt=Math.min(0.2,Math.max(0,((now||performance.now())-last)/1000));last=now||performance.now();
     t++;const sc=RUN&&RUN.scene;if(!RUN){return;}
     // só desenha quando a incursão está visível (economiza CPU no acampamento)
     if(CUR.screen!=='dungeon'||!cv.isConnected){ _sceneRAF=requestAnimationFrame(frame); return; }
     if(!RUN.paused&&sc.mode==='walk')sc.walk+=1.6*RUN.speed;
+    if(!RUN.paused&&sc.mode==='combat'&&RUN.combat)updateATB(dt);
     drawScene(ctx,cv,t);
     _sceneRAF=requestAnimationFrame(frame);
   }
-  frame();
+  _sceneRAF=requestAnimationFrame(frame);
 }
 function drawScene(ctx,cv,t){
   const W=cv.width,H=cv.height,th=floorTheme(RUN.floor),sc=RUN.scene;
@@ -3641,6 +3659,7 @@ function drawScene(ctx,cv,t){
     ctx.fillRect((i*53-t*0.5)%W+(i%2?0:W),(i*31+t*0.3)%H,2,2);}}
 
   const groundY=H-58;
+  const acting=sc.mode==='combat'&&RUN.combat?RUN.combat.acting:null;
   // HERÓIS (esquerda)
   const aliveParty=RUN.party.filter(c=>c.alive);
   RUN.party.forEach((c,i)=>{
@@ -3652,6 +3671,8 @@ function drawScene(ctx,cv,t){
     else ctx.drawImage(sp,x,y);
     ctx.globalAlpha=1;
     ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(x+6,y+62,52,4);
+    if(c.alive)drawFxIcons(ctx,x,y,c);
+    if(c.alive&&acting===c)drawActingMark(ctx,x+30,y,t);
   });
   // INIMIGOS (direita)
   sc.enemies.forEach((en,i)=>{
@@ -3667,7 +3688,24 @@ function drawScene(ctx,cv,t){
     // barra de vida do inimigo
     if(!en.boss){const bw=34;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(bx,by-7,bw,4);
       ctx.fillStyle='#ff5d6c';ctx.fillRect(bx,by-7,bw*clamp(en.hp/en.maxhp,0,1),4);}
+    drawFxIcons(ctx,bx,by,en);
+    if(acting===en)drawActingMark(ctx,bx+sp.width/2,by,t);
   });
+  ctx.restore();
+}
+/* ícones de buff/debuff EM CIMA DA CABEÇA — além dos badges do mini-card, mostra também na cena */
+function drawFxIcons(ctx,x,y,c){
+  if(!c.fx)return;const keys=Object.keys(FX_META).filter(k=>c.fx[k]);
+  if(!keys.length)return;
+  ctx.save();ctx.font='9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  keys.slice(0,3).forEach((k,i)=>{ctx.fillText(FX_META[k].ic,x+16+(i-1)*11,y-8);});
+  ctx.restore();
+}
+/* seta dourada saltitante — deixa claro QUEM está agindo agora, sem ambiguidade */
+function drawActingMark(ctx,cx,y,t){
+  const by=y-16-Math.abs(Math.sin(t*0.25))*4;
+  ctx.save();ctx.fillStyle='#ffd166';ctx.shadowColor='#ffd166';ctx.shadowBlur=6;
+  ctx.beginPath();ctx.moveTo(cx,by);ctx.lineTo(cx-6,by-9);ctx.lineTo(cx+6,by-9);ctx.closePath();ctx.fill();
   ctx.restore();
 }
 /* ---- decoração específica por região (a cada 5 andares muda totalmente) ---- */
@@ -3736,6 +3774,14 @@ function sceneSpark(side,i,color){const stage=$('#stage');if(!stage)return;
     p.style.left=x+'%';p.style.top=y+'%';const ang=Math.random()*6.28,d=8+Math.random()*16;
     p.style.setProperty('--dx',Math.cos(ang)*d+'px');p.style.setProperty('--dy',Math.sin(ang)*d+'px');
     p.style.background=color||'#fff';stage.appendChild(p);setTimeout(()=>p.remove(),720);}}
+/* faixa "quem age agora" — mostra claramente QUEM está agindo e COM O QUÊ, sem depender só do log */
+function turnBanner(text,color){
+  const stage=$('#stage');if(!stage)return;
+  let b=$('#turnBanner');
+  if(!b){b=document.createElement('div');b.id='turnBanner';b.className='turn-banner';stage.appendChild(b);}
+  b.textContent=text;b.style.color=color||'#fff';
+  b.classList.remove('tb-anim');void b.offsetWidth;b.classList.add('tb-anim');
+}
 /* cartão de drop animado no canto da cena (bonito, fora do log) */
 function lootBurst(rarity){if(RARS.indexOf(rarity)<2&&rarity!=='secreto')return; // só raridade alta
   let host=$('#lootFx');if(!host){host=document.createElement('div');host.id='lootFx';document.body.appendChild(host);}
@@ -4225,7 +4271,7 @@ function makeEnemy(monster,floor,boss){
     const def=Math.round((18+floor*2.6+floor*floor*0.012)*dm.stat);
     const spd=Math.round(8+floor*0.18);
     return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
-      st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{}};
+      st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{},atb:0,turnCount:0};
   }
   // inimigo normal: cresce com o andar SEM explodir — o poder do herói (nível+equipamento) cresce em
   // linha reta, então o quadrático do ATAQUE/PV tem que ser suave. Já a DEFESA pode crescer mais forte
@@ -4237,7 +4283,7 @@ function makeEnemy(monster,floor,boss){
   natk=Math.min(natk, Math.round(bossAtk*0.65));   // TETO: inimigo normal ≤ 65% do ataque de um chefe do andar
   return {m:monster,name:monster.name,boss:false,family:monster.family,el:monster.el,
     st:{atk:natk,mag:natk,def:Math.round(b.def*defS*dm.stat),spd:Math.round(b.spd*spdS*tideSpd),lck:5},
-    maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{}};
+    maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{},atb:0,turnCount:0};
 }
 function enemyPoolFor(floor){return MONSTERS.filter(m=>floor>=m.floors[0]&&floor<=m.floors[1]);}
 function encCombat(){
@@ -4293,9 +4339,9 @@ function onBossWin(boss,e){
 }
 function showBossBar(e){const stage=$('#stage');if(!stage)return;
   let bar=document.createElement('div');bar.id='bossBar';bar.style.cssText='position:absolute;left:8px;right:8px;top:6px;';
-  bar.innerHTML=`<div class="row between" style="margin-bottom:2px"><b style="color:#ff7a3c;font-size:12px;font-family:Cinzel">${e.name}</b><span class="tiny" id="bossHpTxt"></span></div><div class="bossbar"><i id="bossHp" style="width:100%"></i></div><div id="bossFx" style="text-align:right"></div>`;
+  bar.innerHTML=`<div class="row between" style="margin-bottom:2px"><b style="color:#ff7a3c;font-size:12px;font-family:Cinzel">${e.name}</b><span class="tiny" id="bossHpTxt"></span></div><div class="bossbar"><i id="bossHp" style="width:100%"></i></div><div class="atbbar boss mt6"><i id="bossAtb" style="width:0%"></i></div><div id="bossFx" style="text-align:right"></div>`;
   stage.appendChild(bar);updateBossBar(e);}
-function updateBossBar(e){const i=$('#bossHp'),t=$('#bossHpTxt'),fx=$('#bossFx');if(i)i.style.width=clamp(e.hp/e.maxhp*100,0,100)+'%';if(t)t.textContent=fmt(Math.max(0,e.hp))+'/'+fmt(e.maxhp);if(fx)fx.innerHTML=fxBadges(e);}
+function updateBossBar(e){const i=$('#bossHp'),t=$('#bossHpTxt'),fx=$('#bossFx'),a=$('#bossAtb');if(i)i.style.width=clamp(e.hp/e.maxhp*100,0,100)+'%';if(t)t.textContent=fmt(Math.max(0,e.hp))+'/'+fmt(e.maxhp);if(fx)fx.innerHTML=fxBadges(e);if(a)a.style.width=clamp(e.atb||0,0,100)+'%';}
 function hideBossBar(){const b=$('#bossBar');if(b)b.remove();}
 
 /* ---- núcleo do combate ---- */
@@ -4303,8 +4349,11 @@ function allies(){return RUN.party.filter(c=>c.alive).concat((RUN.combat.minions
 function aliveEnemies(){return RUN.combat.enemies.filter(e=>e.alive);}
 function beginCombat(enemies,opts){
   RUN.scene.mode='combat';RUN.scene.enemies=enemies;RUN.scene.shake=4;
-  RUN.combat={enemies,opts,minions:[],round:0,queue:[],boss:opts.boss};
+  RUN.combat={enemies,opts,minions:[],boss:opts.boss,busy:false,acting:null};
   if(_audioReady)applyMusic();
+  // ATB: zera as barras de todos — Maré/passiva de "primeiro golpe" já enche a do grupo
+  enemies.forEach(e=>{e.atb=0;e.turnCount=0;});
+  RUN.party.forEach(c=>{c.atb=RUN.passive.firstStrike?100:0;});
   // invocações iniciais por passiva
   RUN.party.filter(c=>c.alive).forEach(c=>{const sm=c.h.passive.tags&&c.h.passive.tags.summon;if(sm)spawnMinion(c,sm);});
   // consumíveis automáticos no início do combate
@@ -4317,65 +4366,97 @@ function beginCombat(enemies,opts){
     if(invQty('pocao_foco')>0){removeItem('pocao_foco',1);RUN.party.filter(c=>c.alive).forEach(c=>c.st.mag=Math.round(c.st.mag*1.3));logline('🧴 Tônico Arcano: +dano mágico!','cb');}
     if(invQty('incenso')>0){removeItem('incenso',1);RUN.party.filter(c=>c.alive).forEach(c=>c.fx.shield=3);logline('🕯️ Incenso Sagrado: escudo no grupo!','cb');}
   }
-  rtimeout(()=>combatRound(),500);
+  rtimeout(()=>envTick(),700);
 }
 function spawnMinion(owner,kind){
   const base=owner.level*4+10;
   const m={h:{name:(kind==='esqueleto'?'Esqueleto':kind==='elemental'?'Elemental':'Aliado'),passive:{tags:{}},skills:[]},
     id:'minion_'+Math.random().toString(36).slice(2,6),isMinion:true,level:owner.level,
     st:{atk:Math.round(owner.st.atk*0.6+base),mag:Math.round(owner.st.mag*0.6+base),def:5,spd:owner.st.spd,lck:5},
-    maxhp:base*4,hp:base*4,alive:true,fx:{},cd:{},anim:{hit:0}};
+    maxhp:base*4,hp:base*4,alive:true,fx:{},cd:{},atb:0,turnCount:0,anim:{hit:0}};
   RUN.combat.minions.push(m);
   logline('🌀 '+owner.h.name.split(',')[0]+' invoca um '+m.h.name+'!','sy');
 }
 function avgPartyPow(){const a=allies();return a.reduce((s,c)=>s+Math.max(c.st.atk,c.st.mag),0)/Math.max(1,a.length);}
 
-function combatRound(){
-  if(!RUN||!RUN.alive||!RUN.combat||!RUN.combat.enemies)return;
+/* ===== ATB (Barra de Ação em Tempo Real) =====
+   Cada combatente enche sua própria barra (c.atb, 0→100) numa taxa relativa
+   à sua VELOCIDADE frente à média do combate — mais rápido enche mais rápido,
+   lento (fx "slow"/"weaken" na velocidade) enche mais devagar, "haste" enche mais rápido.
+   Só UM ator age por vez (RUN.combat.busy trava a fila) — chega o fim da bagunça
+   de "todo mundo ataca ao mesmo tempo": agora dá pra ver claramente quem age e com o quê. */
+const ATB_BASE_SECONDS=2.4;
+function updateATB(dt){
+  if(!RUN||!RUN.combat||!RUN.combat.enemies)return;
+  const cs=allies().concat(aliveEnemies());
+  if(!cs.length)return;
+  const avgSpd=cs.reduce((s,a)=>s+Math.max(1,a.st.spd),0)/cs.length;
+  cs.forEach(a=>{
+    if(a.atb==null)a.atb=0;
+    const wasReady=a.atb>=100;
+    const rate=(100/ATB_BASE_SECONDS)*(Math.max(1,a.st.spd)/avgSpd);
+    a.atb+=rate*dt*RUN.speed;
+    // marca a ORDEM DE CHEGADA na barra cheia — quem ficou pronto primeiro age primeiro.
+    // Sem isso, quem enche a barra mais rápido (ex.: heróis vs. um chefe lento) sempre "atropela"
+    // quem está esperando, porque o excedente dele cresce mais rápido — nunca deixando o mais lento agir.
+    if(!wasReady&&a.atb>=100){RUN.combat._readySeq=(RUN.combat._readySeq||0)+1;a._readyOrder=RUN.combat._readySeq;}
+  });
+  updateAtbUI(cs);
+  tryDispatchTurn(cs);
+}
+function tryDispatchTurn(cs){
+  if(!RUN||!RUN.alive||!RUN.combat||RUN.combat.busy)return;
   if(aliveEnemies().length===0)return winCombat();
-  if(allies().length===0)return; // wipe tratado em downHero/checkWipe
-  RUN.combat.round++;
-  RUN.combat._extra=false;   // reinicia o gatilho de turno-extra a cada rodada
-  // DoT no início da rodada
+  if(allies().length===0)return checkWipe();
+  const ready=(cs||allies().concat(aliveEnemies())).filter(a=>actorAlive(a)&&a.atb>=100);
+  if(!ready.length)return;
+  ready.sort((a,b)=>(a._readyOrder||0)-(b._readyOrder||0));
+  const actor=ready[0];
+  actor.atb=0;actor._readyOrder=0;
+  if(actor.fx&&actor.fx.stun>0){
+    actor.fx.stun--;logline(actorName(actor)+' está atordoado e perde o turno.','muted');
+    // ao se livrar do último estordoamento, ganha um turno de "graça" imune a novo atordoamento —
+    // sem isso, no ATB, um herói rápido consegue re-atordoar um chefe lento antes que ele acorde,
+    // travando-o para sempre. Assim ele sempre tem uma ação de verdade entre atordoamentos.
+    if(actor.fx.stun<=0){actor.fx.stun=0;actor.fx.stunGrace=true;}
+    refreshBars();if(actor.boss)updateBossBar(actor);
+    return;
+  }
+  RUN.combat.busy=true;actor.turnCount=(actor.turnCount||0)+1;
+  RUN.combat.acting=actor;
+  if(actor.fx)delete actor.fx.stunGrace;
+  const isHero=allies().includes(actor);
+  if(isHero)heroAct(actor);else enemyAct(actor);
+}
+function turnDone(wasHero){if(RUN&&RUN.combat){RUN.combat.busy=false;RUN.combat.acting=null;}
+  // Fluxo Temporal / Mecanismo Perfeito: chance de agir de novo imediatamente (só heróis)
+  if(wasHero&&RUN&&RUN.passive.extraTurn&&chance(RUN.passive.extraTurn)){
+    const again=allies().filter(actorAlive);
+    if(again.length){logline('⏳ Fluxo temporal! Alguém do grupo age novamente.','sy');pick(again).atb=100;}
+  }
+}
+/* tique de ambiente: DoT, cura automática, checagem de vitória/derrota — roda no relógio, não por turno */
+function envTick(){
+  if(!RUN||!RUN.alive||!RUN.combat||!RUN.combat.enemies)return;
+  if(RUN.paused)return rtimeout(envTick,400);
   processDoT();
   autoConsumables();
   if(aliveEnemies().length===0)return winCombat();
   if(allies().length===0)return checkWipe();
-  // ordem por velocidade
-  let order=allies().map(c=>({side:'hero',c})).concat(aliveEnemies().map(e=>({side:'enemy',c:e})));
-  // firstStrike: heróis primeiro na rodada 1
-  if(RUN.combat.round===1&&RUN.passive.firstStrike){order.sort((a,b)=>(a.side==='hero'?-1:1)-(b.side==='hero'?-1:1)||b.c.st.spd-a.c.st.spd);}
-  else order.sort((a,b)=>b.c.st.spd-a.c.st.spd+(Math.random()-0.5));
-  RUN.combat.queue=order;
-  nextActor();
-}
-function nextActor(){
-  if(!RUN||!RUN.alive||!RUN.combat||!RUN.combat.enemies)return;
-  if(aliveEnemies().length===0)return winCombat();
-  if(allies().length===0)return checkWipe();
-  const q=RUN.combat.queue;
-  if(!q.length){ // fim da rodada -> turno-extra dos heróis (uma vez por rodada, no máximo)
-    if(RUN.passive.extraTurn&&!RUN.combat._extra&&chance(RUN.passive.extraTurn)){
-      RUN.combat._extra=true;
-      logline('⏳ Fluxo temporal! O grupo age novamente.','sy');
-      RUN.combat.queue=allies().filter(actorAlive).map(c=>({side:'hero',c}));   // só os heróis agem de novo
-      return rtimeout(nextActor,220);
-    }
-    return rtimeout(combatRound,260);
-  }
-  const turn=q.shift();const actor=turn.c;
-  if(!actorAlive(actor))return nextActor();
-  // atordoado?
-  if(actor.fx.stun>0){actor.fx.stun--;logline(actorName(actor)+' está atordoado e perde o turno.','muted');return rtimeout(nextActor,300);}
-  if(turn.side==='hero')heroAct(actor);else enemyAct(actor);
+  rtimeout(envTick,900);
 }
 function actorAlive(a){return a.alive&&a.hp>0;}
+// atordoamento tem TETO — no ATB quem age pouco (ex.: um chefe lento) pode ser atordoado de novo
+// por heróis que agem muitas vezes antes dele acordar; sem teto isso trava o alvo para sempre.
+// bloqueia reforço enquanto já está atordoado (não só na graça) — senão dá pra "top up" pra sempre
+// e o alvo nunca zera o contador porque a recarga de quem atordoa é mais rápida que a dele acordar.
+function addStun(target,amt){if(target.fx.stun>0||target.fx.stunGrace)return;target.fx.stun=Math.min(2,amt);}
 function actorName(a){return a.h?a.h.name.split(',')[0]:a.name;}
 
 function chooseHeroSkill(c){
   if(c.isMinion||!c.skills||!c.skills.length)return null;
   c.cd=c.cd||{};
-  const avail=s=>!(c.cd[s.n]>RUN.combat.round);   // fora de recarga?
+  const avail=s=>!(c.cd[s.n]>c.turnCount);   // fora de recarga? (contagem de turnos DESTE herói)
   const deadAlly=RUN.party.find(p=>!p.alive);
   const revive=c.skills.find(s=>s.fx==='revive'&&avail(s));
   if(deadAlly&&revive)return revive;
@@ -4383,7 +4464,7 @@ function chooseHeroSkill(c){
   const heals=c.skills.filter(s=>s.kind==='heal'&&s.fx!=='revive'&&avail(s));
   if(hurt.length&&heals.length&&chance(0.85)){heals.sort((a,b)=>(b.tgt==='allies')-(a.tgt==='allies')||b.pow-a.pow);return heals[0];}
   const buffs=c.skills.filter(s=>s.kind==='buff'&&avail(s));
-  if(buffs.length&&RUN.combat.round<=1&&chance(0.55))return pick(buffs);
+  if(buffs.length&&c.turnCount<=1&&chance(0.55))return pick(buffs);
   if(buffs.length&&chance(0.12))return pick(buffs);
   const offs=c.skills.filter(s=>(s.kind==='phys'||s.kind==='mag')&&avail(s));
   if(!offs.length)return null;
@@ -4395,38 +4476,41 @@ function chooseHeroSkill(c){
 function heroAct(c){
   const skill=chooseHeroSkill(c);
   if(!skill){ // ataque básico
-    const tgt=chooseEnemyTarget();if(!tgt)return rtimeout(nextActor,160);
-    c.anim.hit=1;hitEnemy(c,tgt,null);return rtimeout(nextActor,actDelay());
+    const tgt=chooseEnemyTarget();if(!tgt)return rtimeout(()=>turnDone(true),160);
+    turnBanner(actorName(c)+' ataca!','#ffd166');
+    c.anim.hit=1;hitEnemy(c,tgt,null);return rtimeout(()=>turnDone(true),actDelay());
   }
   performSkill(c,skill);
 }
 function performSkill(c,skill){
-  if(skill.cd){c.cd=c.cd||{};c.cd[skill.n]=RUN.combat.round+skill.cd;}
+  if(skill.cd){c.cd=c.cd||{};c.cd[skill.n]=c.turnCount+skill.cd;}
   c.anim.hit=skill.kind==='heal'||skill.kind==='buff'?0.3:1;
   if(skill.kind==='heal'){
-    sfx('heal');
+    sfx('heal');turnBanner(actorName(c)+' usa '+skill.n+'!','#5fd17a');
     if(skill.fx==='revive'){const d=RUN.party.find(p=>!p.alive);if(d){d.alive=true;d.hp=Math.round(d.maxhp*0.45);
-      logline('✨ '+actorName(c)+' usa <b>'+skill.n+'</b>! '+actorName(d)+' renasce!','dn');floatText('hero',RUN.party.indexOf(d),'REVIVE','#67d8ff');refreshBars();}}
+      logline('✨ '+actorName(c)+' usa <b>'+skill.n+'</b>! '+actorName(d)+' renasce!','dn');floatText('hero',RUN.party.indexOf(d),'REVIVE','#67d8ff');burstAt('hero',RUN.party.indexOf(d),'#67d8ff');refreshBars();}}
     else{const tgts=skill.tgt==='allies'?allies():[mostHurt()];
       const amt=Math.round(((c.st.mag*0.22*skill.pow)+2)*healMul());
-      tgts.forEach(t=>{if(!t)return;t.hp=Math.min(t.maxhp,t.hp+amt);if(t.h)floatText('hero',RUN.party.indexOf(t),'+'+amt,'#5fd17a');});
+      tgts.forEach(t=>{if(!t)return;t.hp=Math.min(t.maxhp,t.hp+amt);if(t.h){floatText('hero',RUN.party.indexOf(t),'+'+amt,'#5fd17a');sceneSpark('hero',RUN.party.indexOf(t),'#5fd17a');}});
       logline('💚 '+actorName(c)+' usa <b>'+skill.n+'</b> (+'+amt+' PV).','dn');refreshBars();}
-    return rtimeout(nextActor,actDelay());
+    return rtimeout(()=>turnDone(true),actDelay());
   }
-  if(skill.kind==='buff'){applyBuff(c,skill);return rtimeout(nextActor,actDelay());}
+  if(skill.kind==='buff'){turnBanner(actorName(c)+' usa '+skill.n+'!','#67d8ff');applyBuff(c,skill);return rtimeout(()=>turnDone(true),actDelay());}
   // dano
+  turnBanner(actorName(c)+' usa '+skill.n+'!','#ff9a6c');
   logline('✦ '+actorName(c)+' usa <b>'+skill.n+'</b>!',c===c.h?'':'cb');
   const tgts=skill.tgt==='all'?aliveEnemies().slice():[chooseEnemyTarget()];
   const hits=skill.fx==='double'?2:skill.fx==='triple'?3:1;
   let seq=0;
   const doHit=()=>{
     tgts.forEach(t=>{if(t&&t.alive)hitEnemy(c,t,skill);});
-    seq++;if(seq<hits)rtimeout(doHit,140);else rtimeout(nextActor,actDelay());
+    seq++;if(seq<hits)rtimeout(doHit,140);else rtimeout(()=>turnDone(true),actDelay());
   };doHit();
 }
 function applyBuff(c,skill){
   const fx=skill.fx;const allyList=allies();
   const log=(m)=>logline('🜂 '+actorName(c)+' usa <b>'+skill.n+'</b> — '+m,'sy');
+  sceneSpark('hero',RUN.party.indexOf(c),'#67d8ff');
   switch(fx){
     case 'taunt':c.fx.taunt=2;c.fx.resist=2;log('atrai e resiste aos golpes.');break;
     case 'shield':allyList.forEach(a=>a.fx.shield=2);log('escudo no grupo!');break;
@@ -4436,9 +4520,9 @@ function applyBuff(c,skill){
     case 'haste':allyList.forEach(a=>a.st.spd=Math.round(a.st.spd*1.3));log('grupo acelerado!');break;
     case 'scout':case 'critmax':c.fx.critmax=2;log('próximos golpes são críticos!');break;
     case 'evade':case 'dodgeup':case 'phase':c.fx.evade=2;log('esquiva preparada.');break;
-    case 'timestop':aliveEnemies().forEach(e=>e.fx.stun=(e.fx.stun||0)+1);log('o tempo congela os inimigos!');break;
+    case 'timestop':aliveEnemies().forEach(e=>addStun(e,1));log('o tempo congela os inimigos!');break;
     case 'summon':spawnMinion(c,'aliado');break;
-    case 'trap':{const e=strongestEnemy();if(e){e.fx.stun=(e.fx.stun||0)+2;log('prende '+e.name+'!');}break;}
+    case 'trap':{const e=strongestEnemy();if(e){addStun(e,2);log('prende '+e.name+'!');}break;}
     case 'sacrifice':{const cost=Math.round(c.hp*0.25);c.hp-=cost;const e=chooseEnemyTarget();if(e){const d=Math.round(avgPartyPow()*2.4);applyDamageToEnemy(e,d,true,'sombrio');log('sacrifica vida por dano massivo!');}refreshBars();break;}
     case 'secret+':RUN._forceSecret=true;log('procura ativamente passagens secretas.');break;
     default:c.fx.shield=2;log('prepara-se.');
@@ -4456,13 +4540,13 @@ function actDelay(){return 360;}
 function hitEnemy(att,e,skill){
   const r=computeDamage(att,e,skill);
   sfx(r.crit?'crit':'hit');
-  applyDamageToEnemy(e,r.dmg,r.crit,skill?skill.el:att.el);
+  applyDamageToEnemy(e,r.dmg,r.crit,skill?skill.el:att.el,skill?skill.kind:'phys');
   // efeitos no inimigo
   if(skill){const f=skill.fx;
     if(f==='burn')e.fx.burn={d:Math.round(r.dmg*0.3),t:3};
     if(f==='poison')e.fx.poison={d:Math.round(r.dmg*0.25),t:4};
     if(f==='slow')e.st.spd=Math.round(e.st.spd*0.7);
-    if(f==='stun')e.fx.stun=(e.fx.stun||0)+1;
+    if(f==='stun')addStun(e,1);
     if(f==='curse')e.fx.curse=true;
     if(f==='weaken')e.fx.weaken={mag:0.25,t:3};
     if(f==='armorBreak')e.fx.armorBreak={mag:0.3,t:3};
@@ -4507,11 +4591,11 @@ function computeDamage(att,def,skill){
   if(def.fx&&def.fx.shield)dmg*=0.5;if(def.fx&&def.fx.resist)dmg*=0.8;
   return {dmg:Math.round(dmg),crit};
 }
-function applyDamageToEnemy(e,dmg,crit,el){
+function applyDamageToEnemy(e,dmg,crit,el,kind){
   e.hp-=dmg;e.hit=1;e.flash=1;RUN.scene.shake=Math.max(RUN.scene.shake,crit?5:2);
   const idx=RUN.scene.enemies.indexOf(e);
   floatText('enemy',Math.max(0,idx),(crit?'✸':'')+dmg,crit?'#ffd166':'#fff');
-  sceneSpark('enemy',Math.max(0,idx),crit?'#ffd166':'#ff9a6c');
+  sceneSpark('enemy',Math.max(0,idx),crit?'#ffd166':(kind==='mag'?'#a78bfa':'#ff9a6c'));
   // espinhos do guerreiro? (thorns aplicado em hero defense)
   if(e.boss)updateBossBar(e);
 }
@@ -4533,7 +4617,7 @@ function killEnemy(e){if(e.dead)return;e.alive=false;e.dead=true;e.hp=0;
 }
 function winCombat(){
   if(!RUN||!RUN.combat)return;
-  RUN.scene.mode='idle';RUN.scene.enemies=[];
+  RUN.scene.mode='idle';RUN.scene.enemies=[];RUN.combat.busy=false;RUN.combat.acting=null;
   RUN.party.forEach(c=>{c.fx={};c.cd={};});   // recargas duram só a luta atual
   const onWin=RUN.combat.opts.onWin;const wasBoss=RUN.combat.boss;
   RUN.combat.minions=[];
@@ -4556,34 +4640,38 @@ function enemyKit(e){
 }
 function enemyAct(e){
   const tgt=chooseHeroTarget();
-  if(!tgt)return rtimeout(nextActor,160);
+  if(!tgt)return rtimeout(()=>turnDone(false),160);
   e.cd=e.cd||{};
-  const kit=enemyKit(e).filter(sk=>!(e.cd[sk.n]>RUN.combat.round));
+  const kit=enemyKit(e).filter(sk=>!(e.cd[sk.n]>e.turnCount));
   if(kit.length&&chance(e.boss?0.6:0.42)){
     const skill=pick(kit);
-    if(skill.cd)e.cd[skill.n]=RUN.combat.round+skill.cd;
+    if(skill.cd)e.cd[skill.n]=e.turnCount+skill.cd;
     performEnemySkill(e,skill);
-    return rtimeout(nextActor,actDelay());
+    return rtimeout(()=>turnDone(false),actDelay());
   }
   // ataque básico (nenhuma habilidade disponível/sorteada nesta rodada)
+  turnBanner(e.name+' ataca!','#ff5d6c');
   const pow=e.boss&&chance(0.5)?1.3:1;
   const r=computeDamage(e,tgt,{kind:'phys',pow});
   applyDamageToHero(tgt,r.dmg,r.crit,e);
-  rtimeout(nextActor,actDelay());
+  rtimeout(()=>turnDone(false),actDelay());
 }
 // executa uma habilidade de inimigo/chefe — dano (1 alvo ou área) OU buff/debuff em si mesmo
 function performEnemySkill(e,skill){
   if(skill.kind==='buff'){
+    turnBanner(e.name+' usa '+skill.n+'!','#a14bff');
     switch(skill.fx){
       case 'enrage':e.fx.enrage={mag:0.3,t:3};logline('😡 '+e.name+' usa <b>'+skill.n+'</b> e fica mais agressivo!','bd');break;
       case 'resist':e.fx.resist=3;logline('🌀 '+e.name+' usa <b>'+skill.n+'</b> e resiste mais aos golpes!','bd');break;
       case 'dodgeup':case 'evade':e.fx.evade=1;logline('💨 '+e.name+' usa <b>'+skill.n+'</b> e prepara uma esquiva!','bd');break;
-      case 'timestop':allies().forEach(a=>a.fx.stun=(a.fx.stun||0)+1);logline('⏳ '+e.name+' usa <b>'+skill.n+'</b>! O tempo para!','bd');RUN.scene.shake=7;break;
+      case 'timestop':allies().forEach(a=>addStun(a,1));logline('⏳ '+e.name+' usa <b>'+skill.n+'</b>! O tempo para!','bd');RUN.scene.shake=7;break;
       default:e.fx.shield=2;logline(e.name+' usa <b>'+skill.n+'</b> e se prepara.','bd');
     }
+    sceneSpark('enemy',RUN.scene.enemies.indexOf(e),'#a14bff');
     if(e.boss)updateBossBar(e);
     return;
   }
+  turnBanner(e.name+' usa '+skill.n+'!','#ff5d6c');
   logline('☠️ '+e.name+' usa <b>'+skill.n+'</b>!','bd');
   const tgts=skill.tgt==='all'?allies().slice():[chooseHeroTarget()];
   const hits=skill.fx==='double'?2:skill.fx==='triple'?3:1;
@@ -4591,11 +4679,11 @@ function performEnemySkill(e,skill){
     tgts.forEach(t=>{
       if(!t||!t.alive)return;
       const r=computeDamage(e,t,skill);
-      applyDamageToHero(t,r.dmg,r.crit,e);
+      applyDamageToHero(t,r.dmg,r.crit,e,skill.kind);
       const f=skill.fx;
       if(f==='burn')t.fx.burn={d:Math.round(r.dmg*0.25),t:3};
       if(f==='poison')t.fx.poison={d:Math.round(r.dmg*0.2),t:4};
-      if(f==='stun')t.fx.stun=(t.fx.stun||0)+1;
+      if(f==='stun')addStun(t,1);
       if(f==='weaken')t.fx.weaken={mag:0.2,t:3};
       if(f==='armorBreak')t.fx.armorBreak={mag:0.25,t:3};
       if(f==='slow'&&t.st)t.st.spd=Math.round(t.st.spd*0.8);
@@ -4604,7 +4692,7 @@ function performEnemySkill(e,skill){
   }
   if(e.boss)updateBossBar(e);
 }
-function applyDamageToHero(c,dmg,crit,attacker){
+function applyDamageToHero(c,dmg,crit,attacker,kind){
   const idx=RUN.party.indexOf(c);
   const t=(c.h&&c.h.passive.tags)||{};
   let avoid=(t.dodge||0)+(t.phase||0);if(c.fx.evade)avoid=1;
@@ -4612,7 +4700,7 @@ function applyDamageToHero(c,dmg,crit,attacker){
   if(RUN.passive.enemyDmg)dmg=Math.round(dmg*(1+RUN.passive.enemyDmg));   // marés que reforçam inimigos
   if(RUN.dmgTakenMul&&RUN.dmgTakenMul!==1)dmg=Math.max(1,Math.round(dmg*RUN.dmgTakenMul));   // bênçãos do Abismo: -dano recebido
   c.hp-=dmg;RUN.scene.shake=Math.max(RUN.scene.shake,crit?6:3);sfx('enemyhit');
-  if(idx>=0){floatText('hero',idx,'-'+dmg,crit?'#ff5d6c':'#ffb0b0');sceneSpark('hero',idx,'#ff5d6c');}
+  if(idx>=0){floatText('hero',idx,'-'+dmg,crit?'#ff5d6c':'#ffb0b0');sceneSpark('hero',idx,crit?'#ffd166':(kind==='mag'?'#a78bfa':'#ff5d6c'));}
   // espinhos / thorns (passiva do herói + bênção do Abismo aplicada a todos)
   if(attacker&&attacker.alive){const th=(t.thorns||0)+(RUN.abyssThorns||0);
     if(th>0){const ref=Math.round(dmg*th);attacker.hp-=ref;const ei=RUN.scene.enemies.indexOf(attacker);floatText('enemy',Math.max(0,ei),'-'+ref,'#ffd166');if(attacker.hp<=0)killEnemy(attacker);if(attacker.boss)updateBossBar(attacker);}}
@@ -4732,7 +4820,7 @@ function makeTorreBoss(boss,tf){
   const def=Math.round((45+tf*7+tf*tf*0.06)*dm.stat);   // defesa clara e crescente (mitigação tem teto de 78%, então é seguro)
   const spd=Math.round(8+tf*0.2);
   return {m:boss,name:boss.name,boss:true,torre:true,family:boss.family,el:boss.el,grid:boss.grid,pal:boss.pal,
-    st:{atk,mag:atk,def,spd,lck:12},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{}};
+    st:{atk,mag:atk,def,spd,lck:12},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{},atb:0,turnCount:0};
 }
 function torreBegin(){
   if(!RUN.alive)return;
