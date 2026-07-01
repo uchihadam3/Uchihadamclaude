@@ -4076,8 +4076,10 @@ function dmgAll(frac,why){RUN.scene.shake=5;RUN.party.filter(c=>c.alive).forEach
 function makeEnemy(monster,floor,boss){
   const b=monster.base;const tideHp=(RUN&&RUN.tideEnemyHp)||1;
   const dm=diffMul();   // multiplicador do modo (Normal/Difícil/Inferno) — só na Adranja
-  // ATAQUE de referência de um chefe deste andar (usado como TETO para inimigos normais)
-  const bossAtk=Math.round((20+floor*4.2+floor*floor*0.028)*dm.stat);
+  // ATAQUE de referência de um chefe deste andar (usado como TETO para inimigos normais).
+  // PV do chefe pode ser gigantesco (luta longa e dramática), mas o ATAQUE não pode explodir
+  // ao quadrado — senão nem o melhor equipamento acompanha e vira "sempre a mesma % de PV por golpe".
+  const bossAtk=Math.round((20+floor*4.5+floor*floor*0.004)*dm.stat);
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
     const hp=Math.round((400+floor*floor*24+floor*290)*tideHp*dm.hp);
@@ -4087,8 +4089,9 @@ function makeEnemy(monster,floor,boss){
     return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
       st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
   }
-  // inimigo normal: cresce com o andar, mas SEM explodir (e nunca bate mais que um chefe do andar)
-  const hpS=1+floor*0.20+floor*floor*0.006, atkS=1+floor*0.11+floor*floor*0.0016, defS=1+floor*0.15, spdS=1+floor*0.05;
+  // inimigo normal: cresce com o andar SEM explodir — o poder do herói (nível+equipamento) cresce em
+  // linha reta, então o quadrático aqui tem que ser bem suave, senão nenhum equipamento acompanha.
+  const hpS=1+floor*0.24+floor*floor*0.0009, atkS=1+floor*0.15+floor*floor*0.00025, defS=1+floor*0.15, spdS=1+floor*0.05;
   const tideSpd=(RUN&&RUN.tideEnemySpd)||1;   // Maré da Tormenta acelera inimigos
   const maxhp=Math.round(b.hp*hpS*tideHp*dm.hp);
   let natk=Math.round(b.atk*atkS*dm.stat);
@@ -4521,7 +4524,7 @@ function makeTorreBoss(boss,tf){
   // acima de um chefe equivalente da Adranja, em TODOS os modos (Normal/Difícil/Inferno).
   const dm=diffMul();   // Normal / Difícil / Inferno também valem na Torre
   const hp=Math.round((12000+tf*tf*1300+tf*11000)*dm.hp);
-  const atk=Math.round((100+tf*13+tf*tf*1.6)*dm.stat);
+  const atk=Math.round((100+tf*22+tf*tf*0.3)*dm.stat);   // PV alto = luta longa; ataque quadrático explosivo = morte instantânea, então isso fica mais suave
   const def=Math.round((36+tf*4.2)*dm.stat);
   const spd=Math.round(8+tf*0.2);
   return {m:boss,name:boss.name,boss:true,torre:true,family:boss.family,el:boss.el,grid:boss.grid,pal:boss.pal,
