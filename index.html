@@ -3670,7 +3670,13 @@ function encSecretPassage(){
 }
 
 /* ---- RECOMPENSAS ---- */
-function runEssence(base){let b=base;if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;const added=addEssence(Math.round(b));if(RUN)RUN.essence+=added;updateRunRes();return added;}
+/* ===== crescimento de RECOMPENSA por profundidade — SUB-LINEAR =====
+   As primeiras camadas/andares rendem igual; a partir daí essência e ouro sobem
+   BEM mais devagar (curva de potência), em vez de crescer em linha reta com o andar.
+   Vale para as três dungeons (Adranja, Torre e Abismo). */
+function dScale(f){f=f||1;const knee=8;return f<=knee?f:knee+Math.pow(f-knee,0.65);}
+function depthDamp(){if(!RUN)return 1;const f=RUN.floor||1;return dScale(f)/f;}   // 1 no começo, cai devagar no fundo
+function runEssence(base){let b=base*depthDamp();if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;const added=addEssence(Math.round(b));if(RUN)RUN.essence+=added;updateRunRes();return added;}
 function floorClearRewards(){
   RUN.combo++;RUN.bestCombo=Math.max(RUN.bestCombo||0,RUN.combo);
   const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
@@ -3694,7 +3700,7 @@ function milestoneCheck(){
 }
 function updateComboHud(){const el=$('#comboHud');if(el)el.innerHTML=RUN.combo>=2?`<span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:'';}
 
-function grantGold(n){let m=0.22;if(G.meta.flags.off_gold)m+=0.4;if(G.meta.research.meta_gold)m+=0.4;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m);RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso
+function grantGold(n){let m=0.22;if(G.meta.flags.off_gold)m+=0.4;if(G.meta.research.meta_gold)m+=0.4;if(RUN&&RUN.tideGold)m*=RUN.tideGold;n=Math.round(n*m*depthDamp());RUN.gold+=n;G.meta.gold+=n;updateRunRes();   // ouro bem mais escasso + crescimento sub-linear no fundo
   logline('🪙 +'+n+' de ouro.','lt');saveGame();}
 // TETO de raridade por profundidade: nada de lendário/épico nos andares rasos,
 // nem mesmo de baús/segredos forçados. Achados raros são EVENTO de andar fundo.
@@ -3861,7 +3867,7 @@ const EVENTS=[
 {t:'💀 Restos de um esquadrão anterior. Saquear seus corpos?',go:()=>{if(chance(0.45))grantEquipment();else if(chance(0.5))grantMaterial();else{grantGold(Math.round(ri(10,25)*RUN.floor));logline('Só restaram algumas moedas.','muted');}}},
 {t:'🔔 Um sino fantasma toca. Monstros se aproximam, mas largam tesouro ao fugir da luz.',go:()=>{grantGold(Math.round(ri(15,30)*RUN.floor));}},
 {t:'🌫️ Névoa de memórias. Por um instante, a Adranja se revela.',go:()=>{gainFamiliarity(0.3);logline('🗺️ O mapa deste andar fica muito mais claro!','sc');}},
-{t:'⚖️ Uma balança encantada: troque PV por essência.',go:()=>{const e=Math.round(ri(8,16)*RUN.floor);RUN.party.filter(p=>p.alive).forEach(c=>c.hp=Math.max(1,Math.round(c.hp*0.85)));RUN.essence+=e;addEssence(e);logline('+'+e+' essência ao custo de vitalidade.','sc');refreshBars();}},
+{t:'⚖️ Uma balança encantada: troque PV por essência.',go:()=>{const e=Math.round(ri(8,16)*dScale(RUN.floor));RUN.party.filter(p=>p.alive).forEach(c=>c.hp=Math.max(1,Math.round(c.hp*0.85)));RUN.essence+=e;addEssence(e);logline('+'+e+' essência ao custo de vitalidade.','sc');refreshBars();}},
 {t:'🐣 Um filhote de fera perdido segue o grupo. Mais sorte por um tempo.',go:()=>{RUN.passive.lck=(RUN.passive.lck||0);RUN.party.forEach(c=>c.st.lck+=3);logline('A mascote traz sorte! +SOR ao grupo.','dn');}},
 {t:'🪙 Um poço dos desejos. Jogar uma moeda?',go:()=>{if(chance(0.5)){grantMaterial('raro');logline('O poço retribui generosamente!','lt');}else{logline('O eco da moeda some no escuro.','muted');}}},
 {t:'🔮 Bola de cristal mostra um vislumbre do futuro chefe.',go:()=>{logline('Você antevê fraquezas — o grupo ganha +crítico nesta incursão.','sc');RUN.passive.critBonus=(RUN.passive.critBonus||0)+0.1;}},
@@ -4556,7 +4562,7 @@ function abyssCleared(){
   // XP escala com a profundidade
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,(isHorror?26:9)+L*2));
   // RECOMPENSAS EM RISCO (ficam no "cofre" = RUN.essence/RUN.gold; só vão pra conta ao extrair)
-  const ess=Math.round((12+L*6)*(RUN.abyssEssMul||1)); const gold=Math.round((16+L*9)*(RUN.abyssGoldMul||1));
+  const ess=Math.round((12+dScale(L)*6)*(RUN.abyssEssMul||1)); const gold=Math.round((16+dScale(L)*9)*(RUN.abyssGoldMul||1));
   RUN.essence+=ess; RUN.gold+=gold; updateRunRes();
   logline(`💠 +${ess} essência · 🪙 +${gold} ouro <span class="tiny muted">(no cofre — extraia para garantir)</span>`,'lt');
   // ITENS (sempre seus): Horror garante loot, camadas comuns às vezes
