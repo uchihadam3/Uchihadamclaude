@@ -2442,7 +2442,7 @@ const UPG_MAX=12;
 function upgMax(){return G.meta.research.forja5?12:6;}
 // custos calculados a partir do nível ATUAL informado (lv = aprimoramento daquele herói)
 function upgGoldCost(id,lv){lv=lv||0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
-  let c=(140+lv*lv*70)*rTier; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}
+  let c=(140+lv*lv*70)*rTier*0.4; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}   // -60% de ouro (só o ouro)
 // MATERIAIS exigidos: específicos pela raridade do item (+1 material nobre a partir de +4)
 function upgMats(id,lv){
   lv=lv||0; const rt=RARS.indexOf(IMAP[id].rarity);
