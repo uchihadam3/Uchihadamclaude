@@ -4076,21 +4076,25 @@ function dmgAll(frac,why){RUN.scene.shake=5;RUN.party.filter(c=>c.alive).forEach
 function makeEnemy(monster,floor,boss){
   const b=monster.base;const tideHp=(RUN&&RUN.tideEnemyHp)||1;
   const dm=diffMul();   // multiplicador do modo (Normal/Difícil/Inferno) — só na Adranja
+  // ATAQUE de referência de um chefe deste andar (usado como TETO para inimigos normais)
+  const bossAtk=Math.round((20+floor*4.2+floor*floor*0.028)*dm.stat);
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
     const hp=Math.round((250+floor*floor*15+floor*180)*tideHp*dm.hp);
-    const atk=Math.round((20+floor*4.2+floor*floor*0.036)*dm.stat);
+    const atk=bossAtk;
     const def=Math.round((13+floor*1.6)*dm.stat);
     const spd=Math.round(8+floor*0.18);
     return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
       st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
   }
-  // inimigo normal: andares iniciais suaves, profundos brutais (quadrático domina tarde)
-  const hpS=1+floor*0.20+floor*floor*0.006, atkS=1+floor*0.10+floor*floor*0.005, defS=1+floor*0.15, spdS=1+floor*0.05;
+  // inimigo normal: cresce com o andar, mas SEM explodir (e nunca bate mais que um chefe do andar)
+  const hpS=1+floor*0.20+floor*floor*0.006, atkS=1+floor*0.11+floor*floor*0.0016, defS=1+floor*0.15, spdS=1+floor*0.05;
   const tideSpd=(RUN&&RUN.tideEnemySpd)||1;   // Maré da Tormenta acelera inimigos
   const maxhp=Math.round(b.hp*hpS*tideHp*dm.hp);
+  let natk=Math.round(b.atk*atkS*dm.stat);
+  natk=Math.min(natk, Math.round(bossAtk*0.65));   // TETO: inimigo normal ≤ 65% do ataque de um chefe do andar
   return {m:monster,name:monster.name,boss:false,family:monster.family,el:monster.el,
-    st:{atk:Math.round(b.atk*atkS*dm.stat),mag:Math.round(b.atk*atkS*dm.stat),def:Math.round(b.def*defS*dm.stat),spd:Math.round(b.spd*spdS*tideSpd),lck:5},
+    st:{atk:natk,mag:natk,def:Math.round(b.def*defS*dm.stat),spd:Math.round(b.spd*spdS*tideSpd),lck:5},
     maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{}};
 }
 function enemyPoolFor(floor){return MONSTERS.filter(m=>floor>=m.floors[0]&&floor<=m.floors[1]);}
@@ -4345,7 +4349,11 @@ function computeDamage(att,def,skill){
   if(skill&&skill.fx==='crit+')cc+=0.3;
   if(att.fx&&att.fx.critmax)cc=1;
   const crit=chance(cc);
-  let dmg=Math.max(1,raw-(def.st.def||0)*0.5);if(crit)dmg*=1.85;
+  // MITIGAÇÃO por DEFESA: percentual com retornos decrescentes (nunca 100% → ninguém fica imortal).
+  // Substitui a subtração fixa antiga (que fazia tanques com muita defesa levarem só 1 de dano).
+  const dfn=(def.st.def||0);
+  const mit=Math.min(0.78,(dfn*2)/(dfn*2+raw));
+  let dmg=Math.max(1,raw*(1-mit));if(crit)dmg*=1.85;
   if(def.fx&&def.fx.shield)dmg*=0.5;if(def.fx&&def.fx.resist)dmg*=0.8;
   return {dmg:Math.round(dmg),crit};
 }
