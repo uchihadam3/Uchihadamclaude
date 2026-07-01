@@ -4082,7 +4082,7 @@ function makeEnemy(monster,floor,boss){
   const bossAtk=Math.round((20+floor*4.5+floor*floor*0.004)*dm.stat);
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
-    const hp=Math.round((400+floor*floor*24+floor*290)*tideHp*dm.hp);
+    const hp=Math.round((520+floor*floor*31+floor*380)*tideHp*dm.hp);
     const atk=bossAtk;
     const def=Math.round((13+floor*1.6)*dm.stat);
     const spd=Math.round(8+floor*0.18);
@@ -4091,7 +4091,7 @@ function makeEnemy(monster,floor,boss){
   }
   // inimigo normal: cresce com o andar SEM explodir — o poder do herói (nível+equipamento) cresce em
   // linha reta, então o quadrático aqui tem que ser bem suave, senão nenhum equipamento acompanha.
-  const hpS=1+floor*0.24+floor*floor*0.0009, atkS=1+floor*0.15+floor*floor*0.00025, defS=1+floor*0.15, spdS=1+floor*0.05;
+  const hpS=1.6+floor*0.34+floor*floor*0.0016, atkS=1+floor*0.15+floor*floor*0.00025, defS=1+floor*0.15, spdS=1+floor*0.05;
   const tideSpd=(RUN&&RUN.tideEnemySpd)||1;   // Maré da Tormenta acelera inimigos
   const maxhp=Math.round(b.hp*hpS*tideHp*dm.hp);
   let natk=Math.round(b.atk*atkS*dm.stat);
@@ -4523,7 +4523,7 @@ function makeTorreBoss(boss,tf){
   // desgaste entre eles), então cada um precisa aguentar uma luta longa sozinho: PV bem
   // acima de um chefe equivalente da Adranja, em TODOS os modos (Normal/Difícil/Inferno).
   const dm=diffMul();   // Normal / Difícil / Inferno também valem na Torre
-  const hp=Math.round((12000+tf*tf*1300+tf*11000)*dm.hp);
+  const hp=Math.round((15600+tf*tf*1690+tf*14300)*dm.hp);
   const atk=Math.round((100+tf*22+tf*tf*0.3)*dm.stat);   // PV alto = luta longa; ataque quadrático explosivo = morte instantânea, então isso fica mais suave
   const def=Math.round((36+tf*4.2)*dm.stat);
   const spd=Math.round(8+tf*0.2);
