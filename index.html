@@ -1246,6 +1246,11 @@ const BOSSES=[
  pal:{a:'#3a3a6a',b:'#ffd166',e:'#67d8ff',c:'#b39bff',m:'#a594ff'},
  grid:G16(["....mmmmm.....","..mcccccccm...","..caeacaeac...","..caaaaaaac...","..caacccaac...","..caaaaaaac...","..mcccccccm...","..b.m.m.m.b...","..b.......b...","...mm...mm...."]),
  skills:['parar_tempo','paradoxo','supernova','apocalipse'],intro:'Ele já viu este combate. Já viu seu fim. Já viu você desistir.'},
+{id:'torre_carcereiro',name:'☠ O Carcereiro Esquecido',family:'morto-vivo',el:'sombrio',floor:0,secret:true,torre:true,
+ base:{hp:0,atk:0,def:0,spd:0},
+ pal:{a:'#2a2a3a',b:'#c8324a',e:'#ffd166',c:'#8a8aa0',m:'#c8324a'},
+ grid:G16(["....ccccc.....","...caaaaac....","..caeaaaeac...","..caaaaaaac...","..caacacaac...","..caaaaaaac...","...caaaaac....","..b.mmmmm.b...","..b.m...m.b...","..bb.....bb..","...b.....b...","...mm...mm...."]),
+ skills:['colapso','apocalipse','vazio'],intro:'"Ninguém sobe até aqui. Ninguém desce daqui. Você fica."'},
 /* chefes nomeados de marco em andares profundos */
 {id:'titereiro',name:'Vorlag, o Titereiro de Ossos',family:'morto-vivo',el:'sombrio',floor:30,
  base:{hp:5200,atk:78,def:40,spd:16},
@@ -1502,6 +1507,25 @@ const ITEMS=[
 {id:'inf_grevas',name:'Passos do Fim',icon:'🌋',type:'grevas',slot:'grevas',rarity:'secreto',mode:'inferno',stats:{spd:34,def:26,lck:16},desc:'Onde pisam, a terra arde.'},
 {id:'inf_acessorio',name:'Coração do Inferno',icon:'❤️‍🔥',type:'acessorio',slot:'acessorio',rarity:'secreto',mode:'inferno',stats:{atk:30,mag:30,hp:120,lck:26},desc:'Ainda bate, ainda queima.'},
 {id:'inf_talisma',name:'Talismã do Inferno',icon:'🔆',type:'talisma',slot:'talisma',rarity:'secreto',mode:'inferno',stats:{atk:34,mag:34,def:30,spd:12,lck:20},desc:'O selo final dos que dominaram o Inferno.'},
+/* ---- ÚNICOS DA TORRE DOS TIRANOS (só caem na Torre, dos tiranos) ---- */
+{id:'tw_arma_atk',name:'Lâmina do Tirano',icon:'⚔️',type:'arma',slot:'arma',rarity:'celestial',tower:true,stats:{atk:56,def:14,lck:10},desc:'Empunhada por um tirano caído da Torre.'},
+{id:'tw_arma_mag',name:'Cetro do Soberano',icon:'🔱',type:'arma',slot:'arma',rarity:'celestial',tower:true,stats:{mag:58,lck:12,hp:30},desc:'Comanda os andares da Torre.'},
+{id:'tw_armadura',name:'Couraça do Colosso',icon:'🛡️',type:'armadura',slot:'armadura',rarity:'celestial',tower:true,stats:{hp:190,def:52,atk:8},desc:'Placas de um colosso da Torre.'},
+{id:'tw_elmo',name:'Elmo do Arconte',icon:'👁️',type:'elmo',slot:'elmo',rarity:'celestial',tower:true,stats:{def:28,mag:24,hp:64},desc:'Vê cada degrau acima.'},
+{id:'tw_bracelete',name:'Manopla do Devorador',icon:'👊',type:'bracelete',slot:'bracelete',rarity:'celestial',tower:true,stats:{atk:28,spd:9,def:11},desc:'Esmaga tronos.'},
+{id:'tw_grevas',name:'Botas do Algoz',icon:'🦿',type:'grevas',slot:'grevas',rarity:'celestial',tower:true,stats:{spd:22,def:16,lck:9},desc:'Sobem a Torre sem cansar.'},
+{id:'tw_acessorio',name:'Anel do Imperador',icon:'💍',type:'acessorio',slot:'acessorio',rarity:'celestial',tower:true,stats:{atk:20,mag:20,hp:64,lck:14},desc:'Selo de um império esquecido.'},
+{id:'tw_talisma',name:'Talismã do Juiz',icon:'⚖️',type:'talisma',slot:'talisma',rarity:'celestial',tower:true,stats:{atk:22,mag:22,def:18,lck:12},desc:'Pesa as almas dos que sobem.'},
+/* únicos da Torre no Difícil */
+{id:'twd_arma',name:'Montante dos Tiranos',icon:'🗡️',type:'arma',slot:'arma',rarity:'celestial',tower:true,mode:'dificil',stats:{atk:72,def:16,lck:12},desc:'Forjado no Difícil da Torre.'},
+{id:'twd_armadura',name:'Égide do Soberano',icon:'🩻',type:'armadura',slot:'armadura',rarity:'celestial',tower:true,mode:'dificil',stats:{hp:240,def:64,mag:16},desc:'Resiste à fúria dos tiranos.'},
+{id:'twd_elmo',name:'Diadema do Carrasco',icon:'👑',type:'elmo',slot:'elmo',rarity:'celestial',tower:true,mode:'dificil',stats:{def:34,mag:30,hp:84,lck:8},desc:'A coroa de quem decide o fim.'},
+/* únicos da Torre no Inferno — os mais fortes do jogo */
+{id:'twi_arma',name:'Ceifadora da Torre',icon:'🌪️',type:'arma',slot:'arma',rarity:'secreto',tower:true,mode:'inferno',stats:{atk:110,mag:34,lck:20},desc:'Ceifa tiranos como trigo.'},
+{id:'twi_armadura',name:'Manto do Tirano Supremo',icon:'🩸',type:'armadura',slot:'armadura',rarity:'secreto',tower:true,mode:'inferno',stats:{hp:360,def:95,mag:28},desc:'Vestido apenas pelo Supremo.'},
+{id:'twi_talisma',name:'Selo do Trono',icon:'🔆',type:'talisma',slot:'talisma',rarity:'secreto',tower:true,mode:'inferno',stats:{atk:38,mag:38,def:34,spd:14,lck:24},desc:'O selo do topo absoluto da Torre.'},
+/* despojo do CHEFE SECRETO da Torre */
+{id:'tw_secret',name:'Algema do Carcereiro',icon:'⛓️',type:'bracelete',slot:'bracelete',rarity:'secreto',tower:true,towerSecret:true,stats:{atk:52,def:22,spd:14,lck:16},desc:'Arrancada do Carcereiro Esquecido, guardião oculto da Torre.'},
 ];
 /* ===== EQUIPAMENTO PROGRESSIVO POR PROFUNDIDADE =====
    Gera famílias de itens por FAIXA de andar. Itens mais fundos têm o mesmo
@@ -1641,6 +1665,7 @@ const SECRETS=[
 {id:'elite',name:'Os Elites Esquecidos',icon:'⭐',desc:'Raros campeões caídos vagam pela Adranja, guardando despojos lendários.',hint:'Inimigos com brilho diferente — Cavaleiro Caído, Aberração Faminta, Golem Ancestral.'},
 {id:'cofre',name:'O Cofre Proibido',icon:'🗄️',desc:'Câmaras seladas guardam equipamento lendário para quem as encontra.',hint:'Passagens secretas profundas escondem cofres lendários.'},
 {id:'andarilho',name:'O Andarilho do Vazio',icon:'🌌',desc:'Derrotar TODOS os cinco chefes secretos abre passagem ao herói mítico final.',hint:'Eco, Rei Esquecido, Leviatã, Arauto Estelar e Cronarca — todos devem cair.'},
+{id:'carcereiro',name:'O Carcereiro Esquecido',icon:'⛓️',desc:'Uma cela oculta se esconde entre os andares da Torre dos Tiranos. Seu guardião silencioso larga a Algema do Carcereiro.',hint:'Suba a Torre dos Tiranos — às vezes uma cela secreta se abre entre os tiranos.'},
 ];
 const SECMAP={};SECRETS.forEach(s=>SECMAP[s.id]=s);
 function unlockSecret(id){if(!G.meta.codex.secrets.includes(id)){G.meta.codex.secrets.push(id);saveGame();
@@ -2938,8 +2963,19 @@ const DIFFS={
   inferno:{id:'inferno',name:'Inferno', icon:'💀', hp:6,   stat:2.6,  col:'var(--bad)',    desc:'Brutal. Tudo aumenta ainda mais. Dropa os equipamentos mais fortes do jogo.'},
 };
 const DIFF_ORDER=['normal','dificil','inferno'];
-function diffUnlocked(d){ if(d==='normal')return true; if(d==='dificil')return !!(G.meta.flags&&G.meta.flags.beatGame); if(d==='inferno')return !!(G.meta.flags&&G.meta.flags.beatHard); return false; }
-function diffMul(){ const d=(RUN&&RUN.dungeon==='adranja'&&RUN.diff)||'normal'; return DIFFS[d]||DIFFS.normal; }
+function diffUnlocked(d,dungeon){
+  if(d==='normal')return true;
+  const F=G.meta.flags||{};
+  if(dungeon==='torre'){
+    if(d==='dificil')return !!F.beatTorre;        // zere a Torre no Normal
+    if(d==='inferno')return !!F.beatTorreHard;    // zere a Torre no Difícil
+    return false;
+  }
+  if(d==='dificil')return !!F.beatGame;           // zere o Andar 200 no Normal
+  if(d==='inferno')return !!F.beatHard;           // zere o Andar 200 no Difícil
+  return false;
+}
+function diffMul(){ const d=(RUN&&RUN.diff)||'normal'; return DIFFS[d]||DIFFS.normal; }
 // item exclusivo de modo só pode cair no modo correspondente (ou mais difícil)
 function modeOK(it){ if(!it||!it.mode)return true; const d=(RUN&&RUN.dungeon==='adranja'&&RUN.diff)||'normal';
   if(it.mode==='dificil')return d==='dificil'||d==='inferno';
@@ -2955,7 +2991,7 @@ function startRunFlow(){
   RUN_PENDING={party,tides,startFloor:1,diff:'normal'};
   showPreRunScreen();
 }
-function setDiff(d){ if(!diffUnlocked(d)){toast('Modo bloqueado.','warn');return;} RUN_PENDING.diff=d; showPreRunScreen(); }
+function setDiff(d){ if(!diffUnlocked(d,RUN_PENDING&&RUN_PENDING.dungeon)){toast('Modo bloqueado.','warn');return;} RUN_PENDING.diff=d; showPreRunScreen(); }
 function rerollAndShow(){RUN_PENDING.tides=rollTides(RUN_PENDING.party);showPreRunScreen();}
 function setStartFloor(f){RUN_PENDING.startFloor=f;showPreRunScreen();}
 function cycleMerchAuto(){G.meta.settings=G.meta.settings||{};
@@ -2974,10 +3010,14 @@ function showPreRunScreen(){
   const merch=(G.meta.settings&&G.meta.settings.merchantAuto)||'smart';
   const merchLabel={smart:'🧠 Inteligente (com reserva)',buy:'🛒 Comprar tudo que puder',skip:'🚫 Não comprar (poupar)'}[merch];
   const curDiff=RUN_PENDING.diff||'normal';
-  const diffSel=torre?'':`<div class="divider"></div><div class="row between"><b class="small">⚔️ Dificuldade</b></div>
-    <div class="row wrap mt6" style="gap:6px">${DIFF_ORDER.map(d=>{const D=DIFFS[d];const unl=diffUnlocked(d);
+  const dg=torre?'torre':'adranja';
+  const lockHint=torre
+    ? (!diffUnlocked('dificil','torre')?' · 🔒 Conquiste a Torre no Normal para abrir o Difícil.':(!diffUnlocked('inferno','torre')?' · 🔒 Conquiste a Torre no Difícil para abrir o Inferno.':''))
+    : (!diffUnlocked('dificil','adranja')?' · 🔒 Zere o Andar 200 no Normal para abrir o Difícil.':(!diffUnlocked('inferno','adranja')?' · 🔒 Zere o Andar 200 no Difícil para abrir o Inferno.':''));
+  const diffSel=`<div class="divider"></div><div class="row between"><b class="small">⚔️ Dificuldade${torre?' da Torre':''}</b></div>
+    <div class="row wrap mt6" style="gap:6px">${DIFF_ORDER.map(d=>{const D=DIFFS[d];const unl=diffUnlocked(d,dg);
       return `<button class="btn ${d===curDiff?'':'ghost'} sm" ${unl?'':'disabled'} style="${d===curDiff?'border-color:'+D.col+';color:'+D.col:''}" onclick="setDiff('${d}')">${D.icon} ${D.name}${unl?'':' 🔒'}</button>`;}).join('')}</div>
-    <p class="tiny muted mt6">${DIFFS[curDiff].desc}${!diffUnlocked('dificil')?' · 🔒 Zere o Andar 200 no Normal para abrir o Difícil.':(!diffUnlocked('inferno')?' · 🔒 Zere o Andar 200 no Difícil para abrir o Inferno.':'')}</p>`;
+    <p class="tiny muted mt6">${DIFFS[curDiff].desc}${lockHint}</p>`;
   openModal(`<h2 style="color:var(--gold)">${torre?'🗼 Torre dos Tiranos':'⚓ Marés da Adranja'}</h2>
     ${torre?'<p class="small" style="color:var(--bad)"><b>Aviso:</b> 50 andares, um tirano colossal por andar. Batalhas longas e brutais. Bem mais difícil que a Adranja.</p>':''}
     <p class="small muted">${torre?'As correntes mágicas também alcançam a Torre':'A masmorra se reorganiza'} — sempre <b style="color:var(--ok)">2 bênçãos</b> e <b style="color:var(--bad)">2 riscos</b>:</p>
@@ -3005,7 +3045,7 @@ function initRun(party,tides,startFloor,dungeon,diff){
   const sf=Math.max(1,startFloor||1);
   RUN={
     party:party.map(buildCombatant),
-    dungeon:dungeon||'adranja', diff:(dungeon==='torre'?'normal':(diff||'normal')), maxFloor:(dungeon==='torre'?TORRE_MAX:200),
+    dungeon:dungeon||'adranja', diff:(diff||'normal'), maxFloor:(dungeon==='torre'?TORRE_MAX:200),
     floor:sf, startFloor:sf, room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
     log:[], scene:{mode:'idle',enemies:[],walk:0,shake:0,flashEnemy:-1},
     passive:{}, alive:true, paused:false, speed:(G.meta.settings&&G.meta.settings.speed)||1, fxNodes:[],
@@ -3059,7 +3099,7 @@ function renderDungeon(){
   APP.innerHTML=`<div class="screen dungeon active">
     <div class="topbar">
       <span class="floor-badge" id="floorBadge">🏰 Andar ${RUN.floor}</span>
-      ${(RUN.dungeon==='adranja'&&RUN.diff&&RUN.diff!=='normal')?`<span class="chip" style="color:${DIFFS[RUN.diff].col};border-color:${DIFFS[RUN.diff].col}">${DIFFS[RUN.diff].icon} ${DIFFS[RUN.diff].name}</span>`:''}
+      ${(RUN.diff&&RUN.diff!=='normal')?`<span class="chip" style="color:${DIFFS[RUN.diff].col};border-color:${DIFFS[RUN.diff].col}">${DIFFS[RUN.diff].icon} ${DIFFS[RUN.diff].name}</span>`:''}
       <span class="chip" id="regionChip" style="color:var(--magic-2)"></span>
       <span class="chip" id="famChip"></span>
       <div class="res">
@@ -3603,14 +3643,14 @@ function grantEquipment(minRar,cap){
   const dmode=(RUN&&RUN.dungeon==='adranja'&&RUN.diff)||'normal';
   if(dmode!=='normal'&&chance(dmode==='inferno'?0.16:0.10)){
     const wants=dmode==='inferno'?(chance(0.5)?'inferno':'dificil'):'dificil';
-    const mpool=ITEMS.filter(i=>isEquip(i)&&i.mode===wants);
+    const mpool=ITEMS.filter(i=>isEquip(i)&&i.mode===wants&&!i.tower);
     if(mpool.length){const mi=pick(mpool);addItem(mi.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;discover('items',mi.id);
       logline('🔥 <b style="color:'+RAR_COLOR[mi.rarity]+'">'+mi.name+'</b> <span class="tiny muted">(único do '+(DIFFS[wants]?DIFFS[wants].name:wants)+')</span>','lt');
       sfx('epic');lootBurst(mi.rarity);if(!RUN)toast('🔥 '+mi.name,mi.rarity);return;}
   }
   const rar=rarityRoll(minRar,cap);
   const curTier=bandTier((typeof RUN!=='undefined'&&RUN)?RUN.floor:1);
-  let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar&&modeOK(i));
+  let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar&&!i.tower&&modeOK(i));
   // se há itens GERADOS desta raridade, restringe à faixa de profundidade (loot evolui com o andar)
   const banded=pool.filter(i=>i.band!==undefined);
   if(banded.length){
@@ -3618,8 +3658,8 @@ function grantEquipment(minRar,cap){
     const useTier=avail.length?Math.max(...avail.map(i=>i.band)):Math.min(...banded.map(i=>i.band));
     pool=banded.filter(i=>i.band===useTier);
   }
-  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar)&&i.band===undefined&&modeOK(i));
-  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&modeOK(i));
+  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar)&&i.band===undefined&&!i.tower&&modeOK(i));
+  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&!i.tower&&modeOK(i));
   const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🎁 Equipamento achado: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);
@@ -3645,6 +3685,16 @@ function grantSecretKey(){
   checkUnlocks();
 }
 function coroaCount(){return invQty('coroa_partida');}
+// item eligível de Torre no modo atual (base sempre; difícil/inferno conforme a dificuldade)
+function towerModeOK(it){ const d=(RUN&&RUN.diff)||'normal';
+  if(!it.mode)return true; if(it.mode==='dificil')return d==='dificil'||d==='inferno'; if(it.mode==='inferno')return d==='inferno'; return false; }
+function grantTowerUnique(){
+  const pool=ITEMS.filter(i=>i.tower&&!i.towerSecret&&isEquip(i)&&towerModeOK(i));
+  if(!pool.length)return false;
+  const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;discover('items',it.id);
+  logline('🗼 <b style="color:'+RAR_COLOR[it.rarity]+'">Despojo da Torre: '+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
+  sfx('epic');lootBurst(it.rarity);if(!RUN)toast('🗼 '+it.name,it.rarity);return true;
+}
 
 /* ---- XP / NÍVEL ---- */
 function grantXP(c,amt){
@@ -4147,13 +4197,15 @@ const TORRE_BOSSES=(function(){
 })();
 function torreBossFor(tf){return TORRE_BOSSES[Math.min(tf,TORRE_MAX)-1];}
 function makeTorreBoss(boss,tf){
-  // curva propositalmente brutal — batalhas LONGAS (PV altíssimo, ataque forte mas não instantâneo)
-  const hp=Math.round(2200+tf*tf*150+tf*2100);
-  const atk=Math.round(38+tf*5+tf*tf*0.55);
-  const def=Math.round(14+tf*1.7);
-  const spd=Math.round(7+tf*0.2);
+  // curva propositalmente BRUTAL — tiranos colossais. O do Andar 1 supera o chefe do
+  // Andar 10 da Adranja; o do Andar 50 supera o chefe do Andar 200. Batalhas LONGAS.
+  const dm=diffMul();   // Normal / Difícil / Inferno também valem na Torre
+  const hp=Math.round((6000+tf*tf*620+tf*6200)*dm.hp);
+  const atk=Math.round((72+tf*9+tf*tf*1.15)*dm.stat);
+  const def=Math.round((28+tf*3.2)*dm.stat);
+  const spd=Math.round(8+tf*0.2);
   return {m:boss,name:boss.name,boss:true,torre:true,family:boss.family,el:boss.el,grid:boss.grid,pal:boss.pal,
-    st:{atk,mag:atk,def,spd,lck:10},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
+    st:{atk,mag:atk,def,spd,lck:12},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
 }
 function torreBegin(){
   if(!RUN.alive)return;
@@ -4163,8 +4215,46 @@ function torreBegin(){
     logline(`<span class="sc">🗼 <b>Torre dos Tiranos — Andar ${tf}/${TORRE_MAX}</b></span>`,'sc');
     toast('🗼 Torre — Andar '+tf,'lendario');}
   RUN.scene.mode='idle';RUN.room=0;RUN.roomsTotal=1;
-  // segredos na torre: às vezes uma câmara entre tiranos
-  rtimeout(()=>{ if(chance(0.22))return torreSecret(); startTorreBoss(); },700);
+  // segredos na torre: chefe secreto oculto, ou câmara entre tiranos
+  rtimeout(()=>{ if(maybeTorreSecretBoss())return; if(chance(0.22))return torreSecret(); startTorreBoss(); },700);
+}
+function maybeTorreSecretBoss(){
+  if(RUN._torreSecretDone)return false;         // no máximo um por incursão
+  const tf=RUN.floor;
+  if(tf<10||tf>=TORRE_MAX)return false;           // não no início nem no topo (o topo é o Supremo)
+  const ch=0.12+Math.min(tf,45)*0.004;           // ~16% no Andar 10, ~30% no 45
+  if(!chance(ch))return false;
+  RUN._torreSecretDone=true; startTorreSecretBoss(); return true;
+}
+function startTorreSecretBoss(){
+  const boss=BMAP.torre_carcereiro;
+  // BEM mais forte que o tirano do andar: usa profundidade maior + reforço extra
+  const e=makeTorreBoss(boss,Math.min(TORRE_MAX,RUN.floor+8));
+  e.maxhp=Math.round(e.maxhp*1.4); e.hp=e.maxhp;
+  e.st.atk=Math.round(e.st.atk*1.25); e.st.mag=e.st.atk; e.st.def=Math.round(e.st.def*1.2);
+  logline('<span class="sc">⟁⟁⟁ Uma cela oculta se abre na Torre... ⟁⟁⟁</span>','sc');
+  logline('<b class="tag-secret">CHEFE SECRETO DA TORRE: '+boss.name+'</b>','sc');
+  logline('<i>'+boss.intro+'</i>','sy');discover('bosses',boss.id);
+  sfx('roar');bossCard(boss.name,boss.intro,true);showBossBar(e);
+  beginCombat([e],{boss:true,secret:true,torre:true,bossDef:boss,onWin:()=>onTorreSecretBossWin(boss,e)});
+}
+function onTorreSecretBossWin(boss,e){
+  hideBossBar();
+  const tf=RUN.floor;
+  RUN.kills++;G.meta.totalKills++;RUN.bossKills=(RUN.bossKills||0)+1;
+  if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
+  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,80+tf*12));
+  const ess=runEssence(300+tf*20);
+  // despojo GARANTIDO exclusivo do Carcereiro
+  addItem('tw_secret',1);discover('items','tw_secret');RUN.equipFound=(RUN.equipFound||0)+1;
+  logline('🏆 <b class="tag-secret">DESPOJO SECRETO DA TORRE:</b> '+IMAP.tw_secret.icon+' '+IMAP.tw_secret.name+'!','sc');
+  lootBurst('secreto');
+  grantTowerUnique();   // + um único da torre de brinde
+  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.30);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
+  logline('🌟 <b>'+boss.name+' foi silenciado.</b> +'+ess+' essência.','sc');
+  toast('🌟 Chefe secreto da Torre derrotado!','mitico');
+  unlockSecret('carcereiro');saveGame();
+  rtimeout(startTorreBoss,1100);   // depois do secreto, enfrente o tirano do andar
 }
 function torreSecret(){
   unlockSecret('cofre');
@@ -4197,6 +4287,8 @@ function onTorreBossWin(boss,e){
   grantEquipment(tf>=45?'celestial':tf>=35?'divino':tf>=18?'mitico':tf>=8?'lendario':'epico',false);
   grantMaterial(tf>=25?'lendario':'epico');
   if(tf%5===0)grantEquipment(tf>=40?'divino':tf>=25?'mitico':'lendario',false);
+  // ÚNICOS DA TORRE: caem bastante (a cada 5 andares e no topo garantido, + chance por tirano)
+  if(tf%5===0||tf>=TORRE_MAX||chance(0.35))grantTowerUnique();
   // cura parcial entre tiranos (a torre não tem salas de descanso)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.22);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   logline('🏆 <b>'+boss.name+' tombou!</b> +'+ess+' essência.','dn');
@@ -4212,15 +4304,26 @@ function onTorreBossWin(boss,e){
 function torreVictory(){
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
   music('victory');sfx('win');
-  G.meta.flags.beatTorre=true;saveGame();try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}
+  const diff=(RUN&&RUN.diff)||'normal';
+  const wasHard=!!G.meta.flags.beatTorreHard, wasInf=!!G.meta.flags.beatTorreInferno;
+  G.meta.flags.beatTorre=true;
+  if(diff==='dificil'||diff==='inferno')G.meta.flags.beatTorreHard=true;
+  if(diff==='inferno')G.meta.flags.beatTorreInferno=true;
+  let unlockMsg='';
+  if(diff==='normal')unlockMsg='🔥 <b>Torre Difícil</b> destravada! Tiranos muito mais fortes e itens únicos te aguardam.';
+  else if(diff==='dificil'&&!wasHard)unlockMsg='💀 <b>Torre Inferno</b> destravada! O ápice do desafio — e os equipamentos mais fortes do jogo.';
+  else if(diff==='inferno'&&!wasInf)unlockMsg='👑 Você dominou o <b>Inferno</b> da Torre dos Tiranos. Não há rival acima de você.';
+  saveGame();try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}
   const s={reason:'torre_win',floor:RUN.floor,startFloor:RUN.startFloor||1,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence,
-    bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur:Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000)),dungeon:'torre'};
+    bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur:Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000)),dungeon:'torre',diff};
   RUN=null;checkUnlocks();saveGame();CUR.screen='result';
   APP.innerHTML=`<div class="screen active" style="justify-content:center;overflow:auto;padding:14px">
     <div class="panel parch center" style="max-width:540px;margin:auto">
       <div style="font-size:60px">🗼👑</div>
       <h1 style="color:var(--gold);font-size:26px">Você conquistou a Torre dos Tiranos!</h1>
       <p class="small muted mt6">Os 50 tiranos caíram. Do alto da Torre, a Adranja inteira se curva. Você é uma lenda viva — e tudo que conquistou é permanente.</p>
+      <p class="small mt6">Modo: <b style="color:${(DIFFS[diff]||DIFFS.normal).col}">${(DIFFS[diff]||DIFFS.normal).icon} ${(DIFFS[diff]||DIFFS.normal).name}</b></p>
+      ${unlockMsg?`<p class="small mt6" style="color:var(--gold)">${unlockMsg}</p>`:''}
       <div class="row center wrap mt" style="justify-content:center;gap:6px">
         <button class="btn sm" onclick='shareResultImage(${JSON.stringify(s).replace(/'/g,"&#39;")})'>📤 Compartilhar imagem</button>
         <button class="btn ghost sm" onclick='saveResultImage(${JSON.stringify(s).replace(/'/g,"&#39;")})'>💾 Baixar imagem</button>
@@ -4236,7 +4339,7 @@ function startTorreFlow(){
   if(party.length===0){toast('Monte uma equipe primeiro.','warn');return;}
   Sound.init();Sound.resume();
   const tides=rollTides(party);
-  RUN_PENDING={party,tides,startFloor:1,dungeon:'torre'};
+  RUN_PENDING={party,tides,startFloor:1,dungeon:'torre',diff:'normal'};
   showPreRunScreen();
 }
 
@@ -4342,7 +4445,7 @@ function showResult(s){
       <div class="row center" style="justify-content:center;gap:8px;margin:6px 0">
         <span class="chip" style="font-size:20px;font-family:Cinzel;color:var(--gold);border-color:var(--gold)">Rank ${rank}</span>
         <span class="chip">${torre?'🗼 Torre dos Tiranos':'🏰 Adranja'}</span>
-        ${(!torre&&s.diff&&s.diff!=='normal')?`<span class="chip" style="color:${DIFFS[s.diff].col};border-color:${DIFFS[s.diff].col}">${DIFFS[s.diff].icon} ${DIFFS[s.diff].name}</span>`:''}
+        ${(s.diff&&s.diff!=='normal')?`<span class="chip" style="color:${DIFFS[s.diff].col};border-color:${DIFFS[s.diff].col}">${DIFFS[s.diff].icon} ${DIFFS[s.diff].name}</span>`:''}
       </div>
       <p class="small muted">${death?'Seus heróis caem... mas a masmorra os cospe de volta. <b>Nada é perdido</b> — níveis, habilidades, itens e segredos continuam com você.':'De volta ao acampamento, sãos e salvos. Tudo que você conquistou continua seu.'}</p>
       <div class="divider"></div>
