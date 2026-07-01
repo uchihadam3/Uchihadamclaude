@@ -117,9 +117,10 @@ canvas{image-rendering:pixelated;}
 .bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
 .hpbar > i{background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
 .xpbar > i{background:linear-gradient(90deg,var(--magic),var(--magic-2));}
-.atbbar{height:5px;margin-top:2px;background:rgba(0,0,0,.5);}
-.atbbar > i{background:linear-gradient(90deg,#ffd166,#7dff8f);transition:width .06s linear;}
-.atbbar.boss{height:7px;}
+.atbbar{height:5px;margin-top:2px;background:rgba(0,0,0,.5);border-radius:5px;border:1px solid var(--line-soft);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
+.atbbar > i{display:block;height:100%;background:linear-gradient(90deg,#ffd166,#7dff8f);transition:width .06s linear;box-shadow:0 0 4px rgba(125,255,143,.5);}
+.atbbar.boss{height:7px;border-radius:6px;}
+#bossFx{display:inline-flex;gap:3px;margin:0 6px;flex:1;justify-content:center;flex-wrap:wrap;}
 .pm.acting{border-color:var(--gold);box-shadow:0 0 10px rgba(255,209,102,.5);}
 .turn-banner{position:absolute;left:50%;top:30%;transform:translateX(-50%);font-family:'Cinzel';font-weight:700;
   font-size:11.5px;text-shadow:0 2px 3px #000;padding:3px 11px;background:rgba(0,0,0,.55);border-radius:8px;
@@ -3671,7 +3672,7 @@ function drawScene(ctx,cv,t){
     else ctx.drawImage(sp,x,y);
     ctx.globalAlpha=1;
     ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(x+6,y+62,52,4);
-    if(c.alive)drawFxIcons(ctx,x,y,c);
+    if(c.alive)drawFxIcons(ctx,x,y-8,c);
     if(c.alive&&acting===c)drawActingMark(ctx,x+30,y,t);
   });
   // INIMIGOS (direita)
@@ -3686,22 +3687,52 @@ function drawScene(ctx,cv,t){
     ctx.globalAlpha=1;
     ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(bx,by+sp.height,sp.width,4);
     // barra de vida do inimigo + barra de ATB (mostra o progresso da ação, igual aos heróis)
-    if(!en.boss){const bw=34;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(bx,by-7,bw,4);
-      ctx.fillStyle='#ff5d6c';ctx.fillRect(bx,by-7,bw*clamp(en.hp/en.maxhp,0,1),4);
-      ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(bx,by-11,bw,3);
-      const atbGrad=ctx.createLinearGradient(bx,0,bx+bw,0);atbGrad.addColorStop(0,'#ffd166');atbGrad.addColorStop(1,'#7dff8f');
-      ctx.fillStyle=atbGrad;ctx.fillRect(bx,by-11,bw*clamp((en.atb||0)/100,0,1),3);}
-    drawFxIcons(ctx,bx,by,en);
+    if(!en.boss){drawEnemyBars(ctx,bx,by-11,34,en);}
+    drawFxIcons(ctx,bx,en.boss?by-9:by-22,en);
     if(acting===en)drawActingMark(ctx,bx+sp.width/2,by,t);
   });
   ctx.restore();
 }
-/* ícones de buff/debuff EM CIMA DA CABEÇA — além dos badges do mini-card, mostra também na cena */
+/* moldura arredondada com borda + gradiente pras barras de vida/ATB dos inimigos — mais bonita
+   que um retângulo cru, e serve pra "ancorar" visualmente onde os ícones de buff/debuff podem ficar em cima */
+function rrectPath(ctx,x,y,w,h,r){
+  if(ctx.roundRect){ctx.beginPath();ctx.roundRect(x,y,w,h,r);return;}
+  r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+}
+function drawEnemyBars(ctx,bx,topY,bw,en){
+  ctx.save();
+  // moldura de fundo por trás das duas barras
+  ctx.fillStyle='rgba(0,0,0,.4)';rrectPath(ctx,bx-2,topY-2,bw+4,12,4);ctx.fill();
+  // ATB (em cima)
+  ctx.fillStyle='rgba(0,0,0,.65)';rrectPath(ctx,bx,topY,bw,4,2);ctx.fill();
+  const atbP=clamp((en.atb||0)/100,0,1);
+  if(atbP>0){const atbGrad=ctx.createLinearGradient(bx,0,bx+bw,0);atbGrad.addColorStop(0,'#ffd166');atbGrad.addColorStop(1,'#7dff8f');
+    ctx.fillStyle=atbGrad;rrectPath(ctx,bx,topY,bw*atbP,4,2);ctx.fill();}
+  ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=0.7;rrectPath(ctx,bx,topY,bw,4,2);ctx.stroke();
+  // PV (embaixo)
+  const hpY=topY+6;
+  ctx.fillStyle='rgba(0,0,0,.65)';rrectPath(ctx,bx,hpY,bw,5,2.2);ctx.fill();
+  const hpP=clamp(en.hp/en.maxhp,0,1);
+  if(hpP>0){const hpGrad=ctx.createLinearGradient(bx,0,bx+bw,0);hpGrad.addColorStop(0,'#c8324a');hpGrad.addColorStop(1,'#ff7a5a');
+    ctx.fillStyle=hpGrad;rrectPath(ctx,bx,hpY,bw*hpP,5,2.2);ctx.fill();}
+  ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=0.7;rrectPath(ctx,bx,hpY,bw,5,2.2);ctx.stroke();
+  ctx.restore();
+}
+/* ícones de buff/debuff EM CIMA DA CABEÇA — sempre ACIMA das barras de PV/ATB (nunca em cima delas),
+   com uma placazinha escura e borda colorida por trás de cada ícone (igual aos badges do mini-card) */
 function drawFxIcons(ctx,x,y,c){
-  if(!c.fx)return;const keys=Object.keys(FX_META).filter(k=>c.fx[k]);
+  if(!c.fx)return;const keys=Object.keys(FX_META).filter(k=>c.fx[k]).slice(0,3);
   if(!keys.length)return;
-  ctx.save();ctx.font='9px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  keys.slice(0,3).forEach((k,i)=>{ctx.fillText(FX_META[k].ic,x+16+(i-1)*11,y-8);});
+  ctx.save();ctx.font='10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const step=14,startX=x+16-((keys.length-1)*step)/2;
+  keys.forEach((k,i)=>{
+    const meta=FX_META[k],cx=startX+i*step;
+    ctx.fillStyle='rgba(10,6,16,.75)';rrectPath(ctx,cx-7,y-7,14,14,4);ctx.fill();
+    ctx.strokeStyle=meta.c;ctx.lineWidth=1;rrectPath(ctx,cx-7,y-7,14,14,4);ctx.stroke();
+    ctx.fillStyle='#fff';ctx.fillText(meta.ic,cx,y+1);
+  });
   ctx.restore();
 }
 /* seta dourada saltitante — deixa claro QUEM está agindo agora, sem ambiguidade */
@@ -4316,7 +4347,7 @@ function onBossWin(boss,e){
 }
 function showBossBar(e){const stage=$('#stage');if(!stage)return;
   let bar=document.createElement('div');bar.id='bossBar';bar.style.cssText='position:absolute;left:8px;right:8px;top:6px;';
-  bar.innerHTML=`<div class="row between" style="margin-bottom:2px"><b style="color:#ff7a3c;font-size:12px;font-family:Cinzel">${e.name}</b><span class="tiny" id="bossHpTxt"></span></div><div class="bossbar"><i id="bossHp" style="width:100%"></i></div><div class="atbbar boss mt6"><i id="bossAtb" style="width:0%"></i></div><div id="bossFx" style="text-align:right"></div>`;
+  bar.innerHTML=`<div class="row between" style="margin-bottom:2px;align-items:center"><b style="color:#ff7a3c;font-size:12px;font-family:Cinzel">${e.name}</b><span id="bossFx"></span><span class="tiny" id="bossHpTxt"></span></div><div class="bossbar"><i id="bossHp" style="width:100%"></i></div><div class="atbbar boss mt6"><i id="bossAtb" style="width:0%"></i></div>`;
   stage.appendChild(bar);updateBossBar(e);}
 function updateBossBar(e){const i=$('#bossHp'),t=$('#bossHpTxt'),fx=$('#bossFx'),a=$('#bossAtb');if(i)i.style.width=clamp(e.hp/e.maxhp*100,0,100)+'%';if(t)t.textContent=fmt(Math.max(0,e.hp))+'/'+fmt(e.maxhp);if(fx)fx.innerHTML=fxBadges(e);if(a)a.style.width=clamp(e.atb||0,0,100)+'%';}
 function hideBossBar(){const b=$('#bossBar');if(b)b.remove();}
