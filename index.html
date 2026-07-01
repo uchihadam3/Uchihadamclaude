@@ -4370,7 +4370,13 @@ function updateATB(dt){
   cs.forEach(a=>{
     if(a.atb==null)a.atb=0;
     const wasReady=a.atb>=100;
-    const rate=(100/ATB_BASE_SECONDS)*(Math.max(1,a.st.spd)/avgSpd);
+    // VEL de herói escala com NÍVEL e a de inimigo/chefe escala com ANDAR — em jogadores avançados
+    // isso abre uma diferença enorme (heróis MUITO mais rápidos), fazendo o inimigo quase não agir.
+    // Por isso o proveito da velocidade na barra tem um teto: no máximo ~1.8x a média pra quem é
+    // rápido e no mínimo ~0.55x pra quem é lento — a velocidade ainda importa, mas nunca a ponto
+    // de travar um lado inteiro fora do combate.
+    const spdRatio=clamp(Math.max(1,a.st.spd)/avgSpd,0.55,1.8);
+    const rate=(100/ATB_BASE_SECONDS)*spdRatio;
     a.atb+=rate*dt*RUN.speed;
     // marca a ORDEM DE CHEGADA na barra cheia — quem ficou pronto primeiro age primeiro.
     // Sem isso, quem enche a barra mais rápido (ex.: heróis vs. um chefe lento) sempre "atropela"
