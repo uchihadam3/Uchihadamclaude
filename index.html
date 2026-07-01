@@ -1823,6 +1823,80 @@ function bandTier(floor){return Math.max(0,Math.min(GEN_BANDS-1,Math.floor(((flo
     });
   }
 })();
+/* ====================== CHEFES ULTRA SECRETOS (1 por faixa de 10 andares) ======================
+   Extremamente raros de aparecer explorando (bem mais raro que um elite) — um em cada uma das
+   20 faixas de 10 andares da Adranja (Andar 1-10, 11-20, ... 191-200). Cada um guarda seu
+   PRÓPRIO conjunto de 7 equipamentos lendários únicos (um pouco mais fortes que os "únicos"
+   normais do jogo) — ao ser derrotado, dropa de 1 a 3 peças aleatórias daquele conjunto. */
+const ULTRA_BOSS_NAMES=['O Vigia Primevo','A Devoradora de Luz','O Ceifador Silencioso','Nyxara, Rainha das Sombras','O Colosso Esquecido','Malacar, o Corruptor','A Serpente do Véu','O Arauto Carmesim','Vhorash, Senhor dos Ecos','A Guardiã de Cristal','O Profeta Cego','Draug, o Insaciável','A Chama Silenciosa','O Tecelão de Pesadelos','Ishtara, a Devoradora','O Último Rei Sem Nome','A Fenda Viva','Morvain, o Eterno','O Coração de Obsidiana','A Origem Esquecida'];
+const ULTRA_BOSS_TMPLS=['guardiao','rainha_aranha','lich','dragao','titereiro','inferno','arconte','rei_esquecido','leviata','arauto_estelar','cronarca','titan_ruina','serafim_caido'];
+const ULTRA_BOSS_PALS=[
+  {a:'#3a3a1a',b:'#ffd166',e:'#7dff8f',c:'#5a4a2a',m:'#a89050',w:'#c8b878'},
+  {a:'#3a3020',b:'#ffe9a8',e:'#ffd166',c:'#8a7040',m:'#e8d8a0',w:'#ffffff'},
+  {a:'#1a1a1a',b:'#8a8a8a',e:'#ff5d6c',c:'#3a3a3a',m:'#c8c8c8',w:'#5a5a5a'},
+  {a:'#2a0a2a',b:'#ff5fa8',e:'#a14bff',c:'#5a1a5a',m:'#c774ff',w:'#ffb3ea'},
+  {a:'#3a342a',b:'#8a7a5a',e:'#67d8ff',c:'#5a5040',m:'#c8b898',w:'#7a6a4a'},
+  {a:'#2a0a0a',b:'#ff2a3a',e:'#0a0a0a',c:'#5a1010',m:'#8a1a1a',w:'#c8324a'},
+  {a:'#0a2a2a',b:'#3adfd0',e:'#ffd166',c:'#0a4a4a',m:'#67d8ff',w:'#a8fff0'},
+  {a:'#3a0a0a',b:'#ff7a3c',e:'#ffd166',c:'#8a1a1a',m:'#c8324a',w:'#ffb347'},
+  {a:'#1a0a3a',b:'#7a5aff',e:'#b39bff',c:'#3a1a6a',m:'#5a3ac8',w:'#c9b8ff'},
+  {a:'#0a2a3a',b:'#8adfff',e:'#ffffff',c:'#1a4a5a',m:'#67d8ff',w:'#d0f4ff'},
+  {a:'#2a2a2a',b:'#d8d8d8',e:'#ffffff',c:'#4a4a4a',m:'#8a8a8a',w:'#ffffff'},
+  {a:'#1a2a1a',b:'#c8d8b8',e:'#5fd17a',c:'#3a4a2a',m:'#e8f0d8',w:'#7a9a5a'},
+  {a:'#3a1a0a',b:'#ff9a3c',e:'#ffd166',c:'#7a2a0a',m:'#ff5d0a',w:'#ffcf8a'},
+  {a:'#2a0a3a',b:'#c774ff',e:'#ff5fa8',c:'#4a1a5a',m:'#a14bff',w:'#e8b3ff'},
+  {a:'#3a2a0a',b:'#ffd166',e:'#ff5d6c',c:'#5a3a0a',m:'#ffb347',w:'#fff0c0'},
+  {a:'#2a1a3a',b:'#b39bff',e:'#ffd166',c:'#4a2a5a',m:'#8a5aff',w:'#e0d0ff'},
+  {a:'#100820',b:'#a14bff',e:'#ff5fa8',c:'#200a3a',m:'#c774ff',w:'#3a1a5a'},
+  {a:'#1a1a2a',b:'#c0c8d8',e:'#67d8ff',c:'#3a3a4a',m:'#e8ecf4',w:'#8a90a8'},
+  {a:'#0a0a0a',b:'#3a1a1a',e:'#ff2a3a',c:'#1a0a0a',m:'#5a1a1a',w:'#8a1a1a'},
+  {a:'#1a1030',b:'#ffd166',e:'#a14bff',c:'#0a0820',m:'#67d8ff',w:'#ff5fa8'},
+];
+const ULTRA_BOSS_SKILLSET=[
+  ['esmagar','tremor','decreto'],['teia','enxame','veneno'],['necromancia','maldicao','apocalipse'],
+  ['sopro','garra','inferno'],['corte_real','exilio','decreto'],['inferno','garra','apocalipse'],
+  ['colapso','vazio','espelho'],['decreto','corte_real','julgamento'],['espelho','colapso','vazio'],
+  ['mare','tremor','esmagar'],['supernova','colapso','vazio'],['parar_tempo','paradoxo','supernova'],
+  ['esmagar','tremor','julgamento'],['inferno','sopro','garra'],['veneno','teia','enxame'],
+  ['decreto','exilio','apocalipse'],['vazio','espelho','colapso'],['mare','esmagar','tremor'],
+  ['maldicao','necromancia','julgamento'],['apocalipse','supernova','vazio'],
+];
+const ULTRA_BOSSES=[];
+for(let ub=0; ub<GEN_BANDS; ub++){
+  const tmpl=BMAP[ULTRA_BOSS_TMPLS[ub%ULTRA_BOSS_TMPLS.length]];
+  ULTRA_BOSSES.push({
+    id:'ultra'+ub, name:ULTRA_BOSS_NAMES[ub], family:tmpl.family, el:tmpl.el,
+    grid:tmpl.grid, pal:ULTRA_BOSS_PALS[ub], floorLo:ub*10+1, floorHi:ub*10+10, band:ub,
+    skills:ULTRA_BOSS_SKILLSET[ub], ultraSecret:true, secret:true,
+    intro:'Um poder que a Adranja escondeu bem demais finalmente desperta diante de vocês.',
+  });
+}
+const UMAP={};ULTRA_BOSSES.forEach(b=>UMAP[b.id]=b);
+function ultraBossForFloor(floor){return UMAP['ultra'+bandTier(floor)];}
+(function genUltraGear(){
+  const UFAMS=[
+    {slot:'arma',key:'lamina',noun:'Lâmina',icon:'⚔️',main:'atk',base:6,ex:{lck:2}},
+    {slot:'elmo',key:'coroa',noun:'Coroa',icon:'👑',main:'def',base:5,ex:{hp:12,mag:3}},
+    {slot:'armadura',key:'manto',noun:'Manto',icon:'🥋',main:'hp',base:18,ex:{def:5}},
+    {slot:'bracelete',key:'garra',noun:'Garra',icon:'🦾',main:'atk',base:5,ex:{def:2,spd:2}},
+    {slot:'grevas',key:'passo',noun:'Passo',icon:'🥾',main:'spd',base:5,ex:{def:2,lck:2}},
+    {slot:'acessorio',key:'olho',noun:'Olho',icon:'👁️',main:'lck',base:6,ex:{hp:12,atk:3}},
+    {slot:'talisma',key:'selo',noun:'Selo',icon:'🔮',main:'mag',base:5,ex:{atk:5,def:3}},
+  ];
+  // "de O Colosso" -> "do Colosso" / "de A Fenda" -> "da Fenda" (contração de artigo, soa natural)
+  const deName=n=>n.startsWith('O ')?'do '+n.slice(2):n.startsWith('A ')?'da '+n.slice(2):'de '+n;
+  ULTRA_BOSSES.forEach(boss=>{
+    const mult=4.5+boss.band*0.71;   // um pouco mais forte que os "únicos" normais, cresce com a faixa
+    const shortName=boss.name.split(',')[0];
+    UFAMS.forEach(f=>{
+      const stats={}; stats[f.main]=Math.round(f.base*mult);
+      for(const k in f.ex)stats[k]=Math.round(f.ex[k]*mult*0.8);
+      ITEMS.push({id:'us_'+boss.id+'_'+f.key, name:f.noun+' '+deName(shortName), icon:f.icon,
+        type:f.slot, slot:f.slot, rarity:'secreto', ultraBoss:boss.id, stats,
+        desc:'Fragmento do poder de '+boss.name+', guardado do Andar '+boss.floorLo+' ao '+boss.floorHi+'.'});
+    });
+  });
+})();
 const IMAP={};ITEMS.forEach(i=>IMAP[i.id]=i);
 const EQUIP_SLOTS=['arma','elmo','armadura','bracelete','grevas','acessorio','talisma'];
 const SLOT_LABEL={arma:'Arma',elmo:'Elmo',armadura:'Armadura',bracelete:'Bracelete',grevas:'Grevas',acessorio:'Acessório',talisma:'Talismã'};
@@ -1927,6 +2001,7 @@ const SECRETS=[
 {id:'cofre',name:'O Cofre Proibido',icon:'🗄️',desc:'Câmaras seladas guardam equipamento lendário para quem as encontra.',hint:'Passagens secretas profundas escondem cofres lendários.'},
 {id:'andarilho',name:'O Andarilho do Vazio',icon:'🌌',desc:'Derrotar TODOS os cinco chefes secretos abre passagem ao herói mítico final.',hint:'Eco, Rei Esquecido, Leviatã, Arauto Estelar e Cronarca — todos devem cair.'},
 {id:'carcereiro',name:'O Carcereiro Esquecido',icon:'⛓️',desc:'Uma cela oculta se esconde entre os andares da Torre dos Tiranos. Seu guardião silencioso larga a Algema do Carcereiro.',hint:'Suba a Torre dos Tiranos — às vezes uma cela secreta se abre entre os tiranos.'},
+{id:'ultra_boss',name:'???',icon:'☠️',desc:'Algo terrível dorme escondido a cada dez andares da Adranja — extremamente raro de encontrar, guarda equipamento lendário exclusivo, mais forte que qualquer outro único.',hint:'Continue explorando. A sorte não ajuda aqui — só a persistência.'},
 ];
 const SECMAP={};SECRETS.forEach(s=>SECMAP[s.id]=s);
 function unlockSecret(id){if(!G.meta.codex.secrets.includes(id)){G.meta.codex.secrets.push(id);saveGame();
@@ -3944,6 +4019,8 @@ function doEncounter(){
   if(chance(secretFind)){return encSecretPassage();}
   // elite raro (chance pequena, cresce com a profundidade)
   if(RUN.floor>=6 && chance(0.025+Math.min(RUN.floor,40)*0.0015)){return encElite();}
+  // chefe ULTRA SECRETO: extremamente raro, bem mais raro que um elite
+  if(chance(0.003)){return encUltraSecretBoss();}
   const w={combate:42,tesouro:Math.round(15*(RUN.tideTreasure||1)),armadilha:Math.round(12*(RUN.tideTrap||1)),evento:Math.round(13*(RUN.tideEvent||1))};
   if(!RUN.tideNoRest)w.descanso=8;
   if(RUN.floor>=4)w.fonte=3;
@@ -4044,6 +4121,34 @@ function encElite(){
     RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,10+RUN.floor*2.5));
     RUN.kills++;G.meta.totalKills++;checkUnlocks();saveGame();advanceRoom();
   }});
+}
+/* ---- CHEFE ULTRA SECRETO (1 por faixa de 10 andares, extremamente raro) ---- */
+function encUltraSecretBoss(){
+  const boss=ultraBossForFloor(RUN.floor);
+  if(!boss)return encCombat();
+  unlockSecret('ultra_boss');discover('bestiary',boss.id);discover('bosses',boss.id);
+  logline('☠️ <b class="tag-secret">Um poder ancestral desperta das sombras...</b>','sc');
+  const e=makeEnemy(boss,RUN.floor,true);
+  sfx('roar');bossCard(boss.name,boss.intro,true);showBossBar(e);
+  beginCombat([e],{boss:true,onWin:()=>onUltraBossWin(boss,e)});
+}
+function onUltraBossWin(boss,e){
+  hideBossBar();
+  RUN.kills++;G.meta.totalKills++;RUN.bossKills=(RUN.bossKills||0)+1;
+  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,30+RUN.floor*6));
+  const ess=runEssence(80+RUN.floor*10);grantGold(Math.round(80*RUN.floor));
+  // 1 a 3 peças ALEATÓRIAS do conjunto de 7 equipamentos exclusivos deste chefe
+  const pool=ITEMS.filter(i=>i.ultraBoss===boss.id);
+  const n=Math.min(pool.length,ri(1,3));
+  for(let i=0;i<n;i++){
+    const idx=ri(0,pool.length-1);const it=pool.splice(idx,1)[0];
+    addItem(it.id,1);discover('items',it.id);
+    logline('🌟 <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> caiu do chefe ultra secreto!','lt');
+  }
+  logline('☠️ <b>'+boss.name+' foi derrotado!</b> +'+ess+' essência.','dn');
+  toast('☠️ Chefe ultra secreto derrotado: '+boss.name+'!','secreto');
+  lootBurst('secreto');
+  checkUnlocks();saveGame();advanceRoom();
 }
 function encSecretPassage(){
   unlockSecret('sala_eco');
@@ -4297,12 +4402,14 @@ function makeEnemy(monster,floor,boss){
   const bossAtk=Math.round((20+floor*6+floor*floor*0.006)*dm.stat);
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
-    const hp=Math.round((730+floor*floor*43+floor*530)*tideHp*dm.hp);
-    const atk=bossAtk;
+    let hp=Math.round((730+floor*floor*43+floor*530)*tideHp*dm.hp);
+    let atk=bossAtk;
     // DEFESA de chefe cresce mais rápido (com um toque de quadrático — seguro, pois a mitigação
     // tem teto de 78%: nunca deixa o jogador incapaz de causar dano, só torna a defesa relevante de verdade)
-    const def=Math.round((18+floor*2.6+floor*floor*0.012)*dm.stat);
+    let def=Math.round((18+floor*2.6+floor*floor*0.012)*dm.stat);
     const spd=Math.round(8+floor*0.18);
+    // chefe ULTRA SECRETO: guarda-costas de loot muito raro, então precisa ser um combate de verdade
+    if(monster.ultraSecret){hp=Math.round(hp*1.8);atk=Math.round(atk*1.35);def=Math.round(def*1.3);}
     return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
       st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{},atb:0,turnCount:0};
   }
