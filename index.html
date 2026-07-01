@@ -181,6 +181,14 @@ canvas{image-rendering:pixelated;}
 .tag-secret{color:var(--shadow-c);font-family:'Cinzel';font-weight:700;}
 .bossbar{height:14px;border-radius:8px;background:rgba(0,0,0,.5);border:1px solid var(--blood);overflow:hidden;}
 .bossbar>i{display:block;height:100%;background:linear-gradient(90deg,#c8324a,#ff7a3c);}
+.fxrow{display:inline-flex;gap:3px;margin-left:5px;vertical-align:middle;}
+.fxb{display:inline-flex;align-items:center;gap:2px;font-size:10px;line-height:1;padding:2px 3px;border-radius:6px;background:rgba(0,0,0,.45);border:1px solid;}
+.fxb b{font-size:9px;font-family:'Cinzel';}
+.skill-slot{border:1px solid var(--line-soft);border-radius:10px;padding:7px 9px;display:flex;gap:8px;align-items:center;cursor:pointer;background:rgba(0,0,0,.22);transition:border-color .12s,background .12s;}
+.skill-slot.skill-active{border-color:var(--gold);background:rgba(255,197,94,.12);box-shadow:0 0 8px rgba(255,197,94,.25);}
+.skill-slot.skill-locked{opacity:.45;cursor:not-allowed;}
+.skill-slot .sk-toggle{font-size:11px;font-family:'Cinzel';font-weight:700;padding:3px 8px;border-radius:8px;border:1px solid var(--line-soft);white-space:nowrap;}
+.skill-slot.skill-active .sk-toggle{color:var(--gold);border-color:var(--gold);}
 .flash{animation:flash .4s ease;} @keyframes flash{0%,100%{filter:none;}50%{filter:brightness(2);}}
 .shake{animation:shake .3s ease;} @keyframes shake{0%,100%{transform:none;}25%{transform:translateX(-5px);}75%{transform:translateX(5px);}}
 .progress{height:10px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden;border:1px solid var(--line-soft);}
@@ -1181,6 +1189,18 @@ function balanceSkillPow(sk,idx){
   cap=+cap.toFixed(2);
   if((sk.pow||1)>cap)sk.pow=cap;
 }
+/* ===== RECARGA (cooldown) — em rodadas. Habilidades básicas ficam quase sempre livres;
+   as mais fortes (área, cura, suporte, maestrias, reviver) exigem esperar. */
+const CD_BY_TIER=[0,1,1,2,2,3,3,4,4,5,5,6];
+function assignCooldown(sk,idx){
+  if(sk.fx==='revive'){sk.cd=8;return;}
+  if(sk.kind==='heal'){sk.cd=2;return;}
+  if(sk.kind==='buff'){sk.cd=3;return;}
+  if(sk.mastery){sk.cd=5;return;}
+  let cd=CD_BY_TIER[Math.min(idx,CD_BY_TIER.length-1)];
+  if(sk.fx==='double'||sk.fx==='triple')cd=Math.max(0,cd-1);   // multi-hit já é mais fraco por golpe
+  sk.cd=cd;
+}
 (function expandSkills(){
   HEROES.forEach(h=>{
     const ex=EXTRA_SKILLS[h.id]||[];
@@ -1189,7 +1209,7 @@ function balanceSkillPow(sk,idx){
     h.skills=h.skills.concat(ex.map(s=>Object.assign({},s)));
     if(cap)h.skills.push(Object.assign({},cap));
     h.skills=h.skills.concat(mas.map(s=>Object.assign({},s)));   // maestrias de alto nível (100/130/160/200)
-    h.skills.forEach((sk,i)=>{ if(!sk.mastery)sk.lvl=skillLevelFor(i); balanceSkillPow(sk,i); });   // maestrias mantêm o nível fixo
+    h.skills.forEach((sk,i)=>{ if(!sk.mastery)sk.lvl=skillLevelFor(i); balanceSkillPow(sk,i); assignCooldown(sk,i); });   // maestrias mantêm o nível fixo
   });
 })();
 
@@ -1466,6 +1486,51 @@ const BOSSES=[
  skills:['decreto','colapso','inferno','apocalipse','vazio','supernova'],intro:'Não havia coração. Não havia rei. A masmorra SEMPRE foi viva. E agora, finalmente, ela acorda por inteiro.'},
 ];
 const BMAP={};BOSSES.forEach(b=>BMAP[b.id]=b);
+/* ====================== HABILIDADES DE INIMIGOS ======================
+   Cada chefe usa de verdade os IDs no seu array `skills` (antes eram só enfeite).
+   Inimigos comuns ganham 1 habilidade de assinatura por FAMÍLIA — dá variedade real
+   sem precisar de ~230 entradas. Tudo com recarga (cd, em rodadas) e cada habilidade
+   sempre um efeito (queimadura/veneno/atordoar/enfraquecer/quebrar defesa/fúria/etc).
+   Golpes em ÁREA de inimigo usam poder BEM menor (acertam o grupo inteiro de uma vez —
+   já aprendemos da forma difícil que isso precisa ficar baixo pra não ser instakill). */
+const ESK=(n,kind,pow,tgt,cd,o={})=>Object.assign({n,kind,pow,tgt,cd},o);
+const BOSS_SKILL_DB={
+  esmagar:    ESK('Esmagar',        'phys',1.6,'one', 2),
+  tremor:     ESK('Tremor',         'phys',0.5,'all', 4,{fx:'stun'}),
+  teia:       ESK('Teia Pegajosa',  'mag', 0.8,'one', 3,{fx:'weaken'}),
+  enxame:     ESK('Enxame',         'phys',0.45,'all',3,{fx:'poison'}),
+  veneno:     ESK('Ferrão Venenoso','mag', 1.3,'one', 2,{fx:'poison',el:'veneno'}),
+  necromancia:ESK('Necromancia',    'mag', 1.2,'one', 3,{fx:'lifesteal',el:'sombrio'}),
+  maldicao:   ESK('Maldição',       'mag', 0.8,'one', 3,{fx:'curse',el:'sombrio'}),
+  apocalipse: ESK('Apocalipse',     'mag', 0.6,'all', 5,{fx:'burn',el:'sombrio'}),
+  sopro:      ESK('Sopro de Fogo',  'mag', 0.55,'all',3,{fx:'burn',el:'fogo'}),
+  garra:      ESK('Garra Dupla',    'phys',1.7,'one', 2,{fx:'double'}),
+  voar:       ESK('Voar',           'buff',0,  'self',4,{fx:'dodgeup'}),
+  inferno:    ESK('Inferno',        'mag', 0.65,'all',5,{fx:'burn',el:'fogo'}),
+  decreto:    ESK('Decreto Sombrio','buff',0,  'self',4,{fx:'enrage'}),
+  colapso:    ESK('Colapso Arcano', 'mag', 0.55,'all',4,{el:'arcano'}),
+  vazio:      ESK('Toque do Vazio', 'mag', 1.9,'one', 4,{fx:'execute',el:'sombrio'}),
+  exilio:     ESK('Exílio',         'mag', 1.0,'one', 3,{fx:'weaken'}),
+  corte_real: ESK('Corte Real',     'phys',2.0,'one', 3,{fx:'crit+'}),
+  julgamento: ESK('Julgamento',     'mag', 0.6,'all', 5,{fx:'stun',el:'sagrado'}),
+  supernova:  ESK('Supernova',      'mag', 0.7,'all', 6,{el:'fogo'}),
+  parar_tempo:ESK('Parar o Tempo',  'buff',0,  'self',6,{fx:'timestop'}),
+  paradoxo:   ESK('Paradoxo',       'mag', 0.5,'all', 4,{fx:'slow'}),
+  mare:       ESK('Maré Negra',     'phys',0.45,'all',3,{fx:'slow'}),
+  espelho:    ESK('Espelho Sombrio','buff',0,  'self',4,{fx:'resist'}),
+};
+const FAMILY_SKILLS_DB={
+  limo:         [ESK('Respingo Ácido',     'mag', 1.1,'one',3,{fx:'poison',el:'veneno'})],
+  fera:         [ESK('Investida Feroz',    'phys',1.3,'one',2,{fx:'double'})],
+  'morto-vivo': [ESK('Toque Amaldiçoado',  'mag', 1.0,'one',3,{fx:'weaken',el:'sombrio'})],
+  inseto:       [ESK('Enxame Venenoso',    'mag', 0.4,'all',4,{fx:'poison',el:'veneno'})],
+  humanoide:    [ESK('Golpe Certeiro',     'phys',1.2,'one',2,{fx:'crit+'})],
+  elemental:    [ESK('Onda de Choque',     'mag', 1.3,'one',3,{fx:'stun',el:'terra'})],
+  dragao:       [ESK('Sopro Menor',        'mag', 0.45,'all',4,{fx:'burn',el:'fogo'})],
+  aberracao:    [ESK('Distorção',          'mag', 1.1,'one',3,{fx:'armorBreak',el:'arcano'})],
+  demonio:      [ESK('Garra Flamejante',   'phys',1.4,'one',3,{fx:'burn',el:'fogo'})],
+  planta:       [ESK('Esporos Tóxicos',    'mag', 0.9,'one',3,{fx:'poison',el:'veneno'})],
+};
 /* ---- gerador de chefes para QUALQUER andar múltiplo de 5 (até 100+) ---- */
 const DEEP_BOSS_NAMES=['Carcereiro Eterno','Devorador de Andares','Colosso Rúnico','Tirano Espectral','Behemoth Cristalino','Sentinela Proibida','Pesadelo Vivo','Leviatã do Abismo','Algoz das Profundezas','Verdugo de Pedra'];
 function getBossForFloor(floor){
@@ -1866,7 +1931,7 @@ function rtimeout(fn,ms){const id=setTimeout(()=>{if(RUN&&!RUN.paused)fn();else 
 
 function defaultMeta(){
   const heroes={};
-  HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null}};});
+  HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null},activeSkills:[]};});
   return{
     version:1, essence:0, gold:0, deepestFloor:0, torreDeepest:0, abyssDeepest:0, runs:0, totalKills:0,
     tamedCount:0, craftedCount:0, bossesKilled:[], bestiaryKills:{}, eliteKills:0,
@@ -1881,8 +1946,8 @@ function defaultMeta(){
 // preenche campos que faltam em saves antigos / vindos da nuvem
 function migrateMeta(){
   HEROES.forEach(h=>{const st=G.meta.heroes[h.id];
-    if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null}};}
-    else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; EQUIP_SLOTS.forEach(sl=>{if(st.equip[sl]===undefined)st.equip[sl]=null;}); }});
+    if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null},activeSkills:[]};}
+    else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; EQUIP_SLOTS.forEach(sl=>{if(st.equip[sl]===undefined)st.equip[sl]=null;}); if(!st.activeSkills)st.activeSkills=[]; }});
   if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
   if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
   // aprimoramento por HERÓI+item (separado por personagem). Migra do antigo store compartilhado.
@@ -2329,6 +2394,37 @@ function knownSkills(heroId,uptoLevel){
   const h=HMAP[heroId];return h.skills.filter(sk=>sk.lvl<=uptoLevel);
 }
 function heroMaxLevel(heroId){return G.meta.heroes[heroId].level||1;}
+/* ===== HABILIDADES ATIVAS (loadout) =====
+   O herói pode conhecer muito mais habilidades do que pode LEVAR pra incursão.
+   Começa com poucos espaços; libera mais no Santuário (nunca todas de uma vez). */
+function heroSkillSlots(){return 3+(G.meta.flags.off_skillslot4?1:0)+(G.meta.flags.off_skillslot5?1:0);}
+// se o herói nunca configurou (save novo/migrado), escolhe um conjunto padrão razoável
+function ensureActiveSkillsDefault(heroId){
+  const st=G.meta.heroes[heroId];if(!st)return;
+  if(st.activeSkills&&st.activeSkills.length)return;
+  const h=HMAP[heroId];if(!h)return;
+  const lv=st.level||1;const known=h.skills.filter(sk=>sk.lvl<=lv);
+  const cap=heroSkillSlots();const picks=[];
+  const heal=known.find(sk=>sk.kind==='heal'&&sk.fx!=='revive');if(heal)picks.push(heal.n);
+  known.forEach(sk=>{if(picks.length<cap&&!picks.includes(sk.n))picks.push(sk.n);});
+  st.activeSkills=picks.slice(0,cap);
+}
+function isSkillActive(heroId,sk){const st=G.meta.heroes[heroId];return !!(st&&st.activeSkills&&st.activeSkills.includes(sk.n));}
+function toggleActiveSkill(heroId,si){
+  const h=HMAP[heroId];const sk=h&&h.skills[si];if(!sk)return;
+  const st=G.meta.heroes[heroId];if(!st)return;
+  ensureActiveSkillsDefault(heroId);
+  st.activeSkills=st.activeSkills||[];
+  const i=st.activeSkills.indexOf(sk.n);
+  if(i>=0){st.activeSkills.splice(i,1);}
+  else{
+    const cap=heroSkillSlots();
+    if(st.activeSkills.length>=cap){toast('Máximo de '+cap+' habilidades ativas. Desative uma antes de trocar.','warn');return;}
+    st.activeSkills.push(sk.n);
+  }
+  saveGame();sfx('click');
+  _navGuard=true;try{openHero(heroId);}finally{_navGuard=false;}
+}
 /* aprimoramento de equipamento — SEPARADO por herói (cada herói melhora a SUA cópia) */
 function eqKey(heroId,itemId){return heroId+'|'+itemId;}
 function eqUpg(heroId,itemId){return (G.meta.equipUpg&&G.meta.equipUpg[eqKey(heroId,itemId)])||0;}
@@ -2636,11 +2732,13 @@ function buyEssenceHero(id){const h=HMAP[id];const cost=h.unlock.v;const reqF=h.
 function openHero(id){
   const h=HMAP[id],st=G.meta.heroes[id],lv=heroMaxLevel(id);
   const s=heroStats(id,lv);const inParty=G.meta.party.includes(id);
-  const skills=h.skills.map((sk,si)=>{const known=sk.lvl<=lv;
-    return `<div class="slotline clickable" style="${known?'':'opacity:.45'};cursor:pointer" onclick="navTo(()=>openSkillInfo('${id}',${si}))">
+  ensureActiveSkillsDefault(id);
+  const slotCap=heroSkillSlots();const activeCount=(st.activeSkills||[]).length;
+  const skills=h.skills.map((sk,si)=>{const known=sk.lvl<=lv;const active=known&&isSkillActive(id,sk);
+    return `<div class="skill-slot ${active?'skill-active':''} ${known?'':'skill-locked'}">
       <div class="sl-ico">${known?skKindIcon(sk):'🔒'}</div>
-      <div class="sl-n"><b>${sk.n}</b> <span class="tiny muted">Nv ${sk.lvl}${known?' · aprendida':''}</span><br><span class="tiny">${skillPlainDesc(sk)}</span></div>
-      <span class="tiny muted" style="align-self:center">ⓘ</span></div>`;
+      <div class="sl-n" style="cursor:pointer" onclick="navTo(()=>openSkillInfo('${id}',${si}))"><b>${sk.n}</b> <span class="tiny muted">Nv ${sk.lvl}${known?(sk.cd?' · Recarga '+sk.cd+'r':''):''}</span><br><span class="tiny">${skillPlainDesc(sk)}</span></div>
+      ${known?`<button class="sk-toggle" onclick="toggleActiveSkill('${id}',${si})">${active?'✓ Ativa':'Ativar'}</button>`:'<span class="tiny muted" style="align-self:center">ⓘ</span>'}</div>`;
   }).join('');
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
     return `<div class="slotline"><div class="sl-ico">${it?itemIco(it,3):slotIcon(sl)}</div>
@@ -2667,7 +2765,9 @@ function openHero(id){
       <p class="small mt6" style="margin:4px 0 0">${h.passive.desc}</p>
     </div>
     <div class="row between mt"><h4>🎒 Equipamento</h4><button class="btn sm" onclick="autoEquipBest('${id}')">⚙️ Equipar melhores</button></div><div class="col mt6">${eq}</div>
-    <h4 class="mt">✦ Habilidades</h4><div class="col mt6">${skills}</div>
+    <div class="row between mt"><h4>✦ Habilidades</h4><span class="tiny" style="color:${activeCount>=slotCap?'var(--gold)':'var(--dim)'}">🎯 Ativas: ${activeCount}/${slotCap}</span></div>
+    <p class="tiny muted mt6" style="margin-top:2px">Escolha quais habilidades levar para a incursão — libere mais espaços no Santuário.</p>
+    <div class="col mt6">${skills}</div>
     <div class="row mt">
       ${inParty?`<button class="btn ghost" onclick="togglePartyMember('${id}');closeModal();renderCamp()">Remover da Equipe</button>`
         :`<button class="btn" onclick="togglePartyMember('${id}');closeModal();renderCamp()">+ Adicionar à Equipe</button>`}
@@ -2755,6 +2855,7 @@ function skillFullDesc(sk){
   } else if(sk.kind==='heal'){ parts.push('<b>Cura:</b> ~'+Math.round((sk.pow||1)*22)+'% do seu Poder Mágico'+(sk.fx==='revive'?' + reviver (45% da vida)':'')); }
   if(sk.tgt)parts.push('<b>Alvo:</b> '+(SK_TGT_DESC[sk.tgt]||sk.tgt));
   if(sk.el)parts.push('<b>Elemento:</b> '+cap(sk.el));
+  parts.push('<b>Recarga:</b> '+(sk.cd?sk.cd+' rodada'+(sk.cd>1?'s':''):'nenhuma (uso livre)'));
   const fxTxt=(sk.kind==='buff')?BUFF_EXPL[sk.fx]:((sk.fx&&!['double','triple','combo'].includes(sk.fx))?FX_EXPL[sk.fx]:(sk.fx==='double'?'Acerta 2 vezes.':sk.fx==='triple'?'Acerta 3 vezes.':''));
   if(fxTxt)parts.push('<b>Efeito:</b> '+fxTxt);
   return parts.join('<br>');
@@ -3109,12 +3210,19 @@ function tabShrine(b){
          ${offering('off_xp','📖 Sabedoria Eterna','+15% de XP de combate',660,'off_xp')}
          ${offering('off_secret','🔮 Visão Oculta','+10% de achar segredos',484,'off_secret')}
          ${offering('off_revive','✨ Pacto da Renascença','Revive o grupo uma vez por incursão',1320,'off_revive')}
+       </div></div>
+     <div class="panel mt"><h4 class="mb">🎯 Domínio das Habilidades</h4>
+       <p class="tiny muted" style="margin:-2px 0 8px">Libere mais espaços de habilidades ativas por herói. Você nunca poderá levar TODAS as habilidades na mesma incursão — escolha com sabedoria.</p>
+       <div class="col">
+         ${offering('off_skillslot4','🎯 Foco Ampliado','+1 espaço de habilidade ativa (total: 4)',900,'off_skillslot4')}
+         ${offering('off_skillslot5','🎯 Domínio Total','+1 espaço de habilidade ativa (total: 5)',1800,'off_skillslot5','off_skillslot4')}
        </div></div>`;
 }
-function offering(id,name,desc,cost,flag){const owned=!!G.meta.flags[flag];
-  return `<div class="recipe" style="${owned?'border-color:var(--ok)':''}"><div class="rico">${owned?'✅':'✨'}</div>
+function offering(id,name,desc,cost,flag,reqFlag){const owned=!!G.meta.flags[flag];
+  const locked=reqFlag&&!G.meta.flags[reqFlag];
+  return `<div class="recipe" style="${owned?'border-color:var(--ok)':locked?'opacity:.5':''}"><div class="rico">${owned?'✅':locked?'🔒':'✨'}</div>
     <div style="flex:1"><b>${name}</b><br><span class="tiny">${desc}</span></div>
-    ${owned?'<span class="chip" style="color:var(--ok)">ativa</span>':`<button class="btn sm" ${G.meta.essence>=cost?'':'disabled'} onclick="buyOffering('${flag}',${cost})">💠 ${cost}</button>`}</div>`;}
+    ${owned?'<span class="chip" style="color:var(--ok)">ativa</span>':locked?'<span class="tiny muted">requer oferenda anterior</span>':`<button class="btn sm" ${G.meta.essence>=cost?'':'disabled'} onclick="buyOffering('${flag}',${cost})">💠 ${cost}</button>`}</div>`;}
 function buyOffering(flag,cost){if(G.meta.essence<cost){toast('Essência insuficiente.','warn');return;}
   G.meta.essence-=cost;G.meta.flags[flag]=true;saveGame();toast('✨ Oferenda aceita!','epico');renderTab();}
 
@@ -3347,9 +3455,11 @@ function initRun(party,tides,startFloor,dungeon,diff){
 function buildCombatant(id){
   const h=HMAP[id];const st=G.meta.heroes[id];
   const level=st.level||1; const xp=st.xp||0; const s=heroStats(id,level);
+  ensureActiveSkillsDefault(id);
+  const active=st.activeSkills||[];
   return {id,h,level,xp,maxhp:s.maxhp,hp:s.maxhp,st:s,alive:true,
-    skills:knownSkills(id,level), // nível e habilidades são PERMANENTES (não resetam ao morrer)
-    fx:{}, summons:[], anim:{x:0,hit:0}};
+    skills:knownSkills(id,level).filter(sk=>active.includes(sk.n)), // só as habilidades ATIVAS entram na incursão
+    fx:{}, cd:{}, summons:[], anim:{x:0,hit:0}};
 }
 function computePartyPassives(){
   const p={};
@@ -3428,20 +3538,46 @@ function updateCampBanner(){ if(!RUN)return; const fl=$('#crbFloor'); if(fl)fl.t
 function dungeonLabel(){return RUN.dungeon==='torre'?'🗼 Andar':(RUN.dungeon==='abismo'?'🕳️ Camada':'🏰 Andar');}
 function updateFloorBadge(){const fb=$('#floorBadge');if(fb)fb.textContent=dungeonLabel()+' '+RUN.floor;
   const rc=$('#regionChip');if(rc)rc.textContent=RUN.dungeon==='abismo'?'O Abismo Faminto':floorTheme(RUN.floor).name;}
+/* ===== BUFFS/DEBUFFS — ícones visíveis em quem está com efeitos ativos ===== */
+const FX_META={
+  stun:{ic:'💫',c:'#ffd166',n:'Atordoado'},
+  shield:{ic:'🛡️',c:'#67d8ff',n:'Escudo'},
+  resist:{ic:'🌀',c:'#67d8ff',n:'Resistência'},
+  taunt:{ic:'📢',c:'#ff9a6c',n:'Provocando'},
+  critmax:{ic:'🎯',c:'#ffd166',n:'Crítico garantido'},
+  evade:{ic:'💨',c:'#7dff8f',n:'Esquiva pronta'},
+  burn:{ic:'🔥',c:'#ff7a3c',n:'Queimando'},
+  poison:{ic:'☠️',c:'#5fd17a',n:'Envenenado'},
+  curse:{ic:'💀',c:'#a14bff',n:'Amaldiçoado'},
+  weaken:{ic:'⬇️',c:'#ff5d6c',n:'Enfraquecido'},
+  armorBreak:{ic:'🔨',c:'#ff5d6c',n:'Defesa quebrada'},
+  enrage:{ic:'😡',c:'#ff5d6c',n:'Enfurecido'},
+};
+function fxBadges(c){
+  if(!c||!c.fx)return '';
+  const parts=[];
+  for(const k in FX_META){
+    const v=c.fx[k];if(!v)continue;
+    const meta=FX_META[k];const dur=(typeof v==='object')?v.t:v;
+    parts.push(`<span class="fxb" style="border-color:${meta.c};color:${meta.c}" title="${meta.n}">${meta.ic}${dur>1?'<b>'+dur+'</b>':''}</span>`);
+  }
+  return parts.length?`<span class="fxrow">${parts.join('')}</span>`:'';
+}
 function updatePartyMini(){const host=$('#partyMini');if(!host)return;
   host.innerHTML=RUN.party.map(c=>`<div class="pm ${c.alive?'':'dead'}" id="pm_${c.id}">
     <div data-sprite-mini="${c.id}"></div>
-    <div style="flex:1"><div class="pn">${c.h.name.split(',')[0]} <span class="tiny" style="color:var(--gold)" id="lvl_${c.id}">Lv ${c.level}</span></div>
+    <div style="flex:1"><div class="pn">${c.h.name.split(',')[0]} <span class="tiny" style="color:var(--gold)" id="lvl_${c.id}">Lv ${c.level}</span><span id="fx_${c.id}">${fxBadges(c)}</span></div>
     <div class="bar hpbar" style="margin:2px 0;position:relative"><i id="hp_${c.id}" style="width:${c.hp/c.maxhp*100}%"></i>
       <span id="hpn_${c.id}" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'Cinzel';color:#fff;text-shadow:0 1px 2px #000;line-height:1">${Math.ceil(c.hp)}/${c.maxhp}</span></div>
     <div class="bar xpbar"><i id="xp_${c.id}" style="width:${c.xp/xpForLevel(c.level)*100}%"></i></div></div></div>`).join('');
   $$('[data-sprite-mini]').forEach(el=>{const id=el.getAttribute('data-sprite-mini');mountCanvas(el,heroSprite(HMAP[id],3));});
 }
-function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'+c.id),pm=$('#pm_'+c.id),lv=$('#lvl_'+c.id),hpn=$('#hpn_'+c.id);
+function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'+c.id),pm=$('#pm_'+c.id),lv=$('#lvl_'+c.id),hpn=$('#hpn_'+c.id),fx=$('#fx_'+c.id);
   if(hp)hp.style.width=clamp(c.hp/c.maxhp*100,0,100)+'%';
   if(xp)xp.style.width=clamp(c.xp/xpForLevel(c.level)*100,0,100)+'%';
   if(lv)lv.textContent='Lv '+c.level;
   if(hpn)hpn.textContent=Math.ceil(Math.max(0,c.hp))+'/'+c.maxhp;
+  if(fx)fx.innerHTML=fxBadges(c);
   if(pm)pm.classList.toggle('dead',!c.alive);});
   updateCampBanner();}
 
@@ -4089,7 +4225,7 @@ function makeEnemy(monster,floor,boss){
     const def=Math.round((18+floor*2.6+floor*floor*0.012)*dm.stat);
     const spd=Math.round(8+floor*0.18);
     return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
-      st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
+      st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{}};
   }
   // inimigo normal: cresce com o andar SEM explodir — o poder do herói (nível+equipamento) cresce em
   // linha reta, então o quadrático do ATAQUE/PV tem que ser suave. Já a DEFESA pode crescer mais forte
@@ -4101,7 +4237,7 @@ function makeEnemy(monster,floor,boss){
   natk=Math.min(natk, Math.round(bossAtk*0.65));   // TETO: inimigo normal ≤ 65% do ataque de um chefe do andar
   return {m:monster,name:monster.name,boss:false,family:monster.family,el:monster.el,
     st:{atk:natk,mag:natk,def:Math.round(b.def*defS*dm.stat),spd:Math.round(b.spd*spdS*tideSpd),lck:5},
-    maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{}};
+    maxhp,hp:maxhp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{}};
 }
 function enemyPoolFor(floor){return MONSTERS.filter(m=>floor>=m.floors[0]&&floor<=m.floors[1]);}
 function encCombat(){
@@ -4157,9 +4293,9 @@ function onBossWin(boss,e){
 }
 function showBossBar(e){const stage=$('#stage');if(!stage)return;
   let bar=document.createElement('div');bar.id='bossBar';bar.style.cssText='position:absolute;left:8px;right:8px;top:6px;';
-  bar.innerHTML=`<div class="row between" style="margin-bottom:2px"><b style="color:#ff7a3c;font-size:12px;font-family:Cinzel">${e.name}</b><span class="tiny" id="bossHpTxt"></span></div><div class="bossbar"><i id="bossHp" style="width:100%"></i></div>`;
+  bar.innerHTML=`<div class="row between" style="margin-bottom:2px"><b style="color:#ff7a3c;font-size:12px;font-family:Cinzel">${e.name}</b><span class="tiny" id="bossHpTxt"></span></div><div class="bossbar"><i id="bossHp" style="width:100%"></i></div><div id="bossFx" style="text-align:right"></div>`;
   stage.appendChild(bar);updateBossBar(e);}
-function updateBossBar(e){const i=$('#bossHp'),t=$('#bossHpTxt');if(i)i.style.width=clamp(e.hp/e.maxhp*100,0,100)+'%';if(t)t.textContent=fmt(Math.max(0,e.hp))+'/'+fmt(e.maxhp);}
+function updateBossBar(e){const i=$('#bossHp'),t=$('#bossHpTxt'),fx=$('#bossFx');if(i)i.style.width=clamp(e.hp/e.maxhp*100,0,100)+'%';if(t)t.textContent=fmt(Math.max(0,e.hp))+'/'+fmt(e.maxhp);if(fx)fx.innerHTML=fxBadges(e);}
 function hideBossBar(){const b=$('#bossBar');if(b)b.remove();}
 
 /* ---- núcleo do combate ---- */
@@ -4188,7 +4324,7 @@ function spawnMinion(owner,kind){
   const m={h:{name:(kind==='esqueleto'?'Esqueleto':kind==='elemental'?'Elemental':'Aliado'),passive:{tags:{}},skills:[]},
     id:'minion_'+Math.random().toString(36).slice(2,6),isMinion:true,level:owner.level,
     st:{atk:Math.round(owner.st.atk*0.6+base),mag:Math.round(owner.st.mag*0.6+base),def:5,spd:owner.st.spd,lck:5},
-    maxhp:base*4,hp:base*4,alive:true,fx:{},anim:{hit:0}};
+    maxhp:base*4,hp:base*4,alive:true,fx:{},cd:{},anim:{hit:0}};
   RUN.combat.minions.push(m);
   logline('🌀 '+owner.h.name.split(',')[0]+' invoca um '+m.h.name+'!','sy');
 }
@@ -4238,16 +4374,18 @@ function actorName(a){return a.h?a.h.name.split(',')[0]:a.name;}
 
 function chooseHeroSkill(c){
   if(c.isMinion||!c.skills||!c.skills.length)return null;
+  c.cd=c.cd||{};
+  const avail=s=>!(c.cd[s.n]>RUN.combat.round);   // fora de recarga?
   const deadAlly=RUN.party.find(p=>!p.alive);
-  const revive=c.skills.find(s=>s.fx==='revive');
+  const revive=c.skills.find(s=>s.fx==='revive'&&avail(s));
   if(deadAlly&&revive)return revive;
   const hurt=allies().filter(a=>a.h&&a.hp<a.maxhp*0.55);
-  const heals=c.skills.filter(s=>s.kind==='heal'&&s.fx!=='revive');
+  const heals=c.skills.filter(s=>s.kind==='heal'&&s.fx!=='revive'&&avail(s));
   if(hurt.length&&heals.length&&chance(0.85)){heals.sort((a,b)=>(b.tgt==='allies')-(a.tgt==='allies')||b.pow-a.pow);return heals[0];}
-  const buffs=c.skills.filter(s=>s.kind==='buff');
+  const buffs=c.skills.filter(s=>s.kind==='buff'&&avail(s));
   if(buffs.length&&RUN.combat.round<=1&&chance(0.55))return pick(buffs);
   if(buffs.length&&chance(0.12))return pick(buffs);
-  const offs=c.skills.filter(s=>s.kind==='phys'||s.kind==='mag');
+  const offs=c.skills.filter(s=>(s.kind==='phys'||s.kind==='mag')&&avail(s));
   if(!offs.length)return null;
   let cands=offs.slice();
   if(aliveEnemies().length>=2){const aoe=offs.filter(s=>s.tgt==='all');if(aoe.length&&chance(0.7))cands=aoe;}
@@ -4263,6 +4401,7 @@ function heroAct(c){
   performSkill(c,skill);
 }
 function performSkill(c,skill){
+  if(skill.cd){c.cd=c.cd||{};c.cd[skill.n]=RUN.combat.round+skill.cd;}
   c.anim.hit=skill.kind==='heal'||skill.kind==='buff'?0.3:1;
   if(skill.kind==='heal'){
     sfx('heal');
@@ -4325,6 +4464,8 @@ function hitEnemy(att,e,skill){
     if(f==='slow')e.st.spd=Math.round(e.st.spd*0.7);
     if(f==='stun')e.fx.stun=(e.fx.stun||0)+1;
     if(f==='curse')e.fx.curse=true;
+    if(f==='weaken')e.fx.weaken={mag:0.25,t:3};
+    if(f==='armorBreak')e.fx.armorBreak={mag:0.3,t:3};
     if(f==='execute'&&e.alive&&e.hp<e.maxhp*0.22){e.hp=0;}
     if(f==='lifesteal'&&att.h){const heal=Math.round(r.dmg*0.12);att.hp=Math.min(att.maxhp,att.hp+heal);if(att.h)floatText('hero',RUN.party.indexOf(att),'+'+heal,'#7dff8f');}
   }
@@ -4349,6 +4490,9 @@ function computeDamage(att,def,skill){
   if(heroAtt&&RUN.dmgMul)raw*=RUN.dmgMul;                     // bênçãos do Abismo: +dano causado
   if(skill&&skill.el==='sagrado'&&(def.family==='morto-vivo'||def.family==='demonio'))raw*=1.6;
   if(def.fx&&def.fx.curse)raw*=1.25;
+  // buffs/debuffs temporários (funcionam para os dois lados — herói ou inimigo)
+  if(att.fx&&att.fx.weaken)raw*=(1-att.fx.weaken.mag);
+  if(att.fx&&att.fx.enrage)raw*=(1+att.fx.enrage.mag);
   raw*=rnd(0.86,1.14);
   // crítico: base + sorte + bônus do GRUPO (critBonus de heróis/marés/pesquisas já somado em RUN.passive)
   let cc=0.05+(att.st.lck||0)*0.004+(RUN.passive.critBonus||0);
@@ -4357,7 +4501,7 @@ function computeDamage(att,def,skill){
   const crit=chance(cc);
   // MITIGAÇÃO por DEFESA: percentual com retornos decrescentes (nunca 100% → ninguém fica imortal).
   // Substitui a subtração fixa antiga (que fazia tanques com muita defesa levarem só 1 de dano).
-  const dfn=(def.st.def||0);
+  const dfn=(def.st.def||0)*(def.fx&&def.fx.armorBreak?(1-def.fx.armorBreak.mag):1);
   const mit=Math.min(0.78,(dfn*2)/(dfn*2+raw));
   let dmg=Math.max(1,raw*(1-mit));if(crit)dmg*=1.85;
   if(def.fx&&def.fx.shield)dmg*=0.5;if(def.fx&&def.fx.resist)dmg*=0.8;
@@ -4390,7 +4534,7 @@ function killEnemy(e){if(e.dead)return;e.alive=false;e.dead=true;e.hp=0;
 function winCombat(){
   if(!RUN||!RUN.combat)return;
   RUN.scene.mode='idle';RUN.scene.enemies=[];
-  RUN.party.forEach(c=>{c.fx={};});
+  RUN.party.forEach(c=>{c.fx={};c.cd={};});   // recargas duram só a luta atual
   const onWin=RUN.combat.opts.onWin;const wasBoss=RUN.combat.boss;
   RUN.combat.minions=[];
   if(RUN.passive.healRoom){RUN.party.filter(c=>c.alive).forEach(c=>{c.hp=Math.min(c.maxhp,c.hp+Math.round(c.maxhp*RUN.passive.healRoom));});refreshBars();}
@@ -4398,21 +4542,67 @@ function winCombat(){
   RUN.combat.opts={};RUN.combat.boss=false;if(_audioReady)applyMusic();
   rtimeout(()=>{if(onWin)onWin();},700);
 }
-function enemyAct(e){
+function chooseHeroTarget(){
   const tauntHero=RUN.party.find(c=>c.alive&&c.fx.taunt>0);
-  let tgt=tauntHero||pick(allies());
+  return tauntHero||pick(allies());
+}
+// o "kit" de habilidades do inimigo: chefes usam de verdade os IDs do seu array `skills`;
+// inimigos comuns usam a habilidade de assinatura da FAMÍLIA deles
+function enemyKit(e){
+  if(!e.m)return [];
+  if(e.boss&&e.m.skills&&e.m.skills.length)return e.m.skills.map(id=>BOSS_SKILL_DB[id]).filter(Boolean);
+  if(!e.boss&&e.m.family&&FAMILY_SKILLS_DB[e.m.family])return FAMILY_SKILLS_DB[e.m.family];
+  return [];
+}
+function enemyAct(e){
+  const tgt=chooseHeroTarget();
   if(!tgt)return rtimeout(nextActor,160);
-  if(e.boss&&chance(0.38)){
-    // acerta TODOS de uma vez — poder reduzido de propósito (o ataque do chefe está bem mais forte agora,
-    // então essa versão em área precisa de um multiplicador menor pra não derrubar o grupo inteiro de um golpe só)
-    logline('☄️ '+e.name+' desencadeia um golpe terrível em todos!','bd');RUN.scene.shake=7;
-    allies().slice().forEach(a=>{const r=computeDamage(e,a,{kind:'mag',pow:0.5});applyDamageToHero(a,r.dmg,r.crit,e);});
+  e.cd=e.cd||{};
+  const kit=enemyKit(e).filter(sk=>!(e.cd[sk.n]>RUN.combat.round));
+  if(kit.length&&chance(e.boss?0.6:0.42)){
+    const skill=pick(kit);
+    if(skill.cd)e.cd[skill.n]=RUN.combat.round+skill.cd;
+    performEnemySkill(e,skill);
     return rtimeout(nextActor,actDelay());
   }
+  // ataque básico (nenhuma habilidade disponível/sorteada nesta rodada)
   const pow=e.boss&&chance(0.5)?1.3:1;
   const r=computeDamage(e,tgt,{kind:'phys',pow});
   applyDamageToHero(tgt,r.dmg,r.crit,e);
   rtimeout(nextActor,actDelay());
+}
+// executa uma habilidade de inimigo/chefe — dano (1 alvo ou área) OU buff/debuff em si mesmo
+function performEnemySkill(e,skill){
+  if(skill.kind==='buff'){
+    switch(skill.fx){
+      case 'enrage':e.fx.enrage={mag:0.3,t:3};logline('😡 '+e.name+' usa <b>'+skill.n+'</b> e fica mais agressivo!','bd');break;
+      case 'resist':e.fx.resist=3;logline('🌀 '+e.name+' usa <b>'+skill.n+'</b> e resiste mais aos golpes!','bd');break;
+      case 'dodgeup':case 'evade':e.fx.evade=1;logline('💨 '+e.name+' usa <b>'+skill.n+'</b> e prepara uma esquiva!','bd');break;
+      case 'timestop':allies().forEach(a=>a.fx.stun=(a.fx.stun||0)+1);logline('⏳ '+e.name+' usa <b>'+skill.n+'</b>! O tempo para!','bd');RUN.scene.shake=7;break;
+      default:e.fx.shield=2;logline(e.name+' usa <b>'+skill.n+'</b> e se prepara.','bd');
+    }
+    if(e.boss)updateBossBar(e);
+    return;
+  }
+  logline('☠️ '+e.name+' usa <b>'+skill.n+'</b>!','bd');
+  const tgts=skill.tgt==='all'?allies().slice():[chooseHeroTarget()];
+  const hits=skill.fx==='double'?2:skill.fx==='triple'?3:1;
+  for(let i=0;i<hits;i++){
+    tgts.forEach(t=>{
+      if(!t||!t.alive)return;
+      const r=computeDamage(e,t,skill);
+      applyDamageToHero(t,r.dmg,r.crit,e);
+      const f=skill.fx;
+      if(f==='burn')t.fx.burn={d:Math.round(r.dmg*0.25),t:3};
+      if(f==='poison')t.fx.poison={d:Math.round(r.dmg*0.2),t:4};
+      if(f==='stun')t.fx.stun=(t.fx.stun||0)+1;
+      if(f==='weaken')t.fx.weaken={mag:0.2,t:3};
+      if(f==='armorBreak')t.fx.armorBreak={mag:0.25,t:3};
+      if(f==='slow'&&t.st)t.st.spd=Math.round(t.st.spd*0.8);
+      if(f==='execute'&&t.alive&&t.hp>0&&t.hp<t.maxhp*0.22){t.hp=0;downHero(t);}
+    });
+  }
+  if(e.boss)updateBossBar(e);
 }
 function applyDamageToHero(c,dmg,crit,attacker){
   const idx=RUN.party.indexOf(c);
@@ -4433,8 +4623,17 @@ function applyDamageToHero(c,dmg,crit,attacker){
 function processDoT(){
   aliveEnemies().forEach(e=>{['burn','poison'].forEach(k=>{if(e.fx[k]){e.hp-=e.fx[k].d;const ei=RUN.scene.enemies.indexOf(e);
     floatText('enemy',Math.max(0,ei),'-'+e.fx[k].d,k==='burn'?'#ff7a3c':'#5fd17a');e.fx[k].t--;if(e.fx[k].t<=0)delete e.fx[k];
-    if(e.boss)updateBossBar(e);if(e.hp<=0)killEnemy(e);}});});
-  allies().forEach(a=>{['shield','resist','taunt','critmax'].forEach(k=>{if(a.fx[k]>0){a.fx[k]--;if(a.fx[k]<=0)delete a.fx[k];}});});
+    if(e.hp<=0)killEnemy(e);}});
+    ['weaken','armorBreak','enrage'].forEach(k=>{if(e.fx[k]&&e.fx[k].t>0){e.fx[k].t--;if(e.fx[k].t<=0)delete e.fx[k];}});
+    if(e.boss)updateBossBar(e);
+  });
+  allies().forEach(a=>{
+    ['shield','resist','taunt','critmax'].forEach(k=>{if(a.fx[k]>0){a.fx[k]--;if(a.fx[k]<=0)delete a.fx[k];}});
+    ['weaken','armorBreak','enrage'].forEach(k=>{if(a.fx[k]&&a.fx[k].t>0){a.fx[k].t--;if(a.fx[k].t<=0)delete a.fx[k];}});
+    ['burn','poison'].forEach(k=>{if(a.fx[k]&&a.alive){a.hp-=a.fx[k].d;const idx=RUN.party.indexOf(a);
+      if(idx>=0)floatText('hero',idx,'-'+a.fx[k].d,k==='burn'?'#ff7a3c':'#5fd17a');a.fx[k].t--;if(a.fx[k].t<=0)delete a.fx[k];
+      if(a.hp<=0){a.hp=0;if(a.isMinion)a.alive=false;else downHero(a);}}});
+  });
   refreshBars();
 }
 
@@ -4533,7 +4732,7 @@ function makeTorreBoss(boss,tf){
   const def=Math.round((45+tf*7+tf*tf*0.06)*dm.stat);   // defesa clara e crescente (mitigação tem teto de 78%, então é seguro)
   const spd=Math.round(8+tf*0.2);
   return {m:boss,name:boss.name,boss:true,torre:true,family:boss.family,el:boss.el,grid:boss.grid,pal:boss.pal,
-    st:{atk,mag:atk,def,spd,lck:12},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
+    st:{atk,mag:atk,def,spd,lck:12},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{},cd:{}};
 }
 function torreBegin(){
   if(!RUN.alive)return;
