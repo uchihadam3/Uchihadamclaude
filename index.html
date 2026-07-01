@@ -2050,7 +2050,7 @@ function defaultMeta(){
     research:{}, researchActive:null, // {id,end}
     codex:{bestiary:[],items:[],secrets:[],bosses:[]},
     flags:{}, mapKnowledge:{}, // floorN -> familiaridade 0..1
-    slots:3, relics:[], seenIntro:false, upgrades:{}, equipUpg:{},
+    slots:3, relics:[], seenIntro:false, upgrades:{}, equipUpg:{}, tideRerollsUsed:0,
     playerName:null, playerSecret:null   // identidade no ranking
   };
 }
@@ -2065,6 +2065,7 @@ function migrateMeta(){
   if(!G.meta.torreDeepestDiff)G.meta.torreDeepestDiff={normal:G.meta.torreDeepest||0,dificil:0,inferno:0};
   if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
   if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
+  if(typeof G.meta.tideRerollsUsed!=='number')G.meta.tideRerollsUsed=0;
   // aprimoramento por HERÓI+item (separado por personagem). Migra do antigo store compartilhado.
   if(!G.meta.equipUpg){
     G.meta.equipUpg={};
@@ -3684,7 +3685,12 @@ function setDiff(d){ if(!diffUnlocked(d,RUN_PENDING&&RUN_PENDING.dungeon)){toast
   // troca de dificuldade pode invalidar o andar-inicial escolhido (checkpoints são por dificuldade)
   const opts=startFloorOptions();if(!opts.includes(RUN_PENDING.startFloor))RUN_PENDING.startFloor=1;
   showPreRunScreen(); }
-function rerollAndShow(){RUN_PENDING.tides=rollTides(RUN_PENDING.party);showPreRunScreen();}
+const TIDE_REROLL_MAX=3;
+function rerollAndShow(){
+  if((G.meta.tideRerollsUsed||0)>=TIDE_REROLL_MAX){toast('🔒 Sem re-rolagens — complete uma incursão para liberar mais.','warn');return;}
+  G.meta.tideRerollsUsed=(G.meta.tideRerollsUsed||0)+1;saveGame();
+  RUN_PENDING.tides=rollTides(RUN_PENDING.party);showPreRunScreen();
+}
 function setStartFloor(f){RUN_PENDING.startFloor=f;showPreRunScreen();}
 function cycleMerchAuto(){G.meta.settings=G.meta.settings||{};
   const order=['smart','buy','skip'];const cur=G.meta.settings.merchantAuto||'smart';
@@ -3702,6 +3708,7 @@ function startFloorOptions(){
 function showPreRunScreen(){
   const {tides,startFloor}=RUN_PENDING; const torre=RUN_PENDING.dungeon==='torre';
   const opts=startFloorOptions();
+  const rerollsLeft=Math.max(0,TIDE_REROLL_MAX-(G.meta.tideRerollsUsed||0));
   const merch=(G.meta.settings&&G.meta.settings.merchantAuto)||'smart';
   const merchLabel={smart:'🧠 Inteligente (com reserva)',buy:'🛒 Comprar tudo que puder',skip:'🚫 Não comprar (poupar)'}[merch];
   const curDiff=RUN_PENDING.diff||'normal';
@@ -3727,7 +3734,8 @@ function showPreRunScreen(){
     <div class="row between"><b class="small">🧙 Mercador Errante</b><button class="btn ghost sm" onclick="cycleMerchAuto()">${merchLabel}</button></div>
     <p class="tiny muted mt6">Define o que o grupo faz ao encontrar o mercador (a dungeon é 100% automática).</p>
     <div class="row mt"><button class="btn" onclick="confirmStartRun()">${torre?'Escalar a Torre 🗼':'Entrar na Adranja ▶'}</button>
-    <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>`);
+    <button class="btn ghost" ${rerollsLeft>0?'':'disabled'} onclick="rerollAndShow()">🎲 Re-rolar Marés${rerollsLeft>0?` (${rerollsLeft})`:''}</button></div>
+    ${rerollsLeft<=0?`<p class="tiny muted mt6">🔒 Sem re-rolagens — complete uma incursão para liberar mais ${TIDE_REROLL_MAX}.</p>`:''}`);
 }
 function confirmStartRun(){closeModal();const{party,tides,dungeon,diff}=RUN_PENDING;
   const sf=startFloorOptions().includes(RUN_PENDING.startFloor)?RUN_PENDING.startFloor:1;   // nunca confia num andar-inicial não conquistado NESTA dificuldade
@@ -5581,7 +5589,7 @@ function abyssEnd(reason){
     ess, gold, lost:!extracted, deepest:G.meta.abyssDeepest||0,
     dur:Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000))};
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
-  RUN=null;checkUnlocks();saveGame();
+  RUN=null;G.meta.tideRerollsUsed=0;checkUnlocks();saveGame();
   try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}
   CUR.screen='result';showAbyssResult(s);
 }
@@ -5715,7 +5723,7 @@ function endRun(reason){
     bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur,
     dungeon:RUN.dungeon||'adranja', diff:RUN.diff||'normal'};
   if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
-  RUN=null;checkUnlocks();saveGame();
+  RUN=null;G.meta.tideRerollsUsed=0;checkUnlocks();saveGame();
   try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}   // envia conquistas ao ranking
   CUR.screen='result';showResult(summary);
 }
