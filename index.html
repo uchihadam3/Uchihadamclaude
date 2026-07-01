@@ -3684,9 +3684,12 @@ function drawScene(ctx,cv,t){
     ctx.save();ctx.scale(-1,1);ctx.drawImage(sp,-bx-sp.width,by);ctx.restore();
     ctx.globalAlpha=1;
     ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(bx,by+sp.height,sp.width,4);
-    // barra de vida do inimigo
+    // barra de vida do inimigo + barra de ATB (mostra o progresso da ação, igual aos heróis)
     if(!en.boss){const bw=34;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(bx,by-7,bw,4);
-      ctx.fillStyle='#ff5d6c';ctx.fillRect(bx,by-7,bw*clamp(en.hp/en.maxhp,0,1),4);}
+      ctx.fillStyle='#ff5d6c';ctx.fillRect(bx,by-7,bw*clamp(en.hp/en.maxhp,0,1),4);
+      ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(bx,by-11,bw,3);
+      const atbGrad=ctx.createLinearGradient(bx,0,bx+bw,0);atbGrad.addColorStop(0,'#ffd166');atbGrad.addColorStop(1,'#7dff8f');
+      ctx.fillStyle=atbGrad;ctx.fillRect(bx,by-11,bw*clamp((en.atb||0)/100,0,1),3);}
     drawFxIcons(ctx,bx,by,en);
     if(acting===en)drawActingMark(ctx,bx+sp.width/2,by,t);
   });
