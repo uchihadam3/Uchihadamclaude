@@ -730,8 +730,8 @@ const HEROES=[
  pal:{H:'#caa15a',S:'#f0c08a',e:'#2a1a30',K:'#f0c08a',A:'#eef0f4',B:'#ffd166',P:'#cfd2da',O:'#9a9da6',M:'#d6dde6',R:'#ffd166',L:'#ffe9a8',W:'#7a5a36'},
  base:{hp:50,atk:6,def:8,mag:11,spd:7,lck:7},
  growth:{hp:9,atk:.9,def:1.3,mag:1.8,spd:1,lck:1.1},
- passive:{name:'Bênção Constante',tags:{healRoom:0.03,partyDef:0.06},
-   desc:'Cura 3% da vida de todo o grupo ao limpar cada sala e concede <b>+6% de defesa</b> ao grupo com sua bênção.'},
+ passive:{name:'Bênção Constante',tags:{healRoom:0.018,partyDef:0.06},
+   desc:'Cura 1,8% da vida de todo o grupo ao limpar cada sala e concede <b>+6% de defesa</b> ao grupo com sua bênção.'},
  skills:[
   SK('Luz Curativa',1,'heal',1.6,'ally',{txt:'Cura o aliado mais ferido.'}),
   SK('Maça Sagrada',3,'phys',1.2,'one',{el:'sagrado',txt:'Golpe abençoado, forte contra mortos-vivos.'}),
@@ -763,7 +763,7 @@ const HEROES=[
  head:'hood',weapon:'staff',
  pal:{H:'#2a2a2a',S:'#b8c0b0',e:'#7dff8f',K:'#b8c0b0',A:'#2a2238',B:'#5fd17a',P:'#1a1626',O:'#0e0a16',D:'#2a2238',G:'#7dff8f',W:'#3a2a1a'},
  base:{hp:48,atk:5,def:6,mag:13,spd:7,lck:8},growth:{hp:8,atk:.6,def:1,mag:2.1,spd:1,lck:1.2},
- passive:{name:'Ceifa de Almas',tags:{lifesteal:0.2,summon:'esqueleto'},desc:'Recupera 20% do dano mágico como vida e invoca um esqueleto no início de cada combate.'},
+ passive:{name:'Ceifa de Almas',tags:{lifesteal:0.12,summon:'esqueleto'},desc:'Recupera 12% do dano mágico como vida e invoca um esqueleto no início de cada combate.'},
  skills:[SK('Toque Necrótico',1,'mag',1.5,'one',{el:'sombrio',fx:'lifesteal'}),
   SK('Erguer Mortos',3,'buff',0,'self',{fx:'summon',txt:'Invoca outro esqueleto.'}),
   SK('Nuvem Pútrida',6,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
@@ -833,7 +833,7 @@ const HEROES=[
  head:'none',weapon:'staff',
  pal:{H:'#3a6a2a',S:'#d8b888',e:'#5fd17a',K:'#d8b888',A:'#5a7a3a',B:'#8a5a2a',P:'#3a4a22',O:'#1a2410',G:'#5fd17a',W:'#5a3a1a'},
  base:{hp:56,atk:9,def:8,mag:11,spd:8,lck:8},growth:{hp:10,atk:1.4,def:1.3,mag:1.7,spd:1.1,lck:1},
- passive:{name:'Forma Selvagem',tags:{shapeshift:1,healRoom:0.015},desc:'Transforma-se em fera no combate (mais ataque) e regenera 3% por sala.'},
+ passive:{name:'Forma Selvagem',tags:{shapeshift:1,healRoom:0.009},desc:'Transforma-se em fera no combate (mais ataque) e regenera 0,9% por sala.'},
  skills:[SK('Garras',1,'phys',1.4,'one',{fx:'shift'}),SK('Espinhos',3,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
   SK('Toque da Vida',5,'heal',1.5,'ally'),SK('Fúria de Urso',8,'phys',1.8,'one',{fx:'shift'}),
   SK('Ira da Floresta',14,'mag',2.2,'all',{el:'arcano',fx:'poison'})],
@@ -842,7 +842,7 @@ const HEROES=[
  head:'helm',weapon:'sword',
  pal:{H:'#2a2a3a',S:'#c0b0c0',e:'#ff5d6c',K:'#c0b0c0',A:'#2a2238',B:'#a14bff',P:'#1a1626',O:'#0e0a16',M:'#5a4a7a',W:'#3a2a1a'},
  base:{hp:66,atk:14,def:10,mag:9,spd:8,lck:7},growth:{hp:11,atk:2.1,def:1.5,mag:1.3,spd:1,lck:.9},
- passive:{name:'Pacto de Sangue',tags:{lifesteal:0.15,darkPower:0.2},desc:'Rouba 15% do dano como vida e seu poder sombrio cresce +20%.'},
+ passive:{name:'Pacto de Sangue',tags:{lifesteal:0.09,darkPower:0.2},desc:'Rouba 9% do dano como vida e seu poder sombrio cresce +20%.'},
  skills:[SK('Lâmina Negra',1,'phys',1.5,'one',{el:'sombrio',fx:'lifesteal'}),
   SK('Drenar Vida',3,'mag',1.4,'one',{el:'sombrio',fx:'lifesteal'}),
   SK('Sacrifício',5,'buff',0,'self',{fx:'sacrifice',txt:'Gasta vida por dano massivo.'}),
@@ -915,7 +915,7 @@ const HEROES=[
  head:'hood',weapon:'staff',
  pal:{H:'#3a4a2a',S:'#b8c0a0',e:'#7dff8f',K:'#b8c0a0',A:'#2a3a22',B:'#5fd17a',P:'#1a2416',O:'#0e160a',D:'#2a3a22',G:'#7dff8f',W:'#3a2a1a'},
  base:{hp:50,atk:6,def:6,mag:13,spd:8,lck:9},growth:{hp:8,atk:.7,def:1,mag:2.1,spd:1,lck:1.2},
- passive:{name:'Toque Pútrido',tags:{lifesteal:0.18,spellAmp:0.1},desc:'Rouba 18% do dano mágico como vida e amplifica magias em +10%. Tudo que ela toca apodrece.'},
+ passive:{name:'Toque Pútrido',tags:{lifesteal:0.11,spellAmp:0.1},desc:'Rouba 11% do dano mágico como vida e amplifica magias em +10%. Tudo que ela toca apodrece.'},
  skills:[SK('Cuspe Ácido',1,'mag',1.4,'one',{el:'veneno',fx:'poison'}),
   SK('Miasma',3,'mag',1.2,'all',{el:'veneno',fx:'poison'}),
   SK('Carícia Mórbida',5,'mag',1.6,'one',{el:'sombrio',fx:'lifesteal'}),
@@ -1513,7 +1513,7 @@ const ITEMS=[
 {id:'amuleto_sorte',name:'Amuleto da Sorte',icon:'🔮',type:'acessorio',slot:'acessorio',rarity:'epico',stats:{lck:9,spd:3}},
 {id:'pingente_alma',name:'Pingente da Alma',icon:'📿',type:'acessorio',slot:'acessorio',rarity:'lendario',stats:{mag:10,hp:20,lck:4}},
 // --- consumíveis (auto-usados no combate quando necessário) ---
-{id:'pocao_vida',name:'Poção de Vida',icon:'🧪',type:'consumivel',rarity:'comum',use:{heal:0.5},desc:'Cura 50% da vida do mais ferido em combate (auto).'},
+{id:'pocao_vida',name:'Poção de Vida',icon:'🧪',type:'consumivel',rarity:'comum',use:{heal:0.15},desc:'Cura 15% da vida do mais ferido em combate (auto).'},
 {id:'pocao_forca',name:'Poção de Força',icon:'⚗️',type:'consumivel',rarity:'raro',use:{atkup:0.3},desc:'+30% de ataque ao grupo por um combate (auto no chefe).'},
 {id:'bomba',name:'Bomba Arcana',icon:'💣',type:'consumivel',rarity:'raro',use:{dmgall:2.0},desc:'Dano em área no início de um combate (auto).'},
 // --- SECRETOS / chaves ---
@@ -1578,7 +1578,7 @@ const ITEMS=[
 {id:'talisma_sabio',name:'Talismã do Sábio',icon:'📜',type:'talisma',slot:'talisma',rarity:'lendario',stats:{mag:20,lck:5}},
 {id:'talisma_vazio',name:'Talismã do Vazio',icon:'🌑',type:'talisma',slot:'talisma',rarity:'mitico',secret:true,stats:{atk:14,mag:14,lck:10,spd:6},desc:'Pulsa com o nada entre os andares.'},
 // ===== NOVOS CONSUMÍVEIS (mais variedade) =====
-{id:'pocao_grande',name:'Elixir Maior',icon:'🍶',type:'consumivel',rarity:'raro',use:{heal:1.0},desc:'Cura totalmente o herói mais ferido (auto).'},
+{id:'pocao_grande',name:'Elixir Maior',icon:'🍶',type:'consumivel',rarity:'raro',use:{heal:0.35},desc:'Cura 35% da vida do herói mais ferido (auto).'},
 {id:'pocao_foco',name:'Tônico Arcano',icon:'🧴',type:'consumivel',rarity:'raro',use:{magup:0.3},desc:'+30% de dano mágico do grupo num combate (auto no chefe).'},
 {id:'pergaminho_fogo',name:'Pergaminho de Fogo',icon:'📜',type:'consumivel',rarity:'epico',use:{dmgall:3.0},desc:'Incinera todos os inimigos no início de um combate (auto).'},
 {id:'incenso',name:'Incenso Sagrado',icon:'🕯️',type:'consumivel',rarity:'epico',use:{shield:1},desc:'Escudo para o grupo no início do próximo chefe (auto).'},
@@ -2705,7 +2705,7 @@ const FX_EXPL={
   execute:'<b>Executa</b> na hora inimigos com menos de 22% de vida.',
   'crit+':'<b>+30%</b> de chance de crítico neste golpe.',
   critmax:'<b>Crítico garantido</b> neste golpe.',
-  lifesteal:'Você <b>rouba 20%</b> do dano causado como vida.'
+  lifesteal:'Você <b>rouba 12%</b> do dano causado como vida.'
 };
 // habilidades de SUPORTE (buff)
 const BUFF_EXPL={
@@ -2731,7 +2731,7 @@ const BUFF_EXPL={
 function skillPlainDesc(sk){
   const el=sk.el?' de '+cap(sk.el):'';
   if(sk.kind==='heal'){
-    const h=Math.round((sk.pow||1)*40);
+    const h=Math.round((sk.pow||1)*22);
     const who=sk.tgt==='allies'?'todo o grupo':'o aliado mais ferido';
     if(sk.fx==='revive')return 'Revive um aliado caído com 45% da vida'+((sk.pow||0)>0?' e cura ~'+h+'% do seu Poder Mágico em '+who:'')+'.';
     return 'Cura ~<b>'+h+'%</b> do seu Poder Mágico de vida em '+who+'.';
@@ -2752,7 +2752,7 @@ function skillFullDesc(sk){
   if(sk.kind==='phys'||sk.kind==='mag'){
     const hits=skillHits(sk), per=skillDmgPct(sk);
     parts.push('<b>Dano:</b> ~'+per+'% do seu '+statWord(sk)+(hits>1?' × '+hits+' golpes (~'+(per*hits)+'% no total)':''));
-  } else if(sk.kind==='heal'){ parts.push('<b>Cura:</b> ~'+Math.round((sk.pow||1)*40)+'% do seu Poder Mágico'+(sk.fx==='revive'?' + reviver (45% da vida)':'')); }
+  } else if(sk.kind==='heal'){ parts.push('<b>Cura:</b> ~'+Math.round((sk.pow||1)*22)+'% do seu Poder Mágico'+(sk.fx==='revive'?' + reviver (45% da vida)':'')); }
   if(sk.tgt)parts.push('<b>Alvo:</b> '+(SK_TGT_DESC[sk.tgt]||sk.tgt));
   if(sk.el)parts.push('<b>Elemento:</b> '+cap(sk.el));
   const fxTxt=(sk.kind==='buff')?BUFF_EXPL[sk.fx]:((sk.fx&&!['double','triple','combo'].includes(sk.fx))?FX_EXPL[sk.fx]:(sk.fx==='double'?'Acerta 2 vezes.':sk.fx==='triple'?'Acerta 3 vezes.':''));
@@ -3221,7 +3221,7 @@ const TIDES=[
  {id:'cacada',name:'Maré da Caçada',icon:'🏹',good:true,desc:'+25% de crítico e dano contra Feras.',apply:r=>{r.passive.critBonus=(r.passive.critBonus||0)+0.25;r.passive.beastBane=(r.passive.beastBane||0)+0.3;}},
  // --- mais marés boas ---
  {id:'fortuna',name:'Maré da Fortuna',icon:'🍀',good:true,desc:'+30% de crítico e muito mais sorte nos drops.',apply:r=>{r.passive.critBonus=(r.passive.critBonus||0)+0.3;r.passive.lootBonus=(r.passive.lootBonus||0)+0.5;}},
- {id:'regen',name:'Maré Regenerativa',icon:'🌿',good:true,desc:'Cura +5% do grupo ao limpar cada sala.',apply:r=>{r.passive.healRoom=(r.passive.healRoom||0)+0.05;}},
+ {id:'regen',name:'Maré Regenerativa',icon:'🌿',good:true,desc:'Cura +3% do grupo ao limpar cada sala.',apply:r=>{r.passive.healRoom=(r.passive.healRoom||0)+0.03;}},
  {id:'forja',name:'Maré da Forja',icon:'⚒️',good:true,desc:'Materiais de criação muito mais frequentes.',apply:r=>{r.passive.materialBonus=(r.passive.materialBonus||0)+1.2;}},
  {id:'bencao',name:'Bênção Antiga',icon:'✨',good:true,desc:'Grupo +15% de defesa e +15% de vida.',apply:r=>{r.passive.partyDef=(r.passive.partyDef||0)+0.15;r.tideHp=(r.tideHp||1)*1.15;}},
  {id:'erudicao',name:'Maré da Erudição',icon:'📖',good:true,desc:'+50% de XP de combate.',apply:r=>{r.passive.xpBonus=(r.passive.xpBonus||0)+0.5;}},
@@ -3741,7 +3741,7 @@ function encTrap(){
 /* ---- DESCANSO ---- */
 function encRest(){
   logline('🏕️ Uma sala silenciosa e segura. O grupo recupera o fôlego.','dn');RUN.scene.mode='idle';
-  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.08);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});
+  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.05);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});
     refreshBars();advanceRoom();},700);
 }
 /* ---- FONTE DAS MEMÓRIAS (segredo) ---- */
@@ -3874,7 +3874,7 @@ function floorClearRewards(){
   const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
   const ess=Math.round((4+RUN.floor*1.2)*comboMult);runEssence(ess);
   // alívio ao alcançar a escadaria: cura modesta (não salva de lutas brutais, evita morte só por desgaste)
-  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.12);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});
+  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.08);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});
   refreshBars();
   logline(`🪜 Andar ${RUN.floor} concluído! <span class="dn">+${ess} essência</span>${RUN.combo>=3?` <span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:''}`,'ev');
   updateComboHud();
@@ -4140,7 +4140,7 @@ function onBossWin(boss,e){
   RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xp));
   const ess=runEssence(30+RUN.floor*8);
   // recompensa por vencer o chefe: cura parcial do grupo (sobreviver ao chefe permite seguir adiante)
-  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.2);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
+  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.12);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   grantGold(Math.round(40*RUN.floor));
   grantEquipment(RUN.floor>=90?'divino':RUN.floor>=45?'mitico':RUN.floor>=22?'lendario':RUN.floor>=10?'epico':'raro',false);grantMaterial(RUN.floor>=20?'lendario':'raro',false);
   if(RUN.floor>=10)grantSecretKey();
@@ -4269,7 +4269,7 @@ function performSkill(c,skill){
     if(skill.fx==='revive'){const d=RUN.party.find(p=>!p.alive);if(d){d.alive=true;d.hp=Math.round(d.maxhp*0.45);
       logline('✨ '+actorName(c)+' usa <b>'+skill.n+'</b>! '+actorName(d)+' renasce!','dn');floatText('hero',RUN.party.indexOf(d),'REVIVE','#67d8ff');refreshBars();}}
     else{const tgts=skill.tgt==='allies'?allies():[mostHurt()];
-      const amt=Math.round(((c.st.mag*0.4*skill.pow)+2)*healMul());
+      const amt=Math.round(((c.st.mag*0.22*skill.pow)+2)*healMul());
       tgts.forEach(t=>{if(!t)return;t.hp=Math.min(t.maxhp,t.hp+amt);if(t.h)floatText('hero',RUN.party.indexOf(t),'+'+amt,'#5fd17a');});
       logline('💚 '+actorName(c)+' usa <b>'+skill.n+'</b> (+'+amt+' PV).','dn');refreshBars();}
     return rtimeout(nextActor,actDelay());
@@ -4326,7 +4326,7 @@ function hitEnemy(att,e,skill){
     if(f==='stun')e.fx.stun=(e.fx.stun||0)+1;
     if(f==='curse')e.fx.curse=true;
     if(f==='execute'&&e.alive&&e.hp<e.maxhp*0.22){e.hp=0;}
-    if(f==='lifesteal'&&att.h){const heal=Math.round(r.dmg*0.2);att.hp=Math.min(att.maxhp,att.hp+heal);if(att.h)floatText('hero',RUN.party.indexOf(att),'+'+heal,'#7dff8f');}
+    if(f==='lifesteal'&&att.h){const heal=Math.round(r.dmg*0.12);att.hp=Math.min(att.maxhp,att.hp+heal);if(att.h)floatText('hero',RUN.party.indexOf(att),'+'+heal,'#7dff8f');}
   }
   // lifesteal por passiva
   if(att.h&&att.h.passive.tags&&att.h.passive.tags.lifesteal){const heal=Math.round(r.dmg*att.h.passive.tags.lifesteal);att.hp=Math.min(att.maxhp,att.hp+heal);}
@@ -4578,7 +4578,7 @@ function onTorreSecretBossWin(boss,e){
   logline('🏆 <b class="tag-secret">DESPOJO SECRETO DA TORRE:</b> '+IMAP.tw_secret.icon+' '+IMAP.tw_secret.name+'!','sc');
   lootBurst('secreto');
   grantTowerUnique();   // + um único da torre de brinde
-  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.30);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
+  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.18);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   logline('🌟 <b>'+boss.name+' foi silenciado.</b> +'+ess+' essência.','sc');
   toast('🌟 Chefe secreto da Torre derrotado!','mitico');
   unlockSecret('carcereiro');saveGame();
@@ -4617,8 +4617,9 @@ function onTorreBossWin(boss,e){
   if(tf%5===0)grantEquipment(tf>=40?'divino':tf>=25?'mitico':'lendario',false);
   // ÚNICOS DA TORRE: caem bastante (a cada 5 andares e no topo garantido, + chance por tirano)
   if(tf%5===0||tf>=TORRE_MAX||chance(0.35))grantTowerUnique();
-  // cura parcial entre tiranos (a torre não tem salas de descanso)
-  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.22);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
+  // cura parcial entre tiranos (a torre não tem salas de descanso) — reduzida, mas não cortada,
+  // pois é a única recuperação que existe nessa dungeon
+  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.15);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   logline('🏆 <b>'+boss.name+' tombou!</b> +'+ess+' essência.','dn');
   toast('🏆 Tirano derrotado: Andar '+tf+'!','lendario');
   G.meta.bossesKilled=G.meta.bossesKilled||[];if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
@@ -4688,7 +4689,7 @@ const ABYSS_BOONS=[
   {id:'arcane', ic:'🔮',n:'Canalização',       d:'+15% de dano mágico.',                     ap:r=>{r.passive.spellAmp=(r.passive.spellAmp||0)+0.15;}},
   {id:'vigor',  ic:'💚',n:'Vigor Abissal',     d:'+15% de PV máximo e cura o grupo.',        ap:r=>{r.party.forEach(c=>{c.maxhp=Math.round(c.maxhp*1.15);c.st.maxhp=c.maxhp;c.hp=c.maxhp;});refreshBars();}},
   {id:'echo',   ic:'🌀',n:'Eco Temporal',      d:'+8% de chance do grupo agir de novo.',     ap:r=>{r.passive.extraTurn=(r.passive.extraTurn||0)+0.08;}},
-  {id:'breath', ic:'✨',n:'Fôlego do Vazio',   d:'Cura 60% da vida do grupo agora.',         ap:r=>{r.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.6);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();}},
+  {id:'breath', ic:'✨',n:'Fôlego do Vazio',   d:'Cura 35% da vida do grupo agora.',         ap:r=>{r.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.35);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();}},
   {id:'greed',  ic:'⚱️',n:'Ganância',          d:'+30% de essência ganha no Abismo.',        ap:r=>{r.abyssEssMul=(r.abyssEssMul||1)+0.30;}},
   {id:'mirror', ic:'🪞',n:'Segunda Chance',    d:'+1 ressurreição automática de herói.',     ap:r=>{r.reviveCharges=(r.reviveCharges||0)+1;}},
   {id:'thorn',  ic:'🌵',n:'Carapaça de Espinhos',d:'Reflete +15% do dano recebido.',         ap:r=>{r.abyssThorns=(r.abyssThorns||0)+0.15;}},
@@ -4919,13 +4920,12 @@ function grantAbyssItem(L){
 }
 
 function autoConsumables(){
-  // limiar mais alto (era 15%): com os inimigos mais fortes agora, um golpe só pode tirar 30-70%+
-  // de uma vez, então esperar até 15% pra curar era tarde demais — o próximo golpe já matava.
-  const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.32);
+  // gatilho ainda cedo o bastante pra não ser tarde demais, mas as poções curam bem menos agora
+  const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.25);
   if(!low)return;
-  if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);const _h=Math.round(Math.min(low.maxhp-low.hp,low.maxhp*0.6*healMul()));low.hp=Math.min(low.maxhp,low.hp+_h);
+  if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);const _h=Math.round(Math.min(low.maxhp-low.hp,low.maxhp*0.35*healMul()));low.hp=Math.min(low.maxhp,low.hp+_h);
     floatText('hero',RUN.party.indexOf(low),'+'+_h,'#5fd17a');logline('🍶 Elixir Maior usado em '+actorName(low)+'.','dn');refreshBars();return;}
-  if(invQty("pocao_vida")>0){removeItem("pocao_vida",1);const h=Math.round(low.maxhp*0.25*healMul());
+  if(invQty("pocao_vida")>0){removeItem("pocao_vida",1);const h=Math.round(low.maxhp*0.15*healMul());
     low.hp=Math.min(low.maxhp,low.hp+h);floatText('hero',RUN.party.indexOf(low),'+'+h,'#5fd17a');
     logline('🧪 Poção de Vida usada automaticamente em '+actorName(low)+'.','dn');refreshBars();}
 }
