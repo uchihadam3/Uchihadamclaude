@@ -1943,6 +1943,7 @@ function defaultMeta(){
   HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null},activeSkills:[]};});
   return{
     version:1, essence:0, gold:0, deepestFloor:0, torreDeepest:0, abyssDeepest:0, runs:0, totalKills:0,
+    deepestFloorDiff:{normal:0,dificil:0,inferno:0}, torreDeepestDiff:{normal:0,dificil:0,inferno:0},
     tamedCount:0, craftedCount:0, bossesKilled:[], bestiaryKills:{}, eliteKills:0,
     heroes, inventory:{}, party:['cartografo','guerreiro','cleriga'],
     research:{}, researchActive:null, // {id,end}
@@ -1957,6 +1958,10 @@ function migrateMeta(){
   HEROES.forEach(h=>{const st=G.meta.heroes[h.id];
     if(!st){G.meta.heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null},activeSkills:[]};}
     else{ if(st.level==null)st.level=st.maxLevelEver||1; if(st.xp==null)st.xp=0; if(!st.equip)st.equip={}; EQUIP_SLOTS.forEach(sl=>{if(st.equip[sl]===undefined)st.equip[sl]=null;}); if(!st.activeSkills)st.activeSkills=[]; }});
+  // checkpoints de andar por DIFICULDADE — Difícil/Inferno começam do zero (só do Andar 1) até você
+  // realmente alcançar aqueles andares NAQUELE modo; o recorde do Normal migra pro campo novo.
+  if(!G.meta.deepestFloorDiff)G.meta.deepestFloorDiff={normal:G.meta.deepestFloor||0,dificil:0,inferno:0};
+  if(!G.meta.torreDeepestDiff)G.meta.torreDeepestDiff={normal:G.meta.torreDeepest||0,dificil:0,inferno:0};
   if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
   if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
   // aprimoramento por HERÓI+item (separado por personagem). Migra do antigo store compartilhado.
@@ -3395,7 +3400,10 @@ function startRunFlow(){
   RUN_PENDING={party,tides,startFloor:1,diff:'normal'};
   showPreRunScreen();
 }
-function setDiff(d){ if(!diffUnlocked(d,RUN_PENDING&&RUN_PENDING.dungeon)){toast('Modo bloqueado.','warn');return;} RUN_PENDING.diff=d; showPreRunScreen(); }
+function setDiff(d){ if(!diffUnlocked(d,RUN_PENDING&&RUN_PENDING.dungeon)){toast('Modo bloqueado.','warn');return;} RUN_PENDING.diff=d;
+  // troca de dificuldade pode invalidar o andar-inicial escolhido (checkpoints são por dificuldade)
+  const opts=startFloorOptions();if(!opts.includes(RUN_PENDING.startFloor))RUN_PENDING.startFloor=1;
+  showPreRunScreen(); }
 function rerollAndShow(){RUN_PENDING.tides=rollTides(RUN_PENDING.party);showPreRunScreen();}
 function setStartFloor(f){RUN_PENDING.startFloor=f;showPreRunScreen();}
 function cycleMerchAuto(){G.meta.settings=G.meta.settings||{};
@@ -3403,7 +3411,10 @@ function cycleMerchAuto(){G.meta.settings=G.meta.settings||{};
   G.meta.settings.merchantAuto=order[(order.indexOf(cur)+1)%order.length];saveGame();showPreRunScreen();}
 function startFloorOptions(){
   const torre=RUN_PENDING&&RUN_PENDING.dungeon==='torre';
-  const deep=torre?(G.meta.torreDeepest||1):(G.meta.deepestFloor||1);
+  const d=(RUN_PENDING&&RUN_PENDING.diff)||'normal';
+  // checkpoints são POR DIFICULDADE: liberar o Difícil/Inferno não te dá de graça os checkpoints
+  // que você só alcançou no Normal — só pode pular pro Andar 10/20/30... se chegou lá NAQUELE modo.
+  const deep=torre?((G.meta.torreDeepestDiff&&G.meta.torreDeepestDiff[d])||1):((G.meta.deepestFloorDiff&&G.meta.deepestFloorDiff[d])||1);
   const cap=torre?TORRE_MAX:200; const step=torre?5:10; const opts=[1];
   for(let f=step;f<=Math.min(deep,cap);f+=step)opts.push(f);   // checkpoints
   return opts;
@@ -3438,9 +3449,10 @@ function showPreRunScreen(){
     <div class="row mt"><button class="btn" onclick="confirmStartRun()">${torre?'Escalar a Torre 🗼':'Entrar na Adranja ▶'}</button>
     <button class="btn ghost" onclick="rerollAndShow()">🎲 Re-rolar Marés</button></div>`);
 }
-function confirmStartRun(){closeModal();const{party,tides,startFloor,dungeon,diff}=RUN_PENDING;
+function confirmStartRun(){closeModal();const{party,tides,dungeon,diff}=RUN_PENDING;
+  const sf=startFloorOptions().includes(RUN_PENDING.startFloor)?RUN_PENDING.startFloor:1;   // nunca confia num andar-inicial não conquistado NESTA dificuldade
   G.meta.runs++;saveGame();
-  initRun(party,tides,startFloor||1,dungeon||'adranja',diff||'normal');
+  initRun(party,tides,sf||1,dungeon||'adranja',diff||'normal');
   CUR.screen='dungeon';renderDungeon();
   music('explore');
   setTimeout(()=>{ (RUN.dungeon==='torre'?torreBegin:stepBegin)(); },700);
@@ -3907,6 +3919,8 @@ function descend(){
   floorClearRewards();
   RUN.floor++;sfx('descend');
   if(RUN.floor>G.meta.deepestFloor){G.meta.deepestFloor=RUN.floor;milestoneCheck();checkUnlocks();}
+  const rDiff=RUN.diff||'normal';G.meta.deepestFloorDiff=G.meta.deepestFloorDiff||{normal:0,dificil:0,inferno:0};
+  if(RUN.floor>(G.meta.deepestFloorDiff[rDiff]||0))G.meta.deepestFloorDiff[rDiff]=RUN.floor;
   saveGame();
   rtimeout(stepBegin,500);
 }
@@ -4928,6 +4942,8 @@ function onTorreBossWin(boss,e){
   G.meta.bossesKilled=G.meta.bossesKilled||[];if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
   if(tf>(G.meta.torreDeepest||0)){G.meta.torreDeepest=tf;
     toast('🗼 Recorde na Torre: Andar '+tf+'!','mitico');}
+  const tDiff=(RUN&&RUN.diff)||'normal';G.meta.torreDeepestDiff=G.meta.torreDeepestDiff||{normal:0,dificil:0,inferno:0};
+  if(tf>(G.meta.torreDeepestDiff[tDiff]||0))G.meta.torreDeepestDiff[tDiff]=tf;
   saveGame();
   if(tf>=TORRE_MAX){return torreVictory();}
   RUN.floor++;sfx('descend');
