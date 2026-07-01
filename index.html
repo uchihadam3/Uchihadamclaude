@@ -2639,7 +2639,7 @@ function openHero(id){
   const skills=h.skills.map((sk,si)=>{const known=sk.lvl<=lv;
     return `<div class="slotline clickable" style="${known?'':'opacity:.45'};cursor:pointer" onclick="navTo(()=>openSkillInfo('${id}',${si}))">
       <div class="sl-ico">${known?skKindIcon(sk):'🔒'}</div>
-      <div class="sl-n"><b>${sk.n}</b> <span class="tiny muted">Nv ${sk.lvl}${known?' · aprendida':''}</span><br><span class="tiny">${sk.txt||skKindLabel(sk)}</span></div>
+      <div class="sl-n"><b>${sk.n}</b> <span class="tiny muted">Nv ${sk.lvl}${known?' · aprendida':''}</span><br><span class="tiny">${skillPlainDesc(sk)}</span></div>
       <span class="tiny muted" style="align-self:center">ⓘ</span></div>`;
   }).join('');
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
@@ -2691,16 +2691,72 @@ const SK_FX_DESC={
   timestop:'Congela o tempo: inimigos perdem o turno.',summon:'Invoca um aliado para lutar.',
   trap:'Prende o inimigo mais forte.',sacrifice:'Sacrifica vida por dano massivo.','secret+':'Procura ativamente passagens secretas.'
 };
+/* ===== descrições CLARAS do que cada habilidade faz (com números reais) ===== */
+function statWord(sk){return sk.kind==='mag'?'Poder Mágico':'Ataque';}
+function skillHits(sk){return sk.fx==='double'?2:sk.fx==='triple'?3:1;}
+function skillDmgPct(sk){return Math.round((sk.pow||1)*100);}
+// efeitos aplicados por golpes de DANO
+const FX_EXPL={
+  burn:'Aplica <b>Queimadura</b> (30% do dano causado por turno, durante 3 turnos).',
+  poison:'Aplica <b>Veneno</b> (25% do dano causado por turno, durante 4 turnos).',
+  slow:'Reduz a <b>Velocidade</b> do alvo em 30%.',
+  stun:'<b>Atordoa</b>: o alvo perde o próximo turno.',
+  curse:'<b>Amaldiçoa</b>: o alvo passa a receber +25% de todo o dano.',
+  execute:'<b>Executa</b> na hora inimigos com menos de 22% de vida.',
+  'crit+':'<b>+30%</b> de chance de crítico neste golpe.',
+  critmax:'<b>Crítico garantido</b> neste golpe.',
+  lifesteal:'Você <b>rouba 20%</b> do dano causado como vida.'
+};
+// habilidades de SUPORTE (buff)
+const BUFF_EXPL={
+  shield:'Dá ao grupo um <b>escudo</b> que reduz o dano recebido em <b>50%</b> por 2 rodadas.',
+  resist:'Reduz o dano recebido por todo o grupo em <b>20%</b> por 2 rodadas.',
+  atkup:'Aumenta o <b>Ataque e o Poder Mágico</b> de todo o grupo em <b>18%</b>.',
+  allup:'Aumenta <b>Ataque, Magia e Defesa</b> do grupo em <b>15%</b> e a <b>Velocidade em 12%</b>.',
+  haste:'Aumenta a <b>Velocidade</b> de todo o grupo em <b>30%</b>.',
+  taunt:'<b>Provoca</b>: atrai os ataques inimigos para si e reduz o dano recebido, por 2 rodadas.',
+  critmax:'Garante <b>crítico</b> nos próximos 2 golpes deste herói.',
+  scout:'Revela a sala à frente e garante <b>crítico</b> nos próximos golpes.',
+  evade:'Prepara uma <b>esquiva</b>: ignora por completo o próximo ataque recebido.',
+  dodgeup:'Prepara uma <b>esquiva</b>: ignora por completo o próximo ataque recebido.',
+  phase:'Prepara uma <b>esquiva</b>: ignora por completo o próximo ataque recebido.',
+  timestop:'<b>Congela o tempo</b>: TODOS os inimigos ficam atordoados e perdem o próximo turno.',
+  summon:'<b>Invoca</b> um aliado que luta ao seu lado (força baseada no seu nível).',
+  trap:'<b>Prende</b> o inimigo mais forte, atordoando-o por 2 turnos.',
+  sacrifice:'Sacrifica <b>25%</b> da própria vida para causar <b>dano massivo</b> (~240% do poder do grupo) a um inimigo.',
+  shift:'<b>Transforma-se em fera</b>, ganhando mais ataque no combate.',
+  'secret+':'Faz o grupo <b>procurar ativamente</b> uma passagem secreta nesta sala.'
+};
+// frase única e clara: o que a habilidade FAZ, com números
+function skillPlainDesc(sk){
+  const el=sk.el?' de '+cap(sk.el):'';
+  if(sk.kind==='heal'){
+    const h=Math.round((sk.pow||1)*40);
+    const who=sk.tgt==='allies'?'todo o grupo':'o aliado mais ferido';
+    if(sk.fx==='revive')return 'Revive um aliado caído com 45% da vida'+((sk.pow||0)>0?' e cura ~'+h+'% do seu Poder Mágico em '+who:'')+'.';
+    return 'Cura ~<b>'+h+'%</b> do seu Poder Mágico de vida em '+who+'.';
+  }
+  if(sk.kind==='buff'){ return BUFF_EXPL[sk.fx]||'Efeito de suporte para o grupo.'; }
+  // dano
+  const per=skillDmgPct(sk), hits=skillHits(sk);
+  const alvo=sk.tgt==='all'?'<b>TODOS</b> os inimigos':'1 inimigo';
+  let s;
+  if(hits>1) s='Golpe'+el+' que atinge '+alvo+' <b>'+hits+'×</b> — ~'+per+'% do seu '+statWord(sk)+' por golpe (~<b>'+(per*hits)+'%</b> no total).';
+  else s='Causa ~<b>'+per+'%</b> do seu '+statWord(sk)+el+' em dano a '+alvo+'.';
+  if(sk.fx && !['double','triple','combo'].includes(sk.fx) && FX_EXPL[sk.fx]) s+=' '+FX_EXPL[sk.fx];
+  return s;
+}
 function skillFullDesc(sk){
   const parts=[];
   parts.push('<b>Tipo:</b> '+skKindLabel(sk));
   if(sk.kind==='phys'||sk.kind==='mag'){
-    const p=sk.pow||1; const tier=p>=2.4?'devastador':p>=1.6?'forte':p>=1.1?'médio':'rápido';
-    parts.push('<b>Poder:</b> ×'+p.toFixed(1)+' ('+tier+')');
-  } else if(sk.kind==='heal'){ parts.push('<b>Poder de cura:</b> ×'+(sk.pow||1).toFixed(1)); }
+    const hits=skillHits(sk), per=skillDmgPct(sk);
+    parts.push('<b>Dano:</b> ~'+per+'% do seu '+statWord(sk)+(hits>1?' × '+hits+' golpes (~'+(per*hits)+'% no total)':''));
+  } else if(sk.kind==='heal'){ parts.push('<b>Cura:</b> ~'+Math.round((sk.pow||1)*40)+'% do seu Poder Mágico'+(sk.fx==='revive'?' + reviver (45% da vida)':'')); }
   if(sk.tgt)parts.push('<b>Alvo:</b> '+(SK_TGT_DESC[sk.tgt]||sk.tgt));
-  if(sk.el)parts.push('<b>Elemento:</b> '+sk.el);
-  if(sk.fx&&SK_FX_DESC[sk.fx])parts.push('<b>Efeito:</b> '+SK_FX_DESC[sk.fx]);
+  if(sk.el)parts.push('<b>Elemento:</b> '+cap(sk.el));
+  const fxTxt=(sk.kind==='buff')?BUFF_EXPL[sk.fx]:((sk.fx&&!['double','triple','combo'].includes(sk.fx))?FX_EXPL[sk.fx]:(sk.fx==='double'?'Acerta 2 vezes.':sk.fx==='triple'?'Acerta 3 vezes.':''));
+  if(fxTxt)parts.push('<b>Efeito:</b> '+fxTxt);
   return parts.join('<br>');
 }
 function openSkillInfo(heroId,si){
@@ -2708,7 +2764,8 @@ function openSkillInfo(heroId,si){
   openModal(`<div class="center"><div style="font-size:40px">${skKindIcon(sk)}</div>
     <h3>${sk.n}</h3>
     <div class="row center" style="justify-content:center;gap:6px"><span class="chip">Nível ${sk.lvl}</span>${known?'<span class="chip" style="color:var(--ok)">aprendida</span>':'<span class="chip" style="color:var(--bad)">bloqueada</span>'}</div></div>
-    <p class="small mt" style="text-align:center">${sk.txt||skKindLabel(sk)}</p>
+    <p class="small mt" style="text-align:left">${skillPlainDesc(sk)}</p>
+    ${sk.txt?`<p class="tiny muted" style="text-align:center;font-style:italic;margin-top:4px">"${sk.txt}"</p>`:''}
     <div class="panel mt" style="text-align:left">${skillFullDesc(sk)}</div>
     ${known?'':`<p class="tiny muted mt6 center">Liberada quando ${h.name.split(',')[0]} alcançar o Nível ${sk.lvl}.</p>`}
     <div class="row mt" style="justify-content:center"><button class="btn ghost" onclick="navBack()">← Voltar ao herói</button></div>`);
