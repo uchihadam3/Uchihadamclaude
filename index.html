@@ -4080,7 +4080,7 @@ function makeEnemy(monster,floor,boss){
   const bossAtk=Math.round((20+floor*4.2+floor*floor*0.028)*dm.stat);
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
-    const hp=Math.round((250+floor*floor*15+floor*180)*tideHp*dm.hp);
+    const hp=Math.round((400+floor*floor*24+floor*290)*tideHp*dm.hp);
     const atk=bossAtk;
     const def=Math.round((13+floor*1.6)*dm.stat);
     const spd=Math.round(8+floor*0.18);
@@ -4516,12 +4516,13 @@ const TORRE_BOSSES=(function(){
 })();
 function torreBossFor(tf){return TORRE_BOSSES[Math.min(tf,TORRE_MAX)-1];}
 function makeTorreBoss(boss,tf){
-  // curva propositalmente BRUTAL — tiranos colossais. O do Andar 1 supera o chefe do
-  // Andar 10 da Adranja; o do Andar 50 supera o chefe do Andar 200. Batalhas LONGAS.
+  // curva propositalmente BRUTAL — tiranos colossais. A Torre é SÓ chefes (sem lutas de
+  // desgaste entre eles), então cada um precisa aguentar uma luta longa sozinho: PV bem
+  // acima de um chefe equivalente da Adranja, em TODOS os modos (Normal/Difícil/Inferno).
   const dm=diffMul();   // Normal / Difícil / Inferno também valem na Torre
-  const hp=Math.round((6000+tf*tf*620+tf*6200)*dm.hp);
-  const atk=Math.round((72+tf*9+tf*tf*1.15)*dm.stat);
-  const def=Math.round((28+tf*3.2)*dm.stat);
+  const hp=Math.round((12000+tf*tf*1300+tf*11000)*dm.hp);
+  const atk=Math.round((100+tf*13+tf*tf*1.6)*dm.stat);
+  const def=Math.round((36+tf*4.2)*dm.stat);
   const spd=Math.round(8+tf*0.2);
   return {m:boss,name:boss.name,boss:true,torre:true,family:boss.family,el:boss.el,grid:boss.grid,pal:boss.pal,
     st:{atk,mag:atk,def,spd,lck:12},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
