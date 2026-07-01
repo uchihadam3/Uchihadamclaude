@@ -274,6 +274,24 @@ h3{font-size:18px;}
   border:1px solid rgba(125,255,143,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.12);animation:gainpop .4s ease;}
 .gainbanner b{color:#7dff8f;}
 @keyframes gainpop{0%{opacity:0;transform:translateY(-4px) scale(.8);}60%{transform:translateY(0) scale(1.12);}100%{opacity:1;transform:scale(1);}}
+/* ---- cards de escolher equipamento (gamificado, comparação limpa em linha) ---- */
+.pwr-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:999px;font-family:'Cinzel';font-weight:800;
+  color:#0d0a06;background:linear-gradient(180deg,#ffe08a,#f0a92a);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 0 8px rgba(240,169,42,.45);font-size:12px;}
+.eqpick{border-radius:12px;border:1px solid var(--line-soft);background:linear-gradient(180deg,rgba(38,26,54,.9),rgba(26,16,42,.9));padding:9px;margin-bottom:8px;transition:transform .1s,border-color .12s;}
+.eqpick.best{border-color:#5fd17a;box-shadow:0 0 0 1px rgba(95,209,122,.5) inset,0 0 12px rgba(95,209,122,.18);}
+.eqpick.cur{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;}
+.eqpick .eqhead{display:flex;gap:9px;align-items:center;}
+.eqpick .eqhead .sl-ico{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);border:1px solid var(--line-soft);flex:0 0 auto;}
+.eqpick .eqname{flex:1;min-width:0;font-size:13.5px;line-height:1.35;}
+.eqverd{font-size:11px;font-family:'Cinzel';font-weight:800;margin-top:2px;display:inline-block;}
+.eqverd.up{color:#5fd17a;} .eqverd.down{color:#ff6d7a;} .eqverd.same{color:var(--dim);} .eqverd.gold{color:var(--gold);}
+.eqstats{display:grid;grid-template-columns:1fr 1fr;gap:1px 14px;margin-top:8px;padding-top:7px;border-top:1px dashed var(--line-soft);}
+.eqsrow{display:flex;align-items:center;gap:6px;font-size:11.5px;line-height:1.6;}
+.eqsrow .k{width:30px;color:var(--dim);font-family:'Cinzel';font-weight:600;}
+.eqsrow .v{width:38px;text-align:right;color:var(--gold);font-family:'Cinzel';font-weight:700;}
+.eqsrow .d{flex:1;font-size:10.5px;font-family:'Cinzel';font-weight:800;}
+.eqsrow .d.up{color:#5fd17a;} .eqsrow .d.down{color:#ff6d7a;} .eqsrow .d.same{color:var(--dim);}
+.eqnote{font-size:10.5px;margin-top:6px;}
 </style>
 </head>
 <body>
@@ -1007,13 +1025,30 @@ const CAPSTONE_SKILLS={
 // níveis de liberação MUITO mais espaçados (o jogo vai ao Andar 200; heróis sobem por muitas incursões)
 const SKILL_LEVELS=[1,5,11,18,27,38,52,68,90];
 function skillLevelFor(i){ return i<SKILL_LEVELS.length?SKILL_LEVELS[i]:SKILL_LEVELS[SKILL_LEVELS.length-1]+(i-SKILL_LEVELS.length+1)*15; }
+/* ===== BALANCEAMENTO DE HABILIDADES =====
+   Nenhum herói deve ter uma habilidade absurdamente mais forte que a dos outros.
+   Cada "slot" (ordem de liberação) tem um TETO de poder para dano de alvo único;
+   golpes em área (que atingem todos) e efeitos fortes (execute/crit garantido/roubo
+   de vida) recebem um teto proporcionalmente menor. Só REDUZ excessos — nunca infla
+   golpes de baixo poder de propósito (multi-hit como duplo/triplo ficam intactos). */
+const POW_CAP=[1.6,2.0,2.4,2.9,3.5,4.2,5.0,5.8];
+function balanceSkillPow(sk,idx){
+  if(sk.kind!=='phys'&&sk.kind!=='mag')return;                 // cura/suporte não têm teto de poder
+  if(sk.fx==='double'||sk.fx==='triple'||sk.fx==='combo')return; // multi-hit: poder baixo é proposital
+  let cap=POW_CAP[Math.min(idx,POW_CAP.length-1)];
+  if(sk.tgt==='all'||sk.tgt==='allies')cap*=0.72;               // acertar TODOS vale muito → teto menor
+  if(sk.fx==='execute'||sk.fx==='critmax')cap*=0.90;            // efeitos que "finalizam"/garantem crítico
+  else if(sk.fx==='lifesteal')cap*=0.93;
+  cap=+cap.toFixed(2);
+  if((sk.pow||1)>cap)sk.pow=cap;
+}
 (function expandSkills(){
   HEROES.forEach(h=>{
     const ex=EXTRA_SKILLS[h.id]||[];
     const cap=CAPSTONE_SKILLS[h.id];
     h.skills=h.skills.concat(ex.map(s=>Object.assign({},s)));
     if(cap)h.skills.push(Object.assign({},cap));
-    h.skills.forEach((sk,i)=>{ sk.lvl=skillLevelFor(i); });
+    h.skills.forEach((sk,i)=>{ sk.lvl=skillLevelFor(i); balanceSkillPow(sk,i); });
   });
 })();
 
@@ -2126,6 +2161,15 @@ function heroStats(heroId,level){
   for(const k in s)s[k]=Math.round(s[k]);
   s.maxhp=s.hp;return s;
 }
+/* ===== PODER (power score): um número único de força do herói ===== */
+const POWER_W={hp:0.08, atk:2.2, mag:2.2, def:1.6, spd:1.3, lck:1.0};
+function statsPower(s){let p=0;for(const k in POWER_W)p+=(s[k]||0)*POWER_W[k];return Math.round(p);}
+function heroPower(id,level){return statsPower(heroStats(id,level));}
+// poder do herói SE equipasse itemId no slot (sem alterar o save de verdade)
+function powerWithItem(heroId,slot,itemId){
+  const st=G.meta.heroes[heroId];const prev=st.equip[slot];
+  st.equip[slot]=itemId||null;const p=heroPower(heroId,heroMaxLevel(heroId));st.equip[slot]=prev;return p;
+}
 // skills permanentemente conhecidas até certo nível
 function knownSkills(heroId,uptoLevel){
   const h=HMAP[heroId];return h.skills.filter(sk=>sk.lvl<=uptoLevel);
@@ -2406,6 +2450,7 @@ function rosterCard(h){
     ${rarPill(h.rarity)}<span class="lvl">Lv ${heroMaxLevel(h.id)}</span>
     <div data-sprite="${h.id}"></div>
     <div class="nm">${h.name.split(',')[0]}</div><div class="role">${h.role}</div>
+    <div class="tiny" style="color:var(--gold);font-family:'Cinzel';font-weight:700">⚡ ${heroPower(h.id,heroMaxLevel(h.id))}</div>
     ${inParty?'<span class="chip" style="color:var(--gold)">na equipe</span>':`<button class="btn sm" onclick="event.stopPropagation();togglePartyMember('${h.id}')">+ Equipe</button>`}
   </div>`;
 }
@@ -2450,7 +2495,7 @@ function openHero(id){
       <div><div data-sprite-big style="image-rendering:pixelated"></div>${rarPill(h.rarity)}</div>
       <div style="flex:1">
         <h2 style="font-size:19px">${h.name}</h2>
-        <div class="role muted small">${h.role} · Nível ${lv}</div>
+        <div class="row" style="align-items:center;gap:8px;flex-wrap:wrap"><span class="role muted small">${h.role} · Nível ${lv}</span><span class="pwr-chip" title="Poder do herói — sobe com equipamento e nível">⚡ Poder ${heroPower(id,lv)}</span></div>
         <div class="mt6">
           ${(()=>{const g=(_equipGains&&_equipGains.id===id)?_equipGains.d:{};
             return statBar('PV',s.hp,Math.max(120,s.hp),'hpbar',g.hp)
@@ -2563,32 +2608,60 @@ function equipCompareHTML(slot,cand,heroId){
   const verd=sum>0?'<b style="color:#5fd17a">▲ Melhor</b>':sum<0?'<b style="color:#ff5d6c">▼ Pior</b>':'<b class="muted">↔ Igual</b>';
   return `<br><span class="tiny">vs atual: ${verd} &nbsp; ${parts.join('  ')}</span>`;
 }
-/* escolher equipamento para um slot — itens equipados em OUTROS heróis ficam bloqueados */
+/* escolher equipamento para um slot — cards gamificados com comparação limpa em linha */
 function pickEquip(heroId,slot){
-  const mage=heroIsMage(heroId);
-  // ordena pelos MELHORES para este herói (atributo principal dele primeiro); raridade desempata
-  const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&it.slot===slot&&invQty(it.id)>0)
-    .sort((a,b)=>itemScoreFor(b,mage)-itemScoreFor(a,mage) || RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
-  const st=G.meta.heroes[heroId];const cur=st.equip[slot];
-  const list=owned.map(it=>{
-    const others=equippedByOthers(it.id,slot,heroId);
-    const isCur=cur===it.id;
-    const freeForThis=invQty(it.id)-others.length; // cópias não usadas por outros (inclui a deste herói)
-    let right, note='';
-    if(others.length) note=`<br><span class="tiny" style="color:var(--bad)">🔒 equipado em ${others.map(h=>HMAP[h].name.split(',')[0]).join(', ')}</span>`;
-    if(isCur){ right=`<span class="chip" style="color:var(--gold)">✔ equipado aqui</span>`; }
-    else if(freeForThis>0){ right=`<button class="btn sm" onclick="doEquip('${heroId}','${slot}','${it.id}')">Equipar${invQty(it.id)>1?` <span class="tiny">(${freeForThis} livre${freeForThis>1?'s':''})</span>`:''}</button>`; }
-    else { right=`<button class="btn sm" disabled>indisponível</button>`; }
-    const uL=eqUpg(heroId,it.id);
-    const cmp=isCur?'':equipCompareHTML(slot,it,heroId);
-    return `<div class="slotline b-${it.rarity}">
-      <div class="sl-ico">${itemIco(it,3)}</div>
-      <div class="sl-n"><b>${it.name}${uL>0?` <span style="color:var(--gold)">+${uL}</span>`:''}</b> ${rarPill(it.rarity)}<br><span class="tiny" style="color:var(--gold)">${statsStr(it.stats,uL)}</span>${cmp}${note}</div>
-      ${right}</div>`;
-  }).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
+  const h=HMAP[heroId], lv=heroMaxLevel(heroId);
+  const st=G.meta.heroes[heroId]; const cur=st.equip[slot];
+  const basePower=heroPower(heroId,lv);
   const curIt=cur?IMAP[cur]:null;
-  openModal(`<h3>${slotIcon(slot)} Equipar ${slotLabel(slot)}</h3>
-    <p class="tiny muted mt6">${curIt?`Equipado: <b>${curIt.name}${eqUpg(heroId,cur)>0?' +'+eqUpg(heroId,cur):''}</b> — ${statsStr(curIt.stats,eqUpg(heroId,cur))}`:'Nenhum item equipado neste espaço.'} As setas mostram se cada item é <span style="color:#5fd17a">▲ melhor</span> ou <span style="color:#ff5d6c">▼ pior</span>.</p>
+  // atributos efetivos do item atualmente equipado (base de comparação)
+  const aStats=cur?effItemStats(curIt,eqUpg(heroId,cur)):{};
+  // ordena pelo que dá MAIS PODER a este herói (o melhor primeiro); raridade desempata
+  const owned=Object.keys(G.meta.inventory).map(id=>IMAP[id]).filter(it=>it&&it.slot===slot&&invQty(it.id)>0)
+    .sort((a,b)=>powerWithItem(heroId,slot,b.id)-powerWithItem(heroId,slot,a.id) || RARS.indexOf(b.rarity)-RARS.indexOf(a.rarity));
+  let bestId=null,bestPd=0;
+  owned.forEach(it=>{if(it.id===cur)return;const pd=powerWithItem(heroId,slot,it.id)-basePower;if(pd>bestPd){bestPd=pd;bestId=it.id;}});
+  const card=(it)=>{
+    const isCur=cur===it.id;
+    const others=equippedByOthers(it.id,slot,heroId);
+    const freeForThis=invQty(it.id)-others.length;
+    const uL=eqUpg(heroId,it.id);
+    const b=effItemStats(it,uL);
+    const keys=LBL_ORDER.filter(k=>(b[k]||0)||(aStats[k]||0));
+    const rows=keys.map(k=>{
+      const cv=b[k]||0, d=cv-(aStats[k]||0);
+      const dc=isCur?'same':(d>0?'up':d<0?'down':'same');
+      const dtxt=isCur?'':(d>0?'▲ +'+d:d<0?'▼ '+d:'— igual');
+      return `<div class="eqsrow"><span class="k">${STAT_LBL[k]}</span><span class="v">${cv}</span><span class="d ${dc}">${dtxt}</span></div>`;
+    }).join('')||'<span class="tiny muted">Sem atributos.</span>';
+    const pd=isCur?0:(powerWithItem(heroId,slot,it.id)-basePower);
+    let verd;
+    if(isCur)verd=`<span class="eqverd gold">✔ Equipado agora</span>`;
+    else if(!cur)verd=`<span class="eqverd up">✦ Novo · ⚡ +${pd}</span>`;
+    else if(pd>0)verd=`<span class="eqverd up">▲ Melhor · ⚡ +${pd} poder</span>`;
+    else if(pd<0)verd=`<span class="eqverd down">▼ Pior · ⚡ ${pd} poder</span>`;
+    else verd=`<span class="eqverd same">↔ Equivalente</span>`;
+    let action;
+    if(isCur)action=`<button class="btn ghost sm" onclick="doEquip('${heroId}','${slot}',null)">Remover</button>`;
+    else if(freeForThis>0)action=`<button class="btn sm" onclick="doEquip('${heroId}','${slot}','${it.id}')">Equipar${invQty(it.id)>1?` <span class="tiny">(${freeForThis})</span>`:''}</button>`;
+    else action=`<button class="btn sm" disabled>em uso</button>`;
+    const note=others.length?`<div class="eqnote" style="color:var(--bad)">🔒 Também equipado em ${others.map(hid=>HMAP[hid].name.split(',')[0]).join(', ')}</div>`:'';
+    const cls=isCur?'cur':(it.id===bestId?'best':'');
+    return `<div class="eqpick b-${it.rarity} ${cls}">
+      <div class="eqhead">
+        <div class="sl-ico">${itemIco(it,3)}</div>
+        <div class="eqname"><b>${it.name}</b>${uL>0?` <span style="color:var(--gold)">+${uL}</span>`:''} ${rarPill(it.rarity)}${(it.id===bestId)?' <span class="chip" style="color:#5fd17a;border-color:#5fd17a">★ melhor</span>':''}<br>${verd}</div>
+        ${action}
+      </div>
+      <div class="eqstats">${rows}</div>${note}</div>`;
+  };
+  const list=owned.map(card).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
+  openModal(`<h3>${slotIcon(slot)} ${slotLabel(slot)} — ${h.name.split(',')[0]}</h3>
+    <div class="row between mt6" style="align-items:center">
+      <span class="tiny muted">${curIt?`Atual: <b>${curIt.name}${eqUpg(heroId,cur)>0?' +'+eqUpg(heroId,cur):''}</b>`:'Nada equipado aqui.'}</span>
+      <span class="pwr-chip">⚡ ${basePower}</span>
+    </div>
+    <p class="tiny muted mt6" style="margin:4px 0 0">Números à frente de cada atributo: <span style="color:#5fd17a">▲ sobe</span> · <span style="color:#ff6d7a">▼ desce</span> vs. o equipado. ⚡ = quanto o <b>poder</b> do herói muda.</p>
     ${cur?`<button class="btn ghost sm mt6" onclick="doEquip('${heroId}','${slot}',null)">Desequipar atual</button>`:''}
     <div class="col mt">${list}</div>`);
 }
