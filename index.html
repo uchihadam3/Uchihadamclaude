@@ -4079,7 +4079,7 @@ function makeEnemy(monster,floor,boss){
   // ATAQUE de referência de um chefe deste andar (usado como TETO para inimigos normais).
   // PV do chefe pode ser gigantesco (luta longa e dramática), mas o ATAQUE não pode explodir
   // ao quadrado — senão nem o melhor equipamento acompanha e vira "sempre a mesma % de PV por golpe".
-  const bossAtk=Math.round((20+floor*4.5+floor*floor*0.004)*dm.stat);
+  const bossAtk=Math.round((20+floor*6+floor*floor*0.006)*dm.stat);
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
     const hp=Math.round((730+floor*floor*43+floor*530)*tideHp*dm.hp);
@@ -4094,7 +4094,7 @@ function makeEnemy(monster,floor,boss){
   // inimigo normal: cresce com o andar SEM explodir — o poder do herói (nível+equipamento) cresce em
   // linha reta, então o quadrático do ATAQUE/PV tem que ser suave. Já a DEFESA pode crescer mais forte
   // (tem teto de mitigação de 78%, nunca zera o dano do jogador) para ficar de fato perceptível.
-  const hpS=2.2+floor*0.55+floor*floor*0.0028, atkS=1+floor*0.15+floor*floor*0.00025, defS=1+floor*0.35+floor*floor*0.003, spdS=1+floor*0.05;
+  const hpS=2.2+floor*0.55+floor*floor*0.0028, atkS=1+floor*0.28+floor*floor*0.0006, defS=1+floor*0.35+floor*floor*0.003, spdS=1+floor*0.05;
   const tideSpd=(RUN&&RUN.tideEnemySpd)||1;   // Maré da Tormenta acelera inimigos
   const maxhp=Math.round(b.hp*hpS*tideHp*dm.hp);
   let natk=Math.round(b.atk*atkS*dm.stat);
@@ -4403,11 +4403,13 @@ function enemyAct(e){
   let tgt=tauntHero||pick(allies());
   if(!tgt)return rtimeout(nextActor,160);
   if(e.boss&&chance(0.38)){
+    // acerta TODOS de uma vez — poder reduzido de propósito (o ataque do chefe está bem mais forte agora,
+    // então essa versão em área precisa de um multiplicador menor pra não derrubar o grupo inteiro de um golpe só)
     logline('☄️ '+e.name+' desencadeia um golpe terrível em todos!','bd');RUN.scene.shake=7;
-    allies().slice().forEach(a=>{const r=computeDamage(e,a,{kind:'mag',pow:0.85});applyDamageToHero(a,r.dmg,r.crit,e);});
+    allies().slice().forEach(a=>{const r=computeDamage(e,a,{kind:'mag',pow:0.5});applyDamageToHero(a,r.dmg,r.crit,e);});
     return rtimeout(nextActor,actDelay());
   }
-  const pow=e.boss&&chance(0.5)?1.5:1;
+  const pow=e.boss&&chance(0.5)?1.3:1;
   const r=computeDamage(e,tgt,{kind:'phys',pow});
   applyDamageToHero(tgt,r.dmg,r.crit,e);
   rtimeout(nextActor,actDelay());
@@ -4527,7 +4529,7 @@ function makeTorreBoss(boss,tf){
   // acima de um chefe equivalente da Adranja, em TODOS os modos (Normal/Difícil/Inferno).
   const dm=diffMul();   // Normal / Difícil / Inferno também valem na Torre
   const hp=Math.round((21800+tf*tf*2370+tf*20000)*dm.hp);
-  const atk=Math.round((100+tf*22+tf*tf*0.3)*dm.stat);   // PV alto = luta longa; ataque quadrático explosivo = morte instantânea, então isso fica mais suave
+  const atk=Math.round((100+tf*29+tf*tf*0.39)*dm.stat);   // ataque bem mais forte, mas sem explodir ao quadrado
   const def=Math.round((45+tf*7+tf*tf*0.06)*dm.stat);   // defesa clara e crescente (mitigação tem teto de 78%, então é seguro)
   const spd=Math.round(8+tf*0.2);
   return {m:boss,name:boss.name,boss:true,torre:true,family:boss.family,el:boss.el,grid:boss.grid,pal:boss.pal,
@@ -4917,7 +4919,9 @@ function grantAbyssItem(L){
 }
 
 function autoConsumables(){
-  const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.15);
+  // limiar mais alto (era 15%): com os inimigos mais fortes agora, um golpe só pode tirar 30-70%+
+  // de uma vez, então esperar até 15% pra curar era tarde demais — o próximo golpe já matava.
+  const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.32);
   if(!low)return;
   if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);const _h=Math.round(Math.min(low.maxhp-low.hp,low.maxhp*0.6*healMul()));low.hp=Math.min(low.maxhp,low.hp+_h);
     floatText('hero',RUN.party.indexOf(low),'+'+_h,'#5fd17a');logline('🍶 Elixir Maior usado em '+actorName(low)+'.','dn');refreshBars();return;}
