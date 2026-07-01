@@ -4082,16 +4082,19 @@ function makeEnemy(monster,floor,boss){
   const bossAtk=Math.round((20+floor*4.5+floor*floor*0.004)*dm.stat);
   if(boss){
     // chefes MUITO mais fortes que inimigos normais: PV alto (lutas longas) e dano pesado
-    const hp=Math.round((520+floor*floor*31+floor*380)*tideHp*dm.hp);
+    const hp=Math.round((730+floor*floor*43+floor*530)*tideHp*dm.hp);
     const atk=bossAtk;
-    const def=Math.round((13+floor*1.6)*dm.stat);
+    // DEFESA de chefe cresce mais rápido (com um toque de quadrático — seguro, pois a mitigação
+    // tem teto de 78%: nunca deixa o jogador incapaz de causar dano, só torna a defesa relevante de verdade)
+    const def=Math.round((18+floor*2.6+floor*floor*0.012)*dm.stat);
     const spd=Math.round(8+floor*0.18);
     return {m:monster,name:monster.name,boss:true,family:monster.family,el:monster.el,
       st:{atk,mag:atk,def,spd,lck:8},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
   }
   // inimigo normal: cresce com o andar SEM explodir — o poder do herói (nível+equipamento) cresce em
-  // linha reta, então o quadrático aqui tem que ser bem suave, senão nenhum equipamento acompanha.
-  const hpS=1.6+floor*0.34+floor*floor*0.0016, atkS=1+floor*0.15+floor*floor*0.00025, defS=1+floor*0.15, spdS=1+floor*0.05;
+  // linha reta, então o quadrático do ATAQUE/PV tem que ser suave. Já a DEFESA pode crescer mais forte
+  // (tem teto de mitigação de 78%, nunca zera o dano do jogador) para ficar de fato perceptível.
+  const hpS=2.2+floor*0.55+floor*floor*0.0028, atkS=1+floor*0.15+floor*floor*0.00025, defS=1+floor*0.35+floor*floor*0.003, spdS=1+floor*0.05;
   const tideSpd=(RUN&&RUN.tideEnemySpd)||1;   // Maré da Tormenta acelera inimigos
   const maxhp=Math.round(b.hp*hpS*tideHp*dm.hp);
   let natk=Math.round(b.atk*atkS*dm.stat);
@@ -4523,9 +4526,9 @@ function makeTorreBoss(boss,tf){
   // desgaste entre eles), então cada um precisa aguentar uma luta longa sozinho: PV bem
   // acima de um chefe equivalente da Adranja, em TODOS os modos (Normal/Difícil/Inferno).
   const dm=diffMul();   // Normal / Difícil / Inferno também valem na Torre
-  const hp=Math.round((15600+tf*tf*1690+tf*14300)*dm.hp);
+  const hp=Math.round((21800+tf*tf*2370+tf*20000)*dm.hp);
   const atk=Math.round((100+tf*22+tf*tf*0.3)*dm.stat);   // PV alto = luta longa; ataque quadrático explosivo = morte instantânea, então isso fica mais suave
-  const def=Math.round((36+tf*4.2)*dm.stat);
+  const def=Math.round((45+tf*7+tf*tf*0.06)*dm.stat);   // defesa clara e crescente (mitigação tem teto de 78%, então é seguro)
   const spd=Math.round(8+tf*0.2);
   return {m:boss,name:boss.name,boss:true,torre:true,family:boss.family,el:boss.el,grid:boss.grid,pal:boss.pal,
     st:{atk,mag:atk,def,spd,lck:12},maxhp:hp,hp,alive:true,dead:false,hit:0,flash:0,fx:{}};
