@@ -2579,7 +2579,8 @@ function tabSquad(b){
    </div>
    <div class="panel">
      <h3 class="mb">📜 Heróis do Acampamento</h3>
-     <div class="grid auto" id="roster">${HEROES.map(rosterCard).join('')}</div>
+     <div class="grid auto" id="roster">${(()=>{const pIdx=id=>{const i=G.meta.party.indexOf(id);return i<0?999:i;};   // equipe no topo (na ordem da equipe)
+        return [...HEROES].sort((a,b)=>pIdx(a.id)-pIdx(b.id)).map(rosterCard).join('');})()}</div>
      <div class="divider"></div>
      <p class="muted tiny">Heróis bloqueados mostram como desbloqueá-los. Há ${HEROES.length} heróis no total — cada um explora a Adranja de um jeito.</p>
    </div>`;
