@@ -3557,7 +3557,7 @@ function encFountain(){
   unlockSecret('fonte');
   logline('⛲ A <b>Fonte das Memórias</b> brilha. Beber dela restaura corpo e mente.','sc');RUN.scene.mode='idle';
   rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');});
-    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.18));
+    RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*2));   // XP modesto (não uma % da barra)
     refreshBars();advanceRoom();},800);
 }
 /* ---- ALTAR PROIBIDO (segredo) ---- */
@@ -3656,7 +3656,7 @@ function encSecretPassage(){
     } else if(variant==='shrine'){
       logline('⛲ Um santuário oculto restaura corpo e mente.','sc');
       RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');}); refreshBars();
-      RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,xpForLevel(c.level)*0.15)); advanceRoom();
+      RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*2)); advanceRoom();   // XP modesto (não uma % da barra)
     } else { // guardião: elite guarda o tesouro
       const pool=MONSTERS.filter(m=>m.elite&&RUN.floor>=m.floors[0]);
       if(pool.length){ const m=pick(pool);unlockSecret('elite');discover('bestiary',m.id);
@@ -3861,7 +3861,7 @@ const EVENTS=[
 {t:'🗿 Uma estátua antiga te encara. Seus olhos seguem o grupo.',go:()=>{
   if(chance(0.5)){grantGold(Math.round(ri(10,25)*RUN.floor));logline('A estátua revela uma cavidade com moedas.','lt');}
   else{logline('A estátua não faz nada... ou faz?','muted');if(chance(0.3))grantMaterial();}}},
-{t:'📜 Um pergaminho mágico flutua no ar. Alguém o lê.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));grantXP(c,xpForLevel(c.level)*0.2);logline(c.h.name.split(',')[0]+' absorve conhecimento arcano! +XP','dn');}},
+{t:'📜 Um pergaminho mágico flutua no ar. Alguém o lê.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));grantXP(c,24+RUN.floor*3);logline(c.h.name.split(',')[0]+' absorve conhecimento arcano! +XP','dn');}},
 {t:'🕳️ O chão cede! O grupo despenca para o próximo andar.',go:()=>{logline('Vocês caem um andar abaixo — atalho perigoso!','bd');dmgAll(0.06,'a queda');RUN.room=RUN.roomsTotal;}},
 {t:'👻 Um espírito gentil oferece uma bênção.',go:()=>{const c=pick(RUN.party.filter(p=>p.alive));c.st.atk=Math.round(c.st.atk*1.15);logline(c.h.name.split(',')[0]+' recebe +15% de ataque permanente nesta incursão!','sc');}},
 {t:'💀 Restos de um esquadrão anterior. Saquear seus corpos?',go:()=>{if(chance(0.45))grantEquipment();else if(chance(0.5))grantMaterial();else{grantGold(Math.round(ri(10,25)*RUN.floor));logline('Só restaram algumas moedas.','muted');}}},
