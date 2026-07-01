@@ -292,6 +292,14 @@ h3{font-size:18px;}
 .eqsrow .d{flex:1;font-size:10.5px;font-family:'Cinzel';font-weight:800;}
 .eqsrow .d.up{color:#5fd17a;} .eqsrow .d.down{color:#ff6d7a;} .eqsrow .d.same{color:var(--dim);}
 .eqnote{font-size:10.5px;margin-top:6px;}
+/* ---- bênçãos do Abismo ---- */
+.boon{display:flex;gap:10px;align-items:center;padding:10px;border-radius:12px;margin-bottom:8px;cursor:pointer;
+  background:linear-gradient(180deg,rgba(64,36,96,.92),rgba(40,20,64,.92));border:1px solid #6a3a9a;transition:transform .1s,border-color .12s,box-shadow .12s;}
+.boon:hover{border-color:#a14bff;box-shadow:0 0 14px rgba(161,75,255,.35);transform:translateY(-1px);}
+.boon:active{transform:scale(.99);}
+.boon .boon-ic{width:44px;height:44px;flex:0 0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;
+  background:radial-gradient(circle at 40% 35%,rgba(161,75,255,.5),rgba(20,10,32,.9));border:1px solid #8b4ff0;}
+.boon b{font-size:14px;}
 </style>
 </head>
 <body>
@@ -1561,6 +1569,15 @@ const ITEMS=[
 {id:'twi_talisma',name:'Selo do Trono',icon:'🔆',type:'talisma',slot:'talisma',rarity:'secreto',tower:true,mode:'inferno',stats:{atk:38,mag:38,def:34,spd:14,lck:24},desc:'O selo do topo absoluto da Torre.'},
 /* despojo do CHEFE SECRETO da Torre */
 {id:'tw_secret',name:'Algema do Carcereiro',icon:'⛓️',type:'bracelete',slot:'bracelete',rarity:'secreto',tower:true,towerSecret:true,stats:{atk:52,def:22,spd:14,lck:16},desc:'Arrancada do Carcereiro Esquecido, guardião oculto da Torre.'},
+/* ---- RELÍQUIAS DO ABISMO (só dos Horrores Abissais) ---- */
+{id:'ab_arma_atk',name:'Presa do Vazio Faminto',icon:'🦷',type:'arma',slot:'arma',rarity:'celestial',abyss:true,stats:{atk:62,spd:8,lck:12},desc:'Morde a realidade e nunca se sacia.'},
+{id:'ab_arma_mag',name:'Orbe do Abismo',icon:'🔮',type:'arma',slot:'arma',rarity:'celestial',abyss:true,stats:{mag:64,lck:14,hp:30},desc:'Dentro dele, mil estrelas se afogam.'},
+{id:'ab_armadura',name:'Carapaça Devoradora',icon:'🐚',type:'armadura',slot:'armadura',rarity:'celestial',abyss:true,stats:{hp:200,def:54,spd:6},desc:'Cresce comendo o dano que recebe.'},
+{id:'ab_elmo',name:'Coroa do Faminto',icon:'👁️',type:'elmo',slot:'elmo',rarity:'celestial',abyss:true,stats:{def:28,mag:26,hp:66,lck:8},desc:'Vê fundo demais no escuro.'},
+{id:'ab_bracelete',name:'Garra Insaciável',icon:'🖐️',type:'bracelete',slot:'bracelete',rarity:'celestial',abyss:true,stats:{atk:30,lck:10,spd:8},desc:'Agarra e não devolve.'},
+{id:'ab_grevas',name:'Passos do Sem-Fundo',icon:'🌀',type:'grevas',slot:'grevas',rarity:'celestial',abyss:true,stats:{spd:24,def:14,lck:12},desc:'Caminham sobre o nada.'},
+{id:'ab_acessorio',name:'Coração do Abismo',icon:'🟣',type:'acessorio',slot:'acessorio',rarity:'celestial',abyss:true,stats:{atk:20,mag:20,hp:70,lck:16},desc:'Bate uma vez a cada era.'},
+{id:'ab_talisma',name:'Selo do Insaciável',icon:'☯️',type:'talisma',slot:'talisma',rarity:'secreto',abyss:true,stats:{atk:30,mag:30,def:24,spd:10,lck:18},desc:'Quanto mais fundo você desce, mais ele sussurra.'},
 ];
 /* ===== EQUIPAMENTO PROGRESSIVO POR PROFUNDIDADE =====
    Gera famílias de itens por FAIXA de andar. Itens mais fundos têm o mesmo
@@ -1718,7 +1735,7 @@ function defaultMeta(){
   const heroes={};
   HEROES.forEach(h=>{heroes[h.id]={unlocked:!!h.start,level:1,xp:0,maxLevelEver:1,equip:{arma:null,elmo:null,armadura:null,bracelete:null,grevas:null,acessorio:null,talisma:null}};});
   return{
-    version:1, essence:0, gold:0, deepestFloor:0, torreDeepest:0, runs:0, totalKills:0,
+    version:1, essence:0, gold:0, deepestFloor:0, torreDeepest:0, abyssDeepest:0, runs:0, totalKills:0,
     tamedCount:0, craftedCount:0, bossesKilled:[], bestiaryKills:{}, eliteKills:0,
     heroes, inventory:{}, party:['cartografo','guerreiro','cleriga'],
     research:{}, researchActive:null, // {id,end}
@@ -1812,7 +1829,7 @@ function normName(s){return (s||'').trim().toLowerCase().replace(/\s+/g,'_').rep
 function heroesUnlockedCount(){return Object.values(G.meta.heroes||{}).filter(h=>h.unlocked).length;}
 function computeScoreOf(m){m=m||G.meta;
   const heroes=Object.values(m.heroes||{}).filter(h=>h.unlocked).length;
-  return Math.round((m.deepestFloor||0)*100 + (m.torreDeepest||0)*300 + (m.bossesKilled||[]).length*180
+  return Math.round((m.deepestFloor||0)*100 + (m.torreDeepest||0)*300 + (m.abyssDeepest||0)*260 + (m.bossesKilled||[]).length*180
     + heroes*350 + (m.totalKills||0)*2
     + ((m.flags&&m.flags.beatGame)?6000:0) + ((m.flags&&m.flags.beatTorre)?12000:0));}
 function computeScore(){return computeScoreOf(G.meta);}
@@ -2135,8 +2152,12 @@ function openAudioSettings(){Sound.init();
 function audioToggle(btn){const on=Sound.toggle();btn.textContent=on?'🔊 Som Ligado':'🔇 Som Desligado';btn.classList.toggle('ghost',!on);if(on)applyMusic();
   const ab=document.querySelector('.audio-btn');if(ab)ab.textContent=on?'🔊':'🔇';}
 let _equipGains=null;   // ganhos do "equipar melhores", mostrados até sair da ficha
+let _lockModal=false;   // trava o modal (escolha obrigatória, ex.: bênçãos do Abismo)
 function closeModal(){$('#overlay').classList.remove('show');_nav=[];_equipGains=null;}
-$('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay')navClose();});
+// modal OBRIGATÓRIO (sem X, não fecha ao clicar fora) — para escolhas que não podem ser puladas
+function openLockedModal(html){_lockModal=true;$('#modal').innerHTML=html;$('#overlay').classList.add('show');mountItemIcons($('#modal'));}
+function closeLockedModal(){_lockModal=false;closeModal();}
+$('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay'){if(_lockModal)return;navClose();}});
 
 const STAT_LBL={hp:'PV',atk:'ATQ',def:'DEF',mag:'MAG',spd:'VEL',lck:'SOR'};
 const LBL_ORDER=['hp','atk','def','mag','spd','lck'];
@@ -2418,8 +2439,10 @@ function tabSquad(b){
        <div class="row wrap" style="gap:8px">
          <button class="btn" style="flex:1;min-width:180px" ${party.length===0?'disabled':''} onclick="startRunFlow()">🏰 Adranja (200 andares) ▶</button>
          <button class="btn ${torreUnlocked()?'':'ghost'}" style="flex:1;min-width:180px" ${(party.length===0||!torreUnlocked())?'disabled':''} onclick="startTorreFlow()">🗼 Torre dos Tiranos (50)${torreUnlocked()?'':' 🔒'}</button>
+         <button class="btn ${abyssUnlocked()?'':'ghost'}" style="flex:1;min-width:180px;${abyssUnlocked()?'background:linear-gradient(180deg,#a14bff,#6a1fb0)':''}" ${(party.length===0||!abyssUnlocked())?'disabled':''} onclick="startAbyssFlow()">🕳️ O Abismo Faminto${abyssUnlocked()?' ∞':' 🔒'}</button>
        </div>
-       <p class="tiny muted mt6">${torreUnlocked()?'A Torre é o end-game: 50 tiranos, batalhas longas e brutais.':'🔒 Torre dos Tiranos: alcance o Andar 50 da Adranja para abri-la.'}${(G.meta.torreDeepest||0)>0?` · Recorde na Torre: Andar ${G.meta.torreDeepest}`:''}</p>`}
+       <p class="tiny muted mt6">${torreUnlocked()?'A Torre é o end-game: 50 tiranos, batalhas longas e brutais.':'🔒 Torre dos Tiranos: alcance o Andar 50 da Adranja para abri-la.'}${(G.meta.torreDeepest||0)>0?` · Recorde na Torre: Andar ${G.meta.torreDeepest}`:''}</p>
+       <p class="tiny muted mt6">${abyssUnlocked()?'🕳️ <b>O Abismo Faminto</b>: camadas infinitas, escolha bênçãos e empurre a sorte — extraia antes de cair!':'🔒 O Abismo Faminto: alcance o Andar 30 da Adranja para abri-lo.'}${(G.meta.abyssDeepest||0)>0?` · Recorde no Abismo: Camada ${G.meta.abyssDeepest}`:''}</p>`}
    </div>
    <div class="panel">
      <h3 class="mb">📜 Heróis do Acampamento</h3>
@@ -3211,8 +3234,9 @@ function updateRunRes(){const e=$('#rEss'),g=$('#rGold'),k=$('#rKills');if(e)e.t
   updateFloorBadge();updateCampBanner();}
 function updateCampBanner(){ if(!RUN)return; const fl=$('#crbFloor'); if(fl)fl.textContent='🏰 Andar '+RUN.floor;
   const hp=$('#crbHp'); if(hp)hp.innerHTML=RUN.party.map(c=>`<span style="color:${c.alive?(c.hp/c.maxhp<0.35?'var(--bad)':'var(--ok)'):'#666'}">${c.h.name.split(',')[0].slice(0,4)} ${c.alive?Math.ceil(c.hp):'☠'}</span>`).join(' · '); }
-function updateFloorBadge(){const fb=$('#floorBadge');if(fb)fb.textContent='🏰 Andar '+RUN.floor;
-  const rc=$('#regionChip');if(rc)rc.textContent=floorTheme(RUN.floor).name;}
+function dungeonLabel(){return RUN.dungeon==='torre'?'🗼 Andar':(RUN.dungeon==='abismo'?'🕳️ Camada':'🏰 Andar');}
+function updateFloorBadge(){const fb=$('#floorBadge');if(fb)fb.textContent=dungeonLabel()+' '+RUN.floor;
+  const rc=$('#regionChip');if(rc)rc.textContent=RUN.dungeon==='abismo'?'O Abismo Faminto':floorTheme(RUN.floor).name;}
 function updatePartyMini(){const host=$('#partyMini');if(!host)return;
   host.innerHTML=RUN.party.map(c=>`<div class="pm ${c.alive?'':'dead'}" id="pm_${c.id}">
     <div data-sprite-mini="${c.id}"></div>
@@ -3723,7 +3747,7 @@ function grantEquipment(minRar,cap){
   }
   const rar=rarityRoll(minRar,cap);
   const curTier=bandTier((typeof RUN!=='undefined'&&RUN)?RUN.floor:1);
-  let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar&&!i.tower&&modeOK(i));
+  let pool=ITEMS.filter(i=>isEquip(i)&&i.rarity===rar&&!i.tower&&!i.abyss&&modeOK(i));
   // se há itens GERADOS desta raridade, restringe à faixa de profundidade (loot evolui com o andar)
   const banded=pool.filter(i=>i.band!==undefined);
   if(banded.length){
@@ -3731,8 +3755,8 @@ function grantEquipment(minRar,cap){
     const useTier=avail.length?Math.max(...avail.map(i=>i.band)):Math.min(...banded.map(i=>i.band));
     pool=banded.filter(i=>i.band===useTier);
   }
-  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar)&&i.band===undefined&&!i.tower&&modeOK(i));
-  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&!i.tower&&modeOK(i));
+  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&RARS.indexOf(i.rarity)<=RARS.indexOf(rar)&&i.band===undefined&&!i.tower&&!i.abyss&&modeOK(i));
+  if(!pool.length)pool=ITEMS.filter(i=>isEquip(i)&&!i.tower&&!i.abyss&&modeOK(i));
   const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🎁 Equipamento achado: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);
@@ -3803,6 +3827,12 @@ function downHero(c){c.alive=false;c.hp=0;
   tryRevive(c);
 }
 function tryRevive(c){
+  // cargas de ressurreição do Abismo (bênção "Segunda Chance") — consome uma por morte
+  if(RUN.reviveCharges&&RUN.reviveCharges>0){
+    RUN.reviveCharges--;c.alive=true;c.hp=Math.round(c.maxhp*0.5);
+    logline('🪞 <b>Segunda Chance!</b> '+c.h.name.split(',')[0]+' renasce das sombras.','dn');
+    floatText('hero',RUN.party.indexOf(c),'REVIVE','#a14bff');refreshBars();return;
+  }
   // revive de grupo (pesquisa) — uma vez por incursão
   if(!RUN._revivedParty){
     const palaAlive=RUN.party.some(p=>p.alive&&p.h.passive.tags&&p.h.passive.tags.reviveOnce);
@@ -4092,6 +4122,8 @@ function hitEnemy(att,e,skill){
   }
   // lifesteal por passiva
   if(att.h&&att.h.passive.tags&&att.h.passive.tags.lifesteal){const heal=Math.round(r.dmg*att.h.passive.tags.lifesteal);att.hp=Math.min(att.maxhp,att.hp+heal);}
+  // lifesteal de bênção do Abismo (todos os heróis)
+  if(att.h&&RUN.abyssLifesteal){const heal=Math.round(r.dmg*RUN.abyssLifesteal);att.hp=Math.min(att.maxhp,att.hp+heal);}
   if(att.fx.critmax){att.fx.critmax--;}
   if(e.hp<=0)killEnemy(e);
   refreshBars();
@@ -4106,6 +4138,7 @@ function computeDamage(att,def,skill){
     if(RUN.passive.beastBane&&def.family==='fera')raw*=1+RUN.passive.beastBane;
     if(t.rage)raw*=1+t.rage*(1-att.hp/att.maxhp);
     if(t.darkPower)raw*=1+t.darkPower;if(t.allMastery)raw*=1+t.allMastery;}
+  if(heroAtt&&RUN.dmgMul)raw*=RUN.dmgMul;                     // bênçãos do Abismo: +dano causado
   if(skill&&skill.el==='sagrado'&&(def.family==='morto-vivo'||def.family==='demonio'))raw*=1.6;
   if(def.fx&&def.fx.curse)raw*=1.25;
   raw*=rnd(0.86,1.14);
@@ -4173,11 +4206,12 @@ function applyDamageToHero(c,dmg,crit,attacker){
   let avoid=(t.dodge||0)+(t.phase||0);if(c.fx.evade)avoid=1;
   if(avoid>0&&chance(avoid)){if(idx>=0)floatText('hero',idx,'esquiva!','#67d8ff');logline(actorName(c)+' esquiva do golpe!','muted');c.fx.evade=0;return;}
   if(RUN.passive.enemyDmg)dmg=Math.round(dmg*(1+RUN.passive.enemyDmg));   // marés que reforçam inimigos
+  if(RUN.dmgTakenMul&&RUN.dmgTakenMul!==1)dmg=Math.max(1,Math.round(dmg*RUN.dmgTakenMul));   // bênçãos do Abismo: -dano recebido
   c.hp-=dmg;RUN.scene.shake=Math.max(RUN.scene.shake,crit?6:3);sfx('enemyhit');
   if(idx>=0){floatText('hero',idx,'-'+dmg,crit?'#ff5d6c':'#ffb0b0');sceneSpark('hero',idx,'#ff5d6c');}
-  // espinhos / thorns
-  if(attacker&&attacker.alive){const th=(t.thorns||0)+(RUN.passive.thorns&&c.fx.taunt?0:0);
-    if(t.thorns){const ref=Math.round(dmg*t.thorns);attacker.hp-=ref;const ei=RUN.scene.enemies.indexOf(attacker);floatText('enemy',Math.max(0,ei),'-'+ref,'#ffd166');if(attacker.hp<=0)killEnemy(attacker);if(attacker.boss)updateBossBar(attacker);}}
+  // espinhos / thorns (passiva do herói + bênção do Abismo aplicada a todos)
+  if(attacker&&attacker.alive){const th=(t.thorns||0)+(RUN.abyssThorns||0);
+    if(th>0){const ref=Math.round(dmg*th);attacker.hp-=ref;const ei=RUN.scene.enemies.indexOf(attacker);floatText('enemy',Math.max(0,ei),'-'+ref,'#ffd166');if(attacker.hp<=0)killEnemy(attacker);if(attacker.boss)updateBossBar(attacker);}}
   c.fx.evade=0;
   if(c.hp<=0){c.hp=0;if(c.isMinion){c.alive=false;logline('🌀 O aliado invocado se desfez.','muted');}else downHero(c);}
   refreshBars();
@@ -4422,6 +4456,215 @@ function startTorreFlow(){
   showPreRunScreen();
 }
 
+/* ============================================================================
+   🕳️ O ABISMO FAMINTO — terceira dungeon, TOTALMENTE diferente.
+   Roguelite ENDLESS + "empurre a sorte": camadas infinitas, cada vitória você
+   ESCOLHE uma Bênção do Abismo (que se acumulam) ou EXTRAI para garantir o loot.
+   A essência/ouro ganhos ficam em RISCO até você extrair — se cair, perde 80%.
+   Sem descanso: só sobrevive quem monta uma boa combinação de bênçãos.
+   ============================================================================ */
+function abyssUnlocked(){return (G.meta.deepestFloor||0)>=30;}
+const ABYSS_BOONS=[
+  {id:'fury',   ic:'🔥',n:'Fúria Abissal',     d:'+12% de dano causado.',                    ap:r=>{r.dmgMul=(r.dmgMul||1)+0.12;}},
+  {id:'stone',  ic:'🪨',n:'Pele de Pedra',     d:'-10% de dano recebido.',                   ap:r=>{r.dmgTakenMul=Math.max(0.4,(r.dmgTakenMul||1)-0.10);}},
+  {id:'leech',  ic:'🩸',n:'Sanguessuga',       d:'+8% de roubo de vida ao grupo inteiro.',   ap:r=>{r.abyssLifesteal=(r.abyssLifesteal||0)+0.08;}},
+  {id:'haste',  ic:'⚡',n:'Presteza',          d:'+12% de velocidade do grupo.',             ap:r=>{r.party.forEach(c=>c.st.spd=Math.round(c.st.spd*1.12));}},
+  {id:'eye',    ic:'🎯',n:'Olho Fatal',        d:'+10% de chance de crítico.',               ap:r=>{r.passive.critBonus=(r.passive.critBonus||0)+0.10;}},
+  {id:'arcane', ic:'🔮',n:'Canalização',       d:'+15% de dano mágico.',                     ap:r=>{r.passive.spellAmp=(r.passive.spellAmp||0)+0.15;}},
+  {id:'vigor',  ic:'💚',n:'Vigor Abissal',     d:'+15% de PV máximo e cura o grupo.',        ap:r=>{r.party.forEach(c=>{c.maxhp=Math.round(c.maxhp*1.15);c.st.maxhp=c.maxhp;c.hp=c.maxhp;});refreshBars();}},
+  {id:'echo',   ic:'🌀',n:'Eco Temporal',      d:'+8% de chance do grupo agir de novo.',     ap:r=>{r.passive.extraTurn=(r.passive.extraTurn||0)+0.08;}},
+  {id:'breath', ic:'✨',n:'Fôlego do Vazio',   d:'Cura 60% da vida do grupo agora.',         ap:r=>{r.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.6);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();}},
+  {id:'greed',  ic:'⚱️',n:'Ganância',          d:'+30% de essência ganha no Abismo.',        ap:r=>{r.abyssEssMul=(r.abyssEssMul||1)+0.30;}},
+  {id:'mirror', ic:'🪞',n:'Segunda Chance',    d:'+1 ressurreição automática de herói.',     ap:r=>{r.reviveCharges=(r.reviveCharges||0)+1;}},
+  {id:'thorn',  ic:'🌵',n:'Carapaça de Espinhos',d:'Reflete +15% do dano recebido.',         ap:r=>{r.abyssThorns=(r.abyssThorns||0)+0.15;}},
+  {id:'first',  ic:'⚔️',n:'Primeiro Golpe',    d:'O grupo sempre ataca primeiro na rodada 1.',ap:r=>{r.passive.firstStrike=1;}},
+  {id:'pack',   ic:'🐺',n:'Instinto da Matilha',d:'+18% de dano e -6% de dano recebido.',     ap:r=>{r.dmgMul=(r.dmgMul||1)+0.18;r.dmgTakenMul=Math.max(0.4,(r.dmgTakenMul||1)-0.06);}},
+  {id:'gold',   ic:'💰',n:'Veia de Ouro',      d:'+40% de ouro ganho no Abismo.',            ap:r=>{r.abyssGoldMul=(r.abyssGoldMul||1)+0.40;}},
+  {id:'shadow', ic:'🗡️',n:'Precisão Sombria',  d:'+12% de dano e +8% de crítico.',           ap:r=>{r.dmgMul=(r.dmgMul||1)+0.12;r.passive.critBonus=(r.passive.critBonus||0)+0.08;}},
+];
+const ABYSS_AFFIXES=[
+  {id:'rage', ic:'😡',n:'Enfurecidos', d:'inimigos com +30% de ataque', ap:e=>{e.st.atk=Math.round(e.st.atk*1.3);e.st.mag=Math.round(e.st.mag*1.3);}},
+  {id:'armor',ic:'🛡️',n:'Couraçados',  d:'inimigos com +50% de defesa', ap:e=>{e.st.def=Math.round(e.st.def*1.5);}},
+  {id:'tough',ic:'💪',n:'Colossais',   d:'inimigos com +35% de vida',   ap:e=>{e.maxhp=Math.round(e.maxhp*1.35);e.hp=e.maxhp;}},
+  {id:'swift',ic:'💨',n:'Velozes',     d:'inimigos com +35% de velocidade',ap:e=>{e.st.spd=Math.round(e.st.spd*1.35);}},
+  {id:'venom',ic:'☠️',n:'Peçonhentos', d:'inimigos com +20% de vida e ataque',ap:e=>{e.maxhp=Math.round(e.maxhp*1.2);e.hp=e.maxhp;e.st.atk=Math.round(e.st.atk*1.2);}},
+];
+function startAbyssFlow(){
+  if(RUN&&RUN.alive){returnToRun();return;}
+  if(!abyssUnlocked()){toast('Alcance o Andar 30 da Adranja para abrir o Abismo.','warn');return;}
+  const party=G.meta.party.filter(id=>G.meta.heroes[id].unlocked);
+  if(party.length===0){toast('Monte uma equipe primeiro.','warn');return;}
+  Sound.init();Sound.resume();
+  openModal(`<h2 style="color:#a14bff">🕳️ O Abismo Faminto</h2>
+    <p class="small muted mt6">Uma fenda sem fundo que devora heróis. <b>Não há andares nem fim</b> — só <b>camadas</b> cada vez piores, para sempre.</p>
+    <div class="panel mt" style="border-color:#a14bff;background:rgba(161,75,255,.10)">
+      <p class="small" style="margin:0"><b>🎁 A cada camada vencida você ESCOLHE:</b></p>
+      <p class="tiny mt6" style="margin:4px 0 0">• <b style="color:#5fd17a">Uma Bênção do Abismo</b> (de 3 sorteadas) — elas se <b>acumulam</b> e montam sua build.</p>
+      <p class="tiny" style="margin:2px 0 0">• Ou <b style="color:var(--gold)">Extrair</b> — sair em segurança com tudo que juntou.</p>
+    </div>
+    <div class="panel mt" style="border-color:var(--bad);background:rgba(255,93,108,.08)">
+      <p class="tiny" style="margin:0"><b style="color:var(--bad)">⚠️ Empurre a sorte:</b> a essência e o ouro do Abismo ficam <b>em risco</b> até você extrair. Se o grupo <b>cair</b>, você perde <b>80%</b> deles. O equipamento achado é sempre seu.</p>
+      <p class="tiny" style="margin:4px 0 0">Sem salas de descanso. A cada 3 camadas os inimigos ganham um <b>reforço</b>, e a cada 5 surge um <b>Horror Abissal</b> com loot único.</p>
+    </div>
+    <div class="row mt" style="justify-content:center"><button class="btn" style="background:linear-gradient(180deg,#a14bff,#6a1fb0)" onclick="confirmAbyss()">Mergulhar no Abismo 🕳️</button></div>`);
+}
+function confirmAbyss(){
+  closeModal();const party=G.meta.party.filter(id=>G.meta.heroes[id].unlocked);
+  G.meta.runs++;saveGame();
+  initRun(party,[],1,'abismo','normal');
+  RUN.vaultTag=true; RUN.boons=[]; RUN.dmgMul=1; RUN.dmgTakenMul=1;
+  RUN.abyssLifesteal=0; RUN.abyssThorns=0; RUN.abyssEssMul=1; RUN.abyssGoldMul=1; RUN.reviveCharges=0;
+  CUR.screen='dungeon';renderDungeon();music('explore');
+  rtimeout(()=>abyssBegin(),700);
+}
+function abyssEffFloor(L){return Math.round(6+L*3.5);}   // curva de força infinita (camada 10 ≈ andar 41)
+function abyssBegin(){ if(!RUN||!RUN.alive)return; abyssWave(); }
+function abyssWave(){
+  if(!RUN||!RUN.alive)return;
+  const L=RUN.floor; const eff=abyssEffFloor(L);
+  updateFloorBadge();
+  const isHorror=(L%5===0);
+  // reforço (affix) a cada 3 camadas
+  RUN._affix=(L>=3&&L%3===0)?pick(ABYSS_AFFIXES):null;
+  logline(`<span class="sc">🕳️ <b>Abismo — Camada ${L}</b>${isHorror?' — algo colossal desperta nas trevas...':''}</span>`,'sc');
+  if(RUN._affix)logline(`⚠️ Reforço: <b style="color:var(--bad)">${RUN._affix.ic} ${RUN._affix.n}</b> (${RUN._affix.d}).`,'bd');
+  toast('🕳️ Camada '+L,'epico');
+  let enemies=[];
+  if(isHorror){
+    const bossPool=BOSSES.filter(b=>!b.secret&&!b.torre);
+    const bd=bossPool[(L/5)%bossPool.length]||BMAP.guardiao;
+    const e=makeEnemy(bd,eff,true); e.maxhp=Math.round(e.maxhp*1.25); e.hp=e.maxhp;
+    e.name='Horror Abissal · '+bd.name; enemies=[e];
+  } else {
+    let pool=enemyPoolFor(Math.min(eff,200)); if(!pool.length)pool=MONSTERS;
+    const n=Math.min(5,2+Math.floor(L/4));
+    for(let i=0;i<n;i++){const m=pick(pool);enemies.push(makeEnemy(m,eff,false));}
+  }
+  if(RUN._affix)enemies.forEach(e=>RUN._affix.ap(e));
+  RUN._waveCount=enemies.length;
+  logline('⚔️ '+enemies.map(e=>e.name).join(', ')+'!','cb');
+  enemies.forEach(e=>{if(e.m&&e.m.id)discover('bestiary',e.m.id);});
+  if(isHorror){sfx('roar');bossCard(enemies[0].name,'A camada respira. Algo imenso te encara.',true);showBossBar(enemies[0]);}
+  beginCombat(enemies,{boss:isHorror,abyss:true,onWin:()=>abyssCleared()});
+}
+function abyssCleared(){
+  if(!RUN||!RUN.alive)return;
+  hideBossBar();
+  const L=RUN.floor; const isHorror=(L%5===0);
+  RUN.kills+=(RUN._waveCount||1); G.meta.totalKills+=(RUN._waveCount||1);
+  if(isHorror){RUN.bossKills=(RUN.bossKills||0)+1;RUN.bestCombo=Math.max(RUN.bestCombo||0,RUN.bossKills);}
+  // XP escala com a profundidade
+  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,(isHorror?26:9)+L*2));
+  // RECOMPENSAS EM RISCO (ficam no "cofre" = RUN.essence/RUN.gold; só vão pra conta ao extrair)
+  const ess=Math.round((12+L*6)*(RUN.abyssEssMul||1)); const gold=Math.round((16+L*9)*(RUN.abyssGoldMul||1));
+  RUN.essence+=ess; RUN.gold+=gold; updateRunRes();
+  logline(`💠 +${ess} essência · 🪙 +${gold} ouro <span class="tiny muted">(no cofre — extraia para garantir)</span>`,'lt');
+  // ITENS (sempre seus): Horror garante loot, camadas comuns às vezes
+  if(isHorror){ grantMaterial(L>=25?'lendario':'epico'); if(chance(0.75))grantAbyssItem(L); else grantEquipment(L>=30?'divino':L>=15?'mitico':'lendario',false); }
+  else if(chance(0.16))grantMaterial();
+  G.meta.abyssDeepest=Math.max(G.meta.abyssDeepest||0,L);
+  checkUnlocks();saveGame();
+  rtimeout(()=>showAbyssChoice(L),650);
+}
+function abyssBoonCard(b){
+  return `<div class="boon" onclick="abyssDraft('${b.id}')">
+    <div class="boon-ic">${b.ic}</div>
+    <div style="flex:1"><b>${b.n}</b><br><span class="tiny" style="color:#cbb6ff">${b.d}</span></div>
+    <span class="chip" style="color:#5fd17a;border-color:#5fd17a">Escolher</span></div>`;
+}
+function showAbyssChoice(L){
+  if(!RUN)return;
+  // 3 bênçãos sorteadas
+  const opts=[]; const pool=ABYSS_BOONS.slice();
+  while(opts.length<3&&pool.length){opts.push(pool.splice(Math.floor(Math.random()*pool.length),1)[0]);}
+  RUN._boonOpts=opts;
+  const activeN=RUN.boons.length;
+  openLockedModal(`<h2 style="color:#a14bff">🕳️ Camada ${L} vencida!</h2>
+    <div class="row between mt6" style="align-items:center">
+      <span class="tiny muted">Bênçãos ativas: <b style="color:#5fd17a">${activeN}</b></span>
+      <span class="pwr-chip" style="background:linear-gradient(180deg,#c9a2ff,#8b4ff0);color:#fff">💠 ${bal(RUN.essence)} · 🪙 ${bal(RUN.gold)} no cofre</span>
+    </div>
+    <p class="tiny muted mt6" style="margin:6px 0">Escolha <b style="color:#5fd17a">uma bênção</b> para descer à camada ${L+1}, ou <b style="color:var(--gold)">extraia</b> para garantir o que juntou.</p>
+    <div class="col mt6">${opts.map(abyssBoonCard).join('')}</div>
+    <div class="divider"></div>
+    <div class="row" style="justify-content:center;gap:8px">
+      <button class="btn" style="background:linear-gradient(180deg,var(--gold),#b8860b);color:#1a1204" onclick="abyssExtract()">💰 Extrair (garantir ${bal(RUN.essence)} 💠 · ${bal(RUN.gold)} 🪙)</button>
+    </div>
+    <p class="tiny muted mt6" style="text-align:center">Ativas: ${RUN.boons.length?RUN.boons.map(id=>{const b=ABYSS_BOONS.find(x=>x.id===id);return b?b.ic:'';}).join(' '):'nenhuma ainda'}</p>`);
+}
+function abyssDraft(boonId){
+  if(!RUN)return; const b=ABYSS_BOONS.find(x=>x.id===boonId); if(!b)return;
+  if(!RUN._boonOpts||!RUN._boonOpts.find(x=>x.id===boonId))return;   // só entre as 3 ofertadas
+  b.ap(RUN); RUN.boons.push(boonId); RUN._boonOpts=null;
+  closeLockedModal(); sfx('levelup'); toast(b.ic+' '+b.n+'!','lendario');
+  RUN.floor++; rtimeout(()=>abyssWave(),600);
+}
+function abyssExtract(){
+  if(!RUN)return; closeLockedModal(); abyssEnd('extract');
+}
+function abyssEnd(reason){
+  const extracted=(reason==='extract');
+  const L=RUN.floor;                       // camada atual
+  const cleared=extracted?L:Math.max(0,L-1);   // até onde REALMENTE limpou
+  let ess=RUN.essence||0, gold=RUN.gold||0;
+  if(!extracted){ ess=Math.round(ess*0.2); gold=Math.round(gold*0.2); }   // caiu: só 20% de consolação
+  G.meta.essence+=ess; G.meta.gold+=gold;
+  if(cleared>(G.meta.abyssDeepest||0))G.meta.abyssDeepest=cleared;
+  const s={reason, dungeon:'abismo', cleared, boons:(RUN.boons||[]).slice(),
+    kills:RUN.kills||0, bossKills:RUN.bossKills||0, equipFound:RUN.equipFound||0,
+    ess, gold, lost:!extracted, deepest:G.meta.abyssDeepest||0,
+    dur:Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000))};
+  if(_sceneRAF)cancelAnimationFrame(_sceneRAF);_sceneRAF=null;
+  RUN=null;checkUnlocks();saveGame();
+  try{Rank.submit();if(typeof Account!=="undefined")Account.cloudSaveNow();}catch(e){}
+  CUR.screen='result';showAbyssResult(s);
+}
+function showAbyssResult(s){
+  const win=(s.reason==='extract');
+  if(win){music('camp');sfx('chest');}else{Sound.stop();sfx('death');}
+  const mm=Math.floor(s.dur/60),ss=s.dur%60;const durStr=(mm?mm+'m ':'')+ss+'s';
+  const boonIcons=s.boons.map(id=>{const b=ABYSS_BOONS.find(x=>x.id===id);return b?`<span class="chip" title="${b.n}">${b.ic} ${b.n}</span>`:'';}).join(' ')||'<span class="tiny muted">nenhuma</span>';
+  const sj=JSON.stringify({reason:s.reason,dungeon:'abismo',floor:s.cleared,cleared:s.cleared,kills:s.kills,essence:s.ess,gold:s.gold,bossKills:s.bossKills,equipFound:s.equipFound,dur:s.dur}).replace(/'/g,'&#39;');
+  APP.innerHTML=`<div class="screen active" style="justify-content:flex-start;overflow:auto;padding:14px">
+    <div class="panel parch center" style="max-width:540px;margin:auto;border-color:#a14bff">
+      <div style="font-size:56px">${win?'💰🕳️':'💀🕳️'}</div>
+      <h1 style="color:${win?'var(--gold)':'var(--bad)'};font-size:24px;margin:2px 0">${win?'Você EXTRAIU do Abismo!':'O Abismo te devorou'}</h1>
+      <div class="row center" style="justify-content:center;gap:8px;margin:6px 0">
+        <span class="chip" style="color:#a14bff;border-color:#a14bff">🕳️ O Abismo Faminto</span>
+        <span class="chip" style="font-family:Cinzel;color:var(--gold);border-color:var(--gold)">Camada ${s.cleared}</span>
+      </div>
+      <p class="small muted">${win?'Você emerge com os bolsos cheios. Tudo que juntou é <b>seu</b>.':'Seus heróis caem no vazio — você perde <b>80%</b> do que estava no cofre. Mas níveis, itens e recordes continuam com você.'}</p>
+      <div class="divider"></div>
+      <div class="kvs" style="max-width:340px;margin:0 auto">
+        <span>🕳️ Camada alcançada</span><b>${s.cleared}</b>
+        <span>🏆 Recorde no Abismo</span><b>${s.deepest}</b>
+        <span>💀 Inimigos derrotados</span><b>${s.kills}</b>
+        <span>👹 Horrores derrotados</span><b>${s.bossKills}</b>
+        <span>🎁 Equipamentos achados</span><b>${s.equipFound}</b>
+        <span>💠 Essência ${win?'garantida':'salva (20%)'}</span><b>${fmt(s.ess)}</b>
+        <span>🪙 Ouro ${win?'garantido':'salvo (20%)'}</span><b>${fmt(s.gold)}</b>
+        <span>⏱️ Duração</span><b>${durStr}</b>
+      </div>
+      <div class="mt6" style="text-align:center"><span class="tiny muted">Bênçãos reunidas:</span><br><div class="row center wrap mt6" style="gap:5px;justify-content:center">${boonIcons}</div></div>
+      <div class="divider"></div>
+      <div class="row center wrap" style="justify-content:center;gap:6px">
+        <button class="btn sm" onclick='shareResultImage(${sj})'>📤 Compartilhar imagem</button>
+        <button class="btn ghost sm" onclick='saveResultImage(${sj})'>💾 Baixar imagem</button>
+      </div>
+      <div class="row center mt wrap" style="justify-content:center">
+        <button class="btn" onclick="go('camp','esquadrao')">Voltar ao Acampamento 🏕️</button>
+        <button class="btn ghost" onclick="startAbyssFlow()">Mergulhar de novo 🕳️</button>
+      </div>
+    </div></div>`;
+}
+function grantAbyssItem(L){
+  const pool=ITEMS.filter(i=>i.abyss&&isEquip(i));
+  if(!pool.length)return grantEquipment('mitico',false);
+  const it=pick(pool); addItem(it.id,1); if(RUN)RUN.equipFound=(RUN.equipFound||0)+1; discover('items',it.id);
+  logline('🕳️ <b style="color:'+RAR_COLOR[it.rarity]+'">Relíquia do Abismo: '+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
+  sfx('epic');lootBurst(it.rarity);if(!RUN)toast('🕳️ '+it.name,it.rarity);
+}
+
 function autoConsumables(){
   const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.15);
   if(!low)return;
@@ -4499,6 +4742,7 @@ function saveResultImage(s){downloadCanvas(genResultCanvas(s),'adranja-andar-'+s
 function copyShareText(s){try{navigator.clipboard.writeText(runShareText(s));toast('📋 Texto copiado!','epico');}catch(e){toast('Não foi possível copiar.','warn');}}
 function endRun(reason){
   if(!RUN)return;
+  if(RUN.dungeon==='abismo')return abyssEnd(reason);   // o Abismo tem seu próprio fim (extrair/cair)
   const dur=Math.max(1,Math.round((Date.now()-(RUN._t0||Date.now()))/1000));
   const summary={reason,floor:RUN.floor,startFloor:RUN.startFloor||1,kills:RUN.kills,gold:RUN.gold,essence:RUN.essence,
     bestCombo:RUN.bestCombo||0,bossKills:RUN.bossKills||0,equipFound:RUN.equipFound||0,dur,
