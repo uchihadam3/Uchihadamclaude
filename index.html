@@ -1626,6 +1626,7 @@ const ITEMS=[
 {id:'nucleo',name:'Núcleo Elemental',icon:'🔆',type:'mat',rarity:'epico'},
 {id:'alma',name:'Alma Cristalizada',icon:'🔮',type:'mat',rarity:'lendario'},
 {id:'po_estelar',name:'Pó Estelar',icon:'✨',type:'mat',rarity:'lendario'},
+{id:'nucleo_primordial',name:'Núcleo Primordial',icon:'🌌',type:'mat',rarity:'mitico'},   // material do Aprimoramento Extremo (+13 a +20)
 // ===== NOVAS ARMAS (criáveis) =====
 {id:'punhal_osso',name:'Punhal de Osso',icon:'🦴',type:'arma',slot:'arma',rarity:'comum',stats:{atk:4,spd:2}},
 {id:'lanca_caca',name:'Lança de Caça',icon:'🔱',type:'arma',slot:'arma',rarity:'comum',stats:{atk:6,spd:1}},
@@ -1907,6 +1908,7 @@ const RESEARCH=[
 {id:'meta_xp2',name:'Sabedoria Ancestral',cost:1500,time:110,desc:'+25% de XP adicional (acumula com Memória Persistente).',req:'meta_xp'},
 {id:'meta_crit',name:'Arte da Precisão',cost:850,time:65,desc:'+8% de chance de crítico de todo o grupo.',req:null},
 {id:'meta_upg',name:'Mestre Aprimorador',cost:1250,time:90,desc:'Aprimoramentos custam 30% menos ouro.',req:'forja3'},
+{id:'forja6',name:'Aprimoramento Extremo',cost:7000,time:260,desc:'Permite aprimorar equipamento além de +12, até +20, usando Núcleo Primordial.',req:'forja5'},
 ];
 const RMAP={};RESEARCH.forEach(r=>RMAP[r.id]=r);
 
@@ -2443,11 +2445,19 @@ function toggleActiveSkill(heroId,si){
 function eqKey(heroId,itemId){return heroId+'|'+itemId;}
 function eqUpg(heroId,itemId){return (G.meta.equipUpg&&G.meta.equipUpg[eqKey(heroId,itemId)])||0;}
 function upgLevel(id){return (G.meta.upgrades&&G.meta.upgrades[id])||0;}  // legado (não usado p/ heróis)
-const UPG_MAX=12;
-function upgMax(){return G.meta.research.forja5?12:6;}
+const UPG_MAX=20;
+function upgMax(){return G.meta.research.forja6?20:(G.meta.research.forja5?12:6);}
 // custos calculados a partir do nível ATUAL informado (lv = aprimoramento daquele herói)
 function upgGoldCost(id,lv){lv=lv||0;const it=IMAP[id];const rTier=RARS.indexOf(it.rarity)+1;
-  let c=(140+lv*lv*70)*rTier*0.4; if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}   // -60% de ouro (só o ouro)
+  let c;
+  if(lv<12){ c=(140+lv*lv*70)*rTier*0.4; }
+  else{
+    // Aprimoramento Extremo (+12 a +20): parte do custo do limiar (+11→+12) e sobe de forma LINEAR
+    // e suave — só um pouco mais por nível, sem voltar a crescer ao quadrado (nunca dobra de um nível pro outro).
+    const base=(140+11*11*70)*rTier*0.4;
+    c=base*(1+(lv-11)*0.12);
+  }
+  if(G.meta.research.meta_upg)c*=0.7; return Math.round(c);}   // -60% de ouro (só o ouro)
 // MATERIAIS exigidos: específicos pela raridade do item (+1 material nobre a partir de +4)
 function upgMats(id,lv){
   lv=lv||0; const rt=RARS.indexOf(IMAP[id].rarity);
@@ -2455,6 +2465,7 @@ function upgMats(id,lv){
   const out=[{mat:prim, qty:1+Math.floor(lv/2)+Math.floor(rt/2)}];
   if(lv>=4){ const sec=['couro','pano','seda','essencia_sombria','fragmento','fragmento','nucleo','nucleo'][rt]||'seda';
     out.push({mat:sec, qty:1+Math.floor((lv-4)/2)}); }
+  if(lv>=12){ out.push({mat:'nucleo_primordial', qty:1+Math.floor((lv-12)/2)}); }   // material do Aprimoramento Extremo
   return out;
 }
 // ESSÊNCIA agora é bem MENOR e linear (antes crescia ao quadrado e explodia)
@@ -3065,7 +3076,7 @@ function tabForge(b){
       ${max?'':`<button class="btn sm" ${can?'':'disabled'} onclick="doUpgrade('${hid}','${it.id}')">Aprimorar +${lv+1}</button>`}</div>`;};
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${bal(G.meta.gold)} · 💠 ${bal(G.meta.essence)}</span></div>
      <p class="muted small mt6">Crie e <b>aprimore</b> equipamento. Cada aprimoramento (+N) dá +14% nos atributos do item.</p></div>
-     <div class="panel mb"><div class="row between"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${G.meta.research.forja5?'':' (Forja Mítica destrava +12)'}</span></div>
+     <div class="panel mb"><div class="row between"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${!G.meta.research.forja5?' (Forja Mítica destrava +12)':(!G.meta.research.forja6?' (Aprimoramento Extremo destrava +20)':'')}</span></div>
        <p class="tiny muted mt6">Cada cópia é aprimorada <b>por herói</b> — melhorar a manopla do Guerreiro não afeta a do outro.</p>
        <div class="col mt6">${upgRows.length?upgRows.map(upgCard).join(''):'<p class="muted small">Nenhum herói tem equipamento. Equipe itens nos heróis para poder aprimorá-los.</p>'}</div></div>
      <div class="panel"><h4 class="mb">🛠️ Criar Equipamento & Itens</h4>
