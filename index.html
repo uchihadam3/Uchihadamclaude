@@ -3625,6 +3625,7 @@ function startSceneLoop(){
     if(CUR.screen!=='dungeon'||!cv.isConnected){ _sceneRAF=requestAnimationFrame(frame); return; }
     if(!RUN.paused&&sc.mode==='walk')sc.walk+=1.6*RUN.speed;
     if(!RUN.paused&&sc.mode==='combat'&&RUN.combat)updateATB(dt);
+    if(!RUN){ _sceneRAF=requestAnimationFrame(frame); return; }   // updateATB pode encerrar a incursão (wipe) e zerar RUN no meio do frame
     drawScene(ctx,cv,t);
     _sceneRAF=requestAnimationFrame(frame);
   }
@@ -4362,6 +4363,7 @@ function avgPartyPow(){const a=allies();return a.reduce((s,c)=>s+Math.max(c.st.a
    Só UM ator age por vez (RUN.combat.busy trava a fila) — chega o fim da bagunça
    de "todo mundo ataca ao mesmo tempo": agora dá pra ver claramente quem age e com o quê. */
 const ATB_BASE_SECONDS=2.4;
+const HERO_ATB_MUL=0.5;   // barra de ATB dos heróis enche pela metade da velocidade — só o lado deles, sem mexer em monstros/chefes
 function updateATB(dt){
   if(!RUN||!RUN.combat||!RUN.combat.enemies)return;
   const cs=allies().concat(aliveEnemies());
@@ -4376,7 +4378,8 @@ function updateATB(dt){
     // rápido e no mínimo ~0.55x pra quem é lento — a velocidade ainda importa, mas nunca a ponto
     // de travar um lado inteiro fora do combate.
     const spdRatio=clamp(Math.max(1,a.st.spd)/avgSpd,0.55,1.8);
-    const rate=(100/ATB_BASE_SECONDS)*spdRatio;
+    const isHeroActor=!!a.h&&!a.isMinion;
+    const rate=(100/ATB_BASE_SECONDS)*spdRatio*(isHeroActor?HERO_ATB_MUL:1);
     a.atb+=rate*dt*RUN.speed;
     // marca a ORDEM DE CHEGADA na barra cheia — quem ficou pronto primeiro age primeiro.
     // Sem isso, quem enche a barra mais rápido (ex.: heróis vs. um chefe lento) sempre "atropela"
