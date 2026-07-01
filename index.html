@@ -1457,6 +1457,21 @@ const BOSSES=[
  pal:{a:'#2a2a3a',b:'#c8324a',e:'#ffd166',c:'#8a8aa0',m:'#c8324a'},
  grid:G16(["....ccccc.....","...caaaaac....","..caeaaaeac...","..caaaaaaac...","..caacacaac...","..caaaaaaac...","...caaaaac....","..b.mmmmm.b...","..b.m...m.b...","..bb.....bb..","...b.....b...","...mm...mm...."]),
  skills:['colapso','apocalipse','vazio'],intro:'"Ninguém sobe até aqui. Ninguém desce daqui. Você fica."'},
+{id:'bobo_corte',name:'O Bobo da Corte',family:'morto-vivo',el:'sombrio',floor:0,secret:true,
+ base:{hp:3800,atk:70,def:28,spd:26},
+ pal:{a:'#3a1a4a',b:'#ffd166',e:'#ff5d6c',c:'#a14bff',m:'#ff5fa8'},
+ grid:G16(["....ccccc.....","...caaaaac....","...caeaeac....","...caaaaac....","....cabac.....","... baaaab....","..b.aaaaa.b...","..b.ababa.b...","....aaaaa.....","...a.a.a.a....","..a..a.a..a...","..c.......c..."]),
+ skills:['paradoxo','maldicao','exilio','espelho'],intro:'Ele ri antes de você entender a piada. Vai rir de novo depois que você morrer.'},
+{id:'trono_vazio',name:'O Trono Vazio',family:'aberracao',el:'arcano',floor:0,secret:true,torre:true,
+ base:{hp:0,atk:0,def:0,spd:0},
+ pal:{a:'#0a0818',b:'#7dc8ff',e:'#a14bff',c:'#1a1030',m:'#3a2a5a'},
+ grid:G16(["..m.m.m.m.m...","..mmmmmmmmm...","...baaaaab....","...aeaaaea....","...aaaaaaa....","..baabbbaab...","..baaaaaaab...","...aaaaaaa....","...a.aaa.a....","..a..a.a..a...","..m..a.a..m...","..mm.....mm.."]),
+ skills:['decreto','julgamento','vazio','apocalipse'],intro:'O trono ficou vazio depois que o Rei Esquecido caiu. Algo mais frio se sentou nele.'},
+{id:'devorador_abismo',name:'O Devorador Insaciável',family:'aberracao',el:'sombrio',floor:0,secret:true,abyss:true,
+ base:{hp:0,atk:0,def:0,spd:0},
+ pal:{a:'#0a0a0a',b:'#8a1a1a',e:'#ff5fa8',c:'#1a0a1a'},
+ grid:G16(["..b..b..b..b..","...caaaaaac...","..caaaaaaaac..","..caeaccaeac..","..caaccccaac..","..caaaaaaaac..","...caaaaac...","..b.cccccc.b..","..b.c....c.b..","....b....b...."]),
+ skills:['vazio','colapso','apocalipse','maldicao'],intro:'Não tem fundo. Nunca teve. Vocês só chegaram fundo o bastante pra ele notar.'},
 /* chefes nomeados de marco em andares profundos */
 {id:'titereiro',name:'Vorlag, o Titereiro de Ossos',family:'morto-vivo',el:'sombrio',floor:30,
  base:{hp:5200,atk:78,def:40,spd:16},
@@ -1617,6 +1632,10 @@ const ITEMS=[
 {id:'selo_leviata',name:'Selo do Leviatã',icon:'🔱',type:'chave',rarity:'secreto',secret:true,desc:'Um selo encharcado. Invoca o Leviatã nas profundezas inundadas (Andar 14+).'},
 {id:'coracao_estelar',name:'Coração Estelar',icon:'💜',type:'chave',rarity:'secreto',secret:true,desc:'Pulsa com a luz de uma estrela morta. Algo dorme além do Andar 35.'},
 {id:'fragmento_tempo',name:'Fragmento do Tempo',icon:'⏳',type:'chave',rarity:'secreto',secret:true,desc:'Um caco de eternidade. Três deles param o tempo e despertam o Cronarca.'},
+{id:'mascara_rachada',name:'Máscara Rachada',icon:'🎭',type:'chave',rarity:'secreto',secret:true,desc:'Meio-riso, meio-grito. Duas metades despertam O Bobo da Corte (Andar 45+).'},
+{id:'lamina_bobo',name:'Cetro do Bobo',icon:'🃏',type:'arma',slot:'arma',rarity:'secreto',secret:true,stats:{atk:40,mag:24,lck:18},desc:'Ri de tudo, inclusive da sua morte.'},
+{id:'coroa_trono_vazio',name:'Coroa do Trono Vazio',icon:'👑',type:'elmo',slot:'elmo',rarity:'secreto',secret:true,stats:{hp:180,def:46,mag:20,lck:14},desc:'Ninguém deveria tê-la usado. Você usou.'},
+{id:'nucleo_devorador',name:'Núcleo do Devorador',icon:'🌑',type:'talisma',slot:'talisma',rarity:'secreto',secret:true,stats:{atk:32,mag:32,def:26,hp:80,lck:10},desc:'Ainda tenta engolir tudo ao redor, mesmo separado do resto.'},
 // ===== NOVOS MATERIAIS (árvores de criação mais profundas) =====
 {id:'ferro',name:'Ferro Bruto',icon:'⛏️',type:'mat',rarity:'comum'},
 {id:'pano',name:'Pano Curtido',icon:'🧵',type:'mat',rarity:'comum'},
@@ -2002,6 +2021,11 @@ const SECRETS=[
 {id:'andarilho',name:'O Andarilho do Vazio',icon:'🌌',desc:'Derrotar TODOS os cinco chefes secretos abre passagem ao herói mítico final.',hint:'Eco, Rei Esquecido, Leviatã, Arauto Estelar e Cronarca — todos devem cair.'},
 {id:'carcereiro',name:'O Carcereiro Esquecido',icon:'⛓️',desc:'Uma cela oculta se esconde entre os andares da Torre dos Tiranos. Seu guardião silencioso larga a Algema do Carcereiro.',hint:'Suba a Torre dos Tiranos — às vezes uma cela secreta se abre entre os tiranos.'},
 {id:'ultra_boss',name:'???',icon:'☠️',desc:'Algo terrível dorme escondido a cada dez andares da Adranja — extremamente raro de encontrar, guarda equipamento lendário exclusivo, mais forte que qualquer outro único.',hint:'Continue explorando. A sorte não ajuda aqui — só a persistência.'},
+{id:'cacador_ossos',name:'O Caçador de Ossos',icon:'🦴',desc:'A Adranja reconhece quem já derrotou incontáveis mortos-vivos, mesmo espalhados por várias incursões.',hint:'Derrote 150 mortos-vivos ao todo (soma de todas as suas incursões).'},
+{id:'sequencia_dourada',name:'A Sequência Dourada',icon:'✨',desc:'Uma sorte generosa recompensa quem avança sem parar, andar após andar, na mesma incursão.',hint:'Complete 20 andares seguidos numa única incursão sem recuar.'},
+{id:'bobo_corte',name:'O Bobo da Corte',icon:'🃏',desc:'Duas metades de uma máscara rachada despertam um bobo que não é páreo pra ninguém — exceto quem já chegou fundo o bastante.',hint:'Junte 2 Máscaras Rachadas e desça até o Andar 45.'},
+{id:'trono_vazio',name:'O Trono Vazio',icon:'👑',desc:'Depois que O Carcereiro Esquecido cai, algo mais frio vem se sentar no trono da Torre.',hint:'Derrote O Carcereiro Esquecido, depois suba a Torre além do Andar 40.'},
+{id:'devorador_abismo',name:'O Devorador Insaciável',icon:'🌑',desc:'Nas camadas mais fundas e traiçoeiras do Abismo, algo enorme só nota quem chega lá sem perder ninguém pelo caminho.',hint:'Alcance a Camada 35+ do Abismo Faminto com o grupo inteiro vivo.'},
 ];
 const SECMAP={};SECRETS.forEach(s=>SECMAP[s.id]=s);
 function unlockSecret(id){if(!G.meta.codex.secrets.includes(id)){G.meta.codex.secrets.push(id);saveGame();
@@ -4198,6 +4222,13 @@ function floorClearRewards(){
   refreshBars();
   logline(`🪜 Andar ${RUN.floor} concluído! <span class="dn">+${ess} essência</span>${RUN.combo>=3?` <span class="combo-badge">🔥 Sequência x${RUN.combo}</span>`:''}`,'ev');
   updateComboHud();
+  // SEGREDO: A Sequência Dourada — 20 andares seguidos na mesma incursão, sem recuar
+  if(RUN.combo>=20 && !G.meta.codex.secrets.includes('sequencia_dourada')){
+    unlockSecret('sequencia_dourada');
+    const got=runEssence(300);grantEquipment(RUN.floor>=30?'mitico':'lendario');
+    logline('✨ <b class="tag-secret">Segredo desvendado:</b> Uma sequência impecável atrai a sorte da Adranja... +'+got+' essência!','sc');
+    toast('✨ Segredo: A Sequência Dourada!','lendario');
+  }
 }
 const MILESTONES=[{f:3,e:40},{f:5,e:80,item:'pocao_forca'},{f:8,e:150},{f:10,e:250,item:'cota_malha'},{f:12,e:400},{f:15,e:700,item:'manto_arcano'},{f:20,e:1500,item:'armadura_dragao'},
   {f:25,e:2200},{f:30,e:3000,item:'cetro_arcano'},{f:40,e:5000,item:'pingente_alma'},{f:50,e:8000,item:'armadura_dragao'},{f:60,e:12000},{f:75,e:20000,item:'lampada_eterna'},{f:90,e:35000},{f:100,e:60000,item:'manto_estelar'},
@@ -4290,6 +4321,7 @@ function grantSecretKey(){
   if(f>=14&&invQty('selo_leviata')<1)pool.push('selo_leviata');
   if(f>=18&&invQty('fragmento_tempo')<3)pool.push('fragmento_tempo');
   if(f>=35&&invQty('coracao_estelar')<1)pool.push('coracao_estelar');
+  if(f>=45&&invQty('mascara_rachada')<2)pool.push('mascara_rachada');
   if(!pool.length)pool.push(pick(['cristal_invocacao','fragmento_tempo']));
   const id=pick(pool);addItem(id,1);discover('items',id);
   const it=IMAP[id];logline('🗝️ <b class="tag-secret">ITEM SECRETO:</b> '+it.icon+' '+it.name+'!','sc');
@@ -4297,6 +4329,10 @@ function grantSecretKey(){
   if(id==='chave_negra')unlockSecret('chave_negra');
   if(id==='olho_abissal'&&invQty('chave_negra')>0)unlockSecret('eco_vazio');
   if(id==='coroa_partida'){if(coroaCount()>=3)unlockSecret('coroa');}
+  if(id==='selo_leviata')unlockSecret('leviata');
+  if(id==='coracao_estelar')unlockSecret('arauto_estelar');
+  if(id==='fragmento_tempo'&&invQty('fragmento_tempo')>=3)unlockSecret('cronarca');
+  if(id==='mascara_rachada'&&invQty('mascara_rachada')>=2)unlockSecret('bobo_corte');
   checkUnlocks();
 }
 function coroaCount(){return invQty('coroa_partida');}
@@ -4751,6 +4787,16 @@ function killEnemy(e){if(e.dead)return;e.alive=false;e.dead=true;e.hp=0;
   logline('💀 '+e.name+' foi derrotado.','dn');
   // contabiliza no bestiário
   if(e.m&&e.m.id){G.meta.bestiaryKills=G.meta.bestiaryKills||{};G.meta.bestiaryKills[e.m.id]=(G.meta.bestiaryKills[e.m.id]||0)+1;}
+  // SEGREDO: O Caçador de Ossos — 150 mortos-vivos abatidos ao todo, em qualquer incursão
+  if(e.family==='morto-vivo'&&!G.meta.flags.cacador_ossos){
+    const total=MONSTERS.filter(m=>m.family==='morto-vivo').reduce((s,m)=>s+(G.meta.bestiaryKills[m.id]||0),0);
+    if(total>=150){
+      G.meta.flags.cacador_ossos=true;unlockSecret('cacador_ossos');
+      runEssence(400);grantMaterial('lendario');
+      logline('🦴 <b class="tag-secret">Segredo desvendado:</b> 150 mortos-vivos caíram pela sua mão. Algo generoso reconhece sua persistência.','sc');
+      toast('🦴 Segredo: O Caçador de Ossos!','mitico');checkUnlocks();
+    }
+  }
   // elites dão recompensa extra
   if(e.m&&e.m.elite){G.meta.eliteKills=(G.meta.eliteKills||0)+1;
     logline('⭐ <b class="sc">Elite abatido!</b> Recompensa rara.','sc');
@@ -4884,6 +4930,7 @@ function maybeSecretBoss(){
   if(invQty('selo_leviata')>0&&RUN.floor>=14&&!G.meta.bossesKilled.includes('leviata'))elig.push('leviata');
   if(invQty('coracao_estelar')>0&&RUN.floor>=35&&!G.meta.bossesKilled.includes('arauto_estelar'))elig.push('arauto_estelar');
   if(invQty('fragmento_tempo')>=3&&RUN.floor>=22&&!G.meta.bossesKilled.includes('cronarca'))elig.push('cronarca');
+  if(invQty('mascara_rachada')>=2&&RUN.floor>=45&&!G.meta.bossesKilled.includes('bobo_corte'))elig.push('bobo_corte');
   if(!elig.length)return false;
   // chance crescente com a profundidade (não aparece toda hora; aumenta quanto mais fundo você está)
   const ch=0.18+Math.min(RUN.floor,80)*0.004;   // ~21% no andar 8, ~50% no andar 80
@@ -4893,7 +4940,7 @@ function maybeSecretBoss(){
   return true;
 }
 function startSecretBoss(id){
-  const boss=BMAP[id];const fl=Math.max(RUN.floor,boss===BMAP.rei_esquecido?14:10);
+  const boss=BMAP[id];const fl=Math.max(RUN.floor,boss===BMAP.rei_esquecido?14:(boss===BMAP.bobo_corte?45:10));
   const e=makeEnemy(Object.assign({},boss,{floor:Math.max(8,RUN.floor-4)}),fl,true);
   logline('<span class="sc">⟁⟁⟁ A realidade racha... ⟁⟁⟁</span>','sc');
   logline('<b class="tag-secret">CHEFE SECRETO: '+boss.name+'</b>','sc');
@@ -4901,7 +4948,7 @@ function startSecretBoss(id){
   sfx('roar');bossCard(boss.name,boss.intro,true);showBossBar(e);
   beginCombat([e],{boss:true,secret:true,onWin:()=>onSecretBossWin(boss,e)});
 }
-const SECRET_BOSS_DROP={eco:'olho_onividente',rei_esquecido:'armadura_rei',leviata:'lamina_leviata',arauto_estelar:'manto_arauto',cronarca:'lamina_vazio'};
+const SECRET_BOSS_DROP={eco:'olho_onividente',rei_esquecido:'armadura_rei',leviata:'lamina_leviata',arauto_estelar:'manto_arauto',cronarca:'lamina_vazio',bobo_corte:'lamina_bobo'};
 const SECRET_BOSSES=['eco','rei_esquecido','leviata','arauto_estelar','cronarca'];
 function onSecretBossWin(boss,e){
   hideBossBar();if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
@@ -4979,7 +5026,7 @@ function torreBegin(){
     toast('🗼 Torre — Andar '+tf,'lendario');}
   RUN.scene.mode='idle';RUN.room=0;RUN.roomsTotal=1;
   // segredos na torre: chefe secreto oculto, ou câmara entre tiranos
-  rtimeout(()=>{ if(maybeTorreSecretBoss())return; if(chance(0.22))return torreSecret(); startTorreBoss(); },700);
+  rtimeout(()=>{ if(maybeTorreSecretBoss())return; if(maybeTronoVazio())return; if(chance(0.22))return torreSecret(); startTorreBoss(); },700);
 }
 function maybeTorreSecretBoss(){
   if(RUN._torreSecretDone)return false;         // no máximo um por incursão
@@ -5018,6 +5065,45 @@ function onTorreSecretBossWin(boss,e){
   toast('🌟 Chefe secreto da Torre derrotado!','mitico');
   unlockSecret('carcereiro');saveGame();
   rtimeout(startTorreBoss,1100);   // depois do secreto, enfrente o tirano do andar
+}
+// SEGREDO: O Trono Vazio — só depois de derrotar O Carcereiro Esquecido, além do Andar 40 da Torre
+function maybeTronoVazio(){
+  if(RUN._tronoVazioDone)return false;
+  if(!G.meta.bossesKilled.includes('torre_carcereiro'))return false;
+  const tf=RUN.floor;
+  if(tf<40||tf>=TORRE_MAX)return false;
+  const ch=0.10+Math.min(tf,TORRE_MAX)*0.006;   // ~34% no Andar 40, cresce até o topo
+  if(!chance(ch))return false;
+  RUN._tronoVazioDone=true; startTronoVazio(); return true;
+}
+function startTronoVazio(){
+  const boss=BMAP.trono_vazio;
+  // o mais forte segredo da Torre: mais bruto até que o Carcereiro
+  const e=makeTorreBoss(boss,Math.min(TORRE_MAX,RUN.floor+10));
+  e.maxhp=Math.round(e.maxhp*1.7); e.hp=e.maxhp;
+  e.st.atk=Math.round(e.st.atk*1.4); e.st.mag=e.st.atk; e.st.def=Math.round(e.st.def*1.3);
+  logline('<span class="sc">⟁⟁⟁ O trono da Torre range... algo se levanta dele ⟁⟁⟁</span>','sc');
+  logline('<b class="tag-secret">CHEFE SECRETO DA TORRE: '+boss.name+'</b>','sc');
+  logline('<i>'+boss.intro+'</i>','sy');discover('bosses',boss.id);
+  sfx('roar');bossCard(boss.name,boss.intro,true);showBossBar(e);
+  beginCombat([e],{boss:true,secret:true,torre:true,bossDef:boss,onWin:()=>onTronoVazioWin(boss,e)});
+}
+function onTronoVazioWin(boss,e){
+  hideBossBar();
+  const tf=RUN.floor;
+  RUN.kills++;G.meta.totalKills++;RUN.bossKills=(RUN.bossKills||0)+1;
+  if(!G.meta.bossesKilled.includes(boss.id))G.meta.bossesKilled.push(boss.id);
+  RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,110+tf*14));
+  const ess=runEssence(400+tf*24);
+  addItem('coroa_trono_vazio',1);discover('items','coroa_trono_vazio');RUN.equipFound=(RUN.equipFound||0)+1;
+  logline('🏆 <b class="tag-secret">DESPOJO SECRETO DA TORRE:</b> '+IMAP.coroa_trono_vazio.icon+' '+IMAP.coroa_trono_vazio.name+'!','sc');
+  lootBurst('secreto');
+  grantTowerUnique();
+  RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.2);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
+  logline('🌟 <b>'+boss.name+' desmorona de volta ao nada.</b> +'+ess+' essência.','sc');
+  toast('🌟 Chefe secreto da Torre derrotado!','mitico');
+  unlockSecret('trono_vazio');saveGame();
+  rtimeout(startTorreBoss,1100);
 }
 function torreSecret(){
   unlockSecret('cofre');
@@ -5193,11 +5279,21 @@ function abyssWave(){
   if(RUN._affix)logline(`⚠️ Reforço: <b style="color:var(--bad)">${RUN._affix.ic} ${RUN._affix.n}</b> (${RUN._affix.d}).`,'bd');
   toast('🕳️ Camada '+L,'epico');
   let enemies=[];
+  RUN._abyssSecretWave=false;
   if(isHorror){
     const bossPool=BOSSES.filter(b=>!b.secret&&!b.torre);
-    const bd=bossPool[(L/ABYSS_STRIDE)%bossPool.length]||BMAP.guardiao;
-    const e=makeEnemy(bd,eff,true); e.maxhp=Math.round(e.maxhp*(1.3+L*0.03)); e.hp=e.maxhp;
-    e.name='Horror Abissal · '+bd.name; enemies=[e];
+    let bd=bossPool[(L/ABYSS_STRIDE)%bossPool.length]||BMAP.guardiao;
+    // SEGREDO: O Devorador Insaciável — Camada 35+, grupo inteiro vivo, ainda não derrotado
+    RUN._abyssSecretWave=(L>=35 && !G.meta.bossesKilled.includes('devorador_abismo') && RUN.party.every(c=>c.alive) && chance(0.15));
+    if(RUN._abyssSecretWave){
+      bd=BMAP.devorador_abismo;
+      const e=makeEnemy(bd,eff,true); e.maxhp=Math.round(e.maxhp*1.9); e.hp=e.maxhp;
+      e.st.atk=Math.round(e.st.atk*1.35); e.st.mag=e.st.atk;
+      e.name=bd.name; enemies=[e];
+    } else {
+      const e=makeEnemy(bd,eff,true); e.maxhp=Math.round(e.maxhp*(1.3+L*0.03)); e.hp=e.maxhp;
+      e.name='Horror Abissal · '+bd.name; enemies=[e];
+    }
   } else {
     let pool=enemyPoolFor(Math.min(eff,200)); if(!pool.length)pool=MONSTERS;
     const n=Math.min(5,2+Math.floor(L/4));
@@ -5227,6 +5323,15 @@ function abyssCleared(){
   // ITENS (sempre seus): Horror garante loot, camadas comuns às vezes
   if(isHorror){ grantMaterial(L>=25?'lendario':'epico'); if(chance(0.75))grantAbyssItem(L); else grantEquipment(L>=30?'divino':L>=15?'mitico':'lendario',false); }
   else if(chance(0.16))grantMaterial();
+  // SEGREDO: O Devorador Insaciável — despojo exclusivo, além da recompensa normal do Horror
+  if(RUN._abyssSecretWave){
+    if(!G.meta.bossesKilled.includes('devorador_abismo'))G.meta.bossesKilled.push('devorador_abismo');
+    unlockSecret('devorador_abismo');
+    addItem('nucleo_devorador',1);discover('items','nucleo_devorador');RUN.equipFound=(RUN.equipFound||0)+1;
+    logline('🕳️ <b class="tag-secret">DESPOJO SECRETO DO ABISMO:</b> '+IMAP.nucleo_devorador.icon+' '+IMAP.nucleo_devorador.name+'!','sc');
+    toast('🌑 Segredo: O Devorador Insaciável!','mitico');lootBurst('secreto');
+    RUN._abyssSecretWave=false;
+  }
   G.meta.abyssDeepest=Math.max(G.meta.abyssDeepest||0,L);
   checkUnlocks();saveGame();
   if(isHorror){
