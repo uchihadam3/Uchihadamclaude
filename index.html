@@ -1914,7 +1914,6 @@ const SECRETS=[
 {id:'sala_eco',name:'A Sala que Respira',icon:'🫧',desc:'Algumas paredes da Adranja não são paredes. Passagens secretas escondem salas de tesouro.',hint:'Leve quem saiba encontrar passagens secretas (Cartógrafa, Ladina).'},
 {id:'fonte',name:'Fonte das Memórias',icon:'⛲',desc:'Uma fonte que devolve um fragmento de memória — cura total e XP extra.',hint:'Encontrada raramente em andares profundos.'},
 {id:'mercador',name:'O Mercador Errante',icon:'🧙',desc:'Um vendedor que só aceita Essência aparece em salas ocultas.',hint:'Mais comum com alta Sorte no grupo.'},
-{id:'altar_proibido',name:'Altar Proibido',icon:'🩸',desc:'Sacrifique PV por poder. O risco maior, a recompensa maior.',hint:'Aparece nas profundezas para os ousados.'},
 {id:'chave_negra',name:'A Chave Negra',icon:'🗝️',desc:'Uma chave que abre portas para níveis que não deveriam existir.',hint:'Largada por chefes a partir do Andar 10.'},
 {id:'eco_vazio',name:'O Eco do Vazio',icon:'👁️',desc:'Combine a Chave Negra e o Olho do Abismo para invocar um chefe secreto.',hint:'Duas chaves, uma porta proibida.'},
 {id:'coroa',name:'O Rei Esquecido',icon:'👑',desc:'Três fragmentos de uma coroa partida reconstroem um trono — e seu rei.',hint:'Três Coroas Partidas espalhadas pelas profundezas.'},
@@ -3241,7 +3240,7 @@ function tabHelp(b){
   b.innerHTML=`
    <div class="panel parch mb"><h3>❓ Como Jogar Adranja</h3>
      <p class="small muted mt6">Adranja é um <b>RPG roguelike automático</b>: você monta a equipe e equipa os heróis no acampamento; dentro da masmorra eles exploram, lutam e decidem <b>sozinhos</b>. Você não precisa clicar em nada durante a incursão — só assistir, ajustar a velocidade e voltar ao acampamento quando quiser.</p></div>
-   ${sec('🗺️ A Incursão (Dungeon)',`Cada incursão desce por andares cada vez mais perigosos (até o <b>Andar 200</b>). Cada andar tem várias salas: combates, tesouros, armadilhas, eventos, fontes, altares e o mercador errante — tudo resolvido automaticamente. A cada <b>5 andares</b> há um <b>Chefe</b>. Quanto mais fundo, mais forte. Você pode recuar a qualquer momento sem perder nada.`)}
+   ${sec('🗺️ A Incursão (Dungeon)',`Cada incursão desce por andares cada vez mais perigosos (até o <b>Andar 200</b>). Cada andar tem várias salas: combates, tesouros, armadilhas, eventos, fontes e o mercador errante — tudo resolvido automaticamente. A cada <b>5 andares</b> há um <b>Chefe</b>. Quanto mais fundo, mais forte. Você pode recuar a qualquer momento sem perder nada.`)}
    ${sec('🔥 Sequência (Combo)',`Toda vez que você limpa um andar <b>sem ninguém morrer</b>, sua <b>Sequência</b> aumenta. Quanto maior a sequência, <b>mais Essência</b> você ganha ao concluir cada andar (até +60%). Se a party é dizimada, a sequência zera. É um incentivo para descer com cuidado e manter todos vivos.`)}
    ${sec('💀 Morte é permanente? Não!',`Quando a party cai, vocês voltam ao acampamento. <b>Você mantém tudo</b>: níveis, habilidades, itens, ouro, essência e segredos. Os heróis <b>nunca voltam ao nível 1</b>. Cada incursão te deixa permanentemente mais forte — morrer faz parte do progresso.`)}
    ${sec('⭐ Nível & Habilidades',`Os heróis ganham XP em combate e sobem de nível <b>permanentemente</b>. Novas habilidades são liberadas em níveis cada vez mais altos. Em combate a IA escolhe a melhor ação: cura quem está ferido, ressuscita aliados, usa buffs no início e foca os golpes mais fortes. Clique em qualquer habilidade (no Esquadrão) para ver o que ela faz.`)}
@@ -3888,11 +3887,10 @@ function doEncounter(){
   const w={combate:42,tesouro:Math.round(15*(RUN.tideTreasure||1)),armadilha:Math.round(12*(RUN.tideTrap||1)),evento:Math.round(13*(RUN.tideEvent||1))};
   if(!RUN.tideNoRest)w.descanso=8;
   if(RUN.floor>=4)w.fonte=3;
-  if(RUN.floor>=6)w.altar=5;
   w.mercador=3+Math.round(avgLuck()/4);
   const type=weighted(w);
   ({combate:encCombat,tesouro:encTreasure,armadilha:encTrap,evento:encEvent,
-    descanso:encRest,fonte:encFountain,altar:encAltar,mercador:encMerchant}[type])();
+    descanso:encRest,fonte:encFountain,mercador:encMerchant}[type])();
 }
 function avgLuck(){return RUN.party.filter(c=>c.alive).reduce((a,c)=>a+c.st.lck,0)/Math.max(1,RUN.party.filter(c=>c.alive).length);}
 
@@ -3933,31 +3931,6 @@ function encFountain(){
   rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');});
     RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*2));   // XP modesto (não uma % da barra)
     refreshBars();advanceRoom();},800);
-}
-/* ---- ALTAR PROIBIDO (segredo) ---- */
-function encAltar(){
-  // AUTOMÁTICO: o grupo decide sozinho conforme o estado (sem cliques)
-  unlockSecret('altar_proibido');RUN.scene.mode='idle';
-  logline('🩸 <b class="tag-secret">Altar Proibido</b> — "Dê-me vida e te darei poder..."','sc');
-  rtimeout(()=>{ altarChoose(altarAutoChoice()); },700);
-}
-function altarAutoChoice(){
-  const alive=RUN.party.filter(c=>c.alive);
-  const avgHp=alive.reduce((a,c)=>a+c.hp/c.maxhp,0)/Math.max(1,alive.length);
-  // grupo saudável sacrifica sangue por equipamento; senão oferece essência se sobrar; senão ignora
-  if(avgHp>0.6)return 'blood';
-  if(G.meta.essence>=20*RUN.floor*2)return 'ess';
-  return 'skip';
-}
-function altarChoose(opt){
-  if(opt==='blood'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{c.hp=Math.max(1,Math.round(c.hp*0.7));floatText('hero',i,'sacrifício','#c8324a');});refreshBars();
-    grantEquipment('epico');logline('🩸 O grupo oferece sangue ao altar. Um artefato materializa-se.','sc');}
-  else if(opt==='ess'){const cost=20*RUN.floor;if(G.meta.essence>=cost){G.meta.essence-=cost;updateRunRes();
-    if(chance(0.25)){addItem('lampada_eterna',1);discover('items','lampada_eterna');logline('🏮 O altar concede uma RELÍQUIA MÍTICA!','sc');}
-    else{grantMaterial('lendario');logline('💠 O altar concede um material raro.','sc');}saveGame();}
-    else{logline('💠 Essência insuficiente. O altar silencia.','muted');}}
-  else logline('🚶 O grupo ignora o altar e segue em frente.','muted');
-  rtimeout(advanceRoom,600);
 }
 /* ---- MERCADOR ERRANTE (segredo) ---- */
 const MERCH_GOODS={
