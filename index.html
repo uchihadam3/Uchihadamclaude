@@ -121,6 +121,16 @@ canvas{image-rendering:pixelated;}
 .hpbar.hp-mid > i{background:linear-gradient(90deg,#e09a2a,#ffd166);box-shadow:0 0 6px rgba(255,209,102,.4);}
 .hpbar.hp-low > i{background:linear-gradient(90deg,#c81f34,#ff5d6c);box-shadow:0 0 8px rgba(255,93,108,.55);animation:hppulse 0.9s ease-in-out infinite;}
 @keyframes hppulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.45);}}
+/* barras de atributo da ficha do herói: cor muda por faixa de progresso rumo ao teto
+   daquela classe (nunca ficam sempre cheias — refletem o quanto o herói já cresceu) */
+.sbar{flex:1;height:9px;border-radius:6px;background:rgba(0,0,0,.42);overflow:hidden;border:1px solid var(--line-soft);position:relative;}
+.sbar > i{display:block;height:100%;border-radius:6px;transition:width .5s ease;}
+.sbar::after{content:"";position:absolute;left:0;right:0;top:0;height:45%;border-radius:6px 6px 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.24),transparent);pointer-events:none;}
+.sbar.tier-low > i{background:linear-gradient(90deg,#5a4632,#8a6a42);}
+.sbar.tier-mid > i{background:linear-gradient(90deg,#5e3aa0,#b39bff);box-shadow:0 0 5px rgba(179,155,255,.35);}
+.sbar.tier-high > i{background:linear-gradient(90deg,#2aa6dd,#8fe3ff);box-shadow:0 0 6px rgba(143,227,255,.45);}
+.sbar.tier-max > i{background:linear-gradient(90deg,#f0972a,#ffd98a);box-shadow:0 0 9px rgba(255,217,138,.6);}
 .pm.low{border-color:rgba(255,93,108,.7);box-shadow:0 0 10px rgba(255,93,108,.25);}
 .xpbar > i{background:linear-gradient(90deg,var(--magic),var(--magic-2));}
 .atbbar{height:5px;margin-top:2px;background:rgba(0,0,0,.5);border-radius:5px;border:1px solid var(--line-soft);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
@@ -2662,9 +2672,19 @@ $('#overlay').addEventListener('click',e=>{if(e.target.id==='overlay'){if(_lockM
 
 const STAT_LBL={hp:'PV',atk:'ATQ',def:'DEF',mag:'MAG',spd:'VEL',lck:'SOR'};
 const LBL_ORDER=['hp','atk','def','mag','spd','lck'];
+/* teto DINÂMICO de cada barra: projeta o quanto esse atributo pode crescer até o
+   Nível 200 (o teto das maestrias) pra aquele herói específico, com folga extra pro
+   ganho de equipamento — assim a barra reflete progresso real e não fica sempre cheia. */
+function statRefMax(heroId,k){
+  const h=HMAP[heroId];if(!h)return 100;
+  const base200=h.base[k]+(h.growth[k]||0)*199;
+  return Math.max(Math.round(base200*1.6),h.base[k]*4,20);
+}
 function statBar(lab,val,max,cls,delta){
   const dl=delta?` <span class="statgain">+${Math.round(delta)}</span>`:'';
-  return `<div class="stat-row"><span class="lab">${lab}</span><div class="bar ${cls||''}"><i style="width:${clamp(val/max*100,3,100)}%"></i></div><span class="vv">${Math.round(val)}</span>${dl}</div>`;}
+  const pct=clamp(val/max*100,3,100);
+  const tier=pct<30?'low':pct<60?'mid':pct<85?'high':'max';
+  return `<div class="stat-row"><span class="lab">${lab}</span><div class="sbar ${cls||''} tier-${tier}"><i style="width:${pct}%"></i></div><span class="vv">${Math.round(val)}</span>${dl}</div>`;}
 function rarPill(rar){return `<span class="rpill ${rar}">${RAR_NAME[rar]}</span>`;}
 
 /* stats efetivos de um herói num dado nível (com equipamento + pesquisas) */
@@ -3070,9 +3090,9 @@ function openHero(id){
         <div class="row" style="align-items:center;gap:8px;flex-wrap:wrap"><span class="role muted small">${h.role} · Nível ${lv}</span><span class="pwr-chip" title="Poder do herói — sobe com equipamento e nível">⚡ Poder ${heroPower(id,lv)}</span></div>
         <div class="mt6">
           ${(()=>{const g=(_equipGains&&_equipGains.id===id)?_equipGains.d:{};
-            return statBar('PV',s.hp,Math.max(120,s.hp),'hpbar',g.hp)
-              +statBar('ATQ',s.atk,40,'',g.atk)+statBar('DEF',s.def,40,'',g.def)
-              +statBar('MAG',s.mag,40,'',g.mag)+statBar('VEL',s.spd,30,'',g.spd)+statBar('SOR',s.lck,30,'',g.lck);})()}
+            return statBar('PV',s.hp,statRefMax(id,'hp'),'',g.hp)
+              +statBar('ATQ',s.atk,statRefMax(id,'atk'),'',g.atk)+statBar('DEF',s.def,statRefMax(id,'def'),'',g.def)
+              +statBar('MAG',s.mag,statRefMax(id,'mag'),'',g.mag)+statBar('VEL',s.spd,statRefMax(id,'spd'),'',g.spd)+statBar('SOR',s.lck,statRefMax(id,'lck'),'',g.lck);})()}
         </div>
         ${(_equipGains&&_equipGains.id===id&&Object.keys(_equipGains.d).length)?`<div class="gainbanner">⚙️ Melhores equipados! ${LBL_ORDER.filter(k=>_equipGains.d[k]).map(k=>`<b>+${Math.round(_equipGains.d[k])} ${STAT_LBL[k]}</b>`).join('  ')}</div>`:''}
       </div>
