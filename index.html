@@ -1229,16 +1229,16 @@ const MASTERY_SKILLS={
   cartografo:[
     MS('Cartografia Absoluta',100,'mag',6.4,'all',{el:'arcano',fx:'crit+',txt:'Mapeia cada fraqueza do andar: dano arcano e +crítico do grupo.'}),
     MS('Meridiano Proibido',130,'mag',7.0,'all',{el:'arcano',fx:'curse',txt:'Traça uma linha que amaldiçoa tudo que a cruza.'}),
-    MS('Atlas das Eras',160,'mag',7.6,'all',{el:'arcano',fx:'execute',txt:'Um atlas vivo apaga os inimigos mais fracos.'}),
-    MS('O Mapa de Tudo',200,'mag',8.4,'all',{el:'arcano',fx:'execute',txt:'Tudo que existe está mapeado — e pode ser riscado.'}) ],
+    MS('Atlas das Eras',160,'mag',7.6,'all',{el:'arcano',fx:'armorBreak',txt:'Um atlas vivo que expõe cada falha na armadura inimiga.'}),
+    MS('O Mapa de Tudo',200,'mag',8.4,'all',{el:'arcano',fx:'atbreak',txt:'Resenha o tempo de todos no mapa, atrasando cada passo inimigo.'}) ],
   guerreiro:[
     MS('Muralha Viva',100,'buff',0,'allies',{fx:'shield',txt:'Ergue uma muralha de aço que protege o grupo.'}),
     MS('Corte Sísmico',130,'phys',7.0,'all',{fx:'stun',txt:'Um talho que racha o chão e atordoa todos.'}),
-    MS('Investida do Titã',160,'phys',7.6,'one',{fx:'execute',txt:'Avança como um titã e executa o ferido.'}),
-    MS('Lenda dos Mil Campos',200,'phys',8.4,'all',{fx:'execute',txt:'Um golpe que ecoa por mil batalhas.'}) ],
+    MS('Investida do Titã',160,'phys',7.6,'one',{fx:'pierce',txt:'Avança como um titã, atravessando qualquer escudo.'}),
+    MS('Lenda dos Mil Campos',200,'phys',8.4,'all',{fx:'bleed',txt:'Um golpe que ecoa por mil batalhas — mil feridas abertas.'}) ],
   maga:[
     MS('Chuva de Meteoros',100,'mag',6.4,'all',{el:'fogo',fx:'burn',txt:'O céu desaba em fogo sobre todos.'}),
-    MS('Nova Arcana',130,'mag',7.0,'all',{el:'arcano',txt:'Uma explosão de energia pura arrasa a sala.'}),
+    MS('Nova Arcana',130,'mag',7.0,'all',{el:'arcano',fx:'pierce',txt:'Uma explosão de energia pura que atravessa qualquer defesa.'}),
     MS('Colapso Estelar',160,'mag',7.6,'all',{el:'fogo',fx:'burn',txt:'Uma estrela implode sobre os inimigos.'}),
     MS('Fim do Cosmos',200,'mag',8.4,'all',{el:'fogo',fx:'burn',txt:'O universo recomeça em chamas.'}) ],
   ladina:[
@@ -1254,27 +1254,27 @@ const MASTERY_SKILLS={
   cacador:[
     MS('Presa Marcada',100,'phys',6.4,'one',{fx:'critmax',txt:'Marca a presa: próximos tiros são críticos.'}),
     MS('Tempestade de Flechas',130,'phys',7.0,'all',{fx:'crit+',txt:'Escurece o céu com flechas.'}),
-    MS('Flecha Caçadora',160,'phys',7.6,'one',{fx:'execute',txt:'Persegue e executa o alvo ferido.'}),
+    MS('Flecha Caçadora',160,'phys',7.6,'one',{fx:'bleed',txt:'A farpa fica cravada — a presa sangra até o fim da caçada.'}),
     MS('Tiro do Fim',200,'phys',8.4,'one',{fx:'critmax',txt:'Uma flecha. Um fim.'}) ],
   barbaro:[
     MS('Fúria Carmesim',100,'phys',6.4,'one',{fx:'lifesteal',txt:'Golpe brutal que rouba a vida do inimigo.'}),
     MS('Terremoto Brutal',130,'phys',7.0,'all',{fx:'stun',txt:'Pisa o chão e atordoa a todos.'}),
-    MS('Massacre',160,'phys',7.6,'all',{fx:'execute',txt:'Um massacre que finaliza os fracos.'}),
+    MS('Massacre',160,'phys',7.6,'all',{fx:'armorBreak',txt:'Um massacre que estilhaça toda armadura ao redor.'}),
     MS('Ocaso dos Deuses',200,'phys',8.4,'all',{fx:'execute',txt:'A fúria que encerra eras.'}) ],
   necromante:[
     MS('Horda Infinita',100,'buff',0,'self',{fx:'summon',txt:'Ergue um exército de mortos ao seu lado.'}),
     MS('Peste dos Mortos',130,'mag',7.0,'all',{el:'veneno',fx:'poison',txt:'Uma peste que devora toda carne.'}),
     MS('Colheita de Almas',160,'mag',7.6,'all',{el:'sombrio',fx:'lifesteal',txt:'Drena a vida de todos e a devolve a você.'}),
-    MS('Apocalipse Necrótico',200,'mag',8.4,'all',{el:'sombrio',fx:'execute',txt:'Toda a morte responde ao seu chamado.'}) ],
+    MS('Apocalipse Necrótico',200,'mag',8.4,'all',{el:'sombrio',fx:'curse',txt:'Toda a morte responde ao seu chamado — e marca os vivos.'}) ],
   paladino:[
     MS('Aura Celestial',100,'buff',0,'allies',{fx:'allup',txt:'Eleva todos os atributos do grupo.'}),
     MS('Condenação',130,'mag',7.0,'all',{el:'sagrado',fx:'stun',txt:'A luz condena e paralisa os ímpios.'}),
-    MS('Cruzada Eterna',160,'mag',7.6,'all',{el:'sagrado',txt:'Uma investida santa que varre o mal.'}),
-    MS('Juízo Final',200,'mag',8.4,'all',{el:'sagrado',fx:'execute',txt:'O céu desce em juízo sobre todos.'}) ],
+    MS('Cruzada Eterna',160,'mag',7.6,'all',{el:'sagrado',fx:'shield',txt:'Uma investida santa que varre o mal e protege o grupo.'}),
+    MS('Juízo Final',200,'mag',8.4,'all',{el:'sagrado',fx:'armorBreak',txt:'O céu desce em juízo e estilhaça toda proteção.'}) ],
   arqueiro:[
     MS('Flecha Astral',100,'mag',6.4,'one',{el:'arcano',fx:'critmax',txt:'Uma flecha de luz estelar, crítico absoluto.'}),
     MS('Saraivada Infinita',130,'phys',7.0,'all',{fx:'crit+',txt:'Trespassa toda a fileira inimiga.'}),
-    MS('Perfuração Absoluta',160,'mag',7.6,'one',{el:'arcano',fx:'execute',txt:'Um tiro que atravessa qualquer defesa.'}),
+    MS('Perfuração Absoluta',160,'mag',7.6,'one',{el:'arcano',fx:'pierce',txt:'Um tiro que atravessa qualquer defesa.'}),
     MS('Chuva do Apocalipse',200,'mag',8.4,'all',{el:'arcano',fx:'crit+',txt:'O firmamento inteiro é sua aljava.'}) ],
   alquimista:[
     MS('Elixir Supremo',100,'heal',3.6,'allies',{txt:'Uma poção milagrosa cura todo o grupo.'}),
@@ -1303,12 +1303,12 @@ const MASTERY_SKILLS={
     MS('Fúria de Gaia',200,'mag',8.4,'all',{el:'veneno',fx:'poison',txt:'A própria natureza se levanta para punir.'}) ],
   cavaleiro_sombrio:[
     MS('Comunhão das Trevas',100,'mag',6.4,'all',{el:'sombrio',fx:'lifesteal',txt:'Drena a vida de todos os inimigos.'}),
-    MS('Eclipse Total',130,'mag',7.0,'all',{el:'sombrio',txt:'A escuridão engole a sala inteira.'}),
-    MS('Ceifa Negra',160,'phys',7.6,'one',{el:'sombrio',fx:'execute',txt:'A ceifa da qual ninguém escapa.'}),
-    MS('Escuridão Absoluta',200,'phys',8.4,'all',{el:'sombrio',fx:'execute',txt:'A escuridão engole toda a luz.'}) ],
+    MS('Eclipse Total',130,'mag',7.0,'all',{el:'sombrio',fx:'curse',txt:'A escuridão engole a sala e marca todos que restam.'}),
+    MS('Ceifa Negra',160,'phys',7.6,'one',{el:'sombrio',fx:'bleed',txt:'A ceifa da qual ninguém escapa — a ferida nunca fecha.'}),
+    MS('Escuridão Absoluta',200,'phys',8.4,'all',{el:'sombrio',fx:'weaken',txt:'A escuridão engole a luz — e a força — de todos.'}) ],
   domadora:[
     MS('Rei da Matilha',100,'buff',0,'self',{fx:'summon',txt:'Convoca uma matilha leal ao seu lado.'}),
-    MS('Debandada',130,'phys',7.0,'all',{txt:'Uma debandada que esmaga tudo à frente.'}),
+    MS('Debandada',130,'phys',7.0,'all',{fx:'stun',txt:'Uma debandada que atropela e atordoa tudo à frente.'}),
     MS('Fúria Selvagem',160,'phys',7.6,'one',{fx:'lifesteal',txt:'Uma investida selvagem que rouba vida.'}),
     MS('A Caçada Eterna',200,'phys',8.4,'all',{fx:'lifesteal',txt:'Toda a vida selvagem caça ao seu lado.'}) ],
   cronomante:[
@@ -1324,8 +1324,8 @@ const MASTERY_SKILLS={
   mascarado:[
     MS('Enxame de Lâminas',100,'phys',0.85,'all',{fx:'triple',txt:'As armas de todos, ao mesmo tempo.'}),
     MS('Rosto do Vazio',130,'buff',0,'self',{fx:'phase',txt:'Veste o nada e ignora golpes.'}),
-    MS('Contragolpe Fatal',160,'phys',7.6,'one',{fx:'execute',txt:'Devolve a morte com um reflexo perfeito.'}),
-    MS('A Face do Nada',200,'mag',8.4,'all',{el:'sombrio',fx:'execute',txt:'Tira a máscara. Não há nada por baixo.'}) ],
+    MS('Contragolpe Fatal',160,'phys',7.6,'one',{fx:'atbreak',txt:'Devolve o golpe com um reflexo perfeito — o inimigo perde seu momento.'}),
+    MS('A Face do Nada',200,'mag',8.4,'all',{el:'sombrio',fx:'curse',txt:'Tira a máscara — quem vê carrega a maldição pra sempre.'}) ],
   relojoeiro:[
     MS('Engrenagem Reversa',100,'mag',6.4,'all',{el:'arcano',fx:'slow',txt:'O tempo emperra para os inimigos.'}),
     MS('Ponteiro Zero',130,'mag',7.0,'all',{el:'arcano',fx:'stun',txt:'Todos os ponteiros travam de uma vez.'}),
@@ -1333,9 +1333,9 @@ const MASTERY_SKILLS={
     MS('Fim dos Relógios',200,'mag',8.4,'all',{el:'arcano',fx:'stun',txt:'Todos os relógios param. Para sempre.'}) ],
   gladiadora:[
     MS('Ovação da Arena',100,'buff',0,'allies',{fx:'allup',txt:'A plateia ruge e fortalece o grupo.'}),
-    MS('Ciclone de Lâminas',130,'phys',7.0,'all',{txt:'Gira lâminas atingindo todos ao redor.'}),
-    MS('Massacre da Arena',160,'phys',7.6,'all',{fx:'execute',txt:'Um massacre digno da arena.'}),
-    MS('Rainha do Sangue',200,'phys',8.4,'all',{fx:'execute',txt:'A arena inteira se ajoelha diante dela.'}) ],
+    MS('Ciclone de Lâminas',130,'phys',7.0,'all',{fx:'armorBreak',txt:'Gira lâminas que rasgam a armadura de todos ao redor.'}),
+    MS('Massacre da Arena',160,'phys',7.6,'all',{fx:'bleed',txt:'Um massacre digno da arena — a areia fica vermelha.'}),
+    MS('Rainha do Sangue',200,'phys',8.4,'all',{fx:'bleed',txt:'A arena inteira sangra diante dela.'}) ],
   pestilenta:[
     MS('Peste Absoluta',100,'mag',6.4,'all',{el:'veneno',fx:'poison',txt:'Uma peste que apaga reinos.'}),
     MS('Miasma Mortal',130,'mag',7.0,'all',{el:'veneno',fx:'poison',txt:'Um véu tóxico cobre a sala inteira.'}),
@@ -1343,13 +1343,13 @@ const MASTERY_SKILLS={
     MS('Fim de Toda Carne',200,'mag',8.4,'all',{el:'veneno',fx:'poison',txt:'Uma praga que não deixa sobreviventes.'}) ],
   oracula:[
     MS('Visão do Fim',100,'mag',6.4,'all',{el:'arcano',fx:'crit+',txt:'Revela a morte de todos: +crítico do grupo.'}),
-    MS('Presságio Negro',130,'mag',7.0,'all',{el:'sombrio',txt:'Um presságio sombrio abate os inimigos.'}),
+    MS('Presságio Negro',130,'mag',7.0,'all',{el:'sombrio',fx:'weaken',txt:'Um presságio sombrio que rouba a força de todos.'}),
     MS('Sentença Final',160,'mag',7.6,'one',{el:'arcano',fx:'execute',txt:'O que foi previsto, acontece.'}),
-    MS('Fim de Todos os Destinos',200,'mag',8.4,'all',{el:'arcano',fx:'execute',txt:'Ela vê o fim de todos — e o concretiza.'}) ],
+    MS('Fim de Todos os Destinos',200,'mag',8.4,'all',{el:'arcano',fx:'curse',txt:'Ela vê o fim de todos — e o sela como maldição coletiva.'}) ],
   andarilho:[
-    MS('Desfazer',100,'mag',6.4,'all',{el:'sombrio',fx:'execute',txt:'Apaga os inimigos mais frágeis da realidade.'}),
-    MS('O Vazio Encara',130,'mag',7.0,'all',{el:'sombrio',txt:'O nada entre os andares olha de volta.'}),
-    MS('Colapso do Ser',160,'mag',7.6,'all',{el:'sombrio',fx:'execute',txt:'A existência dos inimigos colapsa.'}),
+    MS('Desfazer',100,'mag',6.4,'all',{el:'sombrio',fx:'weaken',txt:'Apaga parte da força dos inimigos, frágeis frente ao nada.'}),
+    MS('O Vazio Encara',130,'mag',7.0,'all',{el:'sombrio',fx:'stun',txt:'O nada entre os andares olha de volta — e paralisa.'}),
+    MS('Colapso do Ser',160,'mag',7.6,'all',{el:'sombrio',fx:'curse',txt:'A existência dos inimigos colapsa — o que resta está marcado.'}),
     MS('Nada Resta',200,'mag',8.4,'all',{el:'sombrio',fx:'execute',txt:'Não há mais nada. Nunca houve.'}) ],
 };
 // níveis de liberação MUITO mais espaçados (o jogo vai ao Andar 200; heróis sobem por muitas incursões)
