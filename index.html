@@ -840,7 +840,7 @@ const HEROES=[
   SK('Olho do Topógrafo',4,'buff',0,'allies',{fx:'scout',txt:'Revela a sala à frente; +crítico do grupo.'}),
   SK('Atalho Secreto',7,'buff',0,'self',{fx:'secret+',txt:'Garante busca por passagem secreta nesta sala.'}),
   SK('Fosso Cartografado',9,'buff',0,'self',{fx:'trap',txt:'Marca um fosso no mapa — o inimigo mais forte cai nele.'}),
-  SK('Mapa-Múndi',12,'mag',1.8,'all',{el:'arcano',txt:'Projeta o mapa astral: dano arcano em todos.'})
+  SK('Mapa-Múndi',12,'mag',1.8,'all',{el:'arcano',fx:'atbreak',txt:'O peso do mapa astral esmaga e atrasa o turno de todos os inimigos.'})
  ]},
 {id:'guerreiro',name:'Bron, o Guerreiro',role:'Guerreiro',rarity:'comum',icon:'⚔️',start:true,
  head:'helm',weapon:'sword',
@@ -855,7 +855,7 @@ const HEROES=[
   SK('Grito Intimidador',5,'buff',0,'self',{fx:'weakenAll',txt:'Urro de guerra: TODOS os inimigos golpeiam mais fraco por 3 turnos.'}),
   SK('Investida',7,'phys',1.7,'one',{fx:'stun',txt:'Avança e pode atordoar.'}),
   SK('Último Baluarte',11,'buff',0,'allies',{fx:'shield',txt:'Escudo para todo o grupo.'}),
-  SK('Fúria do Aço',14,'phys',1.3,'all',{txt:'Gira a lâmina atingindo todos.'})
+  SK('Fúria do Aço',14,'phys',1.3,'all',{fx:'bleed',txt:'Gira a lâmina abrindo feridas que sangram em todos.'})
  ]},
 {id:'maga',name:'Sevra, a Maga',role:'Maga',rarity:'comum',icon:'🔮',start:true,
  head:'hat',weapon:'staff',
@@ -865,7 +865,7 @@ const HEROES=[
  passive:{name:'Sintonia Arcana',tags:{spellAmp:0.15},
    desc:'Todo dano mágico do grupo é amplificado em 15%.'},
  skills:[
-  SK('Dardo Arcano',1,'mag',1.5,'one',{el:'arcano',txt:'Projétil de energia pura.'}),
+  SK('Dardo Arcano',1,'mag',1.5,'one',{el:'arcano',fx:'pierce',txt:'Energia pura que atravessa qualquer armadura.'}),
   SK('Bola de Fogo',4,'mag',1.6,'all',{el:'fogo',fx:'burn',txt:'Explosão flamejante em área.'}),
   SK('Barreira de Mana',6,'buff',0,'allies',{fx:'shield',txt:'Tece um escudo arcano que protege todo o grupo.'}),
   SK('Lança de Gelo',8,'mag',1.7,'one',{el:'gelo',fx:'slow',txt:'Perfura e congela (alvo mais lento).'}),
@@ -913,14 +913,14 @@ const HEROES=[
   SK('Tiro Perfurante',6,'phys',1.6,'all',{fx:'armorBreak',txt:'Atravessa a fileira inimiga rachando armaduras.'}),
   SK('Armadilha de Caça',9,'buff',0,'self',{fx:'trap',txt:'Prende o inimigo mais forte.'}),
   SK('Instinto de Caçador',11,'buff',0,'allies',{fx:'atkup',txt:'Aponta os pontos vitais: +ataque de todo o grupo.'}),
-  SK('Chuva de Flechas',13,'phys',1.5,'all',{txt:'Salva mortal sobre todos.'})],
+  SK('Chuva de Flechas',13,'phys',1.5,'all',{fx:'bleed',txt:'Salva de farpas que deixam todos sangrando.'})],
  unlock:{type:'floor',v:10,desc:'Alcance o Andar 10 da Adranja.'}},
 {id:'barbaro',name:'Korg, o Bárbaro',role:'Bárbaro',rarity:'raro',icon:'🪓',
  head:'horns',weapon:'axe',
  pal:{H:'#8a3a22',S:'#e0a070',e:'#3a0a0a',K:'#e0a070',A:'#6a3a22',B:'#c8324a',P:'#4a2a18',O:'#241408',M:'#cfb0a0',R:'#e8e0d0',W:'#7a5a36'},
  base:{hp:78,atk:14,def:7,mag:1,spd:7,lck:6},growth:{hp:14,atk:2.2,def:1.1,mag:.2,spd:.9,lck:.8},
  passive:{name:'Sangue Fervente',tags:{rage:0.5},desc:'Quanto menor sua vida, maior o dano — até +50% com vida crítica.'},
- skills:[SK('Machadada',1,'phys',1.5,'one'),SK('Grito de Guerra',3,'buff',0,'allies',{fx:'atkup',txt:'+ataque do grupo.'}),
+ skills:[SK('Machadada',1,'phys',1.5,'one',{fx:'bleed',txt:'Corte profundo que não para de sangrar.'}),SK('Grito de Guerra',3,'buff',0,'allies',{fx:'atkup',txt:'+ataque do grupo.'}),
   SK('Fúria Cega',5,'buff',0,'self',{fx:'enrage',txt:'Entra em fúria: +35% de dano por 3 turnos.'}),
   SK('Terremoto',9,'phys',1.6,'all',{fx:'stun'}),
   SK('Quebra-Crânios',11,'phys',1.6,'one',{fx:'armorBreak',txt:'Esmaga o elmo do alvo (−defesa dele).'}),
@@ -956,7 +956,7 @@ const HEROES=[
  passive:{name:'Precisão Élfica',tags:{critBonus:0.18},desc:'Sua mira guia o grupo: +18% de chance de acerto crítico para toda a equipe.'},
  skills:[SK('Tiro Élfico',1,'phys',1.5,'one',{fx:'crit+'}),
   SK('Flecha de Visgo',4,'phys',1.3,'one',{fx:'slow',txt:'Seiva pegajosa: o alvo fica mais lento.'}),
-  SK('Disparo Triplo',6,'phys',0.7,'all'),
+  SK('Disparo Triplo',6,'phys',0.7,'all',{fx:'crit+',txt:'Três flechas certeiras, uma pra cada alvo.'}),
   SK('Olho de Águia',9,'buff',0,'self',{fx:'critmax',txt:'Próximos tiros são críticos garantidos.'}),
   SK('Canto da Floresta',12,'heal',1.3,'allies',{txt:'Melodia élfica antiga que fecha as feridas do grupo.'}),
   SK('Flecha do Crepúsculo',14,'mag',3.0,'one',{el:'arcano',fx:'crit+'})],
@@ -978,11 +978,11 @@ const HEROES=[
  pal:{H:'#1a1a1a',S:'#e0a878',e:'#2a1a20',K:'#e0a878',A:'#d8743a',B:'#ffd166',P:'#a85a2a',O:'#6a3a1a',W:'#7a5a36'},
  base:{hp:52,atk:11,def:8,mag:6,spd:12,lck:8},growth:{hp:9,atk:1.7,def:1.3,mag:.9,spd:1.6,lck:1},
  passive:{name:'Fluxo do Chi',tags:{dodge:0.2,combo:1},desc:'20% de esquiva e ataques encadeiam combos crescentes.'},
- skills:[SK('Palma de Ferro',1,'phys',1.3,'one',{fx:'combo'}),SK('Rajada de Socos',3,'phys',0.6,'one',{fx:'triple'}),
+ skills:[SK('Palma de Ferro',1,'phys',1.3,'one',{fx:'atbreak',txt:'Palma que desequilibra e atrasa o turno do alvo.'}),SK('Rajada de Socos',3,'phys',0.6,'one',{fx:'triple'}),
   SK('Postura Defensiva',5,'buff',0,'self',{fx:'dodgeup'}),
   SK('Toque Vital',8,'heal',1.2,'ally',{txt:'Chi curativo aplicado nos pontos de pressão.'}),
   SK('Palma Trovejante',11,'phys',1.4,'all',{fx:'stun',txt:'Onda de choque que pode atordoar todos.'}),
-  SK('Punho do Dragão',14,'phys',2.8,'one',{fx:'execute',txt:'O golpe final: executa inimigos enfraquecidos.'})],
+  SK('Punho do Dragão',14,'phys',2.8,'one',{fx:'pierce',txt:'O chi atravessa qualquer defesa — ignora 75% da armadura.'})],
  unlock:{type:'floor',v:22,desc:'Alcance o Andar 22 da Adranja.'}},
 {id:'invocador',name:'Iris, a Invocadora',role:'Invocadora',rarity:'epico',icon:'🌀',
  head:'hood',weapon:'orb',
@@ -993,7 +993,7 @@ const HEROES=[
   SK('Espírito Gélido',3,'mag',1.5,'one',{el:'gelo',fx:'slow'}),
   SK('Convocar Golem',6,'buff',0,'self',{fx:'summon'}),
   SK('Vento dos Espíritos',9,'buff',0,'allies',{fx:'haste',txt:'Espíritos do ar aceleram todo o grupo.'}),
-  SK('Tempestade de Espíritos',12,'mag',1.9,'all',{el:'arcano'}),
+  SK('Tempestade de Espíritos',12,'mag',1.9,'all',{el:'arcano',fx:'slow',txt:'Espíritos gélidos que atravessam e atrasam todos.'}),
   SK('Avatar Primordial',16,'mag',3.0,'all',{el:'arcano',fx:'summon'})],
  unlock:{type:'item',v:'cristal_invocacao',desc:'Encontre o Cristal de Invocação (item secreto).'}},
 {id:'bardo',name:'Lio, o Bardo',role:'Bardo',rarity:'raro',icon:'🎵',
@@ -1012,7 +1012,7 @@ const HEROES=[
  pal:{H:'#3a6a2a',S:'#d8b888',e:'#5fd17a',K:'#d8b888',A:'#5a7a3a',B:'#8a5a2a',P:'#3a4a22',O:'#1a2410',G:'#5fd17a',W:'#5a3a1a'},
  base:{hp:56,atk:9,def:8,mag:11,spd:8,lck:8},growth:{hp:10,atk:1.4,def:1.3,mag:1.7,spd:1.1,lck:1},
  passive:{name:'Forma Selvagem',tags:{shapeshift:1,healRoom:0.009},desc:'Transforma-se em fera no combate (mais ataque) e regenera 0,9% por sala.'},
- skills:[SK('Garras',1,'phys',1.4,'one',{fx:'shift'}),SK('Espinhos',3,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
+ skills:[SK('Garras',1,'phys',1.4,'one',{fx:'bleed',txt:'Garras selvagens que rasgam e sangram.'}),SK('Espinhos',3,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
   SK('Toque da Vida',5,'heal',1.5,'ally'),
   SK('Casca Grossa',8,'buff',0,'allies',{fx:'resist',txt:'A pele do grupo endurece como casca de carvalho.'}),
   SK('Fúria de Urso',11,'phys',1.8,'one',{fx:'shift'}),
@@ -1028,14 +1028,14 @@ const HEROES=[
   SK('Sacrifício',5,'buff',0,'self',{fx:'sacrifice',txt:'Gasta vida por dano massivo.'}),
   SK('Drenar Vida',7,'mag',1.4,'one',{el:'sombrio',fx:'lifesteal'}),
   SK('Eclipse',9,'mag',1.7,'all',{el:'sombrio',fx:'weaken'}),
-  SK('Ceifeira Negra',15,'phys',2.8,'one',{el:'sombrio',fx:'execute'})],
+  SK('Ceifeira Negra',15,'phys',2.8,'one',{el:'sombrio',fx:'bleed',txt:'Um corte da ceifeira nunca fecha — sangra até o fim.'})],
  unlock:{type:'boss',v:'rainha_aranha',desc:'Derrote a Rainha Aranha (chefe do Andar 10).'}},
 {id:'domadora',name:'Sasha, Domadora de Feras',role:'Domadora',rarity:'epico',icon:'🐺',
  head:'bandana',weapon:'spear',
  pal:{H:'#8a5a2a',S:'#e0a878',e:'#ffd166',K:'#e0a878',A:'#6a4a2a',B:'#5fd17a',P:'#4a3420',O:'#241808',M:'#cfd6dd',W:'#7a5a36'},
  base:{hp:54,atk:11,def:8,mag:5,spd:10,lck:11},growth:{hp:10,atk:1.6,def:1.3,mag:.7,spd:1.4,lck:1.5},
  passive:{name:'Vínculo Selvagem',tags:{tameChance:0.18,beastBane:0.2},desc:'18% de chance de domar uma Fera derrotada como aliada permanente do combate.'},
- skills:[SK('Lançada',1,'phys',1.4,'one'),SK('Chamado Selvagem',3,'buff',0,'self',{fx:'summon',txt:'Invoca um lobo aliado.'}),
+ skills:[SK('Lançada',1,'phys',1.4,'one',{fx:'pierce',txt:'A lança atravessa escamas e placas.'}),SK('Chamado Selvagem',3,'buff',0,'self',{fx:'summon',txt:'Invoca um lobo aliado.'}),
   SK('Investida do Lobo',6,'phys',1.6,'one',{fx:'double'}),
   SK('Laço de Caça',8,'buff',0,'self',{fx:'trap',txt:'Laça e prende o inimigo mais forte por 2 turnos.'}),
   SK('Rugido',10,'buff',0,'allies',{fx:'atkup'}),
@@ -1050,18 +1050,18 @@ const HEROES=[
   SK('Acelerar',3,'buff',0,'allies',{fx:'haste',txt:'+velocidade do grupo.'}),
   SK('Reverter',5,'heal',1.4,'ally',{txt:'Volta o tempo das feridas.'}),
   SK('Parar o Tempo',9,'buff',0,'self',{fx:'timestop',txt:'Inimigos perdem o turno.'}),
-  SK('Paradoxo',16,'mag',3.2,'all',{el:'arcano',fx:'slow'})],
+  SK('Paradoxo',16,'mag',3.2,'all',{el:'arcano',fx:'atbreak',txt:'Um paradoxo devolve todos os inimigos a turnos atrás.'})],
  unlock:{type:'floor',v:55,desc:'Alcance o Andar 55 da Adranja.'}},
 {id:'geomante',name:'Terron, o Geomante',role:'Geomante',rarity:'lendario',icon:'🪨',
  head:'none',weapon:'mace',
  pal:{H:'#5a4a3a',S:'#d8a878',e:'#ffd166',K:'#d8a878',A:'#7a6a4a',B:'#ff7a3c',P:'#4a3a28',O:'#241a10',M:'#a89070',R:'#5fd17a',W:'#7a5a36'},
  base:{hp:64,atk:12,def:13,mag:11,spd:6,lck:8},growth:{hp:12,atk:1.6,def:1.9,mag:1.6,spd:.7,lck:1},
  passive:{name:'Senhor da Terra',tags:{alterFloor:0.2,partyDef:0.12},desc:'Reduz a densidade de inimigos do andar em 20% e dá +12% de defesa ao grupo.'},
- skills:[SK('Punho de Pedra',1,'phys',1.4,'one',{el:'terra'}),SK('Muralha Rochosa',3,'buff',0,'allies',{fx:'shield'}),
+ skills:[SK('Punho de Pedra',1,'phys',1.4,'one',{el:'terra',fx:'atbreak',txt:'O impacto joga o inimigo longe, atrasando seu turno.'}),SK('Muralha Rochosa',3,'buff',0,'allies',{fx:'shield'}),
   SK('Estilhaços',5,'mag',1.5,'all',{el:'terra',fx:'armorBreak',txt:'Fragmentos que racham as armaduras inimigas.'}),
   SK('Areia Movediça',9,'mag',1.4,'all',{el:'terra',fx:'slow',txt:'O chão engole os pés dos inimigos (−velocidade).'}),
   SK('Terremoto',12,'mag',1.8,'all',{el:'terra',fx:'stun'}),
-  SK('Cataclismo',15,'mag',3.0,'all',{el:'terra',fx:'stun'})],
+  SK('Cataclismo',15,'mag',3.0,'all',{el:'terra',fx:'pierce',txt:'A terra se abre sob os inimigos — nada os protege.'})],
  unlock:{type:'essence',v:6000,reqFloor:40,desc:'Gaste 6000 de Essência (requer Andar 40).'}},
 {id:'andarilho',name:'???, o Andarilho do Vazio',role:'Andarilho do Vazio',rarity:'mitico',icon:'🌌',
  head:'veil',weapon:'scythe',
@@ -1069,10 +1069,10 @@ const HEROES=[
  base:{hp:60,atk:13,def:9,mag:15,spd:12,lck:13},growth:{hp:11,atk:2,def:1.4,mag:2.4,spd:1.6,lck:1.6},
  passive:{name:'Entre Mundos',tags:{phase:0.18,allMastery:0.1},desc:'18% de chance de ignorar completamente um ataque e +10% de dano próprio.'},
  skills:[SK('Foice do Vazio',1,'phys',1.6,'one',{el:'sombrio',fx:'lifesteal'}),
-  SK('Colapso',3,'mag',1.6,'all',{el:'arcano'}),SK('Passo Sombrio',5,'buff',0,'self',{fx:'phase'}),
-  SK('Devorar Luz',9,'mag',2.0,'one',{el:'sombrio',fx:'execute'}),
+  SK('Colapso',3,'mag',1.6,'all',{el:'arcano',fx:'atbreak',txt:'O espaço colapsa e rouba o tempo de todos os inimigos.'}),SK('Passo Sombrio',5,'buff',0,'self',{fx:'phase'}),
+  SK('Devorar Luz',9,'mag',2.0,'one',{el:'sombrio',fx:'weaken',txt:'Devora a luz — e a força — do alvo.'}),
   SK('Sussurros do Vazio',12,'buff',0,'self',{fx:'weakenAll',txt:'O vazio sussurra — todos os inimigos vacilam.'}),
-  SK('Fim de Tudo',18,'mag',4.0,'all',{el:'sombrio',fx:'execute'})],
+  SK('Fim de Tudo',18,'mag',4.0,'all',{el:'sombrio',fx:'lifesteal',txt:'Devora tudo — e devolve a vida roubada ao Andarilho.'})],
  unlock:{type:'secret',v:'andarilho',desc:'Segredo: complete a combinação proibida nas profundezas...'}},
 /* ---- NOVOS HERÓIS CRIATIVOS ---- */
 {id:'relojoeiro',name:'Tock, o Relojoeiro',role:'Relojoeiro',rarity:'epico',icon:'⚙️',
@@ -1092,12 +1092,12 @@ const HEROES=[
  pal:{H:'#7a3a22',S:'#e0a070',e:'#ffd166',K:'#e0a070',A:'#8a5a2a',B:'#c8324a',P:'#5a3a22',O:'#241408',M:'#cfb0a0',W:'#7a5a36'},
  base:{hp:72,atk:13,def:9,mag:1,spd:8,lck:7},growth:{hp:13,atk:2.0,def:1.4,mag:.2,spd:.9,lck:.9},
  passive:{name:'Sangue da Arena',tags:{rage:0.5,thorns:0.18},desc:'Quanto mais ferida, mais forte (+50% no limite), e reflete 18% do dano recebido. A multidão ruge.'},
- skills:[SK('Golpe da Arena',1,'phys',1.5,'one'),
+ skills:[SK('Golpe da Arena',1,'phys',1.5,'one',{fx:'bleed',txt:'Corte de arena que abre uma ferida sangrenta.'}),
   SK('Provocar a Plateia',3,'buff',0,'self',{fx:'taunt'}),
   SK('Rugido da Multidão',5,'buff',0,'self',{fx:'enrage',txt:'A plateia ruge — +35% de dano por 3 turnos.'}),
   SK('Investida Brutal',8,'phys',1.7,'one',{fx:'stun'}),
   SK('Roda de Lâminas',11,'phys',1.3,'all',{fx:'armorBreak'}),
-  SK('Glória ou Morte',14,'phys',2.8,'one',{fx:'execute'})],
+  SK('Glória ou Morte',14,'phys',2.8,'one',{fx:'pierce',txt:'O golpe final da arena — nenhuma armadura o detém.'})],
  unlock:{type:'kills',v:350,desc:'Derrote 350 monstros no total.'}},
 {id:'pestilenta',name:'Vesper, a Praga',role:'Pestilenta',rarity:'epico',icon:'☠️',
  head:'hood',weapon:'staff',
@@ -1132,7 +1132,7 @@ const HEROES=[
   SK('Rosto Roubado',3,'buff',0,'self',{fx:'phase'}),
   SK('Eco Cortante',5,'phys',1.2,'all',{fx:'crit+'}),
   SK('Rosto da Curandeira',7,'heal',1.3,'ally',{txt:'Veste o rosto de uma santa esquecida e cura como ela curava.'}),
-  SK('Reflexo Fatal',10,'phys',2.0,'one',{fx:'execute'}),
+  SK('Reflexo Fatal',10,'phys',2.0,'one',{fx:'atbreak',txt:'Rouba o momento do inimigo — o turno dele volta pra trás.'}),
   SK('Todos e Ninguém',16,'mag',3.0,'all',{el:'arcano',fx:'lifesteal'})],
  unlock:{type:'essence',v:15000,reqFloor:60,desc:'Recrute por 15000 de Essência (requer Andar 60).'}},
 ];
@@ -1145,17 +1145,17 @@ const EXTRA_SKILLS={
   cartografo:[ SK('Triangulação',0,'mag',2.4,'all',{el:'arcano',fx:'crit+',txt:'Marca todos os pontos fracos do andar: dano arcano e +crítico do grupo.'}),
     SK('Atlas Proibido',0,'mag',3.6,'all',{el:'arcano',fx:'curse',txt:'Reescreve a realidade da sala: dano massivo e maldição.'}) ],
   guerreiro:[ SK('Quebra-Mundo',0,'phys',2.0,'all',{fx:'stun',txt:'Golpe sísmico que atordoa todos.'}),
-    SK('Juramento de Aço',0,'phys',3.4,'one',{fx:'execute',txt:'Investida final que executa inimigos feridos.'}) ],
+    SK('Juramento de Aço',0,'phys',3.4,'one',{fx:'pierce',txt:'Investida que atravessa escudo, placa e osso.'}) ],
   maga:[ SK('Singularidade',0,'mag',2.6,'all',{el:'arcano',fx:'slow',txt:'Buraco arcano que suga e desacelera.'}),
     SK('Cometa Cataclísmico',0,'mag',4.4,'all',{el:'fogo',fx:'burn',txt:'O céu desaba em chamas sobre todos.'}) ],
   ladina:[ SK('Dança das Sombras',0,'phys',0.7,'all',{fx:'triple',txt:'Atravessa todos os inimigos três vezes.'}),
     SK('Execução Silenciosa',0,'phys',3.2,'one',{el:'veneno',fx:'execute',txt:'Golpe mortal envenenado que executa.'}) ],
   cleriga:[ SK('Milagre',0,'heal',2.6,'allies',{txt:'Restaura grande parte da vida de todo o grupo.'}),
-    SK('Juízo Final',0,'mag',3.0,'all',{el:'sagrado',txt:'Luz purificadora arrasa o mal.'}) ],
+    SK('Juízo Final',0,'mag',3.0,'all',{el:'sagrado',fx:'stun',txt:'Luz purificadora que cega e paralisa o mal.'}) ],
   cacador:[ SK('Marca do Predador',0,'phys',2.2,'one',{fx:'crit+',txt:'Marca a presa: tiro com crítico garantido.'}),
-    SK('Dilúvio de Flechas',0,'phys',2.8,'all',{txt:'Escurece o céu com flechas.'}) ],
+    SK('Dilúvio de Flechas',0,'phys',2.8,'all',{fx:'slow',txt:'Escurece o céu — as presas hesitam sob a sombra.'}) ],
   barbaro:[ SK('Sede de Sangue',0,'phys',1.6,'one',{fx:'lifesteal',txt:'Golpe brutal que rouba vida.'}),
-    SK('Aniquilação',0,'phys',3.8,'all',{fx:'execute',txt:'Massacre que executa os fracos.'}) ],
+    SK('Aniquilação',0,'phys',3.8,'all',{fx:'bleed',txt:'Massacre que deixa todos os inimigos sangrando.'}) ],
   necromante:[ SK('Legião dos Mortos',0,'buff',0,'self',{fx:'summon',txt:'Ergue um exército de esqueletos.'}),
     SK('Praga Final',0,'mag',3.2,'all',{el:'veneno',fx:'poison',txt:'Uma peste que devora toda carne.'}) ],
   paladino:[ SK('Aura Sagrada',0,'buff',0,'allies',{fx:'allup',txt:'Eleva todos os atributos do grupo.'}),
@@ -1173,35 +1173,35 @@ const EXTRA_SKILLS={
   druida:[ SK('Forma do Titã',0,'phys',2.8,'one',{fx:'shift',txt:'Assume a forma de uma fera colossal.'}),
     SK('Despertar da Floresta',0,'mag',3.4,'all',{el:'veneno',fx:'poison',txt:'A mata desperta e devora.'}) ],
   cavaleiro_sombrio:[ SK('Pacto Sombrio',0,'mag',2.4,'all',{el:'sombrio',fx:'lifesteal',txt:'Drena a vida de todos os inimigos.'}),
-    SK('Fim Sombrio',0,'phys',4.0,'one',{el:'sombrio',fx:'execute',txt:'A ceifa que ninguém escapa.'}) ],
+    SK('Fim Sombrio',0,'phys',4.0,'one',{el:'sombrio',fx:'curse',txt:'Marca a alma do alvo: ele recebe +25% de todo o dano.'}) ],
   domadora:[ SK('Alfa da Matilha',0,'buff',0,'self',{fx:'summon',txt:'Convoca uma matilha leal.'}),
-    SK('Estouro da Manada',0,'phys',2.8,'all',{txt:'Uma debandada que esmaga tudo.'}) ],
+    SK('Estouro da Manada',0,'phys',2.8,'all',{fx:'stun',txt:'Uma debandada que atropela e atordoa tudo.'}) ],
   cronomante:[ SK('Estase',0,'buff',0,'self',{fx:'timestop',txt:'Congela o tempo dos inimigos.'}),
-    SK('Colapso Temporal',0,'mag',4.0,'all',{el:'arcano',fx:'slow',txt:'O tempo se dobra e despedaça.'}) ],
+    SK('Colapso Temporal',0,'mag',4.0,'all',{el:'arcano',fx:'stun',txt:'O tempo se despedaça — inimigos ficam presos entre segundos.'}) ],
   geomante:[ SK('Falha Tectônica',0,'mag',2.8,'all',{el:'terra',fx:'stun',txt:'Rasga a terra sob os pés inimigos.'}),
-    SK('Fim do Continente',0,'mag',4.2,'all',{el:'terra',fx:'stun',txt:'Um cataclismo que afunda reinos.'}) ],
-  andarilho:[ SK('Não-Existência',0,'mag',3.4,'all',{el:'sombrio',fx:'execute',txt:'Apaga inimigos da realidade.'}),
-    SK('O Vazio Olha de Volta',0,'mag',5.2,'all',{el:'sombrio',fx:'execute',txt:'O fim de tudo, contemplado.'}) ],
+    SK('Fim do Continente',0,'mag',4.2,'all',{el:'terra',fx:'atbreak',txt:'O chão some — inimigos caem e perdem seu momento.'}) ],
+  andarilho:[ SK('Não-Existência',0,'mag',3.4,'all',{el:'sombrio',fx:'curse',txt:'Meio-apagados da realidade, os inimigos recebem +dano.'}),
+    SK('O Vazio Olha de Volta',0,'mag',5.2,'all',{el:'sombrio',fx:'weaken',txt:'Quem encara o vazio perde a força de lutar.'}) ],
   relojoeiro:[ SK('Paradoxo Mecânico',0,'mag',2.6,'all',{el:'arcano',fx:'slow',txt:'O tempo emperra para os inimigos.'}),
     SK('Colapso de Engrenagens',0,'mag',3.8,'all',{el:'fogo',fx:'burn',txt:'Toda a máquina explode de uma vez.'}) ],
   gladiadora:[ SK('Aclamação',0,'buff',0,'allies',{fx:'allup',txt:'A plateia ruge e fortalece o grupo.'}),
-    SK('Carnificina',0,'phys',3.8,'all',{fx:'execute',txt:'Um massacre digno da arena.'}) ],
+    SK('Carnificina',0,'phys',3.8,'all',{fx:'bleed',txt:'Um massacre digno da arena — a areia fica vermelha.'}) ],
   pestilenta:[ SK('Praga Negra',0,'mag',2.8,'all',{el:'veneno',fx:'poison',txt:'Uma peste que apaga reinos.'}),
     SK('Colheita Mórbida',0,'mag',3.6,'all',{el:'sombrio',fx:'lifesteal',txt:'Drena a vida de todos os infectados.'}) ],
   oracula:[ SK('Olho do Apocalipse',0,'mag',2.8,'all',{el:'arcano',fx:'crit+',txt:'Revela a morte de todos.'}),
-    SK('Destino Selado',0,'mag',4.2,'one',{el:'arcano',fx:'execute',txt:'O que foi previsto, acontece.'}) ],
+    SK('Destino Selado',0,'mag',4.2,'one',{el:'arcano',fx:'critmax',txt:'O que foi previsto acontece: crítico garantido.'}) ],
   mascarado:[ SK('Mil Lâminas Emprestadas',0,'phys',0.7,'all',{fx:'triple',txt:'As armas de todos, ao mesmo tempo.'}),
-    SK('A Última Máscara',0,'mag',4.6,'all',{el:'sombrio',fx:'execute',txt:'Tira a máscara. Não há nada por baixo.'}) ],
+    SK('A Última Máscara',0,'mag',4.6,'all',{el:'sombrio',fx:'curse',txt:'Tira a máscara — quem olha carrega a maldição.'}) ],
 };
 // HABILIDADE SUPREMA (capstone) por herói — liberada bem fundo na jornada
 const CAPSTONE_SKILLS={
-  cartografo:SK('Mapa do Fim',0,'mag',5.0,'all',{el:'arcano',fx:'execute',txt:'Risca da existência tudo que está mapeado.'}),
-  guerreiro:SK('Lenda Imortal',0,'phys',5.2,'all',{fx:'execute',txt:'Um golpe que ecoa por mil batalhas.'}),
+  cartografo:SK('Mapa do Fim',0,'mag',5.0,'all',{el:'arcano',fx:'curse',txt:'Risca no mapa o destino de cada inimigo: todos amaldiçoados.'}),
+  guerreiro:SK('Lenda Imortal',0,'phys',5.2,'all',{fx:'armorBreak',txt:'Um golpe que ecoa por mil batalhas e estilhaça toda defesa.'}),
   maga:SK('Fim dos Tempos',0,'mag',5.8,'all',{el:'fogo',fx:'burn',txt:'O universo recomeça em chamas.'}),
-  ladina:SK('Lâmina do Vazio',0,'phys',5.0,'all',{el:'sombrio',fx:'execute',txt:'Mil cortes em silêncio absoluto.'}),
+  ladina:SK('Lâmina do Vazio',0,'phys',5.0,'all',{el:'sombrio',fx:'bleed',txt:'Mil cortes em silêncio — todos sangram sem perceber.'}),
   cleriga:SK('Ressurreição Divina',0,'heal',4.0,'allies',{fx:'revive',txt:'Ergue os caídos e cura o grupo inteiro.'}),
   cacador:SK('Tiro do Apocalipse',0,'phys',5.6,'one',{fx:'critmax',txt:'Uma flecha. Um fim.'}),
-  barbaro:SK('Ragnarök',0,'phys',5.4,'all',{fx:'execute',txt:'A fúria que encerra eras.'}),
+  barbaro:SK('Ragnarök',0,'phys',5.4,'all',{fx:'armorBreak',txt:'A fúria que encerra eras — nada permanece inteiro.'}),
   necromante:SK('Apocalipse dos Mortos',0,'mag',5.0,'all',{el:'sombrio',fx:'lifesteal',txt:'Toda a morte responde ao seu chamado.'}),
   paladino:SK('Julgamento Celestial',0,'mag',5.2,'all',{el:'sagrado',fx:'stun',txt:'O céu desce em juízo.'}),
   arqueiro:SK('Chuva do Crepúsculo',0,'mag',5.0,'all',{el:'arcano',fx:'crit+',txt:'O firmamento inteiro é sua aljava.'}),
@@ -1210,16 +1210,16 @@ const CAPSTONE_SKILLS={
   invocador:SK('Avatar dos Elementos',0,'mag',5.4,'all',{el:'fogo',fx:'burn',txt:'Invoca a fúria de todos os elementos.'}),
   bardo:SK('Sinfonia do Apocalipse',0,'mag',5.0,'all',{el:'arcano',fx:'slow',txt:'A última canção que o mundo ouvirá.'}),
   druida:SK('Ira de Gaia',0,'mag',5.4,'all',{el:'veneno',fx:'poison',txt:'A própria natureza se levanta para punir.'}),
-  cavaleiro_sombrio:SK('Eclipse Eterno',0,'phys',5.6,'all',{el:'sombrio',fx:'execute',txt:'A escuridão engole toda a luz.'}),
+  cavaleiro_sombrio:SK('Eclipse Eterno',0,'phys',5.6,'all',{el:'sombrio',fx:'weaken',txt:'A escuridão engole a luz — e a força — de todos.'}),
   domadora:SK('A Grande Caçada',0,'phys',5.0,'all',{fx:'lifesteal',txt:'Toda a vida selvagem caça ao seu lado.'}),
   cronomante:SK('Reinício Universal',0,'mag',5.8,'all',{el:'arcano',fx:'slow',txt:'Rebobina o tempo até o fim de tudo.'}),
   geomante:SK('Gênese',0,'mag',5.6,'all',{el:'terra',fx:'stun',txt:'Refaz o mundo do zero — sobre os inimigos.'}),
   andarilho:SK('O Fim',0,'mag',6.2,'all',{el:'sombrio',fx:'execute',txt:'Não há mais nada. Nunca houve.'}),
   relojoeiro:SK('Hora Final',0,'mag',5.6,'all',{el:'arcano',fx:'stun',txt:'Todos os relógios param. Para sempre.'}),
-  gladiadora:SK('Imperatriz da Arena',0,'phys',5.6,'all',{fx:'execute',txt:'A arena inteira se ajoelha.'}),
+  gladiadora:SK('Imperatriz da Arena',0,'phys',5.6,'all',{fx:'pierce',txt:'A arena inteira se ajoelha — nenhuma armadura resiste.'}),
   pestilenta:SK('Extinção',0,'mag',5.4,'all',{el:'veneno',fx:'poison',txt:'Uma praga que não deixa sobreviventes.'}),
-  oracula:SK('O Último Vislumbre',0,'mag',6.0,'all',{el:'arcano',fx:'execute',txt:'Ela vê o fim de todos — e o concretiza.'}),
-  mascarado:SK('Sem Rosto, Sem Fim',0,'mag',6.0,'all',{el:'sombrio',fx:'execute',txt:'Veste mil mortes ao mesmo tempo.'}),
+  oracula:SK('O Último Vislumbre',0,'mag',6.0,'all',{el:'arcano',fx:'curse',txt:'Ela vê o fim de todos — e o sela como maldição.'}),
+  mascarado:SK('Sem Rosto, Sem Fim',0,'mag',6.0,'all',{el:'sombrio',fx:'lifesteal',txt:'Veste mil mortes e rouba a vida de todas.'}),
 };
 /* ====================== MAESTRIAS (habilidades de altíssimo nível) ======================
    4 habilidades PROFISSIONAIS por herói, liberadas nos níveis 100, 130, 160 e 200.
@@ -3097,6 +3097,8 @@ const SK_TGT_DESC={one:'um inimigo',all:'todos os inimigos',ally:'o aliado mais 
 const SK_FX_DESC={
   double:'Atinge 2 vezes.',triple:'Atinge 3 vezes.',combo:'Encadeia golpes.',
   burn:'Causa Queimadura (dano por turno).',poison:'Causa Veneno (dano por turno).',
+  bleed:'Causa Sangramento (dano por turno).',pierce:'Perfura: ignora 85% da defesa.',atbreak:'Empurra a barra de ação do alvo pra trás.',
+  enrage:'Fúria: +35% de dano próprio por 3 turnos.',cleanse:'Purifica os debuffs do grupo.',weakenAll:'Todos os inimigos causam −25% de dano.',
   slow:'Reduz a velocidade do alvo.',stun:'Atordoa (alvo perde o turno).',curse:'Amaldiçoa (alvo recebe +25% de dano).',
   execute:'Executa inimigos com pouca vida.','crit+':'+30% de chance de crítico neste golpe.',
   critmax:'Próximos golpes são críticos garantidos.',lifesteal:'Rouba vida proporcional ao dano.',
@@ -3122,7 +3124,10 @@ const FX_EXPL={
   execute:'<b>Executa</b> na hora inimigos com menos de 22% de vida.',
   'crit+':'<b>+30%</b> de chance de crítico neste golpe.',
   critmax:'<b>Crítico garantido</b> neste golpe.',
-  lifesteal:'Você <b>rouba 12%</b> do dano causado como vida.'
+  lifesteal:'Você <b>rouba 12%</b> do dano causado como vida.',
+  bleed:'Aplica <b>Sangramento</b> (28% do dano causado por turno, durante 3 turnos).',
+  pierce:'<b>Perfura</b>: ignora 85% da defesa do alvo.',
+  atbreak:'<b>Desequilibra</b>: empurra a barra de ação do alvo bem para trás (atrasa o turno dele).'
 };
 // habilidades de SUPORTE (buff)
 const BUFF_EXPL={
@@ -3142,7 +3147,10 @@ const BUFF_EXPL={
   trap:'<b>Prende</b> o inimigo mais forte, atordoando-o por 2 turnos.',
   sacrifice:'Sacrifica <b>25%</b> da própria vida para causar <b>dano massivo</b> (~240% do poder do grupo) a um inimigo.',
   shift:'<b>Transforma-se em fera</b>, ganhando mais ataque no combate.',
-  'secret+':'Faz o grupo <b>procurar ativamente</b> uma passagem secreta nesta sala.'
+  'secret+':'Faz o grupo <b>procurar ativamente</b> uma passagem secreta nesta sala.',
+  enrage:'Entra em <b>fúria</b>: +35% de dano causado por este herói durante 3 turnos.',
+  cleanse:'<b>Purifica</b> o grupo: remove venenos, queimaduras, maldições e fraquezas.',
+  weakenAll:'<b>Intimida</b>: TODOS os inimigos causam −25% de dano por 3 turnos.'
 };
 // frase única e clara: o que a habilidade FAZ, com números
 function skillPlainDesc(sk){
@@ -4102,6 +4110,7 @@ const FX_META={
   critmax:{ic:'🎯',c:'#ffd166',n:'Crítico garantido'},
   evade:{ic:'💨',c:'#7dff8f',n:'Esquiva pronta'},
   burn:{ic:'🔥',c:'#ff7a3c',n:'Queimando'},
+  bleed:{ic:'🩸',c:'#ff5d6c',n:'Sangrando'},
   poison:{ic:'☠️',c:'#5fd17a',n:'Envenenado'},
   curse:{ic:'💀',c:'#a14bff',n:'Amaldiçoado'},
   weaken:{ic:'⬇️',c:'#ff5d6c',n:'Enfraquecido'},
@@ -5356,6 +5365,8 @@ function hitEnemy(att,e,skill){
   if(skill){const f=skill.fx;
     if(f==='burn')e.fx.burn={d:Math.round(r.dmg*0.3),t:3};
     if(f==='poison')e.fx.poison={d:Math.round(r.dmg*0.25),t:4};
+    if(f==='bleed')e.fx.bleed={d:Math.round(r.dmg*0.28),t:3};
+    if(f==='atbreak'){e.atb=Math.max(0,(e.atb||0)-65);}
     if(f==='slow')e.st.spd=Math.round(e.st.spd*0.7);
     if(f==='stun')addStun(e,1);
     if(f==='curse')e.fx.curse=true;
@@ -5396,7 +5407,8 @@ function computeDamage(att,def,skill){
   const crit=chance(cc);
   // MITIGAÇÃO por DEFESA: percentual com retornos decrescentes (nunca 100% → ninguém fica imortal).
   // Substitui a subtração fixa antiga (que fazia tanques com muita defesa levarem só 1 de dano).
-  const dfn=(def.st.def||0)*(def.fx&&def.fx.armorBreak?(1-def.fx.armorBreak.mag):1);
+  let dfn=(def.st.def||0)*(def.fx&&def.fx.armorBreak?(1-def.fx.armorBreak.mag):1);
+  if(skill&&skill.fx==='pierce')dfn*=0.15;   // golpes perfurantes ignoram 85% da defesa
   const mit=Math.min(0.78,(dfn*2)/(dfn*2+raw));
   let dmg=Math.max(1,raw*(1-mit));if(crit)dmg*=1.85;
   if(def.fx&&def.fx.shield)dmg*=0.5;if(def.fx&&def.fx.resist)dmg*=0.8;
@@ -5530,8 +5542,8 @@ function applyDamageToHero(c,dmg,crit,attacker,kind){
   refreshBars();
 }
 function processDoT(){
-  aliveEnemies().forEach(e=>{['burn','poison'].forEach(k=>{if(e.fx[k]){e.hp-=e.fx[k].d;const ei=RUN.scene.enemies.indexOf(e);
-    floatText('enemy',Math.max(0,ei),'-'+e.fx[k].d,k==='burn'?'#ff7a3c':'#5fd17a');e.fx[k].t--;if(e.fx[k].t<=0)delete e.fx[k];
+  aliveEnemies().forEach(e=>{['burn','poison','bleed'].forEach(k=>{if(e.fx[k]){e.hp-=e.fx[k].d;const ei=RUN.scene.enemies.indexOf(e);
+    floatText('enemy',Math.max(0,ei),'-'+e.fx[k].d,k==='burn'?'#ff7a3c':(k==='bleed'?'#ff5d6c':'#5fd17a'));e.fx[k].t--;if(e.fx[k].t<=0)delete e.fx[k];
     if(e.hp<=0)killEnemy(e);}});
     ['weaken','armorBreak','enrage'].forEach(k=>{if(e.fx[k]&&e.fx[k].t>0){e.fx[k].t--;if(e.fx[k].t<=0)delete e.fx[k];}});
     if(e.boss)updateBossBar(e);
@@ -5539,8 +5551,8 @@ function processDoT(){
   allies().forEach(a=>{
     ['shield','resist','taunt','critmax'].forEach(k=>{if(a.fx[k]>0){a.fx[k]--;if(a.fx[k]<=0)delete a.fx[k];}});
     ['weaken','armorBreak','enrage'].forEach(k=>{if(a.fx[k]&&a.fx[k].t>0){a.fx[k].t--;if(a.fx[k].t<=0)delete a.fx[k];}});
-    ['burn','poison'].forEach(k=>{if(a.fx[k]&&a.alive){a.hp-=a.fx[k].d;const idx=RUN.party.indexOf(a);
-      if(idx>=0)floatText('hero',idx,'-'+a.fx[k].d,k==='burn'?'#ff7a3c':'#5fd17a');a.fx[k].t--;if(a.fx[k].t<=0)delete a.fx[k];
+    ['burn','poison','bleed'].forEach(k=>{if(a.fx[k]&&a.alive){a.hp-=a.fx[k].d;const idx=RUN.party.indexOf(a);
+      if(idx>=0)floatText('hero',idx,'-'+a.fx[k].d,k==='burn'?'#ff7a3c':(k==='bleed'?'#ff5d6c':'#5fd17a'));a.fx[k].t--;if(a.fx[k].t<=0)delete a.fx[k];
       if(a.hp<=0){a.hp=0;if(a.isMinion)a.alive=false;else downHero(a);}}});
   });
   refreshBars();
