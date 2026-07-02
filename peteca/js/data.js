@@ -101,28 +101,28 @@
      Cada campo é um multiplicador/ajuste aplicado nas decisões.
      ===================================================================== */
   D.STRATEGIES = [
-    { id: 'seguro',    name: 'Jogo Seguro',        icon: '🛡️',
+    { id: 'seguro',    name: 'Jogo Seguro',        icon: 'defense', tone: 'silver',
       desc: 'Arrisca menos, comete menos erros e mantém a peteca em jogo.',
       mods: { risk: -0.35, atkBias: -0.3, ctlBias: 0.1, serveRisk: -0.3, rally: 0.2 } },
-    { id: 'ataque',    name: 'Ataque Total',        icon: '⚡',
+    { id: 'ataque',    name: 'Ataque Total',        icon: 'bolt', tone: 'red',
       desc: 'Batidas fortes para finalizar rápido. Mais pontos rápidos, mais erros.',
       mods: { risk: 0.4, atkBias: 0.55, ctlBias: -0.2, serveRisk: 0.15, rally: -0.3 } },
-    { id: 'colocada',  name: 'Bola Colocada',       icon: '🎯',
+    { id: 'colocada',  name: 'Bola Colocada',       icon: 'precision', tone: 'purple',
       desc: 'Precisão, bolas curtas e variação para explorar espaços vazios.',
       mods: { risk: 0.05, atkBias: -0.15, ctlBias: 0.5, serveRisk: 0, rally: 0 } },
-    { id: 'saque',     name: 'Pressão no Saque',    icon: '🚀',
+    { id: 'saque',     name: 'Pressão no Saque',    icon: 'serve', tone: 'blue',
       desc: 'Força mais no saque para começar os pontos em vantagem.',
       mods: { risk: 0.1, atkBias: 0.1, ctlBias: 0, serveRisk: 0.5, rally: -0.1 } },
-    { id: 'cansar',    name: 'Cansar o Adversário', icon: '⏳',
+    { id: 'cansar',    name: 'Cansar o Adversário', icon: 'hourglass', tone: 'purple',
       desc: 'Prolonga os pontos e explora adversários com pouco fôlego.',
       mods: { risk: -0.2, atkBias: -0.25, ctlBias: 0.2, serveRisk: -0.15, rally: 0.5, tireTarget: true } },
-    { id: 'fraco',     name: 'Explorar Jogador Fraco', icon: '🔍',
+    { id: 'fraco',     name: 'Explorar Jogador Fraco', icon: 'magnifier', tone: 'red',
       desc: 'Mira no atleta adversário com pior defesa, reflexo ou condição.',
       mods: { risk: 0.05, atkBias: 0.1, ctlBias: 0.15, serveRisk: 0.1, rally: 0, weakTarget: true } },
-    { id: 'defesa',    name: 'Defesa Primeiro',     icon: '🧱',
+    { id: 'defesa',    name: 'Defesa Primeiro',     icon: 'wall', tone: 'brown',
       desc: 'Prioriza devolver ataques e esperar o erro adversário.',
       mods: { risk: -0.3, atkBias: -0.4, ctlBias: 0, serveRisk: -0.25, rally: 0.35, defBoost: 0.1 } },
-    { id: 'equilibrio',name: 'Equilíbrio',          icon: '⚖️',
+    { id: 'equilibrio',name: 'Equilíbrio',          icon: 'scale', tone: 'gold',
       desc: 'Mistura ataque, defesa e controle sem riscos extremos.',
       mods: { risk: 0, atkBias: 0, ctlBias: 0, serveRisk: 0, rally: 0 } },
   ];
@@ -210,33 +210,33 @@
      TREINOS (11)
      ===================================================================== */
   D.TRAININGS = [
-    { id: 'vel', attr: 'vel', name: 'Treino de Velocidade', icon: '🏃', desc: 'Tiros curtos e agilidade. Melhora o deslocamento.' },
-    { id: 'ref', attr: 'ref', name: 'Treino de Reflexo',    icon: '👁️', desc: 'Reação contra ataques rápidos.' },
-    { id: 'atk', attr: 'atk', name: 'Treino de Ataque',     icon: '💥', desc: 'Potência nas batidas ofensivas.' },
-    { id: 'pre', attr: 'pre', name: 'Treino de Precisão',   icon: '🎯', desc: 'Reduz erros e melhora a mira.' },
-    { id: 'def', attr: 'def', name: 'Treino de Defesa',     icon: '🧤', desc: 'Devoluções de petecas difíceis.' },
-    { id: 'sak', attr: 'sak', name: 'Treino de Saque',      icon: '🚀', desc: 'Saques seguros, fortes e colocados.' },
-    { id: 'ctl', attr: 'ctl', name: 'Treino de Controle',   icon: '🪶', desc: 'Bolas curtas, cruzadas e colocadas.' },
-    { id: 'fol', attr: 'fol', name: 'Treino de Fôlego',     icon: '🫁', desc: 'Resistência em partidas longas.' },
-    { id: 'lei', attr: 'lei', name: 'Leitura de Jogo',      icon: '🧠', desc: 'Posicionamento e antecipação.' },
-    { id: 'fri', attr: 'fri', name: 'Treino Mental',        icon: '🧊', desc: 'Frieza em pontos decisivos.' },
+    { id: 'vel', attr: 'vel', name: 'Treino de Velocidade', icon: 'speed', desc: 'Tiros curtos e agilidade. Melhora o deslocamento.' },
+    { id: 'ref', attr: 'ref', name: 'Treino de Reflexo',    icon: 'reflex', desc: 'Reação contra ataques rápidos.' },
+    { id: 'atk', attr: 'atk', name: 'Treino de Ataque',     icon: 'attack', desc: 'Potência nas batidas ofensivas.' },
+    { id: 'pre', attr: 'pre', name: 'Treino de Precisão',   icon: 'precision', desc: 'Reduz erros e melhora a mira.' },
+    { id: 'def', attr: 'def', name: 'Treino de Defesa',     icon: 'defense', desc: 'Devoluções de petecas difíceis.' },
+    { id: 'sak', attr: 'sak', name: 'Treino de Saque',      icon: 'serve', desc: 'Saques seguros, fortes e colocados.' },
+    { id: 'ctl', attr: 'ctl', name: 'Treino de Controle',   icon: 'control', desc: 'Bolas curtas, cruzadas e colocadas.' },
+    { id: 'fol', attr: 'fol', name: 'Treino de Fôlego',     icon: 'stamina', desc: 'Resistência em partidas longas.' },
+    { id: 'lei', attr: 'lei', name: 'Leitura de Jogo',      icon: 'gameread', desc: 'Posicionamento e antecipação.' },
+    { id: 'fri', attr: 'fri', name: 'Treino Mental',        icon: 'cool', desc: 'Frieza em pontos decisivos.' },
   ];
 
   /* =====================================================================
      HABILIDADES PASSIVAS (11)
      ===================================================================== */
   D.SKILLS = [
-    { id: 'saqueSeguro',  name: 'Saque Seguro',      icon: '✅', desc: 'Reduz erros no saque em 30%.', },
-    { id: 'bracoPesado',  name: 'Braço Pesado',      icon: '💪', desc: 'Ataques fortes ganham +8 de potência.' },
-    { id: 'olhoQueda',    name: 'Olho na Queda',     icon: '👀', desc: 'Melhora o posicionamento na recepção (+6 leitura efetiva).' },
-    { id: 'defMilagrosa', name: 'Defesa Milagrosa',  icon: '✨', desc: '8% de chance de salvar uma peteca impossível.' },
-    { id: 'duplaAfinada', name: 'Dupla Afinada',     icon: '🤝', desc: 'Com entrosamento 60+, cobertura de quadra melhora muito.' },
-    { id: 'pontoDecisivo',name: 'Ponto Decisivo',    icon: '🏆', desc: 'Joga melhor em set point e match point (+10 frieza efetiva).' },
-    { id: 'curtaMortal',  name: 'Bola Curta Mortal', icon: '🪶', desc: 'Bolas curtas ficam 25% mais difíceis de devolver.' },
-    { id: 'fundoQuadra',  name: 'Fundo de Quadra',   icon: '📏', desc: 'Bolas fundas ganham precisão e profundidade.' },
-    { id: 'cabecaFria',   name: 'Cabeça Fria',       icon: '🧊', desc: 'Reduz pela metade a penalidade por pressão.' },
-    { id: 'ritmoJogo',    name: 'Ritmo de Jogo',     icon: '🎵', desc: 'Em ralis longos (6+ toques), joga +8% melhor.' },
-    { id: 'energiaFinal', name: 'Energia Final',     icon: '🔋', desc: 'Reduz em 40% a queda de fôlego no terceiro set.' },
+    { id: 'saqueSeguro',  name: 'Saque Seguro',      icon: 'check', tone: 'green', desc: 'Reduz erros no saque em 30%.', },
+    { id: 'bracoPesado',  name: 'Braço Pesado',      icon: 'attack', tone: 'red', desc: 'Ataques fortes ganham +8 de potência.' },
+    { id: 'olhoQueda',    name: 'Olho na Queda',     icon: 'reflex', tone: 'purple', desc: 'Melhora o posicionamento na recepção (+6 leitura efetiva).' },
+    { id: 'defMilagrosa', name: 'Defesa Milagrosa',  icon: 'star', tone: 'gold', desc: '8% de chance de salvar uma peteca impossível.' },
+    { id: 'duplaAfinada', name: 'Dupla Afinada',     icon: 'chem', tone: 'blue', desc: 'Com entrosamento 60+, cobertura de quadra melhora muito.' },
+    { id: 'pontoDecisivo',name: 'Ponto Decisivo',    icon: 'trophyIco', tone: 'gold', desc: 'Joga melhor em set point e match point (+10 frieza efetiva).' },
+    { id: 'curtaMortal',  name: 'Bola Curta Mortal', icon: 'control', tone: 'green', desc: 'Bolas curtas ficam 25% mais difíceis de devolver.' },
+    { id: 'fundoQuadra',  name: 'Fundo de Quadra',   icon: 'courtlines', tone: 'green', desc: 'Bolas fundas ganham precisão e profundidade.' },
+    { id: 'cabecaFria',   name: 'Cabeça Fria',       icon: 'cool', tone: 'blue', desc: 'Reduz pela metade a penalidade por pressão.' },
+    { id: 'ritmoJogo',    name: 'Ritmo de Jogo',     icon: 'musicnote', tone: 'purple', desc: 'Em ralis longos (6+ toques), joga +8% melhor.' },
+    { id: 'energiaFinal', name: 'Energia Final',     icon: 'stamina', tone: 'gold', desc: 'Reduz em 40% a queda de fôlego no terceiro set.' },
   ];
   D.SKILL_BY_ID = {}; D.SKILLS.forEach(s => { D.SKILL_BY_ID[s.id] = s; });
 
@@ -245,14 +245,14 @@
      slot: 'a' = por atleta, 't' = da dupla
      ===================================================================== */
   D.EQUIPMENT = [
-    { id: 'tenis',      name: 'Tênis Leve',           icon: '👟', price: 350,  slot: 'a', bonus: { vel: 4 },  desc: '+4 Velocidade.' },
-    { id: 'munhequeira',name: 'Munhequeira Firme',    icon: '🧵', price: 300,  slot: 'a', bonus: { ctl: 4 },  desc: '+4 Controle.' },
-    { id: 'uniformePro',name: 'Uniforme Profissional',icon: '👕', price: 500,  slot: 't', bonus: { repMult: 0.15 }, desc: '+15% de reputação ganha.' },
-    { id: 'kitTreino',  name: 'Kit de Treino',        icon: '🎒', price: 600,  slot: 't', bonus: { tpMult: 0.2 }, desc: '+20% de pontos de treino ganhos.' },
-    { id: 'petecaTreino',name: 'Peteca de Treino',    icon: '🏸', price: 280,  slot: 'a', bonus: { pre: 4 },  desc: '+4 Precisão.' },
-    { id: 'faixaFoco',  name: 'Faixa de Foco',        icon: '🎽', price: 320,  slot: 'a', bonus: { fri: 4 },  desc: '+4 Frieza.' },
-    { id: 'joelheira',  name: 'Joelheira Esportiva',  icon: '🦵', price: 380,  slot: 'a', bonus: { fatMult: -0.15 }, desc: '-15% de impacto do cansaço.' },
-    { id: 'bolsa',      name: 'Bolsa de Atleta',      icon: '💼', price: 900,  slot: 't', bonus: { all: 2 },  desc: '+2 em todos os atributos em campeonatos.' },
+    { id: 'tenis',      name: 'Tênis Leve',           icon: 'shoe', tone: 'blue', price: 350,  slot: 'a', bonus: { vel: 4 },  desc: '+4 Velocidade.' },
+    { id: 'munhequeira',name: 'Munhequeira Firme',    icon: 'wristband', tone: 'red', price: 300,  slot: 'a', bonus: { ctl: 4 },  desc: '+4 Controle.' },
+    { id: 'uniformePro',name: 'Uniforme Profissional',icon: 'shirt', tone: 'green', price: 500,  slot: 't', bonus: { repMult: 0.15 }, desc: '+15% de reputação ganha.' },
+    { id: 'kitTreino',  name: 'Kit de Treino',        icon: 'backpack', tone: 'brown', price: 600,  slot: 't', bonus: { tpMult: 0.2 }, desc: '+20% de pontos de treino ganhos.' },
+    { id: 'petecaTreino',name: 'Peteca de Treino',    icon: 'peteca', tone: 'silver', price: 280,  slot: 'a', bonus: { pre: 4 },  desc: '+4 Precisão.' },
+    { id: 'faixaFoco',  name: 'Faixa de Foco',        icon: 'headband', tone: 'purple', price: 320,  slot: 'a', bonus: { fri: 4 },  desc: '+4 Frieza.' },
+    { id: 'joelheira',  name: 'Joelheira Esportiva',  icon: 'kneepad', tone: 'silver', price: 380,  slot: 'a', bonus: { fatMult: -0.15 }, desc: '-15% de impacto do cansaço.' },
+    { id: 'bolsa',      name: 'Bolsa de Atleta',      icon: 'bagathlete', tone: 'brown', price: 900,  slot: 't', bonus: { all: 2 },  desc: '+2 em todos os atributos em campeonatos.' },
   ];
   D.EQUIP_BY_ID = {}; D.EQUIPMENT.forEach(e => { D.EQUIP_BY_ID[e.id] = e; });
 
@@ -282,49 +282,49 @@
      EVENTOS ESPECIAIS (entre campeonatos)
      ===================================================================== */
   D.EVENTS = [
-    { id: 'exCampeao', name: 'Treino com Ex-Campeão', icon: '🏅',
+    { id: 'exCampeao', name: 'Treino com Ex-Campeão', icon: 'trophyIco', tone: 'gold',
       text: 'Um ex-campeão estadual ofereceu um treino especial para a dupla.',
       opts: [
         { label: 'Aceitar (grátis)', fx: { tp: 6, cond: -10 }, msg: 'Treino puxado! +6 pontos de treino, mas a dupla ficou cansada.' },
         { label: 'Agradecer e descansar', fx: { cond: 10 }, msg: 'A dupla descansou e recuperou a condição física.' },
       ] },
-    { id: 'patrocinio', name: 'Patrocinador Interessado', icon: '💼',
+    { id: 'patrocinio', name: 'Patrocinador Interessado', icon: 'coin', tone: 'gold',
       text: 'Uma loja de esportes local quer patrocinar a dupla em troca de divulgação.',
       opts: [
         { label: 'Aceitar patrocínio', fx: { money: 300, rep: -5 }, msg: '+R$ 300! Alguns fãs acharam a propaganda exagerada (-5 reputação).' },
         { label: 'Recusar', fx: { rep: 10 }, msg: 'A torcida respeitou a decisão. +10 reputação.' },
       ] },
-    { id: 'lesao', name: 'Dores no Ombro', icon: '🤕',
+    { id: 'lesao', name: 'Dores no Ombro', icon: 'heart', tone: 'red',
       text: 'Um dos atletas sentiu dores leves no ombro após os treinos.',
       opts: [
         { label: 'Descansar uma semana', fx: { cond: 15, tp: -2 }, msg: 'Recuperação completa, mas perdeu um pouco de ritmo de treino.' },
         { label: 'Seguir treinando', fx: { cond: -15, tp: 3 }, msg: 'Ganhou treino extra, mas a condição física piorou.' },
       ] },
-    { id: 'rival', name: 'Provocação de Rivais', icon: '😤',
+    { id: 'rival', name: 'Provocação de Rivais', icon: 'attack', tone: 'red',
       text: 'Uma dupla rival provocou vocês numa entrevista: "Eles não passam de amadores".',
       opts: [
         { label: 'Responder na quadra', fx: { moral: 8 }, msg: 'A dupla canalizou a raiva. Moral em alta na próxima partida!' },
         { label: 'Ignorar', fx: { rep: 6 }, msg: 'A elegância rendeu simpatia do público. +6 reputação.' },
       ] },
-    { id: 'reportagem', name: 'Reportagem Local', icon: '📰',
+    { id: 'reportagem', name: 'Reportagem Local', icon: 'star', tone: 'blue',
       text: 'O jornal da cidade quer fazer uma matéria sobre a dupla.',
       opts: [
         { label: 'Dar entrevista', fx: { rep: 12 }, msg: 'A matéria ficou ótima! +12 reputação.' },
         { label: 'Focar no treino', fx: { tp: 3 }, msg: 'Sem distrações: +3 pontos de treino.' },
       ] },
-    { id: 'beneficente', name: 'Torneio Beneficente', icon: '❤️',
+    { id: 'beneficente', name: 'Torneio Beneficente', icon: 'heart', tone: 'pink',
       text: 'Convidaram a dupla para um torneio beneficente sem premiação.',
       opts: [
         { label: 'Participar', fx: { rep: 15, cond: -8 }, msg: 'Um dia lindo de peteca! +15 reputação, mas gastou energia.' },
         { label: 'Não participar', fx: {}, msg: 'A dupla preferiu manter o foco na temporada.' },
       ] },
-    { id: 'desafioSaque', name: 'Desafio de Saque na TV', icon: '📺',
+    { id: 'desafioSaque', name: 'Desafio de Saque na TV', icon: 'precision', tone: 'gold',
       text: 'Um programa local desafiou a dupla: acertar 10 saques no alvo.',
       opts: [
         { label: 'Topar o desafio', fx: { special: 'saqueTV' }, msg: '' },
         { label: 'Recusar', fx: {}, msg: 'A dupla preferiu não se expor.' },
       ] },
-    { id: 'chuva', name: 'Semana de Chuva', icon: '🌧️',
+    { id: 'chuva', name: 'Semana de Chuva', icon: 'cloud', tone: 'silver',
       text: 'Choveu a semana inteira e o treino ao ar livre ficou impossível.',
       opts: [
         { label: 'Treinar teoria em casa', fx: { special: 'teoria' }, msg: '' },
