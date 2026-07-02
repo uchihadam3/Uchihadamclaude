@@ -374,6 +374,43 @@ h3{font-size:18px;}
 .merch-good.unlocked{border-color:var(--ok);box-shadow:0 0 10px rgba(95,209,122,.15);}
 .merch-good:hover{transform:translateY(-1px);}
 .merch-good .rico{font-size:26px;display:flex;align-items:center;justify-content:center;width:38px;flex:0 0 auto;}
+/* ============ CARDS GAMIFICADOS (Forja / Mercado / Biblioteca / Santuário) ============
+   Substitui listas verticais de linhas por grades de cartas — mais visual, menos scroll. */
+.gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px;}
+.gcards.wide{grid-template-columns:repeat(auto-fill,minmax(192px,1fr));}
+.gcard{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;
+  padding:12px 9px 9px;border-radius:14px;cursor:default;
+  background:linear-gradient(180deg,rgba(46,28,66,.94),rgba(24,14,40,.94));
+  border:1px solid var(--line-soft);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 6px 14px rgba(0,0,0,.35);
+  transition:transform .12s,border-color .12s,box-shadow .12s;}
+@media(hover:hover){.gcard:hover{transform:translateY(-3px);border-color:var(--line);}}
+.gcard .gc-badge{position:absolute;top:6px;right:6px;z-index:2;}
+.gcard .gc-lvl{position:absolute;top:6px;left:6px;z-index:2;font-size:10px;font-family:'Cinzel';font-weight:700;
+  background:rgba(0,0,0,.55);border:1px solid var(--line-soft);border-radius:8px;padding:2px 6px;}
+.gcard .gc-ico{width:50px;height:50px;display:flex;align-items:center;justify-content:center;font-size:28px;
+  border-radius:12px;background:radial-gradient(circle at 40% 32%,rgba(255,255,255,.08),rgba(0,0,0,.35));
+  border:1px solid var(--line-soft);margin-top:4px;}
+.gcard .gc-name{font-family:'Cinzel';font-weight:700;font-size:12.5px;line-height:1.22;min-height:2.4em;
+  display:flex;align-items:center;justify-content:center;}
+.gcard .gc-desc{font-size:10px;color:var(--dim);line-height:1.32;min-height:2.6em;}
+.gcard .gc-stat{font-size:10.5px;color:var(--gold);font-family:'Cinzel';font-weight:700;line-height:1.3;}
+.gcard .gc-sub{font-size:9.5px;color:var(--dim);line-height:1.3;}
+.gcard .gc-costs{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;font-size:9.5px;}
+.gcard .gc-spacer{flex:1;}
+.gcard .gc-btn{width:100%;margin-top:2px;}
+.gcard.owned{border-color:var(--ok);box-shadow:0 0 12px rgba(95,209,122,.2),inset 0 1px 0 rgba(255,255,255,.08);}
+.gcard.owned .gc-ico{background:radial-gradient(circle at 40% 32%,rgba(95,209,122,.25),rgba(0,0,0,.35));}
+.gcard.maxed{border-color:var(--legend);box-shadow:0 0 12px rgba(255,179,71,.25);}
+.gcard.locked{opacity:.6;filter:saturate(.55);}
+.gcard.locked .gc-ico{filter:grayscale(.6);}
+.gcard.active-glow{border-color:var(--magic-2);box-shadow:0 0 14px rgba(179,155,255,.3);animation:gcpulse 1.8s ease-in-out infinite;}
+@keyframes gcpulse{0%,100%{box-shadow:0 0 10px rgba(179,155,255,.22);}50%{box-shadow:0 0 18px rgba(179,155,255,.42);}}
+.gcard .gc-bar{width:100%;height:6px;border-radius:5px;background:rgba(0,0,0,.45);overflow:hidden;border:1px solid var(--line-soft);}
+.gcard .gc-bar > i{display:block;height:100%;background:linear-gradient(90deg,var(--gold-2),var(--gold));}
+.gsection{margin-bottom:16px;}
+.gsection:last-child{margin-bottom:0;}
+.gsection-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px;flex-wrap:wrap;}
+.gsection-head h4{display:flex;align-items:center;gap:6px;}
 </style>
 </head>
 <body>
@@ -3254,12 +3291,20 @@ function tabForge(b){
   const avail=RECIPES.filter(r=>hasResearch(r.research));
   const locked=RECIPES.filter(r=>!hasResearch(r.research));
   const card=r=>{const out=IMAP[r.out];const can=canAfford(r.cost);
-    return `<div class="recipe">
-      <div class="rico">${itemIco(out,3)}</div>
-      <div style="flex:1"><b>${out.name}</b> ${rarPill(out.rarity)}<br>
-        <span class="tiny" style="color:var(--gold)">${out.stats?statsStr(out.stats):typeDesc(out)}</span><br>
-        <span class="tiny muted">${Object.keys(r.cost).map(k=>`${IMAP[k].icon}${IMAP[k].name.split(' ')[0]} ${invQty(k)}/${r.cost[k]}`).join(' · ')}</span></div>
-      <button class="btn sm" ${can?'':'disabled'} onclick="craft('${r.id}')">Criar</button></div>`;};
+    const costsHtml=Object.keys(r.cost).map(k=>{const have=invQty(k);const ok=have>=r.cost[k];
+      return `<span style="color:${ok?'var(--ok)':'var(--bad)'}">${IMAP[k].icon}${have}/${r.cost[k]}</span>`;}).join(' ');
+    return `<div class="gcard ${'b-'+out.rarity}">
+      <span class="gc-badge">${rarPill(out.rarity)}</span>
+      <div class="gc-ico">${itemIco(out,3)}</div>
+      <div class="gc-name">${out.name}</div>
+      <div class="gc-stat">${out.stats?statsStr(out.stats):typeDesc(out)}</div>
+      <div class="gc-spacer"></div>
+      <div class="gc-costs">${costsHtml}</div>
+      <button class="btn sm gc-btn" ${can?'':'disabled'} onclick="craft('${r.id}')">🔨 Criar</button></div>`;};
+  const lockedCard=r=>`<div class="gcard locked">
+      <div class="gc-ico">🔒</div>
+      <div class="gc-name">${IMAP[r.out].name}</div>
+      <div class="gc-sub">requer<br><b>${RMAP[r.research]?RMAP[r.research].name:r.research}</b></div></div>`;
   // ---- aprimoramento SEPARADO por herói: cada cópia equipada é melhorada individualmente ----
   // monta uma linha por (herói × item equipado), agrupado por herói
   const upgRows=[];
@@ -3270,23 +3315,29 @@ function tabForge(b){
     });
   const upgCard=({hid,it})=>{const lv=eqUpg(hid,it.id);const mats=upgMats(it.id,lv);const max=lv>=upgMax();
     const can=canUpgrade(hid,it.id);const hero=HMAP[hid];
-    const matsStr=mats.map(c=>{const have=invQty(c.mat);const ok=have>=c.qty;return `<span style="color:${ok?'var(--ok)':'var(--bad)'}">${IMAP[c.mat]?IMAP[c.mat].icon:'🧱'}${have}/${c.qty}</span>`;}).join(' · ');
-    return `<div class="recipe ${'b-'+it.rarity}" style="border-color:var(--gold)">
-      <div class="rico">${itemIco(it,3)}</div>
-      <div style="flex:1"><b>${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</b> ${rarPill(it.rarity)} <span class="chip" style="color:var(--gold);border-color:var(--gold)">${hero.icon} ${hero.name.split(',')[0]}</span><br>
-        <span class="tiny" style="color:var(--gold)">${statsStr(it.stats,lv)}</span><br>
-        ${max?'<span class="tiny" style="color:var(--gold)">★ Aprimoramento máximo</span>'
-          :`<span class="tiny muted">🪙 ${upgGoldCost(it.id,lv)} · ${matsStr}${upgEssCost(it.id,lv)>0?` · 💠 ${upgEssCost(it.id,lv)}`:''}</span>`}</div>
-      ${max?'':`<button class="btn sm" ${can?'':'disabled'} onclick="doUpgrade('${hid}','${it.id}')">Aprimorar +${lv+1}</button>`}</div>`;};
+    const matsStr=mats.map(c=>{const have=invQty(c.mat);const ok=have>=c.qty;return `<span style="color:${ok?'var(--ok)':'var(--bad)'}">${IMAP[c.mat]?IMAP[c.mat].icon:'🧱'}${have}/${c.qty}</span>`;}).join(' ');
+    const pct=clamp(lv/upgMax()*100,0,100);
+    return `<div class="gcard ${'b-'+it.rarity} ${max?'maxed':''}">
+      <span class="gc-lvl">${hero.icon} ${hero.name.split(',')[0]}</span>
+      <span class="gc-badge">${rarPill(it.rarity)}</span>
+      <div class="gc-ico">${itemIco(it,3)}</div>
+      <div class="gc-name">${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</div>
+      <div class="gc-stat">${statsStr(it.stats,lv)}</div>
+      <div class="gc-bar"><i style="width:${pct}%"></i></div>
+      <div class="gc-sub">+${lv} / +${upgMax()}</div>
+      <div class="gc-spacer"></div>
+      ${max?'<div class="gc-stat">★ Aprimoramento máximo</div>'
+        :`<div class="gc-costs">🪙 ${upgGoldCost(it.id,lv)} ${matsStr}${upgEssCost(it.id,lv)>0?` 💠 ${upgEssCost(it.id,lv)}`:''}</div>
+        <button class="btn sm gc-btn" ${can?'':'disabled'} onclick="doUpgrade('${hid}','${it.id}')">⚒️ Aprimorar +${lv+1}</button>`}</div>`;};
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${bal(G.meta.gold)} · 💠 ${bal(G.meta.essence)}</span></div>
      <p class="muted small mt6">Crie e <b>aprimore</b> equipamento. Cada aprimoramento (+N) dá +14% nos atributos do item.</p></div>
-     <div class="panel mb"><div class="row between"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${!G.meta.research.forja5?' (Forja Mítica destrava +12)':(!G.meta.research.forja6?' (Aprimoramento Extremo destrava +20)':'')}</span></div>
-       <p class="tiny muted mt6">Cada cópia é aprimorada <b>por herói</b> — melhorar a manopla do Guerreiro não afeta a do outro.</p>
-       <div class="col mt6">${upgRows.length?upgRows.map(upgCard).join(''):'<p class="muted small">Nenhum herói tem equipamento. Equipe itens nos heróis para poder aprimorá-los.</p>'}</div></div>
+     <div class="panel mb"><div class="gsection-head"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${!G.meta.research.forja5?' (Forja Mítica destrava +12)':(!G.meta.research.forja6?' (Aprimoramento Extremo destrava +20)':'')}</span></div>
+       <p class="tiny muted mt6" style="margin-bottom:9px">Cada cópia é aprimorada <b>por herói</b> — melhorar a manopla do Guerreiro não afeta a do outro.</p>
+       <div class="gcards wide">${upgRows.length?upgRows.map(upgCard).join(''):'<p class="muted small">Nenhum herói tem equipamento. Equipe itens nos heróis para poder aprimorá-los.</p>'}</div></div>
      <div class="panel"><h4 class="mb">🛠️ Criar Equipamento & Itens</h4>
-     <div class="col">${avail.map(card).join('')}</div>
-     ${locked.length?`<div class="divider"></div><p class="lab-sm">🔒 Receitas bloqueadas (pesquise na Biblioteca)</p>
-       <div class="col mt6" style="opacity:.55">${locked.map(r=>`<div class="recipe"><div class="rico">${IMAP[r.out].icon}</div><div style="flex:1"><b>${IMAP[r.out].name}</b><br><span class="tiny muted">requer: ${RMAP[r.research]?RMAP[r.research].name:r.research}</span></div></div>`).join('')}</div>`:''}</div>`;
+     <div class="gcards">${avail.map(card).join('')}</div>
+     ${locked.length?`<div class="divider"></div><p class="lab-sm mb">🔒 Receitas bloqueadas (pesquise na Biblioteca)</p>
+       <div class="gcards">${locked.map(lockedCard).join('')}</div>`:''}</div>`;
 }
 function craft(rid){const r=RECIPES.find(x=>x.id===rid);if(!r||!canAfford(r.cost))return;
   payCost(r.cost);addItem(r.out,1);G.meta.craftedCount++;saveGame();checkUnlocks();
@@ -3358,19 +3409,25 @@ function renderMarketSubtab(){
   // limpa seleção de itens que não existem mais
   [...SELL_SEL].forEach(id=>{if(!sellable.find(it=>it.id===id))SELL_SEL.delete(id);});
   const sellCard=it=>{const free=sellFree(it.id);const have=invQty(it.id);const sel=SELL_SEL.has(it.id);const eq=isEquip(it);
-    return `<div class="recipe sellrow ${'b-'+it.rarity} ${sel?'selsel':''}" onclick="toggleSell('${it.id}')">
-      <div class="selbox">${sel?'☑':'☐'}</div>
-      <div class="rico">${itemIco(it,3)}</div>
-      <div style="flex:1"><b>${it.name}</b> <span class="chip" style="opacity:.85">${eq?'⚔️ Equip.':'🧱 Item'}</span> ${rarPill(it.rarity)}<br>
-        <span class="tiny muted">livre: ${free}${have>free?` (${have-free} equipado)`:''} · 🪙${sellValue(it.id)} cada</span></div>
-      <div style="text-align:right"><b style="color:var(--gold)">🪙${fmt(sellValue(it.id)*free)}</b></div></div>`;};
-  const buyCard=g=>{const it=IMAP[g.id];return `<div class="recipe"><div class="rico">${itemIco(it,3)}</div>
-      <div style="flex:1"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny muted">tem ${invQty(g.id)}</span></div>
-      <button class="btn sm" ${G.meta.gold>=g.gold?'':'disabled'} onclick="buyGood('${g.id}',${g.gold})">🪙${g.gold}</button></div>`;};
+    return `<div class="gcard ${'b-'+it.rarity} ${sel?'owned':''}" onclick="toggleSell('${it.id}')" style="cursor:pointer">
+      <span class="gc-badge">${sel?'☑️':'☐'}</span>
+      <div class="gc-ico">${itemIco(it,3)}</div>
+      <div class="gc-name">${it.name}</div>
+      <div class="gc-sub">${eq?'⚔️ Equip.':'🧱 Item'} · livre: ${free}${have>free?` (${have-free} eq.)`:''}</div>
+      <div class="gc-spacer"></div>
+      <div class="gc-stat">🪙 ${fmt(sellValue(it.id)*free)}</div>
+      <div class="gc-sub">🪙${sellValue(it.id)} cada</div></div>`;};
+  const buyCard=g=>{const it=IMAP[g.id];return `<div class="gcard ${'b-'+it.rarity}">
+      <span class="gc-badge">${rarPill(it.rarity)}</span>
+      <div class="gc-ico">${itemIco(it,3)}</div>
+      <div class="gc-name">${it.name}</div>
+      <div class="gc-sub">tem ${invQty(g.id)}</div>
+      <div class="gc-spacer"></div>
+      <button class="btn sm gc-btn" ${G.meta.gold>=g.gold?'':'disabled'} onclick="buyGood('${g.id}',${g.gold})">🪙${g.gold}</button></div>`;};
   const selN=SELL_SEL.size, selG=sellSelTotal();
   s.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🪙 Comprar &amp; Vender</h3><span class="chip">🪙 <b>${bal(G.meta.gold)}</b> ouro</span></div>
      <p class="muted small mt6">Venda o que sobra por ouro e compre materiais & consumíveis. O ouro também aprimora equipamento na Forja.</p></div>
-     <div class="panel mb"><h4 class="mb">🪙 Comprar (com ouro)</h4><div class="col">${BUY_SHOP.map(buyCard).join('')}</div></div>
+     <div class="panel mb"><h4 class="mb">🪙 Comprar (com ouro)</h4><div class="gcards">${BUY_SHOP.map(buyCard).join('')}</div></div>
      <div class="panel"><h4 class="mb">💰 Vender em lote</h4>
        ${sellList().length?`
        <div class="row wrap mt6" style="gap:5px">
@@ -3392,7 +3449,7 @@ function renderMarketSubtab(){
        </div>
        <div class="sellbar"><span><b>${selN}</b> selecionado${selN===1?'':'s'} · <b style="color:var(--gold)">🪙 ${bal(selG)}</b></span>
          <button class="btn sm" ${selN?'':'disabled'} onclick="sellSelected()">Vender selecionados</button></div>
-       <div class="col mt6">${(sellFiltered().length?sellFiltered():[]).map(sellCard).join('')||'<p class="muted small">Nada nesta categoria.</p>'}</div>`
+       <div class="gcards mt6">${(sellFiltered().length?sellFiltered():[]).map(sellCard).join('')||'<p class="muted small">Nada nesta categoria.</p>'}</div>`
        :'<p class="muted small">Nada para vender no momento.</p>'}</div>`;
 }
 
@@ -3408,15 +3465,20 @@ function tabLibrary(b){
       <div class="row between mt6"><span class="tiny muted">${Math.ceil(left/1000)}s restantes</span>
       <button class="btn ghost sm" onclick="rushResearch()">Acelerar (💠 ${rushCost()})</button></div></div>`;}
   const card=r=>{const done=!!G.meta.research[r.id];const reqOk=hasResearch(r.req);const busy=!!act;
+    const inProgress=act&&act.id===r.id;
     const can=!done&&reqOk&&!busy&&G.meta.essence>=r.cost;
-    return `<div class="recipe" style="${done?'border-color:var(--ok)':''}">
-      <div class="rico">${done?'✅':(reqOk?'📜':'🔒')}</div>
-      <div style="flex:1"><b>${r.name}</b> ${done?'<span class="chip" style="color:var(--ok)">concluída</span>':`<span class="chip">💠 ${r.cost}</span> <span class="chip">⏱️ ${r.time}s</span>`}<br>
-        <span class="tiny">${r.desc}</span>${r.req&&!reqOk?`<br><span class="tiny muted">requer: ${RMAP[r.req].name}</span>`:''}</div>
-      ${done?'':`<button class="btn sm" ${can?'':'disabled'} onclick="startResearch('${r.id}')">Pesquisar</button>`}</div>`;};
+    return `<div class="gcard ${done?'owned':(!reqOk?'locked':'')} ${inProgress?'active-glow':''}">
+      <span class="gc-badge">${done?'<span class="chip" style="color:var(--ok);border-color:var(--ok)">✅ pronta</span>':(reqOk?'':'🔒')}</span>
+      <div class="gc-ico">${done?'✅':(inProgress?'⏳':(reqOk?'📜':'🔒'))}</div>
+      <div class="gc-name">${r.name}</div>
+      <div class="gc-desc">${r.desc}</div>
+      ${r.req&&!reqOk?`<div class="gc-sub">requer: <b>${RMAP[r.req].name}</b></div>`:''}
+      <div class="gc-spacer"></div>
+      ${done?'':`<div class="gc-costs"><span class="chip">💠 ${r.cost}</span><span class="chip">⏱️ ${r.time}s</span></div>
+        <button class="btn sm gc-btn" ${can?'':'disabled'} onclick="startResearch('${r.id}')">📜 Pesquisar</button>`}</div>`;};
   b.innerHTML=`<div class="panel parch mb"><h3>📚 Biblioteca Arcana</h3>
      <p class="muted small mt6">Enquanto seus heróis exploram, você pesquisa. Desbloqueie receitas, mais espaço de equipe e bônus permanentes. Uma pesquisa por vez.</p></div>
-     ${actHtml}<div class="col mt">${RESEARCH.map(card).join('')}</div>`;
+     ${actHtml}<div class="panel mt"><div class="gcards">${RESEARCH.map(card).join('')}</div></div>`;
 }
 function startResearch(id){const r=RMAP[id];if(G.meta.researchActive||G.meta.research[id]||!hasResearch(r.req)||G.meta.essence<r.cost)return;
   G.meta.essence-=r.cost;G.meta.researchActive={id,end:Date.now()+r.time*1000};saveGame();renderTab();}
@@ -3432,18 +3494,22 @@ function checkResearch(){const a=G.meta.researchActive;if(a&&Date.now()>=a.end){
 /* ---- TAB SANTUÁRIO ---- */
 function tabShrine(b){
   const essHeroes=HEROES.filter(h=>h.unlock&&h.unlock.type==='essence'&&!G.meta.heroes[h.id].unlocked);
+  const heroCard=h=>`<div class="gcard ${'b-'+h.rarity}">
+    <span class="gc-badge">${rarPill(h.rarity)}</span>
+    <div class="gc-ico">${h.icon}</div>
+    <div class="gc-name">${h.name}</div>
+    <div class="gc-desc">${h.passive.name} — ${h.role}</div>
+    <div class="gc-spacer"></div>
+    <button class="btn sm gc-btn" ${G.meta.essence>=h.unlock.v?'':'disabled'} onclick="buyEssenceHero('${h.id}')">💠 ${h.unlock.v}</button></div>`;
   b.innerHTML=`<div class="panel parch mb"><h3>💠 Santuário de Cristal</h3>
      <p class="muted small mt6">A Essência condensa-se das almas da Adranja. Troque-a por heróis raros e poder permanente.</p>
      <div class="row mt"><span class="chip">Você tem 💠 <b>${bal(G.meta.essence)}</b> de Essência</span></div></div>
      <div class="panel mb"><h4 class="mb">🦸 Recrutar Heróis</h4>
-       <div class="col">${essHeroes.length?essHeroes.map(h=>`<div class="recipe">
-         <div class="rico">${h.icon}</div><div style="flex:1"><b>${h.name}</b> ${rarPill(h.rarity)}<br>
-         <span class="tiny">${h.passive.name} — ${h.role}</span></div>
-         <button class="btn sm" ${G.meta.essence>=h.unlock.v?'':'disabled'} onclick="buyEssenceHero('${h.id}')">💠 ${h.unlock.v}</button></div>`).join('')
+       <div class="gcards">${essHeroes.length?essHeroes.map(heroCard).join('')
          :'<p class="muted small">Todos os heróis de essência foram recrutados. Procure os outros nas profundezas e segredos!</p>'}</div></div>
-     <div class="panel"><h4 class="mb">✨ Oferendas Permanentes</h4>
-       <p class="tiny muted" style="margin:-2px 0 8px">Poder eterno comprado com Essência — vale para TODA incursão, nas duas dungeons.</p>
-       <div class="col">
+     <div class="panel mb"><h4 class="mb">✨ Oferendas Permanentes</h4>
+       <p class="tiny muted" style="margin:-2px 0 9px">Poder eterno comprado com Essência — vale para TODA incursão, nas duas dungeons.</p>
+       <div class="gcards">
          ${offering('off_heal','🩹 Vigor de Acampamento','+10% PV inicial do grupo',330,'off_heal')}
          ${offering('off_dmg','🔥 Bênção de Guerra','+10% de dano do grupo',396,'off_dmg')}
          ${offering('off_def','🛡️ Égide Ancestral','+12% de defesa do grupo',440,'off_def')}
@@ -3455,18 +3521,24 @@ function tabShrine(b){
          ${offering('off_secret','🔮 Visão Oculta','+10% de achar segredos',484,'off_secret')}
          ${offering('off_revive','✨ Pacto da Renascença','Revive o grupo uma vez por incursão',1320,'off_revive')}
        </div></div>
-     <div class="panel mt"><h4 class="mb">🎯 Domínio das Habilidades</h4>
-       <p class="tiny muted" style="margin:-2px 0 8px">Libere mais espaços de habilidades ativas por herói. Você nunca poderá levar TODAS as habilidades na mesma incursão — escolha com sabedoria.</p>
-       <div class="col">
+     <div class="panel"><h4 class="mb">🎯 Domínio das Habilidades</h4>
+       <p class="tiny muted" style="margin:-2px 0 9px">Libere mais espaços de habilidades ativas por herói. Você nunca poderá levar TODAS as habilidades na mesma incursão — escolha com sabedoria.</p>
+       <div class="gcards">
          ${offering('off_skillslot4','🎯 Foco Ampliado','+1 espaço de habilidade ativa (total: 4)',900,'off_skillslot4')}
          ${offering('off_skillslot5','🎯 Domínio Total','+1 espaço de habilidade ativa (total: 5)',1800,'off_skillslot5','off_skillslot4')}
        </div></div>`;
 }
 function offering(id,name,desc,cost,flag,reqFlag){const owned=!!G.meta.flags[flag];
   const locked=reqFlag&&!G.meta.flags[reqFlag];
-  return `<div class="recipe" style="${owned?'border-color:var(--ok)':locked?'opacity:.5':''}"><div class="rico">${owned?'✅':locked?'🔒':'✨'}</div>
-    <div style="flex:1"><b>${name}</b><br><span class="tiny">${desc}</span></div>
-    ${owned?'<span class="chip" style="color:var(--ok)">ativa</span>':locked?'<span class="tiny muted">requer oferenda anterior</span>':`<button class="btn sm" ${G.meta.essence>=cost?'':'disabled'} onclick="buyOffering('${flag}',${cost})">💠 ${cost}</button>`}</div>`;}
+  const sp=name.indexOf(' ');const ic=name.slice(0,sp),nm=name.slice(sp+1);
+  return `<div class="gcard ${owned?'owned':(locked?'locked':'')}">
+    <div class="gc-ico">${owned?'✅':locked?'🔒':ic}</div>
+    <div class="gc-name">${nm}</div>
+    <div class="gc-desc">${desc}</div>
+    <div class="gc-spacer"></div>
+    ${owned?'<span class="chip" style="color:var(--ok);border-color:var(--ok)">✅ ativa</span>'
+      :locked?'<span class="tiny muted">requer oferenda anterior</span>'
+      :`<button class="btn sm gc-btn" ${G.meta.essence>=cost?'':'disabled'} onclick="buyOffering('${flag}',${cost})">💠 ${cost}</button>`}</div>`;}
 function buyOffering(flag,cost){if(G.meta.essence<cost){toast('Essência insuficiente.','warn');return;}
   G.meta.essence-=cost;G.meta.flags[flag]=true;saveGame();toast('✨ Oferenda aceita!','epico');renderTab();}
 
@@ -4513,18 +4585,21 @@ function merchGoodCard(g){
   const can=!unlocked&&g.unlock>0&&G.meta.essence>=g.unlock;
   const inRun=RUN&&RUN.alive;
   const price=inRun?merchPrice(g.buy,RUN.floor):g.buy;
-  const priceLabel=inRun?`preço no Andar ${RUN.floor} agora`:'preço-base (Andares 1-5)';
-  return `<div class="merch-good ${'b-'+g.tier} ${unlocked?'unlocked':'locked'}">
-    <div class="rico">${itemIco(it,3)}</div>
-    <div style="flex:1;min-width:0"><b>${it.name}</b> ${rarPill(g.tier)}<br>
-      <span class="tiny">${it.desc}</span><br>
-      <span class="tiny muted">🧙 ${priceLabel}: <b style="color:var(--gold)">💠 ${price}</b>${price!==g.buy?` <span class="tiny">(base 💠${g.buy})</span>`:''}</span></div>
-    <div style="text-align:right;flex:0 0 auto">${unlocked
-        ?`<span class="chip" style="color:var(--ok);border-color:var(--ok)">✅ liberado</span>`
+  const priceLabel=inRun?`Andar ${RUN.floor} agora`:'base (Andar 1-5)';
+  return `<div class="gcard ${'b-'+g.tier} ${unlocked?'owned':'locked'}">
+    <span class="gc-badge">${rarPill(g.tier)}</span>
+    <div class="gc-ico">${itemIco(it,3)}</div>
+    <div class="gc-name">${it.name}</div>
+    <div class="gc-desc">${it.desc}</div>
+    <div class="gc-spacer"></div>
+    <div class="gc-sub">🧙 ${priceLabel}</div>
+    <div class="gc-stat">💠 ${price}${price!==g.buy?` <span class="gc-sub">(base ${g.buy})</span>`:''}</div>
+    ${unlocked
+        ?`<span class="chip" style="color:var(--ok);border-color:var(--ok);margin-top:3px">✅ liberado</span>`
         :(g.unlock>0
-          ?`<button class="btn sm" ${can?'':'disabled'} onclick="unlockMerchItem('${g.id}')">🔓 💠${g.unlock}</button>`
-          :`<span class="chip" style="color:var(--ok);border-color:var(--ok)">✅ inicial</span>`)}
-    </div></div>`;
+          ?`<button class="btn sm gc-btn" ${can?'':'disabled'} onclick="unlockMerchItem('${g.id}')">🔓 💠${g.unlock}</button>`
+          :`<span class="chip" style="color:var(--ok);border-color:var(--ok);margin-top:3px">✅ inicial</span>`)}
+    </div>`;
 }
 function merchantShopHtml(){
   const tiers=['comum','raro','epico','lendario'];
@@ -4535,7 +4610,7 @@ function merchantShopHtml(){
     return `<div class="merch-tier merch-tier-${t}">
       <div class="merch-tier-head"><span class="rpill ${t}">${meta.name}</span>
         <span class="tiny muted">${items.filter(g=>G.meta.merchantUnlocks&&G.meta.merchantUnlocks[g.id]).length}/${items.length} liberados</span></div>
-      <div class="col mt6">${items.map(merchGoodCard).join('')}</div>
+      <div class="gcards mt6">${items.map(merchGoodCard).join('')}</div>
     </div>`;}).join('');
   return `<div class="panel parch mb merch-shop">
     <div class="row between"><h3>🧙 O Mercador Errante</h3><span class="chip">💠 <b>${bal(G.meta.essence)}</b> essência</span></div>
