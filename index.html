@@ -3338,7 +3338,22 @@ function sellSelected(){
   toast('💰 Vendeu '+count+' '+(count===1?'item':'itens')+' por 🪙 '+fmt(gold),'epico');renderTab();}
 function buyGood(id,gold){if(G.meta.gold<gold){toast('Ouro insuficiente.','warn');return;}
   G.meta.gold-=gold;addItem(id,1);saveGame();sfx('coin');toast('🛒 Comprou '+IMAP[id].icon+' '+IMAP[id].name,IMAP[id].rarity);renderTab();}
+let MARKET_SUBTAB='mercador';   // 'mercador' | 'loja'
+function setMarketSubtab(t){MARKET_SUBTAB=t;renderTab();}
 function tabMarket(b){
+  const subtabs=`<div class="row wrap mt6" style="gap:6px;margin-bottom:12px">
+    <button class="tab ${MARKET_SUBTAB==='mercador'?'active':''}" onclick="setMarketSubtab('mercador')">🧙 Mercador Misterioso</button>
+    <button class="tab ${MARKET_SUBTAB==='loja'?'active':''}" onclick="setMarketSubtab('loja')">🪙 Comprar &amp; Vender</button>
+  </div>`;
+  b.innerHTML=`<div class="panel parch mb"><h3>🛒 Mercado</h3>
+     <p class="muted small mt6">Duas bancas diferentes: o <b>Mercador Misterioso</b> só aparece dentro da masmorra e só aceita
+       Essência ganha naquela incursão; a banca de <b>Compra &amp; Venda</b> é sempre aqui no acampamento e usa Ouro.</p></div>
+     ${subtabs}<div id="marketSub"></div>`;
+  renderMarketSubtab();
+}
+function renderMarketSubtab(){
+  const s=$('#marketSub');if(!s)return;
+  if(MARKET_SUBTAB==='mercador'){ s.innerHTML=merchantShopHtml(); return; }
   const sellable=sellList();
   // limpa seleção de itens que não existem mais
   [...SELL_SEL].forEach(id=>{if(!sellable.find(it=>it.id===id))SELL_SEL.delete(id);});
@@ -3353,9 +3368,8 @@ function tabMarket(b){
       <div style="flex:1"><b>${it.name}</b> ${rarPill(it.rarity)}<br><span class="tiny muted">tem ${invQty(g.id)}</span></div>
       <button class="btn sm" ${G.meta.gold>=g.gold?'':'disabled'} onclick="buyGood('${g.id}',${g.gold})">🪙${g.gold}</button></div>`;};
   const selN=SELL_SEL.size, selG=sellSelTotal();
-  b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🛒 Mercado</h3><span class="chip">🪙 <b>${bal(G.meta.gold)}</b> ouro</span></div>
+  s.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🪙 Comprar &amp; Vender</h3><span class="chip">🪙 <b>${bal(G.meta.gold)}</b> ouro</span></div>
      <p class="muted small mt6">Venda o que sobra por ouro e compre materiais & consumíveis. O ouro também aprimora equipamento na Forja.</p></div>
-     ${merchantShopHtml()}
      <div class="panel mb"><h4 class="mb">🪙 Comprar (com ouro)</h4><div class="col">${BUY_SHOP.map(buyCard).join('')}</div></div>
      <div class="panel"><h4 class="mb">💰 Vender em lote</h4>
        ${sellList().length?`
@@ -3856,6 +3870,7 @@ function initRun(party,tides,startFloor,dungeon,diff){
     party:party.map(buildCombatant),
     dungeon:dungeon||'adranja', diff:(diff||'normal'), maxFloor:(dungeon==='torre'?TORRE_MAX:200),
     floor:sf, startFloor:sf, room:0, roomsTotal:0, kills:0, gold:0, essence:0, combo:0,
+    runEssenceWallet:0,   // essência GANHA NESTA incursão, gastável só com o Mercador Errante
     log:[], scene:{mode:'idle',enemies:[],walk:0,shake:0,flashEnemy:-1},
     passive:{}, alive:true, paused:false, speed:(G.meta.settings&&G.meta.settings.speed)||1, fxNodes:[],
     tides:tides||[], tideGold:1, tideTreasure:1, tideEnemyHp:1, tideEssence:1, tideHp:1, tideEvent:1, tideNoRest:0,
@@ -4440,30 +4455,38 @@ function encFountain(){
     refreshBars();advanceRoom();},800);
 }
 /* ---- MERCADOR ERRANTE (segredo) — vende SÓ provisões que ajudam NAQUELA incursão.
-   Cada bem tem um custo pra comprar (Essência, na hora) e um custo pra DESBLOQUEAR
-   permanentemente (Essência, no acampamento) — só bens desbloqueados podem aparecer no estoque dele. ---- */
+   Cada bem tem um custo-base pra comprar (Essência, na hora) e um custo pra DESBLOQUEAR
+   permanentemente (Essência, no acampamento) — só bens desbloqueados podem aparecer no estoque dele.
+   O preço de compra é DINÂMICO: sobe um pouco a cada 5 andares (ver merchPriceMult/merchPrice), e só
+   pode ser pago com a Essência GANHA NAQUELA incursão (RUN.runEssenceWallet) — nunca com o saldo
+   acumulado de incursões passadas. ---- */
 const MERCH_CATALOG=[
- {id:'pocao_vida',tier:'comum',buy:55,unlock:0},
- {id:'antidoto',tier:'comum',buy:50,unlock:0},
- {id:'racao_viagem',tier:'comum',buy:60,unlock:90},
- {id:'pocao_grande',tier:'raro',buy:110,unlock:200},
- {id:'pocao_forca',tier:'raro',buy:120,unlock:220},
- {id:'pocao_foco',tier:'raro',buy:120,unlock:220},
- {id:'bomba',tier:'raro',buy:130,unlock:240},
- {id:'veneno_ofensivo',tier:'raro',buy:115,unlock:210},
- {id:'amuleto_veloz',tier:'raro',buy:100,unlock:190},
- {id:'tocha_benta',tier:'raro',buy:90,unlock:160},
- {id:'incenso',tier:'epico',buy:220,unlock:420},
- {id:'pergaminho_fogo',tier:'epico',buy:240,unlock:460},
- {id:'elixir_fenix',tier:'epico',buy:260,unlock:520},
- {id:'pedra_furia',tier:'epico',buy:230,unlock:440},
- {id:'manto_espectral',tier:'epico',buy:210,unlock:400},
- {id:'coracao_titan',tier:'lendario',buy:480,unlock:900},
- {id:'ampulheta_dourada',tier:'lendario',buy:420,unlock:800},
- {id:'nucleo_arcano',tier:'lendario',buy:520,unlock:1000},
- {id:'bencao_divina',tier:'lendario',buy:500,unlock:950},
+ {id:'pocao_vida',tier:'comum',buy:16,unlock:0},
+ {id:'antidoto',tier:'comum',buy:14,unlock:0},
+ {id:'racao_viagem',tier:'comum',buy:18,unlock:45},
+ {id:'pocao_grande',tier:'raro',buy:36,unlock:100},
+ {id:'pocao_forca',tier:'raro',buy:40,unlock:110},
+ {id:'pocao_foco',tier:'raro',buy:40,unlock:110},
+ {id:'bomba',tier:'raro',buy:44,unlock:120},
+ {id:'veneno_ofensivo',tier:'raro',buy:38,unlock:105},
+ {id:'amuleto_veloz',tier:'raro',buy:33,unlock:95},
+ {id:'tocha_benta',tier:'raro',buy:28,unlock:80},
+ {id:'incenso',tier:'epico',buy:75,unlock:210},
+ {id:'pergaminho_fogo',tier:'epico',buy:85,unlock:230},
+ {id:'elixir_fenix',tier:'epico',buy:95,unlock:260},
+ {id:'pedra_furia',tier:'epico',buy:80,unlock:220},
+ {id:'manto_espectral',tier:'epico',buy:72,unlock:200},
+ {id:'coracao_titan',tier:'lendario',buy:200,unlock:450},
+ {id:'ampulheta_dourada',tier:'lendario',buy:170,unlock:400},
+ {id:'nucleo_arcano',tier:'lendario',buy:220,unlock:500},
+ {id:'bencao_divina',tier:'lendario',buy:210,unlock:475},
 ];
 const MERCH_TIER_META={comum:{name:'Comum',w:5},raro:{name:'Raro',w:3},epico:{name:'Épico',w:1.4},lendario:{name:'Lendário',w:0.5}};
+// preço base vale pros andares 1-5; a cada faixa de 5 andares sobe +12%, até um teto de +150% (andar ~65+)
+function merchPriceMult(floor){const band=Math.max(0,Math.floor(((floor||1)-1)/5));return 1+Math.min(band*0.12,1.5);}
+function merchPrice(baseBuy,floor){return Math.max(1,Math.round(baseBuy*merchPriceMult(floor)));}
+// quanto o grupo pode gastar com o Mercador AGORA: só a essência ganha nesta incursão, nunca mais do que o saldo real
+function merchWallet(){return RUN?Math.max(0,Math.min(RUN.runEssenceWallet||0,G.meta.essence)):0;}
 function merchUnlockedList(){return MERCH_CATALOG.filter(g=>G.meta.merchantUnlocks&&G.meta.merchantUnlocks[g.id]);}
 // sorteio ponderado sem repetição — bens mais baratos aparecem mais, os muito caros são raros de ver
 function merchOffer(n){
@@ -4484,15 +4507,18 @@ function unlockMerchItem(id){
   toast('🧙 '+IMAP[id].icon+' '+IMAP[id].name+' liberado no estoque do Mercador!',g.tier);
   renderTab();
 }
-/* ---- vitrine do Mercador Errante no acampamento (aba 🛒 Mercado) ---- */
+/* ---- vitrine do Mercador Errante no acampamento (aba 🛒 Mercado → sub-aba 🧙 Mercador) ---- */
 function merchGoodCard(g){
   const it=IMAP[g.id];const unlocked=!!(G.meta.merchantUnlocks&&G.meta.merchantUnlocks[g.id]);
   const can=!unlocked&&g.unlock>0&&G.meta.essence>=g.unlock;
+  const inRun=RUN&&RUN.alive;
+  const price=inRun?merchPrice(g.buy,RUN.floor):g.buy;
+  const priceLabel=inRun?`preço no Andar ${RUN.floor} agora`:'preço-base (Andares 1-5)';
   return `<div class="merch-good ${'b-'+g.tier} ${unlocked?'unlocked':'locked'}">
     <div class="rico">${itemIco(it,3)}</div>
     <div style="flex:1;min-width:0"><b>${it.name}</b> ${rarPill(g.tier)}<br>
       <span class="tiny">${it.desc}</span><br>
-      <span class="tiny muted">🧙 preço na hora: <b style="color:var(--gold)">💠 ${g.buy}</b></span></div>
+      <span class="tiny muted">🧙 ${priceLabel}: <b style="color:var(--gold)">💠 ${price}</b>${price!==g.buy?` <span class="tiny">(base 💠${g.buy})</span>`:''}</span></div>
     <div style="text-align:right;flex:0 0 auto">${unlocked
         ?`<span class="chip" style="color:var(--ok);border-color:var(--ok)">✅ liberado</span>`
         :(g.unlock>0
@@ -4503,6 +4529,7 @@ function merchGoodCard(g){
 function merchantShopHtml(){
   const tiers=['comum','raro','epico','lendario'];
   const unlockedN=merchUnlockedList().length, totalN=MERCH_CATALOG.length;
+  const inRun=RUN&&RUN.alive;
   const sections=tiers.map(t=>{
     const meta=MERCH_TIER_META[t];const items=MERCH_CATALOG.filter(g=>g.tier===t);
     return `<div class="merch-tier merch-tier-${t}">
@@ -4513,9 +4540,13 @@ function merchantShopHtml(){
   return `<div class="panel parch mb merch-shop">
     <div class="row between"><h3>🧙 O Mercador Errante</h3><span class="chip">💠 <b>${bal(G.meta.essence)}</b> essência</span></div>
     <p class="muted small mt6">Ele aparece raramente em salas ocultas dentro da masmorra e só aceita <b>Essência</b> — vende
-      apenas provisões que ajudam <b>naquela incursão</b> (poções, pergaminhos, talismãs...), nunca ouro ou equipamento.
-      Gaste Essência aqui, no acampamento, para <b>liberar permanentemente</b> novos itens no estoque dele. Quanto mais
-      caro de liberar, melhor o efeito. <span class="tiny">(${unlockedN}/${totalN} liberados)</span></p>
+      apenas provisões que ajudam <b>naquela incursão</b> (poções, pergaminhos, talismãs...), nunca ouro ou equipamento.</p>
+    <p class="muted small mt6">⚠️ Ele só aceita a <b>Essência que o grupo ganhar NAQUELA incursão</b> — a essência que você já
+      tem guardada de incursões passadas não serve pra comprar dele. Se o grupo ainda não ganhou nada, ele não vende nada.
+      Os preços também sobem levemente a cada 5 andares (a partir do Andar 6), já que vocês ganham mais Essência conforme
+      descem.${inRun?` <b style="color:var(--gold)">Carteira desta incursão agora: 💠 ${merchWallet()}</b>`:''}</p>
+    <p class="muted small mt6">Gaste Essência aqui, no acampamento (do seu saldo acumulado), para <b>liberar permanentemente</b>
+      novos itens no estoque dele. Quanto mais caro de liberar, melhor o efeito. <span class="tiny">(${unlockedN}/${totalN} liberados)</span></p>
     <div class="merch-tiers mt">${sections}</div>
   </div>`;
 }
@@ -4530,18 +4561,20 @@ function merchAutoBuy(mode){
   if(mode==='skip'){logline('🧙 O grupo poupa Essência e segue viagem.','muted');return;}
   const offer=merchOffer(4);
   if(!offer.length){logline('🧙 "Meu carrinho ainda está vazio, viajante... volte quando eu tiver mais mercadoria." (libere itens no 🛒 Mercado do acampamento)','muted');return;}
+  if(merchWallet()<=0){logline('🧙 "Vocês não ganharam Essência nesta jornada ainda, viajante... volte quando tiverem." O grupo segue sem comprar.','muted');return;}
   let bought=0;
   const alive=RUN.party.filter(c=>c.alive);
   const deadCount=RUN.party.length-alive.length;
   const avgHp=alive.length?alive.reduce((a,c)=>a+c.hp/c.maxhp,0)/alive.length:1;
   offer.forEach(g=>{
-    const it=IMAP[g.id];if(!it||G.meta.essence<g.buy)return;
+    const it=IMAP[g.id];const cost=merchPrice(g.buy,RUN.floor);
+    if(!it||merchWallet()<cost)return;
     const u=it.use||{};
     let buy=false;
-    if(mode==='buy')buy=true;                    // compra tudo que puder pagar
-    else { // 'smart': compra com bom senso, sem torrar tudo
-      const reserve=80+RUN.floor*6;              // mantém uma reserva de essência
-      if(G.meta.essence-g.buy<reserve)return;
+    if(mode==='buy')buy=true;                    // compra tudo que a carteira desta incursão permitir
+    else { // 'smart': compra com bom senso, sem torrar a carteira toda de uma vez
+      const reserve=Math.round(merchWallet()*0.3);   // mantém ~30% da essência ganha na incursão em reserva
+      if(merchWallet()-cost<reserve)return;
       if((u.revive||u.reviveAll)&&deadCount>0)buy=true;
       else if(u.trigger==='lowHp'&&avgHp<0.6)buy=true;
       else if(u.healAll&&avgHp<0.75)buy=true;
@@ -4550,10 +4583,10 @@ function merchAutoBuy(mode){
       else if(u.extraTurnPermanent&&chance(0.5))buy=true;
     }
     if(buy){
-      G.meta.essence-=g.buy;updateRunRes();
+      RUN.runEssenceWallet=(RUN.runEssenceWallet||0)-cost;G.meta.essence-=cost;updateRunRes();
       if(u.trigger==='instant')applyConsumableUse(it);
       else addItem(it.id,1);
-      logline('🧙 Comprado: '+it.icon+' '+it.name+' (−'+g.buy+' 💠).','dn'); bought++;
+      logline('🧙 Comprado: '+it.icon+' '+it.name+' (−'+cost+' 💠).','dn'); bought++;
     }
   });
   if(!bought)logline('🧙 Nada que valha a Essência agora. O grupo segue.','muted');
@@ -4637,7 +4670,7 @@ function encSecretPassage(){
    Vale para as três dungeons (Adranja, Torre e Abismo). */
 function dScale(f){f=f||1;const knee=8;return f<=knee?f:knee+Math.pow(f-knee,0.65);}
 function depthDamp(){if(!RUN)return 1;const f=RUN.floor||1;return dScale(f)/f;}   // 1 no começo, cai devagar no fundo
-function runEssence(base){let b=base*depthDamp();if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;const added=addEssence(Math.round(b));if(RUN)RUN.essence+=added;updateRunRes();return added;}
+function runEssence(base){let b=base*depthDamp();if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;const added=addEssence(Math.round(b));if(RUN){RUN.essence+=added;RUN.runEssenceWallet=(RUN.runEssenceWallet||0)+added;}updateRunRes();return added;}
 function floorClearRewards(){
   RUN.combo++;RUN.bestCombo=Math.max(RUN.bestCombo||0,RUN.combo);
   const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
@@ -4840,7 +4873,7 @@ const EVENTS=[
 {t:'💀 Restos de um esquadrão anterior. Saquear seus corpos?',go:()=>{if(chance(0.45))grantEquipment();else if(chance(0.5))grantMaterial();else{grantGold(Math.round(ri(10,25)*RUN.floor));logline('Só restaram algumas moedas.','muted');}}},
 {t:'🔔 Um sino fantasma toca. Monstros se aproximam, mas largam tesouro ao fugir da luz.',go:()=>{grantGold(Math.round(ri(15,30)*RUN.floor));}},
 {t:'🌫️ Névoa de memórias. Por um instante, a Adranja se revela.',go:()=>{gainFamiliarity(0.3);logline('🗺️ O mapa deste andar fica muito mais claro!','sc');}},
-{t:'⚖️ Uma balança encantada: troque PV por essência.',go:()=>{const e=Math.round(ri(8,16)*dScale(RUN.floor));RUN.party.filter(p=>p.alive).forEach(c=>c.hp=Math.max(1,Math.round(c.hp*0.85)));RUN.essence+=e;addEssence(e);logline('+'+e+' essência ao custo de vitalidade.','sc');refreshBars();}},
+{t:'⚖️ Uma balança encantada: troque PV por essência.',go:()=>{const e=Math.round(ri(8,16)*dScale(RUN.floor));RUN.party.filter(p=>p.alive).forEach(c=>c.hp=Math.max(1,Math.round(c.hp*0.85)));RUN.essence+=e;RUN.runEssenceWallet=(RUN.runEssenceWallet||0)+e;addEssence(e);logline('+'+e+' essência ao custo de vitalidade.','sc');refreshBars();}},
 {t:'🐣 Um filhote de fera perdido segue o grupo. Mais sorte por um tempo.',go:()=>{RUN.passive.lck=(RUN.passive.lck||0);RUN.party.forEach(c=>c.st.lck+=3);logline('A mascote traz sorte! +SOR ao grupo.','dn');}},
 {t:'🪙 Um poço dos desejos. Jogar uma moeda?',go:()=>{if(chance(0.5)){grantMaterial('raro');logline('O poço retribui generosamente!','lt');}else{logline('O eco da moeda some no escuro.','muted');}}},
 {t:'🔮 Bola de cristal mostra um vislumbre do futuro chefe.',go:()=>{logline('Você antevê fraquezas — o grupo ganha +crítico nesta incursão.','sc');RUN.passive.critBonus=(RUN.passive.critBonus||0)+0.1;}},
