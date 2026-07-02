@@ -136,10 +136,10 @@
       </div>
       <div class="mh-msg" id="mhMsg"></div>
       <div class="mh-controls">
-        <button class="btn small" id="mhPause">⏸ Pausar</button>
-        <button class="btn small" id="mhSpeed">▶ 1x</button>
-        <button class="btn small" id="mhSkip">⏭ Pular ponto</button>
-        <button class="btn small" id="mhStats">📊 Estatísticas</button>
+        <button class="btn icon-btn" id="mhPause" title="Pausar">${Sprites.iconTag('pause', 20, 'silver')}<span>Pausar</span></button>
+        <button class="btn icon-btn" id="mhSpeed" title="Velocidade">${Sprites.iconTag('play', 20, 'green')}<span>1x</span></button>
+        <button class="btn icon-btn" id="mhSkip" title="Pular ponto">${Sprites.iconTag('skip', 20, 'silver')}<span>Pular</span></button>
+        <button class="btn icon-btn" id="mhStats" title="Estatísticas">${Sprites.iconTag('chart', 20, 'blue')}<span>Estatísticas</span></button>
       </div>
       <div class="mh-statbox hidden" id="mhStatBox"></div>
       <div class="mh-overlay hidden" id="mhOverlay"></div>
@@ -148,13 +148,16 @@
     document.getElementById('mhPause').onclick = () => {
       if (!V) return;
       V.paused = !V.paused;
-      document.getElementById('mhPause').textContent = V.paused ? '▶ Continuar' : '⏸ Pausar';
+      const b = document.getElementById('mhPause');
+      b.innerHTML = Sprites.iconTag(V.paused ? 'play' : 'pause', 20, V.paused ? 'green' : 'silver') + `<span>${V.paused ? 'Continuar' : 'Pausar'}</span>`;
       if (root.Audio2) root.Audio2.sfx.click();
     };
     document.getElementById('mhSpeed').onclick = () => {
       if (!V) return;
       V.speed = V.speed === 1 ? 2 : V.speed === 2 ? 4 : 1;
-      document.getElementById('mhSpeed').textContent = V.speed === 1 ? '▶ 1x' : V.speed === 2 ? '⏩ 2x' : '⚡ 4x';
+      const b = document.getElementById('mhSpeed');
+      const ic = V.speed === 1 ? 'play' : 'ff';
+      b.innerHTML = Sprites.iconTag(ic, 20, V.speed === 4 ? 'red' : V.speed === 2 ? 'gold' : 'green') + `<span>${V.speed}x</span>`;
       if (root.Audio2) root.Audio2.sfx.click();
     };
     document.getElementById('mhSkip').onclick = () => { if (!V) return; V.skipRequested = true; if (root.Audio2) root.Audio2.sfx.click(); };
@@ -188,7 +191,7 @@
       }).join('');
     }
     const st = D.STRAT_BY_ID[m.strategy[0]];
-    document.getElementById('mhStrat').innerHTML = `<span title="Estratégia atual">${st.icon} ${st.name}</span>`;
+    document.getElementById('mhStrat').innerHTML = `<span title="Estratégia atual">${Sprites.iconTag(st.icon, 16, st.tone)} ${st.name}</span>`;
   }
 
   function pushMsg(text, important) {
@@ -303,7 +306,7 @@
         break;
       case 'matchEnd':
         updateConfetti(dt);
-        if (V.phaseT > 3.4) finishMatch();
+        if (V.phaseT > 3.4) { finishMatch(); return; }
         break;
     }
 
@@ -539,7 +542,7 @@
     const winName = m.teams[rally.setWinner].name;
     const stratBtns = D.STRATEGIES.map(s =>
       `<button class="strat-opt ${m.strategy[0] === s.id ? 'sel' : ''}" data-id="${s.id}">
-        <span class="ic">${s.icon}</span><b>${s.name}</b><small>${s.desc}</small>
+        <span class="ic">${Sprites.iconTag(s.icon, 26, s.tone)}</span><b>${s.name}</b><small>${s.desc}</small>
       </button>`).join('');
     ov.innerHTML = `
       <div class="ov-card">
