@@ -2011,7 +2011,7 @@ const GEN_BANDS=20; // faixa a cada 10 andares (andar 1-10, 11-20, ...)
 function bandTier(floor){return Math.max(0,Math.min(GEN_BANDS-1,Math.floor(((floor||1)-1)/10)));}
 (function genEquipment(){
   const TIERS=['de Ferro','de Bronze','de Aço','de Prata','de Cobalto','de Mitrila','de Obsidiana','de Cristal','de Ônix','Rúnico','Élfico','Dracônico','do Abismo','de Ametista','das Marés','das Sombras','das Estrelas','do Eclipse','do Vazio','Primordial'];
-  const RGEN=[['comum',1.0,''],['raro',1.5,'✦'],['epico',2.2,'✦✦']];
+  const RGEN=[['comum',1.0],['raro',1.5],['epico',2.2]];
   const FAMS=[
     {slot:'arma',key:'espada',noun:'Espada',main:'atk',base:6,ex:{}},
     {slot:'arma',key:'machado',noun:'Machado',main:'atk',base:7,ex:{def:1}},
@@ -2027,11 +2027,11 @@ function bandTier(floor){return Math.max(0,Math.min(GEN_BANDS-1,Math.floor(((flo
   for(let band=0;band<GEN_BANDS;band++){
     const bandMul=1+band*0.15;                  // +15% por faixa (suave)
     FAMS.forEach(f=>{
-      RGEN.forEach(([rar,rmul,sym])=>{
+      RGEN.forEach(([rar,rmul])=>{
         const mul=rmul*bandMul;
         const stats={}; stats[f.main]=Math.max(1,Math.round(f.base*mul));
         for(const k in f.ex)stats[k]=Math.max(1,Math.round(f.ex[k]*mul*0.7));
-        ITEMS.push({id:`g_${f.key}_${band}_${rar}`, name:`${f.noun} ${TIERS[band]}${sym?' '+sym:''}`,
+        ITEMS.push({id:`g_${f.key}_${band}_${rar}`, name:`${f.noun} ${TIERS[band]}`,
           icon:'⚔️', type:f.slot, slot:f.slot, rarity:rar, stats, band, _gen:true});
       });
     });
@@ -2738,6 +2738,17 @@ function statBar(lab,val,max,cls,delta){
   const tier=pct<30?'low':pct<60?'mid':pct<85?'high':'max';
   return `<div class="stat-row"><span class="lab">${lab}</span><div class="sbar ${cls||''} tier-${tier}"><i style="width:${pct}%"></i></div><span class="vv">${Math.round(val)}</span>${dl}</div>`;}
 function rarPill(rar){return `<span class="rpill ${rar}">${RAR_NAME[rar]}</span>`;}
+/* estrelinhas de raridade na frente do nome do item: raro=1 branca, épico=2 brancas,
+   lendário=1 dourada, mítico=2 douradas, divino=1 azul, celestial=2 azuis, único=1 roxa,
+   único lendário (equipamento de chefe ultra secreto — o mais forte do jogo)=2 roxas. */
+const RAR_STAR_CFG={raro:[1,'#e8e8ee'],epico:[2,'#e8e8ee'],lendario:[1,'#ffd166'],mitico:[2,'#ffd166'],
+  divino:[1,'#5fc7ff'],celestial:[2,'#5fc7ff'],secreto:[1,'#c77dff']};
+function rarStars(it){
+  if(!it||!it.rarity)return '';
+  const cfg=(it.rarity==='secreto'&&it.ultraBoss)?[2,'#c77dff']:RAR_STAR_CFG[it.rarity];
+  if(!cfg)return '';
+  return `<span class="rar-star" style="color:${cfg[1]}">${'✦'.repeat(cfg[0])}</span> `;
+}
 
 /* stats efetivos de um herói num dado nível (com equipamento + pesquisas) */
 function heroStats(heroId,level){
@@ -3131,7 +3142,7 @@ function openHero(id){
   }).join('');
   const eq=EQUIP_SLOTS.map(sl=>{const it=st.equip[sl]?IMAP[st.equip[sl]]:null;
     return `<div class="slotline"><div class="sl-ico">${it?itemIco(it,3):slotIcon(sl)}</div>
-      <div class="sl-n"><span class="tiny muted">${slotLabel(sl)}</span><br>${it?`<b>${it.name}${eqUpg(id,it.id)>0?` <span style="color:var(--gold)">+${eqUpg(id,it.id)}</span>`:''}</b>`:'<span class="muted">— vazio —</span>'}</div>
+      <div class="sl-n"><span class="tiny muted">${slotLabel(sl)}</span><br>${it?`<b>${rarStars(it)}${it.name}${eqUpg(id,it.id)>0?` <span style="color:var(--gold)">+${eqUpg(id,it.id)}</span>`:''}</b>`:'<span class="muted">— vazio —</span>'}</div>
       <button class="btn ghost sm" onclick="navTo(()=>pickEquip('${id}','${sl}'))">${it?'Trocar':'Equipar'}</button></div>`;
   }).join('');
   openModal(`
@@ -3362,7 +3373,7 @@ function pickEquip(heroId,slot){
     return `<div class="eqpick b-${it.rarity} ${cls}">
       <div class="eqhead">
         <div class="sl-ico">${itemIco(it,3)}</div>
-        <div class="eqname"><b>${it.name}</b>${uL>0?` <span style="color:var(--gold)">+${uL}</span>`:''} ${rarPill(it.rarity)}${(it.id===bestId)?' <span class="chip" style="color:#5fd17a;border-color:#5fd17a">★ melhor</span>':''}<br>${verd}</div>
+        <div class="eqname"><b>${rarStars(it)}${it.name}</b>${uL>0?` <span style="color:var(--gold)">+${uL}</span>`:''} ${rarPill(it.rarity)}${(it.id===bestId)?' <span class="chip" style="color:#5fd17a;border-color:#5fd17a">★ melhor</span>':''}<br>${verd}</div>
         ${action}
       </div>
       <div class="eqstats">${rows}</div>${note}</div>`;
@@ -3370,7 +3381,7 @@ function pickEquip(heroId,slot){
   const list=owned.map(card).join('')||'<p class="muted small">Nenhum equipamento deste tipo. Encontre na Adranja ou crie na Forja.</p>';
   openModal(`<h3>${slotIcon(slot)} ${slotLabel(slot)} — ${h.name.split(',')[0]}</h3>
     <div class="row between mt6" style="align-items:center">
-      <span class="tiny muted">${curIt?`Atual: <b>${curIt.name}${eqUpg(heroId,cur)>0?' +'+eqUpg(heroId,cur):''}</b>`:'Nada equipado aqui.'}</span>
+      <span class="tiny muted">${curIt?`Atual: <b>${rarStars(curIt)}${curIt.name}${eqUpg(heroId,cur)>0?' +'+eqUpg(heroId,cur):''}</b>`:'Nada equipado aqui.'}</span>
       <span class="pwr-chip">⚡ ${basePower}</span>
     </div>
     <p class="tiny muted mt6" style="margin:4px 0 0">Números à frente de cada atributo: <span style="color:#5fd17a">▲ sobe</span> · <span style="color:#ff6d7a">▼ desce</span> vs. o equipado. ⚡ = quanto o <b>poder</b> do herói muda.</p>
@@ -3405,10 +3416,10 @@ function tabEquip(b){
      <div class="panel">${html}</div>`;
 }
 function itemCell(it){return `<div class="item ${'b-'+it.rarity}" onclick="openItem('${it.id}')">
-  <div class="ico">${itemIco(it,4)}</div><div class="tn">${it.name}</div><span class="qn">${invQty(it.id)}</span></div>`;}
+  <div class="ico">${itemIco(it,4)}</div><div class="tn">${rarStars(it)}${it.name}</div><span class="qn">${invQty(it.id)}</span></div>`;}
 function openItem(id){const it=IMAP[id];
   openModal(`<div class="center"><div style="display:flex;justify-content:center">${itemIco(it,6)}</div>
-    <h3 ${it.secret?'class="tag-secret"':''}>${it.name}</h3>${rarPill(it.rarity)}
+    <h3 ${it.secret?'class="tag-secret"':''}>${rarStars(it)}${it.name}</h3>${rarPill(it.rarity)}
     <p class="small mt">${it.desc||typeDesc(it)}</p>
     ${it.stats?`<p class="small" style="color:var(--gold)">${statsStr(it.stats)}</p>`:''}
     <p class="muted tiny mt">Quantidade: ${invQty(id)}</p>
@@ -3427,7 +3438,7 @@ function tabForge(b){
     return `<div class="gcard ${'b-'+out.rarity}">
       <span class="gc-badge">${rarPill(out.rarity)}</span>
       <div class="gc-ico">${itemIco(out,3)}</div>
-      <div class="gc-name">${out.name}</div>
+      <div class="gc-name">${rarStars(out)}${out.name}</div>
       <div class="gc-stat">${out.stats?statsStr(out.stats):typeDesc(out)}</div>
       <div class="gc-spacer"></div>
       <div class="gc-costs">${costsHtml}</div>
@@ -3455,7 +3466,7 @@ function tabForge(b){
       <span class="gc-lvl">${hero.icon} ${hero.name.split(',')[0]}</span>
       <span class="gc-badge">${rarPill(it.rarity)}</span>
       <div class="gc-ico">${itemIco(it,3)}</div>
-      <div class="gc-name">${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</div>
+      <div class="gc-name">${rarStars(it)}${it.name}${lv>0?` <span style="color:var(--gold)">+${lv}</span>`:''}</div>
       <div class="gc-stat">${statsStr(it.stats,lv)}</div>
       <div class="gc-bar"><i style="width:${pct}%"></i></div>
       <div class="gc-sub">+${lv} / +${upgMax()}</div>
@@ -3473,7 +3484,7 @@ function tabForge(b){
     return `<div class="gcard ${'b-'+out.rarity}">
       <span class="gc-badge">${rarPill(out.rarity)}</span>
       <div class="gc-ico">${itemIco(out,3)}</div>
-      <div class="gc-name">${out.name}</div>
+      <div class="gc-name">${rarStars(out)}${out.name}</div>
       <div class="gc-spacer"></div>
       <div class="gc-costs">${matsHtml}</div>
       <div class="gc-costs">${r.gold?`<span style="color:${goldOk?'var(--ok)':'var(--bad)'}">🪙${r.gold}</span>`:''}${r.essence?` <span style="color:${essOk?'var(--ok)':'var(--bad)'}">💠${r.essence}</span>`:''}</div>
@@ -3572,7 +3583,7 @@ function renderMarketSubtab(){
     return `<div class="gcard ${'b-'+it.rarity} ${sel?'owned':''}" onclick="toggleSell('${it.id}')" style="cursor:pointer">
       <span class="gc-badge">${sel?'☑️':'☐'}</span>
       <div class="gc-ico">${itemIco(it,3)}</div>
-      <div class="gc-name">${it.name}</div>
+      <div class="gc-name">${rarStars(it)}${it.name}</div>
       <div class="gc-sub">${eq?'⚔️ Equip.':'🧱 Item'} · livre: ${free}${have>free?` (${have-free} eq.)`:''}</div>
       <div class="gc-spacer"></div>
       <div class="gc-stat">🪙 ${fmt(sellValue(it.id)*free)}</div>
@@ -3580,7 +3591,7 @@ function renderMarketSubtab(){
   const buyCard=g=>{const it=IMAP[g.id];return `<div class="gcard ${'b-'+it.rarity}">
       <span class="gc-badge">${rarPill(it.rarity)}</span>
       <div class="gc-ico">${itemIco(it,3)}</div>
-      <div class="gc-name">${it.name}</div>
+      <div class="gc-name">${rarStars(it)}${it.name}</div>
       <div class="gc-sub">tem ${invQty(g.id)}</div>
       <div class="gc-spacer"></div>
       <button class="btn sm gc-btn" ${G.meta.gold>=g.gold?'':'disabled'} onclick="buyGood('${g.id}',${g.gold})">🪙${g.gold}</button></div>`;};
@@ -4789,7 +4800,7 @@ function merchGoodCard(g){
   return `<div class="gcard ${'b-'+g.tier} ${unlocked?'owned':'locked'}">
     <span class="gc-badge">${rarPill(g.tier)}</span>
     <div class="gc-ico">${itemIco(it,3)}</div>
-    <div class="gc-name">${it.name}</div>
+    <div class="gc-name">${rarStars(it)}${it.name}</div>
     <div class="gc-desc">${it.desc}</div>
     <div class="gc-spacer"></div>
     <div class="gc-sub">🧙 ${priceLabel}</div>
