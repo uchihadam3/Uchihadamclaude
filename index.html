@@ -2616,7 +2616,7 @@ function payCost(cost){for(const k in cost)removeItem(k,cost[k]);}
 function discover(cat,id){const arr=G.meta.codex[cat];if(arr&&!arr.includes(id)){arr.push(id);saveGame();checkUnlocks();return true;}return false;}
 function hasResearch(id){return id?!!G.meta.research[id]:true;}
 // essência
-function addEssence(n){let mult=0.26;if(G.meta.research.meta_essence)mult*=1.3;if(G.meta.relics.includes('lampada_eterna'))mult*=2;  // essência MUITO escassa: vale muito
+function addEssence(n){let mult=0.26;if(G.meta.research.meta_essence)mult*=1.3;if(G.meta.relics.includes('lampada_eterna'))mult*=2;if(G.meta.flags.off_essence)mult*=1.3;  // essência MUITO escassa: vale muito
   n=Math.round(n*mult);G.meta.essence+=n;saveGame();return n;}
 
 /* ---- DESBLOQUEIOS ---- */
@@ -3603,11 +3603,35 @@ function tabShrine(b){
          ${offering('off_secret','🔮 Visão Oculta','+10% de achar segredos',484,'off_secret')}
          ${offering('off_revive','✨ Pacto da Renascença','Revive o grupo uma vez por incursão',1320,'off_revive')}
        </div></div>
-     <div class="panel"><h4 class="mb">🎯 Domínio das Habilidades</h4>
+     <div class="panel mb"><h4 class="mb">🎯 Domínio das Habilidades</h4>
        <p class="tiny muted" style="margin:-2px 0 9px">Libere mais espaços de habilidades ativas por herói. Você nunca poderá levar TODAS as habilidades na mesma incursão — escolha com sabedoria.</p>
        <div class="gcards">
          ${offering('off_skillslot4','🎯 Foco Ampliado','+1 espaço de habilidade ativa (total: 4)',900,'off_skillslot4')}
          ${offering('off_skillslot5','🎯 Domínio Total','+1 espaço de habilidade ativa (total: 5)',1800,'off_skillslot5','off_skillslot4')}
+       </div></div>
+     <div class="panel"><h4 class="mb">🌟 Bênçãos Avançadas</h4>
+       <p class="tiny muted" style="margin:-2px 0 9px">Poder eterno mais especializado — cada uma mexe numa mecânica diferente da masmorra.</p>
+       <div class="gcards">
+         ${offering('off_essence','🔷 Coração de Cristal','+30% de Essência coletada',600,'off_essence')}
+         ${offering('off_spellamp','🔮 Foco Arcano','+15% de dano mágico do grupo',450,'off_spellamp')}
+         ${offering('off_beastbane','🐾 Instinto Predador','+20% de dano contra Feras',380,'off_beastbane')}
+         ${offering('off_healroom','💗 Bênção Contínua','Cura +2,5% do grupo ao limpar cada sala',420,'off_healroom')}
+         ${offering('off_map','🗺️ Olhos Cartográficos','+20% de familiaridade de mapa por andar',360,'off_map')}
+         ${offering('off_alter','🌫️ Passagem Silenciosa','10% menos inimigos por andar',500,'off_alter')}
+         ${offering('off_trapevade','🪤 Pés Ligeiros','+15% de chance de evitar armadilhas',340,'off_trapevade')}
+         ${offering('off_firststrike','⚡ Iniciativa','O grupo sempre ataca primeiro no 1º combate de cada sala',700,'off_firststrike')}
+         ${offering('off_extraturn','⏳ Fôlego Extra','+5% de chance do grupo agir de novo',750,'off_extraturn')}
+         ${offering('off_toughness','🛡️ Pele de Ferro','-7% de dano recebido pelo grupo',620,'off_toughness')}
+         ${offering('off_might','⚔️ Fúria Ancestral','+7% de dano causado pelo grupo',620,'off_might')}
+         ${offering('off_luck','🍀 Talismã da Sorte','+3 de Sorte para todos os heróis',300,'off_luck')}
+         ${offering('off_restheal','🏕️ Sono Profundo','Salas de descanso curam o dobro (10% em vez de 5%)',380,'off_restheal')}
+         ${offering('off_reserve','🎁 Reserva Inicial','Comece cada incursão com 80 de Essência já na carteira do Mercador',450,'off_reserve')}
+         ${offering('off_reroll','🎲 Mão Firme','+1 re-rolagem de Marés disponível por incursão',900,'off_reroll')}
+         ${offering('off_merchantdiscount','🧙 Boa Fama','-10% no preço de tudo que o Mercador Errante vender',560,'off_merchantdiscount')}
+         ${offering('off_merchantoffer','🛒 Carroça Maior','O Mercador Errante oferece 1 item a mais por encontro',680,'off_merchantoffer')}
+         ${offering('off_bossdmg','👑 Caçador de Reis','+15% de dano contra chefes',700,'off_bossdmg')}
+         ${offering('off_vitality','💞 Vitalidade Plena','+10% em toda cura recebida pelo grupo',540,'off_vitality')}
+         ${offering('off_combocap','🔥 Sequência Lendária','O bônus de sequência sem morrer vai até +80% (em vez de +60%)',780,'off_combocap')}
        </div></div>`;
 }
 function offering(id,name,desc,cost,flag,reqFlag){const owned=!!G.meta.flags[flag];
@@ -3958,9 +3982,9 @@ function setDiff(d){ if(!diffUnlocked(d,RUN_PENDING&&RUN_PENDING.dungeon)){toast
   // troca de dificuldade pode invalidar o andar-inicial escolhido (checkpoints são por dificuldade)
   const opts=startFloorOptions();if(!opts.includes(RUN_PENDING.startFloor))RUN_PENDING.startFloor=1;
   showPreRunScreen(); }
-const TIDE_REROLL_MAX=3;
+function tideRerollMax(){return 3+(G.meta.flags.off_reroll?1:0);}
 function rerollAndShow(){
-  if((G.meta.tideRerollsUsed||0)>=TIDE_REROLL_MAX){toast('🔒 Sem re-rolagens — complete uma incursão para liberar mais.','warn');return;}
+  if((G.meta.tideRerollsUsed||0)>=tideRerollMax()){toast('🔒 Sem re-rolagens — complete uma incursão para liberar mais.','warn');return;}
   G.meta.tideRerollsUsed=(G.meta.tideRerollsUsed||0)+1;saveGame();
   RUN_PENDING.tides=rollTides(RUN_PENDING.party);showPreRunScreen();
 }
@@ -3981,7 +4005,7 @@ function startFloorOptions(){
 function showPreRunScreen(){
   const {tides,startFloor}=RUN_PENDING; const torre=RUN_PENDING.dungeon==='torre';
   const opts=startFloorOptions();
-  const rerollsLeft=Math.max(0,TIDE_REROLL_MAX-(G.meta.tideRerollsUsed||0));
+  const rerollsLeft=Math.max(0,tideRerollMax()-(G.meta.tideRerollsUsed||0));
   const merch=(G.meta.settings&&G.meta.settings.merchantAuto)||'smart';
   const merchLabel={smart:'🧠 Inteligente (com reserva)',buy:'🛒 Comprar tudo que puder',skip:'🚫 Não comprar (poupar)'}[merch];
   const curDiff=RUN_PENDING.diff||'normal';
@@ -4008,7 +4032,7 @@ function showPreRunScreen(){
     <p class="tiny muted mt6">Define o que o grupo faz ao encontrar o mercador (a dungeon é 100% automática).</p>
     <div class="row mt"><button class="btn" onclick="confirmStartRun()">${torre?'Escalar a Torre 🗼':'Entrar na Adranja ▶'}</button>
     <button class="btn ghost" ${rerollsLeft>0?'':'disabled'} onclick="rerollAndShow()">🎲 Re-rolar Marés${rerollsLeft>0?` (${rerollsLeft})`:''}</button></div>
-    ${rerollsLeft<=0?`<p class="tiny muted mt6">🔒 Sem re-rolagens — complete uma incursão para liberar mais ${TIDE_REROLL_MAX}.</p>`:''}`);
+    ${rerollsLeft<=0?`<p class="tiny muted mt6">🔒 Sem re-rolagens — complete uma incursão para liberar mais ${tideRerollMax()}.</p>`:''}`);
 }
 function confirmStartRun(){closeModal();const{party,tides,dungeon,diff}=RUN_PENDING;
   const sf=startFloorOptions().includes(RUN_PENDING.startFloor)?RUN_PENDING.startFloor:1;   // nunca confia num andar-inicial não conquistado NESTA dificuldade
@@ -4033,7 +4057,12 @@ function initRun(party,tides,startFloor,dungeon,diff){
   };
   computePartyPassives();
   (tides||[]).forEach(t=>t.apply(RUN));
+  // oferendas que mexem em multiplicadores de RUN (fora de RUN.passive) e num "kit inicial" da incursão
+  if(G.meta.flags.off_toughness)RUN.dmgTakenMul=(RUN.dmgTakenMul||1)*0.93;
+  if(G.meta.flags.off_might)RUN.dmgMul=(RUN.dmgMul||1)*1.07;
+  if(G.meta.flags.off_reserve)RUN.runEssenceWallet=(RUN.runEssenceWallet||0)+80;
   RUN.party.forEach(c=>applyPassiveStart(c));
+  if(G.meta.flags.off_luck)RUN.party.forEach(c=>{c.st.lck+=3;});
 }
 function buildCombatant(id){
   const h=HMAP[id];const st=G.meta.heroes[id];
@@ -4059,6 +4088,15 @@ function computePartyPassives(){
   if(F.off_xp)p.xpBonus=(p.xpBonus||0)+0.15;
   if(F.off_secret)p.secretFind=(p.secretFind||0)+0.1;
   if(F.off_revive)p.reviveOnce=1;
+  if(F.off_spellamp)p.spellAmp=(p.spellAmp||0)+0.15;
+  if(F.off_beastbane)p.beastBane=(p.beastBane||0)+0.2;
+  if(F.off_healroom)p.healRoom=(p.healRoom||0)+0.025;
+  if(F.off_map)p.mapBonus=(p.mapBonus||0)+0.2;
+  if(F.off_alter)p.alterFloor=(p.alterFloor||0)+0.1;
+  if(F.off_trapevade)p.trapEvade=(p.trapEvade||0)+0.15;
+  if(F.off_firststrike)p.firstStrike=1;
+  if(F.off_extraturn)p.extraTurn=(p.extraTurn||0)+0.05;
+  if(F.off_bossdmg)p.bossBane=(p.bossBane||0)+0.15;
   if(G.meta.research.meta_crit)p.critBonus=(p.critBonus||0)+0.08;
   if(G.meta.research.meta_secret)p.secretFind=(p.secretFind||0)+0.1;
   RUN.passive=p;
@@ -4598,7 +4636,8 @@ function encTrap(){
 /* ---- DESCANSO ---- */
 function encRest(){
   logline('🏕️ Uma sala silenciosa e segura. O grupo recupera o fôlego.','dn');RUN.scene.mode='idle';
-  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.05);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});
+  const restPct=0.05+(G.meta.flags.off_restheal?0.05:0);
+  rtimeout(()=>{RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*restPct);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});
     refreshBars();advanceRoom();},700);
 }
 /* ---- FONTE DAS MEMÓRIAS (segredo) ---- */
@@ -4639,7 +4678,7 @@ const MERCH_CATALOG=[
 const MERCH_TIER_META={comum:{name:'Comum',w:5},raro:{name:'Raro',w:3},epico:{name:'Épico',w:1.4},lendario:{name:'Lendário',w:0.5}};
 // preço base vale pros andares 1-5; a cada faixa de 5 andares sobe +12%, até um teto de +150% (andar ~65+)
 function merchPriceMult(floor){const band=Math.max(0,Math.floor(((floor||1)-1)/5));return 1+Math.min(band*0.12,1.5);}
-function merchPrice(baseBuy,floor){return Math.max(1,Math.round(baseBuy*merchPriceMult(floor)));}
+function merchPrice(baseBuy,floor){const disc=G.meta.flags.off_merchantdiscount?0.9:1;return Math.max(1,Math.round(baseBuy*merchPriceMult(floor)*disc));}
 // quanto o grupo pode gastar com o Mercador AGORA: só a essência ganha nesta incursão, nunca mais do que o saldo real
 function merchWallet(){return RUN?Math.max(0,Math.min(RUN.runEssenceWallet||0,G.meta.essence)):0;}
 function merchUnlockedList(){return MERCH_CATALOG.filter(g=>G.meta.merchantUnlocks&&G.meta.merchantUnlocks[g.id]);}
@@ -4717,7 +4756,7 @@ function encMerchant(){
 }
 function merchAutoBuy(mode){
   if(mode==='skip'){logline('🧙 O grupo poupa Essência e segue viagem.','muted');return;}
-  const offer=merchOffer(4);
+  const offer=merchOffer(4+(G.meta.flags.off_merchantoffer?1:0));
   if(!offer.length){logline('🧙 "Meu carrinho ainda está vazio, viajante... volte quando eu tiver mais mercadoria." (libere itens no 🛒 Mercado do acampamento)','muted');return;}
   if(merchWallet()<=0){logline('🧙 "Vocês não ganharam Essência nesta jornada ainda, viajante... volte quando tiverem." O grupo segue sem comprar.','muted');return;}
   let bought=0;
@@ -4831,7 +4870,7 @@ function depthDamp(){if(!RUN)return 1;const f=RUN.floor||1;return dScale(f)/f;} 
 function runEssence(base){let b=base*depthDamp();if(RUN&&RUN.tideEssence)b*=RUN.tideEssence;const added=addEssence(Math.round(b));if(RUN){RUN.essence+=added;RUN.runEssenceWallet=(RUN.runEssenceWallet||0)+added;}updateRunRes();return added;}
 function floorClearRewards(){
   RUN.combo++;RUN.bestCombo=Math.max(RUN.bestCombo||0,RUN.combo);
-  const comboMult=1+Math.min(RUN.combo*0.06,0.6); // até +60% por sequência sem morrer
+  const comboMult=1+Math.min(RUN.combo*0.06,0.6+(G.meta.flags.off_combocap?0.2:0)); // até +60% (ou +80%) por sequência sem morrer
   const ess=Math.round((4+RUN.floor*1.2)*comboMult);runEssence(ess);
   // alívio ao alcançar a escadaria: cura modesta (não salva de lutas brutais, evita morte só por desgaste)
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.08);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});
@@ -5040,7 +5079,7 @@ function encEvent(){
   const ev=pick(EVENTS);logline('❖ '+ev.t,'ev');RUN.scene.mode='idle';
   rtimeout(()=>{ev.go();refreshBars();if(!checkWipe())advanceRoom();},800);
 }
-function healMul(){return 1-((RUN&&RUN.passive&&RUN.passive.healCut)||0);}   // Maré da Fome corta cura
+function healMul(){let m=1-((RUN&&RUN.passive&&RUN.passive.healCut)||0);if(G.meta.flags.off_vitality)m*=1.1;return m;}   // Maré da Fome corta cura
 function healAll(frac,why){const hm=healMul();RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*frac*hm);c.hp=Math.min(c.maxhp,c.hp+h);floatText('hero',i,'+'+h,'#5fd17a');});if(why)logline('💚 '+why+'.','dn');refreshBars();}
 function dmgAll(frac,why){RUN.scene.shake=5;RUN.party.filter(c=>c.alive).forEach((c,i)=>{const d=Math.round(c.maxhp*frac)+ri(1,3);c.hp=Math.max(0,c.hp-d);floatText('hero',i,'-'+d,'#ff5d6c');if(c.hp===0)downHero(c);});if(why)logline('💢 '+why+' fere o grupo.','bd');refreshBars();}
 
@@ -5411,6 +5450,7 @@ function computeDamage(att,def,skill){
   if(kind==='mag'&&RUN.passive.spellAmp)raw*=1+RUN.passive.spellAmp;
   if(heroAtt&&att.h.passive.tags){const t=att.h.passive.tags;
     if(RUN.passive.beastBane&&def.family==='fera')raw*=1+RUN.passive.beastBane;
+    if(RUN.passive.bossBane&&def.boss)raw*=1+RUN.passive.bossBane;
     if(t.rage)raw*=1+t.rage*(1-att.hp/att.maxhp);
     if(t.darkPower)raw*=1+t.darkPower;if(t.allMastery)raw*=1+t.allMastery;}
   if(heroAtt&&RUN.dmgMul)raw*=RUN.dmgMul;                     // bênçãos do Abismo: +dano causado
