@@ -2172,6 +2172,44 @@ const RECIPES=[
 {id:'r_coroa_eterna',out:'coroa_eterna',cost:{po_estelar:3,alma:3,fragmento:3},research:'forja4'},
 ];
 
+/* ====================== TRANSMUTAÇÃO DE MATERIAIS (Forja) ======================
+   Converte materiais de um nível pra um do nível ACIMA. O custo principal é sempre
+   material (várias unidades dos mais fracos) — ouro e Essência entram só como um
+   custo extra menor, nunca a parte principal da receita. Começa liberado só o nível
+   comum→raro; os níveis acima exigem a mesma pesquisa que já libera as receitas de
+   equipamento daquele nível (Metalurgia/Forja Rúnica/Forja Lendária), então destravar
+   uma também libera a outra. */
+const TRANSMUTE_RECIPES=[
+ // ---- comum → raro (sempre disponível) ----
+ {id:'t_lingote',out:'lingote',mats:{ferro:4,pano:2},gold:50,essence:18,research:null},
+ {id:'t_chifre',out:'chifre',mats:{couro:4,osso:2},gold:45,essence:16,research:null},
+ {id:'t_cristal',out:'cristal',mats:{erva:4,osso:2},gold:55,essence:20,research:null},
+ {id:'t_pena',out:'pena',mats:{pano:4,erva:2},gold:50,essence:18,research:null},
+ // ---- raro → épico (requer Metalurgia) ----
+ {id:'t_obsidiana',out:'obsidiana',mats:{lingote:3,cristal:2},gold:180,essence:55,research:'forja2'},
+ {id:'t_seda',out:'seda',mats:{pena:3,chifre:2},gold:170,essence:50,research:'forja2'},
+ {id:'t_essencia_sombria',out:'essencia_sombria',mats:{cristal:3,pena:2},gold:190,essence:58,research:'forja2'},
+ {id:'t_nucleo',out:'nucleo',mats:{chifre:3,lingote:2},gold:180,essence:55,research:'forja2'},
+ // ---- épico → lendário (requer Forja Rúnica) ----
+ {id:'t_fragmento',out:'fragmento',mats:{nucleo:3,obsidiana:2},gold:600,essence:150,research:'forja3'},
+ {id:'t_alma',out:'alma',mats:{essencia_sombria:3,seda:2},gold:620,essence:155,research:'forja3'},
+ {id:'t_po_estelar',out:'po_estelar',mats:{obsidiana:2,seda:2,essencia_sombria:1,nucleo:1},gold:650,essence:165,research:'forja3'},
+ // ---- lendário → mítico (requer Forja Lendária) — receita capstone, pede os 3 lendários ----
+ {id:'t_nucleo_primordial',out:'nucleo_primordial',mats:{fragmento:2,alma:2,po_estelar:2},gold:2200,essence:520,research:'forja4'},
+];
+function canAffordTransmute(r){
+  for(const k in r.mats)if(invQty(k)<r.mats[k])return false;
+  if(G.meta.gold<(r.gold||0))return false;
+  if(G.meta.essence<(r.essence||0))return false;
+  return true;
+}
+function transmute(rid){const r=TRANSMUTE_RECIPES.find(x=>x.id===rid);
+  if(!r||!hasResearch(r.research)||!canAffordTransmute(r))return;
+  for(const k in r.mats)removeItem(k,r.mats[k]);
+  G.meta.gold-=(r.gold||0);G.meta.essence-=(r.essence||0);
+  addItem(r.out,1);saveGame();
+  toast(`⚗️ Transmutou ${IMAP[r.out].icon} ${IMAP[r.out].name}!`,IMAP[r.out].rarity);renderTab();}
+
 /* ====================== PESQUISAS (Biblioteca) ======================
    custo em essência + tempo. efeitos permanentes / desbloqueios. */
 const RESEARCH=[
@@ -3411,15 +3449,41 @@ function tabForge(b){
       ${max?'<div class="gc-stat">★ Aprimoramento máximo</div>'
         :`<div class="gc-costs">🪙 ${upgGoldCost(it.id,lv)} ${matsStr}${upgEssCost(it.id,lv)>0?` 💠 ${upgEssCost(it.id,lv)}`:''}</div>
         <button class="btn sm gc-btn" ${can?'':'disabled'} onclick="doUpgrade('${hid}','${it.id}')">⚒️ Aprimorar +${lv+1}</button>`}</div>`;};
+  // ---- transmutação: converte materiais mais fracos (+ um pouco de ouro/Essência) num material do nível acima ----
+  const transAvail=TRANSMUTE_RECIPES.filter(r=>hasResearch(r.research));
+  const transLocked=TRANSMUTE_RECIPES.filter(r=>!hasResearch(r.research));
+  const transCard=r=>{const out=IMAP[r.out];const can=canAffordTransmute(r);
+    const matsHtml=Object.keys(r.mats).map(k=>{const have=invQty(k);const ok=have>=r.mats[k];
+      return `<span style="color:${ok?'var(--ok)':'var(--bad)'}">${IMAP[k].icon}${have}/${r.mats[k]}</span>`;}).join(' ');
+    const goldOk=G.meta.gold>=(r.gold||0), essOk=G.meta.essence>=(r.essence||0);
+    return `<div class="gcard ${'b-'+out.rarity}">
+      <span class="gc-badge">${rarPill(out.rarity)}</span>
+      <div class="gc-ico">${itemIco(out,3)}</div>
+      <div class="gc-name">${out.name}</div>
+      <div class="gc-spacer"></div>
+      <div class="gc-costs">${matsHtml}</div>
+      <div class="gc-costs">${r.gold?`<span style="color:${goldOk?'var(--ok)':'var(--bad)'}">🪙${r.gold}</span>`:''}${r.essence?` <span style="color:${essOk?'var(--ok)':'var(--bad)'}">💠${r.essence}</span>`:''}</div>
+      <button class="btn sm gc-btn" ${can?'':'disabled'} onclick="transmute('${r.id}')">⚗️ Transmutar</button></div>`;};
+  const transLockedByReq={};
+  transLocked.forEach(r=>{const k=r.research||'?';(transLockedByReq[k]=transLockedByReq[k]||[]).push(r);});
+  const transLockedSummary=Object.keys(transLockedByReq).map(reqId=>{
+    const items=transLockedByReq[reqId];const reqName=RMAP[reqId]?RMAP[reqId].name:reqId;
+    return `<div class="lock-chip"><span>🔒</span><span><b>${items.length}</b> transmutaç${items.length===1?'ão':'ões'} — ${items.map(r=>IMAP[r.out].name).join(', ')}</span>
+      <span class="lock-req">requer ${reqName}</span></div>`;}).join('');
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🔨 Forja</h3><span class="chip">🪙 ${bal(G.meta.gold)} · 💠 ${bal(G.meta.essence)}</span></div>
      <p class="muted small mt6">Crie e <b>aprimore</b> equipamento. Cada aprimoramento (+N) dá +14% nos atributos do item.</p></div>
      <div class="panel mb"><div class="gsection-head"><h4>⚒️ Aprimorar Equipamento</h4><span class="chip">máx +${upgMax()}${!G.meta.research.forja5?' (Forja Mítica destrava +12)':(!G.meta.research.forja6?' (Aprimoramento Extremo destrava +20)':'')}</span></div>
        <p class="tiny muted mt6" style="margin-bottom:9px">Cada cópia é aprimorada <b>por herói</b> — melhorar a manopla do Guerreiro não afeta a do outro.</p>
        <div class="gcards wide">${upgRows.length?upgRows.map(upgCard).join(''):'<p class="muted small">Nenhum herói tem equipamento. Equipe itens nos heróis para poder aprimorá-los.</p>'}</div></div>
-     <div class="panel"><h4 class="mb">🛠️ Criar Equipamento & Itens</h4>
+     <div class="panel mb"><h4 class="mb">🛠️ Criar Equipamento & Itens</h4>
      <div class="gcards tight">${avail.map(card).join('')}</div>
      ${locked.length?`<div class="divider"></div><p class="lab-sm mb">🔒 Receitas bloqueadas (pesquise na Biblioteca para liberar)</p>
-       <div class="lock-summary">${lockedSummary}</div>`:''}</div>`;
+       <div class="lock-summary">${lockedSummary}</div>`:''}</div>
+     <div class="panel"><h4 class="mb">⚗️ Transmutar Materiais</h4>
+       <p class="tiny muted mt6" style="margin-bottom:9px">Combine vários materiais mais fracos (e um pouco de ouro e Essência) pra forjar um material de um nível acima. Começa liberado só o nível Comum→Raro; os de cima destravam junto com as pesquisas da Forja.</p>
+       <div class="gcards tight">${transAvail.map(transCard).join('')}</div>
+       ${transLocked.length?`<div class="divider"></div><p class="lab-sm mb">🔒 Transmutações bloqueadas (pesquise na Biblioteca para liberar)</p>
+         <div class="lock-summary">${transLockedSummary}</div>`:''}</div>`;
 }
 function craft(rid){const r=RECIPES.find(x=>x.id===rid);if(!r||!canAfford(r.cost))return;
   payCost(r.cost);addItem(r.out,1);G.meta.craftedCount++;saveGame();checkUnlocks();
