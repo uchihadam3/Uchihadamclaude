@@ -377,7 +377,20 @@ h3{font-size:18px;}
 /* ============ CARDS GAMIFICADOS (Forja / Mercado / Biblioteca / Santuário) ============
    Substitui listas verticais de linhas por grades de cartas — mais visual, menos scroll. */
 .gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px;}
-.gcards.wide{grid-template-columns:repeat(auto-fill,minmax(192px,1fr));}
+.gcards.wide{grid-template-columns:repeat(auto-fill,minmax(158px,1fr));}
+.gcards.tight{grid-template-columns:repeat(auto-fill,minmax(102px,1fr));gap:7px;}
+.gcards.tight .gcard{padding:8px 5px 6px;gap:3px;}
+.gcards.tight .gc-ico{width:38px;height:38px;font-size:21px;margin-top:2px;}
+.gcards.tight .gc-name{font-size:10.5px;min-height:2.1em;}
+.gcards.tight .gc-desc{display:none;}
+.gcards.tight .gc-stat{font-size:9px;}
+.gcards.tight .gc-costs{font-size:8.5px;gap:2px;}
+.gcards.tight .gc-btn{font-size:11px;padding:5px 6px;}
+.lock-summary{display:flex;flex-direction:column;gap:6px;}
+.lock-chip{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;
+  background:rgba(0,0,0,.22);border:1px solid var(--line-soft);font-size:12px;text-align:left;}
+.lock-chip b{color:var(--dim);font-weight:700;}
+.lock-chip .lock-req{margin-left:auto;color:var(--gold);font-family:'Cinzel';font-weight:700;font-size:11px;white-space:nowrap;}
 .gcard{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;
   padding:12px 9px 9px;border-radius:14px;cursor:default;
   background:linear-gradient(180deg,rgba(46,28,66,.94),rgba(24,14,40,.94));
@@ -3301,10 +3314,13 @@ function tabForge(b){
       <div class="gc-spacer"></div>
       <div class="gc-costs">${costsHtml}</div>
       <button class="btn sm gc-btn" ${can?'':'disabled'} onclick="craft('${r.id}')">🔨 Criar</button></div>`;};
-  const lockedCard=r=>`<div class="gcard locked">
-      <div class="gc-ico">🔒</div>
-      <div class="gc-name">${IMAP[r.out].name}</div>
-      <div class="gc-sub">requer<br><b>${RMAP[r.research]?RMAP[r.research].name:r.research}</b></div></div>`;
+  // receitas bloqueadas viram um resumo compacto agrupado por pré-requisito (evita uma parede de cadeados)
+  const lockedByReq={};
+  locked.forEach(r=>{const k=r.research||'?';(lockedByReq[k]=lockedByReq[k]||[]).push(r);});
+  const lockedSummary=Object.keys(lockedByReq).map(reqId=>{
+    const items=lockedByReq[reqId];const reqName=RMAP[reqId]?RMAP[reqId].name:reqId;
+    return `<div class="lock-chip"><span>🔒</span><span><b>${items.length}</b> receita${items.length===1?'':'s'} — ${items.map(r=>IMAP[r.out].name).join(', ')}</span>
+      <span class="lock-req">requer ${reqName}</span></div>`;}).join('');
   // ---- aprimoramento SEPARADO por herói: cada cópia equipada é melhorada individualmente ----
   // monta uma linha por (herói × item equipado), agrupado por herói
   const upgRows=[];
@@ -3335,9 +3351,9 @@ function tabForge(b){
        <p class="tiny muted mt6" style="margin-bottom:9px">Cada cópia é aprimorada <b>por herói</b> — melhorar a manopla do Guerreiro não afeta a do outro.</p>
        <div class="gcards wide">${upgRows.length?upgRows.map(upgCard).join(''):'<p class="muted small">Nenhum herói tem equipamento. Equipe itens nos heróis para poder aprimorá-los.</p>'}</div></div>
      <div class="panel"><h4 class="mb">🛠️ Criar Equipamento & Itens</h4>
-     <div class="gcards">${avail.map(card).join('')}</div>
-     ${locked.length?`<div class="divider"></div><p class="lab-sm mb">🔒 Receitas bloqueadas (pesquise na Biblioteca)</p>
-       <div class="gcards">${locked.map(lockedCard).join('')}</div>`:''}</div>`;
+     <div class="gcards tight">${avail.map(card).join('')}</div>
+     ${locked.length?`<div class="divider"></div><p class="lab-sm mb">🔒 Receitas bloqueadas (pesquise na Biblioteca para liberar)</p>
+       <div class="lock-summary">${lockedSummary}</div>`:''}</div>`;
 }
 function craft(rid){const r=RECIPES.find(x=>x.id===rid);if(!r||!canAfford(r.cost))return;
   payCost(r.cost);addItem(r.out,1);G.meta.craftedCount++;saveGame();checkUnlocks();
