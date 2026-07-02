@@ -2685,6 +2685,10 @@ function checkUnlocks(){let changed=false;
 function toast(msg,rar){const host=$('#toasts');const t=document.createElement('div');
   t.className='toast';if(rar)t.style.borderColor=RAR_COLOR[rar]||'var(--gold)';
   t.innerHTML=msg;host.appendChild(t);setTimeout(()=>t.remove(),3000);}
+/* mostra SEMPRE na tela um item de raridade Único (secreto), dentro ou fora de uma incursão —
+   diferente do toast normal de loot, que só aparece fora de uma incursão pra não poluir o combate. */
+function toastUnique(it){if(!it||it.rarity!=='secreto')return;
+  toast(`✨ <b style="color:${RAR_COLOR.secreto}">Item Único encontrado:</b> ${it.icon} ${it.name}!`,'secreto');}
 /* ---- navegação de modais (pilha): ✕ volta UMA tela, não fecha tudo ---- */
 let _nav=[]; let _navGuard=false;
 function navTo(fn){_nav.push(fn);_navGuard=true;try{fn();}finally{_navGuard=false;}}
@@ -4897,6 +4901,7 @@ function onUltraBossWin(boss,e){
     const idx=ri(0,pool.length-1);const it=pool.splice(idx,1)[0];
     addItem(it.id,1);discover('items',it.id);
     logline('🌟 <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> caiu do chefe ultra secreto!','lt');
+    toastUnique(it);
   }
   logline('☠️ <b>'+boss.name+' foi derrotado!</b> +'+ess+' essência.','dn');
   toast('☠️ Chefe ultra secreto derrotado: '+boss.name+'!','secreto');
@@ -5021,7 +5026,7 @@ function grantEquipment(minRar,cap){
     const mpool=ITEMS.filter(i=>isEquip(i)&&i.mode===wants&&!i.tower);
     if(mpool.length){const mi=pick(mpool);addItem(mi.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;discover('items',mi.id);
       logline('🔥 <b style="color:'+RAR_COLOR[mi.rarity]+'">'+mi.name+'</b> <span class="tiny muted">(único do '+(DIFFS[wants]?DIFFS[wants].name:wants)+')</span>','lt');
-      sfx('epic');lootBurst(mi.rarity);if(!RUN)toast('🔥 '+mi.name,mi.rarity);return;}
+      sfx('epic');lootBurst(mi.rarity);toastUnique(mi);return;}
   }
   const rar=rarityRoll(minRar,cap);
   const curTier=bandTier((typeof RUN!=='undefined'&&RUN)?RUN.floor:1);
@@ -5038,7 +5043,8 @@ function grantEquipment(minRar,cap){
   const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🎁 Equipamento achado: <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');lootBurst(it.rarity);
-  if(!(typeof RUN!=='undefined'&&RUN))toast('🎁 '+it.name,it.rarity);
+  if(it.rarity==='secreto')toastUnique(it);
+  else if(!(typeof RUN!=='undefined'&&RUN))toast('🎁 '+it.name,it.rarity);
 }
 function grantSecretKey(){
   // decide qual chave secreta dropar
@@ -5073,7 +5079,7 @@ function grantTowerUnique(){
   if(!pool.length)return false;
   const it=pick(pool);addItem(it.id,1);if(RUN)RUN.equipFound=(RUN.equipFound||0)+1;discover('items',it.id);
   logline('🗼 <b style="color:'+RAR_COLOR[it.rarity]+'">Despojo da Torre: '+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
-  sfx('epic');lootBurst(it.rarity);if(!RUN)toast('🗼 '+it.name,it.rarity);return true;
+  sfx('epic');lootBurst(it.rarity);toastUnique(it);return true;
 }
 
 /* ---- XP / NÍVEL ---- */
@@ -5831,7 +5837,7 @@ function onTorreSecretBossWin(boss,e){
   // despojo GARANTIDO exclusivo do Carcereiro
   addItem('tw_secret',1);discover('items','tw_secret');RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🏆 <b class="tag-secret">DESPOJO SECRETO DA TORRE:</b> '+IMAP.tw_secret.icon+' '+IMAP.tw_secret.name+'!','sc');
-  lootBurst('secreto');
+  lootBurst('secreto');toastUnique(IMAP.tw_secret);
   grantTowerUnique();   // + um único da torre de brinde
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.18);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   logline('🌟 <b>'+boss.name+' foi silenciado.</b> +'+ess+' essência.','sc');
@@ -5870,7 +5876,7 @@ function onTronoVazioWin(boss,e){
   const ess=runEssence(400+tf*24);
   addItem('coroa_trono_vazio',1);discover('items','coroa_trono_vazio');RUN.equipFound=(RUN.equipFound||0)+1;
   logline('🏆 <b class="tag-secret">DESPOJO SECRETO DA TORRE:</b> '+IMAP.coroa_trono_vazio.icon+' '+IMAP.coroa_trono_vazio.name+'!','sc');
-  lootBurst('secreto');
+  lootBurst('secreto');toastUnique(IMAP.coroa_trono_vazio);
   grantTowerUnique();
   RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*0.2);c.hp=Math.min(c.maxhp,c.hp+h);if(h>0)floatText('hero',i,'+'+h,'#5fd17a');});refreshBars();
   logline('🌟 <b>'+boss.name+' desmorona de volta ao nada.</b> +'+ess+' essência.','sc');
@@ -6231,7 +6237,9 @@ function grantAbyssItem(L){
   if(!pool.length)return grantEquipment('mitico',false);
   const it=pick(pool); addItem(it.id,1); if(RUN)RUN.equipFound=(RUN.equipFound||0)+1; discover('items',it.id);
   logline('🕳️ <b style="color:'+RAR_COLOR[it.rarity]+'">Relíquia do Abismo: '+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
-  sfx('epic');lootBurst(it.rarity);if(!RUN)toast('🕳️ '+it.name,it.rarity);
+  sfx('epic');lootBurst(it.rarity);
+  if(it.rarity==='secreto')toastUnique(it);
+  else if(!RUN)toast('🕳️ '+it.name,it.rarity);
 }
 
 function autoConsumables(){
