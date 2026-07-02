@@ -2715,8 +2715,18 @@ const LBL_ORDER=['hp','atk','def','mag','spd','lck'];
    ganho de equipamento — assim a barra reflete progresso real e não fica sempre cheia. */
 function statRefMax(heroId,k){
   const h=HMAP[heroId];if(!h)return 100;
-  const base200=h.base[k]+(h.growth[k]||0)*199;
-  return Math.max(Math.round(base200*1.6),h.base[k]*4,20);
+  if(k==='hp'){
+    const base200=h.base.hp+(h.growth.hp||0)*199;
+    return Math.max(Math.round(base200*1.6),h.base.hp*4,20);
+  }
+  // ATQ/DEF/MAG/VEL/SOR dividem um teto ÚNICO por herói (baseado no atributo que
+  // mais cresce nele), assim o comprimento das barras é comparável entre si — um
+  // atributo com valor maior sempre aparece com barra maior que um menor, em vez
+  // de cada barra ser normalizada isoladamente contra o próprio teto.
+  const combatKeys=['atk','def','mag','spd','lck'];
+  let maxProj=0;
+  combatKeys.forEach(kk=>{const proj=h.base[kk]+(h.growth[kk]||0)*199;if(proj>maxProj)maxProj=proj;});
+  return Math.max(Math.round(maxProj*1.6),20);
 }
 function statBar(lab,val,max,cls,delta){
   const dl=delta?` <span class="statgain">+${Math.round(delta)}</span>`:'';
