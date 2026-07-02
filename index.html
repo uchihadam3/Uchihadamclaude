@@ -356,6 +356,24 @@ h3{font-size:18px;}
 .log{background:linear-gradient(180deg,rgba(0,0,0,.5),rgba(0,0,0,.3));box-shadow:inset 0 6px 12px rgba(0,0,0,.35);}
 /* sprites nos cards com sombra projetada */
 .hero-card canvas,.pm canvas{filter:drop-shadow(0 4px 4px rgba(0,0,0,.55));}
+/* ---- vitrine do Mercador Errante (aba Mercado) ---- */
+.merch-shop{border-color:var(--shadow-c);background:
+  linear-gradient(180deg, rgba(58,26,80,.5), rgba(28,16,46,.9)),
+  radial-gradient(120% 80% at 50% 0%, rgba(161,75,255,.12), transparent 60%);}
+.merch-tier{margin-bottom:14px;padding:10px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid var(--line-soft);}
+.merch-tier:last-child{margin-bottom:0;}
+.merch-tier-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.merch-tier-comum{box-shadow:inset 3px 0 0 #8a8f98;}
+.merch-tier-raro{box-shadow:inset 3px 0 0 var(--rare);}
+.merch-tier-epico{box-shadow:inset 3px 0 0 var(--epic);}
+.merch-tier-lendario{box-shadow:inset 3px 0 0 var(--legend);}
+.merch-good{display:flex;gap:10px;align-items:center;padding:9px;border-radius:11px;
+  background:linear-gradient(180deg,rgba(44,28,64,.9),rgba(28,16,46,.9));border:1px solid var(--line-soft);
+  transition:transform .12s,border-color .12s,box-shadow .12s;}
+.merch-good.locked{opacity:.68;filter:saturate(.7);}
+.merch-good.unlocked{border-color:var(--ok);box-shadow:0 0 10px rgba(95,209,122,.15);}
+.merch-good:hover{transform:translateY(-1px);}
+.merch-good .rico{font-size:26px;display:flex;align-items:center;justify-content:center;width:38px;flex:0 0 auto;}
 </style>
 </head>
 <body>
@@ -1675,9 +1693,9 @@ const ITEMS=[
 {id:'amuleto_sorte',name:'Amuleto da Sorte',icon:'🔮',type:'acessorio',slot:'acessorio',rarity:'epico',stats:{lck:9,spd:3}},
 {id:'pingente_alma',name:'Pingente da Alma',icon:'📿',type:'acessorio',slot:'acessorio',rarity:'lendario',stats:{mag:10,hp:20,lck:4}},
 // --- consumíveis (auto-usados no combate quando necessário) ---
-{id:'pocao_vida',name:'Poção de Vida',icon:'🧪',type:'consumivel',rarity:'comum',use:{heal:0.15},desc:'Cura 15% da vida do mais ferido em combate (auto).'},
-{id:'pocao_forca',name:'Poção de Força',icon:'⚗️',type:'consumivel',rarity:'raro',use:{atkup:0.3},desc:'+30% de ataque ao grupo por um combate (auto no chefe).'},
-{id:'bomba',name:'Bomba Arcana',icon:'💣',type:'consumivel',rarity:'raro',use:{dmgall:2.0},desc:'Dano em área no início de um combate (auto).'},
+{id:'pocao_vida',name:'Poção de Vida',icon:'🧪',type:'consumivel',rarity:'comum',use:{heal:0.15,trigger:'lowHp'},desc:'Cura 15% da vida do mais ferido em combate (auto).'},
+{id:'pocao_forca',name:'Poção de Força',icon:'⚗️',type:'consumivel',rarity:'raro',use:{atkup:0.3,trigger:'bossStart'},desc:'+30% de ataque ao grupo por um combate (auto no chefe).'},
+{id:'bomba',name:'Bomba Arcana',icon:'💣',type:'consumivel',rarity:'raro',use:{dmgall:2.0,trigger:'bossStart'},desc:'Dano em área no início de um combate (auto).'},
 // --- SECRETOS / chaves ---
 {id:'cristal_invocacao',name:'Cristal de Invocação',icon:'🟦',type:'chave',rarity:'secreto',secret:true,desc:'Pulsa com vozes de outro mundo. Desbloqueia a Invocadora.'},
 {id:'chave_negra',name:'Chave Negra',icon:'🗝️',type:'chave',rarity:'secreto',secret:true,desc:'Abre portas que não deviam existir. Necessária para níveis secretos.'},
@@ -1745,11 +1763,23 @@ const ITEMS=[
 {id:'talisma_sabio',name:'Talismã do Sábio',icon:'📜',type:'talisma',slot:'talisma',rarity:'lendario',stats:{mag:20,lck:5}},
 {id:'talisma_vazio',name:'Talismã do Vazio',icon:'🌑',type:'talisma',slot:'talisma',rarity:'mitico',secret:true,stats:{atk:14,mag:14,lck:10,spd:6},desc:'Pulsa com o nada entre os andares.'},
 // ===== NOVOS CONSUMÍVEIS (mais variedade) =====
-{id:'pocao_grande',name:'Elixir Maior',icon:'🍶',type:'consumivel',rarity:'raro',use:{heal:0.35},desc:'Cura 35% da vida do herói mais ferido (auto).'},
-{id:'pocao_foco',name:'Tônico Arcano',icon:'🧴',type:'consumivel',rarity:'raro',use:{magup:0.3},desc:'+30% de dano mágico do grupo num combate (auto no chefe).'},
-{id:'pergaminho_fogo',name:'Pergaminho de Fogo',icon:'📜',type:'consumivel',rarity:'epico',use:{dmgall:3.0},desc:'Incinera todos os inimigos no início de um combate (auto).'},
-{id:'incenso',name:'Incenso Sagrado',icon:'🕯️',type:'consumivel',rarity:'epico',use:{shield:1},desc:'Escudo para o grupo no início do próximo chefe (auto).'},
-{id:'antidoto',name:'Antídoto',icon:'🌿',type:'consumivel',rarity:'comum',use:{cleanse:1},desc:'Remove venenos do grupo (auto).'},
+{id:'pocao_grande',name:'Elixir Maior',icon:'🍶',type:'consumivel',rarity:'raro',use:{heal:0.35,trigger:'lowHp'},desc:'Cura 35% da vida do herói mais ferido (auto).'},
+{id:'pocao_foco',name:'Tônico Arcano',icon:'🧴',type:'consumivel',rarity:'raro',use:{magup:0.3,trigger:'bossStart'},desc:'+30% de dano mágico do grupo num combate (auto no chefe).'},
+{id:'pergaminho_fogo',name:'Pergaminho de Fogo',icon:'📜',type:'consumivel',rarity:'epico',use:{dmgall:3.0,trigger:'bossStart'},desc:'Incinera todos os inimigos no início de um combate (auto).'},
+{id:'incenso',name:'Incenso Sagrado',icon:'🕯️',type:'consumivel',rarity:'epico',use:{shield:3,trigger:'bossStart'},desc:'Escudo para o grupo no início do próximo chefe (auto).'},
+{id:'antidoto',name:'Antídoto',icon:'🌿',type:'consumivel',rarity:'comum',use:{cleanse:1,trigger:'combatStart'},desc:'Remove venenos, queimaduras e maldições do grupo se alguém estiver afetado (auto).'},
+// ===== PROVISÕES DO MERCADOR ERRANTE (itens que só ele vende) =====
+{id:'racao_viagem',name:'Ração de Viagem',icon:'🍞',type:'consumivel',rarity:'comum',use:{healAll:0.08,trigger:'instant'},desc:'Cura instantaneamente 8% da vida de todo o grupo assim que comprada.'},
+{id:'tocha_benta',name:'Tocha Bênta',icon:'🪔',type:'consumivel',rarity:'raro',use:{defup:0.15,trigger:'combatStart'},desc:'+15% de defesa do grupo no próximo combate (auto).'},
+{id:'veneno_ofensivo',name:'Veneno de Víbora',icon:'🐍',type:'consumivel',rarity:'raro',use:{poisonEnemies:3,trigger:'combatStart'},desc:'Envenena todos os inimigos no início do próximo combate (auto).'},
+{id:'amuleto_veloz',name:'Amuleto da Pressa',icon:'🪽',type:'consumivel',rarity:'raro',use:{spdup:0.2,trigger:'combatStart'},desc:'+20% de velocidade do grupo no próximo combate (auto).'},
+{id:'elixir_fenix',name:'Elixir de Fênix',icon:'🔥',type:'consumivel',rarity:'epico',use:{revive:0.4,trigger:'instant'},desc:'Reergue instantaneamente um herói caído com 40% de vida ao ser comprado.'},
+{id:'pedra_furia',name:'Pedra da Fúria Ancestral',icon:'🗿',type:'consumivel',rarity:'epico',use:{atkup:0.25,critup:0.25,trigger:'bossStart'},desc:'+25% de ataque e +25% de crítico do grupo no próximo chefe (auto).'},
+{id:'manto_espectral',name:'Manto Espectral',icon:'👻',type:'consumivel',rarity:'epico',use:{evade:2,trigger:'combatStart'},desc:'O grupo fica pronto para esquivar no início do próximo combate (auto).'},
+{id:'coracao_titan',name:'Coração de Titã',icon:'💗',type:'consumivel',rarity:'lendario',use:{healAll:1.0,reviveAll:0.5,trigger:'instant'},desc:'Cura totalmente e reergue TODOS os heróis caídos (50% de vida) instantaneamente ao ser comprado.'},
+{id:'ampulheta_dourada',name:'Ampulheta Dourada',icon:'⏳',type:'consumivel',rarity:'lendario',use:{extraTurnPermanent:0.12,trigger:'instant'},desc:'Concede +12% de chance do grupo agir de novo pelo resto desta incursão, assim que comprada.'},
+{id:'nucleo_arcano',name:'Núcleo Arcano Instável',icon:'☢️',type:'consumivel',rarity:'lendario',use:{dmgall:1.5,trigger:'combatStart'},desc:'Explode em todos os inimigos no início de CADA combate, não só chefes (auto).'},
+{id:'bencao_divina',name:'Bênção Divina do Mercador',icon:'👑',type:'consumivel',rarity:'lendario',use:{healAll:1.0,shield:3,atkup:0.2,magup:0.2,defup:0.2,trigger:'bossStart'},desc:'Cura total, escudo e +20% em ataque, dano mágico e defesa do grupo no próximo chefe (auto).'},
 // ===== MUITO MAIS EQUIPAMENTO (variedade de drops) =====
 // armas comuns/raras
 {id:'porrete',name:'Porrete Cravejado',icon:'🏏',type:'arma',slot:'arma',rarity:'comum',stats:{atk:5,def:1}},
@@ -2123,6 +2153,7 @@ function defaultMeta(){
     codex:{bestiary:[],items:[],secrets:[],bosses:[]},
     flags:{}, mapKnowledge:{}, // floorN -> familiaridade 0..1
     slots:3, relics:[], seenIntro:false, upgrades:{}, equipUpg:{}, tideRerollsUsed:0,
+    merchantUnlocks:{pocao_vida:true,antidoto:true,racao_viagem:true},
     playerName:null, playerSecret:null   // identidade no ranking
   };
 }
@@ -2138,6 +2169,7 @@ function migrateMeta(){
   if(!G.meta.codex)G.meta.codex={bestiary:[],items:[],secrets:[],bosses:[]};
   if(!G.meta.upgrades)G.meta.upgrades={}; if(!G.meta.bestiaryKills)G.meta.bestiaryKills={};
   if(typeof G.meta.tideRerollsUsed!=='number')G.meta.tideRerollsUsed=0;
+  if(!G.meta.merchantUnlocks)G.meta.merchantUnlocks={pocao_vida:true,antidoto:true,racao_viagem:true};
   // aprimoramento por HERÓI+item (separado por personagem). Migra do antigo store compartilhado.
   if(!G.meta.equipUpg){
     G.meta.equipUpg={};
@@ -3323,6 +3355,7 @@ function tabMarket(b){
   const selN=SELL_SEL.size, selG=sellSelTotal();
   b.innerHTML=`<div class="panel parch mb"><div class="row between"><h3>🛒 Mercado</h3><span class="chip">🪙 <b>${bal(G.meta.gold)}</b> ouro</span></div>
      <p class="muted small mt6">Venda o que sobra por ouro e compre materiais & consumíveis. O ouro também aprimora equipamento na Forja.</p></div>
+     ${merchantShopHtml()}
      <div class="panel mb"><h4 class="mb">🪙 Comprar (com ouro)</h4><div class="col">${BUY_SHOP.map(buyCard).join('')}</div></div>
      <div class="panel"><h4 class="mb">💰 Vender em lote</h4>
        ${sellList().length?`
@@ -4406,12 +4439,86 @@ function encFountain(){
     RUN.party.filter(c=>c.alive).forEach(c=>grantXP(c,14+RUN.floor*2));   // XP modesto (não uma % da barra)
     refreshBars();advanceRoom();},800);
 }
-/* ---- MERCADOR ERRANTE (segredo) ---- */
-const MERCH_GOODS={
-  mat:{cost:80,label:'Material raro 🧱'}, equip:{cost:220,label:'Equipamento aleatório 🎁'},
-  potion:{cost:70,label:'Poção de Vida 🧪',item:'pocao_vida'}, ether:{cost:100,label:'Elixir Maior 🍶',item:'pocao_grande'},
-  bomb:{cost:95,label:'Bomba Arcana 💣',item:'bomba'}, heal:{cost:120,label:'Curar grupo agora ✨'},
-};
+/* ---- MERCADOR ERRANTE (segredo) — vende SÓ provisões que ajudam NAQUELA incursão.
+   Cada bem tem um custo pra comprar (Essência, na hora) e um custo pra DESBLOQUEAR
+   permanentemente (Essência, no acampamento) — só bens desbloqueados podem aparecer no estoque dele. ---- */
+const MERCH_CATALOG=[
+ {id:'pocao_vida',tier:'comum',buy:55,unlock:0},
+ {id:'antidoto',tier:'comum',buy:50,unlock:0},
+ {id:'racao_viagem',tier:'comum',buy:60,unlock:90},
+ {id:'pocao_grande',tier:'raro',buy:110,unlock:200},
+ {id:'pocao_forca',tier:'raro',buy:120,unlock:220},
+ {id:'pocao_foco',tier:'raro',buy:120,unlock:220},
+ {id:'bomba',tier:'raro',buy:130,unlock:240},
+ {id:'veneno_ofensivo',tier:'raro',buy:115,unlock:210},
+ {id:'amuleto_veloz',tier:'raro',buy:100,unlock:190},
+ {id:'tocha_benta',tier:'raro',buy:90,unlock:160},
+ {id:'incenso',tier:'epico',buy:220,unlock:420},
+ {id:'pergaminho_fogo',tier:'epico',buy:240,unlock:460},
+ {id:'elixir_fenix',tier:'epico',buy:260,unlock:520},
+ {id:'pedra_furia',tier:'epico',buy:230,unlock:440},
+ {id:'manto_espectral',tier:'epico',buy:210,unlock:400},
+ {id:'coracao_titan',tier:'lendario',buy:480,unlock:900},
+ {id:'ampulheta_dourada',tier:'lendario',buy:420,unlock:800},
+ {id:'nucleo_arcano',tier:'lendario',buy:520,unlock:1000},
+ {id:'bencao_divina',tier:'lendario',buy:500,unlock:950},
+];
+const MERCH_TIER_META={comum:{name:'Comum',w:5},raro:{name:'Raro',w:3},epico:{name:'Épico',w:1.4},lendario:{name:'Lendário',w:0.5}};
+function merchUnlockedList(){return MERCH_CATALOG.filter(g=>G.meta.merchantUnlocks&&G.meta.merchantUnlocks[g.id]);}
+// sorteio ponderado sem repetição — bens mais baratos aparecem mais, os muito caros são raros de ver
+function merchOffer(n){
+  const pool=merchUnlockedList().slice();const out=[];
+  while(pool.length&&out.length<n){
+    const total=pool.reduce((s,g)=>s+(MERCH_TIER_META[g.tier].w||1),0);
+    let r=Math.random()*total,idx=0;
+    for(;idx<pool.length-1;idx++){r-=(MERCH_TIER_META[pool[idx].tier].w||1);if(r<=0)break;}
+    out.push(pool.splice(idx,1)[0]);
+  }
+  return out;
+}
+function unlockMerchItem(id){
+  const g=MERCH_CATALOG.find(x=>x.id===id);if(!g)return;
+  G.meta.merchantUnlocks=G.meta.merchantUnlocks||{};
+  if(G.meta.merchantUnlocks[id]||G.meta.essence<g.unlock)return;
+  G.meta.essence-=g.unlock;G.meta.merchantUnlocks[id]=true;saveGame();sfx('unlock');
+  toast('🧙 '+IMAP[id].icon+' '+IMAP[id].name+' liberado no estoque do Mercador!',g.tier);
+  renderTab();
+}
+/* ---- vitrine do Mercador Errante no acampamento (aba 🛒 Mercado) ---- */
+function merchGoodCard(g){
+  const it=IMAP[g.id];const unlocked=!!(G.meta.merchantUnlocks&&G.meta.merchantUnlocks[g.id]);
+  const can=!unlocked&&g.unlock>0&&G.meta.essence>=g.unlock;
+  return `<div class="merch-good ${'b-'+g.tier} ${unlocked?'unlocked':'locked'}">
+    <div class="rico">${itemIco(it,3)}</div>
+    <div style="flex:1;min-width:0"><b>${it.name}</b> ${rarPill(g.tier)}<br>
+      <span class="tiny">${it.desc}</span><br>
+      <span class="tiny muted">🧙 preço na hora: <b style="color:var(--gold)">💠 ${g.buy}</b></span></div>
+    <div style="text-align:right;flex:0 0 auto">${unlocked
+        ?`<span class="chip" style="color:var(--ok);border-color:var(--ok)">✅ liberado</span>`
+        :(g.unlock>0
+          ?`<button class="btn sm" ${can?'':'disabled'} onclick="unlockMerchItem('${g.id}')">🔓 💠${g.unlock}</button>`
+          :`<span class="chip" style="color:var(--ok);border-color:var(--ok)">✅ inicial</span>`)}
+    </div></div>`;
+}
+function merchantShopHtml(){
+  const tiers=['comum','raro','epico','lendario'];
+  const unlockedN=merchUnlockedList().length, totalN=MERCH_CATALOG.length;
+  const sections=tiers.map(t=>{
+    const meta=MERCH_TIER_META[t];const items=MERCH_CATALOG.filter(g=>g.tier===t);
+    return `<div class="merch-tier merch-tier-${t}">
+      <div class="merch-tier-head"><span class="rpill ${t}">${meta.name}</span>
+        <span class="tiny muted">${items.filter(g=>G.meta.merchantUnlocks&&G.meta.merchantUnlocks[g.id]).length}/${items.length} liberados</span></div>
+      <div class="col mt6">${items.map(merchGoodCard).join('')}</div>
+    </div>`;}).join('');
+  return `<div class="panel parch mb merch-shop">
+    <div class="row between"><h3>🧙 O Mercador Errante</h3><span class="chip">💠 <b>${bal(G.meta.essence)}</b> essência</span></div>
+    <p class="muted small mt6">Ele aparece raramente em salas ocultas dentro da masmorra e só aceita <b>Essência</b> — vende
+      apenas provisões que ajudam <b>naquela incursão</b> (poções, pergaminhos, talismãs...), nunca ouro ou equipamento.
+      Gaste Essência aqui, no acampamento, para <b>liberar permanentemente</b> novos itens no estoque dele. Quanto mais
+      caro de liberar, melhor o efeito. <span class="tiny">(${unlockedN}/${totalN} liberados)</span></p>
+    <div class="merch-tiers mt">${sections}</div>
+  </div>`;
+}
 function encMerchant(){
   // AUTOMÁTICO: conforme a preferência definida antes da incursão (mercado do acampamento)
   unlockSecret('mercador');RUN.scene.mode='idle';
@@ -4421,27 +4528,32 @@ function encMerchant(){
 }
 function merchAutoBuy(mode){
   if(mode==='skip'){logline('🧙 O grupo poupa Essência e segue viagem.','muted');return;}
-  const keys=shuffle(Object.keys(MERCH_GOODS)).slice(0,3);
+  const offer=merchOffer(4);
+  if(!offer.length){logline('🧙 "Meu carrinho ainda está vazio, viajante... volte quando eu tiver mais mercadoria." (libere itens no 🛒 Mercado do acampamento)','muted');return;}
   let bought=0;
-  keys.forEach(k=>{
-    const g=MERCH_GOODS[k]; if(G.meta.essence<g.cost)return;
+  const alive=RUN.party.filter(c=>c.alive);
+  const deadCount=RUN.party.length-alive.length;
+  const avgHp=alive.length?alive.reduce((a,c)=>a+c.hp/c.maxhp,0)/alive.length:1;
+  offer.forEach(g=>{
+    const it=IMAP[g.id];if(!it||G.meta.essence<g.buy)return;
+    const u=it.use||{};
     let buy=false;
     if(mode==='buy')buy=true;                    // compra tudo que puder pagar
     else { // 'smart': compra com bom senso, sem torrar tudo
-      const alive=RUN.party.filter(c=>c.alive);
-      const avgHp=alive.reduce((a,c)=>a+c.hp/c.maxhp,0)/Math.max(1,alive.length);
       const reserve=80+RUN.floor*6;              // mantém uma reserva de essência
-      if(G.meta.essence-g.cost<reserve)return;
-      if((k==='heal'||k==='potion'||k==='ether')&&avgHp<0.6)buy=true;
-      else if((k==='equip'||k==='mat')&&chance(0.5))buy=true;
-      else if(k==='bomb'&&chance(0.4))buy=true;
+      if(G.meta.essence-g.buy<reserve)return;
+      if((u.revive||u.reviveAll)&&deadCount>0)buy=true;
+      else if(u.trigger==='lowHp'&&avgHp<0.6)buy=true;
+      else if(u.healAll&&avgHp<0.75)buy=true;
+      else if(u.trigger==='bossStart'&&chance(0.45))buy=true;
+      else if(u.trigger==='combatStart'&&chance(0.4))buy=true;
+      else if(u.extraTurnPermanent&&chance(0.5))buy=true;
     }
-    if(buy){ G.meta.essence-=g.cost; updateRunRes();
-      if(k==='mat')grantMaterial('raro');
-      else if(k==='equip')grantEquipment();
-      else if(g.item)addItem(g.item,1);
-      else if(k==='heal'){RUN.party.filter(c=>c.alive).forEach((c,i)=>{const _h=Math.round(c.maxhp-c.hp);c.hp=c.maxhp;if(_h>0)floatText('hero',i,'+'+_h,'#5fd17a');});refreshBars();}
-      logline('🧙 Comprado: '+g.label+' (−'+g.cost+' 💠).','dn'); bought++;
+    if(buy){
+      G.meta.essence-=g.buy;updateRunRes();
+      if(u.trigger==='instant')applyConsumableUse(it);
+      else addItem(it.id,1);
+      logline('🧙 Comprado: '+it.icon+' '+it.name+' (−'+g.buy+' 💠).','dn'); bought++;
     }
   });
   if(!bought)logline('🧙 Nada que valha a Essência agora. O grupo segue.','muted');
@@ -4845,17 +4957,54 @@ function beginCombat(enemies,opts){
   RUN.party.forEach(c=>{c.atb=RUN.passive.firstStrike?100:0;});
   // invocações iniciais por passiva
   RUN.party.filter(c=>c.alive).forEach(c=>{const sm=c.h.passive.tags&&c.h.passive.tags.summon;if(sm)spawnMinion(c,sm);});
-  // consumíveis automáticos no início do combate
-  if(opts.boss){
-    if(invQty('pergaminho_fogo')>0){removeItem('pergaminho_fogo',1);logline('📜 Pergaminho de Fogo incinera os inimigos!','cb');
-      enemies.forEach(e=>{const d=Math.round(avgPartyPow()*3);applyDamageToEnemy(e,d,false,'fogo');if(e.hp<=0)killEnemy(e);});}
-    else if(invQty('bomba')>0){removeItem('bomba',1);logline('💣 Bomba Arcana lançada no chefe!','cb');
-      enemies.forEach(e=>{const d=Math.round(avgPartyPow()*2);applyDamageToEnemy(e,d,false,'fogo');if(e.hp<=0)killEnemy(e);});}
-    if(invQty('pocao_forca')>0){removeItem('pocao_forca',1);RUN.party.filter(c=>c.alive).forEach(c=>c.st.atk=Math.round(c.st.atk*1.3));logline('⚗️ Poção de Força: +ataque do grupo!','cb');}
-    if(invQty('pocao_foco')>0){removeItem('pocao_foco',1);RUN.party.filter(c=>c.alive).forEach(c=>c.st.mag=Math.round(c.st.mag*1.3));logline('🧴 Tônico Arcano: +dano mágico!','cb');}
-    if(invQty('incenso')>0){removeItem('incenso',1);RUN.party.filter(c=>c.alive).forEach(c=>c.fx.shield=3);logline('🕯️ Incenso Sagrado: escudo no grupo!','cb');}
-  }
+  // consumíveis automáticos no início do combate (todo combate + só em chefes)
+  runConsumableTrigger('combatStart',enemies);
+  if(opts.boss)runConsumableTrigger('bossStart',enemies);
   rtimeout(()=>envTick(),700);
+}
+/* ===== PROVISÕES: motor genérico de consumíveis auto-usados (lidos do campo `use` de cada item) =====
+   Cada item tem use.trigger: 'lowHp' (consumido reativamente quando alguém está ferido),
+   'combatStart' (todo combate), 'bossStart' (só em chefes) ou 'instant' (aplicado na hora da compra). */
+function applyConsumableUse(it,enemies){
+  const u=it.use||{};
+  if(u.heal){const low=RUN.party.filter(c=>c.alive).sort((a,b)=>a.hp/a.maxhp-b.hp/b.maxhp)[0];
+    if(low){const h=Math.round(low.maxhp*u.heal*healMul());const i=RUN.party.indexOf(low);low.hp=Math.min(low.maxhp,low.hp+h);
+      floatText('hero',i,'+'+h,'#5fd17a');logline(it.icon+' '+it.name+' usado em '+actorName(low)+'.','dn');refreshBars();}}
+  if(u.healAll){RUN.party.filter(c=>c.alive).forEach((c,i)=>{const h=Math.round(c.maxhp*u.healAll*healMul());c.hp=Math.min(c.maxhp,c.hp+h);
+    if(h>0)floatText('hero',RUN.party.indexOf(c),'+'+h,'#5fd17a');});refreshBars();}
+  if(u.revive){const dead=RUN.party.find(c=>!c.alive);
+    if(dead){dead.alive=true;dead.hp=Math.max(1,Math.round(dead.maxhp*u.revive));logline('🔥 '+actorName(dead)+' foi reerguido por '+it.name+'!','dn');refreshBars();}}
+  if(u.reviveAll){RUN.party.filter(c=>!c.alive).forEach(c=>{c.alive=true;c.hp=Math.max(1,Math.round(c.maxhp*u.reviveAll));});refreshBars();}
+  if(u.atkup)RUN.party.filter(c=>c.alive).forEach(c=>c.st.atk=Math.round(c.st.atk*(1+u.atkup)));
+  if(u.magup)RUN.party.filter(c=>c.alive).forEach(c=>c.st.mag=Math.round(c.st.mag*(1+u.magup)));
+  if(u.defup)RUN.party.filter(c=>c.alive).forEach(c=>c.st.def=Math.round(c.st.def*(1+u.defup)));
+  if(u.spdup)RUN.party.filter(c=>c.alive).forEach(c=>c.st.spd=Math.round(c.st.spd*(1+u.spdup)));
+  if(u.critup)RUN.passive.critBonus=(RUN.passive.critBonus||0)+u.critup;
+  if(u.shield)RUN.party.filter(c=>c.alive).forEach(c=>c.fx.shield=u.shield);
+  if(u.evade)RUN.party.filter(c=>c.alive).forEach(c=>c.fx.evade=u.evade);
+  if(u.extraTurnPermanent)RUN.passive.extraTurn=(RUN.passive.extraTurn||0)+u.extraTurnPermanent;
+  if(u.cleanse&&enemies){RUN.party.filter(c=>c.alive).forEach(c=>{if(!c.fx)return;['poison','burn','curse','weaken','armorBreak'].forEach(k=>delete c.fx[k]);});}
+  if(u.poisonEnemies&&enemies){const d=Math.max(1,Math.round(avgPartyPow()*0.4));
+    enemies.forEach(e=>{if(!e.alive)return;e.fx=e.fx||{};e.fx.poison={d,t:u.poisonEnemies};});}
+  if(u.dmgall&&enemies){const d=Math.round(avgPartyPow()*u.dmgall);
+    enemies.forEach(e=>{if(!e.alive)return;applyDamageToEnemy(e,d,false,'fogo');if(e.hp<=0)killEnemy(e);});}
+  if(!u.heal&&!u.dmgall&&!u.cleanse&&!u.poisonEnemies)logline(it.icon+' '+it.name+' usado — '+it.desc.replace(' (auto).','').replace(' assim que comprada.','.'),'cb');
+  sfx('loot');
+}
+function runConsumableTrigger(trigger,enemies){
+  const owned=ITEMS.filter(it=>it.type==='consumivel'&&it.use&&it.use.trigger===trigger&&invQty(it.id)>0);
+  if(!owned.length)return;
+  // antídoto só consome se alguém realmente estiver com um debuff removível — não desperdiça à toa
+  const needsCleanse=RUN.party.some(c=>c.alive&&c.fx&&['poison','burn','curse','weaken','armorBreak'].some(k=>c.fx[k]));
+  // AoE (dmgall) do mesmo gatilho é exclusiva: só a mais forte disponível explode, evita desperdiçar as fracas
+  const aoeItems=owned.filter(it=>it.use.dmgall).sort((a,b)=>b.use.dmgall-a.use.dmgall);
+  const skip=new Set();
+  if(aoeItems.length>1)aoeItems.slice(1).forEach(it=>skip.add(it.id));
+  owned.forEach(it=>{
+    if(skip.has(it.id))return;
+    if(it.use.cleanse&&!needsCleanse)return;
+    removeItem(it.id,1);applyConsumableUse(it,enemies);
+  });
 }
 function spawnMinion(owner,kind){
   const base=owner.level*4+10;
@@ -5778,11 +5927,10 @@ function autoConsumables(){
   // gatilho ainda cedo o bastante pra não ser tarde demais, mas as poções curam bem menos agora
   const low=RUN.party.find(c=>c.alive&&c.hp<c.maxhp*0.25);
   if(!low)return;
-  if(invQty("pocao_grande")>0){removeItem("pocao_grande",1);const _h=Math.round(Math.min(low.maxhp-low.hp,low.maxhp*0.35*healMul()));low.hp=Math.min(low.maxhp,low.hp+_h);
-    floatText('hero',RUN.party.indexOf(low),'+'+_h,'#5fd17a');logline('🍶 Elixir Maior usado em '+actorName(low)+'.','dn');refreshBars();return;}
-  if(invQty("pocao_vida")>0){removeItem("pocao_vida",1);const h=Math.round(low.maxhp*0.15*healMul());
-    low.hp=Math.min(low.maxhp,low.hp+h);floatText('hero',RUN.party.indexOf(low),'+'+h,'#5fd17a');
-    logline('🧪 Poção de Vida usada automaticamente em '+actorName(low)+'.','dn');refreshBars();}
+  const pool=ITEMS.filter(it=>it.type==='consumivel'&&it.use&&it.use.trigger==='lowHp'&&invQty(it.id)>0)
+    .sort((a,b)=>b.use.heal-a.use.heal);   // usa sempre a poção mais forte disponível primeiro
+  if(!pool.length)return;
+  removeItem(pool[0].id,1);applyConsumableUse(pool[0]);
 }
 
 /* ====================== FIM DA INCURSÃO ====================== */
