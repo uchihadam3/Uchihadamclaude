@@ -113,9 +113,15 @@ canvas{image-rendering:pixelated;}
 .stat-row{display:flex;align-items:center;gap:6px;font-size:12px;margin:2px 0;}
 .stat-row .lab{width:36px;color:var(--dim);font-family:'Cinzel';font-weight:600;}
 .stat-row .vv{width:34px;text-align:right;color:var(--gold);font-family:'Cinzel';}
-.bar{flex:1;height:8px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden;border:1px solid var(--line-soft);}
-.bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
-.hpbar > i{background:linear-gradient(90deg,#ff5d6c,#ff9a6c);}
+.bar{flex:1;height:8px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden;border:1px solid var(--line-soft);position:relative;}
+.bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ff5d6c,#ff9a6c);transition:width .25s ease;}
+.bar::after{content:"";position:absolute;left:0;right:0;top:0;height:45%;border-radius:6px 6px 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.22),transparent);pointer-events:none;}
+.hpbar > i{background:linear-gradient(90deg,#2fae5b,#7dff8f);box-shadow:0 0 6px rgba(125,255,143,.35);}
+.hpbar.hp-mid > i{background:linear-gradient(90deg,#e09a2a,#ffd166);box-shadow:0 0 6px rgba(255,209,102,.4);}
+.hpbar.hp-low > i{background:linear-gradient(90deg,#c81f34,#ff5d6c);box-shadow:0 0 8px rgba(255,93,108,.55);animation:hppulse 0.9s ease-in-out infinite;}
+@keyframes hppulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.45);}}
+.pm.low{border-color:rgba(255,93,108,.7);box-shadow:0 0 10px rgba(255,93,108,.25);}
 .xpbar > i{background:linear-gradient(90deg,var(--magic),var(--magic-2));}
 .atbbar{height:5px;margin-top:2px;background:rgba(0,0,0,.5);border-radius:5px;border:1px solid var(--line-soft);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.5);}
 .atbbar > i{display:block;height:100%;background:linear-gradient(90deg,#ffd166,#7dff8f);transition:width .06s linear;box-shadow:0 0 4px rgba(125,255,143,.5);}
@@ -318,6 +324,38 @@ h3{font-size:18px;}
 .boon .boon-ic{width:44px;height:44px;flex:0 0 auto;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px;
   background:radial-gradient(circle at 40% 35%,rgba(161,75,255,.5),rgba(20,10,32,.9));border:1px solid #8b4ff0;}
 .boon b{font-size:14px;}
+/* ============ ACABAMENTO PROFISSIONAL ============ */
+/* cantos ornamentados dourados nos painéis-pergaminho */
+.panel.parch::after{content:"";position:absolute;inset:5px;pointer-events:none;border-radius:11px;
+  background:
+    linear-gradient(var(--gold) 0 0) left 0 top 0/14px 2px,
+    linear-gradient(var(--gold) 0 0) left 0 top 0/2px 14px,
+    linear-gradient(var(--gold) 0 0) right 0 top 0/14px 2px,
+    linear-gradient(var(--gold) 0 0) right 0 top 0/2px 14px,
+    linear-gradient(var(--gold) 0 0) left 0 bottom 0/14px 2px,
+    linear-gradient(var(--gold) 0 0) left 0 bottom 0/2px 14px,
+    linear-gradient(var(--gold) 0 0) right 0 bottom 0/14px 2px,
+    linear-gradient(var(--gold) 0 0) right 0 bottom 0/2px 14px;
+  background-repeat:no-repeat;opacity:.55;}
+/* logo com pulso de brilho */
+.logo{animation:logoglow 3.2s ease-in-out infinite;}
+@keyframes logoglow{0%,100%{filter:drop-shadow(0 4px 0 rgba(0,0,0,.5)) drop-shadow(0 0 18px rgba(232,192,116,.28));}
+  50%{filter:drop-shadow(0 4px 0 rgba(0,0,0,.5)) drop-shadow(0 0 34px rgba(232,192,116,.55));}}
+/* botões respondem ao hover (desktop) */
+@media(hover:hover){.btn:hover{filter:brightness(1.08);} .item:hover{border-color:var(--gold);transform:translateY(-1px);} .tab:hover{color:var(--text);}}
+/* selo do andar mais imponente */
+.floor-badge{padding:4px 12px;border-radius:10px;background:linear-gradient(180deg,rgba(48,30,64,.95),rgba(24,14,38,.95));
+  border:1px solid var(--gold-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 0 12px rgba(232,192,116,.18),0 4px 10px rgba(0,0,0,.4);
+  text-shadow:0 0 10px rgba(232,192,116,.45);}
+/* moldura do palco da dungeon com brilho dourado sutil */
+.dgn-stage{border:1px solid rgba(232,192,116,.45);box-shadow:inset 0 0 60px rgba(0,0,0,.7),0 0 18px rgba(232,192,116,.10),var(--shadow);}
+/* cards do grupo na incursão com acabamento */
+.pm{background:linear-gradient(180deg,rgba(40,24,64,.92),rgba(24,14,40,.92));box-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 4px 10px rgba(0,0,0,.3);transition:border-color .15s,box-shadow .15s;}
+.pm.acting{background:linear-gradient(180deg,rgba(64,44,20,.95),rgba(40,26,12,.95));}
+/* log com fade no topo */
+.log{background:linear-gradient(180deg,rgba(0,0,0,.5),rgba(0,0,0,.3));box-shadow:inset 0 6px 12px rgba(0,0,0,.35);}
+/* sprites nos cards com sombra projetada */
+.hero-card canvas,.pm canvas{filter:drop-shadow(0 4px 4px rgba(0,0,0,.55));}
 </style>
 </head>
 <body>
@@ -495,20 +533,53 @@ function music(n){try{Sound.music(n);}catch(e){}}
 /* ====================== MOTOR DE PIXEL ART ======================
    Sprites são grades de caracteres. Cada char vira uma cor da paleta.
    '.' = transparente. Desenhamos numa canvas e escalamos com pixelated. */
+/* Pós-processamento que dá acabamento "profissional" a qualquer sprite:
+   1) contorno escuro de 1px ao redor da silhueta (separa o sprite do fundo)
+   2) sombreamento automático: pixels com "céu" acima ganham luz de topo,
+      pixels na borda de baixo escurecem — dá volume sem redesenhar a arte.
+   Recebe um canvas offscreen em resolução 1px/célula JÁ com 1px de margem. */
+function finishSprite(off,scale){
+  const W=off.width,H=off.height;
+  const octx=off.getContext('2d');
+  const img=octx.getImageData(0,0,W,H);const d=img.data;
+  const alpha=new Uint8Array(W*H);
+  for(let i=0;i<W*H;i++)alpha[i]=d[i*4+3];
+  const sol=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&alpha[y*W+x]>0;
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=(y*W+x)*4;
+    if(alpha[y*W+x]>0){
+      if(!sol(x,y-1)){ // luz de topo
+        d[i]=Math.min(255,d[i]+42);d[i+1]=Math.min(255,d[i+1]+38);d[i+2]=Math.min(255,d[i+2]+30);
+      }else if(!sol(x,y+1)){ // sombra na base
+        d[i]=Math.max(0,d[i]-36);d[i+1]=Math.max(0,d[i+1]-34);d[i+2]=Math.max(0,d[i+2]-26);
+      }else if(!sol(x-1,y)){ // leve luz lateral esquerda
+        d[i]=Math.min(255,d[i]+16);d[i+1]=Math.min(255,d[i+1]+14);d[i+2]=Math.min(255,d[i+2]+12);
+      }
+    }else if(sol(x-1,y)||sol(x+1,y)||sol(x,y-1)||sol(x,y+1)){ // contorno
+      d[i]=12;d[i+1]=8;d[i+2]=22;d[i+3]=235;
+    }
+  }
+  octx.putImageData(img,0,0);
+  const cv=document.createElement('canvas');
+  cv.width=W*scale;cv.height=H*scale;
+  const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+  ctx.drawImage(off,0,0,cv.width,cv.height);
+  // guarda onde o desenho começa de verdade (linhas vazias no topo do grid não contam)
+  let minY=0;outer:for(let y=0;y<H;y++){for(let x=0;x<W;x++)if(alpha[y*W+x]>0){minY=y;break outer;}}
+  cv._top=Math.max(0,minY-1)*scale;
+  return cv;
+}
 function spriteCanvas(grid,pal,scale=4,opts={}){
   const h=grid.length,w=grid[0].length;
-  const cv=document.createElement('canvas');
-  cv.width=w*scale;cv.height=h*scale;
-  const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+  const off=document.createElement('canvas');
+  off.width=w+2;off.height=h+2;
+  const octx=off.getContext('2d');octx.imageSmoothingEnabled=false;
   for(let y=0;y<h;y++)for(let x=0;x<w;x++){
     const c=grid[y][x];if(c==='.'||c===' ')continue;
     const col=pal[c];if(!col)continue;
-    ctx.fillStyle=col;ctx.fillRect(x*scale,y*scale,scale,scale);
+    octx.fillStyle=col;octx.fillRect(x+1,y+1,1,1);
   }
-  if(opts.outline){ // contorno escuro simples
-    ctx.globalCompositeOperation='destination-over';
-  }
-  return cv;
+  return finishSprite(off,scale);
 }
 // renderiza grade dentro de um ctx já existente (para cenas)
 function blitGrid(ctx,grid,pal,ox,oy,scale){
@@ -615,11 +686,12 @@ const _spriteCache={};
 function heroSprite(hero,scale=5){
   const key=hero.id+'@'+scale;
   if(_spriteCache[key])return _spriteCache[key];
-  const cv=document.createElement('canvas');
-  cv.width=16*scale;cv.height=16*scale;
-  const ctx=cv.getContext('2d');ctx.imageSmoothingEnabled=false;
+  const off=document.createElement('canvas');
+  off.width=18;off.height=18;
+  const octx=off.getContext('2d');octx.imageSmoothingEnabled=false;
   const layers=[BASE, HEADS[hero.head]||[], WEAPONS[hero.weapon]||[]];
-  for(const g of layers) if(g&&g.length) blitGrid(ctx,g,hero.pal,0,0,scale);
+  for(const g of layers) if(g&&g.length) blitGrid(octx,g,hero.pal,1,1,1);
+  const cv=finishSprite(off,scale);
   _spriteCache[key]=cv;return cv;
 }
 function mountCanvas(host,cv){host.innerHTML='';host.appendChild(cv);}
@@ -3883,12 +3955,14 @@ function updatePartyMini(){const host=$('#partyMini');if(!host)return;
   $$('[data-sprite-mini]').forEach(el=>{const id=el.getAttribute('data-sprite-mini');mountCanvas(el,heroSprite(HMAP[id],3));});
 }
 function refreshBars(){RUN.party.forEach(c=>{const hp=$('#hp_'+c.id),xp=$('#xp_'+c.id),pm=$('#pm_'+c.id),lv=$('#lvl_'+c.id),hpn=$('#hpn_'+c.id),fx=$('#fx_'+c.id);
-  if(hp)hp.style.width=clamp(c.hp/c.maxhp*100,0,100)+'%';
+  const pct=clamp(c.hp/c.maxhp,0,1);
+  if(hp){hp.style.width=pct*100+'%';
+    const bar=hp.parentElement;if(bar){bar.classList.toggle('hp-low',c.alive&&pct<0.3);bar.classList.toggle('hp-mid',c.alive&&pct>=0.3&&pct<0.6);}}
   if(xp)xp.style.width=clamp(c.xp/xpForLevel(c.level)*100,0,100)+'%';
   if(lv)lv.textContent='Lv '+c.level;
   if(hpn)hpn.textContent=Math.ceil(Math.max(0,c.hp))+'/'+c.maxhp;
   if(fx)fx.innerHTML=fxBadges(c);
-  if(pm)pm.classList.toggle('dead',!c.alive);});
+  if(pm){pm.classList.toggle('dead',!c.alive);pm.classList.toggle('low',c.alive&&pct<0.3);}});
   updateCampBanner();}
 /* ATB — atualizado a cada frame (leve: só mexe no width, não recria HTML) */
 function updateAtbUI(cs){
@@ -3932,64 +4006,125 @@ function startSceneLoop(){
   }
   _sceneRAF=requestAnimationFrame(frame);
 }
+/* sombra elíptica suave sob personagens — muito mais bonita que o retângulo duro */
+function drawSoftShadow(ctx,cx,cy,rx,ry,a){
+  const g=ctx.createRadialGradient(cx,cy,1,cx,cy,rx);
+  g.addColorStop(0,'rgba(0,0,0,'+a+')');g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.save();ctx.translate(cx,cy);ctx.scale(1,ry/rx);ctx.translate(-cx,-cy);
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rx,0,TAU);ctx.fill();ctx.restore();
+}
 function drawScene(ctx,cv,t){
   const W=cv.width,H=cv.height,th=floorTheme(RUN.floor),sc=RUN.scene;
   const shake=sc.shake>0?(Math.random()*2-1)*sc.shake:0;if(sc.shake>0)sc.shake*=0.85;
   ctx.save();ctx.translate(shake,0);
   // fundo
   ctx.fillStyle=th.brick2;ctx.fillRect(0,0,W,H);
-  // tijolos parallax
+  // tijolos parallax (com variação de tom por tijolo — parede menos "chapada")
   const off=(sc.walk%32);
-  ctx.fillStyle=th.brick;
   for(let y=-1;y<5;y++)for(let x=-1;x<W/32+2;x++){
-    const bx=x*32-off+((y%2)?16:0);ctx.fillRect(bx,y*22,30,20);
+    const bx=x*32-off+((y%2)?16:0);
+    ctx.fillStyle=th.brick;ctx.fillRect(bx,y*22,30,20);
+    const v=((x*7+y*13)%5);
+    if(v===0){ctx.fillStyle='rgba(255,255,255,.045)';ctx.fillRect(bx,y*22,30,20);}
+    else if(v===2){ctx.fillStyle='rgba(0,0,0,.10)';ctx.fillRect(bx,y*22,30,20);}
+    ctx.fillStyle='rgba(255,255,255,.05)';ctx.fillRect(bx,y*22,30,2); // luz no topo do tijolo
   }
   ctx.fillStyle='rgba(0,0,0,.25)';for(let y=0;y<5;y++)ctx.fillRect(0,y*22+20,W,2);
-  // tochas
+  // colunas de pedra em parallax lento — dão profundidade e "molduram" a sala
+  const colOff=(sc.walk*0.45)%180;
+  for(let i=0;i<4;i++){const px=((i*180)-colOff+720)%720-60;
+    if(px>-24&&px<W){
+      ctx.fillStyle='rgba(0,0,0,.34)';ctx.fillRect(px,0,18,H-42);
+      ctx.fillStyle='rgba(255,255,255,.05)';ctx.fillRect(px+2,0,3,H-42);
+      ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(px-3,0,24,7);ctx.fillRect(px-3,H-50,24,8); // capitel e base
+    }}
+  // penumbra do teto
+  const ceil=ctx.createLinearGradient(0,0,0,52);ceil.addColorStop(0,'rgba(0,0,0,.5)');ceil.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ceil;ctx.fillRect(0,0,W,52);
+  // tochas + halo de luz na parede
   for(let i=0;i<4;i++){const tx=((i*120)-(sc.walk*0.6)%480+480)%480-30;
-    if(tx>-20&&tx<W){ctx.fillStyle='#3a2a1a';ctx.fillRect(tx,40,3,14);
+    if(tx>-30&&tx<W+10){
+      const halo=ctx.createRadialGradient(tx+1,42,2,tx+1,42,46);
+      halo.addColorStop(0,'rgba(255,200,120,.16)');halo.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=halo;ctx.fillRect(tx-46,-4,94,94);
+      ctx.fillStyle='#3a2a1a';ctx.fillRect(tx,40,3,14);
       const fl=6+Math.sin(t*0.3+i)*2;const fg=ctx.createRadialGradient(tx+1,40,1,tx+1,40,fl+10);
-      fg.addColorStop(0,th.torch);fg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=fg;ctx.fillRect(tx-14,26,30,30);}}
-  // chão
+      fg.addColorStop(0,th.torch);fg.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=fg;ctx.fillRect(tx-14,26,30,30);
+      // fagulhas subindo da chama
+      for(let s=0;s<2;s++){const sy=36-((t*0.8+i*17+s*23)%26);
+        ctx.fillStyle='rgba(255,190,90,'+(0.5*(sy/36))+')';ctx.fillRect(tx+Math.sin(t*0.2+s*3+i)*3,sy,1.6,1.6);}
+    }}
+  // chão com profundidade (mais claro na frente) + reflexo das tochas
   ctx.fillStyle=th.floor;ctx.fillRect(0,H-46,W,46);
-  ctx.fillStyle='rgba(0,0,0,.3)';for(let x=-off;x<W;x+=32)ctx.fillRect(x,H-46,2,46);
+  const fg2=ctx.createLinearGradient(0,H-46,0,H);
+  fg2.addColorStop(0,'rgba(0,0,0,.38)');fg2.addColorStop(0.35,'rgba(0,0,0,.08)');fg2.addColorStop(1,'rgba(255,255,255,.05)');
+  ctx.fillStyle=fg2;ctx.fillRect(0,H-46,W,46);
+  ctx.fillStyle='rgba(255,255,255,.10)';ctx.fillRect(0,H-46,W,1.5); // aresta da parede/chão
+  for(let i=0;i<4;i++){const tx=((i*120)-(sc.walk*0.6)%480+480)%480-30;
+    if(tx>-30&&tx<W+10){const pool=ctx.createRadialGradient(tx+1,H-30,2,tx+1,H-30,34);
+      pool.addColorStop(0,'rgba(255,190,100,.07)');pool.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=pool;ctx.fillRect(tx-36,H-46,74,46);}}
+  // juntas do piso levemente inclinadas (perspectiva)
+  ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1.6;
+  for(let x=-off;x<W+20;x+=32){ctx.beginPath();ctx.moveTo(x,H-46);ctx.lineTo(x-7,H);ctx.stroke();}
+  ctx.fillStyle='rgba(0,0,0,.22)';ctx.fillRect(0,H-24,W,1.2);
   drawRegionDecor(ctx,W,H,th,t,sc.walk);
   ctx.fillStyle=th.tint;ctx.fillRect(0,0,W,H);
+  // névoa rasteira que deriva devagar (profundidade)
+  for(let i=0;i<3;i++){const fx=((i*160)-(t*0.35+i*40)%520+520)%520-80;
+    const fog=ctx.createRadialGradient(fx,H-34,4,fx,H-34,68);
+    fog.addColorStop(0,'rgba(200,200,230,.05)');fog.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=fog;ctx.fillRect(fx-70,H-70,140,70);}
   // poeira/partículas do vazio em andares fundos
   if(RUN.floor>=13){for(let i=0;i<14;i++){ctx.fillStyle='rgba(161,75,255,'+(0.1+((i*7)%5)/12)+')';
     ctx.fillRect((i*53-t*0.5)%W+(i%2?0:W),(i*31+t*0.3)%H,2,2);}}
 
-  const groundY=H-58;
+  const groundY=H-74;
   const acting=sc.mode==='combat'&&RUN.combat?RUN.combat.acting:null;
   // HERÓIS (esquerda)
-  const aliveParty=RUN.party.filter(c=>c.alive);
   RUN.party.forEach((c,i)=>{
     const sp=heroSprite(c.h,4);const baseX=24+i*30;
     let x=baseX, y=groundY-(sc.mode==='walk'?Math.abs(Math.sin(t*0.2+i))*3:0);
+    if(sc.mode!=='walk'&&c.alive)y+=Math.sin(t*0.07+i*1.7)*1.1; // respiração sutil parado
     if(c.anim.hit>0){x+=18*c.anim.hit;c.anim.hit*=0.8;if(c.anim.hit<0.05)c.anim.hit=0;}
+    if(acting===c)x+=5; // avança um passo enquanto age
+    drawSoftShadow(ctx,x+36,groundY+66,24,6,0.42);
+    if(c.alive&&acting===c){ // aura dourada de "é a vez dele"
+      const au=ctx.createRadialGradient(x+32,y+34,4,x+32,y+34,40);
+      au.addColorStop(0,'rgba(255,209,102,.28)');au.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=au;ctx.fillRect(x-10,y-10,86,86);
+    }
     ctx.globalAlpha=c.alive?1:0.25;
     if(!c.alive){ctx.save();ctx.translate(x+32,y+48);ctx.rotate(Math.PI/2);ctx.drawImage(sp,-24,-24);ctx.restore();}
     else ctx.drawImage(sp,x,y);
     ctx.globalAlpha=1;
-    ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(x+6,y+62,52,4);
     if(c.alive)drawFxIcons(ctx,x,y-8,c);
     if(c.alive&&acting===c)drawActingMark(ctx,x+30,y,t);
   });
-  // INIMIGOS (direita)
+  // INIMIGOS (direita) — sprites com cache (uma canvas por monstro/escala, não por frame)
   sc.enemies.forEach((en,i)=>{
     if(en.dead)return;
-    const grid=en.boss?en.m.grid:en.m.grid;const scl=en.boss?6:4;
-    const sp=spriteCanvas(grid,en.m.pal,scl);
-    let bx=en.boss?W-110:(W-70-i*36), by=groundY-(en.boss?28:0);
+    const scl=en.boss?6:4;
+    en.m._spr=en.m._spr||{};
+    const sp=en.m._spr[scl]||(en.m._spr[scl]=spriteCanvas(en.m.grid,en.m.pal,scl));
+    let bx=en.boss?W-116:(W-72-i*36), by=groundY-(en.boss?32:0);
+    if(en.alive!==false)by+=Math.sin(t*0.06+i*2.1)*1.1; // respiração
     if(en.hit>0){bx+=14*en.hit;en.hit*=0.78;if(en.hit<0.05)en.hit=0;}
+    if(acting===en)bx-=5;
+    drawSoftShadow(ctx,bx+sp.width/2,groundY+66,en.boss?40:22,en.boss?8:6,0.45);
+    if(acting===en){ // aura vermelha de ameaça quando o inimigo age
+      const au=ctx.createRadialGradient(bx+sp.width/2,by+sp.height/2,4,bx+sp.width/2,by+sp.height/2,sp.width*0.7);
+      au.addColorStop(0,'rgba(255,93,108,.20)');au.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=au;ctx.fillRect(bx-16,by-16,sp.width+32,sp.height+32);
+    }
     ctx.globalAlpha=en.flash>0?0.4:1;if(en.flash>0)en.flash*=0.8;
     ctx.save();ctx.scale(-1,1);ctx.drawImage(sp,-bx-sp.width,by);ctx.restore();
     ctx.globalAlpha=1;
-    ctx.fillStyle='rgba(0,0,0,.35)';ctx.fillRect(bx,by+sp.height,sp.width,4);
-    // barra de vida do inimigo + barra de ATB (mostra o progresso da ação, igual aos heróis)
-    if(!en.boss){drawEnemyBars(ctx,bx,by-11,34,en);}
-    drawFxIcons(ctx,bx,en.boss?by-9:by-22,en);
-    if(acting===en)drawActingMark(ctx,bx+sp.width/2,by,t);
+    // barra de vida do inimigo + barra de ATB — ancoradas no topo REAL do desenho (ignora linhas vazias)
+    const spTop=by+(sp._top||0);
+    if(!en.boss){drawEnemyBars(ctx,bx,spTop-15,34,en);}
+    drawFxIcons(ctx,bx,en.boss?spTop-9:spTop-26,en);
+    if(acting===en)drawActingMark(ctx,bx+sp.width/2,spTop,t);
   });
   ctx.restore();
 }
