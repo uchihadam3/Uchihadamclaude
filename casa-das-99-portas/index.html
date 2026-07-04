@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>A Casa das 99 Portas</title>
+<style>
+:root{
+  --paper:#e9dfc4; --paper2:#ddd0a8; --paper-dark:#c9b98a;
+  --ink:#2b2620; --ink-soft:#4a4030; --ink-faint:#6b5f48;
+  --wood:#5a3e26; --wood-dark:#3a2717; --wood-light:#7a5636;
+  --gold:#a8842f; --gold-light:#d4af5a;
+  --danger:#7a2320; --danger-light:#a83b34;
+  --myst:#4a3a6a;
+  --shadow: rgba(20,15,5,.55);
+  --font-title:'Georgia','Times New Roman',serif;
+  --font-body:'Georgia','Times New Roman',serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;min-height:100%;}
+body{
+  font-family:var(--font-body); color:var(--ink);
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(0,0,0,.25), transparent 60%),
+    linear-gradient(180deg,#1c1712,#0e0b08 60%);
+  min-height:100vh;
+}
+::-webkit-scrollbar{width:10px;}
+::-webkit-scrollbar-thumb{background:var(--wood);border-radius:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- textura de papel / tinta cruzada (SVG filter) ---------- */
+.paper-texture{
+  background-color:var(--paper);
+  background-image:
+    repeating-linear-gradient(115deg, rgba(60,45,20,.035) 0px, rgba(60,45,20,.035) 1px, transparent 1px, transparent 3px),
+    repeating-linear-gradient(25deg, rgba(60,45,20,.03) 0px, rgba(60,45,20,.03) 1px, transparent 1px, transparent 4px),
+    radial-gradient(ellipse at 30% 20%, rgba(255,250,230,.4), transparent 55%),
+    radial-gradient(ellipse at 80% 90%, rgba(0,0,0,.08), transparent 60%);
+}
+.ink-border{border:2px solid var(--ink-soft); box-shadow:0 0 0 1px rgba(43,38,32,.15) inset, 0 10px 26px var(--shadow);}
+
+#app{max-width:1180px;margin:0 auto;padding:14px 14px 60px;}
+#fx-layer{position:fixed;inset:0;pointer-events:none;z-index:999;}
+
+button{font-family:inherit;cursor:pointer;}
+.btn{
+  background:linear-gradient(180deg,var(--wood-light),var(--wood));
+  color:#f0e6cf; border:1px solid var(--wood-dark); padding:10px 16px;border-radius:4px;
+  font-weight:700;font-size:13.5px;letter-spacing:.3px;
+  box-shadow:0 3px 0 var(--wood-dark), 0 6px 14px rgba(0,0,0,.35);
+  transition:transform .1s ease;
+}
+.btn:hover{transform:translateY(-1px);}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--wood-dark);}
+.btn.gold{background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#2a1e05;border-color:#7a5f1f;box-shadow:0 3px 0 #7a5f1f,0 6px 14px rgba(0,0,0,.35);}
+.btn.danger{background:linear-gradient(180deg,var(--danger-light),var(--danger));color:#fdeceb;border-color:#4a1512;box-shadow:0 3px 0 #4a1512,0 6px 14px rgba(0,0,0,.35);}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+.btn.ghost{background:rgba(43,38,32,.08);color:var(--ink-soft);border:1px solid rgba(43,38,32,.3);box-shadow:none;}
+
+.row{display:flex;align-items:center;}
+.between{justify-content:space-between;}
+.wrap{flex-wrap:wrap;}
+.gap6{gap:6px;} .gap8{gap:8px;} .gap10{gap:10px;} .gap14{gap:14px;}
+.center{display:flex;align-items:center;justify-content:center;}
+.hidden{display:none !important;}
+h1,h2,h3,h4{margin:0;font-weight:700;font-family:var(--font-title);}
+p{margin:0;}
+.tiny{font-size:11.5px;} .small{font-size:13px;}
+.muted{color:var(--ink-faint);}
+.card{background:var(--paper);border-radius:6px;padding:14px;position:relative;}
+.card.dark{background:#241d17;color:#e8dfc4;}
+
+/* ---------- topbar ---------- */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 6px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand .mark{width:38px;height:38px;border-radius:3px;background:linear-gradient(160deg,var(--wood-light),var(--wood-dark));
+  display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--gold-light);border:1px solid var(--wood-dark);}
+.brand .name{font-size:17px;font-weight:700;color:#e8dfc4;font-family:var(--font-title);}
+.brand .sub{font-size:10.5px;color:#a89568;margin-top:-2px;letter-spacing:.4px;}
+.nav-pills{display:flex;gap:6px;flex-wrap:wrap;}
+.pill{padding:7px 12px;border-radius:3px;background:rgba(233,223,196,.08);border:1px solid rgba(233,223,196,.25);color:#cfc39f;font-size:12px;font-weight:700;}
+.pill.active{background:var(--gold);color:#2a1e05;border-color:#7a5f1f;}
+.pill:disabled{opacity:.35;}
+
+/* ---------- start screen ---------- */
+.start-wrap{max-width:640px;margin:40px auto;text-align:center;}
+.start-wrap h1{font-size:clamp(28px,5vw,44px);color:#f0e6cf;text-shadow:0 2px 8px rgba(0,0,0,.6);}
+.start-wrap .subtitle{color:var(--gold-light);font-style:italic;margin-top:6px;font-size:15px;}
+.start-wrap .lore{color:#cfc39f;margin-top:22px;font-size:14px;line-height:1.7;text-align:left;}
+.name-prompt{margin-top:26px;}
+.name-prompt input{
+  width:100%;max-width:340px;padding:11px 14px;border-radius:4px;border:1px solid var(--wood-dark);
+  background:var(--paper);color:var(--ink);font-size:15px;text-align:center;font-family:var(--font-body);
+}
+
+/* ---------- room stage ---------- */
+.room-wrap{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start;}
+@media (max-width:900px){.room-wrap{grid-template-columns:1fr;}}
+.room-stage{border-radius:6px;overflow:hidden;position:relative;}
+.room-head{padding:12px 16px;display:flex;justify-content:space-between;align-items:baseline;background:rgba(0,0,0,.18);}
+.room-head h2{color:#f0e6cf;font-size:19px;}
+.room-head .rid{color:var(--gold-light);font-size:12px;font-weight:700;}
+.room-illustration{
+  min-height:280px;padding:26px 20px 18px;position:relative;
+  background-blend-mode:multiply;
+}
+.room-narration{padding:10px 16px;font-size:13.5px;line-height:1.6;font-style:italic;color:var(--ink-soft);border-top:1px dashed rgba(43,38,32,.35);}
+.symbol-row{position:absolute;top:10px;right:12px;display:flex;gap:5px;}
+.symbol-badge{width:26px;height:26px;border-radius:50%;background:rgba(43,38,32,.85);border:1px solid rgba(233,223,196,.4);
+  display:flex;align-items:center;justify-content:center;color:#e8dfc4;font-size:13px;}
+
+/* portas */
+.doors-row{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;padding:10px 10px 22px;}
+.door{cursor:pointer;position:relative;width:78px;text-align:center;transition:transform .15s;}
+.door:hover{transform:translateY(-3px);}
+.door .frame{
+  width:78px;height:118px;border-radius:4px 4px 2px 2px;
+  background:repeating-linear-gradient(90deg,var(--wood-light) 0 9px,var(--wood) 9px 18px);
+  border:3px solid var(--wood-dark); box-shadow:inset 0 0 0 2px rgba(0,0,0,.2), 0 6px 14px rgba(0,0,0,.4);
+  position:relative;
+}
+.door .frame::after{content:'';position:absolute;right:8px;top:50%;width:6px;height:6px;border-radius:50%;background:#3a2717;box-shadow:0 0 0 2px #7a5636;}
+.door .plaque{
+  position:absolute;top:8px;left:50%;transform:translateX(-50%) rotate(-2deg);
+  background:var(--paper2);border:1px solid var(--ink-faint);border-radius:2px;padding:2px 9px;
+  font-weight:800;font-size:17px;color:var(--ink);box-shadow:0 2px 4px rgba(0,0,0,.35);
+}
+.door.locked .plaque{background:#3a2020;color:#e8b8b0;border-color:#5a1512;}
+.door .lock-icon{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:14px;}
+.door-label{font-size:11px;color:#cfc39f;margin-top:6px;}
+
+/* objetos clicaveis */
+.hotspots-row{display:flex;gap:12px;flex-wrap:wrap;padding:4px 16px 16px;}
+.hotspot{
+  cursor:pointer;background:rgba(43,38,32,.06);border:1px solid rgba(43,38,32,.25);border-radius:5px;
+  padding:8px 11px;font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:6px;transition:background .15s;
+}
+.hotspot:hover{background:rgba(43,38,32,.14);}
+.hotspot .ic{font-size:14px;}
+.hotspot.examined{opacity:.7;}
+.hotspot.has-item{border-color:var(--gold);background:rgba(168,132,47,.14);}
+
+/* painel lateral */
+.side-panel{display:flex;flex-direction:column;gap:12px;}
+.side-panel .card h4{font-size:13px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.inv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+.inv-item{
+  background:var(--paper2);border:1px solid var(--ink-faint);border-radius:4px;padding:8px 4px;text-align:center;cursor:pointer;
+  font-size:10.5px;color:var(--ink-soft);transition:background .15s;
+}
+.inv-item .ic{font-size:19px;display:block;margin-bottom:2px;}
+.inv-item:hover{background:#eadfc0;}
+.inv-item.selected{border-color:var(--gold);box-shadow:0 0 0 2px rgba(168,132,47,.4);background:#f0e4c4;}
+.inv-empty{font-size:11.5px;color:var(--ink-faint);grid-column:span 3;text-align:center;padding:10px 0;}
+.selected-hint{font-size:11px;color:var(--ink-faint);margin-top:8px;text-align:center;}
+
+.journal-list{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
+.journal-entry{font-size:11.5px;line-height:1.5;color:var(--ink-soft);border-left:2px solid var(--gold);padding:3px 0 3px 8px;}
+.journal-empty{font-size:11.5px;color:var(--ink-faint);}
+
+.narrator-line{
+  margin-top:10px;padding:10px 13px;background:rgba(43,38,32,.9);color:#e8dfc4;border-radius:4px;
+  font-size:12.5px;font-style:italic;line-height:1.5;border-left:3px solid var(--gold);
+  animation:narratorFade .4s ease;
+}
+@keyframes narratorFade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+.feedback-box{
+  margin-top:10px;padding:10px 13px;border-radius:4px;font-size:12.5px;line-height:1.55;
+  background:rgba(43,38,32,.06);border:1px solid rgba(43,38,32,.25);color:var(--ink-soft);
+  animation:narratorFade .3s ease;
+}
+.feedback-box.good{border-color:rgba(90,140,70,.5);background:rgba(90,140,70,.1);}
+.feedback-box.bad{border-color:rgba(122,35,32,.4);background:rgba(122,35,32,.08);}
+
+/* mapa */
+.map-wrap{max-width:820px;margin:0 auto;}
+.map-svg-wrap{width:100%;overflow:auto;background:rgba(0,0,0,.15);border-radius:6px;}
+.map-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#cfc39f;margin-top:10px;}
+.map-legend .lg{display:flex;align-items:center;gap:5px;}
+.map-legend .sw{width:14px;height:3px;display:inline-block;}
+
+/* finais */
+.ending-wrap{max-width:640px;margin:30px auto;text-align:center;}
+.ending-badge{display:inline-block;padding:6px 16px;border-radius:999px;background:rgba(168,132,47,.2);border:1px solid var(--gold);color:var(--gold-light);font-size:12px;font-weight:700;margin-bottom:14px;}
+.ending-badge.true-ending{background:rgba(212,175,90,.3);}
+.ending-text{color:#e8dfc4;font-size:15px;line-height:1.9;font-style:italic;white-space:pre-line;}
+
+/* item-use overlay */
+.use-banner{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:998;background:rgba(43,38,32,.95);
+  color:#e8dfc4;padding:8px 18px;border-radius:4px;font-size:12.5px;border:1px solid var(--gold);animation:narratorFade .3s ease;}
+
+footer.credit{text-align:center;color:#6b5f48;font-size:10.5px;margin-top:26px;}
+
+@media (max-width:640px){
+  .door .frame{width:64px;height:98px;}
+  .door{width:64px;}
+  .room-illustration{padding:18px 10px 14px;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="fx-layer"></div>
+<script>
+'use strict';
+/* =========================================================================
+   A CASA DAS 99 PORTAS — arquivo único (sem bundler): dados, motor de jogo
+   e interface, tudo em JS puro. Organizado em seções que espelham os
+   módulos pedidos (types/gameLogic/storage/data/components).
+   ========================================================================= */
+
+/* ===================== data/symbols.ts ===================== */
+const SYMBOLS = {
+  olho:      {id:'olho',      name:'Olho',      ic:'👁',  meaning:'Observação. Coisa vista, verdade parcial. Onde o Olho aparece, há uma pista real na sala — não uma armadilha.'},
+  mascara:   {id:'mascara',   name:'Máscara',    ic:'🎭', meaning:'Mentira, teatro, número falso. Onde a Máscara aparece, alguma coisa na sala provavelmente mente.'},
+  espelho:   {id:'espelho',   name:'Espelho',    ic:'🪞', meaning:'Inversão, reflexo, duplicação. Onde o Espelho aparece, um número pode valer ao contrário.'},
+  vela:      {id:'vela',      name:'Vela',       ic:'🕯',  meaning:'Luz e revelação — mas também exposição. Algumas coisas só existem com a vela acesa. Outras só no escuro.'},
+  relogio:   {id:'relogio',   name:'Relógio',    ic:'🕰',  meaning:'Ordem, tempo, sequência, repetição. Horas marcadas podem indicar a ordem certa de algo.'},
+  chave:     {id:'chave',     name:'Chave',      ic:'🔑',  meaning:'Permissão, acesso — e falsa segurança. Nem toda chave abre. Algumas servem para recusar.'},
+  peixe:     {id:'peixe',     name:'Peixe',      ic:'🐟',  meaning:'Silêncio, segredo. Onde o Peixe aparece, a solução pode exigir não falar, não responder, não entregar nome.'},
+  coroa:     {id:'coroa',     name:'Coroa',      ic:'👑',  meaning:'Autoridade falsa, ganância, obediência perigosa. A Coroa ajuda em alguns caminhos — e bloqueia outros, os mais importantes.'},
+  escada:    {id:'escada',    name:'Escada',     ic:'🪜',  meaning:'Mudança de nível, atalho vertical, retorno incompleto. Uma escada pode levar a um lugar que os números não explicam.'},
+};
+const SYMBOL_IDS = Object.keys(SYMBOLS);
+
+/* ===================== data/items.ts ===================== */
+const ITEMS = {
+  rustyKey:    {id:'rustyKey',    name:'Chave Enferrujada', ic:'🔑', desc:'Velha, pesada, cheia de ferrugem nas hastes. Abre fechaduras antigas — e algumas gavetas.'},
+  unlitCandle: {id:'unlitCandle', name:'Vela Apagada',      ic:'🕯', desc:'Um toco de cera fria. Precisa de fogo pra revelar o que esconde.'},
+  litCandle:   {id:'litCandle',   name:'Vela Acesa',        ic:'🔥', desc:'A chama treme, mesmo sem vento. Ilumina inscrições que o escuro engolia.'},
+  candleAsh:   {id:'candleAsh',   name:'Cinza da Vela',     ic:'🩶', desc:'O que sobra depois que a luz é apagada no lugar certo. Pesa mais do que deveria.'},
+  glassEye:    {id:'glassEye',    name:'Olho de Vidro',     ic:'👁', desc:'Um olho de vidro, frio ao toque. Encaixa em retratos, estátuas e fechaduras que não deveriam ter pupila.'},
+  crackedMask: {id:'crackedMask', name:'Máscara Rachada',   ic:'🎭', desc:'Uma rachadura corta o sorriso ao meio. Usada sobre um aviso, muda o que ele realmente diz.'},
+  brokenMirror:{id:'brokenMirror',name:'Espelho Partido',   ic:'🪞', desc:'Um caco de espelho antigo. Mostra reflexos que o espelho inteiro escondia.'},
+  glassCrown:  {id:'glassCrown',  name:'Coroa de Vidro',    ic:'👑', desc:'Fina, transparente, perigosamente leve. Abre portas de autoridade — e fecha a única que importa.'},
+  silverFish:  {id:'silverFish',  name:'Peixe de Prata',    ic:'🐟', desc:'Frio, imóvel, sem boca. Serve onde o silêncio é a resposta certa.'},
+  looseHand:   {id:'looseHand',   name:'Ponteiro Solto',    ic:'📍', desc:'Um ponteiro de relógio, solto do mecanismo. Encaixa em relógios quebrados.'},
+  smallBell:   {id:'smallBell',   name:'Sino Pequeno',      ic:'🔔', desc:'Não faz som nenhum — ainda. Talvez chame algo que não devia existir.'},
+  amaliaLetter:{id:'amaliaLetter',name:'Carta de Amália',   ic:'✉',  desc:'Papel amarelado, letra de criança. Fala de um pai que fez paredes e de uma voz que fez portas.'},
+  toothlessKey:{id:'toothlessKey',name:'Chave Sem Dentes',  ic:'🗝',  desc:'Uma chave lisa, sem dentes nenhum. Não abre. Recusa.'},
+  redThread:   {id:'redThread',   name:'Fio Vermelho',      ic:'🧵', desc:'Um fio fino e vermelho. Marca o que já foi cruzado — e o que se repete.'},
+  mapFragment: {id:'mapFragment',name:'Fragmento de Planta',ic:'🗺',  desc:'Um pedaço rasgado de uma planta baixa antiga. Alguns números nela não batem com os das portas.'},
+};
+
+/* ===================== data/endings.ts ===================== */
+const ENDINGS = {
+  saidaFalsa:{id:'saidaFalsa',title:'Final 1 — Saída Falsa',
+    text:'A porta cedeu fácil demais.\n\nDo outro lado não havia rua, nem céu, nem manhã.\n\nHavia o tapete vermelho. O quadro torto. A placa: "Obedeça à primeira porta".\n\nVocê nunca saiu. Você só voltou para o começo, achando que era o fim.'},
+  visitanteObediente:{id:'visitanteObediente',title:'Final 2 — Visitante Obediente',
+    text:'Você fez tudo certo. Nunca abriu a porta errada, nunca duvidou da placa, nunca ficou onde não devia.\n\nA Casa gostou de você.\n\nÉ a pior coisa que ela poderia sentir.'},
+  coroaDeVidro:{id:'coroaDeVidro',title:'Final 3 — Coroa de Vidro',
+    text:'O trono era pequeno demais para uma pessoa sentar confortavelmente. Você sentou assim mesmo.\n\nA coroa não pesava nada. Isso deveria ter sido um alívio.\n\nAgora você governa corredores que não levam a lugar nenhum.'},
+  nomeEntregue:{id:'nomeEntregue',title:'Final 4 — Nome Entregue',
+    text:'A porta perguntou seu nome, e você respondeu.\n\nPor um instante, a casa parou de ranger.\n\nDepois, ela aprendeu a dizer seu nome sozinha — em lugares onde você não estava.'},
+  mapaPerfeito:{id:'mapaPerfeito',title:'Final 5 — Mapa Perfeito',
+    text:'Você desenhou cada sala, cada porta, cada número.\n\nO mapa está impecável. Completo. Correto.\n\nVocê conheceu a planta. Não conheceu a casa.'},
+  colecionador:{id:'colecionador',title:'Final 6 — Colecionador',
+    text:'Chave, vela, olho, máscara, espelho, coroa, peixe, ponteiro, sino, carta, chave sem dentes, fio, fragmento — tudo isso pesa no bolso e nada pesa na mão.\n\nVocê chegou ao centro carregando um museu inteiro de coisas que nunca usou.\n\nO centro não se importa com o que você guarda. Só com o que você faz.'},
+  reflexoTomado:{id:'reflexoTomado',title:'Final 7 — Reflexo Tomado',
+    text:'O espelho partido mostrou a água sem reflexo nenhum — nem o seu.\n\nSem a carta de Amália pra lembrar quem você era antes de entrar, o lago aceitou seu rosto como pagamento.\n\nAlguém vai sair usando sua cara. Não será você.'},
+  filhaDeElias:{id:'filhaDeElias',title:'Final 8 — A Filha de Elias',
+    text:'Você encontrou os desenhos, a carta, o quarto atrás do quarto.\n\nAmália não desapareceu. Ela foi guardada.\n\nVocê a encontra, finalmente — mas o Porteiro Sem Rosto ainda está de pé atrás de você, sorrindo sem boca.\n\nUm final bom. Não o verdadeiro.'},
+  arquitetoPreso:{id:'arquitetoPreso',title:'Final 9 — Arquiteto Preso',
+    text:'Você descobriu Elias — as ferramentas, o compasso, a oficina, a letra torta nas paredes.\n\nMas quando o contrato pediu um nome, você disse o nome errado.\n\n"Elias" não é suficiente. Nunca foi só ele.\n\nA Casa aceita a resposta incompleta e fecha, satisfeita, como quem engole algo pela metade.'},
+  casaCorrigida:{id:'casaCorrigida',title:'Final 10 — A Casa Corrigida',
+    text:'A engrenagem de 99 dentes girou, e uma porta mentirosa parou de mentir.\n\nVocê encontrou um atalho, saiu por ele, e a saída até funcionou.\n\nMas a casa continua em pé, esperando o próximo visitante, com as outras dezenove portas mentirosas ainda intactas.\n\nVocê consertou uma frase. Não quebrou a voz.'},
+  silencio:{id:'silencio',title:'Final 11 — Silêncio',
+    text:'Você nunca disse seu nome. Nem uma vez.\n\nIsso, por si só, já é mais do que a Casa esperava de qualquer visitante.\n\nMas faltou o resto: o espelho, a cinza, a carta, a chave que recusa.\n\nVocê sai calado. A Casa, ainda de pé, aprende a temer o silêncio — só um pouco.'},
+  portaZero:{id:'portaZero',title:'Final 12 — Porta Zero (final verdadeiro)',trueEnding:true,
+    text:'A porta não abriu. Ela parou de fingir que era porta.\n\nA voz tentou dizer seu nome, mas encontrou cinza, vidro e silêncio.\n\nA chave sem dentes não girou. Ela recusou.\n\nO espelho não refletiu o Porteiro. Revelou a ausência dele.\n\nPela primeira vez, a Casa teve uma parede comum.\n\nPela primeira vez, sair não pareceu obedecer.'},
+};
+
+/* ===================== data/rooms.ts — fábricas ===================== */
+function D(label,target,opts){ return Object.assign({label,target,locked:false,requiredItem:null,requiredFlag:null,forbiddenFlag:null,isLie:false,special:null},opts||{}); }
+function H(id,label,desc,opts){ return Object.assign({id,label,desc},opts||{}); }
+function R(id,title,area,doors,hotspots,opts){
+  return Object.assign({id,title,area,doors,hotspots,symbols:[],desc:'',narrator:null,special:null,onEnterSpecial:null},opts||{});
+}
+const LOCK_MSGS=[
+  'A fechadura está tomada por ferrugem. Só uma chave igualmente antiga entraria nela.',
+  'A madeira em volta da fechadura está inchada. Precisa de uma chave de metal pesado pra forçar.',
+  'Não há buraco de chave comum aqui — só um encaixe estreito, do tamanho certo pra uma chave enferrujada.',
+];
+const RUSTY_OK='A chave enferrujada gira com um estalo seco. A porta cede.';
+
+/* ===================== ROOMS 1–24 ===================== */
+const ROOMS={};
+ROOMS[1]=R(1,'Vestíbulo das Portas Erradas','entrada',
+  [D(42,42),D(24,46,{special:'sala1Mask'}),D(67,67)],
+  [
+    H('h1_tapete','Tapete vermelho','Surrado, puído bem no centro — como se algo tivesse sido arrastado por ele repetidas vezes.'),
+    H('h1_quadro','Quadro torto','Uma paisagem impossível: montanhas em forma de portas. Olhando por tempo demais, uma delas parece piscar.'),
+    H('h1_placa','Placa: "Obedeça à primeira porta"','A tinta é nova demais pra uma casa tão velha. No rodapé, quase invisível, um pequeno símbolo de máscara.',
+      {journal:'Sala 1: a placa que manda obedecer tem tinta fresca — e uma máscara escondida no rodapé.'}),
+  ],
+  {symbols:['mascara'],desc:'Um vestíbulo de teto alto e ar parado. Três portas se abrem diante de você, cada uma com um número pregado torto.',
+   narrator:'Bem-vindo. As primeiras portas costumam assustar. As últimas, nem tanto.',
+   doorLieNote:{24:'Se a Sala 39 corrigir a engrenagem, esta porta passa a dizer a verdade.'}}
+);
+ROOMS[2]=R(2,'O Quarto da Madeira Úmida','agua',
+  [D(31,31),D(58,58),D(9,9,{locked:true,requiredItem:'rustyKey',lockMsg:'A porta range, mas a fechadura enferrujada não cede sem uma chave à altura.',okMsg:RUSTY_OK})],
+  [
+    H('h2_tabua','Tábua solta no chão','Range sob o pé. Por baixo, algo de metal reflete pouca luz.',
+      {giveItem:'rustyKey',oneTime:true,journal:'Sala 2: uma chave enferrujada escondida sob uma tábua solta.',
+       response:'Você puxa a tábua e encontra uma Chave Enferrujada, fria e áspera de ferrugem.'}),
+    H('h2_marcas','Marcas de água na parede','Escorrem todas na mesma direção — rumo à porta 31.',{journal:'Sala 2: marcas de água na parede apontam para a porta 31.'}),
+  ],
+  {symbols:[],desc:'O cheiro de mofo é quase sólido aqui. A madeira do piso está inchada de umidade antiga.'}
+);
+ROOMS[3]=R(3,'A Sala do Lustre Baixo','entrada',
+  [D(18,18),D(70,70),D(44,18,{isLie:true,realLabel:44})],
+  [
+    H('h3_lustre','Lustre apagado','Falta três velas. As que restam pingam cera fria havia anos.'),
+    H('h3_sombra','Sombra estranha no chão','Não bate com o lustre. Aponta, com insistência, para a porta 44.',{journal:'Sala 3: uma sombra sem origem aponta para a porta 44.'}),
+  ],
+  {symbols:['vela'],desc:'Um salão comprido sob um lustre que não ilumina quase nada. As sombras aqui parecem desobedecer a luz que sobrou.',
+   doorLieNote:{44:'A sombra insiste tanto nesta porta, sem lustre que a explique, que a insistência vira o próprio aviso: ela mente.'}}
+);
+ROOMS[4]=R(4,'O Armário das Capas Vazias','entrada',
+  [D(27,27),D(63,63),D(12,12,{locked:true,requiredItem:'rustyKey',lockMsg:LOCK_MSGS[0],okMsg:RUSTY_OK})],
+  [
+    H('h4_capas','Casacos sem corpo','Pendurados como se alguém tivesse evaporado dentro deles.'),
+    H('h4_etiqueta','Etiqueta costurada','Uma das capas traz um bordado: "E.V."',{journal:'Sala 4: uma capa vazia traz as iniciais "E.V." bordadas.'}),
+  ],
+  {symbols:[],desc:'Fileiras de casacos pendurados enchem um corredor estreito demais para ser um armário de verdade.'}
+);
+ROOMS[5]=R(5,'A Galeria do Olho Ausente','entrada',
+  [D(51,51),D(8,8),D(36,51,{isLie:true,realLabel:36})],
+  [
+    H('h5_retrato','Retrato sem pupila','Um rosto pintado com os olhos em branco, vazios.',
+      {giveItem:'glassEye',requiredFlag:null,oneTime:true,journal:'Sala 5: um Olho de Vidro estava escondido atrás de um retrato sem pupila.',
+       response:'Atrás da moldura, encaixado num buraco no gesso, você encontra um Olho de Vidro.'}),
+    H('h5_inscricao','Inscrição sob a moldura','"O olho acusa a máscara."',{journal:'Sala 5: "O olho acusa a máscara" — inscrição sob um retrato.'}),
+  ],
+  {symbols:['olho','mascara'],desc:'Uma galeria estreita de retratos amarelados. Todos têm olhos pintados, exceto um.',
+   doorLieNote:{36:'"O olho acusa a máscara" — nesta galeria, a única porta que a inscrição não nomeia é esta, e o Olho de Vidro, erguido diante dela, denuncia o engano.'}}
+);
+ROOMS[6]=R(6,'O Corredor que Volta','entrada',
+  [D(60,60,{special:'sala6From29'}),D(14,14),D(29,29)],
+  [
+    H('h6_escada','Símbolo de escada invertida','Entalhado no batente de uma porta, de cabeça para baixo.',{journal:'Sala 6: um símbolo de escada aparece invertido no batente.'}),
+    H('h6_eco','O eco dos seus próprios passos','Chega fração de segundo antes de você pisar — como se o corredor já soubesse por onde você vai andar.',{journal:'Sala 6: o eco dos passos chega antes do passo, neste corredor que dobra sobre si.'}),
+  ],
+  {symbols:['escada'],desc:'Um corredor curto que parece dobrar sobre si mesmo. O eco dos seus passos chega antes de você dar o passo.',
+   doorLieNote:{60:'Se você entrou vindo da Sala 29, esta porta na verdade leva de volta pra Sala 6.'}}
+);
+ROOMS[7]=R(7,'A Cozinha Fria','entrada',
+  [D(22,22),D(49,49),D(3,3,{locked:true,requiredItem:'candleAsh',lockMsg:'A fechadura da cozinha está entupida de fuligem endurecida.',okMsg:'A Cinza da Vela, pressionada contra a fuligem, se mistura e cede.'})],
+  [
+    H('h7_forno','Forno apagado','Frio há tempo. Dentro dele, um toco de vela intacto.',
+      {giveItem:'unlitCandle',oneTime:true,journal:'Sala 7: uma Vela Apagada dentro de um forno frio.',
+       response:'Você tira do forno uma Vela Apagada, ainda inteira.'}),
+    H('h7_cinzas','Cinzas no fundo do forno','Formam, por acaso ou não, o desenho de uma lua minguante.',{journal:'Sala 7: cinzas no forno desenham uma lua minguante.'}),
+  ],
+  {symbols:[],desc:'Uma cozinha sem calor nenhum. Panelas empilhadas juntaram poeira em vez de fuligem.'}
+);
+ROOMS[8]=R(8,'O Retrato de Elias','entrada',
+  [D(11,11),D(54,54),D(39,11,{isLie:true,realLabel:39})],
+  [
+    H('h8_retrato','Retrato de um homem de compasso na mão','Um homem magro segura um compasso e uma régua. A moldura tem uma fresta.',
+      {requiredItem:'rustyKey',opensSecret:'s1',setFlag:'openedS1',oneTime:true,
+       response:'A chave enferrujada gira num mecanismo escondido atrás do quadro. O retrato desliza, revelando uma passagem.',
+       responseWithout:'Há uma fresta atrás da moldura, do tamanho exato de uma chave antiga. Você não tem nenhuma.'}),
+    H('h8_texto','Frase atrás do quadro','"Eu fiz paredes. Não fiz a voz."',{journal:'Sala 8: atrás do retrato de Elias, uma frase — "Eu fiz paredes. Não fiz a voz."'}),
+    H('h8_regua','A régua na mão do retrato','Não está reta. Aponta, num ângulo sutil, para longe da porta 39.',{journal:'Sala 8: a régua do retrato de Elias aponta num ângulo estranho, longe da porta 39.'}),
+  ],
+  {symbols:[],desc:'Um retrato de homem magro domina a parede: compasso numa mão, régua na outra, olhar severo.',
+   doorLieNote:{39:'A régua torta do retrato já avisava: essa porta não segue a direção que promete.'}}
+);
+ROOMS[9]=R(9,'Biblioteca dos Títulos Cortados','entrada',
+  [D(66,66),D(21,21),D(48,48,{locked:true,requiredItem:'rustyKey',lockMsg:'Entre os livros de títulos cortados, uma porta de ferro só responde a chaves igualmente velhas.',okMsg:RUSTY_OK})],
+  [
+    H('h9_livros','Livros com títulos incompletos','As lombadas foram cortadas na metade. Lendo de baixo pra cima, as sílabas restantes formam uma frase.',
+      {journal:'Sala 9: lendo os títulos cortados de baixo pra cima, forma-se "não dê seu nome".'}),
+    H('h9_escada','Uma escada de mão, curta demais, encostada na estante mais alta','Não alcança nem a metade da prateleira. Ainda assim, está gasta no topo, como se alguém a usasse sempre.',
+      {journal:'Sala 9: uma escada curta demais, mas gasta no topo — usada com frequência, apesar de não alcançar nada.'}),
+  ],
+  {symbols:[],desc:'Estantes altas até o teto, cheias de livros com as lombadas cortadas pela metade.'}
+);
+ROOMS[10]=R(10,'O Pátio Sem Céu','entrada',
+  [D(33,33),D(57,57),D(2,2,{locked:true,requiredItem:'litCandle',lockMsg:'A fechadura do pátio sem céu é funda demais para ver no escuro.',okMsg:'Com a Vela Acesa, você enxerga o mecanismo interno e o gira com cuidado.'})],
+  [
+    H('h10_fonte','Fonte seca','No fundo, gravado na pedra, um peixe sem boca.',{journal:'Sala 10: no fundo de uma fonte seca, um peixe gravado — sem boca.'}),
+    H('h10_paredes','As paredes altas demais','Não têm janela nenhuma, mas o vento entra assim mesmo — de algum lugar que não deveria existir.',{journal:'Sala 10: as paredes não têm janelas, mas o vento entra de algum lugar impossível.'}),
+  ],
+  {symbols:['peixe'],desc:'Um pátio fechado por paredes altas demais. Onde deveria haver céu, há apenas mais teto, mais escuro.'}
+);
+ROOMS[11]=R(11,'A Sala dos Números Pregados','entrada',
+  [D(5,5),D(68,23,{isLie:true,realLabel:68}),D(40,40)],
+  [
+    H('h11_mascara','Símbolo de máscara sobre a porta 68','Entalhado bem em cima do número, quase escondido pela poeira.',
+      {journal:'Sala 11: um símbolo de máscara paira sobre a porta 68 — ela não deve dizer a verdade.'}),
+    H('h11_numeros','Os números pregados na parede','Todos tortos exatamente quinze graus pra esquerda — menos um, torto pra direita.',{journal:'Sala 11: todos os números da parede estão tortos do mesmo jeito, exceto um, torto ao contrário.'}),
+  ],
+  {symbols:['mascara'],desc:'Números de metal pregados na parede, um por porta, todos tortos do mesmo jeito.',
+   doorLieNote:{68:'leva, de fato, para a Sala 23 — não para a 68.'}}
+);
+ROOMS[12]=R(12,'O Corredor das Botas','entrada',
+  [D(46,46),D(19,19),D(71,71,{locked:true,requiredItem:'smallBell',lockMsg:'A fechadura das botas não tem buraco — só um pequeno gancho de metal, como pra pendurar algo que soa.',okMsg:'Você pendura o Sino Pequeno no gancho. Ele toca sozinho, e a porta cede ao som.'})],
+  [
+    H('h12_botas','Fileira de botas','Apontam para direções diferentes. Só as pequenas apontam todas pro mesmo lugar.',{journal:'Sala 12: só as botas pequenas concordam sobre a direção certa.'}),
+    H('h12_cadarco','Cadarço solto, vermelho','Alguém arrancou de uma das botas e deixou cair.',
+      {giveItem:'redThread',oneTime:true,journal:'Sala 12: um Fio Vermelho estava preso a um cadarço solto.',
+       response:'Você desenrola um Fio Vermelho comprido de dentro de uma das botas.'}),
+  ],
+  {symbols:[],desc:'Dezenas de botas alinhadas contra a parede, nenhuma delas em par.'}
+);
+ROOMS[13]=R(13,'Capela da Lua Apagada','entrada',
+  [D(44,44),D(30,30),D(62,62,{locked:true,requiredItem:'rustyKey',lockMsg:'A fechadura da capela é de metal escuro, tomada de ferrugem — só uma chave igualmente velha entra.',okMsg:RUSTY_OK})],
+  [
+    H('h13_altar','Altar em forma de lua minguante','Um pequeno nicho no centro parece feito sob medida pra apagar algo ali, não acender.',
+      {requiredItem:'litCandle',removeItem:'litCandle',giveItem:'candleAsh',setFlag:null,oneTime:true,
+       response:'Você apaga a Vela Acesa no nicho da lua. A chama morre com um suspiro, e sobra Cinza da Vela — mais pesada do que deveria.',
+       responseWithout:'O nicho tem o formato certo pra apagar uma chama ali. Você não está com nenhuma vela acesa.'}),
+    H('h13_bancos','Bancos de pedra virados de costas para o altar','Como se a congregação, há muito tempo, tivesse parado de encarar o que ali se apaga.',{journal:'Sala 13: os bancos da capela estão virados de costas pro altar.'}),
+  ],
+  {symbols:['vela'],desc:'Uma capela pequena e fria, dedicada a uma lua que nunca cresce — só míngua.'}
+);
+ROOMS[14]=R(14,'Sala das Portas Baixas','entrada',
+  [D(6,6),D(52,52,{forbiddenFlag:'hasGlassCrown',lockMsg:'Você tenta se abaixar, mas a coroa bate no batente antes da sua cabeça. "Abaixe a cabeça antes de passar" — não dá, com ela na sua.'}),D(35,35)],
+  [
+    H('h14_placa','Placa baixa sobre uma porta','"Abaixe a cabeça antes de passar."',{journal:'Sala 14: uma placa avisa — "Abaixe a cabeça antes de passar."'}),
+    H('h14_teto','Marcas de arranhão no teto baixo','Na altura exata de uma coroa, repetidas várias vezes, sempre no mesmo lugar.',{journal:'Sala 14: marcas de arranhão no teto, na altura exata de uma coroa.'}),
+  ],
+  {symbols:[],desc:'O teto desce quase até sua altura aqui. Uma das portas é baixa demais pra passar de cabeça erguida.'}
+);
+ROOMS[15]=R(15,'O Quarto de Amália','entrada',
+  [D(33,33),D(61,61),D(20,20)],
+  [
+    H('h15_desenhos','Desenhos de criança na parede','Uma porta com o rosto apagado, riscado com força.',{journal:'Sala 15: os desenhos de Amália mostram uma porta com o rosto apagado.'}),
+    H('h15_gaveta','Gaveta da escrivaninha','Emperrada, mas não trancada.',
+      {giveItem:'amaliaLetter',oneTime:true,journal:'Sala 15: uma Carta de Amália estava guardada numa gaveta emperrada.',
+       response:'Dentro, dobrada várias vezes, está a Carta de Amália: "Papai construiu o corredor. A coisa construiu a volta."'}),
+    H('h15_espelho','Um espelho de mão sobre a cama, rachado ao meio','Segurando o Espelho Partido perto da Carta de Amália, as duas rachaduras se alinham — e a parede atrás da cama range, entreaberta.',
+      {requiredItem:'brokenMirror',requiredFlag:'hasAmaliaLetter',opensSecret:'s8',oneTime:true,
+       response:'As rachaduras do espelho se alinham com o vinco da carta. Uma parede range e se abre: um quarto atrás do quarto.',
+       responseWithout:'O espelho está rachado ao meio, sem motivo aparente. Falta algo para entender por quê.',
+       journal:'Sala 15: o Espelho Partido, junto da Carta de Amália, abriu uma passagem atrás da cama.'}),
+  ],
+  {symbols:[],desc:'Um quarto pequeno, ainda arrumado como se esperasse alguém que não é você.'}
+);
+ROOMS[16]=R(16,'O Salão do Peixe Pintado','entrada',
+  [D(24,24),D(72,72),D(41,41,{locked:true,requiredItem:'redThread',lockMsg:'A fechadura do salão do peixe tem uma fresta fina demais pra qualquer chave — só um fio passaria.',okMsg:'O Fio Vermelho, enfiado na fresta, prende a lingueta interna e a puxa até destravar.'})],
+  [
+    H('h16_quadro','Quadro de um peixe','Pintado sem boca nenhuma, como os outros peixes desta casa.',
+      {requiredItem:'silverFish',opensSecret:'s4',oneTime:true,
+       response:'Você encosta o Peixe de Prata na tela. A pintura racha ao meio, revelando uma passagem atrás dela.',
+       responseWithout:'O peixe pintado encara você de volta, sem boca pra falar nada.'}),
+  ],
+  {symbols:['peixe'],desc:'Um salão decorado inteiramente com imagens de peixes — nenhum deles com boca.'}
+);
+ROOMS[17]=R(17,'O Espelho Partido','entrada',
+  [D(28,28),D(64,64),D(10,10,{locked:true,requiredItem:'glassEye',lockMsg:'No espelho partido, uma das fechaduras tem o formato exato de um olho.',okMsg:'O Olho de Vidro encaixa perfeitamente no vão, e a porta pisca — abrindo.'})],
+  [
+    H('h17_espelho','Espelho rachado na parede','Um caco solto quase se desprende da moldura.',
+      {giveItem:'brokenMirror',oneTime:true,journal:'Sala 17: um caco de Espelho Partido estava solto na moldura.',
+       response:'Você retira um caco afiado do espelho: o Espelho Partido.'}),
+    H('h17_reflexo','Reflexo estranho','No vidro rachado aparece uma quarta porta, que não existe na sala de verdade.',{journal:'Sala 17: o reflexo mostra uma quarta porta que não existe aqui.'}),
+  ],
+  {symbols:['espelho'],desc:'Um espelho enorme, rachado ao meio, domina esta sala. Metade do seu reflexo chega um instante atrasada.'}
+);
+ROOMS[18]=R(18,'O Relógio Sem Ponteiro','entrada',
+  [D(45,45),D(7,7),D(59,59,{locked:true,requiredItem:'rustyKey',lockMsg:'Sem ponteiro, o relógio ao menos ainda tem uma porta com fechadura comum. Enferrujada, mas comum.',okMsg:RUSTY_OK})],
+  [
+    H('h18_relogio','Relógio parado, sem ponteiro','Mesmo sem ponteiro, uma sombra na parede marca 4:45.',
+      {giveItem:'looseHand',oneTime:true,journal:'Sala 18: um relógio sem ponteiro projeta uma sombra que marca 4:45.',
+       response:'Atrás do mostrador, você encontra o Ponteiro Solto que falta ao relógio.'}),
+  ],
+  {symbols:['relogio'],desc:'Um relógio de pé, alto e escuro, com o mostrador vazio — mas a sombra na parede insiste numa hora.'}
+);
+ROOMS[19]=R(19,'O Salão das Máscaras Pendentes','entrada',
+  [D(12,12),D(34,63,{isLie:true,realLabel:34}),D(55,55)],
+  [
+    H('h19_mascaras','Máscaras penduradas do teto','Dezenas delas, balançando sem vento. Uma sorri de frente pra porta errada.',
+      {giveItem:'crackedMask',oneTime:true,journal:'Sala 19: uma das máscaras estava rachada e caiu ao seu alcance.',
+       response:'Uma das máscaras se solta e cai — está rachada ao meio. Você guarda a Máscara Rachada.'}),
+  ],
+  {symbols:['mascara'],desc:'Dezenas de máscaras penduradas balançam devagar, sem vento nenhum pra empurrá-las.',
+   doorLieNote:{34:'Na verdade leva para a Sala 63, não para a 34 — a máscara sorridente aponta pro lugar errado.'}}
+);
+ROOMS[20]=R(20,'O Braseiro Baixo','entrada',
+  [D(15,15),D(47,47),D(69,69,{locked:true,requiredFlag:'solvedMachine445',lockMsg:'O braseiro baixo aquece uma fechadura de metal que só cede a quem já resolveu a engrenagem certa em outro lugar da Casa.',okMsg:'Como se lembrasse da sequência 4-4-5, a fechadura gira sozinha.'})],
+  [
+    H('h20_braseiro','Braseiro aceso, baixo, quase esquecido','Ainda tem brasa suficiente pra acender algo pequeno.',
+      {requiredItem:'unlitCandle',removeItem:'unlitCandle',giveItem:'litCandle',oneTime:false,
+       response:'Você acende a Vela Apagada no braseiro. A chama pega, firme: agora é uma Vela Acesa.',
+       responseWithout:'O braseiro ainda tem brasas quentes, mas você não tem nada pra acender nelas.'}),
+    H('h20_frase','Frase gravada na borda do braseiro','"A luz revela. A escuridão permite."',{journal:'Sala 20: "A luz revela. A escuridão permite." — gravado no braseiro.'}),
+  ],
+  {symbols:['vela'],desc:'Um braseiro baixo mantém uma brasa fraca e constante, como se fosse alimentado por alguém que você nunca vê.'}
+);
+ROOMS[21]=R(21,'A Biblioteca Invertida','entrada',
+  [D(9,9),D(38,38),D(56,65,{isLie:true,realLabel:56})],
+  [
+    H('h21_livros','Livros de cabeça para baixo','Todos, sem exceção. Só fazem sentido se você inclinar a cabeça.'),
+    H('h21_chao','Número riscado no chão','"65", escrito ao contrário, bem sob a porta 56.',{journal:'Sala 21: sob a porta 56, o número "65" está riscado ao contrário no chão.'}),
+  ],
+  {symbols:['espelho'],desc:'Uma biblioteca onde cada livro foi guardado de cabeça para baixo, com cuidado, como se fosse intencional.',
+   doorLieNote:{56:'Na verdade leva para a Sala 65, seguindo a lógica do número invertido no chão.'}}
+);
+ROOMS[22]=R(22,'O Salão da Coroa Transparente','entrada',
+  [D(7,7),D(50,50),D(36,36,{locked:true,requiredItem:'candleAsh',lockMsg:'Sob a coroa transparente, a fechadura está entupida de cinza compactada.',okMsg:'A Cinza da Vela dissolve a cinza mais velha entalada na fechadura.'})],
+  [
+    H('h22_pedestal','Pedestal de vidro, vazio no topo','Uma coroa de vidro repousa sobre ele, quase invisível.',
+      {giveItem:'glassCrown',setFlag:'temptedByCrown',oneTime:true,journal:'Sala 22: uma Coroa de Vidro estava sobre um pedestal — "toda casa precisa de um dono".',
+       response:'Você pega a Coroa de Vidro. Ela é leve demais — leve de um jeito que incomoda.'}),
+    H('h22_gravado','Frase gravada no pedestal','"Toda casa precisa de um dono."',{}),
+  ],
+  {symbols:['coroa'],desc:'Um pedestal solitário no centro do salão, iluminado por uma luz sem fonte visível.'}
+);
+ROOMS[23]=R(23,'A Sala Que Não Era 68','entrada',
+  [D(11,11),D(43,43),D(25,25,{locked:true,requiredItem:'crackedMask',lockMsg:'Nesta sala que não era 68, a fechadura tem o contorno exato de um rosto.',okMsg:'A Máscara Rachada se encaixa no contorno, e a porta se abre como um rosto que finalmente aceitou a rachadura.'})],
+  [
+    H('h23_placa','Placa amassada no chão','Tem o número "68" pintado nela — arrancada de algum lugar.',
+      {journal:'Sala 23: nem todo número cumpre a promessa que carrega.'}),
+  ],
+  {symbols:[],desc:'Uma sala que não deveria existir sob este nome — porque nenhuma porta a anuncia corretamente.'}
+);
+ROOMS[24]=R(24,'A Porta do Começo Errado','entrada',
+  [D(1,1),D(16,16),D(53,53,{locked:true,requiredItem:'rustyKey',lockMsg:'Um começo errado merece uma fechadura à altura: velha, emperrada, cega.',okMsg:RUSTY_OK})],
+  [
+    H('h24_marca','Marca de giz na porta 1','Alguém já contou quantas vezes voltou por aqui.',{journal:'Sala 24: uma marca de giz conta quantas vezes alguém já voltou pela porta 1.'}),
+  ],
+  {symbols:[],desc:'Um corredor curto que sempre parece te devolver perto de onde começou — mas nunca exatamente lá.',
+   narrator:'Voltar cedo demais é uma forma elegante de desistir.'}
+);
+console.log('ROOMS_1_24_LOADED', Object.keys(ROOMS).length);
+
+/* ===================== ROOMS 25–48 ===================== */
+ROOMS[25]=R(25,'Fonte dos Peixes Cegos','agua',
+  [D(23,23),D(37,37),D(60,23,{isLie:true,realLabel:60})],
+  [
+    H('h25_fonte','Fonte com peixes esculpidos, todos sem olhos','Um encaixe vazio no centro parece pedir um olho de vidro.',
+      {requiredItem:'glassEye',removeItem:'glassEye',giveItem:'silverFish',oneTime:true,
+       response:'Você encaixa o Olho de Vidro na fonte. A água baixa, e um Peixe de Prata boia à superfície, frio e imóvel.',
+       responseWithout:'Há um encaixe vazio no centro da fonte, do tamanho exato de um olho.'}),
+    H('h25_marca','Um número raspado na borda de pedra da fonte','Alguém arranhou "60" e depois riscou por cima com força — como se quisesse desmentir a própria porta.',
+      {journal:'Sala 25: o número 60 foi arranhado e riscado na beira da fonte, como um aviso.'}),
+  ],
+  {symbols:['peixe','olho'],desc:'Uma fonte esculpida com dezenas de peixes de pedra — nenhum deles com olhos.',
+   doorLieNote:{60:'O "60" riscado na pedra não é vandalismo — é um aviso: esta porta não é o que diz.'}}
+);
+ROOMS[26]=R(26,'Escadaria que Não Sobe','entrada',
+  [D(64,64),D(4,4),D(32,32,{locked:true,requiredItem:'litCandle',lockMsg:'A escadaria que não sobe tem uma fechadura escondida na sombra — impossível de ver sem luz.',okMsg:'A Vela Acesa revela o mecanismo, e a fechadura cede.'})],
+  [
+    H('h26_escada','Escada que termina na parede','Os degraus acabam, mas uma sombra continua subindo sem eles.',
+      {requiredItem:'brokenMirror',opensSecret:'s2',oneTime:true,
+       response:'Você segura o Espelho Partido contra a parede no topo da escada. O reflexo mostra degraus que a parede não tem — e eles se abrem.',
+       responseWithout:'A escada termina contra uma parede lisa. A sombra dela, porém, continua subindo.'}),
+  ],
+  {symbols:['escada'],desc:'Uma escadaria curta e estranha, que termina contra uma parede sem porta nenhuma no topo.'}
+);
+ROOMS[27]=R(27,'Arquivo das Chaves Mortas','entrada',
+  [D(4,4),D(59,59),D(13,13,{locked:true,requiredFlag:'sawInscription44',lockMsg:'O arquivo das chaves mortas guarda uma porta cuja fechadura só reage a quem já leu a inscrição certa sob as cortinas.',okMsg:'“A porta clara não é a saída” — lembrando a frase, a fechadura cede.'})],
+  [
+    H('h27_gaveta','Gaveta de metal enferrujada','Trancada — mas não do mesmo jeito que uma porta.',
+      {requiredItem:'rustyKey',giveItem:'mapFragment',oneTime:true,
+       response:'A Chave Enferrujada gira na gaveta. Dentro, dobrado várias vezes: um Fragmento de Planta.',
+       responseWithout:'A gaveta está trancada com uma fechadura pequena, do tipo que só chaves antigas abrem.'}),
+    H('h27_chaves','Dezenas de chaves penduradas','Nenhuma delas abre nada nesta sala. Estão aqui só pra lembrar de portas que já fecharam.'),
+  ],
+  {symbols:[],desc:'Paredes cobertas de chaves penduradas em pregos, catalogadas por um sistema que ninguém mais entende.'}
+);
+ROOMS[28]=R(28,'A Sala Refletida','entrada',
+  [D(17,17),D(71,17,{special:'sala28Mirror'}),D(46,46)],
+  [
+    H('h28_reflexo','A sala inteira, refletida ao contrário no chão de mármore polido','Uma das portas parece diferente no reflexo do que na realidade.',
+      {journal:'Sala 28: o chão espelhado mostra a porta 71 de um jeito diferente do real.'}),
+  ],
+  {symbols:['espelho'],desc:'O chão de mármore aqui é polido a ponto de refletir o teto, as portas e você mesmo, de cabeça para baixo.',
+   doorLieNote:{71:'Sem o Espelho Partido no bolso, essa porta na verdade leva de volta pra Sala 17.'}}
+);
+ROOMS[29]=R(29,'Corredor da Segunda Volta','entrada',
+  [D(6,6),D(48,48),D(22,22,{locked:true,requiredItem:'brokenMirror',lockMsg:'A porta da segunda volta reflete estranho demais — como se esperasse ver algo quebrado.',okMsg:'O Espelho Partido reflete a porta de volta, rachado, e ela aceita a imagem rachada como resposta.'})],
+  [
+    H('h29_eco','Eco dos seus próprios passos, um instante atrasado','Como se alguém andasse os mesmos passos, sempre um pouco depois de você.',{journal:'Sala 29: seus passos ecoam com atraso, como se alguém os repetisse.'}),
+  ],
+  {symbols:[],desc:'Um corredor que parece se repetir sutilmente, ainda que nada aqui seja exatamente igual da primeira vez.',
+   onEnterFromNote:{6:'Vindo da Sala 6, o eco atrasado dos seus passos parece, por um instante, andar na direção contrária à sua.'}}
+);
+ROOMS[30]=R(30,'Mesa das Respostas Erradas','entrada',
+  [D(13,13),D(65,65),D(40,40,{locked:true,requiredItem:'glassEye',lockMsg:'Entre as respostas erradas na mesa, uma fechadura tem um vão em forma de olho, vazio.',okMsg:'O Olho de Vidro encaixa no vão. A porta se abre como se tivesse, enfim, visto o suficiente.'})],
+  [
+    H('h30_mesa','Mesa com uma pergunta gravada','"Quem construiu a Casa?" — abaixo, um espaço para responder.',
+      {answerPuzzle:true,answerKey:'quemConstruiu',
+       responses:{'elias':'A mesa aceita "Elias" com um estalo seco, como quem engole algo pela metade. Você sente que faltou dizer o resto.',
+                  'elias e o porteiro':'A mesa racha ao meio. Você sente, pela primeira vez nesta casa, que disse a verdade inteira.',
+                  'default':'A mesa não reage. A resposta certa exige mais de um nome.'}}),
+  ],
+  {symbols:[],desc:'Uma mesa de pedra fria, com uma pergunta entalhada bem no centro, esperando por uma resposta.'}
+);
+ROOMS[31]=R(31,'Sino Mudo','entrada',
+  [D(2,2),D(57,57),D(18,18,{locked:true,requiredItem:'smallBell',lockMsg:'O sino mudo desta sala tem um gêmeo: um gancho vazio ao lado da porta, esperando um sino que soe.',okMsg:'Pendurado no gancho, o Sino Pequeno toca pela primeira vez em anos — e a porta se abre.'})],
+  [
+    H('h31_sino','Um sino pequeno, pendurado sem badalo aparente','Não faz som nenhum quando tocado aqui.',
+      {giveItem:'smallBell',oneTime:true,journal:'Sala 31: um Sino Pequeno estava pendurado, mudo, nesta sala.',
+       response:'Você desprende o Sino Pequeno da parede. Ele continua sem som — talvez precise do lugar certo.'}),
+  ],
+  {symbols:[],desc:'Um sino pequeno pende do teto, imóvel, como se esperasse a mão de alguém específico.'}
+);
+ROOMS[32]=R(32,'Estufa das Flores Secas','entrada',
+  [D(26,26),D(69,69),D(45,45,{locked:true,requiredItem:'silverFish',lockMsg:'Na estufa de flores secas, a fechadura tem um pequeno entalhe em forma de peixe, sem boca.',okMsg:'O Peixe de Prata encaixa no entalhe, silencioso como sempre, e a porta cede sem ruído.'})],
+  [
+    H('h32_flores','Fileiras de flores mortas há muito tempo','Todas apontam, tortas, pro mesmo trecho da parede.',
+      {requiredItem:'litCandle',opensSecret:'s5',oneTime:true,
+       response:'Com a Vela Acesa erguida perto da parede, a sombra projetada desenha o contorno nítido de uma porta que não existe ali.',
+       responseWithout:'As flores secas apontam todas pra mesma parede lisa, sem porta nenhuma visível.'}),
+  ],
+  {symbols:['vela'],desc:'Uma estufa de vidro embaçado, cheia de flores que morreram há muito tempo, mas nunca caíram.'}
+);
+ROOMS[33]=R(33,'Escrivaninha Infantil','entrada',
+  [D(10,10),D(15,15),D(51,51,{locked:true,requiredItem:'rustyKey',lockMsg:'A escrivaninha infantil guarda essa porta atrás de uma fechadura alta demais pra criança nenhuma abrir.',okMsg:RUSTY_OK})],
+  [
+    H('h33_desenhos','Desenhos espalhados sobre a escrivaninha','Uma porta com o rosto apagado, riscada várias vezes.'),
+    H('h33_bilhete','Bilhete escondido sob o mata-borrão','"Papai construiu o corredor. A coisa construiu a volta."',{journal:'Sala 33: "Papai construiu o corredor. A coisa construiu a volta." — bilhete de Amália.'}),
+  ],
+  {symbols:[],desc:'Uma escrivaninha baixa demais pra um adulto, coberta de desenhos de criança.'}
+);
+ROOMS[34]=R(34,'Câmara dos Avisos Falsos','entrada',
+  [D(19,55,{isLie:true,realLabel:19}),D(52,52,{forbiddenFlag:'hasGlassCrown',lockMsg:'"Quem governa não passa" — a coroa não cabe por essa passagem baixa.'}),D(8,8)],
+  [
+    H('h34_placa','Placa de aviso: "Nunca entre na porta 52"','A tinta parece ter sido reescrita mais de uma vez.',
+      {requiredItem:'crackedMask',alt:true,
+       response:'Vista através da Máscara Rachada, a placa muda: "Entre se estiver sem coroa."',
+       responseWithout:'"Nunca entre na porta 52." A letra parece nervosa, quase mentindo.'}),
+  ],
+  {symbols:['mascara'],desc:'Uma câmara pequena, dominada por uma única placa de madeira pregada torto na parede.',
+   doorLieNote:{19:'Na verdade leva para a Sala 55, não para a 19.'}}
+);
+ROOMS[35]=R(35,'Trono de Vidro','entrada',
+  [D(14,14),D(22,22),D(47,47,{locked:true,requiredItem:'looseHand',lockMsg:'O trono de vidro guarda uma porta cuja fechadura tem o formato exato de um ponteiro solto.',okMsg:'O Ponteiro Solto encaixa no lugar do ponteiro que faltava, e a fechadura gira como um relógio de novo completo.'})],
+  [
+    H('h35_trono','Um trono de vidro, pequeno demais para sentar confortavelmente','Ainda assim, parece esperar alguém.',
+      {requiredItem:'glassCrown',endingId:'coroaDeVidro',
+       responseWithout:'O trono é claramente pequeno demais pra qualquer pessoa sentar direito. Sem coroa nenhuma, ele só parece móvel quebrado.'}),
+    H('h35_abandonar','Uma rachadura funda no chão, bem ao lado do trono','Funda o bastante para engolir algo pequeno, de vidro, para sempre.',
+      {requiredItem:'glassCrown',removeItem:'glassCrown',setFlag:'abandonedCrown',opensSecret:'s13',oneTime:true,
+       response:'Você deixa a Coroa de Vidro cair na rachadura. Ela se despedaça longe, no fundo, sem eco de chegada. Uma parede próxima range, como se algo tivesse parado de obedecer.',
+       responseWithout:'Uma rachadura funda no chão, perto do trono. Sem nada de vidro pra abandonar nela, ela é só uma rachadura.'}),
+  ],
+  {symbols:['coroa'],desc:'Um trono transparente domina o centro da sala, brilhando com uma luz que não vem de lugar nenhum.'}
+);
+ROOMS[36]=R(36,'Salão do Contrato','entrada',
+  [D(5,5),D(22,22),D(63,5,{isLie:true,realLabel:63})],
+  [
+    H('h36_contrato','Um contrato antigo sobre um atril','As letras parecem manchas — a não ser que você já tenha lido a carta certa.',
+      {requiredItem:'amaliaLetter',setFlag:'discoveredSemRosto',
+       response:'Com a Carta de Amália em mãos, as manchas do contrato se organizam num nome: "Sem Rosto".',
+       responseWithout:'As letras do contrato parecem borradas, ilegíveis, como tinta que nunca secou direito.',
+       journal:'Sala 36: o contrato revela o nome verdadeiro — "Sem Rosto".'}),
+    H('h36_peso','O peso de vidro sobre o contrato','Está fora do lugar de sempre — alguém o moveu recentemente, e não com cuidado.',
+      {journal:'Sala 36: o peso de vidro do contrato foi movido recentemente, fora do lugar de sempre.'}),
+  ],
+  {symbols:[],desc:'Um atril de madeira escura segura um contrato antigo, suas páginas amareladas presas por um peso de vidro.',
+   doorLieNote:{63:'O peso de vidro fora do lugar marcava, antes de ser movido, esta porta — quem o moveu queria esconder que ela mente.'}}
+);
+ROOMS[37]=R(37,'Lago Sem Reflexo','agua',
+  [D(25,25),D(58,58),D(70,70,{locked:true,requiredItem:'brokenMirror',lockMsg:'O lago sem reflexo tem uma porta que só reage a algo que reflita — mesmo que mal.',okMsg:'O Espelho Partido, erguido diante da porta, finalmente devolve um reflexo — e ela se abre.'})],
+  [
+    H('h37_lago','Um lago parado dentro de casa','A água reflete tudo — o teto, as portas — menos a porta por onde você entrou.',
+      {requiredItem:'brokenMirror',endingIdIfMissing:'reflexoTomado',missingItemCheck:'amaliaLetter',setFlag:'discoveredEliasNotVoice',
+       response:'Com a Carta de Amália no bolso pra lembrar quem você é, o Espelho Partido mostra a água como ela realmente está: sem reflexo nenhum do Porteiro. "Eu não sou a voz" — você entende, finalmente, o que isso significa.',
+       responseDanger:'Sem nada que lembre quem você é antes de entrar aqui, o Espelho Partido mostra a água aceitando seu rosto como pagamento.',
+       responseWithout:'Há algo errado com esta água. Ela reflete tudo, menos a porta pela qual você entrou.',
+       journal:'Sala 37: a água reflete tudo, exceto a porta por onde você entrou.'}),
+  ],
+  {symbols:['espelho'],desc:'Um lago impossivelmente parado, dentro de uma sala sem janelas nem chuva que o explique.'}
+);
+ROOMS[38]=R(38,'Observatório Interno','entrada',
+  [D(21,21),D(62,62),D(49,49,{locked:true,requiredItem:'candleAsh',lockMsg:'No observatório, a fechadura parece coberta de fuligem de vela — velha, seca, grudada.',okMsg:'A Cinza da Vela se junta à cinza antiga, e a fechadura finalmente vira.'})],
+  [
+    H('h38_telescopio','Um telescópio apontado pra dentro da própria casa','Mostra a Sala 1, vista de cima — com uma porta que não estava lá.',
+      {journal:'Sala 38: o telescópio mostra a Sala 1 de cima, com uma porta extra que não existe de perto.'}),
+  ],
+  {symbols:['olho'],desc:'Um observatório sem uma única janela pro céu — o telescópio aqui aponta só pra dentro da casa.'}
+);
+ROOMS[39]=R(39,'Máquina das Três Voltas','entrada',
+  [D(8,8),D(54,54),D(66,66,{locked:true,requiredItem:'looseHand',lockMsg:'Perto da máquina das três voltas, uma fechadura menor tem o mesmo formato de ponteiro que falta na engrenagem principal.',okMsg:'O Ponteiro Solto se encaixa, e por um segundo a engrenagem distante parece completar sua volta.'})],
+  [
+    H('h39_maquina','Uma máquina de três manivelas numeradas','Cada manivela pode girar de 1 a 6 voltas.',
+      {sequencePuzzle:true,sequenceKey:'445',setFlag:['solvedMachine445','correctedLieDoor'],opensSecret:'s6',
+       journal:'Sala 39: a sequência 4-4-5 nas manivelas destravou algo na máquina.',
+       response:'As manivelas encaixam em 4, 4 e 5. Uma engrenagem gira, solta, e uma passagem se abre na parede.',
+       responseWrong:'As manivelas giram, mas nada acontece. A engrenagem trava de novo.'}),
+  ],
+  {symbols:['relogio'],desc:'Uma máquina antiga de latão, com três manivelas numeradas e uma engrenagem visível de 99 dentes — falta um.'}
+);
+ROOMS[40]=R(40,'A Porta Que Pede Nome','nomes',
+  [D(11,11),D(30,30),D(68,68)],
+  [
+    H('h40_porta','Uma porta sem número, só uma pergunta gravada','"Qual é o seu nome, de verdade?"',
+      {namePromptDanger:true,endingIdIfAnswered:'nomeEntregue',
+       responseIfRefused:'Você não responde. A porta espera, insiste em silêncio — e então, sem abrir, sussurra algo sobre peixes que não falam.',
+       journalIfRefused:'Sala 40: recusar o nome aqui revelou uma pista — "quem não fala, não é preso pela própria voz."',
+       journal:'Sala 40: uma porta perigosa pediu seu nome outra vez.'}),
+  ],
+  {symbols:[],desc:'No fim de um corredor curto, uma porta lisa, sem número, com uma pergunta gravada na madeira.'}
+);
+ROOMS[41]=R(41,'Corredor Inverso','entrada',
+  [D(16,16),D(55,55),D(28,28,{locked:true,requiredItem:'rustyKey',lockMsg:'No corredor inverso, até a fechadura parece instalada de trás pra frente — mas ainda aceita ferro velho.',okMsg:RUSTY_OK})],
+  [
+    H('h41_parede','Uma parede de pedra lisa, sem nada visível','Um pequeno gancho vazio está preso nela, como se esperasse um sino.',
+      {requiredItem:'smallBell',opensSecret:'s7',oneTime:true,
+       response:'Você pendura o Sino Pequeno no gancho. Ele toca sozinho, um som fino e alto — e uma gaveta se abre na parede.',
+       responseWithout:'Um gancho vazio na parede parece esperar algo pequeno, pendurável.'}),
+  ],
+  {symbols:[],desc:'Um corredor onde tudo parece espelhado às avessas — a poeira se acumula no teto, não no chão.'}
+);
+ROOMS[42]=R(42,'A Sala Depois do Começo','entrada',
+  [D(1,1),D(6,6),D(53,6,{isLie:true,realLabel:53})],
+  [
+    H('h42_placa','Uma placa pequena: "O número não é a distância"','Bem escondida atrás da porta.',{journal:'Sala 42: "o número não é a distância" — placa escondida.'}),
+  ],
+  {symbols:[],desc:'Esta sala tem um número alto, mas o narrador insiste que isso não significa nada sobre o quanto você andou.',
+   narrator:'Você vê? O número não significa distância.',
+   doorLieNote:{53:'Na verdade leva de volta para a Sala 6, não para a 53.'}}
+);
+ROOMS[43]=R(43,'Boca da Casa','entrada',
+  [D(23,23),D(57,57),D(72,72,{locked:true,requiredItem:'toothlessKey',lockMsg:'A boca da casa tem uma fechadura funda, sem dentes visíveis dentro.',okMsg:'A Chave Sem Dentes não gira — mas a porta se abre mesmo assim, aceitando a recusa como resposta.'})],
+  [
+    H('h43_molduras','As molduras das três portas','Parecem dentes, alinhados como uma mordida.',
+      {requiredItem:'crackedMask',opensSecret:'s10',oneTime:true,
+       response:'Vista através da Máscara Rachada, a sala inteira parece uma boca aberta — e uma das molduras cede como uma gengiva.',
+       responseWithout:'As molduras das portas, vistas de perto, parecem dentes demais pra ser coincidência.'}),
+  ],
+  {symbols:['mascara'],desc:'As portas desta sala têm molduras estranhamente orgânicas, quase como se fossem dentes.'}
+);
+ROOMS[44]=R(44,'Quarto das Cortinas Fechadas','entrada',
+  [D(3,3),D(13,30,{special:'sala44Candle'}),D(67,67)],
+  [
+    H('h44_cortinas','Cortinas pesadas, fechadas há anos','Com uma luz por perto, dá pra ver uma inscrição na parede atrás delas.',
+      {requiredItem:'litCandle',setFlag:'sawInscription44',
+       response:'Com a Vela Acesa perto da cortina, uma inscrição aparece na parede: "A porta clara não é a saída."',
+       responseWithout:'As cortinas estão fechadas demais pra ver qualquer coisa atrás delas no escuro.',
+       journal:'Sala 44: "A porta clara não é a saída" — inscrição revelada pela vela.'}),
+  ],
+  {symbols:['vela'],desc:'Um quarto sufocado por cortinas grossas, fechadas há tempo demais pra qualquer luz de fora entrar.',
+   doorLieNote:{13:'Sem descobrir a inscrição da vela, essa porta na verdade te leva pra Sala 30 — a "porta clara" mente.'}}
+);
+ROOMS[45]=R(45,'Relógio Quebrado','entrada',
+  [D(18,18),D(32,32),D(61,18,{isLie:true,realLabel:61})],
+  [
+    H('h45_relogio','Um relógio de parede quebrado, sem um dos ponteiros','A sombra dele já marca a hora certa, mesmo sem o ponteiro.',
+      {requiredItem:'looseHand',setFlag:'solvedClock445',opensSecret:'s3',removeItem:'looseHand',oneTime:true,
+       response:'Você encaixa o Ponteiro Solto no relógio e ajusta para 4:45. Uma trava range atrás do mostrador — o "Minuto 45" se abre.',
+       responseWithout:'O relógio está sem um ponteiro. Do jeito que está, não marca hora nenhuma.'}),
+  ],
+  {symbols:['relogio'],desc:'Um relógio alto, de pé, com o vidro rachado e um ponteiro faltando havia quem sabe quanto tempo.',
+   doorLieNote:{61:'A sombra do relógio sempre marcou 4:45 — e o ponteiro de sombra nunca apontou de fato pra 61, mas pra 18.'}}
+);
+ROOMS[46]=R(46,'O Corredor dos Nomes Riscados','nomes',
+  [D(12,12),D(28,28),D(64,64,{locked:true,requiredItem:'litCandle',lockMsg:'Entre os nomes riscados, a fechadura está funda demais na penumbra pra se ver algo.',okMsg:'A luz da Vela Acesa mostra o encaixe certo, e a porta destrava.'})],
+  [
+    H('h46_parede','Uma parede coberta de nomes riscados','Se você deu seu nome à Casa, ele aparece aqui, riscado com força.',{journal:'Sala 46: nomes riscados cobrem esta parede — inclusive, talvez, o seu.'}),
+  ],
+  {symbols:[],desc:'Uma parede inteira coberta de nomes escritos e depois riscados, camada sobre camada.'}
+);
+ROOMS[47]=R(47,'Tribunal das Fechaduras','entrada',
+  [D(20,20,{locked:true,requiredItem:'rustyKey',lockMsg:'A fechadura de metal desta porta é antiga — precisa de uma chave à altura.',okMsg:RUSTY_OK}),
+   D(35,35,{locked:true,requiredItem:'candleAsh',lockMsg:'A fechadura está entupida de cinza compactada. Só mais cinza, no lugar certo, destrava algo assim.',okMsg:'Você pressiona a Cinza da Vela contra a fechadura suja. Ela cede, quase com alívio.'}),
+   D(60,60,{locked:true,requiredFlag:'discoveredSemRosto',lockMsg:'Uma fechadura sem buraco de chave — só uma pergunta gravada: "Diga o nome verdadeiro." Você não sabe qual é.',okMsg:'Você diz em voz alta: "Sem Rosto." A fechadura de nome se abre sem som.'})],
+  [
+    H('h47_placas','Três fechaduras lado a lado, cada uma diferente','Uma de metal, uma suja de cinza, uma sem buraco nenhum — só uma pergunta.'),
+  ],
+  {symbols:['chave'],desc:'Um tribunal silencioso de três fechaduras, cada uma exigindo um tipo diferente de chave — ou de resposta.'}
+);
+ROOMS[48]=R(48,'O Corredor do Retorno','entrada',
+  [D(9,9),D(29,29),D(71,71,{locked:true,requiredItem:'crackedMask',lockMsg:'No corredor do retorno, a fechadura tem o formato de um rosto sem expressão.',okMsg:'A Máscara Rachada se encaixa, e por um instante a fechadura parece sorrir torto antes de ceder.'})],
+  [
+    H('h48_pegadas','Pegadas no chão, sempre voltando','Ficam mais fundas a cada vez que alguém passa de novo por aqui.',{journal:'Sala 48: pegadas no chão ficam mais fundas a cada retorno.'}),
+  ],
+  {symbols:[],desc:'Um corredor de pegadas gastas, cavadas fundo demais pra serem de uma única passagem.'}
+);
+console.log('ROOMS_25_48_LOADED', Object.keys(ROOMS).length);
+
+/* ===================== ROOMS 49–72 ===================== */
+ROOMS[49]=R(49,'Sala da Escada Afogada','agua',
+  [D(7,7),D(38,38),D(65,65,{locked:true,requiredItem:'rustyKey',lockMsg:'A escada afogada esconde uma porta de metal empenado pela umidade — só chave igualmente velha resolve.',okMsg:RUSTY_OK})],
+  [
+    H('h49_escada','Uma escada que desce direto pra água parada','A água não deveria estar tão alta dentro de uma casa.',
+      {requiredItem:'silverFish',opensSecret:'s9',oneTime:true,
+       response:'Você deixa o Peixe de Prata afundar na água. Ela baixa, devagar, revelando degraus e uma passagem seca.',
+       responseWithout:'A água parada cobre os degraus por completo. Não dá pra descer assim.'}),
+  ],
+  {symbols:['peixe','escada'],desc:'Uma escadaria desce direto para uma água parada demais para ser natural.'}
+);
+ROOMS[50]=R(50,'Sala da Autoridade','entrada',
+  [D(22,22),D(69,69),D(5,22,{isLie:true,realLabel:5})],
+  [
+    H('h50_estatuas','Duas estátuas ajoelhadas','Uma tem cabeça. A outra não. A sem cabeça está virada de frente pra porta 5.',{journal:'Sala 50: duas estátuas se ajoelham — a sem cabeça encara a porta 5.'}),
+  ],
+  {symbols:['coroa'],desc:'Duas estátuas de pedra se ajoelham diante de um espaço vazio no centro da sala, como se aguardassem alguém.',
+   doorLieNote:{5:'A estátua sem cabeça encara essa porta, como se recusasse dizer pra onde ela realmente leva.'}}
+);
+ROOMS[51]=R(51,'Galeria das Onze Pessoas','entrada',
+  [D(5,5),D(33,33),D(70,70,{locked:true,requiredFlag:'discoveredEliasNotVoice',lockMsg:'Na galeria das onze pessoas, uma porta só se abre pra quem já entendeu que a voz da Casa não é Elias.',okMsg:'Sabendo que a voz nunca foi de Elias, você sente a fechadura ceder, quase decepcionada.'})],
+  [
+    H('h51_retratos','Onze retratos numa fileira','O décimo segundo espaço está vazio, sem moldura nenhuma.',
+      {requiredItem:'glassEye',
+       response:'Com o Olho de Vidro erguido perto do espaço vazio, você sente — mais do que vê — que o vazio olha de volta.',
+       responseWithout:'Onze retratos, e um espaço vazio ao final da fileira, sem moldura nenhuma.',
+       journal:'Sala 51: o décimo segundo espaço, vazio, parece olhar de volta.'}),
+  ],
+  {symbols:['olho'],desc:'Uma galeria comprida com onze retratos emoldurados e um espaço vazio ao final, sem moldura nenhuma.'}
+);
+ROOMS[52]=R(52,'Porta dos Baixos','entrada',
+  [D(14,14,{forbiddenFlag:'hasGlassCrown',lockMsg:'"Quem governa não passa." A passagem é baixa demais pra uma coroa, de vidro ou não.'}),D(34,34),D(63,63)],
+  [
+    H('h52_inscricao','Inscrição na soleira baixa','"Quem governa não passa."',{journal:'Sala 52: "Quem governa não passa" — inscrito na soleira baixa desta sala.'}),
+  ],
+  {symbols:['coroa'],desc:'O teto desaba quase até o chão nesta sala, obrigando qualquer visitante a se curvar bem fundo.'}
+);
+ROOMS[53]=R(53,'A Sala Sem Poeira','entrada',
+  [D(24,24),D(42,24,{isLie:true,realLabel:42}),D(2,2)],
+  [
+    H('h53_poeira','Poeira grossa em todas as portas, menos uma','A porta 42 está limpa — alguém, ou algo, passa por ela com frequência.',{journal:'Sala 53: todas as portas têm poeira, exceto a 42, sempre limpa de uso.'}),
+  ],
+  {symbols:[],desc:'Uma sala idêntica a tantas outras, exceto pela poeira — ou pela falta dela em uma única porta.',
+   doorLieNote:{42:'A única porta sem poeira nesta sala é justamente a que engana: o uso frequente não é seu — é da Casa.'}}
+);
+ROOMS[54]=R(54,'Oficina de Elias','entrada',
+  [D(8,8),D(39,39),D(66,66)],
+  [
+    H('h54_ferramentas','Ferramentas de arquiteto: compassos, réguas, esquadros','Todas gastas de uso, nenhuma decorativa.'),
+    H('h54_plantas','Plantas antigas da casa, presas na parede','As primeiras nove salas estão desenhadas com precisão. As demais, com uma letra diferente.',
+      {journal:'Sala 54: "As primeiras 9 portas foram feitas por mim. As outras aprenderam." — nota na oficina de Elias.'}),
+  ],
+  {symbols:[],desc:'Uma oficina empoeirada, cheia de instrumentos de desenho técnico e plantas presas com percevejos enferrujados.'}
+);
+ROOMS[55]=R(55,'O Corredor das Vozes Baixas','nomes',
+  [D(19,19),D(41,41),D(6,6,{locked:true,requiredItem:'smallBell',lockMsg:'No corredor das vozes baixas, a fechadura reage só a som — nunca a força.',okMsg:'O Sino Pequeno toca, quebrando o silêncio da sala, e a fechadura responde ao som.'})],
+  [
+    H('h55_vozes','Sussurros vindos das paredes, baixos demais pra entender de primeira','Prestando atenção, dá pra distinguir palavras soltas: "não diga". "não assine". "não sente".',
+      {journal:'Sala 55: sussurros nas paredes repetem "não diga", "não assine", "não sente".'}),
+  ],
+  {symbols:['peixe'],desc:'Um corredor onde as paredes parecem sussurrar, baixinho, palavras que se recusam a formar frases inteiras.'}
+);
+ROOMS[56]=R(56,'Biblioteca do Número Invertido','entrada',
+  [D(21,21),D(65,65),D(18,18,{locked:true,requiredItem:'redThread',lockMsg:'O número invertido na porta esconde uma fresta estreita junto à dobradiça.',okMsg:'O Fio Vermelho desliza pela fresta e prende a trava por dentro, até ela ceder.'})],
+  [
+    H('h56_livros','Todos os livros, de cabeça para baixo','Sem exceção — nem um único fora do padrão.',{journal:'Sala 56: todos os livros aqui estão de cabeça para baixo, sem exceção.'}),
+  ],
+  {symbols:['espelho'],desc:'Outra biblioteca de livros invertidos — desta vez, o padrão parece proposital demais para ser acidente.'}
+);
+ROOMS[57]=R(57,'A Sala da Porta Cega','entrada',
+  [D(10,10),D(31,31),D(43,43,{locked:true,requiredItem:'rustyKey',lockMsg:'A porta cega tem uma fechadura comum, surda como o resto da sala.',okMsg:RUSTY_OK})],
+  [
+    H('h57_fechadura','Uma fechadura que parece uma pálpebra fechada','Sem buraco de chave — só uma reentrância orgânica.',
+      {requiredItem:'glassEye',opensSecret:'s11',oneTime:true,
+       response:'Você encaixa o Olho de Vidro na fechadura-pálpebra. Ela se abre devagar, como se despertasse.',
+       responseWithout:'A fechadura tem o formato exato de uma pálpebra fechada — estranhamente orgânica.'}),
+  ],
+  {symbols:['olho'],desc:'Uma porta sem número algum, com uma fechadura que parece, de forma perturbadora, uma pálpebra fechada.'}
+);
+ROOMS[58]=R(58,'O Quarto da Segunda Cama','entrada',
+  [D(2,2),D(37,37),D(70,70,{locked:true,requiredItem:'crackedMask',lockMsg:'No quarto da segunda cama, a fechadura tem o contorno de um rosto vazio.',okMsg:'A Máscara Rachada preenche o contorno vazio, e a porta cede com um rangido seco.'})],
+  [
+    H('h58_camas','Duas camas, uma usada, outra empoeirada','A usada ainda está com o lençol amassado.',
+      {requiredItem:'amaliaLetter',
+       response:'Segurando a Carta de Amália perto da cama usada, uma lembrança curta e nítida atravessa você: risadas, dois pares de passos, uma porta se fechando rápido demais.',
+       responseWithout:'Duas camas, lado a lado — uma usada recentemente, a outra coberta de poeira antiga.',
+       journal:'Sala 58: a Carta de Amália revela uma lembrança curta nesta sala.'}),
+  ],
+  {symbols:[],desc:'Um quarto simples com duas camas de solteiro, uma claramente usada, a outra intocada há anos.'}
+);
+ROOMS[59]=R(59,'O Arquivo dos Visitantes','entrada',
+  [D(18,18),D(27,27),D(6,6,{locked:true,requiredItem:'redThread',lockMsg:'No arquivo dos visitantes, a fechadura tem uma fresta fina demais pra qualquer chave normal.',okMsg:'O Fio Vermelho passa pela fresta e puxa a lingueta por dentro.'})],
+  [
+    H('h59_fichas','Fichas antigas com nomes de visitantes','Muitas têm a mesma anotação final: "não voltou a perguntar".',{journal:'Sala 59: fichas de visitantes antigos, muitas marcadas "não voltou a perguntar".'}),
+  ],
+  {symbols:[],desc:'Um arquivo empoeirado, gaveteiros cheios de fichas de pessoas que passaram por aqui antes de você.',
+   requiresBadEndings:3,opensSecretIfBadEndings:'s12'}
+);
+ROOMS[60]=R(60,'A Sala Que Fecha Atrás','entrada',
+  [D(25,25),D(47,47,{forbiddenFlag:'hasGlassCrown',lockMsg:'Um rangido forte vem da madeira: essa porta simplesmente não existe mais enquanto você carrega a coroa.',hideIfForbidden:true}),D(6,6)],
+  [
+    H('h60_rangido','Um rangido alto de madeira, vindo de lugar nenhum','Como se a casa reconsiderasse alguma coisa.',{journal:'Sala 60: um rangido de madeira aqui parece reação, não acidente.'}),
+  ],
+  {symbols:[],desc:'Uma sala comum, exceto pelo modo como as portas parecem se reorganizar quando você não está olhando.'}
+);
+ROOMS[61]=R(61,'Quarto Sem Maçanetas','entrada',
+  [D(15,15),D(45,45),D(68,68,{locked:true,requiredFlag:'foundDoorZeroClue',lockMsg:'A porta sem maçaneta tem uma segunda fechadura, essa sim com buraco — mas só reage a quem já viu a pista da Porta Zero.',okMsg:'Lembrando o que viu no espelho, você sente a fechadura ceder — como se reconhecesse o olhar.'})],
+  [
+    H('h61_porta','Uma porta lisa, sem maçaneta nenhuma','Só uma fechadura estranha, sem buraco.',
+      {requiredItem:'toothlessKey',
+       response:'Você encosta a Chave Sem Dentes na fechadura sem buraco. Ela não gira — mas a porta se abre mesmo assim, como se tivesse aceitado a recusa.',
+       responseWithout:'Uma porta sem maçaneta, sem buraco de fechadura — só uma superfície lisa e fria.',
+       journal:'Sala 61: "Nem toda recusa precisa de buraco." — a Chave Sem Dentes abriu uma porta sem fechadura.'}),
+  ],
+  {symbols:['chave'],desc:'Uma porta completamente lisa, sem maçaneta, sem buraco de chave, sem qualquer jeito óbvio de abrir.'}
+);
+ROOMS[62]=R(62,'Torre dos Relógios Internos','relogio',
+  [D(13,13),D(38,38),D(71,71,{locked:true,requiredItem:'rustyKey',lockMsg:'Entre os relógios desencontrados, uma porta de metal simples, travada por ferrugem de anos.',okMsg:RUSTY_OK})],
+  [
+    H('h62_relogios','Três relógios, marcando 4, 4 e 5','Nenhum deles bate com o horário dos outros dois.',{journal:'Sala 62: três relógios marcam 4, 4 e 5 — a mesma sequência da máquina.'}),
+  ],
+  {symbols:['relogio'],desc:'Uma torre estreita, com três relógios de parede desencontrados, cada um preso a uma hora diferente.'}
+);
+ROOMS[63]=R(63,'Sala da Máscara Grande','entrada',
+  [D(4,4),D(36,8,{special:'sala63Mask'}),D(52,52,{forbiddenFlag:'hasGlassCrown',lockMsg:'"Quem governa não passa" ecoa também por aqui.'})],
+  [
+    H('h63_mascara','Uma máscara enorme, presa na parede, olhando pra uma das portas','O olhar dela não é confiável.',{journal:'Sala 63: uma máscara enorme observa fixamente uma das portas — pode estar mentindo sobre qual.'}),
+  ],
+  {symbols:['mascara'],desc:'Uma máscara do tamanho de uma pessoa inteira está presa à parede, seu olhar vazio fixo numa das portas.',
+   doorLieNote:{36:'Sem a Máscara Rachada, essa porta na verdade leva pra Sala 8 — a máscara grande mente sobre o destino.'}}
+);
+ROOMS[64]=R(64,'O Espelho Comprido','espelho',
+  [D(17,17),D(26,26),D(46,46,{locked:true,requiredItem:'glassEye',lockMsg:'No espelho comprido, um vão vazio em forma de olho marca a fechadura.',okMsg:'O Olho de Vidro se encaixa no vão, e por um instante o espelho parece olhar de volta — então a porta abre.'})],
+  [
+    H('h64_espelho','Um espelho comprido, do chão ao teto','Usando um caco do Espelho Partido contra ele, o reflexo mostra números diferentes — e um deles é zero.',
+      {requiredItem:'brokenMirror',setFlag:'foundDoorZeroClue',oneTime:true,
+       response:'O Espelho Partido, encostado no espelho grande, revela algo que o vidro inteiro escondia: várias portas foram renumeradas — e uma delas, no reflexo, mostra o número 0.',
+       responseWithout:'Um espelho comprido reflete a sala inteira, mas parece esconder alguma coisa embaixo do vidro.',
+       journal:'Sala 64: o reflexo mostra portas renumeradas — e uma delas marca 0.'}),
+  ],
+  {symbols:['espelho'],desc:'Um espelho absurdamente comprido ocupa a parede inteira, do chão ao teto, refletindo mais do que deveria.'}
+);
+ROOMS[65]=R(65,'Sala do Número Errado','espelho',
+  [D(30,30),D(49,49),D(56,56,{locked:true,requiredItem:'toothlessKey',lockMsg:'A sala do número errado tem uma fechadura funda, sem dentes visíveis dentro.',okMsg:'A Chave Sem Dentes encosta na fechadura sem girar — e ainda assim ela cede, como se recusar bastasse.'})],
+  [
+    H('h65_montagem','A sala inteira parece montada de trás pra frente','Móveis de costas, quadros ao contrário, tudo invertido.',{journal:'Sala 65: a sala parece montada de trás pra frente, como um reflexo.'}),
+  ],
+  {symbols:['espelho'],desc:'Cada móvel aqui está de costas pro centro da sala, como se a sala inteira fosse o reflexo de outra.',
+   onEnterFromNote:{56:'Vindo da Sala 56, você entende: o número errado nunca foi o da porta — era o da sala.'}}
+);
+ROOMS[66]=R(66,'Engrenagem Parada','entrada',
+  [D(9,9),D(39,39),D(54,54)],
+  [
+    H('h66_engrenagem','Uma engrenagem gigante, parada, com 99 dentes — falta um','Sem aquele dente, ela nunca vai girar sozinha.',{journal:'Sala 66: uma engrenagem de 99 dentes está parada — falta exatamente um.'}),
+  ],
+  {symbols:[],desc:'Uma engrenagem de latão maior que uma pessoa domina o centro da sala, imóvel há muito tempo.',
+   changesIfFlag:{solvedMachine445:'A engrenagem agora range devagar, girando sozinha — e uma nova passagem se abre atrás dela.'}}
+);
+ROOMS[67]=R(67,'A Terceira Primeira Porta','entrada',
+  [D(1,1),D(44,44),D(72,16,{isLie:true,realLabel:72})],
+  [
+    H('h67_placa','Uma placa pequena: "Alto não é o mesmo que longe"','Escondida atrás de uma das portas.',{journal:'Sala 67: "Alto não é o mesmo que longe" — placa escondida.'}),
+  ],
+  {symbols:[],desc:'Uma das primeiras escolhas do jogo pode acabar te levando até aqui — mesmo com um número tão alto.',
+   narrator:'Você escolheu uma porta alta. Isso não significa que subiu.',
+   doorLieNote:{72:'Na verdade leva de volta pra Sala 16, não pra 72.'}}
+);
+ROOMS[68]=R(68,'A Porta Mentirosa','entrada',
+  [D(11,11),D(40,40),D(61,61,{locked:true,requiredItem:'silverFish',lockMsg:'A porta mentirosa tem um entalhe estranho: um peixe sem boca, gravado fundo.',okMsg:'O Peixe de Prata se encaixa exatamente no entalhe, e a porta se abre sem dizer nada — como convém.'})],
+  [
+    H('h68_placas','Todas as placas de porta aqui têm tinta fresca demais','Como se tivessem sido trocadas recentemente.',{journal:'Sala 68: todas as placas de porta parecem repintadas recentemente.'}),
+  ],
+  {symbols:['mascara'],desc:'Uma sala carregada de placas repintadas, todas numeradas, nenhuma delas totalmente confiável.'}
+);
+ROOMS[69]=R(69,'A Estufa Quente','entrada',
+  [D(20,20),D(32,32),D(50,50)],
+  [
+    H('h69_cera','Um bloco de cera antiga, derretendo sozinho, sem fogo visível','Escondido dentro dela, um símbolo aparece aos poucos.',
+      {requiredItem:'litCandle',
+       response:'Perto do calor da Vela Acesa, a cera derrete mais rápido e revela, entalhado por dentro, o símbolo de um Peixe.',
+       responseWithout:'Um bloco de cera antiga está derretendo sozinho, sem fonte de calor visível.',
+       journal:'Sala 69: dentro de um bloco de cera, o símbolo de um Peixe estava escondido.'}),
+  ],
+  {symbols:['vela'],desc:'O ar aqui é quente demais, sem lareira nem janela que explique o calor.'}
+);
+ROOMS[70]=R(70,'Salão das Distâncias Falsas','entrada',
+  [D(3,3),D(37,37),D(51,24,{isLie:true,realLabel:51})],
+  [
+    H('h70_numeros','Números pintados enormes nas paredes, sem relação clara com as portas','"70" parece grande demais pra significar alguma coisa.',{journal:'Sala 70: números grandes nas paredes não indicam proximidade do fim.'}),
+  ],
+  {symbols:[],desc:'Um salão decorado só com números gigantes, como se quisesse impressionar alguém com tamanho.',
+   doorLieNote:{51:'Na verdade leva pra Sala 24, não pra 51 — a distância aqui é só ilusão.'}}
+);
+ROOMS[71]=R(71,'O Corredor Quase Final','entrada',
+  [D(12,12),D(28,28),D(48,48,{locked:true,requiredItem:'rustyKey',lockMsg:'Quase no fim do corredor, uma última fechadura velha resiste — mas é só isso: velha.',okMsg:RUSTY_OK})],
+  [
+    H('h71_luz','Uma luz mais forte vindo do fim do corredor','Parece o fim. Não é.',{journal:'Sala 71: parece o fim do corredor. Não é.'}),
+  ],
+  {symbols:[],desc:'Um corredor iluminado de um jeito que sugere chegada — mas a Casa raramente entrega o que sugere.',
+   narrator:'Você está perto. Talvez seja melhor voltar agora, enquanto ainda pode.'}
+);
+ROOMS[72]=R(72,'Centro Falso','entrada',
+  [D(16,16),D(43,1,{isLie:true,realLabel:43}),D(67,67)],
+  [
+    H('h72_simbolos','Os nove símbolos da Casa, entalhados em círculo no chão','A Coroa, entre eles, ainda está intacta — sem uso, sem quebra.',
+      {journal:'Sala 72: os nove símbolos aparecem entalhados no chão — mas a Coroa ainda está intacta. Isto não era realmente o centro.'}),
+  ],
+  {symbols:['olho','mascara','espelho','vela','relogio','chave','peixe','coroa','escada'],
+   desc:'Um círculo perfeito no chão exibe os nove símbolos da Casa. No centro, um pedestal vazio — quase certo demais.',
+   doorLieNote:{43:'Na verdade leva de volta pra Sala 1, não pra 43 — isto não era realmente o centro.'}}
+);
+console.log('ROOMS_49_72_LOADED', Object.keys(ROOMS).length);
+
+/* ===================== SECRET ROOMS (S1-S15) ===================== */
+const SECRET_ROOMS = {};
+
+SECRET_ROOMS['s1']=R('s1','Atrás do Retrato','entrada',
+  [D(8,8)],
+  [
+    H('s1_voz','Palavras riscadas na parede interna, atrás do retrato','"Eu não sou a voz."',
+      {journal:'S1: atrás do retrato de Elias, uma frase riscada — "Eu não sou a voz."'}),
+  ],
+  {symbols:[],desc:'Um vão estreito atrás do retrato de Elias, cheirando a poeira e tinta velha. Aqui dentro, a casa parece sussurrar mais baixo.'}
+);
+
+SECRET_ROOMS['s2']=R('s2','Escada Dentro da Parede','entrada',
+  [D(26,26)],
+  [
+    H('s2_escada','Uma escada estreita que sobe dentro da própria parede','Degraus de madeira presos onde não deveria haver espaço nenhum.',
+      {journal:'S2: escadas mudam de nível, não de número — os degraus sobem, mas a numeração da casa não os reconhece.'}),
+  ],
+  {symbols:['escada'],desc:'Uma escada impossível, apertada entre duas paredes que, por fora, pareciam sólidas.'}
+);
+
+SECRET_ROOMS['s3']=R('s3','Minuto 45','relogio',
+  [D(45,45)],
+  [
+    H('s3_relogios','Dezenas de relógios pequenos, todos parados em 4:45','Nenhum se move. Todos concordam na mesma hora.',
+      {journal:'S3: "Quarenta e cinco é dobra, não fim." — dezenas de relógios param todos em 4:45.'}),
+  ],
+  {symbols:['relogio'],desc:'Uma câmara apertada, forrada de relógios pequenos até o teto, todos travados no mesmo minuto.'}
+);
+
+SECRET_ROOMS['s4']=R('s4','Aquário Seco','agua',
+  [D(16,16)],
+  [
+    H('s4_aquario','Um aquário grande, completamente seco, cheio de peixes de vidro','Nenhum tem boca. Todos olham na mesma direção.',
+      {journal:'S4: "O segredo não fala porque a casa escuta." — um aquário seco cheio de peixes de vidro sem boca.'}),
+  ],
+  {symbols:['peixe'],desc:'Um aquário enorme e vazio de água, mas cheio de peixes de vidro imóveis, enfileirados como testemunhas.'}
+);
+
+SECRET_ROOMS['s5']=R('s5','Jardim das Sombras','entrada',
+  [D(32,32)],
+  [
+    H('s5_sombra','Uma sombra projetada na parede do fundo, sem nada que a projete','Tem o formato exato de uma porta sem número — um zero.',
+      {journal:'S5: uma sombra sem origem, na parede do fundo, tem o formato de uma Porta Zero.'}),
+  ],
+  {symbols:['vela'],desc:'Um jardim seco, sem uma única planta viva, mas cheio de sombras que não correspondem a nada real na sala.'}
+);
+
+SECRET_ROOMS['s6']=R('s6','Engrenagem Corrigida','relogio',
+  [D(39,39)],
+  [
+    H('s6_engrenagem','A engrenagem de 99 dentes, agora com o dente que faltava','Uma porta da Casa, em algum lugar, acabou de parar de mentir.',
+      {journal:'S6: a engrenagem de 99 dentes se completou — uma porta mentirosa da Casa passou a dizer a verdade.'}),
+  ],
+  {symbols:['relogio'],desc:'A parte de trás da máquina de latão, onde um último dente de engrenagem finalmente encaixou no lugar certo.'}
+);
+
+SECRET_ROOMS['s7']=R('s7','Gaveta Sem Fechadura','entrada',
+  [D(41,41)],
+  [
+    H('s7_gaveta','Uma gaveta sem fechadura nenhuma, entreaberta','Dentro, sozinha, uma chave estranhamente lisa.',
+      {giveItem:'toothlessKey',oneTime:true,
+       response:'Você pega a Chave Sem Dentes. É leve, lisa, sem serrilhado nenhum — parece feita pra não abrir nada.',
+       journal:'S7: dentro de uma gaveta sem fechadura, uma Chave Sem Dentes — feita para recusar, não para abrir.'}),
+  ],
+  {symbols:['chave'],desc:'Uma sala minúscula, quase só a gaveta: sem fechadura, sem trava, entreaberta como um convite.'}
+);
+
+SECRET_ROOMS['s8']=R('s8','Quarto Atrás do Quarto','entrada',
+  [D(15,15)],
+  [
+    H('s8_parede','Frase riscada na parede de trás da cama de Amália','"A voz fez portas. Meu pai fez paredes."',
+      {journal:'S8: "A voz fez portas. Meu pai fez paredes." — riscado na parede atrás do quarto de Amália.'}),
+  ],
+  {symbols:['espelho'],desc:'Um segundo quarto, idêntico ao de Amália, mas empoeirado como se ninguém tivesse entrado nele desde que ela sumiu.'}
+);
+
+SECRET_ROOMS['s9']=R('s9','Escada Afogada','agua',
+  [D(49,49)],
+  [
+    H('s9_degraus','Degraus secos, agora visíveis, descendo mais fundo do que deveriam','No fim deles, silêncio — nenhum eco responde.',
+      {journal:'S9: peixe é silêncio — descendo a escada afogada, nenhum som ecoa de volta.'}),
+  ],
+  {symbols:['peixe','escada'],desc:'Uma escada que só existe quando a água baixa, descendo mais fundo do que a casa deveria ter espaço para conter.'}
+);
+
+SECRET_ROOMS['s10']=R('s10','A Boca da Casa','entrada',
+  [D(43,43)],
+  [
+    H('s10_dentes','Uma fileira de molduras em forma de dentes, vistas por dentro','Todas as portas da Casa, olhadas daqui, parecem parte da mesma boca.',
+      {journal:'S10: vistas por dentro, todas as portas parecem dentes de uma única boca — as portas são bocas do Porteiro.'}),
+  ],
+  {symbols:['mascara'],desc:'Uma passagem estreita e orgânica, com paredes em curva que lembram, de forma incômoda, a parte interna de uma mandíbula.'}
+);
+
+SECRET_ROOMS['s11']=R('s11','A Porta Cega Aberta','entrada',
+  [D(57,57)],
+  [
+    H('s11_palpebra','A fechadura-pálpebra, agora aberta, revelando um olho de pedra atrás dela','Ele parece observar de volta, sem piscar.',
+      {journal:'S11: atrás da fechadura-pálpebra, um olho de pedra observa — olhar também é dar permissão.'}),
+  ],
+  {symbols:['olho'],desc:'Uma câmara redonda e pequena, dominada por um único olho de pedra entalhado na parede do fundo.'}
+);
+
+SECRET_ROOMS['s12']=R('s12','Arquivo dos Que Voltaram','entrada',
+  [D(59,59)],
+  [
+    H('s12_fichas','Fichas de visitantes que já viveram um final ruim aqui','Cada uma tem uma frase curta, nunca a solução — só o que aquele final ensinou.',
+      {journal:'S12: fichas de antigos visitantes registram o que cada final ruim ensinou, nunca a solução.'}),
+    H('s12_ficha2','Uma ficha em branco, com seu nome — ou "Visitante" — já escrito no topo','Ainda tem espaço para uma frase final. Ainda não foi preenchida.',
+      {journal:'S12: uma ficha em branco espera por você, com espaço para uma frase final ainda não escrita.'}),
+  ],
+  {symbols:[],desc:'Um arquivo secreto, gaveteiros cheios de fichas de visitantes que só voltaram depois de um final ruim — nunca do final verdadeiro.'}
+);
+
+SECRET_ROOMS['s13']=R('s13','Corredor Sem Portas','entrada',
+  [D(35,35)],
+  [
+    H('s13_parede','Uma parede lisa, sem porta nenhuma, onde deveria haver uma','Ela não range. Não resiste. Simplesmente já não obedece a mais ninguém.',
+      {journal:'S13: "Sem autoridade, algumas paredes param de obedecer." — um corredor sem uma única porta.'}),
+  ],
+  {symbols:[],desc:'Um corredor curto e sem saída aparente — nenhuma porta, nenhum número, nenhuma ordem a seguir. Só o silêncio de algo que parou de obedecer.'}
+);
+
+SECRET_ROOMS['s14']=R('s14','A Sala Que Não Conta','entrada',
+  [D(1,1)],
+  [
+    H('s14_parede','Uma parede coberta de números riscados, um sobre o outro','No fim, sob todas as camadas, sempre o mesmo número, repetido.',
+      {setFlag:'visitedS14',oneTime:true,
+       journal:'S14: "A Casa não tem 99 portas. Tem uma porta repetida 99 vezes." — riscado sob camadas de números.'}),
+  ],
+  {symbols:[],desc:'Uma sala que não deveria existir, alcançada só por caminhar em silêncio pela mesma sequência de salas de novo. Ela não tem número — ou talvez tenha todos.'}
+);
+
+SECRET_ROOMS['s15']=R('s15','Porta Zero','entrada',
+  [],
+  [
+    H('s15_porta','A Porta Zero, sem número, sem fechadura, sem chave que sirva','Ela não tranca. Ela recusa — e só reconhece quem também aprendeu a recusar.',
+      {requiredItem:'toothlessKey',endingId:'portaZero',
+       responseWithout:'A Porta Zero espera. Ela não tem fechadura comum — só uma coisa faz sentido tentar aqui.',
+       response:'Você encosta a Chave Sem Dentes na Porta Zero. Ela não gira. A porta se abre mesmo assim — porque ela nunca quis uma chave. Ela queria uma recusa.'}),
+  ],
+  {symbols:['olho','mascara','espelho','vela','relogio','chave','peixe','coroa','escada'],
+   desc:'Uma porta sem número, sem moldura decorada, sem nada que a distinga — exceto o fato de que, até agora, ela nunca existiu no mapa.',
+   narrator:'Não existe Porta Zero.'}
+);
+
+console.log('SECRET_ROOMS_LOADED', Object.keys(SECRET_ROOMS).length);
+
+/* ===================== gameLogic.ts — motor de jogo ===================== */
+
+const ITEM_TO_FLAG = {};
+Object.keys(ITEMS).forEach(id=>{ ITEM_TO_FLAG[id] = 'has'+id[0].toUpperCase()+id.slice(1); });
+const FLAG_TO_ITEM = {};
+Object.entries(ITEM_TO_FLAG).forEach(([item,flag])=>{ FLAG_TO_ITEM[flag]=item; });
+
+const BAD_ENDINGS = ['saidaFalsa','visitanteObediente','coroaDeVidro','nomeEntregue','mapaPerfeito','colecionador','reflexoTomado','arquitetoPreso'];
+
+function getRoom(id){
+  if (typeof id === 'string' && id[0]==='s') return SECRET_ROOMS[id];
+  return ROOMS[id];
+}
+
+function hasFlag(state, name){
+  if (!name) return false;
+  if (FLAG_TO_ITEM[name]) return state.inventory.indexOf(FLAG_TO_ITEM[name]) !== -1;
+  return !!state.flags[name];
+}
+function setFlag(state, nameOrArr){
+  if (Array.isArray(nameOrArr)) { nameOrArr.forEach(n=>{ state.flags[n]=true; }); }
+  else if (nameOrArr) { state.flags[nameOrArr]=true; }
+}
+function addItem(state, itemId){
+  if (!itemId) return;
+  if (state.inventory.indexOf(itemId)===-1) state.inventory.push(itemId);
+}
+function removeItem(state, itemId){
+  if (!itemId) return;
+  const i = state.inventory.indexOf(itemId);
+  if (i!==-1) state.inventory.splice(i,1);
+  if (state.selectedItem===itemId) state.selectedItem=null;
+}
+function addJournal(state, text){
+  if (!text) return;
+  if (state.journalEntries.indexOf(text)===-1) state.journalEntries.push(text);
+}
+function discoverSymbol(state, symId){
+  if (!symId) return;
+  if (state.discoveredSymbols.indexOf(symId)===-1){
+    state.discoveredSymbols.push(symId);
+    addJournal(state, 'Símbolo de '+SYMBOLS[symId].name+' descoberto — '+SYMBOLS[symId].meaning);
+  }
+}
+
+function resolveDoorTarget(door, state){
+  if (door.special){
+    switch(door.special){
+      case 'sala1Mask': return hasFlag(state,'correctedLieDoor') ? 24 : door.target;
+      case 'sala6From29': return state.previousRoomId===29 ? 6 : door.target;
+      case 'sala28Mirror': return hasFlag(state,'hasBrokenMirror') ? 71 : door.target;
+      case 'sala44Candle': return hasFlag(state,'sawInscription44') ? 13 : door.target;
+      case 'sala63Mask': return hasFlag(state,'hasCrackedMask') ? 36 : door.target;
+      default: return door.target;
+    }
+  }
+  return door.target;
+}
+
+function canUnlockDoorZero(state){
+  return hasFlag(state,'hasAmaliaLetter') &&
+    hasFlag(state,'hasToothlessKey') &&
+    hasFlag(state,'hasBrokenMirror') &&
+    hasFlag(state,'hasCandleAsh') &&
+    (!hasFlag(state,'hasGlassCrown') || state.flags.abandonedCrown===true) &&
+    state.flags.discoveredEliasNotVoice===true &&
+    state.flags.discoveredSemRosto===true &&
+    state.refusedName===true &&
+    state.flags.solvedClock445===true &&
+    state.flags.foundDoorZeroClue===true &&
+    state.discoveredSymbols.length>=6;
+}
+
+const S14_SEQUENCE = [1,42,6,55,41];
+
+function newRunState(name, refused){
+  return {
+    playerName: refused ? null : (name||null),
+    refusedName: !!refused,
+    gaveNameToHouse: false,
+    currentRoomId: 1,
+    previousRoomId: null,
+    visitedRooms: [1],
+    roomVisitLog: [1],
+    inventory: [],
+    selectedItem: null,
+    flags: {},
+    journalEntries: [],
+    discoveredSymbols: [],
+    discoveredSecrets: [],
+    unlockedDoors: [],
+    usedHotspots: [],
+    mapConnections: [],
+    gameOver: false,
+    currentEndingId: null,
+    pendingPuzzle: null,
+    lastFeedback: null,
+    narratorLine: 'Bem-vindo. As primeiras portas costumam assustar. As últimas, nem tanto.',
+    trueEndingReady: false,
+  };
+}
+
+function loadMeta(){
+  try{
+    const raw = localStorage.getItem('casa99_meta');
+    if (!raw) return { discoveredEndings:[], badEndingsSeen:0 };
+    const m = JSON.parse(raw);
+    return { discoveredEndings: m.discoveredEndings||[], badEndingsSeen: m.badEndingsSeen||0 };
+  }catch(e){ return { discoveredEndings:[], badEndingsSeen:0 }; }
+}
+function saveMeta(){ try{ localStorage.setItem('casa99_meta', JSON.stringify(APP.meta)); }catch(e){} }
+function saveRun(){ try{ if(APP.state) localStorage.setItem('casa99_run', JSON.stringify(APP.state)); }catch(e){} }
+function loadRun(){
+  try{
+    const raw = localStorage.getItem('casa99_run');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+function clearRun(){ try{ localStorage.removeItem('casa99_run'); }catch(e){} }
+function clearAll(){ try{ localStorage.removeItem('casa99_run'); localStorage.removeItem('casa99_meta'); }catch(e){} }
+
+const APP = { screen:'start', state:null, meta:loadMeta() };
+
+function triggerEnding(state, endingId){
+  state.gameOver = true;
+  state.currentEndingId = endingId;
+  if (APP.meta.discoveredEndings.indexOf(endingId)===-1) APP.meta.discoveredEndings.push(endingId);
+  if (BAD_ENDINGS.indexOf(endingId)!==-1) APP.meta.badEndingsSeen++;
+  saveMeta();
+  clearRun();
+}
+
+function checkS14Sequence(state){
+  const log = state.roomVisitLog;
+  if (log.length < 5) return false;
+  const last5 = log.slice(-5);
+  return JSON.stringify(last5)===JSON.stringify(S14_SEQUENCE);
+}
+
+function enterSecretRoom(state, secretId){
+  if (state.discoveredSecrets.indexOf(secretId)===-1) state.discoveredSecrets.push(secretId);
+  state.previousRoomId = state.currentRoomId;
+  goToRoom(state, secretId, false);
+}
+
+function goToRoom(state, roomId, viaDoor){
+  state.previousRoomId = viaDoor ? state.currentRoomId : state.previousRoomId;
+  state.currentRoomId = roomId;
+  if (state.visitedRooms.indexOf(roomId)===-1) state.visitedRooms.push(roomId);
+  state.roomVisitLog.push(roomId);
+  state.selectedItem = null;
+  state.lastFeedback = null;
+  state.pendingPuzzle = null;
+  const room = getRoom(roomId);
+  if (!room) return;
+
+  const firstVisit = state.visitedRooms.filter(r=>r===roomId).length<=1;
+  if (typeof roomId === 'number' && firstVisit){
+    addJournal(state, 'Sala '+roomId+' — '+room.title+'.');
+  } else if (typeof roomId === 'string' && firstVisit){
+    addJournal(state, 'Sala secreta — '+room.title+'.');
+  }
+  (room.symbols||[]).forEach(s=>discoverSymbol(state,s));
+
+  state.narratorLine = null;
+  if (room.narrator && firstVisit) state.narratorLine = room.narrator;
+
+  if (room.onEnterFromNote && state.previousRoomId!=null && room.onEnterFromNote[state.previousRoomId]){
+    addJournal(state, room.onEnterFromNote[state.previousRoomId]);
+  }
+
+  if (room.requiresBadEndings!=null && room.opensSecretIfBadEndings){
+    if (APP.meta.badEndingsSeen >= room.requiresBadEndings && state.discoveredSecrets.indexOf(room.opensSecretIfBadEndings)===-1){
+      addJournal(state, 'Sala '+roomId+': depois de tantos finais ruins, algo aqui finalmente cede.');
+      enterSecretRoom(state, room.opensSecretIfBadEndings);
+      return;
+    }
+  }
+
+  if (typeof roomId === 'number' && checkS14Sequence(state) && state.discoveredSecrets.indexOf('s14')===-1){
+    setFlag(state,'openedS14');
+    addJournal(state, 'Você percebe que andou em círculo por um caminho estranhamente específico — e uma sala que não deveria existir se abre.');
+    enterSecretRoom(state,'s14');
+    return;
+  }
+
+  if (!state.trueEndingReady && canUnlockDoorZero(state)){
+    state.trueEndingReady = true;
+    setFlag(state,'trueEndingReady');
+    addJournal(state, 'Você sente que a Casa já não tem mais nada para esconder de você.');
+  }
+
+  saveRun();
+}
+
+function useDoor(state, room, door){
+  if (state.gameOver) return;
+  if (door.forbiddenFlag && hasFlag(state, door.forbiddenFlag)){
+    state.lastFeedback = {type:'bad', text: door.lockMsg||'Essa porta não cede.'};
+    saveRun();
+    return;
+  }
+  const doorKey = room.id+'_'+door.label;
+  if (door.locked && state.unlockedDoors.indexOf(doorKey)===-1){
+    const itemOk = door.requiredItem && state.selectedItem===door.requiredItem;
+    const flagOk = door.requiredFlag && hasFlag(state, door.requiredFlag);
+    if (itemOk || flagOk){
+      state.unlockedDoors.push(doorKey);
+      state.lastFeedback = {type:'good', text: door.okMsg||'A porta cede.'};
+      if (itemOk) state.selectedItem=null;
+    } else {
+      state.lastFeedback = {type:'bad', text: door.lockMsg||'A porta está trancada.'};
+      saveRun();
+      return;
+    }
+  }
+  const target = resolveDoorTarget(door, state);
+  const suspicious = door.isLie || !!door.special;
+  const already = state.mapConnections.find(c=>c.from===room.id && c.doorLabel===door.label);
+  if (!already){
+    state.mapConnections.push({from:room.id, doorLabel:door.label, to:target, suspicious});
+    if (suspicious && room.doorLieNote && room.doorLieNote[door.label]){
+      addJournal(state, 'Sala '+room.id+', porta '+door.label+': '+room.doorLieNote[door.label]);
+    }
+  }
+  goToRoom(state, target, true);
+}
+
+function useHotspot(state, room, hotspot){
+  if (state.gameOver) return;
+  if (hotspot.answerPuzzle){ state.pendingPuzzle = {type:'answer', hid:hotspot.id}; saveRun(); return; }
+  if (hotspot.sequencePuzzle){ state.pendingPuzzle = {type:'sequence', hid:hotspot.id}; saveRun(); return; }
+  if (hotspot.namePrompt || hotspot.namePromptDanger){ state.pendingPuzzle = {type:'nameprompt', hid:hotspot.id}; saveRun(); return; }
+
+  const already = hotspot.oneTime && state.usedHotspots.indexOf(hotspot.id)!==-1;
+  const needsItem = !!hotspot.requiredItem;
+  const itemMatches = needsItem && state.selectedItem===hotspot.requiredItem;
+  const flagOk = !hotspot.requiredFlag || hasFlag(state, hotspot.requiredFlag);
+
+  if (needsItem && !itemMatches){
+    state.lastFeedback = {type:'neutral', text: hotspot.responseWithout || hotspot.desc};
+    saveRun();
+    return;
+  }
+  if (already){
+    state.lastFeedback = {type:'neutral', text: 'Você já mexeu nisso. Não há mais nada de novo aqui.'};
+    saveRun();
+    return;
+  }
+
+  if (needsItem && itemMatches && hotspot.missingItemCheck && hotspot.endingIdIfMissing){
+    if (!hasFlag(state, ITEM_TO_FLAG[hotspot.missingItemCheck])){
+      if (hotspot.journal) addJournal(state, hotspot.journal);
+      triggerEnding(state, hotspot.endingIdIfMissing);
+      state.lastFeedback = {type:'bad', text: hotspot.responseDanger||''};
+      saveRun();
+      return;
+    }
+  }
+
+  if (needsItem && itemMatches && !flagOk){
+    state.lastFeedback = {type:'neutral', text: hotspot.responseWithout || hotspot.desc};
+    saveRun();
+    return;
+  }
+
+  if (hotspot.oneTime) state.usedHotspots.push(hotspot.id);
+  if (hotspot.giveItem) addItem(state, hotspot.giveItem);
+  if (hotspot.removeItem) removeItem(state, hotspot.removeItem);
+  if (hotspot.setFlag) setFlag(state, hotspot.setFlag);
+  if (hotspot.journal) addJournal(state, hotspot.journal);
+  if (needsItem && itemMatches) state.selectedItem = null;
+
+  if (hotspot.opensSecret){
+    state.lastFeedback = {type:'good', text: hotspot.response||''};
+    saveRun();
+    enterSecretRoom(state, hotspot.opensSecret);
+    return;
+  }
+  if (hotspot.endingId){
+    state.lastFeedback = {type:'good', text: hotspot.response||''};
+    triggerEnding(state, hotspot.endingId);
+    saveRun();
+    return;
+  }
+  state.lastFeedback = {type: needsItem?'good':'neutral', text: hotspot.response || hotspot.desc};
+  saveRun();
+}
+
+function submitAnswerPuzzle(state, hotspot, text){
+  const norm = (text||'').trim().toLowerCase();
+  const resp = hotspot.responses[norm] || hotspot.responses['default'];
+  state.lastFeedback = {type: hotspot.responses[norm] ? 'good':'neutral', text: resp};
+  state.pendingPuzzle = null;
+  if (hotspot.journal && hotspot.responses[norm]) addJournal(state, hotspot.journal);
+  saveRun();
+}
+function submitSequencePuzzle(state, hotspot, seqStr){
+  state.pendingPuzzle = null;
+  if (seqStr === hotspot.sequenceKey){
+    if (hotspot.setFlag) setFlag(state, hotspot.setFlag);
+    if (hotspot.journal) addJournal(state, hotspot.journal);
+    state.lastFeedback = {type:'good', text: hotspot.response};
+    if (hotspot.opensSecret) { saveRun(); enterSecretRoom(state, hotspot.opensSecret); return; }
+  } else {
+    state.lastFeedback = {type:'bad', text: hotspot.responseWrong};
+  }
+  saveRun();
+}
+function submitNamePrompt(state, hotspot, refused, typedName){
+  state.pendingPuzzle = null;
+  if (hotspot.namePromptDanger){
+    if (refused){
+      state.refusedName = true;
+      if (hotspot.journalIfRefused) addJournal(state, hotspot.journalIfRefused);
+      state.lastFeedback = {type:'good', text: hotspot.responseIfRefused};
+    } else {
+      state.gaveNameToHouse = true;
+      triggerEnding(state, hotspot.endingIdIfAnswered);
+      state.lastFeedback = {type:'bad', text:'A porta se abre — devagar demais, satisfeita demais.'};
+    }
+  } else {
+    if (refused) state.refusedName = true;
+    else if (typedName) state.playerName = typedName;
+    if (hotspot.journal) addJournal(state, hotspot.journal);
+    state.lastFeedback = {type:'neutral', text: refused ? 'Você não responde. A porta espera em silêncio, depois desiste.' : 'A porta absorve o nome com um rangido leve.'};
+  }
+  saveRun();
+}
+
+
+/* ===================== components — interface ===================== */
+
+function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function $(sel){ return document.querySelector(sel); }
+function $$(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+
+function render(){
+  const app = $('#app');
+  if (APP.screen==='start') app.innerHTML = renderStart();
+  else if (APP.screen==='room') app.innerHTML = renderTopbar()+renderRoomScreen();
+  else if (APP.screen==='map') app.innerHTML = renderTopbar()+renderMapScreen();
+  else if (APP.screen==='ending') app.innerHTML = renderEndingScreen();
+  attachHandlers();
+}
+
+function renderTopbar(){
+  const s = APP.state;
+  let pills = '<button class="pill '+(APP.screen==='room'?'active':'')+'" data-action="goScreen" data-arg="room">Sala</button>';
+  pills += '<button class="pill '+(APP.screen==='map'?'active':'')+'" data-action="goScreen" data-arg="map">Mapa</button>';
+  if (s && s.trueEndingReady){
+    pills += '<button class="pill" style="background:var(--myst);color:#f0e6cf;border-color:#2e2350;" data-action="goPortaZero">A Porta Zero</button>';
+  }
+  pills += '<button class="pill" data-action="resetGame">Recomeçar</button>';
+  return '<div class="topbar">'+
+    '<div class="brand"><div class="mark">🚪</div><div><div class="name">A Casa das 99 Portas</div><div class="sub">O Labirinto Que Aprendeu a Mentir</div></div></div>'+
+    '<div class="nav-pills">'+pills+'</div>'+
+  '</div>';
+}
+
+function renderStart(){
+  const hasSave = !!loadRun();
+  return '<div class="start-wrap">'+
+    '<h1>A Casa das 99 Portas</h1>'+
+    '<div class="subtitle">O Labirinto Que Aprendeu a Mentir</div>'+
+    '<div class="lore card dark" style="margin-top:22px;padding:18px;">'+
+      '<p>Elias Veyr construiu esta casa depois que sua filha, Amália, desapareceu dentro dela.</p><br>'+
+      '<p>Ele acreditava que toda mentira tinha uma arquitetura invisível — e tentou construir um labirinto capaz de separar a verdade da mentira, usando algo que só existe dentro de passagens: o Porteiro Sem Rosto.</p><br>'+
+      '<p>A tentativa falhou. A casa, agora, está viva.</p>'+
+    '</div>'+
+    (APP.meta.discoveredEndings.length ? '<div class="tiny muted" style="margin-top:14px;">Finais já descobertos: '+APP.meta.discoveredEndings.length+' de 12.</div>' : '')+
+    '<div class="name-prompt card" id="name-card">'+
+      '<p style="color:var(--ink-soft);font-style:italic;">A Casa pergunta: como devo chamar você?</p>'+
+      '<input type="text" id="start-name-input" placeholder="Seu nome..." maxlength="24">'+
+      '<div class="row center gap10" style="margin-top:14px;">'+
+        '<button class="btn gold" data-action="startWithName">Responder</button>'+
+        '<button class="btn ghost" data-action="startRefuse">Não responder</button>'+
+      '</div>'+
+      (hasSave ? '<div style="margin-top:18px;"><button class="btn sm" data-action="continueRun">Continuar partida salva</button></div>' : '')+
+    '</div>'+
+  '</div>';
+}
+
+function doorIsKnownLie(state, roomId, label){
+  return state.mapConnections.some(c=>c.from===roomId && c.doorLabel===label && c.suspicious);
+}
+
+function renderRoomScreen(){
+  const state = APP.state;
+  const room = getRoom(state.currentRoomId);
+  const isSecret = typeof state.currentRoomId === 'string';
+
+  let symbolsHtml = (room.symbols||[]).map(s=>'<div class="symbol-badge" title="'+esc(SYMBOLS[s].name)+'">'+SYMBOLS[s].ic+'</div>').join('');
+
+  let doorsHtml = (room.doors||[]).filter(door=>{
+    return !(door.hideIfForbidden && door.forbiddenFlag && hasFlag(state, door.forbiddenFlag));
+  }).map(door=>{
+    const unlockedAlready = state.unlockedDoors.indexOf(room.id+'_'+door.label)!==-1;
+    const showLocked = door.locked && !unlockedAlready;
+    const knownLie = doorIsKnownLie(state, room.id, door.label);
+    return '<div class="door" data-action="clickDoor" data-arg="'+door.label+'">'+
+      '<div class="frame'+(showLocked?' locked':'')+'">'+
+        '<div class="plaque">'+door.label+'</div>'+
+        (showLocked?'<div class="lock-icon">🔒</div>':'')+
+      '</div>'+
+      '<div class="door-label">'+(knownLie?'porta suspeita':'porta')+'</div>'+
+    '</div>';
+  }).join('');
+  if (!doorsHtml) doorsHtml = '<div class="tiny muted">Nenhuma porta visível aqui.</div>';
+
+  let hotspotsHtml = (room.hotspots||[]).map(h=>{
+    const used = h.oneTime && state.usedHotspots.indexOf(h.id)!==-1;
+    return '<div class="hotspot'+(used?' examined':'')+'" data-action="clickHotspot" data-arg="'+h.id+'">'+
+      '<span class="ic">🔎</span>'+esc(h.label)+
+    '</div>';
+  }).join('');
+  if (!hotspotsHtml) hotspotsHtml = '<div class="tiny muted">Nada mais chama atenção aqui.</div>';
+
+  let desc = room.desc;
+  if (room.changesIfFlag){
+    Object.keys(room.changesIfFlag).forEach(flagName=>{
+      if (hasFlag(state, flagName)) desc = room.changesIfFlag[flagName];
+    });
+  }
+
+  const feedback = state.lastFeedback ? '<div class="feedback-box '+(state.lastFeedback.type==='good'?'good':(state.lastFeedback.type==='bad'?'bad':''))+'">'+esc(state.lastFeedback.text)+'</div>' : '';
+  const narrator = state.narratorLine ? '<div class="narrator-line">"'+esc(state.narratorLine)+'"</div>' : '';
+  const puzzle = state.pendingPuzzle ? renderPuzzle(state, room) : '';
+
+  return '<div class="room-wrap">'+
+    '<div class="room-stage card paper-texture ink-border">'+
+      '<div class="room-head"><h2>'+esc(room.title)+'</h2><div class="rid">'+(isSecret?'SALA SECRETA':'SALA '+room.id)+'</div></div>'+
+      '<div class="room-illustration">'+
+        '<div class="symbol-row">'+symbolsHtml+'</div>'+
+        '<div class="doors-row">'+doorsHtml+'</div>'+
+        '<div class="hotspots-row">'+hotspotsHtml+'</div>'+
+      '</div>'+
+      '<div class="room-narration">'+esc(desc)+'</div>'+
+      narrator+feedback+puzzle+
+    '</div>'+
+    '<div class="side-panel">'+
+      renderInventoryCard()+
+      renderSymbolsCard()+
+      renderJournalCard()+
+    '</div>'+
+  '</div>';
+}
+
+function renderPuzzle(state, room){
+  const p = state.pendingPuzzle;
+  const h = (room.hotspots||[]).find(x=>x.id===p.hid);
+  if (!h) return '';
+  if (p.type==='answer'){
+    return '<div class="feedback-box"><p style="margin-bottom:8px;">'+esc(h.desc)+'</p>'+
+      '<input type="text" id="puzzle-answer-input" placeholder="Sua resposta..." style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--ink-faint);">'+
+      '<div class="row gap8" style="margin-top:8px;"><button class="btn sm gold" data-action="submitAnswer" data-arg="'+h.id+'">Responder</button>'+
+      '<button class="btn sm ghost" data-action="cancelPuzzle">Cancelar</button></div></div>';
+  }
+  if (p.type==='sequence'){
+    return '<div class="feedback-box"><p style="margin-bottom:8px;">'+esc(h.desc)+'</p>'+
+      '<div class="row gap6"><input type="number" min="1" max="6" id="seq-1" style="width:50px;padding:6px;text-align:center;">'+
+      '<input type="number" min="1" max="6" id="seq-2" style="width:50px;padding:6px;text-align:center;">'+
+      '<input type="number" min="1" max="6" id="seq-3" style="width:50px;padding:6px;text-align:center;"></div>'+
+      '<div class="row gap8" style="margin-top:8px;"><button class="btn sm gold" data-action="submitSequence" data-arg="'+h.id+'">Girar manivelas</button>'+
+      '<button class="btn sm ghost" data-action="cancelPuzzle">Cancelar</button></div></div>';
+  }
+  if (p.type==='nameprompt'){
+    return '<div class="feedback-box"><p style="margin-bottom:8px;">'+esc(h.desc)+'</p>'+
+      '<input type="text" id="nameprompt-input" placeholder="Seu nome..." style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--ink-faint);">'+
+      '<div class="row gap8" style="margin-top:8px;"><button class="btn sm gold" data-action="submitNamePrompt" data-arg="'+h.id+'">Responder</button>'+
+      '<button class="btn sm ghost" data-action="refuseNamePrompt" data-arg="'+h.id+'">Não responder</button></div></div>';
+  }
+  return '';
+}
+
+function renderInventoryCard(){
+  const state = APP.state;
+  let itemsHtml = state.inventory.map(id=>{
+    const it = ITEMS[id];
+    return '<div class="inv-item'+(state.selectedItem===id?' selected':'')+'" data-action="selectItem" data-arg="'+id+'" title="'+esc(it.desc)+'">'+
+      '<span class="ic">'+it.ic+'</span>'+esc(it.name)+
+    '</div>';
+  }).join('');
+  if (!itemsHtml) itemsHtml = '<div class="inv-empty">Nenhum item ainda.</div>';
+  return '<div class="card"><h4>Inventário</h4><div class="inv-grid">'+itemsHtml+'</div>'+
+    (state.selectedItem ? '<div class="selected-hint">Selecionado: '+esc(ITEMS[state.selectedItem].name)+' — clique numa porta ou objeto para usar. <button class="btn ghost sm" style="margin-top:6px;" data-action="deselectItem">Soltar item</button></div>' : '<div class="selected-hint">Selecione um item e clique numa porta ou objeto pra usá-lo.</div>')+
+  '</div>';
+}
+
+function renderSymbolsCard(){
+  const state = APP.state;
+  let html = state.discoveredSymbols.map(id=>{
+    const s = SYMBOLS[id];
+    return '<div class="tiny" style="margin-bottom:6px;"><b>'+s.ic+' '+esc(s.name)+'</b> — '+esc(s.meaning)+'</div>';
+  }).join('');
+  if (!html) html = '<div class="tiny muted">Nenhum símbolo compreendido ainda.</div>';
+  return '<div class="card"><h4>Símbolos ('+state.discoveredSymbols.length+'/9)</h4>'+html+'</div>';
+}
+
+function renderJournalCard(){
+  const state = APP.state;
+  let entries = state.journalEntries.slice().reverse().map(e=>'<div class="journal-entry">'+esc(e)+'</div>').join('');
+  if (!entries) entries = '<div class="journal-empty">O diário está vazio.</div>';
+  return '<div class="card"><h4>Diário</h4><div class="journal-list">'+entries+'</div></div>';
+}
+
+function renderMapScreen(){
+  const state = APP.state;
+  const rooms = {};
+  state.mapConnections.forEach(c=>{
+    if (!rooms[c.from]) rooms[c.from] = [];
+    rooms[c.from].push(c);
+  });
+  let rows = Object.keys(rooms).map(fromId=>{
+    const fromRoom = getRoom(isNaN(fromId)?fromId:parseInt(fromId,10));
+    const conns = rooms[fromId].map(c=>{
+      const toRoom = getRoom(c.to);
+      return '<div class="tiny" style="padding:4px 0;">Sala '+fromId+' → Porta '+c.doorLabel+' → '+(toRoom?esc(toRoom.title)+' (Sala '+c.to+')':'???')+
+        (c.suspicious?' <span style="color:var(--danger);font-weight:700;">[conexão suspeita]</span>':'')+
+      '</div>';
+    }).join('');
+    return '<div style="margin-bottom:10px;"><b>'+(fromRoom?esc(fromRoom.title):'Sala '+fromId)+'</b>'+conns+'</div>';
+  }).join('');
+  if (!rows) rows = '<div class="tiny muted">Nenhuma porta explorada ainda. O mapa começa vazio.</div>';
+  return '<div class="map-wrap card paper-texture ink-border" style="padding:18px;">'+
+    '<h3 style="margin-bottom:10px;">Mapa Parcial</h3>'+
+    '<div class="tiny muted" style="margin-bottom:14px;">O mapa mostra só o que você já descobriu andando. Conexões suspeitas podem não levar aonde dizem.</div>'+
+    '<div class="map-svg-wrap" style="padding:12px;">'+rows+'</div>'+
+    '<div class="map-legend"><div class="lg"><span class="sw" style="background:var(--danger);"></span>conexão suspeita</div>'+
+    '<div class="lg">Salas visitadas: '+state.visitedRooms.length+' / 72</div>'+
+    '<div class="lg">Salas secretas encontradas: '+state.discoveredSecrets.length+' / 15</div></div>'+
+  '</div>';
+}
+
+function renderEndingScreen(){
+  const state = APP.state;
+  const ending = ENDINGS[state.currentEndingId];
+  return '<div class="ending-wrap">'+
+    '<div class="ending-badge'+(ending.trueEnding?' true-ending':'')+'">'+esc(ending.title)+'</div>'+
+    '<div class="card dark ink-border" style="padding:22px;"><div class="ending-text">'+esc(ending.text)+'</div></div>'+
+    '<div class="tiny muted" style="margin-top:14px;">Finais descobertos: '+APP.meta.discoveredEndings.length+' de 12.</div>'+
+    '<div class="row center gap10" style="margin-top:20px;">'+
+      '<button class="btn gold" data-action="playAgain">Jogar novamente</button>'+
+      '<button class="btn ghost" data-action="resetGame">Recomeçar do zero</button>'+
+    '</div>'+
+  '</div>';
+}
+
+function attachHandlers(){
+  const app = $('#app');
+  app.onclick = function(e){
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const action = el.getAttribute('data-action');
+    const arg = el.getAttribute('data-arg');
+    handleAction(action, arg);
+  };
+}
+
+function handleAction(action, arg){
+  const state = APP.state;
+  switch(action){
+    case 'startWithName': {
+      const val = ($('#start-name-input')||{}).value || '';
+      APP.state = newRunState(val.trim()||null, false);
+      APP.screen = 'room';
+      goToRoom(APP.state, 1, false);
+      render();
+      break;
+    }
+    case 'startRefuse': {
+      APP.state = newRunState(null, true);
+      APP.screen = 'room';
+      goToRoom(APP.state, 1, false);
+      render();
+      break;
+    }
+    case 'continueRun': {
+      const saved = loadRun();
+      if (saved) { APP.state = saved; APP.screen = 'room'; render(); }
+      break;
+    }
+    case 'goScreen': APP.screen = arg; render(); break;
+    case 'goPortaZero': {
+      enterSecretRoom(state, 's15');
+      APP.screen = 'room';
+      render();
+      break;
+    }
+    case 'clickDoor': {
+      const room = getRoom(state.currentRoomId);
+      const door = (room.doors||[]).find(d=>String(d.label)===String(arg));
+      if (door) useDoor(state, room, door);
+      checkGameOver();
+      render();
+      break;
+    }
+    case 'clickHotspot': {
+      const room = getRoom(state.currentRoomId);
+      const h = (room.hotspots||[]).find(x=>x.id===arg);
+      if (h) useHotspot(state, room, h);
+      checkGameOver();
+      render();
+      break;
+    }
+    case 'selectItem': state.selectedItem = (state.selectedItem===arg?null:arg); render(); break;
+    case 'deselectItem': state.selectedItem = null; render(); break;
+    case 'submitAnswer': {
+      const room = getRoom(state.currentRoomId);
+      const h = (room.hotspots||[]).find(x=>x.id===arg);
+      const val = ($('#puzzle-answer-input')||{}).value || '';
+      if (h) submitAnswerPuzzle(state, h, val);
+      render();
+      break;
+    }
+    case 'submitSequence': {
+      const room = getRoom(state.currentRoomId);
+      const h = (room.hotspots||[]).find(x=>x.id===arg);
+      const s1=($('#seq-1')||{}).value||'', s2=($('#seq-2')||{}).value||'', s3=($('#seq-3')||{}).value||'';
+      if (h) submitSequencePuzzle(state, h, ''+s1+s2+s3);
+      checkGameOver();
+      render();
+      break;
+    }
+    case 'submitNamePrompt': {
+      const room = getRoom(state.currentRoomId);
+      const h = (room.hotspots||[]).find(x=>x.id===arg);
+      const val = ($('#nameprompt-input')||{}).value || '';
+      if (h) submitNamePrompt(state, h, false, val.trim());
+      checkGameOver();
+      render();
+      break;
+    }
+    case 'refuseNamePrompt': {
+      const room = getRoom(state.currentRoomId);
+      const h = (room.hotspots||[]).find(x=>x.id===arg);
+      if (h) submitNamePrompt(state, h, true, null);
+      checkGameOver();
+      render();
+      break;
+    }
+    case 'cancelPuzzle': state.pendingPuzzle = null; render(); break;
+    case 'playAgain': {
+      const keepName = APP.state ? APP.state.playerName : null;
+      const keepRefused = APP.state ? APP.state.refusedName : false;
+      APP.state = newRunState(keepName, keepRefused);
+      APP.screen = 'room';
+      goToRoom(APP.state, 1, false);
+      render();
+      break;
+    }
+    case 'resetGame': {
+      if (confirm('Isso vai apagar todo o progresso, incluindo finais descobertos. Continuar?')){
+        clearAll();
+        APP.meta = { discoveredEndings:[], badEndingsSeen:0 };
+        APP.state = null;
+        APP.screen = 'start';
+        render();
+      }
+      break;
+    }
+  }
+}
+
+function checkGameOver(){
+  if (APP.state && APP.state.gameOver) APP.screen = 'ending';
+}
+
+render();
+
+</script>
+</body>
+</html>
