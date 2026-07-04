@@ -131,6 +131,9 @@ p{margin:0;}
 .game-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .stat-box{padding:8px 12px;border-radius:11px;background:rgba(140,120,255,.08);border:1px solid var(--line);font-size:12px;text-align:center;min-width:64px;}
 .stat-box b{display:block;font-size:16px;color:var(--gold2);}
+.stat-box.combo-box{background:rgba(255,140,60,.12);border-color:rgba(255,140,60,.4);animation:comboGlow 1.4s ease-in-out infinite;}
+.stat-box.combo-box b{color:#ffb454;}
+@keyframes comboGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,140,60,.25);}50%{box-shadow:0 0 14px 2px rgba(255,140,60,.35);}}
 
 .mystery-stage{padding:26px 20px;text-align:center;position:relative;}
 .mystery-card{
@@ -192,14 +195,17 @@ p{margin:0;}
 .hist-item{padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.03);border:1px solid var(--line);font-size:12.5px;animation:slideFade .3s ease;}
 .hist-item .q{font-weight:700;}
 .hist-item .a{margin-top:3px;}
-.suggest-item{padding:9px 11px;border-radius:10px;background:rgba(140,120,255,.07);border:1px solid var(--line);margin-top:8px;cursor:pointer;transition:background .15s;}
-.suggest-item:hover{background:rgba(140,120,255,.16);}
-.suggest-item .lbl{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;}
-.suggest-item .qt{font-size:13px;font-weight:700;margin-top:3px;}
+.suggest-item{padding:10px 12px;border-radius:10px;background:rgba(140,120,255,.07);border:1px solid var(--line);margin-top:8px;cursor:pointer;transition:background .15s, transform .15s;display:flex;gap:10px;align-items:flex-start;}
+.suggest-item:hover{background:rgba(140,120,255,.16);transform:translateX(2px);}
+.suggest-item:active{transform:scale(.98);}
+.suggest-item .rank{flex-shrink:0;width:24px;height:24px;border-radius:999px;background:rgba(140,120,255,.15);color:var(--mystery2);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.suggest-item.best{border-color:rgba(242,201,76,.5);background:rgba(242,201,76,.08);box-shadow:0 0 0 1px rgba(242,201,76,.15), 0 8px 20px rgba(242,201,76,.08);animation:bestPulse 2.4s ease-in-out infinite;}
+.suggest-item.best .rank{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#3a2a00;}
+@keyframes bestPulse{0%,100%{box-shadow:0 0 0 1px rgba(242,201,76,.15),0 8px 20px rgba(242,201,76,.06);}50%{box-shadow:0 0 0 1px rgba(242,201,76,.3),0 8px 26px rgba(242,201,76,.18);}}
+.suggest-item .qt{font-size:13.5px;font-weight:700;}
 .suggest-item .why{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.4;}
-.suggest-item.segura .lbl{color:var(--green);}
-.suggest-item.agressiva .lbl{color:var(--gold);}
-.suggest-item.criativa .lbl{color:var(--mystery2);}
+.suggest-header{font-size:12.5px;color:var(--muted);margin-bottom:2px;}
+.suggest-card{border-color:rgba(140,120,255,.3);background:linear-gradient(180deg,rgba(120,90,255,.08),rgba(20,18,42,.6));}
 
 /* ---------- REPORT / REVIEW ---------- */
 .grade-badge{
@@ -2263,23 +2269,28 @@ function estimateReduction(q,pool){
   const no=pool.length-yes;
   return {reduction:(Math.min(yes,no)/pool.length)*2, yes, no};
 }
-function nextSuggestions(state,n){
+/* Escolhe entre 1 e 6 perguntas — nunca com base na identidade secreta, só em
+   quanto cada pergunta do banco divide o campo de candidatos ATUAL (o que já
+   foi deduzido pelas respostas anteriores). Quantas aparecem é dinâmico: se só
+   uma pergunta é claramente a melhor, mostra só ela; se várias estão empatadas
+   num nível bom, mostra todas (até 6). */
+function nextSuggestions(state,maxN){
+  maxN = maxN||6;
   const pool=state.candidates;
   if(pool.length<=1){
-    return [{label:'segura',text:'Chute o nome agora!',why:'Só resta '+pool.length+' candidato possível — é hora de arriscar a resposta final.'}];
+    return [{rank:1,text:'Chute o nome agora!',why:'Só resta '+pool.length+' candidato possível — é hora de arriscar a resposta final.',isGuess:true}];
   }
   const scored = QUESTION_BANK.map(q=>({q,...estimateReduction(q,pool)})).filter(x=>x.yes>0 && x.no>0);
   scored.sort((a,b)=>b.reduction-a.reduction);
-  const used=new Set(); const picks=[];
-  const pickByType=(types)=>scored.find(x=>!used.has(x.q.id) && types.includes(x.q.type));
-  const splitTxt=(x)=>'Divide o campo em '+x.yes+' (sim) x '+x.no+' (não), de '+pool.length+' candidatos restantes.';
-  const segura = pickByType(['category']) || scored.find(x=>!used.has(x.q.id));
-  if(segura){picks.push({q:segura.q,label:'segura',why:splitTxt(segura)+' Pergunta ampla e simples de responder.'});used.add(segura.q.id);}
-  const agressiva = pickByType(['media','role']) || scored.find(x=>!used.has(x.q.id));
-  if(agressiva){picks.push({q:agressiva.q,label:'agressiva',why:splitTxt(agressiva)+' Aposta numa área ou papel que pode confirmar bastante coisa de uma vez.'});used.add(agressiva.q.id);}
-  const criativa = pickByType(['specific']) || scored.find(x=>!used.has(x.q.id));
-  if(criativa){picks.push({q:criativa.q,label:'criativa',why:splitTxt(criativa)+' Explora uma característica que poucos pensariam em perguntar agora.'});used.add(criativa.q.id);}
-  return picks.slice(0,n).map(p=>({label:p.label,text:p.q.text,why:p.why}));
+  if(!scored.length) return [];
+  const top = scored[0].reduction;
+  const threshold = Math.max(0.08, top-0.22);
+  const chosen = scored.filter(x=>x.reduction>=threshold).slice(0,maxN);
+  return chosen.map((x,i)=>({
+    rank:i+1,
+    text:x.q.text,
+    why:'Divide os '+pool.length+' candidatos restantes em '+x.yes+' (sim) x '+x.no+' (não).',
+  }));
 }
 /* ===================== fase do funil (Treino Guiado) ===================== */
 function funnelPhase(pool){
@@ -2289,6 +2300,16 @@ function funnelPhase(pool){
   const areas=new Set(pool.map(c=>c.area));
   if(areas.size>1) return {n:2,total:4,label:'Mídia / área'};
   return {n:3,total:4,label:'Papel e características'};
+}
+/* ===================== combo de perguntas boas seguidas ===================== */
+function comboStreak(state){
+  let c=0;
+  for(let i=state.log.length-1;i>=0;i--){
+    const q=state.log[i].quality;
+    if(q==='excellent'||q==='good') c++;
+    else break;
+  }
+  return c;
 }
 /* ===================== "o que você já sabe" (Treino Guiado) ===================== */
 function funnelStepperHtml(pool){
@@ -2484,8 +2505,12 @@ const DIFF_LABELS={todas:'Todas',easy:'Fácil',medium:'Médio',hard:'Difícil',e
 function difficultyLabel(v){return DIFF_LABELS[v]||v;}
 const QUALITY_LABELS={excellent:'Excelente',good:'Boa',weak:'Fraca',redundant:'Redundante',ambiguous:'Ambígua',bad:'Chute cedo',win:'Vitória!'};
 function qualityLabel(v){return QUALITY_LABELS[v]||v;}
-const SUGGEST_LABELS={segura:'Segura',agressiva:'Agressiva',criativa:'Criativa'};
-function labelName(v){return SUGGEST_LABELS[v]||v;}
+function bestQHeader(n){
+  if(n<=1) return 'Com base em tudo que você já sabe, a melhor pergunta pra fazer agora é esta:';
+  if(n===2) return 'Estas são as duas melhores perguntas pra fazer agora — essa ou essa:';
+  if(n<=6) return 'Estas são as '+n+' melhores perguntas pra fazer agora:';
+  return 'Melhores perguntas pra fazer agora:';
+}
 function initialsOf(name){const parts=(name||'').replace(/[()]/g,'').split(' ').filter(Boolean);return ((parts[0]||'')[0]||'').toUpperCase()+((parts[1]||'')[0]||'').toUpperCase();}
 
 /* ===================== renderização — telas ===================== */
@@ -2567,8 +2592,11 @@ function historyItemHtml(l){
   return `<div class="hist-item"><div class="q">${escapeHtml(l.rawText)}</div><div class="a">${answerBubbleHtml(l)} ${l.questionType&&l.questionType!=='guess'?`<span class="q-tag ${l.quality}">${qualityLabel(l.quality)}</span>`:''}</div></div>`;
 }
 function suggestionsHtml(st){
-  const list=nextSuggestions(st,3);
-  return list.map(s=>`<div class="suggest-item ${s.label}" data-action="useSuggestion" data-arg="${escapeAttr(s.text)}"><div class="lbl">${labelName(s.label)}</div><div class="qt">${s.text}</div><div class="why">${s.why}</div></div>`).join('');
+  const list=nextSuggestions(st,6);
+  if(!list.length) return '<p class="tiny muted mt6">Nenhuma pergunta do banco ajudaria mais agora — tente um chute.</p>';
+  const header=`<div class="suggest-header">${bestQHeader(list.length)}</div>`;
+  const items=list.map(s=>`<div class="suggest-item ${s.rank===1?'best':''}" data-action="useSuggestion" data-arg="${escapeAttr(s.text)}"><div class="rank">${s.isGuess?'🎯':s.rank}</div><div><div class="qt">${s.text}</div><div class="why">${s.why}</div></div></div>`).join('');
+  return header+items;
 }
 function renderGame(){
   const st=APP.game;
@@ -2579,7 +2607,8 @@ function renderGame(){
   const isLivre=st.mode==='livre';
   const isDaily=st.mode==='daily';
   const lastLog=st.log[st.log.length-1];
-  const showSuggestPanel = isTreino || st.showSuggestions;
+  const showSuggestPanel = isTreino || isLivre || st.showSuggestions;
+  const combo=comboStreak(st);
   return topbarHtml('home')+`
    <div class="game-top">
      <div class="row gap8 wrap">
@@ -2587,9 +2616,11 @@ function renderGame(){
        <div class="stat-box"><b>${st.candidates.length}</b>possíveis</div>
        <div class="stat-box"><b>${difficultyLabel(st.difficulty)}</b>dificuldade</div>
        ${isDaily?'<div class="stat-box"><b>📅</b>diário</div>':''}
+       ${combo>=2?`<div class="stat-box combo-box"><b>🔥${combo}</b>combo</div>`:''}
      </div>
      <div class="row gap8">
-       ${(isLivre||isDaily)&&!revealed?`<button class="btn ghost sm" data-action="useHint">💡 Dica</button>`:''}
+       <button class="btn ghost sm" data-action="toggleSound" title="Ligar/desligar som">${APP.soundMuted?'🔇':'🔊'}</button>
+       ${isDaily&&!revealed?`<button class="btn ghost sm" data-action="useHint">💡 Dica</button>`:''}
        ${!revealed?`<button class="btn red sm" data-action="giveUp">Revelar / Desistir</button>`:''}
      </div>
    </div>
@@ -2612,6 +2643,10 @@ function renderGame(){
            <button class="btn" data-action="askQuestion">Perguntar</button>
          </div>
          <div class="quick-qs">${quickQuestionChips(st)}</div>
+         <div class="card suggest-card" style="margin-top:14px;text-align:left">
+           <div class="row between"><b>🎯 Melhores Perguntas Agora</b></div>
+           <div id="suggest-wrap" class="mt6">${showSuggestPanel? suggestionsHtml(st) : '<p class="tiny muted mt6">Clique em "💡 Dica" pra ver as melhores perguntas (conta como uma dica usada).</p>'}</div>
+         </div>
          `:`
          <div class="row" style="justify-content:center;margin-top:16px">
            <button class="btn gold" data-action="finishMatch">Ver relatório final</button>
@@ -2631,11 +2666,6 @@ function renderGame(){
        <div class="card">
          <div class="row between"><b>O que você já sabe</b></div>
          ${knownFactsHtml(st)}
-       </div>`:''}
-       ${!revealed?`
-       <div class="card">
-         <div class="row between"><b>Próxima Melhor Pergunta</b></div>
-         <div id="suggest-wrap" class="mt6">${showSuggestPanel? suggestionsHtml(st) : '<p class="tiny muted mt6">Clique em "💡 Dica" pra ver 3 opções (conta como uma dica usada).</p>'}</div>
        </div>`:''}
      </div>
    </div>
@@ -2785,6 +2815,41 @@ function renderLessons(){
   </div>`;
 }
 
+/* ===================== som (sintetizado via Web Audio API, sem arquivos externos) ===================== */
+let AUDIO_CTX=null;
+function getAudioCtx(){
+  if(APP.soundMuted) return null;
+  if(!AUDIO_CTX){ try{ AUDIO_CTX=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){return null;} }
+  if(AUDIO_CTX.state==='suspended') AUDIO_CTX.resume();
+  return AUDIO_CTX;
+}
+function tone(freq,startDelay,dur,type,vol){
+  const ctx=getAudioCtx(); if(!ctx) return;
+  const t0=ctx.currentTime+(startDelay||0);
+  const osc=ctx.createOscillator(); const gain=ctx.createGain();
+  osc.type=type||'sine'; osc.frequency.setValueAtTime(freq,t0);
+  gain.gain.setValueAtTime(0,t0);
+  gain.gain.linearRampToValueAtTime(vol!=null?vol:0.14,t0+0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001,t0+(dur||0.18));
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(t0); osc.stop(t0+(dur||0.18)+0.02);
+}
+function sfxClick(){tone(720,0,0.05,'square',0.05);}
+function sfxAsk(){tone(500,0,0.06,'triangle',0.08);}
+function sfxYes(){tone(660,0,0.09,'sine',0.12);tone(880,0.05,0.14,'sine',0.1);}
+function sfxNo(){tone(300,0,0.12,'sine',0.11);tone(220,0.06,0.16,'sine',0.09);}
+function sfxAmbiguous(){tone(440,0,0.1,'triangle',0.08);tone(415,0.09,0.14,'triangle',0.07);}
+function sfxExcellent(){[523,659,784,1047].forEach((f,i)=>tone(f,i*0.055,0.18,'triangle',0.11));}
+function sfxWin(){[523,659,784,1047,1319].forEach((f,i)=>tone(f,i*0.09,0.32,'triangle',0.13));}
+function sfxWrong(){tone(180,0,0.2,'sawtooth',0.09);tone(140,0.1,0.28,'sawtooth',0.08);}
+function sfxAchievement(){[784,988,1175,1568].forEach((f,i)=>tone(f,i*0.07,0.22,'sine',0.12));}
+function toggleSound(){
+  APP.soundMuted=!APP.soundMuted;
+  try{localStorage.setItem('qse_sound_muted',APP.soundMuted?'1':'0');}catch(e){}
+  if(!APP.soundMuted) sfxClick();
+  render();
+}
+
 /* ===================== FX ===================== */
 function spawnConfetti(){
   const layer=document.getElementById('fx-layer'); if(!layer) return;
@@ -2815,10 +2880,11 @@ function focusAskInput(){setTimeout(()=>{const el=document.getElementById('ask-i
 function goHome(){APP.screen='home';render();}
 function goSetup(mode){APP.screen='setup';APP.setup={mode,difficulty:(APP.setup&&APP.setup.difficulty)||'todas',category:(APP.setup&&APP.setup.category)||'todos'};
   if(mode==='professor'){APP.screen='lessons';APP.lessonIdx=0;}
+  sfxClick();
   render();
 }
-function selectDifficulty(v){APP.setup.difficulty=v;render();}
-function selectCategory(v){APP.setup.category=v;render();}
+function selectDifficulty(v){APP.setup.difficulty=v;sfxClick();render();}
+function selectCategory(v){APP.setup.category=v;sfxClick();render();}
 function goStats(){APP.screen='stats';render();}
 function goAchievements(){APP.screen='achievements';render();}
 function gotoLesson(i){APP.lessonIdx=parseInt(i,10);render();}
@@ -2836,6 +2902,7 @@ function startGame(mode){
   }
   APP.game.showSuggestions=(mode==='treino');
   APP.screen='game';
+  sfxClick();
   render();
   focusAskInput();
 }
@@ -2843,19 +2910,24 @@ function askQuestion(){
   const el=document.getElementById('ask-input'); if(!el) return;
   const text=el.value.trim(); if(!text) return;
   el.value='';
+  sfxAsk();
   submitQuestion(text);
 }
-function quickQuestion(id){const q=QUESTION_BANK.find(x=>x.id===id); if(q) submitQuestion(q.text);}
-function useSuggestion(text){submitQuestion(text);}
+function quickQuestion(id){const q=QUESTION_BANK.find(x=>x.id===id); if(q){sfxAsk();submitQuestion(q.text);}}
+function useSuggestion(text){sfxAsk();submitQuestion(text);}
 function submitQuestion(text){
   const st=APP.game; if(!st||st.finished) return;
   const result=analyzeQuestion(text,st);
   st.log.push(result);
   render();
   focusAskInput();
-  if(result.win){ spawnConfetti(); setTimeout(()=>finishMatch(),900); }
-  else if(result.wrongGuess){ flashRed(); }
-  else if(result.quality==='excellent'){ showGreatQFx('Excelente pergunta!'); }
+  if(result.win){ spawnConfetti(); sfxWin(); setTimeout(()=>finishMatch(),900); }
+  else if(result.wrongGuess){ flashRed(); sfxWrong(); }
+  else if(result.quality==='ambiguous'){ sfxAmbiguous(); }
+  else if(result.quality==='excellent'){ showGreatQFx('Excelente pergunta!'); sfxExcellent(); }
+  else if(result.answer==='Sim.'){ sfxYes(); }
+  else if(result.answer==='Não.'){ sfxNo(); }
+  else { sfxAmbiguous(); }
 }
 function useHint(){
   const st=APP.game; if(!st) return;
@@ -2865,6 +2937,7 @@ function useHint(){
 function giveUp(){
   const st=APP.game; if(!st) return;
   st.finished=true; st.won=false;
+  sfxWrong();
   render();
 }
 function finishMatch(){
@@ -2890,12 +2963,13 @@ function finishMatch(){
   saveProfile(APP.profile);
   APP.screen='report';
   render();
+  if(unlocked.length) setTimeout(()=>sfxAchievement(),350);
 }
 function openReview(){APP.screen='review';render();}
 function backReport(){APP.screen='report';render();}
 
 /* ===================== boot ===================== */
-const ACTIONS={goHome,goSetup,selectDifficulty,selectCategory,goStats,goAchievements,gotoLesson,prevLesson,nextLesson,answerQuiz,startGame,askQuestion,quickQuestion,useSuggestion,useHint,giveUp,finishMatch,openReview,backReport};
+const ACTIONS={goHome,goSetup,selectDifficulty,selectCategory,goStats,goAchievements,gotoLesson,prevLesson,nextLesson,answerQuiz,startGame,askQuestion,quickQuestion,useSuggestion,useHint,giveUp,finishMatch,openReview,backReport,toggleSound};
 function render(){
   const app=document.getElementById('app');
   let html='';
@@ -2912,7 +2986,7 @@ function render(){
   }
   app.innerHTML=html;
 }
-let APP={screen:'home',profile:loadProfile(),setup:{mode:null,difficulty:'todas',category:'todos'},lessonIdx:0,quizAnswered:{},game:null,lastUnlocked:[]};
+let APP={screen:'home',profile:loadProfile(),setup:{mode:null,difficulty:'todas',category:'todos'},lessonIdx:0,quizAnswered:{},game:null,lastUnlocked:[],soundMuted:(function(){try{return localStorage.getItem('qse_sound_muted')==='1';}catch(e){return false;}})()};
 
 const appEl=document.getElementById('app');
 appEl.addEventListener('click',function(e){
