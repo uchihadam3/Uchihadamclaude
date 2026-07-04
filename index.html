@@ -3161,8 +3161,13 @@ function openHero(id){
       </div>
     </div>
     <div class="panel" style="background:rgba(125,108,255,.12);border-color:var(--magic);padding:10px;margin-top:10px">
-      <b style="color:var(--magic-2)">⟡ Passiva — ${h.passive.name}</b>
+      <div class="row between" style="align-items:center">
+        <b style="color:var(--magic-2)">⟡ Passiva — ${h.passive.name}</b>
+        <span class="tiny" style="color:var(--gold)" title="A passiva fica mais forte nos níveis 25/50/75/100">Maestria ${passiveTierOf(lv)}/4</span>
+      </div>
       <p class="small mt6" style="margin:4px 0 0">${h.passive.desc}</p>
+      ${passiveTierOf(lv)>0?`<p class="tiny mt6" style="color:var(--ok);margin:4px 0 0">✦ Reforçada pelo nível: efeitos percentuais +${Math.round((passiveTierMult(lv)-1)*100)}%</p>`:''}
+      <p class="tiny muted mt6" style="margin:4px 0 0">${passiveTierOf(lv)<4?'Próxima evolução no Nível '+PASSIVE_LVL_TIERS[passiveTierOf(lv)]+'.':'Maestria máxima alcançada.'}</p>
     </div>
     <div class="row between mt"><h4>🎒 Equipamento</h4><button class="btn sm" onclick="autoEquipBest('${id}')">⚙️ Equipar melhores</button></div><div class="col mt6">${eq}</div>
     <div class="row between mt"><h4>✦ Habilidades</h4><span class="tiny" style="color:${activeCount>=slotCap?'var(--gold)':'var(--dim)'}">🎯 Ativas: ${activeCount}/${slotCap}</span></div>
@@ -4153,18 +4158,33 @@ function initRun(party,tides,startFloor,dungeon,diff){
   RUN.party.forEach(c=>applyPassiveStart(c));
   if(G.meta.flags.off_luck)RUN.party.forEach(c=>{c.st.lck+=3;});
 }
+/* ===== EVOLUÇÃO DA PASSIVA POR NÍVEL =====
+   Nos marcos 25/50/75/100 a passiva de cada herói fica mais forte: todo valor
+   percentual (tags fracionárias, <1) sobe +12% por marco alcançado, cumulativo.
+   Tags "tudo ou nada" (tank:1, reviveOnce:1, firstStrike:1, summon:'nome', etc.)
+   não escalam — já são o efeito completo, não uma porcentagem. */
+const PASSIVE_LVL_TIERS=[25,50,75,100];
+function passiveTierOf(level){let n=0;for(const t of PASSIVE_LVL_TIERS)if(level>=t)n++;return n;}
+function passiveTierMult(level){return 1+passiveTierOf(level)*0.12;}
+function heroPassiveTags(heroId,level){
+  const base=HMAP[heroId].passive.tags||{};
+  const mult=passiveTierMult(level||1);
+  const out={};
+  for(const k in base){const v=base[k];out[k]=(typeof v==='number'&&v<1)?v*mult:v;}
+  return out;
+}
 function buildCombatant(id){
   const h=HMAP[id];const st=G.meta.heroes[id];
   const level=st.level||1; const xp=st.xp||0; const s=heroStats(id,level);
   ensureActiveSkillsDefault(id);
   const active=st.activeSkills||[];
-  return {id,h,level,xp,maxhp:s.maxhp,hp:s.maxhp,st:s,alive:true,
+  return {id,h,level,xp,maxhp:s.maxhp,hp:s.maxhp,st:s,alive:true,passiveEff:heroPassiveTags(id,level),
     skills:knownSkills(id,level).filter(sk=>active.includes(sk.n)), // só as habilidades ATIVAS entram na incursão
     fx:{}, cd:{}, atb:0, turnCount:0, summons:[], anim:{x:0,hit:0}};
 }
 function computePartyPassives(){
   const p={};
-  RUN.party.forEach(c=>{const t=c.h.passive.tags||{};for(const k in t){
+  RUN.party.forEach(c=>{const t=c.passiveEff||c.h.passive.tags||{};for(const k in t){
     if(typeof t[k]==='number')p[k]=(p[k]||0)+t[k];else p[k]=t[k];
   }});
   // oferendas e pesquisas
@@ -5023,7 +5043,10 @@ function grantMaterial(minRar,cap){
   // tende ao material da raridade sorteada
   const exact=ITEMS.filter(i=>i.type==='mat'&&i.rarity===rar);
   const it=pick(exact.length?exact:pool);
-  if(!it)return;let qty=1;if(G.meta.research.meta_mat&&chance(0.3))qty=2;addItem(it.id,qty);
+  if(!it)return;let qty=1;if(G.meta.research.meta_mat&&chance(0.3))qty=2;
+  const mb=(typeof RUN!=='undefined'&&RUN&&RUN.passive&&RUN.passive.materialBonus)||0;
+  if(mb>0){qty+=Math.floor(mb);if(chance(mb-Math.floor(mb)))qty++;}
+  addItem(it.id,qty);
   logline('🧱 +'+qty+' <b style="color:'+RAR_COLOR[it.rarity]+'">'+it.name+'</b> <span class="tiny muted">('+RAR_NAME[it.rarity]+')</span>','lt');
   sfx(RARS.indexOf(it.rarity)>=2?'epic':'loot');
   if(!(typeof RUN!=='undefined'&&RUN))toast('🧱 '+it.name,it.rarity);
@@ -5103,12 +5126,18 @@ function grantXP(c,amt){
   refreshBars();
 }
 function levelUp(c){
+  const prevTier=passiveTierOf(c.level);
   c.level++;sfx('levelup');burstAt('hero',RUN.party.indexOf(c),'#ffd166');
   const ns=heroStats(c.id,c.level);
   const dh=ns.maxhp-c.maxhp;c.maxhp=ns.maxhp;c.hp=Math.min(c.maxhp,c.hp+dh);
   c.st=ns;applyPassiveStart(c);
+  c.passiveEff=heroPassiveTags(c.id,c.level);computePartyPassives();
   logline('⬆️ <b>'+c.h.name.split(',')[0]+'</b> subiu para o Nível '+c.level+'!','dn');
   floatText('hero',RUN.party.indexOf(c),'NÍVEL '+c.level,'#ffd166');
+  if(passiveTierOf(c.level)>prevTier){
+    logline('⟡ <b class="sc">A passiva de '+c.h.name.split(',')[0]+' evoluiu:</b> '+c.h.passive.name+' ficou mais forte!','sc');
+    toast('⟡ '+c.h.name.split(',')[0]+': '+c.h.passive.name+' evoluiu!','epico');
+  }
   // nova habilidade permanente?
   const newSkills=c.h.skills.filter(sk=>sk.lvl===c.level);
   newSkills.forEach(sk=>{c.skills.push(sk);
@@ -5134,7 +5163,7 @@ function tryRevive(c){
   }
   // revive de grupo (pesquisa) — uma vez por incursão
   if(!RUN._revivedParty){
-    const palaAlive=RUN.party.some(p=>p.alive&&p.h.passive.tags&&p.h.passive.tags.reviveOnce);
+    const palaAlive=RUN.party.some(p=>p.alive&&p.passiveEff&&p.passiveEff.reviveOnce);
     if(G.meta.research.meta_revive||RUN.passive.reviveOnce||palaAlive){
       RUN._revivedParty=true;c.alive=true;c.hp=Math.round(c.maxhp*0.5);
       logline('✨ <b>Pacto do Acampamento!</b> '+c.h.name.split(',')[0]+' renasce!','dn');
@@ -5274,9 +5303,9 @@ function beginCombat(enemies,opts){
   if(_audioReady)applyMusic();
   // ATB: zera as barras de todos — Maré/passiva de "primeiro golpe" já enche a do grupo
   enemies.forEach(e=>{e.atb=0;e.turnCount=0;});
-  RUN.party.forEach(c=>{c.atb=RUN.passive.firstStrike?100:0;});
+  RUN.party.forEach(c=>{c.atb=RUN.passive.firstStrike?100:0;c.comboN=0;});
   // invocações iniciais por passiva
-  RUN.party.filter(c=>c.alive).forEach(c=>{const sm=c.h.passive.tags&&c.h.passive.tags.summon;if(sm)spawnMinion(c,sm);});
+  RUN.party.filter(c=>c.alive).forEach(c=>{const sm=c.passiveEff&&c.passiveEff.summon;if(sm)spawnMinion(c,sm);});
   // consumíveis automáticos no início do combate (todo combate + só em chefes)
   runConsumableTrigger('combatStart',enemies);
   if(opts.boss)runConsumableTrigger('bossStart',enemies);
@@ -5525,7 +5554,7 @@ function hitEnemy(att,e,skill){
     if(f==='lifesteal'&&att.h){const heal=Math.round(r.dmg*0.12);att.hp=Math.min(att.maxhp,att.hp+heal);if(att.h)floatText('hero',RUN.party.indexOf(att),'+'+heal,'#7dff8f');}
   }
   // lifesteal por passiva
-  if(att.h&&att.h.passive.tags&&att.h.passive.tags.lifesteal){const heal=Math.round(r.dmg*att.h.passive.tags.lifesteal);att.hp=Math.min(att.maxhp,att.hp+heal);}
+  if(att.h&&att.passiveEff&&att.passiveEff.lifesteal){const heal=Math.round(r.dmg*att.passiveEff.lifesteal);att.hp=Math.min(att.maxhp,att.hp+heal);}
   // lifesteal de bênção do Abismo (todos os heróis)
   if(att.h&&RUN.abyssLifesteal){const heal=Math.round(r.dmg*RUN.abyssLifesteal);att.hp=Math.min(att.maxhp,att.hp+heal);}
   if(att.fx.critmax){att.fx.critmax--;}
@@ -5538,11 +5567,15 @@ function computeDamage(att,def,skill){
   let pow=skill?(skill.pow||1):1;let raw=base*pow;
   const heroAtt=!!att.h&&!att.isMinion;
   if(kind==='mag'&&RUN.passive.spellAmp)raw*=1+RUN.passive.spellAmp;
-  if(heroAtt&&att.h.passive.tags){const t=att.h.passive.tags;
+  if(heroAtt&&att.passiveEff){const t=att.passiveEff;
     if(RUN.passive.beastBane&&def.family==='fera')raw*=1+RUN.passive.beastBane;
     if(RUN.passive.bossBane&&def.boss)raw*=1+RUN.passive.bossBane;
     if(t.rage)raw*=1+t.rage*(1-att.hp/att.maxhp);
-    if(t.darkPower)raw*=1+t.darkPower;if(t.allMastery)raw*=1+t.allMastery;}
+    if(t.darkPower)raw*=1+t.darkPower;if(t.allMastery)raw*=1+t.allMastery;
+    if(t.shapeshift)raw*=1.22;   // Forma Selvagem: mais força na forma de fera
+    if(t.combo){att.comboN=(att.comboN||0)+1;
+      raw*=1+Math.min(0.36,(att.comboN-1)*0.09*passiveTierMult(att.level));}   // combos crescentes, mais fortes com o nível
+  }
   if(heroAtt&&RUN.dmgMul)raw*=RUN.dmgMul;                     // bênçãos do Abismo: +dano causado
   if(skill&&skill.el==='sagrado'&&(def.family==='morto-vivo'||def.family==='demonio'))raw*=1.6;
   if(def.fx&&def.fx.curse)raw*=1.25;
@@ -5592,8 +5625,8 @@ function killEnemy(e){if(e.dead)return;e.alive=false;e.dead=true;e.hp=0;
     const ess=runEssence(15+RUN.floor*4);grantEquipment(RUN.floor>=20?'lendario':'epico');grantMaterial('epico');
     if(chance(0.2))grantSecretKey();sfx('secret');}
   // domar fera?
-  const tamer=RUN.party.find(c=>c.alive&&c.h.passive.tags&&c.h.passive.tags.tameChance);
-  if(tamer&&e.family==='fera'&&chance(tamer.h.passive.tags.tameChance)){
+  const tamer=RUN.party.find(c=>c.alive&&c.passiveEff&&c.passiveEff.tameChance);
+  if(tamer&&e.family==='fera'&&chance(tamer.passiveEff.tameChance)){
     G.meta.tamedCount++;saveGame();spawnMinion(tamer,'fera');
     logline('🐾 '+actorName(tamer)+' domou '+e.name+'!','sc');checkUnlocks();
   }
@@ -5611,7 +5644,11 @@ function winCombat(){
 }
 function chooseHeroTarget(){
   const tauntHero=RUN.party.find(c=>c.alive&&c.fx.taunt>0);
-  return tauntHero||pick(allies());
+  if(tauntHero)return tauntHero;
+  // passiva "tank" (Muralha, Juramento Sagrado): atrai ataques mesmo sem provocar ativamente
+  const tanks=RUN.party.filter(c=>c.alive&&c.passiveEff&&c.passiveEff.tank);
+  if(tanks.length&&chance(0.6))return pick(tanks);
+  return pick(allies());
 }
 // o "kit" de habilidades do inimigo: chefes usam de verdade os IDs do seu array `skills`;
 // inimigos comuns usam a habilidade de assinatura da FAMÍLIA deles
@@ -5677,7 +5714,7 @@ function performEnemySkill(e,skill){
 }
 function applyDamageToHero(c,dmg,crit,attacker,kind){
   const idx=RUN.party.indexOf(c);
-  const t=(c.h&&c.h.passive.tags)||{};
+  const t=c.passiveEff||{};
   let avoid=(t.dodge||0)+(t.phase||0);if(c.fx.evade)avoid=1;
   if(avoid>0&&chance(avoid)){if(idx>=0)floatText('hero',idx,'esquiva!','#67d8ff');logline(actorName(c)+' esquiva do golpe!','muted');c.fx.evade=0;return;}
   if(RUN.passive.enemyDmg)dmg=Math.round(dmg*(1+RUN.passive.enemyDmg));   // marés que reforçam inimigos
