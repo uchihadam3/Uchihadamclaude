@@ -857,7 +857,7 @@ const HEROES=[
  pal:{H:'#5a3a22',S:'#e8b888',e:'#2a1a20',K:'#e8b888',A:'#8a8f98',B:'#c8324a',P:'#3a3f48',O:'#23262c',M:'#d6dde6',W:'#7a5a36'},
  base:{hp:70,atk:12,def:11,mag:2,spd:6,lck:5},
  growth:{hp:13,atk:1.9,def:1.7,mag:.4,spd:.8,lck:.7},
- passive:{name:'Muralha',tags:{tank:1,thorns:0.12},
+ passive:{name:'Muralha',tags:{tank:0.6,thorns:0.12},
    desc:'Atrai os ataques inimigos para proteger o grupo e reflete 12% do dano recebido.'},
  skills:[
   SK('Talho Pesado',1,'phys',1.4,'one',{fx:'armorBreak',txt:'Corte brutal que racha a armadura do alvo (−defesa dele).'}),
@@ -952,7 +952,7 @@ const HEROES=[
  head:'helm',weapon:'sword',
  pal:{H:'#caa15a',S:'#f0c08a',e:'#2a1a30',K:'#f0c08a',A:'#e8e8f0',B:'#ffd166',P:'#9aa0b0',O:'#6a7080',M:'#fff0c0',W:'#7a5a36'},
  base:{hp:74,atk:11,def:12,mag:8,spd:6,lck:7},growth:{hp:13,atk:1.6,def:1.8,mag:1.2,spd:.8,lck:.9},
- passive:{name:'Juramento Sagrado',tags:{tank:1,reviveOnce:1},desc:'Protege o grupo e, uma vez por incursão, ressuscita automaticamente ao cair.'},
+ passive:{name:'Juramento Sagrado',tags:{tank:0.6,reviveOnce:1,partyDef:0.05},desc:'Protege o grupo (+5% de defesa) e, uma vez por incursão, ressuscita automaticamente ao cair.'},
  skills:[SK('Espada de Luz',1,'phys',1.4,'one',{el:'sagrado'}),SK('Escudo Divino',3,'buff',0,'allies',{fx:'shield'}),
   SK('Toque Restaurador',5,'heal',1.3,'ally',{txt:'Canaliza a luz para curar o aliado mais ferido.'}),
   SK('Punição',8,'mag',1.8,'one',{el:'sagrado',fx:'stun',txt:'Forte contra o mal; pode atordoar.'}),
@@ -998,7 +998,7 @@ const HEROES=[
  head:'hood',weapon:'orb',
  pal:{H:'#5a8aff',S:'#ecc09a',e:'#67d8ff',K:'#ecc09a',A:'#2a3a8a',B:'#67d8ff',P:'#1a2256',O:'#101640',D:'#2a3a8a',C:'#67d8ff',W:'#7a5a36'},
  base:{hp:44,atk:5,def:6,mag:13,spd:8,lck:9},growth:{hp:7,atk:.6,def:1,mag:2.2,spd:1.1,lck:1.2},
- passive:{name:'Pacto Elemental',tags:{summon:'elemental'},desc:'Invoca um espírito elemental aleatório a cada combate, com poder próprio.'},
+ passive:{name:'Pacto Elemental',tags:{summon:'elemental',spellAmp:0.06},desc:'Invoca um espírito elemental aleatório a cada combate, com poder próprio, e +6% de dano mágico do grupo por afinidade com os elementos.'},
  skills:[SK('Espírito Flamejante',1,'mag',1.5,'one',{el:'fogo',fx:'burn'}),
   SK('Espírito Gélido',3,'mag',1.5,'one',{el:'gelo',fx:'slow'}),
   SK('Convocar Golem',6,'buff',0,'self',{fx:'summon'}),
@@ -1021,7 +1021,7 @@ const HEROES=[
  head:'none',weapon:'staff',
  pal:{H:'#3a6a2a',S:'#d8b888',e:'#5fd17a',K:'#d8b888',A:'#5a7a3a',B:'#8a5a2a',P:'#3a4a22',O:'#1a2410',G:'#5fd17a',W:'#5a3a1a'},
  base:{hp:56,atk:9,def:8,mag:11,spd:8,lck:8},growth:{hp:10,atk:1.4,def:1.3,mag:1.7,spd:1.1,lck:1},
- passive:{name:'Forma Selvagem',tags:{shapeshift:1,healRoom:0.009},desc:'Transforma-se em fera no combate (mais ataque) e regenera 0,9% por sala.'},
+ passive:{name:'Forma Selvagem',tags:{shapeshift:0.22,healRoom:0.009},desc:'Transforma-se em fera no combate (+22% de dano) e regenera 0,9% por sala.'},
  skills:[SK('Garras',1,'phys',1.4,'one',{fx:'bleed',txt:'Garras selvagens que rasgam e sangram.'}),SK('Espinhos',3,'mag',1.3,'all',{el:'veneno',fx:'poison'}),
   SK('Toque da Vida',5,'heal',1.5,'ally'),
   SK('Casca Grossa',8,'buff',0,'allies',{fx:'resist',txt:'A pele do grupo endurece como casca de carvalho.'}),
@@ -5572,7 +5572,7 @@ function computeDamage(att,def,skill){
     if(RUN.passive.bossBane&&def.boss)raw*=1+RUN.passive.bossBane;
     if(t.rage)raw*=1+t.rage*(1-att.hp/att.maxhp);
     if(t.darkPower)raw*=1+t.darkPower;if(t.allMastery)raw*=1+t.allMastery;
-    if(t.shapeshift)raw*=1.22;   // Forma Selvagem: mais força na forma de fera
+    if(t.shapeshift)raw*=1+t.shapeshift;   // Forma Selvagem: mais força na forma de fera (cresce com a maestria)
     if(t.combo){att.comboN=(att.comboN||0)+1;
       raw*=1+Math.min(0.36,(att.comboN-1)*0.09*passiveTierMult(att.level));}   // combos crescentes, mais fortes com o nível
   }
@@ -5645,9 +5645,10 @@ function winCombat(){
 function chooseHeroTarget(){
   const tauntHero=RUN.party.find(c=>c.alive&&c.fx.taunt>0);
   if(tauntHero)return tauntHero;
-  // passiva "tank" (Muralha, Juramento Sagrado): atrai ataques mesmo sem provocar ativamente
+  // passiva "tank" (Muralha, Juramento Sagrado): atrai ataques mesmo sem provocar ativamente —
+  // a CHANCE de atrair é o próprio valor da tag, então cresce com a maestria (Nv 25/50/75/100)
   const tanks=RUN.party.filter(c=>c.alive&&c.passiveEff&&c.passiveEff.tank);
-  if(tanks.length&&chance(0.6))return pick(tanks);
+  if(tanks.length){const t=pick(tanks);if(chance(t.passiveEff.tank))return t;}
   return pick(allies());
 }
 // o "kit" de habilidades do inimigo: chefes usam de verdade os IDs do seu array `skills`;
