@@ -3166,7 +3166,7 @@ function openHero(id){
         <span class="tiny" style="color:var(--gold)" title="A passiva fica mais forte nos níveis 25/50/75/100">Maestria ${passiveTierOf(lv)}/4</span>
       </div>
       <p class="small mt6" style="margin:4px 0 0">${h.passive.desc}</p>
-      ${passiveTierOf(lv)>0?`<p class="tiny mt6" style="color:var(--ok);margin:4px 0 0">✦ Reforçada pelo nível: efeitos percentuais +${Math.round((passiveTierMult(lv)-1)*100)}%</p>`:''}
+      <div class="mt6" style="margin-top:6px">${passiveValuesHtml(id,lv)}</div>
       <p class="tiny muted mt6" style="margin:4px 0 0">${passiveTierOf(lv)<4?'Próxima evolução no Nível '+PASSIVE_LVL_TIERS[passiveTierOf(lv)]+'.':'Maestria máxima alcançada.'}</p>
     </div>
     <div class="row between mt"><h4>🎒 Equipamento</h4><button class="btn sm" onclick="autoEquipBest('${id}')">⚙️ Equipar melhores</button></div><div class="col mt6">${eq}</div>
@@ -4159,19 +4159,57 @@ function initRun(party,tides,startFloor,dungeon,diff){
   if(G.meta.flags.off_luck)RUN.party.forEach(c=>{c.st.lck+=3;});
 }
 /* ===== EVOLUÇÃO DA PASSIVA POR NÍVEL =====
-   Nos marcos 25/50/75/100 a passiva de cada herói fica mais forte: todo valor
-   percentual (tags fracionárias, <1) sobe +12% por marco alcançado, cumulativo.
-   Tags "tudo ou nada" (tank:1, reviveOnce:1, firstStrike:1, summon:'nome', etc.)
-   não escalam — já são o efeito completo, não uma porcentagem. */
+   Nos marcos 25/50/75/100 a passiva de cada herói fica mais forte. Em vez de uma
+   mesma porcentagem RELATIVA pra tudo (o que desequilibra: efeitos que já começam
+   fortes, como 60% de atrair ataques, ganhariam demais, enquanto efeitos que
+   começam pequenos, como 1,8% de cura por sala, quase não mudariam), cada tipo de
+   efeito tem seu próprio incremento ABSOLUTO por marco, calibrado à mão conforme
+   o quão forte ele já é. Tags "tudo ou nada" (reviveOnce:1, firstStrike:1,
+   summon:'nome', tideMaster:1) não escalam — já são o efeito completo. */
 const PASSIVE_LVL_TIERS=[25,50,75,100];
 function passiveTierOf(level){let n=0;for(const t of PASSIVE_LVL_TIERS)if(level>=t)n++;return n;}
-function passiveTierMult(level){return 1+passiveTierOf(level)*0.12;}
+/* incremento em pontos percentuais POR MARCO (não relativo!) — efeitos que já
+   começam fortes (tank) sobem pouco; efeitos pequenos/utilitários (healRoom,
+   materialBonus) sobem proporcionalmente mais, pra não ficarem irrelevantes. */
+const PASSIVE_TAG_STEP={
+  tank:0.0375,        // 60% já é forte — sobe devagar (60→75% em 4 marcos, nunca quase-garantido)
+  thorns:0.02, spellAmp:0.02, critBonus:0.015,
+  healRoom:0.0075,     // base minúscula (0.9–1.8%) — precisa de passo proporcionalmente maior
+  lootBonus:0.025, trapEvade:0.025, mapBonus:0.025, secretFind:0.02,
+  partyDef:0.015, partyAtk:0.015, partySpd:0.015,
+  beastBane:0.02, alterFloor:0.02, extraTurn:0.015,
+  rage:0.02,           // multiplicador de dano forte com pouca vida — sobe com cautela
+  darkPower:0.015, allMastery:0.015, lifesteal:0.015,
+  dodge:0.02, phase:0.02, tameChance:0.025, materialBonus:0.03,
+  shapeshift:0.02,
+};
 function heroPassiveTags(heroId,level){
   const base=HMAP[heroId].passive.tags||{};
-  const mult=passiveTierMult(level||1);
+  const tier=passiveTierOf(level||1);
   const out={};
-  for(const k in base){const v=base[k];out[k]=(typeof v==='number'&&v<1)?v*mult:v;}
+  for(const k in base){const v=base[k];
+    out[k]=(typeof v==='number'&&v<1)?v+(PASSIVE_TAG_STEP[k]||0.015)*tier:v;}
   return out;
+}
+/* nomes amigáveis pros valores percentuais da passiva, mostrados JÁ ATUALIZADOS
+   na ficha do herói — evita a ambiguidade de mostrar só "+12%" separado do
+   número base (que faria parecer que soma direto, tipo 10%+12%=22%). */
+const PASSIVE_TAG_LABEL={
+  tank:'Chance de atrair ataques',thorns:'Reflete dano recebido',spellAmp:'Dano mágico do grupo',
+  healRoom:'Cura ao limpar sala',critBonus:'Crítico do grupo',lootBonus:'Sorte de item raro',
+  trapEvade:'Evitar armadilhas',mapBonus:'Familiaridade de mapa',secretFind:'Achar segredos',
+  partyDef:'Defesa do grupo',partyAtk:'Ataque do grupo',partySpd:'Velocidade do grupo',
+  beastBane:'Dano contra Feras',alterFloor:'Menos inimigos por andar',extraTurn:'Chance de agir de novo',
+  rage:'Dano c/ pouca vida (máx.)',darkPower:'Poder sombrio',allMastery:'Dano próprio',
+  lifesteal:'Vida roubada por golpe',dodge:'Esquiva',phase:'Ignorar ataque por completo',
+  tameChance:'Chance de domar Fera',materialBonus:'Materiais de criação',shapeshift:'Dano na forma de fera',
+};
+function pctFmt(v){return (v*100).toFixed(v<0.1?1:0).replace('.',',')+'%';}
+function passiveValuesHtml(heroId,level){
+  const eff=heroPassiveTags(heroId,level);
+  const rows=Object.keys(eff).filter(k=>typeof eff[k]==='number'&&eff[k]<1&&PASSIVE_TAG_LABEL[k])
+    .map(k=>`<span class="chip" style="margin:2px 4px 0 0">${PASSIVE_TAG_LABEL[k]}: <b style="color:var(--gold)">${pctFmt(eff[k])}</b></span>`).join('');
+  return rows;
 }
 function buildCombatant(id){
   const h=HMAP[id];const st=G.meta.heroes[id];
@@ -5574,7 +5612,8 @@ function computeDamage(att,def,skill){
     if(t.darkPower)raw*=1+t.darkPower;if(t.allMastery)raw*=1+t.allMastery;
     if(t.shapeshift)raw*=1+t.shapeshift;   // Forma Selvagem: mais força na forma de fera (cresce com a maestria)
     if(t.combo){att.comboN=(att.comboN||0)+1;
-      raw*=1+Math.min(0.36,(att.comboN-1)*0.09*passiveTierMult(att.level));}   // combos crescentes, mais fortes com o nível
+      const tier=passiveTierOf(att.level),perStack=0.09+0.01*tier,cap=0.36+0.03*tier;
+      raw*=1+Math.min(cap,(att.comboN-1)*perStack);}   // combos crescentes; o teto também sobe com a maestria
   }
   if(heroAtt&&RUN.dmgMul)raw*=RUN.dmgMul;                     // bênçãos do Abismo: +dano causado
   if(skill&&skill.el==='sagrado'&&(def.family==='morto-vivo'||def.family==='demonio'))raw*=1.6;
