@@ -9,6 +9,11 @@
   var heroFrames = RPG.gfx.CharacterSprite.buildFrameSet(RPG.data.Palettes.hero);
   var town = RPG.world.Town.build();
   var hero = new RPG.world.HeroController(heroFrames, town.spawn.x, town.spawn.y);
+  var touchControls = new RPG.core.TouchControls();
+  // fallback backdrop: if a map is ever smaller than the viewport (very
+  // tall phone screen, tiny interior/battle-arena map), this repeats grass
+  // instead of showing a black void past the map's edge.
+  var fallbackPattern = ctx.createPattern(RPG.gfx.Tileset.tiles.grass, 'repeat');
 
   function getCamera() {
     var mapPxW = town.tileMap.cols * cfg.TILE, mapPxH = town.tileMap.rows * cfg.TILE;
@@ -34,7 +39,7 @@
     hero.update(dt, town.tileMap);
 
     var cam = getCamera();
-    ctx.fillStyle = '#0a0a0e';
+    ctx.fillStyle = fallbackPattern;
     ctx.fillRect(0, 0, cfg.INTERNAL_W, cfg.INTERNAL_H);
     town.tileMap.render(ctx, cam.x, cam.y, cfg.INTERNAL_W, cfg.INTERNAL_H);
     hero.render(ctx, cam.x, cam.y);

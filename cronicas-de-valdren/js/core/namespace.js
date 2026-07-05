@@ -9,10 +9,14 @@ window.RPG = window.RPG || {
   ui: {},
   config: {
     TILE: 16,
-    VIEW_W_TILES: 16,
-    VIEW_H_TILES: 14,
-    get INTERNAL_W() { return this.TILE * this.VIEW_W_TILES; }, // 256
-    get INTERNAL_H() { return this.TILE * this.VIEW_H_TILES; }, // 224
+    // INTERNAL_W/H are recomputed by Canvas.setup()/resize to fill whatever
+    // screen shape the player has (tall phone vs. wide desktop) instead of
+    // a fixed 256x224 letterboxed into a black frame. These starting
+    // values are just the pre-resize default.
+    INTERNAL_W: 256,
+    INTERNAL_H: 224,
+    MIN_TILES_VISIBLE: 9, // smaller screen dimension always shows at least this many tiles
+    MAX_SCALE: 6,
     WALK_SPEED: 2.1,   // tiles/sec
     RUN_SPEED: 3.6
   }

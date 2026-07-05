@@ -1,8 +1,9 @@
-// Input: shared keyboard state singleton (same pattern used across the other
-// projects in this repo). Touch controls hook into the same isDown surface
-// once the mobile phase lands, mirroring Ashen Kennel's approach.
+// Input: shared keyboard state singleton. TouchControls.js (the mobile
+// D-pad) writes into the same virtualKeys map so HeroController's isDown()
+// checks work identically regardless of input source.
 (function () {
   var keys = {};
+  var virtualKeys = {};
   var justPressed = {};
 
   window.addEventListener('keydown', function (e) {
@@ -13,8 +14,9 @@
   window.addEventListener('blur', function () { keys = {}; });
 
   RPG.core.Input = {
-    isDown: function (code) { return !!keys[code]; },
+    isDown: function (code) { return !!keys[code] || !!virtualKeys[code]; },
     wasPressed: function (code) { return !!justPressed[code]; },
-    consumeFrame: function () { justPressed = {}; }
+    consumeFrame: function () { justPressed = {}; },
+    setVirtualKey: function (code, isDown) { virtualKeys[code] = isDown; }
   };
 })();
