@@ -34,7 +34,7 @@
   function startNewGame() {
     if (!player) {
       player = new AK.entities.PlayerController(scene, camCtrl, gsm.bus);
-      roomData = AK.world.World.buildRoom1(scene);
+      roomData = AK.world.World.build(scene);
       player.spawnAt(roomData.spawnPoint, roomData.spawnFacing);
       camCtrl.setTarget(player.root);
       // the bed sits at low Z with the door/corridor at high Z, so start the
