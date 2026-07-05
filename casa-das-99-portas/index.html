@@ -225,6 +225,24 @@ p{margin:0;}
 .use-banner{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:998;background:rgba(43,38,32,.95);
   color:#e8dfc4;padding:8px 18px;border-radius:4px;font-size:12.5px;border:1px solid var(--gold);animation:narratorFade .3s ease;}
 
+/* progresso e toasts */
+.progress-strip{display:flex;gap:16px;padding:7px 12px;background:rgba(0,0,0,.22);border-radius:5px;margin:2px 6px 10px;flex-wrap:wrap;}
+.progress-chip{display:flex;align-items:center;gap:6px;font-size:11px;color:#cfc39f;}
+.progress-chip .ic{font-size:13px;}
+.progress-chip .lbl{font-weight:700;min-width:30px;}
+.progress-chip .bar{width:52px;height:5px;border-radius:3px;background:rgba(233,223,196,.15);overflow:hidden;display:inline-block;}
+.progress-chip .bar .fill{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width .4s ease;}
+
+.toast-stack{position:fixed;top:70px;right:16px;z-index:1100;display:flex;flex-direction:column;gap:8px;max-width:280px;}
+.toast{
+  background:rgba(28,22,15,.96);color:#e8dfc4;padding:10px 14px;border-radius:6px;border-left:3px solid var(--gold);
+  font-size:12.5px;box-shadow:0 8px 20px rgba(0,0,0,.45);display:flex;align-items:center;gap:9px;
+  animation:toastIn .3s ease, toastOut .35s ease 2.85s forwards;
+}
+.toast .ic{font-size:16px;}
+@keyframes toastIn{from{opacity:0;transform:translateX(24px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(24px);}}
+
 footer.credit{text-align:center;color:#6b5f48;font-size:10.5px;margin-top:26px;}
 
 @media (max-width:640px){
@@ -1570,6 +1588,8 @@ function discoverSymbol(state, symId){
     state.discoveredSymbols.push(symId);
     addJournal(state, 'Símbolo de '+SYMBOLS[symId].name+' descoberto — '+SYMBOLS[symId].meaning);
     playSfx('symbolDiscovered');
+    pushToast(SYMBOLS[symId].ic, 'Símbolo compreendido: '+SYMBOLS[symId].name+' ('+state.discoveredSymbols.length+'/9)');
+    if (state.discoveredSymbols.length===9) pushToast('✨', 'Você compreende todos os 9 símbolos da Casa.');
   }
 }
 
@@ -1651,7 +1671,17 @@ function loadRun(){
 function clearRun(){ try{ localStorage.removeItem('casa99_run'); }catch(e){} }
 function clearAll(){ try{ localStorage.removeItem('casa99_run'); localStorage.removeItem('casa99_meta'); }catch(e){} }
 
-const APP = { screen:'start', state:null, meta:loadMeta() };
+const APP = { screen:'start', state:null, meta:loadMeta(), toasts:[] };
+let toastSeq = 0;
+function pushToast(icon, text){
+  const id = ++toastSeq;
+  APP.toasts.push({id, icon, text});
+  if (APP.toasts.length>4) APP.toasts.shift();
+  setTimeout(()=>{
+    APP.toasts = APP.toasts.filter(t=>t.id!==id);
+    render();
+  }, 3200);
+}
 
 function triggerEnding(state, endingId){
   state.gameOver = true;
@@ -1672,9 +1702,14 @@ function checkS14Sequence(state){
 }
 
 function enterSecretRoom(state, secretId){
-  if (state.discoveredSecrets.indexOf(secretId)===-1) state.discoveredSecrets.push(secretId);
+  const isNew = state.discoveredSecrets.indexOf(secretId)===-1;
+  if (isNew) state.discoveredSecrets.push(secretId);
   state.previousRoomId = state.currentRoomId;
   goToRoom(state, secretId, false);
+  if (isNew){
+    pushToast('🗝', 'Sala secreta encontrada! ('+state.discoveredSecrets.length+'/15)');
+    if (state.discoveredSecrets.length===15) pushToast('🏆', 'Você encontrou todas as 15 salas secretas.');
+  }
 }
 
 function goToRoom(state, roomId, viaDoor){
@@ -1691,6 +1726,14 @@ function goToRoom(state, roomId, viaDoor){
   const firstVisit = state.visitedRooms.filter(r=>r===roomId).length<=1;
   if (typeof roomId === 'number' && firstVisit){
     addJournal(state, 'Sala '+roomId+' — '+room.title+'.');
+    if (roomId!==1){
+      const count = state.visitedRooms.filter(r=>typeof r==='number').length;
+      pushToast('🚪', 'Nova sala explorada ('+count+'/72)');
+      if (count===18) pushToast('📜', 'Um quarto da Casa explorado.');
+      else if (count===36) pushToast('📜', 'Metade da Casa explorada.');
+      else if (count===54) pushToast('📜', 'Três quartos da Casa explorados.');
+      else if (count===72) pushToast('🏆', 'Você explorou todas as 72 salas principais.');
+    }
   } else if (typeof roomId === 'string' && firstVisit){
     addJournal(state, 'Sala secreta — '+room.title+'.');
   }
@@ -1722,6 +1765,7 @@ function goToRoom(state, roomId, viaDoor){
     state.trueEndingReady = true;
     setFlag(state,'trueEndingReady');
     addJournal(state, 'Você sente que a Casa já não tem mais nada para esconder de você.');
+    pushToast('✨', 'Algo mudou. Você sente que pode encontrar a verdadeira saída.');
   }
 
   saveRun();
@@ -1760,6 +1804,7 @@ function useDoor(state, room, door){
     if (suspicious && room.doorLieNote && room.doorLieNote[door.label]){
       addJournal(state, 'Sala '+room.id+', porta '+door.label+': '+room.doorLieNote[door.label]);
       playSfx('lieDoorReveal');
+      pushToast('⚠️', 'Porta suspeita descoberta!');
     }
   }
   playSfx('doorOpen');
@@ -1890,11 +1935,36 @@ function $$(sel){ return Array.prototype.slice.call(document.querySelectorAll(se
 function render(){
   const app = $('#app');
   if (APP.screen==='start') app.innerHTML = renderStart();
-  else if (APP.screen==='room') app.innerHTML = renderTopbar()+renderRoomScreen();
-  else if (APP.screen==='map') app.innerHTML = renderTopbar()+renderMapScreen();
+  else if (APP.screen==='room') app.innerHTML = renderTopbar()+renderProgressStrip(APP.state)+renderRoomScreen();
+  else if (APP.screen==='map') app.innerHTML = renderTopbar()+renderProgressStrip(APP.state)+renderMapScreen();
   else if (APP.screen==='ending') app.innerHTML = renderEndingScreen();
-  app.innerHTML += renderModal();
+  app.innerHTML += renderModal() + renderToasts();
   attachHandlers();
+}
+
+function renderToasts(){
+  if (!APP.toasts.length) return '';
+  return '<div class="toast-stack">'+APP.toasts.map(t=>
+    '<div class="toast"><span class="ic">'+t.icon+'</span><span>'+esc(t.text)+'</span></div>'
+  ).join('')+'</div>';
+}
+
+function renderProgressStrip(state){
+  const rooms = state.visitedRooms.filter(r=>typeof r==='number').length;
+  const secrets = state.discoveredSecrets.length;
+  const symbols = state.discoveredSymbols.length;
+  function chip(icon, val, total, label){
+    const pct = Math.round(val/total*100);
+    return '<div class="progress-chip" title="'+esc(label)+': '+val+'/'+total+'">'+
+      '<span class="ic">'+icon+'</span><span class="lbl">'+val+'/'+total+'</span>'+
+      '<span class="bar"><span class="fill" style="width:'+pct+'%"></span></span>'+
+    '</div>';
+  }
+  return '<div class="progress-strip">'+
+    chip('🚪', rooms, 72, 'Salas visitadas')+
+    chip('🗝', secrets, 15, 'Salas secretas')+
+    chip('👁', symbols, 9, 'Símbolos compreendidos')+
+  '</div>';
 }
 
 function renderModal(){
