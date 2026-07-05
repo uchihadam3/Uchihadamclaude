@@ -2051,7 +2051,6 @@ const WALL_MATERIALS = {
   brick:  { wall:'#84543d', back:'#8f5e45', ceil:'#d2c19a', floor:'#5f4835', pattern:'brick' },
   cave:   { wall:'#5c584e', back:'#68645a', ceil:'#8c8676', floor:'#3a352c', pattern:'rough' },
 };
-const DECOR_ICONS = ['🗝','🕯','📜','🦴','🍶','🔔','⚱','🗿','🕸','⏳','✂','🪓','🧿','🔮'];
 
 function surfaceLines(wall, matPattern, rng){
   let out = '';
@@ -2203,18 +2202,6 @@ function renderRoomScene(room, state){
       const p1 = wallPoint(w,0,0.62), p2 = wallPoint(w,1,0.62);
       svg += '<line x1="'+p1.x.toFixed(1)+'" y1="'+p1.y.toFixed(1)+'" x2="'+p2.x.toFixed(1)+'" y2="'+p2.y.toFixed(1)+'" stroke="#2b2115" stroke-width="1" opacity="0.28"/>';
     });
-  }
-
-  // decorative plaques along the top of the back wall (atmosphere only)
-  const decorCount = 2+Math.floor(rng()*3);
-  for (let i=0;i<decorCount;i++){
-    const t = (i+0.5)/decorCount;
-    const p = wallPoint(walls.back, t, 0.06);
-    const icon = pick(rng, DECOR_ICONS);
-    svg += '<g style="pointer-events:none" opacity="0.75">'+
-      '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="11" fill="#241d12" stroke="#5a4a30" stroke-width="1"/>'+
-      '<text x="'+p.x.toFixed(1)+'" y="'+(p.y+4).toFixed(1)+'" text-anchor="middle" font-size="12">'+icon+'</text>'+
-    '</g>';
   }
 
   // area tint wash over everything so far
