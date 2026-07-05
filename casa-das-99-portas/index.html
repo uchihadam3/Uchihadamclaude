@@ -103,43 +103,22 @@ p{margin:0;}
 .room-head h2{color:#f0e6cf;font-size:19px;}
 .room-head .rid{color:var(--gold-light);font-size:12px;font-weight:700;}
 .room-illustration{
-  min-height:280px;padding:26px 20px 18px;position:relative;
-  background-blend-mode:multiply;
+  position:relative; background:#0e0b08;
 }
 .room-narration{padding:10px 16px;font-size:13.5px;line-height:1.6;font-style:italic;color:var(--ink-soft);border-top:1px dashed rgba(43,38,32,.35);}
-.symbol-row{position:absolute;top:10px;right:12px;display:flex;gap:5px;}
+.symbol-row{position:absolute;top:10px;right:12px;display:flex;gap:5px;z-index:2;}
 .symbol-badge{width:26px;height:26px;border-radius:50%;background:rgba(43,38,32,.85);border:1px solid rgba(233,223,196,.4);
   display:flex;align-items:center;justify-content:center;color:#e8dfc4;font-size:13px;}
 
-/* portas */
-.doors-row{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;padding:10px 10px 22px;}
-.door{cursor:pointer;position:relative;width:78px;text-align:center;transition:transform .15s;}
-.door:hover{transform:translateY(-3px);}
-.door .frame{
-  width:78px;height:118px;border-radius:4px 4px 2px 2px;
-  background:repeating-linear-gradient(90deg,var(--wood-light) 0 9px,var(--wood) 9px 18px);
-  border:3px solid var(--wood-dark); box-shadow:inset 0 0 0 2px rgba(0,0,0,.2), 0 6px 14px rgba(0,0,0,.4);
-  position:relative;
-}
-.door .frame::after{content:'';position:absolute;right:8px;top:50%;width:6px;height:6px;border-radius:50%;background:#3a2717;box-shadow:0 0 0 2px #7a5636;}
-.door .plaque{
-  position:absolute;top:8px;left:50%;transform:translateX(-50%) rotate(-2deg);
-  background:var(--paper2);border:1px solid var(--ink-faint);border-radius:2px;padding:2px 9px;
-  font-weight:800;font-size:17px;color:var(--ink);box-shadow:0 2px 4px rgba(0,0,0,.35);
-}
-.door.locked .plaque{background:#3a2020;color:#e8b8b0;border-color:#5a1512;}
-.door .lock-icon{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:14px;}
-.door-label{font-size:11px;color:#cfc39f;margin-top:6px;}
-
-/* objetos clicaveis */
-.hotspots-row{display:flex;gap:12px;flex-wrap:wrap;padding:4px 16px 16px;}
-.hotspot{
-  cursor:pointer;background:rgba(43,38,32,.06);border:1px solid rgba(43,38,32,.25);border-radius:5px;
-  padding:8px 11px;font-size:12.5px;color:var(--ink-soft);display:flex;align-items:center;gap:6px;transition:background .15s;
-}
-.hotspot:hover{background:rgba(43,38,32,.14);}
-.hotspot .ic{font-size:14px;}
-.hotspot.examined{opacity:.7;}
+/* cenario em perspectiva (svg) */
+.room-scene{display:block;width:100%;height:auto;aspect-ratio:640/400;}
+.scene-door{cursor:pointer;}
+.scene-door .doorpoly{transition:filter .15s;}
+.scene-door:hover .doorpoly{filter:brightness(1.22);}
+.scene-hotspot{cursor:pointer;}
+.scene-hotspot text{transition:filter .15s;}
+.scene-hotspot:hover text{filter:drop-shadow(0 0 5px rgba(212,175,90,.9));}
+.scene-hotspot.examined{opacity:.55;}
 .hotspot.has-item{border-color:var(--gold);background:rgba(168,132,47,.14);}
 
 /* painel lateral */
@@ -1526,6 +1505,170 @@ function doorIsKnownLie(state, roomId, label){
   return state.mapConnections.some(c=>c.from===roomId && c.doorLabel===label && c.suspicious);
 }
 
+
+/* ===================== components/RoomView — cenário em perspectiva ===================== */
+
+const AREA_TINTS = { entrada:'#5a4326', agua:'#1f5a56', relogio:'#8a6a1f', espelho:'#4a4a72', nomes:'#4a3a6a' };
+
+function lerpPt(a,b,t){ return {x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t}; }
+function wallPoint(w,t,v){
+  const top = lerpPt(w.a, w.b, t);
+  const bot = lerpPt(w.d, w.c, t);
+  return lerpPt(top, bot, v);
+}
+function ptsStr(pts){ return pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' '); }
+function doorQuad(wall, t1,t2,v1,v2){
+  return [wallPoint(wall,t1,v1), wallPoint(wall,t2,v1), wallPoint(wall,t2,v2), wallPoint(wall,t1,v2)];
+}
+function quadCentroid(q){
+  return { x:(q[0].x+q[1].x+q[2].x+q[3].x)/4, y:(q[0].y+q[1].y+q[2].y+q[3].y)/4 };
+}
+
+const SCENE_PTS = {
+  FTL:{x:26,y:34}, FTR:{x:614,y:34}, FBL:{x:26,y:372}, FBR:{x:614,y:372},
+  BTL:{x:198,y:98}, BTR:{x:442,y:98}, BBL:{x:198,y:258}, BBR:{x:442,y:258},
+};
+const SCENE_WALLS = {
+  left:  {a:SCENE_PTS.FTL, b:SCENE_PTS.BTL, d:SCENE_PTS.FBL, c:SCENE_PTS.BBL},
+  right: {a:SCENE_PTS.FTR, b:SCENE_PTS.BTR, d:SCENE_PTS.FBR, c:SCENE_PTS.BBR},
+  back:  {a:SCENE_PTS.BTL, b:SCENE_PTS.BTR, d:SCENE_PTS.BBL, c:SCENE_PTS.BBR},
+  floor: {a:SCENE_PTS.FBL, b:SCENE_PTS.FBR, d:SCENE_PTS.BBL, c:SCENE_PTS.BBR},
+};
+const DOOR_SLOT_RANGE = {
+  back: {t1:0.30,t2:0.70,v1:0.05,v2:0.95},
+  left: {t1:0.13,t2:0.55,v1:0.09,v2:0.90},
+  right:{t1:0.13,t2:0.55,v1:0.09,v2:0.90},
+};
+const DOOR_SLOTS_BY_COUNT = { 0:[], 1:['back'], 2:['back','right'], 3:['left','back','right'] };
+
+const HOTSPOT_LAYOUTS = {
+  1: [{u:0.50,t:0.60}],
+  2: [{u:0.28,t:0.55},{u:0.72,t:0.55}],
+  3: [{u:0.20,t:0.40},{u:0.5,t:0.66},{u:0.80,t:0.40}],
+};
+
+const ICON_RULES = [
+  ['tabua','🪵'],['lustre','🕯'],['sombra','🌑'],['quadro','🖼'],['retrato','🖼'],
+  ['pupila','👁'],['olho','👁'],['escada','🪜'],['degrau','🪜'],['sino','🔔'],
+  ['vela','🕯'],['cera','🕯'],['espelho','🪞'],['cortina','🪟'],['janela','🪟'],['vitral','🪟'],
+  ['relogio','🕰'],['ponteiro','🕰'],['coroa','👑'],['pedestal','👑'],['trono','👑'],
+  ['fonte','⛲'],['aquario','🐟'],['peixe','🐟'],['livro','📖'],['estante','📚'],['titulo','📚'],
+  ['gaveta','🗄'],['escrivaninha','🗄'],['contrato','📜'],['atril','📜'],['ficha','🗂'],
+  ['tapete','🧶'],['placa','🪧'],['aviso','🪧'],['inscric','🪧'],['frase','🪧'],['texto','🪧'],
+  ['estatua','🗿'],['pessoas','🗿'],['mascara','🎭'],['moldura','🖼'],['dente','🦷'],['boca','👄'],
+  ['fechadura','🔒'],['fio','🧵'],['corrente','🧵'],['mapa','🗺'],['planta','🗺'],['fragmento','🗺'],
+  ['capa','🧥'],['casaco','🧥'],['roupa','🧥'],['lareira','🔥'],['forno','🔥'],['braseiro','🔥'],
+  ['cinza','🔥'],['poeira','💨'],['parede','🧱'],['engrenagem','⚙'],['maquina','⚙'],
+  ['numero','🔢'],['eco','🌀'],['flor','🥀'],['papel','📄'],['nome','🪧'],['peso','⚖'],
+];
+function guessIcon(h){
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const idText = norm(h.id);
+  for (const [kw,ic] of ICON_RULES){ if (idText.indexOf(kw)!==-1) return ic; }
+  const labelText = norm(h.label);
+  for (const [kw,ic] of ICON_RULES){ if (labelText.indexOf(kw)!==-1) return ic; }
+  return '✦';
+}
+
+function renderRoomScene(room, state){
+  const tint = AREA_TINTS[room.area] || AREA_TINTS.entrada;
+  const doors = (room.doors||[]).filter(door=>!(door.hideIfForbidden && door.forbiddenFlag && hasFlag(state, door.forbiddenFlag)));
+  const slots = DOOR_SLOTS_BY_COUNT[Math.min(doors.length,3)] || ['back'];
+
+  let svg = '<svg class="room-scene" viewBox="0 0 640 400" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">';
+  svg += '<defs>'+
+    '<pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
+      '<line x1="0" y1="0" x2="0" y2="7" stroke="#2b2115" stroke-width="0.7"/>'+
+    '</pattern>'+
+    '<pattern id="hatch2" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">'+
+      '<line x1="0" y1="0" x2="0" y2="7" stroke="#2b2115" stroke-width="0.5"/>'+
+    '</pattern>'+
+    '<linearGradient id="woodgrain" x1="0" y1="0" x2="1" y2="0">'+
+      '<stop offset="0" stop-color="#7a5636"/><stop offset="0.5" stop-color="#5a3e26"/><stop offset="1" stop-color="#7a5636"/>'+
+    '</linearGradient>'+
+  '</defs>';
+
+  // ---- ceiling / floor / walls ----
+  const surfaces = [
+    {pts:[SCENE_PTS.FTL,SCENE_PTS.FTR,SCENE_PTS.BTR,SCENE_PTS.BTL], fill:'#e9dfc4', hatchOp:0.10},
+    {pts:[SCENE_PTS.FBL,SCENE_PTS.FBR,SCENE_PTS.BBR,SCENE_PTS.BBL], fill:'#8a7452', hatchOp:0.30},
+    {pts:[SCENE_PTS.FTL,SCENE_PTS.BTL,SCENE_PTS.BBL,SCENE_PTS.FBL], fill:'#c9b98a', hatchOp:0.25},
+    {pts:[SCENE_PTS.FTR,SCENE_PTS.BTR,SCENE_PTS.BBR,SCENE_PTS.FBR], fill:'#c9b98a', hatchOp:0.25},
+    {pts:[SCENE_PTS.BTL,SCENE_PTS.BTR,SCENE_PTS.BBR,SCENE_PTS.BBL], fill:'#ddd0a8', hatchOp:0.18},
+  ];
+  surfaces.forEach(s=>{
+    svg += '<polygon points="'+ptsStr(s.pts)+'" fill="'+s.fill+'" stroke="#2b2115" stroke-width="1.4" stroke-opacity="0.5"/>';
+    svg += '<polygon points="'+ptsStr(s.pts)+'" fill="url(#hatch)" opacity="'+s.hatchOp+'"/>';
+    svg += '<polygon points="'+ptsStr(s.pts)+'" fill="url(#hatch2)" opacity="'+(s.hatchOp*0.6)+'"/>';
+  });
+
+  // wainscoting trim on the three walls
+  ['left','right','back'].forEach(k=>{
+    const w = SCENE_WALLS[k];
+    const p1 = wallPoint(w,0,0.62), p2 = wallPoint(w,1,0.62);
+    svg += '<line x1="'+p1.x.toFixed(1)+'" y1="'+p1.y.toFixed(1)+'" x2="'+p2.x.toFixed(1)+'" y2="'+p2.y.toFixed(1)+'" stroke="#2b2115" stroke-width="1" opacity="0.28"/>';
+  });
+
+  // area tint wash over everything so far
+  svg += '<rect x="0" y="0" width="640" height="400" fill="'+tint+'" opacity="0.14" style="mix-blend-mode:multiply"/>';
+
+  // ---- doors ----
+  doors.forEach((door,i)=>{
+    const slot = slots[i] || 'back';
+    const range = DOOR_SLOT_RANGE[slot];
+    const wall = SCENE_WALLS[slot];
+    const quad = doorQuad(wall, range.t1, range.t2, range.v1, range.v2);
+    const centroid = quadCentroid(quad);
+    const topMid = lerpPt(quad[0], quad[1], 0.5);
+    const unlockedAlready = state.unlockedDoors.indexOf(room.id+'_'+door.label)!==-1;
+    const showLocked = door.locked && !unlockedAlready;
+    const knownLie = doorIsKnownLie(state, room.id, door.label);
+    const plaqueW = 30, plaqueH = 18;
+
+    svg += '<g class="scene-door" data-action="clickDoor" data-arg="'+door.label+'">';
+    svg += '<polygon class="doorpoly" points="'+ptsStr(quad)+'" fill="'+(showLocked?'#3a2020':'url(#woodgrain)')+'" stroke="#2b1710" stroke-width="2"/>';
+    svg += '<polygon points="'+ptsStr(quad)+'" fill="url(#hatch)" opacity="0.18"/>';
+    // knob
+    const knobPt = lerpPt(quad[1],quad[2],0.5);
+    svg += '<circle cx="'+knobPt.x.toFixed(1)+'" cy="'+knobPt.y.toFixed(1)+'" r="3" fill="#1a1006"/>';
+    if (knownLie){
+      svg += '<polygon points="'+ptsStr(quad)+'" fill="none" stroke="#a83b34" stroke-width="1.6" stroke-dasharray="5,4" opacity="0.85" style="pointer-events:none"/>';
+    }
+    // plaque
+    svg += '<g style="pointer-events:none">'+
+      '<rect x="'+(topMid.x-plaqueW/2).toFixed(1)+'" y="'+(topMid.y-plaqueH-6).toFixed(1)+'" width="'+plaqueW+'" height="'+plaqueH+'" rx="2" '+
+        'fill="#ddd0a8" stroke="#4a4030" stroke-width="1" transform="rotate('+((i%2===0)?-3:3)+' '+topMid.x.toFixed(1)+' '+(topMid.y-plaqueH/2-6).toFixed(1)+')"/>'+
+      '<text x="'+topMid.x.toFixed(1)+'" y="'+(topMid.y-plaqueH/2-1).toFixed(1)+'" text-anchor="middle" font-size="12" font-weight="800" '+
+        'font-family="Georgia,serif" fill="#2b2620" transform="rotate('+((i%2===0)?-3:3)+' '+topMid.x.toFixed(1)+' '+(topMid.y-plaqueH/2-6).toFixed(1)+')">'+door.label+'</text>'+
+    '</g>';
+    if (showLocked){
+      svg += '<text x="'+centroid.x.toFixed(1)+'" y="'+(centroid.y+5).toFixed(1)+'" text-anchor="middle" font-size="18" style="pointer-events:none">🔒</text>';
+    }
+    svg += '<title>Porta '+door.label+(knownLie?' (algo aqui parece suspeito)':'')+'</title>';
+    svg += '</g>';
+  });
+
+  // ---- hotspots (objetos clicáveis) ----
+  const hotspots = room.hotspots||[];
+  const layout = HOTSPOT_LAYOUTS[Math.min(hotspots.length,3)] || HOTSPOT_LAYOUTS[3];
+  hotspots.forEach((h,i)=>{
+    const pos = layout[i] || {u:0.5,t:0.5};
+    const pt = wallPoint(SCENE_WALLS.floor, pos.u, pos.t);
+    const used = h.oneTime && state.usedHotspots.indexOf(h.id)!==-1;
+    const scale = 1.25 - pos.t*0.5;
+    const fontSize = (26*scale).toFixed(1);
+    const icon = guessIcon(h);
+    svg += '<g class="scene-hotspot'+(used?' examined':'')+'" data-action="clickHotspot" data-arg="'+h.id+'">'+
+      '<ellipse cx="'+pt.x.toFixed(1)+'" cy="'+(pt.y+6).toFixed(1)+'" rx="'+(20*scale).toFixed(1)+'" ry="'+(6*scale).toFixed(1)+'" fill="#140d05" opacity="0.35"/>'+
+      '<text x="'+pt.x.toFixed(1)+'" y="'+pt.y.toFixed(1)+'" text-anchor="middle" font-size="'+fontSize+'">'+icon+'</text>'+
+      '<title>'+esc(h.label)+'</title>'+
+    '</g>';
+  });
+
+  svg += '</svg>';
+  return svg;
+}
+
 function renderRoomScreen(){
   const state = APP.state;
   const room = getRoom(state.currentRoomId);
@@ -1533,29 +1676,7 @@ function renderRoomScreen(){
 
   let symbolsHtml = (room.symbols||[]).map(s=>'<div class="symbol-badge" title="'+esc(SYMBOLS[s].name)+'">'+SYMBOLS[s].ic+'</div>').join('');
 
-  let doorsHtml = (room.doors||[]).filter(door=>{
-    return !(door.hideIfForbidden && door.forbiddenFlag && hasFlag(state, door.forbiddenFlag));
-  }).map(door=>{
-    const unlockedAlready = state.unlockedDoors.indexOf(room.id+'_'+door.label)!==-1;
-    const showLocked = door.locked && !unlockedAlready;
-    const knownLie = doorIsKnownLie(state, room.id, door.label);
-    return '<div class="door" data-action="clickDoor" data-arg="'+door.label+'">'+
-      '<div class="frame'+(showLocked?' locked':'')+'">'+
-        '<div class="plaque">'+door.label+'</div>'+
-        (showLocked?'<div class="lock-icon">🔒</div>':'')+
-      '</div>'+
-      '<div class="door-label">'+(knownLie?'porta suspeita':'porta')+'</div>'+
-    '</div>';
-  }).join('');
-  if (!doorsHtml) doorsHtml = '<div class="tiny muted">Nenhuma porta visível aqui.</div>';
-
-  let hotspotsHtml = (room.hotspots||[]).map(h=>{
-    const used = h.oneTime && state.usedHotspots.indexOf(h.id)!==-1;
-    return '<div class="hotspot'+(used?' examined':'')+'" data-action="clickHotspot" data-arg="'+h.id+'">'+
-      '<span class="ic">🔎</span>'+esc(h.label)+
-    '</div>';
-  }).join('');
-  if (!hotspotsHtml) hotspotsHtml = '<div class="tiny muted">Nada mais chama atenção aqui.</div>';
+  const sceneHtml = renderRoomScene(room, state);
 
   let desc = room.desc;
   if (room.changesIfFlag){
@@ -1573,8 +1694,7 @@ function renderRoomScreen(){
       '<div class="room-head"><h2>'+esc(room.title)+'</h2><div class="rid">'+(isSecret?'SALA SECRETA':'SALA '+room.id)+'</div></div>'+
       '<div class="room-illustration">'+
         '<div class="symbol-row">'+symbolsHtml+'</div>'+
-        '<div class="doors-row">'+doorsHtml+'</div>'+
-        '<div class="hotspots-row">'+hotspotsHtml+'</div>'+
+        sceneHtml+
       '</div>'+
       '<div class="room-narration">'+esc(desc)+'</div>'+
       narrator+feedback+puzzle+
