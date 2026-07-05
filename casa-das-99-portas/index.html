@@ -85,7 +85,7 @@ p{margin:0;}
 .pill:disabled{opacity:.35;}
 
 /* ---------- start screen ---------- */
-.start-wrap{max-width:640px;margin:40px auto;text-align:center;}
+.start-wrap{max-width:640px;margin:40px auto;text-align:center;position:relative;}
 .start-wrap h1{font-size:clamp(28px,5vw,44px);color:#f0e6cf;text-shadow:0 2px 8px rgba(0,0,0,.6);}
 .start-wrap .subtitle{color:var(--gold-light);font-style:italic;margin-top:6px;font-size:15px;}
 .start-wrap .lore{color:#cfc39f;margin-top:22px;font-size:14px;line-height:1.7;text-align:left;}
@@ -195,6 +195,31 @@ p{margin:0;}
 .ending-badge{display:inline-block;padding:6px 16px;border-radius:999px;background:rgba(168,132,47,.2);border:1px solid var(--gold);color:var(--gold-light);font-size:12px;font-weight:700;margin-bottom:14px;}
 .ending-badge.true-ending{background:rgba(212,175,90,.3);}
 .ending-text{color:#e8dfc4;font-size:15px;line-height:1.9;font-style:italic;white-space:pre-line;}
+.ending-text-card{padding:22px;margin-top:16px;}
+
+/* cutscene reveal */
+.cutscene>*{opacity:0;animation:cutsceneIn .7s ease forwards;}
+.cutscene .ending-badge{animation-delay:.1s;}
+.cutscene .ending-tableau-frame{animation-delay:.5s;}
+.cutscene .ending-text-card{animation-delay:1.3s;}
+.cutscene .journey-stats{animation-delay:2.1s;}
+.cutscene .ending-meta{animation-delay:2.6s;}
+.cutscene .ending-actions{animation-delay:2.9s;}
+@keyframes cutsceneIn{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+.ending-tableau-frame{border-radius:6px;overflow:hidden;border-top:4px solid var(--accent,var(--gold));box-shadow:0 10px 26px rgba(0,0,0,.4);}
+.ending-tableau-frame svg{display:block;width:100%;height:auto;}
+.pulse-glow{animation:pulseGlow 2.4s ease-in-out infinite;}
+.pulse-glow-strong{animation:pulseGlowStrong 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center;}
+@keyframes pulseGlow{0%,100%{opacity:.6;}50%{opacity:1;}}
+@keyframes pulseGlowStrong{0%,100%{opacity:.7;transform:scale(1);}50%{opacity:1;transform:scale(1.06);}}
+
+.journey-stats{margin-top:16px;text-align:left;}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px;}
+.stat-tile{background:rgba(43,38,32,.05);border:1px solid rgba(43,38,32,.18);border-radius:6px;padding:10px 6px;text-align:center;}
+.stat-tile .ic{font-size:19px;}
+.stat-tile .val{font-size:15px;font-weight:800;color:var(--ink);margin-top:2px;}
+.stat-tile .lbl{font-size:9.5px;color:var(--ink-faint);margin-top:2px;line-height:1.3;}
 
 /* item-use overlay */
 .use-banner{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:998;background:rgba(43,38,32,.95);
@@ -1146,6 +1171,361 @@ SECRET_ROOMS['s15']=R('s15','Porta Zero','entrada',
 
 console.log('SECRET_ROOMS_LOADED', Object.keys(SECRET_ROOMS).length);
 
+/* ===================== audio engine: synth, reverb, SFX, generative score ===================== */
+
+const AUDIO = { ctx:null, master:null, sfxGain:null, musicGain:null, musicWet:null, sfxWet:null, reverb:null, noiseBuffer:null, muted:false };
+
+function loadMutePref(){
+  try{ return localStorage.getItem('casa99_muted')==='1'; }catch(e){ return false; }
+}
+function saveMutePref(v){ try{ localStorage.setItem('casa99_muted', v?'1':'0'); }catch(e){} }
+AUDIO.muted = loadMutePref();
+
+function buildReverbImpulse(ctx){
+  const len = Math.floor(ctx.sampleRate*2.4);
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch=0; ch<2; ch++){
+    const data = buf.getChannelData(ch);
+    for (let i=0;i<len;i++){ data[i] = (Math.random()*2-1) * Math.pow(1-i/len, 2.6); }
+  }
+  return buf;
+}
+function buildNoiseBuffer(ctx){
+  const len = ctx.sampleRate*2;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
+  return buf;
+}
+
+function ensureAudio(){
+  if (AUDIO.ctx) return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  const ctx = new Ctx();
+  AUDIO.ctx = ctx;
+  AUDIO.master = ctx.createGain(); AUDIO.master.gain.value = AUDIO.muted?0:0.9; AUDIO.master.connect(ctx.destination);
+  AUDIO.sfxGain = ctx.createGain(); AUDIO.sfxGain.gain.value = 0.85; AUDIO.sfxGain.connect(AUDIO.master);
+  AUDIO.musicGain = ctx.createGain(); AUDIO.musicGain.gain.value = 0.5; AUDIO.musicGain.connect(AUDIO.master);
+  const conv = ctx.createConvolver(); conv.buffer = buildReverbImpulse(ctx);
+  AUDIO.reverb = conv;
+  AUDIO.reverbOut = ctx.createGain(); AUDIO.reverbOut.gain.value = 0.4;
+  AUDIO.reverb.connect(AUDIO.reverbOut); AUDIO.reverbOut.connect(AUDIO.master);
+  AUDIO.musicWet = ctx.createGain(); AUDIO.musicWet.gain.value = 1; AUDIO.musicWet.connect(AUDIO.reverb);
+  AUDIO.sfxWet = ctx.createGain(); AUDIO.sfxWet.gain.value = 0.5; AUDIO.sfxWet.connect(AUDIO.reverb);
+  AUDIO.noiseBuffer = buildNoiseBuffer(ctx);
+}
+function setMuted(v){
+  AUDIO.muted = v;
+  saveMutePref(v);
+  if (AUDIO.master) AUDIO.master.gain.setTargetAtTime(v?0:0.9, AUDIO.ctx.currentTime, 0.08);
+}
+function toggleMuted(){ setMuted(!AUDIO.muted); }
+
+/* ---------- music theory helpers ---------- */
+function midiFreq(m){ return 440*Math.pow(2,(m-69)/12); }
+const SCALES = {
+  aeolian:[0,2,3,5,7,8,10], dorian:[0,2,3,5,7,9,10], phrygian:[0,1,3,5,7,8,10],
+  harmonicMinor:[0,2,3,5,7,8,11], lydian:[0,2,4,6,7,9,11], major:[0,2,4,5,7,9,11],
+};
+const CHORD_TYPES = { maj:[0,4,7], min:[0,3,7], dim:[0,3,6], maj7:[0,4,7,11], min7:[0,3,7,10], cluster:[0,1,6] };
+function scaleDegreeMidi(tonicMidi, scale, deg){
+  const len = scale.length;
+  const oct = Math.floor(deg/len);
+  const idx = ((deg%len)+len)%len;
+  return tonicMidi + oct*12 + scale[idx];
+}
+
+/* ---------- voices ---------- */
+function playPadNote(freq, when, dur, vel){
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const filt = ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=1500; filt.Q.value=0.25;
+  const g = ctx.createGain();
+  const atk = Math.min(2.4, dur*0.35);
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.linearRampToValueAtTime(vel, when+atk);
+  g.gain.linearRampToValueAtTime(vel*0.82, when+Math.max(atk+0.1,dur*0.65));
+  g.gain.linearRampToValueAtTime(0.0001, when+dur);
+  filt.connect(g); g.connect(AUDIO.musicGain); g.connect(AUDIO.musicWet);
+  [-6,6].forEach(cents=>{
+    const osc = ctx.createOscillator(); osc.type='sawtooth'; osc.frequency.value=freq; osc.detune.value=cents;
+    osc.connect(filt); osc.start(when); osc.stop(when+dur+0.1);
+  });
+  const sub = ctx.createOscillator(); sub.type='sine'; sub.frequency.value=freq/2;
+  const subG = ctx.createGain(); subG.gain.value=0.45;
+  sub.connect(subG); subG.connect(filt); sub.start(when); sub.stop(when+dur+0.1);
+}
+function playBassNote(freq, when, dur, vel){
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.linearRampToValueAtTime(vel, when+0.25);
+  g.gain.linearRampToValueAtTime(0.0001, when+dur);
+  const osc = ctx.createOscillator(); osc.type='triangle'; osc.frequency.value=freq;
+  osc.connect(g); g.connect(AUDIO.musicGain);
+  osc.start(when); osc.stop(when+dur+0.05);
+}
+function playLeadNote(freq, when, dur, vel){
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const filt = ctx.createBiquadFilter(); filt.type='lowpass'; filt.frequency.value=3200; filt.Q.value=0.4;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.linearRampToValueAtTime(vel, when+0.02);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002,vel*0.3), when+dur*0.5);
+  g.gain.linearRampToValueAtTime(0.0001, when+dur);
+  const osc = ctx.createOscillator(); osc.type='triangle'; osc.frequency.value=freq;
+  const osc2 = ctx.createOscillator(); osc2.type='sine'; osc2.frequency.value=freq*2;
+  const g2 = ctx.createGain(); g2.gain.value=0.15;
+  osc.connect(filt); osc2.connect(g2); g2.connect(filt);
+  filt.connect(g); g.connect(AUDIO.musicGain); g.connect(AUDIO.musicWet);
+  osc.start(when); osc.stop(when+dur+0.05);
+  osc2.start(when); osc2.stop(when+dur+0.05);
+}
+function playTick(when, vel){
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const src = ctx.createBufferSource(); src.buffer = AUDIO.noiseBuffer;
+  const filt = ctx.createBiquadFilter(); filt.type='highpass'; filt.frequency.value=3500;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(vel, when); g.gain.exponentialRampToValueAtTime(0.001, when+0.045);
+  src.connect(filt); filt.connect(g); g.connect(AUDIO.musicGain);
+  src.start(when); src.stop(when+0.06);
+}
+function playTexture(type, when, dur, vel){
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const src = ctx.createBufferSource(); src.buffer = AUDIO.noiseBuffer; src.loop = true;
+  const filt = ctx.createBiquadFilter();
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.linearRampToValueAtTime(vel*0.06, when+dur*0.3);
+  g.gain.linearRampToValueAtTime(0.0001, when+dur);
+  if (type==='water'){ filt.type='bandpass'; filt.frequency.value=1800; filt.Q.value=0.6;
+    const lfo = ctx.createOscillator(); lfo.frequency.value=0.13; const lfoG = ctx.createGain(); lfoG.gain.value=500;
+    lfo.connect(lfoG); lfoG.connect(filt.frequency); lfo.start(when); lfo.stop(when+dur);
+  } else if (type==='wind'){ filt.type='bandpass'; filt.frequency.value=500; filt.Q.value=0.5;
+    const lfo = ctx.createOscillator(); lfo.frequency.value=0.09; const lfoG = ctx.createGain(); lfoG.gain.value=200;
+    lfo.connect(lfoG); lfoG.connect(filt.frequency); lfo.start(when); lfo.stop(when+dur);
+  } else { filt.type='bandpass'; filt.frequency.value=2600; filt.Q.value=0.4; }
+  src.connect(filt); filt.connect(g); g.connect(AUDIO.musicGain); g.connect(AUDIO.musicWet);
+  src.start(when); src.stop(when+dur+0.1);
+}
+function playMusicEvent(ev, when){
+  if (ev.voice==='pad') playPadNote(ev.freq, when, ev.dur, ev.vel);
+  else if (ev.voice==='bass') playBassNote(ev.freq, when, ev.dur, ev.vel);
+  else if (ev.voice==='lead') playLeadNote(ev.freq, when, ev.dur, ev.vel);
+  else if (ev.voice==='tick') playTick(when, ev.vel);
+  else if (ev.voice==='texture') playTexture(ev.textureType, when, ev.dur, ev.vel);
+}
+
+/* ---------- theme composer ---------- */
+function composeTheme(def){
+  const beatSec = 60/def.bpm;
+  const barBeats = 4;
+  const chordBars = def.chordBars || 4;
+  const events = [];
+  let cursor = 0;
+
+  function addPass(withLead, withTexture, velScale){
+    def.progression.forEach((chordDef, barIndex)=>{
+      const chordStart = cursor;
+      const chordDur = chordBars*barBeats*beatSec;
+      const rootMidi = scaleDegreeMidi(def.tonicMidi, def.scale, chordDef.deg);
+      const chordTones = CHORD_TYPES[chordDef.type];
+      chordTones.forEach((iv,i)=>{
+        events.push({t:chordStart, voice:'pad', freq:midiFreq(rootMidi+iv+(i===0?-12:0)), dur:chordDur+1.2, vel:(0.09+(i===0?0.05:0))*velScale});
+      });
+      for (let b=0;b<chordBars;b++){
+        events.push({t:chordStart+b*barBeats*beatSec, voice:'bass', freq:midiFreq(rootMidi-24), dur:barBeats*beatSec*0.9, vel:0.2*velScale});
+      }
+      if (withLead && def.motifs && def.motifs.length){
+        let mt = chordStart;
+        const motif = def.motifs[barIndex % def.motifs.length];
+        let guard = 0;
+        while (mt < chordStart+chordDur-0.3 && guard<200){
+          motif.forEach(n=>{
+            if (mt >= chordStart+chordDur-0.15) return;
+            const m = scaleDegreeMidi(def.tonicMidi, def.scale, n.deg + (def.leadOctave||0));
+            events.push({t:mt, voice:'lead', freq:midiFreq(m), dur:n.dur*beatSec*0.88, vel:n.vel});
+            mt += n.dur*beatSec;
+          });
+          guard++;
+        }
+      }
+      if (withTexture){
+        if (def.texture==='tick'){
+          const beats = chordBars*barBeats;
+          for (let bt=0; bt<beats; bt++) events.push({t:chordStart+bt*beatSec, voice:'tick', dur:0.06, vel:0.15});
+        } else if (def.texture && def.texture!=='none'){
+          events.push({t:chordStart, voice:'texture', textureType:def.texture, dur:chordDur+0.5, vel:0.5});
+        }
+      }
+      cursor += chordDur;
+    });
+  }
+
+  addPass(false, false, 0.75);
+  addPass(true, true, 1.0);
+
+  return { events, totalDuration: cursor };
+}
+
+const MUSIC_THEMES = {
+  entrada: { bpm:54, chordBars:4, tonicMidi:50, scale:SCALES.aeolian, texture:'none',
+    progression:[{deg:0,type:'min'},{deg:5,type:'maj'},{deg:2,type:'maj'},{deg:6,type:'maj'}],
+    motifs:[
+      [{deg:7,dur:1,vel:0.5},{deg:5,dur:0.5,vel:0.4},{deg:3,dur:0.5,vel:0.4},{deg:2,dur:1,vel:0.42},{deg:0,dur:2,vel:0.48},{deg:-1,dur:1,vel:0.32},{deg:0,dur:2,vel:0.4}],
+      [{deg:4,dur:1.5,vel:0.42},{deg:6,dur:0.5,vel:0.36},{deg:7,dur:2,vel:0.48},{deg:5,dur:1,vel:0.38},{deg:3,dur:3,vel:0.4}],
+    ]},
+  agua: { bpm:50, chordBars:4, tonicMidi:52, scale:SCALES.dorian, texture:'water',
+    progression:[{deg:0,type:'min7'},{deg:3,type:'maj'},{deg:4,type:'min'},{deg:3,type:'maj'}],
+    motifs:[
+      [{deg:0,dur:2,vel:0.36},{deg:2,dur:2,vel:0.38},{deg:4,dur:2,vel:0.4},{deg:7,dur:2,vel:0.46},{deg:4,dur:2,vel:0.38},{deg:2,dur:2,vel:0.32}],
+      [{deg:9,dur:3,vel:0.4},{deg:7,dur:1,vel:0.34},{deg:5,dur:2,vel:0.38},{deg:4,dur:3,vel:0.38},{deg:2,dur:3,vel:0.32}],
+    ]},
+  relogio: { bpm:66, chordBars:4, tonicMidi:45, scale:SCALES.harmonicMinor, texture:'tick',
+    progression:[{deg:0,type:'min'},{deg:3,type:'min'},{deg:4,type:'maj'},{deg:0,type:'min'}],
+    motifs:[
+      [{deg:0,dur:0.5,vel:0.42},{deg:2,dur:0.5,vel:0.34},{deg:3,dur:0.5,vel:0.4},{deg:2,dur:0.5,vel:0.32},{deg:0,dur:0.5,vel:0.4},{deg:-1,dur:0.5,vel:0.32},{deg:0,dur:1,vel:0.46},{deg:4,dur:1,vel:0.4}],
+      [{deg:7,dur:0.5,vel:0.42},{deg:6,dur:0.5,vel:0.36},{deg:4,dur:1,vel:0.4},{deg:3,dur:0.5,vel:0.34},{deg:2,dur:0.5,vel:0.34},{deg:0,dur:2,vel:0.42}],
+    ]},
+  espelho: { bpm:48, chordBars:4, tonicMidi:54, scale:SCALES.phrygian, texture:'wind',
+    progression:[{deg:0,type:'min'},{deg:1,type:'maj'},{deg:0,type:'min'},{deg:6,type:'maj'}],
+    motifs:[
+      [{deg:0,dur:1,vel:0.4},{deg:1,dur:1,vel:0.36},{deg:3,dur:1,vel:0.4},{deg:5,dur:2,vel:0.44},{deg:3,dur:1,vel:0.36},{deg:1,dur:1,vel:0.34},{deg:0,dur:1,vel:0.36}],
+      [{deg:5,dur:1,vel:0.4},{deg:3,dur:1,vel:0.36},{deg:1,dur:1,vel:0.4},{deg:0,dur:2,vel:0.44},{deg:1,dur:1,vel:0.36},{deg:3,dur:1,vel:0.34},{deg:5,dur:1,vel:0.36}],
+    ]},
+  nomes: { bpm:50, chordBars:4, tonicMidi:48, scale:SCALES.dorian, texture:'wind',
+    progression:[{deg:0,type:'min'},{deg:6,type:'maj'},{deg:3,type:'maj'},{deg:0,type:'min'}],
+    motifs:[
+      [{deg:7,dur:3,vel:0.3},{deg:0,dur:5,vel:0.24}],
+      [{deg:9,dur:2,vel:0.3},{deg:7,dur:2,vel:0.26},{deg:4,dur:4,vel:0.24}],
+    ]},
+  tense: { bpm:74, chordBars:4, tonicMidi:48, scale:SCALES.aeolian, texture:'tick',
+    progression:[{deg:0,type:'min'},{deg:0,type:'cluster'},{deg:1,type:'dim'},{deg:0,type:'cluster'}],
+    motifs:[
+      [{deg:0,dur:0.5,vel:0.4},{deg:1,dur:0.5,vel:0.44},{deg:0,dur:0.5,vel:0.36},{deg:-1,dur:0.5,vel:0.4}],
+      [{deg:6,dur:0.5,vel:0.42},{deg:0,dur:1,vel:0.44},{deg:1,dur:0.5,vel:0.4}],
+    ]},
+  resolucao: { bpm:58, chordBars:4, tonicMidi:55, scale:SCALES.major, texture:'none',
+    progression:[{deg:0,type:'maj'},{deg:3,type:'maj'},{deg:4,type:'maj'},{deg:0,type:'maj'}],
+    motifs:[
+      [{deg:0,dur:2,vel:0.42},{deg:2,dur:1,vel:0.4},{deg:4,dur:2,vel:0.44},{deg:7,dur:3,vel:0.46}],
+      [{deg:7,dur:2,vel:0.44},{deg:5,dur:1,vel:0.38},{deg:4,dur:2,vel:0.4},{deg:2,dur:3,vel:0.38}],
+    ]},
+  verdade: { bpm:46, chordBars:4, tonicMidi:57, scale:SCALES.lydian, texture:'water',
+    progression:[{deg:0,type:'maj7'},{deg:4,type:'maj7'},{deg:3,type:'maj'},{deg:0,type:'maj7'}],
+    motifs:[
+      [{deg:0,dur:3,vel:0.4},{deg:2,dur:2,vel:0.38},{deg:4,dur:3,vel:0.42}],
+      [{deg:7,dur:4,vel:0.46},{deg:9,dur:2,vel:0.4},{deg:7,dur:3,vel:0.42}],
+    ]},
+};
+const MUSIC_CACHE = {};
+const MUSIC = { playing:false, themeKey:null, events:[], totalDuration:0, cursorIndex:0, pieceStartTime:0 };
+let musicSchedulerTimer = null;
+
+function startMusicScheduler(){
+  if (musicSchedulerTimer) return;
+  musicSchedulerTimer = setInterval(()=>{
+    if (!MUSIC.playing || !AUDIO.ctx) return;
+    const now = AUDIO.ctx.currentTime;
+    const aheadUntil = now + 0.25;
+    while (MUSIC.cursorIndex < MUSIC.events.length){
+      const ev = MUSIC.events[MUSIC.cursorIndex];
+      const when = MUSIC.pieceStartTime + ev.t;
+      if (when >= aheadUntil) break;
+      playMusicEvent(ev, Math.max(when, now));
+      MUSIC.cursorIndex++;
+    }
+    if (MUSIC.cursorIndex >= MUSIC.events.length && MUSIC.events.length){
+      MUSIC.pieceStartTime += MUSIC.totalDuration;
+      MUSIC.cursorIndex = 0;
+    }
+  }, 60);
+}
+function startMusic(themeKey){
+  ensureAudio();
+  if (!AUDIO.ctx) return;
+  const def = MUSIC_THEMES[themeKey];
+  if (!def) return;
+  const built = MUSIC_CACHE[themeKey] || (MUSIC_CACHE[themeKey] = composeTheme(def));
+  MUSIC.themeKey = themeKey;
+  MUSIC.events = built.events;
+  MUSIC.totalDuration = built.totalDuration;
+  MUSIC.cursorIndex = 0;
+  MUSIC.pieceStartTime = AUDIO.ctx.currentTime + 0.1;
+  MUSIC.playing = true;
+  startMusicScheduler();
+}
+function stopMusic(){ MUSIC.playing = false; }
+const AREA_MUSIC = { entrada:'entrada', agua:'agua', relogio:'relogio', espelho:'espelho', nomes:'nomes' };
+function setAreaMusic(area){
+  const key = AREA_MUSIC[area] || 'entrada';
+  if (MUSIC.themeKey === key && MUSIC.playing) return;
+  startMusic(key);
+}
+function playEndingMusic(endingId){
+  let key = 'resolucao';
+  if (endingId==='portaZero') key = 'verdade';
+  else if (BAD_ENDINGS.indexOf(endingId)!==-1) key = 'tense';
+  startMusic(key);
+}
+
+/* ---------- one-shot SFX ---------- */
+function sfxTone(freq, when, dur, vel, type){
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.linearRampToValueAtTime(vel, when+0.015);
+  g.gain.exponentialRampToValueAtTime(0.0005, when+dur);
+  const osc = ctx.createOscillator(); osc.type=type||'sine'; osc.frequency.value=freq;
+  osc.connect(g); g.connect(AUDIO.sfxGain); g.connect(AUDIO.sfxWet);
+  osc.start(when); osc.stop(when+dur+0.05);
+}
+function sfxNoiseBurst(when, dur, vel, filterType, filterFreq){
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const src = ctx.createBufferSource(); src.buffer = AUDIO.noiseBuffer;
+  const filt = ctx.createBiquadFilter(); filt.type=filterType||'bandpass'; filt.frequency.value=filterFreq||1800; filt.Q.value=0.9;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(vel, when); g.gain.exponentialRampToValueAtTime(0.0008, when+dur);
+  src.connect(filt); filt.connect(g); g.connect(AUDIO.sfxGain); g.connect(AUDIO.sfxWet);
+  src.start(when); src.stop(when+dur+0.05);
+}
+function playSfx(name){
+  ensureAudio();
+  const ctx = AUDIO.ctx; if (!ctx) return;
+  const t = ctx.currentTime;
+  if (name==='doorOpen'){
+    sfxNoiseBurst(t, 0.35, 0.16, 'bandpass', 1200);
+    sfxTone(140, t+0.02, 0.5, 0.14, 'sine');
+  } else if (name==='doorLocked'){
+    sfxTone(85, t, 0.28, 0.22, 'square');
+    sfxNoiseBurst(t+0.03, 0.18, 0.14, 'highpass', 2600);
+  } else if (name==='itemGet'){
+    [0,4,7].forEach((iv,i)=>sfxTone(midiFreq(72+iv), t+i*0.07, 0.4, 0.18, 'triangle'));
+  } else if (name==='examine'){
+    sfxNoiseBurst(t, 0.12, 0.06, 'bandpass', 2200);
+  } else if (name==='secretFound'){
+    [0,3,7,10,12].forEach((iv,i)=>sfxTone(midiFreq(69+iv), t+i*0.06, 0.55, 0.15, 'triangle'));
+  } else if (name==='symbolDiscovered'){
+    sfxTone(midiFreq(76), t, 0.7, 0.12, 'sine');
+    sfxTone(midiFreq(83), t+0.02, 0.6, 0.06, 'sine');
+  } else if (name==='lieDoorReveal'){
+    sfxTone(midiFreq(60), t, 0.3, 0.1, 'sawtooth');
+    sfxTone(midiFreq(61), t, 0.3, 0.08, 'sawtooth');
+  } else if (name==='refuse'){
+    sfxNoiseBurst(t, 0.4, 0.05, 'lowpass', 500);
+  } else if (name==='uiClick'){
+    sfxNoiseBurst(t, 0.05, 0.03, 'highpass', 3000);
+  } else if (name==='badEnding'){
+    [0,1,6].forEach(iv=>sfxTone(midiFreq(48+iv), t, 3.2, 0.14, 'sawtooth'));
+    sfxTone(midiFreq(36), t, 3.2, 0.16, 'sine');
+  } else if (name==='goodEnding'){
+    [0,4,7,11].forEach(iv=>sfxTone(midiFreq(60+iv), t, 3.6, 0.13, 'triangle'));
+  } else if (name==='trueEnding'){
+    [0,4,7,11,14].forEach((iv,i)=>sfxTone(midiFreq(57+iv), t+i*0.09, 4.2, 0.13, 'sine'));
+    sfxTone(midiFreq(33), t, 4.2, 0.14, 'sine');
+  }
+}
+
 /* ===================== gameLogic.ts — motor de jogo ===================== */
 
 const ITEM_TO_FLAG = {};
@@ -1172,6 +1552,7 @@ function setFlag(state, nameOrArr){
 function addItem(state, itemId){
   if (!itemId) return;
   if (state.inventory.indexOf(itemId)===-1) state.inventory.push(itemId);
+  if (state.allItemsEverCollected.indexOf(itemId)===-1) state.allItemsEverCollected.push(itemId);
 }
 function removeItem(state, itemId){
   if (!itemId) return;
@@ -1188,6 +1569,7 @@ function discoverSymbol(state, symId){
   if (state.discoveredSymbols.indexOf(symId)===-1){
     state.discoveredSymbols.push(symId);
     addJournal(state, 'Símbolo de '+SYMBOLS[symId].name+' descoberto — '+SYMBOLS[symId].meaning);
+    playSfx('symbolDiscovered');
   }
 }
 
@@ -1231,6 +1613,7 @@ function newRunState(name, refused){
     visitedRooms: [1],
     roomVisitLog: [1],
     inventory: [],
+    allItemsEverCollected: [],
     selectedItem: null,
     flags: {},
     journalEntries: [],
@@ -1277,6 +1660,8 @@ function triggerEnding(state, endingId){
   if (BAD_ENDINGS.indexOf(endingId)!==-1) APP.meta.badEndingsSeen++;
   saveMeta();
   clearRun();
+  playSfx(endingId==='portaZero' ? 'trueEnding' : (BAD_ENDINGS.indexOf(endingId)!==-1 ? 'badEnding' : 'goodEnding'));
+  playEndingMusic(endingId);
 }
 
 function checkS14Sequence(state){
@@ -1301,6 +1686,7 @@ function goToRoom(state, roomId, viaDoor){
   state.pendingPuzzle = null;
   const room = getRoom(roomId);
   if (!room) return;
+  setAreaMusic(room.area);
 
   const firstVisit = state.visitedRooms.filter(r=>r===roomId).length<=1;
   if (typeof roomId === 'number' && firstVisit){
@@ -1347,6 +1733,7 @@ function useDoor(state, room, door){
   const doorLabel = 'Porta '+door.label;
   if (door.forbiddenFlag && hasFlag(state, door.forbiddenFlag)){
     state.lastFeedback = {type:'bad', label:doorLabel, text: door.lockMsg||'Essa porta não cede.'};
+    playSfx('doorLocked');
     saveRun();
     return;
   }
@@ -1360,6 +1747,7 @@ function useDoor(state, room, door){
       if (itemOk) state.selectedItem=null;
     } else {
       state.lastFeedback = {type:'bad', label:doorLabel, text: door.lockMsg||'A porta está trancada.'};
+      playSfx('doorLocked');
       saveRun();
       return;
     }
@@ -1371,8 +1759,10 @@ function useDoor(state, room, door){
     state.mapConnections.push({from:room.id, doorLabel:door.label, to:target, suspicious});
     if (suspicious && room.doorLieNote && room.doorLieNote[door.label]){
       addJournal(state, 'Sala '+room.id+', porta '+door.label+': '+room.doorLieNote[door.label]);
+      playSfx('lieDoorReveal');
     }
   }
+  playSfx('doorOpen');
   goToRoom(state, target, true);
 }
 
@@ -1390,11 +1780,13 @@ function useHotspot(state, room, hotspot){
 
   if (needsItem && !itemMatches){
     state.lastFeedback = {type:'neutral', label:hotspot.label, text: hotspot.responseWithout || hotspot.desc};
+    playSfx('examine');
     saveRun();
     return;
   }
   if (already){
     state.lastFeedback = {type:'neutral', label:hotspot.label, text: 'Você já mexeu nisso. Não há mais nada de novo aqui.'};
+    playSfx('examine');
     saveRun();
     return;
   }
@@ -1411,6 +1803,7 @@ function useHotspot(state, room, hotspot){
 
   if (needsItem && itemMatches && !flagOk){
     state.lastFeedback = {type:'neutral', label:hotspot.label, text: hotspot.responseWithout || hotspot.desc};
+    playSfx('examine');
     saveRun();
     return;
   }
@@ -1425,6 +1818,7 @@ function useHotspot(state, room, hotspot){
 
   if (hotspot.opensSecret){
     state.lastFeedback = {type:'good', label:hotspot.label, text: hotspot.response||'', gainedItem};
+    playSfx('secretFound');
     saveRun();
     enterSecretRoom(state, hotspot.opensSecret);
     return;
@@ -1436,6 +1830,7 @@ function useHotspot(state, room, hotspot){
     return;
   }
   state.lastFeedback = {type: needsItem?'good':'neutral', label:hotspot.label, text: hotspot.response || hotspot.desc, gainedItem};
+  playSfx(gainedItem ? 'itemGet' : 'examine');
   saveRun();
 }
 
@@ -1445,6 +1840,7 @@ function submitAnswerPuzzle(state, hotspot, text){
   state.lastFeedback = {type: hotspot.responses[norm] ? 'good':'neutral', label:hotspot.label, text: resp};
   state.pendingPuzzle = null;
   if (hotspot.journal && hotspot.responses[norm]) addJournal(state, hotspot.journal);
+  playSfx(hotspot.responses[norm] ? 'itemGet' : 'examine');
   saveRun();
 }
 function submitSequencePuzzle(state, hotspot, seqStr){
@@ -1453,9 +1849,11 @@ function submitSequencePuzzle(state, hotspot, seqStr){
     if (hotspot.setFlag) setFlag(state, hotspot.setFlag);
     if (hotspot.journal) addJournal(state, hotspot.journal);
     state.lastFeedback = {type:'good', label:hotspot.label, text: hotspot.response};
-    if (hotspot.opensSecret) { saveRun(); enterSecretRoom(state, hotspot.opensSecret); return; }
+    if (hotspot.opensSecret) { playSfx('secretFound'); saveRun(); enterSecretRoom(state, hotspot.opensSecret); return; }
+    playSfx('itemGet');
   } else {
     state.lastFeedback = {type:'bad', label:hotspot.label, text: hotspot.responseWrong};
+    playSfx('doorLocked');
   }
   saveRun();
 }
@@ -1466,6 +1864,7 @@ function submitNamePrompt(state, hotspot, refused, typedName){
       state.refusedName = true;
       if (hotspot.journalIfRefused) addJournal(state, hotspot.journalIfRefused);
       state.lastFeedback = {type:'good', label:hotspot.label, text: hotspot.responseIfRefused};
+      playSfx('refuse');
     } else {
       state.gaveNameToHouse = true;
       triggerEnding(state, hotspot.endingIdIfAnswered);
@@ -1476,6 +1875,7 @@ function submitNamePrompt(state, hotspot, refused, typedName){
     else if (typedName) state.playerName = typedName;
     if (hotspot.journal) addJournal(state, hotspot.journal);
     state.lastFeedback = {type:'neutral', label:hotspot.label, text: refused ? 'Você não responde. A porta espera em silêncio, depois desiste.' : 'A porta absorve o nome com um rangido leve.'};
+    playSfx(refused ? 'refuse' : 'examine');
   }
   saveRun();
 }
@@ -1557,6 +1957,7 @@ function renderTopbar(){
     pills += '<button class="pill" style="background:var(--myst);color:#f0e6cf;border-color:#2e2350;" data-action="goPortaZero">A Porta Zero</button>';
   }
   pills += '<button class="pill" data-action="resetGame">Recomeçar</button>';
+  pills += '<button class="pill" data-action="toggleMuted" title="Som">'+(AUDIO.muted?'🔇':'🔊')+'</button>';
   return '<div class="topbar">'+
     '<div class="brand"><div class="mark">🚪</div><div><div class="name">A Casa das 99 Portas</div><div class="sub">O Labirinto Que Aprendeu a Mentir</div></div></div>'+
     '<div class="nav-pills">'+pills+'</div>'+
@@ -1566,6 +1967,7 @@ function renderTopbar(){
 function renderStart(){
   const hasSave = !!loadRun();
   return '<div class="start-wrap">'+
+    '<button class="pill" style="position:absolute;top:14px;right:14px;" data-action="toggleMuted" title="Som">'+(AUDIO.muted?'🔇':'🔊')+'</button>'+
     '<h1>A Casa das 99 Portas</h1>'+
     '<div class="subtitle">O Labirinto Que Aprendeu a Mentir</div>'+
     '<div class="lore card dark" style="margin-top:22px;padding:18px;">'+
@@ -1994,14 +2396,163 @@ function renderMapScreen(){
   '</div>';
 }
 
+const ENDING_ACCENTS = {
+  saidaFalsa:'#a89568', visitanteObediente:'#8a7452', coroaDeVidro:'#a8c8d8', nomeEntregue:'#a83b34',
+  mapaPerfeito:'#8a7452', colecionador:'#caa15a', reflexoTomado:'#8a8ac0', filhaDeElias:'#8a6ac0',
+  arquitetoPreso:'#caa15a', casaCorrigida:'#d4af5a', silencio:'#4fa89a', portaZero:'#f0d68a',
+};
+
+function endHatchDefs(){
+  return '<defs><pattern id="endHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
+    '<line x1="0" y1="0" x2="0" y2="6" stroke="#000" stroke-width="0.6"/></pattern></defs>';
+}
+function endBgWash(color){
+  return '<rect x="0" y="0" width="420" height="240" fill="'+color+'"/>'+
+    '<rect x="0" y="0" width="420" height="240" fill="url(#endHatch)" opacity="0.22"/>';
+}
+function endSilhouette(x,y,h,color){
+  color = color||'#0d0904';
+  const headR = h*0.14;
+  return '<circle cx="'+x+'" cy="'+(y-h+headR).toFixed(1)+'" r="'+headR.toFixed(1)+'" fill="'+color+'"/>'+
+    '<path d="M '+(x-h*0.16).toFixed(1)+' '+y+' L '+(x-h*0.22).toFixed(1)+' '+(y-h*0.55).toFixed(1)+' Q '+x+' '+(y-h*0.68).toFixed(1)+' '+(x+h*0.22).toFixed(1)+' '+(y-h*0.55).toFixed(1)+' L '+(x+h*0.16).toFixed(1)+' '+y+' Z" fill="'+color+'"/>';
+}
+
+function endingTableau(id){
+  const wrap = (inner)=>'<svg viewBox="0 0 420 240" xmlns="http://www.w3.org/2000/svg">'+endHatchDefs()+inner+'</svg>';
+
+  if (id==='saidaFalsa'){
+    let doors = '';
+    for (let i=0;i<4;i++){
+      const s=1-i*0.2, w=170*s, h=195*s, x=210-w/2, y=125-h/2;
+      doors += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="none" stroke="#e9dfc4" stroke-width="'+(3-i*0.5).toFixed(1)+'" opacity="'+(0.9-i*0.16).toFixed(2)+'"/>';
+    }
+    return wrap(endBgWash('#3a2f1f')+doors+'<circle cx="210" cy="125" r="7" fill="#d4af5a" opacity="0.85" class="pulse-glow"/>');
+  }
+  if (id==='visitanteObediente'){
+    return wrap(endBgWash('#241d12')+
+      '<path d="M 130 225 Q 130 40 210 28 Q 290 40 290 225 Z" fill="#0a0603" stroke="#e9dfc4" stroke-width="2" opacity="0.92"/>'+
+      endSilhouette(210,218,58,'#100a05')+
+      '<path d="M 194 202 Q 210 194 226 202" stroke="#e9dfc4" stroke-width="1.4" fill="none" opacity="0.4"/>');
+  }
+  if (id==='coroaDeVidro'){
+    return wrap(endBgWash('#242438')+
+      '<rect x="120" y="168" width="180" height="16" fill="#3a2717" stroke="#1a1006" stroke-width="1.5"/>'+
+      '<path d="M 150 168 L 165 100 L 190 138 L 210 88 L 230 138 L 255 100 L 270 168 Z" fill="rgba(206,224,236,.4)" stroke="#cfe0ea" stroke-width="2.2"/>'+
+      '<line x1="167" y1="104" x2="228" y2="150" stroke="#0d0904" stroke-width="1.6" opacity="0.65"/>'+
+      '<line x1="253" y1="104" x2="192" y2="145" stroke="#0d0904" stroke-width="1.6" opacity="0.65"/>'+
+      '<line x1="210" y1="90" x2="204" y2="164" stroke="#0d0904" stroke-width="1.3" opacity="0.55"/>');
+  }
+  if (id==='nomeEntregue'){
+    const name = (APP.state && APP.state.playerName) ? APP.state.playerName : 'seu nome';
+    let lines = '';
+    for (let i=0;i<5;i++){
+      lines += '<text x="210" y="'+(48+i*34)+'" text-anchor="middle" font-family="Georgia,serif" font-size="'+(21-i*1.6).toFixed(0)+'" fill="#e9dfc4" opacity="'+(0.8-i*0.13).toFixed(2)+'" letter-spacing="2">'+esc(name)+'</text>';
+    }
+    return wrap(endBgWash('#2a140f')+lines);
+  }
+  if (id==='mapaPerfeito'){
+    let grid = '';
+    for (let r=0;r<6;r++){
+      for (let c=0;c<8;c++){
+        if (r===2 && c>=3 && c<=4) continue;
+        const x=32+c*46, y=20+r*33;
+        grid += '<rect x="'+x+'" y="'+y+'" width="42" height="28" fill="none" stroke="#a89568" stroke-width="0.8" opacity="0.55"/>';
+      }
+    }
+    return wrap(endBgWash('#2a2418')+grid+'<rect x="170" y="86" width="90" height="28" fill="#0a0603"/>');
+  }
+  if (id==='colecionador'){
+    const items = [['🔑',80,175],['🕯',140,145],['🎭',205,185],['🪞',270,145],['👑',335,175],['🐟',115,110],['📍',300,105],['🔔',175,95],['✉',245,85],['🗝',210,120],['🧵',60,120],['🗺',360,120]];
+    let out = '';
+    items.forEach(([ic,x,y])=>{ out += '<text x="'+x+'" y="'+y+'" font-size="27" opacity="0.72">'+ic+'</text>'; });
+    return wrap(endBgWash('#241d12')+out);
+  }
+  if (id==='reflexoTomado'){
+    return wrap(endBgWash('#242438')+
+      '<rect x="140" y="30" width="140" height="180" rx="8" fill="rgba(180,200,220,.16)" stroke="#cfe0ea" stroke-width="3"/>'+
+      '<line x1="150" y1="45" x2="270" y2="200" stroke="#0d0904" stroke-width="2" opacity="0.55"/>'+
+      '<line x1="270" y1="45" x2="150" y2="200" stroke="#0d0904" stroke-width="2" opacity="0.4"/>'+
+      endSilhouette(210,205,52,'rgba(10,6,3,0.35)')+
+      endSilhouette(330,210,62,'#0d0904'));
+  }
+  if (id==='filhaDeElias'){
+    return wrap(endBgWash('#241a34')+
+      endSilhouette(175,212,68,'#150f24')+
+      endSilhouette(228,216,44,'#150f24')+
+      '<ellipse cx="335" cy="118" rx="34" ry="48" fill="#0a0714" opacity="0.88"/>'+
+      '<ellipse cx="335" cy="106" rx="15" ry="19" fill="#241d34"/>');
+  }
+  if (id==='arquitetoPreso'){
+    return wrap(endBgWash('#2a2418')+
+      '<rect x="90" y="40" width="240" height="160" fill="rgba(233,223,196,.07)" stroke="#a89568" stroke-width="1.5"/>'+
+      '<line x1="118" y1="68" x2="292" y2="68" stroke="#e9dfc4" stroke-width="1" opacity="0.3"/>'+
+      '<line x1="118" y1="96" x2="292" y2="96" stroke="#e9dfc4" stroke-width="1" opacity="0.3"/>'+
+      '<text x="210" y="142" text-anchor="middle" font-size="24" fill="#e9dfc4" opacity="0.75">Elias</text>'+
+      '<line x1="160" y1="132" x2="258" y2="150" stroke="#a83b34" stroke-width="3"/>'+
+      '<line x1="95" y1="205" x2="205" y2="55" stroke="#caa15a" stroke-width="3"/>'+
+      '<line x1="325" y1="205" x2="215" y2="55" stroke="#caa15a" stroke-width="3"/>'+
+      '<circle cx="270" cy="128" r="4.5" fill="#caa15a"/>');
+  }
+  if (id==='casaCorrigida'){
+    return wrap(endBgWash('#1c1710')+
+      '<path d="M60,222 L60,88 L140,28 L340,28 L340,222 Z" fill="#0a0603" stroke="#3a2f1f" stroke-width="2" opacity="0.92"/>'+
+      '<rect x="183" y="118" width="54" height="86" fill="#3a2717" stroke="#caa15a" stroke-width="2.2" class="pulse-glow"/>'+
+      '<text x="210" y="168" text-anchor="middle" font-size="21" fill="#d4af5a" font-weight="800">24</text>');
+  }
+  if (id==='silencio'){
+    return wrap(endBgWash('#1a2624')+
+      endSilhouette(140,205,66,'#0a0603')+
+      '<text x="295" y="122" font-size="36" opacity="0.9" class="pulse-glow">🐟</text>');
+  }
+  if (id==='portaZero'){
+    let syms = '';
+    SYMBOL_IDS.forEach((sid,i)=>{
+      const ang = (i/SYMBOL_IDS.length)*Math.PI*2 - Math.PI/2;
+      const x = 210+Math.cos(ang)*96, y = 122+Math.sin(ang)*84;
+      syms += '<text x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" text-anchor="middle" font-size="21" opacity="0.92">'+SYMBOLS[sid].ic+'</text>';
+    });
+    return wrap(endBgWash('#241a34')+syms+'<ellipse cx="210" cy="122" rx="36" ry="54" fill="#fff8e8" opacity="0.88" class="pulse-glow-strong"/>');
+  }
+  return wrap(endBgWash('#241d12'));
+}
+
+function computeJourneyStats(state){
+  return {
+    roomsVisited: state.visitedRooms.filter(r=>typeof r==='number').length,
+    secretsFound: state.discoveredSecrets.length,
+    itemsCollected: state.allItemsEverCollected.length,
+    symbolsUnderstood: state.discoveredSymbols.length,
+    suspiciousDoorsMarked: state.mapConnections.filter(c=>c.suspicious).length,
+    refusedName: state.refusedName,
+  };
+}
+function statTile(icon,val,label){
+  return '<div class="stat-tile"><div class="ic">'+icon+'</div><div class="val">'+esc(String(val))+'</div><div class="lbl">'+esc(label)+'</div></div>';
+}
+function renderJourneyStats(s){
+  return '<div class="card journey-stats"><h4>Sua Jornada</h4><div class="stats-grid">'+
+    statTile('🚪', s.roomsVisited+'/72', 'Salas visitadas')+
+    statTile('🗝', s.secretsFound+'/15', 'Salas secretas encontradas')+
+    statTile('🎒', s.itemsCollected, 'Itens coletados')+
+    statTile('👁', s.symbolsUnderstood+'/9', 'Símbolos compreendidos')+
+    statTile('⚠', s.suspiciousDoorsMarked, 'Portas suspeitas marcadas')+
+    statTile(s.refusedName?'🤐':'🗣', s.refusedName?'Sim':'Não', 'Recusou dar o nome')+
+  '</div></div>';
+}
+
 function renderEndingScreen(){
   const state = APP.state;
   const ending = ENDINGS[state.currentEndingId];
-  return '<div class="ending-wrap">'+
-    '<div class="ending-badge'+(ending.trueEnding?' true-ending':'')+'">'+esc(ending.title)+'</div>'+
-    '<div class="card dark ink-border" style="padding:22px;"><div class="ending-text">'+esc(ending.text)+'</div></div>'+
-    '<div class="tiny muted" style="margin-top:14px;">Finais descobertos: '+APP.meta.discoveredEndings.length+' de 12.</div>'+
-    '<div class="row center gap10" style="margin-top:20px;">'+
+  const accent = ENDING_ACCENTS[state.currentEndingId] || '#a8842f';
+  const tableau = endingTableau(state.currentEndingId);
+  const stats = computeJourneyStats(state);
+  return '<div class="ending-wrap cutscene">'+
+    '<div class="ending-badge'+(ending.trueEnding?' true-ending':'')+'" style="--accent:'+accent+';border-color:'+accent+';">'+esc(ending.title)+'</div>'+
+    '<div class="ending-tableau-frame ink-border" style="--accent:'+accent+';">'+tableau+'</div>'+
+    '<div class="card dark ink-border ending-text-card"><div class="ending-text">'+esc(ending.text)+'</div></div>'+
+    renderJourneyStats(stats)+
+    '<div class="tiny muted ending-meta" style="margin-top:14px;">Finais descobertos: '+APP.meta.discoveredEndings.length+' de 12.</div>'+
+    '<div class="row center gap10 ending-actions" style="margin-top:20px;">'+
       '<button class="btn gold" data-action="playAgain">Jogar novamente</button>'+
       '<button class="btn ghost" data-action="resetGame">Recomeçar do zero</button>'+
     '</div>'+
@@ -2039,10 +2590,11 @@ function handleAction(action, arg){
     }
     case 'continueRun': {
       const saved = loadRun();
-      if (saved) { APP.state = saved; APP.screen = 'room'; render(); }
+      if (saved) { APP.state = saved; APP.screen = 'room'; setAreaMusic(getRoom(saved.currentRoomId).area); render(); }
       break;
     }
     case 'goScreen': APP.screen = arg; render(); break;
+    case 'toggleMuted': toggleMuted(); render(); break;
     case 'goPortaZero': {
       enterSecretRoom(state, 's15');
       APP.screen = 'room';
@@ -2116,6 +2668,7 @@ function handleAction(action, arg){
     case 'resetGame': {
       if (confirm('Isso vai apagar todo o progresso, incluindo finais descobertos. Continuar?')){
         clearAll();
+        stopMusic();
         APP.meta = { discoveredEndings:[], badEndingsSeen:0 };
         APP.state = null;
         APP.screen = 'start';
