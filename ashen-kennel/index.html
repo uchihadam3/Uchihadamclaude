@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ashen Kennel</title>
+<style>
+  :root{ color-scheme: dark; }
+  html,body{ margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden;
+    font-family:'Courier New', monospace; -webkit-user-select:none; user-select:none; }
+  #gameCanvas{ position:fixed; inset:0; width:100%; height:100%; display:block; image-rendering:pixelated; }
+
+  /* ---------- Boot / retro startup screen ---------- */
+  #bootScreen{ position:fixed; inset:0; background:#000; color:#8a7752; z-index:9999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    font-size:14px; letter-spacing:2px; text-transform:uppercase; }
+  #bootScreen .bootLogo{ font-size:34px; letter-spacing:6px; color:#c9b273; margin-bottom:18px;
+    text-shadow:0 0 12px rgba(201,178,115,0.35); animation:bootFlicker 3.2s infinite steps(1); }
+  #bootScreen .bootSub{ font-size:11px; color:#5a4f38; margin-bottom:40px; letter-spacing:3px; }
+  #bootScreen .bootBar{ width:260px; height:6px; border:1px solid #4a4030; background:#111; }
+  #bootScreen .bootBarFill{ height:100%; width:0%; background:#8a7752; transition:width .18s linear; }
+  #bootScreen .bootHint{ margin-top:26px; font-size:10px; color:#3d3626; }
+  @keyframes bootFlicker{
+    0%,92%,100%{ opacity:1; } 93%{ opacity:.55; } 94%{ opacity:1; } 96%{ opacity:.7; } 97%{ opacity:1; }
+  }
+  .hidden{ display:none !important; }
+
+  /* ---------- HUD (discreet, per spec) ---------- */
+  #hud{ position:fixed; inset:0; pointer-events:none; z-index:50; font-family:'Courier New', monospace; }
+  #hud .bar-wrap{ position:absolute; left:18px; bottom:18px; display:flex; flex-direction:column; gap:6px; width:170px; }
+  #hud .bar{ height:9px; border:1px solid rgba(200,190,160,0.35); background:rgba(10,8,6,0.55); position:relative; }
+  #hud .bar > .fill{ height:100%; width:0%; }
+  #hud .bar.stamina > .fill{ background:#7fae6a; }
+  #hud .bar.fear > .fill{ background:#8a2f2f; }
+  #hud .bar-label{ font-size:9px; letter-spacing:1px; color:#c9bfa6; text-shadow:0 1px 2px #000; opacity:.75; }
+
+  #hud .dogIcon{ position:absolute; left:18px; bottom:70px; width:34px; height:34px;
+    border:1px solid rgba(200,190,160,0.35); border-radius:50%; background:rgba(10,8,6,0.55);
+    display:flex; align-items:center; justify-content:center; font-size:16px; }
+
+  #hud .promptWrap{ position:absolute; left:50%; bottom:90px; transform:translateX(-50%);
+    color:#e8dfc8; font-size:12px; letter-spacing:1px; text-shadow:0 1px 3px #000;
+    background:rgba(10,8,6,0.55); padding:4px 10px; border:1px solid rgba(200,190,160,0.25);
+    opacity:0; transition:opacity .15s; }
+  #hud .promptWrap.show{ opacity:1; }
+
+  #pauseMenu, #mainMenu, #gameOverScreen{ position:fixed; inset:0; z-index:200;
+    background:rgba(4,3,2,0.92); color:#cbbf9e; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:10px; }
+  #pauseMenu.hidden, #mainMenu.hidden, #gameOverScreen.hidden{ display:none; }
+  .menuTitle{ font-size:26px; letter-spacing:6px; color:#c9b273; margin-bottom:18px; text-transform:uppercase; }
+  .menuBtn{ background:transparent; border:1px solid #6b5c3d; color:#cbbf9e; font-family:inherit;
+    font-size:13px; letter-spacing:2px; padding:9px 22px; cursor:pointer; text-transform:uppercase; pointer-events:auto; }
+  .menuBtn:hover{ background:#6b5c3d33; color:#f0e6c8; }
+
+  /* ---------- Mobile touch controls (hidden unless a touch device is detected) ---------- */
+  .touch-ui{ display:none; }
+  body.touch-device .touch-ui{ display:flex; }
+
+  .touch-joystick{ position:fixed; left:22px; bottom:22px; z-index:80;
+    align-items:center; justify-content:center; touch-action:none; }
+  .joy-base{ width:110px; height:110px; border-radius:50%; background:rgba(20,16,10,0.45);
+    border:1px solid rgba(200,190,160,0.3); display:flex; align-items:center; justify-content:center;
+    touch-action:none; }
+  .joy-knob{ width:48px; height:48px; border-radius:50%; background:rgba(201,178,115,0.55);
+    border:1px solid rgba(230,220,190,0.5); transition:transform .04s linear; touch-action:none; }
+
+  .touch-actions{ position:fixed; right:22px; bottom:22px; z-index:80; gap:14px;
+    flex-direction:column; align-items:flex-end; }
+  .touch-btn{ width:74px; height:74px; border-radius:50%; background:rgba(20,16,10,0.45);
+    border:1px solid rgba(200,190,160,0.3); color:#cbbf9e; font-family:'Courier New', monospace;
+    font-size:10px; letter-spacing:1px; touch-action:none; }
+  .touch-btn.active{ background:rgba(201,178,115,0.4); color:#fff; }
+
+  .touch-pause-btn{ position:fixed; top:16px; right:16px; z-index:80; width:38px; height:38px;
+    border-radius:6px; background:rgba(20,16,10,0.45); border:1px solid rgba(200,190,160,0.3);
+    color:#cbbf9e; font-size:16px; align-items:center; justify-content:center; touch-action:none; }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="bootScreen">
+  <div class="bootLogo">ASHEN KENNEL</div>
+  <div class="bootSub">um demake de terror psicologico</div>
+  <div class="bootBar"><div class="bootBarFill" id="bootBarFill"></div></div>
+  <div class="bootHint">carregando...</div>
+</div>
+
+<div id="mainMenu" class="hidden">
+  <div class="menuTitle">Ashen Kennel</div>
+  <button class="menuBtn" data-menu-action="newGame">Novo Jogo</button>
+  <button class="menuBtn" data-menu-action="continue">Continuar</button>
+  <button class="menuBtn" data-menu-action="options">Opcoes</button>
+</div>
+
+<div id="pauseMenu" class="hidden">
+  <div class="menuTitle">Pausado</div>
+  <button class="menuBtn" data-menu-action="resume">Continuar</button>
+  <button class="menuBtn" data-menu-action="options">Opcoes</button>
+  <button class="menuBtn" data-menu-action="quit">Sair para o menu</button>
+</div>
+
+<div id="gameOverScreen" class="hidden">
+  <div class="menuTitle" style="color:#8a2f2f;">Voce foi capturada</div>
+  <button class="menuBtn" data-menu-action="respawn">Voltar ao ultimo checkpoint</button>
+</div>
+
+<div id="hud" class="hidden">
+  <div class="dogIcon" id="dogIcon">-</div>
+  <div class="bar-wrap">
+    <div class="bar-label">FOLEGO</div>
+    <div class="bar stamina"><div class="fill" id="staminaFill"></div></div>
+    <div class="bar-label">PANICO</div>
+    <div class="bar fear"><div class="fill" id="fearFill"></div></div>
+  </div>
+  <div class="promptWrap" id="promptWrap"></div>
+</div>
+
+<!-- Three.js (vendored, classic global build) with CDN fallback -->
+<script src="vendor/three.min.js" onerror="(function(){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';document.head.appendChild(s);})()"></script>
+
+<!-- Ashen Kennel game modules (classic scripts, shared AK namespace, dependency order) -->
+<!-- Phase 1: core playable loop (engine, PS1 filter, Lia's rig/controller, first room) -->
+<script src="js/core/namespace.js"></script>
+<script src="js/core/Input.js"></script>
+<script src="js/core/TouchControls.js"></script>
+<script src="js/core/GameStateManager.js"></script>
+<script src="js/core/CameraController.js"></script>
+<script src="js/core/PS1Renderer.js"></script>
+<script src="js/entities/CharacterBuilder.js"></script>
+<script src="js/entities/PlayerController.js"></script>
+<script src="js/world/WorldKit.js"></script>
+<script src="js/world/rooms/Cela.js"></script>
+<script src="js/world/rooms/Corridor.js"></script>
+<script src="js/world/rooms/MainHall.js"></script>
+<script src="js/world/rooms/Kitchen.js"></script>
+<script src="js/world/rooms/Library.js"></script>
+<script src="js/world/rooms/Garden.js"></script>
+<script src="js/world/rooms/CandleWorkshop.js"></script>
+<script src="js/world/World.js"></script>
+<script src="js/ui/UIManager.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

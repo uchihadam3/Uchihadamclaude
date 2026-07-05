@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cronicas de Valdren</title>
+<style>
+  html,body{ margin:0; padding:0; width:100%; height:100%; background:#0a0a0e; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; -webkit-user-select:none; user-select:none; }
+  #gameCanvas{ image-rendering:pixelated; image-rendering:crisp-edges; display:block; }
+
+  /* ---------- Mobile D-pad (hidden unless a touch device is detected) ---------- */
+  .touch-ui{ display:none; }
+  body.touch-device .touch-ui{ display:block; }
+
+  .dpad{ position:fixed; left:20px; bottom:20px; width:132px; height:132px; z-index:80; touch-action:none; }
+  .dpad-btn{ position:absolute; width:44px; height:44px; background:rgba(20,16,10,0.5);
+    border:1px solid rgba(220,210,190,0.35); color:#e8dfc8; font-size:16px; border-radius:6px;
+    touch-action:none; padding:0; }
+  .dpad-btn.active{ background:rgba(201,178,115,0.55); color:#fff; }
+  .dpad-up{ left:44px; top:0; }
+  .dpad-down{ left:44px; top:88px; }
+  .dpad-left{ left:0; top:44px; }
+  .dpad-right{ left:88px; top:44px; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<script src="js/core/namespace.js"></script>
+<script src="js/core/Canvas.js"></script>
+<script src="js/core/Input.js"></script>
+<script src="js/core/TouchControls.js"></script>
+<script src="js/gfx/Tileset.js"></script>
+<script src="js/gfx/CharacterSprite.js"></script>
+<script src="js/data/Palettes.js"></script>
+<script src="js/world/TileMap.js"></script>
+<script src="js/world/Town.js"></script>
+<script src="js/world/HeroController.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
