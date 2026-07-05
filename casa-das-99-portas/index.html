@@ -2139,12 +2139,67 @@ function drawClutterProp(kind, pt, scale, rng){
   return '';
 }
 
+const HOTSPOT_ZONES = {
+  h1_quadro:{zone:'wall'}, h1_placa:{zone:'wall'},
+  h2_marcas:{zone:'door',doorLabel:31},
+  h3_lustre:{zone:'ceiling'}, h3_sombra:{zone:'door',doorLabel:44},
+  h4_capas:{zone:'wall'}, h4_etiqueta:{zone:'wall'},
+  h5_retrato:{zone:'wall'}, h5_inscricao:{zone:'wall'},
+  h6_escada:{zone:'door',doorLabel:60},
+  h7_forno:{zone:'wall'}, h7_cinzas:{zone:'wall'},
+  h8_retrato:{zone:'wall'}, h8_texto:{zone:'wall'}, h8_regua:{zone:'door',doorLabel:39},
+  h9_livros:{zone:'wall'}, h9_escada:{zone:'wall'},
+  h10_paredes:{zone:'wall'},
+  h11_mascara:{zone:'door',doorLabel:68}, h11_numeros:{zone:'wall'},
+  h14_placa:{zone:'door',doorLabel:52}, h14_teto:{zone:'ceiling'},
+  h15_desenhos:{zone:'wall'},
+  h16_quadro:{zone:'wall'},
+  h17_espelho:{zone:'wall'}, h17_reflexo:{zone:'wall'},
+  h18_relogio:{zone:'wall'},
+  h19_mascaras:{zone:'ceiling'},
+  h21_livros:{zone:'wall'}, h21_chao:{zone:'door',doorLabel:56},
+  h24_marca:{zone:'door',doorLabel:1},
+  h25_marca:{zone:'door',doorLabel:60},
+  h26_escada:{zone:'wall'},
+  h27_chaves:{zone:'wall'},
+  h31_sino:{zone:'wall'},
+  h32_flores:{zone:'wall'},
+  h34_placa:{zone:'door',doorLabel:52},
+  h40_porta:{zone:'wall'},
+  h41_parede:{zone:'wall'},
+  h42_placa:{zone:'wall'},
+  h44_cortinas:{zone:'door',doorLabel:13},
+  h45_relogio:{zone:'wall'},
+  h46_parede:{zone:'wall'},
+  h50_estatuas:{zone:'door',doorLabel:5},
+  h51_retratos:{zone:'wall'},
+  h52_inscricao:{zone:'door',doorLabel:14},
+  h53_poeira:{zone:'door',doorLabel:42},
+  h54_ferramentas:{zone:'wall'}, h54_plantas:{zone:'wall'},
+  h55_vozes:{zone:'wall'},
+  h56_livros:{zone:'wall'},
+  h57_fechadura:{zone:'wall'},
+  h61_porta:{zone:'wall'},
+  h62_relogios:{zone:'wall'},
+  h63_mascara:{zone:'door',doorLabel:36},
+  h64_espelho:{zone:'wall'},
+  h67_placa:{zone:'wall'},
+  h68_placas:{zone:'wall'},
+  h70_numeros:{zone:'wall'},
+  h71_luz:{zone:'wall'},
+  s1_voz:{zone:'wall'}, s2_escada:{zone:'wall'}, s3_relogios:{zone:'wall'},
+  s5_sombra:{zone:'wall'}, s8_parede:{zone:'wall'}, s10_dentes:{zone:'wall'},
+  s11_palpebra:{zone:'wall'}, s13_parede:{zone:'wall'}, s14_parede:{zone:'wall'},
+  s15_porta:{zone:'wall'},
+};
+
 function renderRoomScene(room, state){
   const rng = mulberry32(hashSeed(room.id));
   const tint = AREA_TINTS[room.area] || AREA_TINTS.entrada;
   const matKey = pick(rng, Object.keys(WALL_MATERIALS));
   const mat = WALL_MATERIALS[matKey];
-  const doorStyle = pick(rng, ['arch','plain','plain','round']);
+  const roomDoorStyle = pick(rng, ['arch','plain','plain','round']);
+  const oddDoorStyle = {arch:'plain', plain:'round', round:'arch'}[roomDoorStyle];
 
   const jitter = (base,range) => base + (rng()*2-1)*range;
   const backHalfW = jitter(122, 26);
@@ -2163,7 +2218,13 @@ function renderRoomScene(room, state){
     right: {a:pts.FTR, b:pts.BTR, d:pts.FBR, c:pts.BBR},
     back:  {a:pts.BTL, b:pts.BTR, d:pts.BBL, c:pts.BBR},
     floor: {a:pts.FBL, b:pts.FBR, d:pts.BBL, c:pts.BBR},
+    ceiling: {a:pts.FTL, b:pts.FTR, d:pts.BTL, c:pts.BTR},
   };
+  function doorSideOffset(quad, dist){
+    const dx = quad[0].x-quad[1].x, dy = quad[0].y-quad[1].y;
+    const len = Math.max(1, Math.hypot(dx,dy));
+    return { x: dx/len*dist, y: dy/len*dist };
+  }
 
   const doors = (room.doors||[]).filter(door=>!(door.hideIfForbidden && door.forbiddenFlag && hasFlag(state, door.forbiddenFlag)));
   const slots = DOOR_SLOTS_BY_COUNT[Math.min(doors.length,3)] || ['back'];
@@ -2178,6 +2239,9 @@ function renderRoomScene(room, state){
     '</pattern>'+
     '<linearGradient id="woodgrain" x1="0" y1="0" x2="1" y2="0">'+
       '<stop offset="0" stop-color="#7a5636"/><stop offset="0.5" stop-color="#5a3e26"/><stop offset="1" stop-color="#7a5636"/>'+
+    '</linearGradient>'+
+    '<linearGradient id="woodgrainOdd" x1="0" y1="0" x2="1" y2="0">'+
+      '<stop offset="0" stop-color="#5a5648"/><stop offset="0.5" stop-color="#3e3a2e"/><stop offset="1" stop-color="#5a5648"/>'+
     '</linearGradient>'+
   '</defs>';
 
@@ -2217,6 +2281,7 @@ function renderRoomScene(room, state){
   });
 
   // ---- doors ----
+  const doorQuadsByLabel = {};
   doors.forEach((door,i)=>{
     const slot = slots[i] || 'back';
     const range = DOOR_SLOT_RANGE[slot];
@@ -2227,8 +2292,11 @@ function renderRoomScene(room, state){
     const unlockedAlready = state.unlockedDoors.indexOf(room.id+'_'+door.label)!==-1;
     const showLocked = door.locked && !unlockedAlready;
     const knownLie = doorIsKnownLie(state, room.id, door.label);
+    const isSuspicious = door.isLie || !!door.special;
+    const doorStyle = isSuspicious ? oddDoorStyle : roomDoorStyle;
     const plaqueW = 30, plaqueH = 18;
     const frameSpan = Math.max(6, Math.abs(quad[1].x-quad[0].x)*0.5 + Math.abs(quad[1].y-quad[0].y)*0.5);
+    doorQuadsByLabel[door.label] = {quad, centroid, slot};
 
     svg += '<g class="scene-door" data-action="clickDoor" data-arg="'+door.label+'">';
     if (doorStyle==='arch'){
@@ -2241,7 +2309,7 @@ function renderRoomScene(room, state){
       svg += '<path d="M '+quad[0].x.toFixed(1)+' '+quad[0].y.toFixed(1)+' Q '+topMid.x.toFixed(1)+' '+(topMid.y-capH).toFixed(1)+' '+quad[1].x.toFixed(1)+' '+quad[1].y.toFixed(1)+' Z" '+
         'fill="'+mat.wall+'" stroke="#241d12" stroke-width="1.6" opacity="0.9"/>';
     }
-    svg += '<polygon class="doorpoly" points="'+ptsStr(quad)+'" fill="'+(showLocked?'#3a2020':'url(#woodgrain)')+'" stroke="#2b1710" stroke-width="2"/>';
+    svg += '<polygon class="doorpoly" points="'+ptsStr(quad)+'" fill="'+(showLocked?'#3a2020':(isSuspicious?'url(#woodgrainOdd)':'url(#woodgrain)'))+'" stroke="#2b1710" stroke-width="2"/>';
     svg += '<polygon points="'+ptsStr(quad)+'" fill="url(#hatch)" opacity="0.18"/>';
     // knob
     const knobPt = lerpPt(quad[1],quad[2],0.5);
@@ -2263,21 +2331,94 @@ function renderRoomScene(room, state){
     svg += '</g>';
   });
 
-  // ---- hotspots (objetos clicáveis) ----
+  // ---- hotspots (objetos clicáveis, posicionados no lugar certo da pista) ----
   const hotspots = room.hotspots||[];
-  const layout = HOTSPOT_LAYOUTS[Math.min(hotspots.length,3)] || HOTSPOT_LAYOUTS[3];
-  hotspots.forEach((h,i)=>{
-    const pos = layout[i] || {u:0.5,t:0.5};
-    const pt = wallPoint(walls.floor, pos.u, pos.t);
+  const wallSpotPool = [
+    {side:'back', t:0.10, v:0.22}, {side:'back', t:0.90, v:0.22},
+    {side:'left', t:0.72, v:0.30}, {side:'right', t:0.72, v:0.30},
+    {side:'back', t:0.5, v:0.12},
+  ];
+  const ceilingSpotPool = [{u:0.32,t:0.42},{u:0.68,t:0.42},{u:0.5,t:0.62}];
+  const floorSpotPool = [{u:0.20,t:0.42},{u:0.80,t:0.42},{u:0.5,t:0.66},{u:0.35,t:0.55},{u:0.65,t:0.55}];
+  const MIN_HOTSPOT_DIST = 62;
+
+  function wallSpotAt(idx){
+    const spot = wallSpotPool[idx % wallSpotPool.length];
+    return { pt: wallPoint(walls[spot.side], spot.t, spot.v), scale: 0.9 };
+  }
+  function ceilingSpotAt(idx){
+    const spot = ceilingSpotPool[idx % ceilingSpotPool.length];
+    return { pt: wallPoint(walls.ceiling, spot.u, spot.t), scale: 0.85 };
+  }
+  function floorSpotAt(idx){
+    const spot = floorSpotPool[idx % floorSpotPool.length];
+    return { pt: wallPoint(walls.floor, spot.u, spot.t), scale: 1.25-spot.t*0.5 };
+  }
+  function pickSpot(poolFn, poolLen, idxRef, placedPts){
+    let candidate = null;
+    for (let attempt=0; attempt<poolLen; attempt++){
+      const idx = (idxRef.i + attempt) % poolLen;
+      candidate = poolFn(idx);
+      const far = placedPts.every(p=>Math.hypot(p.x-candidate.pt.x, p.y-candidate.pt.y) >= MIN_HOTSPOT_DIST);
+      if (far){ idxRef.i = idx+1; return candidate; }
+    }
+    idxRef.i = (idxRef.i+1) % poolLen;
+    return candidate;
+  }
+
+  const placedPts = [];
+  const idxRefs = {wall:{i:0}, ceiling:{i:0}, floor:{i:0}};
+  const posByHotspotId = {};
+
+  // pass 1: door-anchored hotspots get a fixed position tied to their door
+  hotspots.forEach(h=>{
+    const zoneInfo = HOTSPOT_ZONES[h.id] || {zone:'floor'};
+    if (zoneInfo.zone==='door' && doorQuadsByLabel[zoneInfo.doorLabel]){
+      const dq = doorQuadsByLabel[zoneInfo.doorLabel];
+      const basePt = lerpPt(dq.quad[0], dq.quad[3], 0.5);
+      const off = doorSideOffset(dq.quad, 58);
+      const pt = { x: basePt.x+off.x, y: basePt.y+off.y };
+      posByHotspotId[h.id] = {pt, scale:0.95, isFloorLike:false};
+      placedPts.push(pt);
+    }
+  });
+
+  // pass 2: wall / ceiling / floor hotspots, avoiding collisions with anything already placed
+  hotspots.forEach(h=>{
+    if (posByHotspotId[h.id]) return;
+    const zoneInfo = HOTSPOT_ZONES[h.id] || {zone:'floor'};
+    let entry;
+    if (zoneInfo.zone==='wall'){
+      if (doors.length===0){
+        const dq0 = doorQuad(walls.back, DOOR_SLOT_RANGE.back.t1, DOOR_SLOT_RANGE.back.t2, DOOR_SLOT_RANGE.back.v1, DOOR_SLOT_RANGE.back.v2);
+        entry = { pt: quadCentroid(dq0), scale: 1.05, isFloorLike:false };
+      } else {
+        const r = pickSpot(wallSpotAt, wallSpotPool.length, idxRefs.wall, placedPts);
+        entry = { pt:r.pt, scale:r.scale, isFloorLike:false };
+      }
+    } else if (zoneInfo.zone==='ceiling'){
+      const r = pickSpot(ceilingSpotAt, ceilingSpotPool.length, idxRefs.ceiling, placedPts);
+      entry = { pt:r.pt, scale:r.scale, isFloorLike:false };
+    } else {
+      const r = pickSpot(floorSpotAt, floorSpotPool.length, idxRefs.floor, placedPts);
+      entry = { pt:r.pt, scale:r.scale, isFloorLike:true };
+    }
+    posByHotspotId[h.id] = entry;
+    placedPts.push(entry.pt);
+  });
+
+  hotspots.forEach(h=>{
+    const {pt, scale, isFloorLike} = posByHotspotId[h.id];
     const used = h.oneTime && state.usedHotspots.indexOf(h.id)!==-1;
-    const scale = 1.25 - pos.t*0.5;
     const fontSize = (24*scale).toFixed(1);
     const tagLabel = h.label.length>24 ? h.label.slice(0,22)+'…' : h.label;
     const tagFontSize = (10*scale).toFixed(1);
     const tagY = pt.y + 15*scale;
-    svg += '<g class="scene-hotspot'+(used?' examined':'')+'" data-action="clickHotspot" data-arg="'+h.id+'">'+
-      '<ellipse cx="'+pt.x.toFixed(1)+'" cy="'+(pt.y+6).toFixed(1)+'" rx="'+(22*scale).toFixed(1)+'" ry="'+(6*scale).toFixed(1)+'" fill="#140d05" opacity="0.35"/>'+
-      '<circle class="lupa-ring" cx="'+pt.x.toFixed(1)+'" cy="'+pt.y.toFixed(1)+'" r="'+(15*scale).toFixed(1)+'" fill="rgba(212,175,90,0.16)" stroke="'+(used?'#8a7452':'var(--gold, #a8842f)')+'" stroke-width="1.5"/>'+
+    svg += '<g class="scene-hotspot'+(used?' examined':'')+'" data-action="clickHotspot" data-arg="'+h.id+'">';
+    if (isFloorLike){
+      svg += '<ellipse cx="'+pt.x.toFixed(1)+'" cy="'+(pt.y+6).toFixed(1)+'" rx="'+(22*scale).toFixed(1)+'" ry="'+(6*scale).toFixed(1)+'" fill="#140d05" opacity="0.35"/>';
+    }
+    svg += '<circle class="lupa-ring" cx="'+pt.x.toFixed(1)+'" cy="'+pt.y.toFixed(1)+'" r="'+(15*scale).toFixed(1)+'" fill="rgba(212,175,90,0.16)" stroke="'+(used?'#8a7452':'var(--gold, #a8842f)')+'" stroke-width="1.5"/>'+
       '<text x="'+pt.x.toFixed(1)+'" y="'+(pt.y+1).toFixed(1)+'" text-anchor="middle" dominant-baseline="middle" font-size="'+fontSize+'">🔍</text>'+
       '<rect x="'+(pt.x-38*scale).toFixed(1)+'" y="'+(tagY-8*scale).toFixed(1)+'" width="'+(76*scale).toFixed(1)+'" height="'+(15*scale).toFixed(1)+'" rx="3" fill="#ddd0a8" stroke="#4a4030" stroke-width="0.8" opacity="0.95"/>'+
       '<text x="'+pt.x.toFixed(1)+'" y="'+(tagY+3*scale).toFixed(1)+'" text-anchor="middle" font-size="'+tagFontSize+'" font-family="Georgia,serif" fill="#2b2620">'+esc(tagLabel)+'</text>'+
@@ -2288,6 +2429,7 @@ function renderRoomScene(room, state){
   svg += '</svg>';
   return svg;
 }
+
 function renderRoomScreen(){
   const state = APP.state;
   const room = getRoom(state.currentRoomId);
