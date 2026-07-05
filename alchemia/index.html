@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ALCHEMÍA — Roguelike de Alquimia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Baloo+2:wght@500;700;800&family=Cinzel+Decorative:wght@700;900&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   ALCHEMÍA — jogo roguelike de alquimia (deckbuilder original)
+   Tudo em um arquivo. Sem dependências além das fontes (CDN).
+   ========================================================================= */
+:root{
+  --ember:#ff5a2c; --ember-g:#ff9a4d;
+  --tide:#2b8cff;  --tide-g:#69c6ff;
+  --root:#33c25e;  --root-g:#82ff9e;
+  --gale:#9fb4c9;  --gale-g:#e7f2ff;
+  --lumen:#ffcf33; --lumen-g:#fff2a0;
+  --bg0:#0a0713; --bg1:#150e26; --bg2:#1d1338;
+  --ink:#f3ecff; --dim:#a698c9; --line:rgba(190,150,255,.22);
+  --gold:#ffd36b; --danger:#ff5470; --good:#54ffa8;
+  --panel:rgba(24,15,46,.72);
+  --shadow:0 12px 40px rgba(0,0,0,.55);
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; height:100%; font-family:'Baloo 2',system-ui,sans-serif; color:var(--ink);
+  background:radial-gradient(1200px 700px at 20% -10%, #2a1a4d 0%, transparent 55%),
+             radial-gradient(1000px 800px at 110% 20%, #12324a 0%, transparent 55%),
+             linear-gradient(160deg,var(--bg0),var(--bg1) 60%, var(--bg2));
+  overflow:hidden; user-select:none;
+}
+h1,h2,h3{ margin:0; }
+.cinzel{ font-family:'Cinzel',serif; }
+.deco{ font-family:'Cinzel Decorative',serif; }
+button{ font-family:inherit; cursor:pointer; }
+button:disabled{ opacity:.4; cursor:not-allowed; }
+
+#bg-canvas{ position:fixed; inset:0; z-index:0; }
+#app{ position:relative; z-index:1; height:100%; display:flex; flex-direction:column; max-width:1100px; margin:0 auto; }
+
+/* ---------------- Telas ---------------- */
+.screen{ display:none; flex:1; min-height:0; }
+.screen.on{ display:flex; }
+
+/* ---------------- Título ---------------- */
+#screen-title{ flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:16px; padding:24px; }
+.logo{ font-family:'Cinzel Decorative',serif; font-weight:900; font-size:clamp(46px,12vw,104px); line-height:.9;
+  background:linear-gradient(180deg,#fff2a0,#ffcf33 40%,#ff8a4d 75%,#a94bd6);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 4px 22px rgba(255,180,80,.35)); letter-spacing:2px; }
+.logo-sub{ font-family:'Cinzel',serif; color:var(--lumen-g); letter-spacing:6px; font-size:clamp(12px,3.5vw,18px); text-transform:uppercase; opacity:.9; margin-top:-6px;}
+.pitch{ color:var(--dim); max-width:520px; line-height:1.5; font-size:15px; }
+.pitch b{ color:var(--ink); }
+.title-cards{ display:flex; gap:10px; margin:6px 0 4px; flex-wrap:wrap; justify-content:center; }
+.btn{ border:none; border-radius:16px; padding:14px 28px; font-weight:800; font-size:18px; color:#20103a;
+  background:linear-gradient(180deg,#ffe08a,#ffb23c); box-shadow:0 6px 0 #b56a12, 0 12px 26px rgba(255,160,60,.4);
+  transition:transform .08s, box-shadow .08s; }
+.btn:active{ transform:translateY(4px); box-shadow:0 2px 0 #b56a12, 0 6px 16px rgba(255,160,60,.4); }
+.btn.sec{ background:linear-gradient(180deg,#5a4a86,#3a2a63); color:var(--ink); box-shadow:0 5px 0 #241640, 0 10px 22px rgba(0,0,0,.4); }
+.btn.sec:active{ transform:translateY(3px); box-shadow:0 2px 0 #241640; }
+.btn.sm{ padding:9px 16px; font-size:14px; border-radius:12px; box-shadow:0 4px 0 #b56a12,0 8px 16px rgba(255,160,60,.3); }
+.btn.sm.sec{ box-shadow:0 4px 0 #241640,0 8px 16px rgba(0,0,0,.35); }
+.title-row{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; align-items:center; }
+.toggles{ display:flex; gap:16px; color:var(--dim); font-size:13px; margin-top:4px; }
+.toggles label{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+
+/* ---------------- HUD ---------------- */
+#screen-game{ flex-direction:column; }
+.topbar{ display:flex; gap:8px; padding:8px 10px 0; align-items:stretch; }
+.hud-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:7px 10px; box-shadow:var(--shadow); }
+.hud-blind{ flex:1; display:flex; flex-direction:column; gap:2px; }
+.hud-blind .bname{ font-family:'Cinzel',serif; font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px; }
+.hud-blind .bsub{ color:var(--dim); font-size:11px; }
+.quota-wrap{ margin-top:4px; }
+.quota-line{ display:flex; justify-content:space-between; font-size:12px; }
+.quota-line .goal{ color:var(--lumen-g); font-weight:800; }
+.qbar{ height:9px; background:rgba(0,0,0,.4); border-radius:20px; overflow:hidden; margin-top:3px; }
+.qfill{ height:100%; width:0%; border-radius:20px; background:linear-gradient(90deg,var(--root),var(--lumen),var(--ember)); transition:width .35s; }
+.hud-mini{ min-width:64px; text-align:center; display:flex; flex-direction:column; justify-content:center; }
+.hud-mini .lbl{ color:var(--dim); font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+.hud-mini .val{ font-family:'Cinzel',serif; font-weight:800; font-size:20px; }
+.val.money{ color:var(--gold); }
+.val.brew{ color:var(--tide-g); }
+.val.disc{ color:var(--root-g); }
+.val.ante{ color:var(--lumen-g); }
+
+/* ---------------- Relíquias ---------------- */
+.relics-row{ display:flex; gap:6px; padding:6px 10px; overflow-x:auto; min-height:56px; align-items:center; }
+.relic{ position:relative; flex:0 0 auto; width:46px; height:46px; border-radius:11px; display:flex; align-items:center; justify-content:center;
+  font-size:24px; background:linear-gradient(160deg,#3a2a63,#241640); border:1px solid var(--line); box-shadow:0 4px 12px rgba(0,0,0,.4); cursor:pointer;
+  transition:transform .1s; }
+.relic:hover{ transform:translateY(-4px); }
+.relic.foil{ box-shadow:0 0 0 2px #8ad7ff, 0 4px 12px rgba(0,0,0,.4); }
+.relic.holo{ box-shadow:0 0 0 2px #ff8ad7, 0 4px 12px rgba(0,0,0,.4); }
+.relic.empty{ background:rgba(255,255,255,.04); border-style:dashed; }
+.relics-label{ flex:0 0 auto; color:var(--dim); font-size:10px; writing-mode:vertical-rl; text-orientation:mixed; letter-spacing:1px; opacity:.6; }
+
+/* ---------------- Mesa / scoring ---------------- */
+.table-area{ flex:1; min-height:0; display:flex; flex-direction:column; justify-content:flex-end; position:relative; padding:0 10px; }
+.score-readout{ position:absolute; top:8px; left:0; right:0; display:flex; justify-content:center; pointer-events:none; z-index:3; }
+.readout-inner{ background:rgba(10,7,20,.72); border:1px solid var(--line); border-radius:16px; padding:8px 16px; text-align:center; box-shadow:var(--shadow); min-width:230px; }
+.reaction-name{ font-family:'Cinzel',serif; font-weight:800; font-size:16px; min-height:20px; color:var(--lumen-g); letter-spacing:1px; }
+.score-eq{ display:flex; align-items:center; justify-content:center; gap:8px; margin-top:4px; font-family:'Cinzel',serif; font-weight:800; font-size:26px; }
+.chips-box{ background:linear-gradient(180deg,#2b6cff,#1b3f8f); color:#eaf3ff; border-radius:10px; padding:2px 12px; min-width:66px; box-shadow:0 3px 0 #0e2352; }
+.mult-box{ background:linear-gradient(180deg,#ff5a4d,#b52c2c); color:#fff; border-radius:10px; padding:2px 12px; min-width:56px; box-shadow:0 3px 0 #6e1414; }
+.eq-x{ color:var(--dim); font-size:20px; }
+.proj{ color:var(--dim); font-size:12px; margin-top:3px; }
+.proj b{ color:var(--lumen-g); }
+
+/* Cauldron (seleção ordenada) */
+.cauldron{ display:flex; gap:6px; justify-content:center; align-items:flex-end; min-height:96px; padding:6px 0 2px; position:relative; z-index:2; flex-wrap:wrap; }
+.cauldron-hint{ color:var(--dim); font-size:13px; opacity:.7; align-self:center; padding-bottom:20px; }
+.link-badge{ position:absolute; transform:transl(-50%,-50%); z-index:4; font-size:11px; font-weight:800; padding:1px 6px; border-radius:10px; pointer-events:none; }
+
+/* Mão */
+.hand-area{ padding:6px 6px 8px; }
+.hand{ display:flex; gap:6px; justify-content:center; align-items:flex-end; min-height:118px; flex-wrap:wrap; }
+
+/* Cartas (ingredientes) — ARTE EXCLUSIVA */
+.card{ position:relative; width:74px; height:104px; border-radius:12px; flex:0 0 auto; cursor:pointer;
+  background:linear-gradient(160deg,var(--c1),var(--c2)); border:1px solid rgba(255,255,255,.25);
+  box-shadow:0 6px 14px rgba(0,0,0,.45); transition:transform .12s, box-shadow .12s, filter .12s; overflow:hidden;
+  display:flex; flex-direction:column; align-items:center; }
+.card:hover{ transform:translateY(-8px); }
+.card.sel{ transform:translateY(-18px); box-shadow:0 12px 22px rgba(0,0,0,.5), 0 0 0 3px var(--lumen); }
+.card.mini{ width:58px; height:82px; }
+.card .frame{ position:absolute; inset:4px; border-radius:9px; border:1px solid rgba(255,255,255,.28); pointer-events:none; }
+.card .glyph{ margin-top:12px; width:40px; height:40px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.4)); }
+.card.mini .glyph{ width:30px; height:30px; margin-top:9px; }
+.card .pot{ font-family:'Cinzel',serif; font-weight:800; font-size:26px; color:#fff; text-shadow:0 2px 4px rgba(0,0,0,.6); margin-top:2px; line-height:1; }
+.card.mini .pot{ font-size:20px; }
+.card .ename{ position:absolute; bottom:6px; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:rgba(255,255,255,.9); font-weight:700; }
+.card.mini .ename{ font-size:8px; bottom:4px; }
+.card .pips{ position:absolute; top:5px; left:0; right:0; display:flex; gap:2px; justify-content:center; }
+.card .pip{ width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,.85); box-shadow:0 0 4px rgba(255,255,255,.7); }
+.card .corner{ position:absolute; top:4px; right:6px; font-family:'Cinzel',serif; font-weight:800; font-size:12px; color:rgba(255,255,255,.85); }
+.card .enh{ position:absolute; bottom:20px; font-size:10px; font-weight:800; padding:1px 5px; border-radius:8px; background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.35); }
+.card.gilded .frame{ border-color:var(--gold); box-shadow:inset 0 0 12px rgba(255,211,107,.5); }
+.card.volatile{ animation:vpulse 1.4s ease-in-out infinite; }
+@keyframes vpulse{ 50%{ filter:brightness(1.2) saturate(1.3); } }
+.card.crystalline .frame{ border-color:#bff; box-shadow:inset 0 0 12px rgba(150,240,255,.5); }
+.card.waxed .frame{ border-color:#ffe08a; }
+.card.runed .glyph{ animation:spin 3s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.card.shimmer::after,.card.radiant::after,.card.prismatic::after{ content:""; position:absolute; inset:0; pointer-events:none; mix-blend-mode:screen; }
+.card.shimmer::after{ background:linear-gradient(115deg,transparent 30%,rgba(140,220,255,.55) 50%,transparent 70%); background-size:250% 250%; animation:shine 2.4s linear infinite; }
+.card.radiant::after{ background:linear-gradient(115deg,transparent 30%,rgba(255,140,220,.5) 50%,transparent 70%); background-size:250% 250%; animation:shine 2s linear infinite; }
+.card.prismatic::after{ background:linear-gradient(115deg,rgba(255,80,120,.35),rgba(120,255,180,.35),rgba(120,160,255,.35)); background-size:300% 300%; animation:shine 3s linear infinite; }
+@keyframes shine{ to{ background-position:250% 0; } }
+.card .fly{ position:absolute; top:-4px; left:50%; transform:translateX(-50%); font-family:'Cinzel',serif; font-weight:800; font-size:16px; pointer-events:none; }
+
+/* Botões de ação */
+.actions{ display:flex; gap:8px; padding:4px 10px 10px; align-items:center; justify-content:center; flex-wrap:wrap; }
+.act-brew{ background:linear-gradient(180deg,#ff8a4d,#ff5a2c); color:#2a1000; box-shadow:0 5px 0 #a12c0c,0 10px 20px rgba(255,90,44,.4); border:none; border-radius:14px; padding:12px 22px; font-weight:800; font-size:17px; }
+.act-brew:active{ transform:translateY(3px); box-shadow:0 2px 0 #a12c0c; }
+.act-disc{ background:linear-gradient(180deg,#4bb36a,#2f8a4c); color:#04210f; box-shadow:0 5px 0 #14431f,0 10px 20px rgba(60,160,90,.35); border:none; border-radius:14px; padding:12px 22px; font-weight:800; font-size:17px; }
+.act-disc:active{ transform:translateY(3px); box-shadow:0 2px 0 #14431f; }
+.act-min{ background:linear-gradient(180deg,#5a4a86,#3a2a63); color:var(--ink); border:none; border-radius:12px; padding:10px 14px; font-weight:700; font-size:14px; box-shadow:0 4px 0 #241640; }
+.act-min:active{ transform:translateY(2px); box-shadow:0 2px 0 #241640; }
+.consumables-row{ display:flex; gap:6px; padding:0 10px 4px; overflow-x:auto; align-items:center; min-height:40px; }
+.cons-chip{ flex:0 0 auto; display:flex; align-items:center; gap:6px; background:linear-gradient(160deg,#402a66,#281840); border:1px solid var(--line); border-radius:12px; padding:6px 10px; font-size:13px; font-weight:700; cursor:pointer; }
+.cons-chip .cg{ font-size:18px; }
+.cons-chip:hover{ filter:brightness(1.15); }
+
+/* ---------------- Overlays ---------------- */
+.overlay{ position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; padding:16px; background:rgba(6,4,14,.8); backdrop-filter:blur(4px); }
+.overlay.on{ display:flex; animation:fade .25s; }
+@keyframes fade{ from{opacity:0;} }
+.modal{ width:100%; max-width:460px; background:linear-gradient(160deg,var(--bg2),var(--bg0)); border:2px solid var(--line); border-radius:20px; padding:20px; box-shadow:var(--shadow); max-height:88vh; overflow:auto; text-align:center; }
+.modal h2{ font-family:'Cinzel Decorative',serif; font-size:26px; margin-bottom:8px; }
+.modal p{ color:var(--dim); line-height:1.5; font-size:14px; }
+.blind-emoji{ font-size:64px; margin:6px 0; }
+.hex-tag{ display:inline-block; background:rgba(255,84,112,.18); border:1px solid var(--danger); color:#ffb3c0; border-radius:20px; padding:5px 14px; font-weight:700; font-size:13px; margin:8px 0; }
+.reward-list{ text-align:left; margin:12px auto; max-width:280px; font-size:14px; }
+.reward-list .r{ display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px dashed rgba(255,255,255,.12); }
+.reward-list .r b{ color:var(--gold); }
+
+/* ---------------- Loja ---------------- */
+#screen-shop{ flex-direction:column; padding:10px; gap:10px; overflow:auto; }
+.shop-head{ display:flex; justify-content:space-between; align-items:center; }
+.shop-head .stitle{ font-family:'Cinzel Decorative',serif; font-size:24px; }
+.shop-money{ font-family:'Cinzel',serif; font-weight:800; font-size:22px; color:var(--gold); }
+.shop-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+.shop-item{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:12px; display:flex; flex-direction:column; align-items:center; gap:6px; box-shadow:var(--shadow); position:relative; text-align:center; }
+.shop-item .si-icon{ font-size:34px; }
+.shop-item .si-name{ font-weight:800; font-size:14px; font-family:'Cinzel',serif; }
+.shop-item .si-desc{ color:var(--dim); font-size:12px; line-height:1.35; min-height:48px; }
+.shop-item .si-price{ color:var(--gold); font-weight:800; }
+.shop-item .rar{ position:absolute; top:8px; left:8px; font-size:9px; padding:2px 6px; border-radius:8px; font-weight:800; letter-spacing:1px; }
+.rar.comum{ background:#3a3a55; color:#cfe; } .rar.raro{ background:#1e4b7a; color:#bfe4ff; }
+.rar.epico{ background:#5a1e7a; color:#f0c8ff; } .rar.lendario{ background:#7a4a12; color:#ffe4b0; }
+.shop-sections{ display:flex; flex-direction:column; gap:12px; }
+.shop-sec-title{ font-family:'Cinzel',serif; font-weight:800; font-size:14px; color:var(--lumen-g); letter-spacing:1px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+.shop-foot{ display:flex; gap:10px; justify-content:center; margin-top:6px; flex-wrap:wrap; }
+
+/* Tooltip */
+#tooltip{ position:fixed; z-index:60; max-width:230px; background:rgba(10,7,20,.96); border:1px solid var(--line); border-radius:12px; padding:10px 12px; box-shadow:var(--shadow); pointer-events:none; display:none; }
+#tooltip .tt-name{ font-family:'Cinzel',serif; font-weight:800; font-size:14px; margin-bottom:3px; }
+#tooltip .tt-desc{ color:var(--dim); font-size:12px; line-height:1.4; }
+#tooltip .tt-tag{ display:inline-block; font-size:10px; margin-top:5px; padding:1px 7px; border-radius:8px; }
+
+/* Toasts / floaters */
+#toasts{ position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:70; display:flex; flex-direction:column; gap:6px; }
+.toast{ background:linear-gradient(90deg,var(--gold),var(--ember-g)); color:#2a1000; font-weight:800; padding:8px 14px; border-radius:12px; box-shadow:var(--shadow); animation:tin .3s, tout .3s 2.4s forwards; font-size:14px; }
+@keyframes tin{ from{transform:translateY(-16px);opacity:0;} }
+@keyframes tout{ to{transform:translateY(-16px);opacity:0;} }
+#float-layer{ position:fixed; inset:0; z-index:65; pointer-events:none; overflow:hidden; }
+.floater{ position:absolute; font-family:'Cinzel',serif; font-weight:800; font-size:22px; text-shadow:0 2px 6px rgba(0,0,0,.6); animation:floatup 1s ease-out forwards; }
+@keyframes floatup{ to{ transform:translateY(-46px); opacity:0; } }
+.shake{ animation:shk .35s; }
+@keyframes shk{ 0%,100%{transform:translate(0,0);} 20%{transform:translate(-6px,3px);} 40%{transform:translate(7px,-4px);} 60%{transform:translate(-5px,-3px);} 80%{transform:translate(5px,4px);} }
+
+.legend{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; font-size:11px; color:var(--dim); margin-top:6px; }
+.legend .lg{ display:flex; align-items:center; gap:4px; background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:20px; padding:3px 9px; }
+.small{ font-size:12px; color:var(--dim); }
+.cycle-diagram{ display:flex; gap:4px; align-items:center; justify-content:center; flex-wrap:wrap; font-size:13px; color:var(--dim); }
+.cycle-diagram b{ color:var(--ink); }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+
+<div id="app">
+  <!-- ================= TÍTULO ================= -->
+  <section class="screen on" id="screen-title">
+    <div class="logo deco">ALCHEMÍA</div>
+    <div class="logo-sub">Roguelike de Alquimia</div>
+    <div class="title-cards" id="title-cards"></div>
+    <p class="pitch">Combine <b>ingredientes</b> no caldeirão e provoque <b>reações</b>. A <b>ordem importa</b>: pares vizinhos no <b>ciclo gerador</b> criam <b>Catálise</b> (multiplicador) e essências iguais criam <b>Fusão</b> (fichas). Bata a <b>meta</b> de cada prova, compre <b>relíquias</b> na loja e sobreviva às <b>maldições</b> dos chefes por 8 antes!</p>
+    <div class="cycle-diagram" id="cycle-diagram"></div>
+    <div class="title-row">
+      <button class="btn" id="btn-start">✦ Iniciar Jornada</button>
+      <button class="btn sec" id="btn-continue" style="display:none;">↻ Continuar</button>
+      <button class="btn sec" id="btn-how">Como jogar</button>
+    </div>
+    <div class="toggles">
+      <label><input type="checkbox" id="tg-music" checked> 🎵 Música</label>
+      <label><input type="checkbox" id="tg-sfx" checked> 🔊 Efeitos</label>
+    </div>
+    <div class="small" id="best-line"></div>
+  </section>
+
+  <!-- ================= JOGO ================= -->
+  <section class="screen" id="screen-game">
+    <div class="topbar">
+      <div class="hud-card hud-blind">
+        <div class="bname" id="hud-bname">—</div>
+        <div class="bsub" id="hud-bsub"></div>
+        <div class="quota-wrap">
+          <div class="quota-line"><span>Pontuação</span><span class="goal"><b id="hud-score">0</b> / <span id="hud-quota">0</span></span></div>
+          <div class="qbar"><div class="qfill" id="hud-qfill"></div></div>
+        </div>
+      </div>
+      <div class="hud-card hud-mini"><div class="lbl">Ante</div><div class="val ante" id="hud-ante">1/8</div></div>
+      <div class="hud-card hud-mini"><div class="lbl">Brasa$</div><div class="val money" id="hud-money">$0</div></div>
+    </div>
+    <div class="topbar" style="padding-top:6px;">
+      <div class="hud-card hud-mini" style="flex:1;"><div class="lbl">Preparos</div><div class="val brew" id="hud-brews">4</div></div>
+      <div class="hud-card hud-mini" style="flex:1;"><div class="lbl">Descartes</div><div class="val disc" id="hud-disc">4</div></div>
+      <div class="hud-card hud-mini" style="flex:1;"><div class="lbl">Baralho</div><div class="val" id="hud-deck">0</div></div>
+    </div>
+
+    <div class="relics-row" id="relics-row"></div>
+
+    <div class="table-area" id="table-area">
+      <div class="score-readout">
+        <div class="readout-inner">
+          <div class="reaction-name" id="reaction-name">Selecione ingredientes</div>
+          <div class="score-eq">
+            <span class="chips-box" id="chips-box">0</span>
+            <span class="eq-x">×</span>
+            <span class="mult-box" id="mult-box">1</span>
+          </div>
+          <div class="proj">= <b id="proj-score">0</b> pontos</div>
+        </div>
+      </div>
+      <div class="cauldron" id="cauldron"><div class="cauldron-hint">🜁 Toque nos ingredientes para adicioná-los ao caldeirão (a ordem cria as reações)</div></div>
+    </div>
+
+    <div class="consumables-row" id="consumables-row"></div>
+    <div class="hand-area">
+      <div class="hand" id="hand"></div>
+    </div>
+    <div class="actions">
+      <button class="act-min" id="btn-sort-ess">Ordenar: Essência</button>
+      <button class="act-disc" id="btn-discard">Descartar</button>
+      <button class="act-brew" id="btn-brew">⚗️ Preparar!</button>
+      <button class="act-min" id="btn-deselect">Limpar</button>
+    </div>
+  </section>
+
+  <!-- ================= LOJA ================= -->
+  <section class="screen" id="screen-shop">
+    <div class="shop-head">
+      <div class="stitle deco">🜍 Botica do Alquimista</div>
+      <div class="shop-money" id="shop-money">$0</div>
+    </div>
+    <div class="shop-sections">
+      <div>
+        <div class="shop-sec-title">Relíquias & Tinturas</div>
+        <div class="shop-grid" id="shop-main"></div>
+      </div>
+      <div>
+        <div class="shop-sec-title">Pacotes & Selos</div>
+        <div class="shop-grid" id="shop-packs"></div>
+      </div>
+    </div>
+    <div class="shop-foot">
+      <button class="btn sm sec" id="btn-reroll">↻ Renovar (<span id="reroll-cost">$5</span>)</button>
+      <button class="btn sm" id="btn-next-blind">Próxima Prova →</button>
+    </div>
+    <div class="relics-row" id="shop-relics-row" style="margin-top:6px;"></div>
+    <div class="small" style="text-align:center;">Suas relíquias e frascos ficam guardados. Venda tocando com segundos.</div>
+  </section>
+</div>
+
+<!-- Overlays -->
+<div class="overlay" id="ov-blind"><div class="modal" id="ov-blind-modal"></div></div>
+<div class="overlay" id="ov-reward"><div class="modal" id="ov-reward-modal"></div></div>
+<div class="overlay" id="ov-end"><div class="modal" id="ov-end-modal"></div></div>
+<div class="overlay" id="ov-how"><div class="modal" id="ov-how-modal"></div></div>
+<div class="overlay" id="ov-pack"><div class="modal" id="ov-pack-modal"></div></div>
+<div class="overlay" id="ov-target"><div class="modal" id="ov-target-modal"></div></div>
+
+<div id="tooltip"></div>
+<div id="toasts"></div>
+<div id="float-layer"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   ALCHEMÍA — núcleo do jogo
+   ========================================================================= */
+
+/* ---------- utilidades / RNG ---------- */
+const $ = id => document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+let RNG = mulberry32((Math.random()*1e9)|0);
+const rnd = ()=>RNG();
+const randInt=(a,b)=>Math.floor(rnd()*(b-a+1))+a;
+const pick = arr => arr[Math.floor(rnd()*arr.length)];
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+let UID=1; const uid=()=>UID++;
+function fmt(n){ if(n>=1e9) return (n/1e9).toFixed(2)+'B'; if(n>=1e6) return (n/1e6).toFixed(2)+'M'; if(n>=1e4) return (n/1e3).toFixed(1)+'k'; return Math.round(n).toLocaleString('pt-BR'); }
+
+/* ---------- essências e ciclo ---------- */
+const ESSENCES = ['ember','tide','root','gale','lumen'];
+const ESS = {
+  ember:{nome:'Brasa', abbr:'BRA', c1:'#ff7a3c', c2:'#c22e12', glow:'var(--ember-g)'},
+  tide: {nome:'Maré',  abbr:'MAR', c1:'#4ea6ff', c2:'#1650b0', glow:'var(--tide-g)'},
+  root: {nome:'Raiz',  abbr:'RAI', c1:'#5ad97e', c2:'#1f7d3e', glow:'var(--root-g)'},
+  gale: {nome:'Vento', abbr:'VEN', c1:'#cdd9e8', c2:'#6c7f95', glow:'var(--gale-g)'},
+  lumen:{nome:'Luz',   abbr:'LUZ', c1:'#ffe07a', c2:'#d99e12', glow:'var(--lumen-g)'}
+};
+// ciclo gerador: A gera GEN[A]  (Raiz→Brasa→Luz→Vento→Maré→Raiz)
+const GEN = { root:'ember', ember:'lumen', lumen:'gale', gale:'tide', tide:'root' };
+const GLYPH = {
+  ember:'<path d="M20 3c3 6-3 8 0 13 4-3 3-8 6-9 1 6 5 9 5 14a11 11 0 1 1-22 0c0-5 4-8 5-13 2 3 0 6 0 8 3-3 2-8 0-13z"/>',
+  tide:'<path d="M2 22c4 0 4-5 8-5s4 5 8 5 4-5 8-5 4 5 8 5v9c-4 0-4-5-8-5s-4 5-8 5-4-5-8-5-4 5-8 5z"/><path d="M2 14c4 0 4-5 8-5s4 5 8 5 4-5 8-5 4 5 8 5" fill="none" stroke="currentColor" stroke-width="2.5"/>',
+  root:'<path d="M20 37c0-10 0-14-6-20-4-4-9-4-11-9 6-1 10 1 13 5 0-5 1-9 4-12 3 3 4 7 4 12 3-4 7-6 13-5-2 5-7 5-11 9-6 6-6 10-6 20z"/>',
+  gale:'<path d="M6 12c0-4 3-7 7-7s7 3 7 7-3 6-13 6c12 0 18 2 18 8s-4 8-8 8-7-3-7-6" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>',
+  lumen:'<path d="M20 2l4.5 11.5L36 15l-9 8 3 12-10-6.5L10 35l3-12-9-8 11.5-1.5z"/>'
+};
+function glyphSVG(ess){ return '<svg class="glyph" viewBox="0 0 40 40" fill="var(--ess-fill)" style="--ess-fill:rgba(255,255,255,.95)">'+GLYPH[ess]+'</svg>'; }
+
+/* ---------- enhancements / edições ---------- */
+const ENH = {
+  gilded:{nome:'Dourado', tag:'+30 fichas', cls:'gilded'},
+  volatile:{nome:'Volátil', tag:'+4 mult', cls:'volatile'},
+  crystalline:{nome:'Cristalino', tag:'reativa 2×', cls:'crystalline'},
+  waxed:{nome:'Encerado', tag:'+$3 ao usar', cls:'waxed'},
+  runed:{nome:'Rúnico', tag:'essência coringa', cls:'runed'}
+};
+const EDT = { shimmer:{nome:'Cintilante', tag:'+50 fichas'}, radiant:{nome:'Radiante', tag:'+8 mult'}, prismatic:{nome:'Prismático', tag:'+0.5× mult'} };
+
+/* ---------- relíquias (jokers originais) ---------- */
+// hooks: onCard(run,brew,acc,card) | onReaction(run,brew,acc,rx) | onBrewEnd(run,brew,acc) | passive(run,mods)
+const RELICS = [
+  {id:'phoenix', nome:'Coração de Brasa', icon:'🔥', rar:'comum', price:5, desc:'+4 de multiplicador para cada Brasa preparada.',
+    onCard:(r,b,a,c)=>{ if(c.ess==='ember') a.mult+=4; }},
+  {id:'pearl', nome:'Pérola da Maré', icon:'🌊', rar:'comum', price:5, desc:'+22 fichas para cada Maré preparada.',
+    onCard:(r,b,a,c)=>{ if(c.ess==='tide') a.chips+=22; }},
+  {id:'worldtree', nome:'Árvore-Mundo', icon:'🌿', rar:'comum', price:5, desc:'+3 de multiplicador para cada Raiz preparada.',
+    onCard:(r,b,a,c)=>{ if(c.ess==='root') a.mult+=3; }},
+  {id:'sunstone', nome:'Pedra Solar', icon:'✨', rar:'comum', price:5, desc:'+28 fichas para cada Luz preparada.',
+    onCard:(r,b,a,c)=>{ if(c.ess==='lumen') a.chips+=28; }},
+  {id:'stormeye', nome:'Olho da Tempestade', icon:'🌪️', rar:'comum', price:5, desc:'Cada Vento preparada rende +$1.',
+    onCard:(r,b,a,c)=>{ if(c.ess==='gale'){ r.money++; a.cash=(a.cash||0)+1; } }},
+  {id:'coil', nome:'Bobina Catalítica', icon:'🌀', rar:'raro', price:7, desc:'A 1ª Catálise de cada preparo dá +16 de multiplicador.',
+    onReaction:(r,b,a,rx)=>{ if(rx.type==='catalyst' && !b.firstCat){ a.mult+=16; b.firstCat=true; } }},
+  {id:'chain', nome:'Mestre das Cadeias', icon:'⛓️', rar:'raro', price:7, desc:'Cada Catálise além da 1ª numa sequência dá +3 de multiplicador extra.',
+    onReaction:(r,b,a,rx)=>{ if(rx.type==='catalyst' && rx.chain>1) a.mult+=3*(rx.chain-1); }},
+  {id:'fusioncore', nome:'Núcleo de Fusão', icon:'💠', rar:'raro', price:8, desc:'Cada Fusão adiciona +0.3× ao multiplicador.',
+    onReaction:(r,b,a,rx)=>{ if(rx.type==='fusion') a.xmult+=0.3; }},
+  {id:'prism', nome:'Núcleo Prisma', icon:'🔷', rar:'raro', price:7, desc:'+3 de multiplicador por essência distinta no caldeirão.',
+    onBrewEnd:(r,b,a)=>{ a.mult += 3*new Set(b.cards.map(c=>c.ess)).size; }},
+  {id:'overflow', nome:'Transbordo', icon:'🫗', rar:'raro', price:7, desc:'Se o caldeirão usar 5+ ingredientes: ×2 de multiplicador.',
+    onBrewEnd:(r,b,a)=>{ if(b.cards.length>=5) a.xmult*=2; }},
+  {id:'minimal', nome:'Essência Pura', icon:'🧿', rar:'raro', price:7, desc:'Se preparar com apenas 1 ingrediente: ×5 de multiplicador.',
+    onBrewEnd:(r,b,a)=>{ if(b.cards.length===1) a.xmult*=5; }},
+  {id:'alembic', nome:'Alambique', icon:'⚗️', rar:'raro', price:8, desc:'O ingrediente mais à esquerda reativa (conta 2×).', retrig:'left'},
+  {id:'echo', nome:'Câmara de Eco', icon:'🔊', rar:'raro', price:8, desc:'O ingrediente mais à direita reativa (conta 2×).', retrig:'right'},
+  {id:'tidelock', nome:'Selo da Maré', icon:'🔱', rar:'epico', price:9, desc:'Todos os ingredientes Maré reativam (contam 2×).', retrig:'tide'},
+  {id:'shard', nome:'Fragmento Filosofal', icon:'💎', rar:'epico', price:9, desc:'+1 de multiplicador para cada $5 que você possui.',
+    onBrewEnd:(r,b,a)=>{ a.mult += Math.floor(r.money/5); }},
+  {id:'voltaic', nome:'Voltaico', icon:'⚡', rar:'comum', price:6, desc:'+2 de multiplicador por ingrediente preparado.',
+    onCard:(r,b,a,c)=>{ a.mult+=2; }},
+  {id:'emberchain', nome:'Corrente Ígnea', icon:'♨️', rar:'epico', price:9, desc:'Se houver 3+ Brasas no caldeirão: ×2 de multiplicador.',
+    onBrewEnd:(r,b,a)=>{ if(b.cards.filter(c=>c.ess==='ember').length>=3) a.xmult*=2; }},
+  {id:'roux', nome:'Roux Dourado', icon:'🥣', rar:'comum', price:6, desc:'Ganhe $1 para cada Fusão realizada.',
+    onReaction:(r,b,a,rx)=>{ if(rx.type==='fusion'){ r.money++; a.cash=(a.cash||0)+1; } }},
+  {id:'greenthumb', nome:'Dedo Verde', icon:'🍀', rar:'raro', price:7, desc:'Ingredientes Raiz também servem de coringa para Fusão.',
+    passive:(r,m)=>{ m.rootWildFusion=true; }},
+  {id:'philos', nome:'Cálice Estelar', icon:'🏆', rar:'epico', price:9, desc:'+8 fichas para cada nível de reação que você tem.',
+    onBrewEnd:(r,b,a)=>{ const t=r.levels.catalyst+r.levels.fusion+r.levels.attunement+r.levels.spectrum; a.chips += 8*t; }},
+  {id:'gambler', nome:'Apostador', icon:'🎲', rar:'raro', price:7, desc:'25% de chance de ×3 de multiplicador ao preparar.',
+    onBrewEnd:(r,b,a)=>{ if(rnd()<0.25){ a.xmult*=3; a.lucky=true; } }},
+  {id:'bigcauldron', nome:'Caldeirão Amplo', icon:'🪣', rar:'epico', price:9, desc:'+1 espaço no caldeirão (pode preparar 6).', passive:(r,m)=>{ m.maxSel+=1; }},
+  {id:'steady', nome:'Mão Firme', icon:'🤝', rar:'raro', price:7, desc:'+1 preparo por prova.', passive:(r,m)=>{ m.brews+=1; }},
+  {id:'scavenger', nome:'Catador', icon:'🧺', rar:'comum', price:6, desc:'+1 descarte por prova.', passive:(r,m)=>{ m.disc+=1; }},
+  {id:'hoarder', nome:'Avarento', icon:'🪙', rar:'raro', price:7, desc:'O teto de juros sobe de $5 para $10.', passive:(r,m)=>{ m.interestCap=10; }},
+  {id:'spectral', nome:'Verniz Espectral', icon:'🌈', rar:'lendario', price:12, desc:'Espectro (5 essências) dá ×2 de multiplicador adicional.',
+    onReaction:(r,b,a,rx)=>{ if(rx.type==='spectrum') a.xmult*=2; }},
+  {id:'catalystmaster', nome:'Grande Catalisador', icon:'☀️', rar:'lendario', price:12, desc:'Toda Catálise dá +2 de multiplicador adicional.',
+    onReaction:(r,b,a,rx)=>{ if(rx.type==='catalyst') a.mult+=2; }},
+  {id:'blackflask', nome:'Frasco Negro', icon:'🫙', rar:'lendario', price:13, desc:'A cada preparo, ×1.2 de multiplicador — permanentemente crescente nesta prova.',
+    onBrewEnd:(r,b,a)=>{ r._blackflask=(r._blackflask||1)*1.2; a.xmult*=r._blackflask; }}
+];
+const RELIC_MAP = Object.fromEntries(RELICS.map(x=>[x.id,x]));
+
+/* ---------- consumáveis (tinturas & fórmulas) ---------- */
+// need: nº de alvos na mão (0 = sem alvo). apply(run, targets[])
+const CONSUMABLES = [
+  {id:'oil', nome:'Óleo Dourado', icon:'🛢️', kind:'tintura', price:3, need:1, desc:'Torna 1 ingrediente Dourado (+30 fichas).',
+    apply:(r,t)=>{ t[0].enh='gilded'; }},
+  {id:'volat', nome:'Essência Volátil', icon:'🧪', kind:'tintura', price:3, need:1, desc:'Torna 1 ingrediente Volátil (+4 mult).',
+    apply:(r,t)=>{ t[0].enh='volatile'; }},
+  {id:'cryst', nome:'Cristalização', icon:'❄️', kind:'tintura', price:4, need:1, desc:'Torna 1 ingrediente Cristalino (reativa 2×).',
+    apply:(r,t)=>{ t[0].enh='crystalline'; }},
+  {id:'wax', nome:'Cera de Abelha', icon:'🐝', kind:'tintura', price:3, need:2, desc:'Torna até 2 ingredientes Encerados (+$3 ao usar).',
+    apply:(r,t)=>{ t.forEach(c=>c.enh='waxed'); }},
+  {id:'rune', nome:'Runa Coringa', icon:'❔', kind:'tintura', price:5, need:1, desc:'Torna 1 ingrediente Rúnico (coringa de essência).',
+    apply:(r,t)=>{ t[0].enh='runed'; }},
+  {id:'powder', nome:'Pó de Potência', icon:'✴️', kind:'tintura', price:3, need:3, desc:'+1 de potência para até 3 ingredientes (máx 9).',
+    apply:(r,t)=>{ t.forEach(c=>c.pot=Math.min(9,c.pot+1)); }},
+  {id:'concentrate', nome:'Concentrado', icon:'🔺', kind:'tintura', price:4, need:1, desc:'+3 de potência para 1 ingrediente (máx 9).',
+    apply:(r,t)=>{ t[0].pot=Math.min(9,t[0].pot+3); }},
+  {id:'shimmerv', nome:'Verniz Cintilante', icon:'💫', kind:'tintura', price:4, need:1, desc:'Aplica edição Cintilante (+50 fichas) a 1 ingrediente.',
+    apply:(r,t)=>{ t[0].edt='shimmer'; }},
+  {id:'radiantv', nome:'Óleo Radiante', icon:'🌟', kind:'tintura', price:4, need:1, desc:'Aplica edição Radiante (+8 mult) a 1 ingrediente.',
+    apply:(r,t)=>{ t[0].edt='radiant'; }},
+  {id:'prismv', nome:'Prisma Líquido', icon:'🔮', kind:'tintura', price:6, need:1, desc:'Aplica edição Prismática (+0.5× mult) a 1 ingrediente.',
+    apply:(r,t)=>{ t[0].edt='prismatic'; }},
+  {id:'transmute', nome:'Transmutação', icon:'🜁', kind:'tintura', price:4, need:2, desc:'Muda a essência de até 2 ingredientes para a próxima do ciclo gerador.',
+    apply:(r,t)=>{ t.forEach(c=>c.ess=GEN[c.ess]); }},
+  {id:'distill', nome:'Destilar', icon:'🗑️', kind:'tintura', price:3, need:2, desc:'Destrói até 2 ingredientes do baralho e rende +$2 cada.',
+    apply:(r,t)=>{ t.forEach(c=>{ removeFromDeck(c.uid); r.money+=2; }); }},
+  {id:'duplicate', nome:'Duplicar', icon:'🧬', kind:'tintura', price:5, need:1, desc:'Cria uma cópia de 1 ingrediente no baralho.',
+    apply:(r,t)=>{ const c=t[0]; const copy=Object.assign({}, c, {uid:uid()}); run.deck.push(copy); }},
+  // fórmulas (sobem nível de reação, sem alvo)
+  {id:'f_cat', nome:'Fórmula: Catálise', icon:'📜', kind:'formula', price:4, need:0, desc:'+1 nível de Catálise (todas as Catálises rendem mais mult).',
+    apply:(r)=>{ r.levels.catalyst++; }},
+  {id:'f_fus', nome:'Fórmula: Fusão', icon:'📜', kind:'formula', price:4, need:0, desc:'+1 nível de Fusão (todas as Fusões rendem mais fichas).',
+    apply:(r)=>{ r.levels.fusion++; }},
+  {id:'f_att', nome:'Fórmula: Sintonia', icon:'📜', kind:'formula', price:4, need:0, desc:'+1 nível de Sintonia (essências todas iguais rendem mais).',
+    apply:(r)=>{ r.levels.attunement++; }},
+  {id:'f_spe', nome:'Fórmula: Espectro', icon:'📜', kind:'formula', price:5, need:0, desc:'+1 nível de Espectro (5 essências distintas rendem mais).',
+    apply:(r)=>{ r.levels.spectrum++; }}
+];
+const CONS_MAP = Object.fromEntries(CONSUMABLES.map(x=>[x.id,x]));
+
+/* ---------- maldições de chefe (hex) ---------- */
+const HEXES = [
+  {id:'emberSeal', nome:'Selo Ígneo', icon:'🔥', desc:'Ingredientes Brasa não geram fichas.'},
+  {id:'lowtide', nome:'Maré Baixa', icon:'🌊', desc:'−1 espaço no caldeirão.', passive:(m)=>{ m.maxSel=Math.max(1,m.maxSel-1); }},
+  {id:'antiCat', nome:'Anti-Catálise', icon:'🚫', desc:'Catálises não geram multiplicador.'},
+  {id:'dissonance', nome:'Dissonância', icon:'📉', desc:'Fusões não geram fichas.'},
+  {id:'overload', nome:'Sobrecarga', icon:'💥', desc:'−1 preparo nesta prova.', passive:(m)=>{ m.brews=Math.max(1,m.brews-1); }},
+  {id:'erosion', nome:'Erosão', icon:'🏜️', desc:'−1 descarte e a meta é +20% maior.', passive:(m)=>{ m.disc=Math.max(0,m.disc-1); }, quotaMul:1.2},
+  {id:'darkness', nome:'Escuridão', icon:'🌑', desc:'−2 cartas na mão.', passive:(m)=>{ m.hand=Math.max(3,m.hand-2); }},
+  {id:'fragile', nome:'Fragilidade', icon:'🥀', desc:'Ingredientes de potência 5+ não geram fichas.'},
+  {id:'tax', nome:'Imposto', icon:'💸', desc:'Você perde $1 a cada preparo.'}
+];
+const HEX_MAP = Object.fromEntries(HEXES.map(x=>[x.id,x]));
+
+/* =========================================================================
+   ESTADO / RUN
+   ========================================================================= */
+let run=null;
+let sel=[];            // uids selecionados em ordem
+let busy=false;        // trava durante animações
+let targetMode=null;   // {cons, need, chosen:[]}
+let settings={ music:true, sfx:true };
+
+function quotaFor(ante, idx){
+  const base = 300 * Math.pow(1.6, ante-1);
+  const mul = idx===0?1 : idx===1?1.5 : 2;
+  let q = base*mul;
+  if(ante>8) q *= Math.pow(1.3, ante-8); // modo infinito
+  return Math.max(50, Math.round(q/10)*10);
+}
+const BLIND_NAMES=[
+  {n:'A Névoa Tênue', e:'🌫️'},{n:'O Sussurro', e:'🍃'},{n:'A Corrente', e:'💧'},
+  {n:'A Fornalha', e:'🕯️'},{n:'O Bosque Fundo', e:'🌲'},{n:'A Fenda', e:'🪨'}
+];
+
+function newRun(seed){
+  UID=1;
+  RNG = mulberry32(seed!=null ? seed : (Math.random()*1e9)|0);
+  run = {
+    seed: seed,
+    ante:1, blindIndex:0, money:4,
+    deck:[], levels:{catalyst:1,fusion:1,attunement:1,spectrum:1},
+    relics:[], consumables:[], maxConsumables:2, maxRelics:6,
+    shop:null, rerollCost:5, activeHex:null,
+    // por prova:
+    draw:[], hand:[], spent:[], score:0, quota:0, brews:0, disc:0,
+    brewsMax:4, discMax:4, handSize:8, maxSel:5, vouchers:{},
+    stats:{ bestBrew:0, brewsDone:0 }
+  };
+  // baralho inicial: 8 por essência, potências variadas -> 40 cartas
+  const potsPattern=[1,2,3,3,4,5,6,4];
+  ESSENCES.forEach(e=>{ potsPattern.forEach(p=>{ run.deck.push({uid:uid(), ess:e, pot:p, enh:null, edt:null}); }); });
+  sel=[];
+  saveRun();
+}
+
+function removeFromDeck(u){ const i=run.deck.findIndex(c=>c.uid===u); if(i>=0) run.deck.splice(i,1); }
+function cardByUid(u){ return run.hand.find(c=>c.uid===u) || run.deck.find(c=>c.uid===u); }
+
+/* passivos: calcula limites da prova a partir de relíquias e hex */
+function computeMods(){
+  const m={ maxSel:5, brews:4, disc:4, hand:8, interestCap:5, rootWildFusion:false };
+  run.relics.forEach(rl=>{ const d=RELIC_MAP[rl.id]; if(d.passive) d.passive(run,m); });
+  if(run.activeHex && HEX_MAP[run.activeHex].passive) HEX_MAP[run.activeHex].passive(m);
+  return m;
+}
+
+/* =========================================================================
+   FLUXO DE PROVA
+   ========================================================================= */
+function isBoss(){ return run.blindIndex===2; }
+
+function startBlind(){
+  const idx=run.blindIndex;
+  run.activeHex = idx===2 ? (run._pendingHex || pick(HEXES).id) : null;
+  run._pendingHex=null;
+  const mods=computeMods();
+  run.maxSel=mods.maxSel; run.brewsMax=mods.brews; run.discMax=mods.disc; run.handSize=mods.hand;
+  run.brews=run.brewsMax; run.disc=run.discMax;
+  let q=quotaFor(run.ante, idx);
+  if(run.activeHex && HEX_MAP[run.activeHex].quotaMul) q=Math.round(q*HEX_MAP[run.activeHex].quotaMul/10)*10;
+  run.quota=q; run.score=0; run._blackflask=1;
+  // monta pilha de compra
+  run.draw = shuffle(run.deck.map(c=>c)); run.hand=[]; run.spent=[];
+  sel=[];
+  drawUp();
+  saveRun();
+}
+function drawUp(){
+  while(run.hand.length<run.handSize && run.draw.length>0){ run.hand.push(run.draw.pop()); }
+}
+
+/* pré-visualização / scoring — sem efeitos colaterais quando preview=true */
+function scoreBrew(orderedCards, preview){
+  const R = preview ? clonePlain(run) : run;
+  const hex = R.activeHex ? HEX_MAP[R.activeHex] : null;
+  const mods = computeModsFor(R);
+  const acc = { chips:0, mult:0, xmult:1, reactions:[] };
+  const brew = { cards:orderedCards, firstCat:false };
+
+  const runedWild = c => c.enh==='runed';
+  const essFuse = c => runedWild(c) || (mods.rootWildFusion && c.ess==='root') ? '*' : c.ess;
+
+  function relic(hook, ...args){ R.relics.forEach(rl=>{ const d=RELIC_MAP[rl.id]; if(d[hook]) d[hook](R,brew,acc,...args); if(rl.edt==='radiant' && hook==='onCard') acc.mult+=1; }); }
+
+  function scoreCard(card, idx){
+    let times=1;
+    R.relics.forEach(rl=>{ const d=RELIC_MAP[rl.id];
+      if(d.retrig==='left' && idx===0) times++;
+      if(d.retrig==='right' && idx===orderedCards.length-1) times++;
+      if(d.retrig==='tide' && card.ess==='tide') times++;
+    });
+    if(card.enh==='crystalline') times++;
+    for(let t=0;t<times;t++){
+      let cChips=card.pot;
+      if(hex && hex.id==='emberSeal' && card.ess==='ember') cChips=0;
+      if(hex && hex.id==='fragile' && card.pot>=5) cChips=0;
+      acc.chips+=cChips;
+      if(card.enh==='gilded') acc.chips+=30;
+      if(card.enh==='volatile') acc.mult+=4;
+      if(card.enh==='waxed'){ R.money+=3; }
+      if(card.edt==='shimmer') acc.chips+=50;
+      if(card.edt==='radiant') acc.mult+=8;
+      if(card.edt==='prismatic') acc.xmult+=0.5;
+      relic('onCard', card);
+    }
+  }
+  orderedCards.forEach((c,i)=>scoreCard(c,i));
+
+  // reações por adjacência
+  let chain=0;
+  for(let i=0;i<orderedCards.length-1;i++){
+    const a=orderedCards[i], b=orderedCards[i+1];
+    const wildA=runedWild(a), wildB=runedWild(b);
+    const gener = (wildA||wildB) ? true : (GEN[a.ess]===b.ess);
+    const fa=essFuse(a), fb=essFuse(b);
+    const same = fa==='*'||fb==='*'|| fa===fb;
+    if(gener && !(hex&&hex.id==='antiCat')){
+      chain++;
+      let m=(2+R.levels.catalyst)+(chain-1);
+      acc.mult+=m; acc.reactions.push('Catálise');
+      relic('onReaction', {type:'catalyst', chain, a,b});
+    } else chain=0;
+    if(same && !(hex&&hex.id==='dissonance')){
+      acc.chips += (a.pot+b.pot) + 2*R.levels.fusion; acc.mult+=1;
+      acc.reactions.push('Fusão');
+      relic('onReaction', {type:'fusion', a,b});
+    }
+  }
+  const distinct=new Set(orderedCards.map(c=>c.ess));
+  if(orderedCards.length>=3 && distinct.size===1){
+    acc.mult += 6*R.levels.attunement; if(orderedCards.length>=4) acc.xmult+=0.5;
+    acc.reactions.push('Sintonia');
+    relic('onReaction', {type:'attunement'});
+  }
+  if(orderedCards.length>=5 && distinct.size===5){
+    acc.xmult += 1 + 0.5*R.levels.spectrum; acc.chips += 20 + 20*R.levels.spectrum;
+    acc.reactions.push('Espectro');
+    relic('onReaction', {type:'spectrum'});
+  }
+  R.relics.forEach(rl=>{ const d=RELIC_MAP[rl.id]; if(d.onBrewEnd) d.onBrewEnd(R,brew,acc); });
+
+  if(hex && hex.id==='tax' && !preview){ R.money=Math.max(0,R.money-1); }
+
+  const finalMult=Math.max(0,acc.mult)*Math.max(0.1,acc.xmult);
+  acc.score=Math.floor(acc.chips*finalMult);
+  acc.finalMult=finalMult;
+  acc.distinctReactions=[...new Set(acc.reactions)];
+  return acc;
+}
+function computeModsFor(R){ const save=run; run=R; const m=computeMods(); run=save; return m; }
+function clonePlain(o){ return JSON.parse(JSON.stringify({ante:o.ante,blindIndex:o.blindIndex,money:o.money,levels:o.levels,relics:o.relics,activeHex:o.activeHex,vouchers:o.vouchers})); }
+
+/* nome “bonito” da reação principal para exibir */
+function reactionTitle(acc, n){
+  if(n===0) return 'Selecione ingredientes';
+  const r=acc.distinctReactions;
+  if(r.includes('Espectro')) return '✦ ESPECTRO PLENO ✦';
+  if(r.includes('Sintonia')) return '◆ Sintonia Perfeita';
+  const cat=acc.reactions.filter(x=>x==='Catálise').length;
+  const fus=acc.reactions.filter(x=>x==='Fusão').length;
+  if(cat>=3) return '⚡ Cadeia Catalítica ×'+cat;
+  if(fus>=2) return '💠 Fusão Múltipla ×'+fus;
+  if(cat && fus) return 'Reação Mista';
+  if(cat) return 'Catálise';
+  if(fus) return 'Fusão';
+  return n===1?'Ingrediente Puro':'Mistura Simples';
+}
+</script>
+<script>
+/* =========================================================================
+   RENDER + INTERAÇÃO  (segunda parte)
+   ========================================================================= */
+
+/* ---------- cartas ---------- */
+function cardHTML(c, opts){
+  opts=opts||{};
+  const e=ESS[c.ess];
+  const cls=['card']; if(opts.mini) cls.push('mini');
+  if(sel.includes(c.uid) && !opts.noSel) cls.push('sel');
+  if(c.enh) cls.push(ENH[c.enh].cls);
+  if(c.edt) cls.push(c.edt);
+  const pips=Array.from({length:Math.min(c.pot,7)}).map(()=>'<span class="pip"></span>').join('');
+  const enhTag = c.enh ? '<div class="enh">'+ENH[c.enh].nome+'</div>' : '';
+  return '<div class="'+cls.join(' ')+'" data-uid="'+c.uid+'" style="--c1:'+e.c1+';--c2:'+e.c2+'">'
+    +'<div class="frame"></div>'
+    +'<div class="pips">'+pips+'</div>'
+    +'<div class="corner">'+c.pot+'</div>'
+    +glyphSVG(c.ess)
+    +'<div class="pot">'+c.pot+'</div>'
+    + enhTag
+    +'<div class="ename">'+e.nome+'</div>'
+    +'</div>';
+}
+
+function renderHand(){
+  const h=$('hand');
+  // ordem: mão mostra cartas não selecionadas normalmente; selecionadas sobem
+  h.innerHTML = run.hand.map(c=>cardHTML(c)).join('');
+  [...h.querySelectorAll('.card')].forEach(el=>{
+    el.onclick=()=>onCardClick(el.dataset.uid|0);
+  });
+}
+function renderCauldron(){
+  const cn=$('cauldron');
+  if(sel.length===0){ cn.innerHTML='<div class="cauldron-hint">🜁 Toque nos ingredientes para adicioná-los ao caldeirão (a ordem cria as reações)</div>'; return; }
+  const cards=sel.map(u=>run.hand.find(c=>c.uid===u)).filter(Boolean);
+  const bstyle='padding:2px 7px;border-radius:9px;font-weight:800;font-size:14px;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4);';
+  let html='';
+  cards.forEach((c,i)=>{
+    html+=cardHTML(c,{mini:true,noSel:true});
+    if(i<cards.length-1){
+      const a=c, b=cards[i+1];
+      const wild=(a.enh==='runed'||b.enh==='runed');
+      const gener=wild?true:(GEN[a.ess]===b.ess);
+      const same=wild||a.ess===b.ess;
+      let badge;
+      if(gener) badge='<span title="Catálise (+mult)" style="'+bstyle+'background:linear-gradient(90deg,#ff5a4d,#b52c2c);">⚡</span>';
+      else if(same) badge='<span title="Fusão (+fichas)" style="'+bstyle+'background:linear-gradient(90deg,#2b6cff,#1b3f8f);">💠</span>';
+      else badge='<span style="'+bstyle+'background:#2a2140;color:#8a7ab0;">·</span>';
+      html+='<div style="display:flex;align-items:center;align-self:center;">'+badge+'</div>';
+    }
+  });
+  cn.innerHTML=html;
+  [...cn.querySelectorAll('.card')].forEach(el=>{ el.onclick=()=>onCardClick(el.dataset.uid|0); });
+}
+function renderPreview(){
+  const cards=sel.map(u=>run.hand.find(c=>c.uid===u)).filter(Boolean);
+  const acc = cards.length? scoreBrew(cards, true) : {chips:0,mult:1,finalMult:1,score:0,distinctReactions:[],reactions:[]};
+  $('reaction-name').textContent = reactionTitle(acc, cards.length);
+  $('chips-box').textContent = fmt(acc.chips||0);
+  $('mult-box').textContent = (cards.length? (Math.round(acc.finalMult*10)/10) : 1);
+  $('proj-score').textContent = fmt(cards.length? acc.score : 0);
+}
+function renderHUD(){
+  const b=isBoss()?{n:HEX_MAP[run.activeHex].nome,e:HEX_MAP[run.activeHex].icon}:BLIND_NAMES[(run.ante+run.blindIndex)%BLIND_NAMES.length];
+  $('hud-bname').innerHTML = (isBoss()?'☠️ ':'')+ b.e+' '+b.n + (isBoss()?' <span class="hex-tag" style="padding:1px 8px;font-size:11px;">CHEFE</span>':'');
+  $('hud-bsub').textContent = isBoss()? HEX_MAP[run.activeHex].desc : (run.blindIndex===0?'Prova Pequena':'Prova Grande');
+  $('hud-score').textContent = fmt(run.score);
+  $('hud-quota').textContent = fmt(run.quota);
+  $('hud-qfill').style.width = clamp(run.score/run.quota*100,0,100)+'%';
+  $('hud-ante').textContent = run.ante+'/8';
+  $('hud-money').textContent = '$'+run.money;
+  $('hud-brews').textContent = run.brews;
+  $('hud-disc').textContent = run.disc;
+  $('hud-deck').textContent = run.draw.length+'/'+run.deck.length;
+  renderRelics('relics-row');
+  renderConsumables();
+}
+function renderRelics(where){
+  const row=$(where); if(!row) return;
+  let html='';
+  run.relics.forEach(rl=>{ const d=RELIC_MAP[rl.id]; const ec=rl.edt==='shimmer'?'foil':(rl.edt==='prismatic'||rl.edt==='radiant'?'holo':'');
+    html+='<div class="relic '+ec+'" data-relic="'+rl.id+'">'+d.icon+'</div>'; });
+  for(let i=run.relics.length;i<run.maxRelics;i++) html+='<div class="relic empty"></div>';
+  row.innerHTML=html;
+  [...row.querySelectorAll('.relic[data-relic]')].forEach(el=>{
+    const d=RELIC_MAP[el.dataset.relic];
+    el.onmouseenter=(ev)=>showTip(ev, d.nome, d.desc, rarTag(d.rar));
+    el.onmouseleave=hideTip;
+    el.onclick=(ev)=>{ if(run.phase==='shop'){ /* vender */ trySellRelic(el.dataset.relic); } else showTip(ev,d.nome,d.desc,rarTag(d.rar)); };
+  });
+}
+function renderConsumables(){
+  const row=$('consumables-row');
+  if(run.consumables.length===0){ row.innerHTML='<span class="small" style="opacity:.6;">Sem frascos. Compre tinturas e fórmulas na botica.</span>'; return; }
+  row.innerHTML = run.consumables.map((cid,i)=>{ const d=CONS_MAP[cid];
+    return '<div class="cons-chip" data-ci="'+i+'"><span class="cg">'+d.icon+'</span>'+d.nome+'</div>'; }).join('');
+  [...row.querySelectorAll('.cons-chip')].forEach(el=>{
+    const d=CONS_MAP[run.consumables[el.dataset.ci|0]];
+    el.onmouseenter=(ev)=>showTip(ev,d.nome,d.desc, tag(d.kind==='formula'?'Fórmula':'Tintura','#5a1e7a'));
+    el.onmouseleave=hideTip;
+    el.onclick=()=>useConsumable(el.dataset.ci|0);
+  });
+}
+function renderGame(){ renderHUD(); renderHand(); renderCauldron(); renderPreview(); }
+
+/* ---------- seleção ---------- */
+function onCardClick(u){
+  if(busy) return;
+  if(targetMode){ toggleTarget(u); return; }
+  const i=sel.indexOf(u);
+  if(i>=0){ sel.splice(i,1); sfx('deselect'); }
+  else{
+    if(sel.length>=run.maxSel){ toast('Caldeirão cheio ('+run.maxSel+')'); sfx('err'); return; }
+    sel.push(u); sfx('select');
+  }
+  renderHand(); renderCauldron(); renderPreview();
+}
+$('btn-deselect').onclick=()=>{ if(busy)return; sel=[]; renderGame(); };
+$('btn-sort-ess').onclick=()=>{ if(busy)return; sortHand('ess'); };
+function sortHand(mode){
+  if(mode==='ess') run.hand.sort((a,b)=> ESSENCES.indexOf(a.ess)-ESSENCES.indexOf(b.ess) || b.pot-a.pot);
+  else run.hand.sort((a,b)=> b.pot-a.pot);
+  renderHand(); renderCauldron();
+}
+
+/* ---------- preparar (brew) ---------- */
+$('btn-brew').onclick=()=>doBrew();
+function doBrew(){
+  if(busy) return;
+  if(sel.length===0){ toast('Selecione ao menos 1 ingrediente'); sfx('err'); return; }
+  if(run.brews<=0){ toast('Sem preparos!'); sfx('err'); return; }
+  busy=true;
+  const cards=sel.map(u=>run.hand.find(c=>c.uid===u)).filter(Boolean);
+  run.brews--;
+  const acc=scoreBrew(cards, false);      // efeitos reais
+  run.stats.brewsDone++;
+  if(acc.score>run.stats.bestBrew) run.stats.bestBrew=acc.score;
+  animateBrew(cards, acc);
+}
+function animateBrew(cards, acc){
+  music.hit();
+  // remove da mão -> spent
+  cards.forEach(c=>{ const i=run.hand.findIndex(x=>x.uid===c.uid); if(i>=0){ run.hand.splice(i,1); run.spent.push(c); } });
+  sel=[];
+  renderCauldron();
+  // sequência de pontos
+  let chipTotal=acc.chips, multTotal=Math.round(acc.finalMult*10)/10;
+  $('chips-box').textContent=fmt(chipTotal);
+  $('mult-box').textContent=multTotal;
+  $('reaction-name').textContent=reactionTitle(acc, cards.length);
+  sfx('brew');
+  // efeitos visuais em cadeia
+  let step=0;
+  const doStep=()=>{
+    if(step<acc.reactions.length){
+      const rx=acc.reactions[step];
+      if(rx==='Catálise') sfx('cat'); else if(rx==='Fusão') sfx('fus');
+      step++;
+      setTimeout(doStep, 120);
+    } else finishBrew(acc);
+  };
+  setTimeout(doStep, 260);
+}
+function finishBrew(acc){
+  // conta pontos subindo
+  const start=run.score, end=run.score+acc.score; const t0=performance.now(); const dur=520;
+  spawnFloater($('proj-score'), '+'+fmt(acc.score), '#ffd36b');
+  if(acc.score>=run.quota*0.6) shakeScreen();
+  burst(window.innerWidth/2, window.innerHeight*0.32, acc.score>run.quota*0.5?60:26);
+  function tick(now){
+    const p=clamp((now-t0)/dur,0,1);
+    run.score=Math.round(start+(end-start)*(p<1?1-Math.pow(1-p,3):1));
+    $('hud-score').textContent=fmt(run.score);
+    $('hud-qfill').style.width=clamp(run.score/run.quota*100,0,100)+'%';
+    sfx('tick');
+    if(p<1) requestAnimationFrame(tick);
+    else{ run.score=end; afterBrew(); }
+  }
+  requestAnimationFrame(tick);
+}
+function afterBrew(){
+  renderHUD();
+  saveRun();
+  if(run.score>=run.quota){ busy=false; winBlind(); return; }
+  if(run.brews<=0){ busy=false; loseRun(); return; }
+  drawUp();
+  busy=false;
+  renderGame();
+}
+
+/* ---------- descartar ---------- */
+$('btn-discard').onclick=()=>doDiscard();
+function doDiscard(){
+  if(busy) return;
+  if(sel.length===0){ toast('Selecione ingredientes para descartar'); sfx('err'); return; }
+  if(run.disc<=0){ toast('Sem descartes!'); sfx('err'); return; }
+  run.disc--;
+  sel.forEach(u=>{ const i=run.hand.findIndex(x=>x.uid===u); if(i>=0){ run.spent.push(run.hand[i]); run.hand.splice(i,1); } });
+  sel=[]; drawUp(); sfx('discard'); renderGame(); saveRun();
+}
+
+/* =========================================================================
+   VITÓRIA / RECOMPENSA / LOJA
+   ========================================================================= */
+function winBlind(){
+  sfx('win'); music.sting('win');
+  const base = run.blindIndex===0?4 : run.blindIndex===1?5 : 7;
+  const mods=computeMods();
+  const interest=Math.min(mods.interestCap, Math.floor(run.money/5));
+  const leftover=run.brews;
+  const reward=base+interest+leftover;
+  run.money+=reward;
+  const b = isBoss()?{n:HEX_MAP[run.activeHex].nome,e:'☠️'}:BLIND_NAMES[(run.ante+run.blindIndex)%BLIND_NAMES.length];
+  $('ov-reward-modal').innerHTML =
+    '<h2 class="deco">Prova Vencida!</h2>'
+    +'<div class="blind-emoji">'+b.e+'</div>'
+    +'<p>'+b.n+' superada com <b style="color:var(--good)">'+fmt(run.score)+'</b> pontos.</p>'
+    +'<div class="reward-list">'
+      +'<div class="r"><span>Recompensa base</span><b>$'+base+'</b></div>'
+      +'<div class="r"><span>Preparos economizados</span><b>$'+leftover+'</b></div>'
+      +'<div class="r"><span>Juros ($1 por $5)</span><b>$'+interest+'</b></div>'
+      +'<div class="r" style="border:none;"><span>Total recebido</span><b>$'+reward+'</b></div>'
+    +'</div>'
+    +'<button class="btn" id="reward-go">Ir à Botica 🜍</button>';
+  openOv('ov-reward');
+  $('reward-go').onclick=()=>{ closeOv('ov-reward'); openShop(); };
+  saveRun();
+}
+
+function openShop(){
+  run.phase='shop';
+  showScreen('screen-shop');
+  music.setMood('shop');
+  if(!run.shop) genShop();
+  renderShop();
+}
+function genShop(){
+  run.rerollCost=5;
+  const main=[];
+  // 2 itens principais: relíquias/consumíveis
+  const ownedRelicIds=new Set(run.relics.map(r=>r.id));
+  const relicPool=RELICS.filter(r=>!ownedRelicIds.has(r.id));
+  for(let i=0;i<2;i++){
+    if(rnd()<0.6 && relicPool.length){
+      const d=pick(relicPool); relicPool.splice(relicPool.indexOf(d),1);
+      let edt=null; const er=rnd(); if(er<0.05) edt='prismatic'; else if(er<0.12) edt='radiant'; else if(er<0.2) edt='shimmer';
+      main.push({t:'relic', id:d.id, edt, price:d.price + (edt?3:0)});
+    } else {
+      const d=pick(CONSUMABLES);
+      main.push({t:'cons', id:d.id, price:d.price});
+    }
+  }
+  // pacotes
+  const packs=[];
+  packs.push(rnd()<0.5?{t:'pack',kind:'reagent',price:4}:{t:'pack',kind:'ingredient',price:4});
+  packs.push(rnd()<0.35?{t:'pack',kind:'relic',price:6}:{t:'pack',kind:'reagent',price:4});
+  run.shop={ main, packs };
+}
+function renderShop(){
+  $('shop-money').textContent='$'+run.money;
+  const mainEl=$('shop-main'); mainEl.innerHTML='';
+  run.shop.main.forEach((it,idx)=>{
+    if(it===null){ return; }
+    let icon,name,desc,rar;
+    if(it.t==='relic'){ const d=RELIC_MAP[it.id]; icon=d.icon; name=d.nome+(it.edt?(' '+EDT[it.edt].nome):''); desc=d.desc+(it.edt?(' ('+EDT[it.edt].tag+')'):''); rar=d.rar; }
+    else{ const d=CONS_MAP[it.id]; icon=d.icon; name=d.nome; desc=d.desc; rar=d.kind==='formula'?'raro':'comum'; }
+    mainEl.appendChild(shopCard(icon,name,desc,it.price,rar,()=>buyMain(idx)));
+  });
+  const packEl=$('shop-packs'); packEl.innerHTML='';
+  run.shop.packs.forEach((it,idx)=>{
+    if(it===null) return;
+    const info=packInfo(it.kind);
+    packEl.appendChild(shopCard(info.icon,info.name,info.desc,it.price,info.rar,()=>buyPack(idx)));
+  });
+  $('reroll-cost').textContent='$'+run.rerollCost;
+  $('btn-reroll').disabled = run.money<run.rerollCost;
+  renderRelics('shop-relics-row');
+}
+function packInfo(kind){
+  if(kind==='reagent') return {icon:'📦', name:'Pacote de Reagentes', desc:'Escolha 1 entre 3 tinturas/fórmulas.', rar:'comum'};
+  if(kind==='ingredient') return {icon:'🎒', name:'Pacote de Ingredientes', desc:'Escolha 1 entre 3 novos ingredientes para o baralho.', rar:'comum'};
+  return {icon:'🗃️', name:'Pacote Arcano', desc:'Escolha 1 entre 3 relíquias.', rar:'raro'};
+}
+function shopCard(icon,name,desc,price,rar,onBuy){
+  const el=document.createElement('div'); el.className='shop-item';
+  el.innerHTML='<div class="rar '+rar+'">'+rar.toUpperCase()+'</div>'
+    +'<div class="si-icon">'+icon+'</div>'
+    +'<div class="si-name">'+name+'</div>'
+    +'<div class="si-desc">'+desc+'</div>'
+    +'<div class="si-price">$'+price+'</div>'
+    +'<button class="btn sm" '+(run.money<price?'disabled':'')+'>Comprar</button>';
+  el.querySelector('button').onclick=onBuy;
+  return el;
+}
+function buyMain(idx){
+  const it=run.shop.main[idx]; if(!it) return;
+  if(run.money<it.price){ toast('Sem $ suficiente'); sfx('err'); return; }
+  if(it.t==='relic'){
+    if(run.relics.length>=run.maxRelics){ toast('Sem espaço para relíquias'); sfx('err'); return; }
+    run.money-=it.price; run.relics.push({id:it.id, edt:it.edt}); sfx('buy'); toast('Relíquia adquirida!');
+  } else {
+    if(run.consumables.length>=run.maxConsumables){ toast('Frascos cheios ('+run.maxConsumables+')'); sfx('err'); return; }
+    run.money-=it.price; run.consumables.push(it.id); sfx('buy'); toast('Frasco guardado!');
+  }
+  run.shop.main[idx]=null; renderShop(); renderConsumables(); saveRun();
+}
+function buyPack(idx){
+  const it=run.shop.packs[idx]; if(!it) return;
+  if(run.money<it.price){ toast('Sem $ suficiente'); sfx('err'); return; }
+  run.money-=it.price; run.shop.packs[idx]=null; sfx('buy');
+  openPack(it.kind); renderShop(); saveRun();
+}
+function openPack(kind){
+  let choices=[];
+  if(kind==='ingredient'){
+    for(let i=0;i<3;i++){ const e=pick(ESSENCES); choices.push({t:'ing', card:{uid:uid(), ess:e, pot:randInt(2,7), enh: rnd()<0.25?pick(['gilded','volatile','waxed']):null, edt:null}}); }
+  } else if(kind==='relic'){
+    const owned=new Set(run.relics.map(r=>r.id)); const pool=RELICS.filter(r=>!owned.has(r.id));
+    shuffle(pool); choices=pool.slice(0,3).map(d=>({t:'relic', id:d.id}));
+  } else {
+    const pool=[...CONSUMABLES]; shuffle(pool); choices=pool.slice(0,3).map(d=>({t:'cons', id:d.id}));
+  }
+  let html='<h2 class="deco">'+packInfo(kind).name+'</h2><p>Escolha 1:</p><div class="shop-grid" style="margin-top:10px;">';
+  choices.forEach((ch,i)=>{
+    let icon,name,desc,rar;
+    if(ch.t==='ing'){ const e=ESS[ch.card.ess]; icon='🧫'; name=e.nome+' '+ch.card.pot; desc='Ingrediente '+e.nome+' de potência '+ch.card.pot+(ch.card.enh?' ('+ENH[ch.card.enh].nome+')':''); rar='comum'; }
+    else if(ch.t==='relic'){ const d=RELIC_MAP[ch.id]; icon=d.icon; name=d.nome; desc=d.desc; rar=d.rar; }
+    else{ const d=CONS_MAP[ch.id]; icon=d.icon; name=d.nome; desc=d.desc; rar=d.kind==='formula'?'raro':'comum'; }
+    html+='<div class="shop-item"><div class="rar '+rar+'">'+rar.toUpperCase()+'</div><div class="si-icon">'+icon+'</div><div class="si-name">'+name+'</div><div class="si-desc">'+desc+'</div><button class="btn sm" data-i="'+i+'">Pegar</button></div>';
+  });
+  html+='</div><button class="btn sec" id="pack-skip" style="margin-top:12px;">Dispensar</button>';
+  $('ov-pack-modal').innerHTML=html;
+  openOv('ov-pack');
+  [...$('ov-pack-modal').querySelectorAll('button[data-i]')].forEach(bt=>{
+    bt.onclick=()=>{ const ch=choices[bt.dataset.i|0]; takePackChoice(kind,ch); closeOv('ov-pack'); renderShop(); };
+  });
+  $('pack-skip').onclick=()=>{ closeOv('ov-pack'); };
+}
+function takePackChoice(kind,ch){
+  if(ch.t==='ing'){ run.deck.push(ch.card); toast('Ingrediente adicionado ao baralho!'); sfx('buy'); }
+  else if(ch.t==='relic'){ if(run.relics.length>=run.maxRelics){ toast('Sem espaço p/ relíquia'); return;} run.relics.push({id:ch.id,edt:null}); toast('Relíquia obtida!'); sfx('buy'); }
+  else { if(run.consumables.length>=run.maxConsumables){ toast('Frascos cheios'); return;} run.consumables.push(ch.id); toast('Frasco obtido!'); sfx('buy'); }
+  saveRun();
+}
+$('btn-reroll').onclick=()=>{ if(run.money<run.rerollCost) return; run.money-=run.rerollCost; run.rerollCost+=1; genShopKeepStructure(); sfx('reroll'); renderShop(); saveRun(); };
+function genShopKeepStructure(){ const rc=run.rerollCost; genShop(); run.rerollCost=rc; }
+$('btn-next-blind').onclick=()=>{ advanceBlind(); };
+function advanceBlind(){
+  run.shop=null;
+  run.blindIndex++;
+  if(run.blindIndex>2){ run.blindIndex=0; run.ante++; }
+  if(run.ante>8 && run.blindIndex===0 && run._justWon8){ /* já tratado */ }
+  saveRun();
+  showBlindIntro();
+}
+
+/* trocar relíquia por dinheiro na loja */
+function trySellRelic(id){
+  if(run.phase!=='shop') return;
+  const i=run.relics.findIndex(r=>r.id===id); if(i<0) return;
+  const d=RELIC_MAP[id];
+  if(confirm('Vender '+d.nome+' por $'+Math.max(1,Math.floor(d.price/2))+'?')){
+    run.money+=Math.max(1,Math.floor(d.price/2)); run.relics.splice(i,1); sfx('buy'); renderShop(); saveRun();
+  }
+}
+
+/* =========================================================================
+   INTRO DE PROVA / FIM DE JOGO
+   ========================================================================= */
+function showBlindIntro(){
+  showScreen('screen-game');
+  music.setMood(isBossNext()?'boss':'play');
+  const idx=run.blindIndex;
+  const boss = idx===2;
+  const hexId = boss? pick(HEXES).id : null;
+  run._pendingHex=hexId;
+  const b = boss?{n:HEX_MAP[hexId].nome,e:HEX_MAP[hexId].icon}:BLIND_NAMES[(run.ante+idx)%BLIND_NAMES.length];
+  let q=quotaFor(run.ante, idx); if(hexId && HEX_MAP[hexId].quotaMul) q=Math.round(q*HEX_MAP[hexId].quotaMul/10)*10;
+  $('ov-blind-modal').innerHTML=
+    '<h2 class="deco">'+(boss?'Chefe — ':'')+'Ante '+run.ante+'</h2>'
+    +'<div class="blind-emoji">'+b.e+'</div>'
+    +'<h3 style="font-family:\'Cinzel\',serif;font-size:20px;">'+b.n+'</h3>'
+    +(boss?'<div class="hex-tag">☠️ '+HEX_MAP[hexId].desc+'</div>':'<p>'+(idx===0?'Prova Pequena':'Prova Grande')+'</p>')
+    +'<p>Meta: <b style="color:var(--lumen-g)">'+fmt(q)+'</b> pontos.</p>'
+    +'<button class="btn" id="blind-go">'+(boss?'Enfrentar ☠️':'Começar ⚗️')+'</button>';
+  openOv('ov-blind');
+  $('blind-go').onclick=()=>{ closeOv('ov-blind'); startBlind(); renderGame(); };
+}
+function isBossNext(){ return run.blindIndex===2; }
+
+function loseRun(){
+  music.sting('lose'); music.setMood('play');
+  const best=Math.max(loadBest(), run.ante);
+  saveBest(best);
+  localStorage.removeItem('alchemia_run');
+  $('ov-end-modal').innerHTML=
+    '<h2 class="deco" style="color:var(--danger)">A poção falhou…</h2>'
+    +'<div class="blind-emoji">💀</div>'
+    +'<p>Você caiu no <b>Ante '+run.ante+'</b>. A meta era <b>'+fmt(run.quota)+'</b> e você fez <b>'+fmt(run.score)+'</b>.</p>'
+    +'<p class="small">Melhor preparo da run: <b>'+fmt(run.stats.bestBrew)+'</b> · Preparos: '+run.stats.brewsDone+'</p>'
+    +'<button class="btn" id="end-restart">Nova Jornada</button> '
+    +'<button class="btn sec" id="end-menu">Menu</button>';
+  openOv('ov-end');
+  $('end-restart').onclick=()=>{ closeOv('ov-end'); newRun(); showBlindIntro(); };
+  $('end-menu').onclick=()=>{ closeOv('ov-end'); goTitle(); };
+}
+function winGame(){
+  music.sting('win');
+  const best=Math.max(loadBest(), run.ante);
+  saveBest(best);
+  $('ov-end-modal').innerHTML=
+    '<h2 class="deco" style="color:var(--good)">Grande Obra Concluída!</h2>'
+    +'<div class="blind-emoji">🏆</div>'
+    +'<p>Você dominou a alquimia e venceu os 8 antes! Sua botica é lendária.</p>'
+    +'<p class="small">Melhor preparo: <b>'+fmt(run.stats.bestBrew)+'</b></p>'
+    +'<button class="btn" id="end-endless">Modo Infinito ∞</button> '
+    +'<button class="btn sec" id="end-menu">Menu</button>';
+  openOv('ov-end');
+  $('end-endless').onclick=()=>{ closeOv('ov-end'); advanceBlind(); };
+  $('end-menu').onclick=()=>{ closeOv('ov-end'); goTitle(); };
+}
+
+/* checagem de vitória de jogo ao avançar */
+function afterAdvanceCheck(){
+  if(run.ante===9 && run.blindIndex===0 && !run._wonGame){ run._wonGame=true; winGame(); return true; }
+  return false;
+}
+
+/* =========================================================================
+   CONSUMÍVEIS (uso com alvos na mão)
+   ========================================================================= */
+function useConsumable(ci){
+  if(busy) return;
+  const cid=run.consumables[ci]; const d=CONS_MAP[cid];
+  if(d.need===0){ d.apply(run, []); run.consumables.splice(ci,1); toast(d.nome+' usada!'); sfx('cons'); renderGame(); saveRun(); return; }
+  // precisa de alvos: entra em modo alvo
+  targetMode={ ci, cons:d, need:d.need, chosen:[] };
+  sel=[];
+  toast('Escolha até '+d.need+' ingrediente(s) para: '+d.nome);
+  openTargetOverlay();
+}
+function openTargetOverlay(){
+  const d=targetMode.cons;
+  $('ov-target-modal').innerHTML=
+    '<h2 class="deco">'+d.icon+' '+d.nome+'</h2>'
+    +'<p>'+d.desc+'</p>'
+    +'<p class="small">Toque nos ingredientes da sua mão (até '+d.need+'). Selecionados: <b id="tgt-count">0</b></p>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;" id="tgt-hand"></div>'
+    +'<div style="margin-top:12px;"><button class="btn sm" id="tgt-confirm" disabled>Aplicar</button> <button class="btn sm sec" id="tgt-cancel">Cancelar</button></div>';
+  renderTargetHand();
+  openOv('ov-target');
+  $('tgt-cancel').onclick=()=>{ targetMode=null; closeOv('ov-target'); };
+  $('tgt-confirm').onclick=()=>confirmTarget();
+}
+function renderTargetHand(){
+  const wrap=$('tgt-hand');
+  wrap.innerHTML=run.hand.map(c=>{ const chosen=targetMode.chosen.includes(c.uid);
+    return '<div style="'+(chosen?'outline:3px solid var(--lumen);border-radius:12px;':'')+'">'+cardHTML(c,{mini:true,noSel:true})+'</div>'; }).join('');
+  [...wrap.querySelectorAll('.card')].forEach(el=>{ el.onclick=()=>toggleTarget(el.dataset.uid|0); });
+  $('tgt-count').textContent=targetMode.chosen.length;
+  $('tgt-confirm').disabled = targetMode.chosen.length===0;
+}
+function toggleTarget(u){
+  const i=targetMode.chosen.indexOf(u);
+  if(i>=0) targetMode.chosen.splice(i,1);
+  else{ if(targetMode.chosen.length>=targetMode.need){ toast('Máximo '+targetMode.need); return; } targetMode.chosen.push(u); }
+  sfx('select'); renderTargetHand();
+}
+function confirmTarget(){
+  const targets=targetMode.chosen.map(u=>run.hand.find(c=>c.uid===u)).filter(Boolean);
+  targetMode.cons.apply(run, targets);
+  run.consumables.splice(targetMode.ci,1);
+  toast(targetMode.cons.nome+' aplicada!');
+  sfx('cons');
+  targetMode=null; closeOv('ov-target'); renderGame(); saveRun();
+}
+
+/* =========================================================================
+   OVERLAYS / TELAS / TOOLTIP / TOAST
+   ========================================================================= */
+function showScreen(id){ ['screen-title','screen-game','screen-shop'].forEach(s=>$(s).classList.toggle('on', s===id)); }
+function openOv(id){ $(id).classList.add('on'); }
+function closeOv(id){ $(id).classList.remove('on'); }
+function goTitle(){ showScreen('screen-title'); music.setMood('title'); updateTitle(); }
+function tag(txt,color){ return '<span class="tt-tag" style="background:'+color+';color:#fff;">'+txt+'</span>'; }
+function rarTag(r){ const col={comum:'#3a3a55',raro:'#1e4b7a',epico:'#5a1e7a',lendario:'#7a4a12'}[r]||'#3a3a55'; return '<span class="tt-tag" style="background:'+col+';color:#fff;">'+r.toUpperCase()+'</span>'; }
+function showTip(ev,name,desc,tg){ const t=$('tooltip'); t.innerHTML='<div class="tt-name">'+name+'</div><div class="tt-desc">'+desc+'</div>'+(tg||''); t.style.display='block';
+  const x=ev.clientX||(window.innerWidth/2), y=ev.clientY||100; t.style.left=clamp(x-110,8,window.innerWidth-238)+'px'; t.style.top=clamp(y-t.offsetHeight-14,8,window.innerHeight-100)+'px'; }
+function hideTip(){ $('tooltip').style.display='none'; }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; $('toasts').appendChild(t); setTimeout(()=>t.remove(),2800); }
+function spawnFloater(anchorEl, txt, color){ const r=anchorEl.getBoundingClientRect(); const f=document.createElement('div'); f.className='floater'; f.textContent=txt; f.style.color=color; f.style.left=r.left+r.width/2+'px'; f.style.top=r.top+'px'; $('float-layer').appendChild(f); setTimeout(()=>f.remove(),1000); }
+function shakeScreen(){ const a=$('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
+
+/* =========================================================================
+   SFX + MÚSICA (Web Audio, gerado)
+   ========================================================================= */
+const audio=(()=>{
+  let ctx=null;
+  function ac(){ if(!ctx){ try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ ctx=null; } } if(ctx&&ctx.state==='suspended') ctx.resume(); return ctx; }
+  return { ac };
+})();
+function beep(f,d,type,vol,slideTo){ const c=audio.ac(); if(!c||!settings.sfx) return; const o=c.createOscillator(),g=c.createGain(); o.type=type||'sine'; o.frequency.setValueAtTime(f,c.currentTime); if(slideTo)o.frequency.exponentialRampToValueAtTime(slideTo,c.currentTime+d); g.gain.setValueAtTime(vol||.12,c.currentTime); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+d); }
+let tickPitch=440;
+function sfx(name){
+  switch(name){
+    case 'select': beep(520,.07,'sine',.1,660); break;
+    case 'deselect': beep(380,.07,'sine',.08,300); break;
+    case 'brew': beep(180,.25,'sawtooth',.14,90); break;
+    case 'tick': tickPitch=Math.min(tickPitch*1.03,1800); beep(tickPitch,.05,'square',.05); break;
+    case 'cat': beep(700,.12,'square',.12,1100); break;
+    case 'fus': beep(300,.14,'triangle',.12,180); break;
+    case 'win': [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.2,'square',.14),i*80)); break;
+    case 'buy': beep(880,.1,'triangle',.12,1200); break;
+    case 'reroll': beep(400,.1,'sawtooth',.1,700); break;
+    case 'cons': [440,660,880].forEach((f,i)=>setTimeout(()=>beep(f,.12,'sine',.1),i*70)); break;
+    case 'discard': beep(240,.12,'sine',.08,160); break;
+    case 'err': beep(160,.16,'square',.1,120); break;
+  }
+  if(name!=='tick') tickPitch=440;
+}
+/* música procedural simples por humor */
+const music=(()=>{
+  let timer=null, mood='title', step=0;
+  const scales={ title:[0,3,5,7,10], play:[0,2,3,5,7], boss:[0,1,3,6,7], shop:[0,4,7,11,14] };
+  const roots={ title:196, play:174, boss:130, shop:220 };
+  function note(freq,dur,type,vol){ const c=audio.ac(); if(!c||!settings.music) return; const o=c.createOscillator(),g=c.createGain(); o.type=type; o.frequency.value=freq; g.gain.setValueAtTime(0,c.currentTime); g.gain.linearRampToValueAtTime(vol,c.currentTime+.02); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+dur); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+dur); }
+  function tickFn(){
+    if(!settings.music) return;
+    const sc=scales[mood]||scales.title, root=roots[mood]||196;
+    const deg=sc[step%sc.length];
+    const oct=(step%8<4)?1:2;
+    const f=root*Math.pow(2,(deg/12))*oct;
+    note(f,.5,'triangle',.05);
+    if(step%4===0) note(root/2,.6,'sine',.06);
+    if(step%8===0) note(root*1.5,1.2,'sine',.03);
+    step++;
+  }
+  function start(){ stop(); timer=setInterval(tickFn, mood==='boss'?230:300); }
+  function stop(){ if(timer){ clearInterval(timer); timer=null; } }
+  return {
+    setMood(m){ mood=m; step=0; if(settings.music){ start(); } },
+    toggle(on){ if(on){ start(); } else stop(); },
+    hit(){ note((roots[mood]||196)*2,.15,'sawtooth',.05); },
+    sting(kind){ const c=audio.ac(); if(!c||!settings.music) return; if(kind==='win'){ [0,4,7,12].forEach((d,i)=>setTimeout(()=>note(261*Math.pow(2,d/12),.3,'triangle',.08),i*90)); } else { [0,-2,-5].forEach((d,i)=>setTimeout(()=>note(220*Math.pow(2,d/12),.4,'sawtooth',.08),i*140)); } }
+  };
+})();
+
+/* =========================================================================
+   FUNDO ANIMADO + PARTÍCULAS
+   ========================================================================= */
+const bg=(()=>{
+  const cv=$('bg-canvas'), cx=cv.getContext('2d'); let W,H,motes=[], sparks=[];
+  function resize(){ W=cv.width=innerWidth; H=cv.height=innerHeight; }
+  addEventListener('resize',resize); resize();
+  for(let i=0;i<44;i++) motes.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*2+.5,s:Math.random()*.4+.1,h:Math.random()*360});
+  function loop(){
+    cx.clearRect(0,0,W,H);
+    for(const m of motes){ m.y-=m.s; if(m.y<-4){ m.y=H+4; m.x=Math.random()*W; } cx.beginPath(); cx.fillStyle='hsla('+(40+m.h*0.1)+',90%,70%,.35)'; cx.arc(m.x,m.y,m.r,0,7); cx.fill(); }
+    for(let i=sparks.length-1;i>=0;i--){ const s=sparks[i]; s.x+=s.vx; s.y+=s.vy; s.vy+=.15; s.life-=.02; if(s.life<=0){ sparks.splice(i,1); continue; } cx.globalAlpha=Math.max(0,s.life); cx.fillStyle=s.c; cx.beginPath(); cx.arc(s.x,s.y,s.r,0,7); cx.fill(); cx.globalAlpha=1; }
+    requestAnimationFrame(loop);
+  }
+  loop();
+  return { burst(x,y,n){ const cols=['#ffd36b','#ff7a3c','#69c6ff','#82ff9e','#f0c8ff']; for(let i=0;i<n;i++){ const a=Math.random()*7, sp=Math.random()*6+2; sparks.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-3,r:Math.random()*3+1,c:cols[(Math.random()*cols.length)|0],life:1}); } } };
+})();
+function burst(x,y,n){ bg.burst(x,y,n); }
+
+/* =========================================================================
+   SAVE / LOAD
+   ========================================================================= */
+function saveRun(){ try{ localStorage.setItem('alchemia_run', JSON.stringify(run)); }catch(e){} }
+function loadRun(){ try{ const s=localStorage.getItem('alchemia_run'); return s?JSON.parse(s):null; }catch(e){ return null; } }
+function saveBest(a){ try{ localStorage.setItem('alchemia_best', String(a)); }catch(e){} }
+function loadBest(){ try{ return parseInt(localStorage.getItem('alchemia_best'))||0; }catch(e){ return 0; } }
+
+/* =========================================================================
+   TÍTULO / COMO JOGAR / INIT
+   ========================================================================= */
+function updateTitle(){
+  // cartas decorativas
+  $('title-cards').innerHTML = ['ember','root','lumen','gale','tide'].map((e,i)=>cardHTML({uid:9000+i,ess:e,pot:[7,4,6,3,5][i],enh:null,edt:i===2?'prismatic':null},{noSel:true})).join('');
+  // diagrama de ciclo
+  const order=['root','ember','lumen','gale','tide'];
+  $('cycle-diagram').innerHTML = 'Ciclo Gerador: '+order.map(e=>'<b style="color:'+ESS[e].c1+'">'+ESS[e].nome+'</b>').join(' → ')+' → <b style="color:'+ESS.root.c1+'">Raiz</b>';
+  const best=loadBest();
+  $('best-line').textContent = best>0? ('Melhor ante alcançado: '+best) : '';
+  const saved=loadRun();
+  $('btn-continue').style.display = saved? 'inline-block':'none';
+}
+$('btn-start').onclick=()=>{ audio.ac(); newRun(); music.setMood('play'); showBlindIntro(); };
+$('btn-continue').onclick=()=>{ audio.ac(); const s=loadRun(); if(s){ run=s; if(!run.stats) run.stats={bestBrew:0,brewsDone:0}; if(run.phase==='shop'){ openShop(); } else { showScreen('screen-game'); if(!run.hand||run.hand.length===0){ startBlind(); } renderGame(); music.setMood(isBoss()?'boss':'play'); } } };
+$('btn-how').onclick=()=>{ openOv('ov-how'); };
+$('tg-music').onchange=e=>{ settings.music=e.target.checked; music.toggle(settings.music); saveSettings(); };
+$('tg-sfx').onchange=e=>{ settings.sfx=e.target.checked; saveSettings(); };
+function saveSettings(){ try{ localStorage.setItem('alchemia_set', JSON.stringify(settings)); }catch(e){} }
+function loadSettings(){ try{ const s=localStorage.getItem('alchemia_set'); if(s){ settings=JSON.parse(s); $('tg-music').checked=settings.music; $('tg-sfx').checked=settings.sfx; } }catch(e){} }
+
+$('ov-how-modal').innerHTML=
+  '<h2 class="deco">Como Jogar</h2>'
+  +'<p style="text-align:left">'
+  +'<b>Objetivo:</b> alcance a <b>meta</b> de pontos de cada prova antes de acabarem seus <b>preparos</b>.<br><br>'
+  +'<b>Preparar (⚗️):</b> selecione ingredientes — eles entram no <b>caldeirão na ordem escolhida</b>. Pontos = <b>fichas × multiplicador</b>.<br><br>'
+  +'<b>Reações entre vizinhos:</b><br>'
+  +'⚡ <b>Catálise</b>: se a essência da esquerda <i>gera</i> a da direita no ciclo (Raiz→Brasa→Luz→Vento→Maré→Raiz) → +multiplicador (cadeias crescem!).<br>'
+  +'💠 <b>Fusão</b>: essências <i>iguais</i> lado a lado → +fichas.<br>'
+  +'◆ <b>Sintonia</b>: 3+ ingredientes todos da mesma essência.<br>'
+  +'✦ <b>Espectro</b>: 5 essências diferentes de uma vez.<br><br>'
+  +'<b>Loja:</b> compre <b>relíquias</b> (efeitos permanentes), <b>tinturas</b> (melhoram ingredientes) e <b>fórmulas</b> (sobem o nível das reações).<br><br>'
+  +'<b>Chefes:</b> a cada 3ª prova há uma <b>maldição</b> que muda as regras. Vença 8 antes para completar a Grande Obra!'
+  +'</p><button class="btn" id="how-close" style="margin-top:8px;">Entendi</button>';
+$('ov-how-modal').querySelector('#how-close').onclick=()=>closeOv('ov-how');
+
+// fechar overlays clicando fora
+['ov-blind','ov-reward','ov-end','ov-how','ov-pack','ov-target'].forEach(id=>{
+  $(id).addEventListener('click',e=>{ if(e.target.id===id && (id==='ov-how')) closeOv(id); });
+});
+document.addEventListener('pointerdown',()=>audio.ac(),{once:true});
+
+/* ---- override advanceBlind para checar vitória de jogo ---- */
+const _advanceBlind=advanceBlind;
+advanceBlind=function(){
+  run.shop=null;
+  run.blindIndex++;
+  if(run.blindIndex>2){ run.blindIndex=0; run.ante++; }
+  saveRun();
+  if(afterAdvanceCheck()) return;
+  showBlindIntro();
+};
+
+/* ---------- boot ---------- */
+loadSettings();
+updateTitle();
+music.setMood('title');
+
+/* ---------- API de teste (headless) ---------- */
+window.Alchemia={ get run(){return run;}, newRun, startBlind, scoreBrew, doBrew:(uids)=>{ sel=uids.slice(); doBrewSync(); }, computeMods, quotaFor, RELICS, CONSUMABLES, HEXES,
+  autoBrew, state:()=>run };
+function doBrewSync(){ // versão sem animação para testes
+  const cards=sel.map(u=>run.hand.find(c=>c.uid===u)).filter(Boolean);
+  if(cards.length===0||run.brews<=0) return null;
+  run.brews--; const acc=scoreBrew(cards,false);
+  cards.forEach(c=>{ const i=run.hand.findIndex(x=>x.uid===c.uid); if(i>=0){ run.hand.splice(i,1); run.spent.push(c);} });
+  run.score+=acc.score; sel=[]; if(run.score<run.quota && run.brews>0) drawUp();
+  return acc;
+}
+function autoBrew(){ // heurística: testa amostras aleatórias e escolhe melhor
+  let best=null,bestUids=null;
+  const hand=run.hand;
+  for(let iter=0; iter<220; iter++){
+    const k=randInt(1,Math.min(run.maxSel,hand.length));
+    const idxs=shuffle(hand.map((_,i)=>i)).slice(0,k);
+    const cards=idxs.map(i=>hand[i]);
+    const acc=scoreBrew(cards,true);
+    if(!best||acc.score>best){ best=acc.score; bestUids=cards.map(c=>c.uid); }
+  }
+  sel=bestUids||[hand[0]&&hand[0].uid].filter(Boolean);
+  return doBrewSync();
+}
+</script>
+</body>
+</html>
