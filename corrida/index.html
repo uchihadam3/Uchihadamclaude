@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>GALOPE DE OURO — Corrida & Apostas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Fredoka:wght@500;600;700&family=Racing+Sans+One&display=swap" rel="stylesheet" />
+<style>
+/* =========================================================================
+   GALOPE DE OURO — jogo de corrida de cavalos + apostas + estábulo
+   Tudo em um arquivo. Sem dependências além das fontes (CDN).
+   ========================================================================= */
+:root{
+  --green0:#1f7a3d; --green1:#2fa04f; --green2:#3ec267;
+  --dirt:#c98a4b; --dirt2:#a86a34;
+  --sky0:#7ec8ff; --sky1:#bfe8ff;
+  --gold:#ffd24a; --gold2:#ffb020;
+  --ink:#20160c; --paper:#fff7e8;
+  --panel:#20344a; --panel2:#182838;
+  --line:rgba(255,255,255,.16);
+  --good:#43e08a; --bad:#ff6a80; --accent:#ff7a3c;
+  --shadow:0 12px 34px rgba(0,0,0,.4);
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; height:100%; overflow:hidden; user-select:none; color:var(--ink);
+  font-family:'Fredoka',system-ui,sans-serif;
+  background:linear-gradient(180deg,#0e2338,#0a1826); }
+h1,h2,h3{ margin:0; }
+button{ font-family:inherit; cursor:pointer; border:none; }
+button:disabled{ opacity:.45; cursor:not-allowed; }
+.bungee{ font-family:'Bungee',cursive; }
+.racing{ font-family:'Racing Sans One',cursive; }
+
+#app{ position:relative; height:100%; max-width:1000px; margin:0 auto; overflow:hidden; }
+.screen{ position:absolute; inset:0; display:none; flex-direction:column; }
+.screen.on{ display:flex; }
+
+/* ---------------- Botões ---------------- */
+.btn{ background:linear-gradient(180deg,var(--gold),var(--gold2)); color:#3a2400; font-weight:700; font-size:18px;
+  border-radius:16px; padding:13px 26px; box-shadow:0 6px 0 #a3700e, 0 12px 22px rgba(255,170,20,.3); transition:transform .08s, box-shadow .08s; }
+.btn:active{ transform:translateY(4px); box-shadow:0 2px 0 #a3700e; }
+.btn.sec{ background:linear-gradient(180deg,#48709a,#2c4a6b); color:#eaf3ff; box-shadow:0 5px 0 #16283b,0 10px 20px rgba(0,0,0,.35); }
+.btn.sec:active{ transform:translateY(3px); box-shadow:0 2px 0 #16283b; }
+.btn.grn{ background:linear-gradient(180deg,#46d97b,#22a352); color:#04240f; box-shadow:0 5px 0 #0f5a29,0 10px 20px rgba(40,180,90,.3); }
+.btn.grn:active{ transform:translateY(3px); box-shadow:0 2px 0 #0f5a29; }
+.btn.sm{ font-size:14px; padding:9px 15px; border-radius:12px; box-shadow:0 4px 0 #a3700e,0 8px 14px rgba(255,170,20,.25); }
+.btn.sm.sec{ box-shadow:0 4px 0 #16283b,0 8px 14px rgba(0,0,0,.3); }
+.btn.sm.grn{ box-shadow:0 4px 0 #0f5a29,0 8px 14px rgba(40,180,90,.25); }
+.btn.red{ background:linear-gradient(180deg,#ff7a90,#e0364f); color:#fff; box-shadow:0 5px 0 #8a1327,0 10px 20px rgba(224,54,79,.3); }
+
+/* ---------------- Título ---------------- */
+#screen-title{ align-items:center; justify-content:center; text-align:center; gap:14px; padding:20px;
+  background:radial-gradient(900px 500px at 50% -10%, #2fa04f 0%, transparent 60%), linear-gradient(180deg,#7ec8ff,#bfe8ff 40%,#2fa04f 41%,#1f7a3d);
+}
+.title-logo{ font-family:'Bungee',cursive; font-size:clamp(40px,11vw,86px); line-height:.92; color:#fff;
+  text-shadow:0 4px 0 #a3700e, 0 8px 0 #7a5209, 0 12px 26px rgba(0,0,0,.4);
+  background:linear-gradient(180deg,#fff2c0,#ffcf4a 55%,#ff9e2c);
+  -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+.title-sub{ font-family:'Racing Sans One',cursive; color:#fff; font-size:clamp(15px,4vw,22px); letter-spacing:2px; text-shadow:0 2px 6px rgba(0,0,0,.4); }
+.title-horses{ font-size:clamp(30px,9vw,56px); letter-spacing:6px; filter:drop-shadow(0 6px 8px rgba(0,0,0,.3)); }
+.title-card{ background:rgba(10,25,40,.6); border:1px solid var(--line); border-radius:20px; padding:16px 18px; max-width:440px; box-shadow:var(--shadow); }
+.title-card p{ color:#dff0ff; line-height:1.5; font-size:14px; margin:0; }
+.title-card p b{ color:var(--gold); }
+.diff-title{ color:#fff; font-family:'Bungee',cursive; font-size:14px; letter-spacing:1px; margin-top:4px; }
+.diff-row{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+.diff-btn{ background:rgba(10,25,40,.72); border:2px solid var(--line); color:#fff; border-radius:16px; padding:12px 16px; min-width:120px; text-align:center; transition:.15s; }
+.diff-btn .dn{ font-family:'Bungee',cursive; font-size:15px; }
+.diff-btn .dd{ font-size:11px; opacity:.8; margin-top:3px; line-height:1.3; }
+.diff-btn.sel{ border-color:var(--gold); background:rgba(255,180,30,.2); box-shadow:0 0 20px rgba(255,180,30,.35); transform:translateY(-3px); }
+.diff-btn.normal.sel{ border-color:var(--good); }
+.diff-btn.dificil.sel{ border-color:var(--accent); }
+.diff-btn.impossivel.sel{ border-color:var(--bad); }
+.title-toggles{ display:flex; gap:16px; color:#fff; font-size:13px; }
+.title-toggles label{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+
+/* ---------------- Pré-corrida (apostas) ---------------- */
+#screen-bet{ background:linear-gradient(180deg,#132a40,#0d1c2c); }
+.topbar{ display:flex; gap:8px; padding:10px 12px 4px; align-items:center; }
+.race-title{ flex:1; }
+.race-title .rt-name{ font-family:'Bungee',cursive; font-size:18px; color:#fff; }
+.race-title .rt-sub{ color:#9fc0dd; font-size:12px; }
+.hud-chip{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:6px 12px; text-align:center; color:#fff; }
+.hud-chip .hl{ font-size:10px; color:#9fc0dd; letter-spacing:1px; text-transform:uppercase; }
+.hud-chip .hv{ font-family:'Bungee',cursive; font-size:17px; }
+.hv.money{ color:var(--gold); }
+.hv.streak{ color:var(--accent); }
+.bet-body{ flex:1; min-height:0; overflow-y:auto; padding:6px 12px 4px; }
+.field-list{ display:flex; flex-direction:column; gap:8px; }
+.horse-row{ display:flex; align-items:center; gap:10px; background:var(--panel); border:2px solid var(--line); border-radius:14px; padding:8px 10px; cursor:pointer; transition:.12s; position:relative; }
+.horse-row:hover{ transform:translateX(3px); }
+.horse-row.sel{ border-color:var(--gold); box-shadow:0 0 18px rgba(255,180,30,.3); }
+.horse-row.you{ background:linear-gradient(90deg,rgba(255,122,60,.22),var(--panel)); }
+.gate{ width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'Bungee'; font-size:13px; color:#fff; flex:0 0 auto; }
+.silks{ width:30px; height:30px; border-radius:50%; flex:0 0 auto; border:2px solid rgba(255,255,255,.5); position:relative; overflow:hidden; }
+.silks::after{ content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent 45%,rgba(255,255,255,.5) 50%,transparent 55%); }
+.hinfo{ flex:1; min-width:0; }
+.hname{ font-weight:700; color:#fff; font-size:15px; display:flex; align-items:center; gap:6px; }
+.you-tag{ font-size:9px; background:var(--accent); color:#fff; border-radius:6px; padding:1px 6px; font-weight:700; }
+.stat-bars{ display:flex; gap:4px; margin-top:4px; }
+.sb{ flex:1; height:6px; background:rgba(0,0,0,.35); border-radius:6px; overflow:hidden; }
+.sb i{ display:block; height:100%; border-radius:6px; }
+.odds{ font-family:'Bungee',cursive; font-size:18px; color:var(--gold); flex:0 0 auto; text-align:right; min-width:52px; }
+.odds small{ display:block; font-size:9px; color:#9fc0dd; font-family:'Fredoka'; }
+
+.bet-panel{ background:var(--panel2); border-top:1px solid var(--line); padding:8px 12px 10px; }
+.bet-row1{ display:flex; align-items:center; gap:8px; justify-content:space-between; flex-wrap:wrap; }
+.bet-sel-info{ color:#dff0ff; font-size:13px; }
+.bet-sel-info b{ color:var(--gold); }
+.bettype{ display:flex; gap:6px; }
+.bt-btn{ background:#2c4a6b; color:#cfe4ff; border-radius:10px; padding:6px 12px; font-size:13px; font-weight:600; }
+.bt-btn.sel{ background:var(--gold); color:#3a2400; }
+.stake-row{ display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.stake-box{ background:#0f2033; border:1px solid var(--line); border-radius:12px; padding:6px 14px; font-family:'Bungee'; font-size:20px; color:var(--gold); min-width:96px; text-align:center; }
+.chip{ background:#2c4a6b; color:#cfe4ff; border-radius:10px; padding:7px 11px; font-weight:700; font-size:13px; }
+.stepbtn{ background:#2c4a6b; color:#fff; border-radius:10px; width:38px; height:38px; font-size:20px; font-weight:700; }
+.bet-actions{ display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap; }
+.bet-slip{ flex:1; color:#9fc0dd; font-size:12px; min-width:120px; }
+.bet-slip b{ color:#fff; }
+
+/* ---------------- Corrida (canvas) ---------------- */
+#screen-race{ background:#0a1826; }
+.race-hud{ position:absolute; top:0; left:0; right:0; z-index:5; display:flex; justify-content:space-between; align-items:flex-start; padding:8px 12px; pointer-events:none; }
+.race-hud .rh-left, .race-hud .rh-right{ background:rgba(10,20,32,.72); border:1px solid var(--line); border-radius:12px; padding:6px 12px; color:#fff; }
+.rh-pos{ font-family:'Bungee'; font-size:22px; }
+.rh-pos small{ font-size:12px; color:#9fc0dd; font-family:'Fredoka'; }
+.rh-prog{ font-size:12px; color:#9fc0dd; }
+#race-canvas{ position:absolute; inset:0; width:100%; height:100%; }
+.race-controls{ position:absolute; left:0; right:0; bottom:0; z-index:6; padding:10px 12px 16px; display:flex; flex-direction:column; gap:8px; }
+.stamina-wrap{ display:flex; align-items:center; gap:8px; }
+.stamina-label{ color:#fff; font-size:11px; font-weight:700; min-width:56px; }
+.stamina-bar{ flex:1; height:16px; background:rgba(0,0,0,.5); border:1px solid var(--line); border-radius:20px; overflow:hidden; }
+.stamina-fill{ height:100%; width:100%; border-radius:20px; background:linear-gradient(90deg,#43e08a,#ffd24a,#ff7a3c); transition:width .08s linear; }
+.ctrl-btns{ display:flex; gap:10px; }
+.run-btn{ flex:1; background:linear-gradient(180deg,#ff9a3c,#ff5a2c); color:#3a1400; font-family:'Bungee'; font-size:22px; border-radius:18px; padding:16px; box-shadow:0 6px 0 #a13309, 0 10px 20px rgba(255,90,44,.4); touch-action:none; }
+.run-btn.active{ transform:translateY(4px); box-shadow:0 2px 0 #a13309; filter:brightness(1.15); }
+.whip-btn{ flex:0 0 auto; width:88px; background:linear-gradient(180deg,#ffd24a,#ffb020); color:#3a2400; font-family:'Bungee'; font-size:13px; border-radius:18px; box-shadow:0 6px 0 #a3700e; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+.whip-btn .wc{ font-size:22px; }
+.whip-btn .wn{ font-size:11px; }
+.countdown{ position:absolute; inset:0; z-index:8; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+.count-num{ font-family:'Bungee'; font-size:120px; color:#fff; text-shadow:0 6px 0 #a3700e, 0 0 40px rgba(255,200,60,.6); animation:countpop .8s ease; }
+@keyframes countpop{ 0%{transform:scale(2.2);opacity:0;} 30%{transform:scale(1);opacity:1;} 100%{transform:scale(.6);opacity:0;} }
+
+/* ---------------- Overlays ---------------- */
+.overlay{ position:absolute; inset:0; z-index:30; display:none; align-items:center; justify-content:center; padding:16px; background:rgba(6,14,22,.82); backdrop-filter:blur(3px); }
+.overlay.on{ display:flex; animation:fade .25s; }
+@keyframes fade{ from{opacity:0;} }
+.modal{ width:100%; max-width:440px; background:linear-gradient(180deg,var(--panel),var(--panel2)); border:2px solid var(--line); border-radius:20px; padding:20px; box-shadow:var(--shadow); text-align:center; max-height:90vh; overflow:auto; color:#fff; }
+.modal h2{ font-family:'Bungee'; font-size:24px; margin-bottom:8px; }
+.modal p{ color:#cfe0f0; line-height:1.5; font-size:14px; }
+.result-list{ text-align:left; margin:10px 0; }
+.res-row{ display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:10px; font-size:14px; }
+.res-row.you{ background:rgba(255,122,60,.2); }
+.res-row .rp{ font-family:'Bungee'; width:34px; color:var(--gold); }
+.res-row .rn{ flex:1; }
+.res-row .rt{ color:#9fc0dd; font-size:12px; }
+.payout{ background:rgba(0,0,0,.3); border-radius:12px; padding:10px; margin:10px 0; }
+.payout .pr{ display:flex; justify-content:space-between; padding:3px 0; font-size:14px; }
+.payout .pr b{ color:var(--gold); }
+.big-win{ font-family:'Bungee'; font-size:28px; color:var(--good); animation:pulse 1s infinite; }
+.big-lose{ font-family:'Bungee'; font-size:22px; color:var(--bad); }
+@keyframes pulse{ 50%{ transform:scale(1.06); } }
+
+/* Estábulo / Loja */
+.stable-horse{ display:flex; gap:12px; align-items:center; background:rgba(0,0,0,.25); border-radius:14px; padding:12px; margin-bottom:10px; }
+.stable-emoji{ font-size:44px; }
+.stat-line{ display:flex; align-items:center; gap:8px; margin:5px 0; font-size:13px; }
+.stat-line .sl-name{ width:88px; text-align:left; color:#cfe0f0; }
+.stat-line .sl-bar{ flex:1; height:9px; background:rgba(0,0,0,.4); border-radius:8px; overflow:hidden; }
+.stat-line .sl-bar i{ display:block; height:100%; border-radius:8px; }
+.stat-line .sl-val{ width:34px; font-family:'Bungee'; font-size:13px; }
+.shop-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.shop-item{ background:rgba(0,0,0,.28); border:1px solid var(--line); border-radius:12px; padding:10px; text-align:center; }
+.shop-item .sic{ font-size:26px; } .shop-item .sin{ font-weight:700; font-size:13px; margin:2px 0; }
+.shop-item .sid{ font-size:11px; color:#9fc0dd; min-height:30px; line-height:1.3; }
+.shop-item .sip{ color:var(--gold); font-weight:700; font-size:14px; }
+.items-owned{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+.item-chip{ background:rgba(0,0,0,.3); border:1px solid var(--line); border-radius:10px; padding:4px 8px; font-size:12px; }
+
+#toasts{ position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:50; display:flex; flex-direction:column; gap:6px; align-items:center; }
+.toast{ background:linear-gradient(90deg,var(--gold),var(--accent)); color:#3a2000; font-weight:700; padding:8px 14px; border-radius:12px; box-shadow:var(--shadow); font-size:14px; animation:tin .3s, tout .3s 2.3s forwards; }
+@keyframes tin{ from{transform:translateY(-14px);opacity:0;} }
+@keyframes tout{ to{transform:translateY(-14px);opacity:0;} }
+.shake{ animation:shk .4s; }
+@keyframes shk{ 0%,100%{transform:translate(0,0);} 25%{transform:translate(-6px,3px);} 50%{transform:translate(7px,-3px);} 75%{transform:translate(-4px,-4px);} }
+.small{ font-size:12px; color:#9fc0dd; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ============== TÍTULO ============== -->
+  <section class="screen on" id="screen-title">
+    <div class="title-horses">🐎🏇🐎</div>
+    <div class="title-logo bungee">GALOPE<br>DE OURO</div>
+    <div class="title-sub">Corrida • Apostas • Estábulo</div>
+    <div class="title-card">
+      <p>Você é dono do cavalo <b>Relâmpago</b>. <b>Monte e controle</b> seu cavalo na pista (segure para acelerar e gerencie o fôlego!), <b>treine</b> seus atributos entre as corridas, <b>aposte</b> (dica: apostar em si mesmo rende muito!) e use <b>itens</b>. O objetivo: chegar forte e <b>vencer a Copa de Ouro</b> na grande final! Bater a meta de $$ é o bônus de <b>Lenda</b> 👑.</p>
+    </div>
+    <div class="diff-title bungee">ESCOLHA A DIFICULDADE</div>
+    <div class="diff-row" id="diff-row">
+      <button class="diff-btn normal sel" data-diff="normal"><div class="dn">🟢 Normal</div><div class="dd">$600 • rivais fracos<br>8 corridas • Lenda $3.5k</div></button>
+      <button class="diff-btn dificil" data-diff="dificil"><div class="dn">🟠 Difícil</div><div class="dd">$350 • rivais fortes<br>9 corridas • Lenda $6k</div></button>
+      <button class="diff-btn impossivel" data-diff="impossivel"><div class="dn">🔴 Impossível</div><div class="dd">$350 • rivais brutais<br>10 corridas • Lenda $9k</div></button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+      <button class="btn" id="btn-start">🏁 Começar Temporada</button>
+      <button class="btn sec" id="btn-continue" style="display:none;">↻ Continuar</button>
+    </div>
+    <div class="title-toggles">
+      <label><input type="checkbox" id="tg-music" checked> 🎵 Música</label>
+      <label><input type="checkbox" id="tg-sfx" checked> 🔊 Efeitos</label>
+    </div>
+    <div class="small" id="best-line" style="color:#eaf6ff;"></div>
+  </section>
+
+  <!-- ============== APOSTAS / PRÉ-CORRIDA ============== -->
+  <section class="screen" id="screen-bet">
+    <div class="topbar">
+      <div class="race-title">
+        <div class="rt-name racing" id="bet-race-name">Corrida 1</div>
+        <div class="rt-sub" id="bet-race-sub">Prêmio ao 1º lugar: $200</div>
+      </div>
+      <div class="hud-chip"><div class="hl">Banca</div><div class="hv money" id="bet-money">$0</div></div>
+      <div class="hud-chip"><div class="hl">Sequência</div><div class="hv streak" id="bet-streak">x1</div></div>
+    </div>
+    <div class="bet-body">
+      <div class="field-list" id="field-list"></div>
+    </div>
+    <div class="bet-panel">
+      <div class="bet-row1">
+        <div class="bet-sel-info" id="bet-sel-info">Toque num cavalo para apostar (ou corra sem apostar).</div>
+        <div class="bettype" id="bettype">
+          <button class="bt-btn sel" data-t="win">Vencedor</button>
+          <button class="bt-btn" data-t="place">Colocado (top 2)</button>
+        </div>
+      </div>
+      <div class="stake-row">
+        <button class="stepbtn" id="stake-minus">–</button>
+        <div class="stake-box" id="stake-box">$50</div>
+        <button class="stepbtn" id="stake-plus">+</button>
+        <button class="chip" data-chip="10">+10</button>
+        <button class="chip" data-chip="50">+50</button>
+        <button class="chip" data-chip="100">+100</button>
+        <button class="chip" data-chip="max">MÁX</button>
+      </div>
+      <div class="bet-actions">
+        <div class="bet-slip" id="bet-slip">Sem aposta.</div>
+        <button class="btn sm sec" id="btn-stable">🏟️ Estábulo & Loja</button>
+        <button class="btn sm grn" id="btn-race">Ir à Pista →</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== CORRIDA ============== -->
+  <section class="screen" id="screen-race">
+    <canvas id="race-canvas"></canvas>
+    <div class="race-hud">
+      <div class="rh-left"><div class="rh-pos" id="rh-pos">1º <small id="rh-of">de 6</small></div></div>
+      <div class="rh-right"><div class="rh-prog" id="rh-prog">Largada!</div><div class="rh-prog" id="rh-leader"></div></div>
+    </div>
+    <div class="countdown" id="countdown"></div>
+    <div class="race-controls" id="race-controls">
+      <div class="stamina-wrap">
+        <div class="stamina-label">FÔLEGO</div>
+        <div class="stamina-bar"><div class="stamina-fill" id="stamina-fill"></div></div>
+      </div>
+      <div class="ctrl-btns">
+        <button class="run-btn" id="run-btn">🏇 SEGURE P/ CORRER</button>
+        <button class="whip-btn" id="whip-btn"><span class="wc">🎯</span><span class="wn">Chicote ×0</span></button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Overlays -->
+<div class="overlay" id="ov-result"><div class="modal" id="ov-result-modal"></div></div>
+<div class="overlay" id="ov-stable"><div class="modal" id="ov-stable-modal"></div></div>
+<div class="overlay" id="ov-end"><div class="modal" id="ov-end-modal"></div></div>
+<div class="overlay" id="ov-how"><div class="modal" id="ov-how-modal"></div></div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   GALOPE DE OURO — núcleo
+   ========================================================================= */
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+let RNG=mulberry32((Math.random()*1e9)|0);
+const rnd=()=>RNG(); const rr=(a,b)=>a+rnd()*(b-a); const ri=(a,b)=>Math.floor(rr(a,b+1));
+const pick=a=>a[Math.floor(rnd()*a.length)];
+const money=n=>'$'+Math.round(n).toLocaleString('pt-BR');
+
+/* ---------- dificuldades ---------- */
+const DIFFS={
+  normal:    {nome:'Normal', start:600, target:3500, rivalBase:44, rivalGrow:2.6, rivalCap:94, yourBonus:8, staminaMul:1.25, margin:0.10, streakBonus:0.15, races:8, catchup:0.9, luck:1.0},
+  dificil:   {nome:'Difícil', start:350, target:6000, rivalBase:53, rivalGrow:3.8, rivalCap:96, yourBonus:4, staminaMul:1.05, margin:0.18, streakBonus:0.10, races:9, catchup:0.55, luck:0.9},
+  impossivel:{nome:'Impossível', start:350, target:9000, rivalBase:56, rivalGrow:2.9, rivalCap:92, yourBonus:0, staminaMul:0.96, margin:0.22, streakBonus:0.08, races:10, catchup:0.42, luck:0.78}
+};
+
+/* ---------- nomes / cores ---------- */
+const RIVAL_NAMES=['Trovão Negro','Vento Sul','Estrela Veloz','Furacão','Dourado','Sombra','Corcel Real','Cometa','Tornado','Relíquia','Bravo','Faísca','Meteoro','Espírito','Rajada','Titã','Águia','Lampião','Guará','Fúria','Diamante','Jaguar'];
+const SILKS=['#e0364f','#2b8cff','#33c25e','#a94bd6','#ff8a2c','#00c2c7','#ffd24a','#ff5aa0','#7a5cff','#8a6a3a'];
+
+/* ---------- estado ---------- */
+let G=null;        // jogo/temporada
+let bet=null;      // {horseIdx, type, stake}
+let stakeAmt=50;
+let betType='win';
+let selHorse=null;
+let settings={music:true, sfx:true};
+let race=null;     // objeto da corrida em andamento
+
+const TRACK=560;   // "metros" da pista
+
+function newSeason(diffKey, seed){
+  RNG=mulberry32(seed!=null?seed:(Math.random()*1e9)|0);
+  const D=DIFFS[diffKey];
+  G={
+    diff:diffKey, D, money:D.start, raceNum:1, streak:0,
+    you:{ name:'Relâmpago', silks:'#ff7a3c', isPlayer:true,
+          speed:clamp(56+D.yourBonus,20,95), stamina:clamp(56+D.yourBonus,20,95),
+          accel:clamp(56+D.yourBonus,20,95), guts:clamp(56+D.yourBonus,20,95), condition:100 },
+    items:{ whip:0, energy:0, horseshoe:0 },
+    stats:{ betsWon:0, biggestWin:0, wins:0 },
+    field:null, done:false
+  };
+  makeField();
+  bet=null; selHorse=null; betType='win'; stakeAmt=Math.min(50, Math.max(10,Math.floor(G.money/4)));
+  saveGame();
+}
+function isFinal(){ return G.raceNum>=G.D.races; }
+function prizeFor(pos){ // prêmio por colocação, escala com corrida
+  const base=210*Math.pow(1.30, G.raceNum-1) * (isFinal()?3.2:1);
+  const mult=[1,0.5,0.3,0.16,0.06,0][pos]||0;
+  return Math.round(base*mult/5)*5;
+}
+
+/* gera o grid da corrida */
+function makeField(){
+  const D=G.D;
+  const n=ri(5,6); // total incluindo você
+  const field=[G.you];
+  const usedNames=[]; const usedSilks=[G.you.silks];
+  for(let i=1;i<n;i++){
+    let nm=pick(RIVAL_NAMES); while(usedNames.includes(nm)) nm=pick(RIVAL_NAMES); usedNames.push(nm);
+    let sk=pick(SILKS); while(usedSilks.includes(sk) && usedSilks.length<SILKS.length) sk=pick(SILKS); usedSilks.push(sk);
+    const cap=D.rivalCap||96;
+    const lvl=D.rivalBase + D.rivalGrow*(G.raceNum-1) + rr(-5,6) + (isFinal()?5:0);
+    field.push({ name:nm, silks:sk, isPlayer:false,
+      speed:clamp(lvl+rr(-4,4),15,cap), stamina:clamp(lvl+rr(-4,4),15,cap),
+      accel:clamp(lvl+rr(-4,4),15,cap), guts:clamp(lvl+rr(-4,4),15,cap), condition:100 });
+  }
+  // embaralha portões (você não fica sempre no 1)
+  for(let i=field.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [field[i],field[j]]=[field[j],field[i]]; }
+  G.field=field;
+  computeOdds();
+}
+function ratingOf(h){
+  let r=0.95*h.speed + 0.85*h.stamina + 0.7*h.accel + 0.5*h.guts;
+  r *= (0.7 + 0.3*(h.condition/100));
+  return Math.max(1,r);
+}
+function computeOdds(){
+  const D=G.D;
+  const ratings=G.field.map(h=>Math.pow(ratingOf(h),3.1));
+  const sum=ratings.reduce((a,b)=>a+b,0);
+  G.field.forEach((h,i)=>{
+    let p=ratings[i]/sum;
+    let dec=(1/p)*(1-D.margin);
+    h._winP=p;
+    h.oddsWin=Math.max(1.2, Math.round(dec*10)/10);
+    // colocado (top 2): prob aproximada maior -> odds menores
+    let pPlace=clamp(p*1.9,0.02,0.95);
+    h.oddsPlace=Math.max(1.1, Math.round((1/pPlace)*(1-D.margin)*10)/10);
+    if(G.items.horseshoe>0 && h.isPlayer){ h.oddsWin=Math.round((h.oddsWin+0.6)*10)/10; h.oddsPlace=Math.round((h.oddsPlace+0.3)*10)/10; }
+  });
+}
+
+/* =========================================================================
+   SIMULAÇÃO DA CORRIDA
+   ========================================================================= */
+function createRace(){
+  const D=G.D;
+  const horses=G.field.map((h,i)=>{
+    const isP=h.isPlayer;
+    const maxV=13 + (h.speed/100)*12;                 // 13..25 m/s
+    const maxE=(45 + (h.stamina/100)*65) * (isP?D.staminaMul:1); // fôlego
+    // O jogador (que você controla) tem vantagem de perícia: arranca mais forte
+    // e gasta menos fôlego que a IA — recompensa quem sabe dosar o galope.
+    return { ref:h, lane:i, x:0, v:0, e:maxE, maxV, maxE,
+      accelRate:(isP?1.52:1.4) + h.accel/60, drain:(isP?18:22), regen:(isP?14:12) + h.stamina/12,
+      sprintPower:(isP?1.37:1.30),
+      surge:0, surgeT:0, finished:false, time:0, legPhase:rnd()*6, sprinting:false, energyBonus:isP?(G.items.energy>0?1.25:1):1 };
+  });
+  return { horses, t:0, len:TRACK, order:[], started:false, done:false, photo:false, whipT:0 };
+}
+// um passo de física (dt em segundos). playerSprint: bool. retorna nada.
+function stepRace(rc, dt, playerSprint){
+  if(rc.done) return;
+  rc.t+=dt;
+  const D=G.D;
+  const leaderX=Math.max(...rc.horses.map(h=>h.x));
+  for(const h of rc.horses){
+    if(h.finished) continue;
+    let sprint;
+    if(h.ref.isPlayer){ sprint = playerSprint && h.e>0; }
+    else{
+      const prog=h.x/rc.len;
+      const behind=leaderX-h.x;
+      sprint = h.e>h.maxE*0.15 && (prog>0.62 || (behind>25 && prog>0.28 && h.e>h.maxE*0.4) || rnd()<h.ref.guts/100*0.02*60*dt);
+      if(h.e<h.maxE*0.12) sprint=false;
+    }
+    h.sprinting=sprint;
+    // energia
+    if(sprint){ h.e=Math.max(0, h.e - h.drain*dt); }
+    else { h.e=Math.min(h.maxE*h.energyBonus, h.e + h.regen*dt); }
+    // surge (guts / chicote)
+    if(h.surgeT>0){ h.surgeT-=dt; } else { h.surge=0; }
+    if(!h.ref.isPlayer && h.surgeT<=0 && rnd()< (h.ref.guts/100)*0.35*dt){ h.surge=0.22; h.surgeT=0.8; }
+    // velocidade alvo
+    let target=h.maxV*(sprint?h.sprintPower:1.0)*(1+h.surge);
+    if(h.e<=0) target*=0.8;                 // exausto
+    target*= (0.82+0.18*(h.ref.condition/100));
+    // rubber-band: quem está atrás corre um pouquinho mais (drama), ajustado por dificuldade
+    if(!h.ref.isPlayer){ const behind=(leaderX-h.x)/rc.len; target*= (1 + behind*0.12*D.catchup); }
+    else { const behind=(leaderX-h.x)/rc.len; target*= (1 + behind*0.10*D.catchup); }
+    // aceleração
+    h.v += (target-h.v)*Math.min(1, h.accelRate*dt);
+    h.v=Math.max(0,h.v);
+    h.x += h.v*dt;
+    h.legPhase += h.v*dt*0.9;
+    if(h.x>=rc.len){ h.x=rc.len; h.finished=true; h.time=rc.t; rc.order.push(h); }
+  }
+  if(rc.order.length===rc.horses.length){
+    rc.done=true;
+    // ordena por tempo
+    rc.order.sort((a,b)=>a.time-b.time);
+    if(rc.order.length>=2 && Math.abs(rc.order[0].time-rc.order[1].time)<0.12) rc.photo=true;
+  }
+}
+function racePositions(rc){ // ranking atual (por x)
+  return [...rc.horses].sort((a,b)=> (b.finished?b.len:0)-(a.finished?a.len:0) || b.x-a.x || a.time-b.time);
+}
+function playerRank(rc){
+  const sorted=[...rc.horses].sort((a,b)=> b.x-a.x);
+  // considerar terminados por tempo
+  const fin=rc.order.slice();
+  const finSet=new Set(fin.map(h=>h.lane));
+  const running=rc.horses.filter(h=>!finSet.has(h.lane)).sort((a,b)=>b.x-a.x);
+  const full=[...fin, ...running];
+  return full.findIndex(h=>h.ref.isPlayer)+1;
+}
+
+/* =========================================================================
+   RESULTADO / PAGAMENTO
+   ========================================================================= */
+function resolveRace(rc){
+  const order=rc.order.map(h=>h.ref);
+  const yourPos=order.findIndex(h=>h.isPlayer)+1;
+  // prêmio do seu cavalo
+  const prize=prizeFor(yourPos-1);
+  G.money+=prize;
+  if(yourPos===1) G.stats.wins++;
+  if(isFinal()) G.finalPos=yourPos;   // resultado da Copa de Ouro (define o final)
+  // aposta
+  let betResult=null;
+  if(bet){
+    const h=G.field[bet.horseIdx];
+    const posOfBet=order.findIndex(x=>x===h)+1;
+    let won=false, payout=0, odds=0;
+    if(bet.type==='win'){ won=posOfBet===1; odds=h.oddsWin; }
+    else { won=posOfBet<=2; odds=h.oddsPlace; }
+    if(won){
+      G.streak++;
+      const streakMul=1+G.D.streakBonus*(G.streak-1);
+      payout=Math.round(bet.stake*odds*streakMul);
+      G.money+=payout;
+      G.stats.betsWon++;
+      if(payout>G.stats.biggestWin) G.stats.biggestWin=payout;
+    } else { G.streak=0; }
+    betResult={won, payout, odds, streakMul:1+G.D.streakBonus*Math.max(0,G.streak-1), stake:bet.stake, horse:h, pos:posOfBet};
+  }
+  // desgaste da condição do seu cavalo
+  const yh=rc.horses.find(h=>h.ref.isPlayer);
+  const usedHard = yh ? (1 - yh.e/yh.maxE) : 0.5;
+  G.you.condition=clamp(G.you.condition - (10 + usedHard*14), 0, 100);
+  // consome itens usados nesta corrida
+  if(G.items.energy>0) G.items.energy--;
+  if(G.items.horseshoe>0) G.items.horseshoe--;
+  saveGame();
+  return { order, yourPos, prize, betResult };
+}
+
+/* =========================================================================
+   SAVE / LOAD
+   ========================================================================= */
+function saveGame(){ try{ localStorage.setItem('galope_save', JSON.stringify(G)); }catch(e){} }
+function loadGame(){ try{ const s=localStorage.getItem('galope_save'); return s?JSON.parse(s):null; }catch(e){ return null; } }
+function clearSave(){ try{ localStorage.removeItem('galope_save'); }catch(e){} }
+function saveBest(v){ try{ localStorage.setItem('galope_best', String(v)); }catch(e){} }
+function loadBest(){ try{ return parseInt(localStorage.getItem('galope_best'))||0; }catch(e){ return 0; } }
+function saveSettings(){ try{ localStorage.setItem('galope_set', JSON.stringify(settings)); }catch(e){} }
+function loadSettings(){ try{ const s=localStorage.getItem('galope_set'); if(s){ settings=JSON.parse(s); } }catch(e){} }
+</script>
+<script>
+/* =========================================================================
+   RENDER + INTERAÇÃO
+   ========================================================================= */
+const STAT_COLORS={ speed:'#ff7a3c', stamina:'#43e08a', accel:'#2b8cff', guts:'#ffd24a' };
+const STAT_NAMES={ speed:'Velocidade', stamina:'Resistência', accel:'Arranque', guts:'Raça' };
+
+function showScreen(id){ ['screen-title','screen-bet','screen-race'].forEach(s=>$(s).classList.toggle('on', s===id)); }
+function openOv(id){ $(id).classList.add('on'); }
+function closeOv(id){ $(id).classList.remove('on'); }
+function toast(m){ const t=document.createElement('div'); t.className='toast'; t.textContent=m; $('toasts').appendChild(t); setTimeout(()=>t.remove(),2600); }
+function shake(){ const a=$('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
+
+/* ---------- tela de apostas ---------- */
+function renderBet(){
+  $('bet-race-name').textContent = isFinal()? '🏆 COPA DE OURO (Final)' : ('Corrida '+G.raceNum+' de '+G.D.races);
+  $('bet-race-sub').textContent = 'Prêmio ao 1º: '+money(prizeFor(0))+'  •  2º: '+money(prizeFor(1))+'  •  3º: '+money(prizeFor(2));
+  $('bet-money').textContent = money(G.money);
+  $('bet-streak').textContent = 'x'+(1+G.D.streakBonus*G.streak).toFixed(2).replace(/\.?0+$/,'');
+  const list=$('field-list');
+  list.innerHTML = G.field.map((h,i)=>{
+    const bars=['speed','stamina','accel','guts'].map(k=>'<div class="sb"><i style="width:'+h[k]+'%;background:'+STAT_COLORS[k]+'"></i></div>').join('');
+    const odds = betType==='win'? h.oddsWin : h.oddsPlace;
+    return '<div class="horse-row '+(selHorse===i?'sel':'')+' '+(h.isPlayer?'you':'')+'" data-i="'+i+'">'
+      +'<div class="gate" style="background:'+h.silks+'">'+(i+1)+'</div>'
+      +'<div class="silks" style="background:'+h.silks+'"></div>'
+      +'<div class="hinfo"><div class="hname">'+h.name+(h.isPlayer?' <span class="you-tag">VOCÊ</span>':'')
+        + (h.isPlayer? ' <span class="small">❤ '+Math.round(h.condition)+'%</span>':'')+'</div>'
+      +'<div class="stat-bars">'+bars+'</div></div>'
+      +'<div class="odds">'+odds.toFixed(1)+'x<small>'+(betType==='win'?'vencer':'top 2')+'</small></div></div>';
+  }).join('');
+  [...list.querySelectorAll('.horse-row')].forEach(el=>{ el.onclick=()=>{ selHorse=el.dataset.i|0; sfx('tick'); renderBet(); }; });
+  // painel
+  $('stake-box').textContent=money(stakeAmt);
+  [...$('bettype').children].forEach(b=>b.classList.toggle('sel', b.dataset.t===betType));
+  if(selHorse==null){ $('bet-sel-info').innerHTML='Toque num cavalo para apostar <b>(ou corra sem apostar)</b>.'; $('bet-slip').textContent='Sem aposta.'; }
+  else{
+    const h=G.field[selHorse]; const odds=betType==='win'?h.oddsWin:h.oddsPlace;
+    const streakMul=1+G.D.streakBonus*G.streak;
+    const ret=Math.round(stakeAmt*odds*streakMul);
+    $('bet-sel-info').innerHTML='Aposta em <b>'+h.name+'</b> ('+(betType==='win'?'vencer':'top 2')+') @ <b>'+odds.toFixed(1)+'x</b>';
+    $('bet-slip').innerHTML='Retorno se ganhar: <b>'+money(ret)+'</b>'+(G.streak>0?' (x'+streakMul.toFixed(2)+' seq.)':'');
+  }
+  $('bet-money').textContent=money(G.money);
+}
+function updateStakeButtons(){ renderBet(); }
+
+/* eventos aposta */
+$('bettype').onclick=e=>{ const b=e.target.closest('.bt-btn'); if(!b)return; betType=b.dataset.t; sfx('tick'); renderBet(); };
+$('stake-minus').onclick=()=>{ stakeAmt=Math.max(10, stakeAmt-10); renderBet(); };
+$('stake-plus').onclick=()=>{ stakeAmt=Math.min(G.money, stakeAmt+10); renderBet(); };
+[...document.querySelectorAll('.chip')].forEach(c=>c.onclick=()=>{ const v=c.dataset.chip; if(v==='max') stakeAmt=Math.max(10,Math.floor(G.money)); else stakeAmt=Math.min(G.money, stakeAmt+ (v|0)); renderBet(); });
+$('btn-stable').onclick=()=>openStable();
+$('btn-race').onclick=()=>{
+  if(selHorse!=null){
+    if(stakeAmt>G.money){ toast('Banca insuficiente'); sfx('err'); return; }
+    if(stakeAmt<10){ toast('Aposta mínima $10'); sfx('err'); return; }
+    bet={ horseIdx:selHorse, type:betType, stake:stakeAmt };
+    G.money-=stakeAmt; sfx('bet');
+  } else bet=null;
+  saveGame();
+  startRaceScreen();
+};
+
+/* ---------- estábulo / loja ---------- */
+const SHOP=[
+  {id:'sp', ic:'⚡', nome:'Treino Velocidade', desc:'+5 Velocidade (máx 95)', price:100, act:()=>{ G.you.speed=clamp(G.you.speed+5,0,95); }},
+  {id:'st', ic:'🫁', nome:'Treino Resistência', desc:'+5 Resistência (máx 95)', price:100, act:()=>{ G.you.stamina=clamp(G.you.stamina+5,0,95); }},
+  {id:'ac', ic:'🚀', nome:'Treino Arranque', desc:'+5 Arranque (máx 95)', price:100, act:()=>{ G.you.accel=clamp(G.you.accel+5,0,95); }},
+  {id:'gt', ic:'🔥', nome:'Treino de Raça', desc:'+5 Raça (máx 95)', price:110, act:()=>{ G.you.guts=clamp(G.you.guts+5,0,95); }},
+  {id:'rest', ic:'💤', nome:'Descanso', desc:'Recupera 50% de condição', price:50, act:()=>{ G.you.condition=clamp(G.you.condition+50,0,100); }},
+  {id:'whip', ic:'🎯', nome:'Chicote (×3)', desc:'3 arrancadas turbo na corrida', price:90, act:()=>{ G.items.whip+=3; }},
+  {id:'energy', ic:'🥕', nome:'Ração Energética', desc:'+25% de fôlego na próxima corrida', price:80, act:()=>{ G.items.energy=Math.max(G.items.energy,1); }},
+  {id:'shoe', ic:'🍀', nome:'Ferradura da Sorte', desc:'Melhora as odds do SEU cavalo (1 corrida)', price:100, act:()=>{ G.items.horseshoe=Math.max(G.items.horseshoe,1); computeOdds(); }}
+];
+function openStable(){
+  const y=G.you;
+  const statLine=(k)=>'<div class="stat-line"><span class="sl-name">'+STAT_NAMES[k]+'</span><span class="sl-bar"><i style="width:'+y[k]+'%;background:'+STAT_COLORS[k]+'"></i></span><span class="sl-val">'+Math.round(y[k])+'</span></div>';
+  const items='<div class="items-owned">'
+    +'<span class="item-chip">🎯 Chicotes: '+G.items.whip+'</span>'
+    +'<span class="item-chip">🥕 Ração: '+(G.items.energy>0?'sim':'não')+'</span>'
+    +'<span class="item-chip">🍀 Ferradura: '+(G.items.horseshoe>0?'sim':'não')+'</span></div>';
+  const shop=SHOP.map((s,i)=>'<div class="shop-item"><div class="sic">'+s.ic+'</div><div class="sin">'+s.nome+'</div><div class="sid">'+s.desc+'</div><div class="sip">'+money(s.price)+'</div><button class="btn sm" data-si="'+i+'" '+(G.money<s.price?'disabled':'')+' style="margin-top:6px;">Comprar</button></div>').join('');
+  $('ov-stable-modal').innerHTML=
+    '<h2>🏟️ Estábulo & Loja</h2>'
+    +'<div class="stable-horse"><div class="stable-emoji">🐎</div><div style="flex:1;text-align:left;"><div style="font-weight:700;font-size:16px;">'+y.name+' <span class="small">❤ Condição '+Math.round(y.condition)+'%</span></div>'
+    + ['speed','stamina','accel','guts'].map(statLine).join('') +'</div></div>'
+    + items
+    +'<div class="small" style="margin:8px 0 2px;">Banca: <b style="color:var(--gold)">'+money(G.money)+'</b> — treine e equipe seu cavalo:</div>'
+    +'<div class="shop-grid">'+shop+'</div>'
+    +'<button class="btn" id="stable-close" style="margin-top:12px;">Voltar às Apostas</button>';
+  openOv('ov-stable');
+  [...$('ov-stable-modal').querySelectorAll('button[data-si]')].forEach(b=>{ b.onclick=()=>{ const s=SHOP[b.dataset.si|0]; if(G.money<s.price){ sfx('err'); return; } G.money-=s.price; s.act(); sfx('buy'); toast(s.nome+' comprado!'); saveGame(); openStable(); renderBet(); }; });
+  $('stable-close').onclick=()=>{ closeOv('ov-stable'); renderBet(); };
+}
+
+/* =========================================================================
+   TELA DE CORRIDA
+   ========================================================================= */
+const cv=$('race-canvas'), cx=cv.getContext('2d');
+let CW=0,CH=0,DPR=1;
+function resizeCanvas(){ DPR=Math.min(devicePixelRatio||1,2); CW=cv.clientWidth; CH=cv.clientHeight; cv.width=CW*DPR; cv.height=CH*DPR; cx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize',()=>{ if($('screen-race').classList.contains('on')){ resizeCanvas(); } });
+
+let raceState={ phase:'idle', countdown:3, sprint:false, camX:0, raf:0, whipCd:0 };
+function startRaceScreen(){
+  showScreen('screen-race');
+  resizeCanvas();
+  race=createRace();
+  raceState={ phase:'count', countdown:3, sprint:false, camX:0, raf:0, whipCd:0, lastTs:0 };
+  $('whip-btn').querySelector('.wn').textContent='Chicote ×'+G.items.whip;
+  music.setMood('race');
+  sfx('bell');
+  // contagem
+  $('countdown').innerHTML='<div class="count-num">3</div>';
+  let c=3;
+  const ci=setInterval(()=>{ c--; if(c>0){ $('countdown').innerHTML='<div class="count-num">'+c+'</div>'; sfx('bell'); } else if(c===0){ $('countdown').innerHTML='<div class="count-num" style="color:#43e08a">JÁ!</div>'; sfx('go'); raceState.phase='run'; } else { $('countdown').innerHTML=''; clearInterval(ci); } }, 800);
+  cancelAnimationFrame(raceState.raf);
+  raceState.lastTs=performance.now();
+  loopRace(raceState.lastTs);
+}
+function loopRace(ts){
+  const dt=Math.min(0.05,(ts-raceState.lastTs)/1000)||0.016; raceState.lastTs=ts;
+  if(raceState.phase==='run' && !race.done){
+    // sub-passos para estabilidade
+    const steps=2; for(let s=0;s<steps;s++) stepRace(race, dt/steps, raceState.sprint);
+    if(raceState.whipCd>0) raceState.whipCd-=dt;
+    if(race.done){ raceState.phase='done'; setTimeout(endRace, race.photo?1400:700); }
+  }
+  drawRace(dt);
+  if(raceState.phase!=='ended') raceState.raf=requestAnimationFrame(loopRace);
+}
+function useWhip(){
+  if(raceState.phase!=='run') return;
+  if(G.items.whip<=0){ toast('Sem chicotes'); sfx('err'); return; }
+  if(raceState.whipCd>0) return;
+  const yh=race.horses.find(h=>h.ref.isPlayer);
+  if(!yh) return;
+  yh.surge=0.24; yh.surgeT=0.85; yh.e=Math.min(yh.maxE, yh.e+4);
+  G.items.whip--; raceState.whipCd=1.3;
+  $('whip-btn').querySelector('.wn').textContent='Chicote ×'+G.items.whip;
+  sfx('whip'); shake();
+}
+/* controles */
+function setSprint(v){ raceState.sprint=v; $('run-btn').classList.toggle('active',v); if(v) sfx('gallop'); }
+const rb=$('run-btn');
+rb.addEventListener('pointerdown',e=>{ e.preventDefault(); setSprint(true); });
+rb.addEventListener('pointerup',e=>{ e.preventDefault(); setSprint(false); });
+rb.addEventListener('pointerleave',()=>setSprint(false));
+rb.addEventListener('pointercancel',()=>setSprint(false));
+addEventListener('keydown',e=>{ if(e.code==='Space' && $('screen-race').classList.contains('on')){ e.preventDefault(); setSprint(true); } });
+addEventListener('keyup',e=>{ if(e.code==='Space'){ setSprint(false); } });
+$('whip-btn').addEventListener('click',useWhip);
+
+/* ---------- desenho ---------- */
+function drawRace(dt){
+  cx.clearRect(0,0,CW,CH);
+  const trackTop=CH*0.42, trackBot=CH-96;
+  const laneH=(trackBot-trackTop)/G.field.length;
+  const leader=Math.max(...race.horses.map(h=>h.x));
+  // câmera segue o líder
+  const pxPerM=(CW*0.62)/ (TRACK*0.28);
+  let camTarget = Math.max(0, leader*pxPerM - CW*0.35);
+  raceState.camX += (camTarget-raceState.camX)*0.12;
+  const camX=raceState.camX;
+
+  // céu
+  const sky=cx.createLinearGradient(0,0,0,trackTop); sky.addColorStop(0,'#7ec8ff'); sky.addColorStop(1,'#cdeaff');
+  cx.fillStyle=sky; cx.fillRect(0,0,CW,trackTop);
+  // sol
+  cx.fillStyle='rgba(255,240,180,.9)'; cx.beginPath(); cx.arc(CW*0.82,trackTop*0.4,26,0,7); cx.fill();
+  // colinas (parallax)
+  drawHills(camX*0.15, trackTop);
+  // arquibancada
+  drawStands(camX*0.4, trackTop);
+  // grama
+  cx.fillStyle='#2fa04f'; cx.fillRect(0,trackTop,CW,trackBot-trackTop+40);
+  // pista de terra (faixas)
+  for(let i=0;i<G.field.length;i++){
+    const y=trackTop+i*laneH;
+    cx.fillStyle=i%2? '#c98a4b':'#bd7f42'; cx.fillRect(0,y,CW,laneH);
+  }
+  // linhas de distância + poste de chegada
+  cx.strokeStyle='rgba(255,255,255,.25)'; cx.lineWidth=2;
+  for(let m=0;m<=TRACK;m+=20){ const sx=m*pxPerM-camX; if(sx<-4||sx>CW+4) continue; cx.beginPath(); cx.moveTo(sx,trackTop); cx.lineTo(sx,trackBot); cx.stroke(); }
+  // linha de chegada (quadriculada)
+  const finX=TRACK*pxPerM-camX;
+  if(finX>-20 && finX<CW+20){ const sq=8; for(let yy=trackTop;yy<trackBot;yy+=sq){ for(let k=0;k<2;k++){ cx.fillStyle=((Math.floor((yy-trackTop)/sq)+k)%2)?'#fff':'#111'; cx.fillRect(finX+k*sq,yy,sq,sq); } } cx.fillStyle='#ffd24a'; cx.fillRect(finX-3,trackTop-24,6,24); }
+  // largada
+  const startX=0*pxPerM-camX; if(startX>-4&&startX<CW){ cx.fillStyle='rgba(255,255,255,.5)'; cx.fillRect(startX-2,trackTop,4,trackBot-trackTop); }
+
+  // cavalos
+  const drawn=[...race.horses].sort((a,b)=>a.x-b.x);
+  for(const h of drawn){
+    const y=trackTop+h.lane*laneH+laneH*0.62;
+    const sx=h.x*pxPerM-camX;
+    drawHorse(sx, y, laneH*0.9, h.ref.silks, h.legPhase, h.sprinting||h.surge>0, h.ref.isPlayer);
+    // nome curto
+    if(h.ref.isPlayer){ cx.fillStyle='#fff'; cx.font='bold 11px Fredoka, sans-serif'; cx.textAlign='center'; cx.fillText('▲ VOCÊ', sx, y-laneH*0.62); }
+  }
+
+  // HUD posição
+  const pr=playerRank(race);
+  $('rh-pos').innerHTML=ordinal(pr)+' <small id="rh-of">de '+G.field.length+'</small>';
+  const yh=race.horses.find(h=>h.ref.isPlayer);
+  $('rh-prog').textContent = 'Percurso: '+Math.min(100,Math.round((yh.x/TRACK)*100))+'%';
+  $('stamina-fill').style.width=clamp(yh.e/yh.maxE*100,0,100)+'%';
+}
+function ordinal(n){ return n+'º'; }
+function drawHills(off,top){
+  cx.fillStyle='#4bb56a';
+  for(let i=-1;i<CW/180+2;i++){ const x=((i*180-off)%(CW+180)+CW+180)%(CW+180)-90; cx.beginPath(); cx.arc(x, top, 90, Math.PI,0); cx.fill(); }
+}
+function drawStands(off,top){
+  const h=34, y=top-h;
+  cx.fillStyle='#5a6b82'; cx.fillRect(0,y,CW,h);
+  for(let i=-1;i<CW/14+1;i++){ const x=((i*14-off)%(CW+14)+CW+14)%(CW+14)-14; cx.fillStyle=['#ff7a90','#ffd24a','#69c6ff','#82ff9e','#c9a0ff'][(Math.floor(x/14)%5+5)%5]; cx.fillRect(x+2,y+6+((Math.floor(x/7))%2)*3,8,8); }
+  cx.fillStyle='#2c3a4d'; cx.fillRect(0,y+h-4,CW,4);
+}
+function drawHorse(x,y,scale,color,phase,running,isYou){
+  const s=scale/34;
+  cx.save(); cx.translate(x,y); cx.scale(s,s);
+  const lean=running?-6:0;
+  cx.rotate(lean*Math.PI/180);
+  // sombra
+  cx.fillStyle='rgba(0,0,0,.2)'; cx.beginPath(); cx.ellipse(0,20,26,6,0,0,7); cx.fill();
+  // pernas (galope)
+  cx.strokeStyle='#6b4a2a'; cx.lineWidth=4; cx.lineCap='round';
+  const g=phase;
+  const legs=[[-14,Math.sin(g)],[-8,Math.sin(g+2)],[10,Math.sin(g+3)],[16,Math.sin(g+1)]];
+  legs.forEach(([lx,sw])=>{ cx.beginPath(); cx.moveTo(lx,8); cx.lineTo(lx+sw*8, 22); cx.stroke(); });
+  // corpo
+  cx.fillStyle='#8a5a34'; cx.beginPath(); cx.ellipse(0,2,24,13,0,0,7); cx.fill();
+  // traseiro/anca
+  cx.beginPath(); cx.ellipse(-16,-2,12,12,0,0,7); cx.fill();
+  // pescoço + cabeça
+  cx.beginPath(); cx.moveTo(16,-2); cx.lineTo(26,-16); cx.lineTo(33,-14); cx.lineTo(30,-6); cx.lineTo(20,4); cx.closePath(); cx.fill();
+  cx.beginPath(); cx.ellipse(31,-13,6,4,-0.5,0,7); cx.fill();
+  // crina
+  cx.fillStyle='#3a2410'; cx.beginPath(); cx.moveTo(14,-10); cx.lineTo(26,-18); cx.lineTo(24,-8); cx.closePath(); cx.fill();
+  // cauda
+  cx.strokeStyle='#3a2410'; cx.lineWidth=5; cx.beginPath(); cx.moveTo(-26,-2); cx.quadraticCurveTo(-40,2,-34,16); cx.stroke();
+  // jóquei (silks)
+  cx.fillStyle=color; cx.beginPath(); cx.ellipse(-2,-12,7,8,0,0,7); cx.fill();
+  cx.fillStyle='#f0c8a0'; cx.beginPath(); cx.arc(2,-20,4,0,7); cx.fill(); // cabeça jóquei
+  cx.fillStyle=color; cx.beginPath(); cx.arc(2,-23,4.5,Math.PI,0); cx.fill(); // capacete
+  // brilho no seu cavalo
+  if(isYou){ cx.strokeStyle='rgba(255,210,74,.9)'; cx.lineWidth=2; cx.beginPath(); cx.ellipse(0,0,30,18,0,0,7); cx.stroke(); }
+  // poeira ao correr
+  if(running){ cx.fillStyle='rgba(200,170,120,.5)'; for(let i=0;i<3;i++){ cx.beginPath(); cx.arc(-24-Math.random()*10, 18-Math.random()*6, 3+Math.random()*3,0,7); cx.fill(); } }
+  cx.restore();
+}
+
+/* ---------- fim da corrida ---------- */
+function endRace(){
+  raceState.phase='ended';
+  cancelAnimationFrame(raceState.raf);
+  setSprint(false);
+  const res=resolveRace(race);
+  music.setMood('bet');
+  if(res.yourPos===1){ sfx('cheer'); } else sfx('finish');
+  showResult(res);
+}
+function showResult(res){
+  const medal=['🥇','🥈','🥉','4º','5º','6º'];
+  const rows=res.order.map((h,i)=>'<div class="res-row '+(h.isPlayer?'you':'')+'"><span class="rp">'+(medal[i]||(i+1)+'º')+'</span><span class="silks" style="width:20px;height:20px;background:'+h.silks+'"></span><span class="rn">'+h.name+(h.isPlayer?' (você)':'')+'</span></div>').join('');
+  let payHtml='';
+  if(res.betResult){
+    const b=res.betResult;
+    if(b.won) payHtml='<div class="payout"><div class="big-win">GANHOU '+money(b.payout)+'! 🎉</div><div class="pr"><span>Aposta '+money(b.stake)+' @ '+b.odds.toFixed(1)+'x'+(b.streakMul>1?(' × '+b.streakMul.toFixed(2)+' seq.'):'')+'</span><b>+'+money(b.payout)+'</b></div></div>';
+    else payHtml='<div class="payout"><div class="big-lose">Aposta perdida 😔</div><div class="pr"><span>'+b.horse.name+' terminou em '+b.pos+'º</span><b style="color:var(--bad)">-'+money(b.stake)+'</b></div></div>';
+  }
+  const prizeHtml = res.prize>0? '<div class="pr"><span>Prêmio do seu cavalo ('+res.yourPos+'º)</span><b>+'+money(res.prize)+'</b></div>' : '<div class="pr"><span>Seu cavalo: '+res.yourPos+'º</span><b>sem prêmio</b></div>';
+  const finalRace=isFinal();
+  $('ov-result-modal').innerHTML=
+    '<h2>'+(race.photo?'📸 Photo Finish!':'🏁 Chegada!')+'</h2>'
+    +'<div class="result-list">'+rows+'</div>'
+    +'<div class="payout">'+prizeHtml+'<div class="pr" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px;"><span>Sequência de apostas</span><b>'+G.streak+' 🔥</b></div></div>'
+    + payHtml
+    +'<div class="pr" style="justify-content:center;font-size:16px;margin:6px 0;">Banca: <b style="color:var(--gold);margin-left:6px;">'+money(G.money)+'</b></div>'
+    +'<button class="btn" id="res-next">'+(finalRace?'Ver Resultado Final 🏆':'Próxima Corrida →')+'</button>';
+  openOv('ov-result');
+  $('res-next').onclick=()=>{ closeOv('ov-result'); nextRace(); };
+}
+function nextRace(){
+  if(isFinal()){ endSeason(); return; }
+  G.raceNum++;
+  bet=null; selHorse=null;
+  // pequena recuperação natural de condição
+  G.you.condition=clamp(G.you.condition+8,0,100);
+  makeField();
+  stakeAmt=clamp(stakeAmt,10,Math.max(10,Math.floor(G.money)));
+  saveGame();
+  showScreen('screen-bet'); music.setMood('bet');
+  renderBet();
+}
+
+/* ---------- fim de temporada ---------- */
+function endSeason(){
+  G.done=true;
+  const fp=G.finalPos||9;
+  const wonFinal = fp===1;
+  const wonMoney = G.money>=G.D.target;
+  const won = wonFinal;               // vitória = ganhar a Copa de Ouro
+  const best=Math.max(loadBest(), Math.round(G.money));
+  saveBest(best);
+  clearSave();
+  let title, emoji, msg;
+  if(wonFinal && wonMoney){ title='LENDA DO TURFE!'; emoji='👑'; msg='Você venceu a Copa de Ouro E superou a meta de '+money(G.D.target)+'! Uma lenda absoluta do turfe.'; }
+  else if(wonFinal){ title='CAMPEÃO DA COPA DE OURO!'; emoji='🏆'; msg='Seu cavalo cruzou a linha em 1º na grande final! Você venceu a temporada '+G.D.nome+'.'; }
+  else if(fp===2){ title='Vice-Campeão!'; emoji='🥈'; msg='Tão perto! Seu cavalo foi 2º na Copa de Ouro. Treine mais e volte para o topo!'; }
+  else if(fp===3){ title='Pódio na Copa!'; emoji='🥉'; msg='3º lugar na Copa de Ouro — um bom resultado, mas o troféu escapou.'; }
+  else{ title='Fim de Temporada'; emoji='🐴'; msg='Seu cavalo terminou em '+fp+'º na Copa de Ouro. Não foi desta vez — a glória fica para a próxima!'; }
+  $('ov-end-modal').innerHTML=
+    '<h2 style="color:'+(won?'var(--good)':'var(--gold)')+'">'+title+'</h2>'
+    +'<div style="font-size:70px;margin:6px;">'+emoji+'</div>'
+    +'<p>'+msg+'</p>'
+    +'<div class="payout" style="text-align:left;">'
+      +'<div class="pr"><span>Dificuldade</span><b>'+G.D.nome+'</b></div>'
+      +'<div class="pr"><span>Copa de Ouro</span><b>'+fp+'º lugar</b></div>'
+      +'<div class="pr"><span>Banca final</span><b style="color:'+(wonMoney?'var(--good)':'#fff')+'">'+money(G.money)+' / '+money(G.D.target)+' 👑</b></div>'
+      +'<div class="pr"><span>Vitórias do seu cavalo</span><b>'+G.stats.wins+'</b></div>'
+      +'<div class="pr"><span>Apostas ganhas</span><b>'+G.stats.betsWon+'</b></div>'
+      +'<div class="pr"><span>Maior bolada</span><b>'+money(G.stats.biggestWin)+'</b></div>'
+    +'</div>'
+    +'<button class="btn" id="end-again">Nova Temporada</button> <button class="btn sec" id="end-menu">Menu</button>';
+  openOv('ov-end');
+  music.sting(won?'win':'lose');
+  $('end-again').onclick=()=>{ closeOv('ov-end'); newSeason(G.diff); showScreen('screen-bet'); music.setMood('bet'); renderBet(); };
+  $('end-menu').onclick=()=>{ closeOv('ov-end'); goTitle(); };
+}
+
+/* =========================================================================
+   ÁUDIO
+   ========================================================================= */
+const audio=(()=>{ let ctx=null; return { ac(){ if(!ctx){ try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ ctx=null; } } if(ctx&&ctx.state==='suspended') ctx.resume(); return ctx; } }; })();
+function tone(f,d,type,vol,slide){ const c=audio.ac(); if(!c||!settings.sfx) return; const o=c.createOscillator(),g=c.createGain(); o.type=type||'sine'; o.frequency.setValueAtTime(f,c.currentTime); if(slide)o.frequency.exponentialRampToValueAtTime(slide,c.currentTime+d); g.gain.setValueAtTime(vol||.1,c.currentTime); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+d); }
+let lastGallop=0;
+function sfx(n){ switch(n){
+  case 'tick': tone(520,.05,'sine',.06,640); break;
+  case 'bet': tone(660,.1,'triangle',.1,900); break;
+  case 'buy': tone(880,.1,'triangle',.1,1200); break;
+  case 'err': tone(160,.15,'square',.08,120); break;
+  case 'bell': tone(880,.18,'square',.12); break;
+  case 'go': [660,880,1320].forEach((f,i)=>setTimeout(()=>tone(f,.16,'square',.12),i*70)); break;
+  case 'whip': tone(300,.12,'sawtooth',.14,1200); break;
+  case 'gallop': { const t=performance.now(); if(t-lastGallop>90){ lastGallop=t; tone(120,.06,'sine',.05,80);} } break;
+  case 'finish': tone(400,.2,'sine',.1,200); break;
+  case 'cheer': [523,659,784,1046,1318].forEach((f,i)=>setTimeout(()=>tone(f,.22,'square',.12),i*80)); break;
+} }
+const music=(()=>{ let timer=null,mood='title',step=0;
+  const scales={ title:[0,4,7,11], bet:[0,3,5,7,10], race:[0,2,4,7,9] };
+  const roots={ title:196, bet:174, race:220 };
+  function note(f,d,ty,v){ const c=audio.ac(); if(!c||!settings.music) return; const o=c.createOscillator(),g=c.createGain(); o.type=ty; o.frequency.value=f; g.gain.setValueAtTime(0,c.currentTime); g.gain.linearRampToValueAtTime(v,c.currentTime+.02); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+d); }
+  function tick(){ if(!settings.music) return; const sc=scales[mood]||scales.title, root=roots[mood]||196; const deg=sc[step%sc.length]; const oct=(step%8<4)?1:2; note(root*Math.pow(2,deg/12)*oct,.4,'triangle',.045); if(step%4===0) note(root/2,.5,'sine',.05); step++; }
+  function start(){ stop(); timer=setInterval(tick, mood==='race'?200:340); }
+  function stop(){ if(timer){ clearInterval(timer); timer=null; } }
+  return { setMood(m){ mood=m; step=0; if(settings.music) start(); }, toggle(on){ on?start():stop(); },
+    sting(k){ const c=audio.ac(); if(!c||!settings.music) return; if(k==='win') [0,4,7,12].forEach((d,i)=>setTimeout(()=>note(261*Math.pow(2,d/12),.3,'triangle',.09),i*100)); else [0,-3,-7].forEach((d,i)=>setTimeout(()=>note(220*Math.pow(2,d/12),.4,'sawtooth',.08),i*150)); } };
+})();
+
+/* =========================================================================
+   TÍTULO / INIT
+   ========================================================================= */
+let chosenDiff='normal';
+$('diff-row').onclick=e=>{ const b=e.target.closest('.diff-btn'); if(!b)return; chosenDiff=b.dataset.diff; [...$('diff-row').children].forEach(x=>x.classList.toggle('sel',x===b)); sfx('tick'); };
+$('btn-start').onclick=()=>{ audio.ac(); newSeason(chosenDiff); showScreen('screen-bet'); music.setMood('bet'); renderBet(); };
+$('btn-continue').onclick=()=>{ audio.ac(); const s=loadGame(); if(s){ G=s; if(!G.D) G.D=DIFFS[G.diff]; showScreen('screen-bet'); music.setMood('bet'); renderBet(); } };
+function goTitle(){ showScreen('screen-title'); music.setMood('title'); updateTitle(); }
+function updateTitle(){ const b=loadBest(); $('best-line').textContent=b>0?('Melhor banca final: '+money(b)):''; $('btn-continue').style.display=loadGame()?'inline-block':'none'; }
+$('tg-music').onchange=e=>{ settings.music=e.target.checked; music.toggle(settings.music); saveSettings(); };
+$('tg-sfx').onchange=e=>{ settings.sfx=e.target.checked; saveSettings(); };
+document.addEventListener('pointerdown',()=>audio.ac(),{once:true});
+$('ov-how-modal') && ($('ov-how-modal').innerHTML='');
+
+loadSettings(); $('tg-music').checked=settings.music; $('tg-sfx').checked=settings.sfx;
+updateTitle(); music.setMood('title');
+
+/* ---------- API de teste (headless) ---------- */
+window.Galope={ get G(){return G;}, get race(){return race;}, newSeason, makeField, computeOdds, createRace, stepRace, resolveRace, prizeFor, ratingOf,
+  DIFFS,
+  simRace(policy){ // policy(rc)->bool sprint
+    const rc=createRace(); let t=0;
+    while(!rc.done && t<120){ stepRace(rc, 1/60, policy?policy(rc):false); t+=1/60; }
+    return rc;
+  },
+  set _bet(v){ bet=v; }, get _bet(){ return bet; }
+};
+</script>
+</body>
+</html>
