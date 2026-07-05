@@ -254,7 +254,8 @@
     return {
       colliders: colliders,
       candles: candles,
-      spawnPoint: new THREE.Vector3(-halfW + 0.75, 0, -halfD + 0.35),
+      // standing clear of the bed/table colliders, facing the door (+Z)
+      spawnPoint: new THREE.Vector3(0.2, 0, -1.3),
       spawnFacing: 0
     };
   }

@@ -52,6 +52,29 @@
   .menuBtn{ background:transparent; border:1px solid #6b5c3d; color:#cbbf9e; font-family:inherit;
     font-size:13px; letter-spacing:2px; padding:9px 22px; cursor:pointer; text-transform:uppercase; pointer-events:auto; }
   .menuBtn:hover{ background:#6b5c3d33; color:#f0e6c8; }
+
+  /* ---------- Mobile touch controls (hidden unless a touch device is detected) ---------- */
+  .touch-ui{ display:none; }
+  body.touch-device .touch-ui{ display:flex; }
+
+  .touch-joystick{ position:fixed; left:22px; bottom:22px; z-index:80;
+    align-items:center; justify-content:center; touch-action:none; }
+  .joy-base{ width:110px; height:110px; border-radius:50%; background:rgba(20,16,10,0.45);
+    border:1px solid rgba(200,190,160,0.3); display:flex; align-items:center; justify-content:center;
+    touch-action:none; }
+  .joy-knob{ width:48px; height:48px; border-radius:50%; background:rgba(201,178,115,0.55);
+    border:1px solid rgba(230,220,190,0.5); transition:transform .04s linear; touch-action:none; }
+
+  .touch-actions{ position:fixed; right:22px; bottom:22px; z-index:80; gap:14px;
+    flex-direction:column; align-items:flex-end; }
+  .touch-btn{ width:74px; height:74px; border-radius:50%; background:rgba(20,16,10,0.45);
+    border:1px solid rgba(200,190,160,0.3); color:#cbbf9e; font-family:'Courier New', monospace;
+    font-size:10px; letter-spacing:1px; touch-action:none; }
+  .touch-btn.active{ background:rgba(201,178,115,0.4); color:#fff; }
+
+  .touch-pause-btn{ position:fixed; top:16px; right:16px; z-index:80; width:38px; height:38px;
+    border-radius:6px; background:rgba(20,16,10,0.45); border:1px solid rgba(200,190,160,0.3);
+    color:#cbbf9e; font-size:16px; align-items:center; justify-content:center; touch-action:none; }
 </style>
 </head>
 <body>
@@ -102,6 +125,7 @@
 <!-- Phase 1: core playable loop (engine, PS1 filter, Lia's rig/controller, first room) -->
 <script src="js/core/namespace.js"></script>
 <script src="js/core/Input.js"></script>
+<script src="js/core/TouchControls.js"></script>
 <script src="js/core/GameStateManager.js"></script>
 <script src="js/core/CameraController.js"></script>
 <script src="js/core/PS1Renderer.js"></script>

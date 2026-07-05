@@ -68,8 +68,15 @@
         nextPos.x += (dx / dist) * overlap;
         nextPos.z += (dz / dist) * overlap;
       } else if (distSq <= 1e-6) {
-        // dead-center inside collider (rare) - push out along shortest axis
-        nextPos.x += r;
+        // fully inside the box (rare - e.g. spawned/teleported into geometry):
+        // push out through whichever face is nearest, not a fixed direction.
+        var distToMinX = nextPos.x - c.minX, distToMaxX = c.maxX - nextPos.x;
+        var distToMinZ = nextPos.z - c.minZ, distToMaxZ = c.maxZ - nextPos.z;
+        var nearest = Math.min(distToMinX, distToMaxX, distToMinZ, distToMaxZ);
+        if (nearest === distToMinX) nextPos.x = c.minX - r;
+        else if (nearest === distToMaxX) nextPos.x = c.maxX + r;
+        else if (nearest === distToMinZ) nextPos.z = c.minZ - r;
+        else nextPos.z = c.maxZ + r;
       }
     }
     return nextPos;
@@ -82,6 +89,13 @@
       (Input.isDown('KeyS') || Input.isDown('ArrowDown') ? 1 : 0);
     var strafeInput = (Input.isDown('KeyD') || Input.isDown('ArrowRight') ? 1 : 0) -
       (Input.isDown('KeyA') || Input.isDown('ArrowLeft') ? 1 : 0);
+
+    // mobile joystick overrides keyboard once its deflection is meaningful
+    var axis = Input.getVirtualAxis();
+    if (Math.abs(axis.x) > 0.15 || Math.abs(axis.y) > 0.15) {
+      strafeInput = axis.x;
+      forwardInput = axis.y;
+    }
 
     this.crouching = Input.isDown('ControlLeft') || Input.isDown('ControlRight');
     var wantsRun = (Input.isDown('ShiftLeft') || Input.isDown('ShiftRight')) && !this.crouching;

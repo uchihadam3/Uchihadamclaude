@@ -37,6 +37,10 @@
       roomData = AK.world.World.buildRoom1(scene);
       player.spawnAt(roomData.spawnPoint, roomData.spawnFacing);
       camCtrl.setTarget(player.root);
+      // the bed sits at low Z with the door/corridor at high Z, so start the
+      // camera on the bed side looking toward the door - "forward" (away from
+      // the camera) then correctly walks Lia out of the room, not into the wall.
+      camCtrl.yaw = Math.PI;
       gsm.setCheckpoint('room1', roomData.spawnPoint.clone());
     }
     gsm.setState(AK.core.STATES.PLAYING);
@@ -54,11 +58,16 @@
     }
   });
 
-  window.addEventListener('keydown', function (e) {
-    if (e.code !== 'Escape') return;
+  function togglePause() {
     if (gsm.state === AK.core.STATES.PLAYING) { gsm.setState(AK.core.STATES.PAUSED); ui.showPause(); }
     else if (gsm.state === AK.core.STATES.PAUSED) { gsm.setState(AK.core.STATES.PLAYING); ui.hidePause(); }
+  }
+  window.addEventListener('keydown', function (e) {
+    if (e.code === 'Escape') togglePause();
   });
+  gsm.bus.on('togglePauseRequest', togglePause);
+
+  var touchControls = new AK.core.TouchControls(gsm.bus);
 
   ui.runBootSequence(function () {
     gsm.setState(AK.core.STATES.MENU);
@@ -67,7 +76,7 @@
 
   // dev/test inspection hook (read-only) - lets automated tests assert on live engine state
   window.__AK_DEBUG = {
-    camera: camera, camCtrl: camCtrl, gsm: gsm,
+    camera: camera, camCtrl: camCtrl, gsm: gsm, frameCount: 0,
     getPlayer: function () { return player; },
     getRoomData: function () { return roomData; }
   };
@@ -75,6 +84,7 @@
   var clock = new THREE.Clock();
   function tick() {
     requestAnimationFrame(tick);
+    window.__AK_DEBUG.frameCount++;
     var dt = Math.min(clock.getDelta(), 0.05);
 
     var pd = AK.core.Input.getPointerDelta();
