@@ -83,6 +83,12 @@ p{margin:0;}
 .pill{padding:7px 12px;border-radius:3px;background:rgba(233,223,196,.08);border:1px solid rgba(233,223,196,.25);color:#cfc39f;font-size:12px;font-weight:700;}
 .pill.active{background:var(--gold);color:#2a1e05;border-color:#7a5f1f;}
 .pill:disabled{opacity:.35;}
+.audio-btn-wrap{position:relative;display:inline-block;}
+.audio-panel{
+  position:absolute;top:38px;right:0;z-index:1200;width:200px;padding:14px;
+  animation:modalPop .18s ease;
+}
+.audio-panel .vol-slider{width:100%;accent-color:var(--gold);cursor:pointer;}
 
 /* ---------- start screen ---------- */
 .start-wrap{max-width:640px;margin:40px auto;text-align:center;position:relative;}
@@ -99,9 +105,9 @@ p{margin:0;}
 .room-wrap{display:grid;grid-template-columns:1fr 300px;gap:14px;align-items:start;}
 @media (max-width:900px){.room-wrap{grid-template-columns:1fr;}}
 .room-stage{border-radius:6px;overflow:hidden;position:relative;}
-.room-head{padding:12px 16px;display:flex;justify-content:space-between;align-items:baseline;background:rgba(0,0,0,.18);}
-.room-head h2{color:#f0e6cf;font-size:19px;}
-.room-head .rid{color:var(--gold-light);font-size:12px;font-weight:700;}
+.room-head{padding:12px 16px;display:flex;justify-content:space-between;align-items:baseline;background:#1c150c;}
+.room-head h2{color:#f5ecd8;font-size:19px;text-shadow:0 1px 2px rgba(0,0,0,.6);}
+.room-head .rid{color:#ffd76a;background:rgba(0,0,0,.3);padding:3px 9px;border-radius:3px;font-size:11.5px;font-weight:800;letter-spacing:.4px;}
 .room-illustration{
   position:relative; background:#0e0b08;
 }
@@ -1191,13 +1197,19 @@ console.log('SECRET_ROOMS_LOADED', Object.keys(SECRET_ROOMS).length);
 
 /* ===================== audio engine: synth, reverb, SFX, generative score ===================== */
 
-const AUDIO = { ctx:null, master:null, sfxGain:null, musicGain:null, musicWet:null, sfxWet:null, reverb:null, noiseBuffer:null, muted:false };
+const AUDIO = { ctx:null, master:null, sfxGain:null, musicGain:null, musicWet:null, sfxWet:null, reverb:null, noiseBuffer:null, muted:false, musicVolume:0.5, sfxVolume:0.85 };
 
 function loadMutePref(){
   try{ return localStorage.getItem('casa99_muted')==='1'; }catch(e){ return false; }
 }
 function saveMutePref(v){ try{ localStorage.setItem('casa99_muted', v?'1':'0'); }catch(e){} }
+function loadVolumePref(key, fallback){
+  try{ const v = parseFloat(localStorage.getItem(key)); return isNaN(v) ? fallback : Math.max(0,Math.min(1,v)); }catch(e){ return fallback; }
+}
+function saveVolumePref(key, v){ try{ localStorage.setItem(key, String(v)); }catch(e){} }
 AUDIO.muted = loadMutePref();
+AUDIO.musicVolume = loadVolumePref('casa99_musicVolume', 0.5);
+AUDIO.sfxVolume = loadVolumePref('casa99_sfxVolume', 0.85);
 
 function buildReverbImpulse(ctx){
   const len = Math.floor(ctx.sampleRate*2.4);
@@ -1223,8 +1235,8 @@ function ensureAudio(){
   const ctx = new Ctx();
   AUDIO.ctx = ctx;
   AUDIO.master = ctx.createGain(); AUDIO.master.gain.value = AUDIO.muted?0:0.9; AUDIO.master.connect(ctx.destination);
-  AUDIO.sfxGain = ctx.createGain(); AUDIO.sfxGain.gain.value = 0.85; AUDIO.sfxGain.connect(AUDIO.master);
-  AUDIO.musicGain = ctx.createGain(); AUDIO.musicGain.gain.value = 0.5; AUDIO.musicGain.connect(AUDIO.master);
+  AUDIO.sfxGain = ctx.createGain(); AUDIO.sfxGain.gain.value = AUDIO.sfxVolume; AUDIO.sfxGain.connect(AUDIO.master);
+  AUDIO.musicGain = ctx.createGain(); AUDIO.musicGain.gain.value = AUDIO.musicVolume; AUDIO.musicGain.connect(AUDIO.master);
   const conv = ctx.createConvolver(); conv.buffer = buildReverbImpulse(ctx);
   AUDIO.reverb = conv;
   AUDIO.reverbOut = ctx.createGain(); AUDIO.reverbOut.gain.value = 0.4;
@@ -1239,6 +1251,22 @@ function setMuted(v){
   if (AUDIO.master) AUDIO.master.gain.setTargetAtTime(v?0:0.9, AUDIO.ctx.currentTime, 0.08);
 }
 function toggleMuted(){ setMuted(!AUDIO.muted); }
+function setMusicVolume(v){
+  AUDIO.musicVolume = v;
+  saveVolumePref('casa99_musicVolume', v);
+  if (AUDIO.ctx){
+    AUDIO.musicGain.gain.setTargetAtTime(v, AUDIO.ctx.currentTime, 0.05);
+    AUDIO.musicWet.gain.setTargetAtTime(v, AUDIO.ctx.currentTime, 0.05);
+  }
+}
+function setSfxVolume(v){
+  AUDIO.sfxVolume = v;
+  saveVolumePref('casa99_sfxVolume', v);
+  if (AUDIO.ctx){
+    AUDIO.sfxGain.gain.setTargetAtTime(v, AUDIO.ctx.currentTime, 0.05);
+    AUDIO.sfxWet.gain.setTargetAtTime(v*0.6, AUDIO.ctx.currentTime, 0.05);
+  }
+}
 
 /* ---------- music theory helpers ---------- */
 function midiFreq(m){ return 440*Math.pow(2,(m-69)/12); }
@@ -1671,7 +1699,7 @@ function loadRun(){
 function clearRun(){ try{ localStorage.removeItem('casa99_run'); }catch(e){} }
 function clearAll(){ try{ localStorage.removeItem('casa99_run'); localStorage.removeItem('casa99_meta'); }catch(e){} }
 
-const APP = { screen:'start', state:null, meta:loadMeta(), toasts:[] };
+const APP = { screen:'start', state:null, meta:loadMeta(), toasts:[], audioPanelOpen:false };
 let toastSeq = 0;
 function pushToast(icon, text){
   const id = ++toastSeq;
@@ -2019,6 +2047,17 @@ function renderModal(){
   return '';
 }
 
+function renderAudioPanel(){
+  return '<div class="audio-panel card ink-border" data-action="none">'+
+    '<div class="row between" style="margin-bottom:10px;"><b class="tiny">Som</b><button class="modal-x" data-action="toggleAudioPanel">✕</button></div>'+
+    '<label class="tiny muted" style="display:block;margin-bottom:3px;">Música</label>'+
+    '<input type="range" min="0" max="100" value="'+Math.round(AUDIO.musicVolume*100)+'" class="vol-slider" data-vol="music">'+
+    '<label class="tiny muted" style="display:block;margin:10px 0 3px;">Efeitos sonoros</label>'+
+    '<input type="range" min="0" max="100" value="'+Math.round(AUDIO.sfxVolume*100)+'" class="vol-slider" data-vol="sfx">'+
+    '<button class="btn ghost sm" style="margin-top:12px;width:100%;" data-action="toggleMuted">'+(AUDIO.muted?'🔇 Ativar som':'🔇 Silenciar tudo')+'</button>'+
+  '</div>';
+}
+
 function renderTopbar(){
   const s = APP.state;
   let pills = '<button class="pill '+(APP.screen==='room'?'active':'')+'" data-action="goScreen" data-arg="room">Sala</button>';
@@ -2027,7 +2066,7 @@ function renderTopbar(){
     pills += '<button class="pill" style="background:var(--myst);color:#f0e6cf;border-color:#2e2350;" data-action="goPortaZero">A Porta Zero</button>';
   }
   pills += '<button class="pill" data-action="resetGame">Recomeçar</button>';
-  pills += '<button class="pill" data-action="toggleMuted" title="Som">'+(AUDIO.muted?'🔇':'🔊')+'</button>';
+  pills += '<div class="audio-btn-wrap"><button class="pill" data-action="toggleAudioPanel" title="Som">'+(AUDIO.muted?'🔇':'🔊')+'</button>'+(APP.audioPanelOpen?renderAudioPanel():'')+'</div>';
   return '<div class="topbar">'+
     '<div class="brand"><div class="mark">🚪</div><div><div class="name">A Casa das 99 Portas</div><div class="sub">O Labirinto Que Aprendeu a Mentir</div></div></div>'+
     '<div class="nav-pills">'+pills+'</div>'+
@@ -2037,7 +2076,9 @@ function renderTopbar(){
 function renderStart(){
   const hasSave = !!loadRun();
   return '<div class="start-wrap">'+
-    '<button class="pill" style="position:absolute;top:14px;right:14px;" data-action="toggleMuted" title="Som">'+(AUDIO.muted?'🔇':'🔊')+'</button>'+
+    '<div class="audio-btn-wrap" style="position:absolute;top:14px;right:14px;">'+
+      '<button class="pill" data-action="toggleAudioPanel" title="Som">'+(AUDIO.muted?'🔇':'🔊')+'</button>'+(APP.audioPanelOpen?renderAudioPanel():'')+
+    '</div>'+
     '<h1>A Casa das 99 Portas</h1>'+
     '<div class="subtitle">O Labirinto Que Aprendeu a Mentir</div>'+
     '<div class="lore card dark" style="margin-top:22px;padding:18px;">'+
@@ -2767,6 +2808,13 @@ function attachHandlers(){
     const arg = el.getAttribute('data-arg');
     handleAction(action, arg);
   };
+  app.oninput = function(e){
+    const el = e.target;
+    if (!el.classList || !el.classList.contains('vol-slider')) return;
+    const v = parseInt(el.value,10)/100;
+    if (el.dataset.vol==='music') setMusicVolume(v);
+    else if (el.dataset.vol==='sfx') setSfxVolume(v);
+  };
 }
 
 function handleAction(action, arg){
@@ -2794,6 +2842,7 @@ function handleAction(action, arg){
     }
     case 'goScreen': APP.screen = arg; render(); break;
     case 'toggleMuted': toggleMuted(); render(); break;
+    case 'toggleAudioPanel': APP.audioPanelOpen = !APP.audioPanelOpen; render(); break;
     case 'goPortaZero': {
       enterSecretRoom(state, 's15');
       APP.screen = 'room';
