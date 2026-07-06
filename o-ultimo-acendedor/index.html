@@ -7,8 +7,48 @@
 <style>
   html,body{ margin:0; padding:0; width:100%; height:100%; background:#05080e; overflow:hidden;
     display:flex; align-items:center; justify-content:center;
-    -webkit-user-select:none; user-select:none; font-family:Georgia,'Times New Roman',serif; }
+    -webkit-user-select:none; user-select:none; font-family:Georgia,'Times New Roman',serif;
+    -webkit-tap-highlight-color:transparent; }
   #gameCanvas{ image-rendering:pixelated; image-rendering:crisp-edges; display:block; }
+
+  /* ---------- Controles touch (só aparecem em tela sensível ao toque) ---------- */
+  .lk-touch{ display:none; }
+  body.touch-device .lk-touch{ display:block; }
+
+  .lk-joy{ position:fixed; z-index:90; touch-action:none;
+    left:calc(4vmin + env(safe-area-inset-left, 0px));
+    bottom:calc(5vmin + env(safe-area-inset-bottom, 0px)); }
+  .lk-joy-base{ width:clamp(96px, 26vmin, 170px); height:clamp(96px, 26vmin, 170px);
+    border-radius:50%; background:rgba(14,20,32,0.42);
+    border:2px solid rgba(120,150,190,0.35); touch-action:none;
+    display:flex; align-items:center; justify-content:center;
+    transition:border-color .12s, box-shadow .12s; }
+  .lk-joy-base.active{ border-color:rgba(255,210,122,0.75);
+    box-shadow:0 0 22px rgba(255,210,122,0.25), inset 0 0 18px rgba(255,210,122,0.12); }
+  .lk-joy-knob{ width:42%; height:42%; border-radius:50%;
+    background:radial-gradient(circle at 38% 32%, rgba(255,226,160,0.95), rgba(201,158,74,0.85) 65%, rgba(140,104,44,0.9));
+    border:1.5px solid rgba(255,236,190,0.55);
+    box-shadow:0 0 14px rgba(255,210,122,0.35);
+    transition:transform .03s linear; touch-action:none; pointer-events:none; }
+
+  .lk-actions{ position:fixed; z-index:90; touch-action:none;
+    right:calc(4vmin + env(safe-area-inset-right, 0px));
+    bottom:calc(5vmin + env(safe-area-inset-bottom, 0px));
+    width:clamp(150px, 40vmin, 260px); height:clamp(150px, 40vmin, 260px); }
+  .lk-btn{ position:absolute; border-radius:50%; touch-action:none; padding:0;
+    background:rgba(14,20,32,0.48); color:#cfd8e8;
+    border:2px solid rgba(120,150,190,0.4);
+    font-family:Georgia,serif; font-size:clamp(9px, 2.4vmin, 14px); letter-spacing:1px;
+    transition:transform .08s, box-shadow .12s, border-color .12s, background .12s;
+    box-shadow:0 2px 10px rgba(0,0,0,0.45); }
+  .lk-btn.active{ transform:scale(0.88); color:#0c1018;
+    background:radial-gradient(circle at 40% 32%, #ffe9b8, #e8b45c 70%);
+    border-color:#fff2c9;
+    box-shadow:0 0 26px rgba(255,210,122,0.55); }
+  /* arco sob o polegar direito: pulo no canto, golpe acima, dash mais dentro */
+  .lk-btn-jump{ width:44%; height:44%; right:0; bottom:0; }
+  .lk-btn-attack{ width:40%; height:40%; right:52%; bottom:14%; }
+  .lk-btn-dash{ width:34%; height:34%; right:8%; bottom:56%; }
 </style>
 </head>
 <body>
@@ -17,6 +57,7 @@
 <script src="js/core/namespace.js"></script>
 <script src="js/core/Display.js"></script>
 <script src="js/core/Input.js"></script>
+<script src="js/core/TouchControls.js"></script>
 <script src="js/core/Camera.js"></script>
 <script src="js/gfx/Particles.js"></script>
 <script src="js/gfx/Lighting.js"></script>

@@ -21,6 +21,9 @@
     return new LK.entities.Bestiary[sp.type](sp.x, sp.y);
   });
 
+  var touchControls = new LK.core.TouchControls();
+  var haptics = LK.core.Haptics;
+
   camera.setBounds({ minX: 0, minY: 0, maxX: level.pxW, maxY: level.pxH });
 
   var gameTime = 0;
@@ -55,7 +58,10 @@
       if (e.dead && e.deathTimer <= 0) { enemies.splice(i, 1); continue; }
       // dano por contato
       if (!e.dead && e.overlapsPlayer(player)) {
-        if (player.takeDamage(e.contactDamage, e.x)) camera.shake(0.42);
+        if (player.takeDamage(e.contactDamage, e.x)) {
+          camera.shake(0.42);
+          haptics.pulse([28, 34, 44]); // dor: pulso duplo pesado
+        }
       }
     }
 
@@ -77,9 +83,11 @@
           player.hitPause = Math.max(player.hitPause, 0.03);
           if (hb.dir === 'side') player.vx = -player.facing * 200;
           camera.shake(0.15);
+          haptics.pulse([10, 20, 10]); // clank metálico
         } else {
           player.onHitConnected(en.x, en.y);
           camera.shake(result === 'dead' ? 0.45 : 0.25);
+          haptics.pulse(result === 'dead' ? [14, 26, 30] : 12);
           if (result === 'dead') {
             particles.burst(en.x, en.y, 22, {
               speedMin: 60, speedMax: 240, g: 160, drag: 2,
@@ -110,7 +118,12 @@
 
     LK.entities.updateProjectiles(dt, level, player, particles);
 
+    var litBefore = 0;
+    for (var lb = 0; lb < lamps.list.length; lb++) if (lamps.list[lb].lit) litBefore++;
     lamps.update(dt, player);
+    var litAfter = 0;
+    for (var la = 0; la < lamps.list.length; la++) if (lamps.list[la].lit) litAfter++;
+    if (litAfter > litBefore) haptics.pulse([12, 30, 20, 30, 40]); // lampião aceso: crescendo
     biome.update(dt);
     particles.update(dt);
 
