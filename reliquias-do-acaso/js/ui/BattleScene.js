@@ -538,14 +538,6 @@
     if (c.over || c.phase !== 'player' || this.resolving || this.travel || this.evQueue.length > 4) return;
 
     events.taps.forEach(function (tp) {
-      // dado atribuído: tap desfaz
-      for (var ai = 0; ai < self4.assignments.length; ai++) {
-        var ap = self4.assignedPos(ai, L);
-        if (tp.x >= ap.x - 3 && tp.x < ap.x + ap.s + 6 && tp.y >= ap.y - 4 && tp.y < ap.y + ap.s + 8) {
-          self4.unassign(ai, L);
-          return;
-        }
-      }
       for (var i = 0; i < c.dice.length; i++) {
         var r = self4.dieRect(i, L);
         if (r && W2.inRect(tp.x, tp.y, r)) {
@@ -848,23 +840,6 @@
       ctx.drawImage(spr, sp.x, sp.y);
       ctx.globalAlpha = 1;
       W2.hpBar(ctx, sp.x, sp.y + sp.s + 2, sp.s, su.hp, su.maxHp, 0, '#8a4ae8');
-    });
-
-    // marcadores de alvo: chip com o símbolo da face na borda do painel alvo
-    this.assignments.forEach(function (a, ai) {
-      var d = c.dice[a.die];
-      var hu3 = c.heroes[d.heroIdx];
-      var f3 = c.faceOf(d);
-      var ap = self.assignedPos(ai, L);
-      var rim = hu3 ? RA.gfx.Dice.skin(hu3.skin).rim : '#ffd76a';
-      ctx.fillStyle = 'rgba(10,8,16,0.92)';
-      ctx.fillRect(ap.x, ap.y, ap.s, ap.s);
-      var pu3 = 0.55 + 0.45 * Math.sin(self.time * 5 + ai);
-      ctx.strokeStyle = rim;
-      ctx.globalAlpha = pu3;
-      ctx.strokeRect(ap.x + 0.5, ap.y + 0.5, ap.s - 1, ap.s - 1);
-      ctx.globalAlpha = 1;
-      if (f3) ctx.drawImage(RA.gfx.Icons.symbol(f3.sym), ap.x + 2, ap.y + 2, ap.s - 4, ap.s - 4);
     });
 
     // holofote na ação: escurece tudo menos o ator, o alvo e o dado em voo
