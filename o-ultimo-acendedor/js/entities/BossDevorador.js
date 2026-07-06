@@ -84,9 +84,16 @@
 
   Boss.prototype._pickAttack = function (player) {
     var p = this.phase();
+    // garantia de tempo no chão: a cada 2-3 ataques aéreos ele DESCE
+    this._airAttacks = (this._airAttacks || 0);
+    if (this._airAttacks >= (p === 1 ? 3 : 2)) {
+      this._airAttacks = 0;
+      this.setState('slamTele');
+      return;
+    }
     var roll = Math.random();
     if (p === 1) {
-      this.setState(roll < 0.55 ? 'swoopTele' : 'spitTele');
+      this.setState(roll < 0.5 ? 'swoopTele' : (roll < 0.85 ? 'spitTele' : 'slamTele'));
     } else if (p === 2) {
       if (roll < 0.35) this.setState('swoopTele');
       else if (roll < 0.6) this.setState('spitTele');
@@ -97,6 +104,8 @@
       else if (roll < 0.75) this.setState('slamTele');
       else this.setState('burstTele');
     }
+    if (this.state !== 'slamTele') this._airAttacks++;
+    else this._airAttacks = 0;
   };
 
   Boss.prototype.update = function (dt, player, level) {
@@ -168,8 +177,51 @@
         });
       }
     } else if (this.state === 'slamRecover') {
-      // NO CHÃO, ofegante — a grande janela de dano
-      if (this.stateTime > 1.5) this.setState('hover');
+      // NO CHÃO, ofegante — janela de dano. Daqui ele CONTINUA no chão:
+      // rasteira ou cusparada rasteira antes de decolar.
+      if (this.stateTime > 1.2) {
+        if (this.phase() >= 2 && Math.random() < 0.5) {
+          this.setState('crawlCharge');
+          this._crawlDir = player.x > this.x ? 1 : -1;
+        } else {
+          this.setState('groundSpit');
+        }
+      }
+    } else if (this.state === 'crawlCharge') {
+      // arrasta-se numa investida rasteira pelo chão da arena
+      this.y = this.arena.floorY - this.hh;
+      this.x += this._crawlDir * 340 * dt;
+      if (Math.random() < dt * 30) {
+        this.particles.spawn({
+          x: this.x - this._crawlDir * 20, y: this.arena.floorY - 4,
+          vx: -this._crawlDir * 60, vy: -40 - Math.random() * 60, g: 300,
+          life: 0.4, size: 2, color: '#4a6178', kind: 'dot'
+        });
+      }
+      if (this.x < this.arena.minX + 40 || this.x > this.arena.maxX - 40 || this.stateTime > 0.9) {
+        this.setState('groundRecover');
+      }
+    } else if (this.state === 'groundSpit') {
+      // cusparada em leque PARA CIMA, do chão — chove bile
+      this.y = this.arena.floorY - this.hh;
+      if (this.stateTime > 0.45 && !this._groundSpitDone) {
+        this._groundSpitDone = true;
+        var gn = this.phase() >= 2 ? 5 : 3;
+        for (var gi = 0; gi < gn; gi++) {
+          var ga = -Math.PI / 2 + (gi - (gn - 1) / 2) * 0.42;
+          LK.entities.spawnProjectile(this.x, this.y - 10,
+            Math.cos(ga) * 240, Math.sin(ga) * 300);
+        }
+        LK.audio.sfx('spit');
+      }
+      if (this.stateTime > 0.9) { this._groundSpitDone = false; this.setState('groundRecover'); }
+    } else if (this.state === 'groundRecover') {
+      // mais uma janela grande no chão antes de decolar
+      this.y = this.arena.floorY - this.hh;
+      if (this.stateTime > 1.4) this.setState('takeoff');
+    } else if (this.state === 'takeoff') {
+      this.y += ((hoverY) - this.y) * Math.min(1, dt * 2.4);
+      if (this.stateTime > 0.7) this.setState('hover');
     } else if (this.state === 'burstTele') {
       this.x += Math.sin(this._t * 40) * 34 * dt;
       if (this.stateTime > 0.5) {
@@ -233,8 +285,12 @@
     ctx.save();
     ctx.translate(sx, sy);
     ctx.globalAlpha = deathFade;
-    var flap = Math.sin(this._t * (this.state === 'swoop' ? 26 : 11));
-    var tele = this.state.indexOf('Tele') >= 0;
+    var grounded = this.state === 'slamRecover' || this.state === 'crawlCharge' ||
+      this.state === 'groundSpit' || this.state === 'groundRecover';
+    var flap = grounded
+      ? Math.sin(this._t * 4) * 0.3 - 0.55   // asas caídas, arfando
+      : Math.sin(this._t * (this.state === 'swoop' ? 26 : 11));
+    var tele = this.state.indexOf('Tele') >= 0 || this.state === 'groundSpit';
 
     var bodyCol = this.hurtFlash > 0 ? '#ffffff' : '#241c30';
     var wingCol = this.hurtFlash > 0 ? '#ffffff' : '#332844';

@@ -398,31 +398,47 @@
     ctx.restore();
   };
 
-  // ---------------- PROJÉTEIS (bile do Cuspidor) ----------------
+  // ---------------- PROJÉTEIS ----------------
+  // Tipos: 'bile' (verde, Cuspidor/gotejos), 'ember' (brasa, chefes de fogo),
+  // 'seed' (vagem da Raiz: estoura em 3 biles ao tocar o chão).
+  var PROJ_STYLE = {
+    bile: { main: '#8cc83c', hi: '#d8ff5c', light: '140,200,60', burst: ['#8cc83c', '#5d7a3c', '#d8ff5c'] },
+    ember: { main: '#ff8a3c', hi: '#ffe9b8', light: '255,140,60', burst: ['#ff8a3c', '#ffd27a', '#b8442a'] },
+    seed: { main: '#7a9d4a', hi: '#c8e87a', light: '150,200,90', burst: ['#7a9d4a', '#c8e87a'] }
+  };
   var projectiles = [];
   LK.entities.projectiles = projectiles;
-  LK.entities.spawnProjectile = function (x, y, vx, vy) {
-    projectiles.push({ x: x, y: y, vx: vx, vy: vy, alive: true, t: 0 });
+  LK.entities.spawnProjectile = function (x, y, vx, vy, type) {
+    projectiles.push({ x: x, y: y, vx: vx, vy: vy, alive: true, t: 0, type: type || 'bile' });
   };
 
   LK.entities.updateProjectiles = function (dt, level, player, particles) {
     for (var i = projectiles.length - 1; i >= 0; i--) {
       var p = projectiles[i];
       p.t += dt;
-      p.vy += 700 * dt;
+      p.vy += (p.type === 'ember' ? 300 : 700) * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       var hitGround = level.solidAt(p.x, p.y + 3) || level.solidAt(p.x, p.y - 3) ||
         level.solidAt(p.x + 3, p.y) || level.solidAt(p.x - 3, p.y);
       var hitPlayer = Math.abs(p.x - player.x) < player.hw + 4 && Math.abs(p.y - player.y) < player.hh + 4;
       if (hitPlayer) player.takeDamage(1, p.x);
-      if (hitGround || hitPlayer || p.t > 4) {
+      if (hitGround || hitPlayer || p.t > 4.5) {
+        var st = PROJ_STYLE[p.type] || PROJ_STYLE.bile;
         LK.audio.sfx('splat');
         particles.burst(p.x, p.y, 8, {
           speedMin: 30, speedMax: 110, g: 300,
-          color: ['#8cc83c', '#5d7a3c', '#d8ff5c'],
+          color: st.burst,
           lifeMin: 0.2, lifeMax: 0.5, kind: 'dot', sizeMin: 1.5, sizeMax: 3
         });
+        // vagem estoura em leque de bile
+        if (p.type === 'seed' && hitGround) {
+          for (var s = 0; s < 3; s++) {
+            var a = -Math.PI / 2 + (s - 1) * 0.55;
+            LK.entities.spawnProjectile(p.x, p.y - 6,
+              Math.cos(a) * 170, Math.sin(a) * 210, 'bile');
+          }
+        }
         projectiles.splice(i, 1);
       }
     }
@@ -431,12 +447,14 @@
   LK.entities.renderProjectiles = function (ctx, camX, camY) {
     for (var i = 0; i < projectiles.length; i++) {
       var p = projectiles[i];
+      var st = PROJ_STYLE[p.type] || PROJ_STYLE.bile;
       var sx = p.x - camX, sy = p.y - camY;
-      ctx.fillStyle = '#8cc83c';
+      var r = p.type === 'seed' ? 5.5 : 4;
+      ctx.fillStyle = st.main;
       ctx.beginPath();
-      ctx.ellipse(sx, sy, 4, 3.2, Math.atan2(p.vy, p.vx), 0, Math.PI * 2);
+      ctx.ellipse(sx, sy, r, r * 0.8, Math.atan2(p.vy, p.vx), 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#d8ff5c';
+      ctx.fillStyle = st.hi;
       ctx.beginPath();
       ctx.arc(sx - p.vx * 0.006, sy - p.vy * 0.006, 1.6, 0, Math.PI * 2);
       ctx.fill();
@@ -446,7 +464,8 @@
   LK.entities.collectProjectileLights = function (lights) {
     for (var i = 0; i < projectiles.length; i++) {
       var p = projectiles[i];
-      lights.push({ x: p.x, y: p.y, radius: 34, color: '140,200,60', intensity: 0.4 });
+      var st = PROJ_STYLE[p.type] || PROJ_STYLE.bile;
+      lights.push({ x: p.x, y: p.y, radius: p.type === 'ember' ? 44 : 34, color: st.light, intensity: p.type === 'ember' ? 0.5 : 0.4 });
     }
   };
 

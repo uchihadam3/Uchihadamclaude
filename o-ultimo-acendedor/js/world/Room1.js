@@ -15,7 +15,7 @@
   var T = 24;
 
   function build() {
-    var cols = 220, rows = 80;
+    var cols = 420, rows = 80;
     var g = [];
     for (var y = 0; y < rows; y++) g.push(new Array(cols).fill('#'));
 
@@ -102,6 +102,50 @@
     g[31][203] = 'L';                      // checkpoint antes do chefe
     // (portão fecha em jogo: colunas 200-201, linhas 20..27)
 
+    // ========== JARDIM AFOGADO (biome 2) ==========
+    // saída da arena 1 (barreira até o Devorador cair): corredor leste
+    carve(218, 26, 230, 31);
+
+    // Zona 7: descida em cascata para o jardim
+    carve(230, 26, 262, 52);
+    thin(234, 238, 34);
+    thin(242, 246, 38);
+    thin(250, 254, 42);
+    thin(240, 244, 46);
+    thin(232, 236, 49);
+
+    // Zona 8: salão do jardim (terraços e poças)
+    carve(262, 40, 312, 52);
+    thin(268, 274, 47);
+    thin(280, 286, 43);
+    thin(292, 298, 47);
+    thin(300, 306, 44);
+    g[52][266] = 'L';
+    g[52][308] = 'L';                      // checkpoint antes da Raiz
+
+    // Zona 9: arena da Raiz Coroada
+    carve(314, 38, 338, 52);
+    // (portão: colunas 312-313, linhas 44..51; barreira leste: 338-339)
+
+    // ========== CORAÇÃO CINÉREO (biome 3) ==========
+    // Zona 10: descida às profundezas de cinza
+    carve(338, 44, 356, 60);
+    thin(342, 346, 50);
+    thin(350, 354, 55);
+    carve(352, 52, 368, 66);
+    thin(358, 362, 62);
+
+    // Zona 11: salão obsidiano
+    carve(368, 54, 398, 66);
+    thin(372, 378, 61);
+    thin(384, 390, 58);
+    g[66][372] = 'L';
+    g[66][394] = 'L';                      // checkpoint antes da Chama
+
+    // Zona 12: arena final da Primeira Chama
+    carve(400, 48, 418, 66);
+    // (portão: colunas 398-399, linhas 58..65)
+
     var rowsStr = g.map(function (r) { return r.join(''); });
     var level = new LK.world.Level(rowsStr);
 
@@ -128,20 +172,70 @@
       { type: 'Casca', x: 185 * T, y: 26 * T },
       { type: 'Voador', x: 179 * T, y: 22 * T },
       // anel superior
-      { type: 'Rastejante', x: 16 * T, y: 41 * T }
+      { type: 'Rastejante', x: 16 * T, y: 41 * T },
+
+      // ---- Jardim Afogado ----
+      { type: 'Salteador', x: 248 * T, y: 50 * T },
+      { type: 'Espinheiro', x: 238 * T, y: 51 * T },
+      { type: 'Salteador', x: 272 * T, y: 50 * T },
+      { type: 'Espinheiro', x: 284 * T, y: 51 * T },
+      { type: 'VagaLume', x: 288 * T, y: 44 * T },
+      { type: 'Salteador', x: 296 * T, y: 50 * T },
+      { type: 'Espinheiro', x: 302 * T, y: 51 * T },
+      { type: 'VagaLume', x: 270 * T, y: 43 * T },
+
+      // ---- Coração Cinéreo ----
+      { type: 'Fuligem', x: 348 * T, y: 56 * T },
+      { type: 'Portador', x: 360 * T, y: 64 * T },
+      { type: 'Portador', x: 380 * T, y: 64 * T },
+      { type: 'Fuligem', x: 388 * T, y: 60 * T },
+      { type: 'Fuligem', x: 374 * T, y: 58 * T }
     ];
 
-    // dados da arena para o main/chefe
-    var arena = {
-      triggerX: 205 * T,          // cruzou isso dentro da arena -> luta começa
-      gate: { x0: 200, x1: 201, y0: 20, y1: 27 },
-      bossX: 210 * T, bossY: 20 * T,
-      floorY: 32 * T,
-      minX: 201 * T, maxX: 218 * T,
-      victoryLampCol: 203
-    };
+    // as três arenas de chefe, no formato genérico que o main consome
+    var arenas = [
+      {
+        name: 'O  DEVORADOR  DE  CHAMAS',
+        bossType: 'BossDevorador',
+        triggerX: 205 * T, triggerYMin: 27 * T,
+        gate: { x0: 200, x1: 201, y0: 20, y1: 27 },
+        barrier: { x0: 219, x1: 220, y0: 26, y1: 31 },
+        bossX: 210 * T, bossY: 20 * T,
+        floorY: 32 * T,
+        minX: 201 * T, maxX: 217 * T,
+        victoryLampCol: 203,
+        victoryText: 'A   C H A M A   R E S I S T E'
+      },
+      {
+        name: 'A  RAIZ  COROADA',
+        bossType: 'BossRaiz',
+        triggerX: 318 * T, triggerYMin: 44 * T,
+        gate: { x0: 312, x1: 313, y0: 44, y1: 51 },
+        barrier: { x0: 338, x1: 339, y0: 44, y1: 51 },
+        bossX: 328 * T, bossY: 50 * T,
+        floorY: 52 * T,
+        minX: 315 * T, maxX: 337 * T,
+        victoryLampCol: 316,
+        victoryText: 'A   C O R O A   A P O D R E C E'
+      },
+      {
+        name: 'A  PRIMEIRA  CHAMA',
+        bossType: 'BossChama',
+        triggerX: 404 * T, triggerYMin: 56 * T,
+        gate: { x0: 398, x1: 399, y0: 58, y1: 65 },
+        barrier: null, // fim do mundo (por enquanto)
+        bossX: 409 * T, bossY: 56 * T,
+        floorY: 66 * T,
+        minX: 401 * T, maxX: 417 * T,
+        victoryLampCol: 402,
+        victoryText: 'A   P R I M E I R A   C H A M A   R E N A S C E'
+      }
+    ];
 
-    return { level: level, enemies: enemies, arena: arena };
+    // limites dos biomas (em px) para música e paleta
+    var biomeBounds = { jardimStartX: 228 * T, coracaoStartX: 338 * T };
+
+    return { level: level, enemies: enemies, arenas: arenas, biomeBounds: biomeBounds };
   }
 
   LK.world.Room1 = { build: build };

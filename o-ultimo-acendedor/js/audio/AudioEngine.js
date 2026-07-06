@@ -265,7 +265,154 @@
     return { events: ev, dur: t };
   }
 
-  var THEMES = { grutas: themeGrutas, chefe: themeChefe };
+  // Tema do Jardim Afogado: ~3:12 em Ré dórico, 60 bpm. Gotas d'água em
+  // arpejos de pluck, pads mornos, baixo gentil — sereno e melancólico.
+  function themeJardim() {
+    var ev = [];
+    var beat = 1.0; // 60 bpm
+    var t = 0;
+    var Dm7 = [50, 53, 57, 60], G = [55, 59, 62], Am = [57, 60, 64], FM7 = [53, 57, 60, 64],
+      Em = [52, 55, 59], C = [48, 55, 60];
+
+    function arp(chord, baseT, density, vol) {
+      // gotas: arpejo ascendente com eco na oitava
+      var order = [0, 2, 1, 3, 2, 0, 1, 2];
+      for (var i = 0; i < 8 * density; i++) {
+        var n = chord[order[i % 8] % chord.length] + 12;
+        ev.push({ t: baseT + i * (beat / density), fn: 'pluck', freq: midi(n), vol: vol * (i % 4 === 0 ? 1.2 : 0.8) });
+      }
+    }
+
+    var sections = [
+      { chords: [Dm7, G, Am, FM7], arpD: 1, vol: 0.07, pads: true },
+      { chords: [Dm7, G, Am, FM7], arpD: 1, vol: 0.09, pads: true, high: true },
+      { chords: [FM7, C, G, Am], arpD: 2, vol: 0.07, pads: true },
+      { chords: [Em, Am, Dm7, G], arpD: 0, vol: 0, pads: true },      // respiro
+      { chords: [Dm7, G, Am, FM7], arpD: 2, vol: 0.09, pads: true, high: true },
+      { chords: [FM7, Em, Dm7, Dm7], arpD: 1, vol: 0.06, pads: true }
+    ];
+
+    sections.forEach(function (sec) {
+      sec.chords.forEach(function (chord, ci) {
+        var chordDur = beat * 8;
+        if (sec.pads) {
+          chord.forEach(function (n, ni) {
+            ev.push({ t: t + ni * 0.08, fn: 'pad', freq: midi(n), dur: chordDur * 0.95, vol: 0.045 });
+          });
+        }
+        ev.push({ t: t, fn: 'bass', freq: midi(chord[0] - 24), dur: chordDur * 0.85, vol: 0.13 });
+        if (sec.arpD > 0) arp(chord, t, sec.arpD, sec.vol);
+        if (sec.high && ci % 2 === 0) {
+          ev.push({ t: t + beat * 6, fn: 'pluck', freq: midi(chord[1] + 24), vol: 0.04 });
+        }
+        t += chordDur;
+      });
+    });
+
+    return { events: ev, dur: t };
+  }
+
+  // Tema do Coração Cinéreo: ~3:00 em Dó menor fúnebre, 40 bpm. Drones
+  // graves, batida de coração, sinos dissonantes esparsos — opressivo.
+  function themeCoracao() {
+    var ev = [];
+    var beat = 1.5; // 40 bpm
+    var t = 0;
+    var pairs = [
+      [36, 43], [36, 42],   // C-G, C-F# (trítono entra e sai)
+      [34, 41], [36, 43],
+      [32, 39], [36, 42],
+      [36, 43], [35, 43]
+    ];
+    for (var rep = 0; rep < 2; rep++) {
+      pairs.forEach(function (pr, pi) {
+        var dur = beat * 8; // 12s por dupla
+        ev.push({ t: t, fn: 'pad', freq: midi(pr[0] + 24), dur: dur * 0.98, vol: 0.06 });
+        ev.push({ t: t + 0.1, fn: 'pad', freq: midi(pr[1] + 24), dur: dur * 0.96, vol: 0.05 });
+        ev.push({ t: t, fn: 'bass', freq: midi(pr[0]), dur: dur * 0.9, vol: 0.2 });
+        // coração: dois pulsos por compasso longo
+        for (var hb = 0; hb < 4; hb++) {
+          ev.push({ t: t + hb * beat * 2, fn: 'perc', kind: 'kick', vol: 0.4 });
+          ev.push({ t: t + hb * beat * 2 + 0.34, fn: 'perc', kind: 'kick', vol: 0.22 });
+        }
+        // sino dissonante esparso
+        if (pi % 2 === 1) {
+          ev.push({ t: t + beat * (3 + (pi % 3)), fn: 'pluck', freq: midi(72 + (pi * 5) % 7), vol: 0.05 });
+        }
+        if (rep === 1 && pi % 2 === 0) {
+          ev.push({ t: t + beat * 5, fn: 'pluck', freq: midi(66), vol: 0.04 });
+        }
+        t += dur;
+      });
+    }
+    return { events: ev, dur: t };
+  }
+
+  // Tema da Primeira Chama (chefe final): ~2:33 em Lá frígio dominante,
+  // 150 bpm. Riff urgente, percussão dupla, linha heroica no clímax.
+  function themeChefeFinal() {
+    var ev = [];
+    var beat = 60 / 150;
+    var bar = beat * 4;
+    var t = 0;
+    var riff = [45, 46, 49, 45, 52, 45, 44, 46];
+    var stab = [61, 64, 69];
+    var hero1 = [[0, 81], [1, 80], [2, 81], [3, 84]];
+    var hero2 = [[0, 84], [1, 81], [1.5, 80], [2, 81], [3, 76]];
+
+    function bars(n, o) {
+      for (var b = 0; b < n; b++) {
+        for (var e8 = 0; e8 < 8; e8++) {
+          var nt = t + e8 * beat * 0.5;
+          var m = riff[e8] + (o.up && b % 4 >= 2 ? 3 : 0);
+          ev.push({ t: nt, fn: 'bass', freq: midi(m), dur: beat * 0.4, vol: 0.18 });
+          if (o.hats) ev.push({ t: nt, fn: 'perc', kind: 'hat', vol: e8 % 2 ? 0.035 : 0.055 });
+        }
+        ev.push({ t: t, fn: 'perc', kind: 'kick', vol: 0.55 });
+        ev.push({ t: t + beat * 1.5, fn: 'perc', kind: 'kick', vol: 0.35 });
+        ev.push({ t: t + beat * 2, fn: 'perc', kind: 'kick', vol: 0.5 });
+        ev.push({ t: t + beat, fn: 'perc', kind: 'snare', vol: 0.2 });
+        ev.push({ t: t + beat * 3, fn: 'perc', kind: 'snare', vol: 0.24 });
+        if (o.stabs && b % 2 === 0) {
+          stab.forEach(function (n) {
+            ev.push({ t: t + beat * 3.5, fn: 'pluck', freq: midi(n), vol: 0.08 });
+          });
+        }
+        if (o.hero) {
+          var ln = (b % 4 < 2) ? hero1 : hero2;
+          if (b % 2 === 0) ln.forEach(function (nt2) {
+            ev.push({ t: t + nt2[0] * beat, fn: 'pluck', freq: midi(nt2[1]), vol: 0.1 });
+            ev.push({ t: t + nt2[0] * beat + 0.02, fn: 'pad', freq: midi(nt2[1] - 12), dur: beat, vol: 0.05 });
+          });
+        }
+        t += bar;
+      }
+    }
+
+    bars(8, {});                                    // intro seca
+    bars(16, { hats: true, stabs: true });          // A
+    bars(16, { hats: true, stabs: true, hero: true }); // B heroico
+    // meia-velocidade: a chama respira
+    for (var pb = 0; pb < 8; pb++) {
+      [45, 49, 52, 57].forEach(function (n, ni) {
+        ev.push({ t: t + ni * 0.06, fn: 'pad', freq: midi(n + 12), dur: bar * 0.95, vol: 0.055 });
+      });
+      ev.push({ t: t, fn: 'bass', freq: midi(33), dur: bar * 0.9, vol: 0.2 });
+      ev.push({ t: t, fn: 'perc', kind: 'kick', vol: 0.5 });
+      ev.push({ t: t + beat * 2, fn: 'perc', kind: 'snare', vol: 0.18 });
+      t += bar;
+    }
+    bars(16, { hats: true, stabs: true, hero: true, up: true }); // clímax
+    bars(16, { hats: true, stabs: true, hero: true });           // retomada heroica
+    bars(8, { hats: true, stabs: true, up: true });              // saída
+
+    return { events: ev, dur: t };
+  }
+
+  var THEMES = {
+    grutas: themeGrutas, chefe: themeChefe,
+    jardim: themeJardim, coracao: themeCoracao, chefeFinal: themeChefeFinal
+  };
   var themeCache = {};
 
   function playEvent(ev, when) {

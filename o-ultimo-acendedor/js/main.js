@@ -1,7 +1,6 @@
-// main.js: loop de passo fixo com hit-pause global. Orquestra: mundo grande,
-// 16 inimigos, lampiões-checkpoint, música por área (grutas/chefe) e a luta
-// contra o Devorador de Chamas (portão que sela a arena, barra de vida,
-// vitória que reacende a arena).
+// main.js: orquestra o mundo de três biomas — música por área com troca
+// automática, três encontros de chefe (portão sela a arena; barreira à
+// frente só abre com o chefe morto), 29 inimigos, lampiões-checkpoint.
 (function () {
   var cfg = LK.config;
   var canvas = document.getElementById('gameCanvas');
@@ -10,35 +9,51 @@
 
   var room = LK.world.Room1.build();
   var level = room.level;
-  var arena = room.arena;
   var particles = new LK.gfx.Particles();
-  var biome = new LK.world.BiomeGrutas(level);
+  var biome = new LK.world.Biomes(level, room.biomeBounds);
   var lamps = new LK.world.Lamps(level, particles);
   var lighting = new LK.gfx.Lighting();
   var camera = new LK.core.Camera();
   var player = new LK.entities.Player(level, particles);
 
+  var BESTIARY = {};
+  Object.keys(LK.entities.Bestiary).forEach(function (k) { BESTIARY[k] = LK.entities.Bestiary[k]; });
+  Object.keys(LK.entities.Bestiary2).forEach(function (k) { BESTIARY[k] = LK.entities.Bestiary2[k]; });
+
   var enemies = room.enemies.map(function (sp) {
-    return new LK.entities.Bestiary[sp.type](sp.x, sp.y);
+    return new BESTIARY[sp.type](sp.x, sp.y);
   });
 
-  var boss = new LK.entities.BossDevorador(arena, particles);
-  var gateClosed = false;
-  var victory = false;
+  // ---- encontros de chefe ----
+  function setCells(cells, solid) {
+    if (!cells) return;
+    for (var gy = cells.y0; gy <= cells.y1; gy++) {
+      for (var gx = cells.x0; gx <= cells.x1; gx++) {
+        level.solid[gy][gx] = solid;
+      }
+    }
+  }
+
+  var encounters = room.arenas.map(function (spec) {
+    var boss = new LK.entities[spec.bossType](spec, particles);
+    setCells(spec.barrier, true); // barreiras fechadas até o chefe cair
+    return { spec: spec, boss: boss, defeated: false, victoryShownAt: -1 };
+  });
 
   var touchControls = new LK.core.TouchControls();
   var haptics = LK.core.Haptics;
   LK.audio.init();
-  LK.audio.playMusic('grutas'); // fica pendente até o primeiro gesto
+  LK.audio.playMusic('grutas');
 
   camera.setBounds({ minX: 0, minY: 0, maxX: level.pxW, maxY: level.pxH });
 
   var gameTime = 0;
+  var musicSilenceUntil = 0;
   var lightsScratch = [];
 
   window.__LK_DEBUG = {
     player: player, level: level, camera: camera, frameCount: 0,
-    lamps: lamps, enemies: enemies, boss: boss, arena: arena
+    lamps: lamps, enemies: enemies, encounters: encounters, biome: biome
   };
 
   var STEP = 1 / 60;
@@ -48,29 +63,34 @@
   window.addEventListener('blur', function () { paused = true; });
   window.addEventListener('focus', function () { paused = false; last = performance.now(); });
 
-  function setGate(closed) {
-    gateClosed = closed;
-    for (var gy = arena.gate.y0; gy <= arena.gate.y1; gy++) {
-      for (var gx = arena.gate.x0; gx <= arena.gate.x1; gx++) {
-        level.solid[gy][gx] = closed;
-      }
-    }
+  function areaKeyAt(x) {
+    if (x >= room.biomeBounds.coracaoStartX) return 'coracao';
+    if (x >= room.biomeBounds.jardimStartX) return 'jardim';
+    return 'grutas';
   }
 
-  function onBossDefeated() {
-    victory = true;
-    setGate(false);
-    // a arena se reacende: lampião da vitória + chuva de fagulhas
+  function anyBossActive() {
+    for (var i = 0; i < encounters.length; i++) {
+      if (encounters[i].boss.active && !encounters[i].boss.dead) return encounters[i];
+    }
+    return null;
+  }
+
+  function onBossDefeated(enc) {
+    enc.defeated = true;
+    enc.victoryShownAt = gameTime;
+    setCells(enc.spec.gate, false);
+    setCells(enc.spec.barrier, false);
     for (var i = 0; i < lamps.list.length; i++) {
       var lamp = lamps.list[i];
-      if (Math.abs(lamp.x - arena.victoryLampCol * 24) < 48) {
+      if (Math.abs(lamp.x - enc.spec.victoryLampCol * 24) < 60) {
         lamp.lit = true;
         player.respawnPoint = { x: lamp.x, y: lamp.y - 4 };
       }
     }
     LK.audio.sfx('lamp');
     haptics.pulse([20, 40, 30, 40, 60]);
-    setTimeout(function () { LK.audio.playMusic('grutas'); }, 2500);
+    musicSilenceUntil = gameTime + 3;
   }
 
   function simulate(dt) {
@@ -85,25 +105,37 @@
 
     player.update(dt, cmd);
 
-    // ---- gatilho da luta ----
-    if (!boss.active && !boss.dead &&
-      player.x > arena.triggerX && player.y > arena.gate.y1 * 24) {
-      boss.start();
-      setGate(true);
-      camera.shake(0.5);
+    // ---- música por área (fora de luta e fora do silêncio pós-vitória) ----
+    if (!anyBossActive() && gameTime > musicSilenceUntil) {
+      LK.audio.playMusic(areaKeyAt(player.x));
     }
 
-    // ---- chefe ----
-    if (boss.active && !victory) {
-      boss.update(dt, player, level);
-      if (boss.overlapsPlayer(player)) {
-        if (player.takeDamage(boss.contactDamage, boss.x)) {
-          camera.shake(0.5);
-          haptics.pulse([28, 34, 44]);
-        }
+    // ---- encontros ----
+    for (var b = 0; b < encounters.length; b++) {
+      var enc = encounters[b];
+      var boss = enc.boss;
+      var spec = enc.spec;
+
+      // o gatilho exige estar DENTRO da arena (x e y), não só à direita dela
+      if (!boss.active && !boss.dead && !enc.defeated &&
+        player.x > spec.triggerX && player.x < spec.maxX + 24 &&
+        player.y > spec.triggerYMin && player.y < spec.floorY + 60) {
+        boss.start();
+        setCells(spec.gate, true);
+        camera.shake(0.5);
       }
-      if (boss.state === 'slamRecover' && boss.stateTime < 0.05) camera.shake(0.7);
-      if (boss.dead && boss.state === 'death' && boss.stateTime > 2.4) onBossDefeated();
+
+      if (boss.active && !enc.defeated) {
+        boss.update(dt, player, level);
+        if (boss.overlapsPlayer(player)) {
+          if (player.takeDamage(boss.contactDamage, boss.x)) {
+            camera.shake(0.5);
+            haptics.pulse([28, 34, 44]);
+          }
+        }
+        if ((boss.state === 'slamRecover' || boss.state === 'exhausted') && boss.stateTime < 0.05) camera.shake(0.7);
+        if (boss.dead && boss.stateTime > 2.4) onBossDefeated(enc);
+      }
     }
 
     // ---- inimigos ----
@@ -125,7 +157,9 @@
       var connected = false;
 
       var targets = enemies.slice();
-      if (boss.active && !boss.dead) targets.push(boss);
+      for (var tb = 0; tb < encounters.length; tb++) {
+        if (encounters[tb].boss.active && !encounters[tb].boss.dead) targets.push(encounters[tb].boss);
+      }
 
       for (var j = 0; j < targets.length; j++) {
         var en = targets[j];
@@ -200,16 +234,22 @@
       player.invuln = 1.2;
       camera.shake(0.5);
       LK.audio.sfx('respawn');
-      // morreu na luta: chefe reseta e o portão abre até você voltar
-      if (boss.active && !boss.dead) {
-        boss.active = false;
-        boss.hp = boss.maxHp;
-        boss._lastPhase = 0;
-        boss.x = arena.bossX; boss.y = -60;
-        boss.setState('dormant');
-        boss.shockwaves.length = 0;
-        setGate(false);
-        LK.audio.playMusic('grutas');
+      // morreu numa luta: o chefe reseta e o portão reabre
+      var fighting = anyBossActive();
+      if (fighting) {
+        var fb = fighting.boss, fs = fighting.spec;
+        fb.active = false;
+        fb.hp = fb.maxHp;
+        fb._lastPhase = 0;
+        fb._airAttacks = 0;
+        fb.x = fs.bossX; fb.y = fs.bossType === 'BossDevorador' ? -60 : fs.bossY;
+        fb.setState('dormant');
+        if (fb.shockwaves) fb.shockwaves.length = 0;
+        if (fb.spikes) fb.spikes.length = 0;
+        if (fb.pillars) fb.pillars.length = 0;
+        if (fb.vine !== undefined) fb.vine = null;
+        setCells(fs.gate, false);
+        LK.audio.playMusic(areaKeyAt(player.x));
       }
     }
   }
@@ -224,7 +264,7 @@
     biome.renderProps(ctx, cam, viewW, viewH);
     lamps.render(ctx, cam.x, cam.y);
     for (var ei = 0; ei < enemies.length; ei++) enemies[ei].render(ctx, cam.x, cam.y);
-    boss.render(ctx, cam.x, cam.y);
+    for (var bi = 0; bi < encounters.length; bi++) encounters[bi].boss.render(ctx, cam.x, cam.y);
     LK.entities.renderProjectiles(ctx, cam.x, cam.y);
     particles.render(ctx, cam.x, cam.y, viewW, viewH);
     player.render(ctx, cam.x, cam.y);
@@ -233,14 +273,22 @@
     biome.collectLights(lightsScratch, gameTime);
     lamps.collectLights(lightsScratch);
     LK.entities.collectProjectileLights(lightsScratch);
-    boss.collectLights(lightsScratch);
+    var darknessBoost = 0;
+    for (var bl = 0; bl < encounters.length; bl++) {
+      var bb = encounters[bl].boss;
+      bb.collectLights(lightsScratch);
+      if (bb.darknessPulse) darknessBoost = Math.max(darknessBoost, bb.darknessPulse);
+    }
+    // inimigos com luz própria (vaga-lume, portador canalizando)
+    for (var el = 0; el < enemies.length; el++) {
+      if (enemies[el].collectLights) enemies[el].collectLights(lightsScratch);
+    }
     lightsScratch.push({
       x: player.x - player.facing * 8, y: player.y,
       radius: 85 + Math.sin(gameTime * 9.7) * 5,
       color: '255,210,140', intensity: 0.6
     });
-    var darkness = 0.6 + boss.darknessPulse * 0.24;
-    lighting.render(ctx, lightsScratch, cam, viewW, viewH, darkness);
+    lighting.render(ctx, lightsScratch, cam, viewW, viewH, 0.6 + darknessBoost * 0.24);
 
     var vg = ctx.createRadialGradient(viewW / 2, viewH / 2, viewH * 0.42, viewW / 2, viewH / 2, viewH * 0.85);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
@@ -264,8 +312,10 @@
       }
     }
 
-    // barra do chefe
-    if (boss.active && !boss.dead) {
+    // barra do chefe em luta
+    var fighting = anyBossActive();
+    if (fighting) {
+      var boss = fighting.boss;
       var bw = Math.min(280, viewW * 0.6);
       var bx = (viewW - bw) / 2, by = viewH - 26;
       ctx.fillStyle = 'rgba(10,8,14,0.7)';
@@ -279,15 +329,20 @@
       ctx.fillStyle = 'rgba(230,220,240,0.85)';
       ctx.font = '9px Georgia';
       ctx.textAlign = 'center';
-      ctx.fillText('O   D E V O R A D O R   D E   C H A M A S', viewW / 2, by - 6);
+      ctx.fillText(fighting.spec.name, viewW / 2, by - 6);
       ctx.textAlign = 'left';
     }
-    if (victory && gameTime - (window.__victoryAt || (window.__victoryAt = gameTime)) < 5) {
-      ctx.fillStyle = 'rgba(255,242,201,' + Math.min(1, 5 - (gameTime - window.__victoryAt)) + ')';
-      ctx.font = '16px Georgia';
-      ctx.textAlign = 'center';
-      ctx.fillText('A   C H A M A   R E S I S T E', viewW / 2, viewH * 0.3);
-      ctx.textAlign = 'left';
+
+    // texto de vitória
+    for (var vt = 0; vt < encounters.length; vt++) {
+      var enc2 = encounters[vt];
+      if (enc2.victoryShownAt >= 0 && gameTime - enc2.victoryShownAt < 5) {
+        ctx.fillStyle = 'rgba(255,242,201,' + Math.min(1, 5 - (gameTime - enc2.victoryShownAt)) + ')';
+        ctx.font = '16px Georgia';
+        ctx.textAlign = 'center';
+        ctx.fillText(enc2.spec.victoryText, viewW / 2, viewH * 0.3);
+        ctx.textAlign = 'left';
+      }
     }
   }
 
