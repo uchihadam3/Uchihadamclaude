@@ -533,6 +533,25 @@
     // valida alvo
     var tv = this.resolveTarget(d, f, target);
     if (!tv.ok) return tv;
+    // valida condições dos efeitos (para negar NA SELEÇÃO, não após a animação)
+    var u = tv.unit;
+    for (var fi = 0; fi < (f.fx || []).length; fi++) {
+      var fx = f.fx[fi];
+      if (fx.k === 'dmg' || fx.k === 'dmgOnlyBleeding' || fx.k === 'dmgOnlyVulnerable') {
+        if (fx.onlyHalfHp && u && u.hp > u.maxHp / 2) return { ok: false, reason: RA.T({ pt: 'Só em alvo abaixo de metade da vida', en: 'Target must be below half HP' }) };
+        if (fx.onlyMarked && u && !this.st(u, 'mark')) return { ok: false, reason: RA.T({ pt: 'Precisa de alvo marcado', en: 'Needs a marked target' }) };
+        if (fx.onlyBoss && u && u.tier !== 'chefe' && u.tier !== 'secreto') return { ok: false, reason: RA.T({ pt: 'Só contra chefes', en: 'Bosses only' }) };
+        if (fx.onlyIfSelfHp1 && h.hp !== 1) return { ok: false, reason: RA.T({ pt: 'Só com 1 de vida', en: 'Only at 1 HP' }) };
+        if (fx.onlyFirst && this.tflags.diceUsed !== 0) return { ok: false, reason: RA.T({ pt: 'Só como primeira ação do turno', en: 'Must be first action' }) };
+        if (fx.needsCharge) {
+          var cost = Math.max(1, (fx.needsCharge === true ? 1 : fx.needsCharge) - (this.hasRelic('chargeCostDown') ? 1 : 0));
+          if (this.st(h, 'charge') < cost) return { ok: false, reason: RA.T({ pt: 'Sem carga suficiente', en: 'Not enough charge' }) };
+        }
+        if (fx.k === 'dmgOnlyBleeding' && u && !this.st(u, 'bleed')) return { ok: false, reason: RA.T({ pt: 'Precisa de alvo sangrando', en: 'Needs a bleeding target' }) };
+        if (fx.k === 'dmgOnlyVulnerable' && u && !this.st(u, 'vulnerable') && !this.st(u, 'mark')) return { ok: false, reason: RA.T({ pt: 'Precisa de alvo vulnerável', en: 'Needs a vulnerable target' }) };
+      }
+      if (fx.k === 'revive' && u && !u.downed) return { ok: false, reason: RA.T({ pt: 'Precisa de um aliado caído', en: 'Needs a downed ally' }) };
+    }
     return { ok: true, face: f, value: this.dieValue(d), target: tv.unit };
   };
 

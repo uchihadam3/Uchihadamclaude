@@ -244,7 +244,7 @@
     }
     var battleN = 0;
     for (var i = 0; i < this.roomIdx; i++) if (this.rooms[i].kind === 'battle') battleN++;
-    var count = Math.min(4, 2 + Math.floor(battleN / 2) + (this.regionIdx >= 4 ? 1 : 0));
+    var count = Math.min(5, 2 + Math.floor(battleN / 2) + (this.regionIdx >= 4 ? 1 : 0));
     if (this.rules.reducedFights) count = Math.max(1, count - 1);
     var picks = this.rng.shuffle(pool.slice()).slice(0, count);
     return picks;

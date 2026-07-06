@@ -1107,7 +1107,9 @@
           var icW = Math.min(w - 12, Math.max(F.measure(icTitle, 1, 1), 120) + 20);
           icLines.forEach(function (l2) { icW = Math.min(w - 12, Math.max(icW, F.measure(l2, 1, 1) + 20)); });
           var icH = 18 + icLines.length * 9;
-          var icX = (w - icW) / 2, icY = 18;
+          // no MEIO da mesa (zona dos dados) — nunca sobre personagens/inimigos
+          var icX = (w - icW) / 2;
+          var icY = Math.round(L.diceZone.y + (L.diceZone.h - icH) / 2);
           var icA = Math.min(1, this.infoCard.t * 3);
           ctx.globalAlpha = icA;
           var icHu = c.heroes[icDie.heroIdx];
