@@ -307,7 +307,7 @@
       case 'buffAttacks': c.tflags.buffAtk = (c.tflags.buffAtk || 0) + (fx.n || 1); break;
       case 'flipDie': {
         pool = c.dice.filter(function (x) { return !x.used && !x.blocked && x !== d; });
-        if (pool.length) { var fd = pool[c.rng.int(0, pool.length - 1)]; fd.faceIdx = 5 - fd.faceIdx; fd.fake = -1; c.ev('flip', { id: fd.id }); }
+        if (pool.length) { var fd = pool[c.rng.int(0, pool.length - 1)]; var fl = c.heroes[fd.heroIdx].faces.length; fd.faceIdx = (fl - 1) - fd.faceIdx; fd.fake = -1; c.ev('flip', { id: fd.id }); }
         break;
       }
       case 'chooseFate': {
@@ -691,12 +691,12 @@
     if (c.flags.invertNextRoll) {
       c.flags.invertNextRoll = false;
       var inv = pool[c.rng.int(0, pool.length - 1)];
-      inv.faceIdx = 5 - inv.faceIdx;
+      inv.faceIdx = (c.heroes[inv.heroIdx].faces.length - 1) - inv.faceIdx;
       c.ev('flip', { id: inv.id });
     }
     // miragem: valores falsos
     if (c.flags.mirage) {
-      pool.forEach(function (dd) { if (!dd.locked) dd.fake = c.rng.int(0, 5); });
+      pool.forEach(function (dd) { if (!dd.locked) dd.fake = c.rng.int(0, c.heroes[dd.heroIdx].faces.length - 1); });
       c.ev('mirage', {});
     }
     // criança da sorte: baixos viram altos
@@ -1048,7 +1048,7 @@
     var d = this.dice[i];
     if (!d || d.used || d.blocked) return false;
     this.tflags.flipUsed = true;
-    d.faceIdx = 5 - d.faceIdx; d.fake = -1;
+    d.faceIdx = (this.heroes[d.heroIdx].faces.length - 1) - d.faceIdx; d.fake = -1;
     this.ev('flip', { id: d.id });
     return true;
   };

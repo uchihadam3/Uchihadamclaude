@@ -263,6 +263,7 @@
     if (it.kind === 'removeCurse') return RA.T({ pt: 'Remover maldição', en: 'Remove curse' });
     if (it.kind === 'repair') return RA.T({ pt: 'Consertar dados', en: 'Repair dice' });
     if (it.kind === 'swapRow') return RA.T({ pt: 'Trocar de linha', en: 'Swap row' });
+    if (it.kind === 'upgradeDie') return RA.T({ pt: 'Evoluir dado (+2 lados)', en: 'Upgrade die (+2 sides)' });
     if (it.kind === 'mystery') return RA.T({ pt: 'Compra misteriosa', en: 'Mystery purchase' });
     if (it.kind === 'secretMap') return RA.T({ pt: 'Mapa de sala secreta', en: 'Secret room map' });
     return '?';
@@ -286,6 +287,11 @@
       if (self.bought[i]) return;
       var afford = run.gold >= it.cost;
       var b = { x: px, y: y, w: pw - 54, h: 18, label: self.itemLabel(it).slice(0, 30), small: true, disabled: !afford, fn: function () {
+        // itens que precisam escolher um herói abrem o seletor
+        if (it.kind === 'upgradeDie' || it.kind === 'swapRow') {
+          self.pickHero = { item: it, idx: i };
+          return;
+        }
         var res = run.buy(it, 0);
         if (res.ok) {
           self.bought[i] = true;
@@ -320,6 +326,44 @@
     W().btn(ctx, bl, this.time);
     this.buttons.push(bl);
     F.draw(ctx, run.gold + '$', w - 8 - F.measure(run.gold + '$', 1, 1), 4, { size: 1, color: '#ffd76a' });
+
+    // seletor de herói (evoluir dado / trocar de linha)
+    if (this.pickHero) {
+      var it2 = this.pickHero.item, idx2 = this.pickHero.idx;
+      ctx.fillStyle = 'rgba(6,4,10,0.75)';
+      ctx.fillRect(0, 0, w, h);
+      this.buttons = []; // só os botões da sobreposição respondem
+      F.draw(ctx, this.itemLabel(it2) + ' - ' + RA.UI('applyTo'), w / 2, h * 0.24, { size: 1, color: '#ffe9a0', align: 'center' });
+      var hs2 = run.party.filter(function (x) { return !x.dead; });
+      var gapH = Math.min(60, (w - 20) / hs2.length);
+      var hx0 = w / 2 - gapH * (hs2.length - 1) / 2 - 16;
+      hs2.forEach(function (hh2, i2) {
+        var x2 = hx0 + i2 * gapH, y2 = h * 0.34;
+        var elig = it2.kind !== 'upgradeDie' || run.upgradeCost(hh2) !== null;
+        W().panel(ctx, x2, y2, 34, 52, { edge: elig ? '#ffd76a' : '#38323f' });
+        ctx.globalAlpha = elig ? 1 : 0.35;
+        ctx.drawImage(RA.gfx.Portraits.get(hh2.id), x2 + 5, y2 + 3, 24, 24);
+        ctx.globalAlpha = 1;
+        F.draw(ctx, 'D' + hh2.faces.length, x2 + 17, y2 + 30, { size: 1, color: elig ? '#ffd76a' : '#5a5468', align: 'center' });
+        F.draw(ctx, RA.T(hh2.def.name).slice(0, 5), x2 + 17, y2 + 41, { size: 1, color: '#c8c2d4', align: 'center' });
+        if (elig) {
+          var hb = { x: x2, y: y2, w: 34, h: 52, label: '', fn: function () {
+            var pIdx = run.party.indexOf(hh2);
+            var res2 = run.buy(it2, pIdx);
+            self.pickHero = null;
+            if (res2.ok) {
+              self.bought[idx2] = true;
+              RA.audio.sfx('rare');
+              self.msg = res2.msg || RA.T({ pt: '"Ótima escolha!"', en: '"Fine choice!"' });
+            }
+          } };
+          self.buttons.push(hb);
+        }
+      });
+      var cb = { x: w / 2 - 40, y: h * 0.34 + 60, w: 80, h: 16, small: true, label: RA.UI('back'), fn: function () { self.pickHero = null; } };
+      W().btn(ctx, cb, this.time);
+      this.buttons.push(cb);
+    }
     if (this.tip) W().tooltip(ctx, w, h, this.tip.x, this.tip.y, this.tip.title, this.tip.lines);
     W().renderToasts(ctx, w);
   };
@@ -448,10 +492,12 @@
     } else if (this.stage === 'side') {
       F.draw(ctx, RA.UI('whichSide'), w / 2, 40, { size: 1, color: '#c8c2d4', align: 'center' });
       var hh2 = this.pickedHero;
-      var gap2 = Math.min(46, (w - 20) / 6);
-      var sx0 = w / 2 - gap2 * 2.5 - 14;
+      var nSides = hh2.faces.length;
+      var colsS = Math.min(6, nSides);
+      var gap2 = Math.min(46, (w - 20) / colsS);
+      var sx0 = w / 2 - gap2 * (colsS - 1) / 2 - 14;
       hh2.faces.forEach(function (f3, i) {
-        var x = sx0 + i * gap2, y = 56;
+        var x = sx0 + (i % colsS) * gap2, y = 56 + Math.floor(i / colsS) * 44;
         var die2 = { skin: hh2.def.skin, anim: { phase: 'idle', t: 0 }, resultFace: f3, faces: hh2.faces, used: false, locked: false };
         RA.gfx.Dice.draw(ctx, die2, x, y, 26, self.time);
         var b2 = { x: x - 3, y: y - 3, w: 32, h: 36, label: '', fn: function () {

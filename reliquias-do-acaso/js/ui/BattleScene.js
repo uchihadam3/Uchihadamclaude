@@ -295,7 +295,7 @@
       actorRef: { side: 'hero', idx: d.heroIdx },
       targetRef: target || (face.tgt === 'self' ? { side: 'hero', idx: d.heroIdx } : null),
       label: RA.T(hu.name) + ': ' + RA.T(face.name) + ' [' + c.dieValue(d) + ']',
-      vd: { skin: hu.skin, anim: { phase: 'idle', t: 0 }, resultFace: Object.assign({}, face, { val: c.dieValue(d) }), faces: hu.faces, used: false, locked: false, highlight: true },
+      vd: { skin: hu.skin, anim: { phase: 'idle', t: 0 }, resultFace: Object.assign({}, face, { val: c.dieValue(d) }), faces: hu.faces, used: false, locked: false, highlight: true, sides: hu.faces.length },
       from: from, to: to,
       onImpact: function () {
         d.locked = false;
@@ -1010,7 +1010,8 @@
         skin: hu2.skin, anim: d.anim,
         resultFace: Object.assign({}, shown, { val: shown === face ? c.dieValue(d) : shown.val }),
         faces: hu2.faces, used: d.used || d.sacrificed || d.blocked,
-        locked: d.locked && this.mode === 'roll', highlight: dragging || this.selDie === i
+        locked: d.locked && this.mode === 'roll', highlight: dragging || this.selDie === i,
+        sides: hu2.faces.length
       };
       RA.gfx.Dice.draw(ctx, vd, dx, dy, dieS, this.time);
       if (d.blocked) ctx.drawImage(RA.gfx.Icons.status('silence'), dx + dieS - 6, dy - 2, 8, 8);
@@ -1103,7 +1104,8 @@
         var icF = icDie ? c.faceOf(icDie) : null;
         if (icF) {
           var icLines = W2.descFace(icF).slice(0, 3);
-          var icTitle = RA.T(icF.name) + '  [' + c.dieValue(icDie) + ']';
+          var icHu0 = c.heroes[icDie.heroIdx];
+          var icTitle = RA.T(icF.name) + '  [' + c.dieValue(icDie) + ']' + (icHu0 && icHu0.faces.length > 6 ? '  D' + icHu0.faces.length : '');
           var icW = Math.min(w - 12, Math.max(F.measure(icTitle, 1, 1), 120) + 20);
           icLines.forEach(function (l2) { icW = Math.min(w - 12, Math.max(icW, F.measure(l2, 1, 1) + 20)); });
           var icH = 18 + icLines.length * 9;

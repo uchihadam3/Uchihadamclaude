@@ -127,7 +127,7 @@
       var bounce = Math.abs(Math.sin(k * Math.PI * 3)) * damp;
       jy = -bounce * s * 1.1;
       jx = Math.sin(time * 31 + x) * 2.2 * damp;
-      face = die.faces[anim.showFace % 6];
+      face = die.faces[anim.showFace % die.faces.length];
       squashY = 1 - bounce * 0.12;
       squashX = 1 + bounce * 0.1;
       // contato com a mesa: achata
@@ -161,6 +161,11 @@
     } else cube = drawCube(ctx, x + jx, y + jy, s, sk, squashX, squashY);
     if (anim.phase !== 'rolling' || true) {
       drawFaceContent(ctx, face, cube.fx, cube.fy, cube.fw, cube.fh, sk, die.used);
+    }
+
+    // selo de dado evoluído (D8/D10/D12)
+    if (die.sides && die.sides > 6 && anim.phase !== 'rolling') {
+      RA.gfx.Font.draw(ctx, 'D' + die.sides, cube.fx + 2, cube.fy + 2, { size: 1, color: '#ffd76a', shadow: 'rgba(0,0,0,0.8)' });
     }
 
     // aro de destaque (selecionado/raro)

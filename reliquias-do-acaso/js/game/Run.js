@@ -437,6 +437,24 @@
     return n;
   };
 
+  // ---- evolução de dado: d6 -> d8 -> d10 -> d12 ----
+  // Adiciona 2 lados novos (cópias das 2 primeiras faces do herói, que o
+  // jogador depois substitui por Faces Rúnicas para montar a build).
+  Run.prototype.upgradeCost = function (hero) {
+    var n = hero.faces.length;
+    if (n >= 12) return null;
+    return { 6: 40, 8: 65, 10: 95 }[n] || null;
+  };
+  Run.prototype.upgradeDie = function (heroIdx) {
+    var h = this.party[heroIdx];
+    if (!h || h.dead || h.faces.length >= 12) return false;
+    h.faces.push(Object.assign({}, h.faces[0]));
+    h.faces.push(Object.assign({}, h.faces[1] || h.faces[0]));
+    RA.game.Meta.emit({ t: 'dieUpgrade', sides: h.faces.length });
+    this.save();
+    return true;
+  };
+
   // aplica uma face rúnica num lado de um herói
   Run.prototype.applyFace = function (heroIdx, faceIdx, runeFace) {
     var h = this.party[heroIdx];
@@ -649,6 +667,14 @@
     this.party.forEach(function (h) { h.faces.forEach(function (f) { if (f.cracked) cracked = true; }); });
     if (cracked) stock.push({ kind: 'repair', cost: price(18) });
     stock.push({ kind: 'swapRow', cost: price(6) });
+    // evolução de dado: d6->d8->d10->d12 (custo pelo herói mais barato elegível)
+    var upMin = null;
+    this.party.forEach(function (hh) {
+      if (hh.dead) return;
+      var cc = r.upgradeCost(hh);
+      if (cc !== null && (upMin === null || cc < upMin)) upMin = cc;
+    });
+    if (upMin !== null) stock.push({ kind: 'upgradeDie', cost: price(upMin) });
     stock.push({ kind: 'mystery', cost: price(30) });
     if (!this.secretMapReady) stock.push({ kind: 'secretMap', cost: price(40) });
     return stock;
@@ -687,6 +713,17 @@
         var hIdx = extra || 0;
         var h = this.party[hIdx];
         if (h) h.row = h.row === 'front' ? 'back' : 'front';
+        break;
+      }
+      case 'upgradeDie': {
+        var hu = this.party[extra || 0];
+        if (!hu || !this.upgradeDie(extra || 0)) {
+          // herói inválido: devolve o ouro
+          this.gold += item.cost;
+          this.counters.goldSpent -= item.cost;
+          return { ok: false, reason: 'hero' };
+        }
+        result.msg = RA.T({ pt: 'Dado evoluiu para D' + hu.faces.length + '!', en: 'Die upgraded to D' + hu.faces.length + '!' });
         break;
       }
       case 'mystery': {

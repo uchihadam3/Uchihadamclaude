@@ -440,7 +440,7 @@
 
   Combat.prototype.rollDie = function (d, first) {
     var h = this.heroes[d.heroIdx];
-    d.faceIdx = this.rng.int(0, 5);
+    d.faceIdx = this.rng.int(0, h.faces.length - 1);
     d.bonus = 0; d.fake = -1;
     var face = h.faces[d.faceIdx];
     // relíquia: 1 vira 4 (oneToFour) — trata o "valor 1"
