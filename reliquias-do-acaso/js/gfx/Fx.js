@@ -38,6 +38,10 @@
         });
       }
     },
+    // anel de impacto expandindo
+    ring: function (x, y, color, maxR) {
+      parts.push({ x: x, y: y, vx: 0, vy: 0, g: 0, t: 0, life: 0.45, color: color || '#ffe9a0', size: 0, ring: true, maxR: maxR || 22 });
+    },
     slash: function (x, y, dir) {
       for (var i = 0; i < 6; i++) {
         parts.push({
@@ -83,13 +87,23 @@
       for (var j = 0; j < parts.length; j++) {
         var p = parts[j];
         ctx.globalAlpha = 1 - p.t / p.life;
-        ctx.fillStyle = p.color;
-        ctx.fillRect(Math.round(p.x), Math.round(p.y), Math.ceil(p.size), Math.ceil(p.size));
+        if (p.ring) {
+          var rr = (p.t / p.life) * p.maxR;
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = Math.max(1, 3 * (1 - p.t / p.life));
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(Math.round(p.x), Math.round(p.y), Math.ceil(p.size), Math.ceil(p.size));
+        }
       }
       ctx.globalAlpha = 1;
       for (var i = 0; i < floaters.length; i++) {
         var f = floaters[i];
-        var alpha = f.t < 0.7 ? 1 : 1 - (f.t - 0.7) / 0.4;
+        var alpha = f.t < 1.1 ? 1 : 1 - (f.t - 1.1) / 0.5;
         ctx.globalAlpha = alpha;
         RA.gfx.Font.draw(ctx, f.txt, Math.round(f.x), Math.round(f.y),
           { size: f.size, color: f.color, align: 'center', shadow: true });

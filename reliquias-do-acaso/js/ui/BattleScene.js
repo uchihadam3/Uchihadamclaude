@@ -216,44 +216,52 @@
   BattleScene.prototype.startTravel = function (opts) {
     this.travel = {
       vd: opts.vd, from: opts.from, to: opts.to,
-      phase: 'go', t: 0, released: false,
+      phase: 'announce', t: 0, announceT: 0, released: false,
       onImpact: opts.onImpact || null, dieIdx: opts.dieIdx,
+      label: opts.label || null,
       side: opts.side || 'hero', s: opts.s || 20,
       selfHop: Math.abs(opts.from.x - opts.to.x) < 8 && Math.abs(opts.from.y - opts.to.y) < 8
     };
-    RA.audio.sfx('reroll');
   };
 
   BattleScene.prototype.updateTravel = function (dt) {
     var tv = this.travel;
     if (!tv) return;
     var spd = (RA.core.Save.get().settings.animSpeed || 1);
-    if (tv.phase === 'go') {
-      tv.t += dt * (tv.selfHop ? 2.2 : 1.55) * spd;
+    if (tv.phase === 'announce') {
+      // pausa mostrando QUEM vai agir e O QUE vai fazer
+      tv.announceT += dt * spd;
+      if (tv.announceT >= 0.85) { tv.phase = 'go'; RA.audio.sfx('reroll'); }
+    } else if (tv.phase === 'go') {
+      tv.t += dt * (tv.selfHop ? 1.5 : 0.95) * spd;
       if (tv.t >= 1) {
         tv.t = 1; tv.phase = 'hold'; tv.holdT = 0;
         tv.released = true;
-        RA.gfx.Fx.shake(1);
+        RA.gfx.Fx.shake(1.2);
+        RA.gfx.Fx.ring(tv.to.x + tv.s / 2, tv.to.y + tv.s / 2, tv.side === 'hero' ? '#ffd76a' : '#ff6a7a', 24);
         if (tv.onImpact) { tv.onImpact(); tv.onImpact = null; }
       }
     } else if (tv.phase === 'hold') {
       tv.holdT += dt * spd;
-      if (tv.holdT >= 0.42) { tv.phase = 'back'; tv.t = 1; }
+      if (tv.holdT >= 0.8) { tv.phase = 'back'; tv.t = 1; }
     } else if (tv.phase === 'back') {
-      tv.t -= dt * 1.9 * spd;
-      if (tv.t <= 0) { this.travel = null; }
+      tv.t -= dt * 1.25 * spd;
+      if (tv.t <= 0) { this.travel = null; this.postDelay = 0.45; }
     }
   };
 
   BattleScene.prototype.travelPos = function (tv) {
-    var tt = easeOut(tv.phase === 'back' ? tv.t : tv.t);
+    if (tv.phase === 'announce') {
+      // dado pulsando na origem enquanto anuncia
+      var pu = 1 + Math.sin(tv.announceT * 10) * 0.08;
+      return { x: tv.from.x, y: tv.from.y - 4, s: tv.s * pu };
+    }
+    var tt = easeOut(tv.t);
     var x = tv.from.x + (tv.to.x - tv.from.x) * tt;
     var y = tv.from.y + (tv.to.y - tv.from.y) * tt;
-    // arco de voo
-    y -= Math.sin(tt * Math.PI) * (tv.selfHop ? 22 : 16);
-    // pop no impacto
+    y -= Math.sin(tt * Math.PI) * (tv.selfHop ? 24 : 18);
     var sc = 1;
-    if (tv.phase === 'hold') sc = 1.25 - Math.min(0.25, tv.holdT * 1.2);
+    if (tv.phase === 'hold') sc = 1.3 - Math.min(0.3, tv.holdT * 1.1);
     return { x: x, y: y, s: tv.s * sc };
   };
 
@@ -266,7 +274,8 @@
 
   BattleScene.prototype.stepResolution = function (dt, L) {
     var c = this.combat, self = this;
-    // espera o dado atual terminar a viagem e os efeitos tocarem
+    // espera o dado atual terminar a viagem, os efeitos tocarem e a pausa entre ações
+    if (this.postDelay > 0) { this.postDelay -= dt; return; }
     if (this.travel || this.evQueue.length || c.pendingChoice || this.pauseT > 0) return;
     this.actingHero = -1;
     if (!this.resolveSteps.length) {
@@ -288,6 +297,7 @@
     var face = c.faceOf(d);
     this.startTravel({
       s: 22, side: 'hero', dieIdx: a.die,
+      label: RA.T(hu.name) + ': ' + RA.T(face.name) + ' [' + c.dieValue(d) + ']',
       vd: { skin: hu.skin, anim: { phase: 'idle', t: 0 }, resultFace: Object.assign({}, face, { val: c.dieValue(d) }), faces: hu.faces, used: false, locked: false, highlight: true },
       from: from, to: to,
       onImpact: function () {
@@ -321,14 +331,15 @@
       case 'dmg':
         if (e.n > 0) {
           Fx.floater(px, py - 8, '-' + e.n, e.side === 'hero' ? '#ff6a7a' : '#ffe9a0', e.n >= 4 ? 2 : 1);
-          Fx.burst(px, py, e.tag === 'poison' ? 'poison' : e.tag === 'burn' ? 'fire' : e.tag === 'magic' ? 'bolt' : e.tag === 'curse' ? 'curse' : 'hit', e.n >= 5 ? 16 : 9);
+          Fx.burst(px, py, e.tag === 'poison' ? 'poison' : e.tag === 'burn' ? 'fire' : e.tag === 'magic' ? 'bolt' : e.tag === 'curse' ? 'curse' : 'hit', e.n >= 5 ? 18 : 11);
+          Fx.ring(px, py, e.tag === 'poison' ? '#6ec83c' : e.tag === 'magic' ? '#8a4ae8' : '#ffd76a', e.n >= 5 ? 28 : 18);
           Fx.shake(e.n >= 6 ? 3.4 : 1.4);
           if (e.n >= 6) this.pauseT = 0.09; // hit-pause nos golpes fortes
           sfx(e.tag === 'poison' ? 'poison' : e.tag === 'burn' ? 'fire' : e.tag === 'magic' ? 'bolt' : e.tag === 'curse' ? 'curse' : (e.n >= 6 ? 'crit' : 'hit'));
           this.flash = { side: e.side, idx: e.idx, t: 0.22 };
         } else Fx.floater(px, py - 8, RA.T({ pt: 'BLOQ', en: 'BLOCK' }), '#8a94a8');
         break;
-      case 'heal': Fx.floater(px, py - 8, '+' + e.n, '#6ee89a', e.n >= 4 ? 2 : 1); Fx.burst(px, py, 'heal', 8); sfx('heal'); break;
+      case 'heal': Fx.floater(px, py - 8, '+' + e.n, '#6ee89a', e.n >= 4 ? 2 : 1); Fx.burst(px, py, 'heal', 10); Fx.ring(px, py, '#6ee89a', 20); sfx('heal'); break;
       case 'shield': Fx.floater(px, py - 8, '+' + e.n + '⛨', '#a8c4e8'); Fx.burst(px, py, 'shield', 6); sfx('shield'); break;
       case 'shieldHit': sfx('block'); break;
       case 'status': {
@@ -346,12 +357,20 @@
       case 'blackRule': this.showBanner(RA.UI('newRule') + ' ' + (e.name ? RA.T(e.name) : ''), '#c8b8e8', true); Fx.shake(2); sfx('bossPhase'); break;
       case 'bossPhase': Fx.shake(4); this.pauseT = 0.1; sfx('bossPhase'); break;
       case 'roll': {
+        // arremesso real: cada dado sai do alto da mesa, quica e assenta
         var self2 = this;
+        this.throwFrom = this.throwFrom || {};
+        var z2 = L.diceZone;
+        var ri2 = 0;
         this.combat.dice.forEach(function (d) {
-          if (e.ids.indexOf(d.id) >= 0) d.anim = { phase: 'rolling', t: 0, showFace: 0 };
+          if (e.ids.indexOf(d.id) >= 0) {
+            d.anim = { phase: 'rolling', t: 0, showFace: 0, dur: 0.75 + ri2 * 0.14, spin: 5 + Math.random() * 6 };
+            self2.throwFrom[d.id] = { x: z2.x + z2.w * (0.3 + Math.random() * 0.4), y: z2.y - 26 };
+            ri2++;
+          }
         });
         this.scatterDice(L);
-        this.rollT = 0.55;
+        this.rollT = 0.8 + ri2 * 0.14;
         sfx('diceRoll');
         break;
       }
@@ -390,8 +409,10 @@
           }
           var from2 = { x: ep2.x + 4, y: ep2.y + 3 };
           var to2 = dest ? { x: dest.x - 9, y: dest.y - 10 } : { x: from2.x, y: from2.y };
+          var en2 = this.combat.enemies[e.idx];
           this.startTravel({
             s: 18, side: 'enemy',
+            label: (en2 ? RA.T(en2.name) : '') + ': ' + intentText(e.intent),
             vd: { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(e.intent), val: e.intent.n || 0 }, faces: EFAKES, used: false, locked: false, highlight: true },
             from: from2, to: to2
           });
@@ -417,15 +438,17 @@
     if (this.flash) { this.flash.t -= dt; if (this.flash.t <= 0) this.flash = null; }
     if (this.pauseT > 0) { this.pauseT -= dt; return; } // hit-pause congela tudo
 
-    // dados dos heróis rolando
+    // dados dos heróis rolando (cada um tem sua própria duração de arremesso)
     if (this.rollT > 0) {
       this.rollT -= dt * anim;
       var self = this;
       c.dice.forEach(function (d) {
         if (d.anim.phase === 'rolling') {
-          d.anim.t += dt;
-          d.anim.showFace = Math.floor(self.time * 14) % 6;
-          if (self.rollT <= 0) { d.anim = { phase: 'landing', t: 0 }; RA.audio.sfx('diceHit'); }
+          d.anim.t += dt * anim;
+          var k = Math.min(1, d.anim.t / (d.anim.dur || 0.8));
+          // a face gira rápido e desacelera até parar na final
+          d.anim.showFace = Math.floor(d.anim.t * (16 - 12 * k));
+          if (d.anim.t >= (d.anim.dur || 0.8)) { d.anim = { phase: 'landing', t: 0 }; RA.audio.sfx('diceHit'); }
         }
       });
     }
@@ -442,11 +465,15 @@
     // viagem do dado (ida -> impacto -> volta)
     this.updateTravel(dt);
 
-    // fila de eventos com ritmo (pausa enquanto um dado está voando ao alvo)
+    // fila de eventos com ritmo (pausa enquanto um dado está voando ao alvo;
+    // uma nova ação inimiga só começa depois da anterior TERMINAR + pausa)
+    if (this.postDelay > 0 && !this.resolving) this.postDelay -= dt;
     this.evDelay -= dt * anim;
     var guard = 0;
     while (this.evQueue.length && this.evDelay <= 0 && this.pauseT <= 0 &&
            (!this.travel || this.travel.released) && guard++ < 30) {
+      var nx = this.evQueue[0];
+      if (nx.t === 'enemyAct' && (this.travel || (this.postDelay > 0 && !this.resolving))) break;
       var e = this.evQueue.shift();
       this.playEvent(e, L);
       this.evDelay = (SLOW[e.t] || 0.07) / anim;
@@ -509,6 +536,8 @@
         var r = self4.dieRect(i, L);
         if (r && W2.inRect(tp.x, tp.y, r)) {
           var d = c.dice[i];
+          // todo toque num dado mostra o cartão explicando a face
+          self4.infoCard = { die: i, t: 3.2 };
           if (!d.used && !d.blocked && !d.assignedView) {
             c.toggleLock(i);
             if (!d.locked) self4.scatterDice(L);
@@ -536,7 +565,10 @@
         var r2 = this.dieRect(i2, L);
         if (r2 && W2.inRect(p.startX, p.startY, r2)) {
           var d2 = c.dice[i2];
-          if (!d2.used && !d2.blocked && !d2.assignedView) input.startDrag({ die: i2 });
+          if (!d2.used && !d2.blocked && !d2.assignedView) {
+            input.startDrag({ die: i2 });
+            this.infoCard = { die: i2, t: 3.2 };
+          }
           break;
         }
       }
@@ -865,6 +897,13 @@
         if (!sc) { this.scatterDice(L); sc = this.scatter[d.id]; }
         if (!sc) continue;
         dx = sc.x; dy = sc.y;
+        // durante o arremesso: voa do alto até o ponto de pouso
+        if (d.anim.phase === 'rolling' && this.throwFrom && this.throwFrom[d.id]) {
+          var tf = this.throwFrom[d.id];
+          var kk = easeOut(Math.min(1, d.anim.t / (d.anim.dur || 0.8)));
+          dx = tf.x + (sc.x - tf.x) * kk;
+          dy = tf.y + (sc.y - tf.y) * kk;
+        }
       }
       var face = c.faceOf(d);
       var shown = face;
@@ -905,16 +944,58 @@
       }
       var tp = this.travelPos(tv);
       // rastro
-      tv.trail = tv.trail || [];
-      tv.trail.push({ x: tp.x + tp.s / 2, y: tp.y + tp.s / 2, t: this.time });
-      if (tv.trail.length > 10) tv.trail.shift();
-      for (var ti2 = 0; ti2 < tv.trail.length; ti2++) {
-        var tr = tv.trail[ti2];
-        ctx.fillStyle = col + (0.08 + 0.03 * ti2) + ')';
-        var rs = 2 + ti2 * 0.5;
-        ctx.fillRect(tr.x - rs / 2, tr.y - rs / 2, rs, rs);
+      if (tv.phase !== 'announce') {
+        tv.trail = tv.trail || [];
+        tv.trail.push({ x: tp.x + tp.s / 2, y: tp.y + tp.s / 2, t: this.time });
+        if (tv.trail.length > 10) tv.trail.shift();
+        for (var ti2 = 0; ti2 < tv.trail.length; ti2++) {
+          var tr = tv.trail[ti2];
+          ctx.fillStyle = col + (0.08 + 0.03 * ti2) + ')';
+          var rs = 2 + ti2 * 0.5;
+          ctx.fillRect(tr.x - rs / 2, tr.y - rs / 2, rs, rs);
+        }
       }
       RA.gfx.Dice.draw(ctx, tv.vd, tp.x, tp.y, tp.s, this.time);
+      // rótulo de anúncio: QUEM está agindo e O QUE vai fazer
+      if (tv.label && (tv.phase === 'announce' || tv.phase === 'go')) {
+        var lbl = tv.label.slice(0, Math.floor((w - 20) / 6));
+        var lw = F.measure(lbl, 1, 1) + 16;
+        var lx = Math.max(4, Math.min(tp.x + tp.s / 2 - lw / 2, w - lw - 4));
+        var ly = Math.max(16, tp.y - 22);
+        var la = tv.phase === 'announce' ? Math.min(1, tv.announceT * 5) : 1;
+        ctx.globalAlpha = la;
+        W2.panel(ctx, lx, ly, lw, 14, { edge: tv.side === 'hero' ? '#ffd76a' : '#ff6a7a' });
+        F.draw(ctx, lbl, lx + lw / 2, ly + 4, { size: 1, color: tv.side === 'hero' ? '#ffe9a0' : '#ff9aaa', align: 'center' });
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // cartão de informação: o que a face tocada faz
+    if (this.infoCard) {
+      this.infoCard.t -= 1 / 60;
+      if (this.infoCard.t <= 0) this.infoCard = null;
+      else {
+        var icDie = c.dice[this.infoCard.die];
+        var icF = icDie ? c.faceOf(icDie) : null;
+        if (icF) {
+          var icLines = W2.descFace(icF).slice(0, 3);
+          var icTitle = RA.T(icF.name) + '  [' + c.dieValue(icDie) + ']';
+          var icW = Math.min(w - 12, Math.max(F.measure(icTitle, 1, 1), 120) + 20);
+          icLines.forEach(function (l2) { icW = Math.min(w - 12, Math.max(icW, F.measure(l2, 1, 1) + 20)); });
+          var icH = 18 + icLines.length * 9;
+          var icX = (w - icW) / 2, icY = 18;
+          var icA = Math.min(1, this.infoCard.t * 3);
+          ctx.globalAlpha = icA;
+          var icHu = c.heroes[icDie.heroIdx];
+          W2.panel(ctx, icX, icY, icW, icH, { edge: icHu ? RA.gfx.Dice.skin(icHu.skin).rim : '#8a6e2e' });
+          if (icHu) ctx.drawImage(RA.gfx.Portraits.get(icHu.id), icX + 4, icY + 3, 12, 12);
+          F.draw(ctx, icTitle, icX + 20, icY + 4, { size: 1, color: '#ffe9a0' });
+          icLines.forEach(function (l2, li2) {
+            F.draw(ctx, l2, icX + 8, icY + 15 + li2 * 9, { size: 1, color: '#c8c2d4' });
+          });
+          ctx.globalAlpha = 1;
+        }
+      }
     }
 
     Fx.render(ctx);

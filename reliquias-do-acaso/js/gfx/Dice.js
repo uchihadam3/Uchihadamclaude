@@ -113,29 +113,52 @@
   function draw(ctx, die, x, y, s, time) {
     var sk = skin(die.skin);
     var anim = die.anim || { phase: 'idle', t: 0 };
-    var jx = 0, jy = 0, squashX = 1, squashY = 1;
+    var jx = 0, jy = 0, squashX = 1, squashY = 1, rot = 0;
     var face = die.resultFace;
 
     if (anim.phase === 'rolling') {
-      jx = Math.sin(time * 37 + x) * 2.2;
-      jy = Math.cos(time * 43 + y) * 2 - Math.abs(Math.sin(time * 11)) * 5;
+      // dado arremessado de verdade: gira dando cambalhotas, quica na mesa
+      // (quiques decrescentes) e a rotação amortece até assentar
+      var dur = anim.dur || 0.9;
+      var k = Math.min(1, anim.t / dur);            // 0..1 do arremesso
+      var damp = (1 - k) * (1 - k);                  // amortecimento
+      rot = (anim.spin || 9) * (1 - Math.pow(1 - k, 3)) + damp * Math.sin(time * 40) * 0.15;
+      // quiques: 3 arcos decrescentes
+      var bounce = Math.abs(Math.sin(k * Math.PI * 3)) * damp;
+      jy = -bounce * s * 1.1;
+      jx = Math.sin(time * 31 + x) * 2.2 * damp;
       face = die.faces[anim.showFace % 6];
-      squashY = 1 + Math.sin(time * 31) * 0.06;
-      squashX = 1 - Math.sin(time * 31) * 0.04;
+      squashY = 1 - bounce * 0.12;
+      squashX = 1 + bounce * 0.1;
+      // contato com a mesa: achata
+      if (bounce < 0.08 && k < 0.97) { squashY = 0.82; squashX = 1.16; }
     } else if (anim.phase === 'landing') {
       var lt = Math.min(1, anim.t * 5);
       squashY = lt < 0.5 ? 1 - (0.5 - lt) * 0.5 : 1 + Math.sin((lt - 0.5) * Math.PI) * 0.08 * (1 - lt);
       squashX = 2 - squashY;
+      rot = (1 - lt) * 0.2;
     }
 
-    // sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    // sombra (encolhe quando o dado está no alto do quique)
+    var air = Math.min(1, -jy / (s || 1));
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.4 - air * 0.22) + ')';
     ctx.beginPath();
-    var shadowW = s * 0.55 * (anim.phase === 'rolling' ? 0.8 : 1);
-    ctx.ellipse(x + s / 2 + jx * 0.3, y + s + 3, shadowW, s * 0.14, 0, 0, Math.PI * 2);
+    var shadowW = s * 0.55 * (1 - air * 0.35);
+    ctx.ellipse(x + s / 2 + jx * 0.3, y + s + 3, Math.max(2, shadowW), s * 0.14, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    var cube = drawCube(ctx, x + jx, y + jy, s, sk, squashX, squashY);
+    var cube;
+    if (rot) {
+      ctx.save();
+      ctx.translate(x + jx + s / 2, y + jy + s / 2);
+      ctx.rotate(rot);
+      cube = drawCube(ctx, -s / 2, -s / 2, s, sk, squashX, squashY);
+      if (anim.phase === 'rolling') drawFaceContent(ctx, face, cube.fx, cube.fy, cube.fw, cube.fh, sk, die.used);
+      ctx.restore();
+      if (anim.phase === 'rolling') return { fx: x, fy: y, fw: s, fh: s, d: 0 };
+      // landing: recalcula sem rotação p/ conteúdo estável
+      cube = drawCube(ctx, x + jx, y + jy, s, sk, squashX, squashY);
+    } else cube = drawCube(ctx, x + jx, y + jy, s, sk, squashX, squashY);
     if (anim.phase !== 'rolling' || true) {
       drawFaceContent(ctx, face, cube.fx, cube.fy, cube.fw, cube.fh, sk, die.used);
     }
