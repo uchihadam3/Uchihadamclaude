@@ -124,19 +124,22 @@
       F.draw(ctx, RA.T({ pt: mdef.unlock.pt, en: mdef.unlock.en }), w / 2, dy + 20, { size: 1, color: '#e8a04a', align: 'center' });
     }
     dy += 30;
-    // dificuldade
+    // dificuldade (2x2 em telas estreitas para nunca sobrepor)
     F.draw(ctx, RA.UI('chooseDifficulty'), w / 2, dy, { size: 1, color: '#ffe9a0', align: 'center' });
     dy += 12;
-    var dws = Math.min(70, (w - 20) / 4);
+    var narrow = w < 330;
+    var dcols = narrow ? 2 : 4;
+    var dws = Math.min(78, (w - 16) / dcols);
     RA.data.Difficulties.forEach(function (d, i) {
       var unlocked = !d.unlock || d.unlock(p);
-      var x = w / 2 - dws * 2 + i * dws + 2;
-      var b = { x: x, y: dy, w: dws - 4, h: 16, small: true, disabled: !unlocked, glow: self.diff === d.id,
+      var col = i % dcols, row = Math.floor(i / dcols);
+      var x = w / 2 - dws * dcols / 2 + col * dws + 2;
+      var b = { x: x, y: dy + row * 20, w: dws - 4, h: 16, small: true, disabled: !unlocked, glow: self.diff === d.id,
         label: RA.T(d.name), fn: function () { self.diff = d.id; if (d.id !== 'veterano') self.curse = 0; } };
       W().btn(ctx, b, self.time);
       self.buttons.push(b);
     });
-    dy += 20;
+    dy += (narrow ? 44 : 20);
     // maldição (se veterano vencido)
     if ((p.stats.bestDifficulty | 0) >= 3 && this.diff === 'veterano') {
       var bm = { x: w / 2 - 70, y: dy, w: 20, h: 14, small: true, label: '-', fn: function () { self.curse = Math.max(0, self.curse - 1); } };
@@ -150,10 +153,11 @@
       }
       dy += 28;
     }
-    // avançar / voltar
-    var bn = { x: w / 2 + 6, y: h - 28, w: 100, h: 22, label: RA.UI('next'), glow: true, disabled: !RA.game.Meta.isModeUnlocked(mdef),
+    // avançar / voltar (largura adaptativa, sem sobreposição)
+    var bwm = Math.min(100, Math.floor((w - 24) / 2));
+    var bn = { x: w / 2 + 4, y: h - 28, w: bwm, h: 22, label: RA.UI('next'), glow: true, disabled: !RA.game.Meta.isModeUnlocked(mdef),
       fn: function () { Sc().replace(new HeroSelectScene({ modeId: self.sel, diffId: self.diff, curse: self.curse })); } };
-    var bb = { x: w / 2 - 106, y: h - 28, w: 100, h: 22, label: RA.UI('back'), fn: function () { Sc().replace(new MainMenuScene()); } };
+    var bb = { x: w / 2 - 4 - bwm, y: h - 28, w: bwm, h: 22, label: RA.UI('back'), fn: function () { Sc().replace(new MainMenuScene()); } };
     W().btn(ctx, bn, this.time); W().btn(ctx, bb, this.time);
     this.buttons.push(bn, bb);
     W().renderToasts(ctx, w);
@@ -267,16 +271,16 @@
         self.tipRects.push({ x: x - 4, y: y - 4, w: 56, h: 74, title: tip.title, lines: tip.lines });
       });
     } else {
-      // grade completa
+      // grade completa (célula 42px para o nome nunca sobrepor)
       var all = RA.data.Heroes.list;
-      var cols = Math.max(5, Math.floor((w - 16) / 34));
+      var cols = Math.max(4, Math.floor((w - 12) / 42));
       var perPage = cols * 3;
       var pages = Math.ceil(all.length / perPage);
       var list = all.slice(this.page * perPage, this.page * perPage + perPage);
-      var gx0 = w / 2 - cols * 34 / 2;
+      var gx0 = w / 2 - cols * 42 / 2;
       list.forEach(function (def, i) {
         var col = i % cols, row = Math.floor(i / cols);
-        var x = gx0 + col * 34 + 3, y = 24 + row * 40;
+        var x = gx0 + col * 42 + 7, y = 24 + row * 42;
         var unlocked = self.unlocked.indexOf(def.id) >= 0;
         var pickedIdx = self.picked.indexOf(def.id);
         if (pickedIdx >= 0) {
@@ -288,7 +292,7 @@
         ctx.drawImage(RA.gfx.Portraits.get(def.id), x, y, 28, 28);
         ctx.globalAlpha = 1;
         if (!unlocked) F.draw(ctx, '?', x + 14, y + 10, { size: 1, color: '#8a94a8', align: 'center' });
-        F.draw(ctx, RA.T(def.name).slice(0, 7), x + 14, y + 30, { size: 1, color: pickedIdx >= 0 ? '#ffd76a' : '#8a94a8', align: 'center' });
+        F.draw(ctx, RA.T(def.name).slice(0, 6), x + 14, y + 31, { size: 1, color: pickedIdx >= 0 ? '#ffd76a' : '#8a94a8', align: 'center' });
         if (unlocked) {
           var b = { x: x - 2, y: y - 2, w: 32, h: 38, label: '', fn: function () {
             var ix = self.picked.indexOf(def.id);
@@ -301,12 +305,14 @@
         }
       });
       if (pages > 1) {
-        var pg2 = { x: w / 2 - 16, y: 24 + 3 * 40 + 2, w: 32, h: 14, small: true, label: (this.page + 1) + '/' + pages, fn: function () { self.page = (self.page + 1) % pages; } };
+        var pg2 = { x: w / 2 - 16, y: 24 + 3 * 42 + 2, w: 32, h: 14, small: true, label: (this.page + 1) + '/' + pages, fn: function () { self.page = (self.page + 1) % pages; } };
         W().btn(ctx, pg2, this.time);
         this.buttons.push(pg2);
       }
+      // três botões com largura adaptativa (nunca sobrepõem)
       var by2 = h - 28;
-      var br = { x: 8, y: by2, w: 86, h: 22, small: true, label: RA.T({ pt: 'ALEATÓRIO', en: 'RANDOM' }), fn: function () {
+      var tbw = Math.floor((w - 28) / 3);
+      var br = { x: 6, y: by2, w: tbw, h: 22, small: true, label: RA.T({ pt: 'SORTE', en: 'RANDOM' }), fn: function () {
         self.picked = [];
         var rng = new RA.core.Rng(Date.now() & 0xffffff);
         var pool = self.unlocked.slice();
@@ -317,8 +323,8 @@
         }
         self.start(true);
       } };
-      var bs2 = { x: w - 94, y: by2, w: 86, h: 22, label: RA.UI('start'), glow: true, disabled: this.picked.length !== this.size, fn: function () { self.start(false); } };
-      var bb2 = { x: w / 2 - 43, y: by2, w: 86, h: 22, small: true, label: RA.UI('back'), fn: function () { Sc().replace(new ModeSelectScene()); } };
+      var bs2 = { x: w - tbw - 6, y: by2, w: tbw, h: 22, small: true, label: RA.UI('start'), glow: true, disabled: this.picked.length !== this.size, fn: function () { self.start(false); } };
+      var bb2 = { x: w / 2 - tbw / 2, y: by2, w: tbw, h: 22, small: true, label: RA.UI('back'), fn: function () { Sc().replace(new ModeSelectScene()); } };
       W().btn(ctx, br, this.time); W().btn(ctx, bs2, this.time); W().btn(ctx, bb2, this.time);
       this.buttons.push(br, bs2, bb2);
     }
