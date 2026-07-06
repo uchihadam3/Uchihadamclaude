@@ -37,7 +37,7 @@
     this.assignments = [];       // {die, target:{side,idx}}
     this.resolving = false;
     this.resolveSteps = [];
-    this.activeStep = null;      // {die, target, t, from:{x,y}, to:{x,y}}
+    this.travel = null;          // dado em voo (ida/impacto/volta)
     this.actingHero = -1;
     this.eDice = {};             // slot -> {anim:{phase,t}, delay}
     this.region = this.run.region().id;
@@ -210,8 +210,54 @@
   };
 
   // ============================ resolução encenada ============================
+  // travel: um dado viaja do dono até o alvo, IMPACTA (efeitos disparam ali),
+  // segura um instante e volta. Usado pelos heróis E pelos inimigos.
+  // {vd, from, to, phase:'go'|'hold'|'back', t, released, onImpact, hero, side}
+  BattleScene.prototype.startTravel = function (opts) {
+    this.travel = {
+      vd: opts.vd, from: opts.from, to: opts.to,
+      phase: 'go', t: 0, released: false,
+      onImpact: opts.onImpact || null, dieIdx: opts.dieIdx,
+      side: opts.side || 'hero', s: opts.s || 20,
+      selfHop: Math.abs(opts.from.x - opts.to.x) < 8 && Math.abs(opts.from.y - opts.to.y) < 8
+    };
+    RA.audio.sfx('reroll');
+  };
+
+  BattleScene.prototype.updateTravel = function (dt) {
+    var tv = this.travel;
+    if (!tv) return;
+    var spd = (RA.core.Save.get().settings.animSpeed || 1);
+    if (tv.phase === 'go') {
+      tv.t += dt * (tv.selfHop ? 2.2 : 1.55) * spd;
+      if (tv.t >= 1) {
+        tv.t = 1; tv.phase = 'hold'; tv.holdT = 0;
+        tv.released = true;
+        RA.gfx.Fx.shake(1);
+        if (tv.onImpact) { tv.onImpact(); tv.onImpact = null; }
+      }
+    } else if (tv.phase === 'hold') {
+      tv.holdT += dt * spd;
+      if (tv.holdT >= 0.42) { tv.phase = 'back'; tv.t = 1; }
+    } else if (tv.phase === 'back') {
+      tv.t -= dt * 1.9 * spd;
+      if (tv.t <= 0) { this.travel = null; }
+    }
+  };
+
+  BattleScene.prototype.travelPos = function (tv) {
+    var tt = easeOut(tv.phase === 'back' ? tv.t : tv.t);
+    var x = tv.from.x + (tv.to.x - tv.from.x) * tt;
+    var y = tv.from.y + (tv.to.y - tv.from.y) * tt;
+    // arco de voo
+    y -= Math.sin(tt * Math.PI) * (tv.selfHop ? 22 : 16);
+    // pop no impacto
+    var sc = 1;
+    if (tv.phase === 'hold') sc = 1.25 - Math.min(0.25, tv.holdT * 1.2);
+    return { x: x, y: y, s: tv.s * sc };
+  };
+
   BattleScene.prototype.startResolution = function (L) {
-    var self = this;
     this.resolving = true;
     this.resolveSteps = this.assignments.slice();
     this.assignments = [];
@@ -219,26 +265,11 @@
   };
 
   BattleScene.prototype.stepResolution = function (dt, L) {
-    var c = this.combat;
-    if (this.activeStep) {
-      var st = this.activeStep;
-      st.t += dt * 3.2 * (RA.core.Save.get().settings.animSpeed || 1);
-      if (st.t >= 1 && !st.fired) {
-        st.fired = true;
-        var d = c.dice[st.die];
-        d.locked = false; d.assignedView = false;
-        var res = c.useDie(st.die, st.target);
-        if (!res.ok && res.reason && typeof res.reason === 'string') this.logLine = res.reason;
-        this.drainEvents();
-        this.actingHero = -1;
-        this.activeStep = null;
-      }
-      return;
-    }
-    // espera os efeitos do passo anterior terminarem de tocar
-    if (this.evQueue.length || c.pendingChoice || this.pauseT > 0) return;
+    var c = this.combat, self = this;
+    // espera o dado atual terminar a viagem e os efeitos tocarem
+    if (this.travel || this.evQueue.length || c.pendingChoice || this.pauseT > 0) return;
+    this.actingHero = -1;
     if (!this.resolveSteps.length) {
-      // heróis terminaram: fase inimiga (um por um via eventos enemyAct)
       this.resolving = false;
       this.showBanner(RA.UI('enemyTurn'), '#ff6a7a', true);
       c.endTurn();
@@ -247,15 +278,25 @@
     }
     var a = this.resolveSteps.shift();
     var d = c.dice[a.die];
-    if (!d || d.used) { return; }
+    if (!d || d.used) return;
     this.actingHero = d.heroIdx;
-    // origem: posição atribuída (aprox: painel do alvo) / destino: centro do alvo
-    var from = { x: L.diceZone.x + L.diceZone.w / 2 - 9, y: L.diceZone.y + 8 };
-    var p = a.target ? (a.target.side === 'enemy' ? L.enemyPanels[a.target.idx] : L.heroPanels[a.target.idx]) : null;
+    var hu = c.heroes[d.heroIdx];
     var hp = L.heroPanels[d.heroIdx];
-    if (hp) from = { x: hp.x + hp.w / 2, y: hp.y };
-    var to = p ? { x: p.x + p.w / 2 - 9, y: p.y + p.h / 2 - 9 } : { x: L.diceZone.x + L.diceZone.w / 2 - 9, y: L.diceZone.y + L.diceZone.h / 2 - 9 };
-    this.activeStep = { die: a.die, target: a.target, t: 0, from: from, to: to, fired: false };
+    var p = a.target ? (a.target.side === 'enemy' ? L.enemyPanels[a.target.idx] : L.heroPanels[a.target.idx]) : null;
+    var from = hp ? { x: hp.x + hp.w - 26, y: hp.y + 2 } : { x: L.w / 2, y: L.h / 2 };
+    var to = p ? { x: p.x + p.w / 2 - 10, y: p.y + p.h / 2 - 12 } : { x: L.diceZone.x + L.diceZone.w / 2 - 10, y: L.diceZone.y + L.diceZone.h / 2 - 10 };
+    var face = c.faceOf(d);
+    this.startTravel({
+      s: 22, side: 'hero', dieIdx: a.die,
+      vd: { skin: hu.skin, anim: { phase: 'idle', t: 0 }, resultFace: Object.assign({}, face, { val: c.dieValue(d) }), faces: hu.faces, used: false, locked: false, highlight: true },
+      from: from, to: to,
+      onImpact: function () {
+        d.locked = false; d.assignedView = false;
+        var res = c.useDie(a.die, a.target);
+        if (!res.ok && res.reason && typeof res.reason === 'string') self.logLine = res.reason;
+        self.drainEvents();
+      }
+    });
   };
 
   // ============================ eventos ============================
@@ -335,7 +376,28 @@
       case 'log': this.logLine = e.msg; break;
       case 'crack': sfx('crack'); Fx.floater(px, py - 8, RA.UI('crackedSide'), '#e8a04a'); break;
       case 'deny': if (e.reason && typeof e.reason === 'string') this.logLine = e.reason; break;
-      case 'enemyAct': this.actingEnemy = { idx: e.idx, t: 0.55 }; break;
+      case 'enemyAct': {
+        this.actingEnemy = { idx: e.idx, t: 0.6 };
+        // o dado preto do inimigo viaja até o alvo da ação
+        var ep2 = L.enemyPanels[e.idx];
+        if (ep2 && e.intent) {
+          // destino: primeiro evento posicional que esta ação vai gerar
+          var dest = null;
+          for (var qi = 0; qi < this.evQueue.length; qi++) {
+            var qe = this.evQueue[qi];
+            if (qe.t === 'enemyAct' || qe.t === 'phase' || qe.t === 'turnStart') break;
+            if (qe.side !== undefined && qe.idx !== undefined) { dest = this.unitCenter(qe.side, qe.idx, L); break; }
+          }
+          var from2 = { x: ep2.x + 4, y: ep2.y + 3 };
+          var to2 = dest ? { x: dest.x - 9, y: dest.y - 10 } : { x: from2.x, y: from2.y };
+          this.startTravel({
+            s: 18, side: 'enemy',
+            vd: { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(e.intent), val: e.intent.n || 0 }, faces: EFAKES, used: false, locked: false, highlight: true },
+            from: from2, to: to2
+          });
+        }
+        break;
+      }
       case 'battleEnd': this.battleOver = true; break;
     }
   };
@@ -377,10 +439,14 @@
     }
     if (this.actingEnemy) { this.actingEnemy.t -= dt; if (this.actingEnemy.t <= 0) this.actingEnemy = null; }
 
-    // fila de eventos com ritmo
+    // viagem do dado (ida -> impacto -> volta)
+    this.updateTravel(dt);
+
+    // fila de eventos com ritmo (pausa enquanto um dado está voando ao alvo)
     this.evDelay -= dt * anim;
     var guard = 0;
-    while (this.evQueue.length && this.evDelay <= 0 && this.pauseT <= 0 && guard++ < 30) {
+    while (this.evQueue.length && this.evDelay <= 0 && this.pauseT <= 0 &&
+           (!this.travel || this.travel.released) && guard++ < 30) {
       var e = this.evQueue.shift();
       this.playEvent(e, L);
       this.evDelay = (SLOW[e.t] || 0.07) / anim;
@@ -389,7 +455,7 @@
     W2.updateToasts(dt);
 
     // resolução encenada dos dados atribuídos
-    if (this.resolving || this.activeStep) this.stepResolution(dt, L);
+    if (this.resolving) this.stepResolution(dt, L);
 
     if (this.battleOver && !this.evQueue.length && !this.finishing) {
       this.finishing = true;
@@ -428,7 +494,7 @@
       return;
     }
     // sem input durante resolução/fase inimiga
-    if (c.over || c.phase !== 'player' || this.resolving || this.activeStep || this.evQueue.length > 4) return;
+    if (c.over || c.phase !== 'player' || this.resolving || this.travel || this.evQueue.length > 4) return;
 
     events.taps.forEach(function (tp) {
       // dado atribuído: tap desfaz
@@ -682,9 +748,10 @@
     }
     var ss = Math.min(p.h - 2, boss ? 30 : 20);
     var frame = Math.floor(this.time * 2 + e.slot) % 2;
-    var spr = RA.gfx.EnemySprites.get(e.def.arch, e.def.region || this.region, ss, e.def.decor, frame);
+    // sprite pintado a 2x e reduzido: mais definição no backing store 2x
+    var spr = RA.gfx.EnemySprites.get(e.def.arch, e.def.region || this.region, ss * 2, e.def.decor, frame);
     var lunge = acting ? -Math.sin(this.actingEnemy.t * 18) * 5 : 0;
-    ctx.drawImage(spr, Math.round(x + p.w - ss - 2 + lunge), y + Math.floor((p.h - ss) / 2) + Math.round(Math.sin(this.time * 2.4 + e.slot) * 1));
+    ctx.drawImage(spr, Math.round(x + p.w - ss - 2 + lunge), y + Math.floor((p.h - ss) / 2) + Math.round(Math.sin(this.time * 2.4 + e.slot) * 1), ss, ss);
     var tx = x + eds + 12;
     F.draw(ctx, RA.T(e.name).slice(0, Math.max(5, Math.floor((p.w - ss - eds - 14) / 6))), tx, y + 2, { size: 1, color: boss ? '#ffd76a' : '#c8c2d4' });
     var hideHp = e.bflags && e.bflags.hideHp;
@@ -758,7 +825,7 @@
     ctx.fillRect(0, L.barY, w, L.barH);
     ctx.strokeStyle = '#38323f';
     ctx.beginPath(); ctx.moveTo(0, L.barY + 0.5); ctx.lineTo(w, L.barY + 0.5); ctx.stroke();
-    var busy = this.resolving || !!this.activeStep;
+    var busy = this.resolving || !!this.travel;
     L.btnReroll.label = RA.UI('reroll') + ' x' + c.rollsLeft;
     L.btnReroll.disabled = busy || c.rollsLeft <= 0 || c.tflags.diceUsed > 0 || c.phase !== 'player';
     W2.btn(ctx, L.btnReroll, this.time);
@@ -784,17 +851,13 @@
       var hu2 = c.heroes[d.heroIdx];
       if (!hu2) continue;
       var ai2 = this.assignIdxAt(i);
-      var stepping = this.activeStep && this.activeStep.die === i && !this.activeStep.fired;
-      var inSlot = !stepping && ai2 < 0 && (d.used || d.sacrificed || d.locked || d.blocked);
+      var stepping = this.travel && this.travel.dieIdx === i; // voando (desenhado no travel)
+      if (stepping) continue;
+      var inSlot = ai2 < 0 && (d.used || d.sacrificed || d.locked || d.blocked);
       var dragging = p.dragging && p.dragging.die === i;
       var dieS = L.dieS;
       var dx, dy;
-      if (stepping) {
-        var st2 = this.activeStep, tt = easeOut(st2.t);
-        dx = st2.from.x + (st2.to.x - st2.from.x) * tt;
-        dy = st2.from.y + (st2.to.y - st2.from.y) * tt - Math.sin(tt * Math.PI) * 14;
-        dieS = 20;
-      } else if (dragging) { dx = p.x - dieS / 2; dy = p.y - dieS / 2; }
+      if (dragging) { dx = p.x - dieS / 2; dy = p.y - dieS / 2; }
       else if (ai2 >= 0) { var ap2 = this.assignedPos(ai2, L); dx = ap2.x; dy = ap2.y; dieS = ap2.s; }
       else if (inSlot) { var sl2 = L.slots[d.id]; if (!sl2) continue; dx = sl2.x + 1; dy = sl2.y; dieS = sl2.s - 2; }
       else {
@@ -814,7 +877,44 @@
       };
       RA.gfx.Dice.draw(ctx, vd, dx, dy, dieS, this.time);
       if (d.blocked) ctx.drawImage(RA.gfx.Icons.status('silence'), dx + dieS - 6, dy - 2, 8, 8);
-      if (ai2 < 0 && !inSlot && !dragging && !stepping) ctx.drawImage(RA.gfx.Portraits.get(hu2.id), dx - 3, dy + dieS - 3, 10, 10);
+      if (ai2 < 0 && !inSlot && !dragging) ctx.drawImage(RA.gfx.Portraits.get(hu2.id), dx - 3, dy + dieS - 3, 10, 10);
+    }
+
+    // ---- dado em voo: trilha de setas + dado por cima de tudo ----
+    if (this.travel) {
+      var tv = this.travel;
+      var col = tv.side === 'hero' ? 'rgba(255,215,106,' : 'rgba(255,106,122,';
+      if (!tv.selfHop && tv.phase === 'go') {
+        // linha pontilhada + setas correndo em direção ao alvo
+        var dxl = tv.to.x - tv.from.x, dyl = tv.to.y - tv.from.y;
+        var len = Math.hypot(dxl, dyl) || 1;
+        var ux = dxl / len, uy = dyl / len;
+        for (var ci = 0; ci < 5; ci++) {
+          var ct = ((ci / 5) + (this.time * 1.4) % 0.2) % 1;
+          if (ct > easeOut(tv.t)) continue;
+          var cx2 = tv.from.x + dxl * ct + 10, cy2 = tv.from.y + dyl * ct + 10;
+          ctx.strokeStyle = col + (0.55 - ct * 0.3) + ')';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cx2 - (ux + uy * 0.6) * 4, cy2 - (uy - ux * 0.6) * 4);
+          ctx.lineTo(cx2, cy2);
+          ctx.lineTo(cx2 - (ux - uy * 0.6) * 4, cy2 - (uy + ux * 0.6) * 4);
+          ctx.stroke();
+        }
+        ctx.lineWidth = 1;
+      }
+      var tp = this.travelPos(tv);
+      // rastro
+      tv.trail = tv.trail || [];
+      tv.trail.push({ x: tp.x + tp.s / 2, y: tp.y + tp.s / 2, t: this.time });
+      if (tv.trail.length > 10) tv.trail.shift();
+      for (var ti2 = 0; ti2 < tv.trail.length; ti2++) {
+        var tr = tv.trail[ti2];
+        ctx.fillStyle = col + (0.08 + 0.03 * ti2) + ')';
+        var rs = 2 + ti2 * 0.5;
+        ctx.fillRect(tr.x - rs / 2, tr.y - rs / 2, rs, rs);
+      }
+      RA.gfx.Dice.draw(ctx, tv.vd, tp.x, tp.y, tp.s, this.time);
     }
 
     Fx.render(ctx);

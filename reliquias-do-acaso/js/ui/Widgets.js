@@ -103,16 +103,16 @@
       var key = w + 'x' + h;
       if (W._vigKey !== key) {
         var cv = document.createElement('canvas');
-        cv.width = w; cv.height = h;
+        cv.width = w * 2; cv.height = h * 2;
         var c2 = cv.getContext('2d');
-        var g = c2.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.45, w / 2, h / 2, Math.max(w, h) * 0.75);
+        var g = c2.createRadialGradient(w, h, Math.min(w, h) * 0.9, w, h, Math.max(w, h) * 1.5);
         g.addColorStop(0, 'rgba(6,4,12,0)');
         g.addColorStop(1, 'rgba(6,4,12,0.5)');
         c2.fillStyle = g;
-        c2.fillRect(0, 0, w, h);
+        c2.fillRect(0, 0, w * 2, h * 2);
         W._vig = cv; W._vigKey = key;
       }
-      ctx.drawImage(W._vig, 0, 0);
+      ctx.drawImage(W._vig, 0, 0, w, h);
     },
 
     // descrição curta de uma face (gerada do DSL p/ tooltips)

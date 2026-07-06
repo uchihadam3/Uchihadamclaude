@@ -14,10 +14,13 @@
       state.w = Math.ceil(winW / scale);
       state.h = Math.ceil(winH / scale);
       state.scale = scale;
-      canvasEl.width = state.w;
-      canvasEl.height = state.h;
+      // backing store 2x: formas procedurais (dados, fundos, painéis, fx)
+      // ganham o dobro de definição sem mudar o layout lógico
+      canvasEl.width = state.w * 2;
+      canvasEl.height = state.h * 2;
       canvasEl.style.width = (state.w * scale) + 'px';
       canvasEl.style.height = (state.h * scale) + 'px';
+      ctx.setTransform(2, 0, 0, 2, 0, 0);
       ctx.imageSmoothingEnabled = false;
       if (RA.ui.currentScene && RA.ui.currentScene.onResize) RA.ui.currentScene.onResize(state);
     }

@@ -59,17 +59,36 @@
     return { fx: x, fy: y, fw: w, fh: h, d: d };
   }
 
-  // conteúdo de uma face: ícone do símbolo + valor
+  // conteúdo de uma face: símbolo grande + medalhão de valor
   function drawFaceContent(ctx, face, fx, fy, fw, fh, sk, dim) {
     if (!face) return;
-    var icon = RA.gfx.Icons.symbol(face.sym);
-    var iconScale = Math.max(1, Math.floor(fw / 16));
-    var iw = 10 * iconScale;
     ctx.globalAlpha = dim ? 0.45 : 1;
-    ctx.drawImage(icon, Math.round(fx + (fw - iw) / 2), Math.round(fy + (fh - iw) / 2 - 2), iw, iw);
+    // bisel interno (topo claro, base escura) p/ volume
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.fillRect(fx + 1, fy + 1, fw - 2, Math.max(1, Math.round(fh * 0.16)));
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillRect(fx + 1, fy + fh - 1 - Math.max(1, Math.round(fh * 0.14)), fw - 2, Math.max(1, Math.round(fh * 0.14)));
+    // símbolo ocupando ~62% da face
+    var icon = RA.gfx.Icons.symbol(face.sym);
+    var iw = Math.max(8, Math.round(fw * 0.62));
+    var ix = fx + Math.round((fw - iw) / 2);
+    var iy = fy + Math.round((fh - iw) / 2) - 1;
+    // sombra do símbolo
+    ctx.globalAlpha = (dim ? 0.45 : 1) * 0.5;
+    ctx.drawImage(icon, ix + 1, iy + 1, iw, iw);
+    ctx.globalAlpha = dim ? 0.45 : 1;
+    ctx.drawImage(icon, ix, iy, iw, iw);
+    // medalhão do valor (canto inferior direito)
     if (face.val > 0) {
-      RA.gfx.Font.draw(ctx, String(face.val), fx + fw - 3, fy + fh - 10,
-        { size: 1, color: sk.pip, align: 'right', shadow: 'rgba(0,0,0,0.8)' });
+      var bs = Math.max(8, Math.round(fw * 0.34));
+      var bx = fx + fw - bs, by = fy + fh - bs;
+      ctx.fillStyle = 'rgba(10,8,14,0.88)';
+      ctx.fillRect(bx, by, bs, bs);
+      ctx.fillStyle = sk.rim;
+      ctx.fillRect(bx, by, bs, 1);
+      ctx.fillRect(bx, by, 1, bs);
+      RA.gfx.Font.draw(ctx, String(face.val), bx + bs / 2, by + Math.round((bs - 7) / 2) + 1,
+        { size: 1, color: '#fff', align: 'center', shadow: 'rgba(0,0,0,0.9)' });
     }
     // marcas: lado dourado / trincado / usos limitados
     if (face.golden) {

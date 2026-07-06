@@ -340,7 +340,8 @@
 
   RA.gfx.Backgrounds = {
     draw: function (ctx, region, w, h, t) {
-      ctx.drawImage(getStatic(region, w, h), 0, 0);
+      // pintado a 2x e exibido no tamanho lógico: aproveita o backing 2x
+      ctx.drawImage(getStatic(region, w * 2, h * 2), 0, 0, w, h);
       drawAmbient(ctx, region, w, h, t);
     },
     REGIONS: Object.keys(SCENES)

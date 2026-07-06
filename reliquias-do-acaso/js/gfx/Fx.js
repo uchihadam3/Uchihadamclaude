@@ -57,8 +57,8 @@
         var f = floaters[i];
         f.t += dt;
         f.y += f.vy * dt;
-        f.vy *= 0.94;
-        if (f.t > 1.1) floaters.splice(i, 1);
+        f.vy *= 0.95;
+        if (f.t > 1.6) floaters.splice(i, 1);
       }
       for (var j = parts.length - 1; j >= 0; j--) {
         var p = parts[j];
