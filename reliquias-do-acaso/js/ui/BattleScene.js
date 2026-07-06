@@ -896,12 +896,15 @@
       if (dragging) { dx = p.x - dieS / 2; dy = p.y - dieS / 2; }
       else if (inSlot) { var sl2 = L.slots[d.id]; if (!sl2) continue; dx = sl2.x + 1; dy = sl2.y; dieS = sl2.s - 2; }
       else {
+        // o motor já re-rolou os dados do próximo turno, mas o evento de
+        // rolagem ainda não tocou na cena: não desenha até a hora certa
+        if (d.anim.phase === 'rolling' && this.rollT <= 0) continue;
         var sc = this.scatter[d.id];
         if (!sc) { this.scatterDice(L); sc = this.scatter[d.id]; }
         if (!sc) continue;
         dx = sc.x; dy = sc.y;
         // durante o arremesso: voa do alto até o ponto de pouso
-        if (d.anim.phase === 'rolling' && this.throwFrom && this.throwFrom[d.id]) {
+        if (d.anim.phase === 'rolling' && this.rollT > 0 && this.throwFrom && this.throwFrom[d.id]) {
           var tf = this.throwFrom[d.id];
           var kk = easeOut(Math.min(1, d.anim.t / (d.anim.dur || 0.8)));
           dx = tf.x + (sc.x - tf.x) * kk;
