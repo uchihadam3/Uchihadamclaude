@@ -36,6 +36,7 @@
     ctx.fillRect(0, 0, w, h);
     var cur = RA.core.Scenes.current;
     if (cur && cur.render) cur.render(ctx, w, h);
+    RA.ui.W.vignette(ctx, w, h);
     RA.core.Scenes.renderFade(ctx, w, h);
   }
   requestAnimationFrame(frame);
