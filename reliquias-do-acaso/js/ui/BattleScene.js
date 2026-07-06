@@ -452,20 +452,25 @@
     if (this.flash) { this.flash.t -= dt; if (this.flash.t <= 0) this.flash = null; }
     if (this.pauseT > 0) { this.pauseT -= dt; return; } // hit-pause congela tudo
 
-    // dados dos heróis rolando (cada um tem sua própria duração de arremesso)
-    if (this.rollT > 0) {
-      this.rollT -= dt * anim;
-      var self = this;
-      c.dice.forEach(function (d) {
-        if (d.anim.phase === 'rolling') {
-          d.anim.t += dt * anim;
-          var k = Math.min(1, d.anim.t / (d.anim.dur || 0.8));
-          // a face gira rápido e desacelera até parar na final
-          d.anim.showFace = Math.floor(d.anim.t * (16 - 12 * k));
-          if (d.anim.t >= (d.anim.dur || 0.8)) { d.anim = { phase: 'landing', t: 0 }; RA.audio.sfx('diceHit'); }
-        }
-      });
-    }
+    // dados dos heróis rolando: cada dado avança sozinho até pousar
+    // (dados com anim do motor mas sem 'dur' ainda não foram apresentados)
+    var self = this;
+    var queueIdle = !this.evQueue.length && !this.travel && !this.resolving;
+    c.dice.forEach(function (d) {
+      if (d.anim.phase !== 'rolling') return;
+      if (d.anim.dur) {
+        d.anim.t += dt * anim;
+        var k = Math.min(1, d.anim.t / d.anim.dur);
+        // a face gira rápido e desacelera até parar na final
+        d.anim.showFace = Math.floor(d.anim.t * (16 - 12 * k));
+        if (d.anim.t >= d.anim.dur) { d.anim = { phase: 'landing', t: 0 }; RA.audio.sfx('diceHit'); }
+      } else if (queueIdle && c.phase === 'player') {
+        // rede de segurança: evento de rolagem perdido — apresenta na hora
+        d.anim = { phase: 'landing', t: 0 };
+        self.scatterDice(L);
+      }
+    });
+    if (this.rollT > 0) this.rollT -= dt * anim;
     c.dice.forEach(function (d) { if (d.anim.phase === 'landing') { d.anim.t += dt; if (d.anim.t > 0.4) d.anim = { phase: 'idle', t: 0 }; } });
     // dados dos inimigos rolando
     for (var k in this.eDice) {
@@ -898,15 +903,15 @@
       else {
         // o motor já re-rolou os dados do próximo turno, mas o evento de
         // rolagem ainda não tocou na cena: não desenha até a hora certa
-        if (d.anim.phase === 'rolling' && this.rollT <= 0) continue;
+        if (d.anim.phase === 'rolling' && !d.anim.dur) continue;
         var sc = this.scatter[d.id];
         if (!sc) { this.scatterDice(L); sc = this.scatter[d.id]; }
         if (!sc) continue;
         dx = sc.x; dy = sc.y;
         // durante o arremesso: voa do alto até o ponto de pouso
-        if (d.anim.phase === 'rolling' && this.rollT > 0 && this.throwFrom && this.throwFrom[d.id]) {
+        if (d.anim.phase === 'rolling' && d.anim.dur && this.throwFrom && this.throwFrom[d.id]) {
           var tf = this.throwFrom[d.id];
-          var kk = easeOut(Math.min(1, d.anim.t / (d.anim.dur || 0.8)));
+          var kk = easeOut(Math.min(1, d.anim.t / d.anim.dur));
           dx = tf.x + (sc.x - tf.x) * kk;
           dy = tf.y + (sc.y - tf.y) * kk;
         }
