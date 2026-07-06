@@ -1,0 +1,9 @@
+id,role,type,description,size/ratio,style line ref,source
+hero_concept,3d_reference,image,survivor character concept in a-pose three-quarter view rust-orange jacket,1:1,formula,generate
+hero_model,player_character,3d,rigged animated survivor GLB idle/walk/aim-shoot/hit/death,n/a,formula,generate
+zombie_concept,3d_reference,image,shambling zombie concept in a-pose three-quarter view grey-green flesh,1:1,formula,generate
+zombie_model,enemy_character,3d,rigged animated zombie GLB idle/shamble-walk/attack/hit/death,n/a,formula,generate
+ground_tile,floor_texture,tile,decayed concrete courtyard floor with grime and cracks,1:1,formula,generate
+wall_tile,wall_texture,tile,weathered concrete wall with damp stains and rust streaks,1:1,formula,generate
+thumbnail,game_thumbnail,image,cover art of survivor facing two zombies in foggy courtyard,16:9,formula,generate
+favicon,game_favicon,image,icon of survivor silhouette against a zombie hand,1:1,formula,generate
