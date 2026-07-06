@@ -220,6 +220,7 @@
         var vx = dx / t;
         var vy = (player.y - this.y - 0.5 * 700 * t * t) / t;
         LK.entities.spawnProjectile(this.x + this.facing * 8, this.y - 6, vx, Math.max(-350, vy));
+        LK.audio.sfx('spit');
       }
       if (dist > 280) this.setState('idle');
     } else if (this.state === 'spit') {
@@ -275,18 +276,21 @@
   }
   extend(Casca);
 
+  // Escudo bloqueia frontal — MAS: pogo sempre entra, por trás sempre entra,
+  // e durante a recuperação da investida a guarda está BAIXA (janela real).
   Casca.prototype.blocksAttack = function (fromX, attackDir) {
-    if (attackDir === 'down') return false;             // pogo sempre entra
+    if (attackDir === 'down') return false;
+    if (this.state === 'recover') return false;
     var attackerBehind = Math.sign(this.x - fromX) === this.facing;
-    return !attackerBehind;                              // frontal = bloqueado
+    return !attackerBehind;
   };
 
   Casca.prototype.think = function (dt, player, level, particles) {
     this.turnCooldown = Math.max(0, this.turnCooldown - dt);
+    var dx = player.x - this.x;
+
     if (this.state === 'walk') {
-      // persegue devagar; só consegue virar a cada 0.9s — dar a volta por
-      // trás dela dentro dessa janela é a resposta que o padrão pede
-      var dx = player.x - this.x;
+      // vira devagar (janela por trás continua existindo)
       var wantFacing = dx > 0 ? 1 : -1;
       if (wantFacing !== this.facing && this.turnCooldown <= 0 && Math.abs(dx) > 8) {
         this.facing = wantFacing;
@@ -299,6 +303,45 @@
       }
       var aheadX = this.x + this.facing * (this.hw + 4);
       if (!level.solidAt(aheadX, this.y + this.hh + 4) && this.onGround) this.vx = 0;
+
+      // jogador de frente e perto -> arma a INVESTIDA DE ESCUDO
+      if (Math.abs(dx) < 85 && Math.abs(player.y - this.y) < 40 &&
+        Math.sign(dx) === this.facing && this.onGround) {
+        this.setState('telegraph');
+        this.vx = 0;
+      }
+    } else if (this.state === 'telegraph') {
+      // recua e range o escudo — aviso claro
+      this.vx = -this.facing * 14;
+      if (Math.random() < dt * 26) {
+        particles.spawn({
+          x: this.x + this.facing * 12, y: this.y - 2 + (Math.random() - 0.5) * 8,
+          vx: this.facing * 40, vy: (Math.random() - 0.5) * 30, g: 0, drag: 4,
+          life: 0.2, size: 1.5, color: '#c9c9c9', kind: 'spark'
+        });
+      }
+      if (this.stateTime > 0.45) {
+        this.setState('bash');
+      }
+    } else if (this.state === 'bash') {
+      // investida com o escudo: rápida, punível se desviada (dash atravessa)
+      this.vx = this.facing * 270;
+      if (this.stateTime > 0.4 || this._hitWallDir === this.facing) {
+        this.setState('recover');
+        this.vx = 0;
+      }
+      var aheadX2 = this.x + this.facing * (this.hw + 6);
+      if (!level.solidAt(aheadX2, this.y + this.hh + 6) && this.onGround) {
+        this.setState('recover');
+        this.vx = 0;
+      }
+    } else if (this.state === 'recover') {
+      // GUARDA BAIXA: escudo caído, ofegante — a janela de punição frontal
+      this.vx = 0;
+      if (this.stateTime > 1.35) {
+        this.setState('walk');
+        this.turnCooldown = 0.4;
+      }
     }
     this.updatePhysics(dt, level);
   };
@@ -308,14 +351,24 @@
     var shellEdge = flash ? '#ffffff' : '#6e5a3c';
     var soft = flash ? '#ffffff' : '#e8a05c';
     var step = this.onGround && Math.abs(this.vx) > 4 ? Math.sin(this._t * 10) * 1.4 : 0;
+    var recovering = this.state === 'recover';
+    var pant = recovering ? Math.sin(this._t * 9) * 1.2 : 0;
     ctx.save();
-    ctx.translate(sx, sy + Math.abs(step) * -0.5);
-    // abdômen mole brilhante (a fraqueza, atrás)
+    ctx.translate(sx, sy + Math.abs(step) * -0.5 + pant * 0.4);
+    // abdômen mole brilhante (a fraqueza, atrás — e exposta na recuperação)
     ctx.fillStyle = soft;
     ctx.beginPath();
-    ctx.ellipse(-this.facing * 7, 2, 5.5, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(-this.facing * 7, 2, 5.5 + (recovering ? 1 : 0), 5 + pant * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
-    // placa frontal (escudo)
+    // placa frontal (escudo) — CAI para o chão durante a recuperação
+    ctx.save();
+    if (recovering) {
+      ctx.translate(this.facing * 4, 5);
+      ctx.rotate(this.facing * 0.9);
+    } else if (this.state === 'telegraph') {
+      ctx.translate(-this.facing * 2, 0);
+      ctx.rotate(-this.facing * 0.12);
+    }
     ctx.fillStyle = shell;
     ctx.beginPath();
     ctx.moveTo(this.facing * 12, -9);
@@ -327,10 +380,11 @@
     ctx.strokeStyle = shellEdge;
     ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.restore();
     // olho na fresta do escudo
-    ctx.fillStyle = '#ffd27a';
+    ctx.fillStyle = this.state === 'telegraph' || this.state === 'bash' ? '#ff8a5c' : '#ffd27a';
     ctx.beginPath();
-    ctx.arc(this.facing * 7, -3, 1.6, 0, Math.PI * 2);
+    ctx.arc(this.facing * 7, -3 + pant * 0.3, 1.6, 0, Math.PI * 2);
     ctx.fill();
     // pernas
     ctx.strokeStyle = shell;
@@ -363,6 +417,7 @@
       var hitPlayer = Math.abs(p.x - player.x) < player.hw + 4 && Math.abs(p.y - player.y) < player.hh + 4;
       if (hitPlayer) player.takeDamage(1, p.x);
       if (hitGround || hitPlayer || p.t > 4) {
+        LK.audio.sfx('splat');
         particles.burst(p.x, p.y, 8, {
           speedMin: 30, speedMax: 110, g: 300,
           color: ['#8cc83c', '#5d7a3c', '#d8ff5c'],

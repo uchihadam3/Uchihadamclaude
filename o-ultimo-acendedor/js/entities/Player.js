@@ -25,9 +25,18 @@
     this.canDashAir = true;
 
     this.attackTimer = 0;
+    this.attackMaxTime = cfg.ATTACK_TIME;
+    this.attackRange = cfg.ATTACK_RANGE;
+    this.attackDamage = 1;
     this.attackCooldown = 0;
     this.attackDir = 'side'; // side|up|down
     this.attackHitDone = false;
+    // combo: apertar de novo dentro da janela encadeia o próximo golpe
+    this.attackChain = 0;     // qual golpe da sequência sai no próximo aperto
+    this.comboWindow = 0;
+    // pulo duplo: o segundo pulo é um mortal com animação própria
+    this.jumpsLeft = 2;
+    this.flipTimer = 0;
 
     this.hp = cfg.PLAYER_MAX_HP;
     this.invuln = 0;
@@ -58,6 +67,10 @@
     this.attackCooldown = Math.max(0, this.attackCooldown - dt);
     this.invuln = Math.max(0, this.invuln - dt);
     this.landJuice = Math.max(0, this.landJuice - dt * 5);
+    this.comboWindow = Math.max(0, this.comboWindow - dt);
+    this.flipTimer = Math.max(0, this.flipTimer - dt);
+    // perdeu o chão sem pular (coyote esgotado): sobra só o pulo aéreo
+    if (!this.onGround && this.coyote <= 0 && this.jumpsLeft === 2) this.jumpsLeft = 1;
 
     if (cmd.jumpPressed) this.jumpBuffer = cfg.JUMP_BUFFER;
 
@@ -97,11 +110,30 @@
         this.coyote = 0;
         this.onGround = false;
         this._jumpCut = false;
+        this.jumpsLeft = 1;
+        LK.audio.sfx('jump');
         this.particles.burst(this.x, this.y + this.hh, 6, {
           angleMin: -Math.PI * 0.85, angleMax: -Math.PI * 0.15,
           speedMin: 20, speedMax: 70, g: 200, color: ['#4a6178', '#2e4258'],
           lifeMin: 0.2, lifeMax: 0.4, kind: 'dot', sizeMin: 1, sizeMax: 2.5
         });
+      } else if (this.jumpBuffer > 0 && !this.onGround && this.jumpsLeft > 0) {
+        // ---- pulo duplo: mortal com anel de luz ----
+        this.vy = -cfg.JUMP_VEL * 0.88;
+        this.jumpBuffer = 0;
+        this.jumpsLeft = 0;
+        this._jumpCut = false;
+        this.flipTimer = 0.38;
+        LK.audio.sfx('doubleJump');
+        for (var ring = 0; ring < 12; ring++) {
+          var ang = (ring / 12) * Math.PI * 2;
+          this.particles.spawn({
+            x: this.x + Math.cos(ang) * 10, y: this.y + 4 + Math.sin(ang) * 5,
+            vx: Math.cos(ang) * 90, vy: Math.sin(ang) * 40 + 30,
+            g: 0, drag: 3.5, life: 0.35, size: 2,
+            color: ring % 2 ? '#c9e8f2' : '#ffd27a', kind: 'spark'
+          });
+        }
       }
 
       // iniciar dash
@@ -112,6 +144,7 @@
         this.facing = this.dashDir;
         if (!this.onGround) this.canDashAir = false;
         this.invuln = Math.max(this.invuln, cfg.DASH_TIME + 0.03); // i-frames do dash
+        LK.audio.sfx('dash');
         this.particles.burst(this.x - this.dashDir * 8, this.y, 8, {
           angleMin: this.dashDir > 0 ? Math.PI * 0.8 : -Math.PI * 0.2,
           angleMax: this.dashDir > 0 ? Math.PI * 1.2 : Math.PI * 0.2,
@@ -122,15 +155,30 @@
       }
     }
 
-    // ---- ataque ----
+    // ---- ataque (sequência de 3 golpes encadeáveis) ----
     if (this.attackTimer > 0) this.attackTimer -= dt;
     if (cmd.attackPressed && this.attackCooldown <= 0 && this.dashTimer <= 0) {
-      this.attackTimer = cfg.ATTACK_TIME;
-      this.attackCooldown = cfg.ATTACK_COOLDOWN;
       this.attackHitDone = false;
-      if (cmd.up) this.attackDir = 'up';
-      else if (cmd.down && !this.onGround) this.attackDir = 'down';
-      else this.attackDir = 'side';
+      if (cmd.up) {
+        this.attackDir = 'up';
+        this._startSlash({ t: 0.22, r: cfg.ATTACK_RANGE, d: 1, cd: 0.28, lunge: 0, chain: -1 });
+      } else if (cmd.down && !this.onGround) {
+        this.attackDir = 'down';
+        this._startSlash({ t: 0.22, r: cfg.ATTACK_RANGE, d: 1, cd: 0.28, lunge: 0, chain: -1 });
+      } else {
+        this.attackDir = 'side';
+        if (this.comboWindow <= 0) this.attackChain = 0;
+        var SLASHES = [
+          { t: 0.2, r: 52, d: 1, cd: 0.22, lunge: 35 },   // corte ascendente
+          { t: 0.2, r: 52, d: 1, cd: 0.22, lunge: 60 },   // corte reverso
+          { t: 0.3, r: 66, d: 2, cd: 0.5, lunge: 165 }    // finalizador giratório
+        ];
+        var s = SLASHES[this.attackChain];
+        s.chain = this.attackChain;
+        this._startSlash(s);
+        this.comboWindow = s.t + 0.42;
+        this.attackChain = (this.attackChain + 1) % 3;
+      }
     }
 
     // ---- integração com colisão ----
@@ -143,10 +191,13 @@
     if (this.onGround) {
       this.coyote = cfg.COYOTE_TIME;
       this.canDashAir = true;
+      this.jumpsLeft = 2;
+      this.flipTimer = 0;
       if (this.vy > 0) this.vy = 0;
     }
     if (justLanded) {
       this.landJuice = 1;
+      LK.audio.sfx('land');
       this.particles.burst(this.x, this.y + this.hh, 8, {
         angleMin: -Math.PI, angleMax: 0,
         speedMin: 30, speedMax: 90, g: 260, color: ['#4a6178', '#2e4258', '#5d7a94'],
@@ -207,10 +258,21 @@
     }
   };
 
+  Player.prototype._startSlash = function (s) {
+    this.attackTimer = s.t;
+    this.attackMaxTime = s.t;
+    this.attackRange = s.r;
+    this.attackDamage = s.d;
+    this.attackCooldown = s.cd;
+    this.attackChainUsed = s.chain;
+    if (s.lunge && this.attackDir === 'side') this.vx += this.facing * s.lunge;
+    LK.audio.sfx('swing' + Math.max(0, s.chain === -1 ? 0 : s.chain));
+  };
+
   // Retorna a hitbox ativa do golpe neste tick, ou null.
   Player.prototype.getAttackHitbox = function () {
-    if (this.attackTimer <= 0 || this.attackTimer < cfg.ATTACK_TIME * 0.35) return null;
-    var r = cfg.ATTACK_RANGE;
+    if (this.attackTimer <= 0 || this.attackTimer < this.attackMaxTime * 0.35) return null;
+    var r = this.attackRange;
     if (this.attackDir === 'up') {
       return { x: this.x, y: this.y - this.hh - r * 0.45, hw: r * 0.55, hh: r * 0.5, dir: 'up' };
     } else if (this.attackDir === 'down') {
@@ -221,10 +283,12 @@
 
   // Chamado pelo main quando o golpe conecta em algo.
   Player.prototype.onHitConnected = function (targetX, targetY) {
-    this.hitPause = Math.max(this.hitPause, cfg.HIT_PAUSE);
+    this.hitPause = Math.max(this.hitPause, this.attackDamage >= 2 ? cfg.HIT_PAUSE * 1.7 : cfg.HIT_PAUSE);
     if (this.attackDir === 'down') {
       this.vy = -cfg.POGO_VEL;           // pogo!
       this.canDashAir = true;            // pogo devolve o dash aéreo
+      this.jumpsLeft = Math.max(this.jumpsLeft, 1); // ...e o pulo duplo
+      LK.audio.sfx('pogo');
     } else if (this.attackDir === 'side') {
       this.vx -= this.facing * cfg.PLAYER_RECOIL * 0.6;
     }
@@ -239,6 +303,7 @@
     if (this.invuln > 0 || this.dead) return false;
     this.hp -= amount;
     this.invuln = cfg.INVULN_TIME;
+    LK.audio.sfx('hurt');
     this.hitPause = Math.max(this.hitPause, 0.09);
     var dir = fromX !== undefined && fromX !== 0 ? (this.x < fromX ? -1 : 1) : -this.facing;
     this.vx = dir * cfg.KNOCKBACK;
@@ -295,6 +360,11 @@
     ctx.translate(sx, sy + this.hh * (1 - squashY));
     ctx.scale(squashX, squashY);
     ctx.rotate(airLean);
+    // mortal do pulo duplo: rotação completa no sentido do olhar
+    if (this.flipTimer > 0 && !isGhost) {
+      var flipT = 1 - this.flipTimer / 0.38;
+      ctx.rotate(facing * flipT * Math.PI * 2);
+    }
 
     var bodyCol = isGhost ? '#7a9cc9' : '#2e4258';
     var hoodCol = isGhost ? '#8fb0dc' : '#3a536e';
@@ -359,9 +429,10 @@
 
   Player.prototype._drawAttackArc = function (ctx, sx, sy) {
     if (this.attackTimer <= 0) return;
-    var t = 1 - this.attackTimer / cfg.ATTACK_TIME; // 0..1
-    var r = cfg.ATTACK_RANGE;
+    var t = 1 - this.attackTimer / this.attackMaxTime; // 0..1
+    var r = this.attackRange;
     var alpha = t < 0.5 ? 1 : 1 - (t - 0.5) * 2;
+    var chain = this.attackDir === 'side' ? this.attackChainUsed : -1;
 
     ctx.save();
     ctx.translate(sx, sy);
@@ -371,18 +442,23 @@
     else if (this.facing > 0) { a0 = -Math.PI * 0.4; a1 = Math.PI * 0.4; }
     else { a0 = Math.PI * 0.6; a1 = Math.PI * 1.4; }
 
-    var sweep = a0 + (a1 - a0) * Math.min(1, t * 2.2);
+    // golpe 2 da sequência: corte reverso (varre de cima para baixo)
+    if (chain === 1) { var tmp = a0; a0 = a1; a1 = tmp; }
+    // finalizador: varredura giratória completa e mais brilhante
+    if (chain === 2) { a1 = a0 + (this.facing > 0 ? 1 : -1) * Math.PI * 1.7; }
+
+    var sweep = a0 + (a1 - a0) * Math.min(1, t * (chain === 2 ? 1.6 : 2.2));
     ctx.globalAlpha = alpha * 0.9;
-    ctx.strokeStyle = '#fff2c9';
-    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = chain === 2 ? '#ffffff' : '#fff2c9';
+    ctx.lineWidth = chain === 2 ? 4.5 : 3.5;
     ctx.beginPath();
-    ctx.arc(0, -2, r * (0.75 + t * 0.25), a0, sweep);
+    ctx.arc(0, -2, r * (0.75 + t * 0.25), Math.min(a0, sweep), Math.max(a0, sweep));
     ctx.stroke();
-    ctx.globalAlpha = alpha * 0.45;
+    ctx.globalAlpha = alpha * (chain === 2 ? 0.6 : 0.45);
     ctx.strokeStyle = '#ffd27a';
-    ctx.lineWidth = 7;
+    ctx.lineWidth = chain === 2 ? 9 : 7;
     ctx.beginPath();
-    ctx.arc(0, -2, r * (0.68 + t * 0.22), a0, sweep);
+    ctx.arc(0, -2, r * (0.68 + t * 0.22), Math.min(a0, sweep), Math.max(a0, sweep));
     ctx.stroke();
     ctx.restore();
     ctx.globalAlpha = 1;
