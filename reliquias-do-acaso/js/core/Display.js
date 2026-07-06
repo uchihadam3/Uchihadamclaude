@@ -10,7 +10,7 @@
       state.portrait = winH > winW;
       // alvo: menor dimensão interna ~ 320-420px
       var minDim = Math.min(winW, winH);
-      var scale = Math.max(1, Math.min(6, Math.floor(minDim / 340)));
+      var scale = Math.max(1, Math.min(6, Math.round(minDim / 235)));
       state.w = Math.ceil(winW / scale);
       state.h = Math.ceil(winH / scale);
       state.scale = scale;

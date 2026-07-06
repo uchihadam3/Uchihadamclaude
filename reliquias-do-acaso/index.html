@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a080e">
+  <title>Relíquias do Acaso</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a080e;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+    #game {
+      position: fixed; left: 0; top: 0;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      cursor: default;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <!-- núcleo -->
+  <script src="js/core/namespace.js"></script>
+  <script src="js/core/Rng.js"></script>
+  <script src="js/core/Save.js"></script>
+  <script src="js/core/I18n.js"></script>
+  <script src="js/core/Display.js"></script>
+  <script src="js/core/Input.js"></script>
+  <script src="js/core/Scenes.js"></script>
+  <!-- arte procedural -->
+  <script src="js/gfx/Font.js"></script>
+  <script src="js/gfx/Icons.js"></script>
+  <script src="js/gfx/Dice.js"></script>
+  <script src="js/gfx/Portraits.js"></script>
+  <script src="js/gfx/EnemySprites.js"></script>
+  <script src="js/gfx/Backgrounds.js"></script>
+  <script src="js/gfx/Fx.js"></script>
+  <!-- conteúdo -->
+  <script src="js/data/Statuses.js"></script>
+  <script src="js/data/FateCombos.js"></script>
+  <script src="js/data/Heroes.js"></script>
+  <script src="js/data/Enemies.js"></script>
+  <script src="js/data/Relics.js"></script>
+  <script src="js/data/RuneFaces.js"></script>
+  <script src="js/data/Events.js"></script>
+  <script src="js/data/Regions.js"></script>
+  <script src="js/data/Modes.js"></script>
+  <script src="js/data/Difficulties.js"></script>
+  <script src="js/data/Achievements.js"></script>
+  <!-- áudio -->
+  <script src="js/audio/AudioEngine.js"></script>
+  <script src="js/audio/Themes.js"></script>
+  <!-- motor de jogo -->
+  <script src="js/game/Combat.js"></script>
+  <script src="js/game/CombatFx.js"></script>
+  <script src="js/game/Run.js"></script>
+  <!-- interface -->
+  <script src="js/ui/Widgets.js"></script>
+  <script src="js/ui/BattleScene.js"></script>
+  <script src="js/ui/RunScenes.js"></script>
+  <script src="js/ui/MenuScenes.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
