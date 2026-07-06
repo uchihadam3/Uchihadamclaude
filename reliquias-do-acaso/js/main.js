@@ -29,6 +29,7 @@
     last = now;
 
     var events = input.frame(dt);
+    RA.gfx.Fx.update(dt);
     RA.core.Scenes.update(dt, events);
 
     var ctx = disp.ctx, w = disp.state.w, h = disp.state.h;

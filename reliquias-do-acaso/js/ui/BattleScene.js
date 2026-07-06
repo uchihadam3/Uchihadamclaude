@@ -562,6 +562,9 @@
       }
       if (W2.inRect(tp.x, tp.y, L.btnReroll) && c.rollsLeft > 0 && c.tflags.diceUsed === 0) { c.reroll(); self4.drainEvents(); return; }
       if (W2.inRect(tp.x, tp.y, L.btnDone)) {
+        // não finaliza sem pelo menos um dado atribuído (se houver usável)
+        var anyUse = c.dice.some(function (d3) { return !d3.used && !d3.blocked && !d3.sacrificed && !d3.assignedView; });
+        if (self4.assignments.length === 0 && anyUse) { self4.logLine = RA.UI('dragHint'); return; }
         if (RA.core.Save.get().settings.confirmEndTurn) {
           var bw3 = Math.min(60, (L.w - 30) / 2);
           self4.confirmBox = {
@@ -869,7 +872,10 @@
     L.btnReroll.label = RA.UI('reroll') + ' x' + c.rollsLeft;
     L.btnReroll.disabled = busy || c.rollsLeft <= 0 || c.tflags.diceUsed > 0 || c.phase !== 'player';
     W2.btn(ctx, L.btnReroll, this.time);
-    L.btnDone.disabled = busy || c.phase !== 'player' || !!this.evQueue.length;
+    // só finaliza depois de atribuir pelo menos um dado (se houver dado usável)
+    var anyUsable = c.dice.some(function (d2) { return !d2.used && !d2.blocked && !d2.sacrificed && !d2.assignedView; });
+    L.btnDone.disabled = busy || c.phase !== 'player' || !!this.evQueue.length ||
+      (this.assignments.length === 0 && anyUsable);
     L.btnDone.glow = this.assignments.length > 0;
     W2.btn(ctx, L.btnDone, this.time);
     RA.gfx.Dice.drawFate(ctx, L.fate.x, L.fate.y, L.fate.s, this.time, this.fateSpin > 0, c.fate ? c.fate.n : '');

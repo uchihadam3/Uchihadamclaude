@@ -246,8 +246,9 @@
 
     if (n <= 0) { this.ev('dmg', { side: tgt.kind, idx: tgt.slot, n: 0 }); return 0; }
 
+    var shownN = Math.min(n, tgt.hp); // nunca exibir dano além da vida (ex.: autodestruição 999)
     tgt.hp -= n;
-    this.ev('dmg', { side: tgt.kind, idx: tgt.slot, n: n, tag: opts.tag || (opts.magic ? 'magic' : 'hit') });
+    this.ev('dmg', { side: tgt.kind, idx: tgt.slot, n: shownN, tag: opts.tag || (opts.magic ? 'magic' : 'hit') });
     if (tgt.kind === 'enemy') {
       this.bstats.dmgDealt += n;
       if (opts.isAttack || opts.tag === 'combo') this.bstats.noDamageDealt = false;
