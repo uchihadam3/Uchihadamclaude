@@ -163,18 +163,19 @@
     for (var i = 0; i < this.assignments.length; i++) if (this.assignments[i].die === dieIdx) return i;
     return -1;
   };
-  // posição do dado atribuído: flutuando na borda do painel alvo
+  // MARCADOR do alvo: chip pequeno na borda do painel alvo (o dado em si
+  // fica no slot do herói até a hora de agir)
   BattleScene.prototype.assignedPos = function (aIdx, L) {
     var a = this.assignments[aIdx];
     var p = a.target ? (a.target.side === 'enemy' ? L.enemyPanels[a.target.idx] : L.heroPanels[a.target.idx]) : null;
-    var s = 18;
-    if (!p) return { x: L.diceZone.x + 4 + aIdx * (s + 4), y: L.diceZone.y + 2, s: s }; // sem alvo (allE/none)
+    var s = 12;
+    if (!p) return { x: L.diceZone.x + 4 + aIdx * (s + 3), y: L.diceZone.y + 2, s: s };
     var stack = 0;
     for (var i = 0; i < aIdx; i++) {
       var o = this.assignments[i];
       if (o.target && a.target && o.target.side === a.target.side && o.target.idx === a.target.idx) stack++;
     }
-    return { x: p.x + 6 + stack * (s + 3), y: p.y - Math.floor(s * 0.55), s: s };
+    return { x: p.x + 4 + stack * (s + 3), y: p.y - 7, s: s };
   };
 
   BattleScene.prototype.tryAssign = function (dieIdx, target) {
@@ -219,6 +220,7 @@
       phase: 'announce', t: 0, announceT: 0, released: false,
       onImpact: opts.onImpact || null, dieIdx: opts.dieIdx,
       label: opts.label || null,
+      actorRef: opts.actorRef || null, targetRef: opts.targetRef || null,
       side: opts.side || 'hero', s: opts.s || 20,
       selfHop: Math.abs(opts.from.x - opts.to.x) < 8 && Math.abs(opts.from.y - opts.to.y) < 8
     };
@@ -292,11 +294,16 @@
     var hu = c.heroes[d.heroIdx];
     var hp = L.heroPanels[d.heroIdx];
     var p = a.target ? (a.target.side === 'enemy' ? L.enemyPanels[a.target.idx] : L.heroPanels[a.target.idx]) : null;
-    var from = hp ? { x: hp.x + hp.w - 26, y: hp.y + 2 } : { x: L.w / 2, y: L.h / 2 };
+    // o dado SAI do slot do herói dono
+    var sl3 = L.slots[d.id];
+    var from = sl3 ? { x: sl3.x, y: sl3.y } : (hp ? { x: hp.x + hp.w - 26, y: hp.y + 2 } : { x: L.w / 2, y: L.h / 2 });
     var to = p ? { x: p.x + p.w / 2 - 10, y: p.y + p.h / 2 - 12 } : { x: L.diceZone.x + L.diceZone.w / 2 - 10, y: L.diceZone.y + L.diceZone.h / 2 - 10 };
+    var actorRef = { side: 'hero', idx: d.heroIdx };
+    var targetRef = a.target || null;
     var face = c.faceOf(d);
     this.startTravel({
       s: 22, side: 'hero', dieIdx: a.die,
+      actorRef: actorRef, targetRef: targetRef,
       label: RA.T(hu.name) + ': ' + RA.T(face.name) + ' [' + c.dieValue(d) + ']',
       vd: { skin: hu.skin, anim: { phase: 'idle', t: 0 }, resultFace: Object.assign({}, face, { val: c.dieValue(d) }), faces: hu.faces, used: false, locked: false, highlight: true },
       from: from, to: to,
@@ -410,8 +417,15 @@
           var from2 = { x: ep2.x + 4, y: ep2.y + 3 };
           var to2 = dest ? { x: dest.x - 9, y: dest.y - 10 } : { x: from2.x, y: from2.y };
           var en2 = this.combat.enemies[e.idx];
+          var destRef = null;
+          for (var qj = 0; qj < this.evQueue.length; qj++) {
+            var qe2 = this.evQueue[qj];
+            if (qe2.t === 'enemyAct' || qe2.t === 'phase' || qe2.t === 'turnStart') break;
+            if (qe2.side !== undefined && qe2.idx !== undefined) { destRef = { side: qe2.side, idx: qe2.idx }; break; }
+          }
           this.startTravel({
             s: 18, side: 'enemy',
+            actorRef: { side: 'enemy', idx: e.idx }, targetRef: destRef,
             label: (en2 ? RA.T(en2.name) : '') + ': ' + intentText(e.intent),
             vd: { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(e.intent), val: e.intent.n || 0 }, faces: EFAKES, used: false, locked: false, highlight: true },
             from: from2, to: to2
@@ -538,7 +552,10 @@
           var d = c.dice[i];
           // todo toque num dado mostra o cartão explicando a face
           self4.infoCard = { die: i, t: 3.2 };
-          if (!d.used && !d.blocked && !d.assignedView) {
+          if (d.assignedView) {
+            var uidx = self4.assignIdxAt(i);
+            if (uidx >= 0) self4.unassign(uidx, L);
+          } else if (!d.used && !d.blocked) {
             c.toggleLock(i);
             if (!d.locked) self4.scatterDice(L);
           }
@@ -592,12 +609,7 @@
   BattleScene.prototype.dieRect = function (i, L) {
     var d = this.combat.dice[i];
     if (!d) return null;
-    var ai = this.assignIdxAt(i);
-    if (ai >= 0) {
-      var ap = this.assignedPos(ai, L);
-      return { x: ap.x - 2, y: ap.y - 2, w: ap.s + 5, h: ap.s + 7 };
-    }
-    if (d.used || d.sacrificed || (d.locked && !d.assignedView) || d.blocked) {
+    if (d.used || d.sacrificed || d.locked || d.blocked) {
       var sl = L.slots[d.id];
       if (!sl) return null;
       return { x: sl.x - 2, y: sl.y - 2, w: sl.s + 6, h: sl.s + 8 };
@@ -838,19 +850,35 @@
       W2.hpBar(ctx, sp.x, sp.y + sp.s + 2, sp.s, su.hp, su.maxHp, 0, '#8a4ae8');
     });
 
-    // linhas de atribuição (herói -> alvo)
+    // marcadores de alvo: chip com o símbolo da face na borda do painel alvo
     this.assignments.forEach(function (a, ai) {
       var d = c.dice[a.die];
-      var hp2 = L.heroPanels[d.heroIdx];
+      var hu3 = c.heroes[d.heroIdx];
+      var f3 = c.faceOf(d);
       var ap = self.assignedPos(ai, L);
-      if (hp2) {
-        ctx.strokeStyle = 'rgba(255,215,106,0.28)';
-        ctx.beginPath();
-        ctx.moveTo(hp2.x + hp2.w / 2, hp2.y + hp2.h / 2);
-        ctx.lineTo(ap.x + ap.s / 2, ap.y + ap.s / 2);
-        ctx.stroke();
-      }
+      var rim = hu3 ? RA.gfx.Dice.skin(hu3.skin).rim : '#ffd76a';
+      ctx.fillStyle = 'rgba(10,8,16,0.92)';
+      ctx.fillRect(ap.x, ap.y, ap.s, ap.s);
+      var pu3 = 0.55 + 0.45 * Math.sin(self.time * 5 + ai);
+      ctx.strokeStyle = rim;
+      ctx.globalAlpha = pu3;
+      ctx.strokeRect(ap.x + 0.5, ap.y + 0.5, ap.s - 1, ap.s - 1);
+      ctx.globalAlpha = 1;
+      if (f3) ctx.drawImage(RA.gfx.Icons.symbol(f3.sym), ap.x + 2, ap.y + 2, ap.s - 4, ap.s - 4);
     });
+
+    // holofote na ação: escurece tudo menos o ator, o alvo e o dado em voo
+    if (this.travel && (this.travel.actorRef || this.travel.targetRef)) {
+      ctx.fillStyle = 'rgba(6,4,12,0.42)';
+      ctx.fillRect(0, 0, w, L.barY);
+      var redraw = [this.travel.actorRef, this.travel.targetRef];
+      for (var ri3 = 0; ri3 < redraw.length; ri3++) {
+        var ref = redraw[ri3];
+        if (!ref) continue;
+        if (ref.side === 'enemy' && L.enemyPanels[ref.idx]) this.drawEnemyPanel(ctx, L.enemyPanels[ref.idx], L);
+        else if (ref.side === 'hero' && L.heroPanels[ref.idx]) this.drawHeroPanel(ctx, L.heroPanels[ref.idx], L);
+      }
+    }
 
     // barra inferior
     ctx.fillStyle = 'rgba(10,7,18,0.9)';
@@ -885,12 +913,12 @@
       var ai2 = this.assignIdxAt(i);
       var stepping = this.travel && this.travel.dieIdx === i; // voando (desenhado no travel)
       if (stepping) continue;
-      var inSlot = ai2 < 0 && (d.used || d.sacrificed || d.locked || d.blocked);
+      // dados atribuídos ficam NO SLOT do herói até a hora de agir
+      var inSlot = d.used || d.sacrificed || d.locked || d.blocked;
       var dragging = p.dragging && p.dragging.die === i;
       var dieS = L.dieS;
       var dx, dy;
       if (dragging) { dx = p.x - dieS / 2; dy = p.y - dieS / 2; }
-      else if (ai2 >= 0) { var ap2 = this.assignedPos(ai2, L); dx = ap2.x; dy = ap2.y; dieS = ap2.s; }
       else if (inSlot) { var sl2 = L.slots[d.id]; if (!sl2) continue; dx = sl2.x + 1; dy = sl2.y; dieS = sl2.s - 2; }
       else {
         var sc = this.scatter[d.id];
