@@ -34,9 +34,12 @@
     this.pauseT = 0;
     this.logLine = '';
     this.scatter = {};
-    this.assignments = [];       // {die, target:{side,idx}}
+    this.assignments = [];       // (legado, não usado no modo manual)
     this.resolving = false;
     this.resolveSteps = [];
+    this.mode = 'roll';          // 'roll' (rolar/travar) -> 'act' (agir manual)
+    this.selDie = -1;            // dado selecionado no modo act
+    this.turnEnding = false;
     this.travel = null;          // dado em voo (ida/impacto/volta)
     this.actingHero = -1;
     this.eDice = {};             // slot -> {anim:{phase,t}, delay}
@@ -267,6 +270,53 @@
     return { x: x, y: y, s: tv.s * sc };
   };
 
+  // ---- modo manual: executa a ação de um dado num alvo, com encenação ----
+  BattleScene.prototype.executeAction = function (i, target, L) {
+    var c = this.combat, self = this;
+    if (this.travel || this.evQueue.length > 3) return false;
+    var d = c.dice[i];
+    if (!d || d.used || d.blocked || d.sacrificed) return false;
+    var v = c.canUse(i, target);
+    if (!v.ok) {
+      if (v.reason && typeof v.reason === 'string') this.logLine = v.reason;
+      return false;
+    }
+    this.selDie = -1;
+    var hu = c.heroes[d.heroIdx];
+    var face = c.faceOf(d);
+    var r = this.dieRect(i, L);
+    var from = r ? { x: r.x + 3, y: r.y + 5 } : { x: L.w / 2, y: L.h / 2 };
+    var p = target ? (target.side === 'enemy' ? L.enemyPanels[target.idx] : L.heroPanels[target.idx]) : null;
+    if (!p && (face.tgt === 'self')) p = L.heroPanels[d.heroIdx];
+    if (!p && face.tgt === 'allE') { var fe = c.aliveEnemies()[0]; p = fe ? L.enemyPanels[fe.slot] : null; }
+    var to = p ? { x: p.x + p.w / 2 - 10, y: p.y + p.h / 2 - 12 } : { x: from.x, y: from.y };
+    this.startTravel({
+      s: 22, side: 'hero', dieIdx: i,
+      actorRef: { side: 'hero', idx: d.heroIdx },
+      targetRef: target || (face.tgt === 'self' ? { side: 'hero', idx: d.heroIdx } : null),
+      label: RA.T(hu.name) + ': ' + RA.T(face.name) + ' [' + c.dieValue(d) + ']',
+      vd: { skin: hu.skin, anim: { phase: 'idle', t: 0 }, resultFace: Object.assign({}, face, { val: c.dieValue(d) }), faces: hu.faces, used: false, locked: false, highlight: true },
+      from: from, to: to,
+      onImpact: function () {
+        d.locked = false;
+        var res = c.useDie(i, target);
+        if (!res.ok && res.reason && typeof res.reason === 'string') self.logLine = res.reason;
+        self.drainEvents();
+      }
+    });
+    return true;
+  };
+
+  // fim da fase do jogador -> inimigos agem sozinhos (encenados)
+  BattleScene.prototype.endPlayerPhase = function () {
+    if (this.turnEnding || this.combat.over) return;
+    this.turnEnding = true;
+    this.selDie = -1;
+    this.showBanner(RA.UI('enemyTurn'), '#ff6a7a', true);
+    this.combat.endTurn();
+    this.drainEvents();
+  };
+
   BattleScene.prototype.startResolution = function (L) {
     this.resolving = true;
     this.resolveSteps = this.assignments.slice();
@@ -388,6 +438,7 @@
       }
       case 'turnStart': {
         this.clearAssignments();
+        this.mode = 'roll'; this.selDie = -1; this.turnEnding = false;
         if (this.combat.turn > 1) this.showBanner(RA.UI('yourTurn'), '#6ee89a', true);
         break;
       }
@@ -500,8 +551,12 @@
     this.drainEvents();
     W2.updateToasts(dt);
 
-    // resolução encenada dos dados atribuídos
-    if (this.resolving) this.stepResolution(dt, L);
+    // modo act: quando todos os dados foram usados, inimigos agem sozinhos
+    if (this.mode === 'act' && !this.turnEnding && !this.travel && !this.evQueue.length &&
+        c.phase === 'player' && !c.over && !c.pendingChoice) {
+      var anyLeft = c.dice.some(function (d5) { return !d5.used && !d5.blocked && !d5.sacrificed; });
+      if (!anyLeft) this.endPlayerPhase();
+    }
 
     if (this.battleOver && !this.evQueue.length && !this.finishing) {
       this.finishing = true;
@@ -534,7 +589,7 @@
     }
     if (this.confirmBox) {
       events.taps.forEach(function (tp) {
-        if (W2.inRect(tp.x, tp.y, self4.confirmBox.yes)) { self4.confirmBox = null; self4.startResolution(L); }
+        if (W2.inRect(tp.x, tp.y, self4.confirmBox.yes)) { self4.confirmBox = null; self4.endPlayerPhase(); }
         else if (W2.inRect(tp.x, tp.y, self4.confirmBox.no)) self4.confirmBox = null;
       });
       return;
@@ -543,37 +598,62 @@
     if (c.over || c.phase !== 'player' || this.resolving || this.travel || this.evQueue.length > 4) return;
 
     events.taps.forEach(function (tp) {
+      // toque num dado
       for (var i = 0; i < c.dice.length; i++) {
         var r = self4.dieRect(i, L);
         if (r && W2.inRect(tp.x, tp.y, r)) {
           var d = c.dice[i];
-          // todo toque num dado mostra o cartão explicando a face
           self4.infoCard = { die: i, t: 3.2 };
-          if (d.assignedView) {
-            var uidx = self4.assignIdxAt(i);
-            if (uidx >= 0) self4.unassign(uidx, L);
-          } else if (!d.used && !d.blocked) {
+          if (d.used || d.blocked || d.sacrificed) return;
+          if (self4.mode === 'roll') {
             c.toggleLock(i);
             if (!d.locked) self4.scatterDice(L);
+            self4.drainEvents();
+          } else {
+            // modo act: seleciona; 2o toque em face sem alvo executa
+            var f4 = c.faceOf(d);
+            var targetless = f4 && (f4.tgt === 'none' || f4.tgt === 'allE' || f4.tgt === 'allA' || f4.tgt === 'self');
+            if (self4.selDie === i && targetless) self4.executeAction(i, null, L);
+            else { self4.selDie = i; RA.audio.sfx('click'); }
           }
-          self4.drainEvents();
           return;
         }
       }
-      if (W2.inRect(tp.x, tp.y, L.btnReroll) && c.rollsLeft > 0 && c.tflags.diceUsed === 0) { c.reroll(); self4.drainEvents(); return; }
+      // toque num painel (alvo ou seleção de herói)
+      var u = self4.hitUnit(tp.x, tp.y, L);
+      if (u && self4.mode === 'act') {
+        if (self4.selDie >= 0) {
+          var fd = c.faceOf(c.dice[self4.selDie]);
+          var tls = fd && (fd.tgt === 'none' || fd.tgt === 'allE' || fd.tgt === 'allA' || fd.tgt === 'self');
+          self4.executeAction(self4.selDie, tls ? null : u, L);
+        } else if (u.side === 'hero' && !u.summon) {
+          // toca no personagem: seleciona o dado dele
+          for (var di4 = 0; di4 < c.dice.length; di4++) {
+            var dd4 = c.dice[di4];
+            if (dd4.heroIdx === u.idx && !dd4.used && !dd4.blocked && !dd4.sacrificed) {
+              self4.selDie = di4;
+              self4.infoCard = { die: di4, t: 3.2 };
+              RA.audio.sfx('click');
+              break;
+            }
+          }
+        }
+        return;
+      }
+      if (self4.mode === 'roll' && W2.inRect(tp.x, tp.y, L.btnReroll) && c.rollsLeft > 0 && c.tflags.diceUsed === 0) { c.reroll(); self4.drainEvents(); return; }
       if (W2.inRect(tp.x, tp.y, L.btnDone)) {
-        // não finaliza sem pelo menos um dado atribuído (se houver usável)
-        var anyUse = c.dice.some(function (d3) { return !d3.used && !d3.blocked && !d3.sacrificed && !d3.assignedView; });
-        if (self4.assignments.length === 0 && anyUse) { self4.logLine = RA.UI('dragHint'); return; }
+        if (self4.mode === 'roll') { self4.mode = 'act'; self4.showBanner(RA.UI('actHint'), '#6ee89a'); RA.audio.sfx('confirm'); return; }
+        // modo act: PASSAR pula os dados restantes
         if (RA.core.Save.get().settings.confirmEndTurn) {
           var bw3 = Math.min(60, (L.w - 30) / 2);
           self4.confirmBox = {
             yes: { x: L.w / 2 - bw3 - 6, y: L.h / 2 + 6, w: bw3, h: 20, label: RA.UI('yes') },
             no: { x: L.w / 2 + 6, y: L.h / 2 + 6, w: bw3, h: 20, label: RA.UI('no') }
           };
-        } else self4.startResolution(L);
+        } else self4.endPlayerPhase();
         return;
       }
+      if (self4.mode === 'act') self4.selDie = -1; // toque no vazio: deseleciona
     });
 
     var p = input.pointer;
@@ -594,8 +674,11 @@
     if (p.dragging && p.dragging.die !== undefined) this.dragTarget = this.hitUnit(p.x, p.y, L);
     events.releases.forEach(function (rel) {
       if (rel.drag && rel.drag.die !== undefined) {
+        if (self4.mode === 'roll') { self4.logLine = RA.T({ pt: 'Aperte LUTAR para agir', en: 'Press FIGHT to act' }); return; }
         var tgt = self4.hitUnit(rel.x, rel.y, L);
-        self4.tryAssign(rel.drag.die, tgt);
+        var fD = c.faceOf(c.dice[rel.drag.die]);
+        var tlD = fD && (fD.tgt === 'none' || fD.tgt === 'allE' || fD.tgt === 'allA' || fD.tgt === 'self');
+        self4.executeAction(rel.drag.die, tlD ? null : tgt, L);
         self4.drainEvents();
       }
     });
@@ -868,15 +951,13 @@
     ctx.fillRect(0, L.barY, w, L.barH);
     ctx.strokeStyle = '#38323f';
     ctx.beginPath(); ctx.moveTo(0, L.barY + 0.5); ctx.lineTo(w, L.barY + 0.5); ctx.stroke();
-    var busy = this.resolving || !!this.travel;
+    var busy = !!this.travel || this.turnEnding;
     L.btnReroll.label = RA.UI('reroll') + ' x' + c.rollsLeft;
-    L.btnReroll.disabled = busy || c.rollsLeft <= 0 || c.tflags.diceUsed > 0 || c.phase !== 'player';
+    L.btnReroll.disabled = busy || this.mode !== 'roll' || c.rollsLeft <= 0 || c.tflags.diceUsed > 0 || c.phase !== 'player';
     W2.btn(ctx, L.btnReroll, this.time);
-    // só finaliza depois de atribuir pelo menos um dado (se houver dado usável)
-    var anyUsable = c.dice.some(function (d2) { return !d2.used && !d2.blocked && !d2.sacrificed && !d2.assignedView; });
-    L.btnDone.disabled = busy || c.phase !== 'player' || !!this.evQueue.length ||
-      (this.assignments.length === 0 && anyUsable);
-    L.btnDone.glow = this.assignments.length > 0;
+    L.btnDone.label = this.mode === 'roll' ? RA.UI('fight') : RA.UI('pass');
+    L.btnDone.disabled = busy || c.phase !== 'player' || !!this.evQueue.length;
+    L.btnDone.glow = this.mode === 'roll' && !L.btnDone.disabled;
     W2.btn(ctx, L.btnDone, this.time);
     RA.gfx.Dice.drawFate(ctx, L.fate.x, L.fate.y, L.fate.s, this.time, this.fateSpin > 0, c.fate ? c.fate.n : '');
 
@@ -929,11 +1010,37 @@
         skin: hu2.skin, anim: d.anim,
         resultFace: Object.assign({}, shown, { val: shown === face ? c.dieValue(d) : shown.val }),
         faces: hu2.faces, used: d.used || d.sacrificed || d.blocked,
-        locked: d.locked && !d.assignedView, highlight: dragging || ai2 >= 0 || stepping
+        locked: d.locked && this.mode === 'roll', highlight: dragging || this.selDie === i
       };
       RA.gfx.Dice.draw(ctx, vd, dx, dy, dieS, this.time);
       if (d.blocked) ctx.drawImage(RA.gfx.Icons.status('silence'), dx + dieS - 6, dy - 2, 8, 8);
       if (ai2 < 0 && !inSlot && !dragging) ctx.drawImage(RA.gfx.Portraits.get(hu2.id), dx - 3, dy + dieS - 3, 10, 10);
+    }
+
+    // alvos válidos do dado selecionado: contorno pulsando
+    if (this.mode === 'act' && this.selDie >= 0 && !this.travel) {
+      var sf = c.faceOf(c.dice[this.selDie]);
+      if (sf) {
+        var puT = 0.4 + 0.4 * Math.sin(this.time * 7);
+        var paintT = function (pn, colT) {
+          ctx.strokeStyle = colT.replace(')', ',' + puT + ')').replace('rgb', 'rgba');
+          ctx.lineWidth = 2;
+          ctx.strokeRect(pn.x - 2.5, pn.y - 2.5, pn.w + 5, pn.h + 5);
+          ctx.lineWidth = 1;
+        };
+        if (sf.tgt === 'enemy' || sf.tgt === 'any' || sf.tgt === 'allE') {
+          for (var ke in L.enemyPanels) paintT(L.enemyPanels[ke], 'rgb(255,215,106)');
+        }
+        if (sf.tgt === 'ally' || sf.tgt === 'self' || sf.tgt === 'any' || sf.tgt === 'allA' || sf.tgt === 'downed') {
+          for (var kh in L.heroPanels) {
+            var hpn = L.heroPanels[kh];
+            if (sf.tgt === 'self' && hpn.unit.slot !== c.dice[this.selDie].heroIdx) continue;
+            if (sf.tgt === 'downed' && !hpn.unit.downed) continue;
+            if (hpn.unit.dead) continue;
+            paintT(hpn, 'rgb(110,232,154)');
+          }
+        }
+      }
     }
 
     // ---- dado em voo: trilha de setas + dado por cima de tudo ----

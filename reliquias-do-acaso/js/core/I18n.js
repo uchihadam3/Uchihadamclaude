@@ -38,7 +38,8 @@
       confirmTurn: 'Terminar o turno?', yes: 'SIM', no: 'NÃO', heal: 'curar',
       full: 'CHEIO', empty: 'vazio', next: 'PRÓXIMO', collect: 'COLETAR',
       dieBlocked: 'Dado bloqueado!', needEnemy: 'Mire em um inimigo',
-      needAlly: 'Mire em um aliado', newRule: 'NOVA REGRA!'
+      needAlly: 'Mire em um aliado', newRule: 'NOVA REGRA!',
+      fight: 'LUTAR!', pass: 'PASSAR', actHint: 'Toque num dado, depois no alvo'
     },
     en: {
       play: 'PLAY', continue_: 'CONTINUE RUN', modes: 'MODES', codex: 'CODEX',
@@ -76,7 +77,8 @@
       confirmTurn: 'End the turn?', yes: 'YES', no: 'NO', heal: 'heal',
       full: 'FULL', empty: 'empty', next: 'NEXT', collect: 'COLLECT',
       dieBlocked: 'Die blocked!', needEnemy: 'Target an enemy',
-      needAlly: 'Target an ally', newRule: 'NEW RULE!'
+      needAlly: 'Target an ally', newRule: 'NEW RULE!',
+      fight: 'FIGHT!', pass: 'PASS', actHint: 'Tap a die, then a target'
     }
   };
 
