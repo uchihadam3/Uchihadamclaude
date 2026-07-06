@@ -60,7 +60,20 @@
     g[26][95] = 'L';   // perto da saída leste
 
     var rowsStr = g.map(function (r) { return r.join(''); });
-    return new LK.world.Level(rowsStr);
+    var level = new LK.world.Level(rowsStr);
+
+    // spawns de inimigos (tile -> px), posicionados nas zonas que pedem
+    // cada padrão: rastejante no corredor plano, voador guardando o fosso
+    // de espinhos, cuspidor na plataforma alta, casca no trecho final.
+    var T = 24;
+    var enemies = [
+      { type: 'Rastejante', x: 36 * T, y: 27 * T },
+      { type: 'Voador', x: 50 * T, y: 22 * T },
+      { type: 'Cuspidor', x: 72 * T, y: 25 * T },
+      { type: 'Casca', x: 92 * T, y: 25 * T }
+    ];
+
+    return { level: level, enemies: enemies };
   }
 
   LK.world.Room1 = { build: build };

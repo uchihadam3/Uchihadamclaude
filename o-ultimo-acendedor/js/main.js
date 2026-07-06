@@ -8,7 +8,8 @@
   var disp = LK.core.Display.setup(canvas);
   var ctx = disp.ctx;
 
-  var level = LK.world.Room1.build();
+  var room = LK.world.Room1.build();
+  var level = room.level;
   var particles = new LK.gfx.Particles();
   var biome = new LK.world.BiomeGrutas(level);
   var lamps = new LK.world.Lamps(level, particles);
@@ -16,12 +17,16 @@
   var camera = new LK.core.Camera();
   var player = new LK.entities.Player(level, particles);
 
+  var enemies = room.enemies.map(function (sp) {
+    return new LK.entities.Bestiary[sp.type](sp.x, sp.y);
+  });
+
   camera.setBounds({ minX: 0, minY: 0, maxX: level.pxW, maxY: level.pxH });
 
   var gameTime = 0;
   var lightsScratch = [];
 
-  window.__LK_DEBUG = { player: player, level: level, camera: camera, frameCount: 0, lamps: lamps };
+  window.__LK_DEBUG = { player: player, level: level, camera: camera, frameCount: 0, lamps: lamps, enemies: enemies };
 
   var STEP = 1 / 60;
   var acc = 0;
@@ -43,7 +48,67 @@
 
     player.update(dt, cmd);
 
-    // golpe conecta em... (por enquanto, nada além de cenário; inimigos na fase 4)
+    // ---- inimigos ----
+    for (var i = enemies.length - 1; i >= 0; i--) {
+      var e = enemies[i];
+      e.update(dt, player, level, particles);
+      if (e.dead && e.deathTimer <= 0) { enemies.splice(i, 1); continue; }
+      // dano por contato
+      if (!e.dead && e.overlapsPlayer(player)) {
+        if (player.takeDamage(e.contactDamage, e.x)) camera.shake(0.42);
+      }
+    }
+
+    // ---- golpe do jogador conecta ----
+    var hb = player.getAttackHitbox();
+    if (hb && !player.attackHitDone) {
+      var connected = false;
+      for (var j = 0; j < enemies.length; j++) {
+        var en = enemies[j];
+        if (en.dead || !en.overlapsBox(hb)) continue;
+        var result = en.hurt(1, player.x, hb.dir);
+        if (result === 'blocked') {
+          // clank: faíscas cinzas, recuo maior, sem dano
+          particles.burst(en.x + (player.x < en.x ? -en.hw : en.hw), en.y - 2, 10, {
+            speedMin: 60, speedMax: 200, g: 200, drag: 2,
+            color: ['#c9c9c9', '#8a8a8a', '#fff'],
+            lifeMin: 0.1, lifeMax: 0.28, kind: 'spark', sizeMin: 1, sizeMax: 2
+          });
+          player.hitPause = Math.max(player.hitPause, 0.03);
+          if (hb.dir === 'side') player.vx = -player.facing * 200;
+          camera.shake(0.15);
+        } else {
+          player.onHitConnected(en.x, en.y);
+          camera.shake(result === 'dead' ? 0.45 : 0.25);
+          if (result === 'dead') {
+            particles.burst(en.x, en.y, 22, {
+              speedMin: 60, speedMax: 240, g: 160, drag: 2,
+              color: ['#fff2c9', '#ffd27a', '#c9e8f2'],
+              lifeMin: 0.25, lifeMax: 0.7, kind: 'spark', sizeMin: 1.5, sizeMax: 3
+            });
+          }
+        }
+        connected = true;
+      }
+      // cortar bile no ar
+      var projs = LK.entities.projectiles;
+      for (var pj = projs.length - 1; pj >= 0; pj--) {
+        var pr = projs[pj];
+        if (Math.abs(pr.x - hb.x) < hb.hw + 4 && Math.abs(pr.y - hb.y) < hb.hh + 4) {
+          particles.burst(pr.x, pr.y, 10, {
+            speedMin: 50, speedMax: 160, g: 250,
+            color: ['#8cc83c', '#d8ff5c'],
+            lifeMin: 0.15, lifeMax: 0.4, kind: 'spark', sizeMin: 1.5, sizeMax: 2.5
+          });
+          projs.splice(pj, 1);
+          connected = true;
+          player.onHitConnected(pr.x, pr.y);
+        }
+      }
+      if (connected) player.attackHitDone = true;
+    }
+
+    LK.entities.updateProjectiles(dt, level, player, particles);
 
     lamps.update(dt, player);
     biome.update(dt);
@@ -70,6 +135,8 @@
     biome.renderTerrain(ctx, cam, viewW, viewH);
     biome.renderProps(ctx, cam, viewW, viewH);
     lamps.render(ctx, cam.x, cam.y);
+    for (var ei = 0; ei < enemies.length; ei++) enemies[ei].render(ctx, cam.x, cam.y);
+    LK.entities.renderProjectiles(ctx, cam.x, cam.y);
     particles.render(ctx, cam.x, cam.y, viewW, viewH);
     player.render(ctx, cam.x, cam.y);
 
@@ -77,6 +144,7 @@
     lightsScratch.length = 0;
     biome.collectLights(lightsScratch, gameTime);
     lamps.collectLights(lightsScratch);
+    LK.entities.collectProjectileLights(lightsScratch);
     // lanterna do jogador: pequena bolha de luz pessoal
     lightsScratch.push({
       x: player.x - player.facing * 8, y: player.y,
