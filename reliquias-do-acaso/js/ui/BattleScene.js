@@ -618,6 +618,7 @@
         if (r && W2.inRect(tp.x, tp.y, r)) {
           var d = c.dice[i];
           self4.infoCard = { die: i, t: 3.2 };
+          self4.infoCardE = null;
           if (d.used || d.blocked || d.sacrificed) return;
           if (self4.mode === 'roll') {
             c.toggleLock(i);
@@ -643,6 +644,13 @@
       }
       // toque num painel (alvo ou seleção de herói)
       var u = self4.hitUnit(tp.x, tp.y, L);
+      // toque no inimigo (sem dado mirando): mostra o que ELE vai fazer
+      if (u && u.side === 'enemy' && (self4.mode === 'roll' || self4.selDie < 0)) {
+        self4.infoCardE = { idx: u.idx, t: 3.6 };
+        self4.infoCard = null;
+        RA.audio.sfx('tooltip');
+        return;
+      }
       if (u && self4.mode === 'act') {
         if (self4.selDie >= 0) {
           var fd = c.faceOf(c.dice[self4.selDie]);
@@ -780,6 +788,31 @@
     if (it.k === 'st') { var sd = RA.data.Statuses[it.s]; return (sd ? RA.T(sd) : it.s) + ' ' + it.n; }
     if (it.k === 'summon') return RA.T({ pt: 'Invocar', en: 'Summon' });
     return '???';
+  }
+
+  // explica a próxima ação do inimigo em linhas completas
+  function intentLines(c, e) {
+    var it = e.intent, out = [];
+    if (!it) return [RA.T({ pt: 'Sem intenção visível.', en: 'No visible intent.' })];
+    var TG = {
+      front: { pt: 'na sua LINHA DE FRENTE', en: 'at your FRONT LINE' },
+      back: { pt: 'na sua linha de trás', en: 'at your back line' },
+      weakest: { pt: 'no seu herói MAIS FERIDO', en: 'at your MOST WOUNDED hero' },
+      random: { pt: 'em um alvo aleatório', en: 'at a random target' }
+    };
+    var tg = TG[it.tgt] ? RA.T(TG[it.tgt]) : RA.T(TG.front);
+    if (it.k === 'atk') out.push(RA.T({ pt: 'Vai ATACAR: ' + it.n + ' de dano ' + tg, en: 'Will ATTACK: ' + it.n + ' damage ' + tg }));
+    else if (it.k === 'shield') out.push(RA.T({ pt: 'Vai se DEFENDER: +' + it.n + ' de escudo', en: 'Will DEFEND: +' + it.n + ' shield' }));
+    else if (it.k === 'heal') out.push(it.who === 'self' ? RA.T({ pt: 'Vai se CURAR em ' + it.n, en: 'Will HEAL itself for ' + it.n }) : RA.T({ pt: 'Vai CURAR um aliado em ' + it.n, en: 'Will HEAL an ally for ' + it.n }));
+    else if (it.k === 'st') {
+      var sd2 = RA.data.Statuses[it.s];
+      var whoT = it.tgt === 'allH' ? RA.T({ pt: ' em TODOS os seus heróis', en: ' on ALL your heroes' }) : it.tgt === 'self' ? RA.T({ pt: ' em si mesmo', en: ' on itself' }) : it.tgt === 'allyE' ? RA.T({ pt: ' nos aliados dele', en: ' on its allies' }) : ' ' + tg;
+      out.push(RA.T({ pt: 'Vai aplicar ', en: 'Will apply ' }) + (sd2 ? RA.T(sd2) : it.s) + ' ' + it.n + whoT);
+      if (sd2 && sd2.desc) out.push('(' + RA.T(sd2.desc) + ')');
+    }
+    else if (it.k === 'summon') out.push(RA.T({ pt: 'Vai INVOCAR reforços!', en: 'Will SUMMON reinforcements!' }));
+    else if (it.k === 'special') out.push(RA.T({ pt: 'Vai usar uma HABILIDADE ESPECIAL', en: 'Will use a SPECIAL ability' }) + (it.n ? ' [' + it.n + ']' : ''));
+    return out;
   }
 
   function intentIcon(it) {
@@ -1115,6 +1148,44 @@
         W2.panel(ctx, lx, ly, lw, 14, { edge: tv.side === 'hero' ? '#ffd76a' : '#ff6a7a' });
         F.draw(ctx, lbl, lx + lw / 2, ly + 4, { size: 1, color: tv.side === 'hero' ? '#ffe9a0' : '#ff9aaa', align: 'center' });
         ctx.globalAlpha = 1;
+      }
+    }
+
+    // cartão de intenção do inimigo tocado: o que ele fará no turno dele
+    if (this.infoCardE) {
+      this.infoCardE.t -= 1 / 60;
+      if (this.infoCardE.t <= 0) this.infoCardE = null;
+      else {
+        var ie = c.enemies[this.infoCardE.idx];
+        if (ie && !ie.dead) {
+          var ieTitle = RA.T(ie.name) + (ie.tier === 'chefe' || ie.tier === 'secreto' ? ' [' + RA.UI('boss') + ']' : '');
+          var ieLines = intentLines(c, ie);
+          var sCnt = 0;
+          for (var sk3 in ie.statuses) {
+            if (sCnt >= 2) break;
+            var sd3 = RA.data.Statuses[sk3];
+            if (sd3) { ieLines.push(RA.T(sd3) + ' ' + ie.statuses[sk3] + ' (' + RA.T(sd3.desc) + ')'); sCnt++; }
+          }
+          var ieWrap = [];
+          ieLines.forEach(function (l0) { F.wrap(String(l0), 1, 1, Math.min(w - 24, 280)).forEach(function (l1) { ieWrap.push(l1); }); });
+          ieWrap = ieWrap.slice(0, 5);
+          var ieW = Math.max(F.measure(ieTitle, 1, 1), 120) + 20;
+          ieWrap.forEach(function (l2c) { ieW = Math.min(w - 12, Math.max(ieW, F.measure(l2c, 1, 1) + 16)); });
+          var ieH = 18 + ieWrap.length * 9;
+          var ieX = (w - ieW) / 2;
+          var ieY = Math.round(L.diceZone.y + L.diceZone.h - ieH + 2);
+          ieY = Math.max(L.diceZone.y + 20, Math.min(ieY, L.barY - ieH - 2));
+          var ieA = Math.min(1, this.infoCardE.t * 3);
+          ctx.globalAlpha = ieA;
+          W2.panel(ctx, ieX, ieY, ieW, ieH, { edge: '#ff6a7a' });
+          var ieDie = { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(ie.intent), val: ie.intent ? (ie.intent.n || 0) : 0 }, faces: EFAKES, used: false, locked: false };
+          RA.gfx.Dice.draw(ctx, ieDie, ieX + 4, ieY + 3, 12, this.time);
+          F.draw(ctx, ieTitle, ieX + 22, ieY + 4, { size: 1, color: '#ff9aaa' });
+          ieWrap.forEach(function (l2d, li3) {
+            F.draw(ctx, l2d, ieX + 8, ieY + 15 + li3 * 9, { size: 1, color: '#c8c2d4' });
+          });
+          ctx.globalAlpha = 1;
+        }
       }
     }
 
