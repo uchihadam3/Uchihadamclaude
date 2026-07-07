@@ -853,6 +853,18 @@
   };
 
   Combat.prototype.finishTurn = function () {
+    // modo encenado: a UI chama roundEndAndNext() quando as animações da
+    // fase inimiga terminarem — escudos/status ficam visíveis até lá
+    if (this.deferNext && !this.over) {
+      this.pendingNext = true;
+      this.ev('awaitNext', {});
+      return;
+    }
+    this.roundEndAndNext();
+  };
+
+  Combat.prototype.roundEndAndNext = function () {
+    this.pendingNext = false;
     var self = this;
     if (!this.over) {
       // ---- fase de status (fim de rodada) ----

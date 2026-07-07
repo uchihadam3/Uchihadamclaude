@@ -33,6 +33,8 @@
   BattleScene.prototype.enter = function () {
     W2 = RA.ui.W;
     this.combat = this.run.startBattle(this.room);
+    // o motor espera a encenação: escudos/status só limpam após as animações
+    this.combat.deferNext = true;
     this.time = 0;
     this.enterT = 0;
     this.evQueue = [];
@@ -564,6 +566,12 @@
     }
     this.drainEvents();
     W2.updateToasts(dt);
+
+    // fim de rodada adiado: vira o turno só depois das animações inimigas
+    if (c.pendingNext && !this.evQueue.length && !this.travel && this.pauseT <= 0 && !c.over) {
+      c.roundEndAndNext();
+      this.drainEvents();
+    }
 
     // modo act: quando todos os dados foram usados, inimigos agem sozinhos
     if (this.mode === 'act' && !this.turnEnding && !this.travel && !this.evQueue.length &&
