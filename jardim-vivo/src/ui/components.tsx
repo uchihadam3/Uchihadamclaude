@@ -98,14 +98,27 @@ function spriteFor(plantId: string, stage: 'mature' | 'flowering', seed: number)
     drawPlant(ctx, plantId, paintParams(stage, seed), h);
     ctx.restore();
   };
-  // 1ª passada: escala conservadora, só para medir
-  render(S * 0.18);
+  // 1ª passada: escala pequena e segura, só para medir a planta INTEIRA
+  const H0 = S * 0.12;
+  render(H0);
   let box = measureInk(ctx, S);
   if (!box) return null;
-  // 2ª passada: redimensiona para preencher bem o quadro (sem sair dele)
-  const fit = Math.min(3.4, (S * 0.82) / Math.max(box.bw, box.bh));
-  if (fit > 1.08) {
-    render(S * 0.18 * fit);
+  // extensões reais da tinta a partir do ponto-base (onde a planta "nasce")
+  const baseX = S / 2, baseY = S * 0.76, M = 10;
+  const up = Math.max(1, baseY - box.by);
+  const down = Math.max(1, (box.by + box.bh) - baseY);
+  const left = Math.max(1, baseX - box.bx);
+  const right = Math.max(1, (box.bx + box.bw) - baseX);
+  // maior ampliação que mantém a planta TODA dentro do canvas (nada corta)
+  const maxK = Math.min(
+    (baseY - M) / up,
+    (S - M - baseY) / down,
+    (baseX - M) / left,
+    (S - M - baseX) / right,
+  );
+  const fit = Math.min(maxK * 0.94, 4.2); // sobe a resolução sem estourar as bordas
+  if (fit > 1.05) {
+    render(H0 * fit);
     box = measureInk(ctx, S) ?? box;
   }
   const entry = { cv, ...box };

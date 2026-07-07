@@ -181,7 +181,7 @@ function PlayerShopScreen(props: { onBack: () => void; onClose: () => void }): J
             {tab === 'cuttings' && Object.entries(G.inventory.cuttings).filter(([, q]) => q > 0).map(([id, q]) => (
               <div key={id} className="card" onClick={() => sellCutting(id, 1)}>
                 <span className="card-qty">{q}</span>
-                <PlantSprite plantId={id} size={48} stage="mature" />
+                <PlantSprite plantId={id} size={48} stage="flowering" />
                 <span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span>
                 <span className="card-price"><Icon name="coin" size={13} />{cuttingSaleValue(id)}</span>
               </div>
@@ -189,7 +189,7 @@ function PlayerShopScreen(props: { onBack: () => void; onClose: () => void }): J
             {tab === 'seeds' && Object.entries(G.inventory.seeds).filter(([, q]) => q > 0).map(([id, q]) => (
               <div key={id} className="card" onClick={() => sellSeeds(id, 1)}>
                 <span className="card-qty">{q}</span>
-                <PlantSprite plantId={id} size={50} stage="mature" />
+                <PlantSprite plantId={id} size={50} stage="flowering" />
                 <span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span>
               </div>
             ))}
@@ -233,15 +233,15 @@ export function InventoryScreen(props: { onClose: () => void }): JSX.Element {
             <button className={`tab ${tab === 'tools' ? 'active' : ''}`} onClick={() => setTab('tools')}>{t('tools')}</button>
           </div>
           {tab === 'seeds' && section(Object.entries(inv.seeds), (id, q) => (
-            <div key={id} className="card"><span className="card-qty">{q}</span><PlantSprite plantId={id} size={50} stage="mature" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id]?.commonNamePT ?? id, en: PLANT_BY_ID[id]?.commonNameEN ?? id })}</span></div>
+            <div key={id} className="card"><span className="card-qty">{q}</span><PlantSprite plantId={id} size={50} stage="flowering" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id]?.commonNamePT ?? id, en: PLANT_BY_ID[id]?.commonNameEN ?? id })}</span></div>
           ))}
           {tab === 'plants' && (
             <>
               {section(Object.entries(inv.seedlings), (id, q) => (
-                <div key={id} className="card"><span className="card-qty">{q}</span><PlantSprite plantId={id} size={50} stage="mature" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span><span className="pill">{t('seedlings')}</span></div>
+                <div key={id} className="card"><span className="card-qty">{q}</span><PlantSprite plantId={id} size={50} stage="flowering" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span><span className="pill">{t('seedlings')}</span></div>
               ))}
               {section(Object.entries(inv.cuttings), (id, q) => (
-                <div key={id} className="card"><span className="card-qty">{q}</span><PlantSprite plantId={id} size={50} stage="mature" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span><span className="pill good">{t('cuttings')}</span></div>
+                <div key={id} className="card"><span className="card-qty">{q}</span><PlantSprite plantId={id} size={50} stage="flowering" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span><span className="pill good">{t('cuttings')}</span></div>
               ))}
             </>
           )}
