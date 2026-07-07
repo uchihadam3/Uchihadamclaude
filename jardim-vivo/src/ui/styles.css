@@ -155,9 +155,16 @@ body { background: var(--bg-deep); color: var(--ink); user-select: none; }
   animation: fadeIn 0.2s ease;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.overlay .panel { width: min(720px, 100%); max-height: calc(100% - 20px); animation: popIn 0.22s ease; }
+/* o wrapper vira coluna flex com altura limitada; assim o max-height do painel
+   resolve de verdade e o .panel-body ganha rolagem em TODAS as abas */
+.overlay > div {
+  display: flex; flex-direction: column;
+  max-height: 100%; min-height: 0;
+}
+.overlay .panel { width: min(720px, 100%); max-height: 100%; min-height: 0; animation: popIn 0.22s ease; }
 .overlay .panel.wide { width: min(940px, 100%); }
 .overlay .panel.narrow { width: min(440px, 100%); }
+.panel-body { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 @keyframes popIn { from { transform: scale(0.94) translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------- grids de cartas ---------- */
@@ -234,8 +241,10 @@ body { background: var(--bg-deep); color: var(--ink); user-select: none; }
   width: min(330px, calc(100vw - 20px));
   z-index: 30;
   display: flex; flex-direction: column;
+  justify-content: flex-start;
+  min-height: 0;
 }
-.plant-sheet .panel { height: 100%; }
+.plant-sheet .panel { max-height: 100%; min-height: 0; }
 .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .sheet-row { display: flex; gap: 8px; align-items: center; margin: 3px 0; font-size: 12.5px; }
 .sheet-row b { font-weight: 800; }
