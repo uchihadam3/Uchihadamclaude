@@ -634,8 +634,58 @@
   };
 
   // ---------------------------------------------------------- CODEX
+  // descreve uma face de dado inimigo (mesma linguagem do cartão de batalha)
+  function enemyFaceDesc(it) {
+    var out = [];
+    var TG = {
+      front: { pt: 'na linha de frente', en: 'at the front line' },
+      back: { pt: 'na linha de trás', en: 'at the back line' },
+      weakest: { pt: 'no herói mais ferido', en: 'at the most wounded hero' },
+      random: { pt: 'em alvo aleatório', en: 'at a random target' },
+      marked: { pt: 'no herói marcado', en: 'at the marked hero' },
+      allH: { pt: 'em TODOS os heróis', en: 'at ALL heroes' },
+      allFront: { pt: 'em TODA a linha de frente', en: 'at the ENTIRE front line' }
+    };
+    function one(f) {
+      var tg = TG[f.tgt] ? RA.T(TG[f.tgt]) : RA.T(TG.front);
+      if (f.k === 'atk') out.push(RA.T({ pt: 'Ataca: ' + f.n + ' de dano', en: 'Attacks: ' + f.n + ' damage' }) + (f.times > 1 ? ' x' + f.times : '') + ' ' + tg + (f.pierce ? RA.T({ pt: ' (ignora escudo)', en: ' (ignores shield)' }) : ''));
+      else if (f.k === 'drain') out.push(RA.T({ pt: 'Drena ' + f.n + ' ' + tg + ' e se cura', en: 'Drains ' + f.n + ' ' + tg + ' and heals itself' }));
+      else if (f.k === 'none') out.push(RA.T({ pt: 'Hesita: não faz nada!', en: 'Hesitates: does nothing!' }));
+      else if (f.k === 'shield') out.push(RA.T({ pt: 'Defende: +' + f.n + ' de escudo', en: 'Defends: +' + f.n + ' shield' }));
+      else if (f.k === 'heal') out.push(f.who === 'self' ? RA.T({ pt: 'Cura ' + f.n + ' em si', en: 'Heals itself ' + f.n }) : RA.T({ pt: 'Cura ' + f.n + ' no aliado mais ferido', en: 'Heals most wounded ally ' + f.n }));
+      else if (f.k === 'st') {
+        var sd = RA.data.Statuses[f.s];
+        var whoT = f.tgt === 'allH' ? RA.T({ pt: ' em todos os heróis', en: ' on all heroes' }) : f.tgt === 'self' ? RA.T({ pt: ' em si', en: ' on self' }) : f.tgt === 'allyE' ? RA.T({ pt: ' nos aliados', en: ' on allies' }) : ' ' + tg;
+        out.push((sd ? RA.T(sd) : f.s) + ' ' + f.n + whoT);
+        if (sd && sd.desc) out.push('(' + RA.T(sd.desc) + ')');
+      }
+      else if (f.k === 'summon') out.push(RA.T({ pt: 'Invoca reforços', en: 'Summons reinforcements' }));
+      else if (f.k === 'special') {
+        var spd = RA.data.EnemySpecialDesc && RA.data.EnemySpecialDesc[f.id];
+        out.push((spd ? RA.T(spd) : RA.T({ pt: 'Habilidade especial', en: 'Special ability' })) + (f.n ? ' [' + f.n + ']' : ''));
+      }
+    }
+    one(it);
+    (it.and || []).forEach(function (sub) {
+      var pre = out.length;
+      one(sub);
+      if (out[pre]) out[pre] = '+ ' + out[pre];
+    });
+    return out;
+  }
+  function enemyFaceIcon(it) {
+    if (!it) return 'eye';
+    return it.k === 'atk' ? 'sword' : it.k === 'drain' ? 'skull' : it.k === 'shield' ? 'shield' : it.k === 'heal' ? 'heart' : it.k === 'summon' ? 'star' : it.k === 'st' ? 'skull' : 'eye';
+  }
+  var EFAKES2 = [{ sym: 'sword', val: 0 }, { sym: 'shield', val: 0 }, { sym: 'skull', val: 0 }, { sym: 'eye', val: 0 }, { sym: 'heart', val: 0 }, { sym: 'star', val: 0 }];
+
   function CodexScene() {}
-  CodexScene.prototype.enter = function () { this.time = 0; this.buttons = []; this.tab = 'bestiario'; this.page = 0; };
+  CodexScene.prototype.enter = function () {
+    this.time = 0; this.buttons = []; this.tab = 'bestiario'; this.page = 0;
+    this.inspectE = null;   // inimigo inspecionado (modal com o dado dele)
+    this.inspectFaceE = 0;
+    this.showFury = false;  // alterna dado normal / dado de FÚRIA (chefes)
+  };
   CodexScene.prototype.update = function (dt, events) {
     this.time += dt; W().updateToasts(dt);
     var self = this;
@@ -712,7 +762,14 @@
         ctx.drawImage(spr, x, yy);
         ctx.globalAlpha = 1;
         if (!known) F.draw(ctx, '?', x + 14, yy + 12, { size: 1, color: '#5a5468', align: 'center' });
-        else self.tipRects.push({ x: x - 2, y: yy - 2, w: 34, h: 38, title: RA.T(e.name), lines: [RA.UI('hp') + ': ' + e.hp, e.tier + ' - D' + ((e.die || []).length || 6), RA.T(RA.data.RegionsById[e.region].name)] });
+        else {
+          // toque abre a ficha completa do inimigo (status + dado dele)
+          self.buttons.push({ x: x - 2, y: yy - 2, w: 34, h: 38, label: '', fn: function () {
+            self.inspectE = e.id; self.inspectFaceE = 0; self.showFury = false;
+            RA.audio.sfx('click');
+          } });
+          self.tipRects.push({ x: x - 2, y: yy - 2, w: 34, h: 38, title: RA.T(e.name), lines: [RA.UI('hp') + ': ' + e.hp, e.tier + ' - D' + ((e.die || []).length || 6), RA.T(RA.data.RegionsById[e.region].name)] });
+        }
       });
       if (pages > 1) { var pg = { x: w / 2 - 20, y: h - 46, w: 40, h: 14, small: true, label: (this.page + 1) + '/' + pages, fn: function () { self.page = (self.page + 1) % pages; } }; W().btn(ctx, pg, this.time); this.buttons.push(pg); }
     } else if (this.tab === 'reliquias') {
@@ -770,6 +827,98 @@
     }
     var back = { x: w / 2 - 50, y: h - 26, w: 100, h: 20, label: RA.UI('back'), fn: function () { Sc().replace(new MainMenuScene()); } };
     W().btn(ctx, back, this.time); this.buttons.push(back);
+
+    // ============== MODAL: ficha do inimigo (status + o DADO dele) ==============
+    if (this.inspectE) {
+      var eDef = RA.data.Enemies.byId[this.inspectE];
+      if (!eDef) { this.inspectE = null; } else {
+        var tierC2 = eDef.tier === 'chefe' ? '#e8a04a' : eDef.tier === 'secreto' ? '#e84a5a' : eDef.tier === 'elite' ? '#8a4ae8' : '#8a94a8';
+        var dieE = (this.showFury && eDef.die2) ? eDef.die2 : (eDef.die || []);
+        if (this.inspectFaceE >= dieE.length) this.inspectFaceE = 0;
+        ctx.fillStyle = 'rgba(4,3,8,0.85)';
+        ctx.fillRect(0, 0, w, h);
+        this.buttons = [];
+        this.tipRects = [];
+        var pwE = Math.min(w - 8, 320);
+        var colsE = Math.min(6, Math.max(1, dieE.length));
+        var rowsE = Math.ceil(dieE.length / colsE);
+        var gapE = Math.min(36, Math.floor((pwE - 12) / colsE));
+        var dieSE = Math.min(22, gapE - 8);
+        var phE = Math.min(h - 6, 66 + rowsE * (dieSE + 16) + 64);
+        var pxE = Math.round((w - pwE) / 2), pyE = Math.round(Math.max(3, (h - phE) / 2));
+        W().panel(ctx, pxE, pyE, pwE, phE, { edge: this.showFury ? '#ff5a6a' : tierC2 });
+        // cabeçalho: sprite grande + nome + tier + HP + região
+        ctx.fillStyle = 'rgba(10,8,16,0.9)';
+        ctx.fillRect(pxE + 5, pyE + 4, 34, 34);
+        ctx.strokeStyle = tierC2;
+        ctx.strokeRect(pxE + 5.5, pyE + 4.5, 33, 33);
+        var sprE = RA.gfx.EnemySprites.get(eDef.arch, eDef.region, 60, eDef.decor, Math.floor(this.time * 2) % 2);
+        ctx.drawImage(sprE, pxE + 7, pyE + 6, 30, 30);
+        F.draw(ctx, RA.T(eDef.name).slice(0, Math.floor((pwE - 110) / 6)), pxE + 44, pyE + 5, { size: 1, color: '#ffe9a0', shadow: true });
+        F.draw(ctx, '♥' + eDef.hp + '  ' + eDef.tier.toUpperCase(), pxE + 44, pyE + 15, { size: 1, color: tierC2 });
+        F.draw(ctx, RA.T(RA.data.RegionsById[eDef.region].name).slice(0, Math.floor((pwE - 110) / 6)), pxE + 44, pyE + 25, { size: 1, color: '#8a94a8' });
+        // selo do dado (vermelho quando é o de fúria)
+        var badgeE = 'D' + dieE.length + (this.showFury ? ' ' + RA.T({ pt: 'FÚRIA', en: 'FURY' }) : '');
+        var bwE = F.measure(badgeE, 1, 1) + 10;
+        ctx.fillStyle = this.showFury ? 'rgba(70,20,28,0.95)' : 'rgba(50,40,20,0.95)';
+        ctx.fillRect(pxE + pwE - bwE - 5, pyE + 5, bwE, 12);
+        ctx.strokeStyle = this.showFury ? '#ff5a6a' : '#c9a23a';
+        ctx.strokeRect(pxE + pwE - bwE - 4.5, pyE + 5.5, bwE - 1, 11);
+        F.draw(ctx, badgeE, pxE + pwE - bwE / 2 - 5, pyE + 8, { size: 1, color: this.showFury ? '#ff9aaa' : '#ffd76a', align: 'center' });
+        // resistência / fraqueza
+        var traits = [];
+        if (eDef.resist) traits.push(RA.T({ pt: 'Resiste: ', en: 'Resists: ' }) + eDef.resist);
+        if (eDef.weak) traits.push(RA.T({ pt: 'Fraco a: ', en: 'Weak to: ' }) + eDef.weak);
+        if (traits.length) F.draw(ctx, traits.join('   ').slice(0, Math.floor((pwE - 12) / 6)), pxE + 6, pyE + 42, { size: 1, color: '#8ab4e8' });
+        F.draw(ctx, RA.T({ pt: 'O DADO DELE (toque numa face):', en: 'ITS DIE (tap a face):' }), pxE + 6, pyE + 52, { size: 1, color: '#c8b8e8' });
+        // grade das faces do dado, como dados pretos de verdade
+        var gYE = pyE + 64;
+        var gx2 = pxE + Math.round((pwE - gapE * colsE) / 2) + Math.round((gapE - dieSE) / 2);
+        for (var feI = 0; feI < dieE.length; feI++) {
+          (function (fe2) {
+            var fx3 = gx2 + (fe2 % colsE) * gapE;
+            var fy3 = gYE + Math.floor(fe2 / colsE) * (dieSE + 16);
+            var selE = self.inspectFaceE === fe2;
+            if (selE) {
+              var pkE = 0.5 + 0.4 * Math.sin(self.time * 5);
+              ctx.strokeStyle = self.showFury ? 'rgba(255,110,122,' + pkE + ')' : 'rgba(255,235,170,' + pkE + ')';
+              ctx.strokeRect(fx3 - 2.5, fy3 - 2.5, dieSE + 5, dieSE + 7);
+            }
+            var it3 = dieE[fe2];
+            var dE = { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: enemyFaceIcon(it3), val: it3.n || 0 }, faces: EFAKES2, used: false, locked: false, highlight: selE };
+            RA.gfx.Dice.draw(ctx, dE, fx3, fy3, dieSE, self.time + fe2);
+            self.buttons.push({ x: fx3 - 3, y: fy3 - 3, w: dieSE + 6, h: dieSE + 10, label: '', fn: function () { self.inspectFaceE = fe2; RA.audio.sfx('click'); } });
+          })(feI);
+        }
+        // descrição da face selecionada
+        var fSelE = dieE[this.inspectFaceE];
+        var dYE = gYE + rowsE * (dieSE + 16) + 2;
+        if (fSelE) {
+          F.draw(ctx, (fSelE.nm ? '"' + RA.T(fSelE.nm) + '"' : RA.T({ pt: 'FACE ' + (this.inspectFaceE + 1), en: 'FACE ' + (this.inspectFaceE + 1) })).slice(0, Math.floor((pwE - 12) / 6)), pxE + pwE / 2, dYE, { size: 1, color: this.showFury ? '#ff9aaa' : '#ffe9a0', align: 'center', shadow: true });
+          var eLines = [];
+          enemyFaceDesc(fSelE).forEach(function (el) {
+            F.wrap(String(el), 1, 1, pwE - 14).forEach(function (el2) { eLines.push(el2); });
+          });
+          eLines.slice(0, 2).forEach(function (el3, eli) {
+            F.draw(ctx, el3, pxE + 7, dYE + 11 + eli * 9, { size: 1, color: '#c8c2d4' });
+          });
+        }
+        // botões: FÚRIA (se chefe) + FECHAR
+        var mbwE = Math.min(110, Math.floor((pwE - 20) / 2));
+        if (eDef.die2) {
+          var bFury = { x: pxE + pwE / 2 + 3, y: pyE + phE - 23, w: mbwE, h: 18, small: true,
+            accent: '#e84a5a', glow: !this.showFury,
+            label: this.showFury ? RA.T({ pt: 'DADO NORMAL', en: 'NORMAL DIE' }) : RA.T({ pt: 'DADO DE FÚRIA', en: 'FURY DIE' }),
+            fn: function () { self.showFury = !self.showFury; self.inspectFaceE = 0; RA.audio.sfx('click'); } };
+          W().btn(ctx, bFury, this.time);
+          this.buttons.push(bFury);
+        }
+        var bCloseE = { x: eDef.die2 ? pxE + pwE / 2 - 3 - mbwE : pxE + (pwE - mbwE) / 2, y: pyE + phE - 23, w: mbwE, h: 18, small: true,
+          label: RA.T({ pt: 'FECHAR', en: 'CLOSE' }), fn: function () { self.inspectE = null; } };
+        W().btn(ctx, bCloseE, this.time);
+        this.buttons.push(bCloseE);
+      }
+    }
     if (this.tip) W().tooltip(ctx, w, h, this.tip.x, this.tip.y, this.tip.title, this.tip.lines);
     W().renderToasts(ctx, w);
   };
