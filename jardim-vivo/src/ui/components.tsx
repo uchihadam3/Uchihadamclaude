@@ -51,6 +51,65 @@ export function Bar(props: { value: number; max: number; color: string; label?: 
 }
 
 // ---------- retrato de planta (canvas) ----------
+// Renderiza em canvas auxiliar, mede o desenho de verdade e encaixa INTEIRO
+// no card — plantas altas não cortam o topo e as baixinhas não ficam mínimas.
+const SPRITE_CACHE = new Map<string, { cv: HTMLCanvasElement; bx: number; by: number; bw: number; bh: number }>();
+
+function paintParams(stage: 'mature' | 'flowering', seed: number) {
+  return {
+    stage, stageProgress: 1, health: 100, quality: 100, bloom: 1,
+    dead: false, dormant: false, stress: [] as string[], seed, wind: 0, time: 1,
+  };
+}
+
+function measureInk(ctx: CanvasRenderingContext2D, S: number): { bx: number; by: number; bw: number; bh: number } | null {
+  const d = ctx.getImageData(0, 0, S, S).data;
+  let minX = S, minY = S, maxX = -1, maxY = -1;
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      if (d[(y * S + x) * 4 + 3] > 12) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { bx: minX, by: minY, bw: maxX - minX + 1, bh: maxY - minY + 1 };
+}
+
+function spriteFor(plantId: string, stage: 'mature' | 'flowering', seed: number) {
+  const key = `${plantId}:${stage}:${seed}`;
+  const hit = SPRITE_CACHE.get(key);
+  if (hit) return hit;
+  const S = 300;
+  const cv = document.createElement('canvas');
+  cv.width = S; cv.height = S;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+  const render = (h: number) => {
+    ctx.clearRect(0, 0, S, S);
+    ctx.save();
+    ctx.translate(S / 2, S * 0.76);
+    drawPlant(ctx, plantId, paintParams(stage, seed), h);
+    ctx.restore();
+  };
+  // 1ª passada: escala conservadora, só para medir
+  render(S * 0.18);
+  let box = measureInk(ctx, S);
+  if (!box) return null;
+  // 2ª passada: redimensiona para preencher bem o quadro (sem sair dele)
+  const fit = Math.min(3.4, (S * 0.82) / Math.max(box.bw, box.bh));
+  if (fit > 1.08) {
+    render(S * 0.18 * fit);
+    box = measureInk(ctx, S) ?? box;
+  }
+  const entry = { cv, ...box };
+  SPRITE_CACHE.set(key, entry);
+  return entry;
+}
+
 export function PlantSprite(props: { plantId: string; size?: number; stage?: 'mature' | 'flowering'; seed?: number }): JSX.Element {
   const ref = useRef<HTMLCanvasElement>(null);
   const size = props.size ?? 72;
@@ -63,11 +122,16 @@ export function PlantSprite(props: { plantId: string; size?: number; stage?: 'ma
     if (!ctx) return;
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, size, size);
-    ctx.save();
-    ctx.translate(size / 2, size * 0.92);
-    const def = { stage: props.stage ?? 'flowering', stageProgress: 1, health: 100, quality: 100, bloom: 1, dead: false, dormant: false, stress: [], seed: props.seed ?? 7, wind: 0, time: 1 } as const;
-    drawPlant(ctx, props.plantId, { ...def, stress: [] }, size * 0.62);
-    ctx.restore();
+    const sp = spriteFor(props.plantId, props.stage ?? 'flowering', props.seed ?? 7);
+    if (!sp) return;
+    // encaixa mantendo proporção, centralizado, com folga
+    const pad = size * 0.05;
+    const scale = Math.min((size - pad * 2) / sp.bw, (size - pad * 2) / sp.bh);
+    const dw = sp.bw * scale, dh = sp.bh * scale;
+    const dx = (size - dw) / 2, dy = (size - dh) / 2;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(sp.cv, sp.bx, sp.by, sp.bw, sp.bh, dx, dy, dw, dh);
   }, [props.plantId, size, props.stage, props.seed]);
   return <canvas ref={ref} style={{ width: size, height: size }} />;
 }
