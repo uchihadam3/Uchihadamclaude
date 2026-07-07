@@ -1,9 +1,9 @@
 import type { GameCalendar, Season } from '../types';
 import { SEASON_OF_MONTH } from '../types';
 
-// 1 dia de jogo ≈ 30 min reais na velocidade 1.
-// 1440 min de jogo / 1800 s => 0.8 min de jogo por segundo real.
-export const GAME_MIN_PER_REAL_SEC = 0.8;
+// 1 dia de jogo ≈ 1 hora real na velocidade 1.
+// 1440 min de jogo / 3600 s => 0.4 min de jogo por segundo real.
+export const GAME_MIN_PER_REAL_SEC = 0.4;
 export const DAYS_PER_MONTH = 28;
 export const MONTHS_PER_YEAR = 12;
 
