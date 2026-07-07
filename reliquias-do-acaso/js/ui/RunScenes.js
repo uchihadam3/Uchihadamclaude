@@ -474,8 +474,32 @@
     this.stage = (this.reward.faces && this.reward.faces.length) ? 'face' : (this.reward.relics ? 'relic' : 'done');
     this.pickedFace = null;
     this.pickedHero = null;
+    this.infoFace = null;   // cartão de detalhes da face/lado tocado
+    this.selSide = -1;      // lado selecionado (a troca só ocorre no CONFIRMAR)
     this.buttons = [];
     if (this.stage === 'done') this.finish();
+  };
+
+  // cartão de detalhes centrado em cx; devolve o y de baixo do cartão
+  RewardScene.prototype.drawInfoCard = function (ctx, cx, yTop, maxW, maxLines, info) {
+    var wrapped = [];
+    (info.lines || []).forEach(function (l) {
+      F.wrap(String(l), 1, 1, maxW - 16).forEach(function (l2) { wrapped.push(l2); });
+    });
+    wrapped = wrapped.slice(0, Math.max(2, maxLines));
+    var ph = 20 + wrapped.length * 9;
+    var pw2 = Math.max(F.measure(info.title, 1, 1) + 20, 140);
+    wrapped.forEach(function (l) { pw2 = Math.max(pw2, F.measure(l, 1, 1) + 16); });
+    pw2 = Math.min(pw2, maxW);
+    var px2 = Math.round(cx - pw2 / 2);
+    W().panel(ctx, px2, yTop, pw2, ph, { edge: info.color || '#8a6e2e' });
+    F.draw(ctx, info.title.slice(0, Math.floor((pw2 - 8) / 6)), px2 + pw2 / 2, yTop + 4, { size: 1, color: info.color || '#ffe9a0', align: 'center', shadow: true });
+    ctx.fillStyle = 'rgba(201,162,58,0.5)';
+    ctx.fillRect(px2 + 8, yTop + 13, pw2 - 16, 1);
+    wrapped.forEach(function (l, i) {
+      F.draw(ctx, l, px2 + 8, yTop + 17 + i * 9, { size: 1, color: '#c8c2d4' });
+    });
+    return yTop + ph;
   };
   RewardScene.prototype.finish = function () {
     var run = this.run;
@@ -520,19 +544,39 @@
       var x0 = w / 2 - (cw + 6) * faces.length / 2 + 3;
       faces.forEach(function (f2, i) {
         var x = x0 + i * (cw + 6), y = 52;
-        W().panel(ctx, x, y, cw, 78, { edge: f2.rare ? '#ffd76a' : '#4a4258' });
-        var die = { skin: f2.rare ? 'dourado' : 'cinza', anim: { phase: 'idle', t: 0 }, resultFace: f2, faces: [f2], used: false, locked: false };
+        var selCard = self.infoFace && self.infoFace.key === 'f' + i;
+        W().panel(ctx, x, y, cw, 78, { edge: selCard ? '#ffe9a0' : (f2.rare ? '#ffd76a' : '#4a4258') });
+        if (selCard) {
+          var pk2 = 0.5 + 0.4 * Math.sin(self.time * 5);
+          ctx.strokeStyle = 'rgba(255,235,170,' + pk2 + ')';
+          ctx.strokeRect(x - 2.5, y - 2.5, cw + 5, 83);
+        }
+        var die = { skin: f2.rare ? 'dourado' : 'cinza', anim: { phase: 'idle', t: 0 }, resultFace: f2, faces: [f2], used: false, locked: false, highlight: selCard };
         RA.gfx.Dice.draw(ctx, die, x + cw / 2 - 12, y + 6, 24, self.time);
         var maxCh = Math.max(4, Math.floor((cw - 6) / 6));
         F.draw(ctx, RA.T(f2.name).slice(0, maxCh), x + cw / 2, y + 38, { size: 1, color: '#ffe9a0', align: 'center' });
         var dsc = W().descFace(f2);
         F.draw(ctx, (dsc[0] || '').slice(0, maxCh), x + cw / 2, y + 48, { size: 1, color: '#8a94a8', align: 'center' });
-        var b = { x: x + 4, y: y + 58, w: cw - 8, h: 15, small: true, label: RA.UI('collect'), fn: function () { self.pickedFace = f2; self.stage = 'hero'; RA.audio.sfx('chest'); } };
+        var b = { x: x + 4, y: y + 58, w: cw - 8, h: 15, small: true, label: RA.UI('collect'), fn: function () { self.pickedFace = f2; self.infoFace = null; self.stage = 'hero'; RA.audio.sfx('chest'); } };
         W().btn(ctx, b, self.time);
         self.buttons.push(b);
+        // toque na carta (fora do COLETAR) abre o cartão de detalhes
+        var infoB = { x: x, y: y, w: cw, h: 56, label: '', fn: function () {
+          self.infoFace = { key: 'f' + i, title: RA.T(f2.name), lines: dsc, color: f2.rare ? '#ffd76a' : '#ffe9a0' };
+          RA.audio.sfx('click');
+        } };
+        self.buttons.push(infoB);
         self.tipRects.push({ x: x, y: y, w: cw, h: 78, title: RA.T(f2.name), lines: dsc });
       });
-      var skip = { x: w / 2 - 40, y: 140, w: 80, h: 18, small: true, label: RA.UI('skip'), fn: function () { self.stage = self.reward.relics ? 'relic' : 'done'; if (self.stage === 'done') self.finish(); } };
+      // cartão de detalhes da carta tocada (ou dica de toque)
+      var fInfoY = 52 + 78 + 6;
+      if (this.infoFace) {
+        var fMaxL = Math.max(2, Math.floor((h - 30 - fInfoY - 20) / 9));
+        this.drawInfoCard(ctx, w / 2, fInfoY, Math.min(w - 16, 300), fMaxL, this.infoFace);
+      } else {
+        F.draw(ctx, RA.T({ pt: 'TOQUE NUMA CARTA PARA VER OS DETALHES', en: 'TAP A CARD TO SEE DETAILS' }).slice(0, Math.floor((w - 10) / 6)), w / 2, fInfoY + 3, { size: 1, color: '#6a6480', align: 'center' });
+      }
+      var skip = { x: w / 2 - 40, y: h - 24, w: 80, h: 18, small: true, label: RA.UI('skip'), fn: function () { self.infoFace = null; self.stage = self.reward.relics ? 'relic' : 'done'; if (self.stage === 'done') self.finish(); } };
       W().btn(ctx, skip, this.time);
       this.buttons.push(skip);
     } else if (this.stage === 'hero') {
@@ -549,27 +593,86 @@
         self.buttons.push(b);
       });
     } else if (this.stage === 'side') {
-      F.draw(ctx, RA.UI('whichSide'), w / 2, 40, { size: 1, color: '#c8c2d4', align: 'center' });
       var hh2 = this.pickedHero;
+      F.draw(ctx, RA.UI('whichSide'), w / 2, 34, { size: 1, color: '#c8c2d4', align: 'center' });
+      // faixa do LADO NOVO que vai entrar — toque para ver os detalhes
+      var nfW = Math.min(w - 16, 190);
+      var nfX = Math.round((w - nfW) / 2);
+      var newSel = this.infoFace && this.infoFace.key === 'new';
+      W().panel(ctx, nfX, 44, nfW, 26, { edge: newSel ? '#ffe9a0' : '#c9a23a' });
+      var dieN = { skin: 'dourado', anim: { phase: 'idle', t: 0 }, resultFace: this.pickedFace, faces: [this.pickedFace], used: false, locked: false };
+      RA.gfx.Dice.draw(ctx, dieN, nfX + 5, 47, 17, self.time);
+      F.draw(ctx, RA.T({ pt: 'NOVO: ', en: 'NEW: ' }) + RA.T(this.pickedFace.name).slice(0, Math.max(4, Math.floor((nfW - 40) / 6) - 6)), nfX + 28, 49, { size: 1, color: '#ffe9a0', shadow: true });
+      F.draw(ctx, RA.T({ pt: '(toque p/ detalhes)', en: '(tap for details)' }), nfX + 28, 59, { size: 1, color: '#6a6480' });
+      var bNew = { x: nfX, y: 44, w: nfW, h: 26, label: '', fn: function () {
+        self.infoFace = { key: 'new', title: RA.T(self.pickedFace.name), lines: W().descFace(self.pickedFace), color: '#ffd76a' };
+        RA.audio.sfx('click');
+      } };
+      this.buttons.push(bNew);
+
+      // grade dos lados atuais — toque INSPECIONA; a troca só ocorre no GRAVAR
       var nSides = hh2.faces.length;
-      var colsS = Math.min(6, nSides);
-      var gap2 = Math.min(46, (w - 20) / colsS);
-      var sx0 = w / 2 - gap2 * (colsS - 1) / 2 - 14;
+      var twoCol = w > h * 1.35; // paisagem: detalhes à direita da grade
+      var colsS = Math.min(twoCol ? 4 : 6, nSides);
+      var gridW = twoCol ? w * 0.5 - 10 : w - 16;
+      var gap2 = Math.min(46, (gridW - 6) / colsS);
+      var gx0 = (twoCol ? 8 : Math.round((w - gap2 * colsS) / 2)) + Math.round((gap2 - 26) / 2);
+      var gridY = 78, rowH = twoCol ? 36 : 40;
       hh2.faces.forEach(function (f3, i) {
-        var x = sx0 + (i % colsS) * gap2, y = 56 + Math.floor(i / colsS) * 44;
-        var die2 = { skin: hh2.def.skin, anim: { phase: 'idle', t: 0 }, resultFace: f3, faces: hh2.faces, used: false, locked: false };
+        var x = gx0 + (i % colsS) * gap2, y = gridY + Math.floor(i / colsS) * rowH;
+        var isSel = self.selSide === i;
+        if (isSel) {
+          var pk3 = 0.5 + 0.4 * Math.sin(self.time * 5);
+          ctx.strokeStyle = 'rgba(255,235,170,' + pk3 + ')';
+          ctx.strokeRect(x - 3.5, y - 3.5, 33, 35);
+        }
+        var die2 = { skin: hh2.def.skin, anim: { phase: 'idle', t: 0 }, resultFace: f3, faces: hh2.faces, used: false, locked: false, highlight: isSel };
         RA.gfx.Dice.draw(ctx, die2, x, y, 26, self.time);
         var b2 = { x: x - 3, y: y - 3, w: 32, h: 36, label: '', fn: function () {
-          self.oldFace = Object.assign({}, hh2.faces[i]);
-          run.applyFace(run.party.indexOf(hh2), i, self.pickedFace);
-          RA.audio.sfx('rare');
-          self.swapT = 0;
-          self.stage = 'swapDone';
+          self.selSide = i;
+          self.infoFace = { key: 's' + i, title: RA.T({ pt: 'SAI: ', en: 'OUT: ' }) + RA.T(f3.name), lines: W().descFace(f3), color: '#ff9aaa' };
+          RA.audio.sfx('click');
         } };
         self.buttons.push(b2);
         self.tipRects.push({ x: x - 3, y: y - 3, w: 32, h: 36, title: RA.T(f3.name), lines: W().descFace(f3) });
       });
-      F.draw(ctx, RA.T(this.pickedFace.name), w / 2, 100, { size: 1, color: '#ffe9a0', align: 'center' });
+      var rows = Math.ceil(nSides / colsS);
+      // cartão de detalhes: à direita (paisagem) ou abaixo da grade (retrato)
+      if (twoCol) {
+        if (this.infoFace) {
+          var sMaxL = Math.max(2, Math.floor((h - 30 - 78 - 20) / 9));
+          this.drawInfoCard(ctx, w * 0.75, 78, w * 0.48 - 12, sMaxL, this.infoFace);
+        } else {
+          F.draw(ctx, RA.T({ pt: 'TOQUE NUM LADO', en: 'TAP A SIDE' }), w * 0.75, 84, { size: 1, color: '#6a6480', align: 'center' });
+          F.draw(ctx, RA.T({ pt: 'PARA VER O QUE FAZ', en: 'TO SEE WHAT IT DOES' }), w * 0.75, 94, { size: 1, color: '#6a6480', align: 'center' });
+        }
+      } else {
+        var sInfoY = gridY + rows * rowH + 4;
+        if (this.infoFace) {
+          var sMaxL2 = Math.max(2, Math.floor((h - 32 - sInfoY - 20) / 9));
+          this.drawInfoCard(ctx, w / 2, sInfoY, Math.min(w - 16, 300), sMaxL2, this.infoFace);
+        } else {
+          F.draw(ctx, RA.T({ pt: 'TOQUE NUM LADO PARA VER O QUE ELE FAZ', en: 'TAP A SIDE TO SEE WHAT IT DOES' }).slice(0, Math.floor((w - 10) / 6)), w / 2, sInfoY + 3, { size: 1, color: '#6a6480', align: 'center' });
+        }
+      }
+      // confirmar / voltar — a gravação SÓ acontece aqui
+      var cbw = Math.min(110, Math.floor((w - 24) / 2));
+      var conf = { x: w / 2 + 4, y: h - 24, w: cbw, h: 18, small: true, glow: this.selSide >= 0, disabled: this.selSide < 0,
+        label: RA.T({ pt: 'GRAVAR AQUI', en: 'ENGRAVE HERE' }),
+        fn: function () {
+          var i2 = self.selSide;
+          self.oldFace = Object.assign({}, hh2.faces[i2]);
+          run.applyFace(run.party.indexOf(hh2), i2, self.pickedFace);
+          RA.audio.sfx('rare');
+          self.swapT = 0;
+          self.selSide = -1;
+          self.infoFace = null;
+          self.stage = 'swapDone';
+        } };
+      var backB = { x: w / 2 - 4 - cbw, y: h - 24, w: cbw, h: 18, small: true, label: RA.UI('back'), fn: function () { self.stage = 'hero'; self.selSide = -1; self.infoFace = null; } };
+      W().btn(ctx, conf, this.time);
+      W().btn(ctx, backB, this.time);
+      this.buttons.push(conf, backB);
     } else if (this.stage === 'swapDone') {
       // confirmação visual: lado antigo -> lado novo gravado no dado
       this.swapT = (this.swapT || 0) + 1 / 60;
