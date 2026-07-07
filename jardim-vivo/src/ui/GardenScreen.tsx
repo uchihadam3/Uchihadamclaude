@@ -7,7 +7,7 @@ import { PLANT_BY_ID } from '../data/plants';
 import { POT_BY_ID } from '../data/potsData';
 import { SOIL_MIX_BY_ID } from '../data/soilData';
 import { DECOR_BY_ID } from '../data/decorData';
-import { CONSUMABLE_BY_ID } from '../data/toolsData';
+import { CONSUMABLE_BY_ID, TOOL_BY_ID } from '../data/toolsData';
 import { renderGarden, screenToTile, Camera } from '../rendering/gardenRenderer';
 import {
   plantSeed, waterPlant, fertilize, prunePlant, treatPlant, removePestByHand,
@@ -18,8 +18,9 @@ import { sellPlant, plantSaleValue } from '../game/economySystem';
 import { moistureState, healthLabel, effectiveLight } from '../game/plantSimulation';
 import { tr, t, lang } from '../i18n';
 import { useGame, useFlash } from './useGame';
-import { Btn, Panel, Bar, PlantSprite, PotSprite, Icon, DecorSprite, SoilSprite, LIGHT_LABEL, STAGE_LABEL, WATER_LABEL, categoryLabel } from './components';
+import { Btn, Panel, Bar, PlantSprite, PotSprite, Icon, DecorSprite, SoilSprite, ToolSprite, ConsumableSprite, LIGHT_LABEL, STAGE_LABEL, WATER_LABEL, categoryLabel } from './components';
 import { fmtClock, seasonNamePT, seasonNameEN, dayPhase } from '../game/gameTime';
+import { sfx } from '../audio/audioEngine';
 
 type PlantFlow = { step: 'seed' | 'pot' | 'soil'; kind: 'seed' | 'seedling' | 'cutting'; plantId?: string; potId?: string | null } | null;
 
@@ -45,7 +46,7 @@ export function GardenScreen(props: { openScreen: (s: string) => void }): JSX.El
   const [plantFlow, setPlantFlow] = useState<PlantFlow>(null);
   const [decorPick, setDecorPick] = useState<string | null>(null);
   const [moving, setMoving] = useState<PlantInstance | null>(null);
-  const [subMenu, setSubMenu] = useState<'fert' | 'treat' | 'prune' | 'prop' | 'repot' | null>(null);
+  const [subMenu, setSubMenu] = useState<'water' | 'fert' | 'treat' | 'prune' | 'prop' | 'repot' | null>(null);
   const [flash, setFlash] = useFlash();
   const dragRef = useRef<{ sx: number; sy: number; cx: number; cy: number; moved: boolean; pinch?: number } | null>(null);
 
@@ -298,8 +299,72 @@ export function GardenScreen(props: { openScreen: (s: string) => void }): JSX.El
 }
 
 // ============ FICHA DA PLANTA ============
+type WaterMode = 'light' | 'normal' | 'deep' | 'mist' | 'bottom';
+const WATER_CANS: { id: string; mode: WaterMode; amt: number; d: { pt: string; en: string } }[] = [
+  { id: 'regador-velho', mode: 'normal', amt: 30, d: { pt: 'Rega equilibrada', en: 'Balanced watering' } },
+  { id: 'regador-medio', mode: 'deep', amt: 50, d: { pt: 'Enche bem o solo', en: 'Soaks the soil deeply' } },
+  { id: 'regador-preciso', mode: 'light', amt: 15, d: { pt: 'Rega leve e precisa', en: 'Light, precise pour' } },
+  { id: 'borrifador', mode: 'mist', amt: 8, d: { pt: 'Névoa fina nas folhas', en: 'Fine mist on leaves' } },
+];
+
+const PRUNE_KINDS: { kind: 'clean' | 'deadhead' | 'shape' | 'root'; label: { pt: string; en: string }; fx: { pt: string; en: string }; needsShears: boolean; icon: string }[] = [
+  { kind: 'clean', label: { pt: 'Limpar folhas mortas', en: 'Remove dead leaves' }, fx: { pt: 'Saúde +3 · menos fungo', en: 'Health +3 · less fungus' }, needsShears: false, icon: 'leaf' },
+  { kind: 'deadhead', label: { pt: 'Tirar flores murchas', en: 'Deadhead' }, fx: { pt: 'Qualidade +4 · renova flores', en: 'Quality +4 · fresh blooms' }, needsShears: true, icon: 'flower' },
+  { kind: 'shape', label: { pt: 'Poda de formação', en: 'Shape pruning' }, fx: { pt: 'Qualidade +6 · forma bonita', en: 'Quality +6 · nicer shape' }, needsShears: true, icon: 'scissors' },
+  { kind: 'root', label: { pt: 'Poda de raiz', en: 'Root pruning' }, fx: { pt: 'Qualidade +10 · custa saúde', en: 'Quality +10 · costs health' }, needsShears: true, icon: 'scissors' },
+];
+
+const PROP_CHANCE: Record<string, number> = {
+  'stem-cutting': 0.75, 'leaf-cutting': 0.65, division: 0.9, offset: 0.9, runner: 0.9, bulb: 0.85,
+  rhizome: 0.85, tuber: 0.85, 'air-layering': 0.7, grafting: 0.5, 'water-propagation': 0.8, keiki: 0.85, spore: 0.5,
+};
+
+function fertFxLine(id: string): string {
+  const fx = CONSUMABLE_BY_ID[id]?.fx ?? {};
+  const parts: string[] = [];
+  if (fx.n) parts.push(`N +${fx.n}`);
+  if (fx.p) parts.push(`P +${fx.p}`);
+  if (fx.k) parts.push(`K +${fx.k}`);
+  if (fx.slowRelease) parts.push(lang() === 'pt' ? 'lento' : 'slow');
+  return parts.join(' · ');
+}
+function treatFxLine(id: string): string {
+  const fx = CONSUMABLE_BY_ID[id]?.fx ?? {};
+  if (fx.healPest) return lang() === 'pt' ? `Pragas −${fx.healPest}%` : `Pests −${fx.healPest}%`;
+  if (fx.healFungus) return lang() === 'pt' ? `Fungo −${fx.healFungus}%` : `Fungus −${fx.healFungus}%`;
+  return '';
+}
+
+// cartão de opção rico (arte + nome + meta + efeito)
+function OptCard(props: { art: JSX.Element; name: string; meta?: string; fx?: string; accent?: string; disabled?: boolean; onClick: () => void }): JSX.Element {
+  return (
+    <button className={`opt-card ${props.disabled ? 'off' : ''}`} disabled={props.disabled} onClick={() => { if (!props.disabled) { sfx('click'); props.onClick(); } }}>
+      <span className="opt-art" style={props.accent ? { background: props.accent } : undefined}>{props.art}</span>
+      <span className="opt-info">
+        <span className="opt-name">{props.name}</span>
+        {props.meta && <span className="opt-meta">{props.meta}</span>}
+        {props.fx && <span className="opt-fx">{props.fx}</span>}
+      </span>
+      {!props.disabled && <span className="opt-go"><Icon name="arrow" size={15} /></span>}
+    </button>
+  );
+}
+
+// ladrilho de ação do hub
+function ActTile(props: { icon: string; label: string; hint: string; tone?: string; active?: boolean; color?: string; onClick: () => void }): JSX.Element {
+  return (
+    <button className={`act-tile ${props.tone ?? ''} ${props.active ? 'active' : ''}`} onClick={() => { sfx('click'); props.onClick(); }}>
+      <span className="act-ico"><Icon name={props.icon} size={20} color={props.color} /></span>
+      <span className="act-txt">
+        <span className="act-lab">{props.label}</span>
+        <span className="act-hint">{props.hint}</span>
+      </span>
+    </button>
+  );
+}
+
 function PlantSheet(props: {
-  p: PlantInstance; subMenu: string | null; setSubMenu: (s: 'fert' | 'treat' | 'prune' | 'prop' | 'repot' | null) => void;
+  p: PlantInstance; subMenu: string | null; setSubMenu: (s: 'water' | 'fert' | 'treat' | 'prune' | 'prop' | 'repot' | null) => void;
   onClose: () => void; onMove: () => void; flashMsg: (m: string) => void;
 }): JSX.Element {
   const { p, subMenu, setSubMenu } = props;
@@ -311,47 +376,61 @@ function PlantSheet(props: {
   const mix = resolveMix(p.soilMixId);
   const pot = p.potId ? POT_BY_ID[p.potId] : null;
   const saleValue = plantSaleValue(p);
+  const en = lang() !== 'pt';
   const msLabel: Record<string, { pt: string; en: string }> = {
     seca: { pt: 'Seca!', en: 'Dry!' }, baixa: { pt: 'Baixa', en: 'Low' }, ideal: { pt: 'Ideal', en: 'Ideal' },
     alta: { pt: 'Alta', en: 'High' }, encharcada: { pt: 'Encharcada!', en: 'Soggy!' },
   };
-  const act = (fn: () => { ok: boolean; msg?: { pt: string; en: string } }) => {
+  // executa uma ação e sempre mostra ao jogador o que aconteceu
+  const act = (fn: () => { ok: boolean; msg?: { pt: string; en: string } }, confirm?: { pt: string; en: string }) => {
     const res = fn();
     if (res.msg) props.flashMsg(tr(res.msg));
+    else if (confirm) props.flashMsg(tr(confirm));
+    setSubMenu(null);
   };
+  const toggle = (s: 'water' | 'fert' | 'treat' | 'prune' | 'prop' | 'repot') => setSubMenu(subMenu === s ? null : s);
+
+  const nutrAvg = Math.round((p.nutrients.n + p.nutrients.p + p.nutrients.k) / 3);
+  const ferts = Object.entries(G.inventory.fertilizers).filter(([, q]) => q > 0);
+  const treats = Object.entries(G.inventory.treatments).filter(([, q]) => q > 0);
+  const cans = WATER_CANS.filter((c) => G.inventory.tools[c.id]);
+  const hasShears = !!G.inventory.tools['tesoura-poda'];
+  const hasBonsai = !!G.inventory.tools['tesoura-bonsai'];
+  const hasProblem = p.pests.length > 0 || !!p.disease;
 
   return (
-    <Panel title={tr({ pt: def.commonNamePT, en: def.commonNameEN })} onClose={props.onClose}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <div style={{ background: 'rgba(90,110,70,0.15)', borderRadius: 10, padding: 2 }}>
-          <PlantSprite plantId={p.plantId} size={84} stage="flowering" seed={p.variantSeed} />
+    <Panel title={tr({ pt: def.commonNamePT, en: def.commonNameEN })} onClose={props.onClose} className="care-sheet">
+      {/* herói: retrato + identidade + vitais */}
+      <div className="care-hero">
+        <div className="care-portrait">
+          <PlantSprite plantId={p.plantId} size={92} stage="flowering" seed={p.variantSeed} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="card-sub">{def.scientificName}</div>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-            <span className={`pill ${dead ? 'problem' : p.health >= 70 ? 'good' : ''}`}>{tr(hl)}</span>
+          <div className="care-sci">{def.scientificName}</div>
+          <div className="care-badges">
+            <span className={`pill ${dead ? 'problem' : p.health >= 70 ? 'good' : ''}`}><Icon name="heart" size={11} />{tr(hl)}</span>
             <span className="pill">{tr(STAGE_LABEL[p.stage])}</span>
             {p.stage === 'flowering' && <span className="pill good"><Icon name="flower" size={11} color="#c86888" />{t('bloom')}</span>}
           </div>
           <div style={{ marginTop: 6 }}>
-            <Bar value={p.health} max={100} color={p.health > 60 ? '#68a858' : p.health > 30 ? '#d8a038' : '#c85848'} label={t('health')} />
-            <Bar value={p.moisture} max={100} color="#5aa8d8" label={`${t('moisture')} (${tr(msLabel[ms])})`} />
-            <Bar value={(p.nutrients.n + p.nutrients.p + p.nutrients.k) / 3} max={100} color="#a8884a" label={t('nutrients')} />
-            <Bar value={p.quality} max={100} color="#c8a040" label={t('quality')} />
+            <Bar value={p.health} max={100} color={p.health > 60 ? '#68a858' : p.health > 30 ? '#d8a038' : '#c85848'} label={t('health')} icon={<Icon name="heart" size={12} color="#d86878" />} />
+            <Bar value={p.moisture} max={100} color="#5aa8d8" label={`${t('moisture')} · ${tr(msLabel[ms])}`} icon={<Icon name="drop" size={12} />} />
+            <Bar value={nutrAvg} max={100} color="#a8884a" label={t('nutrients')} icon={<Icon name="leaf" size={12} />} />
+            <Bar value={p.quality} max={100} color="#c8a040" label={t('quality')} icon={<Icon name="star" size={12} />} />
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8, fontSize: 12 }}>
+      <div className="care-chips">
         <span className="pill"><Icon name="sun" size={11} />{tr(LIGHT_LABEL[light])}</span>
         <span className="pill">{pot ? tr({ pt: pot.namePT, en: pot.nameEN }) : t('ground')}</span>
         <span className="pill">{tr({ pt: mix.namePT, en: mix.nameEN })}</span>
-        <span className="pill">{t('age')}: {p.ageDays} {t('days')}</span>
+        <span className="pill"><Icon name="clock" size={11} color="#8a7a52" />{p.ageDays} {t('days')}</span>
       </div>
 
       {/* problemas */}
       {(p.pests.length > 0 || p.disease || p.stress.length > 0) && !dead && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+        <div className="care-chips" style={{ marginTop: 6 }}>
           {p.pests.map((pe) => <span key={pe.id} className="pill problem"><Icon name="warn" size={11} />{pestName(pe.id)} ({Math.round(pe.severity)}%)</span>)}
           {p.disease && <span className="pill problem"><Icon name="skull" size={11} />{diseaseName(p.disease.id)} ({Math.round(p.disease.severity)}%)</span>}
           {p.stress.map((s) => <span key={s} className="pill problem">{stressName(s)}</span>)}
@@ -359,76 +438,137 @@ function PlantSheet(props: {
       )}
       {p.keikiReady && <div className="pill good" style={{ marginTop: 6 }}>{t('keiki')}</div>}
 
-      {/* ações */}
       {dead ? (
-        <div className="sheet-actions">
+        <div className="sheet-actions" style={{ marginTop: 10 }}>
           <Btn kind="danger" onClick={() => { removePlant(p); props.onClose(); }}>{t('removeDead')}</Btn>
         </div>
       ) : (
-        <div className="sheet-actions">
-          <Btn small onClick={() => act(() => waterPlant(p))}><Icon name="drop" size={13} />{t('water')}</Btn>
-          <Btn small kind="ghost" onClick={() => setSubMenu(subMenu === 'fert' ? null : 'fert')}>{t('fertilize')}</Btn>
-          <Btn small kind="ghost" onClick={() => setSubMenu(subMenu === 'prune' ? null : 'prune')}><Icon name="scissors" size={13} />{t('prune')}</Btn>
-          <Btn small kind="ghost" onClick={() => setSubMenu(subMenu === 'treat' ? null : 'treat')}>{t('treat')}</Btn>
-          <Btn small kind="ghost" onClick={() => setSubMenu(subMenu === 'prop' ? null : 'prop')}>{t('propagate')}</Btn>
-          <Btn small kind="ghost" onClick={() => setSubMenu(subMenu === 'repot' ? null : 'repot')}>{t('repot')}</Btn>
-          {p.stage === 'flowering' && <Btn small kind="gold" onClick={() => act(() => harvestFlower(p))}><Icon name="flower" size={13} color="#a85878" />{lang() === 'pt' ? 'Colher flor' : 'Cut flower'}</Btn>}
-          {p.seedsReady && <Btn small kind="gold" onClick={() => act(() => harvestSeeds(p))}>{t('collect')}</Btn>}
-          <Btn small kind="ghost" onClick={props.onMove}>{t('move')}</Btn>
-          <Btn small kind="gold" onClick={() => { sellPlant(p); props.onClose(); }}><Icon name="coin" size={13} />{t('sell')} ({saleValue})</Btn>
-          {(ms === 'encharcada' || ms === 'alta') && p.potId && <Btn small kind="ghost" onClick={() => act(() => drainSaucer(p))}>{lang() === 'pt' ? 'Drenar prato' : 'Drain saucer'}</Btn>}
-          <Btn small kind="danger" onClick={() => { removePlant(p); props.onClose(); }}>{t('remove')}</Btn>
-        </div>
-      )}
+        <>
+          {/* HUB DE CUIDADOS */}
+          <div className="care-sect-title">{en ? 'Daily care' : 'Cuidados'}</div>
+          <div className="act-grid">
+            <ActTile icon="drop" color="#5aa8d8" label={t('water')} hint={ms === 'seca' || ms === 'baixa' ? (en ? 'Needs water!' : 'Precisa de água!') : `${en ? 'Moisture' : 'Umidade'} ${Math.round(p.moisture)}%`} tone="blue" active={subMenu === 'water'} onClick={() => toggle('water')} />
+            <ActTile icon="leaf" color="#8a9a4a" label={t('fertilize')} hint={ferts.length ? `${en ? 'Nutrients' : 'Nutrientes'} ${nutrAvg}%` : (en ? 'No stock' : 'Sem estoque')} tone="green" active={subMenu === 'fert'} onClick={() => toggle('fert')} />
+            <ActTile icon="warn" color="#d8a038" label={t('treat')} hint={hasProblem ? (en ? 'Problem here!' : 'Tem problema!') : (en ? 'Healthy' : 'Saudável')} tone={hasProblem ? 'warn' : ''} active={subMenu === 'treat'} onClick={() => toggle('treat')} />
+            <ActTile icon="scissors" color="#7a8a6a" label={t('prune')} hint={en ? 'Shape & clean' : 'Formar e limpar'} active={subMenu === 'prune'} onClick={() => toggle('prune')} />
+          </div>
 
-      {/* submenus */}
-      {subMenu === 'fert' && (
-        <div style={{ marginTop: 8 }}>
-          {Object.entries(G.inventory.fertilizers).filter(([, q]) => q > 0).map(([id, q]) => (
-            <Btn key={id} small kind="ghost" onClick={() => act(() => fertilize(p, id))}>{tr({ pt: CONSUMABLE_BY_ID[id].namePT, en: CONSUMABLE_BY_ID[id].nameEN })} ×{q}</Btn>
-          ))}
-          {Object.values(G.inventory.fertilizers).every((q) => !q) && <div className="card-sub">{t('emptyInv')}</div>}
-        </div>
-      )}
-      {subMenu === 'treat' && (
-        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          <Btn small kind="ghost" onClick={() => act(() => removePestByHand(p))}>{lang() === 'pt' ? 'Catar à mão' : 'Pick by hand'}</Btn>
-          {Object.entries(G.inventory.treatments).filter(([, q]) => q > 0).map(([id, q]) => (
-            <Btn key={id} small kind="ghost" onClick={() => act(() => treatPlant(p, id))}>{tr({ pt: CONSUMABLE_BY_ID[id].namePT, en: CONSUMABLE_BY_ID[id].nameEN })} ×{q}</Btn>
-          ))}
-        </div>
-      )}
-      {subMenu === 'prune' && (
-        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          <Btn small kind="ghost" onClick={() => act(() => prunePlant(p, 'clean'))}>{lang() === 'pt' ? 'Limpar folhas mortas' : 'Remove dead leaves'}</Btn>
-          <Btn small kind="ghost" onClick={() => act(() => prunePlant(p, 'deadhead'))}>{lang() === 'pt' ? 'Tirar flores murchas' : 'Deadhead'}</Btn>
-          <Btn small kind="ghost" onClick={() => act(() => prunePlant(p, 'shape'))}>{lang() === 'pt' ? 'Poda de formação' : 'Shape pruning'}</Btn>
-          {def.category === 'bonsai-tree' && <Btn small kind="ghost" onClick={() => act(() => prunePlant(p, 'root'))}>{lang() === 'pt' ? 'Poda de raiz' : 'Root pruning'}</Btn>}
-        </div>
-      )}
-      {subMenu === 'prop' && (
-        <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {def.propagationMethods.filter((m) => m !== 'seed').map((m: PropagationMethod) => (
-            <Btn key={m} small kind="ghost" onClick={() => act(() => propagate(p, m))}>{tr(PROP_LABEL[m])}</Btn>
-          ))}
-          {def.propagationMethods.includes('seed') && <span className="pill">{lang() === 'pt' ? 'Sementes: colha na fase de sementes' : 'Seeds: harvest at seeding stage'}</span>}
-        </div>
-      )}
-      {subMenu === 'repot' && (
-        <div style={{ marginTop: 8 }}>
-          <div className="card-sub" style={{ marginBottom: 4 }}>{t('choosePot')}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {Object.entries(G.inventory.pots).filter(([, q]) => q > 0).map(([id]) => (
-              <Btn key={id} small kind="ghost" onClick={() => act(() => repotPlant(p, id, null))}>{tr({ pt: POT_BY_ID[id].namePT, en: POT_BY_ID[id].nameEN })}</Btn>
-            ))}
+          <div className="care-sect-title">{en ? 'Multiply & move' : 'Multiplicar e mover'}</div>
+          <div className="act-grid">
+            <ActTile icon="seedbag" label={t('propagate')} hint={en ? 'New cuttings' : 'Gerar mudas'} active={subMenu === 'prop'} onClick={() => toggle('prop')} />
+            <ActTile icon="grid" label={t('repot')} hint={en ? 'Pot & soil' : 'Vaso e solo'} active={subMenu === 'repot'} onClick={() => toggle('repot')} />
+            <ActTile icon="arrow" label={t('move')} hint={en ? 'Change spot' : 'Trocar de lugar'} onClick={props.onMove} />
           </div>
-          <div className="card-sub" style={{ margin: '6px 0 4px' }}>{t('chooseSoil')}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {Object.entries(G.inventory.soilMixes).filter(([, q]) => q > 0).map(([id]) => (
-              <Btn key={id} small kind="ghost" onClick={() => act(() => repotPlant(p, null, id))}>{tr({ pt: resolveMix(id).namePT, en: resolveMix(id).nameEN })}</Btn>
-            ))}
+
+          {(p.stage === 'flowering' || p.seedsReady) && (
+            <>
+              <div className="care-sect-title">{en ? 'Harvest' : 'Colheita'}</div>
+              <div className="act-grid">
+                {p.stage === 'flowering' && <ActTile icon="flower" color="#c86888" label={en ? 'Cut flower' : 'Colher flor'} hint={en ? 'Adds to inventory' : 'Vai pro inventário'} tone="gold" onClick={() => act(() => harvestFlower(p), { pt: `Você colheu uma flor de ${def.commonNamePT}.`, en: `You cut a ${def.commonNameEN} flower.` })} />}
+                {p.seedsReady && <ActTile icon="seedbag" color="#c8a040" label={t('collect')} hint={en ? 'Collect seeds' : 'Guardar sementes'} tone="gold" onClick={() => act(() => harvestSeeds(p))} />}
+              </div>
+            </>
+          )}
+
+          {/* barra final: vender / drenar / remover */}
+          <div className="care-foot">
+            <Btn small kind="gold" onClick={() => { sellPlant(p); props.onClose(); }}><Icon name="coin" size={13} />{t('sell')} ({saleValue})</Btn>
+            {(ms === 'encharcada' || ms === 'alta') && p.potId && <Btn small kind="ghost" onClick={() => act(() => drainSaucer(p), { pt: 'Você drenou o excesso de água do prato.', en: 'You drained the saucer.' })}>{en ? 'Drain saucer' : 'Drenar prato'}</Btn>}
+            <Btn small kind="danger" onClick={() => { removePlant(p); props.onClose(); }}>{t('remove')}</Btn>
           </div>
-        </div>
+
+          {/* ============ FOLHAS DE AÇÃO ============ */}
+          {subMenu === 'water' && (
+            <div className="act-sheet">
+              <div className="act-sheet-head"><Icon name="drop" size={14} />{en ? 'Water with which can?' : 'Regar com qual regador?'}<span className="act-sheet-sub">{en ? 'Moisture now' : 'Umidade agora'}: {Math.round(p.moisture)}%</span></div>
+              {cans.map((c) => (
+                <OptCard key={c.id} art={<ToolSprite toolId={c.id} size={40} />} accent="#e8f0f6"
+                  name={tr({ pt: TOOL_BY_ID[c.id].namePT, en: TOOL_BY_ID[c.id].nameEN })}
+                  meta={tr(c.d)} fx={`${en ? 'Moisture' : 'Umidade'} +${c.amt}`}
+                  onClick={() => act(() => waterPlant(p, c.mode), { pt: `Você regou com ${TOOL_BY_ID[c.id].namePT} (+${c.amt} de umidade).`, en: `Watered with ${TOOL_BY_ID[c.id].nameEN} (+${c.amt} moisture).` })} />
+              ))}
+              {G.rainBarrel && G.rainWater > 0 && <div className="act-note"><Icon name="rain" size={12} />{en ? 'Using free rainwater (+3 bonus).' : 'Usando água da chuva grátis (+3 de bônus).'}</div>}
+            </div>
+          )}
+
+          {subMenu === 'fert' && (
+            <div className="act-sheet">
+              <div className="act-sheet-head"><Icon name="leaf" size={14} />{en ? 'Feed with which fertilizer?' : 'Adubar com qual fertilizante?'}<span className="act-sheet-sub">{en ? 'Nutrients' : 'Nutrientes'}: {nutrAvg}%</span></div>
+              {ferts.map(([id, q]) => (
+                <OptCard key={id} art={<ConsumableSprite itemId={id} size={40} />}
+                  name={tr({ pt: CONSUMABLE_BY_ID[id].namePT, en: CONSUMABLE_BY_ID[id].nameEN })}
+                  meta={`${en ? 'You have' : 'Você tem'} ×${q}`} fx={fertFxLine(id)}
+                  onClick={() => act(() => fertilize(p, id), { pt: `Você adubou com ${CONSUMABLE_BY_ID[id].namePT}.`, en: `Fed with ${CONSUMABLE_BY_ID[id].nameEN}.` })} />
+              ))}
+              {!ferts.length && <div className="act-empty"><Icon name="warn" size={13} />{en ? 'No fertilizer in your bag. Buy some at the shop.' : 'Sem adubo na bolsa. Compre na loja.'}</div>}
+            </div>
+          )}
+
+          {subMenu === 'treat' && (
+            <div className="act-sheet">
+              <div className="act-sheet-head"><Icon name="warn" size={14} />{en ? 'How to treat?' : 'Como tratar?'}</div>
+              <OptCard art={<Icon name="people" size={26} color="#7a8a5a" />} accent="#eef0e4"
+                name={en ? 'Pick by hand' : 'Catar à mão'} meta={en ? 'Free' : 'De graça'} fx={en ? 'Pests −22%' : 'Pragas −22%'}
+                disabled={!p.pests.length}
+                onClick={() => act(() => removePestByHand(p), { pt: 'Você catou as pragas à mão.', en: 'You picked the pests by hand.' })} />
+              {treats.map(([id, q]) => (
+                <OptCard key={id} art={<ConsumableSprite itemId={id} size={40} />}
+                  name={tr({ pt: CONSUMABLE_BY_ID[id].namePT, en: CONSUMABLE_BY_ID[id].nameEN })}
+                  meta={`${en ? 'You have' : 'Você tem'} ×${q}`} fx={treatFxLine(id)}
+                  onClick={() => act(() => treatPlant(p, id), { pt: `Você tratou a planta com ${CONSUMABLE_BY_ID[id].namePT}.`, en: `Treated with ${CONSUMABLE_BY_ID[id].nameEN}.` })} />
+              ))}
+              {!treats.length && <div className="act-note">{en ? 'No sprays in your bag — hand-picking still works.' : 'Sem defensivos na bolsa — catar à mão ainda funciona.'}</div>}
+            </div>
+          )}
+
+          {subMenu === 'prune' && (
+            <div className="act-sheet">
+              <div className="act-sheet-head"><Icon name="scissors" size={14} />{en ? 'What to prune?' : 'O que podar?'}</div>
+              {PRUNE_KINDS.filter((k) => k.kind !== 'root' || def.category === 'bonsai-tree').map((k) => {
+                const locked = (k.needsShears && !hasShears) || (k.kind === 'root' && !hasBonsai);
+                return (
+                  <OptCard key={k.kind} art={<Icon name={k.icon} size={24} color="#7a8a6a" />} accent="#eef0e4"
+                    name={tr(k.label)} meta={locked ? (en ? 'Needs pruning shears' : 'Precisa da tesoura de poda') : undefined} fx={locked ? undefined : tr(k.fx)}
+                    disabled={locked}
+                    onClick={() => act(() => prunePlant(p, k.kind), { pt: `Você fez: ${k.label.pt.toLowerCase()}.`, en: `Done: ${k.label.en.toLowerCase()}.` })} />
+                );
+              })}
+            </div>
+          )}
+
+          {subMenu === 'prop' && (
+            <div className="act-sheet">
+              <div className="act-sheet-head"><Icon name="seedbag" size={14} />{en ? 'Propagate how?' : 'Propagar como?'}{G.inventory.tools['bandeja-propagacao'] && <span className="act-sheet-sub">{en ? '+15% tray bonus' : '+15% bônus bandeja'}</span>}</div>
+              {def.propagationMethods.filter((m) => m !== 'seed').map((m: PropagationMethod) => {
+                const base = Math.round((PROP_CHANCE[m] ?? 0.7) * 100 + (G.inventory.tools['bandeja-propagacao'] ? 15 : 0));
+                return (
+                  <OptCard key={m} art={<Icon name="leaf" size={24} color="#68a858" />} accent="#eaf0e2"
+                    name={tr(PROP_LABEL[m] ?? { pt: m, en: m })} meta={`${en ? 'Success' : 'Sucesso'} ~${Math.min(98, base)}%`} fx={en ? 'Costs some health' : 'Custa um pouco de saúde'}
+                    onClick={() => act(() => propagate(p, m))} />
+                );
+              })}
+              {def.propagationMethods.includes('seed') && <div className="act-note">{en ? 'Seeds: harvest during the seeding stage.' : 'Sementes: colha na fase de sementes.'}</div>}
+            </div>
+          )}
+
+          {subMenu === 'repot' && (
+            <div className="act-sheet">
+              <div className="act-sheet-head"><Icon name="grid" size={14} />{t('choosePot')}</div>
+              {Object.entries(G.inventory.pots).filter(([, q]) => q > 0).map(([id, q]) => (
+                <OptCard key={id} art={<PotSprite potId={id} size={40} />}
+                  name={tr({ pt: POT_BY_ID[id].namePT, en: POT_BY_ID[id].nameEN })} meta={`×${q}`}
+                  onClick={() => act(() => repotPlant(p, id, null), { pt: `Você replantou em ${POT_BY_ID[id].namePT}.`, en: `Repotted into ${POT_BY_ID[id].nameEN}.` })} />
+              ))}
+              <div className="act-sheet-head" style={{ marginTop: 8 }}><Icon name="leaf" size={14} />{t('chooseSoil')}</div>
+              {Object.entries(G.inventory.soilMixes).filter(([, q]) => q > 0).map(([id, q]) => (
+                <OptCard key={id} art={<SoilSprite soilId={id} size={40} mix />}
+                  name={tr({ pt: resolveMix(id).namePT, en: resolveMix(id).nameEN })} meta={`×${q}`}
+                  onClick={() => act(() => repotPlant(p, null, id), { pt: `Você trocou o solo por ${resolveMix(id).namePT}.`, en: `Swapped soil for ${resolveMix(id).nameEN}.` })} />
+              ))}
+              {!Object.values(G.inventory.pots).some((q) => q > 0) && !Object.values(G.inventory.soilMixes).some((q) => q > 0) && <div className="act-empty"><Icon name="warn" size={13} />{en ? 'No pots or soil mixes in stock.' : 'Sem vasos ou misturas de solo em estoque.'}</div>}
+            </div>
+          )}
+        </>
       )}
     </Panel>
   );
