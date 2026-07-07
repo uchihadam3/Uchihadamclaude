@@ -563,6 +563,13 @@
         if (fx.k === 'dmgOnlyBleeding' && u && !this.st(u, 'bleed')) return { ok: false, reason: RA.T({ pt: 'Precisa de alvo sangrando', en: 'Needs a bleeding target' }) };
         if (fx.k === 'dmgOnlyVulnerable' && u && !this.st(u, 'vulnerable') && !this.st(u, 'mark')) return { ok: false, reason: RA.T({ pt: 'Precisa de alvo vulnerável', en: 'Needs a vulnerable target' }) };
       }
+      // novas habilidades condicionais
+      if (fx.k === 'shieldToDmg' && h.shield <= 0) return { ok: false, reason: RA.T({ pt: 'Precisa de ESCUDO no herói (o dano é o escudo dele)', en: 'Hero needs SHIELD (damage equals his shield)' }) };
+      if (fx.k === 'stealShield' && u && u.kind === 'enemy' && u.shield <= 0) return { ok: false, reason: RA.T({ pt: 'O alvo não tem escudo para roubar', en: 'Target has no shield to steal' }) };
+      if (fx.k === 'execute' && u) {
+        if (u.tier !== 'comum') return { ok: false, reason: RA.T({ pt: 'A Guilhotina só executa inimigos COMUNS', en: 'The Guillotine only executes COMMON enemies' }) };
+        if (u.hp > (fx.n || 6)) return { ok: false, reason: RA.T({ pt: 'Só executa com ' + (fx.n || 6) + ' ou menos de vida', en: 'Only executes at ' + (fx.n || 6) + ' HP or less' }) };
+      }
       if (fx.k === 'revive' && u && !u.downed) return { ok: false, reason: RA.T({ pt: 'Precisa de um aliado caído', en: 'Needs a downed ally' }) };
     }
     return { ok: true, face: f, value: this.dieValue(d), target: tv.unit };
@@ -905,6 +912,9 @@
         if (st.bleed) { self.damage(null, u, st.bleed, { pure: true, tag: 'bleed' }); if (!u.dead) { st.bleed--; if (!st.bleed) delete st.bleed; } }
         if (u.dead) return;
         if (st.curse) { self.damage(null, u, st.curse, { pure: true, tag: 'curse' }); }
+        if (u.dead) return;
+        // JUÍZO: explode o valor acumulado no fim da rodada e some
+        if (st.doom) { var doomN = st.doom; delete st.doom; self.damage(null, u, doomN, { pure: true, tag: 'curse' }); }
         // decaimentos de 1 turno
         ['mark', 'vulnerable', 'weak', 'blind', 'silence', 'fear', 'chained', 'slow', 'camo', 'counter', 'inspire', 'focus'].forEach(function (s) {
           if (st[s]) { st[s]--; if (!st[s]) delete st[s]; }

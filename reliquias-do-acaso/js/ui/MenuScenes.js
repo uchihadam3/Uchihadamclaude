@@ -425,7 +425,7 @@
       var rowsI = Math.ceil(facesI.length / colsI);
       var gapI = Math.min(38, Math.floor((pwI - 12) / colsI));
       var dieS = Math.min(24, gapI - 8);
-      var phI = Math.min(h - 6, 56 + rowsI * (dieS + 18) + 62);
+      var phI = Math.min(h - 6, 56 + rowsI * (dieS + 18) + 82);
       var pxI = Math.round((w - pwI) / 2), pyI = Math.round(Math.max(3, (h - phI) / 2));
       W().panel(ctx, pxI, pyI, pwI, phI, { edge: skI.rim });
       // cabeçalho: retrato emoldurado + nome + HP + selo do dado
@@ -475,7 +475,9 @@
       W().descFace(fSel).forEach(function (dl) {
         F.wrap(String(dl), 1, 1, pwI - 14).forEach(function (dl2) { dLines2.push(dl2); });
       });
-      dLines2.slice(0, 2).forEach(function (dl3, dli) {
+      // quantas linhas cabem entre a face e os botões (nunca corta no meio)
+      var maxDL = Math.max(2, Math.floor(((pyI + phI - 26) - (dY2 + 11)) / 9));
+      dLines2.slice(0, maxDL).forEach(function (dl3, dli) {
         F.draw(ctx, dl3, pxI + 7, dY2 + 11 + dli * 9, { size: 1, color: '#c8c2d4' });
       });
       // botões: ESCOLHER/REMOVER + FECHAR

@@ -67,7 +67,7 @@
       passive: { id: 'plusVsMarked', txt: N('Contra inimigo marcado, causa +1 de dano.', '+1 damage vs marked enemies.') },
       look: { skin: 'medio', hair: 'curto', hairColor: '#241a14', headgear: 'capuz', hoodColor: '#38304a', eyes: 'normal', cloth: '#38304a', bg: '#181420' },
       faces: [
-        F(N('Achar a Brecha', 'Find the Opening'), 'eye', 1, 'enemy', [{ k: 'st', s: 'mark', n: 1 }, { k: 'dmg', n: 1 }]),
+        F(N('Achar a Brecha', 'Find the Opening'), 'eye', 1, 'enemy', [{ k: 'st', s: 'mark', n: 2 }, { k: 'dmg', n: 1 }]),
         F(N('Ataque Duplo', 'Double Hit'), 'sword', 1, 'enemy', [{ k: 'dmg', times: 2 }]),
         F(N('Veneno', 'Poison'), 'drop', 2, 'enemy', [{ k: 'st', s: 'poison' }]),
         F(N('Esquiva', 'Dodge'), 'bolt', 0, 'self', [{ k: 'st', s: 'dodge' }]),
@@ -82,7 +82,7 @@
       faces: [
         F(N('Flecha', 'Arrow'), 'sword', 2, 'enemy', [{ k: 'dmg', anyRow: true }]),
         F(N('Flecha', 'Arrow'), 'sword', 3, 'enemy', [{ k: 'dmg', anyRow: true }]),
-        F(N('Marcar Alvo', 'Mark Target'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 1 }]),
+        F(N('Marcar Alvo', 'Mark Target'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 2 }]),
         F(N('Tiro Perfurante', 'Piercing Shot'), 'sword', 2, 'enemy', [{ k: 'dmg', ignoreShield: true, anyRow: true }]),
         F(N('Chuva de Flechas', 'Arrow Rain'), 'sword', 1, 'allE', [{ k: 'dmg' }]),
         F(N('Tiro Perfeito', 'Perfect Shot'), 'eye', 5, 'enemy', [{ k: 'dmg', onlyMarked: true, anyRow: true }], { rare: true })
@@ -241,7 +241,7 @@
         F(N('Defesa', 'Guard'), 'shield', 2, 'self', [{ k: 'shield' }, { k: 'st', s: 'counter', n: 1 }]),
         F(N('Preparar Lâmina', 'Ready Blade'), 'star', 2, 'self', [{ k: 'st', s: 'inspire', n: 2 }]),
         F(N('Iaijutsu', 'Iaijutsu'), 'bolt', 5, 'enemy', [{ k: 'dmg', onlyFirst: true }], { rare: true }),
-        F(N('Duelo', 'Duel'), 'eye', 2, 'enemy', [{ k: 'st', s: 'mark', n: 1 }, { k: 'shield', who: 'self' }])
+        F(N('Duelo', 'Duel'), 'eye', 2, 'enemy', [{ k: 'st', s: 'mark', n: 2 }, { k: 'shield', who: 'self' }])
       ]
     },
     {
@@ -266,7 +266,7 @@
         F(N('Ordem', 'Command'), 'star', 0, 'ally', [{ k: 'commandRepeat', minus: 1 }]),
         F(N('Reposicionar', 'Reposition'), 'hour', 0, 'none', [{ k: 'swapRows' }]),
         F(N('Escudo à Frente', 'Front Shield'), 'shield', 2, 'ally', [{ k: 'shield', frontOnly: true }]),
-        F(N('Alvo Prioritário', 'Priority Target'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 1 }]),
+        F(N('Alvo Prioritário', 'Priority Target'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 2 }]),
         F(N('Comando Total', 'Full Command'), 'star', 1, 'allA', [{ k: 'buffAttacks', n: 1 }], { rare: true })
       ]
     },
@@ -290,7 +290,7 @@
       faces: [
         F(N('Lâmina', 'Blade'), 'sword', 3, 'enemy', [{ k: 'dmg' }]),
         F(N('Tiro Sagrado', 'Holy Shot'), 'star', 2, 'enemy', [{ k: 'dmg', anyRow: true }]),
-        F(N('Marcar Presa', 'Mark Prey'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 1 }]),
+        F(N('Marcar Presa', 'Mark Prey'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 3 }]),
         F(N('Lâmina Serrilhada', 'Serrated Edge'), 'drop', 2, 'enemy', [{ k: 'st', s: 'bleed' }]),
         F(N('Armadilha', 'Trap'), 'chain', 2, 'enemy', [{ k: 'trap' }]),
         F(N('Execução', 'Execution'), 'skull', 6, 'enemy', [{ k: 'dmg', onlyMarked: true, onlyBoss: true }], { rare: true })
@@ -368,7 +368,7 @@
       faces: [
         F(N('Estocada', 'Lunge'), 'sword', 3, 'enemy', [{ k: 'dmg' }]),
         F(N('Aparar', 'Parry'), 'shield', 2, 'self', [{ k: 'shield' }, { k: 'st', s: 'counter', n: 2 }]),
-        F(N('Marcar Duelo', 'Challenge'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 1 }]),
+        F(N('Marcar Duelo', 'Challenge'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 2 }]),
         F(N('Corte Rápido', 'Quick Cut'), 'sword', 2, 'enemy', [{ k: 'dmg', twiceIfMarked: true }]),
         F(N('Desarmar', 'Disarm'), 'chain', 2, 'enemy', [{ k: 'st', s: 'weak', n: 2 }]),
         F(N('Golpe Elegante', 'Elegant Strike'), 'sword', 4, 'enemy', [{ k: 'dmg' }, { k: 'st', s: 'dodge', who: 'self' }], { rare: true })

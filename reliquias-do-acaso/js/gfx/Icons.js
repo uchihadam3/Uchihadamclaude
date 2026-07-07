@@ -116,6 +116,7 @@
       case 'fear': px(2, 1, 4, 4, '#c8b8e8'); px(2, 5, 1, 2, '#c8b8e8'); px(5, 5, 1, 2, '#c8b8e8'); px(3, 2, 1, 1, '#38284a'); px(5, 2, 1, 1, '#38284a'); break;
       case 'slow': px(1, 1, 6, 6, '#8a94a8'); px(3, 2, 2, 3, '#38304a'); px(3, 4, 3, 1, '#38304a'); break;
       case 'dodge': px(1, 1, 3, 6, 'rgba(200,220,240,0.5)'); px(4, 1, 3, 6, '#c8dcf0'); break;
+      case 'doom': px(1, 1, 6, 4, '#8a4ae8'); px(2, 2, 1, 1, '#e8d8ff'); px(5, 2, 1, 1, '#e8d8ff'); px(3, 5, 2, 3, '#5c2ea8'); px(2, 7, 4, 1, '#c8b8e8'); break;
       default: px(2, 2, 4, 4, '#e8e0d0');
     }
     return c;
@@ -187,7 +188,13 @@
     pocket: function (p) { p(2, 3, 6, 6, '#8a6e3c'); p(2, 3, 6, 2, '#c9a23a'); p(3, 0, 4, 4, '#e8e8f0'); p(4, 1, 1, 1, '#38304a'); },
     anvil: function (p) { p(1, 3, 8, 3, '#8a94a8'); p(3, 6, 4, 1, '#5a6478'); p(2, 7, 6, 2, '#5a6478'); p(4, 0, 3, 3, '#ffd76a'); },
     balance: function (p) { p(4, 1, 2, 8, '#c9a23a'); p(1, 2, 8, 1, '#c9a23a'); p(0, 3, 3, 2, '#ffd76a'); p(7, 3, 3, 2, '#ffd76a'); p(2, 9, 6, 1, '#8a6e2e'); },
-    gear: function (p) { p(3, 3, 4, 4, '#8a94a8'); p(4, 1, 2, 2, '#8a94a8'); p(4, 7, 2, 2, '#8a94a8'); p(1, 4, 2, 2, '#8a94a8'); p(7, 4, 2, 2, '#8a94a8'); p(4, 4, 2, 2, '#38304a'); }
+    gear: function (p) { p(3, 3, 4, 4, '#8a94a8'); p(4, 1, 2, 2, '#8a94a8'); p(4, 7, 2, 2, '#8a94a8'); p(1, 4, 2, 2, '#8a94a8'); p(7, 4, 2, 2, '#8a94a8'); p(4, 4, 2, 2, '#38304a'); },
+    // --- habilidades lendárias ---
+    wallblade: function (p) { p(1, 2, 3, 6, '#8a94a8'); p(2, 3, 1, 3, '#c9d4e8'); p(5, 4, 4, 2, '#e8e8f0'); p(8, 3, 2, 4, '#ffd76a'); },
+    grabshield: function (p) { p(5, 1, 4, 5, '#8a94a8'); p(6, 2, 2, 2, '#c9d4e8'); p(1, 5, 3, 2, '#c8a482'); p(2, 7, 3, 2, '#c8a482'); p(4, 4, 2, 2, '#ffd76a'); },
+    lifelink: function (p) { p(1, 1, 3, 3, '#e84a5a'); p(6, 6, 3, 3, '#e84a5a'); p(3, 4, 2, 2, '#ffd76a'); p(5, 3, 2, 2, '#ffd76a'); p(2, 2, 1, 1, '#fff'); p(7, 7, 1, 1, '#fff'); },
+    absolve: function (p) { p(4, 0, 2, 7, '#e8f4ff'); p(2, 2, 6, 2, '#e8f4ff'); p(1, 7, 3, 2, '#8a4ae8'); p(6, 7, 3, 2, '#e84a5a'); },
+    guillotine: function (p) { p(1, 0, 2, 9, '#6e5a3c'); p(7, 0, 2, 9, '#6e5a3c'); p(2, 1, 6, 2, '#c9d4e8'); p(2, 3, 6, 1, '#8a94a8'); p(3, 7, 4, 2, '#38304a'); }
   };
 
   function fxGlyph(name) {
@@ -241,7 +248,9 @@
       commandRepeat: 'command', buffAttacks: 'horn', peekIntents: 'eye',
       twistIntent: 'twist', delayIntent: 'pause', swapDice: 'swap', swapRows: 'rows',
       swapHpPercent: 'exchange', flipDie: 'flip', storeDie: 'pocket',
-      repairCracked: 'anvil', equalizeDice: 'balance', overclock: 'gear'
+      repairCracked: 'anvil', equalizeDice: 'balance', overclock: 'gear',
+      shieldToDmg: 'wallblade', stealShield: 'grabshield', lifelink: 'lifelink',
+      cleanseToDmg: 'absolve', execute: 'guillotine'
     };
     return MAP[k] || face.sym || 'star';
   }

@@ -1,4 +1,4 @@
-// RuneFaces: 180 Faces Rúnicas (6 categorias x 30) que substituem lados de
+// RuneFaces: 190 Faces Rúnicas (6 categorias x 30 + 10 lendárias) que substituem lados de
 // dado durante a run. Mesmo DSL de efeitos das faces dos heróis.
 (function () {
   var N = function (pt, en) { return { pt: pt, en: en }; };
@@ -127,7 +127,7 @@
     F('nevoaDensa', 'magia', N('Névoa Densa', 'Dense Mist'), 'eye', 1, 'allE', [{ k: 'st', s: 'blind', who: 'allE' }], { rare: true }),
     F('espiralVento', 'magia', N('Espiral de Vento', 'Wind Spiral'), 'bolt', 2, 'enemy', [{ k: 'dmg', magic: true }, { k: 'delayIntent', n: 1 }]),
     F('brasaAzul', 'magia', N('Brasa Azul', 'Blue Ember'), 'flame', 2, 'enemy', [{ k: 'dmg', magic: true }, { k: 'st', s: 'burn', n: 2 }], { rare: true }),
-    F('olharProfundo', 'magia', N('Olhar Profundo', 'Deep Gaze'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark' }, { k: 'st', s: 'vulnerable', n: 1 }]),
+    F('olharProfundo', 'magia', N('Olhar Profundo', 'Deep Gaze'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 2 }, { k: 'st', s: 'vulnerable', n: 1 }]),
     F('toqueGelado', 'magia', N('Toque Gelado', 'Frigid Touch'), 'flame', 1, 'enemy', [{ k: 'st', s: 'freeze', n: 2 }]),
     F('runaExplosiva', 'magia', N('Runa Explosiva', 'Blast Rune'), 'flame', 4, 'enemy', [{ k: 'dmg', magic: true }], { uses: 4 }),
     F('prismaLuz', 'magia', N('Prisma de Luz', 'Light Prism'), 'star', 2, 'allE', [{ k: 'dmg', magic: true, plusVsUndead: 1 }]),
@@ -150,7 +150,7 @@
     F('trocaR', 'suporte', N('Troca', 'Swap'), 'hour', 0, 'none', [{ k: 'swapDice' }]),
     F('previsaoR', 'suporte', N('Previsão', 'Foresight'), 'eye', 0, 'self', [{ k: 'st', s: 'inspire', n: 1 }]),
     F('reposicaoR', 'suporte', N('Reposição', 'Reposition'), 'hour', 0, 'none', [{ k: 'swapRows' }]),
-    F('marcarR', 'suporte', N('Marcar', 'Mark'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark' }]),
+    F('marcarR', 'suporte', N('Marcar', 'Mark'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 2 }]),
     F('focoR', 'suporte', N('Foco', 'Focus'), 'star', 0, 'ally', [{ k: 'st', s: 'focus' }]),
     F('sorteR', 'suporte', N('Sorte', 'Luck'), 'coin', 0, 'self', [{ k: 'luckKillReroll' }]),
     F('gritoGuerra', 'suporte', N('Grito de Guerra', 'War Cry'), 'star', 1, 'allA', [{ k: 'buffAttacks', n: 1 }], { rare: true }),
@@ -206,6 +206,30 @@
     F('chamadoVazio', 'sombria', N('Chamado do Vazio', 'Void Call'), 'skull', 0, 'none', [{ k: 'summon', id: 'esqueletoAliado' }, { k: 'st', s: 'curse', n: 1, who: 'self' }]),
     F('velaNegra', 'sombria', N('Vela Negra', 'Black Candle'), 'skull', 1, 'enemy', [{ k: 'st', s: 'curse' }, { k: 'st', s: 'vulnerable', n: 1 }]),
     F('pesadelo', 'sombria', N('Pesadelo', 'Nightmare'), 'eye', 3, 'enemy', [{ k: 'dmg', magic: true, plusIfFear: 2 }], { rare: true })
+  );
+
+  // ============ 10 FACES LENDÁRIAS (habilidades inéditas) ============
+  L.push(
+    // converte o escudo do herói em dano — build de tanque agressivo
+    F('lancaDeMuralha', 'defesa', N('Lança de Muralha', 'Rampart Lance'), 'shield', 1, 'enemy', [{ k: 'shieldToDmg' }], { rare: true }),
+    // rouba o escudo do inimigo para si
+    F('maoGananciosa', 'defesa', N('Mão Gananciosa', 'Greedy Hand'), 'shield', 3, 'enemy', [{ k: 'stealShield', n: 3 }]),
+    // fere e cura o aliado mais ferido no valor causado
+    F('eloVital', 'cura', N('Elo Vital', 'Life Link'), 'heart', 3, 'enemy', [{ k: 'lifelink' }], { rare: true }),
+    // remove os males do aliado e devolve como dano
+    F('absolvicao', 'cura', N('Absolvição', 'Absolution'), 'star', 0, 'ally', [{ k: 'cleanseToDmg', per: 2 }]),
+    // executa inimigo comum com pouca vida
+    F('guilhotina', 'sombria', N('Guilhotina', 'Guillotine'), 'skull', 0, 'enemy', [{ k: 'execute', n: 6 }], { rare: true }),
+    // juízo: o alvo sofre o valor no FIM da rodada
+    F('runaDoJuizo', 'sombria', N('Runa do Juízo', 'Doom Rune'), 'skull', 6, 'enemy', [{ k: 'st', s: 'doom', n: 6 }], { rare: true }),
+    // marca TODOS os inimigos por 2 rodadas — coração das builds de marca
+    F('olhoDoCacador', 'magia', N('Olho do Caçador', "Hunter's Eye"), 'eye', 0, 'allE', [{ k: 'st', s: 'mark', n: 2, who: 'allE' }], { rare: true }),
+    // sentença coletiva: juízo fraco em todos
+    F('sentencaColetiva', 'magia', N('Sentença Coletiva', 'Mass Sentence'), 'eye', 3, 'allE', [{ k: 'st', s: 'doom', n: 3, who: 'allE' }], { rare: true }),
+    // escudo para o grupo inteiro
+    F('muralhaColetiva', 'suporte', N('Muralha Coletiva', 'Collective Wall'), 'shield', 2, 'allA', [{ k: 'shield', who: 'allA' }]),
+    // relâmpago que salta em até 4 inimigos
+    F('tempestadeRunica', 'ataque', N('Tempestade Rúnica', 'Runic Tempest'), 'bolt', 2, 'allE', [{ k: 'dmgUpTo', targets: 4 }], { rare: true })
   );
 
   var byId = {};

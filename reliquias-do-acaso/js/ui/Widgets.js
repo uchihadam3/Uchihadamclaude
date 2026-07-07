@@ -308,7 +308,7 @@
             out.push(s);
             // PRÉ-REQUISITOS em destaque — nunca esconder o "precisa de X"
             if (fx.onlyHalfHp) out.push(RA.T({ pt: 'REQUER: alvo com MENOS de metade da vida', en: 'REQUIRES: target below half HP' }));
-            if (fx.onlyMarked) out.push(RA.T({ pt: 'REQUER: alvo MARCADO (use uma face de marcar antes, NO MESMO TURNO — a marca expira no fim da rodada)', en: 'REQUIRES: MARKED target (mark it first, SAME TURN — marks expire at round end)' }));
+            if (fx.onlyMarked) out.push(RA.T({ pt: 'REQUER: alvo MARCADO (a marca dura 2+ rodadas: marque num turno, ataque neste ou no seguinte)', en: 'REQUIRES: MARKED target (marks last 2+ rounds: mark one turn, strike this one or the next)' }));
             if (fx.onlyBoss) out.push(RA.T({ pt: 'REQUER: o alvo ser um CHEFE', en: 'REQUIRES: target must be a BOSS' }));
             if (fx.onlyFirst) out.push(RA.T({ pt: 'REQUER: ser a PRIMEIRA ação do turno', en: 'REQUIRES: must be the FIRST action of the turn' }));
             if (fx.onlyIfSelfHp1) out.push(RA.T({ pt: 'REQUER: o herói estar com 1 de vida', en: 'REQUIRES: hero at exactly 1 HP' }));
@@ -330,6 +330,16 @@
           case 'trap': out.push(RA.T({ pt: 'Arma uma armadilha: fere o inimigo quando ele agir', en: 'Sets a trap: wounds the enemy when it acts' })); break;
           case 'healSelfIfBleeding': out.push(RA.T({ pt: 'Cura ' + n + ' em si SE o alvo estiver sangrando', en: 'Heals self ' + n + ' IF target is bleeding' })); break;
           case 'stunIfNoShield': out.push(RA.T({ pt: 'ATORDOA o alvo se ele estiver SEM escudo', en: 'STUNS the target if it has NO shield' })); break;
+          case 'shieldToDmg':
+            out.push(RA.T({ pt: 'Converte TODO o escudo do herói em dano (+ o valor)', en: 'Converts ALL the hero\'s shield into damage (+ value)' }));
+            out.push(RA.T({ pt: 'REQUER: o herói ter escudo', en: 'REQUIRES: hero must have shield' }));
+            break;
+          case 'stealShield': out.push(RA.T({ pt: 'ROUBA até ' + (fx.n || n) + ' de escudo do inimigo para si', en: 'STEALS up to ' + (fx.n || n) + ' shield from the enemy' })); break;
+          case 'lifelink': out.push(RA.T({ pt: 'Dano ' + n + ' e CURA o aliado mais ferido no valor causado', en: 'Damage ' + n + ' and HEALS the most wounded ally for it' })); break;
+          case 'cleanseToDmg': out.push(RA.T({ pt: 'Remove os males do aliado; cada um vira ' + (fx.per || 2) + ' de dano num inimigo', en: 'Removes ally debuffs; each becomes ' + (fx.per || 2) + ' damage to an enemy' })); break;
+          case 'execute':
+            out.push(RA.T({ pt: 'EXECUTA (mata na hora) inimigo COMUM com ' + (fx.n || 6) + ' ou menos de vida', en: 'EXECUTES (instant kill) a COMMON enemy at ' + (fx.n || 6) + ' HP or less' }));
+            break;
           case 'heal': out.push(RA.T({ pt: 'Cura ' + n, en: 'Heal ' + n })); break;
           case 'healSelf': out.push(RA.T({ pt: 'Cura ' + n + ' em si', en: 'Heal self ' + n })); break;
           case 'healLowest': out.push(RA.T({ pt: 'Cura ' + n + ' no aliado MAIS FERIDO (escolhe sozinho)', en: 'Heals ' + n + ' on MOST WOUNDED ally (auto)' })); break;
@@ -337,7 +347,7 @@
           case 'st': {
             var sd = RA.data.Statuses[fx.s];
             var whoTxt = fx.who === 'allE' ? RA.T({ pt: ' em todos os inimigos', en: ' to all enemies' }) : fx.who === 'allA' ? RA.T({ pt: ' em todos os aliados', en: ' to all allies' }) : fx.who === 'self' ? RA.T({ pt: ' em si mesmo', en: ' on self' }) : RA.T({ pt: ' no alvo', en: ' on target' });
-            out.push((sd ? RA.T(sd) : fx.s) + ' ' + n + whoTxt);
+            out.push((sd ? RA.T(sd) : fx.s) + ' ' + n + whoTxt + (fx.s === 'mark' ? RA.T({ pt: ' (dura ' + n + ' rodadas)', en: ' (lasts ' + n + ' rounds)' }) : ''));
             if (sd && sd.desc) out.push('(' + RA.T(sd.desc) + ')');
             break;
           }

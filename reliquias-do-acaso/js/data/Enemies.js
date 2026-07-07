@@ -48,7 +48,7 @@
     ], { weak: 'fisico' }),
     E('goblinArqueiro', N('Goblin Arqueiro', 'Goblin Archer'), 5, 'estrada', 'goblin', [
       atk(2, 'back'), atk(2, 'back'), f(atk(3, 'back'), 'Flecha na Nuca', 'Neck Shot'),
-      f(st('mark', 1, 'back'), 'Mira', 'Take Aim'), atk(1), blank()
+      f(st('mark', 2, 'back'), 'Mira', 'Take Aim'), atk(1), blank()
     ], { decor: 'arco', row: 'back' }),
     E('goblinEscudeiro', N('Goblin Escudeiro', 'Goblin Shieldman'), 7, 'estrada', 'goblin', [
       sh(2), f(sh(3), 'Muralha de Sucata', 'Scrap Wall'), atk(2), atk(2),
@@ -154,7 +154,7 @@
     E('esqueletoArqueiro', N('Esqueleto Arqueiro', 'Skeleton Archer'), 6, 'cripta', 'esqueleto', [
       f(atk(2, 'back'), 'Flecha de Osso', 'Bone Arrow'), f(atk(2, 'back'), 'Flecha de Osso', 'Bone Arrow'),
       f(atk(2, 'back'), 'Flecha de Osso', 'Bone Arrow'), atk(3, 'back'), atk(3, 'back'),
-      f(st('mark', 1, 'random'), 'Mira Morta', 'Dead Aim'),
+      f(st('mark', 2, 'random'), 'Mira Morta', 'Dead Aim'),
       f(atk(4, 'marked'), 'Na Mosca', 'Bullseye'), atk(1)
     ], { kind: 'undead', decor: 'arco', row: 'back', resist: 'sangramento' }),
     E('caveiraSaltante', N('Caveira Saltante', 'Leaping Skull'), 3, 'cripta', 'esqueleto', [
@@ -267,8 +267,8 @@
 
     // ===== REGIÃO 5: CIDADE DAS MÁSCARAS (d10, precisos e traiçoeiros) =====
     E('assassinoMascarado', N('Assassino Mascarado', 'Masked Assassin'), 7, 'mascaras', 'humanoide', [
-      f(st('mark', 1, 'back'), 'Marca a Vítima', 'Marks the Victim'),
-      f(st('mark', 1, 'back'), 'Marca a Vítima', 'Marks the Victim'),
+      f(st('mark', 2, 'back'), 'Marca a Vítima', 'Marks the Victim'),
+      f(st('mark', 2, 'back'), 'Marca a Vítima', 'Marks the Victim'),
       f(atk(4, 'marked'), 'Lâmina Silenciosa', 'Silent Blade'),
       f(atk(4, 'marked'), 'Lâmina Silenciosa', 'Silent Blade'),
       f(atk(4, 'marked'), 'Lâmina Silenciosa', 'Silent Blade'),
@@ -303,7 +303,7 @@
       f(atk(3, 'back'), 'Faca no Escuro', 'Knife in the Dark'),
       f(atk(3, 'back'), 'Faca no Escuro', 'Knife in the Dark'),
       f(atk(3, 'back'), 'Faca no Escuro', 'Knife in the Dark'),
-      st('mark', 1), st('mark', 1),
+      st('mark', 2), st('mark', 2),
       f(and(st('blind', 1), atk(2)), 'Golpe às Cegas', 'Blind Strike'),
       f(and(st('blind', 1), atk(2)), 'Golpe às Cegas', 'Blind Strike')
     ], { decor: 'capuz' }),
@@ -482,12 +482,12 @@
     E('sereiaSombria', N('Sereia Sombria', 'Dark Siren'), 8, 'mar', 'humanoide', [
       f(st('fear', 1, 'allH'), 'Canto Sombrio', 'Dark Song'), f(st('fear', 1, 'allH'), 'Canto Sombrio', 'Dark Song'),
       f(st('fear', 1, 'allH'), 'Canto Sombrio', 'Dark Song'),
-      f(st('mark', 1), 'Escolhe a Presa', 'Chooses Prey'), f(st('mark', 1), 'Escolhe a Presa', 'Chooses Prey'),
-      f(st('mark', 1), 'Escolhe a Presa', 'Chooses Prey'),
+      f(st('mark', 2), 'Escolhe a Presa', 'Chooses Prey'), f(st('mark', 2), 'Escolhe a Presa', 'Chooses Prey'),
+      f(st('mark', 2), 'Escolhe a Presa', 'Chooses Prey'),
       f(atk(4, 'marked'), 'Beijo Final', 'Final Kiss'), f(atk(4, 'marked'), 'Beijo Final', 'Final Kiss'),
       f(atk(4, 'marked'), 'Beijo Final', 'Final Kiss'),
       atk(2), atk(2),
-      f(and(st('mark', 1), atk(2)), 'Encanta e Fere', 'Charm and Wound')
+      f(and(st('mark', 2), atk(2)), 'Encanta e Fere', 'Charm and Wound')
     ], { row: 'back' }),
     E('tentaculoSolto', N('Tentáculo Solto', 'Loose Tentacle'), 8, 'mar', 'marinho', [
       f(st('chained', 1), 'Enrosca', 'Coils'), f(st('chained', 1), 'Enrosca', 'Coils'),
@@ -804,13 +804,13 @@
     E('duqueMascaras', N('Duque das Máscaras', 'Duke of Masks'), 50, 'mascaras', 'humanoide', [
       f(summon('clone_duque'), 'MAIS MÁSCARAS', 'MORE MASKS'),
       f(summon('clone_duque'), 'MAIS MÁSCARAS', 'MORE MASKS'),
-      f(st('mark', 1), 'Aponta o Leque', 'Points the Fan'), f(st('mark', 1), 'Aponta o Leque', 'Points the Fan'),
+      f(st('mark', 2), 'Aponta o Leque', 'Points the Fan'), f(st('mark', 2), 'Aponta o Leque', 'Points the Fan'),
       f(atk(5, 'marked'), 'Estocada Teatral', 'Theatrical Thrust'),
       f(atk(5, 'marked'), 'Estocada Teatral', 'Theatrical Thrust'),
       f(atk(5, 'marked'), 'Estocada Teatral', 'Theatrical Thrust'),
       f(sp('trocaIntencao'), 'Troca de Papel', 'Changes Role'),
-      f(and(st('mark', 1), atk(3, 'marked')), 'ATO FINAL', 'FINAL ACT'),
-      f(and(st('mark', 1), atk(3, 'marked')), 'ATO FINAL', 'FINAL ACT')
+      f(and(st('mark', 2), atk(3, 'marked')), 'ATO FINAL', 'FINAL ACT'),
+      f(and(st('mark', 2), atk(3, 'marked')), 'ATO FINAL', 'FINAL ACT')
     ], {
       tier: 'chefe', decor: 'mascara', mech: 'duqueMascaras',
       die2: [

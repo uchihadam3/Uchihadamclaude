@@ -215,6 +215,62 @@
         if (!hitV) c.say(RA.T({ pt: 'Nenhum inimigo vulnerável!', en: 'No vulnerable enemies!' }));
         break;
       }
+      // ---- habilidades novas ----
+      case 'shieldToDmg': {
+        // converte TODO o escudo do herói em dano (+ o valor da face)
+        var sAmt = h.shield;
+        if (sAmt > 0 && tgt) {
+          h.shield = 0;
+          c.ev('shieldHit', { side: 'hero', idx: h.slot, n: sAmt });
+          doAttack(c, h, tgt, sAmt + val, fx, f);
+        } else c.say(RA.T({ pt: 'Sem escudo para lançar!', en: 'No shield to hurl!' }));
+        break;
+      }
+      case 'stealShield': {
+        // rouba até n de escudo do inimigo para o herói
+        if (tgt && tgt.kind === 'enemy' && tgt.shield > 0) {
+          var stolen = Math.min(fx.n !== undefined ? fx.n : Math.max(1, val), tgt.shield);
+          tgt.shield -= stolen;
+          c.ev('shieldHit', { side: 'enemy', idx: tgt.slot, n: stolen });
+          c.giveShield(h, stolen);
+          c.say(RA.T({ pt: 'Escudo roubado: ' + stolen + '!', en: 'Shield stolen: ' + stolen + '!' }));
+        } else c.say(RA.T({ pt: 'Nada para roubar!', en: 'Nothing to steal!' }));
+        break;
+      }
+      case 'lifelink': {
+        // fere o inimigo e cura o aliado MAIS FERIDO no valor causado
+        if (tgt) {
+          var linkDone = doAttack(c, h, tgt, val, fx, f);
+          if (linkDone > 0) c.healLowest(linkDone);
+        }
+        break;
+      }
+      case 'cleanseToDmg': {
+        // remove os debuffs do aliado; cada um vira dano num inimigo aleatório
+        var ally = tgt && tgt.kind === 'hero' ? tgt : h;
+        var removed = 0;
+        for (var stK in ally.statuses) {
+          var sdC = RA.data.Statuses[stK];
+          if (sdC && !sdC.good) { delete ally.statuses[stK]; removed++; }
+        }
+        c.ev('status', { side: 'hero', idx: ally.slot, s: 'cleanse', n: removed, good: true });
+        if (removed > 0) {
+          var vict = c.pickEnemyTarget ? c.pickEnemyTarget() : null;
+          var pool2 = c.aliveEnemies();
+          var victim = pool2.length ? pool2[c.rng.int(0, pool2.length - 1)] : null;
+          if (victim) doAttack(c, h, victim, removed * (fx.per || 2), { anyRow: true }, f);
+          c.say(RA.T({ pt: removed + ' mal(es) convertido(s) em dano!', en: removed + ' debuff(s) turned into damage!' }));
+        } else c.say(RA.T({ pt: 'Nenhum mal para absolver.', en: 'No debuffs to absolve.' }));
+        break;
+      }
+      case 'execute': {
+        // decapita inimigo COMUM com vida baixa (canUse já validou)
+        if (tgt && tgt.kind === 'enemy' && tgt.tier === 'comum' && tgt.hp <= (fx.n || 6)) {
+          c.say(RA.T({ pt: 'EXECUTADO!', en: 'EXECUTED!' }));
+          c.damage(null, tgt, 999, { pure: true, tag: 'hit' });
+        }
+        break;
+      }
       case 'removeBuff':
         if (tgt && tgt.kind === 'enemy') {
           if (tgt.shield > 0) { tgt.shield = 0; c.ev('shieldHit', { side: 'enemy', idx: tgt.slot, n: 99 }); }
