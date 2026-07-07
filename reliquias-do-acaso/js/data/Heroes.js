@@ -67,7 +67,7 @@
       passive: { id: 'plusVsMarked', txt: N('Contra inimigo marcado, causa +1 de dano.', '+1 damage vs marked enemies.') },
       look: { skin: 'medio', hair: 'curto', hairColor: '#241a14', headgear: 'capuz', hoodColor: '#38304a', eyes: 'normal', cloth: '#38304a', bg: '#181420' },
       faces: [
-        F(N('Facada', 'Stab'), 'sword', 2, 'enemy', [{ k: 'dmg' }]),
+        F(N('Achar a Brecha', 'Find the Opening'), 'eye', 1, 'enemy', [{ k: 'st', s: 'mark', n: 1 }, { k: 'dmg', n: 1 }]),
         F(N('Ataque Duplo', 'Double Hit'), 'sword', 1, 'enemy', [{ k: 'dmg', times: 2 }]),
         F(N('Veneno', 'Poison'), 'drop', 2, 'enemy', [{ k: 'st', s: 'poison' }]),
         F(N('Esquiva', 'Dodge'), 'bolt', 0, 'self', [{ k: 'st', s: 'dodge' }]),
@@ -162,7 +162,7 @@
         F(N('Cura', 'Heal'), 'heart', 2, 'ally', [{ k: 'heal' }]),
         F(N('Escudo', 'Shield'), 'shield', 3, 'ally', [{ k: 'shield' }]),
         F(N('Purificar', 'Purify'), 'star', 1, 'ally', [{ k: 'cleanse', n: 9 }, { k: 'shield' }]),
-        F(N('Julgamento', 'Judgement'), 'sword', 4, 'enemy', [{ k: 'dmg', plusIfMarkedOrCursed: 0 }]),
+        F(N('Julgamento', 'Judgement'), 'sword', 4, 'enemy', [{ k: 'dmg', plusIfMarkedOrCursed: 2 }]),
         F(N('Aura Sagrada', 'Holy Aura'), 'star', 1, 'allA', [{ k: 'heal', who: 'allA' }, { k: 'shield', who: 'allA' }], { rare: true })
       ]
     },

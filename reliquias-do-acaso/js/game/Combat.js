@@ -552,8 +552,8 @@
       var fx = f.fx[fi];
       if (fx.k === 'dmg' || fx.k === 'dmgOnlyBleeding' || fx.k === 'dmgOnlyVulnerable') {
         if (fx.onlyHalfHp && u && u.hp > u.maxHp / 2) return { ok: false, reason: RA.T({ pt: 'Só em alvo abaixo de metade da vida', en: 'Target must be below half HP' }) };
-        if (fx.onlyMarked && u && !this.st(u, 'mark')) return { ok: false, reason: RA.T({ pt: 'Precisa de alvo marcado', en: 'Needs a marked target' }) };
-        if (fx.onlyBoss && u && u.tier !== 'chefe' && u.tier !== 'secreto') return { ok: false, reason: RA.T({ pt: 'Só contra chefes', en: 'Bosses only' }) };
+        if (fx.onlyMarked && u && !this.st(u, 'mark')) return { ok: false, reason: RA.T({ pt: 'MARQUE o alvo antes: use uma face de marcar neste turno!', en: 'MARK the target first: use a marking face this turn!' }) };
+        if (fx.onlyBoss && u && u.tier !== 'chefe' && u.tier !== 'secreto') return { ok: false, reason: RA.T({ pt: 'Só contra CHEFES', en: 'BOSSES only' }) };
         if (fx.onlyIfSelfHp1 && h.hp !== 1) return { ok: false, reason: RA.T({ pt: 'Só com 1 de vida', en: 'Only at 1 HP' }) };
         if (fx.onlyFirst && this.tflags.diceUsed !== 0) return { ok: false, reason: RA.T({ pt: 'Só como primeira ação do turno', en: 'Must be first action' }) };
         if (fx.needsCharge) {

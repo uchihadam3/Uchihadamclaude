@@ -196,14 +196,25 @@
         pool.slice(0, fx.targets || 2).forEach(function (en) { doAttack(c, h, en, val, { magic: true }, f); });
         break;
       }
-      case 'dmgOnlyBleeding':
-        if (tgt && c.st(tgt, 'bleed')) doAttack(c, h, tgt, fx.n !== undefined ? fx.n : val, fx, f);
-        else c.say(RA.T({ pt: 'Precisa de alvo sangrando!', en: 'Needs a bleeding target!' }));
+      case 'dmgOnlyBleeding': {
+        // face de área: fere TODOS os inimigos sangrando (ou o alvo, se houver)
+        var poolB = tgt ? [tgt] : c.aliveEnemies();
+        var hitB = 0;
+        poolB.forEach(function (en) {
+          if (!en.dead && c.st(en, 'bleed')) { doAttack(c, h, en, fx.n !== undefined ? fx.n : val, fx, f); hitB++; }
+        });
+        if (!hitB) c.say(RA.T({ pt: 'Nenhum inimigo sangrando!', en: 'No bleeding enemies!' }));
         break;
-      case 'dmgOnlyVulnerable':
-        if (tgt && (c.st(tgt, 'vulnerable') || c.st(tgt, 'mark'))) doAttack(c, h, tgt, fx.n !== undefined ? fx.n : val, fx, f);
-        else c.say(RA.T({ pt: 'Precisa de alvo vulnerável!', en: 'Needs a vulnerable target!' }));
+      }
+      case 'dmgOnlyVulnerable': {
+        var poolV = tgt ? [tgt] : c.aliveEnemies();
+        var hitV = 0;
+        poolV.forEach(function (en) {
+          if (!en.dead && (c.st(en, 'vulnerable') || c.st(en, 'mark'))) { doAttack(c, h, en, fx.n !== undefined ? fx.n : val, fx, f); hitV++; }
+        });
+        if (!hitV) c.say(RA.T({ pt: 'Nenhum inimigo vulnerável!', en: 'No vulnerable enemies!' }));
         break;
+      }
       case 'removeBuff':
         if (tgt && tgt.kind === 'enemy') {
           if (tgt.shield > 0) { tgt.shield = 0; c.ev('shieldHit', { side: 'enemy', idx: tgt.slot, n: 99 }); }

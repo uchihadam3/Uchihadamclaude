@@ -303,12 +303,33 @@
             if (fx.magic) s += RA.T({ pt: ' (magia)', en: ' (magic)' });
             if (fx.ignoreShield) s += RA.T({ pt: ', ignora escudo', en: ', ignores shield' });
             if (fx.anyRow) s += RA.T({ pt: ', qualquer linha', en: ', any row' });
-            if (fx.onlyHalfHp) s += RA.T({ pt: ', alvo <50% HP', en: ', target <50% HP' });
             if (fx.missChance) s += RA.T({ pt: ', ' + Math.round(fx.missChance * 100) + '% de errar', en: ', ' + Math.round(fx.missChance * 100) + '% miss' });
             if (fx.healOnKill) s += RA.T({ pt: ', cura ' + fx.healOnKill + ' ao matar', en: ', heal ' + fx.healOnKill + ' on kill' });
             out.push(s);
+            // PRÉ-REQUISITOS em destaque — nunca esconder o "precisa de X"
+            if (fx.onlyHalfHp) out.push(RA.T({ pt: 'REQUER: alvo com MENOS de metade da vida', en: 'REQUIRES: target below half HP' }));
+            if (fx.onlyMarked) out.push(RA.T({ pt: 'REQUER: alvo MARCADO (use uma face de marcar antes, NO MESMO TURNO — a marca expira no fim da rodada)', en: 'REQUIRES: MARKED target (mark it first, SAME TURN — marks expire at round end)' }));
+            if (fx.onlyBoss) out.push(RA.T({ pt: 'REQUER: o alvo ser um CHEFE', en: 'REQUIRES: target must be a BOSS' }));
+            if (fx.onlyFirst) out.push(RA.T({ pt: 'REQUER: ser a PRIMEIRA ação do turno', en: 'REQUIRES: must be the FIRST action of the turn' }));
+            if (fx.onlyIfSelfHp1) out.push(RA.T({ pt: 'REQUER: o herói estar com 1 de vida', en: 'REQUIRES: hero at exactly 1 HP' }));
+            if (fx.needsCharge) out.push(RA.T({ pt: 'REQUER: 1 CARGA (ganhe com a face Carga antes)', en: 'REQUIRES: 1 CHARGE (gain it with the Charge face first)' }));
+            if (fx.twiceIfMarked) out.push(RA.T({ pt: 'BÔNUS: dano em DOBRO se o alvo estiver MARCADO', en: 'BONUS: DOUBLE damage vs a MARKED target' }));
+            if (fx.plusIfMarkedOrCursed) out.push(RA.T({ pt: 'BÔNUS: +' + fx.plusIfMarkedOrCursed + ' se o alvo estiver marcado ou amaldiçoado', en: 'BONUS: +' + fx.plusIfMarkedOrCursed + ' vs marked or cursed targets' }));
             break;
           }
+          case 'dmgOnlyBleeding':
+            out.push(RA.T({ pt: 'Dano ' + n + ' — SÓ fere inimigos SANGRANDO', en: 'Damage ' + n + ' — ONLY hits BLEEDING enemies' }));
+            out.push(RA.T({ pt: '(aplique sangramento antes!)', en: '(apply bleed first!)' }));
+            break;
+          case 'dmgOnlyVulnerable':
+            out.push(RA.T({ pt: 'Dano ' + n + ' — SÓ fere inimigos VULNERÁVEIS', en: 'Damage ' + n + ' — ONLY hits VULNERABLE enemies' }));
+            out.push(RA.T({ pt: '(aplique vulnerável antes!)', en: '(apply vulnerable first!)' }));
+            break;
+          case 'dmgUpTo': out.push(RA.T({ pt: 'Dano ' + n + ' em até ' + (fx.targets || 3) + ' inimigos', en: 'Damage ' + n + ' to up to ' + (fx.targets || 3) + ' enemies' })); break;
+          case 'dmgLostHp': out.push(RA.T({ pt: 'Dano = vida PERDIDA do herói (máx ' + (fx.max || 8) + ')', en: 'Damage = hero\'s LOST HP (max ' + (fx.max || 8) + ')' })); break;
+          case 'trap': out.push(RA.T({ pt: 'Arma uma armadilha: fere o inimigo quando ele agir', en: 'Sets a trap: wounds the enemy when it acts' })); break;
+          case 'healSelfIfBleeding': out.push(RA.T({ pt: 'Cura ' + n + ' em si SE o alvo estiver sangrando', en: 'Heals self ' + n + ' IF target is bleeding' })); break;
+          case 'stunIfNoShield': out.push(RA.T({ pt: 'ATORDOA o alvo se ele estiver SEM escudo', en: 'STUNS the target if it has NO shield' })); break;
           case 'heal': out.push(RA.T({ pt: 'Cura ' + n, en: 'Heal ' + n })); break;
           case 'healSelf': out.push(RA.T({ pt: 'Cura ' + n + ' em si', en: 'Heal self ' + n })); break;
           case 'healLowest': out.push(RA.T({ pt: 'Cura ' + n + ' no aliado MAIS FERIDO (escolhe sozinho)', en: 'Heals ' + n + ' on MOST WOUNDED ally (auto)' })); break;
