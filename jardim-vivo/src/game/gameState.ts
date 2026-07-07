@@ -43,7 +43,7 @@ export function newGame(): GameState {
     version: 1,
     calendar, weather,
     forecast: forecastDays(calendar, WORLD_SEED, absDay, 5),
-    money: 80, reputation: 0, beautyPoints: 0, medals: 0, fairTickets: 0,
+    money: 220, reputation: 0, beautyPoints: 0, medals: 0, fairTickets: 0,
     plants: [], decors: [],
     unlockedAreas: ['quintal', 'bancada'],
     currentArea: 'quintal',

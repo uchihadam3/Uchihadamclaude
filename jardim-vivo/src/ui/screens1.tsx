@@ -17,10 +17,24 @@ import { isDead } from '../game/gameState';
 import { MONTH_NAMES_PT, MONTH_NAMES_EN, seasonNamePT, seasonNameEN } from '../game/gameTime';
 
 // ============ LOJAS ============
+type StockItem = ReturnType<typeof shopStock>[number];
+
+function ItemThumb({ item }: { item: StockItem }): JSX.Element {
+  const plantDef = (item.kind === 'seed' || item.kind === 'seedling') ? PLANT_BY_ID[item.id] : null;
+  if (plantDef) return <PlantSprite plantId={item.id} size={58} />;
+  if (item.kind === 'pot') return <PotSprite potId={item.id} size={54} />;
+  if (item.kind === 'tool') return <ToolSprite toolId={item.id} size={54} />;
+  if (item.kind === 'decor') return <DecorSprite decorId={item.id} size={54} />;
+  if (item.kind === 'soil-component' || item.kind === 'soil-mix') return <SoilSprite soilId={item.id} size={54} />;
+  if (item.kind === 'consumable') return <ConsumableSprite itemId={item.id} size={54} />;
+  return <Icon name="seedbag" size={36} color="#7a6a42" />;
+}
+
 export function ShopsScreen(props: { onClose: () => void }): JSX.Element {
   useGame();
   const [shopId, setShopId] = useState<string | null>(null);
   const [flash, setFlash] = useFlash();
+  const [pendingBuy, setPendingBuy] = useState<StockItem | null>(null);
 
   if (!shopId) {
     return (
@@ -57,10 +71,18 @@ export function ShopsScreen(props: { onClose: () => void }): JSX.Element {
   const stock = shopStock(shopId);
   const npc = shop.npcId ? NPC_BY_ID[shop.npcId] : null;
 
+  const confirmBuy = (): void => {
+    if (!pendingBuy) return;
+    const res = buyItem(pendingBuy);
+    setFlash(res.ok ? (lang() === 'pt' ? 'Comprado!' : 'Bought!') : tr(res.msg!));
+    setPendingBuy(null);
+  };
+
   return (
     <div className="overlay" onClick={props.onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(860px,100%)', maxHeight: '100%' }}>
-        <Panel title={tr({ pt: shop.namePT, en: shop.nameEN })} onClose={props.onClose} className="wide">
+        {/* o X da loja volta para a lista de lojas (não fecha tudo) */}
+        <Panel title={tr({ pt: shop.namePT, en: shop.nameEN })} onClose={() => setShopId(null)} className="wide">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <Btn small kind="ghost" onClick={() => setShopId(null)}>{t('back')}</Btn>
             {npc && <><NpcPortrait npc={npc} size={40} /><span className="speech" style={{ flex: 1, margin: 0 }}>{tr(npc.greetings[G.calendar.day % npc.greetings.length])}</span></>}
@@ -70,19 +92,13 @@ export function ShopsScreen(props: { onClose: () => void }): JSX.Element {
           <div className="card-grid">
             {stock.map((item) => {
               const plantDef = (item.kind === 'seed' || item.kind === 'seedling') ? PLANT_BY_ID[item.id] : null;
+              const affordable = G.money >= item.price;
               return (
-                <div key={item.kind + item.id} className={`card ${item.owned ? 'locked' : ''}`} onClick={() => {
+                <div key={item.kind + item.id} className={`card ${item.owned ? 'locked' : ''} ${!item.owned && !affordable ? 'poor' : ''}`} onClick={() => {
                   if (item.owned) return;
-                  const res = buyItem(item);
-                  setFlash(res.ok ? (lang() === 'pt' ? 'Comprado!' : 'Bought!') : tr(res.msg!));
+                  setPendingBuy(item);
                 }}>
-                  {plantDef ? <PlantSprite plantId={item.id} size={58} /> :
-                    item.kind === 'pot' ? <PotSprite potId={item.id} size={54} /> :
-                      item.kind === 'tool' ? <ToolSprite toolId={item.id} size={54} /> :
-                        item.kind === 'decor' ? <DecorSprite decorId={item.id} size={54} /> :
-                          (item.kind === 'soil-component' || item.kind === 'soil-mix') ? <SoilSprite soilId={item.id} size={54} /> :
-                            item.kind === 'consumable' ? <ConsumableSprite itemId={item.id} size={54} /> :
-                              <Icon name="seedbag" size={36} color="#7a6a42" />}
+                  <ItemThumb item={item} />
                   <span className="card-name">{lang() === 'pt' ? item.namePT : item.nameEN}</span>
                   {plantDef && <span className="card-sub">{plantDef.scientificName}</span>}
                   {plantDef && <span className="pill" style={{ background: RARITY_COLORS[plantDef.rarity] + '33', color: '#5a4a2a', fontSize: 9 }}>{tr(RARITY_LABEL[plantDef.rarity])}</span>}
@@ -94,6 +110,28 @@ export function ShopsScreen(props: { onClose: () => void }): JSX.Element {
           </div>
         </Panel>
       </div>
+
+      {/* confirmação de compra */}
+      {pendingBuy && (() => {
+        const affordable = G.money >= pendingBuy.price;
+        return (
+          <div className="overlay confirm-overlay" onClick={(e) => { e.stopPropagation(); setPendingBuy(null); }}>
+            <div className="confirm-box" onClick={(e) => e.stopPropagation()}>
+              <div className="confirm-art"><ItemThumb item={pendingBuy} /></div>
+              <div className="confirm-name">{lang() === 'pt' ? pendingBuy.namePT : pendingBuy.nameEN}</div>
+              <div className="confirm-q">{lang() === 'pt' ? 'Confirmar a compra?' : 'Confirm purchase?'}</div>
+              <div className="confirm-price"><Icon name="coin" size={16} />{pendingBuy.price}
+                <span className="confirm-after">{lang() === 'pt' ? `resta ${Math.max(0, G.money - pendingBuy.price)}` : `left ${Math.max(0, G.money - pendingBuy.price)}`}</span>
+              </div>
+              {!affordable && <div className="pill problem" style={{ margin: '2px auto 0' }}>{lang() === 'pt' ? 'Moedas insuficientes' : 'Not enough coins'}</div>}
+              <div className="confirm-actions">
+                <Btn kind="ghost" onClick={() => setPendingBuy(null)}>{lang() === 'pt' ? 'Cancelar' : 'Cancel'}</Btn>
+                <Btn kind="primary" disabled={!affordable} onClick={confirmBuy}>{lang() === 'pt' ? 'Comprar' : 'Buy'}</Btn>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
