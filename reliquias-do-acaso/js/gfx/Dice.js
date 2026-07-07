@@ -26,8 +26,11 @@
     y = Math.round(y + (s - h));
     w = Math.round(w); h = Math.round(h);
 
-    // topo
-    ctx.fillStyle = sk.top;
+    // topo com gradiente (luz vem de cima)
+    var gt = ctx.createLinearGradient(0, y - d, 0, y);
+    gt.addColorStop(0, sk.top);
+    gt.addColorStop(1, sk.faceHi);
+    ctx.fillStyle = gt;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x + d, y - d);
@@ -35,7 +38,7 @@
     ctx.lineTo(x + w, y);
     ctx.closePath();
     ctx.fill();
-    // lateral direita
+    // lateral direita em sombra
     ctx.fillStyle = sk.edge;
     ctx.beginPath();
     ctx.moveTo(x + w, y);
@@ -44,13 +47,21 @@
     ctx.lineTo(x + w, y + h);
     ctx.closePath();
     ctx.fill();
-    // face frontal
-    ctx.fillStyle = sk.face;
+    // face frontal com gradiente vertical (volume)
+    var gf = ctx.createLinearGradient(0, y, 0, y + h);
+    gf.addColorStop(0, sk.faceHi);
+    gf.addColorStop(0.35, sk.face);
+    gf.addColorStop(1, sk.edge);
+    ctx.fillStyle = gf;
     ctx.fillRect(x, y, w, h);
     // brilho superior-esquerdo da face
-    ctx.fillStyle = sk.faceHi;
-    ctx.fillRect(x + 1, y + 1, w - 2, 2);
-    ctx.fillRect(x + 1, y + 1, 2, h - 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fillRect(x + 1, y + 1, w - 2, 1);
+    ctx.fillRect(x + 1, y + 1, 1, h - 2);
+    // reflexo especular no canto (gleam diagonal)
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fillRect(x + 2, y + 2, Math.max(2, Math.round(w * 0.22)), 1);
+    ctx.fillRect(x + 2, y + 3, Math.max(1, Math.round(w * 0.12)), 1);
     // contorno
     ctx.strokeStyle = sk.edge;
     ctx.lineWidth = 1;
@@ -139,6 +150,15 @@
       rot = (1 - lt) * 0.2;
     }
 
+    // aura colorida sob dados em destaque (luz do aro banhando a mesa)
+    if (die.highlight && anim.phase !== 'rolling') {
+      var ag = ctx.createRadialGradient(x + s / 2, y + s * 0.7, 1, x + s / 2, y + s * 0.7, s * 1.1);
+      ag.addColorStop(0, 'rgba(255,220,130,0.28)');
+      ag.addColorStop(1, 'rgba(255,220,130,0)');
+      ctx.fillStyle = ag;
+      ctx.fillRect(x - s * 0.6, y - s * 0.4, s * 2.2, s * 2);
+    }
+
     // sombra (encolhe quando o dado está no alto do quique)
     var air = Math.min(1, -jy / (s || 1));
     ctx.fillStyle = 'rgba(0,0,0,' + (0.4 - air * 0.22) + ')';
@@ -202,6 +222,20 @@
     var cx = x + s / 2, cy = y + s / 2;
     var r = s / 2;
     var rot = spinning ? time * 6 : 0;
+    // halo dourado pulsante
+    var hp = 0.5 + 0.3 * Math.sin(time * 2.4);
+    var hg = ctx.createRadialGradient(cx, cy, r * 0.3, cx, cy, r * 2);
+    hg.addColorStop(0, 'rgba(255,215,106,' + (0.22 * hp) + ')');
+    hg.addColorStop(1, 'rgba(255,215,106,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(cx - r * 2, cy - r * 2, r * 4, r * 4);
+    // faíscas orbitando
+    for (var sp2 = 0; sp2 < 4; sp2++) {
+      var oa = time * (spinning ? 3 : 1.2) + sp2 * Math.PI / 2;
+      var od = r * 1.25 + Math.sin(time * 3 + sp2) * 2;
+      ctx.fillStyle = 'rgba(255,240,190,' + (0.4 + 0.4 * Math.sin(time * 5 + sp2 * 2)) + ')';
+      ctx.fillRect(Math.round(cx + Math.cos(oa) * od), Math.round(cy + Math.sin(oa) * od * 0.6), 1.5, 1.5);
+    }
     // sombra
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.beginPath();

@@ -104,9 +104,11 @@
       for (var i = 0; i < floaters.length; i++) {
         var f = floaters[i];
         var alpha = f.t < 1.1 ? 1 : 1 - (f.t - 1.1) / 0.5;
+        // pop de entrada: nasce grande e assenta (juice)
+        var pop = f.t < 0.14 ? 1.5 - (f.t / 0.14) * 0.5 : 1;
         ctx.globalAlpha = alpha;
         RA.gfx.Font.draw(ctx, f.txt, Math.round(f.x), Math.round(f.y),
-          { size: f.size, color: f.color, align: 'center', shadow: true });
+          { size: f.size * pop, color: f.color, align: 'center', shadow: true });
         ctx.globalAlpha = 1;
       }
     },

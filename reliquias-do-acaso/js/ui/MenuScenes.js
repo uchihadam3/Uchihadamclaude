@@ -45,11 +45,44 @@
       RA.gfx.Dice.draw(ctx, die, x, y, d.s, self.time * d.spd + d.ph);
       ctx.globalAlpha = 1;
     });
-    // título
+    // título em camadas com halo dourado pulsante
     var ty = h * 0.16;
     var ts = w < 240 ? 3 : 4;
-    F.draw(ctx, 'RELÍQUIAS', w / 2, ty, { size: ts, color: '#ffd76a', align: 'center', shadow: true });
-    F.draw(ctx, 'DO ACASO', w / 2, ty + ts * 8, { size: ts - 1, color: '#e8e0d0', align: 'center', shadow: true });
+    var pulse = 0.5 + 0.2 * Math.sin(this.time * 1.8);
+    var hg = ctx.createRadialGradient(w / 2, ty + ts * 6, 8, w / 2, ty + ts * 6, w * 0.36);
+    hg.addColorStop(0, 'rgba(255,215,106,' + (0.2 * pulse + 0.08) + ')');
+    hg.addColorStop(1, 'rgba(255,215,106,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(0, ty - 30, w, ts * 20 + 60);
+    // RELÍQUIAS: sombra funda -> ouro -> fio de luz
+    F.draw(ctx, 'RELÍQUIAS', w / 2 + 2, ty + 2, { size: ts, color: 'rgba(0,0,0,0.8)', align: 'center' });
+    F.draw(ctx, 'RELÍQUIAS', w / 2, ty, { size: ts, color: '#ffd76a', align: 'center' });
+    F.draw(ctx, 'RELÍQUIAS', w / 2, ty - 1, { size: ts, color: 'rgba(255,248,220,0.28)', align: 'center' });
+    F.draw(ctx, 'DO ACASO', w / 2 + 1, ty + ts * 8 + 1, { size: ts - 1, color: 'rgba(0,0,0,0.8)', align: 'center' });
+    F.draw(ctx, 'DO ACASO', w / 2, ty + ts * 8, { size: ts - 1, color: '#e8e0d0', align: 'center' });
+    // linhas ornamentais com losangos ladeando o subtítulo
+    var stw = F.measure('DO ACASO', ts - 1, 1);
+    var oy = Math.round(ty + ts * 8 + (ts - 1) * 3.5);
+    ctx.fillStyle = 'rgba(201,162,58,0.6)';
+    ctx.fillRect(Math.round(w / 2 - stw / 2 - 40), oy, 28, 1);
+    ctx.fillRect(Math.round(w / 2 + stw / 2 + 12), oy, 28, 1);
+    W().diamond(ctx, Math.round(w / 2 - stw / 2 - 46), oy + 0.5, 3, '#c9a23a');
+    W().diamond(ctx, Math.round(w / 2 + stw / 2 + 46), oy + 0.5, 3, '#c9a23a');
+    // raios giratórios atrás do Dado do Destino
+    var fcx = w / 2, fcy = ty + ts * 8 + 38;
+    for (var ray = 0; ray < 6; ray++) {
+      var ra2 = this.time * 0.4 + ray * Math.PI / 3;
+      var rg = ctx.createLinearGradient(fcx, fcy, fcx + Math.cos(ra2) * 46, fcy + Math.sin(ra2) * 46);
+      rg.addColorStop(0, 'rgba(255,215,106,0.14)');
+      rg.addColorStop(1, 'rgba(255,215,106,0)');
+      ctx.strokeStyle = rg;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(fcx, fcy);
+      ctx.lineTo(fcx + Math.cos(ra2) * 46, fcy + Math.sin(ra2) * 46);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
     RA.gfx.Dice.drawFate(ctx, w / 2 - 12, ty + ts * 8 + 26, 24, this.time, true);
 
     var p = RA.core.Save.get();
@@ -62,7 +95,7 @@
     items.push({ label: RA.UI('achievements'), fn: function () { Sc().replace(new AchievementsScene()); } });
     items.push({ label: RA.UI('settings'), fn: function () { Sc().replace(new SettingsScene({})); } });
     items.forEach(function (it, i) {
-      var b = { x: bx, y: by + i * 26, w: bw, h: 21, label: it.label, glow: it.glow, fn: it.fn };
+      var b = { x: bx, y: by + i * 27, w: bw, h: 22, label: it.label, glow: it.glow, fn: it.fn };
       W().btn(ctx, b, self.time);
       self.buttons.push(b);
     });
@@ -90,7 +123,7 @@
     ctx.fillStyle = 'rgba(8,6,14,0.55)'; ctx.fillRect(0, 0, w, h);
     this.buttons = [];
     var p = RA.core.Save.get();
-    F.draw(ctx, RA.UI('chooseMode'), w / 2, 8, { size: 2, color: '#ffe9a0', align: 'center', shadow: true });
+    W().header(ctx, w, 8, RA.UI('chooseMode'), { size: 2, color: '#ffe9a0' });
 
     // grade de modos 2 colunas
     var modes = RA.data.Modes;
@@ -231,7 +264,7 @@
     ctx.fillStyle = 'rgba(8,6,14,0.55)'; ctx.fillRect(0, 0, w, h);
     this.buttons = [];
     this.tipRects = [];
-    F.draw(ctx, RA.UI('chooseHeroes') + ' (' + this.picked.length + '/' + this.size + ')', w / 2, 8, { size: 1, color: '#ffe9a0', align: 'center', shadow: true });
+    W().header(ctx, w, 6, RA.UI('chooseHeroes') + ' (' + this.picked.length + '/' + this.size + ')', { size: 1, color: '#ffe9a0' });
 
     // escolha de relíquia inicial (modo Relíquia Única)
     if (this.needRelic && !this.startRelic) {
@@ -283,14 +316,32 @@
         var x = gx0 + col * 42 + 7, y = 24 + row * 42;
         var unlocked = self.unlocked.indexOf(def.id) >= 0;
         var pickedIdx = self.picked.indexOf(def.id);
-        if (pickedIdx >= 0) {
-          ctx.strokeStyle = '#ffd76a'; ctx.lineWidth = 2;
-          ctx.strokeRect(x - 2.5, y - 2.5, 33, 33);
-        }
+        // moldura de retrato com relevo
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillRect(x, y, 30, 30);
+        var pg = ctx.createLinearGradient(0, y - 2, 0, y + 30);
+        pg.addColorStop(0, pickedIdx >= 0 ? '#4a3c22' : '#2e2840');
+        pg.addColorStop(1, pickedIdx >= 0 ? '#2a2014' : '#1a1626');
+        ctx.fillStyle = pg;
+        ctx.fillRect(x - 2, y - 2, 32, 32);
         ctx.globalAlpha = unlocked ? 1 : 0.3;
-        ctx.fillStyle = '#241f30'; ctx.fillRect(x - 1, y - 1, 30, 30);
+        ctx.fillStyle = '#141020'; ctx.fillRect(x - 1, y - 1, 30, 30);
         ctx.drawImage(RA.gfx.Portraits.get(def.id), x, y, 28, 28);
         ctx.globalAlpha = 1;
+        ctx.strokeStyle = pickedIdx >= 0 ? '#ffd76a' : (unlocked ? '#4a4258' : '#2a2534');
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - 1.5, y - 1.5, 31, 31);
+        if (pickedIdx >= 0) {
+          // selo dourado pulsante + número da vaga
+          var pk = 0.55 + 0.45 * Math.sin(self.time * 5 + i);
+          ctx.strokeStyle = 'rgba(255,215,106,' + pk + ')';
+          ctx.strokeRect(x - 3.5, y - 3.5, 35, 35);
+          ctx.fillStyle = '#ffd76a';
+          ctx.fillRect(x + 21, y - 4, 11, 11);
+          ctx.strokeStyle = '#8a6e2e';
+          ctx.strokeRect(x + 21.5, y - 3.5, 10, 10);
+          F.draw(ctx, String(pickedIdx + 1), x + 26, y - 2, { size: 1, color: '#241a08', align: 'center' });
+        }
         if (!unlocked) F.draw(ctx, '?', x + 14, y + 10, { size: 1, color: '#8a94a8', align: 'center' });
         F.draw(ctx, RA.T(def.name).slice(0, 6), x + 14, y + 31, { size: 1, color: pickedIdx >= 0 ? '#ffd76a' : '#8a94a8', align: 'center' });
         if (unlocked) {
@@ -347,7 +398,7 @@
     this.buttons = [];
     var s = RA.core.Save.get().settings;
     var p = RA.core.Save.get();
-    F.draw(ctx, RA.UI('settings'), w / 2, 8, { size: 2, color: '#ffe9a0', align: 'center', shadow: true });
+    W().header(ctx, w, 8, RA.UI('settings'), { size: 2, color: '#ffe9a0' });
 
     var y = 28, lx = Math.max(10, w / 2 - 140), rx = Math.min(w - 30, w / 2 + 110);
     function slider(label, key, min, max, step) {
@@ -411,18 +462,36 @@
     var p = RA.core.Save.get();
     var all = RA.data.Achievements;
     var got = Object.keys(p.achievements).length;
-    F.draw(ctx, RA.UI('achievements') + ' ' + got + '/' + all.length, w / 2, 8, { size: 1, color: '#ffe9a0', align: 'center', shadow: true });
-    var perPage = Math.floor((h - 60) / 20);
+    W().header(ctx, w, 6, RA.UI('achievements') + ' ' + got + '/' + all.length, { size: 1, color: '#ffe9a0' });
+    // barra de progresso geral (gamificação!)
+    var pbW = Math.min(200, w - 60);
+    var pbX = w / 2 - pbW / 2;
+    W().hpBar(ctx, pbX, 18, pbW, got, all.length, 0, '#ffd76a');
+    var perPage = Math.floor((h - 66) / 20);
     var pages = Math.ceil(all.length / perPage);
     var list = all.slice(this.page * perPage, this.page * perPage + perPage);
-    var y = 24, lx = Math.max(8, w / 2 - 150);
-    list.forEach(function (a) {
+    var y = 30, lx = Math.max(8, w / 2 - 150);
+    var rw = Math.min(300, w - 16);
+    list.forEach(function (a, ri) {
       var has = !!p.achievements[a.id];
       var hidden = a.hidden && !has;
-      ctx.fillStyle = has ? '#2a2436' : '#1a1622';
-      ctx.fillRect(lx, y, Math.min(300, w - 16), 18);
+      // linha em gradiente com fio dourado nas conquistadas
+      var rg2 = ctx.createLinearGradient(0, y, 0, y + 18);
+      rg2.addColorStop(0, has ? 'rgba(58,48,30,0.95)' : 'rgba(26,22,34,0.9)');
+      rg2.addColorStop(1, has ? 'rgba(34,27,16,0.95)' : 'rgba(16,13,22,0.9)');
+      ctx.fillStyle = rg2;
+      ctx.fillRect(lx, y, rw, 18);
+      ctx.strokeStyle = has ? '#8a6e2e' : '#2e2a3a';
+      ctx.strokeRect(lx + 0.5, y + 0.5, rw - 1, 17);
+      if (has) {
+        var shn = 0.35 + 0.25 * Math.sin(self.time * 3 + ri);
+        ctx.fillStyle = 'rgba(255,235,170,' + shn * 0.2 + ')';
+        ctx.fillRect(lx + 1, y + 1, rw - 2, 2);
+      }
+      ctx.globalAlpha = has ? 1 : 0.55;
       ctx.drawImage(RA.gfx.Icons.symbol(has ? 'star' : 'skull'), lx + 3, y + 4, 10, 10);
-      F.draw(ctx, hidden ? '???' : RA.T(a.name), lx + 17, y + 2, { size: 1, color: has ? '#ffd76a' : '#8a94a8' });
+      ctx.globalAlpha = 1;
+      F.draw(ctx, hidden ? '???' : RA.T(a.name), lx + 17, y + 2, { size: 1, color: has ? '#ffd76a' : '#8a94a8', shadow: has });
       F.draw(ctx, hidden ? RA.UI('unlockHint') : RA.T(a.desc).slice(0, 44), lx + 17, y + 10, { size: 1, color: has ? '#c8c2d4' : '#4a4258' });
       y += 20;
     });

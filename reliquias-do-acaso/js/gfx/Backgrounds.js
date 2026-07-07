@@ -15,6 +15,34 @@
 
   function px(ctx, x, y, w, h, col) { ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
 
+  // ponto de luz suave (gravado no cache estático) — rgb = '255,138,60'
+  function glow(ctx, x, y, r, rgb, a) {
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(' + rgb + ',' + a + ')');
+    g.addColorStop(1, 'rgba(' + rgb + ',0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+
+  // feixes de luz diagonais (raios de deus)
+  function shafts(ctx, w, h, rgb, a, n) {
+    for (var i = 0; i < n; i++) {
+      var x = w * (0.15 + i * 0.7 / Math.max(1, n - 1));
+      var tw = w * 0.03, tilt = w * 0.12;
+      var g = ctx.createLinearGradient(0, 0, 0, h * 0.85);
+      g.addColorStop(0, 'rgba(' + rgb + ',' + a + ')');
+      g.addColorStop(1, 'rgba(' + rgb + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + tw, 0);
+      ctx.lineTo(x + tw * 3 + tilt, h * 0.85);
+      ctx.lineTo(x + tilt, h * 0.85);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
   // pinta silhuetas de morros/estruturas
   function hills(ctx, w, h, baseY, amp, col, rng, spike) {
     ctx.fillStyle = col;
@@ -53,6 +81,11 @@
           px(ctx, cx, h * 0.68, 3, h * 0.1, '#241e18');
           px(ctx, cx - 4, h * 0.66, 11, 3, '#241e18');
         }
+        // lua e luar frio sobre a estrada
+        glow(ctx, w * 0.78, h * 0.18, w * 0.22, '200,205,255', 0.16);
+        px(ctx, w * 0.78 - 7, h * 0.18 - 7, 14, 14, '#d8dcf0');
+        px(ctx, w * 0.78 - 4, h * 0.18 - 5, 4, 4, '#b0b4d0');
+        glow(ctx, w * 0.5, h * 0.82, w * 0.5, '150,160,220', 0.06);
       },
       ambient: 'folhas'
     },
@@ -68,12 +101,16 @@
         }
         hills(ctx, w, h, h * 0.72, 10, '#14241a', rng);
         px(ctx, 0, h * 0.8, w, h * 0.2, '#0f1c12');
-        // cogumelos
+        // cogumelos com bioluminescência
         for (var m = 0; m < 12; m++) {
           var mx = rng() * w, my = h * 0.8 + rng() * h * 0.14;
+          var lum = rng() < 0.5;
           px(ctx, mx, my, 2, 4, '#3a4a30');
-          px(ctx, mx - 2, my - 2, 6, 3, rng() < 0.5 ? '#6ec83c' : '#b07ae8');
+          px(ctx, mx - 2, my - 2, 6, 3, lum ? '#6ec83c' : '#b07ae8');
+          glow(ctx, mx + 1, my - 1, 10, lum ? '110,200,60' : '176,122,232', 0.25);
         }
+        // feixes de luz coando entre as copas
+        shafts(ctx, w, h, '180,230,150', 0.07, 3);
       },
       ambient: 'esporos'
     },
@@ -94,10 +131,16 @@
           if (rng() < 0.5) { px(ctx, bx, by, 8, 6, '#38364a'); px(ctx, bx + 2, by - 3, 4, 3, '#38364a'); }
           else px(ctx, bx, by + 2, 7, 2, '#8a8a94');
         }
-        // velas
+        // velas com chama e poça de luz quente
         for (var v = 0; v < 5; v++) {
-          px(ctx, rng() * w, h * (0.5 + rng() * 0.2), 2, 5, '#c8c0a0');
+          var vx = rng() * w, vy = h * (0.5 + rng() * 0.2);
+          px(ctx, vx, vy, 2, 5, '#c8c0a0');
+          px(ctx, vx, vy - 2, 2, 2, '#ffd76a');
+          glow(ctx, vx + 1, vy - 1, 16, '255,190,90', 0.3);
         }
+        // luz espectral fria descendo dos arcos
+        shafts(ctx, w, h, '130,190,220', 0.05, 2);
+        glow(ctx, w * 0.5, h * 0.1, w * 0.3, '120,160,220', 0.08);
       },
       ambient: 'almas'
     },
@@ -119,12 +162,18 @@
         px(ctx, 0, h * 0.3, w, 4, '#241208');
         px(ctx, 0, h * 0.55, w, 5, '#241208');
         hills(ctx, w, h, h * 0.7, 8, '#2a140c', rng, true);
-        // rio de lava
+        // rio de lava incandescente
         px(ctx, 0, h * 0.84, w, h * 0.16, '#38180c');
         for (var l = 0; l < w; l += 12) {
           px(ctx, l + rng() * 6, h * 0.86 + rng() * 6, 8, 2, '#b8442a');
           if (rng() < 0.4) px(ctx, l, h * 0.88 + rng() * 6, 4, 2, '#ff8a3c');
         }
+        // o brilho da lava banha a caverna inteira
+        glow(ctx, w * 0.5, h * 0.92, w * 0.65, '255,110,40', 0.28);
+        glow(ctx, w * 0.2, h * 0.88, w * 0.2, '255,160,70', 0.22);
+        glow(ctx, w * 0.8, h * 0.9, w * 0.22, '255,160,70', 0.22);
+        // fornalha ao fundo
+        glow(ctx, w * 0.5, h * 0.35, w * 0.12, '255,90,40', 0.14);
       },
       ambient: 'brasas'
     },
@@ -156,6 +205,15 @@
         for (var m = 0; m < 4; m++) {
           var mx = rng() * w;
           px(ctx, mx, h * 0.86 + rng() * 8, 6, 4, '#e8e0d0');
+        }
+        // névoa dourada das janelas + lampiões de rua
+        glow(ctx, w * 0.3, h * 0.55, w * 0.28, '201,169,74', 0.1);
+        glow(ctx, w * 0.72, h * 0.5, w * 0.24, '201,169,74', 0.09);
+        for (var lp = 0; lp < 3; lp++) {
+          var lx = w * (0.2 + lp * 0.3);
+          px(ctx, lx, h * 0.68, 2, h * 0.12, '#16121e');
+          px(ctx, lx - 1, h * 0.67, 4, 3, '#ffd76a');
+          glow(ctx, lx + 1, h * 0.68, 14, '255,215,106', 0.35);
         }
       },
       ambient: 'petalas'
@@ -191,6 +249,10 @@
           px(ctx, rx, h * 0.66, 5, h * 0.14, '#4a3018');
           px(ctx, rx + 8, h * 0.7, 5, h * 0.1, '#4a3018');
         }
+        // halo do sol escaldante + reverberação nos cristais
+        glow(ctx, w * 0.72, h * 0.3, w * 0.3, '255,225,140', 0.3);
+        glow(ctx, w * 0.72, h * 0.3, w * 0.12, '255,250,220', 0.35);
+        glow(ctx, w * 0.5, h * 0.85, w * 0.5, '255,200,110', 0.08);
       },
       ambient: 'areia'
     },
@@ -207,12 +269,17 @@
         for (var l = 0; l < 6; l++) {
           px(ctx, 0, h * (0.74 + l * 0.045), w, 1, 'rgba(80,160,190,0.25)');
         }
-        // corais/âncoras
+        // corais/âncoras com brilho abissal
         for (var c = 0; c < 6; c++) {
           var cx = rng() * w, cy = h * 0.86 + rng() * 8;
-          px(ctx, cx, cy, 3, 8, rng() < 0.5 ? '#2e5a4a' : '#4a2e5a');
-          px(ctx, cx - 2, cy - 3, 7, 3, rng() < 0.5 ? '#3a7a5a' : '#5c3a7a');
+          var teal = rng() < 0.5;
+          px(ctx, cx, cy, 3, 8, teal ? '#2e5a4a' : '#4a2e5a');
+          px(ctx, cx - 2, cy - 3, 7, 3, teal ? '#3a7a5a' : '#5c3a7a');
+          if (rng() < 0.6) glow(ctx, cx + 1, cy - 1, 12, teal ? '80,220,180' : '150,100,220', 0.22);
         }
+        // raios de luz filtrados da superfície
+        shafts(ctx, w, h, '120,200,230', 0.08, 3);
+        glow(ctx, w * 0.3, h * 0.1, w * 0.25, '100,180,220', 0.1);
       },
       ambient: 'bolhas'
     },
@@ -238,21 +305,31 @@
           px(ctx, w * 0.54, h * 0.14 + wy + 7, 4, 6, '#6e4ac8');
         }
         px(ctx, 0, h * 0.8, w, h * 0.2, '#181228');
-        // dados gigantes cravados no chão
+        // dados gigantes cravados no chão, vazando magia
         for (var d = 0; d < 3; d++) {
           var dx = rng() * w, ds = 10 + rng() * 10;
           px(ctx, dx, h * 0.8 - ds * 0.6, ds, ds, '#2e2846');
           px(ctx, dx + ds * 0.3, h * 0.8 - ds * 0.4, ds * 0.2, ds * 0.2, '#8a6ae8');
+          glow(ctx, dx + ds * 0.4, h * 0.8 - ds * 0.3, ds, '138,106,232', 0.3);
         }
+        // aura arcana da torre
+        glow(ctx, w * 0.5, h * 0.4, w * 0.28, '138,106,232', 0.16);
+        glow(ctx, w * 0.5, h * 0.06, w * 0.14, '190,160,255', 0.22);
       },
       ambient: 'estrelas'
     },
     menu: {
       sky: ['#241a38', '#161028', '#0c0818'],
       paint: function (ctx, w, h, rng) {
+        // lua dourada com halo — a "moeda do destino" no céu
+        glow(ctx, w * 0.74, h * 0.2, w * 0.24, '255,215,140', 0.16);
+        px(ctx, w * 0.74 - 8, h * 0.2 - 8, 16, 16, '#e8d8a8');
+        px(ctx, w * 0.74 - 5, h * 0.2 - 6, 5, 5, '#c9b47a');
         hills(ctx, w, h, h * 0.6, 16, '#1c1430', rng, true);
         hills(ctx, w, h, h * 0.75, 12, '#140e24', rng);
         px(ctx, 0, h * 0.85, w, h * 0.15, '#100c1c');
+        // horizonte arcano
+        glow(ctx, w * 0.5, h * 0.85, w * 0.55, '110,80,200', 0.1);
       },
       ambient: 'estrelas'
     }
@@ -285,17 +362,22 @@
   function drawAmbient(ctx, region, w, h, t) {
     var scene = SCENES[region] || SCENES.menu;
     var kind = scene.ambient;
-    var n = 14;
+    var n = 22;
     for (var i = 0; i < n; i++) {
       var seed = i * 137.5;
       var speed = 6 + (i % 5) * 3;
       var x, y, alpha;
       if (kind === 'brasas') {
-        x = ((seed * 7 + t * speed) % (w + 20)) - 10;
+        x = ((seed * 7 + t * speed) % (w + 20)) - 10 + Math.sin(t * 2 + i) * 3;
         y = h - ((seed * 13 + t * (speed + 8)) % h);
         alpha = 0.4 + 0.3 * Math.sin(t * 3 + i);
         ctx.fillStyle = 'rgba(255,' + (120 + (i % 3) * 40) + ',60,' + alpha + ')';
         ctx.fillRect(x, y, 2, 2);
+        // núcleo incandescente em algumas brasas
+        if (i % 3 === 0) {
+          ctx.fillStyle = 'rgba(255,240,200,' + alpha * 0.9 + ')';
+          ctx.fillRect(x + 0.5, y + 0.5, 1, 1);
+        }
       } else if (kind === 'bolhas') {
         x = (seed * 11) % w + Math.sin(t + i) * 6;
         y = h - ((seed * 17 + t * speed) % h);

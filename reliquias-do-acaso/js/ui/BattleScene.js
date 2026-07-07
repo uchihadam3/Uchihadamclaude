@@ -914,15 +914,35 @@
     var ox = -(1 - this.slide()) * (p.w + 20) + (acting ? Math.sin(this.time * 10) * 1.5 + 4 : 0);
     var x = Math.round(p.x + ox), y = p.y;
     var flashing = this.flash && this.flash.side === 'hero' && this.flash.idx === hu.slot;
-    ctx.fillStyle = flashing ? 'rgba(150,30,45,0.94)' : 'rgba(14,10,22,0.92)';
-    ctx.fillRect(x, y, p.w, p.h);
+    // painel com gradiente e sombra (relevo de placa)
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(x + 2, y + 2, p.w, p.h);
+    if (flashing) {
+      ctx.fillStyle = 'rgba(150,30,45,0.94)';
+      ctx.fillRect(x, y, p.w, p.h);
+    } else {
+      var hg2 = ctx.createLinearGradient(0, y, 0, y + p.h);
+      hg2.addColorStop(0, 'rgba(30,24,44,0.94)');
+      hg2.addColorStop(1, 'rgba(10,7,16,0.94)');
+      ctx.fillStyle = hg2;
+      ctx.fillRect(x, y, p.w, p.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(x + 1, y + 1, p.w - 2, 1);
+    }
     ctx.strokeStyle = acting ? '#ffd76a' : edge;
     ctx.lineWidth = acting ? 2 : 1;
     ctx.strokeRect(x + 0.5, y + 0.5, p.w - 1, p.h - 1);
     ctx.lineWidth = 1;
     if (hu.dead || hu.downed) ctx.globalAlpha = hu.dead ? 0.35 : 0.6;
     var ps = Math.min(p.h - 4, 19);
+    // retrato emoldurado na cor do dado do herói
+    ctx.fillStyle = '#0e0a16';
+    ctx.fillRect(x + 1, y + Math.floor((p.h - ps) / 2) - 1, ps + 2, ps + 2);
     ctx.drawImage(RA.gfx.Portraits.get(hu.id), x + 2, y + Math.floor((p.h - ps) / 2), ps, ps);
+    ctx.strokeStyle = edge;
+    ctx.globalAlpha *= 0.7;
+    ctx.strokeRect(x + 1.5, y + Math.floor((p.h - ps) / 2) - 0.5, ps + 1, ps + 1);
+    ctx.globalAlpha = (hu.dead ? 0.35 : hu.downed ? 0.6 : 1);
     var tx = x + ps + 5;
     var nameMax = Math.max(5, Math.floor((p.w - ps - 30) / 6));
     F.draw(ctx, RA.T(hu.name).slice(0, nameMax), tx, y + 2, { size: 1, color: hu.dead ? '#5a5468' : '#ffe9a0' });
@@ -972,9 +992,31 @@
     var ox = (1 - this.slide()) * (p.w + 20) * (L.portrait ? -1 : 1) + (acting ? -Math.sin(this.actingEnemy.t * 18) * 4 : 0);
     var x = Math.round(p.x + ox), y = p.y;
     var flashing = this.flash && this.flash.side === 'enemy' && this.flash.idx === e.slot;
-    ctx.fillStyle = flashing ? 'rgba(150,30,45,0.94)' : 'rgba(14,10,22,0.92)';
-    ctx.fillRect(x, y, p.w, p.h);
-    ctx.strokeStyle = acting ? '#ff6a7a' : edge;
+    // placa inimiga com gradiente; chefes têm tom sanguíneo, fúria pulsa
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(x + 2, y + 2, p.w, p.h);
+    if (flashing) {
+      ctx.fillStyle = 'rgba(150,30,45,0.94)';
+      ctx.fillRect(x, y, p.w, p.h);
+    } else {
+      var eg2 = ctx.createLinearGradient(0, y, 0, y + p.h);
+      if (e.enraged) {
+        var fp2 = 0.06 + 0.05 * Math.sin(this.time * 5 + e.slot);
+        eg2.addColorStop(0, 'rgba(' + Math.round(56 + fp2 * 300) + ',18,30,0.94)');
+        eg2.addColorStop(1, 'rgba(22,8,14,0.94)');
+      } else if (boss) {
+        eg2.addColorStop(0, 'rgba(44,20,30,0.94)');
+        eg2.addColorStop(1, 'rgba(14,7,12,0.94)');
+      } else {
+        eg2.addColorStop(0, 'rgba(28,22,40,0.94)');
+        eg2.addColorStop(1, 'rgba(10,7,16,0.94)');
+      }
+      ctx.fillStyle = eg2;
+      ctx.fillRect(x, y, p.w, p.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.fillRect(x + 1, y + 1, p.w - 2, 1);
+    }
+    ctx.strokeStyle = acting ? '#ff6a7a' : (e.enraged ? '#ff5a6a' : edge);
     ctx.lineWidth = acting ? 2 : 1;
     ctx.strokeRect(x + 0.5, y + 0.5, p.w - 1, p.h - 1);
     ctx.lineWidth = 1;
@@ -1037,15 +1079,33 @@
 
     RA.gfx.Backgrounds.draw(ctx, this.region, w, h, this.time);
 
+    // mesa de dados: poça de luz quente com anel duplo (arena central)
     var z = L.diceZone;
-    ctx.fillStyle = 'rgba(232,224,208,0.05)';
+    var zcx = z.x + z.w / 2, zcy = z.y + z.h / 2;
+    var tg2 = ctx.createRadialGradient(zcx, zcy, 4, zcx, zcy, Math.max(z.w, z.h) / 2);
+    tg2.addColorStop(0, 'rgba(255,236,190,0.12)');
+    tg2.addColorStop(0.6, 'rgba(232,224,208,0.05)');
+    tg2.addColorStop(1, 'rgba(232,224,208,0)');
+    ctx.fillStyle = tg2;
     ctx.beginPath();
-    ctx.ellipse(z.x + z.w / 2, z.y + z.h / 2, z.w / 2, z.h / 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(zcx, zcy, z.w / 2, z.h / 2, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(201,162,58,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(zcx, zcy, z.w / 2 - 2, z.h / 2 - 2, 0, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.strokeStyle = 'rgba(232,224,208,0.08)';
     ctx.beginPath();
-    ctx.ellipse(z.x + z.w / 2, z.y + z.h / 2, z.w / 2 - 3, z.h / 2 - 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(zcx, zcy, z.w / 2 - 6, z.h / 2 - 6, 0, 0, Math.PI * 2);
     ctx.stroke();
+    // marcas rúnicas girando devagar na borda da mesa
+    for (var rn = 0; rn < 6; rn++) {
+      var rna = this.time * 0.18 + rn * Math.PI / 3;
+      var rnx = zcx + Math.cos(rna) * (z.w / 2 - 10);
+      var rny = zcy + Math.sin(rna) * (z.h / 2 - 8);
+      ctx.fillStyle = 'rgba(201,162,58,' + (0.12 + 0.1 * Math.sin(this.time * 2 + rn)) + ')';
+      W2.diamond(ctx, rnx, rny, 2, ctx.fillStyle);
+    }
 
     Object.keys(L.enemyPanels).forEach(function (k) { self.drawEnemyPanel(ctx, L.enemyPanels[k], L); });
     Object.keys(L.heroPanels).forEach(function (k) { self.drawHeroPanel(ctx, L.heroPanels[k], L); });
@@ -1072,11 +1132,16 @@
       }
     }
 
-    // barra inferior
-    ctx.fillStyle = 'rgba(10,7,18,0.9)';
+    // barra inferior: console de comando com relevo e fio dourado
+    var bg2 = ctx.createLinearGradient(0, L.barY, 0, L.barY + L.barH);
+    bg2.addColorStop(0, 'rgba(30,24,44,0.96)');
+    bg2.addColorStop(1, 'rgba(8,6,14,0.96)');
+    ctx.fillStyle = bg2;
     ctx.fillRect(0, L.barY, w, L.barH);
-    ctx.strokeStyle = '#38323f';
-    ctx.beginPath(); ctx.moveTo(0, L.barY + 0.5); ctx.lineTo(w, L.barY + 0.5); ctx.stroke();
+    ctx.fillStyle = 'rgba(201,162,58,0.4)';
+    ctx.fillRect(0, L.barY, w, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(0, L.barY + 1, w, 1);
     var busy = !!this.travel || this.turnEnding;
     L.btnReroll.label = RA.UI('reroll') + ' x' + c.rollsLeft;
     L.btnReroll.disabled = busy || this.mode !== 'roll' || c.rollsLeft <= 0 || c.tflags.diceUsed > 0 || c.phase !== 'player';
@@ -1087,8 +1152,18 @@
     W2.btn(ctx, L.btnDone, this.time);
     RA.gfx.Dice.drawFate(ctx, L.fate.x, L.fate.y, L.fate.s, this.time, this.fateSpin > 0, c.fate ? c.fate.n : '');
 
-    F.draw(ctx, RA.UI('turn') + ' ' + c.turn, 5, 3, { size: 1, color: '#8a94a8', shadow: true });
-    F.draw(ctx, this.run.gold + '$', w - 5 - F.measure(this.run.gold + '$', 1, 1), 3, { size: 1, color: '#ffd76a', shadow: true });
+    // pílula de turno + ouro cunhado no topo
+    var trnTxt = RA.UI('turn') + ' ' + c.turn;
+    var trnW = F.measure(trnTxt, 1, 1) + 10;
+    var tg3 = ctx.createLinearGradient(0, 2, 0, 15);
+    tg3.addColorStop(0, 'rgba(32,26,46,0.9)');
+    tg3.addColorStop(1, 'rgba(13,10,20,0.9)');
+    ctx.fillStyle = tg3;
+    ctx.fillRect(3, 2, trnW, 13);
+    ctx.strokeStyle = '#3c3550';
+    ctx.strokeRect(3.5, 2.5, trnW - 1, 12);
+    F.draw(ctx, trnTxt, 8, 5, { size: 1, color: '#c8c2d4', shadow: true });
+    W2.goldChip(ctx, w - 3, 2, this.run.gold, true);
     if (this.logLine) F.draw(ctx, this.logLine.slice(0, Math.floor(w / 6) - 14), w / 2, 3, { size: 1, color: '#c8c2d4', align: 'center', shadow: true });
     var ruleTxt = null;
     if (c.blackRule) {
@@ -1310,11 +1385,29 @@
       ctx.globalAlpha = Math.max(0, a);
       var bsz = this.banner.big && w > 260 ? 2 : 1;
       var btxt = this.banner.txt.slice(0, Math.floor((w - 30) / (6 * bsz)));
-      var bw4 = F.measure(btxt, bsz, 1) + 24;
-      var bh4 = 10 + bsz * 8;
+      var bh4 = 14 + bsz * 8;
+      var by4 = h * 0.3;
       var pop = this.banner.big ? 1 + Math.max(0, 0.15 - this.bannerT) * 3 : 1;
-      W2.panel(ctx, (w - bw4 * pop) / 2, h * 0.3, bw4 * pop, bh4, { edge: this.banner.color });
-      F.draw(ctx, btxt, w / 2, h * 0.3 + (bh4 - 7 * bsz) / 2, { size: bsz, color: this.banner.color, align: 'center', shadow: true });
+      // faixa cinematográfica de borda a borda
+      var bg4 = ctx.createLinearGradient(0, by4, 0, by4 + bh4);
+      bg4.addColorStop(0, 'rgba(8,5,14,0)');
+      bg4.addColorStop(0.35, 'rgba(8,5,14,0.88)');
+      bg4.addColorStop(0.65, 'rgba(8,5,14,0.88)');
+      bg4.addColorStop(1, 'rgba(8,5,14,0)');
+      ctx.fillStyle = bg4;
+      ctx.fillRect(0, by4 - 4, w, bh4 + 8);
+      // fios coloridos varrendo do centro
+      var lg4 = ctx.createLinearGradient(w / 2 - w * 0.45, 0, w / 2 + w * 0.45, 0);
+      lg4.addColorStop(0, 'rgba(0,0,0,0)');
+      lg4.addColorStop(0.5, this.banner.color);
+      lg4.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = lg4;
+      ctx.fillRect(w / 2 - w * 0.45, by4, w * 0.9, 1);
+      ctx.fillRect(w / 2 - w * 0.45, by4 + bh4 - 1, w * 0.9, 1);
+      W2.diamond(ctx, w / 2 - F.measure(btxt, bsz, 1) / 2 - 12, by4 + bh4 / 2, 3 * pop, this.banner.color);
+      W2.diamond(ctx, w / 2 + F.measure(btxt, bsz, 1) / 2 + 12, by4 + bh4 / 2, 3 * pop, this.banner.color);
+      F.draw(ctx, btxt, w / 2 + 1, by4 + (bh4 - 7 * bsz) / 2 + 1, { size: bsz * pop, color: 'rgba(0,0,0,0.85)', align: 'center' });
+      F.draw(ctx, btxt, w / 2, by4 + (bh4 - 7 * bsz) / 2, { size: bsz * pop, color: this.banner.color, align: 'center' });
       ctx.globalAlpha = 1;
     }
     if (c.pendingChoice && this.choiceRects) {

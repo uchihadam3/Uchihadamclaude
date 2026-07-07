@@ -74,13 +74,13 @@
     this.buttons = [];
     var self = this;
 
-    F.draw(ctx, RA.UI('region') + ' ' + (run.regionIdx + 1) + ': ' + RA.T(reg.name), w / 2, 10, { size: 1, color: '#ffe9a0', align: 'center', shadow: true });
+    W().header(ctx, w, 8, RA.UI('region') + ' ' + (run.regionIdx + 1) + ': ' + RA.T(reg.name), { size: 1, color: '#ffe9a0' });
     F.wrap(RA.T(reg.intro), 1, 1, w - 24).slice(0, 2).forEach(function (l, i) {
-      F.draw(ctx, l, w / 2, 22 + i * 9, { size: 1, color: '#8a94a8', align: 'center' });
+      F.draw(ctx, l, w / 2, 24 + i * 9, { size: 1, color: '#8a94a8', align: 'center' });
     });
-    if (run.rules.infinite) F.draw(ctx, RA.UI('floors') + ': ' + run.floor, w / 2, 42, { size: 1, color: '#c8b8e8', align: 'center' });
+    if (run.rules.infinite) F.draw(ctx, RA.UI('floors') + ': ' + run.floor, w / 2, 44, { size: 1, color: '#c8b8e8', align: 'center' });
 
-    // caminho de salas
+    // caminho de salas: medalhões ligados por trilha pontilhada animada
     var rooms = run.rooms;
     var iy = h * 0.32;
     var gap = Math.min(30, (w - 40) / Math.max(1, rooms.length));
@@ -88,19 +88,58 @@
     rooms.forEach(function (rm, i) {
       var x = x0 + i * gap;
       var done = i < run.roomIdx, cur = i === run.roomIdx;
-      if (i > 0) {
-        ctx.strokeStyle = done || cur ? '#8a6e2e' : '#38323f';
-        ctx.beginPath(); ctx.moveTo(x - gap + 7, iy + 7); ctx.lineTo(x - 5, iy + 7); ctx.stroke();
-      }
-      ctx.globalAlpha = done ? 0.35 : 1;
       var boss = rm.kind === 'boss' || rm.kind === 'secretBoss';
-      var sz = boss ? 18 : 14;
-      if (cur) {
-        var pu = 0.5 + 0.5 * Math.sin(self.time * 5);
-        ctx.strokeStyle = 'rgba(255,215,106,' + pu + ')';
-        ctx.strokeRect(x - sz / 2 - 3.5, iy - (sz - 14) / 2 - 3.5 + 7 - 7, sz + 7, sz + 7);
+      var elite = rm.kind === 'elite';
+      // trilha pontilhada; percorrida em ouro, com fagulha correndo até a sala atual
+      if (i > 0) {
+        var lx0 = x - gap + 9, lx1 = x - 9;
+        ctx.fillStyle = (done || cur) ? 'rgba(201,162,58,0.8)' : 'rgba(74,66,88,0.7)';
+        for (var dsh = lx0; dsh < lx1; dsh += 4) ctx.fillRect(dsh, iy + 7, 2, 1);
+        if (cur) {
+          var sp = lx0 + ((self.time * 26) % Math.max(4, lx1 - lx0));
+          ctx.fillStyle = '#ffe9a0';
+          ctx.fillRect(sp, iy + 6, 2, 3);
+        }
       }
-      ctx.drawImage(RA.gfx.Icons.symbol(ROOM_ICON[rm.kind] || 'star'), x - sz / 2, iy - (sz - 14) / 2, sz, sz);
+      var r = boss ? 12 : elite ? 10 : 8;
+      var cy2 = iy + 7;
+      // medalhão: disco com aro (feito/atual/futuro)
+      ctx.globalAlpha = done ? 0.55 : 1;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.beginPath(); ctx.arc(x + 1, cy2 + 2, r, 0, Math.PI * 2); ctx.fill();
+      var mg = ctx.createLinearGradient(0, cy2 - r, 0, cy2 + r);
+      mg.addColorStop(0, cur ? '#4a3c22' : boss ? '#3c1a22' : '#2e2840');
+      mg.addColorStop(1, cur ? '#2a2014' : boss ? '#220e14' : '#181420');
+      ctx.fillStyle = mg;
+      ctx.beginPath(); ctx.arc(x, cy2, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = done ? '#5a5468' : cur ? '#ffd76a' : boss ? '#e84a5a' : elite ? '#c9a23a' : '#4a4258';
+      ctx.lineWidth = cur || boss ? 2 : 1;
+      ctx.beginPath(); ctx.arc(x, cy2, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1;
+      if (cur) {
+        // halo pulsante na sala atual
+        var pu = 0.4 + 0.4 * Math.sin(self.time * 5);
+        ctx.strokeStyle = 'rgba(255,215,106,' + pu + ')';
+        ctx.beginPath(); ctx.arc(x, cy2, r + 3, 0, Math.PI * 2); ctx.stroke();
+        var cg = ctx.createRadialGradient(x, cy2, 1, x, cy2, r * 2.4);
+        cg.addColorStop(0, 'rgba(255,215,106,0.2)');
+        cg.addColorStop(1, 'rgba(255,215,106,0)');
+        ctx.fillStyle = cg;
+        ctx.fillRect(x - r * 2.4, cy2 - r * 2.4, r * 4.8, r * 4.8);
+      }
+      var isz = boss ? 14 : 11;
+      ctx.drawImage(RA.gfx.Icons.symbol(ROOM_ICON[rm.kind] || 'star'), x - isz / 2, cy2 - isz / 2, isz, isz);
+      // check dourado nas salas vencidas
+      if (done) {
+        ctx.strokeStyle = '#ffd76a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - 3, cy2);
+        ctx.lineTo(x - 1, cy2 + 3);
+        ctx.lineTo(x + 4, cy2 - 3);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
       ctx.globalAlpha = 1;
     });
 
@@ -110,7 +149,7 @@
     var b = { x: w / 2 - 55, y: iy + 26, w: 110, h: 22, label: label, glow: true, fn: function () { self.enterRoom(); } };
     this.buttons.push(W().btn(ctx, b, this.time));
 
-    // party na base
+    // party na base — retratos emoldurados com relevo
     this.heroRects = [];
     var hs = run.party;
     var pgap = Math.min(50, (w - 20) / hs.length);
@@ -118,24 +157,37 @@
     hs.forEach(function (hh, i) {
       var x = px0 + i * pgap, y = h - 58;
       ctx.globalAlpha = hh.dead ? 0.25 : 1;
-      ctx.fillStyle = hh.row === 'front' ? '#3a3448' : '#241f30';
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(x, y, 26, 26);
+      var fg = ctx.createLinearGradient(0, y - 2, 0, y + 26);
+      fg.addColorStop(0, hh.row === 'front' ? '#4a4060' : '#302a42');
+      fg.addColorStop(1, '#1a1626');
+      ctx.fillStyle = fg;
       ctx.fillRect(x - 2, y - 2, 28, 28);
+      ctx.fillStyle = '#120e1c';
+      ctx.fillRect(x - 1, y - 1, 26, 26);
       ctx.drawImage(RA.gfx.Portraits.get(hh.id), x, y, 24, 24);
-      if (!hh.dead) W().hpBar(ctx, x, y + 27, 24, hh.hp, hh.maxHp, 0);
+      ctx.strokeStyle = hh.row === 'front' ? '#8a6e2e' : '#4a4258';
+      ctx.strokeRect(x - 1.5, y - 1.5, 27, 27);
+      if (!hh.dead) W().hpBar(ctx, x, y + 28, 24, hh.hp, hh.maxHp, 0);
       ctx.globalAlpha = 1;
       self.heroRects.push({ x: x - 2, y: y - 2, w: 28, h: 34, hero: hh });
     });
-    // relíquias + ouro
+    // bandeja de relíquias + ouro cunhado
     this.relicRects = [];
+    var relShow = run.relics.slice(0, Math.floor((w - 70) / 12));
+    if (relShow.length) {
+      W().panel(ctx, 4, h - 20, relShow.length * 12 + 8, 16, { edge: '#3c3550' });
+    }
     var rx = 8;
-    run.relics.slice(0, Math.floor((w - 70) / 12)).forEach(function (id) {
+    relShow.forEach(function (id) {
       var rel = RA.data.Relics.byId[id];
       var ic = RA.gfx.Icons.symbol(rel.rarity === 'amaldicoada' ? 'skull' : rel.rarity === 'lendaria' ? 'star' : 'coin');
-      ctx.drawImage(ic, rx, h - 16, 10, 10);
-      self.relicRects.push({ x: rx, y: h - 16, w: 11, h: 11, relic: rel });
+      ctx.drawImage(ic, rx, h - 17, 10, 10);
+      self.relicRects.push({ x: rx, y: h - 17, w: 11, h: 11, relic: rel });
       rx += 12;
     });
-    F.draw(ctx, run.gold + '$', w - 8 - F.measure(run.gold + '$', 1, 1), h - 15, { size: 1, color: '#ffd76a' });
+    W().goldChip(ctx, w - 6, h - 18, run.gold, true);
     // config
     this.buttons.push(W().btn(ctx, { x: w - 26, y: 4, w: 20, h: 14, label: '*', small: true, fn: function () { Scenes.push(new RA.ui.SettingsScene({ fromRun: true })); } }, this.time));
     // abandonar
@@ -199,7 +251,7 @@
     ctx.fillRect(0, 0, w, h);
     this.buttons = [];
     var pw = Math.min(300, w - 16), px = (w - pw) / 2;
-    F.draw(ctx, RA.T(ev.name), w / 2, 14, { size: 2, color: '#ffe9a0', align: 'center', shadow: true });
+    W().header(ctx, w, 12, RA.T(ev.name), { size: 2, color: '#ffe9a0' });
     var lines = F.wrap(RA.T(ev.text), 1, 1, pw - 20);
     var ty = 38;
     W().panel(ctx, px, ty - 6, pw, lines.length * 9 + 12);
@@ -224,7 +276,7 @@
       W().btn(ctx, b2, this.time);
       this.buttons.push(b2);
     }
-    F.draw(ctx, run.gold + '$', w - 8 - F.measure(run.gold + '$', 1, 1), 4, { size: 1, color: '#ffd76a' });
+    W().goldChip(ctx, w - 6, 4, run.gold, true);
     W().renderToasts(ctx, w);
   };
 
@@ -275,11 +327,17 @@
     ctx.fillRect(0, 0, w, h);
     this.buttons = [];
     this.itemRects = [];
-    F.draw(ctx, RA.UI('shop'), w / 2, 8, { size: 2, color: '#ffe9a0', align: 'center', shadow: true });
-    // vendedor
+    W().header(ctx, w, 8, RA.UI('shop'), { size: 2, color: '#ffe9a0' });
+    // vendedor num balcão iluminado por lampião
+    var lg = ctx.createRadialGradient(28, 38, 2, 28, 38, 34);
+    lg.addColorStop(0, 'rgba(255,200,110,0.22)');
+    lg.addColorStop(1, 'rgba(255,200,110,0)');
+    ctx.fillStyle = lg;
+    ctx.fillRect(0, 8, 70, 66);
     var vs = RA.gfx.EnemySprites.get('humanoide', 'mascaras', 30, 'capuz', Math.floor(this.time * 2) % 2);
     ctx.drawImage(vs, 12, 24);
-    F.draw(ctx, this.msg.slice(0, 60), 48, 34, { size: 1, color: '#8a94a8' });
+    W().panel(ctx, 46, 28, Math.min(F.measure(this.msg.slice(0, 60), 1, 1) + 12, w - 56), 14, { edge: '#3c3550' });
+    F.draw(ctx, this.msg.slice(0, 60), 52, 32, { size: 1, color: '#c8b490' });
 
     var pw = Math.min(300, w - 16), px = (w - pw) / 2;
     var y = 62;
@@ -325,7 +383,7 @@
     } };
     W().btn(ctx, bl, this.time);
     this.buttons.push(bl);
-    F.draw(ctx, run.gold + '$', w - 8 - F.measure(run.gold + '$', 1, 1), 4, { size: 1, color: '#ffd76a' });
+    W().goldChip(ctx, w - 6, 4, run.gold, true);
 
     // seletor de herói (evoluir dado / trocar de linha)
     if (this.pickHero) {
@@ -452,8 +510,8 @@
     ctx.fillRect(0, 0, w, h);
     this.buttons = [];
     this.tipRects = [];
-    F.draw(ctx, RA.UI('rewards'), w / 2, 8, { size: 2, color: '#ffe9a0', align: 'center', shadow: true });
-    if (this.reward.gold) F.draw(ctx, '+' + this.reward.gold + ' ' + RA.UI('gold'), w / 2, 26, { size: 1, color: '#ffd76a', align: 'center' });
+    W().header(ctx, w, 8, RA.UI('rewards'), { size: 2, color: '#ffe9a0' });
+    if (this.reward.gold) F.draw(ctx, '+' + this.reward.gold + ' ' + RA.UI('gold'), w / 2, 27, { size: 1, color: '#ffd76a', align: 'center', shadow: true });
 
     if (this.stage === 'face') {
       F.draw(ctx, RA.UI('pickFace'), w / 2, 40, { size: 1, color: '#c8c2d4', align: 'center' });
@@ -552,7 +610,7 @@
       W().btn(ctx, skip2, this.time);
       this.buttons.push(skip2);
     }
-    F.draw(ctx, run.gold + '$', w - 8 - F.measure(run.gold + '$', 1, 1), 4, { size: 1, color: '#ffd76a' });
+    W().goldChip(ctx, w - 6, 4, run.gold, true);
     if (this.tip) W().tooltip(ctx, w, h, this.tip.x, this.tip.y, this.tip.title, this.tip.lines);
     W().renderToasts(ctx, w);
   };
@@ -594,7 +652,31 @@
     ctx.fillStyle = 'rgba(8,6,14,0.6)';
     ctx.fillRect(0, 0, w, h);
     this.buttons = [];
-    F.draw(ctx, this.win ? RA.UI('victory') : RA.UI('defeat'), w / 2, 16, { size: 3, color: this.win ? '#ffd76a' : '#e84a5a', align: 'center', shadow: true });
+    // clímax: raios dourados na vitória / vinheta sangrenta na derrota
+    if (this.win) {
+      for (var ray = 0; ray < 8; ray++) {
+        var ra2 = this.time * 0.25 + ray * Math.PI / 4;
+        var rg3 = ctx.createLinearGradient(w / 2, 22, w / 2 + Math.cos(ra2) * w * 0.5, 22 + Math.sin(ra2) * w * 0.5);
+        rg3.addColorStop(0, 'rgba(255,215,106,0.12)');
+        rg3.addColorStop(1, 'rgba(255,215,106,0)');
+        ctx.strokeStyle = rg3;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(w / 2, 22);
+        ctx.lineTo(w / 2 + Math.cos(ra2) * w * 0.5, 22 + Math.sin(ra2) * w * 0.5);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+    } else {
+      var dg = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.85);
+      dg.addColorStop(0, 'rgba(120,20,30,0)');
+      dg.addColorStop(1, 'rgba(120,20,30,0.35)');
+      ctx.fillStyle = dg;
+      ctx.fillRect(0, 0, w, h);
+    }
+    var endTitle = this.win ? RA.UI('victory') : RA.UI('defeat');
+    F.draw(ctx, endTitle, w / 2 + 2, 18, { size: 3, color: 'rgba(0,0,0,0.8)', align: 'center' });
+    F.draw(ctx, endTitle, w / 2, 16, { size: 3, color: this.win ? '#ffd76a' : '#e84a5a', align: 'center' });
     var y = 50;
     if (this.win && ENDINGS[this.endingId]) {
       var lines = F.wrap(RA.T(ENDINGS[this.endingId]), 1, 1, Math.min(280, w - 30));
