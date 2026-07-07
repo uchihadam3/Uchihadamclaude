@@ -324,7 +324,7 @@ function PlantSheet(props: {
     <Panel title={tr({ pt: def.commonNamePT, en: def.commonNameEN })} onClose={props.onClose}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <div style={{ background: 'rgba(90,110,70,0.15)', borderRadius: 10, padding: 2 }}>
-          <PlantSprite plantId={p.plantId} size={84} stage={p.stage === 'flowering' ? 'flowering' : 'mature'} seed={p.variantSeed} />
+          <PlantSprite plantId={p.plantId} size={84} stage="flowering" seed={p.variantSeed} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="card-sub">{def.scientificName}</div>
