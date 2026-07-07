@@ -734,13 +734,47 @@
   FX.enemyIntent = function (c, e, it) {
     if (e.bflags.delayed) { e.bflags.delayed = false; c.ev('enemySkip', { idx: e.slot, why: 'delay' }); return; }
     if (e.bflags.trap) { c.damage(null, e, e.bflags.trap, { pure: true, tag: 'hit' }); e.bflags.trap = 0; if (e.dead) return; }
+    FX.execIntent(c, e, it);
+    // faces compostas: efeitos extras encadeados na mesma face
+    if (it.and) it.and.forEach(function (sub) { if (!c.over && !e.dead) FX.execIntent(c, e, sub); });
+  };
+
+  FX.execIntent = function (c, e, it) {
     switch (it.k) {
+      case 'none': c.ev('enemySkip', { idx: e.slot, why: 'blank' }); break;
       case 'atk': {
-        var n = it.n;
+        var n = it.n + (e.bflags.atkBonus || 0);
         if (e.bflags.atkBonusOnce) { n += e.bflags.atkBonusOnce; e.bflags.atkBonusOnce = 0; }
         if (c.flags.enemyFirstAtkBonus) { n += c.flags.enemyFirstAtkBonus; c.flags.enemyFirstAtkBonus = 0; }
-        var t = c.pickHeroTarget(e, it.tgt);
-        if (t) c.damage(e, t, n, { isAttack: true, tag: 'hit' });
+        var opts = { isAttack: true, tag: it.magic ? 'magic' : 'hit', magic: !!it.magic, ignoreShield: !!it.pierce };
+        var times = it.times || 1;
+        if (it.tgt === 'allH' || it.tgt === 'allFront') {
+          // ataque em área: cada herói alcançado leva o golpe
+          var pool = c.aliveHeroes();
+          if (it.tgt === 'allFront') {
+            var fr = pool.filter(function (h) { return h.row === 'front'; });
+            if (fr.length) pool = fr;
+          }
+          pool.forEach(function (h) {
+            for (var i = 0; i < times; i++) if (!h.dead && !h.downed && !e.dead) c.damage(e, h, n, opts);
+          });
+        } else {
+          for (var i2 = 0; i2 < times; i2++) {
+            if (e.dead) break;
+            var t = c.pickHeroTarget(e, it.tgt);
+            if (t) c.damage(e, t, n, opts);
+          }
+        }
+        e.hidden = false;
+        break;
+      }
+      case 'drain': {
+        // dreno: fere e se cura no valor causado
+        var td = c.pickHeroTarget(e, it.tgt);
+        if (td) {
+          var done = c.damage(e, td, it.n + (e.bflags.atkBonus || 0), { isAttack: true, tag: 'hit' });
+          if (done > 0 && !e.dead) c.heal(e, e, done, { quiet: true });
+        }
         e.hidden = false;
         break;
       }
@@ -780,10 +814,11 @@
       case 'summon': c.summonEnemy(it.id); break;
       case 'special': {
         var sp = FX.Specials[it.id];
-        if (sp) sp(c, e, it.n || 0);
+        if (sp) sp(c, e, it.n || 0, it);
         else c.ev('unknownFx', { k: 'sp:' + it.id });
         break;
       }
+      default: c.ev('unknownFx', { k: 'intent:' + it.k });
     }
   };
 
@@ -797,6 +832,31 @@
     else { var t = c.pickHeroTarget(e); if (t) c.damage(e, t, 1, { isAttack: true }); }
   };
   SP.carrega = function (c, e) { e.charge++; c.addStatus(e, 'charge', 1); c.ev('charging', { idx: e.slot }); };
+  // executa: gasta 1 carga num golpe devastador; sem carga, golpe fraco
+  SP.executa = function (c, e, n, it) {
+    if (e.charge > 0) {
+      e.charge--;
+      if (e.statuses.charge) { e.statuses.charge--; if (!e.statuses.charge) delete e.statuses.charge; }
+      if (it && it.tgt === 'allFront') {
+        c.aliveHeroes().filter(function (h) { return h.row === 'front'; }).forEach(function (h) {
+          if (!e.dead) c.damage(e, h, n, { isAttack: true, tag: 'hit' });
+        });
+      } else {
+        var t = c.pickHeroTarget(e, it && it.tgt);
+        if (t) c.damage(e, t, n, { isAttack: true, tag: 'hit' });
+      }
+    } else {
+      var t2 = c.pickHeroTarget(e);
+      if (t2) c.damage(e, t2, Math.max(2, Math.floor(n / 3)), { isAttack: true, tag: 'hit' });
+    }
+  };
+  // presente envenenado: dá ouro... e amaldiçoa todos os heróis
+  SP.presente = function (c, e, n) {
+    c.ctx.addGold(n);
+    c.ev('gold', { n: n });
+    c.aliveHeroes().forEach(function (h) { c.addStatus(h, 'curse', 1); });
+    c.say(RA.T({ pt: 'Um presente! Mas a que preço...', en: 'A gift! But at what cost...' }));
+  };
   SP.fugir = function (c, e) { e.fled = true; c.ev('flee', { idx: e.slot }); c.checkEnd(); };
   SP.acende = function (c, e) { e.bflags.lit = true; c.ev('fuse', { idx: e.slot }); c.say(RA.T({ pt: 'O pavio está aceso!', en: 'The fuse is lit!' })); };
   SP.explode = function (c, e, n) {

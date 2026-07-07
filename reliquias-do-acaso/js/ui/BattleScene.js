@@ -383,7 +383,7 @@
   };
 
   // ============================ eventos ============================
-  var SLOW = { enemyAct: 0.85, enemySkip: 0.5, turnStart: 0.4, battleEnd: 0.6, kill: 0.35, summonEnemy: 0.4, fate: 0.55, blackRule: 0.75, combo: 0.55, bossPhase: 0.65, down: 0.55, intent: 0.12, phase: 0.3 };
+  var SLOW = { enemyAct: 0.85, enemySkip: 0.5, turnStart: 0.4, battleEnd: 0.6, kill: 0.35, summonEnemy: 0.4, fate: 0.55, blackRule: 0.75, combo: 0.55, bossPhase: 0.65, down: 0.55, intent: 0.12, phase: 0.3, enrage: 1.1 };
   BattleScene.prototype.drainEvents = function () {
     var evs = this.combat.events;
     this.combat.events = [];
@@ -429,6 +429,23 @@
       case 'fate': this.fateSpin = 0.8; this.showBanner(RA.UI('fateDie') + ': ' + RA.T(e.fate), '#ffd76a'); sfx('fate'); break;
       case 'blackRule': this.showBanner(RA.UI('newRule') + ' ' + (e.name ? RA.T(e.name) : ''), '#c8b8e8', true); Fx.shake(2); sfx('bossPhase'); break;
       case 'bossPhase': Fx.shake(4); this.pauseT = 0.1; sfx('bossPhase'); break;
+      case 'enrage': {
+        // o chefe troca para o DADO DE FÚRIA: banner, tremor e rerolagem
+        var enE = this.combat.enemies[e.idx];
+        this.showBanner((enE ? RA.T(enE.name) + ': ' : '') + RA.T({ pt: 'FÚRIA!', en: 'FURY!' }), '#ff5a6a', true);
+        Fx.shake(5); this.pauseT = 0.12; sfx('bossPhase');
+        Fx.floater(px, py - 10, RA.T({ pt: 'DADO DE FÚRIA!', en: 'FURY DIE!' }), '#ff5a6a');
+        this.eDice[e.idx] = { anim: { phase: 'rolling', t: 0 }, rollFor: 0.5 };
+        break;
+      }
+      case 'enemySkip': {
+        var whySkip = e.why === 'blank' ? { pt: 'HESITA...', en: 'HESITATES...' }
+          : e.why === 'stun' ? { pt: 'ATORDOADO!', en: 'STUNNED!' }
+          : e.why === 'freeze' ? { pt: 'CONGELADO!', en: 'FROZEN!' }
+          : { pt: 'PERDEU A VEZ', en: 'SKIPS A TURN' };
+        Fx.floater(px, py - 8, RA.T(whySkip), '#9a94a8');
+        break;
+      }
       case 'roll': {
         // arremesso real: cada dado sai do alto da mesa, quica e assenta
         var self2 = this;
@@ -494,7 +511,7 @@
             s: 18, side: 'enemy',
             actorRef: { side: 'enemy', idx: e.idx }, targetRef: destRef,
             label: (en2 ? RA.T(en2.name) : '') + ': ' + intentText(e.intent),
-            vd: { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(e.intent), val: e.intent.n || 0 }, faces: EFAKES, used: false, locked: false, highlight: true },
+            vd: { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(e.intent), val: e.intent.n || 0 }, faces: EFAKES, used: false, locked: false, highlight: true, sides: en2 ? enemyDieSides(en2) : 0 },
             from: from2, to: to2
           });
         }
@@ -790,7 +807,10 @@
   };
 
   function intentText(it) {
-    if (it.k === 'atk') return RA.T({ pt: 'Atacar ' + it.n, en: 'Attack ' + it.n });
+    if (it.nm) return RA.T(it.nm); // face nomeada: o nome É o anúncio
+    if (it.k === 'atk') return RA.T({ pt: 'Atacar ' + it.n, en: 'Attack ' + it.n }) + (it.times > 1 ? ' x' + it.times : '');
+    if (it.k === 'drain') return RA.T({ pt: 'Drenar ' + it.n, en: 'Drain ' + it.n });
+    if (it.k === 'none') return RA.T({ pt: 'Hesita...', en: 'Hesitates...' });
     if (it.k === 'shield') return RA.T({ pt: 'Escudo ' + it.n, en: 'Shield ' + it.n });
     if (it.k === 'heal') return RA.T({ pt: 'Curar ' + it.n, en: 'Heal ' + it.n });
     if (it.k === 'st') { var sd = RA.data.Statuses[it.s]; return (sd ? RA.T(sd) : it.s) + ' ' + it.n; }
@@ -798,20 +818,29 @@
     return '???';
   }
 
-  // explica a próxima ação do inimigo em linhas completas
-  function intentLines(c, e) {
-    var it = e.intent, out = [];
-    if (!it) return [RA.T({ pt: 'Sem intenção visível.', en: 'No visible intent.' })];
+  // explica UM efeito de intenção em linhas completas
+  function intentFxLines(it, out) {
     var TG = {
       front: { pt: 'na sua LINHA DE FRENTE', en: 'at your FRONT LINE' },
       back: { pt: 'na sua linha de trás', en: 'at your back line' },
       weakest: { pt: 'no seu herói MAIS FERIDO', en: 'at your MOST WOUNDED hero' },
-      random: { pt: 'em um alvo aleatório', en: 'at a random target' }
+      random: { pt: 'em um alvo aleatório', en: 'at a random target' },
+      marked: { pt: 'no herói MARCADO', en: 'at the MARKED hero' },
+      allH: { pt: 'em TODOS os seus heróis', en: 'at ALL your heroes' },
+      allFront: { pt: 'em TODA a sua linha de frente', en: 'at your ENTIRE front line' }
     };
     var tg = TG[it.tgt] ? RA.T(TG[it.tgt]) : RA.T(TG.front);
-    if (it.k === 'atk') out.push(RA.T({ pt: 'Vai ATACAR: ' + it.n + ' de dano ' + tg, en: 'Will ATTACK: ' + it.n + ' damage ' + tg }));
+    if (it.k === 'atk') {
+      var s = RA.T({ pt: 'Vai ATACAR: ' + it.n + ' de dano', en: 'Will ATTACK: ' + it.n + ' damage' });
+      if (it.times > 1) s += ' x' + it.times;
+      s += ' ' + tg;
+      if (it.pierce) s += RA.T({ pt: ' (ignora escudo!)', en: ' (ignores shield!)' });
+      out.push(s);
+    }
+    else if (it.k === 'drain') out.push(RA.T({ pt: 'Vai DRENAR: ' + it.n + ' de dano ' + tg + ' e se cura no valor causado', en: 'Will DRAIN: ' + it.n + ' damage ' + tg + ' and heals itself for it' }));
+    else if (it.k === 'none') out.push(RA.T({ pt: 'Vai HESITAR: não fará nada neste turno!', en: 'Will HESITATE: does nothing this turn!' }));
     else if (it.k === 'shield') out.push(RA.T({ pt: 'Vai se DEFENDER: +' + it.n + ' de escudo', en: 'Will DEFEND: +' + it.n + ' shield' }));
-    else if (it.k === 'heal') out.push(it.who === 'self' ? RA.T({ pt: 'Vai se CURAR em ' + it.n, en: 'Will HEAL itself for ' + it.n }) : RA.T({ pt: 'Vai CURAR um aliado em ' + it.n, en: 'Will HEAL an ally for ' + it.n }));
+    else if (it.k === 'heal') out.push(it.who === 'self' ? RA.T({ pt: 'Vai se CURAR em ' + it.n, en: 'Will HEAL itself for ' + it.n }) : RA.T({ pt: 'Vai CURAR o aliado mais ferido em ' + it.n, en: 'Will HEAL its most wounded ally for ' + it.n }));
     else if (it.k === 'st') {
       var sd2 = RA.data.Statuses[it.s];
       var whoT = it.tgt === 'allH' ? RA.T({ pt: ' em TODOS os seus heróis', en: ' on ALL your heroes' }) : it.tgt === 'self' ? RA.T({ pt: ' em si mesmo', en: ' on itself' }) : it.tgt === 'allyE' ? RA.T({ pt: ' nos aliados dele', en: ' on its allies' }) : ' ' + tg;
@@ -819,13 +848,41 @@
       if (sd2 && sd2.desc) out.push('(' + RA.T(sd2.desc) + ')');
     }
     else if (it.k === 'summon') out.push(RA.T({ pt: 'Vai INVOCAR reforços!', en: 'Will SUMMON reinforcements!' }));
-    else if (it.k === 'special') out.push(RA.T({ pt: 'Vai usar uma HABILIDADE ESPECIAL', en: 'Will use a SPECIAL ability' }) + (it.n ? ' [' + it.n + ']' : ''));
+    else if (it.k === 'special') {
+      var spd = RA.data.EnemySpecialDesc && RA.data.EnemySpecialDesc[it.id];
+      if (spd) out.push(RA.T(spd) + (it.n ? ' [' + it.n + ']' : ''));
+      else out.push(RA.T({ pt: 'Vai usar uma HABILIDADE ESPECIAL', en: 'Will use a SPECIAL ability' }) + (it.n ? ' [' + it.n + ']' : ''));
+    }
+  }
+
+  // explica a próxima ação do inimigo (face rolada no dado dele)
+  function intentLines(c, e) {
+    var it = e.intent, out = [];
+    if (!it) return [RA.T({ pt: 'Sem intenção visível.', en: 'No visible intent.' })];
+    var die = (e.enraged && e.def.die2) ? e.def.die2 : e.def.die;
+    if (die && die.length) {
+      out.push(RA.T({ pt: 'Rolou no dado D' + die.length + ' dele:', en: 'Rolled on its D' + die.length + ' die:' }) +
+        (e.enraged ? RA.T({ pt: ' (FÚRIA!)', en: ' (FURY!)' }) : ''));
+    }
+    if (it.nm) out.push('"' + RA.T(it.nm) + '"');
+    intentFxLines(it, out);
+    if (it.and) it.and.forEach(function (sub) {
+      var subOut = [];
+      intentFxLines(sub, subOut);
+      subOut.forEach(function (l, i2) { out.push((i2 === 0 ? '+ ' : '') + l); });
+    });
     return out;
   }
 
   function intentIcon(it) {
     if (!it) return 'eye';
-    return it.k === 'atk' ? 'sword' : it.k === 'shield' ? 'shield' : it.k === 'heal' ? 'heart' : it.k === 'summon' ? 'star' : it.k === 'st' ? 'skull' : 'eye';
+    return it.k === 'atk' ? 'sword' : it.k === 'drain' ? 'skull' : it.k === 'shield' ? 'shield' : it.k === 'heal' ? 'heart' : it.k === 'summon' ? 'star' : it.k === 'st' ? 'skull' : 'eye';
+  }
+
+  // lados do dado atual do inimigo (badge D8/D10/D12 no dado preto)
+  function enemyDieSides(e) {
+    var d = (e.enraged && e.def.die2) ? e.def.die2 : e.def.die;
+    return (d && d.length > 6) ? d.length : 0;
   }
 
   // ============================ desenho ============================
@@ -922,7 +979,7 @@
     ctx.strokeRect(x + 0.5, y + 0.5, p.w - 1, p.h - 1);
     ctx.lineWidth = 1;
     if (e.hidden) ctx.globalAlpha = 0.5;
-    // DADO do inimigo (intenção rolada)
+    // DADO do inimigo (intenção rolada; em fúria, o dado troca e pulsa)
     var it = e.intent;
     var eds = Math.min(p.h - 5, 15);
     if (it) {
@@ -931,10 +988,16 @@
         skin: 'preto',
         anim: ed ? ed.anim : { phase: 'idle', t: 0 },
         resultFace: { sym: intentIcon(it), val: it.n || 0 },
-        faces: EFAKES, used: false, locked: false
+        faces: EFAKES, used: false, locked: false,
+        sides: enemyDieSides(e)
       };
+      if (e.enraged) {
+        var fp = 0.4 + 0.35 * Math.sin(this.time * 6 + e.slot);
+        ctx.strokeStyle = 'rgba(255,80,90,' + fp + ')';
+        ctx.strokeRect(x + 1.5, y + 1.5, eds + 3, eds + 3);
+      }
       RA.gfx.Dice.draw(ctx, vd, x + 3, y + 3, eds, this.time + e.slot);
-      if (it.n) F.draw(ctx, String(it.n), x + eds + 6, y + 4, { size: 1, color: '#ffe9a0', shadow: true });
+      if (it.n) F.draw(ctx, String(it.n), x + eds + 6, y + 4, { size: 1, color: e.enraged ? '#ff6a7a' : '#ffe9a0', shadow: true });
     }
     var ss = Math.min(p.h - 2, boss ? 30 : 20);
     var frame = Math.floor(this.time * 2 + e.slot) % 2;
@@ -1166,7 +1229,7 @@
       else {
         var ie = c.enemies[this.infoCardE.idx];
         if (ie && !ie.dead) {
-          var ieTitle = RA.T(ie.name) + (ie.tier === 'chefe' || ie.tier === 'secreto' ? ' [' + RA.UI('boss') + ']' : '');
+          var ieTitle = RA.T(ie.name) + (ie.enraged ? ' — FÚRIA!' : (ie.tier === 'chefe' || ie.tier === 'secreto' ? ' [' + RA.UI('boss') + ']' : ''));
           var ieLines = intentLines(c, ie);
           var sCnt = 0;
           for (var sk3 in ie.statuses) {
@@ -1176,7 +1239,7 @@
           }
           var ieWrap = [];
           ieLines.forEach(function (l0) { F.wrap(String(l0), 1, 1, Math.min(w - 24, 280)).forEach(function (l1) { ieWrap.push(l1); }); });
-          ieWrap = ieWrap.slice(0, 5);
+          ieWrap = ieWrap.slice(0, 7);
           var ieW = Math.max(F.measure(ieTitle, 1, 1), 120) + 20;
           ieWrap.forEach(function (l2c) { ieW = Math.min(w - 12, Math.max(ieW, F.measure(l2c, 1, 1) + 16)); });
           var ieH = 18 + ieWrap.length * 9;
@@ -1186,7 +1249,7 @@
           var ieA = Math.min(1, this.infoCardE.t * 3);
           ctx.globalAlpha = ieA;
           W2.panel(ctx, ieX, ieY, ieW, ieH, { edge: '#ff6a7a' });
-          var ieDie = { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(ie.intent), val: ie.intent ? (ie.intent.n || 0) : 0 }, faces: EFAKES, used: false, locked: false };
+          var ieDie = { skin: 'preto', anim: { phase: 'idle', t: 0 }, resultFace: { sym: intentIcon(ie.intent), val: ie.intent ? (ie.intent.n || 0) : 0 }, faces: EFAKES, used: false, locked: false, sides: enemyDieSides(ie) };
           RA.gfx.Dice.draw(ctx, ieDie, ieX + 4, ieY + 3, 12, this.time);
           F.draw(ctx, ieTitle, ieX + 22, ieY + 4, { size: 1, color: '#ff9aaa' });
           ieWrap.forEach(function (l2d, li3) {

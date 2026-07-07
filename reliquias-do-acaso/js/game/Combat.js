@@ -273,6 +273,19 @@
       if (tgt.kind === 'enemy') this.killEnemy(tgt, src, opts);
       else this.downUnit(tgt);
     } else if (tgt.kind === 'hero' && tgt.hp === 1) this.bstats.heroAt1Hp = true;
+
+    // FÚRIA: chefes com segundo dado o assumem ao cair à metade da vida
+    if (tgt.kind === 'enemy' && !tgt.dead && !tgt.enraged && tgt.def.die2 && tgt.hp <= tgt.maxHp / 2) {
+      tgt.enraged = true;
+      this.ev('enrage', { idx: tgt.slot, id: tgt.id });
+      var enr = tgt.def.enrage;
+      if (enr) {
+        if (enr.shield) this.giveShield(tgt, enr.shield);
+        if (enr.heal) this.heal(tgt, tgt, enr.heal, { quiet: true });
+        if (enr.say) this.say(RA.T(enr.say));
+      }
+      this.computeIntent(tgt); // rerola a intenção já no dado de fúria
+    }
     return n;
   };
 
@@ -797,12 +810,25 @@
 
   Combat.prototype.computeIntent = function (e) {
     if (e.dead || e.fled) { e.intent = null; return; }
-    var ai = e.def.ai;
-    var it = ai[e.aiIdx % ai.length];
+    var it;
+    // o inimigo ROLA seu próprio dado (o de fúria, se enfurecido)
+    var die = (e.enraged && e.def.die2) ? e.def.die2 : e.def.die;
+    if (die && die.length) {
+      e.dieIdx = this.rng.int(0, die.length - 1);
+      it = die[e.dieIdx];
+    } else {
+      var ai = e.def.ai;
+      it = ai[e.aiIdx % ai.length];
+    }
     e.intent = it;
     // agressividade: dificuldade e avanço da run aumentam o dano
     var plus = (this.diff.enemyAggro ? 1 : 0) + (this.diff.enemyAtkPlus || 0);
-    if (plus > 0 && it.k === 'atk') e.intent = { k: 'atk', n: it.n + plus, tgt: it.tgt };
+    if (plus > 0 && (it.k === 'atk' || it.k === 'drain')) {
+      var c2 = {};
+      for (var kk in it) c2[kk] = it[kk];
+      c2.n = it.n + plus;
+      e.intent = c2;
+    }
     this.ev('intent', { idx: e.slot, intent: e.intent });
   };
 
@@ -937,6 +963,9 @@
       pool = this.aliveHeroes().slice().sort(function (a, b) { return a.hp - b.hp; }).slice(0, 1);
     } else if (mode === 'random') {
       pool = this.allAllies();
+    } else if (mode === 'marked') {
+      pool = this.aliveHeroes().filter(function (h) { return h.statuses.mark; });
+      if (!pool.length) pool = this.frontHeroes();
     } else pool = this.frontHeroes();
     // taunt: provocação redireciona
     if (this.flags.tauntTarget != null) {
