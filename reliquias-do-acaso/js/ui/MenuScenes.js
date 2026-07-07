@@ -225,6 +225,9 @@
       this.startRegion = this.checkpoint; // padrão: continuar de onde chegou
       this.hasLegacy = Object.keys(camp.legacy || {}).length > 0;
     }
+    this.inspect = null;      // herói inspecionado (modal com o dado inteiro)
+    this.inspectFace = 0;     // face selecionada no modal
+    this.inspectDraft = false;
     if (this.draft) this.rollDraft();
     RA.audio.setMusic('selecao');
   };
@@ -319,10 +322,7 @@
         ctx.drawImage(RA.gfx.Portraits.get(id), x, y, 48, 48);
         F.draw(ctx, RA.T(RA.data.Heroes.byId[id].name).slice(0, 9), x + 24, y + 52, { size: 1, color: '#ffe9a0', align: 'center' });
         var b = { x: x - 4, y: y - 4, w: 56, h: 74, label: '', fn: function () {
-          self.picked.push(id);
-          RA.audio.sfx('confirm');
-          if (self.picked.length >= self.size) self.start(false);
-          else self.rollDraft();
+          self.inspect = id; self.inspectFace = 0; self.inspectDraft = true;
         } };
         self.buttons.push(b);
         var tip = self.heroTip(id);
@@ -370,10 +370,9 @@
         if (!unlocked) F.draw(ctx, '?', x + 14, y + 10, { size: 1, color: '#8a94a8', align: 'center' });
         F.draw(ctx, RA.T(def.name).slice(0, 6), x + 14, y + 31, { size: 1, color: pickedIdx >= 0 ? '#ffd76a' : '#8a94a8', align: 'center' });
         if (unlocked) {
+          // toque abre a inspeção do DADO do herói (escolha dentro do modal)
           var b = { x: x - 2, y: y - 2, w: 32, h: 38, label: '', fn: function () {
-            var ix = self.picked.indexOf(def.id);
-            if (ix >= 0) self.picked.splice(ix, 1);
-            else if (self.picked.length < self.size) self.picked.push(def.id);
+            self.inspect = def.id; self.inspectFace = 0; self.inspectDraft = false;
           } };
           self.buttons.push(b);
           var tip = self.heroTip(def.id);
@@ -403,6 +402,109 @@
       var bb2 = { x: w / 2 - tbw / 2, y: by2, w: tbw, h: 22, small: true, label: RA.UI('back'), fn: function () { Sc().replace(new ModeSelectScene()); } };
       W().btn(ctx, br, this.time); W().btn(ctx, bs2, this.time); W().btn(ctx, bb2, this.time);
       this.buttons.push(br, bs2, bb2);
+    }
+    // ================= MODAL: o DADO do herói, lado a lado =================
+    if (this.inspect) {
+      var idI = this.inspect;
+      var defI = RA.data.Heroes.byId[idI];
+      var skI = RA.gfx.Dice.skin(defI.skin);
+      // o dado REAL de início: na campanha, o legado (evoluções + gravações)
+      var facesI = defI.faces;
+      var isLegacy = false;
+      if (this.params.modeId === 'campanha') {
+        var legI = RA.game.Run.campaignData().legacy[idI];
+        if (legI && legI.faces && legI.faces.length >= defI.faces.length) { facesI = legI.faces; isLegacy = true; }
+      }
+      if (this.inspectFace >= facesI.length) this.inspectFace = 0;
+      ctx.fillStyle = 'rgba(4,3,8,0.82)';
+      ctx.fillRect(0, 0, w, h);
+      this.buttons = [];
+      this.tipRects = [];
+      var pwI = Math.min(w - 8, 320);
+      var colsI = Math.min(6, facesI.length);
+      var rowsI = Math.ceil(facesI.length / colsI);
+      var gapI = Math.min(38, Math.floor((pwI - 12) / colsI));
+      var dieS = Math.min(24, gapI - 8);
+      var phI = Math.min(h - 6, 56 + rowsI * (dieS + 18) + 62);
+      var pxI = Math.round((w - pwI) / 2), pyI = Math.round(Math.max(3, (h - phI) / 2));
+      W().panel(ctx, pxI, pyI, pwI, phI, { edge: skI.rim });
+      // cabeçalho: retrato emoldurado + nome + HP + selo do dado
+      ctx.fillStyle = '#0e0a16';
+      ctx.fillRect(pxI + 5, pyI + 4, 24, 24);
+      ctx.drawImage(RA.gfx.Portraits.get(idI), pxI + 6, pyI + 5, 22, 22);
+      ctx.strokeStyle = skI.rim;
+      ctx.strokeRect(pxI + 5.5, pyI + 4.5, 23, 23);
+      F.draw(ctx, RA.T(defI.name).slice(0, Math.floor((pwI - 100) / 6)), pxI + 34, pyI + 5, { size: 1, color: '#ffe9a0', shadow: true });
+      F.draw(ctx, '♥' + defI.hp, pxI + 34, pyI + 16, { size: 1, color: '#e84a5a' });
+      // selo D6/D8/... (verde-legado quando herdado)
+      var badgeT = 'D' + facesI.length + (isLegacy ? ' ' + RA.T({ pt: 'LEGADO', en: 'LEGACY' }) : '');
+      var bw6 = F.measure(badgeT, 1, 1) + 10;
+      ctx.fillStyle = isLegacy ? 'rgba(30,60,40,0.95)' : 'rgba(50,40,20,0.95)';
+      ctx.fillRect(pxI + pwI - bw6 - 5, pyI + 5, bw6, 12);
+      ctx.strokeStyle = isLegacy ? '#4ac86a' : '#c9a23a';
+      ctx.strokeRect(pxI + pwI - bw6 - 4.5, pyI + 5.5, bw6 - 1, 11);
+      F.draw(ctx, badgeT, pxI + pwI - bw6 / 2 - 5, pyI + 8, { size: 1, color: isLegacy ? '#6ee89a' : '#ffd76a', align: 'center' });
+      // passiva
+      F.wrap(RA.T(defI.passive.txt), 1, 1, pwI - 14).slice(0, 2).forEach(function (pl, pli) {
+        F.draw(ctx, pl, pxI + 7, pyI + 32 + pli * 9, { size: 1, color: '#8ab4e8' });
+      });
+      // a grade de faces: dados de verdade, cada um tocável
+      var gY = pyI + 56;
+      var gx1 = pxI + Math.round((pwI - gapI * colsI) / 2) + Math.round((gapI - dieS) / 2);
+      for (var fiI = 0; fiI < facesI.length; fiI++) {
+        (function (fi2) {
+          var fx2 = gx1 + (fi2 % colsI) * gapI;
+          var fy2 = gY + Math.floor(fi2 / colsI) * (dieS + 18);
+          var selF = self.inspectFace === fi2;
+          if (selF) {
+            var pkF = 0.5 + 0.4 * Math.sin(self.time * 5);
+            ctx.strokeStyle = 'rgba(255,235,170,' + pkF + ')';
+            ctx.strokeRect(fx2 - 2.5, fy2 - 2.5, dieS + 5, dieS + 7);
+          }
+          var dI = { skin: defI.skin, anim: { phase: 'idle', t: 0 }, resultFace: facesI[fi2], faces: facesI, used: false, locked: false, highlight: selF };
+          RA.gfx.Dice.draw(ctx, dI, fx2, fy2, dieS, self.time + fi2);
+          var bF = { x: fx2 - 3, y: fy2 - 3, w: dieS + 6, h: dieS + 10, label: '', fn: function () { self.inspectFace = fi2; RA.audio.sfx('click'); } };
+          self.buttons.push(bF);
+        })(fiI);
+      }
+      // descrição da face selecionada
+      var fSel = facesI[this.inspectFace];
+      var dY2 = gY + rowsI * (dieS + 18) + 2;
+      F.draw(ctx, RA.T(fSel.name) + ' [' + fSel.val + ']', pxI + pwI / 2, dY2, { size: 1, color: '#ffe9a0', align: 'center', shadow: true });
+      var dLines2 = [];
+      W().descFace(fSel).forEach(function (dl) {
+        F.wrap(String(dl), 1, 1, pwI - 14).forEach(function (dl2) { dLines2.push(dl2); });
+      });
+      dLines2.slice(0, 2).forEach(function (dl3, dli) {
+        F.draw(ctx, dl3, pxI + 7, dY2 + 11 + dli * 9, { size: 1, color: '#c8c2d4' });
+      });
+      // botões: ESCOLHER/REMOVER + FECHAR
+      var mbw = Math.min(110, Math.floor((pwI - 20) / 2));
+      var pickedIdxI = this.picked.indexOf(idI);
+      var canAdd = pickedIdxI >= 0 || this.picked.length < this.size;
+      var bPick = { x: pxI + pwI / 2 + 3, y: pyI + phI - 23, w: mbw, h: 18, small: true,
+        glow: canAdd && pickedIdxI < 0, disabled: !canAdd,
+        label: this.inspectDraft ? RA.T({ pt: 'ESCOLHER', en: 'PICK' }) : (pickedIdxI >= 0 ? RA.T({ pt: 'REMOVER', en: 'REMOVE' }) : RA.T({ pt: 'ESCOLHER', en: 'PICK' })),
+        fn: function () {
+          if (self.inspectDraft) {
+            self.picked.push(idI);
+            self.inspect = null; self.inspectDraft = false;
+            RA.audio.sfx('confirm');
+            if (self.picked.length >= self.size) self.start(false);
+            else self.rollDraft();
+            return;
+          }
+          var ixI = self.picked.indexOf(idI);
+          if (ixI >= 0) self.picked.splice(ixI, 1);
+          else if (self.picked.length < self.size) self.picked.push(idI);
+          self.inspect = null;
+          RA.audio.sfx('confirm');
+        } };
+      var bClose = { x: pxI + pwI / 2 - 3 - mbw, y: pyI + phI - 23, w: mbw, h: 18, small: true,
+        label: RA.T({ pt: 'FECHAR', en: 'CLOSE' }), fn: function () { self.inspect = null; self.inspectDraft = false; } };
+      W().btn(ctx, bPick, this.time);
+      W().btn(ctx, bClose, this.time);
+      this.buttons.push(bPick, bClose);
     }
     if (this.tip) W().tooltip(ctx, w, h, this.tip.x, this.tip.y, this.tip.title, this.tip.lines);
     W().renderToasts(ctx, w);
@@ -516,8 +618,10 @@
       ctx.globalAlpha = has ? 1 : 0.55;
       ctx.drawImage(RA.gfx.Icons.symbol(has ? 'star' : 'skull'), lx + 3, y + 4, 10, 10);
       ctx.globalAlpha = 1;
-      F.draw(ctx, hidden ? '???' : RA.T(a.name), lx + 17, y + 2, { size: 1, color: has ? '#ffd76a' : '#8a94a8', shadow: has });
-      F.draw(ctx, hidden ? RA.UI('unlockHint') : RA.T(a.desc).slice(0, 44), lx + 17, y + 10, { size: 1, color: has ? '#c8c2d4' : '#4a4258' });
+      // nome e descrição truncados pela LARGURA da linha (nunca sobrepõem)
+      var achMax = Math.max(8, Math.floor((rw - 24) / 6));
+      F.draw(ctx, (hidden ? '???' : RA.T(a.name)).slice(0, achMax), lx + 17, y + 2, { size: 1, color: has ? '#ffd76a' : '#8a94a8', shadow: has });
+      F.draw(ctx, (hidden ? RA.UI('unlockHint') : RA.T(a.desc)).slice(0, achMax), lx + 17, y + 10, { size: 1, color: has ? '#c8c2d4' : '#4a4258' });
       y += 20;
     });
     if (pages > 1) {
@@ -559,63 +663,88 @@
       { id: 'stats', label: RA.UI('statsTitle') }
     ];
     var tw = Math.min(80, (w - 12) / 4);
+    var tabMax = Math.max(4, Math.floor((tw - 10) / 6));
     tabs.forEach(function (t, i) {
-      var b = { x: 6 + i * tw, y: 4, w: tw - 4, h: 16, small: true, glow: self.tab === t.id, label: t.label, fn: function () { self.tab = t.id; self.page = 0; } };
+      var b = { x: 6 + i * tw, y: 4, w: tw - 4, h: 16, small: true, glow: self.tab === t.id, label: String(t.label).slice(0, tabMax), fn: function () { self.tab = t.id; self.page = 0; } };
       W().btn(ctx, b, self.time);
       self.buttons.push(b);
     });
-    var y = 28;
+    // barra de progresso da aba + contagem (gamificação do colecionador)
+    function tabProgress(seen, total) {
+      var pbW2 = Math.min(180, w - 90);
+      W().hpBar(ctx, w / 2 - pbW2 / 2, 28, pbW2, seen, total, 0, '#ffd76a');
+      F.draw(ctx, seen + '/' + total, w / 2 + pbW2 / 2 + 6, 26, { size: 1, color: '#8a94a8' });
+    }
+    // linha-cartão de 2 andares (nome + descrição), truncada por MEDIDA
+    function cardRow(x, yy, rw2, accent, name, desc, known, iconDraw) {
+      var g2 = ctx.createLinearGradient(0, yy, 0, yy + 19);
+      g2.addColorStop(0, known ? 'rgba(38,31,54,0.94)' : 'rgba(20,16,28,0.9)');
+      g2.addColorStop(1, known ? 'rgba(18,14,26,0.94)' : 'rgba(12,10,18,0.9)');
+      ctx.fillStyle = g2;
+      ctx.fillRect(x, yy, rw2, 19);
+      ctx.strokeStyle = known ? (accent || '#4a4258') : '#26222f';
+      ctx.strokeRect(x + 0.5, yy + 0.5, rw2 - 1, 18);
+      if (iconDraw) iconDraw(x + 4, yy + 5);
+      var maxCh3 = Math.max(6, Math.floor((rw2 - 22) / 6));
+      F.draw(ctx, (name || '').slice(0, maxCh3), x + 18, yy + 2, { size: 1, color: known ? (accent || '#e8e0d0') : '#4a4258' });
+      if (desc) F.draw(ctx, desc.slice(0, maxCh3), x + 18, yy + 10, { size: 1, color: known ? '#8a94a8' : '#3a3444' });
+    }
+    var y = 40;
     if (this.tab === 'bestiario') {
       var all = RA.data.Enemies.list.filter(function (e) { return !e.summonOnly; });
-      var seen = Object.keys(p.seenEnemies).length;
-      F.draw(ctx, seen + '/' + all.length, w / 2, y, { size: 1, color: '#8a94a8', align: 'center' });
-      y += 12;
-      var cols = Math.max(6, Math.floor((w - 16) / 36));
-      var perPage = cols * Math.floor((h - y - 50) / 42);
+      tabProgress(Object.keys(p.seenEnemies).length, all.length);
+      var cols = Math.max(5, Math.floor((w - 16) / 38));
+      var perPage = cols * Math.max(1, Math.floor((h - y - 50) / 44));
       var pages = Math.ceil(all.length / perPage);
       var list = all.slice(this.page * perPage, this.page * perPage + perPage);
       list.forEach(function (e, i) {
         var col = i % cols, row = Math.floor(i / cols);
-        var x = w / 2 - cols * 36 / 2 + col * 36 + 3, yy = y + row * 42;
+        var x = w / 2 - cols * 38 / 2 + col * 38 + 4, yy = y + row * 44;
         var known = !!p.seenEnemies[e.id];
+        // célula emoldurada (borda pela raridade do inimigo)
+        var tierC = e.tier === 'chefe' ? '#e8a04a' : e.tier === 'secreto' ? '#e84a5a' : e.tier === 'elite' ? '#8a4ae8' : '#3a3450';
+        ctx.fillStyle = known ? 'rgba(30,24,44,0.9)' : 'rgba(14,11,20,0.85)';
+        ctx.fillRect(x - 2, yy - 2, 34, 38);
+        ctx.strokeStyle = known ? tierC : '#241f2e';
+        ctx.strokeRect(x - 1.5, yy - 1.5, 33, 37);
         ctx.globalAlpha = known ? 1 : 0.2;
         var spr = RA.gfx.EnemySprites.get(e.arch, e.region, 28, e.decor, 0);
         ctx.drawImage(spr, x, yy);
         ctx.globalAlpha = 1;
-        if (!known) F.draw(ctx, '?', x + 14, yy + 10, { size: 1, color: '#8a94a8', align: 'center' });
-        else self.tipRects.push({ x: x, y: yy, w: 30, h: 34, title: RA.T(e.name), lines: [RA.UI('hp') + ': ' + e.hp, e.tier, RA.T(RA.data.RegionsById[e.region].name)] });
+        if (!known) F.draw(ctx, '?', x + 14, yy + 12, { size: 1, color: '#5a5468', align: 'center' });
+        else self.tipRects.push({ x: x - 2, y: yy - 2, w: 34, h: 38, title: RA.T(e.name), lines: [RA.UI('hp') + ': ' + e.hp, e.tier + ' - D' + ((e.die || []).length || 6), RA.T(RA.data.RegionsById[e.region].name)] });
       });
       if (pages > 1) { var pg = { x: w / 2 - 20, y: h - 46, w: 40, h: 14, small: true, label: (this.page + 1) + '/' + pages, fn: function () { self.page = (self.page + 1) % pages; } }; W().btn(ctx, pg, this.time); this.buttons.push(pg); }
     } else if (this.tab === 'reliquias') {
       var allR = RA.data.Relics.list;
-      F.draw(ctx, Object.keys(p.seenRelics).length + '/' + allR.length, w / 2, y, { size: 1, color: '#8a94a8', align: 'center' });
-      y += 12;
-      var perPageR = Math.floor((h - y - 50) / 12);
+      tabProgress(Object.keys(p.seenRelics).length, allR.length);
+      var rwR = Math.min(300, w - 12), rxR = Math.round((w - rwR) / 2);
+      var perPageR = Math.max(3, Math.floor((h - y - 48) / 21));
       var pagesR = Math.ceil(allR.length / perPageR);
       var listR = allR.slice(this.page * perPageR, this.page * perPageR + perPageR);
-      var lx2 = Math.max(8, w / 2 - 150);
-      listR.forEach(function (r) {
+      listR.forEach(function (r, ri) {
         var known = !!p.seenRelics[r.id];
         var rc = { comum: '#8a94a8', incomum: '#4ac86a', rara: '#4a8ae8', epica: '#8a4ae8', lendaria: '#ffd76a', amaldicoada: '#e84a5a' }[r.rarity];
-        F.draw(ctx, known ? RA.T(r.name) : '???', lx2, y, { size: 1, color: known ? rc : '#4a4258' });
-        if (known) F.draw(ctx, RA.T(r.desc).slice(0, 30), lx2 + 120, y, { size: 1, color: '#8a94a8' });
-        y += 12;
+        cardRow(rxR, y + ri * 21, rwR, rc, known ? RA.T(r.name) : '???', known ? RA.T(r.desc) : RA.T({ pt: 'ainda não encontrada', en: 'not found yet' }), known,
+          function (ix, iy) { W().diamond(ctx, ix + 4, iy + 4, 4, known ? rc : '#3a3444'); });
       });
       if (pagesR > 1) { var pgR = { x: w / 2 - 20, y: h - 46, w: 40, h: 14, small: true, label: (this.page + 1) + '/' + pagesR, fn: function () { self.page = (self.page + 1) % pagesR; } }; W().btn(ctx, pgR, this.time); this.buttons.push(pgR); }
     } else if (this.tab === 'faces') {
       var allF = RA.data.RuneFaces.list;
-      F.draw(ctx, Object.keys(p.seenFaces).length + '/' + allF.length, w / 2, y, { size: 1, color: '#8a94a8', align: 'center' });
-      y += 12;
-      var perPageF = Math.floor((h - y - 50) / 12);
+      tabProgress(Object.keys(p.seenFaces).length, allF.length);
+      var rwF = Math.min(300, w - 12), rxF = Math.round((w - rwF) / 2);
+      var perPageF = Math.max(3, Math.floor((h - y - 48) / 21));
       var pagesF = Math.ceil(allF.length / perPageF);
       var listF = allF.slice(this.page * perPageF, this.page * perPageF + perPageF);
-      var lx3 = Math.max(8, w / 2 - 150);
-      listF.forEach(function (f2) {
+      listF.forEach(function (f2, fi) {
         var known = !!p.seenFaces[f2.id];
-        ctx.drawImage(RA.gfx.Icons.symbol(f2.sym), lx3, y, 9, 9);
-        F.draw(ctx, known ? RA.T(f2.name) : '???', lx3 + 12, y, { size: 1, color: known ? '#e8e0d0' : '#4a4258' });
-        if (known) F.draw(ctx, f2.cat + ' [' + f2.val + ']', lx3 + 130, y, { size: 1, color: '#8a94a8' });
-        y += 12;
+        cardRow(rxF, y + fi * 21, rwF, f2.rare ? '#ffd76a' : '#c8c2d4', known ? (RA.T(f2.name) + ' [' + f2.val + ']') : '???',
+          known ? f2.cat : RA.T({ pt: 'ainda não vista', en: 'not seen yet' }), known,
+          function (ix, iy) {
+            ctx.globalAlpha = known ? 1 : 0.35;
+            ctx.drawImage(RA.gfx.Icons.symbol(f2.sym), ix, iy, 10, 10);
+            ctx.globalAlpha = 1;
+          });
       });
       if (pagesF > 1) { var pgF = { x: w / 2 - 20, y: h - 46, w: 40, h: 14, small: true, label: (this.page + 1) + '/' + pagesF, fn: function () { self.page = (self.page + 1) % pagesF; } }; W().btn(ctx, pgF, this.time); this.buttons.push(pgF); }
     } else {
@@ -633,9 +762,10 @@
         [RA.T({ pt: 'Segredos encontrados', en: 'Secrets found' }), (st.secretsFound || []).length],
         [RA.T({ pt: 'Maior Maldição vencida', en: 'Best Curse beaten' }), st.bestCurse || 0]
       ];
+      var statMax = Math.max(10, Math.floor((w - 56) / 6));
       rows.forEach(function (r, i) {
-        F.draw(ctx, r[0], Math.max(8, w / 2 - 140), y + i * 12, { size: 1, color: '#c8c2d4' });
-        F.draw(ctx, String(r[1]), Math.min(w - 20, w / 2 + 120), y + i * 12, { size: 1, color: '#ffe9a0' });
+        F.draw(ctx, String(r[0]).slice(0, statMax), Math.max(8, w / 2 - 140), y + i * 12, { size: 1, color: '#c8c2d4' });
+        F.draw(ctx, String(r[1]), Math.min(w - 12, w / 2 + 132), y + i * 12, { size: 1, color: '#ffe9a0', align: 'right' });
       });
     }
     var back = { x: w / 2 - 50, y: h - 26, w: 100, h: 20, label: RA.UI('back'), fn: function () { Sc().replace(new MainMenuScene()); } };
