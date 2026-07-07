@@ -465,9 +465,10 @@
         W().panel(ctx, x, y, cw, 78, { edge: f2.rare ? '#ffd76a' : '#4a4258' });
         var die = { skin: f2.rare ? 'dourado' : 'cinza', anim: { phase: 'idle', t: 0 }, resultFace: f2, faces: [f2], used: false, locked: false };
         RA.gfx.Dice.draw(ctx, die, x + cw / 2 - 12, y + 6, 24, self.time);
-        F.draw(ctx, RA.T(f2.name).slice(0, 14), x + cw / 2, y + 38, { size: 1, color: '#ffe9a0', align: 'center' });
+        var maxCh = Math.max(4, Math.floor((cw - 6) / 6));
+        F.draw(ctx, RA.T(f2.name).slice(0, maxCh), x + cw / 2, y + 38, { size: 1, color: '#ffe9a0', align: 'center' });
         var dsc = W().descFace(f2);
-        F.draw(ctx, (dsc[0] || '').slice(0, 16), x + cw / 2, y + 48, { size: 1, color: '#8a94a8', align: 'center' });
+        F.draw(ctx, (dsc[0] || '').slice(0, maxCh), x + cw / 2, y + 48, { size: 1, color: '#8a94a8', align: 'center' });
         var b = { x: x + 4, y: y + 58, w: cw - 8, h: 15, small: true, label: RA.UI('collect'), fn: function () { self.pickedFace = f2; self.stage = 'hero'; RA.audio.sfx('chest'); } };
         W().btn(ctx, b, self.time);
         self.buttons.push(b);
@@ -501,15 +502,35 @@
         var die2 = { skin: hh2.def.skin, anim: { phase: 'idle', t: 0 }, resultFace: f3, faces: hh2.faces, used: false, locked: false };
         RA.gfx.Dice.draw(ctx, die2, x, y, 26, self.time);
         var b2 = { x: x - 3, y: y - 3, w: 32, h: 36, label: '', fn: function () {
+          self.oldFace = Object.assign({}, hh2.faces[i]);
           run.applyFace(run.party.indexOf(hh2), i, self.pickedFace);
           RA.audio.sfx('rare');
-          self.stage = self.reward.relics ? 'relic' : 'done';
-          if (self.stage === 'done') self.finish();
+          self.swapT = 0;
+          self.stage = 'swapDone';
         } };
         self.buttons.push(b2);
         self.tipRects.push({ x: x - 3, y: y - 3, w: 32, h: 36, title: RA.T(f3.name), lines: W().descFace(f3) });
       });
       F.draw(ctx, RA.T(this.pickedFace.name), w / 2, 100, { size: 1, color: '#ffe9a0', align: 'center' });
+    } else if (this.stage === 'swapDone') {
+      // confirmação visual: lado antigo -> lado novo gravado no dado
+      this.swapT = (this.swapT || 0) + 1 / 60;
+      var hh3 = this.pickedHero;
+      F.draw(ctx, RA.T({ pt: 'LADO GRAVADO!', en: 'SIDE ENGRAVED!' }), w / 2, 40, { size: 2, color: '#ffd76a', align: 'center', shadow: true });
+      var dieOld = { skin: 'cinza', anim: { phase: 'idle', t: 0 }, resultFace: this.oldFace, faces: [this.oldFace], used: true, locked: false };
+      var dieNew = { skin: hh3.def.skin, anim: { phase: 'landing', t: Math.min(0.4, this.swapT) }, resultFace: this.pickedFace, faces: [this.pickedFace], used: false, locked: false, highlight: true };
+      RA.gfx.Dice.draw(ctx, dieOld, w / 2 - 58, 66, 28, this.time);
+      F.draw(ctx, '>', w / 2 - 14, 76, { size: 2, color: '#8a94a8' });
+      RA.gfx.Dice.draw(ctx, dieNew, w / 2 + 26, 62, 34, this.time);
+      F.draw(ctx, RA.T(this.oldFace.name).slice(0, 12), w / 2 - 44, 100, { size: 1, color: '#5a5468', align: 'center' });
+      F.draw(ctx, RA.T(this.pickedFace.name).slice(0, 14), w / 2 + 43, 102, { size: 1, color: '#ffe9a0', align: 'center' });
+      ctx.drawImage(RA.gfx.Portraits.get(hh3.id), w / 2 - 10, 112, 20, 20);
+      var okB = { x: w / 2 - 45, y: 140, w: 90, h: 20, label: RA.UI('next'), glow: true, fn: function () {
+        self.stage = self.reward.relics ? 'relic' : 'done';
+        if (self.stage === 'done') self.finish();
+      } };
+      W().btn(ctx, okB, this.time);
+      this.buttons.push(okB);
     } else if (this.stage === 'relic') {
       F.draw(ctx, RA.UI('pickRelic'), w / 2, 40, { size: 1, color: '#c8c2d4', align: 'center' });
       var rels = this.reward.relics || [];

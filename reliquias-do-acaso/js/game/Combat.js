@@ -800,8 +800,9 @@
     var ai = e.def.ai;
     var it = ai[e.aiIdx % ai.length];
     e.intent = it;
-    // agressividade (dificuldade): +1 em ataques
-    if (this.diff.enemyAggro && it.k === 'atk') e.intent = { k: 'atk', n: it.n + 1, tgt: it.tgt };
+    // agressividade: dificuldade e avanço da run aumentam o dano
+    var plus = (this.diff.enemyAggro ? 1 : 0) + (this.diff.enemyAtkPlus || 0);
+    if (plus > 0 && it.k === 'atk') e.intent = { k: 'atk', n: it.n + plus, tgt: it.tgt };
     this.ev('intent', { idx: e.slot, intent: e.intent });
   };
 
@@ -934,7 +935,11 @@
     var open = pool.filter(function (h) { return !h.statuses.camo; });
     if (open.length) pool = open;
     if (!pool.length) return null;
-    var tgt = pool[this.rng.int(0, pool.length - 1)];
+    // IA: 70% de chance de focar o herói mais ferido do grupo alcançável
+    var tgt;
+    if (pool.length > 1 && this.rng.chance(0.7)) {
+      tgt = pool.slice().sort(function (a, b) { return a.hp - b.hp; })[0];
+    } else tgt = pool[this.rng.int(0, pool.length - 1)];
     // proteção redireciona
     if (tgt.statuses && tgt.statuses.protect && tgt.protector != null) {
       var pr = this.heroes[tgt.protector];

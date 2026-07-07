@@ -95,6 +95,8 @@
     r.diffId = opts.diffId || 'normal';
     r.curseLvl = opts.curseLvl || 0;
     r.diff = RA.data.difficultyFx(r.diffId, r.curseLvl);
+    // rebalanceamento: inimigos 30% mais resistentes em todas as dificuldades
+    r.diff.enemyHpMul = (r.diff.enemyHpMul || 1) * 1.3;
     if (r.rules.enemyHpMul) r.diff.enemyHpMul = (r.diff.enemyHpMul || 1) * r.rules.enemyHpMul;
     r.seed = (r.rules.dailySeed ? RA.core.dailySeed() : (opts.seed || ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0)));
     r.rng = new RA.core.Rng(r.seed);
@@ -244,7 +246,7 @@
     }
     var battleN = 0;
     for (var i = 0; i < this.roomIdx; i++) if (this.rooms[i].kind === 'battle') battleN++;
-    var count = Math.min(5, 2 + Math.floor(battleN / 2) + (this.regionIdx >= 4 ? 1 : 0));
+    var count = Math.min(5, 3 + Math.floor(battleN / 2) + (this.regionIdx >= 3 ? 1 : 0));
     if (this.rules.reducedFights) count = Math.max(1, count - 1);
     var picks = this.rng.shuffle(pool.slice()).slice(0, count);
     return picks;
@@ -270,7 +272,12 @@
     else defs = this.enemiesForRoom(room);
     // escala de andar (torre infinita/abismo)
     var diff = Object.assign({}, this.diff);
-    if (this.rules.infinite) diff.enemyHpMul = (diff.enemyHpMul || 1) * (1 + this.floor * 0.08);
+    // dano inimigo cresce com o avanço (regiões 3-4: +1, 5+: +2; torre: por andar)
+    diff.enemyAtkPlus = (diff.enemyAtkPlus || 0) + Math.min(2, Math.floor(this.regionIdx / 2));
+    if (this.rules.infinite) {
+      diff.enemyHpMul = (diff.enemyHpMul || 1) * (1 + this.floor * 0.08);
+      diff.enemyAtkPlus = (diff.enemyAtkPlus || 0) + Math.floor(this.floor / 6);
+    }
 
     var mods = this.mods; this.mods = {}; // consome mods de evento
     Object.assign(mods, this.persistMods);

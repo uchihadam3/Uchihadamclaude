@@ -12,6 +12,18 @@
   // faces falsas p/ animação de rolagem dos dados inimigos
   var EFAKES = ['sword', 'shield', 'skull', 'heart', 'eye', 'flame'].map(function (s) { return { sym: s, val: 0 }; });
 
+  // traduz códigos internos de negativa em texto legível
+  function reasonText(r) {
+    var map = {
+      needTarget: { pt: 'Escolha um alvo para esta face', en: 'Pick a target for this face' },
+      dead: { pt: 'Esse alvo já caiu', en: 'That target is already down' },
+      used: { pt: 'Dado já usado', en: 'Die already used' },
+      phase: { pt: 'Aguarde a ação terminar', en: 'Wait for the action to finish' }
+    };
+    if (map[r]) return RA.T(map[r]);
+    return typeof r === 'string' ? r : '';
+  }
+
   function BattleScene(params) {
     this.run = params.run;
     this.room = params.room;
@@ -278,7 +290,9 @@
     if (!d || d.used || d.blocked || d.sacrificed) return false;
     var v = c.canUse(i, target);
     if (!v.ok) {
-      if (v.reason && typeof v.reason === 'string') this.logLine = v.reason;
+      // mostra POR QUE não pode, em faixa grande no centro
+      var rt = reasonText(v.reason);
+      if (rt) { this.showBanner(rt, '#ff6a7a'); RA.audio.sfx('block'); }
       return false;
     }
     this.selDie = -1;
@@ -614,7 +628,15 @@
             var f4 = c.faceOf(d);
             var targetless = f4 && (f4.tgt === 'none' || f4.tgt === 'allE' || f4.tgt === 'allA' || f4.tgt === 'self');
             if (self4.selDie === i && targetless) self4.executeAction(i, null, L);
-            else { self4.selDie = i; RA.audio.sfx('click'); }
+            else {
+              self4.selDie = i; RA.audio.sfx('click');
+              if (!targetless) {
+                var any5 = false, why5 = null;
+                c.enemies.forEach(function (e5) { if (!e5.dead && !e5.fled) { var v5 = c.canUse(i, { side: 'enemy', idx: e5.slot }); if (v5.ok) any5 = true; else if (!why5) why5 = v5.reason; } });
+                c.heroes.forEach(function (h5) { if (!h5.dead) { var v6 = c.canUse(i, { side: 'hero', idx: h5.slot }); if (v6.ok) any5 = true; else if (!why5) why5 = v6.reason; } });
+                if (!any5 && why5) self4.showBanner(reasonText(why5), '#ff6a7a');
+              }
+            }
           }
           return;
         }
@@ -1018,28 +1040,29 @@
       if (ai2 < 0 && !inSlot && !dragging) ctx.drawImage(RA.gfx.Portraits.get(hu2.id), dx - 3, dy + dieS - 3, 10, 10);
     }
 
-    // alvos válidos do dado selecionado: contorno pulsando
+    // alvos do dado selecionado: SÓ acende quem pode mesmo receber a ação
     if (this.mode === 'act' && this.selDie >= 0 && !this.travel) {
       var sf = c.faceOf(c.dice[this.selDie]);
       if (sf) {
         var puT = 0.4 + 0.4 * Math.sin(this.time * 7);
+        var selI = this.selDie;
         var paintT = function (pn, colT) {
           ctx.strokeStyle = colT.replace(')', ',' + puT + ')').replace('rgb', 'rgba');
           ctx.lineWidth = 2;
           ctx.strokeRect(pn.x - 2.5, pn.y - 2.5, pn.w + 5, pn.h + 5);
           ctx.lineWidth = 1;
         };
-        if (sf.tgt === 'enemy' || sf.tgt === 'any' || sf.tgt === 'allE') {
-          for (var ke in L.enemyPanels) paintT(L.enemyPanels[ke], 'rgb(255,215,106)');
+        for (var ke in L.enemyPanels) {
+          if (c.canUse(selI, { side: 'enemy', idx: L.enemyPanels[ke].unit.slot }).ok) paintT(L.enemyPanels[ke], 'rgb(255,215,106)');
         }
-        if (sf.tgt === 'ally' || sf.tgt === 'self' || sf.tgt === 'any' || sf.tgt === 'allA' || sf.tgt === 'downed') {
-          for (var kh in L.heroPanels) {
-            var hpn = L.heroPanels[kh];
-            if (sf.tgt === 'self' && hpn.unit.slot !== c.dice[this.selDie].heroIdx) continue;
-            if (sf.tgt === 'downed' && !hpn.unit.downed) continue;
-            if (hpn.unit.dead) continue;
-            paintT(hpn, 'rgb(110,232,154)');
-          }
+        for (var kh in L.heroPanels) {
+          if (L.heroPanels[kh].unit.dead) continue;
+          if (c.canUse(selI, { side: 'hero', idx: L.heroPanels[kh].unit.slot }).ok) paintT(L.heroPanels[kh], 'rgb(110,232,154)');
+        }
+        // face sem alvo: o próprio dado pulsa (2o toque executa)
+        if (sf.tgt === 'none' || sf.tgt === 'allE' || sf.tgt === 'allA' || sf.tgt === 'self') {
+          var rSel = this.dieRect(selI, L);
+          if (rSel) paintT(rSel, 'rgb(255,215,106)');
         }
       }
     }
