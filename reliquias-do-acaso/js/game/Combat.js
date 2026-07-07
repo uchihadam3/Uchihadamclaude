@@ -539,7 +539,7 @@
     if (this.st(h, 'silence') && (f.fx || []).some(function (x) { return x.magic || x.k === 'dmg' && x.magic; }) || (this.st(h, 'silence') && this.isMagicFace(f))) {
       return { ok: false, reason: RA.T({ pt: 'Silenciado: magias bloqueadas.', en: 'Silenced: spells blocked.' }) };
     }
-    if (this.blackRule === 'simbolosProibidos' && this.tflags.symbolsUsedList.indexOf(f.sym) >= 0) {
+    if (this.blackRule === 'simbolosProibidos' && this.tflags.symbolsUsedList.indexOf(f.comboSym || f.sym) >= 0) {
       return { ok: false, reason: RA.T({ pt: 'Regra: símbolos repetidos proibidos.', en: 'Rule: repeated symbols forbidden.' }) };
     }
     if (f.uses !== undefined && f.uses <= 0) return { ok: false, reason: RA.T({ pt: 'Face gasta.', en: 'Face spent.' }) };
@@ -643,8 +643,9 @@
     this.tflags.diceUsed++;
     this.tflags.lastDie = { die: d, face: f, value: this.dieValue(d), hero: h, target: v.target };
     this.tflags.valuesUsed.push(this.dieValue(d));
-    this.tflags.symbolsUsedList.push(f.sym);
-    this.tflags.symbolCount[f.sym] = (this.tflags.symbolCount[f.sym] || 0) + 1;
+    this.tflags.symbolsUsedList.push(f.comboSym || f.sym);
+    var gSym = f.comboSym || f.sym;
+    this.tflags.symbolCount[gSym] = (this.tflags.symbolCount[gSym] || 0) + 1;
     if (f.cracked || d.crackedDie) {
       this.tflags.crackedUsed = (this.tflags.crackedUsed || 0) + 1;
       this.bstats.crackedUsedMaxTurn = Math.max(this.bstats.crackedUsedMaxTurn, this.tflags.crackedUsed);

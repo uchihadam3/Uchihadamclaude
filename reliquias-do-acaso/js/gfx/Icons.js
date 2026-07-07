@@ -121,12 +121,141 @@
     return c;
   }
 
+  // ============================================================
+  // GLIFOS POR EFEITO: cada efeito de face tem um desenho ÚNICO
+  // (10x10, desenhados com primitivas). Bata o olho, saiba o efeito.
+  // ============================================================
+  var FX_GLYPHS = {
+    // --- dano ---
+    orb: function (p) { p(3, 2, 5, 5, '#6e4ac8'); p(4, 3, 3, 3, '#a88ae8'); p(4, 3, 1, 1, '#f0e8ff'); p(2, 4, 1, 2, '#4a2e8a'); p(8, 4, 1, 2, '#4a2e8a'); p(4, 8, 3, 1, '#38225c'); },
+    swords: function (p) { p(2, 1, 2, 6, '#e8e8f0'); p(6, 1, 2, 6, '#c8ccd8'); p(1, 6, 4, 1, '#c9a23a'); p(5, 6, 4, 1, '#c9a23a'); p(2, 7, 2, 2, '#6e5a2e'); p(6, 7, 2, 2, '#6e5a2e'); },
+    arrow: function (p) { p(4, 0, 2, 7, '#c8ccd8'); p(3, 1, 4, 1, '#e8e8f0'); p(2, 2, 2, 1, '#e8e8f0'); p(6, 2, 2, 1, '#e8e8f0'); p(3, 7, 4, 1, '#8a6e3c'); p(4, 8, 2, 2, '#c86a3a'); },
+    fang: function (p) { p(2, 1, 2, 5, '#e8e0d0'); p(6, 1, 2, 5, '#e8e0d0'); p(3, 6, 1, 2, '#c8c0b0'); p(6, 6, 1, 2, '#c8c0b0'); p(2, 8, 6, 1, '#e84a5a'); },
+    bloodblade: function (p) { p(4, 0, 2, 6, '#e8e8f0'); p(3, 6, 4, 1, '#c9a23a'); p(4, 7, 2, 2, '#6e5a2e'); p(1, 2, 2, 3, '#e84a5a'); p(7, 4, 2, 3, '#b82432'); },
+    combo: function (p) { p(1, 4, 3, 2, '#ffd76a'); p(4, 2, 3, 2, '#ff9a4a'); p(7, 0, 3, 2, '#ff6a3c'); p(2, 7, 6, 2, '#e8e8f0'); },
+    rage: function (p) { p(3, 1, 4, 5, '#b82432'); p(2, 2, 6, 3, '#e84a5a'); p(4, 3, 2, 2, '#ffd76a'); p(1, 6, 2, 3, '#8a1824'); p(7, 6, 2, 3, '#8a1824'); p(4, 6, 2, 3, '#b82432'); },
+    gamble: function (p) { p(2, 2, 6, 6, '#e8e8f0'); p(3, 3, 1, 1, '#38304a'); p(6, 3, 1, 1, '#38304a'); p(4, 5, 2, 1, '#e84a5a'); p(3, 7, 1, 1, '#38304a'); p(6, 7, 1, 1, '#38304a'); p(7, 0, 3, 3, '#ffd76a'); },
+    thorn: function (p) { p(4, 1, 2, 8, '#4a7a3c'); p(2, 3, 2, 1, '#6ea85a'); p(6, 5, 2, 1, '#6ea85a'); p(1, 2, 1, 2, '#e84a5a'); p(8, 4, 1, 2, '#e84a5a'); },
+    leech: function (p) { p(2, 2, 6, 4, '#8a2432'); p(3, 3, 4, 2, '#e84a5a'); p(2, 7, 2, 2, '#e84a5a'); p(6, 7, 2, 2, '#4ac86a'); p(4, 6, 2, 3, '#c8c0b0'); },
+    // --- cura / suporte vital ---
+    heartself: function (p) { p(2, 2, 2, 2, '#e84a5a'); p(6, 2, 2, 2, '#e84a5a'); p(2, 4, 6, 2, '#e84a5a'); p(4, 6, 2, 2, '#b82432'); p(0, 0, 2, 2, '#ffe9a0'); p(8, 0, 2, 2, '#ffe9a0'); p(0, 8, 2, 2, '#ffe9a0'); p(8, 8, 2, 2, '#ffe9a0'); },
+    heartseek: function (p) { p(1, 1, 2, 2, '#e84a5a'); p(4, 1, 2, 2, '#e84a5a'); p(1, 3, 5, 2, '#e84a5a'); p(2, 5, 3, 1, '#b82432'); p(6, 5, 3, 2, '#ffd76a'); p(7, 3, 1, 2, '#ffd76a'); p(7, 7, 1, 2, '#ffd76a'); },
+    mend: function (p) { p(2, 3, 6, 3, '#e84a5a'); p(4, 1, 2, 7, '#e84a5a'); p(1, 1, 3, 1, '#e8e0d0'); p(6, 7, 3, 1, '#e8e0d0'); p(3, 4, 4, 1, '#ffe9a0'); },
+    duality: function (p) { p(1, 2, 4, 6, '#e84a5a'); p(5, 2, 4, 6, '#e8e8f0'); p(2, 4, 2, 2, '#ffe9a0'); p(6, 4, 2, 2, '#38304a'); },
+    ankh: function (p) { p(4, 0, 2, 3, '#ffd76a'); p(3, 1, 4, 1, '#ffd76a'); p(4, 3, 2, 6, '#c9a23a'); p(2, 4, 6, 2, '#ffd76a'); p(4, 4, 2, 1, '#fff2b8'); },
+    sparkle: function (p) { p(4, 0, 2, 10, '#e8f4ff'); p(0, 4, 10, 2, '#e8f4ff'); p(2, 2, 2, 2, '#a8d4f0'); p(6, 6, 2, 2, '#a8d4f0'); p(6, 2, 2, 2, '#a8d4f0'); p(2, 6, 2, 2, '#a8d4f0'); },
+    purify: function (p) { p(3, 1, 4, 6, '#a8d4f0'); p(4, 2, 2, 3, '#e8f4ff'); p(2, 7, 6, 2, '#4a8ae8'); p(4, 0, 2, 1, '#fff'); },
+    // --- defesa ---
+    bulwark: function (p) { p(0, 2, 3, 5, '#8a94a8'); p(4, 1, 3, 6, '#c9d4e8'); p(7, 2, 3, 5, '#8a94a8'); p(0, 8, 10, 1, '#5a6478'); },
+    shieldmove: function (p) { p(1, 2, 4, 5, '#8a94a8'); p(2, 3, 2, 2, '#c9d4e8'); p(6, 3, 2, 2, '#ffd76a'); p(7, 2, 2, 1, '#ffd76a'); p(7, 5, 2, 1, '#ffd76a'); p(8, 3, 2, 2, '#ffd76a'); },
+    shatter: function (p) { p(2, 1, 6, 6, '#8a94a8'); p(4, 0, 1, 8, '#241f2c'); p(2, 4, 6, 1, '#241f2c'); p(1, 8, 2, 2, '#5a6478'); p(7, 8, 2, 2, '#5a6478'); p(4, 8, 2, 1, '#5a6478'); },
+    guard: function (p) { p(3, 1, 4, 4, '#c8a482'); p(2, 5, 6, 4, '#6a5a8a'); p(0, 3, 3, 6, '#8a94a8'); p(1, 4, 1, 3, '#c9d4e8'); },
+    // --- provocação / controle ---
+    shout: function (p) { p(1, 3, 3, 4, '#c8a482'); p(4, 2, 2, 6, '#8a6a52'); p(6, 3, 2, 1, '#ffd76a'); p(7, 5, 2, 1, '#ffd76a'); p(6, 7, 2, 1, '#ffd76a'); },
+    warcry: function (p) { p(0, 3, 2, 4, '#c8a482'); p(2, 2, 2, 6, '#8a6a52'); p(5, 1, 2, 2, '#ffd76a'); p(6, 4, 3, 2, '#ff9a4a'); p(5, 7, 2, 2, '#ffd76a'); p(8, 1, 2, 1, '#ffe9a0'); p(8, 8, 2, 1, '#ffe9a0'); },
+    trap: function (p) { p(1, 4, 8, 3, '#8a8a94'); p(2, 2, 1, 3, '#c8ccd8'); p(4, 1, 1, 4, '#c8ccd8'); p(6, 1, 1, 4, '#c8ccd8'); p(8, 2, 1, 3, '#c8ccd8'); p(3, 7, 4, 2, '#5a5a64'); },
+    hammer: function (p) { p(2, 1, 6, 3, '#8a94a8'); p(4, 4, 2, 5, '#8a6e3c'); p(2, 1, 2, 3, '#c9d4e8'); },
+    hammer2: function (p) { p(1, 1, 5, 2, '#8a94a8'); p(2, 3, 2, 5, '#8a6e3c'); p(6, 4, 3, 2, '#e8c84a'); p(7, 2, 1, 2, '#e8c84a'); p(7, 7, 1, 1, '#e8c84a'); },
+    // --- invocação / sacrifício ---
+    portal: function (p) { p(2, 1, 6, 8, '#38225c'); p(3, 2, 4, 6, '#6e4ac8'); p(4, 3, 2, 4, '#c8b8e8'); p(4, 4, 2, 1, '#fff'); },
+    whistle: function (p) { p(2, 4, 4, 3, '#c9a23a'); p(6, 4, 3, 2, '#ffd76a'); p(3, 3, 2, 1, '#8a6e2e'); p(7, 1, 1, 2, '#e8f4ff'); p(9, 2, 1, 1, '#e8f4ff'); p(8, 0, 1, 1, '#e8f4ff'); },
+    altar: function (p) { p(2, 6, 6, 3, '#5a5468'); p(3, 4, 4, 2, '#8a8a99'); p(4, 1, 2, 3, '#e84a5a'); p(3, 2, 1, 1, '#ffd76a'); p(6, 2, 1, 1, '#ffd76a'); },
+    ritual: function (p) { p(4, 1, 2, 5, '#c8ccd8'); p(3, 2, 4, 1, '#c8ccd8'); p(2, 6, 2, 2, '#e84a5a'); p(6, 6, 2, 2, '#e84a5a'); p(4, 7, 2, 2, '#b82432'); },
+    // --- economia / sorte ---
+    wager: function (p) { p(1, 1, 4, 4, '#e8c84a'); p(5, 5, 4, 4, '#8a6e2e'); p(2, 2, 2, 2, '#fff2b8'); p(6, 6, 2, 2, '#e8c84a'); },
+    clover: function (p) { p(2, 1, 3, 3, '#4ac86a'); p(5, 1, 3, 3, '#4ac86a'); p(2, 4, 3, 3, '#4ac86a'); p(5, 4, 3, 3, '#4ac86a'); p(4, 3, 2, 2, '#2e8a4a'); p(5, 7, 2, 3, '#2e6e2a'); },
+    plusdie: function (p) { p(1, 3, 5, 5, '#e8e8f0'); p(2, 4, 1, 1, '#38304a'); p(4, 6, 1, 1, '#38304a'); p(7, 1, 2, 4, '#4ac86a'); p(6, 2, 4, 2, '#4ac86a'); },
+    gift: function (p) { p(2, 3, 6, 5, '#c85a7a'); p(2, 3, 6, 2, '#e88aa8'); p(4, 1, 2, 7, '#ffd76a'); p(2, 5, 6, 1, '#ffd76a'); p(3, 0, 1, 2, '#ffd76a'); p(6, 0, 1, 2, '#ffd76a'); },
+    // --- manipulação de dados ---
+    echo: function (p) { p(1, 3, 3, 4, '#c8b8e8'); p(5, 2, 2, 6, 'rgba(200,184,232,0.6)'); p(8, 1, 1, 8, 'rgba(200,184,232,0.35)'); },
+    echoorb: function (p) { p(1, 3, 4, 4, '#6e4ac8'); p(2, 4, 2, 2, '#c8b8e8'); p(6, 2, 3, 3, 'rgba(110,74,200,0.55)'); p(8, 6, 2, 2, 'rgba(110,74,200,0.35)'); },
+    mirror: function (p) { p(2, 1, 6, 7, '#38304a'); p(3, 2, 4, 5, '#a8d4f0'); p(4, 3, 1, 3, '#e8f4ff'); p(3, 8, 4, 2, '#8a6e3c'); },
+    twins: function (p) { p(1, 2, 4, 4, '#e8e8f0'); p(2, 3, 1, 1, '#38304a'); p(5, 4, 4, 4, '#c8ccd8'); p(6, 5, 1, 1, '#38304a'); p(7, 7, 1, 1, '#38304a'); },
+    link: function (p) { p(1, 3, 4, 4, '#ffd76a'); p(2, 4, 2, 2, '#241f2c'); p(5, 3, 4, 4, '#c9a23a'); p(6, 4, 2, 2, '#241f2c'); p(4, 4, 2, 2, '#ffe9a0'); },
+    lockdie: function (p) { p(2, 4, 6, 5, '#8a6e3c'); p(3, 2, 4, 3, '#c9a23a'); p(4, 3, 2, 2, '#241f2c'); p(4, 6, 2, 2, '#ffd76a'); },
+    reroll: function (p) { p(2, 1, 6, 2, '#6ee89a'); p(7, 3, 2, 3, '#6ee89a'); p(2, 7, 6, 2, '#4ac86a'); p(1, 4, 2, 3, '#4ac86a'); p(4, 4, 2, 2, '#e8e8f0'); },
+    fatespin: function (p) { p(3, 1, 4, 2, '#ffd76a'); p(7, 3, 2, 4, '#c9a23a'); p(3, 7, 4, 2, '#ffd76a'); p(1, 3, 2, 4, '#c9a23a'); p(4, 4, 2, 2, '#fff2b8'); },
+    fatepick: function (p) { p(1, 2, 3, 4, '#ffd76a'); p(6, 2, 3, 4, '#8a6e2e'); p(2, 7, 6, 1, '#c9a23a'); p(2, 3, 1, 2, '#fff2b8'); p(4, 0, 2, 2, '#fff2b8'); },
+    command: function (p) { p(1, 1, 2, 8, '#8a6e3c'); p(3, 1, 6, 3, '#e84a5a'); p(3, 4, 4, 2, '#b82432'); p(4, 2, 2, 1, '#ffd76a'); },
+    horn: function (p) { p(1, 5, 3, 3, '#c9a23a'); p(4, 4, 3, 3, '#ffd76a'); p(7, 2, 2, 4, '#ffe9a0'); p(2, 6, 1, 1, '#8a6e2e'); p(9, 1, 1, 2, '#fff2b8'); },
+    twist: function (p) { p(2, 1, 6, 2, '#c8b8e8'); p(6, 4, 3, 2, '#8a6ae8'); p(2, 7, 6, 2, '#c8b8e8'); p(1, 4, 3, 2, '#8a6ae8'); },
+    pause: function (p) { p(2, 2, 2, 6, '#e8d8a0'); p(6, 2, 2, 6, '#e8d8a0'); p(1, 1, 8, 1, '#6e5a3c'); p(1, 8, 8, 1, '#6e5a3c'); },
+    swap: function (p) { p(1, 2, 5, 2, '#6ee89a'); p(6, 1, 2, 4, '#6ee89a'); p(4, 6, 5, 2, '#e8a04a'); p(2, 5, 2, 4, '#e8a04a'); },
+    rows: function (p) { p(1, 2, 8, 2, '#8a94a8'); p(1, 6, 8, 2, '#5a6478'); p(4, 0, 2, 2, '#ffd76a'); p(4, 8, 2, 2, '#ffd76a'); },
+    exchange: function (p) { p(1, 1, 3, 3, '#e84a5a'); p(6, 6, 3, 3, '#4ac86a'); p(5, 2, 4, 1, '#e8e0d0'); p(8, 1, 1, 3, '#e8e0d0'); p(1, 7, 4, 1, '#e8e0d0'); p(1, 6, 1, 3, '#e8e0d0'); },
+    flip: function (p) { p(1, 2, 4, 4, '#e8e8f0'); p(2, 3, 1, 1, '#38304a'); p(5, 4, 4, 4, '#38304a'); p(6, 5, 2, 2, '#e8e8f0'); },
+    pocket: function (p) { p(2, 3, 6, 6, '#8a6e3c'); p(2, 3, 6, 2, '#c9a23a'); p(3, 0, 4, 4, '#e8e8f0'); p(4, 1, 1, 1, '#38304a'); },
+    anvil: function (p) { p(1, 3, 8, 3, '#8a94a8'); p(3, 6, 4, 1, '#5a6478'); p(2, 7, 6, 2, '#5a6478'); p(4, 0, 3, 3, '#ffd76a'); },
+    balance: function (p) { p(4, 1, 2, 8, '#c9a23a'); p(1, 2, 8, 1, '#c9a23a'); p(0, 3, 3, 2, '#ffd76a'); p(7, 3, 3, 2, '#ffd76a'); p(2, 9, 6, 1, '#8a6e2e'); },
+    gear: function (p) { p(3, 3, 4, 4, '#8a94a8'); p(4, 1, 2, 2, '#8a94a8'); p(4, 7, 2, 2, '#8a94a8'); p(1, 4, 2, 2, '#8a94a8'); p(7, 4, 2, 2, '#8a94a8'); p(4, 4, 2, 2, '#38304a'); }
+  };
+
+  function fxGlyph(name) {
+    var c = document.createElement('canvas');
+    c.width = 10; c.height = 10;
+    var ctx = c.getContext('2d');
+    FX_GLYPHS[name](function (x, y, w, h, col) { ctx.fillStyle = col; ctx.fillRect(x, y, w, h); });
+    return c;
+  }
+
+  // símbolo ampliado de um status (mesmo desenho do painel — consistência!)
+  function statusSymbol(kind) {
+    var c = document.createElement('canvas');
+    c.width = 10; c.height = 10;
+    var ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(statusIcon(kind), 1, 1, 8, 8);
+    return c;
+  }
+
+  // decide o símbolo de uma face pelo PRIMEIRO efeito dela.
+  // efeitos diferentes => desenhos diferentes; status usam o ícone do status.
+  function faceSymbol(face) {
+    var fx = (face.fx || [])[0];
+    if (!fx) return face.sym || 'star';
+    var k = fx.k;
+    if (k === 'st') return 'st_' + fx.s;
+    if (k === 'dmg') {
+      if (fx.magic) return 'orb';
+      if (fx.times > 1) return 'swords';
+      if (fx.ignoreShield) return 'arrow';
+      if (fx.onlyHalfHp || fx.onlyMarked || fx.twiceIfMarked) return 'fang';
+      if (fx.healOnKill) return 'leech';
+      return 'sword';
+    }
+    var MAP = {
+      dmgCombo: 'combo', dmgOnlyVulnerable: 'fang', dmgOnlyBleeding: 'bloodblade',
+      dmgLostHp: 'rage', dmgUpTo: 'gamble', selfDmg: 'thorn',
+      heal: 'heart', healSelf: 'heartself', healLowest: 'heartseek',
+      healIfDamagedThisTurn: 'mend', mixHealDmg: 'duality', revive: 'ankh',
+      cleanse: 'sparkle', cleanseTypes: 'purify',
+      shield: 'shield', shieldPerEnemy: 'bulwark', moveShield: 'shieldmove',
+      breakShield: 'shatter', protect: 'guard',
+      taunt: 'shout', tauntStrong: 'shout', tauntAll: 'warcry', trap: 'trap',
+      stunIfNoShield: 'hammer', stunWeakest: 'hammer2',
+      summon: 'portal', summonsAct: 'whistle', sacrificeSummon: 'altar', sacrificeChoice: 'ritual',
+      coin: 'coin', doubleOrNothing: 'wager', luckKillReroll: 'clover', extraRollThisTurn: 'plusdie',
+      randomBoon: 'gift', copyLast: 'echo', copyLastMagic: 'echoorb', copyEnemyDie: 'mirror',
+      duplicateDie: 'twins', linkDice: 'link', blockEnemyDie: 'lockdie',
+      rerollAlly: 'reroll', rerollFate: 'fatespin', chooseFate: 'fatepick',
+      commandRepeat: 'command', buffAttacks: 'horn', peekIntents: 'eye',
+      twistIntent: 'twist', delayIntent: 'pause', swapDice: 'swap', swapRows: 'rows',
+      swapHpPercent: 'exchange', flipDie: 'flip', storeDie: 'pocket',
+      repairCracked: 'anvil', equalizeDice: 'balance', overclock: 'gear'
+    };
+    return MAP[k] || face.sym || 'star';
+  }
+
   RA.gfx.Icons = {
     symbol: function (name) {
       var key = 'sym_' + name;
       if (!cache[key]) {
-        var def = DEFS[name];
-        cache[key] = def ? sprite(def.rows, def.colors) : sprite(DEFS.sword.rows, DEFS.sword.colors);
+        if (name && name.indexOf('st_') === 0) cache[key] = statusSymbol(name.slice(3));
+        else if (FX_GLYPHS[name]) cache[key] = fxGlyph(name);
+        else {
+          var def = DEFS[name];
+          cache[key] = def ? sprite(def.rows, def.colors) : sprite(DEFS.sword.rows, DEFS.sword.colors);
+        }
       }
       return cache[key];
     },
@@ -135,6 +264,7 @@
       if (!cache[key]) cache[key] = statusIcon(kind);
       return cache[key];
     },
+    faceSymbol: faceSymbol,
     SYMBOLS: ['sword', 'shield', 'heart', 'flame', 'drop', 'skull', 'star', 'bolt', 'eye', 'chain', 'coin', 'hour']
   };
 })();

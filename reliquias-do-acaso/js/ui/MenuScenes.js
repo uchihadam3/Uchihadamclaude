@@ -579,7 +579,7 @@
 
   // ---------------------------------------------------------- CONQUISTAS
   function AchievementsScene() {}
-  AchievementsScene.prototype.enter = function () { this.time = 0; this.buttons = []; this.page = 0; };
+  AchievementsScene.prototype.enter = function () { this.time = 0; this.buttons = []; this.page = 0; this.inspectA = null; };
   AchievementsScene.prototype.update = function (dt, events) { this.time += dt; W().updateToasts(dt); tapButtons(this, events); };
   AchievementsScene.prototype.render = function (ctx, w, h) {
     var self = this;
@@ -590,14 +590,28 @@
     var all = RA.data.Achievements;
     var got = Object.keys(p.achievements).length;
     W().header(ctx, w, 6, RA.UI('achievements') + ' ' + got + '/' + all.length, { size: 1, color: '#ffe9a0' });
-    // barra de progresso geral (gamificação!)
+    // barra de progresso geral com MARCOS (títulos + recompensa)
     var pbW = Math.min(200, w - 60);
     var pbX = w / 2 - pbW / 2;
     W().hpBar(ctx, pbX, 18, pbW, got, all.length, 0, '#ffd76a');
-    var perPage = Math.floor((h - 66) / 20);
+    RA.game.Meta.MILESTONES.forEach(function (m) {
+      var mx = pbX + Math.round(pbW * m.n / all.length);
+      var hit = got >= m.n;
+      W().diamond(ctx, mx, 20, hit ? 4 : 3, hit ? '#ffd76a' : '#4a4258');
+      if (hit) W().diamond(ctx, mx, 20, 1.5, '#fff2b8');
+    });
+    // título atual + próximo marco
+    var title = RA.game.Meta.title(p);
+    var nextM = RA.game.Meta.MILESTONES.filter(function (m) { return got < m.n; })[0];
+    var tLine = title
+      ? RA.T({ pt: 'TÍTULO: ', en: 'TITLE: ' }) + RA.T(title)
+      : RA.T({ pt: 'PRÓXIMO TÍTULO AOS 10 MARCOS', en: 'FIRST TITLE AT 10' });
+    F.draw(ctx, tLine.slice(0, Math.floor((w - 12) / 6)), w / 2, 26, { size: 1, color: title ? '#ffd76a' : '#8a94a8', align: 'center', shadow: !!title });
+    if (nextM) F.draw(ctx, (RA.T({ pt: 'Faltam ' + (nextM.n - got) + ' p/ ', en: nextM.n - got + ' more for ' }) + RA.T(nextM.name) + ' (+5 ' + RA.UI('gold') + ')').slice(0, Math.floor((w - 12) / 6)), w / 2, 36, { size: 1, color: '#6a6480', align: 'center' });
+    var perPage = Math.floor((h - 94) / 20);
     var pages = Math.ceil(all.length / perPage);
     var list = all.slice(this.page * perPage, this.page * perPage + perPage);
-    var y = 30, lx = Math.max(8, w / 2 - 150);
+    var y = 48, lx = Math.max(8, w / 2 - 150);
     var rw = Math.min(300, w - 16);
     list.forEach(function (a, ri) {
       var has = !!p.achievements[a.id];
@@ -622,6 +636,8 @@
       var achMax = Math.max(8, Math.floor((rw - 24) / 6));
       F.draw(ctx, (hidden ? '???' : RA.T(a.name)).slice(0, achMax), lx + 17, y + 2, { size: 1, color: has ? '#ffd76a' : '#8a94a8', shadow: has });
       F.draw(ctx, (hidden ? RA.UI('unlockHint') : RA.T(a.desc)).slice(0, achMax), lx + 17, y + 10, { size: 1, color: has ? '#c8c2d4' : '#4a4258' });
+      // toque expande os detalhes
+      self.buttons.push({ x: lx, y: y, w: rw, h: 18, label: '', fn: function () { self.inspectA = a.id; RA.audio.sfx('click'); } });
       y += 20;
     });
     if (pages > 1) {
@@ -630,6 +646,48 @@
     }
     var back = { x: w / 2 - 50, y: h - 26, w: 100, h: 20, label: RA.UI('back'), fn: function () { Sc().replace(new MainMenuScene()); } };
     W().btn(ctx, back, this.time); this.buttons.push(back);
+
+    // ============ MODAL: detalhes da conquista tocada ============
+    if (this.inspectA) {
+      var aDef = null;
+      RA.data.Achievements.forEach(function (a2) { if (a2.id === self.inspectA) aDef = a2; });
+      if (aDef) {
+        var aHas = !!p.achievements[aDef.id];
+        var aHidden = aDef.hidden && !aHas;
+        ctx.fillStyle = 'rgba(4,3,8,0.82)';
+        ctx.fillRect(0, 0, w, h);
+        this.buttons = [];
+        var pwA = Math.min(w - 12, 280);
+        var aLines = [];
+        F.wrap(aHidden ? RA.UI('unlockHint') : RA.T(aDef.desc), 1, 1, pwA - 16).forEach(function (al) { aLines.push(al); });
+        aLines = aLines.slice(0, 4);
+        var phA = 52 + aLines.length * 9 + 30;
+        var pxA = Math.round((w - pwA) / 2), pyA = Math.round((h - phA) / 2);
+        W().panel(ctx, pxA, pyA, pwA, phA, { edge: aHas ? '#ffd76a' : '#4a4258' });
+        // estrela grande + brilho quando conquistada
+        if (aHas) {
+          var ag2 = ctx.createRadialGradient(pxA + 18, pyA + 16, 1, pxA + 18, pyA + 16, 20);
+          ag2.addColorStop(0, 'rgba(255,215,106,0.35)');
+          ag2.addColorStop(1, 'rgba(255,215,106,0)');
+          ctx.fillStyle = ag2;
+          ctx.fillRect(pxA + 2, pyA + 2, 34, 30);
+        }
+        ctx.drawImage(RA.gfx.Icons.symbol(aHas ? 'star' : 'skull'), pxA + 8, pyA + 8, 18, 18);
+        F.draw(ctx, (aHidden ? '???' : RA.T(aDef.name)).slice(0, Math.floor((pwA - 40) / 6)), pxA + 32, pyA + 8, { size: 1, color: aHas ? '#ffd76a' : '#8a94a8', shadow: aHas });
+        F.draw(ctx, aHas
+          ? RA.T({ pt: 'CONQUISTADA em ' + new Date(p.achievements[aDef.id]).toLocaleDateString(), en: 'EARNED on ' + new Date(p.achievements[aDef.id]).toLocaleDateString() })
+          : RA.T({ pt: 'AINDA BLOQUEADA', en: 'STILL LOCKED' }), pxA + 32, pyA + 19, { size: 1, color: aHas ? '#6ee89a' : '#5a5468' });
+        ctx.fillStyle = 'rgba(201,162,58,0.5)';
+        ctx.fillRect(pxA + 8, pyA + 32, pwA - 16, 1);
+        aLines.forEach(function (al2, ali) {
+          F.draw(ctx, al2, pxA + 8, pyA + 37 + ali * 9, { size: 1, color: '#c8c2d4' });
+        });
+        F.draw(ctx, RA.T({ pt: 'Marcos dão TÍTULOS e +5 de ouro na campanha!', en: 'Milestones grant TITLES and +5 campaign gold!' }).slice(0, Math.floor((pwA - 12) / 6)), pxA + 8, pyA + 39 + aLines.length * 9, { size: 1, color: '#8ab4e8' });
+        var bCloseA = { x: pxA + (pwA - 90) / 2, y: pyA + phA - 22, w: 90, h: 17, small: true, label: RA.T({ pt: 'FECHAR', en: 'CLOSE' }), fn: function () { self.inspectA = null; } };
+        W().btn(ctx, bCloseA, this.time);
+        this.buttons.push(bCloseA);
+      } else this.inspectA = null;
+    }
     W().renderToasts(ctx, w);
   };
 
@@ -685,6 +743,8 @@
     this.inspectE = null;   // inimigo inspecionado (modal com o dado dele)
     this.inspectFaceE = 0;
     this.showFury = false;  // alterna dado normal / dado de FÚRIA (chefes)
+    this.inspectR = null;   // relíquia expandida
+    this.inspectF = null;   // face rúnica expandida
   };
   CodexScene.prototype.update = function (dt, events) {
     this.time += dt; W().updateToasts(dt);
@@ -784,6 +844,7 @@
         var rc = { comum: '#8a94a8', incomum: '#4ac86a', rara: '#4a8ae8', epica: '#8a4ae8', lendaria: '#ffd76a', amaldicoada: '#e84a5a' }[r.rarity];
         cardRow(rxR, y + ri * 21, rwR, rc, known ? RA.T(r.name) : '???', known ? RA.T(r.desc) : RA.T({ pt: 'ainda não encontrada', en: 'not found yet' }), known,
           function (ix, iy) { W().diamond(ctx, ix + 4, iy + 4, 4, known ? rc : '#3a3444'); });
+        if (known) self.buttons.push({ x: rxR, y: y + ri * 21, w: rwR, h: 19, label: '', fn: function () { self.inspectR = r.id; RA.audio.sfx('click'); } });
       });
       if (pagesR > 1) { var pgR = { x: w / 2 - 20, y: h - 46, w: 40, h: 14, small: true, label: (this.page + 1) + '/' + pagesR, fn: function () { self.page = (self.page + 1) % pagesR; } }; W().btn(ctx, pgR, this.time); this.buttons.push(pgR); }
     } else if (this.tab === 'faces') {
@@ -802,6 +863,7 @@
             ctx.drawImage(RA.gfx.Icons.symbol(f2.sym), ix, iy, 10, 10);
             ctx.globalAlpha = 1;
           });
+        if (known) self.buttons.push({ x: rxF, y: y + fi * 21, w: rwF, h: 19, label: '', fn: function () { self.inspectF = f2.id; RA.audio.sfx('click'); } });
       });
       if (pagesF > 1) { var pgF = { x: w / 2 - 20, y: h - 46, w: 40, h: 14, small: true, label: (this.page + 1) + '/' + pagesF, fn: function () { self.page = (self.page + 1) % pagesF; } }; W().btn(ctx, pgF, this.time); this.buttons.push(pgF); }
     } else {
@@ -827,6 +889,77 @@
     }
     var back = { x: w / 2 - 50, y: h - 26, w: 100, h: 20, label: RA.UI('back'), fn: function () { Sc().replace(new MainMenuScene()); } };
     W().btn(ctx, back, this.time); this.buttons.push(back);
+
+    // ============== MODAL: relíquia expandida ==============
+    if (this.inspectR) {
+      var rDef = RA.data.Relics.byId[this.inspectR];
+      if (rDef) {
+        var rcM = { comum: '#8a94a8', incomum: '#4ac86a', rara: '#4a8ae8', epica: '#8a4ae8', lendaria: '#ffd76a', amaldicoada: '#e84a5a' }[rDef.rarity];
+        ctx.fillStyle = 'rgba(4,3,8,0.82)';
+        ctx.fillRect(0, 0, w, h);
+        this.buttons = [];
+        this.tipRects = [];
+        var pwR = Math.min(w - 12, 280);
+        var rLines = [];
+        F.wrap(RA.T(rDef.desc), 1, 1, pwR - 16).forEach(function (rl) { rLines.push(rl); });
+        rLines = rLines.slice(0, 5);
+        var phR = 50 + rLines.length * 9 + 30;
+        var pxR2 = Math.round((w - pwR) / 2), pyR2 = Math.round((h - phR) / 2);
+        W().panel(ctx, pxR2, pyR2, pwR, phR, { edge: rcM });
+        // losango grande da raridade com halo
+        var rg3 = ctx.createRadialGradient(pxR2 + 18, pyR2 + 17, 1, pxR2 + 18, pyR2 + 17, 18);
+        rg3.addColorStop(0, 'rgba(255,255,255,0.15)');
+        rg3.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = rg3;
+        ctx.fillRect(pxR2 + 4, pyR2 + 4, 28, 26);
+        W().diamond(ctx, pxR2 + 18, pyR2 + 17, 10, rcM);
+        W().diamond(ctx, pxR2 + 18, pyR2 + 17, 5, '#fff2b8');
+        F.draw(ctx, RA.T(rDef.name).slice(0, Math.floor((pwR - 42) / 6)), pxR2 + 34, pyR2 + 8, { size: 1, color: rcM, shadow: true });
+        F.draw(ctx, rDef.rarity.toUpperCase(), pxR2 + 34, pyR2 + 19, { size: 1, color: '#8a94a8' });
+        ctx.fillStyle = 'rgba(201,162,58,0.5)';
+        ctx.fillRect(pxR2 + 8, pyR2 + 32, pwR - 16, 1);
+        rLines.forEach(function (rl2, rli) {
+          F.draw(ctx, rl2, pxR2 + 8, pyR2 + 37 + rli * 9, { size: 1, color: '#c8c2d4' });
+        });
+        var bCloseR = { x: pxR2 + (pwR - 90) / 2, y: pyR2 + phR - 22, w: 90, h: 17, small: true, label: RA.T({ pt: 'FECHAR', en: 'CLOSE' }), fn: function () { self.inspectR = null; } };
+        W().btn(ctx, bCloseR, this.time);
+        this.buttons.push(bCloseR);
+      } else this.inspectR = null;
+    }
+
+    // ============== MODAL: face rúnica expandida (com o dado desenhado) ==============
+    if (this.inspectF) {
+      var fDef = RA.data.RuneFaces.byId[this.inspectF];
+      if (fDef) {
+        ctx.fillStyle = 'rgba(4,3,8,0.82)';
+        ctx.fillRect(0, 0, w, h);
+        this.buttons = [];
+        this.tipRects = [];
+        var pwF = Math.min(w - 12, 280);
+        var fLines = [];
+        W().descFace(fDef).forEach(function (fl) {
+          F.wrap(String(fl), 1, 1, pwF - 16).forEach(function (fl2) { fLines.push(fl2); });
+        });
+        fLines = fLines.slice(0, 5);
+        var phF = 58 + fLines.length * 9 + 30;
+        var pxF2 = Math.round((w - pwF) / 2), pyF2 = Math.round((h - phF) / 2);
+        W().panel(ctx, pxF2, pyF2, pwF, phF, { edge: fDef.rare ? '#ffd76a' : '#5c4f74' });
+        // o dado com a face, grandão
+        var dF2 = { skin: fDef.rare ? 'dourado' : 'cinza', anim: { phase: 'idle', t: 0 }, resultFace: fDef, faces: [fDef], used: false, locked: false, highlight: !!fDef.rare };
+        RA.gfx.Dice.draw(ctx, dF2, pxF2 + 8, pyF2 + 8, 30, this.time);
+        F.draw(ctx, (RA.T(fDef.name) + ' [' + fDef.val + ']').slice(0, Math.floor((pwF - 56) / 6)), pxF2 + 46, pyF2 + 10, { size: 1, color: '#ffe9a0', shadow: true });
+        F.draw(ctx, (fDef.cat + (fDef.rare ? '  *RARA*' : '')).slice(0, Math.floor((pwF - 56) / 6)), pxF2 + 46, pyF2 + 21, { size: 1, color: fDef.rare ? '#ffd76a' : '#8a94a8' });
+        if (fDef.uses !== undefined) F.draw(ctx, RA.UI('usesLeft') + ': ' + fDef.uses, pxF2 + 46, pyF2 + 31, { size: 1, color: '#e8a04a' });
+        ctx.fillStyle = 'rgba(201,162,58,0.5)';
+        ctx.fillRect(pxF2 + 8, pyF2 + 44, pwF - 16, 1);
+        fLines.forEach(function (fl3, fli) {
+          F.draw(ctx, fl3, pxF2 + 8, pyF2 + 49 + fli * 9, { size: 1, color: '#c8c2d4' });
+        });
+        var bCloseF = { x: pxF2 + (pwF - 90) / 2, y: pyF2 + phF - 22, w: 90, h: 17, small: true, label: RA.T({ pt: 'FECHAR', en: 'CLOSE' }), fn: function () { self.inspectF = null; } };
+        W().btn(ctx, bCloseF, this.time);
+        this.buttons.push(bCloseF);
+      } else this.inspectF = null;
+    }
 
     // ============== MODAL: ficha do inimigo (status + o DADO dele) ==============
     if (this.inspectE) {

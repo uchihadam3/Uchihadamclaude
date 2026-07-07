@@ -8,13 +8,37 @@
   // ============================================================
   var Meta = RA.game.Meta = {
     toasts: [], // {kind:'ach'|'unlock'|'secret', title, sub}
+    // MARCOS de conquistas: títulos permanentes + bônus de ouro inicial
+    // na campanha (+5 por marco — tempero, não quebra o equilíbrio)
+    MILESTONES: [
+      { n: 10, name: { pt: 'INICIADO DO ACASO', en: 'INITIATE OF CHANCE' } },
+      { n: 20, name: { pt: 'CAÇADOR DE RELÍQUIAS', en: 'RELIC HUNTER' } },
+      { n: 30, name: { pt: 'DOMADOR DE DADOS', en: 'DICE TAMER' } },
+      { n: 50, name: { pt: 'LENDA DA TORRE', en: 'LEGEND OF THE TOWER' } },
+      { n: 80, name: { pt: 'MESTRE DO DESTINO', en: 'MASTER OF FATE' } }
+    ],
+    milestoneCount: function (p) {
+      var got = Object.keys(p.achievements).length;
+      return Meta.MILESTONES.filter(function (m) { return got >= m.n; }).length;
+    },
+    title: function (p) {
+      var c = Meta.milestoneCount(p);
+      return c > 0 ? Meta.MILESTONES[c - 1].name : null;
+    },
     emit: function (ev) {
       var p = RA.core.Save.get();
+      var before = Meta.milestoneCount(p);
       var got = RA.data.checkAchievements(p, ev);
       got.forEach(function (a) {
         Meta.toasts.push({ kind: 'ach', title: RA.UI('achievementGot'), sub: RA.T(a.name) });
         if (RA.audio && RA.audio.sfx) RA.audio.sfx('achievement');
       });
+      // cruzou um marco? título novo + recompensa anunciada
+      var after = Meta.milestoneCount(p);
+      if (after > before) {
+        Meta.toasts.push({ kind: 'secret', title: RA.T({ pt: 'NOVO TÍTULO!', en: 'NEW TITLE!' }), sub: RA.T(Meta.MILESTONES[after - 1].name) + ' (+5 ' + RA.UI('gold') + ')' });
+        if (RA.audio && RA.audio.sfx) RA.audio.sfx('secret');
+      }
       RA.core.Save.save();
       return got;
     },
@@ -136,6 +160,8 @@
     r.seed = (r.rules.dailySeed ? RA.core.dailySeed() : (opts.seed || ((Date.now() ^ (Math.random() * 0xffffffff)) >>> 0)));
     r.rng = new RA.core.Rng(r.seed);
     r.gold = 25;
+    // recompensa dos MARCOS de conquistas: +5 de ouro inicial por marco (campanha)
+    if (r.modeId === 'campanha') r.gold += 5 * Meta.milestoneCount(p);
     r.randomTeam = !!opts.randomTeam;
     r.startedAt = Date.now();
 
@@ -901,7 +927,7 @@
       startedAt: this.startedAt,
       party: this.party.map(function (h) {
         return { id: h.id, hp: h.hp, maxHp: h.maxHp, row: h.row, falls: h.falls, dead: h.dead,
-          faces: h.faces.map(function (f) { return { id: f.id || null, heroFace: !f.id, name: f.name, sym: f.sym, val: f.val, tgt: f.tgt, fx: f.fx, uses: f.uses, cracked: f.cracked, rare: f.rare, cat: f.cat }; }) };
+          faces: h.faces.map(function (f) { return { id: f.id || null, heroFace: !f.id, name: f.name, sym: f.sym, comboSym: f.comboSym, val: f.val, tgt: f.tgt, fx: f.fx, uses: f.uses, cracked: f.cracked, rare: f.rare, cat: f.cat }; }) };
       }),
       relics: this.relics.slice(),
       regionSeq: this.regionSeq, regionIdx: this.regionIdx,
@@ -932,7 +958,7 @@
       return { id: h.id, def: def, hp: h.hp, maxHp: h.maxHp, row: h.row, falls: h.falls, dead: h.dead,
         faces: h.faces.map(function (f) {
           var base = f.heroFace ? {} : (RA.data.RuneFaces.byId[f.id] || {});
-          return Object.assign({}, base, { name: f.name, sym: f.sym, val: f.val, tgt: f.tgt, fx: f.fx, uses: f.uses, cracked: f.cracked, rare: f.rare, cat: f.cat, id: f.id || undefined });
+          return Object.assign({}, base, { name: f.name, sym: f.sym, comboSym: f.comboSym, val: f.val, tgt: f.tgt, fx: f.fx, uses: f.uses, cracked: f.cracked, rare: f.rare, cat: f.cat, id: f.id || undefined });
         }) };
     });
     r.relics = s.relics.slice();

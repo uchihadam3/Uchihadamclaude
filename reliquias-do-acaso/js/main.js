@@ -15,6 +15,15 @@
     }, { once: false, passive: true });
   });
 
+  // símbolo único por efeito: remapeia o desenho de todas as faces pelo que
+  // elas FAZEM (comboSym preserva o agrupamento original para os combos)
+  function remapFace(f) {
+    if (f.comboSym === undefined) f.comboSym = f.sym;
+    f.sym = RA.gfx.Icons.faceSymbol(f);
+  }
+  RA.data.Heroes.list.forEach(function (hd) { hd.faces.forEach(remapFace); });
+  RA.data.RuneFaces.list.forEach(remapFace);
+
   // cena inicial
   RA.core.Scenes.replace(new RA.ui.MainMenuScene());
   RA.core.Scenes._apply();

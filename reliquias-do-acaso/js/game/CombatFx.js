@@ -672,7 +672,7 @@
         for (var k = 0; k < c.dice.length; k++) if (c.dice[k].id === ids[0]) rd = c.dice[k];
         if (rd) {
           var rf = c.faceOf(rd);
-          if (rf && (rf.sym === 'sword' || rf.sym === 'shield')) { rd.bonus += 1; c.ev('windPlus', { id: rd.id }); }
+          if (rf && ((rf.comboSym || rf.sym) === 'sword' || (rf.comboSym || rf.sym) === 'shield')) { rd.bonus += 1; c.ev('windPlus', { id: rd.id }); }
         }
       }
     }
@@ -962,7 +962,7 @@
     if (!hs.length) return;
     var h = hs[c.rng.int(0, hs.length - 1)];
     var atkFace = 3;
-    (h.faces || []).forEach(function (f) { if (f.sym === 'sword' && f.val > atkFace) atkFace = f.val; });
+    (h.faces || []).forEach(function (f) { if ((f.comboSym || f.sym) === 'sword' && f.val > atkFace) atkFace = f.val; });
     var def = {
       id: 'copia_' + h.id,
       name: { pt: h.name.pt + ' Sombrio', en: 'Dark ' + h.name.en },
