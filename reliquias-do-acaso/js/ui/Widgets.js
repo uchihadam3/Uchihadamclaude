@@ -119,6 +119,18 @@
     descFace: function (face) {
       var out = [];
       var v = face.val;
+      // primeira linha: em quem essa face pode ser usada
+      var TGT = {
+        enemy: { pt: 'Alvo: um inimigo', en: 'Target: one enemy' },
+        ally: { pt: 'Alvo: um aliado', en: 'Target: one ally' },
+        self: { pt: 'Alvo: você mesmo (2 toques no dado)', en: 'Target: self (tap die twice)' },
+        allE: { pt: 'Alvo: TODOS os inimigos (2 toques)', en: 'Target: ALL enemies (tap twice)' },
+        allA: { pt: 'Alvo: todos os aliados (2 toques)', en: 'Target: all allies (tap twice)' },
+        any: { pt: 'Alvo: inimigo ou aliado', en: 'Target: enemy or ally' },
+        downed: { pt: 'Alvo: um aliado caído', en: 'Target: a downed ally' },
+        none: { pt: 'Sem alvo: 2 toques no dado usam', en: 'No target: tap die twice' }
+      };
+      if (TGT[face.tgt]) out.push(RA.T(TGT[face.tgt]));
       (face.fx || []).forEach(function (fx) {
         var n = fx.n !== undefined ? fx.n : v;
         switch (fx.k) {
@@ -136,11 +148,13 @@
           }
           case 'heal': out.push(RA.T({ pt: 'Cura ' + n, en: 'Heal ' + n })); break;
           case 'healSelf': out.push(RA.T({ pt: 'Cura ' + n + ' em si', en: 'Heal self ' + n })); break;
-          case 'healLowest': out.push(RA.T({ pt: 'Cura ' + n + ' no mais ferido', en: 'Heal ' + n + ' most wounded' })); break;
-          case 'shield': out.push(RA.T({ pt: 'Escudo ' + n, en: 'Shield ' + n }) + (fx.who === 'allA' ? RA.T({ pt: ' em todos', en: ' to all' }) : fx.who === 'two' ? RA.T({ pt: ' em 2 aliados', en: ' to 2 allies' }) : '')); break;
+          case 'healLowest': out.push(RA.T({ pt: 'Cura ' + n + ' no aliado MAIS FERIDO (escolhe sozinho)', en: 'Heals ' + n + ' on MOST WOUNDED ally (auto)' })); break;
+          case 'shield': out.push(RA.T({ pt: 'Escudo ' + n, en: 'Shield ' + n }) + (fx.who === 'allA' ? RA.T({ pt: ' em todos os aliados', en: ' to all allies' }) : fx.who === 'two' ? RA.T({ pt: ' no alvo E no aliado mais ferido', en: ' to target AND most wounded ally' }) : fx.who === 'self' ? RA.T({ pt: ' em si mesmo', en: ' on self' }) : '')); break;
           case 'st': {
             var sd = RA.data.Statuses[fx.s];
-            out.push((sd ? RA.T(sd) : fx.s) + ' ' + n + (fx.who === 'allE' ? RA.T({ pt: ' em todos os inimigos', en: ' to all enemies' }) : fx.who === 'allA' ? RA.T({ pt: ' em todos', en: ' to all' }) : fx.who === 'self' ? RA.T({ pt: ' em si', en: ' on self' }) : ''));
+            var whoTxt = fx.who === 'allE' ? RA.T({ pt: ' em todos os inimigos', en: ' to all enemies' }) : fx.who === 'allA' ? RA.T({ pt: ' em todos os aliados', en: ' to all allies' }) : fx.who === 'self' ? RA.T({ pt: ' em si mesmo', en: ' on self' }) : RA.T({ pt: ' no alvo', en: ' on target' });
+            out.push((sd ? RA.T(sd) : fx.s) + ' ' + n + whoTxt);
+            if (sd && sd.desc) out.push('(' + RA.T(sd.desc) + ')');
             break;
           }
           case 'cleanse': out.push(RA.T({ pt: 'Remove status negativos', en: 'Removes debuffs' })); break;

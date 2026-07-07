@@ -1126,15 +1126,24 @@
         var icDie = c.dice[this.infoCard.die];
         var icF = icDie ? c.faceOf(icDie) : null;
         if (icF) {
-          var icLines = W2.descFace(icF).slice(0, 3);
+          var icLines = W2.descFace(icF).slice(0, 4);
           var icHu0 = c.heroes[icDie.heroIdx];
           var icTitle = RA.T(icF.name) + '  [' + c.dieValue(icDie) + ']' + (icHu0 && icHu0.faces.length > 6 ? '  D' + icHu0.faces.length : '');
           var icW = Math.min(w - 12, Math.max(F.measure(icTitle, 1, 1), 120) + 20);
           icLines.forEach(function (l2) { icW = Math.min(w - 12, Math.max(icW, F.measure(l2, 1, 1) + 20)); });
+          // quebra linhas longas na largura do cartão
+          var icWrapped = [];
+          icLines.forEach(function (l0) {
+            F.wrap(String(l0), 1, 1, Math.min(w - 24, 280)).forEach(function (l1) { icWrapped.push(l1); });
+          });
+          icLines = icWrapped.slice(0, 5);
+          icW = Math.max(F.measure(icTitle, 1, 1), 120) + 20;
+          icLines.forEach(function (l2b) { icW = Math.min(w - 12, Math.max(icW, F.measure(l2b, 1, 1) + 16)); });
           var icH = 18 + icLines.length * 9;
-          // no MEIO da mesa (zona dos dados) — nunca sobre personagens/inimigos
+          // logo ABAIXO dos dados (entre a mesa e os heróis) — não tampa os dados
           var icX = (w - icW) / 2;
-          var icY = Math.round(L.diceZone.y + (L.diceZone.h - icH) / 2);
+          var icY = Math.round(L.diceZone.y + L.diceZone.h - icH + 2);
+          icY = Math.max(L.diceZone.y + 20, Math.min(icY, L.barY - icH - 2));
           var icA = Math.min(1, this.infoCard.t * 3);
           ctx.globalAlpha = icA;
           var icHu = c.heroes[icDie.heroIdx];
