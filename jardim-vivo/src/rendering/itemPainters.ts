@@ -239,6 +239,33 @@ const SOIL: Record<string, SoilLook> = {
   'farinha-osso2': { base: '#e0dcc8', grain: '#c0bca8', extra: 'powder' },
 };
 
+// mistura de solo pronta: saco de aniagem com terra por cima
+export function drawSoilMix(ctx: Ctx, id: string, s: number): void {
+  ctx.save();
+  const bag = '#c8a86a', bagD = '#a8884a', soil = '#5a3c22';
+  // saco
+  ctx.fillStyle = bag;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.22, s * 0.24);
+  ctx.quadraticCurveTo(-s * 0.28, -s * 0.06, -s * 0.16, -s * 0.14);
+  ctx.lineTo(s * 0.16, -s * 0.14);
+  ctx.quadraticCurveTo(s * 0.28, -s * 0.06, s * 0.22, s * 0.24);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = bagD; ctx.beginPath(); ctx.ellipse(0, s * 0.24, s * 0.22, s * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+  ol(ctx, -s * 0.24, -s * 0.16, s * 0.48, s * 0.42, OUT, 6, 1.2);
+  // boca do saco enrolada
+  rr(ctx, -s * 0.17, -s * 0.18, s * 0.34, s * 0.08, bagD, 4);
+  // terra transbordando
+  ctx.fillStyle = soil; ctx.beginPath(); ctx.ellipse(0, -s * 0.16, s * 0.15, s * 0.06, 0, Math.PI, 0); ctx.fill();
+  let seed = 0; for (const ch of id) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 8; i++) circ(ctx, (rnd() - 0.5) * s * 0.24, -s * 0.19 + rnd() * s * 0.04, s * 0.02, rnd() > 0.5 ? shade(soil, 0.15) : soil);
+  // etiqueta com folhinha
+  rr(ctx, -s * 0.09, s * 0.0, s * 0.18, s * 0.13, '#f4efe2', 3);
+  ctx.fillStyle = '#5a8a4a'; ctx.beginPath(); ctx.ellipse(0, s * 0.065, s * 0.05, s * 0.028, -0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 export function drawSoil(ctx: Ctx, id: string, s: number): void {
   const look = SOIL[id] ?? { base: '#6a4a30', grain: '#4a3220' as string };
   ctx.save();

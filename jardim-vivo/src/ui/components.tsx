@@ -4,7 +4,7 @@ import type { NpcData, PlantData } from '../types';
 import { drawPlant } from '../rendering/plantPainters';
 import { drawPot } from '../rendering/gardenRenderer';
 import { drawDecor } from '../rendering/decorPainters';
-import { drawTool, drawSoil, drawConsumable } from '../rendering/itemPainters';
+import { drawTool, drawSoil, drawSoilMix, drawConsumable } from '../rendering/itemPainters';
 import { POT_BY_ID } from '../data/potsData';
 import { DECOR_BY_ID } from '../data/decorData';
 import { sfx, startAudio } from '../audio/audioEngine';
@@ -183,9 +183,10 @@ export function ToolSprite(props: { toolId: string; size?: number }): JSX.Elemen
   const size = props.size ?? 54;
   return <ItemCanvas size={size} deps={[props.toolId, size]} paint={(ctx, s) => drawTool(ctx, props.toolId, s * 0.92)} />;
 }
-export function SoilSprite(props: { soilId: string; size?: number }): JSX.Element {
+export function SoilSprite(props: { soilId: string; size?: number; mix?: boolean }): JSX.Element {
   const size = props.size ?? 54;
-  return <ItemCanvas size={size} deps={[props.soilId, size]} paint={(ctx, s) => drawSoil(ctx, props.soilId, s * 0.95)} />;
+  const mix = !!props.mix;
+  return <ItemCanvas size={size} deps={[props.soilId, size, mix]} paint={(ctx, s) => (mix ? drawSoilMix(ctx, props.soilId, s * 0.95) : drawSoil(ctx, props.soilId, s * 0.95))} />;
 }
 export function ConsumableSprite(props: { itemId: string; size?: number }): JSX.Element {
   const size = props.size ?? 54;

@@ -18,7 +18,7 @@ import { sellPlant, plantSaleValue } from '../game/economySystem';
 import { moistureState, healthLabel, effectiveLight } from '../game/plantSimulation';
 import { tr, t, lang } from '../i18n';
 import { useGame, useFlash } from './useGame';
-import { Btn, Panel, Bar, PlantSprite, PotSprite, Icon, LIGHT_LABEL, STAGE_LABEL, WATER_LABEL, categoryLabel } from './components';
+import { Btn, Panel, Bar, PlantSprite, PotSprite, Icon, DecorSprite, SoilSprite, LIGHT_LABEL, STAGE_LABEL, WATER_LABEL, categoryLabel } from './components';
 import { fmtClock, seasonNamePT, seasonNameEN, dayPhase } from '../game/gameTime';
 
 type PlantFlow = { step: 'seed' | 'pot' | 'soil'; kind: 'seed' | 'seedling' | 'cutting'; plantId?: string; potId?: string | null } | null;
@@ -236,7 +236,7 @@ export function GardenScreen(props: { openScreen: (s: string) => void }): JSX.El
             return (
               <div key={id} className={`card ${decorPick === id ? 'selected' : ''}`} style={{ minWidth: 100, flexShrink: 0 }} onClick={() => setDecorPick(decorPick === id ? null : id)}>
                 <span className="card-qty">{q}</span>
-                <Icon name="hammer" size={22} color="#7a6a4a" />
+                <DecorSprite decorId={id} size={46} />
                 <span className="card-name">{tr({ pt: d.namePT, en: d.nameEN })}</span>
               </div>
             );
@@ -529,7 +529,7 @@ function PlantingFlow(props: {
               props.onDone(res.msg ? tr(res.msg) : (lang() === 'pt' ? 'Plantada com carinho!' : 'Planted with care!'));
             }}>
               <span className="card-qty">{q}</span>
-              <Icon name="seedbag" size={38} />
+              <SoilSprite soilId={id} size={46} mix />
               <span className="card-name">{tr({ pt: mix.namePT, en: mix.nameEN })}</span>
               {good && <span className="pill good" style={{ fontSize: 9 }}>{lang() === 'pt' ? 'Recomendado' : 'Recommended'}</span>}
               <span className="card-sub" style={{ fontSize: 9 }}>pH {mix.pH.toFixed(1)}</span>

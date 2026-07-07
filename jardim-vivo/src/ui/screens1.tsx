@@ -25,7 +25,8 @@ function ItemThumb({ item }: { item: StockItem }): JSX.Element {
   if (item.kind === 'pot') return <PotSprite potId={item.id} size={54} />;
   if (item.kind === 'tool') return <ToolSprite toolId={item.id} size={54} />;
   if (item.kind === 'decor') return <DecorSprite decorId={item.id} size={54} />;
-  if (item.kind === 'soil-component' || item.kind === 'soil-mix') return <SoilSprite soilId={item.id} size={54} />;
+  if (item.kind === 'soil-mix') return <SoilSprite soilId={item.id} size={54} mix />;
+  if (item.kind === 'soil-component') return <SoilSprite soilId={item.id} size={54} />;
   if (item.kind === 'consumable') return <ConsumableSprite itemId={item.id} size={54} />;
   return <Icon name="seedbag" size={36} color="#7a6a42" />;
 }
@@ -188,7 +189,7 @@ function PlayerShopScreen(props: { onBack: () => void; onClose: () => void }): J
             {tab === 'seeds' && Object.entries(G.inventory.seeds).filter(([, q]) => q > 0).map(([id, q]) => (
               <div key={id} className="card" onClick={() => sellSeeds(id, 1)}>
                 <span className="card-qty">{q}</span>
-                <Icon name="seedbag" size={36} />
+                <PlantSprite plantId={id} size={50} stage="mature" />
                 <span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span>
               </div>
             ))}
@@ -245,7 +246,7 @@ export function InventoryScreen(props: { onClose: () => void }): JSX.Element {
             </>
           )}
           {tab === 'flowers' && section(Object.entries(inv.flowers), (id, q) => (
-            <div key={id} className="card"><span className="card-qty">{q}</span><Icon name="flower" size={36} color="#c86888" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span></div>
+            <div key={id} className="card"><span className="card-qty">{q}</span><PlantSprite plantId={id} size={54} stage="flowering" /><span className="card-name">{tr({ pt: PLANT_BY_ID[id].commonNamePT, en: PLANT_BY_ID[id].commonNameEN })}</span></div>
           ))}
           {tab === 'pots' && section(Object.entries(inv.pots), (id, q) => (
             <div key={id} className="card"><span className="card-qty">{q}</span><PotSprite potId={id} size={48} /><span className="card-name">{tr({ pt: POT_BY_ID[id].namePT, en: POT_BY_ID[id].nameEN })}</span></div>
@@ -254,11 +255,11 @@ export function InventoryScreen(props: { onClose: () => void }): JSX.Element {
             <>
               {section(Object.entries(inv.soilMixes), (id, q) => {
                 const m = SOIL_MIX_BY_ID[id];
-                return <div key={id} className="card"><span className="card-qty">{q}</span><Icon name="seedbag" size={34} /><span className="card-name">{m ? tr({ pt: m.namePT, en: m.nameEN }) : id}</span></div>;
+                return <div key={id} className="card"><span className="card-qty">{q}</span><SoilSprite soilId={id} size={50} mix /><span className="card-name">{m ? tr({ pt: m.namePT, en: m.nameEN }) : id}</span></div>;
               })}
               {section(Object.entries(inv.soilComponents), (id, q) => {
                 const c = SOIL_COMPONENT_BY_ID[id];
-                return <div key={id} className="card"><span className="card-qty">{q}</span><Icon name="leaf" size={30} /><span className="card-name">{c ? tr({ pt: c.namePT, en: c.nameEN }) : id}</span><span className="pill" style={{ fontSize: 9 }}>{lang() === 'pt' ? 'componente' : 'component'}</span></div>;
+                return <div key={id} className="card"><span className="card-qty">{q}</span><SoilSprite soilId={id} size={50} /><span className="card-name">{c ? tr({ pt: c.namePT, en: c.nameEN }) : id}</span><span className="pill" style={{ fontSize: 9 }}>{lang() === 'pt' ? 'componente' : 'component'}</span></div>;
               })}
             </>
           )}
@@ -266,11 +267,11 @@ export function InventoryScreen(props: { onClose: () => void }): JSX.Element {
             <>
               {section(Object.entries(inv.fertilizers), (id, q) => {
                 const c = CONSUMABLE_BY_ID[id];
-                return <div key={id} className="card"><span className="card-qty">{q}</span><Icon name="sparkle" size={30} /><span className="card-name">{c ? tr({ pt: c.namePT, en: c.nameEN }) : id}</span></div>;
+                return <div key={id} className="card"><span className="card-qty">{q}</span><ConsumableSprite itemId={id} size={50} /><span className="card-name">{c ? tr({ pt: c.namePT, en: c.nameEN }) : id}</span></div>;
               })}
               {section(Object.entries(inv.treatments), (id, q) => {
                 const c = CONSUMABLE_BY_ID[id];
-                return <div key={id} className="card"><span className="card-qty">{q}</span><Icon name="drop" size={30} /><span className="card-name">{c ? tr({ pt: c.namePT, en: c.nameEN }) : id}</span></div>;
+                return <div key={id} className="card"><span className="card-qty">{q}</span><ConsumableSprite itemId={id} size={50} /><span className="card-name">{c ? tr({ pt: c.namePT, en: c.nameEN }) : id}</span></div>;
               })}
             </>
           )}
@@ -278,7 +279,7 @@ export function InventoryScreen(props: { onClose: () => void }): JSX.Element {
             <div className="card-grid small">
               {Object.entries(inv.tools).filter(([, has]) => has).map(([id]) => {
                 const tl = TOOL_BY_ID[id];
-                return <div key={id} className="card"><Icon name="hammer" size={30} color="#7a6a42" /><span className="card-name">{tl ? tr({ pt: tl.namePT, en: tl.nameEN }) : id}</span>{tl && <span className="card-sub" style={{ fontSize: 9 }}>{tr({ pt: tl.descPT, en: tl.descEN })}</span>}</div>;
+                return <div key={id} className="card"><ToolSprite toolId={id} size={50} /><span className="card-name">{tl ? tr({ pt: tl.namePT, en: tl.nameEN }) : id}</span>{tl && <span className="card-sub" style={{ fontSize: 9 }}>{tr({ pt: tl.descPT, en: tl.descEN })}</span>}</div>;
               })}
             </div>
           )}

@@ -19,7 +19,7 @@ import { plantSaleValue } from '../game/economySystem';
 import { absoluteDay } from '../game/gameTime';
 import { tr, t, lang } from '../i18n';
 import { useGame, useFlash } from './useGame';
-import { Btn, Panel, Bar, PlantSprite, Icon, NpcPortrait, categoryLabel } from './components';
+import { Btn, Panel, Bar, PlantSprite, Icon, NpcPortrait, categoryLabel, SoilSprite } from './components';
 
 function Overlay(props: { onClose: () => void; children: React.ReactNode; width?: string }): JSX.Element {
   return (
@@ -295,7 +295,7 @@ export function BenchScreen(props: { onClose: () => void }): JSX.Element {
             return (
               <div key={c.id} className={`card ${used > 0 ? 'selected' : ''}`} style={{ cursor: 'default' }}>
                 <span className="card-qty">{have}</span>
-                <Icon name="seedbag" size={30} />
+                <SoilSprite soilId={c.id} size={44} />
                 <span className="card-name">{tr({ pt: c.namePT, en: c.nameEN })}</span>
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                   <Btn small kind="ghost" onClick={() => setMixParts({ ...mixParts, [c.id]: Math.max(0, used - 1) })}>−</Btn>
@@ -372,9 +372,9 @@ export function ArrangementsScreen(props: { onClose: () => void }): JSX.Element 
             return (
               <div key={id} className={`card ${used > 0 ? 'selected' : ''}`} style={{ cursor: 'default' }}>
                 <span className="card-qty">{q}</span>
-                <Icon name="flower" size={32} color="#c86888" />
+                <PlantSprite plantId={id} size={48} stage="flowering" />
                 <span className="card-name">{tr({ pt: def.commonNamePT, en: def.commonNameEN })}</span>
-                <span className="card-sub" style={{ fontSize: 9 }}>{def.flowerColors.join(', ')}{def.fragrance ? ' · ✿' : ''}</span>
+                <span className="card-sub" style={{ fontSize: 9 }}>{def.flowerColors.join(', ')}{def.fragrance ? ' · perfumada' : ''}</span>
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                   <Btn small kind="ghost" onClick={() => setPicks({ ...picks, [id]: Math.max(0, used - 1) })}>−</Btn>
                   <b>{used}</b>
