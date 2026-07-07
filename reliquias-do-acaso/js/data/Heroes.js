@@ -115,7 +115,7 @@
       ]
     },
     {
-      id: 'bardo', name: N('Bardo', 'Bard'), hp: 8, skin: 'amarelo',
+      id: 'bardo', name: N('Bardo', 'Bard'), hp: 9, skin: 'amarelo',
       passive: { id: 'freeReroll', txt: N('A 1ª rerrolagem do Bardo por combate é grátis.', "Bard's first reroll each combat is free.") },
       look: { skin: 'claro', hair: 'curto', hairColor: '#c8904a', headgear: 'flor', eyes: 'normal', mouth: 'grin', cloth: '#8a6e2e', bg: '#241e12' },
       faces: [
@@ -206,7 +206,7 @@
       ]
     },
     {
-      id: 'ilusionista', name: N('Ilusionista', 'Illusionist'), hp: 7, skin: 'roxo',
+      id: 'ilusionista', name: N('Ilusionista', 'Illusionist'), hp: 8, skin: 'roxo',
       passive: { id: 'ignoreFatal', txt: N('1x por batalha, ignora o primeiro dano fatal.', 'Once per battle, ignores first fatal damage.') },
       look: { skin: 'palido', hair: 'longo', hairColor: '#8a4ae8', eyes: 'mask', maskColor: '#38304a', cloth: '#5c2e8a', bg: '#180e24' },
       faces: [
@@ -371,7 +371,7 @@
         F(N('Marcar Duelo', 'Challenge'), 'eye', 0, 'enemy', [{ k: 'st', s: 'mark', n: 1 }]),
         F(N('Corte Rápido', 'Quick Cut'), 'sword', 2, 'enemy', [{ k: 'dmg', twiceIfMarked: true }]),
         F(N('Desarmar', 'Disarm'), 'chain', 2, 'enemy', [{ k: 'st', s: 'weak', n: 2 }]),
-        F(N('Golpe Elegante', 'Elegant Strike'), 'sword', 5, 'enemy', [{ k: 'dmg' }, { k: 'st', s: 'dodge', who: 'self' }], { rare: true })
+        F(N('Golpe Elegante', 'Elegant Strike'), 'sword', 4, 'enemy', [{ k: 'dmg' }, { k: 'st', s: 'dodge', who: 'self' }], { rare: true })
       ]
     },
     {

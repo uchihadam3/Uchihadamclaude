@@ -86,6 +86,41 @@
 
   function Run() {}
 
+  // -------------------- progressão permanente da CAMPANHA --------------------
+  // checkpoint: maior região alcançada (morrer não apaga); legacy: o dado de
+  // cada herói (lados + faces gravadas) sobrevive entre runs da campanha.
+  Run.campaignData = function () {
+    var p = RA.core.Save.get();
+    if (!p.campaign) p.campaign = { checkpoint: 0, legacy: {} };
+    if (!p.campaign.legacy) p.campaign.legacy = {};
+    return p.campaign;
+  };
+
+  Run.prototype.saveCampaignLegacy = function () {
+    if (this.modeId !== 'campanha') return;
+    var camp = Run.campaignData();
+    this.party.forEach(function (h) {
+      var cur = camp.legacy[h.id];
+      if (cur && (cur.sides || 6) > h.faces.length) return; // o legado nunca regride
+      camp.legacy[h.id] = {
+        sides: h.faces.length,
+        faces: h.faces.map(function (f) {
+          var c = Object.assign({}, f);
+          delete c.cracked;      // trincas não passam para a próxima run
+          delete c._copying;
+          if (c.uses !== undefined) {
+            // faces de usos limitados voltam recarregadas
+            var orig = c.id && RA.data.RuneFaces.byId[c.id];
+            if (orig && orig.uses !== undefined) c.uses = orig.uses;
+            else if (c.uses <= 0) c.uses = 1;
+          }
+          return c;
+        })
+      };
+    });
+    RA.core.Save.save();
+  };
+
   Run.start = function (opts) {
     var r = new Run();
     var p = RA.core.Save.get();
@@ -139,6 +174,15 @@
       r.regionSeq = allR;
     }
     r.regionIdx = 0;
+    // campanha: começar do checkpoint (região mais alta já alcançada)
+    if (r.modeId === 'campanha' && opts.startRegion) {
+      var campS = Run.campaignData();
+      var startR = Math.min(opts.startRegion, campS.checkpoint || 0, r.regionSeq.length - 1);
+      if (startR > 0) {
+        r.regionIdx = startR;
+        r.gold += 30 * startR; // compensa as recompensas das regiões puladas
+      }
+    }
     r.buildRegion();
 
     // stats de perfil
@@ -155,11 +199,19 @@
   Run.mkHero = function (id, i, size, r) {
     var def = RA.data.Heroes.byId[id];
     var hp = def.hp;
+    var faces = def.faces.map(function (f) { return Object.assign({}, f); });
+    // campanha: o herói herda o DADO LEGADO (lados evoluídos + faces gravadas)
+    if (r && r.modeId === 'campanha') {
+      var leg = Run.campaignData().legacy[id];
+      if (leg && leg.faces && leg.faces.length >= faces.length) {
+        faces = leg.faces.map(function (f) { return Object.assign({}, f); });
+      }
+    }
     return {
       id: id, def: def, hp: hp, maxHp: hp,
       row: size <= 2 ? 'front' : (i < Math.ceil(size * 0.6) ? 'front' : 'back'),
       falls: 0, dead: false,
-      faces: def.faces.map(function (f) { return Object.assign({}, f); })
+      faces: faces
     };
   };
 
@@ -222,6 +274,12 @@
         }
       }
       this.regionIdx++;
+      // campanha: região concluída vira CHECKPOINT + grava o legado dos dados
+      if (this.modeId === 'campanha') {
+        var camp = Run.campaignData();
+        camp.checkpoint = Math.max(camp.checkpoint || 0, Math.min(this.regionIdx, this.regionSeq.length - 1));
+        this.saveCampaignLegacy();
+      }
       if (this.regionIdx >= (this.rules.regions || this.regionSeq.length) || this.regionIdx >= this.regionSeq.length) {
         return null; // run vencida (tratada em onBossDefeated)
       }
@@ -783,6 +841,8 @@
   Run.prototype.finish = function (win) {
     if (this.finished) return;
     this.finished = true;
+    // campanha: mesmo na derrota, os dados evoluídos viram LEGADO permanente
+    this.saveCampaignLegacy();
     var p = RA.core.Save.get();
     var heroesAlive = this.party.filter(function (h) { return !h.dead && h.hp > 0; }).length;
     var timeMin = Math.round((Date.now() - this.startedAt) / 60000);

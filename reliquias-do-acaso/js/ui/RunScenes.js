@@ -941,7 +941,8 @@
         label: RA.T({ pt: 'TENTAR DE NOVO', en: 'TRY AGAIN' }),
         fn: function () {
           var rt = self.retry;
-          var r2 = RA.game.Run.start({ modeId: rt.modeId, diffId: rt.diffId, curseLvl: rt.curseLvl, heroIds: rt.heroIds });
+          // campanha: a revanche renasce direto no CHECKPOINT (999 = o mais alto)
+          var r2 = RA.game.Run.start({ modeId: rt.modeId, diffId: rt.diffId, curseLvl: rt.curseLvl, heroIds: rt.heroIds, startRegion: rt.modeId === 'campanha' ? 999 : 0 });
           RA.core.Scenes.replace(new RA.ui.MapScene({ run: r2 }));
         } };
       var bMenu = { x: w / 2 - 4 - rbw, y: by5, w: rbw, h: 22, small: rbw < 100,

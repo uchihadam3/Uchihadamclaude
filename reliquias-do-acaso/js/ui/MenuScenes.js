@@ -215,6 +215,16 @@
     }
     var p = RA.core.Save.get();
     this.unlocked = p.unlockedHeroes;
+    // campanha: checkpoint de região + dados legados
+    this.checkpoint = 0;
+    this.startRegion = 0;
+    this.hasLegacy = false;
+    if (this.params.modeId === 'campanha') {
+      var camp = RA.game.Run.campaignData();
+      this.checkpoint = camp.checkpoint || 0;
+      this.startRegion = this.checkpoint; // padrão: continuar de onde chegou
+      this.hasLegacy = Object.keys(camp.legacy || {}).length > 0;
+    }
     if (this.draft) this.rollDraft();
     RA.audio.setMusic('selecao');
   };
@@ -234,7 +244,8 @@
     var self = this;
     var run = RA.game.Run.start({
       modeId: this.params.modeId, diffId: this.params.diffId, curseLvl: this.params.curse,
-      heroIds: this.picked, randomTeam: randomTeam, startRelicId: this.startRelic
+      heroIds: this.picked, randomTeam: randomTeam, startRelicId: this.startRelic,
+      startRegion: this.startRegion || 0
     });
     Sc().replace(new RA.ui.MapScene({ run: run }));
   };
@@ -265,6 +276,20 @@
     this.buttons = [];
     this.tipRects = [];
     W().header(ctx, w, 6, RA.UI('chooseHeroes') + ' (' + this.picked.length + '/' + this.size + ')', { size: 1, color: '#ffe9a0' });
+    // campanha com checkpoint: escolher a região inicial (toque para alternar)
+    if (this.checkpoint > 0 && !this.draft) {
+      var regsC = RA.data.Regions;
+      var bC = { x: w - 74, y: 2, w: 70, h: 14, small: true, accent: '#c9a23a', glow: this.startRegion > 0,
+        label: RA.T({ pt: 'INÍCIO: R', en: 'START: R' }) + (this.startRegion + 1),
+        fn: function () { self.startRegion = (self.startRegion + 1) % (self.checkpoint + 1); } };
+      W().btn(ctx, bC, this.time);
+      this.buttons.push(bC);
+      F.draw(ctx, RA.T(regsC[this.startRegion].name).slice(0, 12), w - 39, 18, { size: 1, color: '#c8b8e8', align: 'center' });
+    }
+    if (this.hasLegacy && !this.draft) {
+      F.draw(ctx, RA.T({ pt: 'DADOS LEGADOS ATIVOS', en: 'LEGACY DICE ACTIVE' }), 4, 2, { size: 1, color: '#6ee89a' });
+      F.draw(ctx, RA.T({ pt: '(evoluções mantidas)', en: '(upgrades kept)' }), 4, 11, { size: 1, color: '#4a7a5a' });
+    }
 
     // escolha de relíquia inicial (modo Relíquia Única)
     if (this.needRelic && !this.startRelic) {
