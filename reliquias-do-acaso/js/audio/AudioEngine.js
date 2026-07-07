@@ -331,6 +331,7 @@
   RA.audio.Engine = A;
   RA.audio.sfx = A.sfx;
   RA.audio.setMusic = A.setMusic;
+  RA.audio.setMusicForce = A.setMusicForce;
   RA.audio.stinger = A.stinger;
   RA.audio.unlock = A.unlock;
   RA.audio.applyVolumes = A.applyVolumes;

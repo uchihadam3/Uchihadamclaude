@@ -126,6 +126,10 @@
       opts = opts || {};
       var size = opts.size || 2;
       var color = opts.color || '#ffd76a';
+      // nunca deixa o título estourar a tela: encolhe e, se preciso, trunca
+      while (size > 1 && F.measure(title, size, 1) > w - 44) size--;
+      var maxCh = Math.max(6, Math.floor((w - 44) / (6 * size)));
+      if (String(title).length > maxCh) title = String(title).slice(0, maxCh - 1) + '.';
       var bandH = size * 8 + 10;
       var g = ctx.createLinearGradient(0, y - 5, 0, y - 5 + bandH);
       g.addColorStop(0, 'rgba(18,12,28,0)');

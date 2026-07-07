@@ -129,6 +129,13 @@
       }
       var isz = boss ? 14 : 11;
       ctx.drawImage(RA.gfx.Icons.symbol(ROOM_ICON[rm.kind] || 'star'), x - isz / 2, cy2 - isz / 2, isz, isz);
+      // mapa secreto comprado: a próxima sala * pulsa em roxo
+      if (rm.kind === 'special' && run.secretMapReady && i >= run.roomIdx) {
+        var sq = 0.4 + 0.4 * Math.sin(self.time * 4 + i);
+        ctx.strokeStyle = 'rgba(138,74,232,' + sq + ')';
+        ctx.beginPath(); ctx.arc(x, cy2, r + 3, 0, Math.PI * 2); ctx.stroke();
+        F.draw(ctx, '?', x + r + 1, cy2 - r - 4, { size: 1, color: '#b08ae8', shadow: true });
+      }
       // check dourado nas salas vencidas
       if (done) {
         ctx.strokeStyle = '#ffd76a';
@@ -261,16 +268,25 @@
     if (!this.result) {
       ev.choices.forEach(function (ch) {
         var ok = run.eventChoiceAvailable(ch);
-        var b = { x: px, y: by, w: pw, h: 26, label: RA.T(ch.label), disabled: !ok, fn: function () { self.choose(ch); } };
+        var bLabel = RA.T(ch.label);
+        var maxChB = Math.max(8, Math.floor((pw - 12) / 6));
+        if (bLabel.length > maxChB) bLabel = bLabel.slice(0, maxChB - 1) + '.';
+        var b = { x: px, y: by, w: pw, h: 26, label: bLabel, disabled: !ok, fn: function () { self.choose(ch); } };
         W().btn(ctx, b, self.time);
         self.buttons.push(b);
-        F.draw(ctx, RA.T(ch.result).slice(0, 66), px + pw / 2, by + 27, { size: 1, color: ok ? '#8a94a8' : '#4a4258', align: 'center' });
-        by += 40;
+        // consequência da escolha: quebra em até 2 linhas dentro da largura
+        var resLines = F.wrap(RA.T(ch.result), 1, 1, pw - 8).slice(0, 2);
+        resLines.forEach(function (rl, rli) {
+          F.draw(ctx, rl, px + pw / 2, by + 28 + rli * 9, { size: 1, color: ok ? '#8a94a8' : '#4a4258', align: 'center' });
+        });
+        by += 32 + resLines.length * 9 + 4;
       });
     } else {
       (this.result.log || []).forEach(function (l) {
-        F.draw(ctx, l, w / 2, by, { size: 1, color: '#6ee89a', align: 'center' });
-        by += 11;
+        F.wrap(String(l), 1, 1, pw - 8).slice(0, 2).forEach(function (l2) {
+          F.draw(ctx, l2, w / 2, by, { size: 1, color: '#6ee89a', align: 'center' });
+          by += 11;
+        });
       });
       var b2 = { x: w / 2 - 50, y: by + 8, w: 100, h: 22, label: RA.UI('next'), glow: true, fn: function () { self.leave(); } };
       W().btn(ctx, b2, this.time);
@@ -287,9 +303,23 @@
     this.stock = this.run.shopStock();
     this.bought = {};
     this.buttons = [];
-    this.msg = RA.T({ pt: '"Cliente vivo! Que raridade por aqui..."', en: '"A living customer! How rare..."' });
+    this.msg = RA.T({ pt: '"Cliente vivo! Que raridade..."', en: '"A living customer! How rare..."' });
     this.facePick = null;
+    this.selItem = -1; // item tocado (1º toque mostra a descrição; COMPRAR confirma)
     RA.audio.setMusic('loja');
+  };
+  // o que cada item faz, por extenso (mostrado ao tocar no item)
+  ShopScene.prototype.itemDesc = function (it) {
+    if (it.kind === 'face') return W().descFace(it.face);
+    if (it.kind === 'relic') return [RA.T(it.relic.desc), '(' + it.relic.rarity + ')'];
+    if (it.kind === 'heal') return [RA.T({ pt: 'Cura 5 HP num herói à sua ESCOLHA (você escolhe quem ao comprar).', en: 'Heals 5 HP on a hero of your CHOICE (pick who when buying).' })];
+    if (it.kind === 'removeCurse') return [RA.T({ pt: 'Remove a sua relíquia AMALDIÇOADA.', en: 'Removes your CURSED relic.' })];
+    if (it.kind === 'repair') return [RA.T({ pt: 'Conserta TODAS as faces trincadas dos seus dados.', en: 'Repairs ALL cracked faces on your dice.' })];
+    if (it.kind === 'swapRow') return [RA.T({ pt: 'Move um herói à sua escolha entre a LINHA DE FRENTE e a linha de trás.', en: 'Moves a hero of your choice between FRONT and back line.' })];
+    if (it.kind === 'upgradeDie') return [RA.T({ pt: 'Dá +2 LADOS ao dado de um herói (D6>D8>D10>D12). Mais lados = mais faces para gravar!', en: 'Gives a hero\'s die +2 SIDES (D6>D8>D10>D12). More sides = more faces to engrave!' })];
+    if (it.kind === 'mystery') return [RA.T({ pt: 'Caixa surpresa: pode vir relíquia, face rúnica ou ouro. Sem reembolso!', en: 'Mystery box: a relic, a rune face or gold. No refunds!' })];
+    if (it.kind === 'secretMap') return [RA.T({ pt: 'A PRÓXIMA sala de estrela (*) do mapa vira uma SALA SECRETA com ouro e relíquia!', en: 'The NEXT star (*) room on the map becomes a SECRET ROOM with gold and a relic!' })];
+    return [];
   };
   ShopScene.prototype.update = function (dt, events) {
     this.time += dt;
@@ -336,53 +366,137 @@
     ctx.fillRect(0, 8, 70, 66);
     var vs = RA.gfx.EnemySprites.get('humanoide', 'mascaras', 30, 'capuz', Math.floor(this.time * 2) % 2);
     ctx.drawImage(vs, 12, 24);
-    W().panel(ctx, 46, 28, Math.min(F.measure(this.msg.slice(0, 60), 1, 1) + 12, w - 56), 14, { edge: '#3c3550' });
-    F.draw(ctx, this.msg.slice(0, 60), 52, 32, { size: 1, color: '#c8b490' });
+    // fala do vendedor com quebra de linha (nunca estoura a tela)
+    var msgW = Math.min(w - 56, 240);
+    var msgLines = F.wrap(this.msg, 1, 1, msgW - 12).slice(0, 2);
+    W().panel(ctx, 46, 26, msgW, 8 + msgLines.length * 9, { edge: '#3c3550' });
+    msgLines.forEach(function (ml, mi) {
+      F.draw(ctx, ml, 52, 31 + mi * 9, { size: 1, color: '#c8b490' });
+    });
 
+    // vitrine: TOQUE mostra a descrição; a compra é no botão COMPRAR
     var pw = Math.min(300, w - 16), px = (w - pw) / 2;
-    var y = 62;
-    this.stock.forEach(function (it, i) {
-      if (self.bought[i]) return;
+    var landscape = w > h * 1.2;
+    var cols = landscape ? 2 : 1;
+    var rowW = Math.floor(pw / cols) - (cols > 1 ? 4 : 0);
+    var y0 = 58, rowH = 21;
+    var rowN = 0;
+    var visible = [];
+    this.stock.forEach(function (it, i) { if (!self.bought[i]) visible.push({ it: it, i: i }); });
+    visible.forEach(function (v, vi) {
+      var it = v.it, i = v.i;
+      var col = vi % cols, row2 = Math.floor(vi / cols);
+      var x = px + col * (rowW + 4), y = y0 + row2 * rowH;
+      rowN = Math.max(rowN, row2 + 1);
       var afford = run.gold >= it.cost;
-      var b = { x: px, y: y, w: pw - 54, h: 18, label: self.itemLabel(it).slice(0, 30), small: true, disabled: !afford, fn: function () {
-        // itens que precisam escolher um herói abrem o seletor
-        if (it.kind === 'upgradeDie' || it.kind === 'swapRow') {
-          self.pickHero = { item: it, idx: i };
+      var isSel = self.selItem === i;
+      var priceTxt = it.cost + '$';
+      var priceW = F.measure(priceTxt, 1, 1);
+      // rótulo truncado para NUNCA passar do botão (preço tem coluna própria)
+      var maxCh2 = Math.max(6, Math.floor((rowW - priceW - 18) / 6));
+      var lbl = self.itemLabel(it);
+      if (lbl.length > maxCh2) lbl = lbl.slice(0, maxCh2 - 1) + '.';
+      var b = { x: x, y: y, w: rowW, h: 18, small: true, label: '', accent: isSel ? '#ffd76a' : undefined, glow: false, fn: function () {
+        self.selItem = i;
+      } };
+      W().btn(ctx, b, self.time);
+      self.buttons.push(b);
+      F.draw(ctx, lbl, x + 5, y + 5, { size: 1, color: isSel ? '#ffe9a0' : (afford ? '#e8e0d0' : '#6a6480'), shadow: true });
+      F.draw(ctx, priceTxt, x + rowW - 5 - priceW, y + 5, { size: 1, color: afford ? '#ffd76a' : '#8a4a4a', shadow: true });
+      if (isSel) {
+        var sp3 = 0.5 + 0.4 * Math.sin(self.time * 5);
+        ctx.strokeStyle = 'rgba(255,235,170,' + sp3 + ')';
+        ctx.strokeRect(x - 1.5, y - 1.5, rowW + 3, 21);
+      }
+      var tipT = self.itemLabel(it), tipL = self.itemDesc(it);
+      self.itemRects.push({ x: x, y: y, w: rowW, h: 18, tipTitle: tipT, tipLines: tipL });
+    });
+    var y = y0 + rowN * rowH;
+    // vender relíquia
+    if (run.relics.length) {
+      var relId = run.relics[run.relics.length - 1];
+      var sellLbl = RA.UI('sell') + ': ' + RA.T(RA.data.Relics.byId[relId].name);
+      var maxChS = Math.max(8, Math.floor((pw - 40) / 6));
+      if (sellLbl.length > maxChS) sellLbl = sellLbl.slice(0, maxChS - 1) + '.';
+      var bs = { x: px, y: y + 2, w: pw - 40, h: 16, small: true, label: sellLbl, fn: function () { run.sellRelic(relId); RA.audio.sfx('gold'); self.msg = RA.T({ pt: '"+15 de ouro. Prazer negociar!"', en: '"+15 gold. Pleasure doing business!"' }); } };
+      W().btn(ctx, bs, this.time);
+      this.buttons.push(bs);
+      F.draw(ctx, '+15$', px + pw - 34, y + 6, { size: 1, color: '#ffd76a' });
+      y += 21;
+    }
+    // painel de descrição do item selecionado (ou dica de toque)
+    var selIt = this.selItem >= 0 && !this.bought[this.selItem] ? this.stock[this.selItem] : null;
+    if (selIt) {
+      var dLines = [];
+      this.itemDesc(selIt).forEach(function (dl) {
+        F.wrap(String(dl), 1, 1, pw - 20).forEach(function (dl2) { dLines.push(dl2); });
+      });
+      var dMax = Math.max(2, Math.floor((h - 30 - y - 22) / 9));
+      dLines = dLines.slice(0, Math.min(4, dMax));
+      var dH = 20 + dLines.length * 9;
+      var dY = Math.min(y + 2, h - dH - 26);
+      W().panel(ctx, px, dY, pw, dH, { edge: '#c9a23a' });
+      F.draw(ctx, this.itemLabel(selIt).slice(0, Math.floor((pw - 12) / 6)), px + 6, dY + 4, { size: 1, color: '#ffe9a0', shadow: true });
+      ctx.fillStyle = 'rgba(201,162,58,0.5)';
+      ctx.fillRect(px + 6, dY + 13, pw - 12, 1);
+      dLines.forEach(function (dl3, di) {
+        F.draw(ctx, dl3, px + 6, dY + 17 + di * 9, { size: 1, color: '#c8c2d4' });
+      });
+      y = dY + dH;
+    } else {
+      F.draw(ctx, RA.T({ pt: 'TOQUE NUM ITEM PARA VER O QUE ELE FAZ', en: 'TAP AN ITEM TO SEE WHAT IT DOES' }).slice(0, Math.floor((w - 10) / 6)), w / 2, y + 4, { size: 1, color: '#6a6480', align: 'center' });
+    }
+    // grupo com barras de vida (o efeito da poção aparece NA HORA)
+    if (!landscape) {
+      var hs3 = run.party;
+      var pgap3 = Math.min(44, (w - 20) / hs3.length);
+      var px3 = w / 2 - pgap3 * (hs3.length - 1) / 2 - 10;
+      var py3 = h - 56;
+      hs3.forEach(function (hh4, i4) {
+        var hx = px3 + i4 * pgap3;
+        ctx.globalAlpha = hh4.dead ? 0.25 : 1;
+        ctx.fillStyle = '#120e1c';
+        ctx.fillRect(hx - 1, py3 - 1, 22, 22);
+        ctx.drawImage(RA.gfx.Portraits.get(hh4.id), hx, py3, 20, 20);
+        ctx.strokeStyle = '#4a4258';
+        ctx.strokeRect(hx - 1.5, py3 - 1.5, 23, 23);
+        if (!hh4.dead) {
+          W().hpBar(ctx, hx, py3 + 24, 20, hh4.hp, hh4.maxHp, 0);
+          F.draw(ctx, hh4.hp + '', hx + 10, py3 + 29, { size: 1, color: '#8a94a8', align: 'center' });
+        }
+        ctx.globalAlpha = 1;
+      });
+    }
+    // COMPRAR (confirma o item selecionado) + SAIR
+    var canBuy = selIt && run.gold >= selIt.cost;
+    var bw5 = Math.min(110, Math.floor((w - 24) / 2));
+    var bBuy = { x: w / 2 + 4, y: h - 24, w: bw5, h: 18, small: true, glow: !!canBuy, disabled: !canBuy,
+      label: RA.T({ pt: 'COMPRAR', en: 'BUY' }) + (selIt ? ' ' + selIt.cost + '$' : ''),
+      fn: function () {
+        var it3 = self.stock[self.selItem], idx3 = self.selItem;
+        if (!it3) return;
+        // itens que agem num herói abrem o seletor (poção incluída!)
+        if (it3.kind === 'upgradeDie' || it3.kind === 'swapRow' || it3.kind === 'heal') {
+          self.pickHero = { item: it3, idx: idx3 };
           return;
         }
-        var res = run.buy(it, 0);
+        var res = run.buy(it3, 0);
         if (res.ok) {
-          self.bought[i] = true;
+          self.bought[idx3] = true;
+          self.selItem = -1;
           RA.audio.sfx('buy');
           self.msg = res.msg || RA.T({ pt: '"Ótima escolha!"', en: '"Fine choice!"' });
           if (res.facePick) self.facePick = res.facePick;
         }
       } };
-      W().btn(ctx, b, self.time);
-      self.buttons.push(b);
-      F.draw(ctx, it.cost + '$', px + pw - 46, y + 5, { size: 1, color: afford ? '#ffd76a' : '#8a4a4a' });
-      var tipT = null, tipL = null;
-      if (it.kind === 'face') { tipT = RA.T(it.face.name); tipL = W().descFace(it.face); }
-      if (it.kind === 'relic') { tipT = RA.T(it.relic.name); tipL = [RA.T(it.relic.desc), it.relic.rarity]; }
-      self.itemRects.push({ x: px, y: y, w: pw, h: 18, tipTitle: tipT, tipLines: tipL });
-      y += 21;
-    });
-    // vender relíquia
-    if (run.relics.length) {
-      var relId = run.relics[run.relics.length - 1];
-      var bs = { x: px, y: y + 2, w: pw - 54, h: 18, small: true, label: RA.UI('sell') + ': ' + RA.T(RA.data.Relics.byId[relId].name).slice(0, 22), fn: function () { run.sellRelic(relId); RA.audio.sfx('gold'); } };
-      W().btn(ctx, bs, this.time);
-      this.buttons.push(bs);
-      F.draw(ctx, '+15$', px + pw - 46, y + 7, { size: 1, color: '#ffd76a' });
-      y += 22;
-    }
-    var bl = { x: w / 2 - 50, y: Math.min(h - 26, y + 10), w: 100, h: 20, label: RA.UI('leave'), glow: true, fn: function () {
+    var bl = { x: w / 2 - 4 - bw5, y: h - 24, w: bw5, h: 18, small: true, label: RA.UI('leave'), fn: function () {
       if (self.facePick) { RA.core.Scenes.replace(new RewardScene({ run: run, reward: { gold: 0, faces: self.facePick, relics: null }, fromEvent: true })); return; }
       run.advance();
       RA.core.Scenes.replace(new MapScene({ run: run }));
     } };
+    W().btn(ctx, bBuy, this.time);
     W().btn(ctx, bl, this.time);
-    this.buttons.push(bl);
+    this.buttons.push(bBuy, bl);
     W().goldChip(ctx, w - 6, 4, run.gold, true);
 
     // seletor de herói (evoluir dado / trocar de linha)
@@ -397,20 +511,25 @@
       var hx0 = w / 2 - gapH * (hs2.length - 1) / 2 - 16;
       hs2.forEach(function (hh2, i2) {
         var x2 = hx0 + i2 * gapH, y2 = h * 0.34;
-        var elig = it2.kind !== 'upgradeDie' || run.upgradeCost(hh2) !== null;
-        W().panel(ctx, x2, y2, 34, 52, { edge: elig ? '#ffd76a' : '#38323f' });
+        var elig = true;
+        if (it2.kind === 'upgradeDie') elig = run.upgradeCost(hh2) !== null;
+        if (it2.kind === 'heal') elig = hh2.hp < hh2.maxHp; // cura só em quem está ferido
+        W().panel(ctx, x2, y2, 34, 62, { edge: elig ? '#ffd76a' : '#38323f' });
         ctx.globalAlpha = elig ? 1 : 0.35;
         ctx.drawImage(RA.gfx.Portraits.get(hh2.id), x2 + 5, y2 + 3, 24, 24);
         ctx.globalAlpha = 1;
-        F.draw(ctx, 'D' + hh2.faces.length, x2 + 17, y2 + 30, { size: 1, color: elig ? '#ffd76a' : '#5a5468', align: 'center' });
-        F.draw(ctx, RA.T(hh2.def.name).slice(0, 5), x2 + 17, y2 + 41, { size: 1, color: '#c8c2d4', align: 'center' });
+        W().hpBar(ctx, x2 + 5, y2 + 31, 24, hh2.hp, hh2.maxHp, 0);
+        F.draw(ctx, hh2.hp + '/' + hh2.maxHp, x2 + 17, y2 + 37, { size: 1, color: '#8a94a8', align: 'center' });
+        F.draw(ctx, it2.kind === 'upgradeDie' ? 'D' + hh2.faces.length : (hh2.row === 'front' ? RA.T({ pt: 'FRENTE', en: 'FRONT' }) : RA.T({ pt: 'TRÁS', en: 'BACK' })).slice(0, 6), x2 + 17, y2 + 46, { size: 1, color: elig ? '#ffd76a' : '#5a5468', align: 'center' });
+        F.draw(ctx, RA.T(hh2.def.name).slice(0, 5), x2 + 17, y2 + 55, { size: 1, color: '#c8c2d4', align: 'center' });
         if (elig) {
-          var hb = { x: x2, y: y2, w: 34, h: 52, label: '', fn: function () {
+          var hb = { x: x2, y: y2, w: 34, h: 62, label: '', fn: function () {
             var pIdx = run.party.indexOf(hh2);
             var res2 = run.buy(it2, pIdx);
             self.pickHero = null;
             if (res2.ok) {
               self.bought[idx2] = true;
+              self.selItem = -1;
               RA.audio.sfx('rare');
               self.msg = res2.msg || RA.T({ pt: '"Ótima escolha!"', en: '"Fine choice!"' });
             }
@@ -418,7 +537,7 @@
           self.buttons.push(hb);
         }
       });
-      var cb = { x: w / 2 - 40, y: h * 0.34 + 60, w: 80, h: 16, small: true, label: RA.UI('back'), fn: function () { self.pickHero = null; } };
+      var cb = { x: w / 2 - 40, y: h * 0.34 + 70, w: 80, h: 16, small: true, label: RA.UI('back'), fn: function () { self.pickHero = null; } };
       W().btn(ctx, cb, this.time);
       this.buttons.push(cb);
     }
@@ -724,17 +843,26 @@
     this.time = 0;
     this.buttons = [];
     var run = this.run;
+    // guarda a receita da run ANTES de finish() para o TENTAR DE NOVO
+    this.retry = {
+      modeId: run.modeId, diffId: run.diffId, curseLvl: run.curseLvl || 0,
+      heroIds: run.party.map(function (h) { return h.id; })
+    };
     if (!run.finished) run.finish(this.win);
     this.endingId = run.endingId;
-    if (this.win) RA.audio.setMusic(this.endingId === 'sombrio' || this.endingId === 'secreto' ? 'finalSombrio' : 'finalBom');
-    else { RA.audio.setMusicForce('derrota', false); RA.audio.sfx('defeat'); }
+    var ctr = run.counters || {};
     this.stats = {
-      battles: run.counters.battlesWon,
+      battles: ctr.battlesWon || 0,
       gold: run.gold,
       relics: run.relics.length,
       floor: run.floor,
       time: Math.round((Date.now() - run.startedAt) / 60000)
     };
+    // som por último e protegido: um erro de áudio nunca pode travar esta tela
+    try {
+      if (this.win) RA.audio.setMusic(this.endingId === 'sombrio' || this.endingId === 'secreto' ? 'finalSombrio' : 'finalBom');
+      else { RA.audio.setMusicForce('derrota', false); RA.audio.sfx('defeat'); }
+    } catch (e) {}
   };
   RunEndScene.prototype.update = function (dt, events) {
     this.time += dt;
@@ -789,7 +917,7 @@
       });
       y += lines.length * 10 + 12;
     }
-    var st = this.stats;
+    var st = this.stats || { battles: 0, gold: 0, relics: 0, floor: 0, time: 0 };
     var rows = [
       [RA.UI('battle') + 's', st.battles],
       [RA.UI('gold'), st.gold],
@@ -801,9 +929,28 @@
       F.draw(ctx, r[0] + ': ' + r[1], w / 2, y + i * 11, { size: 1, color: '#8a94a8', align: 'center' });
     });
     y += rows.length * 11 + 14;
-    var b = { x: w / 2 - 55, y: Math.min(y, h - 30), w: 110, h: 22, label: RA.UI('continue_').replace(' RUN', ''), glow: true, fn: function () { RA.core.Scenes.replace(new RA.ui.MainMenuScene()); } };
-    W().btn(ctx, b, this.time);
-    this.buttons.push(b);
+    var by5 = Math.min(y, h - 30);
+    if (this.win) {
+      var b = { x: w / 2 - 55, y: by5, w: 110, h: 22, label: RA.UI('continue_').replace(' RUN', ''), glow: true, fn: function () { RA.core.Scenes.replace(new RA.ui.MainMenuScene()); } };
+      W().btn(ctx, b, this.time);
+      this.buttons.push(b);
+    } else {
+      // derrota: revanche imediata com a mesma equipe ou voltar ao menu
+      var rbw = Math.min(120, Math.floor((w - 24) / 2));
+      var bRetry = { x: w / 2 + 4, y: by5, w: rbw, h: 22, small: rbw < 100, glow: true,
+        label: RA.T({ pt: 'TENTAR DE NOVO', en: 'TRY AGAIN' }),
+        fn: function () {
+          var rt = self.retry;
+          var r2 = RA.game.Run.start({ modeId: rt.modeId, diffId: rt.diffId, curseLvl: rt.curseLvl, heroIds: rt.heroIds });
+          RA.core.Scenes.replace(new RA.ui.MapScene({ run: r2 }));
+        } };
+      var bMenu = { x: w / 2 - 4 - rbw, y: by5, w: rbw, h: 22, small: rbw < 100,
+        label: RA.T({ pt: 'MENU', en: 'MENU' }),
+        fn: function () { RA.core.Scenes.replace(new RA.ui.MainMenuScene()); } };
+      W().btn(ctx, bRetry, this.time);
+      W().btn(ctx, bMenu, this.time);
+      this.buttons.push(bRetry, bMenu);
+    }
     W().renderToasts(ctx, w);
   };
 

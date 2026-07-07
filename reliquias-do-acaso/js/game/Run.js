@@ -697,16 +697,31 @@
     var result = { ok: true };
     switch (item.kind) {
       case 'face': result.facePick = [item.face]; break;
-      case 'relic': this.addRelic(item.relic.id); break;
+      case 'relic':
+        this.addRelic(item.relic.id);
+        result.msg = RA.T(item.relic.name) + RA.T({ pt: ' adquirida!', en: ' acquired!' });
+        break;
       case 'heal': {
         var n = item.n + this.relicN('potionPlus');
-        var most = this.party.filter(function (h) { return !h.dead; }).sort(function (a, b) { return (a.hp / a.maxHp) - (b.hp / b.maxHp); })[0];
-        if (most) most.hp = Math.min(most.maxHp, most.hp + n);
+        // herói escolhido pelo jogador; sem escolha, cura o mais ferido
+        var tgtH = (extra !== undefined && extra !== null) ? this.party[extra] : null;
+        if (!tgtH || tgtH.dead) {
+          tgtH = this.party.filter(function (h) { return !h.dead; }).sort(function (a, b) { return (a.hp / a.maxHp) - (b.hp / b.maxHp); })[0];
+        }
+        if (tgtH) {
+          var before = tgtH.hp;
+          tgtH.hp = Math.min(tgtH.maxHp, tgtH.hp + n);
+          result.msg = RA.T(tgtH.def.name) + ' +' + (tgtH.hp - before) + ' HP! (' + tgtH.hp + '/' + tgtH.maxHp + ')';
+        }
         break;
       }
       case 'removeCurse': {
         var cursedIds = this.relics.filter(function (id) { return RA.data.Relics.byId[id].rarity === 'amaldicoada'; });
-        if (cursedIds.length) this.removeRelic(cursedIds[0]);
+        if (cursedIds.length) {
+          var curName = RA.T(RA.data.Relics.byId[cursedIds[0]].name);
+          this.removeRelic(cursedIds[0]);
+          result.msg = RA.T({ pt: 'Maldição removida: ', en: 'Curse removed: ' }) + curName;
+        }
         break;
       }
       case 'repair': {
@@ -714,12 +729,18 @@
         this.party.forEach(function (h) { h.faces.forEach(function (f) { if (f.cracked) { f.cracked = false; if (f.uses !== undefined && f.uses <= 0) f.uses = 1; fixed++; } }); });
         this.counters.repairs += fixed;
         this.checkSecrets();
+        result.msg = RA.T({ pt: fixed + ' face(s) consertada(s)!', en: fixed + ' face(s) repaired!' });
         break;
       }
       case 'swapRow': {
         var hIdx = extra || 0;
         var h = this.party[hIdx];
-        if (h) h.row = h.row === 'front' ? 'back' : 'front';
+        if (h) {
+          h.row = h.row === 'front' ? 'back' : 'front';
+          result.msg = RA.T(h.def.name) + (h.row === 'front'
+            ? RA.T({ pt: ' foi para a LINHA DE FRENTE!', en: ' moved to the FRONT LINE!' })
+            : RA.T({ pt: ' foi para a linha de TRÁS!', en: ' moved to the BACK line!' }));
+        }
         break;
       }
       case 'upgradeDie': {
@@ -740,7 +761,10 @@
         else { var gg = this.rng.int(20, 55); this.gold += gg; result.msg = '+' + gg + ' ' + RA.UI('gold'); }
         break;
       }
-      case 'secretMap': this.secretMapReady = true; break;
+      case 'secretMap':
+        this.secretMapReady = true;
+        result.msg = RA.T({ pt: 'A PRÓXIMA sala * do mapa virou uma SALA SECRETA!', en: 'The NEXT * room on the map is now a SECRET ROOM!' });
+        break;
     }
     if (Meta.emit && this.gold >= 200) Meta.emit({ t: 'goldChange', gold: this.gold });
     this.save();
