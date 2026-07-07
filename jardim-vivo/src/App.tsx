@@ -29,7 +29,7 @@ const TUTORIAL_STEPS: { title: { pt: string; en: string }; body: { pt: string; e
   },
   {
     title: { pt: 'O tempo passa', en: 'Time passes' },
-    body: { pt: 'Um dia dura ~10 minutos. Acelere no botão ×1/×4/×12 no canto superior. Plantas crescem por DIA, com fases visíveis: broto, muda, adulta, flor.', en: 'One day lasts ~10 minutes. Speed up with the ×1/×4/×12 button up top. Plants grow per DAY through visible stages: sprout, seedling, adult, bloom.' },
+    body: { pt: 'Um dia dura ~30 minutos, com calma. Sem pressa? Acelere no botão ×1/×4/×12 no canto superior. Plantas crescem por DIA, com fases visíveis: broto, muda, adulta, flor.', en: 'One day lasts ~30 unhurried minutes. In a rush? Speed up with the ×1/×4/×12 button up top. Plants grow per DAY through visible stages: sprout, seedling, adult, bloom.' },
   },
   {
     title: { pt: 'Aprenda com os vizinhos', en: 'Learn from the neighbors' },
