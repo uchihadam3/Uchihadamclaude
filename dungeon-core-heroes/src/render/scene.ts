@@ -43,7 +43,7 @@ function enemyAnimFrame(u: Unit, t: number): { anim: EAnim; frame: number } {
 }
 
 export function drawScene(ctx: Ctx, W: number, H: number, run: RunState, d: DungeonDef, t: number, dt: number, scrollX: number): void {
-  const PS = Math.max(2, Math.round(W / 380));
+  const PS = Math.max(3, Math.round(W / 300));   // pixels maiores → personagens maiores, look retrô
   const iw = Math.ceil(W / PS), ih = Math.ceil(H / PS);
   ensureBuf(iw, ih);
   const b = bctx!;
@@ -56,7 +56,7 @@ export function drawScene(ctx: Ctx, W: number, H: number, run: RunState, d: Dung
   b.translate(shakeX, shakeY);
 
   const floorY = drawDungeonPixel(b, iw, ih, d, t, scrollX);
-  const groundY = floorY + Math.round((ih - floorY) * 0.28);
+  const groundY = floorY + Math.round((ih - floorY) * 0.34);
   const pad = 22;
   const laneX = (x: number) => pad + (x / ARENA_W) * (iw - pad * 2);
 
@@ -106,6 +106,12 @@ export function drawScene(ctx: Ctx, W: number, H: number, run: RunState, d: Dung
   ctx.clearRect(0, 0, W, H);
   ctx.drawImage(buf!, 0, 0, iw, ih, 0, 0, W, H);
 
+  // efeitos de habilidade em resolução plena (glow)
+  const gyM = (groundY + shakeY) * PS;
+  const lxM = (x: number) => (laneX(x) + shakeX) * PS;
+  const unitPx = (laneX(1) - laneX(0)) * PS;
+  drawFx(ctx, run, lxM, gyM, PS, unitPx);
+
   // textos flutuantes em resolução plena (legibilidade)
   ctx.save();
   ctx.translate(shakeX * PS, shakeY * PS);
@@ -127,11 +133,104 @@ export function drawScene(ctx: Ctx, W: number, H: number, run: RunState, d: Dung
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
 
+// ============ DESENHO DOS EFEITOS DE HABILIDADE ============
+function drawFx(ctx: Ctx, run: RunState, lx: (x: number) => number, gy: number, PS: number, unitPx: number): void {
+  ctx.save();
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const f of run.fx) {
+    const p = Math.min(1, f.t / f.ttl);       // progresso 0-1
+    const a = 1 - p;
+    const yTo = (h: number) => gy - h * PS * 0.55;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = a;
+    ctx.shadowColor = f.color; ctx.shadowBlur = 14 * PS / 3;
+    switch (f.kind) {
+      case 'projectile': {
+        const x = lx(f.x + (f.tx - f.x) * p), y = yTo(f.y);
+        for (let k = 0; k < 4; k++) { const pp = Math.max(0, p - k * 0.06); const xx = lx(f.x + (f.tx - f.x) * pp); ctx.globalAlpha = a * (1 - k * 0.22); ctx.fillStyle = k === 0 ? (f.color2 ?? '#fff') : f.color; ctx.beginPath(); ctx.arc(xx, y, (6 - k) * PS / 3, 0, 7); ctx.fill(); }
+        break;
+      }
+      case 'slash': {
+        const x = lx(f.tx), y = yTo(f.y), R = (14 + (f.r ?? 0) * 6) * PS / 3;
+        ctx.strokeStyle = f.color2 ?? '#fff'; ctx.lineWidth = 3 * PS / 3;
+        ctx.beginPath(); ctx.arc(x, y, R, -1.1 + p * 1.6, 0.7 + p * 1.6); ctx.stroke();
+        ctx.strokeStyle = f.color; ctx.lineWidth = 6 * PS / 3; ctx.globalAlpha = a * 0.6;
+        ctx.beginPath(); ctx.arc(x, y, R, -1.0 + p * 1.6, 0.6 + p * 1.6); ctx.stroke();
+        break;
+      }
+      case 'aoe': case 'nova': {
+        const x = lx(f.tx), y = f.kind === 'nova' ? gy - 4 * PS : yTo(f.y);
+        const R = (f.r ?? 3) * unitPx * (0.3 + p * 0.9);
+        ctx.strokeStyle = f.color2 ?? f.color; ctx.lineWidth = (f.kind === 'nova' ? 5 : 3) * PS / 3;
+        ctx.beginPath(); ctx.ellipse(x, y, R, R * 0.4, 0, 0, 7); ctx.stroke();
+        if (f.kind === 'nova') { ctx.globalAlpha = a * 0.4; ctx.fillStyle = f.color; ctx.beginPath(); ctx.ellipse(x, y, R, R * 0.4, 0, 0, 7); ctx.fill(); }
+        break;
+      }
+      case 'ground': {
+        const x = lx(f.tx), R = (f.r ?? 3) * unitPx;
+        const n = 10; ctx.fillStyle = f.color;
+        for (let k = 0; k < n; k++) { const fx2 = x - R + (k / n) * R * 2; const fh = (4 + Math.abs(Math.sin(f.t * 12 + k)) * 10) * PS / 3; ctx.globalAlpha = a * 0.7; ctx.fillRect(fx2, gy - fh, 2 * PS / 3, fh); }
+        break;
+      }
+      case 'meteor': {
+        const x = lx(f.tx), y0 = yTo(28), y1 = gy - 4 * PS;
+        const y = y0 + (y1 - y0) * p, sx = x + (1 - p) * 40 * PS / 3;
+        ctx.strokeStyle = f.color2 ?? '#fff'; ctx.lineWidth = 5 * PS / 3;
+        ctx.beginPath(); ctx.moveTo(sx + 20 * PS / 3, y - 30 * PS / 3); ctx.lineTo(sx, y); ctx.stroke();
+        ctx.fillStyle = f.color; ctx.beginPath(); ctx.arc(sx, y, 6 * PS / 3, 0, 7); ctx.fill();
+        if (p > 0.85) { ctx.globalAlpha = (1 - p) / 0.15; ctx.fillStyle = f.color2 ?? '#fff'; ctx.beginPath(); ctx.ellipse(x, y1, 40 * PS / 3, 14 * PS / 3, 0, 0, 7); ctx.fill(); }
+        break;
+      }
+      case 'arrows': {
+        const x = lx(f.tx), R = (f.r ?? 3) * unitPx;
+        ctx.strokeStyle = f.color; ctx.lineWidth = 2 * PS / 3;
+        for (let k = 0; k < 7; k++) { const ax = x - R + (k / 6) * R * 2; const off = ((f.t * 3 + k * 0.13) % 1); const ay = yTo(24) + off * (gy - yTo(24)); ctx.globalAlpha = a; ctx.beginPath(); ctx.moveTo(ax + 6 * PS / 3, ay - 8 * PS / 3); ctx.lineTo(ax, ay); ctx.stroke(); }
+        break;
+      }
+      case 'bolt': {
+        const x0 = lx(f.x), y0 = yTo(f.y), x1 = lx(f.tx), y1 = yTo(14);
+        ctx.strokeStyle = f.color2 ?? '#fff'; ctx.lineWidth = 2.4 * PS / 3;
+        ctx.beginPath(); ctx.moveTo(x0, y0);
+        const seg = 5; for (let k = 1; k <= seg; k++) { const t2 = k / seg; const jx = (Math.sin((f.seed ?? 0) + k * 3.1) * 8) * PS / 3 * (1 - t2); ctx.lineTo(x0 + (x1 - x0) * t2 + jx, y0 + (y1 - y0) * t2); } ctx.stroke();
+        break;
+      }
+      case 'heal': {
+        const x = lx(f.x); ctx.fillStyle = f.color;
+        for (let k = 0; k < 6; k++) { const ang = (f.seed ?? 0) + k; const rr = 12 * PS / 3; const hx = x + Math.cos(ang) * rr; const hy = yTo(f.y) - p * 24 * PS / 3 + Math.sin(ang) * rr * 0.4; ctx.globalAlpha = a; ctx.fillRect(hx - PS / 3, hy - 3 * PS / 3, 2 * PS / 3, 6 * PS / 3); ctx.fillRect(hx - 3 * PS / 3, hy - PS / 3, 6 * PS / 3, 2 * PS / 3); }
+        break;
+      }
+      case 'buff': case 'shield': {
+        const x = lx(f.x), y = yTo(10), R = (14 + p * 8) * PS / 3;
+        ctx.strokeStyle = f.color; ctx.lineWidth = 2.5 * PS / 3;
+        ctx.beginPath(); for (let k = 0; k <= 6; k++) { const ang = -Math.PI / 2 + k / 6 * Math.PI * 2; const px = x + Math.cos(ang) * R, py = y + Math.sin(ang) * R * 1.3; k === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); } ctx.closePath(); ctx.stroke();
+        break;
+      }
+      case 'summon': {
+        const x = lx(f.x), R = (6 + p * 16) * PS / 3;
+        ctx.strokeStyle = f.color; ctx.lineWidth = 2 * PS / 3;
+        ctx.beginPath(); ctx.ellipse(x, gy - 3 * PS, R, R * 0.4, 0, 0, 7); ctx.stroke();
+        break;
+      }
+    }
+  }
+  ctx.restore();
+}
+
 function tintStatus(b: Ctx, u: Unit, x: number, groundY: number, hpx: number): void {
+  // pequenos pixels de status subindo do corpo (sem retângulo opaco)
   const has = (id: string) => u.statuses.some((s) => s.id === id);
-  let col = ''; if (has('burn')) col = 'rgba(255,120,40,0.22)'; else if (has('poison') || has('acid')) col = 'rgba(140,220,60,0.2)'; else if (has('shock')) col = 'rgba(140,200,255,0.22)'; else if (has('bleed')) col = 'rgba(220,40,60,0.18)';
+  let col = ''; if (has('burn')) col = '#ff8a2a'; else if (has('poison') || has('acid')) col = '#a8e858'; else if (has('shock')) col = '#a8e0ff'; else if (has('bleed')) col = '#e04858';
   if (!col) return;
-  b.fillStyle = col; b.fillRect(x - 10, groundY - hpx, 20, hpx);
+  b.fillStyle = col;
+  const now = performance.now() / 1000;
+  for (let k = 0; k < 3; k++) {
+    const ph = (now * 1.4 + k * 0.33 + u.uid) % 1;
+    const px = Math.round(x - 4 + ((k * 5 + u.uid) % 9));
+    const py = Math.round(groundY - ph * hpx);
+    b.globalAlpha = 0.8 * (1 - ph);
+    b.fillRect(px, py, 1, 1);
+  }
+  b.globalAlpha = 1;
 }
 
 function drawHpBar(b: Ctx, u: Unit, x: number, y: number, scale: number): void {

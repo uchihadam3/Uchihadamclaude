@@ -164,7 +164,7 @@ export function createRun(loadout: Loadout, dungeonId: number, seedRun: number):
     potion: { ...loadout.potion }, skillCds: [0, 0, 0, 0], skillUses: [0, 0, 0, 0],
     comboStacks: 0, chargesUsed: 0, dmgDealt: 0, dmgTaken: 0, healed: 0, kills: 0, eliteKills: 0,
     subbossKills: 0, bossKilled: false, dmgBySkill: [0, 0, 0, 0, 0, 0], dmgTakenBy: {}, potionsUsed: 0,
-    log: [], floats: [], particles: [], shake: 0, over: false, result: null,
+    log: [], floats: [], particles: [], fx: [], shake: 0, over: false, result: null,
   };
   const c: RunController = {
     run, rng, loadout, dungeon, encounters: [], encounterIndex: 0,
@@ -247,6 +247,41 @@ function burst(run: RunState, u: Unit, color: string, n: number, kind = 'hit'): 
     });
   }
   if (run.particles.length > 240) run.particles.splice(0, run.particles.length - 240);
+}
+
+// ============ EFEITO VISUAL POR HABILIDADE ============
+// cada habilidade gera um efeito próprio (projétil, corte, área, meteoro, raio…)
+function pushFx(c: RunController, kind: import('../types').FxKind, x: number, y: number, tx: number, ty: number, color: string, ttl: number, extra: Partial<import('../types').Fx> = {}): void {
+  c.run.fx.push({ kind, x, y, tx, ty, t: 0, ttl, color, seed: Math.random() * 1000, ...extra });
+  if (c.run.fx.length > 40) c.run.fx.shift();
+}
+function spawnSkillFx(c: RunController, def: SkillRuntime['def'], hero: Unit, target: Unit | null): void {
+  const col = kindColor(def.dmgKind);
+  const CHEST = 14, HEAD = 22;
+  const tx = target ? target.x : hero.x + hero.facing * 3;
+  const ranged = hero.stats.range > 3;
+  switch (def.kind) {
+    case 'strike':
+      if (def.id === 'punhos-relampago' || def.id === 'punhalada-rapida') { pushFx(c, 'slash', tx, CHEST, tx, CHEST, col, 0.25, { color2: '#ffffff' }); pushFx(c, 'slash', tx, CHEST + 4, tx, CHEST + 4, col, 0.3); }
+      else if (ranged) pushFx(c, 'projectile', hero.x + hero.facing, CHEST, tx, CHEST, col, 0.35, { color2: '#ffffff' });
+      else pushFx(c, 'slash', tx, CHEST, tx, CHEST, col, 0.28, { color2: '#ffffff' });
+      break;
+    case 'execute': pushFx(c, 'slash', tx, CHEST, tx, CHEST, '#ff4058', 0.4, { color2: '#ffffff', r: 2 }); break;
+    case 'aoe':
+      if (def.id === 'meteoro-menor') pushFx(c, 'meteor', tx, HEAD + 30, tx, 0, col, 0.7, { color2: '#fff2c0' });
+      else if (def.id === 'chuva-flechas') pushFx(c, 'arrows', tx, HEAD + 24, tx, 0, col, 0.6, { r: (def.radius ?? 3) });
+      else if (def.id === 'martelo-sismico' || def.id === 'chute-giratorio') pushFx(c, 'nova', tx, 2, tx, 2, col, 0.5, { r: (def.radius ?? 3) });
+      else pushFx(c, 'aoe', tx, 4, tx, 4, col, 0.5, { r: (def.radius ?? 3) });
+      break;
+    case 'dot-aoe': pushFx(c, 'ground', tx, 0, tx, 0, col, Math.min(1.2, (def.duration ?? 4) * 0.25), { r: (def.radius ?? 3) }); break;
+    case 'debuff': pushFx(c, 'aoe', tx, 4, tx, 4, col, 0.5, { r: (def.radius ?? 3), color2: '#c8a8f8' }); break;
+    case 'buff': pushFx(c, def.shieldMult ? 'shield' : 'buff', hero.x, CHEST, hero.x, CHEST, def.shieldMult ? '#88c8ff' : col, 0.6); break;
+    case 'heal': pushFx(c, 'heal', hero.x, CHEST, hero.x, CHEST, '#7ae87a', 0.7); break;
+    case 'summon': pushFx(c, 'summon', hero.x + 1, 2, hero.x + 1, 2, col, 0.5); break;
+    case 'dash': pushFx(c, 'slash', tx, CHEST, tx, CHEST, col, 0.3, { color2: '#b8e8ff' }); break;
+    case 'sacrifice': pushFx(c, 'nova', tx, 4, tx, 4, col, 0.55, { r: (def.radius ?? 3), color2: '#ffffff' }); break;
+  }
+  if (def.id === 'passo-trovao' || def.tags.includes('raio')) pushFx(c, 'bolt', hero.x, HEAD, tx, CHEST, '#a8e0ff', 0.3);
 }
 
 // ============ DANO ============
@@ -471,6 +506,7 @@ function castSkill(c: RunController, i: number): void {
 
   const target = pickTarget(run, hero, def.targeting);
   const atk = (kind: DamageKind) => (isPhys(kind) ? hero.stats.power : hero.stats.spellPower * SPELL_SCALE);
+  spawnSkillFx(c, def, hero, target);
 
   switch (def.kind) {
     case 'strike': case 'execute': {
@@ -919,6 +955,8 @@ export function stepRun(c: RunController, dt: number): void {
   run.floats = run.floats.filter((f) => f.t < 1);
   for (const p of run.particles) { p.t += dt; p.x += p.vx * dt; p.vy -= 6 * dt; }
   run.particles = run.particles.filter((p) => p.t < p.ttl);
+  for (const f of run.fx) f.t += dt;
+  run.fx = run.fx.filter((f) => f.t < f.ttl);
 
   if (run.over) return;
 
@@ -932,7 +970,8 @@ export function stepRun(c: RunController, dt: number): void {
       const regen = (HERO_BY_ID[hero.defId].walkRegen + hero.stats.regenPerSec) / 100 * hero.maxHp;
       heal(c, hero, regen * dt, true);
       hero.anim = 'walk';
-      hero.x = Math.max(HERO_MIN_X, hero.x - hero.stats.speed * 0.4 * dt); // recua até a marca inicial
+      hero.facing = 1;             // sempre avançando para a frente (direita)
+      // a sensação de avanço vem do parallax rolando; herói marcha no lugar
       // limpa invocações mortas
       run.summons = run.summons.filter((s) => !s.dead);
       if (run.phaseT <= 0) startEncounter(c);
@@ -1007,6 +1046,8 @@ function advanceEncounter(c: RunController): void {
   run.progress = Math.min(1, c.encounterIndex / c.encounters.length);
   if (enc && enc.kind === 'boss') { finishRun(c, true); return; }
   if (c.encounterIndex >= c.encounters.length) { finishRun(c, true); return; }
+  run.hero.x = HERO_START_X;       // volta à marca inicial ANTES da caminhada (evita andar de costas)
+  run.hero.facing = 1;
   run.phase = 'walk';
   run.phaseT = WALK_TIME;
 }

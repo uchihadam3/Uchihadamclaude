@@ -16,7 +16,7 @@ function rnd(n: number): number { const x = Math.sin(n * 12.9898) * 43758.5453; 
 
 export function drawDungeonPixel(ctx: Ctx, W: number, H: number, d: DungeonDef, t: number, scrollX: number): number {
   const a = d.ambient;
-  const floorY = Math.round(H * 0.66);
+  const floorY = Math.round(H * 0.58);
   // --- céu/fundo distante (gradiente em faixas para look retrô) ---
   const bands = 10;
   for (let i = 0; i < bands; i++) {
@@ -74,6 +74,14 @@ function drawBrickWall(ctx: Ctx, W: number, floorY: number, a: DungeonDef['ambie
       // brilho no topo do tijolo
       ctx.fillStyle = mix(base, lite, 0.5); ctx.fillRect(x, y, bw - 1, 1);
     }
+  }
+  // manchas / rachaduras espalhadas pela parede (quebra a monotonia)
+  for (let i = 0; i < 40; i++) {
+    const r = rnd(i * 3.7 + 5.1);
+    const x = Math.round(((i * 71.3 - scroll * 0.5) % (W + 40) + W + 40) % (W + 40) - 20);
+    const y = Math.round(r * floorY * 0.85);
+    if (r < 0.5) { ctx.fillStyle = mix(base, '#000', 0.35); ctx.fillRect(x, y, 3, 1); ctx.fillRect(x + 1, y + 1, 1, 3); } // rachadura
+    else { ctx.fillStyle = mix(base, lite, 0.4); ctx.fillRect(x, y, 2, 2); } // pedra clara
   }
   // rodapé escuro
   ctx.fillStyle = mix(a.floorDark, '#000', 0.2); ctx.fillRect(0, floorY - 3, W, 3);

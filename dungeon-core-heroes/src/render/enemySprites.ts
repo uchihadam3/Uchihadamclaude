@@ -78,29 +78,44 @@ interface Ctx { body: Ramp; acc: Ramp; g: string; by: number; lx: number; ls: nu
 type Drawer = (P: Pix, c: Ctx) => void;
 
 // ---------- humanoide genérico (base para muitos arquétipos) ----------
-function pawnBase(P: Pix, c: Ctx, opt: { headR: number; tone?: 'bone' | 'flesh'; ragged?: boolean; horns?: boolean; crown?: boolean; eyes?: string }): { hx: number; hy: number; hipY: number } {
-  const cx = ECX + c.lx, hipY = 24 + c.by, shoulderY = 14 + c.by, headCy = 8 + c.by;
-  // pernas
-  P.limb(cx - 3, hipY, cx - 3 - c.ls, EFOOT - 1, 3, c.body.shadow);
-  P.limb(cx + 3, hipY, cx + 3 + c.ls, EFOOT - 1, 3, c.body.base);
-  // braço de trás
-  const swing = c.anim === 'attack' ? [-4, 6, 3][c.frame] : c.anim === 'walk' ? -c.ls : 0;
-  P.limb(cx - 4, shoulderY + 1, cx - 6, shoulderY + 8, 3, c.body.shadow);
-  // torso
-  for (let y = shoulderY; y <= hipY; y++) { const hw = 4 + Math.round((y - shoulderY) / 4); P.hline(cx - hw, y, hw * 2, c.body.base); P.vline(cx - hw + 1, y, 1, c.body.light); P.vline(cx + hw - 1, y, 1, c.body.shadow); }
-  if (opt.ragged) { P.px(cx - 4, hipY, OUT); P.px(cx - 1, hipY + 1, c.body.shadow); P.px(cx + 3, hipY, OUT); }
-  // braço da frente (ataca)
-  const fex = cx + 5 + swing, fey = shoulderY + 7;
+function pawnBase(P: Pix, c: Ctx, opt: { headR: number; tone?: 'bone' | 'flesh'; ragged?: boolean; horns?: boolean; crown?: boolean; eyes?: string; ribs?: boolean }): { hx: number; hy: number; hipY: number } {
+  const cx = ECX + c.lx, hipY = 25 + c.by, shoulderY = 13 + c.by, headCy = 7 + c.by;
+  const legLen = EFOOT - 1;
+  // pernas (avançam para a frente = direita)
+  P.limb(cx - 3, hipY, cx - 3 - c.ls, legLen, 3, c.body.shadow);
+  P.rect(cx - 4 - c.ls, legLen - 1, 3, 2, c.body.dark);         // pé de trás
+  P.limb(cx + 3, hipY, cx + 3 + c.ls, legLen, 3, c.body.base);
+  P.rect(cx + 2 + c.ls, legLen - 1, 4, 2, c.body.dark);         // pé da frente
+  // braço de trás (colado ao corpo)
+  const atk = c.anim === 'attack';
+  const bswing = atk ? [-3, 2, 2][c.frame] : c.anim === 'walk' ? -Math.round(c.ls * 0.6) : 0;
+  P.limb(cx - 4, shoulderY + 1, cx - 5 + bswing, shoulderY + 9, 3, c.body.shadow);
+  // torso (afunila na cintura)
+  for (let y = shoulderY; y <= hipY; y++) {
+    const k = (y - shoulderY) / (hipY - shoulderY);
+    const hw = Math.round(5 - k * 1.5);
+    P.hline(cx - hw, y, hw * 2, c.body.base);
+    P.vline(cx - hw + 1, y, 1, c.body.light); P.vline(cx + hw - 1, y, 1, c.body.shadow);
+  }
+  P.hline(cx - 4, hipY - 1, 8, c.acc.base);                     // cinto/quadril
+  if (opt.ribs) { for (let r = 0; r < 3; r++) { P.hline(cx - 3, shoulderY + 3 + r * 2, 6, c.body.dark); } P.vline(cx, shoulderY + 2, 8, ramp('#e8e2d6', OUT).light); }
+  if (opt.ragged) { P.px(cx - 4, hipY, OUT); P.px(cx - 1, hipY + 2, c.body.shadow); P.px(cx + 3, hipY + 1, OUT); P.px(cx + 4, hipY, c.body.shadow); }
+  // braço da frente (ataca à frente)
+  const fswing = atk ? [-2, 8, 5][c.frame] : c.anim === 'walk' ? Math.round(c.ls * 0.6) : 1;
+  const fex = cx + 4 + fswing, fey = atk && c.frame >= 1 ? shoulderY + 4 : shoulderY + 9;
   P.limb(cx + 4, shoulderY + 1, fex, fey, 3, c.body.base);
+  P.rect(fex - 1, fey - 1, 3, 3, (opt.tone === 'bone' ? ramp('#e8e2d6', OUT) : c.body).base); // mão
   // cabeça
-  const hx = cx, hy = headCy;
+  const hx = cx + 1, hy = headCy;
   const skin = opt.tone === 'bone' ? ramp('#e8e2d6', OUT) : c.body;
   P.ellipse(hx, hy, opt.headR, opt.headR, skin.base);
   P.ellipse(hx - 1, hy - 1, opt.headR - 1, opt.headR - 1, skin.light);
+  P.rect(hx - 1, hy + opt.headR - 1, 3, 2, skin.shadow);        // pescoço
   const eye = opt.eyes ?? c.g;
-  P.px(hx + 2, hy, eye); P.px(hx + 2, hy - 1, eye); if (opt.tone === 'bone') { P.px(hx - 2, hy, eye); }
-  if (opt.horns) { P.limb(hx - 3, hy - 2, hx - 5, hy - 6, 2, c.acc.base); P.limb(hx + 3, hy - 2, hx + 5, hy - 6, 2, c.acc.base); }
-  if (opt.crown) { P.hline(hx - 4, hy - opt.headR - 1, 9, c.acc.base); P.px(hx - 3, hy - opt.headR - 2, c.acc.light); P.px(hx, hy - opt.headR - 3, c.g); P.px(hx + 3, hy - opt.headR - 2, c.acc.light); }
+  P.rect(hx + 1, hy - 1, 2, 2, OUT); P.px(hx + 2, hy - 1, eye);  // olho da frente brilhante
+  if (opt.tone === 'bone') { P.rect(hx - 3, hy - 1, 2, 2, OUT); P.px(hx - 2, hy - 1, eye); P.hline(hx - 2, hy + 2, 4, OUT); } // caveira: 2 órbitas + dentes
+  if (opt.horns) { P.limb(hx - 3, hy - 2, hx - 5, hy - 7, 2, c.acc.base); P.limb(hx + 3, hy - 2, hx + 6, hy - 7, 2, c.acc.base); }
+  if (opt.crown) { P.hline(hx - 4, hy - opt.headR - 1, 9, c.acc.base); P.px(hx - 3, hy - opt.headR - 2, c.acc.light); P.px(hx + 1, hy - opt.headR - 3, c.g); P.px(hx + 4, hy - opt.headR - 2, c.acc.light); }
   return { hx, hy, hipY };
 }
 const pawn: Drawer = (P, c) => { pawnBase(P, c, { headR: 4, horns: false }); };
@@ -250,8 +265,8 @@ const ROUTER: Record<string, Drawer> = {
   'construct-lord': golem, 'bone-colossus': golem, core: golem, maw: golem, eye: orb, wisp: orb,
   shard, toad, wolf, tower,
   // humanoides com variações
-  skeleton: (P, c) => pawnBase(P, c, { headR: 4, tone: 'bone', ragged: false, eyes: '#ff5a4a' }),
-  'skeleton-servant': (P, c) => pawnBase(P, c, { headR: 4, tone: 'bone', eyes: '#a8e8b8' }),
+  skeleton: (P, c) => pawnBase(P, c, { headR: 4, tone: 'bone', ribs: true, eyes: '#ff5a4a' }),
+  'skeleton-servant': (P, c) => pawnBase(P, c, { headR: 4, tone: 'bone', ribs: true, eyes: '#a8e8b8' }),
   zombie: (P, c) => pawnBase(P, c, { headR: 4, ragged: true, eyes: '#a8ff88' }),
   kobold: (P, c) => pawnBase(P, c, { headR: 4, horns: true }),
   knight: (P, c) => pawnBase(P, c, { headR: 4, crown: false, eyes: c.g }),

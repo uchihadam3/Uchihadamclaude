@@ -295,6 +295,17 @@ export interface ActiveStatus {
 export interface FloatText { x: number; y: number; text: string; color: string; t: number; crit?: boolean }
 export interface Particle { x: number; y: number; vx: number; vy: number; t: number; ttl: number; color: string; size: number; kind: string }
 
+// efeitos visuais de habilidade (cada skill tem o seu)
+export type FxKind = 'slash' | 'projectile' | 'aoe' | 'ground' | 'heal' | 'buff' | 'summon' | 'meteor' | 'nova' | 'bolt' | 'chain' | 'shield' | 'arrows';
+export interface Fx {
+  kind: FxKind;
+  x: number; y: number;        // origem (lane x, altura 0-1)
+  tx: number; ty: number;      // destino
+  t: number; ttl: number;
+  color: string; color2?: string;
+  r?: number; seed?: number;
+}
+
 export interface RunLogEntry { t: number; msg: string; kind: 'info' | 'boss' | 'danger' | 'good' }
 
 export interface RunState {
@@ -329,6 +340,7 @@ export interface RunState {
   log: RunLogEntry[];
   floats: FloatText[];
   particles: Particle[];
+  fx: Fx[];
   shake: number;
   over: boolean;
   result: 'vitoria' | 'derrota' | 'abandono' | null;
