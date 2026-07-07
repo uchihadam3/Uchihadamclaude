@@ -3,7 +3,10 @@ import { useEffect, useRef, ReactNode } from 'react';
 import type { NpcData, PlantData } from '../types';
 import { drawPlant } from '../rendering/plantPainters';
 import { drawPot } from '../rendering/gardenRenderer';
+import { drawDecor } from '../rendering/decorPainters';
+import { drawTool, drawSoil, drawConsumable } from '../rendering/itemPainters';
 import { POT_BY_ID } from '../data/potsData';
+import { DECOR_BY_ID } from '../data/decorData';
 import { sfx, startAudio } from '../audio/audioEngine';
 
 // ---------- botão ----------
@@ -157,6 +160,45 @@ export function PotSprite(props: { potId: string; size?: number }): JSX.Element 
     ctx.restore();
   }, [props.potId, size]);
   return <canvas ref={ref} style={{ width: size, height: size }} />;
+}
+
+// ---------- sprite genérico de item (ferramenta/solo/consumível/decoração) ----------
+function ItemCanvas(props: { size: number; deps: unknown[]; paint: (ctx: CanvasRenderingContext2D, s: number) => void }): JSX.Element {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const size = props.size;
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = size * dpr; cv.height = size * dpr;
+    const ctx = cv.getContext('2d'); if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+    ctx.save(); ctx.translate(size / 2, size / 2); props.paint(ctx, size); ctx.restore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, props.deps);
+  return <canvas ref={ref} style={{ width: size, height: size }} />;
+}
+
+export function ToolSprite(props: { toolId: string; size?: number }): JSX.Element {
+  const size = props.size ?? 54;
+  return <ItemCanvas size={size} deps={[props.toolId, size]} paint={(ctx, s) => drawTool(ctx, props.toolId, s * 0.92)} />;
+}
+export function SoilSprite(props: { soilId: string; size?: number }): JSX.Element {
+  const size = props.size ?? 54;
+  return <ItemCanvas size={size} deps={[props.soilId, size]} paint={(ctx, s) => drawSoil(ctx, props.soilId, s * 0.95)} />;
+}
+export function ConsumableSprite(props: { itemId: string; size?: number }): JSX.Element {
+  const size = props.size ?? 54;
+  return <ItemCanvas size={size} deps={[props.itemId, size]} paint={(ctx, s) => drawConsumable(ctx, props.itemId, s * 0.92)} />;
+}
+export function DecorSprite(props: { decorId: string; size?: number }): JSX.Element {
+  const size = props.size ?? 54;
+  const def = DECOR_BY_ID[props.decorId];
+  return <ItemCanvas size={size} deps={[props.decorId, size]} paint={(ctx, s) => {
+    if (!def) return;
+    ctx.translate(0, s * 0.28); // decorações têm base embaixo
+    drawDecor(ctx, def.visual, s * 0.82, 0);
+  }} />;
 }
 
 // ---------- retrato de NPC (canvas procedural) ----------

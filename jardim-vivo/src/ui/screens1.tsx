@@ -12,7 +12,7 @@ import { COMPETITIONS } from '../data/competitionData';
 import { upcomingCompetitions } from '../game/competitionSystem';
 import { tr, t, lang } from '../i18n';
 import { useGame, useFlash } from './useGame';
-import { Btn, Panel, PlantSprite, PotSprite, Icon, Stars, RARITY_COLORS, RARITY_LABEL, LIGHT_LABEL, WATER_LABEL, categoryLabel, NpcPortrait } from './components';
+import { Btn, Panel, PlantSprite, PotSprite, Icon, Stars, RARITY_COLORS, RARITY_LABEL, LIGHT_LABEL, WATER_LABEL, categoryLabel, NpcPortrait, ToolSprite, SoilSprite, ConsumableSprite, DecorSprite } from './components';
 import { isDead } from '../game/gameState';
 import { MONTH_NAMES_PT, MONTH_NAMES_EN, seasonNamePT, seasonNameEN } from '../game/gameTime';
 
@@ -78,7 +78,11 @@ export function ShopsScreen(props: { onClose: () => void }): JSX.Element {
                 }}>
                   {plantDef ? <PlantSprite plantId={item.id} size={58} /> :
                     item.kind === 'pot' ? <PotSprite potId={item.id} size={54} /> :
-                      <Icon name={item.kind === 'tool' ? 'hammer' : item.kind === 'decor' ? 'sparkle' : 'seedbag'} size={36} color="#7a6a42" />}
+                      item.kind === 'tool' ? <ToolSprite toolId={item.id} size={54} /> :
+                        item.kind === 'decor' ? <DecorSprite decorId={item.id} size={54} /> :
+                          (item.kind === 'soil-component' || item.kind === 'soil-mix') ? <SoilSprite soilId={item.id} size={54} /> :
+                            item.kind === 'consumable' ? <ConsumableSprite itemId={item.id} size={54} /> :
+                              <Icon name="seedbag" size={36} color="#7a6a42" />}
                   <span className="card-name">{lang() === 'pt' ? item.namePT : item.nameEN}</span>
                   {plantDef && <span className="card-sub">{plantDef.scientificName}</span>}
                   {plantDef && <span className="pill" style={{ background: RARITY_COLORS[plantDef.rarity] + '33', color: '#5a4a2a', fontSize: 9 }}>{tr(RARITY_LABEL[plantDef.rarity])}</span>}
