@@ -1,184 +1,163 @@
 import type { DungeonDef, RunState, Unit } from '../types';
 import { ENEMY_BY_ID } from '../data/enemiesData';
 import { ARENA_W } from '../game/combat';
-import { drawEnemyFigure, drawHeroFigure, drawSummonFigure } from './figures';
+import { heroFrame, FRAMES, pickAnim, type Anim } from './heroSprites';
+import { enemyFrame, summonFrame, ENEMY_FRAMES, type EAnim } from './enemySprites';
+import { drawDungeonPixel, hexA, mix } from './tiles';
+import { blit } from './pixel';
 
 type Ctx = CanvasRenderingContext2D;
 
-// ============ FUNDO PARALLAX POR AMBIENTE ============
-export function drawBackground(ctx: Ctx, W: number, H: number, d: DungeonDef, t: number, scrollX: number): void {
-  const a = d.ambient;
-  // céu / gradiente
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, a.skyTop); g.addColorStop(1, a.skyBottom);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+// buffer interno de baixa resolução (pixel art)
+let buf: HTMLCanvasElement | null = null;
+let bctx: Ctx | null = null;
+let ambient: { x: number; y: number; vx: number; vy: number; life: number; ttl: number }[] = [];
 
-  const groundY = H * 0.8;
-  // camada distante — silhuetas de arcos/pilares
-  layer(ctx, W, groundY, a.far, 0.12, scrollX, 6, H * 0.34, t, 0);
-  layer(ctx, W, groundY, a.mid, 0.28, scrollX, 5, H * 0.46, t, 1);
-  layer(ctx, W, groundY, a.near, 0.5, scrollX, 4, H * 0.6, t, 2);
-
-  // brilho ambiente
-  const rg = ctx.createRadialGradient(W * 0.5, groundY * 0.7, 10, W * 0.5, groundY * 0.7, W * 0.7);
-  rg.addColorStop(0, hexA(a.glow, 0.10)); rg.addColorStop(1, 'transparent');
-  ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
-
-  // chão
-  const fg = ctx.createLinearGradient(0, groundY, 0, H);
-  fg.addColorStop(0, a.floor); fg.addColorStop(1, a.floorDark);
-  ctx.fillStyle = fg; ctx.fillRect(0, groundY, W, H - groundY);
-  // ladrilhos em perspectiva
-  ctx.strokeStyle = hexA(a.floorDark, 0.6); ctx.lineWidth = 1;
-  const tile = 70;
-  for (let i = -2; i < W / tile + 2; i++) {
-    const x = ((i * tile - scrollX * 0.5) % (W + tile) + W + tile) % (W + tile) - tile;
-    ctx.beginPath(); ctx.moveTo(x, groundY); ctx.lineTo(x - 40, H); ctx.stroke();
-  }
-  for (let j = 1; j < 5; j++) {
-    const y = groundY + (H - groundY) * (j / 5) * (j / 5);
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.globalAlpha = 0.3; ctx.stroke(); ctx.globalAlpha = 1;
-  }
-  // névoa
-  if (a.fog) { ctx.fillStyle = a.fog; ctx.fillRect(0, groundY - H * 0.15, W, H * 0.3); }
+function ensureBuf(iw: number, ih: number): void {
+  if (!buf) { buf = document.createElement('canvas'); bctx = buf.getContext('2d'); }
+  if (buf.width !== iw || buf.height !== ih) { buf.width = iw; buf.height = ih; }
 }
 
-function layer(ctx: Ctx, W: number, groundY: number, col: string, par: number, scrollX: number, count: number, maxH: number, t: number, seed: number): void {
-  ctx.fillStyle = col;
-  const span = W / count;
-  for (let i = -1; i <= count; i++) {
-    const base = i * span - (scrollX * par) % span;
-    const rnd = Math.abs(Math.sin((i + seed * 3.7) * 12.9898) * 43758.5) % 1;
-    const h = maxH * (0.55 + rnd * 0.45);
-    const w = span * (0.5 + rnd * 0.3);
-    // pilar/arco
-    ctx.beginPath();
-    rrPath(ctx, base + span * 0.1, groundY - h, w, h, w * 0.2);
-    ctx.fill();
-    // topo arqueado
-    ctx.beginPath(); ctx.arc(base + span * 0.1 + w / 2, groundY - h, w / 2, Math.PI, Math.PI * 2); ctx.fill();
-  }
+// escolhe o quadro de animação de uma unidade
+function heroAnimFrame(u: Unit, t: number): { anim: Anim; frame: number } {
+  const anim = pickAnim(u.anim);
+  const count = FRAMES[anim];
+  let frame: number;
+  if (anim === 'walk') frame = Math.floor(t * 10) % count;
+  else if (anim === 'idle' || anim === 'victory') frame = Math.floor(t * 3) % count;
+  else if (anim === 'death') frame = Math.min(count - 1, Math.floor(u.animT / 0.14));
+  else frame = Math.min(count - 1, Math.floor(u.animT / 0.09)); // attack/cast/hit
+  return { anim, frame };
+}
+function enemyAnimFrame(u: Unit, t: number): { anim: EAnim; frame: number } {
+  let anim: EAnim = 'idle';
+  if (u.anim === 'walk') anim = 'walk'; else if (u.anim === 'attack') anim = 'attack';
+  else if (u.anim === 'hit') anim = 'hit'; else if (u.anim === 'death') anim = 'death';
+  const count = ENEMY_FRAMES[anim];
+  let frame: number;
+  if (anim === 'walk') frame = Math.floor((t + u.uid) * 7) % count;
+  else if (anim === 'idle') frame = Math.floor((t + u.uid * 0.3) * 2.5) % count;
+  else if (anim === 'death') frame = Math.min(count - 1, Math.floor(u.animT / 0.14));
+  else frame = Math.min(count - 1, Math.floor(u.animT / 0.1));
+  return { anim, frame };
 }
 
-// ============ PARTÍCULAS DE AMBIENTE ============
-const ambientParticles: { x: number; y: number; vx: number; vy: number; s: number; life: number }[] = [];
-export function drawAmbientParticles(ctx: Ctx, W: number, H: number, d: DungeonDef, dt: number): void {
-  const kind = d.ambient.particles;
-  if (ambientParticles.length < 46 && Math.random() < 0.5) {
-    ambientParticles.push({ x: Math.random() * W, y: kind === 'embers' || kind === 'bones' ? H : Math.random() * H, vx: (Math.random() - 0.5) * 20, vy: partVy(kind), s: 1 + Math.random() * 2.5, life: 0 });
-  }
-  ctx.fillStyle = hexA(d.ambient.glow, 0.5);
-  for (let i = ambientParticles.length - 1; i >= 0; i--) {
-    const p = ambientParticles[i];
-    p.x += p.vx * dt; p.y += p.vy * dt; p.life += dt;
-    p.vy += (kind === 'embers' ? -6 : kind === 'bubbles' ? -10 : 3) * dt;
-    ctx.globalAlpha = Math.max(0, 0.6 - p.life * 0.05);
-    ctx.beginPath();
-    if (kind === 'stars' || kind === 'shards') { ctx.fillRect(p.x, p.y, p.s, p.s); }
-    else { ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill(); }
-    if (p.y < -10 || p.y > H + 10 || p.life > 12) ambientParticles.splice(i, 1);
-  }
-  ctx.globalAlpha = 1;
-}
-function partVy(kind: string): number {
-  switch (kind) { case 'embers': return -30 - Math.random() * 30; case 'bubbles': return -20 - Math.random() * 20; case 'bones': return -40; default: return 8 + Math.random() * 14; }
-}
-
-// ============ CENA DE COMBATE ============
 export function drawScene(ctx: Ctx, W: number, H: number, run: RunState, d: DungeonDef, t: number, dt: number, scrollX: number): void {
-  ctx.save();
-  // shake
-  if (run.shake > 0) ctx.translate((Math.random() - 0.5) * run.shake * 12, (Math.random() - 0.5) * run.shake * 8);
-  drawBackground(ctx, W, H, d, t, scrollX);
-  drawAmbientParticles(ctx, W, H, d, dt);
+  const PS = Math.max(2, Math.round(W / 380));
+  const iw = Math.ceil(W / PS), ih = Math.ceil(H / PS);
+  ensureBuf(iw, ih);
+  const b = bctx!;
+  b.imageSmoothingEnabled = false;
+  b.clearRect(0, 0, iw, ih);
 
-  const groundY = H * 0.8;
-  const laneX = (x: number) => 44 + (x / ARENA_W) * (W - 88);
-  const heroSize = Math.max(16, H * 0.052);
+  const shakeX = run.shake > 0 ? Math.round((Math.random() - 0.5) * run.shake * 5) : 0;
+  const shakeY = run.shake > 0 ? Math.round((Math.random() - 0.5) * run.shake * 3) : 0;
+  b.save();
+  b.translate(shakeX, shakeY);
 
-  // sombra + unidade
-  const drawUnit = (u: Unit, size: number, painter: 'hero' | 'enemy' | 'summon') => {
-    if (u.dead && u.animT > 0.7) return;
-    const x = laneX(u.x);
-    const alpha = u.dead ? Math.max(0, 1 - u.animT / 0.7) : 1;
-    ctx.globalAlpha = alpha;
+  const floorY = drawDungeonPixel(b, iw, ih, d, t, scrollX);
+  const groundY = floorY + Math.round((ih - floorY) * 0.28);
+  const pad = 22;
+  const laneX = (x: number) => pad + (x / ARENA_W) * (iw - pad * 2);
+
+  // partículas de ambiente (pixel)
+  updateAmbient(b, iw, ih, d, dt);
+
+  // ordena por x (fundo→frente: maior x atrás)
+  const order: { u: Unit; kind: 'hero' | 'enemy' | 'summon' }[] = [];
+  for (const e of run.enemies) order.push({ u: e, kind: 'enemy' });
+  for (const s of run.summons) order.push({ u: s, kind: 'summon' });
+  order.push({ u: run.hero, kind: 'hero' });
+  order.sort((p, q) => q.u.x - p.u.x);
+
+  const floatPos: { x: number; y: number }[] = [];
+  for (const it of order) {
+    const u = it.u;
+    if (u.dead && u.animT > 0.7) continue;
+    const x = Math.round(laneX(u.x));
     // sombra
-    ctx.fillStyle = 'rgba(0,0,0,0.32)';
-    ctx.beginPath(); ctx.ellipse(x, groundY + 2, size * 0.9, size * 0.28, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.save();
-    ctx.translate(x, groundY);
-    ctx.scale(u.facing, 1);
-    if (painter === 'hero') drawHeroFigure(ctx, u, t, size);
-    else if (painter === 'summon') drawSummonFigure(ctx, u, t, size);
-    else drawEnemyFigure(ctx, u, t, size);
-    ctx.restore();
-    ctx.globalAlpha = 1;
+    b.fillStyle = 'rgba(0,0,0,0.32)';
+    b.beginPath(); b.ellipse(x, groundY + 1, 9, 3, 0, 0, Math.PI * 2); b.fill();
+    let sprite: HTMLCanvasElement, scale = 1;
+    if (it.kind === 'hero') { const af = heroAnimFrame(u, t); sprite = heroFrame(u.defId as never, af.anim, af.frame); }
+    else if (it.kind === 'summon') { const af = enemyAnimFrame(u, t); sprite = summonFrame(u.defId, af.anim, af.frame); }
+    else { const af = enemyAnimFrame(u, t); sprite = enemyFrame(u.defId, af.anim, af.frame); const vs = ENEMY_BY_ID[u.defId]?.visual.scale ?? 1; scale = u.tier === 'chefe' ? 3 : u.tier === 'subchefe' ? 2 : vs >= 1.3 ? 2 : 1; }
+    blit(b, sprite, x, groundY, scale, u.facing);
+    // status tint (queimando/envenenado)
+    tintStatus(b, u, x, groundY, sprite.height * scale);
     // barra de vida
-    if (!u.dead) drawHpBar(ctx, u, x, groundY - unitHeight(u, size), size);
-  };
-
-  // ordena por x (esquerda por cima) — inimigos e invocações e herói
-  const all: { u: Unit; size: number; kind: 'hero' | 'enemy' | 'summon' }[] = [];
-  for (const e of run.enemies) all.push({ u: e, size: heroSize * (ENEMY_BY_ID[e.defId]?.visual.scale ?? 1) * (e.tier === 'elite' ? 1.15 : 1), kind: 'enemy' });
-  for (const s of run.summons) all.push({ u: s, size: heroSize * 0.8, kind: 'summon' });
-  all.push({ u: run.hero, size: heroSize, kind: 'hero' });
-  all.sort((a, b) => b.u.x - a.u.x);
-  for (const it of all) drawUnit(it.u, it.size, it.kind);
-
-  // partículas de combate
-  for (const p of run.particles) {
-    const px = laneX(p.x), py = groundY - p.y * H * 0.12;
-    const a = Math.max(0, 1 - p.t / p.ttl);
-    ctx.globalAlpha = a; ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(px, py, p.size * (0.6 + a * 0.6), 0, Math.PI * 2); ctx.fill();
+    if (!u.dead) drawHpBar(b, u, x, groundY - sprite.height * scale - 3, scale);
+    floatPos.push({ x, y: groundY - sprite.height * scale });
   }
-  ctx.globalAlpha = 1;
 
-  // textos flutuantes
-  ctx.textAlign = 'center'; ctx.font = `700 ${Math.round(heroSize * 0.5)}px "Segoe UI", system-ui, sans-serif`;
+  // partículas de combate (pixel)
+  for (const p of run.particles) {
+    const px = Math.round(laneX(p.x)), py = Math.round(groundY - p.y * ih * 0.12);
+    const al = Math.max(0, 1 - p.t / p.ttl);
+    b.globalAlpha = al; b.fillStyle = p.color;
+    const s = Math.max(1, Math.round(p.size * 0.5 * (0.5 + al)));
+    b.fillRect(px - (s >> 1), py - (s >> 1), s, s);
+  }
+  b.globalAlpha = 1;
+  b.restore();
+
+  // amplia buffer → tela (nítido)
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, W, H);
+  ctx.drawImage(buf!, 0, 0, iw, ih, 0, 0, W, H);
+
+  // textos flutuantes em resolução plena (legibilidade)
+  ctx.save();
+  ctx.translate(shakeX * PS, shakeY * PS);
+  ctx.textAlign = 'center';
+  const fs = Math.max(13, Math.round(H * 0.026));
   for (const f of run.floats) {
-    const px = laneX(f.x), py = groundY - heroSize * 2.2 - f.t * 46;
+    const px = laneX(f.x) * PS, py = (groundY * PS) - H * 0.16 - f.t * H * 0.06;
     ctx.globalAlpha = Math.max(0, 1 - f.t);
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(f.text, px + 1, py + 1);
-    ctx.fillStyle = f.color;
-    ctx.font = `${f.crit ? 800 : 700} ${Math.round(heroSize * (f.crit ? 0.66 : 0.5))}px "Segoe UI", system-ui, sans-serif`;
-    ctx.fillText(f.text, px, py);
+    ctx.font = `900 ${f.crit ? fs + 6 : fs}px "Segoe UI", system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillText(f.text, px + 2, py + 2);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, px, py);
   }
   ctx.globalAlpha = 1;
   ctx.restore();
 
   // vinheta
-  const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, H * 0.85);
-  vg.addColorStop(0, 'transparent'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+  const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.34, W / 2, H / 2, H * 0.86);
+  vg.addColorStop(0, 'transparent'); vg.addColorStop(1, 'rgba(0,0,0,0.52)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
 
-function unitHeight(u: Unit, size: number): number { return size * 3.4; }
+function tintStatus(b: Ctx, u: Unit, x: number, groundY: number, hpx: number): void {
+  const has = (id: string) => u.statuses.some((s) => s.id === id);
+  let col = ''; if (has('burn')) col = 'rgba(255,120,40,0.22)'; else if (has('poison') || has('acid')) col = 'rgba(140,220,60,0.2)'; else if (has('shock')) col = 'rgba(140,200,255,0.22)'; else if (has('bleed')) col = 'rgba(220,40,60,0.18)';
+  if (!col) return;
+  b.fillStyle = col; b.fillRect(x - 10, groundY - hpx, 20, hpx);
+}
 
-function drawHpBar(ctx: Ctx, u: Unit, x: number, y: number, size: number): void {
-  const w = Math.max(size * 1.6, 28), h = Math.max(4, size * 0.14);
+function drawHpBar(b: Ctx, u: Unit, x: number, y: number, scale: number): void {
+  const w = Math.max(12, 8 + scale * 6), hgt = 2;
   const ratio = Math.max(0, u.hp / u.maxHp);
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; rrPath(ctx, x - w / 2 - 1, y - 1, w + 2, h + 2, 3); ctx.fill();
-  ctx.fillStyle = '#2a2030'; rrPath(ctx, x - w / 2, y, w, h, 2); ctx.fill();
-  const col = u.side === 'hero' ? (u.defId && u.tier === undefined && u.summonTtl === undefined ? '#5ec86e' : '#7ad0f0')
+  b.fillStyle = 'rgba(0,0,0,0.7)'; b.fillRect(x - w / 2 - 1, y - 1, w + 2, hgt + 2);
+  b.fillStyle = '#2a2030'; b.fillRect(x - w / 2, y, w, hgt);
+  const col = u.side === 'hero' ? (u.summonTtl !== undefined ? '#7ad0f0' : '#5ec86e')
     : u.tier === 'chefe' ? '#f04858' : u.tier === 'subchefe' ? '#f08838' : u.tier === 'elite' ? '#e0a0f0' : '#d86868';
-  ctx.fillStyle = col; rrPath(ctx, x - w / 2, y, w * ratio, h, 2); ctx.fill();
-  // escudo
-  if (u.shield > 0) { ctx.fillStyle = 'rgba(140,200,255,0.85)'; const sr = Math.min(1, u.shield / u.maxHp); rrPath(ctx, x - w / 2, y - h * 0.5, w * sr, h * 0.5, 1); ctx.fill(); }
+  b.fillStyle = col; b.fillRect(x - w / 2, y, Math.round(w * ratio), hgt);
+  if (u.shield > 0) { b.fillStyle = 'rgba(150,205,255,0.9)'; b.fillRect(x - w / 2, y - 1, Math.round(w * Math.min(1, u.shield / u.maxHp)), 1); }
 }
 
-// ============ util ============
-function rrPath(ctx: Ctx, x: number, y: number, w: number, h: number, r: number): void {
-  r = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-export function hexA(hex: string, a: number): string {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+function updateAmbient(b: Ctx, iw: number, ih: number, d: DungeonDef, dt: number): void {
+  const kind = d.ambient.particles;
+  if (ambient.length < 30 && Math.random() < 0.4) {
+    const up = kind === 'embers' || kind === 'bubbles';
+    ambient.push({ x: Math.random() * iw, y: up ? ih * 0.7 : Math.random() * ih * 0.6, vx: (Math.random() - 0.5) * 6, vy: up ? -6 - Math.random() * 8 : 3 + Math.random() * 6, life: 0, ttl: 4 + Math.random() * 4 });
+  }
+  b.fillStyle = hexA(d.ambient.glow, 0.55);
+  for (let i = ambient.length - 1; i >= 0; i--) {
+    const p = ambient[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.life += dt;
+    b.globalAlpha = Math.max(0, 0.6 - p.life / p.ttl * 0.6);
+    b.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+    if (p.life > p.ttl || p.y < -2 || p.y > ih + 2) ambient.splice(i, 1);
+  }
+  b.globalAlpha = 1;
+  void mix;
 }

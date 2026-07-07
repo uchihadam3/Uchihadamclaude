@@ -2,7 +2,9 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { JSX } from 'react';
 import type { HeroId, Unit } from '../types';
 import { subscribe, getSnapshot } from '../game/store';
-import { drawHeroFigure, drawEnemyFigure } from '../render/figures';
+import { heroFrame, FRAMES, type Anim } from '../render/heroSprites';
+import { enemyFrame, ENEMY_FRAMES } from '../render/enemySprites';
+import { blit } from '../render/pixel';
 import { HERO_BY_ID } from '../data/heroesData';
 
 export function useStore(): number { return useSyncExternalStore(subscribe, getSnapshot, getSnapshot); }
@@ -65,8 +67,10 @@ const paths: Record<string, JSX.Element> = {
   rune: <><rect x="5" y="5" width="14" height="14" rx="3" fill="currentColor" opacity=".15" /><path d="M12 8v8M9 11l3-3 3 3" /></>,
 };
 
-// ============ RETRATO DE HERÓI (canvas) ============
-export function HeroPortrait({ heroId, size = 120, anim = 'idle' }: { heroId: HeroId; size?: number; anim?: string }): JSX.Element {
+// ============ RETRATO DE HERÓI (pixel art animado) ============
+// cicla idle → walk → attack → cast para mostrar as animações
+const PREVIEW: Anim[] = ['idle', 'idle', 'walk', 'walk', 'attack', 'cast', 'victory'];
+export function HeroPortrait({ heroId, size = 120, demo = true }: { heroId: HeroId; size?: number; demo?: boolean }): JSX.Element {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = ref.current; if (!cv) return;
@@ -74,26 +78,28 @@ export function HeroPortrait({ heroId, size = 120, anim = 'idle' }: { heroId: He
     cv.width = size * dpr; cv.height = size * dpr;
     const ctx = cv.getContext('2d')!;
     let raf = 0; const t0 = performance.now();
-    const unit: Unit = { uid: 1, side: 'hero', defId: heroId, nome: '', x: 0, hp: 1, maxHp: 1, shield: 0, stats: {} as Unit['stats'], attackCd: 0, statuses: [], dead: false, anim, animT: 0, facing: 1 };
+    const scale = Math.max(2, Math.floor((size * 0.9) / 44));
     const loop = () => {
       const t = (performance.now() - t0) / 1000;
-      unit.animT = t % 1;
+      const anim: Anim = demo ? PREVIEW[Math.floor(t / 0.9) % PREVIEW.length] : 'idle';
+      const fps = anim === 'walk' ? 10 : anim === 'attack' || anim === 'cast' ? 9 : 3;
+      const f = Math.floor(t * fps) % FRAMES[anim];
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, size, size);
       const pal = HERO_BY_ID[heroId].palette;
-      const g = ctx.createRadialGradient(size / 2, size * 0.42, 6, size / 2, size * 0.42, size * 0.6);
-      g.addColorStop(0, pal.glow + '22'); g.addColorStop(1, 'transparent');
+      const g = ctx.createRadialGradient(size / 2, size * 0.5, 4, size / 2, size * 0.5, size * 0.62);
+      g.addColorStop(0, pal.glow + '26'); g.addColorStop(1, 'transparent');
       ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
-      ctx.save(); ctx.translate(size / 2, size * 0.9); drawHeroFigure(ctx, unit, t, size * 0.16); ctx.restore();
+      blit(ctx, heroFrame(heroId, anim, f), size / 2, size * 0.92, scale, 1);
       raf = requestAnimationFrame(loop);
     };
     loop();
     return () => cancelAnimationFrame(raf);
-  }, [heroId, size, anim]);
-  return <canvas ref={ref} style={{ width: size, height: size }} />;
+  }, [heroId, size, demo]);
+  return <canvas ref={ref} style={{ width: size, height: size, imageRendering: 'pixelated' }} />;
 }
 
-// ============ MINIATURA DE INIMIGO (canvas estático animado) ============
+// ============ MINIATURA DE INIMIGO (pixel art animado) ============
 export function EnemyThumb({ enemyId, w = 160, h = 90 }: { enemyId: string; w?: number; h?: number }): JSX.Element {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -102,17 +108,19 @@ export function EnemyThumb({ enemyId, w = 160, h = 90 }: { enemyId: string; w?: 
     cv.width = w * dpr; cv.height = h * dpr;
     const ctx = cv.getContext('2d')!;
     let raf = 0; const t0 = performance.now();
-    const unit: Unit = { uid: 3, side: 'enemy', defId: enemyId, nome: '', x: 0, hp: 1, maxHp: 1, shield: 0, stats: {} as Unit['stats'], attackCd: 0, statuses: [], dead: false, anim: 'idle', animT: 0, facing: -1 };
+    const scale = Math.max(2, Math.floor((h * 0.82) / 40));
     const loop = () => {
-      const t = (performance.now() - t0) / 1000; unit.animT = t % 1;
+      const t = (performance.now() - t0) / 1000;
+      const anim = Math.floor(t / 1.2) % 2 === 0 ? 'idle' : 'walk';
+      const f = Math.floor(t * 6) % ENEMY_FRAMES[anim];
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
-      ctx.save(); ctx.translate(w / 2, h * 0.92); drawEnemyFigure(ctx, unit, t, h * 0.2); ctx.restore();
+      blit(ctx, enemyFrame(enemyId, anim, f), w / 2, h * 0.94, scale, -1);
       raf = requestAnimationFrame(loop);
     };
     loop();
     return () => cancelAnimationFrame(raf);
   }, [enemyId, w, h]);
-  return <canvas ref={ref} style={{ width: w, height: h }} />;
+  return <canvas ref={ref} style={{ width: w, height: h, imageRendering: 'pixelated' }} />;
 }
 
 export function fmtTime(sec: number): string {
