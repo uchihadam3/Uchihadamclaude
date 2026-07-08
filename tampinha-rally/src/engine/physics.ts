@@ -48,7 +48,7 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
       c.vel.x += dir.x * 30 * dt; c.vel.y += dir.y * 30 * dt;
     } else if (surf === 'push') {              // seta vermelha: freia e joga na direção da seta (trás/lado)
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: -c.vel.x, y: -c.vel.y };
-      c.vel.x = c.vel.x * 0.90 + dir.x * 42 * dt; c.vel.y = c.vel.y * 0.90 + dir.y * 42 * dt;
+      c.vel.x = c.vel.x * 0.93 + dir.x * 30 * dt; c.vel.y = c.vel.y * 0.93 + dir.y * 30 * dt;
     } else if (surf === 'water') {             // água rasa: empurrão leve na correnteza
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: 0, y: 0 };
       c.vel.x += dir.x * 7 * dt; c.vel.y += dir.y * 7 * dt;

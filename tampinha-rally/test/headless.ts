@@ -64,7 +64,7 @@ function runRace(lv: number, idx: number): { flicksWinner: number; steps: number
     { name: 'Cau', isAI: true, ai: 'cauteloso', skin: 'classica' },
   ]);
   const dt = 1 / 30; let steps = 0;
-  while (mgr.phase !== 'over' && steps < 60000) { mgr.update(dt); steps++; }
+  while (mgr.phase !== 'over' && steps < 90000) { mgr.update(dt); steps++; }
   const win = mgr.winner();
   return { flicksWinner: win ? (flickCount.get(win.id) || 0) : -1, steps, finished: mgr.phase === 'over' && !!win, falls };
 }

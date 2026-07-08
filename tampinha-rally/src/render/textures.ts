@@ -17,44 +17,72 @@ function noise(ctx: CanvasRenderingContext2D, w: number, h: number, n: number, c
 }
 
 const GROUND: Record<string, (c: CanvasRenderingContext2D, w: number, h: number) => void> = {
-  dirt(c, w, h) { c.fillStyle = '#8a6a44'; c.fillRect(0, 0, w, h); noise(c, w, h, 2600, '#6f5334', 0.5, 2.2); noise(c, w, h, 1200, '#a07f52', 0.4, 2.4); },
-  sand(c, w, h) { c.fillStyle = '#e6c98a'; c.fillRect(0, 0, w, h); noise(c, w, h, 3200, '#d3b273', 0.4, 1.7); noise(c, w, h, 900, '#f3ddab', 0.5, 2.0); },
-  sidewalk(c, w, h) { c.fillStyle = '#b9b3a6'; c.fillRect(0, 0, w, h); noise(c, w, h, 1500, '#a49e90', 0.35, 2.4); c.strokeStyle = 'rgba(120,114,100,0.5)'; c.lineWidth = 3; for (let y = 0; y < h; y += PX * 6) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y + (Math.random() - 0.5) * 10); c.stroke(); } },
-  cardboard(c, w, h) { c.fillStyle = '#cba875'; c.fillRect(0, 0, w, h); noise(c, w, h, 1200, '#b9915f', 0.4, 2.2); c.strokeStyle = 'rgba(150,110,70,0.28)'; c.lineWidth = 2; for (let x = 0; x < w; x += 10) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } },
-  grass(c, w, h) { c.fillStyle = '#5f8a3a'; c.fillRect(0, 0, w, h); noise(c, w, h, 2600, '#4d7530', 0.5, 2.4); noise(c, w, h, 1200, '#7aa54a', 0.5, 2.2); },
-  mud: () => {}, water: () => {}, ramp: () => {}, chalk: () => {}, out: () => {},
+  dirt(c, w, h) { c.fillStyle = '#8a6a44'; c.fillRect(0, 0, w, h); noise(c, w, h, 2600, '#6f5334', 0.5, 2.2); noise(c, w, h, 1400, '#a07f52', 0.4, 2.4); noise(c, w, h, 500, '#4f3a1f', 0.45, 3.4); noise(c, w, h, 120, '#3a2810', 0.35, 5.5); },
+  sand(c, w, h) { c.fillStyle = '#e6c98a'; c.fillRect(0, 0, w, h); noise(c, w, h, 3200, '#d3b273', 0.4, 1.7); noise(c, w, h, 900, '#f3ddab', 0.5, 2.0); c.strokeStyle = 'rgba(198,168,108,0.22)'; c.lineWidth = 2; for (let y = 0; y < h; y += 24) { c.beginPath(); for (let x = 0; x < w; x += 22) c.lineTo(x, y + Math.sin(x * 0.02 + y * 0.1) * 4); c.stroke(); } },
+  sidewalk(c, w, h) { c.fillStyle = '#b9b3a6'; c.fillRect(0, 0, w, h); noise(c, w, h, 1800, '#a49e90', 0.35, 2.4); noise(c, w, h, 700, '#cfc9bc', 0.35, 2.2); c.strokeStyle = 'rgba(120,114,100,0.5)'; c.lineWidth = 3; for (let y = 0; y < h; y += PX * 6) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y + (Math.random() - 0.5) * 10); c.stroke(); } c.strokeStyle = 'rgba(90,84,72,0.35)'; c.lineWidth = 1.4; for (let i = 0; i < 8; i++) { c.beginPath(); let x = Math.random() * w, y = Math.random() * h; c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 90; y += (Math.random() - 0.5) * 90; c.lineTo(x, y); } c.stroke(); } },
+  cardboard(c, w, h) { c.fillStyle = '#cba875'; c.fillRect(0, 0, w, h); noise(c, w, h, 1200, '#b9915f', 0.4, 2.2); c.strokeStyle = 'rgba(150,110,70,0.26)'; c.lineWidth = 2; for (let x = 0; x < w; x += 10) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } c.fillStyle = 'rgba(214,204,184,0.45)'; for (let i = 0; i < 5; i++) { c.save(); c.translate(Math.random() * w, Math.random() * h); c.rotate(Math.random() * 3); c.fillRect(-42, -8, 84, 16); c.restore(); } },
+  grass(c, w, h) { c.fillStyle = '#4f7d30'; c.fillRect(0, 0, w, h); noise(c, w, h, 2200, '#3e6626', 0.5, 2.6); noise(c, w, h, 1200, '#6f9c40', 0.5, 2.2); c.lineWidth = 1.4; const nb = Math.min(6000, Math.floor(w * h / 1100)); for (let i = 0; i < nb; i++) { const gx = Math.random() * w, gy = Math.random() * h, r = Math.random(); c.strokeStyle = r < 0.45 ? '#3c6322' : r < 0.8 ? '#6fa840' : '#84c052'; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (Math.random() - 0.5) * 4, gy - 4 - Math.random() * 5); c.stroke(); } },
+  mud: () => {}, water: () => {}, ramp: () => {}, push: () => {}, chalk: () => {}, out: () => {},
 };
 
+// hash e formas ORGÂNICAS — nada de círculo perfeito: manchas naturais (redondas
+// tortas) e poças compridas, cada uma com uma silhueta própria (seed = posição).
+function phash(x: number, y: number): number { const h = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453; return h - Math.floor(h); }
+function blobPath(c: CanvasRenderingContext2D, cx: number, cy: number, r: number, seed: number) { const N = 22; c.beginPath(); for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2; const w = 0.80 + 0.20 * Math.sin(a * 3 + seed * 6.283) + 0.10 * Math.sin(a * 5 - seed * 9); const rr = r * w; const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr; i ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); }
+function blobRect(c: CanvasRenderingContext2D, cx: number, cy: number, hw: number, hh: number, seed: number) { const N = 26; c.beginPath(); for (let i = 0; i <= N; i++) { const a = i / N * Math.PI * 2; const wob = 1 + 0.12 * Math.sin(a * 4 + seed * 6.283); const x = cx + Math.cos(a) * hw * wob, y = cy + Math.sin(a) * hh * wob; i ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); }
+
 function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: number) => [number, number], px: number) {
-  const [cx, cy] = map(p.x, p.y); const r = (p.r ?? Math.max(p.hw!, p.hh!)) * px;
-  c.save();
-  c.beginPath();
-  if (p.r != null) c.arc(cx, cy, r, 0, 7);
-  else { const hw = p.hw! * px, hh = p.hh! * px; c.rect(cx - hw, cy - hh, hw * 2, hh * 2); }
-  c.clip();
+  const [cx, cy] = map(p.x, p.y);
+  const rect = p.r == null && p.hw != null && p.hh != null;
+  const hw = (p.hw ?? p.r ?? 1) * px, hh = (p.hh ?? p.r ?? 1) * px; const r = Math.max(hw, hh);
+  const seed = phash(Math.round(p.x * 1.7), Math.round(p.y * 1.3));
   const s = p.surface;
-  if (s === 'sand') { c.fillStyle = '#ecd192'; c.fillRect(cx - r, cy - r, r * 2, r * 2); noise(c, 0, 0, 0, '', 0, 0); c.globalAlpha = 1; for (let i = 0; i < 400; i++) { c.globalAlpha = 0.3; c.fillStyle = '#d8b96f'; c.beginPath(); c.arc(cx + (Math.random() - 0.5) * r * 2, cy + (Math.random() - 0.5) * r * 2, 1.6, 0, 7); c.fill(); } c.globalAlpha = 1; }
-  else if (s === 'mud') { const g = c.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, '#4a3620'); g.addColorStop(1, '#5c452a'); c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2); for (let i = 0; i < 30; i++) { c.globalAlpha = 0.3; c.fillStyle = '#6b5335'; c.beginPath(); c.arc(cx + (Math.random() - 0.5) * r * 1.6, cy + (Math.random() - 0.5) * r * 1.6, 3 + Math.random() * 4, 0, 7); c.fill(); } c.globalAlpha = 1; }
-  else if (s === 'water') { const g = c.createRadialGradient(cx, cy, 0, cx, cy, r); g.addColorStop(0, 'rgba(90,170,205,0.85)'); g.addColorStop(1, 'rgba(70,150,190,0.7)'); c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2); c.strokeStyle = 'rgba(255,255,255,0.4)'; c.lineWidth = 2; for (let i = 0; i < 5; i++) { c.beginPath(); c.arc(cx, cy, r * (0.3 + i * 0.15), 0.4, 2.2); c.stroke(); } }
-  else if (s === 'ramp') {   // TIRA DE ACELERAÇÃO: setas sempre no sentido da pista (corrige o espelho Y)
+  const shape = () => rect ? blobRect(c, cx, cy, hw, hh, seed) : blobPath(c, cx, cy, (p.r ?? 1) * px, seed);
+
+  // RAMPA (verde) / EMPURRÃO (vermelho): placas chapadas com setas nítidas
+  if (s === 'ramp' || s === 'push') {
+    c.save(); c.beginPath(); c.arc(cx, cy, r, 0, 7); c.clip();
     c.save(); c.translate(cx, cy); c.rotate(1.57 - (p.dir ?? -1.57));
-    const g = c.createLinearGradient(0, r, 0, -r); g.addColorStop(0, '#1f7a3a'); g.addColorStop(1, '#43c463'); c.fillStyle = g; c.fillRect(-r, -r, r * 2, r * 2);
-    c.strokeStyle = 'rgba(255,255,255,0.92)'; c.lineWidth = r * 0.16; c.lineCap = 'round'; c.lineJoin = 'round';
-    for (let i = -1; i <= 1; i++) { const y = i * r * 0.52; c.beginPath(); c.moveTo(-r * 0.5, y + r * 0.24); c.lineTo(0, y - r * 0.24); c.lineTo(r * 0.5, y + r * 0.24); c.stroke(); }
-    c.restore();
-  }
-  else if (s === 'push') {   // SETA VERMELHA: empurrão — as pontas mostram pra onde te joga (trás/lado)
-    c.save(); c.translate(cx, cy); c.rotate(1.57 - (p.dir ?? 1.57));
-    const g = c.createLinearGradient(0, r, 0, -r); g.addColorStop(0, '#8a1810'); g.addColorStop(1, '#ef5a5f'); c.fillStyle = g; c.fillRect(-r, -r, r * 2, r * 2);
+    const g = c.createLinearGradient(0, r, 0, -r);
+    if (s === 'ramp') { g.addColorStop(0, '#1f7a3a'); g.addColorStop(1, '#43c463'); } else { g.addColorStop(0, '#8a1810'); g.addColorStop(1, '#ef5a5f'); }
+    c.fillStyle = g; c.fillRect(-r, -r, r * 2, r * 2);
     c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineWidth = r * 0.16; c.lineCap = 'round'; c.lineJoin = 'round';
     for (let i = -1; i <= 1; i++) { const y = i * r * 0.52; c.beginPath(); c.moveTo(-r * 0.5, y + r * 0.24); c.lineTo(0, y - r * 0.24); c.lineTo(r * 0.5, y + r * 0.24); c.stroke(); }
-    c.restore();
+    c.restore(); c.restore(); return;
   }
-  else if (s === 'chalk') { c.fillStyle = 'rgba(255,255,255,0.15)'; c.fillRect(cx - r, cy - r, r * 2, r * 2); }
-  else if (s === 'grass') { c.fillStyle = '#5a8636'; c.fillRect(cx - r, cy - r, r * 2, r * 2); for (let i = 0; i < 60; i++) { c.strokeStyle = '#6f9c40'; c.lineWidth = 2; const gx = cx + (Math.random() - 0.5) * r * 2, gy = cy + (Math.random() - 0.5) * r * 2; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (Math.random() - 0.5) * 6, gy - 6 - Math.random() * 6); c.stroke(); } }
-  else if (s === 'sidewalk') { c.fillStyle = '#c6c0b2'; c.fillRect(cx - r, cy - r, r * 2, r * 2); }
-  else if (s === 'cardboard') { c.fillStyle = '#d3b17e'; c.fillRect(cx - r, cy - r, r * 2, r * 2); }
+
+  let x = Math.sin((seed + 1) * 99.13) * 9999; const R = () => { x = Math.sin(x) * 9999; return x - Math.floor(x); };
+  c.save(); shape(); c.clip();
+  const box = (col: string) => { c.fillStyle = col; c.fillRect(cx - r, cy - r, r * 2, r * 2); };
+  if (s === 'sand') {
+    const g = c.createRadialGradient(cx, cy - r * 0.2, r * 0.2, cx, cy, r); g.addColorStop(0, '#f0d79a'); g.addColorStop(1, '#d6b271'); c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    c.lineWidth = Math.max(1.5, px * 0.1); c.lineCap = 'round';
+    for (let i = 0; i < 6; i++) { const yy = cy - r + (i + R()) * r * 0.34; c.strokeStyle = i % 2 ? 'rgba(255,246,214,0.5)' : 'rgba(180,150,96,0.45)'; c.beginPath(); for (let xx = cx - r; xx <= cx + r; xx += px * 0.4) c.lineTo(xx, yy + Math.sin(xx * 0.05 + i) * px * 0.5); c.stroke(); }
+    for (let i = 0; i < 240; i++) { c.globalAlpha = 0.35; c.fillStyle = R() < 0.5 ? '#c9a86a' : '#fdeec4'; c.beginPath(); c.arc(cx + (R() - 0.5) * r * 2, cy + (R() - 0.5) * r * 2, px * 0.06, 0, 7); c.fill(); } c.globalAlpha = 1;
+  } else if (s === 'mud') {
+    const g = c.createRadialGradient(cx - r * 0.2, cy - r * 0.2, r * 0.1, cx, cy, r); g.addColorStop(0, '#6b4d2a'); g.addColorStop(0.7, '#4a3418'); g.addColorStop(1, '#33240f'); c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    for (let i = 0; i < 16; i++) { c.fillStyle = R() < 0.5 ? 'rgba(92,68,38,0.7)' : 'rgba(38,26,12,0.6)'; c.beginPath(); c.arc(cx + (R() - 0.5) * r * 1.5, cy + (R() - 0.5) * r * 1.5, px * (0.14 + R() * 0.36), 0, 7); c.fill(); }
+    const sh = c.createRadialGradient(cx - r * 0.3, cy - r * 0.35, 0, cx - r * 0.3, cy - r * 0.35, r * 0.85); sh.addColorStop(0, 'rgba(255,240,200,0.28)'); sh.addColorStop(1, 'rgba(255,240,200,0)'); c.fillStyle = sh; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+  } else if (s === 'water') {
+    const g = c.createRadialGradient(cx, cy, r * 0.15, cx, cy, r); g.addColorStop(0, 'rgba(120,200,235,0.92)'); g.addColorStop(0.7, 'rgba(70,150,200,0.92)'); g.addColorStop(1, 'rgba(40,110,165,0.94)'); c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    c.strokeStyle = 'rgba(255,255,255,0.42)'; c.lineWidth = Math.max(1.2, px * 0.07); for (let i = 1; i <= 5; i++) { c.globalAlpha = 0.5 - i * 0.06; c.beginPath(); c.arc(cx - r * 0.15, cy - r * 0.1, r * (0.18 + i * 0.16), 0.3, 2.5); c.stroke(); } c.globalAlpha = 1;
+    c.fillStyle = 'rgba(255,255,255,0.55)'; c.beginPath(); c.ellipse(cx - r * 0.35, cy - r * 0.4, r * 0.28, r * 0.09, -0.5, 0, 7); c.fill();
+    for (let i = 0; i < 8; i++) { c.fillStyle = 'rgba(255,255,255,0.5)'; c.beginPath(); c.arc(cx + (R() - 0.5) * r * 1.6, cy + (R() - 0.5) * r * 1.6, px * 0.05, 0, 7); c.fill(); }
+  } else if (s === 'grass') {
+    box('#4d7a2e');
+    for (let i = 0; i < 200; i++) { const gx = cx + (R() - 0.5) * r * 2, gy = cy + (R() - 0.5) * r * 2, hgt = px * (0.3 + R() * 0.5); c.strokeStyle = R() < 0.4 ? '#3c6322' : R() < 0.8 ? '#5f9a38' : '#7bbd4a'; c.lineWidth = Math.max(1, px * 0.05); c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (R() - 0.5) * px * 0.3, gy - hgt); c.stroke(); }
+  } else if (s === 'chalk') {
+    c.fillStyle = 'rgba(240,240,245,0.14)'; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    const cols = ['#ff8fb0', '#8fd0ff', '#ffe38f', '#a0ffb0', '#c9a0ff'];
+    for (let i = 0; i < 5; i++) { c.strokeStyle = cols[i % cols.length]; c.globalAlpha = 0.55; c.lineWidth = px * 0.14; c.lineCap = 'round'; const sx = cx + (R() - 0.5) * r, sy = cy + (R() - 0.5) * r; c.beginPath(); c.moveTo(sx, sy); c.lineTo(sx + (R() - 0.5) * r, sy + (R() - 0.5) * r); c.stroke(); } c.globalAlpha = 1;
+  } else if (s === 'cardboard') {
+    box('#cba875'); c.strokeStyle = 'rgba(150,110,70,0.32)'; c.lineWidth = px * 0.12; for (let xx = cx - r; xx < cx + r; xx += px * 0.55) { c.beginPath(); c.moveTo(xx, cy - r); c.lineTo(xx, cy + r); c.stroke(); }
+  } else if (s === 'sidewalk') {
+    box('#c6c0b2'); for (let i = 0; i < 60; i++) { c.globalAlpha = 0.3; c.fillStyle = R() < 0.5 ? '#b0a99a' : '#dad4c6'; c.beginPath(); c.arc(cx + (R() - 0.5) * r * 2, cy + (R() - 0.5) * r * 2, px * 0.07, 0, 7); c.fill(); } c.globalAlpha = 1; c.strokeStyle = 'rgba(120,114,100,0.5)'; c.lineWidth = px * 0.08; c.beginPath(); c.moveTo(cx - r, cy + (R() - 0.5) * r); c.lineTo(cx + r, cy + (R() - 0.5) * r); c.stroke();
+  } else box('#c9bfa8');
   c.restore();
+  // contorno pra a mancha parecer "assentada" no chão
+  c.save(); shape(); c.lineWidth = Math.max(2, px * 0.16); c.strokeStyle = s === 'water' ? 'rgba(20,70,110,0.5)' : 'rgba(0,0,0,0.2)'; c.stroke(); c.restore();
 }
 
 // bordas do corredor (esq/dir) a partir do traçado + meia-largura por ponto

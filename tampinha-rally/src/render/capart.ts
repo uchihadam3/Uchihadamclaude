@@ -4,10 +4,10 @@
 // o brilho do metal. Fiel às tampinhas de refrigerante/cerveja antigas.
 import * as THREE from 'three';
 
-export type Rarity = 'comum' | 'rara' | 'epica' | 'lendaria';
-export const RARITY_COLOR: Record<Rarity, string> = { comum: '#9aa2ac', rara: '#3b82f6', epica: '#a855f7', lendaria: '#f5b400' };
-export const RARITY_LABEL: Record<Rarity, string> = { comum: 'Comum', rara: 'Rara', epica: 'Épica', lendaria: 'Lendária' };
-export const RARITY_ORDER: Rarity[] = ['comum', 'rara', 'epica', 'lendaria'];
+export type Rarity = 'comum' | 'rara' | 'epica' | 'lendaria' | 'mitica';
+export const RARITY_COLOR: Record<Rarity, string> = { comum: '#9aa2ac', rara: '#3b82f6', epica: '#a855f7', lendaria: '#f5b400', mitica: '#ff4fa3' };
+export const RARITY_LABEL: Record<Rarity, string> = { comum: 'Comum', rara: 'Rara', epica: 'Épica', lendaria: 'Lendária', mitica: 'Mítica' };
+export const RARITY_ORDER: Rarity[] = ['comum', 'rara', 'epica', 'lendaria', 'mitica'];
 
 // Especificação de arte de uma tampinha (bem enxuta; o motor faz o resto bonito).
 export interface CapArt {

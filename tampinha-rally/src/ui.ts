@@ -177,7 +177,7 @@ export class UI {
           <span>${this.cfgPlayers.length} tampinhas</span>
           <button class="chip" id="more">+ jogador</button>
         </div>` : `<div class="daily-note">Pista do dia: <b>${t.name}</b> (${LEVELS[this.cfgLevel]}). Contra o relógio: leve a tampinha à chegada com o <b>menor número de petelecos</b>. Recorde de hoje: <b>${save.dailyBest(dailyKey()) ?? '—'}</b></div>`}
-        <button class="play-btn" id="play">Jogar ▶</button>
+        <div class="play-dock"><button class="play-btn" id="play">Jogar ▶</button></div>
       </div>`);
     this.root.appendChild(s);
     s.prepend(this.bgFx(6));
