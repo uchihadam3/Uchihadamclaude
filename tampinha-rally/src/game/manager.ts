@@ -32,16 +32,17 @@ export class GameManager {
       const c = makeCap(i, pl.name, pl.skin, { ...DEFAULT_STATS, ...sk.stats }, pl.isAI, pl.ai);
       return c;
     });
-    // larga NA linha de largada, dentro do corredor (não atrás/fora dela):
-    // duas colunas, avançando levemente para dentro da pista
+    // larga TODO MUNDO na MESMA linha de largada (lado a lado), sem ninguém atrás:
+    // sem desvantagem de posição. Espaça na largura do corredor (largo na largada).
     const s = def.start; const ang = def.startAngle;
     const fwd = { x: Math.cos(ang), y: Math.sin(ang) };        // direção da pista
     const side = { x: -Math.sin(ang), y: Math.cos(ang) };      // perpendicular
     const half0 = def.half[0];
+    const n = this.caps.length;
+    const spacing = n > 1 ? Math.min(1.95, (2 * (half0 - 1.0)) / (n - 1)) : 0;
     this.caps.forEach((c, i) => {
-      const col = (i % 2) ? 1 : -1;                            // duas colunas
-      const across = (i % 2 === 0 && this.caps.length === 1) ? 0 : col * Math.min(half0 * 0.55, 1.8);
-      const along = 0.8 + Math.floor(i / 2) * 1.9;             // filas para frente, na pista
+      const across = (i - (n - 1) / 2) * spacing;             // centralizado na linha
+      const along = 1.2;                                       // todos à mesma distância da linha
       c.pos = vec(s.x + fwd.x * along + side.x * across, s.y + fwd.y * along + side.y * across);
       c.cpPos = vec(c.pos.x, c.pos.y); c.turnStart = vec(c.pos.x, c.pos.y);
       c.progress = this.track.progressOf(c.pos); c.checkpoint = 0;

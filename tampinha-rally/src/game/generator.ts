@@ -125,7 +125,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const halfArr: number[] = [];
   for (let i = 0; i < N; i++) {
     let hw = half0 + Math.sin(arcs[i] * 0.05) * 0.3;
-    if (arcs[i] < 10) hw = Math.max(hw, half0 + 2.0 * (1 - arcs[i] / 10));
+    if (arcs[i] < 13) hw = Math.max(hw, half0 + 3.2 * (1 - arcs[i] / 13));   // largada bem larga: cabe a fila
     if (total - arcs[i] < 8) hw += 0.9;
     hw *= 1 + 0.45 * curvS[i];                             // alarga nas curvas (espaço p/ manobrar)
     halfArr.push(hw);
@@ -151,8 +151,8 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const checkpoints: V[] = [vec(path[0].x, path[0].y)];
   const pads: { x: number; y: number; r: number }[] = [];
 
-  // largada larga (para as tampinhas saírem certinho da linha)
-  pads.push({ x: path[0].x, y: path[0].y, r: half0 + 2.8 });
+  // largada larga (para as tampinhas saírem certinho da linha, todas lado a lado)
+  pads.push({ x: path[0].x, y: path[0].y, r: half0 + 3.6 });
 
   const nCP = ri(4, 7);
   for (let k = 1; k <= nCP; k++) checkpoints.push(onPath(total * k / (nCP + 1)));

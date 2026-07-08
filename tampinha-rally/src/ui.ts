@@ -34,23 +34,55 @@ export class UI {
   private el(html: string): HTMLElement { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild as HTMLElement; }
   private clear(): void { this.root.querySelectorAll('.screen').forEach(s => s.remove()); }
 
+  // camada de fundo: tampinhas flutuando + bolhas subindo (dá vida às telas)
+  private bgFx(n = 8): HTMLElement {
+    const layer = this.el('<div class="fxlayer"></div>');
+    for (let i = 0; i < n; i++) {
+      const sk = SKINS[Math.floor(Math.random() * SKINS.length)];
+      const wrap = document.createElement('div'); wrap.className = 'fcap';
+      const sz = 30 + Math.random() * 52;
+      wrap.style.cssText = `left:${Math.random() * 100}%;width:${sz}px;height:${sz}px;opacity:${(0.1 + Math.random() * 0.16).toFixed(2)};animation-duration:${(16 + Math.random() * 16).toFixed(1)}s;animation-delay:${(-Math.random() * 26).toFixed(1)}s`;
+      const cv = drawCap(sk.art, 72); cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
+      wrap.appendChild(cv); layer.appendChild(wrap);
+    }
+    for (let i = 0; i < 10; i++) {
+      const b = document.createElement('div'); b.className = 'bub'; const sz = 6 + Math.random() * 18;
+      b.style.cssText = `left:${Math.random() * 100}%;width:${sz}px;height:${sz}px;animation-duration:${(10 + Math.random() * 12).toFixed(1)}s;animation-delay:${(-Math.random() * 20).toFixed(1)}s`;
+      layer.appendChild(b);
+    }
+    return layer;
+  }
+  private confetti(host: HTMLElement): void {
+    const cols = ['#f2b100', '#e5484d', '#3b82f6', '#2ea44f', '#a855f7', '#ff8fb0', '#fff'];
+    for (let i = 0; i < 46; i++) { const c = document.createElement('div'); c.className = 'confetti'; c.style.cssText = `left:${Math.random() * 100}%;background:${cols[i % cols.length]};animation-duration:${(1 + Math.random() * 1.5).toFixed(2)}s;animation-delay:${(Math.random() * 0.5).toFixed(2)}s;transform:rotate(${Math.floor(Math.random() * 360)}deg)`; host.appendChild(c); setTimeout(() => c.remove(), 2800); }
+  }
+
   // ------------------------------------------------------------------ MENU
   showMenu(): void {
     this.clear();
-    const wins = save.wins();
+    const wins = save.wins(); const unl = unlockedSkins(wins).length;
     const s = this.el(`
       <div class="screen menu">
-        <div class="logo"><span class="cap-ico"></span><h1>Tampinha <em>Rally</em></h1><div class="tag">corrida de tampinhas · peteléco &amp; caos</div></div>
-        <div class="mode-grid">
-          <button class="mode-btn" data-m="quick"><b>Corrida Rápida</b><span>você + IA, é só jogar</span></button>
-          <button class="mode-btn" data-m="ai"><b>Contra a IA</b><span>escolha rivais e nível</span></button>
-          <button class="mode-btn" data-m="local"><b>Multiplayer Local</b><span>2–6 no mesmo aparelho</span></button>
-          <button class="mode-btn" data-m="champ"><b>Campeonato</b><span>várias pistas, 1 campeão</span></button>
-          <button class="mode-btn" data-m="daily"><b>Desafio Diário</b><span>pista do dia, menos petelecos</span></button>
-          <button class="mode-btn ghost" data-m="skins"><b>Tampinhas</b><span>desbloqueadas: ${SKINS.filter(k => wins >= k.unlock).length}/${SKINS.length}</span></button>
+        <div class="topbar">
+          <div class="coin-pill">🏆 <b>${wins}</b>&nbsp;<span style="font-weight:700;font-size:12px;opacity:.85">vitórias</span></div>
+          <button class="icon-btn" id="cfgBtn">⚙</button>
         </div>
-        <div class="menu-foot"><button class="txt-btn" id="cfgBtn">⚙ Ajustes</button><span>Vitórias: <b>${wins}</b></span></div>
+        <div class="logo">
+          <div class="cap-ico" id="capico"></div>
+          <h1>Tampinha <em>Rally</em></h1>
+          <div class="tag">CORRIDA DE TAMPINHAS • PETELECO &amp; CAOS</div>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-btn feat" data-m="quick"><span class="mi">🏁</span><b>Jogar Rápido</b><span class="ms">você + IA, é só jogar</span></button>
+          <button class="mode-btn" data-m="ai" style="--a:var(--blu)"><span class="mi">🤖</span><b>Contra a IA</b><span class="ms">escolha os rivais</span></button>
+          <button class="mode-btn" data-m="local" style="--a:var(--grn)"><span class="mi">👥</span><b>Multiplayer</b><span class="ms">2–6 no aparelho</span></button>
+          <button class="mode-btn" data-m="champ" style="--a:var(--gold)"><span class="mi">🏆</span><b>Campeonato</b><span class="ms">5 pistas, 1 campeão</span></button>
+          <button class="mode-btn" data-m="daily" style="--a:var(--pur)"><span class="mi">📅</span><b>Desafio Diário</b><span class="ms">a pista do dia</span></button>
+          <button class="mode-btn" data-m="skins" style="--a:var(--orange)"><span class="mi">🎨</span><b>Tampinhas</b><span class="ms">coleção ${unl}/${SKINS.length}</span></button>
+        </div>
       </div>`);
+    s.prepend(this.bgFx(9));
+    (s.querySelector('#capico') as HTMLElement).appendChild(drawCap(skinById('coca').art, 120));
     this.root.appendChild(s);
     s.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
       const m = (b as HTMLElement).dataset.m!;
@@ -140,6 +172,7 @@ export class UI {
         <button class="play-btn" id="play">Jogar ▶</button>
       </div>`);
     this.root.appendChild(s);
+    s.prepend(this.bgFx(6));
     const mini = s.querySelector('#mini') as HTMLElement | null;
     if (mini) this.drawMini(mini, t);
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
@@ -233,6 +266,7 @@ export class UI {
       <div class="skin-scroll" id="scroll"></div>
     </div>`);
     this.root.appendChild(s);
+    s.prepend(this.bgFx(5));
     const scroll = s.querySelector('#scroll') as HTMLElement;
     for (const rar of RARITY_ORDER) {
       const group = SKINS.filter(k => k.rarity === rar);
@@ -272,6 +306,7 @@ export class UI {
       <div class="how"><b>Como jogar:</b> arraste a tampinha <b>para trás</b> e solte — quanto mais puxa, mais forte. 3 petelecos por vez; chegue primeiro! <b>Proteção:</b> pistas fáceis têm muro que te segura na pista; nas difíceis o muro some e é fácil <b>cair fora</b> (volta pro início do turno). <b>Buraco</b> = volta ao checkpoint e perde 1 peteléco · <b>X</b> = perde a vez · <b>verde +1/+2/+3</b> = petelecos extras. Câmera: dois dedos giram/aproximam.</div>
     </div>`);
     this.root.appendChild(s);
+    s.prepend(this.bgFx(5));
     const apply = () => this.cb.setVols(+(s.querySelector('#mus') as HTMLInputElement).value, +(s.querySelector('#sfx') as HTMLInputElement).value, settings.muted);
     s.querySelector('#mus')!.addEventListener('input', apply);
     s.querySelector('#sfx')!.addEventListener('input', apply);
@@ -307,7 +342,7 @@ export class UI {
     if (!this.hud) return;
     const c = m.activeCap();
     const turn = this.hud.querySelector('#turn') as HTMLElement;
-    turn.innerHTML = `<span class="tdot" style="background:${skinById(c.skin).top}"></span> ${c.finished ? 'Corrida!' : 'Vez de <b>' + c.name + '</b>'}`;
+    turn.innerHTML = `<span class="tdot" style="background:${skinById(c.skin).top};color:${skinById(c.skin).top}"></span> ${c.finished ? 'Corrida!' : 'Vez de <b>' + c.name + '</b>'}`;
     // flicks
     const fl = this.hud.querySelector('#flicks') as HTMLElement;
     let dots = ''; const total = Math.max(3, c.flicksLeft);
@@ -348,18 +383,24 @@ export class UI {
     const order = m.standings(); const you = m.caps.find(c => !c.isAI);
     const wonYou = you && you.place === 1;
     box.className = 'modal win';
-    const podium = order.slice(0, Math.min(4, order.length)).map((p, i) => `<div class="prow2"><span class="pl">${['🥇', '🥈', '🥉', '4º'][i]}</span><span class="sdot" style="background:${skinById(p.skin).top}"></span><span>${p.name}</span></div>`).join('');
     const head = mode === 'daily'
-      ? `<h3>Chegou!</h3><div class="big">${m.caps[0].place === 1 ? 'Você completou!' : ''}</div>`
+      ? `<h3>Chegou! 🏁</h3><div class="big">${m.caps[0].place === 1 ? 'Você completou!' : ''}</div>`
       : `<h3>${wonYou ? 'Você venceu! 🎉' : (you ? you.place + 'º lugar' : 'Fim!')}</h3>`;
     const champLine = champInfo ? `<div class="champ-line">Corrida ${champInfo.race}/${champInfo.total} · ${champInfo.pts}</div>` : '';
-    box.innerHTML = `${head}${champLine}<div class="podium">${podium}</div>
+    box.innerHTML = `${head}${champLine}<div class="podium" id="pod"></div>
       <div class="mactions">
         <button class="chip" id="mn">Menu</button>
         <button class="chip" id="re">↻ Revanche</button>
         <button class="play-btn" id="nx">${champInfo && !champInfo.last ? 'Próxima ▶' : 'Nova pista ▶'}</button>
       </div>`;
+    const pod = box.querySelector('#pod') as HTMLElement;
+    order.slice(0, Math.min(4, order.length)).forEach((p, i) => {
+      const row = this.el(`<div class="prow2 ${i === 0 ? 'p1' : ''}"><span class="pl">${['🥇', '🥈', '🥉', '4º'][i]}</span><span class="pcap"></span><span class="pn">${p.name}</span></div>`);
+      (row.querySelector('.pcap') as HTMLElement).appendChild(drawCap(skinById(p.skin).art, 64));
+      pod.appendChild(row);
+    });
     modal.classList.remove('hidden');
+    if (wonYou || (mode === 'daily' && m.caps[0].place === 1)) this.confetti(box);
     box.querySelector('#mn')!.addEventListener('click', () => this.onMenu?.());
     box.querySelector('#re')!.addEventListener('click', () => this.onRestart?.());
     box.querySelector('#nx')!.addEventListener('click', () => this.onNext?.());
