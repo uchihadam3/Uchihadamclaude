@@ -703,7 +703,8 @@ export class UI {
     seats.forEach((st) => {
       const mine = st.kind === 'human' && st.owner === o.myId;
       const tag = st.off ? '📴 saiu (IA)' : st.kind === 'ai' ? '🤖 ' + o.aiLabel(st.ai) : st.owner === 'host' ? '👑 anfitrião' : mine ? '⭐ você' : '👤 jogador';
-      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''}"><span class="pcap-mini"></span><span class="ls-name">${st.name}</span><span class="ls-tag">${tag}</span></div>`);
+      const teamB = (o.cfg.roomMode === 'dupla' && st.team != null) ? `<span class="team-badge t${st.team}">${st.team === 0 ? 'A' : 'B'}</span>` : '';
+      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''} ${o.cfg.roomMode === 'dupla' && st.team != null ? 'team-t' + st.team : ''}"><span class="pcap-mini"></span><span class="ls-name">${st.name}</span>${teamB}<span class="ls-tag">${tag}</span></div>`);
       const cv = drawCap(skinById(st.skin).art, 56); cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
       (row.querySelector('.pcap-mini') as HTMLElement).appendChild(cv);
       if (mine) { row.addEventListener('click', () => this.showCapPicker(o.mySkin, (id) => { this.cb.setSkin(id); o.setMyCap(id); })); (row.querySelector('.pcap-mini') as HTMLElement).classList.add('tap'); }
@@ -715,17 +716,32 @@ export class UI {
       const lvlChips = LEVELS.map((n, i) => `<button class="lvl-chip mini ${i === o.cfg.level ? 'sel' : ''}" data-l="${i}" style="--lc:${LEVEL_COLORS[i]}"><b>${n}</b></button>`).join('');
       const pickRow = `<div class="rand-row"><button class="chip ${o.cfg.pick === 'specific' ? 'sel' : ''}" data-p="specific">🎯 Escolher</button><button class="chip ${o.cfg.pick === 'randlevel' ? 'sel' : ''}" data-p="randlevel">🎲 Do nível</button><button class="chip ${o.cfg.pick === 'randany' ? 'sel' : ''}" data-p="randany">🎲 Qualquer</button></div>`;
       const tnums = o.cfg.pick === 'specific' ? `<div class="tnum-row">${Array.from({ length: TRACKS_PER_LEVEL }, (_, i) => `<button class="tnum ${i === o.cfg.trackIdx ? 'sel' : ''}" data-i="${i}">${i + 1}</button>`).join('')}</div>` : '';
-      ctrl.innerHTML = `<div class="lob-h">Dificuldade &amp; fase</div><div class="lvl-row">${lvlChips}</div>${pickRow}${tnums}
-        <div class="lob-total"><button class="chip" id="tless">–</button><span><b>${o.total}</b> corredores <small>(${o.seats.filter(x=>x.kind==='human').length} 👤 + ${o.seats.filter(x=>x.kind==='ai').length} 🤖)</small></span><button class="chip" id="tmore">+</button></div>
-        <button class="play-btn" id="startm">🏁 Começar Partida</button>`;
+      const rm = o.cfg.roomMode;
+      const roomRow = `<div class="lob-h">Modo da sala</div><div class="rand-row room-row">
+        <button class="chip ${rm === 'normal' ? 'sel' : ''}" data-rm="normal">🏁 Normal</button>
+        <button class="chip ${rm === 'dupla' ? 'sel' : ''}" data-rm="dupla">🤝 Dupla</button>
+        <button class="chip ${rm === 'champ' ? 'sel' : ''}" data-rm="champ">🏆 Campeonato</button></div>`;
+      const extraRow = rm === 'dupla'
+        ? `<div class="rand-row"><button class="chip ${o.cfg.teamSize === 2 ? 'sel' : ''}" data-team="2">2 × 2</button><button class="chip ${o.cfg.teamSize === 3 ? 'sel' : ''}" data-team="3">3 × 3</button></div>`
+        : rm === 'champ'
+          ? `<div class="rand-row">${[3, 5, 7].map(n => `<button class="chip ${o.cfg.champRaces === n ? 'sel' : ''}" data-cr="${n}">${n} corridas</button>`).join('')}</div>`
+          : '';
+      const totalRow = rm === 'dupla' ? '' : `<div class="lob-total"><button class="chip" id="tless">–</button><span><b>${o.total}</b> corredores <small>(${o.seats.filter(x=>x.kind==='human').length} 👤 + ${o.seats.filter(x=>x.kind==='ai').length} 🤖)</small></span><button class="chip" id="tmore">+</button></div>`;
+      ctrl.innerHTML = `${roomRow}${extraRow}<div class="lob-h">Dificuldade &amp; fase</div><div class="lvl-row">${lvlChips}</div>${pickRow}${tnums}
+        ${totalRow}
+        <button class="play-btn" id="startm">🏁 Começar ${rm === 'champ' ? 'Campeonato' : rm === 'dupla' ? 'Dupla' : 'Partida'}</button>`;
+      ctrl.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => o.setRoom((b as HTMLElement).dataset.rm as any)));
+      ctrl.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => o.setRoom('dupla', +(b as HTMLElement).dataset.team!)));
+      ctrl.querySelectorAll('[data-cr]').forEach(b => b.addEventListener('click', () => o.setRoom('champ', o.cfg.teamSize, +(b as HTMLElement).dataset.cr!)));
       ctrl.querySelectorAll('.lvl-chip').forEach(b => b.addEventListener('click', () => o.setCfg(+(b as HTMLElement).dataset.l!, 0, o.cfg.pick)));
       ctrl.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => o.setCfg(o.cfg.level, o.cfg.trackIdx, (b as HTMLElement).dataset.p as any)));
       ctrl.querySelectorAll('.tnum').forEach(b => b.addEventListener('click', () => o.setCfg(o.cfg.level, +(b as HTMLElement).dataset.i!, o.cfg.pick)));
-      ctrl.querySelector('#tless')!.addEventListener('click', () => o.setTotal(o.total - 1));
-      ctrl.querySelector('#tmore')!.addEventListener('click', () => o.setTotal(o.total + 1));
+      ctrl.querySelector('#tless')?.addEventListener('click', () => o.setTotal(o.total - 1));
+      ctrl.querySelector('#tmore')?.addEventListener('click', () => o.setTotal(o.total + 1));
       ctrl.querySelector('#startm')!.addEventListener('click', () => { this.lobbyOpen = false; o.startMatch(); });
     } else {
-      ctrl.innerHTML = `<div class="lob-wait">⏳ Aguardando o anfitrião escolher a fase e começar…<br><small>Dificuldade: <b>${LEVELS[o.cfg.level]}</b></small></div>`;
+      const rmLab = o.cfg.roomMode === 'dupla' ? `🤝 Dupla ${o.cfg.teamSize}×${o.cfg.teamSize}` : o.cfg.roomMode === 'champ' ? `🏆 Campeonato (${o.cfg.champRaces} corridas)` : '🏁 Normal';
+      ctrl.innerHTML = `<div class="lob-wait">⏳ Aguardando o anfitrião começar…<br><small>Modo: <b>${rmLab}</b> · Dificuldade: <b>${LEVELS[o.cfg.level]}</b></small></div>`;
     }
   }
 
@@ -805,18 +821,22 @@ export class UI {
   }
   hideModal(): void { this.hud?.querySelector('#modal')!.classList.add('hidden'); }
 
-  showResults(m: GameManager, mode: Mode, champInfo?: { race: number; total: number; last: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; fmt: string }): void {
+  showResults(m: GameManager, mode: Mode, champInfo?: { race: number; total: number; last: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; fmt: string }, teamInfo?: { teams: { label: string; score: number; members: { name: string; skin: string; place: number; you: boolean }[]; win: boolean; you: boolean }[]; won: boolean }): void {
     const modal = this.hud!.querySelector('#modal') as HTMLElement; const box = this.hud!.querySelector('#mbox') as HTMLElement;
     const order = m.standings(); const you = (mode === 'online' && this.online.active) ? m.caps[this.online.mySeatIndex()] : m.caps.find(c => !c.isAI);
-    const wonYou = you && you.place === 1;
+    const wonYou = teamInfo ? teamInfo.won : (you && you.place === 1);
     box.className = 'modal win';
     const head = mode === 'daily'
       ? `<h3>Chegou! 🏁</h3><div class="big">${m.caps[0].place === 1 ? 'Você completou!' : ''}</div>`
-      : champInfo
-        ? `<h3 style="font-size:22px">Corrida ${champInfo.race}/${champInfo.total} 🏁</h3>`
-        : `<h3>${wonYou ? 'Você venceu! 🎉' : (you ? you.place + 'º lugar' : 'Fim!')}</h3>`;
+      : teamInfo
+        ? `<h3>${teamInfo.won ? 'Seu time venceu! 🎉' : 'Fim de jogo'}</h3>`
+        : champInfo
+          ? `<h3 style="font-size:22px">Corrida ${champInfo.race}/${champInfo.total} 🏁</h3>`
+          : `<h3>${wonYou ? 'Você venceu! 🎉' : (you ? you.place + 'º lugar' : 'Fim!')}</h3>`;
     // no campeonato, mostra a TABELA DE PONTOS ao vivo em vez do pódio
     const champStand = champInfo ? `<div class="champ-stand"><div class="cs-title">🏆 Classificação do campeonato</div>${champInfo.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>` : '';
+    // dupla online: colunas dos times
+    const teamStand = teamInfo ? `<div class="team-cols">${teamInfo.teams.map(t => `<div class="team-col ${t.win ? 'win' : ''} ${t.you ? 'mine' : ''}"><div class="team-h">${t.win ? '🏆 ' : ''}${t.label}</div><div class="team-score">${t.score} <small>pts</small></div>${t.members.slice().sort((a, b) => a.place - b.place).map(mm => `<div class="team-mem"><span class="tm-cap" data-s="${mm.skin}"></span><span class="tm-nm">${mm.name}</span><b>${mm.place}º</b></div>`).join('')}</div>`).join('')}</div>` : '';
     const actions = mode === 'online'
       ? (this.online.isHost
         ? `<button class="chip" id="mn">Sair da sala</button><button class="play-btn" id="lob">🔁 Nova partida</button>`
@@ -824,8 +844,9 @@ export class UI {
       : champInfo
         ? `<button class="chip" id="mn">Sair</button><button class="play-btn" id="nx">${champInfo.last ? '🏆 Ver campeão' : 'Próxima ▶'}</button>`
         : `<button class="chip" id="mn">Menu</button><button class="chip" id="re">↻ Revanche</button><button class="play-btn" id="nx">Nova pista ▶</button>`;
-    box.innerHTML = `${head}${champInfo ? champStand : '<div class="podium" id="pod"></div>'}<div class="mactions">${actions}</div>`;
+    box.innerHTML = `${head}${teamInfo ? teamStand : champInfo ? champStand : '<div class="podium" id="pod"></div>'}<div class="mactions">${actions}</div>`;
     if (champInfo) box.querySelectorAll('.cs-cap').forEach(el => { el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 44)); });
+    if (teamInfo) box.querySelectorAll('.tm-cap').forEach(el => { el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 36)); });
     const pod = box.querySelector('#pod') as HTMLElement | null;
     if (pod) order.slice(0, Math.min(4, order.length)).forEach((p, i) => {
       const row = this.el(`<div class="prow2 ${i === 0 ? 'p1' : ''}"><span class="pl">${['🥇', '🥈', '🥉', '4º'][i]}</span><span class="pcap"></span><span class="pn">${p.name}</span></div>`);
@@ -839,6 +860,21 @@ export class UI {
     box.querySelector('#re')?.addEventListener('click', () => this.onRestart?.());
     box.querySelector('#nx')?.addEventListener('click', () => this.onNext?.());
     box.querySelector('#lob')?.addEventListener('click', () => { this.hideModal(); this.online.backToLobby(); });
+  }
+
+  // classificação do campeonato ONLINE entre corridas (host avança; cliente aguarda)
+  showOnlineChampStanding(rows: { seat: number; name: string; skin: string; pts: number; you: boolean }[], race: number, total: number, last: boolean, isHost: boolean): void {
+    const { modal, box } = this.modalBox(); box.className = 'modal win';
+    const action = isHost
+      ? `<button class="chip" id="mn">Sair da sala</button><button class="play-btn" id="nx">${last ? '🏆 Ver campeão' : 'Próxima corrida ▶'}</button>`
+      : `<button class="chip" id="mn">Sair da sala</button><div class="ol-wait2">⏳ Aguardando o anfitrião…</div>`;
+    box.innerHTML = `<h3 style="font-size:22px">🏆 Campeonato · Corrida ${race}/${total}</h3>
+      <div class="champ-stand"><div class="cs-title">Classificação geral</div>${rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>
+      <div class="mactions">${action}</div>`;
+    box.querySelectorAll('.cs-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 44)));
+    modal.classList.remove('hidden');
+    box.querySelector('#mn')!.addEventListener('click', () => { this.online.leave(); this.onMenu?.(); });
+    box.querySelector('#nx')?.addEventListener('click', () => { this.hideModal(); this.online.hostNextChamp(); });
   }
 
   // ------- resultados dos MODOS especiais -------

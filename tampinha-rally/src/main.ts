@@ -102,6 +102,8 @@ const ui = new UI({
 online.onStartMatch = (players, level, trackIdx) => { curCfg = null; champ = null; resultsShown = false; loadMatch({ level, trackIdx, pick: 'specific', players, mode: 'online' }); };
 online.onToLobby = () => { inGame = false; paused = false; resultsShown = false; stopScene(); ui.showLobby(); };
 online.onClosed = () => { const wasIn = inGame; inGame = false; paused = false; resultsShown = false; if (wasIn) stopScene(); ui.showOnlineHome(); };
+online.onChampStanding = (rows, race, total, last) => ui.showOnlineChampStanding(rows, race, total, last, online.isHost);
+online.onChampEnd = (winner) => { resultsShown = true; if (winner.you) save.addWin(); sfx.win(); ui.showChampion({ rows: [], fmt: 'champ', youWon: winner.you, name: winner.name, skin: winner.skin }); };
 
 ui.onUseItem = () => { if (online.active) online.localUseItem(); else mgr.useItem(); };
 ui.onPause = () => { if (mgr.phase !== 'over') { paused = true; ui.showPause(); } };
@@ -190,6 +192,20 @@ function onRaceOver(): void {
     const youOut = !loser.isAI;
     const last = survivors.length <= 1;
     ui.showElimResult({ loser: { name: loser.name, skin: loser.skin }, survivors, youOut, last, championName: last ? survivors[0]?.name : '' });
+    return;
+  }
+
+  // ---- ONLINE: campeonato (host soma pontos e transmite) / dupla (times) ----
+  if (online.active && online.isChamp()) { if (online.isHost) online.hostFinishRace(mgr); return; }
+  if (online.active && mgr.teams > 0) {
+    const teamIds = [...new Set(mgr.caps.map(c => c.team))].sort();
+    const teams = teamIds.map(tid => {
+      const members = mgr.caps.filter(c => c.team === tid).map(c => ({ name: c.name, skin: c.skin, place: c.place, you: c.id === online.mySeatIndex() }));
+      return { tid, score: members.reduce((s, m) => s + m.place, 0), members, hasYou: members.some(m => m.you) };
+    }).sort((a, b) => a.score - b.score);
+    const won = teams[0].hasYou;
+    if (won) save.addWin();
+    ui.showResults(mgr, mode, undefined, { teams: teams.map((t, i) => ({ label: 'Time ' + (t.tid === 0 ? 'A' : 'B'), score: t.score, members: t.members, win: i === 0, you: t.hasYou })), won });
     return;
   }
 
