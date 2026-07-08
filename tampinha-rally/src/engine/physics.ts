@@ -6,8 +6,8 @@ import { Cap, V, SURF, len, norm, mul, REST_SPEED, vec } from './core';
 import { TrackModel } from './track';
 
 export interface SimEvent {
-  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'plus3' | 'ten' | 'finish' | 'out' | 'rest';
-  capId: number; x: number; y: number; power: number; obsIdx?: number; otherId?: number;
+  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest';
+  capId: number; x: number; y: number; power: number; obsIdx?: number; otherId?: number; n?: number;
 }
 
 export function anyMoving(caps: Cap[]): boolean { return caps.some(c => c.moving && !c.finished); }
@@ -72,10 +72,8 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
       } else if (o.type === 'bomb') {
         c.pos.x = c.cpPos.x; c.pos.y = c.cpPos.y; c.vel = vec(); c.moving = false;
         ev.push({ type: 'bomb', capId: c.id, x: o.x, y: o.y, power: 0 }); break;
-      } else if (o.type === 'plus3') {
-        if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'plus3', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i }); }
-      } else if (o.type === 'ten') {
-        if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'ten', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i }); }
+      } else if (o.type === 'bonus') {
+        if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'bonus', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i, n: o.n || 1 }); }
       }
     }
     if (!c.moving) continue;   // caiu em buraco/bomba

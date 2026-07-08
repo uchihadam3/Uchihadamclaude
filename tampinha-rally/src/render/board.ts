@@ -7,16 +7,11 @@ import { makeBoardTexture, lighten } from './textures';
 
 export interface BoardBuild { group: THREE.Group; pulses: { mesh: THREE.Mesh; kind: string; base: number }[]; }
 
-const WALL_COL: Record<string, string> = {
-  quintal: '#6b4e2e', praia: '#c9a35f', calcada: '#8f8879', garagem: '#a9773f', parquinho: '#5c4a2c', cozinha: '#c05a5a',
-};
-
-function markerTex(kind: string): THREE.CanvasTexture {
+function markerTex(kind: string, n = 1): THREE.CanvasTexture {
   const S = 128; const cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d')!;
   const cx = S / 2, cy = S / 2;
   if (kind === 'bomb') { c.fillStyle = '#c0392b'; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx - 28, cy - 28); c.lineTo(cx + 28, cy + 28); c.moveTo(cx + 28, cy - 28); c.lineTo(cx - 28, cy + 28); c.stroke(); }
-  else if (kind === 'plus3') { c.fillStyle = '#2ea44f'; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 58px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+3', cx, cy + 4); }
-  else if (kind === 'ten') { c.fillStyle = '#e0a020'; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 60px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('10', cx, cy + 4); }
+  else { const col = n >= 3 ? '#e0a020' : n === 2 ? '#2e9fa4' : '#2ea44f'; c.fillStyle = col; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 58px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+' + n, cx, cy + 4); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
@@ -60,7 +55,7 @@ export function buildBoard(def: TrackDef): BoardBuild {
   ground.rotation.x = -Math.PI / 2; ground.position.set(def.w / 2, 0, def.h / 2); ground.receiveShadow = true; group.add(ground);
 
   // bordas
-  const wcol = WALL_COL[def.theme] || '#6b4e2e';
+  const wcol = def.wallCol || '#6b4e2e';
   const wallMat = new THREE.MeshStandardMaterial({ color: wcol, roughness: 0.85 });
   for (const w of def.walls) {
     const dx = w.b.x - w.a.x, dy = w.b.y - w.a.y; const len = Math.hypot(dx, dy); if (len < 0.05) continue;
@@ -80,8 +75,9 @@ export function buildBoard(def: TrackDef): BoardBuild {
       const rim = new THREE.Mesh(new THREE.TorusGeometry(o.r, 0.13, 8, 24), new THREE.MeshStandardMaterial({ color: '#3a2c1a', roughness: 1 }));
       rim.rotation.x = -Math.PI / 2; rim.position.set(o.x, 0.02, o.y); group.add(rim);
     } else {
-      const col = o.type === 'bomb' ? '#c0392b' : o.type === 'plus3' ? '#2ea44f' : '#e0a020';
-      const pad = new THREE.Mesh(new THREE.CircleGeometry(o.r, 24), new THREE.MeshBasicMaterial({ map: markerTex(o.type), transparent: true }));
+      const n = o.n || 1;
+      const col = o.type === 'bomb' ? '#c0392b' : n >= 3 ? '#e0a020' : n === 2 ? '#2e9fa4' : '#2ea44f';
+      const pad = new THREE.Mesh(new THREE.CircleGeometry(o.r, 24), new THREE.MeshBasicMaterial({ map: markerTex(o.type, n), transparent: true }));
       pad.rotation.x = -Math.PI / 2; pad.position.set(o.x, 0.03, o.y); group.add(pad);
       const glow = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.5, 24), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
       glow.rotation.x = -Math.PI / 2; glow.position.set(o.x, 0.025, o.y); group.add(glow);

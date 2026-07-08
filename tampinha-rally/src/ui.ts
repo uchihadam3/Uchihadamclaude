@@ -1,6 +1,6 @@
 // UI em DOM sobre o canvas: menu, configuração de partida, HUD da corrida,
 // resultados, personalização de tampinhas e ajustes. Grande, mas simples.
-import { TRACKS } from './game/tracks';
+import { track, LEVELS, LEVEL_COLORS, TRACKS_PER_LEVEL } from './game/generator';
 import { SKINS, skinById, CAP_COLORS } from './game/skins';
 import { AI_KINDS, AI_LABEL, AIKind } from './game/ai';
 import { PlayerDef, GameManager } from './game/manager';
@@ -8,7 +8,8 @@ import { save } from './game/save';
 import { settings } from './audio';
 
 export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily';
-export interface MatchConfig { trackIndex: number; players: PlayerDef[]; mode: Mode; }
+export type Pick = 'specific' | 'randlevel' | 'randany';
+export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; }
 
 export interface UICallbacks {
   start: (cfg: MatchConfig) => void;
@@ -23,7 +24,7 @@ export class UI {
   root = document.getElementById('ui')!;
   private cb: UICallbacks;
   // estado de configuração
-  cfgTrack = 0; cfgMode: Mode = 'quick';
+  cfgLevel = 0; cfgTrack = 0; cfgPick: Pick = 'specific'; cfgMode: Mode = 'quick';
   cfgPlayers: { human: boolean; ai: AIKind; color: number; name: string }[] = [];
   private toastEl: HTMLElement | null = null; private toastT = 0;
 
@@ -69,39 +70,90 @@ export class UI {
   // -------------------------------------------------------------- SETUP
   showSetup(mode: Mode): void {
     this.cfgMode = mode; this.resetPlayers(mode);
-    if (mode === 'daily') { this.cfgTrack = (new Date().getDate() + new Date().getMonth()) % TRACKS.length; }
+    this.cfgPick = 'specific';
+    if (mode === 'daily') {
+      const d = new Date(); const day = d.getFullYear() * 372 + (d.getMonth() + 1) * 31 + d.getDate();
+      this.cfgLevel = day % 5; this.cfgTrack = (Math.floor(day / 5)) % TRACKS_PER_LEVEL;
+    }
     this.renderSetup();
   }
   private renderSetup(): void {
     this.clear();
-    const t = TRACKS[this.cfgTrack];
-    const canPlayers = this.cfgMode !== 'daily';
+    const isDaily = this.cfgMode === 'daily';
+    const isChamp = this.cfgMode === 'champ';
+    const isRandom = this.cfgPick !== 'specific';
+    const t = track(this.cfgLevel, this.cfgTrack);
+    const canPlayers = !isDaily;
     const title = { quick: 'Corrida Rápida', ai: 'Contra a IA', local: 'Multiplayer Local', champ: 'Campeonato', daily: 'Desafio Diário' }[this.cfgMode];
+
+    // seletor de nível (oculto no diário — a pista do dia é fixa)
+    const levelRow = isDaily ? '' : `<div class="lvl-row" id="lvls">
+      ${LEVELS.map((n, i) => `<button class="lvl-chip ${i === this.cfgLevel ? 'sel' : ''}" data-l="${i}" style="--lc:${LEVEL_COLORS[i]}"><b>${n}</b><span>${this.levelHint(i)}</span></button>`).join('')}
+    </div>`;
+
+    // cartão da pista
+    let trackBlock = '';
+    if (isChamp) {
+      trackBlock = `<div class="champ-note">🏆 Campeonato: <b>5 pistas sorteadas</b> do nível <b style="color:${LEVEL_COLORS[this.cfgLevel]}">${LEVELS[this.cfgLevel]}</b>. Some pontos e seja o campeão!</div>`;
+    } else if (isRandom) {
+      trackBlock = `<div class="track-pick">
+        <div class="track-card mystery" style="border-color:${this.cfgPick === 'randany' ? '#b98cff' : LEVEL_COLORS[this.cfgLevel]}">
+          <div class="track-name">🎲 Surpresa!</div>
+          <div class="track-sub">${this.cfgPick === 'randany' ? 'pista aleatória de qualquer nível' : 'pista aleatória do nível ' + LEVELS[this.cfgLevel]}</div>
+        </div>
+      </div>`;
+    } else {
+      const nav = !isDaily;   // no diário a pista é a "do dia", fixa
+      const chips = Array.from({ length: TRACKS_PER_LEVEL }, (_, i) => `<button class="tnum ${i === this.cfgTrack ? 'sel' : ''}" data-i="${i}">${i + 1}</button>`).join('');
+      trackBlock = `<div class="track-pick">
+        ${nav ? '<button class="arrow" id="tprev">‹</button>' : ''}
+        <div class="track-card" style="border-color:${LEVEL_COLORS[this.cfgLevel]}">
+          <div class="track-name">${t.name}</div>
+          <div class="track-sub">${t.theme} · ${this.lenLabel(t)}${nav ? ' · pista ' + (this.cfgTrack + 1) + '/' + TRACKS_PER_LEVEL : ' · ' + LEVELS[this.cfgLevel]}</div>
+          <div class="track-mini" id="mini"></div>
+        </div>
+        ${nav ? '<button class="arrow" id="tnext">›</button>' : ''}
+      </div>
+      ${nav ? `<div class="tnum-row" id="tnums">${chips}</div>` : ''}`;
+    }
+
+    // botões de sorteio (não no diário/campeonato)
+    const randRow = (isDaily || isChamp) ? '' : `<div class="rand-row">
+      <button class="chip ${this.cfgPick === 'specific' ? 'sel' : ''}" id="pspec">🎯 Escolher</button>
+      <button class="chip ${this.cfgPick === 'randlevel' ? 'sel' : ''}" id="prlvl">🎲 Do nível</button>
+      <button class="chip ${this.cfgPick === 'randany' ? 'sel' : ''}" id="prany">🎲 Qualquer</button>
+    </div>`;
+
     const s = this.el(`
       <div class="screen setup">
         <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>${title}</h2><div></div></div>
-        <div class="track-pick">
-          <button class="arrow" id="tprev">‹</button>
-          <div class="track-card theme-${t.theme}">
-            <div class="track-name">${t.name}</div>
-            <div class="track-sub">${this.cfgMode === 'champ' ? 'Corrida 1 de ' + TRACKS.length : t.theme}</div>
-            <div class="track-mini" id="mini"></div>
-          </div>
-          <button class="arrow" id="tnext">›</button>
-        </div>
+        ${levelRow}
+        ${randRow}
+        ${trackBlock}
         ${canPlayers ? `<div class="players" id="players"></div>
         <div class="pcount">
           <button class="chip" id="less">– jogador</button>
           <span>${this.cfgPlayers.length} tampinhas</span>
           <button class="chip" id="more">+ jogador</button>
-        </div>` : `<div class="daily-note">Contra o relógio: leve a tampinha à chegada com o <b>menor número de petelecos</b>. Recorde de hoje: <b>${save.dailyBest(dailyKey()) ?? '—'}</b></div>`}
+        </div>` : `<div class="daily-note">Pista do dia: <b>${t.name}</b> (${LEVELS[this.cfgLevel]}). Contra o relógio: leve a tampinha à chegada com o <b>menor número de petelecos</b>. Recorde de hoje: <b>${save.dailyBest(dailyKey()) ?? '—'}</b></div>`}
         <button class="play-btn" id="play">Jogar ▶</button>
       </div>`);
     this.root.appendChild(s);
-    this.drawMini(s.querySelector('#mini') as HTMLElement, t);
+    const mini = s.querySelector('#mini') as HTMLElement | null;
+    if (mini) this.drawMini(mini, t);
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
-    s.querySelector('#tprev')!.addEventListener('click', () => { if (this.cfgMode === 'champ' || this.cfgMode === 'daily') return; this.cfgTrack = (this.cfgTrack + TRACKS.length - 1) % TRACKS.length; this.renderSetup(); });
-    s.querySelector('#tnext')!.addEventListener('click', () => { if (this.cfgMode === 'champ' || this.cfgMode === 'daily') return; this.cfgTrack = (this.cfgTrack + 1) % TRACKS.length; this.renderSetup(); });
+
+    // nível
+    s.querySelectorAll('.lvl-chip').forEach(b => b.addEventListener('click', () => { this.cfgLevel = +(b as HTMLElement).dataset.l!; this.cfgTrack = 0; this.renderSetup(); }));
+    // modo de escolha
+    s.querySelector('#pspec')?.addEventListener('click', () => { this.cfgPick = 'specific'; this.renderSetup(); });
+    s.querySelector('#prlvl')?.addEventListener('click', () => { this.cfgPick = 'randlevel'; this.renderSetup(); });
+    s.querySelector('#prany')?.addEventListener('click', () => { this.cfgPick = 'randany'; this.renderSetup(); });
+    // navegação de pista
+    s.querySelector('#tprev')?.addEventListener('click', () => { this.cfgTrack = (this.cfgTrack + TRACKS_PER_LEVEL - 1) % TRACKS_PER_LEVEL; this.renderSetup(); });
+    s.querySelector('#tnext')?.addEventListener('click', () => { this.cfgTrack = (this.cfgTrack + 1) % TRACKS_PER_LEVEL; this.renderSetup(); });
+    s.querySelectorAll('.tnum').forEach(b => b.addEventListener('click', () => { this.cfgTrack = +(b as HTMLElement).dataset.i!; this.renderSetup(); }));
+
     if (canPlayers) {
       this.renderPlayers(s.querySelector('#players') as HTMLElement);
       s.querySelector('#less')!.addEventListener('click', () => { if (this.cfgPlayers.length > 2) { this.cfgPlayers.pop(); this.renderSetup(); } });
@@ -109,6 +161,8 @@ export class UI {
     }
     s.querySelector('#play')!.addEventListener('click', () => this.launch());
   }
+  private levelHint(i: number): string { return ['muito protegida', 'protegida', 'pouca proteção', 'quase sem muro', 'sem muro'][i]; }
+  private lenLabel(t: any): string { let a = 0; for (let i = 1; i < t.path.length; i++) a += Math.hypot(t.path[i].x - t.path[i - 1].x, t.path[i].y - t.path[i - 1].y); return a < 320 ? 'curta' : a < 480 ? 'longa' : a < 620 ? 'muito longa' : 'épica'; }
   private renderPlayers(host: HTMLElement): void {
     host.innerHTML = '';
     this.cfgPlayers.forEach((p, i) => {
@@ -134,18 +188,38 @@ export class UI {
     const players: PlayerDef[] = this.cfgMode === 'daily'
       ? [{ name: 'Você', isAI: false, skin: save.skin() }]
       : this.cfgPlayers.map((p, i) => ({ name: p.name, isAI: !p.human, ai: p.ai, skin: i === 0 ? save.skin() : SKINS[(p.color + 2) % SKINS.length].id }));
-    // aplica as cores escolhidas como skins aproximadas
-    this.cb.start({ trackIndex: this.cfgTrack, players, mode: this.cfgMode });
+    // resolve o sorteio (o modo escolhido é lembrado p/ a "próxima pista")
+    let level = this.cfgLevel, idx = this.cfgTrack;
+    if (this.cfgPick === 'randlevel') idx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
+    else if (this.cfgPick === 'randany') { level = Math.floor(Math.random() * 5); idx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
+    this.cb.start({ level, trackIdx: idx, pick: this.cfgPick, players, mode: this.cfgMode });
   }
 
   private drawMini(host: HTMLElement, t: any): void {
-    const cv = document.createElement('canvas'); cv.width = 220; cv.height = 130; const c = cv.getContext('2d')!;
-    const sx = 220 / t.w, sy = 130 / t.h;
-    c.fillStyle = '#00000022'; c.fillRect(0, 0, 220, 130);
-    c.strokeStyle = '#fff'; c.lineWidth = 6; c.lineCap = 'round'; c.lineJoin = 'round'; c.globalAlpha = 0.85;
-    c.beginPath(); t.path.forEach((p: any, i: number) => { const x = p.x * sx, y = p.y * sy; i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
-    c.globalAlpha = 1; c.fillStyle = '#3fae6a'; c.beginPath(); c.arc(t.start.x * sx, t.start.y * sy, 6, 0, 7); c.fill();
-    c.fillStyle = '#e5484d'; const f = t.finish[0]; c.beginPath(); c.arc(f.x * sx, f.y * sy, 6, 0, 7); c.fill();
+    const W = 250, H = 156, pad = 10;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const c = cv.getContext('2d')!;
+    const sc = Math.min((W - pad * 2) / t.w, (H - pad * 2) / t.h);
+    const ox = (W - t.w * sc) / 2, oy = (H - t.h * sc) / 2;
+    const X = (x: number) => ox + x * sc, Y = (y: number) => oy + y * sc;
+    c.fillStyle = '#0000002e'; c.fillRect(0, 0, W, H);
+    // corredor (faixa larga clara)
+    c.strokeStyle = 'rgba(255,255,255,0.18)'; c.lineWidth = Math.max(4, 8 * sc); c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath(); t.path.forEach((p: any, i: number) => { const x = X(p.x), y = Y(p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+    // bordas (proteção) — quanto mais linhas, mais fácil
+    c.strokeStyle = t.wallCol || '#caa'; c.globalAlpha = 0.9; c.lineWidth = 1.3;
+    c.beginPath(); for (const w of t.walls) { c.moveTo(X(w.a.x), Y(w.a.y)); c.lineTo(X(w.b.x), Y(w.b.y)); } c.stroke(); c.globalAlpha = 1;
+    // linha central tracejada
+    c.strokeStyle = 'rgba(255,255,255,0.5)'; c.lineWidth = 1.4; c.setLineDash([3, 3]);
+    c.beginPath(); t.path.forEach((p: any, i: number) => { const x = X(p.x), y = Y(p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.setLineDash([]);
+    // obstáculos
+    for (const o of t.obstacles) {
+      const r = Math.max(1.4, o.r * sc);
+      c.fillStyle = o.type === 'hole' ? '#120c06' : o.type === 'bomb' ? '#e5484d' : o.type === 'stone' ? '#9a948a' : (o.n >= 3 ? '#e0a020' : o.n === 2 ? '#2e9fa4' : '#2ea44f');
+      c.beginPath(); c.arc(X(o.x), Y(o.y), r, 0, 7); c.fill();
+    }
+    // largada / chegada
+    c.fillStyle = '#3fae6a'; c.beginPath(); c.arc(X(t.start.x), Y(t.start.y), 4, 0, 7); c.fill();
+    c.fillStyle = '#e5484d'; const f = t.finish[0]; c.beginPath(); c.arc(X(f.x), Y(f.y), 4, 0, 7); c.fill();
     host.innerHTML = ''; host.appendChild(cv);
   }
 
@@ -181,7 +255,7 @@ export class UI {
       <div class="cfg-row"><label>Música</label><input type="range" id="mus" min="0" max="1" step="0.05" value="${settings.music}"></div>
       <div class="cfg-row"><label>Efeitos</label><input type="range" id="sfx" min="0" max="1" step="0.05" value="${settings.sfx}"></div>
       <div class="cfg-row"><label>Mudo</label><button class="chip" id="mute">${settings.muted ? '🔇 Ligado' : '🔊 Desligado'}</button></div>
-      <div class="how"><b>Como jogar:</b> arraste a tampinha <b>para trás</b> e solte — quanto mais puxa, mais forte. 3 petelecos por vez. Chegue primeiro! Câmera: dois dedos giram/aproximam.</div>
+      <div class="how"><b>Como jogar:</b> arraste a tampinha <b>para trás</b> e solte — quanto mais puxa, mais forte. 3 petelecos por vez; chegue primeiro! <b>Proteção:</b> pistas fáceis têm muro que te segura na pista; nas difíceis o muro some e é fácil <b>cair fora</b> (volta pro início do turno). <b>Buraco</b> = volta ao checkpoint e perde 1 peteléco · <b>X</b> = perde a vez · <b>verde +1/+2/+3</b> = petelecos extras. Câmera: dois dedos giram/aproximam.</div>
     </div>`);
     this.root.appendChild(s);
     const apply = () => this.cb.setVols(+(s.querySelector('#mus') as HTMLInputElement).value, +(s.querySelector('#sfx') as HTMLInputElement).value, settings.muted);
@@ -224,7 +298,7 @@ export class UI {
     const fl = this.hud.querySelector('#flicks') as HTMLElement;
     let dots = ''; const total = Math.max(3, c.flicksLeft);
     for (let i = 0; i < c.flicksLeft; i++) dots += '<span class="fd on"></span>';
-    fl.innerHTML = (m.phase === 'aim' && humanTurn ? '<span class="fl-lab">Petelecos</span>' : '') + dots + (c.special10 ? '<span class="f10">10!</span>' : '') + (c.flicksLeft === 1 ? '<span class="flast">último!</span>' : '');
+    fl.innerHTML = (m.phase === 'aim' && humanTurn ? '<span class="fl-lab">Petelecos</span>' : '') + dots + (c.flicksLeft === 1 ? '<span class="flast">último!</span>' : '');
     fl.style.opacity = (c.isAI || m.phase !== 'aim') ? '0.55' : '1';
     // standings
     const st = this.hud.querySelector('#stand') as HTMLElement;

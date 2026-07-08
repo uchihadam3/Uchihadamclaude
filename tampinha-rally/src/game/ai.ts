@@ -1,8 +1,11 @@
-// Personalidades de IA. Cada uma mira num ponto adiante do traçado e calibra a
-// força pela distância e pelo atrito da superfície (parada previsível), com um
-// tempero próprio: cautelosa, agressiva, técnica, caótica, rival.
-import { Cap, V, SURF, dist, norm, sub, MAX_POWER } from '../engine/core';
+// IA PREDITIVA — em vez de "chutar" a força, cada IA SIMULA vários petelecos
+// candidatos (clona a própria tampinha num mundo de 1 corpo e roda a física de
+// verdade até parar), pontua cada resultado por progresso na pista menos o risco
+// (cair fora, buraco, bomba, parar na beirada) e escolhe o melhor. As
+// personalidades mudam a mira, a ousadia e o quanto miram nos rivais.
+import { Cap, V, dist, norm, sub, mul, vec, len, MAX_POWER } from '../engine/core';
 import { TrackModel } from '../engine/track';
+import { stepWorld, anyMoving } from '../engine/physics';
 
 export type AIKind = 'cauteloso' | 'agressivo' | 'tecnico' | 'caotico' | 'rival';
 export const AI_KINDS: AIKind[] = ['cauteloso', 'agressivo', 'tecnico', 'caotico', 'rival'];
@@ -10,47 +13,114 @@ export const AI_LABEL: Record<AIKind, string> = {
   cauteloso: 'Cautelosa', agressivo: 'Agressiva', tecnico: 'Técnica', caotico: 'Caótica', rival: 'Rival',
 };
 
-interface Plan { lookahead: number; over: number; noise: number; }
-const PLANS: Record<AIKind, Plan> = {
-  cauteloso: { lookahead: 7, over: 0.92, noise: 0.03 },
-  agressivo: { lookahead: 13, over: 1.16, noise: 0.06 },
-  tecnico: { lookahead: 10, over: 1.0, noise: 0.02 },
-  caotico: { lookahead: 10, over: 1.0, noise: 0.16 },
-  rival: { lookahead: 10, over: 1.06, noise: 0.04 },
+interface Persona {
+  lookahead: number;   // distância-alvo à frente no traçado
+  powBias: number;     // tempero na força escolhida
+  risk: number;        // peso de "parou perto da borda" (maior = mais seguro)
+  outPenalty: number;  // punição por cair fora
+  spread: number;      // leque angular dos candidatos (rad)
+  noise: number;       // erro de execução
+  rival: number;       // peso de mirar/trombações no rival
+}
+const P: Record<AIKind, Persona> = {
+  cauteloso: { lookahead: 12, powBias: 0.95, risk: 1.5, outPenalty: 240, spread: 0.16, noise: 0.020, rival: 0 },
+  agressivo: { lookahead: 19, powBias: 1.10, risk: 0.5, outPenalty: 90,  spread: 0.22, noise: 0.055, rival: 0.25 },
+  tecnico:   { lookahead: 14, powBias: 1.00, risk: 1.0, outPenalty: 180, spread: 0.18, noise: 0.014, rival: 0 },
+  caotico:   { lookahead: 13, powBias: 1.03, risk: 0.7, outPenalty: 120, spread: 0.36, noise: 0.150, rival: 0.15 },
+  rival:     { lookahead: 15, powBias: 1.05, risk: 0.8, outPenalty: 160, spread: 0.20, noise: 0.035, rival: 1.0 },
 };
 
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+// clona a tampinha para uma simulação isolada (posição/velocidade frescas)
+function clone(c: Cap): Cap {
+  return {
+    ...c,
+    pos: vec(c.pos.x, c.pos.y), vel: vec(),
+    cpPos: vec(c.cpPos.x, c.cpPos.y),
+    turnStart: vec(c.turnStart.x, c.turnStart.y),
+    resetTo: vec(c.turnStart.x, c.turnStart.y),
+    preFlick: vec(c.pos.x, c.pos.y),
+    consumed: new Set<number>(), stats: { ...c.stats },
+    moving: false, finished: false,
+  };
+}
+
+interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolean; bombed: boolean; finished: boolean; dEdge: number; endPos: V; bonus: number; }
+function simShot(base: Cap, track: TrackModel, dir: V, power01: number): SimOut {
+  const c = clone(base);
+  c.vel = mul(norm(dir), Math.max(0.06, Math.min(1, power01)) * MAX_POWER); c.moving = true;
+  let out = false, holed = false, bombed = false, finished = false, bonus = 0, maxProg = base.progress;
+  const FIXED = 1 / 120; let steps = 0;
+  while (anyMoving([c]) && steps < 1400) {
+    const evs = stepWorld([c], track, FIXED);
+    for (const e of evs) {
+      if (e.type === 'out') out = true; else if (e.type === 'hole') holed = true;
+      else if (e.type === 'bomb') bombed = true; else if (e.type === 'finish') finished = true;
+      else if (e.type === 'bonus') bonus += (e.n || 1);
+    }
+    if (c.progress > maxProg) maxProg = c.progress;
+    steps++;
+  }
+  const n = track.nearest(c.pos);
+  const dEdge = Math.max(0, n.d - n.half * 0.45);   // o quão perto da borda parou
+  return { endProg: c.progress, maxProg, out, holed, bombed, finished, dEdge, endPos: vec(c.pos.x, c.pos.y), bonus };
+}
+
+function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
+  let s: number;
+  if (o.out) {
+    s = base.progress - per.outPenalty + (o.maxProg - base.progress) * 0.12;   // crédito mínimo pelo quanto avançou
+  } else {
+    s = o.endProg - o.dEdge * per.risk * 2.4;   // avançar é bom; parar na beirada é arriscado
+  }
+  if (o.holed) s -= 60;    // volta ao checkpoint e ainda custa 1 peteléco
+  if (o.bombed) s -= 85;   // perde o resto do turno
+  s += o.bonus * 22;       // pegar +petelecos vale a pena
+  if (o.finished) s += 400;
+  if (rival && per.rival > 0 && !o.out) { const d = dist(o.endPos, rival.pos); s += per.rival * Math.max(0, 9 - d) * 3.2; }
+  return s;
+}
+
+const rot = (v: V, a: number): V => ({ x: v.x * Math.cos(a) - v.y * Math.sin(a), y: v.x * Math.sin(a) + v.y * Math.cos(a) });
 
 export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; power: number } {
-  const kind = (cap.ai as AIKind) || 'cauteloso';
-  const p = { ...PLANS[kind] };
-  if (kind === 'caotico') { p.lookahead = rnd(7, 15); p.over = rnd(0.8, 1.35); }
+  const kind = (cap.ai as AIKind) || 'tecnico';
+  const per = P[kind] || P.tecnico;
+  const total = track.total;
 
-  // alvo padrão: ponto adiante no traçado (puxa de volta para a linha de corrida)
-  let target = track.atArc(cap.progress + p.lookahead).p;
-  let over = p.over;
+  // direção-alvo: para um ponto adiante no traçado (volta para a linha de corrida)
+  const aimPt = track.atArc(Math.min(total, cap.progress + per.lookahead)).p;
+  let baseDir = norm(sub(aimPt, cap.pos));
+  const tan = track.atArc(cap.progress).tan;             // direção que "abraça" a curva
+  if (len(sub(aimPt, cap.pos)) < 0.4) baseDir = tan;
 
-  // RIVAL: se um adversário está logo à frente e perto, tenta trombá-lo
-  if (kind === 'rival') {
-    let best: Cap | null = null, bestD = 13;
-    for (const o of caps) {
-      if (o.id === cap.id || o.finished) continue;
-      const d = dist(cap.pos, o.pos);
-      if (d < bestD && o.progress > cap.progress - 4) { best = o; bestD = d; }
+  // rival próximo à frente (para trombar)
+  let rival: Cap | null = null;
+  if (per.rival > 0) { let bd = 16; for (const o of caps) { if (o.id === cap.id || o.finished) continue; const d = dist(cap.pos, o.pos); if (d < bd && o.progress > cap.progress - 6) { rival = o; bd = d; } } }
+
+  // leque de direções (alvo + tangente) e de forças (inclui tacadas curtas seguras)
+  const dirs: V[] = [baseDir, rot(baseDir, per.spread * 0.5), rot(baseDir, -per.spread * 0.5), rot(baseDir, per.spread), rot(baseDir, -per.spread), tan];
+  const pows = kind === 'agressivo' ? [0.32, 0.5, 0.68, 0.85, 1.0] : kind === 'cauteloso' ? [0.22, 0.36, 0.5, 0.66, 0.82] : [0.26, 0.42, 0.58, 0.74, 0.92];
+
+  let best = { dir: baseDir, power: 0.4, s: -1e9 };
+  for (const dir of dirs) {
+    for (const pw of pows) {
+      const ep = Math.min(1, pw * per.powBias);
+      const s = score(simShot(cap, track, dir, ep), cap, per, rival);
+      if (s > best.s) best = { dir, power: ep, s };
     }
-    if (best) { target = best.pos; over = 1.2; }
+  }
+  // rival: também tenta ir direto no alvo
+  if (rival) {
+    const rdir = norm(sub(rival.pos, cap.pos));
+    for (const pw of [0.7, 0.9]) {
+      const s = score(simShot(cap, track, rdir, pw), cap, per, rival) + 18;
+      if (s > best.s) best = { dir: rdir, power: pw, s };
+    }
   }
 
-  let dir = norm(sub(target, cap.pos));
-  // ruído de mira (radiano) e de força
-  const na = (Math.random() - 0.5) * p.noise * 2.4;
-  const cs = Math.cos(na), sn = Math.sin(na);
-  dir = { x: dir.x * cs - dir.y * sn, y: dir.x * sn + dir.y * cs };
-
-  // força pela física: v = sqrt(2·atrito·distância)·over, limitada
-  const a = SURF[track.surfaceAt(cap.pos)].fric;
-  const D = Math.max(2, dist(cap.pos, target));
-  let speed = Math.sqrt(2 * a * D) * over * rnd(1 - p.noise, 1 + p.noise);
-  speed = Math.min(speed, MAX_POWER * 0.98);
-  return { dir, power: Math.min(1, speed / MAX_POWER) };
+  // erro de execução por personalidade (nenhuma IA é perfeita)
+  const na = (Math.random() - 0.5) * per.noise * 2.2;
+  const fdir = rot(best.dir, na);
+  const fp = Math.max(0.06, Math.min(1, best.power * (1 + (Math.random() - 0.5) * per.noise)));
+  return { dir: fdir, power: fp };
 }

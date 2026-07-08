@@ -5,7 +5,7 @@ import { buildBoard, BoardBuild } from './render/board';
 import { CapsRenderer } from './render/caps';
 import { Particles, Aim } from './render/fx';
 import { GameManager, PlayerDef } from './game/manager';
-import { TRACKS } from './game/tracks';
+import { track, TRACKS_PER_LEVEL } from './game/generator';
 import { SURF, len } from './engine/core';
 import { InputController } from './input';
 import { UI, MatchConfig, Mode } from './ui';
@@ -24,7 +24,7 @@ const mgr = new GameManager();
 
 let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
-let champ: { seq: number[]; race: number; pts: Map<number, number> } | null = null;
+let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number> } | null = null;
 let dailyFlicks = 0;
 let inGame = false;
 let musicStarted = false;
@@ -32,7 +32,7 @@ let musicStarted = false;
 // carrega a cena de uma pista e prepara a partida
 function loadMatch(cfg: MatchConfig): void {
   curCfg = cfg; mode = cfg.mode; dailyFlicks = 0;
-  const def = TRACKS[cfg.trackIndex];
+  const def = track(cfg.level, cfg.trackIdx);
   scene = makeScene(def.bg);
   makeSun(scene, def.w, def.h);
   board = buildBoard(def); scene.add(board.group);
@@ -59,8 +59,7 @@ mgr.onEvent = (e) => {
     case 'capHit': sfx.clack(e.power); fx.impact(e.x, e.y, e.power * 0.6, '#fff'); break;
     case 'hole': sfx.hole(); fx.dust(e.x, e.y, 14, '#3a2c1a'); break;
     case 'bomb': sfx.bad(); fx.impact(e.x, e.y, 10, '#ff8a5a'); break;
-    case 'plus3': sfx.bonus(); fx.impact(e.x, e.y, 10, '#8affc0'); break;
-    case 'ten': sfx.bonus(); fx.impact(e.x, e.y, 14, '#ffe08a'); break;
+    case 'bonus': sfx.bonus(); fx.impact(e.x, e.y, 10, '#8affc0'); break;
     case 'out': sfx.bad(); fx.dust(e.x, e.y, 10, '#cbb58a'); break;
     case 'finish': fx.confetti(e.x, e.y); break;
   }
@@ -70,7 +69,14 @@ mgr.onEvent = (e) => {
 const ui = new UI({
   start: (cfg) => {
     resumeAudio();
-    if (cfg.mode === 'champ') { champ = { seq: [0, 2, 4], race: 0, pts: new Map() }; cfg.trackIndex = champ.seq[0]; }
+    if (cfg.mode === 'champ') {
+      // 5 pistas variadas do nível escolhido
+      const idxs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      for (let i = idxs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idxs[i], idxs[j]] = [idxs[j], idxs[i]]; }
+      const seq = idxs.slice(0, 5).map(idx => ({ level: cfg.level, idx }));
+      champ = { seq, race: 0, pts: new Map() };
+      cfg.level = seq[0].level; cfg.trackIdx = seq[0].idx;
+    }
     else champ = null;
     loadMatch(cfg);
   },
@@ -86,10 +92,15 @@ ui.onNext = () => {
   if (champ) {
     champ.race++;
     if (champ.race >= champ.seq.length) { finishChampionship(); return; }
-    curCfg!.trackIndex = champ.seq[champ.race]; loadMatch(curCfg!); return;
+    curCfg!.level = champ.seq[champ.race].level; curCfg!.trackIdx = champ.seq[champ.race].idx; loadMatch(curCfg!); return;
   }
-  // nova pista aleatória (mantém jogadores)
-  if (curCfg) { curCfg.trackIndex = (curCfg.trackIndex + 1) % TRACKS.length; loadMatch(curCfg); }
+  // próxima pista (respeita como foi escolhida: sorteia ou avança na sequência)
+  if (curCfg) {
+    if (curCfg.pick === 'randany') { curCfg.level = Math.floor(Math.random() * 5); curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
+    else if (curCfg.pick === 'randlevel') { curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
+    else { curCfg.trackIdx = (curCfg.trackIdx + 1) % TRACKS_PER_LEVEL; }
+    loadMatch(curCfg);
+  }
 };
 
 // pré-carrega volumes salvos

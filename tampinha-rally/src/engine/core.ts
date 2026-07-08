@@ -63,8 +63,9 @@ export interface Cap {
   consumed: Set<number>;     // índices de +3/10 já pegos neste turno
   flicksLeft: number;
   bonusFlicks: number;
-  special10: boolean;        // rodada especial 10
-  bombed: boolean;           // pisou numa bomba neste peteléco
+  special10: boolean;        // (reservado)
+  bombed: boolean;           // pisou numa bomba neste peteléco (perde a vez)
+  holed: boolean;            // caiu num buraco (custa 1 peteléco a mais)
   skipTurns: number;
   finished: boolean;
   place: number;
@@ -78,7 +79,7 @@ export function makeCap(id: number, name: string, skin: string, stats: CapStats,
     id, name, skin, isAI, ai, stats: { ...stats }, radius: 0.82,
     pos: vec(), vel: vec(), angle: Math.random() * 6.28, angVel: 0, bob: Math.random() * 6.28,
     progress: 0, checkpoint: 0, cpPos: vec(), turnStart: vec(), preFlick: vec(), resetTo: vec(), consumed: new Set(),
-    flicksLeft: 3, bonusFlicks: 0, special10: false, bombed: false, skipTurns: 0,
+    flicksLeft: 3, bonusFlicks: 0, special10: false, bombed: false, holed: false, skipTurns: 0,
     finished: false, place: 0, lap: 0, moving: false, hitFlash: 0,
   };
 }

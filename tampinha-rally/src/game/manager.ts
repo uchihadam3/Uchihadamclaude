@@ -119,10 +119,9 @@ export class GameManager {
   private handleEvent(e: SimEvent): void {
     const c = this.caps[e.capId];
     switch (e.type) {
-      case 'plus3': c.bonusFlicks += 3; this.onToast('Petelecos extras! +3', 'good'); break;
-      case 'ten': c.special10 = true; c.bonusFlicks = Math.max(c.bonusFlicks, 10 - 1); this.onToast('Rodada 10! Continue na pista', 'good'); break;
-      case 'hole': this.onToast(`${c.name} caiu no buraco — checkpoint`, 'bad'); c.checkpoint = c.checkpoint; break;
-      case 'bomb': this.onToast(`${c.name} pisou no X — checkpoint`, 'bad'); c.bombed = true; break;
+      case 'bonus': c.bonusFlicks += (e.n || 1); this.onToast(`+${e.n} peteléco${(e.n || 1) > 1 ? 's' : ''}!`, 'good'); break;
+      case 'hole': c.holed = true; this.onToast(`${c.name} caiu no buraco — checkpoint`, 'bad'); break;
+      case 'bomb': c.bombed = true; this.onToast(`${c.name} pisou no X — perdeu a vez`, 'bad'); break;
       case 'out': if (c.id === this.current) this.lastFlickOut = true; this.onToast(`${c.name} saiu da pista!`, 'bad'); break;
       case 'finish': this.onFinish(c); break;
     }
@@ -157,10 +156,10 @@ export class GameManager {
   private endFlick(): void {
     const c = this.activeCap();
     c.flicksLeft -= 1;
+    if (c.holed) { c.holed = false; c.flicksLeft -= 1; }         // buraco custa 1 peteléco a mais
     if (c.bombed) { c.bombed = false; c.flicksLeft = 0; }        // bomba: perde o resto do turno
-    if (this.lastFlickOut && c.special10) { c.special10 = false; c.flicksLeft = 0; }
     if (c.bonusFlicks > 0) { c.flicksLeft += c.bonusFlicks; c.bonusFlicks = 0; }
-    c.flicksLeft = Math.min(c.flicksLeft, 12);
+    c.flicksLeft = Math.max(0, Math.min(c.flicksLeft, 9));
     if (c.flicksLeft > 1) c.turnStart = vec(c.pos.x, c.pos.y);   // último peteléco define novo "seguro"
     if (c.flicksLeft <= 0) { this.advanceIndex(); this.beginTurn(); }
     else { this.phase = 'aim'; this.aiTimer = 0; this.aiFired = false; this.onChange(); }
