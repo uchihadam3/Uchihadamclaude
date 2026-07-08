@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { Cap } from '../engine/core';
 import { skinById } from '../game/skins';
-import { makeCapTop } from './textures';
+import { makeCapTex } from './capart';
 
 const H = 0.5;
 
@@ -20,8 +20,8 @@ class CapView {
     const crimp = new THREE.Mesh(new THREE.TorusGeometry(cap.radius, 0.07, 8, 40),
       new THREE.MeshStandardMaterial({ color: sk.ring, roughness: 0.5, metalness: 0.3 }));
     crimp.rotation.x = Math.PI / 2; crimp.position.y = H - 0.03; this.group.add(crimp);
-    this.top = new THREE.Mesh(new THREE.CircleGeometry(cap.radius * 0.94, 40),
-      new THREE.MeshStandardMaterial({ map: makeCapTop(sk), roughness: 0.4, metalness: 0.2 }));
+    this.top = new THREE.Mesh(new THREE.CircleGeometry(cap.radius * 0.99, 44),
+      new THREE.MeshStandardMaterial({ map: makeCapTex(sk.id, sk.art), roughness: 0.42, metalness: 0.25, transparent: true }));
     this.top.rotation.x = -Math.PI / 2; this.top.position.y = H + 0.005; this.group.add(this.top);
     // anel de destaque (ativo)
     this.ringHi = new THREE.Mesh(new THREE.TorusGeometry(cap.radius + 0.35, 0.09, 8, 32),

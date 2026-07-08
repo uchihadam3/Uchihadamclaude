@@ -33,12 +33,17 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
       c.vel.x += dir.x * 7 * dt; c.vel.y += dir.y * 7 * dt;
     }
 
-    // atrito: Coulomb (parada previsível) + arrasto viscoso; 'slide' reduz atrito
+    // atrito realista: Coulomb (parada previsível) + arrasto viscoso.
+    // slide → desliza mais longe; weight → afunda em superfície mole (mais atrito lá);
+    // control → um freio suave em baixa velocidade (para certinho onde mira).
     const sp = len(c.vel);
     if (sp > 0) {
-      const fric = (si.fric / c.stats.slide);
+      const st = c.stats;
+      const soft = si.fric > 12 ? 1 + (st.weight - 1) * 0.55 : 1;      // areia/lama seguram o pesado
+      const fric = (si.fric * soft) / st.slide;
       let ns = sp - fric * dt;
-      ns *= (1 - Math.min(0.9, si.drag * dt));
+      const drag = si.drag / (0.7 + 0.3 * st.slide) + (st.control - 1) * (sp < 6 ? 0.35 : 0.1);
+      ns *= (1 - Math.min(0.92, Math.max(0, drag) * dt));
       if (ns < 0) ns = 0;
       const dir = norm(c.vel); c.vel.x = dir.x * ns; c.vel.y = dir.y * ns;
     }
@@ -118,7 +123,7 @@ function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
       const rvx = b.vel.x - a.vel.x, rvy = b.vel.y - a.vel.y;
       const vn = rvx * nx + rvy * ny;
       if (vn > 0) continue;
-      const rest = 0.62;
+      const rest = 0.55 * ((a.stats.bounce + b.stats.bounce) / 2);   // tampinhas "quicantes" tabelam mais
       const imp = -(1 + rest) * vn / (1 / ma + 1 / mb);
       const ix = imp * nx, iy = imp * ny;
       a.vel.x -= ix / ma; a.vel.y -= iy / ma;

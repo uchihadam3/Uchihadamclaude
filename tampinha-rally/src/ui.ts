@@ -1,7 +1,8 @@
 // UI em DOM sobre o canvas: menu, configuração de partida, HUD da corrida,
 // resultados, personalização de tampinhas e ajustes. Grande, mas simples.
 import { track, LEVELS, LEVEL_COLORS, TRACKS_PER_LEVEL } from './game/generator';
-import { SKINS, skinById, CAP_COLORS } from './game/skins';
+import { SKINS, skinById, CAP_COLORS, unlockedSkins } from './game/skins';
+import { drawCap, RARITY_COLOR, RARITY_LABEL, RARITY_ORDER } from './render/capart';
 import { AI_KINDS, AI_LABEL, AIKind } from './game/ai';
 import { PlayerDef, GameManager } from './game/manager';
 import { save } from './game/save';
@@ -187,7 +188,7 @@ export class UI {
   private launch(): void {
     const players: PlayerDef[] = this.cfgMode === 'daily'
       ? [{ name: 'Você', isAI: false, skin: save.skin() }]
-      : this.cfgPlayers.map((p, i) => ({ name: p.name, isAI: !p.human, ai: p.ai, skin: i === 0 ? save.skin() : SKINS[(p.color + 2) % SKINS.length].id }));
+      : this.cfgPlayers.map((p, i) => ({ name: p.name, isAI: !p.human, ai: p.ai, skin: i === 0 ? save.skin() : SKINS[Math.floor(Math.random() * SKINS.length)].id }));
     // resolve o sorteio (o modo escolhido é lembrado p/ a "próxima pista")
     let level = this.cfgLevel, idx = this.cfgTrack;
     if (this.cfgPick === 'randlevel') idx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
@@ -228,21 +229,34 @@ export class UI {
     this.clear();
     const wins = save.wins(); const cur = save.skin();
     const s = this.el(`<div class="screen skins">
-      <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Tampinhas</h2><div></div></div>
-      <div class="skin-grid" id="grid"></div>
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Tampinhas <span class="cap-count">${unlockedSkins(wins).length}/${SKINS.length}</span></h2><div></div></div>
+      <div class="skin-scroll" id="scroll"></div>
     </div>`);
     this.root.appendChild(s);
-    const grid = s.querySelector('#grid') as HTMLElement;
-    for (const k of SKINS) {
-      const locked = wins < k.unlock;
-      const card = this.el(`<button class="skin-card ${cur === k.id ? 'sel' : ''} ${locked ? 'locked' : ''}">
-        <div class="skin-face" style="background:${k.top};border-color:${k.ring}"><span style="background:${k.ring}"></span></div>
-        <div class="skin-name">${k.name}</div>
-        <div class="skin-desc">${locked ? '🔒 ' + k.unlock + ' vitórias' : k.desc}</div>
-        <div class="skin-bars">${bar('Desliza', k.stats.slide)}${bar('Peso', k.stats.weight)}${bar('Controle', k.stats.control)}${bar('Quique', k.stats.bounce)}</div>
-      </button>`);
-      grid.appendChild(card);
-      if (!locked) card.addEventListener('click', () => { this.cb.setSkin(k.id); this.showSkins(); });
+    const scroll = s.querySelector('#scroll') as HTMLElement;
+    for (const rar of RARITY_ORDER) {
+      const group = SKINS.filter(k => k.rarity === rar);
+      const got = group.filter(k => wins >= k.unlock).length;
+      const sec = this.el(`<div class="rar-sec">
+        <div class="rar-head" style="--rc:${RARITY_COLOR[rar]}"><span class="rar-dot"></span>${RARITY_LABEL[rar]} <b>${got}/${group.length}</b></div>
+        <div class="skin-grid"></div></div>`);
+      scroll.appendChild(sec);
+      const grid = sec.querySelector('.skin-grid') as HTMLElement;
+      for (const k of group) {
+        const locked = wins < k.unlock;
+        const card = this.el(`<button class="skin-card ${cur === k.id ? 'sel' : ''} ${locked ? 'locked' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}">
+          <div class="skin-face"></div>
+          <div class="skin-name">${k.name}</div>
+          <div class="skin-desc">${locked ? '🔒 ' + k.unlock + ' vitórias' : k.desc}</div>
+          <div class="skin-bars">${bar('Desliza', k.stats.slide)}${bar('Peso', k.stats.weight)}${bar('Controle', k.stats.control)}${bar('Quique', k.stats.bounce)}</div>
+        </button>`);
+        const face = card.querySelector('.skin-face') as HTMLElement;
+        const cv = drawCap(k.art, 132); cv.style.width = '100%'; cv.style.height = 'auto'; cv.style.display = 'block';
+        if (locked) cv.style.filter = 'grayscale(1) brightness(0.55)';
+        face.appendChild(cv);
+        grid.appendChild(card);
+        if (!locked) card.addEventListener('click', () => { this.cb.setSkin(k.id); this.showSkins(); });
+      }
     }
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
   }

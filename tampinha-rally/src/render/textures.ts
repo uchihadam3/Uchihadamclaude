@@ -3,7 +3,6 @@
 // topos das tampinhas. Tudo procedural, leve e nítido.
 import * as THREE from 'three';
 import { TrackDef, Patch } from '../engine/track';
-import { Skin } from '../game/skins';
 
 const PX = 26;
 
@@ -117,32 +116,6 @@ export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
   return t;
 }
 
-// topo da tampinha por skin
-export function makeCapTop(skin: Skin): THREE.CanvasTexture {
-  const S = 256; const cv = document.createElement('canvas'); cv.width = cv.height = S;
-  const c = cv.getContext('2d')!; const cx = S / 2, cy = S / 2;
-  c.fillStyle = skin.side; c.beginPath(); c.arc(cx, cy, S * 0.48, 0, 7); c.fill();
-  const g = c.createRadialGradient(cx - 30, cy - 40, 10, cx, cy, S * 0.46);
-  g.addColorStop(0, lighten(skin.top, 30)); g.addColorStop(1, skin.top); c.fillStyle = g;
-  c.beginPath(); c.arc(cx, cy, S * 0.43, 0, 7); c.fill();
-  // aro
-  c.strokeStyle = skin.ring; c.lineWidth = 10; c.beginPath(); c.arc(cx, cy, S * 0.37, 0, 7); c.stroke();
-  // logo
-  c.fillStyle = skin.ring; c.strokeStyle = skin.ring; c.textAlign = 'center'; c.textBaseline = 'middle';
-  if (skin.logo === 'ridges') { for (let i = 0; i < 21; i++) { const a = i / 21 * 6.283; c.save(); c.translate(cx + Math.cos(a) * S * 0.4, cy + Math.sin(a) * S * 0.4); c.rotate(a); c.fillRect(-4, -8, 8, 16); c.restore(); } }
-  else if (skin.logo === 'star') { star(c, cx, cy, 5, S * 0.22, S * 0.1, skin.ring); }
-  else if (skin.logo === 'num') { c.fillStyle = skin.ring; c.font = `bold ${S * 0.4}px sans-serif`; c.fillText('7', cx, cy + 6); }
-  else if (skin.logo === 'rust') { for (let i = 0; i < 40; i++) { c.globalAlpha = 0.4; c.fillStyle = '#5a3a1e'; c.beginPath(); c.arc(cx + (Math.random() - 0.5) * S * 0.7, cy + (Math.random() - 0.5) * S * 0.7, 2 + Math.random() * 6, 0, 7); c.fill(); } c.globalAlpha = 1; }
-  else if (skin.logo === 'sticker') { c.fillStyle = '#fff'; c.beginPath(); c.arc(cx, cy, S * 0.18, 0, 7); c.fill(); star(c, cx, cy, 5, S * 0.14, S * 0.06, skin.top); }
-  else if (skin.logo === 'hand') { c.strokeStyle = skin.ring; c.lineWidth = 6; c.beginPath(); c.arc(cx, cy, S * 0.16, 0.3, 5.6); c.stroke(); c.beginPath(); c.arc(cx + 4, cy - 4, S * 0.1, 0.5, 4); c.stroke(); }
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
-}
-
-function star(c: CanvasRenderingContext2D, cx: number, cy: number, n: number, R: number, r: number, col: string) {
-  c.fillStyle = col; c.beginPath();
-  for (let i = 0; i < n * 2; i++) { const rad = i % 2 ? r : R; const a = i / (n * 2) * 6.283 - 1.57; const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad; i ? c.lineTo(x, y) : c.moveTo(x, y); }
-  c.closePath(); c.fill();
-}
 export function lighten(hex: string, amt: number): string {
   const n = parseInt(hex.slice(1), 16); let r = (n >> 16) + amt, g = ((n >> 8) & 255) + amt, b = (n & 255) + amt;
   r = Math.min(255, r); g = Math.min(255, g); b = Math.min(255, b);
