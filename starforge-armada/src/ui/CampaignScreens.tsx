@@ -7,6 +7,7 @@ import { drawShip } from '../render/shipGen';
 import { CampaignResult } from '../game/engine';
 import { CampaignSave } from '../game/campaignSave';
 import { sfx } from '../game/audio';
+import type { RunOutcome } from '../game/online';
 
 // ---------- Mapa de setores ----------
 export function CampaignMap(props: { save: CampaignSave; onSelect: (i: number) => void; onBack: () => void }): JSX.Element {
@@ -85,8 +86,10 @@ export function StoryIntro(props: { sector: number; onLaunch: (shipId: string) =
 }
 
 // ---------- Resultado ----------
-export function Results(props: { result: CampaignResult; hasNext: boolean; onRetry: () => void; onMap: () => void; onNext: () => void }): JSX.Element {
+export function Results(props: { result: CampaignResult; hasNext: boolean; rewards?: RunOutcome; onRetry: () => void; onMap: () => void; onNext: () => void }): JSX.Element {
   const r = props.result;
+  const rw = props.rewards;
+  useEffect(() => { if (rw?.leveledTo !== undefined) sfx.levelup(); }, []);
   const isMode = r.sector === -1; // corrida de modo (não campanha)
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const title = isMode ? (r.success ? 'Vitória!' : 'Fim de Jogo') : (r.success ? 'Setor Concluído' : 'Missão Falhou');
@@ -99,10 +102,24 @@ export function Results(props: { result: CampaignResult; hasNext: boolean; onRet
         <div className="results-grid">
           <div className="rstat"><span>Pontuação</span><b>{r.score.toLocaleString('pt-BR')}</b></div>
           <div className="rstat"><span>Inimigos</span><b>{r.kills}</b></div>
+          <div className="rstat"><span>Combo máx.</span><b>x{r.maxCombo}</b></div>
           <div className="rstat"><span>Tempo</span><b>{fmt(r.timeSec)}</b></div>
           <div className="rstat"><span>Dano sofrido</span><b>{r.dmgTaken}</b></div>
           {!isMode && <div className="rstat"><span>Vidas restantes</span><b>{r.lives}</b></div>}
         </div>
+        {rw && (
+          <div className="reward-strip">
+            <div className="reward-chips">
+              <span className="reward-chip xp">+{rw.xp.toLocaleString('pt-BR')} XP</span>
+              <span className="reward-chip cr">◈ +{rw.credits.toLocaleString('pt-BR')}</span>
+              <span className="reward-chip rk">Ranking #{rw.rank}</span>
+            </div>
+            {rw.newBest && <div className="reward-line best">★ Novo recorde pessoal!</div>}
+            {rw.leveledTo !== undefined && <div className="reward-line lvl">▲ Subiu para o nível {rw.leveledTo}!</div>}
+            {rw.unlockedTitles.map((t) => <div key={t} className="reward-line ttl">❖ Novo título: {t}</div>)}
+            {rw.missionsDone > 0 && <div className="reward-line msn">✦ {rw.missionsDone} missão(ões) concluída(s) — resgate no menu!</div>}
+          </div>
+        )}
         <div className="results-actions">
           <button className="play-btn ghost" onClick={() => { sfx.ui(); props.onMap(); }}>{isMode ? 'Modos' : 'Mapa'}</button>
           <button className="play-btn ghost" onClick={() => { sfx.ui(); props.onRetry(); }}>Repetir</button>

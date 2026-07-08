@@ -16,7 +16,7 @@ import { MAIN_BOSSES, SECRET_BOSSES, BossDef, BOSS_BY_ID } from '../data/bossesD
 import { drawBoss } from '../render/bossGen';
 import { CAMPAIGN } from '../data/campaignData';
 
-export interface CampaignResult { success: boolean; sector: number; score: number; kills: number; timeSec: number; dmgTaken: number; lives: number; medal: string; }
+export interface CampaignResult { success: boolean; sector: number; score: number; kills: number; timeSec: number; dmgTaken: number; lives: number; medal: string; maxCombo: number; }
 
 export type Orient = 'vertical' | 'horizontal' | 'arena';
 export interface Modifiers { enemySpeed: number; projScale: number; scoreMult: number; eliteFreq: number; ultRate: number; enemyHp: number; timeScale: number; }
@@ -101,6 +101,7 @@ export class Engine {
   private orient: Orient = 'vertical'; private mod: Modifiers = { ...DEFAULT_MOD };
   private runLives = Infinity; private bossRush = false; private relics: string[] = [];
   private runKills = 0; private runDmg = 0; private runStart = 0; private runOver = false; private aimX = 0; private aimY = -1;
+  private maxCombo = 0;
   onComplete: (r: CampaignResult) => void = () => {};
 
   hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name, bossActive: false, bossName: '', bossHp: 1, bossPhases: 1, bossPhase: 0, campaign: false, lives: 3 };
@@ -659,7 +660,7 @@ export class Engine {
     const timeSec = (performance.now() - this.camp.startT) / 1000;
     let medal = '—';
     if (success) { const d = this.camp.dmgTaken, lv = this.camp.lives; medal = d === 0 ? 'Eclipse' : (lv === 3 && d < 90) ? 'Platina' : lv >= 2 ? 'Ouro' : lv >= 1 ? 'Prata' : 'Bronze'; }
-    this.onComplete({ success, sector: this.campSector, score: this.score, kills: this.camp.kills, timeSec, dmgTaken: Math.round(this.camp.dmgTaken), lives: this.camp.lives, medal });
+    this.onComplete({ success, sector: this.campSector, score: this.score, kills: this.camp.kills, timeSec, dmgTaken: Math.round(this.camp.dmgTaken), lives: this.camp.lives, medal, maxCombo: this.maxCombo });
   }
 
   // ================= CHEFES =================
@@ -731,7 +732,7 @@ export class Engine {
     const timeSec = (performance.now() - this.runStart) / 1000;
     const sc = this.score;
     const medal = sc > 40000 ? 'Eclipse' : sc > 20000 ? 'Platina' : sc > 10000 ? 'Ouro' : sc > 4000 ? 'Prata' : 'Bronze';
-    this.onComplete({ success, sector: -1, score: sc, kills: this.runKills, timeSec, dmgTaken: Math.round(this.runDmg), lives: Math.max(0, this.runLives), medal });
+    this.onComplete({ success, sector: -1, score: sc, kills: this.runKills, timeSec, dmgTaken: Math.round(this.runDmg), lives: Math.max(0, this.runLives), medal, maxCombo: this.maxCombo });
   }
   private killEnemy(e: Enemy): void {
     if (e.dead) return; e.dead = true; // evita contagem dupla
@@ -741,6 +742,7 @@ export class Engine {
     this.shake = Math.max(this.shake, big ? 15 : 5); if (big) sfx.explodeBig(); else sfx.explodeSmall();
     if (this.camp) this.camp.kills++;
     this.combo += 1; this.comboTimer = 2.2;
+    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
     this.score += Math.round(e.def.score * (1 + this.combo * 0.05) * this.mod.scoreMult);
     this.player.ult = Math.min(1, this.player.ult + (big ? 0.25 : 0.03) * this.mod.ultRate);
     if (this.kit.passive === 'dodgeCharge') this.player.ult = Math.min(1, this.player.ult + 0.01);

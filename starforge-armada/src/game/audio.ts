@@ -57,4 +57,6 @@ export const sfx = {
   explodeBig(): void { noise(0.6, 0.32, 700); tone(90, 0.6, 'sine', 0.24, 40); },
   ui(): void { tone(660, 0.06, 'sine', 0.12, 880); },
   start(): void { tone(330, 0.3, 'sawtooth', 0.18, 660); },
+  reward(): void { tone(880, 0.1, 'sine', 0.12, 1180); tone(1320, 0.16, 'sine', 0.1, 1660); },
+  levelup(): void { tone(523, 0.14, 'triangle', 0.14, 784); tone(784, 0.14, 'triangle', 0.14, 1046); tone(1046, 0.28, 'triangle', 0.16, 1568); },
 };

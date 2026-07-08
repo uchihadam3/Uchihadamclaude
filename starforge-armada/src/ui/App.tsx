@@ -10,39 +10,57 @@ import Hangar from './Hangar';
 import Bestiary from './Bestiary';
 import { CampaignMap, StoryIntro, Results } from './CampaignScreens';
 import { ModesScreen, ModeSetup, Tutorial, TrainingSetup } from './ModesScreens';
+import { ProfileScreen, LeaderboardScreen, SeasonScreen, MissionsScreen } from './AccountScreens';
 import { loadCampaign, recordClear, CampaignSave } from '../game/campaignSave';
 import type { CampaignResult, Orient } from '../game/engine';
 import { CAMPAIGN } from '../data/campaignData';
 import type { ModeDef } from '../data/modesData';
+import { loadProfile, levelInfo, Profile } from '../game/profile';
+import { finalizeRun, RunContext, RunOutcome } from '../game/online';
+import { countClaimable } from '../game/missions';
 import './styles.css';
 
+type Screen = 'menu' | 'hangar' | 'bestiary' | 'campaign' | 'modes' | 'tutorial' | 'training' | 'profile' | 'leaderboard' | 'season' | 'missions';
+
 export default function App(): JSX.Element {
-  const [screen, setScreen] = useState<'menu' | 'hangar' | 'bestiary' | 'campaign' | 'modes' | 'tutorial' | 'training'>('menu');
+  const [screen, setScreen] = useState<Screen>('menu');
   const [shipId, setShipId] = useState('falcon');
+  const profileRef = useRef<Profile>(loadProfile());
+  const [, bump] = useState(0);
+  const refresh = () => { profileRef.current = loadProfile(); bump((v) => v + 1); };
+  // roda a partida pelo motor, credita XP/créditos/ranking/missões e devolve o resumo
+  const finalize = (r: CampaignResult, ctx: RunContext): RunOutcome => { const o = finalizeRun(profileRef.current, r, ctx); refresh(); return o; };
+  const profile = profileRef.current;
+
   return (
     <div className="app">
-      {screen === 'menu' && <Menu setScreen={setScreen} />}
+      {screen === 'menu' && <Menu setScreen={setScreen} profile={profile} />}
       {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} onPilot={(id) => { resumeAudio(); sfx.start(); setShipId(id); setScreen('training'); }} />}
       {screen === 'bestiary' && <Bestiary onBack={() => setScreen('menu')} />}
-      {screen === 'campaign' && <Campaign onBack={() => setScreen('menu')} />}
-      {screen === 'modes' && <ModesFlow onBack={() => setScreen('menu')} />}
+      {screen === 'campaign' && <Campaign onBack={() => setScreen('menu')} finalize={finalize} />}
+      {screen === 'modes' && <ModesFlow onBack={() => setScreen('menu')} finalize={finalize} />}
       {screen === 'tutorial' && <Tutorial onBack={() => setScreen('menu')} />}
       {screen === 'training' && <TrainingFlow initialShip={shipId} onBack={() => setScreen('menu')} />}
+      {screen === 'profile' && <ProfileScreen profile={profile} onChange={refresh} onBack={() => setScreen('menu')} />}
+      {screen === 'leaderboard' && <LeaderboardScreen profile={profile} onBack={() => setScreen('menu')} />}
+      {screen === 'season' && <SeasonScreen profile={profile} onChange={refresh} onBack={() => setScreen('menu')} />}
+      {screen === 'missions' && <MissionsScreen profile={profile} onChange={refresh} onBack={() => setScreen('menu')} />}
     </div>
   );
 }
 
 // ============ MODOS ============
-function ModesFlow(props: { onBack: () => void }): JSX.Element {
+function ModesFlow(props: { onBack: () => void; finalize: (r: CampaignResult, ctx: RunContext) => RunOutcome }): JSX.Element {
   const [phase, setPhase] = useState<'list' | 'setup' | 'run' | 'results'>('list');
   const [mode, setMode] = useState<ModeDef | null>(null);
   const [ship, setShip] = useState('falcon');
   const [relics, setRelics] = useState<string[]>([]);
   const [result, setResult] = useState<CampaignResult | null>(null);
+  const [outcome, setOutcome] = useState<RunOutcome | null>(null);
   if (phase === 'list') return <ModesScreen onSelect={(m) => { setMode(m); setPhase('setup'); }} onBack={props.onBack} />;
   if (phase === 'setup' && mode) return <ModeSetup mode={mode} onBack={() => setPhase('list')} onLaunch={(s, r) => { setShip(s); setRelics(r); setPhase('run'); }} />;
-  if (phase === 'run' && mode) return <Demo shipId={ship} mode="endless" onBack={() => setPhase('list')} config={{ orient: mode.orient, mod: mode.mod, runLives: mode.lives, bossRush: mode.bossRush, relics }} onComplete={(r) => { setResult(r); setPhase('results'); }} />;
-  if (phase === 'results' && result) return <Results result={result} hasNext={false} onRetry={() => setPhase('run')} onMap={() => setPhase('list')} onNext={() => {}} />;
+  if (phase === 'run' && mode) return <Demo shipId={ship} mode="endless" onBack={() => setPhase('list')} config={{ orient: mode.orient, mod: mode.mod, runLives: mode.lives, bossRush: mode.bossRush, relics }} onComplete={(r) => { setResult(r); setOutcome(props.finalize(r, { boardId: mode.id, orient: mode.orient, isBossFight: !!mode.bossRush })); setPhase('results'); }} />;
+  if (phase === 'results' && result) return <Results result={result} rewards={outcome ?? undefined} hasNext={false} onRetry={() => setPhase('run')} onMap={() => setPhase('list')} onNext={() => {}} />;
   return <ModesScreen onSelect={(m) => { setMode(m); setPhase('setup'); }} onBack={props.onBack} />;
 }
 
@@ -56,21 +74,22 @@ function TrainingFlow(props: { initialShip: string; onBack: () => void }): JSX.E
 }
 
 // ============ CAMPANHA ============
-function Campaign(props: { onBack: () => void }): JSX.Element {
+function Campaign(props: { onBack: () => void; finalize: (r: CampaignResult, ctx: RunContext) => RunOutcome }): JSX.Element {
   const [save, setSave] = useState<CampaignSave>(() => loadCampaign());
   const [phase, setPhase] = useState<'map' | 'intro' | 'run' | 'results'>('map');
   const [sector, setSector] = useState(0);
   const [ship, setShip] = useState('falcon');
   const [result, setResult] = useState<CampaignResult | null>(null);
+  const [outcome, setOutcome] = useState<RunOutcome | null>(null);
 
   if (phase === 'map') return <CampaignMap save={save} onSelect={(i) => { setSector(i); setPhase('intro'); }} onBack={props.onBack} />;
   if (phase === 'intro') return <StoryIntro sector={sector} onBack={() => setPhase('map')} onLaunch={(s) => { setShip(s); setPhase('run'); }} />;
   if (phase === 'run') return (
     <Demo shipId={ship} mode="campaign" sector={sector} onBack={() => setPhase('map')}
-      onComplete={(r) => { if (r.success) setSave(recordClear(r.sector, r.medal)); setResult(r); setPhase('results'); }} />
+      onComplete={(r) => { if (r.success) setSave(recordClear(r.sector, r.medal)); setOutcome(props.finalize(r, { boardId: 'campaign', orient: 'vertical', isBossFight: true })); setResult(r); setPhase('results'); }} />
   );
   if (phase === 'results' && result) return (
-    <Results result={result} hasNext={result.sector + 1 < CAMPAIGN.length}
+    <Results result={result} rewards={outcome ?? undefined} hasNext={result.sector + 1 < CAMPAIGN.length}
       onRetry={() => setPhase('run')} onMap={() => setPhase('map')}
       onNext={() => { setSector(result.sector + 1); setPhase('intro'); }} />
   );
@@ -78,9 +97,10 @@ function Campaign(props: { onBack: () => void }): JSX.Element {
 }
 
 // ============ MENU (com showcase animado da Falcon-01) ============
-type Screen = 'menu' | 'hangar' | 'bestiary' | 'campaign' | 'modes' | 'tutorial' | 'training';
-function Menu(props: { setScreen: (s: Screen) => void }): JSX.Element {
+function Menu(props: { setScreen: (s: Screen) => void; profile: Profile }): JSX.Element {
   const go = (s: Screen) => { resumeAudio(); sfx.ui(); props.setScreen(s); };
+  const li = levelInfo(props.profile.xp);
+  const claimable = countClaimable();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = canvasRef.current!;
@@ -122,6 +142,21 @@ function Menu(props: { setScreen: (s: Screen) => void }): JSX.Element {
   return (
     <div className="menu">
       <canvas ref={canvasRef} className="menu-canvas" />
+      <div className="online-bar">
+        <button className="pilot-chip" onClick={() => go('profile')}>
+          <span className="pilot-lvl">{li.level}</span>
+          <span className="pilot-meta">
+            <span className="pilot-name">{props.profile.name}</span>
+            <span className="pilot-title">{props.profile.title}</span>
+          </span>
+          <span className="pilot-credits">◈ {props.profile.credits.toLocaleString('pt-BR')}</span>
+        </button>
+        <div className="online-chips">
+          <button className="online-chip" onClick={() => go('leaderboard')}>🏆 Ranking</button>
+          <button className="online-chip" onClick={() => go('season')}>◈ Temporada</button>
+          <button className="online-chip" onClick={() => go('missions')}>✦ Missões{claimable > 0 && <span className="chip-badge">{claimable}</span>}</button>
+        </div>
+      </div>
       <div className="menu-inner">
         <div className="menu-kicker">Space Shooter Premium</div>
         <h1 className="menu-title"><span className="b">STARFORGE</span><span className="b">ARMADA</span></h1>
@@ -147,7 +182,7 @@ function Menu(props: { setScreen: (s: Screen) => void }): JSX.Element {
         </div>
       </div>
       <div className="menu-approve">
-        <b>Jogo completo em construção</b> · direção de arte aprovada · Parte 7/10
+        <b>Jogo completo em construção</b> · direção de arte aprovada · Parte 8/10
       </div>
     </div>
   );
