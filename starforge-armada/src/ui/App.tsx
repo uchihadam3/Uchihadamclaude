@@ -11,11 +11,12 @@ import './styles.css';
 
 export default function App(): JSX.Element {
   const [screen, setScreen] = useState<'menu' | 'demo' | 'hangar'>('menu');
+  const [shipId, setShipId] = useState('falcon');
   return (
     <div className="app">
-      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} />}
-      {screen === 'demo' && <Demo onBack={() => setScreen('menu')} />}
-      {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} />}
+      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setShipId('falcon'); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} />}
+      {screen === 'demo' && <Demo shipId={shipId} onBack={() => setScreen('menu')} />}
+      {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} onPilot={(id) => { resumeAudio(); sfx.start(); setShipId(id); setScreen('demo'); }} />}
     </div>
   );
 }
@@ -91,10 +92,11 @@ function Menu(props: { onStart: () => void; onHangar: () => void }): JSX.Element
 }
 
 // ============ DEMO ============
-function Demo(props: { onBack: () => void }): JSX.Element {
+function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
   const [showBanner, setShowBanner] = useState(true);
+  const [labels, setLabels] = useState({ ship: 'Falcon-01', ability: 'Míssil', ult: 'Ultimate' });
   // refs de HUD (atualizados direto no DOM p/ suavidade)
   const hpRef = useRef<HTMLDivElement>(null);
   const shRef = useRef<HTMLDivElement>(null);
@@ -110,8 +112,9 @@ function Demo(props: { onBack: () => void }): JSX.Element {
   useEffect(() => {
     initAudio();
     const cv = canvasRef.current!;
-    const eng = new Engine(cv);
+    const eng = new Engine(cv, props.shipId);
     engineRef.current = eng;
+    setLabels(eng.kitLabels());
     eng.onHud = (h: Hud) => {
       if (hpRef.current) hpRef.current.style.width = `${Math.max(0, (h.hp / h.maxHp) * 100)}%`;
       if (shRef.current) shRef.current.style.width = `${Math.max(0, (h.shield / h.maxShield) * 100)}%`;
@@ -165,21 +168,21 @@ function Demo(props: { onBack: () => void }): JSX.Element {
           <button className="skill clickable" ref={abBoxRef} onClick={() => engineRef.current?.triggerAbility()}>
             <span className="skill-key">Shift</span>
             <span className="skill-ico" style={{ color: '#ffd27a' }}>➤</span>
-            <span className="skill-name">Míssil</span>
+            <span className="skill-name">{labels.ability}</span>
             <div className="skill-cd" ref={abRef} style={{ height: '0%' }} />
           </button>
           <button className="skill ult clickable" ref={ultBoxRef} onClick={() => engineRef.current?.triggerUltimate()}>
             <span className="skill-key">Espaço</span>
             <span className="skill-ico" style={{ color: '#8af0ff' }}>✹</span>
-            <span className="skill-name">Ultimate</span>
+            <span className="skill-name">{labels.ult}</span>
             <div className="skill-cd" ref={ultRef} style={{ height: '100%' }} />
           </button>
         </div>
 
         <div className="controls-hint">
-          <b>Falcon-01</b><br />
+          <b>{labels.ship}</b><br />
           Arraste para mover · tiro automático<br />
-          <kbd>Shift</kbd> míssil teleguiado · <kbd>Espaço</kbd> ultimate
+          <kbd>Shift</kbd> {labels.ability} · <kbd>Espaço</kbd> {labels.ult}
         </div>
 
         {showBanner && (

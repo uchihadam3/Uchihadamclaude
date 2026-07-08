@@ -23,7 +23,7 @@ function paintShip(cv: HTMLCanvasElement, ship: ShipDef, t: number, big = false)
   drawShip(ctx, w / 2, h * 0.52, S, ship.design, { tilt, thrust: 0.75, t, shield: big ? 0.6 : 0 });
 }
 
-export default function Hangar(props: { onBack: () => void }): JSX.Element {
+export default function Hangar(props: { onBack: () => void; onPilot: (id: string) => void }): JSX.Element {
   const [sel, setSel] = useState<ShipDef | null>(null);
   const cards = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const detail = useRef<HTMLCanvasElement>(null);
@@ -87,6 +87,7 @@ export default function Hangar(props: { onBack: () => void }): JSX.Element {
                 <Sk tag="Passiva" name={sel.passive.name} desc={sel.passive.desc} />
               </div>
               <div className={`unlock-line ${sel.starter ? 'ok' : ''}`}>{sel.starter ? '✓ Liberada desde o início' : '◈ ' + sel.unlock}</div>
+              <button className="pilot-btn" onClick={() => props.onPilot(sel.id)}>▶ Pilotar esta nave</button>
             </div>
           </div>
         </div>
