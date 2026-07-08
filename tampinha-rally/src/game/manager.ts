@@ -87,6 +87,7 @@ export class GameManager {
     for (const o of this.caps) o.resetTo = vec(o.pos.x, o.pos.y);
     c.resetTo = vec(c.turnStart.x, c.turnStart.y);
     c.preFlick = vec(c.pos.x, c.pos.y);
+    c.z = 0; c.vz = 0; c.airborne = false;
     c.vel = mul(d, sp); c.moving = true;
     this.lastFlickOut = false;
     this.phase = 'resolve'; this.acc = 0;
@@ -126,6 +127,7 @@ export class GameManager {
       case 'hole': c.holed = true; this.onToast(`${c.name} caiu no buraco — checkpoint`, 'bad'); break;
       case 'bomb': c.bombed = true; this.onToast(`${c.name} pisou no X — perdeu a vez`, 'bad'); break;
       case 'out': if (c.id === this.current) this.lastFlickOut = true; this.onToast(`${c.name} saiu da pista!`, 'bad'); break;
+      case 'ramp': if (c.id === this.current) this.onToast('Voou! 🚀', 'good'); break;
       case 'finish': this.onFinish(c); break;
     }
     // checkpoints: avança o checkpoint se cruzou um (proximidade)
@@ -142,9 +144,10 @@ export class GameManager {
 
   private onFinish(c: Cap): void {
     if (this.finishOrder.includes(c)) return;
-    c.finished = true; this.finishOrder.push(c); c.place = this.finishOrder.length;
-    // corrida decidida no primeiro a cruzar
-    if (this.finishOrder.length === 1) { this.finishRace(); }
+    c.finished = true; c.airborne = false; c.z = 0; this.finishOrder.push(c); c.place = this.finishOrder.length;
+    this.onToast(`${c.name} chegou em ${c.place}º! 🏁`, c.place === 1 ? 'good' : 'turn');
+    // a corrida só acaba quando o PENÚLTIMO chega — aí o que falta é o último
+    if (this.finishOrder.length >= Math.max(1, this.caps.length - 1)) this.finishRace();
   }
 
   private finishRace(): void {

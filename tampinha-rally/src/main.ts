@@ -61,6 +61,8 @@ mgr.onEvent = (e) => {
     case 'bomb': sfx.bad(); fx.impact(e.x, e.y, 10, '#ff8a5a'); break;
     case 'bonus': sfx.bonus(); fx.impact(e.x, e.y, 10, '#8affc0'); break;
     case 'out': sfx.bad(); fx.dust(e.x, e.y, 10, '#cbb58a'); break;
+    case 'ramp': sfx.bonus(); fx.impact(e.x, e.y, 8, '#9dffb8'); break;
+    case 'land': sfx.wall(4); fx.dust(e.x, e.y, 14, '#d8c090'); break;
     case 'finish': fx.confetti(e.x, e.y); break;
   }
 };
@@ -168,6 +170,7 @@ function frame(): void {
     sfx.slide(maxSp);
     // pulsos dos itens especiais
     if (board) for (const p of board.pulses) { const s = 1 + Math.sin(t * 4) * 0.18; p.mesh.scale.set(s, s, 1); (p.mesh.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(t * 4) * 0.12; }
+    if (board) for (const sp of board.spinners) { sp.rotation.y += dt * 2.4; sp.position.y += Math.sin(t * 3 + sp.position.x) * 0.004; }
     caps.update(mgr.caps, t, mgr.activeCap()?.id ?? -1);
     fx.update(dt);
     renderer.render(scene, rig.camera);

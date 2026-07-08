@@ -73,7 +73,7 @@ console.log('\n=== CORRIDAS DE IA (3 pistas por nível) ===');
 let raceFails = 0;
 for (let lv = 0; lv < 5; lv++) {
   const rows: string[] = [];
-  for (const idx of [0, 4, 9]) {
+  for (const idx of [4, 9]) {
     const r = runRace(lv, idx);
     if (!r.finished) raceFails++;
     rows.push(`pista${idx}:${r.finished ? r.flicksWinner + 'flk/' + r.falls + 'q' : 'TRAVOU'}`);

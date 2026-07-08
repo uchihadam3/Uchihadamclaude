@@ -5,12 +5,13 @@ import * as THREE from 'three';
 import { TrackDef } from '../engine/track';
 import { makeBoardTexture, lighten } from './textures';
 
-export interface BoardBuild { group: THREE.Group; pulses: { mesh: THREE.Mesh; kind: string; base: number }[]; }
+export interface BoardBuild { group: THREE.Group; pulses: { mesh: THREE.Mesh; kind: string; base: number }[]; spinners: THREE.Object3D[]; }
 
 function markerTex(kind: string, n = 1): THREE.CanvasTexture {
   const S = 128; const cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d')!;
   const cx = S / 2, cy = S / 2;
-  if (kind === 'bomb') { c.fillStyle = '#c0392b'; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx - 28, cy - 28); c.lineTo(cx + 28, cy + 28); c.moveTo(cx + 28, cy - 28); c.lineTo(cx - 28, cy + 28); c.stroke(); }
+  if (kind === 'jumparrow') { c.clearRect(0, 0, S, S); c.strokeStyle = 'rgba(90,255,140,0.95)'; c.lineWidth = 16; c.lineCap = 'round'; c.lineJoin = 'round'; for (let i = -1; i <= 1; i++) { const y = cy + i * 34; c.beginPath(); c.moveTo(cx - 34, y + 16); c.lineTo(cx, y - 16); c.lineTo(cx + 34, y + 16); c.stroke(); } }
+  else if (kind === 'bomb') { c.fillStyle = '#c0392b'; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx - 28, cy - 28); c.lineTo(cx + 28, cy + 28); c.moveTo(cx + 28, cy - 28); c.lineTo(cx - 28, cy + 28); c.stroke(); }
   else { const col = n >= 3 ? '#e0a020' : n === 2 ? '#2e9fa4' : '#2ea44f'; c.fillStyle = col; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 58px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+' + n, cx, cy + 4); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
@@ -44,6 +45,7 @@ function decorProp(kind: string, col?: string): THREE.Object3D {
 export function buildBoard(def: TrackDef): BoardBuild {
   const group = new THREE.Group();
   const pulses: BoardBuild['pulses'] = [];
+  const spinners: THREE.Object3D[] = [];
 
   // base / mesa
   const base = new THREE.Mesh(new THREE.BoxGeometry(def.w + 5, 1.4, def.h + 5), new THREE.MeshStandardMaterial({ color: def.bg, roughness: 0.95 }));
@@ -65,23 +67,48 @@ export function buildBoard(def: TrackDef): BoardBuild {
   }
 
   // obstáculos
+  const woodMat = new THREE.MeshStandardMaterial({ color: '#8a5a2e', roughness: 0.82 });
   for (const o of def.obstacles) {
     if (o.type === 'stone') {
       const m = new THREE.Mesh(new THREE.DodecahedronGeometry(o.r, 0), new THREE.MeshStandardMaterial({ color: '#9a948a', roughness: 0.9, flatShading: true }));
       m.position.set(o.x, o.r * 0.55, o.y); m.scale.y = 0.8; m.rotation.set(Math.random(), Math.random(), Math.random()); m.castShadow = true; m.receiveShadow = true; group.add(m);
     } else if (o.type === 'hole') {
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(o.r, 24), new THREE.MeshBasicMaterial({ color: 0x1a140c }));
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(o.r, 28), new THREE.MeshBasicMaterial({ color: 0x120c06 }));
       disc.rotation.x = -Math.PI / 2; disc.position.set(o.x, 0.015, o.y); group.add(disc);
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(o.r, 0.13, 8, 24), new THREE.MeshStandardMaterial({ color: '#3a2c1a', roughness: 1 }));
-      rim.rotation.x = -Math.PI / 2; rim.position.set(o.x, 0.02, o.y); group.add(rim);
-    } else {
-      const n = o.n || 1;
-      const col = o.type === 'bomb' ? '#c0392b' : n >= 3 ? '#e0a020' : n === 2 ? '#2e9fa4' : '#2ea44f';
-      const pad = new THREE.Mesh(new THREE.CircleGeometry(o.r, 24), new THREE.MeshBasicMaterial({ map: markerTex(o.type, n), transparent: true }));
-      pad.rotation.x = -Math.PI / 2; pad.position.set(o.x, 0.03, o.y); group.add(pad);
-      const glow = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.5, 24), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
-      glow.rotation.x = -Math.PI / 2; glow.position.set(o.x, 0.025, o.y); group.add(glow);
-      pulses.push({ mesh: glow, kind: o.type, base: o.r * 1.5 });
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(o.r, 0.15, 8, 28), new THREE.MeshStandardMaterial({ color: '#3a2c1a', roughness: 1 }));
+      rim.rotation.x = -Math.PI / 2; rim.position.set(o.x, 0.03, o.y); rim.castShadow = true; group.add(rim);
+    } else if (o.type === 'jump') {
+      // RAMPA DE SALTO: cunha de madeira inclinada no sentido da pista + setas
+      const jg = new THREE.Group();
+      const wedge = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.34, 3.4), woodMat);
+      wedge.rotation.x = -0.52; wedge.position.set(0, 0.55, 0.2); wedge.castShadow = true; wedge.receiveShadow = true; jg.add(wedge);
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.5, 0.32), new THREE.MeshStandardMaterial({ color: '#c9902e', roughness: 0.7 }));
+      lip.position.set(0, 1.0, 1.5); jg.add(lip);
+      const arw = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.0), new THREE.MeshBasicMaterial({ map: markerTex('jumparrow'), transparent: true, depthWrite: false }));
+      arw.rotation.x = -Math.PI / 2 - 0.52; arw.position.set(0, 0.78, 0.2); jg.add(arw);
+      jg.position.set(o.x, 0, o.y); jg.rotation.y = Math.PI / 2 - (o.dir ?? 0);
+      group.add(jg);
+    } else if (o.type === 'bomb') {
+      const bg = new THREE.Group();
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(o.r * 0.95, 18, 14), new THREE.MeshStandardMaterial({ color: '#191919', roughness: 0.35, metalness: 0.4 }));
+      ball.position.y = o.r * 0.95; ball.castShadow = true; bg.add(ball);
+      const cap2 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.28, 10), new THREE.MeshStandardMaterial({ color: '#4a4a4a', metalness: 0.6, roughness: 0.4 }));
+      cap2.position.y = o.r * 1.75; bg.add(cap2);
+      const fuse = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 6), new THREE.MeshStandardMaterial({ color: '#6a4a2a' }));
+      fuse.position.set(0.1, o.r * 2.05, 0); fuse.rotation.z = 0.4; bg.add(fuse);
+      const spark = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd24a' }));
+      spark.position.set(0.24, o.r * 2.28, 0); bg.add(spark); spinners.push(spark);
+      bg.position.set(o.x, 0, o.y); group.add(bg);
+      const ring = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.6, 24), new THREE.MeshBasicMaterial({ color: '#e5484d', transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(o.x, 0.025, o.y); group.add(ring); pulses.push({ mesh: ring, kind: 'bomb', base: o.r * 1.6 });
+    } else {   // bônus: gema brilhante girando
+      const n = o.n || 1; const col = n >= 3 ? '#f2c200' : n === 2 ? '#2e9fa4' : '#2ea44f';
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(o.r * 0.82, 0), new THREE.MeshStandardMaterial({ color: col, roughness: 0.15, metalness: 0.55, emissive: col, emissiveIntensity: 0.3, flatShading: true }));
+      gem.position.set(o.x, o.r * 1.2, o.y); gem.castShadow = true; group.add(gem); spinners.push(gem);
+      const lbl = new THREE.Mesh(new THREE.CircleGeometry(o.r * 0.78, 20), new THREE.MeshBasicMaterial({ map: markerTex('bonus', n), transparent: true, depthWrite: false }));
+      lbl.rotation.x = -Math.PI / 2; lbl.position.set(o.x, 0.04, o.y); group.add(lbl);
+      const glow = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.6, 24), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }));
+      glow.rotation.x = -Math.PI / 2; glow.position.set(o.x, 0.025, o.y); group.add(glow); pulses.push({ mesh: glow, kind: 'bonus', base: o.r * 1.6 });
     }
   }
 
@@ -99,5 +126,5 @@ export function buildBoard(def: TrackDef): BoardBuild {
     flag.position.set(end.x + 0.6, 2.0, end.y); group.add(flag);
   }
 
-  return { group, pulses };
+  return { group, pulses, spinners };
 }

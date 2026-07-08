@@ -50,6 +50,7 @@ export interface Cap {
   radius: number;
 
   pos: V; vel: V;
+  z: number; vz: number; airborne: boolean;   // salto de rampa (voo balístico)
   angle: number; angVel: number;   // giro visual
   bob: number;
 
@@ -77,7 +78,7 @@ export interface Cap {
 export function makeCap(id: number, name: string, skin: string, stats: CapStats, isAI: boolean, ai?: string): Cap {
   return {
     id, name, skin, isAI, ai, stats: { ...stats }, radius: 0.82,
-    pos: vec(), vel: vec(), angle: Math.random() * 6.28, angVel: 0, bob: Math.random() * 6.28,
+    pos: vec(), vel: vec(), z: 0, vz: 0, airborne: false, angle: Math.random() * 6.28, angVel: 0, bob: Math.random() * 6.28,
     progress: 0, checkpoint: 0, cpPos: vec(), turnStart: vec(), preFlick: vec(), resetTo: vec(), consumed: new Set(),
     flicksLeft: 3, bonusFlicks: 0, special10: false, bombed: false, holed: false, skipTurns: 0,
     finished: false, place: 0, lap: 0, moving: false, hitFlash: 0,

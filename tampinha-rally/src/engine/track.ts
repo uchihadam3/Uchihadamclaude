@@ -5,8 +5,8 @@
 // (pedra/buraco/bomba/bônus) e "pads" largos (largada, nós de atalho) completam.
 import { V, Surface, vec, clamp } from './core';
 
-export type ObsType = 'stone' | 'hole' | 'bomb' | 'bonus';
-export interface Obstacle { type: ObsType; x: number; y: number; r: number; n?: number; }
+export type ObsType = 'stone' | 'hole' | 'bomb' | 'bonus' | 'jump';
+export interface Obstacle { type: ObsType; x: number; y: number; r: number; n?: number; dir?: number; }
 export interface Wall { a: V; b: V; }
 export interface Patch { surface: Surface; x: number; y: number; r?: number; hw?: number; hh?: number; dir?: number; }
 export interface Decor { kind: string; x: number; y: number; s?: number; rot?: number; c?: string; }

@@ -31,9 +31,11 @@ class CapView {
   update(cap: Cap, t: number, active: boolean): void {
     this.group.visible = true;
     const bobY = cap.moving ? Math.abs(Math.sin(t * 20)) * 0.03 : Math.sin(t * 2 + cap.bob) * 0.015;
-    this.group.position.set(cap.pos.x, bobY, cap.pos.y);
+    this.group.position.set(cap.pos.x, bobY + (cap.z || 0), cap.pos.y);
     this.group.rotation.y = cap.angle;
-    const pop = 1 + cap.hitFlash * 0.12;
+    if (cap.airborne) this.group.rotation.x = Math.sin(t * 10) * 0.25;   // inclina no ar
+    else this.group.rotation.x = 0;
+    const pop = (1 + cap.hitFlash * 0.12) * (1 + (cap.z || 0) * 0.05);   // cresce um tico no alto
     this.group.scale.set(pop, 1 - cap.hitFlash * 0.1, pop);
     this.ringHi.visible = active && !cap.finished;
     if (active) { const s = 1 + Math.sin(t * 6) * 0.06; this.ringHi.scale.set(s, s, s); (this.ringHi.material as THREE.MeshBasicMaterial).opacity = 0.5 + Math.sin(t * 6) * 0.25; }

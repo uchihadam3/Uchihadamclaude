@@ -6,11 +6,14 @@ import { Cap, V, SURF, len, norm, mul, REST_SPEED, vec } from './core';
 import { TrackModel } from './track';
 
 export interface SimEvent {
-  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest';
+  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest' | 'ramp' | 'land';
   capId: number; x: number; y: number; power: number; obsIdx?: number; otherId?: number; n?: number;
 }
 
-export function anyMoving(caps: Cap[]): boolean { return caps.some(c => c.moving && !c.finished); }
+const GRAV = 34;          // gravidade do salto (u/s²)
+const RAMP_MIN = 6;       // velocidade mínima na direção da rampa para pular
+
+export function anyMoving(caps: Cap[]): boolean { return caps.some(c => (c.moving || c.airborne) && !c.finished); }
 
 export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[] {
   const ev: SimEvent[] = [];
@@ -18,16 +21,31 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
 
   for (const c of caps) {
     c.hitFlash = Math.max(0, c.hitFlash - dt * 4);
-    if (c.finished || !c.moving) continue;
+    if (c.finished || (!c.moving && !c.airborne)) continue;
     const prev = vec(c.pos.x, c.pos.y);
+
+    // ---- VOO (salto de rampa): balístico, ignora atrito/buraco/muro/fora ----
+    if (c.airborne) {
+      c.pos.x += c.vel.x * dt; c.pos.y += c.vel.y * dt;
+      c.vz -= GRAV * dt; c.z += c.vz * dt;
+      c.angle += 7 * dt;
+      if (c.progress > track.total * 0.72 && track.crossedFinish(prev, c.pos)) {
+        c.finished = true; c.vel = vec(); c.moving = false; c.airborne = false; c.z = 0;
+        ev.push({ type: 'finish', capId: c.id, x: c.pos.x, y: c.pos.y, power: 0 }); continue;
+      }
+      if (c.z <= 0) { c.z = 0; c.airborne = false; c.vel = mul(c.vel, 0.82); ev.push({ type: 'land', capId: c.id, x: c.pos.x, y: c.pos.y, power: len(c.vel) }); }
+      if (c.pos.x >= 0 && c.pos.y >= 0 && c.pos.x <= d.w && c.pos.y <= d.h) c.progress = track.progressOf(c.pos);
+      continue;
+    }
+
     const surf = track.surfaceAt(c.pos);
     const si = SURF[surf];
     const patch = track.patchAt(c.pos);
 
     // superfícies especiais
-    if (surf === 'ramp') {                     // rampa: impulso pra frente
+    if (surf === 'ramp') {                     // tira de aceleração: impulso na direção da pista
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : norm(c.vel);
-      c.vel.x += dir.x * 26 * dt; c.vel.y += dir.y * 26 * dt;
+      c.vel.x += dir.x * 30 * dt; c.vel.y += dir.y * 30 * dt;
     } else if (surf === 'water') {             // água rasa: empurrão leve na correnteza
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: 0, y: 0 };
       c.vel.x += dir.x * 7 * dt; c.vel.y += dir.y * 7 * dt;
@@ -65,6 +83,17 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
       const rr = o.r + (o.type === 'stone' ? c.radius : c.radius * 0.55);
       const dx = c.pos.x - o.x, dy = c.pos.y - o.y;
       if (dx * dx + dy * dy > rr * rr) continue;
+      if (o.type === 'jump') {                 // RAMPA DE SALTO: com velocidade, decola e voa
+        const rdir = o.dir != null ? { x: Math.cos(o.dir), y: Math.sin(o.dir) } : norm(c.vel);
+        const along = c.vel.x * rdir.x + c.vel.y * rdir.y;
+        if (along > RAMP_MIN) {
+          c.airborne = true; c.z = 0.02; c.vz = Math.min(14, 6 + along * 0.5);
+          c.vel.x = (c.vel.x * 0.55 + rdir.x * along * 0.5) * 1.12;
+          c.vel.y = (c.vel.y * 0.55 + rdir.y * along * 0.5) * 1.12;
+          ev.push({ type: 'ramp', capId: c.id, x: o.x, y: o.y, power: along }); break;
+        }
+        continue;   // devagar: não pula (provavelmente cai no buraco à frente)
+      }
       if (o.type === 'stone') {
         const l = Math.hypot(dx, dy) || 1; const nx = dx / l, ny = dy / l;
         const pen = rr - l; c.pos.x += nx * pen; c.pos.y += ny * pen;
