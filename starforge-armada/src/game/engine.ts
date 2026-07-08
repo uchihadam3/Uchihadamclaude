@@ -15,6 +15,7 @@ import { ENEMIES_BY_SECTOR, EnemyDef, SECTOR_BULLET, SECTORS, Pattern } from '..
 import { MAIN_BOSSES, SECRET_BOSSES, BossDef, BOSS_BY_ID } from '../data/bossesData';
 import { drawBoss } from '../render/bossGen';
 import { CAMPAIGN } from '../data/campaignData';
+import { getSettings } from './settings';
 
 export interface CampaignResult { success: boolean; sector: number; score: number; kills: number; timeSec: number; dmgTaken: number; lives: number; medal: string; maxCombo: number; }
 
@@ -103,6 +104,11 @@ export class Engine {
   private runKills = 0; private runDmg = 0; private runStart = 0; private runOver = false; private aimX = 0; private aimY = -1;
   private maxCombo = 0;
   onComplete: (r: CampaignResult) => void = () => {};
+  onPauseKey: () => void = () => {};
+  private paused = false;
+  pause(): void { this.paused = true; }
+  resume(): void { if (this.paused) { this.paused = false; this.last = performance.now(); } }
+  isPaused(): boolean { return this.paused; }
 
   hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name, bossActive: false, bossName: '', bossHp: 1, bossPhases: 1, bossPhase: 0, campaign: false, lives: 3 };
   onHud: (h: Hud) => void = () => {};
@@ -226,7 +232,9 @@ export class Engine {
   }
   private onResize = () => this.resize();
   private onKeyDown = (e: KeyboardEvent) => {
-    resumeAudio(); const k = e.key.toLowerCase(); this.keys.add(k);
+    resumeAudio(); const k = e.key.toLowerCase();
+    if (k === 'escape' || k === 'p') { e.preventDefault(); this.onPauseKey(); return; }
+    this.keys.add(k);
     if (k === 'shift') this.triggerAbility();
     if (k === ' ') { e.preventDefault(); this.triggerUltimate(); }
   };
@@ -282,6 +290,7 @@ export class Engine {
   // ================= LOOP =================
   private loop = (now: number): void => {
     if (!this.running) return;
+    if (this.paused) { this.last = now; this.raf = requestAnimationFrame(this.loop); return; }
     let dt = (now - this.last) / 1000; this.last = now; if (dt > 0.05) dt = 0.05;
     this.fps = this.fps * 0.9 + (1 / Math.max(dt, 1e-4)) * 0.1;
     this.update(dt); this.render(); this.pushHud();
@@ -803,7 +812,7 @@ export class Engine {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.bg.drawBack(ctx);
     ctx.save();
-    if (this.shake > 0.2) ctx.translate(rand(-1, 1) * this.shake * 0.4, rand(-1, 1) * this.shake * 0.4);
+    if (this.shake > 0.2 && getSettings().shake) ctx.translate(rand(-1, 1) * this.shake * 0.4, rand(-1, 1) * this.shake * 0.4);
 
     // buracos negros (atrás)
     for (const hl of this.holes) this.drawHole(ctx, hl);
@@ -838,6 +847,7 @@ export class Engine {
     ctx.globalAlpha = cloakA;
     const pf = this.fwd(); const prot = this.orient === 'vertical' ? 0 : Math.atan2(pf.y, pf.x) + Math.PI / 2;
     drawShip(ctx, p.x, p.y, 24, this.ship.design, { tilt: p.tilt, thrust: 0.7 + Math.hypot(p.vx, p.vy) / p.speed * 0.4, t: this.t, shield: p.shield / p.maxShield, damage: p.dmgFlash, invuln: p.invuln > 0 && p.dashT <= 0, rot: prot });
+    if (getSettings().hitbox) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = '#ff4a6a'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(p.x, p.y, this.hitR, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = '#ff4a6a'; ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
     ctx.globalAlpha = 1;
     this.fx.draw(ctx);
     ctx.restore();
@@ -845,7 +855,7 @@ export class Engine {
     this.bg.drawFront(ctx);
     if (this.flash > 0.01) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = applyAlpha(this.ultActive > 0 ? this.kit.ultimate.color : '#ff6a6a', this.flash * 0.32); ctx.fillRect(0, 0, this.w, this.h); ctx.restore(); }
 
-    this.bloom.apply(ctx, this.canvas, 0.5, 5);
+    if (getSettings().bloom) this.bloom.apply(ctx, this.canvas, 0.5, 5);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
     if (p.hp < 30) { const a = 0.2 + 0.15 * Math.sin(this.t * 6); const g = ctx.createRadialGradient(this.w / 2, this.h / 2, this.h * 0.3, this.w / 2, this.h / 2, this.h * 0.7); g.addColorStop(0, 'rgba(255,40,40,0)'); g.addColorStop(1, `rgba(255,30,40,${a})`); ctx.fillStyle = g; ctx.fillRect(0, 0, this.w, this.h); }

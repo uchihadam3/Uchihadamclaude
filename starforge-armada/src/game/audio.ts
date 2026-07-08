@@ -1,21 +1,26 @@
 // Áudio sintetizado (Web Audio) — sem arquivos. Sons rápidos e satisfatórios.
+import { getSettings } from './settings';
+
 let ac: AudioContext | null = null;
 let master: GainNode | null = null;
-let muted = false;
+
+function targetGain(): number { const s = getSettings(); return s.muted ? 0 : s.volume; }
 
 export function initAudio(): void {
   if (ac) return;
   try {
     ac = new (window.AudioContext || (window as any).webkitAudioContext)();
     master = ac.createGain();
-    master.gain.value = 0.5;
+    master.gain.value = targetGain();
     master.connect(ac.destination);
   } catch { ac = null; }
 }
 
 export function resumeAudio(): void { initAudio(); if (ac && ac.state === 'suspended') ac.resume(); }
-export function setMuted(m: boolean): void { muted = m; if (master && ac) master.gain.value = m ? 0 : 0.5; }
-export function isMuted(): boolean { return muted; }
+// aplica volume/mudo atuais (chamado quando as configurações mudam)
+export function applyAudioSettings(): void { if (master && ac) master.gain.value = targetGain(); }
+export function setMuted(m: boolean): void { getSettings(); void m; applyAudioSettings(); }
+export function isMuted(): boolean { return getSettings().muted; }
 
 function env(osc: OscillatorNode | AudioBufferSourceNode, g: GainNode, dur: number, peak: number): void {
   if (!ac || !master) return;
@@ -29,7 +34,7 @@ function env(osc: OscillatorNode | AudioBufferSourceNode, g: GainNode, dur: numb
 }
 
 function tone(freq: number, dur: number, type: OscillatorType, peak = 0.3, slideTo?: number): void {
-  if (!ac || !master || muted) return;
+  if (!ac || !master || getSettings().muted) return;
   const o = ac.createOscillator(); const g = ac.createGain();
   o.type = type; o.frequency.setValueAtTime(freq, ac.currentTime);
   if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, ac.currentTime + dur);
@@ -37,7 +42,7 @@ function tone(freq: number, dur: number, type: OscillatorType, peak = 0.3, slide
 }
 
 function noise(dur: number, peak: number, filterFreq: number): void {
-  if (!ac || !master || muted) return;
+  if (!ac || !master || getSettings().muted) return;
   const buf = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate);
   const d = buf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
