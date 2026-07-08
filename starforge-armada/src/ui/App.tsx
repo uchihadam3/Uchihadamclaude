@@ -193,28 +193,17 @@ function Menu(props: { setScreen: (s: Screen) => void; profile: Profile }): JSX.
         <div className="menu-kicker">Space Shooter Premium</div>
         <h1 className="menu-title"><span className="b">STARFORGE</span><span className="b">ARMADA</span></h1>
         <div className="menu-sub">Uma armada. Infinitas batalhas.</div>
-        <div className="menu-tag">
-          30 naves pilotáveis, 72 inimigos, chefes de múltiplas fases, campanha com 12 setores
-          e 15 modos de jogo — vertical, arena 360° e investida lateral. Bloom, partículas e
-          interface sci-fi em cada pixel.
+        <div className="menu-rule" />
+        <div className="menu-primary">
+          <button className="play-btn cta" onClick={() => go('campaign')}>▶ Campanha</button>
+          <button className="play-btn cta ghost" onClick={() => go('modes')}>◎ Modos</button>
         </div>
-        <div className="menu-btns">
-          <button className="play-btn" onClick={() => go('campaign')}>Campanha · 12 Setores</button>
-          <button className="play-btn" onClick={() => go('modes')}>Modos · 15</button>
-          <button className="play-btn ghost" onClick={() => go('hangar')}>Hangar · 30 Naves</button>
-          <button className="play-btn ghost" onClick={() => go('bestiary')}>Bestiário · 72 Inimigos</button>
-          <button className="play-btn ghost" onClick={() => go('training')}>Sala de Treino</button>
-          <button className="play-btn ghost" onClick={() => go('tutorial')}>Como Jogar</button>
+        <div className="menu-grid">
+          <button className="menu-tile" onClick={() => go('hangar')}><span className="tile-ico">✦</span><span className="tile-name">Hangar</span><span className="tile-sub">30 naves</span></button>
+          <button className="menu-tile" onClick={() => go('bestiary')}><span className="tile-ico">☠</span><span className="tile-name">Bestiário</span><span className="tile-sub">72 inimigos</span></button>
+          <button className="menu-tile" onClick={() => go('training')}><span className="tile-ico">⌖</span><span className="tile-name">Treino</span><span className="tile-sub">livre</span></button>
+          <button className="menu-tile" onClick={() => go('tutorial')}><span className="tile-ico">?</span><span className="tile-name">Como Jogar</span><span className="tile-sub">tutorial</span></button>
         </div>
-        <div className="menu-controls">
-          <span><kbd>WASD</kbd> mover</span>
-          <span><kbd>Shift</kbd> habilidade</span>
-          <span><kbd>Espaço</kbd> ultimate</span>
-          <span>tiro automático · toque no celular</span>
-        </div>
-      </div>
-      <div className="menu-approve">
-        <b>Jogo completo</b> · 12 setores · 15 modos · trilha dinâmica · Parte 10/10 ✓
       </div>
     </div>
   );
