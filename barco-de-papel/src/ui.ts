@@ -138,7 +138,7 @@ export class UI {
     const planning = m.state === 'planning';
     this.q('#hudLevel').textContent = `Fase ${m.levelIndex + 1} · ${m.level.name}`;
     this.q('#hudTime').textContent = fmt(m.timeSec);
-    this.q('#hint').textContent = planning ? m.level.hint : '';
+    if (planning) this.q('#hint').innerHTML = `<b>Objetivo:</b> leve o barco de papel do <b>Início</b> até a <b>Chegada</b> — molde a areia para a água correr até lá.<div class="hint-sub">${m.level.hint}</div>`;
     (this.q('#hint') as HTMLElement).style.display = planning ? '' : 'none';
 
     // saúde do barco (na Execução)

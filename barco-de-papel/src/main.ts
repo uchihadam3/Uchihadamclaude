@@ -6,7 +6,7 @@ import { makeRenderer, makeScene, makeSun, CameraRig } from './render/scene';
 import { TerrainMesh } from './render/terrainMesh';
 import { WaterMesh } from './render/waterMesh';
 import { FX } from './render/fx';
-import { makePaperBoat, makePalmTree, makeShadeCanopy, SolidsRenderer, makeSourceMarker, makeGoalMarker, makeBrushRing } from './render/props';
+import { makePaperBoat, makePalmTree, makeShadeCanopy, SolidsRenderer, makeSourceMarker, makeGoalBeacon, makeStartRing, makeBrushRing } from './render/props';
 import { makePalmLeaf } from './render/textures';
 import { GameManager } from './game/manager';
 import { InputController } from './input';
@@ -30,9 +30,29 @@ const fx = new FX(); scene.add(fx.points);
 const leafTex = makePalmLeaf();
 const boatMesh = makePaperBoat(); scene.add(boatMesh);
 const sourceMk = makeSourceMarker(); scene.add(sourceMk);
-const goalMk = makeGoalMarker(); scene.add(goalMk);
+const goalMk = makeGoalBeacon(); scene.add(goalMk);
+const startRing = makeStartRing(); scene.add(startRing);
 const brushRing = makeBrushRing(); brushRing.visible = false; scene.add(brushRing);
 const scenery = new THREE.Group(); scene.add(scenery);   // palmeiras + canópias por fase
+
+// linha tracejada "sugestão de caminho" (Início → Chegada), no Planejamento
+let pathLine: THREE.Line | null = null;
+function buildPathLine(): void {
+  if (pathLine) { scene.remove(pathLine); pathLine.geometry.dispose(); }
+  const [gx, gz] = mgr.goal; const steps = 44; const pts: THREE.Vector3[] = [];
+  for (let i = 0; i <= steps; i++) { const t = i / steps; const x = startRing.position.x + (gx - startRing.position.x) * t; const z = startRing.position.z + (gz - startRing.position.z) * t; pts.push(new THREE.Vector3(x, grid.terrainAt(x, z) + 0.14, z)); }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineDashedMaterial({ color: 0xfffbe8, dashSize: 0.5, gapSize: 0.4, transparent: true, opacity: 0.92, depthWrite: false });
+  pathLine = new THREE.Line(geo, mat); pathLine.computeLineDistances(); pathLine.renderOrder = 4; scene.add(pathLine);
+}
+
+// rótulos flutuantes "Início" / "Chegada" (projetados na tela)
+function mkLabel(text: string, cls: string): HTMLElement { const d = document.createElement('div'); d.className = 'world-label ' + cls; d.textContent = text; document.getElementById('ui')!.appendChild(d); return d; }
+const startLabel = mkLabel('Início', 'wl-start');
+const goalLabel = mkLabel('Chegada', 'wl-goal');
+const _v = new THREE.Vector3();
+function placeLabel(el: HTMLElement, x: number, y: number, z: number): void { _v.set(x, y, z).project(rig.camera); el.style.left = `${(_v.x * 0.5 + 0.5) * innerWidth}px`; el.style.top = `${(-_v.y * 0.5 + 0.5) * innerHeight}px`; }
+let inGame = false;
 
 // ---- ferramenta / edição ----
 function onEdit(x: number, z: number): void {
@@ -63,8 +83,9 @@ function setupLevelScene(): void {
   terrain.refresh(); solids.rebuild();
   // limpar cenário
   while (scenery.children.length) scenery.remove(scenery.children[0]);
-  // marcadores
+  // marcadores de CHEGADA e INÍCIO
   const [gx, gz] = mgr.goal; goalMk.position.set(gx, grid.terrainAt(gx, gz), gz);
+  startRing.position.set(mgr.boat.x, grid.terrainAt(mgr.boat.x, mgr.boat.z) + 0.02, mgr.boat.z);
   // centro da nascente
   let sx = 0, sz = 0, sn = 0;
   for (let k = 0; k < N * N; k++) if (grid.source[k]) { const i = k % N, j = (k / N) | 0; const [wx, wz] = grid.cellToWorld(i, j); sx += wx; sz += wz; sn++; }
@@ -74,6 +95,7 @@ function setupLevelScene(): void {
   for (const [px, pz, h] of spots) { const p = makePalmTree(h, leafTex); p.position.set(px, grid.terrainAt(px, pz), pz); scenery.add(p); }
   // barco na largada
   placeBoatMesh();
+  buildPathLine();
   // enquadrar câmera entre largada e destino
   rig.focus((mgr.boat.x + gx) / 2, (mgr.boat.z + gz) / 2);
 }
@@ -87,14 +109,14 @@ function placeBoatMesh(): void {
 
 // ---- callbacks da UI ----
 const ui = new UI({
-  pickLevel: (id) => { resumeAudio(); mgr.loadLevel(id); setupLevelScene(); ui.showGame(); ui.update(mgr); sfx.ui(); },
+  pickLevel: (id) => { resumeAudio(); mgr.loadLevel(id); setupLevelScene(); ui.showGame(); ui.update(mgr); inGame = true; sfx.ui(); },
   selectTool: (t) => { mgr.tools.active = t; sfx.ui(); ui.update(mgr); },
   cocoMode: (m) => { mgr.tools.cocoMode = m; sfx.ui(); ui.update(mgr); },
   startRun: () => { mgr.startRun(); sfx.start(); ui.update(mgr); },
   backPlanning: () => { mgr.backToPlanning(); ui.update(mgr); },
   restart: () => { mgr.restartLevel(); setupLevelScene(); ui.update(mgr); },
   next: () => { if (mgr.nextLevel()) { setupLevelScene(); ui.update(mgr); } else ui.showMenu(); },
-  menu: () => { ui.showMenu(); },
+  menu: () => { ui.showMenu(); inGame = false; },
   pauseToggle: () => { if (mgr.state === 'running') mgr.pause(); else if (mgr.state === 'paused') mgr.resume(); ui.update(mgr); },
   mute: () => { ui.setMuted(toggleMute()); },
 });
@@ -129,6 +151,22 @@ function frame(): void {
   const running = mgr.state === 'running';
   water.update(t, running ? 1.7 : 0.7);
   placeBoatMesh();
+
+  // farol da CHEGADA (pulsa) + rótulos flutuantes + linha-guia
+  const planning = mgr.state === 'planning';
+  if (inGame) {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+    const ud = goalMk.userData as any;
+    ud.ring.scale.setScalar(1 + pulse * 0.14); ud.ring.material.emissiveIntensity = 0.4 + pulse * 0.55;
+    ud.beam.material.opacity = 0.1 + pulse * 0.12; ud.flag.rotation.y = Math.sin(t * 1.6) * 0.25;
+    startRing.visible = planning;
+    if (pathLine) pathLine.visible = planning;
+    const over = mgr.state === 'victory' || mgr.state === 'failure';
+    goalLabel.style.display = over ? 'none' : 'block';
+    startLabel.style.display = planning ? 'block' : 'none';
+    placeLabel(goalLabel, mgr.goal[0], grid.terrainAt(mgr.goal[0], mgr.goal[1]) + 2.9, mgr.goal[1]);
+    placeLabel(startLabel, startRing.position.x, startRing.position.y + 1.1, startRing.position.z);
+  } else { goalLabel.style.display = 'none'; startLabel.style.display = 'none'; startRing.visible = false; if (pathLine) pathLine.visible = false; }
 
   // respingo ao colidir
   splashCd -= dt;

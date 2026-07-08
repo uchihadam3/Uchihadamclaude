@@ -54,8 +54,19 @@ html, body { height: 100%; overflow: hidden; background: #d8b483;
 .hud-health span { font-size: 12px; font-weight: 700; color: #5a3d1c; }
 .hp-track { width: 150px; height: 12px; border-radius: 8px; background: rgba(90,60,25,0.35); overflow: hidden; border: 1px solid #a5865a; }
 .hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #6fae3c, #a7d24a); transition: width 0.15s; }
-.hint-banner { position: absolute; top: 74px; left: 14px; max-width: 320px; font-size: 13px; line-height: 1.5; color: #5a4426;
+.hint-banner { position: absolute; top: 74px; left: 14px; max-width: 320px; font-size: 13px; line-height: 1.45; color: #5a4426;
   background: linear-gradient(180deg, rgba(245,232,203,0.94), rgba(232,214,175,0.94)); padding: 10px 14px; border-radius: 4px 14px 4px 14px; border: 1.5px solid #c2a468; box-shadow: 0 4px 10px var(--sombra); }
+.hint-banner b { color: #5a3d1c; }
+.hint-sub { margin-top: 6px; font-size: 12px; color: #7a5f36; font-style: italic; }
+
+/* rótulos flutuantes de mundo (Início / Chegada) */
+.world-label { position: absolute; z-index: 3; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;
+  font-family: inherit; font-weight: 800; font-size: 14px; padding: 5px 12px 5px 12px; border-radius: 999px;
+  border: 2px solid #7a5a34; box-shadow: 0 4px 10px var(--sombra); text-shadow: 0 1px 0 rgba(255,255,255,0.4); }
+.world-label::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #7a5a34; }
+.wl-start { background: radial-gradient(circle at 40% 30%, #ffe8bf, #e6b877); color: #5a3d1c; }
+.wl-goal { background: radial-gradient(circle at 40% 30%, #b6f0c8, #4fbb7a); color: #0f3a22; }
+.wl-goal::before { content: '⚑ '; }
 
 /* ============ DOCK (ferramentas + fase) ============ */
 .dock { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 14px; padding: 14px; }

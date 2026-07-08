@@ -32,7 +32,7 @@ export function makePaperBoat(): THREE.Mesh {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); geo.setIndex(idx); geo.computeVertexNormals();
   const mat = new THREE.MeshStandardMaterial({ map: paperTexture(), color: '#fbf6ea', roughness: 0.82, side: THREE.DoubleSide, flatShading: true });
-  const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.scale.setScalar(0.9); return m;
+  const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.scale.setScalar(1.15); return m;
 }
 
 // -------------------- palmeira (cenário) --------------------
@@ -110,14 +110,35 @@ export function makeSourceMarker(): THREE.Group {
   for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.3 + Math.random() * 0.1, 0), rockMat); s.position.set(Math.cos(a) * 0.7, 0, Math.sin(a) * 0.7); s.castShadow = true; g.add(s); }
   return g;
 }
-export function makeGoalMarker(): THREE.Group {
+// CHEGADA — farol bem visível: anel pulsante no chão, facho de luz e bandeira.
+export function makeGoalBeacon(): THREE.Group {
   const g = new THREE.Group();
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.09, 8, 40), new THREE.MeshStandardMaterial({ color: '#e9d9b2', roughness: 0.8, emissive: '#3a8f6a', emissiveIntensity: 0.25 }));
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.06; g.add(ring);
-  // bandeira de folha (fibra + folha)
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.7, 6), new THREE.MeshStandardMaterial({ color: '#7a5a34', roughness: 0.9 })); pole.position.y = 0.85; pole.castShadow = true; g.add(pole);
-  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.5), new THREE.MeshStandardMaterial({ color: '#4f9a3a', roughness: 0.8, side: THREE.DoubleSide })); flag.position.set(0.42, 1.45, 0); g.add(flag);
+  // anel no chão (pulsa)
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.14, 10, 48),
+    new THREE.MeshStandardMaterial({ color: '#f2e2b0', roughness: 0.7, emissive: '#37b06a', emissiveIntensity: 0.6 }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.08; g.add(ring);
+  // disco interno translúcido
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(1.6, 40),
+    new THREE.MeshBasicMaterial({ color: '#7fe0a0', transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }));
+  disc.rotation.x = -Math.PI / 2; disc.position.y = 0.05; g.add(disc);
+  // facho de luz (cilindro aditivo, visível de longe)
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 6, 16, 1, true),
+    new THREE.MeshBasicMaterial({ color: '#8fffc0', transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+  beam.position.y = 3; g.add(beam);
+  // mastro + bandeira (fibra + folha)
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 2.4, 6), new THREE.MeshStandardMaterial({ color: '#7a5a34', roughness: 0.9 }));
+  pole.position.y = 1.2; pole.castShadow = true; g.add(pole);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.62), new THREE.MeshStandardMaterial({ color: '#e0b84a', roughness: 0.75, side: THREE.DoubleSide, emissive: '#a07a10', emissiveIntensity: 0.2 }));
+  flag.position.set(0.52, 2.1, 0); g.add(flag);
+  g.userData = { ring, beam, flag };
   return g;
+}
+
+// INÍCIO — anel de fibra ao redor do barco de largada.
+export function makeStartRing(): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.1, 8, 40),
+    new THREE.MeshStandardMaterial({ color: '#eadfc2', roughness: 0.8, emissive: '#c88a2a', emissiveIntensity: 0.3 }));
+  m.rotation.x = Math.PI / 2; m.position.y = 0.06; return m;
 }
 export function makeBrushRing(): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.72, 40), new THREE.MeshBasicMaterial({ color: '#fff2cc', transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false }));
