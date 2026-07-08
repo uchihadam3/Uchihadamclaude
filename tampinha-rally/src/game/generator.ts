@@ -155,7 +155,8 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   pads.push({ x: path[0].x, y: path[0].y, r: half0 + 3.6 });
 
   const nCP = ri(4, 7);
-  for (let k = 1; k <= nCP; k++) checkpoints.push(onPath(total * k / (nCP + 1)));
+  const cpArcsGen: number[] = [];
+  for (let k = 1; k <= nCP; k++) { const ca = total * k / (nCP + 1); cpArcsGen.push(ca); checkpoints.push(onPath(ca)); }
 
   // SETAS VERDES (impulso pra frente) — pequenas e em lugares variados (meio, beira),
   // pra você tentar passar por cima. Não cobrem a pista inteira.
@@ -175,8 +176,9 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     else patches.push({ surface: sfc, x: pp.x, y: pp.y, r: half0 * rf(0.7, 1.1), dir });
   }
 
-  // buracos, bombas, pedras, bônus (espaçados)
-  const usedArcs: number[] = [];
+  // buracos, bombas, pedras, bônus (espaçados) — já começa reservando os arcos dos
+  // CHECKPOINTS pra nada perigoso nascer perto (checkpoint é ponto de renascimento!)
+  const usedArcs: number[] = [...cpArcsGen];
   const spaced = (a: number) => usedArcs.every(u => Math.abs(u - a) > 14);
   const placeAt = (a: number, off: number, make: (pp: V) => void) => { const pp = onPath(a, off); make(pp); usedArcs.push(a); };
   // buracos/bombas ficam FORA da linha central (deixam a linha de corrida livre; você desvia)
@@ -280,6 +282,15 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     if (!offTrack(dx, dy)) continue;
     const kd = theme.decor[ri(0, theme.decor.length - 1)];
     decor.push({ kind: kd, x: dx, y: dy, s: rf(0.8, 1.3), rot: rng() * 6 }); k++;
+  }
+
+  // SEGURANÇA: nada de buraco/bomba perto de um checkpoint (nem da largada). O
+  // renascimento acontece no checkpoint, então nunca pode ter armadilha em cima
+  // (senão a tampinha nasce no buraco e trava em loop).
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    if (o.type !== 'hole' && o.type !== 'bomb') continue;
+    if (checkpoints.some(cp => (o.x - cp.x) ** 2 + (o.y - cp.y) ** 2 < 5.5 * 5.5)) obstacles.splice(i, 1);
   }
 
   const start = vec(path[0].x, path[0].y);
