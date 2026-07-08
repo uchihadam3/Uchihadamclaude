@@ -1,6 +1,6 @@
 // Cenário espacial cinematográfico: parallax, nebulosa animada, planeta,
 // campo de estrelas com profundidade, destroços e poeira cósmica.
-import { Ctx, glow, rgba, rand, applyAlpha, poly } from './prims';
+import { Ctx, glow, rgba, rand, applyAlpha, poly, sparkle } from './prims';
 
 interface Star { x: number; y: number; z: number; r: number; tw: number; hue: string; }
 interface Dust { x: number; y: number; z: number; len: number; a: number; }
@@ -33,8 +33,8 @@ export class Background {
     }
     // poeira cósmica (motes rápidos, sutis)
     this.dust = [];
-    for (let i = 0; i < Math.min(90, Math.round(area / 16000)); i++) {
-      this.dust.push({ x: Math.random() * w, y: Math.random() * h, z: rand(0.5, 1), len: rand(6, 22), a: rand(0.05, 0.22) });
+    for (let i = 0; i < Math.min(150, Math.round(area / 9000)); i++) {
+      this.dust.push({ x: Math.random() * w, y: Math.random() * h, z: rand(0.5, 1), len: rand(6, 26), a: rand(0.06, 0.3) });
     }
     // destroços flutuando (profundidade média)
     this.debris = [];
@@ -87,8 +87,9 @@ export class Background {
       const dy = Math.cos(t * 0.04 + b.ph) * b.drift;
       const pulse = 0.5 + 0.5 * Math.sin(t * 0.15 + b.ph);
       const g = ctx.createRadialGradient(b.x + dx, b.y + dy, 0, b.x + dx, b.y + dy, b.r);
-      g.addColorStop(0, applyAlpha(b.color, 0.32 + pulse * 0.12));
-      g.addColorStop(0.45, applyAlpha(b.color, 0.12));
+      g.addColorStop(0, applyAlpha(b.color, 0.44 + pulse * 0.16));
+      g.addColorStop(0.35, applyAlpha(b.color, 0.2));
+      g.addColorStop(0.7, applyAlpha(b.color, 0.06));
       g.addColorStop(1, applyAlpha(b.color, 0));
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(b.x + dx, b.y + dy, b.r, 0, Math.PI * 2); ctx.fill();
@@ -127,11 +128,15 @@ export class Background {
     for (const s of this.stars) {
       if (s.z < zLo || s.z >= zHi) continue;
       const tw = 0.55 + 0.45 * Math.sin(s.tw);
-      const a = (0.25 + s.z * 0.75) * tw;
-      if (s.z > 0.72 && s.r > 1.3) {
-        glow(ctx, s.x, s.y, s.r * 4.5, s.hue, a * 0.5);
+      const a = (0.3 + s.z * 0.8) * tw;
+      if (s.z > 0.7 && s.r > 1.2) {
+        glow(ctx, s.x, s.y, s.r * 5.5, s.hue, a * 0.6);
       }
-      ctx.fillStyle = applyAlpha(s.hue, a);
+      // estrelas "herói": flare em cruz cintilante
+      if (s.z > 0.9 && s.r > 1.7) {
+        sparkle(ctx, s.x, s.y, s.r * 6 * tw, applyAlpha(s.hue, a * 0.85), 0);
+      }
+      ctx.fillStyle = applyAlpha('#ffffff', Math.min(1, a * 1.1));
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
     }
   }

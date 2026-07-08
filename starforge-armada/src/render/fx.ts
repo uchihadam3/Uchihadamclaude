@@ -2,7 +2,7 @@
 // clarões. Usado em explosões, impactos e rastros.
 import { Ctx, glow, rgba, applyAlpha, poly, rand, parseColor } from './prims';
 
-type Kind = 'spark' | 'smoke' | 'frag' | 'ring' | 'flash';
+type Kind = 'spark' | 'smoke' | 'frag' | 'ring' | 'flash' | 'dot';
 interface P {
   x: number; y: number; vx: number; vy: number;
   life: number; max: number; size: number; color: string;
@@ -11,7 +11,7 @@ interface P {
 
 export class Particles {
   private ps: P[] = [];
-  private cap = 900;
+  private cap = 1600;
 
   get count(): number { return this.ps.length; }
 
@@ -43,6 +43,7 @@ export class Particles {
       if (p.kind === 'spark') this.drawSpark(ctx, p, k);
       else if (p.kind === 'frag') this.drawFrag(ctx, p, k);
       else if (p.kind === 'ring') this.drawRing(ctx, p, k);
+      else if (p.kind === 'dot') { glow(ctx, p.x, p.y, p.size * (0.6 + k * 0.6), p.color, k * 0.8); }
       else if (p.kind === 'flash') glow(ctx, p.x, p.y, p.size * (0.5 + k), p.color, k);
     }
     ctx.restore();
@@ -88,45 +89,73 @@ export class Particles {
 
   // ---- geradores ----
   explosion(x: number, y: number, scale: number, hue = '#ffb060', big = false): void {
-    // clarão central
-    this.push(mk(x, y, 0, 0, big ? 0.35 : 0.22, big ? scale * 3.2 : scale * 2, '#ffffff', 'flash'));
-    this.push(mk(x, y, 0, 0, big ? 0.5 : 0.32, big ? scale * 2.6 : scale * 1.7, hue, 'flash'));
+    // clarão central (múltiplas camadas -> mais brilho)
+    this.push(mk(x, y, 0, 0, big ? 0.4 : 0.26, big ? scale * 4.2 : scale * 2.6, '#ffffff', 'flash'));
+    this.push(mk(x, y, 0, 0, big ? 0.55 : 0.36, big ? scale * 3.4 : scale * 2.2, hue, 'flash'));
+    this.push(mk(x, y, 0, 0, big ? 0.7 : 0.5, big ? scale * 2.6 : scale * 1.6, hue, 'flash'));
     // anéis de choque
-    this.push(mk(x, y, 0, 0, big ? 0.6 : 0.4, big ? scale * 5 : scale * 3, '#ffffff', 'ring'));
-    if (big) this.push(mk(x, y, 0, 0, 0.75, scale * 7, hue, 'ring'));
-    // faíscas
-    const ns = Math.round((big ? 26 : 14) * scale * 0.5) + 8;
+    this.push(mk(x, y, 0, 0, big ? 0.6 : 0.42, big ? scale * 5.5 : scale * 3.4, '#ffffff', 'ring'));
+    this.push(mk(x, y, 0, 0, big ? 0.85 : 0.6, big ? scale * 8 : scale * 4.6, hue, 'ring'));
+    if (big) this.push(mk(x, y, 0, 0, 1.05, scale * 11, '#ffe0a0', 'ring'));
+    // faíscas (mais e mais brilhantes)
+    const ns = Math.round((big ? 40 : 22) * scale * 0.5) + 12;
     for (let i = 0; i < ns; i++) {
       const a = Math.random() * Math.PI * 2;
-      const sp = rand(120, big ? 620 : 360) * (0.6 + scale * 0.3);
-      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.3, 0.7), rand(1.6, 3.4), Math.random() < 0.5 ? '#fff2c8' : hue, 'spark', 0.9));
+      const sp = rand(140, big ? 720 : 430) * (0.6 + scale * 0.3);
+      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.3, 0.8), rand(1.8, 3.8), Math.random() < 0.5 ? '#fff6d8' : hue, 'spark', 0.9));
+    }
+    // brasas que caem (dots)
+    for (let i = 0; i < (big ? 18 : 8); i++) {
+      const a = Math.random() * Math.PI * 2, sp = rand(30, 200);
+      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.5, 1.2), rand(2, 4.5), hue, 'dot', 0.93, 0, 0, 30));
     }
     // fragmentos
-    for (let i = 0; i < (big ? 12 : 6); i++) {
-      const a = Math.random() * Math.PI * 2, sp = rand(60, 260);
-      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.5, 1.1), rand(1.5, 3.5) * scale * 0.6 + 1.5, '#c88a58', 'frag', 0.94, 0, rand(-8, 8), 40));
+    for (let i = 0; i < (big ? 16 : 8); i++) {
+      const a = Math.random() * Math.PI * 2, sp = rand(60, 280);
+      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.5, 1.1), rand(1.5, 3.5) * scale * 0.6 + 1.5, '#d8a068', 'frag', 0.94, 0, rand(-8, 8), 40));
     }
     // fumaça
-    for (let i = 0; i < (big ? 10 : 5); i++) {
-      const a = Math.random() * Math.PI * 2, sp = rand(20, 90);
-      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.6, 1.3), rand(10, 22) * scale * 0.5 + 8, '#2a2028', 'smoke', 0.96));
+    for (let i = 0; i < (big ? 14 : 6); i++) {
+      const a = Math.random() * Math.PI * 2, sp = rand(20, 100);
+      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.6, 1.4), rand(12, 26) * scale * 0.5 + 8, '#2a2230', 'smoke', 0.96));
     }
   }
 
   hit(x: number, y: number, hue = '#bfe9ff'): void {
-    this.push(mk(x, y, 0, 0, 0.16, 10, '#ffffff', 'flash'));
-    for (let i = 0; i < 7; i++) {
-      const a = Math.random() * Math.PI * 2, sp = rand(80, 260);
-      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.15, 0.4), rand(1.2, 2.4), hue, 'spark', 0.88));
+    this.push(mk(x, y, 0, 0, 0.18, 14, '#ffffff', 'flash'));
+    this.push(mk(x, y, 0, 0, 0.28, 22, hue, 'ring'));
+    for (let i = 0; i < 10; i++) {
+      const a = Math.random() * Math.PI * 2, sp = rand(90, 300);
+      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.15, 0.45), rand(1.4, 2.8), hue, 'spark', 0.88));
+    }
+  }
+
+  collect(x: number, y: number, hue: string): void {
+    this.push(mk(x, y, 0, 0, 0.22, 16, '#ffffff', 'flash'));
+    this.push(mk(x, y, 0, 0, 0.35, 30, hue, 'ring'));
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2, sp = rand(60, 180);
+      this.push(mk(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.2, 0.45), rand(1.6, 3), hue, 'spark', 0.86));
     }
   }
 
   muzzle(x: number, y: number, hue = '#bfe9ff'): void {
-    this.push(mk(x, y, 0, 0, 0.1, 9, hue, 'flash'));
+    this.push(mk(x, y, 0, 0, 0.12, 12, '#ffffff', 'flash'));
+    this.push(mk(x, y, 0, 0, 0.14, 16, hue, 'flash'));
   }
 
   trail(x: number, y: number, hue: string, size = 1.8): void {
-    this.push(mk(x, y, rand(-12, 12), rand(-12, 12), rand(0.18, 0.34), size, hue, 'spark', 0.9));
+    this.push(mk(x, y, rand(-12, 12), rand(-12, 12), rand(0.18, 0.36), size, hue, 'spark', 0.9));
+  }
+
+  // rastro de motor do jogador
+  engine(x: number, y: number, hue: string): void {
+    this.push(mk(x, y, rand(-20, 20), rand(60, 160), rand(0.16, 0.32), rand(2, 4), hue, 'dot', 0.9));
+  }
+
+  // poeira/motes ambiente cintilando na cena
+  mote(x: number, y: number, hue: string): void {
+    this.push(mk(x, y, rand(-6, 6), rand(6, 24), rand(1.6, 3.4), rand(2, 5), hue, 'dot', 0.99));
   }
 }
 

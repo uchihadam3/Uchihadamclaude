@@ -4,8 +4,13 @@ import { Background } from '../render/background';
 import { drawFalcon } from '../render/ship';
 import { drawEnemy, EnemyKind } from '../render/enemies';
 import { Particles } from '../render/fx';
+import { Bloom } from '../render/bloom';
 import { glow, beam, rgba, applyAlpha, clamp, rand } from '../render/prims';
 import { sfx, resumeAudio } from './audio';
+
+type PickKind = 'score' | 'shield' | 'heal' | 'ult' | 'power';
+interface Pickup { x: number; y: number; vx: number; vy: number; kind: PickKind; t: number; life: number; }
+const PICK_COLOR: Record<PickKind, string> = { score: '#7ff0ff', shield: '#5ad0ff', heal: '#7affa0', ult: '#ffd24a', power: '#c080ff' };
 
 export interface Hud {
   hp: number; maxHp: number; shield: number; maxShield: number;
@@ -35,6 +40,7 @@ export class Engine {
   private ctx: CanvasRenderingContext2D;
   private bg = new Background();
   private fx = new Particles();
+  private bloom = new Bloom();
   private raf = 0;
   private last = 0;
   private acc = 0;
@@ -46,12 +52,14 @@ export class Engine {
   private player = {
     x: 0, y: 0, vx: 0, vy: 0, hp: 100, maxHp: 100, shield: 60, maxShield: 60,
     tilt: 0, fireCd: 0, abilityCd: 0, abilityMax: 3.2, ult: 0, invuln: 0, dmgFlash: 0,
-    speed: 430, shieldRegenT: 0,
+    speed: 430, shieldRegenT: 0, powerT: 0,
   };
   private bullets: Bullet[] = [];
   private ebullets: EBullet[] = [];
   private enemies: Enemy[] = [];
+  private pickups: Pickup[] = [];
   private ultActive = 0;
+  private moteT = 0;
 
   // input
   private keys = new Set<string>();
@@ -201,21 +209,31 @@ export class Engine {
     p.tilt += (tiltTarget - p.tilt) * Math.min(1, dt * 10);
 
     // ---- disparo automático ----
+    const powered = p.powerT > 0;
     p.fireCd -= dt;
     if (p.fireCd <= 0) {
-      p.fireCd = 0.11;
+      p.fireCd = powered ? 0.075 : 0.11;
+      const r = powered ? 4.2 : 3.4, dmg = powered ? 3.0 : 2.2, hue = powered ? '#c8a0ff' : '#7ff0ff';
       for (const sd of [-1, 1]) {
-        this.bullets.push({ x: p.x + sd * 12, y: p.y - 22, vx: p.vx * 0.15, vy: -900, r: 3.4, dmg: 2.2, hue: '#7ff0ff', kind: 'bolt', life: 1.1, target: null, trail: 0 });
+        this.bullets.push({ x: p.x + sd * 12, y: p.y - 22, vx: p.vx * 0.15, vy: -900, r, dmg, hue, kind: 'bolt', life: 1.1, target: null, trail: 0 });
       }
-      this.fx.muzzle(p.x, p.y - 26, '#7ff0ff');
+      if (powered) this.bullets.push({ x: p.x, y: p.y - 26, vx: 0, vy: -980, r: 5, dmg: 3.4, hue: '#e0c0ff', kind: 'bolt', life: 1.1, target: null, trail: 0 });
+      this.fx.muzzle(p.x, p.y - 26, hue);
       sfx.shoot();
     }
+    // rastro de motor
+    this.fx.engine(p.x - 6, p.y + 16, '#7ff0ff');
+    this.fx.engine(p.x + 6, p.y + 16, '#7ff0ff');
+    // motes ambiente cintilando
+    this.moteT -= dt;
+    if (this.moteT <= 0) { this.moteT = 0.09; this.fx.mote(rand(0, this.w), rand(0, this.h * 0.5), Math.random() < 0.5 ? '#8fd0ff' : '#c090ff'); }
 
     // ---- cooldowns / recursos ----
     p.abilityCd = Math.max(0, p.abilityCd - dt);
     p.ult = Math.min(1, p.ult + dt * 0.11);
     p.invuln = Math.max(0, p.invuln - dt);
     p.dmgFlash = Math.max(0, p.dmgFlash - dt * 2);
+    p.powerT = Math.max(0, p.powerT - dt);
     // regen de escudo
     p.shieldRegenT += dt;
     if (p.shieldRegenT > 2.5 && p.shield < p.maxShield) p.shield = Math.min(p.maxShield, p.shield + dt * 10);
@@ -287,10 +305,51 @@ export class Engine {
       }
     }
 
+    // ---- pickups / power-ups ----
+    for (let i = this.pickups.length - 1; i >= 0; i--) {
+      const pk = this.pickups[i];
+      pk.t += dt; pk.life -= dt;
+      const dx = p.x - pk.x, dy = p.y - pk.y, d = Math.hypot(dx, dy) || 1;
+      if (d < 150) { const pull = (1 - d / 150) * 620; pk.vx += (dx / d) * pull * dt; pk.vy += (dy / d) * pull * dt; }
+      pk.vy += 12 * dt; // leve deriva pra baixo
+      pk.vx *= 0.96; pk.vy *= 0.96;
+      pk.x += pk.vx * dt; pk.y += pk.vy * dt;
+      if (d < 20) { this.collectPickup(pk); this.pickups.splice(i, 1); continue; }
+      if (pk.life <= 0 || pk.y > this.h + 30) this.pickups.splice(i, 1);
+    }
+
     this.fx.update(dt);
     this.bg.update(dt, 1);
     this.shake *= Math.pow(0.001, dt);
     this.flash = Math.max(0, this.flash - dt * 2.2);
+  }
+
+  private collectPickup(pk: Pickup): void {
+    const p = this.player;
+    const c = PICK_COLOR[pk.kind];
+    this.fx.collect(pk.x, pk.y, c);
+    sfx.ui();
+    switch (pk.kind) {
+      case 'score': this.score += Math.round(60 * (1 + this.combo * 0.05)); p.ult = Math.min(1, p.ult + 0.02); break;
+      case 'shield': p.shield = Math.min(p.maxShield, p.shield + 28); break;
+      case 'heal': p.hp = Math.min(p.maxHp, p.hp + 24); break;
+      case 'ult': p.ult = Math.min(1, p.ult + 0.3); break;
+      case 'power': p.powerT = Math.max(p.powerT, 7); break;
+    }
+  }
+
+  private dropPickups(x: number, y: number, big: boolean): void {
+    if (big) {
+      const kinds: PickKind[] = ['ult', 'shield', 'power', 'heal', 'score', 'score'];
+      for (const k of kinds) this.spawnPickup(x + rand(-30, 30), y + rand(-20, 20), k);
+    } else if (Math.random() < 0.26) {
+      const r = Math.random();
+      const k: PickKind = r < 0.6 ? 'score' : r < 0.75 ? 'shield' : r < 0.88 ? 'ult' : r < 0.96 ? 'heal' : 'power';
+      this.spawnPickup(x, y, k);
+    }
+  }
+  private spawnPickup(x: number, y: number, kind: PickKind): void {
+    this.pickups.push({ x, y, vx: rand(-60, 60), vy: rand(-40, 20), kind, t: Math.random() * 6, life: 9 });
   }
 
   private enemyBehavior(e: Enemy, dt: number): void {
@@ -355,13 +414,14 @@ export class Engine {
 
   private killEnemy(e: Enemy): void {
     const big = e.kind === 'elite';
-    this.fx.explosion(e.x, e.y, big ? 2.4 : 1, big ? '#ff7a3a' : '#ffb060', big);
-    this.shake = Math.max(this.shake, big ? 14 : 5);
+    this.fx.explosion(e.x, e.y, big ? 2.6 : 1.1, big ? '#ff7a3a' : '#ffb060', big);
+    this.shake = Math.max(this.shake, big ? 15 : 5);
     if (big) sfx.explodeBig(); else sfx.explodeSmall();
     this.combo += 1; this.comboTimer = 2.2;
     const mult = 1 + this.combo * 0.05;
     this.score += Math.round(e.scoreVal * mult);
     this.player.ult = Math.min(1, this.player.ult + (big ? 0.25 : 0.03));
+    this.dropPickups(e.x, e.y, big);
   }
 
   private nearestEnemy(x: number, y: number): Enemy | null {
@@ -422,8 +482,14 @@ export class Engine {
     // inimigos
     for (const e of this.enemies) drawEnemy(ctx, e.kind, e.x, e.y, e.size, e.t, e.hit);
 
+    // pickups / power-ups
+    for (const pk of this.pickups) this.drawPickup(ctx, pk);
+
     // balas do jogador
     for (const b of this.bullets) this.drawPlayerBullet(ctx, b);
+
+    // aura de power-up
+    if (p.powerT > 0) glow(ctx, p.x, p.y, 40 + Math.sin(this.t * 12) * 6, '#c080ff', 0.5);
 
     // nave
     drawFalcon(ctx, p.x, p.y, 24, {
@@ -447,6 +513,11 @@ export class Engine {
       ctx.fillRect(0, 0, this.w, this.h);
       ctx.restore();
     }
+
+    // ===== BLOOM (pós-processamento premium) =====
+    this.bloom.apply(ctx, this.canvas, 0.5, 5);
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
     // vinheta de perigo (vida baixa)
     if (p.hp < 30) {
       const a = 0.2 + 0.15 * Math.sin(this.t * 6);
@@ -469,6 +540,26 @@ export class Engine {
       beam(ctx, b.x, b.y, x2, y2, b.r * 0.8, '#f4fdff', applyAlpha(b.hue, 0.45));
       glow(ctx, b.x, b.y, b.r * 3.0, b.hue, 0.85);
     }
+  }
+
+  private drawPickup(ctx: CanvasRenderingContext2D, pk: Pickup): void {
+    const c = PICK_COLOR[pk.kind];
+    const pulse = 0.75 + 0.25 * Math.sin(pk.t * 6);
+    const bob = Math.sin(pk.t * 4) * 2;
+    const y = pk.y + bob;
+    glow(ctx, pk.x, y, 22 * pulse, c, 0.85);
+    // cápsula hexagonal
+    ctx.save();
+    ctx.translate(pk.x, y);
+    ctx.rotate(pk.t * 0.8);
+    ctx.fillStyle = applyAlpha(c, 0.9);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; ctx.lineTo(Math.cos(a) * 8, Math.sin(a) * 8); }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // núcleo branco
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(pk.x, y, 3.2, 0, Math.PI * 2); ctx.fill();
   }
 
   private pushHud(): void {

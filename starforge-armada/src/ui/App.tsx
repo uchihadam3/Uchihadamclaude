@@ -4,6 +4,7 @@ import { Engine, Hud } from '../game/engine';
 import { Background } from '../render/background';
 import { drawFalcon } from '../render/ship';
 import { Particles } from '../render/fx';
+import { Bloom } from '../render/bloom';
 import { initAudio, resumeAudio, sfx } from '../game/audio';
 import Hangar from './Hangar';
 import './styles.css';
@@ -27,6 +28,7 @@ function Menu(props: { onStart: () => void; onHangar: () => void }): JSX.Element
     const ctx = cv.getContext('2d', { alpha: false })!;
     const bg = new Background();
     const fx = new Particles();
+    const bloom = new Bloom();
     let raf = 0, t = 0, last = performance.now(), muzz = 0;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const resize = () => {
@@ -48,9 +50,10 @@ function Menu(props: { onStart: () => void; onHangar: () => void }): JSX.Element
       muzz -= dt;
       if (muzz <= 0) { muzz = 0.16; fx.muzzle(sx, sy - 46, '#7ff0ff'); }
       fx.update(dt);
-      drawFalcon(ctx, sx, sy, 42, { tilt: Math.sin(t * 0.6) * 0.5, thrust: 0.8, t });
+      drawFalcon(ctx, sx, sy, 46, { tilt: Math.sin(t * 0.6) * 0.5, thrust: 0.85, t });
       fx.draw(ctx);
       bg.drawFront(ctx);
+      bloom.apply(ctx, cv, 0.6, 6);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -81,7 +84,7 @@ function Menu(props: { onStart: () => void; onHangar: () => void }): JSX.Element
         </div>
       </div>
       <div className="menu-approve">
-        <b>Visual aprovado?</b> Depois disso, desenvolver o jogo completo.
+        <b>Jogo completo em construção</b> · direção de arte aprovada · Parte 2/10
       </div>
     </div>
   );
@@ -182,7 +185,7 @@ function Demo(props: { onBack: () => void }): JSX.Element {
         {showBanner && (
           <div className="approve-banner clickable">
             <div className="approve-text">
-              <b>Visual aprovado?</b> Depois disso, desenvolver o jogo completo de Starforge Armada.
+              <b>Visual aprovado ✓</b> Jogo completo em construção — bloom, power-ups e as 30 naves já no ar.
             </div>
             <button className="approve-x" onClick={() => setShowBanner(false)}>✕</button>
           </div>
