@@ -5,19 +5,22 @@ import { Background } from '../render/background';
 import { drawFalcon } from '../render/ship';
 import { Particles } from '../render/fx';
 import { initAudio, resumeAudio, sfx } from '../game/audio';
+import Hangar from './Hangar';
 import './styles.css';
 
 export default function App(): JSX.Element {
-  const [screen, setScreen] = useState<'menu' | 'demo'>('menu');
+  const [screen, setScreen] = useState<'menu' | 'demo' | 'hangar'>('menu');
   return (
     <div className="app">
-      {screen === 'menu' ? <Menu onStart={() => { resumeAudio(); sfx.start(); setScreen('demo'); }} /> : <Demo onBack={() => setScreen('menu')} />}
+      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} />}
+      {screen === 'demo' && <Demo onBack={() => setScreen('menu')} />}
+      {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} />}
     </div>
   );
 }
 
 // ============ MENU (com showcase animado da Falcon-01) ============
-function Menu(props: { onStart: () => void }): JSX.Element {
+function Menu(props: { onStart: () => void; onHangar: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = canvasRef.current!;
@@ -66,7 +69,10 @@ function Menu(props: { onStart: () => void }): JSX.Element {
           espacial com parallax e nebulosa, cinco inimigos, tiros, mísseis, ultimate, explosões,
           partículas e a interface sci-fi.
         </div>
-        <button className="play-btn" onClick={props.onStart}>Iniciar Demo Visual</button>
+        <div className="menu-btns">
+          <button className="play-btn" onClick={props.onStart}>Iniciar Demo Visual</button>
+          <button className="play-btn ghost" onClick={props.onHangar}>Hangar · 30 Naves</button>
+        </div>
         <div className="menu-controls">
           <span><kbd>WASD</kbd> mover</span>
           <span><kbd>Shift</kbd> míssil</span>
