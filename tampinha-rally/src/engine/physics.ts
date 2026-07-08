@@ -46,6 +46,9 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     if (surf === 'ramp') {                     // tira de aceleração: impulso na direção da pista
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : norm(c.vel);
       c.vel.x += dir.x * 30 * dt; c.vel.y += dir.y * 30 * dt;
+    } else if (surf === 'push') {              // seta vermelha: freia e joga na direção da seta (trás/lado)
+      const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: -c.vel.x, y: -c.vel.y };
+      c.vel.x = c.vel.x * 0.90 + dir.x * 42 * dt; c.vel.y = c.vel.y * 0.90 + dir.y * 42 * dt;
     } else if (surf === 'water') {             // água rasa: empurrão leve na correnteza
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: 0, y: 0 };
       c.vel.x += dir.x * 7 * dt; c.vel.y += dir.y * 7 * dt;
@@ -60,7 +63,8 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
       const soft = si.fric > 12 ? 1 + (st.weight - 1) * 0.55 : 1;      // areia/lama seguram o pesado
       const fric = (si.fric * soft) / st.slide;
       let ns = sp - fric * dt;
-      const drag = si.drag / (0.7 + 0.3 * st.slide) + (st.control - 1) * (sp < 6 ? 0.35 : 0.1);
+      // control: freio extra em baixa velocidade → para certinho onde você mira (bem perceptível)
+      const drag = si.drag / (0.7 + 0.3 * st.slide) + (st.control - 1) * (sp < 6 ? 0.85 : 0.12);
       ns *= (1 - Math.min(0.92, Math.max(0, drag) * dt));
       if (ns < 0) ns = 0;
       const dir = norm(c.vel); c.vel.x = dir.x * ns; c.vel.y = dir.y * ns;
@@ -146,7 +150,8 @@ function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
       if (d2 > rr * rr || d2 < 1e-6) continue;
       const dsq = Math.sqrt(d2); const nx = dx / dsq, ny = dy / dsq;
       const pen = rr - dsq;
-      const ma = a.stats.weight, mb = b.stats.weight, ms = ma + mb;
+      // massa efetiva = peso^1.6: a pesada quase não sai do lugar; a leve voa longe
+      const ma = Math.pow(a.stats.weight, 1.6), mb = Math.pow(b.stats.weight, 1.6), ms = ma + mb;
       a.pos.x -= nx * pen * (mb / ms); a.pos.y -= ny * pen * (mb / ms);
       b.pos.x += nx * pen * (ma / ms); b.pos.y += ny * pen * (ma / ms);
       const rvx = b.vel.x - a.vel.x, rvy = b.vel.y - a.vel.y;
@@ -155,8 +160,9 @@ function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
       const rest = 0.55 * ((a.stats.bounce + b.stats.bounce) / 2);   // tampinhas "quicantes" tabelam mais
       const imp = -(1 + rest) * vn / (1 / ma + 1 / mb);
       const ix = imp * nx, iy = imp * ny;
-      a.vel.x -= ix / ma; a.vel.y -= iy / ma;
-      b.vel.x += ix / mb; b.vel.y += iy / mb;
+      // grip (aderência): quem tem mais firmeza é empurrado menos (difícil de jogar pra fora)
+      a.vel.x -= (ix / ma) / a.stats.grip; a.vel.y -= (iy / ma) / a.stats.grip;
+      b.vel.x += (ix / mb) / b.stats.grip; b.vel.y += (iy / mb) / b.stats.grip;
       const power = Math.abs(vn);
       if (power > 1.5) {
         if (!a.moving) a.moving = true; if (!b.moving) b.moving = true;

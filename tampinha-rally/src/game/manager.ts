@@ -89,11 +89,17 @@ export class GameManager {
   flick(dir: V, power: number): void {
     if (!this.canFlick()) return;
     const c = this.activeCap();
-    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER;
-    // p/ onde cada cap volta se sair da pista neste peteléco
-    for (const o of this.caps) o.resetTo = vec(o.pos.x, o.pos.y);
-    c.resetTo = vec(c.turnStart.x, c.turnStart.y);
+    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER * c.stats.power;
+    // p/ onde cada cap volta se sair da pista neste peteléco:
+    //  - VOCÊ (quem jogou) sai por conta própria → volta pro ponto de onde jogou;
+    //  - se OUTRO te empurra pra fora → volta um pouco ATRÁS na pista (punição).
     c.preFlick = vec(c.pos.x, c.pos.y);
+    for (const o of this.caps) {
+      if (o.id === c.id) { o.resetTo = vec(c.preFlick.x, c.preFlick.y); continue; }
+      const behind = Math.max(0.6, o.progress - 7);
+      const bp = this.track.atArc(behind).p;
+      o.resetTo = vec(bp.x, bp.y);
+    }
     c.z = 0; c.vz = 0; c.airborne = false;
     c.vel = mul(d, sp); c.moving = true;
     this.lastFlickOut = false;
@@ -174,6 +180,7 @@ export class GameManager {
 
   private endFlick(): void {
     const c = this.activeCap();
+    if (c.finished) { this.advanceIndex(); this.beginTurn(); return; }   // chegou: a vez acaba, não gasta petelecos à toa
     c.flicksLeft -= 1;
     if (c.holed) { c.holed = false; c.flicksLeft -= 1; }         // buraco custa 1 peteléco a mais
     if (c.bombed) { c.bombed = false; c.flicksLeft = 0; }        // bomba: perde o resto do turno

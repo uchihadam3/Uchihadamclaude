@@ -10,22 +10,23 @@ export interface Skin {
   rarity: Rarity; art: CapArt; stats: CapStats; unlock: number; desc: string;
 }
 
-// arquétipos de jogo (personalidade); a raridade aplica um lift leve por cima
+// arquétipos de jogo (personalidade); a raridade aplica um lift leve por cima.
+// 7 atributos: weight/slide/stability/bounce/control/power/grip
 const ARCH: Record<string, CapStats> = {
-  bal: { weight: 1.00, slide: 1.00, stability: 1.00, bounce: 1.00, control: 1.00 },
-  glide: { weight: 0.93, slide: 1.12, stability: 0.96, bounce: 1.03, control: 0.98 },
-  heavy: { weight: 1.13, slide: 0.90, stability: 1.09, bounce: 0.90, control: 1.01 },
-  precise: { weight: 0.98, slide: 1.00, stability: 1.08, bounce: 0.97, control: 1.12 },
-  bouncy: { weight: 0.95, slide: 1.05, stability: 0.95, bounce: 1.15, control: 0.98 },
-  nimble: { weight: 0.90, slide: 1.08, stability: 1.02, bounce: 1.02, control: 1.05 },
-  tank: { weight: 1.17, slide: 0.87, stability: 1.13, bounce: 0.85, control: 1.00 },
-  allround: { weight: 1.05, slide: 1.06, stability: 1.06, bounce: 1.05, control: 1.06 },
+  bal:     { weight: 1.00, slide: 1.00, stability: 1.00, bounce: 1.00, control: 1.00, power: 1.00, grip: 1.00 },
+  glide:   { weight: 0.93, slide: 1.13, stability: 0.97, bounce: 1.03, control: 0.98, power: 0.96, grip: 0.95 },
+  heavy:   { weight: 1.14, slide: 0.90, stability: 1.09, bounce: 0.90, control: 1.01, power: 1.08, grip: 1.10 },
+  precise: { weight: 0.98, slide: 1.00, stability: 1.09, bounce: 0.97, control: 1.14, power: 0.99, grip: 1.02 },
+  bouncy:  { weight: 0.95, slide: 1.05, stability: 0.94, bounce: 1.16, control: 0.98, power: 1.02, grip: 0.94 },
+  nimble:  { weight: 0.90, slide: 1.09, stability: 1.02, bounce: 1.02, control: 1.06, power: 0.95, grip: 0.97 },
+  tank:    { weight: 1.18, slide: 0.87, stability: 1.13, bounce: 0.85, control: 1.00, power: 1.12, grip: 1.16 },
+  allround:{ weight: 1.05, slide: 1.06, stability: 1.06, bounce: 1.05, control: 1.06, power: 1.05, grip: 1.05 },
 };
-const RBONUS: Record<Rarity, number> = { comum: 0, rara: 0.012, epica: 0.028, lendaria: 0.05 };
+const RBONUS: Record<Rarity, number> = { comum: 0, rara: 0.013, epica: 0.028, lendaria: 0.048 };
 function mkStats(arch: string, rar: Rarity): CapStats {
   const b = ARCH[arch] || ARCH.bal; const f = 1 + RBONUS[rar], g = 1 + RBONUS[rar] * 0.4;
   const lift = (v: number) => +(v * (v >= 1 ? f : g)).toFixed(3);
-  return { weight: lift(b.weight), slide: lift(b.slide), stability: lift(b.stability), bounce: lift(b.bounce), control: lift(b.control) };
+  return { weight: lift(b.weight), slide: lift(b.slide), stability: lift(b.stability), bounce: lift(b.bounce), control: lift(b.control), power: lift(b.power), grip: lift(b.grip) };
 }
 function darken(hex: string, amt = 38): string {
   const n = parseInt(hex.replace('#', ''), 16); const r = Math.max(0, (n >> 16) - amt), g = Math.max(0, ((n >> 8) & 255) - amt), b = Math.max(0, (n & 255) - amt);

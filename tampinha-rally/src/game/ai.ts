@@ -39,8 +39,8 @@ interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolea
 // simula UMA tacada num mundo COM os adversários (parados; podem ser empurrados)
 function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number): SimOut {
   const shooter = clone(cap);
-  shooter.resetTo = vec(cap.turnStart.x, cap.turnStart.y);
-  shooter.vel = mul(norm(dir), Math.max(0.06, Math.min(1, power01)) * MAX_POWER); shooter.moving = true;
+  shooter.resetTo = vec(cap.pos.x, cap.pos.y);   // sair da pista te devolve pro ponto de onde jogou
+  shooter.vel = mul(norm(dir), Math.max(0.06, Math.min(1, power01)) * MAX_POWER * cap.stats.power); shooter.moving = true;
   const world: Cap[] = [shooter];
   for (const o of caps) { if (o.id === cap.id || o.finished) continue; const oc = clone(o); world.push(oc); }
   let out = false, holed = false, bombed = false, finished = false, jumped = false, bonus = 0, maxProg = cap.progress; const harm = new Set<number>();

@@ -394,11 +394,13 @@ export class UI {
       ['🏁', 'Fora da pista', 'Saiu do corredor? Volta pro começo do peteléco. Nas fases difíceis quase não tem muro — cuidado!'],
     ];
     const stats: [string, string, string][] = [
-      ['Peso', '⚖️', 'Empurra as rivais com mais força e resiste a ser empurrada. Mas em <b>areia/lama</b> afunda e freia mais.'],
+      ['Peso', '⚖️', 'Massa da tampinha. A <b>pesada</b> quase não sai do lugar quando batem nela e <b>empurra</b> as leves pra longe. Só que em areia/lama afunda e freia mais.'],
       ['Desliza', '💨', 'Vai <b>mais longe</b> com o mesmo peteléco. Ótima em calçada/giz; cuidado pra não passar do ponto.'],
-      ['Controle', '🎯', 'Freia mais certinho no fim — <b>para onde você mira</b>. Boa pra encaixar em espaço apertado.'],
+      ['Controle', '🎯', 'Freia mais certinho no fim — <b>para onde você mira</b>. Boa pra encaixar em espaço apertado sem passar direto.'],
       ['Quique', '🏀', 'Quica mais nas <b>bordas</b> e pedras, e "tabela" mais forte batendo nas outras tampinhas.'],
       ['Estabil.', '🌀', 'Mantém a linha: <b>roda menos</b> e desvia menos do rumo. Estável = previsível.'],
+      ['Potência', '💥', 'Peteléco mais forte: sai <b>mais rápido</b> com a mesma puxada — chega mais longe e bate com mais força nas outras.'],
+      ['Aderência', '🧲', 'Firmeza na pista: <b>difícil de te jogarem pra fora</b> quando batem em você. Segura firme na hora do encontrão.'],
     ];
     const card = (i: string, t: string, d: string) => `<div class="hc"><div class="hc-ico">${i}</div><div class="hc-tx"><div class="hc-t">${t}</div><div class="hc-d">${d}</div></div></div>`;
     const s = this.el(`<div class="screen help">
@@ -631,7 +633,7 @@ function bar(label: string, v: number): string {
   const n = statVal(v); const pct = Math.max(8, Math.min(100, Math.round((v - 0.8) / 0.4 * 100)));
   return `<div class="sbar ${statTier(n)}"><span class="sbl">${label}</span><span class="strack"><i style="width:${pct}%"></i></span><b class="sval">${n}</b></div>`;
 }
-const STAT_DEFS: [string, keyof CapStats][] = [['Desliza', 'slide'], ['Peso', 'weight'], ['Controle', 'control'], ['Quique', 'bounce'], ['Estabil.', 'stability']];
+const STAT_DEFS: [string, keyof CapStats][] = [['Desliza', 'slide'], ['Peso', 'weight'], ['Controle', 'control'], ['Quique', 'bounce'], ['Estabil.', 'stability'], ['Potência', 'power'], ['Aderência', 'grip']];
 // barras dos atributos (4 nas fichas pequenas, 5 no painel detalhado)
 function capBars(st: CapStats, all = false): string {
   const defs = all ? STAT_DEFS : STAT_DEFS.slice(0, 4);

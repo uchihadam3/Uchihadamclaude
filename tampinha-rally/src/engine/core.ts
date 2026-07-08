@@ -21,7 +21,7 @@ export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // ---- superfícies ---------------------------------------------------------
 export type Surface =
   | 'dirt' | 'sand' | 'cardboard' | 'sidewalk' | 'mud' | 'water'
-  | 'ramp' | 'chalk' | 'grass' | 'out';
+  | 'ramp' | 'push' | 'chalk' | 'grass' | 'out';
 
 // fric = desaceleração constante (u/s²) · drag = arrasto viscoso (por s)
 export const SURF: Record<Surface, { fric: number; drag: number }> = {
@@ -33,12 +33,16 @@ export const SURF: Record<Surface, { fric: number; drag: number }> = {
   grass:     { fric: 20.0, drag: 1.1  },   // mato: freia forte
   mud:       { fric: 30.0, drag: 1.8  },   // lama: quase para
   water:     { fric: 7.0,  drag: 0.5  },   // água rasa: escorrega + empurra
-  ramp:      { fric: 6.0,  drag: 0.2  },   // rampa: dá impulso
+  ramp:      { fric: 6.0,  drag: 0.2  },   // rampa verde: dá impulso pra frente
+  push:      { fric: 11.0, drag: 0.5  },   // seta vermelha: freia e empurra pra trás/lado
   out:       { fric: 24.0, drag: 1.0  },   // fora — reseta
 };
 
-export type CapStats = { weight: number; slide: number; stability: number; bounce: number; control: number };
-export const DEFAULT_STATS: CapStats = { weight: 1, slide: 1, stability: 1, bounce: 1, control: 1 };
+// weight = massa (empurra/resiste em colisão) · slide = desliza mais longe
+// stability = mantém a linha (roda menos) · bounce = quica em muro/tampinha
+// control = para certinho onde mira · power = força do peteléco · grip = difícil de ser jogado pra fora
+export type CapStats = { weight: number; slide: number; stability: number; bounce: number; control: number; power: number; grip: number };
+export const DEFAULT_STATS: CapStats = { weight: 1, slide: 1, stability: 1, bounce: 1, control: 1, power: 1, grip: 1 };
 
 export interface Cap {
   id: number;

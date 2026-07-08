@@ -157,9 +157,15 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const nCP = ri(4, 7);
   for (let k = 1; k <= nCP; k++) checkpoints.push(onPath(total * k / (nCP + 1)));
 
-  // rampas (impulso / "elevação")
+  // SETAS VERDES (impulso pra frente) — pequenas e em lugares variados (meio, beira),
+  // pra você tentar passar por cima. Não cobrem a pista inteira.
   const nRamp = ri(p.ramps[0], p.ramps[1]);
-  for (let k = 0; k < nRamp; k++) { const a = rf(0.15, 0.85) * total; const { p: pp, i } = atArc(a); const t = tangentAt(path, i); patches.push({ surface: 'ramp', x: pp.x, y: pp.y, r: half0 * 0.9, dir: Math.atan2(t.y, t.x) }); }
+  for (let k = 0; k < nRamp; k++) {
+    const a = rf(0.15, 0.85) * total; const { i } = atArc(a); const t = tangentAt(path, i);
+    const off = rng() < 0.4 ? 0 : (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.3, half0 * 0.62);
+    const pp = onPath(a, off);
+    patches.push({ surface: 'ramp', x: pp.x, y: pp.y, r: rf(1.5, 2.0), dir: Math.atan2(t.y, t.x) });
+  }
   // poças/areia/lama temáticas
   for (let k = 0; k < ri(2, 4); k++) { const a = rf(0.1, 0.9) * total; const pp = onPath(a, rf(-half0 * 0.4, half0 * 0.4)); const sfc = theme.patch[ri(0, theme.patch.length - 1)]; const { i } = atArc(a); const t = tangentAt(path, i); patches.push({ surface: sfc, x: pp.x, y: pp.y, r: half0 * rf(0.7, 1.05), dir: sfc === 'water' ? Math.atan2(t.y, t.x) + rf(-0.6, 0.6) : undefined }); }
 
@@ -185,6 +191,21 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
       obstacles.push({ type: 'hole', x: g.x, y: g.y, r: n === 3 ? rf(1.3, 1.7) : rf(1.0, 1.3) });
     }
     k++;
+  }
+
+  // SETAS VERMELHAS (empurrão) — te freiam e jogam PRA TRÁS, ou PRO LADO (rumo à
+  // beira/buraco). Mesmo tamanho das verdes, em lugares variados (meio ou canto).
+  const nPush = ri(1, level >= 2 ? 3 : 2);
+  for (let k = 0, tries = 0; k < nPush && tries < 24; tries++) {
+    const a = rf(0.2, 0.85) * total; if (!spaced(a)) continue;
+    const { i } = atArc(a); const t = tangentAt(path, i), nrm = normalAt(path, i);
+    const roll = rng(); let dir: number, off: number;
+    if (roll < 0.45) { dir = Math.atan2(t.y, t.x) + Math.PI; off = (rng() < 0.5 ? -1 : 1) * rf(0, half0 * 0.5); }                     // pra trás
+    else if (roll < 0.75) { const s = rng() < 0.5 ? 1 : -1; dir = Math.atan2(nrm.y * s, nrm.x * s); off = -s * rf(0, half0 * 0.4); } // pro lado (te empurra pra fora)
+    else { const s = rng() < 0.5 ? 1 : -1; dir = Math.atan2(t.y, t.x) + Math.PI + s * 0.7; off = (rng() < 0.5 ? -1 : 1) * rf(0, half0 * 0.45); } // diagonal
+    const pp = onPath(a, off);
+    patches.push({ surface: 'push', x: pp.x, y: pp.y, r: rf(1.5, 1.9), dir });
+    usedArcs.push(a); k++;
   }
 
   // RAMPA DE SALTO com um BURACO grande logo à frente — só passa quem chega com
@@ -235,11 +256,18 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     }
   }
 
-  // decoração espalhada (fora do corredor, na "cena")
-  for (let k = 0; k < ri(12, 22); k++) {
+  // decoração espalhada SÓ FORA do corredor (nunca em cima da pista — decoração não
+  // colide, então uma caixa no meio da pista pareceria obstáculo e não faria nada).
+  const offTrack = (x: number, y: number): boolean => {
+    for (const pd of pads) if ((x - pd.x) ** 2 + (y - pd.y) ** 2 <= (pd.r + 1.5) ** 2) return false;
+    let md = 1e9; for (let i = 0; i < N; i += 2) { const dx = path[i].x - x, dy = path[i].y - y; const d = dx * dx + dy * dy; if (d < md) md = d; }
+    return md > (half0 + 3.2) * (half0 + 3.2);
+  };
+  for (let k = 0, tries = 0; k < ri(12, 22) && tries < 300; tries++) {
     const dx = rf(2, w - 2), dy = rf(2, h - 2);
+    if (!offTrack(dx, dy)) continue;
     const kd = theme.decor[ri(0, theme.decor.length - 1)];
-    decor.push({ kind: kd, x: dx, y: dy, s: rf(0.8, 1.3), rot: rng() * 6 });
+    decor.push({ kind: kd, x: dx, y: dy, s: rf(0.8, 1.3), rot: rng() * 6 }); k++;
   }
 
   const start = vec(path[0].x, path[0].y);

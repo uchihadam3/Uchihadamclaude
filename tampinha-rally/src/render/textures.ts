@@ -43,6 +43,13 @@ function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: nu
     for (let i = -1; i <= 1; i++) { const y = i * r * 0.52; c.beginPath(); c.moveTo(-r * 0.5, y + r * 0.24); c.lineTo(0, y - r * 0.24); c.lineTo(r * 0.5, y + r * 0.24); c.stroke(); }
     c.restore();
   }
+  else if (s === 'push') {   // SETA VERMELHA: empurrão — as pontas mostram pra onde te joga (trás/lado)
+    c.save(); c.translate(cx, cy); c.rotate(1.57 - (p.dir ?? 1.57));
+    const g = c.createLinearGradient(0, r, 0, -r); g.addColorStop(0, '#8a1810'); g.addColorStop(1, '#ef5a5f'); c.fillStyle = g; c.fillRect(-r, -r, r * 2, r * 2);
+    c.strokeStyle = 'rgba(255,255,255,0.95)'; c.lineWidth = r * 0.16; c.lineCap = 'round'; c.lineJoin = 'round';
+    for (let i = -1; i <= 1; i++) { const y = i * r * 0.52; c.beginPath(); c.moveTo(-r * 0.5, y + r * 0.24); c.lineTo(0, y - r * 0.24); c.lineTo(r * 0.5, y + r * 0.24); c.stroke(); }
+    c.restore();
+  }
   else if (s === 'chalk') { c.fillStyle = 'rgba(255,255,255,0.15)'; c.fillRect(cx - r, cy - r, r * 2, r * 2); }
   else if (s === 'grass') { c.fillStyle = '#5a8636'; c.fillRect(cx - r, cy - r, r * 2, r * 2); for (let i = 0; i < 60; i++) { c.strokeStyle = '#6f9c40'; c.lineWidth = 2; const gx = cx + (Math.random() - 0.5) * r * 2, gy = cy + (Math.random() - 0.5) * r * 2; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (Math.random() - 0.5) * 6, gy - 6 - Math.random() * 6); c.stroke(); } }
   else if (s === 'sidewalk') { c.fillStyle = '#c6c0b2'; c.fillRect(cx - r, cy - r, r * 2, r * 2); }
@@ -63,9 +70,10 @@ function corridorBorders(def: TrackDef): { L: [number, number][]; R: [number, nu
 }
 
 export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
-  // resolução adaptativa: pistas grandes usam menos px/unidade (limita a memória)
+  // resolução adaptativa: mira ~3800px no maior lado (bem mais nítido) sem passar
+  // do limite de textura (4096) mesmo nas pistas grandes.
   const maxDim = Math.max(def.w, def.h);
-  const px = Math.max(7, Math.min(PX, Math.floor(3000 / maxDim)));
+  const px = Math.max(9, Math.min(30, Math.floor(3800 / maxDim)));
   const W = Math.round(def.w * px), H = Math.round(def.h * px);
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d')!;
@@ -131,7 +139,7 @@ export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
   checker([def.start.x - sn.x * sh, def.start.y - sn.y * sh], [def.start.x + sn.x * sh, def.start.y + sn.y * sh], '#2a7d3a');
   checker([def.finish[0].x, def.finish[0].y], [def.finish[1].x, def.finish[1].y], '#222');
 
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.needsUpdate = true;
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.needsUpdate = true;
   return t;
 }
 

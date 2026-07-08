@@ -182,6 +182,7 @@ function frame(): void {
     // pulsos dos itens especiais
     if (board) for (const p of board.pulses) { const s = 1 + Math.sin(t * 4) * 0.18; p.mesh.scale.set(s, s, 1); (p.mesh.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(t * 4) * 0.12; }
     if (board) for (const sp of board.spinners) { sp.rotation.y += dt * 2.4; sp.position.y += Math.sin(t * 3 + sp.position.x) * 0.004; }
+    if (board) for (const bb of board.billboards) bb.quaternion.copy(rig.camera.quaternion);   // números (bônus/checkpoint) sempre virados pra câmera
     caps.update(mgr.caps, t, mgr.activeCap()?.id ?? -1);
     fx.update(dt);
     renderer.render(scene, rig.camera);

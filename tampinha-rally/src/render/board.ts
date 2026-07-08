@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { TrackDef } from '../engine/track';
 import { makeBoardTexture, lighten } from './textures';
 
-export interface BoardBuild { group: THREE.Group; pulses: { mesh: THREE.Mesh; kind: string; base: number }[]; spinners: THREE.Object3D[]; }
+export interface BoardBuild { group: THREE.Group; pulses: { mesh: THREE.Mesh; kind: string; base: number }[]; spinners: THREE.Object3D[]; billboards: THREE.Object3D[]; }
 
 function markerTex(kind: string, n = 1): THREE.CanvasTexture {
   const S = 128; const cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d')!;
@@ -47,6 +47,7 @@ export function buildBoard(def: TrackDef): BoardBuild {
   const group = new THREE.Group();
   const pulses: BoardBuild['pulses'] = [];
   const spinners: THREE.Object3D[] = [];
+  const billboards: THREE.Object3D[] = [];
 
   // base / mesa
   const base = new THREE.Mesh(new THREE.BoxGeometry(def.w + 5, 1.4, def.h + 5), new THREE.MeshStandardMaterial({ color: def.bg, roughness: 0.95 }));
@@ -86,7 +87,8 @@ export function buildBoard(def: TrackDef): BoardBuild {
       const lip = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.5, 0.32), new THREE.MeshStandardMaterial({ color: '#c9902e', roughness: 0.7 }));
       lip.position.set(0, 1.0, 1.5); jg.add(lip);
       const arw = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.0), new THREE.MeshBasicMaterial({ map: markerTex('jumparrow'), transparent: true, depthWrite: false }));
-      arw.rotation.x = -Math.PI / 2 - 0.52; arw.position.set(0, 0.78, 0.2); jg.add(arw);
+      // seta apontando pro SENTIDO do salto (pra frente da rampa), não ao contrário
+      arw.rotation.x = -Math.PI / 2 - 0.52; arw.rotation.z = Math.PI; arw.position.set(0, 0.8, 0.4); jg.add(arw);
       jg.position.set(o.x, 0, o.y); jg.rotation.y = Math.PI / 2 - (o.dir ?? 0);
       group.add(jg);
     } else if (o.type === 'bomb') {
@@ -102,12 +104,14 @@ export function buildBoard(def: TrackDef): BoardBuild {
       bg.position.set(o.x, 0, o.y); group.add(bg);
       const ring = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.6, 24), new THREE.MeshBasicMaterial({ color: '#e5484d', transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
       ring.rotation.x = -Math.PI / 2; ring.position.set(o.x, 0.025, o.y); group.add(ring); pulses.push({ mesh: ring, kind: 'bomb', base: o.r * 1.6 });
-    } else {   // bônus: gema brilhante girando
+    } else {   // bônus: gema girando embaixo + PLACA com o número virada pra câmera (sempre legível)
       const n = o.n || 1; const col = n >= 3 ? '#f2c200' : n === 2 ? '#2e9fa4' : '#2ea44f';
-      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(o.r * 0.82, 0), new THREE.MeshStandardMaterial({ color: col, roughness: 0.15, metalness: 0.55, emissive: col, emissiveIntensity: 0.3, flatShading: true }));
-      gem.position.set(o.x, o.r * 1.2, o.y); gem.castShadow = true; group.add(gem); spinners.push(gem);
-      const lbl = new THREE.Mesh(new THREE.CircleGeometry(o.r * 0.78, 20), new THREE.MeshBasicMaterial({ map: markerTex('bonus', n), transparent: true, depthWrite: false }));
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(o.r * 0.5, 0), new THREE.MeshStandardMaterial({ color: col, roughness: 0.15, metalness: 0.55, emissive: col, emissiveIntensity: 0.35, flatShading: true }));
+      gem.position.set(o.x, o.r * 0.75, o.y); gem.castShadow = true; group.add(gem); spinners.push(gem);
+      const lbl = new THREE.Mesh(new THREE.CircleGeometry(o.r * 0.7, 20), new THREE.MeshBasicMaterial({ map: markerTex('bonus', n), transparent: true, depthWrite: false }));
       lbl.rotation.x = -Math.PI / 2; lbl.position.set(o.x, 0.04, o.y); group.add(lbl);
+      const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: markerTex('bonus', n), transparent: true, depthWrite: false }));
+      plate.position.set(o.x, o.r * 2.3, o.y); group.add(plate); billboards.push(plate);
       const glow = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.6, 24), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false }));
       glow.rotation.x = -Math.PI / 2; glow.position.set(o.x, 0.025, o.y); group.add(glow); pulses.push({ mesh: glow, kind: 'bonus', base: o.r * 1.6 });
     }
@@ -129,8 +133,8 @@ export function buildBoard(def: TrackDef): BoardBuild {
     }
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(hw * 2, 0.9), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
     strip.rotation.x = -Math.PI / 2; strip.rotation.z = -Math.atan2(ty, tx); strip.position.set(cp.x, 0.03, cp.y); group.add(strip);
-    const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: markerTex('cp', i), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
-    plate.position.set(cp.x, 2.9, cp.y); plate.rotation.y = -Math.atan2(ty, tx); group.add(plate);
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8), new THREE.MeshBasicMaterial({ map: markerTex('cp', i), transparent: true, depthWrite: false }));
+    plate.position.set(cp.x, 3.0, cp.y); group.add(plate); billboards.push(plate);
   });
 
   // decoração
@@ -147,5 +151,5 @@ export function buildBoard(def: TrackDef): BoardBuild {
     flag.position.set(end.x + 0.6, 2.0, end.y); group.add(flag);
   }
 
-  return { group, pulses, spinners };
+  return { group, pulses, spinners, billboards };
 }
