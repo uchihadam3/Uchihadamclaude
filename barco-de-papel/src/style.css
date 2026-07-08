@@ -32,12 +32,15 @@ html, body { height: 100%; overflow: hidden; background: #d8b483;
 .tp-name { font-size: clamp(20px, 4.4vw, 30px); font-weight: 700; color: #5a3d1c; letter-spacing: 0.01em; margin-top: 2px;
   text-shadow: 0 1px 0 rgba(255,255,255,0.4); }
 
+/* ---------- doca de controles (flex, sem sobreposição) ---------- */
+.dock { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap;
+  align-items: flex-end; justify-content: center; gap: 14px; padding: 16px; pointer-events: none; z-index: 5; }
+.dock > * { pointer-events: auto; }
+
 /* ---------- prateleira de ferramentas ---------- */
-.tool-shelf { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); padding: 14px 16px 16px; border-radius: 16px;
-  background:
-    linear-gradient(180deg, #8a5e39, #6e4a2b 40%, #4a2f18);
-  border: 2px solid #3a2510; box-shadow: 0 10px 26px var(--sombra), inset 0 2px 0 rgba(255,220,170,0.25), inset 0 -6px 14px rgba(0,0,0,0.35);
-  max-width: 94vw; }
+.tool-shelf { position: relative; padding: 12px 14px 14px; border-radius: 16px;
+  background: linear-gradient(180deg, #8a5e39, #6e4a2b 40%, #4a2f18);
+  border: 2px solid #3a2510; box-shadow: 0 10px 26px var(--sombra), inset 0 2px 0 rgba(255,220,170,0.25), inset 0 -6px 14px rgba(0,0,0,0.35); }
 .shelf-wood { position: absolute; inset: 6px; border-radius: 12px; pointer-events: none; opacity: 0.5;
   background: repeating-linear-gradient(90deg, rgba(255,220,170,0.06) 0 3px, rgba(0,0,0,0.06) 3px 9px, rgba(255,220,170,0.05) 9px 12px); }
 .tools { display: flex; gap: 12px; position: relative; }
@@ -54,7 +57,7 @@ html, body { height: 100%; overflow: hidden; background: #d8b483;
 .tool-sub { font-size: 9px; color: #d8c197; letter-spacing: 0.02em; }
 
 /* ---------- painel de fase ---------- */
-.phase-panel { position: absolute; right: 20px; bottom: 22px; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.phase-panel { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
 .phase-switch { display: flex; padding: 4px; border-radius: 12px; background: linear-gradient(180deg, #5a3d1e, #3a2510);
   border: 2px solid #2c1c0c; box-shadow: 0 5px 14px var(--sombra), inset 0 2px 0 rgba(255,210,160,0.18); }
 .ph-opt { font-family: inherit; font-size: 14px; font-weight: 700; padding: 9px 16px; border-radius: 9px; cursor: pointer; border: none;
@@ -79,8 +82,17 @@ html, body { height: 100%; overflow: hidden; background: #d8b483;
 
 @media (max-width: 720px) {
   .hint { display: none; }
-  .tool { width: 60px; }
-  .tool-badge { width: 52px; height: 52px; } .tool-badge svg { width: 32px; height: 32px; }
-  .tool-shelf { bottom: 92px; }
-  .phase-panel { right: 50%; transform: translateX(50%); align-items: center; }
+  .title-plaque { top: 10px; left: 10px; padding: 8px 14px 10px; transform: none; max-width: 78vw; border-radius: 4px 12px 6px 12px; }
+  .tp-name { font-size: 20px; }
+  .dock { flex-direction: column; align-items: stretch; gap: 10px; padding: 10px 10px 12px; }
+  .phase-panel { align-items: stretch; gap: 8px; }
+  .phase-switch { width: 100%; }
+  .ph-opt { flex: 1; text-align: center; padding: 12px 4px; font-size: 14px; }
+  .run-plaque { width: 100%; padding: 13px 14px; }
+  .rp-carve { font-size: 15px; }
+  .tool-shelf { padding: 8px 8px 10px; }
+  .tools { gap: 6px; justify-content: space-between; }
+  .tool { width: auto; flex: 1; gap: 3px; }
+  .tool-badge { width: 52px; height: 52px; } .tool-badge svg { width: 30px; height: 30px; }
+  .tool-name { font-size: 10px; } .tool-sub { font-size: 8.5px; }
 }

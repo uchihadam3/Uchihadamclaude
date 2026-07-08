@@ -33,6 +33,9 @@ function placeCamera(px = 0, pz = 0) {
 }
 function resize() {
   const w = innerWidth, h = innerHeight, a = w / h;
+  // em retrato, enquadra o oásis (onde está o barco) e afasta um pouco a câmera
+  if (a < 1) { frustum = 13.5; target.set(-2.6, -0.4, 1.2); }
+  else { frustum = 11; target.set(2.0, -0.4, -0.2); }
   camera.left = -frustum * a; camera.right = frustum * a; camera.top = frustum; camera.bottom = -frustum;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);

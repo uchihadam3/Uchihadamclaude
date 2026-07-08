@@ -18,21 +18,19 @@
         <div class="tp-name">Oásis do Barco de Papel</div>
       </div>
 
-      <!-- Painel rústico de ferramentas (parte inferior) -->
-      <div class="tool-shelf">
-        <div class="shelf-wood"></div>
-        <div class="tools" id="tools"></div>
-      </div>
-
-      <!-- Controles de fase (canto inferior direito) -->
-      <div class="phase-panel">
-        <div class="phase-switch" id="phaseSwitch">
-          <button class="ph-opt active" data-mode="plan">Planejamento</button>
-          <button class="ph-opt" data-mode="run">Execução</button>
+      <!-- Doca de controles (nunca se sobrepõe: layout em flex) -->
+      <div class="dock">
+        <div class="phase-panel">
+          <div class="phase-switch" id="phaseSwitch">
+            <button class="ph-opt active" data-mode="plan">Planejamento</button>
+            <button class="ph-opt" data-mode="run">Execução</button>
+          </div>
+          <button class="run-plaque" id="runBtn"><span class="rp-carve">Executar Simulação</span></button>
         </div>
-        <button class="run-plaque" id="runBtn">
-          <span class="rp-carve">Executar Simulação</span>
-        </button>
+        <div class="tool-shelf">
+          <div class="shelf-wood"></div>
+          <div class="tools" id="tools"></div>
+        </div>
       </div>
 
       <!-- Legenda inferior -->

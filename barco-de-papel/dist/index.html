@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#e9c893" />
     <title>Oásis do Barco de Papel — Demo Visual</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 15h18l-3 4H6z' fill='%23f5efe0'/%3E%3Cpath d='M12 5l6 9H6z' fill='%23f5efe0'/%3E%3C/svg%3E" />
-    <script type="module" crossorigin src="./assets/index-Cv64x0sT.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CMWV9XBr.css">
+    <script type="module" crossorigin src="./assets/index-DIF0thTc.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CItKDmV-.css">
   </head>
   <body>
     <div id="app">
@@ -19,21 +19,19 @@
         <div class="tp-name">Oásis do Barco de Papel</div>
       </div>
 
-      <!-- Painel rústico de ferramentas (parte inferior) -->
-      <div class="tool-shelf">
-        <div class="shelf-wood"></div>
-        <div class="tools" id="tools"></div>
-      </div>
-
-      <!-- Controles de fase (canto inferior direito) -->
-      <div class="phase-panel">
-        <div class="phase-switch" id="phaseSwitch">
-          <button class="ph-opt active" data-mode="plan">Planejamento</button>
-          <button class="ph-opt" data-mode="run">Execução</button>
+      <!-- Doca de controles (nunca se sobrepõe: layout em flex) -->
+      <div class="dock">
+        <div class="phase-panel">
+          <div class="phase-switch" id="phaseSwitch">
+            <button class="ph-opt active" data-mode="plan">Planejamento</button>
+            <button class="ph-opt" data-mode="run">Execução</button>
+          </div>
+          <button class="run-plaque" id="runBtn"><span class="rp-carve">Executar Simulação</span></button>
         </div>
-        <button class="run-plaque" id="runBtn">
-          <span class="rp-carve">Executar Simulação</span>
-        </button>
+        <div class="tool-shelf">
+          <div class="shelf-wood"></div>
+          <div class="tools" id="tools"></div>
+        </div>
       </div>
 
       <!-- Legenda inferior -->
