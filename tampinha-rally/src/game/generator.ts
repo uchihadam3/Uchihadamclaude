@@ -52,74 +52,32 @@ const LV = [
 type RF = (a: number, b: number) => number;
 type RI = (a: number, b: number) => number;
 
-// ---------------- FAMÍLIAS DE FORMATO (cada uma bem diferente) ----------------
-
-// ONDA fluida: soma de duas harmônicas (curvas orgânicas, nunca zig-zag rígido),
-// caminho aberto da largada à chegada. Escalada para o comprimento-alvo.
-function shapeWave(rng: () => number, rf: RF, ri: RI, targetLen: number): V[] {
-  const PW = 100;
-  const k1 = ri(1, 3), k2 = ri(2, 5);
-  const a1 = rf(0.30, 0.52), a2 = rf(0.08, 0.24);
-  const s1 = rng() < 0.5 ? -1 : 1, s2 = rng() < 0.5 ? -1 : 1;
-  const envSel = ri(0, 2);                                   // 0 uniforme, 1 cresce, 2 diminui
-  const env = (u: number) => envSel === 1 ? (0.3 + 0.7 * u) : envSel === 2 ? (1 - 0.7 * u) : 1;
-  const ph = rf(-0.25, 0.25);
-  const yfn = (u: number) => (a1 * s1 * Math.sin(Math.PI * k1 * u) + a2 * s2 * Math.sin(Math.PI * k2 * u + ph)) * env(u);
-  const SAMPLES = 200;
+// CIRCUITO ALEATÓRIO — um traçado tipo pista de Fórmula 1: uma volta que serpenteia
+// pra qualquer lado (curvas pra esquerda E pra direita, retas, grampos), única a cada
+// semente. Definido por um RAIO que varia por setor ao redor de um centro: os lóbulos
+// (raio grande) curvam pra um lado e os vales (raio pequeno) pro outro — dá S, chicanes
+// e grampos. Como o raio é função única do ângulo, a volta NUNCA se cruza. Pega-se um
+// arco quase completo (deixa um vão entre largada e chegada) e escala pro comprimento.
+function shapeCircuit(rng: () => number, rf: RF, ri: RI, targetLen: number, half0: number): V[] {
+  const M = ri(7, 14);                       // número de setores → mais setores, mais curvas
+  const spike = rf(0.18, 0.46);              // o quanto o raio varia (0 = círculo, alto = bem sinuoso)
+  const ax = rf(0.8, 1.4), ay = rf(0.8, 1.4);// aspecto (alonga a volta em x/y)
+  const span = rf(0.78, 0.92);               // fração da volta (deixa um vão largada↔chegada bem separado)
+  const a0 = rng() * 6.283;                  // onde começa / rotação
+  const radii: number[] = [];
+  for (let i = 0; i < M; i++) radii.push(1 + (rng() * 2 - 1) * spike);
+  const rAt = (ang: number): number => {     // raio suave (Catmull periódico entre setores)
+    let x = (ang / (2 * Math.PI)) * M; x = ((x % M) + M) % M;
+    const i0 = Math.floor(x), t = x - i0;
+    const a = radii[(i0 - 1 + M) % M], b = radii[i0 % M], c = radii[(i0 + 1) % M], d = radii[(i0 + 2) % M];
+    const r = 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
+    return Math.max(0.35, r);
+  };
+  const R = 60, samples = Math.max(200, Math.round(targetLen / 2.2)), arc = span * 2 * Math.PI;
   const pts: V[] = [];
-  for (let i = 0; i <= SAMPLES; i++) { const u = i / SAMPLES; pts.push(vec(u * PW, yfn(u) * PW)); }
+  for (let s = 0; s <= samples; s++) { const ang = a0 + (s / samples) * arc; const r = rAt(ang) * R; pts.push(vec(ax * r * Math.cos(ang), ay * r * Math.sin(ang))); }
   const sc = targetLen / arcLenOf(pts);
   for (const p of pts) { p.x *= sc; p.y *= sc; }
-  return pts;
-}
-
-// SERPENTINA de pernas CURVAS (arqueadas) e retornos arredondados — compacta.
-// 'wide' faz pernas largas/poucas; senão pernas mais estreitas/mais voltas.
-function shapeSerp(rng: () => number, rf: RF, ri: RI, targetLen: number, half0: number, wide: boolean): V[] {
-  const legW = wide ? rf(48, 68) : rf(36, 50);             // pernas mais largas → menos curvas em U
-  const bowAmp = rf(0, 12);            // arqueamento — MESMA direção em todas as pernas (ficam paralelas)
-  const warpAmp = rf(0, 1.5);
-  const gap = Math.max(rf(3.5, 6.5), 2 * warpAmp + 2);
-  const rowGap = 2 * (half0 * 1.35) + gap;                 // folga p/ o corredor alargar nas curvas sem sobrepor
-  const nlegs = clamp(Math.round(targetLen / (legW + rowGap * 0.5)), 4, 46);
-  const pts: V[] = [];
-  const segs = 12, turns = 8;
-  for (let r = 0; r < nlegs; r++) {
-    const l2r = r % 2 === 0;
-    const x0 = l2r ? 0 : legW, x1 = l2r ? legW : 0;
-    const yB = r * rowGap;
-    for (let s = 0; s <= segs; s++) {
-      const t = s / segs;
-      const xx = x0 + (x1 - x0) * t;
-      const u = l2r ? t : 1 - t;                            // posição ao longo de x (mesma p/ pernas vizinhas)
-      const bowY = Math.sin(Math.PI * u) * bowAmp;          // arqueia igual → pernas paralelas (sem sobreposição)
-      const warpY = Math.sin(u * 2 * Math.PI) * warpAmp;
-      pts.push(vec(xx, yB + bowY + warpY));
-    }
-    if (r < nlegs - 1) {                                     // retorno em U arredondado
-      const side = l2r ? 1 : -1, cy = yB + rowGap / 2, rr = rowGap / 2;
-      for (let s = 1; s < turns; s++) { const a = (s / turns) * Math.PI; pts.push(vec(x1 + side * Math.sin(a) * rr, cy - Math.cos(a) * rr)); }
-    }
-  }
-  return pts;
-}
-
-// ESPIRAL de Arquimedes — começa fora e termina no centro (ou o contrário).
-function shapeSpiral(rng: () => number, rf: RF, ri: RI, targetLen: number, half0: number, out: boolean): V[] {
-  const turns = rf(2.0, 3.2);
-  const sep = 2 * (half0 * 1.35) + rf(4, 7);               // folga p/ alargar nas curvas
-  const rMin = half0 + 4;
-  const dr = Math.max(targetLen / (Math.PI * turns), turns * sep);
-  const R0 = rMin + dr;
-  const totalAng = turns * 2 * Math.PI;
-  const dirSign = rng() < 0.5 ? 1 : -1;
-  const steps = Math.max(160, Math.round(targetLen / 2.2));
-  const pts: V[] = [];
-  for (let s = 0; s <= steps; s++) {
-    const f = s / steps, th = f * totalAng, r = R0 - dr * f;
-    pts.push(vec(r * Math.cos(dirSign * th), r * Math.sin(dirSign * th)));
-  }
-  if (out) pts.reverse();
   return pts;
 }
 
@@ -133,18 +91,8 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const half0 = p.half * rf(0.92, 1.08);
   const targetLen = p.len * rf(0.9, 1.1);
 
-  // escolhe a FAMÍLIA de formato — (idx + level*3) % 10 percorre as 10 receitas
-  // ao longo dos 10 traçados do nível, então cada nível mostra todas as formas.
-  const recipes = ['wave', 'serpN', 'spin', 'serpW', 'wave', 'spout', 'serpN', 'spin', 'serpW', 'wave'];
-  let kind = recipes[(idxInLevel + level * 3) % recipes.length];
-  if (kind === 'wave' && targetLen > 440) kind = (idxInLevel % 2 ? 'spin' : 'serpN');   // pistas longas: dobradas p/ ficar compactas
-  let pts: V[];
-  if (kind === 'wave') pts = shapeWave(rng, rf, ri, targetLen);
-  else if (kind === 'spin') pts = shapeSpiral(rng, rf, ri, targetLen, half0, false);
-  else if (kind === 'spout') pts = shapeSpiral(rng, rf, ri, targetLen, half0, true);
-  else pts = shapeSerp(rng, rf, ri, targetLen, half0, kind === 'serpW');
-
-  // orientação aleatória → umas sobem, outras atravessam, outras na diagonal
+  // cada pista é um circuito aleatório único (curvas pra todo lado, estilo F1)
+  const pts = shapeCircuit(rng, rf, ri, targetLen, half0);
   rotatePts(pts, rng() * 6.283);
   // enquadra na mesa com margem
   const m = half0 + 5;
@@ -179,7 +127,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     let hw = half0 + Math.sin(arcs[i] * 0.05) * 0.3;
     if (arcs[i] < 10) hw = Math.max(hw, half0 + 2.0 * (1 - arcs[i] / 10));
     if (total - arcs[i] < 8) hw += 0.9;
-    hw *= 1 + 0.35 * curvS[i];                             // alarga nas curvas
+    hw *= 1 + 0.45 * curvS[i];                             // alarga nas curvas (espaço p/ manobrar)
     halfArr.push(hw);
   }
 
@@ -190,7 +138,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const near = (a: number) => a < 10 || total - a < 9;
   for (let i = step; i < N; i += step) {
     const j = i - step;
-    const openP = p.open * (1 - 0.7 * curvS[i]);           // curva fechada → quase sempre com muro
+    const openP = p.open * (1 - 0.85 * curvS[i]);          // curva fechada → quase sempre com muro
     if (rng() < openP && !near(arcs[i])) continue;
     const nj = normalAt(path, j), ni = normalAt(path, i);
     walls.push({ a: vec(path[j].x + nj.x * halfArr[j], path[j].y + nj.y * halfArr[j]), b: vec(path[i].x + ni.x * halfArr[i], path[i].y + ni.y * halfArr[i]) });
@@ -230,7 +178,9 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   if (level >= 1 && rng() < 0.55) {
     let iA = -1, iB = -1, bd = 1e9;
     for (let i = 0; i < N; i += 4) for (let j = i + 1; j < N; j += 4) {
-      if (arcs[j] - arcs[i] < total * 0.16) continue;
+      const gap = arcs[j] - arcs[i];
+      if (gap < total * 0.16 || gap > total * 0.6) continue;          // corta um lóbulo interno, não o vão largada/chegada
+      if (arcs[i] < total * 0.12 || arcs[j] > total * 0.88) continue; // longe da largada e da chegada
       const d = Math.hypot(path[i].x - path[j].x, path[i].y - path[j].y);
       if (d < bd) { bd = d; iA = i; iB = j; }
     }

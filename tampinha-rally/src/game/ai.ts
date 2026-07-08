@@ -89,7 +89,7 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
 
   // dois alvos adiante (perto = recuperar/abraçar a curva; longe = avançar) + tangente
   const tan = track.atArc(cap.progress).tan;
-  const near = track.atArc(Math.min(total, cap.progress + 6)).p;
+  const near = track.atArc(Math.min(total, cap.progress + 4)).p;
   const far = track.atArc(Math.min(total, cap.progress + per.lookahead)).p;
   const dNear = len(sub(near, cap.pos)) < 0.4 ? tan : norm(sub(near, cap.pos));
   const dFar = len(sub(far, cap.pos)) < 0.4 ? tan : norm(sub(far, cap.pos));
@@ -112,6 +112,10 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   }
   // creep de segurança: tacadas curtíssimas na tangente (garantem avançar sem cair)
   for (const pw of [0.12, 0.18]) { const sc = score(simShot(cap, track, tan, pw), cap, per, rival); if (sc > best.s) best = { dir: tan, power: pw, s: sc }; }
+  // recentraliza: puxa de volta pra linha central logo à frente (escapa da beirada nas curvas)
+  const rc = track.atArc(Math.min(total, cap.progress + 3)).p;
+  const rcDir = len(sub(rc, cap.pos)) < 0.3 ? tan : norm(sub(rc, cap.pos));
+  for (const pw of [0.12, 0.2]) { const sc = score(simShot(cap, track, rcDir, pw), cap, per, rival); if (sc > best.s) best = { dir: rcDir, power: pw, s: sc }; }
   // rival: também tenta ir direto no alvo
   if (rival) {
     const rdir = norm(sub(rival.pos, cap.pos));
