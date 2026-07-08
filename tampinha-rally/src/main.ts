@@ -171,10 +171,16 @@ function frame(): void {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;
   if (inGame && scene) {
     if (!paused) { if (online.active) online.tick(dt); mgr.update(dt); if (mgr.phase === 'over') onRaceOver(); else resultsShown = false; }
-    // câmera segue a ação
+    // câmera SEMPRE no jogador da vez (nunca chuta pra uma tampinha que já chegou).
+    // No resolve segue a tampinha ativa enquanto ela anda; se ela parar/chegar,
+    // acompanha o que ainda rola (nunca uma já-finalizada) e nunca salta pra chegada.
     let fx0 = mgr.activeCap();
-    if (mgr.phase === 'resolve') { let best = -1, bc = fx0; for (const c of mgr.caps) { const s = len(c.vel); if (c.moving && s > best) { best = s; bc = c; } } fx0 = bc; }
-    if (fx0) rig.follow(fx0.pos.x, fx0.pos.y);
+    if (mgr.phase === 'resolve') {
+      const act = mgr.activeCap();
+      if (act && act.moving && !act.finished) fx0 = act;
+      else { let best = -1; let bc = act; for (const c of mgr.caps) { if (c.finished || !c.moving) continue; const s = len(c.vel); if (s > best) { best = s; bc = c; } } fx0 = bc; }
+    }
+    if (fx0 && !fx0.finished) rig.follow(fx0.pos.x, fx0.pos.y);
     rig.update(dt);
     // som/poeira de deslize
     let maxSp = 0; for (const c of mgr.caps) if (c.moving) { const s = len(c.vel); if (s > maxSp) maxSp = s; if (s > 3 && Math.random() < 0.5) { const surf = mgr.track.surfaceAt(c.pos); if (surf === 'sand' || surf === 'dirt' || surf === 'mud' || surf === 'grass') fx.dust(c.pos.x, c.pos.y, 1, surf === 'mud' ? '#5c452a' : surf === 'grass' ? '#5f8a36' : '#d8c090'); } }

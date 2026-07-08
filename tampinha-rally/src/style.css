@@ -160,9 +160,9 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 @keyframes bob{50%{transform:translateY(-4px)}}
 .skin-name{font-weight:900;font-size:13px;line-height:1.1;color:#3a2418}
 .skin-desc{font-size:10.5px;color:#9a7550;min-height:26px;margin-top:2px;font-weight:600}
-.skin-bars{margin-top:6px;display:flex;flex-direction:column;gap:3.5px}
-.sbar{display:flex;align-items:center;gap:5px;font-size:9.5px;color:#9a7550;font-weight:800}
-.sbar .sbl{width:46px;text-align:right;flex:none}
+.skin-bars{margin-top:6px;display:flex;flex-direction:column;gap:3px}
+.sbar{display:flex;align-items:center;gap:5px;font-size:9px;color:#9a7550;font-weight:800}
+.sbar .sbl{width:52px;text-align:right;flex:none;white-space:nowrap;overflow:hidden}
 .sbar .strack{flex:1;height:7px;border-radius:5px;background:#e7d8c0;box-shadow:inset 0 1px 2px rgba(0,0,0,.16);overflow:hidden}
 .sbar .strack i{height:100%;border-radius:5px;display:block;background:linear-gradient(90deg,#f2b100,#ffd94a)}
 .sbar.hi .strack i{background:linear-gradient(90deg,#2ea44f,#5ad97b)}

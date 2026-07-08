@@ -299,7 +299,7 @@ export class UI {
           <div class="skin-face"></div>
           <div class="skin-name">${k.name}</div>
           <div class="skin-desc">${locked ? '🔒 ' + k.unlock + ' vitórias' : k.desc}</div>
-          ${capBars(k.stats)}
+          ${capBars(k.stats, true)}
         </button>`);
         const face = card.querySelector('.skin-face') as HTMLElement;
         const cv = drawCap(k.art, 132); cv.style.width = '100%'; cv.style.height = 'auto'; cv.style.display = 'block';
@@ -355,7 +355,7 @@ export class UI {
     const grid = box.querySelector('#pg') as HTMLElement;
     for (const k of unl) {
       const card = this.el(`<button class="pick-card ${k.id === currentId ? 'sel' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}">
-        <div class="pick-face"></div><div class="pick-name">${k.name}</div>${capBars(k.stats)}</button>`);
+        <div class="pick-face"></div><div class="pick-name">${k.name}</div>${capBars(k.stats, true)}</button>`);
       const cv = drawCap(k.art, 96); cv.style.width = '100%'; cv.style.height = 'auto'; cv.style.display = 'block';
       (card.querySelector('.pick-face') as HTMLElement).appendChild(cv);
       card.addEventListener('click', () => { onPick(k.id); close(); });
