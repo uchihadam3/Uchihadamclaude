@@ -1,142 +1,144 @@
-// Cena da demo: câmera isométrica ortográfica fixa, iluminação quente de
-// deserto com sombras suaves, terreno heightmap, água translúcida, barco de
-// papel e objetos naturais. Interação mínima: seleção de ferramenta (visual) e
-// alternância Planejamento/Execução.
+// Ponto de entrada: monta as camadas (simulação, render, input, UI), liga tudo
+// e roda o loop. Segue a arquitetura: GameManager comanda o estado; o render
+// apenas lê o Grid; o input aplica ferramentas via ToolSystem.
 import * as THREE from 'three';
-import { Terrain, WATER_LEVEL, OASIS } from './terrain';
-import { Water } from './water';
-import { PaperBoat } from './boat';
-import { buildFlora } from './flora';
-import { makeSkyTexture } from './textures';
+import { makeRenderer, makeScene, makeSun, CameraRig } from './render/scene';
+import { TerrainMesh } from './render/terrainMesh';
+import { WaterMesh } from './render/waterMesh';
+import { FX } from './render/fx';
+import { makePaperBoat, makePalmTree, makeShadeCanopy, SolidsRenderer, makeSourceMarker, makeGoalMarker, makeBrushRing } from './render/props';
+import { makePalmLeaf } from './render/textures';
+import { GameManager } from './game/manager';
+import { InputController } from './input';
+import { UI } from './ui';
+import { initAudio, resumeAudio, toggleMute, sfx } from './audio';
+import { N } from './sim/grid';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+const renderer = makeRenderer(canvas);
+const scene = makeScene();
+const sun = makeSun(scene);
+const rig = new CameraRig();
 
-const scene = new THREE.Scene();
-scene.background = makeSkyTexture();
-scene.fog = new THREE.FogExp2(new THREE.Color('#ecd6ad'), 0.012);
+const mgr = new GameManager();
+const grid = mgr.grid;
 
-// ---------- câmera isométrica ortográfica fixa ----------
-const target = new THREE.Vector3(2.0, -0.4, -0.2);
-const camOffset = new THREE.Vector3(14, 13.2, 14);   // ~38° de elevação, 45° azimute
-let frustum = 11;
-const camera = new THREE.OrthographicCamera(-frustum, frustum, frustum, -frustum, -50, 100);
-function placeCamera(px = 0, pz = 0) {
-  camera.position.copy(target).add(camOffset).add(new THREE.Vector3(px, 0, pz));
-  camera.lookAt(target);
+const terrain = new TerrainMesh(grid); scene.add(terrain.mesh);
+const water = new WaterMesh(grid); scene.add(water.mesh);
+const solids = new SolidsRenderer(grid); scene.add(solids.group);
+const fx = new FX(); scene.add(fx.points);
+const leafTex = makePalmLeaf();
+const boatMesh = makePaperBoat(); scene.add(boatMesh);
+const sourceMk = makeSourceMarker(); scene.add(sourceMk);
+const goalMk = makeGoalMarker(); scene.add(goalMk);
+const brushRing = makeBrushRing(); brushRing.visible = false; scene.add(brushRing);
+const scenery = new THREE.Group(); scene.add(scenery);   // palmeiras + canópias por fase
+
+// ---- ferramenta / edição ----
+function onEdit(x: number, z: number): void {
+  if (mgr.state !== 'planning') return;
+  const tool = mgr.tools.active;
+  const ok = mgr.tools.apply(grid, x, z);
+  if (!ok) return;
+  if (tool === 'coco') { /* som leve esporádico */ if (Math.random() < 0.12) sfx.dig(); }
+  else if (tool === 'folha') { sfx.leaf(); const c = makeShadeCanopy(leafTex); c.position.set(x, grid.terrainAt(x, z), z); scenery.add(c); }
+  else sfx.place();
+  if (tool !== 'coco') ui.update(mgr);   // atualiza contagem
 }
-function resize() {
-  const w = innerWidth, h = innerHeight, a = w / h;
-  // em retrato, enquadra o oásis (onde está o barco) e afasta um pouco a câmera
-  if (a < 1) { frustum = 13.5; target.set(-2.6, -0.4, 1.2); }
-  else { frustum = 11; target.set(2.0, -0.4, -0.2); }
-  camera.left = -frustum * a; camera.right = frustum * a; camera.top = frustum; camera.bottom = -frustum;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
+function onHover(p: { x: number; z: number } | null): void {
+  if (!p || mgr.state !== 'planning') { brushRing.visible = false; return; }
+  const t = mgr.tools.active;
+  brushRing.visible = true;
+  brushRing.position.set(p.x, grid.terrainAt(p.x, p.z) + 0.06, p.z);
+  const r = t === 'coco' ? mgr.tools.cocoRadius : t === 'folha' ? 1.7 : 0.4;
+  brushRing.scale.setScalar(r / 1.6);
+  const col = t === 'coco' ? '#fff2cc' : t === 'bambu' ? '#a7d24a' : t === 'pedras' ? '#e0d3b0' : '#7fe08a';
+  (brushRing.material as THREE.MeshBasicMaterial).color.set(col);
 }
-addEventListener('resize', resize);
+const input = new InputController(canvas, rig.camera, rig, { canEdit: () => mgr.state === 'planning', onEdit, onHover });
+input.setTarget(terrain.mesh);
 
-// ---------- iluminação quente ----------
-scene.add(new THREE.HemisphereLight(new THREE.Color('#ffe9c4'), new THREE.Color('#b0824c'), 0.55));
-scene.add(new THREE.AmbientLight(new THREE.Color('#6a5636'), 0.25));
-const sun = new THREE.DirectionalLight(new THREE.Color('#fff1d2'), 2.3);
-sun.position.copy(target).add(new THREE.Vector3(-12, 15, -9));
-sun.target.position.copy(target);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -16; sun.shadow.camera.right = 16;
-sun.shadow.camera.top = 16; sun.shadow.camera.bottom = -16;
-sun.shadow.camera.near = 1; sun.shadow.camera.far = 60;
-sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; sun.shadow.radius = 4;
-scene.add(sun, sun.target);
-
-// ---------- conteúdo da cena ----------
-const terrain = new Terrain();
-scene.add(terrain.mesh);
-const water = new Water(terrain);
-scene.add(water.mesh);
-const boat = new PaperBoat(OASIS.x + 1.6, OASIS.z + 0.2);
-scene.add(boat.mesh);
-scene.add(buildFlora(terrain));
-
-// grade sutil de "marcas na areia" (só no Planejamento)
-const gridOverlay = (() => {
-  const pts: number[] = []; const x0 = -9, x1 = 11, z0 = -6, z1 = 7, major = 1, fine = 0.5;
-  for (let z = z0; z <= z1; z += major) for (let x = x0; x < x1; x += fine)
-    pts.push(x, terrain.heightAt(x, z) + 0.03, z, x + fine, terrain.heightAt(x + fine, z) + 0.03, z);
-  for (let x = x0; x <= x1; x += major) for (let z = z0; z < z1; z += fine)
-    pts.push(x, terrain.heightAt(x, z) + 0.03, z, x, terrain.heightAt(x, z + fine) + 0.03, z + fine);
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  const m = new THREE.LineBasicMaterial({ color: new THREE.Color('#8a6636'), transparent: true, opacity: 0.10 });
-  return new THREE.LineSegments(g, m);
-})();
-scene.add(gridOverlay);
-
-// ---------- estado / interação mínima ----------
-type Mode = 'plan' | 'run';
-let mode: Mode = 'plan';
-let waterSpeed = 0.7, targetSpeed = 0.7;
-const hintEl = document.getElementById('hint')!;
-
-const TOOLS = [
-  { id: 'coco', name: 'Casca de Coco', sub: 'escavar', svg: `<svg viewBox="0 0 32 32"><path d="M5 16a11 8 0 0 0 22 0z" fill="#6b4626"/><path d="M6 16a10 6 0 0 1 20 0z" fill="#d9c39a"/><circle cx="12" cy="14.5" r="1.5" fill="#5a3d20"/><circle cx="16" cy="15" r="1.5" fill="#5a3d20"/><circle cx="20" cy="14.5" r="1.5" fill="#5a3d20"/><path d="M5 16a11 8 0 0 0 22 0" fill="none" stroke="#3f2913" stroke-width="1.4"/></svg>` },
-  { id: 'bambu', name: 'Bambu', sub: 'canal', svg: `<svg viewBox="0 0 32 32"><rect x="9" y="4" width="6" height="24" rx="3" fill="#9fb163"/><rect x="17" y="4" width="6" height="24" rx="3" fill="#8aa050"/><path d="M9 11h6M9 20h6M17 9h6M17 18h6" stroke="#5f7333" stroke-width="1.6"/></svg>` },
-  { id: 'pedras', name: 'Pedras & Conchas', sub: 'fluxo', svg: `<svg viewBox="0 0 32 32"><ellipse cx="11" cy="20" rx="7" ry="5" fill="#b3a483"/><ellipse cx="11" cy="19" rx="7" ry="5" fill="#c3b795"/><path d="M20 22a6 6 0 0 1 9-4c-2 3-5 4-9 4z" fill="#f0dfc6"/><path d="M20 22a6 6 0 0 1 9-4" fill="none" stroke="#caa877" stroke-width="1"/><path d="M23 21l1-4M25 21l1-4M27 20l1-3" stroke="#caa877" stroke-width="0.9"/></svg>` },
-  { id: 'folha', name: 'Folha de Palmeira', sub: 'sombra', svg: `<svg viewBox="0 0 32 32"><path d="M16 28C16 16 8 8 4 6c6 0 11 4 12 10C17 10 22 6 28 6c-4 2-12 10-12 22z" fill="#5f9a34"/><path d="M16 28V8" stroke="#3d6b20" stroke-width="1.4"/></svg>` },
-];
-let activeTool = 'coco';
-const toolsEl = document.getElementById('tools')!;
-for (const t of TOOLS) {
-  const btn = document.createElement('button');
-  btn.className = 'tool' + (t.id === activeTool ? ' active' : '');
-  btn.innerHTML = `<span class="tool-badge">${t.svg}</span><span class="tool-name">${t.name}</span><span class="tool-sub">${t.sub}</span>`;
-  btn.onclick = () => {
-    activeTool = t.id;
-    [...toolsEl.children].forEach((c) => c.classList.remove('active'));
-    btn.classList.add('active');
-    hintEl.textContent = `Ferramenta: ${t.name}. Nesta demo o efeito é apenas visual — a mecânica entra na implementação.`;
-  };
-  toolsEl.appendChild(btn);
+// ---- montar cena para a fase atual ----
+function setupLevelScene(): void {
+  terrain.refresh(); solids.rebuild();
+  // limpar cenário
+  while (scenery.children.length) scenery.remove(scenery.children[0]);
+  // marcadores
+  const [gx, gz] = mgr.goal; goalMk.position.set(gx, grid.terrainAt(gx, gz), gz);
+  // centro da nascente
+  let sx = 0, sz = 0, sn = 0;
+  for (let k = 0; k < N * N; k++) if (grid.source[k]) { const i = k % N, j = (k / N) | 0; const [wx, wz] = grid.cellToWorld(i, j); sx += wx; sz += wz; sn++; }
+  if (sn) { sx /= sn; sz /= sn; } sourceMk.position.set(sx, grid.terrainAt(sx, sz) - 0.05, sz);
+  // palmeiras decorativas ao redor da nascente e cantos
+  const spots: [number, number, number][] = [[sx - 1.6, sz - 1.4, 3.4], [sx + 1.8, sz + 1.2, 2.6], [gx + 2.0, gz + 1.5, 3.0]];
+  for (const [px, pz, h] of spots) { const p = makePalmTree(h, leafTex); p.position.set(px, grid.terrainAt(px, pz), pz); scenery.add(p); }
+  // barco na largada
+  placeBoatMesh();
+  // enquadrar câmera entre largada e destino
+  rig.focus((mgr.boat.x + gx) / 2, (mgr.boat.z + gz) / 2);
 }
 
-function setMode(m: Mode) {
-  mode = m;
-  document.querySelectorAll('.ph-opt').forEach((b) => b.classList.toggle('active', (b as HTMLElement).dataset.mode === m));
-  targetSpeed = m === 'run' ? 2.0 : 0.7;
-  gridOverlay.visible = m === 'plan';
-  hintEl.textContent = m === 'run'
-    ? 'Execução: a água ganha vida e o barco é levado pela correnteza. (Amostra visual.)'
-    : 'Planejamento: tempo pausado. Aqui o jogador molda o terreno e posiciona os objetos.';
+function placeBoatMesh(): void {
+  const b = mgr.boat; const surf = Math.max(grid.terrainAt(b.x, b.z), grid.terrainAt(b.x, b.z) + grid.waterAt(b.x, b.z));
+  boatMesh.position.set(b.x, surf + 0.06 + Math.sin(b.bob * 1.8) * 0.03, b.z);
+  boatMesh.rotation.set(Math.sin(b.bob) * 0.04, b.heading, Math.sin(b.bob * 1.3) * 0.05 + (b.collideFlash > 0 ? 0.2 : 0));
+  (boatMesh.material as THREE.MeshStandardMaterial).emissive.setRGB(b.collideFlash * 0.4, 0, 0);
 }
-document.querySelectorAll('.ph-opt').forEach((b) => b.addEventListener('click', () => setMode((b as HTMLElement).dataset.mode as Mode)));
-document.getElementById('runBtn')!.addEventListener('click', () => setMode('run'));
 
-// leve parallax de câmera com o ponteiro (mantém o enquadramento isométrico)
-let px = 0, pz = 0, tpx = 0, tpz = 0;
-addEventListener('pointermove', (e) => {
-  const nx = e.clientX / innerWidth - 0.5, ny = e.clientY / innerHeight - 0.5;
-  tpx = nx * 1.6; tpz = ny * 1.2;
+// ---- callbacks da UI ----
+const ui = new UI({
+  pickLevel: (id) => { resumeAudio(); mgr.loadLevel(id); setupLevelScene(); ui.showGame(); ui.update(mgr); sfx.ui(); },
+  selectTool: (t) => { mgr.tools.active = t; sfx.ui(); ui.update(mgr); },
+  cocoMode: (m) => { mgr.tools.cocoMode = m; sfx.ui(); ui.update(mgr); },
+  startRun: () => { mgr.startRun(); sfx.start(); ui.update(mgr); },
+  backPlanning: () => { mgr.backToPlanning(); ui.update(mgr); },
+  restart: () => { mgr.restartLevel(); setupLevelScene(); ui.update(mgr); },
+  next: () => { if (mgr.nextLevel()) { setupLevelScene(); ui.update(mgr); } else ui.showMenu(); },
+  menu: () => { ui.showMenu(); },
+  pauseToggle: () => { if (mgr.state === 'running') mgr.pause(); else if (mgr.state === 'paused') mgr.resume(); ui.update(mgr); },
+  mute: () => { ui.setMuted(toggleMute()); },
 });
+mgr.onChange = () => ui.update(mgr);
+(window as any).__mgr = mgr;   // diagnóstico
+ui.showMenu();
 
-// ---------- loop ----------
-resize();
-const clock = new THREE.Clock();
-let t = 0;
-function frame() {
+// ---- áudio no primeiro gesto ----
+addEventListener('pointerdown', () => resumeAudio(), { once: true });
+initAudio();
+
+// ---- efeitos derivados do estado ----
+let prevState = mgr.state; let splashCd = 0; let bubbleCd = 0;
+function reactToState(): void {
+  if (mgr.state === prevState) return;
+  if (mgr.state === 'victory') { fx.sparkle(boatMesh.position.x, boatMesh.position.y + 0.4, boatMesh.position.z, 40); sfx.win(); for (let i = 0; i < mgr.stars; i++) setTimeout(() => sfx.star(), 400 + i * 200); }
+  if (mgr.state === 'failure') { if (mgr.failReason === 'destroyed') fx.splash(boatMesh.position.x, boatMesh.position.y, boatMesh.position.z, 18); sfx.lose(); }
+  prevState = mgr.state;
+}
+
+// ---- loop ----
+function resize(): void { const w = innerWidth, h = innerHeight; renderer.setSize(w, h); rig.resize(w, h); }
+addEventListener('resize', resize); resize();
+
+const clock = new THREE.Clock(); let t = 0;
+function frame(): void {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;
-  waterSpeed += (targetSpeed - waterSpeed) * Math.min(1, dt * 2);
-  px += (tpx - px) * Math.min(1, dt * 2); pz += (tpz - pz) * Math.min(1, dt * 2);
-  placeCamera(px, pz);
-  water.update(t, waterSpeed);
-  boat.update(t, mode === 'run');
-  renderer.render(scene, camera);
+  mgr.update(dt);
+  reactToState();
+
+  if (grid.dirty) { terrain.refresh(); solids.rebuild(); }
+  const running = mgr.state === 'running';
+  water.update(t, running ? 1.7 : 0.7);
+  placeBoatMesh();
+
+  // respingo ao colidir
+  splashCd -= dt;
+  if (mgr.boat.splash > 0.6 && splashCd <= 0) { fx.splash(boatMesh.position.x, boatMesh.position.y, boatMesh.position.z, 8); sfx.splash(); splashCd = 0.25; }
+  // borbulhas na nascente durante a execução
+  if (running) { bubbleCd -= dt; if (bubbleCd <= 0) { fx.bubble(sourceMk.position.x + (Math.random() - 0.5), sourceMk.position.y + 0.3, sourceMk.position.z + (Math.random() - 0.5)); bubbleCd = 0.12; } }
+  fx.update(dt);
+
+  ui.update(mgr);   // leve (rebuilds estruturais são guardados internamente)
+  renderer.render(scene, rig.camera);
   requestAnimationFrame(frame);
 }
-setMode('plan');
 frame();
