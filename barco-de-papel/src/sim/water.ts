@@ -19,7 +19,9 @@ export const DEFAULT_WATER: WaterParams = {
   // a ponta oposta, com teto de nascente que evita alagar o oásis inteiro. O
   // escoadouro na chegada limita a lâmina lá, criando um rio que sempre corre
   // (e não uma poça parada) — leva o barco até o fim de forma confiável.
-  flowRate: 0.85, minWater: 0.0015, evapBase: 0.02, sourceRate: 5.4, maxSource: 6.0, drainCap: 0.3,
+  // O grosso da água vem do LAGO já cheio; a nascente é só uma fonte discreta
+  // que mantém o lago abastecido (não faz água "surgir do nada" sobre a areia).
+  flowRate: 0.85, minWater: 0.0015, evapBase: 0.02, sourceRate: 4.4, maxSource: 5.0, drainCap: 0.3,
 };
 
 // avança a simulação por um passo de tempo fixo dt

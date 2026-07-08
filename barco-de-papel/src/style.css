@@ -56,8 +56,17 @@ html, body { height: 100%; overflow: hidden; background: #d8b483;
 .hp-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #6fae3c, #a7d24a); transition: width 0.15s; }
 .hint-banner { position: absolute; top: 74px; left: 14px; max-width: 320px; font-size: 13px; line-height: 1.45; color: #5a4426;
   background: linear-gradient(180deg, rgba(245,232,203,0.94), rgba(232,214,175,0.94)); padding: 10px 14px; border-radius: 4px 14px 4px 14px; border: 1.5px solid #c2a468; box-shadow: 0 4px 10px var(--sombra); }
+.hint-banner { padding-right: 30px; }
 .hint-banner b { color: #5a3d1c; }
 .hint-sub { margin-top: 6px; font-size: 12px; color: #7a5f36; font-style: italic; }
+.hint-x { position: absolute; top: 5px; right: 6px; width: 22px; height: 22px; padding: 0; line-height: 1;
+  border-radius: 50%; border: 1.5px solid #c2a468; background: rgba(255,248,228,0.85); color: #7a5f36;
+  font-size: 13px; cursor: pointer; box-shadow: 0 1px 3px var(--sombra); }
+.hint-x:hover { background: #fff6e0; color: #5a3d1c; }
+.hint-reopen { position: absolute; top: 74px; left: 14px; width: 34px; height: 34px; border-radius: 50%;
+  border: 1.5px solid #c2a468; background: linear-gradient(180deg, rgba(245,232,203,0.94), rgba(232,214,175,0.94));
+  color: #6a4d24; font-weight: 700; font-size: 17px; cursor: pointer; box-shadow: 0 3px 8px var(--sombra); }
+.hint-reopen:hover { background: #fff6e0; }
 
 /* rótulos flutuantes de mundo (Início / Chegada) */
 .world-label { position: absolute; z-index: 3; transform: translate(-50%, -100%); pointer-events: none; white-space: nowrap;

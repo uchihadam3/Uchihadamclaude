@@ -42,6 +42,7 @@ export class UI {
   root: HTMLElement;
   private cb: UICallbacks;
   private _phaseKind = ''; private _modalKey = '';
+  private _hintHidden = false; private _hintKey = '';
   constructor(cb: UICallbacks) {
     this.cb = cb;
     this.root = document.getElementById('ui')!;
@@ -98,6 +99,7 @@ export class UI {
       </div>
 
       <div class="hint-banner" id="hint"></div>
+      <button class="hint-reopen hidden" id="hintReopen" title="Ver objetivo">?</button>
 
       <div class="dock">
         <div class="tool-shelf" id="toolShelf">
@@ -126,6 +128,16 @@ export class UI {
     el.querySelector('#btnMenu')!.addEventListener('click', () => this.cb.menu());
     el.querySelector('#btnPause')!.addEventListener('click', () => this.cb.pauseToggle());
     el.querySelector('#btnMute')!.addEventListener('click', () => this.cb.mute());
+    // objetivo pode ser ocultado (não atrapalhar a vista) e reaberto no "?"
+    el.querySelector('#hint')!.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-hintx]')) { this._hintHidden = true; this.applyHintVis(true); }
+    });
+    el.querySelector('#hintReopen')!.addEventListener('click', () => { this._hintHidden = false; this.applyHintVis(true); });
+  }
+
+  private applyHintVis(planning: boolean): void {
+    this.q('#hint').classList.toggle('hidden', !(planning && !this._hintHidden));
+    this.q('#hintReopen').classList.toggle('hidden', !(planning && this._hintHidden));
   }
 
   showMenu(): void { this.refreshLevels(); this.q('#menu').classList.remove('hidden'); this.q('#game').classList.add('hidden'); }
@@ -138,8 +150,13 @@ export class UI {
     const planning = m.state === 'planning';
     this.q('#hudLevel').textContent = `Fase ${m.levelIndex + 1} · ${m.level.name}`;
     this.q('#hudTime').textContent = fmt(m.timeSec);
-    if (planning) this.q('#hint').innerHTML = `<b>Objetivo:</b> leve o barco de papel do <b>Início</b> até a <b>Chegada</b> — molde a areia para a água correr até lá.<div class="hint-sub">${m.level.hint}</div>`;
-    (this.q('#hint') as HTMLElement).style.display = planning ? '' : 'none';
+    // conteúdo do objetivo só é reescrito ao trocar de fase (não a cada quadro);
+    // ao entrar numa fase nova ele reaparece.
+    if (planning && this._hintKey !== m.level.name) {
+      this._hintKey = m.level.name; this._hintHidden = false;
+      this.q('#hint').innerHTML = `<button class="hint-x" data-hintx title="Ocultar" aria-label="Ocultar objetivo">✕</button><b>Objetivo:</b> leve o barco de papel do <b>Início</b> até a <b>Chegada</b> — molde a areia para a água correr até lá.<div class="hint-sub">${m.level.hint}</div>`;
+    }
+    this.applyHintVis(planning);
 
     // saúde do barco (na Execução)
     const showHp = m.state === 'running' || m.state === 'paused';

@@ -21,6 +21,7 @@ export class GameManager {
   level!: LevelDef;
   goal: [number, number] = [0, 0]; goalR = 1.5;
   private startBoat: [number, number] = [0, 0];
+  private lakeCx = 0; private lakeCz = 0;   // centro do lago da nascente
   timeSec = 0; stars = 0; failReason: FailReason = 'stuck';
   private params: WaterParams = { ...DEFAULT_WATER };
   private acc = 0;
@@ -33,10 +34,11 @@ export class GameManager {
     g.flowX.fill(0); g.flowZ.fill(0); g.shaded.fill(0); g.evap.fill(0);
     g.solid.fill(0); g.source.fill(0); g.drain.fill(0); g.dirty = true;
     const gl = this.level.build(g);
-    // bacias suaves na nascente e no destino → poças bonitas de partida/chegada
+    // centro da nascente → cava um LAGO fundo (a água já fica ali desde o início)
     let sx = 0, sz = 0, sn = 0;
     for (let k = 0; k < N * N; k++) if (g.source[k]) { const i = k % N, j = (k / N) | 0; const [wx, wz] = g.cellToWorld(i, j); sx += wx; sz += wz; sn++; }
-    if (sn) { bowl(g, sx / sn, sz / sn, 2.2, 0.5); }
+    if (sn) { this.lakeCx = sx / sn; this.lakeCz = sz / sn; }
+    bowl(g, this.lakeCx, this.lakeCz, 4.2, 1.4);   // bacia do lago (funda e larga)
     bowl(g, gl.goal[0], gl.goal[1], 2.6, 0.55);
     // escoadouro no coração da chegada: puxa a correnteza para o destino
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
@@ -46,21 +48,39 @@ export class GameManager {
     this.startBoat = gl.boat; this.goal = gl.goal; this.goalR = gl.goalR;
     this.tools.setBudget(this.level.tools);
     this.tools.active = 'coco'; this.tools.cocoMode = 'lower';
+    this.fillLake();                                 // o lago já nasce cheio
     this.boat.spawn(gl.boat[0], gl.boat[1], gl.goal, gl.goalR);
     this.timeSec = 0; this.state = 'planning';
     this.onChange();
   }
 
+  // Enche o LAGO da nascente até uma lâmina contida pela bacia. A água já está
+  // ali (no Planejamento e ao iniciar): não surge do nada — só transborda pela
+  // canaleta que o jogador abrir quando a simulação roda.
+  private fillLake(): void {
+    const g = this.grid;
+    g.water.fill(0); g.waterBuf.fill(0); g.flowX.fill(0); g.flowZ.fill(0);
+    const surface = g.terrainAt(this.lakeCx, this.lakeCz) + 1.3;    // lâmina do lago
+    const R = 5.2;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const [wx, wz] = g.cellToWorld(i, j);
+      if (Math.hypot(wx - this.lakeCx, wz - this.lakeCz) > R) continue;
+      const k = g.idx(i, j); const w = surface - g.terrain[k];
+      if (w > 0) g.water[k] = w;   // contido pela subida do terreno (bacia)
+    }
+    g.dirty = true;
+  }
+
   startRun(): void {
     if (this.state !== 'planning') return;
-    this.grid.reset();
+    this.fillLake();                                 // parte do lago cheio (nada surge)
     this.boat.spawn(this.startBoat[0], this.startBoat[1], this.goal, this.goalR);
     this.timeSec = 0; this.acc = 0; this.state = 'running';
     this.onChange();
   }
 
   backToPlanning(): void {           // tentar de novo mantendo o terreno
-    this.grid.reset();
+    this.fillLake();
     this.boat.spawn(this.startBoat[0], this.startBoat[1], this.goal, this.goalR);
     this.state = 'planning'; this.onChange();
   }
