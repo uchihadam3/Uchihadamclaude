@@ -21,9 +21,13 @@ export class GameManager {
   onChange: () => void = () => {};
   onToast: (msg: string, kind?: string) => void = () => {};
   onFlick: (cap: Cap, power: number) => void = () => {};
+  onCheckpoint: (cap: Cap, n: number) => void = () => {};
   private acc = 0;
   private aiTimer = 0; private aiFired = false;
   lastFlickOut = false;
+  manualControl = false;         // online: os petelecos vêm de fora (nada de IA automática)
+  cpArcs: number[] = [];         // posição (arco) de cada checkpoint — registro confiável
+  flickCount = 0;                // nº monotônico de petelecos (token do lockstep online)
 
   setup(def: TrackDef, players: PlayerDef[]): void {
     this.track = new TrackModel(def);
@@ -47,7 +51,10 @@ export class GameManager {
       c.cpPos = vec(c.pos.x, c.pos.y); c.turnStart = vec(c.pos.x, c.pos.y);
       c.progress = this.track.progressOf(c.pos); c.checkpoint = 0;
     });
-    this.finishOrder = []; this.current = 0; this.turnNo = 1; this.phase = 'aim';
+    // arco de cada checkpoint (registro por PROGRESSO, não por proximidade — funciona
+    // mesmo com o corredor largo, quando a tampinha cruza longe do centro do checkpoint)
+    this.cpArcs = this.track.def.checkpoints.map(cp => this.track.progressOf(vec(cp.x, cp.y)));
+    this.finishOrder = []; this.current = 0; this.turnNo = 1; this.phase = 'aim'; this.flickCount = 0;
     this.beginTurn(true);
     this.onChange();
   }
@@ -70,7 +77,7 @@ export class GameManager {
     c.turnStart = vec(c.pos.x, c.pos.y);
     this.phase = 'aim'; this.aiTimer = 0; this.aiFired = false;
     if (!first) this.turnNo++;
-    if (!c.isAI) this.onToast('Sua vez, ' + c.name, 'turn');
+    if (!c.isAI && !this.manualControl) this.onToast('Sua vez, ' + c.name, 'turn');
     this.onChange();
   }
 
@@ -90,6 +97,7 @@ export class GameManager {
     c.z = 0; c.vz = 0; c.airborne = false;
     c.vel = mul(d, sp); c.moving = true;
     this.lastFlickOut = false;
+    this.flickCount++;              // conta o peteléco (token único p/ o online)
     this.phase = 'resolve'; this.acc = 0;
     this.onFlick(c, power);
     this.onChange();
@@ -98,6 +106,7 @@ export class GameManager {
   update(dt: number): void {
     if (this.phase === 'over') return;
     if (this.phase === 'aim') {
+      if (this.manualControl) return;   // online: quem controla dispara de fora
       const c = this.activeCap();
       if (c.isAI) {
         this.aiTimer += dt;
@@ -115,7 +124,7 @@ export class GameManager {
       const evs = stepWorld(this.caps, this.track, FIXED);
       for (const e of evs) this.handleEvent(e);
       this.acc -= FIXED; steps++;
-      if (this.phase === 'over') return;
+      if ((this.phase as string) === 'over') return;   // handleEvent pode ter encerrado a corrida
     }
     if (!anyMoving(this.caps)) this.endFlick();
   }
@@ -136,10 +145,14 @@ export class GameManager {
   }
 
   private updateCheckpoint(c: Cap): void {
-    const cps = this.track.def.checkpoints;
-    for (let i = c.checkpoint + 1; i < cps.length; i++) {
-      if (Math.hypot(c.pos.x - cps[i].x, c.pos.y - cps[i].y) < 4.2) { c.checkpoint = i; c.cpPos = vec(cps[i].x, cps[i].y); }
+    const arcs = this.cpArcs; let advanced = -1;
+    for (let i = c.checkpoint + 1; i < arcs.length; i++) {
+      if (c.progress + 0.3 >= arcs[i]) {                 // cruzou a linha do checkpoint (por arco)
+        c.checkpoint = i; const pt = this.track.atArc(arcs[i]).p;
+        c.cpPos = vec(pt.x, pt.y); advanced = i;         // fica SALVO ali: buraco volta pra cá
+      } else break;
     }
+    if (advanced > 0) { this.onCheckpoint(c, advanced); if (!c.isAI) this.onToast('Checkpoint ' + advanced + ' ✓', 'turn'); }
   }
 
   private onFinish(c: Cap): void {
@@ -182,4 +195,25 @@ export class GameManager {
     });
   }
   winner(): Cap | null { return this.finishOrder[0] || null; }
+
+  // -------- ONLINE: estado autoritativo do anfitrião (enviado em repouso) --------
+  snapshot(): any {
+    return {
+      cur: this.current, tn: this.turnNo, ph: this.phase, fc: this.flickCount, fin: this.finishOrder.map(c => c.id),
+      caps: this.caps.map(c => ({ i: c.id, x: c.pos.x, y: c.pos.y, pr: c.progress, cp: c.checkpoint, cx: c.cpPos.x, cy: c.cpPos.y, tx: c.turnStart.x, ty: c.turnStart.y, fl: c.flicksLeft, bf: c.bonusFlicks, sk: c.skipTurns, fn: c.finished, pl: c.place, ai: c.isAI })),
+    };
+  }
+  applySnapshot(s: any): void {
+    if (!s || !s.caps) return;
+    this.current = s.cur; this.turnNo = s.tn; this.phase = s.ph; if (typeof s.fc === 'number') this.flickCount = s.fc;
+    for (const cs of s.caps) {
+      const c = this.caps[cs.i]; if (!c) continue;
+      c.pos.x = cs.x; c.pos.y = cs.y; c.vel.x = 0; c.vel.y = 0; c.z = 0; c.vz = 0; c.airborne = false; c.moving = false;
+      c.progress = cs.pr; c.checkpoint = cs.cp; c.cpPos = vec(cs.cx, cs.cy); c.turnStart = vec(cs.tx, cs.ty);
+      c.flicksLeft = cs.fl; c.bonusFlicks = cs.bf; c.skipTurns = cs.sk; c.finished = cs.fn; c.place = cs.pl; c.isAI = cs.ai;
+    }
+    this.finishOrder = (s.fin || []).map((id: number) => this.caps[id]).filter(Boolean);
+    if (this.phase === 'over') { /* deixa o main mostrar resultados */ }
+    this.onChange();
+  }
 }

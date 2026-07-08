@@ -100,8 +100,21 @@ export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
   c.strokeStyle = 'rgba(255,255,255,0.30)'; c.lineWidth = Math.max(2, px * 0.16); c.setLineDash([px, px * 1.2]);
   c.beginPath(); def.path.forEach((p, i) => { const [x, y] = map(p.x, p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.setLineDash([]);
 
-  // checkpoints (número)
-  def.checkpoints.forEach((cp, i) => { if (i === 0) return; const [x, y] = map(cp.x, cp.y); c.fillStyle = 'rgba(255,255,255,0.55)'; c.beginPath(); c.arc(x, y, px * 0.4, 0, 7); c.fill(); c.fillStyle = 'rgba(60,60,60,0.7)'; c.font = `bold ${Math.round(px * 0.7)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(i), x, y + 1); });
+  // CHECKPOINTS — bem visíveis: uma FAIXA azul atravessando o corredor + número
+  // grande num círculo. Passar por cima registra o checkpoint (regra por arco).
+  const nearestIdx = (q: { x: number; y: number }): number => { let bi = 0, bd = 1e9; for (let k = 0; k < def.path.length; k++) { const dx = def.path[k].x - q.x, dy = def.path[k].y - q.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = k; } } return bi; };
+  def.checkpoints.forEach((cp, i) => {
+    if (i === 0) return;
+    const bi = nearestIdx(cp); const a = def.path[Math.max(0, bi - 1)], b = def.path[Math.min(def.path.length - 1, bi + 1)];
+    let nx = -(b.y - a.y), ny = (b.x - a.x); const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l; const hw = def.half[bi];
+    const [x1, y1] = map(cp.x + nx * hw, cp.y + ny * hw), [x2, y2] = map(cp.x - nx * hw, cp.y - ny * hw), [xc, yc] = map(cp.x, cp.y);
+    c.lineCap = 'butt';
+    c.strokeStyle = 'rgba(40,190,235,0.42)'; c.lineWidth = px * 1.1; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = Math.max(2, px * 0.18); c.setLineDash([px * 0.55, px * 0.4]); c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); c.setLineDash([]);
+    c.fillStyle = '#1f9ad0'; c.beginPath(); c.arc(xc, yc, px * 0.66, 0, 7); c.fill();
+    c.lineWidth = Math.max(2, px * 0.14); c.strokeStyle = '#eafcff'; c.stroke();
+    c.fillStyle = '#fff'; c.font = `900 ${Math.round(px * 0.82)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(i), xc, yc + 1);
+  });
 
   // largada + chegada (xadrez)
   const checker = (a: [number, number], b: [number, number], col: string) => {

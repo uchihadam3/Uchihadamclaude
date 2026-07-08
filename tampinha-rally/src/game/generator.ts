@@ -171,7 +171,21 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   for (let k = 0, tries = 0; k < ri(p.holes[0], p.holes[1]) && tries < 40; tries++) { const a = rf(0.14, 0.9) * total; if (!spaced(a)) continue; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.32, half0 * 0.62), pp => obstacles.push({ type: 'hole', x: pp.x, y: pp.y, r: rf(1.0, 1.4) })); k++; }
   for (let k = 0, tries = 0; k < ri(p.bombs[0], p.bombs[1]) && tries < 30; tries++) { const a = rf(0.2, 0.85) * total; if (!spaced(a)) continue; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.38, half0 * 0.7), pp => obstacles.push({ type: 'bomb', x: pp.x, y: pp.y, r: 0.95 })); k++; }
   for (let k = 0; k < ri(p.stones[0], p.stones[1]); k++) { const a = rf(0.1, 0.92) * total; const off = (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.3, half0 * 0.75); const pp = onPath(a, off); obstacles.push({ type: 'stone', x: pp.x, y: pp.y, r: rf(0.7, 1.2) }); }
-  for (let k = 0, tries = 0; k < ri(p.bonus[0], p.bonus[1]) && tries < 30; tries++) { const a = rf(0.15, 0.9) * total; if (!spaced(a)) continue; const roll = rng(); const n = roll > 0.94 ? 3 : roll > 0.72 ? 2 : 1; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.2, half0 * 0.7), pp => obstacles.push({ type: 'bonus', x: pp.x, y: pp.y, r: 1.1, n })); k++; }
+  // BÔNUS EM LUGARES ARRISCADOS — o prêmio mede o perigo. +1 já fica na beira (pode
+  // sair da pista); +2 mais na beira ainda; +3 colado na borda COM um buraco logo além
+  // (ou você acerta a mira, ou cai/sai). Nada de bônus fácil no meio da pista.
+  for (let k = 0, tries = 0; k < ri(p.bonus[0], p.bonus[1]) && tries < 40; tries++) {
+    const a = rf(0.16, 0.88) * total; if (!spaced(a)) continue;
+    const roll = rng(); const n = roll > 0.80 ? 3 : roll > 0.44 ? 2 : 1;
+    const side = rng() < 0.5 ? -1 : 1; const ii = atArc(a).i; const hw = halfArr[Math.min(N - 1, ii)];
+    const frac = n === 3 ? 0.96 : n === 2 ? 0.82 : 0.64;      // quanto maior, mais pra beira
+    placeAt(a, side * hw * frac, pp => obstacles.push({ type: 'bonus', x: pp.x, y: pp.y, r: 1.1, n }));
+    if (n >= 2) {                                             // guardião: buraco pra fora, punindo o exagero
+      const g = onPath(a + rf(-1.2, 1.2), side * hw * (n === 3 ? 1.12 : 1.02));
+      obstacles.push({ type: 'hole', x: g.x, y: g.y, r: n === 3 ? rf(1.3, 1.7) : rf(1.0, 1.3) });
+    }
+    k++;
+  }
 
   // RAMPA DE SALTO com um BURACO grande logo à frente — só passa quem chega com
   // velocidade (pula por cima); devagar, cai. Escolhe um trecho retinho.

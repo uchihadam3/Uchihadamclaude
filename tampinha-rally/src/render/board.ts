@@ -12,6 +12,7 @@ function markerTex(kind: string, n = 1): THREE.CanvasTexture {
   const cx = S / 2, cy = S / 2;
   if (kind === 'jumparrow') { c.clearRect(0, 0, S, S); c.strokeStyle = 'rgba(90,255,140,0.95)'; c.lineWidth = 16; c.lineCap = 'round'; c.lineJoin = 'round'; for (let i = -1; i <= 1; i++) { const y = cy + i * 34; c.beginPath(); c.moveTo(cx - 34, y + 16); c.lineTo(cx, y - 16); c.lineTo(cx + 34, y + 16); c.stroke(); } }
   else if (kind === 'bomb') { c.fillStyle = '#c0392b'; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx - 28, cy - 28); c.lineTo(cx + 28, cy + 28); c.moveTo(cx + 28, cy - 28); c.lineTo(cx - 28, cy + 28); c.stroke(); }
+  else if (kind === 'cp') { c.clearRect(0, 0, S, S); c.fillStyle = '#1f9ad0'; c.strokeStyle = '#eafcff'; c.lineWidth = 8; c.beginPath(); c.arc(cx, cy, S * 0.42, 0, 7); c.fill(); c.stroke(); c.fillStyle = '#dff6ff'; c.font = '800 22px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('CHECK', cx, cy - 24); c.fillStyle = '#fff'; c.font = '900 62px sans-serif'; c.fillText(String(n), cx, cy + 18); }
   else { const col = n >= 3 ? '#e0a020' : n === 2 ? '#2e9fa4' : '#2ea44f'; c.fillStyle = col; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 58px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+' + n, cx, cy + 4); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
@@ -111,6 +112,26 @@ export function buildBoard(def: TrackDef): BoardBuild {
       glow.rotation.x = -Math.PI / 2; glow.position.set(o.x, 0.025, o.y); group.add(glow); pulses.push({ mesh: glow, kind: 'bonus', base: o.r * 1.6 });
     }
   }
+
+  // CHECKPOINTS — portais luminosos (2 postes + faixa no chão + placa com número)
+  def.checkpoints.forEach((cp, i) => {
+    if (i === 0) return;
+    let bi = 0, bd = 1e9; for (let k = 0; k < def.path.length; k++) { const dx = def.path[k].x - cp.x, dy = def.path[k].y - cp.y, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = k; } }
+    const a = def.path[Math.max(0, bi - 1)], b = def.path[Math.min(def.path.length - 1, bi + 1)];
+    let nx = -(b.y - a.y), ny = (b.x - a.x); const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    const tx = (b.x - a.x) / l, ty = (b.y - a.y) / l; const hw = def.half[bi]; const col = '#28c0e0';
+    for (const sgn of [1, -1]) {
+      const pxp = cp.x + nx * hw * sgn, pyp = cp.y + ny * hw * sgn;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 2.3, 10), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.4 }));
+      post.position.set(pxp, 1.15, pyp); post.castShadow = true; group.add(post);
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshStandardMaterial({ color: '#eaffff', emissive: col, emissiveIntensity: 0.9 }));
+      knob.position.set(pxp, 2.42, pyp); group.add(knob); spinners.push(knob);
+    }
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(hw * 2, 0.9), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }));
+    strip.rotation.x = -Math.PI / 2; strip.rotation.z = -Math.atan2(ty, tx); strip.position.set(cp.x, 0.03, cp.y); group.add(strip);
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7), new THREE.MeshBasicMaterial({ map: markerTex('cp', i), transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    plate.position.set(cp.x, 2.9, cp.y); plate.rotation.y = -Math.atan2(ty, tx); group.add(plate);
+  });
 
   // decoração
   for (const d of def.decor) {

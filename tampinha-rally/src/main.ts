@@ -9,6 +9,7 @@ import { track, TRACKS_PER_LEVEL } from './game/generator';
 import { SURF, len } from './engine/core';
 import { InputController } from './input';
 import { UI, MatchConfig, Mode } from './ui';
+import { Online } from './net/online';
 import { sfx, resumeAudio, startMusic, stopMusic, setMusicVol, setSfxVol, setMuted, settings } from './audio';
 import { save } from './game/save';
 
@@ -21,6 +22,7 @@ const caps = new CapsRenderer();
 const fx = new Particles();
 const aim = new Aim();
 const mgr = new GameManager();
+const online = new Online();
 
 let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
@@ -39,6 +41,7 @@ function loadMatch(cfg: MatchConfig): void {
   scene.add(caps.group, fx.points, aim.group);
   rig = new CameraRig(def.w, def.h); rig.setFrustum(21, innerWidth, innerHeight); resize();
   mgr.setup(def, cfg.players);
+  mgr.manualControl = cfg.mode === 'online'; online.bind(mgr);
   caps.build(mgr.caps);
   input.setCamera(rig.camera, rig);
   ui.showGame(); inGame = true;
@@ -46,7 +49,8 @@ function loadMatch(cfg: MatchConfig): void {
   ui.updateHUD(mgr, humanTurn());
 }
 
-function humanTurn(): boolean { return mgr.phase === 'aim' && !mgr.activeCap().isAI; }
+// no online: só posso mirar quando é a vez do MEU assento; senão, comportamento normal
+function humanTurn(): boolean { return mgr.phase === 'aim' && (online.active ? online.controlsActiveSeat() : !mgr.activeCap().isAI); }
 
 // -------- callbacks do manager (som + efeitos + HUD) --------
 mgr.onToast = (msg, kind) => ui.toast(msg, kind);
@@ -70,6 +74,7 @@ mgr.onEvent = (e) => {
 // -------- UI --------
 const ui = new UI({
   start: (cfg) => {
+    if (online.active) online.leave();
     resumeAudio();
     if (cfg.mode === 'champ') {
       // 5 pistas variadas do nível escolhido
@@ -84,7 +89,13 @@ const ui = new UI({
   },
   setVols: (m, s, mu) => { setMusicVol(m); setSfxVol(s); setMuted(mu); save.setVols(m, s, mu); },
   setSkin: (id) => { save.setSkin(id); sfx.ui(); },
-});
+}, online);
+
+// -------- multiplayer online: início/lobby/fim geridos aqui (cena + IA do host) --------
+online.onStartMatch = (players, level, trackIdx) => { curCfg = null; champ = null; resultsShown = false; loadMatch({ level, trackIdx, pick: 'specific', players, mode: 'online' }); };
+online.onToLobby = () => { inGame = false; paused = false; resultsShown = false; stopScene(); ui.showLobby(); };
+online.onClosed = () => { const wasIn = inGame; inGame = false; paused = false; resultsShown = false; if (wasIn) stopScene(); ui.showOnlineHome(); };
+
 ui.onPause = () => { if (mgr.phase !== 'over') { paused = true; ui.showPause(); } };
 ui.onResume = () => { paused = false; ui.hideModal(); };
 ui.onRestart = () => { paused = false; ui.hideModal(); if (curCfg) loadMatch(curCfg); };
@@ -116,7 +127,7 @@ const input = new InputController(canvas, rig.camera, rig, {
   canAim: () => inGame && !paused && humanTurn(),
   capPos: () => { const c = mgr.activeCap(); return c ? { x: c.pos.x, y: c.pos.y } : null; },
   onAim: (dx, dz, power) => { const c = mgr.activeCap(); aim.set(c.pos.x, c.pos.y, dx, dz, power); },
-  onRelease: (dx, dz, power) => { aim.hide(); if (mode === 'daily') dailyFlicks++; mgr.flick({ x: dx, y: dz }, power); },
+  onRelease: (dx, dz, power) => { aim.hide(); if (mode === 'daily') dailyFlicks++; if (online.active) online.localFlick({ x: dx, y: dz }, power); else mgr.flick({ x: dx, y: dz }, power); },
   onCancel: () => aim.hide(),
 });
 
@@ -126,7 +137,7 @@ function stopScene(): void { if (scene) { scene.clear(); } board = null; }
 let resultsShown = false;
 function onRaceOver(): void {
   if (resultsShown) return; resultsShown = true;
-  const you = mgr.caps.find(c => !c.isAI);
+  const you = online.active ? mgr.caps[online.mySeatIndex()] : mgr.caps.find(c => !c.isAI);
   if (you && you.place === 1 && mode !== 'daily') save.addWin();
   if (mode === 'daily' && mgr.caps[0].finished) { save.setDailyBest(dailyKey(), dailyFlicks); }
   sfx.win();
@@ -159,7 +170,7 @@ const clock = new THREE.Clock(); let t = 0;
 function frame(): void {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;
   if (inGame && scene) {
-    if (!paused) { mgr.update(dt); if (mgr.phase === 'over') onRaceOver(); else resultsShown = false; }
+    if (!paused) { if (online.active) online.tick(dt); mgr.update(dt); if (mgr.phase === 'over') onRaceOver(); else resultsShown = false; }
     // câmera segue a ação
     let fx0 = mgr.activeCap();
     if (mgr.phase === 'resolve') { let best = -1, bc = fx0; for (const c of mgr.caps) { const s = len(c.vel); if (c.moving && s > best) { best = s; bc = c; } } fx0 = bc; }
