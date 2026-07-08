@@ -17,11 +17,11 @@ export class Boat {
 
   // parâmetros
   private floatMin = 0.04;       // água mínima p/ flutuar
-  private flowStrength = 9;      // força da correnteza (flow map)
-  private gravity = 26;          // deslizamento pela inclinação da água
+  private flowStrength = 10;     // força da correnteza (flow map)
+  private gravity = 15;          // deslizamento pela inclinação da água
   private drag = 0.93;
   private maxSpeed = 8.5;
-  private seek = 4.8;            // atração ao escoadouro: cavalga a água que avança
+  private seek = 7.5;           // atração à saída: cavalga a água que avança pelo vale
   private stuckLimit = 14.0;     // s sem progresso → falha (travessia longa)
   private impactThreshold = 1.6; // acima disso, dano
 

@@ -38,13 +38,8 @@ export class GameManager {
     let sx = 0, sz = 0, sn = 0;
     for (let k = 0; k < N * N; k++) if (g.source[k]) { const i = k % N, j = (k / N) | 0; const [wx, wz] = g.cellToWorld(i, j); sx += wx; sz += wz; sn++; }
     if (sn) { this.lakeCx = sx / sn; this.lakeCz = sz / sn; }
-    bowl(g, this.lakeCx, this.lakeCz, 4.2, 1.4);   // bacia do lago (funda e larga)
+    bowl(g, this.lakeCx, this.lakeCz, 5.2, 2.2);    // bacia do LAGO grande e funda
     bowl(g, gl.goal[0], gl.goal[1], 2.6, 0.55);
-    // escoadouro no coração da chegada: puxa a correnteza para o destino
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      const [wx, wz] = g.cellToWorld(i, j);
-      if (Math.hypot(wx - gl.goal[0], wz - gl.goal[1]) <= 1.5) g.drain[g.idx(i, j)] = 1;
-    }
     this.startBoat = gl.boat; this.goal = gl.goal; this.goalR = gl.goalR;
     this.tools.setBudget(this.level.tools);
     this.tools.active = 'coco'; this.tools.cocoMode = 'lower';
@@ -60,13 +55,13 @@ export class GameManager {
   private fillLake(): void {
     const g = this.grid;
     g.water.fill(0); g.waterBuf.fill(0); g.flowX.fill(0); g.flowZ.fill(0);
-    const surface = g.terrainAt(this.lakeCx, this.lakeCz) + 1.3;    // lâmina do lago
-    const R = 5.2;
+    const surface = g.terrainAt(this.lakeCx, this.lakeCz) + 1.9;    // lâmina do lago
+    const R = 6.0;
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const [wx, wz] = g.cellToWorld(i, j);
       if (Math.hypot(wx - this.lakeCx, wz - this.lakeCz) > R) continue;
       const k = g.idx(i, j); const w = surface - g.terrain[k];
-      if (w > 0) g.water[k] = w;   // contido pela subida do terreno (bacia)
+      if (w > 0) { g.water[k] = w; g.evap[k] = 0; }   // lago fundo não seca (reservatório)
     }
     g.dirty = true;
   }
@@ -93,10 +88,14 @@ export class GameManager {
   update(dt: number): void {
     if (this.state !== 'running') return;
     this.timeSec += dt;
-    // simulação de água com passo fixo (estabilidade)
+    // simulação de água com passo fixo (estabilidade). Como não há fonte
+    // bombeando, rodamos várias iterações de redistribuição por tick para o LAGO
+    // escoar rápido pelo vale (como um rio) e não só "vazar" devagar.
+    const ITER = 7;
+    const run = (d: number) => { for (let s = 0; s < ITER; s++) stepWater(this.grid, this.params, d / ITER); };
     this.acc += dt; const FIXED = 1 / 60; let steps = 0;
-    while (this.acc >= FIXED && steps < 4) { stepWater(this.grid, this.params, FIXED); this.acc -= FIXED; steps++; }
-    if (steps === 0) { stepWater(this.grid, this.params, dt); this.acc = 0; }
+    while (this.acc >= FIXED && steps < 4) { run(FIXED); this.acc -= FIXED; steps++; }
+    if (steps === 0) { run(dt); this.acc = 0; }
 
     const r = this.boat.update(this.grid, dt);
     if (r.state === 'arrived') return this.win();

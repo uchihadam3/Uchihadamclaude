@@ -80,7 +80,7 @@ function stamp(g: Grid, fn: (x: number, z: number, h: number) => number): void {
 // Pontas do oásis: nascente no canto "norte-oeste", chegada no canto "sul-leste".
 const SRC: [number, number] = [-11, -11.5];
 const GOAL: [number, number] = [11, 11.5];
-const START: [number, number] = [-11, -10.2];
+const START: [number, number] = [-8.6, -8.2];   // na saída do lago, já no caminho do rio
 // traçado-base do canal, de canto a canto (pode ser refinado por fase)
 const PATH: [number, number][] = [[-11, -11.5], [-4, -3], [4, 3], [11, 11.5]];
 
@@ -146,10 +146,10 @@ export const LEVELS: LevelDef[] = [
     id: 4, name: 'Curva Perigosa', hint: 'A água desce forte e faz uma curva rente a um paredão. Pinte Pedras & Conchas na curva para frear o barco e amortecer o choque, a caminho da ponta final.',
     tools: { bambu: 0, pedras: 28, folha: 0 }, parSec: 88,
     build(g) {
-      const d = descend(3.0, 0.6);   // descida acentuada → barco veloz
+      const d = descend(2.5, 1.5);   // relevo consistente; o perigo é a CURVA + paredão
       const base = (x: number, z: number) => d(x, z) + dunes(x, z, 0.3);
       const curve: [number, number][] = [[-11, -11.5], [-3, -4], [6, 2], [11, 11.5]];
-      fill(g, hintChannel(base, curve, 2.1, 2.1, 0.2));
+      fill(g, hintChannel(base, curve, 2.3, 1.8, 0.2));
       // paredão logo depois da curva (fora do canal) — ameaça o barco veloz
       stamp(g, (x, z, h) => h + Math.max(0, 2.4 - Math.hypot(x - 9.6, z - 3.4)));
       markSource(g, SRC[0], SRC[1], 1.5);

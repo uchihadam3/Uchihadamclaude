@@ -15,13 +15,10 @@ export interface WaterParams {
   drainCap: number;      // lâmina máxima nos escoadouros (chegada) → mantém correnteza
 }
 export const DEFAULT_WATER: WaterParams = {
-  // travessia de canto a canto por um CANAL: vazão firme para a água correr até
-  // a ponta oposta, com teto de nascente que evita alagar o oásis inteiro. O
-  // escoadouro na chegada limita a lâmina lá, criando um rio que sempre corre
-  // (e não uma poça parada) — leva o barco até o fim de forma confiável.
-  // O grosso da água vem do LAGO já cheio; a nascente é só uma fonte discreta
-  // que mantém o lago abastecido (não faz água "surgir do nada" sobre a areia).
-  flowRate: 0.85, minWater: 0.0015, evapBase: 0.02, sourceRate: 4.4, maxSource: 5.0, drainCap: 0.3,
+  // Água CONSERVADA: todo o volume já existe no LAGO desde o início. NENHUMA
+  // água é criada (sourceRate 0). Ao rodar, a água só escorre pela gravidade
+  // pelo vale que o jogador cavar — como um rio. Sem descida, fica parada.
+  flowRate: 0.9, minWater: 0.0015, evapBase: 0.004, sourceRate: 0, maxSource: 0, drainCap: 999,
 };
 
 // avança a simulação por um passo de tempo fixo dt
