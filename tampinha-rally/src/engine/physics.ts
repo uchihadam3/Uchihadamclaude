@@ -6,7 +6,7 @@ import { Cap, V, SURF, len, norm, mul, REST_SPEED, vec } from './core';
 import { TrackModel } from './track';
 
 export interface SimEvent {
-  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest' | 'ramp' | 'land';
+  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest' | 'ramp' | 'land' | 'item';
   capId: number; x: number; y: number; power: number; obsIdx?: number; otherId?: number; n?: number;
 }
 
@@ -109,6 +109,7 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         if (vn < 0) { const b = 1 + 0.45 * c.stats.bounce; c.vel.x -= b * vn * nx; c.vel.y -= b * vn * ny; }
         ev.push({ type: 'stone', capId: c.id, x: o.x, y: o.y, power: spNow }); c.hitFlash = 1;
       } else if (o.type === 'hole') {
+        if (c.shield) { c.shield = false; ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: -1 }); continue; }   // escudo salva do buraco
         c.pos.x = c.cpPos.x; c.pos.y = c.cpPos.y; c.vel = vec(); c.moving = false;
         ev.push({ type: 'hole', capId: c.id, x: o.x, y: o.y, power: 0 }); break;
       } else if (o.type === 'bomb') {
@@ -116,12 +117,18 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         ev.push({ type: 'bomb', capId: c.id, x: o.x, y: o.y, power: 0 }); break;
       } else if (o.type === 'bonus') {
         if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'bonus', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i, n: o.n || 1 }); }
+      } else if (o.type === 'item') {
+        if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i }); }   // caixa de item (Caos)
       }
     }
     if (!c.moving) continue;   // caiu em buraco/bomba
 
     // fora da pista
     if (track.surfaceAt(c.pos) === 'out') {
+      if (c.shield) {   // escudo salva da queda: para na beira, dentro da pista
+        c.shield = false; c.pos.x = prev.x; c.pos.y = prev.y; c.vel = vec(); c.moving = false;
+        ev.push({ type: 'item', capId: c.id, x: prev.x, y: prev.y, power: -1 }); continue;
+      }
       c.pos.x = c.resetTo.x; c.pos.y = c.resetTo.y; c.vel = vec(); c.moving = false;
       ev.push({ type: 'out', capId: c.id, x: prev.x, y: prev.y, power: 0 });
       continue;

@@ -6,9 +6,10 @@ import { TrackModel, TrackDef } from '../engine/track';
 import { stepWorld, anyMoving, SimEvent } from '../engine/physics';
 import { aiFlick } from './ai';
 import { skinById } from './skins';
+import { ITEMS, pickItem } from './chaos';
 
 export type Phase = 'aim' | 'resolve' | 'over';
-export interface PlayerDef { name: string; isAI: boolean; ai?: string; skin: string; }
+export interface PlayerDef { name: string; isAI: boolean; ai?: string; skin: string; team?: number; }
 
 export class GameManager {
   caps: Cap[] = [];
@@ -28,14 +29,19 @@ export class GameManager {
   manualControl = false;         // online: os petelecos vêm de fora (nada de IA automática)
   cpArcs: number[] = [];         // posição (arco) de cada checkpoint — registro confiável
   flickCount = 0;                // nº monotônico de petelecos (token do lockstep online)
+  chaos = false;                 // MODO CAOS: caixas de power-up ligadas
+  teams = 0;                     // DUPLA: nº de times (0 = sem times)
+  onItem: (cap: Cap, item: string, used: boolean) => void = () => {};
 
   setup(def: TrackDef, players: PlayerDef[]): void {
     this.track = new TrackModel(def);
     this.caps = players.map((pl, i) => {
       const sk = skinById(pl.skin);
       const c = makeCap(i, pl.name, pl.skin, { ...DEFAULT_STATS, ...sk.stats }, pl.isAI, pl.ai);
+      c.team = pl.team ?? -1;
       return c;
     });
+    this.teams = players.some(p => (p.team ?? -1) >= 0) ? new Set(players.map(p => p.team ?? -1)).size : 0;
     // larga TODO MUNDO na MESMA linha de largada (lado a lado), sem ninguém atrás:
     // sem desvantagem de posição. Espaça na largura do corredor (largo na largada).
     const s = def.start; const ang = def.startAngle;
@@ -83,13 +89,60 @@ export class GameManager {
 
   private advanceIndex(): void { this.current = (this.current + 1) % this.caps.length; }
 
+  // ---------------------------- MODO CAOS: itens ----------------------------
+  // posição na corrida (0 = na frente … 1 = na lanterna) entre quem ainda corre
+  private rank01(c: Cap): { r: number; leader: boolean } {
+    const alive = this.caps.filter(x => !x.finished);
+    const sorted = [...alive].sort((a, b) => b.progress - a.progress);
+    const idx = sorted.indexOf(c); const n = Math.max(1, sorted.length - 1);
+    return { r: idx < 0 ? 0.5 : idx / n, leader: idx === 0 };
+  }
+  private grantItem(c: Cap): void {
+    if (c.item) return;                          // slot cheio: a caixa fica pra próxima vez
+    const { r, leader } = this.rank01(c);
+    const it = pickItem(r, leader);
+    c.item = it; c.itemFlash = 1;
+    if (!c.isAI) this.onToast(`${ITEMS[it].ico} ${ITEMS[it].name}! toque pra usar`, 'good');
+    this.onItem(c, it, false);
+  }
+  // usa o item guardado (jogador aperta o botão; a IA usa sozinha antes de jogar)
+  useItem(c = this.activeCap()): void {
+    const id = c.item; if (!id) return;
+    c.item = null; c.itemFlash = 1;
+    const def = ITEMS[id];
+    switch (id) {
+      case 'foguete': c.boostNext = 1.7; break;                 // muito mais alcance
+      case 'turbo':   c.boostNext = 1.28; break;               // empurrãozinho
+      case 'extra':   c.flicksLeft += 1; c.bonusFlicks += 0; break;
+      case 'escudo':  c.shield = true; break;
+      case 'salto': {                                          // pula ~15u pra frente na pista
+        const na = Math.min(this.track.total - 1, c.progress + 15);
+        const p = this.track.atArc(na).p; c.pos = vec(p.x, p.y); c.progress = na; this.updateCheckpoint(c); break;
+      }
+      case 'ima': {                                            // cola no centro + empurrãozinho
+        const p = this.track.atArc(c.progress).p; c.pos = vec(p.x, p.y); c.boostNext = 1.18; break;
+      }
+      case 'raio': {                                           // manda o líder pro checkpoint dele
+        const alive = this.caps.filter(x => !x.finished && x.id !== c.id);
+        const leader = alive.sort((a, b) => b.progress - a.progress)[0];
+        if (leader) { leader.pos = vec(leader.cpPos.x, leader.cpPos.y); leader.progress = this.track.progressOf(leader.cpPos); leader.itemFlash = 1; this.onToast(`⚡ ${leader.name} levou um raio!`, 'bad'); }
+        break;
+      }
+    }
+    if (!c.isAI && id !== 'raio') this.onToast(`${def.ico} ${def.name}!`, 'good');
+    this.onItem(c, id, true);
+    this.onChange();
+  }
+
   canFlick(): boolean { return this.phase === 'aim' && this.activeCap().flicksLeft > 0; }
 
   // dispara um peteléco (dir normalizado, força 0..1)
   flick(dir: V, power: number): void {
     if (!this.canFlick()) return;
     const c = this.activeCap();
-    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER;
+    // CAOS: foguete/turbinho dão mais alcance neste peteléco (consome o boost)
+    const boost = c.boostNext; c.boostNext = 1;
+    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER * boost;
     // p/ onde cada cap volta se sair da pista neste peteléco:
     //  - VOCÊ (quem jogou) sai por conta própria → volta pro ponto de onde jogou;
     //  - se OUTRO te empurra pra fora → volta um pouco ATRÁS na pista (punição).
@@ -116,6 +169,7 @@ export class GameManager {
       const c = this.activeCap();
       if (c.isAI) {
         this.aiTimer += dt;
+        if (this.chaos && c.item && this.aiTimer > 0.4 && this.aiTimer < 0.45) this.useItem(c);   // IA usa o item antes de jogar
         if (!this.aiFired && this.aiTimer > 0.85) {
           this.aiFired = true;
           const f = aiFlick(c, this.caps, this.track);
@@ -143,6 +197,9 @@ export class GameManager {
       case 'bomb': c.bombed = true; this.onToast(`${c.name} pisou no X — perdeu a vez`, 'bad'); break;
       case 'out': if (c.id === this.current) this.lastFlickOut = true; this.onToast(`${c.name} saiu da pista!`, 'bad'); break;
       case 'ramp': if (c.id === this.current) this.onToast('Voou! 🚀', 'good'); break;
+      case 'item':
+        if (e.power === -1) { c.itemFlash = 1; this.onToast(`🛡️ ${c.name} — escudo salvou!`, 'good'); }   // escudo consumido
+        else this.grantItem(c); break;
       case 'finish': this.onFinish(c); break;
     }
     // checkpoints: avança o checkpoint se cruzou um (proximidade)

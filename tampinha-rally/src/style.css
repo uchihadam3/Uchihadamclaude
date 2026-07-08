@@ -343,3 +343,93 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .ol-wait2{color:#9a7550;font-weight:800;font-size:13px;align-self:center}
 
 @media(max-width:430px){ .mode-grid{grid-template-columns:1fr;max-width:340px} .logo h1{font-size:13vw} .mode-btn.feat .mi{font-size:30px} .ov.wide{width:94vw} }
+
+/* ============================ MODOS DE JOGO ============================ */
+.mode-btn.hot{position:relative;overflow:hidden}
+.mode-btn.hot::after{content:'NOVO';position:absolute;top:7px;right:-24px;background:#ff4fa3;color:#fff;font-size:10px;font-weight:900;padding:2px 24px;transform:rotate(38deg);letter-spacing:.5px}
+.modes-note{max-width:520px;width:100%;background:var(--glass);border-radius:14px;padding:11px 14px;color:var(--ink);font-size:13px;font-weight:600;line-height:1.45;box-shadow:var(--shadow);margin-bottom:4px}
+.modes-list{width:100%;max-width:520px;display:flex;flex-direction:column;gap:11px;margin-top:8px}
+.modecard{display:flex;align-items:center;gap:13px;text-align:left;background:var(--glass);border-radius:18px;padding:14px 15px;box-shadow:var(--shadow);border-left:6px solid var(--mc);transition:transform .12s}
+.modecard:active{transform:scale(.97)}
+.modecard .mc-ico{font-size:34px;flex:0 0 auto;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25))}
+.modecard .mc-tx{flex:1;display:flex;flex-direction:column;gap:3px}
+.modecard .mc-tx b{font-size:17px;color:var(--ink)}
+.modecard .mc-tx span{font-size:12.5px;color:#7a5a3c;font-weight:600;line-height:1.35}
+.modecard .mc-go{color:var(--mc);font-size:20px;font-weight:900}
+.modes-hint{max-width:520px;width:100%;text-align:center;color:#e8cfa8;font-size:12px;font-weight:700;margin-top:12px;opacity:.9}
+
+.mode-banner{max-width:520px;width:100%;border-radius:14px;padding:11px 14px;font-size:13px;font-weight:600;line-height:1.45;color:#fff;box-shadow:var(--shadow)}
+.mode-banner.caos{background:linear-gradient(120deg,#c0398f,#7a2ce0)}
+.mode-banner.elim{background:linear-gradient(120deg,#c0392b,#7a1e18)}
+.mode-banner.trial{background:linear-gradient(120deg,#2563eb,#1e40af)}
+.mode-banner.dupla{background:linear-gradient(120deg,#1f9d54,#116336)}
+
+/* time (Dupla) */
+.team-row .chip.sel{background:linear-gradient(180deg,#7fe0a0,#2ea44f);color:#0a3a1c}
+.team-badge{font-size:11px;font-weight:900;padding:3px 9px;border-radius:9px;color:#fff}
+.team-badge.t0{background:#2ea44f}.team-badge.t1{background:#e5761a}
+.prow.team-t0{border-left:5px solid #2ea44f}.prow.team-t1{border-left:5px solid #e5761a}
+
+/* slot de item (Caos) na HUD */
+.item-slot{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);z-index:6;pointer-events:auto;animation:itemPop .3s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes itemPop{from{transform:translateX(-50%) scale(.6);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+.item-btn{display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,#b98cff,#7a3ce0);color:#fff;border-radius:16px;padding:9px 14px;box-shadow:0 6px 0 #5a2ca8,0 10px 20px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.35);animation:itemGlow 1.1s ease-in-out infinite}
+@keyframes itemGlow{0%,100%{box-shadow:0 6px 0 #5a2ca8,0 10px 20px rgba(0,0,0,.4)}50%{box-shadow:0 6px 0 #5a2ca8,0 10px 28px rgba(185,140,255,.8)}}
+.item-btn .it-ico{font-size:28px}
+.item-btn .it-tx{display:flex;flex-direction:column;text-align:left;line-height:1.15}
+.item-btn .it-tx b{font-size:15px}.item-btn .it-tx small{font-size:10.5px;opacity:.9;max-width:150px}
+.item-btn .it-use{background:#fff;color:#7a3ce0;font-weight:900;font-size:12px;padding:5px 10px;border-radius:10px}
+
+/* resultado Contra-Relógio */
+.trial-big{display:flex;flex-direction:column;align-items:center;margin:6px 0}
+.trial-big .tb-num{font-size:58px;font-weight:900;color:var(--blu);line-height:1;text-shadow:0 3px 0 rgba(0,0,0,.15)}
+.trial-big .tb-lab{font-size:14px;font-weight:800;color:#7a5a3c;letter-spacing:1px;text-transform:uppercase}
+.trial-best{text-align:center;font-weight:800;color:var(--ink);font-size:14px;margin-bottom:6px}
+
+/* resultado Dupla */
+.team-cols{display:flex;gap:10px;margin:8px 0;justify-content:center}
+.team-col{flex:1;max-width:180px;background:#00000010;border-radius:14px;padding:10px 8px;border:2px solid transparent}
+.team-col.win{border-color:var(--gold);background:#f2b10018}
+.team-col.mine{box-shadow:inset 0 0 0 2px #3b82f655}
+.team-col .team-h{font-weight:900;font-size:15px;text-align:center;color:var(--ink);margin-bottom:2px}
+.team-col .team-score{text-align:center;font-size:26px;font-weight:900;color:var(--grn)}
+.team-col .team-score small{font-size:11px;color:#7a5a3c}
+.team-mem{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--ink);padding:3px 0}
+.team-mem .tm-cap{width:22px;height:22px;flex:0 0 auto}.team-mem .tm-cap canvas{width:100%;height:100%;display:block}
+.team-mem .tm-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-note{text-align:center;font-size:12px;color:#7a5a3c;font-weight:600;margin-bottom:4px}
+
+/* resultado Eliminação */
+.elim-loser{display:flex;align-items:center;gap:12px;justify-content:center;background:#e5484d18;border-radius:14px;padding:10px;margin:6px 0}
+.elim-loser .el-cap{width:44px;height:44px;filter:grayscale(.6)}.elim-loser .el-cap canvas{width:100%;height:100%;display:block}
+.elim-loser b{font-size:16px;color:var(--red)}.elim-loser span{font-size:12px;color:#7a5a3c;font-weight:700}
+.elim-alive{background:#00000010;border-radius:14px;padding:8px 10px;margin-bottom:6px}
+.elim-alive .ea-t{font-size:12px;font-weight:900;color:var(--ink);margin-bottom:4px;text-align:center}
+.ea-row{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink);padding:3px 0}
+.ea-row.you{background:#3b82f618;border-radius:8px;padding:3px 6px}
+.ea-cap{width:26px;height:26px;flex:0 0 auto}.ea-cap canvas{width:100%;height:100%;display:block}
+.ea-nm{flex:1}.ea-lead{font-size:11px;font-weight:900;color:#c98a00}
+
+/* ============================ EDITOR DE PISTA ============================ */
+.editor{background:radial-gradient(150% 130% at 50% 118%, #2a4a3e 0%, #163028 55%, #0e201a 100%);background-color:#163028}
+.ed-help{max-width:560px;width:100%;background:rgba(255,255,255,.1);border-radius:12px;padding:9px 13px;color:#eafff4;font-size:12.5px;font-weight:600;line-height:1.4}
+.ed-tools{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;max-width:560px;width:100%;margin-top:8px}
+.ed-tool{display:flex;flex-direction:column;align-items:center;gap:1px;background:rgba(255,255,255,.1);border-radius:11px;padding:7px 2px;color:#eafff4;transition:transform .1s}
+.ed-tool span{font-size:19px}.ed-tool small{font-size:9.5px;font-weight:800}
+.ed-tool.sel{background:linear-gradient(180deg,#3fd08a,#1f9d54);color:#042416;box-shadow:0 3px 0 #0f6a38}
+.ed-canvas-wrap{width:100%;max-width:560px;margin-top:8px;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);border:3px solid rgba(255,255,255,.14)}
+.ed-canvas{width:100%;display:block;touch-action:none;cursor:crosshair}
+.ed-opts{display:flex;align-items:center;gap:8px;max-width:560px;width:100%;margin-top:8px;flex-wrap:wrap}
+.ed-opts label{color:#cdeee0;font-size:12px;font-weight:800}
+.ed-opts select,.ed-name{background:rgba(255,255,255,.14);color:#eafff4;border-radius:9px;padding:6px 9px;font-weight:700;font-size:13px;border:none}
+.ed-opts .ed-name{flex:1;min-width:90px}
+.ed-opts input[type=range]{flex:1;min-width:80px}
+.ed-actions{display:flex;gap:7px;max-width:560px;width:100%;margin-top:10px;align-items:center;flex-wrap:wrap}
+.ed-actions .play-btn{flex:1;min-width:120px}
+.my-tracks{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto;margin-top:8px}
+.mt-empty{color:#9a7550;text-align:center;font-weight:700;padding:20px;font-size:14px}
+.mt-row{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#00000010;border-radius:12px;padding:9px 11px}
+.mt-nm{font-weight:800;color:var(--ink);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mt-acts{display:flex;gap:5px;flex:0 0 auto}
+.chip.mini{font-size:12px;padding:5px 9px}.chip.mini.danger{background:#e5484d;color:#fff}
+@media(max-width:430px){ .ed-tools{grid-template-columns:repeat(4,1fr)} .team-cols{flex-direction:column} .team-col{max-width:none} }

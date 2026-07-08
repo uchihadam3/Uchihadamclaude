@@ -310,5 +310,108 @@ export function track(level: number, idx: number): TrackDef {
   return CACHE.get(id)!;
 }
 export const TRACKS_PER_LEVEL = 10;
+
+// MODO CAOS: devolve uma cópia da pista com CAIXAS DE ITEM espalhadas perto do
+// centro (fáceis de pegar, ao contrário do bônus arriscado). Não muta o cache.
+export function withChaosItems(def: TrackDef): TrackDef {
+  const path = def.path; const N = path.length;
+  const arcs = [0]; let acc = 0;
+  for (let i = 1; i < N; i++) { acc += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y); arcs.push(acc); }
+  const total = acc;
+  const atArc = (a: number): { p: V; i: number } => { let i = 1; while (i < N - 1 && arcs[i] < a) i++; const seg = arcs[i] - arcs[i - 1] || 1; const t = (a - arcs[i - 1]) / seg; return { p: vec(path[i - 1].x + (path[i].x - path[i - 1].x) * t, path[i - 1].y + (path[i].y - path[i - 1].y) * t), i }; };
+  const rng = mulberry(def.id * 2657 + 13);
+  const obstacles = def.obstacles.slice();
+  const nBox = 6 + Math.floor(rng() * 3);      // 6..8 caixas ao longo da pista
+  for (let k = 0; k < nBox; k++) {
+    const a = ((k + 0.5) / nBox) * total * 0.92 + total * 0.05;
+    const { p: pp, i } = atArc(a); const nrm = normalAt(path, i);
+    const off = (rng() < 0.5 ? -1 : 1) * (def.half[Math.min(N - 1, i)] || 4) * (rng() * 0.28);   // quase no centro
+    const x = pp.x + nrm.x * off, y = pp.y + nrm.y * off;
+    // evita nascer colada num buraco/bomba
+    if (def.obstacles.some(o => (o.type === 'hole' || o.type === 'bomb') && (o.x - x) ** 2 + (o.y - y) ** 2 < 9)) continue;
+    obstacles.push({ type: 'item', x, y, r: 1.15 });
+  }
+  return { ...def, obstacles };
+}
 export function randomTrack(level: number, rng = Math.random): TrackDef { return track(level, Math.floor(rng() * TRACKS_PER_LEVEL)); }
 export function randomAny(rng = Math.random): TrackDef { return track(Math.floor(rng() * 5), Math.floor(rng() * TRACKS_PER_LEVEL)); }
+
+// ------------------------------------------------------------ EDITOR DE PISTA
+export interface CustomTrackData {
+  id: string; name: string; theme: number; half: number;
+  pts: { x: number; y: number }[];
+  obstacles: { type: string; x: number; y: number; r?: number; n?: number }[];
+}
+// monta uma TrackDef jogável a partir do desenho do usuário: suaviza e reamostra
+// o traçado, cria o corredor com muros dos dois lados (bem protegido, pra ser
+// divertido), checkpoints automáticos e a chegada no fim.
+export function buildCustomTrack(data: CustomTrackData): TrackDef {
+  const theme = THEMES[((data.theme % THEMES.length) + THEMES.length) % THEMES.length];
+  const half0 = clamp(data.half || 4.2, 3.2, 6.5);
+  let raw = data.pts.map(p => vec(p.x, p.y));
+  if (raw.length < 2) raw = [vec(10, 10), vec(40, 30)];
+  // 1) reamostra em espaçamento fixo (linear)
+  const dense: V[] = [raw[0]];
+  const SP = 2.2;
+  for (let i = 1; i < raw.length; i++) {
+    const a = dense[dense.length - 1], b = raw[i]; const d = Math.hypot(b.x - a.x, b.y - a.y);
+    const n = Math.max(1, Math.round(d / SP));
+    for (let k = 1; k <= n; k++) dense.push(vec(a.x + (b.x - a.x) * k / n, a.y + (b.y - a.y) * k / n));
+  }
+  // 2) suaviza (média móvel) pra ficar dirigível
+  let path = dense;
+  for (let pass = 0; pass < 3; pass++) {
+    const out: V[] = [path[0]];
+    for (let i = 1; i < path.length - 1; i++) out.push(vec((path[i - 1].x + 2 * path[i].x + path[i + 1].x) / 4, (path[i - 1].y + 2 * path[i].y + path[i + 1].y) / 4));
+    out.push(path[path.length - 1]); path = out;
+  }
+  const N = path.length;
+
+  // enquadra na mesa com margem
+  const m = half0 + 6;
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  for (const q of path) { if (q.x < minx) minx = q.x; if (q.y < miny) miny = q.y; if (q.x > maxx) maxx = q.x; if (q.y > maxy) maxy = q.y; }
+  const dxs = m - minx, dys = m - miny;
+  for (const q of path) { q.x += dxs; q.y += dys; }
+  const w = Math.ceil(maxx - minx + 2 * m), h = Math.ceil(maxy - miny + 2 * m);
+
+  const arcs = [0]; let acc = 0;
+  for (let i = 1; i < N; i++) { acc += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y); arcs.push(acc); }
+  const total = acc;
+  const atArc = (a: number): { p: V; i: number } => { let i = 1; while (i < N - 1 && arcs[i] < a) i++; const seg = arcs[i] - arcs[i - 1] || 1; const t = (a - arcs[i - 1]) / seg; return { p: vec(path[i - 1].x + (path[i].x - path[i - 1].x) * t, path[i - 1].y + (path[i].y - path[i - 1].y) * t), i }; };
+  const onPath = (a: number, off = 0): V => { const { p: pp, i } = atArc(a); const n = normalAt(path, i); return vec(pp.x + n.x * off, pp.y + n.y * off); };
+
+  const halfArr: number[] = [];
+  for (let i = 0; i < N; i++) { let hw = half0; if (arcs[i] < 12) hw = Math.max(hw, half0 + 3 * (1 - arcs[i] / 12)); if (total - arcs[i] < 8) hw += 0.8; halfArr.push(hw); }
+
+  // muros dos dois lados (pista protegida — divertida de dirigir)
+  const walls: Wall[] = []; const step = 3;
+  for (let i = step; i < N; i += step) {
+    const j = i - step; const nj = normalAt(path, j), ni = normalAt(path, i);
+    walls.push({ a: vec(path[j].x + nj.x * halfArr[j], path[j].y + nj.y * halfArr[j]), b: vec(path[i].x + ni.x * halfArr[i], path[i].y + ni.y * halfArr[i]) });
+    walls.push({ a: vec(path[j].x - nj.x * halfArr[j], path[j].y - nj.y * halfArr[j]), b: vec(path[i].x - ni.x * halfArr[i], path[i].y - ni.y * halfArr[i]) });
+  }
+
+  // checkpoints automáticos
+  const checkpoints: V[] = [vec(path[0].x, path[0].y)];
+  const nCP = clamp(Math.round(total / 90), 2, 6);
+  for (let k = 1; k <= nCP; k++) checkpoints.push(onPath(total * k / (nCP + 1)));
+
+  // obstáculos do usuário (deslocados junto com o enquadramento)
+  const obstacles: Obstacle[] = [];
+  for (const o of data.obstacles) {
+    const x = o.x + dxs, y = o.y + dys;
+    if (o.type === 'jump') obstacles.push({ type: 'jump', x, y, r: o.r || 1.6, dir: 0 });
+    else obstacles.push({ type: o.type as any, x, y, r: o.r || (o.type === 'bonus' ? 1.1 : o.type === 'bomb' ? 0.95 : 1.2), n: o.n });
+  }
+  // segurança: nada perigoso em cima de checkpoint
+  for (let i = obstacles.length - 1; i >= 0; i--) { const o = obstacles[i]; if (o.type !== 'hole' && o.type !== 'bomb') continue; if (checkpoints.some(cp => (o.x - cp.x) ** 2 + (o.y - cp.y) ** 2 < 5.5 * 5.5)) obstacles.splice(i, 1); }
+
+  const pads = [{ x: path[0].x, y: path[0].y, r: half0 + 3.6 }];
+  const start = vec(path[0].x, path[0].y);
+  const stan = tangentAt(path, 0); const startAngle = Math.atan2(stan.y, stan.x);
+  const fp = path[N - 1], ft = tangentAt(path, N - 1); const fn = { x: -ft.y, y: ft.x };
+  const finish: [V, V] = [vec(fp.x + fn.x * (half0 + 0.6), fp.y + fn.y * (half0 + 0.6)), vec(fp.x - fn.x * (half0 + 0.6), fp.y - fn.y * (half0 + 0.6))];
+
+  return { id: 900, name: data.name || 'Minha Pista', theme: theme.key, level: 2, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches: [], walls, obstacles, checkpoints, start, startAngle, finish, decor: [] };
+}

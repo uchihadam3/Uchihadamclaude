@@ -178,6 +178,8 @@ export class Online {
   }
   // chamado pelo input local quando é a vez do jogador deste aparelho
   localFlick(dir: V, power: number): void { const m = this.mgr; if (!m || m.phase !== 'aim' || !this.controlsActiveSeat()) return; this.emitFlick(m, dir, power, this.tok(m)); }
+  // Caos é modo offline — online não usa itens (no-op seguro)
+  localUseItem(): void {}
 
   tick(dt: number): void {
     const m = this.mgr; if (!m || !this.active || m.phase !== 'aim') return;

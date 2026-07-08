@@ -12,6 +12,7 @@ function markerTex(kind: string, n = 1): THREE.CanvasTexture {
   const cx = S / 2, cy = S / 2;
   if (kind === 'jumparrow') { c.clearRect(0, 0, S, S); c.strokeStyle = 'rgba(90,255,140,0.95)'; c.lineWidth = 16; c.lineCap = 'round'; c.lineJoin = 'round'; for (let i = -1; i <= 1; i++) { const y = cy + i * 34; c.beginPath(); c.moveTo(cx - 34, y + 16); c.lineTo(cx, y - 16); c.lineTo(cx + 34, y + 16); c.stroke(); } }
   else if (kind === 'bomb') { c.fillStyle = '#c0392b'; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(cx - 28, cy - 28); c.lineTo(cx + 28, cy + 28); c.moveTo(cx + 28, cy - 28); c.lineTo(cx - 28, cy + 28); c.stroke(); }
+  else if (kind === 'itembox') { const g = c.createLinearGradient(0, 0, S, S); g.addColorStop(0, '#a86bff'); g.addColorStop(1, '#6a3ce0'); c.fillStyle = g; c.fillRect(0, 0, S, S); c.strokeStyle = '#fff'; c.lineWidth = 8; c.strokeRect(8, 8, S - 16, S - 16); c.fillStyle = '#fff'; c.font = '900 84px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', cx, cy + 6); }
   else if (kind === 'cp') { c.clearRect(0, 0, S, S); c.fillStyle = '#1f9ad0'; c.strokeStyle = '#eafcff'; c.lineWidth = 8; c.beginPath(); c.arc(cx, cy, S * 0.42, 0, 7); c.fill(); c.stroke(); c.fillStyle = '#dff6ff'; c.font = '800 22px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('CHECK', cx, cy - 24); c.fillStyle = '#fff'; c.font = '900 62px sans-serif'; c.fillText(String(n), cx, cy + 18); }
   else { const col = n >= 3 ? '#e0a020' : n === 2 ? '#2e9fa4' : '#2ea44f'; c.fillStyle = col; c.beginPath(); c.arc(cx, cy, S * 0.44, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = 'bold 58px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('+' + n, cx, cy + 4); }
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
@@ -104,6 +105,13 @@ export function buildBoard(def: TrackDef): BoardBuild {
       bg.position.set(o.x, 0, o.y); group.add(bg);
       const ring = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.6, 24), new THREE.MeshBasicMaterial({ color: '#e5484d', transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
       ring.rotation.x = -Math.PI / 2; ring.position.set(o.x, 0.025, o.y); group.add(ring); pulses.push({ mesh: ring, kind: 'bomb', base: o.r * 1.6 });
+    } else if (o.type === 'item') {   // CAOS: caixa "?" flutuante girando + brilho
+      const boxg = new THREE.Group();
+      const cube = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.25, 1.25), new THREE.MeshStandardMaterial({ map: markerTex('itembox'), roughness: 0.3, metalness: 0.2, emissive: '#8a5cff', emissiveIntensity: 0.25 }));
+      cube.position.y = 1.35; cube.castShadow = true; boxg.add(cube); spinners.push(cube);
+      boxg.position.set(o.x, 0, o.y); group.add(boxg);
+      const glow = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.7, 24), new THREE.MeshBasicMaterial({ color: '#b98cff', transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }));
+      glow.rotation.x = -Math.PI / 2; glow.position.set(o.x, 0.025, o.y); group.add(glow); pulses.push({ mesh: glow, kind: 'item', base: o.r * 1.7 });
     } else {   // bônus: gema girando embaixo + PLACA com o número virada pra câmera (sempre legível)
       const n = o.n || 1; const col = n >= 3 ? '#f2c200' : n === 2 ? '#2e9fa4' : '#2ea44f';
       const gem = new THREE.Mesh(new THREE.OctahedronGeometry(o.r * 0.5, 0), new THREE.MeshStandardMaterial({ color: col, roughness: 0.15, metalness: 0.55, emissive: col, emissiveIntensity: 0.35, flatShading: true }));
