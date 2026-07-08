@@ -64,24 +64,24 @@ export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
   const W = Math.round(def.w * px), H = Math.round(def.h * px);
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d')!;
-  const map = (x: number, y: number): [number, number] => [x * px, y * px];
+  // NB: o plano do chão é girado -90° em X e a textura usa flipY=false, o que
+  // espelha a textura no eixo Y do mundo. Compensamos aqui (H - y) para o desenho
+  // (pista, muros, bandeiras) casar exatamente com a física (tampinhas e muros 3D).
+  const map = (x: number, y: number): [number, number] => [x * px, H - y * px];
   const paintGround = () => (GROUND[def.ground] || GROUND.dirt)(c, W, H);
   paintGround();
 
   const { L, R } = corridorBorders(def);
-  // polígono do corredor (Path2D): borda esquerda ida + direita volta
+  // região do corredor = UNIÃO de DISCOS ao longo do traçado + pads. É robusto a
+  // curvas fechadas: o polígono de "fita" (borda esq+dir) se auto-cruzava nas
+  // curvas apertadas e a regra even-odd invertia o preenchimento (a pista real
+  // ficava escura e o fora, claro). A união de discos nunca inverte.
   const corridor = new Path2D();
-  { const [x0, y0] = map(L[0][0], L[0][1]); corridor.moveTo(x0, y0); }
-  for (let i = 1; i < L.length; i++) { const [x, y] = map(L[i][0], L[i][1]); corridor.lineTo(x, y); }
-  for (let i = R.length - 1; i >= 0; i--) { const [x, y] = map(R[i][0], R[i][1]); corridor.lineTo(x, y); }
-  corridor.closePath();
-
-  // ESCURECE tudo FORA do corredor (regra even-odd: retângulo cheio menos o corredor)
-  const dim = new Path2D(); dim.rect(0, 0, W, H); dim.addPath(corridor);
-  c.fillStyle = 'rgba(18,12,6,0.40)'; c.fill(dim, 'evenodd');
-
-  // reacende os PADS (largada larga / nós de atalho) — repinta chão claro
-  for (const pd of def.pads) { const [cx, cy] = map(pd.x, pd.y); c.save(); c.beginPath(); c.arc(cx, cy, pd.r * px, 0, 7); c.clip(); paintGround(); c.restore(); }
+  for (let i = 0; i < def.path.length; i++) { const [cx, cy] = map(def.path[i].x, def.path[i].y); const r = def.half[i] * px; corridor.moveTo(cx + r, cy); corridor.arc(cx, cy, r, 0, Math.PI * 2); }
+  for (const pd of def.pads) { const [cx, cy] = map(pd.x, pd.y); const r = pd.r * px; corridor.moveTo(cx + r, cy); corridor.arc(cx, cy, r, 0, Math.PI * 2); }
+  // escurece TUDO e reacende só o corredor (clip nonzero = união dos discos)
+  c.fillStyle = 'rgba(18,12,6,0.42)'; c.fillRect(0, 0, W, H);
+  c.save(); c.clip(corridor, 'nonzero'); paintGround(); c.restore();
 
   // remendos de superfície (dentro do corredor)
   for (const p of def.patches) drawPatch(c, p, map, px);
