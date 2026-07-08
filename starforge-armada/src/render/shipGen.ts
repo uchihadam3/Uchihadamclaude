@@ -18,7 +18,7 @@ export interface ShipDesign {
 }
 
 export interface ShipDrawOpts {
-  tilt?: number; thrust?: number; t: number; shield?: number; damage?: number; invuln?: boolean;
+  tilt?: number; thrust?: number; t: number; shield?: number; damage?: number; invuln?: boolean; rot?: number;
 }
 
 export function drawShip(ctx: Ctx, x: number, y: number, S: number, d: ShipDesign, o: ShipDrawOpts): void {
@@ -31,6 +31,7 @@ export function drawShip(ctx: Ctx, x: number, y: number, S: number, d: ShipDesig
 
   ctx.save();
   ctx.translate(x, y);
+  if (o.rot) ctx.rotate(o.rot);
   ctx.rotate(tilt * 0.16);
   ctx.transform(1 - Math.abs(tilt) * 0.13, 0, tilt * 0.06, 1, 0, 0);
 

@@ -9,23 +9,50 @@ import { initAudio, resumeAudio, sfx } from '../game/audio';
 import Hangar from './Hangar';
 import Bestiary from './Bestiary';
 import { CampaignMap, StoryIntro, Results } from './CampaignScreens';
+import { ModesScreen, ModeSetup, Tutorial, TrainingSetup } from './ModesScreens';
 import { loadCampaign, recordClear, CampaignSave } from '../game/campaignSave';
-import type { CampaignResult } from '../game/engine';
+import type { CampaignResult, Orient } from '../game/engine';
 import { CAMPAIGN } from '../data/campaignData';
+import type { ModeDef } from '../data/modesData';
 import './styles.css';
 
 export default function App(): JSX.Element {
-  const [screen, setScreen] = useState<'menu' | 'demo' | 'hangar' | 'bestiary' | 'campaign'>('menu');
+  const [screen, setScreen] = useState<'menu' | 'hangar' | 'bestiary' | 'campaign' | 'modes' | 'tutorial' | 'training'>('menu');
   const [shipId, setShipId] = useState('falcon');
   return (
     <div className="app">
-      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setShipId('falcon'); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} onBestiary={() => { resumeAudio(); sfx.ui(); setScreen('bestiary'); }} onCampaign={() => { resumeAudio(); sfx.ui(); setScreen('campaign'); }} />}
-      {screen === 'demo' && <Demo shipId={shipId} onBack={() => setScreen('menu')} />}
-      {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} onPilot={(id) => { resumeAudio(); sfx.start(); setShipId(id); setScreen('demo'); }} />}
+      {screen === 'menu' && <Menu setScreen={setScreen} />}
+      {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} onPilot={(id) => { resumeAudio(); sfx.start(); setShipId(id); setScreen('training'); }} />}
       {screen === 'bestiary' && <Bestiary onBack={() => setScreen('menu')} />}
       {screen === 'campaign' && <Campaign onBack={() => setScreen('menu')} />}
+      {screen === 'modes' && <ModesFlow onBack={() => setScreen('menu')} />}
+      {screen === 'tutorial' && <Tutorial onBack={() => setScreen('menu')} />}
+      {screen === 'training' && <TrainingFlow initialShip={shipId} onBack={() => setScreen('menu')} />}
     </div>
   );
+}
+
+// ============ MODOS ============
+function ModesFlow(props: { onBack: () => void }): JSX.Element {
+  const [phase, setPhase] = useState<'list' | 'setup' | 'run' | 'results'>('list');
+  const [mode, setMode] = useState<ModeDef | null>(null);
+  const [ship, setShip] = useState('falcon');
+  const [relics, setRelics] = useState<string[]>([]);
+  const [result, setResult] = useState<CampaignResult | null>(null);
+  if (phase === 'list') return <ModesScreen onSelect={(m) => { setMode(m); setPhase('setup'); }} onBack={props.onBack} />;
+  if (phase === 'setup' && mode) return <ModeSetup mode={mode} onBack={() => setPhase('list')} onLaunch={(s, r) => { setShip(s); setRelics(r); setPhase('run'); }} />;
+  if (phase === 'run' && mode) return <Demo shipId={ship} mode="endless" onBack={() => setPhase('list')} config={{ orient: mode.orient, mod: mode.mod, runLives: mode.lives, bossRush: mode.bossRush, relics }} onComplete={(r) => { setResult(r); setPhase('results'); }} />;
+  if (phase === 'results' && result) return <Results result={result} hasNext={false} onRetry={() => setPhase('run')} onMap={() => setPhase('list')} onNext={() => {}} />;
+  return <ModesScreen onSelect={(m) => { setMode(m); setPhase('setup'); }} onBack={props.onBack} />;
+}
+
+// ============ TREINO ============
+function TrainingFlow(props: { initialShip: string; onBack: () => void }): JSX.Element {
+  const [phase, setPhase] = useState<'setup' | 'run'>('setup');
+  const [ship, setShip] = useState(props.initialShip);
+  const [orient, setOrient] = useState<Orient>('vertical');
+  if (phase === 'setup') return <TrainingSetup onBack={props.onBack} onLaunch={(s, o) => { setShip(s); setOrient(o); setPhase('run'); }} />;
+  return <Demo shipId={ship} mode="endless" onBack={() => setPhase('setup')} config={{ orient, runLives: Infinity }} />;
 }
 
 // ============ CAMPANHA ============
@@ -51,7 +78,9 @@ function Campaign(props: { onBack: () => void }): JSX.Element {
 }
 
 // ============ MENU (com showcase animado da Falcon-01) ============
-function Menu(props: { onStart: () => void; onHangar: () => void; onBestiary: () => void; onCampaign: () => void }): JSX.Element {
+type Screen = 'menu' | 'hangar' | 'bestiary' | 'campaign' | 'modes' | 'tutorial' | 'training';
+function Menu(props: { setScreen: (s: Screen) => void }): JSX.Element {
+  const go = (s: Screen) => { resumeAudio(); sfx.ui(); props.setScreen(s); };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = canvasRef.current!;
@@ -94,40 +123,41 @@ function Menu(props: { onStart: () => void; onHangar: () => void; onBestiary: ()
     <div className="menu">
       <canvas ref={canvasRef} className="menu-canvas" />
       <div className="menu-inner">
-        <div className="menu-kicker">Vertical Slice · Etapa 0</div>
+        <div className="menu-kicker">Space Shooter Premium</div>
         <h1 className="menu-title"><span className="b">STARFORGE</span><span className="b">ARMADA</span></h1>
-        <div className="menu-sub">Demo Visual</div>
+        <div className="menu-sub">Uma armada. Infinitas batalhas.</div>
         <div className="menu-tag">
-          Uma cena semi-jogável para validar a direção artística: a nave Falcon-01, cenário
-          espacial com parallax e nebulosa, cinco inimigos, tiros, mísseis, ultimate, explosões,
-          partículas e a interface sci-fi.
+          30 naves pilotáveis, 72 inimigos, chefes de múltiplas fases, campanha com 12 setores
+          e 15 modos de jogo — vertical, arena 360° e investida lateral. Bloom, partículas e
+          interface sci-fi em cada pixel.
         </div>
         <div className="menu-btns">
-          <button className="play-btn" onClick={props.onCampaign}>Campanha · 12 Setores</button>
-          <button className="play-btn ghost" onClick={props.onStart}>Modo Livre</button>
-          <button className="play-btn ghost" onClick={props.onHangar}>Hangar · 30 Naves</button>
-          <button className="play-btn ghost" onClick={props.onBestiary}>Bestiário · 72 Inimigos</button>
+          <button className="play-btn" onClick={() => go('campaign')}>Campanha · 12 Setores</button>
+          <button className="play-btn" onClick={() => go('modes')}>Modos · 15</button>
+          <button className="play-btn ghost" onClick={() => go('hangar')}>Hangar · 30 Naves</button>
+          <button className="play-btn ghost" onClick={() => go('bestiary')}>Bestiário · 72 Inimigos</button>
+          <button className="play-btn ghost" onClick={() => go('training')}>Sala de Treino</button>
+          <button className="play-btn ghost" onClick={() => go('tutorial')}>Como Jogar</button>
         </div>
         <div className="menu-controls">
           <span><kbd>WASD</kbd> mover</span>
-          <span><kbd>Shift</kbd> míssil</span>
+          <span><kbd>Shift</kbd> habilidade</span>
           <span><kbd>Espaço</kbd> ultimate</span>
           <span>tiro automático · toque no celular</span>
         </div>
       </div>
       <div className="menu-approve">
-        <b>Jogo completo em construção</b> · direção de arte aprovada · Parte 2/10
+        <b>Jogo completo em construção</b> · direção de arte aprovada · Parte 7/10
       </div>
     </div>
   );
 }
 
 // ============ RUN (demo endless OU campanha) ============
-function Demo(props: { shipId: string; onBack: () => void; mode?: 'endless' | 'campaign'; sector?: number; onComplete?: (r: import('../game/engine').CampaignResult) => void }): JSX.Element {
+function Demo(props: { shipId: string; onBack: () => void; mode?: 'endless' | 'campaign'; sector?: number; config?: Partial<import('../game/engine').EngineOpts>; onComplete?: (r: import('../game/engine').CampaignResult) => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
   const campaign = props.mode === 'campaign';
-  const [showBanner, setShowBanner] = useState(!campaign);
   const [labels, setLabels] = useState({ ship: 'Falcon-01', ability: 'Míssil', ult: 'Ultimate' });
   const livesRef = useRef<HTMLDivElement>(null);
   // refs de HUD (atualizados direto no DOM p/ suavidade)
@@ -149,7 +179,7 @@ function Demo(props: { shipId: string; onBack: () => void; mode?: 'endless' | 'c
   useEffect(() => {
     initAudio();
     const cv = canvasRef.current!;
-    const eng = new Engine(cv, props.shipId, props.mode ?? 'endless', props.sector ?? 0);
+    const eng = new Engine(cv, { shipId: props.shipId, mode: props.mode ?? 'endless', sector: props.sector ?? 0, ...(props.config ?? {}) });
     engineRef.current = eng;
     setLabels(eng.kitLabels());
     let done = false;
@@ -245,14 +275,6 @@ function Demo(props: { shipId: string; onBack: () => void; mode?: 'endless' | 'c
           <kbd>Shift</kbd> {labels.ability} · <kbd>Espaço</kbd> {labels.ult}
         </div>
 
-        {showBanner && (
-          <div className="approve-banner clickable">
-            <div className="approve-text">
-              <b>Visual aprovado ✓</b> Jogo completo em construção — bloom, power-ups e as 30 naves já no ar.
-            </div>
-            <button className="approve-x" onClick={() => setShowBanner(false)}>✕</button>
-          </div>
-        )}
       </div>
     </div>
   );

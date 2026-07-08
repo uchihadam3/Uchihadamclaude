@@ -18,6 +18,14 @@ import { CAMPAIGN } from '../data/campaignData';
 
 export interface CampaignResult { success: boolean; sector: number; score: number; kills: number; timeSec: number; dmgTaken: number; lives: number; medal: string; }
 
+export type Orient = 'vertical' | 'horizontal' | 'arena';
+export interface Modifiers { enemySpeed: number; projScale: number; scoreMult: number; eliteFreq: number; ultRate: number; enemyHp: number; timeScale: number; }
+const DEFAULT_MOD: Modifiers = { enemySpeed: 1, projScale: 1, scoreMult: 1, eliteFreq: 1, ultRate: 1, enemyHp: 1, timeScale: 1 };
+export interface EngineOpts {
+  shipId?: string; mode?: 'endless' | 'campaign'; sector?: number;
+  orient?: Orient; mod?: Partial<Modifiers>; runLives?: number; bossRush?: boolean; relics?: string[];
+}
+
 export interface Hud {
   hp: number; maxHp: number; shield: number; maxShield: number;
   score: number; combo: number; comboTimer: number;
@@ -39,7 +47,7 @@ interface EBullet { x: number; y: number; vx: number; vy: number; r: number; hue
 interface Enemy {
   x: number; y: number; vx: number; vy: number; def: EnemyDef; size: number;
   hp: number; maxHp: number; r: number; t: number; hit: number; fireCd: number; fireN: number;
-  enter: number; phase: number; targetY: number;
+  enter: number; phase: number; targetY: number; advDist: number; advAngle: number;
   slowT: number; dotT: number; dotDmg: number; markT: number; dead: boolean;
 }
 interface Drone { ang: number; fireCd: number; life: number; x: number; y: number; }
@@ -90,18 +98,24 @@ export class Engine {
   private mode: 'endless' | 'campaign' = 'endless'; private campSector = 0;
   private camp: { phaseIdx: number; wavesSpawned: number; wavesTarget: number; lives: number; kills: number; dmgTaken: number; startT: number; done: boolean; bossSpawned: boolean } | null = null;
   private banner = { t: 0, text: '', sub: '' };
+  private orient: Orient = 'vertical'; private mod: Modifiers = { ...DEFAULT_MOD };
+  private runLives = Infinity; private bossRush = false; private relics: string[] = [];
+  private runKills = 0; private runDmg = 0; private runStart = 0; private runOver = false; private aimX = 0; private aimY = -1;
   onComplete: (r: CampaignResult) => void = () => {};
 
   hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name, bossActive: false, bossName: '', bossHp: 1, bossPhases: 1, bossPhase: 0, campaign: false, lives: 3 };
   onHud: (h: Hud) => void = () => {};
 
-  constructor(private canvas: HTMLCanvasElement, shipId = 'falcon', mode: 'endless' | 'campaign' = 'endless', sector = 0) {
+  constructor(private canvas: HTMLCanvasElement, opts: EngineOpts = {}) {
     const c = canvas.getContext('2d', { alpha: false });
     if (!c) throw new Error('no ctx');
     this.ctx = c;
-    this.mode = mode; this.campSector = sector;
-    if (mode === 'campaign') this.curSector = sector;
-    this.ship = SHIP_BY_ID[shipId] ?? SHIP_BY_ID['falcon'];
+    this.mode = opts.mode ?? 'endless'; this.campSector = opts.sector ?? 0;
+    this.orient = opts.orient ?? 'vertical';
+    this.mod = { ...DEFAULT_MOD, ...(opts.mod ?? {}) };
+    this.runLives = opts.runLives ?? Infinity; this.bossRush = !!opts.bossRush; this.relics = opts.relics ?? [];
+    if (this.mode === 'campaign') this.curSector = this.campSector;
+    this.ship = SHIP_BY_ID[opts.shipId ?? 'falcon'] ?? SHIP_BY_ID['falcon'];
     this.kit = kitFor(this.ship.id);
     const s = this.ship.stats;
     this.player.maxHp = s.hp; this.player.hp = s.hp;
@@ -111,16 +125,70 @@ export class Engine {
     this.dmgMult = 0.8 + s.power / 260;
     this.hitR = this.kit.passive === 'tiny' ? 8 : 14;
     if (this.kit.passive === 'armor') this.player.speed *= 0.92;
+    this.applyRelics();
     this.bindInput();
+  }
+
+  private applyRelics(): void {
+    const p = this.player;
+    for (const r of this.relics) {
+      if (r === 'core') { this.dmgMult *= 1.3; p.maxHp = Math.round(p.maxHp * 0.8); p.hp = p.maxHp; }
+      else if (r === 'glass') { p.maxShield += 30; p.shield = p.maxShield; }
+      else if (r === 'phase') { this.kit.ability.cd *= 0.7; p.abilityMax = this.kit.ability.cd; }
+      else if (r === 'axiom') { this.dmgMult *= 1.15; }
+      else if (r === 'solar') { /* tiros queimam: aplicado no fire */ }
+      else if (r === 'pirate') { this.mod.scoreMult *= 1.3; this.mod.enemySpeed *= 1.15; }
+      else if (r === 'eclipse') { this.mod.scoreMult *= 1.5; this.runLives = 1; }
+      else if (r === 'lens') { /* curva: aplicado no fire */ }
+      else if (r === 'seed') { /* cura por onda: aplicado no killEnemy/wave */ }
+      else if (r === 'motor') { p.speed *= 1.18; }
+    }
   }
 
   kitLabels(): { ship: string; ability: string; ult: string } {
     return { ship: this.ship.name, ability: this.kit.ability.name, ult: this.kit.ultimate.name };
   }
 
+  // ---------------- orientação ----------------
+  // direção "para frente" do jogador (para onde atira)
+  private fwd(): { x: number; y: number } {
+    if (this.orient === 'vertical') return { x: 0, y: -1 };
+    if (this.orient === 'horizontal') return { x: 1, y: 0 };
+    // arena: mira no inimigo/chefe mais próximo, senão mantém última direção
+    const t = this.nearestEnemy(this.player.x, this.player.y) ?? (this.boss ? { x: this.boss.x, y: this.boss.y } : null);
+    if (t) { const dx = t.x - this.player.x, dy = t.y - this.player.y, d = Math.hypot(dx, dy) || 1; this.aimX = dx / d; this.aimY = dy / d; }
+    return { x: this.aimX, y: this.aimY };
+  }
+  // ângulo base dos padrões inimigos (para onde eles disparam "para frente")
+  private enemyBase(x: number, y: number): number {
+    if (this.orient === 'vertical') return Math.PI / 2;
+    if (this.orient === 'horizontal') return Math.PI;
+    return Math.atan2(this.player.y - y, this.player.x - x); // arena: mira no jogador
+  }
+  // direção de avanço de um inimigo (para dentro da tela, rumo ao jogador)
+  private advDir(e: Enemy): { x: number; y: number } {
+    if (this.orient === 'vertical') return { x: 0, y: 1 };
+    if (this.orient === 'horizontal') return { x: -1, y: 0 };
+    const dx = this.player.x - e.x, dy = this.player.y - e.y, d = Math.hypot(dx, dy) || 1;
+    return { x: dx / d, y: dy / d };
+  }
+  private spawnEdge(lateralFrac: number): { x: number; y: number } {
+    if (this.orient === 'vertical') return { x: 40 + lateralFrac * (this.w - 80), y: -40 };
+    if (this.orient === 'horizontal') return { x: this.w + 40, y: 40 + lateralFrac * (this.h - 80) };
+    // arena: borda aleatória
+    const s = Math.random() * 4 | 0; const f = Math.random();
+    if (s === 0) return { x: f * this.w, y: -40 };
+    if (s === 1) return { x: f * this.w, y: this.h + 40 };
+    if (s === 2) return { x: -40, y: f * this.h };
+    return { x: this.w + 40, y: f * this.h };
+  }
+
   start(): void {
     this.resize();
-    this.player.x = this.w / 2; this.player.y = this.h * 0.78;
+    if (this.orient === 'horizontal') { this.player.x = this.w * 0.16; this.player.y = this.h / 2; }
+    else if (this.orient === 'arena') { this.player.x = this.w / 2; this.player.y = this.h / 2; }
+    else { this.player.x = this.w / 2; this.player.y = this.h * 0.78; }
+    this.runStart = performance.now();
     this.running = true; this.last = performance.now();
     // naves de drone começam com drones
     if (this.kit.ability.type === 'drone') for (let i = 0; i < (this.ship.id === 'scarab' || this.ship.id === 'swarm' ? 2 : 1); i++) this.addDrone(Infinity);
@@ -220,6 +288,7 @@ export class Engine {
   };
 
   private update(dt: number): void {
+    dt *= this.mod.timeScale;
     this.t += dt;
     const p = this.player;
 
@@ -292,7 +361,12 @@ export class Engine {
         }
       }
     }
-    else if (this.mode === 'endless' && this.wave - this.lastBossWave >= 9) {
+    else if (this.mode === 'endless' && this.bossRush) {
+      // Boss Rush: chefes em sequência, sem ondas
+      if (this.bossCounter >= MAIN_BOSSES.length) { if (!this.runOver) this.finishRun(true); }
+      else this.spawnBoss(MAIN_BOSSES[this.bossCounter++]);
+    }
+    else if (this.mode === 'endless' && this.orient === 'vertical' && this.wave - this.lastBossWave >= 9) {
       const useSecret = this.bossCounter > 0 && this.bossCounter % 4 === 0 && SECRET_BOSSES.length;
       const def = useSecret ? SECRET_BOSSES[(this.bossCounter / 4 | 0) % SECRET_BOSSES.length] : MAIN_BOSSES[this.bossCounter % MAIN_BOSSES.length];
       this.bossCounter++; this.spawnBoss(def);
@@ -322,7 +396,7 @@ export class Engine {
       if (e.enter <= 0 && e.def.pattern !== 'none') { e.fireCd -= dt; if (e.fireCd <= 0) { e.fireCd = e.def.cadence; this.emitPattern(e); e.fireN++; } }
       if (e.hp > 0 && p.invuln <= 0 && Math.hypot(e.x - p.x, e.y - p.y) < e.r + this.hitR) { this.damagePlayer(e.def.dmg); if (e.def.contact) { e.hp = 0; this.killEnemy(e); } }
       if (e.hp <= 0) { if (!e.dead) this.killEnemy(e); if (e.def.elite) this.eliteAlive = false; this.enemies.splice(i, 1); }
-      else if (e.y > this.h + 80) { if (e.def.elite) this.eliteAlive = false; this.enemies.splice(i, 1); }
+      else if (e.advDist > this.dim() + 320) { if (e.def.elite) this.eliteAlive = false; this.enemies.splice(i, 1); }
     }
 
     // ---- balas inimigas ----
@@ -363,50 +437,55 @@ export class Engine {
     const powered = p.powerT > 0;
     p.fireCd = spec.cadence * (powered ? 0.72 : 1);
     const dmg = spec.dmg * this.dmgMult * passiveDmg * (powered ? 1.25 : 1);
-    const up = -Math.PI / 2;
+    const f = this.fwd(); const base = Math.atan2(f.y, f.x); const perp = { x: -f.y, y: f.x };
+    const nx = p.x + f.x * 22, ny = p.y + f.y * 22;
     const cnt = spec.count + (powered ? 1 : 0);
-    // element (swap): 0 fogo(dot) 1 gelo(slow) 2 raio(chain)
     const el = this.kit.ability.type === 'swap' ? p.element : -1;
     const hue = el === 0 ? '#ff7a3a' : el === 1 ? '#7fe0ff' : el === 2 ? '#ffe24a' : spec.color;
-    const spawn = (ang: number, xoff = 0): void => {
-      const b: Bullet = { x: p.x + xoff, y: p.y - 22, vx: Math.cos(ang) * spec.speed + p.vx * 0.12, vy: Math.sin(ang) * spec.speed, r: spec.size, dmg, hue, kind: 'bolt', life: 1.2, target: null, trail: 0 };
+    const spawn = (ang: number, off = 0): void => {
+      const b: Bullet = { x: nx + perp.x * off, y: ny + perp.y * off, vx: Math.cos(ang) * spec.speed + p.vx * 0.1, vy: Math.sin(ang) * spec.speed + p.vy * 0.1, r: spec.size, dmg, hue, kind: 'bolt', life: 1.2, target: null, trail: 0 };
       if (spec.pierce) { b.pierce = true; b.hits = new Set(); }
-      if (spec.dot || el === 0) b.dot = spec.dot ?? 5;
+      if (spec.dot || el === 0 || this.relics.includes('solar')) b.dot = spec.dot ?? 5;
       if (spec.slow || el === 1) b.slow = spec.slow ?? 1.2;
       if (spec.chain || el === 2) b.chain = spec.chain ?? 3;
       if (spec.explode) b.explode = true;
-      if (spec.curve) b.curve = spec.curve;
+      if (spec.curve || this.relics.includes('lens')) b.curve = spec.curve ?? 0.6;
       this.bullets.push(b);
     };
     if (spec.pattern === 'aimed') {
-      const tg = this.nearestEnemy(p.x, p.y); const a = tg ? Math.atan2(tg.y - p.y, tg.x - p.x) : up;
+      const tg = this.nearestEnemy(p.x, p.y); const a = tg ? Math.atan2(tg.y - p.y, tg.x - p.x) : base;
       for (let i = 0; i < cnt; i++) spawn(a + (i - (cnt - 1) / 2) * 0.12);
     } else if (spec.pattern === 'homing') {
-      for (let i = 0; i < cnt; i++) { const tg = this.nearestEnemy(p.x, p.y); const off = i - (cnt - 1) / 2; this.bullets.push({ x: p.x + off * 12, y: p.y - 16, vx: off * 80, vy: -560, r: spec.size, dmg, hue, kind: 'missile', life: 2.6, target: tg, trail: 0 }); }
+      for (let i = 0; i < cnt; i++) { const tg = this.nearestEnemy(p.x, p.y); const off = i - (cnt - 1) / 2; this.bullets.push({ x: nx + perp.x * off * 12, y: ny + perp.y * off * 12, vx: f.x * 560 + perp.x * off * 60, vy: f.y * 560 + perp.y * off * 60, r: spec.size, dmg, hue, kind: 'missile', life: 2.6, target: tg, trail: 0 }); }
     } else if (spec.pattern === 'lob') {
-      for (let i = 0; i < cnt; i++) spawn(up + (i - (cnt - 1) / 2) * 0.2, (i - (cnt - 1) / 2) * 8);
+      for (let i = 0; i < cnt; i++) { const b = spec; spawn(base + (i - (cnt - 1) / 2) * 0.2, (i - (cnt - 1) / 2) * 8); }
     } else {
       for (let i = 0; i < cnt; i++) {
         const off = cnt > 1 ? (i - (cnt - 1) / 2) : 0;
-        let ang = up, xoff = 0;
-        if (spec.pattern === 'spread') ang = up + off * (spec.spread / Math.max(1, cnt - 1));
-        else if (spec.pattern === 'wave') xoff = Math.sin(this.t * 9 + i) * 14;
-        else xoff = off * 11;
-        spawn(ang, xoff);
+        let ang = base, o = 0;
+        if (spec.pattern === 'spread') ang = base + off * (spec.spread / Math.max(1, cnt - 1));
+        else if (spec.pattern === 'wave') o = Math.sin(this.t * 9 + i) * 14;
+        else o = off * 11;
+        spawn(ang, o);
       }
     }
-    this.fx.muzzle(p.x, p.y - 26, hue); sfx.shoot();
+    this.fx.muzzle(nx, ny, hue); sfx.shoot();
   }
 
   private firePrimaryBeam(dt: number, passiveDmg: number): void {
     const p = this.player, spec = this.kit.primary;
     const dps = spec.dmg * this.dmgMult * passiveDmg * (p.powerT > 0 ? 1.3 : 1);
-    const halfW = spec.size * 1.4;
-    for (const e of this.enemies) { if (e.hp <= 0) continue; if (Math.abs(e.x - p.x) < halfW + e.r * 0.6 && e.y < p.y) { e.hp -= dps * dt; e.hit = Math.max(e.hit, 0.3); if (Math.random() < dt * 20) this.fx.hit(e.x, e.y + e.r * 0.6, spec.color); if (e.hp <= 0) this.killEnemy(e); } }
-    if (Math.random() < dt * 30) this.fx.muzzle(p.x, p.y - 24, spec.color);
+    const halfW = spec.size * 1.4; const f = this.fwd();
+    for (const e of this.enemies) {
+      if (e.hp <= 0) continue;
+      const dx = e.x - p.x, dy = e.y - p.y; const along = dx * f.x + dy * f.y; const perpD = Math.abs(dx * -f.y + dy * f.x);
+      if (along > 0 && perpD < halfW + e.r * 0.6) { e.hp -= dps * dt; e.hit = Math.max(e.hit, 0.3); if (Math.random() < dt * 20) this.fx.hit(e.x, e.y, spec.color); if (e.hp <= 0) this.killEnemy(e); }
+    }
+    this._beamF = f;
+    if (Math.random() < dt * 30) this.fx.muzzle(p.x + f.x * 24, p.y + f.y * 24, spec.color);
     this._beamHalf = halfW; // guardado para render
   }
-  private _beamHalf = 0;
+  private _beamHalf = 0; private _beamF = { x: 0, y: -1 };
 
   private updateBullets(dt: number): void {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
@@ -506,30 +585,41 @@ export class Engine {
   }
 
   // ---------------- IA de movimento ----------------
+  // Movimento em quadro local (avanço = rumo ao jogador; lateral = perpendicular),
+  // depois transformado para a orientação do modo (vertical/horizontal/arena).
   private moveEnemy(e: Enemy, dt: number): void {
-    const p = this.player; const sm = e.slowT > 0 ? 0.45 : 1; const v = e.def.speed * sm;
-    if (e.enter > 0) { e.y += 120 * dt; return; }
+    const sm = e.slowT > 0 ? 0.45 : 1; const v = e.def.speed * sm * this.mod.enemySpeed;
+    const dir = this.advDir(e); const perp = { x: -dir.y, y: dir.x };
+    e.advAngle = Math.atan2(dir.y, dir.x);
+    if (e.enter > 0) { e.x += dir.x * 120 * dt; e.y += dir.y * 120 * dt; e.advDist += 120 * dt; return; }
+    let adv = 0, lat = 0; const held = e.advDist >= e.targetY;
     switch (e.def.behavior) {
-      case 'dive': e.x += Math.cos(e.t * 2 + e.phase) * 90 * dt * sm; e.y += v * dt * (e.y < this.h * 0.4 ? 1.4 : 0.5); break;
-      case 'strafe': e.x += Math.sin(e.t * 1.5 + e.phase) * 90 * dt * sm; e.y += v * 0.6 * dt * (e.y < this.h * 0.32 ? 1.5 : 0.25); e.x = clamp(e.x, 30, this.w - 30); break;
-      case 'hover': e.y = Math.min(e.targetY, e.y + v * dt); e.x += Math.sin(e.t * 0.7 + e.phase) * 50 * dt * sm; e.x = clamp(e.x, 60, this.w - 60); break;
-      case 'descend': e.y += v * 0.5 * dt; e.x += Math.sin(e.t * 0.5) * 20 * dt; break;
-      case 'kamikaze': { const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1; e.x += (dx / d) * v * dt; e.y += (dy / d) * v * dt * 1.2 + 30 * dt; break; }
-      case 'turret': e.y = Math.min(e.targetY, e.y + v * dt); break;
-      case 'orbit': { e.y = Math.min(e.targetY || this.h * 0.28, e.y + v * dt); e.x += Math.cos(e.t * 1.2 + e.phase) * 90 * dt * sm; e.x = clamp(e.x, 50, this.w - 50); break; }
-      case 'zigzag': e.x += (Math.floor(e.t * 2 + e.phase) % 2 ? 1 : -1) * 110 * dt * sm; e.y += v * 0.7 * dt; e.x = clamp(e.x, 30, this.w - 30); break;
-      case 'drift': e.y += v * 0.5 * dt * sm; e.x += Math.sin(e.t + e.phase) * 24 * dt; break;
-      case 'serpentine': e.x += Math.sin(e.t * 3 + e.phase) * 130 * dt * sm; e.y += v * 0.55 * dt; e.x = clamp(e.x, 30, this.w - 30); break;
+      case 'dive': adv = v * (e.advDist < this.h * 0.4 ? 1.4 : 0.5); lat = Math.cos(e.t * 2 + e.phase) * 90 * sm; break;
+      case 'strafe': adv = v * 0.6 * (e.advDist < this.h * 0.32 ? 1.5 : 0.25); lat = Math.sin(e.t * 1.5 + e.phase) * 90 * sm; break;
+      case 'hover': adv = held ? 0 : v; lat = Math.sin(e.t * 0.7 + e.phase) * 50 * sm; break;
+      case 'descend': adv = v * 0.5; lat = Math.sin(e.t * 0.5) * 20; break;
+      case 'kamikaze': adv = v * 1.2; lat = 0; break; // advDir já aponta no jogador
+      case 'turret': adv = held ? 0 : v; lat = 0; break;
+      case 'orbit': adv = held ? 0 : v; lat = Math.cos(e.t * 1.2 + e.phase) * 90 * sm; break;
+      case 'zigzag': adv = v * 0.7; lat = (Math.floor(e.t * 2 + e.phase) % 2 ? 1 : -1) * 110 * sm; break;
+      case 'drift': adv = v * 0.5 * sm; lat = Math.sin(e.t + e.phase) * 24; break;
+      case 'serpentine': adv = v * 0.55; lat = Math.sin(e.t * 3 + e.phase) * 130 * sm; break;
     }
+    e.advDist += adv * dt;
+    e.x += (dir.x * adv + perp.x * lat) * dt;
+    e.y += (dir.y * adv + perp.y * lat) * dt;
+    // mantém laterais dentro da tela (não na arena)
+    if (this.orient === 'vertical') e.x = clamp(e.x, 24, this.w - 24);
+    else if (this.orient === 'horizontal') e.y = clamp(e.y, 24, this.h - 24);
   }
 
-  // ---------------- padrões de projétil (genéricos) ----------------
+  // ---------------- padrões de projétil (genéricos, orientação-aware) ----------------
   private emitAt(x: number, y: number, sector: number, ang: number, speed: number, extra?: Partial<EBullet>): void {
-    this.ebullets.push({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 4.6, hue: SECTOR_BULLET[sector], ...extra });
+    this.ebullets.push({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 4.6 * this.mod.projScale, hue: SECTOR_BULLET[sector], ...extra });
   }
   private aimA(x: number, y: number): number { return Math.atan2(this.player.y - y, this.player.x - x); }
   private emitP(x: number, y: number, sector: number, pattern: Pattern, n: number, sp: number, fireN: number): void {
-    const down = Math.PI / 2;
+    const down = this.enemyBase(x, y); // "para frente" do inimigo depende da orientação
     switch (pattern) {
       case 'aim': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, this.aimA(x, y) + (i - (n - 1) / 2) * 0.14, sp); break;
       case 'fan': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, down + (i - (n - 1) / 2) * 0.18, sp); break;
@@ -538,15 +628,27 @@ export class Engine {
       case 'pulseRing': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, (i / n) * Math.PI * 2 + fireN * 0.2, sp * 0.7); break;
       case 'spiral': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, fireN * 0.4 + (i / n) * Math.PI * 2, sp * 0.8); break;
       case 'wave': for (let i = -2; i <= 2; i++) this.emitAt(x, y, sector, down + Math.sin(fireN * 0.5) * 0.4 + i * 0.12, sp * 0.8); break;
-      case 'wall': { const gapX = this.player.x; for (let i = 0; i < n; i++) { const bx = 40 + (i / Math.max(1, n - 1)) * (this.w - 80); if (Math.abs(bx - gapX) < 60) continue; this.ebullets.push({ x: bx, y, vx: 0, vy: sp * 0.7, r: 4.6, hue: SECTOR_BULLET[sector] }); } break; }
-      case 'rain': for (let i = 0; i < n; i++) { const bx = x + rand(-90, 90); this.ebullets.push({ x: bx, y, vx: rand(-40, 40), vy: sp * 0.8, r: 4.2, hue: SECTOR_BULLET[sector] }); } break;
-      case 'sweep': { const base = down - 0.5 + (fireN % 8) * 0.14; for (let i = 0; i < n; i++) this.emitAt(x, y, sector, base + i * 0.1, sp); break; }
+      case 'wall': this.emitWall(sector, n, sp); break;
+      case 'rain': this.emitRain(x, y, sector, n, sp); break;
+      case 'sweep': { const b = down - 0.5 + (fireN % 8) * 0.14; for (let i = 0; i < n; i++) this.emitAt(x, y, sector, b + i * 0.1, sp); break; }
       case 'aimBurst': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, this.aimA(x, y), sp * (0.8 + i * 0.15)); break;
       case 'cross': for (let i = 0; i < 4; i++) this.emitAt(x, y, sector, i * (Math.PI / 2) + Math.PI / 4 + fireN * 0.1, sp); break;
       case 'arc': for (let i = 0; i < 5; i++) this.emitAt(x, y, sector, down - 0.5 + i * 0.25, sp * 0.85); break;
       case 'homingSlow': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, down + (i - (n - 1) / 2) * 0.3, sp * 0.55, { homing: 2.5, r: 5.4 }); break;
       case 'split': this.emitAt(x, y, sector, this.aimA(x, y), sp * 0.7, { split: 0.55, r: 5.4 }); break;
     }
+  }
+  private emitWall(sector: number, n: number, sp: number): void {
+    const hue = SECTOR_BULLET[sector], r = 4.6 * this.mod.projScale;
+    if (this.orient === 'arena') { for (let i = 0; i < n; i++) this.emitAt(this.player.x, this.player.y, sector, (i / n) * Math.PI * 2, sp * 0.7); return; }
+    if (this.orient === 'horizontal') { const gap = this.player.y; for (let i = 0; i < n; i++) { const by = 40 + (i / Math.max(1, n - 1)) * (this.h - 80); if (Math.abs(by - gap) < 60) continue; this.ebullets.push({ x: this.w + 10, y: by, vx: -sp * 0.7, vy: 0, r, hue }); } return; }
+    const gap = this.player.x; for (let i = 0; i < n; i++) { const bx = 40 + (i / Math.max(1, n - 1)) * (this.w - 80); if (Math.abs(bx - gap) < 60) continue; this.ebullets.push({ x: bx, y: -10, vx: 0, vy: sp * 0.7, r, hue }); }
+  }
+  private emitRain(x: number, y: number, sector: number, n: number, sp: number): void {
+    const hue = SECTOR_BULLET[sector], r = 4.2 * this.mod.projScale;
+    if (this.orient === 'horizontal') { for (let i = 0; i < n; i++) this.ebullets.push({ x, y: y + rand(-90, 90), vx: -sp * 0.8, vy: rand(-40, 40), r, hue }); return; }
+    if (this.orient === 'arena') { for (let i = 0; i < n; i++) this.emitAt(x, y, sector, Math.random() * Math.PI * 2, sp * 0.8); return; }
+    for (let i = 0; i < n; i++) this.ebullets.push({ x: x + rand(-90, 90), y, vx: rand(-40, 40), vy: sp * 0.8, r, hue });
   }
   private emitPattern(e: Enemy): void { this.emitP(e.x, e.y, e.def.sector, e.def.pattern, e.def.count, e.def.bspeed, e.fireN); }
 
@@ -609,7 +711,7 @@ export class Engine {
     p.invuln = 0.7; p.dmgFlash = 1; p.shieldRegenT = 0; p.noDmgT = 0;
     if (this.kit.passive === 'dodgeCharge') { /* nada; dodge premia esquiva, não dano */ }
     this.shake = Math.max(this.shake, 8); sfx.hit();
-    if (this.camp) this.camp.dmgTaken += dmg;
+    if (this.camp) this.camp.dmgTaken += dmg; this.runDmg += dmg;
     if (p.shield > 0) { p.shield -= dmg; if (p.shield < 0) { p.hp += p.shield; p.shield = 0; } } else p.hp -= dmg;
     this.combo = Math.max(0, this.combo - 5);
     if (p.hp <= 0) {
@@ -617,19 +719,30 @@ export class Engine {
       if (this.mode === 'campaign' && this.camp && !this.camp.done) {
         this.camp.lives--;
         if (this.camp.lives <= 0) { this.finishCampaign(false); return; }
+      } else if (this.runLives !== Infinity) {
+        this.runLives--;
+        if (this.runLives <= 0 && !this.runOver) { this.finishRun(false); return; }
       }
       p.hp = p.maxHp; p.shield = p.maxShield; p.invuln = 1.4;
     }
   }
+  private finishRun(success: boolean): void {
+    if (this.runOver) return; this.runOver = true;
+    const timeSec = (performance.now() - this.runStart) / 1000;
+    const sc = this.score;
+    const medal = sc > 40000 ? 'Eclipse' : sc > 20000 ? 'Platina' : sc > 10000 ? 'Ouro' : sc > 4000 ? 'Prata' : 'Bronze';
+    this.onComplete({ success, sector: -1, score: sc, kills: this.runKills, timeSec, dmgTaken: Math.round(this.runDmg), lives: Math.max(0, this.runLives), medal });
+  }
   private killEnemy(e: Enemy): void {
     if (e.dead) return; e.dead = true; // evita contagem dupla
+    this.runKills++;
     const big = !!e.def.elite;
     this.fx.explosion(e.x, e.y, big ? 2.6 : 1.1, e.def.pal.accent, big);
     this.shake = Math.max(this.shake, big ? 15 : 5); if (big) sfx.explodeBig(); else sfx.explodeSmall();
     if (this.camp) this.camp.kills++;
     this.combo += 1; this.comboTimer = 2.2;
-    this.score += Math.round(e.def.score * (1 + this.combo * 0.05));
-    this.player.ult = Math.min(1, this.player.ult + (big ? 0.25 : 0.03));
+    this.score += Math.round(e.def.score * (1 + this.combo * 0.05) * this.mod.scoreMult);
+    this.player.ult = Math.min(1, this.player.ult + (big ? 0.25 : 0.03) * this.mod.ultRate);
     if (this.kit.passive === 'dodgeCharge') this.player.ult = Math.min(1, this.player.ult + 0.01);
     this.dropPickups(e.x, e.y, big);
   }
@@ -653,24 +766,32 @@ export class Engine {
   private nearestEnemy(x: number, y: number): Enemy | null { let b: Enemy | null = null, bd = Infinity; for (const e of this.enemies) { if (e.hp <= 0) continue; const d = Math.hypot(e.x - x, e.y - y); if (d < bd) { bd = d; b = e; } } return b; }
   private nearest(x: number, y: number, n: number): Enemy[] { return this.enemies.filter((e) => e.hp > 0).sort((a, b) => Math.hypot(a.x - x, a.y - y) - Math.hypot(b.x - x, b.y - y)).slice(0, n); }
 
+  private dim(): number { return this.orient === 'horizontal' ? this.w : this.orient === 'arena' ? Math.min(this.w, this.h) * 0.5 : this.h; }
   private spawnWave(): void {
     this.spawnT = rand(1.6, 2.6); this.wave++;
-    // campanha: setor fixo; endless: avança a cada 6 ondas
     if (this.mode === 'campaign') this.curSector = this.campSector;
     else this.curSector = Math.floor((this.wave - 1) / 6) % 12;
     const pool = ENEMIES_BY_SECTOR[this.curSector];
     const normals = pool.filter((d) => !d.elite);
     const elite = pool.find((d) => d.elite);
-    if (this.mode === 'endless' && !this.eliteAlive && this.wave % 4 === 0 && elite) { this.addEnemy(elite, this.w / 2, -90, this.h * 0.22); this.eliteAlive = true; return; }
+    if (this.mode === 'endless' && this.orient === 'vertical' && !this.eliteAlive && this.wave % 4 === 0 && elite) { this.addEnemy(elite, 0.5, this.dim() * 0.22, 0); this.eliteAlive = true; return; }
     const def = normals[Math.random() * normals.length | 0];
-    const group = def.behavior === 'turret' || def.behavior === 'hover' ? 1 : 2 + (Math.random() * 3 | 0);
+    const group = def.behavior === 'turret' || def.behavior === 'hover' ? (this.orient === 'arena' ? 2 : 1) : 2 + (Math.random() * 3 | 0);
     for (let i = 0; i < group; i++) {
-      const ty = def.behavior === 'turret' || def.behavior === 'orbit' ? rand(this.h * 0.14, this.h * 0.3) : (def.behavior === 'hover' ? rand(this.h * 0.2, this.h * 0.34) : 0);
-      this.addEnemy(def, rand(60, this.w - 60), -40 - i * 50, ty);
+      const hold = def.behavior === 'turret' || def.behavior === 'orbit' ? rand(this.dim() * 0.16, this.dim() * 0.34) : (def.behavior === 'hover' ? rand(this.dim() * 0.22, this.dim() * 0.4) : 1e9);
+      this.addEnemy(def, Math.random(), hold, i * 52);
     }
   }
-  private addEnemy(def: EnemyDef, x: number, y: number, targetY: number): void {
-    this.enemies.push({ x, y, vx: 0, vy: 0, def, size: def.size, hp: def.hp, maxHp: def.hp, r: def.size * 1.15, t: Math.random() * 6, hit: 0, fireCd: rand(0.6, def.cadence), fireN: 0, enter: 0.25, phase: Math.random() * Math.PI * 2, targetY: targetY || y, slowT: 0, dotT: 0, dotDmg: 0, markT: 0, dead: false });
+  private initDir(x: number, y: number): { x: number; y: number } {
+    if (this.orient === 'vertical') return { x: 0, y: 1 };
+    if (this.orient === 'horizontal') return { x: -1, y: 0 };
+    const dx = this.w / 2 - x, dy = this.h / 2 - y, l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l };
+  }
+  private addEnemy(def: EnemyDef, lateralFrac: number, targetAdv: number, back: number): void {
+    const pos = this.spawnEdge(lateralFrac); const d = this.initDir(pos.x, pos.y);
+    const sx = pos.x - d.x * back, sy = pos.y - d.y * back;
+    const hp = def.hp * this.mod.enemyHp;
+    this.enemies.push({ x: sx, y: sy, vx: 0, vy: 0, def, size: def.size, hp, maxHp: hp, r: def.size * 1.15, t: Math.random() * 6, hit: 0, fireCd: rand(0.6, def.cadence), fireN: 0, enter: 0.25, phase: Math.random() * Math.PI * 2, targetY: targetAdv, advDist: 0, advAngle: Math.atan2(d.y, d.x), slowT: 0, dotT: 0, dotDmg: 0, markT: 0, dead: false });
     if (def.elite) this.flash = Math.max(this.flash, 0.4);
   }
 
@@ -689,15 +810,15 @@ export class Engine {
     // balas inimigas
     for (const b of this.ebullets) { glow(ctx, b.x, b.y, b.r * 3.4, b.hue, 0.7); ctx.fillStyle = '#fff2d8'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.6, 0, Math.PI * 2); ctx.fill(); }
     // inimigos
-    for (const e of this.enemies) { if (e.slowT > 0) glow(ctx, e.x, e.y, e.size * 1.6, '#7fe0ff', 0.25); drawEnemyGen(ctx, e.def.arch, e.x, e.y, e.size, e.t, e.hit, e.def.pal); if (e.markT > 0) { ctx.strokeStyle = applyAlpha('#ff5a7a', 0.7); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.stroke(); } }
+    for (const e of this.enemies) { if (e.slowT > 0) glow(ctx, e.x, e.y, e.size * 1.6, '#7fe0ff', 0.25); drawEnemyGen(ctx, e.def.arch, e.x, e.y, e.size, e.t, e.hit, e.def.pal, this.orient === 'vertical' ? 0 : e.advAngle - Math.PI / 2); if (e.markT > 0) { ctx.strokeStyle = applyAlpha('#ff5a7a', 0.7); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.stroke(); } }
     // chefe
     if (this.boss) this.drawBossEntity(ctx, this.boss);
     // pickups
     for (const pk of this.pickups) this.drawPickup(ctx, pk);
     // feixe primário
-    if (this.kit.primary.pattern === 'beam') this.drawBeam(ctx, p.x, p.y - 24, this._beamHalf, this.kit.primary.color);
+    if (this.kit.primary.pattern === 'beam') this.drawBeam(ctx, p.x, p.y, this._beamHalf, this.kit.primary.color, this._beamF);
     // feixe ultimate (sweep)
-    if (this.sweepT > 0) { const hw = 46 + Math.sin(this.t * 8) * 8; this.drawBeam(ctx, p.x, p.y - 24, hw, this.sweepHue); for (const e of this.enemies) { if (e.hp > 0 && Math.abs(e.x - p.x) < hw + e.r && e.y < p.y) { e.hp -= 90 * (1 / 60); e.hit = 1; if (e.hp <= 0) this.killEnemy(e); } } }
+    if (this.sweepT > 0) { const hw = 46 + Math.sin(this.t * 8) * 8; const sf = this.fwd(); this.drawBeam(ctx, p.x, p.y, hw, this.sweepHue, sf); for (const e of this.enemies) { if (e.hp <= 0) continue; const dx = e.x - p.x, dy = e.y - p.y; const along = dx * sf.x + dy * sf.y; const perpD = Math.abs(dx * -sf.y + dy * sf.x); if (along > 0 && perpD < hw + e.r) { e.hp -= 90 * (1 / 60); e.hit = 1; if (e.hp <= 0) this.killEnemy(e); } } }
     // corrente elétrica (zaps)
     for (let i = this.zaps.length - 1; i >= 0; i--) { const z = this.zaps[i]; z.life -= 1 / 60; if (z.life <= 0) { this.zaps.splice(i, 1); continue; } beam(ctx, z.x1, z.y1, z.x2, z.y2, 2.4, '#ffffff', applyAlpha(z.hue, 0.6)); }
     // balas do jogador
@@ -713,7 +834,8 @@ export class Engine {
     // nave
     const cloakA = p.cloak > 0 ? 0.4 : 1;
     ctx.globalAlpha = cloakA;
-    drawShip(ctx, p.x, p.y, 24, this.ship.design, { tilt: p.tilt, thrust: 0.7 + Math.hypot(p.vx, p.vy) / p.speed * 0.4, t: this.t, shield: p.shield / p.maxShield, damage: p.dmgFlash, invuln: p.invuln > 0 && p.dashT <= 0 });
+    const pf = this.fwd(); const prot = this.orient === 'vertical' ? 0 : Math.atan2(pf.y, pf.x) + Math.PI / 2;
+    drawShip(ctx, p.x, p.y, 24, this.ship.design, { tilt: p.tilt, thrust: 0.7 + Math.hypot(p.vx, p.vy) / p.speed * 0.4, t: this.t, shield: p.shield / p.maxShield, damage: p.dmgFlash, invuln: p.invuln > 0 && p.dashT <= 0, rot: prot });
     ctx.globalAlpha = 1;
     this.fx.draw(ctx);
     ctx.restore();
@@ -748,13 +870,15 @@ export class Engine {
       glow(ctx, b.x, b.y, b.r * 3.0, b.hue, 0.85);
     }
   }
-  private drawBeam(ctx: CanvasRenderingContext2D, x: number, y: number, hw: number, hue: string): void {
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createLinearGradient(x - hw, 0, x + hw, 0);
+  private drawBeam(ctx: CanvasRenderingContext2D, px: number, py: number, hw: number, hue: string, f: { x: number; y: number }): void {
+    const ang = Math.atan2(f.y, f.x); const L = Math.hypot(this.w, this.h);
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(px, py); ctx.rotate(ang);
+    const g = ctx.createLinearGradient(0, -hw, 0, hw);
     g.addColorStop(0, applyAlpha(hue, 0)); g.addColorStop(0.5, applyAlpha(hue, 0.5)); g.addColorStop(1, applyAlpha(hue, 0));
-    ctx.fillStyle = g; ctx.fillRect(x - hw, 0, hw * 2, y);
-    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(x - hw * 0.22, 0, hw * 0.44, y);
-    glow(ctx, x, y, hw * 2.4, hue, 0.9); ctx.restore();
+    ctx.fillStyle = g; ctx.fillRect(0, -hw, L, hw * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(0, -hw * 0.22, L, hw * 0.44);
+    ctx.restore();
+    glow(ctx, px + f.x * 20, py + f.y * 20, hw * 2.4, hue, 0.9);
   }
   private drawDrone(ctx: CanvasRenderingContext2D, d: Drone): void {
     const c = this.kit.ability.color; glow(ctx, d.x, d.y, 12, c, 0.8);

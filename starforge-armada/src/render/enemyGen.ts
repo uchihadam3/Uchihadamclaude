@@ -5,9 +5,10 @@ import { Ctx, glow, rgba, poly, applyAlpha, vgrad } from './prims';
 import type { Palette } from './shipGen';
 import type { Archetype } from '../data/enemiesData';
 
-export function drawEnemyGen(ctx: Ctx, arch: Archetype, x: number, y: number, S: number, t: number, hit: number, P: Palette): void {
+export function drawEnemyGen(ctx: Ctx, arch: Archetype, x: number, y: number, S: number, t: number, hit: number, P: Palette, rot = 0): void {
   ctx.save();
   ctx.translate(x, y);
+  if (rot) ctx.rotate(rot);
   (DRAW[arch] ?? DRAW.drone)(ctx, S, t, P);
   if (hit > 0.01) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = hit; ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(0, 0, S * 1.1, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();

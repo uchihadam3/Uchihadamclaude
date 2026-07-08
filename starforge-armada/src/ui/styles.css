@@ -373,3 +373,48 @@ button { font-family: inherit; cursor: pointer; }
 .results-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .results-actions .play-btn { margin-top: 0; font-size: 15px; padding: 12px 20px; }
 @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ================= MODOS ================= */
+.modes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px;
+  padding: 18px; max-width: 1180px; margin: 0 auto; }
+.mode-card { --mc: #7ff0ff; position: relative; text-align: left; border-radius: 16px; padding: 16px 16px 14px;
+  border: 1px solid color-mix(in srgb, var(--mc) 34%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--mc) 10%, rgba(12,20,40,0.92)), rgba(6,12,28,0.95));
+  color: var(--ink); cursor: pointer; overflow: hidden; transition: transform 0.14s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+.mode-card::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+  background: radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, var(--mc) 22%, transparent), transparent 60%); }
+.mode-card:hover { transform: translateY(-3px); border-color: var(--mc);
+  box-shadow: 0 14px 40px color-mix(in srgb, var(--mc) 28%, rgba(0,10,30,0.6)); }
+.mode-ico { font-size: 30px; line-height: 1; filter: drop-shadow(0 0 12px currentColor); margin-bottom: 8px; }
+.mode-name { font-size: 17px; font-weight: 800; letter-spacing: 0.01em; color: #eafcff; }
+.mode-desc { font-size: 12.5px; line-height: 1.5; color: #a9c6e2; margin: 5px 0 10px; min-height: 54px; }
+.mode-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.mtag { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;
+  padding: 3px 8px; border-radius: 999px; color: color-mix(in srgb, var(--mc) 82%, #fff);
+  background: color-mix(in srgb, var(--mc) 16%, rgba(10,18,36,0.7));
+  border: 1px solid color-mix(in srgb, var(--mc) 40%, transparent); }
+
+/* ================= RELÍQUIAS ================= */
+.relic-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.relic-card { text-align: left; border: 1px solid var(--panel-line); border-radius: 12px; padding: 10px 12px;
+  background: rgba(20,30,56,0.6); color: var(--ink); cursor: pointer; transition: border-color 0.16s ease, box-shadow 0.2s ease, background 0.2s ease; }
+.relic-card:hover { border-color: #a78bff; }
+.relic-card.sel { border-color: #b79bff; background: rgba(60,40,110,0.5); box-shadow: 0 0 18px rgba(150,110,255,0.4); }
+.relic-name { font-size: 13px; font-weight: 800; color: #e6dcff; }
+.relic-desc { font-size: 11px; line-height: 1.45; color: #b3a6d8; margin-top: 3px; }
+
+/* ================= ORIENTAÇÃO (treino) ================= */
+.orient-picks { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.otag { font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--panel-line); background: rgba(20,30,56,0.6); color: #b8d4ec; transition: all 0.16s ease; }
+.otag:hover { border-color: var(--cyan); color: #eafcff; }
+.otag.sel { border-color: var(--cyan); background: rgba(30,70,110,0.6); color: #eafcff; box-shadow: 0 0 16px rgba(91,214,255,0.4); }
+
+/* medalhas de pontuação — painel grande de resultado (todas as faixas) */
+.results-medal.m-bronze { color: #1c0f04; background: linear-gradient(180deg, #f0b070, #cf8038); }
+.results-medal.m-prata { color: #10161c; background: linear-gradient(180deg, #eaf1f6, #b6c6d2); }
+.results-medal.m-ouro { color: #1a1206; background: linear-gradient(180deg, #ffe27a, #f6b731); }
+.results-medal.m-platina { color: #04201c; background: linear-gradient(180deg, #d8fff2, #6fe6cf); box-shadow: 0 0 22px rgba(111,230,207,0.5); }
+.results-medal.m-eclipse { color: #f4eaff; background: linear-gradient(180deg, #6a2bd0, #2a0c5a); box-shadow: 0 0 26px rgba(150,90,255,0.6); }
+.map-medal.m-platina { color: #6fe6cf; background: rgba(111,230,207,0.15); }
+.map-medal.m-eclipse { color: #c79bff; background: rgba(150,90,255,0.16); }

@@ -87,21 +87,24 @@ export function StoryIntro(props: { sector: number; onLaunch: (shipId: string) =
 // ---------- Resultado ----------
 export function Results(props: { result: CampaignResult; hasNext: boolean; onRetry: () => void; onMap: () => void; onNext: () => void }): JSX.Element {
   const r = props.result;
+  const isMode = r.sector === -1; // corrida de modo (não campanha)
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const title = isMode ? (r.success ? 'Vitória!' : 'Fim de Jogo') : (r.success ? 'Setor Concluído' : 'Missão Falhou');
+  const showMedal = isMode || r.success; // em modos a medalha é por pontuação, sempre exibida
   return (
     <div className="results-bg">
       <div className={`results ${r.success ? 'win' : 'fail'}`}>
-        <div className="results-title">{r.success ? 'Setor Concluído' : 'Missão Falhou'}</div>
-        {r.success && <div className={`results-medal m-${r.medal.toLowerCase()}`}>{r.medal}</div>}
+        <div className="results-title">{title}</div>
+        {showMedal && <div className={`results-medal m-${r.medal.toLowerCase()}`}>{r.medal}</div>}
         <div className="results-grid">
           <div className="rstat"><span>Pontuação</span><b>{r.score.toLocaleString('pt-BR')}</b></div>
           <div className="rstat"><span>Inimigos</span><b>{r.kills}</b></div>
           <div className="rstat"><span>Tempo</span><b>{fmt(r.timeSec)}</b></div>
           <div className="rstat"><span>Dano sofrido</span><b>{r.dmgTaken}</b></div>
-          <div className="rstat"><span>Vidas restantes</span><b>{r.lives}</b></div>
+          {!isMode && <div className="rstat"><span>Vidas restantes</span><b>{r.lives}</b></div>}
         </div>
         <div className="results-actions">
-          <button className="play-btn ghost" onClick={() => { sfx.ui(); props.onMap(); }}>Mapa</button>
+          <button className="play-btn ghost" onClick={() => { sfx.ui(); props.onMap(); }}>{isMode ? 'Modos' : 'Mapa'}</button>
           <button className="play-btn ghost" onClick={() => { sfx.ui(); props.onRetry(); }}>Repetir</button>
           {r.success && props.hasNext && <button className="play-btn" onClick={() => { sfx.start(); props.onNext(); }}>Próximo ▶</button>}
         </div>
