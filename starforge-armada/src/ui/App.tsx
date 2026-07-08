@@ -111,6 +111,10 @@ function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
   const ultRef = useRef<HTMLDivElement>(null);
   const ultBoxRef = useRef<HTMLButtonElement>(null);
   const spRef = useRef<HTMLDivElement>(null);
+  const bossWrapRef = useRef<HTMLDivElement>(null);
+  const bossNameRef = useRef<HTMLDivElement>(null);
+  const bossFillRef = useRef<HTMLDivElement>(null);
+  const bossPipsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initAudio();
@@ -129,6 +133,16 @@ function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
       if (ultRef.current) ultRef.current.style.height = `${(1 - h.ultimate) * 100}%`;
       if (ultBoxRef.current) ultBoxRef.current.classList.toggle('ready', h.ultimate >= 1);
       if (spRef.current) spRef.current.style.width = `${h.speed * 100}%`;
+      if (bossWrapRef.current) bossWrapRef.current.style.opacity = h.bossActive ? '1' : '0';
+      if (h.bossActive) {
+        if (bossNameRef.current) bossNameRef.current.textContent = h.bossName;
+        if (bossFillRef.current) bossFillRef.current.style.width = `${h.bossHp * 100}%`;
+        if (bossPipsRef.current && bossPipsRef.current.childElementCount !== h.bossPhases) {
+          bossPipsRef.current.innerHTML = '';
+          for (let i = 0; i < h.bossPhases; i++) { const d = document.createElement('span'); d.className = 'boss-pip'; bossPipsRef.current.appendChild(d); }
+        }
+        if (bossPipsRef.current) { const pips = bossPipsRef.current.children; for (let i = 0; i < pips.length; i++) (pips[i] as HTMLElement).classList.toggle('done', i < h.bossPhase); }
+      }
     };
     eng.start();
     return () => eng.stop();
@@ -138,6 +152,13 @@ function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
     <div className="demo">
       <canvas ref={canvasRef} />
       <div className="hud">
+        <div className="boss-bar" ref={bossWrapRef} style={{ opacity: 0 }}>
+          <div className="boss-bar-head">
+            <div className="boss-name" ref={bossNameRef} />
+            <div className="boss-pips" ref={bossPipsRef} />
+          </div>
+          <div className="boss-track"><div className="boss-fill" ref={bossFillRef} /></div>
+        </div>
         <div className="hud-top">
           <div className="hud-panel">
             <div className="hud-score-label">Pontuação</div>

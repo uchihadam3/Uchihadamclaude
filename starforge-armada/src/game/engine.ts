@@ -11,12 +11,15 @@ import { glow, beam, rgba, applyAlpha, clamp, rand, poly } from '../render/prims
 import { sfx, resumeAudio } from './audio';
 import { SHIP_BY_ID, ShipDef } from '../data/shipsData';
 import { kitFor, Kit, FireSpec } from './shipKits';
-import { ENEMIES_BY_SECTOR, EnemyDef, SECTOR_BULLET, SECTORS } from '../data/enemiesData';
+import { ENEMIES_BY_SECTOR, EnemyDef, SECTOR_BULLET, SECTORS, Pattern } from '../data/enemiesData';
+import { MAIN_BOSSES, SECRET_BOSSES, BossDef } from '../data/bossesData';
+import { drawBoss } from '../render/bossGen';
 
 export interface Hud {
   hp: number; maxHp: number; shield: number; maxShield: number;
   score: number; combo: number; comboTimer: number;
   ability: number; ultimate: number; speed: number; fps: number; wave: number; sector: string;
+  bossActive: boolean; bossName: string; bossHp: number; bossPhases: number; bossPhase: number;
 }
 
 type PickKind = 'score' | 'shield' | 'heal' | 'ult' | 'power';
@@ -38,6 +41,12 @@ interface Enemy {
 interface Drone { ang: number; fireCd: number; life: number; x: number; y: number; }
 interface Mine { x: number; y: number; vx: number; vy: number; life: number; r: number; dmg: number; t: number; }
 interface Hole { x: number; y: number; life: number; r: number; t: number; }
+interface BossPartLive { rx: number; ry: number; x: number; y: number; hp: number; maxHp: number; dead: boolean; fireCd: number; def: any; }
+interface Boss {
+  def: BossDef; x: number; y: number; hp: number; maxHp: number; t: number; hit: number; deathT: number;
+  state: 'enter' | 'fight' | 'die'; enterT: number; phaseIdx: number; exposed: boolean;
+  emitCd: number[]; fireN: number; parts: BossPartLive[]; targetY: number; dir: number; nameT: number;
+}
 
 export class Engine {
   private ctx: CanvasRenderingContext2D;
@@ -73,8 +82,9 @@ export class Engine {
   private shake = 0; private flash = 0;
   private score = 0; private combo = 0; private comboTimer = 0; private wave = 1;
   private spawnT = 0; private fps = 60; private eliteAlive = false; private curSector = 0;
+  private boss: Boss | null = null; private lastBossWave = 0; private bossCounter = 0;
 
-  hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name };
+  hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name, bossActive: false, bossName: '', bossHp: 1, bossPhases: 1, bossPhase: 0 };
   onHud: (h: Hud) => void = () => {};
 
   constructor(private canvas: HTMLCanvasElement, shipId = 'falcon') {
@@ -252,8 +262,16 @@ export class Engine {
     if (this.ultActive > 0) this.ultActive -= dt;
     if (this.comboTimer > 0) { this.comboTimer -= dt; if (this.comboTimer <= 0) this.combo = 0; }
 
-    // ---- spawns ----
-    this.spawnT -= dt; if (this.spawnT <= 0 && this.enemies.length < 12) this.spawnWave();
+    // ---- chefe / spawns ----
+    if (this.boss) { this.updateBoss(dt); }
+    else if (this.wave - this.lastBossWave >= 9) {
+      // dispara um chefe a cada ~9 ondas (limpa a tela)
+      const useSecret = this.bossCounter > 0 && this.bossCounter % 4 === 0 && SECRET_BOSSES.length;
+      const def = useSecret ? SECRET_BOSSES[(this.bossCounter / 4 | 0) % SECRET_BOSSES.length] : MAIN_BOSSES[this.bossCounter % MAIN_BOSSES.length];
+      this.bossCounter++; this.spawnBoss(def);
+    } else {
+      this.spawnT -= dt; if (this.spawnT <= 0 && this.enemies.length < 12) this.spawnWave();
+    }
 
     // ---- entidades do jogador ----
     this.updateDrones(dt);
@@ -388,6 +406,8 @@ export class Engine {
           if (b.pierce && b.hits) { b.hits.add(e); } else { this.bullets.splice(i, 1); break; }
         }
       }
+      // colisão com o chefe
+      if (this.bullets[i] === b && this.boss) { if (this.hitBoss(b) && !b.pierce) this.bullets.splice(i, 1); }
     }
   }
 
@@ -475,30 +495,74 @@ export class Engine {
     }
   }
 
-  // ---------------- padrões de projétil ----------------
-  private emit(e: Enemy, ang: number, speed: number, extra?: Partial<EBullet>): void {
-    this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 4.6, hue: SECTOR_BULLET[e.def.sector], ...extra });
+  // ---------------- padrões de projétil (genéricos) ----------------
+  private emitAt(x: number, y: number, sector: number, ang: number, speed: number, extra?: Partial<EBullet>): void {
+    this.ebullets.push({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 4.6, hue: SECTOR_BULLET[sector], ...extra });
   }
-  private aimAng(e: Enemy): number { const dx = this.player.x - e.x, dy = this.player.y - e.y; return Math.atan2(dy, dx); }
-  private emitPattern(e: Enemy): void {
-    const p = e.def, n = p.count, sp = p.bspeed, down = Math.PI / 2;
-    switch (p.pattern) {
-      case 'aim': for (let i = 0; i < n; i++) this.emit(e, this.aimAng(e) + (i - (n - 1) / 2) * 0.14, sp); break;
-      case 'fan': for (let i = 0; i < n; i++) this.emit(e, down + (i - (n - 1) / 2) * 0.18, sp); break;
-      case 'spread': { const a0 = this.aimAng(e); for (let i = 0; i < n; i++) this.emit(e, a0 + (i - (n - 1) / 2) * 0.22, sp); break; }
-      case 'ring': for (let i = 0; i < n; i++) this.emit(e, (i / n) * Math.PI * 2, sp); break;
-      case 'pulseRing': for (let i = 0; i < n; i++) this.emit(e, (i / n) * Math.PI * 2 + e.fireN * 0.2, sp * 0.7); break;
-      case 'spiral': for (let i = 0; i < n; i++) this.emit(e, e.fireN * 0.4 + (i / n) * Math.PI * 2, sp * 0.8); break;
-      case 'wave': for (let i = -2; i <= 2; i++) this.emit(e, down + Math.sin(e.fireN * 0.5) * 0.4 + i * 0.12, sp * 0.8); break;
-      case 'wall': { const gapX = this.player.x; for (let i = 0; i < n; i++) { const bx = 40 + (i / (n - 1)) * (this.w - 80); if (Math.abs(bx - gapX) < 60) continue; this.ebullets.push({ x: bx, y: e.y, vx: 0, vy: sp * 0.7, r: 4.6, hue: SECTOR_BULLET[e.def.sector] }); } break; }
-      case 'rain': for (let i = 0; i < n; i++) { const bx = e.x + rand(-80, 80); this.ebullets.push({ x: bx, y: e.y, vx: rand(-40, 40), vy: sp * 0.8, r: 4.2, hue: SECTOR_BULLET[e.def.sector] }); } break;
-      case 'sweep': { const base = down - 0.5 + (e.fireN % 8) * 0.14; for (let i = 0; i < n; i++) this.emit(e, base + i * 0.1, sp); break; }
-      case 'aimBurst': for (let i = 0; i < n; i++) this.emit(e, this.aimAng(e), sp * (0.8 + i * 0.15)); break;
-      case 'cross': for (let i = 0; i < 4; i++) this.emit(e, i * (Math.PI / 2) + Math.PI / 4 + e.fireN * 0.1, sp); break;
-      case 'arc': for (let i = 0; i < 5; i++) this.emit(e, down - 0.5 + i * 0.25, sp * 0.85); break;
-      case 'homingSlow': for (let i = 0; i < n; i++) this.emit(e, down + (i - (n - 1) / 2) * 0.3, sp * 0.55, { homing: 2.5, r: 5.4 }); break;
-      case 'split': this.emit(e, this.aimAng(e), sp * 0.7, { split: 0.55, r: 5.4 }); break;
+  private aimA(x: number, y: number): number { return Math.atan2(this.player.y - y, this.player.x - x); }
+  private emitP(x: number, y: number, sector: number, pattern: Pattern, n: number, sp: number, fireN: number): void {
+    const down = Math.PI / 2;
+    switch (pattern) {
+      case 'aim': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, this.aimA(x, y) + (i - (n - 1) / 2) * 0.14, sp); break;
+      case 'fan': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, down + (i - (n - 1) / 2) * 0.18, sp); break;
+      case 'spread': { const a0 = this.aimA(x, y); for (let i = 0; i < n; i++) this.emitAt(x, y, sector, a0 + (i - (n - 1) / 2) * 0.22, sp); break; }
+      case 'ring': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, (i / n) * Math.PI * 2, sp); break;
+      case 'pulseRing': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, (i / n) * Math.PI * 2 + fireN * 0.2, sp * 0.7); break;
+      case 'spiral': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, fireN * 0.4 + (i / n) * Math.PI * 2, sp * 0.8); break;
+      case 'wave': for (let i = -2; i <= 2; i++) this.emitAt(x, y, sector, down + Math.sin(fireN * 0.5) * 0.4 + i * 0.12, sp * 0.8); break;
+      case 'wall': { const gapX = this.player.x; for (let i = 0; i < n; i++) { const bx = 40 + (i / Math.max(1, n - 1)) * (this.w - 80); if (Math.abs(bx - gapX) < 60) continue; this.ebullets.push({ x: bx, y, vx: 0, vy: sp * 0.7, r: 4.6, hue: SECTOR_BULLET[sector] }); } break; }
+      case 'rain': for (let i = 0; i < n; i++) { const bx = x + rand(-90, 90); this.ebullets.push({ x: bx, y, vx: rand(-40, 40), vy: sp * 0.8, r: 4.2, hue: SECTOR_BULLET[sector] }); } break;
+      case 'sweep': { const base = down - 0.5 + (fireN % 8) * 0.14; for (let i = 0; i < n; i++) this.emitAt(x, y, sector, base + i * 0.1, sp); break; }
+      case 'aimBurst': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, this.aimA(x, y), sp * (0.8 + i * 0.15)); break;
+      case 'cross': for (let i = 0; i < 4; i++) this.emitAt(x, y, sector, i * (Math.PI / 2) + Math.PI / 4 + fireN * 0.1, sp); break;
+      case 'arc': for (let i = 0; i < 5; i++) this.emitAt(x, y, sector, down - 0.5 + i * 0.25, sp * 0.85); break;
+      case 'homingSlow': for (let i = 0; i < n; i++) this.emitAt(x, y, sector, down + (i - (n - 1) / 2) * 0.3, sp * 0.55, { homing: 2.5, r: 5.4 }); break;
+      case 'split': this.emitAt(x, y, sector, this.aimA(x, y), sp * 0.7, { split: 0.55, r: 5.4 }); break;
     }
+  }
+  private emitPattern(e: Enemy): void { this.emitP(e.x, e.y, e.def.sector, e.def.pattern, e.def.count, e.def.bspeed, e.fireN); }
+
+  // ================= CHEFES =================
+  private spawnBoss(def: BossDef): void {
+    this.lastBossWave = this.wave; this.enemies.length = 0; this.ebullets.length = 0; this.eliteAlive = false;
+    const parts: BossPartLive[] = def.parts.map((pt) => ({ rx: pt.x * def.size, ry: pt.y * def.size, x: this.w / 2, y: -def.size, hp: pt.hp, maxHp: pt.hp, dead: false, fireCd: rand(0.5, 1.5), def: pt }));
+    this.boss = { def, x: this.w / 2, y: -def.size, hp: def.hp, maxHp: def.hp, t: 0, hit: 0, deathT: 0, state: 'enter', enterT: 2.0, phaseIdx: 0, exposed: false, emitCd: def.phases[0].attacks.map(() => rand(0.4, 1.2)), fireN: 0, parts, targetY: this.h * 0.2, dir: 1, nameT: 3 };
+    this.flash = Math.max(this.flash, 0.5); sfx.explodeBig();
+  }
+  private updateBoss(dt: number): void {
+    const b = this.boss!; const p = this.player; b.t += dt; b.hit = Math.max(0, b.hit - dt * 3); if (b.nameT > 0) b.nameT -= dt;
+    for (const pt of b.parts) { pt.x = b.x + pt.rx; pt.y = b.y + pt.ry; }
+    if (b.state === 'enter') { b.y += (b.targetY - b.y) * Math.min(1, dt * 2); b.enterT -= dt; if (b.enterT <= 0 && Math.abs(b.y - b.targetY) < 4) b.state = 'fight'; return; }
+    if (b.state === 'die') {
+      b.deathT += dt; if (Math.random() < dt * 20) this.fx.explosion(b.x + rand(-1, 1) * b.def.size, b.y + rand(-1, 1) * b.def.size, 2, b.def.pal.accent, true); this.shake = Math.max(this.shake, 12);
+      if (b.deathT > 1.7) { this.fx.explosion(b.x, b.y, 5, '#ffffff', true); this.flash = 1; this.shake = 24; this.score += b.def.secret ? 8000 : 5000; p.ult = 1; this.boss = null; }
+      return;
+    }
+    const phases = b.def.phases; let idx = 0; const frac = b.hp / b.maxHp;
+    for (let i = 0; i < phases.length; i++) if (frac <= phases[i].at) idx = i;
+    if (idx !== b.phaseIdx) { b.phaseIdx = idx; b.emitCd = phases[idx].attacks.map(() => rand(0.3, 0.9)); if (this.ebullets.length > 20) this.ebullets.length = 20; this.flash = Math.max(this.flash, 0.5); b.hit = 1; b.nameT = 1.4; sfx.explodeSmall(); }
+    b.exposed = idx === phases.length - 1;
+    const ph = phases[idx];
+    if (ph.move === 'sweep') { b.x += b.dir * 70 * dt; if (b.x < b.def.size + 20 || b.x > this.w - b.def.size - 20) b.dir *= -1; b.x = clamp(b.x, b.def.size + 20, this.w - b.def.size - 20); }
+    else if (ph.move === 'chase') { b.x += Math.sign(p.x - b.x) * Math.min(90, Math.abs(p.x - b.x)) * dt * 1.4; b.x = clamp(b.x, b.def.size, this.w - b.def.size); }
+    else { b.x += Math.sin(b.t * 0.8) * 40 * dt; }
+    b.y = b.targetY + Math.sin(b.t * 0.7) * 12;
+    for (let i = 0; i < ph.attacks.length; i++) { b.emitCd[i] -= dt; if (b.emitCd[i] <= 0) { const at = ph.attacks[i]; b.emitCd[i] = at.cadence; this.emitP(b.x, b.y, b.def.sector, at.pattern, at.count, at.bspeed, b.fireN++); } }
+    for (const pt of b.parts) { if (pt.dead) continue; pt.fireCd -= dt; if (pt.fireCd <= 0 && pt.def.pattern) { pt.fireCd = pt.def.cadence ?? 1.5; this.emitP(pt.x, pt.y, b.def.sector, pt.def.pattern, pt.def.count ?? 1, pt.def.bspeed ?? 340, b.fireN++); } }
+    if (p.invuln <= 0 && Math.hypot(b.x - p.x, b.y - p.y) < b.def.size * 0.8 + this.hitR) this.damagePlayer(26);
+  }
+  private hitBoss(bl: Bullet): boolean {
+    const b = this.boss; if (!b || b.state !== 'fight') return false;
+    for (const pt of b.parts) { if (pt.dead) continue; if (Math.hypot(pt.x - bl.x, pt.y - bl.y) < b.def.size * 0.28 + bl.r) { pt.hp -= bl.dmg; this.fx.hit(bl.x, bl.y, '#bfe9ff'); if (pt.hp <= 0) { pt.dead = true; this.fx.explosion(pt.x, pt.y, 1.6, b.def.pal.accent, true); this.score += 400; this.shake = Math.max(this.shake, 8); } if (bl.pierce && bl.hits) return false; return true; } }
+    if (Math.hypot(b.x - bl.x, b.y - bl.y) < b.def.size * 0.85 + bl.r) {
+      const mult = b.exposed ? 1.5 : 1; b.hp -= bl.dmg * mult; b.hit = 1;
+      this.fx.hit(bl.x, bl.y, '#bfe9ff');
+      if (bl.kind === 'missile') { this.fx.explosion(bl.x, bl.y, 1, bl.hue); this.shake = Math.max(this.shake, 4); }
+      if (b.hp <= 0 && b.state === 'fight') { b.state = 'die'; b.deathT = 0; sfx.explodeBig(); this.flash = Math.max(this.flash, 0.8); }
+      if (bl.pierce && bl.hits) return false;
+      return true;
+    }
+    return false;
   }
 
   private damagePlayer(dmg: number): void {
@@ -578,6 +642,8 @@ export class Engine {
     for (const b of this.ebullets) { glow(ctx, b.x, b.y, b.r * 3.4, b.hue, 0.7); ctx.fillStyle = '#fff2d8'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.6, 0, Math.PI * 2); ctx.fill(); }
     // inimigos
     for (const e of this.enemies) { if (e.slowT > 0) glow(ctx, e.x, e.y, e.size * 1.6, '#7fe0ff', 0.25); drawEnemyGen(ctx, e.def.arch, e.x, e.y, e.size, e.t, e.hit, e.def.pal); if (e.markT > 0) { ctx.strokeStyle = applyAlpha('#ff5a7a', 0.7); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.stroke(); } }
+    // chefe
+    if (this.boss) this.drawBossEntity(ctx, this.boss);
     // pickups
     for (const pk of this.pickups) this.drawPickup(ctx, pk);
     // feixe primário
@@ -663,6 +729,34 @@ export class Engine {
     // núcleo negro
     ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(hl.x, hl.y, r * 0.16, 0, Math.PI * 2); ctx.fill();
   }
+  private drawBossEntity(ctx: CanvasRenderingContext2D, b: Boss): void {
+    drawBoss(ctx, b.def.form, b.x, b.y, b.def.size, b.t, b.def.pal, { phase: b.phaseIdx, exposed: b.exposed, hit: b.hit, deathT: b.deathT });
+    // partes destrutíveis (torres)
+    for (const pt of b.parts) {
+      if (pt.dead) continue;
+      const rr = b.def.size * 0.24;
+      glow(ctx, pt.x, pt.y, rr * 2, b.def.pal.accent, 0.5);
+      ctx.fillStyle = applyAlpha(b.def.pal.dark, 0.95); ctx.beginPath(); ctx.arc(pt.x, pt.y, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = applyAlpha(b.def.pal.accent, 0.8); ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = applyAlpha(b.def.pal.accent, 0.9); ctx.beginPath(); ctx.arc(pt.x, pt.y, rr * 0.4, 0, Math.PI * 2); ctx.fill();
+      // barrinha de vida da parte
+      const w = rr * 2, hpf = pt.hp / pt.maxHp;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(pt.x - w / 2, pt.y - rr - 8, w, 3);
+      ctx.fillStyle = '#ff8a5a'; ctx.fillRect(pt.x - w / 2, pt.y - rr - 8, w * hpf, 3);
+    }
+    // cartão de nome (entrada / troca de fase)
+    if (b.nameT > 0) {
+      const a = Math.min(1, b.nameT);
+      ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff'; ctx.font = '800 26px Rajdhani, sans-serif';
+      ctx.shadowColor = b.def.pal.accent; ctx.shadowBlur = 18;
+      ctx.fillText(b.def.name.toUpperCase(), this.w / 2, b.state === 'enter' ? this.h * 0.44 : b.y - b.def.size - 18);
+      ctx.shadowBlur = 0; ctx.fillStyle = applyAlpha(b.def.pal.accent, 0.9); ctx.font = '600 13px Rajdhani, sans-serif';
+      ctx.fillText(b.def.title.toUpperCase(), this.w / 2, (b.state === 'enter' ? this.h * 0.44 : b.y - b.def.size - 18) + 20);
+      ctx.restore();
+    }
+  }
+
   private drawPickup(ctx: CanvasRenderingContext2D, pk: Pickup): void {
     const c = PICK_COLOR[pk.kind]; const pulse = 0.75 + 0.25 * Math.sin(pk.t * 6); const bob = Math.sin(pk.t * 4) * 2; const y = pk.y + bob;
     glow(ctx, pk.x, y, 22 * pulse, c, 0.85);
@@ -677,6 +771,12 @@ export class Engine {
     this.hud.score = this.score; this.hud.combo = this.combo; this.hud.comboTimer = this.comboTimer;
     this.hud.ability = 1 - p.abilityCd / p.abilityMax; this.hud.ultimate = p.ult;
     this.hud.speed = Math.min(1, Math.hypot(p.vx, p.vy) / p.speed); this.hud.fps = this.fps; this.hud.wave = this.wave; this.hud.sector = SECTORS[this.curSector].name;
+    const b = this.boss;
+    this.hud.bossActive = !!b && b.state !== 'die';
+    this.hud.bossName = b ? b.def.name : '';
+    this.hud.bossHp = b ? Math.max(0, b.hp / b.maxHp) : 0;
+    this.hud.bossPhases = b ? b.def.phases.length : 1;
+    this.hud.bossPhase = b ? b.phaseIdx : 0;
     this.onHud(this.hud);
   }
 }
