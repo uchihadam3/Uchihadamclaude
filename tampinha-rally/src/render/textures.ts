@@ -26,12 +26,12 @@ const GROUND: Record<string, (c: CanvasRenderingContext2D, w: number, h: number)
   mud: () => {}, water: () => {}, ramp: () => {}, chalk: () => {}, out: () => {},
 };
 
-function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: number) => [number, number]) {
-  const [cx, cy] = map(p.x, p.y); const r = (p.r ?? Math.max(p.hw!, p.hh!)) * PX;
+function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: number) => [number, number], px: number) {
+  const [cx, cy] = map(p.x, p.y); const r = (p.r ?? Math.max(p.hw!, p.hh!)) * px;
   c.save();
   c.beginPath();
   if (p.r != null) c.arc(cx, cy, r, 0, 7);
-  else { const hw = p.hw! * PX, hh = p.hh! * PX; c.rect(cx - hw, cy - hh, hw * 2, hh * 2); }
+  else { const hw = p.hw! * px, hh = p.hh! * px; c.rect(cx - hw, cy - hh, hw * 2, hh * 2); }
   c.clip();
   const s = p.surface;
   if (s === 'sand') { c.fillStyle = '#ecd192'; c.fillRect(cx - r, cy - r, r * 2, r * 2); noise(c, 0, 0, 0, '', 0, 0); c.globalAlpha = 1; for (let i = 0; i < 400; i++) { c.globalAlpha = 0.3; c.fillStyle = '#d8b96f'; c.beginPath(); c.arc(cx + (Math.random() - 0.5) * r * 2, cy + (Math.random() - 0.5) * r * 2, 1.6, 0, 7); c.fill(); } c.globalAlpha = 1; }
@@ -45,37 +45,72 @@ function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: nu
   c.restore();
 }
 
+// bordas do corredor (esq/dir) a partir do traçado + meia-largura por ponto
+function corridorBorders(def: TrackDef): { L: [number, number][]; R: [number, number][] } {
+  const path = def.path, half = def.half; const L: [number, number][] = [], R: [number, number][] = [];
+  for (let i = 0; i < path.length; i++) {
+    const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)];
+    let nx = -(b.y - a.y), ny = (b.x - a.x); const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+    const hw = half[i];
+    L.push([path[i].x + nx * hw, path[i].y + ny * hw]); R.push([path[i].x - nx * hw, path[i].y - ny * hw]);
+  }
+  return { L, R };
+}
+
 export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
-  const W = def.w * PX, H = def.h * PX;
+  // resolução adaptativa: pistas grandes usam menos px/unidade (limita a memória)
+  const maxDim = Math.max(def.w, def.h);
+  const px = Math.max(7, Math.min(PX, Math.floor(3000 / maxDim)));
+  const W = Math.round(def.w * px), H = Math.round(def.h * px);
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d')!;
-  const map = (x: number, y: number): [number, number] => [x * PX, y * PX];
-  (GROUND[def.ground] || GROUND.dirt)(c, W, H);
-  // vinheta suave
-  const vg = c.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.75);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.16)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
-  for (const p of def.patches) drawPatch(c, p, map);
+  const map = (x: number, y: number): [number, number] => [x * px, y * px];
+  const paintGround = () => (GROUND[def.ground] || GROUND.dirt)(c, W, H);
+  paintGround();
 
-  // guia do traçado (tracejado claro)
-  c.strokeStyle = 'rgba(255,255,255,0.22)'; c.lineWidth = 3; c.setLineDash([10, 12]);
+  const { L, R } = corridorBorders(def);
+  // polígono do corredor (Path2D): borda esquerda ida + direita volta
+  const corridor = new Path2D();
+  { const [x0, y0] = map(L[0][0], L[0][1]); corridor.moveTo(x0, y0); }
+  for (let i = 1; i < L.length; i++) { const [x, y] = map(L[i][0], L[i][1]); corridor.lineTo(x, y); }
+  for (let i = R.length - 1; i >= 0; i--) { const [x, y] = map(R[i][0], R[i][1]); corridor.lineTo(x, y); }
+  corridor.closePath();
+
+  // ESCURECE tudo FORA do corredor (regra even-odd: retângulo cheio menos o corredor)
+  const dim = new Path2D(); dim.rect(0, 0, W, H); dim.addPath(corridor);
+  c.fillStyle = 'rgba(18,12,6,0.40)'; c.fill(dim, 'evenodd');
+
+  // reacende os PADS (largada larga / nós de atalho) — repinta chão claro
+  for (const pd of def.pads) { const [cx, cy] = map(pd.x, pd.y); c.save(); c.beginPath(); c.arc(cx, cy, pd.r * px, 0, 7); c.clip(); paintGround(); c.restore(); }
+
+  // remendos de superfície (dentro do corredor)
+  for (const p of def.patches) drawPatch(c, p, map, px);
+
+  // LINHAS DA PISTA — marcam a pista inteira, mesmo sem muro (contorno + miolo claro)
+  const stroke = (pts: [number, number][], wid: number, col: string) => { c.strokeStyle = col; c.lineWidth = wid; c.lineJoin = 'round'; c.lineCap = 'round'; c.beginPath(); pts.forEach((p, i) => { const [x, y] = map(p[0], p[1]); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); };
+  stroke(L, Math.max(3, px * 0.55), 'rgba(35,22,10,0.55)'); stroke(R, Math.max(3, px * 0.55), 'rgba(35,22,10,0.55)');
+  stroke(L, Math.max(1.6, px * 0.28), 'rgba(255,250,238,0.95)'); stroke(R, Math.max(1.6, px * 0.28), 'rgba(255,250,238,0.95)');
+
+  // linha central tracejada (guia)
+  c.strokeStyle = 'rgba(255,255,255,0.30)'; c.lineWidth = Math.max(2, px * 0.16); c.setLineDash([px, px * 1.2]);
   c.beginPath(); def.path.forEach((p, i) => { const [x, y] = map(p.x, p.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); c.setLineDash([]);
 
-  // checkpoints (bandeirinha/seta)
-  def.checkpoints.forEach((cp, i) => { if (i === 0) return; const [x, y] = map(cp.x, cp.y); c.fillStyle = 'rgba(255,255,255,0.5)'; c.beginPath(); c.arc(x, y, 8, 0, 7); c.fill(); c.fillStyle = 'rgba(60,60,60,0.6)'; c.font = 'bold 16px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(i), x, y + 1); });
+  // checkpoints (número)
+  def.checkpoints.forEach((cp, i) => { if (i === 0) return; const [x, y] = map(cp.x, cp.y); c.fillStyle = 'rgba(255,255,255,0.55)'; c.beginPath(); c.arc(x, y, px * 0.4, 0, 7); c.fill(); c.fillStyle = 'rgba(60,60,60,0.7)'; c.font = `bold ${Math.round(px * 0.7)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(i), x, y + 1); });
 
   // largada + chegada (xadrez)
   const checker = (a: [number, number], b: [number, number], col: string) => {
     const [ax, ay] = map(a[0], a[1]), [bx, by] = map(b[0], b[1]);
-    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy), nx = -dy / len, ny = dx / len;
+    const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
     const rows = 3, cell = len / 10;
     for (let r = 0; r < rows; r++) for (let k = 0; k < 10; k++) {
       c.fillStyle = ((r + k) % 2) ? col : '#fff';
-      const px = ax + (dx * k / 10) + nx * (r - 1) * cell, py = ay + (dy * k / 10) + ny * (r - 1) * cell;
-      c.save(); c.translate(px, py); c.rotate(Math.atan2(dy, dx)); c.fillRect(0, -cell / 2, cell, cell); c.restore();
+      const qx = ax + (dx * k / 10) + nx * (r - 1) * cell, qy = ay + (dy * k / 10) + ny * (r - 1) * cell;
+      c.save(); c.translate(qx, qy); c.rotate(Math.atan2(dy, dx)); c.fillRect(0, -cell / 2, cell, cell); c.restore();
     }
   };
-  const sPerp = def.startAngle; const half = 3.2; const sn = { x: -Math.sin(sPerp), y: Math.cos(sPerp) };
-  checker([def.start.x - sn.x * half, def.start.y - sn.y * half], [def.start.x + sn.x * half, def.start.y + sn.y * half], '#333');
+  const sn = { x: -Math.sin(def.startAngle), y: Math.cos(def.startAngle) }; const sh = def.half[0];
+  checker([def.start.x - sn.x * sh, def.start.y - sn.y * sh], [def.start.x + sn.x * sh, def.start.y + sn.y * sh], '#2a7d3a');
   checker([def.finish[0].x, def.finish[0].y], [def.finish[1].x, def.finish[1].y], '#222');
 
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.needsUpdate = true;

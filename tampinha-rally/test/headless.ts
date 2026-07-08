@@ -5,38 +5,45 @@ import { TrackModel } from '../src/engine/track';
 
 function pathLen(t: any): number { let a = 0; for (let i = 1; i < t.path.length; i++) a += Math.hypot(t.path[i].x - t.path[i - 1].x, t.path[i].y - t.path[i - 1].y); return a; }
 
+// auto-sobreposição: pontos longe no arco não podem ficar mais perto que ~1 largura
+function selfOverlap(t: any): number {
+  const path = t.path; const arcs = [0]; let a = 0;
+  for (let i = 1; i < path.length; i++) { a += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y); arcs.push(a); }
+  const total = a; const minGapArc = total * 0.10; const minDist = t.half[0] * 1.5;
+  let bad = 0;
+  for (let i = 0; i < path.length; i += 3) for (let j = i + 1; j < path.length; j += 3) {
+    if (arcs[j] - arcs[i] < minGapArc) continue;
+    if (Math.hypot(path[i].x - path[j].x, path[i].y - path[j].y) < minDist) { bad++; }
+  }
+  return bad;
+}
+
 // ---------- 1) validação estrutural das 50 pistas ----------
 let problems = 0;
 const lenByLevel: number[][] = [[], [], [], [], []];
 const wallsByLevel: number[][] = [[], [], [], [], []];
+const dimsByLevel: string[][] = [[], [], [], [], []];
 for (let lv = 0; lv < 5; lv++) {
   for (let i = 0; i < TRACKS_PER_LEVEL; i++) {
     const t = track(lv, i);
     const L = pathLen(t);
     lenByLevel[lv].push(L);
-    // fração do corredor coberta por muro (proteção): amostra ao longo do arco
-    const tm = new TrackModel(t);
-    let covered = 0, samples = 0;
-    for (let s = 0; s < tm.total; s += 4) {
-      const { p } = tm.atArc(s); samples++;
-      // há muro dentro de ~half+1 dos dois lados?
-      let near = false;
-      for (const w of t.walls) { const mx = (w.a.x + w.b.x) / 2, my = (w.a.y + w.b.y) / 2; if (Math.hypot(mx - p.x, my - p.y) < 6) { near = true; break; } }
-      if (near) covered++;
-    }
     wallsByLevel[lv].push(t.walls.length);
-    const prot = covered / samples;
-    // checagens básicas
-    if (!(L > 180)) { console.log(`✗ pista ${lv}.${i} curta demais: ${L.toFixed(0)}`); problems++; }
+    dimsByLevel[lv].push(`${t.w}x${t.h}`);
+    const ov = selfOverlap(t);
+    if (!(L > 200)) { console.log(`✗ pista ${lv}.${i} curta demais: ${L.toFixed(0)}`); problems++; }
     if (t.path.some((p: any) => p.x < -2 || p.y < -2 || p.x > t.w + 2 || p.y > t.h + 2)) { console.log(`✗ pista ${lv}.${i} sai da mesa`); problems++; }
     if (t.checkpoints.length < 3) { console.log(`✗ pista ${lv}.${i} poucos checkpoints`); problems++; }
     if (t.walls.length === 0) { console.log(`✗ pista ${lv}.${i} sem nenhum muro`); problems++; }
     if (!t.name || !t.wallCol) { console.log(`✗ pista ${lv}.${i} sem nome/cor`); problems++; }
+    if (ov > 4) { console.log(`✗ pista ${lv}.${i} auto-sobreposição (${ov} pares perto)`); problems++; }
   }
 }
 const avg = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
 console.log('\n=== COMPRIMENTO MÉDIO por nível (unidades de arco) ===');
 for (let lv = 0; lv < 5; lv++) console.log(`  ${LEVELS[lv].padEnd(14)} len≈${avg(lenByLevel[lv]).toFixed(0)}  muros≈${avg(wallsByLevel[lv]).toFixed(0)}`);
+console.log('\n=== VARIEDADE (dimensões das 10 pistas de cada nível — devem diferir) ===');
+for (let lv = 0; lv < 5; lv++) console.log(`  ${LEVELS[lv].padEnd(14)} ${dimsByLevel[lv].join(' ')}`);
 
 // gradiente de proteção: nível fácil deve ter MAIS muros que o extremo
 const wEasy = avg(wallsByLevel[0]), wHard = avg(wallsByLevel[4]);

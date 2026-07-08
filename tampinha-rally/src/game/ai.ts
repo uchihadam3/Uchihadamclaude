@@ -87,34 +87,37 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   const per = P[kind] || P.tecnico;
   const total = track.total;
 
-  // direção-alvo: para um ponto adiante no traçado (volta para a linha de corrida)
-  const aimPt = track.atArc(Math.min(total, cap.progress + per.lookahead)).p;
-  let baseDir = norm(sub(aimPt, cap.pos));
-  const tan = track.atArc(cap.progress).tan;             // direção que "abraça" a curva
-  if (len(sub(aimPt, cap.pos)) < 0.4) baseDir = tan;
+  // dois alvos adiante (perto = recuperar/abraçar a curva; longe = avançar) + tangente
+  const tan = track.atArc(cap.progress).tan;
+  const near = track.atArc(Math.min(total, cap.progress + 6)).p;
+  const far = track.atArc(Math.min(total, cap.progress + per.lookahead)).p;
+  const dNear = len(sub(near, cap.pos)) < 0.4 ? tan : norm(sub(near, cap.pos));
+  const dFar = len(sub(far, cap.pos)) < 0.4 ? tan : norm(sub(far, cap.pos));
 
   // rival próximo à frente (para trombar)
   let rival: Cap | null = null;
   if (per.rival > 0) { let bd = 16; for (const o of caps) { if (o.id === cap.id || o.finished) continue; const d = dist(cap.pos, o.pos); if (d < bd && o.progress > cap.progress - 6) { rival = o; bd = d; } } }
 
-  // leque de direções (alvo + tangente) e de forças (inclui tacadas curtas seguras)
-  const dirs: V[] = [baseDir, rot(baseDir, per.spread * 0.5), rot(baseDir, -per.spread * 0.5), rot(baseDir, per.spread), rot(baseDir, -per.spread), tan];
-  const pows = kind === 'agressivo' ? [0.32, 0.5, 0.68, 0.85, 1.0] : kind === 'cauteloso' ? [0.22, 0.36, 0.5, 0.66, 0.82] : [0.26, 0.42, 0.58, 0.74, 0.92];
+  const s = per.spread;
+  const dirs: V[] = [dFar, rot(dFar, s * 0.6), rot(dFar, -s * 0.6), dNear, rot(dNear, s * 0.5), rot(dNear, -s * 0.5), tan];
+  const pows = kind === 'agressivo' ? [0.2, 0.4, 0.6, 0.78, 0.9, 1.0] : kind === 'cauteloso' ? [0.14, 0.28, 0.42, 0.56, 0.7, 0.84] : [0.16, 0.32, 0.5, 0.66, 0.82, 0.96];
 
-  let best = { dir: baseDir, power: 0.4, s: -1e9 };
+  let best = { dir: dNear, power: 0.2, s: -1e9 };
   for (const dir of dirs) {
     for (const pw of pows) {
       const ep = Math.min(1, pw * per.powBias);
-      const s = score(simShot(cap, track, dir, ep), cap, per, rival);
-      if (s > best.s) best = { dir, power: ep, s };
+      const sc = score(simShot(cap, track, dir, ep), cap, per, rival);
+      if (sc > best.s) best = { dir, power: ep, s: sc };
     }
   }
+  // creep de segurança: tacadas curtíssimas na tangente (garantem avançar sem cair)
+  for (const pw of [0.12, 0.18]) { const sc = score(simShot(cap, track, tan, pw), cap, per, rival); if (sc > best.s) best = { dir: tan, power: pw, s: sc }; }
   // rival: também tenta ir direto no alvo
   if (rival) {
     const rdir = norm(sub(rival.pos, cap.pos));
     for (const pw of [0.7, 0.9]) {
-      const s = score(simShot(cap, track, rdir, pw), cap, per, rival) + 18;
-      if (s > best.s) best = { dir: rdir, power: pw, s };
+      const sc = score(simShot(cap, track, rdir, pw), cap, per, rival) + 18;
+      if (sc > best.s) best = { dir: rdir, power: pw, s: sc };
     }
   }
 

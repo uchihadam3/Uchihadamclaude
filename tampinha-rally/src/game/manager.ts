@@ -32,15 +32,17 @@ export class GameManager {
       const c = makeCap(i, pl.name, pl.skin, { ...DEFAULT_STATS, ...sk.stats }, pl.isAI, pl.ai);
       return c;
     });
-    // larga em fileira, atrás da linha de largada
+    // larga NA linha de largada, dentro do corredor (não atrás/fora dela):
+    // duas colunas, avançando levemente para dentro da pista
     const s = def.start; const ang = def.startAngle;
+    const fwd = { x: Math.cos(ang), y: Math.sin(ang) };        // direção da pista
     const side = { x: -Math.sin(ang), y: Math.cos(ang) };      // perpendicular
-    const back = { x: -Math.cos(ang), y: -Math.sin(ang) };
-    const n = this.caps.length;
+    const half0 = def.half[0];
     this.caps.forEach((c, i) => {
-      const off = (i - (n - 1) / 2) * 1.9;
-      const row = (i % 2) * 1.7;
-      c.pos = vec(s.x + side.x * off + back.x * row, s.y + side.y * off + back.y * row);
+      const col = (i % 2) ? 1 : -1;                            // duas colunas
+      const across = (i % 2 === 0 && this.caps.length === 1) ? 0 : col * Math.min(half0 * 0.55, 1.8);
+      const along = 0.8 + Math.floor(i / 2) * 1.9;             // filas para frente, na pista
+      c.pos = vec(s.x + fwd.x * along + side.x * across, s.y + fwd.y * along + side.y * across);
       c.cpPos = vec(c.pos.x, c.pos.y); c.turnStart = vec(c.pos.x, c.pos.y);
       c.progress = this.track.progressOf(c.pos); c.checkpoint = 0;
     });

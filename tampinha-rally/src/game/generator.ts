@@ -1,9 +1,10 @@
 // GERADOR DE PISTAS — o coração do jogo. Cada pista nasce de uma semente
-// determinística: um traçado longo e sinuoso (serpentina jitterada suavizada por
-// Catmull-Rom), 5..10x mais comprido que o antigo, com ambiente temático,
-// obstáculos, rampas, atalhos e — o principal — PROTEÇÃO graduada por nível:
-// fácil quase todo murado; extrema quase sem muro (cai fácil pra fora).
-import { V, vec, Surface } from '../engine/core';
+// determinística e de UMA FAMÍLIA DE FORMATO diferente (onda fluida, serpentina
+// de pernas curvas, espiral pra dentro/pra fora), com orientação e parâmetros
+// sorteados — então nenhuma pista é igual à outra, cada uma tem suas curvas
+// próprias. A dificuldade vem da PROTEÇÃO (fração de muro): fácil quase todo
+// murado; extrema quase sem muro (cai fácil pra fora do corredor).
+import { V, vec, Surface, clamp } from '../engine/core';
 import { TrackDef, Wall, Patch, Obstacle, Decor } from '../engine/track';
 
 // ---- RNG determinístico ----
@@ -33,35 +34,94 @@ const THEMES: Theme[] = [
   { key: 'varanda', ground: 'cardboard', bg: '#8a6a44', wall: '#6b4e2e', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'leaf', 'pencil'], names: ['Varanda', 'Área Coberta', 'Quintalzinho', 'Alpendre'] },
 ];
 
-const catmull = (p0: V, p1: V, p2: V, p3: V, t: number): V => {
-  const t2 = t * t, t3 = t2 * t;
-  return {
-    x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
-    y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
-  };
-};
-function smooth(ctrl: V[], per: number): V[] {
-  const out: V[] = [];
-  for (let i = 0; i < ctrl.length - 1; i++) {
-    const p0 = ctrl[Math.max(0, i - 1)], p1 = ctrl[i], p2 = ctrl[i + 1], p3 = ctrl[Math.min(ctrl.length - 1, i + 2)];
-    for (let s = 0; s < per; s++) out.push(catmull(p0, p1, p2, p3, s / per));
-  }
-  out.push(ctrl[ctrl.length - 1]);
-  return out;
-}
 const tangentAt = (path: V[], i: number): V => { const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)]; const dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; };
 const normalAt = (path: V[], i: number): V => { const t = tangentAt(path, i); return { x: -t.y, y: t.x }; };
+const arcLenOf = (pts: V[]): number => { let a = 0; for (let i = 1; i < pts.length; i++) a += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); return a; };
+const rotatePts = (pts: V[], ang: number): void => { const c = Math.cos(ang), s = Math.sin(ang); for (const p of pts) { const x = p.x * c - p.y * s, y = p.x * s + p.y * c; p.x = x; p.y = y; } };
 
-// parâmetros por nível. IMPORTANTE: a dificuldade vem da PROTEÇÃO (fração de
-// muro "aberto"), não de estreitar o corredor — a largura fica quase constante,
-// só a quantidade de muro cai (fácil quase todo murado; extrema quase sem muro).
+// parâmetros por nível. Dificuldade = PROTEÇÃO (open) — a largura do corredor é
+// quase constante; só a cobertura de muro cai (fácil murado → extrema sem muro).
 const LV = [
-  { half: 4.3, open: 0.05, len: 250, holes: [1, 2], bombs: [0, 1], stones: [2, 4], bonus: [2, 3], ramps: [1, 2], rowGap: 6.0 },
-  { half: 4.1, open: 0.24, len: 330, holes: [2, 3], bombs: [0, 1], stones: [3, 5], bonus: [2, 4], ramps: [1, 3], rowGap: 5.7 },
-  { half: 4.0, open: 0.50, len: 410, holes: [2, 4], bombs: [1, 2], stones: [3, 6], bonus: [2, 4], ramps: [2, 3], rowGap: 5.5 },
-  { half: 3.9, open: 0.72, len: 490, holes: [3, 5], bombs: [1, 2], stones: [4, 6], bonus: [2, 3], ramps: [2, 4], rowGap: 5.3 },
-  { half: 3.8, open: 0.90, len: 570, holes: [3, 6], bombs: [1, 2], stones: [4, 7], bonus: [1, 3], ramps: [2, 4], rowGap: 5.1 },
+  { half: 4.3, open: 0.05, len: 330, holes: [1, 2], bombs: [0, 1], stones: [2, 4], bonus: [2, 3], ramps: [1, 2] },
+  { half: 4.1, open: 0.24, len: 420, holes: [2, 3], bombs: [0, 1], stones: [3, 5], bonus: [2, 4], ramps: [1, 3] },
+  { half: 4.0, open: 0.50, len: 510, holes: [2, 4], bombs: [1, 2], stones: [3, 6], bonus: [2, 4], ramps: [2, 3] },
+  { half: 3.9, open: 0.72, len: 600, holes: [3, 5], bombs: [1, 2], stones: [4, 6], bonus: [2, 3], ramps: [2, 4] },
+  { half: 3.8, open: 0.90, len: 690, holes: [3, 6], bombs: [1, 2], stones: [4, 7], bonus: [1, 3], ramps: [2, 4] },
 ];
+
+type RF = (a: number, b: number) => number;
+type RI = (a: number, b: number) => number;
+
+// ---------------- FAMÍLIAS DE FORMATO (cada uma bem diferente) ----------------
+
+// ONDA fluida: soma de duas harmônicas (curvas orgânicas, nunca zig-zag rígido),
+// caminho aberto da largada à chegada. Escalada para o comprimento-alvo.
+function shapeWave(rng: () => number, rf: RF, ri: RI, targetLen: number): V[] {
+  const PW = 100;
+  const k1 = ri(1, 3), k2 = ri(2, 5);
+  const a1 = rf(0.30, 0.52), a2 = rf(0.08, 0.24);
+  const s1 = rng() < 0.5 ? -1 : 1, s2 = rng() < 0.5 ? -1 : 1;
+  const envSel = ri(0, 2);                                   // 0 uniforme, 1 cresce, 2 diminui
+  const env = (u: number) => envSel === 1 ? (0.3 + 0.7 * u) : envSel === 2 ? (1 - 0.7 * u) : 1;
+  const ph = rf(-0.25, 0.25);
+  const yfn = (u: number) => (a1 * s1 * Math.sin(Math.PI * k1 * u) + a2 * s2 * Math.sin(Math.PI * k2 * u + ph)) * env(u);
+  const SAMPLES = 200;
+  const pts: V[] = [];
+  for (let i = 0; i <= SAMPLES; i++) { const u = i / SAMPLES; pts.push(vec(u * PW, yfn(u) * PW)); }
+  const sc = targetLen / arcLenOf(pts);
+  for (const p of pts) { p.x *= sc; p.y *= sc; }
+  return pts;
+}
+
+// SERPENTINA de pernas CURVAS (arqueadas) e retornos arredondados — compacta.
+// 'wide' faz pernas largas/poucas; senão pernas mais estreitas/mais voltas.
+function shapeSerp(rng: () => number, rf: RF, ri: RI, targetLen: number, half0: number, wide: boolean): V[] {
+  const legW = wide ? rf(48, 68) : rf(36, 50);             // pernas mais largas → menos curvas em U
+  const bowAmp = rf(0, 12);            // arqueamento — MESMA direção em todas as pernas (ficam paralelas)
+  const warpAmp = rf(0, 1.5);
+  const gap = Math.max(rf(3.5, 6.5), 2 * warpAmp + 2);
+  const rowGap = 2 * (half0 * 1.35) + gap;                 // folga p/ o corredor alargar nas curvas sem sobrepor
+  const nlegs = clamp(Math.round(targetLen / (legW + rowGap * 0.5)), 4, 46);
+  const pts: V[] = [];
+  const segs = 12, turns = 8;
+  for (let r = 0; r < nlegs; r++) {
+    const l2r = r % 2 === 0;
+    const x0 = l2r ? 0 : legW, x1 = l2r ? legW : 0;
+    const yB = r * rowGap;
+    for (let s = 0; s <= segs; s++) {
+      const t = s / segs;
+      const xx = x0 + (x1 - x0) * t;
+      const u = l2r ? t : 1 - t;                            // posição ao longo de x (mesma p/ pernas vizinhas)
+      const bowY = Math.sin(Math.PI * u) * bowAmp;          // arqueia igual → pernas paralelas (sem sobreposição)
+      const warpY = Math.sin(u * 2 * Math.PI) * warpAmp;
+      pts.push(vec(xx, yB + bowY + warpY));
+    }
+    if (r < nlegs - 1) {                                     // retorno em U arredondado
+      const side = l2r ? 1 : -1, cy = yB + rowGap / 2, rr = rowGap / 2;
+      for (let s = 1; s < turns; s++) { const a = (s / turns) * Math.PI; pts.push(vec(x1 + side * Math.sin(a) * rr, cy - Math.cos(a) * rr)); }
+    }
+  }
+  return pts;
+}
+
+// ESPIRAL de Arquimedes — começa fora e termina no centro (ou o contrário).
+function shapeSpiral(rng: () => number, rf: RF, ri: RI, targetLen: number, half0: number, out: boolean): V[] {
+  const turns = rf(2.0, 3.2);
+  const sep = 2 * (half0 * 1.35) + rf(4, 7);               // folga p/ alargar nas curvas
+  const rMin = half0 + 4;
+  const dr = Math.max(targetLen / (Math.PI * turns), turns * sep);
+  const R0 = rMin + dr;
+  const totalAng = turns * 2 * Math.PI;
+  const dirSign = rng() < 0.5 ? 1 : -1;
+  const steps = Math.max(160, Math.round(targetLen / 2.2));
+  const pts: V[] = [];
+  for (let s = 0; s <= steps; s++) {
+    const f = s / steps, th = f * totalAng, r = R0 - dr * f;
+    pts.push(vec(r * Math.cos(dirSign * th), r * Math.sin(dirSign * th)));
+  }
+  if (out) pts.reverse();
+  return pts;
+}
 
 export function genTrack(id: number, level: number, idxInLevel: number): TrackDef {
   const rng = mulberry(id * 7919 + level * 131 + idxInLevel * 17 + 1);
@@ -71,63 +131,81 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const p = LV[level];
 
   const half0 = p.half * rf(0.92, 1.08);
-  const m = half0 + 3.2;
-  const w = Math.round(rf(46, 58));
-  const legW = w - 2 * m;
-  const rowGap = 2 * half0 + p.rowGap + rf(-0.6, 0.8);
-  const rows = Math.max(4, Math.round((p.len * rf(0.9, 1.1)) / legW));
-  const h = Math.round(2 * m + (rows - 1) * rowGap);
+  const targetLen = p.len * rf(0.9, 1.1);
 
-  // pontos de controle: serpentina de baixo (largada) para cima (chegada)
-  const ctrl: V[] = [];
-  for (let r = 0; r < rows; r++) {
-    const y = h - m - r * rowGap + rf(-rowGap * 0.12, rowGap * 0.12);
-    const leftFirst = r % 2 === 0;
-    const xA = leftFirst ? m : w - m, xB = leftFirst ? w - m : m;
-    ctrl.push(vec(xA, y));
-    // meio da perna com ondulação
-    ctrl.push(vec((xA + xB) / 2 + rf(-legW * 0.12, legW * 0.12), y + rf(-1.5, 1.5)));
-    ctrl.push(vec(xB, y));
-    // ponto da curva em U (empurra pra fora pra suavizar)
-    if (r < rows - 1) { const ny = y - rowGap / 2; const nx = xB + (leftFirst ? 1 : -1) * m * 0.5; ctrl.push(vec(nx, ny)); }
-  }
-  const path = smooth(ctrl, 6);
+  // escolhe a FAMÍLIA de formato — (idx + level*3) % 10 percorre as 10 receitas
+  // ao longo dos 10 traçados do nível, então cada nível mostra todas as formas.
+  const recipes = ['wave', 'serpN', 'spin', 'serpW', 'wave', 'spout', 'serpN', 'spin', 'serpW', 'wave'];
+  let kind = recipes[(idxInLevel + level * 3) % recipes.length];
+  if (kind === 'wave' && targetLen > 440) kind = (idxInLevel % 2 ? 'spin' : 'serpN');   // pistas longas: dobradas p/ ficar compactas
+  let pts: V[];
+  if (kind === 'wave') pts = shapeWave(rng, rf, ri, targetLen);
+  else if (kind === 'spin') pts = shapeSpiral(rng, rf, ri, targetLen, half0, false);
+  else if (kind === 'spout') pts = shapeSpiral(rng, rf, ri, targetLen, half0, true);
+  else pts = shapeSerp(rng, rf, ri, targetLen, half0, kind === 'serpW');
+
+  // orientação aleatória → umas sobem, outras atravessam, outras na diagonal
+  rotatePts(pts, rng() * 6.283);
+  // enquadra na mesa com margem
+  const m = half0 + 5;
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  for (const q of pts) { if (q.x < minx) minx = q.x; if (q.y < miny) miny = q.y; if (q.x > maxx) maxx = q.x; if (q.y > maxy) maxy = q.y; }
+  for (const q of pts) { q.x += m - minx; q.y += m - miny; }
+  const w = Math.ceil(maxx - minx + 2 * m), h = Math.ceil(maxy - miny + 2 * m);
+  const path = pts;
   const N = path.length;
 
-  // meia-largura por ponto (mais larga na largada p/ enfileirar as tampinhas)
-  const halfArr: number[] = [];
-  let acc = 0; const arcs = [0];
+  // arcos acumulados
+  const arcs = [0]; let acc = 0;
   for (let i = 1; i < N; i++) { acc += Math.hypot(path[i].x - path[i - 1].x, path[i].y - path[i - 1].y); arcs.push(acc); }
   const total = acc;
+  const atArc = (a: number): { p: V; i: number } => { let i = 1; while (i < N - 1 && arcs[i] < a) i++; const seg = arcs[i] - arcs[i - 1] || 1; const t = (a - arcs[i - 1]) / seg; return { p: vec(path[i - 1].x + (path[i].x - path[i - 1].x) * t, path[i - 1].y + (path[i].y - path[i - 1].y) * t), i }; };
+  const onPath = (a: number, off = 0): V => { const { p: pp, i } = atArc(a); const n = normalAt(path, i); return vec(pp.x + n.x * off, pp.y + n.y * off); };
+
+  // curvatura por ponto (0 reta … 1 curva fechada), suavizada
+  const curv: number[] = new Array(N).fill(0);
+  for (let i = 1; i < N - 1; i++) {
+    const t1 = tangentAt(path, i - 1), t2 = tangentAt(path, i + 1);
+    let dp = t1.x * t2.x + t1.y * t2.y; dp = dp < -1 ? -1 : dp > 1 ? 1 : dp;
+    const ds = (arcs[Math.min(N - 1, i + 1)] - arcs[Math.max(0, i - 1)]) || 1;
+    curv[i] = clamp((Math.acos(dp) / ds) / 0.22, 0, 1);
+  }
+  const curvS: number[] = new Array(N).fill(0);
+  for (let i = 0; i < N; i++) { let s = 0, n = 0; for (let k = -3; k <= 3; k++) { const j = i + k; if (j >= 0 && j < N) { s += curv[j]; n++; } } curvS[i] = s / n; }
+
+  // meia-largura por ponto (mais larga na largada/chegada E nas curvas — dá espaço p/ girar)
+  const halfArr: number[] = [];
   for (let i = 0; i < N; i++) {
-    let hw = half0 + Math.sin(arcs[i] * 0.05) * 0.35;
-    if (arcs[i] < 9) hw = Math.max(hw, half0 + 2.2 * (1 - arcs[i] / 9));   // largada larga
-    if (total - arcs[i] < 7) hw += 1.0;
+    let hw = half0 + Math.sin(arcs[i] * 0.05) * 0.3;
+    if (arcs[i] < 10) hw = Math.max(hw, half0 + 2.0 * (1 - arcs[i] / 10));
+    if (total - arcs[i] < 8) hw += 0.9;
+    hw *= 1 + 0.35 * curvS[i];                             // alarga nas curvas
     halfArr.push(hw);
   }
 
-  // bordas (proteção) — offset dos dois lados, pulando um trecho "aberto"
+  // bordas (proteção) — a proteção se CONCENTRA nas curvas; as retas é que ficam
+  // abertas (perigosas) nos níveis difíceis. Largada/chegada sempre muradas.
   const walls: Wall[] = [];
   const step = 3;
-  const near = (a: number) => a < 9 || total - a < 8;   // largada/chegada sempre muradas
+  const near = (a: number) => a < 10 || total - a < 9;
   for (let i = step; i < N; i += step) {
     const j = i - step;
-    const openHere = rng() < p.open && !near(arcs[i]);
-    if (openHere) continue;
+    const openP = p.open * (1 - 0.7 * curvS[i]);           // curva fechada → quase sempre com muro
+    if (rng() < openP && !near(arcs[i])) continue;
     const nj = normalAt(path, j), ni = normalAt(path, i);
     walls.push({ a: vec(path[j].x + nj.x * halfArr[j], path[j].y + nj.y * halfArr[j]), b: vec(path[i].x + ni.x * halfArr[i], path[i].y + ni.y * halfArr[i]) });
     walls.push({ a: vec(path[j].x - nj.x * halfArr[j], path[j].y - nj.y * halfArr[j]), b: vec(path[i].x - ni.x * halfArr[i], path[i].y - ni.y * halfArr[i]) });
   }
 
-  const atArc = (a: number): { p: V; i: number } => { let i = 1; while (i < N - 1 && arcs[i] < a) i++; const seg = arcs[i] - arcs[i - 1] || 1; const t = (a - arcs[i - 1]) / seg; return { p: vec(path[i - 1].x + (path[i].x - path[i - 1].x) * t, path[i - 1].y + (path[i].y - path[i - 1].y) * t), i }; };
-  const onPath = (a: number, off = 0): V => { const { p: pp, i } = atArc(a); const n = normalAt(path, i); return vec(pp.x + n.x * off, pp.y + n.y * off); };
-
   const obstacles: Obstacle[] = [];
   const patches: Patch[] = [];
   const decor: Decor[] = [];
   const checkpoints: V[] = [vec(path[0].x, path[0].y)];
+  const pads: { x: number; y: number; r: number }[] = [];
 
-  // checkpoints
+  // largada larga (para as tampinhas saírem certinho da linha)
+  pads.push({ x: path[0].x, y: path[0].y, r: half0 + 2.8 });
+
   const nCP = ri(4, 7);
   for (let k = 1; k <= nCP; k++) checkpoints.push(onPath(total * k / (nCP + 1)));
 
@@ -135,47 +213,45 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const nRamp = ri(p.ramps[0], p.ramps[1]);
   for (let k = 0; k < nRamp; k++) { const a = rf(0.15, 0.85) * total; const { p: pp, i } = atArc(a); const t = tangentAt(path, i); patches.push({ surface: 'ramp', x: pp.x, y: pp.y, r: half0 * 0.9, dir: Math.atan2(t.y, t.x) }); }
   // poças/areia/lama temáticas
-  for (let k = 0; k < ri(2, 4); k++) { const a = rf(0.1, 0.9) * total; const pp = onPath(a, rf(-half0 * 0.4, half0 * 0.4)); const sfc = theme.patch[ri(0, theme.patch.length - 1)]; const t = tangentAt(path, Math.round(a / total * (N - 1))); patches.push({ surface: sfc, x: pp.x, y: pp.y, r: half0 * rf(0.7, 1.05), dir: sfc === 'water' ? Math.atan2(t.y, t.x) + rf(-0.6, 0.6) : undefined }); }
+  for (let k = 0; k < ri(2, 4); k++) { const a = rf(0.1, 0.9) * total; const pp = onPath(a, rf(-half0 * 0.4, half0 * 0.4)); const sfc = theme.patch[ri(0, theme.patch.length - 1)]; const { i } = atArc(a); const t = tangentAt(path, i); patches.push({ surface: sfc, x: pp.x, y: pp.y, r: half0 * rf(0.7, 1.05), dir: sfc === 'water' ? Math.atan2(t.y, t.x) + rf(-0.6, 0.6) : undefined }); }
 
-  // buracos (na linha) — perigo real; caiu → checkpoint + perde 1 peteléco
+  // buracos, bombas, pedras, bônus (espaçados)
   const usedArcs: number[] = [];
   const spaced = (a: number) => usedArcs.every(u => Math.abs(u - a) > 14);
   const placeAt = (a: number, off: number, make: (pp: V) => void) => { const pp = onPath(a, off); make(pp); usedArcs.push(a); };
   for (let k = 0, tries = 0; k < ri(p.holes[0], p.holes[1]) && tries < 40; tries++) { const a = rf(0.14, 0.9) * total; if (!spaced(a)) continue; placeAt(a, rf(-half0 * 0.5, half0 * 0.5), pp => obstacles.push({ type: 'hole', x: pp.x, y: pp.y, r: rf(1.0, 1.4) })); k++; }
-  // bombas (X) — perde a vez
   for (let k = 0, tries = 0; k < ri(p.bombs[0], p.bombs[1]) && tries < 30; tries++) { const a = rf(0.2, 0.85) * total; if (!spaced(a)) continue; placeAt(a, rf(-half0 * 0.4, half0 * 0.4), pp => obstacles.push({ type: 'bomb', x: pp.x, y: pp.y, r: 0.95 })); k++; }
-  // pedras (quicam)
   for (let k = 0; k < ri(p.stones[0], p.stones[1]); k++) { const a = rf(0.1, 0.92) * total; const off = (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.3, half0 * 0.75); const pp = onPath(a, off); obstacles.push({ type: 'stone', x: pp.x, y: pp.y, r: rf(0.7, 1.2) }); }
-  // bônus: quase sempre +1, às vezes +2, raríssimo +3
   for (let k = 0, tries = 0; k < ri(p.bonus[0], p.bonus[1]) && tries < 30; tries++) { const a = rf(0.15, 0.9) * total; if (!spaced(a)) continue; const roll = rng(); const n = roll > 0.94 ? 3 : roll > 0.72 ? 2 : 1; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.2, half0 * 0.7), pp => obstacles.push({ type: 'bonus', x: pp.x, y: pp.y, r: 1.1, n })); k++; }
 
-  // ATALHO arriscado (nível médio+): fura uma curva em U, com buraco guardião
-  const pads: { x: number; y: number; r: number }[] = [];
-  if (level >= 1 && rng() < (0.5 + level * 0.12)) {
-    const rTurn = ri(1, rows - 2);
-    // encontra os dois pontos do U mais próximos espacialmente
-    const yTurn = h - m - rTurn * rowGap;
-    let iA = 0, iB = 0, bd = 1e9;
-    for (let i = 0; i < N; i++) if (Math.abs(path[i].y - yTurn) < rowGap * 0.6) { for (let jj = i + 20; jj < N; jj++) { if (Math.abs(path[jj].y - (yTurn - rowGap)) < rowGap * 0.6) { const d = Math.hypot(path[i].x - path[jj].x, path[i].y - path[jj].y); if (d < bd) { bd = d; iA = i; iB = jj; } } } }
-    if (bd < legW && iB > iA) {
+  // ATALHO arriscado (nível médio+): acha dois pontos do traçado perto no espaço
+  // mas longe no arco (onde a pista quase encosta em si mesma) e liga com um pad,
+  // guardado por um buraco. Funciona pra qualquer formato.
+  if (level >= 1 && rng() < 0.55) {
+    let iA = -1, iB = -1, bd = 1e9;
+    for (let i = 0; i < N; i += 4) for (let j = i + 1; j < N; j += 4) {
+      if (arcs[j] - arcs[i] < total * 0.16) continue;
+      const d = Math.hypot(path[i].x - path[j].x, path[i].y - path[j].y);
+      if (d < bd) { bd = d; iA = i; iB = j; }
+    }
+    if (iA >= 0 && bd > 2 * half0 + 1 && bd < 2 * half0 + 16) {
       const mx = (path[iA].x + path[iB].x) / 2, my = (path[iA].y + path[iB].y) / 2;
-      pads.push({ x: mx, y: my, r: bd / 2 + half0 * 0.6 });
+      pads.push({ x: mx, y: my, r: bd / 2 + half0 * 0.7 });
       obstacles.push({ type: 'hole', x: mx + rf(-1, 1), y: my + rf(-1, 1), r: rf(1.2, 1.7) });
-      decor.push({ kind: 'twig', x: mx, y: my + bd / 2, s: 1, rot: rng() * 6 });
     }
   }
 
   // decoração espalhada (fora do corredor, na "cena")
-  for (let k = 0; k < ri(10, 18); k++) {
+  for (let k = 0; k < ri(12, 22); k++) {
     const dx = rf(2, w - 2), dy = rf(2, h - 2);
-    const kind = theme.decor[ri(0, theme.decor.length - 1)];
-    decor.push({ kind, x: dx, y: dy, s: rf(0.8, 1.3), rot: rng() * 6, c: undefined });
+    const kd = theme.decor[ri(0, theme.decor.length - 1)];
+    decor.push({ kind: kd, x: dx, y: dy, s: rf(0.8, 1.3), rot: rng() * 6 });
   }
 
   const start = vec(path[0].x, path[0].y);
   const stan = tangentAt(path, 0); const startAngle = Math.atan2(stan.y, stan.x);
   const fp = path[N - 1], ft = tangentAt(path, N - 1); const fn = { x: -ft.y, y: ft.x };
-  const finish: [V, V] = [vec(fp.x + fn.x * (half0 + 0.5), fp.y + fn.y * (half0 + 0.5)), vec(fp.x - fn.x * (half0 + 0.5), fp.y - fn.y * (half0 + 0.5))];
+  const finish: [V, V] = [vec(fp.x + fn.x * (half0 + 0.6), fp.y + fn.y * (half0 + 0.6)), vec(fp.x - fn.x * (half0 + 0.6), fp.y - fn.y * (half0 + 0.6))];
 
   const name = theme.names[idxInLevel % theme.names.length] + (idxInLevel >= theme.names.length ? ' ' + (Math.floor(idxInLevel / theme.names.length) + 1) : '');
   return { id, name, theme: theme.key, level, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor };
