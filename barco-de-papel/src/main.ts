@@ -122,6 +122,7 @@ const ui = new UI({
 });
 mgr.onChange = () => ui.update(mgr);
 (window as any).__mgr = mgr;   // diagnóstico
+(window as any).__rig = rig;   // diagnóstico (câmera)
 ui.showMenu();
 
 // ---- áudio no primeiro gesto ----

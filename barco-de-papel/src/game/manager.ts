@@ -31,13 +31,18 @@ export class GameManager {
     const g = this.grid;
     g.terrain.fill(0); g.water.fill(0); g.waterBuf.fill(0);
     g.flowX.fill(0); g.flowZ.fill(0); g.shaded.fill(0); g.evap.fill(0);
-    g.solid.fill(0); g.source.fill(0); g.dirty = true;
+    g.solid.fill(0); g.source.fill(0); g.drain.fill(0); g.dirty = true;
     const gl = this.level.build(g);
     // bacias suaves na nascente e no destino → poças bonitas de partida/chegada
     let sx = 0, sz = 0, sn = 0;
     for (let k = 0; k < N * N; k++) if (g.source[k]) { const i = k % N, j = (k / N) | 0; const [wx, wz] = g.cellToWorld(i, j); sx += wx; sz += wz; sn++; }
     if (sn) { bowl(g, sx / sn, sz / sn, 2.2, 0.5); }
     bowl(g, gl.goal[0], gl.goal[1], 2.6, 0.55);
+    // escoadouro no coração da chegada: puxa a correnteza para o destino
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const [wx, wz] = g.cellToWorld(i, j);
+      if (Math.hypot(wx - gl.goal[0], wz - gl.goal[1]) <= 1.5) g.drain[g.idx(i, j)] = 1;
+    }
     this.startBoat = gl.boat; this.goal = gl.goal; this.goalR = gl.goalR;
     this.tools.setBudget(this.level.tools);
     this.tools.active = 'coco'; this.tools.cocoMode = 'lower';

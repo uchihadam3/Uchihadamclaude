@@ -1,7 +1,7 @@
 // Camada de INPUT: raycast no terreno para achar o ponto do mundo, aplica a
-// ferramenta ativa (só no Planejamento) e controla a câmera (pan/zoom).
-// 1 dedo = editar (ou pan quando não pode editar) · 2 dedos = pan + pinça.
-// Desktop: botão direito arrasta = pan · roda = zoom.
+// ferramenta ativa (só no Planejamento) e controla a câmera (órbita/zoom).
+// 1 dedo = editar (ou girar/tombar quando não pode editar) · 2 dedos = órbita + pinça.
+// Desktop: botão direito arrasta = girar/tombar · roda = zoom.
 import * as THREE from 'three';
 import { CameraRig } from './render/scene';
 
@@ -24,6 +24,7 @@ export class InputController {
     window.addEventListener('pointerup', this.up);
     dom.addEventListener('wheel', this.wheel, { passive: false });
     dom.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('keydown', this.key);
   }
   setTarget(m: THREE.Object3D): void { this.target = m; }
 
@@ -56,11 +57,11 @@ export class InputController {
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pointers.size === 1) {
       if (this.editing) { const p = this.world(e.clientX, e.clientY); if (p) { this.opts.onEdit(p.x, p.z); this.opts.onHover(p); } }
-      else if (this.lastPan) { this.rig.pan(e.clientX - this.lastPan.x, e.clientY - this.lastPan.y, this.dom.clientWidth); this.lastPan = { x: e.clientX, y: e.clientY }; }
+      else if (this.lastPan) { this.rig.orbit(e.clientX - this.lastPan.x, e.clientY - this.lastPan.y); this.lastPan = { x: e.clientX, y: e.clientY }; }
     } else if (this.pointers.size === 2) {
       const a = [...this.pointers.values()];
       const cx = (a[0].x + a[1].x) / 2, cy = (a[0].y + a[1].y) / 2, d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
-      if (this.lastMid) this.rig.pan(cx - this.lastMid.x, cy - this.lastMid.y, this.dom.clientWidth);
+      if (this.lastMid) this.rig.orbit(cx - this.lastMid.x, cy - this.lastMid.y);
       if (this.pinch) this.rig.zoomBy(this.pinch / d, this.dom.clientWidth, this.dom.clientHeight);
       this.lastMid = { x: cx, y: cy }; this.pinch = d;
     }
@@ -73,4 +74,23 @@ export class InputController {
   };
 
   private wheel = (e: WheelEvent) => { e.preventDefault(); this.rig.zoomBy(e.deltaY > 0 ? 1.08 : 0.92, this.dom.clientWidth, this.dom.clientHeight); };
+
+  // teclado (desktop): setas/WASD = mover · Q/E = girar · R/F = tombar · +/- = zoom
+  private key = (e: KeyboardEvent) => {
+    const w = this.dom.clientWidth, h = this.dom.clientHeight; const p = 1.1;
+    switch (e.key) {
+      case 'ArrowLeft': case 'a': case 'A': this.rig.panWorld(-p, 0); break;
+      case 'ArrowRight': case 'd': case 'D': this.rig.panWorld(p, 0); break;
+      case 'ArrowUp': case 'w': case 'W': this.rig.panWorld(0, p); break;
+      case 'ArrowDown': case 's': case 'S': this.rig.panWorld(0, -p); break;
+      case 'q': case 'Q': this.rig.orbit(-40, 0); break;
+      case 'e': case 'E': this.rig.orbit(40, 0); break;
+      case 'r': case 'R': this.rig.orbit(0, -30); break;
+      case 'f': case 'F': this.rig.orbit(0, 30); break;
+      case '+': case '=': this.rig.zoomBy(0.9, w, h); break;
+      case '-': case '_': this.rig.zoomBy(1.1, w, h); break;
+      default: return;
+    }
+    e.preventDefault();
+  };
 }

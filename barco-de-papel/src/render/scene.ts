@@ -32,17 +32,24 @@ export function makeSun(scene: THREE.Scene): THREE.DirectionalLight {
   return sun;
 }
 
+// Câmera orbital: gira (azimute), inclina/tomba (polar) e dá zoom (frustum
+// ortográfico). Padrão isométrico; o jogador vê de qualquer ângulo.
 export class CameraRig {
   camera: THREE.OrthographicCamera;
-  frustum = 10.5; target = new THREE.Vector3(0, 0.6, 0);
-  private dir = new THREE.Vector3(1, 1.08, 1).normalize();
+  frustum = 19;                 // enquadra a diagonal canto-a-canto
+  target = new THREE.Vector3(0, 0.6, 0);
+  az = Math.PI / 4;     // azimute (giro em torno de Y)
+  pol = 0.92;           // ângulo polar a partir da vertical (tombamento)
+  private dist = 60;
 
   constructor() {
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -60, 120);
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -120, 260);
     this.place();
   }
   place(): void {
-    this.camera.position.copy(this.target).addScaledVector(this.dir, 40);
+    const s = Math.sin(this.pol) * this.dist, y = Math.cos(this.pol) * this.dist;
+    this.camera.position.set(this.target.x + s * Math.sin(this.az), this.target.y + y, this.target.z + s * Math.cos(this.az));
+    this.camera.up.set(0, 1, 0);
     this.camera.lookAt(this.target);
   }
   resize(w: number, h: number): void {
@@ -51,16 +58,20 @@ export class CameraRig {
     this.camera.updateProjectionMatrix();
   }
   zoomBy(mult: number, w: number, h: number): void {
-    this.frustum = THREE.MathUtils.clamp(this.frustum * mult, 9, 22); this.resize(w, h);
+    this.frustum = THREE.MathUtils.clamp(this.frustum * mult, 7, 30); this.resize(w, h);
   }
-  // pan em coordenadas de tela → move o alvo no plano do mundo
-  pan(dxScreen: number, dyScreen: number, w: number): void {
-    const scale = (this.frustum * 2) / w * 1.0;
-    // eixos de tela projetados no plano XZ (iso 45°)
-    const right = new THREE.Vector3(1, 0, -1).normalize();
-    const fwd = new THREE.Vector3(1, 0, 1).normalize();
-    this.target.addScaledVector(right, -dxScreen * scale);
-    this.target.addScaledVector(fwd, -dyScreen * scale);
+  // gira/tomba a câmera (arraste em tela)
+  orbit(dxScreen: number, dyScreen: number): void {
+    this.az -= dxScreen * 0.006;
+    this.pol = THREE.MathUtils.clamp(this.pol - dyScreen * 0.006, 0.16, 1.4);
+    this.place();
+  }
+  // desloca o alvo no plano do chão, relativo ao giro atual da câmera
+  panWorld(dx: number, dz: number): void {
+    const c = Math.cos(this.az), s = Math.sin(this.az);
+    // eixos "direita" e "frente" projetados no chão a partir do azimute
+    this.target.x += dx * c - dz * s;
+    this.target.z += -dx * s - dz * c;
     const lim = WORLD * 0.5;
     this.target.x = THREE.MathUtils.clamp(this.target.x, -lim, lim);
     this.target.z = THREE.MathUtils.clamp(this.target.z, -lim, lim);

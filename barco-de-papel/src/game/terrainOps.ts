@@ -18,6 +18,10 @@ export function brush(g: Grid, x: number, z: number, radius: number, strength: n
     if (g.solid[k] === SOLID_STONE) continue;                  // pedra não deforma
     g.terrain[k] = Math.max(MIN_H, Math.min(MAX_H, g.terrain[k] + dir * strength * fall));
   }
+  // cavar suaviza de leve: o vale escavado se funde com o canal em vez de virar
+  // um poço de paredes íngremes (onde a água ficaria presa). Também deixa o
+  // relevo mais orgânico e agradável de esculpir.
+  if (dir < 0) smooth(g, x, z, radius + CELL, 0.22);
   g.dirty = true;
 }
 
@@ -56,8 +60,10 @@ export function bowl(g: Grid, x: number, z: number, radius: number, depth: numbe
 export function paintBamboo(g: Grid, x: number, z: number): boolean {
   const [i, j] = g.worldToCell(x, z); if (!g.inb(i, j)) return false;
   const k = g.idx(i, j); if (g.solid[k] === SOLID_BAMBOO) return false;
+  // corta FUNDO ao atravessar rocha (abre a represa); em areia, rebaixa de leve.
+  const cut = g.solid[k] === SOLID_STONE ? 1.0 : 0.3;
   g.solid[k] = SOLID_BAMBOO; g.shaded[k] = 1;
-  g.terrain[k] = Math.max(MIN_H, g.terrain[k] - 0.28);
+  g.terrain[k] = Math.max(MIN_H, g.terrain[k] - cut);    // calha: rebaixa + conduz
   g.dirty = true; return true;
 }
 

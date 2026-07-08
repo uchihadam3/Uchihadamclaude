@@ -24,6 +24,7 @@ export class Grid {
   evap = new Float32Array(N * N);      // taxa base de evaporação
   solid = new Uint8Array(N * N);       // SOLID_SAND / STONE / BAMBOO
   source = new Uint8Array(N * N);      // 1 = nascente (emite água)
+  drain = new Uint8Array(N * N);       // 1 = escoadouro (chegada): mantém correnteza
   dirty = true;                        // terreno mudou → remesh
 
   idx(i: number, j: number): number { return j * N + i; }

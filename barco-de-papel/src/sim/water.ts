@@ -12,14 +12,19 @@ export interface WaterParams {
   evapBase: number;      // evaporação por segundo em água rasa
   sourceRate: number;    // água emitida por nascente por segundo
   maxSource: number;     // teto de água acumulada perto da nascente
+  drainCap: number;      // lâmina máxima nos escoadouros (chegada) → mantém correnteza
 }
 export const DEFAULT_WATER: WaterParams = {
-  flowRate: 0.6, minWater: 0.0015, evapBase: 0.035, sourceRate: 2.9, maxSource: 5.0,
+  // travessia de canto a canto por um CANAL: vazão firme para a água correr até
+  // a ponta oposta, com teto de nascente que evita alagar o oásis inteiro. O
+  // escoadouro na chegada limita a lâmina lá, criando um rio que sempre corre
+  // (e não uma poça parada) — leva o barco até o fim de forma confiável.
+  flowRate: 0.85, minWater: 0.0015, evapBase: 0.02, sourceRate: 5.4, maxSource: 6.0, drainCap: 0.3,
 };
 
 // avança a simulação por um passo de tempo fixo dt
 export function stepWater(g: Grid, p: WaterParams, dt: number): void {
-  const { terrain, water, waterBuf, flowX, flowZ, solid, shaded, source } = g;
+  const { terrain, water, waterBuf, flowX, flowZ, solid, shaded, source, drain } = g;
 
   // 1) nascentes emitem água
   for (let k = 0; k < N * N; k++) if (source[k] && water[k] < p.maxSource) water[k] += p.sourceRate * dt;
@@ -61,6 +66,11 @@ export function stepWater(g: Grid, p: WaterParams, dt: number): void {
     }
   }
   water.set(waterBuf);
+
+  // 2b) escoadouro da chegada: limita a lâmina, mantendo sucção → correnteza
+  // contínua rumo ao destino (o barco é levado de forma confiável e o oásis
+  // vira um RIO que corre, não uma poça que empoça e alaga tudo).
+  for (let k = 0; k < N * N; k++) if (drain[k] && water[k] > p.drainCap) water[k] = p.drainCap;
 
   // 3) evaporação (mais forte em água rasa; zero sob sombra)
   for (let k = 0; k < N * N; k++) {

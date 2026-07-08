@@ -11,20 +11,26 @@ export class Boat {
   heading = 0; health = 100; readonly maxHealth = 100;
   bob = 0; stuckT = 0; collideFlash = 0; splash = 0;
   private goal: [number, number] = [0, 0]; private goalR = 1.5;
+  private bestDist = Infinity;   // menor distância à chegada já alcançada
+  private noImproveT = 0;        // tempo sem se aproximar da chegada (teto duro)
+  private sampleT = 0; private sampledDepth = 0; private rising = false;  // poça enchendo?
 
   // parâmetros
-  private floatMin = 0.045;      // água mínima p/ flutuar
+  private floatMin = 0.04;       // água mínima p/ flutuar
   private flowStrength = 9;      // força da correnteza (flow map)
   private gravity = 26;          // deslizamento pela inclinação da água
   private drag = 0.93;
   private maxSpeed = 8.5;
-  private stuckLimit = 8.0;      // s sem progresso → falha
+  private seek = 4.8;            // atração ao escoadouro: cavalga a água que avança
+  private stuckLimit = 14.0;     // s sem progresso → falha (travessia longa)
   private impactThreshold = 1.6; // acima disso, dano
 
   spawn(x: number, z: number, goal: [number, number], goalR: number): void {
     this.x = x; this.z = z; this.vx = this.vz = 0; this.heading = 0;
     this.health = 100; this.stuckT = 0; this.collideFlash = 0; this.splash = 0;
     this.goal = goal; this.goalR = goalR;
+    this.bestDist = Math.hypot(x - goal[0], z - goal[1]);
+    this.noImproveT = 0; this.sampleT = 0; this.sampledDepth = 0; this.rising = false;
   }
 
   update(g: Grid, dt: number): BoatResult {
@@ -46,11 +52,30 @@ export class Boat {
       const gz = (surf(this.x, this.z + e) - surf(this.x, this.z - e)) / (2 * e);
       this.vx += -gx * this.gravity * dt;
       this.vz += -gz * this.gravity * dt;
+      // 3) atração suave rumo ao escoadouro (chegada): mantém o barco seguindo
+      // a saída mesmo em água parada (poça/lago), sem sobrepor a correnteza.
+      // Se rumo à chegada houver MARGEM SECA (terra acima da lâmina), desliza por
+      // ela seguindo o canal molhado; calhas SUBMERSAS o barco cruza normalmente.
+      // Precisa de água p/ agir → evaporação ainda barra o caminho.
+      let sx = this.goal[0] - this.x, sz = this.goal[1] - this.z;
+      const sl = Math.hypot(sx, sz) || 1; sx /= sl; sz /= sl;
+      const surfHere = g.terrainAt(this.x, this.z) + depth;
+      if (g.terrainAt(this.x + sx, this.z + sz) > surfHere + 0.05) {  // margem seca à frente
+        const te = 0.5;
+        const tgx = g.terrainAt(this.x + te, this.z) - g.terrainAt(this.x - te, this.z);
+        const tgz = g.terrainAt(this.x, this.z + te) - g.terrainAt(this.x, this.z - te);
+        const tl = Math.hypot(tgx, tgz);
+        if (tl > 1e-4) {
+          const ux = tgx / tl, uz = tgz / tl;      // normal do terreno (aponta p/ cima)
+          const into = sx * ux + sz * uz;
+          if (into > 0) { sx -= into * ux; sz -= into * uz; }   // desliza pela margem seca
+        }
+      }
+      this.vx += sx * this.seek * dt;
+      this.vz += sz * this.seek * dt;
     } else {
       this.vx *= 0.86; this.vz *= 0.86;   // encalhado: arrasto forte
     }
-    // temporizador de "sem progresso": encalhado OU parado na água (becalmado)
-    if (Math.hypot(this.vx, this.vz) < 0.22) this.stuckT += dt; else this.stuckT = 0;
     this.vx *= this.drag; this.vz *= this.drag;
     const sp = Math.hypot(this.vx, this.vz);
     if (sp > this.maxSpeed) { this.vx *= this.maxSpeed / sp; this.vz *= this.maxSpeed / sp; }
@@ -85,8 +110,22 @@ export class Boat {
     if (sp > 0.05) { const target = Math.atan2(this.vx, this.vz); this.heading += this.angLerp(this.heading, target, Math.min(1, dt * 4)); }
 
     if (this.health <= 0) { this.health = 0; return { state: 'destroyed' }; }
-    if (Math.hypot(this.x - this.goal[0], this.z - this.goal[1]) < this.goalR) return { state: 'arrived' };
-    if (this.stuckT > this.stuckLimit) return { state: 'stuck' };
+    const dGoal = Math.hypot(this.x - this.goal[0], this.z - this.goal[1]);
+    if (dGoal < this.goalR) return { state: 'arrived' };
+    // "sem progresso": só conta quando o barco não se aproxima da chegada E a
+    // poça sob ele não está enchendo. Com a atração ao escoadouro o barco segue
+    // qualquer caminho molhado; enquanto espera na frente d'água que sobe (poça
+    // enchendo, prestes a transbordar) não falha; só falha quando barra de vez —
+    // terra seca à frente e sem água nova chegando (evaporou/secou).
+    const depthNow = g.waterAt(this.x, this.z);
+    this.sampleT += dt;
+    if (this.sampleT >= 0.5) { this.rising = depthNow > this.sampledDepth + 0.012; this.sampledDepth = depthNow; this.sampleT = 0; }
+    const improving = dGoal < this.bestDist - 0.05;
+    if (improving) { this.bestDist = dGoal; this.noImproveT = 0; } else this.noImproveT += dt;
+    if (improving || this.rising) this.stuckT = 0; else this.stuckT += dt;
+    // falha por becalmo curto (sem água à frente) OU teto duro sem se aproximar
+    // (barrado de vez: mesmo com a poça subindo, se não avança há muito, desiste).
+    if (this.stuckT > this.stuckLimit || this.noImproveT > 26) return { state: 'stuck' };
     return { state: 'floating' };
   }
 
