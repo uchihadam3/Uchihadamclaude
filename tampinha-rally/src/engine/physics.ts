@@ -33,7 +33,7 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         c.finished = true; c.vel = vec(); c.moving = false; c.airborne = false; c.z = 0;
         ev.push({ type: 'finish', capId: c.id, x: c.pos.x, y: c.pos.y, power: 0 }); continue;
       }
-      if (c.z <= 0) { c.z = 0; c.airborne = false; c.vel = mul(c.vel, 0.82); ev.push({ type: 'land', capId: c.id, x: c.pos.x, y: c.pos.y, power: len(c.vel) }); }
+      if (c.z <= 0) { c.z = 0; c.airborne = false; c.vel = mul(c.vel, Math.min(0.92, 0.7 + 0.14 * c.stats.stability)); ev.push({ type: 'land', capId: c.id, x: c.pos.x, y: c.pos.y, power: len(c.vel) }); }   // estável aterrissa melhor (mantém a linha)
       if (c.pos.x >= 0 && c.pos.y >= 0 && c.pos.x <= d.w && c.pos.y <= d.h) c.progress = track.progressOf(c.pos);
       continue;
     }
@@ -60,8 +60,12 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     const sp = len(c.vel);
     if (sp > 0) {
       const st = c.stats;
-      const soft = si.fric > 12 ? 1 + (st.weight - 1) * 0.55 : 1;      // areia/lama seguram o pesado
-      const fric = (si.fric * soft) / st.slide;
+      const slow = si.fric > 12;                                        // areia/grama/lama: superfícies lentas
+      const soft = slow ? 1 + (st.weight - 1) * 0.55 : 1;               // e seguram o pesado
+      // POTÊNCIA: força extra pra ATRAVESSAR o pesado (lama/areia) — reduz o atrito
+      // SÓ nas superfícies lentas (não vira "ir mais longe": isso é o Desliza).
+      const powBreak = slow ? st.power * st.power : 1;
+      const fric = (si.fric * soft) / (st.slide * powBreak);
       let ns = sp - fric * dt;
       // control: freio extra em baixa velocidade → para certinho onde você mira (bem perceptível)
       const drag = si.drag / (0.7 + 0.3 * st.slide) + (st.control - 1) * (sp < 6 ? 0.85 : 0.12);
@@ -158,7 +162,9 @@ function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
       const vn = rvx * nx + rvy * ny;
       if (vn > 0) continue;
       const rest = 0.55 * ((a.stats.bounce + b.stats.bounce) / 2);   // tampinhas "quicantes" tabelam mais
-      const imp = -(1 + rest) * vn / (1 / ma + 1 / mb);
+      // POTÊNCIA: quem chega mais rápido (o "atacante") bate MAIS FORTE — joga o outro mais longe
+      const punch = (len(a.vel) >= len(b.vel) ? a.stats.power : b.stats.power);
+      const imp = -(1 + rest) * vn / (1 / ma + 1 / mb) * punch;
       const ix = imp * nx, iy = imp * ny;
       // grip (aderência): quem tem mais firmeza é empurrado menos (difícil de jogar pra fora)
       a.vel.x -= (ix / ma) / a.stats.grip; a.vel.y -= (iy / ma) / a.stats.grip;

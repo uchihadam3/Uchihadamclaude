@@ -26,7 +26,7 @@ const online = new Online();
 
 let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
-let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number> } | null = null;
+let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string } | null = null;
 let dailyFlicks = 0;
 let inGame = false;
 let musicStarted = false;
@@ -77,11 +77,12 @@ const ui = new UI({
     if (online.active) online.leave();
     resumeAudio();
     if (cfg.mode === 'champ') {
-      // 5 pistas variadas do nível escolhido
-      const idxs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-      for (let i = idxs.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idxs[i], idxs[j]] = [idxs[j], idxs[i]]; }
-      const seq = idxs.slice(0, 5).map(idx => ({ level: cfg.level, idx }));
-      champ = { seq, race: 0, pts: new Map() };
+      const fmt = cfg.champFmt || 'copa';
+      const shuf = (a: number[]) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+      let seq: { level: number; idx: number }[];
+      if (fmt === 'gp') seq = [0, 1, 2, 3, 4].map(l => ({ level: l, idx: Math.floor(Math.random() * TRACKS_PER_LEVEL) }));   // dificuldade crescente
+      else { const n = fmt === 'sprint' ? 3 : fmt === 'maratona' ? 7 : 5; seq = shuf([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, n).map(idx => ({ level: cfg.level, idx })); }
+      champ = { seq, race: 0, pts: new Map(), fmt };
       cfg.level = seq[0].level; cfg.trackIdx = seq[0].idx;
     }
     else champ = null;
@@ -143,20 +144,22 @@ function onRaceOver(): void {
   sfx.win();
   let champInfo: any = undefined;
   if (champ) {
-    // pontos por posição
-    const table = [10, 6, 4, 3, 2, 1];
+    const table = [12, 9, 7, 5, 3, 1];   // pontos por posição na corrida
     mgr.standings().forEach((c, i) => champ!.pts.set(c.id, (champ!.pts.get(c.id) || 0) + (table[i] || 0)));
-    const ptsStr = 'Pontos: ' + [...champ.pts.entries()].sort((a, b) => b[1] - a[1]).map(([id, p]) => `${mgr.caps[id].name} ${p}`).slice(0, 3).join(' · ');
-    champInfo = { race: champ.race + 1, total: champ.seq.length, last: champ.race + 1 >= champ.seq.length, pts: ptsStr };
+    const rows = [...champ.pts.entries()].sort((a, b) => b[1] - a[1]).map(([id, p]) => ({ name: mgr.caps[id].name, skin: mgr.caps[id].skin, pts: p, you: !mgr.caps[id].isAI }));
+    champInfo = { race: champ.race + 1, total: champ.seq.length, last: champ.race + 1 >= champ.seq.length, rows, fmt: champ.fmt };
   }
   ui.showResults(mgr, mode, champInfo);
 }
 function finishChampionship(): void {
-  const win = [...champ!.pts.entries()].sort((a, b) => b[1] - a[1])[0];
-  const champCap = mgr.caps[win[0]];
-  if (champCap && !champCap.isAI) save.addWin();
-  ui.toast('Campeão: ' + champCap.name + ' 🏆', 'good');
-  champ = null; ui.onMenu?.();
+  const sorted = [...champ!.pts.entries()].sort((a, b) => b[1] - a[1]);
+  const rows = sorted.map(([id, p]) => ({ name: mgr.caps[id].name, skin: mgr.caps[id].skin, pts: p, you: !mgr.caps[id].isAI }));
+  const champCap = mgr.caps[sorted[0][0]];
+  const youWon = !!champCap && !champCap.isAI;
+  if (youWon) save.addWin();
+  sfx.win();
+  const fmt = champ!.fmt; champ = null;
+  ui.showChampion({ rows, fmt, youWon, name: champCap ? champCap.name : '', skin: champCap ? champCap.skin : 'coca' });
 }
 
 // -------- loop --------

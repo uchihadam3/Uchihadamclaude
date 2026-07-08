@@ -12,7 +12,14 @@ import { settings } from './audio';
 
 export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online';
 export type Pick = 'specific' | 'randlevel' | 'randany';
-export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; }
+export type ChampFmt = 'copa' | 'gp' | 'sprint' | 'maratona';
+export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; }
+export const CHAMP_FMT: Record<ChampFmt, { name: string; ico: string; races: number; desc: string }> = {
+  sprint: { name: 'Sprint', ico: '⚡', races: 3, desc: '3 pistas rápidas' },
+  copa: { name: 'Copa', ico: '🏆', races: 5, desc: '5 pistas do nível' },
+  maratona: { name: 'Maratona', ico: '🔥', races: 7, desc: '7 pistas, fôlego total' },
+  gp: { name: 'Grand Prix', ico: '🌍', races: 5, desc: '1 de cada nível, dificuldade sobe' },
+};
 
 export interface UICallbacks {
   start: (cfg: MatchConfig) => void;
@@ -28,7 +35,7 @@ export class UI {
   private cb: UICallbacks;
   online: Online;
   // estado de configuração
-  cfgLevel = 0; cfgTrack = 0; cfgPick: Pick = 'specific'; cfgMode: Mode = 'quick';
+  cfgLevel = 0; cfgTrack = 0; cfgPick: Pick = 'specific'; cfgMode: Mode = 'quick'; cfgChampFmt: ChampFmt = 'copa';
   cfgPlayers: { human: boolean; ai: AIKind; color: number; name: string }[] = [];
   myName = 'Você';
   private toastEl: HTMLElement | null = null; private toastT = 0;
@@ -80,7 +87,7 @@ export class UI {
           <button class="mode-btn feat" data-m="quick"><span class="mi">🏁</span><b>Jogar Rápido</b><span class="ms">você + IA, é só jogar</span></button>
           <button class="mode-btn" data-m="ai" style="--a:var(--blu)"><span class="mi">🤖</span><b>Contra a IA</b><span class="ms">escolha os rivais</span></button>
           <button class="mode-btn" data-m="mp" style="--a:var(--grn)"><span class="mi">🌐</span><b>Multiplayer</b><span class="ms">local ou online</span></button>
-          <button class="mode-btn" data-m="champ" style="--a:var(--gold)"><span class="mi">🏆</span><b>Campeonato</b><span class="ms">5 pistas, 1 campeão</span></button>
+          <button class="mode-btn" data-m="champ" style="--a:var(--gold)"><span class="mi">🏆</span><b>Campeonato</b><span class="ms">4 formatos, 1 campeão</span></button>
           <button class="mode-btn" data-m="daily" style="--a:var(--pur)"><span class="mi">📅</span><b>Desafio Diário</b><span class="ms">a pista do dia</span></button>
           <button class="mode-btn" data-m="skins" style="--a:var(--orange)"><span class="mi">🎨</span><b>Tampinhas</b><span class="ms">coleção ${unl}/${SKINS.length}</span></button>
           <button class="mode-btn" data-m="help" style="--a:#00b4d8"><span class="mi">📖</span><b>Como Jogar</b><span class="ms">obstáculos &amp; atributos</span></button>
@@ -135,7 +142,11 @@ export class UI {
     // cartão da pista
     let trackBlock = '';
     if (isChamp) {
-      trackBlock = `<div class="champ-note">🏆 Campeonato: <b>5 pistas sorteadas</b> do nível <b style="color:${LEVEL_COLORS[this.cfgLevel]}">${LEVELS[this.cfgLevel]}</b>. Some pontos e seja o campeão!</div>`;
+      const f = CHAMP_FMT[this.cfgChampFmt];
+      const btns = (Object.keys(CHAMP_FMT) as ChampFmt[]).map(k => `<button class="champ-fmt ${k === this.cfgChampFmt ? 'sel' : ''}" data-f="${k}"><span class="cf-ico">${CHAMP_FMT[k].ico}</span><b>${CHAMP_FMT[k].name}</b><span>${CHAMP_FMT[k].desc}</span></button>`).join('');
+      const where = this.cfgChampFmt === 'gp' ? '<b>todos os níveis</b> (Fácil → Extrema)' : `nível <b style="color:${LEVEL_COLORS[this.cfgLevel]}">${LEVELS[this.cfgLevel]}</b>`;
+      trackBlock = `<div class="champ-fmts">${btns}</div>
+        <div class="champ-note">🏆 <b>${f.races} corridas</b> · ${where}. Pontos por posição em cada corrida — some tudo e seja o <b>campeão</b>! 🏅</div>`;
     } else if (isRandom) {
       trackBlock = `<div class="track-pick">
         <div class="track-card mystery" style="border-color:${this.cfgPick === 'randany' ? '#b98cff' : LEVEL_COLORS[this.cfgLevel]}">
@@ -187,6 +198,8 @@ export class UI {
 
     // nível
     s.querySelectorAll('.lvl-chip').forEach(b => b.addEventListener('click', () => { this.cfgLevel = +(b as HTMLElement).dataset.l!; this.cfgTrack = 0; this.renderSetup(); }));
+    // formato de campeonato
+    s.querySelectorAll('.champ-fmt').forEach(b => b.addEventListener('click', () => { this.cfgChampFmt = (b as HTMLElement).dataset.f as ChampFmt; this.renderSetup(); }));
     // modo de escolha
     s.querySelector('#pspec')?.addEventListener('click', () => { this.cfgPick = 'specific'; this.renderSetup(); });
     s.querySelector('#prlvl')?.addEventListener('click', () => { this.cfgPick = 'randlevel'; this.renderSetup(); });
@@ -236,14 +249,16 @@ export class UI {
     });
   }
   private launch(): void {
+    // adversários pegam tampinhas da MESMA RARIDADE que a sua (diferentes entre si)
+    const opp = opponentSkins(save.skin(), this.cfgPlayers.length - 1);
     const players: PlayerDef[] = this.cfgMode === 'daily'
       ? [{ name: 'Você', isAI: false, skin: save.skin() }]
-      : this.cfgPlayers.map((p, i) => ({ name: p.name, isAI: !p.human, ai: p.ai, skin: i === 0 ? save.skin() : SKINS[Math.floor(Math.random() * SKINS.length)].id }));
+      : this.cfgPlayers.map((p, i) => ({ name: p.name, isAI: !p.human, ai: p.ai, skin: i === 0 ? save.skin() : opp[i - 1] }));
     // resolve o sorteio (o modo escolhido é lembrado p/ a "próxima pista")
     let level = this.cfgLevel, idx = this.cfgTrack;
     if (this.cfgPick === 'randlevel') idx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
     else if (this.cfgPick === 'randany') { level = Math.floor(Math.random() * 5); idx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
-    this.cb.start({ level, trackIdx: idx, pick: this.cfgPick, players, mode: this.cfgMode });
+    this.cb.start({ level, trackIdx: idx, pick: this.cfgPick, players, mode: this.cfgMode, champFmt: this.cfgChampFmt });
   }
 
   private drawMini(host: HTMLElement, t: any): void {
@@ -399,7 +414,7 @@ export class UI {
       ['Controle', '🎯', 'Freia mais certinho no fim — <b>para onde você mira</b>. Boa pra encaixar em espaço apertado sem passar direto.'],
       ['Quique', '🏀', 'Quica mais nas <b>bordas</b> e pedras, e "tabela" mais forte batendo nas outras tampinhas.'],
       ['Estabil.', '🌀', 'Mantém a linha: <b>roda menos</b> e desvia menos do rumo. Estável = previsível.'],
-      ['Potência', '💥', 'Peteléco mais forte: sai <b>mais rápido</b> com a mesma puxada — chega mais longe e bate com mais força nas outras.'],
+      ['Potência', '💥', 'Sai com mais <b>força</b>: bate mais forte nas rivais (joga elas longe) e atravessa melhor a <b>lama e a areia</b>. Quem vai mais longe é o Desliza.'],
       ['Aderência', '🧲', 'Firmeza na pista: <b>difícil de te jogarem pra fora</b> quando batem em você. Segura firme na hora do encontrão.'],
     ];
     const card = (i: string, t: string, d: string) => `<div class="hc"><div class="hc-ico">${i}</div><div class="hc-tx"><div class="hc-t">${t}</div><div class="hc-d">${d}</div></div></div>`;
@@ -595,23 +610,29 @@ export class UI {
   }
   hideModal(): void { this.hud?.querySelector('#modal')!.classList.add('hidden'); }
 
-  showResults(m: GameManager, mode: Mode, champInfo?: { race: number; total: number; last: boolean; pts: string }): void {
+  showResults(m: GameManager, mode: Mode, champInfo?: { race: number; total: number; last: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; fmt: string }): void {
     const modal = this.hud!.querySelector('#modal') as HTMLElement; const box = this.hud!.querySelector('#mbox') as HTMLElement;
     const order = m.standings(); const you = (mode === 'online' && this.online.active) ? m.caps[this.online.mySeatIndex()] : m.caps.find(c => !c.isAI);
     const wonYou = you && you.place === 1;
     box.className = 'modal win';
     const head = mode === 'daily'
       ? `<h3>Chegou! 🏁</h3><div class="big">${m.caps[0].place === 1 ? 'Você completou!' : ''}</div>`
-      : `<h3>${wonYou ? 'Você venceu! 🎉' : (you ? you.place + 'º lugar' : 'Fim!')}</h3>`;
-    const champLine = champInfo ? `<div class="champ-line">Corrida ${champInfo.race}/${champInfo.total} · ${champInfo.pts}</div>` : '';
+      : champInfo
+        ? `<h3 style="font-size:22px">Corrida ${champInfo.race}/${champInfo.total} 🏁</h3>`
+        : `<h3>${wonYou ? 'Você venceu! 🎉' : (you ? you.place + 'º lugar' : 'Fim!')}</h3>`;
+    // no campeonato, mostra a TABELA DE PONTOS ao vivo em vez do pódio
+    const champStand = champInfo ? `<div class="champ-stand"><div class="cs-title">🏆 Classificação do campeonato</div>${champInfo.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>` : '';
     const actions = mode === 'online'
       ? (this.online.isHost
         ? `<button class="chip" id="mn">Sair da sala</button><button class="play-btn" id="lob">🔁 Nova partida</button>`
         : `<button class="chip" id="mn">Sair da sala</button><div class="ol-wait2">⏳ Aguardando o anfitrião…</div>`)
-      : `<button class="chip" id="mn">Menu</button><button class="chip" id="re">↻ Revanche</button><button class="play-btn" id="nx">${champInfo && !champInfo.last ? 'Próxima ▶' : 'Nova pista ▶'}</button>`;
-    box.innerHTML = `${head}${champLine}<div class="podium" id="pod"></div><div class="mactions">${actions}</div>`;
-    const pod = box.querySelector('#pod') as HTMLElement;
-    order.slice(0, Math.min(4, order.length)).forEach((p, i) => {
+      : champInfo
+        ? `<button class="chip" id="mn">Sair</button><button class="play-btn" id="nx">${champInfo.last ? '🏆 Ver campeão' : 'Próxima ▶'}</button>`
+        : `<button class="chip" id="mn">Menu</button><button class="chip" id="re">↻ Revanche</button><button class="play-btn" id="nx">Nova pista ▶</button>`;
+    box.innerHTML = `${head}${champInfo ? champStand : '<div class="podium" id="pod"></div>'}<div class="mactions">${actions}</div>`;
+    if (champInfo) box.querySelectorAll('.cs-cap').forEach(el => { el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 44)); });
+    const pod = box.querySelector('#pod') as HTMLElement | null;
+    if (pod) order.slice(0, Math.min(4, order.length)).forEach((p, i) => {
       const row = this.el(`<div class="prow2 ${i === 0 ? 'p1' : ''}"><span class="pl">${['🥇', '🥈', '🥉', '4º'][i]}</span><span class="pcap"></span><span class="pn">${p.name}</span></div>`);
       (row.querySelector('.pcap') as HTMLElement).appendChild(drawCap(skinById(p.skin).art, 64));
       row.addEventListener('click', () => this.showCapStats(p.name, p.skin));
@@ -624,8 +645,38 @@ export class UI {
     box.querySelector('#nx')?.addEventListener('click', () => this.onNext?.());
     box.querySelector('#lob')?.addEventListener('click', () => { this.hideModal(); this.online.backToLobby(); });
   }
+
+  // cerimônia do campeão — pódio final com troféu e classificação completa
+  showChampion(d: { rows: { name: string; skin: string; pts: number; you: boolean }[]; fmt: string; youWon: boolean; name: string; skin: string }): void {
+    const modal = this.hud!.querySelector('#modal') as HTMLElement; const box = this.hud!.querySelector('#mbox') as HTMLElement;
+    box.className = 'modal win champ-final';
+    const fmtName = CHAMP_FMT[d.fmt as ChampFmt]?.name || 'Campeonato';
+    box.innerHTML = `
+      <div class="cf-crown">👑</div>
+      <h3 style="color:#c98a00">${d.youWon ? 'VOCÊ é o campeão! 🎉' : 'Campeão do ' + fmtName}</h3>
+      <div class="cf-face" id="cff"></div>
+      <div class="cf-name">${d.name} 🏆</div>
+      <div class="champ-stand final">${d.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'}</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts} pts</b></div>`).join('')}</div>
+      <div class="mactions"><button class="play-btn" id="mn">Menu ▶</button></div>`;
+    const cv = drawCap(skinById(d.skin).art, 150); cv.style.width = '110px'; cv.style.height = '110px'; cv.style.display = 'block'; cv.style.margin = '0 auto';
+    (box.querySelector('#cff') as HTMLElement).appendChild(cv);
+    box.querySelectorAll('.cs-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 40)));
+    modal.classList.remove('hidden');
+    this.confetti(box);
+    box.querySelector('#mn')!.addEventListener('click', () => this.onMenu?.());
+  }
 }
 
+// escolhe N tampinhas da MESMA raridade que a do jogador, diferentes entre si e
+// da dele — assim o campo fica sempre no mesmo nível (comum×comum, mítica×mítica…)
+export function opponentSkins(playerId: string, n: number): string[] {
+  const rar = skinById(playerId).rarity;
+  const pool = SKINS.filter(s => s.rarity === rar && s.id !== playerId).map(s => s.id);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const out: string[] = [];
+  for (let i = 0; i < Math.max(0, n); i++) out.push(pool.length ? pool[i % pool.length] : playerId);
+  return out;
+}
 // nota 1..99 a partir do atributo (~0.80..1.25) — pra COMPARAR tampinhas de relance
 export function statVal(v: number): number { return Math.max(1, Math.min(99, Math.round((v - 0.80) / 0.45 * 99))); }
 function statTier(n: number): string { return n >= 74 ? 'hi' : n >= 50 ? 'mid' : 'lo'; }

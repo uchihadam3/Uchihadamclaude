@@ -89,7 +89,7 @@ export class GameManager {
   flick(dir: V, power: number): void {
     if (!this.canFlick()) return;
     const c = this.activeCap();
-    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER * c.stats.power;
+    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER;
     // p/ onde cada cap volta se sair da pista neste peteléco:
     //  - VOCÊ (quem jogou) sai por conta própria → volta pro ponto de onde jogou;
     //  - se OUTRO te empurra pra fora → volta um pouco ATRÁS na pista (punição).

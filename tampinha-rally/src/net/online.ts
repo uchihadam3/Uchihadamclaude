@@ -7,7 +7,7 @@
 import { Net } from './peer';
 import { PlayerDef, GameManager } from '../game/manager';
 import { aiFlick, AIKind, AI_KINDS, AI_LABEL } from '../game/ai';
-import { SKINS } from '../game/skins';
+import { SKINS, skinById } from '../game/skins';
 import { V } from '../engine/core';
 
 export type OPick = 'specific' | 'randlevel' | 'randany';
@@ -84,8 +84,13 @@ export class Online {
     if (this.total < this.humans.length) this.total = this.humans.length;
     if (this.total > 6) this.total = 6; if (this.total < 2) this.total = 2;
     const seats: Seat[] = this.humans.map(h => ({ name: h.name, skin: h.skin, kind: 'human' as const, owner: h.owner, off: h.off }));
+    // IA pega tampinhas da mesma RARIDADE do anfitrião (diferentes das humanas e entre si)
+    const humanSkins = this.humans.map(h => h.skin);
+    const hostSkin = (this.humans.find(h => h.owner === 'host') || this.humans[0])?.skin || 'coca';
+    const aiPool = SKINS.filter(s => s.rarity === skinById(hostSkin).rarity && !humanSkins.includes(s.id)).map(s => s.id);
+    for (let i = aiPool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [aiPool[i], aiPool[j]] = [aiPool[j], aiPool[i]]; }
     let ai = 0;
-    while (seats.length < this.total) { const k = ai++; seats.push({ name: AI_NAMES[k % AI_NAMES.length], skin: SKINS[Math.floor(Math.random() * SKINS.length)].id, kind: 'ai', ai: AI_KINDS[k % AI_KINDS.length], owner: 'host' }); }
+    while (seats.length < this.total) { const k = ai++; const skin = aiPool.length ? aiPool[(k) % aiPool.length] : SKINS[Math.floor(Math.random() * SKINS.length)].id; seats.push({ name: AI_NAMES[k % AI_NAMES.length], skin, kind: 'ai', ai: AI_KINDS[k % AI_KINDS.length], owner: 'host' }); }
     this.seats = seats;
     this.broadcastRoster();
     this.onRoster();
