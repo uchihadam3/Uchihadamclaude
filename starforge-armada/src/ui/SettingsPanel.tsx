@@ -29,6 +29,13 @@ export function SettingsPanel(props: { compact?: boolean }): JSX.Element {
           <span className="vol-num">{Math.round(s.volume * 100)}</span>
         </div>)}
       {row('Silenciar', 'Corta todo o áudio do jogo.', <Toggle on={s.muted} onClick={() => flip('muted')} />)}
+      {row('Trilha sonora', 'Música dinâmica que muda por cenário e chefe.', <Toggle on={s.music} onClick={() => flip('music')} />)}
+      {row('Volume da trilha', 'Volume só da música de fundo.',
+        <div className="vol-ctrl">
+          <input type="range" min={0} max={100} value={Math.round(s.musicVol * 100)}
+            onChange={(e) => set('musicVol', Number(e.target.value) / 100)} />
+          <span className="vol-num">{Math.round(s.musicVol * 100)}</span>
+        </div>)}
       {row('Tremor de tela', 'Sacode a câmera em impactos e explosões.', <Toggle on={s.shake} onClick={() => flip('shake')} />)}
       {row('Brilho (bloom)', 'Efeito de brilho premium. Desligue em aparelhos fracos.', <Toggle on={s.bloom} onClick={() => flip('bloom')} />)}
       {row('Mostrar FPS', 'Exibe os quadros por segundo no HUD.', <Toggle on={s.fps} onClick={() => flip('fps')} />)}

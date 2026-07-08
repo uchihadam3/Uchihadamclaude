@@ -13,6 +13,8 @@ import { ModesScreen, ModeSetup, Tutorial, TrainingSetup } from './ModesScreens'
 import { ProfileScreen, LeaderboardScreen, SeasonScreen, MissionsScreen } from './AccountScreens';
 import { SettingsScreen, SettingsPanel } from './SettingsPanel';
 import { getSettings } from '../game/settings';
+import { THEMES } from '../render/bgThemes';
+import { startMusic, setMood, seedFromTheme } from '../game/music';
 import { loadCampaign, recordClear, CampaignSave } from '../game/campaignSave';
 import type { CampaignResult, Orient } from '../game/engine';
 import { CAMPAIGN } from '../data/campaignData';
@@ -34,9 +36,27 @@ export default function App(): JSX.Element {
   const finalize = (r: CampaignResult, ctx: RunContext): RunOutcome => { const o = finalizeRun(profileRef.current, r, ctx); refresh(); return o; };
   const profile = profileRef.current;
 
+  // a trilha só pode iniciar após um gesto do usuário (política de autoplay)
+  useEffect(() => {
+    const kick = () => { resumeAudio(); startMusic(); };
+    window.addEventListener('pointerdown', kick, { once: true });
+    window.addEventListener('keydown', kick, { once: true });
+    return () => { window.removeEventListener('pointerdown', kick); window.removeEventListener('keydown', kick); };
+  }, []);
+
+  const [boot, setBoot] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setBoot(false), 1400); return () => clearTimeout(t); }, []);
+
   const isRun = screen === 'campaign' || screen === 'modes' || screen === 'training';
   return (
     <div className="app">
+      {boot && (
+        <div className="boot-splash">
+          <div className="boot-mark">✦</div>
+          <div className="boot-title"><span>STARFORGE</span><span>ARMADA</span></div>
+          <div className="boot-bar"><div className="boot-fill" /></div>
+        </div>
+      )}
       <div key={screen} className={isRun ? 'screen-run' : 'screen-fade'}>
         {screen === 'menu' && <Menu setScreen={setScreen} profile={profile} />}
         {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} onPilot={(id) => { resumeAudio(); sfx.start(); setShipId(id); setScreen('training'); }} />}
@@ -66,7 +86,7 @@ function ModesFlow(props: { onBack: () => void; finalize: (r: CampaignResult, ct
   const [runKey, setRunKey] = useState(0);
   if (phase === 'list') return <ModesScreen onSelect={(m) => { setMode(m); setPhase('setup'); }} onBack={props.onBack} />;
   if (phase === 'setup' && mode) return <ModeSetup mode={mode} onBack={() => setPhase('list')} onLaunch={(s, r) => { setShip(s); setRelics(r); setRunKey((k) => k + 1); setPhase('run'); }} />;
-  if (phase === 'run' && mode) return <Demo key={runKey} shipId={ship} mode="endless" onBack={() => setPhase('list')} onRestart={() => setRunKey((k) => k + 1)} config={{ orient: mode.orient, mod: mode.mod, runLives: mode.lives, bossRush: mode.bossRush, relics }} onComplete={(r) => { setResult(r); setOutcome(props.finalize(r, { boardId: mode.id, orient: mode.orient, isBossFight: !!mode.bossRush })); setPhase('results'); }} />;
+  if (phase === 'run' && mode) return <Demo key={runKey} shipId={ship} mode="endless" onBack={() => setPhase('list')} onRestart={() => setRunKey((k) => k + 1)} config={{ orient: mode.orient, mod: mode.mod, runLives: mode.lives, bossRush: mode.bossRush, relics, bgTheme: mode.theme }} onComplete={(r) => { setResult(r); setOutcome(props.finalize(r, { boardId: mode.id, orient: mode.orient, isBossFight: !!mode.bossRush })); setPhase('results'); }} />;
   if (phase === 'results' && result) return <Results result={result} rewards={outcome ?? undefined} hasNext={false} onRetry={() => setPhase('run')} onMap={() => setPhase('list')} onNext={() => {}} />;
   return <ModesScreen onSelect={(m) => { setMode(m); setPhase('setup'); }} onBack={props.onBack} />;
 }
@@ -78,7 +98,8 @@ function TrainingFlow(props: { initialShip: string; onBack: () => void }): JSX.E
   const [orient, setOrient] = useState<Orient>('vertical');
   const [runKey, setRunKey] = useState(0);
   if (phase === 'setup') return <TrainingSetup onBack={props.onBack} onLaunch={(s, o) => { setShip(s); setOrient(o); setRunKey((k) => k + 1); setPhase('run'); }} />;
-  return <Demo key={runKey} shipId={ship} mode="endless" onBack={() => setPhase('setup')} onRestart={() => setRunKey((k) => k + 1)} config={{ orient, runLives: Infinity }} />;
+  const trainTheme = orient === 'arena' ? 'distortion' : orient === 'horizontal' ? 'pirate' : 'bluenebula';
+  return <Demo key={runKey} shipId={ship} mode="endless" onBack={() => setPhase('setup')} onRestart={() => setRunKey((k) => k + 1)} config={{ orient, runLives: Infinity, bgTheme: trainTheme }} />;
 }
 
 // ============ CAMPANHA ============
@@ -115,6 +136,7 @@ function Menu(props: { setScreen: (s: Screen) => void; profile: Profile }): JSX.
     const cv = canvasRef.current!;
     const ctx = cv.getContext('2d', { alpha: false })!;
     const bg = new Background();
+    bg.setTheme(THEMES.menu);
     const fx = new Particles();
     const bloom = new Bloom();
     let raf = 0, t = 0, last = performance.now(), muzz = 0;
@@ -192,7 +214,7 @@ function Menu(props: { setScreen: (s: Screen) => void; profile: Profile }): JSX.
         </div>
       </div>
       <div className="menu-approve">
-        <b>Jogo completo em construção</b> · direção de arte aprovada · Parte 9/10
+        <b>Jogo completo</b> · 12 setores · 15 modos · trilha dinâmica · Parte 10/10 ✓
       </div>
     </div>
   );
@@ -230,11 +252,16 @@ function Demo(props: { shipId: string; onBack: () => void; onRestart?: () => voi
     const eng = new Engine(cv, { shipId: props.shipId, mode: props.mode ?? 'endless', sector: props.sector ?? 0, ...(props.config ?? {}) });
     engineRef.current = eng;
     setLabels(eng.kitLabels());
+    const seed = props.config?.bgTheme ? seedFromTheme(props.config.bgTheme) : (props.sector ?? 0);
+    setMood('combat', seed);
+    let bossOn = false;
     let done = false;
     if (props.onComplete) eng.onComplete = (r) => { if (done) return; done = true; props.onComplete!(r); };
     eng.onPauseKey = () => { setShowSettings(false); setPaused((p) => !p); };
     eng.onHud = (h: Hud) => {
       if (fpsRef.current) fpsRef.current.textContent = getSettings().fps ? `${Math.round(h.fps)} FPS` : '';
+      if (h.bossActive && !bossOn) { bossOn = true; setMood('boss', seed); }
+      else if (!h.bossActive && bossOn) { bossOn = false; setMood('combat', seed); }
       if (hpRef.current) hpRef.current.style.width = `${Math.max(0, (h.hp / h.maxHp) * 100)}%`;
       if (shRef.current) shRef.current.style.width = `${Math.max(0, (h.shield / h.maxShield) * 100)}%`;
       if (scoreRef.current) scoreRef.current.textContent = h.score.toLocaleString('pt-BR');
@@ -258,7 +285,7 @@ function Demo(props: { shipId: string; onBack: () => void; onRestart?: () => voi
       }
     };
     eng.start();
-    return () => eng.stop();
+    return () => { eng.stop(); setMood('menu'); };
   }, []);
 
   useEffect(() => { const e = engineRef.current; if (!e) return; if (paused) e.pause(); else e.resume(); }, [paused]);

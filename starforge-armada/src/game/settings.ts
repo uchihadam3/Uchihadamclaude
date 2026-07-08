@@ -3,13 +3,15 @@
 export interface Settings {
   muted: boolean;   // silenciar tudo
   volume: number;   // 0..1 volume mestre
+  music: boolean;   // trilha sonora ligada
+  musicVol: number; // 0..1 volume da trilha
   shake: boolean;   // tremor de tela
   bloom: boolean;   // brilho/bloom (desligar ajuda em aparelhos fracos)
   fps: boolean;     // mostrar FPS no HUD
   hitbox: boolean;  // realçar o núcleo de colisão da nave
 }
 
-const DEFAULTS: Settings = { muted: false, volume: 0.5, shake: true, bloom: true, fps: false, hitbox: false };
+const DEFAULTS: Settings = { muted: false, volume: 0.5, music: true, musicVol: 0.45, shake: true, bloom: true, fps: false, hitbox: false };
 const KEY = 'sfa_settings_v1';
 
 let cache: Settings = load();

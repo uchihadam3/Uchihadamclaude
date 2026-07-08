@@ -16,6 +16,7 @@ import { MAIN_BOSSES, SECRET_BOSSES, BossDef, BOSS_BY_ID } from '../data/bossesD
 import { drawBoss } from '../render/bossGen';
 import { CAMPAIGN } from '../data/campaignData';
 import { getSettings } from './settings';
+import { themeById, themeForSector } from '../render/bgThemes';
 
 export interface CampaignResult { success: boolean; sector: number; score: number; kills: number; timeSec: number; dmgTaken: number; lives: number; medal: string; maxCombo: number; }
 
@@ -25,6 +26,7 @@ const DEFAULT_MOD: Modifiers = { enemySpeed: 1, projScale: 1, scoreMult: 1, elit
 export interface EngineOpts {
   shipId?: string; mode?: 'endless' | 'campaign'; sector?: number;
   orient?: Orient; mod?: Partial<Modifiers>; runLives?: number; bossRush?: boolean; relics?: string[];
+  bgTheme?: string;
 }
 
 export interface Hud {
@@ -133,6 +135,9 @@ export class Engine {
     this.hitR = this.kit.passive === 'tiny' ? 8 : 14;
     if (this.kit.passive === 'armor') this.player.speed *= 0.92;
     this.applyRelics();
+    // tema de fundo: explícito, ou por setor na campanha
+    const theme = themeById(opts.bgTheme) ?? (this.mode === 'campaign' ? themeForSector(this.campSector) : themeForSector(0));
+    this.bg.setTheme(theme);
     this.bindInput();
   }
 

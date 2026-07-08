@@ -3,8 +3,10 @@ import { getSettings } from './settings';
 
 let ac: AudioContext | null = null;
 let master: GainNode | null = null;
+let musicBus: GainNode | null = null;
 
 function targetGain(): number { const s = getSettings(); return s.muted ? 0 : s.volume; }
+function musicGain(): number { const s = getSettings(); return (s.muted || !s.music) ? 0 : s.musicVol; }
 
 export function initAudio(): void {
   if (ac) return;
@@ -13,12 +15,20 @@ export function initAudio(): void {
     master = ac.createGain();
     master.gain.value = targetGain();
     master.connect(ac.destination);
+    musicBus = ac.createGain();          // sub-barramento só para a trilha
+    musicBus.gain.value = musicGain();
+    musicBus.connect(master);
   } catch { ac = null; }
 }
 
 export function resumeAudio(): void { initAudio(); if (ac && ac.state === 'suspended') ac.resume(); }
+export function getAC(): AudioContext | null { return ac; }
+export function getMusicBus(): GainNode | null { return musicBus; }
 // aplica volume/mudo atuais (chamado quando as configurações mudam)
-export function applyAudioSettings(): void { if (master && ac) master.gain.value = targetGain(); }
+export function applyAudioSettings(): void {
+  if (master && ac) master.gain.value = targetGain();
+  if (musicBus && ac) musicBus.gain.setTargetAtTime(musicGain(), ac.currentTime, 0.05);
+}
 export function setMuted(m: boolean): void { getSettings(); void m; applyAudioSettings(); }
 export function isMuted(): boolean { return getSettings().muted; }
 
