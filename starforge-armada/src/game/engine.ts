@@ -4,18 +4,19 @@
 // minas, corrente elétrica e buraco negro. Loop fixo, partículas, bloom, HUD.
 import { Background } from '../render/background';
 import { drawShip } from '../render/shipGen';
-import { drawEnemy, EnemyKind } from '../render/enemies';
+import { drawEnemyGen } from '../render/enemyGen';
 import { Particles } from '../render/fx';
 import { Bloom } from '../render/bloom';
 import { glow, beam, rgba, applyAlpha, clamp, rand, poly } from '../render/prims';
 import { sfx, resumeAudio } from './audio';
 import { SHIP_BY_ID, ShipDef } from '../data/shipsData';
 import { kitFor, Kit, FireSpec } from './shipKits';
+import { ENEMIES_BY_SECTOR, EnemyDef, SECTOR_BULLET, SECTORS } from '../data/enemiesData';
 
 export interface Hud {
   hp: number; maxHp: number; shield: number; maxShield: number;
   score: number; combo: number; comboTimer: number;
-  ability: number; ultimate: number; speed: number; fps: number; wave: number;
+  ability: number; ultimate: number; speed: number; fps: number; wave: number; sector: string;
 }
 
 type PickKind = 'score' | 'shield' | 'heal' | 'ult' | 'power';
@@ -27,24 +28,16 @@ interface Bullet {
   kind: 'bolt' | 'missile'; life: number; target: Enemy | null; trail: number;
   pierce?: boolean; dot?: number; slow?: number; explode?: boolean; curve?: number; chain?: number; hits?: Set<Enemy>;
 }
-interface EBullet { x: number; y: number; vx: number; vy: number; r: number; hue: string; }
+interface EBullet { x: number; y: number; vx: number; vy: number; r: number; hue: string; homing?: number; split?: number; }
 interface Enemy {
-  x: number; y: number; vx: number; vy: number; kind: EnemyKind; size: number;
-  hp: number; maxHp: number; r: number; t: number; hit: number; fireCd: number;
-  enter: number; phase: number; scoreVal: number; targetY: number;
+  x: number; y: number; vx: number; vy: number; def: EnemyDef; size: number;
+  hp: number; maxHp: number; r: number; t: number; hit: number; fireCd: number; fireN: number;
+  enter: number; phase: number; targetY: number;
   slowT: number; dotT: number; dotDmg: number; markT: number; dead: boolean;
 }
 interface Drone { ang: number; fireCd: number; life: number; x: number; y: number; }
 interface Mine { x: number; y: number; vx: number; vy: number; life: number; r: number; dmg: number; t: number; }
 interface Hole { x: number; y: number; life: number; r: number; t: number; }
-
-const ENEMY_STATS: Record<EnemyKind, { size: number; hp: number; r: number; score: number }> = {
-  drone: { size: 15, hp: 3, r: 18, score: 100 },
-  fighter: { size: 17, hp: 4, r: 20, score: 150 },
-  turret: { size: 20, hp: 7, r: 26, score: 220 },
-  mine: { size: 14, hp: 2, r: 22, score: 120 },
-  elite: { size: 34, hp: 40, r: 46, score: 900 },
-};
 
 export class Engine {
   private ctx: CanvasRenderingContext2D;
@@ -79,9 +72,9 @@ export class Engine {
   private pointer = { active: false, x: 0, y: 0 };
   private shake = 0; private flash = 0;
   private score = 0; private combo = 0; private comboTimer = 0; private wave = 1;
-  private spawnT = 0; private fps = 60; private eliteAlive = false;
+  private spawnT = 0; private fps = 60; private eliteAlive = false; private curSector = 0;
 
-  hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1 };
+  hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name };
   onHud: (h: Hud) => void = () => {};
 
   constructor(private canvas: HTMLCanvasElement, shipId = 'falcon') {
@@ -279,15 +272,18 @@ export class Engine {
       e.t += dt; e.hit = Math.max(0, e.hit - dt * 3); e.enter = Math.max(0, e.enter - dt);
       e.slowT = Math.max(0, e.slowT - dt); e.markT = Math.max(0, e.markT - dt);
       if (e.dotT > 0) { e.dotT -= dt; e.hp -= e.dotDmg * dt; if (Math.random() < dt * 8) this.fx.trail(e.x + rand(-6, 6), e.y, '#aaff40', 1.6); }
-      this.enemyBehavior(e, dt);
-      if (e.hp > 0 && p.invuln <= 0 && Math.hypot(e.x - p.x, e.y - p.y) < e.r + this.hitR) { this.damagePlayer(e.kind === 'elite' ? 24 : 14); if (e.kind === 'mine' || e.kind === 'drone') { e.hp = 0; this.killEnemy(e); } }
-      if (e.hp <= 0) { if (!e.dead) this.killEnemy(e); if (e.kind === 'elite') this.eliteAlive = false; this.enemies.splice(i, 1); }
-      else if (e.y > this.h + 80) { if (e.kind === 'elite') this.eliteAlive = false; this.enemies.splice(i, 1); }
+      this.moveEnemy(e, dt);
+      if (e.enter <= 0 && e.def.pattern !== 'none') { e.fireCd -= dt; if (e.fireCd <= 0) { e.fireCd = e.def.cadence; this.emitPattern(e); e.fireN++; } }
+      if (e.hp > 0 && p.invuln <= 0 && Math.hypot(e.x - p.x, e.y - p.y) < e.r + this.hitR) { this.damagePlayer(e.def.dmg); if (e.def.contact) { e.hp = 0; this.killEnemy(e); } }
+      if (e.hp <= 0) { if (!e.dead) this.killEnemy(e); if (e.def.elite) this.eliteAlive = false; this.enemies.splice(i, 1); }
+      else if (e.y > this.h + 80) { if (e.def.elite) this.eliteAlive = false; this.enemies.splice(i, 1); }
     }
 
     // ---- balas inimigas ----
     for (let i = this.ebullets.length - 1; i >= 0; i--) {
       const b = this.ebullets[i];
+      if (b.homing !== undefined && b.homing > 0) { b.homing -= dt; const dx = p.x - b.x, dy = p.y - b.y, d = Math.hypot(dx, dy) || 1; b.vx += (dx / d) * 260 * dt; b.vy += (dy / d) * 260 * dt; const s = Math.hypot(b.vx, b.vy); if (s > 320) { b.vx = b.vx / s * 320; b.vy = b.vy / s * 320; } }
+      if (b.split !== undefined) { b.split -= dt; if (b.split <= 0) { const sp = Math.hypot(b.vx, b.vy) || 300; for (let k = -1; k <= 1; k++) { const a = Math.atan2(b.vy, b.vx) + k * 0.35; this.ebullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: b.r, hue: b.hue }); } this.ebullets.splice(i, 1); continue; } }
       b.x += b.vx * dt; b.y += b.vy * dt;
       if (b.y > this.h + 20 || b.y < -20 || b.x < -20 || b.x > this.w + 20) { this.ebullets.splice(i, 1); continue; }
       // escudo frontal bloqueia
@@ -461,19 +457,49 @@ export class Engine {
     for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; this.bullets.push({ x: p.x, y: p.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, r: 5, dmg: 8 * this.dmgMult, hue, kind: 'bolt', life: 1.2, target: null, trail: 0, slow: slow ? 1.5 : undefined }); }
   }
 
-  private enemyBehavior(e: Enemy, dt: number): void {
-    const p = this.player; const sm = e.slowT > 0 ? 0.45 : 1;
+  // ---------------- IA de movimento ----------------
+  private moveEnemy(e: Enemy, dt: number): void {
+    const p = this.player; const sm = e.slowT > 0 ? 0.45 : 1; const v = e.def.speed * sm;
     if (e.enter > 0) { e.y += 120 * dt; return; }
-    switch (e.kind) {
-      case 'drone': e.x += Math.sin(e.t * 1.5 + e.phase) * 60 * dt * sm; e.y += 40 * dt * sm; break;
-      case 'fighter': e.x += Math.cos(e.t * 2 + e.phase) * 120 * dt * sm; e.y += 70 * dt * sm * (e.y < this.h * 0.35 ? 1 : 0.2); e.fireCd -= dt; if (e.fireCd <= 0 && e.y < this.h * 0.7) { e.fireCd = 1.4; this.enemyAimShot(e, 380); } break;
-      case 'turret': e.y = Math.min(e.targetY, e.y + 50 * dt); e.fireCd -= dt; if (e.fireCd <= 0) { e.fireCd = 2.0; this.enemyFan(e, 5, 360); } break;
-      case 'mine': e.y += 55 * dt * sm; e.x += Math.sin(e.t + e.phase) * 20 * dt; break;
-      case 'elite': e.y = Math.min(e.targetY, e.y + 40 * dt); e.x += Math.sin(e.t * 0.6) * 60 * dt * sm; e.x = clamp(e.x, 80, this.w - 80); e.fireCd -= dt; if (e.fireCd <= 0) { e.fireCd = 1.1; if (Math.floor(e.t) % 3 === 0) this.enemyFan(e, 12, 300); else this.enemyAimShot(e, 420); } break;
+    switch (e.def.behavior) {
+      case 'dive': e.x += Math.cos(e.t * 2 + e.phase) * 90 * dt * sm; e.y += v * dt * (e.y < this.h * 0.4 ? 1.4 : 0.5); break;
+      case 'strafe': e.x += Math.sin(e.t * 1.5 + e.phase) * 90 * dt * sm; e.y += v * 0.6 * dt * (e.y < this.h * 0.32 ? 1.5 : 0.25); e.x = clamp(e.x, 30, this.w - 30); break;
+      case 'hover': e.y = Math.min(e.targetY, e.y + v * dt); e.x += Math.sin(e.t * 0.7 + e.phase) * 50 * dt * sm; e.x = clamp(e.x, 60, this.w - 60); break;
+      case 'descend': e.y += v * 0.5 * dt; e.x += Math.sin(e.t * 0.5) * 20 * dt; break;
+      case 'kamikaze': { const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1; e.x += (dx / d) * v * dt; e.y += (dy / d) * v * dt * 1.2 + 30 * dt; break; }
+      case 'turret': e.y = Math.min(e.targetY, e.y + v * dt); break;
+      case 'orbit': { e.y = Math.min(e.targetY || this.h * 0.28, e.y + v * dt); e.x += Math.cos(e.t * 1.2 + e.phase) * 90 * dt * sm; e.x = clamp(e.x, 50, this.w - 50); break; }
+      case 'zigzag': e.x += (Math.floor(e.t * 2 + e.phase) % 2 ? 1 : -1) * 110 * dt * sm; e.y += v * 0.7 * dt; e.x = clamp(e.x, 30, this.w - 30); break;
+      case 'drift': e.y += v * 0.5 * dt * sm; e.x += Math.sin(e.t + e.phase) * 24 * dt; break;
+      case 'serpentine': e.x += Math.sin(e.t * 3 + e.phase) * 130 * dt * sm; e.y += v * 0.55 * dt; e.x = clamp(e.x, 30, this.w - 30); break;
     }
   }
-  private enemyAimShot(e: Enemy, sp: number): void { const dx = this.player.x - e.x, dy = this.player.y - e.y, d = Math.hypot(dx, dy) || 1; this.ebullets.push({ x: e.x, y: e.y, vx: dx / d * sp, vy: dy / d * sp, r: 5, hue: '#ff8a3a' }); }
-  private enemyFan(e: Enemy, n: number, sp: number): void { for (let i = 0; i < n; i++) { const a = Math.PI / 2 + (i - (n - 1) / 2) * 0.16; this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 4.5, hue: '#ffb03a' }); } }
+
+  // ---------------- padrões de projétil ----------------
+  private emit(e: Enemy, ang: number, speed: number, extra?: Partial<EBullet>): void {
+    this.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, r: 4.6, hue: SECTOR_BULLET[e.def.sector], ...extra });
+  }
+  private aimAng(e: Enemy): number { const dx = this.player.x - e.x, dy = this.player.y - e.y; return Math.atan2(dy, dx); }
+  private emitPattern(e: Enemy): void {
+    const p = e.def, n = p.count, sp = p.bspeed, down = Math.PI / 2;
+    switch (p.pattern) {
+      case 'aim': for (let i = 0; i < n; i++) this.emit(e, this.aimAng(e) + (i - (n - 1) / 2) * 0.14, sp); break;
+      case 'fan': for (let i = 0; i < n; i++) this.emit(e, down + (i - (n - 1) / 2) * 0.18, sp); break;
+      case 'spread': { const a0 = this.aimAng(e); for (let i = 0; i < n; i++) this.emit(e, a0 + (i - (n - 1) / 2) * 0.22, sp); break; }
+      case 'ring': for (let i = 0; i < n; i++) this.emit(e, (i / n) * Math.PI * 2, sp); break;
+      case 'pulseRing': for (let i = 0; i < n; i++) this.emit(e, (i / n) * Math.PI * 2 + e.fireN * 0.2, sp * 0.7); break;
+      case 'spiral': for (let i = 0; i < n; i++) this.emit(e, e.fireN * 0.4 + (i / n) * Math.PI * 2, sp * 0.8); break;
+      case 'wave': for (let i = -2; i <= 2; i++) this.emit(e, down + Math.sin(e.fireN * 0.5) * 0.4 + i * 0.12, sp * 0.8); break;
+      case 'wall': { const gapX = this.player.x; for (let i = 0; i < n; i++) { const bx = 40 + (i / (n - 1)) * (this.w - 80); if (Math.abs(bx - gapX) < 60) continue; this.ebullets.push({ x: bx, y: e.y, vx: 0, vy: sp * 0.7, r: 4.6, hue: SECTOR_BULLET[e.def.sector] }); } break; }
+      case 'rain': for (let i = 0; i < n; i++) { const bx = e.x + rand(-80, 80); this.ebullets.push({ x: bx, y: e.y, vx: rand(-40, 40), vy: sp * 0.8, r: 4.2, hue: SECTOR_BULLET[e.def.sector] }); } break;
+      case 'sweep': { const base = down - 0.5 + (e.fireN % 8) * 0.14; for (let i = 0; i < n; i++) this.emit(e, base + i * 0.1, sp); break; }
+      case 'aimBurst': for (let i = 0; i < n; i++) this.emit(e, this.aimAng(e), sp * (0.8 + i * 0.15)); break;
+      case 'cross': for (let i = 0; i < 4; i++) this.emit(e, i * (Math.PI / 2) + Math.PI / 4 + e.fireN * 0.1, sp); break;
+      case 'arc': for (let i = 0; i < 5; i++) this.emit(e, down - 0.5 + i * 0.25, sp * 0.85); break;
+      case 'homingSlow': for (let i = 0; i < n; i++) this.emit(e, down + (i - (n - 1) / 2) * 0.3, sp * 0.55, { homing: 2.5, r: 5.4 }); break;
+      case 'split': this.emit(e, this.aimAng(e), sp * 0.7, { split: 0.55, r: 5.4 }); break;
+    }
+  }
 
   private damagePlayer(dmg: number): void {
     const p = this.player; if (p.dashT > 0) return;
@@ -487,11 +513,11 @@ export class Engine {
   }
   private killEnemy(e: Enemy): void {
     if (e.dead) return; e.dead = true; // evita contagem dupla
-    const big = e.kind === 'elite';
-    this.fx.explosion(e.x, e.y, big ? 2.6 : 1.1, big ? '#ff7a3a' : '#ffb060', big);
+    const big = !!e.def.elite;
+    this.fx.explosion(e.x, e.y, big ? 2.6 : 1.1, e.def.pal.accent, big);
     this.shake = Math.max(this.shake, big ? 15 : 5); if (big) sfx.explodeBig(); else sfx.explodeSmall();
     this.combo += 1; this.comboTimer = 2.2;
-    this.score += Math.round(e.scoreVal * (1 + this.combo * 0.05));
+    this.score += Math.round(e.def.score * (1 + this.combo * 0.05));
     this.player.ult = Math.min(1, this.player.ult + (big ? 0.25 : 0.03));
     if (this.kit.passive === 'dodgeCharge') this.player.ult = Math.min(1, this.player.ult + 0.01);
     this.dropPickups(e.x, e.y, big);
@@ -518,17 +544,22 @@ export class Engine {
 
   private spawnWave(): void {
     this.spawnT = rand(1.6, 2.6); this.wave++;
-    const roll = Math.random();
-    if (!this.eliteAlive && this.wave % 4 === 0) { this.addEnemy('elite', this.w / 2, -80, this.h * 0.22); this.eliteAlive = true; return; }
-    if (roll < 0.3) { const n = 3 + (Math.random() * 3 | 0); for (let i = 0; i < n; i++) this.addEnemy('drone', rand(60, this.w - 60), -40 - i * 46, 0); }
-    else if (roll < 0.55) { for (let i = 0; i < 2; i++) this.addEnemy('fighter', rand(80, this.w - 80), -50 - i * 60, 0); }
-    else if (roll < 0.75) { this.addEnemy('turret', rand(80, this.w - 80), -60, rand(this.h * 0.16, this.h * 0.3)); }
-    else { const n = 2 + (Math.random() * 2 | 0); for (let i = 0; i < n; i++) this.addEnemy('mine', rand(60, this.w - 60), -40 - i * 50, 0); }
+    // avança de setor a cada 6 ondas para mostrar todos os inimigos
+    this.curSector = Math.floor((this.wave - 1) / 6) % 12;
+    const pool = ENEMIES_BY_SECTOR[this.curSector];
+    const normals = pool.filter((d) => !d.elite);
+    const elite = pool.find((d) => d.elite);
+    if (!this.eliteAlive && this.wave % 4 === 0 && elite) { this.addEnemy(elite, this.w / 2, -90, this.h * 0.22); this.eliteAlive = true; return; }
+    const def = normals[Math.random() * normals.length | 0];
+    const group = def.behavior === 'turret' || def.behavior === 'hover' ? 1 : 2 + (Math.random() * 3 | 0);
+    for (let i = 0; i < group; i++) {
+      const ty = def.behavior === 'turret' || def.behavior === 'orbit' ? rand(this.h * 0.14, this.h * 0.3) : (def.behavior === 'hover' ? rand(this.h * 0.2, this.h * 0.34) : 0);
+      this.addEnemy(def, rand(60, this.w - 60), -40 - i * 50, ty);
+    }
   }
-  private addEnemy(kind: EnemyKind, x: number, y: number, targetY: number): void {
-    const s = ENEMY_STATS[kind];
-    this.enemies.push({ x, y, vx: 0, vy: 0, kind, size: s.size, hp: s.hp, maxHp: s.hp, r: s.r, t: Math.random() * 6, hit: 0, fireCd: rand(0.6, 1.6), enter: 0.2, phase: Math.random() * Math.PI * 2, scoreVal: s.score, targetY: targetY || y, slowT: 0, dotT: 0, dotDmg: 0, markT: 0, dead: false });
-    if (kind === 'elite') this.flash = Math.max(this.flash, 0.4);
+  private addEnemy(def: EnemyDef, x: number, y: number, targetY: number): void {
+    this.enemies.push({ x, y, vx: 0, vy: 0, def, size: def.size, hp: def.hp, maxHp: def.hp, r: def.size * 1.15, t: Math.random() * 6, hit: 0, fireCd: rand(0.6, def.cadence), fireN: 0, enter: 0.25, phase: Math.random() * Math.PI * 2, targetY: targetY || y, slowT: 0, dotT: 0, dotDmg: 0, markT: 0, dead: false });
+    if (def.elite) this.flash = Math.max(this.flash, 0.4);
   }
 
   // ================= RENDER =================
@@ -546,7 +577,7 @@ export class Engine {
     // balas inimigas
     for (const b of this.ebullets) { glow(ctx, b.x, b.y, b.r * 3.4, b.hue, 0.7); ctx.fillStyle = '#fff2d8'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.6, 0, Math.PI * 2); ctx.fill(); }
     // inimigos
-    for (const e of this.enemies) { if (e.slowT > 0) glow(ctx, e.x, e.y, e.size * 1.6, '#7fe0ff', 0.25); drawEnemy(ctx, e.kind, e.x, e.y, e.size, e.t, e.hit); if (e.markT > 0) { ctx.strokeStyle = applyAlpha('#ff5a7a', 0.7); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.stroke(); } }
+    for (const e of this.enemies) { if (e.slowT > 0) glow(ctx, e.x, e.y, e.size * 1.6, '#7fe0ff', 0.25); drawEnemyGen(ctx, e.def.arch, e.x, e.y, e.size, e.t, e.hit, e.def.pal); if (e.markT > 0) { ctx.strokeStyle = applyAlpha('#ff5a7a', 0.7); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 4, 0, Math.PI * 2); ctx.stroke(); } }
     // pickups
     for (const pk of this.pickups) this.drawPickup(ctx, pk);
     // feixe primário
@@ -645,7 +676,7 @@ export class Engine {
     this.hud.hp = p.hp; this.hud.maxHp = p.maxHp; this.hud.shield = p.shield; this.hud.maxShield = p.maxShield;
     this.hud.score = this.score; this.hud.combo = this.combo; this.hud.comboTimer = this.comboTimer;
     this.hud.ability = 1 - p.abilityCd / p.abilityMax; this.hud.ultimate = p.ult;
-    this.hud.speed = Math.min(1, Math.hypot(p.vx, p.vy) / p.speed); this.hud.fps = this.fps; this.hud.wave = this.wave;
+    this.hud.speed = Math.min(1, Math.hypot(p.vx, p.vy) / p.speed); this.hud.fps = this.fps; this.hud.wave = this.wave; this.hud.sector = SECTORS[this.curSector].name;
     this.onHud(this.hud);
   }
 }

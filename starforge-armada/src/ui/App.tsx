@@ -7,22 +7,24 @@ import { Particles } from '../render/fx';
 import { Bloom } from '../render/bloom';
 import { initAudio, resumeAudio, sfx } from '../game/audio';
 import Hangar from './Hangar';
+import Bestiary from './Bestiary';
 import './styles.css';
 
 export default function App(): JSX.Element {
-  const [screen, setScreen] = useState<'menu' | 'demo' | 'hangar'>('menu');
+  const [screen, setScreen] = useState<'menu' | 'demo' | 'hangar' | 'bestiary'>('menu');
   const [shipId, setShipId] = useState('falcon');
   return (
     <div className="app">
-      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setShipId('falcon'); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} />}
+      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setShipId('falcon'); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} onBestiary={() => { resumeAudio(); sfx.ui(); setScreen('bestiary'); }} />}
       {screen === 'demo' && <Demo shipId={shipId} onBack={() => setScreen('menu')} />}
       {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} onPilot={(id) => { resumeAudio(); sfx.start(); setShipId(id); setScreen('demo'); }} />}
+      {screen === 'bestiary' && <Bestiary onBack={() => setScreen('menu')} />}
     </div>
   );
 }
 
 // ============ MENU (com showcase animado da Falcon-01) ============
-function Menu(props: { onStart: () => void; onHangar: () => void }): JSX.Element {
+function Menu(props: { onStart: () => void; onHangar: () => void; onBestiary: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = canvasRef.current!;
@@ -76,6 +78,7 @@ function Menu(props: { onStart: () => void; onHangar: () => void }): JSX.Element
         <div className="menu-btns">
           <button className="play-btn" onClick={props.onStart}>Iniciar Demo Visual</button>
           <button className="play-btn ghost" onClick={props.onHangar}>Hangar · 30 Naves</button>
+          <button className="play-btn ghost" onClick={props.onBestiary}>Bestiário · 72 Inimigos</button>
         </div>
         <div className="menu-controls">
           <span><kbd>WASD</kbd> mover</span>
@@ -120,7 +123,7 @@ function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
       if (shRef.current) shRef.current.style.width = `${Math.max(0, (h.shield / h.maxShield) * 100)}%`;
       if (scoreRef.current) scoreRef.current.textContent = h.score.toLocaleString('pt-BR');
       if (comboRef.current) comboRef.current.textContent = String(h.combo);
-      if (waveRef.current) waveRef.current.textContent = `Onda ${h.wave}`;
+      if (waveRef.current) waveRef.current.textContent = h.sector;
       if (abRef.current) abRef.current.style.height = `${(1 - h.ability) * 100}%`;
       if (abBoxRef.current) abBoxRef.current.classList.toggle('ready', h.ability >= 1);
       if (ultRef.current) ultRef.current.style.height = `${(1 - h.ultimate) * 100}%`;
