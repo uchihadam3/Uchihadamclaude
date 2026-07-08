@@ -12,14 +12,18 @@ import { sfx, resumeAudio } from './audio';
 import { SHIP_BY_ID, ShipDef } from '../data/shipsData';
 import { kitFor, Kit, FireSpec } from './shipKits';
 import { ENEMIES_BY_SECTOR, EnemyDef, SECTOR_BULLET, SECTORS, Pattern } from '../data/enemiesData';
-import { MAIN_BOSSES, SECRET_BOSSES, BossDef } from '../data/bossesData';
+import { MAIN_BOSSES, SECRET_BOSSES, BossDef, BOSS_BY_ID } from '../data/bossesData';
 import { drawBoss } from '../render/bossGen';
+import { CAMPAIGN } from '../data/campaignData';
+
+export interface CampaignResult { success: boolean; sector: number; score: number; kills: number; timeSec: number; dmgTaken: number; lives: number; medal: string; }
 
 export interface Hud {
   hp: number; maxHp: number; shield: number; maxShield: number;
   score: number; combo: number; comboTimer: number;
   ability: number; ultimate: number; speed: number; fps: number; wave: number; sector: string;
   bossActive: boolean; bossName: string; bossHp: number; bossPhases: number; bossPhase: number;
+  campaign: boolean; lives: number;
 }
 
 type PickKind = 'score' | 'shield' | 'heal' | 'ult' | 'power';
@@ -83,14 +87,20 @@ export class Engine {
   private score = 0; private combo = 0; private comboTimer = 0; private wave = 1;
   private spawnT = 0; private fps = 60; private eliteAlive = false; private curSector = 0;
   private boss: Boss | null = null; private lastBossWave = 0; private bossCounter = 0;
+  private mode: 'endless' | 'campaign' = 'endless'; private campSector = 0;
+  private camp: { phaseIdx: number; wavesSpawned: number; wavesTarget: number; lives: number; kills: number; dmgTaken: number; startT: number; done: boolean; bossSpawned: boolean } | null = null;
+  private banner = { t: 0, text: '', sub: '' };
+  onComplete: (r: CampaignResult) => void = () => {};
 
-  hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name, bossActive: false, bossName: '', bossHp: 1, bossPhases: 1, bossPhase: 0 };
+  hud: Hud = { hp: 100, maxHp: 100, shield: 60, maxShield: 60, score: 0, combo: 0, comboTimer: 0, ability: 1, ultimate: 0, speed: 0, fps: 60, wave: 1, sector: SECTORS[0].name, bossActive: false, bossName: '', bossHp: 1, bossPhases: 1, bossPhase: 0, campaign: false, lives: 3 };
   onHud: (h: Hud) => void = () => {};
 
-  constructor(private canvas: HTMLCanvasElement, shipId = 'falcon') {
+  constructor(private canvas: HTMLCanvasElement, shipId = 'falcon', mode: 'endless' | 'campaign' = 'endless', sector = 0) {
     const c = canvas.getContext('2d', { alpha: false });
     if (!c) throw new Error('no ctx');
     this.ctx = c;
+    this.mode = mode; this.campSector = sector;
+    if (mode === 'campaign') this.curSector = sector;
     this.ship = SHIP_BY_ID[shipId] ?? SHIP_BY_ID['falcon'];
     this.kit = kitFor(this.ship.id);
     const s = this.ship.stats;
@@ -114,7 +124,11 @@ export class Engine {
     this.running = true; this.last = performance.now();
     // naves de drone começam com drones
     if (this.kit.ability.type === 'drone') for (let i = 0; i < (this.ship.id === 'scarab' || this.ship.id === 'swarm' ? 2 : 1); i++) this.addDrone(Infinity);
-    this.spawnWave();
+    if (this.mode === 'campaign') {
+      const sec = CAMPAIGN[this.campSector];
+      this.camp = { phaseIdx: 0, wavesSpawned: 0, wavesTarget: sec.phases[0].waves, lives: 3, kills: 0, dmgTaken: 0, startT: performance.now(), done: false, bossSpawned: false };
+      this.setBanner(sec.phases[0].name, 'Fase 1/3');
+    } else this.spawnWave();
     this.raf = requestAnimationFrame(this.loop);
   }
   stop(): void {
@@ -264,14 +278,28 @@ export class Engine {
 
     // ---- chefe / spawns ----
     if (this.boss) { this.updateBoss(dt); }
-    else if (this.wave - this.lastBossWave >= 9) {
-      // dispara um chefe a cada ~9 ondas (limpa a tela)
+    else if (this.mode === 'campaign' && this.camp && !this.camp.done) {
+      const c = this.camp, sec = CAMPAIGN[this.campSector];
+      if (c.phaseIdx >= sec.phases.length) {
+        if (!c.bossSpawned) { c.bossSpawned = true; this.spawnBoss(BOSS_BY_ID[sec.bossId]); }
+      } else {
+        this.spawnT -= dt;
+        if (c.wavesSpawned < c.wavesTarget) { if (this.spawnT <= 0 && this.enemies.length < 10) { this.spawnWave(); c.wavesSpawned++; } }
+        else if (this.enemies.length === 0) {
+          c.phaseIdx++;
+          if (c.phaseIdx < sec.phases.length) { c.wavesSpawned = 0; c.wavesTarget = sec.phases[c.phaseIdx].waves; this.setBanner(sec.phases[c.phaseIdx].name, `Fase ${c.phaseIdx + 1}/3`); }
+          else this.setBanner(BOSS_BY_ID[sec.bossId].name, 'CHEFE À FRENTE');
+        }
+      }
+    }
+    else if (this.mode === 'endless' && this.wave - this.lastBossWave >= 9) {
       const useSecret = this.bossCounter > 0 && this.bossCounter % 4 === 0 && SECRET_BOSSES.length;
       const def = useSecret ? SECRET_BOSSES[(this.bossCounter / 4 | 0) % SECRET_BOSSES.length] : MAIN_BOSSES[this.bossCounter % MAIN_BOSSES.length];
       this.bossCounter++; this.spawnBoss(def);
-    } else {
+    } else if (this.mode === 'endless') {
       this.spawnT -= dt; if (this.spawnT <= 0 && this.enemies.length < 12) this.spawnWave();
     }
+    if (this.banner.t > 0) this.banner.t -= dt;
 
     // ---- entidades do jogador ----
     this.updateDrones(dt);
@@ -522,6 +550,16 @@ export class Engine {
   }
   private emitPattern(e: Enemy): void { this.emitP(e.x, e.y, e.def.sector, e.def.pattern, e.def.count, e.def.bspeed, e.fireN); }
 
+  // ================= CAMPANHA =================
+  private setBanner(text: string, sub: string): void { this.banner = { t: 2.4, text, sub }; }
+  private finishCampaign(success: boolean): void {
+    if (!this.camp || this.camp.done) return; this.camp.done = true;
+    const timeSec = (performance.now() - this.camp.startT) / 1000;
+    let medal = '—';
+    if (success) { const d = this.camp.dmgTaken, lv = this.camp.lives; medal = d === 0 ? 'Eclipse' : (lv === 3 && d < 90) ? 'Platina' : lv >= 2 ? 'Ouro' : lv >= 1 ? 'Prata' : 'Bronze'; }
+    this.onComplete({ success, sector: this.campSector, score: this.score, kills: this.camp.kills, timeSec, dmgTaken: Math.round(this.camp.dmgTaken), lives: this.camp.lives, medal });
+  }
+
   // ================= CHEFES =================
   private spawnBoss(def: BossDef): void {
     this.lastBossWave = this.wave; this.enemies.length = 0; this.ebullets.length = 0; this.eliteAlive = false;
@@ -535,7 +573,7 @@ export class Engine {
     if (b.state === 'enter') { b.y += (b.targetY - b.y) * Math.min(1, dt * 2); b.enterT -= dt; if (b.enterT <= 0 && Math.abs(b.y - b.targetY) < 4) b.state = 'fight'; return; }
     if (b.state === 'die') {
       b.deathT += dt; if (Math.random() < dt * 20) this.fx.explosion(b.x + rand(-1, 1) * b.def.size, b.y + rand(-1, 1) * b.def.size, 2, b.def.pal.accent, true); this.shake = Math.max(this.shake, 12);
-      if (b.deathT > 1.7) { this.fx.explosion(b.x, b.y, 5, '#ffffff', true); this.flash = 1; this.shake = 24; this.score += b.def.secret ? 8000 : 5000; p.ult = 1; this.boss = null; }
+      if (b.deathT > 1.7) { this.fx.explosion(b.x, b.y, 5, '#ffffff', true); this.flash = 1; this.shake = 24; this.score += b.def.secret ? 8000 : 5000; p.ult = 1; this.boss = null; if (this.mode === 'campaign' && this.camp && !this.camp.done) this.finishCampaign(true); }
       return;
     }
     const phases = b.def.phases; let idx = 0; const frac = b.hp / b.maxHp;
@@ -571,15 +609,24 @@ export class Engine {
     p.invuln = 0.7; p.dmgFlash = 1; p.shieldRegenT = 0; p.noDmgT = 0;
     if (this.kit.passive === 'dodgeCharge') { /* nada; dodge premia esquiva, não dano */ }
     this.shake = Math.max(this.shake, 8); sfx.hit();
+    if (this.camp) this.camp.dmgTaken += dmg;
     if (p.shield > 0) { p.shield -= dmg; if (p.shield < 0) { p.hp += p.shield; p.shield = 0; } } else p.hp -= dmg;
     this.combo = Math.max(0, this.combo - 5);
-    if (p.hp <= 0) { p.hp = p.maxHp; p.shield = p.maxShield; this.fx.explosion(p.x, p.y, 2, this.kit.primary.color, true); }
+    if (p.hp <= 0) {
+      this.fx.explosion(p.x, p.y, 2, this.kit.primary.color, true); this.shake = 18;
+      if (this.mode === 'campaign' && this.camp && !this.camp.done) {
+        this.camp.lives--;
+        if (this.camp.lives <= 0) { this.finishCampaign(false); return; }
+      }
+      p.hp = p.maxHp; p.shield = p.maxShield; p.invuln = 1.4;
+    }
   }
   private killEnemy(e: Enemy): void {
     if (e.dead) return; e.dead = true; // evita contagem dupla
     const big = !!e.def.elite;
     this.fx.explosion(e.x, e.y, big ? 2.6 : 1.1, e.def.pal.accent, big);
     this.shake = Math.max(this.shake, big ? 15 : 5); if (big) sfx.explodeBig(); else sfx.explodeSmall();
+    if (this.camp) this.camp.kills++;
     this.combo += 1; this.comboTimer = 2.2;
     this.score += Math.round(e.def.score * (1 + this.combo * 0.05));
     this.player.ult = Math.min(1, this.player.ult + (big ? 0.25 : 0.03));
@@ -608,12 +655,13 @@ export class Engine {
 
   private spawnWave(): void {
     this.spawnT = rand(1.6, 2.6); this.wave++;
-    // avança de setor a cada 6 ondas para mostrar todos os inimigos
-    this.curSector = Math.floor((this.wave - 1) / 6) % 12;
+    // campanha: setor fixo; endless: avança a cada 6 ondas
+    if (this.mode === 'campaign') this.curSector = this.campSector;
+    else this.curSector = Math.floor((this.wave - 1) / 6) % 12;
     const pool = ENEMIES_BY_SECTOR[this.curSector];
     const normals = pool.filter((d) => !d.elite);
     const elite = pool.find((d) => d.elite);
-    if (!this.eliteAlive && this.wave % 4 === 0 && elite) { this.addEnemy(elite, this.w / 2, -90, this.h * 0.22); this.eliteAlive = true; return; }
+    if (this.mode === 'endless' && !this.eliteAlive && this.wave % 4 === 0 && elite) { this.addEnemy(elite, this.w / 2, -90, this.h * 0.22); this.eliteAlive = true; return; }
     const def = normals[Math.random() * normals.length | 0];
     const group = def.behavior === 'turret' || def.behavior === 'hover' ? 1 : 2 + (Math.random() * 3 | 0);
     for (let i = 0; i < group; i++) {
@@ -677,6 +725,16 @@ export class Engine {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
     if (p.hp < 30) { const a = 0.2 + 0.15 * Math.sin(this.t * 6); const g = ctx.createRadialGradient(this.w / 2, this.h / 2, this.h * 0.3, this.w / 2, this.h / 2, this.h * 0.7); g.addColorStop(0, 'rgba(255,40,40,0)'); g.addColorStop(1, `rgba(255,30,40,${a})`); ctx.fillStyle = g; ctx.fillRect(0, 0, this.w, this.h); }
+
+    // cartão de fase (campanha)
+    if (this.banner.t > 0 && !this.boss) {
+      const a = Math.min(1, this.banner.t / 0.6);
+      ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center';
+      ctx.fillStyle = '#8fd0ff'; ctx.font = '600 13px Rajdhani, sans-serif'; ctx.fillText(this.banner.sub.toUpperCase(), this.w / 2, this.h * 0.4 - 6);
+      ctx.fillStyle = '#ffffff'; ctx.font = '800 28px Rajdhani, sans-serif'; ctx.shadowColor = '#5bd6ff'; ctx.shadowBlur = 16;
+      ctx.fillText(this.banner.text.toUpperCase(), this.w / 2, this.h * 0.4 + 22);
+      ctx.restore();
+    }
   }
 
   private drawPlayerBullet(ctx: CanvasRenderingContext2D, b: Bullet): void {
@@ -777,6 +835,8 @@ export class Engine {
     this.hud.bossHp = b ? Math.max(0, b.hp / b.maxHp) : 0;
     this.hud.bossPhases = b ? b.def.phases.length : 1;
     this.hud.bossPhase = b ? b.phaseIdx : 0;
+    this.hud.campaign = this.mode === 'campaign';
+    this.hud.lives = this.camp ? this.camp.lives : 3;
     this.onHud(this.hud);
   }
 }

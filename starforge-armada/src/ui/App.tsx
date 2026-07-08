@@ -8,23 +8,50 @@ import { Bloom } from '../render/bloom';
 import { initAudio, resumeAudio, sfx } from '../game/audio';
 import Hangar from './Hangar';
 import Bestiary from './Bestiary';
+import { CampaignMap, StoryIntro, Results } from './CampaignScreens';
+import { loadCampaign, recordClear, CampaignSave } from '../game/campaignSave';
+import type { CampaignResult } from '../game/engine';
+import { CAMPAIGN } from '../data/campaignData';
 import './styles.css';
 
 export default function App(): JSX.Element {
-  const [screen, setScreen] = useState<'menu' | 'demo' | 'hangar' | 'bestiary'>('menu');
+  const [screen, setScreen] = useState<'menu' | 'demo' | 'hangar' | 'bestiary' | 'campaign'>('menu');
   const [shipId, setShipId] = useState('falcon');
   return (
     <div className="app">
-      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setShipId('falcon'); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} onBestiary={() => { resumeAudio(); sfx.ui(); setScreen('bestiary'); }} />}
+      {screen === 'menu' && <Menu onStart={() => { resumeAudio(); sfx.start(); setShipId('falcon'); setScreen('demo'); }} onHangar={() => { resumeAudio(); sfx.ui(); setScreen('hangar'); }} onBestiary={() => { resumeAudio(); sfx.ui(); setScreen('bestiary'); }} onCampaign={() => { resumeAudio(); sfx.ui(); setScreen('campaign'); }} />}
       {screen === 'demo' && <Demo shipId={shipId} onBack={() => setScreen('menu')} />}
       {screen === 'hangar' && <Hangar onBack={() => setScreen('menu')} onPilot={(id) => { resumeAudio(); sfx.start(); setShipId(id); setScreen('demo'); }} />}
       {screen === 'bestiary' && <Bestiary onBack={() => setScreen('menu')} />}
+      {screen === 'campaign' && <Campaign onBack={() => setScreen('menu')} />}
     </div>
   );
 }
 
+// ============ CAMPANHA ============
+function Campaign(props: { onBack: () => void }): JSX.Element {
+  const [save, setSave] = useState<CampaignSave>(() => loadCampaign());
+  const [phase, setPhase] = useState<'map' | 'intro' | 'run' | 'results'>('map');
+  const [sector, setSector] = useState(0);
+  const [ship, setShip] = useState('falcon');
+  const [result, setResult] = useState<CampaignResult | null>(null);
+
+  if (phase === 'map') return <CampaignMap save={save} onSelect={(i) => { setSector(i); setPhase('intro'); }} onBack={props.onBack} />;
+  if (phase === 'intro') return <StoryIntro sector={sector} onBack={() => setPhase('map')} onLaunch={(s) => { setShip(s); setPhase('run'); }} />;
+  if (phase === 'run') return (
+    <Demo shipId={ship} mode="campaign" sector={sector} onBack={() => setPhase('map')}
+      onComplete={(r) => { if (r.success) setSave(recordClear(r.sector, r.medal)); setResult(r); setPhase('results'); }} />
+  );
+  if (phase === 'results' && result) return (
+    <Results result={result} hasNext={result.sector + 1 < CAMPAIGN.length}
+      onRetry={() => setPhase('run')} onMap={() => setPhase('map')}
+      onNext={() => { setSector(result.sector + 1); setPhase('intro'); }} />
+  );
+  return <CampaignMap save={save} onSelect={(i) => { setSector(i); setPhase('intro'); }} onBack={props.onBack} />;
+}
+
 // ============ MENU (com showcase animado da Falcon-01) ============
-function Menu(props: { onStart: () => void; onHangar: () => void; onBestiary: () => void }): JSX.Element {
+function Menu(props: { onStart: () => void; onHangar: () => void; onBestiary: () => void; onCampaign: () => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const cv = canvasRef.current!;
@@ -76,7 +103,8 @@ function Menu(props: { onStart: () => void; onHangar: () => void; onBestiary: ()
           partículas e a interface sci-fi.
         </div>
         <div className="menu-btns">
-          <button className="play-btn" onClick={props.onStart}>Iniciar Demo Visual</button>
+          <button className="play-btn" onClick={props.onCampaign}>Campanha · 12 Setores</button>
+          <button className="play-btn ghost" onClick={props.onStart}>Modo Livre</button>
           <button className="play-btn ghost" onClick={props.onHangar}>Hangar · 30 Naves</button>
           <button className="play-btn ghost" onClick={props.onBestiary}>Bestiário · 72 Inimigos</button>
         </div>
@@ -94,12 +122,14 @@ function Menu(props: { onStart: () => void; onHangar: () => void; onBestiary: ()
   );
 }
 
-// ============ DEMO ============
-function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
+// ============ RUN (demo endless OU campanha) ============
+function Demo(props: { shipId: string; onBack: () => void; mode?: 'endless' | 'campaign'; sector?: number; onComplete?: (r: import('../game/engine').CampaignResult) => void }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Engine | null>(null);
-  const [showBanner, setShowBanner] = useState(true);
+  const campaign = props.mode === 'campaign';
+  const [showBanner, setShowBanner] = useState(!campaign);
   const [labels, setLabels] = useState({ ship: 'Falcon-01', ability: 'Míssil', ult: 'Ultimate' });
+  const livesRef = useRef<HTMLDivElement>(null);
   // refs de HUD (atualizados direto no DOM p/ suavidade)
   const hpRef = useRef<HTMLDivElement>(null);
   const shRef = useRef<HTMLDivElement>(null);
@@ -119,9 +149,11 @@ function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
   useEffect(() => {
     initAudio();
     const cv = canvasRef.current!;
-    const eng = new Engine(cv, props.shipId);
+    const eng = new Engine(cv, props.shipId, props.mode ?? 'endless', props.sector ?? 0);
     engineRef.current = eng;
     setLabels(eng.kitLabels());
+    let done = false;
+    if (props.onComplete) eng.onComplete = (r) => { if (done) return; done = true; props.onComplete!(r); };
     eng.onHud = (h: Hud) => {
       if (hpRef.current) hpRef.current.style.width = `${Math.max(0, (h.hp / h.maxHp) * 100)}%`;
       if (shRef.current) shRef.current.style.width = `${Math.max(0, (h.shield / h.maxShield) * 100)}%`;
@@ -133,6 +165,7 @@ function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
       if (ultRef.current) ultRef.current.style.height = `${(1 - h.ultimate) * 100}%`;
       if (ultBoxRef.current) ultBoxRef.current.classList.toggle('ready', h.ultimate >= 1);
       if (spRef.current) spRef.current.style.width = `${h.speed * 100}%`;
+      if (livesRef.current && h.campaign) livesRef.current.textContent = '◆'.repeat(Math.max(0, h.lives)) + '◇'.repeat(Math.max(0, 3 - h.lives));
       if (bossWrapRef.current) bossWrapRef.current.style.opacity = h.bossActive ? '1' : '0';
       if (h.bossActive) {
         if (bossNameRef.current) bossNameRef.current.textContent = h.bossName;
@@ -164,7 +197,10 @@ function Demo(props: { shipId: string; onBack: () => void }): JSX.Element {
             <div className="hud-score-label">Pontuação</div>
             <div className="hud-score" ref={scoreRef}>0</div>
           </div>
-          <button className="back-btn clickable" onClick={() => { sfx.ui(); props.onBack(); }}>‹ Menu</button>
+          <div className="hud-mid-col">
+            <button className="back-btn clickable" onClick={() => { sfx.ui(); props.onBack(); }}>{campaign ? '‹ Mapa' : '‹ Menu'}</button>
+            {campaign && <div className="hud-lives" ref={livesRef}>◆◆◆</div>}
+          </div>
           <div className="hud-panel hud-combo">
             <div className="hud-combo-label">Combo</div>
             <div><span className="hud-combo-x">x</span><span className="hud-combo-num" ref={comboRef}>0</span></div>
