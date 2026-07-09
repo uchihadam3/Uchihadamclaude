@@ -157,9 +157,11 @@ export function buildBoard(scene: THREE.Scene): BoardRefs {
   g.add(mat);
 
   // bases
-  const mine = buildCastle(1); mine.position.set(-baseX, 0, 0); g.add(mine);
-  const foe = buildCastle(-1); foe.position.set(baseX, 0, 0); g.add(foe);
-  for (const bx of [-baseX, baseX]) { const s = blobShadow(108, 98, .3); s.position.set(bx, 0.6, 0); g.add(s); }
+  // castelos RECUADOS pra trás das faixas e menores — o campo fica 100% visível
+  const CAST_OFF = 64, CAST_SCALE = 0.78;
+  const mine = buildCastle(1); mine.position.set(-baseX - CAST_OFF, 0, 0); mine.scale.setScalar(CAST_SCALE); g.add(mine);
+  const foe = buildCastle(-1); foe.position.set(baseX + CAST_OFF, 0, 0); foe.scale.setScalar(CAST_SCALE); g.add(foe);
+  for (const bx of [-baseX - CAST_OFF, baseX + CAST_OFF]) { const sh = blobShadow(88, 80, .3); sh.position.set(bx, 0.6, 0); g.add(sh); }
 
   // slots de construção (tachões na frente da base, um por faixa)
   const slotPos = { mine: [] as THREE.Vector3[], foe: [] as THREE.Vector3[] };

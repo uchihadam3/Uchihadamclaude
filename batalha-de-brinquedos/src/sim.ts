@@ -15,7 +15,7 @@ import { plastic, woodMat, blobShadow } from './board';
 import { sfx } from './audio';
 
 const { laneZ, baseX } = WORLD;
-const GATE_X = baseX - 60;                 // onde os bichos nascem
+const GATE_X = baseX - 46;                 // onde os bichos nascem
 const HIT_BASE_X = baseX - 74;             // onde começa a bater na base
 
 export interface Unit {

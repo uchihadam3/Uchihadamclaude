@@ -70,12 +70,18 @@ const CSS = `
   .pop button { display:flex; width:180px; align-items:center; gap:8px; background:linear-gradient(180deg,#fff,#f0e2c0);
                 border:2px solid #c8a468; border-radius:10px; padding:7px 8px; margin:4px 0; font-weight:800; font-size:13px; cursor:pointer; }
   .pop button small { margin-left:auto; background:#ffd76a; border-radius:8px; padding:1px 6px; font-weight:900; }
-  /* ---------- zonas de faixa (linhas na paisagem · colunas no retrato) ---------- */
+  /* ---------- botões de faixa (aparecem ao escolher uma carta) ---------- */
   .lanes { position:absolute; inset:0; display:none; }
-  .lanes div { position:absolute; border-radius:18px; border:3px dashed rgba(255,255,255,.85);
-               background:rgba(140,230,150,.16); cursor:pointer; display:flex; align-items:flex-end; justify-content:center;
-               padding:10px; font-weight:900; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6); font-size:13px; }
-  .lanes div:active { background:rgba(140,230,150,.32); }
+  .lanebtn { position:absolute; width:60px; height:60px; border-radius:50%; transform:translate(-50%,-50%);
+             background:radial-gradient(circle at 32% 28%, #fff6dd, #dfb571); border:3px solid #3fae6a;
+             box-shadow:0 4px 0 #8a6230, 0 0 0 6px rgba(140,230,150,.4), 0 10px 18px rgba(30,15,5,.45);
+             font-weight:900; font-size:20px; color:#2c5c1c; display:flex; flex-direction:column; align-items:center;
+             justify-content:center; cursor:pointer; line-height:1; gap:1px;
+             animation:bpop .3s cubic-bezier(.34,1.56,.64,1); }
+  .lanebtn small { font-size:8.5px; font-weight:800; color:#4a7a34; }
+  @media (min-aspect-ratio: 1/1) { .lanebtn { width:50px; height:50px; font-size:17px; } }
+  .lanebtn:active { transform:translate(-50%,-50%) scale(.92); }
+  @keyframes bpop { from { transform:translate(-50%,-50%) scale(.25); } }
   /* ---------- toasts ---------- */
   .toasts { position:absolute; top:24%; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:6px; align-items:center; width:max-content; max-width:92vw; }
   .toast { background:rgba(30,20,8,.82); color:#ffe9c0; font-weight:800; font-size:13.5px; border-radius:12px; padding:7px 16px;
@@ -177,7 +183,9 @@ export class UI {
       <div class="slots" id="slots"></div>
       <div class="pop hit" id="pop"></div>
       <div class="lanes" id="lanes">
-        <div data-l="0">Faixa 1 ⬅ solta aqui</div><div data-l="1">Faixa 2</div><div data-l="2">Faixa 3</div>
+        <button class="lanebtn hit" data-l="0">1<small>aqui!</small></button>
+        <button class="lanebtn hit" data-l="1">2<small>aqui!</small></button>
+        <button class="lanebtn hit" data-l="2">3<small>aqui!</small></button>
       </div>
       <div class="toasts" id="toasts"></div>`;
     this.els = {};
@@ -190,27 +198,20 @@ export class UI {
     this.els.mute.addEventListener('click', () => { setMuted(!audio.muted); this.els.mute.textContent = audio.muted ? '🔇' : '🔊'; sfx.ui(); });
     // faixas
     const lanes = this.els.lanes;
-    lanes.querySelectorAll('div').forEach(d => d.addEventListener('pointerdown', (e) => {
+    lanes.querySelectorAll('.lanebtn').forEach(d => d.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       if (this.sel != null) { this.onPickLane?.(this.sel, +(d as HTMLElement).dataset.l!); }
       this.deselect();
     }));
-    // posiciona as zonas de faixa sobre o 3D — LINHAS na paisagem, COLUNAS no retrato
-    const zs = lanes.querySelectorAll('div');
+    // posiciona os botões de faixa sobre o 3D — colunas no retrato, linhas na paisagem
+    const zs = lanes.querySelectorAll('.lanebtn');
     const place = () => {
       const H = innerHeight, W = innerWidth;
       const portrait = H > W * 1.05;
       zs.forEach((zEl, i) => {
         const z = zEl as HTMLElement;
-        if (portrait) {
-          z.style.top = '18%'; z.style.height = '54%';
-          z.style.left = (4.5 + i * 31) + '%'; z.style.width = '29%';
-          z.textContent = 'Faixa ' + (i + 1);
-        } else {
-          z.style.left = '8%'; z.style.width = '84%'; z.style.height = '64px';
-          z.style.top = H * (0.30 + i * 0.16) - 32 + 'px';
-          z.textContent = i === 0 ? 'Faixa 1 — solta aqui' : 'Faixa ' + (i + 1);
-        }
+        if (portrait) { z.style.left = (19 + i * 31) + '%'; z.style.top = '56%'; }
+        else { z.style.left = '20%'; z.style.top = (40 + i * 10.4) + '%'; }
       });
     };
     place(); addEventListener('resize', place);

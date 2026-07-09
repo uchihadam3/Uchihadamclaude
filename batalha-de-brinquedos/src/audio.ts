@@ -18,6 +18,8 @@ function ensure(): boolean {
   } catch { return false; }
 }
 export function resumeAudio(): void { if (ensure() && ctx!.state === 'suspended') ctx!.resume(); }
+export function audioCtx(): AudioContext | null { return ensure() ? ctx : null; }
+export function musicBus(): GainNode | null { return ensure() ? musG : null; }
 export function setMuted(m: boolean): void { audio.muted = m; if (master) master.gain.value = m ? 0 : 1; }
 
 function tone(f: number, t0: number, dur: number, type: OscillatorType, v: number, slide?: number, out?: GainNode): void {
@@ -56,43 +58,7 @@ export const sfx = {
   sad() { if (!ensure()) return; const t = now(); [392, 370, 349, 311].forEach((f, i) => tone(f, t + i * 0.28, 0.4, 'triangle', 0.2)); },
 };
 
-// ---- marchinha de caixinha de música (loop de 8 compassos com variação) ----
-let musOn = false; let musTimer = 0; let bar = 0;
-const XY = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
-// Dó maior marchinha: melodia de xilofone em 2 frases
-const MEL: number[][][] = [
-  // [semínima: [nota(midi), dur em colcheias]]
-  [[72, 1], [76, 1], [79, 1], [76, 1], [72, 1], [76, 1], [79, 2]],
-  [[81, 1], [79, 1], [77, 1], [79, 1], [81, 1], [79, 1], [77, 2]],
-  [[72, 1], [76, 1], [79, 1], [76, 1], [84, 1], [83, 1], [79, 2]],
-  [[77, 1], [81, 1], [79, 1], [76, 1], [72, 3], [0, 1]],
-];
-const BASSLINE = [48, 55, 52, 55, 53, 57, 55, 55];       // tuba: I V vi V IV ii V V
-function musicBar(): void {
-  if (!ctx || !musOn) return;
-  const t0 = now() + 0.06;
-  const beat = 60 / 108;                                  // 108 bpm marchinha
-  const eighth = beat / 2;
-  // tuba nos tempos 1 e 3, mais grave
-  const root = BASSLINE[bar % 8];
-  tone(XY(root - 12), t0, beat * 0.9, 'triangle', 0.16, undefined, musG);
-  tone(XY(root - 5), t0 + beat * 2, beat * 0.9, 'triangle', 0.13, undefined, musG);
-  // caixa de brinquedo: tec no 2 e 4 + chocalhinho nas colcheias
-  noiseHit(t0 + beat, 0.05, 0.07, 2000, 2, 'bandpass', musG);
-  noiseHit(t0 + beat * 3, 0.05, 0.08, 2000, 2, 'bandpass', musG);
-  for (let i = 0; i < 8; i++) noiseHit(t0 + i * eighth, 0.03, 0.02 + (i % 2 ? 0 : 0.012), 6000, 1, 'highpass', musG);
-  // xilofone (melodia) — só toca a cada 2 compassos alternando frases
-  const phrase = MEL[bar % MEL.length];
-  let tt = t0;
-  for (const [m, durE] of phrase) {
-    if (m > 0) {
-      tone(XY(m), tt, eighth * durE * 0.92, 'sine', 0.13, undefined, musG);
-      tone(XY(m) * 3.02, tt, eighth * 0.5, 'sine', 0.03, undefined, musG);   // brilho do xilofone
-    }
-    tt += eighth * durE;
-  }
-  bar++;
-  musTimer = window.setTimeout(musicBar, beat * 4 * 1000 - 30);
-}
-export function startMusic(): void { if (!ensure()) return; if (musOn) return; musOn = true; bar = 0; musicBar(); }
-export function stopMusic(): void { musOn = false; clearTimeout(musTimer); }
+// A trilha de verdade mora em music.ts (composição longa com forma).
+import { playMusic, stopAllMusic } from './music';
+export function startMusic(): void { playMusic('batalha'); }
+export function stopMusic(): void { stopAllMusic(); }

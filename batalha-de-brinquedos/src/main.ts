@@ -6,7 +6,7 @@ import { Game } from './sim';
 import { Commander, Difficulty } from './ai';
 import { FX } from './fx';
 import { UI } from './ui';
-import { resumeAudio, startMusic, sfx } from './audio';
+import { resumeAudio, startMusic, sfx, audioCtx, musicBus } from './audio';
 
 const app = document.getElementById('app')!;
 const renderer = makeRenderer(app);
@@ -80,4 +80,4 @@ function loop(): void {
 }
 loop();
 
-(window as any).__bdb = { scene, rig, board, get game() { return game; }, newGame, ui };
+(window as any).__bdb = { scene, rig, board, get game() { return game; }, newGame, ui, audioCtx, musicBus };
