@@ -20,11 +20,11 @@ interface Persona {
 // IAs mais afiadas: menos ruído (executam melhor), olham mais longe e usam mais
 // força (avançam mais por peteléco) — mais difícil de ganhar.
 const P: Record<AIKind, Persona> = {
-  cauteloso: { lookahead: 16, powBias: 1.00, risk: 1.20, outPenalty: 300, spread: 0.16, noise: 0.010, rival: 0, offense: 0 },
-  agressivo: { lookahead: 23, powBias: 1.14, risk: 0.55, outPenalty: 190, spread: 0.24, noise: 0.026, rival: 0.25, offense: 0.8 },
-  tecnico: { lookahead: 19, powBias: 1.06, risk: 0.90, outPenalty: 235, spread: 0.18, noise: 0.006, rival: 0, offense: 0.1 },
-  caotico: { lookahead: 15, powBias: 1.06, risk: 0.70, outPenalty: 170, spread: 0.34, noise: 0.080, rival: 0.15, offense: 0.35 },
-  rival: { lookahead: 20, powBias: 1.10, risk: 0.75, outPenalty: 225, spread: 0.20, noise: 0.014, rival: 0.6, offense: 1.0 },
+  cauteloso: { lookahead: 17, powBias: 1.04, risk: 1.10, outPenalty: 300, spread: 0.16, noise: 0.008, rival: 0, offense: 0 },
+  agressivo: { lookahead: 24, powBias: 1.18, risk: 0.55, outPenalty: 190, spread: 0.24, noise: 0.018, rival: 0.25, offense: 0.8 },
+  tecnico: { lookahead: 21, powBias: 1.10, risk: 0.85, outPenalty: 235, spread: 0.18, noise: 0.004, rival: 0, offense: 0.1 },
+  caotico: { lookahead: 16, powBias: 1.10, risk: 0.70, outPenalty: 170, spread: 0.32, noise: 0.050, rival: 0.15, offense: 0.35 },
+  rival: { lookahead: 22, powBias: 1.16, risk: 0.72, outPenalty: 225, spread: 0.20, noise: 0.009, rival: 0.6, offense: 1.0 },
 };
 
 function clone(c: Cap): Cap {
@@ -32,11 +32,12 @@ function clone(c: Cap): Cap {
     ...c, pos: vec(c.pos.x, c.pos.y), vel: vec(), z: 0, vz: 0, airborne: false,
     cpPos: vec(c.cpPos.x, c.cpPos.y), turnStart: vec(c.turnStart.x, c.turnStart.y),
     resetTo: vec(c.pos.x, c.pos.y), preFlick: vec(c.pos.x, c.pos.y),
-    consumed: new Set<number>(), stats: { ...c.stats }, moving: false, finished: false,
+    consumed: new Set<number>(), takenBonus: new Set<number>(c.takenBonus),
+    stats: { ...c.stats }, moving: false, finished: false,
   };
 }
 
-interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolean; bombed: boolean; finished: boolean; jumped: boolean; dEdge: number; endPos: V; bonus: number; item: number; oppHarm: number; }
+interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolean; bombed: boolean; finished: boolean; jumped: boolean; dEdge: number; endPos: V; bonus: number; item: number; oppHarm: number; walls: number; }
 
 // simula UMA tacada num mundo COM os adversários (parados; podem ser empurrados)
 function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number): SimOut {
@@ -45,7 +46,7 @@ function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number):
   shooter.vel = mul(norm(dir), Math.max(0.06, Math.min(1, power01)) * MAX_POWER); shooter.moving = true;
   const world: Cap[] = [shooter];
   for (const o of caps) { if (o.id === cap.id || o.finished) continue; const oc = clone(o); world.push(oc); }
-  let out = false, holed = false, bombed = false, finished = false, jumped = false, bonus = 0, item = 0, maxProg = cap.progress; const harm = new Set<number>();
+  let out = false, holed = false, bombed = false, finished = false, jumped = false, bonus = 0, item = 0, walls = 0, maxProg = cap.progress; const harm = new Set<number>();
   const FIXED = 1 / 120; let steps = 0;
   while (anyMoving(world) && steps < 700) {
     const evs = stepWorld(world, track, FIXED);
@@ -53,13 +54,14 @@ function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number):
       if (e.capId === shooter.id) {
         if (e.type === 'out') out = true; else if (e.type === 'hole') holed = true; else if (e.type === 'bomb') bombed = true;
         else if (e.type === 'finish') finished = true; else if (e.type === 'bonus') bonus += (e.n || 1); else if (e.type === 'item') item += 1; else if (e.type === 'ramp') jumped = true;
+        else if (e.type === 'wall') walls++;
       } else if (e.type === 'out' || e.type === 'hole' || e.type === 'bomb') harm.add(e.capId);   // jogar rival em qualquer perigo conta
     }
     if (shooter.progress > maxProg) maxProg = shooter.progress;
     steps++;
   }
   const n = track.nearest(shooter.pos);
-  return { endProg: shooter.progress, maxProg, out, holed, bombed, finished, jumped, dEdge: Math.max(0, n.d - n.half * 0.45), endPos: vec(shooter.pos.x, shooter.pos.y), bonus, item, oppHarm: harm.size };
+  return { endProg: shooter.progress, maxProg, out, holed, bombed, finished, jumped, dEdge: Math.max(0, n.d - n.half * 0.45), endPos: vec(shooter.pos.x, shooter.pos.y), bonus, item, oppHarm: harm.size, walls };
 }
 
 function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
@@ -70,6 +72,8 @@ function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
   if (o.bombed) s -= 120;
   s += o.bonus * 22;
   s += o.item * 20;             // CAOS: ir atrás das caixinhas de power-up vale a pena
+  s -= Math.min(o.walls, 4) * 3;  // esfregar no muro é jogada suja: se existe caminho limpo igual, prefere ele
+  if (!o.out && !o.finished && o.endProg <= base.progress + 0.5 && o.walls > 0) s -= 25;   // bateu e não saiu do lugar? plano ruim MESMO
   if (o.jumped) s += 10;        // pular a rampa (avança e passa o buraco) é ótimo
   if (o.finished) s += 500;
   // empurrar rival SÓ vale quando o joga num perigo de verdade (buraco/bomba/fora):
@@ -121,7 +125,7 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   // distâncias. Se uma tábua fecha a linha reta, o caminho pelo vão (no canto ou
   // no centro) SEMPRE entra na lista — a simulação escolhe o que PASSA em vez de
   // ficar batendo reto. Não deixa a IA mais rápida, só a impede de "não ver" o muro.
-  for (const ah of [7, 12]) {
+  for (const ah of [3.5, 7, 12]) {
     const at = track.atArc(Math.min(total, cap.progress + ah));
     const pv = { x: -at.tan.y, y: at.tan.x };
     const hwL = track.nearest(at.p).half;
@@ -137,9 +141,12 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
     const op = track.progressOf(vec(o.x, o.y));
     if (op > cap.progress + 1 && op < cap.progress + 28) { const jdir = norm(sub(vec(o.x, o.y), cap.pos)); for (const pw of [0.72, 0.86, 1.0]) consider(jdir, pw); }
   }
-  // CAOS/BÔNUS: mira nas caixinhas de item e nos +petelecos alcançáveis à frente
-  for (const o of track.def.obstacles) {
+  // CAOS/BÔNUS: mira nas caixinhas de item e nos +petelecos alcançáveis à frente.
+  // Bônus JÁ PEGO não entra na mira (não repete na corrida) — segue o jogo.
+  for (let oi = 0; oi < track.def.obstacles.length; oi++) {
+    const o = track.def.obstacles[oi];
     if (o.type !== 'item' && o.type !== 'bonus') continue;
+    if (o.type === 'bonus' && cap.takenBonus.has(oi)) continue;
     const op = track.progressOf(vec(o.x, o.y));
     if (op > cap.progress - 3 && op < cap.progress + per.lookahead + 6) {
       const bdir = norm(sub(vec(o.x, o.y), cap.pos));
@@ -160,6 +167,9 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
     const bd = best.dir, bp = best.power;
     for (const a of [0.04, -0.04, 0.09, -0.09]) for (const dp of [0, 0.06, -0.06]) consider(rot(bd, a), bp + dp);
     for (const dp of [0.03, -0.03, 0.07, -0.07]) consider(bd, bp + dp);
+    // passada 2, ainda mais fina em volta do novo melhor — encaixa a jogada
+    const bd2 = best.dir, bp2 = best.power;
+    for (const a of [0.02, -0.02, 0.05, -0.05]) for (const dp of [0, 0.025, -0.025]) consider(rot(bd2, a), bp2 + dp);
   }
 
   // ANTI-TRAVAMENTO: se o melhor plano ainda cai/não avança, varre 360° suave.

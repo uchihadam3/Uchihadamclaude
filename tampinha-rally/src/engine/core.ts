@@ -72,7 +72,8 @@ export interface Cap {
   turnStart: V;              // posição no início do turno (fora-da-pista volta aqui)
   preFlick: V;               // posição antes do peteléco atual
   resetTo: V;                // p/ onde volta se sair da pista neste peteléco
-  consumed: Set<number>;     // índices de +3/10 já pegos neste turno
+  consumed: Set<number>;     // índices de caixas/bônus já pegos neste turno
+  takenBonus: Set<number>;   // bônus +1/+2/+3 pegos NA CORRIDA TODA — não repete
   flicksLeft: number;
   bonusFlicks: number;
   special10: boolean;        // (reservado)
@@ -101,7 +102,7 @@ export function makeCap(id: number, name: string, skin: string, stats: CapStats,
   return {
     id, name, skin, isAI, ai, stats: { ...stats }, radius: 0.82,
     pos: vec(), vel: vec(), z: 0, vz: 0, airborne: false, angle: Math.random() * 6.28, angVel: 0, bob: Math.random() * 6.28,
-    progress: 0, checkpoint: 0, cpPos: vec(), turnStart: vec(), preFlick: vec(), resetTo: vec(), consumed: new Set(),
+    progress: 0, checkpoint: 0, cpPos: vec(), turnStart: vec(), preFlick: vec(), resetTo: vec(), consumed: new Set(), takenBonus: new Set(),
     flicksLeft: 3, bonusFlicks: 0, special10: false, bombed: false, holed: false, skipTurns: 0,
     finished: false, place: 0, lap: 0, moving: false, hitFlash: 0,
     lastTurnProg: 0, stuckTurns: 0,

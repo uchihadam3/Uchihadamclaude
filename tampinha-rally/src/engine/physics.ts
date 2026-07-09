@@ -134,7 +134,8 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         c.pos.x = c.cpPos.x; c.pos.y = c.cpPos.y; c.vel = vec(); c.moving = false;
         ev.push({ type: 'bomb', capId: c.id, x: o.x, y: o.y, power: 0 }); break;
       } else if (o.type === 'bonus') {
-        if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'bonus', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i, n: o.n || 1 }); }
+        // bônus vale UMA vez por tampinha na corrida TODA (nada de farmar o mesmo +3)
+        if (!c.consumed.has(i) && !c.takenBonus.has(i)) { c.consumed.add(i); c.takenBonus.add(i); ev.push({ type: 'bonus', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i, n: o.n || 1 }); }
       } else if (o.type === 'item') {
         if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: 0, obsIdx: i }); }   // caixa de item (Caos)
       }
