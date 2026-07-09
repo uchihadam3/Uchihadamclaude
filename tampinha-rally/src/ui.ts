@@ -50,7 +50,7 @@ export class UI {
   private edPrevDef: any = null; private edPrevTrack: TrackModel | null = null; private edDragItem: any = null;
   private toastEl: HTMLElement | null = null; private toastT = 0;
 
-  constructor(cb: UICallbacks, online: Online) { this.cb = cb; this.online = online; this.resetPlayers('quick'); }
+  constructor(cb: UICallbacks, online: Online) { this.cb = cb; this.online = online; this.myName = save.name() || 'Você'; this.resetPlayers('quick'); }
 
   private el(html: string): HTMLElement { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild as HTMLElement; }
   private clear(): void { this.root.querySelectorAll('.screen').forEach(s => s.remove()); }
@@ -819,6 +819,7 @@ export class UI {
       <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Jogar Online</h2><div></div></div>
       <div class="ol-face" id="olface"></div>
       <div class="ol-facelab">sua tampinha (toque pra trocar)</div>
+      <div class="ol-namelab">✏️ Seu nome (os outros vão ver assim)</div>
       <input class="ol-name" id="oname" maxlength="12" value="${this.myName}" placeholder="Seu nome"/>
       <button class="play-btn" id="create">➕ Criar sala</button>
       <div class="ol-or"><span>ou entre num código</span></div>
@@ -834,13 +835,14 @@ export class UI {
     face.addEventListener('click', () => this.showCapPicker(save.skin(), (id) => { this.cb.setSkin(id); this.showOnlineHome(); }));
     const nameEl = s.querySelector('#oname') as HTMLInputElement;
     const codeEl = s.querySelector('#ocode') as HTMLInputElement;
-    nameEl.addEventListener('change', () => this.myName = (nameEl.value || 'Você').slice(0, 12));
+    const grabName = () => { this.myName = (nameEl.value || 'Você').slice(0, 12); save.setName(this.myName); return this.myName; };
+    nameEl.addEventListener('change', grabName);
     codeEl.addEventListener('input', () => codeEl.value = codeEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5));
     s.querySelector('#back')!.addEventListener('click', () => { this.online.leave(); this.showMultiplayer(); });
-    s.querySelector('#create')!.addEventListener('click', () => { this.myName = (nameEl.value || 'Você').slice(0, 12); this.online.createRoom(this.myName, save.skin()); this.showLobby('Criando sala…'); });
+    s.querySelector('#create')!.addEventListener('click', () => { this.online.createRoom(grabName(), save.skin()); this.showLobby('Criando sala…'); });
     s.querySelector('#join')!.addEventListener('click', () => {
       const c = codeEl.value.trim(); if (c.length < 4) { this.notify('Digite o código da sala', 'bad'); return; }
-      this.myName = (nameEl.value || 'Você').slice(0, 12); this.online.joinRoom(c, this.myName, save.skin()); this.showLobby('Entrando na sala…');
+      this.online.joinRoom(c, grabName(), save.skin()); this.showLobby('Entrando na sala…');
     });
   }
 
@@ -883,10 +885,22 @@ export class UI {
       const mine = st.kind === 'human' && st.owner === o.myId;
       const tag = st.off ? '📴 saiu (IA)' : st.kind === 'ai' ? '🤖 ' + o.aiLabel(st.ai) : st.owner === 'host' ? '👑 anfitrião' : mine ? '⭐ você' : '👤 jogador';
       const teamB = (o.cfg.roomMode === 'dupla' && st.team != null) ? `<span class="team-badge t${st.team}">${st.team === 0 ? 'A' : 'B'}</span>` : '';
-      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''} ${o.cfg.roomMode === 'dupla' && st.team != null ? 'team-t' + st.team : ''}"><span class="pcap-mini"></span><span class="ls-name">${st.name}</span>${teamB}<span class="ls-tag">${tag}</span></div>`);
+      // no SEU assento o nome é editável (os outros veem na hora que você troca)
+      const nameEl = mine
+        ? `<input class="ls-name-edit" id="myname" maxlength="12" value="${st.name}"/>`
+        : `<span class="ls-name">${st.name}</span>`;
+      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''} ${o.cfg.roomMode === 'dupla' && st.team != null ? 'team-t' + st.team : ''}"><span class="pcap-mini"></span>${nameEl}${teamB}<span class="ls-tag">${tag}</span></div>`);
       const cv = drawCap(skinById(st.skin).art, 56); cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
       (row.querySelector('.pcap-mini') as HTMLElement).appendChild(cv);
-      if (mine) { row.addEventListener('click', () => this.showCapPicker(o.mySkin, (id) => { this.cb.setSkin(id); o.setMyCap(id); })); (row.querySelector('.pcap-mini') as HTMLElement).classList.add('tap'); }
+      if (mine) {
+        const face = row.querySelector('.pcap-mini') as HTMLElement;
+        face.classList.add('tap');
+        face.addEventListener('click', () => this.showCapPicker(o.mySkin, (id) => { this.cb.setSkin(id); o.setMyCap(id); }));
+        const ni = row.querySelector('#myname') as HTMLInputElement;
+        const apply = () => { const n = (ni.value || 'Você').slice(0, 12); this.myName = n; save.setName(n); o.setMyName(n); };
+        ni.addEventListener('change', apply);
+        ni.addEventListener('blur', apply);
+      }
       seatsEl.appendChild(row);
     });
     // controles

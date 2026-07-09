@@ -2,8 +2,8 @@
 // volumes, melhor do desafio diário.
 const KEY = 'tampinha_rally_v1';
 
-interface Save { wins: number; skin: string; music: number; sfx: number; muted: boolean; daily: Record<string, number>; trial: Record<string, number>; tracks: any[]; }
-const DEF: Save = { wins: 0, skin: 'refri', music: 0.5, sfx: 0.8, muted: false, daily: {}, trial: {}, tracks: [] };
+interface Save { wins: number; skin: string; music: number; sfx: number; muted: boolean; daily: Record<string, number>; trial: Record<string, number>; tracks: any[]; name: string; }
+const DEF: Save = { wins: 0, skin: 'refri', music: 0.5, sfx: 0.8, muted: false, daily: {}, trial: {}, tracks: [], name: '' };
 
 let data: Save = load();
 function load(): Save { try { return { ...DEF, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEF }; } }
@@ -15,6 +15,8 @@ export const save = {
   wins(): number { return data.wins; },
   setSkin(id: string): void { data.skin = id; persist(); },
   skin(): string { return data.skin; },
+  setName(n: string): void { data.name = (n || '').slice(0, 12); persist(); },
+  name(): string { return data.name || ''; },
   setVols(music: number, sfx: number, muted: boolean): void { data.music = music; data.sfx = sfx; data.muted = muted; persist(); },
   dailyBest(key: string): number | undefined { return data.daily[key]; },
   setDailyBest(key: string, flicks: number): void { if (data.daily[key] == null || flicks < data.daily[key]) { data.daily[key] = flicks; persist(); } },

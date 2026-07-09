@@ -313,7 +313,9 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .online-home{align-items:center}
 .ol-face{width:96px;height:96px;margin:14px auto 4px;background:#0002;border-radius:50%;padding:5px;box-shadow:inset 0 0 0 3px #fff7,0 6px 16px rgba(0,0,0,.35);cursor:pointer}
 .ol-facelab{color:#ffe9c8;font-size:11.5px;font-weight:700;text-shadow:0 1px 3px #0006}
-.ol-name{margin-top:12px;width:min(90vw,320px);text-align:center;font-size:17px;font-weight:800;color:var(--ink);background:var(--glass);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+.ol-namelab{margin-top:12px;font-size:12.5px;font-weight:800;color:#ffe9c8;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.ol-name{margin-top:5px;width:min(90vw,320px);text-align:center;font-size:17px;font-weight:800;color:var(--ink);background:var(--glass);border-radius:16px;padding:12px 14px;box-shadow:var(--shadow)}
+.lob-seat .ls-name-edit{flex:1;min-width:0;font-weight:800;color:var(--ink);font-size:15px;background:#fff;border:2px solid var(--gold);border-radius:10px;padding:6px 9px}
 .ol-or{color:#ffe9c8;font-weight:800;font-size:12.5px;margin:14px 0 8px;position:relative;width:min(90vw,320px);text-align:center}
 .ol-or span{background:#00000030;padding:3px 12px;border-radius:12px}
 .ol-join{display:flex;gap:8px;width:min(92vw,340px);align-items:stretch}

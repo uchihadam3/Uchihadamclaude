@@ -120,6 +120,11 @@ export class Online {
     if (this.isHost) { const h = this.humans.find(x => x.owner === 'host'); if (h) h.skin = skin; this.rebuild(); }
     else this.net.send('host', { t: 'setcap', skin });
   }
+  setMyName(name: string): void {
+    const n = (name || 'Você').slice(0, 12); this.myName = n;
+    if (this.isHost) { const h = this.humans.find(x => x.owner === 'host'); if (h) h.name = n; this.rebuild(); }
+    else this.net.send('host', { t: 'setname', name: n });
+  }
 
   private hostData(from: string, msg: any): void {
     if (!this.isHost) return;
@@ -132,6 +137,8 @@ export class Online {
       this.rebuild();
     } else if (msg.t === 'setcap') {
       const h = this.humans.find(x => x.owner === from); if (h) { h.skin = msg.skin; this.rebuild(); }
+    } else if (msg.t === 'setname') {
+      const h = this.humans.find(x => x.owner === from); if (h) { h.name = (msg.name || 'Jogador').slice(0, 12); this.rebuild(); }
     } else if (msg.t === 'flick') {                    // jogada de um cliente: repassa e aplica
       this.net.relay(from, msg); this.pendingFlick = msg;
     } else if (msg.t === 'bye') {
