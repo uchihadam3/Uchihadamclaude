@@ -157,6 +157,11 @@ const input = new InputController(canvas, rig.camera, rig, {
   onAim: (dx, dz, power) => { const c = mgr.activeCap(); aim.set(c.pos.x, c.pos.y, dx, dz, power); },
   onRelease: (dx, dz, power) => { aim.hide(); if (mode === 'daily' || mode === 'trial') dailyFlicks++; if (online.active) online.localFlick({ x: dx, y: dz }, power); else mgr.flick({ x: dx, y: dz }, power); },
   onCancel: () => aim.hide(),
+  // EDITOR 3D: arrastar objetos / apagar muro na maquete
+  editMode: () => previewing ? ui.previewEditMode() : 'off',
+  onEditDown: (x, z) => { if (ui.preview3D('down', x, z)) rebuildPreviewBoard(); },
+  onEditMove: (x, z) => { if (ui.preview3D('move', x, z)) rebuildPreviewBoardThrottled(); },
+  onEditUp: () => { if (ui.preview3D('up', 0, 0)) rebuildPreviewBoard(); },
 });
 
 function stopScene(): void { if (scene) { scene.clear(); } board = null; previewing = false; }
@@ -172,6 +177,14 @@ function enterPreview(def: any): void {
   previewing = true;
   ui.showPreviewBar();
 }
+let lastPrevRebuild = 0;
+function rebuildPreviewBoard(): void {
+  if (!previewing || !scene) return;
+  previewDef = ui.rebuildPreviewDef();
+  if (board) { scene.remove(board.group); board.group.traverse((o: any) => { o.geometry?.dispose?.(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m: any) => m.dispose?.()); }); }
+  board = buildBoard(previewDef); scene.add(board.group);
+}
+function rebuildPreviewBoardThrottled(): void { const now = performance.now(); if (now - lastPrevRebuild < 70) return; lastPrevRebuild = now; rebuildPreviewBoard(); }
 ui.onPreviewBack = () => { previewing = false; stopScene(); ui.showEditor(); };
 ui.onPreviewPlay = () => { previewing = false; stopScene(); if (previewDef) loadMatch({ level: 2, trackIdx: 0, pick: 'specific', players: previewPlayers(), mode: 'quick', customTrack: previewDef }); };
 function previewPlayers(): PlayerDef[] {
@@ -263,12 +276,12 @@ addEventListener('pointerdown', () => resumeAudio(), { once: true });
 ui.showMenu(); resize();
 // pista compartilhada por link (#p=...) → oferece jogar/editar
 try { const h = location.hash || ''; const mtc = h.match(/[#&]p=([^&]+)/); if (mtc) { ui.importSharedTrack(mtc[1]); history.replaceState(null, '', location.pathname + location.search); } } catch {}
-(window as any).__mgr = mgr; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; } };
+(window as any).__mgr = mgr; (window as any).__ui = ui; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; } };
 const clock = new THREE.Clock(); let t = 0;
 function frame(): void {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;
   if (previewing && scene) {
-    rig.az += dt * 0.18; rig.place();                         // giro suave pra mostrar a maquete em 3D
+    // câmera controlada pelo usuário (um dedo gira, dois dedos = zoom); sem giro automático
     if (board) for (const sp of board.spinners) sp.rotation.y += dt * 2.4;
     if (board) for (const bb of board.billboards) bb.quaternion.copy(rig.camera.quaternion);
     renderer.render(scene, rig.camera);

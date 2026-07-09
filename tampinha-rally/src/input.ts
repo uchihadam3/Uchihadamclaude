@@ -12,6 +12,11 @@ interface Opts {
   onAim: (dx: number, dz: number, power: number) => void;
   onRelease: (dx: number, dz: number, power: number) => void;
   onCancel: () => void;
+  // EDITOR 3D: quando != 'off', um dedo edita (arrasta objeto / apaga muro) em vez de girar a câmera
+  editMode?: () => 'off' | 'move' | 'wall';
+  onEditDown?: (x: number, z: number) => void;
+  onEditMove?: (x: number, z: number) => void;
+  onEditUp?: () => void;
 }
 
 export class InputController {
@@ -20,6 +25,7 @@ export class InputController {
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private pointers = new Map<number, { x: number; y: number }>();
   private aiming = false; private camDrag: { x: number; y: number } | null = null;
+  private editing = false;
   private pinch = 0; private lastMid: { x: number; y: number } | null = null;
 
   constructor(private dom: HTMLCanvasElement, private cam: THREE.Camera, private rig: CameraRig, private opts: Opts) {
@@ -46,10 +52,12 @@ export class InputController {
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pointers.size === 1) {
       if (e.button === 2) { this.camDrag = { x: e.clientX, y: e.clientY }; return; }
+      const em = this.opts.editMode ? this.opts.editMode() : 'off';
+      if (em !== 'off') { const w = this.world(e.clientX, e.clientY); if (w) { this.editing = true; this.opts.onEditDown?.(w.x, w.z); } return; }
       if (this.opts.canAim()) { this.aiming = true; this.updateAim(e.clientX, e.clientY); }
       else this.camDrag = { x: e.clientX, y: e.clientY };
     } else if (this.pointers.size === 2) {
-      this.aiming = false; this.opts.onCancel(); this.camDrag = null;
+      this.aiming = false; this.editing = false; this.opts.onEditUp?.(); this.opts.onCancel(); this.camDrag = null;
       const a = [...this.pointers.values()]; this.pinch = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
       this.lastMid = { x: (a[0].x + a[1].x) / 2, y: (a[0].y + a[1].y) / 2 };
     }
@@ -59,7 +67,8 @@ export class InputController {
     if (!this.pointers.has(e.pointerId)) return;
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (this.pointers.size === 1) {
-      if (this.aiming) this.updateAim(e.clientX, e.clientY);
+      if (this.editing) { const w = this.world(e.clientX, e.clientY); if (w) this.opts.onEditMove?.(w.x, w.z); }
+      else if (this.aiming) this.updateAim(e.clientX, e.clientY);
       else if (this.camDrag) { this.rig.rotate(e.clientX - this.camDrag.x); this.rig.tilt(e.clientY - this.camDrag.y); this.camDrag = { x: e.clientX, y: e.clientY }; }
     } else if (this.pointers.size === 2) {
       const a = [...this.pointers.values()];
@@ -76,6 +85,7 @@ export class InputController {
     if (this.pointers.size < 2) { this.pinch = 0; this.lastMid = null; }
     if (this.pointers.size === 0) {
       if (wasAiming) this.release(e.clientX, e.clientY);
+      if (this.editing) { this.opts.onEditUp?.(); this.editing = false; }
       this.aiming = false; this.camDrag = null;
     }
   };

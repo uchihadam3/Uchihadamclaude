@@ -342,6 +342,8 @@ export interface CustomTrackData {
   pts: { x: number; y: number }[];
   obstacles: { type: string; x: number; y: number; r?: number; n?: number }[];
   patches?: { surface: string; x: number; y: number; r?: number; dir?: number }[];
+  protect?: number;                 // 0..1 fração de muro (1 = pista toda murada)
+  openArcs?: number[];              // arcos (no mundo já enquadrado) onde o muro foi apagado à mão
 }
 export const CUSTOM_SURFACES = ['sand', 'mud', 'water', 'grass', 'ramp', 'push'];
 // monta uma TrackDef jogável a partir do desenho do usuário: suaviza e reamostra
@@ -386,10 +388,19 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   const halfArr: number[] = [];
   for (let i = 0; i < N; i++) { let hw = half0; if (arcs[i] < 12) hw = Math.max(hw, half0 + 3 * (1 - arcs[i] / 12)); if (total - arcs[i] < 8) hw += 0.8; halfArr.push(hw); }
 
-  // muros dos dois lados (pista protegida — divertida de dirigir)
-  const walls: Wall[] = []; const step = 3;
+  // MURO seguindo o traçado PONTO A PONTO (segue as curvas certinho — passo 1/2)
+  const walls: Wall[] = []; const step = N > 130 ? 2 : 1;
+  const protect = data.protect == null ? 1 : Math.max(0, Math.min(1, data.protect));
+  const nearEnd = (a: number) => a < 11 || total - a < 9;                 // largada/chegada sempre muradas
+  const openA = data.openArcs || [];
+  const isOpen = (a: number) => openA.some(o => Math.abs(o - a) < 4.5);   // trecho apagado à mão
   for (let i = step; i < N; i += step) {
-    const j = i - step; const nj = normalAt(path, j), ni = normalAt(path, i);
+    const j = i - step; const am = (arcs[i] + arcs[j]) / 2;
+    if (!nearEnd(am)) {
+      if (isOpen(am)) continue;                                           // muro apagado pelo usuário no 3D
+      if (protect < 1 && ((i * 2654435761 >>> 8) % 1000) / 1000 >= protect) continue;   // proteção parcial (determinístico)
+    }
+    const nj = normalAt(path, j), ni = normalAt(path, i);
     walls.push({ a: vec(path[j].x + nj.x * halfArr[j], path[j].y + nj.y * halfArr[j]), b: vec(path[i].x + ni.x * halfArr[i], path[i].y + ni.y * halfArr[i]) });
     walls.push({ a: vec(path[j].x - nj.x * halfArr[j], path[j].y - nj.y * halfArr[j]), b: vec(path[i].x - ni.x * halfArr[i], path[i].y - ni.y * halfArr[i]) });
   }
@@ -428,5 +439,8 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   const fp = path[N - 1], ft = tangentAt(path, N - 1); const fn = { x: -ft.y, y: ft.x };
   const finish: [V, V] = [vec(fp.x + fn.x * (half0 + 0.6), fp.y + fn.y * (half0 + 0.6)), vec(fp.x - fn.x * (half0 + 0.6), fp.y - fn.y * (half0 + 0.6))];
 
-  return { id: 900, name: data.name || 'Minha Pista', theme: theme.key, level: 2, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor: [] };
+  const def: any = { id: 900, name: data.name || 'Minha Pista', theme: theme.key, level: 2, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor: [] };
+  def._shift = { dx: dxs, dy: dys };   // p/ o editor 3D mapear tela↔coords do editor
+  def._total = total;                  // comprimento (p/ apagar muro por arco)
+  return def;
 }

@@ -1,6 +1,7 @@
 // UI em DOM sobre o canvas: menu, configuração de partida, HUD da corrida,
 // resultados, personalização de tampinhas e ajustes. Grande, mas simples.
 import { track, LEVELS, LEVEL_COLORS, TRACKS_PER_LEVEL, buildCustomTrack } from './game/generator';
+import { TrackModel } from './engine/track';
 import { SKINS, skinById, CAP_COLORS, unlockedSkins } from './game/skins';
 import { drawCap, RARITY_COLOR, RARITY_LABEL, RARITY_ORDER } from './render/capart';
 import { AI_KINDS, AI_LABEL, AIKind } from './game/ai';
@@ -44,6 +45,9 @@ export class UI {
   edPts: { x: number; y: number }[] = []; edObs: { type: string; x: number; y: number; n?: number }[] = [];
   edPatches: { surface: string; x: number; y: number; r?: number }[] = [];
   edTool = 'draw'; edTheme = 0; edHalf = 4.2; edName = 'Minha Pista';
+  edProtect = 1; edOpenArcs: number[] = [];   // proteção: fração de muro + trechos apagados à mão
+  private edPrevMode: 'view' | 'move' | 'wall' = 'view';
+  private edPrevDef: any = null; private edPrevTrack: TrackModel | null = null; private edDragItem: any = null;
   private toastEl: HTMLElement | null = null; private toastT = 0;
 
   constructor(cb: UICallbacks, online: Online) { this.cb = cb; this.online = online; this.resetPlayers('quick'); }
@@ -177,6 +181,10 @@ export class UI {
         <input type="range" id="edhalf" min="3.4" max="6" step="0.2" value="${this.edHalf}">
         <input class="ed-name" id="edname" maxlength="18" value="${this.edName}">
       </div>
+      <div class="ed-opts prot-row">
+        <label>🛡️ Proteção</label>
+        ${[[1, 'Cheia'], [0.6, 'Média'], [0.3, 'Pouca'], [0, 'Nenhuma']].map(([v, n]) => `<button class="chip prot ${this.edProtect === v ? 'sel' : ''}" data-pr="${v}">${n}</button>`).join('')}
+      </div>
       <div class="ed-actions">
         <button class="chip" id="edclear">🗑️ Limpar</button>
         <button class="chip" id="edsave">💾 Salvar</button>
@@ -217,8 +225,9 @@ export class UI {
     (s.querySelector('#edtheme') as HTMLSelectElement).addEventListener('change', e => { this.edTheme = +(e.target as HTMLSelectElement).value; redraw(); });
     (s.querySelector('#edhalf') as HTMLInputElement).addEventListener('input', e => { this.edHalf = +(e.target as HTMLInputElement).value; redraw(); });
     (s.querySelector('#edname') as HTMLInputElement).addEventListener('change', e => this.edName = (e.target as HTMLInputElement).value || 'Minha Pista');
+    s.querySelectorAll('.prot').forEach(b => b.addEventListener('click', () => { this.edProtect = +(b as HTMLElement).dataset.pr!; s.querySelectorAll('.prot').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); }));
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
-    s.querySelector('#edclear')!.addEventListener('click', () => { if (this.edObs.length + this.edPatches.length + this.edPts.length === 0) return; this.edPts = []; this.edObs = []; this.edPatches = []; redraw(); });
+    s.querySelector('#edclear')!.addEventListener('click', () => { if (this.edObs.length + this.edPatches.length + this.edPts.length === 0) return; this.edPts = []; this.edObs = []; this.edPatches = []; this.edOpenArcs = []; redraw(); });
     s.querySelector('#edsave')!.addEventListener('click', () => {
       if (this.edPts.length < 3) { this.notify('Trace a pista primeiro!', 'bad'); return; }
       save.saveTrack(this.edData('ct' + Date.now()));
@@ -229,7 +238,7 @@ export class UI {
     s.querySelector('#edview')!.addEventListener('click', () => this.previewCustom());
     s.querySelector('#edplay')!.addEventListener('click', () => this.playCustom());
   }
-  private edData(id: string): any { return { id, name: this.edName, theme: this.edTheme, half: this.edHalf, pts: this.edPts, obstacles: this.edObs, patches: this.edPatches }; }
+  private edData(id: string): any { return { id, name: this.edName, theme: this.edTheme, half: this.edHalf, pts: this.edPts, obstacles: this.edObs, patches: this.edPatches, protect: this.edProtect, openArcs: this.edOpenArcs }; }
   private themeGround(): { bg: string; corr: string } {
     const g = [['#6f5334', '#7a5a34'], ['#d9b877', '#c9a35f'], ['#9a9488', '#b4ada0'], ['#7d6a4e', '#8a744f'], ['#4f5b3a', '#5f6a44'], ['#c8b48c', '#b8a074'], ['#3f5a2e', '#4f6a3a'], ['#c98f4a', '#b47c3a']][this.edTheme % 8];
     return { bg: g[0], corr: g[1] };
@@ -320,19 +329,55 @@ export class UI {
   private previewCustom(): void {
     if (this.edPts.length < 3) { this.notify('Trace a pista primeiro! ✏️', 'bad'); return; }
     const def = buildCustomTrack(this.edData('prev'));
+    this.setPreviewDef(def);
     this.cb.preview?.(def);
   }
-  // barra de pré-visualização 3D (Voltar ao editor / Jogar)
+  setPreviewDef(def: any): void { this.edPrevDef = def; try { this.edPrevTrack = new TrackModel(def); } catch { this.edPrevTrack = null; } }
+  previewEditMode(): 'off' | 'move' | 'wall' { return this.edPrevMode === 'view' ? 'off' : this.edPrevMode; }
+  // interação no EDITOR 3D. Retorna se a maquete precisa ser reconstruída.
+  preview3D(phase: 'down' | 'move' | 'up', wx: number, wz: number): boolean {
+    const def = this.edPrevDef; if (!def) return false;
+    const sh = def._shift || { dx: 0, dy: 0 };
+    if (this.edPrevMode === 'move') {
+      const ex = wx - sh.dx, ey = wz - sh.dy;
+      if (phase === 'down') { this.edDragItem = this.edPickAt({ x: ex, y: ey }); return false; }
+      if (phase === 'move' && this.edDragItem) { this.edDragItem.x = ex; this.edDragItem.y = ey; return true; }
+      if (phase === 'up') { const had = !!this.edDragItem; this.edDragItem = null; return had; }
+    } else if (this.edPrevMode === 'wall' && phase === 'down' && this.edPrevTrack) {
+      const arc = this.edPrevTrack.progressOf({ x: wx, y: wz });
+      const i = this.edOpenArcs.findIndex(a => Math.abs(a - arc) < 6);
+      if (i >= 0) this.edOpenArcs.splice(i, 1); else this.edOpenArcs.push(arc);
+      return true;
+    }
+    return false;
+  }
+  rebuildPreviewDef(): any { const def = buildCustomTrack(this.edData('prev')); this.setPreviewDef(def); return def; }
+
+  // barra do EDITOR 3D (Ver / Mover / Muro · Editar · Jogar)
   onPreviewBack: (() => void) | null = null;
   onPreviewPlay: (() => void) | null = null;
   showPreviewBar(): void {
-    this.clear();
+    this.clear(); this.edPrevMode = 'view'; this.edDragItem = null;
     const s = this.el(`<div class="screen preview-bar">
-      <div class="pv-top"><button class="txt-btn" id="pvback">‹ Editar</button><div class="pv-title">👁️ Prévia da pista</div><div></div></div>
-      <div class="pv-hint">É assim que a sua pista fica no jogo! Gire com dois dedos.</div>
-      <div class="pv-actions"><button class="play-btn" id="pvplay">🏁 Jogar esta pista</button></div>
+      <div class="pv-top"><button class="txt-btn" id="pvback">‹ Editar</button><div class="pv-title">👁️ Ver em 3D</div><div></div></div>
+      <div class="pv-modes">
+        <button class="chip pv-m sel" data-m="view">👁️ Ver</button>
+        <button class="chip pv-m" data-m="move">✋ Mover</button>
+        <button class="chip pv-m" data-m="wall">🧱 Muro</button>
+      </div>
+      <div class="pv-hint" id="pvhint">Um dedo <b>gira</b> · dois dedos dão <b>zoom</b>. Toque numa ferramenta acima pra editar.</div>
+      <div class="pv-actions"><button class="play-btn" id="pvplay">🏁 Jogar</button></div>
     </div>`);
     this.root.appendChild(s);
+    const hint = s.querySelector('#pvhint') as HTMLElement;
+    const setMode = (m: 'view' | 'move' | 'wall') => {
+      this.edPrevMode = m;
+      s.querySelectorAll('.pv-m').forEach(x => x.classList.toggle('sel', (x as HTMLElement).dataset.m === m));
+      hint.innerHTML = m === 'view' ? 'Um dedo <b>gira</b> · dois dedos dão <b>zoom</b>.'
+        : m === 'move' ? '✋ <b>Arraste</b> os objetos pro lugar exato. Dois dedos = câmera.'
+          : '🧱 <b>Toque no muro</b> pra apagar/pôr a proteção (mais aberto = mais difícil). Dois dedos = câmera.';
+    };
+    s.querySelectorAll('.pv-m').forEach(b => b.addEventListener('click', () => setMode((b as HTMLElement).dataset.m as any)));
     s.querySelector('#pvback')!.addEventListener('click', () => this.onPreviewBack?.());
     s.querySelector('#pvplay')!.addEventListener('click', () => this.onPreviewPlay?.());
   }
@@ -364,6 +409,7 @@ export class UI {
       if (!data || !Array.isArray(data.pts) || data.pts.length < 2) return false;
       this.edPts = data.pts; this.edObs = data.obstacles || []; this.edPatches = data.patches || [];
       this.edTheme = data.theme || 0; this.edHalf = data.half || 4.2; this.edName = data.name || 'Pista compartilhada';
+      this.edProtect = data.protect == null ? 1 : data.protect; this.edOpenArcs = data.openArcs || [];
       const def = buildCustomTrack(this.edData('shared'));
       const { box, close } = this.overlay(`<div class="ov-head"><b>🎁 Pista compartilhada!</b><button class="ov-x">✕</button></div>
         <div class="ov-sub">Alguém te mandou a pista <b>“${this.edName}”</b>. Bora jogar?</div>
@@ -381,7 +427,7 @@ export class UI {
     const host = box.querySelector('#mt') as HTMLElement;
     tracks.forEach((t: any) => {
       const row = this.el(`<div class="mt-row"><span class="mt-nm">🏁 ${t.name}</span><span class="mt-acts"><button class="chip mini" data-a="load">Abrir</button><button class="chip mini" data-a="share">🔗</button><button class="chip mini" data-a="play">Jogar</button><button class="chip mini danger" data-a="del">🗑️</button></span></div>`);
-      row.querySelector('[data-a="load"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = (t.obstacles || []).slice(); this.edPatches = (t.patches || []).slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; close(); this.showEditor(); });
+      row.querySelector('[data-a="load"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = (t.obstacles || []).slice(); this.edPatches = (t.patches || []).slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; this.edProtect = t.protect == null ? 1 : t.protect; this.edOpenArcs = (t.openArcs || []).slice(); close(); this.showEditor(); });
       row.querySelector('[data-a="share"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = (t.obstacles || []).slice(); this.edPatches = (t.patches || []).slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; this.shareCustom(); });
       row.querySelector('[data-a="play"]')!.addEventListener('click', () => { const def = buildCustomTrack(t); close(); this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players: this.aiPlayers(), mode: 'quick', customTrack: def }); });
       row.querySelector('[data-a="del"]')!.addEventListener('click', () => { save.deleteTrack(t.id); row.remove(); });
