@@ -41,12 +41,17 @@ const rotatePts = (pts: V[], ang: number): void => { const c = Math.cos(ang), s 
 
 // parâmetros por nível. Dificuldade = PROTEÇÃO (open) — a largura do corredor é
 // quase constante; só a cobertura de muro cai (fácil murado → extrema sem muro).
+// DESIGN DE PISTA: além dos perigos, cada nível tem OBSTÁCULOS DE MANOBRA —
+// chicanes (tábuas em zigue-zague), FUNIS (estreitamento com passagem central)
+// e SLALOM de pedras. Eles impedem o "taca reto e pronto" (que só favorece o
+// Desliza) e premiam controle, peso, quique e aderência. gate = largura da
+// passagem do funil (aperta conforme o nível).
 const LV = [
-  { half: 4.3, open: 0.05, len: 330, holes: [1, 2], bombs: [0, 1], stones: [2, 4], bonus: [2, 3], ramps: [1, 2] },
-  { half: 4.1, open: 0.24, len: 420, holes: [2, 3], bombs: [0, 1], stones: [3, 5], bonus: [2, 4], ramps: [1, 3] },
-  { half: 4.0, open: 0.50, len: 510, holes: [2, 4], bombs: [1, 2], stones: [3, 6], bonus: [2, 4], ramps: [2, 3] },
-  { half: 3.9, open: 0.72, len: 600, holes: [3, 5], bombs: [1, 2], stones: [4, 6], bonus: [2, 3], ramps: [2, 4] },
-  { half: 3.8, open: 0.90, len: 690, holes: [3, 6], bombs: [1, 2], stones: [4, 7], bonus: [1, 3], ramps: [2, 4] },
+  { half: 4.3, open: 0.05, len: 330, holes: [1, 2], bombs: [0, 1], stones: [2, 4], bonus: [2, 3], ramps: [1, 2], chi: [1, 1], gates: [1, 1], gate: 3.2, slalom: [1, 1] },
+  { half: 4.1, open: 0.24, len: 420, holes: [2, 3], bombs: [0, 1], stones: [3, 5], bonus: [2, 4], ramps: [1, 3], chi: [1, 2], gates: [1, 2], gate: 3.0, slalom: [1, 1] },
+  { half: 4.0, open: 0.50, len: 510, holes: [2, 4], bombs: [1, 2], stones: [4, 6], bonus: [2, 4], ramps: [2, 3], chi: [1, 2], gates: [1, 2], gate: 2.8, slalom: [1, 2] },
+  { half: 3.9, open: 0.72, len: 600, holes: [3, 5], bombs: [1, 2], stones: [4, 7], bonus: [2, 3], ramps: [2, 4], chi: [2, 3], gates: [2, 2], gate: 2.6, slalom: [1, 2] },
+  { half: 3.8, open: 0.90, len: 690, holes: [3, 6], bombs: [1, 2], stones: [5, 8], bonus: [1, 3], ramps: [2, 4], chi: [2, 3], gates: [2, 3], gate: 2.5, slalom: [2, 2] },
 ];
 
 type RF = (a: number, b: number) => number;
@@ -229,19 +234,65 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     usedArcs.push(bestA, bestA + 6.5);
   }
 
-  // CHICANE de TÁBUAS em zig-zag (níveis 1..3): tábuas alternadas atravessando a
-  // pista, obrigando a fazer zigue-zague pra passar.
-  if (level >= 1 && level <= 3 && rng() < 0.6) {
-    const npl = ri(3, 4), a0 = rf(0.28, 0.52) * total, gapA = 7.5;
+  // ---------------- OBSTÁCULOS DE MANOBRA (todos os níveis) ----------------
+  // A pista nunca pode ser um corredor livre de "tacar reto": chicanes, funis e
+  // slalom obrigam a jogar POSICIONANDO — controle/peso/quique/aderência passam
+  // a valer tanto quanto o Desliza.
+  // (espaçamento mais folgado que o dos perigos: manobra pode ficar mais perto)
+  const spacedM = (a: number) => usedArcs.every(u => Math.abs(u - a) > 10);
+
+  // CHICANES de TÁBUAS em zig-zag: tábuas alternadas atravessando a pista.
+  // A tábua vai da borda até 0.2*meia-largura antes do centro: força o zigue-
+  // zague mas NUNCA tranca a linha central.
+  const nChi = ri(p.chi[0], p.chi[1]);
+  for (let ci = 0, tries = 0; ci < nChi && tries < 30; tries++) {
+    const npl = ri(3, 4), gapA = 7.5;
+    const a0 = rf(0.16, 0.78) * total;
+    // o trecho INTEIRO da chicane precisa estar livre (checkpoints/perigos)
+    let ok = true; for (let k = 0; k < npl; k++) if (!spacedM(a0 + k * gapA) || a0 + k * gapA > total - 14) { ok = false; break; }
+    if (!ok) continue;
     for (let k = 0; k < npl; k++) {
-      const a = a0 + k * gapA; if (a > total - 14) break;
+      const a = a0 + k * gapA;
       const { p: pp, i } = atArc(a); const nrm = normalAt(path, i); const hw = halfArr[Math.min(N - 1, i)];
       const side = k % 2 ? 1 : -1;
-      // tábua sai da borda até ~0.2*meia-largura ANTES do centro: estreita a pista de um lado
-      // (força desviar) mas nunca tranca a linha central — sempre dá pra passar.
       walls.push({ a: vec(pp.x + nrm.x * hw * side, pp.y + nrm.y * hw * side), b: vec(pp.x + nrm.x * hw * side * 0.2, pp.y + nrm.y * hw * side * 0.2) });
       usedArcs.push(a);
     }
+    ci++;
+  }
+
+  // FUNIS (estreitamentos): tábuas dos DOIS lados no mesmo ponto, deixando só
+  // uma passagem central apertada. Todo mundo é obrigado a passar ali — vira
+  // ponto de disputa (peso bloqueia, aderência segura, controle encaixa).
+  const nGate = ri(p.gates[0], p.gates[1]);
+  for (let gi = 0, tries = 0; gi < nGate && tries < 30; tries++) {
+    // escolhe um trecho RETO (funil em curva fecharia demais a passagem)
+    let bestA = -1, bestC = 1;
+    for (let t2 = 0; t2 < 14; t2++) { const a = rf(0.18, 0.84) * total; if (!spacedM(a)) continue; const ii = atArc(a).i; if (curvS[ii] < bestC) { bestC = curvS[ii]; bestA = a; } }
+    if (bestA < 0 || bestC > 0.35) { continue; }
+    const { p: pp, i } = atArc(bestA); const nrm = normalAt(path, i); const hw = halfArr[Math.min(N - 1, i)];
+    const gap = Math.max(p.gate * rf(0.95, 1.1), 2.3) / 2;    // meia-passagem (sempre passável)
+    for (const side of [1, -1]) {
+      walls.push({ a: vec(pp.x + nrm.x * hw * side, pp.y + nrm.y * hw * side), b: vec(pp.x + nrm.x * gap * side, pp.y + nrm.y * gap * side) });
+    }
+    usedArcs.push(bestA); gi++;
+  }
+
+  // SLALOM de PEDRAS: 3 pedras alternando os lados em sequência — desenha um S
+  // no caminho. Dá pra tabelar nelas (quique) ou contornar com controle.
+  const nSl = ri(p.slalom[0], p.slalom[1]);
+  for (let si2 = 0, tries = 0; si2 < nSl && tries < 26; tries++) {
+    const a0 = rf(0.14, 0.8) * total; const gapA = 5.5;
+    let ok = true; for (let k = 0; k < 3; k++) if (!spacedM(a0 + k * gapA) || a0 + k * gapA > total - 12) { ok = false; break; }
+    if (!ok) continue;
+    for (let k = 0; k < 3; k++) {
+      const a = a0 + k * gapA; const { i } = atArc(a); const hw = halfArr[Math.min(N - 1, i)];
+      const side = (k % 2 ? 1 : -1);
+      const pp = onPath(a, side * hw * rf(0.3, 0.42));
+      obstacles.push({ type: 'stone', x: pp.x, y: pp.y, r: rf(0.8, 1.05) });
+      usedArcs.push(a);
+    }
+    si2++;
   }
 
   // ATALHO arriscado (nível médio+): acha dois pontos do traçado perto no espaço
