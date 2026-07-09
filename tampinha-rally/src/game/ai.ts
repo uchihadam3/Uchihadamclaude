@@ -17,12 +17,14 @@ interface Persona {
   lookahead: number; powBias: number; risk: number; outPenalty: number;
   spread: number; noise: number; rival: number; offense: number;   // offense = gosto por jogar rival em perigo
 }
+// IAs mais afiadas: menos ruído (executam melhor), olham mais longe e usam mais
+// força (avançam mais por peteléco) — mais difícil de ganhar.
 const P: Record<AIKind, Persona> = {
-  cauteloso: { lookahead: 12, powBias: 0.95, risk: 1.5, outPenalty: 280, spread: 0.16, noise: 0.020, rival: 0, offense: 0 },
-  agressivo: { lookahead: 19, powBias: 1.10, risk: 0.6, outPenalty: 170, spread: 0.22, noise: 0.050, rival: 0.3, offense: 0.7 },
-  tecnico: { lookahead: 14, powBias: 1.00, risk: 1.0, outPenalty: 210, spread: 0.18, noise: 0.014, rival: 0, offense: 0 },
-  caotico: { lookahead: 13, powBias: 1.03, risk: 0.7, outPenalty: 150, spread: 0.36, noise: 0.150, rival: 0.15, offense: 0.3 },
-  rival: { lookahead: 15, powBias: 1.05, risk: 0.8, outPenalty: 200, spread: 0.20, noise: 0.035, rival: 1.0, offense: 1.0 },
+  cauteloso: { lookahead: 16, powBias: 1.00, risk: 1.20, outPenalty: 300, spread: 0.16, noise: 0.010, rival: 0, offense: 0 },
+  agressivo: { lookahead: 23, powBias: 1.14, risk: 0.55, outPenalty: 190, spread: 0.24, noise: 0.026, rival: 0.25, offense: 0.8 },
+  tecnico: { lookahead: 19, powBias: 1.06, risk: 0.90, outPenalty: 235, spread: 0.18, noise: 0.006, rival: 0, offense: 0.1 },
+  caotico: { lookahead: 15, powBias: 1.06, risk: 0.70, outPenalty: 170, spread: 0.34, noise: 0.080, rival: 0.15, offense: 0.35 },
+  rival: { lookahead: 20, powBias: 1.10, risk: 0.75, outPenalty: 225, spread: 0.20, noise: 0.014, rival: 0.6, offense: 1.0 },
 };
 
 function clone(c: Cap): Cap {
@@ -98,41 +100,53 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   const dodgeL = norm(sub({ x: a2.p.x + perpV.x * 2.7, y: a2.p.y + perpV.y * 2.7 }, cap.pos));
   const dodgeR = norm(sub({ x: a2.p.x - perpV.x * 2.7, y: a2.p.y - perpV.y * 2.7 }, cap.pos));
 
-  const s = per.spread;
-  const dirs: V[] = [dFar, rot(dFar, s * 0.6), rot(dFar, -s * 0.6), dNear, tan, dodgeL, dodgeR];
-  const pows = kind === 'agressivo' ? [0.3, 0.55, 0.78, 1.0] : kind === 'cauteloso' ? [0.2, 0.4, 0.6, 0.82] : [0.24, 0.46, 0.7, 0.94];
-
   let best = { dir: dNear, power: 0.2, s: -1e9 }; let bestOut: SimOut | null = null;
-  const consider = (dir: V, pw: number) => { const ep = Math.min(1, pw); const o = sim(cap, caps, track, dir, ep); const sc = score(o, cap, per, rival); if (sc > best.s) { best = { dir, power: ep, s: sc }; bestOut = o; } };
+  const consider = (dir: V, pw: number) => { const ep = Math.max(0.06, Math.min(1, pw)); const o = sim(cap, caps, track, dir, ep); const sc = score(o, cap, per, rival); if (sc > best.s) { best = { dir, power: ep, s: sc }; bestOut = o; } };
 
-  for (const dir of dirs) for (const pw of pows) consider(dir, pw * per.powBias);
-  for (const pw of [0.12, 0.18]) consider(tan, pw);
-  const rc = track.atArc(Math.min(total, cap.progress + 3)).p;
-  const rcDir = len(sub(rc, cap.pos)) < 0.3 ? tan : norm(sub(rc, cap.pos));
-  for (const pw of [0.12, 0.2]) consider(rcDir, pw);
+  // BUSCA (fase 1): mira em vários pontos à frente (perto→longe) + desvios laterais,
+  // com um leque de ângulos e boa gama de forças. Mais candidatos = jogada melhor.
+  const aheads = [8, 13, per.lookahead, per.lookahead + 6];
+  const aimDirs: V[] = [tan, dNear, dFar, dodgeL, dodgeR];
+  for (const ah of aheads) { const p = track.atArc(Math.min(total, cap.progress + ah)).p; const d = len(sub(p, cap.pos)) < 0.4 ? tan : norm(sub(p, cap.pos)); aimDirs.push(d); }
+  const s = per.spread;
+  const fan = [0, s * 0.45, -s * 0.45];
+  const pows = [0.26, 0.42, 0.56, 0.7, 0.84, 1.0];
+  for (const d of aimDirs) for (const a of fan) { const dd = rot(d, a); for (const pw of pows) consider(dd, pw * per.powBias); }
+
   // RAMPA à frente: carrega com força pra pular o buraco
   for (const o of track.def.obstacles) {
     if (o.type !== 'jump') continue;
     const op = track.progressOf(vec(o.x, o.y));
-    if (op > cap.progress + 1 && op < cap.progress + 26) { const jdir = norm(sub(vec(o.x, o.y), cap.pos)); for (const pw of [0.7, 0.85, 1.0]) consider(jdir, pw); }
+    if (op > cap.progress + 1 && op < cap.progress + 28) { const jdir = norm(sub(vec(o.x, o.y), cap.pos)); for (const pw of [0.72, 0.86, 1.0]) consider(jdir, pw); }
   }
   // CAOS/BÔNUS: mira nas caixinhas de item e nos +petelecos alcançáveis à frente
-  // (o score recompensa pegá-los; se o caminho for arriscado, ele mesmo descarta)
   for (const o of track.def.obstacles) {
     if (o.type !== 'item' && o.type !== 'bonus') continue;
     const op = track.progressOf(vec(o.x, o.y));
     if (op > cap.progress - 3 && op < cap.progress + per.lookahead + 6) {
       const bdir = norm(sub(vec(o.x, o.y), cap.pos));
-      for (const pw of [0.35, 0.55, 0.78]) consider(bdir, pw);
+      for (const pw of [0.35, 0.5, 0.65, 0.8]) consider(bdir, pw);
     }
+  }
+  // FECHAR A CORRIDA: perto da chegada, mira firme na linha pra cruzar
+  if (cap.progress > total - (per.lookahead + 14)) {
+    const fp0 = track.atArc(total).p; const fdirC = norm(sub(fp0, cap.pos));
+    for (const a of fan) for (const pw of [0.6, 0.75, 0.9, 1.0]) consider(rot(fdirC, a), pw);
   }
   // ofensiva: só tenta o rival quando dá pra jogá-lo num perigo de verdade
   if (rival && per.offense > 0.4) { const rdir = norm(sub(rival.pos, cap.pos)); for (const pw of [0.6, 0.8, 1.0]) consider(rdir, pw); }
 
-  // ANTI-TRAVAMENTO: se o melhor plano ainda cai/não avança, faz uma varredura de
-  // 360° em baixa força pra achar QUALQUER saída segura (nunca fica preso).
+  // BUSCA FINA (fase 2): refina em volta do melhor (ângulos e forças finos) —
+  // é o que deixa a IA precisa, encaixando a jogada quase perfeita.
+  {
+    const bd = best.dir, bp = best.power;
+    for (const a of [0.04, -0.04, 0.09, -0.09]) for (const dp of [0, 0.06, -0.06]) consider(rot(bd, a), bp + dp);
+    for (const dp of [0.03, -0.03, 0.07, -0.07]) consider(bd, bp + dp);
+  }
+
+  // ANTI-TRAVAMENTO: se o melhor plano ainda cai/não avança, varre 360° suave.
   const bad = !bestOut || (bestOut as SimOut).out || (bestOut as SimOut).holed || (bestOut as SimOut).bombed || (bestOut as SimOut).endProg <= cap.progress + 0.6;
-  if (bad) { for (let dd = 0; dd < 16; dd++) { const a = dd / 16 * Math.PI * 2, dir = { x: Math.cos(a), y: Math.sin(a) }; for (const pw of [0.15, 0.26, 0.4]) consider(dir, pw); } }
+  if (bad) { for (let dd = 0; dd < 24; dd++) { const a = dd / 24 * Math.PI * 2, dir = { x: Math.cos(a), y: Math.sin(a) }; for (const pw of [0.14, 0.24, 0.38, 0.55]) consider(dir, pw); } }
 
   const na = (Math.random() - 0.5) * per.noise * 2.2;
   const fdir = rot(best.dir, na);
