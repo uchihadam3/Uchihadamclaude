@@ -276,7 +276,7 @@ addEventListener('pointerdown', () => resumeAudio(), { once: true });
 ui.showMenu(); resize();
 // pista compartilhada por link (#p=...) → oferece jogar/editar
 try { const h = location.hash || ''; const mtc = h.match(/[#&]p=([^&]+)/); if (mtc) { ui.importSharedTrack(mtc[1]); history.replaceState(null, '', location.pathname + location.search); } } catch {}
-(window as any).__mgr = mgr; (window as any).__ui = ui; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; } };
+(window as any).__mgr = mgr; (window as any).__ui = ui; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; }, get previewing() { return previewing; }, get az() { return rig.az; }, get frustum() { return rig.frustum; } };
 const clock = new THREE.Clock(); let t = 0;
 function frame(): void {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;

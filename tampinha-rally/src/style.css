@@ -438,9 +438,11 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .chip.mini{font-size:12px;padding:5px 9px}.chip.mini.danger{background:#e5484d;color:#fff}
 .chip.big{padding:12px 18px;font-size:15px}
 .share-box{width:100%;height:70px;margin-top:8px;border-radius:12px;border:2px solid #d8c4a0;padding:10px;font-size:12px;font-family:monospace;background:#fff;color:#3a2418;resize:none}
-/* barra de prévia 3D (sobre a maquete renderizada no canvas) */
-.preview-bar{background:transparent;pointer-events:none;justify-content:space-between}
-.preview-bar>*{pointer-events:auto}
+/* barra do editor 3D: a TELA deixa passar o toque pro canvas (senão bloqueia a
+   câmera/arrastar); só os botões capturam (via #ui button). Especificidade alta
+   pra vencer o "#ui .screen{pointer-events:auto}", igual ao HUD faz. */
+#ui .screen.preview-bar{background:transparent;pointer-events:none;justify-content:space-between}
+#ui .screen.preview-bar .pv-top,#ui .screen.preview-bar .pv-modes,#ui .screen.preview-bar .pv-actions{pointer-events:none}
 .pv-top{width:100%;max-width:560px;display:flex;justify-content:space-between;align-items:center;color:#fff;gap:10px;margin-top:2px}
 .pv-title{font-size:19px;font-weight:900;text-shadow:0 2px 6px rgba(0,0,0,.6)}
 .pv-hint{margin-top:auto;background:rgba(0,0,0,.5);color:#fff;font-weight:700;font-size:13px;padding:8px 14px;border-radius:14px;backdrop-filter:blur(4px)}

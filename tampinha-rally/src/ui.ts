@@ -307,7 +307,8 @@ export class UI {
     const m = map[t]; if (!m) return; this.edObs.push({ type: m.type, x: p.x, y: p.y, n: m.n });
   }
   private edPickAt(p: { x: number; y: number }): any {
-    let best: any = null, bd = 12;
+    // raio generoso (dedo gordo): pega o objeto mais próximo dentro de ~6 unidades
+    let best: any = null, bd = 36;
     for (const o of this.edObs) { const d = (o.x - p.x) ** 2 + (o.y - p.y) ** 2; if (d < bd) { bd = d; best = o; } }
     for (const s of this.edPatches) { const d = (s.x - p.x) ** 2 + (s.y - p.y) ** 2; if (d < bd) { bd = d; best = s; } }
     return best;
