@@ -139,7 +139,7 @@ export class UI {
   }
 
   // -------------------------------------------------------- EDITOR DE PISTA
-  private edW = 88; private edH = 66;   // tamanho do "mundo" do editor (canvas 4:3, bem alto)
+  private edW = 92; private edH = 62;   // tamanho do "mundo" do editor (como era antes)
   // paleta COMPLETA: tudo que existe na pista do jogo
   private static ED_TOOLS: { t: string; ico: string; lab: string; grp: string; col: string }[] = [
     { t: 'draw', ico: '✏️', lab: 'Traçar', grp: 'p', col: '#8fd0ff' },
@@ -192,11 +192,9 @@ export class UI {
     const cv = s.querySelector('#edcv') as HTMLCanvasElement;
     const count = s.querySelector('#edcount') as HTMLElement;
     const redraw = () => { this.drawEditor(cv); count.textContent = `${this.edObs.length + this.edPatches.length} itens · ${this.edPts.length} pts`; };
-    // o wrapper tem aspect-ratio fixo (CSS) → o canvas ocupa toda a altura dele;
-    // aqui só ajustamos o buffer de pixels ao tamanho REAL renderizado (nítido)
-    const dpr = Math.min(2.5, window.devicePixelRatio || 1);
-    const sync = () => { const r = cv.getBoundingClientRect(); if (r.width < 4 || r.height < 4) { requestAnimationFrame(sync); return; } cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); redraw(); };
-    requestAnimationFrame(sync); addEventListener('resize', sync);
+    // tamanho do canvas EXATAMENTE como era: largura = container, altura proporcional
+    const sync = () => { const r = cv.getBoundingClientRect(); if (r.width < 4) { requestAnimationFrame(sync); return; } cv.width = Math.round(r.width); cv.height = Math.round(r.width * this.edH / this.edW); redraw(); };
+    setTimeout(sync, 30); requestAnimationFrame(sync); addEventListener('resize', sync);
     const toWorld = (ev: PointerEvent) => { const r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * this.edW, y: (ev.clientY - r.top) / r.height * this.edH }; };
     let drawing = false; let dragging: any = null;
     cv.addEventListener('pointerdown', (ev) => {
