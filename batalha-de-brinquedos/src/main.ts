@@ -60,6 +60,10 @@ const clock = new THREE.Clock();
 function loop(): void {
   const dt = Math.min(0.05, clock.getDelta());
   rig.update(dt);
+  // neblina acompanha a distância da câmera (no retrato ela fica bem mais longe)
+  const fog = scene.fog as THREE.Fog;
+  fog.near = rig.dist * (rig.portrait ? 2.6 : 1.5);
+  fog.far = rig.dist * (rig.portrait ? 5 : 3);
   const t = clock.elapsedTime;
   for (const side of [board.baseMeshes.mine, board.baseMeshes.foe]) {
     const f = side.getObjectByName('flag');

@@ -62,36 +62,55 @@ export function makeScene(): THREE.Scene {
   return s;
 }
 
-// Câmera que enquadra a mesa inteira em qualquer tela (paisagem ou retrato)
+// Câmera que enquadra a mesa em qualquer tela:
+//  · PAISAGEM: vista lateral clássica (mesa inteira de lado)
+//  · RETRATO (celular em pé): câmera ATRÁS da sua base olhando pro inimigo —
+//    as 3 faixas viram colunas e seus bonequinhos ficam grandes perto de você
 export class CamRig {
   camera: THREE.PerspectiveCamera;
+  portrait = false;
+  dist = 700;
   private t = 0;
-  shake = 0;                     // tremidinha (meteoro, gude…)
+  shake = 0;                     // tremidinha (gude, canhonada…)
   constructor() {
-    this.camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 10, 4000);
+    this.camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 10, 4200);
     this.resize();
   }
   resize(): void {
     this.camera.aspect = innerWidth / innerHeight;
-    // distância que faz o campo caber: ajusta pro maior entre largura/altura necessárias
-    const fovY = (this.camera.fov * Math.PI) / 180;
-    const fovX = 2 * Math.atan(Math.tan(fovY / 2) * this.camera.aspect);
-    const needX = (WORLD.matHalfL + 60) / Math.tan(fovX / 2);
-    const needZ = (WORLD.matHalfW + 170) / Math.tan(fovY / 2);
-    const dist = Math.max(needX, needZ, 380);
-    this.baseDist = dist;
+    this.portrait = innerHeight > innerWidth * 1.05;
+    if (this.portrait) {
+      this.camera.fov = 52;
+      // precisa caber a LARGURA do tapete (as 3 colunas) na tela estreita
+      const fovY = (this.camera.fov * Math.PI) / 180;
+      const fovX = 2 * Math.atan(Math.tan(fovY / 2) * this.camera.aspect);
+      this.dist = Math.max(430, (WORLD.matHalfW + 100) / Math.tan(fovX / 2));
+    } else {
+      this.camera.fov = 36;
+      const fovY = (this.camera.fov * Math.PI) / 180;
+      const fovX = 2 * Math.atan(Math.tan(fovY / 2) * this.camera.aspect);
+      const needX = (WORLD.matHalfL + 60) / Math.tan(fovX / 2);
+      const needZ = (WORLD.matHalfW + 170) / Math.tan(fovY / 2);
+      this.dist = Math.max(needX, needZ, 380);
+    }
     this.camera.updateProjectionMatrix();
   }
-  private baseDist = 700;
   update(dt: number): void {
     this.t += dt;
     this.shake = Math.max(0, this.shake - dt * 2.2);
-    const d = this.baseDist;
-    const sway = Math.sin(this.t * 0.21) * 6;                     // respiração sutil
+    const sway = Math.sin(this.t * 0.21) * 6;
     const sx = (Math.random() - 0.5) * this.shake * 9;
     const sy = (Math.random() - 0.5) * this.shake * 7;
-    const ang = 0.82;                                              // elevação (~47° — mostra os rostinhos)
-    this.camera.position.set(sway + sx, Math.sin(ang) * d * 0.86 + sy, Math.cos(ang) * d + 40);
-    this.camera.lookAt(0, -26, -14);
+    if (this.portrait) {
+      // atrás da MINHA base, elevada, olhando o comprimento da mesa
+      const back = -WORLD.baseX - this.dist * 0.56;
+      this.camera.position.set(back + sx, this.dist * 0.72 + sy, sway * 0.5);
+      this.camera.lookAt(96, -30, 0);
+    } else {
+      const d = this.dist;
+      const ang = 0.82;                                            // ~47° — mostra os rostinhos
+      this.camera.position.set(sway + sx, Math.sin(ang) * d * 0.86 + sy, Math.cos(ang) * d + 40);
+      this.camera.lookAt(0, -26, -14);
+    }
   }
 }
