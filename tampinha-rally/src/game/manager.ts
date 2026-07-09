@@ -159,7 +159,8 @@ export class GameManager {
     c.preFlick = vec(c.pos.x, c.pos.y);
     for (const o of this.caps) {
       if (o.id === c.id) { o.resetTo = vec(c.preFlick.x, c.preFlick.y); continue; }
-      const behind = Math.max(0.6, o.progress - 7);
+      // se OUTRO te empurra pra fora → punição MAIOR: volta bem mais atrás na pista
+      const behind = Math.max(0.6, o.progress - 16);
       const bp = this.track.atArc(behind).p;
       o.resetTo = vec(bp.x, bp.y);
     }
