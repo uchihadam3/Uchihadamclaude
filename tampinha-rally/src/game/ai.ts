@@ -34,7 +34,7 @@ function clone(c: Cap): Cap {
   };
 }
 
-interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolean; bombed: boolean; finished: boolean; jumped: boolean; dEdge: number; endPos: V; bonus: number; oppHarm: number; }
+interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolean; bombed: boolean; finished: boolean; jumped: boolean; dEdge: number; endPos: V; bonus: number; item: number; oppHarm: number; }
 
 // simula UMA tacada num mundo COM os adversários (parados; podem ser empurrados)
 function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number): SimOut {
@@ -43,21 +43,21 @@ function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number):
   shooter.vel = mul(norm(dir), Math.max(0.06, Math.min(1, power01)) * MAX_POWER); shooter.moving = true;
   const world: Cap[] = [shooter];
   for (const o of caps) { if (o.id === cap.id || o.finished) continue; const oc = clone(o); world.push(oc); }
-  let out = false, holed = false, bombed = false, finished = false, jumped = false, bonus = 0, maxProg = cap.progress; const harm = new Set<number>();
+  let out = false, holed = false, bombed = false, finished = false, jumped = false, bonus = 0, item = 0, maxProg = cap.progress; const harm = new Set<number>();
   const FIXED = 1 / 120; let steps = 0;
   while (anyMoving(world) && steps < 700) {
     const evs = stepWorld(world, track, FIXED);
     for (const e of evs) {
       if (e.capId === shooter.id) {
         if (e.type === 'out') out = true; else if (e.type === 'hole') holed = true; else if (e.type === 'bomb') bombed = true;
-        else if (e.type === 'finish') finished = true; else if (e.type === 'bonus') bonus += (e.n || 1); else if (e.type === 'ramp') jumped = true;
-      } else if (e.type === 'out' || e.type === 'hole') harm.add(e.capId);
+        else if (e.type === 'finish') finished = true; else if (e.type === 'bonus') bonus += (e.n || 1); else if (e.type === 'item') item += 1; else if (e.type === 'ramp') jumped = true;
+      } else if (e.type === 'out' || e.type === 'hole' || e.type === 'bomb') harm.add(e.capId);   // jogar rival em qualquer perigo conta
     }
     if (shooter.progress > maxProg) maxProg = shooter.progress;
     steps++;
   }
   const n = track.nearest(shooter.pos);
-  return { endProg: shooter.progress, maxProg, out, holed, bombed, finished, jumped, dEdge: Math.max(0, n.d - n.half * 0.45), endPos: vec(shooter.pos.x, shooter.pos.y), bonus, oppHarm: harm.size };
+  return { endProg: shooter.progress, maxProg, out, holed, bombed, finished, jumped, dEdge: Math.max(0, n.d - n.half * 0.45), endPos: vec(shooter.pos.x, shooter.pos.y), bonus, item, oppHarm: harm.size };
 }
 
 function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
@@ -67,10 +67,12 @@ function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
   if (o.holed) s -= 90;         // buraco: nunca de propósito
   if (o.bombed) s -= 120;
   s += o.bonus * 22;
+  s += o.item * 20;             // CAOS: ir atrás das caixinhas de power-up vale a pena
   if (o.jumped) s += 10;        // pular a rampa (avança e passa o buraco) é ótimo
   if (o.finished) s += 500;
-  s += o.oppHarm * per.offense * 65;                       // jogar rival em perigo (só ofensivas)
-  if (rival && per.rival > 0 && !o.out) { const d = dist(o.endPos, rival.pos); s += per.rival * Math.max(0, 9 - d) * 3.0; }
+  // empurrar rival SÓ vale quando o joga num perigo de verdade (buraco/bomba/fora):
+  // nada de "bater por bater". E só se NÃO custar o próprio progresso.
+  if (o.oppHarm > 0 && per.offense > 0 && o.endProg >= base.progress - 1) s += o.oppHarm * per.offense * 90;
   return s;
 }
 
@@ -114,7 +116,17 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
     const op = track.progressOf(vec(o.x, o.y));
     if (op > cap.progress + 1 && op < cap.progress + 26) { const jdir = norm(sub(vec(o.x, o.y), cap.pos)); for (const pw of [0.7, 0.85, 1.0]) consider(jdir, pw); }
   }
-  // ofensiva: tenta mandar o rival pro perigo (só agressiva/rival)
+  // CAOS/BÔNUS: mira nas caixinhas de item e nos +petelecos alcançáveis à frente
+  // (o score recompensa pegá-los; se o caminho for arriscado, ele mesmo descarta)
+  for (const o of track.def.obstacles) {
+    if (o.type !== 'item' && o.type !== 'bonus') continue;
+    const op = track.progressOf(vec(o.x, o.y));
+    if (op > cap.progress - 3 && op < cap.progress + per.lookahead + 6) {
+      const bdir = norm(sub(vec(o.x, o.y), cap.pos));
+      for (const pw of [0.35, 0.55, 0.78]) consider(bdir, pw);
+    }
+  }
+  // ofensiva: só tenta o rival quando dá pra jogá-lo num perigo de verdade
   if (rival && per.offense > 0.4) { const rdir = norm(sub(rival.pos, cap.pos)); for (const pw of [0.6, 0.8, 1.0]) consider(rdir, pw); }
 
   // ANTI-TRAVAMENTO: se o melhor plano ainda cai/não avança, faz uma varredura de

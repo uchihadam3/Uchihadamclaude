@@ -432,3 +432,13 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .mt-acts{display:flex;gap:5px;flex:0 0 auto}
 .chip.mini{font-size:12px;padding:5px 9px}.chip.mini.danger{background:#e5484d;color:#fff}
 @media(max-width:430px){ .ed-tools{grid-template-columns:repeat(4,1fr)} .team-cols{flex-direction:column} .team-col{max-width:none} }
+
+/* ícones de power-up na tabela + efeitos ativos (Caos) */
+.srow-fx{display:inline-flex;gap:1px;margin-left:2px;font-size:12px;line-height:1}
+.srow-fx .fx-held{opacity:.5;filter:grayscale(.3)}
+.srow-fx .fx-on{filter:drop-shadow(0 0 3px rgba(255,220,120,.9));animation:fxPulse 1s ease-in-out infinite}
+@keyframes fxPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.fx-active{display:flex;gap:6px;justify-content:center;margin-top:6px}
+.fxa{font-size:12px;font-weight:900;padding:4px 10px;border-radius:11px;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.fxa.shield{background:linear-gradient(180deg,#3fb0e0,#1f7fc0)}
+.fxa.boost{background:linear-gradient(180deg,#ff8a4a,#e05a1a)}

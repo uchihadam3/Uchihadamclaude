@@ -783,22 +783,41 @@ export class UI {
     for (let i = 0; i < c.flicksLeft; i++) dots += '<span class="fd on"></span>';
     fl.innerHTML = (m.phase === 'aim' && humanTurn ? '<span class="fl-lab">Petelecos</span>' : '') + dots + (c.flicksLeft === 1 ? '<span class="flast">último!</span>' : '');
     fl.style.opacity = (c.isAI || m.phase !== 'aim') ? '0.55' : '1';
-    // CAOS: slot de item do jogador da vez (toque pra usar)
+    // CAOS: slot do jogador da vez — item guardado (com USAR) + efeitos ATIVOS
     const itemEl = this.hud.querySelector('#item') as HTMLElement;
-    if (m.chaos && humanTurn && c.item && m.phase === 'aim') {
-      const it = ITEMS[c.item];
+    if (m.chaos && humanTurn && m.phase === 'aim' && (c.item || c.shield || c.boostNext > 1)) {
       itemEl.classList.remove('hidden');
-      itemEl.innerHTML = `<button class="item-btn"><span class="it-ico">${it.ico}</span><span class="it-tx"><b>${it.name}</b><small>${it.desc}</small></span><span class="it-use">USAR</span></button>`;
-      (itemEl.querySelector('.item-btn') as HTMLElement).onclick = () => this.onUseItem?.();
+      let html = '';
+      if (c.item) { const it = ITEMS[c.item]; html += `<button class="item-btn"><span class="it-ico">${it.ico}</span><span class="it-tx"><b>${it.name}</b><small>${it.desc}</small></span><span class="it-use">USAR</span></button>`; }
+      const act = this.activeFxHtml(c);
+      if (act) html += `<div class="fx-active">${act}</div>`;
+      itemEl.innerHTML = html;
+      const btn = itemEl.querySelector('.item-btn') as HTMLElement | null; if (btn) btn.onclick = () => this.onUseItem?.();
     } else { itemEl.classList.add('hidden'); itemEl.innerHTML = ''; }
-    // standings (clique num nome → ficha da tampinha)
+    // standings (clique num nome → ficha da tampinha) + ícones de power-up (Caos)
     const st = this.hud.querySelector('#stand') as HTMLElement;
-    st.innerHTML = m.standings().map((p, i) => `<div class="srow ${p.id === c.id ? 'act' : ''}" data-id="${p.id}"><span class="spos">${i + 1}º</span><span class="sdot" style="background:${skinById(p.skin).top}"></span><span class="sname">${p.name}</span>${p.finished ? '<span class="sfin">🏁</span>' : '<span class="szoom">🔍</span>'}</div>`).join('');
+    st.innerHTML = m.standings().map((p, i) => `<div class="srow ${p.id === c.id ? 'act' : ''}" data-id="${p.id}"><span class="spos">${i + 1}º</span><span class="sdot" style="background:${skinById(p.skin).top}"></span><span class="sname">${p.name}</span>${m.chaos ? this.capFxIcons(p) : ''}${p.finished ? '<span class="sfin">🏁</span>' : '<span class="szoom">🔍</span>'}</div>`).join('');
     st.querySelectorAll('.srow').forEach(row => row.addEventListener('click', () => { const cap = m.caps[+(row as HTMLElement).dataset.id!]; if (cap) this.showCapStats(cap.name, cap.skin); }));
     // hint
     const hint = this.hud.querySelector('#hint') as HTMLElement;
     hint.style.display = (humanTurn && m.phase === 'aim') ? 'block' : 'none';
     hint.textContent = 'Arraste a tampinha para trás e solte';
+  }
+
+  // ícones de power-up de uma tampinha na tabela: guardado (esmaecido) + ativos
+  private capFxIcons(c: any): string {
+    let out = '';
+    if (c.item) out += `<span class="fx-held" title="guardado">${ITEMS[c.item].ico}</span>`;
+    if (c.shield) out += `<span class="fx-on" title="escudo ativo">🛡️</span>`;
+    if (c.boostNext > 1) out += `<span class="fx-on" title="turbo pronto">🚀</span>`;
+    return out ? `<span class="srow-fx">${out}</span>` : '';
+  }
+  // efeitos ATIVOS (já usados, valendo até gastar) do jogador da vez
+  private activeFxHtml(c: any): string {
+    const b: string[] = [];
+    if (c.shield) b.push('<span class="fxa shield">🛡️ Escudo ativo</span>');
+    if (c.boostNext > 1) b.push('<span class="fxa boost">🚀 Turbo pronto</span>');
+    return b.join('');
   }
 
   toast(msg: string, kind = ''): void {

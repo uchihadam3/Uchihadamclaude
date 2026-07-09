@@ -97,13 +97,23 @@ export class GameManager {
     const idx = sorted.indexOf(c); const n = Math.max(1, sorted.length - 1);
     return { r: idx < 0 ? 0.5 : idx / n, leader: idx === 0 };
   }
-  private grantItem(c: Cap): void {
-    if (c.item) return;                          // slot cheio: a caixa fica pra próxima vez
+  // tem buraco/bomba logo à frente na pista? (a IA guarda o escudo pra essas horas)
+  private hazardAhead(c: Cap): boolean {
+    for (const o of this.track.def.obstacles) {
+      if (o.type !== 'hole' && o.type !== 'bomb') continue;
+      const op = this.track.progressOf(vec(o.x, o.y));
+      if (op > c.progress + 1 && op < c.progress + 24) return true;
+    }
+    return false;
+  }
+  private grantItem(c: Cap): boolean {
+    if (c.item) return false;                     // slot cheio: use o que tem antes de pegar outro
     const { r, leader } = this.rank01(c);
     const it = pickItem(r, leader);
     c.item = it; c.itemFlash = 1;
     if (!c.isAI) this.onToast(`${ITEMS[it].ico} ${ITEMS[it].name}! toque pra usar`, 'good');
     this.onItem(c, it, false);
+    return true;
   }
   // usa o item guardado (jogador aperta o botão; a IA usa sozinha antes de jogar)
   useItem(c = this.activeCap()): void {
@@ -169,7 +179,12 @@ export class GameManager {
       const c = this.activeCap();
       if (c.isAI) {
         this.aiTimer += dt;
-        if (this.chaos && c.item && this.aiTimer > 0.4 && this.aiTimer < 0.45) this.useItem(c);   // IA usa o item antes de jogar
+        // IA usa o item na hora certa: escudo só se tem perigo à frente; os
+        // outros (que ajudam a avançar/atacar) valem sempre antes de jogar.
+        if (this.chaos && c.item && this.aiTimer > 0.4 && this.aiTimer < 0.45) {
+          const useNow = c.item === 'escudo' ? this.hazardAhead(c) : true;
+          if (useNow) this.useItem(c);
+        }
         if (!this.aiFired && this.aiTimer > 0.85) {
           this.aiFired = true;
           const f = aiFlick(c, this.caps, this.track);
@@ -199,7 +214,9 @@ export class GameManager {
       case 'ramp': if (c.id === this.current) this.onToast('Voou! 🚀', 'good'); break;
       case 'item':
         if (e.power === -1) { c.itemFlash = 1; this.onToast(`🛡️ ${c.name} — escudo salvou!`, 'good'); }   // escudo consumido
-        else this.grantItem(c); break;
+        // com o slot cheio a caixa NÃO é gasta: continua lá pra pegar depois de usar
+        else if (!this.grantItem(c) && e.obsIdx != null) c.consumed.delete(e.obsIdx);
+        break;
       case 'finish': this.onFinish(c); break;
     }
     // checkpoints: avança o checkpoint se cruzou um (proximidade)
