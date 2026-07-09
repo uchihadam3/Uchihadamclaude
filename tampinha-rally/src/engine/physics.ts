@@ -49,9 +49,9 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     } else if (surf === 'push') {              // seta vermelha: freia e joga na direção da seta (trás/lado)
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: -c.vel.x, y: -c.vel.y };
       c.vel.x = c.vel.x * 0.93 + dir.x * 30 * dt; c.vel.y = c.vel.y * 0.93 + dir.y * 30 * dt;
-    } else if (surf === 'water') {             // água rasa: empurrão leve na correnteza
+    } else if (surf === 'water') {             // água: CORRENTEZA empurra no fluxo (bem sensível)
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: 0, y: 0 };
-      c.vel.x += dir.x * 7 * dt; c.vel.y += dir.y * 7 * dt;
+      c.vel.x += dir.x * 10 * dt; c.vel.y += dir.y * 10 * dt;
     }
 
     // atrito realista: Coulomb (parada previsível) + arrasto viscoso.
@@ -76,10 +76,28 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
 
     // integra
     c.pos.x += c.vel.x * dt; c.pos.y += c.vel.y * dt;
-    // giro visual: proporcional à velocidade
+    // GIRO: proporcional à velocidade e MENOR quanto mais estável a tampinha
     const spNow = len(c.vel);
     c.angVel = spNow * 0.9 * (1 / c.stats.stability);
     c.angle += c.angVel * dt;
+    // GIRO TEM EFEITO REAL: em chão IRREGULAR (grama > areia > terra), a tampinha
+    // girando é DESVIADA da linha — o mato "pega" a borda dela. Quanto mais gira
+    // (instável e rápida), mais desvia; a ESTÁVEL mantém a linha. O desvio vem de
+    // um campo determinístico (função da posição): justo, replicável e sem sorte.
+    if (spNow > 1.2) {
+      // só MANCHAS desviam (grama forte, areia leve) — nunca o chão inteiro,
+      // senão tiro longo vira loteria e trava a corrida em pista aberta
+      const rough = surf === 'grass' ? 1.0 : surf === 'sand' ? 0.45 : 0;
+      if (rough > 0) {
+        // campo de ONDA LONGA (período ~20u): o desvio mantém o sentido ao longo
+        // de um trecho — puxa DE VERDADE pra um lado (freq alta se cancelaria)
+        const field = Math.sin(c.pos.x * 0.31 + c.pos.y * 0.23 + 1.7);           // -1..1, fixo no mundo
+        const wob = field * rough * c.angVel * 0.095 * dt;                       // rad neste passo
+        const cw = Math.cos(wob), sw = Math.sin(wob);
+        const vx = c.vel.x * cw - c.vel.y * sw, vy = c.vel.x * sw + c.vel.y * cw;
+        c.vel.x = vx; c.vel.y = vy;
+      }
+    }
 
     // bordas
     const wn = track.collideWalls(c.pos, c.vel, c.radius, 0.42 * c.stats.bounce);

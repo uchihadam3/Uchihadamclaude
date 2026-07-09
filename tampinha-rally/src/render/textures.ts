@@ -22,7 +22,7 @@ const GROUND: Record<string, (c: CanvasRenderingContext2D, w: number, h: number)
   sidewalk(c, w, h) { c.fillStyle = '#b9b3a6'; c.fillRect(0, 0, w, h); noise(c, w, h, 1800, '#a49e90', 0.35, 2.4); noise(c, w, h, 700, '#cfc9bc', 0.35, 2.2); c.strokeStyle = 'rgba(120,114,100,0.5)'; c.lineWidth = 3; for (let y = 0; y < h; y += PX * 6) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y + (Math.random() - 0.5) * 10); c.stroke(); } c.strokeStyle = 'rgba(90,84,72,0.35)'; c.lineWidth = 1.4; for (let i = 0; i < 8; i++) { c.beginPath(); let x = Math.random() * w, y = Math.random() * h; c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 90; y += (Math.random() - 0.5) * 90; c.lineTo(x, y); } c.stroke(); } },
   cardboard(c, w, h) { c.fillStyle = '#cba875'; c.fillRect(0, 0, w, h); noise(c, w, h, 1200, '#b9915f', 0.4, 2.2); c.strokeStyle = 'rgba(150,110,70,0.26)'; c.lineWidth = 2; for (let x = 0; x < w; x += 10) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } c.fillStyle = 'rgba(214,204,184,0.45)'; for (let i = 0; i < 5; i++) { c.save(); c.translate(Math.random() * w, Math.random() * h); c.rotate(Math.random() * 3); c.fillRect(-42, -8, 84, 16); c.restore(); } },
   grass(c, w, h) { c.fillStyle = '#4f7d30'; c.fillRect(0, 0, w, h); noise(c, w, h, 2200, '#3e6626', 0.5, 2.6); noise(c, w, h, 1200, '#6f9c40', 0.5, 2.2); c.lineWidth = 1.4; const nb = Math.min(6000, Math.floor(w * h / 1100)); for (let i = 0; i < nb; i++) { const gx = Math.random() * w, gy = Math.random() * h, r = Math.random(); c.strokeStyle = r < 0.45 ? '#3c6322' : r < 0.8 ? '#6fa840' : '#84c052'; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (Math.random() - 0.5) * 4, gy - 4 - Math.random() * 5); c.stroke(); } },
-  mud: () => {}, water: () => {}, ramp: () => {}, push: () => {}, chalk: () => {}, out: () => {},
+  mud: () => {}, water: () => {}, ramp: () => {}, push: () => {}, chalk: () => {}, ice: () => {}, out: () => {},
 };
 
 // hash e formas ORGÂNICAS — nada de círculo perfeito: manchas naturais (redondas
@@ -71,6 +71,16 @@ function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: nu
   } else if (s === 'grass') {
     box('#4d7a2e');
     for (let i = 0; i < 200; i++) { const gx = cx + (R() - 0.5) * r * 2, gy = cy + (R() - 0.5) * r * 2, hgt = px * (0.3 + R() * 0.5); c.strokeStyle = R() < 0.4 ? '#3c6322' : R() < 0.8 ? '#5f9a38' : '#7bbd4a'; c.lineWidth = Math.max(1, px * 0.05); c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (R() - 0.5) * px * 0.3, gy - hgt); c.stroke(); }
+  } else if (s === 'ice') {
+    // GELO: placa azul-clarinha vítrea com rachaduras e brilho — escorrega TUDO
+    const g = c.createRadialGradient(cx - r * 0.25, cy - r * 0.3, r * 0.1, cx, cy, r);
+    g.addColorStop(0, 'rgba(235,250,255,0.95)'); g.addColorStop(0.6, 'rgba(185,228,248,0.92)'); g.addColorStop(1, 'rgba(140,200,235,0.94)');
+    c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = Math.max(1, px * 0.055); c.lineCap = 'round';
+    for (let i = 0; i < 5; i++) { let xx = cx + (R() - 0.5) * r, yy = cy + (R() - 0.5) * r; c.beginPath(); c.moveTo(xx, yy); for (let k = 0; k < 3; k++) { xx += (R() - 0.5) * r * 0.9; yy += (R() - 0.5) * r * 0.9; c.lineTo(xx, yy); } c.stroke(); }
+    c.fillStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.ellipse(cx - r * 0.3, cy - r * 0.35, r * 0.3, r * 0.1, -0.6, 0, 7); c.fill();
+    c.strokeStyle = 'rgba(120,180,220,0.5)'; c.lineWidth = Math.max(1, px * 0.04);
+    for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(cx + (R() - 0.5) * r, cy + (R() - 0.5) * r, r * (0.1 + R() * 0.2), R() * 3, R() * 3 + 2); c.stroke(); }
   } else if (s === 'chalk') {
     c.fillStyle = 'rgba(240,240,245,0.14)'; c.fillRect(cx - r, cy - r, r * 2, r * 2);
     const cols = ['#ff8fb0', '#8fd0ff', '#ffe38f', '#a0ffb0', '#c9a0ff'];
@@ -82,7 +92,7 @@ function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: nu
   } else box('#c9bfa8');
   c.restore();
   // contorno pra a mancha parecer "assentada" no chão
-  c.save(); shape(); c.lineWidth = Math.max(2, px * 0.16); c.strokeStyle = s === 'water' ? 'rgba(20,70,110,0.5)' : 'rgba(0,0,0,0.2)'; c.stroke(); c.restore();
+  c.save(); shape(); c.lineWidth = Math.max(2, px * 0.16); c.strokeStyle = s === 'water' ? 'rgba(20,70,110,0.5)' : s === 'ice' ? 'rgba(90,150,200,0.55)' : 'rgba(0,0,0,0.2)'; c.stroke(); c.restore();
 }
 
 // bordas do corredor (esq/dir) a partir do traçado + meia-largura por ponto

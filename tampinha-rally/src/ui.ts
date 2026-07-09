@@ -377,8 +377,9 @@ export class UI {
     { t: 'mud', ico: '🟤', lab: 'Lama', grp: 's', col: '#5c452a' },
     { t: 'water', ico: '💧', lab: 'Água', grp: 's', col: '#4a90b8' },
     { t: 'grass', ico: '🌿', lab: 'Grama', grp: 's', col: '#5f8a36' },
+    { t: 'ice', ico: '🧊', lab: 'Gelo', grp: 's', col: '#a8dcf5' },
   ];
-  private static ED_SURF = new Set(['sand', 'mud', 'water', 'grass', 'ramp', 'push']);
+  private static ED_SURF = new Set(['sand', 'mud', 'water', 'grass', 'ice', 'ramp', 'push']);
   showEditor(): void {
     this.clear();
     const themes = ['Quintal', 'Praia', 'Calçada', 'Garagem', 'Parque', 'Cozinha', 'Jardim', 'Deserto'];
@@ -1002,6 +1003,15 @@ export class UI {
         <div class="help-intro">Arraste a tampinha <b>para trás</b> e solte — quanto mais puxa, mais forte. São <b>3 petelecos</b> por vez. A corrida acaba quando o <b>penúltimo</b> chega. Dois dedos giram/aproximam a câmera.</div>
         <h3 class="help-h">🧩 Obstáculos</h3>
         <div class="help-grid">${obst.map(o => card(o[0], o[1], o[2])).join('')}</div>
+        <h3 class="help-h">🌍 Superfícies (cada uma faz uma coisa!)</h3>
+        <div class="help-grid">${[
+          ['🟡', 'Areia', 'Freia bastante e <b>afunda o pesado</b>. Potência ajuda a atravessar.'],
+          ['🌿', 'Grama', 'Freia e o mato <b>PUXA PRO LADO</b> — a tampinha girando desvia da linha. <b>Estabilidade</b> segura firme.'],
+          ['🟤', 'Lama', '<b>Prende</b> de verdade. Só muita <b>Potência</b> atravessa.'],
+          ['💧', 'Água', 'A <b>correnteza EMPURRA</b> no sentido do fluxo — pode te levar pro lugar errado (ou certo!).'],
+          ['🧊', 'Gelo', 'Quase <b>não para</b> — desliza demais. Cuidado pra não passar do ponto!'],
+          ['🖍️', 'Giz/Calçada', 'Lisinho: desliza longe, bom pra ganhar distância.'],
+        ].map(o => card(o[0], o[1], o[2])).join('')}</div>
         <h3 class="help-h">🏅 Atributos das tampinhas</h3>
         <div class="help-note">Cada tampinha tem notas de <b>0 a 99</b>. Compare as barrinhas e os números pra escolher a sua!</div>
         <div class="help-grid">${stats.map(o => card(o[1], o[0], o[2])).join('')}</div>

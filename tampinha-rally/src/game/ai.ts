@@ -75,6 +75,10 @@ function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
   // empurrar rival SÓ vale quando o joga num perigo de verdade (buraco/bomba/fora):
   // nada de "bater por bater". E só se NÃO custar o próprio progresso.
   if (o.oppHarm > 0 && per.offense > 0 && o.endProg >= base.progress - 1) s += o.oppHarm * per.offense * 90;
+  // PRESA num canto: nenhum peteléco único avança (sair exige "voltar primeiro",
+  // que uma busca de 1 jogada não enxerga). Então, presa, o que vale é SAIR DALI:
+  // quanto mais longe do ponto atual terminar, melhor — quebra o ciclo do toquinho.
+  if (base.stuckTurns >= 2 && !o.out && !o.holed && !o.bombed) s += Math.min(14, dist(o.endPos, base.pos)) * 4;
   return s;
 }
 
@@ -147,6 +151,13 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   // ANTI-TRAVAMENTO: se o melhor plano ainda cai/não avança, varre 360° suave.
   const bad = !bestOut || (bestOut as SimOut).out || (bestOut as SimOut).holed || (bestOut as SimOut).bombed || (bestOut as SimOut).endProg <= cap.progress + 0.6;
   if (bad) { for (let dd = 0; dd < 24; dd++) { const a = dd / 24 * Math.PI * 2, dir = { x: Math.cos(a), y: Math.sin(a) }; for (const pw of [0.14, 0.24, 0.38, 0.55]) consider(dir, pw); } }
+  // MODO DESTRAVAR: preso há 2+ turnos (o mesmo plano falhou repetido) — varre
+  // TUDO com TODAS as forças (uma tabelinha no muro sempre existe) e, se ainda
+  // assim, embaralha com jogadas aleatórias simuladas pra quebrar o ciclo.
+  if (cap.stuckTurns >= 2) {
+    for (let dd = 0; dd < 24; dd++) { const a = dd / 24 * Math.PI * 2, dir = { x: Math.cos(a), y: Math.sin(a) }; for (const pw of [0.3, 0.55, 0.8, 1.0]) consider(dir, pw); }
+    for (let k = 0; k < 14; k++) consider(rot(dFar, (Math.random() - 0.5) * 2.4), 0.2 + Math.random() * 0.8);
+  }
 
   const na = (Math.random() - 0.5) * per.noise * 2.2;
   const fdir = rot(best.dir, na);

@@ -21,18 +21,25 @@ export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // ---- superfícies ---------------------------------------------------------
 export type Surface =
   | 'dirt' | 'sand' | 'cardboard' | 'sidewalk' | 'mud' | 'water'
-  | 'ramp' | 'push' | 'chalk' | 'grass' | 'out';
+  | 'ramp' | 'push' | 'chalk' | 'grass' | 'ice' | 'out';
 
 // fric = desaceleração constante (u/s²) · drag = arrasto viscoso (por s)
+// CADA superfície tem um efeito PRÓPRIO (não é só "freia mais/menos"):
+//   areia  = freia forte e afunda o pesado
+//   grama  = freia + PUXA PRO LADO (o mato desvia a tampinha — estável sofre menos)
+//   lama   = prende (potência atravessa)
+//   água   = CORRENTEZA empurra na direção do fluxo
+//   gelo   = quase não para — escorrega demais (cuidado pra não passar do ponto)
 export const SURF: Record<Surface, { fric: number; drag: number }> = {
   sidewalk:  { fric: 4.5,  drag: 0.15 },   // calçada: desliza muito
   chalk:     { fric: 5.0,  drag: 0.15 },   // giz ~ calçada
+  ice:       { fric: 2.2,  drag: 0.05 },   // GELO: quase sem atrito, vai embora
   cardboard: { fric: 8.0,  drag: 0.35 },   // papelão: médio
   dirt:      { fric: 9.5,  drag: 0.45 },   // terra: médio
   sand:      { fric: 17.0, drag: 0.9  },   // areia: bastante atrito
-  grass:     { fric: 20.0, drag: 1.1  },   // mato: freia forte
+  grass:     { fric: 19.0, drag: 1.0  },   // mato: freia + desvia (ver physics)
   mud:       { fric: 30.0, drag: 1.8  },   // lama: quase para
-  water:     { fric: 7.0,  drag: 0.5  },   // água rasa: escorrega + empurra
+  water:     { fric: 7.0,  drag: 0.5  },   // água rasa: escorrega + correnteza
   ramp:      { fric: 6.0,  drag: 0.2  },   // rampa verde: dá impulso pra frente
   push:      { fric: 11.0, drag: 0.5  },   // seta vermelha: freia e empurra pra trás/lado
   out:       { fric: 24.0, drag: 1.0  },   // fora — reseta
@@ -78,6 +85,9 @@ export interface Cap {
   moving: boolean;
   hitFlash: number;
 
+  lastTurnProg: number;      // progresso no começo do turno anterior (detector de preso)
+  stuckTurns: number;        // turnos seguidos sem avançar → IA liga o "modo destravar"
+
   // ---- extras dos MODOS (não usados no jogo comum) ----
   team: number;              // Dupla: índice do time (-1 = sem time)
   item: string | null;       // Caos: power-up guardado (1 slot)
@@ -94,6 +104,7 @@ export function makeCap(id: number, name: string, skin: string, stats: CapStats,
     progress: 0, checkpoint: 0, cpPos: vec(), turnStart: vec(), preFlick: vec(), resetTo: vec(), consumed: new Set(),
     flicksLeft: 3, bonusFlicks: 0, special10: false, bombed: false, holed: false, skipTurns: 0,
     finished: false, place: 0, lap: 0, moving: false, hitFlash: 0,
+    lastTurnProg: 0, stuckTurns: 0,
     team: -1, item: null, shield: false, boostNext: 1, eliminated: false, itemFlash: 0,
   };
 }

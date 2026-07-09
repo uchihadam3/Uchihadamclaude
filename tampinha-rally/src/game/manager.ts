@@ -80,6 +80,24 @@ export class GameManager {
     }
     const c = this.caps[this.current];
     if (!c) return;
+    // detector de PRESO: sem avançar desde o turno passado → IA liga o modo destravar
+    if (c.progress < c.lastTurnProg + 0.8) c.stuckTurns++; else c.stuckTurns = 0;
+    c.lastTurnProg = c.progress;
+    // RESGATE (guincho 🛟): encaixada num canto de muro há 4 turnos — volta pro
+    // MEIO da pista um tiquinho ATRÁS (não ganha nada com isso). Garante que
+    // nenhuma pista gerada consegue travar uma corrida pra sempre.
+    if (c.stuckTurns >= 4) {
+      let back = 2, spot = this.track.atArc(Math.max(0, c.progress - back)).p;
+      for (let t = 0; t < 6; t++) {
+        const busy = this.caps.some(o => o.id !== c.id && !o.finished && Math.hypot(o.pos.x - spot.x, o.pos.y - spot.y) < c.radius * 2.4);
+        if (!busy) break;
+        back += 2.5; spot = this.track.atArc(Math.max(0, c.progress - back)).p;
+      }
+      c.pos = vec(spot.x, spot.y); c.vel = vec(); c.z = 0; c.vz = 0; c.airborne = false;
+      c.progress = this.track.progressOf(c.pos);
+      c.stuckTurns = 0; c.lastTurnProg = c.progress;
+      this.onToast(`🛟 ${c.name} foi resgatada pra pista!`, 'bad');
+    }
     c.flicksLeft = 3; c.bonusFlicks = 0; c.special10 = false; c.consumed.clear();
     c.turnStart = vec(c.pos.x, c.pos.y);
     this.phase = 'aim'; this.aiTimer = 0; this.aiFired = false;

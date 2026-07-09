@@ -23,12 +23,12 @@ const THEMES: Theme[] = [
   { key: 'calcada', ground: 'sidewalk', bg: '#9a9488', wall: '#8f8879', patch: ['chalk', 'cardboard'], decor: ['chalk', 'toy', 'pebble'], names: ['Calçada de Giz', 'Rua de Baixo', 'Passeio', 'Meio-Fio'] },
   { key: 'garagem', ground: 'cardboard', bg: '#7d6a4e', wall: '#a9773f', patch: ['sidewalk', 'sand'], decor: ['box', 'tape', 'pencil'], names: ['Garagem', 'Papelão & Fita', 'Depósito', 'Oficina'] },
   { key: 'parquinho', ground: 'dirt', bg: '#4f5b3a', wall: '#5c4a2c', patch: ['mud', 'water', 'grass'], decor: ['leaf', 'grass', 'pebble'], names: ['Parquinho Molhado', 'Lamaçal', 'Depois da Chuva', 'Poça & Folha'] },
-  { key: 'cozinha', ground: 'cardboard', bg: '#c8b48c', wall: '#c05a5a', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'eraser', 'straw'], names: ['Mesa da Cozinha', 'Hora do Café', 'Toalha Xadrez', 'Bancada'] },
+  { key: 'cozinha', ground: 'cardboard', bg: '#c8b48c', wall: '#c05a5a', patch: ['sidewalk', 'water', 'ice'], decor: ['cup', 'coin', 'eraser', 'straw'], names: ['Mesa da Cozinha', 'Hora do Café', 'Toalha Xadrez', 'Bancada'] },
   { key: 'jardim', ground: 'dirt', bg: '#3f5a2e', wall: '#5a7a3a', patch: ['grass', 'mud', 'sand'], decor: ['grass', 'leaf', 'twig', 'pebble'], names: ['Jardim da Vó', 'Canteiro', 'Grama & Terra', 'Horta'] },
   { key: 'deserto', ground: 'sand', bg: '#c98f4a', wall: '#a6702f', patch: ['ramp', 'ramp', 'water'], decor: ['pebble', 'twig', 'starfish'], names: ['Deserto', 'Dunas', 'Sol a Pino', 'Areião'] },
   { key: 'obra', ground: 'dirt', bg: '#6a6152', wall: '#8a8070', patch: ['cardboard', 'sand'], decor: ['box', 'pencil', 'pebble'], names: ['Canteiro de Obra', 'Entulho', 'Cimento', 'Andaime'] },
-  { key: 'laje', ground: 'sidewalk', bg: '#8f9aa0', wall: '#7a848a', patch: ['cardboard', 'chalk'], decor: ['toy', 'pebble', 'tape'], names: ['Laje', 'Terraço', 'Cobertura', 'Varal'] },
-  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'water', 'chalk'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'] },
+  { key: 'laje', ground: 'sidewalk', bg: '#8f9aa0', wall: '#7a848a', patch: ['cardboard', 'chalk', 'ice'], decor: ['toy', 'pebble', 'tape'], names: ['Laje', 'Terraço', 'Cobertura', 'Varal'] },
+  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'ice', 'chalk'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'] },
   { key: 'feira', ground: 'cardboard', bg: '#a88f5c', wall: '#8a6238', patch: ['sidewalk', 'chalk'], decor: ['box', 'coin', 'tape', 'cup'], names: ['Feira Livre', 'Barraca', 'Calçadão', 'Mercadão'] },
   { key: 'estrada', ground: 'dirt', bg: '#5c4a30', wall: '#4a3a24', patch: ['mud', 'sand', 'grass'], decor: ['pebble', 'twig', 'grass'], names: ['Estrada de Barro', 'Trilha', 'Rua sem Asfalto', 'Beira da Roça'] },
   { key: 'varanda', ground: 'cardboard', bg: '#8a6a44', wall: '#6b4e2e', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'leaf', 'pencil'], names: ['Varanda', 'Área Coberta', 'Quintalzinho', 'Alpendre'] },
@@ -47,11 +47,11 @@ const rotatePts = (pts: V[], ang: number): void => { const c = Math.cos(ang), s 
 // Desliza) e premiam controle, peso, quique e aderência. gate = largura da
 // passagem do funil (aperta conforme o nível).
 const LV = [
-  { half: 4.3, open: 0.05, len: 330, holes: [1, 2], bombs: [0, 1], stones: [2, 4], bonus: [2, 3], ramps: [1, 2], chi: [1, 1], gates: [1, 1], gate: 3.2, slalom: [1, 1] },
-  { half: 4.1, open: 0.24, len: 420, holes: [2, 3], bombs: [0, 1], stones: [3, 5], bonus: [2, 4], ramps: [1, 3], chi: [1, 2], gates: [1, 2], gate: 3.0, slalom: [1, 1] },
-  { half: 4.0, open: 0.50, len: 510, holes: [2, 4], bombs: [1, 2], stones: [4, 6], bonus: [2, 4], ramps: [2, 3], chi: [1, 2], gates: [1, 2], gate: 2.8, slalom: [1, 2] },
-  { half: 3.9, open: 0.72, len: 600, holes: [3, 5], bombs: [1, 2], stones: [4, 7], bonus: [2, 3], ramps: [2, 4], chi: [2, 3], gates: [2, 2], gate: 2.6, slalom: [1, 2] },
-  { half: 3.8, open: 0.90, len: 690, holes: [3, 6], bombs: [1, 2], stones: [5, 8], bonus: [1, 3], ramps: [2, 4], chi: [2, 3], gates: [2, 3], gate: 2.5, slalom: [2, 2] },
+  { half: 4.3, open: 0.05, len: 330, holes: [1, 2], bombs: [0, 1], stones: [2, 4], bonus: [2, 3], ramps: [1, 2], chi: [1, 2], gates: [1, 2], gate: 3.2, slalom: [1, 1] },
+  { half: 4.1, open: 0.24, len: 420, holes: [2, 3], bombs: [0, 1], stones: [3, 5], bonus: [2, 4], ramps: [1, 3], chi: [2, 2], gates: [2, 2], gate: 3.0, slalom: [1, 2] },
+  { half: 4.0, open: 0.50, len: 510, holes: [2, 4], bombs: [1, 2], stones: [4, 6], bonus: [2, 4], ramps: [2, 3], chi: [2, 3], gates: [2, 3], gate: 2.8, slalom: [2, 2] },
+  { half: 3.9, open: 0.72, len: 600, holes: [3, 5], bombs: [1, 2], stones: [4, 7], bonus: [2, 3], ramps: [2, 4], chi: [2, 3], gates: [2, 3], gate: 2.6, slalom: [2, 2] },
+  { half: 3.8, open: 0.90, len: 690, holes: [3, 6], bombs: [1, 2], stones: [5, 8], bonus: [1, 3], ramps: [2, 4], chi: [3, 4], gates: [3, 3], gate: 2.5, slalom: [2, 3] },
 ];
 
 type RF = (a: number, b: number) => number;
@@ -261,19 +261,32 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     ci++;
   }
 
-  // FUNIS (estreitamentos): tábuas dos DOIS lados no mesmo ponto, deixando só
-  // uma passagem central apertada. Todo mundo é obrigado a passar ali — vira
-  // ponto de disputa (peso bloqueia, aderência segura, controle encaixa).
+  // ESTREITAMENTOS: 3 formatos que obrigam a passar por um vão — vira ponto de
+  // disputa (peso bloqueia, aderência segura, controle encaixa):
+  //  · FUNIL: tábuas dos dois lados, passagem no CENTRO
+  //  · PORTÃO LATERAL: tábua comprida de UM lado só — a passagem fica no CANTO
+  //  · PORTA DE PEDRAS: duas pedras deixando um vão entre elas (dá pra tabelar)
   const nGate = ri(p.gates[0], p.gates[1]);
-  for (let gi = 0, tries = 0; gi < nGate && tries < 30; tries++) {
-    // escolhe um trecho RETO (funil em curva fecharia demais a passagem)
+  for (let gi = 0, tries = 0; gi < nGate && tries < 34; tries++) {
+    // escolhe um trecho RETO (estreitar em curva fecharia demais a passagem)
     let bestA = -1, bestC = 1;
-    for (let t2 = 0; t2 < 14; t2++) { const a = rf(0.18, 0.84) * total; if (!spacedM(a)) continue; const ii = atArc(a).i; if (curvS[ii] < bestC) { bestC = curvS[ii]; bestA = a; } }
+    for (let t2 = 0; t2 < 14; t2++) { const a = rf(0.16, 0.86) * total; if (!spacedM(a)) continue; const ii = atArc(a).i; if (curvS[ii] < bestC) { bestC = curvS[ii]; bestA = a; } }
     if (bestA < 0 || bestC > 0.35) { continue; }
     const { p: pp, i } = atArc(bestA); const nrm = normalAt(path, i); const hw = halfArr[Math.min(N - 1, i)];
-    const gap = Math.max(p.gate * rf(0.95, 1.1), 2.3) / 2;    // meia-passagem (sempre passável)
-    for (const side of [1, -1]) {
-      walls.push({ a: vec(pp.x + nrm.x * hw * side, pp.y + nrm.y * hw * side), b: vec(pp.x + nrm.x * gap * side, pp.y + nrm.y * gap * side) });
+    const gapW = Math.max(p.gate * rf(0.95, 1.1), 2.3);       // largura da passagem (sempre passável)
+    const kind = rng();
+    if (kind < 0.4) {           // FUNIL central
+      const g2 = gapW / 2;
+      for (const side of [1, -1]) walls.push({ a: vec(pp.x + nrm.x * hw * side, pp.y + nrm.y * hw * side), b: vec(pp.x + nrm.x * g2 * side, pp.y + nrm.y * g2 * side) });
+    } else if (kind < 0.75) {   // PORTÃO LATERAL: passagem colada num canto só
+      const side = rng() < 0.5 ? 1 : -1;                      // tábua sai desta borda…
+      const inner = -hw + gapW;                               // …e vai até deixar o vão no canto oposto
+      walls.push({ a: vec(pp.x + nrm.x * hw * side, pp.y + nrm.y * hw * side), b: vec(pp.x + nrm.x * inner * side, pp.y + nrm.y * inner * side) });
+    } else {                    // PORTA DE PEDRAS: vão REAL entre as bordas das pedras
+      const sr = rf(0.85, 1.05);
+      // centro = meia-passagem + raio da pedra + raio da tampinha (0.82) + folga
+      const off = Math.min(hw - 0.6, gapW / 2 + sr + 0.82 + 0.25);
+      for (const side of [1, -1]) { const sp2 = vec(pp.x + nrm.x * off * side, pp.y + nrm.y * off * side); obstacles.push({ type: 'stone', x: sp2.x, y: sp2.y, r: sr }); }
     }
     usedArcs.push(bestA); gi++;
   }
@@ -396,7 +409,7 @@ export interface CustomTrackData {
   protect?: number;                 // 0..1 fração de muro (1 = pista toda murada)
   openArcs?: number[];              // arcos (no mundo já enquadrado) onde o muro foi apagado à mão
 }
-export const CUSTOM_SURFACES = ['sand', 'mud', 'water', 'grass', 'ramp', 'push'];
+export const CUSTOM_SURFACES = ['sand', 'mud', 'water', 'grass', 'ice', 'ramp', 'push'];
 // monta uma TrackDef jogável a partir do desenho do usuário: suaviza e reamostra
 // o traçado, cria o corredor com muros dos dois lados (bem protegido, pra ser
 // divertido), checkpoints automáticos e a chegada no fim.
