@@ -117,6 +117,20 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   const pows = [0.26, 0.42, 0.56, 0.7, 0.84, 1.0];
   for (const d of aimDirs) for (const a of fan) { const dd = rot(d, a); for (const pw of pows) consider(dd, pw * per.powBias); }
 
+  // MURETINHA NA FRENTE: além do meio, mira em FAIXAS LATERAIS da pista em duas
+  // distâncias. Se uma tábua fecha a linha reta, o caminho pelo vão (no canto ou
+  // no centro) SEMPRE entra na lista — a simulação escolhe o que PASSA em vez de
+  // ficar batendo reto. Não deixa a IA mais rápida, só a impede de "não ver" o muro.
+  for (const ah of [7, 12]) {
+    const at = track.atArc(Math.min(total, cap.progress + ah));
+    const pv = { x: -at.tan.y, y: at.tan.x };
+    const hwL = track.nearest(at.p).half;
+    for (const f of [-0.72, -0.38, 0.38, 0.72]) {
+      const tp = { x: at.p.x + pv.x * hwL * f, y: at.p.y + pv.y * hwL * f };
+      const d = len(sub(tp, cap.pos)) < 0.4 ? tan : norm(sub(tp, cap.pos));
+      for (const pw of [0.3, 0.5, 0.72]) consider(d, pw);
+    }
+  }
   // RAMPA à frente: carrega com força pra pular o buraco
   for (const o of track.def.obstacles) {
     if (o.type !== 'jump') continue;

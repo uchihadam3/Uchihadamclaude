@@ -58,6 +58,25 @@ console.log('\n=== COMPETIÇÃO COMPLETA (q1, jogador IA-guiado) ===');
   console.log(`  ${c.races} corridas completas · você terminou em ${place}º · OK ✓`);
 }
 
+console.log('\n=== OFICINA CHEGA NA CORRIDA (upgrades na tampinha DA PARTIDA) ===');
+{
+  const stc = campState();
+  stc.alloc = { power: 4, slide: 2 }; saveCamp(stc);
+  const cs = campStats(campState());
+  const bs = skinById(stc.cap!).stats as any;
+  const okMath = Math.abs(cs.power - (bs.power + 4 * 0.012)) < 1e-6 && Math.abs(cs.slide - (bs.slide + 2 * 0.012)) < 1e-6;
+  const players2: PlayerDef[] = [
+    { name: 'Você', isAI: true, ai: 'tecnico', skin: stc.cap!, stats: cs },
+    { name: 'R0', isAI: true, ai: 'tecnico', skin: 'coca' },
+  ];
+  const mgr2 = new GameManager(); mgr2.setup(track(0, 0), players2);
+  const inRace = mgr2.caps[0].stats;
+  const okRace = Math.abs(inRace.power - cs.power) < 1e-6 && Math.abs(inRace.slide - cs.slide) < 1e-6
+    && inRace.power > bs.power && inRace.slide > bs.slide;
+  console.log(`  campStats soma certo? ${okMath} · tampinha da corrida usa os upgrades? ${okRace}`);
+  if (!okMath || !okRace) { console.log('  OFICINA NÃO APLICADA ✗'); process.exit(1); }
+}
+
 console.log('\n=== FINAL (Grande Final vencida = zerou + bônus) ===');
 {
   const before = campState().pts; const winsBefore = save.wins();

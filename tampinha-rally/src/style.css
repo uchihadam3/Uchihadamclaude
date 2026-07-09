@@ -551,3 +551,7 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .fin-bonus{margin-top:12px;background:#ffd75a;color:#5a3a00;font-weight:800;font-size:13px;border-radius:14px;padding:9px 16px;max-width:420px}
 .fin-note{color:#b8a8d8;font-size:12px;font-weight:700;margin-top:6px}
 @media(max-width:430px){ .camp-pickers{grid-template-columns:1fr} .cl-comps{grid-template-columns:1fr 1fr} }
+
+/* ---- ficha da tampinha: marcador de atributo melhorado na Oficina ---- */
+.sval .sup { color: #6fe06f; font-size: 10px; margin-left: 2px; font-style: normal; }
+.cs-ofi { text-align: center; color: #6fe06f; font-size: 12px; margin-top: 4px; font-weight: 700; }

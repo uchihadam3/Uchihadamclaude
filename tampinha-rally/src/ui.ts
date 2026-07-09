@@ -958,15 +958,20 @@ export class UI {
     box.querySelector('.ov-x')!.addEventListener('click', close);
   }
 
-  // painel detalhado de uma tampinha (usado ao clicar num nome durante a corrida)
-  showCapStats(name: string, skinId: string): void {
+  // painel detalhado de uma tampinha (usado ao clicar num nome durante a corrida).
+  // `stats` = atributos REAIS na partida (campanha: já com a Oficina aplicada) —
+  // sem eles, mostra os da skin. Atributo melhorado ganha um ▲ verde.
+  showCapStats(name: string, skinId: string, stats?: CapStats): void {
     const k = skinById(skinId);
+    const shown = stats || (k.stats as CapStats);
+    const upgraded = !!stats && STAT_DEFS.some(([, key]) => (stats as any)[key] > ((k.stats as any)[key] ?? 1) + 1e-6);
     const { box, close } = this.overlay(`
       <div class="ov-head"><b>${name}</b><button class="ov-x">✕</button></div>
       <div class="cs-face" id="csf"></div>
       <div class="cs-name" style="color:${RARITY_COLOR[k.rarity]}">${k.name}</div>
       <div class="rar-head cs-rar" style="--rc:${RARITY_COLOR[k.rarity]};justify-content:center"><span class="rar-dot"></span>${RARITY_LABEL[k.rarity]}</div>
-      ${capBars(k.stats, true)}
+      ${capBars(shown, true, stats ? (k.stats as CapStats) : undefined)}
+      ${upgraded ? '<div class="cs-ofi">▲ melhorado na Oficina</div>' : ''}
       <div class="cs-desc">${k.desc}</div>`, 'stats');
     const cv = drawCap(k.art, 160); cv.style.width = '124px'; cv.style.height = '124px'; cv.style.display = 'block'; cv.style.margin = '0 auto';
     (box.querySelector('#csf') as HTMLElement).appendChild(cv);
@@ -1193,7 +1198,7 @@ export class UI {
     const c = m.activeCap();
     const turn = this.hud.querySelector('#turn') as HTMLElement;
     turn.innerHTML = `<span class="tdot" style="background:${skinById(c.skin).top};color:${skinById(c.skin).top}"></span> ${c.finished ? 'Corrida!' : 'Vez de <b>' + c.name + '</b>'} <span class="tzoom">🔍</span>`;
-    turn.onclick = () => this.showCapStats(c.name, c.skin);
+    turn.onclick = () => this.showCapStats(c.name, c.skin, c.stats);
     // flicks
     const fl = this.hud.querySelector('#flicks') as HTMLElement;
     let dots = ''; const total = Math.max(3, c.flicksLeft);
@@ -1214,7 +1219,7 @@ export class UI {
     // standings (clique num nome → ficha da tampinha) + ícones de power-up (Caos)
     const st = this.hud.querySelector('#stand') as HTMLElement;
     st.innerHTML = m.standings().map((p, i) => `<div class="srow ${p.id === c.id ? 'act' : ''}" data-id="${p.id}"><span class="spos">${i + 1}º</span><span class="sdot" style="background:${skinById(p.skin).top}"></span><span class="sname">${p.name}</span>${m.chaos ? this.capFxIcons(p) : ''}${p.finished ? '<span class="sfin">🏁</span>' : '<span class="szoom">🔍</span>'}</div>`).join('');
-    st.querySelectorAll('.srow').forEach(row => row.addEventListener('click', () => { const cap = m.caps[+(row as HTMLElement).dataset.id!]; if (cap) this.showCapStats(cap.name, cap.skin); }));
+    st.querySelectorAll('.srow').forEach(row => row.addEventListener('click', () => { const cap = m.caps[+(row as HTMLElement).dataset.id!]; if (cap) this.showCapStats(cap.name, cap.skin, cap.stats); }));
     // hint
     const hint = this.hud.querySelector('#hint') as HTMLElement;
     hint.style.display = (humanTurn && m.phase === 'aim') ? 'block' : 'none';
@@ -1287,7 +1292,7 @@ export class UI {
     if (pod) order.slice(0, Math.min(4, order.length)).forEach((p, i) => {
       const row = this.el(`<div class="prow2 ${i === 0 ? 'p1' : ''}"><span class="pl">${['🥇', '🥈', '🥉', '4º'][i]}</span><span class="pcap"></span><span class="pn">${p.name}</span></div>`);
       (row.querySelector('.pcap') as HTMLElement).appendChild(drawCap(skinById(p.skin).art, 64));
-      row.addEventListener('click', () => this.showCapStats(p.name, p.skin));
+      row.addEventListener('click', () => this.showCapStats(p.name, p.skin, p.stats));
       pod.appendChild(row);
     });
     modal.classList.remove('hidden');
@@ -1393,14 +1398,15 @@ export function opponentSkins(playerId: string, n: number): string[] {
 // nota 1..99 a partir do atributo (~0.80..1.25) — pra COMPARAR tampinhas de relance
 export function statVal(v: number): number { return Math.max(1, Math.min(99, Math.round((v - 0.80) / 0.45 * 99))); }
 function statTier(n: number): string { return n >= 74 ? 'hi' : n >= 50 ? 'mid' : 'lo'; }
-function bar(label: string, v: number): string {
+function bar(label: string, v: number, up = false): string {
   const n = statVal(v); const pct = Math.max(8, Math.min(100, Math.round((v - 0.8) / 0.4 * 100)));
-  return `<div class="sbar ${statTier(n)}"><span class="sbl">${label}</span><span class="strack"><i style="width:${pct}%"></i></span><b class="sval">${n}</b></div>`;
+  return `<div class="sbar ${statTier(n)}"><span class="sbl">${label}</span><span class="strack"><i style="width:${pct}%"></i></span><b class="sval">${n}${up ? '<i class="sup">▲</i>' : ''}</b></div>`;
 }
 const STAT_DEFS: [string, keyof CapStats][] = [['Desliza', 'slide'], ['Peso', 'weight'], ['Controle', 'control'], ['Quique', 'bounce'], ['Estabil.', 'stability'], ['Potência', 'power'], ['Aderência', 'grip']];
-// barras dos atributos (4 nas fichas pequenas, 5 no painel detalhado)
-function capBars(st: CapStats, all = false): string {
+// barras dos atributos (4 nas fichas pequenas, 5 no painel detalhado);
+// `base` = stats originais da skin, pra marcar com ▲ o que a Oficina melhorou
+function capBars(st: CapStats, all = false, base?: CapStats): string {
   const defs = all ? STAT_DEFS : STAT_DEFS.slice(0, 4);
-  return `<div class="skin-bars">${defs.map(([l, k]) => bar(l, st[k])).join('')}</div>`;
+  return `<div class="skin-bars">${defs.map(([l, k]) => bar(l, st[k], !!base && st[k] > ((base as any)[k] ?? 1) + 1e-6)).join('')}</div>`;
 }
 function dailyKey(): string { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
