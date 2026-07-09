@@ -26,6 +26,7 @@ export interface UICallbacks {
   start: (cfg: MatchConfig) => void;
   setVols: (music: number, sfx: number, muted: boolean) => void;
   setSkin: (id: string) => void;
+  preview?: (def: any) => void;
   onFlickBtn?: () => void;
 }
 
@@ -41,6 +42,7 @@ export class UI {
   myName = 'Você';
   // editor de pista
   edPts: { x: number; y: number }[] = []; edObs: { type: string; x: number; y: number; n?: number }[] = [];
+  edPatches: { surface: string; x: number; y: number; r?: number }[] = [];
   edTool = 'draw'; edTheme = 0; edHalf = 4.2; edName = 'Minha Pista';
   private toastEl: HTMLElement | null = null; private toastT = 0;
 
@@ -137,19 +139,37 @@ export class UI {
   }
 
   // -------------------------------------------------------- EDITOR DE PISTA
-  private edW = 92; private edH = 62;   // tamanho do "mundo" do editor
+  private edW = 96; private edH = 66;   // tamanho do "mundo" do editor
+  // paleta COMPLETA: tudo que existe na pista do jogo
+  private static ED_TOOLS: { t: string; ico: string; lab: string; grp: string; col: string }[] = [
+    { t: 'draw', ico: '✏️', lab: 'Traçar', grp: 'p', col: '#8fd0ff' },
+    { t: 'move', ico: '✋', lab: 'Mover', grp: 'p', col: '#ffd94a' },
+    { t: 'erase', ico: '🧽', lab: 'Apagar', grp: 'p', col: '#ff8a8a' },
+    { t: 'hole', ico: '⚫', lab: 'Buraco', grp: 'o', col: '#100a04' },
+    { t: 'bomb', ico: '💣', lab: 'Bomba', grp: 'o', col: '#e5484d' },
+    { t: 'stone', ico: '🪨', lab: 'Pedra', grp: 'o', col: '#9a948a' },
+    { t: 'jump', ico: '🛫', lab: 'Salto', grp: 'o', col: '#c9902e' },
+    { t: 'item', ico: '❓', lab: 'Caixa', grp: 'o', col: '#a86bff' },
+    { t: 'bonus1', ico: '💎', lab: '+1', grp: 'b', col: '#2ea44f' },
+    { t: 'bonus2', ico: '💠', lab: '+2', grp: 'b', col: '#2e9fa4' },
+    { t: 'bonus3', ico: '🏆', lab: '+3', grp: 'b', col: '#e0a020' },
+    { t: 'ramp', ico: '⏫', lab: 'Impulso', grp: 's', col: '#3fae6a' },
+    { t: 'push', ico: '⏬', lab: 'Freio', grp: 's', col: '#e5484d' },
+    { t: 'sand', ico: '🟡', lab: 'Areia', grp: 's', col: '#d9b877' },
+    { t: 'mud', ico: '🟤', lab: 'Lama', grp: 's', col: '#5c452a' },
+    { t: 'water', ico: '💧', lab: 'Água', grp: 's', col: '#4a90b8' },
+    { t: 'grass', ico: '🌿', lab: 'Grama', grp: 's', col: '#5f8a36' },
+  ];
+  private static ED_SURF = new Set(['sand', 'mud', 'water', 'grass', 'ramp', 'push']);
   showEditor(): void {
     this.clear();
     const themes = ['Quintal', 'Praia', 'Calçada', 'Garagem', 'Parque', 'Cozinha', 'Jardim', 'Deserto'];
-    const tools: [string, string, string][] = [
-      ['draw', '✏️', 'Traçar'], ['hole', '⚫', 'Buraco'], ['bomb', '💣', 'Bomba'], ['stone', '🪨', 'Pedra'],
-      ['ramp', '🛫', 'Rampa'], ['bonus1', '💎', '+1'], ['bonus3', '🏆', '+3'], ['erase', '🧽', 'Apagar'],
-    ];
+    const tools = UI.ED_TOOLS;
     const s = this.el(`<div class="screen editor">
       <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>✏️ Editor de Pista</h2><div></div></div>
-      <div class="ed-help">Desenhe o <b>traçado</b> arrastando o dedo. Depois escolha uma ferramenta e toque pra colocar obstáculos. 🏁</div>
-      <div class="ed-tools" id="tools">${tools.map(t => `<button class="ed-tool ${t[0] === this.edTool ? 'sel' : ''}" data-t="${t[0]}"><span>${t[1]}</span><small>${t[2]}</small></button>`).join('')}</div>
-      <div class="ed-canvas-wrap"><canvas id="edcv" class="ed-canvas"></canvas></div>
+      <div class="ed-help">1️⃣ <b>Traçar</b>: arraste pra desenhar. 2️⃣ Escolha um item e <b>toque na pista</b> pra colocar. 3️⃣ <b>Mover</b>: arraste um item pro lugar exato. 👁️ Veja em 3D e 🏁 jogue!</div>
+      <div class="ed-tools" id="tools">${tools.map(t => `<button class="ed-tool grp-${t.grp} ${t.t === this.edTool ? 'sel' : ''}" data-t="${t.t}" style="--tc:${t.col}"><span>${t.ico}</span><small>${t.lab}</small></button>`).join('')}</div>
+      <div class="ed-canvas-wrap"><canvas id="edcv" class="ed-canvas"></canvas><div class="ed-count" id="edcount"></div></div>
       <div class="ed-opts">
         <label>Tema</label>
         <select id="edtheme">${themes.map((t, i) => `<option value="${i}" ${i === this.edTheme ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -161,29 +181,35 @@ export class UI {
         <button class="chip" id="edclear">🗑️ Limpar</button>
         <button class="chip" id="edsave">💾 Salvar</button>
         <button class="chip" id="edload">📂 Minhas</button>
+        <button class="chip" id="edshare">🔗 Compartilhar</button>
+      </div>
+      <div class="ed-actions">
+        <button class="chip big" id="edview">👁️ Ver em 3D</button>
         <button class="play-btn" id="edplay">🏁 Jogar</button>
       </div>
     </div>`);
     this.root.appendChild(s);
     const cv = s.querySelector('#edcv') as HTMLCanvasElement;
-    const redraw = () => this.drawEditor(cv);
-    const sync = () => { const r = cv.getBoundingClientRect(); cv.width = Math.round(r.width); cv.height = Math.round(r.width * this.edH / this.edW); redraw(); };
+    const count = s.querySelector('#edcount') as HTMLElement;
+    const redraw = () => { this.drawEditor(cv); count.textContent = `${this.edObs.length + this.edPatches.length} itens · ${this.edPts.length} pts`; };
+    const sync = () => { const r = cv.getBoundingClientRect(); cv.width = Math.round(r.width * (window.devicePixelRatio || 1)); cv.height = Math.round(r.width * this.edH / this.edW * (window.devicePixelRatio || 1)); cv.style.height = (r.width * this.edH / this.edW) + 'px'; redraw(); };
     setTimeout(sync, 30); addEventListener('resize', sync);
-    // mapeia ponto do canvas → mundo do editor
     const toWorld = (ev: PointerEvent) => { const r = cv.getBoundingClientRect(); return { x: (ev.clientX - r.left) / r.width * this.edW, y: (ev.clientY - r.top) / r.height * this.edH }; };
-    let drawing = false;
+    let drawing = false; let dragging: any = null;
     cv.addEventListener('pointerdown', (ev) => {
       ev.preventDefault(); (cv as any).setPointerCapture?.(ev.pointerId); const p = toWorld(ev);
       if (this.edTool === 'draw') { drawing = true; this.edPts.push(p); }
       else if (this.edTool === 'erase') { this.edEraseAt(p); }
+      else if (this.edTool === 'move') { dragging = this.edPickAt(p); }
       else this.edPlaceObs(p);
       redraw();
     });
     cv.addEventListener('pointermove', (ev) => {
-      if (!drawing) return; const p = toWorld(ev); const last = this.edPts[this.edPts.length - 1];
-      if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 2) { this.edPts.push(p); redraw(); }
+      const p = toWorld(ev);
+      if (drawing) { const last = this.edPts[this.edPts.length - 1]; if (!last || Math.hypot(p.x - last.x, p.y - last.y) > 2) { this.edPts.push(p); redraw(); } }
+      else if (dragging) { dragging.x = p.x; dragging.y = p.y; redraw(); }
     });
-    const end = () => { drawing = false; };
+    const end = () => { drawing = false; dragging = null; };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('pointerleave', end);
 
     s.querySelectorAll('.ed-tool').forEach(b => b.addEventListener('click', () => { this.edTool = (b as HTMLElement).dataset.t!; s.querySelectorAll('.ed-tool').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); }));
@@ -191,53 +217,161 @@ export class UI {
     (s.querySelector('#edhalf') as HTMLInputElement).addEventListener('input', e => { this.edHalf = +(e.target as HTMLInputElement).value; redraw(); });
     (s.querySelector('#edname') as HTMLInputElement).addEventListener('change', e => this.edName = (e.target as HTMLInputElement).value || 'Minha Pista');
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
-    s.querySelector('#edclear')!.addEventListener('click', () => { this.edPts = []; this.edObs = []; redraw(); });
+    s.querySelector('#edclear')!.addEventListener('click', () => { if (this.edObs.length + this.edPatches.length + this.edPts.length === 0) return; this.edPts = []; this.edObs = []; this.edPatches = []; redraw(); });
     s.querySelector('#edsave')!.addEventListener('click', () => {
       if (this.edPts.length < 3) { this.notify('Trace a pista primeiro!', 'bad'); return; }
-      save.saveTrack({ id: 'ct' + Date.now(), name: this.edName, theme: this.edTheme, half: this.edHalf, pts: this.edPts, obstacles: this.edObs });
+      save.saveTrack(this.edData('ct' + Date.now()));
       this.notify('Pista salva! 💾', 'good');
     });
     s.querySelector('#edload')!.addEventListener('click', () => this.showMyTracks());
+    s.querySelector('#edshare')!.addEventListener('click', () => this.shareCustom());
+    s.querySelector('#edview')!.addEventListener('click', () => this.previewCustom());
     s.querySelector('#edplay')!.addEventListener('click', () => this.playCustom());
+  }
+  private edData(id: string): any { return { id, name: this.edName, theme: this.edTheme, half: this.edHalf, pts: this.edPts, obstacles: this.edObs, patches: this.edPatches }; }
+  private themeGround(): { bg: string; corr: string } {
+    const g = [['#6f5334', '#7a5a34'], ['#d9b877', '#c9a35f'], ['#9a9488', '#b4ada0'], ['#7d6a4e', '#8a744f'], ['#4f5b3a', '#5f6a44'], ['#c8b48c', '#b8a074'], ['#3f5a2e', '#4f6a3a'], ['#c98f4a', '#b47c3a']][this.edTheme % 8];
+    return { bg: g[0], corr: g[1] };
   }
   private drawEditor(cv: HTMLCanvasElement): void {
     const c = cv.getContext('2d')!; const W = cv.width, H = cv.height;
     const X = (x: number) => x / this.edW * W, Y = (y: number) => y / this.edH * H;
-    c.clearRect(0, 0, W, H); c.fillStyle = '#1a2a24'; c.fillRect(0, 0, W, H);
-    // grade
-    c.strokeStyle = 'rgba(255,255,255,0.05)'; c.lineWidth = 1;
+    const th = this.themeGround();
+    c.clearRect(0, 0, W, H); c.fillStyle = th.bg; c.fillRect(0, 0, W, H);
+    // vinheta escura pra dar profundidade
+    const vg = c.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.35)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
+    c.strokeStyle = 'rgba(255,255,255,0.045)'; c.lineWidth = 1;
     for (let gx = 0; gx <= this.edW; gx += 8) { c.beginPath(); c.moveTo(X(gx), 0); c.lineTo(X(gx), H); c.stroke(); }
     for (let gy = 0; gy <= this.edH; gy += 8) { c.beginPath(); c.moveTo(0, Y(gy)); c.lineTo(W, Y(gy)); c.stroke(); }
-    // corredor
+    const px = W / this.edW;
+    // CORREDOR: faixa larga na cor do tema + sombra + muro nas bordas + linha central
     if (this.edPts.length > 1) {
-      c.strokeStyle = 'rgba(180,220,255,0.22)'; c.lineWidth = Math.max(6, X(this.edHalf * 2)); c.lineCap = 'round'; c.lineJoin = 'round';
-      c.beginPath(); this.edPts.forEach((p, i) => { i ? c.lineTo(X(p.x), Y(p.y)) : c.moveTo(X(p.x), Y(p.y)); }); c.stroke();
-      c.strokeStyle = '#8fd0ff'; c.lineWidth = 2; c.setLineDash([5, 5]);
-      c.beginPath(); this.edPts.forEach((p, i) => { i ? c.lineTo(X(p.x), Y(p.y)) : c.moveTo(X(p.x), Y(p.y)); }); c.stroke(); c.setLineDash([]);
+      c.lineCap = 'round'; c.lineJoin = 'round';
+      c.strokeStyle = 'rgba(0,0,0,0.28)'; c.lineWidth = (this.edHalf * 2 + 1.2) * px;
+      this.strokePath(c, X, Y); // sombra
+      c.strokeStyle = th.corr; c.lineWidth = this.edHalf * 2 * px; this.strokePath(c, X, Y);
+      c.strokeStyle = 'rgba(255,255,255,0.10)'; c.lineWidth = this.edHalf * 2 * px; this.strokePath(c, X, Y);
+      // muro (bordas)
+      c.strokeStyle = 'rgba(70,45,20,0.85)'; c.lineWidth = Math.max(2, 0.7 * px);
+      this.strokeOffset(c, X, Y, this.edHalf); this.strokeOffset(c, X, Y, -this.edHalf);
+      // linha central tracejada
+      c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = Math.max(1.5, 0.35 * px); c.setLineDash([6, 6]);
+      this.strokePath(c, X, Y); c.setLineDash([]);
     }
-    // obstáculos
+    // SUPERFÍCIES (blobs coloridos semi-transparentes)
+    for (const s of this.edPatches) {
+      const col = UI.ED_TOOLS.find(t => t.t === s.surface)?.col || '#888';
+      c.fillStyle = col + 'cc'; c.beginPath(); c.arc(X(s.x), Y(s.y), 2.4 * px, 0, 7); c.fill();
+      c.fillStyle = '#fff'; c.font = `${Math.round(1.9 * px)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(UI.ED_TOOLS.find(t => t.t === s.surface)?.ico || '', X(s.x), Y(s.y));
+    }
+    // OBSTÁCULOS (emoji sobre disco colorido)
     for (const o of this.edObs) {
-      c.fillStyle = o.type === 'hole' ? '#100a04' : o.type === 'bomb' ? '#e5484d' : o.type === 'stone' ? '#9a948a' : o.type === 'ramp' ? '#3fae6a' : (o.n && o.n >= 3 ? '#e0a020' : '#2ea44f');
-      c.beginPath(); c.arc(X(o.x), Y(o.y), 6, 0, 7); c.fill();
+      const tool = UI.ED_TOOLS.find(t => t.t === (o.type === 'bonus' ? 'bonus' + (o.n || 1) : o.type));
+      c.fillStyle = 'rgba(0,0,0,0.45)'; c.beginPath(); c.arc(X(o.x), Y(o.y), 2.0 * px, 0, 7); c.fill();
+      c.font = `${Math.round(2.4 * px)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(tool?.ico || '⬤', X(o.x), Y(o.y));
     }
-    // largada / chegada
-    if (this.edPts.length) { const a = this.edPts[0]; c.fillStyle = '#3fae6a'; c.beginPath(); c.arc(X(a.x), Y(a.y), 8, 0, 7); c.fill(); c.fillStyle = '#fff'; c.font = '700 11px sans-serif'; c.textAlign = 'center'; c.fillText('🏁', X(a.x), Y(a.y) + 4); }
-    if (this.edPts.length > 1) { const b = this.edPts[this.edPts.length - 1]; c.fillStyle = '#e5484d'; c.beginPath(); c.arc(X(b.x), Y(b.y), 8, 0, 7); c.fill(); }
+    // LARGADA / CHEGADA
+    if (this.edPts.length) { const a = this.edPts[0]; c.fillStyle = '#2ea44f'; c.beginPath(); c.arc(X(a.x), Y(a.y), 1.5 * px, 0, 7); c.fill(); c.font = `${Math.round(2.2 * px)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🚦', X(a.x), Y(a.y)); }
+    if (this.edPts.length > 1) { const b = this.edPts[this.edPts.length - 1]; c.font = `${Math.round(2.6 * px)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🏁', X(b.x), Y(b.y)); }
+    if (this.edPts.length < 2) { c.fillStyle = 'rgba(255,255,255,0.5)'; c.font = `${Math.round(0.03 * W)}px sans-serif`; c.textAlign = 'center'; c.fillText('✏️ arraste aqui pra desenhar a pista', W / 2, H / 2); }
+  }
+  private strokePath(c: CanvasRenderingContext2D, X: (x: number) => number, Y: (y: number) => number): void {
+    c.beginPath(); this.edPts.forEach((p, i) => { i ? c.lineTo(X(p.x), Y(p.y)) : c.moveTo(X(p.x), Y(p.y)); }); c.stroke();
+  }
+  private strokeOffset(c: CanvasRenderingContext2D, X: (x: number) => number, Y: (y: number) => number, off: number): void {
+    const pts = this.edPts; if (pts.length < 2) return; c.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      let nx = -(b.y - a.y), ny = (b.x - a.x); const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+      const x = X(pts[i].x + nx * off), y = Y(pts[i].y + ny * off); i ? c.lineTo(x, y) : c.moveTo(x, y);
+    }
+    c.stroke();
   }
   private edPlaceObs(p: { x: number; y: number }): void {
-    const map: Record<string, { type: string; n?: number }> = { hole: { type: 'hole' }, bomb: { type: 'bomb' }, stone: { type: 'stone' }, ramp: { type: 'ramp' }, bonus1: { type: 'bonus', n: 1 }, bonus3: { type: 'bonus', n: 3 } };
-    const m = map[this.edTool]; if (!m) return; this.edObs.push({ type: m.type, x: p.x, y: p.y, n: m.n });
+    if (this.edPts.length < 2) { this.notify('Trace a pista primeiro! ✏️', 'bad'); return; }
+    const t = this.edTool;
+    if (UI.ED_SURF.has(t)) { this.edPatches.push({ surface: t, x: p.x, y: p.y, r: 2.4 }); return; }
+    const map: Record<string, { type: string; n?: number }> = { hole: { type: 'hole' }, bomb: { type: 'bomb' }, stone: { type: 'stone' }, jump: { type: 'jump' }, item: { type: 'item' }, bonus1: { type: 'bonus', n: 1 }, bonus2: { type: 'bonus', n: 2 }, bonus3: { type: 'bonus', n: 3 } };
+    const m = map[t]; if (!m) return; this.edObs.push({ type: m.type, x: p.x, y: p.y, n: m.n });
+  }
+  private edPickAt(p: { x: number; y: number }): any {
+    let best: any = null, bd = 12;
+    for (const o of this.edObs) { const d = (o.x - p.x) ** 2 + (o.y - p.y) ** 2; if (d < bd) { bd = d; best = o; } }
+    for (const s of this.edPatches) { const d = (s.x - p.x) ** 2 + (s.y - p.y) ** 2; if (d < bd) { bd = d; best = s; } }
+    return best;
   }
   private edEraseAt(p: { x: number; y: number }): void {
-    let bi = -1, bd = 16; this.edObs.forEach((o, i) => { const d = (o.x - p.x) ** 2 + (o.y - p.y) ** 2; if (d < bd) { bd = d; bi = i; } });
-    if (bi >= 0) this.edObs.splice(bi, 1);
+    const it = this.edPickAt(p); if (!it) return;
+    const oi = this.edObs.indexOf(it); if (oi >= 0) { this.edObs.splice(oi, 1); return; }
+    const si = this.edPatches.indexOf(it); if (si >= 0) this.edPatches.splice(si, 1);
+  }
+  private aiPlayers(): PlayerDef[] {
+    const opp = opponentSkins(save.skin(), 3);
+    return [{ name: 'Você', isAI: false, skin: save.skin() }, ...opp.map((sk, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: AI_KINDS[i % AI_KINDS.length], skin: sk }))];
   }
   private playCustom(): void {
     if (this.edPts.length < 3) { this.notify('Trace a pista primeiro! ✏️', 'bad'); return; }
-    const def = buildCustomTrack({ id: 'play', name: this.edName, theme: this.edTheme, half: this.edHalf, pts: this.edPts, obstacles: this.edObs });
-    const opp = opponentSkins(save.skin(), 3);
-    const players: PlayerDef[] = [{ name: 'Você', isAI: false, skin: save.skin() }, ...opp.map((sk, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: AI_KINDS[i % AI_KINDS.length], skin: sk }))];
-    this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players, mode: 'quick', customTrack: def });
+    const def = buildCustomTrack(this.edData('play'));
+    this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players: this.aiPlayers(), mode: 'quick', customTrack: def });
+  }
+  private previewCustom(): void {
+    if (this.edPts.length < 3) { this.notify('Trace a pista primeiro! ✏️', 'bad'); return; }
+    const def = buildCustomTrack(this.edData('prev'));
+    this.cb.preview?.(def);
+  }
+  // barra de pré-visualização 3D (Voltar ao editor / Jogar)
+  onPreviewBack: (() => void) | null = null;
+  onPreviewPlay: (() => void) | null = null;
+  showPreviewBar(): void {
+    this.clear();
+    const s = this.el(`<div class="screen preview-bar">
+      <div class="pv-top"><button class="txt-btn" id="pvback">‹ Editar</button><div class="pv-title">👁️ Prévia da pista</div><div></div></div>
+      <div class="pv-hint">É assim que a sua pista fica no jogo! Gire com dois dedos.</div>
+      <div class="pv-actions"><button class="play-btn" id="pvplay">🏁 Jogar esta pista</button></div>
+    </div>`);
+    this.root.appendChild(s);
+    s.querySelector('#pvback')!.addEventListener('click', () => this.onPreviewBack?.());
+    s.querySelector('#pvplay')!.addEventListener('click', () => this.onPreviewPlay?.());
+  }
+  private shareCustom(): void {
+    if (this.edPts.length < 3) { this.notify('Trace a pista primeiro! ✏️', 'bad'); return; }
+    try {
+      const data = this.edData('sh');
+      const json = JSON.stringify(data);
+      const b64 = btoa(unescape(encodeURIComponent(json)));
+      const url = location.origin + location.pathname + '#p=' + b64;
+      const txt = `🏁 Joga a minha pista "${this.edName}" no Tampinha Rally: ${url}`;
+      if ((navigator as any).share) (navigator as any).share({ text: txt }).catch(() => {});
+      else if (navigator.clipboard) navigator.clipboard.writeText(url).then(() => this.notify('Link copiado! Mande pros amigos 🔗', 'good')).catch(() => this.showShareLink(url));
+      else this.showShareLink(url);
+    } catch { this.notify('Não deu pra gerar o link', 'bad'); }
+  }
+  private showShareLink(url: string): void {
+    const { box } = this.overlay(`<div class="ov-head"><b>🔗 Compartilhar pista</b><button class="ov-x">✕</button></div>
+      <div class="ov-sub">Copie o link e mande pros amigos jogarem a sua pista:</div>
+      <textarea class="share-box" readonly>${url}</textarea>`, 'wide');
+    (box.querySelector('.share-box') as HTMLTextAreaElement).select();
+    box.querySelector('.ov-x')!.addEventListener('click', () => box.closest('.ov-bg')?.remove());
+  }
+  // importa uma pista compartilhada (chamado pelo main ao abrir com #p=...)
+  importSharedTrack(b64: string): boolean {
+    try {
+      const json = decodeURIComponent(escape(atob(b64)));
+      const data = JSON.parse(json);
+      if (!data || !Array.isArray(data.pts) || data.pts.length < 2) return false;
+      this.edPts = data.pts; this.edObs = data.obstacles || []; this.edPatches = data.patches || [];
+      this.edTheme = data.theme || 0; this.edHalf = data.half || 4.2; this.edName = data.name || 'Pista compartilhada';
+      const def = buildCustomTrack(this.edData('shared'));
+      const { box, close } = this.overlay(`<div class="ov-head"><b>🎁 Pista compartilhada!</b><button class="ov-x">✕</button></div>
+        <div class="ov-sub">Alguém te mandou a pista <b>“${this.edName}”</b>. Bora jogar?</div>
+        <div class="mactions" style="margin-top:10px"><button class="chip" id="shedit">✏️ Abrir no editor</button><button class="play-btn" id="shplay">🏁 Jogar agora</button></div>`, 'wide');
+      box.querySelector('.ov-x')!.addEventListener('click', close);
+      box.querySelector('#shedit')!.addEventListener('click', () => { close(); this.showEditor(); });
+      box.querySelector('#shplay')!.addEventListener('click', () => { close(); this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players: this.aiPlayers(), mode: 'quick', customTrack: def }); });
+      return true;
+    } catch { return false; }
   }
   showMyTracks(): void {
     const tracks = save.customTracks();
@@ -245,13 +379,10 @@ export class UI {
       <div class="my-tracks" id="mt">${tracks.length ? '' : '<div class="mt-empty">Nenhuma pista salva ainda. Crie a sua! ✏️</div>'}</div>`, 'wide');
     const host = box.querySelector('#mt') as HTMLElement;
     tracks.forEach((t: any) => {
-      const row = this.el(`<div class="mt-row"><span class="mt-nm">🏁 ${t.name}</span><span class="mt-acts"><button class="chip mini" data-a="load">Abrir</button><button class="chip mini" data-a="play">Jogar</button><button class="chip mini danger" data-a="del">🗑️</button></span></div>`);
-      row.querySelector('[data-a="load"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = t.obstacles.slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; close(); this.showEditor(); });
-      row.querySelector('[data-a="play"]')!.addEventListener('click', () => {
-        const def = buildCustomTrack(t); const opp = opponentSkins(save.skin(), 3);
-        const players: PlayerDef[] = [{ name: 'Você', isAI: false, skin: save.skin() }, ...opp.map((sk, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: AI_KINDS[i % AI_KINDS.length], skin: sk }))];
-        close(); this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players, mode: 'quick', customTrack: def });
-      });
+      const row = this.el(`<div class="mt-row"><span class="mt-nm">🏁 ${t.name}</span><span class="mt-acts"><button class="chip mini" data-a="load">Abrir</button><button class="chip mini" data-a="share">🔗</button><button class="chip mini" data-a="play">Jogar</button><button class="chip mini danger" data-a="del">🗑️</button></span></div>`);
+      row.querySelector('[data-a="load"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = (t.obstacles || []).slice(); this.edPatches = (t.patches || []).slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; close(); this.showEditor(); });
+      row.querySelector('[data-a="share"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = (t.obstacles || []).slice(); this.edPatches = (t.patches || []).slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; this.shareCustom(); });
+      row.querySelector('[data-a="play"]')!.addEventListener('click', () => { const def = buildCustomTrack(t); close(); this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players: this.aiPlayers(), mode: 'quick', customTrack: def }); });
       row.querySelector('[data-a="del"]')!.addEventListener('click', () => { save.deleteTrack(t.id); row.remove(); });
       host.appendChild(row);
     });

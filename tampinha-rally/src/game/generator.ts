@@ -341,7 +341,9 @@ export interface CustomTrackData {
   id: string; name: string; theme: number; half: number;
   pts: { x: number; y: number }[];
   obstacles: { type: string; x: number; y: number; r?: number; n?: number }[];
+  patches?: { surface: string; x: number; y: number; r?: number; dir?: number }[];
 }
+export const CUSTOM_SURFACES = ['sand', 'mud', 'water', 'grass', 'ramp', 'push'];
 // monta uma TrackDef jogável a partir do desenho do usuário: suaviza e reamostra
 // o traçado, cria o corredor com muros dos dois lados (bem protegido, pra ser
 // divertido), checkpoints automáticos e a chegada no fim.
@@ -397,12 +399,25 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   const nCP = clamp(Math.round(total / 90), 2, 6);
   for (let k = 1; k <= nCP; k++) checkpoints.push(onPath(total * k / (nCP + 1)));
 
+  // direção da pista no ponto mais próximo (pra orientar rampas/setas do usuário)
+  const dirAtXY = (x: number, y: number): number => {
+    let bi = 1, bd = 1e9; for (let i = 1; i < N; i++) { const dx = path[i].x - x, dy = path[i].y - y, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }
+    const t = tangentAt(path, bi); return Math.atan2(t.y, t.x);
+  };
   // obstáculos do usuário (deslocados junto com o enquadramento)
   const obstacles: Obstacle[] = [];
   for (const o of data.obstacles) {
     const x = o.x + dxs, y = o.y + dys;
-    if (o.type === 'jump') obstacles.push({ type: 'jump', x, y, r: o.r || 1.6, dir: 0 });
-    else obstacles.push({ type: o.type as any, x, y, r: o.r || (o.type === 'bonus' ? 1.1 : o.type === 'bomb' ? 0.95 : 1.2), n: o.n });
+    if (o.type === 'jump') obstacles.push({ type: 'jump', x, y, r: o.r || 1.6, dir: dirAtXY(x, y) });
+    else obstacles.push({ type: o.type as any, x, y, r: o.r || (o.type === 'bonus' ? 1.1 : o.type === 'bomb' ? 0.95 : o.type === 'item' ? 1.15 : 1.2), n: o.n });
+  }
+  // superfícies (areia/lama/água/grama/impulso/freio) do usuário
+  const patches: Patch[] = [];
+  for (const s of (data.patches || [])) {
+    const x = s.x + dxs, y = s.y + dys; const r = s.r || 2.4;
+    const oriented = s.surface === 'ramp' || s.surface === 'push' || s.surface === 'water';
+    const dir = oriented ? dirAtXY(x, y) + (s.surface === 'push' ? Math.PI : 0) : undefined;
+    patches.push({ surface: s.surface as any, x, y, r, dir });
   }
   // segurança: nada perigoso em cima de checkpoint
   for (let i = obstacles.length - 1; i >= 0; i--) { const o = obstacles[i]; if (o.type !== 'hole' && o.type !== 'bomb') continue; if (checkpoints.some(cp => (o.x - cp.x) ** 2 + (o.y - cp.y) ** 2 < 5.5 * 5.5)) obstacles.splice(i, 1); }
@@ -413,5 +428,5 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   const fp = path[N - 1], ft = tangentAt(path, N - 1); const fn = { x: -ft.y, y: ft.x };
   const finish: [V, V] = [vec(fp.x + fn.x * (half0 + 0.6), fp.y + fn.y * (half0 + 0.6)), vec(fp.x - fn.x * (half0 + 0.6), fp.y - fn.y * (half0 + 0.6))];
 
-  return { id: 900, name: data.name || 'Minha Pista', theme: theme.key, level: 2, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches: [], walls, obstacles, checkpoints, start, startAngle, finish, decor: [] };
+  return { id: 900, name: data.name || 'Minha Pista', theme: theme.key, level: 2, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor: [] };
 }

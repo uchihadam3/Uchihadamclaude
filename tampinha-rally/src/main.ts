@@ -8,7 +8,8 @@ import { GameManager, PlayerDef } from './game/manager';
 import { track, TRACKS_PER_LEVEL, withChaosItems } from './game/generator';
 import { SURF, len } from './engine/core';
 import { InputController } from './input';
-import { UI, MatchConfig, Mode } from './ui';
+import { UI, MatchConfig, Mode, opponentSkins } from './ui';
+import { AI_KINDS } from './game/ai';
 import { Online } from './net/online';
 import { sfx, resumeAudio, startMusic, stopMusic, setMusicVol, setSfxVol, setMuted, settings } from './audio';
 import { save } from './game/save';
@@ -30,6 +31,8 @@ let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<numbe
 let elim: { players: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[] } | null = null;
 let dailyFlicks = 0;
 let inGame = false;
+let previewing = false;
+let previewDef: any = null;
 let musicStarted = false;
 
 // carrega a cena de uma pista e prepara a partida
@@ -96,6 +99,7 @@ const ui = new UI({
   },
   setVols: (m, s, mu) => { setMusicVol(m); setSfxVol(s); setMuted(mu); save.setVols(m, s, mu); },
   setSkin: (id) => { save.setSkin(id); sfx.ui(); },
+  preview: (def) => enterPreview(def),
 }, online);
 
 // -------- multiplayer online: início/lobby/fim geridos aqui (cena + IA do host) --------
@@ -155,7 +159,26 @@ const input = new InputController(canvas, rig.camera, rig, {
   onCancel: () => aim.hide(),
 });
 
-function stopScene(): void { if (scene) { scene.clear(); } board = null; }
+function stopScene(): void { if (scene) { scene.clear(); } board = null; previewing = false; }
+
+// -------- PRÉVIA 3D da pista do editor (vê a maquete real, sem jogar) --------
+function enterPreview(def: any): void {
+  inGame = false; paused = false; previewDef = def;
+  scene = makeScene(def.bg); makeSun(scene, def.w, def.h);
+  board = buildBoard(def); scene.add(board.group);
+  rig = new CameraRig(def.w, def.h);
+  rig.frustum = Math.min(60, Math.max(def.w, def.h) * 0.42); rig.resize(innerWidth, innerHeight); rig.place();
+  input.setCamera(rig.camera, rig);
+  previewing = true;
+  ui.showPreviewBar();
+}
+ui.onPreviewBack = () => { previewing = false; stopScene(); ui.showEditor(); };
+ui.onPreviewPlay = () => { previewing = false; stopScene(); if (previewDef) loadMatch({ level: 2, trackIdx: 0, pick: 'specific', players: previewPlayers(), mode: 'quick', customTrack: previewDef }); };
+function previewPlayers(): PlayerDef[] {
+  const opp = opponentSkins(save.skin(), 3);
+  const names = ['Bolha', 'Zé', 'Nina', 'Tato'];
+  return [{ name: 'Você', isAI: false, skin: save.skin() }, ...opp.map((sk, i) => ({ name: names[i % names.length], isAI: true, ai: AI_KINDS[i % AI_KINDS.length], skin: sk }))];
+}
 
 // -------- fim de corrida --------
 let resultsShown = false;
@@ -238,10 +261,19 @@ addEventListener('resize', resize);
 addEventListener('pointerdown', () => resumeAudio(), { once: true });
 
 ui.showMenu(); resize();
+// pista compartilhada por link (#p=...) → oferece jogar/editar
+try { const h = location.hash || ''; const mtc = h.match(/[#&]p=([^&]+)/); if (mtc) { ui.importSharedTrack(mtc[1]); history.replaceState(null, '', location.pathname + location.search); } } catch {}
 (window as any).__mgr = mgr; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; } };
 const clock = new THREE.Clock(); let t = 0;
 function frame(): void {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;
+  if (previewing && scene) {
+    rig.az += dt * 0.18; rig.place();                         // giro suave pra mostrar a maquete em 3D
+    if (board) for (const sp of board.spinners) sp.rotation.y += dt * 2.4;
+    if (board) for (const bb of board.billboards) bb.quaternion.copy(rig.camera.quaternion);
+    renderer.render(scene, rig.camera);
+    requestAnimationFrame(frame); return;
+  }
   if (inGame && scene) {
     if (!paused) { if (online.active) online.tick(dt); mgr.update(dt); if (mgr.phase === 'over') onRaceOver(); else resultsShown = false; }
     // câmera SEMPRE no jogador da vez (nunca chuta pra uma tampinha que já chegou).
