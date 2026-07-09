@@ -13,6 +13,7 @@ import { AI_KINDS } from './game/ai';
 import { Online } from './net/online';
 import { sfx, resumeAudio, startMusic, stopMusic, setMusicVol, setSfxVol, setMuted, settings } from './audio';
 import { save } from './game/save';
+import { compById, campState, saveCamp, applyResult } from './game/campaign';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const renderer = makeRenderer(canvas);
@@ -29,6 +30,7 @@ let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
 let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string } | null = null;
 let elim: { players: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[] } | null = null;
+let camp: { compId: string; race: number; pts: Map<number, number> } | null = null;
 let dailyFlicks = 0;
 let inGame = false;
 let previewing = false;
@@ -95,6 +97,8 @@ const ui = new UI({
     else champ = null;
     if (cfg.mode === 'elim') { elim = { players: cfg.players.slice(), level: cfg.level, race: 0, out: [] }; cfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
     else elim = null;
+    if (cfg.mode === 'camp' && cfg.campComp) camp = { compId: cfg.campComp, race: 0, pts: new Map() };
+    else camp = null;
     loadMatch(cfg);
   },
   setVols: (m, s, mu) => { setMusicVol(m); setSfxVol(s); setMuted(mu); save.setVols(m, s, mu); },
@@ -110,12 +114,20 @@ online.onChampStanding = (rows, race, total, last) => ui.showOnlineChampStanding
 online.onChampEnd = (winner) => { resultsShown = true; if (winner.you) save.addWin(); sfx.win(); ui.showChampion({ rows: [], fmt: 'champ', youWon: winner.you, name: winner.name, skin: winner.skin }); };
 
 ui.onUseItem = () => { if (online.active) online.localUseItem(); else mgr.useItem(); };
+ui.onCampBack = () => { inGame = false; paused = false; camp = null; stopScene(); ui.showCampaign(); };
+ui.onCampRetry = (compId) => { inGame = false; paused = false; camp = null; stopScene(); ui.launchCamp(compById(compId)); };
+ui.onCampFinale = () => { inGame = false; paused = false; camp = null; stopScene(); ui.showCampFinale(); };
 ui.onPause = () => { if (mgr.phase !== 'over') { paused = true; ui.showPause(); } };
 ui.onResume = () => { paused = false; ui.hideModal(); };
 ui.onRestart = () => { paused = false; ui.hideModal(); if (curCfg) loadMatch(curCfg); };
 ui.onMenu = () => { inGame = false; paused = false; stopScene(); ui.showMenu(); };
 ui.onNext = () => {
   ui.hideModal();
+  if (camp && curCfg) {   // campanha: próxima corrida da competição (pista nova do nível)
+    camp.race++;
+    curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
+    loadMatch(curCfg); return;
+  }
   if (champ) {
     champ.race++;
     if (champ.race >= champ.seq.length) { finishChampionship(); return; }
@@ -198,6 +210,22 @@ let resultsShown = false;
 function onRaceOver(): void {
   if (resultsShown) return; resultsShown = true;
   sfx.win();
+
+  // ---- CAMPANHA: mini-campeonato com troféu e recompensas ----
+  if (mode === 'camp' && camp) {
+    const comp = compById(camp.compId);
+    const table = [12, 9, 7, 5, 3, 1];
+    mgr.standings().forEach((c, i) => camp!.pts.set(c.id, (camp!.pts.get(c.id) || 0) + (table[i] || 0)));
+    const st = campState(); st.races++; saveCamp(st);
+    const rows = [...camp.pts.entries()].sort((a, b) => b[1] - a[1]).map(([id, p]) => ({ name: mgr.caps[id].name, skin: mgr.caps[id].skin, pts: p, you: !mgr.caps[id].isAI }));
+    const last = camp.race + 1 >= comp.races;
+    if (!last) { ui.showResults(mgr, mode, { race: camp.race + 1, total: comp.races, last: false, rows, fmt: 'copa' }); return; }
+    // fim da competição: coloca você, aplica recompensas, mostra o troféu
+    const place = rows.findIndex(r => r.you) + 1;
+    const res = applyResult(campState(), camp.compId, place);
+    ui.showCampResult({ comp, place, ptsGained: res.pts, winsGained: res.wins, improved: res.improved, finished: res.finished, rows });
+    return;
+  }
 
   // ---- CONTRA-RELÓGIO: pontuação por petelecos ----
   if (mode === 'trial') {

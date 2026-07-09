@@ -9,7 +9,7 @@ import { skinById } from './skins';
 import { ITEMS, pickItem } from './chaos';
 
 export type Phase = 'aim' | 'resolve' | 'over';
-export interface PlayerDef { name: string; isAI: boolean; ai?: string; skin: string; team?: number; }
+export interface PlayerDef { name: string; isAI: boolean; ai?: string; skin: string; team?: number; stats?: Partial<import('../engine/core').CapStats>; }
 
 export class GameManager {
   caps: Cap[] = [];
@@ -37,7 +37,8 @@ export class GameManager {
     this.track = new TrackModel(def);
     this.caps = players.map((pl, i) => {
       const sk = skinById(pl.skin);
-      const c = makeCap(i, pl.name, pl.skin, { ...DEFAULT_STATS, ...sk.stats }, pl.isAI, pl.ai);
+      // pl.stats sobrepõe (campanha: starter + upgrades da Oficina)
+      const c = makeCap(i, pl.name, pl.skin, { ...DEFAULT_STATS, ...sk.stats, ...(pl.stats || {}) }, pl.isAI, pl.ai);
       c.team = pl.team ?? -1;
       return c;
     });

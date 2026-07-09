@@ -8,6 +8,7 @@ import { CapArt, Rarity } from '../render/capart';
 export interface Skin {
   id: string; name: string; top: string; side: string; ring: string;
   rarity: Rarity; art: CapArt; stats: CapStats; unlock: number; desc: string;
+  hidden?: boolean;   // tampinhas da CAMPANHA: fora da coleção e dos pools de IA
 }
 
 // arquétipos de jogo (personalidade); a raridade aplica um lift leve por cima.
@@ -120,6 +121,20 @@ export const SKINS: Skin[] = [
   cap('infinito', 'Infinito', 'mitica', 180, 'allround', '#ff4fa3', { bg: ['#ff8fd0', '#6a1fa0'], metal: 'gold', arcTop: ['INFINITO', '#fff'], center: '∞', centerColor: '#fff', centerFont: 'serif', centerSize: 0.6, emblem: 'target', emblemColor: '#ff4fa3', emblemColor2: '#fff', emblemY: 0, emblemScale: 0.95, vintage: 0.1 }, 'A tampinha suprema. Melhor em tudo.'),
 ];
 
+// -------- STARTERS DA CAMPANHA: fracas de propósito (você as evolui na Oficina) --------
+// stats abaixo de qualquer comum; cada uma com um "talento" diferente.
+function starter(id: string, name: string, col: string, art: CapArt, stats: CapStats, desc: string): Skin {
+  return { id, name, rarity: 'comum', unlock: 99999, hidden: true, stats, top: col, side: darken(col), ring: METALCOL[art.metal || 'steel'], art, desc };
+}
+SKINS.push(
+  starter('enferrujada', 'Enferrujada', '#8a5a2e', { bg: ['#9a6a38', '#5a3a18'], metal: 'copper', arcTop: ['FERRO VELHO', '#3a2408'], center: 'Rusty', centerColor: '#3a2408', centerFont: 'script', centerSize: 0.44, vintage: 0.9 },
+    { weight: 1.02, slide: 0.88, stability: 0.92, bounce: 0.86, control: 0.90, power: 0.92, grip: 0.94 }, 'Achada no quintal. Pesadinha, mas cheia de vontade.'),
+  starter('riscada', 'Riscada', '#6b7078', { bg: ['#8a9098', '#4a5058'], metal: 'steel', arcTop: ['BEM USADA', '#2a2e33'], center: 'Risk', centerColor: '#2a2e33', centerFont: 'slab', centerSize: 0.4, vintage: 0.85 },
+    { weight: 0.90, slide: 0.95, stability: 0.88, bounce: 0.92, control: 0.92, power: 0.88, grip: 0.88 }, 'Cheia de riscos de batalha. Levinha e escorregadia.'),
+  starter('desbotada', 'Desbotada', '#c9b89a', { bg: ['#d9c9a8', '#a89670'], metal: 'silver', arcTop: ['COR? QUE COR?', '#7a6a48'], center: 'Fade', centerColor: '#7a6a48', centerFont: 'serif', centerSize: 0.42, vintage: 0.95 },
+    { weight: 0.92, slide: 0.90, stability: 0.94, bounce: 0.88, control: 0.95, power: 0.86, grip: 0.90 }, 'O sol levou a cor, não a mira. Um tiquinho mais precisa.'),
+);
+
 export const CAP_COLORS = ['#e5484d', '#3b82f6', '#3fae6a', '#f7d046', '#f59e0b', '#7c3aed'];
 export const skinById = (id: string): Skin => SKINS.find(s => s.id === id) || SKINS[0];
-export const unlockedSkins = (wins: number): Skin[] => SKINS.filter(s => wins >= s.unlock);
+export const unlockedSkins = (wins: number): Skin[] => SKINS.filter(s => wins >= s.unlock && !s.hidden);

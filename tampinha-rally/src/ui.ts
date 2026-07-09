@@ -7,15 +7,16 @@ import { drawCap, RARITY_COLOR, RARITY_LABEL, RARITY_ORDER } from './render/capa
 import { AI_KINDS, AI_LABEL, AIKind } from './game/ai';
 import { PlayerDef, GameManager } from './game/manager';
 import { ITEMS } from './game/chaos';
+import { LIGAS, COMPS, CampComp, compById, campState, saveCamp, campStats, upCost, UP_MAX, UP_STEP, isUnlocked, pickOpponents, CampState } from './game/campaign';
 import { CapStats } from './engine/core';
 import { Online } from './net/online';
 import { save } from './game/save';
 import { settings } from './audio';
 
-export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla';
+export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp';
 export type Pick = 'specific' | 'randlevel' | 'randany';
 export type ChampFmt = 'copa' | 'gp' | 'sprint' | 'maratona';
-export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; teamSize?: number; customTrack?: any; }
+export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; teamSize?: number; customTrack?: any; campComp?: string; }
 export const CHAMP_FMT: Record<ChampFmt, { name: string; ico: string; races: number; desc: string }> = {
   sprint: { name: 'Sprint', ico: '⚡', races: 3, desc: '3 pistas rápidas' },
   copa: { name: 'Copa', ico: '🏆', races: 5, desc: '5 pistas do nível' },
@@ -97,11 +98,12 @@ export class UI {
           <button class="mode-btn feat" data-m="quick"><span class="mi">🏁</span><b>Jogar Rápido</b><span class="ms">você + IA, é só jogar</span></button>
           <button class="mode-btn" data-m="ai" style="--a:var(--blu)"><span class="mi">🤖</span><b>Contra a IA</b><span class="ms">escolha os rivais</span></button>
           <button class="mode-btn" data-m="mp" style="--a:var(--grn)"><span class="mi">🌐</span><b>Multiplayer</b><span class="ms">local ou online</span></button>
-          <button class="mode-btn hot" data-m="modes" style="--a:#ff4fa3"><span class="mi">🎡</span><b>Modos de Jogo</b><span class="ms">Caos, Eliminação, Dupla…</span></button>
+          <button class="mode-btn hot" data-m="camp" style="--a:#c98a00"><span class="mi">🏆</span><b>Campanha</b><span class="ms">${this.campMenuSub()}</span></button>
+          <button class="mode-btn" data-m="modes" style="--a:#ff4fa3"><span class="mi">🎡</span><b>Modos de Jogo</b><span class="ms">Caos, Eliminação, Dupla…</span></button>
           <button class="mode-btn" data-m="champ" style="--a:var(--gold)"><span class="mi">🏆</span><b>Campeonato</b><span class="ms">4 formatos, 1 campeão</span></button>
           <button class="mode-btn" data-m="daily" style="--a:var(--pur)"><span class="mi">📅</span><b>Desafio Diário</b><span class="ms">a pista do dia</span></button>
           <button class="mode-btn" data-m="editor" style="--a:#00c2a8"><span class="mi">✏️</span><b>Editor de Pista</b><span class="ms">crie e jogue a sua</span></button>
-          <button class="mode-btn" data-m="skins" style="--a:var(--orange)"><span class="mi">🎨</span><b>Tampinhas</b><span class="ms">coleção ${unl}/${SKINS.length}</span></button>
+          <button class="mode-btn" data-m="skins" style="--a:var(--orange)"><span class="mi">🎨</span><b>Tampinhas</b><span class="ms">coleção ${unl}/${SKINS.filter(k => !k.hidden).length}</span></button>
           <button class="mode-btn" data-m="help" style="--a:#00b4d8"><span class="mi">📖</span><b>Como Jogar</b><span class="ms">obstáculos &amp; atributos</span></button>
         </div>
       </div>`);
@@ -115,6 +117,7 @@ export class UI {
       else if (m === 'mp') this.showMultiplayer();
       else if (m === 'modes') this.showModes();
       else if (m === 'editor') this.showEditor();
+      else if (m === 'camp') this.showCampaign();
       else this.showSetup(m as Mode);
     }));
     s.querySelector('#cfgBtn')!.addEventListener('click', () => this.showSettings());
@@ -140,6 +143,217 @@ export class UI {
     this.root.appendChild(s); s.prepend(this.bgFx(7));
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
     s.querySelectorAll('.modecard').forEach(b => b.addEventListener('click', () => this.showSetup((b as HTMLElement).dataset.m as Mode)));
+  }
+
+  // ============================================================ CAMPANHA
+  campMenuSub(): string {
+    const st = campState();
+    if (!st.cap) return 'comece do zero, vire lenda';
+    if (st.done) return '👑 ZERADA! · reviva a glória';
+    const t = Object.values(st.best).filter(p => p <= 3).length;
+    return `${t}/${COMPS.length} troféus · continue!`;
+  }
+  showCampaign(): void {
+    const st = campState();
+    if (!st.cap) { this.showCampStarterPick(); return; }
+    this.clear();
+    const trophies = Object.values(st.best).filter(p => p <= 3).length;
+    const s = this.el(`<div class="screen setup camp">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>🏆 Campanha</h2><div></div></div>
+      <div class="camp-head">
+        <div class="camp-face" id="cface"></div>
+        <div class="camp-info">
+          <b>${skinById(st.cap).name}</b>
+          <span>🏅 ${trophies}/${COMPS.length} troféus ${st.done ? '· <b class="camp-done">👑 ZERADA</b>' : ''}</span>
+        </div>
+        <button class="chip camp-ofi" id="ofi">🔧 Oficina <b>${st.pts}</b></button>
+      </div>
+      <div class="camp-scroll" id="ligas"></div>
+    </div>`);
+    this.root.appendChild(s); s.prepend(this.bgFx(5));
+    const cv = drawCap(skinById(st.cap).art, 96); cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
+    (s.querySelector('#cface') as HTMLElement).appendChild(cv);
+    (s.querySelector('#cface') as HTMLElement).addEventListener('click', () => this.showCampOficina());
+    s.querySelector('#ofi')!.addEventListener('click', () => this.showCampOficina());
+    s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
+    const host = s.querySelector('#ligas') as HTMLElement;
+    LIGAS.forEach((lg, li) => {
+      const sec = this.el(`<div class="camp-liga" style="--lc:${lg.col}">
+        <div class="cl-head"><span class="cl-ico">${lg.ico}</span><div class="cl-tx"><b>${lg.name}</b><span>${lg.desc}</span></div></div>
+        <div class="cl-comps"></div>
+      </div>`);
+      const grid = sec.querySelector('.cl-comps') as HTMLElement;
+      COMPS.forEach((c, ci) => {
+        if (c.liga !== li) return;
+        const unlocked = isUnlocked(st, ci);
+        const best = st.best[c.id];
+        const trophy = best === 1 ? '🥇' : best === 2 ? '🥈' : best === 3 ? '🥉' : '';
+        const card = this.el(`<button class="cc ${unlocked ? '' : 'locked'} ${c.final ? 'final' : ''}">
+          <span class="cc-ico">${unlocked ? c.ico : '🔒'}</span>
+          <b>${c.name}</b>
+          <span class="cc-sub">${c.races} corridas · ${c.nOpp} rivais</span>
+          <span class="cc-tro">${trophy || (unlocked ? '▶ JOGAR' : 'vença a anterior')}</span>
+        </button>`);
+        if (unlocked) card.addEventListener('click', () => this.showCampCompIntro(c));
+        grid.appendChild(card);
+      });
+      host.appendChild(sec);
+    });
+  }
+  // escolha da tampinha inicial (só na primeira vez — é pra vida toda!)
+  showCampStarterPick(): void {
+    this.clear();
+    const starters = SKINS.filter(k => k.hidden);
+    const s = this.el(`<div class="screen setup camp">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>🏆 Campanha</h2><div></div></div>
+      <div class="camp-story">Você achou <b>três tampinhas velhas</b> no fundo do quintal. Nenhuma parece grande coisa… ainda. Escolha a sua companheira: vocês vão juntas <b>do quintal ao topo do mundo</b> — e ela evolui a cada troféu. <b>Escolha com carinho: é pra sempre!</b></div>
+      <div class="camp-pickers" id="pk"></div>
+    </div>`);
+    this.root.appendChild(s); s.prepend(this.bgFx(6));
+    s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
+    const host = s.querySelector('#pk') as HTMLElement;
+    for (const k of starters) {
+      const card = this.el(`<button class="camp-pick"><div class="cp-face"></div><b>${k.name}</b><span class="cp-desc">${k.desc}</span>${capBars(k.stats, true)}<span class="cp-go">ESCOLHER ▶</span></button>`);
+      const cv = drawCap(k.art, 120); cv.style.width = '92px'; cv.style.height = '92px'; cv.style.display = 'block'; cv.style.margin = '0 auto';
+      (card.querySelector('.cp-face') as HTMLElement).appendChild(cv);
+      card.addEventListener('click', () => {
+        const st = campState(); st.cap = k.id; saveCamp(st);
+        this.notify(`${k.name} é sua! Boa sorte, campeã! 🍀`, 'good');
+        this.showCampaign();
+      });
+      host.appendChild(card);
+    }
+  }
+  // OFICINA: distribui pontos nos 7 atributos (só valem na campanha)
+  showCampOficina(): void {
+    this.clear();
+    const st = campState(); const sk = skinById(st.cap || 'coca');
+    const cur = campStats(st);
+    const s = this.el(`<div class="screen setup camp">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Campanha</button><h2>🔧 Oficina</h2><div></div></div>
+      <div class="ofi-head">
+        <div class="camp-face big" id="oface"></div>
+        <div class="ofi-tx"><b>${sk.name}</b><span>Pontos de Oficina: <b class="ofi-pts">${st.pts}</b> ⭐</span><small>Ganhe pontos com troféus e melhore ONDE VOCÊ quiser. Vale só na campanha.</small></div>
+      </div>
+      <div class="ofi-rows" id="rows"></div>
+      <button class="chip" id="reset">↩️ Redistribuir tudo (de graça)</button>
+    </div>`);
+    this.root.appendChild(s); s.prepend(this.bgFx(4));
+    const cv = drawCap(sk.art, 120); cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
+    (s.querySelector('#oface') as HTMLElement).appendChild(cv);
+    s.querySelector('#back')!.addEventListener('click', () => this.showCampaign());
+    const rows = s.querySelector('#rows') as HTMLElement;
+    const defs: [string, string, keyof CapStats][] = [['💨', 'Desliza', 'slide'], ['⚖️', 'Peso', 'weight'], ['🎯', 'Controle', 'control'], ['🏀', 'Quique', 'bounce'], ['🌀', 'Estabil.', 'stability'], ['💥', 'Potência', 'power'], ['🧲', 'Aderência', 'grip']];
+    const render = () => {
+      const st2 = campState(); const cur2 = campStats(st2);
+      (s.querySelector('.ofi-pts') as HTMLElement).textContent = String(st2.pts);
+      rows.innerHTML = '';
+      for (const [ico, lab, key] of defs) {
+        const lvl = st2.alloc[key] || 0; const cost = upCost(lvl); const maxed = lvl >= UP_MAX;
+        const canBuy = !maxed && st2.pts >= cost;
+        const pips = Array.from({ length: UP_MAX }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
+        const row = this.el(`<div class="ofi-row">
+          <span class="or-ico">${ico}</span>
+          <div class="or-mid"><div class="or-top"><b>${lab}</b><span class="or-val">${statVal(cur2[key])}</span></div><div class="or-pips">${pips}</div></div>
+          <button class="or-plus ${canBuy ? '' : 'off'}" data-k="${key}">${maxed ? 'MAX' : `+1 <small>⭐${cost}</small>`}</button>
+        </div>`);
+        const btn = row.querySelector('.or-plus') as HTMLElement;
+        if (canBuy) btn.addEventListener('click', () => {
+          const st3 = campState(); const l = st3.alloc[key] || 0; const cc = upCost(l);
+          if (st3.pts < cc || l >= UP_MAX) return;
+          st3.pts -= cc; st3.alloc[key] = l + 1; saveCamp(st3); render();
+        });
+        rows.appendChild(row);
+      }
+    };
+    render();
+    s.querySelector('#reset')!.addEventListener('click', () => {
+      const st3 = campState(); let refund = 0;
+      for (const k of Object.keys(st3.alloc)) { const l = st3.alloc[k]; for (let i = 0; i < l; i++) refund += upCost(i); }
+      if (!refund) return;
+      st3.pts += refund; st3.alloc = {}; saveCamp(st3); render();
+      this.notify(`⭐ ${refund} pontos devolvidos!`, 'good');
+    });
+  }
+  // ficha da competição antes de começar
+  showCampCompIntro(c: CampComp): void {
+    const st = campState(); const lg = LIGAS[c.liga];
+    const rarLab: Record<string, string> = { comum: 'Comuns', rara: 'Raras', epica: 'Épicas', lendaria: 'Lendárias', mitica: 'MÍTICAS' };
+    const { box, close } = this.overlay(`
+      <div class="ov-head"><b>${c.ico} ${c.name}</b><button class="ov-x">✕</button></div>
+      <div class="ov-sub">${lg.ico} ${lg.name} · dificuldade <b>${LEVELS[c.level]}</b></div>
+      <div class="cc-detail">
+        <div>🏁 <b>${c.races} corridas</b> — pontos por posição, soma tudo</div>
+        <div>🥊 <b>${c.nOpp} rivais</b> com tampinhas <b>${c.rarities.map(r => rarLab[r]).join(' e ')}</b></div>
+        <div>🏅 Pódio libera a próxima · 🥇 OURO = mais pontos de Oficina</div>
+        ${c.final ? '<div class="cc-final-note">👑 A GRANDE FINAL: vença e entre pra história!</div>' : ''}
+      </div>
+      <div class="mactions"><button class="chip" id="cofi">🔧 Oficina</button><button class="play-btn" id="go">🏁 Começar</button></div>`);
+    box.querySelector('.ov-x')!.addEventListener('click', close);
+    box.querySelector('#cofi')!.addEventListener('click', () => { close(); this.showCampOficina(); });
+    box.querySelector('#go')!.addEventListener('click', () => { close(); this.launchCamp(c); });
+  }
+  launchCamp(c: CampComp): void {
+    const st = campState(); if (!st.cap) return;
+    const opp = pickOpponents(c);
+    const players: PlayerDef[] = [
+      { name: this.myName || 'Você', isAI: false, skin: st.cap, stats: campStats(st) },
+      ...opp.map((sk, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: c.aiKinds[i % c.aiKinds.length], skin: sk })),
+    ];
+    this.cb.start({ level: c.level, trackIdx: Math.floor(Math.random() * TRACKS_PER_LEVEL), pick: 'randlevel', players, mode: 'camp', campComp: c.id });
+  }
+  // resultado da competição (troféu + recompensas)
+  onCampBack: (() => void) | null = null;
+  onCampRetry: ((compId: string) => void) | null = null;
+  onCampFinale: (() => void) | null = null;
+  showCampResult(d: { comp: CampComp; place: number; ptsGained: number; winsGained: number; improved: boolean; finished: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[] }): void {
+    const { modal, box } = this.modalBox(); box.className = 'modal win';
+    const tro = d.place === 1 ? '🥇' : d.place === 2 ? '🥈' : d.place === 3 ? '🥉' : '😤';
+    const head = d.place === 1 ? 'CAMPEÃO!' : d.place === 2 ? 'Prata!' : d.place === 3 ? 'Bronze!' : d.place + 'º lugar';
+    const podio = d.place <= 3;
+    const rewards = (d.ptsGained || d.winsGained)
+      ? `<div class="camp-rw">${d.ptsGained ? `<span class="rw">🔧 +${d.ptsGained} pts de Oficina</span>` : ''}${d.winsGained ? `<span class="rw">🏆 +${d.winsGained} vitórias (modo livre)</span>` : ''}</div>`
+      : (podio ? '<div class="camp-rw"><span class="rw dim">troféu já conquistado — melhore pra ganhar mais!</span></div>' : '');
+    box.innerHTML = `<div class="camp-tro">${tro}</div><h3>${d.comp.ico} ${d.comp.name}</h3><div class="camp-place">${head}</div>
+      ${rewards}
+      ${!podio ? '<div class="camp-tip">Precisa de PÓDIO (top 3) pra liberar a próxima. Passa na 🔧 Oficina e tenta de novo!</div>' : ''}
+      <div class="champ-stand">${d.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>
+      <div class="mactions"><button class="chip" id="again">↻ De novo</button><button class="play-btn" id="mapa">${d.finished ? '👑 Ver o FINAL' : 'Campanha ▶'}</button></div>`;
+    box.querySelectorAll('.cs-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 44)));
+    modal.classList.remove('hidden');
+    if (podio) this.confetti(box);
+    box.querySelector('#again')!.addEventListener('click', () => { this.hideModal(); this.onCampRetry?.(d.comp.id); });
+    box.querySelector('#mapa')!.addEventListener('click', () => {
+      this.hideModal();
+      if (d.finished) this.onCampFinale?.(); else this.onCampBack?.();
+    });
+  }
+  // O FINAL — cerimônia de zeramento
+  showCampFinale(): void {
+    const st = campState(); const sk = skinById(st.cap || 'coca');
+    const golds = Object.values(st.best).filter(p => p === 1).length;
+    this.clear();
+    const s = this.el(`<div class="screen camp-finale">
+      <div class="fin-stars"></div>
+      <div class="fin-crown">👑</div>
+      <h1 class="fin-title">LENDA DAS<br>TAMPINHAS</h1>
+      <div class="fin-face" id="ff"></div>
+      <div class="fin-cap">${sk.name}</div>
+      <div class="fin-story">Ela era só uma tampinha <b>${sk.name.toLowerCase()}</b> achada no quintal.<br>Ninguém apostava nada. Hoje, o mundo inteiro conhece o seu peteleco.</div>
+      <div class="fin-stats">
+        <div><b>${st.races}</b><span>corridas</span></div>
+        <div><b>${golds}</b><span>ouros</span></div>
+        <div><b>${Object.values(st.best).filter(p => p <= 3).length}/${COMPS.length}</b><span>troféus</span></div>
+      </div>
+      <div class="fin-bonus">🎁 Bônus de lenda: <b>+10 vitórias</b> no modo livre e <b>+10 pontos</b> de Oficina!</div>
+      <div class="fin-note">A campanha continua aberta: cace os 🥇 que faltam!</div>
+      <button class="play-btn" id="fim">✨ Voltar como LENDA</button>
+    </div>`);
+    this.root.appendChild(s);
+    const cv = drawCap(sk.art, 180); cv.style.width = '130px'; cv.style.height = '130px'; cv.style.display = 'block'; cv.style.margin = '0 auto';
+    (s.querySelector('#ff') as HTMLElement).appendChild(cv);
+    this.confetti(s); setTimeout(() => this.confetti(s), 900); setTimeout(() => this.confetti(s), 1800);
+    s.querySelector('#fim')!.addEventListener('click', () => this.showCampaign());
   }
 
   // -------------------------------------------------------- EDITOR DE PISTA
@@ -658,14 +872,14 @@ export class UI {
     this.clear();
     const wins = save.wins(); const cur = save.skin();
     const s = this.el(`<div class="screen skins">
-      <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Tampinhas <span class="cap-count">${unlockedSkins(wins).length}/${SKINS.length}</span></h2><div></div></div>
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Tampinhas <span class="cap-count">${unlockedSkins(wins).length}/${SKINS.filter(k => !k.hidden).length}</span></h2><div></div></div>
       <div class="skin-scroll" id="scroll"></div>
     </div>`);
     this.root.appendChild(s);
     s.prepend(this.bgFx(5));
     const scroll = s.querySelector('#scroll') as HTMLElement;
     for (const rar of RARITY_ORDER) {
-      const group = SKINS.filter(k => k.rarity === rar);
+      const group = SKINS.filter(k => k.rarity === rar && !k.hidden);
       const got = group.filter(k => wins >= k.unlock).length;
       const sec = this.el(`<div class="rar-sec">
         <div class="rar-head" style="--rc:${RARITY_COLOR[rar]}"><span class="rar-dot"></span>${RARITY_LABEL[rar]} <b>${got}/${group.length}</b></div>
@@ -1160,7 +1374,7 @@ export class UI {
 // da dele — assim o campo fica sempre no mesmo nível (comum×comum, mítica×mítica…)
 export function opponentSkins(playerId: string, n: number): string[] {
   const rar = skinById(playerId).rarity;
-  const pool = SKINS.filter(s => s.rarity === rar && s.id !== playerId).map(s => s.id);
+  const pool = SKINS.filter(s => s.rarity === rar && s.id !== playerId && !s.hidden).map(s => s.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const out: string[] = [];
   for (let i = 0; i < Math.max(0, n); i++) out.push(pool.length ? pool[i % pool.length] : playerId);
