@@ -11,7 +11,8 @@ import { InputController } from './input';
 import { UI, MatchConfig, Mode, opponentSkins } from './ui';
 import { AI_KINDS } from './game/ai';
 import { Online } from './net/online';
-import { sfx, resumeAudio, startMusic, stopMusic, setMusicVol, setSfxVol, setMuted, settings } from './audio';
+import { sfx, resumeAudio, setMusicVol, setSfxVol, setMuted, settings, audioCtx, musicBus } from './audio';
+import { playMusic, songForTheme, musicNow } from './music';
 import { save } from './game/save';
 import { compById, campState, saveCamp, applyResult } from './game/campaign';
 
@@ -35,7 +36,8 @@ let dailyFlicks = 0;
 let inGame = false;
 let previewing = false;
 let previewDef: any = null;
-let musicStarted = false;
+// música: menu toca a partir do primeiro toque na tela (regra de autoplay dos navegadores)
+window.addEventListener('pointerdown', () => { resumeAudio(); if (!inGame) playMusic('menu'); });
 
 // carrega a cena de uma pista e prepara a partida
 function loadMatch(cfg: MatchConfig): void {
@@ -53,7 +55,7 @@ function loadMatch(cfg: MatchConfig): void {
   caps.build(mgr.caps);
   input.setCamera(rig.camera, rig);
   ui.showGame(); inGame = true;
-  if (!musicStarted) { startMusic(); musicStarted = true; }
+  playMusic(songForTheme(def.theme));   // cada cenário tem a sua música de corrida
   ui.updateHUD(mgr, humanTurn());
 }
 
@@ -108,19 +110,19 @@ const ui = new UI({
 
 // -------- multiplayer online: início/lobby/fim geridos aqui (cena + IA do host) --------
 online.onStartMatch = (players, level, trackIdx) => { curCfg = null; champ = null; resultsShown = false; loadMatch({ level, trackIdx, pick: 'specific', players, mode: 'online' }); };
-online.onToLobby = () => { inGame = false; paused = false; resultsShown = false; stopScene(); ui.showLobby(); };
-online.onClosed = () => { const wasIn = inGame; inGame = false; paused = false; resultsShown = false; if (wasIn) stopScene(); ui.showOnlineHome(); };
+online.onToLobby = () => { inGame = false; paused = false; resultsShown = false; stopScene(); playMusic('menu'); ui.showLobby(); };
+online.onClosed = () => { const wasIn = inGame; inGame = false; paused = false; resultsShown = false; if (wasIn) stopScene(); playMusic('menu'); ui.showOnlineHome(); };
 online.onChampStanding = (rows, race, total, last) => ui.showOnlineChampStanding(rows, race, total, last, online.isHost);
 online.onChampEnd = (winner) => { resultsShown = true; if (winner.you) save.addWin(); sfx.win(); ui.showChampion({ rows: [], fmt: 'champ', youWon: winner.you, name: winner.name, skin: winner.skin }); };
 
 ui.onUseItem = () => { if (online.active) online.localUseItem(); else mgr.useItem(); };
-ui.onCampBack = () => { inGame = false; paused = false; camp = null; stopScene(); ui.showCampaign(); };
+ui.onCampBack = () => { inGame = false; paused = false; camp = null; stopScene(); playMusic('menu'); ui.showCampaign(); };
 ui.onCampRetry = (compId) => { inGame = false; paused = false; camp = null; stopScene(); ui.launchCamp(compById(compId)); };
-ui.onCampFinale = () => { inGame = false; paused = false; camp = null; stopScene(); ui.showCampFinale(); };
+ui.onCampFinale = () => { inGame = false; paused = false; camp = null; stopScene(); playMusic('menu'); ui.showCampFinale(); };
 ui.onPause = () => { if (mgr.phase !== 'over') { paused = true; ui.showPause(); } };
 ui.onResume = () => { paused = false; ui.hideModal(); };
 ui.onRestart = () => { paused = false; ui.hideModal(); if (curCfg) loadMatch(curCfg); };
-ui.onMenu = () => { inGame = false; paused = false; stopScene(); ui.showMenu(); };
+ui.onMenu = () => { inGame = false; paused = false; stopScene(); playMusic('menu'); ui.showMenu(); };
 ui.onNext = () => {
   ui.hideModal();
   if (camp && curCfg) {   // campanha: próxima corrida da competição (pista nova do nível)
@@ -197,7 +199,7 @@ function rebuildPreviewBoard(): void {
   board = buildBoard(previewDef); scene.add(board.group);
 }
 function rebuildPreviewBoardThrottled(): void { const now = performance.now(); if (now - lastPrevRebuild < 70) return; lastPrevRebuild = now; rebuildPreviewBoard(); }
-ui.onPreviewBack = () => { previewing = false; stopScene(); ui.showEditor(); };
+ui.onPreviewBack = () => { previewing = false; stopScene(); playMusic('menu'); ui.showEditor(); };
 ui.onPreviewPlay = () => { previewing = false; stopScene(); if (previewDef) loadMatch({ level: 2, trackIdx: 0, pick: 'specific', players: previewPlayers(), mode: 'quick', customTrack: previewDef }); };
 function previewPlayers(): PlayerDef[] {
   const opp = opponentSkins(save.skin(), 3);
@@ -304,7 +306,7 @@ addEventListener('pointerdown', () => resumeAudio(), { once: true });
 ui.showMenu(); resize();
 // pista compartilhada por link (#p=...) → oferece jogar/editar
 try { const h = location.hash || ''; const mtc = h.match(/[#&]p=([^&]+)/); if (mtc) { ui.importSharedTrack(mtc[1]); history.replaceState(null, '', location.pathname + location.search); } } catch {}
-(window as any).__mgr = mgr; (window as any).__ui = ui; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; }, get previewing() { return previewing; }, get az() { return rig.az; }, get frustum() { return rig.frustum; } };
+(window as any).__mgr = mgr; (window as any).__ui = ui; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; }, get previewing() { return previewing; }, get az() { return rig.az; }, get frustum() { return rig.frustum; }, get music() { return musicNow(); }, get actx() { return audioCtx(); }, get mbus() { return musicBus(); }, playMusic };
 const clock = new THREE.Clock(); let t = 0;
 function frame(): void {
   const dt = Math.min(0.05, clock.getDelta()); t += dt;

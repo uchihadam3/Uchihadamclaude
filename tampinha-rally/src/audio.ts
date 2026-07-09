@@ -3,7 +3,6 @@
 let ctx: AudioContext | null = null;
 let master: GainNode, sfxGain: GainNode, musGain: GainNode;
 let slideNoise: AudioBufferSourceNode | null = null, slideGain: GainNode | null = null, slideFilt: BiquadFilterNode | null = null;
-let musicOn = false; let musicTimer = 0;
 export const settings = { music: 0.5, sfx: 0.8, muted: false };
 
 function ensure(): boolean {
@@ -17,6 +16,9 @@ function ensure(): boolean {
   } catch { return false; }
 }
 export function resumeAudio(): void { if (ensure() && ctx!.state === 'suspended') ctx!.resume(); }
+// acesso pro motor de música (music.ts)
+export function audioCtx(): AudioContext | null { return ensure() ? ctx : null; }
+export function musicBus(): GainNode | null { return ensure() ? musGain : null; }
 
 function noiseBuf(): AudioBuffer {
   const n = ctx!.sampleRate * 1; const b = ctx!.createBuffer(1, n, ctx!.sampleRate); const d = b.getChannelData(0);
@@ -58,30 +60,11 @@ export const sfx = {
   },
 };
 
-// música: progressão simples e alegre + shaker (samba leve)
-const CHORDS = [[196, 247, 294], [220, 262, 330], [175, 220, 262], [196, 247, 311]];
-export function startMusic(): void { if (!ensure()) return; musicOn = true; musicTimer = 0; scheduleMusic(); }
-export function stopMusic(): void { musicOn = false; }
-function scheduleMusic(): void {
-  if (!ctx || !musicOn) return;
-  const t = ctx.currentTime; const bar = musicTimer % CHORDS.length; const ch = CHORDS[bar];
-  ch.forEach(f => { const o = ctx!.createOscillator(); const g = ctx!.createGain(); o.type = 'triangle'; o.frequency.value = f;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + 0.05); g.gain.exponentialRampToValueAtTime(0.001, t + 1.7);
-    o.connect(g); g.connect(musGain); o.start(t); o.stop(t + 1.8); });
-  // melodia + shaker
-  const mel = [ch[2] * 2, ch[1] * 2, ch[2] * 2, ch[0] * 2];
-  mel.forEach((f, i) => { const o = ctx!.createOscillator(); const g = ctx!.createGain(); o.type = 'sine'; o.frequency.value = f;
-    const tt = t + i * 0.45; g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.05, tt + 0.03); g.gain.exponentialRampToValueAtTime(0.001, tt + 0.35);
-    o.connect(g); g.connect(musGain); o.start(tt); o.stop(tt + 0.4); });
-  for (let i = 0; i < 8; i++) noiseShaker(t + i * 0.225);
-  musicTimer++;
-  setTimeout(scheduleMusic, 1800);
-}
-function noiseShaker(t0: number): void {
-  if (!ctx) return; const s = ctx.createBufferSource(); s.buffer = noiseBuf(); const f = ctx.createBiquadFilter(); const g = ctx.createGain();
-  f.type = 'highpass'; f.frequency.value = 6000; g.gain.setValueAtTime(0.03, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
-  s.connect(f); f.connect(g); g.connect(musGain); s.start(t0); s.stop(t0 + 0.1);
-}
+// A trilha de verdade mora em music.ts (7 composições de 2–3 min).
+// Estas duas funções ficam por compatibilidade: menu toca a música do menu.
+import { playMusic, stopAllMusic } from './music';
+export function startMusic(): void { playMusic('menu'); }
+export function stopMusic(): void { stopAllMusic(); }
 
 export function setMusicVol(v: number): void { settings.music = v; if (musGain) musGain.gain.value = v; }
 export function setSfxVol(v: number): void { settings.sfx = v; if (sfxGain) sfxGain.gain.value = v; }
