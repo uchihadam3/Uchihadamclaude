@@ -16,22 +16,24 @@ export const LEVEL_COLORS = ['#3fae6a', '#3b82f6', '#f2b100', '#e5762a', '#e5484
 interface Theme {
   key: string; ground: Surface; bg: string; wall: string;
   patch: Surface[]; decor: string[]; names: string[];
+  paint?: string;                 // pintura PRÓPRIA do chão (visual — física continua no ground)
+  patchN?: [number, number];      // quantas manchas de terreno (temas "de terreno" têm mais)
 }
 const THEMES: Theme[] = [
   { key: 'quintal', ground: 'dirt', bg: '#6f5334', wall: '#6b4e2e', patch: ['sand', 'mud', 'grass'], decor: ['twig', 'leaf', 'pebble', 'grass'], names: ['Quintal do Zé', 'Terra Batida', 'Fundo de Quintal', 'Chão de Terra'] },
   { key: 'praia', ground: 'sand', bg: '#d9b877', wall: '#c9a35f', patch: ['water', 'ramp', 'cardboard'], decor: ['shell', 'starfish', 'castle', 'pebble'], names: ['Praia da Tarde', 'Areia Fofa', 'Beira-Mar', 'Duna do Sol'] },
   { key: 'calcada', ground: 'sidewalk', bg: '#9a9488', wall: '#8f8879', patch: ['chalk', 'cardboard', 'gum'], decor: ['chalk', 'toy', 'pebble'], names: ['Calçada de Giz', 'Rua de Baixo', 'Passeio', 'Meio-Fio'] },
   { key: 'garagem', ground: 'cardboard', bg: '#7d6a4e', wall: '#a9773f', patch: ['sidewalk', 'magnet', 'sand'], decor: ['box', 'tape', 'pencil'], names: ['Garagem', 'Papelão & Fita', 'Depósito', 'Oficina'] },
-  { key: 'parquinho', ground: 'dirt', bg: '#4f5b3a', wall: '#5c4a2c', patch: ['mud', 'water', 'grass'], decor: ['leaf', 'grass', 'pebble'], names: ['Parquinho Molhado', 'Lamaçal', 'Depois da Chuva', 'Poça & Folha'] },
-  { key: 'cozinha', ground: 'cardboard', bg: '#c8b48c', wall: '#c05a5a', patch: ['sidewalk', 'water', 'ice'], decor: ['cup', 'coin', 'eraser', 'straw'], names: ['Mesa da Cozinha', 'Hora do Café', 'Toalha Xadrez', 'Bancada'] },
-  { key: 'jardim', ground: 'dirt', bg: '#3f5a2e', wall: '#5a7a3a', patch: ['grass', 'mud', 'sand'], decor: ['grass', 'leaf', 'twig', 'pebble'], names: ['Jardim da Vó', 'Canteiro', 'Grama & Terra', 'Horta'] },
-  { key: 'deserto', ground: 'sand', bg: '#c98f4a', wall: '#a6702f', patch: ['ramp', 'vortex', 'water'], decor: ['pebble', 'twig', 'starfish'], names: ['Deserto', 'Dunas', 'Sol a Pino', 'Areião'] },
-  { key: 'obra', ground: 'dirt', bg: '#6a6152', wall: '#8a8070', patch: ['cardboard', 'sand'], decor: ['box', 'pencil', 'pebble'], names: ['Canteiro de Obra', 'Entulho', 'Cimento', 'Andaime'] },
-  { key: 'laje', ground: 'sidewalk', bg: '#8f9aa0', wall: '#7a848a', patch: ['cardboard', 'chalk', 'ice'], decor: ['toy', 'pebble', 'tape'], names: ['Laje', 'Terraço', 'Cobertura', 'Varal'] },
-  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'ice', 'vortex'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'] },
-  { key: 'feira', ground: 'cardboard', bg: '#a88f5c', wall: '#8a6238', patch: ['sidewalk', 'chalk'], decor: ['box', 'coin', 'tape', 'cup'], names: ['Feira Livre', 'Barraca', 'Calçadão', 'Mercadão'] },
-  { key: 'estrada', ground: 'dirt', bg: '#5c4a30', wall: '#4a3a24', patch: ['mud', 'sand', 'grass'], decor: ['pebble', 'twig', 'grass'], names: ['Estrada de Barro', 'Trilha', 'Rua sem Asfalto', 'Beira da Roça'] },
-  { key: 'varanda', ground: 'cardboard', bg: '#8a6a44', wall: '#6b4e2e', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'leaf', 'pencil'], names: ['Varanda', 'Área Coberta', 'Quintalzinho', 'Alpendre'] },
+  { key: 'parquinho', ground: 'dirt', bg: '#414c36', wall: '#5c4a2c', patch: ['water', 'mud', 'water', 'grass'], decor: ['leaf', 'grass', 'pebble'], names: ['Parquinho Molhado', 'Lamaçal', 'Depois da Chuva', 'Poça & Folha'], paint: 'wetdirt', patchN: [5, 7] },
+  { key: 'cozinha', ground: 'cardboard', bg: '#c8b48c', wall: '#c05a5a', patch: ['sidewalk', 'water', 'ice'], decor: ['cup', 'coin', 'eraser', 'straw'], names: ['Mesa da Cozinha', 'Hora do Café', 'Toalha Xadrez', 'Bancada'], paint: 'gingham' },
+  { key: 'jardim', ground: 'dirt', bg: '#3f5a2e', wall: '#5a7a3a', patch: ['grass', 'grass', 'mud', 'water'], decor: ['grass', 'leaf', 'twig', 'pebble'], names: ['Jardim da Vó', 'Canteiro', 'Grama & Terra', 'Horta'], paint: 'garden', patchN: [5, 7] },
+  { key: 'deserto', ground: 'sand', bg: '#c98f4a', wall: '#a6702f', patch: ['ramp', 'vortex', 'water'], decor: ['pebble', 'twig', 'starfish'], names: ['Deserto', 'Dunas', 'Sol a Pino', 'Areião'], paint: 'dunes' },
+  { key: 'obra', ground: 'sidewalk', bg: '#7e786a', wall: '#8a8070', patch: ['sand', 'cardboard', 'push'], decor: ['box', 'pencil', 'pebble'], names: ['Canteiro de Obra', 'Entulho', 'Cimento', 'Andaime'], paint: 'cement' },
+  { key: 'laje', ground: 'sidewalk', bg: '#8f9aa0', wall: '#7a848a', patch: ['cardboard', 'chalk', 'ice'], decor: ['toy', 'pebble', 'tape'], names: ['Laje', 'Terraço', 'Cobertura', 'Varal'], paint: 'slab' },
+  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'ice', 'vortex'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'], paint: 'tiles' },
+  { key: 'feira', ground: 'cardboard', bg: '#a88f5c', wall: '#8a6238', patch: ['sidewalk', 'chalk'], decor: ['box', 'coin', 'tape', 'cup'], names: ['Feira Livre', 'Barraca', 'Calçadão', 'Mercadão'], paint: 'stripes' },
+  { key: 'estrada', ground: 'dirt', bg: '#7e4a30', wall: '#4a3a24', patch: ['mud', 'mud', 'sand'], decor: ['pebble', 'twig', 'grass'], names: ['Estrada de Barro', 'Trilha', 'Rua sem Asfalto', 'Beira da Roça'], paint: 'clay', patchN: [4, 6] },
+  { key: 'varanda', ground: 'cardboard', bg: '#8a6a44', wall: '#6b4e2e', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'leaf', 'pencil'], names: ['Varanda', 'Área Coberta', 'Quintalzinho', 'Alpendre'], paint: 'planks' },
 ];
 // TEMAS NOVOS — cada um estreia um PISO com mecânica própria (ver core/physics):
 //  · SINUCA: feltro rola liso e as bordas viram TABELA VIVA (quique forte de propósito)
@@ -189,7 +191,8 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     patches.push({ surface: 'ramp', x: pp.x, y: pp.y, r: rf(1.5, 2.0), dir: Math.atan2(t.y, t.x) });
   }
   // poças/areia/lama temáticas — formas VARIADAS (redondas E compridas/retangulares)
-  for (let k = 0; k < ri(3, 5); k++) {
+  const pn = theme.patchN || [3, 5];
+  for (let k = 0; k < ri(pn[0], pn[1]); k++) {
     const a = rf(0.1, 0.9) * total; const pp = onPath(a, rf(-half0 * 0.35, half0 * 0.35));
     const sfc = theme.patch[ri(0, theme.patch.length - 1)]; const { i } = atArc(a); const t = tangentAt(path, i);
     const dir = sfc === 'water' ? Math.atan2(t.y, t.x) + rf(-0.6, 0.6) : undefined;
@@ -394,7 +397,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const finish: [V, V] = [vec(fp.x + fn.x * (half0 + 0.6), fp.y + fn.y * (half0 + 0.6)), vec(fp.x - fn.x * (half0 + 0.6), fp.y - fn.y * (half0 + 0.6))];
 
   const name = theme.names[idxInLevel % theme.names.length] + (idxInLevel >= theme.names.length ? ' ' + (Math.floor(idxInLevel / theme.names.length) + 1) : '');
-  return { id, name, theme: theme.key, level, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor };
+  return { id, name, theme: theme.key, level, w, h, ground: theme.ground, paint: theme.paint, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor };
 }
 
 // gera as 50 pistas (10 por nível), cacheadas por id
@@ -535,7 +538,7 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   const fp = path[N - 1], ft = tangentAt(path, N - 1); const fn = { x: -ft.y, y: ft.x };
   const finish: [V, V] = [vec(fp.x + fn.x * (half0 + 0.6), fp.y + fn.y * (half0 + 0.6)), vec(fp.x - fn.x * (half0 + 0.6), fp.y - fn.y * (half0 + 0.6))];
 
-  const def: any = { id: 900, name: data.name || 'Minha Pista', theme: theme.key, level: 2, w, h, ground: theme.ground, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor: [] };
+  const def: any = { id: 900, name: data.name || 'Minha Pista', theme: theme.key, level: 2, w, h, ground: theme.ground, paint: theme.paint, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor: [] };
   def._shift = { dx: dxs, dy: dys };   // p/ o editor 3D mapear tela↔coords do editor
   def._total = total;                  // comprimento (p/ apagar muro por arco)
   return def;

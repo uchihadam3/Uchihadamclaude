@@ -13,7 +13,7 @@ export interface Decor { kind: string; x: number; y: number; s?: number; rot?: n
 
 export interface TrackDef {
   id: number; name: string; theme: string; level: number;   // level 0..4
-  w: number; h: number; ground: Surface; bg: string; wallCol: string;
+  w: number; h: number; ground: Surface; paint?: string; bg: string; wallCol: string;
   path: V[]; half: number[];      // meia-largura do corredor por ponto
   pads: { x: number; y: number; r: number }[];
   patches: Patch[]; walls: Wall[]; obstacles: Obstacle[];

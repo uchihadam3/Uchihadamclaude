@@ -48,7 +48,7 @@ export const SURF: Record<Surface, { fric: number; drag: number }> = {
   felt:      { fric: 6.0,  drag: 0.22 },   // FELTRO (sinuca): rola liso E as bordas viram TABELA VIVA (quique forte)
   frost:     { fric: 3.2,  drag: 0.08 },   // ESCARCHA (congelador): desliza quase como gelo e DERRAPA (freio do Controle não pega)
   metal:     { fric: 5.2,  drag: 0.16 },   // AÇO (bancada): desliza bem e quica FORTE em muro/pedra (pinball)
-  carpet:    { fric: 13.5, drag: 0.75 },   // TAPETE felpudo: freia e AMORTECE todo quique (tabelinha morre)
+  carpet:    { fric: 12.0, drag: 0.75 },   // TAPETE felpudo: freia e AMORTECE o quique nas tábuas (tabelinha morre)
   gum:       { fric: 32.0, drag: 2.0  },   // CHICLETE: gruda rapidinho — e o peteleco SAINDO dele sai fraco (mas escapa!)
   magnet:    { fric: 6.5,  drag: 0.2  },   // ÍMÃ: PUXA a tampinha (de metal!) pro centro — curva o tiro, captura o fraco
   vortex:    { fric: 6.0,  drag: 0.2  },   // REDEMOINHO: GIRA a trajetória enquanto está dentro (o tiro faz curva)

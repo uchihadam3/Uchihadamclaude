@@ -72,6 +72,133 @@ const GROUND: Record<string, (c: CanvasRenderingContext2D, w: number, h: number)
   },
   mud: () => {}, water: () => {}, ramp: () => {}, push: () => {}, chalk: () => {}, ice: () => {}, out: () => {},
   gum: () => {}, magnet: () => {}, vortex: () => {},
+
+  // ---- PINTURAS POR TEMA (visual próprio; a física continua no ground) ----
+  wetdirt(c, w, h) {  // PARQUINHO depois da chuva: terra escura encharcada com brilho de poça
+    c.fillStyle = '#5f4c30'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 3000, '#4a3a22', 0.55, 2.4); noise(c, w, h, 1200, '#6f5a3a', 0.4, 2.0); noise(c, w, h, 400, '#33260f', 0.5, 3.6);
+    for (let i = 0; i < 26; i++) {   // brilho molhado (reflexo do céu nas partes lisas)
+      c.globalAlpha = 0.10 + Math.random() * 0.12; c.fillStyle = '#b8d4e2';
+      c.beginPath(); c.ellipse(Math.random() * w, Math.random() * h, 26 + Math.random() * 70, 8 + Math.random() * 18, Math.random() * 3, 0, 7); c.fill();
+    }
+    c.globalAlpha = 1;
+    for (let i = 0; i < 30; i++) { c.fillStyle = Math.random() < 0.5 ? '#5f8a36' : '#3f5c22'; c.globalAlpha = 0.6; c.beginPath(); c.ellipse(Math.random() * w, Math.random() * h, 7, 3.5, Math.random() * 3, 0, 7); c.fill(); }   // folhinhas caídas
+    c.globalAlpha = 1;
+  },
+  garden(c, w, h) {   // JARDIM: terra adubada com musgo e brotinhos por todo canto
+    c.fillStyle = '#5c4a2e'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 2600, '#4a3a20', 0.5, 2.2); noise(c, w, h, 1000, '#6f5c3a', 0.4, 2.0);
+    for (let i = 0; i < 60; i++) {   // manchas de musgo
+      c.globalAlpha = 0.16 + Math.random() * 0.18; c.fillStyle = Math.random() < 0.5 ? '#4f7d30' : '#3e6626';
+      c.beginPath(); c.arc(Math.random() * w, Math.random() * h, 14 + Math.random() * 34, 0, 7); c.fill();
+    }
+    c.globalAlpha = 1; c.lineWidth = 1.4;
+    const nb = Math.min(3200, Math.floor(w * h / 2100));
+    for (let i = 0; i < nb; i++) { const gx = Math.random() * w, gy = Math.random() * h; c.strokeStyle = Math.random() < 0.5 ? '#5f9a38' : '#7bbd4a'; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (Math.random() - 0.5) * 4, gy - 4 - Math.random() * 4); c.stroke(); }
+  },
+  cement(c, w, h) {   // OBRA: cimento alisado (liso de jogar!) com marcas de desempenadeira e brita
+    c.fillStyle = '#a29a8a'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 1600, '#948c7c', 0.35, 2.4); noise(c, w, h, 700, '#b4ac9c', 0.35, 2.2);
+    c.strokeStyle = 'rgba(120,112,98,0.22)'; c.lineWidth = 7;
+    for (let i = 0; i < 12; i++) { const x0 = Math.random() * w, y0 = Math.random() * h, r0 = 40 + Math.random() * 90; c.beginPath(); c.arc(x0, y0, r0, Math.random() * 3, Math.random() * 3 + 2.2); c.stroke(); }   // arcos da desempenadeira
+    c.strokeStyle = 'rgba(80,74,62,0.5)'; c.lineWidth = 2.4;
+    for (let x = 160; x < w; x += 220) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x + (Math.random() - 0.5) * 16, h); c.stroke(); }   // juntas de concretagem
+    for (let i = 0; i < 240; i++) { c.globalAlpha = 0.4; c.fillStyle = Math.random() < 0.5 ? '#7e7668' : '#c2baa8'; c.beginPath(); c.arc(Math.random() * w, Math.random() * h, 1.6 + Math.random() * 2.4, 0, 7); c.fill(); }   // brita
+    c.globalAlpha = 1;
+  },
+  clay(c, w, h) {     // ESTRADA: barro vermelho com SULCOS DE PNEU serpenteando
+    c.fillStyle = '#9a5a34'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 2600, '#7e441f', 0.5, 2.4); noise(c, w, h, 1200, '#b06a40', 0.4, 2.2); noise(c, w, h, 300, '#5f3014', 0.5, 4);
+    c.lineCap = 'round';
+    for (let t = 0; t < 4; t++) {    // pares de sulcos de pneu
+      const y0 = Math.random() * h, amp = 20 + Math.random() * 40, ph = Math.random() * 6;
+      for (const off of [0, 26]) {
+        c.strokeStyle = 'rgba(94,48,20,0.55)'; c.lineWidth = 9;
+        c.beginPath(); for (let x = 0; x <= w; x += 24) c.lineTo(x, y0 + off + Math.sin(x * 0.008 + ph) * amp); c.stroke();
+        c.strokeStyle = 'rgba(60,28,10,0.35)'; c.lineWidth = 3;   // vinco fundo do sulco
+        c.beginPath(); for (let x = 0; x <= w; x += 24) c.lineTo(x, y0 + off + Math.sin(x * 0.008 + ph) * amp); c.stroke();
+      }
+    }
+    c.strokeStyle = 'rgba(70,32,12,0.4)'; c.lineWidth = 1.6;   // rachaduras de sol
+    for (let i = 0; i < 14; i++) { let x = Math.random() * w, y = Math.random() * h; c.beginPath(); c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 60; y += (Math.random() - 0.5) * 60; c.lineTo(x, y); } c.stroke(); }
+  },
+  gingham(c, w, h) {  // COZINHA: toalha XADREZ vermelha e branca de verdade
+    c.fillStyle = '#f4ede0'; c.fillRect(0, 0, w, h);
+    const cell = 52;
+    c.fillStyle = 'rgba(200,70,64,0.55)';
+    for (let x = 0; x < w; x += cell * 2) c.fillRect(x, 0, cell, h);
+    for (let y = 0; y < h; y += cell * 2) c.fillRect(0, y, w, cell);
+    // fios do tecido
+    c.globalAlpha = 0.10; c.strokeStyle = '#8a4038'; c.lineWidth = 1;
+    for (let x = 0; x < w; x += 4) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+    for (let y = 0; y < h; y += 4) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+    c.globalAlpha = 1;
+  },
+  stripes(c, w, h) {  // FEIRA: lona de barraca listrada (verde/amarela) com remendo
+    const cs = ['#3f9a5c', '#f2e2b0'];
+    const sw = 74;
+    for (let x = -h, i = 0; x < w + h; x += sw, i++) {   // listras diagonais
+      c.fillStyle = cs[i % 2];
+      c.beginPath(); c.moveTo(x, 0); c.lineTo(x + sw, 0); c.lineTo(x + sw - h * 0.35, h); c.lineTo(x - h * 0.35, h); c.closePath(); c.fill();
+    }
+    noise(c, w, h, 1600, '#5a4a2e', 0.14, 2.2);   // sujeirinha de feira
+    c.strokeStyle = 'rgba(90,74,46,0.3)'; c.lineWidth = 2;
+    for (let i = 0; i < 5; i++) { const x0 = Math.random() * w, y0 = Math.random() * h; c.strokeRect(x0, y0, 60 + Math.random() * 60, 40 + Math.random() * 40); }   // remendos costurados
+  },
+  planks(c, w, h) {   // VARANDA: tábua corrida de madeira com veios e nós
+    c.fillStyle = '#8a5a34'; c.fillRect(0, 0, w, h);
+    const ph = 64;
+    for (let y = 0, r = 0; y < h; y += ph, r++) {
+      c.fillStyle = r % 2 ? 'rgba(122,74,38,0.5)' : 'rgba(154,102,56,0.5)'; c.fillRect(0, y, w, ph);
+      c.strokeStyle = 'rgba(60,36,16,0.6)'; c.lineWidth = 3; c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke();
+      c.strokeStyle = 'rgba(70,42,20,0.30)'; c.lineWidth = 1.6;   // veios
+      for (let v = 0; v < 4; v++) { const vy = y + 10 + Math.random() * (ph - 20); c.beginPath(); for (let x = 0; x <= w; x += 30) c.lineTo(x, vy + Math.sin(x * 0.02 + v) * 3); c.stroke(); }
+      const seam = 200 + Math.random() * 300;   // emendas de tábua
+      c.strokeStyle = 'rgba(60,36,16,0.55)'; c.lineWidth = 2.6;
+      for (let x = seam; x < w; x += seam) { c.beginPath(); c.moveTo(x + (r % 2 ? 90 : 0), y); c.lineTo(x + (r % 2 ? 90 : 0), y + ph); c.stroke(); }
+    }
+    for (let i = 0; i < 12; i++) { c.fillStyle = 'rgba(56,32,14,0.6)'; c.beginPath(); c.ellipse(Math.random() * w, Math.random() * h, 5 + Math.random() * 5, 3 + Math.random() * 3, Math.random() * 3, 0, 7); c.fill(); }   // nós
+  },
+  slab(c, w, h) {     // LAJE: manta impermeável vermelho-óxido com juntas e remendos de piche
+    c.fillStyle = '#a4756b'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 2000, '#916359', 0.4, 2.4); noise(c, w, h, 800, '#b8857a', 0.35, 2.0);
+    c.strokeStyle = 'rgba(70,48,42,0.55)'; c.lineWidth = 3;
+    const cellX = 240, cellY = 200;   // juntas de dilatação (placas grandes)
+    for (let x = cellX; x < w; x += cellX) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x + (Math.random() - 0.5) * 10, h); c.stroke(); }
+    for (let y = cellY; y < h; y += cellY) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y + (Math.random() - 0.5) * 10); c.stroke(); }
+    for (let i = 0; i < 8; i++) { c.globalAlpha = 0.35; c.fillStyle = '#3a2e2a'; c.beginPath(); c.ellipse(Math.random() * w, Math.random() * h, 24 + Math.random() * 40, 16 + Math.random() * 26, Math.random() * 3, 0, 7); c.fill(); }   // remendos de piche
+    c.globalAlpha = 1;
+    for (let i = 0; i < 20; i++) { c.globalAlpha = 0.3; c.fillStyle = '#d8cfc2'; c.beginPath(); c.ellipse(Math.random() * w, Math.random() * h, 10 + Math.random() * 16, 4 + Math.random() * 6, Math.random() * 3, 0, 7); c.fill(); }   // marcas de sol/cal
+    c.globalAlpha = 1;
+  },
+  tiles(c, w, h) {    // PISCINA: azulejinhos azuis com rejunte e alguns tacos mais escuros
+    c.fillStyle = '#bcdce4'; c.fillRect(0, 0, w, h);
+    const t = 44;
+    for (let y = 0; y < h; y += t) for (let x = 0; x < w; x += t) {
+      const r = Math.random();
+      c.fillStyle = r < 0.08 ? '#5f9ab8' : r < 0.2 ? '#a4ccd8' : r < 0.3 ? '#cde8ee' : '#bcdce4';
+      c.fillRect(x, y, t, t);
+      c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x + 4, y + 4, t * 0.4, t * 0.16);   // brilho vitrificado
+    }
+    c.strokeStyle = 'rgba(120,150,160,0.75)'; c.lineWidth = 2.6;   // rejunte
+    for (let x = 0; x <= w; x += t) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+    for (let y = 0; y <= h; y += t) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+  },
+  dunes(c, w, h) {    // DESERTO: areia alaranjada em ONDAS grandes de duna (bem diferente da praia)
+    const g = c.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#d59a52'); g.addColorStop(1, '#c9884a');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    for (let band = 0; band < 9; band++) {   // cristas de duna com sombra e luz
+      const y0 = (band + 0.5) * h / 9, amp = 26 + Math.random() * 30, ph = Math.random() * 6;
+      c.fillStyle = 'rgba(150,92,40,0.30)';
+      c.beginPath(); c.moveTo(0, y0);
+      for (let x = 0; x <= w; x += 26) c.lineTo(x, y0 + Math.sin(x * 0.006 + ph) * amp);
+      for (let x = w; x >= 0; x -= 26) c.lineTo(x, y0 + 30 + Math.sin(x * 0.006 + ph) * amp);
+      c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(244,214,160,0.55)'; c.lineWidth = 4; c.lineCap = 'round';
+      c.beginPath(); for (let x = 0; x <= w; x += 26) c.lineTo(x, y0 + Math.sin(x * 0.006 + ph) * amp); c.stroke();
+    }
+    noise(c, w, h, 2200, '#b9773c', 0.35, 1.8); noise(c, w, h, 900, '#ecc084', 0.4, 1.8);
+  },
 };
 
 // hash e formas ORGÂNICAS — nada de círculo perfeito: manchas naturais (redondas
@@ -214,7 +341,7 @@ export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
   // espelha a textura no eixo Y do mundo. Compensamos aqui (H - y) para o desenho
   // (pista, muros, bandeiras) casar exatamente com a física (tampinhas e muros 3D).
   const map = (x: number, y: number): [number, number] => [x * px, H - y * px];
-  const paintGround = () => (GROUND[def.ground] || GROUND.dirt)(c, W, H);
+  const paintGround = () => (GROUND[def.paint || def.ground] || GROUND.dirt)(c, W, H);
   paintGround();
 
   const { L, R } = corridorBorders(def);
@@ -226,7 +353,9 @@ export function makeBoardTexture(def: TrackDef): THREE.CanvasTexture {
   for (let i = 0; i < def.path.length; i++) { const [cx, cy] = map(def.path[i].x, def.path[i].y); const r = def.half[i] * px; corridor.moveTo(cx + r, cy); corridor.arc(cx, cy, r, 0, Math.PI * 2); }
   for (const pd of def.pads) { const [cx, cy] = map(pd.x, pd.y); const r = pd.r * px; corridor.moveTo(cx + r, cy); corridor.arc(cx, cy, r, 0, Math.PI * 2); }
   // escurece TUDO e reacende só o corredor (clip nonzero = união dos discos)
-  c.fillStyle = 'rgba(18,12,6,0.42)'; c.fillRect(0, 0, W, H);
+  // padrões fortes (xadrez/listra/azulejo) pedem mais contraste fora do corredor
+  const busy = def.paint === 'gingham' || def.paint === 'stripes' || def.paint === 'tiles';
+  c.fillStyle = busy ? 'rgba(18,12,6,0.56)' : 'rgba(18,12,6,0.42)'; c.fillRect(0, 0, W, H);
   c.save(); c.clip(corridor, 'nonzero'); paintGround(); c.restore();
 
   // remendos de superfície (dentro do corredor)
