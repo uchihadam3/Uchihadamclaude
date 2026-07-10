@@ -39,6 +39,10 @@ function decorProp(kind: string, col?: string): THREE.Object3D {
     case 'coin': { const m = cyl(0.55, 0.55, 0.12, col || '#e0c050'); m.position.y = 0.06; g.add(m); break; }
     case 'eraser': { const b = box(1.0, 0.5, 0.6, col || '#e06a8a'); b.position.y = 0.25; g.add(b); break; }
     case 'straw': { const m = cyl(0.1, 0.1, 3.0, col || '#e05a5a'); m.rotation.z = 1.4; m.position.y = 0.14; g.add(m); break; }
+    case 'ball8': { const b = new THREE.Mesh(new THREE.SphereGeometry(0.62, 14, 12), M('#141414', 0.35)); b.position.y = 0.62; b.castShadow = true; g.add(b); const c8 = cyl(0.24, 0.24, 0.05, '#f2f2f2'); c8.position.set(0.28, 1.05, 0.28); c8.lookAt(2, 3, 2); g.add(c8); break; }
+    case 'icecube': { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.1), new THREE.MeshStandardMaterial({ color: '#cfeaf6', roughness: 0.15, transparent: true, opacity: 0.7 })); b.position.y = 0.55; b.rotation.y = Math.random() * 1.5; b.castShadow = true; g.add(b); break; }
+    case 'bolt': { const head = cyl(0.42, 0.42, 0.3, '#8a949c'); (head.geometry as THREE.CylinderGeometry).dispose(); head.geometry = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 6); head.position.y = 0.15; g.add(head); const shaft = cyl(0.16, 0.16, 1.4, '#a8b2ba'); shaft.rotation.z = 1.57; shaft.position.set(0.8, 0.16, 0); g.add(shaft); break; }
+    case 'remote': { const b = box(0.9, 0.22, 2.2, '#2a2a30'); b.position.y = 0.11; b.castShadow = true; g.add(b); for (let i = 0; i < 6; i++) { const k = cyl(0.09, 0.09, 0.08, i === 0 ? '#e05a5a' : '#b8c0c8'); k.position.set(((i % 2) - 0.5) * 0.36, 0.24, -0.7 + Math.floor(i / 2) * 0.42); g.add(k); } break; }
   }
   g.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;

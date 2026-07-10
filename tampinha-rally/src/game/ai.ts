@@ -3,7 +3,7 @@
 // tampinha pra fazer curva, evita empurrar os outros à toa, e as agressivas
 // tentam jogar rivais em buracos/fora). Pontua progresso menos risco e escolhe o
 // melhor. Nunca se joga em buraco/fora de propósito.
-import { Cap, V, dist, norm, sub, mul, vec, len, MAX_POWER } from '../engine/core';
+import { Cap, V, dist, norm, sub, mul, vec, len, MAX_POWER, GUM_LAUNCH } from '../engine/core';
 import { TrackModel } from '../engine/track';
 import { stepWorld, anyMoving } from '../engine/physics';
 
@@ -37,13 +37,15 @@ function clone(c: Cap): Cap {
   };
 }
 
-interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolean; bombed: boolean; finished: boolean; jumped: boolean; dEdge: number; endPos: V; bonus: number; item: number; oppHarm: number; walls: number; }
+interface SimOut { endProg: number; maxProg: number; out: boolean; holed: boolean; bombed: boolean; finished: boolean; jumped: boolean; dEdge: number; endPos: V; bonus: number; item: number; oppHarm: number; walls: number; gumEnd: boolean; }
 
 // simula UMA tacada num mundo COM os adversários (parados; podem ser empurrados)
 function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number): SimOut {
   const shooter = clone(cap);
   shooter.resetTo = vec(cap.pos.x, cap.pos.y);   // sair da pista te devolve pro ponto de onde jogou
-  shooter.vel = mul(norm(dir), Math.max(0.06, Math.min(1, power01)) * MAX_POWER); shooter.moving = true;
+  // CHICLETE: se está grudada, o lançamento sai fraco — a IA simula ISSO também
+  const gum = track.surfaceAt(cap.pos) === 'gum' ? GUM_LAUNCH : 1;
+  shooter.vel = mul(norm(dir), Math.max(0.06, Math.min(1, power01)) * MAX_POWER * gum); shooter.moving = true;
   const world: Cap[] = [shooter];
   for (const o of caps) { if (o.id === cap.id || o.finished) continue; const oc = clone(o); world.push(oc); }
   let out = false, holed = false, bombed = false, finished = false, jumped = false, bonus = 0, item = 0, walls = 0, maxProg = cap.progress; const harm = new Set<number>();
@@ -61,7 +63,7 @@ function sim(cap: Cap, caps: Cap[], track: TrackModel, dir: V, power01: number):
     steps++;
   }
   const n = track.nearest(shooter.pos);
-  return { endProg: shooter.progress, maxProg, out, holed, bombed, finished, jumped, dEdge: Math.max(0, n.d - n.half * 0.45), endPos: vec(shooter.pos.x, shooter.pos.y), bonus, item, oppHarm: harm.size, walls };
+  return { endProg: shooter.progress, maxProg, out, holed, bombed, finished, jumped, dEdge: Math.max(0, n.d - n.half * 0.45), endPos: vec(shooter.pos.x, shooter.pos.y), bonus, item, oppHarm: harm.size, walls, gumEnd: track.surfaceAt(shooter.pos) === 'gum' };
 }
 
 function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
@@ -73,6 +75,7 @@ function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
   s += o.bonus * 22;
   s += o.item * 20;             // CAOS: ir atrás das caixinhas de power-up vale a pena
   s -= Math.min(o.walls, 4) * 3;  // esfregar no muro é jogada suja: se existe caminho limpo igual, prefere ele
+  if (o.gumEnd && !o.finished) s -= 9;   // parar EM CIMA do chiclete = próximo peteleco fraco — evita estacionar nele
   if (!o.out && !o.finished && o.endProg <= base.progress + 0.5 && o.walls > 0) s -= 25;   // bateu e não saiu do lugar? plano ruim MESMO
   if (o.jumped) s += 10;        // pular a rampa (avança e passa o buraco) é ótimo
   if (o.finished) s += 500;

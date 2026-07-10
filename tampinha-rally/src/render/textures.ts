@@ -22,7 +22,56 @@ const GROUND: Record<string, (c: CanvasRenderingContext2D, w: number, h: number)
   sidewalk(c, w, h) { c.fillStyle = '#b9b3a6'; c.fillRect(0, 0, w, h); noise(c, w, h, 1800, '#a49e90', 0.35, 2.4); noise(c, w, h, 700, '#cfc9bc', 0.35, 2.2); c.strokeStyle = 'rgba(120,114,100,0.5)'; c.lineWidth = 3; for (let y = 0; y < h; y += PX * 6) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y + (Math.random() - 0.5) * 10); c.stroke(); } c.strokeStyle = 'rgba(90,84,72,0.35)'; c.lineWidth = 1.4; for (let i = 0; i < 8; i++) { c.beginPath(); let x = Math.random() * w, y = Math.random() * h; c.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 90; y += (Math.random() - 0.5) * 90; c.lineTo(x, y); } c.stroke(); } },
   cardboard(c, w, h) { c.fillStyle = '#cba875'; c.fillRect(0, 0, w, h); noise(c, w, h, 1200, '#b9915f', 0.4, 2.2); c.strokeStyle = 'rgba(150,110,70,0.26)'; c.lineWidth = 2; for (let x = 0; x < w; x += 10) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); } c.fillStyle = 'rgba(214,204,184,0.45)'; for (let i = 0; i < 5; i++) { c.save(); c.translate(Math.random() * w, Math.random() * h); c.rotate(Math.random() * 3); c.fillRect(-42, -8, 84, 16); c.restore(); } },
   grass(c, w, h) { c.fillStyle = '#4f7d30'; c.fillRect(0, 0, w, h); noise(c, w, h, 2200, '#3e6626', 0.5, 2.6); noise(c, w, h, 1200, '#6f9c40', 0.5, 2.2); c.lineWidth = 1.4; const nb = Math.min(6000, Math.floor(w * h / 1100)); for (let i = 0; i < nb; i++) { const gx = Math.random() * w, gy = Math.random() * h, r = Math.random(); c.strokeStyle = r < 0.45 ? '#3c6322' : r < 0.8 ? '#6fa840' : '#84c052'; c.beginPath(); c.moveTo(gx, gy); c.lineTo(gx + (Math.random() - 0.5) * 4, gy - 4 - Math.random() * 5); c.stroke(); } },
+  felt(c, w, h) {   // FELTRO de sinuca: verde profundo com fiapos e "riscada de taco"
+    c.fillStyle = '#2e7d4b'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 2600, '#256b3e', 0.45, 2.0); noise(c, w, h, 1400, '#3a915c', 0.4, 1.8); noise(c, w, h, 400, '#1d5a33', 0.4, 3.0);
+    c.strokeStyle = 'rgba(210,240,220,0.06)'; c.lineWidth = 8;
+    for (let i = 0; i < 7; i++) { const y0 = Math.random() * h; c.beginPath(); c.moveTo(0, y0); c.lineTo(w, y0 + (Math.random() - 0.5) * 120); c.stroke(); }
+    c.strokeStyle = 'rgba(20,60,35,0.20)'; c.lineWidth = 2;
+    for (let i = 0; i < 5; i++) { const x0 = Math.random() * w, y0 = Math.random() * h; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + (Math.random() - 0.5) * 260, y0 + (Math.random() - 0.5) * 260); c.stroke(); }
+  },
+  frost(c, w, h) {  // ESCARCHA do congelador: branco-azulado com brilhos e "samambaias" de gelo
+    const g = c.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#dcecf4'); g.addColorStop(0.5, '#c8dfea'); g.addColorStop(1, '#d4e8f2');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 2200, '#b6d4e2', 0.4, 2.2); noise(c, w, h, 1600, '#f2fbff', 0.5, 1.6);
+    c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 1.6; c.lineCap = 'round';
+    for (let i = 0; i < 26; i++) {     // cristais em galho (samambaia de escarcha)
+      let x = Math.random() * w, y = Math.random() * h, a = Math.random() * 6.28;
+      for (let k = 0; k < 5; k++) { const nx = x + Math.cos(a) * 26, ny = y + Math.sin(a) * 26; c.beginPath(); c.moveTo(x, y); c.lineTo(nx, ny); c.stroke();
+        c.beginPath(); c.moveTo((x + nx) / 2, (y + ny) / 2); c.lineTo((x + nx) / 2 + Math.cos(a + 0.9) * 12, (y + ny) / 2 + Math.sin(a + 0.9) * 12); c.stroke();
+        x = nx; y = ny; a += (Math.random() - 0.5) * 0.7; }
+    }
+    c.fillStyle = 'rgba(255,255,255,0.9)';
+    for (let i = 0; i < 320; i++) { c.globalAlpha = 0.3 + Math.random() * 0.55; c.beginPath(); c.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 1.6, 0, 7); c.fill(); }
+    c.globalAlpha = 1;
+  },
+  metal(c, w, h) {  // AÇO escovado da bancada: cinza com escovado horizontal, riscos e rebites
+    c.fillStyle = '#9aa4ac'; c.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 3) { c.globalAlpha = 0.05 + Math.random() * 0.09; c.fillStyle = Math.random() < 0.5 ? '#7e8890' : '#c2ccd4'; c.fillRect(0, y, w, 2); }
+    c.globalAlpha = 1;
+    c.strokeStyle = 'rgba(60,68,76,0.35)'; c.lineWidth = 1.4;
+    for (let i = 0; i < 10; i++) { const x0 = Math.random() * w, y0 = Math.random() * h; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0 + (Math.random() - 0.5) * 220, y0 + (Math.random() - 0.5) * 40); c.stroke(); }
+    for (let i = 0; i < 26; i++) {     // rebites
+      const x = Math.random() * w, y = Math.random() * h;
+      c.fillStyle = '#78828a'; c.beginPath(); c.arc(x, y, 7, 0, 7); c.fill();
+      c.fillStyle = '#cdd7de'; c.beginPath(); c.arc(x - 2, y - 2, 3.4, 0, 7); c.fill();
+    }
+  },
+  carpet(c, w, h) { // TAPETE felpudo: terracota com fiapos densos e trama
+    c.fillStyle = '#a05648'; c.fillRect(0, 0, w, h);
+    noise(c, w, h, 2400, '#8a4438', 0.5, 2.4); noise(c, w, h, 1600, '#b96a58', 0.45, 2.0);
+    c.lineWidth = 1.6; const nf = Math.min(7000, Math.floor(w * h / 950));
+    for (let i = 0; i < nf; i++) {     // fiapos curtinhos em toda direção
+      const x = Math.random() * w, y = Math.random() * h, a = Math.random() * 6.28, r = Math.random();
+      c.strokeStyle = r < 0.4 ? '#7e3c30' : r < 0.8 ? '#b56553' : '#cd8068';
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * 5, y + Math.sin(a) * 5); c.stroke();
+    }
+    c.strokeStyle = 'rgba(60,25,18,0.14)'; c.lineWidth = 3;   // trama larga bem sutil
+    for (let y = 0; y < h; y += 54) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+    for (let x = 0; x < w; x += 54) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
+  },
   mud: () => {}, water: () => {}, ramp: () => {}, push: () => {}, chalk: () => {}, ice: () => {}, out: () => {},
+  gum: () => {}, magnet: () => {}, vortex: () => {},
 };
 
 // hash e formas ORGÂNICAS — nada de círculo perfeito: manchas naturais (redondas
@@ -81,6 +130,52 @@ function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: nu
     c.fillStyle = 'rgba(255,255,255,0.8)'; c.beginPath(); c.ellipse(cx - r * 0.3, cy - r * 0.35, r * 0.3, r * 0.1, -0.6, 0, 7); c.fill();
     c.strokeStyle = 'rgba(120,180,220,0.5)'; c.lineWidth = Math.max(1, px * 0.04);
     for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(cx + (R() - 0.5) * r, cy + (R() - 0.5) * r, r * (0.1 + R() * 0.2), R() * 3, R() * 3 + 2); c.stroke(); }
+  } else if (s === 'gum') {
+    // CHICLETE mascado: rosa brilhante, esticadinhas e bolhas — GRUDA quem pisa
+    const g = c.createRadialGradient(cx - r * 0.25, cy - r * 0.3, r * 0.1, cx, cy, r);
+    g.addColorStop(0, '#ff9ec4'); g.addColorStop(0.6, '#f272a8'); g.addColorStop(1, '#d64f8b');
+    c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    c.strokeStyle = 'rgba(255,210,230,0.75)'; c.lineWidth = Math.max(1.4, px * 0.07); c.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {   // fios esticados de chiclete
+      const sx = cx + (R() - 0.5) * r * 1.4, sy = cy + (R() - 0.5) * r * 1.4;
+      c.beginPath(); c.moveTo(sx, sy);
+      c.quadraticCurveTo(sx + (R() - 0.5) * r, sy + (R() - 0.5) * r, sx + (R() - 0.5) * r * 1.4, sy + (R() - 0.5) * r * 1.4); c.stroke();
+    }
+    for (let i = 0; i < 7; i++) { c.fillStyle = 'rgba(255,190,215,0.55)'; c.beginPath(); c.arc(cx + (R() - 0.5) * r * 1.5, cy + (R() - 0.5) * r * 1.5, px * (0.1 + R() * 0.22), 0, 7); c.fill(); }
+    c.fillStyle = 'rgba(255,255,255,0.65)'; c.beginPath(); c.ellipse(cx - r * 0.3, cy - r * 0.38, r * 0.26, r * 0.09, -0.5, 0, 7); c.fill();
+  } else if (s === 'magnet') {
+    // PLACA DE ÍMÃ: disco de aço com ferradura vermelha e anéis de campo — ATRAI a tampinha
+    const g = c.createRadialGradient(cx - r * 0.2, cy - r * 0.25, r * 0.1, cx, cy, r);
+    g.addColorStop(0, '#c3ccd4'); g.addColorStop(0.7, '#98a3ac'); g.addColorStop(1, '#7c868e');
+    c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    c.strokeStyle = 'rgba(210,60,60,0.55)'; c.lineWidth = Math.max(1.6, px * 0.09); c.setLineDash([px * 0.4, px * 0.32]);
+    for (let i = 1; i <= 3; i++) { c.beginPath(); c.arc(cx, cy, r * (0.32 + i * 0.2), 0, 7); c.stroke(); }   // anéis de campo
+    c.setLineDash([]);
+    c.save(); c.translate(cx, cy); c.rotate(seed * 6.283); c.lineCap = 'butt';   // ferradura
+    c.strokeStyle = '#d33c3c'; c.lineWidth = r * 0.24;
+    c.beginPath(); c.arc(0, 0, r * 0.34, 0.6, Math.PI * 2 - 0.6); c.stroke();
+    c.fillStyle = '#e8eef2';
+    for (const a of [0.6, -0.6]) { const ex = Math.cos(a) * r * 0.34, ey = Math.sin(a) * r * 0.34; c.save(); c.translate(ex, ey); c.rotate(a + 1.57); c.fillRect(-r * 0.13, -r * 0.1, r * 0.26, r * 0.2); c.restore(); }
+    c.restore();
+  } else if (s === 'vortex') {
+    // REDEMOINHO: espiral que GIRA a trajetória — braços brancos sobre azul fundo
+    const g = c.createRadialGradient(cx, cy, r * 0.05, cx, cy, r);
+    g.addColorStop(0, 'rgba(30,80,120,0.9)'); g.addColorStop(0.55, 'rgba(70,140,190,0.85)'); g.addColorStop(1, 'rgba(120,185,225,0.8)');
+    c.fillStyle = g; c.fillRect(cx - r, cy - r, r * 2, r * 2);
+    const sgn = Math.sin(p.x * 3.7 + p.y * 2.3) >= 0 ? 1 : -1;   // mesmo sentido da física!
+    c.lineCap = 'round';
+    for (let arm = 0; arm < 3; arm++) {   // braços em espiral
+      c.strokeStyle = arm ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)'; c.lineWidth = Math.max(2, px * (0.16 - arm * 0.03));
+      c.beginPath();
+      const a0 = seed * 6.283 + arm * 2.09;
+      for (let t = 0; t <= 1; t += 0.04) { const a = a0 + sgn * t * 4.4; const rr = r * (0.12 + t * 0.8); const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr; t ? c.lineTo(x, y) : c.moveTo(x, y); }
+      c.stroke();
+      // setinha na ponta do braço principal (mostra o sentido do giro)
+      if (arm === 0) { const a = a0 + sgn * 4.4, rr = r * 0.92; const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr; const ta = a + sgn * 1.62;
+        c.fillStyle = 'rgba(255,255,255,0.85)'; c.beginPath(); c.moveTo(x + Math.cos(ta) * px * 0.5, y + Math.sin(ta) * px * 0.5);
+        c.lineTo(x + Math.cos(ta + 2.5) * px * 0.34, y + Math.sin(ta + 2.5) * px * 0.34); c.lineTo(x + Math.cos(ta - 2.5) * px * 0.34, y + Math.sin(ta - 2.5) * px * 0.34); c.closePath(); c.fill(); }
+    }
+    c.fillStyle = 'rgba(15,45,75,0.9)'; c.beginPath(); c.arc(cx, cy, r * 0.1, 0, 7); c.fill();   // olho do redemoinho
   } else if (s === 'chalk') {
     c.fillStyle = 'rgba(240,240,245,0.14)'; c.fillRect(cx - r, cy - r, r * 2, r * 2);
     const cols = ['#ff8fb0', '#8fd0ff', '#ffe38f', '#a0ffb0', '#c9a0ff'];
@@ -92,7 +187,7 @@ function drawPatch(c: CanvasRenderingContext2D, p: Patch, map: (x: number, y: nu
   } else box('#c9bfa8');
   c.restore();
   // contorno pra a mancha parecer "assentada" no chão
-  c.save(); shape(); c.lineWidth = Math.max(2, px * 0.16); c.strokeStyle = s === 'water' ? 'rgba(20,70,110,0.5)' : s === 'ice' ? 'rgba(90,150,200,0.55)' : 'rgba(0,0,0,0.2)'; c.stroke(); c.restore();
+  c.save(); shape(); c.lineWidth = Math.max(2, px * 0.16); c.strokeStyle = s === 'water' ? 'rgba(20,70,110,0.5)' : s === 'ice' ? 'rgba(90,150,200,0.55)' : s === 'gum' ? 'rgba(160,40,95,0.6)' : s === 'magnet' ? 'rgba(55,62,70,0.65)' : s === 'vortex' ? 'rgba(25,70,110,0.6)' : 'rgba(0,0,0,0.2)'; c.stroke(); c.restore();
 }
 
 // bordas do corredor (esq/dir) a partir do traçado + meia-largura por ponto

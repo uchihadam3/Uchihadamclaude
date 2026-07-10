@@ -21,7 +21,8 @@ export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 // ---- superfícies ---------------------------------------------------------
 export type Surface =
   | 'dirt' | 'sand' | 'cardboard' | 'sidewalk' | 'mud' | 'water'
-  | 'ramp' | 'push' | 'chalk' | 'grass' | 'ice' | 'out';
+  | 'ramp' | 'push' | 'chalk' | 'grass' | 'ice' | 'out'
+  | 'felt' | 'frost' | 'metal' | 'carpet' | 'gum' | 'magnet' | 'vortex';
 
 // fric = desaceleração constante (u/s²) · drag = arrasto viscoso (por s)
 // CADA superfície tem um efeito PRÓPRIO (não é só "freia mais/menos"):
@@ -43,7 +44,17 @@ export const SURF: Record<Surface, { fric: number; drag: number }> = {
   ramp:      { fric: 6.0,  drag: 0.2  },   // rampa verde: dá impulso pra frente
   push:      { fric: 11.0, drag: 0.5  },   // seta vermelha: freia e empurra pra trás/lado
   out:       { fric: 24.0, drag: 1.0  },   // fora — reseta
+  // ---- pisos NOVOS (cada um com um efeito PRÓPRIO, ver physics.ts) ----
+  felt:      { fric: 6.0,  drag: 0.22 },   // FELTRO (sinuca): rola liso E as bordas viram TABELA VIVA (quique forte)
+  frost:     { fric: 3.2,  drag: 0.08 },   // ESCARCHA (congelador): desliza quase como gelo e DERRAPA (freio do Controle não pega)
+  metal:     { fric: 5.2,  drag: 0.16 },   // AÇO (bancada): desliza bem e quica FORTE em muro/pedra (pinball)
+  carpet:    { fric: 13.5, drag: 0.75 },   // TAPETE felpudo: freia e AMORTECE todo quique (tabelinha morre)
+  gum:       { fric: 32.0, drag: 2.0  },   // CHICLETE: gruda rapidinho — e o peteleco SAINDO dele sai fraco (mas escapa!)
+  magnet:    { fric: 6.5,  drag: 0.2  },   // ÍMÃ: PUXA a tampinha (de metal!) pro centro — curva o tiro, captura o fraco
+  vortex:    { fric: 6.0,  drag: 0.2  },   // REDEMOINHO: GIRA a trajetória enquanto está dentro (o tiro faz curva)
 };
+// quanto o peteleco perde saindo de cima do chiclete (a tampinha está grudada)
+export const GUM_LAUNCH = 0.55;
 
 // weight = massa (empurra/resiste em colisão) · slide = desliza mais longe
 // stability = mantém a linha (roda menos) · bounce = quica em muro/tampinha
@@ -88,6 +99,8 @@ export interface Cap {
 
   lastTurnProg: number;      // progresso no começo do turno anterior (detector de preso)
   stuckTurns: number;        // turnos seguidos sem avançar → IA liga o "modo destravar"
+  rescues: number;           // resgates SEM progresso real desde então (escalona a distância)
+  rescueProg: number;        // progresso na hora do último resgate (mede se andou de verdade)
 
   // ---- extras dos MODOS (não usados no jogo comum) ----
   team: number;              // Dupla: índice do time (-1 = sem time)
@@ -105,7 +118,7 @@ export function makeCap(id: number, name: string, skin: string, stats: CapStats,
     progress: 0, checkpoint: 0, cpPos: vec(), turnStart: vec(), preFlick: vec(), resetTo: vec(), consumed: new Set(), takenBonus: new Set(),
     flicksLeft: 3, bonusFlicks: 0, special10: false, bombed: false, holed: false, skipTurns: 0,
     finished: false, place: 0, lap: 0, moving: false, hitFlash: 0,
-    lastTurnProg: 0, stuckTurns: 0,
+    lastTurnProg: 0, stuckTurns: 0, rescues: 0, rescueProg: 0,
     team: -1, item: null, shield: false, boostNext: 1, eliminated: false, itemFlash: 0,
   };
 }

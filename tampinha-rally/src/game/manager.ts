@@ -1,7 +1,7 @@
 // GameManager — a partida por turnos. Cuida da ordem dos jogadores, dos 3
 // petelecos por turno, das regras (fora/buraco/bomba/+3/10/chegada), do ranking
 // e da vitória. Roda a simulação até tudo parar entre um peteléco e outro.
-import { Cap, V, makeCap, vec, norm, mul, MAX_POWER, DEFAULT_STATS } from '../engine/core';
+import { Cap, V, makeCap, vec, norm, mul, MAX_POWER, GUM_LAUNCH, DEFAULT_STATS } from '../engine/core';
 import { TrackModel, TrackDef } from '../engine/track';
 import { stepWorld, anyMoving, SimEvent } from '../engine/physics';
 import { aiFlick } from './ai';
@@ -87,15 +87,26 @@ export class GameManager {
     // MEIO da pista um tiquinho ATRÁS (não ganha nada com isso). Garante que
     // nenhuma pista gerada consegue travar uma corrida pra sempre.
     if (c.stuckTurns >= 4) {
-      let back = 2, spot = this.track.atArc(Math.max(0, c.progress - back)).p;
+      // reincidência: se desde o ÚLTIMO resgate ela não andou de verdade (a
+      // armadilha puxou de volta), cada novo resgate vai MAIS pra trás e fora
+      // da linha central — muda a linha de aproximação e quebra ciclos infinitos
+      if (c.rescues > 0 && c.progress > c.rescueProg + 6) c.rescues = 0;
+      let back = 2 + c.rescues * 8;
+      const calc = (b: number) => {
+        const at = this.track.atArc(Math.max(0, c.progress - b));
+        const off = c.rescues > 0 ? (c.rescues % 2 ? 1 : -1) * this.track.nearest(at.p).half * 0.4 : 0;
+        return vec(at.p.x - at.tan.y * off, at.p.y + at.tan.x * off);
+      };
+      let spot = calc(back);
       for (let t = 0; t < 6; t++) {
         const busy = this.caps.some(o => o.id !== c.id && !o.finished && Math.hypot(o.pos.x - spot.x, o.pos.y - spot.y) < c.radius * 2.4);
         if (!busy) break;
-        back += 2.5; spot = this.track.atArc(Math.max(0, c.progress - back)).p;
+        back += 2.5; spot = calc(back);
       }
       c.pos = vec(spot.x, spot.y); c.vel = vec(); c.z = 0; c.vz = 0; c.airborne = false;
       c.progress = this.track.progressOf(c.pos);
       c.stuckTurns = 0; c.lastTurnProg = c.progress;
+      c.rescues++; c.rescueProg = c.progress;
       this.onToast(`🛟 ${c.name} foi resgatada pra pista!`, 'bad');
     }
     c.flicksLeft = 3; c.bonusFlicks = 0; c.special10 = false; c.consumed.clear();
@@ -171,7 +182,9 @@ export class GameManager {
     const c = this.activeCap();
     // CAOS: foguete/turbinho dão mais alcance neste peteléco (consome o boost)
     const boost = c.boostNext; c.boostNext = 1;
-    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER * boost;
+    // CHICLETE: peteleco saindo de cima do chiclete sai FRACO (a tampinha tá grudada)
+    const gum = this.track.surfaceAt(c.pos) === 'gum' ? GUM_LAUNCH : 1;
+    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER * boost * gum;
     // p/ onde cada cap volta se sair da pista neste peteléco:
     //  - VOCÊ (quem jogou) sai por conta própria → volta pro ponto de onde jogou;
     //  - se OUTRO te empurra pra fora → volta um pouco ATRÁS na pista (punição).

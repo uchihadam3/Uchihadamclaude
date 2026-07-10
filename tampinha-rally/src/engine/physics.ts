@@ -52,6 +52,17 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     } else if (surf === 'water') {             // água: CORRENTEZA empurra no fluxo (bem sensível)
       const dir = patch?.dir != null ? { x: Math.cos(patch.dir), y: Math.sin(patch.dir) } : { x: 0, y: 0 };
       c.vel.x += dir.x * 10 * dt; c.vel.y += dir.y * 10 * dt;
+    } else if (surf === 'magnet' && patch) {   // ÍMÃ: atrai a tampinha (é de metal!) pro centro da placa —
+      const dx = patch.x - c.pos.x, dy = patch.y - c.pos.y;      // curva o tiro que passa perto e CAPTURA o tiro fraco
+      const l = Math.hypot(dx, dy);
+      if (l > 0.05) { c.vel.x += dx / l * 26 * dt; c.vel.y += dy / l * 26 * dt; }
+    } else if (surf === 'vortex' && patch) {   // REDEMOINHO: gira a trajetória (o tiro faz CURVA lá dentro).
+      // sentido fixo por redemoinho (função da posição): determinístico e justo
+      const sgn = Math.sin(patch.x * 3.7 + patch.y * 2.3) >= 0 ? 1 : -1;
+      const wob = sgn * 2.0 * dt;
+      const cw = Math.cos(wob), sw = Math.sin(wob);
+      const vx = c.vel.x * cw - c.vel.y * sw, vy = c.vel.x * sw + c.vel.y * cw;
+      c.vel.x = vx; c.vel.y = vy;
     }
 
     // atrito realista: Coulomb (parada previsível) + arrasto viscoso.
@@ -68,7 +79,9 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
       const fric = (si.fric * soft) / (st.slide * powBreak);
       let ns = sp - fric * dt;
       // control: freio extra em baixa velocidade → para certinho onde você mira (bem perceptível)
-      const drag = si.drag / (0.7 + 0.3 * st.slide) + (st.control - 1) * (sp < 6 ? 0.85 : 0.12);
+      // …MENOS na ESCARCHA: no congelador o freio DERRAPA (Controle quase não pega)
+      const ctlF = surf === 'frost' ? 0.3 : 1;
+      const drag = si.drag / (0.7 + 0.3 * st.slide) + (st.control - 1) * (sp < 6 ? 0.85 : 0.12) * ctlF;
       ns *= (1 - Math.min(0.92, Math.max(0, drag) * dt));
       if (ns < 0) ns = 0;
       const dir = norm(c.vel); c.vel.x = dir.x * ns; c.vel.y = dir.y * ns;
@@ -87,6 +100,8 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     if (spNow > 1.2) {
       // só MANCHAS desviam (grama forte, areia leve) — nunca o chão inteiro,
       // senão tiro longo vira loteria e trava a corrida em pista aberta
+      // (nunca dar rough a um CHÃO inteiro — tiro longo vira loteria e trava a corrida;
+      // o tapete freia e mata a tabelinha, mas NÃO desvia: chão liso de rolar)
       const rough = surf === 'grass' ? 1.0 : surf === 'sand' ? 0.45 : 0;
       if (rough > 0) {
         // campo de ONDA LONGA (período ~20u): o desvio mantém o sentido ao longo
@@ -99,8 +114,13 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
       }
     }
 
-    // bordas
-    const wn = track.collideWalls(c.pos, c.vel, c.radius, 0.42 * c.stats.bounce);
+    // bordas — TABELA VIVA/MORTA: feltro (sinuca) e aço devolvem o quique com
+    // força (dá pra tabelar de propósito!); o tapete AMORTECE (tabelinha morre)
+    const bMul = surf === 'felt' ? 1.5 : surf === 'metal' ? 1.35 : surf === 'carpet' ? 0.45 : 1;
+    // PEDRAS são sempre vivas (mesmo no tapete): pedra redonda repele — senão a
+    // tampinha encaixa no vão entre duas pedras e fica presa pra sempre
+    const sMul = Math.max(1, bMul);
+    const wn = track.collideWalls(c.pos, c.vel, c.radius, Math.min(0.95, 0.42 * c.stats.bounce * bMul));
     if (wn) { ev.push({ type: 'wall', capId: c.id, x: c.pos.x, y: c.pos.y, power: len(c.vel) }); c.hitFlash = 1; }
 
     // obstáculos
@@ -124,7 +144,7 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         const l = Math.hypot(dx, dy) || 1; const nx = dx / l, ny = dy / l;
         const pen = rr - l; c.pos.x += nx * pen; c.pos.y += ny * pen;
         const vn = c.vel.x * nx + c.vel.y * ny;
-        if (vn < 0) { const b = 1 + 0.45 * c.stats.bounce; c.vel.x -= b * vn * nx; c.vel.y -= b * vn * ny; }
+        if (vn < 0) { const b = 1 + Math.min(0.95, 0.45 * c.stats.bounce * sMul); c.vel.x -= b * vn * nx; c.vel.y -= b * vn * ny; }
         ev.push({ type: 'stone', capId: c.id, x: o.x, y: o.y, power: spNow }); c.hitFlash = 1;
       } else if (o.type === 'hole') {
         if (c.shield) { c.shield = false; ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: -1 }); continue; }   // escudo salva do buraco

@@ -408,11 +408,16 @@ export class UI {
     { t: 'water', ico: '💧', lab: 'Água', grp: 's', col: '#4a90b8' },
     { t: 'grass', ico: '🌿', lab: 'Grama', grp: 's', col: '#5f8a36' },
     { t: 'ice', ico: '🧊', lab: 'Gelo', grp: 's', col: '#a8dcf5' },
+    { t: 'gum', ico: '🍬', lab: 'Chiclete', grp: 's', col: '#e878b0' },
+    { t: 'magnet', ico: '🧲', lab: 'Ímã', grp: 's', col: '#d34a4a' },
+    { t: 'vortex', ico: '🌀', lab: 'Redemoinho', grp: 's', col: '#58a8d8' },
   ];
-  private static ED_SURF = new Set(['sand', 'mud', 'water', 'grass', 'ice', 'ramp', 'push']);
+  private static ED_SURF = new Set(['sand', 'mud', 'water', 'grass', 'ice', 'gum', 'magnet', 'vortex', 'ramp', 'push']);
   showEditor(): void {
     this.clear();
     const themes = ['Quintal', 'Praia', 'Calçada', 'Garagem', 'Parque', 'Cozinha', 'Jardim', 'Deserto'];
+    // temas novos ficam DEPOIS dos 14 clássicos na lista completa (índices 14..17)
+    const themesNew: [number, string][] = [[14, 'Sinuca 🎱'], [15, 'Congelador 🧊'], [16, 'Bancada 🧲'], [17, 'Sala (tapete) 🛋️']];
     const tools = UI.ED_TOOLS;
     const s = this.el(`<div class="screen editor">
       <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>✏️ Editor de Pista</h2><div></div></div>
@@ -421,7 +426,7 @@ export class UI {
       <div class="ed-canvas-wrap"><canvas id="edcv" class="ed-canvas"></canvas><div class="ed-count" id="edcount"></div></div>
       <div class="ed-opts">
         <label>Tema</label>
-        <select id="edtheme">${themes.map((t, i) => `<option value="${i}" ${i === this.edTheme ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <select id="edtheme">${themes.map((t, i) => `<option value="${i}" ${i === this.edTheme ? 'selected' : ''}>${t}</option>`).join('')}${themesNew.map(([v, t]) => `<option value="${v}" ${v === this.edTheme ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <label>Largura</label>
         <input type="range" id="edhalf" min="3.4" max="6" step="0.2" value="${this.edHalf}">
         <input class="ed-name" id="edname" maxlength="18" value="${this.edName}">

@@ -20,18 +20,29 @@ interface Theme {
 const THEMES: Theme[] = [
   { key: 'quintal', ground: 'dirt', bg: '#6f5334', wall: '#6b4e2e', patch: ['sand', 'mud', 'grass'], decor: ['twig', 'leaf', 'pebble', 'grass'], names: ['Quintal do Zé', 'Terra Batida', 'Fundo de Quintal', 'Chão de Terra'] },
   { key: 'praia', ground: 'sand', bg: '#d9b877', wall: '#c9a35f', patch: ['water', 'ramp', 'cardboard'], decor: ['shell', 'starfish', 'castle', 'pebble'], names: ['Praia da Tarde', 'Areia Fofa', 'Beira-Mar', 'Duna do Sol'] },
-  { key: 'calcada', ground: 'sidewalk', bg: '#9a9488', wall: '#8f8879', patch: ['chalk', 'cardboard'], decor: ['chalk', 'toy', 'pebble'], names: ['Calçada de Giz', 'Rua de Baixo', 'Passeio', 'Meio-Fio'] },
-  { key: 'garagem', ground: 'cardboard', bg: '#7d6a4e', wall: '#a9773f', patch: ['sidewalk', 'sand'], decor: ['box', 'tape', 'pencil'], names: ['Garagem', 'Papelão & Fita', 'Depósito', 'Oficina'] },
+  { key: 'calcada', ground: 'sidewalk', bg: '#9a9488', wall: '#8f8879', patch: ['chalk', 'cardboard', 'gum'], decor: ['chalk', 'toy', 'pebble'], names: ['Calçada de Giz', 'Rua de Baixo', 'Passeio', 'Meio-Fio'] },
+  { key: 'garagem', ground: 'cardboard', bg: '#7d6a4e', wall: '#a9773f', patch: ['sidewalk', 'magnet', 'sand'], decor: ['box', 'tape', 'pencil'], names: ['Garagem', 'Papelão & Fita', 'Depósito', 'Oficina'] },
   { key: 'parquinho', ground: 'dirt', bg: '#4f5b3a', wall: '#5c4a2c', patch: ['mud', 'water', 'grass'], decor: ['leaf', 'grass', 'pebble'], names: ['Parquinho Molhado', 'Lamaçal', 'Depois da Chuva', 'Poça & Folha'] },
   { key: 'cozinha', ground: 'cardboard', bg: '#c8b48c', wall: '#c05a5a', patch: ['sidewalk', 'water', 'ice'], decor: ['cup', 'coin', 'eraser', 'straw'], names: ['Mesa da Cozinha', 'Hora do Café', 'Toalha Xadrez', 'Bancada'] },
   { key: 'jardim', ground: 'dirt', bg: '#3f5a2e', wall: '#5a7a3a', patch: ['grass', 'mud', 'sand'], decor: ['grass', 'leaf', 'twig', 'pebble'], names: ['Jardim da Vó', 'Canteiro', 'Grama & Terra', 'Horta'] },
-  { key: 'deserto', ground: 'sand', bg: '#c98f4a', wall: '#a6702f', patch: ['ramp', 'ramp', 'water'], decor: ['pebble', 'twig', 'starfish'], names: ['Deserto', 'Dunas', 'Sol a Pino', 'Areião'] },
+  { key: 'deserto', ground: 'sand', bg: '#c98f4a', wall: '#a6702f', patch: ['ramp', 'vortex', 'water'], decor: ['pebble', 'twig', 'starfish'], names: ['Deserto', 'Dunas', 'Sol a Pino', 'Areião'] },
   { key: 'obra', ground: 'dirt', bg: '#6a6152', wall: '#8a8070', patch: ['cardboard', 'sand'], decor: ['box', 'pencil', 'pebble'], names: ['Canteiro de Obra', 'Entulho', 'Cimento', 'Andaime'] },
   { key: 'laje', ground: 'sidewalk', bg: '#8f9aa0', wall: '#7a848a', patch: ['cardboard', 'chalk', 'ice'], decor: ['toy', 'pebble', 'tape'], names: ['Laje', 'Terraço', 'Cobertura', 'Varal'] },
-  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'ice', 'chalk'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'] },
+  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'ice', 'vortex'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'] },
   { key: 'feira', ground: 'cardboard', bg: '#a88f5c', wall: '#8a6238', patch: ['sidewalk', 'chalk'], decor: ['box', 'coin', 'tape', 'cup'], names: ['Feira Livre', 'Barraca', 'Calçadão', 'Mercadão'] },
   { key: 'estrada', ground: 'dirt', bg: '#5c4a30', wall: '#4a3a24', patch: ['mud', 'sand', 'grass'], decor: ['pebble', 'twig', 'grass'], names: ['Estrada de Barro', 'Trilha', 'Rua sem Asfalto', 'Beira da Roça'] },
   { key: 'varanda', ground: 'cardboard', bg: '#8a6a44', wall: '#6b4e2e', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'leaf', 'pencil'], names: ['Varanda', 'Área Coberta', 'Quintalzinho', 'Alpendre'] },
+];
+// TEMAS NOVOS — cada um estreia um PISO com mecânica própria (ver core/physics):
+//  · SINUCA: feltro rola liso e as bordas viram TABELA VIVA (quique forte de propósito)
+//  · CONGELADOR: escarcha desliza demais e DERRAPA (o freio do Controle não pega)
+//  · BANCADA: aço quica forte (pinball) + placas de ÍMÃ que puxam a tampinha
+//  · SALA: tapete felpudo AMORTECE todo quique + CHICLETE que gruda (peteleco sai fraco)
+const THEMES_NEW: Theme[] = [
+  { key: 'sinuca', ground: 'felt', bg: '#1c5a38', wall: '#7a4a26', patch: ['gum', 'chalk', 'water'], decor: ['ball8', 'chalk', 'coin', 'cup'], names: ['Mesa de Sinuca', 'Bar do Tio', 'Tabela Certa', 'Bico de Giz'] },
+  { key: 'geladeira', ground: 'frost', bg: '#a8c8d4', wall: '#8fb4c2', patch: ['ice', 'water', 'vortex'], decor: ['icecube', 'cup', 'straw', 'coin'], names: ['Congelador', 'Bandeja de Gelo', 'Geladeira Aberta', 'Friozão'] },
+  { key: 'bancada', ground: 'metal', bg: '#727c84', wall: '#4e565e', patch: ['magnet', 'magnet', 'ramp', 'push'], decor: ['bolt', 'pencil', 'tape', 'box'], names: ['Bancada da Oficina', 'Parafuso Solto', 'Ferramentaria', 'Aço Liso'] },
+  { key: 'sala', ground: 'carpet', bg: '#8a4a42', wall: '#6b4030', patch: ['gum', 'cardboard', 'water', 'gum'], decor: ['remote', 'toy', 'cup', 'eraser'], names: ['Tapete da Sala', 'Sala de TV', 'Felpudo', 'Tarde de Domingo'] },
 ];
 
 const tangentAt = (path: V[], i: number): V => { const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)]; const dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; };
@@ -90,7 +101,12 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const rng = mulberry(id * 7919 + level * 131 + idxInLevel * 17 + 1);
   const ri = (a: number, b: number) => Math.floor(a + rng() * (b - a + 1));
   const rf = (a: number, b: number) => a + rng() * (b - a);
-  const theme = THEMES[(idxInLevel * 3 + level * 7 + id) % THEMES.length];
+  // 2 pistas por nível são dos TEMAS NOVOS (determinístico); as outras 40 ficam
+  // exatamente como sempre foram (mesmo tema, mesmo traçado, mesmos obstáculos)
+  const sel = idxInLevel * 3 + level * 7 + id;
+  const theme = sel % 5 === 2
+    ? THEMES_NEW[(level * 2 + (idxInLevel > 4 ? 1 : 0)) % THEMES_NEW.length]
+    : THEMES[sel % THEMES.length];
   const p = LV[level];
 
   const half0 = p.half * rf(0.92, 1.08);
@@ -177,8 +193,10 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     const a = rf(0.1, 0.9) * total; const pp = onPath(a, rf(-half0 * 0.35, half0 * 0.35));
     const sfc = theme.patch[ri(0, theme.patch.length - 1)]; const { i } = atArc(a); const t = tangentAt(path, i);
     const dir = sfc === 'water' ? Math.atan2(t.y, t.x) + rf(-0.6, 0.6) : undefined;
-    if (rng() < 0.45) patches.push({ surface: sfc, x: pp.x, y: pp.y, hw: half0 * rf(0.5, 0.85), hh: half0 * rf(0.85, 1.4), dir });
-    else patches.push({ surface: sfc, x: pp.x, y: pp.y, r: half0 * rf(0.7, 1.1), dir });
+    // ímã/redemoinho/chiclete são SEMPRE redondos (efeito em volta do centro);
+    // chiclete ainda é MENOR — gruda mas nunca vira prisão (dá pra escapar)
+    if (rng() < 0.45 && sfc !== 'magnet' && sfc !== 'vortex' && sfc !== 'gum') patches.push({ surface: sfc, x: pp.x, y: pp.y, hw: half0 * rf(0.5, 0.85), hh: half0 * rf(0.85, 1.4), dir });
+    else patches.push({ surface: sfc, x: pp.x, y: pp.y, r: half0 * rf(0.7, 1.1) * (sfc === 'gum' ? 0.44 : 1), dir });
   }
 
   // buracos, bombas, pedras, bônus (espaçados) — já começa reservando os arcos dos
@@ -348,6 +366,19 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     decor.push({ kind: kd, x: dx, y: dy, s: rf(0.8, 1.3), rot: rng() * 6 }); k++;
   }
 
+  // SEGURANÇA: nada de PINÇA de pedras — duas pedras quase encostadas formam um
+  // "V" onde a tampinha ENCAIXA e fica presa (o vão não passa uma tampinha, mas
+  // o cantinho segura). Se o vão entre bordas ficou menor que um diâmetro + folga,
+  // remove a segunda pedra. (As PORTAS de pedra propositais têm vão ≥ 4u — ficam.)
+  for (let a = obstacles.length - 1; a >= 0; a--) {
+    const oa = obstacles[a]; if (oa.type !== 'stone') continue;
+    for (let b2 = 0; b2 < a; b2++) {
+      const ob = obstacles[b2]; if (ob.type !== 'stone') continue;
+      const gap = Math.hypot(oa.x - ob.x, oa.y - ob.y) - oa.r - ob.r;
+      if (gap < 2.6) { obstacles.splice(a, 1); break; }
+    }
+  }
+
   // SEGURANÇA: nada de buraco/bomba perto de um checkpoint (nem da largada). O
   // renascimento acontece no checkpoint, então nunca pode ter armadilha em cima
   // (senão a tampinha nasce no buraco e trava em loop).
@@ -409,12 +440,13 @@ export interface CustomTrackData {
   protect?: number;                 // 0..1 fração de muro (1 = pista toda murada)
   openArcs?: number[];              // arcos (no mundo já enquadrado) onde o muro foi apagado à mão
 }
-export const CUSTOM_SURFACES = ['sand', 'mud', 'water', 'grass', 'ice', 'ramp', 'push'];
+export const CUSTOM_SURFACES = ['sand', 'mud', 'water', 'grass', 'ice', 'gum', 'magnet', 'vortex', 'ramp', 'push'];
 // monta uma TrackDef jogável a partir do desenho do usuário: suaviza e reamostra
 // o traçado, cria o corredor com muros dos dois lados (bem protegido, pra ser
 // divertido), checkpoints automáticos e a chegada no fim.
 export function buildCustomTrack(data: CustomTrackData): TrackDef {
-  const theme = THEMES[((data.theme % THEMES.length) + THEMES.length) % THEMES.length];
+  const ALL = [...THEMES, ...THEMES_NEW];
+  const theme = ALL[((data.theme % ALL.length) + ALL.length) % ALL.length];
   const half0 = clamp(data.half || 4.2, 3.2, 6.5);
   let raw = data.pts.map(p => vec(p.x, p.y));
   if (raw.length < 2) raw = [vec(10, 10), vec(40, 30)];
@@ -489,7 +521,7 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   // superfícies (areia/lama/água/grama/impulso/freio) do usuário
   const patches: Patch[] = [];
   for (const s of (data.patches || [])) {
-    const x = s.x + dxs, y = s.y + dys; const r = s.r || 2.4;
+    const x = s.x + dxs, y = s.y + dys; const r = Math.min(s.r || 2.4, s.surface === 'gum' ? 2.1 : 99);
     const oriented = s.surface === 'ramp' || s.surface === 'push' || s.surface === 'water';
     const dir = oriented ? dirAtXY(x, y) + (s.surface === 'push' ? Math.PI : 0) : undefined;
     patches.push({ surface: s.surface as any, x, y, r, dir });

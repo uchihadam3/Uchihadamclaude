@@ -308,6 +308,7 @@ addEventListener('pointerdown', () => resumeAudio(), { once: true });
 ui.showMenu(); resize();
 // pista compartilhada por link (#p=...) → oferece jogar/editar
 try { const h = location.hash || ''; const mtc = h.match(/[#&]p=([^&]+)/); if (mtc) { ui.importSharedTrack(mtc[1]); history.replaceState(null, '', location.pathname + location.search); } } catch {}
+(window as any).__go = (level: number, trackIdx: number) => loadMatch({ level, trackIdx, pick: 'specific', players: previewPlayers(), mode: 'quick' });   // debug/E2E: entra direto numa pista
 (window as any).__mgr = mgr; (window as any).__ui = ui; (window as any).__diag = { get inGame() { return inGame; }, get mode() { return mode; }, get previewing() { return previewing; }, get az() { return rig.az; }, get frustum() { return rig.frustum; }, get music() { return musicNow(); }, get actx() { return audioCtx(); }, get mbus() { return musicBus(); }, playMusic };
 const clock = new THREE.Clock(); let t = 0;
 function frame(): void {
@@ -333,7 +334,7 @@ function frame(): void {
     if (fx0 && !fx0.finished) rig.follow(fx0.pos.x, fx0.pos.y);
     rig.update(dt);
     // som/poeira de deslize
-    let maxSp = 0; for (const c of mgr.caps) if (c.moving) { const s = len(c.vel); if (s > maxSp) maxSp = s; if (s > 3 && Math.random() < 0.5) { const surf = mgr.track.surfaceAt(c.pos); if (surf === 'sand' || surf === 'dirt' || surf === 'mud' || surf === 'grass') fx.dust(c.pos.x, c.pos.y, 1, surf === 'mud' ? '#5c452a' : surf === 'grass' ? '#5f8a36' : '#d8c090'); } }
+    let maxSp = 0; for (const c of mgr.caps) if (c.moving) { const s = len(c.vel); if (s > maxSp) maxSp = s; if (s > 3 && Math.random() < 0.5) { const surf = mgr.track.surfaceAt(c.pos); if (surf === 'sand' || surf === 'dirt' || surf === 'mud' || surf === 'grass' || surf === 'frost' || surf === 'carpet') fx.dust(c.pos.x, c.pos.y, 1, surf === 'mud' ? '#5c452a' : surf === 'grass' ? '#5f8a36' : surf === 'frost' ? '#eef8fd' : surf === 'carpet' ? '#b06a58' : '#d8c090'); } }
     sfx.slide(maxSp);
     // pulsos dos itens especiais
     if (board) for (const p of board.pulses) { const s = 1 + Math.sin(t * 4) * 0.18; p.mesh.scale.set(s, s, 1); (p.mesh.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(t * 4) * 0.12; }

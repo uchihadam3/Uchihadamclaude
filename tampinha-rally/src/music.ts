@@ -317,6 +317,7 @@ const THEME_SONG: Record<string, string> = {
   cozinha: 'choro',
   deserto: 'deserto', estrada: 'deserto', obra: 'deserto',
   feira: 'frevo', garagem: 'frevo',
+  sinuca: 'choro', geladeira: 'praia', bancada: 'frevo', sala: 'samba',
 };
 export const songForTheme = (theme: string): string => THEME_SONG[theme] || 'samba';
 

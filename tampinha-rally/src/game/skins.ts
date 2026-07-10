@@ -141,9 +141,18 @@ export const CAP_COLORS = ['#e5484d', '#3b82f6', '#3fae6a', '#f7d046', '#f59e0b'
 export const skinById = (id: string): Skin => SKINS.find(s => s.id === id) || SKINS[0];
 
 // ---------------- PRÊMIOS DE LIGA (ouro nas 4 competições da liga) ----------------
-// Marcas REAIS de tampinha que ainda não estavam no jogo — boas, mas honestas
-// dentro da própria raridade (o troféu é a exclusividade, não um chevrão).
-function prizeCap(liga: number, sk: Skin): Skin { sk.unlock = 99999; sk.prize = liga; return sk; }
+// Marcas REAIS de tampinha que ainda não estavam no jogo. Prêmio de liga tem um
+// BRILHO DE TROFÉU: um lift POR LIGA em cima da raridade (as fortes; 60% disso
+// nas fracas) — cada prêmio fica claramente acima das irmãs da própria categoria,
+// sem quebrar o jogo. O Guaraná leva mais porque o arquétipo deslizante nasce magro.
+const PRIZE_LIFTS = [0.06, 0.06, 0.05, 0.10, 0.06];
+function prizeCap(liga: number, sk: Skin): Skin {
+  sk.unlock = 99999; sk.prize = liga;
+  const L = PRIZE_LIFTS[liga] ?? 0.06;
+  const f = 1 + L, g = 1 + L * 0.6;
+  for (const k of Object.keys(sk.stats) as (keyof CapStats)[]) sk.stats[k] = +(sk.stats[k] * (sk.stats[k] >= 1 ? f : g)).toFixed(3);
+  return sk;
+}
 SKINS.push(
   prizeCap(0, cap('itubaina', 'Itubaína Retrô', 'comum', 99999, 'nimble', '#d81f26',
     { bg: ['#e8433a', '#b01218'], metal: 'steel', arcTop: ['DESDE 1948', '#ffe9c0'], center: 'Itubaína', centerColor: '#fff', centerFont: 'script', centerSize: 0.4, sub: ['TUTTI-FRUTTI', '#ffe9c0'], vintage: 0.5 },
