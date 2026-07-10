@@ -29,9 +29,9 @@ const online = new Online();
 
 let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
-let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string } | null = null;
+let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string; hist: number[] } | null = null;
 let elim: { players: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[] } | null = null;
-let camp: { compId: string; race: number; pts: Map<number, number> } | null = null;
+let camp: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
 let dailyFlicks = 0;
 let inGame = false;
 let previewing = false;
@@ -93,13 +93,13 @@ const ui = new UI({
       let seq: { level: number; idx: number }[];
       if (fmt === 'gp') seq = [0, 1, 2, 3, 4].map(l => ({ level: l, idx: Math.floor(Math.random() * TRACKS_PER_LEVEL) }));   // dificuldade crescente
       else { const n = fmt === 'sprint' ? 3 : fmt === 'maratona' ? 7 : 5; seq = shuf([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, n).map(idx => ({ level: cfg.level, idx })); }
-      champ = { seq, race: 0, pts: new Map(), fmt };
+      champ = { seq, race: 0, pts: new Map(), fmt, hist: [] };
       cfg.level = seq[0].level; cfg.trackIdx = seq[0].idx;
     }
     else champ = null;
     if (cfg.mode === 'elim') { elim = { players: cfg.players.slice(), level: cfg.level, race: 0, out: [] }; cfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
     else elim = null;
-    if (cfg.mode === 'camp' && cfg.campComp) camp = { compId: cfg.campComp, race: 0, pts: new Map() };
+    if (cfg.mode === 'camp' && cfg.campComp) camp = { compId: cfg.campComp, race: 0, pts: new Map(), hist: [] };
     else camp = null;
     loadMatch(cfg);
   },
@@ -219,13 +219,14 @@ function onRaceOver(): void {
     const table = [12, 9, 7, 5, 3, 1];
     mgr.standings().forEach((c, i) => camp!.pts.set(c.id, (camp!.pts.get(c.id) || 0) + (table[i] || 0)));
     const st = campState(); st.races++; saveCamp(st);
+    camp.hist.push(mgr.standings().findIndex(c => !c.isAI) + 1);   // sua colocação NESTA corrida
     const rows = [...camp.pts.entries()].sort((a, b) => b[1] - a[1]).map(([id, p]) => ({ name: mgr.caps[id].name, skin: mgr.caps[id].skin, pts: p, you: !mgr.caps[id].isAI }));
     const last = camp.race + 1 >= comp.races;
-    if (!last) { ui.showResults(mgr, mode, { race: camp.race + 1, total: comp.races, last: false, rows, fmt: 'copa' }); return; }
+    if (!last) { ui.showResults(mgr, mode, { race: camp.race + 1, total: comp.races, last: false, rows, fmt: 'copa', hist: camp.hist.slice() }); return; }
     // fim da competição: coloca você, aplica recompensas, mostra o troféu
     const place = rows.findIndex(r => r.you) + 1;
     const res = applyResult(campState(), camp.compId, place);
-    ui.showCampResult({ comp, place, ptsGained: res.pts, winsGained: res.wins, improved: res.improved, finished: res.finished, rows });
+    ui.showCampResult({ comp, place, ptsGained: res.pts, winsGained: res.wins, improved: res.improved, finished: res.finished, rows, hist: camp.hist.slice() });
     return;
   }
 
@@ -282,8 +283,9 @@ function onRaceOver(): void {
   if (champ) {
     const table = [12, 9, 7, 5, 3, 1];   // pontos por posição na corrida
     mgr.standings().forEach((c, i) => champ!.pts.set(c.id, (champ!.pts.get(c.id) || 0) + (table[i] || 0)));
+    champ.hist.push(mgr.standings().findIndex(c => !c.isAI) + 1);
     const rows = [...champ.pts.entries()].sort((a, b) => b[1] - a[1]).map(([id, p]) => ({ name: mgr.caps[id].name, skin: mgr.caps[id].skin, pts: p, you: !mgr.caps[id].isAI }));
-    champInfo = { race: champ.race + 1, total: champ.seq.length, last: champ.race + 1 >= champ.seq.length, rows, fmt: champ.fmt };
+    champInfo = { race: champ.race + 1, total: champ.seq.length, last: champ.race + 1 >= champ.seq.length, rows, fmt: champ.fmt, hist: champ.hist.slice() };
   }
   ui.showResults(mgr, mode, champInfo);
 }

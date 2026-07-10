@@ -306,7 +306,7 @@ export class UI {
   onCampBack: (() => void) | null = null;
   onCampRetry: ((compId: string) => void) | null = null;
   onCampFinale: (() => void) | null = null;
-  showCampResult(d: { comp: CampComp; place: number; ptsGained: number; winsGained: number; improved: boolean; finished: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[] }): void {
+  showCampResult(d: { comp: CampComp; place: number; ptsGained: number; winsGained: number; improved: boolean; finished: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; hist?: number[] }): void {
     const { modal, box } = this.modalBox(); box.className = 'modal win';
     const tro = d.place === 1 ? '🥇' : d.place === 2 ? '🥈' : d.place === 3 ? '🥉' : '😤';
     const head = d.place === 1 ? 'CAMPEÃO!' : d.place === 2 ? 'Prata!' : d.place === 3 ? 'Bronze!' : d.place + 'º lugar';
@@ -317,6 +317,7 @@ export class UI {
     box.innerHTML = `<div class="camp-tro">${tro}</div><h3>${d.comp.ico} ${d.comp.name}</h3><div class="camp-place">${head}</div>
       ${rewards}
       ${!podio ? '<div class="camp-tip">Precisa de PÓDIO (top 3) pra liberar a próxima. Passa na 🔧 Oficina e tenta de novo!</div>' : ''}
+      ${d.hist ? raceStrip(d.hist.length, d.hist.length, d.hist) : ''}
       <div class="champ-stand">${d.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>
       <div class="mactions"><button class="chip" id="again">↻ De novo</button><button class="play-btn" id="mapa">${d.finished ? '👑 Ver o FINAL' : 'Campanha ▶'}</button></div>`;
     box.querySelectorAll('.cs-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 44)));
@@ -1262,7 +1263,7 @@ export class UI {
   }
   hideModal(): void { this.hud?.querySelector('#modal')!.classList.add('hidden'); }
 
-  showResults(m: GameManager, mode: Mode, champInfo?: { race: number; total: number; last: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; fmt: string }, teamInfo?: { teams: { label: string; score: number; members: { name: string; skin: string; place: number; you: boolean }[]; win: boolean; you: boolean }[]; won: boolean }): void {
+  showResults(m: GameManager, mode: Mode, champInfo?: { race: number; total: number; last: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; fmt: string; hist?: number[] }, teamInfo?: { teams: { label: string; score: number; members: { name: string; skin: string; place: number; you: boolean }[]; win: boolean; you: boolean }[]; won: boolean }): void {
     const modal = this.hud!.querySelector('#modal') as HTMLElement; const box = this.hud!.querySelector('#mbox') as HTMLElement;
     const order = m.standings(); const you = (mode === 'online' && this.online.active) ? m.caps[this.online.mySeatIndex()] : m.caps.find(c => !c.isAI);
     const wonYou = teamInfo ? teamInfo.won : (you && you.place === 1);
@@ -1275,7 +1276,7 @@ export class UI {
           ? `<h3 style="font-size:22px">Corrida ${champInfo.race}/${champInfo.total} 🏁</h3>`
           : `<h3>${wonYou ? 'Você venceu! 🎉' : (you ? you.place + 'º lugar' : 'Fim!')}</h3>`;
     // no campeonato, mostra a TABELA DE PONTOS ao vivo em vez do pódio
-    const champStand = champInfo ? `<div class="champ-stand"><div class="cs-title">🏆 Classificação do campeonato</div>${champInfo.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>` : '';
+    const champStand = champInfo ? `${raceStrip(champInfo.race, champInfo.total, champInfo.hist)}<div class="champ-stand"><div class="cs-title">🏆 Classificação do campeonato</div>${champInfo.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>` : '';
     // dupla online: colunas dos times
     const teamStand = teamInfo ? `<div class="team-cols">${teamInfo.teams.map(t => `<div class="team-col ${t.win ? 'win' : ''} ${t.you ? 'mine' : ''}"><div class="team-h">${t.win ? '🏆 ' : ''}${t.label}</div><div class="team-score">${t.score} <small>pts</small></div>${t.members.slice().sort((a, b) => a.place - b.place).map(mm => `<div class="team-mem"><span class="tm-cap" data-s="${mm.skin}"></span><span class="tm-nm">${mm.name}</span><b>${mm.place}º</b></div>`).join('')}</div>`).join('')}</div>` : '';
     const actions = mode === 'online'
@@ -1409,4 +1410,25 @@ function capBars(st: CapStats, all = false, base?: CapStats): string {
   const defs = all ? STAT_DEFS : STAT_DEFS.slice(0, 4);
   return `<div class="skin-bars">${defs.map(([l, k]) => bar(l, st[k], !!base && st[k] > ((base as any)[k] ?? 1) + 1e-6)).join('')}</div>`;
 }
+
+// régua das corridas de uma competição: feitas (com SUA medalha), próxima e restantes
+function raceStrip(done: number, total: number, hist?: number[]): string {
+  const med = (p?: number) => p === 1 ? '🥇' : p === 2 ? '🥈' : p === 3 ? '🥉' : p ? p + 'º' : '·';
+  let cells = '';
+  for (let i = 0; i < total; i++) {
+    const isDone = i < done, isNext = i === done;
+    cells += `<div class="rs-cell ${isDone ? 'done' : isNext ? 'next' : ''}">
+      <span class="rs-flag">${isDone ? '🏁' : isNext ? '▶️' : '🔒'}</span>
+      <span class="rs-med">${isDone ? med(hist?.[i]) : isNext ? 'AGORA' : ''}</span>
+      <span class="rs-lab">${i + 1}ª</span>
+    </div>`;
+    if (i < total - 1) cells += `<i class="rs-link ${i < done - 1 || (i === done - 1 && done > 0) ? 'on' : ''}"></i>`;
+  }
+  const remain = total - done;
+  const note = remain === 0 ? '🏆 Competição completa!'
+    : remain === 1 ? '🔥 Falta só a ÚLTIMA corrida!'
+    : `Faltam <b>${remain}</b> corridas`;
+  return `<div class="rstrip">${cells}</div><div class="rs-note">${note}</div>`;
+}
+
 function dailyKey(): string { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }

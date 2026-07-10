@@ -555,3 +555,21 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 /* ---- ficha da tampinha: marcador de atributo melhorado na Oficina ---- */
 .sval .sup { color: #6fe06f; font-size: 10px; margin-left: 2px; font-style: normal; }
 .cs-ofi { text-align: center; color: #6fe06f; font-size: 12px; margin-top: 4px; font-weight: 700; }
+
+/* ---- régua das corridas da competição (campanha e campeonatos) ---- */
+.rstrip { display:flex; align-items:center; justify-content:center; margin:10px 0 2px; }
+.rs-cell { width:52px; padding:6px 0 5px; border-radius:12px; background:rgba(255,255,255,.06);
+  border:2px solid rgba(255,255,255,.14); display:flex; flex-direction:column; align-items:center; gap:1px; }
+.rs-cell .rs-flag { font-size:15px; line-height:1; }
+.rs-cell .rs-med { font-size:12px; font-weight:900; min-height:15px; line-height:15px; }
+.rs-cell .rs-lab { font-size:9px; font-weight:800; opacity:.6; }
+.rs-cell.done { background:rgba(70,190,110,.16); border-color:rgba(110,230,150,.55); }
+.rs-cell.next { background:rgba(255,205,90,.16); border-color:#ffd76a; animation:rsPulse 1.1s infinite; }
+.rs-cell.next .rs-med { font-size:8.5px; color:#ffd76a; letter-spacing:.4px; }
+.rs-cell:not(.done):not(.next) { opacity:.5; }
+.rs-cell:not(.done):not(.next) .rs-flag { filter:grayscale(1); opacity:.5; }
+@keyframes rsPulse { 50% { transform:scale(1.07); box-shadow:0 0 14px rgba(255,215,106,.35); } }
+.rs-link { width:12px; height:3px; border-radius:2px; background:rgba(255,255,255,.15); flex:none; }
+.rs-link.on { background:rgba(110,230,150,.6); }
+.rs-note { text-align:center; font-size:11.5px; opacity:.85; margin-bottom:6px; }
+.rs-note b { color:#ffd76a; }
