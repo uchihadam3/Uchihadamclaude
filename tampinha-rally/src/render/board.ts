@@ -43,6 +43,161 @@ function decorProp(kind: string, col?: string): THREE.Object3D {
     case 'icecube': { const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 1.1), new THREE.MeshStandardMaterial({ color: '#cfeaf6', roughness: 0.15, transparent: true, opacity: 0.7 })); b.position.y = 0.55; b.rotation.y = Math.random() * 1.5; b.castShadow = true; g.add(b); break; }
     case 'bolt': { const head = cyl(0.42, 0.42, 0.3, '#8a949c'); (head.geometry as THREE.CylinderGeometry).dispose(); head.geometry = new THREE.CylinderGeometry(0.42, 0.42, 0.3, 6); head.position.y = 0.15; g.add(head); const shaft = cyl(0.16, 0.16, 1.4, '#a8b2ba'); shaft.rotation.z = 1.57; shaft.position.set(0.8, 0.16, 0); g.add(shaft); break; }
     case 'remote': { const b = box(0.9, 0.22, 2.2, '#2a2a30'); b.position.y = 0.11; b.castShadow = true; g.add(b); for (let i = 0; i < 6; i++) { const k = cyl(0.09, 0.09, 0.08, i === 0 ? '#e05a5a' : '#b8c0c8'); k.position.set(((i % 2) - 0.5) * 0.36, 0.24, -0.7 + Math.floor(i / 2) * 0.42); g.add(k); } break; }
+
+    // ---------- OBJETOS DE VERDADE (heróis do cenário — escala de mesa real) ----------
+    case 'saltshaker': {   // saleiro de vidro com tampinha de metal furada
+      const glass = new THREE.MeshPhysicalMaterial({ color: '#eef2f4', roughness: 0.08, transmission: 0.55, thickness: 0.6 } as any);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 1.15, 3.0, 18), glass); body.position.y = 1.5; body.castShadow = true; g.add(body);
+      const salt = cyl(0.82, 1.0, 2.0, '#ffffff'); salt.position.y = 1.1; g.add(salt);
+      const cap2 = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.95, 0.75, 18), M('#c8ced4', 0.35)); cap2.position.y = 3.35; cap2.castShadow = true; g.add(cap2);
+      for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283; const hole = cyl(0.09, 0.09, 0.06, '#4a5056'); hole.position.set(Math.cos(a) * 0.4, 3.74, Math.sin(a) * 0.4); g.add(hole); }
+      break;
+    }
+    case 'plate': {        // prato de louça com friso azul e migalhas
+      const pts: THREE.Vector2[] = [new THREE.Vector2(0, 0.12), new THREE.Vector2(2.6, 0.12), new THREE.Vector2(3.4, 0.3), new THREE.Vector2(4.1, 0.75), new THREE.Vector2(4.25, 0.8)];
+      const m = new THREE.Mesh(new THREE.LatheGeometry(pts, 36), M('#f2ede2', 0.35)); m.castShadow = true; m.receiveShadow = true; g.add(m);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.07, 8, 40), M('#4a7ab0', 0.5)); rim.rotation.x = 1.57; rim.position.y = 0.62; g.add(rim);
+      for (let i = 0; i < 8; i++) { const cr = new THREE.Mesh(new THREE.DodecahedronGeometry(0.14), M('#c9a35f')); cr.position.set((Math.random() - 0.5) * 3.4, 0.22, (Math.random() - 0.5) * 3.4); g.add(cr); }
+      break;
+    }
+    case 'mugcoffee': {    // caneca com café e alça
+      const bd = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.5, 3.9, 22, 1, true), new THREE.MeshStandardMaterial({ color: col || '#d05a4a', roughness: 0.4, side: THREE.DoubleSide })); bd.position.y = 1.95; bd.castShadow = true; g.add(bd);
+      const bot = cyl(1.5, 1.5, 0.16, col || '#d05a4a'); bot.position.y = 0.08; g.add(bot);
+      const cafe = cyl(1.55, 1.55, 0.08, '#3a2414'); cafe.position.y = 3.55; g.add(cafe);
+      const alca = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.26, 10, 20, Math.PI * 1.5), M(col || '#d05a4a', 0.4)); alca.position.set(1.95, 2.1, 0); alca.rotation.z = -0.5; alca.castShadow = true; g.add(alca);
+      break;
+    }
+    case 'napkinfold': { const n1 = box(3.4, 0.1, 3.4, '#f6f2ea'); n1.position.y = 0.05; g.add(n1); const n2 = box(2.4, 0.1, 2.4, '#efe9dd'); n2.position.y = 0.15; n2.rotation.y = 0.4; g.add(n2); break; }
+    case 'apple': {
+      const a = new THREE.Mesh(new THREE.SphereGeometry(1.7, 18, 14), M(col || '#c8382e', 0.35)); a.position.y = 1.55; a.scale.y = 0.92; a.castShadow = true; g.add(a);
+      const st = cyl(0.09, 0.12, 0.9, '#5a3a1a'); st.position.y = 3.3; st.rotation.z = 0.25; g.add(st);
+      const lf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), M('#4f7d30')); lf.scale.set(1, 0.25, 0.5); lf.position.set(0.45, 3.35, 0); g.add(lf);
+      break;
+    }
+    case 'cuttingboard': { const b = box(7, 0.5, 4.4, '#b98a52'); b.position.y = 0.25; b.castShadow = true; g.add(b); const h = cyl(0.55, 0.55, 0.5, '#b98a52'); h.position.set(4.1, 0.25, 0); g.add(h); const hole = cyl(0.28, 0.28, 0.54, '#6f5334'); hole.position.set(4.1, 0.26, 0); g.add(hole); break; }
+    case 'bucketzinc': {   // balde de zinco com alça caída
+      const bd = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.5, 3.2, 20, 1, true), new THREE.MeshStandardMaterial({ color: '#aab4bc', roughness: 0.35, metalness: 0.55, side: THREE.DoubleSide })); bd.position.y = 1.6; bd.castShadow = true; g.add(bd);
+      const bot = cyl(1.5, 1.5, 0.14, '#98a2aa'); bot.position.y = 0.07; g.add(bot);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.09, 8, 24), M('#8e989e', 0.3)); rim.rotation.x = 1.57; rim.position.y = 3.2; g.add(rim);
+      const al = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.08, 8, 24, Math.PI), M('#78828a', 0.3)); al.position.y = 3.2; al.rotation.x = 0.5; g.add(al);
+      break;
+    }
+    case 'bone': { for (const dx of [-1.5, 1.5]) for (const dz of [-0.4, 0.4]) { const s2 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 8), M('#e8e0d0', 0.6)); s2.position.set(dx, 0.5, dz); s2.castShadow = true; g.add(s2); } const mid = cyl(0.4, 0.4, 3.0, '#e8e0d0'); mid.rotation.z = 1.57; mid.position.y = 0.5; mid.castShadow = true; g.add(mid); break; }
+    case 'fencebit': {     // pedacinho de cerca de madeira
+      for (const dx of [-2.4, 0, 2.4]) { const post = box(0.5, 3.4, 0.5, '#7a5a34'); post.position.set(dx, 1.7, 0); post.castShadow = true; g.add(post); const tip = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.6, 4), M('#6b4e2e')); tip.position.set(dx, 3.7, 0); tip.rotation.y = 0.78; g.add(tip); }
+      for (const y of [1.1, 2.3]) { const rail = box(6.4, 0.4, 0.24, '#8a6a3e'); rail.position.y = y; rail.castShadow = true; g.add(rail); }
+      break;
+    }
+    case 'beachumbrella': {   // guarda-sol listrado inclinado
+      const pole = cyl(0.14, 0.14, 8.5, '#e8e4dc'); pole.position.y = 4.0; pole.rotation.z = 0.22; pole.castShadow = true; g.add(pole);
+      const top = new THREE.Group();
+      for (let i = 0; i < 10; i++) { const seg = new THREE.Mesh(new THREE.ConeGeometry(4.6, 1.9, 10, 1, true, i / 10 * 6.283, 0.629), M(i % 2 ? '#e5484d' : '#f6f0e2', 0.7)); (seg.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide; seg.castShadow = true; top.add(seg); }
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.7, 8), M('#c9a35f')); tip.position.y = 1.25; top.add(tip);
+      top.position.set(1.85, 7.6, 0); top.rotation.z = 0.22; g.add(top);
+      break;
+    }
+    case 'beachball': {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(1.75, 20, 16), M('#f6f0e2', 0.45)); b.position.y = 1.75; b.castShadow = true; g.add(b);
+      const cols2 = ['#e5484d', '#3b82f6', '#f2b100'];
+      for (let i = 0; i < 3; i++) { const gore = new THREE.Mesh(new THREE.SphereGeometry(1.76, 20, 16, i * 2.09, 0.9), M(cols2[i], 0.45)); gore.position.y = 1.75; g.add(gore); }
+      break;
+    }
+    case 'flipflop': {
+      const sole = new THREE.Mesh(new THREE.CapsuleGeometry(1.05, 2.3, 6, 12), M(col || '#3fae6a', 0.7)); sole.scale.y = 0.16; sole.rotation.x = 1.57; sole.position.y = 0.22; sole.castShadow = true; g.add(sole);
+      for (const sgn of [-1, 1]) { const strap = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.13, 8, 14, 2.4), M('#f6f0e2', 0.6)); strap.position.set(sgn * 0.35, 0.3, -0.65); strap.rotation.set(0, sgn * -0.5, sgn * -1.2); g.add(strap); }
+      break;
+    }
+    case 'sunscreen': { const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.85, 1.8, 6, 14), M('#f2b100', 0.4)); b.scale.z = 0.55; b.position.y = 1.75; b.castShadow = true; g.add(b); const cp = cyl(0.5, 0.55, 0.7, '#f6f0e2'); cp.position.y = 3.15; g.add(cp); const lb = box(1.35, 1.1, 1.0, '#f6f0e2'); lb.position.y = 1.7; g.add(lb); break; }
+    case 'toycar': {       // carrinho de brinquedo
+      const bd = box(1.9, 0.85, 3.6, col || '#3b82f6'); bd.position.y = 0.95; bd.castShadow = true; g.add(bd);
+      const cab = box(1.7, 0.8, 1.8, '#cfe4ee'); cab.position.set(0, 1.7, -0.2); cab.castShadow = true; g.add(cab);
+      for (const dz of [-1.2, 1.2]) for (const dx of [-1.0, 1.0]) { const wh = cyl(0.55, 0.55, 0.35, '#22262a'); wh.rotation.z = 1.57; wh.position.set(dx, 0.55, dz); g.add(wh); const hub = cyl(0.22, 0.22, 0.38, '#c8ced4'); hub.rotation.z = 1.57; hub.position.set(dx, 0.55, dz); g.add(hub); }
+      break;
+    }
+    case 'chalkset': { const cols3 = ['#ff8fb0', '#8fd0ff', '#ffe38f', '#a0ffb0']; cols3.forEach((cc, i) => { const ck = cyl(0.28, 0.28, 2.2, cc); ck.rotation.z = 1.57; ck.rotation.y = (Math.random() - 0.5) * 1.2; ck.position.set((i - 1.5) * 0.75, 0.28, (Math.random() - 0.5) * 1.2); ck.castShadow = true; g.add(ck); }); break; }
+    case 'paintcan': {
+      const bd = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 3.4, 20), new THREE.MeshStandardMaterial({ color: '#c8ced4', roughness: 0.3, metalness: 0.5 })); bd.position.y = 1.7; bd.castShadow = true; g.add(bd);
+      const label = cyl(1.58, 1.58, 1.7, col || '#3b82f6'); label.position.y = 1.7; g.add(label);
+      const tinta = cyl(1.4, 1.4, 0.1, col || '#3b82f6'); tinta.position.y = 3.46; g.add(tinta);
+      const drip = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), M(col || '#3b82f6', 0.3)); drip.scale.set(1, 0.25, 1.6); drip.position.set(1.5, 3.35, 0.4); g.add(drip);
+      break;
+    }
+    case 'wrench': {       // chave de boca
+      const bar = box(3.2, 0.3, 0.75, '#b8c2ca'); bar.position.y = 0.16; bar.castShadow = true; g.add(bar);
+      for (const sgn of [-1, 1]) { const head = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.3, 8, 18, 4.4), new THREE.MeshStandardMaterial({ color: '#b8c2ca', roughness: 0.3, metalness: 0.6 })); head.rotation.x = 1.57; head.rotation.z = sgn > 0 ? 0.8 : 0.8 + 3.14; head.position.set(sgn * 2.0, 0.16, 0); head.castShadow = true; g.add(head); }
+      break;
+    }
+    case 'tirestack': { for (let i = 0; i < 2; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.8, 12, 24), M('#26282c', 0.85)); t.rotation.x = 1.57; t.position.y = 0.8 + i * 1.5; t.castShadow = true; g.add(t); } break; }
+    case 'oldtire': { const t = new THREE.Mesh(new THREE.TorusGeometry(1.9, 0.8, 12, 24), M('#26282c', 0.85)); t.rotation.x = 1.57; t.position.y = 0.8; t.castShadow = true; g.add(t); break; }
+    case 'toyshovel': { const stick = cyl(0.16, 0.16, 3.6, col || '#e5484d'); stick.rotation.z = 1.35; stick.position.y = 0.5; g.add(stick); const scoop = box(1.5, 0.16, 1.9, col || '#e5484d'); scoop.position.set(2.1, 0.2, 0); scoop.rotation.z = -0.12; scoop.castShadow = true; g.add(scoop); const grip = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.14, 8, 14), M(col || '#e5484d', 0.5)); grip.position.set(-1.95, 1.15, 0); grip.rotation.y = 1.57; g.add(grip); break; }
+    case 'wateringcan': {  // regador com bico e crivo
+      const bd = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.9, 3.2, 20), M(col || '#3fae6a', 0.45)); bd.position.y = 1.6; bd.castShadow = true; g.add(bd);
+      const spout = cyl(0.22, 0.34, 3.4, col || '#3fae6a'); spout.rotation.z = 0.9; spout.position.set(2.35, 2.35, 0); spout.castShadow = true; g.add(spout);
+      const crivo = cyl(0.62, 0.62, 0.3, '#2e8a50'); crivo.rotation.z = 0.9; crivo.position.set(3.65, 3.35, 0); g.add(crivo);
+      const alca = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.16, 8, 20, Math.PI), M(col || '#3fae6a', 0.45)); alca.position.set(-1.2, 3.0, 0); alca.rotation.z = 0.5; g.add(alca);
+      break;
+    }
+    case 'flowerpot': {    // vaso de barro com flor
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.05, 2.4, 18), M('#b06a40', 0.7)); pot.position.y = 1.2; pot.castShadow = true; g.add(pot);
+      const rim = cyl(1.65, 1.65, 0.5, '#a05a34'); rim.position.y = 2.45; g.add(rim);
+      const terra = cyl(1.35, 1.35, 0.12, '#4a3418'); terra.position.y = 2.72; g.add(terra);
+      const stem = cyl(0.09, 0.11, 2.6, '#4f7d30'); stem.position.y = 4.0; g.add(stem);
+      for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; const pet = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), M(col || '#f2b100', 0.5)); pet.scale.set(1, 0.35, 0.6); pet.position.set(Math.cos(a) * 0.62, 5.35, Math.sin(a) * 0.62); pet.rotation.y = -a; g.add(pet); }
+      const miolo = new THREE.Mesh(new THREE.SphereGeometry(0.38, 10, 8), M('#a4581e')); miolo.position.y = 5.4; g.add(miolo);
+      const lf2 = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), M('#4f7d30')); lf2.scale.set(1, 0.22, 0.5); lf2.position.set(0.5, 3.6, 0.2); g.add(lf2);
+      break;
+    }
+    case 'mushroom': { const st2 = cyl(0.42, 0.55, 1.1, '#efe9dd'); st2.position.y = 0.55; g.add(st2); const cap3 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 14, 10, 0, 6.3, 0, 1.35), M(col || '#d05a4a', 0.55)); cap3.position.y = 0.95; cap3.castShadow = true; g.add(cap3); for (let i = 0; i < 5; i++) { const a = i * 1.9; const dot = cyl(0.14, 0.14, 0.06, '#f6f0e2'); dot.position.set(Math.cos(a) * 0.55, 1.45 + Math.sin(i) * 0.1, Math.sin(a) * 0.55); dot.rotation.set(Math.cos(a) * 0.5, 0, Math.sin(a) * -0.5); g.add(dot); } break; }
+    case 'cactus': {       // cacto de duas orelhas com florzinha
+      const main = new THREE.Mesh(new THREE.CapsuleGeometry(0.95, 3.4, 6, 14), M('#3e7d3e', 0.7)); main.position.y = 2.6; main.castShadow = true; g.add(main);
+      for (const sgn of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 1.4, 6, 12), M('#469046', 0.7)); arm.position.set(sgn * 1.35, 2.6 + (sgn > 0 ? 0.7 : 0.1), 0); arm.rotation.z = sgn * -0.5; arm.castShadow = true; g.add(arm); }
+      const fl = new THREE.Mesh(new THREE.SphereGeometry(0.4, 10, 8), M('#ff8fb0', 0.5)); fl.position.y = 4.75; g.add(fl);
+      for (let i = 0; i < 22; i++) { const a = Math.random() * 6.283, yy = 1 + Math.random() * 3.2; const sp = cyl(0.02, 0.05, 0.4, '#e8e0c0'); sp.position.set(Math.cos(a) * 0.98, yy, Math.sin(a) * 0.98); sp.rotation.set(Math.sin(a) * 1.57, 0, Math.cos(a) * -1.57); g.add(sp); }
+      break;
+    }
+    case 'drybush': { for (let i = 0; i < 9; i++) { const tw = cyl(0.05, 0.09, 1.8 + Math.random(), '#9a7a4a'); tw.position.y = 0.8; tw.rotation.set((Math.random() - 0.5) * 1.6, Math.random() * 6.283, (Math.random() - 0.5) * 1.6); tw.castShadow = true; g.add(tw); } break; }
+    case 'brickpile': { const bc = '#c05a3a'; const b1 = box(2.6, 1.1, 1.25, bc); b1.position.y = 0.55; b1.castShadow = true; g.add(b1); const b2 = box(2.6, 1.1, 1.25, '#b0522e'); b2.position.set(0.4, 1.65, 0.15); b2.rotation.y = 0.22; b2.castShadow = true; g.add(b2); const b3 = box(2.6, 1.1, 1.25, '#c86040'); b3.position.set(-1.4, 0.55, 1.6); b3.rotation.y = -0.5; b3.castShadow = true; g.add(b3); break; }
+    case 'helmet': { const h = new THREE.Mesh(new THREE.SphereGeometry(1.7, 18, 12, 0, 6.3, 0, 1.62), M('#f2b100', 0.4)); h.position.y = 0.25; h.castShadow = true; g.add(h); const brim = cyl(2.1, 2.2, 0.18, '#e0a400'); brim.position.y = 0.3; g.add(brim); const crest = box(0.5, 0.3, 2.9, '#e0a400'); crest.position.y = 1.85; g.add(crest); break; }
+    case 'watertank': {    // caixa d'água azul da laje
+      const bd = new THREE.Mesh(new THREE.CylinderGeometry(3.3, 2.9, 4.2, 24), M('#2e6fb0', 0.5)); bd.position.y = 2.1; bd.castShadow = true; g.add(bd);
+      const lid = new THREE.Mesh(new THREE.SphereGeometry(3.35, 24, 10, 0, 6.3, 0, 0.9), M('#3b82c8', 0.5)); lid.position.y = 3.15; lid.scale.y = 0.75; lid.castShadow = true; g.add(lid);
+      const stripe = cyl(3.36, 3.36, 0.5, '#245a94'); stripe.position.y = 2.0; g.add(stripe);
+      break;
+    }
+    case 'clothesline': {  // varal com roupinhas quicando no vento
+      for (const dx of [-4.4, 4.4]) { const pole = cyl(0.14, 0.16, 5.2, '#8a8f94'); pole.position.set(dx, 2.6, 0); pole.castShadow = true; g.add(pole); }
+      const line = cyl(0.035, 0.035, 8.8, '#e8e4dc'); line.rotation.z = 1.57; line.position.y = 4.9; g.add(line);
+      const cs = ['#e5484d', '#3b82f6', '#3fae6a', '#f2b100'];
+      for (let i = 0; i < 4; i++) { const cl = box(1.25, 1.7, 0.09, cs[i]); cl.position.set(-3.1 + i * 2.05, 4.05, 0); cl.rotation.x = 0.12; cl.castShadow = true; g.add(cl); }
+      break;
+    }
+    case 'floatring': { const t = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.85, 14, 28), M('#ff7ea8', 0.45)); t.rotation.x = 1.57; t.position.y = 0.85; t.castShadow = true; g.add(t); for (let i = 0; i < 4; i++) { const seg = new THREE.Mesh(new THREE.TorusGeometry(2.11, 0.86, 14, 28, 0.7), M('#f6f0e2', 0.45)); seg.rotation.x = 1.57; seg.rotation.z = i * 1.57 + 0.4; seg.position.y = 0.85; g.add(seg); } break; }
+    case 'fruitcrate': {   // caixote de feira com laranjas
+      const bc2 = '#b98a52';
+      for (const [w2, h2, d2, x2, y2, z2] of [[4.4, 0.3, 3.0, 0, 0.15, 0], [4.4, 1.4, 0.25, 0, 0.85, 1.4], [4.4, 1.4, 0.25, 0, 0.85, -1.4], [0.25, 1.4, 3.0, 2.1, 0.85, 0], [0.25, 1.4, 3.0, -2.1, 0.85, 0]] as number[][]) { const pl = box(w2, h2, d2, bc2); pl.position.set(x2, y2, z2); pl.castShadow = true; g.add(pl); }
+      for (let i = 0; i < 7; i++) { const or = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 10), M('#f28a1e', 0.5)); or.position.set((Math.random() - 0.5) * 2.8, 0.85 + (i > 4 ? 0.8 : 0), (Math.random() - 0.5) * 1.7); or.castShadow = true; g.add(or); }
+      break;
+    }
+    case 'roadsign': { const pole = cyl(0.13, 0.15, 5.6, '#8a8f94'); pole.position.y = 2.8; pole.castShadow = true; g.add(pole); const sign = box(2.6, 2.6, 0.16, '#f2b100'); sign.position.y = 5.1; sign.rotation.z = 0.785; sign.castShadow = true; g.add(sign); const dot = box(0.8, 0.8, 0.06, '#22262a'); dot.position.set(0, 5.1, 0.1); dot.rotation.z = 0.785; g.add(dot); break; }
+    case 'cuestick': { const stick = cyl(0.13, 0.3, 11, '#b98a52'); stick.rotation.z = 1.545; stick.position.y = 0.32; stick.castShadow = true; g.add(stick); const tip = cyl(0.13, 0.13, 0.25, '#3b82f6'); tip.rotation.z = 1.545; tip.position.set(-5.55, 0.4, 0); g.add(tip); const base = cyl(0.31, 0.31, 0.3, '#26282c'); base.rotation.z = 1.545; base.position.set(5.6, 0.24, 0); g.add(base); break; }
+    case 'poolballs': { const cs2 = [['#f2b100', 1], ['#e5484d', 3], ['#3b82f6', 2]] as [string, number][]; cs2.forEach(([cc], i) => { const a = i * 2.09; const b = new THREE.Mesh(new THREE.SphereGeometry(0.62, 14, 12), M(cc, 0.25)); b.position.set(Math.cos(a) * 0.75, 0.62, Math.sin(a) * 0.75); b.castShadow = true; g.add(b); const w3 = cyl(0.24, 0.24, 0.05, '#f6f0e2'); w3.position.set(Math.cos(a) * 0.75, 1.22, Math.sin(a) * 0.75); g.add(w3); }); break; }
+    case 'bluechalk': { const c2 = box(1.05, 0.8, 1.05, '#3b82f6'); c2.position.y = 0.4; c2.castShadow = true; g.add(c2); const dip = cyl(0.4, 0.4, 0.12, '#2a62b8'); dip.position.y = 0.82; g.add(dip); break; }
+    case 'sodacup': {      // copo de refrigerante com tampa e canudo
+      const glass2 = new THREE.MeshPhysicalMaterial({ color: '#e8f0f4', roughness: 0.1, transmission: 0.5, thickness: 0.5 } as any);
+      const bd = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 0.95, 3.6, 18), glass2); bd.position.y = 1.8; bd.castShadow = true; g.add(bd);
+      const soda = cyl(1.05, 0.9, 2.7, '#7a3c14'); soda.position.y = 1.5; g.add(soda);
+      const lid = cyl(1.35, 1.3, 0.35, '#e5484d'); lid.position.y = 3.75; g.add(lid);
+      const straw = cyl(0.12, 0.12, 3.2, '#f6f0e2'); straw.rotation.z = 0.3; straw.position.set(-0.45, 5.0, 0); g.add(straw);
+      break;
+    }
+    case 'popsicle': { const stick = cyl(0.18, 0.18, 1.6, '#d8b888'); stick.rotation.x = 1.57; stick.position.set(0, 0.2, 2.2); g.add(stick); const body = new THREE.Mesh(new THREE.CapsuleGeometry(1.0, 2.6, 6, 14), M(col || '#ff7ea8', 0.35)); body.scale.z = 0.45; body.rotation.x = 1.57; body.position.y = 0.5; body.castShadow = true; g.add(body); const bite = new THREE.Mesh(new THREE.SphereGeometry(0.65, 10, 8), M('#a8c8d4', 0.4)); bite.position.set(0.7, 0.75, -1.7); g.add(bite); break; }
+    case 'icecreamtub': { const bd = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 1.7, 2.3, 20), M('#efe6d4', 0.5)); bd.position.y = 1.15; bd.castShadow = true; g.add(bd); const band = cyl(2.02, 2.02, 0.8, col || '#c86a94'); band.position.y = 1.3; g.add(band); const lidr = cyl(2.1, 2.1, 0.3, '#e0d6c4'); lidr.position.y = 2.45; g.add(lidr); const scoop = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10), M(col || '#c86a94', 0.5)); scoop.position.set(0.4, 2.85, -0.2); scoop.castShadow = true; g.add(scoop); break; }
+    case 'icetray': { const tray = box(3.4, 0.55, 2.3, '#8fc2e8'); tray.position.y = 0.28; tray.castShadow = true; g.add(tray); for (let ix = 0; ix < 4; ix++) for (let iz = 0; iz < 3; iz++) { const cube = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.3, 0.55), new THREE.MeshStandardMaterial({ color: '#dff2fc', roughness: 0.15, transparent: true, opacity: 0.85 })); cube.position.set(-1.2 + ix * 0.8, 0.6, -0.72 + iz * 0.72); g.add(cube); } break; }
+    case 'hammer': { const handle = cyl(0.22, 0.26, 4.4, '#b98a52'); handle.rotation.z = 1.57; handle.position.y = 0.26; handle.castShadow = true; g.add(handle); const head = box(1.1, 0.85, 0.85, '#78828a'); head.position.set(2.1, 0.45, 0); head.castShadow = true; g.add(head); const claw = box(0.85, 0.5, 0.5, '#8a949c'); claw.position.set(2.1, 0.45, 0.65); claw.rotation.x = 0.4; g.add(claw); break; }
+    case 'screwdriver': { const handle = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.4, 6, 12), M(col || '#e5484d', 0.35)); handle.rotation.z = 1.57; handle.position.set(-1.2, 0.42, 0); handle.castShadow = true; g.add(handle); const shaft = cyl(0.11, 0.11, 2.6, '#c8ced4'); shaft.rotation.z = 1.57; shaft.position.set(1.0, 0.42, 0); g.add(shaft); break; }
+    case 'pillow': { const p2 = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.4, 4.4, 4, 2, 4), M(col || '#3b82f6', 0.75)); const pos = p2.geometry.attributes.position; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i); const f = 1 - (Math.abs(x) / 2.2) * (Math.abs(z) / 2.2) * 0.55; pos.setY(i, y * f); } p2.geometry.computeVertexNormals(); p2.position.y = 0.7; p2.rotation.y = 0.3; p2.castShadow = true; g.add(p2); const btn = cyl(0.2, 0.2, 0.14, '#2a62b8'); btn.position.y = 1.42; g.add(btn); break; }
+    case 'bookpile': { const cs3 = ['#c05a5a', '#3fae6a', '#3b82f6']; cs3.forEach((cc, i) => { const bk = box(3.2 - i * 0.3, 0.55, 4.3 - i * 0.4, cc); bk.position.y = 0.28 + i * 0.56; bk.rotation.y = (i - 1) * 0.25; bk.castShadow = true; g.add(bk); const pages = box(2.9 - i * 0.3, 0.4, 4.0 - i * 0.4, '#f2ede2'); pages.position.y = 0.28 + i * 0.56; pages.rotation.y = (i - 1) * 0.25; g.add(pages); }); break; }
+    case 'sock': { const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 1.8, 6, 12), M(col || '#e5484d', 0.85)); leg.rotation.z = 1.2; leg.position.set(-0.6, 0.55, 0); leg.castShadow = true; g.add(leg); const foot = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 1.2, 6, 12), M(col || '#e5484d', 0.85)); foot.rotation.set(0, 0, 0.15); foot.rotation.y = 0.9; foot.position.set(1.0, 0.55, 0.4); foot.castShadow = true; g.add(foot); const stripe2 = cyl(0.57, 0.57, 0.35, '#f6f0e2'); stripe2.rotation.z = 1.2; stripe2.position.set(-1.35, 0.85, 0); g.add(stripe2); break; }
   }
   g.traverse(o => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   return g;

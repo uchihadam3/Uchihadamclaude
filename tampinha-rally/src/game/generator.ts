@@ -18,22 +18,23 @@ interface Theme {
   patch: Surface[]; decor: string[]; names: string[];
   paint?: string;                 // pintura PRÓPRIA do chão (visual — física continua no ground)
   patchN?: [number, number];      // quantas manchas de terreno (temas "de terreno" têm mais)
+  heroes?: string[];              // objetos GRANDES de cenário (escala de mesa real, fora da pista)
 }
 const THEMES: Theme[] = [
-  { key: 'quintal', ground: 'dirt', bg: '#6f5334', wall: '#6b4e2e', patch: ['sand', 'mud', 'grass'], decor: ['twig', 'leaf', 'pebble', 'grass'], names: ['Quintal do Zé', 'Terra Batida', 'Fundo de Quintal', 'Chão de Terra'] },
-  { key: 'praia', ground: 'sand', bg: '#d9b877', wall: '#c9a35f', patch: ['water', 'ramp', 'cardboard'], decor: ['shell', 'starfish', 'castle', 'pebble'], names: ['Praia da Tarde', 'Areia Fofa', 'Beira-Mar', 'Duna do Sol'] },
-  { key: 'calcada', ground: 'sidewalk', bg: '#9a9488', wall: '#8f8879', patch: ['chalk', 'cardboard', 'gum'], decor: ['chalk', 'toy', 'pebble'], names: ['Calçada de Giz', 'Rua de Baixo', 'Passeio', 'Meio-Fio'] },
-  { key: 'garagem', ground: 'cardboard', bg: '#7d6a4e', wall: '#a9773f', patch: ['sidewalk', 'magnet', 'sand'], decor: ['box', 'tape', 'pencil'], names: ['Garagem', 'Papelão & Fita', 'Depósito', 'Oficina'] },
-  { key: 'parquinho', ground: 'dirt', bg: '#414c36', wall: '#5c4a2c', patch: ['water', 'mud', 'water', 'grass'], decor: ['leaf', 'grass', 'pebble'], names: ['Parquinho Molhado', 'Lamaçal', 'Depois da Chuva', 'Poça & Folha'], paint: 'wetdirt', patchN: [5, 7] },
-  { key: 'cozinha', ground: 'cardboard', bg: '#c8b48c', wall: '#c05a5a', patch: ['sidewalk', 'water', 'ice'], decor: ['cup', 'coin', 'eraser', 'straw'], names: ['Mesa da Cozinha', 'Hora do Café', 'Toalha Xadrez', 'Bancada'], paint: 'gingham' },
-  { key: 'jardim', ground: 'dirt', bg: '#3f5a2e', wall: '#5a7a3a', patch: ['grass', 'grass', 'mud', 'water'], decor: ['grass', 'leaf', 'twig', 'pebble'], names: ['Jardim da Vó', 'Canteiro', 'Grama & Terra', 'Horta'], paint: 'garden', patchN: [5, 7] },
-  { key: 'deserto', ground: 'sand', bg: '#c98f4a', wall: '#a6702f', patch: ['ramp', 'vortex', 'water'], decor: ['pebble', 'twig', 'starfish'], names: ['Deserto', 'Dunas', 'Sol a Pino', 'Areião'], paint: 'dunes' },
-  { key: 'obra', ground: 'sidewalk', bg: '#7e786a', wall: '#8a8070', patch: ['sand', 'cardboard', 'push'], decor: ['box', 'pencil', 'pebble'], names: ['Canteiro de Obra', 'Entulho', 'Cimento', 'Andaime'], paint: 'cement' },
-  { key: 'laje', ground: 'sidewalk', bg: '#8f9aa0', wall: '#7a848a', patch: ['cardboard', 'chalk', 'ice'], decor: ['toy', 'pebble', 'tape'], names: ['Laje', 'Terraço', 'Cobertura', 'Varal'], paint: 'slab' },
-  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'ice', 'vortex'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'], paint: 'tiles' },
-  { key: 'feira', ground: 'cardboard', bg: '#a88f5c', wall: '#8a6238', patch: ['sidewalk', 'chalk'], decor: ['box', 'coin', 'tape', 'cup'], names: ['Feira Livre', 'Barraca', 'Calçadão', 'Mercadão'], paint: 'stripes' },
-  { key: 'estrada', ground: 'dirt', bg: '#7e4a30', wall: '#4a3a24', patch: ['mud', 'mud', 'sand'], decor: ['pebble', 'twig', 'grass'], names: ['Estrada de Barro', 'Trilha', 'Rua sem Asfalto', 'Beira da Roça'], paint: 'clay', patchN: [4, 6] },
-  { key: 'varanda', ground: 'cardboard', bg: '#8a6a44', wall: '#6b4e2e', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'leaf', 'pencil'], names: ['Varanda', 'Área Coberta', 'Quintalzinho', 'Alpendre'], paint: 'planks' },
+  { key: 'quintal', ground: 'dirt', bg: '#6f5334', wall: '#6b4e2e', patch: ['sand', 'mud', 'grass'], decor: ['twig', 'leaf', 'pebble', 'grass'], names: ['Quintal do Zé', 'Terra Batida', 'Fundo de Quintal', 'Chão de Terra'], heroes: ['bucketzinc', 'bone', 'fencebit', 'wateringcan'] },
+  { key: 'praia', ground: 'sand', bg: '#d9b877', wall: '#c9a35f', patch: ['water', 'ramp', 'cardboard'], decor: ['shell', 'starfish', 'castle', 'pebble'], names: ['Praia da Tarde', 'Areia Fofa', 'Beira-Mar', 'Duna do Sol'], heroes: ['beachumbrella', 'beachball', 'flipflop', 'sunscreen'] },
+  { key: 'calcada', ground: 'sidewalk', bg: '#9a9488', wall: '#8f8879', patch: ['chalk', 'cardboard', 'gum'], decor: ['chalk', 'toy', 'pebble'], names: ['Calçada de Giz', 'Rua de Baixo', 'Passeio', 'Meio-Fio'], heroes: ['toycar', 'chalkset', 'sodacup'] },
+  { key: 'garagem', ground: 'cardboard', bg: '#7d6a4e', wall: '#a9773f', patch: ['sidewalk', 'magnet', 'sand'], decor: ['box', 'tape', 'pencil'], names: ['Garagem', 'Papelão & Fita', 'Depósito', 'Oficina'], heroes: ['paintcan', 'wrench', 'tirestack', 'toycar'] },
+  { key: 'parquinho', ground: 'dirt', bg: '#414c36', wall: '#5c4a2c', patch: ['water', 'mud', 'water', 'grass'], decor: ['leaf', 'grass', 'pebble'], names: ['Parquinho Molhado', 'Lamaçal', 'Depois da Chuva', 'Poça & Folha'], paint: 'wetdirt', patchN: [5, 7], heroes: ['toyshovel', 'beachball', 'bucketzinc'] },
+  { key: 'cozinha', ground: 'cardboard', bg: '#c8b48c', wall: '#c05a5a', patch: ['sidewalk', 'water', 'ice'], decor: ['cup', 'coin', 'eraser', 'straw'], names: ['Mesa da Cozinha', 'Hora do Café', 'Toalha Xadrez', 'Bancada'], paint: 'gingham', heroes: ['saltshaker', 'mugcoffee', 'plate', 'apple', 'cuttingboard', 'napkinfold'] },
+  { key: 'jardim', ground: 'dirt', bg: '#3f5a2e', wall: '#5a7a3a', patch: ['grass', 'grass', 'mud', 'water'], decor: ['grass', 'leaf', 'twig', 'pebble'], names: ['Jardim da Vó', 'Canteiro', 'Grama & Terra', 'Horta'], paint: 'garden', patchN: [5, 7], heroes: ['wateringcan', 'flowerpot', 'mushroom', 'fencebit'] },
+  { key: 'deserto', ground: 'sand', bg: '#c98f4a', wall: '#a6702f', patch: ['ramp', 'vortex', 'water'], decor: ['pebble', 'twig', 'starfish'], names: ['Deserto', 'Dunas', 'Sol a Pino', 'Areião'], paint: 'dunes', heroes: ['cactus', 'drybush', 'oldtire'] },
+  { key: 'obra', ground: 'sidewalk', bg: '#7e786a', wall: '#8a8070', patch: ['sand', 'cardboard', 'push'], decor: ['box', 'pencil', 'pebble'], names: ['Canteiro de Obra', 'Entulho', 'Cimento', 'Andaime'], paint: 'cement', heroes: ['brickpile', 'helmet', 'paintcan', 'oldtire'] },
+  { key: 'laje', ground: 'sidewalk', bg: '#8f9aa0', wall: '#7a848a', patch: ['cardboard', 'chalk', 'ice'], decor: ['toy', 'pebble', 'tape'], names: ['Laje', 'Terraço', 'Cobertura', 'Varal'], paint: 'slab', heroes: ['watertank', 'clothesline', 'flowerpot'] },
+  { key: 'piscina', ground: 'sidewalk', bg: '#4a90b8', wall: '#cfe4ee', patch: ['water', 'ice', 'vortex'], decor: ['pebble', 'coin', 'toy'], names: ['Borda da Piscina', 'Deck Molhado', 'Área de Lazer', 'Prainha'], paint: 'tiles', heroes: ['floatring', 'flipflop', 'sunscreen', 'beachball'] },
+  { key: 'feira', ground: 'cardboard', bg: '#a88f5c', wall: '#8a6238', patch: ['sidewalk', 'chalk'], decor: ['box', 'coin', 'tape', 'cup'], names: ['Feira Livre', 'Barraca', 'Calçadão', 'Mercadão'], paint: 'stripes', heroes: ['fruitcrate', 'beachumbrella', 'sodacup'] },
+  { key: 'estrada', ground: 'dirt', bg: '#7e4a30', wall: '#4a3a24', patch: ['mud', 'mud', 'sand'], decor: ['pebble', 'twig', 'grass'], names: ['Estrada de Barro', 'Trilha', 'Rua sem Asfalto', 'Beira da Roça'], paint: 'clay', patchN: [4, 6], heroes: ['roadsign', 'oldtire', 'fencebit', 'drybush'] },
+  { key: 'varanda', ground: 'cardboard', bg: '#8a6a44', wall: '#6b4e2e', patch: ['sidewalk', 'water'], decor: ['cup', 'coin', 'leaf', 'pencil'], names: ['Varanda', 'Área Coberta', 'Quintalzinho', 'Alpendre'], paint: 'planks', heroes: ['mugcoffee', 'flowerpot', 'bookpile', 'plate'] },
 ];
 // TEMAS NOVOS — cada um estreia um PISO com mecânica própria (ver core/physics):
 //  · SINUCA: feltro rola liso e as bordas viram TABELA VIVA (quique forte de propósito)
@@ -41,10 +42,10 @@ const THEMES: Theme[] = [
 //  · BANCADA: aço quica forte (pinball) + placas de ÍMÃ que puxam a tampinha
 //  · SALA: tapete felpudo AMORTECE todo quique + CHICLETE que gruda (peteleco sai fraco)
 const THEMES_NEW: Theme[] = [
-  { key: 'sinuca', ground: 'felt', bg: '#1c5a38', wall: '#7a4a26', patch: ['gum', 'chalk', 'water'], decor: ['ball8', 'chalk', 'coin', 'cup'], names: ['Mesa de Sinuca', 'Bar do Tio', 'Tabela Certa', 'Bico de Giz'] },
-  { key: 'geladeira', ground: 'frost', bg: '#a8c8d4', wall: '#8fb4c2', patch: ['ice', 'water', 'vortex'], decor: ['icecube', 'cup', 'straw', 'coin'], names: ['Congelador', 'Bandeja de Gelo', 'Geladeira Aberta', 'Friozão'] },
-  { key: 'bancada', ground: 'metal', bg: '#727c84', wall: '#4e565e', patch: ['magnet', 'magnet', 'ramp', 'push'], decor: ['bolt', 'pencil', 'tape', 'box'], names: ['Bancada da Oficina', 'Parafuso Solto', 'Ferramentaria', 'Aço Liso'] },
-  { key: 'sala', ground: 'carpet', bg: '#8a4a42', wall: '#6b4030', patch: ['gum', 'cardboard', 'water', 'gum'], decor: ['remote', 'toy', 'cup', 'eraser'], names: ['Tapete da Sala', 'Sala de TV', 'Felpudo', 'Tarde de Domingo'] },
+  { key: 'sinuca', ground: 'felt', bg: '#1c5a38', wall: '#7a4a26', patch: ['gum', 'chalk', 'water'], decor: ['ball8', 'chalk', 'coin', 'cup'], names: ['Mesa de Sinuca', 'Bar do Tio', 'Tabela Certa', 'Bico de Giz'], heroes: ['cuestick', 'poolballs', 'bluechalk', 'sodacup'] },
+  { key: 'geladeira', ground: 'frost', bg: '#a8c8d4', wall: '#8fb4c2', patch: ['ice', 'water', 'vortex'], decor: ['icecube', 'cup', 'straw', 'coin'], names: ['Congelador', 'Bandeja de Gelo', 'Geladeira Aberta', 'Friozão'], heroes: ['popsicle', 'icecreamtub', 'icetray'] },
+  { key: 'bancada', ground: 'metal', bg: '#727c84', wall: '#4e565e', patch: ['magnet', 'magnet', 'ramp', 'push'], decor: ['bolt', 'pencil', 'tape', 'box'], names: ['Bancada da Oficina', 'Parafuso Solto', 'Ferramentaria', 'Aço Liso'], heroes: ['hammer', 'screwdriver', 'wrench', 'paintcan'] },
+  { key: 'sala', ground: 'carpet', bg: '#8a4a42', wall: '#6b4030', patch: ['gum', 'cardboard', 'water', 'gum'], decor: ['remote', 'toy', 'cup', 'eraser'], names: ['Tapete da Sala', 'Sala de TV', 'Felpudo', 'Tarde de Domingo'], heroes: ['pillow', 'bookpile', 'sock', 'mugcoffee', 'toycar'] },
 ];
 
 const tangentAt = (path: V[], i: number): V => { const a = path[Math.max(0, i - 1)], b = path[Math.min(path.length - 1, i + 1)]; const dx = b.x - a.x, dy = b.y - a.y; const l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; };
@@ -195,6 +196,12 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   for (let k = 0; k < ri(pn[0], pn[1]); k++) {
     const a = rf(0.1, 0.9) * total; const pp = onPath(a, rf(-half0 * 0.35, half0 * 0.35));
     const sfc = theme.patch[ri(0, theme.patch.length - 1)]; const { i } = atArc(a); const t = tangentAt(path, i);
+    // SETAS nunca viram poça gigante: quando vêm da lista do tema, seguem as
+    // regras das dedicadas — pequenas (NUNCA cobrem a pista) e com direção certa
+    if (sfc === 'ramp' || sfc === 'push') {
+      patches.push({ surface: sfc, x: pp.x, y: pp.y, r: rf(1.5, 2.0), dir: Math.atan2(t.y, t.x) + (sfc === 'push' ? Math.PI : 0) });
+      continue;
+    }
     const dir = sfc === 'water' ? Math.atan2(t.y, t.x) + rf(-0.6, 0.6) : undefined;
     // ímã/redemoinho/chiclete são SEMPRE redondos (efeito em volta do centro);
     // chiclete ainda é MENOR — gruda mas nunca vira prisão (dá pra escapar)
@@ -382,6 +389,40 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     }
   }
 
+  // HERÓIS DO CENÁRIO: objetos GRANDES de verdade (saleiro, guarda-sol, caixa
+  // d'água, taco de sinuca…) espalhados FORA da pista com folga generosa —
+  // vendem a fantasia de "corrida em cima da mesa/lugar de verdade"
+  const HERO_RAD: Record<string, number> = {
+    saltshaker: 1.4, plate: 4.5, mugcoffee: 2.6, napkinfold: 2.6, apple: 2.0, cuttingboard: 4.2,
+    bucketzinc: 2.2, bone: 2.3, fencebit: 3.7, beachumbrella: 5.2, beachball: 2.0, flipflop: 2.1,
+    sunscreen: 1.4, toycar: 2.3, chalkset: 2.0, paintcan: 1.9, wrench: 2.5, tirestack: 2.9,
+    oldtire: 2.9, toyshovel: 2.7, wateringcan: 2.9, flowerpot: 2.0, mushroom: 1.4, cactus: 2.0,
+    drybush: 1.7, brickpile: 2.5, helmet: 2.4, watertank: 3.8, clothesline: 5.2, floatring: 3.2,
+    fruitcrate: 2.9, roadsign: 2.0, cuestick: 6.0, poolballs: 1.6, bluechalk: 0.9, sodacup: 1.6,
+    popsicle: 2.5, icecreamtub: 2.3, icetray: 2.2, hammer: 2.7, screwdriver: 2.1, pillow: 3.2,
+    bookpile: 2.7, sock: 1.7,
+  };
+  const heroesList = theme.heroes || [];
+  if (heroesList.length) {
+    const placedH: { x: number; y: number; r: number }[] = [];
+    const clearH = (x: number, y: number, rad: number): boolean => {
+      for (const pd of pads) if ((x - pd.x) ** 2 + (y - pd.y) ** 2 <= (pd.r + rad + 2) ** 2) return false;
+      const lim = (half0 + 2.5 + rad) ** 2;
+      for (let i2 = 1; i2 < N; i2++) if (segD2(x, y, path[i2 - 1].x, path[i2 - 1].y, path[i2].x, path[i2].y) < lim) return false;
+      return true;
+    };
+    const want = Math.min(heroesList.length + 2, ri(4, 6));
+    for (let k = 0, tries = 0; k < want && tries < 500; tries++) {
+      const kind = heroesList[k % heroesList.length];
+      const rad = HERO_RAD[kind] || 2.5;
+      const x = rf(3 + rad, w - 3 - rad), y = rf(3 + rad, h - 3 - rad);
+      if (!clearH(x, y, rad)) continue;
+      if (placedH.some(q => (q.x - x) ** 2 + (q.y - y) ** 2 < (q.r + rad + 3) ** 2)) continue;
+      decor.push({ kind, x, y, s: rf(0.95, 1.25), rot: rng() * 6.283 });
+      placedH.push({ x, y, r: rad }); k++;
+    }
+  }
+
   // SEGURANÇA: nada de buraco/bomba perto de um checkpoint (nem da largada). O
   // renascimento acontece no checkpoint, então nunca pode ter armadilha em cima
   // (senão a tampinha nasce no buraco e trava em loop).
@@ -524,7 +565,7 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   // superfícies (areia/lama/água/grama/impulso/freio) do usuário
   const patches: Patch[] = [];
   for (const s of (data.patches || [])) {
-    const x = s.x + dxs, y = s.y + dys; const r = Math.min(s.r || 2.4, s.surface === 'gum' ? 2.1 : 99);
+    const x = s.x + dxs, y = s.y + dys; const r = Math.min(s.r || 2.4, s.surface === 'gum' || s.surface === 'ramp' || s.surface === 'push' ? 2.1 : 99);
     const oriented = s.surface === 'ramp' || s.surface === 'push' || s.surface === 'water';
     const dir = oriented ? dirAtXY(x, y) + (s.surface === 'push' ? Math.PI : 0) : undefined;
     patches.push({ surface: s.surface as any, x, y, r, dir });
