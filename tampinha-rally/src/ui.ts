@@ -7,7 +7,7 @@ import { drawCap, RARITY_COLOR, RARITY_LABEL, RARITY_ORDER } from './render/capa
 import { AI_KINDS, AI_LABEL, AIKind } from './game/ai';
 import { PlayerDef, GameManager } from './game/manager';
 import { ITEMS } from './game/chaos';
-import { LIGAS, COMPS, CampComp, compById, campState, saveCamp, campStats, upCost, UP_MAX, UP_STEP, isUnlocked, pickOpponents, CampState } from './game/campaign';
+import { LIGAS, COMPS, CampComp, compById, campState, saveCamp, campStats, upCost, UP_MAX, UP_STEP, isUnlocked, pickOpponents, CampState, LIGA_PRIZE, ligaGolds } from './game/campaign';
 import { CapStats } from './engine/core';
 import { Online } from './net/online';
 import { save } from './game/save';
@@ -178,10 +178,28 @@ export class UI {
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
     const host = s.querySelector('#ligas') as HTMLElement;
     LIGAS.forEach((lg, li) => {
+      const pid = LIGA_PRIZE[li]; const pk = skinById(pid);
+      const golds = ligaGolds(st, li);
+      const earned = save.hasBonus(pid);
       const sec = this.el(`<div class="camp-liga" style="--lc:${lg.col}">
         <div class="cl-head"><span class="cl-ico">${lg.ico}</span><div class="cl-tx"><b>${lg.name}</b><span>${lg.desc}</span></div></div>
+        <button class="cl-prize ${earned ? 'earned' : ''}" style="--rc:${RARITY_COLOR[pk.rarity]}">
+          <div class="clp-face"></div>
+          <div class="clp-tx">
+            <span class="clp-tag">${earned ? '🏆 CONQUISTADA!' : '🎁 PRÊMIO DA LIGA'}</span>
+            <b>${pk.name}</b>
+            <span class="clp-rar"><i class="rar-dot"></i>${RARITY_LABEL[pk.rarity]} EXCLUSIVA</span>
+            <span class="clp-cond">${earned ? 'sua pra sempre — já joga com ela no modo livre!' : 'faça <b>🥇 OURO</b> nas 4 competições da liga'}</span>
+            <span class="clp-prog">${'🥇'.repeat(golds)}${'<i class="clp-slot"></i>'.repeat(Math.max(0, 4 - golds))} <em>${golds}/4</em></span>
+          </div>
+          <span class="clp-zoom">🔍</span>
+        </button>
         <div class="cl-comps"></div>
       </div>`);
+      const pf = sec.querySelector('.clp-face') as HTMLElement;
+      const pcv = drawCap(pk.art, 100); pcv.style.width = '72px'; pcv.style.height = '72px'; pcv.style.display = 'block';
+      pf.appendChild(pcv);
+      sec.querySelector('.cl-prize')!.addEventListener('click', () => this.showCapStats(pk.name, pid));
       const grid = sec.querySelector('.cl-comps') as HTMLElement;
       COMPS.forEach((c, ci) => {
         if (c.liga !== li) return;
@@ -306,7 +324,7 @@ export class UI {
   onCampBack: (() => void) | null = null;
   onCampRetry: ((compId: string) => void) | null = null;
   onCampFinale: (() => void) | null = null;
-  showCampResult(d: { comp: CampComp; place: number; ptsGained: number; winsGained: number; improved: boolean; finished: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; hist?: number[] }): void {
+  showCampResult(d: { comp: CampComp; place: number; ptsGained: number; winsGained: number; improved: boolean; finished: boolean; rows: { name: string; skin: string; pts: number; you: boolean }[]; hist?: number[]; prize?: string | null }): void {
     const { modal, box } = this.modalBox(); box.className = 'modal win';
     const tro = d.place === 1 ? '🥇' : d.place === 2 ? '🥈' : d.place === 3 ? '🥉' : '😤';
     const head = d.place === 1 ? 'CAMPEÃO!' : d.place === 2 ? 'Prata!' : d.place === 3 ? 'Bronze!' : d.place + 'º lugar';
@@ -314,15 +332,26 @@ export class UI {
     const rewards = (d.ptsGained || d.winsGained)
       ? `<div class="camp-rw">${d.ptsGained ? `<span class="rw">🔧 +${d.ptsGained} pts de Oficina</span>` : ''}${d.winsGained ? `<span class="rw">🏆 +${d.winsGained} vitórias (modo livre)</span>` : ''}</div>`
       : (podio ? '<div class="camp-rw"><span class="rw dim">troféu já conquistado — melhore pra ganhar mais!</span></div>' : '');
+    const pz = d.prize ? skinById(d.prize) : null;
     box.innerHTML = `<div class="camp-tro">${tro}</div><h3>${d.comp.ico} ${d.comp.name}</h3><div class="camp-place">${head}</div>
       ${rewards}
+      ${pz ? `<div class="prize-reveal" style="--rc:${RARITY_COLOR[pz.rarity]}">
+        <div class="pr-tag">✨ TAMPINHA EXCLUSIVA DESBLOQUEADA ✨</div>
+        <div class="pr-face" id="prf"></div>
+        <b class="pr-name">${pz.name}</b>
+        <span class="pr-rar"><i class="rar-dot"></i>${RARITY_LABEL[pz.rarity]} · OURO nas 4 da liga</span>
+        ${capBars(pz.stats, true)}
+        <span class="pr-note">já é sua no modo livre! 🎉</span>
+      </div>` : ''}
       ${!podio ? '<div class="camp-tip">Precisa de PÓDIO (top 3) pra liberar a próxima. Passa na 🔧 Oficina e tenta de novo!</div>' : ''}
       ${d.hist ? raceStrip(d.hist.length, d.hist.length, d.hist) : ''}
       <div class="champ-stand">${d.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>
       <div class="mactions"><button class="chip" id="again">↻ De novo</button><button class="play-btn" id="mapa">${d.finished ? '👑 Ver o FINAL' : 'Campanha ▶'}</button></div>`;
     box.querySelectorAll('.cs-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 44)));
+    const prf = box.querySelector('#prf') as HTMLElement | null;
+    if (prf && pz) { const pcv = drawCap(pz.art, 150); pcv.style.width = '110px'; pcv.style.height = '110px'; pcv.style.display = 'block'; pcv.style.margin = '0 auto'; prf.appendChild(pcv); }
     modal.classList.remove('hidden');
-    if (podio) this.confetti(box);
+    if (podio || pz) this.confetti(box);
     box.querySelector('#again')!.addEventListener('click', () => { this.hideModal(); this.onCampRetry?.(d.comp.id); });
     box.querySelector('#mapa')!.addEventListener('click', () => {
       this.hideModal();
@@ -882,18 +911,18 @@ export class UI {
     const scroll = s.querySelector('#scroll') as HTMLElement;
     for (const rar of RARITY_ORDER) {
       const group = SKINS.filter(k => k.rarity === rar && !k.hidden);
-      const got = group.filter(k => wins >= k.unlock).length;
+      const got = group.filter(k => wins >= k.unlock || save.hasBonus(k.id)).length;
       const sec = this.el(`<div class="rar-sec">
         <div class="rar-head" style="--rc:${RARITY_COLOR[rar]}"><span class="rar-dot"></span>${RARITY_LABEL[rar]} <b>${got}/${group.length}</b></div>
         <div class="skin-grid"></div></div>`);
       scroll.appendChild(sec);
       const grid = sec.querySelector('.skin-grid') as HTMLElement;
       for (const k of group) {
-        const locked = wins < k.unlock;
+        const locked = wins < k.unlock && !save.hasBonus(k.id);
         const card = this.el(`<button class="skin-card ${cur === k.id ? 'sel' : ''} ${locked ? 'locked' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}">
           <div class="skin-face"></div>
           <div class="skin-name">${k.name}</div>
-          <div class="skin-desc">${locked ? '🔒 ' + k.unlock + ' vitórias' : k.desc}</div>
+          <div class="skin-desc">${locked ? (k.prize != null ? '🏆 OURO nas 4 da ' + LIGAS[k.prize].name : '🔒 ' + k.unlock + ' vitórias') : k.desc}</div>
           ${capBars(k.stats, true)}
         </button>`);
         const face = card.querySelector('.skin-face') as HTMLElement;
@@ -1390,7 +1419,7 @@ export class UI {
 // da dele — assim o campo fica sempre no mesmo nível (comum×comum, mítica×mítica…)
 export function opponentSkins(playerId: string, n: number): string[] {
   const rar = skinById(playerId).rarity;
-  const pool = SKINS.filter(s => s.rarity === rar && s.id !== playerId && !s.hidden).map(s => s.id);
+  const pool = SKINS.filter(s => s.rarity === rar && s.id !== playerId && !s.hidden && s.prize == null).map(s => s.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const out: string[] = [];
   for (let i = 0; i < Math.max(0, n); i++) out.push(pool.length ? pool[i % pool.length] : playerId);

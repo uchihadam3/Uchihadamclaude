@@ -1,7 +1,7 @@
 // valida a CAMPANHA: recompensas, gating, upgrades e uma competição completa
-import { COMPS, applyResult, campState, saveCamp, campStats, isUnlocked, pickOpponents, upCost, UP_MAX } from '../src/game/campaign';
+import { COMPS, applyResult, campState, saveCamp, campStats, isUnlocked, pickOpponents, upCost, UP_MAX, LIGA_PRIZE, ligaGolds } from '../src/game/campaign';
 import { save } from '../src/game/save';
-import { SKINS, skinById } from '../src/game/skins';
+import { SKINS, skinById, unlockedSkins } from '../src/game/skins';
 import { GameManager, PlayerDef } from '../src/game/manager';
 import { track } from '../src/game/generator';
 
@@ -75,6 +75,22 @@ console.log('\n=== OFICINA CHEGA NA CORRIDA (upgrades na tampinha DA PARTIDA) ==
     && inRace.power > bs.power && inRace.slide > bs.slide;
   console.log(`  campStats soma certo? ${okMath} · tampinha da corrida usa os upgrades? ${okRace}`);
   if (!okMath || !okRace) { console.log('  OFICINA NÃO APLICADA ✗'); process.exit(1); }
+}
+
+console.log('\n=== PRÊMIO DE LIGA (ouro nas 4 → tampinha exclusiva) ===');
+{
+  const stq = campState();
+  stq.best['q1'] = 1; stq.best['q2'] = 1; stq.best['q3'] = 1; saveCamp(stq);
+  const before = save.hasBonus(LIGA_PRIZE[0]);
+  const r = applyResult(campState(), 'q4', 1);            // 4º ouro da Liga do Quintal
+  const after = save.hasBonus(LIGA_PRIZE[0]);
+  const inColl = unlockedSkins(save.wins()).some(k => k.id === LIGA_PRIZE[0]);
+  console.log(`  antes=${before} · prize devolvido=${r.prize} · conquistada=${after} · aparece na coleção=${inColl}`);
+  const r2 = applyResult(campState(), 'q4', 1);           // repetir não dá de novo
+  console.log(`  repetir ouro: prize=${r2.prize} (deve null)`);
+  if (!after || r.prize !== LIGA_PRIZE[0] || !inColl || r2.prize !== null) { console.log('  PRÊMIO FALHOU ✗'); process.exit(1); }
+  const g = ligaGolds(campState(), 0);
+  console.log(`  ligaGolds(0)=${g} (deve 4) · id='${LIGA_PRIZE[0]}' stats ok? ${skinById(LIGA_PRIZE[0]).stats.slide > 1}`);
 }
 
 console.log('\n=== FINAL (Grande Final vencida = zerou + bônus) ===');

@@ -90,13 +90,19 @@ export function campStats(st: CampState): CapStats {
   return out;
 }
 
+// TAMPINHA-PRÊMIO por liga: ouro nas 4 competições → exclusiva da liga
+export const LIGA_PRIZE = ['itubaina', 'nesbitts', 'hires', 'guarana', 'schweppes'];
+export function ligaGolds(st: CampState, liga: number): number {
+  return COMPS.filter(c => c.liga === liga && st.best[c.id] === 1).length;
+}
+
 // recompensas por troféu (1º=ouro, 2º=prata, 3º=bronze) — primeira vez; melhorar dá a diferença
 const PTS_BY_PLACE: Record<number, number> = { 1: 5, 2: 3, 3: 2 };
 const WINS_BY_PLACE: Record<number, number> = { 1: 2, 2: 1, 3: 1 };
 export function trophyOf(place: number): 'ouro' | 'prata' | 'bronze' | null { return place === 1 ? 'ouro' : place === 2 ? 'prata' : place === 3 ? 'bronze' : null; }
 
 // aplica o resultado de uma competição; retorna o que foi ganho AGORA
-export function applyResult(st: CampState, compId: string, place: number): { pts: number; wins: number; improved: boolean; finished: boolean } {
+export function applyResult(st: CampState, compId: string, place: number): { pts: number; wins: number; improved: boolean; finished: boolean; prize: string | null } {
   const prev = st.best[compId] ?? 99;
   const newPts = PTS_BY_PLACE[place] || 0, oldPts = PTS_BY_PLACE[prev] || 0;
   const newWins = WINS_BY_PLACE[place] || 0, oldWins = WINS_BY_PLACE[prev] || 0;
@@ -113,7 +119,13 @@ export function applyResult(st: CampState, compId: string, place: number): { pts
     for (let i = 0; i < 10; i++) save.addWin();       // chuva de vitórias no modo livre
   }
   saveCamp(st);
-  return { pts: dPts, wins: dWins + (finished ? 10 : 0), improved, finished };
+  // ouro nas 4 da liga? leva a tampinha exclusiva (uma vez só)
+  let prize: string | null = null;
+  if (ligaGolds(st, c.liga) >= 4 && !save.hasBonus(LIGA_PRIZE[c.liga])) {
+    save.addBonus(LIGA_PRIZE[c.liga]);
+    prize = LIGA_PRIZE[c.liga];
+  }
+  return { pts: dPts, wins: dWins + (finished ? 10 : 0), improved, finished, prize };
 }
 
 // competição liberada? (a 1ª sempre; as outras exigem PÓDIO na anterior)
@@ -126,7 +138,7 @@ export function isUnlocked(st: CampState, idx: number): boolean {
 // adversários da competição: sorteia skins das raridades pedidas (sem hidden)
 export function pickOpponents(c: CampComp, rng: () => number = Math.random): string[] {
   const pool: string[] = [];
-  for (const r of c.rarities) for (const s of SKINS) if (s.rarity === (r as any) && !s.hidden) pool.push(s.id);
+  for (const r of c.rarities) for (const s of SKINS) if (s.rarity === (r as any) && !s.hidden && s.prize == null) pool.push(s.id);
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const out: string[] = [];
   for (let i = 0; i < c.nOpp; i++) out.push(pool[i % pool.length]);

@@ -226,7 +226,7 @@ function onRaceOver(): void {
     // fim da competição: coloca você, aplica recompensas, mostra o troféu
     const place = rows.findIndex(r => r.you) + 1;
     const res = applyResult(campState(), camp.compId, place);
-    ui.showCampResult({ comp, place, ptsGained: res.pts, winsGained: res.wins, improved: res.improved, finished: res.finished, rows, hist: camp.hist.slice() });
+    ui.showCampResult({ comp, place, ptsGained: res.pts, winsGained: res.wins, improved: res.improved, finished: res.finished, rows, hist: camp.hist.slice(), prize: res.prize });
     return;
   }
 

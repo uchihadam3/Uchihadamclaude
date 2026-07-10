@@ -573,3 +573,38 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .rs-link.on { background:rgba(110,230,150,.6); }
 .rs-note { text-align:center; font-size:11.5px; opacity:.85; margin-bottom:6px; }
 .rs-note b { color:#ffd76a; }
+
+/* ---- PRÊMIO DE LIGA: cartão no mapa da campanha ---- */
+.cl-prize { display:flex; align-items:center; gap:12px; width:100%; text-align:left; margin:2px 0 10px;
+  background:linear-gradient(135deg, rgba(255,255,255,.07), rgba(255,255,255,.02));
+  border:2px solid var(--rc); border-radius:16px; padding:10px 12px; cursor:pointer; position:relative;
+  box-shadow:0 0 18px -6px var(--rc), inset 0 0 22px -14px var(--rc); color:inherit; }
+.cl-prize .clp-face { flex:none; filter:drop-shadow(0 4px 10px rgba(0,0,0,.45)); }
+.cl-prize .clp-tx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.cl-prize .clp-tag { font-size:9.5px; font-weight:900; letter-spacing:.8px; color:var(--rc); }
+.cl-prize b { font-size:15px; }
+.cl-prize .clp-rar { font-size:10px; font-weight:800; color:var(--rc); display:flex; align-items:center; gap:5px; }
+.cl-prize .clp-rar .rar-dot { width:7px; height:7px; border-radius:50%; background:var(--rc); box-shadow:0 0 7px var(--rc); }
+.cl-prize .clp-cond { font-size:11px; opacity:.85; }
+.cl-prize .clp-prog { display:flex; align-items:center; gap:3px; font-size:13px; margin-top:2px; }
+.cl-prize .clp-prog em { font-style:normal; font-size:11px; font-weight:900; opacity:.8; margin-left:4px; }
+.cl-prize .clp-slot { width:15px; height:15px; border-radius:50%; border:2px dashed rgba(255,255,255,.35); display:inline-block; }
+.cl-prize .clp-zoom { position:absolute; right:10px; top:10px; font-size:14px; opacity:.7; }
+.cl-prize.earned { background:linear-gradient(135deg, rgba(110,230,150,.14), rgba(110,230,150,.03)); }
+.cl-prize.earned .clp-tag { color:#8af0a0; }
+
+/* ---- revelação da tampinha exclusiva no resultado ---- */
+.prize-reveal { margin:10px 0 4px; padding:14px 12px 12px; border-radius:18px; border:2px solid var(--rc);
+  background:radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,.09), rgba(255,255,255,.02));
+  box-shadow:0 0 26px -6px var(--rc), inset 0 0 30px -16px var(--rc); text-align:center; }
+.prize-reveal .pr-tag { font-size:11px; font-weight:900; letter-spacing:1px; color:var(--rc); margin-bottom:8px;
+  animation:prGlow 1.2s ease-in-out infinite; }
+@keyframes prGlow { 50% { text-shadow:0 0 14px var(--rc); } }
+.prize-reveal .pr-face { animation:prSpin .8s cubic-bezier(.34,1.4,.64,1); }
+@keyframes prSpin { from { transform:scale(.2) rotate(-260deg); opacity:0; } }
+.prize-reveal .pr-name { display:block; font-size:18px; margin-top:6px; }
+.prize-reveal .pr-rar { font-size:10.5px; font-weight:800; color:var(--rc); display:inline-flex; align-items:center; gap:5px; margin:2px 0 4px; }
+.prize-reveal .pr-rar .rar-dot { width:7px; height:7px; border-radius:50%; background:var(--rc); box-shadow:0 0 7px var(--rc); }
+.prize-reveal .pr-note { display:block; font-size:11.5px; margin-top:6px; color:#8af0a0; font-weight:800; }
+.cl-prize b, .cl-prize .clp-cond { color:#fdf6e4; }
+.cl-prize .clp-cond b { color:#ffd76a; }

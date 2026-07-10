@@ -2,8 +2,8 @@
 // volumes, melhor do desafio diário.
 const KEY = 'tampinha_rally_v1';
 
-interface Save { wins: number; skin: string; music: number; sfx: number; muted: boolean; daily: Record<string, number>; trial: Record<string, number>; tracks: any[]; name: string; campaign?: any; }
-const DEF: Save = { wins: 0, skin: 'refri', music: 0.5, sfx: 0.8, muted: false, daily: {}, trial: {}, tracks: [], name: '' };
+interface Save { wins: number; skin: string; music: number; sfx: number; muted: boolean; daily: Record<string, number>; trial: Record<string, number>; tracks: any[]; name: string; campaign?: any; bonus: string[]; }
+const DEF: Save = { wins: 0, skin: 'refri', music: 0.5, sfx: 0.8, muted: false, daily: {}, trial: {}, tracks: [], name: '', bonus: [] };
 
 let data: Save = load();
 function load(): Save { try { return { ...DEF, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEF }; } }
@@ -13,6 +13,8 @@ export const save = {
   get(): Save { return data; },
   persistNow(): void { persist(); },   // p/ quem edita o objeto direto (campanha)
   addWin(): void { data.wins++; persist(); },
+  hasBonus(id: string): boolean { return (data.bonus || []).includes(id); },
+  addBonus(id: string): void { if (!data.bonus) data.bonus = []; if (!data.bonus.includes(id)) { data.bonus.push(id); persist(); } },
   wins(): number { return data.wins; },
   setSkin(id: string): void { data.skin = id; persist(); },
   skin(): string { return data.skin; },

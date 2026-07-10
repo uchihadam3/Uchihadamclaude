@@ -4,11 +4,13 @@
 // A raridade dá só um empurrãozinho — nada quebra-equilíbrio.
 import { CapStats } from '../engine/core';
 import { CapArt, Rarity } from '../render/capart';
+import { save } from './save';
 
 export interface Skin {
   id: string; name: string; top: string; side: string; ring: string;
   rarity: Rarity; art: CapArt; stats: CapStats; unlock: number; desc: string;
   hidden?: boolean;   // tampinhas da CAMPANHA: fora da coleção e dos pools de IA
+  prize?: number;     // PRÊMIO DE LIGA (0..4): ouro nas 4 competições da liga
 }
 
 // arquétipos de jogo (personalidade); a raridade aplica um lift leve por cima.
@@ -137,4 +139,27 @@ SKINS.push(
 
 export const CAP_COLORS = ['#e5484d', '#3b82f6', '#3fae6a', '#f7d046', '#f59e0b', '#7c3aed'];
 export const skinById = (id: string): Skin => SKINS.find(s => s.id === id) || SKINS[0];
-export const unlockedSkins = (wins: number): Skin[] => SKINS.filter(s => wins >= s.unlock && !s.hidden);
+
+// ---------------- PRÊMIOS DE LIGA (ouro nas 4 competições da liga) ----------------
+// Marcas REAIS de tampinha que ainda não estavam no jogo — boas, mas honestas
+// dentro da própria raridade (o troféu é a exclusividade, não um chevrão).
+function prizeCap(liga: number, sk: Skin): Skin { sk.unlock = 99999; sk.prize = liga; return sk; }
+SKINS.push(
+  prizeCap(0, cap('itubaina', 'Itubaína Retrô', 'comum', 99999, 'nimble', '#d81f26',
+    { bg: ['#e8433a', '#b01218'], metal: 'steel', arcTop: ['DESDE 1948', '#ffe9c0'], center: 'Itubaína', centerColor: '#fff', centerFont: 'script', centerSize: 0.4, sub: ['TUTTI-FRUTTI', '#ffe9c0'], vintage: 0.5 },
+    'O tutti-frutti do quintal brasileiro. Ágil como a molecada.')),
+  prizeCap(1, cap('nesbitts', "Nesbitt's California", 'rara', 99999, 'bouncy', '#f79420',
+    { bg: ['#f79420', '#d85f0e'], metal: 'steel', band: ['#1c1c1c', "NESBITT'S", '#f79420'], arcTop: ['CALIFORNIA', '#fff'], sub: ['ORANGE', '#1c1c1c'], vintage: 0.5 },
+    'A laranja da calçada californiana. Quica cheia de sol.')),
+  prizeCap(2, cap('hires', 'Hires Root Beer', 'epica', 99999, 'heavy', '#1a4fa0',
+    { bg: ['#1f5ab0', '#0d3070'], metal: 'silver', arcTop: ['SINCE 1876', '#f4d76a'], center: 'Hires', centerColor: '#fff', centerFont: 'script', centerSize: 0.46, sub: ['ROOT BEER', '#f79420'], vintage: 0.5 },
+    'A root beer mais antiga da cidade. Pesada e imponente.')),
+  prizeCap(3, cap('guarana', 'Guaraná Champagne', 'lendaria', 99999, 'glide', '#1f7a3a',
+    { bg: ['#2f9a4c', '#115c26'], metal: 'gold', arcTop: ['CHAMPAGNE', '#ffe9c0'], center: 'Guaraná', centerColor: '#fff', centerFont: 'script', centerSize: 0.4, emblem: 'cherry', emblemColor: '#d8231f', emblemY: 0.42, emblemScale: 0.5, sub: ['ANTARCTICA', '#ffe9c0'], vintage: 0.45 },
+    'O orgulho nacional, bagas vermelhas e tudo. Desliza como espuma.')),
+  prizeCap(4, cap('schweppes', 'Schweppes 1783', 'mitica', 99999, 'precise', '#0e4a2c',
+    { bg: ['#11593a', '#062b1a'], metal: 'gold', arcTop: ['SINCE 1783', '#e8c86a'], center: 'Schweppes', centerColor: '#f2e2b0', centerFont: 'script', centerSize: 0.32, emblem: 'sunburst', emblemColor: '#e8c86a', emblemColor2: '#e8c86a', emblemY: -0.4, emblemScale: 0.34, sub: ['SODA WATER', '#e8c86a'], vintage: 0.4 },
+    'A soda mais antiga do MUNDO. Precisão de dois séculos e meio.')),
+);
+
+export const unlockedSkins = (wins: number): Skin[] => SKINS.filter(s => !s.hidden && (wins >= s.unlock || save.hasBonus(s.id)));
