@@ -512,6 +512,57 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     if (checkpoints.some(cp => (o.x - cp.x) ** 2 + (o.y - cp.y) ** 2 < 5.5 * 5.5)) obstacles.splice(i, 1);
   }
 
+  // DESOBSTRUÇÃO (determinística, sem sorteio): nenhum trecho pode virar
+  // ARMADILHA — vale pras 50 pistas fixas E pras variantes de competição
+  const arcLatOf = (x: number, y: number) => {
+    let bi = 0, bd = Infinity;
+    for (let i2 = 0; i2 < N; i2++) { const dd = (path[i2].x - x) ** 2 + (path[i2].y - y) ** 2; if (dd < bd) { bd = dd; bi = i2; } }
+    const nn = normalAt(path, bi);
+    return { arc: arcs[bi], lat: (x - path[bi].x) * nn.x + (y - path[bi].y) * nn.y, i: bi };
+  };
+  // 1) pedra COLADA em catavento vira alçapão (a tampinha encaixa e as pás
+  //    batem sem parar) → a pedra sai
+  const millArcs = obstacles.filter(o => o.type === 'mill').map(o => arcLatOf(o.x, o.y).arc);
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    if (o.type === 'stone' && millArcs.some(m => Math.abs(arcLatOf(o.x, o.y).arc - m) < 7)) obstacles.splice(i, 1);
+  }
+  // 2) catavento no MEIO fecha o corredor → desloca pro lado onde já pende até
+  //    sobrar um vão honesto de 2.3u do outro lado (as pás podem beirar o muro)
+  for (const o of obstacles) {
+    if (o.type !== 'mill') continue;
+    const { arc, lat, i } = arcLatOf(o.x, o.y);
+    const hw = halfArr[Math.min(N - 1, i)]; const R = (o.r || 2) + 0.9;
+    if (Math.max(lat - R + hw, hw - lat - R) >= 2.3) continue;
+    const pp = onPath(arc, (lat >= 0 ? 1 : -1) * (2.3 + R - hw));
+    o.x = pp.x; o.y = pp.y;
+  }
+  // 3) PEDRA que, junto com outras pedras OU com muros de chicane/funil, fecha
+  //    a passagem: enquanto o maior vão numa altura for < 2.2u, sai a pedra
+  //    mais central do trecho (muro é desafio desenhado e fica; pedra em cima
+  //    da passagem do muro é trava — foi o que prendia a IA na Sala de TV 3)
+  const wallIv = walls.map(w => {
+    const ea = arcLatOf(w.a.x, w.a.y), eb = arcLatOf(w.b.x, w.b.y);
+    return { a0: Math.min(ea.arc, eb.arc) - 1.2, a1: Math.max(ea.arc, eb.arc) + 1.2, lo: Math.min(ea.lat, eb.lat) - 0.85, hi: Math.max(ea.lat, eb.lat) + 0.85 };
+  });
+  for (let guard = 0; guard < 12; guard++) {
+    let cut = -1;
+    for (let a = 4; a < total - 4 && cut < 0; a += 1.5) {
+      const st = obstacles.map((o, oi) => ({ o, oi, ...arcLatOf(o.x, o.y) })).filter(s => s.o.type === 'stone' && Math.abs(s.arc - a) < 2.2);
+      if (!st.length) continue;                          // sem pedra, nada a tirar
+      const hw = halfArr[Math.min(N - 1, atArc(a).i)];
+      const iv: [number, number][] = st.map(s => [Math.max(-hw, s.lat - (s.o.r || 1) - 0.85), Math.min(hw, s.lat + (s.o.r || 1) + 0.85)]);
+      for (const w of wallIv) if (a >= w.a0 && a <= w.a1) iv.push([Math.max(-hw, w.lo), Math.min(hw, w.hi)]);
+      iv.sort((x2, y2) => x2[0] - y2[0]);
+      let gap = iv[0][0] + hw, cur = iv[0][1];
+      for (const [s2, e2] of iv.slice(1)) { gap = Math.max(gap, s2 - cur); cur = Math.max(cur, e2); }
+      gap = Math.max(gap, hw - cur);
+      if (gap < 2.2) { let best = st[0]; for (const s of st) if (Math.abs(s.lat) < Math.abs(best.lat)) best = s; cut = best.oi; }
+    }
+    if (cut < 0) break;
+    obstacles.splice(cut, 1);
+  }
+
   const start = vec(path[0].x, path[0].y);
   const stan = tangentAt(path, 0); const startAngle = Math.atan2(stan.y, stan.x);
   const fp = path[N - 1], ft = tangentAt(path, N - 1); const fn = { x: -ft.y, y: ft.x };
