@@ -33,7 +33,7 @@ let curCfg: MatchConfig | null = null;
 let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string; hist: number[] } | null = null;
 let elim: { players: PlayerDef[]; orig: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[]; seed: number } | null = null;
 let camp: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
-let rank: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
+let rank: { compId: string; race: number; pts: Map<number, number>; hist: number[]; circ: 'normal' | 'caos' } | null = null;
 let dailyFlicks = 0;
 let inGame = false;
 let previewing = false;
@@ -45,7 +45,8 @@ window.addEventListener('pointerdown', () => { resumeAudio(); if (!inGame) playM
 function loadMatch(cfg: MatchConfig): void {
   curCfg = cfg; mode = cfg.mode; dailyFlicks = 0;
   let def = cfg.customTrack ? cfg.customTrack : track(cfg.level, cfg.trackIdx);
-  if (cfg.mode === 'caos') def = withChaosItems(def);       // caixas de power-up só no Caos
+  const chaosOn = cfg.mode === 'caos' || cfg.rankCirc === 'caos';   // Caos avulso OU Ranqueada Caos
+  if (chaosOn) def = withChaosItems(def);                    // caixas de power-up na pista
   scene = makeScene(def.bg);
   makeSun(scene, def.w, def.h);
   mgr.setup(def, cfg.players);
@@ -54,7 +55,7 @@ function loadMatch(cfg: MatchConfig): void {
   board = buildBoard(mgr.track.def); scene.add(board.group);
   scene.add(caps.group, fx.points, aim.group);
   rig = new CameraRig(def.w, def.h); rig.setFrustum(21, innerWidth, innerHeight); resize();
-  mgr.chaos = cfg.mode === 'caos';
+  mgr.chaos = chaosOn;
   mgr.manualControl = cfg.mode === 'online'; online.bind(mgr);
   caps.build(mgr.caps);
   input.setCamera(rig.camera, rig);
@@ -138,7 +139,7 @@ const ui = new UI({
     else elim = null;
     if (cfg.mode === 'camp' && cfg.campComp) camp = { compId: cfg.campComp, race: 0, pts: new Map(), hist: [] };
     else camp = null;
-    if (cfg.mode === 'rank' && cfg.rankComp) rank = { compId: cfg.rankComp, race: 0, pts: new Map(), hist: [] };
+    if (cfg.mode === 'rank' && cfg.rankComp) rank = { compId: cfg.rankComp, race: 0, pts: new Map(), hist: [], circ: cfg.rankCirc || 'normal' };
     else rank = null;
     loadMatch(cfg);
   },
@@ -177,7 +178,7 @@ ui.onRestart = () => {
   if (rank && mode === 'rank') {
     const comp = rankCompById(rank.compId);
     ui.confirmRestartComp(`a competição ${comp.ico} ${comp.name}`, rank.race, comp.races,
-      () => go(() => { rank = { compId: rank!.compId, race: 0, pts: new Map(), hist: [] }; curCfg!.trackIdx = seededTrack(rankState().seed, rank!.compId, 0); }), () => ui.showPause());
+      () => go(() => { rank = { compId: rank!.compId, race: 0, pts: new Map(), hist: [], circ: rank!.circ }; curCfg!.trackIdx = seededTrack(rankState(rank!.circ).seed, rank!.compId, 0); }), () => ui.showPause());
     return;
   }
   if (champ && mode === 'champ') {
@@ -203,7 +204,7 @@ ui.onNext = () => {
   }
   if (rank && curCfg) {   // ranqueada: próxima corrida da competição (sequência fixa da semente)
     rank.race++;
-    curCfg.trackIdx = seededTrack(rankState().seed, rank.compId, rank.race);
+    curCfg.trackIdx = seededTrack(rankState(rank.circ).seed, rank.compId, rank.race);
     loadMatch(curCfg); return;
   }
   if (champ) {

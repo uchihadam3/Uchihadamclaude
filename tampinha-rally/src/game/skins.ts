@@ -12,6 +12,7 @@ export interface Skin {
   hidden?: boolean;   // tampinhas da CAMPANHA: fora da coleção e dos pools de IA
   prize?: number;     // PRÊMIO DE LIGA (0..4): ouro nas 4 competições da liga
   rprize?: number;    // PRÊMIO RANQUEADA (0..4): ouro nas 8 competições do tier
+  rcaos?: boolean;    // prêmio do circuito CAOS da ranqueada (senão, do clássico)
 }
 
 // arquétipos de jogo (personalidade); a raridade aplica um lift leve por cima.
@@ -201,6 +202,28 @@ SKINS.push(
   rankPrizeCap(4, cap('guaranajesus', 'Guaraná Jesus', 'mitica', 99999, 'precise', '#ff4fa3',
     { bg: ['#ff7ac0', '#d81f6a'], metal: 'gold', arcTop: ['O SABOR ROSA', '#fff'], center: 'Jesus', centerColor: '#fff', centerFont: 'script', centerSize: 0.46, emblem: 'star', emblemColor: '#ffe36a', emblemY: -0.4, emblemScale: 0.32, sub: ['MARANHÃO · 1920', '#ffe9f4'], vintage: 0.4 },
     'O rosa milagroso do Maranhão. Precisão divina — a melhor tampinha do jogo.')),
+);
+
+// ---------------- PRÊMIOS DA RANQUEADA CAOS (ouro nas 8 do tier, circuito Caos) ----------------
+// Outros cinco refris REAIS brasileiros de infância — mesma força das exclusivas
+// da ranqueada clássica (o circuito muda, o prestígio é o mesmo).
+function rankCaosPrizeCap(tier: number, sk: Skin): Skin { rankPrizeCap(tier, sk); sk.rcaos = true; return sk; }
+SKINS.push(
+  rankCaosPrizeCap(0, cap('grapette', 'Grapette', 'comum', 99999, 'nimble', '#6a3d9a',
+    { bg: ['#7a4bb0', '#4a2578'], metal: 'steel', arcTop: ['THIRSTY OR NOT', '#e8d6ff'], center: 'Grapette', centerColor: '#fff', centerFont: 'script', centerSize: 0.38, sub: ['UVA · DESDE 1949', '#e8d6ff'], vintage: 0.5 },
+    'A uvinha que o Brasil inteiro tomou na infância. Ligeira como recreio.')),
+  rankCaosPrizeCap(1, cap('cotuba', 'Cotuba', 'rara', 99999, 'bouncy', '#c0392b',
+    { bg: ['#d84a3a', '#8a1c12'], metal: 'steel', arcTop: ['O SABOR DO INTERIOR', '#ffe9c0'], center: 'Cotuba', centerColor: '#fff', centerFont: 'slab', centerSize: 0.4, sub: ['GUARANÁ · SP', '#ffe9c0'], vintage: 0.5 },
+    'O guaraná do interior paulista. Quica como bola de meia em rua de terra.')),
+  rankCaosPrizeCap(2, cap('matecouro', 'Mate Couro', 'epica', 99999, 'heavy', '#5a3418',
+    { bg: ['#6b4020', '#33200e'], metal: 'copper', arcTop: ['DESDE 1936 · BH', '#f4d76a'], center: 'Mate Couro', centerColor: '#f4d76a', centerFont: 'serif', centerSize: 0.3, sub: ['O MATE MINEIRO', '#e8caa0'], vintage: 0.55 },
+    'O mate de Belo Horizonte, escuro e encorpado. Pesa como boteco cheio.')),
+  rankCaosPrizeCap(3, cap('fruki', 'Fruki Guaraná', 'lendaria', 99999, 'glide', '#2f8a52',
+    { bg: ['#3fae6a', '#186633'], metal: 'gold', arcTop: ['DESDE 1924 · RS', '#eafcd0'], center: 'Fruki', centerColor: '#fff', centerFont: 'script', centerSize: 0.46, sub: ['O GUARANÁ GAÚCHO', '#eafcd0'], vintage: 0.45 },
+    'O orgulho do Rio Grande. Desliza macio como chimarrão descendo.')),
+  rankCaosPrizeCap(4, cap('simba', 'Simba Guaraná', 'mitica', 99999, 'precise', '#e5761a',
+    { bg: ['#f79420', '#a84e0a'], metal: 'gold', arcTop: ['O REI GUARANÁ', '#3a1c08'], center: 'Simba', centerColor: '#3a1c08', centerFont: 'slab', centerSize: 0.44, emblem: 'sunburst', emblemColor: '#ffe36a', emblemColor2: '#ffe36a', emblemY: -0.38, emblemScale: 0.3, sub: ['ANOS 60', '#3a1c08'], vintage: 0.55 },
+    'O rei dos guaranás dos anos 60. Mira de rei da rua — lenda do circuito Caos.')),
 );
 
 export const unlockedSkins = (wins: number): Skin[] => SKINS.filter(s => !s.hidden && (wins >= s.unlock || save.hasBonus(s.id)));

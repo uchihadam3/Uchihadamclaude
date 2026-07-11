@@ -20,8 +20,12 @@ export interface RankRow {
 }
 export type Board = Record<string, RankRow>;   // chave = nome normalizado
 
+// cada CIRCUITO da ranqueada é um mundo próprio: hub, quadro e nomes separados
+// (dá pra ser "Diego" na clássica e "Diego" na Caos — não se enxergam)
 export const HUB_ID = 'tmprally-RANKHUB-V1';
+export const HUB_ID_CAOS = 'tmprally-RANKHUB-CAOS-V1';
 const LS_KEY = 'tmprally_rankboard';
+const LS_KEY_CAOS = 'tmprally_rankboard_caos';
 
 // nome → chave única (minúsculo, sem acento, espaços colapsados)
 export function nameKey(name: string): string {
@@ -74,14 +78,19 @@ export class RankNet {
   status: RankStatus = 'off';
   onChange: () => void = () => {};                 // quadro OU status mudou
   onNameLost: (name: string) => void = () => {};   // perdeu a disputa do nome
+  private hubId: string; private lsKey: string;
   private peer: any = null;
   private conns = new Map<string, any>();          // hub: peerId→conn · cliente: {'hub'}
   private myName: string | null = null; private myDev = '';
   private stopped = true; private attempt = 0;
 
-  constructor() { this.loadLocal(); }
-  private loadLocal(): void { try { this.board = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch { this.board = {}; } }
-  private persist(): void { try { localStorage.setItem(LS_KEY, JSON.stringify(this.board)); } catch {} }
+  constructor(circ: 'normal' | 'caos' = 'normal') {
+    this.hubId = circ === 'caos' ? HUB_ID_CAOS : HUB_ID;
+    this.lsKey = circ === 'caos' ? LS_KEY_CAOS : LS_KEY;
+    this.loadLocal();
+  }
+  private loadLocal(): void { try { this.board = JSON.parse(localStorage.getItem(this.lsKey) || '{}') || {}; } catch { this.board = {}; } }
+  private persist(): void { try { localStorage.setItem(this.lsKey, JSON.stringify(this.board)); } catch {} }
 
   // publica/atualiza a MINHA linha (e propaga se estiver online)
   submit(row: RankRow): void {
@@ -132,7 +141,7 @@ export class RankNet {
       const giveup = (toHost: boolean) => { if (done || this.stopped) return; done = true; this.destroyPeer(); if (toHost) this.tryHost(); else this.retry(); };
       peer.on('open', () => {
         if (this.stopped) return;
-        const conn = peer.connect(HUB_ID, { reliable: true });
+        const conn = peer.connect(this.hubId, { reliable: true });
         conn.on('open', () => {
           if (this.stopped) return;
           done = true; this.conns.set('hub', conn);
@@ -156,7 +165,7 @@ export class RankNet {
     if (this.stopped) return;
     loadPeer().then((PeerLib) => {
       if (this.stopped) return;
-      const peer = new PeerLib(HUB_ID, peerOpts()); this.peer = peer;
+      const peer = new PeerLib(this.hubId, peerOpts()); this.peer = peer;
       let done = false;
       peer.on('open', () => { if (this.stopped) return; done = true; this.setStatus('hub'); });
       peer.on('connection', (conn: any) => {

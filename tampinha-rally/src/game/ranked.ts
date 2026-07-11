@@ -58,7 +58,11 @@ export const RANK_PTS = [12, 9, 7, 5, 3, 1];
 export const compMax = (c: RankComp): number => c.races * RANK_PTS[0];
 export const RANK_MAX_TOTAL = RANK_COMPS.reduce((s, c) => s + compMax(c), 0);
 
-// ---------------- estado salvo ----------------
+// ---------------- estado salvo (um por CIRCUITO: clássica e Caos) ----------------
+// A Ranqueada CAOS é a mesma escada, mas as corridas têm power-ups e o ranking,
+// os nomes, o progresso e a semente são TOTALMENTE separados (dá pra ser "Diego"
+// nos dois — são mundos diferentes).
+export type RankCirc = 'normal' | 'caos';
 export interface RankState {
   name: string | null;                        // nome ÚNICO no ranking (null = não registrou)
   dev: string;                                // id deste aparelho (dono do nome)
@@ -70,15 +74,16 @@ export interface RankState {
 }
 function newDev(): string { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 const newSeed = (): number => (Math.random() * 0xffffffff) >>> 0;
-export function rankState(): RankState {
-  const d = save.get() as any;
-  if (!d.rank) d.rank = { name: null, dev: newDev(), claimTs: 0, best: {}, place: {}, cap: 'coca', seed: newSeed() };
-  if (!d.rank.dev) d.rank.dev = newDev();
-  if (!d.rank.seed) { d.rank.seed = newSeed(); save.persistNow(); }
-  return d.rank;
+const rkKey = (circ: RankCirc): string => circ === 'caos' ? 'rankc' : 'rank';
+export function rankState(circ: RankCirc = 'normal'): RankState {
+  const d = save.get() as any; const k = rkKey(circ);
+  if (!d[k]) d[k] = { name: null, dev: newDev(), claimTs: 0, best: {}, place: {}, cap: 'coca', seed: newSeed() };
+  if (!d[k].dev) d[k].dev = newDev();
+  if (!d[k].seed) { d[k].seed = newSeed(); save.persistNow(); }
+  return d[k];
 }
-export function saveRank(st: RankState): void { (save.get() as any).rank = st; save.persistNow(); }
-export function resetRank(): void { const d = save.get() as any; const dev = d.rank?.dev || newDev(); d.rank = { name: null, dev, claimTs: 0, best: {}, place: {}, cap: 'coca', seed: newSeed() }; save.persistNow(); }
+export function saveRank(st: RankState, circ: RankCirc = 'normal'): void { (save.get() as any)[rkKey(circ)] = st; save.persistNow(); }
+export function resetRank(circ: RankCirc = 'normal'): void { const d = save.get() as any; const k = rkKey(circ); const dev = d[k]?.dev || newDev(); d[k] = { name: null, dev, claimTs: 0, best: {}, place: {}, cap: 'coca', seed: newSeed() }; save.persistNow(); }
 
 export const rankTotal = (st: RankState): number => Object.values(st.best).reduce((a, b) => a + b, 0);
 export const tierGolds = (st: RankState, tier: number): number => RANK_COMPS.filter(c => c.tier === tier && st.place[c.id] === 1).length;
@@ -96,8 +101,11 @@ export function maxTierReached(st: RankState): number {
   return 0;
 }
 
-// TAMPINHA-PRÊMIO por tier (ouro nas 8) — as melhores do jogo
+// TAMPINHA-PRÊMIO por tier (ouro nas 8) — as melhores do jogo.
+// Cada circuito tem as SUAS cinco exclusivas.
 export const RANK_PRIZE = ['mineirinho', 'dolly', 'saogeraldo', 'bare', 'guaranajesus'];
+export const RANK_PRIZE_CAOS = ['grapette', 'cotuba', 'matecouro', 'fruki', 'simba'];
+export const rankPrizeOf = (circ: RankCirc): string[] => circ === 'caos' ? RANK_PRIZE_CAOS : RANK_PRIZE;
 
 // elegibilidade: desbloqueada E raridade ≤ tier (exclusivas contam pela própria raridade)
 export function eligibleCaps(tier: number): Skin[] {
@@ -105,7 +113,7 @@ export function eligibleCaps(tier: number): Skin[] {
 }
 
 // aplica o resultado de uma competição; retorna o que mudou
-export function applyRankResult(st: RankState, compId: string, place: number, pts: number, capId: string): { dPts: number; improvedPlace: boolean; prize: string | null; podium: boolean } {
+export function applyRankResult(st: RankState, compId: string, place: number, pts: number, capId: string, circ: RankCirc = 'normal'): { dPts: number; improvedPlace: boolean; prize: string | null; podium: boolean } {
   const c = rankCompById(compId);
   const oldPts = st.best[compId] ?? 0;
   const dPts = Math.max(0, pts - oldPts);
@@ -114,11 +122,12 @@ export function applyRankResult(st: RankState, compId: string, place: number, pt
   const improvedPlace = place < oldPlace;
   if (improvedPlace) st.place[compId] = place;
   st.cap = capId;
-  saveRank(st);
+  saveRank(st, circ);
   let prize: string | null = null;
-  if (tierGolds(st, c.tier) >= 8 && !save.hasBonus(RANK_PRIZE[c.tier])) {
-    save.addBonus(RANK_PRIZE[c.tier]);
-    prize = RANK_PRIZE[c.tier];
+  const prizes = rankPrizeOf(circ);
+  if (tierGolds(st, c.tier) >= 8 && !save.hasBonus(prizes[c.tier])) {
+    save.addBonus(prizes[c.tier]);
+    prize = prizes[c.tier];
   }
   return { dPts, improvedPlace, prize, podium: place <= 3 };
 }

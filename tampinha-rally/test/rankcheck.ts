@@ -169,4 +169,46 @@ console.log('\n=== PISTA FIXA: mesma semente → mesma sequência (só troca com
   console.log('  determinístico · 5 corridas sem repetir · conta nova = semente nova ✓');
 }
 
+console.log('\n=== RANQUEADA CAOS: circuito separado (estado, semente, nomes, prêmios) ===');
+{
+  const { RANK_PRIZE_CAOS, rankPrizeOf } = await import('../src/game/ranked');
+  const a = rankState('normal'), b = rankState('caos');
+  // estados independentes: progresso num circuito não vaza pro outro
+  b.best = {}; b.place = {};
+  applyRankResult(b, 'rk00', 1, 20, 'coca', 'caos');
+  if ((rankState('normal').best['rk00'] ?? 0) === 20 && rankState('caos').best['rk00'] !== 20) die('estados misturados');
+  if (rankState('caos').best['rk00'] !== 20) die('estado caos não salvou');
+  if (a.seed === b.seed) die('mesma semente nos dois circuitos');
+  // prêmios próprios: ouro 8/8 no tier 0 do CAOS dá a Grapette (não a Mineirinho de novo)
+  for (let i = 0; i < 8; i++) {
+    const c = RANK_COMPS[i];
+    const res = applyRankResult(rankState('caos'), c.id, 1, compMax(c), 'coca', 'caos');
+    if (i === 7 && res.prize !== 'grapette') die('prêmio caos errado: ' + res.prize);
+  }
+  if (!save.hasBonus('grapette')) die('grapette não salva');
+  if (rankPrizeOf('caos').join() !== RANK_PRIZE_CAOS.join()) die('lista de prêmios caos');
+  // as 5 exclusivas do caos existem, são rcaos e têm a MESMA força das clássicas
+  for (let i = 0; i < 5; i++) {
+    const kc = skinById(RANK_PRIZE_CAOS[i]), kn = skinById(RANK_PRIZE[i]);
+    if (!kc || kc.id === 'coca') die('exclusiva caos faltando: ' + RANK_PRIZE_CAOS[i]);
+    if (!(kc as any).rcaos || kc.rprize !== i) die('flags da exclusiva caos');
+    const mc = Object.values(kc.stats as any).reduce((s: number, v: any) => s + v, 0);
+    const mn = Object.values(kn.stats as any).reduce((s: number, v: any) => s + v, 0);
+    if (Math.abs(mc - mn) / mn > 0.06) die(`força desigual: ${kc.id} ${mc.toFixed(2)} vs ${kn.id} ${mn.toFixed(2)}`);
+  }
+  // nomes: quadros separados → "Diego" livre nos DOIS ao mesmo tempo
+  const bd1: Board = {}, bd2: Board = {};
+  const row = { name: 'Diego', dev: 'devA', score: 10, tier: 0, golds: 0, cap: 'coca', claimTs: 1, ts: 1 };
+  mergeBoards(bd1, { [nameKey('Diego')]: row as any });
+  if (!nameFree(bd2, 'Diego', 'devB')) die('quadros separados deveriam liberar o nome');
+  if (nameFree(bd1, 'Diego', 'devB')) die('mesmo quadro deveria bloquear');
+  // reset do caos não afeta o clássico
+  const nSeedN = rankState('normal').seed;
+  const { resetRank: rr2 } = await import('../src/game/ranked');
+  rr2('caos');
+  if (rankState('caos').best['rk00']) die('reset caos não zerou');
+  if (rankState('normal').seed !== nSeedN) die('reset caos mexeu no clássico!');
+  console.log('  estados/sementes separados · Grapette no ouro 8/8 · 5 exclusivas caos na mesma força · Diego nos dois quadros · reset isolado ✓');
+}
+
 console.log('\n✅ rankcheck fim');

@@ -704,3 +704,15 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .item-mini .im-ico{font-size:20px;line-height:1.1}
 .item-mini .im-lab{font-size:7.5px;font-weight:900;line-height:1;letter-spacing:-0.2px;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fx-active.col{flex-direction:column;align-items:flex-start;gap:4px;margin-top:2px}
+/* Ranqueada: abas de circuito (clássica ⚔️ / Caos 🌀) */
+.rk-tabs{width:100%;max-width:560px;display:flex;gap:8px;margin-top:8px}
+.rk-tab{flex:1;border:none;border-radius:14px;padding:9px 6px;font-weight:900;font-size:13.5px;color:rgba(255,240,220,.75);background:rgba(0,0,0,.22);cursor:pointer;transition:transform .08s}
+.rk-tab:active{transform:scale(.97)}
+.rk-tab.sel{background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;box-shadow:0 4px 0 #5a2ca8,0 6px 12px rgba(0,0,0,.3)}
+.rk-tab.caos.sel{background:linear-gradient(180deg,#ff4fa3,#d81f6a);box-shadow:0 4px 0 #a01048,0 6px 12px rgba(0,0,0,.3)}
+/* tema do circuito Caos: cabeçalho e barra rosinha */
+.rank.rk-caos .rank-head{background:linear-gradient(135deg,rgba(255,79,163,.3),rgba(0,0,0,.2));border-color:rgba(255,79,163,.45)}
+.rank.rk-caos .rank-score{color:#ffd6ea}
+.rank.rk-caos .rank-sub{color:#f2b0d2}
+.rank.rk-caos .rank-bar i{background:linear-gradient(90deg,#d81f6a,#ff8fc8);box-shadow:0 0 10px rgba(255,79,163,.7)}
+.rk-caos-note{width:100%;max-width:560px;box-sizing:border-box;background:rgba(255,79,163,.14);border:1px dashed rgba(255,79,163,.5);border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12px;font-weight:700;color:#ffd6ea;text-align:center}

@@ -8,7 +8,7 @@ import { AI_KINDS, AI_LABEL, AIKind } from './game/ai';
 import { PlayerDef, GameManager } from './game/manager';
 import { ITEMS } from './game/chaos';
 import { LIGAS, COMPS, CampComp, compById, campState, saveCamp, campStats, upCost, UP_MAX, UP_STEP, isUnlocked, pickOpponents, CampState, LIGA_PRIZE, ligaGolds } from './game/campaign';
-import { RANK_TIERS, RANK_COMPS, RankComp, rankCompById, rankState, saveRank, resetRank, rankTotal, tierGolds, tierDone, rankUnlocked, RANK_PRIZE, eligibleCaps, applyRankResult, pickRankOpponents, compMax, RANK_MAX_TOTAL } from './game/ranked';
+import { RANK_TIERS, RANK_COMPS, RankComp, RankCirc, rankCompById, rankState, saveRank, resetRank, rankTotal, tierGolds, tierDone, rankUnlocked, rankPrizeOf, eligibleCaps, applyRankResult, pickRankOpponents, compMax, RANK_MAX_TOTAL } from './game/ranked';
 import { RankNet, RankRow, standings as rankStandings, nameFree, validName, nameKey } from './net/rank';
 import { CapStats } from './engine/core';
 import { Online } from './net/online';
@@ -18,7 +18,7 @@ import { settings } from './audio';
 export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp' | 'rank';
 export type Pick = 'specific' | 'randlevel' | 'randany';
 export type ChampFmt = 'copa' | 'gp' | 'sprint' | 'maratona';
-export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; teamSize?: number; customTrack?: any; campComp?: string; rankComp?: string; }
+export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; teamSize?: number; customTrack?: any; campComp?: string; rankComp?: string; rankCirc?: RankCirc; }
 export const CHAMP_FMT: Record<ChampFmt, { name: string; ico: string; races: number; desc: string }> = {
   sprint: { name: 'Sprint', ico: '⚡', races: 3, desc: '3 pistas rápidas' },
   copa: { name: 'Copa', ico: '🏆', races: 5, desc: '5 pistas do nível' },
@@ -391,72 +391,104 @@ export class UI {
   }
 
   // ============================================================ RANQUEADA
+  // DOIS CIRCUITOS: a clássica (⚔️) e a CAOS (🌀, corridas com power-ups).
+  // Mesma escada de 40 competições, mas ranking, nomes, progresso, semente e
+  // prêmios TOTALMENTE separados — dá pra ser "Diego" nos dois.
   rankNet = new RankNet();
-  private rankNetOn = false;
+  rankNetCaos = new RankNet('caos');
+  rankCirc: RankCirc = 'normal';
+  private rankNetOn = { normal: false, caos: false };
+  private rnet(): RankNet { return this.rankCirc === 'caos' ? this.rankNetCaos : this.rankNet; }
+  private rkTitle(): string { return this.rankCirc === 'caos' ? '🌀 Ranqueada Caos' : '⚔️ Ranqueada'; }
   private rankCapSel: string | null = null;      // tampinha escolhida pra próxima competição
   onRankBack: (() => void) | null = null;
   onRankRetry: ((compId: string) => void) | null = null;
 
   rankMenuSub(): string {
-    const st = rankState();
-    if (!st.name) return 'nome único, ranking mundial';
-    return `⚡ ${st.name} · ${rankTotal(st)} pts`;
+    const a = rankState('normal'), b = rankState('caos');
+    if (!a.name && !b.name) return 'clássica e Caos · ranking mundial';
+    const parts: string[] = [];
+    if (a.name) parts.push(`⚔️ ${rankTotal(a)}`);
+    if (b.name) parts.push(`🌀 ${rankTotal(b)}`);
+    return parts.join(' · ') + ' pts';
   }
   private rankNetStart(): void {
-    if (this.rankNetOn) return;
-    this.rankNetOn = true;
-    const st = rankState();
-    this.rankNet.watch(st.name, st.dev);
-    this.rankNet.onNameLost = (n) => {
-      const st2 = rankState(); st2.name = null; saveRank(st2);
+    const circ = this.rankCirc;
+    if (this.rankNetOn[circ]) return;
+    this.rankNetOn[circ] = true;
+    const st = rankState(circ);
+    const net = this.rnet();
+    net.watch(st.name, st.dev);
+    net.onNameLost = (n) => {
+      const st2 = rankState(circ); st2.name = null; saveRank(st2, circ);
       this.notify(`⚠️ O nome "${n}" já era de outra pessoa (registro mais antigo). Escolha outro!`, 'bad');
     };
-    this.rankNet.start();
+    net.start();
   }
   // minha linha no quadro (score = soma dos melhores; vitrine = última tampinha)
   private myRankRow(): RankRow | null {
-    const st = rankState(); if (!st.name) return null;
+    const st = rankState(this.rankCirc); if (!st.name) return null;
     const golds = [0, 1, 2, 3, 4].reduce((s, t) => s + tierGolds(st, t), 0);
     let tier = 0; for (let i = 0; i < RANK_COMPS.length; i++) if (rankUnlocked(st, i)) tier = RANK_COMPS[i].tier;
     return { name: st.name, dev: st.dev, score: rankTotal(st), tier, golds, cap: st.cap, claimTs: st.claimTs, ts: Date.now() };
   }
-  private rankSubmit(): void { const r = this.myRankRow(); if (r) this.rankNet.submit(r); }
+  private rankSubmit(): void { const r = this.myRankRow(); if (r) this.rnet().submit(r); }
   private rankStatusHtml(): string {
-    const s = this.rankNet.status;
+    const s = this.rnet().status;
     return s === 'online' ? '<span class="rk-dot on"></span>AO VIVO' : s === 'hub' ? '<span class="rk-dot on"></span>AO VIVO · você é o servidor' : s === 'connecting' ? '<span class="rk-dot mid"></span>conectando…' : '<span class="rk-dot off"></span>offline · cópia local';
   }
   private myRankPos(): { pos: number; total: number } {
-    const rows = rankStandings(this.rankNet.board);
-    const st = rankState();
+    const rows = rankStandings(this.rnet().board);
+    const st = rankState(this.rankCirc);
     const i = rows.findIndex(r => r.dev === st.dev);
     return { pos: i < 0 ? rows.length + 1 : i + 1, total: Math.max(rows.length, i < 0 ? rows.length + 1 : rows.length) };
   }
+  // abas ⚔️/🌀 no topo das telas da ranqueada
+  private rankTabs(host: HTMLElement): HTMLElement {
+    const t = this.el(`<div class="rk-tabs">
+      <button class="rk-tab ${this.rankCirc === 'normal' ? 'sel' : ''}" data-c="normal">⚔️ Clássica</button>
+      <button class="rk-tab caos ${this.rankCirc === 'caos' ? 'sel' : ''}" data-c="caos">🌀 Caos</button>
+    </div>`);
+    t.querySelectorAll('.rk-tab').forEach(b => b.addEventListener('click', () => {
+      const c = (b as HTMLElement).dataset.c as RankCirc;
+      if (c === this.rankCirc) return;
+      this.rankCirc = c; this.rankCapSel = null; this.showRanked();
+    }));
+    host.appendChild(t);
+    return t;
+  }
 
-  showRanked(): void {
-    const st = rankState();
+  showRanked(circ?: RankCirc): void {
+    if (circ) this.rankCirc = circ;
+    const st = rankState(this.rankCirc);
     if (!st.name) { this.showRankRegister(); return; }
     this.rankNetStart();
     this.rankSubmit();     // garante que o quadro local (e o hub, se online) tem meu score atual
     this.clear();
+    const caos = this.rankCirc === 'caos';
     const total = rankTotal(st);
     const done = Object.values(st.place).filter(p => p <= 3).length;
     const pos = this.myRankPos();
-    const s = this.el(`<div class="screen setup camp rank">
-      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>⚔️ Ranqueada</h2><div></div></div>
+    const prizes = rankPrizeOf(this.rankCirc);
+    const s = this.el(`<div class="screen setup camp rank ${caos ? 'rk-caos' : ''}">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>${this.rkTitle()}</h2><div></div></div>
+      <div class="rk-tabs-slot"></div>
       <div class="rank-head">
         <div class="camp-face" id="rface"></div>
         <div class="rank-info">
           <b>${st.name}</b>
           <span class="rank-score">⚡ <b>${total}</b> <small>/ ${RANK_MAX_TOTAL} pts</small></span>
-          <span class="rank-sub">🏅 ${done}/40 · ${pos.pos > 0 && this.rankNet.status !== 'off' ? `🌍 ${pos.pos}º do mundo` : this.rankStatusHtml()}</span>
+          <span class="rank-sub">🏅 ${done}/40 · ${pos.pos > 0 && this.rnet().status !== 'off' ? `🌍 ${pos.pos}º do mundo` : this.rankStatusHtml()}</span>
         </div>
         <button class="chip rank-board-btn" id="board">🌍 Ranking</button>
       </div>
+      ${caos ? '<div class="rk-caos-note">🌀 Aqui as corridas têm <b>POWER-UPS</b>: caixinhas na pista, 2 bolsos, raio, furacão, fantasma…</div>' : ''}
       <div class="rank-bar"><i style="width:${Math.min(100, total / RANK_MAX_TOTAL * 100).toFixed(1)}%"></i></div>
       <div class="camp-scroll" id="tiers"></div>
-      <button class="rk-del" id="del">🗑️ excluir conta do ranking</button>
+      <button class="rk-del" id="del">🗑️ excluir conta deste ranking</button>
     </div>`);
     this.root.appendChild(s); s.prepend(this.bgFx(5));
+    this.rankTabs(s.querySelector('.rk-tabs-slot') as HTMLElement);
     const cv = drawCap(skinById(st.cap).art, 96); cv.style.cssText = 'width:100%;height:100%;display:block';
     (s.querySelector('#rface') as HTMLElement).appendChild(cv);
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
@@ -464,7 +496,7 @@ export class UI {
     s.querySelector('#del')!.addEventListener('click', () => this.showRankDelete());
     const host = s.querySelector('#tiers') as HTMLElement;
     RANK_TIERS.forEach((tg, ti) => {
-      const pid = RANK_PRIZE[ti]; const pk = skinById(pid);
+      const pid = prizes[ti]; const pk = skinById(pid);
       const golds = tierGolds(st, ti);
       const earned = save.hasBonus(pid);
       const dn = tierDone(st, ti);
@@ -508,66 +540,73 @@ export class UI {
     });
   }
 
-  // primeiro acesso: registrar o NOME ÚNICO do ranking
+  // primeiro acesso ao CIRCUITO: registrar o nome único DELE
   showRankRegister(): void {
     this.rankNetStart();
     this.clear();
-    const s = this.el(`<div class="screen setup camp rank">
-      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>⚔️ Ranqueada</h2><div></div></div>
+    const caos = this.rankCirc === 'caos';
+    const s = this.el(`<div class="screen setup camp rank ${caos ? 'rk-caos' : ''}">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>${this.rkTitle()}</h2><div></div></div>
+      <div class="rk-tabs-slot"></div>
       <div class="rank-reg">
-        <div class="rk-reg-ico">⚔️</div>
+        <div class="rk-reg-ico">${caos ? '🌀' : '⚔️'}</div>
         <h3>Escolha seu nome de batalha</h3>
-        <p class="rk-reg-p">É o nome que aparece no <b>Ranking Mundial</b> — e é <b>único</b>: se alguém já usa, você precisa de outro. Escolha bem: é a sua lenda!</p>
+        <p class="rk-reg-p">É o nome que aparece no <b>Ranking ${caos ? 'do CAOS' : 'Mundial'}</b> — e é <b>único aqui</b>: cada circuito tem os próprios nomes${caos ? ' (pode até repetir o da clássica!)' : ''}. Escolha bem: é a sua lenda!</p>
         <div class="rk-input-row"><input id="nm" maxlength="12" placeholder="ex.: Diego" autocomplete="off"><span class="rk-check" id="chk"></span></div>
         <div class="rk-status">${this.rankStatusHtml()}</div>
-        <button class="play-btn" id="go">⚔️ ENTRAR NO RANKING</button>
+        <button class="play-btn" id="go">${caos ? '🌀' : '⚔️'} ENTRAR NO RANKING</button>
         <div class="rk-rules">
+          ${caos ? '<div>🌀 <b>Corridas com POWER-UPS</b>: caixinhas na pista, 2 bolsos, raio, furacão, fantasma, pancada…</div>' : ''}
           <div>🪜 <b>5 tiers</b> (Normal → Místico) · <b>8 competições</b> cada — 40 no total</div>
           <div>🧢 Você joga com <b>as suas tampinhas</b>: no Normal valem as comuns; cada tier libera a raridade seguinte</div>
           <div>💪 Os rivais <b>ficam mais fortes</b> a cada etapa (até +45% na Grande Final do tier)</div>
           <div>⚡ Cada corrida vale pontos (12·9·7·5·3·1). O <b>melhor resultado</b> de cada competição soma no seu score — dá pra voltar e melhorar!</div>
-          <div>👑 <b>OURO nas 8</b> de um tier = tampinha EXCLUSIVA (as 5 melhores do jogo)</div>
+          <div>👑 <b>OURO nas 8</b> de um tier = tampinha EXCLUSIVA ${caos ? 'do circuito Caos' : ''} (as melhores do jogo)</div>
         </div>
       </div>
     </div>`);
     this.root.appendChild(s); s.prepend(this.bgFx(6));
+    this.rankTabs(s.querySelector('.rk-tabs-slot') as HTMLElement);
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
     const inp = s.querySelector('#nm') as HTMLInputElement;
     const chk = s.querySelector('#chk') as HTMLElement;
     const stat = s.querySelector('.rk-status') as HTMLElement;
-    const st = rankState();
+    const circ = this.rankCirc;
+    const st = rankState(circ);
+    const net = this.rnet();
     const verify = () => {
       const n = inp.value;
       if (!n.trim()) { chk.textContent = ''; return; }
       const err = validName(n);
       if (err) { chk.textContent = '✕ ' + err; chk.className = 'rk-check bad'; return; }
-      if (!nameFree(this.rankNet.board, n, st.dev)) { chk.textContent = '✕ nome já em uso'; chk.className = 'rk-check bad'; return; }
-      chk.textContent = this.rankNet.status === 'online' || this.rankNet.status === 'hub' ? '✓ disponível' : '✓ livre por aqui';
+      if (!nameFree(net.board, n, st.dev)) { chk.textContent = '✕ nome já em uso'; chk.className = 'rk-check bad'; return; }
+      chk.textContent = net.status === 'online' || net.status === 'hub' ? '✓ disponível' : '✓ livre por aqui';
       chk.className = 'rk-check ok';
     };
     inp.addEventListener('input', verify);
-    this.rankNet.onChange = () => { stat.innerHTML = this.rankStatusHtml(); verify(); };
+    net.onChange = () => { stat.innerHTML = this.rankStatusHtml(); verify(); };
     s.querySelector('#go')!.addEventListener('click', () => {
       const n = inp.value.trim().replace(/\s+/g, ' ');
       const err = validName(n);
       if (err) { this.notify('✕ ' + err, 'bad'); return; }
-      if (!nameFree(this.rankNet.board, n, st.dev)) { this.notify(`✕ "${n}" já está em uso no ranking — escolha outro`, 'bad'); return; }
-      const st2 = rankState(); st2.name = n; st2.claimTs = Date.now(); saveRank(st2);
-      this.rankNet.watch(n, st2.dev);
+      if (!nameFree(net.board, n, st.dev)) { this.notify(`✕ "${n}" já está em uso neste ranking — escolha outro`, 'bad'); return; }
+      const st2 = rankState(circ); st2.name = n; st2.claimTs = Date.now(); saveRank(st2, circ);
+      net.watch(n, st2.dev);
       this.rankSubmit();
-      if (this.rankNet.status === 'off' || this.rankNet.status === 'connecting') this.notify('📡 Sem conexão agora — seu nome será confirmado quando o ranking conectar', 'bad');
-      else this.notify(`⚔️ ${n} entrou pro ranking!`, 'good');
+      if (net.status === 'off' || net.status === 'connecting') this.notify('📡 Sem conexão agora — seu nome será confirmado quando o ranking conectar', 'bad');
+      else this.notify(`${circ === 'caos' ? '🌀' : '⚔️'} ${n} entrou pro ranking!`, 'good');
       this.showRanked();
     });
   }
 
   showRankDelete(): void {
-    const st = rankState();
+    const circ = this.rankCirc;
+    const st = rankState(circ);
     const { box, close } = this.overlay(`
-      <div class="ov-head"><b>🗑️ Excluir conta do ranking</b><button class="ov-x">✕</button></div>
+      <div class="ov-head"><b>🗑️ Excluir conta (${circ === 'caos' ? 'Caos' : 'clássica'})</b><button class="ov-x">✕</button></div>
       <div class="cc-detail">
-        <div>Isso apaga <b>${st.name}</b> do Ranking Mundial e <b>zera todo o seu progresso</b> na Ranqueada (as 40 competições).</div>
-        <div>O nome <b>fica livre</b> pra qualquer pessoa usar. Tampinhas exclusivas já ganhas <b>continuam suas</b>.</div>
+        <div>Isso apaga <b>${st.name}</b> do ranking da ${circ === 'caos' ? 'Ranqueada CAOS' : 'Ranqueada clássica'} e <b>zera todo o progresso</b> desse circuito (as 40 competições).</div>
+        <div>O nome <b>fica livre</b> pra qualquer pessoa usar. Tampinhas exclusivas já ganhas <b>continuam suas</b>. ${circ === 'caos' ? 'A Ranqueada clássica NÃO é afetada.' : 'A Ranqueada Caos NÃO é afetada.'}</div>
         <div class="cc-final-note">Não tem volta!</div>
       </div>
       <div class="mactions"><button class="chip" id="no">Cancelar</button><button class="play-btn danger" id="yes">Excluir mesmo</button></div>`);
@@ -575,33 +614,35 @@ export class UI {
     box.querySelector('#no')!.addEventListener('click', close);
     box.querySelector('#yes')!.addEventListener('click', () => {
       close();
-      if (st.name) this.rankNet.submit({ name: st.name, dev: st.dev, score: 0, tier: 0, golds: 0, cap: st.cap, claimTs: st.claimTs, ts: Date.now(), del: Date.now() });
-      resetRank();
-      this.rankNet.watch(null, st.dev);
+      if (st.name) this.rnet().submit({ name: st.name, dev: st.dev, score: 0, tier: 0, golds: 0, cap: st.cap, claimTs: st.claimTs, ts: Date.now(), del: Date.now() });
+      resetRank(circ);
+      this.rnet().watch(null, st.dev);
       this.notify('Conta excluída. O nome ficou livre.', 'good');
       this.showMenu();
     });
   }
 
-  // RANKING MUNDIAL
+  // RANKING MUNDIAL do circuito
   showRankBoard(): void {
     this.rankNetStart();
     this.rankSubmit();
     this.clear();
-    const s = this.el(`<div class="screen setup camp rank">
-      <div class="setup-head"><button class="txt-btn" id="back">‹ Ranqueada</button><h2>🌍 Ranking Mundial</h2><div></div></div>
+    const caos = this.rankCirc === 'caos';
+    const net = this.rnet();
+    const s = this.el(`<div class="screen setup camp rank ${caos ? 'rk-caos' : ''}">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Ranqueada</button><h2>🌍 Ranking ${caos ? 'do Caos' : 'Mundial'}</h2><div></div></div>
       <div class="rk-status center" id="stat">${this.rankStatusHtml()}</div>
       <div class="camp-scroll rk-rows" id="rows"></div>
     </div>`);
     this.root.appendChild(s); s.prepend(this.bgFx(4));
-    s.querySelector('#back')!.addEventListener('click', () => { this.rankNet.onChange = () => {}; this.showRanked(); });
+    s.querySelector('#back')!.addEventListener('click', () => { net.onChange = () => {}; this.showRanked(); });
     const rowsEl = s.querySelector('#rows') as HTMLElement;
-    const st = rankState();
+    const st = rankState(this.rankCirc);
     const render = () => {
       (s.querySelector('#stat') as HTMLElement).innerHTML = this.rankStatusHtml();
-      const rows = rankStandings(this.rankNet.board);
+      const rows = rankStandings(net.board);
       rowsEl.innerHTML = '';
-      if (!rows.length) { rowsEl.appendChild(this.el('<div class="rk-empty">Ninguém no ranking ainda — seja a primeira lenda! ⚔️</div>')); return; }
+      if (!rows.length) { rowsEl.appendChild(this.el('<div class="rk-empty">Ninguém no ranking ainda — seja a primeira lenda! ' + (caos ? '🌀' : '⚔️') + '</div>')); return; }
       rows.slice(0, 100).forEach((r, i) => {
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`;
         const you = r.dev === st.dev;
@@ -617,13 +658,14 @@ export class UI {
       });
     };
     render();
-    this.rankNet.onChange = render;
-    this.rankNet.refresh();
+    net.onChange = render;
+    net.refresh();
   }
 
   // ficha da competição + ESCOLHA DA TAMPINHA (elegível pelo tier)
   showRankCompIntro(c: RankComp): void {
-    const st = rankState();
+    const st = rankState(this.rankCirc);
+    const caos = this.rankCirc === 'caos';
     const tg = RANK_TIERS[c.tier];
     const caps = eligibleCaps(c.tier);
     if (!this.rankCapSel || !caps.some(k => k.id === this.rankCapSel)) this.rankCapSel = caps.some(k => k.id === st.cap) ? st.cap : caps[caps.length - 1]?.id || 'coca';
@@ -632,6 +674,7 @@ export class UI {
     const { box, close } = this.overlay(`
       <div class="ov-head"><b>${c.ico} ${c.name} <small class="rk-tiertag" style="--lc:${tg.col}">${tg.ico} ${tg.name}</small></b><button class="ov-x">✕</button></div>
       <div class="cc-detail">
+        ${caos ? '<div>🌀 <b>MODO CAOS</b>: caixinhas de power-up na pista — 2 bolsos, raio, furacão, fantasma…</div>' : ''}
         <div>🏁 <b>${c.races} corridas</b> · pontos por posição (12·9·7·5·3·1)</div>
         <div>🥊 <b>${c.nOpp} rivais ${RARITY_LABEL[tg.rarity as keyof typeof RARITY_LABEL]}s</b> ${c.boost > 0 ? `<b class="rk-boost">+${Math.round(c.boost * 100)}% mais fortes 💪</b>` : 'na força natural'}</div>
         <div>⚡ Seu melhor aqui: <b>${best}/${compMax(c)}</b> — melhorou, o score sobe junto</div>
@@ -672,19 +715,22 @@ export class UI {
     box.querySelector('#go')!.addEventListener('click', () => { close(); this.launchRank(c); });
   }
   launchRank(c: RankComp): void {
+    const circ = this.rankCirc;
     const capId = this.rankCapSel || 'coca';
     const opp = pickRankOpponents(c);
     const players: PlayerDef[] = [
-      { name: rankState().name || 'Você', isAI: false, skin: capId },
+      { name: rankState(circ).name || 'Você', isAI: false, skin: capId },
       ...opp.map((o, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: c.aiKinds[i % c.aiKinds.length], skin: o.skin, stats: o.stats })),
     ];
-    this.cb.start({ level: c.level, trackIdx: seededTrack(rankState().seed, c.id, 0), pick: 'randlevel', players, mode: 'rank', rankComp: c.id });
+    this.cb.start({ level: c.level, trackIdx: seededTrack(rankState(circ).seed, c.id, 0), pick: 'randlevel', players, mode: 'rank', rankComp: c.id, rankCirc: circ });
   }
 
   // resultado da competição ranqueada (pontos + ranking + prêmio)
   showRankResult(d: { comp: RankComp; place: number; pts: number; rows: { name: string; skin: string; pts: number; you: boolean }[]; hist: number[]; capId: string }): void {
-    const st = rankState();
-    const res = applyRankResult(st, d.comp.id, d.place, d.pts, d.capId);
+    const circ = this.rankCirc;
+    const st = rankState(circ);
+    const res = applyRankResult(st, d.comp.id, d.place, d.pts, d.capId, circ);
+    this.rankNetStart();
     this.rankSubmit();
     const { modal, box } = this.modalBox(); box.className = 'modal win';
     const tro = d.place === 1 ? '🥇' : d.place === 2 ? '🥈' : d.place === 3 ? '🥉' : '😤';
@@ -693,7 +739,7 @@ export class UI {
     const golds = tierGolds(st, d.comp.tier);
     const pz = res.prize ? skinById(res.prize) : null;
     const nextLocked = !res.podium && (st.place[d.comp.id] ?? 99) > 3;
-    box.innerHTML = `<div class="camp-tro">${tro}</div><h3>${d.comp.ico} ${d.comp.name} <small class="rk-tiertag" style="--lc:${tg.col}">${tg.ico} ${tg.name}</small></h3><div class="camp-place">${head}</div>
+    box.innerHTML = `<div class="camp-tro">${tro}</div><h3>${circ === 'caos' ? '🌀 ' : ''}${d.comp.ico} ${d.comp.name} <small class="rk-tiertag" style="--lc:${tg.col}">${tg.ico} ${tg.name}</small></h3><div class="camp-place">${head}</div>
       <div class="rk-res-pts">
         <div class="rkp"><span>essa rodada</span><b>⚡ ${d.pts}</b></div>
         <div class="rkp ${res.dPts > 0 ? 'up' : ''}"><span>${res.dPts > 0 ? 'score mundial' : 'seu melhor'}</span><b>${res.dPts > 0 ? `+${res.dPts} pts! 📈` : `⚡ ${st.best[d.comp.id] ?? 0}`}</b></div>
@@ -703,7 +749,7 @@ export class UI {
         <div class="pr-tag">✨ TAMPINHA EXCLUSIVA DESBLOQUEADA ✨</div>
         <div class="pr-face" id="prf"></div>
         <b class="pr-name">${pz.name}</b>
-        <span class="pr-rar"><i class="rar-dot"></i>${RARITY_LABEL[pz.rarity]} · OURO nas 8 do ${tg.name}</span>
+        <span class="pr-rar"><i class="rar-dot"></i>${RARITY_LABEL[pz.rarity]} · OURO nas 8 do ${tg.name}${circ === 'caos' ? ' (Caos)' : ''}</span>
         ${capBars(pz.stats, true)}
         <span class="pr-note">a melhor da categoria — sua pra sempre! 🎉</span>
       </div>` : `<div class="rk-goldprog">👑 Prêmio do tier: ${'🥇'.repeat(golds)}${'<i class="clp-slot"></i>'.repeat(Math.max(0, 8 - golds))} <em>${golds}/8 ouros</em></div>`}
@@ -1284,7 +1330,7 @@ export class UI {
         const card = this.el(`<button class="skin-card ${cur === k.id ? 'sel' : ''} ${locked ? 'locked' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}">
           <div class="skin-face"></div>
           <div class="skin-name">${k.name}</div>
-          <div class="skin-desc">${locked ? (k.prize != null ? '🏆 OURO nas 4 da ' + LIGAS[k.prize].name : k.rprize != null ? '⚔️ OURO nas 8 do ' + RANK_TIERS[k.rprize].name + ' (Ranqueada)' : '🔒 ' + k.unlock + ' vitórias') : k.desc}</div>
+          <div class="skin-desc">${locked ? (k.prize != null ? '🏆 OURO nas 4 da ' + LIGAS[k.prize].name : k.rprize != null ? (k.rcaos ? '🌀' : '⚔️') + ' OURO nas 8 do ' + RANK_TIERS[k.rprize].name + ' (Ranqueada' + (k.rcaos ? ' Caos' : '') + ')' : '🔒 ' + k.unlock + ' vitórias') : k.desc}</div>
           ${capBars(k.stats, true)}
         </button>`);
         const face = card.querySelector('.skin-face') as HTMLElement;
