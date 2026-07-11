@@ -104,9 +104,14 @@ export interface Cap {
 
   // ---- extras dos MODOS (não usados no jogo comum) ----
   team: number;              // Dupla: índice do time (-1 = sem time)
-  item: string | null;       // Caos: power-up guardado (1 slot)
+  items: string[];           // Caos: power-ups guardados (MÁXIMO 2)
   shield: boolean;           // Caos: escudo ativo — anula 1 buraco/fora
   boostNext: number;         // Caos: multiplicador do próximo peteléco (1 = normal)
+  smashNext: boolean;        // Caos: PANCADA armada pro próximo peteléco
+  smash: boolean;            // Caos: pancada VALENDO durante este peteléco
+  ghostNext: boolean;        // Caos: FANTASMA armado pro próximo peteléco
+  ghost: boolean;            // Caos: fantasma VALENDO (atravessa tampinhas/obstáculos)
+  anchored: boolean;         // Caos: ÂNCORA — o próximo peteléco sai fraco
   eliminated: boolean;       // Eliminação: já saiu da série
   itemFlash: number;         // brilho visual ao pegar/usar item
 }
@@ -119,7 +124,7 @@ export function makeCap(id: number, name: string, skin: string, stats: CapStats,
     flicksLeft: 3, bonusFlicks: 0, special10: false, bombed: false, holed: false, skipTurns: 0,
     finished: false, place: 0, lap: 0, moving: false, hitFlash: 0,
     lastTurnProg: 0, stuckTurns: 0, rescues: 0, rescueProg: 0,
-    team: -1, item: null, shield: false, boostNext: 1, eliminated: false, itemFlash: 0,
+    team: -1, items: [], shield: false, boostNext: 1, smashNext: false, smash: false, ghostNext: false, ghost: false, anchored: false, eliminated: false, itemFlash: 0,
   };
 }
 

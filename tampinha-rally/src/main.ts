@@ -102,6 +102,11 @@ mgr.onEvent = (e) => {
     }
     case 'mill': sfx.wall(e.power); fx.impact(e.x, e.y, e.power * 0.4, '#8fd0ff'); break;
     case 'balloon': {
+      // power -2 = "chuvinha" do Caos: só a poça, sem estouro de bexiga
+      if (e.power === -2) {
+        if (scene) { const pud = new THREE.Mesh(new THREE.CircleGeometry(2.0, 26), new THREE.MeshStandardMaterial({ color: '#3f8ec8', roughness: 0.15, transparent: true, opacity: 0.72 })); pud.rotation.x = -Math.PI / 2; pud.position.set(e.x, 0.02, e.y); scene.add(pud); }
+        fx.dust(e.x, e.y, 12, '#4a90b8'); break;
+      }
       sfx.pop(); fx.impact(e.x, e.y, 14, '#7ac8f2'); fx.dust(e.x, e.y, 18, '#4a90b8');
       // poça d'água 3D no lugar (a física já vale — manager adicionou o patch)
       if (scene) {
@@ -149,7 +154,7 @@ online.onClosed = () => { const wasIn = inGame; inGame = false; paused = false; 
 online.onChampStanding = (rows, race, total, last) => ui.showOnlineChampStanding(rows, race, total, last, online.isHost);
 online.onChampEnd = (winner) => { resultsShown = true; if (winner.you) save.addWin(); sfx.win(); ui.showChampion({ rows: [], fmt: 'champ', youWon: winner.you, name: winner.name, skin: winner.skin }); };
 
-ui.onUseItem = () => { if (online.active) online.localUseItem(); else mgr.useItem(); };
+ui.onUseItem = (slot) => { if (online.active) online.localUseItem(); else mgr.useItem(slot); };
 ui.onCampBack = () => { inGame = false; paused = false; camp = null; stopScene(); playMusic('menu'); ui.showCampaign(); };
 ui.onCampRetry = (compId) => { inGame = false; paused = false; camp = null; stopScene(); ui.launchCamp(compById(compId)); };
 ui.onRankBack = () => { inGame = false; paused = false; rank = null; stopScene(); playMusic('menu'); ui.showRanked(); };

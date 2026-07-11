@@ -126,6 +126,9 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     // obstáculos
     for (let i = 0; i < d.obstacles.length; i++) {
       const o = d.obstacles[i];
+      // FANTASMA (Caos): atravessa tudo que é FÍSICO — mas buraco/bomba/bônus/caixa
+      // continuam valendo (fantasma não voa por cima do chão que falta)
+      if (c.ghost && (o.type === 'band' || o.type === 'mill' || o.type === 'stone' || o.type === 'top' || o.type === 'car' || o.type === 'balloon')) continue;
       // ---- ELÁSTICO e CATAVENTO: colisão por SEGMENTO (não por círculo) ----
       if (o.type === 'band' || o.type === 'mill') {
         for (const sg of segsOf(o)) {
@@ -217,7 +220,30 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
           cc.hitFlash = 1;
         }
       } else if (o.type === 'hole') {
-        if (c.shield) { c.shield = false; ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: -1 }); continue; }   // escudo salva do buraco
+        if (c.shield) {
+          // ESCUDO: NEM CAI — desvia pela BEIRADA do buraco: reposiciona no aro e
+          // mata só a velocidade que apontava pro centro (antes o escudo era
+          // consumido mas a tampinha continuava dentro do raio e caía no passo
+          // seguinte — "não salvava nada")
+          c.shield = false;
+          let dx2 = c.pos.x - o.x, dy2 = c.pos.y - o.y; let l2h = Math.hypot(dx2, dy2);
+          if (l2h < 1e-4) { dx2 = -c.vel.x; dy2 = -c.vel.y; l2h = Math.hypot(dx2, dy2) || 1; }
+          const nhx = dx2 / l2h, nhy = dy2 / l2h; const rim = o.r + c.radius * 0.55 + 0.08;
+          c.pos.x = o.x + nhx * rim; c.pos.y = o.y + nhy * rim;
+          const vnh = c.vel.x * nhx + c.vel.y * nhy;
+          if (vnh < 0) {
+            c.vel.x -= vnh * nhx; c.vel.y -= vnh * nhy;
+            // vira o rumo pro LADO: contorna o buraco em vez de parar seco na frente
+            const thx = -nhy, thy = nhx;
+            const vt = c.vel.x * thx + c.vel.y * thy;
+            const sg = vt >= 0 ? 1 : -1;
+            c.vel.x += thx * sg * Math.abs(vnh) * 0.6; c.vel.y += thy * sg * Math.abs(vnh) * 0.6;
+          }
+          c.vel.x += nhx * 2.5; c.vel.y += nhy * 2.5;               // empurrãozinho pra fora do aro
+          if (!c.moving) c.moving = true;
+          ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: -1 });
+          continue;
+        }
         c.pos.x = c.cpPos.x; c.pos.y = c.cpPos.y; c.vel = vec(); c.moving = false;
         ev.push({ type: 'hole', capId: c.id, x: o.x, y: o.y, power: 0 }); break;
       } else if (o.type === 'bomb') {
@@ -264,6 +290,7 @@ function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
     for (let j = i + 1; j < caps.length; j++) {
       const a = caps[i], b = caps[j];
       if (a.finished || b.finished) continue;
+      if (a.ghost || b.ghost) continue;               // FANTASMA (Caos): atravessa tampinhas
       const dx = b.pos.x - a.pos.x, dy = b.pos.y - a.pos.y;
       const rr = a.radius + b.radius;
       const d2 = dx * dx + dy * dy;
@@ -279,12 +306,16 @@ function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
       if (vn > 0) continue;
       const rest = 0.55 * ((a.stats.bounce + b.stats.bounce) / 2);   // tampinhas "quicantes" tabelam mais
       // POTÊNCIA: quem chega mais rápido (o "atacante") bate MAIS FORTE — joga o outro mais longe
-      const punch = (len(a.vel) >= len(b.vel) ? a.stats.power : b.stats.power);
-      const imp = -(1 + rest) * vn / (1 / ma + 1 / mb) * punch;
+      const aAtk = len(a.vel) >= len(b.vel);
+      const punch = (aAtk ? a.stats.power : b.stats.power);
+      // PANCADA (Caos): o atacante com a luva manda o outro LONGE e quase não recua
+      const smashing = aAtk ? a.smash : b.smash;
+      const imp = -(1 + rest) * vn / (1 / ma + 1 / mb) * punch * (smashing ? 1.75 : 1);
       const ix = imp * nx, iy = imp * ny;
       // grip (aderência): quem tem mais firmeza é empurrado menos (difícil de jogar pra fora)
-      a.vel.x -= (ix / ma) / a.stats.grip; a.vel.y -= (iy / ma) / a.stats.grip;
-      b.vel.x += (ix / mb) / b.stats.grip; b.vel.y += (iy / mb) / b.stats.grip;
+      const selfMul = (who: Cap, atk: boolean) => (smashing && atk ? 0.35 : 1) / who.stats.grip;
+      a.vel.x -= (ix / ma) * selfMul(a, aAtk); a.vel.y -= (iy / ma) * selfMul(a, aAtk);
+      b.vel.x += (ix / mb) * selfMul(b, !aAtk); b.vel.y += (iy / mb) * selfMul(b, !aAtk);
       const power = Math.abs(vn);
       if (power > 1.5) {
         if (!a.moving) a.moving = true; if (!b.moving) b.moving = true;

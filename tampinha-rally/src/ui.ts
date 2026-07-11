@@ -1595,7 +1595,7 @@ export class UI {
   onRestart: (() => void) | null = null;
   onNext: (() => void) | null = null;
   onMenu: (() => void) | null = null;
-  onUseItem: (() => void) | null = null;
+  onUseItem: ((slot: number) => void) | null = null;
 
   updateHUD(m: GameManager, humanTurn: boolean): void {
     if (!this.hud) return;
@@ -1609,16 +1609,17 @@ export class UI {
     for (let i = 0; i < c.flicksLeft; i++) dots += '<span class="fd on"></span>';
     fl.innerHTML = (m.phase === 'aim' && humanTurn ? '<span class="fl-lab">Petelecos</span>' : '') + dots + (c.flicksLeft === 1 ? '<span class="flast">último!</span>' : '');
     fl.style.opacity = (c.isAI || m.phase !== 'aim') ? '0.55' : '1';
-    // CAOS: slot do jogador da vez — item guardado (com USAR) + efeitos ATIVOS
+    // CAOS: BOLSOS do jogador (coluna de botõezinhos na esquerda, abaixo do 1×/2×/4×)
+    // — toca no botão do item pra usar; embaixo, os efeitos já ATIVOS em selinhos
     const itemEl = this.hud.querySelector('#item') as HTMLElement;
-    if (m.chaos && humanTurn && m.phase === 'aim' && (c.item || c.shield || c.boostNext > 1)) {
+    if (m.chaos && humanTurn && m.phase === 'aim' && (c.items.length || c.shield || c.boostNext > 1 || c.smashNext || c.ghostNext)) {
       itemEl.classList.remove('hidden');
       let html = '';
-      if (c.item) { const it = ITEMS[c.item]; html += `<button class="item-btn"><span class="it-ico">${it.ico}</span><span class="it-tx"><b>${it.name}</b><small>${it.desc}</small></span><span class="it-use">USAR</span></button>`; }
+      c.items.forEach((id, i) => { const it = ITEMS[id]; html += `<button class="item-mini" data-i="${i}" title="${it.name}: ${it.desc}"><span class="im-ico">${it.ico}</span><span class="im-lab">${it.name}</span></button>`; });
       const act = this.activeFxHtml(c);
-      if (act) html += `<div class="fx-active">${act}</div>`;
+      if (act) html += `<div class="fx-active col">${act}</div>`;
       itemEl.innerHTML = html;
-      const btn = itemEl.querySelector('.item-btn') as HTMLElement | null; if (btn) btn.onclick = () => this.onUseItem?.();
+      itemEl.querySelectorAll('.item-mini').forEach(btn => btn.addEventListener('click', () => this.onUseItem?.(+(btn as HTMLElement).dataset.i!)));
     } else { itemEl.classList.add('hidden'); itemEl.innerHTML = ''; }
     // standings (clique num nome → ficha da tampinha) + ícones de power-up (Caos)
     const st = this.hud.querySelector('#stand') as HTMLElement;
@@ -1630,19 +1631,25 @@ export class UI {
     hint.textContent = 'Arraste a tampinha para trás e solte';
   }
 
-  // ícones de power-up de uma tampinha na tabela: guardado (esmaecido) + ativos
+  // ícones de power-up de uma tampinha na tabela: guardados (esmaecidos) + ativos
   private capFxIcons(c: any): string {
     let out = '';
-    if (c.item) out += `<span class="fx-held" title="guardado">${ITEMS[c.item].ico}</span>`;
+    for (const id of (c.items || [])) out += `<span class="fx-held" title="guardado">${ITEMS[id].ico}</span>`;
     if (c.shield) out += `<span class="fx-on" title="escudo ativo">🛡️</span>`;
     if (c.boostNext > 1) out += `<span class="fx-on" title="turbo pronto">🚀</span>`;
+    if (c.smashNext) out += `<span class="fx-on" title="pancada armada">🥊</span>`;
+    if (c.ghostNext) out += `<span class="fx-on" title="fantasma armado">👻</span>`;
+    if (c.anchored) out += `<span class="fx-on" title="com âncora">⚓</span>`;
     return out ? `<span class="srow-fx">${out}</span>` : '';
   }
   // efeitos ATIVOS (já usados, valendo até gastar) do jogador da vez
   private activeFxHtml(c: any): string {
     const b: string[] = [];
-    if (c.shield) b.push('<span class="fxa shield">🛡️ Escudo ativo</span>');
-    if (c.boostNext > 1) b.push('<span class="fxa boost">🚀 Turbo pronto</span>');
+    if (c.shield) b.push('<span class="fxa shield">🛡️ Escudo</span>');
+    if (c.boostNext > 1) b.push('<span class="fxa boost">🚀 Turbo</span>');
+    if (c.smashNext) b.push('<span class="fxa boost">🥊 Pancada</span>');
+    if (c.ghostNext) b.push('<span class="fxa boost">👻 Fantasma</span>');
+    if (c.anchored) b.push('<span class="fxa shield">⚓ Âncora!</span>');
     return b.join('');
   }
 

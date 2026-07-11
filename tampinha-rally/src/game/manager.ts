@@ -6,7 +6,7 @@ import { TrackModel, TrackDef } from '../engine/track';
 import { stepWorld, anyMoving, SimEvent } from '../engine/physics';
 import { aiFlick } from './ai';
 import { skinById } from './skins';
-import { ITEMS, pickItem } from './chaos';
+import { ITEMS, pickItem, MAX_ITEMS } from './chaos';
 
 export type Phase = 'aim' | 'resolve' | 'over';
 export interface PlayerDef { name: string; isAI: boolean; ai?: string; skin: string; team?: number; stats?: Partial<import('../engine/core').CapStats>; }
@@ -146,24 +146,36 @@ export class GameManager {
     return false;
   }
   private grantItem(c: Cap): boolean {
-    if (c.item) return false;                     // slot cheio: use o que tem antes de pegar outro
+    if (c.items.length >= MAX_ITEMS) return false;   // bolsos cheios: use um antes de pegar outro
     const { r, leader } = this.rank01(c);
     const it = pickItem(r, leader);
-    c.item = it; c.itemFlash = 1;
-    if (!c.isAI) this.onToast(`${ITEMS[it].ico} ${ITEMS[it].name}! toque pra usar`, 'good');
+    c.items.push(it); c.itemFlash = 1;
+    if (!c.isAI) this.onToast(`${ITEMS[it].ico} ${ITEMS[it].name}! toque no botão pra usar`, 'good');
     this.onItem(c, it, false);
     return true;
   }
-  // usa o item guardado (jogador aperta o botão; a IA usa sozinha antes de jogar)
-  useItem(c = this.activeCap()): void {
-    const id = c.item; if (!id) return;
-    c.item = null; c.itemFlash = 1;
+  // rivais vivos, mais à frente primeiro
+  private rivalsAhead(c: Cap): Cap[] {
+    return this.caps.filter(x => !x.finished && x.id !== c.id && x.progress > c.progress).sort((a, b) => b.progress - a.progress);
+  }
+  // derruba uma tampinha N unidades PRA TRÁS na pista (teleporte pro centro do arco)
+  private knockBack(t: Cap, dist: number): void {
+    const na = Math.max(0.6, t.progress - dist);
+    const p = this.track.atArc(na).p;
+    t.pos = vec(p.x, p.y); t.progress = na; t.vel = vec(); t.z = 0; t.vz = 0; t.airborne = false; t.itemFlash = 1; t.hitFlash = 1;
+  }
+  // usa o item do bolso `slot` (jogador aperta o botão; a IA usa sozinha antes de jogar)
+  useItem(slot = 0, c = this.activeCap()): void {
+    const id = c.items[slot]; if (!id) return;
+    c.items.splice(slot, 1); c.itemFlash = 1;
     const def = ITEMS[id];
     switch (id) {
       case 'foguete': c.boostNext = 1.7; break;                 // muito mais alcance
       case 'turbo':   c.boostNext = 1.28; break;               // empurrãozinho
-      case 'extra':   c.flicksLeft += 1; c.bonusFlicks += 0; break;
+      case 'extra':   c.flicksLeft += 1; break;
       case 'escudo':  c.shield = true; break;
+      case 'pancada': c.smashNext = true; break;               // próximo peteléco esmaga
+      case 'fantasma': c.ghostNext = true; break;              // próximo peteléco atravessa
       case 'salto': {                                          // pula ~15u pra frente na pista
         const na = Math.min(this.track.total - 1, c.progress + 15);
         const p = this.track.atArc(na).p; c.pos = vec(p.x, p.y); c.progress = na; this.updateCheckpoint(c); break;
@@ -172,13 +184,58 @@ export class GameManager {
         const p = this.track.atArc(c.progress).p; c.pos = vec(p.x, p.y); c.boostNext = 1.18; break;
       }
       case 'raio': {                                           // manda o líder pro checkpoint dele
-        const alive = this.caps.filter(x => !x.finished && x.id !== c.id);
-        const leader = alive.sort((a, b) => b.progress - a.progress)[0];
-        if (leader) { leader.pos = vec(leader.cpPos.x, leader.cpPos.y); leader.progress = this.track.progressOf(leader.cpPos); leader.itemFlash = 1; this.onToast(`⚡ ${leader.name} levou um raio!`, 'bad'); }
+        const leader = this.rivalsAhead(c)[0] || this.caps.filter(x => !x.finished && x.id !== c.id).sort((a, b) => b.progress - a.progress)[0];
+        if (leader) { leader.pos = vec(leader.cpPos.x, leader.cpPos.y); leader.progress = this.track.progressOf(leader.cpPos); leader.vel = vec(); leader.itemFlash = 1; this.onToast(`⚡ ${leader.name} levou um raio!`, 'bad'); }
+        break;
+      }
+      case 'gude': {                                           // acerta o rival mais próximo à frente
+        const ahead = this.rivalsAhead(c);
+        const t = ahead.length ? ahead[ahead.length - 1] : null;   // o MAIS PERTO de você
+        if (t) { this.knockBack(t, 9); this.onToast(`🔮 ${t.name} levou uma bolada!`, 'bad'); }
+        break;
+      }
+      case 'troca': {                                          // troca de lugar com quem está logo à frente
+        const ahead = this.rivalsAhead(c);
+        const t = ahead.length ? ahead[ahead.length - 1] : null;
+        if (t) {
+          const mp = vec(c.pos.x, c.pos.y), mg = c.progress;
+          c.pos = vec(t.pos.x, t.pos.y); c.progress = t.progress;
+          t.pos = mp; t.progress = mg; t.vel = vec(); c.vel = vec(); t.itemFlash = 1;
+          this.updateCheckpoint(c);
+          this.onToast(`🔁 trocou de lugar com ${t.name}!`, 'good');
+        }
+        break;
+      }
+      case 'furacao': {                                        // sopra TODOS os rivais pra trás
+        for (const t of this.caps) if (!t.finished && t.id !== c.id) this.knockBack(t, 6);
+        this.onToast('🌪️ o furacão varreu a pista!', 'good');
+        break;
+      }
+      case 'chuva': {                                          // poça d'água no caminho do líder
+        const leader = this.rivalsAhead(c)[0];
+        if (leader) {
+          const na = Math.min(this.track.total - 1, leader.progress + 3.2);
+          const p = this.track.atArc(na).p;
+          this.track.def.patches.push({ surface: 'water', x: p.x, y: p.y, r: 2.0 });
+          this.onToast(`🌧️ choveu na frente de ${leader.name}!`, 'good');
+          this.onEvent({ type: 'balloon', capId: c.id, x: p.x, y: p.y, power: -2 } as any);   // FX de poça no 3D
+        }
+        break;
+      }
+      case 'ancora': {                                         // o líder joga fraquinho
+        const leader = this.rivalsAhead(c)[0];
+        if (leader) { leader.anchored = true; leader.itemFlash = 1; this.onToast(`⚓ ${leader.name} tá com a âncora!`, 'bad'); }
+        break;
+      }
+      case 'cola': {                                           // chiclete 2.5u ATRÁS de você
+        const na = Math.max(0.6, c.progress - 2.5);
+        const p = this.track.atArc(na).p;
+        this.track.def.patches.push({ surface: 'gum', x: p.x, y: p.y, r: 1.5 });
+        this.onToast('🫠 chiclete no chão — quem pisar, gruda!', 'good');
         break;
       }
     }
-    if (!c.isAI && id !== 'raio') this.onToast(`${def.ico} ${def.name}!`, 'good');
+    if (!c.isAI && def.needsAhead !== true) this.onToast(`${def.ico} ${def.name}!`, 'good');
     this.onItem(c, id, true);
     this.onChange();
   }
@@ -189,11 +246,15 @@ export class GameManager {
   flick(dir: V, power: number): void {
     if (!this.canFlick()) return;
     const c = this.activeCap();
-    // CAOS: foguete/turbinho dão mais alcance neste peteléco (consome o boost)
+    // CAOS: foguete/turbinho dão mais alcance neste peteléco (consome o boost);
+    // âncora derruba a força; pancada/fantasma ARMAM e valem até a tampinha parar
     const boost = c.boostNext; c.boostNext = 1;
+    const anchor = c.anchored ? 0.55 : 1; c.anchored = false;
+    c.smash = c.smashNext; c.smashNext = false;
+    c.ghost = c.ghostNext; c.ghostNext = false;
     // CHICLETE: peteleco saindo de cima do chiclete sai FRACO (a tampinha tá grudada)
     const gum = this.track.surfaceAt(c.pos) === 'gum' ? GUM_LAUNCH : 1;
-    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER * boost * gum;
+    const d = norm(dir); const sp = Math.max(0.06, Math.min(1, power)) * MAX_POWER * boost * anchor * gum;
     // p/ onde cada cap volta se sair da pista neste peteléco:
     //  - VOCÊ (quem jogou) sai por conta própria → volta pro ponto de onde jogou;
     //  - se OUTRO te empurra pra fora → volta um pouco ATRÁS na pista (punição).
@@ -221,11 +282,13 @@ export class GameManager {
       const c = this.activeCap();
       if (c.isAI) {
         this.aiTimer += dt;
-        // IA usa o item na hora certa: escudo só se tem perigo à frente; os
-        // outros (que ajudam a avançar/atacar) valem sempre antes de jogar.
-        if (this.chaos && c.item && this.aiTimer > 0.4 && this.aiTimer < 0.45) {
-          const useNow = c.item === 'escudo' ? this.hazardAhead(c) : true;
-          if (useNow) this.useItem(c);
+        // IA usa o item na hora certa: escudo só se tem perigo à frente; itens de
+        // ataque só se existe alguém NA FRENTE; os outros valem sempre.
+        if (this.chaos && c.items.length && this.aiTimer > 0.4 && this.aiTimer < 0.45) {
+          const idx = c.items.findIndex(id =>
+            id === 'escudo' ? this.hazardAhead(c) :
+            ITEMS[id].needsAhead ? this.rivalsAhead(c).length > 0 : true);
+          if (idx >= 0) this.useItem(idx, c);
         }
         if (!this.aiFired && this.aiTimer > 0.85) {
           this.aiFired = true;
@@ -339,6 +402,7 @@ export class GameManager {
 
   private endFlick(): void {
     const c = this.activeCap();
+    c.smash = false; c.ghost = false;                            // pancada/fantasma valem só o peteléco
     if (c.finished) { this.advanceIndex(); this.beginTurn(); return; }   // chegou: a vez acaba, não gasta petelecos à toa
     c.flicksLeft -= 1;
     if (c.holed) { c.holed = false; c.flicksLeft -= 1; }         // buraco custa 1 peteléco a mais

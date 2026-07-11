@@ -697,3 +697,10 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 /* velocidade da IA: botãozinho abaixo do pause */
 .hud .speed{position:absolute;top:calc(env(safe-area-inset-top) + 64px);left:12px;pointer-events:auto;font-size:15px;letter-spacing:-0.5px}
 .hud .speed.fast{background:linear-gradient(180deg,#ffe9a0,#f2b100);color:#5a3a00;box-shadow:0 4px 0 #b8860b,0 6px 12px rgba(0,0,0,.25)}
+/* CAOS: bolsos de item — coluna de botõezinhos na esquerda, abaixo do 1×/2×/4× */
+.item-slot{position:fixed;left:12px;bottom:auto;top:calc(env(safe-area-inset-top) + 118px);transform:none;z-index:6;pointer-events:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-start;animation:itemPop .3s cubic-bezier(.2,.9,.3,1.4)}
+.item-mini{display:flex;flex-direction:column;align-items:center;gap:0;width:46px;min-height:46px;border-radius:16px;padding:4px 2px 3px;background:linear-gradient(180deg,#b98cff,#7a3ce0);color:#fff;border:2px solid rgba(255,255,255,.4);box-shadow:0 4px 0 #5a2ca8,0 6px 12px rgba(0,0,0,.35);animation:itemGlow 1.1s ease-in-out infinite;cursor:pointer}
+.item-mini:active{transform:translateY(3px)}
+.item-mini .im-ico{font-size:20px;line-height:1.1}
+.item-mini .im-lab{font-size:7.5px;font-weight:900;line-height:1;letter-spacing:-0.2px;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fx-active.col{flex-direction:column;align-items:flex-start;gap:4px;margin-top:2px}
