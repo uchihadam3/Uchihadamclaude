@@ -71,7 +71,90 @@ function humanTurn(): boolean { return mgr.phase === 'aim' && (online.active ? o
 mgr.onToast = (msg, kind) => ui.toast(msg, kind);
 mgr.onChange = () => ui.updateHUD(mgr, humanTurn());
 mgr.onFlick = (cap, power) => { sfx.flick(power); const s = SURF[mgr.track.surfaceAt(cap.pos)]; fx.dust(cap.pos.x, cap.pos.y, 8); aim.hide(); };
-mgr.onItem = (cap, item, used) => { sfx.bonus(); fx.impact(cap.pos.x, cap.pos.y, 10, used ? '#ff9de0' : '#b98cff'); };
+// pegar a caixinha: explosão roxa + faíscas subindo (usar tem efeito próprio, abaixo)
+mgr.onItem = (cap, item, used) => {
+  if (!used) {
+    sfx.bonus();
+    fx.impact(cap.pos.x, cap.pos.y, 12, '#b98cff');
+    for (let i = 0; i < 3; i++) setTimeout(() => fx.dust(cap.pos.x, cap.pos.y, 6, '#e0c8ff'), i * 90);
+  }
+};
+// RASTRO animado: pinga partículas ao longo de uma linha (dá sensação de movimento)
+function fxTrail(x1: number, y1: number, x2: number, y2: number, col: string, n = 12, step = 26): void {
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
+    setTimeout(() => { fx.dust(x, y, 3, col); if (i === n) fx.impact(x, y, 8, col); }, i * step);
+  }
+}
+// efeitos dos PODERES do Caos — valem pra você E pras IAs (o manager avisa daqui)
+mgr.onItemFx = (id, d) => {
+  switch (id) {
+    case 'raio': {                                   // relâmpago desce no líder
+      sfx.zap();
+      fx.impact(d.x, d.y, 16, '#ffe36a'); fx.impact(d.x, d.y, 9, '#fff');
+      for (let i = 0; i < 4; i++) setTimeout(() => fx.dust(d.x, d.y, 8, i % 2 ? '#ffe36a' : '#fff'), i * 70);
+      if (d.tx != null) setTimeout(() => fx.dust(d.tx!, d.ty!, 10, '#ffe36a'), 400);   // reaparece no checkpoint
+      break;
+    }
+    case 'gude': {                                   // bolinha voa até o alvo e ESTOURA
+      sfx.whoosh();
+      fxTrail(d.x, d.y, d.tx!, d.ty!, '#c9a0ff', 14, 22);
+      setTimeout(() => { sfx.clack(8); fx.impact(d.tx!, d.ty!, 14, '#c9a0ff'); if (d.pts?.[0]) fxTrail(d.tx!, d.ty!, d.pts[0].x, d.pts[0].y, '#9a7ad0', 8, 30); }, 14 * 22);
+      break;
+    }
+    case 'troca': {                                  // os dois trocam num zás cruzado
+      sfx.whoosh(); setTimeout(() => sfx.whoosh(), 140);
+      fxTrail(d.x, d.y, d.tx!, d.ty!, '#8fd0ff', 12, 24);
+      fxTrail(d.tx!, d.ty!, d.x, d.y, '#ffd24a', 12, 24);
+      setTimeout(() => { fx.impact(d.x, d.y, 11, '#8fd0ff'); fx.impact(d.tx!, d.ty!, 11, '#ffd24a'); }, 12 * 24 + 40);
+      break;
+    }
+    case 'furacao': {                                // rajada varrendo cada rival pra trás
+      sfx.whoosh(); setTimeout(() => sfx.whoosh(), 180);
+      fx.impact(d.x, d.y, 12, '#bfe8ff');
+      const ps = d.pts || [];
+      for (let i = 0; i + 1 < ps.length; i += 2) fxTrail(ps[i].x, ps[i].y, ps[i + 1].x, ps[i + 1].y, '#bfe8ff', 10, 30);
+      break;
+    }
+    case 'chuva': {                                  // nuvem molha o caminho do líder
+      sfx.splat();
+      for (let i = 0; i < 6; i++) setTimeout(() => fx.dust(d.x + (Math.random() - 0.5) * 3, d.y + (Math.random() - 0.5) * 3, 5, '#7ac8f2'), i * 110);
+      setTimeout(() => fx.impact(d.x, d.y, 10, '#3f8ec8'), 660);
+      break;
+    }
+    case 'ancora': {                                 // peso despenca no líder
+      sfx.thud();
+      fx.impact(d.x, d.y, 14, '#9aa2ac'); fx.dust(d.x, d.y, 12, '#6b7078');
+      setTimeout(() => fx.dust(d.x, d.y, 8, '#9aa2ac'), 150);
+      break;
+    }
+    case 'cola': {                                   // chiclete esparrama no chão
+      sfx.splat();
+      fx.impact(d.x, d.y, 11, '#ff9de0'); fx.dust(d.x, d.y, 10, '#ff9de0');
+      break;
+    }
+    case 'salto': {                                  // decola, risca o céu e aterrissa
+      sfx.whoosh();
+      fx.dust(d.x, d.y, 12, '#9dffb8');
+      fxTrail(d.x, d.y, d.tx!, d.ty!, '#9dffb8', 14, 24);
+      setTimeout(() => { sfx.wall(5); fx.impact(d.tx!, d.ty!, 12, '#9dffb8'); }, 14 * 24 + 40);
+      break;
+    }
+    case 'ima': {                                    // puxão magnético pro centro
+      sfx.aura();
+      fxTrail(d.x, d.y, d.tx!, d.ty!, '#8fd0ff', 8, 22);
+      setTimeout(() => fx.impact(d.tx!, d.ty!, 9, '#8fd0ff'), 8 * 22 + 30);
+      break;
+    }
+    // buffs em si mesmo: AURA na cor do poder + anel de faíscas
+    case 'foguete': sfx.aura(); fx.impact(d.x, d.y, 13, '#ffb347'); fx.dust(d.x, d.y, 10, '#ffd24a'); break;
+    case 'turbo': sfx.aura(); fx.impact(d.x, d.y, 10, '#7af2e0'); fx.dust(d.x, d.y, 8, '#7af2e0'); break;
+    case 'extra': sfx.bonus(); fx.impact(d.x, d.y, 11, '#8affc0'); break;
+    case 'escudo': sfx.aura(); fx.impact(d.x, d.y, 13, '#7ab8ff'); setTimeout(() => fx.impact(d.x, d.y, 8, '#dceaff'), 140); break;
+    case 'pancada': sfx.thud(); fx.impact(d.x, d.y, 13, '#ff7a5a'); fx.dust(d.x, d.y, 8, '#ff9d7a'); break;
+    case 'fantasma': sfx.whoosh(); fx.impact(d.x, d.y, 12, '#e8e8ff'); for (let i = 0; i < 3; i++) setTimeout(() => fx.dust(d.x, d.y, 6, '#cfcfff'), i * 120); break;
+  }
+};
 mgr.onEvent = (e) => {
   switch (e.type) {
     case 'wall': sfx.wall(e.power); fx.impact(e.x, e.y, e.power * 0.4, '#ffe6b0'); break;

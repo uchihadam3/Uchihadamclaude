@@ -705,7 +705,7 @@ export class UI {
       pick.innerHTML = '';
       for (const k of caps) {
         const sel = k.id === this.rankCapSel;
-        const card = this.el(`<button class="rk-cap ${sel ? 'sel' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}"><span class="rk-cap-face"></span><small>${k.name}</small></button>`);
+        const card = this.el(`<button class="rk-cap ${sel ? 'sel' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}" title="${k.name}"><span class="rk-cap-face"></span></button>`);
         (card.querySelector('.rk-cap-face') as HTMLElement).appendChild(drawCap(k.art, 66));
         card.addEventListener('click', () => { this.rankCapSel = k.id; renderPick(); renderDet(); });
         pick.appendChild(card);
@@ -1642,6 +1642,7 @@ export class UI {
   onNext: (() => void) | null = null;
   onMenu: (() => void) | null = null;
   onUseItem: ((slot: number) => void) | null = null;
+  private itemPop: number | null = null;   // Caos: bolso com a caixinha de confirmação aberta
 
   updateHUD(m: GameManager, humanTurn: boolean): void {
     if (!this.hud) return;
@@ -1655,18 +1656,33 @@ export class UI {
     for (let i = 0; i < c.flicksLeft; i++) dots += '<span class="fd on"></span>';
     fl.innerHTML = (m.phase === 'aim' && humanTurn ? '<span class="fl-lab">Petelecos</span>' : '') + dots + (c.flicksLeft === 1 ? '<span class="flast">último!</span>' : '');
     fl.style.opacity = (c.isAI || m.phase !== 'aim') ? '0.55' : '1';
-    // CAOS: BOLSOS do jogador (coluna de botõezinhos na esquerda, abaixo do 1×/2×/4×)
-    // — toca no botão do item pra usar; embaixo, os efeitos já ATIVOS em selinhos
+    // CAOS: BOLSOS do jogador (coluna de botõezinhos na esquerda, abaixo do 1×/2×/4×).
+    // Tocar no item abre a CAIXINHA: mostra o que ele faz e pergunta se quer usar
     const itemEl = this.hud.querySelector('#item') as HTMLElement;
     if (m.chaos && humanTurn && m.phase === 'aim' && (c.items.length || c.shield || c.boostNext > 1 || c.smashNext || c.ghostNext)) {
       itemEl.classList.remove('hidden');
+      if (this.itemPop != null && !c.items[this.itemPop]) this.itemPop = null;   // o item de lá já foi
       let html = '';
-      c.items.forEach((id, i) => { const it = ITEMS[id]; html += `<button class="item-mini" data-i="${i}" title="${it.name}: ${it.desc}"><span class="im-ico">${it.ico}</span><span class="im-lab">${it.name}</span></button>`; });
+      c.items.forEach((id, i) => { const it = ITEMS[id]; html += `<button class="item-mini ${this.itemPop === i ? 'open' : ''}" data-i="${i}"><span class="im-ico">${it.ico}</span><span class="im-lab">${it.name}</span></button>`; });
       const act = this.activeFxHtml(c);
       if (act) html += `<div class="fx-active col">${act}</div>`;
+      if (this.itemPop != null && c.items[this.itemPop]) {
+        const it = ITEMS[c.items[this.itemPop]];
+        html += `<div class="item-pop" style="top:${8 + this.itemPop * 54}px">
+          <div class="ip-head"><span class="ip-ico">${it.ico}</span><b>${it.name}</b></div>
+          <p class="ip-desc">${it.desc}</p>
+          <div class="ip-btns"><button class="ip-keep" id="ipno">✕ Guardar</button><button class="ip-use" id="ipyes">⚡ USAR</button></div>
+        </div>`;
+      }
       itemEl.innerHTML = html;
-      itemEl.querySelectorAll('.item-mini').forEach(btn => btn.addEventListener('click', () => this.onUseItem?.(+(btn as HTMLElement).dataset.i!)));
-    } else { itemEl.classList.add('hidden'); itemEl.innerHTML = ''; }
+      itemEl.querySelectorAll('.item-mini').forEach(btn => btn.addEventListener('click', () => {
+        const i = +(btn as HTMLElement).dataset.i!;
+        this.itemPop = this.itemPop === i ? null : i;      // toca de novo, fecha
+        this.updateHUD(m, humanTurn);
+      }));
+      itemEl.querySelector('#ipno')?.addEventListener('click', () => { this.itemPop = null; this.updateHUD(m, humanTurn); });
+      itemEl.querySelector('#ipyes')?.addEventListener('click', () => { const i = this.itemPop!; this.itemPop = null; this.onUseItem?.(i); });
+    } else { itemEl.classList.add('hidden'); itemEl.innerHTML = ''; this.itemPop = null; }
     // standings (clique num nome → ficha da tampinha) + ícones de power-up (Caos)
     const st = this.hud.querySelector('#stand') as HTMLElement;
     st.innerHTML = m.standings().map((p, i) => `<div class="srow ${p.id === c.id ? 'act' : ''}" data-id="${p.id}"><span class="spos">${i + 1}º</span><span class="sdot" style="background:${skinById(p.skin).top}"></span><span class="sname">${p.name}</span>${m.chaos ? this.capFxIcons(p) : ''}${p.finished ? '<span class="sfin">🏁</span>' : '<span class="szoom">🔍</span>'}</div>`).join('');

@@ -32,6 +32,8 @@ export class GameManager {
   chaos = false;                 // MODO CAOS: caixas de power-up ligadas
   teams = 0;                     // DUPLA: nº de times (0 = sem times)
   onItem: (cap: Cap, item: string, used: boolean) => void = () => {};
+  // efeito visual do PODER usado: origem (x,y), alvo (tx,ty) e pontos extras
+  onItemFx: (id: string, d: { x: number; y: number; tx?: number; ty?: number; pts?: { x: number; y: number }[] }) => void = () => {};
 
   setup(def: TrackDef, players: PlayerDef[]): void {
     // cópia POR CORRIDA: bexiga estourada (popped) e a poça que ela deixa mudam
@@ -177,21 +179,34 @@ export class GameManager {
       case 'pancada': c.smashNext = true; break;               // próximo peteléco esmaga
       case 'fantasma': c.ghostNext = true; break;              // próximo peteléco atravessa
       case 'salto': {                                          // pula ~15u pra frente na pista
+        const from = vec(c.pos.x, c.pos.y);
         const na = Math.min(this.track.total - 1, c.progress + 15);
-        const p = this.track.atArc(na).p; c.pos = vec(p.x, p.y); c.progress = na; this.updateCheckpoint(c); break;
+        const p = this.track.atArc(na).p; c.pos = vec(p.x, p.y); c.progress = na; this.updateCheckpoint(c);
+        this.onItemFx('salto', { x: from.x, y: from.y, tx: p.x, ty: p.y }); break;
       }
       case 'ima': {                                            // cola no centro + empurrãozinho
-        const p = this.track.atArc(c.progress).p; c.pos = vec(p.x, p.y); c.boostNext = 1.18; break;
+        const from = vec(c.pos.x, c.pos.y);
+        const p = this.track.atArc(c.progress).p; c.pos = vec(p.x, p.y); c.boostNext = 1.18;
+        this.onItemFx('ima', { x: from.x, y: from.y, tx: p.x, ty: p.y }); break;
       }
       case 'raio': {                                           // manda o líder pro checkpoint dele
         const leader = this.rivalsAhead(c)[0] || this.caps.filter(x => !x.finished && x.id !== c.id).sort((a, b) => b.progress - a.progress)[0];
-        if (leader) { leader.pos = vec(leader.cpPos.x, leader.cpPos.y); leader.progress = this.track.progressOf(leader.cpPos); leader.vel = vec(); leader.itemFlash = 1; this.onToast(`⚡ ${leader.name} levou um raio!`, 'bad'); }
+        if (leader) {
+          const at = vec(leader.pos.x, leader.pos.y);
+          leader.pos = vec(leader.cpPos.x, leader.cpPos.y); leader.progress = this.track.progressOf(leader.cpPos); leader.vel = vec(); leader.itemFlash = 1;
+          this.onToast(`⚡ ${leader.name} levou um raio!`, 'bad');
+          this.onItemFx('raio', { x: at.x, y: at.y, tx: leader.pos.x, ty: leader.pos.y });
+        }
         break;
       }
       case 'gude': {                                           // acerta o rival mais próximo à frente
         const ahead = this.rivalsAhead(c);
         const t = ahead.length ? ahead[ahead.length - 1] : null;   // o MAIS PERTO de você
-        if (t) { this.knockBack(t, 9); this.onToast(`🔮 ${t.name} levou uma bolada!`, 'bad'); }
+        if (t) {
+          const hit = vec(t.pos.x, t.pos.y);
+          this.knockBack(t, 9); this.onToast(`🔮 ${t.name} levou uma bolada!`, 'bad');
+          this.onItemFx('gude', { x: c.pos.x, y: c.pos.y, tx: hit.x, ty: hit.y, pts: [{ x: t.pos.x, y: t.pos.y }] });
+        }
         break;
       }
       case 'troca': {                                          // troca de lugar com quem está logo à frente
@@ -203,12 +218,15 @@ export class GameManager {
           t.pos = mp; t.progress = mg; t.vel = vec(); c.vel = vec(); t.itemFlash = 1;
           this.updateCheckpoint(c);
           this.onToast(`🔁 trocou de lugar com ${t.name}!`, 'good');
+          this.onItemFx('troca', { x: t.pos.x, y: t.pos.y, tx: c.pos.x, ty: c.pos.y });
         }
         break;
       }
       case 'furacao': {                                        // sopra TODOS os rivais pra trás
-        for (const t of this.caps) if (!t.finished && t.id !== c.id) this.knockBack(t, 6);
+        const antes: { x: number; y: number }[] = [];
+        for (const t of this.caps) if (!t.finished && t.id !== c.id) { antes.push({ x: t.pos.x, y: t.pos.y }); this.knockBack(t, 6); antes.push({ x: t.pos.x, y: t.pos.y }); }
         this.onToast('🌪️ o furacão varreu a pista!', 'good');
+        this.onItemFx('furacao', { x: c.pos.x, y: c.pos.y, pts: antes });
         break;
       }
       case 'chuva': {                                          // poça d'água no caminho do líder
@@ -218,13 +236,14 @@ export class GameManager {
           const p = this.track.atArc(na).p;
           this.track.def.patches.push({ surface: 'water', x: p.x, y: p.y, r: 2.0 });
           this.onToast(`🌧️ choveu na frente de ${leader.name}!`, 'good');
+          this.onItemFx('chuva', { x: p.x, y: p.y });
           this.onEvent({ type: 'balloon', capId: c.id, x: p.x, y: p.y, power: -2 } as any);   // FX de poça no 3D
         }
         break;
       }
       case 'ancora': {                                         // o líder joga fraquinho
         const leader = this.rivalsAhead(c)[0];
-        if (leader) { leader.anchored = true; leader.itemFlash = 1; this.onToast(`⚓ ${leader.name} tá com a âncora!`, 'bad'); }
+        if (leader) { leader.anchored = true; leader.itemFlash = 1; this.onToast(`⚓ ${leader.name} tá com a âncora!`, 'bad'); this.onItemFx('ancora', { x: leader.pos.x, y: leader.pos.y }); }
         break;
       }
       case 'cola': {                                           // chiclete 2.5u ATRÁS de você
@@ -232,9 +251,11 @@ export class GameManager {
         const p = this.track.atArc(na).p;
         this.track.def.patches.push({ surface: 'gum', x: p.x, y: p.y, r: 1.5 });
         this.onToast('🫠 chiclete no chão — quem pisar, gruda!', 'good');
+        this.onItemFx('cola', { x: p.x, y: p.y });
         break;
       }
     }
+    if (['foguete', 'turbo', 'extra', 'escudo', 'pancada', 'fantasma'].includes(id)) this.onItemFx(id, { x: c.pos.x, y: c.pos.y });
     if (!c.isAI && def.needsAhead !== true) this.onToast(`${def.ico} ${def.name}!`, 'good');
     this.onItem(c, id, true);
     this.onChange();
