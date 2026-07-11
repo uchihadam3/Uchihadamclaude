@@ -105,8 +105,10 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const ri = (a: number, b: number) => Math.floor(a + rng() * (b - a + 1));
   const rf = (a: number, b: number) => a + rng() * (b - a);
   // 2 pistas por nível são dos TEMAS NOVOS (determinístico); as outras 40 ficam
-  // exatamente como sempre foram (mesmo tema, mesmo traçado, mesmos obstáculos)
-  const sel = idxInLevel * 3 + level * 7 + id;
+  // exatamente como sempre foram (mesmo tema, mesmo traçado, mesmos obstáculos).
+  // tema/nome dependem só de (nível, posição) — a VARIANTE de competição (id
+  // diferente) mantém a mesma "cara" da pista-base, só muda o traçado
+  const sel = idxInLevel * 4 + level * 17;
   const theme = sel % 5 === 2
     ? THEMES_NEW[(level * 2 + (idxInLevel > 4 ? 1 : 0)) % THEMES_NEW.length]
     : THEMES[sel % THEMES.length];
@@ -519,11 +521,13 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   return { id, name, theme: theme.key, level, w, h, ground: theme.ground, paint: theme.paint, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor };
 }
 
-// gera as 50 pistas (10 por nível), cacheadas por id
+// gera as 50 pistas fixas (10 por nível) + as VARIANTES de competição (idx ≥ 10):
+// mesma "cara" da pista-base (tema, nome, nível), mas traçado próprio — cacheadas
 const CACHE = new Map<number, TrackDef>();
 export function track(level: number, idx: number): TrackDef {
-  const id = level * 10 + idx;
-  if (!CACHE.has(id)) CACHE.set(id, genTrack(id, level, idx));
+  const base = idx % 10, salt = Math.floor(idx / 10);
+  const id = salt * 1009 + level * 10 + base;      // injetivo: level*10+base < 1009
+  if (!CACHE.has(id)) CACHE.set(id, genTrack(id, level, base));
   return CACHE.get(id)!;
 }
 export const TRACKS_PER_LEVEL = 10;
@@ -531,13 +535,16 @@ export const TRACKS_PER_LEVEL = 10;
 // PISTA FIXA por competição: sorteia UMA vez a partir da semente da conta —
 // sair/voltar/reiniciar cai sempre na mesma sequência de pistas (aprende e passa).
 // Passo coprimo com 10 → corridas da mesma competição nunca repetem pista.
+// O SALT é próprio de cada competição: se a mesma "cara" (Quintal, Praia…)
+// aparecer em OUTRA competição, o traçado é outro — curvas nunca se repetem.
 export function seededTrack(seed: number, key: string, race: number): number {
   let h = (seed >>> 0) || 1;
   for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 2654435761) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 2246822519) >>> 0;
   const base = h % TRACKS_PER_LEVEL;
   const step = [1, 3, 7, 9][(h >>> 8) % 4];
-  return (base + race * step) % TRACKS_PER_LEVEL;
+  const salt = 1 + ((h >>> 4) % 99991);
+  return salt * TRACKS_PER_LEVEL + (base + race * step) % TRACKS_PER_LEVEL;
 }
 
 // MODO CAOS: devolve uma cópia da pista com CAIXAS DE ITEM espalhadas perto do
