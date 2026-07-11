@@ -315,6 +315,7 @@ online.onChampStanding = (rows, race, total, last) => ui.showOnlineChampStanding
 online.onChampEnd = (winner) => { resultsShown = true; if (winner.you) save.addWin(); sfx.win(); ui.showChampion({ rows: [], fmt: 'champ', youWon: winner.you, name: winner.name, skin: winner.skin }); };
 
 ui.onUseItem = (slot) => { if (online.active) online.localUseItem(); else mgr.useItem(slot); };
+ui.onDropShield = () => { if (!online.active) mgr.dropShield(); };
 ui.onCampBack = () => { inGame = false; paused = false; camp = null; stopScene(); playMusic('menu'); ui.showCampaign(); };
 ui.onCampRetry = (compId) => { inGame = false; paused = false; camp = null; stopScene(); ui.launchCamp(compById(compId)); };
 ui.onRankBack = () => { inGame = false; paused = false; rank = null; stopScene(); playMusic('menu'); ui.showRanked(); };

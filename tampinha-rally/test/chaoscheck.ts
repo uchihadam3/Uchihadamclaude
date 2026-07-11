@@ -95,6 +95,20 @@ console.log('\n=== 2 BOLSOS + todos os itens no manager ===');
     if (!me.consumed.has(0) === false) { /* caixa devolvida */ }
     console.log('  bolso máximo 2 · caixa não é gasta com bolsos cheios ✓');
   }
+  // escudo ATIVO ocupa um bolso: com escudo + 1 item, a caixa NÃO entra;
+  // tirando o escudo (dropShield), o bolso libera e a caixa entra de novo
+  {
+    const mgr = mk(); const me = mgr.caps[0];
+    me.shield = true; me.items = ['turbo'];
+    (mgr as any).handleEvent({ type: 'item', capId: 0, x: 0, y: 0, power: 0, obsIdx: 0 });
+    if (me.items.length !== 1) die('caixa entrou mesmo com escudo ocupando o bolso');
+    mgr.dropShield(me);
+    if (me.shield) die('dropShield não tirou o escudo');
+    me.consumed.clear();
+    (mgr as any).handleEvent({ type: 'item', capId: 0, x: 0, y: 0, power: 0, obsIdx: 0 });
+    if (me.items.length !== 2) die('bolso não liberou depois de tirar o escudo');
+    console.log('  escudo ativo ocupa 1 bolso · dropShield libera o espaço ✓');
+  }
   // efeitos um a um
   const mgr = mk();
   const me = mgr.caps[0], r1 = mgr.caps[1], r2 = mgr.caps[2];
@@ -116,7 +130,7 @@ console.log('\n=== 2 BOLSOS + todos os itens no manager ===');
   place(r1, mid + 10);
   use('troca'); if (Math.abs(me.progress - (mid + 10)) > 0.1 || Math.abs(r1.progress - mid) > 0.1) die('troca não trocou');
   place(me, mid); place(r1, mid + 10);
-  use('furacao'); if (Math.abs(r1.progress - (mid + 4)) > 0.6 || Math.abs(r2.progress - (mid + 14)) > 0.6) die('furacão não soprou os dois');
+  use('furacao'); if (Math.abs(r1.progress - mid) > 0.6 || Math.abs(r2.progress - (mid + 10)) > 0.6) die('furacão não soprou 10u pra trás');
   place(r1, mid + 10); place(r2, mid + 20);
   const nPatches = mgr.track.def.patches.length;
   use('chuva');

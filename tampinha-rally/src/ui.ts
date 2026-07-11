@@ -1642,7 +1642,9 @@ export class UI {
   onNext: (() => void) | null = null;
   onMenu: (() => void) | null = null;
   onUseItem: ((slot: number) => void) | null = null;
+  onDropShield: (() => void) | null = null;
   private itemPop: number | null = null;   // Caos: bolso com a caixinha de confirmação aberta
+  private shieldPop = false;               // Caos: caixinha "quer tirar o escudo?" aberta
 
   updateHUD(m: GameManager, humanTurn: boolean): void {
     if (!this.hud) return;
@@ -1662,6 +1664,7 @@ export class UI {
     if (m.chaos && humanTurn && m.phase === 'aim' && (c.items.length || c.shield || c.boostNext > 1 || c.smashNext || c.ghostNext)) {
       itemEl.classList.remove('hidden');
       if (this.itemPop != null && !c.items[this.itemPop]) this.itemPop = null;   // o item de lá já foi
+      if (!c.shield) this.shieldPop = false;                                    // escudo já foi/gastou
       let html = '';
       c.items.forEach((id, i) => { const it = ITEMS[id]; html += `<button class="item-mini ${this.itemPop === i ? 'open' : ''}" data-i="${i}"><span class="im-ico">${it.ico}</span><span class="im-lab">${it.name}</span></button>`; });
       const act = this.activeFxHtml(c);
@@ -1674,15 +1677,27 @@ export class UI {
           <div class="ip-btns"><button class="ip-keep" id="ipno">✕ Guardar</button><button class="ip-use" id="ipyes">⚡ USAR</button></div>
         </div>`;
       }
+      // tocou no escudo ativo → pergunta se quer TIRAR (ele ocupa um bolso!)
+      if (this.shieldPop && c.shield) {
+        html += `<div class="item-pop" style="top:${8 + c.items.length * 54}px">
+          <div class="ip-head"><span class="ip-ico">🛡️</span><b>Escudo ativo</b></div>
+          <p class="ip-desc">Ele ocupa um bolso enquanto estiver valendo. Sem perigo por perto? Tira ele e libera espaço pra outra caixinha!</p>
+          <div class="ip-btns"><button class="ip-keep" id="spno">✕ Manter</button><button class="ip-use" id="spyes">🗑️ Tirar</button></div>
+        </div>`;
+      }
       itemEl.innerHTML = html;
       itemEl.querySelectorAll('.item-mini').forEach(btn => btn.addEventListener('click', () => {
         const i = +(btn as HTMLElement).dataset.i!;
         this.itemPop = this.itemPop === i ? null : i;      // toca de novo, fecha
+        this.shieldPop = false;
         this.updateHUD(m, humanTurn);
       }));
       itemEl.querySelector('#ipno')?.addEventListener('click', () => { this.itemPop = null; this.updateHUD(m, humanTurn); });
       itemEl.querySelector('#ipyes')?.addEventListener('click', () => { const i = this.itemPop!; this.itemPop = null; this.onUseItem?.(i); });
-    } else { itemEl.classList.add('hidden'); itemEl.innerHTML = ''; this.itemPop = null; }
+      itemEl.querySelector('#fxshield')?.addEventListener('click', () => { this.shieldPop = !this.shieldPop; this.itemPop = null; this.updateHUD(m, humanTurn); });
+      itemEl.querySelector('#spno')?.addEventListener('click', () => { this.shieldPop = false; this.updateHUD(m, humanTurn); });
+      itemEl.querySelector('#spyes')?.addEventListener('click', () => { this.shieldPop = false; this.onDropShield?.(); });
+    } else { itemEl.classList.add('hidden'); itemEl.innerHTML = ''; this.itemPop = null; this.shieldPop = false; }
     // standings (clique num nome → ficha da tampinha) + ícones de power-up (Caos)
     const st = this.hud.querySelector('#stand') as HTMLElement;
     st.innerHTML = m.standings().map((p, i) => `<div class="srow ${p.id === c.id ? 'act' : ''}" data-id="${p.id}"><span class="spos">${i + 1}º</span><span class="sdot" style="background:${skinById(p.skin).top}"></span><span class="sname">${p.name}</span>${m.chaos ? this.capFxIcons(p) : ''}${p.finished ? '<span class="sfin">🏁</span>' : '<span class="szoom">🔍</span>'}</div>`).join('');
@@ -1707,7 +1722,7 @@ export class UI {
   // efeitos ATIVOS (já usados, valendo até gastar) do jogador da vez
   private activeFxHtml(c: any): string {
     const b: string[] = [];
-    if (c.shield) b.push('<span class="fxa shield">🛡️ Escudo</span>');
+    if (c.shield) b.push('<button class="fxa shield tap" id="fxshield">🛡️ Escudo</button>');   // clicável: dá pra TIRAR
     if (c.boostNext > 1) b.push('<span class="fxa boost">🚀 Turbo</span>');
     if (c.smashNext) b.push('<span class="fxa boost">🥊 Pancada</span>');
     if (c.ghostNext) b.push('<span class="fxa boost">👻 Fantasma</span>');

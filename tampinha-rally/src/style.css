@@ -467,6 +467,9 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .fxa{font-size:12px;font-weight:900;padding:4px 10px;border-radius:11px;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.35)}
 .fxa.shield{background:linear-gradient(180deg,#3fb0e0,#1f7fc0)}
 .fxa.boost{background:linear-gradient(180deg,#ff8a4a,#e05a1a)}
+/* escudo ativo é um BOTÃO: toca pra abrir a caixinha "quer tirar?" */
+.fxa.tap{border:1px solid rgba(255,255,255,.45);cursor:pointer;font-family:inherit;pointer-events:auto}
+.fxa.tap:active{transform:scale(.94)}
 
 /* ============================ CAMPANHA ============================ */
 .camp-head{width:100%;max-width:560px;display:flex;align-items:center;gap:11px;background:var(--glass);border-radius:16px;padding:10px 12px;box-shadow:var(--shadow);margin-top:6px}

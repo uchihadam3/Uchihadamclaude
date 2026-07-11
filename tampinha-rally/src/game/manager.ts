@@ -148,13 +148,23 @@ export class GameManager {
     return false;
   }
   private grantItem(c: Cap): boolean {
-    if (c.items.length >= MAX_ITEMS) return false;   // bolsos cheios: use um antes de pegar outro
+    // o ESCUDO ativo ocupa um bolso enquanto vale — com ele, só cabe mais 1 item
+    const cabem = MAX_ITEMS - (c.shield ? 1 : 0);
+    if (c.items.length >= cabem) return false;      // bolsos cheios: use um antes de pegar outro
     const { r, leader } = this.rank01(c);
     const it = pickItem(r, leader);
     c.items.push(it); c.itemFlash = 1;
     this.onItem(c, it, false);   // sem balão: o efeito de pegar + o botão no bolso avisam
     return true;
   }
+  // tira o escudo ativo (o jogador abre mão pra liberar o bolso)
+  dropShield(c = this.activeCap()): void {
+    if (!c.shield) return;
+    c.shield = false; c.itemFlash = 1;
+    this.onToast('🛡️ escudo guardado — bolso livre!', 'good');
+    this.onChange();
+  }
+
   // rivais vivos, mais à frente primeiro
   private rivalsAhead(c: Cap): Cap[] {
     return this.caps.filter(x => !x.finished && x.id !== c.id && x.progress > c.progress).sort((a, b) => b.progress - a.progress);
@@ -231,7 +241,7 @@ export class GameManager {
       }
       case 'furacao': {                                        // sopra TODOS os rivais pra trás
         const antes: { x: number; y: number }[] = [];
-        for (const t of this.caps) if (!t.finished && t.id !== c.id) { antes.push({ x: t.pos.x, y: t.pos.y }); this.knockBack(t, 6); antes.push({ x: t.pos.x, y: t.pos.y }); }
+        for (const t of this.caps) if (!t.finished && t.id !== c.id) { antes.push({ x: t.pos.x, y: t.pos.y }); this.knockBack(t, 10); antes.push({ x: t.pos.x, y: t.pos.y }); }
         this.onToast('🌪️ o furacão varreu a pista!', 'good');
         this.onItemFx('furacao', { x: c.pos.x, y: c.pos.y, pts: antes });
         break;
