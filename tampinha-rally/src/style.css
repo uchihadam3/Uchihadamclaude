@@ -226,8 +226,8 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .flast{background:linear-gradient(180deg,#ff6b70,#e5343a);color:#fff;font-weight:900;border-radius:12px;padding:4px 11px;font-size:12px;
   box-shadow:0 3px 8px rgba(0,0,0,.3);animation:pulse 1s infinite}
 @keyframes pulse{50%{transform:scale(1.12)}}
-.toast-wrap{position:absolute;top:36%;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
-.toast{background:rgba(58,36,24,.94);color:#fff;font-weight:900;padding:11px 24px;border-radius:26px;font-size:17px;opacity:0;transform:translateY(14px) scale(.9);transition:.3s cubic-bezier(.2,.9,.3,1.3);box-shadow:var(--shadow)}
+.toast-wrap{position:absolute;top:calc(env(safe-area-inset-top) + 62px);left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;max-width:86%;z-index:4}
+.toast{background:rgba(58,36,24,.92);color:#fff;font-weight:900;padding:8px 18px;border-radius:22px;font-size:14.5px;text-align:center;opacity:0;transform:translateY(-10px) scale(.9);transition:.3s cubic-bezier(.2,.9,.3,1.3);box-shadow:var(--shadow)}
 .toast.show{opacity:1;transform:none}
 .toast.good{background:linear-gradient(180deg,#3fc46a,#2ea44f)}.toast.bad{background:linear-gradient(180deg,#e5595e,#c0392b)}.toast.turn{background:linear-gradient(180deg,#4f90f7,#3b82f6)}
 .hint{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 16px);left:50%;transform:translateX(-50%);
