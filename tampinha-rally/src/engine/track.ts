@@ -5,8 +5,37 @@
 // (pedra/buraco/bomba/bônus) e "pads" largos (largada, nós de atalho) completam.
 import { V, Surface, vec, clamp } from './core';
 
-export type ObsType = 'stone' | 'hole' | 'bomb' | 'bonus' | 'jump' | 'item';
-export interface Obstacle { type: ObsType; x: number; y: number; r: number; n?: number; dir?: number; }
+export type ObsType = 'stone' | 'hole' | 'bomb' | 'bonus' | 'jump' | 'item' | 'top' | 'bug' | 'band' | 'mill' | 'balloon';
+export interface Obstacle {
+  type: ObsType; x: number; y: number; r: number; n?: number; dir?: number;
+  ph?: number;        // joaninha: passo atual (avança 1 por turno)
+  popped?: boolean;   // bexiga: já estourou?
+}
+
+// posição ATUAL da joaninha — ela passeia de um lado pro outro da pista,
+// um passinho por turno (dir = tangente da pista; anda pela NORMAL)
+export function bugPos(o: Obstacle): V {
+  const range = o.n ?? 2.2;
+  const k = Math.sin((o.ph || 0) * 0.62);
+  const nx = -Math.sin(o.dir || 0), ny = Math.cos(o.dir || 0);
+  return vec(o.x + nx * k * range, o.y + ny * k * range);
+}
+// segmentos do elástico e do catavento (pás) — pro colisor e pro desenho
+export function segsOf(o: Obstacle): { a: V; b: V }[] {
+  const segs: { a: V; b: V }[] = [];
+  if (o.type === 'band') {
+    const dx = Math.cos(o.dir || 0) * o.r, dy = Math.sin(o.dir || 0) * o.r;
+    segs.push({ a: vec(o.x - dx, o.y - dy), b: vec(o.x + dx, o.y + dy) });
+  } else if (o.type === 'mill') {
+    const nArm = o.n === 4 ? 2 : 1;      // 1 segmento = 2 pás; 2 segmentos = 4 pás
+    for (let k = 0; k < nArm; k++) {
+      const a2 = (o.dir || 0) + k * Math.PI / 2;
+      const dx = Math.cos(a2) * o.r, dy = Math.sin(a2) * o.r;
+      segs.push({ a: vec(o.x - dx, o.y - dy), b: vec(o.x + dx, o.y + dy) });
+    }
+  }
+  return segs;
+}
 export interface Wall { a: V; b: V; }
 export interface Patch { surface: Surface; x: number; y: number; r?: number; hw?: number; hh?: number; dir?: number; }
 export interface Decor { kind: string; x: number; y: number; s?: number; rot?: number; c?: string; }

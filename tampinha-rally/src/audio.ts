@@ -38,6 +38,9 @@ function noiseHit(t0: number, dur: number, vol: number, freq: number, q: number)
 }
 
 export const sfx = {
+  squeak() { if (!ensure()) return; const t = ctx!.currentTime; tone(880, t, 0.07, 'triangle', 0.22, 260); tone(1240, t + 0.07, 0.06, 'triangle', 0.16, -180); },
+  elastic(power = 0.5) { if (!ensure()) return; const t = ctx!.currentTime; tone(180, t, 0.16, 'sawtooth', 0.22 * (0.5 + power), 320); tone(90, t, 0.2, 'sine', 0.3, 140); noiseHit(t, 0.05, 0.12, 2400, 1); },
+  pop() { if (!ensure()) return; const t = ctx!.currentTime; noiseHit(t, 0.09, 0.8, 900, 0.6); noiseHit(t + 0.04, 0.3, 0.4, 3200, 0.5); tone(160, t, 0.12, 'sine', 0.4, -90); },
   flick(power = 0.5) { if (!ensure()) return; const t = ctx!.currentTime; tone(360 + power * 340, t, 0.09, 'triangle', 0.35, 220); noiseHit(t, 0.05, 0.25, 1400, 1.2); },
   ui() { if (!ensure()) return; tone(520, ctx!.currentTime, 0.06, 'sine', 0.2, 660); },
   wall(power = 1) { if (!ensure()) return; const t = ctx!.currentTime; noiseHit(t, 0.09, Math.min(0.4, 0.12 + power * 0.03), 240, 2); tone(150, t, 0.08, 'sine', 0.2, 90); },

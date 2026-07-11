@@ -78,6 +78,19 @@ mgr.onEvent = (e) => {
     case 'out': sfx.bad(); fx.dust(e.x, e.y, 10, '#cbb58a'); break;
     case 'ramp': sfx.bonus(); fx.impact(e.x, e.y, 8, '#9dffb8'); break;
     case 'land': sfx.wall(4); fx.dust(e.x, e.y, 14, '#d8c090'); break;
+    case 'top': sfx.clack(Math.min(1, e.power * 0.12)); fx.impact(e.x, e.y, e.power * 0.5, '#ff7ab0'); break;
+    case 'bug': sfx.squeak(); fx.dust(e.x, e.y, 6, '#d8362e'); break;
+    case 'band': sfx.elastic(Math.min(1, e.power * 0.1)); fx.impact(e.x, e.y, e.power * 0.6, '#ff8a8a'); break;
+    case 'mill': sfx.wall(e.power); fx.impact(e.x, e.y, e.power * 0.4, '#8fd0ff'); break;
+    case 'balloon': {
+      sfx.pop(); fx.impact(e.x, e.y, 14, '#7ac8f2'); fx.dust(e.x, e.y, 18, '#4a90b8');
+      // poça d'água 3D no lugar (a física já vale — manager adicionou o patch)
+      if (scene) {
+        const pud = new THREE.Mesh(new THREE.CircleGeometry(1.7, 26), new THREE.MeshStandardMaterial({ color: '#3f8ec8', roughness: 0.15, transparent: true, opacity: 0.72 }));
+        pud.rotation.x = -Math.PI / 2; pud.position.set(e.x, 0.02, e.y); scene.add(pud);
+      }
+      break;
+    }
     case 'finish': fx.confetti(e.x, e.y); break;
   }
 };
@@ -338,6 +351,7 @@ function frame(): void {
     sfx.slide(maxSp);
     // pulsos dos itens especiais
     if (board) for (const p of board.pulses) { const s = 1 + Math.sin(t * 4) * 0.18; p.mesh.scale.set(s, s, 1); (p.mesh.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(t * 4) * 0.12; }
+    if (board) for (const d of board.dynamics) d.update(dt);   // brinquedos vivos (pião/joaninha/catavento/bexiga)
     if (board) for (const sp of board.spinners) { sp.rotation.y += dt * 2.4; sp.position.y += Math.sin(t * 3 + sp.position.x) * 0.004; }
     if (board) for (const bb of board.billboards) bb.quaternion.copy(rig.camera.quaternion);   // números (bônus/checkpoint) sempre virados pra câmera
     caps.update(mgr.caps, t, mgr.activeCap()?.id ?? -1);

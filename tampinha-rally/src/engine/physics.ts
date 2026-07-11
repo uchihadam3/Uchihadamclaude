@@ -2,11 +2,11 @@
 // empurradas), aplica atrito por superfície, quiques nas bordas/pedras, colisão
 // tampinha-contra-tampinha e detecta gatilhos (buraco/bomba/+3/10/chegada/fora).
 // Emite eventos; o GameManager decide as consequências das regras.
-import { Cap, V, SURF, len, norm, mul, REST_SPEED, vec } from './core';
-import { TrackModel } from './track';
+import { Cap, V, SURF, len, norm, mul, REST_SPEED, MAX_POWER, vec } from './core';
+import { TrackModel, bugPos, segsOf } from './track';
 
 export interface SimEvent {
-  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest' | 'ramp' | 'land' | 'item';
+  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest' | 'ramp' | 'land' | 'item' | 'top' | 'bug' | 'band' | 'mill' | 'balloon';
   capId: number; x: number; y: number; power: number; obsIdx?: number; otherId?: number; n?: number;
 }
 
@@ -126,8 +126,41 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     // obstáculos
     for (let i = 0; i < d.obstacles.length; i++) {
       const o = d.obstacles[i];
-      const rr = o.r + (o.type === 'stone' ? c.radius : c.radius * 0.55);
-      const dx = c.pos.x - o.x, dy = c.pos.y - o.y;
+      // ---- ELÁSTICO e CATAVENTO: colisão por SEGMENTO (não por círculo) ----
+      if (o.type === 'band' || o.type === 'mill') {
+        for (const sg of segsOf(o)) {
+          const abx = sg.b.x - sg.a.x, aby = sg.b.y - sg.a.y; const l2 = abx * abx + aby * aby || 1e-6;
+          let tt = ((c.pos.x - sg.a.x) * abx + (c.pos.y - sg.a.y) * aby) / l2; tt = tt < 0 ? 0 : tt > 1 ? 1 : tt;
+          const cx2 = sg.a.x + abx * tt, cy2 = sg.a.y + aby * tt;
+          const dseg = Math.hypot(c.pos.x - cx2, c.pos.y - cy2);
+          const thick = 0.2 + c.radius;
+          if (dseg >= thick) continue;
+          let nx = c.pos.x - cx2, ny = c.pos.y - cy2; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+          c.pos.x += nx * (thick - dseg + 0.01); c.pos.y += ny * (thick - dseg + 0.01);
+          const vn = c.vel.x * nx + c.vel.y * ny;
+          if (vn < 0) {
+            if (o.type === 'band') {
+              // ESTILINGUE: a liguinha estica e devolve COM GANHO — dá pra usar a favor!
+              const boost = Math.min(1.55, 1.1 + 0.03 * Math.abs(vn));
+              c.vel.x -= (1 + boost) * vn * nx; c.vel.y -= (1 + boost) * vn * ny;
+              const sp2 = len(c.vel), capV = MAX_POWER * 1.05;
+              if (sp2 > capV) { c.vel.x *= capV / sp2; c.vel.y *= capV / sp2; }
+              ev.push({ type: 'band', capId: c.id, x: cx2, y: cy2, power: Math.abs(vn) });
+            } else {
+              // PÁ DO CATAVENTO: quica firme + empurrãozinho no sentido do giro
+              c.vel.x -= 1.55 * vn * nx; c.vel.y -= 1.55 * vn * ny;
+              c.vel.x += -ny * 2.2; c.vel.y += nx * 2.2;
+              ev.push({ type: 'mill', capId: c.id, x: cx2, y: cy2, power: Math.abs(vn) });
+            }
+            c.hitFlash = 1;
+          }
+        }
+        continue;
+      }
+      // joaninha anda: o círculo dela fica onde ELA está agora
+      const oxy = o.type === 'bug' ? bugPos(o) : o;
+      const rr = o.r + (o.type === 'stone' || o.type === 'top' || o.type === 'bug' ? c.radius : c.radius * 0.55);
+      const dx = c.pos.x - oxy.x, dy = c.pos.y - oxy.y;
       if (dx * dx + dy * dy > rr * rr) continue;
       if (o.type === 'jump') {                 // RAMPA DE SALTO: com velocidade, decola e voa
         const rdir = o.dir != null ? { x: Math.cos(o.dir), y: Math.sin(o.dir) } : norm(c.vel);
@@ -146,6 +179,42 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         const vn = c.vel.x * nx + c.vel.y * ny;
         if (vn < 0) { const b = 1 + Math.min(0.95, 0.45 * c.stats.bounce * sMul); c.vel.x -= b * vn * nx; c.vel.y -= b * vn * ny; }
         ev.push({ type: 'stone', capId: c.id, x: o.x, y: o.y, power: spNow }); c.hitFlash = 1;
+      } else if (o.type === 'top') {
+        // PIÃO girando: rebate como pedra E chuta pro LADO (tangencial) — pinball!
+        const l = Math.hypot(dx, dy) || 1; const nx = dx / l, ny = dy / l;
+        const pen = rr - l; c.pos.x += nx * pen; c.pos.y += ny * pen;
+        const vn = c.vel.x * nx + c.vel.y * ny;
+        if (vn < 0) {
+          const b = 1 + 0.55 * c.stats.bounce;
+          c.vel.x -= b * vn * nx; c.vel.y -= b * vn * ny;
+          c.vel.x += -ny * 5.5; c.vel.y += nx * 5.5;      // o giro do pião arremessa de lado
+          ev.push({ type: 'top', capId: c.id, x: oxy.x, y: oxy.y, power: Math.abs(vn) }); c.hitFlash = 1;
+        }
+      } else if (o.type === 'bug') {
+        // JOANINHA: esbarrão fofo — desvia de leve e rouba um pouco de embalo
+        const l = Math.hypot(dx, dy) || 1; const nx = dx / l, ny = dy / l;
+        const pen = rr - l; c.pos.x += nx * pen; c.pos.y += ny * pen;
+        const vn = c.vel.x * nx + c.vel.y * ny;
+        if (vn < 0) {
+          c.vel.x -= 1.25 * vn * nx; c.vel.y -= 1.25 * vn * ny;
+          c.vel.x *= 0.85; c.vel.y *= 0.85;
+          ev.push({ type: 'bug', capId: c.id, x: oxy.x, y: oxy.y, power: Math.abs(vn) });
+        }
+      } else if (o.type === 'balloon') {
+        // BEXIGA D'ÁGUA: estoura no primeiro toque — SPLASH empurra todo mundo perto.
+        // (o manager marca 'popped' e deixa a poça; na simulação da IA só vale o empurrão)
+        if (o.popped || c.consumed.has(i)) continue;
+        c.consumed.add(i);
+        ev.push({ type: 'balloon', capId: c.id, x: o.x, y: o.y, power: len(c.vel), obsIdx: i });
+        for (const cc of caps) {
+          if (cc.finished) continue;
+          const ddx = cc.pos.x - o.x, ddy = cc.pos.y - o.y; const dd = Math.hypot(ddx, ddy);
+          if (dd > 4.2 || dd < 1e-4) continue;
+          const push = (11 - dd * 2.2);
+          cc.vel.x += (ddx / dd) * push; cc.vel.y += (ddy / dd) * push;
+          if (!cc.moving && !cc.finished) cc.moving = true;
+          cc.hitFlash = 1;
+        }
       } else if (o.type === 'hole') {
         if (c.shield) { c.shield = false; ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: -1 }); continue; }   // escudo salva do buraco
         c.pos.x = c.cpPos.x; c.pos.y = c.cpPos.y; c.vel = vec(); c.moving = false;

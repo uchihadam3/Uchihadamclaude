@@ -34,7 +34,10 @@ export class GameManager {
   onItem: (cap: Cap, item: string, used: boolean) => void = () => {};
 
   setup(def: TrackDef, players: PlayerDef[]): void {
-    this.track = new TrackModel(def);
+    // cópia POR CORRIDA: bexiga estourada (popped) e a poça que ela deixa mudam
+    // a pista durante a corrida — nunca podem vazar pro cache compartilhado
+    const d2: TrackDef = { ...def, obstacles: def.obstacles.map(o => ({ ...o })), patches: def.patches.slice() };
+    this.track = new TrackModel(d2);
     this.caps = players.map((pl, i) => {
       const sk = skinById(pl.skin);
       // pl.stats sobrepõe (campanha: starter + upgrades da Oficina)
@@ -69,6 +72,12 @@ export class GameManager {
   activeCap(): Cap { return this.caps[this.current]; }
 
   private beginTurn(first = false): void {
+    // BRINQUEDOS VIVOS: a joaninha dá um passinho e o catavento gira um tanto a
+    // cada vez (determinístico por turno — replays e online continuam batendo)
+    if (!first) for (const o of this.track.def.obstacles) {
+      if (o.type === 'bug') o.ph = (o.ph || 0) + 1;
+      else if (o.type === 'mill') o.dir = (o.dir || 0) + 0.55;
+    }
     // pula quem terminou ou está de castigo
     let guard = 0;
     while (guard++ < this.caps.length + 2) {
@@ -245,6 +254,20 @@ export class GameManager {
       case 'bomb': c.bombed = true; this.onToast(`${c.name} pisou no X — perdeu a vez`, 'bad'); break;
       case 'out': if (c.id === this.current) this.lastFlickOut = true; this.onToast(`${c.name} saiu da pista!`, 'bad'); break;
       case 'ramp': if (c.id === this.current) this.onToast('Voou! 🚀', 'good'); break;
+      case 'top': if (c.id === this.current) this.onToast('🪀 o pião rebateu!', 'bad'); break;
+      case 'band': if (c.id === this.current) this.onToast('🪃 estilingue!', 'good'); break;
+      case 'balloon': {
+        // estourou: marca na CÓPIA da pista e deixa uma poça d'água permanente
+        if (e.obsIdx != null) {
+          const o = this.track.def.obstacles[e.obsIdx];
+          if (o && !o.popped) {
+            o.popped = true;
+            this.track.def.patches.push({ surface: 'water', x: o.x, y: o.y, r: 1.7 });
+            this.onToast('💦 SPLASH! A bexiga estourou!', 'bad');
+          }
+        }
+        break;
+      }
       case 'item':
         if (e.power === -1) { c.itemFlash = 1; this.onToast(`🛡️ ${c.name} — escudo salvou!`, 'good'); }   // escudo consumido
         // com o slot cheio a caixa NÃO é gasta: continua lá pra pegar depois de usar

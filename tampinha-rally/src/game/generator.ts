@@ -61,10 +61,10 @@ const rotatePts = (pts: V[], ang: number): void => { const c = Math.cos(ang), s 
 // Desliza) e premiam controle, peso, quique e aderência. gate = largura da
 // passagem do funil (aperta conforme o nível).
 const LV = [
-  { half: 4.3, open: 0.05, len: 330, holes: [1, 2], bombs: [0, 1], stones: [2, 4], bonus: [2, 3], ramps: [1, 2], chi: [1, 2], gates: [1, 2], gate: 3.2, slalom: [1, 1] },
+  { half: 4.3, open: 0.05, len: 330, holes: [1, 2], bombs: [0, 1], stones: [5, 7], bonus: [2, 3], ramps: [1, 2], chi: [1, 2], gates: [1, 2], gate: 3.2, slalom: [1, 1] },
   { half: 4.1, open: 0.24, len: 420, holes: [2, 3], bombs: [0, 1], stones: [3, 5], bonus: [2, 4], ramps: [1, 3], chi: [2, 2], gates: [2, 2], gate: 3.0, slalom: [1, 2] },
   { half: 4.0, open: 0.50, len: 510, holes: [2, 4], bombs: [1, 2], stones: [4, 6], bonus: [2, 4], ramps: [2, 3], chi: [2, 3], gates: [2, 3], gate: 2.8, slalom: [2, 2] },
-  { half: 3.9, open: 0.72, len: 600, holes: [3, 5], bombs: [1, 2], stones: [4, 7], bonus: [2, 3], ramps: [2, 4], chi: [2, 3], gates: [2, 3], gate: 2.6, slalom: [2, 2] },
+  { half: 3.9, open: 0.72, len: 600, holes: [3, 5], bombs: [1, 2], stones: [6, 9], bonus: [2, 3], ramps: [2, 4], chi: [2, 3], gates: [2, 3], gate: 2.6, slalom: [2, 2] },
   { half: 3.8, open: 0.90, len: 690, holes: [3, 6], bombs: [1, 2], stones: [5, 8], bonus: [1, 3], ramps: [2, 4], chi: [3, 4], gates: [3, 3], gate: 2.5, slalom: [2, 3] },
 ];
 
@@ -186,7 +186,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   // pra você tentar passar por cima. Não cobrem a pista inteira.
   const nRamp = ri(p.ramps[0], p.ramps[1]);
   for (let k = 0; k < nRamp; k++) {
-    const a = rf(0.15, 0.85) * total; const { i } = atArc(a); const t = tangentAt(path, i);
+    const a = rf(0.1, 0.9) * total; const { i } = atArc(a); const t = tangentAt(path, i);
     const off = rng() < 0.4 ? 0 : (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.3, half0 * 0.62);
     const pp = onPath(a, off);
     patches.push({ surface: 'ramp', x: pp.x, y: pp.y, r: rf(1.5, 2.0), dir: Math.atan2(t.y, t.x) });
@@ -194,7 +194,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   // poças/areia/lama temáticas — formas VARIADAS (redondas E compridas/retangulares)
   const pn = theme.patchN || [3, 5];
   for (let k = 0; k < ri(pn[0], pn[1]); k++) {
-    const a = rf(0.1, 0.9) * total; const pp = onPath(a, rf(-half0 * 0.35, half0 * 0.35));
+    const a = rf(0.06, 0.94) * total; const pp = onPath(a, rf(-half0 * 0.35, half0 * 0.35));
     const sfc = theme.patch[ri(0, theme.patch.length - 1)]; const { i } = atArc(a); const t = tangentAt(path, i);
     // SETAS nunca viram poça gigante: quando vêm da lista do tema, seguem as
     // regras das dedicadas — pequenas (NUNCA cobrem a pista) e com direção certa
@@ -215,20 +215,28 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const spaced = (a: number) => usedArcs.every(u => Math.abs(u - a) > 14);
   const placeAt = (a: number, off: number, make: (pp: V) => void) => { const pp = onPath(a, off); make(pp); usedArcs.push(a); };
   // buracos/bombas ficam FORA da linha central (deixam a linha de corrida livre; você desvia)
-  for (let k = 0, tries = 0; k < ri(p.holes[0], p.holes[1]) && tries < 40; tries++) { const a = rf(0.14, 0.9) * total; if (!spaced(a)) continue; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.32, half0 * 0.62), pp => obstacles.push({ type: 'hole', x: pp.x, y: pp.y, r: rf(1.0, 1.4) })); k++; }
-  for (let k = 0, tries = 0; k < ri(p.bombs[0], p.bombs[1]) && tries < 30; tries++) { const a = rf(0.2, 0.85) * total; if (!spaced(a)) continue; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.38, half0 * 0.7), pp => obstacles.push({ type: 'bomb', x: pp.x, y: pp.y, r: 0.95 })); k++; }
-  for (let k = 0; k < ri(p.stones[0], p.stones[1]); k++) { const a = rf(0.1, 0.92) * total; const off = (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.3, half0 * 0.75); const pp = onPath(a, off); obstacles.push({ type: 'stone', x: pp.x, y: pp.y, r: rf(0.7, 1.2) }); }
+  for (let k = 0, tries = 0; k < ri(p.holes[0], p.holes[1]) && tries < 40; tries++) { const a = rf(0.1, 0.94) * total; if (!spaced(a)) continue; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.32, half0 * 0.62), pp => obstacles.push({ type: 'hole', x: pp.x, y: pp.y, r: rf(1.0, 1.4) })); k++; }
+  for (let k = 0, tries = 0; k < ri(p.bombs[0], p.bombs[1]) && tries < 30; tries++) { const a = rf(0.14, 0.92) * total; if (!spaced(a)) continue; placeAt(a, (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.38, half0 * 0.7), pp => obstacles.push({ type: 'bomb', x: pp.x, y: pp.y, r: 0.95 })); k++; }
+  for (let k = 0; k < ri(p.stones[0], p.stones[1]); k++) { const a = rf(0.06, 0.96) * total; const off = (rng() < 0.5 ? -1 : 1) * rf(half0 * 0.3, half0 * 0.75); const pp = onPath(a, off); obstacles.push({ type: 'stone', x: pp.x, y: pp.y, r: rf(0.7, 1.2) }); }
   // BÔNUS EM LUGARES ARRISCADOS — o prêmio mede o perigo. +1 já fica na beira (pode
   // sair da pista); +2 mais na beira ainda; +3 colado na borda COM um buraco logo além
   // (ou você acerta a mira, ou cai/sai). Nada de bônus fácil no meio da pista.
   for (let k = 0, tries = 0; k < ri(p.bonus[0], p.bonus[1]) && tries < 40; tries++) {
-    const a = rf(0.16, 0.88) * total; if (!spaced(a)) continue;
-    const roll = rng(); const n = roll > 0.80 ? 3 : roll > 0.44 ? 2 : 1;
+    const a = rf(0.12, 0.92) * total; if (!spaced(a)) continue;
+    // RARIDADE de verdade: +1 comum (60%), +2 médio (28%), +3 raro (12%)
+    const roll = rng(); const n = roll > 0.88 ? 3 : roll > 0.60 ? 2 : 1;
     const side = rng() < 0.5 ? -1 : 1; const ii = atArc(a).i; const hw = halfArr[Math.min(N - 1, ii)];
-    // FORA do centro (arriscado de mirar, perto da beira) mas DENTRO do corredor:
-    // dá pra pegar sem cair no buraco nem sair da pista se você acertar a força/mira.
-    const frac = n === 3 ? 0.66 : n === 2 ? 0.52 : 0.4;
+    // quanto MAIOR o prêmio, mais na BEIRA (arriscado de mirar) — mas sempre
+    // DENTRO do corredor: com mira e força certas, dá pra pegar.
+    const frac = n === 3 ? 0.74 : n === 2 ? 0.6 : 0.42;
     placeAt(a, side * hw * frac, pp => obstacles.push({ type: 'bonus', x: pp.x, y: pp.y, r: 1.1, n }));
+    // prêmio grande PAGA RISCO: um buraco logo À FRENTE na mesma linha —
+    // passou da força tentando pegar o +3, caiu. (nunca EM CIMA do bônus)
+    if (n >= 2 && rng() < (n === 3 ? 0.8 : 0.45)) {
+      const hp2 = onPath(a + 3.8, side * hw * (frac - 0.06));
+      obstacles.push({ type: 'hole', x: hp2.x, y: hp2.y, r: n === 3 ? 1.25 : 1.0 });
+      usedArcs.push(a + 3.8);
+    }
     k++;
   }
 
@@ -275,7 +283,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   const nChi = ri(p.chi[0], p.chi[1]);
   for (let ci = 0, tries = 0; ci < nChi && tries < 30; tries++) {
     const npl = ri(3, 4), gapA = 7.5;
-    const a0 = rf(0.16, 0.78) * total;
+    const a0 = rf(0.1, 0.84) * total;
     // o trecho INTEIRO da chicane precisa estar livre (checkpoints/perigos)
     let ok = true; for (let k = 0; k < npl; k++) if (!spacedM(a0 + k * gapA) || a0 + k * gapA > total - 14) { ok = false; break; }
     if (!ok) continue;
@@ -298,7 +306,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   for (let gi = 0, tries = 0; gi < nGate && tries < 34; tries++) {
     // escolhe um trecho RETO (estreitar em curva fecharia demais a passagem)
     let bestA = -1, bestC = 1;
-    for (let t2 = 0; t2 < 14; t2++) { const a = rf(0.16, 0.86) * total; if (!spacedM(a)) continue; const ii = atArc(a).i; if (curvS[ii] < bestC) { bestC = curvS[ii]; bestA = a; } }
+    for (let t2 = 0; t2 < 14; t2++) { const a = rf(0.12, 0.9) * total; if (!spacedM(a)) continue; const ii = atArc(a).i; if (curvS[ii] < bestC) { bestC = curvS[ii]; bestA = a; } }
     if (bestA < 0 || bestC > 0.35) { continue; }
     const { p: pp, i } = atArc(bestA); const nrm = normalAt(path, i); const hw = halfArr[Math.min(N - 1, i)];
     const gapW = Math.max(p.gate * rf(0.95, 1.1), 2.3);       // largura da passagem (sempre passável)
@@ -323,7 +331,7 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   // no caminho. Dá pra tabelar nelas (quique) ou contornar com controle.
   const nSl = ri(p.slalom[0], p.slalom[1]);
   for (let si2 = 0, tries = 0; si2 < nSl && tries < 26; tries++) {
-    const a0 = rf(0.14, 0.8) * total; const gapA = 5.5;
+    const a0 = rf(0.08, 0.88) * total; const gapA = 5.5;
     let ok = true; for (let k = 0; k < 3; k++) if (!spacedM(a0 + k * gapA) || a0 + k * gapA > total - 12) { ok = false; break; }
     if (!ok) continue;
     for (let k = 0; k < 3; k++) {
@@ -334,6 +342,74 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
       usedArcs.push(a);
     }
     si2++;
+  }
+
+  // ---------------- EMOÇÃO DO COMEÇO AO FIM ----------------
+  // aperitivo logo depois da largada (uma pedra de boas-vindas)…
+  {
+    const a = total * rf(0.055, 0.1);
+    const pp = onPath(a, (rng() < 0.5 ? -1 : 1) * half0 * rf(0.3, 0.5));
+    obstacles.push({ type: 'stone', x: pp.x, y: pp.y, r: rf(0.8, 1.05) });
+  }
+  // …e RETA FINAL de arrepiar: mini-slalom guardando a chegada (ninguém "taca
+  // reto e ganha" — o fim da corrida disputa até o último peteleco)
+  {
+    const a0 = total * rf(0.86, 0.9);
+    for (let k = 0; k < 3; k++) {
+      const a = a0 + k * 5;
+      if (a > total - 9) break;
+      const { i } = atArc(a); const hw2 = halfArr[Math.min(N - 1, i)];
+      const pp = onPath(a, (k % 2 ? 1 : -1) * hw2 * rf(0.3, 0.42));
+      obstacles.push({ type: 'stone', x: pp.x, y: pp.y, r: rf(0.75, 1.0) });
+      usedArcs.push(a);
+    }
+  }
+
+  // ---------------- BRINQUEDOS NOVOS (5 obstáculos inéditos) ----------------
+  // brinquedo não é perigo mortal: pode ficar mais PERTO das outras coisas
+  // (espaçamento próprio de 7u — senão pista curta satura e não sobra vaga)
+  const spacedT = (a: number) => usedArcs.every(u => Math.abs(u - a) > 7);
+  // PIÃO: rebatedor giratório no meio da pista — bateu, ele cospe de lado (pinball)
+  const nTop = ri(1, level >= 2 ? 2 : 1);
+  for (let k = 0, tries = 0; k < nTop && tries < 40; tries++) {
+    const a = rf(0.12, 0.9) * total; if (!spacedT(a)) continue;
+    placeAt(a, rf(-0.25, 0.25) * half0, pp => obstacles.push({ type: 'top', x: pp.x, y: pp.y, r: 0.95 })); k++;
+  }
+  // JOANINHA: passeia de um lado pro outro da pista, um passinho por turno —
+  // bloqueia um lugar DIFERENTE a cada vez (obstáculo vivo!)
+  const nBug = ri(1, level >= 1 ? 2 : 1);
+  for (let k = 0, tries = 0; k < nBug && tries < 40; tries++) {
+    const a = rf(0.15, 0.88) * total; if (!spacedT(a)) continue;
+    const { i } = atArc(a); const t = tangentAt(path, i); const hw2 = halfArr[Math.min(N - 1, i)];
+    placeAt(a, 0, pp => obstacles.push({ type: 'bug', x: pp.x, y: pp.y, r: 0.85, dir: Math.atan2(t.y, t.x), n: hw2 * 0.55, ph: ri(0, 9) })); k++;
+  }
+  // ELÁSTICO: liguinha esticada saindo de uma borda em diagonal — quicou nela,
+  // ESTILINGUE (devolve com ganho; o esperto usa a favor pra fazer a curva)
+  const nBand = level >= 1 ? ri(1, 2) : ri(0, 1);
+  for (let k = 0, tries = 0; k < nBand && tries < 40; tries++) {
+    const a = rf(0.14, 0.9) * total; if (!spacedT(a)) continue;
+    const { i } = atArc(a); const t = tangentAt(path, i); const hw2 = halfArr[Math.min(N - 1, i)];
+    const side = rng() < 0.5 ? -1 : 1;
+    const pp = onPath(a, side * hw2 * 0.5);
+    obstacles.push({ type: 'band', x: pp.x, y: pp.y, r: hw2 * rf(0.42, 0.55), dir: Math.atan2(t.y, t.x) + side * rf(0.5, 0.8) });
+    usedArcs.push(a); k++;
+  }
+  // CATAVENTO: moinho de pás que GIRA um tanto a cada peteleco — o caminho que
+  // tava fechado abre no turno seguinte (quebra-cabeça de timing)
+  if (level >= 1 && rng() < 0.85) {
+    for (let tries = 0; tries < 40; tries++) {
+      const a = rf(0.25, 0.8) * total; if (!spacedT(a)) continue;
+      const { i } = atArc(a); const hw2 = halfArr[Math.min(N - 1, i)];
+      placeAt(a, 0, pp => obstacles.push({ type: 'mill', x: pp.x, y: pp.y, r: Math.min(2.4, hw2 * 0.6), dir: rng() * 3.14, n: level >= 3 ? 4 : 2 }));
+      break;
+    }
+  }
+  // BEXIGA D'ÁGUA: estoura no primeiro toque — splash empurra todo mundo perto
+  // e deixa uma POÇA D'ÁGUA permanente no lugar (a pista muda no meio da corrida!)
+  const nBal = ri(1, 2);
+  for (let k = 0, tries = 0; k < nBal && tries < 40; tries++) {
+    const a = rf(0.18, 0.86) * total; if (!spacedT(a)) continue;
+    placeAt(a, rf(-0.4, 0.4) * half0, pp => obstacles.push({ type: 'balloon', x: pp.x, y: pp.y, r: 1.05 })); k++;
   }
 
   // ATALHO arriscado (nível médio+): acha dois pontos do traçado perto no espaço
@@ -560,7 +636,10 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   for (const o of data.obstacles) {
     const x = o.x + dxs, y = o.y + dys;
     if (o.type === 'jump') obstacles.push({ type: 'jump', x, y, r: o.r || 1.6, dir: dirAtXY(x, y) });
-    else obstacles.push({ type: o.type as any, x, y, r: o.r || (o.type === 'bonus' ? 1.1 : o.type === 'bomb' ? 0.95 : o.type === 'item' ? 1.15 : 1.2), n: o.n });
+    else if (o.type === 'bug') obstacles.push({ type: 'bug', x, y, r: 0.85, dir: dirAtXY(x, y), n: 2.2, ph: 0 });
+    else if (o.type === 'band') obstacles.push({ type: 'band', x, y, r: o.r || 2.2, dir: dirAtXY(x, y) + 0.6 });
+    else if (o.type === 'mill') obstacles.push({ type: 'mill', x, y, r: o.r || 2.2, dir: 0, n: 2 });
+    else obstacles.push({ type: o.type as any, x, y, r: o.r || (o.type === 'bonus' ? 1.1 : o.type === 'bomb' ? 0.95 : o.type === 'item' ? 1.15 : o.type === 'top' ? 0.95 : o.type === 'balloon' ? 1.05 : 1.2), n: o.n });
   }
   // superfícies (areia/lama/água/grama/impulso/freio) do usuário
   const patches: Patch[] = [];
