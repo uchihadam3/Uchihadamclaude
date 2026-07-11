@@ -638,21 +638,37 @@ export class UI {
         <div>🏅 Pódio libera a próxima · 🥇 ouro conta pro prêmio do tier</div>
       </div>
       <div class="rk-pick-title">🧢 Escolha a tampinha <small>(valem: ${rarLab})</small></div>
+      <div class="rk-capdet" id="capdet"></div>
       <div class="rk-pick" id="pick"></div>
       <div class="mactions"><button class="play-btn" id="go">🏁 Começar</button></div>`, 'rk-ov');
     box.querySelector('.ov-x')!.addEventListener('click', close);
     const pick = box.querySelector('#pick') as HTMLElement;
+    const det = box.querySelector('#capdet') as HTMLElement;
+    // FICHA da escolhida: cara, raridade e os 7 atributos (toca em outra e ela troca)
+    const renderDet = () => {
+      const k = skinById(this.rankCapSel || 'coca');
+      det.style.setProperty('--rc', RARITY_COLOR[k.rarity]);
+      det.innerHTML = `<div class="rkd-face"></div>
+        <div class="rkd-tx">
+          <div class="rkd-top"><b>${k.name}</b><span class="rkd-rar"><i class="rar-dot"></i>${RARITY_LABEL[k.rarity]}${k.prize != null || k.rprize != null ? ' · EXCLUSIVA ✨' : ''}</span></div>
+          <span class="rkd-desc">${k.desc}</span>
+          ${capBars(k.stats, true)}
+        </div>`;
+      const fcv = drawCap(k.art, 120); fcv.style.cssText = 'width:100%;height:100%;display:block';
+      (det.querySelector('.rkd-face') as HTMLElement).appendChild(fcv);
+      det.classList.remove('pop'); void det.offsetWidth; det.classList.add('pop');
+    };
     const renderPick = () => {
       pick.innerHTML = '';
       for (const k of caps) {
         const sel = k.id === this.rankCapSel;
         const card = this.el(`<button class="rk-cap ${sel ? 'sel' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}"><span class="rk-cap-face"></span><small>${k.name}</small></button>`);
         (card.querySelector('.rk-cap-face') as HTMLElement).appendChild(drawCap(k.art, 66));
-        card.addEventListener('click', () => { this.rankCapSel = k.id; renderPick(); });
+        card.addEventListener('click', () => { this.rankCapSel = k.id; renderPick(); renderDet(); });
         pick.appendChild(card);
       }
     };
-    renderPick();
+    renderPick(); renderDet();
     box.querySelector('#go')!.addEventListener('click', () => { close(); this.launchRank(c); });
   }
   launchRank(c: RankComp): void {
@@ -702,6 +718,24 @@ export class UI {
     if (res.podium || pz) this.confetti(box);
     box.querySelector('#again')!.addEventListener('click', () => { this.hideModal(); this.onRankRetry?.(d.comp.id); });
     box.querySelector('#mapa')!.addEventListener('click', () => { this.hideModal(); this.onRankBack?.(); });
+  }
+
+  // reiniciar no meio de uma COMPETIÇÃO (campanha/ranqueada/campeonato/eliminação):
+  // confirma antes, porque volta pra 1ª corrida e zera os pontos da competição toda
+  confirmRestartComp(label: string, done: number, total: number, onYes: () => void, onNo?: () => void): void {
+    this.hideModal();   // sai do modal de pausa: a pergunta fica sozinha na tela
+    const { box, close } = this.overlay(`
+      <div class="ov-head"><b>⚠️ Reiniciar ${label}?</b><button class="ov-x">✕</button></div>
+      <div class="cc-detail">
+        <div>Isso <b>NÃO</b> reinicia só esta corrida: volta pra <b>1ª corrida</b> e <b>zera os pontos</b> de ${label} inteira.</div>
+        ${done > 0 ? `<div>Você já completou <b>${done} de ${total}</b> corrida${done > 1 ? 's' : ''} — esse progresso se perde.</div>` : `<div>São <b>${total} corridas</b> no total.</div>`}
+        <div class="cc-final-note">Seu melhor resultado já salvo continua valendo.</div>
+      </div>
+      <div class="mactions"><button class="chip" id="no">Cancelar</button><button class="play-btn danger" id="yes">↻ Reiniciar tudo</button></div>`);
+    const no = () => { close(); onNo?.(); };
+    box.querySelector('.ov-x')!.addEventListener('click', no);
+    box.querySelector('#no')!.addEventListener('click', no);
+    box.querySelector('#yes')!.addEventListener('click', () => { close(); onYes(); });
   }
 
   // -------------------------------------------------------- EDITOR DE PISTA

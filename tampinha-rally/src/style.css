@@ -682,3 +682,15 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .rk-goldprog{font-size:12.5px;font-weight:800;color:var(--ink);background:rgba(242,177,0,.14);border-radius:12px;padding:8px 10px;margin:6px 0}
 .rk-goldprog em{font-style:normal;color:#c98a00;font-weight:900}
 .play-btn.danger{background:linear-gradient(180deg,#e5484d,#b02428)}
+/* ficha da tampinha escolhida (picker da ranqueada) */
+.rk-capdet{--rc:#9aa2ac;display:flex;gap:11px;align-items:center;background:linear-gradient(135deg,rgba(0,0,0,.14),rgba(0,0,0,.05));border:2.5px solid var(--rc);border-radius:16px;padding:10px 12px;margin-bottom:8px;box-shadow:0 4px 12px rgba(0,0,0,.18), inset 0 0 24px rgba(0,0,0,.06)}
+.rk-capdet.pop{animation:rkdpop .28s ease}
+@keyframes rkdpop{0%{transform:scale(.96);opacity:.6}60%{transform:scale(1.015)}100%{transform:scale(1);opacity:1}}
+.rkd-face{flex:none;width:74px;height:74px;filter:drop-shadow(0 5px 9px rgba(0,0,0,.4))}
+.rkd-tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left}
+.rkd-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.rkd-top b{font-size:15px;color:var(--ink)}
+.rkd-rar{font-size:10px;font-weight:900;color:var(--rc);display:inline-flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.4px}
+.rkd-rar .rar-dot{background:var(--rc)}
+.rkd-desc{font-size:10.5px;color:#9a7550;font-weight:600;line-height:1.25}
+.rk-capdet .skin-bars{margin-top:3px}

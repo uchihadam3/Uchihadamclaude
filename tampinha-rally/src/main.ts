@@ -31,7 +31,7 @@ const online = new Online();
 let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
 let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string; hist: number[] } | null = null;
-let elim: { players: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[] } | null = null;
+let elim: { players: PlayerDef[]; orig: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[] } | null = null;
 let camp: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
 let rank: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
 let dailyFlicks = 0;
@@ -129,7 +129,7 @@ const ui = new UI({
       cfg.level = seq[0].level; cfg.trackIdx = seq[0].idx;
     }
     else champ = null;
-    if (cfg.mode === 'elim') { elim = { players: cfg.players.slice(), level: cfg.level, race: 0, out: [] }; cfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
+    if (cfg.mode === 'elim') { elim = { players: cfg.players.slice(), orig: cfg.players.slice(), level: cfg.level, race: 0, out: [] }; cfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
     else elim = null;
     if (cfg.mode === 'camp' && cfg.campComp) camp = { compId: cfg.campComp, race: 0, pts: new Map(), hist: [] };
     else camp = null;
@@ -157,7 +157,37 @@ ui.onRankRetry = (compId) => { inGame = false; paused = false; rank = null; stop
 ui.onCampFinale = () => { inGame = false; paused = false; camp = null; stopScene(); playMusic('menu'); ui.showCampFinale(); };
 ui.onPause = () => { if (mgr.phase !== 'over') { paused = true; ui.showPause(); } };
 ui.onResume = () => { paused = false; ui.hideModal(); };
-ui.onRestart = () => { paused = false; ui.hideModal(); if (curCfg) loadMatch(curCfg); };
+// Reiniciar: no modo livre recomeça a corrida na hora; no meio de uma COMPETIÇÃO
+// (campanha/ranqueada/campeonato/eliminação) confirma antes e volta pra 1ª corrida
+// com os pontos zerados — nunca reinicia "só esta corrida" de uma competição.
+ui.onRestart = () => {
+  if (!curCfg) return;
+  const go = (reset: () => void) => { paused = false; ui.hideModal(); reset(); loadMatch(curCfg!); };
+  if (camp && mode === 'camp') {
+    const comp = compById(camp.compId);
+    ui.confirmRestartComp(`a competição ${comp.ico} ${comp.name}`, camp.race, comp.races,
+      () => go(() => { camp = { compId: camp!.compId, race: 0, pts: new Map(), hist: [] }; curCfg!.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }), () => ui.showPause());
+    return;
+  }
+  if (rank && mode === 'rank') {
+    const comp = rankCompById(rank.compId);
+    ui.confirmRestartComp(`a competição ${comp.ico} ${comp.name}`, rank.race, comp.races,
+      () => go(() => { rank = { compId: rank!.compId, race: 0, pts: new Map(), hist: [] }; curCfg!.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }), () => ui.showPause());
+    return;
+  }
+  if (champ && mode === 'champ') {
+    ui.confirmRestartComp('o campeonato', champ.race, champ.seq.length,
+      () => go(() => { champ!.race = 0; champ!.pts = new Map(); champ!.hist = []; curCfg!.level = champ!.seq[0].level; curCfg!.trackIdx = champ!.seq[0].idx; }), () => ui.showPause());
+    return;
+  }
+  if (elim && mode === 'elim') {
+    ui.confirmRestartComp('a eliminação', elim.race, elim.orig.length - 1,
+      () => go(() => { elim!.players = elim!.orig.slice(); elim!.out = []; elim!.race = 0; curCfg!.players = elim!.players; curCfg!.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }), () => ui.showPause());
+    return;
+  }
+  // modo livre / corrida avulsa: reinicia só a corrida, sem cerimônia
+  paused = false; ui.hideModal(); loadMatch(curCfg);
+};
 ui.onMenu = () => { inGame = false; paused = false; stopScene(); playMusic('menu'); ui.showMenu(); };
 ui.onNext = () => {
   ui.hideModal();
