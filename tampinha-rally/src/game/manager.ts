@@ -24,6 +24,7 @@ export class GameManager {
   onFlick: (cap: Cap, power: number) => void = () => {};
   onCheckpoint: (cap: Cap, n: number) => void = () => {};
   private acc = 0;
+  private resolveT = 0;      // tempo (sim) no resolve — trava de segurança anti-congelamento
   private aiTimer = 0; private aiFired = false;
   lastFlickOut = false;
   manualControl = false;         // online: os petelecos vêm de fora (nada de IA automática)
@@ -91,9 +92,11 @@ export class GameManager {
     }
     const c = this.caps[this.current];
     if (!c) return;
-    // detector de PRESO: sem avançar desde o turno passado → IA liga o modo destravar
-    if (c.progress < c.lastTurnProg + 0.8) c.stuckTurns++; else c.stuckTurns = 0;
-    c.lastTurnProg = c.progress;
+    // detector de PRESO: compara com o MELHOR progresso já alcançado (marca
+    // d'água) — avançar e ser jogada de volta pelo obstáculo NÃO conta como
+    // "andou" (senão o bate-e-volta num bloqueio engana o detector pra sempre)
+    if (c.progress < c.lastTurnProg + 0.8) c.stuckTurns++;
+    else { c.stuckTurns = 0; c.lastTurnProg = c.progress; }
     // RESGATE (guincho 🛟): encaixada num canto de muro há 4 turnos — volta pro
     // MEIO da pista um tiquinho ATRÁS (não ganha nada com isso). Garante que
     // nenhuma pista gerada consegue travar uma corrida pra sempre.
@@ -308,7 +311,7 @@ export class GameManager {
     c.vel = mul(d, sp); c.moving = true;
     this.lastFlickOut = false;
     this.flickCount++;              // conta o peteléco (token único p/ o online)
-    this.phase = 'resolve'; this.acc = 0;
+    this.phase = 'resolve'; this.acc = 0; this.resolveT = 0;
     this.onFlick(c, power);
     this.onChange();
   }
@@ -337,13 +340,17 @@ export class GameManager {
       return;
     }
     // resolve: passos fixos até tudo parar
-    this.acc += dt; const FIXED = 1 / 120; let steps = 0;
+    this.acc += dt; this.resolveT += dt; const FIXED = 1 / 120; let steps = 0;
     while (this.acc >= FIXED && steps < 12) {
       const evs = stepWorld(this.caps, this.track, FIXED);
       for (const e of evs) this.handleEvent(e);
       this.acc -= FIXED; steps++;
       if ((this.phase as string) === 'over') return;   // handleEvent pode ter encerrado a corrida
     }
+    // TRAVA DE SEGURANÇA: se alguém fica em movimento perpétuo (ex.: encaixada
+    // entre pedra e catavento, as pás batem sem parar), encerra o peteléco à
+    // força — a corrida NUNCA congela no resolve
+    if (this.resolveT > 16) for (const c of this.caps) { c.vel = vec(); c.moving = false; }
     if (!anyMoving(this.caps)) this.endFlick();
   }
 

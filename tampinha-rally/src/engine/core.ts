@@ -97,7 +97,7 @@ export interface Cap {
   moving: boolean;
   hitFlash: number;
 
-  lastTurnProg: number;      // progresso no começo do turno anterior (detector de preso)
+  lastTurnProg: number;      // MELHOR progresso já alcançado (marca d'água do detector de preso)
   stuckTurns: number;        // turnos seguidos sem avançar → IA liga o "modo destravar"
   rescues: number;           // resgates SEM progresso real desde então (escalona a distância)
   rescueProg: number;        // progresso na hora do último resgate (mede se andou de verdade)
