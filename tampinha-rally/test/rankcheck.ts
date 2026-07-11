@@ -187,7 +187,8 @@ console.log('\n=== RANQUEADA CAOS: circuito separado (estado, semente, nomes, pr
   }
   if (!save.hasBonus('grapette')) die('grapette não salva');
   if (rankPrizeOf('caos').join() !== RANK_PRIZE_CAOS.join()) die('lista de prêmios caos');
-  // as 5 exclusivas do caos existem, são rcaos e têm a MESMA força das clássicas
+  // as 5 exclusivas do caos existem, são rcaos, têm força PARECIDA com as
+  // clássicas do tier — mas personalidade DIFERENTE (não são clones de status)
   for (let i = 0; i < 5; i++) {
     const kc = skinById(RANK_PRIZE_CAOS[i]), kn = skinById(RANK_PRIZE[i]);
     if (!kc || kc.id === 'coca') die('exclusiva caos faltando: ' + RANK_PRIZE_CAOS[i]);
@@ -195,6 +196,16 @@ console.log('\n=== RANQUEADA CAOS: circuito separado (estado, semente, nomes, pr
     const mc = Object.values(kc.stats as any).reduce((s: number, v: any) => s + v, 0);
     const mn = Object.values(kn.stats as any).reduce((s: number, v: any) => s + v, 0);
     if (Math.abs(mc - mn) / mn > 0.06) die(`força desigual: ${kc.id} ${mc.toFixed(2)} vs ${kn.id} ${mn.toFixed(2)}`);
+    // pelo menos 4 dos 7 atributos têm que diferir de verdade (>3%)
+    let diff = 0;
+    for (const k of Object.keys(kn.stats) as (keyof typeof kn.stats)[]) if (Math.abs(kc.stats[k] - kn.stats[k]) / kn.stats[k] > 0.03) diff++;
+    if (diff < 4) die(`${kc.id} é clone de ${kn.id} (só ${diff}/7 atributos diferem)`);
+  }
+  // e diferentes ENTRE SI dentro do próprio circuito
+  for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) {
+    const a = skinById(RANK_PRIZE_CAOS[i]).stats as any, b = skinById(RANK_PRIZE_CAOS[j]).stats as any;
+    let diff = 0; for (const k of Object.keys(a)) if (Math.abs(a[k] - b[k]) / b[k] > 0.03) diff++;
+    if (diff < 3) die(`caos ${RANK_PRIZE_CAOS[i]} ~= ${RANK_PRIZE_CAOS[j]}`);
   }
   // nomes: quadros separados → "Diego" livre nos DOIS ao mesmo tempo
   const bd1: Board = {}, bd2: Board = {};
