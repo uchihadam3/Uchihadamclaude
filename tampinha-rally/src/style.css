@@ -730,3 +730,6 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .ip-use:active{transform:translateY(2px)}
 
 @keyframes ipop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+/* o drawCap grava width/height inline (super-resolução); os QUADRADINHOS que
+   dimensionam a tampinha pelo CSS precisam VENCER o estilo inline do canvas */
+.cap-ico canvas,.cs-cap canvas,.pcap-mini canvas,.prow2 .pcap canvas,.team-mem .tm-cap canvas,.elim-loser .el-cap canvas,.ea-cap canvas,.camp-face canvas,.rk-capface canvas,.rk-cap-face canvas{width:100% !important;height:100% !important;display:block}
