@@ -8,15 +8,17 @@ import { AI_KINDS, AI_LABEL, AIKind } from './game/ai';
 import { PlayerDef, GameManager } from './game/manager';
 import { ITEMS } from './game/chaos';
 import { LIGAS, COMPS, CampComp, compById, campState, saveCamp, campStats, upCost, UP_MAX, UP_STEP, isUnlocked, pickOpponents, CampState, LIGA_PRIZE, ligaGolds } from './game/campaign';
+import { RANK_TIERS, RANK_COMPS, RankComp, rankCompById, rankState, saveRank, resetRank, rankTotal, tierGolds, tierDone, rankUnlocked, RANK_PRIZE, eligibleCaps, applyRankResult, pickRankOpponents, compMax, RANK_MAX_TOTAL } from './game/ranked';
+import { RankNet, RankRow, standings as rankStandings, nameFree, validName, nameKey } from './net/rank';
 import { CapStats } from './engine/core';
 import { Online } from './net/online';
 import { save } from './game/save';
 import { settings } from './audio';
 
-export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp';
+export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp' | 'rank';
 export type Pick = 'specific' | 'randlevel' | 'randany';
 export type ChampFmt = 'copa' | 'gp' | 'sprint' | 'maratona';
-export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; teamSize?: number; customTrack?: any; campComp?: string; }
+export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; teamSize?: number; customTrack?: any; campComp?: string; rankComp?: string; }
 export const CHAMP_FMT: Record<ChampFmt, { name: string; ico: string; races: number; desc: string }> = {
   sprint: { name: 'Sprint', ico: '⚡', races: 3, desc: '3 pistas rápidas' },
   copa: { name: 'Copa', ico: '🏆', races: 5, desc: '5 pistas do nível' },
@@ -99,6 +101,7 @@ export class UI {
           <button class="mode-btn" data-m="ai" style="--a:var(--blu)"><span class="mi">🤖</span><b>Contra a IA</b><span class="ms">escolha os rivais</span></button>
           <button class="mode-btn" data-m="mp" style="--a:var(--grn)"><span class="mi">🌐</span><b>Multiplayer</b><span class="ms">local ou online</span></button>
           <button class="mode-btn hot" data-m="camp" style="--a:#c98a00"><span class="mi">🏆</span><b>Campanha</b><span class="ms">${this.campMenuSub()}</span></button>
+          <button class="mode-btn hot" data-m="rank" style="--a:#7c3aed"><span class="mi">⚔️</span><b>Ranqueada</b><span class="ms">${this.rankMenuSub()}</span></button>
           <button class="mode-btn" data-m="modes" style="--a:#ff4fa3"><span class="mi">🎡</span><b>Modos de Jogo</b><span class="ms">Caos, Eliminação, Dupla…</span></button>
           <button class="mode-btn" data-m="champ" style="--a:var(--gold)"><span class="mi">🏆</span><b>Campeonato</b><span class="ms">4 formatos, 1 campeão</span></button>
           <button class="mode-btn" data-m="daily" style="--a:var(--pur)"><span class="mi">📅</span><b>Desafio Diário</b><span class="ms">a pista do dia</span></button>
@@ -118,6 +121,7 @@ export class UI {
       else if (m === 'modes') this.showModes();
       else if (m === 'editor') this.showEditor();
       else if (m === 'camp') this.showCampaign();
+      else if (m === 'rank') this.showRanked();
       else this.showSetup(m as Mode);
     }));
     s.querySelector('#cfgBtn')!.addEventListener('click', () => this.showSettings());
@@ -384,6 +388,320 @@ export class UI {
     (s.querySelector('#ff') as HTMLElement).appendChild(cv);
     this.confetti(s); setTimeout(() => this.confetti(s), 900); setTimeout(() => this.confetti(s), 1800);
     s.querySelector('#fim')!.addEventListener('click', () => this.showCampaign());
+  }
+
+  // ============================================================ RANQUEADA
+  rankNet = new RankNet();
+  private rankNetOn = false;
+  private rankCapSel: string | null = null;      // tampinha escolhida pra próxima competição
+  onRankBack: (() => void) | null = null;
+  onRankRetry: ((compId: string) => void) | null = null;
+
+  rankMenuSub(): string {
+    const st = rankState();
+    if (!st.name) return 'nome único, ranking mundial';
+    return `⚡ ${st.name} · ${rankTotal(st)} pts`;
+  }
+  private rankNetStart(): void {
+    if (this.rankNetOn) return;
+    this.rankNetOn = true;
+    const st = rankState();
+    this.rankNet.watch(st.name, st.dev);
+    this.rankNet.onNameLost = (n) => {
+      const st2 = rankState(); st2.name = null; saveRank(st2);
+      this.notify(`⚠️ O nome "${n}" já era de outra pessoa (registro mais antigo). Escolha outro!`, 'bad');
+    };
+    this.rankNet.start();
+  }
+  // minha linha no quadro (score = soma dos melhores; vitrine = última tampinha)
+  private myRankRow(): RankRow | null {
+    const st = rankState(); if (!st.name) return null;
+    const golds = [0, 1, 2, 3, 4].reduce((s, t) => s + tierGolds(st, t), 0);
+    let tier = 0; for (let i = 0; i < RANK_COMPS.length; i++) if (rankUnlocked(st, i)) tier = RANK_COMPS[i].tier;
+    return { name: st.name, dev: st.dev, score: rankTotal(st), tier, golds, cap: st.cap, claimTs: st.claimTs, ts: Date.now() };
+  }
+  private rankSubmit(): void { const r = this.myRankRow(); if (r) this.rankNet.submit(r); }
+  private rankStatusHtml(): string {
+    const s = this.rankNet.status;
+    return s === 'online' ? '<span class="rk-dot on"></span>AO VIVO' : s === 'hub' ? '<span class="rk-dot on"></span>AO VIVO · você é o servidor' : s === 'connecting' ? '<span class="rk-dot mid"></span>conectando…' : '<span class="rk-dot off"></span>offline · cópia local';
+  }
+  private myRankPos(): { pos: number; total: number } {
+    const rows = rankStandings(this.rankNet.board);
+    const st = rankState();
+    const i = rows.findIndex(r => r.dev === st.dev);
+    return { pos: i < 0 ? rows.length + 1 : i + 1, total: Math.max(rows.length, i < 0 ? rows.length + 1 : rows.length) };
+  }
+
+  showRanked(): void {
+    const st = rankState();
+    if (!st.name) { this.showRankRegister(); return; }
+    this.rankNetStart();
+    this.rankSubmit();     // garante que o quadro local (e o hub, se online) tem meu score atual
+    this.clear();
+    const total = rankTotal(st);
+    const done = Object.values(st.place).filter(p => p <= 3).length;
+    const pos = this.myRankPos();
+    const s = this.el(`<div class="screen setup camp rank">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>⚔️ Ranqueada</h2><div></div></div>
+      <div class="rank-head">
+        <div class="camp-face" id="rface"></div>
+        <div class="rank-info">
+          <b>${st.name}</b>
+          <span class="rank-score">⚡ <b>${total}</b> <small>/ ${RANK_MAX_TOTAL} pts</small></span>
+          <span class="rank-sub">🏅 ${done}/40 · ${pos.pos > 0 && this.rankNet.status !== 'off' ? `🌍 ${pos.pos}º do mundo` : this.rankStatusHtml()}</span>
+        </div>
+        <button class="chip rank-board-btn" id="board">🌍 Ranking</button>
+      </div>
+      <div class="rank-bar"><i style="width:${Math.min(100, total / RANK_MAX_TOTAL * 100).toFixed(1)}%"></i></div>
+      <div class="camp-scroll" id="tiers"></div>
+      <button class="rk-del" id="del">🗑️ excluir conta do ranking</button>
+    </div>`);
+    this.root.appendChild(s); s.prepend(this.bgFx(5));
+    const cv = drawCap(skinById(st.cap).art, 96); cv.style.cssText = 'width:100%;height:100%;display:block';
+    (s.querySelector('#rface') as HTMLElement).appendChild(cv);
+    s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
+    s.querySelector('#board')!.addEventListener('click', () => this.showRankBoard());
+    s.querySelector('#del')!.addEventListener('click', () => this.showRankDelete());
+    const host = s.querySelector('#tiers') as HTMLElement;
+    RANK_TIERS.forEach((tg, ti) => {
+      const pid = RANK_PRIZE[ti]; const pk = skinById(pid);
+      const golds = tierGolds(st, ti);
+      const earned = save.hasBonus(pid);
+      const dn = tierDone(st, ti);
+      const sec = this.el(`<div class="camp-liga rank-tier" style="--lc:${tg.col}">
+        <div class="cl-head"><span class="cl-ico">${tg.ico}</span><div class="cl-tx"><b>${tg.name}</b><span>${tg.desc}</span></div><span class="rk-tprog">${dn}/8</span></div>
+        <button class="cl-prize ${earned ? 'earned' : ''}" style="--rc:${RARITY_COLOR[pk.rarity]}">
+          <div class="clp-face"></div>
+          <div class="clp-tx">
+            <span class="clp-tag">${earned ? '🏆 CONQUISTADA!' : '👑 PRÊMIO DO TIER'}</span>
+            <b>${pk.name}</b>
+            <span class="clp-rar"><i class="rar-dot"></i>${RARITY_LABEL[pk.rarity]} EXCLUSIVA · a melhor do jogo</span>
+            <span class="clp-cond">${earned ? 'sua pra sempre — joga com ela em tudo!' : 'faça <b>🥇 OURO</b> nas 8 competições do tier'}</span>
+            <span class="clp-prog">${'🥇'.repeat(golds)}${'<i class="clp-slot"></i>'.repeat(Math.max(0, 8 - golds))} <em>${golds}/8</em></span>
+          </div>
+          <span class="clp-zoom">🔍</span>
+        </button>
+        <div class="cl-comps"></div>
+      </div>`);
+      const pf = sec.querySelector('.clp-face') as HTMLElement;
+      const pcv = drawCap(pk.art, 100); pcv.style.cssText = 'width:72px;height:72px;display:block';
+      pf.appendChild(pcv);
+      sec.querySelector('.cl-prize')!.addEventListener('click', () => this.showCapStats(pk.name, pid));
+      const grid = sec.querySelector('.cl-comps') as HTMLElement;
+      RANK_COMPS.forEach((c, ci) => {
+        if (c.tier !== ti) return;
+        const unlocked = rankUnlocked(st, ci);
+        const place = st.place[c.id];
+        const trophy = place === 1 ? '🥇' : place === 2 ? '🥈' : place === 3 ? '🥉' : '';
+        const best = st.best[c.id] ?? 0;
+        const card = this.el(`<button class="cc rk-cc ${unlocked ? '' : 'locked'} ${c.idx === 7 ? 'final' : ''}">
+          <span class="cc-ico">${unlocked ? c.ico : '🔒'}</span>
+          <b>${c.name}</b>
+          <span class="cc-sub">${c.races} corridas · rivais ${c.boost > 0 ? `+${Math.round(c.boost * 100)}% 💪` : 'na base'}</span>
+          <span class="rk-pts ${best >= compMax(c) ? 'max' : ''}">${best > 0 ? `⚡ ${best}/${compMax(c)}` : unlocked ? '⚡ 0/' + compMax(c) : ''}</span>
+          <span class="cc-tro">${trophy || (unlocked ? '▶ JOGAR' : 'pódio na anterior')}</span>
+        </button>`);
+        if (unlocked) card.addEventListener('click', () => this.showRankCompIntro(c));
+        grid.appendChild(card);
+      });
+      host.appendChild(sec);
+    });
+  }
+
+  // primeiro acesso: registrar o NOME ÚNICO do ranking
+  showRankRegister(): void {
+    this.rankNetStart();
+    this.clear();
+    const s = this.el(`<div class="screen setup camp rank">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Menu</button><h2>⚔️ Ranqueada</h2><div></div></div>
+      <div class="rank-reg">
+        <div class="rk-reg-ico">⚔️</div>
+        <h3>Escolha seu nome de batalha</h3>
+        <p class="rk-reg-p">É o nome que aparece no <b>Ranking Mundial</b> — e é <b>único</b>: se alguém já usa, você precisa de outro. Escolha bem: é a sua lenda!</p>
+        <div class="rk-input-row"><input id="nm" maxlength="12" placeholder="ex.: Diego" autocomplete="off"><span class="rk-check" id="chk"></span></div>
+        <div class="rk-status">${this.rankStatusHtml()}</div>
+        <button class="play-btn" id="go">⚔️ ENTRAR NO RANKING</button>
+        <div class="rk-rules">
+          <div>🪜 <b>5 tiers</b> (Normal → Místico) · <b>8 competições</b> cada — 40 no total</div>
+          <div>🧢 Você joga com <b>as suas tampinhas</b>: no Normal valem as comuns; cada tier libera a raridade seguinte</div>
+          <div>💪 Os rivais <b>ficam mais fortes</b> a cada etapa (até +45% na Grande Final do tier)</div>
+          <div>⚡ Cada corrida vale pontos (12·9·7·5·3·1). O <b>melhor resultado</b> de cada competição soma no seu score — dá pra voltar e melhorar!</div>
+          <div>👑 <b>OURO nas 8</b> de um tier = tampinha EXCLUSIVA (as 5 melhores do jogo)</div>
+        </div>
+      </div>
+    </div>`);
+    this.root.appendChild(s); s.prepend(this.bgFx(6));
+    s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
+    const inp = s.querySelector('#nm') as HTMLInputElement;
+    const chk = s.querySelector('#chk') as HTMLElement;
+    const stat = s.querySelector('.rk-status') as HTMLElement;
+    const st = rankState();
+    const verify = () => {
+      const n = inp.value;
+      if (!n.trim()) { chk.textContent = ''; return; }
+      const err = validName(n);
+      if (err) { chk.textContent = '✕ ' + err; chk.className = 'rk-check bad'; return; }
+      if (!nameFree(this.rankNet.board, n, st.dev)) { chk.textContent = '✕ nome já em uso'; chk.className = 'rk-check bad'; return; }
+      chk.textContent = this.rankNet.status === 'online' || this.rankNet.status === 'hub' ? '✓ disponível' : '✓ livre por aqui';
+      chk.className = 'rk-check ok';
+    };
+    inp.addEventListener('input', verify);
+    this.rankNet.onChange = () => { stat.innerHTML = this.rankStatusHtml(); verify(); };
+    s.querySelector('#go')!.addEventListener('click', () => {
+      const n = inp.value.trim().replace(/\s+/g, ' ');
+      const err = validName(n);
+      if (err) { this.notify('✕ ' + err, 'bad'); return; }
+      if (!nameFree(this.rankNet.board, n, st.dev)) { this.notify(`✕ "${n}" já está em uso no ranking — escolha outro`, 'bad'); return; }
+      const st2 = rankState(); st2.name = n; st2.claimTs = Date.now(); saveRank(st2);
+      this.rankNet.watch(n, st2.dev);
+      this.rankSubmit();
+      if (this.rankNet.status === 'off' || this.rankNet.status === 'connecting') this.notify('📡 Sem conexão agora — seu nome será confirmado quando o ranking conectar', 'bad');
+      else this.notify(`⚔️ ${n} entrou pro ranking!`, 'good');
+      this.showRanked();
+    });
+  }
+
+  showRankDelete(): void {
+    const st = rankState();
+    const { box, close } = this.overlay(`
+      <div class="ov-head"><b>🗑️ Excluir conta do ranking</b><button class="ov-x">✕</button></div>
+      <div class="cc-detail">
+        <div>Isso apaga <b>${st.name}</b> do Ranking Mundial e <b>zera todo o seu progresso</b> na Ranqueada (as 40 competições).</div>
+        <div>O nome <b>fica livre</b> pra qualquer pessoa usar. Tampinhas exclusivas já ganhas <b>continuam suas</b>.</div>
+        <div class="cc-final-note">Não tem volta!</div>
+      </div>
+      <div class="mactions"><button class="chip" id="no">Cancelar</button><button class="play-btn danger" id="yes">Excluir mesmo</button></div>`);
+    box.querySelector('.ov-x')!.addEventListener('click', close);
+    box.querySelector('#no')!.addEventListener('click', close);
+    box.querySelector('#yes')!.addEventListener('click', () => {
+      close();
+      if (st.name) this.rankNet.submit({ name: st.name, dev: st.dev, score: 0, tier: 0, golds: 0, cap: st.cap, claimTs: st.claimTs, ts: Date.now(), del: Date.now() });
+      resetRank();
+      this.rankNet.watch(null, st.dev);
+      this.notify('Conta excluída. O nome ficou livre.', 'good');
+      this.showMenu();
+    });
+  }
+
+  // RANKING MUNDIAL
+  showRankBoard(): void {
+    this.rankNetStart();
+    this.rankSubmit();
+    this.clear();
+    const s = this.el(`<div class="screen setup camp rank">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Ranqueada</button><h2>🌍 Ranking Mundial</h2><div></div></div>
+      <div class="rk-status center" id="stat">${this.rankStatusHtml()}</div>
+      <div class="camp-scroll rk-rows" id="rows"></div>
+    </div>`);
+    this.root.appendChild(s); s.prepend(this.bgFx(4));
+    s.querySelector('#back')!.addEventListener('click', () => { this.rankNet.onChange = () => {}; this.showRanked(); });
+    const rowsEl = s.querySelector('#rows') as HTMLElement;
+    const st = rankState();
+    const render = () => {
+      (s.querySelector('#stat') as HTMLElement).innerHTML = this.rankStatusHtml();
+      const rows = rankStandings(this.rankNet.board);
+      rowsEl.innerHTML = '';
+      if (!rows.length) { rowsEl.appendChild(this.el('<div class="rk-empty">Ninguém no ranking ainda — seja a primeira lenda! ⚔️</div>')); return; }
+      rows.slice(0, 100).forEach((r, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}º`;
+        const you = r.dev === st.dev;
+        const tg = RANK_TIERS[Math.min(4, r.tier)];
+        const row = this.el(`<div class="rk-row ${you ? 'you' : ''} ${i < 3 ? 'top' : ''}">
+          <span class="rk-pos">${medal}</span>
+          <span class="rk-capface"></span>
+          <div class="rk-nm"><b>${r.name}${you ? ' <i>(você)</i>' : ''}</b><small>${tg.ico} ${tg.name}${r.golds ? ` · ${r.golds}🥇` : ''}</small></div>
+          <b class="rk-sc">⚡ ${r.score}</b>
+        </div>`);
+        (row.querySelector('.rk-capface') as HTMLElement).appendChild(drawCap(skinById(r.cap || 'coca').art, 44));
+        rowsEl.appendChild(row);
+      });
+    };
+    render();
+    this.rankNet.onChange = render;
+    this.rankNet.refresh();
+  }
+
+  // ficha da competição + ESCOLHA DA TAMPINHA (elegível pelo tier)
+  showRankCompIntro(c: RankComp): void {
+    const st = rankState();
+    const tg = RANK_TIERS[c.tier];
+    const caps = eligibleCaps(c.tier);
+    if (!this.rankCapSel || !caps.some(k => k.id === this.rankCapSel)) this.rankCapSel = caps.some(k => k.id === st.cap) ? st.cap : caps[caps.length - 1]?.id || 'coca';
+    const best = st.best[c.id] ?? 0;
+    const rarLab = RANK_TIERS.slice(0, c.tier + 1).map(t2 => RARITY_LABEL[t2.rarity as keyof typeof RARITY_LABEL]).join(' · ');
+    const { box, close } = this.overlay(`
+      <div class="ov-head"><b>${c.ico} ${c.name} <small class="rk-tiertag" style="--lc:${tg.col}">${tg.ico} ${tg.name}</small></b><button class="ov-x">✕</button></div>
+      <div class="cc-detail">
+        <div>🏁 <b>${c.races} corridas</b> · pontos por posição (12·9·7·5·3·1)</div>
+        <div>🥊 <b>${c.nOpp} rivais ${RARITY_LABEL[tg.rarity as keyof typeof RARITY_LABEL]}s</b> ${c.boost > 0 ? `<b class="rk-boost">+${Math.round(c.boost * 100)}% mais fortes 💪</b>` : 'na força natural'}</div>
+        <div>⚡ Seu melhor aqui: <b>${best}/${compMax(c)}</b> — melhorou, o score sobe junto</div>
+        <div>🏅 Pódio libera a próxima · 🥇 ouro conta pro prêmio do tier</div>
+      </div>
+      <div class="rk-pick-title">🧢 Escolha a tampinha <small>(valem: ${rarLab})</small></div>
+      <div class="rk-pick" id="pick"></div>
+      <div class="mactions"><button class="play-btn" id="go">🏁 Começar</button></div>`, 'rk-ov');
+    box.querySelector('.ov-x')!.addEventListener('click', close);
+    const pick = box.querySelector('#pick') as HTMLElement;
+    const renderPick = () => {
+      pick.innerHTML = '';
+      for (const k of caps) {
+        const sel = k.id === this.rankCapSel;
+        const card = this.el(`<button class="rk-cap ${sel ? 'sel' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}"><span class="rk-cap-face"></span><small>${k.name}</small></button>`);
+        (card.querySelector('.rk-cap-face') as HTMLElement).appendChild(drawCap(k.art, 66));
+        card.addEventListener('click', () => { this.rankCapSel = k.id; renderPick(); });
+        pick.appendChild(card);
+      }
+    };
+    renderPick();
+    box.querySelector('#go')!.addEventListener('click', () => { close(); this.launchRank(c); });
+  }
+  launchRank(c: RankComp): void {
+    const capId = this.rankCapSel || 'coca';
+    const opp = pickRankOpponents(c);
+    const players: PlayerDef[] = [
+      { name: rankState().name || 'Você', isAI: false, skin: capId },
+      ...opp.map((o, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: c.aiKinds[i % c.aiKinds.length], skin: o.skin, stats: o.stats })),
+    ];
+    this.cb.start({ level: c.level, trackIdx: Math.floor(Math.random() * TRACKS_PER_LEVEL), pick: 'randlevel', players, mode: 'rank', rankComp: c.id });
+  }
+
+  // resultado da competição ranqueada (pontos + ranking + prêmio)
+  showRankResult(d: { comp: RankComp; place: number; pts: number; rows: { name: string; skin: string; pts: number; you: boolean }[]; hist: number[]; capId: string }): void {
+    const st = rankState();
+    const res = applyRankResult(st, d.comp.id, d.place, d.pts, d.capId);
+    this.rankSubmit();
+    const { modal, box } = this.modalBox(); box.className = 'modal win';
+    const tro = d.place === 1 ? '🥇' : d.place === 2 ? '🥈' : d.place === 3 ? '🥉' : '😤';
+    const head = d.place === 1 ? 'OURO!' : d.place === 2 ? 'Prata!' : d.place === 3 ? 'Bronze!' : d.place + 'º lugar';
+    const tg = RANK_TIERS[d.comp.tier];
+    const golds = tierGolds(st, d.comp.tier);
+    const pz = res.prize ? skinById(res.prize) : null;
+    const nextLocked = !res.podium && (st.place[d.comp.id] ?? 99) > 3;
+    box.innerHTML = `<div class="camp-tro">${tro}</div><h3>${d.comp.ico} ${d.comp.name} <small class="rk-tiertag" style="--lc:${tg.col}">${tg.ico} ${tg.name}</small></h3><div class="camp-place">${head}</div>
+      <div class="rk-res-pts">
+        <div class="rkp"><span>essa rodada</span><b>⚡ ${d.pts}</b></div>
+        <div class="rkp ${res.dPts > 0 ? 'up' : ''}"><span>${res.dPts > 0 ? 'score mundial' : 'seu melhor'}</span><b>${res.dPts > 0 ? `+${res.dPts} pts! 📈` : `⚡ ${st.best[d.comp.id] ?? 0}`}</b></div>
+        <div class="rkp"><span>score total</span><b>⚡ ${rankTotal(st)}</b></div>
+      </div>
+      ${pz ? `<div class="prize-reveal" style="--rc:${RARITY_COLOR[pz.rarity]}">
+        <div class="pr-tag">✨ TAMPINHA EXCLUSIVA DESBLOQUEADA ✨</div>
+        <div class="pr-face" id="prf"></div>
+        <b class="pr-name">${pz.name}</b>
+        <span class="pr-rar"><i class="rar-dot"></i>${RARITY_LABEL[pz.rarity]} · OURO nas 8 do ${tg.name}</span>
+        ${capBars(pz.stats, true)}
+        <span class="pr-note">a melhor da categoria — sua pra sempre! 🎉</span>
+      </div>` : `<div class="rk-goldprog">👑 Prêmio do tier: ${'🥇'.repeat(golds)}${'<i class="clp-slot"></i>'.repeat(Math.max(0, 8 - golds))} <em>${golds}/8 ouros</em></div>`}
+      ${nextLocked ? '<div class="camp-tip">Precisa de PÓDIO (top 3) pra liberar a próxima etapa. Troca de tampinha e tenta de novo!</div>' : ''}
+      ${raceStrip(d.hist.length, d.hist.length, d.hist)}
+      <div class="champ-stand">${d.rows.map((r, i) => `<div class="cs-row ${r.you ? 'you' : ''} ${i === 0 ? 'lead' : ''}"><span class="cs-pos">${i + 1}º</span><span class="cs-cap" data-s="${r.skin}"></span><span class="cs-nm">${r.name}</span><b class="cs-pts">${r.pts}</b></div>`).join('')}</div>
+      <div class="mactions"><button class="chip" id="again">↻ De novo</button><button class="play-btn" id="mapa">Ranqueada ▶</button></div>`;
+    box.querySelectorAll('.cs-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 44)));
+    const prf = box.querySelector('#prf') as HTMLElement | null;
+    if (prf && pz) { const pcv = drawCap(pz.art, 150); pcv.style.cssText = 'width:110px;height:110px;display:block;margin:0 auto'; prf.appendChild(pcv); }
+    modal.classList.remove('hidden');
+    if (res.podium || pz) this.confetti(box);
+    box.querySelector('#again')!.addEventListener('click', () => { this.hideModal(); this.onRankRetry?.(d.comp.id); });
+    box.querySelector('#mapa')!.addEventListener('click', () => { this.hideModal(); this.onRankBack?.(); });
   }
 
   // -------------------------------------------------------- EDITOR DE PISTA
@@ -932,7 +1250,7 @@ export class UI {
         const card = this.el(`<button class="skin-card ${cur === k.id ? 'sel' : ''} ${locked ? 'locked' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}">
           <div class="skin-face"></div>
           <div class="skin-name">${k.name}</div>
-          <div class="skin-desc">${locked ? (k.prize != null ? '🏆 OURO nas 4 da ' + LIGAS[k.prize].name : '🔒 ' + k.unlock + ' vitórias') : k.desc}</div>
+          <div class="skin-desc">${locked ? (k.prize != null ? '🏆 OURO nas 4 da ' + LIGAS[k.prize].name : k.rprize != null ? '⚔️ OURO nas 8 do ' + RANK_TIERS[k.rprize].name + ' (Ranqueada)' : '🔒 ' + k.unlock + ' vitórias') : k.desc}</div>
           ${capBars(k.stats, true)}
         </button>`);
         const face = card.querySelector('.skin-face') as HTMLElement;

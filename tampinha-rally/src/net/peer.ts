@@ -20,6 +20,11 @@ const ICE = [
   { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ];
 const POPTS = { debug: 0, config: { iceServers: ICE } };
+// broker alternativo p/ testes (localStorage.tmprally_broker = {"host":"localhost","port":9000,...})
+export function peerOpts(): any {
+  try { const b = JSON.parse(localStorage.getItem('tmprally_broker') || 'null'); if (b) return { ...POPTS, ...b }; } catch {}
+  return POPTS;
+}
 const RETRY = new Set(['unavailable-id', 'network', 'server-error', 'socket-error', 'socket-closed', 'disconnected']);
 
 const NS = 'tmprally-';   // prefixo no broker público (evita colisão de código)
@@ -42,7 +47,7 @@ export class Net {
     const tryOpen = async (attempt: number) => {
       const PeerLib = await loadPeer();
       const code = attempt > 0 && this.code ? this.code : randCode();   // mantém o código nas retentativas de rede
-      const peer: Peer = new PeerLib(NS + code, POPTS);
+      const peer: Peer = new PeerLib(NS + code, peerOpts());
       this.peer = peer; this.code = code;
       let opened = false;
       peer.on('open', () => { opened = true; this.onOpen(code); });
@@ -72,7 +77,7 @@ export class Net {
     const tryJoin = (attempt: number) => {
       const again = (delay = 700) => { if (!connected && attempt < 7) setTimeout(() => tryJoin(attempt + 1), delay + attempt * 300); else if (!connected) this.onError('peer-unavailable'); };
       loadPeer().then((PeerLib) => {
-        const peer: Peer = new PeerLib(POPTS); this.peer = peer;
+        const peer: Peer = new PeerLib(peerOpts()); this.peer = peer;
         let opened = false;
         peer.on('open', () => {
           opened = true;

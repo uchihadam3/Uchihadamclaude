@@ -15,6 +15,7 @@ import { sfx, resumeAudio, setMusicVol, setSfxVol, setMuted, settings, audioCtx,
 import { playMusic, songForTheme, musicNow } from './music';
 import { save } from './game/save';
 import { compById, campState, saveCamp, applyResult } from './game/campaign';
+import { rankCompById, RANK_PTS } from './game/ranked';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const renderer = makeRenderer(canvas);
@@ -32,6 +33,7 @@ let curCfg: MatchConfig | null = null;
 let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string; hist: number[] } | null = null;
 let elim: { players: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[] } | null = null;
 let camp: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
+let rank: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
 let dailyFlicks = 0;
 let inGame = false;
 let previewing = false;
@@ -131,6 +133,8 @@ const ui = new UI({
     else elim = null;
     if (cfg.mode === 'camp' && cfg.campComp) camp = { compId: cfg.campComp, race: 0, pts: new Map(), hist: [] };
     else camp = null;
+    if (cfg.mode === 'rank' && cfg.rankComp) rank = { compId: cfg.rankComp, race: 0, pts: new Map(), hist: [] };
+    else rank = null;
     loadMatch(cfg);
   },
   setVols: (m, s, mu) => { setMusicVol(m); setSfxVol(s); setMuted(mu); save.setVols(m, s, mu); },
@@ -148,6 +152,8 @@ online.onChampEnd = (winner) => { resultsShown = true; if (winner.you) save.addW
 ui.onUseItem = () => { if (online.active) online.localUseItem(); else mgr.useItem(); };
 ui.onCampBack = () => { inGame = false; paused = false; camp = null; stopScene(); playMusic('menu'); ui.showCampaign(); };
 ui.onCampRetry = (compId) => { inGame = false; paused = false; camp = null; stopScene(); ui.launchCamp(compById(compId)); };
+ui.onRankBack = () => { inGame = false; paused = false; rank = null; stopScene(); playMusic('menu'); ui.showRanked(); };
+ui.onRankRetry = (compId) => { inGame = false; paused = false; rank = null; stopScene(); ui.launchRank(rankCompById(compId)); };
 ui.onCampFinale = () => { inGame = false; paused = false; camp = null; stopScene(); playMusic('menu'); ui.showCampFinale(); };
 ui.onPause = () => { if (mgr.phase !== 'over') { paused = true; ui.showPause(); } };
 ui.onResume = () => { paused = false; ui.hideModal(); };
@@ -157,6 +163,11 @@ ui.onNext = () => {
   ui.hideModal();
   if (camp && curCfg) {   // campanha: próxima corrida da competição (pista nova do nível)
     camp.race++;
+    curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
+    loadMatch(curCfg); return;
+  }
+  if (rank && curCfg) {   // ranqueada: próxima corrida da competição
+    rank.race++;
     curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
     loadMatch(curCfg); return;
   }
@@ -257,6 +268,22 @@ function onRaceOver(): void {
     const place = rows.findIndex(r => r.you) + 1;
     const res = applyResult(campState(), camp.compId, place);
     ui.showCampResult({ comp, place, ptsGained: res.pts, winsGained: res.wins, improved: res.improved, finished: res.finished, rows, hist: camp.hist.slice(), prize: res.prize });
+    return;
+  }
+
+  // ---- RANQUEADA: pontos por corrida, melhor total vai pro ranking mundial ----
+  if (mode === 'rank' && rank) {
+    const comp = rankCompById(rank.compId);
+    const table = RANK_PTS;
+    mgr.standings().forEach((c, i) => rank!.pts.set(c.id, (rank!.pts.get(c.id) || 0) + (table[i] || 0)));
+    rank.hist.push(mgr.standings().findIndex(c => !c.isAI) + 1);
+    const rows = [...rank.pts.entries()].sort((a, b) => b[1] - a[1]).map(([id, p]) => ({ name: mgr.caps[id].name, skin: mgr.caps[id].skin, pts: p, you: !mgr.caps[id].isAI }));
+    const last = rank.race + 1 >= comp.races;
+    if (!last) { ui.showResults(mgr, mode, { race: rank.race + 1, total: comp.races, last: false, rows, fmt: 'copa', hist: rank.hist.slice() }); return; }
+    const place = rows.findIndex(r => r.you) + 1;
+    const myPts = rows.find(r => r.you)?.pts || 0;
+    const me = mgr.caps.find(c => !c.isAI);
+    ui.showRankResult({ comp, place, pts: myPts, rows, hist: rank.hist.slice(), capId: me ? me.skin : 'coca' });
     return;
   }
 

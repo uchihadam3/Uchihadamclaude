@@ -608,3 +608,77 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .prize-reveal .pr-note { display:block; font-size:11.5px; margin-top:6px; color:#8af0a0; font-weight:800; }
 .cl-prize b, .cl-prize .clp-cond { color:#fdf6e4; }
 .cl-prize .clp-cond b { color:#ffd76a; }
+
+/* ============================ RANQUEADA ============================ */
+.rank-head{width:100%;max-width:560px;display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(124,58,237,.28),rgba(0,0,0,.2));border-radius:16px;padding:10px 12px;box-shadow:var(--shadow);margin-top:6px;border:1px solid rgba(168,85,247,.4)}
+.rank-info{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.rank-info>b{font-size:16px;color:var(--ink)}
+.rank-score{font-size:14px;font-weight:900;color:#e9d5ff}
+.rank-score small{font-weight:700;opacity:.6;font-size:11px}
+.rank-sub{font-size:11px;font-weight:800;color:#c9b0e8;display:flex;align-items:center;gap:5px}
+.rank-board-btn{flex:none}
+.rank-bar{width:100%;max-width:560px;height:8px;border-radius:99px;background:rgba(0,0,0,.3);margin:8px 0 4px;overflow:hidden}
+.rank-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#e879f9);box-shadow:0 0 10px rgba(168,85,247,.7);transition:width .5s}
+.rank-tier .cl-head{position:relative}
+.rk-tprog{position:absolute;right:2px;top:2px;font-size:12px;font-weight:900;color:var(--lc);background:rgba(0,0,0,.25);border-radius:99px;padding:3px 9px}
+.rk-cc{position:relative}
+.rk-pts{font-size:10.5px;font-weight:900;color:#b8a0d8}
+.rk-pts.max{color:#ffd24a}
+.rk-del{margin:14px auto 4px;background:none;border:none;color:rgba(255,180,180,.55);font-weight:800;font-size:11.5px;cursor:pointer;text-decoration:underline}
+/* registro */
+.rank-reg{width:100%;max-width:480px;background:var(--glass);border-radius:20px;padding:20px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;margin-top:10px}
+.rk-reg-ico{font-size:44px;filter:drop-shadow(0 4px 8px rgba(124,58,237,.5))}
+.rank-reg h3{margin:0;color:var(--ink);font-size:19px}
+.rk-reg-p{margin:0;font-size:13px;color:#8a6a48;font-weight:600;line-height:1.4}
+.rk-input-row{width:100%;display:flex;flex-direction:column;gap:4px}
+.rk-input-row input{width:100%;box-sizing:border-box;border:3px solid rgba(124,58,237,.5);border-radius:14px;padding:12px 14px;font-size:18px;font-weight:900;text-align:center;background:rgba(255,255,255,.85);color:#3a2408;outline:none}
+.rk-input-row input:focus{border-color:#a855f7;box-shadow:0 0 0 4px rgba(168,85,247,.2)}
+.rk-check{font-size:12.5px;font-weight:900;min-height:16px}
+.rk-check.ok{color:var(--grn)}
+.rk-check.bad{color:var(--red)}
+.rk-status{font-size:11px;font-weight:800;color:#9a7550;display:flex;align-items:center;gap:5px;justify-content:center}
+.rk-status.center{margin:6px 0}
+.rk-dot{width:8px;height:8px;border-radius:99px;display:inline-block}
+.rk-dot.on{background:#3fae6a;box-shadow:0 0 7px #3fae6a;animation:rkpulse 1.6s infinite}
+.rk-dot.mid{background:#f2b100;animation:rkpulse .8s infinite}
+.rk-dot.off{background:#9a9a9a}
+@keyframes rkpulse{0%,100%{opacity:1}50%{opacity:.4}}
+.rk-rules{display:flex;flex-direction:column;gap:7px;text-align:left;font-size:12px;color:#7a5a38;font-weight:600;background:rgba(0,0,0,.08);border-radius:12px;padding:11px 12px;line-height:1.35}
+/* ranking mundial */
+.rk-rows{gap:7px !important}
+.rk-row{width:100%;max-width:560px;display:flex;align-items:center;gap:10px;background:var(--glass);border-radius:14px;padding:8px 12px;box-shadow:0 3px 8px rgba(0,0,0,.15)}
+.rk-row.top{background:linear-gradient(135deg,rgba(242,177,0,.25),var(--glass))}
+.rk-row.you{outline:3px solid #7c3aed;background:linear-gradient(135deg,rgba(124,58,237,.22),var(--glass))}
+.rk-pos{flex:none;width:36px;text-align:center;font-weight:900;font-size:15px;color:var(--ink)}
+.rk-capface{flex:none;width:38px;height:38px}
+.rk-capface canvas{width:100%;height:100%;display:block}
+.rk-nm{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.rk-nm b{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-nm b i{font-style:normal;font-size:11px;color:#a855f7}
+.rk-nm small{font-size:10.5px;color:#9a7550;font-weight:700}
+.rk-sc{flex:none;font-size:14.5px;color:#7c3aed}
+.rk-empty{text-align:center;color:#9a7550;font-weight:800;padding:26px 10px}
+/* intro da competição + picker */
+.rk-ov{max-height:86vh;overflow-y:auto}
+.rk-tiertag{font-size:10.5px;font-weight:900;color:var(--lc);background:rgba(0,0,0,.18);border-radius:99px;padding:2px 8px;vertical-align:middle}
+.rk-boost{color:var(--red)}
+.rk-pick-title{font-weight:900;color:var(--ink);font-size:13.5px;margin:10px 0 6px}
+.rk-pick-title small{color:#9a7550;font-weight:700}
+.rk-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:7px;max-height:200px;overflow-y:auto;padding:3px}
+.rk-cap{--rc:#9aa2ac;display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(0,0,0,.1);border:2.5px solid transparent;border-radius:12px;padding:7px 3px;cursor:pointer;transition:transform .08s}
+.rk-cap:active{transform:scale(.94)}
+.rk-cap.sel{border-color:var(--rc);background:rgba(255,255,255,.14);box-shadow:0 0 10px rgba(0,0,0,.2)}
+.rk-cap-face{width:46px;height:46px}
+.rk-cap-face canvas{width:100%;height:100%;display:block}
+.rk-cap small{font-size:9.5px;font-weight:800;color:var(--ink);line-height:1.1;text-align:center}
+/* resultado */
+.rk-res-pts{display:flex;gap:8px;justify-content:center;margin:8px 0}
+.rkp{display:flex;flex-direction:column;align-items:center;background:rgba(0,0,0,.12);border-radius:12px;padding:7px 12px;min-width:74px}
+.rkp span{font-size:9.5px;font-weight:800;color:#9a7550;text-transform:uppercase}
+.rkp b{font-size:15px;color:var(--ink)}
+.rkp.up b{color:var(--grn)}
+.rkp.up{outline:2px solid var(--grn);animation:rkup .5s ease}
+@keyframes rkup{0%{transform:scale(.7)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+.rk-goldprog{font-size:12.5px;font-weight:800;color:var(--ink);background:rgba(242,177,0,.14);border-radius:12px;padding:8px 10px;margin:6px 0}
+.rk-goldprog em{font-style:normal;color:#c98a00;font-weight:900}
+.play-btn.danger{background:linear-gradient(180deg,#e5484d,#b02428)}

@@ -11,6 +11,7 @@ export interface Skin {
   rarity: Rarity; art: CapArt; stats: CapStats; unlock: number; desc: string;
   hidden?: boolean;   // tampinhas da CAMPANHA: fora da coleção e dos pools de IA
   prize?: number;     // PRÊMIO DE LIGA (0..4): ouro nas 4 competições da liga
+  rprize?: number;    // PRÊMIO RANQUEADA (0..4): ouro nas 8 competições do tier
 }
 
 // arquétipos de jogo (personalidade); a raridade aplica um lift leve por cima.
@@ -171,4 +172,38 @@ SKINS.push(
     'A soda mais antiga do MUNDO. Precisão de dois séculos e meio.')),
 );
 
+// ---------------- PRÊMIOS DA RANQUEADA (ouro nas 8 competições do tier) ----------------
+// Refris REAIS brasileiros que ainda não estavam no jogo. São as MELHORES tampinhas
+// do jogo: levam o brilho de troféu da liga E MAIS ~2.5% em cima (2-3% acima das
+// exclusivas de liga) — o troféu supremo de quem domina o ranking.
+// cada uma usa o MESMO arquétipo da exclusiva de liga do seu tier → fica
+// estritamente ~2.5% acima dela em TODOS os atributos (dominância provável)
+const RANK_EXTRA = 0.025;
+function rankPrizeCap(tier: number, sk: Skin): Skin {
+  prizeCap(tier, sk); sk.prize = undefined; sk.rprize = tier;
+  const f = 1 + RANK_EXTRA, g = 1 + RANK_EXTRA * 0.6;
+  for (const k of Object.keys(sk.stats) as (keyof CapStats)[]) sk.stats[k] = +(sk.stats[k] * (sk.stats[k] >= 1 ? f : g)).toFixed(3);
+  return sk;
+}
+SKINS.push(
+  rankPrizeCap(0, cap('mineirinho', 'Mineirinho', 'comum', 99999, 'nimble', '#1f7a3a',
+    { bg: ['#2f9a4c', '#0f5c26'], metal: 'steel', arcTop: ['O SABOR DE MINAS', '#eafcd0'], center: 'Mineirinho', centerColor: '#fff', centerFont: 'script', centerSize: 0.3, emblem: 'leaf', emblemColor: '#b8e986', emblemY: 0.4, emblemScale: 0.45, sub: ['MATE COM GUARANÁ', '#eafcd0'], vintage: 0.45 },
+    'O verdinho de Minas, mate com guaraná. Ágil como moleque de botequim.')),
+  rankPrizeCap(1, cap('dolly', 'Dolly Guaraná', 'rara', 99999, 'bouncy', '#f2c200',
+    { bg: ['#f7d84a', '#2f9a4c'], metal: 'gold', arcTop: ['GUARANÁ', '#0f5c26'], center: 'Dolly', centerColor: '#0f5c26', centerFont: 'script', centerSize: 0.5, sub: ['O PREFERIDO', '#0f5c26'], vintage: 0.4 },
+    'O guaraná paulista que virou lenda. Quica alegre como a propaganda.')),
+  rankPrizeCap(2, cap('saogeraldo', 'Cajuína São Geraldo', 'epica', 99999, 'heavy', '#e5761a',
+    { bg: ['#f4b03a', '#c85f12'], metal: 'gold', arcTop: ['CAJUÍNA', '#7a2f08'], center: 'São Geraldo', centerColor: '#fff', centerFont: 'serif', centerSize: 0.28, emblem: 'sunburst', emblemColor: '#ffe9c0', emblemColor2: '#ffe9c0', emblemY: -0.38, emblemScale: 0.32, sub: ['DESDE 1938 · CE', '#7a2f08'], vintage: 0.5 },
+    'O ouro do caju cearense. Parruda e imponente como o sertão.')),
+  rankPrizeCap(3, cap('bare', 'Baré Guaraná', 'lendaria', 99999, 'glide', '#1a4fa0',
+    { bg: ['#1f5ab0', '#0d3070'], metal: 'gold', arcTop: ['O GUARANÁ DO NORTE', '#f4d76a'], center: 'Baré', centerColor: '#f4d76a', centerFont: 'slab', centerSize: 0.44, sub: ['MANAUS · AM', '#dceaff'], vintage: 0.45 },
+    'O gigante de Manaus, orgulho do Norte. Desliza como o rio Negro.')),
+  rankPrizeCap(4, cap('guaranajesus', 'Guaraná Jesus', 'mitica', 99999, 'precise', '#ff4fa3',
+    { bg: ['#ff7ac0', '#d81f6a'], metal: 'gold', arcTop: ['O SABOR ROSA', '#fff'], center: 'Jesus', centerColor: '#fff', centerFont: 'script', centerSize: 0.46, emblem: 'star', emblemColor: '#ffe36a', emblemY: -0.4, emblemScale: 0.32, sub: ['MARANHÃO · 1920', '#ffe9f4'], vintage: 0.4 },
+    'O rosa milagroso do Maranhão. Precisão divina — a melhor tampinha do jogo.')),
+);
+
 export const unlockedSkins = (wins: number): Skin[] => SKINS.filter(s => !s.hidden && (wins >= s.unlock || save.hasBonus(s.id)));
+// posição da raridade na escada (p/ regra de elegibilidade da Ranqueada)
+import { RARITY_ORDER } from '../render/capart';
+export const rarityIndex = (r: Rarity): number => RARITY_ORDER.indexOf(r);
