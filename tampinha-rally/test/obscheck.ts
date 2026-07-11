@@ -1,8 +1,9 @@
 // PROVA os 5 obstáculos novos + raridade/risco dos bônus + densidade da pista
 import { makeCap, DEFAULT_STATS, vec, len } from '../src/engine/core';
 import { stepWorld } from '../src/engine/physics';
-import { TrackModel, TrackDef, bugPos } from '../src/engine/track';
+import { TrackModel, TrackDef } from '../src/engine/track';
 import { track, TRACKS_PER_LEVEL } from '../src/game/generator';
+import { GameManager } from '../src/game/manager';
 
 function lane(obstacles: any[]): TrackModel {
   const path: any[] = []; for (let i = 0; i <= 40; i++) path.push(vec(5 + i * 2, 20));
@@ -26,15 +27,26 @@ console.log('=== PIÃO: rebate + chute LATERAL (pinball) ===');
   console.log(`  eventos=[${[...new Set(evs)].join(',')}] · desviou de lado? dy=${Math.abs(c.pos.y - 20).toFixed(1)} (>1.5? ${Math.abs(c.pos.y - 20) > 1.5})`);
   if (!evs.includes('top') || Math.abs(c.pos.y - 20) < 1.5) { console.log('  ✗'); process.exit(1); }
 }
-console.log('\n=== JOANINHA: anda por turno + esbarrão macio ===');
+console.log('\n=== CARRINHO: esbarrão dispara evento e ele MUDA de lugar ===');
 {
-  const o: any = { type: 'bug', x: 18, y: 20, r: 0.85, dir: 0, n: 2.2, ph: 0 };
-  const p0 = bugPos(o); o.ph = 3; const p3 = bugPos(o);
-  console.log(`  posição muda com o passo? ${(Math.hypot(p3.x - p0.x, p3.y - p0.y)).toFixed(2)}u (>0.8? ${Math.hypot(p3.x - p0.x, p3.y - p0.y) > 0.8})`);
-  o.ph = 0;
-  const { c, evs } = shoot(lane([o]), 18, 0);
-  console.log(`  bateu na joaninha? ${evs.includes('bug')} · x final=${c.pos.x.toFixed(1)}`);
-  if (Math.hypot(p3.x - p0.x, p3.y - p0.y) < 0.8 || !evs.includes('bug')) { console.log('  ✗'); process.exit(1); }
+  // física: toque emite 1 evento 'car' (esbarrão macio)
+  const o: any = { type: 'car', x: 18, y: 20, r: 0.9, dir: 0 };
+  const { evs } = shoot(lane([o]), 18, 0);
+  const nCar = evs.filter(e => e === 'car').length;
+  console.log(`  bateu no carrinho? evento car=${nCar} (1? ${nCar === 1})`);
+  if (nCar !== 1) { console.log('  ✗'); process.exit(1); }
+  // manager: o evento faz o carrinho DISPARAR na direção dele e estacionar longe
+  const o2: any = { type: 'car', x: 18, y: 20, r: 0.9, dir: 0 };
+  const mgr = new GameManager();
+  mgr.setup(lane([o2]).def as any, [{ name: 'X', isAI: true, ai: 'tecnico', skin: 'classica' }]);
+  const oc = mgr.track.def.obstacles[0] as any;   // a CÓPIA que o jogo usa
+  const x0 = oc.x;
+  const cap = mgr.caps[0];
+  cap.pos = vec(14, 20); cap.turnStart = vec(14, 20);
+  (mgr as any).phase = 'moving'; cap.vel = vec(16, 0); cap.moving = true;
+  for (let i = 0; i < 1200 && (mgr.phase as string) === 'moving'; i++) mgr.update(1 / 60);
+  console.log(`  carrinho andou? ${x0.toFixed(1)} → ${oc.x.toFixed(1)} (>3u? ${oc.x - x0 > 3})`);
+  if (oc.x - x0 <= 3) { console.log('  ✗'); process.exit(1); }
 }
 console.log('\n=== ELÁSTICO: devolve COM GANHO (estilingue) ===');
 {
@@ -86,7 +98,7 @@ console.log('\n=== BEXIGA: estoura 1 vez e o SPLASH empurra o vizinho ===');
 console.log('\n=== RARIDADE dos bônus nas 50 pistas (1 comum > 2 > 3 raro) ===');
 {
   const cnt = [0, 0, 0, 0];
-  let novos = { top: 0, bug: 0, band: 0, mill: 0, balloon: 0 } as any;
+  let novos = { top: 0, car: 0, band: 0, mill: 0, balloon: 0 } as any;
   let densFail = 0;
   for (let lv = 0; lv < 5; lv++) for (let i = 0; i < TRACKS_PER_LEVEL; i++) {
     const def = track(lv, i);
@@ -102,9 +114,9 @@ console.log('\n=== RARIDADE dos bônus nas 50 pistas (1 comum > 2 > 3 raro) ==='
     if (bins.some(b => b === 0)) densFail++;
   }
   console.log(`  +1=${cnt[1]} · +2=${cnt[2]} · +3=${cnt[3]} → ordem certa? ${cnt[1] > cnt[2] && cnt[2] > cnt[3]}`);
-  console.log(`  brinquedos no jogo: pião=${novos.top} joaninha=${novos.bug} elástico=${novos.band} catavento=${novos.mill} bexiga=${novos.balloon}`);
+  console.log(`  brinquedos no jogo: pião=${novos.top} carrinho=${novos.car} elástico=${novos.band} catavento=${novos.mill} bexiga=${novos.balloon}`);
   console.log(`  pistas com quinto VAZIO (sem desafio): ${densFail} (0? ${densFail === 0})`);
   if (!(cnt[1] > cnt[2] && cnt[2] > cnt[3]) || densFail > 0) { console.log('  ✗'); process.exit(1); }
-  if (novos.top < 30 || novos.bug < 30 || novos.band < 20 || novos.mill < 15 || novos.balloon < 30) { console.log('  POUCOS BRINQUEDOS ✗'); process.exit(1); }
+  if (novos.top < 30 || novos.car < 30 || novos.band < 20 || novos.mill < 15 || novos.balloon < 30) { console.log('  POUCOS BRINQUEDOS ✗'); process.exit(1); }
 }
 console.log('\n✅ obscheck fim');

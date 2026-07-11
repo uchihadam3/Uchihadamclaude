@@ -72,11 +72,11 @@ export class GameManager {
   activeCap(): Cap { return this.caps[this.current]; }
 
   private beginTurn(first = false): void {
-    // BRINQUEDOS VIVOS: a joaninha dá um passinho e o catavento gira um tanto a
-    // cada vez (determinístico por turno — replays e online continuam batendo)
+    // BRINQUEDOS VIVOS: o catavento gira a cada turno, ALTERNANDO o sentido —
+    // fecha o caminho de um jeito diferente cada vez (determinístico por turno;
+    // replays e online continuam batendo)
     if (!first) for (const o of this.track.def.obstacles) {
-      if (o.type === 'bug') o.ph = (o.ph || 0) + 1;
-      else if (o.type === 'mill') o.dir = (o.dir || 0) + 0.55;
+      if (o.type === 'mill') { o.ph = (o.ph || 0) + 1; o.dir = (o.dir || 0) + (o.ph % 2 ? 0.9 : -0.9); }
     }
     // pula quem terminou ou está de castigo
     let guard = 0;
@@ -256,6 +256,35 @@ export class GameManager {
       case 'ramp': if (c.id === this.current) this.onToast('Voou! 🚀', 'good'); break;
       case 'top': if (c.id === this.current) this.onToast('🪀 o pião rebateu!', 'bad'); break;
       case 'band': if (c.id === this.current) this.onToast('🪃 estilingue!', 'good'); break;
+      case 'car': {
+        // CARRINHO DE FRICÇÃO: o toque solta a mola — ele DISPARA reto na direção
+        // que aponta, atropela tampinhas no caminho e estaciona onde parar
+        if (e.obsIdx != null) {
+          const o = this.track.def.obstacles[e.obsIdx];
+          if (o && o.type === 'car') {
+            const dir = o.dir || 0; const dx = Math.cos(dir), dy = Math.sin(dir);
+            const maxD = 10 + (e.power || 0) * 0.4;
+            let x = o.x, y = o.y, d = 0;
+            while (d < maxD) {
+              const nx = x + dx * 0.5, ny = y + dy * 0.5;
+              if (this.track.surfaceAt(vec(nx, ny)) === 'out') break;   // freia na beirada
+              x = nx; y = ny; d += 0.5;
+              for (const cc of this.caps) {                             // atropela quem tá no caminho
+                if (cc.finished) continue;
+                const ddx = cc.pos.x - x, ddy = cc.pos.y - y; const dd = Math.hypot(ddx, ddy);
+                if (dd < 1.6) {
+                  const rl = Math.max(0.001, dd);
+                  cc.vel.x += dx * 9 + (ddx / rl) * 4; cc.vel.y += dy * 9 + (ddy / rl) * 4;
+                  cc.moving = true; cc.itemFlash = 1;
+                }
+              }
+            }
+            o.x = x; o.y = y;                                           // estaciona no lugar novo
+            this.onToast('🚗 o carrinho disparou!', 'bad');
+          }
+        }
+        break;
+      }
       case 'balloon': {
         // estourou: marca na CÓPIA da pista e deixa uma poça d'água permanente
         if (e.obsIdx != null) {

@@ -375,13 +375,15 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
     const a = rf(0.12, 0.9) * total; if (!spacedT(a)) continue;
     placeAt(a, rf(-0.25, 0.25) * half0, pp => obstacles.push({ type: 'top', x: pp.x, y: pp.y, r: 0.95 })); k++;
   }
-  // JOANINHA: passeia de um lado pro outro da pista, um passinho por turno —
-  // bloqueia um lugar DIFERENTE a cada vez (obstáculo vivo!)
-  const nBug = ri(1, level >= 1 ? 2 : 1);
-  for (let k = 0, tries = 0; k < nBug && tries < 40; tries++) {
+  // CARRINHO DE FRICÇÃO: parado na pista, mas se alguém encostar ele DISPARA
+  // reto na direção que tá apontando — atropela quem estiver no caminho e
+  // estaciona num lugar novo (o obstáculo muda de posição na corrida!)
+  const nCar = ri(1, level >= 1 ? 2 : 1);
+  for (let k = 0, tries = 0; k < nCar && tries < 40; tries++) {
     const a = rf(0.15, 0.88) * total; if (!spacedT(a)) continue;
-    const { i } = atArc(a); const t = tangentAt(path, i); const hw2 = halfArr[Math.min(N - 1, i)];
-    placeAt(a, 0, pp => obstacles.push({ type: 'bug', x: pp.x, y: pp.y, r: 0.85, dir: Math.atan2(t.y, t.x), n: hw2 * 0.55, ph: ri(0, 9) })); k++;
+    const { i } = atArc(a); const t = tangentAt(path, i);
+    const side = rng() < 0.5 ? -1 : 1;
+    placeAt(a, 0, pp => obstacles.push({ type: 'car', x: pp.x, y: pp.y, r: 0.9, dir: Math.atan2(t.y, t.x) + side * rf(0.4, 0.7) })); k++;
   }
   // ELÁSTICO: liguinha esticada saindo de uma borda em diagonal — quicou nela,
   // ESTILINGUE (devolve com ganho; o esperto usa a favor pra fazer a curva)
@@ -636,7 +638,7 @@ export function buildCustomTrack(data: CustomTrackData): TrackDef {
   for (const o of data.obstacles) {
     const x = o.x + dxs, y = o.y + dys;
     if (o.type === 'jump') obstacles.push({ type: 'jump', x, y, r: o.r || 1.6, dir: dirAtXY(x, y) });
-    else if (o.type === 'bug') obstacles.push({ type: 'bug', x, y, r: 0.85, dir: dirAtXY(x, y), n: 2.2, ph: 0 });
+    else if (o.type === 'car') obstacles.push({ type: 'car', x, y, r: 0.9, dir: dirAtXY(x, y) + 0.5 });
     else if (o.type === 'band') obstacles.push({ type: 'band', x, y, r: o.r || 2.2, dir: dirAtXY(x, y) + 0.6 });
     else if (o.type === 'mill') obstacles.push({ type: 'mill', x, y, r: o.r || 2.2, dir: 0, n: 2 });
     else obstacles.push({ type: o.type as any, x, y, r: o.r || (o.type === 'bonus' ? 1.1 : o.type === 'bomb' ? 0.95 : o.type === 'item' ? 1.15 : o.type === 'top' ? 0.95 : o.type === 'balloon' ? 1.05 : 1.2), n: o.n });

@@ -3,10 +3,10 @@
 // tampinha-contra-tampinha e detecta gatilhos (buraco/bomba/+3/10/chegada/fora).
 // Emite eventos; o GameManager decide as consequências das regras.
 import { Cap, V, SURF, len, norm, mul, REST_SPEED, MAX_POWER, vec } from './core';
-import { TrackModel, bugPos, segsOf } from './track';
+import { TrackModel, segsOf } from './track';
 
 export interface SimEvent {
-  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest' | 'ramp' | 'land' | 'item' | 'top' | 'bug' | 'band' | 'mill' | 'balloon';
+  type: 'wall' | 'stone' | 'capHit' | 'hole' | 'bomb' | 'bonus' | 'finish' | 'out' | 'rest' | 'ramp' | 'land' | 'item' | 'top' | 'car' | 'band' | 'mill' | 'balloon';
   capId: number; x: number; y: number; power: number; obsIdx?: number; otherId?: number; n?: number;
 }
 
@@ -157,9 +157,8 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         }
         continue;
       }
-      // joaninha anda: o círculo dela fica onde ELA está agora
-      const oxy = o.type === 'bug' ? bugPos(o) : o;
-      const rr = o.r + (o.type === 'stone' || o.type === 'top' || o.type === 'bug' ? c.radius : c.radius * 0.55);
+      const oxy = o;
+      const rr = o.r + (o.type === 'stone' || o.type === 'top' || o.type === 'car' ? c.radius : c.radius * 0.55);
       const dx = c.pos.x - oxy.x, dy = c.pos.y - oxy.y;
       if (dx * dx + dy * dy > rr * rr) continue;
       if (o.type === 'jump') {                 // RAMPA DE SALTO: com velocidade, decola e voa
@@ -190,15 +189,17 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
           c.vel.x += -ny * 5.5; c.vel.y += nx * 5.5;      // o giro do pião arremessa de lado
           ev.push({ type: 'top', capId: c.id, x: oxy.x, y: oxy.y, power: Math.abs(vn) }); c.hitFlash = 1;
         }
-      } else if (o.type === 'bug') {
-        // JOANINHA: esbarrão fofo — desvia de leve e rouba um pouco de embalo
+      } else if (o.type === 'car') {
+        // CARRINHO DE FRICÇÃO: quique leve na batida — e o manager faz ele
+        // DISPARAR na direção que aponta (atropelando quem estiver no caminho)
         const l = Math.hypot(dx, dy) || 1; const nx = dx / l, ny = dy / l;
         const pen = rr - l; c.pos.x += nx * pen; c.pos.y += ny * pen;
         const vn = c.vel.x * nx + c.vel.y * ny;
         if (vn < 0) {
-          c.vel.x -= 1.25 * vn * nx; c.vel.y -= 1.25 * vn * ny;
-          c.vel.x *= 0.85; c.vel.y *= 0.85;
-          ev.push({ type: 'bug', capId: c.id, x: oxy.x, y: oxy.y, power: Math.abs(vn) });
+          c.vel.x -= 1.2 * vn * nx; c.vel.y -= 1.2 * vn * ny;
+          c.vel.x *= 0.8; c.vel.y *= 0.8;
+          if (!c.consumed.has(i)) { c.consumed.add(i); ev.push({ type: 'car', capId: c.id, x: o.x, y: o.y, power: Math.abs(vn), obsIdx: i }); }
+          c.hitFlash = 1;
         }
       } else if (o.type === 'balloon') {
         // BEXIGA D'ÁGUA: estoura no primeiro toque — SPLASH empurra todo mundo perto.

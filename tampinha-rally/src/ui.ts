@@ -399,7 +399,7 @@ export class UI {
     { t: 'jump', ico: '🛫', lab: 'Salto', grp: 'o', col: '#c9902e' },
     { t: 'item', ico: '❓', lab: 'Caixa', grp: 'o', col: '#a86bff' },
     { t: 'top', ico: '🪀', lab: 'Pião', grp: 'o', col: '#d84a8a' },
-    { t: 'bug', ico: '🐞', lab: 'Joaninha', grp: 'o', col: '#d8362e' },
+    { t: 'car', ico: '🚗', lab: 'Carrinho', grp: 'o', col: '#f2b13a' },
     { t: 'band', ico: '➰', lab: 'Elástico', grp: 'o', col: '#e5484d' },
     { t: 'mill', ico: '🎡', lab: 'Catavento', grp: 'o', col: '#4a90d8' },
     { t: 'balloon', ico: '🎈', lab: 'Bexiga', grp: 'o', col: '#3f9ae0' },

@@ -46,10 +46,12 @@ function loadMatch(cfg: MatchConfig): void {
   if (cfg.mode === 'caos') def = withChaosItems(def);       // caixas de power-up só no Caos
   scene = makeScene(def.bg);
   makeSun(scene, def.w, def.h);
-  board = buildBoard(def); scene.add(board.group);
+  mgr.setup(def, cfg.players);
+  // IMPORTANTE: o board 3D observa a CÓPIA da pista (mgr.track.def) — é nela que
+  // o catavento gira, a bexiga estoura e o carrinho anda; a def original é cache
+  board = buildBoard(mgr.track.def); scene.add(board.group);
   scene.add(caps.group, fx.points, aim.group);
   rig = new CameraRig(def.w, def.h); rig.setFrustum(21, innerWidth, innerHeight); resize();
-  mgr.setup(def, cfg.players);
   mgr.chaos = cfg.mode === 'caos';
   mgr.manualControl = cfg.mode === 'online'; online.bind(mgr);
   caps.build(mgr.caps);
@@ -79,8 +81,23 @@ mgr.onEvent = (e) => {
     case 'ramp': sfx.bonus(); fx.impact(e.x, e.y, 8, '#9dffb8'); break;
     case 'land': sfx.wall(4); fx.dust(e.x, e.y, 14, '#d8c090'); break;
     case 'top': sfx.clack(Math.min(1, e.power * 0.12)); fx.impact(e.x, e.y, e.power * 0.5, '#ff7ab0'); break;
-    case 'bug': sfx.squeak(); fx.dust(e.x, e.y, 6, '#d8362e'); break;
-    case 'band': sfx.elastic(Math.min(1, e.power * 0.1)); fx.impact(e.x, e.y, e.power * 0.6, '#ff8a8a'); break;
+    case 'car': sfx.vroom(); fx.dust(e.x, e.y, 12, '#e8b84a'); fx.impact(e.x, e.y, 8, '#ffd24a'); break;
+    case 'band': {
+      sfx.elastic(Math.min(1, e.power * 0.1)); fx.impact(e.x, e.y, e.power * 0.6, '#ff8a8a');
+      // avisa o visual do elástico mais próximo pra ESTICAR de verdade
+      let best: any = null, bd = 1e9;
+      for (const o of mgr.track.def.obstacles) {
+        if (o.type !== 'band') continue;
+        const d = (o.x - e.x) ** 2 + (o.y - e.y) ** 2; if (d < bd) { bd = d; best = o; }
+      }
+      if (best) {
+        const cap = mgr.caps[e.capId];
+        let px = e.x - (cap ? cap.pos.x : best.x), py = e.y - (cap ? cap.pos.y : best.y);
+        const pl = Math.hypot(px, py) || 1; px /= pl; py /= pl;
+        best.pokeX = px; best.pokeY = py; best.pokeP = Math.min(1, e.power * 0.09);
+      }
+      break;
+    }
     case 'mill': sfx.wall(e.power); fx.impact(e.x, e.y, e.power * 0.4, '#8fd0ff'); break;
     case 'balloon': {
       sfx.pop(); fx.impact(e.x, e.y, 14, '#7ac8f2'); fx.dust(e.x, e.y, 18, '#4a90b8');
@@ -351,7 +368,7 @@ function frame(): void {
     sfx.slide(maxSp);
     // pulsos dos itens especiais
     if (board) for (const p of board.pulses) { const s = 1 + Math.sin(t * 4) * 0.18; p.mesh.scale.set(s, s, 1); (p.mesh.material as THREE.MeshBasicMaterial).opacity = 0.22 + Math.sin(t * 4) * 0.12; }
-    if (board) for (const d of board.dynamics) d.update(dt);   // brinquedos vivos (pião/joaninha/catavento/bexiga)
+    if (board) for (const d of board.dynamics) d.update(dt);   // brinquedos vivos (pião/carrinho/elástico/catavento/bexiga)
     if (board) for (const sp of board.spinners) { sp.rotation.y += dt * 2.4; sp.position.y += Math.sin(t * 3 + sp.position.x) * 0.004; }
     if (board) for (const bb of board.billboards) bb.quaternion.copy(rig.camera.quaternion);   // números (bônus/checkpoint) sempre virados pra câmera
     caps.update(mgr.caps, t, mgr.activeCap()?.id ?? -1);

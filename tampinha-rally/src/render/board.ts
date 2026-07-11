@@ -2,7 +2,7 @@
 // levantadas que quicam, obstáculos (pedra/buraco/bomba/+3/10), decoração
 // temática e bandeirinhas na chegada. Devolve o grupo e os itens que pulsam.
 import * as THREE from 'three';
-import { TrackDef, bugPos, segsOf } from '../engine/track';
+import { TrackDef, segsOf } from '../engine/track';
 import { makeBoardTexture, lighten } from './textures';
 
 export interface BoardBuild { group: THREE.Group; pulses: { mesh: THREE.Mesh; kind: string; base: number }[]; spinners: THREE.Object3D[]; billboards: THREE.Object3D[]; dynamics: { update: (dt: number) => void }[]; }
@@ -267,32 +267,36 @@ export function buildBoard(def: TrackDef): BoardBuild {
       dynamics.push({ update: dt => { tg.rotation.y += dt * 9; tg.rotation.z = Math.sin(tg.rotation.y * 0.7) * 0.06; } });   // gira ligeiro e bamboleia
       const ring = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.5, 24), new THREE.MeshBasicMaterial({ color: '#ff7ab0', transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }));
       ring.rotation.x = -Math.PI / 2; ring.position.set(o.x, 0.025, o.y); group.add(ring); pulses.push({ mesh: ring, kind: 'top', base: o.r * 1.5 });
-    } else if (o.type === 'bug') {
-      // JOANINHA: meia-esfera vermelha com pintas, cabecinha e anteninhas — ANDA por turno
-      const bgp = new THREE.Group();
-      const shell = new THREE.Mesh(new THREE.SphereGeometry(o.r, 16, 12, 0, 6.3, 0, 1.62), new THREE.MeshStandardMaterial({ color: '#d8362e', roughness: 0.35 }));
-      shell.castShadow = true; bgp.add(shell);
-      const linha = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, o.r * 1.9), new THREE.MeshStandardMaterial({ color: '#221408' }));
-      linha.position.y = o.r * 0.62; bgp.add(linha);
-      for (const [px2, pz] of [[-0.4, -0.3], [0.4, -0.25], [-0.32, 0.3], [0.38, 0.32]]) {
-        const dot = new THREE.Mesh(new THREE.CircleGeometry(0.14, 8), new THREE.MeshBasicMaterial({ color: '#221408' }));
-        dot.position.set(px2 * o.r, o.r * 0.86, pz * o.r); dot.rotation.x = -Math.PI / 2; bgp.add(dot);
+    } else if (o.type === 'car') {
+      // CARRINHO DE FRICÇÃO: carrinho de brinquedo amarelo apontando pra onde vai
+      // disparar — quando alguém encosta ele SAI CANTANDO PNEU até estacionar
+      const cg = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.5, 0.95), new THREE.MeshStandardMaterial({ color: '#f2b13a', roughness: 0.3, metalness: 0.15 }));
+      body.position.y = 0.5; body.castShadow = true; cg.add(body);
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.42, 0.8), new THREE.MeshStandardMaterial({ color: '#3f9ae0', roughness: 0.2, metalness: 0.2 }));
+      cab.position.set(-0.15, 0.92, 0); cg.add(cab);
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.32, 0.7), new THREE.MeshStandardMaterial({ color: '#e5484d', roughness: 0.35 }));
+      nose.position.set(0.9, 0.42, 0); cg.add(nose);           // focinho vermelho = frente
+      const wheels: THREE.Mesh[] = [];
+      for (const [wx, wz] of [[-0.55, -0.52], [-0.55, 0.52], [0.55, -0.52], [0.55, 0.52]]) {
+        const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.18, 12), new THREE.MeshStandardMaterial({ color: '#242424', roughness: 0.8 }));
+        wh.rotation.x = Math.PI / 2; wh.position.set(wx, 0.28, wz); cg.add(wh); wheels.push(wh);
       }
-      const head = new THREE.Mesh(new THREE.SphereGeometry(o.r * 0.45, 12, 8), new THREE.MeshStandardMaterial({ color: '#221408', roughness: 0.4 }));
-      head.position.set(0, o.r * 0.3, o.r * 0.85); bgp.add(head);
-      for (const sgn of [-1, 1]) { const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.5, 6), new THREE.MeshStandardMaterial({ color: '#221408' })); ant.position.set(sgn * 0.18, o.r * 0.75, o.r * 1.1); ant.rotation.x = 0.6; ant.rotation.z = sgn * -0.35; bgp.add(ant); }
-      group.add(bgp);
-      dynamics.push({ update: dt => {                      // desliza suave até a posição do turno
-        const bp2 = bugPos(o);
-        bgp.position.x += (bp2.x - bgp.position.x) * Math.min(1, dt * 3.2);
-        bgp.position.z += (bp2.y - bgp.position.z) * Math.min(1, dt * 3.2);
-        const mdx = bp2.x - bgp.position.x, mdz = bp2.y - bgp.position.z;
-        if (Math.hypot(mdx, mdz) > 0.05) bgp.rotation.y = Math.atan2(mdx, mdz);
-        bgp.position.y = Math.abs(Math.sin(performance.now() * 0.008)) * 0.05;   // patinhas trotando
+      group.add(cg);
+      cg.position.set(o.x, 0, o.y); cg.rotation.y = -(o.dir || 0);
+      dynamics.push({ update: dt => {                      // dispara até a posição nova do obstáculo
+        const mdx = o.x - cg.position.x, mdz = o.y - cg.position.z; const md = Math.hypot(mdx, mdz);
+        if (md > 0.03) {
+          cg.position.x += mdx * Math.min(1, dt * 6); cg.position.z += mdz * Math.min(1, dt * 6);
+          for (const wh of wheels) wh.rotation.y += dt * 30;   // rodinhas cantando
+          cg.rotation.z = Math.sin(performance.now() * 0.03) * 0.04;
+        } else { cg.rotation.z *= 0.9; cg.rotation.y = -(o.dir || 0); }
       } });
-      const bp0 = bugPos(o); bgp.position.set(bp0.x, 0, bp0.y);
+      const ring = new THREE.Mesh(new THREE.CircleGeometry(o.r * 1.5, 24), new THREE.MeshBasicMaterial({ color: '#ffd24a', transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false }));
+      ring.rotation.x = -Math.PI / 2; ring.position.set(o.x, 0.025, o.y); group.add(ring); pulses.push({ mesh: ring, kind: 'car', base: o.r * 1.5 });
     } else if (o.type === 'band') {
-      // ELÁSTICO: dois palitos de madeira + liguinha vermelha esticada
+      // ELÁSTICO: dois palitos + liguinha em DOIS segmentos com um ponto do meio
+      // que é uma MOLA de verdade — a batida estica e ele vibra de volta
       const [sg] = segsOf(o);
       for (const end of [sg.a, sg.b]) {
         const peg = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.5, 10), woodMat);
@@ -300,12 +304,32 @@ export function buildBoard(def: TrackDef): BoardBuild {
         const tip = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshStandardMaterial({ color: '#e5484d', roughness: 0.5 }));
         tip.position.set(end.x, 1.55, end.y); group.add(tip);
       }
-      const dx = sg.b.x - sg.a.x, dy = sg.b.y - sg.a.y; const L = Math.hypot(dx, dy);
-      const elast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, L, 8), new THREE.MeshStandardMaterial({ color: '#e5484d', roughness: 0.45 }));
-      elast.position.set((sg.a.x + sg.b.x) / 2, 0.62, (sg.a.y + sg.b.y) / 2);
-      elast.rotation.z = Math.PI / 2; elast.rotation.y = -Math.atan2(dy, dx);
-      elast.castShadow = true; group.add(elast);
-      dynamics.push({ update: () => { const w2 = 1 + Math.sin(performance.now() * 0.004) * 0.03; elast.scale.set(w2, 1, w2); } });   // tremidinha elástica
+      const rubMat = new THREE.MeshStandardMaterial({ color: '#e5484d', roughness: 0.45 });
+      const segA = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1, 8), rubMat);
+      const segB = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1, 8), rubMat);
+      segA.castShadow = segB.castShadow = true; group.add(segA, segB);
+      const mid0 = { x: (sg.a.x + sg.b.x) / 2, y: (sg.a.y + sg.b.y) / 2 };
+      const spr = { ox: 0, oy: 0, vx: 0, vy: 0 };           // deslocamento do ponto do meio
+      const UP = new THREE.Vector3(0, 1, 0); const tmp = new THREE.Vector3();
+      const putSeg = (m: THREE.Mesh, ax: number, ay: number, bx: number, by: number) => {
+        const L = Math.max(0.05, Math.hypot(bx - ax, by - ay));
+        m.scale.set(1, L, 1); m.position.set((ax + bx) / 2, 0.62, (ay + by) / 2);
+        m.quaternion.setFromUnitVectors(UP, tmp.set(bx - ax, 0, by - ay).normalize());
+      };
+      dynamics.push({ update: dt => {
+        const p = o as any;
+        if (p.pokeP) {                                       // main avisou: bateu aqui!
+          spr.vx += p.pokeX * p.pokeP * 14; spr.vy += p.pokeY * p.pokeP * 14;
+          p.pokeP = 0;
+        }
+        spr.vx += (-60 * spr.ox - 6 * spr.vx) * dt; spr.vy += (-60 * spr.oy - 6 * spr.vy) * dt;
+        spr.ox += spr.vx * dt; spr.oy += spr.vy * dt;
+        const mx = mid0.x + spr.ox, my = mid0.y + spr.oy;
+        putSeg(segA, sg.a.x, sg.a.y, mx, my); putSeg(segB, mx, my, sg.b.x, sg.b.y);
+        const th = 0.12 / (1 + Math.hypot(spr.ox, spr.oy) * 0.8);   // estica → afina
+        segA.scale.x = segA.scale.z = segB.scale.x = segB.scale.z = th / 0.12;
+      } });
+      putSeg(segA, sg.a.x, sg.a.y, mid0.x, mid0.y); putSeg(segB, mid0.x, mid0.y, sg.b.x, sg.b.y);
     } else if (o.type === 'mill') {
       // CATAVENTO: pino central + pás coloridas — gira um TANTO a cada peteleco
       const mg = new THREE.Group();
@@ -323,13 +347,26 @@ export function buildBoard(def: TrackDef): BoardBuild {
       }
       mg.add(arms);
       mg.position.set(o.x, 0, o.y); group.add(mg);
-      dynamics.push({ update: dt => {                        // gira SUAVE até o ângulo do turno
+      // COREOGRAFIA: quando o ângulo do turno muda, o catavento dá uma VOLTA
+      // COMPLETA no sentido do giro, desacelera e PARA no ângulo novo — parado
+      // de verdade só entre turnos (giro alterna o lado a cada vez)
+      const st = { last: -(o.dir || 0), from: 0, amt: 0, t: 1 };
+      arms.rotation.y = st.last;
+      dynamics.push({ update: dt => {
         const alvo = -(o.dir || 0);
-        let d2 = alvo - arms.rotation.y;
-        while (d2 > Math.PI) d2 -= Math.PI * 2; while (d2 < -Math.PI) d2 += Math.PI * 2;
-        arms.rotation.y += d2 * Math.min(1, dt * 4);
+        if (Math.abs(alvo - st.last) > 0.001) {              // turno girou o moinho
+          let d2 = alvo - st.last;
+          while (d2 > Math.PI) d2 -= Math.PI * 2; while (d2 < -Math.PI) d2 += Math.PI * 2;
+          const sgn = d2 >= 0 ? 1 : -1;
+          st.from = arms.rotation.y; st.amt = d2 + sgn * Math.PI * 2;   // + uma volta inteira
+          st.t = 0; st.last = alvo;
+        }
+        if (st.t < 1) {
+          st.t = Math.min(1, st.t + dt / 1.4);
+          const e2 = 1 - Math.pow(1 - st.t, 3);              // easeOutCubic: arranca e freia
+          arms.rotation.y = st.from + st.amt * e2;
+        }
       } });
-      arms.rotation.y = -(o.dir || 0);
     } else if (o.type === 'balloon') {
       // BEXIGA D'ÁGUA: gordinha, brilhosa, com nozinho — some quando estoura
       const blg = new THREE.Group();
