@@ -349,8 +349,15 @@ export class GameManager {
     }
     // TRAVA DE SEGURANÇA: se alguém fica em movimento perpétuo (ex.: encaixada
     // entre pedra e catavento, as pás batem sem parar), encerra o peteléco à
-    // força — a corrida NUNCA congela no resolve
-    if (this.resolveT > 16) for (const c of this.caps) { c.vel = vec(); c.moving = false; }
+    // força — e DESENCAIXA quem estava sacudindo (centro do corredor, um tico
+    // atrás), senão ela continua presa no brinquedo e TODO peteléco levaria 16s
+    if (this.resolveT > 16) for (const c of this.caps) {
+      if ((c.moving || c.airborne) && !c.finished) {
+        const at = this.track.atArc(Math.max(0.6, c.progress - 1.5));
+        c.pos = vec(at.p.x, at.p.y); c.progress = this.track.progressOf(c.pos);
+      }
+      c.vel = vec(); c.moving = false; c.z = 0; c.vz = 0; c.airborne = false;
+    }
     if (!anyMoving(this.caps)) this.endFlick();
   }
 
