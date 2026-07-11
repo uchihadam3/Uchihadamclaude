@@ -1568,6 +1568,7 @@ export class UI {
         <div class="turn-banner" id="turn"></div>
         <button class="round" id="cam" title="A câmera segue sozinha">🎯</button>
       </div>
+      <button class="round speed" id="speed" title="Velocidade das jogadas da IA">1×</button>
       <div class="standings" id="stand"></div>
       <div class="item-slot hidden" id="item"></div>
       <div class="flicks" id="flicks"></div>
@@ -1577,7 +1578,18 @@ export class UI {
     </div>`);
     this.root.appendChild(this.hud);
     this.hud.querySelector('#pause')!.addEventListener('click', () => this.onPause?.());
+    // VELOCIDADE da IA (1×/2×/4×): só offline — online todo mundo vê igual, fica 1×
+    const spd = this.hud.querySelector('#speed') as HTMLElement;
+    if (this.online.active) spd.classList.add('hidden');
+    else {
+      const paint = () => { spd.textContent = this.speedMul + '×'; spd.classList.toggle('fast', this.speedMul > 1); };
+      paint();
+      spd.addEventListener('click', () => { this.speedMul = this.speedMul === 1 ? 2 : this.speedMul === 2 ? 4 : 1; paint(); this.onSpeed?.(this.speedMul); });
+      this.onSpeed?.(this.speedMul);   // re-aplica a escolha da sessão na corrida nova
+    }
   }
+  speedMul = 1;
+  onSpeed: ((mul: number) => void) | null = null;
   onPause: (() => void) | null = null;
   onResume: (() => void) | null = null;
   onRestart: (() => void) | null = null;

@@ -107,14 +107,20 @@ const METAL: Record<string, [string, string, string]> = {
   gold: ['#fff3c0', '#e8be55', '#9c7818'], copper: ['#f4c9a0', '#c67e46', '#7c471f'], dark: ['#6b7078', '#3a3e44', '#1c1f24'],
 };
 
-// desenha a tampinha inteira num canvas quadrado
-export function drawCap(art: CapArt, S = 360): HTMLCanvasElement {
-  const cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d')!;
+// desenha a tampinha inteira num canvas quadrado.
+// SUPER-RESOLUÇÃO: o bitmap interno é 2.5× o tamanho pedido (o CSS segura o
+// tamanho visual) — nítida em qualquer tela de celular, sem mudar nenhum layout.
+export function drawCap(art: CapArt, size = 360): HTMLCanvasElement {
+  const S = Math.round(size * 2.5);
+  const cv = document.createElement('canvas'); cv.width = cv.height = S;
+  cv.style.width = cv.style.height = size + 'px';
+  const c = cv.getContext('2d')!;
+  (c as any).imageSmoothingQuality = 'high';
   const cx = S / 2, cy = S / 2, R = S * 0.5 - 1;
   const rimIn = R * 0.82;                          // borda crimpada ocupa os 18% externos
   const met = METAL[art.metal || 'steel'];
 
-  // borda crimpada (coroa): 21 dentes com brilho metálico
+  // borda crimpada (coroa): 21 dentes com brilho metálico em 3 tons
   const N = 21;
   for (let i = 0; i < N; i++) {
     const a0 = i / N * TAU - Math.PI / 2, a1 = (i + 1) / N * TAU - Math.PI / 2, am = (a0 + a1) / 2;
@@ -122,16 +128,24 @@ export function drawCap(art: CapArt, S = 360): HTMLCanvasElement {
     c.arc(cx, cy, rimIn, a0, a1); c.arc(cx, cy, R, a1, a0, true); c.closePath();
     const lit = 0.5 + 0.5 * Math.cos(am + 0.7);   // luz vindo de cima-esquerda
     const g = c.createLinearGradient(cx + Math.cos(am) * rimIn, cy + Math.sin(am) * rimIn, cx + Math.cos(am) * R, cy + Math.sin(am) * R);
-    g.addColorStop(0, met[1]); g.addColorStop(1, lit > 0.5 ? met[0] : met[2]);
+    g.addColorStop(0, met[1]);
+    g.addColorStop(0.55, lit > 0.5 ? met[0] : met[2]);
+    g.addColorStop(1, lit > 0.65 ? met[1] : met[2]);
     c.fillStyle = g; c.fill();
     c.strokeStyle = 'rgba(0,0,0,0.18)'; c.lineWidth = S * 0.004; c.beginPath(); c.moveTo(cx + Math.cos(a0) * rimIn, cy + Math.sin(a0) * rimIn); c.lineTo(cx + Math.cos(a0) * R, cy + Math.sin(a0) * R); c.stroke();
   }
-  // anel escuro entre dentes e rótulo
+  // anel escuro entre dentes e rótulo + BISEL (luz em cima, sombra embaixo — dá volume)
   c.beginPath(); c.arc(cx, cy, rimIn, 0, TAU); c.strokeStyle = 'rgba(0,0,0,0.28)'; c.lineWidth = S * 0.01; c.stroke();
+  c.lineCap = 'round';
+  c.beginPath(); c.arc(cx, cy, rimIn - S * 0.006, Math.PI * 0.8, Math.PI * 1.85); c.strokeStyle = 'rgba(255,255,255,0.4)'; c.lineWidth = S * 0.008; c.stroke();
+  c.beginPath(); c.arc(cx, cy, rimIn - S * 0.006, -Math.PI * 0.15, Math.PI * 0.75); c.strokeStyle = 'rgba(0,0,0,0.22)'; c.lineWidth = S * 0.008; c.stroke();
+  c.lineCap = 'butt';
 
   // rótulo (disco)
   c.save(); c.beginPath(); c.arc(cx, cy, rimIn - 1, 0, TAU); c.clip();
   c.fillStyle = setRadial(c, cx, cy, rimIn, art.bg) as any; c.fillRect(0, 0, S, S);
+  // leve sombra de texto no rótulo inteiro: letras saltam sem mudar o desenho
+  c.shadowColor = 'rgba(0,0,0,0.28)'; c.shadowBlur = S * 0.008; c.shadowOffsetY = S * 0.003;
   if (art.fringe) { c.strokeStyle = art.fringe; c.lineWidth = rimIn * 0.14; c.beginPath(); c.arc(cx, cy, rimIn * 0.9, 0, TAU); c.stroke(); }
   if (art.rings) { c.strokeStyle = art.rings; c.lineWidth = S * 0.006; for (const rr of [0.62, 0.7]) { c.beginPath(); c.arc(cx, cy, rimIn * rr, 0, TAU); c.stroke(); } }
 
@@ -162,6 +176,12 @@ export function drawCap(art: CapArt, S = 360): HTMLCanvasElement {
   }
   if (art.sub) { c.fillStyle = art.sub[1]; c.font = `700 ${rimIn * 0.13}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(art.sub[0], cx, cy + rimIn * 0.42); }
 
+  // sombra interna na beirada do rótulo (o disco "afunda" dentro da coroa)
+  c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
+  const inn = c.createRadialGradient(cx, cy, rimIn * 0.82, cx, cy, rimIn);
+  inn.addColorStop(0, 'rgba(0,0,0,0)'); inn.addColorStop(1, 'rgba(0,0,0,0.24)');
+  c.fillStyle = inn; c.fillRect(0, 0, S, S);
+
   // ------- envelhecimento vintage + brilho -------
   const vg = art.vintage ?? 0.35;
   if (vg > 0) {
@@ -173,14 +193,25 @@ export function drawCap(art: CapArt, S = 360): HTMLCanvasElement {
   }
   c.restore();
 
-  // brilho do metal por cima de tudo (gloss)
-  const gl = c.createLinearGradient(0, 0, S * 0.7, S * 0.7); gl.addColorStop(0, 'rgba(255,255,255,0.28)'); gl.addColorStop(0.35, 'rgba(255,255,255,0.05)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
-  c.save(); c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.clip(); c.fillStyle = gl; c.fillRect(0, 0, S, S); c.restore();
+  // brilho do metal por cima de tudo (gloss em duas luzes, como esmalte de verdade)
+  c.save(); c.beginPath(); c.arc(cx, cy, R, 0, TAU); c.clip();
+  const gl = c.createLinearGradient(0, 0, S * 0.7, S * 0.7); gl.addColorStop(0, 'rgba(255,255,255,0.26)'); gl.addColorStop(0.35, 'rgba(255,255,255,0.05)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = gl; c.fillRect(0, 0, S, S);
+  // specular: mancha de luz suave no alto-esquerda (ponto quente do estúdio)
+  const sp = c.createRadialGradient(cx - R * 0.42, cy - R * 0.46, 0, cx - R * 0.42, cy - R * 0.46, R * 0.55);
+  sp.addColorStop(0, 'rgba(255,255,255,0.30)'); sp.addColorStop(0.5, 'rgba(255,255,255,0.07)'); sp.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = sp; c.fillRect(0, 0, S, S);
+  // contraluz fria embaixo-direita (descola do fundo)
+  const rl = c.createRadialGradient(cx + R * 0.55, cy + R * 0.6, R * 0.2, cx + R * 0.55, cy + R * 0.6, R * 0.75);
+  rl.addColorStop(0, 'rgba(190,220,255,0.10)'); rl.addColorStop(1, 'rgba(190,220,255,0)');
+  c.fillStyle = rl; c.fillRect(0, 0, S, S);
+  c.restore();
   return cv;
 }
 
 const _texCache = new Map<string, THREE.CanvasTexture>();
 export function makeCapTex(id: string, art: CapArt): THREE.CanvasTexture {
   if (_texCache.has(id)) return _texCache.get(id)!;
-  const t = new THREE.CanvasTexture(drawCap(art, 384)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; _texCache.set(id, t); return t;
+  // 300×2.5 = textura de 750px, com anisotropia alta: nítida até na câmera rasante
+  const t = new THREE.CanvasTexture(drawCap(art, 300)); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16; _texCache.set(id, t); return t;
 }

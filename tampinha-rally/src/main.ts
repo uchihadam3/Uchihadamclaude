@@ -408,7 +408,10 @@ function frame(): void {
     requestAnimationFrame(frame); return;
   }
   if (inGame && scene) {
-    if (!paused) { if (online.active) online.tick(dt); mgr.update(dt); if (mgr.phase === 'over') onRaceOver(); else resultsShown = false; }
+    // VELOCIDADE 2×/4×: só na vez da IA e só offline — na SUA vez (mira e resolve)
+    // e no online é sempre 1× (todo mundo precisa ver o mesmo ritmo)
+    const spd = (!online.active && mgr.activeCap()?.isAI) ? ui.speedMul : 1;
+    if (!paused) { if (online.active) online.tick(dt); mgr.update(dt * spd); if (mgr.phase === 'over') onRaceOver(); else resultsShown = false; }
     // câmera SEMPRE no jogador da vez (nunca chuta pra uma tampinha que já chegou).
     // No resolve segue a tampinha ativa enquanto ela anda; se ela parar/chegar,
     // acompanha o que ainda rola (nunca uma já-finalizada) e nunca salta pra chegada.
