@@ -222,4 +222,18 @@ console.log('\n=== RANQUEADA CAOS: circuito separado (estado, semente, nomes, pr
   console.log('  estados/sementes separados · Grapette no ouro 8/8 · 5 exclusivas caos na mesma força · Diego nos dois quadros · reset isolado ✓');
 }
 
+console.log('\n=== TRANSPORTE GLOBAL: eventos assinados (adulteração rejeitada) ===');
+{
+  const { genSk, pkOf, signEvent, verifyEvent } = await import('../src/net/nostr');
+  const sk = genSk();
+  if (pkOf(sk).length !== 64) die('chave pública inválida');
+  const row = { name: 'Diego', dev: 'd1', score: 51, tier: 0, golds: 0, cap: 'coca', claimTs: 1, ts: 2 };
+  const ev = signEvent(sk, 30078, [['d', 'tmprally-rank-v2'], ['t', 'tmprally-rank-v2']], JSON.stringify(row));
+  if (ev.id.length !== 64 || ev.sig.length !== 128) die('evento malformado');
+  if (!verifyEvent(ev)) die('assinatura própria não verifica');
+  if (verifyEvent({ ...ev, content: ev.content.replace('51', '999') })) die('conteúdo adulterado passou');
+  if (verifyEvent({ ...ev, created_at: ev.created_at + 1 })) die('data adulterada passou');
+  console.log('  assina/verifica ✓ · score e data adulterados são rejeitados ✓');
+}
+
 console.log('\n✅ rankcheck fim');
