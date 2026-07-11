@@ -16,6 +16,7 @@ import { playMusic, songForTheme, musicNow } from './music';
 import { save } from './game/save';
 import { compById, campState, saveCamp, applyResult } from './game/campaign';
 import { rankCompById, RANK_PTS, rankState } from './game/ranked';
+import { watchUpdates } from './updater';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const renderer = makeRenderer(canvas);
@@ -38,6 +39,8 @@ let dailyFlicks = 0;
 let inGame = false;
 let previewing = false;
 let previewDef: any = null;
+// auto-atualização: link antigo pula sozinho pra versão mais nova (nunca no meio de uma corrida)
+watchUpdates(() => !inGame);
 // música: menu toca a partir do primeiro toque na tela (regra de autoplay dos navegadores)
 window.addEventListener('pointerdown', () => { resumeAudio(); if (!inGame) playMusic('menu'); });
 
