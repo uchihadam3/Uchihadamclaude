@@ -42,6 +42,19 @@ console.log('=== ESCUDO × BURACO: desvia pela beirada, NÃO cai, não perde nad
   console.log('  com escudo desvia e segue · sem escudo cai ✓');
 }
 
+console.log('\n=== BURACO/FORA resetam o PROGRESS junto (furacão não joga pra frente) ===');
+{
+  // caiu no buraco → volta pro checkpoint E o progress acompanha; se ficasse o
+  // valor velho (lá do buraco), um furacão "10 pra trás" jogaria a tampinha PRA FRENTE
+  const tm = lane([{ type: 'hole', x: 30, y: 20, r: 1.4 }]);
+  const c = slideCap(8, 28);
+  for (let i = 0; i < 2400 && c.moving; i++) stepWorld([c], tm, 1 / 120);
+  const cpProg = tm.progressOf(vec(5, 20));
+  if (Math.hypot(c.pos.x - 5, c.pos.y - 20) > 0.1) die('não voltou pro checkpoint');
+  if (Math.abs(c.progress - cpProg) > 0.5) die(`progress ficou velho após o buraco (${c.progress.toFixed(1)} ≠ ${cpProg.toFixed(1)})`);
+  console.log('  buraco → checkpoint com progress certo (era ' + tm.progressOf(vec(30, 20)).toFixed(0) + ', ficou ' + c.progress.toFixed(1) + ') ✓');
+}
+
 console.log('\n=== FANTASMA: atravessa pedra e tampinha (buraco continua valendo) ===');
 {
   const tm = lane([{ type: 'stone', x: 14, y: 20, r: 1.0 }]);

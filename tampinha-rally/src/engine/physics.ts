@@ -244,10 +244,14 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
           ev.push({ type: 'item', capId: c.id, x: o.x, y: o.y, power: -1 });
           continue;
         }
+        // volta pro checkpoint — o progress TEM que acompanhar (senão fica o valor
+        // velho lá da frente e um furacão/gude "pra trás" jogaria ela PRA FRENTE)
         c.pos.x = c.cpPos.x; c.pos.y = c.cpPos.y; c.vel = vec(); c.moving = false;
+        c.progress = track.progressOf(c.pos);
         ev.push({ type: 'hole', capId: c.id, x: o.x, y: o.y, power: 0 }); break;
       } else if (o.type === 'bomb') {
         c.pos.x = c.cpPos.x; c.pos.y = c.cpPos.y; c.vel = vec(); c.moving = false;
+        c.progress = track.progressOf(c.pos);
         ev.push({ type: 'bomb', capId: c.id, x: o.x, y: o.y, power: 0 }); break;
       } else if (o.type === 'bonus') {
         // bônus vale UMA vez por tampinha na corrida TODA (nada de farmar o mesmo +3)
@@ -265,6 +269,7 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
         ev.push({ type: 'item', capId: c.id, x: prev.x, y: prev.y, power: -1 }); continue;
       }
       c.pos.x = c.resetTo.x; c.pos.y = c.resetTo.y; c.vel = vec(); c.moving = false;
+      c.progress = track.progressOf(c.pos);
       ev.push({ type: 'out', capId: c.id, x: prev.x, y: prev.y, power: 0 });
       continue;
     }

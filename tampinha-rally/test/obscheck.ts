@@ -117,6 +117,8 @@ console.log('\n=== RARIDADE dos bônus nas 50 pistas (1 comum > 2 > 3 raro) ==='
   console.log(`  brinquedos no jogo: pião=${novos.top} carrinho=${novos.car} elástico=${novos.band} catavento=${novos.mill} bexiga=${novos.balloon}`);
   console.log(`  pistas com quinto VAZIO (sem desafio): ${densFail} (0? ${densFail === 0})`);
   if (!(cnt[1] > cnt[2] && cnt[2] > cnt[3]) || densFail > 0) { console.log('  ✗'); process.exit(1); }
+  // +2/+3 são RAROS de verdade: juntos, no máximo ~30% dos bônus
+  if (cnt[2] + cnt[3] > (cnt[1] + cnt[2] + cnt[3]) * 0.3) { console.log('  bônus grandes comuns demais ✗'); process.exit(1); }
   if (novos.top < 30 || novos.car < 30 || novos.band < 20 || novos.mill < 15 || novos.balloon < 30) { console.log('  POUCOS BRINQUEDOS ✗'); process.exit(1); }
 }
 console.log('\n✅ obscheck fim');

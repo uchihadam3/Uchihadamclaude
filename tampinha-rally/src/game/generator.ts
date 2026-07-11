@@ -225,8 +225,8 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   // (ou você acerta a mira, ou cai/sai). Nada de bônus fácil no meio da pista.
   for (let k = 0, tries = 0; k < ri(p.bonus[0], p.bonus[1]) && tries < 40; tries++) {
     const a = rf(0.12, 0.92) * total; if (!spaced(a)) continue;
-    // RARIDADE de verdade: +1 comum (60%), +2 médio (28%), +3 raro (12%)
-    const roll = rng(); const n = roll > 0.88 ? 3 : roll > 0.60 ? 2 : 1;
+    // RARIDADE de verdade: +1 comum (84%), +2 raro (12%), +3 raríssimo (4%)
+    const roll = rng(); const n = roll > 0.96 ? 3 : roll > 0.84 ? 2 : 1;
     const side = rng() < 0.5 ? -1 : 1; const ii = atArc(a).i; const hw = halfArr[Math.min(N - 1, ii)];
     // quanto MAIOR o prêmio, mais na BEIRA (arriscado de mirar) — mas sempre
     // DENTRO do corredor: com mira e força certas, dá pra pegar.
