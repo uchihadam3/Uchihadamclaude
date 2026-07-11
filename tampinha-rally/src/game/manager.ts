@@ -152,8 +152,7 @@ export class GameManager {
     const { r, leader } = this.rank01(c);
     const it = pickItem(r, leader);
     c.items.push(it); c.itemFlash = 1;
-    if (!c.isAI) this.onToast(`${ITEMS[it].ico} ${ITEMS[it].name}! toque no botão pra usar`, 'good');
-    this.onItem(c, it, false);
+    this.onItem(c, it, false);   // sem balão: o efeito de pegar + o botão no bolso avisam
     return true;
   }
   // rivais vivos, mais à frente primeiro
@@ -162,9 +161,11 @@ export class GameManager {
   }
   // derruba uma tampinha N unidades PRA TRÁS na pista (teleporte pro centro do arco)
   private knockBack(t: Cap, dist: number): void {
+    const from = vec(t.pos.x, t.pos.y);
     const na = Math.max(0.6, t.progress - dist);
     const p = this.track.atArc(na).p;
     t.pos = vec(p.x, p.y); t.progress = na; t.vel = vec(); t.z = 0; t.vz = 0; t.airborne = false; t.itemFlash = 1; t.hitFlash = 1;
+    t.vfx = { fx: from.x, fy: from.y, t: 0, dur: 0.6, arc: 1.2, spin: 13 };   // capota pra trás
   }
   // usa o item do bolso `slot` (jogador aperta o botão; a IA usa sozinha antes de jogar)
   useItem(slot = 0, c = this.activeCap()): void {
@@ -182,11 +183,13 @@ export class GameManager {
         const from = vec(c.pos.x, c.pos.y);
         const na = Math.min(this.track.total - 1, c.progress + 15);
         const p = this.track.atArc(na).p; c.pos = vec(p.x, p.y); c.progress = na; this.updateCheckpoint(c);
+        c.vfx = { fx: from.x, fy: from.y, t: 0, dur: 0.7, arc: 3.0, spin: 5 };
         this.onItemFx('salto', { x: from.x, y: from.y, tx: p.x, ty: p.y }); break;
       }
       case 'ima': {                                            // cola no centro + empurrãozinho
         const from = vec(c.pos.x, c.pos.y);
         const p = this.track.atArc(c.progress).p; c.pos = vec(p.x, p.y); c.boostNext = 1.18;
+        c.vfx = { fx: from.x, fy: from.y, t: 0, dur: 0.4 };
         this.onItemFx('ima', { x: from.x, y: from.y, tx: p.x, ty: p.y }); break;
       }
       case 'raio': {                                           // manda o líder pro checkpoint dele
@@ -194,6 +197,7 @@ export class GameManager {
         if (leader) {
           const at = vec(leader.pos.x, leader.pos.y);
           leader.pos = vec(leader.cpPos.x, leader.cpPos.y); leader.progress = this.track.progressOf(leader.cpPos); leader.vel = vec(); leader.itemFlash = 1;
+          leader.vfx = { fx: at.x, fy: at.y, t: 0, dur: 0.85, arc: 3.4, spin: 11 };
           this.onToast(`⚡ ${leader.name} levou um raio!`, 'bad');
           this.onItemFx('raio', { x: at.x, y: at.y, tx: leader.pos.x, ty: leader.pos.y });
         }
@@ -214,8 +218,11 @@ export class GameManager {
         const t = ahead.length ? ahead[ahead.length - 1] : null;
         if (t) {
           const mp = vec(c.pos.x, c.pos.y), mg = c.progress;
+          const tp = vec(t.pos.x, t.pos.y);
           c.pos = vec(t.pos.x, t.pos.y); c.progress = t.progress;
           t.pos = mp; t.progress = mg; t.vel = vec(); c.vel = vec(); t.itemFlash = 1;
+          c.vfx = { fx: mp.x, fy: mp.y, t: 0, dur: 0.65, arc: 2.2, spin: 7 };
+          t.vfx = { fx: tp.x, fy: tp.y, t: 0, dur: 0.65, arc: 2.2, spin: 7 };
           this.updateCheckpoint(c);
           this.onToast(`🔁 trocou de lugar com ${t.name}!`, 'good');
           this.onItemFx('troca', { x: t.pos.x, y: t.pos.y, tx: c.pos.x, ty: c.pos.y });

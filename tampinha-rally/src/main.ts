@@ -47,6 +47,7 @@ function loadMatch(cfg: MatchConfig): void {
   let def = cfg.customTrack ? cfg.customTrack : track(cfg.level, cfg.trackIdx);
   const chaosOn = cfg.mode === 'caos' || cfg.rankCirc === 'caos';   // Caos avulso OU Ranqueada Caos
   if (chaosOn) def = withChaosItems(def);                    // caixas de power-up na pista
+  fx3Clear();
   scene = makeScene(def.bg);
   makeSun(scene, def.w, def.h);
   mgr.setup(def, cfg.players);
@@ -79,127 +80,199 @@ mgr.onItem = (cap, item, used) => {
     for (let i = 0; i < 3; i++) setTimeout(() => fx.dust(cap.pos.x, cap.pos.y, 6, '#e0c8ff'), i * 90);
   }
 };
-// RASTRO animado: pinga partículas ao longo de uma linha (dá sensação de movimento)
-function fxTrail(x1: number, y1: number, x2: number, y2: number, col: string, n = 12, step = 26): void {
-  for (let i = 0; i <= n; i++) {
-    const t = i / n, x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t;
-    setTimeout(() => { fx.dust(x, y, 3, col); if (i === n) fx.impact(x, y, 8, col); }, i * step);
-  }
+// ---------------- EFEITOS 3D DOS PODERES (Caos) ----------------
+// objetinhos de verdade na cena (bolinha voando, furacão, raio…), cada um com
+// o próprio updater; roda no loop e se auto-remove no fim
+type Fx3 = (dt: number) => boolean;
+let fx3d: Fx3[] = [];
+function fx3Clear(): void { fx3d = []; }
+function fx3Gone(o: THREE.Object3D): void {
+  scene?.remove(o);
+  o.traverse((m: any) => { m.geometry?.dispose?.(); if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach((mm: any) => mm.dispose?.()); });
 }
+const M = (color: string, opts: any = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.35, ...opts });
+
+// anel de choque no chão (cresce e some)
+function fx3Ring(x: number, y: number, col: string, r1 = 2.6, dur = 0.5): void {
+  if (!scene) return;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.72, 28), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.06, y); scene.add(ring);
+  let t = 0;
+  fx3d.push((dt) => { t += dt / dur; const k = Math.min(1, t); const sc = 0.6 + k * (r1 - 0.6); ring.scale.set(sc, sc, 1); (ring.material as any).opacity = 0.9 * (1 - k); if (k >= 1) { fx3Gone(ring); return false; } return true; });
+}
+// faíscas SUBINDO (bolinhas brilhantes que sobem e somem)
+function fx3Rise(x: number, y: number, col: string, n = 8, dur = 0.8): void {
+  if (!scene) return;
+  const g = new THREE.Group(); scene.add(g);
+  const ps: { m: THREE.Mesh; vx: number; vz: number; vy: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.09 + Math.random() * 0.08, 6, 5), new THREE.MeshBasicMaterial({ color: col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    m.position.set(x + (Math.random() - 0.5) * 0.9, 0.3, y + (Math.random() - 0.5) * 0.9);
+    g.add(m); ps.push({ m, vx: (Math.random() - 0.5) * 1.2, vz: (Math.random() - 0.5) * 1.2, vy: 2.4 + Math.random() * 2 });
+  }
+  let t = 0;
+  fx3d.push((dt) => {
+    t += dt / dur; for (const p of ps) { p.m.position.x += p.vx * dt; p.m.position.z += p.vz * dt; p.m.position.y += p.vy * dt; (p.m.material as any).opacity = 1 - t; }
+    if (t >= 1) { fx3Gone(g); return false; } return true;
+  });
+}
+// BOLINHA DE GUDE: esfera vidrada voando em arco do atirador até o alvo, e ESTOURA
+function fx3Marble(x1: number, y1: number, x2: number, y2: number, onHit?: () => void): void {
+  if (!scene) return;
+  const g = new THREE.Group();
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), new THREE.MeshPhysicalMaterial({ color: '#b98cff', roughness: 0.08, clearcoat: 1, transparent: true, opacity: 0.92 } as any));
+  const veio = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.06, 8, 16), M('#fff', { roughness: 0.2 }));
+  veio.rotation.x = 0.8; g.add(orb, veio); scene.add(g);
+  const dur = Math.max(0.35, Math.min(0.7, Math.hypot(x2 - x1, y2 - y1) / 30));
+  let t = 0;
+  fx3d.push((dt) => {
+    t += dt / dur; const k = Math.min(1, t);
+    g.position.set(x1 + (x2 - x1) * k, 0.45 + Math.sin(Math.PI * k) * 2.0, y1 + (y2 - y1) * k);
+    g.rotation.x += dt * 14; g.rotation.z += dt * 9;
+    if (k >= 1) { fx3Gone(g); sfx.clack(9); fx.impact(x2, y2, 14, '#c9a0ff'); fx3Ring(x2, y2, '#c9a0ff', 2.4, 0.4); onHit?.(); return false; }
+    return true;
+  });
+}
+// FURACÃO: funil de anéis girando que passa varrendo cada rival
+function fx3Tornado(x: number, y: number, dur = 1.2): void {
+  if (!scene) return;
+  const g = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const r = 0.45 + i * 0.32;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.09 + i * 0.02, 8, 22), new THREE.MeshBasicMaterial({ color: i % 2 ? '#bfe8ff' : '#e8f6ff', transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }));
+    ring.rotation.x = Math.PI / 2; ring.position.y = 0.3 + i * 0.55; (ring as any).ph = i * 1.3;
+    g.add(ring);
+  }
+  g.position.set(x, 0, y); g.scale.set(0.2, 0.2, 0.2); scene.add(g);
+  let t = 0;
+  fx3d.push((dt) => {
+    t += dt / dur; const k = Math.min(1, t);
+    g.rotation.y += dt * 16;
+    const pop = k < 0.2 ? k / 0.2 : k > 0.8 ? (1 - k) / 0.2 : 1;
+    g.scale.set(pop, pop, pop);
+    g.children.forEach((r: any, i: number) => { r.position.x = Math.sin(t * 9 + r.ph) * 0.12; r.position.z = Math.cos(t * 9 + r.ph) * 0.12; });
+    if (Math.random() < 0.3) fx.dust(x + (Math.random() - 0.5) * 2, y + (Math.random() - 0.5) * 2, 2, '#bfe8ff');
+    if (k >= 1) { fx3Gone(g); return false; }
+    return true;
+  });
+}
+// RAIO: coluna de luz despenca do céu com clarão e onda de choque
+function fx3Bolt(x: number, y: number): void {
+  if (!scene) return;
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.22, 11, 8), new THREE.MeshBasicMaterial({ color: '#fff', transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.55, 11, 8), new THREE.MeshBasicMaterial({ color: '#ffe36a', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+  core.position.y = glow.position.y = 5.5; g.add(glow, core);
+  g.position.set(x, 0, y); g.scale.y = 0.05; scene.add(g);
+  let t = 0;
+  fx3d.push((dt) => {
+    t += dt / 0.45; const k = Math.min(1, t);
+    g.scale.y = k < 0.25 ? k / 0.25 : 1;
+    const fade = k < 0.25 ? 1 : 1 - (k - 0.25) / 0.75;
+    (core.material as any).opacity = fade; (glow.material as any).opacity = 0.55 * fade * (0.7 + Math.sin(t * 40) * 0.3);
+    if (k >= 1) { fx3Gone(g); return false; }
+    return true;
+  });
+  fx3Ring(x, y, '#ffe36a', 3.2, 0.5);
+}
+// NUVEM DE CHUVA: nuvenzinha paira e pinga gotas de verdade antes da poça
+function fx3Cloud(x: number, y: number): void {
+  if (!scene) return;
+  const g = new THREE.Group();
+  for (const [dx, dz, r] of [[-0.5, 0, 0.55], [0.5, 0.1, 0.5], [0, -0.15, 0.65], [0.1, 0.3, 0.45]] as [number, number, number][]) {
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), M('#aeb8c2', { roughness: 0.9, transparent: true, opacity: 0.92 }));
+    puff.position.set(dx, 0, dz); g.add(puff);
+  }
+  g.position.set(x, 4.2, y); g.scale.set(0.1, 0.1, 0.1); scene.add(g);
+  let t = 0; let drip = 0;
+  fx3d.push((dt) => {
+    t += dt / 1.5; const k = Math.min(1, t);
+    const pop = k < 0.15 ? k / 0.15 : k > 0.85 ? (1 - k) / 0.15 : 1;
+    g.scale.set(pop, pop, pop);
+    g.position.y = 4.2 + Math.sin(t * 6) * 0.1;
+    drip -= dt;
+    if (drip <= 0 && k < 0.8) {                       // solta uma GOTA que cai de verdade
+      drip = 0.12;
+      const d = new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 5), new THREE.MeshBasicMaterial({ color: '#7ac8f2', transparent: true, opacity: 0.95 }));
+      d.position.set(x + (Math.random() - 0.5) * 1.6, 3.8, y + (Math.random() - 0.5) * 1.6);
+      scene!.add(d);
+      fx3d.push((dt2) => { d.position.y -= dt2 * 9; if (d.position.y <= 0.1) { fx.dust(d.position.x, d.position.z, 2, '#7ac8f2'); fx3Gone(d); return false; } return true; });
+    }
+    if (k >= 1) { fx3Gone(g); return false; }
+    return true;
+  });
+}
+// ÂNCORA: peso de metal despenca em cima do líder e some afundando
+function fx3Anchor(x: number, y: number): void {
+  if (!scene) return;
+  const g = new THREE.Group();
+  const haste = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.6, 8), M('#6b7078', { metalness: 0.7, roughness: 0.35 }));
+  haste.position.y = 0.9;
+  const arco = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.14, 8, 16, Math.PI), M('#6b7078', { metalness: 0.7, roughness: 0.35 }));
+  arco.rotation.z = Math.PI; arco.position.y = 0.42;
+  const olho = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.07, 8, 12), M('#8a9098', { metalness: 0.7 }));
+  olho.position.y = 1.75;
+  g.add(haste, arco, olho); g.position.set(x, 7, y); scene.add(g);
+  let t = 0;
+  fx3d.push((dt) => {
+    t += dt;
+    if (t < 0.32) { g.position.y = 7 - (t / 0.32) * (t / 0.32) * 7; return true; }   // queda acelerando
+    if (t < 0.4 && g.position.y !== 0) { g.position.y = 0; sfx.thud(); fx.impact(x, y, 13, '#9aa2ac'); fx3Ring(x, y, '#9aa2ac', 2.6, 0.45); }
+    if (t > 1.1) { g.position.y -= dt * 2.5; g.scale.multiplyScalar(1 - dt * 1.6); if (g.scale.x < 0.08) { fx3Gone(g); return false; } }
+    return true;
+  });
+}
+// CHICLETE: bolota rosa esparrama no chão (e fica a mancha, igual a poça)
+function fx3Gum(x: number, y: number): void {
+  if (!scene) return;
+  const blob = new THREE.Mesh(new THREE.SphereGeometry(1.0, 16, 12), M('#ff9de0', { roughness: 0.3 }));
+  blob.scale.set(0.1, 0.06, 0.1); blob.position.set(x, 0.05, y); scene.add(blob);
+  const mancha = new THREE.Mesh(new THREE.CircleGeometry(1.5, 24), new THREE.MeshStandardMaterial({ color: '#ff9de0', roughness: 0.35, transparent: true, opacity: 0.85 }));
+  mancha.rotation.x = -Math.PI / 2; mancha.position.set(x, 0.025, y); scene.add(mancha);   // fica na pista
+  let t = 0;
+  fx3d.push((dt) => {
+    t += dt / 0.6; const k = Math.min(1, t);
+    const s = 0.1 + k * 1.4 + Math.sin(k * 12) * 0.06 * (1 - k);
+    blob.scale.set(s, 0.06 + (1 - k) * 0.25, s);
+    if (k >= 1) { fx3Gone(blob); return false; }
+    return true;
+  });
+}
+
+// pegar a caixinha: efeito SEM texto — estouro roxo + faíscas subindo
+mgr.onItem = (cap, item, used) => {
+  if (!used) {
+    sfx.bonus();
+    fx.impact(cap.pos.x, cap.pos.y, 12, '#b98cff');
+    fx3Ring(cap.pos.x, cap.pos.y, '#b98cff', 2.2, 0.45);
+    fx3Rise(cap.pos.x, cap.pos.y, '#e0c8ff', 9, 0.8);
+  }
+};
 // efeitos dos PODERES do Caos — valem pra você E pras IAs (o manager avisa daqui)
 mgr.onItemFx = (id, d) => {
   switch (id) {
-    case 'raio': {                                   // relâmpago desce no líder
-      sfx.zap();
-      fx.impact(d.x, d.y, 16, '#ffe36a'); fx.impact(d.x, d.y, 9, '#fff');
-      for (let i = 0; i < 4; i++) setTimeout(() => fx.dust(d.x, d.y, 8, i % 2 ? '#ffe36a' : '#fff'), i * 70);
-      if (d.tx != null) setTimeout(() => fx.dust(d.tx!, d.ty!, 10, '#ffe36a'), 400);   // reaparece no checkpoint
-      break;
-    }
-    case 'gude': {                                   // bolinha voa até o alvo e ESTOURA
-      sfx.whoosh();
-      fxTrail(d.x, d.y, d.tx!, d.ty!, '#c9a0ff', 14, 22);
-      setTimeout(() => { sfx.clack(8); fx.impact(d.tx!, d.ty!, 14, '#c9a0ff'); if (d.pts?.[0]) fxTrail(d.tx!, d.ty!, d.pts[0].x, d.pts[0].y, '#9a7ad0', 8, 30); }, 14 * 22);
-      break;
-    }
-    case 'troca': {                                  // os dois trocam num zás cruzado
-      sfx.whoosh(); setTimeout(() => sfx.whoosh(), 140);
-      fxTrail(d.x, d.y, d.tx!, d.ty!, '#8fd0ff', 12, 24);
-      fxTrail(d.tx!, d.ty!, d.x, d.y, '#ffd24a', 12, 24);
-      setTimeout(() => { fx.impact(d.x, d.y, 11, '#8fd0ff'); fx.impact(d.tx!, d.ty!, 11, '#ffd24a'); }, 12 * 24 + 40);
-      break;
-    }
-    case 'furacao': {                                // rajada varrendo cada rival pra trás
-      sfx.whoosh(); setTimeout(() => sfx.whoosh(), 180);
-      fx.impact(d.x, d.y, 12, '#bfe8ff');
+    case 'raio': sfx.zap(); fx3Bolt(d.x, d.y); fx.impact(d.x, d.y, 16, '#ffe36a'); break;
+    case 'gude': sfx.whoosh(); fx3Marble(d.x, d.y, d.tx!, d.ty!); break;
+    case 'troca': sfx.whoosh(); setTimeout(() => sfx.whoosh(), 160); fx3Ring(d.x, d.y, '#8fd0ff', 2.2, 0.5); fx3Ring(d.tx!, d.ty!, '#ffd24a', 2.2, 0.5); fx3Rise(d.x, d.y, '#8fd0ff', 6); fx3Rise(d.tx!, d.ty!, '#ffd24a', 6); break;
+    case 'furacao': {
+      sfx.whoosh(); setTimeout(() => sfx.whoosh(), 200);
       const ps = d.pts || [];
-      for (let i = 0; i + 1 < ps.length; i += 2) fxTrail(ps[i].x, ps[i].y, ps[i + 1].x, ps[i + 1].y, '#bfe8ff', 10, 30);
+      for (let i = 0; i + 1 < ps.length; i += 2) { fx3Tornado(ps[i].x, ps[i].y); fx3Ring(ps[i + 1].x, ps[i + 1].y, '#bfe8ff', 2.0, 0.6); }
       break;
     }
-    case 'chuva': {                                  // nuvem molha o caminho do líder
-      sfx.splat();
-      for (let i = 0; i < 6; i++) setTimeout(() => fx.dust(d.x + (Math.random() - 0.5) * 3, d.y + (Math.random() - 0.5) * 3, 5, '#7ac8f2'), i * 110);
-      setTimeout(() => fx.impact(d.x, d.y, 10, '#3f8ec8'), 660);
+    case 'chuva': sfx.splat(); fx3Cloud(d.x, d.y); break;
+    case 'ancora': fx3Anchor(d.x, d.y); break;
+    case 'cola': sfx.splat(); fx3Gum(d.x, d.y); break;
+    case 'salto': sfx.whoosh(); fx.dust(d.x, d.y, 12, '#9dffb8'); fx3Ring(d.x, d.y, '#9dffb8', 2.2, 0.4); setTimeout(() => { sfx.wall(5); fx.impact(d.tx!, d.ty!, 12, '#9dffb8'); fx3Ring(d.tx!, d.ty!, '#9dffb8', 2.6, 0.45); }, 620);
       break;
-    }
-    case 'ancora': {                                 // peso despenca no líder
-      sfx.thud();
-      fx.impact(d.x, d.y, 14, '#9aa2ac'); fx.dust(d.x, d.y, 12, '#6b7078');
-      setTimeout(() => fx.dust(d.x, d.y, 8, '#9aa2ac'), 150);
-      break;
-    }
-    case 'cola': {                                   // chiclete esparrama no chão
-      sfx.splat();
-      fx.impact(d.x, d.y, 11, '#ff9de0'); fx.dust(d.x, d.y, 10, '#ff9de0');
-      break;
-    }
-    case 'salto': {                                  // decola, risca o céu e aterrissa
-      sfx.whoosh();
-      fx.dust(d.x, d.y, 12, '#9dffb8');
-      fxTrail(d.x, d.y, d.tx!, d.ty!, '#9dffb8', 14, 24);
-      setTimeout(() => { sfx.wall(5); fx.impact(d.tx!, d.ty!, 12, '#9dffb8'); }, 14 * 24 + 40);
-      break;
-    }
-    case 'ima': {                                    // puxão magnético pro centro
-      sfx.aura();
-      fxTrail(d.x, d.y, d.tx!, d.ty!, '#8fd0ff', 8, 22);
-      setTimeout(() => fx.impact(d.tx!, d.ty!, 9, '#8fd0ff'), 8 * 22 + 30);
-      break;
-    }
-    // buffs em si mesmo: AURA na cor do poder + anel de faíscas
-    case 'foguete': sfx.aura(); fx.impact(d.x, d.y, 13, '#ffb347'); fx.dust(d.x, d.y, 10, '#ffd24a'); break;
-    case 'turbo': sfx.aura(); fx.impact(d.x, d.y, 10, '#7af2e0'); fx.dust(d.x, d.y, 8, '#7af2e0'); break;
-    case 'extra': sfx.bonus(); fx.impact(d.x, d.y, 11, '#8affc0'); break;
-    case 'escudo': sfx.aura(); fx.impact(d.x, d.y, 13, '#7ab8ff'); setTimeout(() => fx.impact(d.x, d.y, 8, '#dceaff'), 140); break;
-    case 'pancada': sfx.thud(); fx.impact(d.x, d.y, 13, '#ff7a5a'); fx.dust(d.x, d.y, 8, '#ff9d7a'); break;
-    case 'fantasma': sfx.whoosh(); fx.impact(d.x, d.y, 12, '#e8e8ff'); for (let i = 0; i < 3; i++) setTimeout(() => fx.dust(d.x, d.y, 6, '#cfcfff'), i * 120); break;
-  }
-};
-mgr.onEvent = (e) => {
-  switch (e.type) {
-    case 'wall': sfx.wall(e.power); fx.impact(e.x, e.y, e.power * 0.4, '#ffe6b0'); break;
-    case 'stone': sfx.wall(e.power); fx.impact(e.x, e.y, e.power * 0.5, '#e8e0d0'); break;
-    case 'capHit': sfx.clack(e.power); fx.impact(e.x, e.y, e.power * 0.6, '#fff'); break;
-    case 'hole': sfx.hole(); fx.dust(e.x, e.y, 14, '#3a2c1a'); break;
-    case 'bomb': sfx.bad(); fx.impact(e.x, e.y, 10, '#ff8a5a'); break;
-    case 'bonus': sfx.bonus(); fx.impact(e.x, e.y, 10, '#8affc0'); break;
-    case 'out': sfx.bad(); fx.dust(e.x, e.y, 10, '#cbb58a'); break;
-    case 'ramp': sfx.bonus(); fx.impact(e.x, e.y, 8, '#9dffb8'); break;
-    case 'land': sfx.wall(4); fx.dust(e.x, e.y, 14, '#d8c090'); break;
-    case 'top': sfx.clack(Math.min(1, e.power * 0.12)); fx.impact(e.x, e.y, e.power * 0.5, '#ff7ab0'); break;
-    case 'car': sfx.vroom(); fx.dust(e.x, e.y, 12, '#e8b84a'); fx.impact(e.x, e.y, 8, '#ffd24a'); break;
-    case 'band': {
-      sfx.elastic(Math.min(1, e.power * 0.1)); fx.impact(e.x, e.y, e.power * 0.6, '#ff8a8a');
-      // avisa o visual do elástico mais próximo pra ESTICAR de verdade
-      let best: any = null, bd = 1e9;
-      for (const o of mgr.track.def.obstacles) {
-        if (o.type !== 'band') continue;
-        const d = (o.x - e.x) ** 2 + (o.y - e.y) ** 2; if (d < bd) { bd = d; best = o; }
-      }
-      if (best) {
-        const cap = mgr.caps[e.capId];
-        let px = e.x - (cap ? cap.pos.x : best.x), py = e.y - (cap ? cap.pos.y : best.y);
-        const pl = Math.hypot(px, py) || 1; px /= pl; py /= pl;
-        best.pokeX = px; best.pokeY = py; best.pokeP = Math.min(1, e.power * 0.09);
-      }
-      break;
-    }
-    case 'mill': sfx.wall(e.power); fx.impact(e.x, e.y, e.power * 0.4, '#8fd0ff'); break;
-    case 'balloon': {
-      // power -2 = "chuvinha" do Caos: só a poça, sem estouro de bexiga
-      if (e.power === -2) {
-        if (scene) { const pud = new THREE.Mesh(new THREE.CircleGeometry(2.0, 26), new THREE.MeshStandardMaterial({ color: '#3f8ec8', roughness: 0.15, transparent: true, opacity: 0.72 })); pud.rotation.x = -Math.PI / 2; pud.position.set(e.x, 0.02, e.y); scene.add(pud); }
-        fx.dust(e.x, e.y, 12, '#4a90b8'); break;
-      }
-      sfx.pop(); fx.impact(e.x, e.y, 14, '#7ac8f2'); fx.dust(e.x, e.y, 18, '#4a90b8');
-      // poça d'água 3D no lugar (a física já vale — manager adicionou o patch)
-      if (scene) {
-        const pud = new THREE.Mesh(new THREE.CircleGeometry(1.7, 26), new THREE.MeshStandardMaterial({ color: '#3f8ec8', roughness: 0.15, transparent: true, opacity: 0.72 }));
-        pud.rotation.x = -Math.PI / 2; pud.position.set(e.x, 0.02, e.y); scene.add(pud);
-      }
-      break;
-    }
-    case 'finish': fx.confetti(e.x, e.y); break;
+    case 'ima': sfx.aura(); fx3Ring(d.tx!, d.ty!, '#8fd0ff', 2.0, 0.45); break;
+    // buffs em si mesmo: aura na cor do poder + faíscas subindo
+    case 'foguete': sfx.aura(); fx3Ring(d.x, d.y, '#ffb347', 2.6, 0.5); fx3Rise(d.x, d.y, '#ffd24a', 10); break;
+    case 'turbo': sfx.aura(); fx3Ring(d.x, d.y, '#7af2e0', 2.2, 0.45); fx3Rise(d.x, d.y, '#7af2e0', 7); break;
+    case 'extra': sfx.bonus(); fx3Ring(d.x, d.y, '#8affc0', 2.2, 0.45); fx3Rise(d.x, d.y, '#8affc0', 8); break;
+    case 'escudo': sfx.aura(); fx3Ring(d.x, d.y, '#7ab8ff', 2.4, 0.5); fx3Ring(d.x, d.y, '#dceaff', 1.6, 0.7); break;
+    case 'pancada': sfx.thud(); fx3Ring(d.x, d.y, '#ff7a5a', 2.6, 0.45); fx3Rise(d.x, d.y, '#ff9d7a', 8); break;
+    case 'fantasma': sfx.whoosh(); fx3Ring(d.x, d.y, '#e8e8ff', 2.4, 0.6); fx3Rise(d.x, d.y, '#cfcfff', 10, 1.1); break;
   }
 };
 
@@ -338,7 +411,7 @@ const input = new InputController(canvas, rig.camera, rig, {
   onEditUp: () => { if (ui.preview3D('up', 0, 0)) rebuildPreviewBoard(); },
 });
 
-function stopScene(): void { if (scene) { scene.clear(); } board = null; previewing = false; }
+function stopScene(): void { if (scene) { scene.clear(); } board = null; previewing = false; fx3Clear(); }
 
 // -------- PRÉVIA 3D da pista do editor (vê a maquete real, sem jogar) --------
 function enterPreview(def: any): void {
@@ -520,7 +593,8 @@ function frame(): void {
     if (board) for (const d of board.dynamics) d.update(dt);   // brinquedos vivos (pião/carrinho/elástico/catavento/bexiga)
     if (board) for (const sp of board.spinners) { sp.rotation.y += dt * 2.4; sp.position.y += Math.sin(t * 3 + sp.position.x) * 0.004; }
     if (board) for (const bb of board.billboards) bb.quaternion.copy(rig.camera.quaternion);   // números (bônus/checkpoint) sempre virados pra câmera
-    caps.update(mgr.caps, t, mgr.activeCap()?.id ?? -1);
+    caps.update(mgr.caps, t, mgr.activeCap()?.id ?? -1, dt);
+    if (fx3d.length) fx3d = fx3d.filter(f => f(dt));   // efeitos 3D dos poderes
     fx.update(dt);
     renderer.render(scene, rig.camera);
   }

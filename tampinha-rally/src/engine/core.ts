@@ -114,6 +114,9 @@ export interface Cap {
   anchored: boolean;         // Caos: ÂNCORA — o próximo peteléco sai fraco
   eliminated: boolean;       // Eliminação: já saiu da série
   itemFlash: number;         // brilho visual ao pegar/usar item
+  // animação VISUAL de teleporte (Caos): a tampinha VOA/CAPOTA da posição antiga
+  // até a nova em vez de piscar — só o desenho; a física já usa a posição final
+  vfx?: { fx: number; fy: number; t: number; dur: number; arc?: number; spin?: number };
 }
 
 export function makeCap(id: number, name: string, skin: string, stats: CapStats, isAI: boolean, ai?: string): Cap {

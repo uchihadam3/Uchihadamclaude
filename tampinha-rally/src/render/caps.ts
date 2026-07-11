@@ -28,12 +28,25 @@ class CapView {
       new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
     this.ringHi.rotation.x = -Math.PI / 2; this.ringHi.position.y = 0.05; this.ringHi.visible = false; this.group.add(this.ringHi);
   }
-  update(cap: Cap, t: number, active: boolean): void {
+  update(cap: Cap, t: number, active: boolean, dt = 0): void {
     this.group.visible = true;
     const bobY = cap.moving ? Math.abs(Math.sin(t * 20)) * 0.03 : Math.sin(t * 2 + cap.bob) * 0.015;
-    this.group.position.set(cap.pos.x, bobY + (cap.z || 0), cap.pos.y);
-    this.group.rotation.y = cap.angle;
-    if (cap.airborne) this.group.rotation.x = Math.sin(t * 10) * 0.25;   // inclina no ar
+    // teleporte ANIMADO (Caos): a tampinha VOA da posição antiga até a nova,
+    // capotando — só o desenho; a física já está na posição final
+    let px = cap.pos.x, py = cap.pos.y, lift = 0, tumble = 0;
+    if (cap.vfx) {
+      const v = cap.vfx; v.t += dt;
+      const k = Math.min(1, v.t / v.dur);
+      const e = 1 - Math.pow(1 - k, 3);                       // arranca e freia
+      px = v.fx + (cap.pos.x - v.fx) * e; py = v.fy + (cap.pos.y - v.fy) * e;
+      lift = (v.arc || 0) * Math.sin(Math.PI * Math.min(1, k));
+      tumble = (v.spin || 0) * e;
+      if (k >= 1) delete cap.vfx;
+    }
+    this.group.position.set(px, bobY + (cap.z || 0) + lift, py);
+    this.group.rotation.y = cap.angle + tumble;
+    if (tumble) this.group.rotation.x = Math.sin(tumble * 0.7) * 0.55;       // capotando no voo
+    else if (cap.airborne) this.group.rotation.x = Math.sin(t * 10) * 0.25;  // inclina no ar
     else this.group.rotation.x = 0;
     const pop = (1 + cap.hitFlash * 0.12) * (1 + (cap.z || 0) * 0.05);   // cresce um tico no alto
     this.group.scale.set(pop, 1 - cap.hitFlash * 0.1, pop);
@@ -49,7 +62,7 @@ export class CapsRenderer {
     this.group.clear(); this.views = [];
     for (const c of caps) { const v = new CapView(c); this.views.push(v); this.group.add(v.group); }
   }
-  update(caps: Cap[], t: number, activeId: number): void {
-    for (let i = 0; i < caps.length; i++) this.views[i]?.update(caps[i], t, caps[i].id === activeId);
+  update(caps: Cap[], t: number, activeId: number, dt = 0): void {
+    for (let i = 0; i < caps.length; i++) this.views[i]?.update(caps[i], t, caps[i].id === activeId, dt);
   }
 }
