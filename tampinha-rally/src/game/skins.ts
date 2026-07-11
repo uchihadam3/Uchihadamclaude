@@ -226,6 +226,19 @@ SKINS.push(
     'O rei dos guaranás dos anos 60. Rei não tem ponto fraco — boa em TUDO.')),
 );
 
+// FORÇA IGUAL, JEITO DIFERENTE: cada exclusiva do Caos é normalizada pra soma
+// dos 7 atributos ficar EXATAMENTE igual à da exclusiva CLÁSSICA do mesmo tier
+// (arquétipos "gordos" como tanque/completa não podem sair mais fortes de graça)
+{
+  const pares: [string, string][] = [['grapette', 'mineirinho'], ['cotuba', 'dolly'], ['matecouro', 'saogeraldo'], ['fruki', 'bare'], ['simba', 'guaranajesus']];
+  const soma = (st: CapStats): number => (Object.values(st) as number[]).reduce((a, b) => a + b, 0);
+  for (const [cid, nid] of pares) {
+    const kc = SKINS.find(s => s.id === cid)!, kn = SKINS.find(s => s.id === nid)!;
+    const f = soma(kn.stats) / soma(kc.stats);
+    for (const k of Object.keys(kc.stats) as (keyof CapStats)[]) kc.stats[k] = +(kc.stats[k] * f).toFixed(3);
+  }
+}
+
 export const unlockedSkins = (wins: number): Skin[] => SKINS.filter(s => !s.hidden && (wins >= s.unlock || save.hasBonus(s.id)));
 // posição da raridade na escada (p/ regra de elegibilidade da Ranqueada)
 import { RARITY_ORDER } from '../render/capart';

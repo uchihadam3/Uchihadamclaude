@@ -195,7 +195,7 @@ console.log('\n=== RANQUEADA CAOS: circuito separado (estado, semente, nomes, pr
     if (!(kc as any).rcaos || kc.rprize !== i) die('flags da exclusiva caos');
     const mc = Object.values(kc.stats as any).reduce((s: number, v: any) => s + v, 0);
     const mn = Object.values(kn.stats as any).reduce((s: number, v: any) => s + v, 0);
-    if (Math.abs(mc - mn) / mn > 0.06) die(`força desigual: ${kc.id} ${mc.toFixed(2)} vs ${kn.id} ${mn.toFixed(2)}`);
+    if (Math.abs(mc - mn) / mn > 0.01) die(`força desigual: ${kc.id} ${mc.toFixed(3)} vs ${kn.id} ${mn.toFixed(3)}`);
     // pelo menos 4 dos 7 atributos têm que diferir de verdade (>3%)
     let diff = 0;
     for (const k of Object.keys(kn.stats) as (keyof typeof kn.stats)[]) if (Math.abs(kc.stats[k] - kn.stats[k]) / kn.stats[k] > 0.03) diff++;
