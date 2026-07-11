@@ -66,16 +66,19 @@ export interface RankState {
   best: Record<string, number>;               // MELHOR pontuação por competição
   place: Record<string, number>;              // melhor colocação por competição (1..N)
   cap: string;                                // última tampinha usada (vitrine do ranking)
+  seed: number;                               // semente das pistas (só muda excluindo a conta)
 }
 function newDev(): string { return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
+const newSeed = (): number => (Math.random() * 0xffffffff) >>> 0;
 export function rankState(): RankState {
   const d = save.get() as any;
-  if (!d.rank) d.rank = { name: null, dev: newDev(), claimTs: 0, best: {}, place: {}, cap: 'coca' };
+  if (!d.rank) d.rank = { name: null, dev: newDev(), claimTs: 0, best: {}, place: {}, cap: 'coca', seed: newSeed() };
   if (!d.rank.dev) d.rank.dev = newDev();
+  if (!d.rank.seed) { d.rank.seed = newSeed(); save.persistNow(); }
   return d.rank;
 }
 export function saveRank(st: RankState): void { (save.get() as any).rank = st; save.persistNow(); }
-export function resetRank(): void { const d = save.get() as any; const dev = d.rank?.dev || newDev(); d.rank = { name: null, dev, claimTs: 0, best: {}, place: {}, cap: 'coca' }; save.persistNow(); }
+export function resetRank(): void { const d = save.get() as any; const dev = d.rank?.dev || newDev(); d.rank = { name: null, dev, claimTs: 0, best: {}, place: {}, cap: 'coca', seed: newSeed() }; save.persistNow(); }
 
 export const rankTotal = (st: RankState): number => Object.values(st.best).reduce((a, b) => a + b, 0);
 export const tierGolds = (st: RankState, tier: number): number => RANK_COMPS.filter(c => c.tier === tier && st.place[c.id] === 1).length;

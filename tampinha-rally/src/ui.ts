@@ -1,6 +1,6 @@
 // UI em DOM sobre o canvas: menu, configuração de partida, HUD da corrida,
 // resultados, personalização de tampinhas e ajustes. Grande, mas simples.
-import { track, LEVELS, LEVEL_COLORS, TRACKS_PER_LEVEL, buildCustomTrack } from './game/generator';
+import { track, LEVELS, LEVEL_COLORS, TRACKS_PER_LEVEL, buildCustomTrack, seededTrack } from './game/generator';
 import { TrackModel } from './engine/track';
 import { SKINS, skinById, CAP_COLORS, unlockedSkins } from './game/skins';
 import { drawCap, RARITY_COLOR, RARITY_LABEL, RARITY_ORDER } from './render/capart';
@@ -322,7 +322,7 @@ export class UI {
       { name: this.myName || 'Você', isAI: false, skin: st.cap, stats: campStats(st) },
       ...opp.map((sk, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: c.aiKinds[i % c.aiKinds.length], skin: sk })),
     ];
-    this.cb.start({ level: c.level, trackIdx: Math.floor(Math.random() * TRACKS_PER_LEVEL), pick: 'randlevel', players, mode: 'camp', campComp: c.id });
+    this.cb.start({ level: c.level, trackIdx: seededTrack(st.seed, c.id, 0), pick: 'randlevel', players, mode: 'camp', campComp: c.id });
   }
   // resultado da competição (troféu + recompensas)
   onCampBack: (() => void) | null = null;
@@ -678,7 +678,7 @@ export class UI {
       { name: rankState().name || 'Você', isAI: false, skin: capId },
       ...opp.map((o, i) => ({ name: AI_NAMES[i % AI_NAMES.length], isAI: true, ai: c.aiKinds[i % c.aiKinds.length], skin: o.skin, stats: o.stats })),
     ];
-    this.cb.start({ level: c.level, trackIdx: Math.floor(Math.random() * TRACKS_PER_LEVEL), pick: 'randlevel', players, mode: 'rank', rankComp: c.id });
+    this.cb.start({ level: c.level, trackIdx: seededTrack(rankState().seed, c.id, 0), pick: 'randlevel', players, mode: 'rank', rankComp: c.id });
   }
 
   // resultado da competição ranqueada (pontos + ranking + prêmio)

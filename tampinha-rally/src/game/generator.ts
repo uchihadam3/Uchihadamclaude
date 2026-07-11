@@ -528,6 +528,18 @@ export function track(level: number, idx: number): TrackDef {
 }
 export const TRACKS_PER_LEVEL = 10;
 
+// PISTA FIXA por competição: sorteia UMA vez a partir da semente da conta —
+// sair/voltar/reiniciar cai sempre na mesma sequência de pistas (aprende e passa).
+// Passo coprimo com 10 → corridas da mesma competição nunca repetem pista.
+export function seededTrack(seed: number, key: string, race: number): number {
+  let h = (seed >>> 0) || 1;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 2654435761) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 2246822519) >>> 0;
+  const base = h % TRACKS_PER_LEVEL;
+  const step = [1, 3, 7, 9][(h >>> 8) % 4];
+  return (base + race * step) % TRACKS_PER_LEVEL;
+}
+
 // MODO CAOS: devolve uma cópia da pista com CAIXAS DE ITEM espalhadas perto do
 // centro (fáceis de pegar, ao contrário do bônus arriscado). Não muta o cache.
 export function withChaosItems(def: TrackDef): TrackDef {

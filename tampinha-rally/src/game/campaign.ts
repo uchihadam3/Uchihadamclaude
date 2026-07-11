@@ -75,10 +75,13 @@ export interface CampState {
   best: Record<string, number>;             // melhor colocação por competição (1..N)
   done: boolean;                            // zerou (venceu a Grande Final)
   races: number; golds: number;             // estatísticas pro final
+  seed: number;                             // semente das pistas (fixa por carreira)
 }
 export function campState(): CampState {
   const c = (save.get() as any).campaign;
-  return c || { cap: null, pts: 0, alloc: {}, best: {}, done: false, races: 0, golds: 0 };
+  const st = c || { cap: null, pts: 0, alloc: {}, best: {}, done: false, races: 0, golds: 0 };
+  if (!st.seed) { st.seed = (Math.random() * 0xffffffff) >>> 0; if (c) save.persistNow(); }
+  return st;
 }
 export function saveCamp(st: CampState): void { (save.get() as any).campaign = st; save.persistNow(); }
 

@@ -140,4 +140,33 @@ console.log('\n=== CRDT DO RANKING: nome único, lápide, fusão determinística
   console.log('  claim antigo vence · lápide libera · normalização · standings ✓');
 }
 
+console.log('\n=== PISTA FIXA: mesma semente → mesma sequência (só troca com conta nova) ===');
+{
+  const { seededTrack, TRACKS_PER_LEVEL } = await import('../src/game/generator');
+  const st = rankState();
+  if (!st.seed) die('conta sem semente');
+  // determinístico: reiniciar/sair/voltar dá SEMPRE a mesma pista
+  for (const c of ['rk00', 'rk23', 'rk47' in {} ? '' : 'rk35']) {
+    if (!c) continue;
+    const a = seededTrack(st.seed, c, 0);
+    if (seededTrack(st.seed, c, 0) !== a || seededTrack(st.seed, c, 0) !== a) die('não determinístico');
+  }
+  // corridas da MESMA competição nunca repetem pista (até 5 corridas)
+  for (let s = 1; s < 40; s++) {
+    const seen = new Set<number>();
+    for (let r = 0; r < 5; r++) seen.add(seededTrack(s * 977, 'rk05', r));
+    if (seen.size !== 5) die('pista repetiu dentro da competição (seed ' + s + ')');
+  }
+  // faixa válida + sementes diferentes dão sequências diferentes (quase sempre)
+  let dif = 0;
+  for (let s = 1; s <= 50; s++) { const v = seededTrack(s, 'rk00', 0); if (v < 0 || v >= TRACKS_PER_LEVEL) die('fora da faixa'); if (v !== seededTrack(s + 1, 'rk00', 0)) dif++; }
+  if (dif < 30) die('sementes não variam as pistas');
+  // excluir a conta troca a semente → run nova, pistas novas
+  const old = st.seed;
+  const { resetRank: rr } = await import('../src/game/ranked');
+  rr();
+  if (rankState().seed === old) die('resetRank manteve a semente');
+  console.log('  determinístico · 5 corridas sem repetir · conta nova = semente nova ✓');
+}
+
 console.log('\n✅ rankcheck fim');

@@ -5,7 +5,7 @@ import { buildBoard, BoardBuild } from './render/board';
 import { CapsRenderer } from './render/caps';
 import { Particles, Aim } from './render/fx';
 import { GameManager, PlayerDef } from './game/manager';
-import { track, TRACKS_PER_LEVEL, withChaosItems } from './game/generator';
+import { track, TRACKS_PER_LEVEL, withChaosItems, seededTrack } from './game/generator';
 import { SURF, len } from './engine/core';
 import { InputController } from './input';
 import { UI, MatchConfig, Mode, opponentSkins } from './ui';
@@ -15,7 +15,7 @@ import { sfx, resumeAudio, setMusicVol, setSfxVol, setMuted, settings, audioCtx,
 import { playMusic, songForTheme, musicNow } from './music';
 import { save } from './game/save';
 import { compById, campState, saveCamp, applyResult } from './game/campaign';
-import { rankCompById, RANK_PTS } from './game/ranked';
+import { rankCompById, RANK_PTS, rankState } from './game/ranked';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const renderer = makeRenderer(canvas);
@@ -31,7 +31,7 @@ const online = new Online();
 let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
 let champ: { seq: { level: number; idx: number }[]; race: number; pts: Map<number, number>; fmt: string; hist: number[] } | null = null;
-let elim: { players: PlayerDef[]; orig: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[] } | null = null;
+let elim: { players: PlayerDef[]; orig: PlayerDef[]; level: number; race: number; out: { name: string; skin: string }[]; seed: number } | null = null;
 let camp: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
 let rank: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
 let dailyFlicks = 0;
@@ -129,7 +129,7 @@ const ui = new UI({
       cfg.level = seq[0].level; cfg.trackIdx = seq[0].idx;
     }
     else champ = null;
-    if (cfg.mode === 'elim') { elim = { players: cfg.players.slice(), orig: cfg.players.slice(), level: cfg.level, race: 0, out: [] }; cfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }
+    if (cfg.mode === 'elim') { elim = { players: cfg.players.slice(), orig: cfg.players.slice(), level: cfg.level, race: 0, out: [], seed: (Math.random() * 0xffffffff) >>> 0 }; cfg.trackIdx = seededTrack(elim.seed, 'elim', 0); }
     else elim = null;
     if (cfg.mode === 'camp' && cfg.campComp) camp = { compId: cfg.campComp, race: 0, pts: new Map(), hist: [] };
     else camp = null;
@@ -166,13 +166,13 @@ ui.onRestart = () => {
   if (camp && mode === 'camp') {
     const comp = compById(camp.compId);
     ui.confirmRestartComp(`a competição ${comp.ico} ${comp.name}`, camp.race, comp.races,
-      () => go(() => { camp = { compId: camp!.compId, race: 0, pts: new Map(), hist: [] }; curCfg!.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }), () => ui.showPause());
+      () => go(() => { camp = { compId: camp!.compId, race: 0, pts: new Map(), hist: [] }; curCfg!.trackIdx = seededTrack(campState().seed, camp!.compId, 0); }), () => ui.showPause());
     return;
   }
   if (rank && mode === 'rank') {
     const comp = rankCompById(rank.compId);
     ui.confirmRestartComp(`a competição ${comp.ico} ${comp.name}`, rank.race, comp.races,
-      () => go(() => { rank = { compId: rank!.compId, race: 0, pts: new Map(), hist: [] }; curCfg!.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }), () => ui.showPause());
+      () => go(() => { rank = { compId: rank!.compId, race: 0, pts: new Map(), hist: [] }; curCfg!.trackIdx = seededTrack(rankState().seed, rank!.compId, 0); }), () => ui.showPause());
     return;
   }
   if (champ && mode === 'champ') {
@@ -182,7 +182,7 @@ ui.onRestart = () => {
   }
   if (elim && mode === 'elim') {
     ui.confirmRestartComp('a eliminação', elim.race, elim.orig.length - 1,
-      () => go(() => { elim!.players = elim!.orig.slice(); elim!.out = []; elim!.race = 0; curCfg!.players = elim!.players; curCfg!.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL); }), () => ui.showPause());
+      () => go(() => { elim!.players = elim!.orig.slice(); elim!.out = []; elim!.race = 0; curCfg!.players = elim!.players; curCfg!.trackIdx = seededTrack(elim!.seed, 'elim', 0); }), () => ui.showPause());
     return;
   }
   // modo livre / corrida avulsa: reinicia só a corrida, sem cerimônia
@@ -191,14 +191,14 @@ ui.onRestart = () => {
 ui.onMenu = () => { inGame = false; paused = false; stopScene(); playMusic('menu'); ui.showMenu(); };
 ui.onNext = () => {
   ui.hideModal();
-  if (camp && curCfg) {   // campanha: próxima corrida da competição (pista nova do nível)
+  if (camp && curCfg) {   // campanha: próxima corrida da competição (sequência fixa da semente)
     camp.race++;
-    curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
+    curCfg.trackIdx = seededTrack(campState().seed, camp.compId, camp.race);
     loadMatch(curCfg); return;
   }
-  if (rank && curCfg) {   // ranqueada: próxima corrida da competição
+  if (rank && curCfg) {   // ranqueada: próxima corrida da competição (sequência fixa da semente)
     rank.race++;
-    curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
+    curCfg.trackIdx = seededTrack(rankState().seed, rank.compId, rank.race);
     loadMatch(curCfg); return;
   }
   if (champ) {
@@ -217,7 +217,7 @@ ui.onNext = () => {
       ui.showChampion({ rows: [], fmt: 'elim', youWon: !!youWon, name: champCap ? champCap.name : '', skin: champCap ? champCap.skin : 'coca' });
       elim = null; return;
     }
-    elim.race++; curCfg.players = elim.players; curCfg.trackIdx = Math.floor(Math.random() * TRACKS_PER_LEVEL);
+    elim.race++; curCfg.players = elim.players; curCfg.trackIdx = seededTrack(elim.seed, 'elim', elim.race);
     loadMatch(curCfg); return;
   }
   // próxima pista (respeita como foi escolhida: sorteia ou avança na sequência)
