@@ -14,6 +14,7 @@ import { CapStats } from './engine/core';
 import { Online } from './net/online';
 import { save } from './game/save';
 import { settings } from './audio';
+import { getLang, toggleLang } from './i18n';
 
 export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp' | 'rank';
 export type Pick = 'specific' | 'randlevel' | 'randany';
@@ -89,6 +90,7 @@ export class UI {
       <div class="screen menu">
         <div class="topbar">
           <div class="coin-pill">🏆 <b>${wins}</b>&nbsp;<span style="font-weight:700;font-size:12px;opacity:.85">vitórias</span></div>
+          <button class="lang-btn" id="langBtn" data-notr>${getLang() === 'pt' ? '🇺🇸 English' : '🇧🇷 Português'}</button>
           <button class="icon-btn" id="cfgBtn">⚙</button>
         </div>
         <div class="logo">
@@ -113,6 +115,8 @@ export class UI {
     s.prepend(this.bgFx(9));
     (s.querySelector('#capico') as HTMLElement).appendChild(drawCap(skinById('coca').art, 120));
     this.root.appendChild(s);
+    // idioma: alterna PT ↔ EN ao vivo (o botão mostra pra QUAL língua vai trocar)
+    s.querySelector('#langBtn')!.addEventListener('click', () => { toggleLang(); this.showMenu(); });
     s.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
       const m = (b as HTMLElement).dataset.m!;
       if (m === 'skins') this.showSkins();

@@ -1,0 +1,458 @@
+// IDIOMA — o jogo é escrito em PT-BR e este módulo traduz a INTERFACE inteira
+// pra inglês em tempo real: um tradutor de DOM observa tudo que aparece na tela
+// (menus, HUD, toasts, modais) e troca frase por frase usando o dicionário
+// abaixo. Voltar pra PT restaura o texto original. Nomes próprios (tampinhas,
+// pistas, jogadores) ficam como são — fazem parte da identidade do jogo.
+export type Lang = 'pt' | 'en';
+const KEY = 'tmprally_lang';
+let lang: Lang = (localStorage.getItem(KEY) === 'en' ? 'en' : 'pt');
+export const getLang = (): Lang => lang;
+export function setLang(l: Lang): void { lang = l; try { localStorage.setItem(KEY, l); } catch {} retranslate(); }
+export function toggleLang(): void { setLang(lang === 'pt' ? 'en' : 'pt'); }
+
+// ---- dicionário de frases exatas (o texto pode chegar em pedaços, por causa
+// das tags <b>/<span> no meio — os pedaços estão aqui do jeito que aparecem) ----
+const D: Record<string, string> = {
+  // menu principal
+  'CORRIDA DE TAMPINHAS • PETELECO & CAOS': 'BOTTLE CAP RACING • FLICK & CHAOS',
+  'Jogar Rápido': 'Quick Play', 'você + IA, é só jogar': 'you + AI, just play',
+  'Contra a IA': 'Vs. AI', 'escolha os rivais': 'pick your rivals',
+  'Multiplayer': 'Multiplayer', 'local ou online': 'local or online',
+  'Campanha': 'Campaign', 'Ranqueada': 'Ranked',
+  'comece do zero, vire lenda': 'start from zero, become a legend',
+  'clássica e Caos · ranking mundial': 'classic & Chaos · world ranking',
+  'Modos de Jogo': 'Game Modes', 'Caos, Eliminação, Dupla…': 'Chaos, Knockout, Doubles…',
+  'Campeonato': 'Championship', '4 formatos, 1 campeão': '4 formats, 1 champion',
+  'Desafio Diário': 'Daily Challenge', 'a pista do dia': "today's track",
+  'Editor de Pista': 'Track Editor', 'crie e jogue a sua': 'build & play your own',
+  'Tampinhas': 'Caps', 'Como Jogar': 'How to Play', 'obstáculos & atributos': 'obstacles & stats',
+  'Ajustes': 'Settings', 'Música': 'Music', 'Efeitos': 'Sound FX', 'Mudo': 'Mute',
+  '🔇 Ligado': '🔇 On', '🔊 Desligado': '🔊 Off',
+  '‹ Voltar': '‹ Back', '‹ Menu': '‹ Menu', 'Menu': 'Menu', 'Menu ▶': 'Menu ▶', '‹ Sair': '‹ Leave',
+  'vitórias': 'wins',
+  // modos
+  'O jogo': 'The', 'comum': 'regular',
+  'continua no menu. Aqui são os modos especiais — bem diferentes! 🎉': 'game is still on the menu. These are the special modes — really different! 🎉',
+  '🌐 Dupla e Campeonato também dá pra jogar': '🌐 Doubles and Championship can also be played',
+  'Online': 'Online', '(no Multiplayer → Online).': '(in Multiplayer → Online).',
+  '🌀 Modo Caos': '🌀 Chaos Mode', '💀 Eliminação': '💀 Knockout', '⏱️ Contra-Relógio': '⏱️ Time Trial',
+  '🤝 Corrida de Dupla': '🤝 Doubles Race', 'Corrida Rápida': 'Quick Race', 'Multiplayer Local': 'Local Multiplayer',
+  'Modo Caos': 'Chaos Mode', 'Contra-Relógio': 'Time Trial', 'Corrida de Dupla': 'Doubles Race',
+  'Power-ups estilo Mario Kart! Quem está atrás pega os melhores itens.': 'Kart-style power-ups! Whoever is behind gets the best items.',
+  'Várias pistas: o último de cada corrida é eliminado até sobrar 1.': 'Several tracks: last place in each race is knocked out until 1 remains.',
+  'Sozinho contra o cronômetro: chegue com o MENOR número de petelecos.': 'Alone against the clock: finish with the FEWEST flicks.',
+  'Times! 2×2 ou 3×3 — a soma das colocações decide o time campeão.': 'Teams! 2×2 or 3×3 — the sum of placings decides the champion team.',
+  'Modo Caos:': 'Chaos Mode:', 'caixas': 'boxes',
+  'na pista dão power-ups. Quem está mais atrás pega os melhores (raio, foguete, salto). Toque no item pra usar!': 'on the track give power-ups. Whoever is behind gets the best ones (lightning, rocket, jump). Tap the item to use it!',
+  'Eliminação:': 'Knockout:', 'a cada corrida numa pista nova, o': 'each race on a new track, the',
+  'último colocado sai': 'last place is out', '. Sobrevive até ser o único!': '. Survive until you are the last one!',
+  'Contra-Relógio:': 'Time Trial:', 'você sozinho. Leve a tampinha à chegada com o': 'just you. Get your cap to the finish with the',
+  'menor número de petelecos': 'fewest flicks', 'possível.': 'possible.',
+  'Dupla:': 'Doubles:', 'dois times. Vence o time com a': 'two teams. The team with the',
+  'menor soma de colocações': 'lowest sum of placings', '. Ajude o parceiro… ou atrapalhe o rival!': ' wins. Help your partner… or mess with the rivals!',
+  // setup
+  'todos os níveis': 'all levels', 'campeão': 'champion',
+  '🎲 Surpresa!': '🎲 Surprise!', '🎯 Escolher': '🎯 Pick', '🎲 Do nível': '🎲 From level', '🎲 Qualquer': '🎲 Any',
+  'pista aleatória de qualquer nível': 'random track from any level',
+  'pista aleatória do nível': 'random track from level',
+  '– jogador': '– player', '+ jogador': '+ player', 'Jogar ▶': 'Play ▶', '▶ JOGAR': '▶ PLAY',
+  '🎨 trocar': '🎨 change', 'Pista do dia:': "Today's track:", '. Recorde de hoje:': ". Today's record:",
+  '. Recorde nesta pista:': '. Record on this track:', '· pista': '· track',
+  'Fácil': 'Easy', 'Médio': 'Medium', 'Difícil': 'Hard', 'Muito Difícil': 'Very Hard', 'Extrema': 'Extreme',
+  'muito protegida': 'well protected', 'pouca proteção': 'little protection', 'quase sem muro': 'almost no walls', 'sem muro': 'no walls',
+  'muito longa': 'very long', 'épica': 'epic',
+  'Humano': 'Human', 'Você': 'You', 'IA': 'AI',
+  // HUD / corrida
+  'Vez de': 'Turn:', 'Petelecos': 'Flicks', 'último!': 'last one!',
+  'Arraste a tampinha para trás e solte': 'Drag your cap backwards and release',
+  'Pausado': 'Paused', '▶ Continuar': '▶ Resume', '↻ Reiniciar': '↻ Restart', 'Sair': 'Quit',
+  'Chegou! 🏁': 'Finished! 🏁', 'Você completou!': 'You made it!', 'Fim de jogo': 'Game over',
+  'Você venceu! 🎉': 'You won! 🎉', 'Próxima ▶': 'Next ▶', 'Próxima corrida ▶': 'Next race ▶',
+  '↻ Revanche': '↻ Rematch', 'Nova pista ▶': 'New track ▶', 'Classificação geral': 'Overall standings',
+  'petelecos': 'flicks', 'pts': 'pts', '🏅 Recorde nesta pista:': '🏅 Record on this track:',
+  'NOVO RECORDE! 🏆': 'NEW RECORD! 🏆', 'Chegou! ⏱️': 'Finished! ⏱️',
+  'Vence o time com a': 'The team with the', 'menor soma': 'lowest sum', 'de colocações.': 'of placings wins.',
+  '🥇 líder': '🥇 leader', '🏆 Ver campeão': '🏆 See champion', '🏆 Classificação do campeonato': '🏆 Championship standings',
+  'Última eliminação!': 'Final knockout!', '💀 Eliminado!': '💀 Knocked out!', '— era VOCÊ 😵': '— it was YOU 😵',
+  'Eliminação': 'Knockout', 'VOCÊ é o campeão! 🎉': 'YOU are the champion! 🎉', 'Campeão do': 'Champion of the',
+  // itens (Caos)
+  '✕ Guardar': '✕ Keep', '⚡ USAR': '⚡ USE', '✕ Manter': '✕ Keep', '🗑️ Tirar': '🗑️ Remove',
+  'Escudo ativo': 'Shield active',
+  'Ele ocupa um bolso enquanto estiver valendo. Sem perigo por perto? Tira ele e libera espaço pra outra caixinha!': 'It takes up one pocket while active. No danger nearby? Remove it to free the pocket for another box!',
+  '🛡️ Escudo': '🛡️ Shield', '🚀 Turbo': '🚀 Turbo', '🥊 Pancada': '🥊 Smash', '👻 Fantasma': '👻 Ghost', '⚓ Âncora!': '⚓ Anchor!',
+  'Raio': 'Lightning', 'Troca-Troca': 'Swap', 'Furacão': 'Hurricane', 'Chuvinha': 'Rain', 'Âncora': 'Anchor',
+  'Bola de Gude': 'Marble', 'Chiclete': 'Gum', 'Foguete': 'Rocket', 'Salto': 'Jump', 'Ímã': 'Magnet',
+  'Turbinho': 'Turbo', 'Fantasma': 'Ghost', 'Pancada': 'Smash', 'Peteléco +1': 'Flick +1', 'Escudo': 'Shield',
+  'Manda o líder de volta pro checkpoint dele': 'Sends the leader back to their checkpoint',
+  'Troca de lugar com quem está logo à sua frente': 'Swap places with whoever is right ahead of you',
+  'Sopra TODOS os rivais alguns passos pra trás': 'Blows ALL rivals a few steps back',
+  'Deixa uma poça d’água no caminho do líder': "Drops a puddle in the leader's path",
+  'O próximo peteléco do líder sai fraquinho': "The leader's next flick comes out weak",
+  'Acerta o rival mais próximo e derruba ele pra trás': 'Hits the closest rival and knocks them back',
+  'Larga um chiclete atrás de você — quem pisar, gruda': 'Drops gum behind you — whoever steps on it sticks',
+  'Próximo peteléco com muito mais alcance': 'Next flick goes much farther',
+  'Pula um trecho pra frente na pista': 'Jumps a stretch forward on the track',
+  'Cola no centro e empurra de leve pra frente': 'Snaps you to the center and nudges you forward',
+  'Empurrãozinho pra frente no próximo peteléco': 'A little push forward on your next flick',
+  'Próximo peteléco ATRAVESSA tampinhas e obstáculos': 'Next flick PASSES THROUGH caps and obstacles',
+  'Próximo peteléco: trombadas jogam os outros LONGE': 'Next flick: collisions send others FLYING',
+  'Ganha um peteléco extra nesta vez': 'Gain one extra flick this turn',
+  'Anula 1 buraco ou queda — você desvia pela beirada': 'Cancels 1 hole or fall — you deflect around the rim',
+  // campanha
+  '🏆 Campanha': '🏆 Campaign', '👑 ZERADA': '👑 CLEARED', '🔧 Oficina': '🔧 Workshop', '🥇 OURO': '🥇 GOLD',
+  'Você achou': 'You found', 'três tampinhas velhas': 'three old bottle caps',
+  'no fundo do quintal. Nenhuma parece grande coisa… ainda. Escolha a sua companheira: vocês vão juntas': "in the backyard. None of them looks like much… yet. Choose your partner: you'll go together",
+  'do quintal ao topo do mundo': 'from the backyard to the top of the world',
+  '— e ela evolui a cada troféu.': '— and it evolves with every trophy.',
+  'Escolha com carinho: é pra sempre!': 'Choose with care: it is forever!',
+  'ESCOLHER ▶': 'CHOOSE ▶', '‹ Campanha': '‹ Campaign', 'Pontos de Oficina:': 'Workshop points:',
+  'Ganhe pontos com troféus e melhore ONDE VOCÊ quiser. Vale só na campanha.': 'Earn points with trophies and upgrade WHATEVER you want. Campaign only.',
+  '↩️ Redistribuir tudo (de graça)': '↩️ Reassign everything (free)',
+  '— pontos por posição, soma tudo': '— points per position, all races count',
+  'com tampinhas': 'with', '🏅 Pódio libera a próxima · 🥇 OURO = mais pontos de Oficina': '🏅 Podium unlocks the next · 🥇 GOLD = more Workshop points',
+  '👑 A GRANDE FINAL: vença e entre pra história!': '👑 THE GRAND FINAL: win and make history!',
+  '🏁 Começar': '🏁 Start', 'vença a anterior': 'win the previous one',
+  'troféu já conquistado — melhore pra ganhar mais!': 'trophy already earned — improve it to win more!',
+  '✨ TAMPINHA EXCLUSIVA DESBLOQUEADA ✨': '✨ EXCLUSIVE CAP UNLOCKED ✨',
+  'já é sua no modo livre! 🎉': 'is now yours in free mode! 🎉',
+  'Precisa de PÓDIO (top 3) pra liberar a próxima. Passa na 🔧 Oficina e tenta de novo!': 'You need a PODIUM (top 3) to unlock the next one. Visit the 🔧 Workshop and try again!',
+  '↻ De novo': '↻ Try again', 'Campanha ▶': 'Campaign ▶', '👑 Ver o FINAL': '👑 See the FINALE',
+  'LENDA DAS': 'LEGEND OF THE', 'TAMPINHAS': 'BOTTLE CAPS',
+  'Ela era só uma tampinha': 'It was just a bottle cap', 'achada no quintal.': 'found in a backyard.',
+  'Ninguém apostava nada. Hoje, o mundo inteiro conhece o seu peteleco.': 'Nobody expected a thing. Today, the whole world knows its flick.',
+  'corridas': 'races', 'ouros': 'golds', 'troféus': 'trophies',
+  '🎁 Bônus de lenda:': '🎁 Legend bonus:', '+10 vitórias': '+10 wins', 'no modo livre e': 'in free mode and', '+10 pontos': '+10 points', 'de Oficina!': 'of Workshop!',
+  'A campanha continua aberta: cace os 🥇 que faltam!': 'The campaign stays open: hunt the missing 🥇!',
+  '✨ Voltar como LENDA': '✨ Return as a LEGEND',
+  '👑 ZERADA! · reviva a glória': '👑 CLEARED! · relive the glory', '🏆 CONQUISTADA!': '🏆 CONQUERED!',
+  '🎁 PRÊMIO DA LIGA': '🎁 LEAGUE PRIZE', 'sua pra sempre — já joga com ela no modo livre!': 'yours forever — already playable in free mode!',
+  'Comuns': 'Common', 'Raras': 'Rare', 'Épicas': 'Epic', 'Lendárias': 'Legendary', 'MÍTICAS': 'MYTHIC',
+  'Comum': 'Common', 'Rara': 'Rare', 'Épica': 'Epic', 'Lendária': 'Legendary', 'Mítica': 'Mythic', 'Exclusiva': 'Exclusive',
+  '▲ melhorado na Oficina': '▲ upgraded in the Workshop', '🎨 Sua tampinha': '🎨 Your cap',
+  // ranqueada
+  '⚔️ Ranqueada': '⚔️ Ranked', '🌀 Ranqueada Caos': '🌀 Chaos Ranked', '⚔️ Clássica': '⚔️ Classic', '🌀 Caos': '🌀 Chaos',
+  '🌍 Ranking': '🌍 Ranking', 'AO VIVO': 'LIVE', 'AO VIVO · você é o servidor': 'LIVE · you are the server', 'conectando…': 'connecting…',
+  '🌀 Aqui as corridas têm': '🌀 Races here have', 'POWER-UPS': 'POWER-UPS',
+  ': caixinhas na pista, 2 bolsos, raio, furacão, fantasma…': ': boxes on the track, 2 pockets, lightning, hurricane, ghost…',
+  ': caixinhas na pista, 2 bolsos, raio, furacão, fantasma, pancada…': ': boxes on the track, 2 pockets, lightning, hurricane, ghost, smash…',
+  '🗑️ excluir conta deste ranking': '🗑️ delete this ranking account',
+  'Escolha seu nome de batalha': 'Choose your battle name',
+  'É o nome que aparece no': 'This is the name shown on the', 'único aqui': 'unique here',
+  'Corridas com POWER-UPS': 'Races with POWER-UPS',
+  '5 tiers': '5 tiers', '(Normal → Místico) ·': '(Normal → Mystic) ·', '8 competições': '8 competitions', 'cada — 40 no total': 'each — 40 total',
+  '🧢 Você joga com': '🧢 You play with', 'as suas tampinhas': 'your own caps',
+  ': no Normal valem as comuns; cada tier libera a raridade seguinte': ': Normal allows common caps; each tier unlocks the next rarity',
+  '💪 Os rivais': '💪 Rivals', 'ficam mais fortes': 'get stronger', 'a cada etapa (até +45% na Grande Final do tier)': 'each stage (up to +45% in the tier Grand Final)',
+  '⚡ Cada corrida vale pontos (12·9·7·5·3·1). O': '⚡ Each race is worth points (12·9·7·5·3·1). The',
+  'melhor resultado': 'best result', 'de cada competição soma no seu score — dá pra voltar e melhorar!': 'of each competition counts toward your score — you can come back and improve!',
+  'OURO nas 8': 'GOLD in all 8',
+  'Isso apaga': 'This erases', 'zera todo o progresso': 'resets all progress', 'desse circuito (as 40 competições).': 'of this circuit (all 40 competitions).',
+  'O nome': 'The name', 'fica livre': 'becomes free', 'pra qualquer pessoa usar. Tampinhas exclusivas já ganhas': 'for anyone to take. Exclusive caps already earned',
+  'continuam suas': 'remain yours', 'Não tem volta!': 'There is no undo!',
+  'Cancelar': 'Cancel', 'Excluir mesmo': 'Delete anyway', '‹ Ranqueada': '‹ Ranked',
+  '(você)': '(you)', 'MODO CAOS': 'CHAOS MODE',
+  ': caixinhas de power-up na pista — 2 bolsos, raio, furacão, fantasma…': ': power-up boxes on the track — 2 pockets, lightning, hurricane, ghost…',
+  '· pontos por posição (12·9·7·5·3·1)': '· points per position (12·9·7·5·3·1)',
+  '⚡ Seu melhor aqui:': '⚡ Your best here:', '— melhorou, o score sobe junto': '— improve it and your score goes up too',
+  '🏅 Pódio libera a próxima · 🥇 ouro conta pro prêmio do tier': '🏅 Podium unlocks the next · 🥇 gold counts toward the tier prize',
+  '🧢 Escolha a tampinha': '🧢 Choose your cap', 'essa rodada': 'this round', 'score total': 'total score',
+  'a melhor da categoria — sua pra sempre! 🎉': 'the best of its class — yours forever! 🎉',
+  'Precisa de PÓDIO (top 3) pra liberar a próxima etapa. Troca de tampinha e tenta de novo!': 'You need a PODIUM (top 3) to unlock the next stage. Switch caps and try again!',
+  'Ranqueada ▶': 'Ranked ▶', '👑 PRÊMIO DO TIER': '👑 TIER PRIZE', 'sua pra sempre — joga com ela em tudo!': 'yours forever — playable everywhere!',
+  'na base': 'at base', 'pódio na anterior': 'podium in the previous one', 'do CAOS': 'of CHAOS',
+  '(pode até repetir o da clássica!)': '(you can even reuse your classic one!)', 'do circuito Caos': 'of the Chaos circuit',
+  '✓ disponível': '✓ available', '✓ livre por aqui': '✓ free around here',
+  'clássica': 'classic', 'Ranqueada CAOS': 'CHAOS Ranked', 'Ranqueada clássica': 'Classic Ranked',
+  'A Ranqueada clássica NÃO é afetada.': 'Classic Ranked is NOT affected.', 'A Ranqueada Caos NÃO é afetada.': 'Chaos Ranked is NOT affected.',
+  'Conta excluída. O nome ficou livre.': 'Account deleted. The name is free again.',
+  'na força natural': 'at natural strength', '· EXCLUSIVA ✨': '· EXCLUSIVE ✨', 'seu melhor': 'your best', '(Caos)': '(Chaos)',
+  // reiniciar competição
+  'Isso': 'This', 'NÃO': 'does NOT', 'reinicia só esta corrida: volta pra': 'restart just this race: it goes back to',
+  '1ª corrida': 'race 1', 'zera os pontos': 'resets the points', 'Você já completou': 'You have completed', 'São': 'There are', 'no total.': 'in total.',
+  'Seu melhor resultado já salvo continua valendo.': 'Your best saved result still stands.',
+  '↻ Reiniciar tudo': '↻ Restart everything',
+  // editor
+  '✏️ Editor de Pista': '✏️ Track Editor', 'Traçar': 'Draw', ': arraste pra desenhar. 2️⃣ Escolha um item e': ': drag to draw. 2️⃣ Pick an item and',
+  'toque na pista': 'tap the track', 'pra colocar. 3️⃣': 'to place it. 3️⃣', 'Mover': 'Move',
+  ': arraste um item pro lugar exato. 👁️ Veja em 3D e 🏁 jogue!': ': drag an item to the exact spot. 👁️ View in 3D and 🏁 play!',
+  'Tema': 'Theme', 'Largura': 'Width', '🛡️ Proteção': '🛡️ Protection', '🗑️ Limpar': '🗑️ Clear', '💾 Salvar': '💾 Save',
+  '📂 Minhas': '📂 Mine', '🔗 Compartilhar': '🔗 Share', '👁️ Ver em 3D': '👁️ View in 3D', '🏁 Jogar': '🏁 Play',
+  '‹ Editar': '‹ Edit', '👁️ Ver': '👁️ View', '✋ Mover': '✋ Move', '🧱 Muro': '🧱 Wall',
+  'Um dedo': 'One finger', 'gira': 'rotates', '· dois dedos dão': '· two fingers', 'zoom': 'zoom',
+  '. Toque numa ferramenta acima pra editar.': '. Tap a tool above to edit.',
+  'Arraste': 'Drag', 'os objetos pro lugar exato. Dois dedos = câmera.': 'objects to the exact spot. Two fingers = camera.',
+  'Toque no muro': 'Tap a wall', '🔗 Compartilhar pista': '🔗 Share track',
+  'Copie o link e mande pros amigos jogarem a sua pista:': 'Copy the link and send it to friends so they can play your track:',
+  '🎁 Pista compartilhada!': '🎁 Shared track!', 'Alguém te mandou a pista': 'Someone sent you the track', '. Bora jogar?': '. Wanna play?',
+  '✏️ Abrir no editor': '✏️ Open in editor', '🏁 Jogar agora': '🏁 Play now', '📂 Minhas Pistas': '📂 My Tracks',
+  'Nenhuma pista salva ainda. Crie a sua! ✏️': 'No saved tracks yet. Build yours! ✏️',
+  'Abrir': 'Open', 'Jogar': 'Play', 'Minha Pista': 'My Track',
+  'Trace a pista primeiro!': 'Draw the track first!', 'Trace a pista primeiro! ✏️': 'Draw the track first! ✏️',
+  'Link copiado! Mande pros amigos 🔗': 'Link copied! Send it to your friends 🔗',
+  'Não deu pra gerar o link': 'Could not create the link', 'Pista compartilhada': 'Shared track',
+  'Calçada': 'Sidewalk', 'Sinuca 🎱': 'Pool table 🎱', 'Congelador 🧊': 'Freezer 🧊', 'Bancada 🧲': 'Workbench 🧲', 'Sala (tapete) 🛋️': 'Living room 🛋️',
+  'Média': 'Medium',
+  // online
+  'Local': 'Local', '2–6 no mesmo aparelho, revezando': '2–6 on the same device, taking turns',
+  'crie uma sala e jogue com amigos por código': 'create a room and play with friends via code',
+  'Jogar Online': 'Play Online', 'sua tampinha (toque pra trocar)': 'your cap (tap to change)',
+  '✏️ Seu nome (os outros vão ver assim)': '✏️ Your name (others will see it)',
+  '➕ Criar sala': '➕ Create room', 'ou entre num código': 'or join with a code', 'Entrar ▶': 'Join ▶',
+  'Cada um no seu aparelho ou aba. Até': 'Each player on their own device or tab. Up to',
+  'jogadores — complete o resto com': 'players — fill the rest with', '. Conexão direta P2P.': '. Direct P2P connection.',
+  'Sala Online': 'Online Room', 'código': 'code', '📋 Compartilhar': '📋 Share',
+  'Modo da sala': 'Room mode', '🏁 Normal': '🏁 Normal', '🤝 Dupla': '🤝 Doubles', '🏆 Campeonato': '🏆 Championship',
+  'corredores': 'racers', 'Dificuldade & fase': 'Difficulty & track',
+  '⏳ Aguardando o anfitrião começar…': '⏳ Waiting for the host to start…', '⏳ Aguardando o anfitrião…': '⏳ Waiting for the host…',
+  'Modo:': 'Mode:', '· Dificuldade:': '· Difficulty:', 'Sair da sala': 'Leave room', '🔁 Nova partida': '🔁 New match',
+  '👑 anfitrião': '👑 host', '⭐ você': '⭐ you', '👤 jogador': '👤 player',
+  'Código copiado!': 'Code copied!', 'Código:': 'Code:',
+  'Bora jogar Tampinha Rally! Código da sala:': "Let's play Tampinha Rally! Room code:",
+  // como jogar
+  'Como jogar:': 'How to play:', 'arraste a tampinha': 'drag your cap', 'para trás': 'backwards',
+  'e solte — quanto mais puxa, mais forte. 3 petelecos por vez; chegue primeiro!': 'and release — the farther you pull, the stronger. 3 flicks per turn; finish first!',
+  'Proteção:': 'Protection:', 'pistas fáceis têm muro que te segura na pista; nas difíceis o muro some e é fácil': 'easy tracks have walls that keep you in; on hard ones the walls disappear and it is easy to',
+  'cair fora': 'fall off', '(volta pro início do turno).': '(back to where your turn started).',
+  'Buraco': 'Hole', '= volta ao checkpoint e perde 1 peteléco ·': '= back to the checkpoint and lose 1 flick ·',
+  '= perde a vez ·': '= lose your turn ·', 'verde +1/+2/+3': 'green +1/+2/+3',
+  '= petelecos extras. Câmera: dois dedos giram/aproximam.': '= extra flicks. Camera: two fingers rotate/zoom.',
+  'Arraste a tampinha': 'Drag your cap', 'e solte — quanto mais puxa, mais forte. São': 'and release — the farther you pull, the stronger. You get',
+  '3 petelecos': '3 flicks', 'por vez. A corrida acaba quando o': 'per turn. The race ends when the', 'penúltimo': 'second-to-last',
+  'chega. Dois dedos giram/aproximam a câmera.': 'finishes. Two fingers rotate/zoom the camera.',
+  '🧩 Obstáculos': '🧩 Obstacles', '🌍 Superfícies (cada uma faz uma coisa!)': '🌍 Surfaces (each one does something!)',
+  '🏅 Atributos das tampinhas': '🏅 Cap attributes',
+  'Cada tampinha tem notas de': 'Each cap has ratings for', '. Compare as barrinhas e os números pra escolher a sua!': '. Compare the bars and numbers to pick yours!',
+  'Peso': 'Weight', 'Desliza': 'Glide', 'Controle': 'Control', 'Quique': 'Bounce', 'Estabil.': 'Stability', 'Estabilidade': 'Stability',
+  'Potência': 'Power', 'Aderência': 'Grip',
+  'Bomba (X)': 'Bomb (X)', 'Pedra': 'Stone', 'Rampa de salto': 'Jump ramp', 'Setas verdes': 'Green arrows',
+  'Tábuas (zig-zag)': 'Planks (zig-zag)', 'Bônus +1/+2/+3': 'Bonus +1/+2/+3', 'Checkpoint': 'Checkpoint', 'Fora da pista': 'Off track',
+  'Saiu do corredor? Volta pro começo do peteléco. Nas fases difíceis quase não tem muro — cuidado!': 'Left the corridor? Back to where the flick started. Hard levels have almost no walls — careful!',
+  'Água': 'Water', 'Gelo': 'Ice', 'Areia': 'Sand', 'Grama': 'Grass', 'Lama': 'Mud',
+  'Lisinho: desliza longe, bom pra ganhar distância.': 'Smooth: slides far, great for covering distance.',
+  // campeonato (formatos)
+  'Sprint': 'Sprint', 'Copa': 'Cup', 'Maratona': 'Marathon',
+  '3 pistas rápidas': '3 quick tracks', '5 pistas do nível': '5 tracks of one level',
+  '7 pistas, fôlego total': '7 tracks, full endurance', '1 de cada nível, dificuldade sobe': '1 from each level, difficulty rises',
+  '· nível': '· level', '! 🏅': '! 🏅',
+  '. Pontos por posição em cada corrida — some tudo e seja o': '. Points per position in each race — add them all up and be the',
+  // IA
+  'Cautelosa': 'Cautious', 'Agressiva': 'Aggressive', 'Técnica': 'Technical', 'Caótica': 'Chaotic',
+  // ligas da campanha
+  'Onde toda lenda começa: terra batida e joelho ralado.': 'Where every legend begins: packed dirt and scraped knees.',
+  'A calçada inteira é sua pista. A molecada é boa.': 'The whole sidewalk is your track. These kids are good.',
+  'Os campeões de cada bairro. Aqui ninguém dá mole.': 'The champions of every neighborhood. Nobody slips up here.',
+  'O país inteiro de olho. Tampinhas lendárias na pista.': 'The whole country is watching. Legendary caps on the track.',
+  'O topo do mundo. Só as míticas — e você.': 'The top of the world. Only the mythics — and you.',
+  // ranqueada (fragmentos)
+  'Ranking Mundial': 'World Ranking', '— e é': '— and it is',
+  ': cada circuito tem os próprios nomes. Escolha bem: é a sua lenda!': ': each circuit has its own names. Choose well: it is your legend!',
+  // editor (ferramentas)
+  'Apagar': 'Erase', 'Caixa': 'Box', 'Pião': 'Top', 'Carrinho': 'Car', 'Elástico': 'Band',
+  'Catavento': 'Pinwheel', 'Bexiga': 'Balloon', 'Impulso': 'Boost', 'Freio': 'Brake',
+  'Cheia': 'Full', 'Pouca': 'Low', 'Nenhuma': 'None', 'Bomba': 'Bomb', 'Rampa': 'Ramp', 'Bônus': 'Bonus',
+  // como jogar — fragmentos (o texto quebra nos <b>)
+  'Caiu, voltou! Você retorna ao': 'Fell in? You return to the', 'último checkpoint': 'last checkpoint',
+  'e perde 1 peteléco. Eles ficam fora da linha central — dá pra desviar.': 'and lose 1 flick. They sit off the center line — you can dodge them.',
+  'Explode e você': 'It explodes and you', 'perde o resto da vez': 'lose the rest of your turn', '. Passe bem longe.': '. Keep well away.',
+  'Sólida: a tampinha': 'Solid: your cap', 'quica': 'bounces', 'nela. Dá pra usar de tabela pra fazer curva… ou te atrapalha.': 'off it. You can bank shots off it… or it gets in your way.',
+  'Com': 'With', 'velocidade': 'speed', 'a tampinha decola e': 'the cap takes off and', 'voa por cima': 'flies over',
+  'do buraco na frente. Devagar, ela cai. Chegue com força!': 'the hole ahead. Too slow and it falls in. Arrive with power!',
+  'Tira de aceleração: dá um': 'Speed strip: gives a', 'impulso': 'boost', 'no sentido da pista. Passe por cima pra ganhar velocidade.': 'along the track. Roll over it to gain speed.',
+  'Estreitam a pista de um lado e do outro. Faça o': 'They narrow the track from both sides. Do the', 'zigue-zague': 'zig-zag', 'pra passar.': 'to get through.',
+  'Petelecos extras! Ficam em lugares': 'Extra flicks! They sit in', 'arriscados': 'risky spots',
+  ': quanto maior o número, mais perto da beira ou de um buraco. O +3 é pra corajoso.': ': the bigger the number, the closer to the edge or a hole. The +3 is for the brave.',
+  'A faixa azul numerada. Ao': 'The numbered blue stripe. When you', 'cruzar': 'cross it',
+  ', você fica salvo ali — se cair depois, volta pra este ponto (não pro início).': ', you are saved there — fall later and you come back to this point (not the start).',
+  'Massa da tampinha. A': 'The cap’s mass. A', 'pesada': 'heavy one', 'empurra': 'shoves',
+  'quase não sai do lugar quando batem nela e': 'barely moves when hit and',
+  'as leves pra longe. Só que em areia/lama afunda e freia mais.': 'light ones away. But it sinks and brakes more in sand/mud.',
+  'Vai': 'Goes', 'mais longe': 'farther', 'com o mesmo peteléco. Ótima em calçada/giz; cuidado pra não passar do ponto.': 'on the same flick. Great on sidewalk/chalk; careful not to overshoot.',
+  'Freia mais certinho no fim —': 'Brakes more precisely at the end —', 'para onde você mira': 'stops where you aim',
+  '. Boa pra encaixar em espaço apertado sem passar direto.': '. Great for tucking into tight spots without sliding past.',
+  'Quica mais nas': 'Bounces harder off', 'bordas': 'edges', 'e pedras, e "tabela" mais forte batendo nas outras tampinhas.': 'and stones, and banks harder off other caps.',
+  'Mantém a linha:': 'Holds the line:', 'roda menos': 'spins less', 'e desvia menos do rumo. Estável = previsível.': 'and drifts less off course. Stable = predictable.',
+  'Sai com mais': 'Launches with more', 'força': 'force', ': bate mais forte nas rivais (joga elas longe) e atravessa melhor a': ': hits rivals harder (sends them flying) and pushes through',
+  'lama e a areia': 'mud and sand', '. Quem vai mais longe é o Desliza.': '. For pure distance, that’s Glide.',
+  'Firmeza na pista:': 'Firm on the track:', 'difícil de te jogarem pra fora': 'hard to knock you off',
+  'quando batem em você. Segura firme na hora do encontrão.': 'when others hit you. Holds steady in a shoving match.',
+  'Freia bastante e': 'Brakes hard and', 'afunda o pesado': 'sinks heavy caps', '. Potência ajuda a atravessar.': '. Power helps push through.',
+  'Freia e o mato': 'Brakes, and the grass', 'PUXA PRO LADO': 'PULLS YOU SIDEWAYS', '— a tampinha girando desvia da linha.': '— a spinning cap drifts off line.',
+  'segura firme.': 'holds it steady.',
+  'Prende': 'Traps you', 'de verdade. Só muita': 'for real. Only lots of', 'atravessa.': 'gets through.',
+  'A': 'The', 'correnteza EMPURRA': 'current PUSHES you', 'no sentido do fluxo — pode te levar pro lugar errado (ou certo!).': 'along the flow — it can carry you to the wrong place (or the right one!).',
+  'Quase': 'Almost', 'não para': 'never stops', '— desliza demais. Cuidado pra não passar do ponto!': '— it slides way too much. Careful not to overshoot!',
+  'Giz/Calçada': 'Chalk/Sidewalk',
+  '. Contra o relógio: leve a tampinha à chegada com o': '. Against the clock: get your cap to the finish with the',
+  // taglines das tampinhas (a coleção inteira)
+  'A bicicleta ágil que voa.': 'The nimble bike that flies.',
+  'A clássica. Equilibrada em tudo.': 'The classic. Balanced in everything.',
+  'A estrela azul da cerveja.': 'The blue star of beer.',
+  'A folha de ouro, pesada e forte.': 'The golden leaf, heavy and strong.',
+  'A joia dourada. Boa em tudo.': 'The golden jewel. Good at everything.',
+  'A mão vencedora.': 'The winning hand.',
+  'A tampinha suprema. Melhor em tudo.': 'The supreme cap. Best at everything.',
+  'Achada no quintal. Pesadinha, mas cheia de vontade.': 'Found in the backyard. A bit heavy, but full of heart.',
+  'Alegre e pula-pula.': 'Cheerful and bouncy.',
+  'Amarga e teimosa.': 'Bitter and stubborn.',
+  'Aposta certeira.': 'A sure bet.',
+  'Assobia de sede.': 'Whistles with thirst.',
+  'Azedinha e ligeira.': 'Tangy and quick.',
+  'Boazinha e lisa.': 'Gentle and smooth.',
+  'Borbulha e desliza.': 'Fizzes and glides.',
+  'Carrega e dispara.': 'Charges up and fires.',
+  'Caseira, sem devolução.': 'Homemade, no returns.',
+  'Cheia de bom humor.': 'Full of good vibes.',
+  'Cheia de riscos de batalha. Levinha e escorregadia.': 'Covered in battle scratches. Light and slippery.',
+  'Chique da cidade.': 'City chic.',
+  'Circo laranja saltitante.': 'A bouncy orange circus.',
+  'Cola com cereja.': 'Cola with cherry.',
+  'Corôa que desliza.': 'A crown that glides.',
+  'Cremosa e certeira.': 'Creamy and accurate.',
+  'Cremosa e encorpada.': 'Creamy and full-bodied.',
+  'Cítrica e esperta.': 'Citrusy and clever.',
+  'Cítrica misteriosa.': 'Mysteriously citric.',
+  'Desce a montanha deslizando.': 'Slides down the mountain.',
+  'Desliza como véu de luz no céu.': 'Glides like a veil of light in the sky.',
+  'Desliza no sol.': 'Glides in the sun.',
+  'Desliza que é uma beleza.': 'Glides like a dream.',
+  'Desliza suave e longe.': 'Glides smooth and far.',
+  'Desperta e acerta.': 'Wakes up and hits the mark.',
+  'Diabólica na mira: controle afiado.': 'Devilish aim: razor-sharp control.',
+  'Doce e saltitante.': 'Sweet and bouncy.',
+  'Escorrega bastante.': 'Slides a whole lot.',
+  'Espírito esportivo.': 'Sporting spirit.',
+  'Fininha e escorregadia.': 'Thin and slippery.',
+  'Levanta o astral.': 'Lifts the mood.',
+  'Leve e ágil.': 'Light and agile.',
+  'Limpa e precisa.': 'Clean and precise.',
+  'Maçã ligeira.': 'A swift apple.',
+  'Morango real.': 'Royal strawberry.',
+  'Muralha de Munique: pesa e resiste.': 'The wall of Munich: heavy and tough.',
+  'O caubói da estrada.': 'The road cowboy.',
+  'O dragão que empurra tudo.': 'The dragon that shoves everything.',
+  'O duende do root beer.': 'The root beer elf.',
+  'O gato da laranja.': 'The orange cat.',
+  'O gato lendário do ouro, equilibrado.': 'The legendary golden cat, well balanced.',
+  'O pato mais saltitante.': 'The bounciest duck.',
+  'O sol levou a cor, não a mira. Um tiquinho mais precisa.': 'The sun took its color, not its aim. A touch more precise.',
+  'Onda do Havaí.': 'A wave from Hawaii.',
+  'Persegue e alcança.': 'Chases and catches.',
+  'Pesada como rocha derretida.': 'Heavy as molten rock.',
+  'Pesada, empurra geral.': 'Heavy — shoves everyone around.',
+  'Positiva e saltitante.': 'Positive and bouncy.',
+  'Presidencial e firme.': 'Presidential and firm.',
+  'Quica com a fúria do raio.': 'Bounces with the fury of lightning.',
+  'Quica com gosto de laranja.': 'Bounces with an orange taste.',
+  'Refri de uva de sempre.': 'The grape soda of always.',
+  'Root beer do pai.': "Dad's root beer.",
+  'Sempre pra cima.': 'Always up.',
+  'Sempre sorrindo.': 'Always smiling.',
+  'Sequinha, boa de mira.': 'Dry and sharp-aimed.',
+  'Sobe degraus com jeito.': 'Climbs steps with style.',
+  'Três décadas de quique.': 'Three decades of bounce.',
+  'Um choque de energia.': 'A jolt of energy.',
+  'Um trevo de sorte.': 'A lucky clover.',
+  'Uma gracinha ágil.': 'A nimble little cutie.',
+  'Vidro negro: pesa e não sai do lugar.': 'Black glass: heavy and immovable.',
+  'Vinte e três sabores.': 'Twenty-three flavors.',
+  'Voa raspando o chão.': 'Flies skimming the ground.',
+  'Ágil como a luz que se divide.': 'Agile as splitting light.',
+  'Ágil como um pato.': 'Agile as a duck.',
+  // frases dinâmicas fixas de toasts
+  '🌪️ o furacão varreu a pista!': '🌪️ the hurricane swept the track!',
+  '🫠 chiclete no chão — quem pisar, gruda!': '🫠 gum on the ground — step on it and you stick!',
+  'Voou! 🚀': 'Airborne! 🚀', '🪀 o pião rebateu!': '🪀 the spinning top bounced you!', '🪃 estilingue!': '🪃 slingshot!',
+  '🚗 o carrinho disparou!': '🚗 the toy car took off!', '💦 SPLASH! A bexiga estourou!': '💦 SPLASH! The water balloon popped!',
+  '🛡️ escudo guardado — bolso livre!': '🛡️ shield removed — pocket free!',
+};
+
+// ---- regras com partes variáveis (nomes, números) ----
+type Rule = [RegExp, (m: RegExpExecArray) => string];
+const ord = (n: number) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+const LEVEL_EN: Record<string, string> = { 'Fácil': 'Easy', 'Médio': 'Medium', 'Difícil': 'Hard', 'Muito Difícil': 'Very Hard', 'Extrema': 'Extreme' };
+const LEN_EN: Record<string, string> = { 'curta': 'short', 'média': 'medium', 'longa': 'long', 'muito longa': 'very long', 'épica': 'epic' };
+const TIER_EN: Record<string, string> = { 'Normal': 'Normal', 'Raro': 'Rare', 'Épico': 'Epic', 'Lendário': 'Legendary', 'Místico': 'Mystic' };
+const AI_EN: Record<string, string> = { 'Cautelosa': 'Cautious', 'Agressiva': 'Aggressive', 'Técnica': 'Technical', 'Caótica': 'Chaotic', 'Rival': 'Rival' };
+const RULES: Rule[] = [
+  [/^coleção (\d+)\/(\d+)$/, m => `collection ${m[1]}/${m[2]}`],
+  [/^🔒 (\d+) vitórias?$/, m => `🔒 ${m[1]} wins`],
+  [/^(.+) OURO nas 8 do Tier (Normal|Raro|Épico|Lendário|Místico) \(Ranqueada( Caos)?\)$/, m => `${m[1]} GOLD in all 8 of the ${TIER_EN[m[2]]} Tier (${m[3] ? 'Chaos Ranked' : 'Ranked'})`],
+  [/^(.+) · (curta|média|longa|muito longa|épica) · pista (\d+)\/(\d+)$/i, m => `${m[1]} · ${LEN_EN[m[2].toLowerCase()]} · track ${m[3]}/${m[4]}`],
+  [/^(.+) · (curta|média|longa|muito longa|épica) · (Fácil|Médio|Difícil|Muito Difícil|Extrema)$/i, m => `${m[1]} · ${LEN_EN[m[2].toLowerCase()]} · ${LEVEL_EN[m[3]]}`],
+  [/^\((Fácil|Médio|Difícil|Muito Difícil|Extrema)\)\. Contra o relógio: leve a tampinha à chegada com o$/, m => `(${LEVEL_EN[m[1]]}). Against the clock: get your cap to the finish with the`],
+  [/^🤖 (Cautelosa|Agressiva|Técnica|Caótica|Rival)$/, m => `🤖 ${AI_EN[m[1]]}`],
+  [/^Sua vez, (.+)$/, m => `Your turn, ${m[1]}`],
+  [/^(.+) perdeu o turno$/, m => `${m[1]} lost the turn`],
+  [/^🛟 (.+) foi resgatada pra pista!$/, m => `🛟 ${m[1]} was rescued back to the track!`],
+  [/^⚡ (.+) levou um raio!$/, m => `⚡ ${m[1]} got struck by lightning!`],
+  [/^🔮 (.+) levou uma bolada!$/, m => `🔮 ${m[1]} got hit by the marble!`],
+  [/^🔁 trocou de lugar com (.+)!$/, m => `🔁 swapped places with ${m[1]}!`],
+  [/^🌧️ choveu na frente de (.+)!$/, m => `🌧️ rain fell in front of ${m[1]}!`],
+  [/^⚓ (.+) tá com a âncora!$/, m => `⚓ ${m[1]} got the anchor!`],
+  [/^(.+) caiu no buraco — checkpoint$/, m => `${m[1]} fell in the hole — checkpoint`],
+  [/^(.+) pisou no X — perdeu a vez$/, m => `${m[1]} stepped on the X — turn lost`],
+  [/^(.+) saiu da pista!$/, m => `${m[1]} went off track!`],
+  [/^🛡️ (.+) — escudo salvou!$/, m => `🛡️ ${m[1]} — shield saved it!`],
+  [/^(.+) chegou em (\d+)º! 🏁$/, m => `${m[1]} finished ${ord(+m[2])}! 🏁`],
+  [/^Checkpoint (\d+) ✓$/, m => `Checkpoint ${m[1]} ✓`],
+  [/^\+(\d+) peteléco(s?)!$/, m => `+${m[1]} flick${m[2] ? 's' : ''}!`],
+  [/^(\d+)º$/, m => ord(+m[1])],
+  [/^(\d+)º lugar$/, m => `${ord(+m[1])} place`],
+  [/^(\d+)º •/, m => `${ord(+m[1])} •`],
+  [/^Corrida (\d+) de (\d+)$/, m => `Race ${m[1]} of ${m[2]}`],
+  [/^Corrida (\d+)\/(\d+)$/, m => `Race ${m[1]}/${m[2]}`],
+  [/^(.+) entrou pro ranking!$/, m => `${m[1]} joined the ranking!`],
+  [/^Campeão do (.+)$/, m => `Champion of ${m[1]}`],
+  [/^(\d+) corridas$/, m => `${m[1]} races`], [/^(\d+) rivais$/, m => `${m[1]} rivals`],
+  [/^🏁 (\d+) corridas • rivais (.+)$/, m => `🏁 ${m[1]} races • ${m[2]} rivals`],
+];
+
+function tx(s: string): string {
+  const core = s.trim();
+  if (!core) return s;
+  const hit = D[core];
+  if (hit !== undefined) return s.replace(core, hit);
+  for (const [re, fn] of RULES) { const m = re.exec(core); if (m) return s.replace(core, fn(m)); }
+  return s;
+}
+
+// ---- tradutor de DOM: guarda o PT original de cada nó de texto e alterna ----
+const orig = new WeakMap<Text, string>();
+const skip = (n: Text) => !!n.parentElement?.closest('[data-notr]') || ['SCRIPT', 'STYLE'].includes(n.parentElement?.tagName || '');
+
+function applyNode(n: Text): void {
+  if (skip(n)) return;
+  let o = orig.get(n);
+  if (o === undefined) { o = n.data; orig.set(n, o); }
+  const want = lang === 'en' ? tx(o) : o;
+  if (n.data !== want) n.data = want;
+}
+function walk(root: Node): void {
+  if (root.nodeType === Node.TEXT_NODE) { applyNode(root as Text); return; }
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n: Node | null;
+  while ((n = w.nextNode())) applyNode(n as Text);
+  // placeholders/títulos de inputs
+  if ((root as Element).querySelectorAll) for (const el of Array.from((root as Element).querySelectorAll('[placeholder]'))) {
+    const e = el as HTMLInputElement;
+    if (!e.dataset.trPh) e.dataset.trPh = e.placeholder;
+    const want = lang === 'en' ? tx(e.dataset.trPh) : e.dataset.trPh;
+    if (e.placeholder !== want) e.placeholder = want;
+  }
+}
+function retranslate(): void { walk(document.body); }
+
+export function initI18n(): void {
+  const mo = new MutationObserver(muts => {
+    for (const m of muts) {
+      if (m.type === 'characterData') {
+        const n = m.target as Text;
+        const o = orig.get(n);
+        // o app reescreveu o texto (não fomos nós): trata como PT novo
+        if (o === undefined || (n.data !== o && n.data !== tx(o))) { orig.delete(n); applyNode(n); }
+      } else for (const nd of Array.from(m.addedNodes)) walk(nd);
+    }
+  });
+  mo.observe(document.body, { childList: true, characterData: true, subtree: true });
+  retranslate();
+}

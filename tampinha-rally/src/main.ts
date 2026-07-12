@@ -17,6 +17,7 @@ import { save } from './game/save';
 import { compById, campState, saveCamp, applyResult } from './game/campaign';
 import { rankCompById, RANK_PTS, rankState } from './game/ranked';
 import { watchUpdates } from './updater';
+import { initI18n } from './i18n';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const renderer = makeRenderer(canvas);
@@ -41,6 +42,7 @@ let previewing = false;
 let previewDef: any = null;
 // auto-atualização: link antigo pula sozinho pra versão mais nova (nunca no meio de uma corrida)
 watchUpdates(() => !inGame);
+initI18n();   // tradutor de interface PT ↔ EN (botão no menu)
 // música: menu toca a partir do primeiro toque na tela (regra de autoplay dos navegadores)
 window.addEventListener('pointerdown', () => { resumeAudio(); if (!inGame) playMusic('menu'); });
 
