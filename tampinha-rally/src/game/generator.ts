@@ -587,36 +587,52 @@ export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
   const W = 64, C = W / 2;
   const path: V[] = [];
   for (let i = 0; i <= 20; i++) { const a = (i / 20) * Math.PI * 2; path.push(vec(C + Math.cos(a) * 3, C + Math.sin(a) * 3)); }
-  // MESA COM VIDA: pedras pra se esconder atrás, madeirinhas de tabela e um
-  // brinquedo no centro — cair exige INTENÇÃO, não um esbarrão qualquer
+  // MESA COM VIDA E DESIGN PRÓPRIO: 4 LAYOUTS sorteados × 4 mesas = muita
+  // variedade. E PARA-CHOQUES na borda: arcos de madeirinha cobrindo ~metade
+  // do contorno — dá pra se defender neles, mas as BRECHAS continuam mortais.
+  // Cair exige INTENÇÃO (encurralar na brecha), não um esbarrão qualquer.
   let r = (seed >>> 0) || 1;
   const rng = () => { r = (Math.imul(r, 1664525) + 1013904223) >>> 0; return r / 4294967296; };
   const obstacles: Obstacle[] = [];
   const walls: Wall[] = [];
   const patches: Patch[] = [];
-  // centro: catavento girando (metade das vezes) ou pedra grande
-  if (rng() < 0.5) obstacles.push({ type: 'mill', x: C, y: C, r: 2.3, n: 4, dir: rng() * 6.28 });
-  else obstacles.push({ type: 'stone', x: C, y: C, r: 1.5 });
-  // anel de PEDRAS (cobertura): 5-6 espalhadas entre o meio e a beirada
-  const nSt = 5 + (rng() < 0.5 ? 1 : 0);
-  for (let i = 0; i < nSt; i++) {
-    const a = (i / nSt) * Math.PI * 2 + rng() * 0.8;
-    const rr = 9 + rng() * 8;
-    obstacles.push({ type: 'stone', x: C + Math.cos(a) * rr, y: C + Math.sin(a) * rr, r: 0.85 + rng() * 0.45 });
-  }
-  // MADEIRINHAS (tábuas de tabela): 3-4 curtas, tangenciais, num anel médio
-  const nW = 3 + (rng() < 0.5 ? 1 : 0);
-  for (let i = 0; i < nW; i++) {
-    const a = (i / nW) * Math.PI * 2 + 0.6 + rng() * 0.7;
-    const rr = 11 + rng() * 7; const len = 2.6 + rng() * 1.2;
+  const stone = (a: number, rr: number, sz: number) => obstacles.push({ type: 'stone', x: C + Math.cos(a) * rr, y: C + Math.sin(a) * rr, r: sz });
+  const plank = (a: number, rr: number, len: number, tilt = 0) => {
     const cx = C + Math.cos(a) * rr, cy = C + Math.sin(a) * rr;
-    const ta = a + Math.PI / 2 + (rng() - 0.5) * 0.6;      // tangente com jeitinho
+    const ta = a + Math.PI / 2 + tilt;
     walls.push({ a: vec(cx - Math.cos(ta) * len, cy - Math.sin(ta) * len), b: vec(cx + Math.cos(ta) * len, cy + Math.sin(ta) * len) });
+  };
+  // PARA-CHOQUES: 5 arcos na beirada (raio um tico pra dentro da área segura),
+  // cada um cobrindo ~metade do seu setor — sobra ~45% de contorno ABERTO
+  const bumpR = ARENA_R - 1.1; const rot = rng() * 6.28;
+  for (let i = 0; i < 5; i++) {
+    const a0 = rot + (i / 5) * Math.PI * 2;
+    const span = (Math.PI * 2 / 5) * (0.5 + rng() * 0.14);
+    for (let sgm = 0; sgm < 3; sgm++) {
+      const s1 = a0 + (sgm / 3) * span, s2 = a0 + ((sgm + 1) / 3) * span;
+      walls.push({ a: vec(C + Math.cos(s1) * bumpR, C + Math.sin(s1) * bumpR), b: vec(C + Math.cos(s2) * bumpR, C + Math.sin(s2) * bumpR) });
+    }
   }
-  // 2 manchas de terreno pra variar o deslize (conforme a mesa)
+  // LAYOUT do miolo (independente da mesa)
+  const layout = Math.floor(rng() * 4);
+  if (layout === 0) {                     // MOINHO: catavento central + pedras em anel
+    obstacles.push({ type: 'mill', x: C, y: C, r: 2.4, n: 4, dir: rng() * 6.28 });
+    for (let i = 0; i < 5; i++) stone((i / 5) * 6.28 + rng() * 0.7, 10 + rng() * 6, 0.85 + rng() * 0.4);
+  } else if (layout === 1) {              // PILARES: 4 pedras GRANDES em cruz, centro livre
+    for (let i = 0; i < 4; i++) stone((i / 4) * 6.28 + rng() * 0.3, 9.8 + rng() * 2, 1.3 + rng() * 0.25);
+    for (let i = 0; i < 3; i++) stone(rng() * 6.28, 15 + rng() * 4, 0.7 + rng() * 0.3);
+  } else if (layout === 2) {              // TABELAS: madeirinhas formando corredores
+    for (let i = 0; i < 6; i++) plank((i / 6) * 6.28 + rng() * 0.5, 8 + (i % 2) * 6 + rng() * 2, 2.6 + rng() * 1.1, (rng() - 0.5) * 0.7);
+    for (let i = 0; i < 2; i++) stone(rng() * 6.28, 12 + rng() * 5, 0.9 + rng() * 0.3);
+  } else {                                // RINQUE: lago de GELO no meio (escorrega!) + 2 cataventos
+    patches.push({ surface: 'ice', x: C, y: C, r: 6.5 + rng() * 1.5 });
+    for (let i = 0; i < 2; i++) obstacles.push({ type: 'mill', x: C + Math.cos(rng() * 6.28) * 11, y: C + Math.sin(rng() * 6.28) * 11, r: 1.9, n: 4, dir: rng() * 6.28 });
+    for (let i = 0; i < 3; i++) stone(rng() * 6.28, 14 + rng() * 5, 0.8 + rng() * 0.35);
+  }
+  // 2 manchas de terreno da casa (areia segura, água leva, giz desliza…)
   const patchSurf: Surface[] = th.ground === 'felt' ? ['chalk', 'gum'] : th.ground === 'metal' ? ['ice', 'sand'] : th.ground === 'sidewalk' ? ['chalk', 'water'] : ['sand', 'water'];
   for (let i = 0; i < 2; i++) {
-    const a = rng() * 6.28, rr = 6 + rng() * 10;
+    const a = rng() * 6.28, rr = 8 + rng() * 9;
     patches.push({ surface: patchSurf[i], x: C + Math.cos(a) * rr, y: C + Math.sin(a) * rr, r: 2.2 + rng() * 1.2 });
   }
   return {

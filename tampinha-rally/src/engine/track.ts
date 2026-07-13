@@ -56,6 +56,7 @@ function segIntersect(p1: V, p2: V, p3: V, p4: V): boolean {
 export class TrackModel {
   def: TrackDef;
   wind = { x: 0, y: 0 };   // CLIMA: vento constante da corrida (u/s²) — 0 = calmaria
+  capHitMul = 1;           // BATALHA: amortece a trombada tampinha-em-tampinha (mesa justa)
   private arcs: number[] = [0];
   total = 0;
   private cell = 5; private cols = 0; private rows = 0;

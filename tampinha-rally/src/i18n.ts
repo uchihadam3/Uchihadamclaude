@@ -365,6 +365,8 @@ const D: Record<string, string> = {
   'encolhe': 'shrinks', '! Último vivo vence.': '! Last one standing wins.',
   '🥊 Mesa surpresa': '🥊 Surprise table', 'uma mesa redonda aleatória — sinuca, cozinha, laje ou bancada': 'a random round table — pool, kitchen, rooftop or workbench',
   '⚠️ a mesa encolheu!': '⚠️ the table shrank!',
+  '🎡 o catavento varreu!': '🎡 the pinwheel swept through!',
+  '🔥 DUELO FINAL: caíram as proteções!': '🔥 FINAL DUEL: the bumpers are gone!',
   '🥊 Você dominou a mesa! 🎉': '🥊 You ruled the table! 🎉', '🥊 Fim da batalha!': '🥊 Battle over!',
   'é quem ficou na mesa! 👑': 'is the last one on the table! 👑', 'Ordem da batalha': 'Battle order', '💀 caiu': '💀 fell',
   'Mesa de Sinuca': 'Pool Table', 'Mesa da Cozinha': 'Kitchen Table', 'Laje de Cimento': 'Concrete Rooftop', 'Bancada de Aço': 'Steel Workbench',

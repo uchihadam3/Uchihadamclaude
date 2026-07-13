@@ -33,6 +33,7 @@ export class GameManager {
   chaos = false;                 // MODO CAOS: caixas de power-up ligadas
   battle = false;                // BATALHA: mesa redonda, cair = eliminado, mesa encolhe
   private battleTurns = 0;       // turnos desde o último encolhimento da mesa
+  private settling = false;      // resolve de ASSENTAMENTO (varrida do catavento): não gasta peteleco
   onBattleShrink: (safeR: number) => void = () => {};   // avisa o 3D pra redesenhar o anel
   teams = 0;                     // DUPLA: nº de times (0 = sem times)
   onItem: (cap: Cap, item: string, used: boolean) => void = () => {};
@@ -64,7 +65,7 @@ export class GameManager {
       if (this.battle) {
         // BATALHA: todo mundo em RODA, equidistante do centro da mesa
         const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-        const r = Math.min(13, half0 * 0.55);
+        const r = Math.min(6.5, half0 * 0.32);   // roda perto do CENTRO: ninguém nasce na beirada
         c.pos = vec(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r);
       } else {
         const across = (i - (n - 1) / 2) * spacing;           // centralizado na linha
@@ -75,6 +76,8 @@ export class GameManager {
       c.progress = this.track.progressOf(c.pos); c.checkpoint = 0;
     });
     this.battleTurns = 0;
+    // na mesa, a trombada empurra MENOS: eliminar exige encurralar na brecha
+    this.track.capHitMul = this.battle ? 0.68 : 1;
     // arco de cada checkpoint (registro por PROGRESSO, não por proximidade — funciona
     // mesmo com o corredor largo, quando a tampinha cruza longe do centro do checkpoint)
     this.cpArcs = this.track.def.checkpoints.map(cp => this.track.progressOf(vec(cp.x, cp.y)));
@@ -87,11 +90,26 @@ export class GameManager {
 
   private beginTurn(first = false): void {
     // BRINQUEDOS VIVOS: o catavento gira a cada turno, ALTERNANDO o sentido —
-    // fecha o caminho de um jeito diferente cada vez (determinístico por turno;
-    // replays e online continuam batendo)
+    // e as PÁS EMPURRAM quem estiver no alcance (varrida tangencial + um tico
+    // pra fora). Determinístico por turno; replays e online continuam batendo.
+    let varreu = false;
     if (!first) for (const o of this.track.def.obstacles) {
-      if (o.type === 'mill') { o.ph = (o.ph || 0) + 1; o.dir = (o.dir || 0) + (o.ph % 2 ? 0.9 : -0.9); }
+      if (o.type !== 'mill') continue;
+      o.ph = (o.ph || 0) + 1;
+      const sw = o.ph % 2 ? 0.9 : -0.9;
+      o.dir = (o.dir || 0) + sw;
+      for (const c2 of this.caps) {
+        if (c2.finished || c2.eliminated) continue;
+        const dx = c2.pos.x - o.x, dy = c2.pos.y - o.y; const d = Math.hypot(dx, dy);
+        if (d > o.r + c2.radius + 0.25 || d < 1e-4) continue;
+        const sgn = sw >= 0 ? 1 : -1;
+        const kick = 7.5 + 3 * (1 - d / (o.r + c2.radius));   // perto do eixo, varre mais forte
+        c2.vel.x += (-dy / d) * sgn * kick + (dx / d) * 2.2;
+        c2.vel.y += (dx / d) * sgn * kick + (dy / d) * 2.2;
+        c2.moving = true; c2.hitFlash = 1; varreu = true;
+      }
     }
+    if (varreu) this.onToast('🎡 o catavento varreu!', 'bad');
     // pula quem terminou ou está de castigo
     let guard = 0;
     while (guard++ < this.caps.length + 2) {
@@ -111,8 +129,25 @@ export class GameManager {
       if (this.battleTurns >= alive * 2 && this.track.def.half[0] > 6.2) {
         this.battleTurns = 0;
         const h = this.track.def.half;
-        for (let i = 0; i < h.length; i++) h[i] = Math.max(6, h[i] * 0.82);
-        this.onToast('⚠️ a mesa encolheu!', 'bad');
+        const k = Math.max(6, h[0] * 0.82) / h[0];
+        for (let i = 0; i < h.length; i++) h[i] = h[i] * k;
+        const cx = this.track.def.w / 2, cy = this.track.def.h / 2;
+        for (const w of this.track.def.walls) {
+          w.a.x = cx + (w.a.x - cx) * k; w.a.y = cy + (w.a.y - cy) * k;
+          w.b.x = cx + (w.b.x - cx) * k; w.b.y = cy + (w.b.y - cy) * k;
+        }
+        for (const o of this.track.def.obstacles) { o.x = cx + (o.x - cx) * k; o.y = cy + (o.y - cy) * k; o.r = Math.max(0.6, o.r * (0.6 + 0.4 * k)); }
+        for (const p of this.track.def.patches) { p.x = cx + (p.x - cx) * k; p.y = cy + (p.y - cy) * k; }
+        // mesa MÍNIMA: as madeirinhas caem e a trombada volta a valer cheia —
+        // DUELO FINAL sem proteção (senão dois sobreviventes rodam pra sempre)
+        if (h[0] <= 6.5) {
+          // TUDO cai da mesa: sem madeirinhas, sem pedras, sem catavento —
+          // e a trombada volta a valer cheia. Dois na mesa, um só fica.
+          this.track.def.walls.length = 0;
+          this.track.def.obstacles.length = 0;
+          this.track.capHitMul = 1;
+          this.onToast('🔥 DUELO FINAL: caíram as proteções!', 'bad');
+        } else this.onToast('⚠️ a mesa encolheu!', 'bad');
         this.onBattleShrink(h[0] + 3);
         for (const x of this.caps) if (!x.eliminated && !x.finished && this.track.surfaceAt(x.pos) === 'out') this.eliminate(x);
         if (this.battleOver()) return;
@@ -156,6 +191,9 @@ export class GameManager {
     c.turnStart = vec(c.pos.x, c.pos.y);
     this.phase = 'aim'; this.aiTimer = 0; this.aiFired = false;
     if (!first) this.turnNo++;
+    // o catavento EMPURROU alguém: roda a física até assentar antes de mirar
+    // (fase de resolve SEM gastar peteleco de ninguém)
+    if (varreu) { this.settling = true; this.phase = 'resolve'; this.acc = 0; this.resolveT = 0; }
     if (!c.isAI && !this.manualControl) this.onToast('Sua vez, ' + c.name, 'turn');
     this.onChange();
   }
@@ -387,7 +425,10 @@ export class GameManager {
       }
       c.vel = vec(); c.moving = false; c.z = 0; c.vz = 0; c.airborne = false;
     }
-    if (!anyMoving(this.caps)) this.endFlick();
+    if (!anyMoving(this.caps)) {
+      if (this.settling) { this.settling = false; this.phase = 'aim'; this.aiTimer = 0; this.aiFired = false; this.onChange(); return; }
+      this.endFlick();
+    }
   }
 
   private handleEvent(e: SimEvent): void {

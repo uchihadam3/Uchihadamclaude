@@ -92,7 +92,12 @@ function loadMatch(cfg: MatchConfig): void {
       new THREE.MeshBasicMaterial({ color: 0xff5544, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2; ring.position.set(def.w / 2, 0.08, def.h / 2);
     scene.add(ring);
-    mgr.onBattleShrink = (safeR) => { const k = safeR / r0; ring.scale.set(k, k, 1); sfx.thud(); fx.dust(def.w / 2, def.h / 2, 20, '#ff8866'); };
+    mgr.onBattleShrink = (safeR) => {
+      const k = safeR / r0; ring.scale.set(k, k, 1); sfx.thud(); fx.dust(def.w / 2, def.h / 2, 20, '#ff8866');
+      // a mesa COMPRIMIU (muros/pedras/manchas mudaram de lugar): reconstrói a maquete
+      if (board) scene.remove(board.group);
+      board = buildBoard(mgr.track.def); scene.add(board.group);
+    };
   } else mgr.onBattleShrink = () => {};
   if (wx.w === 'chuva') fx3RainFall(def.w, def.h);
   if (wx.w === 'vento') fx3WindSpecks(def.w, def.h, wx.windX, wx.windY);

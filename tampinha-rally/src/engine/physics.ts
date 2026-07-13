@@ -288,12 +288,12 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     if (len(c.vel) < REST_SPEED) { c.vel = vec(); c.moving = false; ev.push({ type: 'rest', capId: c.id, x: c.pos.x, y: c.pos.y, power: 0 }); }
   }
 
-  resolveCapCollisions(caps, ev);
+  resolveCapCollisions(caps, ev, track.capHitMul);
   return ev;
 }
 
 // colisão elástica amortecida entre tampinhas (empurrar/tabelar)
-function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
+function resolveCapCollisions(caps: Cap[], ev: SimEvent[], hitMul = 1): void {
   for (let i = 0; i < caps.length; i++) {
     for (let j = i + 1; j < caps.length; j++) {
       const a = caps[i], b = caps[j];
@@ -318,7 +318,7 @@ function resolveCapCollisions(caps: Cap[], ev: SimEvent[]): void {
       const punch = (aAtk ? a.stats.power : b.stats.power);
       // PANCADA (Caos): o atacante com a luva manda o outro LONGE e quase não recua
       const smashing = aAtk ? a.smash : b.smash;
-      const imp = -(1 + rest) * vn / (1 / ma + 1 / mb) * punch * (smashing ? 1.75 : 1);
+      const imp = -(1 + rest) * vn / (1 / ma + 1 / mb) * punch * (smashing ? 1.75 : 1) * hitMul;
       const ix = imp * nx, iy = imp * ny;
       // grip (aderência): quem tem mais firmeza é empurrado menos (difícil de jogar pra fora)
       const selfMul = (who: Cap, atk: boolean) => (smashing && atk ? 0.35 : 1) / who.stats.grip;
