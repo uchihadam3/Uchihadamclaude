@@ -38,7 +38,7 @@ export interface TrackDef {
   pads: { x: number; y: number; r: number }[];
   patches: Patch[]; walls: Wall[]; obstacles: Obstacle[];
   checkpoints: V[]; start: V; startAngle: number; finish: [V, V];
-  battleHit?: number;        // BATALHA: quanto a trombada empurra nesta mesa (equilíbrio por atrito)
+  bumperGroups?: number[];   // BATALHA: nº de segmentos de cada arco de para-choque (caem aos poucos)
   decor: Decor[];
 }
 
@@ -57,7 +57,6 @@ function segIntersect(p1: V, p2: V, p3: V, p4: V): boolean {
 export class TrackModel {
   def: TrackDef;
   wind = { x: 0, y: 0 };   // CLIMA: vento constante da corrida (u/s²) — 0 = calmaria
-  capHitMul = 1;           // BATALHA: amortece a trombada tampinha-em-tampinha (mesa justa)
   private arcs: number[] = [0];
   total = 0;
   private cell = 5; private cols = 0; private rows = 0;

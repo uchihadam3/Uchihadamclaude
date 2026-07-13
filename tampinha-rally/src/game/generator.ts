@@ -581,10 +581,10 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
 // trombada mais forte (senão ninguém sai NUNCA). Em todas dá pra derrubar —
 // e em nenhuma de graça.
 const ARENA_THEMES = [
-  { ground: 'felt' as Surface, bg: '#1c5a38', wall: '#7a4a26', name: 'Mesa de Sinuca', R: 23, bumps: 4, hit: 0.74 },
-  { ground: 'cardboard' as Surface, bg: '#c8b48c', wall: '#c05a5a', name: 'Mesa da Cozinha', R: 20, bumps: 4, hit: 0.86 },
-  { ground: 'sidewalk' as Surface, bg: '#9a9488', wall: '#8f8879', name: 'Laje de Cimento', R: 26, bumps: 5, hit: 0.62 },
-  { ground: 'metal' as Surface, bg: '#727c84', wall: '#4e565e', name: 'Bancada de Aço', R: 25, bumps: 5, hit: 0.66 },
+  { ground: 'felt' as Surface, bg: '#1c5a38', wall: '#7a4a26', name: 'Mesa de Sinuca', R: 23 },
+  { ground: 'cardboard' as Surface, bg: '#c8b48c', wall: '#c05a5a', name: 'Mesa da Cozinha', R: 19 },
+  { ground: 'sidewalk' as Surface, bg: '#9a9488', wall: '#8f8879', name: 'Laje de Cimento', R: 26 },
+  { ground: 'metal' as Surface, bg: '#727c84', wall: '#4e565e', name: 'Bancada de Aço', R: 25 },
 ];
 export const ARENA_R = 26;           // raio máximo (a laje); cada mesa usa o seu
 export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
@@ -607,16 +607,19 @@ export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
     const ta = a + Math.PI / 2 + tilt;
     walls.push({ a: vec(cx - Math.cos(ta) * len, cy - Math.sin(ta) * len), b: vec(cx + Math.cos(ta) * len, cy + Math.sin(ta) * len) });
   };
-  // PARA-CHOQUES: 5 arcos na beirada (raio um tico pra dentro da área segura),
-  // cada um cobrindo ~metade do seu setor — sobra ~45% de contorno ABERTO
+  // PARA-CHOQUES: 8 arcos na beirada cobrindo ~95% do contorno — no começo
+  // ninguém cai de graça; a cada encolhida da mesa, ARCOS DESPENCAM (o manager
+  // remove os grupos) e o jogo vai abrindo até o duelo final sem nada
   const bumpR = th.R - 1.1; const rot = rng() * 6.28;
-  for (let i = 0; i < th.bumps; i++) {
-    const a0 = rot + (i / th.bumps) * Math.PI * 2;
-    const span = (Math.PI * 2 / th.bumps) * (0.5 + rng() * 0.14);
-    for (let sgm = 0; sgm < 3; sgm++) {
-      const s1 = a0 + (sgm / 3) * span, s2 = a0 + ((sgm + 1) / 3) * span;
+  const bumperGroups: number[] = [];
+  for (let i = 0; i < 8; i++) {
+    const a0 = rot + (i / 8) * Math.PI * 2;
+    const span = (Math.PI * 2 / 8) * 0.95;
+    for (let sgm = 0; sgm < 2; sgm++) {
+      const s1 = a0 + (sgm / 2) * span, s2 = a0 + ((sgm + 1) / 2) * span;
       walls.push({ a: vec(C + Math.cos(s1) * bumpR, C + Math.sin(s1) * bumpR), b: vec(C + Math.cos(s2) * bumpR, C + Math.sin(s2) * bumpR) });
     }
+    bumperGroups.push(2);
   }
   // LAYOUT do miolo (independente da mesa)
   const layout = Math.floor(rng() * 4);
@@ -642,7 +645,7 @@ export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
   }
   return {
     id: -1, name: th.name, theme: 'batalha', level: 0, w: W, h: W, ground: th.ground, bg: th.bg, wallCol: th.wall,
-    path, half: path.map(() => th.R - 3), pads: [], patches, walls, obstacles, battleHit: th.hit,
+    path, half: path.map(() => th.R - 3), pads: [], patches, walls, obstacles, bumperGroups,
     checkpoints: [vec(C, C)], start: vec(C, C), startAngle: 0,
     finish: [vec(-40, -40), vec(-40, -39)],      // chegada inalcançável: batalha não tem linha
     decor: [],

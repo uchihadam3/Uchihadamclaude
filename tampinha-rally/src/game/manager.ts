@@ -34,7 +34,6 @@ export class GameManager {
   battle = false;                // BATALHA: mesa redonda, cair = eliminado, mesa encolhe
   private battleTurns = 0;       // turnos desde o último encolhimento da mesa
   private settling = false;      // resolve de ASSENTAMENTO (varrida do catavento): não gasta peteleco
-  private duelMode = false;      // BATALHA: duelo final (trombada cheia, sem rampa)
   onBattleShrink: (safeR: number) => void = () => {};   // avisa o 3D pra redesenhar o anel
   teams = 0;                     // DUPLA: nº de times (0 = sem times)
   onItem: (cap: Cap, item: string, used: boolean) => void = () => {};
@@ -77,9 +76,6 @@ export class GameManager {
       c.progress = this.track.progressOf(c.pos); c.checkpoint = 0;
     });
     this.battleTurns = 0;
-    // na mesa, a trombada é CALIBRADA pelo atrito do chão (perfil da mesa)
-    this.duelMode = false;
-    this.track.capHitMul = this.battle ? 0.55 : 1;
     // arco de cada checkpoint (registro por PROGRESSO, não por proximidade — funciona
     // mesmo com o corredor largo, quando a tampinha cruza longe do centro do checkpoint)
     this.cpArcs = this.track.def.checkpoints.map(cp => this.track.progressOf(vec(cp.x, cp.y)));
@@ -127,12 +123,6 @@ export class GameManager {
     // nova cai junto com a borda; 1 peteleco por vez (todo turno é decisivo)
     if (this.battle && !first) {
       this.battleTurns++;
-      // a trombada ESQUENTA com as rodadas: começa mansa (ninguém elimina de
-      // cara em NENHUMA mesa) e sobe até o perfil da mesa em ~3 rodadas
-      if (!this.duelMode) {
-        const ramp = Math.min(1, this.turnNo / (this.caps.length * 3));
-        this.track.capHitMul = 0.55 + ((this.track.def.battleHit ?? 0.75) - 0.55) * ramp;
-      }
       const alive = this.caps.filter(x => !x.eliminated).length;
       if (this.battleTurns >= alive * 2 && this.track.def.half[0] > 6.2) {
         this.battleTurns = 0;
@@ -146,17 +136,24 @@ export class GameManager {
         }
         for (const o of this.track.def.obstacles) { o.x = cx + (o.x - cx) * k; o.y = cy + (o.y - cy) * k; o.r = Math.max(0.6, o.r * (0.6 + 0.4 * k)); }
         for (const p of this.track.def.patches) { p.x = cx + (p.x - cx) * k; p.y = cy + (p.y - cy) * k; }
-        // mesa MÍNIMA: as madeirinhas caem e a trombada volta a valer cheia —
+        // A CADA encolhida, PEDAÇOS do para-choque despencam: a mesa começa
+        // quase fechada (ninguém cai de graça) e vai abrindo — proteção que decai
+        const bg = this.track.def.bumperGroups;
+        if (bg && bg.length) {
+          const removeGroup = (gi: number) => {
+            let off = 0; for (let i2 = 0; i2 < gi; i2++) off += bg[i2];
+            this.track.def.walls.splice(off, bg[gi]); bg.splice(gi, 1);
+          };
+          removeGroup(0);
+          if (bg.length > 1) removeGroup(Math.floor(bg.length / 2));
+        }
+        // mesa MÍNIMA: TUDO despenca (madeirinhas, pedras, catavento) —
         // DUELO FINAL sem proteção (senão dois sobreviventes rodam pra sempre)
         if (h[0] <= 6.5) {
-          // TUDO cai da mesa: sem madeirinhas, sem pedras, sem catavento —
-          // e a trombada volta a valer cheia. Dois na mesa, um só fica.
           this.track.def.walls.length = 0;
           this.track.def.obstacles.length = 0;
-          this.duelMode = true;
-          this.track.capHitMul = 1;
           this.onToast('🔥 DUELO FINAL: caíram as proteções!', 'bad');
-        } else this.onToast('⚠️ a mesa encolheu!', 'bad');
+        } else this.onToast('⚠️ a mesa encolheu! 🪵 e caíram pedaços da borda!', 'bad');
         this.onBattleShrink(h[0] + 3);
         for (const x of this.caps) if (!x.eliminated && !x.finished && this.track.surfaceAt(x.pos) === 'out') this.eliminate(x);
         if (this.battleOver()) return;
