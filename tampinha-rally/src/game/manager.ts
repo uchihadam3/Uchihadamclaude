@@ -34,6 +34,7 @@ export class GameManager {
   battle = false;                // BATALHA: mesa redonda, cair = eliminado, mesa encolhe
   private battleTurns = 0;       // turnos desde o último encolhimento da mesa
   private settling = false;      // resolve de ASSENTAMENTO (varrida do catavento): não gasta peteleco
+  private duelMode = false;      // BATALHA: duelo final (trombada cheia, sem rampa)
   onBattleShrink: (safeR: number) => void = () => {};   // avisa o 3D pra redesenhar o anel
   teams = 0;                     // DUPLA: nº de times (0 = sem times)
   onItem: (cap: Cap, item: string, used: boolean) => void = () => {};
@@ -76,8 +77,9 @@ export class GameManager {
       c.progress = this.track.progressOf(c.pos); c.checkpoint = 0;
     });
     this.battleTurns = 0;
-    // na mesa, a trombada empurra MENOS: eliminar exige encurralar na brecha
-    this.track.capHitMul = this.battle ? 0.68 : 1;
+    // na mesa, a trombada é CALIBRADA pelo atrito do chão (perfil da mesa)
+    this.duelMode = false;
+    this.track.capHitMul = this.battle ? 0.55 : 1;
     // arco de cada checkpoint (registro por PROGRESSO, não por proximidade — funciona
     // mesmo com o corredor largo, quando a tampinha cruza longe do centro do checkpoint)
     this.cpArcs = this.track.def.checkpoints.map(cp => this.track.progressOf(vec(cp.x, cp.y)));
@@ -125,6 +127,12 @@ export class GameManager {
     // nova cai junto com a borda; 1 peteleco por vez (todo turno é decisivo)
     if (this.battle && !first) {
       this.battleTurns++;
+      // a trombada ESQUENTA com as rodadas: começa mansa (ninguém elimina de
+      // cara em NENHUMA mesa) e sobe até o perfil da mesa em ~3 rodadas
+      if (!this.duelMode) {
+        const ramp = Math.min(1, this.turnNo / (this.caps.length * 3));
+        this.track.capHitMul = 0.55 + ((this.track.def.battleHit ?? 0.75) - 0.55) * ramp;
+      }
       const alive = this.caps.filter(x => !x.eliminated).length;
       if (this.battleTurns >= alive * 2 && this.track.def.half[0] > 6.2) {
         this.battleTurns = 0;
@@ -145,6 +153,7 @@ export class GameManager {
           // e a trombada volta a valer cheia. Dois na mesa, um só fica.
           this.track.def.walls.length = 0;
           this.track.def.obstacles.length = 0;
+          this.duelMode = true;
           this.track.capHitMul = 1;
           this.onToast('🔥 DUELO FINAL: caíram as proteções!', 'bad');
         } else this.onToast('⚠️ a mesa encolheu!', 'bad');

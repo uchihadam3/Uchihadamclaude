@@ -575,16 +575,21 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
 // ---- ARENA DE BATALHA: uma MESA redonda, sem corrida — o corredor é um disco
 // (caminho circular pequeno + meia-largura grande). Cair fora = eliminado; a
 // mesa ENCOLHE com o tempo (o manager reduz def.half ao vivo).
+// cada mesa tem PERFIL DE EQUILÍBRIO próprio, calibrado pelo atrito do chão:
+// mesa LISA (laje/aço) é grande e cheia de para-choque (senão qualquer batida
+// elimina); mesa GRUDENTA (papelão da cozinha) é menor, com menos borda e
+// trombada mais forte (senão ninguém sai NUNCA). Em todas dá pra derrubar —
+// e em nenhuma de graça.
 const ARENA_THEMES = [
-  { ground: 'felt' as Surface, bg: '#1c5a38', wall: '#7a4a26', name: 'Mesa de Sinuca' },
-  { ground: 'cardboard' as Surface, bg: '#c8b48c', wall: '#c05a5a', name: 'Mesa da Cozinha' },
-  { ground: 'sidewalk' as Surface, bg: '#9a9488', wall: '#8f8879', name: 'Laje de Cimento' },
-  { ground: 'metal' as Surface, bg: '#727c84', wall: '#4e565e', name: 'Bancada de Aço' },
+  { ground: 'felt' as Surface, bg: '#1c5a38', wall: '#7a4a26', name: 'Mesa de Sinuca', R: 23, bumps: 4, hit: 0.74 },
+  { ground: 'cardboard' as Surface, bg: '#c8b48c', wall: '#c05a5a', name: 'Mesa da Cozinha', R: 20, bumps: 4, hit: 0.86 },
+  { ground: 'sidewalk' as Surface, bg: '#9a9488', wall: '#8f8879', name: 'Laje de Cimento', R: 26, bumps: 5, hit: 0.62 },
+  { ground: 'metal' as Surface, bg: '#727c84', wall: '#4e565e', name: 'Bancada de Aço', R: 25, bumps: 5, hit: 0.66 },
 ];
-export const ARENA_R = 26;           // raio inicial da área segura (path 3 + half 23)
+export const ARENA_R = 26;           // raio máximo (a laje); cada mesa usa o seu
 export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
   const th = ARENA_THEMES[Math.abs(seed) % ARENA_THEMES.length];
-  const W = 64, C = W / 2;
+  const W = th.R * 2 + 12, C = W / 2;
   const path: V[] = [];
   for (let i = 0; i <= 20; i++) { const a = (i / 20) * Math.PI * 2; path.push(vec(C + Math.cos(a) * 3, C + Math.sin(a) * 3)); }
   // MESA COM VIDA E DESIGN PRÓPRIO: 4 LAYOUTS sorteados × 4 mesas = muita
@@ -604,10 +609,10 @@ export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
   };
   // PARA-CHOQUES: 5 arcos na beirada (raio um tico pra dentro da área segura),
   // cada um cobrindo ~metade do seu setor — sobra ~45% de contorno ABERTO
-  const bumpR = ARENA_R - 1.1; const rot = rng() * 6.28;
-  for (let i = 0; i < 5; i++) {
-    const a0 = rot + (i / 5) * Math.PI * 2;
-    const span = (Math.PI * 2 / 5) * (0.5 + rng() * 0.14);
+  const bumpR = th.R - 1.1; const rot = rng() * 6.28;
+  for (let i = 0; i < th.bumps; i++) {
+    const a0 = rot + (i / th.bumps) * Math.PI * 2;
+    const span = (Math.PI * 2 / th.bumps) * (0.5 + rng() * 0.14);
     for (let sgm = 0; sgm < 3; sgm++) {
       const s1 = a0 + (sgm / 3) * span, s2 = a0 + ((sgm + 1) / 3) * span;
       walls.push({ a: vec(C + Math.cos(s1) * bumpR, C + Math.sin(s1) * bumpR), b: vec(C + Math.cos(s2) * bumpR, C + Math.sin(s2) * bumpR) });
@@ -617,27 +622,27 @@ export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
   const layout = Math.floor(rng() * 4);
   if (layout === 0) {                     // MOINHO: catavento central + pedras em anel
     obstacles.push({ type: 'mill', x: C, y: C, r: 2.4, n: 4, dir: rng() * 6.28 });
-    for (let i = 0; i < 5; i++) stone((i / 5) * 6.28 + rng() * 0.7, 10 + rng() * 6, 0.85 + rng() * 0.4);
+    for (let i = 0; i < 5; i++) stone((i / 5) * 6.28 + rng() * 0.7, th.R * 0.42 + rng() * th.R * 0.25, 0.85 + rng() * 0.4);
   } else if (layout === 1) {              // PILARES: 4 pedras GRANDES em cruz, centro livre
-    for (let i = 0; i < 4; i++) stone((i / 4) * 6.28 + rng() * 0.3, 9.8 + rng() * 2, 1.3 + rng() * 0.25);
-    for (let i = 0; i < 3; i++) stone(rng() * 6.28, 15 + rng() * 4, 0.7 + rng() * 0.3);
+    for (let i = 0; i < 4; i++) stone((i / 4) * 6.28 + rng() * 0.3, th.R * 0.42 + rng() * 2, 1.3 + rng() * 0.25);
+    for (let i = 0; i < 3; i++) stone(rng() * 6.28, th.R * 0.62 + rng() * 3, 0.7 + rng() * 0.3);
   } else if (layout === 2) {              // TABELAS: madeirinhas formando corredores
-    for (let i = 0; i < 6; i++) plank((i / 6) * 6.28 + rng() * 0.5, 8 + (i % 2) * 6 + rng() * 2, 2.6 + rng() * 1.1, (rng() - 0.5) * 0.7);
-    for (let i = 0; i < 2; i++) stone(rng() * 6.28, 12 + rng() * 5, 0.9 + rng() * 0.3);
+    for (let i = 0; i < 6; i++) plank((i / 6) * 6.28 + rng() * 0.5, th.R * 0.35 + (i % 2) * th.R * 0.25 + rng() * 2, 2.6 + rng() * 1.1, (rng() - 0.5) * 0.7);
+    for (let i = 0; i < 2; i++) stone(rng() * 6.28, th.R * 0.52 + rng() * 4, 0.9 + rng() * 0.3);
   } else {                                // RINQUE: lago de GELO no meio (escorrega!) + 2 cataventos
     patches.push({ surface: 'ice', x: C, y: C, r: 6.5 + rng() * 1.5 });
-    for (let i = 0; i < 2; i++) obstacles.push({ type: 'mill', x: C + Math.cos(rng() * 6.28) * 11, y: C + Math.sin(rng() * 6.28) * 11, r: 1.9, n: 4, dir: rng() * 6.28 });
-    for (let i = 0; i < 3; i++) stone(rng() * 6.28, 14 + rng() * 5, 0.8 + rng() * 0.35);
+    for (let i = 0; i < 2; i++) { const aa = rng() * 6.28; obstacles.push({ type: 'mill', x: C + Math.cos(aa) * th.R * 0.48, y: C + Math.sin(aa) * th.R * 0.48, r: 1.9, n: 4, dir: rng() * 6.28 }); }
+    for (let i = 0; i < 3; i++) stone(rng() * 6.28, th.R * 0.6 + rng() * 4, 0.8 + rng() * 0.35);
   }
   // 2 manchas de terreno da casa (areia segura, água leva, giz desliza…)
   const patchSurf: Surface[] = th.ground === 'felt' ? ['chalk', 'gum'] : th.ground === 'metal' ? ['ice', 'sand'] : th.ground === 'sidewalk' ? ['chalk', 'water'] : ['sand', 'water'];
   for (let i = 0; i < 2; i++) {
-    const a = rng() * 6.28, rr = 8 + rng() * 9;
+    const a = rng() * 6.28, rr = th.R * 0.35 + rng() * th.R * 0.35;
     patches.push({ surface: patchSurf[i], x: C + Math.cos(a) * rr, y: C + Math.sin(a) * rr, r: 2.2 + rng() * 1.2 });
   }
   return {
     id: -1, name: th.name, theme: 'batalha', level: 0, w: W, h: W, ground: th.ground, bg: th.bg, wallCol: th.wall,
-    path, half: path.map(() => ARENA_R - 3), pads: [], patches, walls, obstacles,
+    path, half: path.map(() => th.R - 3), pads: [], patches, walls, obstacles, battleHit: th.hit,
     checkpoints: [vec(C, C)], start: vec(C, C), startAngle: 0,
     finish: [vec(-40, -40), vec(-40, -39)],      // chegada inalcançável: batalha não tem linha
     decor: [],

@@ -38,6 +38,7 @@ export interface TrackDef {
   pads: { x: number; y: number; r: number }[];
   patches: Patch[]; walls: Wall[]; obstacles: Obstacle[];
   checkpoints: V[]; start: V; startAngle: number; finish: [V, V];
+  battleHit?: number;        // BATALHA: quanto a trombada empurra nesta mesa (equilíbrio por atrito)
   decor: Decor[];
 }
 
