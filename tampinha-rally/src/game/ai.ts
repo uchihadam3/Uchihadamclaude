@@ -257,3 +257,31 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   const fp = Math.max(0.06, Math.min(1, best.power * (1 + (Math.random() - 0.5) * per.noise)));
   return { dir: fdir, power: fp };
 }
+
+// IA DE BATALHA: sem corrida — o objetivo é EMPURRAR os rivais pra fora da mesa
+// e terminar LONGE da borda. Simula cada tacada com a física de verdade.
+export function aiBattleFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; power: number } {
+  const rivals = caps.filter(o => o.id !== cap.id && !o.eliminated && !o.finished);
+  const path = track.def.path; let cx = 0, cy = 0;
+  for (const p of path) { cx += p.x; cy += p.y; } cx /= path.length; cy /= path.length;
+  let best = { dir: vec(1, 0), power: 0.4, s: -1e9 };
+  const consider = (dir: V, pw: number) => {
+    const ep = Math.max(0.08, Math.min(1, pw));
+    const o = sim(cap, caps, track, dir, ep);
+    const nn = track.nearest(o.endPos);
+    let s = o.oppHarm * 240 - (o.out ? 600 : 0) + Math.min(10, nn.half - nn.d) * 8;
+    if (o.oppHarm === 0 && dist(o.endPos, cap.pos) < 1.2) s -= 20;   // tacada fraquinha sem função
+    if (s > best.s) best = { dir, power: ep, s };
+  };
+  // empurrar cada rival (mirando nele e de raspão) — o gostoso da batalha
+  for (const r of rivals) {
+    const d = norm(sub(r.pos, cap.pos));
+    for (const pw of [0.45, 0.65, 0.85, 1.0]) consider(d, pw);
+    for (const a of [0.12, -0.12]) for (const pw of [0.6, 0.9]) consider(rot(d, a), pw);
+  }
+  // recuar pro centro (seguro) e posições de flanco
+  const toC = norm(sub(vec(cx, cy), cap.pos));
+  for (const pw of [0.25, 0.45, 0.65]) consider(toC, pw);
+  for (const a of [0.7, -0.7, 1.4, -1.4]) for (const pw of [0.35, 0.6]) consider(rot(toC, a), pw);
+  return { dir: best.dir, power: best.power };
+}

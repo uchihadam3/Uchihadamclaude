@@ -5,7 +5,7 @@ import { buildBoard, BoardBuild } from './render/board';
 import { CapsRenderer } from './render/caps';
 import { Particles, Aim } from './render/fx';
 import { GameManager, PlayerDef } from './game/manager';
-import { track, TRACKS_PER_LEVEL, withChaosItems, seededTrack } from './game/generator';
+import { track, TRACKS_PER_LEVEL, withChaosItems, seededTrack, battleArena } from './game/generator';
 import { SURF, len } from './engine/core';
 import { InputController } from './input';
 import { UI, MatchConfig, Mode, opponentSkins } from './ui';
@@ -18,6 +18,7 @@ import { compById, campState, saveCamp, applyResult } from './game/campaign';
 import { rankCompById, RANK_PTS, rankState } from './game/ranked';
 import { watchUpdates } from './updater';
 import { initI18n } from './i18n';
+import { weatherFor, randomWeather, WeatherState } from './game/weather';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const renderer = makeRenderer(canvas);
@@ -37,6 +38,7 @@ let elim: { players: PlayerDef[]; orig: PlayerDef[]; level: number; race: number
 let camp: { compId: string; race: number; pts: Map<number, number>; hist: number[] } | null = null;
 let rank: { compId: string; race: number; pts: Map<number, number>; hist: number[]; circ: 'normal' | 'caos' } | null = null;
 let dailyFlicks = 0;
+let myFalls = 0;      // quedas do jogador NESTA corrida (vai pra carreira da tampinha)
 let inGame = false;
 let previewing = false;
 let previewDef: any = null;
@@ -48,18 +50,51 @@ window.addEventListener('pointerdown', () => { resumeAudio(); if (!inGame) playM
 
 // carrega a cena de uma pista e prepara a partida
 function loadMatch(cfg: MatchConfig): void {
-  curCfg = cfg; mode = cfg.mode; dailyFlicks = 0;
-  let def = cfg.customTrack ? cfg.customTrack : track(cfg.level, cfg.trackIdx);
+  curCfg = cfg; mode = cfg.mode; dailyFlicks = 0; myFalls = 0;
+  mgr.battle = cfg.mode === 'batalha';   // ANTES do setup: muda largada (roda) e regras
+  let def = cfg.customTrack ? cfg.customTrack : cfg.mode === 'batalha' ? battleArena() : track(cfg.level, cfg.trackIdx);
   const chaosOn = cfg.mode === 'caos' || cfg.rankCirc === 'caos';   // Caos avulso OU Ranqueada Caos
   if (chaosOn) def = withChaosItems(def);                    // caixas de power-up na pista
   fx3Clear();
-  scene = makeScene(def.bg);
-  makeSun(scene, def.w, def.h);
+  // CLIMA: determinístico nas competições/diário/online (mesma etapa = mesmo céu);
+  // aleatório no jogo avulso — cada corrida com a sua cara
+  let wx: WeatherState;
+  if (cfg.mode === 'camp' && cfg.campComp) wx = weatherFor(campState().seed, cfg.campComp, camp?.race ?? 0);
+  else if (cfg.mode === 'rank' && cfg.rankComp) wx = weatherFor(rankState(cfg.rankCirc || 'normal').seed, cfg.rankComp, rank?.race ?? 0);
+  else if (cfg.mode === 'daily') { const dd = new Date(); wx = weatherFor(dd.getFullYear() * 372 + (dd.getMonth() + 1) * 31 + dd.getDate(), 'daily', 0); }
+  else if (cfg.mode === 'online') wx = weatherFor(cfg.level * 131 + cfg.trackIdx * 7 + 3, 'online', 0);
+  else wx = randomWeather();
+  scene = makeScene(def.bg, wx.w);
+  makeSun(scene, def.w, def.h, wx.w);
   mgr.setup(def, cfg.players);
+  mgr.track.wind = { x: wx.windX, y: wx.windY };
+  // CHUVA deixa poças de verdade na pista (posições determinísticas pela etapa)
+  if (wx.w === 'chuva') {
+    let r = wx.salt >>> 0;
+    const rng = () => { r = (Math.imul(r, 1664525) + 1013904223) >>> 0; return r / 4294967296; };
+    for (let i = 0; i < 3; i++) {
+      const a = (0.14 + 0.26 * i + rng() * 0.14) * mgr.track.total;
+      const at = mgr.track.atArc(a); const pv = { x: -at.tan.y, y: at.tan.x };
+      const off = (rng() - 0.5) * mgr.track.nearest(at.p).half * 1.1;
+      mgr.track.def.patches.push({ surface: 'water', x: at.p.x + pv.x * off, y: at.p.y + pv.y * off, r: 1.5 + rng() * 0.8 });
+    }
+  }
   // IMPORTANTE: o board 3D observa a CÓPIA da pista (mgr.track.def) — é nela que
   // o catavento gira, a bexiga estoura e o carrinho anda; a def original é cache
   board = buildBoard(mgr.track.def); scene.add(board.group);
   scene.add(caps.group, fx.points, aim.group);
+  // BATALHA: anel mostrando a borda da área segura — encolhe junto com a mesa
+  if (mgr.battle) {
+    const r0 = mgr.track.def.half[0] + 3;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r0, 0.16, 8, 64),
+      new THREE.MeshBasicMaterial({ color: 0xff5544, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.set(def.w / 2, 0.08, def.h / 2);
+    scene.add(ring);
+    mgr.onBattleShrink = (safeR) => { const k = safeR / r0; ring.scale.set(k, k, 1); sfx.thud(); fx.dust(def.w / 2, def.h / 2, 20, '#ff8866'); };
+  } else mgr.onBattleShrink = () => {};
+  if (wx.w === 'chuva') fx3RainFall(def.w, def.h);
+  if (wx.w === 'vento') fx3WindSpecks(def.w, def.h, wx.windX, wx.windY);
+  ui.setWeather(wx);
   rig = new CameraRig(def.w, def.h); rig.setFrustum(21, innerWidth, innerHeight); resize();
   mgr.chaos = chaosOn;
   mgr.manualControl = cfg.mode === 'online'; online.bind(mgr);
@@ -75,6 +110,7 @@ function humanTurn(): boolean { return mgr.phase === 'aim' && (online.active ? o
 
 // -------- callbacks do manager (som + efeitos + HUD) --------
 mgr.onToast = (msg, kind) => ui.toast(msg, kind);
+mgr.onEvent = (e) => { const cp = mgr.caps[e.capId]; if ((e.type === 'hole' || e.type === 'out') && cp && !cp.isAI) myFalls++; };
 mgr.onChange = () => ui.updateHUD(mgr, humanTurn());
 mgr.onFlick = (cap, power) => { sfx.flick(power); const s = SURF[mgr.track.surfaceAt(cap.pos)]; fx.dust(cap.pos.x, cap.pos.y, 8); aim.hide(); };
 // pegar a caixinha: explosão roxa + faíscas subindo (usar tem efeito próprio, abaixo)
@@ -96,6 +132,40 @@ function fx3Gone(o: THREE.Object3D): void {
   o.traverse((m: any) => { m.geometry?.dispose?.(); if (m.material) (Array.isArray(m.material) ? m.material : [m.material]).forEach((mm: any) => mm.dispose?.()); });
 }
 const M = (color: string, opts: any = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.35, ...opts });
+
+// CHUVA caindo: pontinhos azulados despencando sobre a mesa, em loop
+function fx3RainFall(w: number, h: number): void {
+  if (!scene) return;
+  const N = 420; const pos = new Float32Array(N * 3); const spd = new Float32Array(N);
+  for (let i = 0; i < N; i++) { pos[i * 3] = Math.random() * w; pos[i * 3 + 1] = 6 + Math.random() * 26; pos[i * 3 + 2] = Math.random() * h; spd[i] = 26 + Math.random() * 14; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xaaccee, size: 0.16, transparent: true, opacity: 0.55, depthWrite: false }));
+  scene.add(pts);
+  fx3d.push((dt) => {
+    const a = g.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < N; i++) { let y = a.getY(i) - spd[i] * dt; if (y < 0) y = 6 + Math.random() * 26; a.setY(i, y); }
+    a.needsUpdate = true; return true;
+  });
+}
+// VENTO visível: ciscos claros derivando na direção do vento (dá pra LER o vento)
+function fx3WindSpecks(w: number, h: number, wxv: number, wyv: number): void {
+  if (!scene) return;
+  const N = 40; const pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) { pos[i * 3] = Math.random() * w; pos[i * 3 + 1] = 0.4 + Math.random() * 2.2; pos[i * 3 + 2] = Math.random() * h; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xfff2cc, size: 0.22, transparent: true, opacity: 0.7, depthWrite: false }));
+  scene.add(pts);
+  const k = 9 / Math.max(0.2, Math.hypot(wxv, wyv));
+  fx3d.push((dt) => {
+    const a = g.getAttribute('position') as THREE.BufferAttribute;
+    for (let i = 0; i < N; i++) {
+      let x = a.getX(i) + wxv * k * dt, z = a.getZ(i) + wyv * k * dt;
+      if (x < 0) x += w; if (x > w) x -= w; if (z < 0) z += h; if (z > h) z -= h;
+      a.setX(i, x); a.setZ(i, z);
+    }
+    a.needsUpdate = true; return true;
+  });
+}
 
 // anel de choque no chão (cresce e some)
 function fx3Ring(x: number, y: number, col: string, r1 = 2.6, dur = 0.5): void {
@@ -359,6 +429,7 @@ ui.onRestart = () => {
 ui.onMenu = () => { inGame = false; paused = false; stopScene(); playMusic('menu'); ui.showMenu(); };
 ui.onNext = () => {
   ui.hideModal();
+  if (mode === 'batalha' && curCfg) { loadMatch(curCfg); return; }   // revanche: mesa nova
   if (camp && curCfg) {   // campanha: próxima corrida da competição (sequência fixa da semente)
     camp.race++;
     curCfg.trackIdx = seededTrack(campState().seed, camp.compId, camp.race);
@@ -451,6 +522,8 @@ let resultsShown = false;
 function onRaceOver(): void {
   if (resultsShown) return; resultsShown = true;
   sfx.win();
+  // CARREIRA da tampinha: toda corrida offline conta (XP cosmético)
+  if (!online.active) { const meC = mgr.caps.find(c => !c.isAI); if (meC) save.addCapRace(meC.skin, meC.place, myFalls); }
 
   // ---- CAMPANHA: mini-campeonato com troféu e recompensas ----
   if (mode === 'camp' && camp) {
@@ -482,6 +555,15 @@ function onRaceOver(): void {
     const myPts = rows.find(r => r.you)?.pts || 0;
     const me = mgr.caps.find(c => !c.isAI);
     ui.showRankResult({ comp, place, pts: myPts, rows, hist: rank.hist.slice(), capId: me ? me.skin : 'coca' });
+    return;
+  }
+
+  // ---- BATALHA: último vivo vence ----
+  if (mode === 'batalha') {
+    const order = mgr.caps.slice().sort((a, b) => a.place - b.place).map(c => ({ name: c.name, skin: c.skin, place: c.place, you: !c.isAI }));
+    const winner = order[0];
+    if (winner?.you) save.addWin();
+    ui.showBattleResult({ winner, order });
     return;
   }
 

@@ -29,7 +29,8 @@ class CapView {
     this.ringHi.rotation.x = -Math.PI / 2; this.ringHi.position.y = 0.05; this.ringHi.visible = false; this.group.add(this.ringHi);
   }
   update(cap: Cap, t: number, active: boolean, dt = 0): void {
-    this.group.visible = true;
+    this.group.visible = !cap.eliminated;   // batalha: quem caiu da mesa some
+    if (cap.eliminated) return;
     const bobY = cap.moving ? Math.abs(Math.sin(t * 20)) * 0.03 : Math.sin(t * 2 + cap.bob) * 0.015;
     // teleporte ANIMADO (Caos): a tampinha VOA da posição antiga até a nova,
     // capotando — só o desenho; a física já está na posição final

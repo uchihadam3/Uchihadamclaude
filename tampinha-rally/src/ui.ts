@@ -12,11 +12,14 @@ import { RANK_TIERS, RANK_COMPS, RankComp, RankCirc, rankCompById, rankState, sa
 import { RankNet, RankRow, standings as rankStandings, nameFree, validName, nameKey } from './net/rank';
 import { CapStats } from './engine/core';
 import { Online } from './net/online';
-import { save } from './game/save';
+import { save, capLevel, capLevelProgress } from './game/save';
 import { settings } from './audio';
 import { getLang, toggleLang } from './i18n';
+import { WeatherState, WEATHER_ICO, WEATHER_LABEL } from './game/weather';
+import { exportAccount, importAccount } from './game/transfer';
+import { Gallery } from './net/gallery';
 
-export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp' | 'rank';
+export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp' | 'rank' | 'batalha';
 export type Pick = 'specific' | 'randlevel' | 'randany';
 export type ChampFmt = 'copa' | 'gp' | 'sprint' | 'maratona';
 export interface MatchConfig { level: number; trackIdx: number; pick: Pick; players: PlayerDef[]; mode: Mode; champFmt?: ChampFmt; teamSize?: number; customTrack?: any; campComp?: string; rankComp?: string; rankCirc?: RankCirc; }
@@ -139,6 +142,7 @@ export class UI {
       { m: 'elim', ico: '💀', name: 'Eliminação', sub: 'Várias pistas: o último de cada corrida é eliminado até sobrar 1.', col: '#e5484d' },
       { m: 'trial', ico: '⏱️', name: 'Contra-Relógio', sub: 'Sozinho contra o cronômetro: chegue com o MENOR número de petelecos.', col: '#3b82f6' },
       { m: 'dupla', ico: '🤝', name: 'Corrida de Dupla', sub: 'Times! 2×2 ou 3×3 — a soma das colocações decide o time campeão.', col: '#2ea44f' },
+      { m: 'batalha', ico: '🥊', name: 'Batalha da Mesa', sub: 'Sem corrida: uma mesa redonda que ENCOLHE. Derrube os rivais — o último vivo vence!', col: '#f2b100' },
     ];
     const s = this.el(`<div class="screen setup modes-screen">
       <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Modos de Jogo</h2><div></div></div>
@@ -847,6 +851,7 @@ export class UI {
         <button class="chip" id="edsave">💾 Salvar</button>
         <button class="chip" id="edload">📂 Minhas</button>
         <button class="chip" id="edshare">🔗 Compartilhar</button>
+        <button class="chip" id="edgal">🌍 Galeria</button>
       </div>
       <div class="ed-actions">
         <button class="chip big" id="edview">👁️ Ver em 3D</button>
@@ -892,6 +897,7 @@ export class UI {
     });
     s.querySelector('#edload')!.addEventListener('click', () => this.showMyTracks());
     s.querySelector('#edshare')!.addEventListener('click', () => this.shareCustom());
+    s.querySelector('#edgal')!.addEventListener('click', () => this.showGallery());
     s.querySelector('#edview')!.addEventListener('click', () => this.previewCustom());
     s.querySelector('#edplay')!.addEventListener('click', () => this.playCustom());
   }
@@ -1084,14 +1090,58 @@ export class UI {
       <div class="my-tracks" id="mt">${tracks.length ? '' : '<div class="mt-empty">Nenhuma pista salva ainda. Crie a sua! ✏️</div>'}</div>`, 'wide');
     const host = box.querySelector('#mt') as HTMLElement;
     tracks.forEach((t: any) => {
-      const row = this.el(`<div class="mt-row"><span class="mt-nm">🏁 ${t.name}</span><span class="mt-acts"><button class="chip mini" data-a="load">Abrir</button><button class="chip mini" data-a="share">🔗</button><button class="chip mini" data-a="play">Jogar</button><button class="chip mini danger" data-a="del">🗑️</button></span></div>`);
+      const row = this.el(`<div class="mt-row"><span class="mt-nm">🏁 ${t.name}</span><span class="mt-acts"><button class="chip mini" data-a="load">Abrir</button><button class="chip mini" data-a="share">🔗</button><button class="chip mini" data-a="play">Jogar</button><button class="chip mini" data-a="pub">🌍</button><button class="chip mini danger" data-a="del">🗑️</button></span></div>`);
       row.querySelector('[data-a="load"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = (t.obstacles || []).slice(); this.edPatches = (t.patches || []).slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; this.edProtect = t.protect == null ? 1 : t.protect; this.edOpenArcs = (t.openArcs || []).slice(); close(); this.showEditor(); });
       row.querySelector('[data-a="share"]')!.addEventListener('click', () => { this.edPts = t.pts.slice(); this.edObs = (t.obstacles || []).slice(); this.edPatches = (t.patches || []).slice(); this.edTheme = t.theme; this.edHalf = t.half; this.edName = t.name; this.shareCustom(); });
       row.querySelector('[data-a="play"]')!.addEventListener('click', () => { const def = buildCustomTrack(t); close(); this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players: this.aiPlayers(), mode: 'quick', customTrack: def }); });
+      row.querySelector('[data-a="pub"]')!.addEventListener('click', () => { this.gallery().publish(t, this.galleryAuthor()); this.notify('🌍 Pista publicada na galeria!', 'good'); });
       row.querySelector('[data-a="del"]')!.addEventListener('click', () => { save.deleteTrack(t.id); row.remove(); });
       host.appendChild(row);
     });
     box.querySelector('.ov-x')!.addEventListener('click', close);
+  }
+
+  // ------------------------------------------------------- GALERIA DA COMUNIDADE
+  private gal: Gallery | null = null;
+  private galSort: 'top' | 'new' = 'top';
+  private gallery(): Gallery { if (!this.gal) this.gal = new Gallery(); this.gal.start(); return this.gal; }
+  private galleryAuthor(): string {
+    return rankState().name || rankState('caos').name || save.name() || 'anônimo';
+  }
+  showGallery(): void {
+    this.clear();
+    const g = this.gallery();
+    const s = this.el(`<div class="screen setup gallery">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Editor</button><h2>🌍 Galeria</h2><div class="rk-live" id="gst"></div></div>
+      <div class="modes-note">Pistas criadas por jogadores do <b>mundo inteiro</b>. Jogue, curta ❤️ — e publique a sua no ✏️ Editor → 📂 Minhas → 🌍!</div>
+      <div class="rand-row"><button class="chip ${this.galSort === 'top' ? 'sel' : ''}" id="gtop">🔥 Curtidas</button><button class="chip ${this.galSort === 'new' ? 'sel' : ''}" id="gnew">🕐 Novas</button></div>
+      <div class="my-tracks" id="glist"></div>
+    </div>`);
+    this.root.appendChild(s);
+    s.prepend(this.bgFx(4));
+    const esc = (x: string) => x.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as any)[ch]);
+    const render = () => {
+      const host = s.querySelector('#glist') as HTMLElement; if (!host) return;
+      const rows = g.list(this.galSort);
+      (s.querySelector('#gst') as HTMLElement).textContent = g.status === 'online' ? '🟢 AO VIVO' : g.status === 'connecting' ? '🟡 conectando…' : '';
+      host.innerHTML = rows.length ? '' : `<div class="mt-empty">${g.status === 'online' ? 'Nenhuma pista publicada ainda — seja a primeira! ✏️' : 'Procurando pistas pelo mundo… 🌍'}</div>`;
+      rows.slice(0, 60).forEach(t => {
+        const row = this.el(`<div class="mt-row"><span class="mt-nm">🏁 ${esc(t.name)}<small class="g-author">por ${esc(t.author)}${t.mine ? ' (você)' : ''}</small></span>
+          <span class="mt-acts"><button class="chip mini ${t.liked ? 'sel' : ''}" data-a="like">❤️ ${t.likes}</button><button class="chip mini" data-a="play">Jogar</button>${t.mine ? '<button class="chip mini danger" data-a="unpub">🗑️</button>' : ''}</span></div>`);
+        row.querySelector('[data-a="like"]')!.addEventListener('click', () => { g.toggleLike(t.key); render(); });
+        row.querySelector('[data-a="play"]')!.addEventListener('click', () => {
+          try { const def = buildCustomTrack(t.data); this.cb.start({ level: 2, trackIdx: 0, pick: 'specific', players: this.aiPlayers(), mode: 'quick', customTrack: def }); }
+          catch { this.notify('Essa pista veio quebrada 😕', 'bad'); }
+        });
+        row.querySelector('[data-a="unpub"]')?.addEventListener('click', () => { g.unpublish(t.key); render(); });
+        host.appendChild(row);
+      });
+    };
+    g.onChange = render; g.onStatus = render;
+    render();
+    s.querySelector('#back')!.addEventListener('click', () => { g.onChange = () => {}; this.showEditor(); });
+    s.querySelector('#gtop')!.addEventListener('click', () => { this.galSort = 'top'; this.showGallery(); });
+    s.querySelector('#gnew')!.addEventListener('click', () => { this.galSort = 'new'; this.showGallery(); });
   }
 
   private resetPlayers(mode: Mode): void {
@@ -1122,25 +1172,32 @@ export class UI {
     const isDupla = this.cfgMode === 'dupla';
     const isElim = this.cfgMode === 'elim';
     const isCaos = this.cfgMode === 'caos';
+    const isBatalha = this.cfgMode === 'batalha';
     const isChamp = this.cfgMode === 'champ';
     const isRandom = this.cfgPick !== 'specific';
     const t = track(this.cfgLevel, this.cfgTrack);
     const canPlayers = !isDaily && !isTrial;
-    const title = ({ quick: 'Corrida Rápida', ai: 'Contra a IA', local: 'Multiplayer Local', champ: 'Campeonato', daily: 'Desafio Diário', caos: '🌀 Modo Caos', elim: '💀 Eliminação', trial: '⏱️ Contra-Relógio', dupla: '🤝 Corrida de Dupla' } as Record<string, string>)[this.cfgMode];
+    const title = ({ quick: 'Corrida Rápida', ai: 'Contra a IA', local: 'Multiplayer Local', champ: 'Campeonato', daily: 'Desafio Diário', caos: '🌀 Modo Caos', elim: '💀 Eliminação', trial: '⏱️ Contra-Relógio', dupla: '🤝 Corrida de Dupla', batalha: '🥊 Batalha da Mesa' } as Record<string, string>)[this.cfgMode];
     const modeBanner = isCaos ? '<div class="mode-banner caos">🌀 <b>Modo Caos:</b> caixas <b>?</b> na pista dão power-ups. Quem está mais atrás pega os melhores (raio, foguete, salto). Toque no item pra usar!</div>'
       : isElim ? '<div class="mode-banner elim">💀 <b>Eliminação:</b> a cada corrida numa pista nova, o <b>último colocado sai</b>. Sobrevive até ser o único!</div>'
       : isTrial ? '<div class="mode-banner trial">⏱️ <b>Contra-Relógio:</b> você sozinho. Leve a tampinha à chegada com o <b>menor número de petelecos</b> possível.</div>'
       : isDupla ? '<div class="mode-banner dupla">🤝 <b>Dupla:</b> dois times. Vence o time com a <b>menor soma de colocações</b>. Ajude o parceiro… ou atrapalhe o rival!</div>'
+      : isBatalha ? '<div class="mode-banner elim">🥊 <b>Batalha:</b> mesa redonda, 1 peteleco por vez. Empurre os rivais pra fora — e cuidado: a mesa <b>encolhe</b>! Último vivo vence.</div>'
       : '';
 
-    // seletor de nível (oculto no diário — a pista do dia é fixa)
-    const levelRow = isDaily ? '' : `<div class="lvl-row" id="lvls">
+    // seletor de nível (oculto no diário — a pista do dia é fixa — e na batalha)
+    const levelRow = (isDaily || isBatalha) ? '' : `<div class="lvl-row" id="lvls">
       ${LEVELS.map((n, i) => `<button class="lvl-chip ${i === this.cfgLevel ? 'sel' : ''}" data-l="${i}" style="--lc:${LEVEL_COLORS[i]}"><b>${n}</b><span>${this.levelHint(i)}</span></button>`).join('')}
     </div>`;
 
     // cartão da pista
     let trackBlock = '';
-    if (isChamp) {
+    if (isBatalha) {
+      trackBlock = `<div class="track-pick"><div class="track-card" style="border-color:#f2b100">
+        <div class="track-name">🥊 Mesa surpresa</div>
+        <div class="track-sub">uma mesa redonda aleatória — sinuca, cozinha, laje ou bancada</div>
+      </div></div>`;
+    } else if (isChamp) {
       const f = CHAMP_FMT[this.cfgChampFmt];
       const btns = (Object.keys(CHAMP_FMT) as ChampFmt[]).map(k => `<button class="champ-fmt ${k === this.cfgChampFmt ? 'sel' : ''}" data-f="${k}"><span class="cf-ico">${CHAMP_FMT[k].ico}</span><b>${CHAMP_FMT[k].name}</b><span>${CHAMP_FMT[k].desc}</span></button>`).join('');
       const where = this.cfgChampFmt === 'gp' ? '<b>todos os níveis</b> (Fácil → Extrema)' : `nível <b style="color:${LEVEL_COLORS[this.cfgLevel]}">${LEVELS[this.cfgLevel]}</b>`;
@@ -1174,8 +1231,8 @@ export class UI {
       <button class="chip ${this.cfgTeamSize === 3 ? 'sel' : ''}" data-ts="3">3 × 3</button>
     </div>` : '';
 
-    // botões de sorteio (não no diário/campeonato)
-    const randRow = (isDaily || isChamp) ? '' : `<div class="rand-row">
+    // botões de sorteio (não no diário/campeonato/batalha)
+    const randRow = (isDaily || isChamp || isBatalha) ? '' : `<div class="rand-row">
       <button class="chip ${this.cfgPick === 'specific' ? 'sel' : ''}" id="pspec">🎯 Escolher</button>
       <button class="chip ${this.cfgPick === 'randlevel' ? 'sel' : ''}" id="prlvl">🎲 Do nível</button>
       <button class="chip ${this.cfgPick === 'randany' ? 'sel' : ''}" id="prany">🎲 Qualquer</button>
@@ -1331,7 +1388,11 @@ export class UI {
       const grid = sec.querySelector('.skin-grid') as HTMLElement;
       for (const k of group) {
         const locked = wins < k.unlock && !save.hasBonus(k.id);
-        const card = this.el(`<button class="skin-card ${cur === k.id ? 'sel' : ''} ${locked ? 'locked' : ''}" style="--rc:${RARITY_COLOR[k.rarity]}">
+        // CARREIRA da tampinha: nível cosmético (brilho/estrela/coroa) — status intactos
+        const lv = capLevel(save.capCareer(k.id));
+        const lvBadge = !locked && lv >= 2 ? `<span class="cap-lv ${lv >= 7 ? 'gold' : lv >= 4 ? 'silver' : ''}">${lv >= 10 ? '👑' : lv >= 4 ? '⭐' : ''}Nv ${lv}</span>` : '';
+        const card = this.el(`<button class="skin-card ${cur === k.id ? 'sel' : ''} ${locked ? 'locked' : ''} ${!locked && lv >= 4 ? 'lvglow' + (lv >= 7 ? '2' : '') : ''}" style="--rc:${RARITY_COLOR[k.rarity]}">
+          ${lvBadge}
           <div class="skin-face"></div>
           <div class="skin-name">${k.name}</div>
           <div class="skin-desc">${locked ? (k.prize != null ? '🏆 OURO nas 4 da ' + LIGAS[k.prize].name : k.rprize != null ? (k.rcaos ? '🌀' : '⚔️') + ' OURO nas 8 do ' + RANK_TIERS[k.rprize].name + ' (Ranqueada' + (k.rcaos ? ' Caos' : '') + ')' : '🔒 ' + k.unlock + ' vitórias') : k.desc}</div>
@@ -1356,6 +1417,7 @@ export class UI {
       <div class="cfg-row"><label>Música</label><input type="range" id="mus" min="0" max="1" step="0.05" value="${settings.music}"></div>
       <div class="cfg-row"><label>Efeitos</label><input type="range" id="sfx" min="0" max="1" step="0.05" value="${settings.sfx}"></div>
       <div class="cfg-row"><label>Mudo</label><button class="chip" id="mute">${settings.muted ? '🔇 Ligado' : '🔊 Desligado'}</button></div>
+      <div class="cfg-row"><label>📱 Conta</label><div style="display:flex;gap:8px"><button class="chip" id="txout">📤 Transferir</button><button class="chip" id="txin">📥 Receber</button></div></div>
       <div class="how"><b>Como jogar:</b> arraste a tampinha <b>para trás</b> e solte — quanto mais puxa, mais forte. 3 petelecos por vez; chegue primeiro! <b>Proteção:</b> pistas fáceis têm muro que te segura na pista; nas difíceis o muro some e é fácil <b>cair fora</b> (volta pro início do turno). <b>Buraco</b> = volta ao checkpoint e perde 1 peteléco · <b>X</b> = perde a vez · <b>verde +1/+2/+3</b> = petelecos extras. Câmera: dois dedos giram/aproximam.</div>
     </div>`);
     this.root.appendChild(s);
@@ -1365,6 +1427,33 @@ export class UI {
     s.querySelector('#sfx')!.addEventListener('input', apply);
     s.querySelector('#mute')!.addEventListener('click', () => { settings.muted = !settings.muted; apply(); (s.querySelector('#mute') as HTMLElement).textContent = settings.muted ? '🔇 Ligado' : '🔊 Desligado'; });
     s.querySelector('#back')!.addEventListener('click', () => this.showMenu());
+    // TRANSFERÊNCIA DE CONTA: exportar (código) / receber (colar código)
+    s.querySelector('#txout')!.addEventListener('click', () => {
+      const code = exportAccount();
+      const { box, close } = this.overlay(`
+        <div class="ov-head"><b>📤 Transferir conta</b><button class="ov-x">✕</button></div>
+        <p class="tx-note">Este código carrega <b>TODO o seu progresso</b> — campanha, ranqueadas (com seu nome!), coleção e pistas. No outro celular, abra Ajustes → <b>📥 Receber</b> e cole.</p>
+        <textarea class="tx-code" id="txc" readonly>${code}</textarea>
+        <div class="mactions"><button class="chip" id="txshare">📲 Enviar</button><button class="play-btn" id="txcopy">📋 Copiar</button></div>`);
+      box.querySelector('.ov-x')!.addEventListener('click', close);
+      box.querySelector('#txcopy')!.addEventListener('click', async () => { try { await navigator.clipboard.writeText(code); this.notify('Código copiado! 📋', 'good'); } catch { (box.querySelector('#txc') as HTMLTextAreaElement).select(); document.execCommand('copy'); this.notify('Código copiado! 📋', 'good'); } });
+      box.querySelector('#txshare')!.addEventListener('click', () => { if (navigator.share) navigator.share({ text: code }).catch(() => {}); else this.notify('Use o Copiar 📋', ''); });
+    });
+    s.querySelector('#txin')!.addEventListener('click', () => {
+      const { box, close } = this.overlay(`
+        <div class="ov-head"><b>📥 Receber conta</b><button class="ov-x">✕</button></div>
+        <p class="tx-note">Cole aqui o código gerado no outro celular. <b>Atenção:</b> isso <b>substitui</b> todo o progresso DESTE aparelho!</p>
+        <textarea class="tx-code" id="txc" placeholder="TMPR1.…"></textarea>
+        <div class="mactions"><button class="chip" id="txno">Cancelar</button><button class="play-btn" id="txgo">📥 Importar</button></div>`);
+      box.querySelector('.ov-x')!.addEventListener('click', close);
+      box.querySelector('#txno')!.addEventListener('click', close);
+      box.querySelector('#txgo')!.addEventListener('click', () => {
+        const r = importAccount((box.querySelector('#txc') as HTMLTextAreaElement).value);
+        if (!r.ok) { this.notify(r.err === 'checksum' ? 'Código incompleto — copie ele INTEIRO' : 'Código inválido', 'bad'); return; }
+        this.notify('Conta recebida! Recarregando… 🎉', 'good');
+        setTimeout(() => location.reload(), 900);
+      });
+    });
   }
 
   // ---------------------------------------------------------- OVERLAYS
@@ -1414,7 +1503,15 @@ export class UI {
       <div class="rar-head cs-rar" style="--rc:${RARITY_COLOR[k.rarity]};justify-content:center"><span class="rar-dot"></span>${RARITY_LABEL[k.rarity]}</div>
       ${capBars(shown, true, stats ? (k.stats as CapStats) : undefined)}
       ${upgraded ? '<div class="cs-ofi">▲ melhorado na Oficina</div>' : ''}
-      <div class="cs-desc">${k.desc}</div>`, 'stats');
+      <div class="cs-desc">${k.desc}</div>
+      ${(() => {
+        const cc = save.capCareer(k.id);
+        if (!cc.r) return '';
+        const pg = capLevelProgress(cc);
+        return `<div class="career-box"><div class="career-t">🏁 CARREIRA · ${pg.lv >= 10 ? '👑 ' : ''}Nível ${pg.lv}</div>
+          <div class="career-bar"><i style="width:${Math.min(100, Math.round(pg.cur / pg.next * 100))}%"></i></div>
+          <div class="career-row"><span>🏁 ${cc.r} corridas</span><span>🥇 ${cc.w} vitórias</span><span>🏅 ${cc.p} pódios</span><span>🕳️ ${cc.q} quedas</span></div></div>`;
+      })()}`, 'stats');
     const cv = drawCap(k.art, 160); cv.style.width = '124px'; cv.style.height = '124px'; cv.style.display = 'block'; cv.style.margin = '0 auto';
     (box.querySelector('#csf') as HTMLElement).appendChild(cv);
     box.querySelector('.ov-x')!.addEventListener('click', close);
@@ -1647,6 +1744,8 @@ export class UI {
   onMenu: (() => void) | null = null;
   onUseItem: ((slot: number) => void) | null = null;
   onDropShield: (() => void) | null = null;
+  private wx: WeatherState | null = null;
+  setWeather(w: WeatherState): void { this.wx = w; }
   private itemPop: number | null = null;   // Caos: bolso com a caixinha de confirmação aberta
   private shieldPop = false;               // Caos: caixinha "quer tirar o escudo?" aberta
 
@@ -1654,7 +1753,8 @@ export class UI {
     if (!this.hud) return;
     const c = m.activeCap();
     const turn = this.hud.querySelector('#turn') as HTMLElement;
-    turn.innerHTML = `<span class="tdot" style="background:${skinById(c.skin).top};color:${skinById(c.skin).top}"></span> ${c.finished ? 'Corrida!' : 'Vez de <b>' + c.name + '</b>'} <span class="tzoom">🔍</span>`;
+    const wxb = this.wx && this.wx.w !== 'sol' ? `<span class="wxpill" title="${WEATHER_LABEL[this.wx.w]}">${WEATHER_ICO[this.wx.w]}${this.wx.w === 'vento' ? `<i style="display:inline-block;transform:rotate(${Math.atan2(this.wx.windY, this.wx.windX)}rad)">➤</i>` : ''}</span>` : '';
+    turn.innerHTML = `<span class="tdot" style="background:${skinById(c.skin).top};color:${skinById(c.skin).top}"></span> ${c.finished ? 'Corrida!' : 'Vez de <b>' + c.name + '</b>'} ${wxb}<span class="tzoom">🔍</span>`;
     turn.onclick = () => this.showCapStats(c.name, c.skin, c.stats);
     // flicks
     const fl = this.hud.querySelector('#flicks') as HTMLElement;
@@ -1852,6 +1952,22 @@ export class UI {
     (box.querySelector('#elc') as HTMLElement).appendChild(drawCap(skinById(d.loser.skin).art, 52));
     box.querySelectorAll('.ea-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 36)));
     modal.classList.remove('hidden');
+    box.querySelector('#mn')!.addEventListener('click', () => this.onMenu?.());
+    box.querySelector('#nx')!.addEventListener('click', () => this.onNext?.());
+  }
+
+  // resultado da BATALHA: quem sobrou na mesa + ordem de queda
+  showBattleResult(d: { winner: { name: string; skin: string; you: boolean } | undefined; order: { name: string; skin: string; place: number; you: boolean }[] }): void {
+    const { modal, box } = this.modalBox(); box.className = 'modal win';
+    box.innerHTML = `<h3>${d.winner?.you ? '🥊 Você dominou a mesa! 🎉' : '🥊 Fim da batalha!'}</h3>
+      ${d.winner ? `<div class="elim-loser"><span class="el-cap" id="bwc"></span><div><b>${d.winner.name}</b><span> é quem ficou na mesa! 👑</span></div></div>` : ''}
+      <div class="elim-alive"><div class="ea-t">Ordem da batalha</div>
+        ${d.order.map(o => `<div class="ea-row ${o.you ? 'you' : ''}"><span class="ea-pos">${o.place === 1 ? '👑' : o.place + 'º'}</span><span class="ea-cap" data-s="${o.skin}"></span><span class="ea-nm">${o.name}</span>${o.place > 1 ? '<span class="ea-lead">💀 caiu</span>' : ''}</div>`).join('')}</div>
+      <div class="mactions"><button class="chip" id="mn">Sair</button><button class="play-btn" id="nx">↻ Revanche</button></div>`;
+    if (d.winner) (box.querySelector('#bwc') as HTMLElement).appendChild(drawCap(skinById(d.winner.skin).art, 52));
+    box.querySelectorAll('.ea-cap').forEach(el => el.appendChild(drawCap(skinById((el as HTMLElement).dataset.s!).art, 36)));
+    modal.classList.remove('hidden');
+    if (d.winner?.you) this.confetti(box);
     box.querySelector('#mn')!.addEventListener('click', () => this.onMenu?.());
     box.querySelector('#nx')!.addEventListener('click', () => this.onNext?.());
   }

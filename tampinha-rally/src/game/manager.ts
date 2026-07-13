@@ -4,7 +4,7 @@
 import { Cap, V, makeCap, vec, norm, mul, MAX_POWER, GUM_LAUNCH, DEFAULT_STATS } from '../engine/core';
 import { TrackModel, TrackDef } from '../engine/track';
 import { stepWorld, anyMoving, SimEvent } from '../engine/physics';
-import { aiFlick } from './ai';
+import { aiFlick, aiBattleFlick } from './ai';
 import { skinById } from './skins';
 import { ITEMS, pickItem, MAX_ITEMS } from './chaos';
 
@@ -31,6 +31,9 @@ export class GameManager {
   cpArcs: number[] = [];         // posição (arco) de cada checkpoint — registro confiável
   flickCount = 0;                // nº monotônico de petelecos (token do lockstep online)
   chaos = false;                 // MODO CAOS: caixas de power-up ligadas
+  battle = false;                // BATALHA: mesa redonda, cair = eliminado, mesa encolhe
+  private battleTurns = 0;       // turnos desde o último encolhimento da mesa
+  onBattleShrink: (safeR: number) => void = () => {};   // avisa o 3D pra redesenhar o anel
   teams = 0;                     // DUPLA: nº de times (0 = sem times)
   onItem: (cap: Cap, item: string, used: boolean) => void = () => {};
   // efeito visual do PODER usado: origem (x,y), alvo (tx,ty) e pontos extras
@@ -58,12 +61,20 @@ export class GameManager {
     const n = this.caps.length;
     const spacing = n > 1 ? Math.min(1.95, (2 * (half0 - 1.0)) / (n - 1)) : 0;
     this.caps.forEach((c, i) => {
-      const across = (i - (n - 1) / 2) * spacing;             // centralizado na linha
-      const along = 1.2;                                       // todos à mesma distância da linha
-      c.pos = vec(s.x + fwd.x * along + side.x * across, s.y + fwd.y * along + side.y * across);
+      if (this.battle) {
+        // BATALHA: todo mundo em RODA, equidistante do centro da mesa
+        const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+        const r = Math.min(9, half0 * 0.55);
+        c.pos = vec(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r);
+      } else {
+        const across = (i - (n - 1) / 2) * spacing;           // centralizado na linha
+        const along = 1.2;                                     // todos à mesma distância da linha
+        c.pos = vec(s.x + fwd.x * along + side.x * across, s.y + fwd.y * along + side.y * across);
+      }
       c.cpPos = vec(c.pos.x, c.pos.y); c.turnStart = vec(c.pos.x, c.pos.y);
       c.progress = this.track.progressOf(c.pos); c.checkpoint = 0;
     });
+    this.battleTurns = 0;
     // arco de cada checkpoint (registro por PROGRESSO, não por proximidade — funciona
     // mesmo com o corredor largo, quando a tampinha cruza longe do centro do checkpoint)
     this.cpArcs = this.track.def.checkpoints.map(cp => this.track.progressOf(vec(cp.x, cp.y)));
@@ -92,11 +103,28 @@ export class GameManager {
     }
     const c = this.caps[this.current];
     if (!c) return;
+    // BATALHA: a mesa ENCOLHE de tempos em tempos — quem ficar fora da área
+    // nova cai junto com a borda; 1 peteleco por vez (todo turno é decisivo)
+    if (this.battle && !first) {
+      this.battleTurns++;
+      const alive = this.caps.filter(x => !x.eliminated).length;
+      if (this.battleTurns >= alive * 2 && this.track.def.half[0] > 6.2) {
+        this.battleTurns = 0;
+        const h = this.track.def.half;
+        for (let i = 0; i < h.length; i++) h[i] = Math.max(6, h[i] * 0.82);
+        this.onToast('⚠️ a mesa encolheu!', 'bad');
+        this.onBattleShrink(h[0] + 3);
+        for (const x of this.caps) if (!x.eliminated && !x.finished && this.track.surfaceAt(x.pos) === 'out') this.eliminate(x);
+        if (this.battleOver()) return;
+      }
+    }
     // detector de PRESO: compara com o MELHOR progresso já alcançado (marca
     // d'água) — avançar e ser jogada de volta pelo obstáculo NÃO conta como
     // "andou" (senão o bate-e-volta num bloqueio engana o detector pra sempre)
-    if (c.progress < c.lastTurnProg + 0.8) c.stuckTurns++;
-    else { c.stuckTurns = 0; c.lastTurnProg = c.progress; }
+    if (!this.battle) {
+      if (c.progress < c.lastTurnProg + 0.8) c.stuckTurns++;
+      else { c.stuckTurns = 0; c.lastTurnProg = c.progress; }
+    }
     // RESGATE (guincho 🛟): encaixada num canto de muro há 4 turnos — volta pro
     // MEIO da pista um tiquinho ATRÁS (não ganha nada com isso). Garante que
     // nenhuma pista gerada consegue travar uma corrida pra sempre.
@@ -123,7 +151,8 @@ export class GameManager {
       c.rescues++; c.rescueProg = c.progress;
       this.onToast(`🛟 ${c.name} foi resgatada pra pista!`, 'bad');
     }
-    c.flicksLeft = 3; c.bonusFlicks = 0; c.special10 = false; c.consumed.clear();
+    c.flicksLeft = this.battle ? 1 : 3;   // batalha: 1 peteleco por vez, cada tacada é decisiva
+    c.bonusFlicks = 0; c.special10 = false; c.consumed.clear();
     c.turnStart = vec(c.pos.x, c.pos.y);
     this.phase = 'aim'; this.aiTimer = 0; this.aiFired = false;
     if (!first) this.turnNo++;
@@ -333,7 +362,7 @@ export class GameManager {
         }
         if (!this.aiFired && this.aiTimer > 0.85) {
           this.aiFired = true;
-          const f = aiFlick(c, this.caps, this.track);
+          const f = this.battle ? aiBattleFlick(c, this.caps, this.track) : aiFlick(c, this.caps, this.track);
           this.flick(f.dir, f.power);
         }
       }
@@ -367,7 +396,9 @@ export class GameManager {
       case 'bonus': c.bonusFlicks += (e.n || 1); this.onToast(`+${e.n} peteléco${(e.n || 1) > 1 ? 's' : ''}!`, 'good'); break;
       case 'hole': c.holed = true; this.onToast(`${c.name} caiu no buraco — checkpoint`, 'bad'); break;
       case 'bomb': c.bombed = true; this.onToast(`${c.name} pisou no X — perdeu a vez`, 'bad'); break;
-      case 'out': if (c.id === this.current) this.lastFlickOut = true; this.onToast(`${c.name} saiu da pista!`, 'bad'); break;
+      case 'out':
+        if (this.battle) { if (!c.eliminated) { this.eliminate(c); this.battleOver(); } break; }   // batalha: caiu = FORA, sem volta
+        if (c.id === this.current) this.lastFlickOut = true; this.onToast(`${c.name} saiu da pista!`, 'bad'); break;
       case 'ramp': if (c.id === this.current) this.onToast('Voou! 🚀', 'good'); break;
       case 'top': if (c.id === this.current) this.onToast('🪀 o pião rebateu!', 'bad'); break;
       case 'band': if (c.id === this.current) this.onToast('🪃 estilingue!', 'good'); break;
@@ -441,6 +472,23 @@ export class GameManager {
     this.onToast(`${c.name} chegou em ${c.place}º! 🏁`, c.place === 1 ? 'good' : 'turn');
     // a corrida só acaba quando o PENÚLTIMO chega — aí o que falta é o último
     if (this.finishOrder.length >= Math.max(1, this.caps.length - 1)) this.finishRace();
+  }
+
+  // BATALHA: caiu da mesa — eliminada de vez (colocação = quantos estavam vivos)
+  private eliminate(c: Cap): void {
+    const aliveBefore = this.caps.filter(x => !x.eliminated).length;
+    c.eliminated = true; c.finished = true; c.place = aliveBefore;
+    c.vel = vec(); c.moving = false;
+    this.onToast(`💀 ${c.name} caiu da mesa!`, 'bad');
+  }
+  private battleOver(): boolean {
+    const alive = this.caps.filter(x => !x.eliminated);
+    if (alive.length > 1) return false;
+    const w = alive[0];
+    if (w) { w.finished = true; w.place = 1; this.finishOrder = [w]; }
+    this.phase = 'over';
+    this.onChange();
+    return true;
   }
 
   private finishRace(): void {

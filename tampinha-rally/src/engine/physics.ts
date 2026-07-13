@@ -26,6 +26,7 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
 
     // ---- VOO (salto de rampa): balístico, ignora atrito/buraco/muro/fora ----
     if (c.airborne) {
+      if (track.wind.x || track.wind.y) { c.vel.x += track.wind.x * 1.6 * dt; c.vel.y += track.wind.y * 1.6 * dt; }
       c.pos.x += c.vel.x * dt; c.pos.y += c.vel.y * dt;
       c.vz -= GRAV * dt; c.z += c.vz * dt;
       c.angle += 7 * dt;
@@ -41,6 +42,8 @@ export function stepWorld(caps: Cap[], track: TrackModel, dt: number): SimEvent[
     const surf = track.surfaceAt(c.pos);
     const si = SURF[surf];
     const patch = track.patchAt(c.pos);
+    // VENTO: empurra a tampinha EM MOVIMENTO (parada, o atrito segura firme)
+    if (track.wind.x || track.wind.y) { c.vel.x += track.wind.x * dt; c.vel.y += track.wind.y * dt; }
 
     // superfícies especiais
     if (surf === 'ramp') {                     // tira de aceleração: impulso na direção da pista

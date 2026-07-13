@@ -572,6 +572,30 @@ export function genTrack(id: number, level: number, idxInLevel: number): TrackDe
   return { id, name, theme: theme.key, level, w, h, ground: theme.ground, paint: theme.paint, bg: theme.bg, wallCol: theme.wall, path, half: halfArr, pads, patches, walls, obstacles, checkpoints, start, startAngle, finish, decor };
 }
 
+// ---- ARENA DE BATALHA: uma MESA redonda, sem corrida — o corredor é um disco
+// (caminho circular pequeno + meia-largura grande). Cair fora = eliminado; a
+// mesa ENCOLHE com o tempo (o manager reduz def.half ao vivo).
+const ARENA_THEMES = [
+  { ground: 'felt' as Surface, bg: '#1c5a38', wall: '#7a4a26', name: 'Mesa de Sinuca' },
+  { ground: 'cardboard' as Surface, bg: '#c8b48c', wall: '#c05a5a', name: 'Mesa da Cozinha' },
+  { ground: 'sidewalk' as Surface, bg: '#9a9488', wall: '#8f8879', name: 'Laje de Cimento' },
+  { ground: 'metal' as Surface, bg: '#727c84', wall: '#4e565e', name: 'Bancada de Aço' },
+];
+export const ARENA_R = 20;           // raio inicial da área segura (path 3 + half 17)
+export function battleArena(seed = (Math.random() * 1e9) | 0): TrackDef {
+  const th = ARENA_THEMES[Math.abs(seed) % ARENA_THEMES.length];
+  const W = 52, C = W / 2;
+  const path: V[] = [];
+  for (let i = 0; i <= 20; i++) { const a = (i / 20) * Math.PI * 2; path.push(vec(C + Math.cos(a) * 3, C + Math.sin(a) * 3)); }
+  return {
+    id: -1, name: th.name, theme: 'batalha', level: 0, w: W, h: W, ground: th.ground, bg: th.bg, wallCol: th.wall,
+    path, half: path.map(() => ARENA_R - 3), pads: [], patches: [], walls: [], obstacles: [],
+    checkpoints: [vec(C, C)], start: vec(C, C), startAngle: 0,
+    finish: [vec(-40, -40), vec(-40, -39)],      // chegada inalcançável: batalha não tem linha
+    decor: [],
+  };
+}
+
 // gera as 50 pistas fixas (10 por nível) + as VARIANTES de competição (idx ≥ 10):
 // mesma "cara" da pista-base (tema, nome, nível), mas traçado próprio — cacheadas
 const CACHE = new Map<number, TrackDef>();
