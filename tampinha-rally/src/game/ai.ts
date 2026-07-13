@@ -3,7 +3,7 @@
 // tampinha pra fazer curva, evita empurrar os outros à toa, e as agressivas
 // tentam jogar rivais em buracos/fora). Pontua progresso menos risco e escolhe o
 // melhor. Nunca se joga em buraco/fora de propósito.
-import { Cap, V, dist, norm, sub, mul, vec, len, MAX_POWER, GUM_LAUNCH } from '../engine/core';
+import { Cap, V, dist, norm, sub, add, mul, vec, len, MAX_POWER, GUM_LAUNCH } from '../engine/core';
 import { TrackModel } from '../engine/track';
 import { stepWorld, anyMoving } from '../engine/physics';
 
@@ -77,6 +77,9 @@ function score(o: SimOut, base: Cap, per: Persona, rival: Cap | null): number {
   s -= Math.min(o.walls, 4) * 3;  // esfregar no muro é jogada suja: se existe caminho limpo igual, prefere ele
   if (o.gumEnd && !o.finished) s -= 9;   // parar EM CIMA do chiclete = próximo peteleco fraco — evita estacionar nele
   if (!o.out && !o.finished && o.endProg <= base.progress + 0.5 && o.walls > 0) s -= 25;   // bateu e não saiu do lugar? plano ruim MESMO
+  // TOQUINHO covarde: mexeu quase nada e não ganhou nada com isso — cutucar
+  // pra lá e pra cá perto de obstáculo nunca mais pode ser o "melhor plano"
+  if (!o.finished && !o.out && o.bonus === 0 && o.item === 0 && dist(o.endPos, base.pos) < 1.6) s -= 8;
   if (o.jumped) s += 10;        // pular a rampa (avança e passa o buraco) é ótimo
   if (o.finished) s += 500;
   // empurrar rival SÓ vale quando o joga num perigo de verdade (buraco/bomba/fora):
@@ -112,7 +115,8 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   const dodgeR = norm(sub({ x: a2.p.x - perpV.x * 2.7, y: a2.p.y - perpV.y * 2.7 }, cap.pos));
 
   let best = { dir: dNear, power: 0.2, s: -1e9 }; let bestOut: SimOut | null = null;
-  const consider = (dir: V, pw: number) => { const ep = Math.max(0.06, Math.min(1, pw)); const o = sim(cap, caps, track, dir, ep); const sc = score(o, cap, per, rival); if (sc > best.s) { best = { dir, power: ep, s: sc }; bestOut = o; } };
+  const cands: { dir: V; power: number; o: SimOut; s: number }[] = [];   // tudo que foi avaliado (pro plano de 2 tacadas)
+  const consider = (dir: V, pw: number) => { const ep = Math.max(0.06, Math.min(1, pw)); const o = sim(cap, caps, track, dir, ep); const sc = score(o, cap, per, rival); cands.push({ dir, power: ep, o, s: sc }); if (sc > best.s) { best = { dir, power: ep, s: sc }; bestOut = o; } };
 
   // BUSCA (fase 1): mira em vários pontos à frente (perto→longe) + desvios laterais,
   // com um leque de ângulos e boa gama de forças. Mais candidatos = jogada melhor.
@@ -184,6 +188,68 @@ export function aiFlick(cap: Cap, caps: Cap[], track: TrackModel): { dir: V; pow
   if (cap.stuckTurns >= 2) {
     for (let dd = 0; dd < 24; dd++) { const a = dd / 24 * Math.PI * 2, dir = { x: Math.cos(a), y: Math.sin(a) }; for (const pw of [0.3, 0.55, 0.8, 1.0]) consider(dir, pw); }
     for (let k = 0; k < 14; k++) consider(rot(dFar, (Math.random() - 0.5) * 2.4), 0.2 + Math.random() * 0.8);
+  }
+
+  // ---- PLANO DE 2 TACADAS (anti-toquinho) ----------------------------------
+  // Perto de buraco/pedra/tábua, todo peteleco forte "parece" arriscado numa
+  // busca de 1 jogada — e o toquinho covarde vencia, um atrás do outro. Aqui,
+  // quando a encrenca está perto e o melhor plano avança pouco, a IA escolhe a
+  // PRIMEIRA tacada já simulando a SEGUNDA: ou uma tacada forte que já sai pro
+  // rumo certo, ou "ré decidida + contorno". Todos os finalistas (inclusive o
+  // toquinho) disputam com a MESMA régua de 2 tacadas — o melhor plano ganha.
+  const perigoPerto = (): boolean => {
+    for (const o of track.def.obstacles) {
+      const t2 = o.type;
+      if (t2 !== 'hole' && t2 !== 'bomb' && t2 !== 'stone' && t2 !== 'mill' && t2 !== 'top' && t2 !== 'car') continue;
+      if (dist(cap.pos, vec(o.x, o.y)) < (o.r || 1) + 5.5) return true;
+    }
+    for (const w of track.def.walls) {
+      const mid = vec((w.a.x + w.b.x) / 2, (w.a.y + w.b.y) / 2);
+      if (dist(cap.pos, mid) > 6) continue;
+      const nn = track.nearest(mid);
+      if (nn.d < nn.half * 0.72) return true;    // tábua/funil INTERNO (muro de borda não conta)
+    }
+    return false;
+  };
+  const bo = bestOut as SimOut | null;
+  if (bo && !bo.finished && bo.endProg < cap.progress + 5 && (perigoPerto() || bo.endProg < cap.progress + 2)) {
+    // finalistas: os melhores planos já achados (com fins DISTINTOS entre si)…
+    const seen = new Set<string>();
+    const firsts: { dir: V; power: number; o: SimOut }[] = [];
+    for (const c of cands.slice().sort((x, y) => y.s - x.s)) {
+      const k = `${Math.round(c.o.endPos.x / 2)},${Math.round(c.o.endPos.y / 2)}`;
+      if (seen.has(k)) continue; seen.add(k);
+      firsts.push(c);
+      if (firsts.length >= 6) break;
+    }
+    // …mais SAÍDAS explícitas com força de verdade: ré, ré diagonal e laterais
+    // (numa busca de 1 jogada elas nunca venceriam — aqui é onde brilham)
+    const backV = mul(tan, -1); const pv0 = { x: -tan.y, y: tan.x };
+    for (const d of [backV, norm(add(backV, mul(pv0, 0.7))), norm(add(backV, mul(pv0, -0.7))), pv0, mul(pv0, -1)]) {
+      for (const pw of [0.5, 0.8]) firsts.push({ dir: d, power: pw, o: sim(cap, caps, track, d, pw) });
+    }
+    let bestPair = { s: -1e9, dir: best.dir, power: best.power };
+    for (const f of firsts) {
+      if (f.o.bombed) continue;                                    // 1ª tacada em bomba, nunca
+      const pen1 = (f.o.holed ? -90 : 0) + (f.o.out ? -55 : 0);
+      const ghost = clone(cap); ghost.pos = vec(f.o.endPos.x, f.o.endPos.y); ghost.progress = f.o.endProg;
+      // segunda tacada a partir de onde a primeira PAROU: mira o traçado à frente
+      const t3 = track.atArc(Math.min(total, f.o.endProg + 0.1)).tan;
+      const dirs2: V[] = [t3];
+      for (const ah of [7, 13, per.lookahead]) {
+        const p3 = track.atArc(Math.min(total, f.o.endProg + ah)).p;
+        dirs2.push(len(sub(p3, ghost.pos)) < 0.4 ? t3 : norm(sub(p3, ghost.pos)));
+      }
+      let b2 = -1e9;
+      for (const d2 of dirs2) for (const pw2 of [0.4, 0.65, 0.9]) {
+        const o2 = sim(ghost, caps, track, d2, pw2);
+        const s2 = o2.endProg + (o2.finished ? 500 : 0) - (o2.holed ? 90 : 0) - (o2.bombed ? 120 : 0) - (o2.out ? 55 : 0) - o2.dEdge * per.risk * 2.4;
+        if (s2 > b2) b2 = s2;
+      }
+      const sPair = pen1 + b2 - 2 + f.o.bonus * 22 + f.o.item * 20;   // -2: custinho por gastar 2 tacadas
+      if (sPair > bestPair.s) bestPair = { s: sPair, dir: f.dir, power: f.power };
+    }
+    best = { dir: bestPair.dir, power: bestPair.power, s: bestPair.s };
   }
 
   const na = (Math.random() - 0.5) * per.noise * 2.2;
