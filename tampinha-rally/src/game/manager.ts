@@ -64,7 +64,7 @@ export class GameManager {
       if (this.battle) {
         // BATALHA: todo mundo em RODA, equidistante do centro da mesa
         const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-        const r = Math.min(9, half0 * 0.55);
+        const r = Math.min(13, half0 * 0.55);
         c.pos = vec(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r);
       } else {
         const across = (i - (n - 1) / 2) * spacing;           // centralizado na linha
