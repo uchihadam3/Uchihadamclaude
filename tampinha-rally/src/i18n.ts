@@ -390,6 +390,10 @@ const D: Record<string, string> = {
   'Procurando pistas pelo mundo… 🌍': 'Searching the world for tracks… 🌍',
   '🌍 Pista publicada na galeria!': '🌍 Track published to the gallery!', 'Essa pista veio quebrada 😕': 'That track arrived broken 😕',
   '🟢 AO VIVO': '🟢 LIVE', '🟡 conectando…': '🟡 connecting…',
+  // desafio diário mundial
+  '🌍 Ranking do dia': '🌍 Daily world ranking',
+  'Ninguém jogou hoje ainda — seja o primeiro! 🥇': 'Nobody played today yet — be the first! 🥇',
+  '⚡ Você:': '⚡ You:', '🕐 Ontem: você ficou': '🕐 Yesterday: you placed',
   // frases dinâmicas fixas de toasts
   '🌪️ o furacão varreu a pista!': '🌪️ the hurricane swept the track!',
   '🫠 chiclete no chão — quem pisar, gruda!': '🫠 gum on the ground — step on it and you stick!',
@@ -420,6 +424,8 @@ const RULES: Rule[] = [
   [/^🏅 (\d+) pódios$/, m => `🏅 ${m[1]} podiums`],
   [/^🕳️ (\d+) quedas$/, m => `🕳️ ${m[1]} falls`],
   [/^por (.{1,20})$/, m => `by ${m[1]}`],
+  [/^de (\d+) \((\d+) petelecos?\)$/, m => `of ${m[1]} (${m[2]} flicks)`],
+  [/^de (\d+)$/, m => `of ${m[1]}`],
   [/^Sua vez, (.+)$/, m => `Your turn, ${m[1]}`],
   [/^(.+) perdeu o turno$/, m => `${m[1]} lost the turn`],
   [/^🛟 (.+) foi resgatada pra pista!$/, m => `🛟 ${m[1]} was rescued back to the track!`],

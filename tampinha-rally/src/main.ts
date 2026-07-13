@@ -19,6 +19,7 @@ import { rankCompById, RANK_PTS, rankState } from './game/ranked';
 import { watchUpdates } from './updater';
 import { initI18n } from './i18n';
 import { weatherFor, randomWeather, WeatherState } from './game/weather';
+import { DailyNet } from './net/daily';
 
 const canvas = document.getElementById('scene') as HTMLCanvasElement;
 const renderer = makeRenderer(canvas);
@@ -30,6 +31,7 @@ const fx = new Particles();
 const aim = new Aim();
 const mgr = new GameManager();
 const online = new Online();
+const dailyNet = new DailyNet();   // ranking MUNDIAL do desafio diário
 
 let mode: Mode = 'quick';
 let curCfg: MatchConfig | null = null;
@@ -112,7 +114,7 @@ function humanTurn(): boolean { return mgr.phase === 'aim' && (online.active ? o
 mgr.onToast = (msg, kind) => ui.toast(msg, kind);
 mgr.onEvent = (e) => { const cp = mgr.caps[e.capId]; if ((e.type === 'hole' || e.type === 'out') && cp && !cp.isAI) myFalls++; };
 mgr.onChange = () => ui.updateHUD(mgr, humanTurn());
-mgr.onFlick = (cap, power) => { sfx.flick(power); const s = SURF[mgr.track.surfaceAt(cap.pos)]; fx.dust(cap.pos.x, cap.pos.y, 8); aim.hide(); };
+mgr.onFlick = (cap, power) => { if ((mode === 'daily' || mode === 'trial') && !cap.isAI) dailyFlicks++; sfx.flick(power); const s = SURF[mgr.track.surfaceAt(cap.pos)]; fx.dust(cap.pos.x, cap.pos.y, 8); aim.hide(); };
 // pegar a caixinha: explosão roxa + faíscas subindo (usar tem efeito próprio, abaixo)
 mgr.onItem = (cap, item, used) => {
   if (!used) {
@@ -378,6 +380,7 @@ const ui = new UI({
   setSkin: (id) => { save.setSkin(id); sfx.ui(); },
   preview: (def) => enterPreview(def),
 }, online);
+ui.dailyNet = dailyNet;   // ranking mundial do diário na tela do desafio
 
 // -------- multiplayer online: início/lobby/fim geridos aqui (cena + IA do host) --------
 online.onStartMatch = (players, level, trackIdx) => { curCfg = null; champ = null; resultsShown = false; loadMatch({ level, trackIdx, pick: 'specific', players, mode: 'online' }); };
@@ -479,7 +482,7 @@ const input = new InputController(canvas, rig.camera, rig, {
   canAim: () => inGame && !paused && humanTurn(),
   capPos: () => { const c = mgr.activeCap(); return c ? { x: c.pos.x, y: c.pos.y } : null; },
   onAim: (dx, dz, power) => { const c = mgr.activeCap(); aim.set(c.pos.x, c.pos.y, dx, dz, power); },
-  onRelease: (dx, dz, power) => { aim.hide(); if (mode === 'daily' || mode === 'trial') dailyFlicks++; if (online.active) online.localFlick({ x: dx, y: dz }, power); else mgr.flick({ x: dx, y: dz }, power); },
+  onRelease: (dx, dz, power) => { aim.hide(); if (online.active) online.localFlick({ x: dx, y: dz }, power); else mgr.flick({ x: dx, y: dz }, power); },
   onCancel: () => aim.hide(),
   // EDITOR 3D: arrastar objetos / apagar muro na maquete
   editMode: () => previewing ? ui.previewEditMode() : 'off',
@@ -615,7 +618,15 @@ function onRaceOver(): void {
 
   const you = online.active ? mgr.caps[online.mySeatIndex()] : mgr.caps.find(c => !c.isAI);
   if (you && you.place === 1 && mode !== 'daily') save.addWin();
-  if (mode === 'daily' && mgr.caps[0].finished) { save.setDailyBest(dailyKey(), dailyFlicks); }
+  if (mode === 'daily' && mgr.caps[0].finished) {
+    save.setDailyBest(dailyKey(), dailyFlicks);
+    // manda o MELHOR do dia pro ranking mundial (evento substituível: 1 por pessoa)
+    const best = save.dailyBest(dailyKey()) ?? dailyFlicks;
+    if (best >= 1) {
+      const nm = rankState().name || rankState('caos').name || save.name() || 'Anônimo';
+      dailyNet.start(); dailyNet.submit(dailyKey(), best, mgr.caps[0].skin, nm);
+    }
+  }
   let champInfo: any = undefined;
   if (champ) {
     const table = [12, 9, 7, 5, 3, 1];   // pontos por posição na corrida

@@ -414,7 +414,20 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .ea-row{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink);padding:3px 0}
 .ea-row.you{background:#3b82f618;border-radius:8px;padding:3px 6px}
 .ea-cap{width:26px;height:26px;flex:0 0 auto}.ea-cap canvas{width:100%;height:100%;display:block}
-.ea-nm{flex:1}/* galeria da comunidade */
+.ea-nm{flex:1}/* ranking mundial do desafio diário */
+.daily-rank{width:100%;max-width:560px;background:var(--glass);border-radius:16px;padding:11px 13px;box-shadow:var(--shadow);margin-top:8px}
+.dr-head{font-weight:900;font-size:13.5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.dr-live{font-size:10.5px;font-weight:800;opacity:.8}
+.dr-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:9px;font-size:12.5px;font-weight:800}
+.dr-row.you{background:linear-gradient(90deg,rgba(255,216,103,.5),transparent)}
+.dr-pos{width:30px;text-align:center}
+.dr-nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dr-fl{font-size:13.5px}
+.dr-empty{font-size:12px;opacity:.75;font-weight:700;padding:6px 2px}
+.dr-you{margin-top:7px;font-size:12.5px;font-weight:800;background:rgba(255,216,103,.35);border-radius:9px;padding:5px 9px}
+.dr-yest{margin-top:5px;font-size:11.5px;font-weight:700;opacity:.75}
+
+/* galeria da comunidade */
 .gallery .mt-row{background:var(--glass);border-radius:13px;padding:9px 11px;margin:7px 0;box-shadow:var(--shadow)}
 .g-author{display:block;font-size:10.5px;opacity:.6;font-weight:700}
 

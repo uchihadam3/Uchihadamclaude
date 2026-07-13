@@ -18,6 +18,7 @@ import { getLang, toggleLang } from './i18n';
 import { WeatherState, WEATHER_ICO, WEATHER_LABEL } from './game/weather';
 import { exportAccount, importAccount } from './game/transfer';
 import { Gallery } from './net/gallery';
+import { DailyNet, yesterdayKey } from './net/daily';
 
 export type Mode = 'quick' | 'ai' | 'local' | 'champ' | 'daily' | 'online' | 'caos' | 'elim' | 'trial' | 'dupla' | 'camp' | 'rank' | 'batalha';
 export type Pick = 'specific' | 'randlevel' | 'randany';
@@ -1257,12 +1258,32 @@ export class UI {
           <span>${this.cfgPlayers.length} tampinhas</span>
           <button class="chip" id="more">+ jogador</button>
         </div>`}` : soloNote}
+        ${isDaily ? '<div id="dailyrk"></div>' : ''}
         <div class="play-dock"><button class="play-btn" id="play">Jogar ▶</button></div>
       </div>`);
     this.root.appendChild(s);
     s.prepend(this.bgFx(6));
     const mini = s.querySelector('#mini') as HTMLElement | null;
     if (mini) this.drawMini(mini, t);
+    // RANKING MUNDIAL do dia: todo mundo joga a MESMA pista — menos petelecos vence
+    if (isDaily && this.dailyNet) {
+      const dn = this.dailyNet; dn.start();
+      const host = s.querySelector('#dailyrk') as HTMLElement;
+      const escd = (x: string) => x.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as any)[ch]);
+      const render = () => {
+        if (!host.isConnected) { dn.onChange = () => {}; return; }
+        const today = dailyKey();
+        const rows = dn.standings(today).slice(0, 10);
+        const my = dn.myPlace(today); const yd = dn.myPlace(yesterdayKey());
+        host.innerHTML = `<div class="daily-rank">
+          <div class="dr-head">🌍 Ranking do dia ${dn.status === 'online' ? '<span class="dr-live on">🟢 AO VIVO</span>' : '<span class="dr-live">🟡 conectando…</span>'}</div>
+          ${rows.length ? rows.map((r, i) => `<div class="dr-row ${r.pub === dn.myPub() ? 'you' : ''}"><span class="dr-pos">${['🥇', '🥈', '🥉'][i] || (i + 1) + 'º'}</span><span class="dr-nm">${escd(r.name)}</span><b class="dr-fl">${r.flicks}</b></div>`).join('') : '<div class="dr-empty">Ninguém jogou hoje ainda — seja o primeiro! 🥇</div>'}
+          ${my ? `<div class="dr-you">⚡ Você: <b>${my.place}º</b> <span>de ${my.total} (${my.flicks} petelecos)</span></div>` : ''}
+          ${yd ? `<div class="dr-yest">🕐 Ontem: você ficou <b>${yd.place}º</b> <span>de ${yd.total}</span></div>` : ''}
+        </div>`;
+      };
+      dn.onChange = render; render();
+    }
     const fromModes = ['caos', 'elim', 'trial', 'dupla'].includes(this.cfgMode);
     s.querySelector('#back')!.addEventListener('click', () => fromModes ? this.showModes() : this.showMenu());
 
@@ -1744,6 +1765,7 @@ export class UI {
   onMenu: (() => void) | null = null;
   onUseItem: ((slot: number) => void) | null = null;
   onDropShield: (() => void) | null = null;
+  dailyNet: DailyNet | null = null;   // ranking mundial do diário (vem do main)
   private wx: WeatherState | null = null;
   setWeather(w: WeatherState): void { this.wx = w; }
   private itemPop: number | null = null;   // Caos: bolso com a caixinha de confirmação aberta
