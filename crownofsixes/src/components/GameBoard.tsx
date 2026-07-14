@@ -228,25 +228,26 @@ const ScreenProjectedPopup = ({
   const isLegendaryCombo = seq >= 4 && isMatched;
   const isHighCombo = seq >= 2 && isMatched;
 
-  // Decide colors based on combo level and match status
+  // Cores vivas e legíveis conforme o nível do combo
   let colorClass = "text-white";
-  let glowShadow = "drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]";
+  let glowShadow = "drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]";
 
   if (!isMatched) {
-    colorClass = "text-zinc-500 opacity-60";
-    glowShadow = "drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]";
+    // Dados que não entram na mão: brancos discretos, mas ainda visíveis
+    colorClass = "text-zinc-200";
+    glowShadow = "drop-shadow-[0_0_6px_rgba(0,0,0,0.9)]";
   } else if (isAscended) {
     colorClass = "text-cyan-300";
-    glowShadow = "drop-shadow-[0_0_20px_rgba(34,211,238,1)]";
+    glowShadow = "drop-shadow-[0_0_16px_rgba(34,211,238,0.9)]";
   } else if (isLegendaryCombo) {
-    colorClass = "text-g-red";
-    glowShadow = "drop-shadow-[0_0_30px_rgba(239,68,68,1)]";
+    colorClass = "text-orange-300";
+    glowShadow = "drop-shadow-[0_0_18px_rgba(251,146,60,0.95)]";
   } else if (isHighCombo) {
-    colorClass = "text-g-gold";
-    glowShadow = "drop-shadow-[0_0_20px_rgba(234,179,8,1)]";
+    colorClass = "text-amber-200";
+    glowShadow = "drop-shadow-[0_0_16px_rgba(251,191,36,0.95)]";
   } else {
-    colorClass = "text-zinc-100";
-    glowShadow = "drop-shadow-[0_4px_8px_rgba(0,0,0,1)]";
+    colorClass = "text-white";
+    glowShadow = "drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]";
   }
 
   return (
@@ -259,29 +260,30 @@ const ScreenProjectedPopup = ({
       }}
     >
       <motion.div
-        initial={{ opacity: 0, y: isMatched ? 40 : 10, scale: 0.1 }}
+        initial={{ opacity: 0, y: isMatched ? 14 : 6, scale: 0.3 }}
         animate={{
-          opacity: isMatched ? [0, 1, 1, 0] : [0, 0.8, 0],
-          y: isMatched ? -120 : -40,
+          opacity: isMatched ? [0, 1, 1, 0] : [0, 0.85, 0],
+          y: isMatched ? -74 : -34,
           scale: isMatched
-            ? [0.5, 2.8 + seq * 0.4, 1.5 + seq * 0.1, 0.8]
-            : [0.5, 1.0, 0.5],
-          rotateZ: isMatched
-            ? [0, Math.random() * 30 - 15, Math.random() * -10 + 5, 0]
-            : 0,
+            ? [0.3, 1.35 + seq * 0.07, 1.05 + seq * 0.03, 0.9]
+            : [0.4, 0.95, 0.7],
+          rotateZ: isMatched ? [0, seq % 2 ? 8 : -8, 0] : 0,
         }}
         transition={{
           delay: pop.delay / 1000,
-          duration: isMatched ? 1.8 : 1.0,
-          ease: [0.2, 0.8, 0.2, 1],
+          duration: isMatched ? 1.05 : 0.65,
+          ease: [0.2, 0.9, 0.25, 1],
         }}
-        className={`relative flex flex-col items-center justify-center font-black font-mono text-2xl md:text-6xl ${colorClass} ${glowShadow}`}
-        style={{ WebkitTextStroke: isMatched ? "3px #000" : "1px #000" }}
+        className={`relative flex flex-col items-center justify-center font-black font-mono text-3xl md:text-5xl ${colorClass} ${glowShadow}`}
+        style={{
+          WebkitTextStroke: isMatched ? "1.5px rgba(0,0,0,0.85)" : "1px rgba(0,0,0,0.8)",
+          paintOrder: "stroke fill",
+        }}
       >
         <span>{handNamePT(pop.text)}</span>
         {isAscended && isMatched && (
           <span
-            className="text-sm md:text-base tracking-widest uppercase text-cyan-200 mt-1 font-bold"
+            className="text-[10px] md:text-sm tracking-widest uppercase text-cyan-200 mt-1 font-bold"
             style={{ WebkitTextStroke: "0" }}
           >
             Ascendant!
@@ -1493,7 +1495,7 @@ const DiceManager = ({
       // Take the larger distance to fit both dimensions safely
       // Give appropriate snug margin depending on screen orientation.
       // Zoom mais próximo para a mesa preencher a arena (menos espaço morto).
-      const marginExt = aspect < 1 ? 1.32 : 1.18;
+      const marginExt = aspect < 1 ? 1.1 : 1.18;
       const finalZDistance =
         Math.max(distHeightRequired, distWidthRequired) * marginExt;
 
@@ -1886,7 +1888,7 @@ const DiceManager = ({
             ),
           );
         }, 50);
-      }, 1600);
+      }, 1150);
 
       return () => clearTimeout(timeout);
     } else {
@@ -2482,7 +2484,7 @@ export function GameBoard() {
           }
         }, baseDelay);
 
-        baseDelay += 250; // Quicker sequence for snappy feel!
+        baseDelay += 90; // ritmo rápido e satisfatório (estilo Balatro)
       });
 
       setPointPops(newPops);
@@ -2495,8 +2497,8 @@ export function GameBoard() {
         return !a.name.startsWith(levelNamePrefix);
       });
 
-      // Position the first activation at least 750ms after the last die starts its pop/900ms shake
-      let activationDelay = baseDelay + 750;
+      // Primeira ativação logo após os dados pontuarem
+      let activationDelay = baseDelay + 220;
 
       modifierActivations.forEach((act, idx) => {
         setTimeout(() => {
@@ -2542,7 +2544,7 @@ export function GameBoard() {
           });
         }, activationDelay);
 
-        activationDelay += 550; // Stable readable pace for player comprehension
+        activationDelay += 200; // ritmo legível porém rápido
       });
 
       // Spawn the combo banner precisely 1200ms after all activations have fully settled
@@ -2587,7 +2589,7 @@ export function GameBoard() {
         // Tick up the main screen score display!
         let current = prevScore;
         const target = state.currentRoundScore;
-        const step = Math.max(1, Math.floor(increment / 12));
+        const step = Math.max(1, Math.floor(increment / 22));
 
         const interval = setInterval(() => {
           current += step;
@@ -2617,15 +2619,15 @@ export function GameBoard() {
                   isScoring: false,
                 });
               },
-              3000 + (state.lastHandInfo?.activations.length || 0) * 300,
+              650 + (state.lastHandInfo?.activations.length || 0) * 80,
             );
           } else {
             setDisplayScore(current);
             const ratio = (current - prevScore) / increment;
             sfx.playScoreTick(350 + ratio * 450); // climb pitch
           }
-        }, 40);
-      }, activationDelay + 1200);
+        }, 22);
+      }, activationDelay + 300);
     }
   }, [
     state.currentRoundScore,
@@ -2635,6 +2637,19 @@ export function GameBoard() {
     state.relics,
     flashControls,
   ]);
+
+  // Rede de segurança: a pontuação nunca pode travar o jogo.
+  // Se por qualquer motivo isScoring ficar preso, força a liberação.
+  useEffect(() => {
+    if (!isScoring) return;
+    const t = setTimeout(() => {
+      setIsScoring(false);
+      setComboBanner(null);
+      setPointPops([]);
+      setLiveScoringHUD({ text: "", base: 0, mult: 0, isScoring: false });
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [isScoring]);
 
   const handleRoll = () => {
     sfx.playRoll();
