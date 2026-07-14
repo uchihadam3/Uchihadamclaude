@@ -278,6 +278,58 @@
   cv.addEventListener('mousedown', e=>{ if(e.button===2){ e.preventDefault(); if(gameActive&&!paused) useBomb(); } });
   cv.addEventListener('contextmenu', e=> e.preventDefault());
 
+  // ---------- Toque: dois joysticks virtuais + botão de bomba ----------
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+  const STICK_R = 56;
+  const touch = {
+    move:{ id:null, active:false, ox:0, oy:0, x:0, y:0, nx:0, ny:0 },
+    aim: { id:null, active:false, ox:0, oy:0, x:0, y:0, nx:0, ny:0 },
+  };
+  function bombBtn(){ return { x:W/2, y:H-64, r:34 }; }
+  function stickUpdate(s){
+    let dx=s.x-s.ox, dy=s.y-s.oy;
+    const d=Math.hypot(dx,dy);
+    if (d>STICK_R){ dx=dx/d*STICK_R; dy=dy/d*STICK_R; }
+    s.nx = dx/STICK_R; s.ny = dy/STICK_R;   // -1..1
+  }
+  function onTouchStart(e){
+    e.preventDefault();
+    for (const t of e.changedTouches){
+      const bx=bombBtn();
+      if (Math.hypot(t.clientX-bx.x, t.clientY-bx.y) < bx.r+8){
+        if (gameActive&&!paused) useBomb();
+        continue;
+      }
+      if (t.clientX < W*0.5 && !touch.move.active){
+        touch.move.id=t.identifier; touch.move.active=true;
+        touch.move.ox=t.clientX; touch.move.oy=t.clientY;
+        touch.move.x=t.clientX; touch.move.y=t.clientY; stickUpdate(touch.move);
+      } else if (t.clientX >= W*0.5 && !touch.aim.active){
+        touch.aim.id=t.identifier; touch.aim.active=true;
+        touch.aim.ox=t.clientX; touch.aim.oy=t.clientY;
+        touch.aim.x=t.clientX; touch.aim.y=t.clientY; stickUpdate(touch.aim);
+      }
+    }
+  }
+  function onTouchMove(e){
+    e.preventDefault();
+    for (const t of e.changedTouches){
+      if (t.identifier===touch.move.id){ touch.move.x=t.clientX; touch.move.y=t.clientY; stickUpdate(touch.move); }
+      else if (t.identifier===touch.aim.id){ touch.aim.x=t.clientX; touch.aim.y=t.clientY; stickUpdate(touch.aim); }
+    }
+  }
+  function onTouchEnd(e){
+    e.preventDefault();
+    for (const t of e.changedTouches){
+      if (t.identifier===touch.move.id){ touch.move.active=false; touch.move.id=null; touch.move.nx=0; touch.move.ny=0; }
+      else if (t.identifier===touch.aim.id){ touch.aim.active=false; touch.aim.id=null; touch.aim.nx=0; touch.aim.ny=0; }
+    }
+  }
+  cv.addEventListener('touchstart', onTouchStart, {passive:false});
+  cv.addEventListener('touchmove',  onTouchMove,  {passive:false});
+  cv.addEventListener('touchend',   onTouchEnd,   {passive:false});
+  cv.addEventListener('touchcancel',onTouchEnd,   {passive:false});
+
   function resize(){
     DPR = Math.min(2, window.devicePixelRatio||1);
     W = window.innerWidth; H = window.innerHeight;
@@ -399,34 +451,43 @@
 
     // --- Jogador ---
     if (player.alive){
-      const ax=(keys['KeyD']?1:0)-(keys['KeyA']?1:0);
-      const ay=(keys['KeyS']?1:0)-(keys['KeyW']?1:0);
+      // vetor de movimento: joystick esquerdo (toque) ou WASD
+      let ax, ay;
+      if (touch.move.active){ ax=touch.move.nx; ay=touch.move.ny; }
+      else { ax=(keys['KeyD']?1:0)-(keys['KeyA']?1:0);
+             ay=(keys['KeyS']?1:0)-(keys['KeyW']?1:0); }
       const acc=1400;
       player.vx += ax*acc*dt; player.vy += ay*acc*dt;
       player.vx *= 0.86; player.vy *= 0.86;
       player.x += player.vx*dt; player.y += player.vy*dt;
       player.x = Math.max(player.r, Math.min(W-player.r, player.x));
       player.y = Math.max(player.r, Math.min(H-player.r, player.y));
-      player.angle = Math.atan2(mouse.y-player.y, mouse.x-player.x);
+
+      // mira e disparo: joystick direito (toque) ou mouse (desktop)
+      let firing=false;
+      if (touch.aim.active){
+        player.angle = Math.atan2(touch.aim.ny, touch.aim.nx);
+        firing = (touch.aim.nx*touch.aim.nx + touch.aim.ny*touch.aim.ny) > 0.09;
+      } else if (!isTouch){
+        player.angle = Math.atan2(mouse.y-player.y, mouse.x-player.x);
+        firing = true;
+      }
       if (player.invuln>0) player.invuln-=dt;
       // poço gravitacional leve na grade
       gridImplosive(player.x, player.y, 0.6, 150);
       // rastro do motor
-      if ((Math.abs(ax)+Math.abs(ay))>0 && Math.random()<0.7){
+      if ((Math.abs(ax)+Math.abs(ay))>0.1 && Math.random()<0.7){
         const ba=player.angle+Math.PI+(Math.random()-0.5)*0.6;
         parts.push(particle(player.x+Math.cos(ba)*10, player.y+Math.sin(ba)*10,
           Math.cos(ba)*120, Math.sin(ba)*120, '#35b6ff', 0.35));
       }
-      // tiro automático em direção ao mouse
+      // disparo único, cadência mais lenta
       player.fireCd-=dt;
-      if (player.fireCd<=0){
-        player.fireCd=0.085;
-        const spread=0.06;
-        for (const off of [-spread,spread]){
-          const a=player.angle+off;
-          bullets.push({ x:player.x+Math.cos(a)*16, y:player.y+Math.sin(a)*16,
-            vx:Math.cos(a)*820, vy:Math.sin(a)*820, life:1.2 });
-        }
+      if (firing && player.fireCd<=0){
+        player.fireCd=0.17;
+        const a=player.angle;
+        bullets.push({ x:player.x+Math.cos(a)*18, y:player.y+Math.sin(a)*18,
+          vx:Math.cos(a)*700, vy:Math.sin(a)*700, life:1.4 });
         Snd.shoot();
       }
     }
@@ -527,14 +588,24 @@
     }
     ctx.globalAlpha=1;
 
-    // balas
-    ctx.shadowBlur=12; ctx.shadowColor='#bffcff';
-    ctx.strokeStyle='#dffcff'; ctx.fillStyle='#dffcff';
+    // balas — projétil com trilha, núcleo brilhante e cabeça
+    ctx.lineCap='round';
+    ctx.shadowBlur=14; ctx.shadowColor='#39e6ff';
     for (const b of bullets){
-      ctx.beginPath(); ctx.moveTo(b.x,b.y);
-      ctx.lineTo(b.x-b.vx*0.012, b.y-b.vy*0.012); ctx.lineWidth=3; ctx.stroke();
+      const ang=Math.atan2(b.vy,b.vx);
+      ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(ang);
+      // trilha (halo)
+      ctx.strokeStyle='rgba(90,205,255,0.55)'; ctx.lineWidth=6;
+      ctx.beginPath(); ctx.moveTo(-16,0); ctx.lineTo(4,0); ctx.stroke();
+      // núcleo
+      ctx.strokeStyle='#eaffff'; ctx.lineWidth=2.6;
+      ctx.beginPath(); ctx.moveTo(-11,0); ctx.lineTo(6,0); ctx.stroke();
+      // cabeça
+      ctx.fillStyle='#ffffff';
+      ctx.beginPath(); ctx.arc(6,0,2.8,0,6.2832); ctx.fill();
+      ctx.restore();
     }
-    ctx.shadowBlur=0;
+    ctx.shadowBlur=0; ctx.lineCap='butt';
 
     // spawns (anel de aviso)
     for (const s of spawns){
@@ -554,10 +625,42 @@
     ctx.restore();
     ctx.globalCompositeOperation='source-over';
 
-    // mira
-    drawCrosshair();
+    // mira (apenas desktop)
+    if (!isTouch) drawCrosshair();
+    // controles de toque
+    if (isTouch && gameActive && !paused) drawTouchUI();
     // HUD
     if (gameActive || over) drawHUD();
+  }
+
+  function drawStick(s, color, homeX, homeY, label){
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    if (s.active){
+      ctx.globalAlpha=0.35; ctx.strokeStyle=color; ctx.lineWidth=2.5;
+      ctx.beginPath(); ctx.arc(s.ox,s.oy,STICK_R,0,6.2832); ctx.stroke();
+      ctx.globalAlpha=0.8; ctx.fillStyle=color;
+      ctx.beginPath(); ctx.arc(s.ox+s.nx*STICK_R, s.oy+s.ny*STICK_R, 21, 0, 6.2832); ctx.fill();
+    } else {
+      // guia de repouso
+      ctx.globalAlpha=0.16; ctx.strokeStyle=color; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(homeX,homeY,STICK_R,0,6.2832); ctx.stroke();
+      ctx.globalAlpha=0.5; ctx.fillStyle=color; ctx.font='11px Trebuchet MS';
+      ctx.fillText(label, homeX, homeY);
+    }
+    ctx.globalAlpha=1;
+  }
+  function drawTouchUI(){
+    drawStick(touch.move, '#35b6ff', 92, H-96, 'MOVER');
+    drawStick(touch.aim,  '#ff6ad5', W-92, H-96, 'MIRAR');
+    // botão de bomba
+    const bx=bombBtn();
+    ctx.globalAlpha=0.9; ctx.lineWidth=2.5;
+    ctx.strokeStyle = bombs>0?'#ffd54d':'#4a5578';
+    ctx.beginPath(); ctx.arc(bx.x,bx.y,bx.r,0,6.2832); ctx.stroke();
+    ctx.fillStyle = bombs>0?'#ffd54d':'#4a5578';
+    ctx.font='bold 16px Trebuchet MS'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('◆'+bombs, bx.x, bx.y);
+    ctx.globalAlpha=1;
   }
 
   function polyPath(cx,cy,r,sides,rot){
@@ -648,6 +751,13 @@
   }
   resize();
   player.x=W/2; player.y=H/2; mouse.x=W/2; mouse.y=H/2;
+  if (isTouch){
+    document.body.style.cursor='auto';
+    hint.textContent='ARRASTE À ESQUERDA P/ MOVER · À DIREITA P/ MIRAR E ATIRAR';
+    const kp=document.querySelector('.keys');
+    if (kp) kp.innerHTML='<b>Celular:</b> arraste do lado <b>esquerdo</b> para mover e '+
+      'do lado <b>direito</b> para mirar e atirar.<br>Toque no botão <b>◆</b> embaixo para soltar a bomba.';
+  }
   requestAnimationFrame(frame);
 })();
 </script>
