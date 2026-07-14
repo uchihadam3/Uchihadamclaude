@@ -425,7 +425,7 @@ const RulesModal = ({ onClose }: { onClose: () => void }) => {
       >
         <div className="flex items-center justify-between p-6 border-b border-g-border bg-[#15161c]">
           <h2 className="text-xl font-serif italic tracking-widest text-white uppercase">
-            How to Play
+            Como Jogar
           </h2>
           <button
             onClick={onClose}
@@ -438,52 +438,52 @@ const RulesModal = ({ onClose }: { onClose: () => void }) => {
         <div className="p-6 md:p-8 overflow-y-auto space-y-8 text-g-text text-sm">
           <section>
             <h3 className="text-g-gold font-bold uppercase tracking-widest mb-3">
-              Objective
+              Objetivo
             </h3>
             <p className="leading-relaxed">
-              Your goal is to reach the <strong>Target Score</strong> every
-              round before running out of rolls. The score is calculated using
-              distinctive Dice combinations.
+              Seu objetivo é alcançar a <strong>Meta de Pontos</strong> a cada
+              rodada antes de ficar sem rolagens. A pontuação é calculada com
+              combinações distintas de dados.
             </p>
           </section>
 
           <section>
             <h3 className="text-g-gold font-bold uppercase tracking-widest mb-3">
-              Scoring Engine
+              Motor de Pontuação
             </h3>
             <p className="leading-relaxed mb-4">
-              Your score is calculated as:{" "}
-              <strong>Base Score × Multiplier = Total Score</strong>. The Base
-              Score is the sum of all your dice. The Multiplier depends on your
-              Dice Combination:
+              Sua pontuação é calculada como:{" "}
+              <strong>Base × Multiplicador = Total</strong>. A Base é a soma de
+              todos os seus dados. O Multiplicador depende da sua Combinação de
+              Dados:
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
-                <div className="text-white font-bold">Double</div>
-                <div className="text-g-red font-mono mt-1">x 1.5</div>
-              </div>
-              <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
-                <div className="text-white font-bold">Two Doubles</div>
+                <div className="text-white font-bold">Par</div>
                 <div className="text-g-red font-mono mt-1">x 2</div>
               </div>
               <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
-                <div className="text-white font-bold">Triple</div>
+                <div className="text-white font-bold">Dois Pares</div>
+                <div className="text-g-red font-mono mt-1">x 2</div>
+              </div>
+              <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
+                <div className="text-white font-bold">Trinca</div>
                 <div className="text-g-red font-mono mt-1">x 3</div>
               </div>
               <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
-                <div className="text-white font-bold">Sequence</div>
+                <div className="text-white font-bold">Sequência</div>
                 <div className="text-g-red font-mono mt-1">x 4</div>
               </div>
               <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
-                <div className="text-white font-bold">Full Chamber</div>
-                <div className="text-g-red font-mono mt-1">x 5</div>
+                <div className="text-white font-bold">Câmara Cheia</div>
+                <div className="text-g-red font-mono mt-1">x 4</div>
               </div>
               <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
-                <div className="text-white font-bold">Quad</div>
+                <div className="text-white font-bold">Quadra</div>
                 <div className="text-g-red font-mono mt-1">x 7</div>
               </div>
               <div className="bg-[#1a1b21] p-3 rounded border border-g-border">
-                <div className="text-white font-bold">Pentad</div>
+                <div className="text-white font-bold">Quinteto</div>
                 <div className="text-g-red font-mono mt-1">x 10</div>
               </div>
             </div>
@@ -491,19 +491,20 @@ const RulesModal = ({ onClose }: { onClose: () => void }) => {
 
           <section>
             <h3 className="text-g-gold font-bold uppercase tracking-widest mb-3">
-              Gameplay
+              Jogabilidade
             </h3>
             <ul className="space-y-3 list-disc pl-5 marker:text-g-red">
               <li>
-                You have a limited number of rolls per round to build your hand.
+                Você tem um número limitado de rolagens por rodada para montar
+                sua mão.
               </li>
               <li>
-                Click any die to <strong>LOCK</strong> it. Locked dice are
-                ignored when you hit the Roll button.
+                Clique em qualquer dado para <strong>TRAVÁ-LO</strong>. Dados
+                travados são ignorados quando você rola de novo.
               </li>
               <li>
-                When you are satisfied with your hand, press{" "}
-                <strong>CROWN THE SCORE</strong> to end the round.
+                Quando estiver satisfeito com sua mão, pressione{" "}
+                <strong>RECLAMAR VITÓRIA</strong> para encerrar a rodada.
               </li>
             </ul>
           </section>
@@ -513,16 +514,16 @@ const RulesModal = ({ onClose }: { onClose: () => void }) => {
               <Skull className="w-4 h-4" /> Corruption
             </h3>
             <p className="leading-relaxed mb-3">
-              As you advance through rounds, your dice gain{" "}
-              <strong>Corruption</strong>.
+              Conforme você avança pelas rodadas, seus dados ganham{" "}
+              <strong>Corrupção</strong>.
             </p>
             <ul className="space-y-3 list-disc pl-5 marker:text-g-red">
               <li>
-                <strong>{">"} 50% Corrupt:</strong> Sometimes forced to roll a
-                6.
+                <strong>{">"} 50% Corrompido:</strong> Às vezes é forçado a
+                rolar um 6.
               </li>
               <li>
-                <strong>{">"} 75% Unstable:</strong> Will ALWAYS roll a 6.
+                <strong>{">"} 75% Instável:</strong> SEMPRE rola um 6.
               </li>
             </ul>
           </section>
@@ -533,7 +534,7 @@ const RulesModal = ({ onClose }: { onClose: () => void }) => {
             onClick={onClose}
             className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-g-gold transition-colors"
           >
-            Understood
+            Entendido
           </button>
         </div>
       </motion.div>
@@ -1487,8 +1488,9 @@ const DiceManager = ({
       const distWidthRequired = 36.5 / 2 / (aspect * tanHalfFOV);
 
       // Take the larger distance to fit both dimensions safely
-      // Give appropriate snug margin depending on screen orientation. Made 20%+ roomier for safety.
-      const marginExt = aspect < 1 ? 1.84 : 1.58;
+      // Give appropriate snug margin depending on screen orientation.
+      // Zoom mais próximo para a mesa preencher a arena (menos espaço morto).
+      const marginExt = aspect < 1 ? 1.5 : 1.18;
       const finalZDistance =
         Math.max(distHeightRequired, distWidthRequired) * marginExt;
 
@@ -2716,7 +2718,7 @@ export function GameBoard() {
       </AnimatePresence>
 
       {/* Top HUD */}
-      <header className="h-auto md:h-24 border-b border-g-border/60 bg-[#07070b]/90 backdrop-blur-md flex flex-row items-center justify-between p-2 md:px-10 gap-2 shadow-2xl relative z-20">
+      <header className="h-auto md:min-h-24 md:py-2 border-b border-g-border/60 bg-[#07070b]/90 backdrop-blur-md flex flex-row items-center justify-between p-2 md:px-10 gap-2 shadow-2xl relative z-20">
         <div className="flex flex-wrap items-center gap-1.5 md:gap-4 w-auto">
           {/* TOTAL SCORE MONITOR */}
           <div className="bg-zinc-950/70 border border-zinc-800/60 rounded-lg md:rounded-xl px-2 py-1 md:px-5 md:py-2.5 flex flex-col min-w-[50px] md:min-w-[130px] relative overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.5)]">
@@ -2802,7 +2804,7 @@ export function GameBoard() {
         <div className="text-right flex flex-col items-end gap-0 md:gap-1">
           <div className="flex flex-col items-end">
             <span className="text-[7.5px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] text-g-muted">
-              Target Score
+              Meta
             </span>
             <div className="flex items-center justify-end gap-1.5 md:gap-2">
               <motion.span
