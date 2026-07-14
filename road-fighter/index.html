@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ROAD FIGHTER — Corrida Arcade</title>
+<style>
+/* =========================================================================
+   ROAD FIGHTER — recriação arcade original
+   Corrida vertical: acelere, desvie de carros e óleo, pegue combustível
+   e chegue à linha de chegada antes que a gasolina acabe.
+   ========================================================================= */
+
+:root{
+  --road:      #4a4a55;
+  --grass-1:   #1f7a2e;
+  --grass-2:   #17641f;
+  --neon:      #ffd60a;
+  --red:       #ff3b30;
+  --blue:      #2b86c5;
+  --panel:     rgba(10, 14, 30, 0.82);
+  --panel-ln:  rgba(255, 214, 10, 0.55);
+  --text:      #f5f7ff;
+  --text-dim:  #9aa6c8;
+}
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
+
+html,body{
+  margin:0; padding:0; height:100%;
+  background:#05060d;
+  color:var(--text);
+  font-family:'Trebuchet MS', system-ui, sans-serif;
+  overflow:hidden;
+  touch-action:none;
+}
+
+#wrap{
+  position:relative;
+  width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* Canvas do jogo — proporção retrato de arcade */
+#game{
+  display:block;
+  background:#111;
+  image-rendering:pixelated;
+  box-shadow:0 0 60px rgba(0,0,0,.8);
+  max-width:100%; max-height:100%;
+}
+
+/* ---------- Telas de overlay ---------- */
+.overlay{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  text-align:center;
+  background:linear-gradient(160deg, rgba(5,6,13,.92), rgba(20,10,40,.92));
+  padding:24px;
+  z-index:10;
+}
+.overlay.hidden{ display:none; }
+
+.logo{
+  font-family:'Arial Black', 'Trebuchet MS', sans-serif;
+  font-weight:900;
+  font-size:clamp(34px, 9vw, 64px);
+  letter-spacing:2px;
+  line-height:.95;
+  margin:0 0 6px;
+  color:var(--neon);
+  text-shadow:
+    0 0 12px rgba(255,214,10,.6),
+    4px 4px 0 #d94100,
+    8px 8px 0 rgba(0,0,0,.35);
+  transform:skewX(-6deg);
+}
+.logo small{
+  display:block;
+  font-size:.32em;
+  letter-spacing:6px;
+  color:var(--text);
+  text-shadow:none;
+  margin-top:8px;
+  transform:skewX(6deg);
+}
+
+.tag{ color:var(--text-dim); max-width:420px; margin:6px auto 22px; font-size:15px; line-height:1.5; }
+
+.btn{
+  appearance:none; border:none; cursor:pointer;
+  font-family:inherit; font-weight:800; letter-spacing:1px;
+  font-size:20px; color:#111;
+  background:linear-gradient(180deg, #ffe15a, var(--neon));
+  padding:14px 40px; border-radius:40px;
+  box-shadow:0 6px 0 #b98a00, 0 10px 24px rgba(0,0,0,.5);
+  transition:transform .06s ease, box-shadow .06s ease;
+  margin-top:6px;
+}
+.btn:active{ transform:translateY(4px); box-shadow:0 2px 0 #b98a00, 0 6px 16px rgba(0,0,0,.5); }
+
+.keys{
+  margin-top:24px; color:var(--text-dim); font-size:13px; line-height:1.9;
+  background:var(--panel); border:1px solid var(--panel-ln);
+  border-radius:14px; padding:14px 20px;
+}
+.keys b{ color:var(--neon); }
+kbd{
+  display:inline-block; background:#242a44; border:1px solid #3a4266;
+  border-bottom-width:3px; border-radius:6px; padding:1px 8px; margin:0 2px;
+  font-family:monospace; color:var(--text);
+}
+
+.big-msg{
+  font-family:'Arial Black', sans-serif; font-weight:900;
+  font-size:clamp(30px, 8vw, 56px); letter-spacing:2px; margin:0 0 4px;
+}
+.win{ color:#4ade80; text-shadow:0 0 18px rgba(74,222,128,.6); }
+.lose{ color:var(--red); text-shadow:0 0 18px rgba(255,59,48,.6); }
+
+.stat-row{ display:flex; gap:26px; margin:14px 0 22px; }
+.stat{ min-width:96px; }
+.stat .n{ font-size:30px; font-weight:900; color:var(--neon); }
+.stat .l{ font-size:12px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; }
+
+.credit{ position:absolute; bottom:10px; font-size:11px; color:#4a5170; letter-spacing:1px; }
+
+/* ---------- Controles touch ---------- */
+#touch{
+  position:absolute; inset:0; z-index:5;
+  display:none;
+  pointer-events:none;
+}
+#touch.on{ display:block; }
+.pad{
+  position:absolute; pointer-events:auto;
+  width:74px; height:74px; border-radius:50%;
+  background:rgba(20,26,50,.5); border:2px solid rgba(255,214,10,.5);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--neon); font-size:30px; font-weight:900;
+  backdrop-filter:blur(2px);
+}
+.pad:active{ background:rgba(255,214,10,.3); }
+#p-left{ left:16px;  bottom:96px; }
+#p-right{ left:104px; bottom:96px; }
+#p-gas{  right:16px; bottom:120px; width:90px; height:90px; font-size:16px; }
+#p-brake{right:118px; bottom:70px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="360" height="640"></canvas>
+
+  <!-- Controles touch -->
+  <div id="touch">
+    <div class="pad" id="p-left">◀</div>
+    <div class="pad" id="p-right">▶</div>
+    <div class="pad" id="p-brake">FREIO</div>
+    <div class="pad" id="p-gas">GÁS</div>
+  </div>
+
+  <!-- TELA INICIAL -->
+  <div class="overlay" id="scr-start">
+    <h1 class="logo">ROAD<br>FIGHTER<small>ARCADE RACER</small></h1>
+    <p class="tag">Acelere pela estrada, desvie dos carros rivais e das poças de óleo,
+       pegue os cones de combustível <b style="color:var(--neon)">⛽</b> e cruze a linha
+       de chegada antes que a gasolina acabe!</p>
+    <button class="btn" id="btn-start">CORRER ▶</button>
+    <div class="keys">
+      <b>Teclado:</b> <kbd>◀</kbd><kbd>▶</kbd> direção &nbsp;·&nbsp;
+      <kbd>▲</kbd> acelerar &nbsp;·&nbsp; <kbd>▼</kbd> freiar<br>
+      <b>Celular:</b> use os botões na tela &nbsp;·&nbsp; <kbd>P</kbd> pausa
+    </div>
+    <div class="credit">ORIGINAL CANVAS RECREATION · JOGUE COM ⛽</div>
+  </div>
+
+  <!-- TELA FIM -->
+  <div class="overlay hidden" id="scr-end">
+    <h2 class="big-msg" id="end-title">FIM DE JOGO</h2>
+    <p class="tag" id="end-sub">A gasolina acabou.</p>
+    <div class="stat-row">
+      <div class="stat"><div class="n" id="end-dist">0</div><div class="l">Metros</div></div>
+      <div class="stat"><div class="n" id="end-score">0</div><div class="l">Pontos</div></div>
+      <div class="stat"><div class="n" id="end-best">0</div><div class="l">Recorde</div></div>
+    </div>
+    <button class="btn" id="btn-again">CORRER DE NOVO ▶</button>
+  </div>
+
+  <!-- TELA PAUSA -->
+  <div class="overlay hidden" id="scr-pause">
+    <h2 class="big-msg" style="color:var(--neon)">PAUSA</h2>
+    <p class="tag">Respira fundo, piloto.</p>
+    <button class="btn" id="btn-resume">CONTINUAR ▶</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   ROAD FIGHTER — motor do jogo
+   ========================================================================= */
+(() => {
+  const cv  = document.getElementById('game');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+
+  // ---------- Ajuste de tamanho (mantém proporção 360x640) ----------
+  function fit(){
+    const pad = 0;
+    const availW = window.innerWidth  - pad;
+    const availH = window.innerHeight - pad;
+    const scale = Math.min(availW / W, availH / H);
+    cv.style.width  = (W * scale) + 'px';
+    cv.style.height = (H * scale) + 'px';
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  // ---------- Constantes da estrada ----------
+  const ROAD_X = 60;                 // margem esquerda do asfalto
+  const ROAD_W = W - ROAD_X * 2;     // largura do asfalto
+  const LANES  = 4;
+  const laneW  = ROAD_W / LANES;
+  const laneCenter = i => ROAD_X + laneW * (i + 0.5);
+
+  const GOAL = 5000;                 // metros até a chegada
+
+  // ---------- Estado ----------
+  const STATE = { MENU:0, PLAY:1, PAUSE:2, END:3, CRASH:4 };
+  let state = STATE.MENU;
+
+  const player = {
+    x: W/2, y: H - 130, w: 34, h: 58,
+    speed: 0, maxSpeed: 340, minSpeed: 60,
+    accel: 220, brake: 340, drag: 90,
+    steer: 200, vx: 0,
+  };
+
+  let game = null;
+  function newGame(){
+    return {
+      dist: 0,            // metros percorridos
+      score: 0,
+      fuel: 100,          // %
+      lives: 3,
+      cars: [],           // rivais
+      oils: [],           // poças de óleo
+      fuels: [],          // bônus de combustível
+      parts: [],          // partículas
+      spawnT: 0,
+      oilT: 0,
+      fuelT: 0,
+      stripe: 0,          // deslocamento das faixas
+      shake: 0,
+      flash: 0,
+      combo: 0,           // carros passados sem bater
+      time: 0,
+      crashLock: 0,
+    };
+  }
+
+  // ---------- Entrada ----------
+  const keys = {};
+  const input = { left:false, right:false, gas:false, brake:false };
+  addEventListener('keydown', e => {
+    if (e.repeat) return;
+    keys[e.code] = true;
+    if (e.code === 'KeyP') togglePause();
+    if ((state===STATE.MENU || state===STATE.END) &&
+        (e.code==='Enter' || e.code==='Space')) startGame();
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  });
+  addEventListener('keyup', e => { keys[e.code] = false; });
+
+  function readKeys(){
+    input.left  = keys['ArrowLeft']  || keys['KeyA'];
+    input.right = keys['ArrowRight'] || keys['KeyD'];
+    input.gas   = keys['ArrowUp']    || keys['KeyW'];
+    input.brake = keys['ArrowDown']  || keys['KeyS'];
+  }
+
+  // Controles touch
+  function bindPad(id, prop){
+    const el = document.getElementById(id);
+    const on  = e => { e.preventDefault(); touchIn[prop] = true;  };
+    const off = e => { e.preventDefault(); touchIn[prop] = false; };
+    el.addEventListener('touchstart', on,  {passive:false});
+    el.addEventListener('touchend',   off, {passive:false});
+    el.addEventListener('touchcancel',off, {passive:false});
+    el.addEventListener('mousedown',  on);
+    el.addEventListener('mouseup',    off);
+    el.addEventListener('mouseleave', off);
+  }
+  const touchIn = { left:false, right:false, gas:false, brake:false };
+  bindPad('p-left','left'); bindPad('p-right','right');
+  bindPad('p-gas','gas');   bindPad('p-brake','brake');
+
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  if (isTouch) document.getElementById('touch').classList.add('on');
+
+  // ---------- Telas ----------
+  const scrStart = document.getElementById('scr-start');
+  const scrEnd   = document.getElementById('scr-end');
+  const scrPause = document.getElementById('scr-pause');
+
+  document.getElementById('btn-start').onclick  = startGame;
+  document.getElementById('btn-again').onclick  = startGame;
+  document.getElementById('btn-resume').onclick = togglePause;
+
+  function show(el){ el.classList.remove('hidden'); }
+  function hide(el){ el.classList.add('hidden'); }
+
+  function startGame(){
+    game = newGame();
+    player.x = W/2; player.vx = 0; player.speed = player.minSpeed;
+    state = STATE.PLAY;
+    hide(scrStart); hide(scrEnd); hide(scrPause);
+  }
+  function togglePause(){
+    if (state === STATE.PLAY){ state = STATE.PAUSE; show(scrPause); }
+    else if (state === STATE.PAUSE){ state = STATE.PLAY; hide(scrPause); }
+  }
+
+  // ---------- Recorde ----------
+  let best = 0;
+  try { best = parseInt(localStorage.getItem('rf_best')||'0',10) || 0; } catch(e){}
+  function saveBest(v){ try{ localStorage.setItem('rf_best', String(v)); }catch(e){} }
+
+  // ---------- Spawns ----------
+  const CAR_COLORS = ['#e63946','#2a9d8f','#e9c46a','#8338ec','#3a86ff','#fb5607','#ff006e'];
+  function spawnCar(){
+    const lane = (Math.random()*LANES)|0;
+    game.cars.push({
+      lane, x: laneCenter(lane), y: -70,
+      w: 34, h: 58,
+      color: CAR_COLORS[(Math.random()*CAR_COLORS.length)|0],
+      // velocidade própria do rival (mundo desce; mais lento = fica pra trás mais devagar)
+      vSelf: 60 + Math.random()*120,
+      wob: Math.random()*Math.PI*2,   // leve zigue-zague
+      swap: 0,
+      hit: false,
+    });
+  }
+  function spawnOil(){
+    const lane = (Math.random()*LANES)|0;
+    game.oils.push({ x: laneCenter(lane) + (Math.random()*24-12), y: -60, r: 22 });
+  }
+  function spawnFuel(){
+    const lane = (Math.random()*LANES)|0;
+    game.fuels.push({ x: laneCenter(lane), y: -50, w: 26, h: 34, got:false });
+  }
+
+  function burst(x, y, color, n, spd){
+    for (let i=0;i<n;i++){
+      const a = Math.random()*Math.PI*2;
+      const s = spd*(0.3+Math.random());
+      game.parts.push({
+        x, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 40,
+        life: 0.5+Math.random()*0.6, t:0,
+        color, r: 2+Math.random()*3,
+      });
+    }
+  }
+
+  // ---------- Colisão AABB ----------
+  function hit(a, b){
+    return Math.abs(a.x-b.x) < (a.w+b.w)/2 - 6 &&
+           Math.abs(a.y-b.y) < (a.h+b.h)/2 - 6;
+  }
+
+  // ---------- Crash do jogador ----------
+  function crash(){
+    if (game.crashLock > 0) return;
+    game.lives--;
+    game.combo = 0;
+    game.shake = 18;
+    game.flash = 0.4;
+    game.crashLock = 1.1;
+    burst(player.x, player.y, '#ffb703', 26, 260);
+    burst(player.x, player.y, '#ff3b30', 18, 200);
+    player.speed = player.minSpeed;
+    player.vx = 0;
+    if (game.lives <= 0){ endGame(false); }
+  }
+
+  function endGame(win){
+    state = STATE.END;
+    const dist = Math.floor(game.dist);
+    if (game.score > best){ best = game.score; saveBest(best); }
+    document.getElementById('end-dist').textContent  = dist;
+    document.getElementById('end-score').textContent = game.score;
+    document.getElementById('end-best').textContent  = best;
+    const t = document.getElementById('end-title');
+    const s = document.getElementById('end-sub');
+    if (win){
+      t.textContent = 'VOCÊ VENCEU!'; t.className = 'big-msg win';
+      s.textContent = 'Você cruzou a linha de chegada! 🏁';
+    } else {
+      t.textContent = 'FIM DE JOGO'; t.className = 'big-msg lose';
+      s.textContent = game.fuel <= 0 ? 'A gasolina acabou. ⛽'
+                                     : 'Seu carro foi destruído. 💥';
+    }
+    show(scrEnd);
+  }
+
+  // ---------- Atualização ----------
+  function update(dt){
+    if (state !== STATE.PLAY) return;
+    const g = game, p = player;
+
+    readKeys();
+    const L = input.left  || touchIn.left;
+    const R = input.right || touchIn.right;
+    const GAS   = input.gas   || touchIn.gas;
+    const BRK   = input.brake || touchIn.brake;
+
+    // Combustível esvazia com o tempo (mais rápido em alta velocidade)
+    g.fuel -= dt * (1.4 + p.speed/260);
+    if (g.fuel <= 0){ g.fuel = 0; endGame(false); return; }
+
+    // Velocidade
+    if (g.crashLock > 0){
+      g.crashLock -= dt;
+      p.speed -= p.drag*1.5*dt;
+    } else if (GAS){
+      p.speed += p.accel*dt;
+    } else if (BRK){
+      p.speed -= p.brake*dt;
+    } else {
+      p.speed -= p.drag*dt;
+    }
+    p.speed = Math.max(p.minSpeed, Math.min(p.maxSpeed, p.speed));
+
+    // Direção — mais ágil em velocidade média
+    const steerPow = p.steer * (0.6 + Math.min(1, p.speed/p.maxSpeed));
+    if (L && !R) p.vx -= steerPow*dt*6;
+    else if (R && !L) p.vx += steerPow*dt*6;
+    else p.vx *= 0.82;
+    p.vx = Math.max(-260, Math.min(260, p.vx));
+    p.x += p.vx * dt;
+
+    // Bater na grama = perde controle / freia
+    const leftEdge  = ROAD_X + p.w/2;
+    const rightEdge = ROAD_X + ROAD_W - p.w/2;
+    if (p.x < leftEdge){ p.x = leftEdge; p.vx = Math.abs(p.vx)*0.3; p.speed *= 0.985; g.shake=Math.max(g.shake,5); }
+    if (p.x > rightEdge){ p.x = rightEdge; p.vx = -Math.abs(p.vx)*0.3; p.speed *= 0.985; g.shake=Math.max(g.shake,5); }
+
+    // Progresso do mundo
+    const worldV = p.speed;
+    g.dist  += worldV * dt / 8;         // metros
+    g.score += Math.floor(worldV * dt / 4);
+    g.stripe = (g.stripe + worldV*dt) % 80;
+    g.time  += dt;
+
+    // Chegada
+    if (g.dist >= GOAL){ endGame(true); return; }
+
+    // Dificuldade cresce com a distância
+    const diff = Math.min(1, g.dist / GOAL);
+    const carGap  = 1.05 - diff*0.55;   // intervalo entre carros
+    const oilGap  = 2.6  - diff*0.9;
+    const fuelGap = 6.0;
+
+    // Spawns
+    g.spawnT -= dt;
+    if (g.spawnT <= 0){ spawnCar(); g.spawnT = carGap*(0.6+Math.random()*0.8); }
+    g.oilT -= dt;
+    if (g.oilT <= 0){ spawnOil(); g.oilT = oilGap*(0.7+Math.random()*0.9); }
+    g.fuelT -= dt;
+    if (g.fuelT <= 0){ spawnFuel(); g.fuelT = fuelGap*(0.7+Math.random()*0.8); }
+
+    // Atualiza rivais
+    for (const c of g.cars){
+      // velocidade relativa: mundo desce em worldV, rival sobe em vSelf
+      c.y += (worldV - c.vSelf) * dt;
+      // leve oscilação lateral
+      c.wob += dt*2;
+      c.x = laneCenter(c.lane) + Math.sin(c.wob)*6;
+      if (!c.hit && hit(p, c)){
+        c.hit = true;
+        crash();
+      }
+      // pontua ao ultrapassar
+      if (!c.passed && c.y > p.y + 40){
+        c.passed = true;
+        if (!c.hit){ g.combo++; g.score += 50 + g.combo*5; g.fuel = Math.min(100, g.fuel+1.5);
+          burst(c.x, c.y-20, '#ffd60a', 6, 90); }
+      }
+    }
+    g.cars = g.cars.filter(c => c.y < H + 80);
+
+    // Óleo
+    for (const o of g.oils){
+      o.y += worldV * dt;
+      if (!o.hit && Math.abs(o.x-p.x) < o.r+8 && Math.abs(o.y-p.y) < o.r+18){
+        o.hit = true;
+        // derrapagem: empurra lateralmente
+        p.vx += (Math.random()<0.5?-1:1) * 220;
+        g.shake = Math.max(g.shake, 9);
+        g.combo = 0;
+        burst(o.x, o.y, '#3a3a3a', 8, 120);
+      }
+    }
+    g.oils = g.oils.filter(o => o.y < H + 40);
+
+    // Combustível bônus
+    for (const f of g.fuels){
+      f.y += worldV * dt;
+      if (!f.got && Math.abs(f.x-p.x) < (f.w+p.w)/2 && Math.abs(f.y-p.y) < (f.h+p.h)/2){
+        f.got = true;
+        g.fuel = Math.min(100, g.fuel + 28);
+        g.score += 100;
+        g.flash = 0.18;
+        burst(f.x, f.y, '#4ade80', 14, 160);
+      }
+    }
+    g.fuels = g.fuels.filter(f => f.y < H + 40 && !f.got);
+
+    // Partículas
+    for (const pt of g.parts){
+      pt.t += dt; pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.vy += 340*dt;
+    }
+    g.parts = g.parts.filter(pt => pt.t < pt.life);
+
+    // Efeitos
+    if (g.shake > 0) g.shake = Math.max(0, g.shake - 40*dt);
+    if (g.flash > 0) g.flash = Math.max(0, g.flash - dt);
+  }
+
+  // ---------- Desenho ----------
+  function draw(){
+    const g = game;
+    ctx.save();
+
+    // Tremor de tela
+    if (g && g.shake > 0){
+      ctx.translate((Math.random()-0.5)*g.shake, (Math.random()-0.5)*g.shake);
+    }
+
+    // Grama lateral
+    drawGrass();
+
+    // Asfalto
+    ctx.fillStyle = '#42434d';
+    ctx.fillRect(ROAD_X, 0, ROAD_W, H);
+    // Bordas
+    ctx.fillStyle = '#d7dbe6'; ctx.fillRect(ROAD_X-6, 0, 6, H);
+    ctx.fillStyle = '#d7dbe6'; ctx.fillRect(ROAD_X+ROAD_W, 0, 6, H);
+    // Zebra vermelha/branca nas bordas
+    drawKerb();
+
+    if (g){
+      // Faixas das pistas
+      ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([34, 46]);
+      ctx.lineDashOffset = -g.stripe;
+      for (let i=1;i<LANES;i++){
+        const x = ROAD_X + laneW*i;
+        ctx.beginPath(); ctx.moveTo(x, -50); ctx.lineTo(x, H+50); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Linha de chegada aparecendo perto do fim
+      drawFinish();
+
+      // Óleo
+      for (const o of g.oils) drawOil(o);
+      // Combustível
+      for (const f of g.fuels) drawFuel(f);
+      // Rivais
+      for (const c of g.cars) drawCar(c.x, c.y, c.w, c.h, c.color, true);
+      // Jogador
+      if (!(g.crashLock>0 && Math.floor(g.time*20)%2===0)) // pisca ao bater
+        drawPlayer();
+      // Partículas
+      for (const pt of g.parts){
+        const a = 1 - pt.t/pt.life;
+        ctx.globalAlpha = a;
+        ctx.fillStyle = pt.color;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, 7); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Flash de tela
+    if (g && g.flash > 0){
+      ctx.fillStyle = `rgba(255,255,255,${g.flash})`;
+      ctx.fillRect(0,0,W,H);
+    }
+
+    // HUD
+    if (g && (state===STATE.PLAY || state===STATE.PAUSE)) drawHUD();
+  }
+
+  function drawGrass(){
+    const g = game;
+    const off = g ? (g.stripe*0.6)%40 : 0;
+    for (let side=0; side<2; side++){
+      const x0 = side===0 ? 0 : ROAD_X+ROAD_W+6;
+      const w  = side===0 ? ROAD_X-6 : W-(ROAD_X+ROAD_W+6);
+      ctx.fillStyle = '#1f7a2e';
+      ctx.fillRect(x0, 0, w, H);
+      ctx.fillStyle = '#17641f';
+      for (let y=-40; y<H; y+=40){
+        ctx.fillRect(x0, y+off, w, 20);
+      }
+    }
+  }
+
+  function drawKerb(){
+    const g = game;
+    const off = g ? g.stripe%40 : 0;
+    for (let y=-40; y<H+40; y+=40){
+      const yy = y+off;
+      const on = (Math.floor((y)/40))%2===0;
+      ctx.fillStyle = on ? '#e63946' : '#f5f5f5';
+      ctx.fillRect(ROAD_X-6, yy, 6, 20);
+      ctx.fillRect(ROAD_X+ROAD_W, yy, 6, 20);
+    }
+  }
+
+  function drawFinish(){
+    const g = game;
+    const remain = GOAL - g.dist;
+    if (remain > 260) return;
+    // aproxima de cima conforme falta menos distância
+    const y = H - 130 - (remain* (H/260));
+    const yy = Math.max(-40, y);
+    const rows = 4, cols = LANES*2;
+    const cw = ROAD_W/cols, ch = 14;
+    for (let r=0;r<rows;r++){
+      for (let c=0;c<cols;c++){
+        ctx.fillStyle = ((r+c)%2===0) ? '#fff' : '#111';
+        ctx.fillRect(ROAD_X + c*cw, yy + r*ch, cw, ch);
+      }
+    }
+  }
+
+  function drawOil(o){
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.fillStyle = 'rgba(15,15,20,.85)';
+    ctx.beginPath(); ctx.ellipse(0,0,o.r,o.r*0.7,0,0,7); ctx.fill();
+    ctx.fillStyle = 'rgba(70,70,90,.6)';
+    ctx.beginPath(); ctx.ellipse(-4,-3,o.r*0.5,o.r*0.32,0,0,7); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFuel(f){
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    // cone base
+    ctx.fillStyle = '#ff7a00';
+    ctx.beginPath();
+    ctx.moveTo(0,-f.h/2); ctx.lineTo(f.w/2, f.h/2); ctx.lineTo(-f.w/2, f.h/2); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-f.w/2+4, -2, f.w-8, 6);
+    // símbolo gota
+    ctx.fillStyle = '#ffd60a';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('⛽', 0, -f.h*0.18);
+    ctx.restore();
+  }
+
+  function drawCar(x, y, w, h, color, rival){
+    ctx.save();
+    ctx.translate(x, y);
+    if (rival) ctx.rotate(Math.PI); // rivais "apontam" na mesma direção visual
+    // sombra
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.beginPath(); ctx.ellipse(0, h*0.42, w*0.5, 6, 0, 0, 7); ctx.fill();
+    // corpo
+    roundRect(-w/2, -h/2, w, h, 7);
+    ctx.fillStyle = color; ctx.fill();
+    // capô/janela
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    roundRect(-w/2+5, -h*0.28, w-10, h*0.26, 4); ctx.fill();
+    roundRect(-w/2+5,  h*0.06, w-10, h*0.22, 4); ctx.fill();
+    // faixas
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.fillRect(-3, -h/2+4, 6, h-8);
+    // rodas
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-w/2-3, -h*0.34, 4, h*0.24);
+    ctx.fillRect( w/2-1, -h*0.34, 4, h*0.24);
+    ctx.fillRect(-w/2-3,  h*0.14, 4, h*0.24);
+    ctx.fillRect( w/2-1,  h*0.14, 4, h*0.24);
+    ctx.restore();
+  }
+
+  function drawPlayer(){
+    const p = player;
+    // rastro de fogo ao acelerar
+    if (input.gas || touchIn.gas){
+      const fl = 8 + Math.random()*10;
+      ctx.fillStyle = 'rgba(255,150,0,.8)';
+      ctx.beginPath();
+      ctx.moveTo(p.x-6, p.y+p.h/2);
+      ctx.lineTo(p.x+6, p.y+p.h/2);
+      ctx.lineTo(p.x, p.y+p.h/2+fl);
+      ctx.closePath(); ctx.fill();
+    }
+    drawCar(p.x, p.y, p.w, p.h, '#ffd60a', false);
+    // detalhe: carro do jogador com listra vermelha
+    ctx.save(); ctx.translate(p.x, p.y);
+    ctx.fillStyle = '#e63946';
+    ctx.fillRect(-p.w/2+4, -p.h/2+4, p.w-8, 5);
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  // ---------- HUD ----------
+  function drawHUD(){
+    const g = game;
+    // Painel superior
+    ctx.fillStyle = 'rgba(5,8,20,.62)';
+    ctx.fillRect(0,0,W,46);
+
+    ctx.textBaseline = 'middle';
+    // Pontos
+    ctx.fillStyle = '#ffd60a'; ctx.font = 'bold 20px Trebuchet MS';
+    ctx.textAlign = 'left';
+    ctx.fillText(String(g.score).padStart(5,'0'), 10, 16);
+    ctx.fillStyle = '#9aa6c8'; ctx.font = '10px Trebuchet MS';
+    ctx.fillText('PONTOS', 10, 33);
+
+    // Distância / progresso
+    ctx.fillStyle = '#f5f7ff'; ctx.font = 'bold 16px Trebuchet MS';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.floor(g.dist) + ' / ' + GOAL + ' m', W/2, 14);
+    // barra de progresso
+    const pw = 150, px = W/2 - pw/2, py = 28;
+    ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(px,py,pw,7);
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(px,py, pw*Math.min(1,g.dist/GOAL), 7);
+    // bandeira no fim
+    ctx.fillStyle = '#fff'; ctx.font = '11px sans-serif';
+    ctx.fillText('🏁', px+pw+10, py+3);
+
+    // Velocidade
+    ctx.fillStyle = '#f5f7ff'; ctx.font = 'bold 20px Trebuchet MS';
+    ctx.textAlign = 'right';
+    const kmh = Math.floor(player.speed/2);
+    ctx.fillText(kmh + '', W-58, 16);
+    ctx.fillStyle = '#9aa6c8'; ctx.font = '10px Trebuchet MS';
+    ctx.fillText('KM/H', W-58, 33);
+
+    // Vidas
+    ctx.textAlign='right'; ctx.font='14px sans-serif';
+    let hs=''; for(let i=0;i<g.lives;i++) hs+='🚗';
+    ctx.fillText(hs, W-6, 22);
+
+    // Barra de combustível (lateral esquerda vertical)
+    const fx=8, fy=56, fh=H-120, fw=14;
+    ctx.fillStyle='rgba(5,8,20,.6)'; ctx.fillRect(fx-2,fy-14,fw+4,fh+22);
+    ctx.fillStyle='#9aa6c8'; ctx.font='9px Trebuchet MS'; ctx.textAlign='center';
+    ctx.fillText('⛽', fx+fw/2, fy-8);
+    ctx.fillStyle='rgba(255,255,255,.15)'; ctx.fillRect(fx,fy,fw,fh);
+    const fl = fh * (g.fuel/100);
+    const low = g.fuel < 25;
+    ctx.fillStyle = low ? (Math.floor(g.time*6)%2? '#ff3b30':'#ff8800') : '#4ade80';
+    ctx.fillRect(fx, fy+fh-fl, fw, fl);
+    ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=1; ctx.strokeRect(fx,fy,fw,fh);
+
+    // Combo
+    if (g.combo >= 3){
+      ctx.fillStyle='#ffd60a'; ctx.font='bold 15px Trebuchet MS'; ctx.textAlign='center';
+      ctx.fillText('COMBO x'+g.combo, W/2, 60);
+    }
+  }
+
+  // ---------- Loop principal ----------
+  let last = performance.now();
+  function frame(now){
+    let dt = (now - last)/1000;
+    last = now;
+    if (dt > 0.05) dt = 0.05;        // limita saltos grandes
+    update(dt);
+    // fundo padrão quando no menu
+    if (state===STATE.MENU){
+      ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+      drawGrass(); ctx.fillStyle='#42434d'; ctx.fillRect(ROAD_X,0,ROAD_W,H);
+      drawKerb();
+      // faixas paradas decorativas
+      ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=4; ctx.setLineDash([34,46]);
+      for(let i=1;i<LANES;i++){ const x=ROAD_X+laneW*i; ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+      ctx.setLineDash([]);
+      drawCar(W/2, H-130, 34, 58, '#ffd60a', false);
+    } else {
+      draw();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+})();
+</script>
+</body>
+</html>
