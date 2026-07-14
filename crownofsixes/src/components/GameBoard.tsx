@@ -961,7 +961,10 @@ const DiceManager = ({
       canvas: canvasRef.current,
       antialias: true,
       alpha: true,
+      powerPreference: "high-performance",
     });
+    // Renderiza na densidade real da tela (nitidez em telas de alto DPI / mobile)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     rendererRef.current = renderer;
@@ -1254,7 +1257,7 @@ const DiceManager = ({
       return geom;
     };
 
-    const diceGeom = createRoundedBoxGeometry(2.2, 2.2, 2.2, 0.28, 12);
+    const diceGeom = createRoundedBoxGeometry(2.9, 2.9, 2.9, 0.36, 12);
     const diceMeshes: THREE.Mesh[] = [];
     const diceBodies: CANNON.Body[] = [];
 
@@ -1341,9 +1344,9 @@ const DiceManager = ({
         linearDamping: 0.16,
         angularDamping: 0.16,
       });
-      body.addShape(new CANNON.Box(new CANNON.Vec3(1.1, 1.1, 1.1)));
+      body.addShape(new CANNON.Box(new CANNON.Vec3(1.45, 1.45, 1.45)));
       // Default starting positions clustered off-screen at the upper edge before throwing
-      body.position.set((i - 2) * 1.5, 18, 8);
+      body.position.set((i - 2) * 2.4, 18, 8);
       world.addBody(body);
       diceBodies.push(body);
     }
@@ -3768,7 +3771,7 @@ export function GameBoard() {
       </main>
 
       {/* Footer Actions */}
-      <footer className="h-auto min-h-[72px] md:min-h-[140px] border-t border-g-border bg-gradient-to-b from-[#0a0a0f] to-[#040407] flex items-center justify-center gap-2 md:gap-8 p-2 md:p-6 shadow-[0_-15px_40px_rgba(0,0,0,0.6)] relative z-20 overflow-hidden shrink-0">
+      <footer className="h-auto min-h-[72px] md:min-h-[140px] border-t border-g-border bg-gradient-to-b from-[#0a0a0f] to-[#040407] flex items-center justify-center gap-2 md:gap-8 p-2 md:p-6 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-15px_40px_rgba(0,0,0,0.6)] relative z-20 overflow-hidden shrink-0">
         {/* Subtle grid pattern for modern touch */}
         <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-cyan-500/50 via-g-gold/50 to-g-red/50 opacity-80" />
 
