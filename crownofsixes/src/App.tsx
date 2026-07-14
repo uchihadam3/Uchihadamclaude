@@ -300,7 +300,7 @@ function AppContent() {
   }
 
   return (
-    <div className="w-full h-screen h-[100dvh] bg-[#0a0c10] text-g-text font-sans overflow-hidden flex flex-col">
+    <div className="w-full h-[100svh] bg-[#0a0c10] text-g-text font-sans overflow-hidden flex flex-col">
       <div className="w-full h-full flex flex-col min-h-0">
         <GameBoard />
       </div>
