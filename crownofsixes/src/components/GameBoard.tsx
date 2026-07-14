@@ -278,7 +278,7 @@ const ScreenProjectedPopup = ({
         className={`relative flex flex-col items-center justify-center font-black font-mono text-5xl md:text-6xl ${colorClass} ${glowShadow}`}
         style={{ WebkitTextStroke: isMatched ? "3px #000" : "1px #000" }}
       >
-        <span>{pop.text}</span>
+        <span>{handNamePT(pop.text)}</span>
         {isAscended && isMatched && (
           <span
             className="text-sm md:text-base tracking-widest uppercase text-cyan-200 mt-1 font-bold"
@@ -399,6 +399,20 @@ const getComboStyle = (text: string) => {
     return "text-g-red drop-shadow-[0_0_8px_rgba(255,62,62,0.8)]";
   return "text-white";
 };
+
+// Traduz o nome da mão apenas na exibição (as chaves internas seguem em inglês)
+const HAND_NAMES_PT: Record<string, string> = {
+  "Solo Die": "Dado Solo",
+  Double: "Par",
+  "Two Doubles": "Dois Pares",
+  Triple: "Trinca",
+  Sequence: "Sequência",
+  "Full Chamber": "Câmara Cheia",
+  Quad: "Quadra",
+  Pentad: "Quinteto",
+  Combo: "Combo",
+};
+const handNamePT = (t: string): string => HAND_NAMES_PT[t] || t;
 
 const RulesModal = ({ onClose }: { onClose: () => void }) => {
   return (
@@ -2708,7 +2722,7 @@ export function GameBoard() {
           <div className="bg-zinc-950/70 border border-zinc-800/60 rounded-lg md:rounded-xl px-2 py-1 md:px-5 md:py-2.5 flex flex-col min-w-[50px] md:min-w-[130px] relative overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.5)]">
             <div className="absolute top-0 left-0 w-8 h-[2px] bg-emerald-500/80"></div>
             <span className="text-[6px] md:text-[9.5px] uppercase tracking-[0.2em] md:tracking-[0.25em] font-black text-zinc-500 mb-0.5 md:mb-0.5 leading-none mt-0.5">
-              Score
+              Placar
             </span>
             <span className="text-[10px] md:text-xl font-black text-emerald-400 font-mono tracking-tight leading-none drop-shadow-[0_0_8px_rgba(52,211,153,0.25)] pb-0.5">
               {state.totalScore}
@@ -2718,7 +2732,7 @@ export function GameBoard() {
           <div className="bg-zinc-950/70 border border-zinc-800/60 rounded-lg md:rounded-xl px-2 py-1 md:px-5 md:py-2.5 flex flex-col min-w-[60px] md:min-w-[135px] relative overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.5)]">
             <div className="absolute top-0 left-0 w-8 h-[2px] bg-blue-500/80"></div>
             <span className="text-[6px] md:text-[9.5px] uppercase tracking-[0.2em] md:tracking-[0.25em] font-black text-zinc-500 mb-0.5 leading-none mt-0.5">
-              Sector / R{state.round || 1}
+              Setor / R{state.round || 1}
             </span>
             <span
               className={`text-[9px] md:text-base font-black tracking-wider leading-none uppercase ${
@@ -2734,7 +2748,7 @@ export function GameBoard() {
           <div className="bg-zinc-950/70 border border-zinc-800/60 rounded-lg md:rounded-xl px-1.5 py-0.5 md:px-5 md:py-2.5 flex flex-col min-w-[45px] md:min-w-[120px] relative overflow-hidden shadow-[inset_0_1px_1px_rgba(255,255,255,0.05),0_4px_12px_rgba(0,0,0,0.5)]">
             <div className="absolute top-0 left-0 w-8 h-[2px] bg-g-gold/80"></div>
             <span className="text-[6px] md:text-[9.5px] uppercase tracking-[0.2em] md:tracking-[0.25em] font-black text-zinc-500 mb-0.5 leading-none mt-0.5">
-              Gold Shards
+              Ouro
             </span>
             <span className="text-[10px] md:text-xl font-black text-g-gold font-mono tracking-tight leading-none drop-shadow-[0_0_8px_rgba(212,175,55,0.35)] pb-0.5">
               ${state.gold}
@@ -2752,9 +2766,9 @@ export function GameBoard() {
               ],
             }}
             transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            className="text-2xl font-serif font-black tracking-[0.3em] text-g-gold uppercase drop-shadow-[0_2px_15px_rgba(212,175,55,0.4)]"
+            className="text-2xl font-serif font-black tracking-[0.28em] text-g-gold uppercase drop-shadow-[0_2px_15px_rgba(212,175,55,0.4)]"
           >
-            VOIDFORGE
+            CROWN OF SIXES
           </motion.h1>
           <div className="flex justify-center gap-1.5 mt-1 opacity-80">
             <motion.div
@@ -2863,12 +2877,12 @@ export function GameBoard() {
               {musicOn ? (
                 <>
                   <Volume2 className="w-2.5 h-2.5 md:w-3 md:h-3 text-g-gold animate-pulse" />{" "}
-                  On
+                  Som
                 </>
               ) : (
                 <>
                   <VolumeX className="w-2.5 h-2.5 md:w-3 md:h-3 text-g-muted/60" />{" "}
-                  Off
+                  Mudo
                 </>
               )}
             </button>
@@ -2883,7 +2897,7 @@ export function GameBoard() {
               }}
               className="flex items-center gap-1 text-[8px] md:text-[10px] uppercase tracking-widest text-g-muted hover:text-white transition-colors cursor-pointer"
             >
-              <HelpCircle className="w-2.5 h-2.5 md:w-3 md:h-3" /> Info
+              <HelpCircle className="w-2.5 h-2.5 md:w-3 md:h-3" /> Regras
             </button>
           </div>
         </div>
@@ -2913,7 +2927,7 @@ export function GameBoard() {
               }`}
             >
               <Scroll className="w-3 h-3 md:w-3.5 md:h-3.5 hidden sm:inline" />
-              <span>Talismans</span>
+              <span>Talismãs</span>
             </button>
             <button
               onMouseEnter={() => sfx.playHover()}
@@ -2943,7 +2957,7 @@ export function GameBoard() {
               }`}
             >
               <Box className="w-3 h-3 md:w-3.5 md:h-3.5 hidden sm:inline" />
-              <span>Dice XP</span>
+              <span>XP dos Dados</span>
             </button>
             <button
               onMouseEnter={() => sfx.playHover()}
@@ -2972,7 +2986,7 @@ export function GameBoard() {
                     <HelpCircle className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                   <span className="text-[9px] md:text-[10px] uppercase font-bold tracking-widest text-[#ffffff30]">
-                    No Talismans
+                    Nenhum Talismã
                   </span>
                 </div>
               ) : (
@@ -3050,15 +3064,15 @@ export function GameBoard() {
                           handIsActive ? "text-[#4ade80]" : "text-white"
                         }`}
                       >
-                        {handName}
+                        {handNamePT(handName)}
                       </span>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-[8px] md:text-[9px] text-zinc-500 font-mono tracking-widest leading-none">
-                          LVL {info.level}
+                          NÍV {info.level}
                         </span>
                         <span className="w-1 h-3 border-r border-zinc-800" />
                         <span className="text-[8px] text-purple-400 font-mono tracking-widest leading-none">
-                          ODDS{" "}
+                          CHANCE{" "}
                           {handName === "Solo Die"
                             ? "100%"
                             : handName === "Double"
@@ -3550,6 +3564,7 @@ export function GameBoard() {
                   const currentMult = liveScoringHUD.mult;
                   const currentText =
                     liveScoringHUD.text || "Calculando Rito...";
+                  const currentTextPT = handNamePT(currentText);
                   const currentTotal = Math.round(
                     liveScoringHUD.base * liveScoringHUD.mult,
                   );
@@ -3606,7 +3621,7 @@ export function GameBoard() {
                                 </motion.span>
                               ) : (
                                 <motion.span
-                                  key={`str-${currentText}`}
+                                  key={`str-${currentTextPT}`}
                                   initial={{ opacity: 0, y: 5 }}
                                   animate={{ opacity: 1, y: 0 }}
                                   className={`text-sm md:text-base font-black tracking-[0.2em] uppercase font-mono ${
@@ -3617,7 +3632,7 @@ export function GameBoard() {
                                         : "text-white/80"
                                   }`}
                                 >
-                                  {currentText}
+                                  {currentTextPT}
                                 </motion.span>
                               )}
                             </AnimatePresence>
@@ -3765,7 +3780,7 @@ export function GameBoard() {
           }
           className="h-10 sm:h-16 md:h-18 px-4 sm:px-10 md:px-18 bg-gradient-to-r from-white to-zinc-100 text-black rounded-lg md:rounded-2xl font-black text-xs sm:text-lg md:text-xl uppercase tracking-wider shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.35)] hover:scale-105 active:scale-95 transition-all group flex items-center gap-2 md:gap-4 disabled:opacity-30 disabled:hover:scale-100 cursor-pointer border-t border-white"
         >
-          <span>ROLL DICE</span>
+          <span>ROLAR DADOS</span>
           <span className="w-5 h-5 sm:w-8 sm:h-8 bg-black/10 rounded-lg flex items-center justify-center font-mono text-[10px] sm:text-sm border border-black/10">
             {state.rollsLeft}
           </span>
@@ -3797,10 +3812,10 @@ export function GameBoard() {
           }`}
         >
           {state.currentRoundScore >= state.targetScore
-            ? "CLAIM VICTORY"
+            ? "RECLAMAR VITÓRIA"
             : state.rollsLeft <= 0
-              ? "SUBMIT RESULTS"
-              : "REACH THE GOAL"}
+              ? "ENVIAR RESULTADO"
+              : "ALCANCE A META"}
         </button>
       </footer>
     </div>
