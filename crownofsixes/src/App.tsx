@@ -155,7 +155,7 @@ function AppContent() {
 
   if (state.status === 'menu') {
     return (
-      <div className="min-h-screen bg-g-bg relative flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+      <div className="min-h-screen bg-g-bg relative flex flex-col items-center overflow-y-auto p-4 md:p-6 text-center">
         {/* Futuristic Retro Moving Grid Pattern Background */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(212,175,55,0.12)_0%,rgba(10,10,12,0.95)_75%)] pointer-events-none z-0" />
         <div 
@@ -204,7 +204,7 @@ function AppContent() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="z-10 bg-g-panel/30 border border-g-border/60 hover:border-g-gold/30 p-10 md:p-14 rounded-3xl max-w-xl backdrop-blur-md shadow-[0_0_80px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(212,175,55,0.02)] transition-colors relative"
+          className="z-10 my-auto w-full max-w-xl bg-g-panel/30 border border-g-border/60 hover:border-g-gold/30 p-6 md:p-14 rounded-3xl backdrop-blur-md shadow-[0_0_80px_rgba(0,0,0,0.8),inset_0_0_30px_rgba(212,175,55,0.02)] transition-colors relative"
         >
           {/* Top glowing gem visual crown */}
           <div className="flex justify-center mb-6">
@@ -219,11 +219,11 @@ function AppContent() {
             </motion.div>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-serif italic tracking-widest text-g-gold uppercase mb-4 drop-shadow-[0_0_25px_rgba(212,175,55,0.45)] font-bold">
+          <h1 className="text-4xl md:text-7xl font-serif italic tracking-widest text-g-gold uppercase mb-4 drop-shadow-[0_0_25px_rgba(212,175,55,0.45)] font-bold">
             Crown of Sixes
           </h1>
 
-          <div className="flex justify-center gap-1.5 mt-1 mb-8">
+          <div className="flex justify-center gap-1.5 mt-1 mb-6 md:mb-8">
             <div className="h-[3px] w-12 bg-g-gold shadow-[0_0_10px_#d4af37]"></div>
             <div className="h-[3px] w-12 bg-g-gold shadow-[0_0_10px_#d4af37]"></div>
             <div className="h-[3px] w-12 bg-g-gold shadow-[0_0_10px_#d4af37]"></div>
@@ -231,7 +231,7 @@ function AppContent() {
             <div className="h-[3px] w-12 bg-zinc-800"></div>
           </div>
 
-          <p className="text-xs md:text-sm text-g-muted max-w-sm mx-auto mb-10 tracking-[0.25em] leading-relaxed select-none font-serif font-black uppercase text-center">
+          <p className="text-[11px] md:text-sm text-g-muted max-w-sm mx-auto mb-6 md:mb-10 tracking-[0.2em] md:tracking-[0.25em] leading-relaxed select-none font-serif font-black uppercase text-center">
             Manipule dados antigos. Erga multiplicadores arcanos. Domine o caos antes que ele consuma sua alma.
           </p>
 
@@ -241,7 +241,7 @@ function AppContent() {
               whileTap={{ scale: 0.98 }}
               onMouseEnter={() => sfx.playHover()}
               onClick={handleStartGame}
-              className="w-full sm:w-auto px-10 py-5 bg-g-gold text-black font-serif font-black text-lg uppercase tracking-widest hover:bg-white transition-colors cursor-pointer border border-transparent rounded-xl"
+              className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-g-gold text-black font-serif font-black text-base md:text-lg uppercase tracking-widest hover:bg-white transition-colors cursor-pointer border border-transparent rounded-xl"
             >
               Iniciar Caminhada ⚔️
             </motion.button>
@@ -253,7 +253,7 @@ function AppContent() {
                 sfx.playPowerup();
                 dispatch({ type: 'ENTER_META_LAB' });
               }}
-              className="w-full sm:w-auto px-10 py-5 bg-gradient-to-r from-g-red to-[#5c0000] hover:brightness-110 text-white font-serif font-black text-lg uppercase tracking-widest hover:border-g-gold transition-all cursor-pointer border border-g-border rounded-xl shadow-[0_0_20px_rgba(139,0,0,0.3)]"
+              className="w-full sm:w-auto px-8 md:px-10 py-4 md:py-5 bg-gradient-to-r from-g-red to-[#5c0000] hover:brightness-110 text-white font-serif font-black text-base md:text-lg uppercase tracking-widest hover:border-g-gold transition-all cursor-pointer border border-g-border rounded-xl shadow-[0_0_20px_rgba(139,0,0,0.3)]"
             >
               Altar Alquímico 🏛️
             </motion.button>
@@ -262,7 +262,7 @@ function AppContent() {
           {/* Quick Dice Set Selection in Main Menu */}
           {state.unlockedDiceSets && state.unlockedDiceSets.length > 1 && (
             <div className="mt-8 border-t border-zinc-800/20 pt-6">
-              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-3">Equipped Dice Set</span>
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-3">Conjunto de Dados</span>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 {[
                   { id: 'default', name: 'Original' },
