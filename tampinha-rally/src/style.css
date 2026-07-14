@@ -391,6 +391,21 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .play-btn[disabled]{opacity:.45;pointer-events:none;filter:saturate(.4)}
 .play-btn.ready{background:linear-gradient(180deg,#6ee08a,#2fae57)}
 .play-btn.ready.on{background:linear-gradient(180deg,#ffd66e,#e8a33c)}
+
+/* ===== painel do dono (visitas) ===== */
+.owner-dot{margin-top:14px;align-self:center;background:#00000022;border-radius:50%;width:36px;height:36px;font-size:16px;opacity:.5}
+.owner-dot:active{transform:scale(.92)}
+.vd-today{margin-top:10px;text-align:center;font-size:19px;font-weight:800;color:var(--ink);background:#fff8;border-radius:14px;padding:10px}
+.vd-today b{color:#c0392b;font-size:24px}
+.vd-list{margin-top:10px;display:flex;flex-direction:column;gap:5px;max-height:44vh;overflow-y:auto}
+.vd-row{display:flex;align-items:center;gap:8px}
+.vd-date{flex:none;width:86px;font-size:12px;font-weight:800;color:#7a5a30}
+.vd-bar{flex:1;height:16px;background:#00000012;border-radius:8px;overflow:hidden}
+.vd-bar i{display:block;height:100%;background:linear-gradient(90deg,#5fd0e8,#2aa8c8);border-radius:8px}
+.vd-n{flex:none;min-width:26px;text-align:right;font-weight:900;color:var(--ink);font-size:14px}
+.vd-new{flex:none;min-width:52px;font-size:11px;font-weight:800;color:#2fae57}
+.vd-foot{margin-top:10px;text-align:center;font-weight:800;color:#7a5a30;font-size:13px}
+.vd-note{margin-top:8px;font-size:11px;line-height:1.45;color:#9a7550;font-weight:600;text-align:center}
 .ol-wait2{color:#9a7550;font-weight:800;font-size:13px;align-self:center}
 
 @media(max-width:430px){ .mode-grid{grid-template-columns:1fr;max-width:340px} .logo h1{font-size:13vw} .mode-btn.feat .mi{font-size:30px} .ov.wide{width:94vw} }

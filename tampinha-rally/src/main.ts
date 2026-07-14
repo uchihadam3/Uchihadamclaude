@@ -386,6 +386,8 @@ const ui = new UI({
   preview: (def) => enterPreview(def),
 }, online);
 ui.dailyNet = dailyNet;   // ranking mundial do diário na tela do desafio
+// contador de visitas: ping anônimo, 1 por aparelho por dia (depois do boot acalmar)
+setTimeout(() => { import('./net/visits').then(v => v.pingVisit()).catch(() => {}); }, 3000);
 
 // -------- multiplayer online: início/lobby/fim geridos aqui (cena + IA do host) --------
 online.onStartMatch = (players, level, trackIdx) => { curCfg = null; champ = null; resultsShown = false; loadMatch({ level, trackIdx, pick: 'specific', players, mode: 'online' }); };

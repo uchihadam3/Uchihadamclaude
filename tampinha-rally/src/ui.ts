@@ -13,6 +13,7 @@ import { RankNet, RankRow, standings as rankStandings, nameFree, validName, name
 import { CapStats } from './engine/core';
 import { Online } from './net/online';
 import { Salon, SalonRoom } from './net/salon';
+import { VisitLog, ownerUnlocked, unlockOwner } from './net/visits';
 import { save, capLevel, capLevelProgress } from './game/save';
 import { settings } from './audio';
 import { getLang, toggleLang } from './i18n';
@@ -1443,6 +1444,7 @@ export class UI {
       <div class="cfg-row"><label>Mudo</label><button class="chip" id="mute">${settings.muted ? '🔇 Ligado' : '🔊 Desligado'}</button></div>
       <div class="cfg-row"><label>📱 Conta</label><div style="display:flex;gap:8px"><button class="chip" id="txout">📤 Transferir</button><button class="chip" id="txin">📥 Receber</button></div></div>
       <div class="how"><b>Como jogar:</b> arraste a tampinha <b>para trás</b> e solte — quanto mais puxa, mais forte. 3 petelecos por vez; chegue primeiro! <b>Proteção:</b> pistas fáceis têm muro que te segura na pista; nas difíceis o muro some e é fácil <b>cair fora</b> (volta pro início do turno). <b>Buraco</b> = volta ao checkpoint e perde 1 peteléco · <b>X</b> = perde a vez · <b>verde +1/+2/+3</b> = petelecos extras. Câmera: dois dedos giram/aproximam.</div>
+      <button class="owner-dot" id="ownerBtn" title="dono">👑</button>
     </div>`);
     this.root.appendChild(s);
     s.prepend(this.bgFx(5));
@@ -1478,6 +1480,49 @@ export class UI {
         setTimeout(() => location.reload(), 900);
       });
     });
+    // 👑 PAINEL DO DONO (trancado por código secreto — só o hash vive no jogo)
+    s.querySelector('#ownerBtn')!.addEventListener('click', () => {
+      if (ownerUnlocked()) { this.showOwnerPanel(); return; }
+      const { box, close } = this.overlay(`
+        <div class="ov-head"><b>👑 Painel do dono</b><button class="ov-x">✕</button></div>
+        <div class="ov-sub">Área restrita — digite o código secreto do dono:</div>
+        <input class="ol-name pass" id="ocode" maxlength="20" placeholder="código" autocomplete="off"/>
+        <div class="ov-btnrow"><button class="play-btn" id="ook">Abrir ▶</button></div>`);
+      box.querySelector('.ov-x')!.addEventListener('click', close);
+      const inp = box.querySelector('#ocode') as HTMLInputElement; setTimeout(() => inp.focus(), 50);
+      const go = () => { if (unlockOwner(inp.value)) { close(); this.showOwnerPanel(); } else this.notify('Código errado', 'bad'); };
+      inp.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') go(); });
+      box.querySelector('#ook')!.addEventListener('click', go);
+    });
+  }
+
+  // livro de visitas: quantos aparelhos abriram o jogo por dia (só o dono vê)
+  private showOwnerPanel(): void {
+    const { box, close } = this.overlay(`
+      <div class="ov-head"><b>👑 Visitas do jogo</b><button class="ov-x">✕</button></div>
+      <div class="ov-sub" id="vstat">🟡 conectando…</div>
+      <div class="vd-today" id="vtoday"></div>
+      <div class="vd-list" id="vdays"></div>
+      <div class="vd-foot" id="vfoot"></div>
+      <div class="vd-note">Contagem anônima: cada aparelho manda só "abri o jogo hoje" — sem nome, sem nada. O histórico vive nos relays públicos (melhor esforço).</div>`, 'wide');
+    const vl = new VisitLog();
+    const paint = () => {
+      if (!box.isConnected) return;
+      (box.querySelector('#vstat') as HTMLElement).textContent = vl.status === 'online' ? '🟢 ao vivo' : '🟡 conectando…';
+      const t = vl.today();
+      (box.querySelector('#vtoday') as HTMLElement).innerHTML = `Hoje: <b>${t ? t.total : 0}</b> · novos: <b>${t ? t.novos : 0}</b>`;
+      const days = vl.list(21);
+      const list = box.querySelector('#vdays') as HTMLElement; list.innerHTML = '';
+      if (!days.length) list.innerHTML = `<div class="sal-empty">ainda sem visitas registradas</div>`;
+      const max = Math.max(1, ...days.map(d => d.total));
+      days.forEach(d => {
+        list.appendChild(this.el(`<div class="vd-row"><span class="vd-date">${d.label}</span><div class="vd-bar"><i style="width:${Math.max(6, Math.round(d.total / max * 100))}%"></i></div><span class="vd-n">${d.total}</span><span class="vd-new">${d.novos ? '+' + d.novos + ' 🆕' : ''}</span></div>`));
+      });
+      (box.querySelector('#vfoot') as HTMLElement).innerHTML = `Aparelhos únicos no total: <b>${vl.totalDevices()}</b>`;
+    };
+    vl.onChange = paint;
+    vl.start(); paint();
+    box.querySelector('.ov-x')!.addEventListener('click', () => { vl.stop(); close(); });
   }
 
   // ---------------------------------------------------------- OVERLAYS

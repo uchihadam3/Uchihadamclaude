@@ -236,6 +236,13 @@ const D: Record<string, string> = {
   '👍 Estou PRONTO': "👍 I'm READY", '✅ PRONTO! (toque pra desmarcar)': '✅ READY! (tap to unmark)',
   '👆 Aperte PRONTO pra partida poder começar': '👆 Press READY so the match can start',
   '🔒 com senha': '🔒 password', '🟡 conectando ao salão…': '🟡 connecting to the lounge…', '🔴 salão fora do ar': '🔴 lounge offline',
+  // painel do dono (visitas)
+  '👑 Painel do dono': '👑 Owner panel', 'Área restrita — digite o código secreto do dono:': 'Restricted area — enter the owner secret code:',
+  'Abrir ▶': 'Open ▶', 'Código errado': 'Wrong code',
+  '👑 Visitas do jogo': '👑 Game visits', '🟢 ao vivo': '🟢 live',
+  'Hoje:': 'Today:', '· novos:': '· new:', 'Aparelhos únicos no total:': 'Unique devices overall:',
+  'ainda sem visitas registradas': 'no visits recorded yet',
+  'Contagem anônima: cada aparelho manda só "abri o jogo hoje" — sem nome, sem nada. O histórico vive nos relays públicos (melhor esforço).': 'Anonymous count: each device only says "opened the game today" — no name, nothing. History lives on public relays (best effort).',
   // como jogar
   'Como jogar:': 'How to play:', 'arraste a tampinha': 'drag your cap', 'para trás': 'backwards',
   'e solte — quanto mais puxa, mais forte. 3 petelecos por vez; chegue primeiro!': 'and release — the farther you pull, the stronger. 3 flicks per turn; finish first!',
