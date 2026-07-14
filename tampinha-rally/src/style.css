@@ -329,6 +329,34 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .chip.big{font-size:15px;padding:11px 18px}
 .ol-tip{margin-top:16px;max-width:340px;color:#ffe9c8;font-size:11.5px;line-height:1.5;text-align:center;font-weight:600;text-shadow:0 1px 3px #0006}
 
+/* ===== salão online ===== */
+.salon .ol-face{width:82px;height:82px;margin:10px 0 0}
+.sal-id{display:flex;align-items:center;gap:14px;margin-top:6px;width:min(92vw,360px)}
+.sal-idcol{flex:1;min-width:0}
+.sal-idcol .ol-namelab{margin-top:0;text-align:left}
+.sal-idcol .ol-name{width:100%;text-align:left}
+.sal-status{margin-top:10px;font-size:12px;font-weight:900;color:#ffe9c8;background:#00000030;padding:5px 14px;border-radius:14px;text-shadow:0 1px 3px #0006}
+.sal-box{width:min(92vw,360px);margin-top:12px;background:var(--glass);border-radius:18px;padding:12px 12px 10px;box-shadow:var(--shadow)}
+.sal-h{font-size:13px;font-weight:900;color:#7a5a30;margin-bottom:7px;letter-spacing:.3px}
+.sal-list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto}
+.sal-row{display:flex;align-items:center;gap:9px;background:#fff8;border-radius:13px;padding:7px 10px}
+.sal-dot{width:10px;height:10px;border-radius:50%;background:#3fcf6f;box-shadow:0 0 6px #3fcf6f;flex:none}
+.sal-lockico{flex:none;font-size:15px}
+.sal-name{flex:1;min-width:0;font-weight:800;color:var(--ink);font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sal-meta{flex:none;font-size:12px;font-weight:800;color:#7a5a30;background:#f0e2cd;padding:3px 9px;border-radius:12px}
+.sal-row .chip{flex:none;font-size:12.5px;padding:7px 11px}
+.sal-empty{color:#9a7550;font-weight:700;font-size:12.5px;text-align:center;padding:8px 4px}
+.sal-slots{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sal-slots .chip{min-width:42px;text-align:center}
+.sal-slotlab{font-size:12px;font-weight:800;color:#7a5a30;margin-left:2px}
+.sal-passrow{display:flex;gap:8px;margin-top:9px;align-items:stretch}
+.sal-passrow .ol-name.pass{flex:1;min-width:0;margin-top:0;width:auto;text-align:left;font-size:14px;padding:10px 12px;background:#fff}
+.play-btn.slim{padding:10px 18px;font-size:15px;margin-top:0;flex:none}
+.sal-note{margin-top:9px;font-size:11.5px;line-height:1.45;color:#9a7550;font-weight:600}
+.ov .ol-name.pass{display:block;margin:12px auto 0;background:#fff;border:2px solid var(--gold)}
+.ov-btnrow{display:flex;gap:10px;justify-content:center;margin-top:14px;align-items:center}
+.ov-btnrow .play-btn{margin-top:0}
+
 /* ===== lobby ===== */
 .lobby{align-items:center}
 .lob-code{display:flex;align-items:center;gap:10px;margin-top:12px;background:var(--glass);border-radius:18px;padding:10px 14px;box-shadow:var(--shadow);flex-wrap:wrap;justify-content:center}
@@ -347,6 +375,13 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 .lob-total{display:flex;align-items:center;gap:12px;color:#fff;font-weight:900;text-shadow:0 2px 4px #0006;margin-top:4px}
 .lob-total small{font-weight:700;opacity:.85;font-size:11px}
 .lob-wait{background:var(--glass);border-radius:16px;padding:16px;color:var(--ink);text-align:center;font-weight:700;font-size:14px;box-shadow:var(--shadow);line-height:1.5}
+.lc-lock{font-size:12px;font-weight:900;color:#7a5a30;background:#f0e2cd;padding:4px 10px;border-radius:12px}
+.lob-seat .rdy{flex:none;font-size:15px;opacity:.55}
+.lob-seat .rdy.on{opacity:1;filter:drop-shadow(0 0 4px #3fcf6f)}
+.lob-rdyhint{color:#ffe9c8;font-weight:800;font-size:12.5px;text-shadow:0 1px 3px #0006;background:#00000030;padding:5px 12px;border-radius:12px}
+.play-btn[disabled]{opacity:.45;pointer-events:none;filter:saturate(.4)}
+.play-btn.ready{background:linear-gradient(180deg,#6ee08a,#2fae57)}
+.play-btn.ready.on{background:linear-gradient(180deg,#ffd66e,#e8a33c)}
 .ol-wait2{color:#9a7550;font-weight:800;font-size:13px;align-self:center}
 
 @media(max-width:430px){ .mode-grid{grid-template-columns:1fr;max-width:340px} .logo h1{font-size:13vw} .mode-btn.feat .mi{font-size:30px} .ov.wide{width:94vw} }

@@ -12,6 +12,7 @@ import { RANK_TIERS, RANK_COMPS, RankComp, RankCirc, rankCompById, rankState, sa
 import { RankNet, RankRow, standings as rankStandings, nameFree, validName, nameKey } from './net/rank';
 import { CapStats } from './engine/core';
 import { Online } from './net/online';
+import { Salon, SalonRoom } from './net/salon';
 import { save, capLevel, capLevelProgress } from './game/save';
 import { settings } from './audio';
 import { getLang, toggleLang } from './i18n';
@@ -40,6 +41,8 @@ export interface UICallbacks {
 }
 
 const AI_NAMES = ['Bolha', 'Zé', 'Nina', 'Tato', 'Duda', 'Chico', 'Lila'];
+// escape de textos vindos da rede (nomes de outros jogadores) antes de ir pro HTML
+const escN = (x: string) => x.replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as any)[ch]);
 
 export class UI {
   root = document.getElementById('ui')!;
@@ -1602,36 +1605,155 @@ export class UI {
     s.querySelector('#monline')!.addEventListener('click', () => this.showOnlineHome());
   }
 
+  // ------------------------------------------------------ SALÃO ONLINE
+  private salonInst: Salon | null = null;
+  private salSlots = 4;                     // tamanho escolhido pra "Criar sala"
+  private pendingCall: string | null = null; // convite pendente: mando quando a sala abrir
+  private salon(): Salon {
+    if (!this.salonInst) {
+      this.salonInst = new Salon();
+      this.salonInst.onInvite = (from, code) => this.showInviteCall(from, code);
+    }
+    return this.salonInst;
+  }
+  // nome atual (lê o campo da tela se estiver aberto) — e salva
+  private salonName(): string {
+    const el = this.root.querySelector('#oname') as HTMLInputElement | null;
+    const n = ((el ? el.value : this.myName) || 'Você').slice(0, 12);
+    this.myName = n; save.setName(n); return n;
+  }
+
   showOnlineHome(): void {
     this.clear();
-    const s = this.el(`<div class="screen setup online-home">
-      <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Jogar Online</h2><div></div></div>
-      <div class="ol-face" id="olface"></div>
-      <div class="ol-facelab">sua tampinha (toque pra trocar)</div>
-      <div class="ol-namelab">✏️ Seu nome (os outros vão ver assim)</div>
-      <input class="ol-name" id="oname" maxlength="12" value="${this.myName}" placeholder="Seu nome"/>
-      <button class="play-btn" id="create">➕ Criar sala</button>
+    const s = this.el(`<div class="screen setup online-home salon">
+      <div class="setup-head"><button class="txt-btn" id="back">‹ Voltar</button><h2>Salão Online</h2><div></div></div>
+      <div class="sal-id">
+        <div class="ol-face" id="olface"></div>
+        <div class="sal-idcol">
+          <div class="ol-namelab">✏️ Seu nome (os outros vão ver assim)</div>
+          <input class="ol-name" id="oname" maxlength="12" value="${escN(this.myName)}" placeholder="Seu nome"/>
+        </div>
+      </div>
+      <div class="sal-status" id="olstatus">conectando ao salão…</div>
+      <div class="sal-box">
+        <div class="sal-h">🧑‍🤝‍🧑 Quem está online</div>
+        <div class="sal-list" id="olusers"></div>
+      </div>
+      <div class="sal-box">
+        <div class="sal-h">🚪 Salas abertas</div>
+        <div class="sal-list" id="olrooms"></div>
+      </div>
+      <div class="sal-box create">
+        <div class="sal-h">➕ Criar sala</div>
+        <div class="sal-slots" id="slotrow"></div>
+        <div class="sal-passrow">
+          <input class="ol-name pass" id="opass" maxlength="20" placeholder="senha (opcional)" autocomplete="off"/>
+          <button class="play-btn slim" id="create">Criar ▶</button>
+        </div>
+        <div class="sal-note">Sem senha a sala fica <b>livre</b> no salão; com senha 🔒 só entra quem souber. Vaga que sobrar vira <b>IA</b>.</div>
+      </div>
       <div class="ol-or"><span>ou entre num código</span></div>
       <div class="ol-join">
         <input class="ol-code" id="ocode" maxlength="5" placeholder="CÓDIGO" autocomplete="off"/>
         <button class="chip big" id="join">Entrar ▶</button>
       </div>
-      <div class="ol-tip">Cada um no seu aparelho ou aba. Até <b>6</b> jogadores — complete o resto com <b>IA</b>. Conexão direta P2P.</div>
+      <div class="ol-tip">Cada um no seu aparelho ou aba. A corrida é conexão direta <b>P2P</b> — o salão só mostra quem está por aí e as salas abertas.</div>
     </div>`);
     this.root.appendChild(s); s.prepend(this.bgFx(5));
-    const cv = drawCap(skinById(save.skin()).art, 96); cv.style.width = '86px'; cv.style.height = '86px'; cv.style.display = 'block'; cv.style.margin = '0 auto';
+    const cv = drawCap(skinById(save.skin()).art, 96); cv.style.width = '72px'; cv.style.height = '72px'; cv.style.display = 'block'; cv.style.margin = '0 auto';
     const face = s.querySelector('#olface') as HTMLElement; face.appendChild(cv);
     face.addEventListener('click', () => this.showCapPicker(save.skin(), (id) => { this.cb.setSkin(id); this.showOnlineHome(); }));
     const nameEl = s.querySelector('#oname') as HTMLInputElement;
     const codeEl = s.querySelector('#ocode') as HTMLInputElement;
-    const grabName = () => { this.myName = (nameEl.value || 'Você').slice(0, 12); save.setName(this.myName); return this.myName; };
-    nameEl.addEventListener('change', grabName);
+    nameEl.addEventListener('change', () => this.salon().start(this.salonName()));
     codeEl.addEventListener('input', () => codeEl.value = codeEl.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5));
-    s.querySelector('#back')!.addEventListener('click', () => { this.online.leave(); this.showMultiplayer(); });
-    s.querySelector('#create')!.addEventListener('click', () => { this.online.createRoom(grabName(), save.skin()); this.showLobby('Criando sala…'); });
+    // fatias de "quantos jogadores" da sala nova
+    const slotRow = s.querySelector('#slotrow') as HTMLElement;
+    const drawSlots = () => {
+      slotRow.innerHTML = [2, 3, 4, 5, 6].map(n => `<button class="chip ${n === this.salSlots ? 'sel' : ''}" data-s="${n}">${n}</button>`).join('') + '<span class="sal-slotlab">jogadores</span>';
+      slotRow.querySelectorAll('[data-s]').forEach(b => b.addEventListener('click', () => { this.salSlots = +(b as HTMLElement).dataset.s!; drawSlots(); }));
+    };
+    drawSlots();
+    s.querySelector('#back')!.addEventListener('click', () => { this.salonInst?.stop(); this.online.leave(); this.showMultiplayer(); });
+    s.querySelector('#create')!.addEventListener('click', () => {
+      const pass = (s.querySelector('#opass') as HTMLInputElement).value.trim();
+      this.online.createRoom(this.salonName(), save.skin(), { slots: this.salSlots, pass });
+      this.showLobby('Criando sala…');
+    });
     s.querySelector('#join')!.addEventListener('click', () => {
       const c = codeEl.value.trim(); if (c.length < 4) { this.notify('Digite o código da sala', 'bad'); return; }
-      this.online.joinRoom(c, grabName(), save.skin()); this.showLobby('Entrando na sala…');
+      this.online.joinRoom(c, this.salonName(), save.skin()); this.showLobby('Entrando na sala…');
+    });
+    // liga o salão (presença + mural de salas ao vivo)
+    const sal = this.salon();
+    sal.closeRoom();                        // cheguei aqui = não estou hospedando nada
+    sal.onChange = () => this.renderSalon();
+    sal.start(this.myName);
+    this.renderSalon();
+  }
+
+  private renderSalon(): void {
+    const scr = this.root.querySelector('.salon'); if (!scr) return;
+    const sal = this.salon();
+    const users = sal.usersOnline().filter(u => u.pub !== sal.myPub());
+    const rooms = sal.roomsOpen().filter(r => r.pub !== sal.myPub());
+    const stEl = scr.querySelector('#olstatus') as HTMLElement;
+    stEl.textContent = sal.status === 'online' ? `🟢 ao vivo — ${users.length + 1} no salão` : sal.status === 'connecting' ? '🟡 conectando ao salão…' : '🔴 salão fora do ar';
+    // pessoas
+    const uEl = scr.querySelector('#olusers') as HTMLElement; uEl.innerHTML = '';
+    if (!users.length) uEl.innerHTML = `<div class="sal-empty">ninguém mais por aqui agora — chama os amigos!</div>`;
+    users.forEach(u => {
+      const row = this.el(`<div class="sal-row"><span class="sal-dot"></span><span class="sal-name">${escN(u.name)}</span><button class="chip scall">🤙 Chamar</button></div>`);
+      row.querySelector('.scall')!.addEventListener('click', () => this.callUser(u.pub, u.name));
+      uEl.appendChild(row);
+    });
+    // salas
+    const rEl = scr.querySelector('#olrooms') as HTMLElement; rEl.innerHTML = '';
+    if (!rooms.length) rEl.innerHTML = `<div class="sal-empty">nenhuma sala aberta — crie a primeira!</div>`;
+    const MICO: Record<string, string> = { normal: '🏁', dupla: '🤝', champ: '🏆' };
+    rooms.forEach(r => {
+      const row = this.el(`<div class="sal-row room"><span class="sal-lockico">${r.lock ? '🔒' : '🟢'}</span><span class="sal-name">${escN(r.host)}</span><span class="sal-meta">${MICO[r.mode] || '🏁'} ${r.taken}/${r.slots}</span><button class="chip sin">Entrar ▶</button></div>`);
+      row.querySelector('.sin')!.addEventListener('click', () => this.enterRoom(r));
+      rEl.appendChild(row);
+    });
+  }
+
+  // entrar numa sala do mural (pede a senha se tiver 🔒)
+  private enterRoom(r: SalonRoom): void {
+    const go = (pass = '') => { this.online.joinRoom(r.code, this.salonName(), save.skin(), pass); this.showLobby('Entrando na sala…'); };
+    if (!r.lock) { go(); return; }
+    const { box, close } = this.overlay(`<div class="ov-head"><b>🔒 Sala de ${escN(r.host)}</b><button class="ov-x">✕</button></div>
+      <div class="ov-sub">Essa sala tem senha — digite pra entrar:</div>
+      <input class="ol-name pass" id="pw" maxlength="20" placeholder="senha" autocomplete="off"/>
+      <div class="ov-btnrow"><button class="play-btn" id="okpw">Entrar ▶</button></div>`);
+    box.querySelector('.ov-x')!.addEventListener('click', close);
+    const pw = box.querySelector('#pw') as HTMLInputElement; setTimeout(() => pw.focus(), 50);
+    const ok = () => { const p = pw.value.trim(); close(); go(p); };
+    pw.addEventListener('keydown', (e) => { if ((e as KeyboardEvent).key === 'Enter') ok(); });
+    box.querySelector('#okpw')!.addEventListener('click', ok);
+  }
+
+  // 🤙 chamar alguém: se já tenho sala mando o convite; senão crio uma na hora
+  private callUser(pub: string, name: string): void {
+    const o = this.online;
+    if (o.isHost && o.inRoom && o.code) { this.salon().invite(pub, o.code); this.notify(`🤙 ${name} foi chamado!`, 'good'); return; }
+    this.pendingCall = pub;
+    o.createRoom(this.salonName(), save.skin(), { slots: this.salSlots });
+    this.showLobby(`Criando sala pra chamar ${name}…`);
+  }
+
+  // 📣 fui chamado por alguém
+  private showInviteCall(from: string, code: string): void {
+    if (this.online.active) return;    // no meio de uma corrida não atrapalha
+    const { box, close } = this.overlay(`<div class="ov-head"><b>📣 ${escN(from)} te chamou!</b><button class="ov-x">✕</button></div>
+      <div class="ov-sub">Quer entrar na sala <b>${code}</b> pra jogar agora?</div>
+      <div class="ov-btnrow"><button class="chip big" id="nah">Agora não</button><button class="play-btn" id="go">Bora! ▶</button></div>`);
+    box.querySelector('.ov-x')!.addEventListener('click', close);
+    box.querySelector('#nah')!.addEventListener('click', close);
+    box.querySelector('#go')!.addEventListener('click', () => {
+      close(); this.salonInst?.closeRoom(); this.online.leave();
+      this.online.joinRoom(code, this.salonName(), save.skin());
+      this.showLobby('Entrando na sala…');
     });
   }
 
@@ -1646,7 +1768,7 @@ export class UI {
       <div class="lob-ctrl" id="ctrl"></div>
     </div>`);
     this.root.appendChild(s); s.prepend(this.bgFx(4));
-    s.querySelector('#back')!.addEventListener('click', () => { this.lobbyOpen = false; this.online.leave(); this.showOnlineHome(); });
+    s.querySelector('#back')!.addEventListener('click', () => { this.lobbyOpen = false; this.pendingCall = null; this.salonInst?.closeRoom(); this.online.leave(); this.showOnlineHome(); });
     // eventos da sala
     this.online.onCode = () => this.renderLobby();
     this.online.onRoster = () => this.renderLobby();
@@ -1658,8 +1780,15 @@ export class UI {
     const scr = this.root.querySelector('.lobby'); if (!scr) return;
     const o = this.online;
     (scr.querySelector('#code') as HTMLElement).innerHTML = o.code
-      ? `<span class="lc-lab">código</span><span class="lc-val" id="cval">${o.code}</span><button class="chip lc-copy" id="copy">📋 Compartilhar</button>`
+      ? `<span class="lc-lab">código</span><span class="lc-val" id="cval">${o.code}</span>${o.isHost && o.pass ? '<span class="lc-lock">🔒 com senha</span>' : ''}<button class="chip lc-copy" id="copy">📋 Compartilhar</button>`
       : `<span class="lc-lab">conectando…</span>`;
+    // anfitrião: mantém a sala anunciada no salão (e manda convite pendente do 🤙)
+    if (o.isHost && o.code && !o.active) {
+      const sal = this.salon();
+      if (sal.status === 'off') sal.start(o.myName);
+      sal.publishRoom(o.roomInfo());
+      if (this.pendingCall) { sal.invite(this.pendingCall, o.code); this.pendingCall = null; this.notify('🤙 Convite enviado!', 'good'); }
+    }
     const copy = scr.querySelector('#copy'); if (copy) copy.addEventListener('click', () => {
       const txt = 'Bora jogar Tampinha Rally! Código da sala: ' + o.code;
       if ((navigator as any).share) (navigator as any).share({ text: txt }).catch(() => {});
@@ -1668,17 +1797,21 @@ export class UI {
     });
     // assentos
     const seatsEl = scr.querySelector('#seats') as HTMLElement; seatsEl.innerHTML = '';
-    const seats = o.seats.length ? o.seats : [{ name: o.myName, skin: o.mySkin, kind: 'human' as const, owner: 'host' }];
-    (scr.querySelector('#status') as HTMLElement).textContent = `${seats.length}/6 na sala`;
+    const seats = o.seats.length ? o.seats : [{ name: o.myName, skin: o.mySkin, kind: 'human' as const, owner: 'host', ready: true }];
+    const nHum = seats.filter(x => x.kind === 'human' && !x.off).length;
+    (scr.querySelector('#status') as HTMLElement).textContent = `👤 ${nHum} de ${o.total} vagas — o que sobrar vira 🤖`;
     seats.forEach((st) => {
       const mine = st.kind === 'human' && st.owner === o.myId;
       const tag = st.off ? '📴 saiu (IA)' : st.kind === 'ai' ? '🤖 ' + o.aiLabel(st.ai) : st.owner === 'host' ? '👑 anfitrião' : mine ? '⭐ você' : '👤 jogador';
+      // ✅ pronto / ⏳ esperando (humanos vivos; no meu assento vale o meu clique na hora)
+      const isReady = mine && !o.isHost ? o.myReady : !!(st as any).ready;
+      const rdy = st.kind === 'human' && !st.off ? (isReady ? '<span class="rdy on">✅</span>' : '<span class="rdy">⏳</span>') : '';
       const teamB = (o.cfg.roomMode === 'dupla' && st.team != null) ? `<span class="team-badge t${st.team}">${st.team === 0 ? 'A' : 'B'}</span>` : '';
       // no SEU assento o nome é editável (os outros veem na hora que você troca)
       const nameEl = mine
-        ? `<input class="ls-name-edit" id="myname" maxlength="12" value="${st.name}"/>`
-        : `<span class="ls-name">${st.name}</span>`;
-      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''} ${o.cfg.roomMode === 'dupla' && st.team != null ? 'team-t' + st.team : ''}"><span class="pcap-mini"></span>${nameEl}${teamB}<span class="ls-tag">${tag}</span></div>`);
+        ? `<input class="ls-name-edit" id="myname" maxlength="12" value="${escN(st.name)}"/>`
+        : `<span class="ls-name">${escN(st.name)}</span>`;
+      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''} ${o.cfg.roomMode === 'dupla' && st.team != null ? 'team-t' + st.team : ''}"><span class="pcap-mini"></span>${nameEl}${teamB}${rdy}<span class="ls-tag">${tag}</span></div>`);
       const cv = drawCap(skinById(st.skin).art, 56); cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
       (row.querySelector('.pcap-mini') as HTMLElement).appendChild(cv);
       if (mine) {
@@ -1709,9 +1842,11 @@ export class UI {
           ? `<div class="rand-row">${[3, 5, 7].map(n => `<button class="chip ${o.cfg.champRaces === n ? 'sel' : ''}" data-cr="${n}">${n} corridas</button>`).join('')}</div>`
           : '';
       const totalRow = rm === 'dupla' ? '' : `<div class="lob-total"><button class="chip" id="tless">–</button><span><b>${o.total}</b> corredores <small>(${o.seats.filter(x=>x.kind==='human').length} 👤 + ${o.seats.filter(x=>x.kind==='ai').length} 🤖)</small></span><button class="chip" id="tmore">+</button></div>`;
+      const rdyAll = o.allReady();
       ctrl.innerHTML = `${roomRow}${extraRow}<div class="lob-h">Dificuldade &amp; fase</div><div class="lvl-row">${lvlChips}</div>${pickRow}${tnums}
         ${totalRow}
-        <button class="play-btn" id="startm">🏁 Começar ${rm === 'champ' ? 'Campeonato' : rm === 'dupla' ? 'Dupla' : 'Partida'}</button>`;
+        ${rdyAll ? '' : '<div class="lob-rdyhint">⏳ Esperando todo mundo apertar PRONTO…</div>'}
+        <button class="play-btn" id="startm" ${rdyAll ? '' : 'disabled'}>🏁 Começar ${rm === 'champ' ? 'Campeonato' : rm === 'dupla' ? 'Dupla' : 'Partida'}</button>`;
       ctrl.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => o.setRoom((b as HTMLElement).dataset.rm as any)));
       ctrl.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => o.setRoom('dupla', +(b as HTMLElement).dataset.team!)));
       ctrl.querySelectorAll('[data-cr]').forEach(b => b.addEventListener('click', () => o.setRoom('champ', o.cfg.teamSize, +(b as HTMLElement).dataset.cr!)));
@@ -1723,13 +1858,15 @@ export class UI {
       ctrl.querySelector('#startm')!.addEventListener('click', () => { this.lobbyOpen = false; o.startMatch(); });
     } else {
       const rmLab = o.cfg.roomMode === 'dupla' ? `🤝 Dupla ${o.cfg.teamSize}×${o.cfg.teamSize}` : o.cfg.roomMode === 'champ' ? `🏆 Campeonato (${o.cfg.champRaces} corridas)` : '🏁 Normal';
-      ctrl.innerHTML = `<div class="lob-wait">⏳ Aguardando o anfitrião começar…<br><small>Modo: <b>${rmLab}</b> · Dificuldade: <b>${LEVELS[o.cfg.level]}</b></small></div>`;
+      ctrl.innerHTML = `<button class="play-btn ready ${o.myReady ? 'on' : ''}" id="readyb">${o.myReady ? '✅ PRONTO! (toque pra desmarcar)' : '👍 Estou PRONTO'}</button>
+        <div class="lob-wait">${o.myReady ? '⏳ Aguardando o anfitrião começar…' : '👆 Aperte PRONTO pra partida poder começar'}<br><small>Modo: <b>${rmLab}</b> · Dificuldade: <b>${LEVELS[o.cfg.level]}</b></small></div>`;
+      ctrl.querySelector('#readyb')!.addEventListener('click', () => o.setReady(!o.myReady));
     }
   }
 
   // -------------------------------------------------------------- HUD
   private hud: HTMLElement | null = null;
-  showGame(): void { this.clear(); this.hud = this.el(`
+  showGame(): void { this.clear(); this.salonInst?.closeRoom(); this.hud = this.el(`
     <div class="screen hud">
       <div class="hud-top">
         <button class="round" id="pause">❚❚</button>

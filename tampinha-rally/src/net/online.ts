@@ -12,7 +12,7 @@ import { V } from '../engine/core';
 
 export type OPick = 'specific' | 'randlevel' | 'randany';
 export type ORoomMode = 'normal' | 'dupla' | 'champ';
-export interface Seat { name: string; skin: string; kind: 'human' | 'ai'; ai?: AIKind; owner: string; off?: boolean; team?: number; }
+export interface Seat { name: string; skin: string; kind: 'human' | 'ai'; ai?: AIKind; owner: string; off?: boolean; team?: number; ready?: boolean; }
 
 const AI_NAMES = ['Bolha', 'Zé', 'Nina', 'Tato', 'Duda', 'Chico'];
 
@@ -25,9 +25,11 @@ export class Online {
   myId = 'host';           // 'host' ou o próprio peerId
   myName = 'Você';
   mySkin = 'coca';
-  humans: { owner: string; name: string; skin: string; off?: boolean }[] = [];
+  humans: { owner: string; name: string; skin: string; off?: boolean; ready?: boolean }[] = [];
   seats: Seat[] = [];
   total = 4;               // total de corredores (2..6)
+  pass = '';               // senha da sala ('' = livre) — só o anfitrião guarda
+  myReady = false;         // meu "PRONTO" (cliente; o anfitrião está sempre pronto)
   cfg = { level: 0, trackIdx: 0, pick: 'specific' as OPick, roomMode: 'normal' as ORoomMode, teamSize: 2, champRaces: 3 };
   mgr: GameManager | null = null;
   champ: { race: number; total: number; pts: Map<number, number>; seq: { level: number; idx: number }[] } | null = null;
@@ -48,26 +50,32 @@ export class Online {
   private pendingFlick: any = null; private pendingSync: any = null;
 
   private reset(): void {
+    // silencia o transporte VELHO antes de destruir: o close dele chega atrasado
+    // e não pode disparar "conexão caiu" em cima da sala NOVA
+    this.net.onData = () => {}; this.net.onLeave = () => {}; this.net.onError = () => {}; this.net.onOpen = () => {};
     this.net.destroy(); this.net = new Net();
     this.active = false; this.inRoom = false; this.isHost = false; this.code = '';
     this.myId = 'host'; this.humans = []; this.seats = []; this.total = 4; this.mgr = null;
     this.cfg = { level: 0, trackIdx: 0, pick: 'specific', roomMode: 'normal', teamSize: 2, champRaces: 3 }; this.champ = null;
+    this.pass = ''; this.myReady = false;
     this.lastTok = ''; this.decided = false; this.aiWait = 0; this.applied.clear(); this.pendingFlick = null; this.pendingSync = null;
   }
 
   // ---------------- LOBBY ----------------
-  createRoom(name: string, skin: string): void {
+  createRoom(name: string, skin: string, opts?: { slots?: number; pass?: string }): void {
     this.reset(); this.isHost = true; this.myId = 'host'; this.myName = name; this.mySkin = skin;
-    this.humans = [{ owner: 'host', name, skin }]; this.total = 4; this.inRoom = true;
+    this.humans = [{ owner: 'host', name, skin, ready: true }]; this.inRoom = true;
+    this.total = Math.max(2, Math.min(6, opts?.slots ?? 4));
+    this.pass = (opts?.pass || '').slice(0, 20);
     this.net.onOpen = (code) => { this.code = code; this.onCode(code); this.rebuild(); };
     this.net.onData = (from, msg) => this.hostData(from, msg);
     this.net.onLeave = (pid) => this.hostLeave(pid);
     this.net.onError = (e) => this.onError(this.friendly(e));
     this.net.host();
   }
-  joinRoom(code: string, name: string, skin: string): void {
+  joinRoom(code: string, name: string, skin: string, pass = ''): void {
     this.reset(); this.isHost = false; this.myName = name; this.mySkin = skin;
-    this.net.onOpen = () => { this.myId = this.net.peer!.id; this.inRoom = true; this.code = code.toUpperCase(); this.net.send('host', { t: 'hello', name, skin }); this.onCode(this.code); };
+    this.net.onOpen = () => { this.myId = this.net.peer!.id; this.inRoom = true; this.code = code.toUpperCase(); this.net.send('host', { t: 'hello', name, skin, pass }); this.onCode(this.code); };
     this.net.onData = (_from, msg) => this.clientData(msg);
     this.net.onLeave = () => { if (this.inRoom) { this.onError('Conexão com o anfitrião caiu'); this.onClosed(); } };
     this.net.onError = (e) => this.onError(this.friendly(e));
@@ -89,14 +97,14 @@ export class Online {
     if (this.cfg.roomMode === 'dupla') this.total = this.cfg.teamSize * 2;   // total fixo nos times
     if (this.total < this.humans.length) this.total = this.humans.length;
     if (this.total > 6) this.total = 6; if (this.total < 2) this.total = 2;
-    const seats: Seat[] = this.humans.map(h => ({ name: h.name, skin: h.skin, kind: 'human' as const, owner: h.owner, off: h.off }));
+    const seats: Seat[] = this.humans.map(h => ({ name: h.name, skin: h.skin, kind: 'human' as const, owner: h.owner, off: h.off, ready: h.owner === 'host' ? true : !!h.ready }));
     // IA pega tampinhas da mesma RARIDADE do anfitrião (diferentes das humanas e entre si)
     const humanSkins = this.humans.map(h => h.skin);
     const hostSkin = (this.humans.find(h => h.owner === 'host') || this.humans[0])?.skin || 'coca';
     const aiPool = SKINS.filter(s => s.rarity === skinById(hostSkin).rarity && !humanSkins.includes(s.id) && !s.hidden && s.prize == null).map(s => s.id);
     for (let i = aiPool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [aiPool[i], aiPool[j]] = [aiPool[j], aiPool[i]]; }
     let ai = 0;
-    while (seats.length < this.total) { const k = ai++; const skin = aiPool.length ? aiPool[(k) % aiPool.length] : SKINS[Math.floor(Math.random() * SKINS.length)].id; seats.push({ name: AI_NAMES[k % AI_NAMES.length], skin, kind: 'ai', ai: AI_KINDS[k % AI_KINDS.length], owner: 'host' }); }
+    while (seats.length < this.total) { const k = ai++; const skin = aiPool.length ? aiPool[(k) % aiPool.length] : SKINS[Math.floor(Math.random() * SKINS.length)].id; seats.push({ name: AI_NAMES[k % AI_NAMES.length], skin, kind: 'ai', ai: AI_KINDS[k % AI_KINDS.length], owner: 'host', ready: true }); }
     if (this.cfg.roomMode === 'dupla') seats.forEach((s, i) => s.team = this.seatTeam(i));
     else seats.forEach(s => s.team = undefined);
     this.seats = seats;
@@ -125,16 +133,32 @@ export class Online {
     if (this.isHost) { const h = this.humans.find(x => x.owner === 'host'); if (h) h.name = n; this.rebuild(); }
     else this.net.send('host', { t: 'setname', name: n });
   }
+  // "PRONTO" do cliente (o anfitrião está sempre pronto)
+  setReady(v: boolean): void {
+    if (this.isHost) return;
+    this.myReady = v;
+    this.net.send('host', { t: 'ready', v });
+    this.onRoster();                                   // feedback imediato na tela
+  }
+  // todo mundo que está na sala apertou PRONTO?
+  allReady(): boolean { return this.humans.every(h => h.off || h.owner === 'host' || !!h.ready); }
+  // retrato da sala pro salão (mural público)
+  roomInfo(): { code: string; mode: string; taken: number; slots: number; lock: boolean } {
+    return { code: this.code, mode: this.cfg.roomMode, taken: this.humans.filter(h => !h.off).length, slots: this.total, lock: !!this.pass };
+  }
 
   private hostData(from: string, msg: any): void {
     if (!this.isHost) return;
     if (msg.t === 'hello') {
       if (this.active) return;                        // já começou: não entra
       if (this.humans.some(h => h.owner === from)) return;
-      if (this.humans.length >= 6) { this.net.send(from, { t: 'full' }); return; }
+      if (this.pass && String(msg.pass || '') !== this.pass) { this.net.send(from, { t: 'deny' }); return; }
+      if (this.humans.length >= Math.min(6, this.total)) { this.net.send(from, { t: 'full' }); return; }
       this.humans.push({ owner: from, name: (msg.name || 'Jogador').slice(0, 12), skin: msg.skin || 'coca' });
       if (this.total < this.humans.length) this.total = this.humans.length;
       this.rebuild();
+    } else if (msg.t === 'ready') {
+      const h = this.humans.find(x => x.owner === from); if (h) { h.ready = !!msg.v; this.rebuild(); }
     } else if (msg.t === 'setcap') {
       const h = this.humans.find(x => x.owner === from); if (h) { h.skin = msg.skin; this.rebuild(); }
     } else if (msg.t === 'setname') {
@@ -167,14 +191,16 @@ export class Online {
       this.onChampStanding(rows, msg.race, msg.total, msg.last);
     }
     else if (msg.t === 'champend') { const s = this.seats[msg.seat]; this.active = false; this.onChampEnd({ name: s?.name || '', skin: s?.skin || 'coca', you: msg.seat === this.mySeatIndex() }); }
-    else if (msg.t === 'tolobby') { this.active = false; this.onToLobby(); }
-    else if (msg.t === 'full') { this.onError('A sala está cheia'); this.onClosed(); }
-    else if (msg.t === 'bye') { this.onError('O anfitrião encerrou a sala'); this.onClosed(); }
+    else if (msg.t === 'tolobby') { this.active = false; this.myReady = false; this.onToLobby(); }
+    else if (msg.t === 'full') { this.inRoom = false; this.onError('A sala está cheia'); this.onClosed(); }
+    else if (msg.t === 'deny') { this.inRoom = false; this.onError('Senha errada — confira com quem criou a sala'); this.onClosed(); }
+    else if (msg.t === 'bye') { this.inRoom = false; this.onError('O anfitrião encerrou a sala'); this.onClosed(); }
   }
 
   // ---------------- INÍCIO DA PARTIDA ----------------
   startMatch(): void {
     if (!this.isHost) return;
+    if (!this.allReady()) { this.onError('Esperando todo mundo apertar PRONTO'); return; }
     this.rebuild();
     let level = this.cfg.level, idx = this.cfg.trackIdx;
     if (this.cfg.pick === 'randlevel') idx = Math.floor(Math.random() * 10);
@@ -232,7 +258,7 @@ export class Online {
   }
   bind(mgr: GameManager): void { this.mgr = mgr; }
 
-  backToLobby(): void { if (!this.isHost) return; this.active = false; this.net.broadcast({ t: 'tolobby' }); this.humans = this.humans.filter(h => !h.off); this.rebuild(); this.onToLobby(); }
+  backToLobby(): void { if (!this.isHost) return; this.active = false; this.net.broadcast({ t: 'tolobby' }); this.humans = this.humans.filter(h => !h.off); this.humans.forEach(h => { if (h.owner !== 'host') h.ready = false; }); this.rebuild(); this.onToLobby(); }
 
   // ---------------- LOCKSTEP (chamado a cada frame na corrida) ----------------
   mySeatIndex(): number { return this.seats.findIndex(s => s.kind === 'human' && s.owner === this.myId); }

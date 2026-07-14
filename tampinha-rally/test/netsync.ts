@@ -32,6 +32,7 @@ Object.assign(guest, { isHost: false, myId: 'guest1', myName: 'Guest', mySkin: '
 host.cfg = { level: +(process.env.LV||1), trackIdx: +(process.env.TK||2), pick: 'specific' };
 
 (host as any).hostData('guest1', { t: 'hello', name: 'Guest', skin: 'pepsi' });   // guest entra → roster
+(host as any).hostData('guest1', { t: 'ready', v: true });                        // guest aperta PRONTO
 console.log('seats host:', host.seats.length, '| guest:', guest.seats.length);
 host.startMatch();
 console.log('humanos: host seat', host.mySeatIndex(), '| guest seat', guest.mySeatIndex());
