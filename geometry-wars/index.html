@@ -279,7 +279,8 @@
   cv.addEventListener('contextmenu', e=> e.preventDefault());
 
   // ---------- Toque: dois joysticks virtuais + botão de bomba ----------
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints>0 ||
+                  (window.matchMedia && window.matchMedia('(pointer:coarse)').matches);
   const STICK_R = 56;
   const touch = {
     move:{ id:null, active:false, ox:0, oy:0, x:0, y:0, nx:0, ny:0 },
@@ -467,7 +468,7 @@
       let firing=false;
       if (touch.aim.active){
         player.angle = Math.atan2(touch.aim.ny, touch.aim.nx);
-        firing = (touch.aim.nx*touch.aim.nx + touch.aim.ny*touch.aim.ny) > 0.09;
+        firing = (touch.aim.nx*touch.aim.nx + touch.aim.ny*touch.aim.ny) > 0.03;
       } else if (!isTouch){
         player.angle = Math.atan2(mouse.y-player.y, mouse.x-player.x);
         firing = true;
@@ -635,30 +636,41 @@
 
   function drawStick(s, color, homeX, homeY, label){
     ctx.textAlign='center'; ctx.textBaseline='middle';
-    if (s.active){
-      ctx.globalAlpha=0.35; ctx.strokeStyle=color; ctx.lineWidth=2.5;
-      ctx.beginPath(); ctx.arc(s.ox,s.oy,STICK_R,0,6.2832); ctx.stroke();
-      ctx.globalAlpha=0.8; ctx.fillStyle=color;
-      ctx.beginPath(); ctx.arc(s.ox+s.nx*STICK_R, s.oy+s.ny*STICK_R, 21, 0, 6.2832); ctx.fill();
-    } else {
-      // guia de repouso
-      ctx.globalAlpha=0.16; ctx.strokeStyle=color; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(homeX,homeY,STICK_R,0,6.2832); ctx.stroke();
-      ctx.globalAlpha=0.5; ctx.fillStyle=color; ctx.font='11px Trebuchet MS';
-      ctx.fillText(label, homeX, homeY);
-    }
-    ctx.globalAlpha=1;
+    const bx = s.active ? s.ox : homeX;
+    const by = s.active ? s.oy : homeY;
+    const kx = s.active ? s.ox+s.nx*STICK_R : homeX;
+    const ky = s.active ? s.oy+s.ny*STICK_R : homeY;
+    // base (anel externo)
+    ctx.globalAlpha = s.active ? 0.5 : 0.4;
+    ctx.strokeStyle = color; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(bx,by,STICK_R,0,6.2832); ctx.stroke();
+    ctx.globalAlpha = s.active ? 0.14 : 0.10;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(bx,by,STICK_R,0,6.2832); ctx.fill();
+    // manípulo (knob)
+    ctx.globalAlpha = s.active ? 0.95 : 0.7;
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(kx,ky,24,0,6.2832); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath(); ctx.arc(kx,ky,7,0,6.2832); ctx.fill();
+    // rótulo acima da base
+    ctx.globalAlpha = 0.85; ctx.fillStyle = color; ctx.font='bold 12px Trebuchet MS';
+    ctx.fillText(label, bx, by-STICK_R-12);
+    ctx.globalAlpha = 1;
   }
   function drawTouchUI(){
-    drawStick(touch.move, '#35b6ff', 92, H-96, 'MOVER');
-    drawStick(touch.aim,  '#ff6ad5', W-92, H-96, 'MIRAR');
+    const hy = H-100;
+    drawStick(touch.move, '#4db6ff', 96, hy, 'MOVER');
+    drawStick(touch.aim,  '#ff6ad5', W-96, hy, 'MIRAR / ATIRAR');
     // botão de bomba
     const bx=bombBtn();
-    ctx.globalAlpha=0.9; ctx.lineWidth=2.5;
+    ctx.globalAlpha=0.16; ctx.fillStyle = bombs>0?'#ffd54d':'#4a5578';
+    ctx.beginPath(); ctx.arc(bx.x,bx.y,bx.r,0,6.2832); ctx.fill();
+    ctx.globalAlpha=0.95; ctx.lineWidth=3;
     ctx.strokeStyle = bombs>0?'#ffd54d':'#4a5578';
     ctx.beginPath(); ctx.arc(bx.x,bx.y,bx.r,0,6.2832); ctx.stroke();
     ctx.fillStyle = bombs>0?'#ffd54d':'#4a5578';
-    ctx.font='bold 16px Trebuchet MS'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='bold 18px Trebuchet MS'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('◆'+bombs, bx.x, bx.y);
     ctx.globalAlpha=1;
   }
