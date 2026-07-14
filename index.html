@@ -101,15 +101,24 @@
   #launch.on{display:block;animation:fadein .3s;}
   @keyframes fadein{from{opacity:0}to{opacity:1}}
   #launch iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;}
-  #launchBack{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:12px;z-index:2;
-    display:inline-flex;align-items:center;gap:7px;font-family:var(--f-disp);font-weight:700;font-size:14px;color:#efe9ff;cursor:pointer;
-    padding:9px 15px;border-radius:12px;background:rgba(16,11,26,.72);border:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(8px);
+  /* alcinha discreta no topo — o único elemento sempre visível */
+  #launchGrip{position:absolute;top:calc(env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:4;
+    width:58px;height:19px;border-radius:0 0 12px 12px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    background:rgba(14,10,22,.5);border:1px solid var(--line);border-top:none;box-shadow:0 3px 10px rgba(0,0,0,.4);
+    backdrop-filter:blur(6px);opacity:.55;transition:opacity .2s,height .18s,background .2s;}
+  #launchGrip::before{content:"";width:26px;height:3px;border-radius:3px;background:var(--ink2);opacity:.7;}
+  #launchGrip:hover{opacity:1;height:22px;background:rgba(40,28,60,.7);}
+  /* barra de controles — some sozinha */
+  #launchNav{position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);z-index:3;
+    display:flex;gap:8px;transition:transform .28s cubic-bezier(.2,.9,.3,1),opacity .24s;}
+  #launchNav.hide{transform:translateX(-50%) translateY(-160%);opacity:0;pointer-events:none;}
+  #launchNav span{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-disp);font-weight:700;font-size:13px;cursor:pointer;
+    padding:9px 15px;border-radius:13px;background:rgba(16,11,26,.82);border:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(8px);
     transition:transform .1s,background .12s;}
-  #launchBack:hover{transform:translateX(-2px);background:rgba(40,28,60,.8);}
-  #launchPop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;z-index:2;
-    display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:12.5px;color:#c9b6ff;cursor:pointer;
-    padding:9px 14px;border-radius:12px;background:rgba(16,11,26,.72);border:1px solid var(--line);box-shadow:var(--shadow);backdrop-filter:blur(8px);transition:transform .1s,background .12s;}
-  #launchPop:hover{transform:translateY(-1px);background:rgba(40,28,60,.8);}
+  #launchBack{color:#efe9ff;}
+  #launchPop{color:#c9b6ff;font-size:12px;}
+  #launchNav span:active{transform:scale(.94);}
+  #launchNav span:hover{background:rgba(48,32,70,.85);}
   #launchLoad{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink2);font-family:var(--f-disp);letter-spacing:.2em;font-size:13px;}
   #launchLoad .spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(160,120,255,.25);border-top-color:var(--neon2);animation:spin 1s linear infinite;margin:0 auto 12px;}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -198,9 +207,12 @@
 </div>
 
 <div id="launch">
-  <div id="launchBack">‹ Voltar ao Arcade</div>
-  <div id="launchPop" title="Abrir em nova aba">⤢ Nova aba</div>
-  <div id="launchLoad"><div class="spin"></div><div>Carregando…</div><div id="launchTip" style="font-size:11px;color:#6a6280;margin-top:14px;letter-spacing:0;opacity:0;transition:opacity .4s">Demorando? Toque em <b style="color:#c9b6ff">⤢ Nova aba</b> ali em cima.</div></div>
+  <div id="launchGrip" title="Menu do arcade"></div>
+  <div id="launchNav" class="hide">
+    <span id="launchBack">‹ Arcade</span>
+    <span id="launchPop" title="Abrir em nova aba">⤢ Nova aba</span>
+  </div>
+  <div id="launchLoad"><div class="spin"></div><div>Carregando…</div><div id="launchTip" style="font-size:11px;color:#6a6280;margin-top:14px;letter-spacing:0;opacity:0;transition:opacity .4s">Demorando? Toque na alça ⌄ no topo e em <b style="color:#c9b6ff">⤢ Nova aba</b>.</div></div>
   <iframe id="launchFrame" title="jogo" allow="autoplay; fullscreen; gamepad; accelerometer; gyroscope"></iframe>
 </div>
 
@@ -324,6 +336,7 @@ function play(gm){
   curUrl=gm.url;
   const fr=$('#launchFrame'); $('#launchLoad').style.display='grid'; $('#launchTip').style.opacity='0';
   fr.src=gm.url; $('#launch').classList.add('on'); document.body.style.overflow='hidden';
+  showNav(2600);   // aparece rapidinho ao abrir, depois some sozinho
   fr.onload=()=>{
     $('#launchLoad').style.display='none';
     const focusGame=()=>{ try{ fr.contentWindow.focus(); fr.contentWindow.dispatchEvent(new Event('focus')); }catch{} };
@@ -333,13 +346,15 @@ function play(gm){
   clearTimeout(tipT); tipT=setTimeout(()=>{ $('#launchTip').style.opacity='1'; }, 3500);
   sfx(520,.14,'triangle',720);
 }
-let curUrl='', tipT;
+let curUrl='', tipT, navT;
+function showNav(ms=3000){ const n=$('#launchNav'); n.classList.remove('hide'); clearTimeout(navT); navT=setTimeout(()=>n.classList.add('hide'),ms); }
 function closeLaunch(){
-  clearTimeout(tipT);
-  $('#launch').classList.remove('on'); $('#launchFrame').src='about:blank';
+  clearTimeout(tipT); clearTimeout(navT);
+  $('#launch').classList.remove('on'); $('#launchNav').classList.add('hide'); $('#launchFrame').src='about:blank';
   document.body.style.overflow=''; renderAll(); sfx(300);
 }
-document.getElementById('launchPop').onclick=()=>{ if(curUrl) window.open(curUrl,'_blank'); sfx(600); };
+$('#launchGrip').onclick=()=>{ showNav(); sfx(440,.05); };
+$('#launchPop').onclick=()=>{ if(curUrl) window.open(curUrl,'_blank'); sfx(600); };
 function addXp(n){
   const before=levelOf(S.xp).lv; S.xp+=n; const after=levelOf(S.xp).lv;
   if(after>before){ toast('Nível '+after+'!', '✨'); sfx(784,.2); if(after>=5) grantAch('lv5'); }
