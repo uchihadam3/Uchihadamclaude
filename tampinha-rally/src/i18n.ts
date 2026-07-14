@@ -242,7 +242,8 @@ const D: Record<string, string> = {
   '👑 Visitas do jogo': '👑 Game visits', '🟢 ao vivo': '🟢 live',
   'Hoje:': 'Today:', '· novos:': '· new:', 'Aparelhos únicos no total:': 'Unique devices overall:',
   'ainda sem visitas registradas': 'no visits recorded yet',
-  'Contagem anônima: cada aparelho manda só "abri o jogo hoje" — sem nome, sem nada. O histórico vive nos relays públicos (melhor esforço).': 'Anonymous count: each device only says "opened the game today" — no name, nothing. History lives on public relays (best effort).',
+  '🎮 Agora no jogo:': '🎮 Playing right now:', '⏱️ tempo médio:': '⏱️ avg time:', '· 🏁 corridas:': '· 🏁 races:',
+  'Contagem anônima: cada aparelho manda só "tô com o jogo aberto" — sem nome, sem nada. Tempo = minutos com a tela aberta. O histórico vive nos relays públicos (melhor esforço).': 'Anonymous count: each device only says "the game is open" — no name, nothing. Time = minutes with the screen open. History lives on public relays (best effort).',
   // como jogar
   'Como jogar:': 'How to play:', 'arraste a tampinha': 'drag your cap', 'para trás': 'backwards',
   'e solte — quanto mais puxa, mais forte. 3 petelecos por vez; chegue primeiro!': 'and release — the farther you pull, the stronger. 3 flicks per turn; finish first!',

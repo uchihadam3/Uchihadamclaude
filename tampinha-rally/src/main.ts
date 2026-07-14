@@ -386,8 +386,8 @@ const ui = new UI({
   preview: (def) => enterPreview(def),
 }, online);
 ui.dailyNet = dailyNet;   // ranking mundial do diário na tela do desafio
-// contador de visitas: ping anônimo, 1 por aparelho por dia (depois do boot acalmar)
-setTimeout(() => { import('./net/visits').then(v => v.pingVisit()).catch(() => {}); }, 3000);
+// contador de visitas: batida anônima (visita do dia + online agora + minutos)
+setTimeout(() => { import('./net/visits').then(v => v.startVisitBeat()).catch(() => {}); }, 3000);
 
 // -------- multiplayer online: início/lobby/fim geridos aqui (cena + IA do host) --------
 online.onStartMatch = (players, level, trackIdx) => { curCfg = null; champ = null; resultsShown = false; loadMatch({ level, trackIdx, pick: 'specific', players, mode: 'online' }); };
@@ -532,6 +532,7 @@ let resultsShown = false;
 function onRaceOver(): void {
   if (resultsShown) return; resultsShown = true;
   sfx.win();
+  import('./net/visits').then(v => v.addRace()).catch(() => {});   // 🏁 conta no painel do dono
   // CARREIRA da tampinha: toda corrida offline conta (XP cosmético)
   if (!online.active) { const meC = mgr.caps.find(c => !c.isAI); if (meC) save.addCapRace(meC.skin, meC.place, myFalls); }
 

@@ -395,8 +395,13 @@ button{font-family:inherit;cursor:pointer;border:none;color:inherit}
 /* ===== painel do dono (visitas) ===== */
 .owner-dot{margin-top:14px;align-self:center;background:#00000022;border-radius:50%;width:36px;height:36px;font-size:16px;opacity:.5}
 .owner-dot:active{transform:scale(.92)}
-.vd-today{margin-top:10px;text-align:center;font-size:19px;font-weight:800;color:var(--ink);background:#fff8;border-radius:14px;padding:10px}
+.vd-now{margin-top:10px;text-align:center;font-size:16px;font-weight:800;color:#fff;background:linear-gradient(180deg,#43b96e,#2b9152);border-radius:14px;padding:10px;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.vd-now b{font-size:22px}
+.vd-today{margin-top:8px;text-align:center;font-size:19px;font-weight:800;color:var(--ink);background:#fff8;border-radius:14px;padding:10px}
 .vd-today b{color:#c0392b;font-size:24px}
+.vd-extra{margin-top:6px;text-align:center;font-size:13px;font-weight:700;color:#7a5a30}
+.vd-extra b{color:var(--ink)}
+.vd-min{flex:none;min-width:40px;font-size:11px;font-weight:800;color:#2a88a8;text-align:right}
 .vd-list{margin-top:10px;display:flex;flex-direction:column;gap:5px;max-height:44vh;overflow-y:auto}
 .vd-row{display:flex;align-items:center;gap:8px}
 .vd-date{flex:none;width:86px;font-size:12px;font-weight:800;color:#7a5a30}

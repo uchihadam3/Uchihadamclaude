@@ -14,22 +14,51 @@ const D_PRE = 'tmprally-visit-';
 // hash do código do dono (o código NÃO está em lugar nenhum do jogo)
 const OWNER_HASH = '5a1bc47997e957f4fc376c4bdbac03135d45882b7fe7cea78df8f9b77d743c4e';
 
+const ALIVE_D = 'tmprally-alive';
+const ALIVE_FRESH = 150;   // s — batida mais velha que isso = saiu do jogo
+
 export function visitDayKey(d = new Date()): string { return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
 
-// ping anônimo: 1 por aparelho por dia, alguns segundos depois do jogo abrir
-export function pingVisit(): void {
+// estado do dia deste aparelho: minutos ativos, corridas e se é a 1ª vez na vida
+interface DaySt { d: string; m: number; r: number; n?: number }
+function dayState(): DaySt {
+  const day = visitDayKey();
+  try { const s = JSON.parse(localStorage.getItem('tmprally_vmin') || 'null'); if (s && s.d === day) return s; } catch {}
+  return { d: day, m: 0, r: 0 };
+}
+function saveDay(s: DaySt): void { try { localStorage.setItem('tmprally_vmin', JSON.stringify(s)); } catch {} }
+
+// o jogo avisa quando uma corrida termina (vira o "🏁 corridas de hoje")
+export function addRace(): void { try { const s = dayState(); s.r++; saveDay(s); } catch {} }
+
+// BATIDA anônima: ao abrir, e a cada 60s enquanto o jogo está aberto, o aparelho
+// atualiza DOIS eventos substituíveis (nada acumula nos relays):
+//   • visita do dia: { new, min (minutos com a tela aberta), races }
+//   • "tô aqui": evento vazio — quem bateu há <150s conta como ONLINE AGORA
+let beatT: ReturnType<typeof setInterval> | null = null;
+let beatPool: RelayPool | null = null;
+let vk = '';
+let lastPub = 0;
+function pub(d: string, content: any): void {
+  const ts = Math.max(Math.floor(Date.now() / 1000), lastPub + 1); lastPub = ts;   // carimbo sempre crescente
+  beatPool?.publish(signEvent(vk, KIND, [['d', d], ['t', TAG]], JSON.stringify(content), ts));
+}
+export function startVisitBeat(): void {
   try {
-    const day = visitDayKey();
-    if (localStorage.getItem('tmprally_lastvisit') === day) return;   // hoje já contou
-    let k = localStorage.getItem('tmprally_vk');                      // chave SÓ do contador
-    if (!k) { k = genSk(); localStorage.setItem('tmprally_vk', k); }
-    const first = localStorage.getItem('tmprally_seen') ? 0 : 1;      // 1ª vez no jogo?
+    if (beatT) return;
+    vk = localStorage.getItem('tmprally_vk') || genSk(); localStorage.setItem('tmprally_vk', vk);
+    const first = localStorage.getItem('tmprally_seen') ? 0 : 1;   // 1ª vez no jogo?
     localStorage.setItem('tmprally_seen', '1');
-    const ev = signEvent(k, KIND, [['d', D_PRE + day], ['t', TAG]], JSON.stringify({ new: first }));
-    const pool = new RelayPool(relayUrls(), { kinds: [KIND], '#t': [TAG], limit: 1 });
-    pool.start(); pool.publish(ev);
-    localStorage.setItem('tmprally_lastvisit', day);
-    setTimeout(() => pool.stop(), 15000);                             // manda e fecha
+    if (first) { const s = dayState(); s.n = 1; saveDay(s); }
+    beatPool = new RelayPool(relayUrls(), { kinds: [KIND], '#t': [TAG], limit: 1 });
+    beatPool.start();
+    const send = () => { const s = dayState(); pub(D_PRE + s.d, { new: s.n ? 1 : 0, min: s.m, races: s.r }); pub(ALIVE_D, {}); };
+    send();
+    beatT = setInterval(() => {
+      const s = dayState();
+      if (!document.hidden) { s.m++; saveDay(s); }   // minuto com a tela aberta
+      send();
+    }, 60_000);
   } catch {}
 }
 
@@ -44,12 +73,14 @@ export function unlockOwner(code: string): boolean {
 }
 
 // ---------- livro de visitas (só o painel do dono usa) ----------
-export interface VisitDay { day: string; label: string; total: number; novos: number; }
+interface Rec { ts: number; neu: number; min: number; races: number }
+export interface VisitDay { day: string; label: string; total: number; novos: number; min: number; races: number; avg: number; }
 export class VisitLog {
   onChange: () => void = () => {};
   status: 'connecting' | 'online' = 'connecting';
   private pool: RelayPool | null = null;
-  private byDay = new Map<string, Map<string, number>>();   // dia → aparelho → novo?
+  private byDay = new Map<string, Map<string, Rec>>();   // dia → aparelho → última batida
+  private alive = new Map<string, number>();             // aparelho → último "tô aqui"
 
   start(): void {
     if (this.pool) { this.pool.refresh(); return; }
@@ -63,12 +94,26 @@ export class VisitLog {
   private absorb(ev: NEvent): void {
     if (ev.kind !== KIND || !verifyEvent(ev)) return;
     const d = ev.tags.find(t => t[0] === 'd')?.[1] || '';
+    if (d === ALIVE_D) {                                 // batida de "online agora"
+      const cur = this.alive.get(ev.pubkey);
+      if (!cur || cur < ev.created_at) { this.alive.set(ev.pubkey, ev.created_at); this.onChange(); }
+      return;
+    }
     if (!d.startsWith(D_PRE)) return;
     const day = d.slice(D_PRE.length);
     if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(day)) return;
-    let neu = 0; try { neu = JSON.parse(ev.content).new ? 1 : 0; } catch {}
+    let neu = 0, min = 0, races = 0;
+    try { const c = JSON.parse(ev.content); neu = c.new ? 1 : 0; min = Math.max(0, Math.min(1440, +c.min || 0)); races = Math.max(0, Math.min(999, +c.races || 0)); } catch {}
     let m = this.byDay.get(day); if (!m) { m = new Map(); this.byDay.set(day, m); }
-    if (!m.has(ev.pubkey)) { m.set(ev.pubkey, neu); this.onChange(); }
+    const cur = m.get(ev.pubkey);
+    if (cur && cur.ts >= ev.created_at) return;          // batida velha não volta no tempo
+    m.set(ev.pubkey, { ts: ev.created_at, neu, min, races });
+    this.onChange();
+  }
+
+  // quantos aparelhos bateram "tô aqui" nos últimos 150s
+  onlineNow(now = Math.floor(Date.now() / 1000)): number {
+    let n = 0; this.alive.forEach(ts => { if (now - ts < ALIVE_FRESH) n++; }); return n;
   }
 
   // últimos `n` dias com visita (mais recente primeiro)
@@ -77,8 +122,9 @@ export class VisitLog {
     return [...this.byDay.entries()]
       .map(([day, m]) => {
         const [y, mo, dd] = day.split('-').map(Number);
-        let novos = 0; m.forEach(v => { novos += v; });
-        return { day, label: `${String(dd).padStart(2, '0')}/${String(mo).padStart(2, '0')}/${y}`, total: m.size, novos };
+        let novos = 0, min = 0, races = 0;
+        m.forEach(v => { novos += v.neu; min += v.min; races += v.races; });
+        return { day, label: `${String(dd).padStart(2, '0')}/${String(mo).padStart(2, '0')}/${y}`, total: m.size, novos, min, races, avg: m.size ? Math.round(min / m.size) : 0 };
       })
       .sort((a, b) => parse(b.day) - parse(a.day))
       .slice(0, n);

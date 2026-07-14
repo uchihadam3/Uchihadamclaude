@@ -1496,33 +1496,40 @@ export class UI {
     });
   }
 
-  // livro de visitas: quantos aparelhos abriram o jogo por dia (só o dono vê)
+  // livro de visitas: online agora, aparelhos/dia, tempo médio e corridas (só o dono vê)
   private showOwnerPanel(): void {
     const { box, close } = this.overlay(`
       <div class="ov-head"><b>👑 Visitas do jogo</b><button class="ov-x">✕</button></div>
       <div class="ov-sub" id="vstat">🟡 conectando…</div>
+      <div class="vd-now" id="vnow"></div>
       <div class="vd-today" id="vtoday"></div>
+      <div class="vd-extra" id="vextra"></div>
       <div class="vd-list" id="vdays"></div>
       <div class="vd-foot" id="vfoot"></div>
-      <div class="vd-note">Contagem anônima: cada aparelho manda só "abri o jogo hoje" — sem nome, sem nada. O histórico vive nos relays públicos (melhor esforço).</div>`, 'wide');
+      <div class="vd-note">Contagem anônima: cada aparelho manda só "tô com o jogo aberto" — sem nome, sem nada. Tempo = minutos com a tela aberta. O histórico vive nos relays públicos (melhor esforço).</div>`, 'wide');
     const vl = new VisitLog();
     const paint = () => {
       if (!box.isConnected) return;
       (box.querySelector('#vstat') as HTMLElement).textContent = vl.status === 'online' ? '🟢 ao vivo' : '🟡 conectando…';
+      (box.querySelector('#vnow') as HTMLElement).innerHTML = `🎮 Agora no jogo: <b>${vl.onlineNow()}</b>`;
       const t = vl.today();
       (box.querySelector('#vtoday') as HTMLElement).innerHTML = `Hoje: <b>${t ? t.total : 0}</b> · novos: <b>${t ? t.novos : 0}</b>`;
+      (box.querySelector('#vextra') as HTMLElement).innerHTML = t
+        ? `⏱️ tempo médio: <b>~${t.avg} min</b> · 🏁 corridas: <b>${t.races}</b>`
+        : `⏱️ tempo médio: <b>—</b> · 🏁 corridas: <b>0</b>`;
       const days = vl.list(21);
       const list = box.querySelector('#vdays') as HTMLElement; list.innerHTML = '';
       if (!days.length) list.innerHTML = `<div class="sal-empty">ainda sem visitas registradas</div>`;
       const max = Math.max(1, ...days.map(d => d.total));
       days.forEach(d => {
-        list.appendChild(this.el(`<div class="vd-row"><span class="vd-date">${d.label}</span><div class="vd-bar"><i style="width:${Math.max(6, Math.round(d.total / max * 100))}%"></i></div><span class="vd-n">${d.total}</span><span class="vd-new">${d.novos ? '+' + d.novos + ' 🆕' : ''}</span></div>`));
+        list.appendChild(this.el(`<div class="vd-row"><span class="vd-date">${d.label}</span><div class="vd-bar"><i style="width:${Math.max(6, Math.round(d.total / max * 100))}%"></i></div><span class="vd-n">${d.total}</span><span class="vd-min">~${d.avg}m</span><span class="vd-new">${d.novos ? '+' + d.novos + ' 🆕' : ''}</span></div>`));
       });
       (box.querySelector('#vfoot') as HTMLElement).innerHTML = `Aparelhos únicos no total: <b>${vl.totalDevices()}</b>`;
     };
     vl.onChange = paint;
     vl.start(); paint();
-    box.querySelector('.ov-x')!.addEventListener('click', () => { vl.stop(); close(); });
+    const tick = setInterval(() => { if (!box.isConnected) { clearInterval(tick); return; } paint(); }, 15000);   // "agora" expira sozinho
+    box.querySelector('.ov-x')!.addEventListener('click', () => { clearInterval(tick); vl.stop(); close(); });
   }
 
   // ---------------------------------------------------------- OVERLAYS
