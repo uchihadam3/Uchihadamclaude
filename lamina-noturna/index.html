@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#05060a"/>
+<title>LÂMINA NOTURNA</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#05060a;font-family:'Trebuchet MS',system-ui,sans-serif;}
+  #wrap{position:fixed;inset:0;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:auto;}
+  /* ---- HUD ---- */
+  #hud{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  #hearts{position:absolute;top:14px;left:16px;display:flex;gap:5px;}
+  .heart{width:24px;height:22px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6));}
+  #progress{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:min(46vw,320px);}
+  #progbar{height:8px;border-radius:6px;background:rgba(0,0,0,.5);border:1px solid rgba(200,170,90,.4);overflow:hidden;}
+  #progfill{height:100%;width:0;background:linear-gradient(90deg,#b98a2e,#f0d070);transition:width .3s;}
+  #progtxt{margin-top:3px;text-align:center;font-size:10px;letter-spacing:3px;color:#d8c48a;text-transform:uppercase;opacity:.8;}
+  #score{position:absolute;top:14px;right:16px;text-align:right;color:#f0d888;font-weight:bold;font-size:17px;text-shadow:0 2px 4px #000;}
+  #score small{display:block;font-size:9px;letter-spacing:2px;color:#c9a44c;opacity:.75;}
+  /* ---- touch controls ---- */
+  #touch{position:absolute;inset:0;z-index:6;pointer-events:none;}
+  .tbtn{position:absolute;pointer-events:auto;display:flex;align-items:center;justify-content:center;
+    border-radius:50%;border:1.5px solid rgba(220,190,110,.45);background:rgba(20,16,26,.42);backdrop-filter:blur(3px);
+    color:#e8d6a0;font-size:26px;box-shadow:0 4px 14px rgba(0,0,0,.4);transition:transform .06s,background .1s;}
+  .tbtn:active{transform:scale(.9);background:rgba(60,44,30,.6);}
+  #bLeft{left:20px;bottom:30px;width:64px;height:64px;}
+  #bRight{left:96px;bottom:30px;width:64px;height:64px;}
+  #bJump{right:110px;bottom:34px;width:70px;height:70px;}
+  #bAtk{right:24px;bottom:60px;width:82px;height:82px;font-size:32px;border-color:rgba(220,90,70,.6);}
+  body.no-touch #touch{display:none;}
+  /* ---- overlays ---- */
+  .screen{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:24px;background:radial-gradient(ellipse at 50% 35%,rgba(20,14,26,.72),rgba(3,4,8,.94));}
+  .screen.hidden{display:none;}
+  .gtitle{font-family:'Georgia',serif;font-weight:900;letter-spacing:.06em;line-height:.95;
+    font-size:clamp(40px,10vw,92px);color:transparent;background:linear-gradient(180deg,#fff2cf 0%,#d9a93a 55%,#8a1f14 120%);
+    -webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 6px 20px rgba(200,140,40,.3));}
+  .gsub{margin-top:10px;font-size:clamp(11px,2.6vw,15px);letter-spacing:.34em;color:#9fb3d0;text-transform:uppercase;}
+  .gtag{max-width:440px;margin-top:14px;color:#c9b892;font-size:13px;line-height:1.6;}
+  .grule{width:200px;height:2px;margin:22px 0;background:linear-gradient(90deg,transparent,#c9a44c,transparent);}
+  .gbtn{font-family:'Georgia',serif;font-weight:700;letter-spacing:.05em;font-size:17px;color:#1a1206;cursor:pointer;pointer-events:auto;
+    padding:13px 34px;border:1.5px solid #f0dca0;border-radius:11px;background:linear-gradient(180deg,#f0d070,#b17f20);
+    box-shadow:0 5px 0 #6d4d12,0 8px 20px rgba(200,150,40,.3);transition:transform .08s,box-shadow .08s;}
+  .gbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #6d4d12,0 4px 12px rgba(200,150,40,.3);}
+  .ghint{margin-top:26px;color:#8a8fa0;font-size:12px;line-height:1.9;}
+  .ghint b{color:#d8b871;}
+  .gcrest{font-size:64px;margin-bottom:6px;filter:drop-shadow(0 4px 12px rgba(220,150,40,.4));}
+  .gend{font-family:'Georgia',serif;font-weight:900;font-size:clamp(44px,11vw,88px);}
+  .gend.win{color:transparent;background:linear-gradient(180deg,#fff2cf,#d9a93a);-webkit-background-clip:text;background-clip:text;}
+  .gend.lose{color:#7a3230;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="hud">
+    <div id="hearts"></div>
+    <div id="progress"><div id="progbar"><div id="progfill"></div></div><div id="progtxt">Avanço</div></div>
+    <div id="score">0<small>Almas</small></div>
+  </div>
+  <div id="touch">
+    <div class="tbtn" id="bLeft">◀</div>
+    <div class="tbtn" id="bRight">▶</div>
+    <div class="tbtn" id="bJump">⤒</div>
+    <div class="tbtn" id="bAtk">⚔</div>
+  </div>
+  <div class="screen" id="startScreen">
+    <div class="gcrest">🗡️</div>
+    <div class="gtitle">LÂMINA<br>NOTURNA</div>
+    <div class="gsub">O Salão do Luar</div>
+    <div class="gtag">O castelo desperta. Avance pelo grande salão, derrube os guardiões amaldiçoados e alcance o portão selado.</div>
+    <div class="grule"></div>
+    <button class="gbtn" id="btnStart">Empunhar a Lâmina</button>
+    <div class="ghint" id="ctrlHint">
+      <b>← →</b> mover &nbsp;·&nbsp; <b>↑ / Espaço</b> pular &nbsp;·&nbsp; <b>J / X</b> atacar
+    </div>
+  </div>
+  <div class="screen hidden" id="endScreen">
+    <div class="gend" id="endTitle">VITÓRIA</div>
+    <div class="gtag" id="endTag"></div>
+    <div class="grule"></div>
+    <button class="gbtn" id="btnRetry">Recomeçar</button>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
