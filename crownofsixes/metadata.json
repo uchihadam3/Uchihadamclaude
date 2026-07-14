@@ -1,0 +1,6 @@
+{
+  "name": "Crown of Sixes",
+  "description": "A roguelike dice builder game where you manipulate corrupted dice to generate massive combos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
