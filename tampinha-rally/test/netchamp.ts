@@ -27,6 +27,7 @@ function wire() {
   host.cfg = { level: 1, trackIdx: 2, pick: 'specific', roomMode: 'normal', teamSize: 2, champRaces: 3 };
   (host as any).hostData('guest1', { t: 'hello', name: 'Guest', skin: 'pepsi' });
   (host as any).hostData('guest1', { t: 'ready', v: true });
+  host.addAI(); host.addAI();                     // anfitrião completa com 2 IAs na mão
   return { host, guest, hostMgr, guestMgr };
 }
 

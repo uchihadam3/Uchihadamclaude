@@ -27,7 +27,8 @@ export class Online {
   mySkin = 'coca';
   humans: { owner: string; name: string; skin: string; off?: boolean; ready?: boolean }[] = [];
   seats: Seat[] = [];
-  total = 4;               // total de corredores (2..6)
+  total = 4;               // vagas da sala (2..6)
+  aiCount = 0;             // IAs ADICIONADAS pelo anfitrião (nunca entra IA sozinha)
   pass = '';               // senha da sala ('' = livre) — só o anfitrião guarda
   myReady = false;         // meu "PRONTO" (cliente; o anfitrião está sempre pronto)
   cfg = { level: 0, trackIdx: 0, pick: 'specific' as OPick, roomMode: 'normal' as ORoomMode, teamSize: 2, champRaces: 3 };
@@ -57,7 +58,7 @@ export class Online {
     this.active = false; this.inRoom = false; this.isHost = false; this.code = '';
     this.myId = 'host'; this.humans = []; this.seats = []; this.total = 4; this.mgr = null;
     this.cfg = { level: 0, trackIdx: 0, pick: 'specific', roomMode: 'normal', teamSize: 2, champRaces: 3 }; this.champ = null;
-    this.pass = ''; this.myReady = false;
+    this.pass = ''; this.myReady = false; this.aiCount = 0;
     this.lastTok = ''; this.decided = false; this.aiWait = 0; this.applied.clear(); this.pendingFlick = null; this.pendingSync = null;
   }
 
@@ -90,12 +91,17 @@ export class Online {
 
   leave(): void { try { this.net.broadcast({ t: 'bye' }); } catch {} this.reset(); }
 
-  // host: reconstrói os assentos (humanos + IA pra encher até `total`) e transmite
+  // host: reconstrói os assentos (humanos + só as IAs que o anfitrião ADICIONOU;
+  // o resto fica VAGA LIVRE esperando gente) e transmite
   private rebuild(): void {
     if (!this.isHost) return;
     if (this.humans.length > 6) this.humans = this.humans.slice(0, 6);
-    if (this.cfg.roomMode === 'dupla') this.total = this.cfg.teamSize * 2;   // total fixo nos times
-    if (this.total < this.humans.length) this.total = this.humans.length;
+    if (this.cfg.roomMode === 'dupla') {                                     // total fixo nos times
+      this.total = this.cfg.teamSize * 2;
+      this.aiCount = Math.max(0, Math.min(this.aiCount, this.total - this.humans.length));
+    }
+    if (this.aiCount > 6 - this.humans.length) this.aiCount = Math.max(0, 6 - this.humans.length);
+    if (this.total < this.humans.length + this.aiCount) this.total = this.humans.length + this.aiCount;
     if (this.total > 6) this.total = 6; if (this.total < 2) this.total = 2;
     const seats: Seat[] = this.humans.map(h => ({ name: h.name, skin: h.skin, kind: 'human' as const, owner: h.owner, off: h.off, ready: h.owner === 'host' ? true : !!h.ready }));
     // IA pega tampinhas da mesma RARIDADE do anfitrião (diferentes das humanas e entre si)
@@ -103,8 +109,7 @@ export class Online {
     const hostSkin = (this.humans.find(h => h.owner === 'host') || this.humans[0])?.skin || 'coca';
     const aiPool = SKINS.filter(s => s.rarity === skinById(hostSkin).rarity && !humanSkins.includes(s.id) && !s.hidden && s.prize == null).map(s => s.id);
     for (let i = aiPool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [aiPool[i], aiPool[j]] = [aiPool[j], aiPool[i]]; }
-    let ai = 0;
-    while (seats.length < this.total) { const k = ai++; const skin = aiPool.length ? aiPool[(k) % aiPool.length] : SKINS[Math.floor(Math.random() * SKINS.length)].id; seats.push({ name: AI_NAMES[k % AI_NAMES.length], skin, kind: 'ai', ai: AI_KINDS[k % AI_KINDS.length], owner: 'host', ready: true }); }
+    for (let k = 0; k < this.aiCount; k++) { const skin = aiPool.length ? aiPool[k % aiPool.length] : SKINS[Math.floor(Math.random() * SKINS.length)].id; seats.push({ name: AI_NAMES[k % AI_NAMES.length], skin, kind: 'ai', ai: AI_KINDS[k % AI_KINDS.length], owner: 'host', ready: true }); }
     if (this.cfg.roomMode === 'dupla') seats.forEach((s, i) => s.team = this.seatTeam(i));
     else seats.forEach(s => s.team = undefined);
     this.seats = seats;
@@ -113,7 +118,11 @@ export class Online {
   }
   private broadcastRoster(): void { this.net.broadcast({ t: 'roster', seats: this.seats, total: this.total, cfg: this.cfg }); }
 
-  setTotal(n: number): void { if (!this.isHost || this.cfg.roomMode === 'dupla') return; this.total = Math.max(this.humans.length, Math.min(6, n)); this.rebuild(); }
+  setTotal(n: number): void { if (!this.isHost || this.cfg.roomMode === 'dupla') return; this.total = Math.max(this.humans.length + this.aiCount, Math.min(6, n)); this.rebuild(); }
+  // IA entra SÓ na mão: o anfitrião adiciona uma por vez (e pode tirar)
+  addAI(): void { if (!this.isHost) return; if (this.humans.length + this.aiCount >= Math.min(6, this.total)) return; this.aiCount++; this.rebuild(); }
+  removeAI(): void { if (!this.isHost || this.aiCount <= 0) return; this.aiCount--; this.rebuild(); }
+  occupied(): number { return this.humans.filter(h => !h.off).length + this.aiCount; }
   setCfg(level: number, trackIdx: number, pick: OPick): void { if (!this.isHost) return; this.cfg.level = level; this.cfg.trackIdx = trackIdx; this.cfg.pick = pick; this.rebuild(); }
   // modo da sala: normal / dupla (2×2 ou 3×3) / campeonato
   setRoom(roomMode: ORoomMode, teamSize = this.cfg.teamSize, champRaces = this.cfg.champRaces): void {
@@ -142,9 +151,9 @@ export class Online {
   }
   // todo mundo que está na sala apertou PRONTO?
   allReady(): boolean { return this.humans.every(h => h.off || h.owner === 'host' || !!h.ready); }
-  // retrato da sala pro salão (mural público)
+  // retrato da sala pro salão (mural público) — IA também ocupa vaga
   roomInfo(): { code: string; mode: string; taken: number; slots: number; lock: boolean } {
-    return { code: this.code, mode: this.cfg.roomMode, taken: this.humans.filter(h => !h.off).length, slots: this.total, lock: !!this.pass };
+    return { code: this.code, mode: this.cfg.roomMode, taken: this.occupied(), slots: this.total, lock: !!this.pass };
   }
 
   private hostData(from: string, msg: any): void {
@@ -153,7 +162,7 @@ export class Online {
       if (this.active) return;                        // já começou: não entra
       if (this.humans.some(h => h.owner === from)) return;
       if (this.pass && String(msg.pass || '') !== this.pass) { this.net.send(from, { t: 'deny' }); return; }
-      if (this.humans.length >= Math.min(6, this.total)) { this.net.send(from, { t: 'full' }); return; }
+      if (this.humans.length + this.aiCount >= Math.min(6, this.total)) { this.net.send(from, { t: 'full' }); return; }
       this.humans.push({ owner: from, name: (msg.name || 'Jogador').slice(0, 12), skin: msg.skin || 'coca' });
       if (this.total < this.humans.length) this.total = this.humans.length;
       this.rebuild();
@@ -200,6 +209,9 @@ export class Online {
   // ---------------- INÍCIO DA PARTIDA ----------------
   startMatch(): void {
     if (!this.isHost) return;
+    const n = this.occupied();
+    if (n < 2) { this.onError('Sala vazia — espere alguém entrar ou adicione uma 🤖 IA'); return; }
+    if (this.cfg.roomMode === 'dupla' && n !== this.total) { this.onError('Dupla precisa da sala completa — adicione 🤖 IA ou espere gente'); return; }
     if (!this.allReady()) { this.onError('Esperando todo mundo apertar PRONTO'); return; }
     this.rebuild();
     let level = this.cfg.level, idx = this.cfg.trackIdx;

@@ -100,5 +100,42 @@ Object.assign(guest, { isHost: false, myId: 'gX', inRoom: true, net: guestNet })
 (guest as any).clientData({ t: 'deny' });
 chk('cliente recebe deny → "Senha errada" + sala fecha', gErr.includes('Senha errada') && gClosed);
 
+// ---------- IA SÓ NA MÃO (nada de preenchimento automático) ----------
+console.log('=== IA SÓ NA MÃO (vagas ficam livres) ===');
+const h2 = new Online();
+const h2net = fake('host'); const sent2: { to: string; msg: any }[] = [];
+h2net.send = (to: string, msg: any) => sent2.push({ to, msg });
+Object.assign(h2, { isHost: true, myId: 'host', myName: 'H', mySkin: 'coca', humans: [{ owner: 'host', name: 'H', skin: 'coca', ready: true }], total: 4, inRoom: true, net: h2net, code: 'TEST2' });
+(h2 as any).rebuild();
+chk('sala nova SEM IA automática (só o anfitrião, 3 vagas livres)', h2.seats.length === 1 && h2.seats.every(s => s.kind === 'human') && h2.total === 4);
+
+let err2 = ''; h2.onError = (m) => { err2 = m; };
+let started2 = false; h2net.broadcast = (m: any) => { if (m.t === 'start') started2 = true; };
+h2.startMatch();
+chk('sozinho não começa (sala vazia)', !started2 && err2.includes('Sala vazia'));
+
+h2.addAI();
+chk('➕🤖 adiciona 1 IA (1 humano + 1 🤖)', h2.seats.length === 2 && h2.seats[1].kind === 'ai');
+h2.addAI(); h2.addAI(); h2.addAI();
+chk('IA respeita as vagas (máx 4)', h2.seats.length === 4 && h2.occupied() === 4);
+
+(h2 as any).hostData('gz', { t: 'hello', name: 'GZ', skin: 'pepsi' });
+chk('sala lotada (com IA) recusa humano com "full"', sent2.some(s => s.to === 'gz' && s.msg.t === 'full') && h2.humans.length === 1);
+h2.removeAI();
+chk('✕ tira uma IA e abre a vaga', h2.occupied() === 3);
+(h2 as any).hostData('gz', { t: 'hello', name: 'GZ', skin: 'pepsi' });
+chk('humano entra na vaga aberta', h2.humans.length === 2 && h2.occupied() === 4);
+
+// dupla exige sala completa (aqui: 2 humanos + 2 IA = 4)
+(h2 as any).hostData('gz', { t: 'ready', v: true });
+h2.setRoom('dupla', 2);
+h2.removeAI();                                     // 3 de 4 → incompleta
+err2 = ''; started2 = false;
+h2.startMatch();
+chk('dupla com vaga aberta → barrada', !started2 && err2.includes('Dupla'));
+h2.addAI();
+h2.startMatch();
+chk('dupla com sala completa → começa', started2);
+
 console.log(fails === 0 ? '\n✅ SALÃO/SALA OK' : `\n❌ ${fails} falha(s)`);
 if (fails) process.exit(1);

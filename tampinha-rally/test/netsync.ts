@@ -33,6 +33,7 @@ host.cfg = { level: +(process.env.LV||1), trackIdx: +(process.env.TK||2), pick: 
 
 (host as any).hostData('guest1', { t: 'hello', name: 'Guest', skin: 'pepsi' });   // guest entra → roster
 (host as any).hostData('guest1', { t: 'ready', v: true });                        // guest aperta PRONTO
+host.addAI(); host.addAI();                       // anfitrião ADICIONA 2 IAs (não entram sozinhas)
 console.log('seats host:', host.seats.length, '| guest:', guest.seats.length);
 host.startMatch();
 console.log('humanos: host seat', host.mySeatIndex(), '| guest seat', guest.mySeatIndex());

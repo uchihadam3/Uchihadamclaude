@@ -1650,7 +1650,7 @@ export class UI {
           <input class="ol-name pass" id="opass" maxlength="20" placeholder="senha (opcional)" autocomplete="off"/>
           <button class="play-btn slim" id="create">Criar ▶</button>
         </div>
-        <div class="sal-note">Sem senha a sala fica <b>livre</b> no salão; com senha 🔒 só entra quem souber. Vaga que sobrar vira <b>IA</b>.</div>
+        <div class="sal-note">Sem senha a sala fica <b>livre</b> no salão; com senha 🔒 só entra quem souber. As vagas ficam <b>abertas</b> — IA só entra se você adicionar.</div>
       </div>
       <div class="ol-or"><span>ou entre num código</span></div>
       <div class="ol-join">
@@ -1799,7 +1799,9 @@ export class UI {
     const seatsEl = scr.querySelector('#seats') as HTMLElement; seatsEl.innerHTML = '';
     const seats = o.seats.length ? o.seats : [{ name: o.myName, skin: o.mySkin, kind: 'human' as const, owner: 'host', ready: true }];
     const nHum = seats.filter(x => x.kind === 'human' && !x.off).length;
-    (scr.querySelector('#status') as HTMLElement).textContent = `👤 ${nHum} de ${o.total} vagas — o que sobrar vira 🤖`;
+    const nAI = seats.filter(x => x.kind === 'ai' || x.off).length;
+    const free = Math.max(0, o.total - seats.length);
+    (scr.querySelector('#status') as HTMLElement).textContent = `👤 ${nHum} · 🤖 ${nAI} · vagas livres: ${free}`;
     seats.forEach((st) => {
       const mine = st.kind === 'human' && st.owner === o.myId;
       const tag = st.off ? '📴 saiu (IA)' : st.kind === 'ai' ? '🤖 ' + o.aiLabel(st.ai) : st.owner === 'host' ? '👑 anfitrião' : mine ? '⭐ você' : '👤 jogador';
@@ -1811,9 +1813,12 @@ export class UI {
       const nameEl = mine
         ? `<input class="ls-name-edit" id="myname" maxlength="12" value="${escN(st.name)}"/>`
         : `<span class="ls-name">${escN(st.name)}</span>`;
-      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''} ${o.cfg.roomMode === 'dupla' && st.team != null ? 'team-t' + st.team : ''}"><span class="pcap-mini"></span>${nameEl}${teamB}${rdy}<span class="ls-tag">${tag}</span></div>`);
+      // anfitrião pode TIRAR uma IA que ele mesmo adicionou
+      const aiX = o.isHost && st.kind === 'ai' ? '<button class="ls-x" title="tirar IA">✕</button>' : '';
+      const row = this.el(`<div class="prow lob-seat ${mine ? 'you-row' : ''} ${o.cfg.roomMode === 'dupla' && st.team != null ? 'team-t' + st.team : ''}"><span class="pcap-mini"></span>${nameEl}${teamB}${rdy}<span class="ls-tag">${tag}</span>${aiX}</div>`);
       const cv = drawCap(skinById(st.skin).art, 56); cv.style.width = '100%'; cv.style.height = '100%'; cv.style.display = 'block';
       (row.querySelector('.pcap-mini') as HTMLElement).appendChild(cv);
+      row.querySelector('.ls-x')?.addEventListener('click', () => o.removeAI());
       if (mine) {
         const face = row.querySelector('.pcap-mini') as HTMLElement;
         face.classList.add('tap');
@@ -1825,6 +1830,8 @@ export class UI {
       }
       seatsEl.appendChild(row);
     });
+    // vagas LIVRES: ficam abertas esperando gente (IA só se o anfitrião adicionar)
+    for (let i = 0; i < free; i++) seatsEl.appendChild(this.el(`<div class="prow lob-seat empty"><span class="ls-chair">🪑</span><span class="ls-free">vaga livre — esperando alguém entrar…</span></div>`));
     // controles
     const ctrl = scr.querySelector('#ctrl') as HTMLElement; ctrl.innerHTML = '';
     if (o.isHost) {
@@ -1841,10 +1848,11 @@ export class UI {
         : rm === 'champ'
           ? `<div class="rand-row">${[3, 5, 7].map(n => `<button class="chip ${o.cfg.champRaces === n ? 'sel' : ''}" data-cr="${n}">${n} corridas</button>`).join('')}</div>`
           : '';
-      const totalRow = rm === 'dupla' ? '' : `<div class="lob-total"><button class="chip" id="tless">–</button><span><b>${o.total}</b> corredores <small>(${o.seats.filter(x=>x.kind==='human').length} 👤 + ${o.seats.filter(x=>x.kind==='ai').length} 🤖)</small></span><button class="chip" id="tmore">+</button></div>`;
+      const totalRow = rm === 'dupla' ? '' : `<div class="lob-total"><button class="chip" id="tless">–</button><span><b>${o.total}</b> vagas na sala</span><button class="chip" id="tmore">+</button></div>`;
+      const aiRow = `<div class="lob-airow"><button class="chip aibtn" id="addai" ${o.occupied() >= o.total ? 'disabled' : ''}>➕🤖 Adicionar IA</button><small>${o.aiCount > 0 ? 'toque no ✕ da IA pra tirar' : 'vaga livre é pra gente — IA só se você quiser'}</small></div>`;
       const rdyAll = o.allReady();
       ctrl.innerHTML = `${roomRow}${extraRow}<div class="lob-h">Dificuldade &amp; fase</div><div class="lvl-row">${lvlChips}</div>${pickRow}${tnums}
-        ${totalRow}
+        ${totalRow}${aiRow}
         ${rdyAll ? '' : '<div class="lob-rdyhint">⏳ Esperando todo mundo apertar PRONTO…</div>'}
         <button class="play-btn" id="startm" ${rdyAll ? '' : 'disabled'}>🏁 Começar ${rm === 'champ' ? 'Campeonato' : rm === 'dupla' ? 'Dupla' : 'Partida'}</button>`;
       ctrl.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => o.setRoom((b as HTMLElement).dataset.rm as any)));
@@ -1855,6 +1863,7 @@ export class UI {
       ctrl.querySelectorAll('.tnum').forEach(b => b.addEventListener('click', () => o.setCfg(o.cfg.level, +(b as HTMLElement).dataset.i!, o.cfg.pick)));
       ctrl.querySelector('#tless')?.addEventListener('click', () => o.setTotal(o.total - 1));
       ctrl.querySelector('#tmore')?.addEventListener('click', () => o.setTotal(o.total + 1));
+      ctrl.querySelector('#addai')?.addEventListener('click', () => o.addAI());
       ctrl.querySelector('#startm')!.addEventListener('click', () => { this.lobbyOpen = false; o.startMatch(); });
     } else {
       const rmLab = o.cfg.roomMode === 'dupla' ? `🤝 Dupla ${o.cfg.teamSize}×${o.cfg.teamSize}` : o.cfg.roomMode === 'champ' ? `🏆 Campeonato (${o.cfg.champRaces} corridas)` : '🏁 Normal';
