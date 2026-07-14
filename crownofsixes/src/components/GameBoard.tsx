@@ -275,7 +275,7 @@ const ScreenProjectedPopup = ({
           duration: isMatched ? 1.8 : 1.0,
           ease: [0.2, 0.8, 0.2, 1],
         }}
-        className={`relative flex flex-col items-center justify-center font-black font-mono text-5xl md:text-6xl ${colorClass} ${glowShadow}`}
+        className={`relative flex flex-col items-center justify-center font-black font-mono text-2xl md:text-6xl ${colorClass} ${glowShadow}`}
         style={{ WebkitTextStroke: isMatched ? "3px #000" : "1px #000" }}
       >
         <span>{handNamePT(pop.text)}</span>
@@ -1490,7 +1490,7 @@ const DiceManager = ({
       // Take the larger distance to fit both dimensions safely
       // Give appropriate snug margin depending on screen orientation.
       // Zoom mais próximo para a mesa preencher a arena (menos espaço morto).
-      const marginExt = aspect < 1 ? 1.5 : 1.18;
+      const marginExt = aspect < 1 ? 1.32 : 1.18;
       const finalZDistance =
         Math.max(distHeightRequired, distWidthRequired) * marginExt;
 
@@ -3443,13 +3443,11 @@ export function GameBoard() {
               sfx.playClick();
               setIsSidebarOpenMobile(!isSidebarOpenMobile);
             }}
-            className="absolute left-3.5 top-3.5 z-45 md:hidden bg-[#120a06]/95 border border-g-gold/45 hover:border-g-gold text-g-gold px-3.5 py-2.5 rounded-xl flex items-center justify-center gap-2 font-serif font-black uppercase text-[10px] tracking-wider shadow-[0_4px_25px_rgba(0,0,0,0.85)] active:scale-95 cursor-pointer"
+            className="absolute left-3 bottom-3 z-45 md:hidden bg-[#120a06]/95 border border-g-gold/45 hover:border-g-gold text-g-gold px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 font-serif font-black uppercase text-[10px] tracking-wider shadow-[0_4px_25px_rgba(0,0,0,0.85)] active:scale-95 cursor-pointer"
           >
             <Scroll className="w-4 h-4 text-g-gold animate-bounce" />
             <span>
-              {isSidebarOpenMobile
-                ? "Fechar Painel"
-                : "Alquimia (Feitiços/Mão)"}
+              {isSidebarOpenMobile ? "Fechar" : "Painel"}
             </span>
           </button>
           {/* Table texture overlay */}
@@ -3782,7 +3780,7 @@ export function GameBoard() {
           }
           className="h-10 sm:h-16 md:h-18 px-4 sm:px-10 md:px-18 bg-gradient-to-r from-white to-zinc-100 text-black rounded-lg md:rounded-2xl font-black text-xs sm:text-lg md:text-xl uppercase tracking-wider shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.35)] hover:scale-105 active:scale-95 transition-all group flex items-center gap-2 md:gap-4 disabled:opacity-30 disabled:hover:scale-100 cursor-pointer border-t border-white"
         >
-          <span>ROLAR DADOS</span>
+          <span className="whitespace-nowrap">ROLAR DADOS</span>
           <span className="w-5 h-5 sm:w-8 sm:h-8 bg-black/10 rounded-lg flex items-center justify-center font-mono text-[10px] sm:text-sm border border-black/10">
             {state.rollsLeft}
           </span>
@@ -3794,7 +3792,7 @@ export function GameBoard() {
           disabled={state.status === "rolling" || isScoring}
           className="h-10 sm:h-14 md:h-16 px-3 sm:px-7 md:px-10 border border-zinc-700/50 hover:border-amber-400 bg-zinc-950/60 text-zinc-400 hover:text-amber-400 rounded-lg sm:rounded-xl font-serif font-black uppercase tracking-widest text-[9px] sm:text-xs md:text-sm shadow-xl transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-30"
         >
-          <span>SALVAR E SAIR 💾</span>
+          <span className="whitespace-nowrap"><span className="hidden sm:inline">SALVAR E SAIR </span>💾</span>
         </button>
 
         <button
@@ -3813,11 +3811,20 @@ export function GameBoard() {
                 : "bg-black/40 border-white/10 text-zinc-600 cursor-not-allowed font-medium"
           }`}
         >
-          {state.currentRoundScore >= state.targetScore
-            ? "RECLAMAR VITÓRIA"
-            : state.rollsLeft <= 0
-              ? "ENVIAR RESULTADO"
-              : "ALCANCE A META"}
+          <span className="whitespace-nowrap sm:hidden">
+            {state.currentRoundScore >= state.targetScore
+              ? "VENCER"
+              : state.rollsLeft <= 0
+                ? "ENVIAR"
+                : "META"}
+          </span>
+          <span className="whitespace-nowrap hidden sm:inline">
+            {state.currentRoundScore >= state.targetScore
+              ? "RECLAMAR VITÓRIA"
+              : state.rollsLeft <= 0
+                ? "ENVIAR RESULTADO"
+                : "ALCANCE A META"}
+          </span>
         </button>
       </footer>
     </div>
