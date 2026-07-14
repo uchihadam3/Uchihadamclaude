@@ -1,0 +1,66 @@
+/* ============================================================
+   KOTOBA — telas: título, recompensa, vitória/derrota, menu
+   ============================================================ */
+.screen {
+  position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 4px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(30,24,18,.6), rgba(8,6,4,.92));
+  animation: screenIn var(--t-slow) var(--ease-out) both;
+}
+@keyframes screenIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- título ---- */
+.title-crest {
+  font-family: var(--f-jp); font-size: clamp(64px, 16vw, 130px); font-weight: 800; line-height: .9;
+  color: transparent; background: linear-gradient(180deg, #fff5d8 0%, var(--gold) 55%, var(--seal) 120%);
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 6px 22px rgba(201,164,76,.35));
+}
+.title-name {
+  font-family: var(--f-display); font-size: clamp(26px, 6vw, 46px); font-weight: 800; letter-spacing: .18em;
+  color: var(--washi-0); margin-top: 6px;
+}
+.title-sub { font-size: clamp(11px, 2.4vw, 14px); letter-spacing: .3em; color: var(--spirit); opacity: .8; margin-top: 12px; text-transform: uppercase; }
+.title-tag { max-width: 460px; margin-top: 10px; color: var(--washi-2); font-size: 13px; line-height: 1.6; }
+.title-rule { width: 200px; height: 2px; margin: 22px 0; background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+.title-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.title-foot { position: absolute; bottom: 16px; font-size: 11px; color: var(--washi-2); letter-spacing: .1em; }
+
+/* selo grande decorativo */
+.big-seal { width: 92px; height: 92px; font-size: 40px; margin-bottom: 8px; }
+
+/* ---- recompensa ---- */
+.reward-title { font-family: var(--f-display); font-size: 26px; font-weight: 800; color: var(--gold-bright); letter-spacing: .06em; }
+.reward-sub { color: var(--washi-2); font-size: 13px; margin-bottom: 8px; }
+.reward-cards { display: flex; gap: 26px; margin: 18px 0 22px; flex-wrap: wrap; justify-content: center; }
+.reward-cards .card { animation: rewardFloat 3s var(--ease-in-out) infinite; transition: transform var(--t-med); }
+.reward-cards .card:nth-child(2) { animation-delay: .5s; }
+.reward-cards .card:nth-child(3) { animation-delay: 1s; }
+.reward-cards .card:hover { transform: translateY(-14px) scale(1.08) !important; }
+@keyframes rewardFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+/* ---- vitória / derrota ---- */
+.end-crest { font-family: var(--f-jp); font-size: clamp(50px, 12vw, 96px); font-weight: 800; }
+.end-crest.win { color: transparent; background: linear-gradient(180deg,#fff5d8,var(--gold)); -webkit-background-clip: text; background-clip: text; }
+.end-crest.lose { color: #6a5850; }
+.end-stats { display: flex; gap: 30px; margin: 20px 0; flex-wrap: wrap; justify-content: center; }
+.end-stat .n { font-family: var(--f-display); font-size: 30px; font-weight: 800; color: var(--gold-bright); }
+.end-stat .l { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--washi-2); margin-top: 2px; }
+
+/* ---- menu de pausa ---- */
+.menu-panel { width: min(420px, 92vw); padding: 22px; display: flex; flex-direction: column; gap: 12px; }
+.menu-panel h2 { font-family: var(--f-display); text-align: center; color: var(--gold-bright); letter-spacing: .1em; }
+.menu-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--washi-1); font-size: 13px; }
+.menu-row input[type=range] { width: 150px; accent-color: var(--gold); }
+.menu-row .seg { display: flex; gap: 4px; }
+.seg button { padding: 5px 10px; font-size: 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--washi-1); cursor: pointer; }
+.seg button.on { background: var(--gold); color: #1a1206; border-color: var(--gold); font-weight: 700; }
+
+/* tutorial pisca */
+.hintline {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 12;
+  padding: 8px 16px; background: var(--panel-washi); color: var(--washi-ink); border: 1px solid var(--gold-deep);
+  border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow-md);
+  animation: hintPulse 2.4s var(--ease-in-out) infinite;
+}
+@keyframes hintPulse { 0%,100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.03); } }

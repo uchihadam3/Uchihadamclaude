@@ -1,0 +1,27 @@
+{
+  "name": "kotoba-shards-of-memory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "KOTOBA: Shards of Memory — deckbuilder roguelike que ensina japonês naturalmente",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "phaser": "3.90.0",
+    "dexie": "4.0.10",
+    "zod": "3.24.1",
+    "ts-fsrs": "4.6.0",
+    "i18next": "23.16.8",
+    "howler": "2.2.4"
+  },
+  "devDependencies": {
+    "typescript": "5.7.2",
+    "vite": "5.4.11",
+    "vitest": "2.1.8",
+    "@types/howler": "2.2.12"
+  }
+}

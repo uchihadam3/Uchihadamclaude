@@ -1,0 +1,78 @@
+/* ============================================================
+   KOTOBA — design tokens
+   Direção: papel washi, tinta sumi, selos vermelhões, madeira
+   escura, metal envelhecido, luz espiritual. Nada de "painel
+   administrativo": tudo respira artesanato japonês.
+   ============================================================ */
+:root {
+  /* -- tinta e papel -- */
+  --sumi-0: #0e0b09;      /* tinta mais profunda (fundo) */
+  --sumi-1: #16110d;
+  --sumi-2: #1f1813;
+  --sumi-3: #2b211a;      /* madeira escura */
+  --sumi-line: #3a2c22;
+  --washi-0: #efe6d0;     /* papel claro */
+  --washi-1: #e2d4b6;
+  --washi-2: #cbb98f;     /* papel envelhecido */
+  --washi-ink: #211a12;   /* texto sobre papel */
+
+  /* -- ouro / metal / selo -- */
+  --gold: #c9a44c;
+  --gold-bright: #e8c86a;
+  --gold-deep: #8a6d29;
+  --seal: #b5341f;        /* vermelhão de carimbo */
+  --seal-bright: #d64a2e;
+  --metal: #7d7568;
+  --metal-hi: #b3a992;
+
+  /* -- luz espiritual -- */
+  --spirit: #bfeaff;
+  --spirit-glow: rgba(150, 224, 255, .55);
+  --spirit-soft: rgba(150, 224, 255, .16);
+
+  /* -- elementos (essências) -- */
+  --el-fire: #e0592b;   --el-fire-2: #b5310f;   --el-fire-g: rgba(230,110,60,.55);
+  --el-water: #3f7fc4;  --el-water-2: #1c4c8e;  --el-water-g: rgba(90,160,240,.5);
+  --el-wind: #8fb9a6;   --el-wind-2: #4f7d6c;   --el-wind-g: rgba(180,220,200,.45);
+  --el-wood: #6f9a45;   --el-wood-2: #3d6a26;   --el-wood-g: rgba(130,190,90,.5);
+  --el-light: #e6c258;  --el-light-2: #b98e1f;  --el-light-g: rgba(255,220,120,.55);
+  --el-dark: #7a5aa6;   --el-dark-2: #452c6e;   --el-dark-g: rgba(150,110,210,.5);
+
+  /* -- categorias de carta -- */
+  --cat-attack: #c0432a;
+  --cat-defense: #3a6ea5;
+  --cat-tech: #7a6cae;
+  --cat-power: #c9a44c;
+  --cat-spirit: #4fb0a2;
+
+  /* -- estados -- */
+  --hp: #d0432f;
+  --block: #6fa8dc;
+  --energy: #ffd66b;
+  --good: #79c07a;
+  --bad: #d86a5a;
+
+  /* -- superfícies -- */
+  --panel: linear-gradient(160deg, rgba(43,33,26,.94), rgba(22,17,13,.96));
+  --panel-washi: linear-gradient(165deg, #e8dcc0 0%, #dbc9a2 55%, #cdb888 100%);
+  --line: rgba(201,164,76,.28);
+  --line-soft: rgba(201,164,76,.14);
+  --shadow-lg: 0 18px 42px rgba(0,0,0,.55);
+  --shadow-md: 0 8px 20px rgba(0,0,0,.45);
+  --shadow-sm: 0 3px 9px rgba(0,0,0,.4);
+  --inner-glow: inset 0 0 22px rgba(0,0,0,.35);
+
+  /* -- tipografia -- */
+  --f-display: "Shippori Mincho", "Zen Old Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", "Times New Roman", serif;
+  --f-jp: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  --f-ui: "Inter", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", system-ui, -apple-system, sans-serif;
+
+  /* -- espaçamento (escala 4px) -- */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
+  --r-sm: 7px; --r-md: 12px; --r-lg: 18px; --r-xl: 26px;
+
+  /* -- movimento -- */
+  --ease-out: cubic-bezier(.2,.9,.28,1);
+  --ease-in-out: cubic-bezier(.65,.05,.36,1);
+  --t-fast: .14s; --t-med: .26s; --t-slow: .5s;
+}

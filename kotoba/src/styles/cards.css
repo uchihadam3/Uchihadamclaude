@@ -1,0 +1,174 @@
+/* ============================================================
+   KOTOBA — cartas (Ecos). Físicas, colecionáveis, com identidade
+   por categoria. Info progressiva: normal → hover → detalhe.
+   ============================================================ */
+.hand {
+  position: absolute; left: 0; right: 0; bottom: 74px;
+  height: 232px; display: flex; justify-content: center; align-items: flex-end;
+  pointer-events: none; z-index: 8; padding: 0 96px;
+}
+.hand .card { pointer-events: auto; }
+
+.card {
+  --accent: var(--cat-attack);
+  --accent-2: #7d2113;
+  position: relative; width: 158px; height: 224px; flex: 0 0 auto;
+  margin: 0 -24px;               /* leque sobreposto */
+  border-radius: 14px;
+  transform-origin: bottom center;
+  transition: transform var(--t-med) var(--ease-out), margin var(--t-med), filter var(--t-med), box-shadow var(--t-med);
+  cursor: pointer; will-change: transform;
+  filter: drop-shadow(0 10px 14px rgba(0,0,0,.5));
+}
+.card:hover {
+  transform: translateY(-46px) scale(1.12) rotate(0deg) !important;
+  margin: 0 6px; z-index: 30; filter: drop-shadow(0 20px 26px rgba(0,0,0,.6));
+}
+.card.selected { transform: translateY(-64px) scale(1.14) !important; margin: 0 10px; z-index: 31; }
+.card.playable::after {
+  content: ""; position: absolute; inset: -3px; border-radius: 17px; pointer-events: none;
+  box-shadow: 0 0 0 1.5px rgba(191,234,255,.5), 0 0 20px var(--spirit-soft);
+  opacity: 0; transition: opacity var(--t-med);
+}
+.card.playable:hover::after { opacity: 1; }
+.card.unplayable { filter: grayscale(.55) brightness(.7) drop-shadow(0 8px 10px rgba(0,0,0,.5)); }
+
+/* moldura + papel */
+.card .frame {
+  position: absolute; inset: 0; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(160deg, #2a2018, #17110c);
+  border: 1.5px solid var(--accent); box-shadow: var(--inner-glow);
+}
+.card .paper {
+  position: absolute; inset: 5px; border-radius: 9px;
+  background: linear-gradient(168deg, #efe6d0 0%, #ddcba4 60%, #c9b585 100%);
+  overflow: hidden;
+}
+.card .paper::before { /* textura washi */
+  content: ""; position: absolute; inset: 0; opacity: .5;
+  background:
+    repeating-linear-gradient(93deg, rgba(120,90,50,.06) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(3deg, rgba(120,90,50,.05) 0 3px, transparent 3px 8px);
+}
+
+/* faixa de arte (ilustração procedural via SVG data-uri em .art) */
+.card .art {
+  position: absolute; left: 8px; right: 8px; top: 30px; height: 96px; border-radius: 6px;
+  overflow: hidden; border: 1px solid rgba(40,28,18,.35);
+  box-shadow: inset 0 0 16px rgba(0,0,0,.28);
+  background-size: cover; background-position: center;
+}
+.card .art::after { /* vinheta na arte */
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(120% 90% at 50% 30%, transparent 45%, rgba(20,12,6,.5));
+}
+
+/* símbolo japonês central grande sobre a arte */
+.card .kanji {
+  position: absolute; left: 0; right: 0; top: 40px; height: 76px;
+  display: grid; place-items: center; z-index: 3; pointer-events: none;
+  font-family: var(--f-jp); font-size: 52px; font-weight: 700; color: #fff;
+  text-shadow: 0 2px 6px rgba(0,0,0,.6), 0 0 18px rgba(255,255,255,.25);
+}
+.card .reading {
+  position: absolute; left: 0; right: 0; top: 120px; text-align: center; z-index: 3;
+  font-family: var(--f-jp); font-size: 10px; letter-spacing: .12em; color: rgba(255,255,255,.9);
+  text-shadow: 0 1px 3px rgba(0,0,0,.7);
+}
+
+/* topo: custo (gema) + tipo (selo) */
+.card .cost {
+  position: absolute; top: -8px; left: -8px; width: 34px; height: 34px; z-index: 5;
+  display: grid; place-items: center; font-family: var(--f-display); font-weight: 800; font-size: 17px; color: #1a1206;
+  border-radius: 50%;
+  background: radial-gradient(120% 120% at 35% 25%, var(--gold-bright), var(--gold) 65%, var(--gold-deep));
+  border: 1.5px solid #f0dca0; box-shadow: 0 3px 8px rgba(0,0,0,.45), inset 0 0 6px rgba(255,255,255,.4);
+}
+.card .rarity {
+  position: absolute; top: 7px; right: 8px; z-index: 4; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--metal-hi); box-shadow: 0 0 5px rgba(0,0,0,.5);
+}
+.card .rarity.incomum { background: #7fc1e0; box-shadow: 0 0 7px rgba(127,193,224,.7); }
+.card .rarity.raro { background: var(--gold-bright); box-shadow: 0 0 9px var(--el-light-g); }
+.card .rarity.especial { background: #d98cf0; box-shadow: 0 0 10px rgba(217,140,240,.75); }
+
+/* nome */
+.card .cname {
+  position: absolute; left: 8px; right: 8px; top: 132px; text-align: center; z-index: 3;
+  font-family: var(--f-display); font-weight: 700; font-size: 13.5px; color: #23190f;
+  line-height: 1.05; text-shadow: 0 1px 0 rgba(255,255,255,.4);
+}
+/* faixa de tipo */
+.card .type-band {
+  position: absolute; left: 8px; right: 8px; top: 150px; height: 15px; z-index: 3;
+  display: grid; place-items: center; border-radius: 4px;
+  font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase; font-weight: 700; color: #fff;
+  background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
+}
+/* texto de efeito */
+.card .effect {
+  position: absolute; left: 9px; right: 9px; top: 170px; bottom: 9px; z-index: 3;
+  font-size: 10.5px; line-height: 1.32; color: #2a1f12; text-align: center;
+  display: flex; align-items: center; justify-content: center; text-shadow: 0 1px 0 rgba(255,255,255,.35);
+}
+.card .effect b { color: var(--accent-2); }
+.card .effect .kw { color: #7a4a12; font-weight: 700; }
+.card .effect .bonus { display: block; margin-top: 3px; font-size: 9.5px; color: #5a3a12; font-style: italic; }
+
+/* categorias — moldura própria */
+.card[data-cat="attack"]  { --accent: #c0432a; --accent-2: #7d2113; }
+.card[data-cat="defense"] { --accent: #3a6ea5; --accent-2: #1c3f6b; }
+.card[data-cat="tech"]    { --accent: #7a6cae; --accent-2: #453270; }
+.card[data-cat="power"]   { --accent: #c9a44c; --accent-2: #8a6d29; }
+.card[data-cat="spirit"]  { --accent: #4fb0a2; --accent-2: #256b60; }
+
+/* poder: brilho persistente. espírito: eterno pulso. */
+.card[data-cat="power"] .frame { box-shadow: var(--inner-glow), 0 0 16px rgba(201,164,76,.3); }
+.card[data-cat="spirit"] .frame { animation: spiritBreath 3.4s var(--ease-in-out) infinite; }
+@keyframes spiritBreath { 0%,100% { box-shadow: var(--inner-glow), 0 0 8px rgba(79,176,162,.3); } 50% { box-shadow: var(--inner-glow), 0 0 20px rgba(79,176,162,.55); } }
+
+/* melhorada: cantoneiras douradas + brilho cintilante */
+.card.upgraded .frame { border-color: var(--gold-bright); }
+.card.upgraded .cname { color: #6a4a12; }
+.card.upgraded .cname::after { content: " ✦"; color: var(--gold-deep); }
+.card.upgraded .paper::after {
+  content: ""; position: absolute; inset: 0; mix-blend-mode: screen; pointer-events: none;
+  background: linear-gradient(115deg, transparent 40%, rgba(232,200,106,.4) 50%, transparent 60%);
+  background-size: 250% 250%; animation: shimmer 3s linear infinite;
+}
+@keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -20% 0; } }
+
+/* estados de jogo */
+.card.playing { animation: cardPlay .42s var(--ease-in-out) forwards; z-index: 60; }
+@keyframes cardPlay {
+  0% { transform: translateY(-60px) scale(1.14); }
+  40% { transform: translateY(-160px) scale(1.2) rotate(-2deg); filter: drop-shadow(0 0 24px var(--spirit-glow)); }
+  100% { transform: translateY(-320px) scale(.6) rotate(3deg); opacity: 0; }
+}
+.card.dealt { animation: cardDeal .34s var(--ease-out) both; }
+@keyframes cardDeal { from { transform: translateY(120px) scale(.7) rotate(8deg); opacity: 0; } to { opacity: 1; } }
+
+/* ---- responsivo: celular estreito ---- */
+@media (max-width: 620px) {
+  .hand { bottom: 70px; height: 190px; padding: 0 74px; }
+  .hand .card { width: 118px; height: 168px; margin: 0 -30px; border-radius: 11px; }
+  .hand .card .kanji { font-size: 40px; top: 30px; height: 60px; }
+  .hand .card .reading { top: 92px; font-size: 9px; }
+  .hand .card .cname { top: 100px; font-size: 11px; }
+  .hand .card .type-band { top: 116px; height: 13px; font-size: 7.5px; }
+  .hand .card .effect { top: 132px; font-size: 8.6px; }
+  .hand .card .art { top: 24px; height: 74px; }
+  .hand .card:hover { transform: translateY(-30px) scale(1.16) !important; margin: 0 2px; }
+  .hand .card.selected { transform: translateY(-44px) scale(1.18) !important; }
+}
+@media (max-width: 420px) {
+  .hand .card { width: 104px; height: 148px; margin: 0 -34px; }
+}
+
+/* mini card (recompensa / coleção) */
+.card.mini { width: 118px; height: 168px; margin: 0; }
+.card.mini .kanji { font-size: 40px; top: 32px; }
+.card.mini .cname { font-size: 11px; top: 100px; }
+.card.mini .type-band { top: 116px; }
+.card.mini .effect { top: 134px; font-size: 9px; }
+.card.mini .art { height: 72px; }
