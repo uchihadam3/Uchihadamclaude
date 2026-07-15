@@ -20,6 +20,9 @@ export const LocationTypeSchema = z.enum([
   "dungeon",
   "tower",
   "port",
+  "camp",
+  "shrine",
+  "mine",
 ]);
 
 export const WorldLocationSchema = z.object({

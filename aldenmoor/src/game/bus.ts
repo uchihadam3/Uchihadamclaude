@@ -20,6 +20,7 @@ export const EVENTS = {
   TRAVEL_END: "travel:end", // WorldLocation
   ACTION_TRAVEL: "action:travel", // string (locationId) — HUD -> WorldMap
   ACTION_ENTER: "action:enter", // string (locationId) — HUD -> WorldMap (stub Etapa 2)
+  ACTION_EXIT: "action:exit", // void — HUD -> WorldMap (sair do local)
   ACTION_ZOOM: "action:zoom", // number (+1/-1) — HUD -> WorldMap
 } as const;
 

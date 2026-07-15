@@ -11,6 +11,9 @@ const TYPE_PT: Record<LocationType, string> = {
   dungeon: "Masmorra",
   tower: "Torre de Magos",
   port: "Porto",
+  camp: "Acampamento",
+  shrine: "Santuário",
+  mine: "Mina",
 };
 
 const REGION_NAME = new Map(WORLD.regions.map((r) => [r.id, r.name]));
@@ -46,6 +49,7 @@ export class HudScene extends Phaser.Scene {
   private selected: WorldLocation | null = null;
   private selIsCurrent = false;
   private traveling = false;
+  private inLocation = false;
 
   constructor() {
     super("hud");
@@ -92,9 +96,15 @@ export class HudScene extends Phaser.Scene {
         bus.emit(EVENTS.ACTION_TRAVEL, this.selected.id);
     });
     this.enterBtn = this.makeBtn("Entrar", 150, 46, 0x3a5a2e, () => {
-      if (this.selected) {
+      if (!this.selected) return;
+      if (this.inLocation) {
+        this.inLocation = false;
+        bus.emit(EVENTS.ACTION_EXIT);
+        this.onSelect({ loc: this.selected, isCurrent: true, traveling: false });
+      } else {
+        this.inLocation = true;
         bus.emit(EVENTS.ACTION_ENTER, this.selected.id);
-        this.toast("Mapa local — chega na Etapa 2 ⚔");
+        this.showInterior(this.selected);
       }
     });
     this.card.add([
@@ -209,11 +219,28 @@ export class HudScene extends Phaser.Scene {
     this.layoutClock();
   }
 
+  private showInterior(loc: WorldLocation) {
+    this.cardTitle.setText(`Interior — ${loc.name}`);
+    this.cardSub.setText(
+      `${TYPE_PT[loc.type]} · ${REGION_NAME.get(loc.region) ?? ""}`,
+    );
+    this.cardDesc.setText(
+      "Você entrou. A cena local (isométrica, com movimentação por tiles e NPCs) chega na Etapa 2.",
+    );
+    this.card.setVisible(true);
+    this.travelBtn.box.setVisible(false);
+    this.enterBtn.box.setVisible(true);
+    this.setEnabled(this.enterBtn, true);
+    this.enterBtn.label.setText("Sair");
+    this.layout();
+  }
+
   private onSelect(payload: {
     loc: WorldLocation | null;
     isCurrent: boolean;
     traveling: boolean;
   }) {
+    if (this.inLocation) return; // dentro de um local, ignora seleção do mapa
     this.selected = payload.loc;
     this.selIsCurrent = payload.isCurrent;
     if (!payload.loc) {
@@ -248,6 +275,8 @@ export class HudScene extends Phaser.Scene {
   }
 
   private refreshButtons() {
+    if (this.inLocation) return;
+    this.enterBtn.label.setText("Entrar");
     if (this.traveling) {
       this.travelBtn.box.setVisible(false);
       this.enterBtn.box.setVisible(false);

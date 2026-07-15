@@ -8,7 +8,10 @@ export type LocationType =
   | "ruin" // Ruína
   | "dungeon" // Masmorra
   | "tower" // Torre de magos
-  | "port"; // Porto
+  | "port" // Porto
+  | "camp" // Acampamento
+  | "shrine" // Santuário / menir
+  | "mine"; // Mina
 
 export type TerrainType = "road" | "trail" | "wild";
 
