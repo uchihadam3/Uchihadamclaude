@@ -2366,9 +2366,19 @@ function drawClassGearBack(ctx,key,s){ ctx.save();
   else { const gem=key==='darius'?'#e8c15a':'#3a78c8', gemHi=key==='darius'?'#fff0b0':'#bfe0ff'; ctx.fillStyle='#6a4a28'; ctx.fillRect(11*s,-42*s,2.5*s,32*s);
     ctx.fillStyle=gem; ctx.beginPath();ctx.arc(12*s,-43*s,4*s,0,7);ctx.fill(); ctx.fillStyle=gemHi; ctx.beginPath();ctx.arc(12*s,-43*s,1.8*s,0,7);ctx.fill(); } // cajado atrás
   ctx.restore(); }
-// herói de COSTAS (andando para dentro da masmorra) com a CABEÇA VIRADA mostrando o rosto (retrato)
+// NUCA (parte de trás da cabeça) — sem rosto; reconhecível pelo cabelo/acessório
+function drawHeadBack(ctx,key,s){ const C=CUT_CHARS[key];
+  ctx.fillStyle='#c99a6e'; ctx.fillRect(-3*s,-34*s,6*s,5*s);                                              // pescoço
+  ctx.fillStyle=C.hairD; ctx.beginPath(); ctx.arc(0,-40*s,7.8*s,0,7); ctx.fill();                          // cabelo (sombra)
+  ctx.fillStyle=C.hair; ctx.beginPath(); ctx.ellipse(0,-41*s,7.1*s,7.6*s,0,Math.PI*0.84,Math.PI*2.16); ctx.fill(); // volume do cabelo
+  ctx.fillStyle='rgba(255,255,255,.13)'; ctx.beginPath(); ctx.ellipse(-2.6*s,-43*s,2.4*s,3*s,0,0,7); ctx.fill(); // brilho
+  if(key==='sakura'){ ctx.fillStyle='#e2e6ec'; ctx.fillRect(-7.6*s,-41.5*s,15.2*s,2.4*s); ctx.fillStyle='#c04030'; ctx.fillRect(-2*s,-41.5*s,4*s,2.4*s); } // faixa
+  else if(key==='celes'){ ctx.fillStyle=C.hair; ctx.fillRect(-6.4*s,-37*s,12.8*s,9*s); ctx.fillStyle=C.hairD; ctx.fillRect(-6.4*s,-37*s,2*s,9*s); ctx.fillRect(4.4*s,-37*s,2*s,9*s); ctx.fillRect(-1*s,-37*s,2*s,9*s); } // cabelo longo
+  else if(key==='leona'){ ctx.fillStyle=C.hair; ctx.beginPath(); ctx.arc(0,-32.5*s,3.2*s,0,7); ctx.fill(); ctx.fillStyle=C.hairD; ctx.fillRect(-1*s,-35*s,2*s,5*s); } // rabo de cavalo
+  else if(key==='darius'){ ctx.fillStyle=C.hairD; ctx.beginPath(); ctx.arc(0,-43*s,3.8*s,0,7); ctx.fill(); } // topo grisalho ralo
+}
+// herói DE COSTAS (andando para dentro da masmorra) — vê-se a nuca, sem rosto
 function drawHeroBack(ctx,x,groundY,s,key,phase){ const C=CUT_CHARS[key]; const step=Math.sin(phase), bob=Math.abs(Math.cos(phase))*1.5*s;
-  const turn=(key==='sakura'||key==='celes')?-1:1;                       // lado para onde olha por cima do ombro
   ctx.save(); ctx.translate(x,groundY-bob);
   ctx.fillStyle='rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(0,2*s+bob,11*s,3*s,0,0,7); ctx.fill();     // sombra
   drawClassGearBack(ctx,key,s);                                          // arma nas costas (atrás do corpo)
@@ -2378,9 +2388,7 @@ function drawHeroBack(ctx,x,groundY,s,key,phase){ const C=CUT_CHARS[key]; const 
   ctx.fillStyle=C.cloakD; ctx.fillRect(-1.2*s,-35*s,2.4*s,21*s);                                          // costura central da capa
   ctx.fillStyle='rgba(0,0,0,.16)'; ctx.fillRect(-9.5*s,-35*s,19*s,4*s);                                   // sombra do capuz
   ctx.fillStyle=C.cloak; ctx.fillRect((-13.5+step)*s,-33*s,4*s,17*s); ctx.fillRect((9.5-step)*s,-33*s,4*s,17*s); // braços
-  ctx.fillStyle=C.hair; ctx.beginPath(); ctx.arc(0,-38*s,6.6*s,0,7); ctx.fill();                          // nuca (cabelo)
-  const hd=heroHead(key), hs=23*s;                                       // ROSTO virado por cima do ombro
-  ctx.save(); ctx.translate(turn*3.4*s,-41*s); ctx.rotate(turn*0.17); ctx.imageSmoothingEnabled=false; ctx.drawImage(hd,-hs/2,-hs*0.52,hs,hs); ctx.imageSmoothingEnabled=true; ctx.restore();
+  drawHeadBack(ctx,key,s);                                              // NUCA (sem rosto)
   ctx.restore();
 }
 // raycaster dedicado da cutscene (dungeon REAL) num canvas offscreen
