@@ -1284,7 +1284,11 @@ export class Game {
       if (estab) return { kind: "enter", estab };
       if (cellAt(fc, fr) === "stairs") return { kind: "dungeon" };
     } else {
-      if (roomChar(fc, fr) === "X") return { kind: "exit" };
+      // saída: valendo tanto de frente para a porta quanto encostado nela
+      // (em cima da própria célula de saída, onde a célula à frente já é a
+      // parede externa e o teste de "célula à frente" falharia).
+      if (roomChar(fc, fr) === "X" || roomChar(this.col, this.row) === "X")
+        return { kind: "exit" };
     }
     return null;
   }
