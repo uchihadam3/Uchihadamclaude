@@ -2744,8 +2744,8 @@ export function GameBoard() {
             <span className="text-[6px] md:text-[9.5px] uppercase tracking-[0.2em] md:tracking-[0.25em] font-black text-zinc-500 mb-0.5 md:mb-0.5 leading-none mt-0.5">
               Placar
             </span>
-            <span className="text-[10px] md:text-xl font-black text-emerald-400 font-mono tracking-tight leading-none drop-shadow-[0_0_8px_rgba(52,211,153,0.25)] pb-0.5">
-              {state.totalScore}
+            <span className="flex items-center gap-1 text-[10px] md:text-xl font-black text-emerald-400 font-mono tracking-tight leading-none drop-shadow-[0_0_8px_rgba(52,211,153,0.25)] pb-0.5">
+              <Trophy className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 opacity-80" />{state.totalScore}
             </span>
           </div>
 
@@ -2770,8 +2770,8 @@ export function GameBoard() {
             <span className="text-[6px] md:text-[9.5px] uppercase tracking-[0.2em] md:tracking-[0.25em] font-black text-zinc-500 mb-0.5 leading-none mt-0.5">
               Ouro
             </span>
-            <span className="text-[10px] md:text-xl font-black text-g-gold font-mono tracking-tight leading-none drop-shadow-[0_0_8px_rgba(212,175,55,0.35)] pb-0.5">
-              ${state.gold}
+            <span className="flex items-center gap-1 text-[10px] md:text-xl font-black text-g-gold font-mono tracking-tight leading-none drop-shadow-[0_0_8px_rgba(212,175,55,0.35)] pb-0.5">
+              <Coins className="w-2.5 h-2.5 md:w-3.5 md:h-3.5 opacity-80" />{state.gold}
             </span>
           </div>
         </div>
@@ -2871,15 +2871,13 @@ export function GameBoard() {
           )}
           
           {state.activeDirective && (
-            <div className={`mt-2 py-1 px-2 md:px-2.5  md:py-1.5 text-right bg-[#050508]/80 backdrop-blur-md rounded-lg shadow-lg flex flex-col items-end gap-0.5 border ${state.activeDirective.completed ? 'border-emerald-500/30' : 'border-blue-500/20'}`}>
-              <span className={`text-[6px] md:text-[7.5px] uppercase tracking-[0.2em] font-black ${state.activeDirective.completed ? 'text-emerald-400' : 'text-blue-400'}`}>
-                {state.activeDirective.completed ? '✓ DIRETRIZ CONCLUÍDA' : 'DIRETRIZ DE SISTEMA'}
-              </span>
-              <span className={`text-[8px] md:text-[10px] uppercase font-mono tracking-tight ${state.activeDirective.completed ? 'text-zinc-600 line-through' : 'text-zinc-200'}`}>
+            <div className={`mt-1.5 flex items-center gap-1.5 py-1 px-2 md:px-2.5 rounded-full border backdrop-blur-md ${state.activeDirective.completed ? 'border-emerald-500/40 bg-emerald-950/25' : 'border-sky-500/30 bg-sky-950/20'}`}>
+              <Target className={`w-3 h-3 md:w-3.5 md:h-3.5 shrink-0 ${state.activeDirective.completed ? 'text-emerald-400' : 'text-sky-400'}`} />
+              <span className={`text-[8px] md:text-[10px] font-black uppercase tracking-tight leading-none ${state.activeDirective.completed ? 'text-zinc-500 line-through' : 'text-zinc-100'}`}>
                 {state.activeDirective.text}
               </span>
-              <span className="text-[6.5px] md:text-[8px] uppercase tracking-wider font-bold text-g-gold mt-0.5 opacity-80">
-                RECOMPENSA: +{state.activeDirective.rewardValue} {state.activeDirective.rewardType === 'gold' ? 'OURO' : 'FRAGMENTOS'}
+              <span className="text-[8px] md:text-[10px] font-black text-amber-300 whitespace-nowrap leading-none">
+                +{state.activeDirective.rewardValue}{state.activeDirective.rewardType === 'gold' ? '$' : '◈'}
               </span>
             </div>
           )}
