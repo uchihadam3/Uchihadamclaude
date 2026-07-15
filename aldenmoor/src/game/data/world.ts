@@ -12,6 +12,52 @@ const RAW: WorldData = {
   name: "Aldenmoor",
   subtitle: "Crônicas do Continente",
 
+  // Continentes: cada um ocupa uma caixa em map% e desenha seu contorno em
+  // coordenadas locais (0..100). Locais/regiões guardam coords LOCAIS.
+  continents: [
+    {
+      id: "aldenmoor",
+      name: "Aldenmoor",
+      ox: 2,
+      oy: 5,
+      w: 50,
+      h: 90,
+      coast: [
+        [50, 5], [61, 7], [70, 11], [79, 10], [87, 16], [91, 25], [88, 34],
+        [93, 43], [90, 53], [93, 63], [87, 73], [90, 83], [81, 87], [71, 84],
+        [63, 90], [51, 93], [41, 90], [33, 92], [25, 86], [17, 89], [11, 80],
+        [15, 70], [8, 60], [12, 50], [7, 40], [13, 31], [9, 22], [18, 15],
+        [29, 12], [39, 8],
+      ],
+    },
+    {
+      id: "norvik",
+      name: "Norvik",
+      ox: 55,
+      oy: 4,
+      w: 43,
+      h: 43,
+      coast: [
+        [50, 6], [68, 10], [82, 18], [92, 32], [88, 48], [93, 62], [80, 78],
+        [64, 86], [48, 90], [32, 84], [18, 74], [10, 58], [8, 42], [14, 26],
+        [28, 14], [40, 8],
+      ],
+    },
+    {
+      id: "selara",
+      name: "Selara",
+      ox: 53,
+      oy: 51,
+      w: 45,
+      h: 45,
+      coast: [
+        [48, 5], [64, 8], [80, 14], [90, 28], [86, 44], [93, 60], [84, 76],
+        [70, 86], [52, 92], [36, 88], [22, 80], [12, 66], [9, 48], [15, 30],
+        [30, 16], [40, 8],
+      ],
+    },
+  ],
+
   regions: [
     {
       id: "planicies",
@@ -53,6 +99,12 @@ const RAW: WorldData = {
       difficulty: 3,
       color: 0xb99b6a,
     },
+    // ---- Norvik ----
+    { id: "n_tundra", name: "Tundra de Norvik", biome: "Tundra gelada", climate: "Gélido", difficulty: 4, color: 0xaebccc, continent: "norvik" },
+    { id: "n_fjord", name: "Fiordes de Norvik", biome: "Fiordes e mar", climate: "Frio úmido", difficulty: 3, color: 0x6f9aa8, continent: "norvik" },
+    // ---- Selara ----
+    { id: "s_jungle", name: "Selva de Selara", biome: "Floresta tropical", climate: "Quente úmido", difficulty: 4, color: 0x5a8a4a, continent: "selara" },
+    { id: "s_ash", name: "Terras de Cinza", biome: "Vulcânico", climate: "Quente seco", difficulty: 5, color: 0x9a6a5a, continent: "selara" },
   ],
 
   locations: [
@@ -242,6 +294,32 @@ const RAW: WorldData = {
     { id: "CAMP_006", name: "Acampamento do Ermo", type: "camp", x: 72, y: 66, region: "ermo", level: 3, desc: "Um oásis de fogueiras no meio da poeira.", content: ["descanso", "quests"] },
     { id: "SHRINE_004", name: "Obelisco Rachado", type: "shrine", x: 88, y: 70, region: "ermo", level: 5, desc: "Um monólito de origem esquecida fende o horizonte.", content: ["conhecimento", "evento_raro"] },
     { id: "VILLAGE_009", name: "Refúgio", type: "village", x: 63, y: 64, region: "ermo", level: 3, desc: "O último posto antes das terras mortas.", content: ["comercio", "moradores", "quests"] },
+
+    // ===================== NORVIK (continente do norte) =====================
+    { id: "N_CITY_1", name: "Portoferro", type: "city", continent: "norvik", x: 50, y: 50, region: "n_fjord", level: 4, desc: "A cidade portuária de ferro e gelo, coração de Norvik.", content: ["loja", "ferreiro", "taverna", "guilda", "quests"] },
+    { id: "N_PORT_1", name: "Ancoragem Norte", type: "port", continent: "norvik", x: 20, y: 72, region: "n_fjord", level: 4, desc: "Onde os drakkars atracam entre blocos de gelo.", content: ["comercio", "transporte", "quests_maritimas"] },
+    { id: "N_VILLAGE_1", name: "Pescadria", type: "village", continent: "norvik", x: 26, y: 60, region: "n_fjord", level: 3, desc: "Pescadores que desafiam o mar congelado.", content: ["comercio", "moradores"] },
+    { id: "N_CASTLE_1", name: "Castelo Gélido", type: "castle", continent: "norvik", x: 66, y: 32, region: "n_tundra", level: 6, desc: "A sé dos jarls, esculpida em gelo eterno.", content: ["nobres", "faccao", "quests"] },
+    { id: "N_MINE_1", name: "Mina de Prata", type: "mine", continent: "norvik", x: 74, y: 50, region: "n_tundra", level: 5, desc: "Veios de prata escondidos sob a neve.", content: ["comercio", "combate"] },
+    { id: "N_RUIN_1", name: "Templo Soterrado", type: "ruin", continent: "norvik", x: 38, y: 30, region: "n_tundra", level: 5, desc: "Um templo engolido pela geleira.", content: ["exploracao", "tesouro", "evento_raro"] },
+    { id: "N_SHRINE_1", name: "Altar do Norte", type: "shrine", continent: "norvik", x: 58, y: 20, region: "n_tundra", level: 5, desc: "Onde se reza às luzes do céu.", content: ["bencao"] },
+    { id: "N_DUNGEON_1", name: "Gruta Congelada", type: "dungeon", continent: "norvik", x: 78, y: 66, region: "n_tundra", level: 6, desc: "Cavernas onde o frio tem dentes.", content: ["combate", "chefe", "recompensa_unica"] },
+    { id: "N_CAMP_1", name: "Acampamento Ártico", type: "camp", continent: "norvik", x: 42, y: 72, region: "n_fjord", level: 4, desc: "Caçadores de focas e contadores de sagas.", content: ["descanso", "quests"] },
+    { id: "N_TOWER_1", name: "Torre da Aurora", type: "tower", continent: "norvik", x: 56, y: 64, region: "n_fjord", level: 6, desc: "Magos que estudam as luzes boreais.", content: ["magias", "conhecimento", "npc_especial"] },
+    { id: "N_VILLAGE_2", name: "Ventogélido", type: "village", continent: "norvik", x: 34, y: 46, region: "n_tundra", level: 4, desc: "Casas baixas contra o vento cortante.", content: ["comercio", "moradores"] },
+
+    // ===================== SELARA (continente do sul) =======================
+    { id: "S_CITY_1", name: "Selverde", type: "city", continent: "selara", x: 46, y: 46, region: "s_jungle", level: 5, desc: "Cidade de pedra verde sob a copa da selva.", content: ["loja", "ferreiro", "taverna", "guilda", "quests"] },
+    { id: "S_PORT_1", name: "Porto Sul", type: "port", continent: "selara", x: 22, y: 74, region: "s_jungle", level: 4, desc: "Especiarias e segredos chegam por aqui.", content: ["comercio", "transporte", "quests_maritimas"] },
+    { id: "S_VILLAGE_1", name: "Folhagem", type: "village", continent: "selara", x: 30, y: 60, region: "s_jungle", level: 4, desc: "Casas suspensas entre árvores gigantes.", content: ["comercio", "moradores"] },
+    { id: "S_RUIN_1", name: "Cidade Perdida", type: "ruin", continent: "selara", x: 62, y: 34, region: "s_jungle", level: 6, desc: "Ruínas douradas devoradas por raízes.", content: ["exploracao", "tesouro", "evento_raro"] },
+    { id: "S_TOWER_1", name: "Torre Esmeralda", type: "tower", continent: "selara", x: 40, y: 26, region: "s_jungle", level: 6, desc: "Um pináculo de jade que fende a copa.", content: ["magias", "conhecimento"] },
+    { id: "S_DUNGEON_1", name: "Cova da Serpente", type: "dungeon", continent: "selara", x: 72, y: 58, region: "s_ash", level: 7, desc: "Um ninho antigo sob a montanha fumegante.", content: ["combate", "chefe", "recompensa_unica"] },
+    { id: "S_MINE_1", name: "Mina de Obsidiana", type: "mine", continent: "selara", x: 66, y: 72, region: "s_ash", level: 6, desc: "Vidro vulcânico afiado como lâmina.", content: ["comercio", "combate"] },
+    { id: "S_SHRINE_1", name: "Ídolo Antigo", type: "shrine", continent: "selara", x: 52, y: 66, region: "s_jungle", level: 5, desc: "Uma face de pedra que observa há eras.", content: ["conhecimento", "evento_raro"] },
+    { id: "S_CAMP_1", name: "Acampamento da Selva", type: "camp", continent: "selara", x: 34, y: 42, region: "s_jungle", level: 4, desc: "Exploradores atrás de tesouros perdidos.", content: ["descanso", "quests"] },
+    { id: "S_CASTLE_1", name: "Cidadela de Cinza", type: "castle", continent: "selara", x: 58, y: 80, region: "s_ash", level: 7, desc: "Uma fortaleza negra à sombra do vulcão.", content: ["nobres", "faccao", "quests"] },
+    { id: "S_VILLAGE_2", name: "Vila das Cinzas", type: "village", continent: "selara", x: 76, y: 44, region: "s_ash", level: 5, desc: "Vivem da terra fértil e temem a montanha.", content: ["comercio", "moradores"] },
   ],
 
   roads: [
@@ -284,6 +362,30 @@ const RAW: WorldData = {
     { a: "VILLAGE_009", b: "CAMP_006", terrain: "trail" },
     { a: "CAMP_006", b: "MINE_002", terrain: "wild" },
     { a: "RUIN_002", b: "SHRINE_004", terrain: "wild" },
+
+    // Norvik
+    { a: "N_CITY_1", b: "N_PORT_1", terrain: "road" },
+    { a: "N_CITY_1", b: "N_VILLAGE_1", terrain: "road" },
+    { a: "N_CITY_1", b: "N_TOWER_1", terrain: "trail" },
+    { a: "N_CITY_1", b: "N_VILLAGE_2", terrain: "trail" },
+    { a: "N_VILLAGE_2", b: "N_RUIN_1", terrain: "wild" },
+    { a: "N_VILLAGE_2", b: "N_CASTLE_1", terrain: "trail" },
+    { a: "N_CASTLE_1", b: "N_SHRINE_1", terrain: "wild" },
+    { a: "N_CASTLE_1", b: "N_MINE_1", terrain: "trail" },
+    { a: "N_MINE_1", b: "N_DUNGEON_1", terrain: "wild" },
+    { a: "N_TOWER_1", b: "N_CAMP_1", terrain: "trail" },
+
+    // Selara
+    { a: "S_CITY_1", b: "S_PORT_1", terrain: "road" },
+    { a: "S_CITY_1", b: "S_VILLAGE_1", terrain: "road" },
+    { a: "S_CITY_1", b: "S_TOWER_1", terrain: "trail" },
+    { a: "S_CITY_1", b: "S_CAMP_1", terrain: "trail" },
+    { a: "S_CITY_1", b: "S_SHRINE_1", terrain: "trail" },
+    { a: "S_TOWER_1", b: "S_RUIN_1", terrain: "wild" },
+    { a: "S_SHRINE_1", b: "S_CASTLE_1", terrain: "trail" },
+    { a: "S_CASTLE_1", b: "S_MINE_1", terrain: "trail" },
+    { a: "S_MINE_1", b: "S_DUNGEON_1", terrain: "wild" },
+    { a: "S_VILLAGE_2", b: "S_DUNGEON_1", terrain: "wild" },
   ],
 };
 

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { WORLD_W, WORLD_H, PARCHMENT_HI, PARCHMENT_LO } from "../config";
+import { PARCH_W, PARCH_H, PARCHMENT_HI, PARCHMENT_LO } from "../config";
 
 // Gera a textura de pergaminho (uma vez) e inicia o mundo + HUD.
 export class BootScene extends Phaser.Scene {
@@ -31,8 +31,8 @@ export class BootScene extends Phaser.Scene {
   }
 
   private makeParchment() {
-    const w = WORLD_W;
-    const h = WORLD_H;
+    const w = PARCH_W;
+    const h = PARCH_H;
     const tex = this.textures.createCanvas("parchment", w, h);
     if (!tex) return;
     const ctx = tex.getContext();

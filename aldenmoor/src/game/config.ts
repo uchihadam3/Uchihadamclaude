@@ -1,9 +1,14 @@
 // Constantes globais do mundo/mapa.
 
-// Tamanho do "mundo" em pixels (o pergaminho). Coordenadas % dos locais
-// são convertidas para este espaço. Mapa expandido = mais espaço p/ explorar.
-export const WORLD_W = 3800;
-export const WORLD_H = 2500;
+// Tamanho do "mundo" em pixels. Coordenadas % dos locais são convertidas
+// para este espaço. Mundo grande o bastante para vários continentes.
+export const WORLD_W = 6000;
+export const WORLD_H = 3600;
+
+// Textura de pergaminho é gerada num tamanho limitado (< 4096, limite de GPUs
+// mobile) e esticada para cobrir o mundo inteiro.
+export const PARCH_W = 2400;
+export const PARCH_H = 1440;
 
 // Viagem: quantos minutos de jogo passam por unidade de distância percorrida.
 export const MINUTES_PER_UNIT = 0.32;
