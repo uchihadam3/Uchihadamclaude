@@ -808,6 +808,7 @@ function startBattle(formation,opts){
   layoutEnemies();
   renderBparty(); renderTurnQ(); renderFury();
   const elites=formation.filter(e=>e.elite);
+  if(elites.length)milestone('elite1','🏆 CONQUISTA: um inimigo de ELITE apareceu — cuidado!');
   blog(opts.boss?('⚠ '+formation[0].name+' ergue-se diante de vocês!'):(elites.length?'Uma ameaça incomum emboscou o grupo!':'Inimigos emboscam o grupo!'));
   bfxLoop();
   showCondBanner(conds, opts.boss?formation[0].name:null);
@@ -1205,13 +1206,14 @@ async function winBattle(){
   G.state='explore'; musicStart('explore');
   let m=`⚔ Vitória!  +${xp} XP · +${gold} GP`; if(drops.length)m+=`  ·  ${drops.map(d=>d.name).join(', ')}`;
   if(b._eqDrops&&b._eqDrops.length)m+=`\n⚔ ${b._eqDrops.map(e=>e.dispName+' ['+RARITY[e.rarity].name+']').join(' · ')}  — equipe no Acampamento`;
-  if(lvs.length)m+=`\n★ Subiu de nível: ${lvs.join(', ')}!`, SFX.lvup();
+  if(lvs.length){ m+=`\n★ Subiu de nível: ${lvs.join(', ')}!`; SFX.lvup(); showLvBanner(lvs); }
+  $('#dangerVig').classList.remove('on');
   toast(m,2600);
   if(b.wasBoss){ onBossDefeated(); }
   if(b.secretBoss){ setTimeout(()=>{ SFX.win(); toast('★ SUPERCHEFE SECRETO derrotado! Um butim lendário é seu.',3200); },900); }
   renderHUD(); saveGame();
 }
-function loseBattle(){ musicStop(); G.state='dead'; $('#battle').classList.remove('on'); showDead(); }
+function loseBattle(){ musicStop(); G.state='dead'; $('#battle').classList.remove('on'); $('#dangerVig').classList.remove('on'); showDead(); }
 
 function gainXP(c,xp){ c.xp+=xp; let up=false;
   while(c.xp>=c.xpNext){ c.xp-=c.xpNext; c.lv++; up=true;
@@ -1403,7 +1405,8 @@ function recalcStats(c){
 // stats projetados SE 'item' fosse equipado (sem alterar nada)
 function previewStats(c,item){ const eq=Object.assign({},c.equip); if(item)eq[item.slot]=item; return computeEquipStats(c.baseStats,eq); }
 function sellValue(it){ return Math.round(12 + it.power*1.6 + RARITY[it.rarity].idx*24 + (it.ilvl||1)*3); }
-function dropEquip(item){ if(!item)return; G.equipInv=G.equipInv||[]; G.equipInv.push(item); }
+function dropEquip(item){ if(!item)return; G.equipInv=G.equipInv||[]; G.equipInv.push(item);
+  if(item.rarity==='lendario'||item.rarity==='reliquia') milestone('legend1','🏆 CONQUISTA: você achou um item '+RARITY[item.rarity].name+'!'); }
 function equipItem(c,item){ if(!item)return null; const slot=item.slot; const prev=c.equip[slot];
   const i=G.equipInv.indexOf(item); if(i>=0)G.equipInv.splice(i,1);
   c.equip[slot]=item; if(prev)G.equipInv.push(prev);
@@ -1516,7 +1519,7 @@ function interact(){ if(G.state!=='explore'||G.moving)return;
   if(v==='T'&&!G.dun.looted.has(fx+','+fy)){ G.dun.looted.add(fx+','+fy); openVault(fx,fy); return; }
   toast('Nada para interagir aqui.',900);
 }
-function descend(){ SFX.door(); G.stepsSince=0; enterFloor(G.depth+1); toast('Você desce ao Andar '+G.depth+'.',1600); musicStart('explore'); saveGame(); }
+function descend(){ SFX.door(); G.stepsSince=0; enterFloor(G.depth+1); showFloorCard(G.depth); toast('Você desce ao Andar '+G.depth+'.',1600); musicStart('explore'); saveGame(); }
 function openChest(x,y){ G.dun.grid[y][x]='.'; SFX.chest();
   const roll=Math.random(); let msg;
   if(roll<0.5){ const g=rint(30,90)+G.depth*15; G.gp+=g; msg='◉ '+g+' GP'; }
@@ -1569,6 +1572,7 @@ function startSecretBoss(depth){
 }
 function onBossDefeated(){ // abre saída / vitória de andar
   toast('★ CHEFE DERROTADO! A escada se revela.',2600);
+  milestone('boss1','🏆 CONQUISTA: primeiro guardião de andar derrotado!');
   const d=G.dun; d.bossDefeated=true;
   for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++)if(d.grid[y][x]==='B')d.grid[y][x]='>';
   if(G.depth>=10){ setTimeout(()=>showWin(),1500); }
@@ -1602,6 +1606,7 @@ function revealSecretAt(key){ const[x,y]=key.split(',').map(Number);
             : kind==='T' ? '❖ Passagem secreta — um tesouro reluz na escuridão!'
             : '✦ A parede se dissolve — passagem secreta revelada!';
   toast(msg,2600);
+  milestone('secret1','🏆 CONQUISTA: você encontrou sua primeira passagem secreta!');
   markExplored(); renderHUD(); saveGame();
 }
 function shakeSecret(){ const vw=$('#viewWrap'); if(!vw)return; try{ vw.animate([{transform:'translateX(0)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:300}); }catch(e){} }
@@ -2167,6 +2172,7 @@ function renderBparty(){
     el.appendChild(d);
     drawPortrait(d.querySelector('.bpPort'),c.pal);
   });
+  updateDanger();
 }
 function renderTurnQ(){
   const q=$('#turnQ'); if(!G.battle.order){q.innerHTML='';return;}
@@ -2193,6 +2199,37 @@ let toastT;
 function toast(s,ms){ const m=$('#msg'); if(m){m.textContent=s;m.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>m.classList.remove('on'),ms||1500);} logMsg(s); }
 function logMsg(s){ const l=$('#logText'); if(!l)return; const div=document.createElement('div');div.className='ln';div.textContent=(''+s).replace(/\n/g,'  ·  ');
   l.appendChild(div); while(l.children.length>3)l.removeChild(l.firstChild); }
+
+/* ================= POLISH / GAME JUICE (Parte 12) ================= */
+const FLOOR_FLAVOR=[
+  'O ar cheira a pedra úmida e velas apagadas.',
+  'Ossos rangem sob seus pés no escuro.',
+  'Água escura goteja das paredes afundadas.',
+  'O calor da forja ainda pulsa nas brasas.',
+  'Raízes retorcidas engoliram o jardim de pedra.',
+  'Ecos de um salão outrora glorioso.',
+  'Os mortos não descansam nesta necrópole.',
+  'O frio cortante congela até a coragem.',
+  'O abismo sussurra coisas que não deviam existir.',
+  'A cinza eterna aguarda no trono final.',
+];
+function showFloorCard(depth){ const el=$('#floorCard'); if(!el)return; const th=themeOf(depth);
+  el.querySelector('.fcNum').textContent='◈  ANDAR '+depth+'  ◈';
+  el.querySelector('.fcName').textContent=th.name;
+  el.querySelector('.fcFlavor').textContent=FLOOR_FLAVOR[clamp(depth-1,0,9)]||'';
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); SFX.secret();
+}
+function showLvBanner(names){ const el=$('#lvBanner'); if(!el||!names.length)return;
+  names.forEach((nm,i)=>{ const d=document.createElement('div'); d.className='lvb'; d.textContent='★ '+nm+' subiu de nível!';
+    d.style.animationDelay=(i*0.18)+'s'; el.appendChild(d); setTimeout(()=>d.remove(),2600+i*180); });
+}
+function updateDanger(){ const el=$('#dangerVig'); if(!el)return;
+  const on = G.state==='battle' && G.party.some(c=>!c.alive || (c.alive&&c.hp/c.mhp<0.25));
+  el.classList.toggle('on', !!on);
+}
+function milestone(key,text){ G.flags=G.flags||{}; if(G.flags[key])return; G.flags[key]=1;
+  SFX.lvup(); setTimeout(()=>toast(text,3000),300);
+}
 
 /* ================= MAPA ================= */
 function openMap(){ const ov=$('#mapOv'); ov.classList.add('on'); $('#mapFl').textContent=G.dun.name; drawMapCv(); }
@@ -2383,7 +2420,7 @@ function showWin(){ musicStop(); SFX.win(); $('#winStats').innerHTML=`Vocês ven
 
 /* ================= SAVE ================= */
 const SAVEKEY='masmorra_save_v1';
-function saveGame(){ try{ const s={gp:G.gp,depth:G.depth,maxFloor:G.maxFloor,inv:G.inv,equipInv:G.equipInv,steps:G.steps,kills:G.kills,
+function saveGame(){ try{ const s={gp:G.gp,depth:G.depth,maxFloor:G.maxFloor,inv:G.inv,equipInv:G.equipInv,flags:G.flags,steps:G.steps,kills:G.kills,
     party:G.party.map(c=>({id:c.id,lv:c.lv,xp:c.xp,xpNext:c.xpNext,mhp:c.mhp,hp:c.hp,mmp:c.mmp,mp:c.mp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck,row:c.row,baseStats:c.baseStats,equip:c.equip})),
     scene:G.dun?serialScene(G.dun):null, px:G.px,py:G.py,dir:G.dir };
   localStorage.setItem(SAVEKEY,JSON.stringify(s)); }catch(e){} }
@@ -2400,7 +2437,7 @@ function loadScene(s){ const d={depth:s.depth,w:s.grid[0].length,h:s.grid.length
 function hasSave(){ return !!localStorage.getItem(SAVEKEY); }
 function clearSave(){ try{localStorage.removeItem(SAVEKEY);}catch(e){} }
 function loadGame(){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY)); if(!s)return false;
-  G.gp=s.gp;G.depth=s.depth;G.floor=s.depth;G.maxFloor=s.maxFloor||s.depth;G.inv=s.inv||{};G.equipInv=s.equipInv||[];G.steps=s.steps||0;G.kills=s.kills||0;
+  G.gp=s.gp;G.depth=s.depth;G.floor=s.depth;G.maxFloor=s.maxFloor||s.depth;G.inv=s.inv||{};G.equipInv=s.equipInv||[];G.flags=s.flags||{};G.steps=s.steps||0;G.kills=s.kills||0;
   // garante uid único acima dos salvos
   let mx=0; G.equipInv.forEach(it=>{if(it&&it.uid>mx)mx=it.uid;}); (s.party||[]).forEach(p=>{ for(const sl in (p.equip||{})){ const it=p.equip[sl]; if(it&&it.uid>mx)mx=it.uid; } }); _uid=Math.max(_uid,mx+1);
   G.party=s.party.map(p=>{ const c=mkChar(p.id);
@@ -2415,7 +2452,7 @@ function loadGame(){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY)); if(
 }catch(e){ return false; } }
 
 /* ================= NOVO JOGO ================= */
-function newGame(){ G.gp=0;G.depth=1;G.floor=1;G.maxFloor=1;G.inv={erva:3,maca:2,pao:1,pocao:1,eter:1,antidoto:1,fenix:1};G.equipInv=[];G.steps=0;G.kills=0;G.scenes={};
+function newGame(){ G.gp=0;G.depth=1;G.floor=1;G.maxFloor=1;G.inv={erva:3,maca:2,pao:1,pocao:1,eter:1,antidoto:1,fenix:1};G.equipInv=[];G.flags={};G.steps=0;G.kills=0;G.scenes={};
   G.party=[mkChar('leona'),mkChar('sakura'),mkChar('celes'),mkChar('darius')];
   enterFloor(1); }
 
@@ -2465,7 +2502,7 @@ function bindInput(){
   $('#btnRevive').onclick=()=>{ $('#dead').classList.add('hidden'); startNew(); };
   $('#btnWinCont').onclick=()=>{ $('#win').classList.add('hidden'); G.state='explore'; musicStart('explore'); };
 }
-function startNew(){ newGame(); $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(rcResize,80); saveGame(); }
+function startNew(){ newGame(); $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(()=>showFloorCard(1),120); setTimeout(rcResize,80); saveGame(); }
 function startCont(){ if(loadGame()){ $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(rcResize,80); } else startNew(); }
 
 /* ================= BOOT ================= */
