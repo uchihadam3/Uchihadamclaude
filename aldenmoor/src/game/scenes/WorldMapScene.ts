@@ -45,14 +45,16 @@ export class WorldMapScene extends Phaser.Scene {
   private mgr!: WorldMapManager;
   private gameClock = new TimeManager();
 
-  private currentId = START_LOCATION_ID;
+  private currentId: string | null = START_LOCATION_ID; // null = em campo aberto
   private selectedId: string | null = null;
-  private travelTargetId: string | null = null;
-  private travel: { pts: WorldPoint[]; seg: number } | null = null;
+  // movimentação livre: anda em linha reta até um ponto (locId se for um local)
+  private walk: { x: number; y: number; locId: string | null } | null = null;
+  private inLocation = false;
 
   private marker!: Phaser.GameObjects.Container;
   private selRing!: Phaser.GameObjects.Arc;
   private overlay!: Phaser.GameObjects.Rectangle;
+  private vision!: Phaser.GameObjects.Image;
 
   // input / câmera
   private minZoom = 0.3;
@@ -95,14 +97,21 @@ export class WorldMapScene extends Phaser.Scene {
       .rectangle(0, 0, this.scale.width, this.scale.height, 0x0b1636, 0)
       .setOrigin(0)
       .setScrollFactor(0)
-      .setDepth(1000);
+      .setDepth(998);
+
+    // holofote de visão (fog-of-war) — acompanha o jogador
+    this.vision = this.add
+      .image(0, 0, "vision")
+      .setScrollFactor(0)
+      .setDepth(999);
+    this.sizeVision();
 
     this.setupCamera();
     this.setupInput();
 
     // estado inicial (adiado para garantir que o HUD já assinou o bus)
     this.time.delayedCall(60, () => {
-      const startLoc = this.mgr.location(this.currentId);
+      const startLoc = this.mgr.location(this.currentId!);
       this.selectLocation(startLoc);
       bus.emit(EVENTS.LOCATION_ARRIVE, startLoc);
       this.emitTime(true);
@@ -111,10 +120,19 @@ export class WorldMapScene extends Phaser.Scene {
     // HUD -> mundo
     bus.on(EVENTS.ACTION_TRAVEL, this.onTravelRequest, this);
     bus.on(EVENTS.ACTION_ZOOM, this.onZoomButton, this);
+    bus.on(EVENTS.ACTION_ENTER, this.onEnter, this);
+    bus.on(EVENTS.ACTION_EXIT, this.onExit, this);
     this.events.once("shutdown", () => {
       bus.off(EVENTS.ACTION_TRAVEL, this.onTravelRequest, this);
       bus.off(EVENTS.ACTION_ZOOM, this.onZoomButton, this);
+      bus.off(EVENTS.ACTION_ENTER, this.onEnter, this);
+      bus.off(EVENTS.ACTION_EXIT, this.onExit, this);
     });
+  }
+
+  private sizeVision() {
+    const diag = Math.hypot(this.scale.width, this.scale.height) * 1.18;
+    this.vision.setDisplaySize(diag, diag);
   }
 
   // ---------------------------------------------------------------- desenho
@@ -528,11 +546,48 @@ export class WorldMapScene extends Phaser.Scene {
         g.lineBetween(-9, 4, -11, 8);
         g.lineBetween(9, 4, 11, 8);
         break;
+      case "camp":
+        // tenda
+        g.fillStyle(0xb08a4a, 1);
+        g.fillTriangle(-12, 8, 0, -12, 12, 8);
+        g.strokeTriangle(-12, 8, 0, -12, 12, 8);
+        g.fillStyle(0x2a1c0e, 1);
+        g.fillTriangle(-4, 8, 0, -3, 4, 8);
+        // fogueira
+        g.fillStyle(RED, 1);
+        g.fillCircle(10, 8, 2.5);
+        break;
+      case "shrine":
+        // menir / pedra ritual
+        g.fillStyle(0xa9a29a, 1);
+        g.beginPath();
+        g.moveTo(-7, 10);
+        g.lineTo(-5, -12);
+        g.lineTo(5, -14);
+        g.lineTo(7, 10);
+        g.closePath();
+        g.fillPath();
+        g.strokePath();
+        g.fillStyle(GOLD, 1);
+        g.fillCircle(0, -4, 3);
+        break;
+      case "mine":
+        // entrada de mina com escoras de madeira
+        g.fillStyle(0x7a6a52, 1);
+        g.fillRoundedRect(-13, -8, 26, 18, 4);
+        g.strokeRoundedRect(-13, -8, 26, 18, 4);
+        g.fillStyle(0x120d09, 1);
+        g.fillRoundedRect(-6, -2, 12, 12, { tl: 6, tr: 6, bl: 0, br: 0 });
+        g.fillStyle(0x5a3a22, 1);
+        g.fillRect(-8, -4, 3, 14);
+        g.fillRect(5, -4, 3, 14);
+        g.fillRect(-8, -6, 16, 3);
+        break;
     }
   }
 
   private drawMarker(world: Phaser.GameObjects.Container) {
-    const start = this.mgr.pos(this.currentId);
+    const start = this.mgr.pos(this.currentId!);
     const c = this.add.container(start.x, start.y);
     // sombra
     const sh = this.add.ellipse(0, 12, 26, 9, 0x000000, 0.35);
@@ -595,13 +650,14 @@ export class WorldMapScene extends Phaser.Scene {
     this.minZoom = this.fitZoom();
     // começa em "cover" (preenche a tela) centrado no jogador
     cam.setZoom(Math.min(MAX_ZOOM, this.coverZoom() * 1.05));
-    const s = this.mgr.pos(this.currentId);
+    const s = this.mgr.pos(this.currentId!);
     cam.centerOn(s.x, s.y);
 
     this.scale.on("resize", (gameSize: Phaser.Structs.Size) => {
       this.minZoom = this.fitZoom();
       if (cam.zoom < this.minZoom) cam.setZoom(this.minZoom);
       this.overlay.setSize(gameSize.width, gameSize.height);
+      this.sizeVision();
     });
   }
 
@@ -650,7 +706,7 @@ export class WorldMapScene extends Phaser.Scene {
         this.dragDist = 999;
         return;
       }
-      if (!this.dragging || this.travel) return;
+      if (!this.dragging || this.inLocation) return;
       const dx = p.x - this.lastX;
       const dy = p.y - this.lastY;
       this.cameras.main.scrollX -= dx / this.cameras.main.zoom;
@@ -660,9 +716,20 @@ export class WorldMapScene extends Phaser.Scene {
       this.lastY = p.y;
     });
 
-    this.input.on("pointerup", () => {
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
       this.dragging = false;
       this.pinchDist = 0;
+      // toque em terreno livre (não em POI, sem arrastar, fora da UI) => andar até lá
+      if (
+        !this.consumedTap &&
+        this.dragDist < 10 &&
+        !this.inLocation &&
+        !this.registry.get("uiCapture")
+      ) {
+        const wp = this.cameras.main.getWorldPoint(p.x, p.y);
+        this.startWalk(wp.x, wp.y, null);
+        this.selectLocation(null);
+      }
       this.consumedTap = false;
     });
 
@@ -676,7 +743,10 @@ export class WorldMapScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ seleção
   private onPoiTap(loc: WorldLocation) {
+    // movimentação livre: toca num local => anda até ele
     this.selectLocation(loc);
+    const p = this.mgr.pos(loc.id);
+    this.startWalk(p.x, p.y, loc.id);
   }
 
   private selectLocation(loc: WorldLocation | null) {
@@ -690,71 +760,111 @@ export class WorldMapScene extends Phaser.Scene {
     bus.emit(EVENTS.LOCATION_SELECT, {
       loc,
       isCurrent: loc?.id === this.currentId,
-      traveling: !!this.travel,
+      traveling: !!this.walk,
     });
   }
 
-  // ------------------------------------------------------------- viagem
-  private onTravelRequest(toId: string) {
-    if (this.travel || toId === this.currentId) return;
-    const path = this.mgr.findPath(this.currentId, toId);
-    if (!path || path.length < 2) return;
-    this.travelTargetId = toId;
-    this.travel = { pts: this.mgr.pathPoints(path), seg: 0 };
-    // interrompe o balanço e sincroniza posição
+  // ------------------------------------------------------- movimentação livre
+  private startWalk(x: number, y: number, locId: string | null) {
+    if (this.inLocation) return;
+    this.walk = { x, y, locId };
+    this.currentId = null;
     this.tweens.killTweensOf(this.marker);
-    const from = this.mgr.pos(this.currentId);
-    this.marker.setPosition(from.x, from.y);
-    this.cameras.main.startFollow(this.marker, false, 0.08, 0.08);
+    this.cameras.main.startFollow(this.marker, false, 0.09, 0.09);
     this.selRing.setVisible(false);
-    bus.emit(EVENTS.TRAVEL_START, this.mgr.location(toId));
+    // ao sair andando, volta a câmera para a escala de campo aberto
+    if (this.cameras.main.zoom > this.coverZoom() * 1.12) {
+      this.cameras.main.zoomTo(this.coverZoom() * 1.05, 350);
+    }
+    bus.emit(EVENTS.TRAVEL_START, locId ? this.mgr.location(locId) : null);
+  }
+
+  // compat.: HUD antigo poderia pedir viagem por id
+  private onTravelRequest(toId: string) {
+    const p = this.mgr.pos(toId);
+    this.selectLocation(this.mgr.location(toId));
+    this.startWalk(p.x, p.y, toId);
+  }
+
+  private resumeBob() {
+    this.tweens.add({
+      targets: this.marker,
+      y: this.marker.y - 4,
+      duration: 1400,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.inOut",
+    });
+  }
+
+  // -------------------------------------------------------- entrar / sair
+  private onEnter(locId: string) {
+    if (this.inLocation || this.currentId !== locId) return;
+    this.inLocation = true;
+    const p = this.mgr.pos(locId);
+    // "zoom" que muda a escala ao entrar na cidade
+    this.cameras.main.stopFollow();
+    this.cameras.main.pan(p.x, p.y, 450, "Sine.easeInOut");
+    this.cameras.main.zoomTo(MAX_ZOOM, 550, "Sine.easeInOut");
+  }
+
+  private onExit() {
+    if (!this.inLocation) return;
+    this.inLocation = false;
+    this.cameras.main.zoomTo(this.coverZoom() * 1.05, 450, "Sine.easeInOut");
   }
 
   update(_t: number, deltaMs: number) {
     const dt = deltaMs / 1000;
 
-    if (this.travel) {
-      let remaining = TRAVEL_PX_PER_SEC * dt;
-      const pts = this.travel.pts;
-      while (remaining > 0 && this.travel.seg < pts.length - 1) {
-        const ax = this.marker.x;
-        const ay = this.marker.y;
-        const b = pts[this.travel.seg + 1];
-        const segLen = Math.hypot(b.x - ax, b.y - ay);
-        if (segLen <= remaining || segLen < 0.01) {
-          this.marker.setPosition(b.x, b.y);
-          this.gameClock.advance(segLen * MINUTES_PER_UNIT);
-          remaining -= segLen;
-          this.travel.seg++;
-        } else {
-          const t = remaining / segLen;
-          this.marker.setPosition(ax + (b.x - ax) * t, ay + (b.y - ay) * t);
-          this.gameClock.advance(remaining * MINUTES_PER_UNIT);
-          remaining = 0;
-        }
+    if (this.walk && !this.inLocation) {
+      const dx = this.walk.x - this.marker.x;
+      const dy = this.walk.y - this.marker.y;
+      const dist = Math.hypot(dx, dy);
+      const step = TRAVEL_PX_PER_SEC * dt;
+
+      // "aproximação": ao chegar perto de um local, a escala aumenta suavemente
+      if (this.walk.locId && dist < 240) {
+        const target = Math.min(MAX_ZOOM, this.coverZoom() * 1.45);
+        this.cameras.main.setZoom(
+          Phaser.Math.Linear(this.cameras.main.zoom, target, 0.05),
+        );
       }
-      if (this.travel.seg >= pts.length - 1) {
-        this.currentId = this.travelTargetId!;
-        this.travel = null;
-        this.travelTargetId = null;
+
+      if (dist <= step || dist < 1) {
+        this.marker.setPosition(this.walk.x, this.walk.y);
+        this.gameClock.advance(dist * MINUTES_PER_UNIT);
+        const locId = this.walk.locId;
+        this.walk = null;
         this.cameras.main.stopFollow();
-        const loc = this.mgr.location(this.currentId);
-        // retoma o balanço
-        this.tweens.add({
-          targets: this.marker,
-          y: this.marker.y - 4,
-          duration: 1400,
-          yoyo: true,
-          repeat: -1,
-          ease: "Sine.inOut",
-        });
-        bus.emit(EVENTS.TRAVEL_END, loc);
-        bus.emit(EVENTS.LOCATION_ARRIVE, loc);
-        this.selectLocation(loc);
+        this.resumeBob();
+        if (locId) {
+          this.currentId = locId;
+          const loc = this.mgr.location(locId);
+          bus.emit(EVENTS.TRAVEL_END, loc);
+          bus.emit(EVENTS.LOCATION_ARRIVE, loc);
+          this.selectLocation(loc);
+        } else {
+          this.currentId = null;
+          bus.emit(EVENTS.TRAVEL_END, null);
+        }
+      } else {
+        this.marker.x += (dx / dist) * step;
+        this.marker.y += (dy / dist) * step;
+        this.gameClock.advance(step * MINUTES_PER_UNIT);
       }
     }
 
+    this.updateVision();
     this.updateEnvironment();
+  }
+
+  private updateVision() {
+    const cam = this.cameras.main;
+    // posição do jogador na tela (para o holofote acompanhar)
+    const sx = (this.marker.x - cam.worldView.x) * cam.zoom;
+    const sy = (this.marker.y - cam.worldView.y) * cam.zoom;
+    this.vision.setPosition(sx, sy);
   }
 
   private updateEnvironment() {

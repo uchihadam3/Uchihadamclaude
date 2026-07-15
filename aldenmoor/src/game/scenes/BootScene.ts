@@ -9,8 +9,25 @@ export class BootScene extends Phaser.Scene {
 
   create() {
     this.makeParchment();
+    this.makeVision();
     this.scene.start("world");
     this.scene.launch("hud");
+  }
+
+  // "Holofote" de visão (fog-of-war): centro transparente -> bordas escuras.
+  private makeVision() {
+    const S = 1024;
+    const tex = this.textures.createCanvas("vision", S, S);
+    if (!tex) return;
+    const ctx = tex.getContext();
+    const grad = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grad.addColorStop(0.0, "rgba(8,6,4,0)");
+    grad.addColorStop(0.44, "rgba(8,6,4,0)");
+    grad.addColorStop(0.66, "rgba(8,6,4,0.38)");
+    grad.addColorStop(1.0, "rgba(8,6,4,0.8)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, S, S);
+    tex.refresh();
   }
 
   private makeParchment() {
