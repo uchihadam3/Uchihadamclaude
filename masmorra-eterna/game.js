@@ -2397,18 +2397,21 @@ function drawHeadBack(ctx,key,s){ const C=CUT_CHARS[key], P=FACEP[C.pal]||FACEP.
   // helper: mecha com fio de luz por cima (parece cabelo de verdade)
   const strand=(x0,y0,x1,y1,w0,w1)=>{ hairLock(ctx,x0,y0,x1,y1,w0,w1,C.hairD); hairLock(ctx,x0,y0,x1,y1,w0*0.72,w1*0.72,C.hair);
     ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=Math.max(1,0.7*s); ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x0,y0+1*s); ctx.quadraticCurveTo((x0+x1)/2+(x1-x0)*0.5,(y0+y1)/2,x1,y1-1*s); ctx.stroke(); };
-  // === cabelo LONGO fluindo pelas costas (por cima da capa) — mechas separadas p/ parecer cabelo ===
-  if(key==='celes'){                                                                                 // prata, longo e ondulado (repartido)
-    strand(-5.2*s,-32*s,-7.4*s,-15*s,4.6*s,2.8*s);
-    strand( 5.2*s,-32*s, 7.4*s,-15*s,4.6*s,2.8*s);
-    strand(-2.6*s,-32*s,-3.4*s,-13*s,4.4*s,2.8*s);
-    strand( 2.6*s,-32*s, 3.4*s,-13*s,4.4*s,2.8*s);
-    ctx.fillStyle=C.hairD; ctx.fillRect(-0.5*s,-33*s,1*s,16*s);                                       // risca central (repartição)
-  } else if(key==='sakura'){                                                                          // ruivo médio-longo
-    strand(-4.4*s,-32*s,-5.6*s,-17*s,4.4*s,2.6*s);
-    strand( 4.4*s,-32*s, 5.6*s,-17*s,4.4*s,2.6*s);
-    strand(-1.4*s,-32*s,-1.6*s,-16*s,4.4*s,3*s);
-    strand( 1.4*s,-32*s, 1.6*s,-16*s,4.4*s,3*s);
+  // mecha fina e afilada (contorno escuro + núcleo claro + fio de luz) — mechas ESTREITAS com folga entre elas
+  const LL=(cx,tx,topY,len,w0,w1)=>{ const by=topY+len;
+    hairLock(ctx,cx,topY,tx,by,w0,w1,C.hairD);
+    hairLock(ctx,cx+(tx-cx)*0.08,topY,tx,by,w0*0.58,w1*0.66,C.hair);
+    ctx.strokeStyle='rgba(255,255,255,.30)'; ctx.lineWidth=Math.max(1,0.7*s); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(cx,topY+1.5*s); ctx.quadraticCurveTo((cx+tx)/2+(tx-cx)*0.35,topY+len*0.5,tx,by-1.5*s); ctx.stroke(); };
+  // === cabelo LONGO fluindo pelas costas (por cima da capa) — mechas escalonadas, deixando a capa aparecer nas laterais ===
+  if(key==='celes'){                                                                                 // prata, longo e ondulado (repartido ao meio)
+    LL(-3.6*s,-5.6*s,-32*s,17*s,3*s,0.9*s);   LL( 3.6*s, 5.6*s,-32*s,17*s,3*s,0.9*s);                // externas (curvam p/ fora)
+    LL(-1.5*s,-2.4*s,-31*s,20*s,3*s,0.9*s);   LL( 1.5*s, 2.4*s,-31*s,20*s,3*s,0.9*s);                // internas (mais longas)
+    LL(0,0.4*s,-31*s,14*s,2.2*s,0.8*s);                                                              // central curta
+  } else if(key==='sakura'){                                                                          // ruivo médio-longo (mechas mais retas)
+    LL(-3*s,-4*s,-32*s,13*s,2.8*s,0.9*s);     LL( 3*s, 4*s,-32*s,13*s,2.8*s,0.9*s);                  // externas
+    LL(-1*s,-1.3*s,-31*s,16*s,2.8*s,0.9*s);   LL( 1*s, 1.3*s,-31*s,16*s,2.8*s,0.9*s);                // internas (mais longas)
+    LL(0,0.2*s,-31*s,11*s,2.2*s,0.8*s);                                                              // central curta
   } else if(key==='leona'){                                                                           // rabo de cavalo loiro (2 mechas)
     strand(0,-33*s,1*s,-18*s,3.6*s,2*s);
     strand(-0.6*s,-33*s,-1.6*s,-19*s,2.4*s,1.4*s);
