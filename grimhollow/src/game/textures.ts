@@ -25,6 +25,19 @@ function toTex(c: HTMLCanvasElement, repeatX = 1, repeatY = 1): THREE.Texture {
   return t;
 }
 
+// textura para placas/sprites: sem repetição, preserva transparência
+function toSprite(c: HTMLCanvasElement): THREE.Texture {
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.anisotropy = 8;
+  t.wrapS = THREE.ClampToEdgeWrapping;
+  t.wrapT = THREE.ClampToEdgeWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 const rnd = (seed: number) => {
   let a = seed >>> 0;
   return () => {
@@ -227,4 +240,220 @@ export function dirt(seed = 23): THREE.Texture {
       ctx.fillRect(x, y, 1, 1);
     }
   return toTex(c);
+}
+
+// -------- pedra de cantaria (poço, arco da masmorra) --------
+export function stone(seed = 31): THREE.Texture {
+  const W = 96;
+  const H = 96;
+  const { c, ctx } = makeCanvas(W, H);
+  const r = rnd(seed);
+  ctx.fillStyle = "#3b3a38";
+  ctx.fillRect(0, 0, W, H);
+  const bh = 16;
+  for (let gy = 0, row = 0; gy < H; gy += bh, row++) {
+    const off = row % 2 ? 16 : 0;
+    for (let gx = -16; gx < W; gx += 32) {
+      const x = gx + off;
+      const g = 96 + Math.floor(r() * 40);
+      ctx.fillStyle = `rgb(${g},${(g * 0.98) | 0},${(g * 0.92) | 0})`;
+      ctx.fillRect(x + 1, gy + 1, 30, bh - 2);
+      // sombreado e brilho nas bordas do bloco
+      ctx.fillStyle = "rgba(0,0,0,0.28)";
+      ctx.fillRect(x + 1, gy + bh - 3, 30, 2);
+      ctx.fillStyle = "rgba(255,255,255,0.12)";
+      ctx.fillRect(x + 1, gy + 1, 30, 1);
+      // manchas
+      if (r() < 0.4) {
+        ctx.fillStyle = `rgba(40,50,40,${0.1 + r() * 0.15})`;
+        ctx.beginPath();
+        ctx.ellipse(x + 8 + r() * 14, gy + 6 + r() * 6, 4, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  return toTex(c);
+}
+
+// -------- placa de estabelecimento (taverna / loja) --------
+export function sign(kind: "tavern" | "shop"): THREE.Texture {
+  const W = 96;
+  const H = 72;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  // tábua de madeira com moldura
+  ctx.fillStyle = "#3a2614";
+  roundRect(ctx, 6, 4, W - 12, H - 8, 6);
+  ctx.fill();
+  ctx.fillStyle = "#5a3d21";
+  roundRect(ctx, 9, 7, W - 18, H - 14, 5);
+  ctx.fill();
+  // grão
+  ctx.strokeStyle = "rgba(30,18,8,0.4)";
+  ctx.lineWidth = 1;
+  for (let y = 12; y < H - 10; y += 6) {
+    ctx.beginPath();
+    ctx.moveTo(12, y);
+    ctx.lineTo(W - 12, y + 1);
+    ctx.stroke();
+  }
+  // ícone
+  const cx = W / 2;
+  const cy = H / 2 + 2;
+  if (kind === "tavern") {
+    // caneca de cerveja
+    ctx.fillStyle = "#d9b24a";
+    roundRect(ctx, cx - 16, cy - 14, 24, 28, 3);
+    ctx.fill();
+    ctx.fillStyle = "#f6ecd0"; // espuma
+    roundRect(ctx, cx - 16, cy - 18, 24, 8, 3);
+    ctx.fill();
+    ctx.strokeStyle = "#7a5a20"; // alça
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx + 12, cy, 9, -Math.PI / 2, Math.PI / 2);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(120,80,20,0.35)";
+    ctx.fillRect(cx - 16, cy + 2, 24, 3);
+  } else {
+    // bolsa de moedas
+    ctx.fillStyle = "#8a6b3a";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 4, 16, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#6f5228";
+    ctx.fillRect(cx - 8, cy - 12, 16, 8); // gargalo
+    ctx.strokeStyle = "#3a2c14";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, cy - 6);
+    ctx.lineTo(cx + 8, cy - 6);
+    ctx.stroke();
+    ctx.fillStyle = "#e8c34a"; // moeda
+    ctx.beginPath();
+    ctx.arc(cx + 6, cy + 8, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return toSprite(c);
+}
+
+// -------- aldeão (sprite billboard, fundo transparente) --------
+export function villager(seed = 1): THREE.Texture {
+  const W = 64;
+  const H = 112;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  const r = rnd(seed);
+  const robes = ["#6b5030", "#4a5a68", "#5a4448", "#3f5540", "#6a4d5a"];
+  const robe = robes[Math.floor(r() * robes.length)];
+  const cx = W / 2;
+  // sombra no chão
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.beginPath();
+  ctx.ellipse(cx, H - 5, 16, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // manto (corpo trapezoidal)
+  ctx.fillStyle = robe;
+  ctx.beginPath();
+  ctx.moveTo(cx - 9, 44);
+  ctx.lineTo(cx + 9, 44);
+  ctx.lineTo(cx + 20, H - 8);
+  ctx.lineTo(cx - 20, H - 8);
+  ctx.closePath();
+  ctx.fill();
+  // sombra lateral do manto (volume)
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.beginPath();
+  ctx.moveTo(cx, 44);
+  ctx.lineTo(cx + 9, 44);
+  ctx.lineTo(cx + 20, H - 8);
+  ctx.lineTo(cx, H - 8);
+  ctx.closePath();
+  ctx.fill();
+  // cinto
+  ctx.fillStyle = "rgba(40,26,12,0.8)";
+  ctx.fillRect(cx - 12, 70, 24, 5);
+  // capuz / ombros
+  ctx.fillStyle = robe;
+  ctx.beginPath();
+  ctx.moveTo(cx - 15, 52);
+  ctx.quadraticCurveTo(cx, 24, cx + 15, 52);
+  ctx.closePath();
+  ctx.fill();
+  // cabeça
+  ctx.fillStyle = "#caa17a";
+  ctx.beginPath();
+  ctx.arc(cx, 34, 10, 0, Math.PI * 2);
+  ctx.fill();
+  // sombra do capuz sobre o rosto
+  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  ctx.beginPath();
+  ctx.arc(cx, 30, 10, Math.PI, Math.PI * 2);
+  ctx.fill();
+  // cabelo/capuz topo
+  ctx.fillStyle = robe;
+  ctx.beginPath();
+  ctx.arc(cx, 30, 11, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.fill();
+  return toSprite(c);
+}
+
+// -------- porta/arco da masmorra (pedra com vão escuro) --------
+export function dungeonArch(): THREE.Texture {
+  const W = 96;
+  const H = 128;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  // moldura de pedra
+  ctx.fillStyle = "#6a6660";
+  roundRect(ctx, 4, 6, W - 8, H - 6, 4);
+  ctx.fill();
+  // blocos da moldura
+  ctx.strokeStyle = "rgba(0,0,0,0.35)";
+  ctx.lineWidth = 1.5;
+  for (let y = 14; y < H; y += 16) {
+    ctx.beginPath();
+    ctx.moveTo(6, y);
+    ctx.lineTo(20, y);
+    ctx.moveTo(W - 20, y);
+    ctx.lineTo(W - 6, y);
+    ctx.stroke();
+  }
+  // vão em arco escuro
+  const ax = W / 2;
+  const openW = 30;
+  ctx.fillStyle = "#080607";
+  ctx.beginPath();
+  ctx.moveTo(ax - openW, H);
+  ctx.lineTo(ax - openW, 46);
+  ctx.arc(ax, 46, openW, Math.PI, 0);
+  ctx.lineTo(ax + openW, H);
+  ctx.closePath();
+  ctx.fill();
+  // degraus descendo (sugestão)
+  ctx.fillStyle = "rgba(60,58,54,0.5)";
+  for (let i = 0; i < 4; i++)
+    ctx.fillRect(ax - openW + 4 + i * 3, H - 8 - i * 5, (openW - 4 - i * 3) * 2, 3);
+  // pedra-chave no topo do arco
+  ctx.fillStyle = "#7c7870";
+  roundRect(ctx, ax - 7, 30, 14, 16, 2);
+  ctx.fill();
+  return toSprite(c);
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
