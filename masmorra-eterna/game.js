@@ -899,9 +899,93 @@ function renderParty(){
 }
 
 /* ================= SPRITES PIXEL — retratos ================= */
-function drawPortrait(cv,pal){ const ctx=cv.getContext('2d'); ctx.clearRect(0,0,64,64);
-  ctx.fillStyle='#0a0a0d'; ctx.fillRect(0,0,64,64);
-  drawHeroSprite(ctx,4,2,4,pal);
+function drawPortrait(cv,pal){ drawFace(cv.getContext('2d'),pal); }
+
+/* rostos grandes e detalhados (64x64), 1px de granularidade */
+const FACEP={
+  knight:{skin:'#ecc49b',sh:'#c68f66',hi:'#f8dcb8',eye:'#3f7fd0',brow:'#916a2c',hair:'#f0d074',hairD:'#b58e38',cloth:'#3d5e2c',clothD:'#26401a',lip:'#c56b58'},
+  samurai:{skin:'#e9bd94',sh:'#c48a60',hi:'#f6d4b0',eye:'#7a2f2f',brow:'#4a201c',hair:'#cc382d',hairD:'#8f2620',cloth:'#7a1a1a',clothD:'#4a0f0f',lip:'#b85448'},
+  mage:{skin:'#e6c6b0',sh:'#bd977e',hi:'#f4dccb',eye:'#38b8cf',brow:'#8a7a96',hair:'#e6ecf3',hairD:'#a9b3c0',cloth:'#22467e',clothD:'#152c52',lip:'#c07868'},
+  sage:{skin:'#dcc0a6',sh:'#b3937a',hi:'#eed6c0',eye:'#5a86c0',brow:'#cfcfcf',hair:'#ededed',hairD:'#b0b0b0',cloth:'#365f9a',clothD:'#22406a',lip:'#b07a6a'},
+};
+function drawFace(ctx,key){
+  ctx.clearRect(0,0,64,64);
+  const R=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x|0,y|0,w,h);};
+  const bg=ctx.createRadialGradient(32,24,3,32,34,44); bg.addColorStop(0,'#242430');bg.addColorStop(1,'#070709');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,64,64);
+  const P=FACEP[key]||FACEP.knight;
+  // ombros / gola
+  R(11,56,42,8,P.cloth); R(11,55,42,3,P.clothD);
+  // pescoço
+  R(27,47,10,9,P.sh); R(28,45,8,5,P.skin);
+  // cabeça (elipse)
+  for(let y=11;y<52;y++)for(let x=15;x<49;x++){
+    const dx=(x-32)/15.5, dy=(y-31)/18.8;
+    if(dx*dx+dy*dy<=1){ let c=P.skin; if(x>37)c=P.sh; else if(x<26&&y<36)c=P.hi;
+      ctx.fillStyle=c; ctx.fillRect(x,y,1,1); }
+  }
+  // orelhas
+  R(15,31,3,7,P.sh); R(46,31,3,7,P.sh); R(16,32,2,4,P.skin); R(47,32,1,4,P.skin);
+  // maçãs do rosto (blush leve)
+  ctx.globalAlpha=0.25; R(23,38,5,3,P.lip); R(37,38,5,3,P.lip); ctx.globalAlpha=1;
+  // olhos (branco, íris, pupila, brilho)
+  const eye=(cx,fl)=>{ R(cx-3,29,7,5,'#f6f4ed'); R(cx-3,29,7,1,'#d5cfc0');
+    R(cx-3,33,7,1,'#cbb79c'); // pálpebra inferior sombra
+    R(cx+(fl?-2:0),29,4,5,P.eye); R(cx+(fl?-1:1),30,2,3,'#0d0d15'); R(cx+(fl?0:2),30,1,1,'#ffffff'); };
+  eye(23,false); eye(40,true);
+  // sobrancelhas
+  R(20,26,8,2,P.brow); R(36,26,8,2,P.brow);
+  // nariz
+  R(31,33,2,6,P.sh); R(30,38,4,1,P.sh); R(33,38,1,1,P.hi);
+  // boca
+  R(27,42,10,1,'#8a4a40'); R(28,43,8,1,P.lip); R(29,44,6,1,'#7a3e36');
+  // ---- cabelo + acessório por classe (desenhado por cima) ----
+  if(key==='knight'){
+    // cabelo loiro aparecendo sob o elmo (laterais e nuca)
+    R(18,22,5,14,P.hair); R(41,22,5,14,P.hair); R(18,30,4,8,P.hairD); R(42,30,4,8,P.hairD);
+    // ELMO dourado — domo sobre a cabeça
+    for(let y=3;y<20;y++)for(let x=15;x<49;x++){ const dx=(x-32)/16.5,dy=(y-19)/16; if(dx*dx+dy*dy<=1){ let c='#d9b24a'; if(y<7)c='#f4dd88'; else if(x>37)c='#a6801f'; else if(x<26)c='#e8c76a'; R(x,y,1,1,c);} }
+    R(22,6,3,10,'#fdf0b4'); R(23,7,1,7,'#ffffff');   // brilho especular do metal
+    R(16,4,32,1,'#8f6f24'); R(24,16,16,1,'#8f6f24');  // contornos metálicos
+    R(16,17,32,2,'#8f6f24');                       // aba/rebordo do elmo
+    R(15,17,5,15,'#c8a13f'); R(44,17,5,15,'#c8a13f'); // placas de bochecha
+    R(15,17,2,15,'#8f6f24'); R(47,17,2,15,'#8f6f24');
+    R(31,17,2,10,'#b8912f'); R(30,17,1,9,'#8f6f24'); // protetor nasal
+    // asas de metal (angulares) nas laterais
+    R(11,10,6,2,'#e4eaf1');R(9,12,5,2,'#c3ccd6');R(7,14,4,2,'#9aa6b2'); R(13,8,4,2,'#f4f8fc');
+    R(47,10,6,2,'#e4eaf1');R(50,12,5,2,'#c3ccd6');R(53,14,4,2,'#9aa6b2'); R(47,8,4,2,'#f4f8fc');
+  } else if(key==='samurai'){
+    R(16,12,32,9,P.hair); R(15,19,6,18,P.hair); R(43,19,6,18,P.hair);
+    R(16,12,32,2,P.hairD); R(15,30,5,8,P.hairD); R(44,30,5,8,P.hairD);
+    R(27,18,10,7,P.hair); R(29,18,6,7,P.hairD); // mecha central
+    // bandana branca com nó
+    R(15,21,34,4,'#ece6d8'); R(15,24,34,1,'#c3bba8'); R(29,20,6,5,P.hair==='x'?'#000':'#cc382d');
+    R(44,22,3,3,'#ece6d8'); R(47,24,4,6,'#dcd4c2'); // nó lateral
+    // cicatriz sob o olho
+    R(41,34,1,5,'#b5695a');
+  } else if(key==='mage'){
+    R(19,14,26,8,P.hair); R(16,20,5,20,P.hair); R(43,20,5,20,P.hair);
+    R(19,14,26,2,'#ffffff'); R(16,28,4,12,P.hairD); R(44,28,4,12,P.hairD);
+    // capuz azul
+    R(11,6,42,10,P.cloth); R(11,6,42,3,'#3f66b4'); R(13,13,38,2,P.clothD);
+    R(10,14,8,34,P.cloth); R(46,14,8,34,P.cloth); R(11,15,4,32,P.clothD); R(49,15,4,32,P.clothD);
+    R(18,14,3,26,'#2a4f8a'); R(43,14,3,26,'#2a4f8a'); // sombra interna do capuz
+  } else if(key==='sage'){
+    // capuz
+    R(11,5,42,11,P.cloth); R(11,5,42,3,'#4d78bc'); R(13,13,38,2,P.clothD);
+    R(9,13,9,36,P.cloth); R(46,13,9,36,P.cloth); R(10,14,4,34,P.clothD); R(50,14,4,34,P.clothD);
+    R(17,13,3,30,'#2c4c82'); R(44,13,3,30,'#2c4c82');
+    // cabelo/testa
+    R(20,15,24,5,P.hair); R(20,15,24,2,'#ffffff');
+    // sobrancelhas grossas brancas (por cima)
+    R(20,25,8,3,P.brow); R(36,25,8,3,P.brow);
+    // barba branca cheia (cobre boca/queixo)
+    R(21,43,22,11,P.hair); R(19,40,7,10,P.hair); R(38,40,7,10,P.hair); R(24,53,16,5,P.hairD);
+    R(27,40,10,3,'#c8c8c8'); R(26,46,12,1,P.hairD);
+    R(30,47,4,3,P.sh); // pequena sombra da boca no bigode
+  }
+  // vinheta suave nas bordas
+  ctx.globalAlpha=0.35; const vg=ctx.createRadialGradient(32,32,18,32,32,40); vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'#000'); ctx.fillStyle=vg; ctx.fillRect(0,0,64,64); ctx.globalAlpha=1;
 }
 // desenha herói 14x15 escalado
 function drawHeroSprite(ctx,ox,oy,s,pal){
@@ -1160,14 +1244,17 @@ function bindInput(){
     else if(m==='tl')turn(-1); else if(m==='tr')turn(1);
     else if(m==='sl')tryMove(...DIRV[(G.dir+3)%4]); else if(m==='sr')tryMove(...DIRV[(G.dir+1)%4]);
   });
-  // swipe no view p/ mover/virar
-  const vw=$('#viewWrap'); let sx,sy;
-  vw.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;},{passive:true});
-  vw.addEventListener('touchend',e=>{const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;
-    if(Math.abs(dx)<24&&Math.abs(dy)<24){interact();return;}
+  // swipe no view p/ mover/virar — ignora toques que começam nos botões
+  const vw=$('#viewWrap'); let sx,sy,sTarget=null;
+  const onDpad=el=>el&&el.closest&&(el.closest('#dpad')||el.closest('#hints'));
+  vw.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;sTarget=e.target;},{passive:true});
+  vw.addEventListener('touchend',e=>{
+    const tg=sTarget||e.target; sTarget=null;
+    if(onDpad(tg)||onDpad(e.target))return;                 // toque no D-pad: os botões cuidam
+    const t=e.changedTouches[0];const dx=t.clientX-sx,dy=t.clientY-sy;
+    if(Math.abs(dx)<30&&Math.abs(dy)<30){interact();return;}
     if(Math.abs(dx)>Math.abs(dy)){dx>0?turn(1):turn(-1);}else{dy<0?tryMove(...DIRV[G.dir]):tryMove(-DIRV[G.dir][0],-DIRV[G.dir][1]);}
   },{passive:true});
-  vw.addEventListener('click',e=>{ if(e.target.closest('#dpad')||e.target.closest('#hints'))return; /* clique central = interagir */ });
   // fechar overlays
   $$('[data-close]').forEach(el=>el.onclick=()=>$('#'+el.dataset.close).classList.remove('on'));
   // botões de tela
