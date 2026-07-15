@@ -729,6 +729,8 @@ function mkEnemy(key,lvBoost,opts){ opts=opts||{};
     phases:b.phases, phase:0,
     status:{}, alive:true, scanned:false, discovered:new Set(),
     sx:0,sy:0,scale:1, hitFlash:0, bob:Math.random()*6 };
+  if(b.boss){ // chefes são PAREDES: mais HP e ataque que sobe com a profundidade (suave cedo, forte tarde) — Parte 11
+    const atkM=1.18+(dep-1)*0.026; e.mhp=Math.round(e.mhp*1.3); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
   if(!b.boss && !opts.noElite && chance(eliteChance(dep))) makeElite(e);
   return e;
 }
@@ -1551,12 +1553,12 @@ function startElitePack(){
 function mkSecretBoss(depth){
   // andar 5 -> força do CHEFE DO ANDAR 7 · andar 10 -> força do CHEFE DO ANDAR 12 (o mais forte do jogo)
   const scaleDepth = depth<=5?7:12;
-  const e=mkEnemy('cavaleiro',0,{depthAs:scaleDepth,noElite:true});   // dark knight como superchefe
+  const e=mkEnemy('cavaleiro',0,{depthAs:scaleDepth,noElite:true});   // dark knight como superchefe (já leva o buff de chefe)
   e.name = depth<=5?'ARAUTO DAS CINZAS':'SOBERANO DA CINZA ETERNA';
   e.superBoss=true; e.superAura = depth<=5?'#b070e0':'#ff5a4a';
-  e.mhp=Math.round(e.mhp*(depth<=5?1.15:1.4)); e.hp=e.mhp;
-  e.atk=Math.round(e.atk*1.12); e.guardMax+=1; e.guard+=1;
-  e.bossScale = depth<=5?2.25:2.5;
+  e.mhp=Math.round(e.mhp*(depth<=5?1.4:1.85)); e.hp=e.mhp;         // superchefes: os desafios mais duros do jogo
+  e.atk=Math.round(e.atk*(depth<=5?1.28:1.5)); e.mag=Math.round(e.mag*(depth<=5?1.28:1.5));
+  e.guardMax+=2; e.guard+=2; e.bossScale = depth<=5?2.3:2.55;
   return e;
 }
 function startSecretBoss(depth){
