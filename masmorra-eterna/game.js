@@ -718,19 +718,21 @@ const BEST={
             {name:'Voto de Cinzas',type:'buff',target:'self',status:{name:'atkUp',turns:3,pot:1.5},tell:'O cavaleiro reúne as cinzas...'},
             {name:'Julgamento',type:'dark',target:'one',power:260,magic:true,tell:'Uma luz negra se concentra...'}]},
 };
+// dificuldade — inimigos mais resistentes (HP) e mais fortes (ATK/MAG)
+const ENEMY_HP_MUL=1.55, ENEMY_ATK_MUL=1.4;
 function mkEnemy(key,lvBoost,opts){ opts=opts||{};
-  const b=BEST[key], dep=opts.depthAs||G.depth||1, lv=dep+(lvBoost||0), sc=1+(dep-1)*0.13;
+  const b=BEST[key], dep=opts.depthAs||G.depth||1, lv=dep+(lvBoost||0), sc=1+(dep-1)*0.15;
   const e={ key, side:'enemy', name:b.name, spr:b.spr, boss:!!b.boss, undead:!!b.undead,
-    mhp:Math.round(b.hp*sc), hp:Math.round(b.hp*sc),
-    atk:Math.round(b.atk*sc), mag:Math.round(b.mag*sc), def:Math.round(b.def*sc), res:Math.round(b.res*sc),
+    mhp:Math.round(b.hp*sc*ENEMY_HP_MUL), hp:Math.round(b.hp*sc*ENEMY_HP_MUL),
+    atk:Math.round(b.atk*sc*ENEMY_ATK_MUL), mag:Math.round(b.mag*sc*ENEMY_ATK_MUL), def:Math.round(b.def*sc), res:Math.round(b.res*sc),
     agi:b.agi, guardMax:b.guard, guard:b.guard, broken:false, brokenT:0,
     weak:new Set(b.weak||[]), resist:new Set(b.resist||[]), imm:new Set(b.imm||[]),
     xp:Math.round(b.xp*sc), gold:Math.round(b.gold*sc), skills:b.skills||[], ai:b.ai, front:b.front,
     phases:b.phases, phase:0,
     status:{}, alive:true, scanned:false, discovered:new Set(),
     sx:0,sy:0,scale:1, hitFlash:0, bob:Math.random()*6 };
-  if(b.boss){ // chefes são PAREDES: mais HP e ataque que sobe com a profundidade (suave cedo, forte tarde) — Parte 11
-    const atkM=1.18+(dep-1)*0.026; e.mhp=Math.round(e.mhp*1.3); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
+  if(b.boss){ // chefes são PAREDES: muito mais HP e ataque que sobe com a profundidade (suave cedo, forte tarde) — Parte 11
+    const atkM=1.28+(dep-1)*0.03; e.mhp=Math.round(e.mhp*1.7); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
   if(!b.boss && !opts.noElite && chance(eliteChance(dep))) makeElite(e);
   return e;
 }
