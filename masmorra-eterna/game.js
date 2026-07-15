@@ -844,9 +844,9 @@ function layoutEnemies(){
   const es=G.battle.enemies, cv=$('#benemies'); const W=cv.clientWidth||cv.width, H=cv.clientHeight||cv.height;
   const n=es.length;
   es.forEach((e,i)=>{
-    if(e.boss){ e.sx=0.5; e.sy=0.6; e.scale=e.bossScale||2.0; }
+    if(e.boss){ e.sx=0.5; e.sy=0.74; e.scale=e.bossScale||2.0; }   // pés no chão do palco
     else{ const cols=Math.min(n,3), rowI=Math.floor(i/3), inRow=Math.min(cols,n-rowI*3), col=i%3;
-      e.sx=(col+0.5)/inRow*0.86+0.07; e.sy=0.42+rowI*0.22; e.scale=(1.1-rowI*0.12)*(e.scaleMul||1); }
+      e.sx=(col+0.5)/inRow*0.86+0.07; e.sy=0.74-rowI*0.13; e.scale=(1.05-rowI*0.14)*(e.scaleMul||1); } // frente embaixo, fundo mais acima/menor
   });
 }
 function alliesAlive(){return G.party.filter(c=>c.alive);}
@@ -2366,6 +2366,29 @@ function drawHero(ctx,x,groundY,s,key,phase){ const C=CUT_CHARS[key]; const step
   const hd=heroHead(key), hs=26*s; ctx.imageSmoothingEnabled=false; ctx.drawImage(hd,-hs/2,-34*s-hs*0.84,hs,hs); ctx.imageSmoothingEnabled=true; // ROSTO = retrato
   ctx.restore();
 }
+function drawClassGearBack(ctx,key,s){ ctx.save();
+  if(key==='leona'||key==='sakura'){ ctx.translate(5*s,-30*s); ctx.rotate(0.55); ctx.fillStyle='#6a4a20'; ctx.fillRect(0,-15*s,2*s,15*s);
+    ctx.fillStyle=key==='sakura'?'#8f2620':'#c8a44a'; ctx.fillRect(-1*s,-2*s,4*s,3*s); }                 // cabo da lâmina nas costas
+  else { const gem=key==='darius'?'#e8c15a':'#3a78c8', gemHi=key==='darius'?'#fff0b0':'#bfe0ff'; ctx.fillStyle='#6a4a28'; ctx.fillRect(11*s,-42*s,2.5*s,32*s);
+    ctx.fillStyle=gem; ctx.beginPath();ctx.arc(12*s,-43*s,4*s,0,7);ctx.fill(); ctx.fillStyle=gemHi; ctx.beginPath();ctx.arc(12*s,-43*s,1.8*s,0,7);ctx.fill(); } // cajado atrás
+  ctx.restore(); }
+// herói de COSTAS (andando para dentro da masmorra) com a CABEÇA VIRADA mostrando o rosto (retrato)
+function drawHeroBack(ctx,x,groundY,s,key,phase){ const C=CUT_CHARS[key]; const step=Math.sin(phase), bob=Math.abs(Math.cos(phase))*1.5*s;
+  const turn=(key==='sakura'||key==='celes')?-1:1;                       // lado para onde olha por cima do ombro
+  ctx.save(); ctx.translate(x,groundY-bob);
+  ctx.fillStyle='rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(0,2*s+bob,11*s,3*s,0,0,7); ctx.fill();     // sombra
+  drawClassGearBack(ctx,key,s);                                          // arma nas costas (atrás do corpo)
+  ctx.fillStyle=C.cloakD; ctx.fillRect((-5.5+step)*s,-15*s,4.5*s,15*s); ctx.fillRect((1-step)*s,-15*s,4.5*s,15*s); // pernas
+  ctx.fillStyle='#241810'; ctx.fillRect((-6+step)*s,-2.5*s,5.2*s,3*s); ctx.fillRect((0.6-step)*s,-2.5*s,5.2*s,3*s); // botas
+  ctx.fillStyle=C.cloak; roundRectP(ctx,-9.5*s,-35*s,19*s,21*s,4*s); ctx.fill();                          // capa/costas
+  ctx.fillStyle=C.cloakD; ctx.fillRect(-1.2*s,-35*s,2.4*s,21*s);                                          // costura central da capa
+  ctx.fillStyle='rgba(0,0,0,.16)'; ctx.fillRect(-9.5*s,-35*s,19*s,4*s);                                   // sombra do capuz
+  ctx.fillStyle=C.cloak; ctx.fillRect((-13.5+step)*s,-33*s,4*s,17*s); ctx.fillRect((9.5-step)*s,-33*s,4*s,17*s); // braços
+  ctx.fillStyle=C.hair; ctx.beginPath(); ctx.arc(0,-38*s,6.6*s,0,7); ctx.fill();                          // nuca (cabelo)
+  const hd=heroHead(key), hs=23*s;                                       // ROSTO virado por cima do ombro
+  ctx.save(); ctx.translate(turn*3.4*s,-41*s); ctx.rotate(turn*0.17); ctx.imageSmoothingEnabled=false; ctx.drawImage(hd,-hs/2,-hs*0.52,hs,hs); ctx.imageSmoothingEnabled=true; ctx.restore();
+  ctx.restore();
+}
 // raycaster dedicado da cutscene (dungeon REAL) num canvas offscreen
 const CUTRC={cv:null,ctx:null,RW:0,RH:0,img:null,buf:null,zbuf:null};
 function cutRCsize(W,H){ const RW=clamp(Math.round(W/2.2),200,440), RH=clamp(Math.round(RW*H/W),120,320);
@@ -2383,10 +2406,10 @@ function cutRaycast(ctx,W,H,depth,t){ cutRCsize(W,H); if(!CUTDUN)CUTDUN=cutMakeD
 function cutDrawBg(ctx,W,H,t,bg){ if(bg==='ascend')return cutAscend(ctx,W,H,t); if(bg==='flame')return cutFlame(ctx,W,H,t); if(bg==='throne')return cutThrone(ctx,W,H,t); if(bg==='dawn')return cutDawn(ctx,W,H,t); cutCorridor(ctx,W,H,t); }
 function cutCorridor(ctx,W,H,t){
   cutRaycast(ctx,W,H,1,t);                                            // fundo = DUNGEON REAL (raycaster, bioma cripta)
-  const base=H*0.86, s=Math.min(W,H)/118;                            // party de corpo inteiro no primeiro plano
+  const base=H*0.86, s=Math.min(W,H)/118;                            // party DE COSTAS (entrando na masmorra), rosto virado
   const order=['sakura','leona','celes','darius'];
   order.forEach((k,i)=>{ const dx=(i-1.5)*W*0.155; const near=1-Math.abs(i-1.5)*0.05; const ph=t*4.2 + i*1.5;
-    drawHero(ctx, W/2+dx, base, s*near, k, ph); });
+    drawHeroBack(ctx, W/2+dx, base, s*near, k, ph); });
   const vg=ctx.createRadialGradient(W/2,H*0.5,H*0.36,W/2,H*0.55,H); vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.52)'); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
 }
 // cenários adicionais (usados no final — Parte 13d)
@@ -2415,7 +2438,7 @@ function cutFlame(ctx,W,H,t){ ctx.fillStyle='#05040a'; ctx.fillRect(0,0,W,H); co
 function cutAscend(ctx,W,H,t){ let g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0a0714');g.addColorStop(1,'#1a1428'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   const cx=W/2; const beam=ctx.createLinearGradient(cx,0,cx,H); beam.addColorStop(0,'rgba(255,240,190,.28)');beam.addColorStop(1,'rgba(255,220,150,0)'); ctx.fillStyle=beam; ctx.beginPath();ctx.moveTo(cx-W*0.06,0);ctx.lineTo(cx+W*0.06,0);ctx.lineTo(cx+W*0.22,H);ctx.lineTo(cx-W*0.22,H);ctx.closePath();ctx.fill();
   for(let i=0;i<40;i++){ const y=(H - (t*30+i*40)%(H+40)); const x=cx+Math.sin(i*1.7+t)* (W*0.18*(1-y/H)); ctx.fillStyle=`rgba(255,230,160,${0.5*(1-y/H)})`; ctx.fillRect(x,y,2,2); }
-  const ws=Math.min(W,H)/130; ['sakura','leona','celes','darius'].forEach((k,i)=>drawHero(ctx,cx+(i-1.5)*W*0.15,H*0.9,ws,k,t*3+i)); }
+  const ws=Math.min(W,H)/130; ['sakura','leona','celes','darius'].forEach((k,i)=>drawHeroBack(ctx,cx+(i-1.5)*W*0.15,H*0.9,ws,k,t*3+i)); }
 function cutDawn(ctx,W,H,t){ let g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#f0c27a');g.addColorStop(0.5,'#c9744a');g.addColorStop(1,'#3a2140'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   const sx=W/2, sy=H*0.42, R=H*0.16; const sg=ctx.createRadialGradient(sx,sy,4,sx,sy,R*3); sg.addColorStop(0,'rgba(255,246,210,.95)');sg.addColorStop(0.4,'rgba(255,210,140,.5)');sg.addColorStop(1,'rgba(255,180,110,0)'); ctx.fillStyle=sg; ctx.fillRect(0,0,W,H);
   ctx.fillStyle='#fff6d8'; ctx.beginPath();ctx.arc(sx,sy,R,0,7);ctx.fill();
