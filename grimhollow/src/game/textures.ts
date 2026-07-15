@@ -1,18 +1,23 @@
 import * as THREE from "three";
 
-// Texturas pixel art geradas por código. Filtro NEAREST (sem borrar).
+// Texturas geradas por código, com filtragem suave (sem look pixelado).
+// Renderizamos as texturas com super-amostragem (SS) p/ ficarem nítidas.
+const SS = 4; // fator de super-amostragem das texturas procedurais
 function makeCanvas(w: number, h: number) {
   const c = document.createElement("canvas");
-  c.width = w;
-  c.height = h;
-  return { c, ctx: c.getContext("2d")! };
+  c.width = w * SS;
+  c.height = h * SS;
+  const ctx = c.getContext("2d")!;
+  ctx.scale(SS, SS); // desenha em coords lógicas, renderiza em alta resolução
+  return { c, ctx };
 }
 
 function toTex(c: HTMLCanvasElement, repeatX = 1, repeatY = 1): THREE.Texture {
   const t = new THREE.CanvasTexture(c);
-  t.magFilter = THREE.NearestFilter;
-  t.minFilter = THREE.NearestFilter;
-  t.generateMipmaps = false;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.anisotropy = 8;
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(repeatX, repeatY);
