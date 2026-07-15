@@ -506,7 +506,7 @@ function onAction(c,a){
   if(a==='item'){ openItems(c); return; }
 }
 function openSub(c,ids,label){
-  const s=$('#bsub'); s.classList.add('on');
+  const s=$('#bsub'); s.classList.add('on'); $('#bmenu').classList.remove('on'); clearTargets();
   let html=`<div class="subhead"><span>${label}</span><span class="back" data-back>‹ voltar</span></div>`;
   if(!ids.length)html+=`<div style="color:#888;padding:12px">Nada disponível.</div>`;
   for(const id of ids){ const sk=SKILLS[id]; const afford=c.mp>=(sk.mp||0);
@@ -528,27 +528,27 @@ function onSkill(c,id){ const sk=SKILLS[id];
 }
 
 /* seleção de alvo com controle de Impulso (Resolve) */
+function backToMenu(c,sk){ if(!sk)showActionMenu(c);
+  else openSub(c, sk.magic?knownSkills(c).filter(id=>SKILLS[id].magic||['heal','cure','revive','util'].includes(SKILLS[id].kind)):knownSkills(c).filter(id=>!SKILLS[id].magic&&SKILLS[id].kind!=='heal'&&SKILLS[id].kind!=='revive'&&SKILLS[id].kind!=='cure'), sk.magic?'MAGIAS':'TÉCNICAS'); }
 function chooseTarget(c,act){
   const sk=act.id?SKILLS[act.id]:null;
   const allyTarget=sk&&['heal','cure','revive'].includes(sk.kind);
-  clearTargets();
-  const bar=document.createElement('div'); bar.id='tgtBar';
-  bar.style.cssText='position:absolute;left:0;right:0;bottom:0;z-index:9;display:flex;align-items:center;gap:8px;justify-content:center;padding:9px;background:rgba(6,5,4,.94);border-top:1px solid #3a3320;font-size:12px;color:#cfc8b4;flex-wrap:wrap;';
-  const canBoost=c.resolve>0 && (act.kind==='attack'|| (sk&&(sk.kind==='atk'||sk.kind==='heal')));
-  bar.innerHTML=`<span>${allyTarget?'Escolha o aliado':'Escolha o alvo'}</span>
-    ${canBoost?`<span style="display:flex;align-items:center;gap:6px;background:#1a160c;border:1px solid #4a3f1e;border-radius:14px;padding:2px 4px 2px 10px">
-      ⚡Impulso <b id="bpN" style="color:#e8c15a">0</b>
-      <span id="bpM" style="padding:2px 9px;border:1px solid #4a3f1e;border-radius:8px;cursor:pointer">−</span>
-      <span id="bpP" style="padding:2px 9px;border:1px solid #4a3f1e;border-radius:8px;cursor:pointer">+</span>
-      <small style="color:#8a7a4a">(${c.resolve} disp.)</small></span>`:''}
-    <span id="tgtCancel" style="color:#c86;cursor:pointer;border:1px solid #533;border-radius:8px;padding:3px 10px">✕ voltar</span>`;
-  $('#bfield').appendChild(bar);
+  clearTargets(); $('#bmenu').classList.remove('on'); $('#bsub').classList.remove('on');
   UI.boost=0;
-  if(canBoost){ const upd=()=>$('#bpN').textContent=UI.boost;
-    $('#bpP').onclick=()=>{ if(UI.boost<c.resolve&&UI.boost<3){UI.boost++;upd();SFX.ui();} };
-    $('#bpM').onclick=()=>{ if(UI.boost>0){UI.boost--;upd();SFX.ui();} };
-  }
-  $('#tgtCancel').onclick=()=>{ SFX.back(); clearTargets(); if(act.kind==='attack')showActionMenu(c); else if(sk){ openSub(c, sk.magic?knownSkills(c).filter(id=>SKILLS[id].magic||['heal','cure','revive','util'].includes(SKILLS[id].kind)):knownSkills(c).filter(id=>!SKILLS[id].magic&&SKILLS[id].kind!=='heal'), sk.magic?'MAGIAS':'TÉCNICAS'); } };
+  const multiHit=act.kind==='attack';
+  const canBoost=c.resolve>0 && (multiHit||(sk&&(sk.kind==='atk'||sk.kind==='heal')));
+  const maxLv=Math.min(3,c.resolve);
+  const lvlText=i=> multiHit ? (i===0?'1 golpe':(i+1)+' golpes') : (i===0?'normal':'+'+(i*50)+'% poder');
+  let lvHtml='';
+  if(canBoost){ for(let i=0;i<=maxLv;i++){ let pips=''; for(let k=0;k<i;k++)pips+='⚡';
+    lvHtml+=`<div class="blvl${i===0?' on':''}" data-lv="${i}"><b>${pips||'○'}</b><small>${lvlText(i)}</small></div>`; } }
+  const bar=document.createElement('div'); bar.id='tgtBar';
+  bar.innerHTML=`<div class="tgtHead"><span>${allyTarget?'💚 Escolha o aliado':'🎯 Toque no inimigo'}</span><span class="tgtCancel">✕ voltar</span></div>
+    ${canBoost?`<div class="boostRow"><span class="boostLbl">IMPULSO<br>⚡×${c.resolve}</span><div class="blvls">${lvHtml}</div></div>`:''}`;
+  $('#bfield').appendChild(bar);
+  if(canBoost){ bar.querySelectorAll('.blvl').forEach(el=>el.onclick=()=>{ UI.boost=+el.dataset.lv; SFX.ui();
+    bar.querySelectorAll('.blvl').forEach(x=>x.classList.toggle('on',x===el)); }); }
+  bar.querySelector('.tgtCancel').onclick=()=>{ SFX.back(); clearTargets(); backToMenu(c,sk); };
   const targets= allyTarget ? (sk.kind==='revive'?G.party.filter(c=>!c.alive):alliesAlive()) : enemiesAlive();
   if(allyTarget){ // alvo em cards da party
     targets.forEach(t=>{ const idx=G.party.indexOf(t); const card=$('#bparty').children[idx];
@@ -571,7 +571,7 @@ function clearTargets(){ $$('#bfield .tgtDot').forEach(d=>d.remove()); const b=$
 function spend(c,sk){ if(sk&&sk.mp){c.mp=Math.max(0,c.mp-sk.mp);} if(UI.boost){c.resolve=Math.max(0,c.resolve-UI.boost);} }
 
 async function doAttack(c,t){
-  const boost=UI.boost; spend(c,null);
+  hideMenus(); const boost=UI.boost; spend(c,null);
   const hits=1+boost; // cada impulso = +1 golpe
   await animAttack(c);
   for(let i=0;i<hits;i++){ if(!t.alive)break;
@@ -581,7 +581,7 @@ async function doAttack(c,t){
   markDirty(); await wait(200); finishTurn();
 }
 async function execSkill(c,id,targets){
-  const sk=SKILLS[id]; const boost=UI.boost; spend(c,sk);
+  hideMenus(); const sk=SKILLS[id]; const boost=UI.boost; spend(c,sk);
   await animCast(c,sk);
   if(sk.kind==='util'){ // analisar
     targets.forEach(t=>{ t.scanned=true; blog('Fraquezas de '+t.name+' reveladas!'); });
