@@ -2357,35 +2357,124 @@ function drawHero(ctx,x,groundY,s,key,phase){ const C=CUT_CHARS[key]; const step
   const hd=heroHead(key), hs=26*s; ctx.imageSmoothingEnabled=false; ctx.drawImage(hd,-hs/2,-34*s-hs*0.84,hs,hs); ctx.imageSmoothingEnabled=true; // ROSTO = retrato
   ctx.restore();
 }
+// mecha de cabelo fluida (ribbon) — do topo (w0) afinando para uma ponta arredondada (w1)
+function hairLock(ctx,x0,y0,x1,y1,w0,w1,col){ const mx=(x0+x1)/2,my=(y0+y1)/2, bend=(x1-x0)*0.6;
+  ctx.fillStyle=col; ctx.beginPath();
+  ctx.moveTo(x0-w0/2,y0);
+  ctx.quadraticCurveTo(mx-w1/2+bend,my, x1-w1/2,y1);
+  ctx.quadraticCurveTo(x1,y1+w1*0.85, x1+w1/2,y1);
+  ctx.quadraticCurveTo(mx+w1/2+bend,my, x0+w0/2,y0);
+  ctx.closePath(); ctx.fill(); }
 function drawClassGearBack(ctx,key,s){ ctx.save();
-  if(key==='leona'||key==='sakura'){ ctx.translate(5*s,-30*s); ctx.rotate(0.55); ctx.fillStyle='#6a4a20'; ctx.fillRect(0,-15*s,2*s,15*s);
-    ctx.fillStyle=key==='sakura'?'#8f2620':'#c8a44a'; ctx.fillRect(-1*s,-2*s,4*s,3*s); }                 // cabo da lâmina nas costas
-  else { const gem=key==='darius'?'#e8c15a':'#3a78c8', gemHi=key==='darius'?'#fff0b0':'#bfe0ff'; ctx.fillStyle='#6a4a28'; ctx.fillRect(11*s,-42*s,2.5*s,32*s);
-    ctx.fillStyle=gem; ctx.beginPath();ctx.arc(12*s,-43*s,4*s,0,7);ctx.fill(); ctx.fillStyle=gemHi; ctx.beginPath();ctx.arc(12*s,-43*s,1.8*s,0,7);ctx.fill(); } // cajado atrás
+  if(key==='leona'||key==='sakura'){                                          // lâmina cruzada nas costas
+    ctx.translate(3.5*s,-29*s); ctx.rotate(0.5);
+    ctx.fillStyle='#241a12'; roundRectP(ctx,-1.8*s,-19*s,3.6*s,29*s,1.6*s); ctx.fill();          // bainha
+    ctx.fillStyle='#0f0f0f'; ctx.fillRect(-1.2*s,-18*s,2.4*s,3*s);                                // detalhe topo bainha
+    ctx.fillStyle= key==='sakura'?'#141414':'#3a2c18'; ctx.fillRect(-1.1*s,-25*s,2.2*s,7*s);      // cabo
+    ctx.fillStyle= key==='sakura'?'#111':'#5a4526'; for(let i=-24;i<-18;i+=2) ctx.fillRect(-1.1*s,i*s,2.2*s,0.8*s); // trançado
+    ctx.fillStyle= key==='sakura'?'#c0392b':'#c8a44a'; roundRectP(ctx,-2.6*s,-18.5*s,5.2*s,2.2*s,0.8*s); ctx.fill(); // guarda
+    ctx.fillStyle='#e8d9b0'; ctx.fillRect(-0.6*s,-26.5*s,1.2*s,2.5*s);                             // pomo
+  } else {                                                                    // cajado nas costas com joia radiante
+    const gem=key==='darius'?'#e8c15a':'#5aa8ff', gemHi=key==='darius'?'#fff0b0':'#dbeeff', gemD=key==='darius'?'#8a6a1a':'#274a86';
+    ctx.fillStyle='#3a2814'; ctx.fillRect(10.4*s,-45*s,3*s,37*s);
+    ctx.fillStyle='#6a4a24'; ctx.fillRect(10.4*s,-45*s,1.1*s,37*s);                                // realce lateral do cajado
+    ctx.fillStyle='#2a1c10'; ctx.fillRect(12.4*s,-45*s,1*s,37*s);                                  // sombra
+    const gx=11.9*s, gy=-47*s;
+    const rg=ctx.createRadialGradient(gx,gy,1,gx,gy,9*s); rg.addColorStop(0,key==='darius'?'rgba(255,220,120,.55)':'rgba(120,180,255,.55)'); rg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=rg; ctx.beginPath();ctx.arc(gx,gy,9*s,0,7);ctx.fill();                            // aura
+    ctx.fillStyle=gemD; ctx.beginPath();ctx.arc(gx,gy,4.6*s,0,7);ctx.fill();                        // engaste
+    ctx.fillStyle=gem; ctx.beginPath();ctx.arc(gx,gy,3.3*s,0,7);ctx.fill();
+    ctx.fillStyle=gemHi; ctx.beginPath();ctx.arc(gx-1*s,gy-1.1*s,1.3*s,0,7);ctx.fill();
+  }
   ctx.restore(); }
-// NUCA (parte de trás da cabeça) — sem rosto; reconhecível pelo cabelo/acessório
-function drawHeadBack(ctx,key,s){ const C=CUT_CHARS[key];
-  ctx.fillStyle='#c99a6e'; ctx.fillRect(-3*s,-34*s,6*s,5*s);                                              // pescoço
-  ctx.fillStyle=C.hairD; ctx.beginPath(); ctx.arc(0,-40*s,7.8*s,0,7); ctx.fill();                          // cabelo (sombra)
-  ctx.fillStyle=C.hair; ctx.beginPath(); ctx.ellipse(0,-41*s,7.1*s,7.6*s,0,Math.PI*0.84,Math.PI*2.16); ctx.fill(); // volume do cabelo
-  ctx.fillStyle='rgba(255,255,255,.13)'; ctx.beginPath(); ctx.ellipse(-2.6*s,-43*s,2.4*s,3*s,0,0,7); ctx.fill(); // brilho
-  if(key==='sakura'){ ctx.fillStyle='#e2e6ec'; ctx.fillRect(-7.6*s,-41.5*s,15.2*s,2.4*s); ctx.fillStyle='#c04030'; ctx.fillRect(-2*s,-41.5*s,4*s,2.4*s); } // faixa
-  else if(key==='celes'){ ctx.fillStyle=C.hair; ctx.fillRect(-6.4*s,-37*s,12.8*s,9*s); ctx.fillStyle=C.hairD; ctx.fillRect(-6.4*s,-37*s,2*s,9*s); ctx.fillRect(4.4*s,-37*s,2*s,9*s); ctx.fillRect(-1*s,-37*s,2*s,9*s); } // cabelo longo
-  else if(key==='leona'){ ctx.fillStyle=C.hair; ctx.beginPath(); ctx.arc(0,-32.5*s,3.2*s,0,7); ctx.fill(); ctx.fillStyle=C.hairD; ctx.fillRect(-1*s,-35*s,2*s,5*s); } // rabo de cavalo
-  else if(key==='darius'){ ctx.fillStyle=C.hairD; ctx.beginPath(); ctx.arc(0,-43*s,3.8*s,0,7); ctx.fill(); } // topo grisalho ralo
+// NUCA detalhada (parte de trás da cabeça) — sem rosto; cabelo longo e bonito por classe
+function drawHeadBack(ctx,key,s){ const C=CUT_CHARS[key], P=FACEP[C.pal]||FACEP.knight;
+  const hy=-41*s;
+  // pescoço
+  ctx.fillStyle=P.sh; roundRectP(ctx,-3.4*s,-39*s,6.8*s,6*s,1.6*s); ctx.fill();
+  ctx.fillStyle=P.skin; ctx.fillRect(-2.4*s,-39*s,4.8*s,3.6*s);
+  ctx.fillStyle='rgba(0,0,0,.30)'; ctx.fillRect(-3.4*s,-35.5*s,6.8*s,2.4*s);                        // sombra da nuca
+  // helper: mecha com fio de luz por cima (parece cabelo de verdade)
+  const strand=(x0,y0,x1,y1,w0,w1)=>{ hairLock(ctx,x0,y0,x1,y1,w0,w1,C.hairD); hairLock(ctx,x0,y0,x1,y1,w0*0.72,w1*0.72,C.hair);
+    ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=Math.max(1,0.7*s); ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x0,y0+1*s); ctx.quadraticCurveTo((x0+x1)/2+(x1-x0)*0.5,(y0+y1)/2,x1,y1-1*s); ctx.stroke(); };
+  // === cabelo LONGO fluindo pelas costas (por cima da capa) — mechas separadas p/ parecer cabelo ===
+  if(key==='celes'){                                                                                 // prata, longo e ondulado (repartido)
+    strand(-5.2*s,-32*s,-7.4*s,-15*s,4.6*s,2.8*s);
+    strand( 5.2*s,-32*s, 7.4*s,-15*s,4.6*s,2.8*s);
+    strand(-2.6*s,-32*s,-3.4*s,-13*s,4.4*s,2.8*s);
+    strand( 2.6*s,-32*s, 3.4*s,-13*s,4.4*s,2.8*s);
+    ctx.fillStyle=C.hairD; ctx.fillRect(-0.5*s,-33*s,1*s,16*s);                                       // risca central (repartição)
+  } else if(key==='sakura'){                                                                          // ruivo médio-longo
+    strand(-4.4*s,-32*s,-5.6*s,-17*s,4.4*s,2.6*s);
+    strand( 4.4*s,-32*s, 5.6*s,-17*s,4.4*s,2.6*s);
+    strand(-1.4*s,-32*s,-1.6*s,-16*s,4.4*s,3*s);
+    strand( 1.4*s,-32*s, 1.6*s,-16*s,4.4*s,3*s);
+  } else if(key==='leona'){                                                                           // rabo de cavalo loiro (2 mechas)
+    strand(0,-33*s,1*s,-18*s,3.6*s,2*s);
+    strand(-0.6*s,-33*s,-1.6*s,-19*s,2.4*s,1.4*s);
+  }
+  // === calota do crânio (visto de trás) — todos menos Darius (capuz) ===
+  if(key!=='darius'){
+    ctx.fillStyle=C.hairD; ctx.beginPath(); ctx.ellipse(0,hy,8*s,8.4*s,0,0,7); ctx.fill();
+    ctx.fillStyle=C.hair; ctx.beginPath(); ctx.ellipse(0,hy-0.4*s,7.1*s,7.5*s,0,0,7); ctx.fill();
+    // fios de luz suaves seguindo o crânio (sem linhas escuras duras)
+    ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.lineWidth=Math.max(1,0.8*s); ctx.lineCap='round';
+    for(let i=-2;i<=2;i++){ const x=i*2.9*s; ctx.beginPath(); ctx.moveTo(x*0.45,hy-7.6*s); ctx.quadraticCurveTo(x*1.25,hy-1*s,x,hy+7.2*s); ctx.stroke(); }
+    ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.beginPath(); ctx.moveTo(0,hy-8*s); ctx.quadraticCurveTo(1.4*s,hy,0.4*s,hy+7.4*s); ctx.stroke(); // risca/repartição sutil
+    ctx.fillStyle='rgba(255,255,255,.26)'; ctx.beginPath(); ctx.ellipse(-2.2*s,hy-4.4*s,2.6*s,3.4*s,-0.25,0,7); ctx.fill(); // brilho/coroa
+  }
+  // === acessórios por classe ===
+  if(key==='sakura'){                                                                                // faixa branca com nó atrás (tails curtas)
+    ctx.fillStyle='#ece6d8'; roundRectP(ctx,-8.4*s,-44*s,16.8*s,3.2*s,1.2*s); ctx.fill();
+    ctx.fillStyle='#c3bba8'; ctx.fillRect(-8.4*s,-41.2*s,16.8*s,0.9*s);
+    ctx.fillStyle='#ece6d8'; ctx.beginPath();ctx.arc(0,-42.4*s,2.2*s,0,7);ctx.fill();                // nó
+    ctx.fillStyle='#c3bba8'; ctx.beginPath();ctx.arc(0.5*s,-42*s,0.9*s,0,7);ctx.fill();
+    ctx.save();ctx.translate(1*s,-42*s);ctx.rotate(0.6); ctx.fillStyle='#dcd4c2'; roundRectP(ctx,-0.9*s,0,1.8*s,5.5*s,0.9*s); ctx.fill(); ctx.restore(); // tail 1
+    ctx.save();ctx.translate(-1*s,-42*s);ctx.rotate(-0.5); ctx.fillStyle='#ece6d8'; roundRectP(ctx,-0.9*s,0,1.8*s,4.8*s,0.9*s); ctx.fill(); ctx.restore(); // tail 2
+  } else if(key==='leona'){                                                                          // elmo dourado alado (de trás)
+    ctx.fillStyle='#8f6f24'; ctx.beginPath();ctx.arc(0,-33*s,2.2*s,0,7);ctx.fill();                  // prendedor do rabo
+    ctx.fillStyle='#d9b24a'; ctx.beginPath();ctx.arc(0,-33.4*s,1.3*s,0,7);ctx.fill();
+    ctx.fillStyle='#b8912f'; ctx.beginPath(); ctx.ellipse(0,-42.5*s,8.6*s,8.2*s,0,Math.PI,Math.PI*2); ctx.fill();  // domo
+    ctx.fillStyle='#d9b24a'; ctx.beginPath(); ctx.ellipse(0,-42.5*s,8.6*s,8.2*s,0,Math.PI*1.06,Math.PI*1.94); ctx.fill();
+    ctx.fillStyle='#f4dd88'; ctx.beginPath(); ctx.ellipse(-2.6*s,-45.5*s,2.4*s,2.9*s,0,0,7); ctx.fill();          // brilho metálico
+    ctx.fillStyle='#8f6f24'; ctx.fillRect(-8.6*s,-42.8*s,17.2*s,1.6*s);                              // rebordo
+    ctx.fillStyle='#a6801f'; ctx.fillRect(-1.1*s,-51.5*s,2.2*s,9.5*s); ctx.fillStyle='#e8c76a'; ctx.fillRect(-0.7*s,-51.5*s,0.9*s,9.5*s); // crista
+    const wing=(dir)=>{ ctx.save(); ctx.translate(dir*8.2*s,-44.5*s); for(let k=0;k<3;k++){ ctx.fillStyle=['#e4eaf1','#c3ccd6','#9aa6b2'][k]; ctx.fillRect(dir>0?k*2.1*s:-3.2*s-k*2.1*s,-1.5*s-k*1.7*s,3.3*s,1.9*s);} ctx.restore(); };
+    wing(-1); wing(1);
+  } else if(key==='darius'){                                                                         // capuz azul do sábio (por cima)
+    ctx.fillStyle=C.hairD; ctx.beginPath(); ctx.ellipse(0,-32.5*s,5*s,4*s,0,0,Math.PI); ctx.fill();  // cabelo grisalho na nuca
+    ctx.fillStyle=C.hair; ctx.fillRect(-3.8*s,-33*s,7.6*s,1.6*s);
+    ctx.fillStyle=C.cloakD; ctx.beginPath(); ctx.moveTo(-9.2*s,-30*s); ctx.quadraticCurveTo(-11.4*s,-47*s,0,-51*s); ctx.quadraticCurveTo(11.4*s,-47*s,9.2*s,-30*s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=C.cloak; ctx.beginPath(); ctx.moveTo(-7.6*s,-31*s); ctx.quadraticCurveTo(-9.4*s,-46*s,0,-49.2*s); ctx.quadraticCurveTo(9.4*s,-46*s,7.6*s,-31*s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.10)'; ctx.beginPath(); ctx.moveTo(-6*s,-33*s); ctx.quadraticCurveTo(-7.8*s,-45*s,-1*s,-48*s); ctx.lineTo(-2.4*s,-45.5*s); ctx.quadraticCurveTo(-6.2*s,-42*s,-4.6*s,-33*s); ctx.closePath(); ctx.fill();
+    ctx.fillStyle=C.cloakD; ctx.fillRect(-7.6*s,-31.6*s,15.2*s,2*s);                                 // borda do capuz
+  }
 }
 // herói DE COSTAS (andando para dentro da masmorra) — vê-se a nuca, sem rosto
-function drawHeroBack(ctx,x,groundY,s,key,phase){ const C=CUT_CHARS[key]; const step=Math.sin(phase), bob=Math.abs(Math.cos(phase))*1.5*s;
+function drawHeroBack(ctx,x,groundY,s,key,phase){ const C=CUT_CHARS[key], P=FACEP[C.pal]||FACEP.knight; const step=Math.sin(phase), bob=Math.abs(Math.cos(phase))*1.5*s;
   ctx.save(); ctx.translate(x,groundY-bob);
-  ctx.fillStyle='rgba(0,0,0,.4)'; ctx.beginPath(); ctx.ellipse(0,2*s+bob,11*s,3*s,0,0,7); ctx.fill();     // sombra
-  drawClassGearBack(ctx,key,s);                                          // arma nas costas (atrás do corpo)
-  ctx.fillStyle=C.cloakD; ctx.fillRect((-5.5+step)*s,-15*s,4.5*s,15*s); ctx.fillRect((1-step)*s,-15*s,4.5*s,15*s); // pernas
-  ctx.fillStyle='#241810'; ctx.fillRect((-6+step)*s,-2.5*s,5.2*s,3*s); ctx.fillRect((0.6-step)*s,-2.5*s,5.2*s,3*s); // botas
-  ctx.fillStyle=C.cloak; roundRectP(ctx,-9.5*s,-35*s,19*s,21*s,4*s); ctx.fill();                          // capa/costas
-  ctx.fillStyle=C.cloakD; ctx.fillRect(-1.2*s,-35*s,2.4*s,21*s);                                          // costura central da capa
-  ctx.fillStyle='rgba(0,0,0,.16)'; ctx.fillRect(-9.5*s,-35*s,19*s,4*s);                                   // sombra do capuz
-  ctx.fillStyle=C.cloak; ctx.fillRect((-13.5+step)*s,-33*s,4*s,17*s); ctx.fillRect((9.5-step)*s,-33*s,4*s,17*s); // braços
-  drawHeadBack(ctx,key,s);                                              // NUCA (sem rosto)
+  ctx.fillStyle='rgba(0,0,0,.42)'; ctx.beginPath(); ctx.ellipse(0,2*s+bob,12*s,3.2*s,0,0,7); ctx.fill();   // sombra
+  drawClassGearBack(ctx,key,s);                                                                            // arma/cajado nas costas
+  // pernas
+  ctx.fillStyle=C.cloakD; roundRectP(ctx,(-5.8+step)*s,-15*s,4.8*s,15*s,1.4*s); ctx.fill(); roundRectP(ctx,(1-step)*s,-15*s,4.8*s,15*s,1.4*s); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.22)'; ctx.fillRect((-5.8+step)*s,-15*s,1.4*s,14*s); ctx.fillRect((1-step)*s,-15*s,1.4*s,14*s);
+  // botas
+  ctx.fillStyle='#2a1c12'; roundRectP(ctx,(-6.2+step)*s,-3*s,5.6*s,3.4*s,1.2*s); ctx.fill(); roundRectP(ctx,(0.6-step)*s,-3*s,5.6*s,3.4*s,1.2*s); ctx.fill();
+  ctx.fillStyle='#3a281a'; ctx.fillRect((-6.2+step)*s,-3*s,5.6*s,1*s); ctx.fillRect((0.6-step)*s,-3*s,5.6*s,1*s);
+  // capa/costas (torso)
+  ctx.fillStyle=C.cloak; roundRectP(ctx,-9.8*s,-35*s,19.6*s,21*s,4.5*s); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.18)'; ctx.fillRect(-9.8*s,-35*s,19.6*s,4*s);                                  // sombra ombros
+  ctx.fillStyle='rgba(0,0,0,.15)'; ctx.fillRect(-5.4*s,-33*s,1.4*s,18*s); ctx.fillRect(4*s,-33*s,1.4*s,18*s); // vincos da capa
+  ctx.fillStyle=C.cloakD; ctx.fillRect(-1.2*s,-34*s,2.4*s,20*s);                                           // costura central
+  ctx.fillStyle='rgba(255,255,255,.09)'; ctx.fillRect(-8.6*s,-34*s,2*s,19*s);                              // rim light
+  ctx.fillStyle=C.cloakD; roundRectP(ctx,-7*s,-36.5*s,14*s,4.5*s,2*s); ctx.fill();                         // gola/capuz caído
+  ctx.fillStyle='#3a2a18'; ctx.fillRect(-9.8*s,-18*s,19.6*s,2.6*s); ctx.fillStyle='#caa24a'; ctx.fillRect(-1.4*s,-18*s,2.8*s,2.6*s); // cinto + fivela
+  // braços
+  ctx.fillStyle=C.cloak; roundRectP(ctx,(-13.6+step)*s,-33*s,4.4*s,18*s,2*s); ctx.fill(); roundRectP(ctx,(9.2-step)*s,-33*s,4.4*s,18*s,2*s); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.20)'; ctx.fillRect((-13.6+step)*s,-33*s,1.4*s,18*s); ctx.fillRect((12.2-step)*s,-33*s,1.4*s,18*s);
+  // mãos
+  ctx.fillStyle=P.skin; ctx.fillRect((-13.4+step)*s,-16*s,4*s,3*s); ctx.fillRect((9.4-step)*s,-16*s,4*s,3*s);
+  drawHeadBack(ctx,key,s);                                                                                 // NUCA detalhada (sem rosto)
   ctx.restore();
 }
 // raycaster dedicado da cutscene (dungeon REAL) num canvas offscreen
