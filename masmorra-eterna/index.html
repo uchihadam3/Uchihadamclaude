@@ -163,6 +163,70 @@
   .eqSets{font-size:11px;line-height:1.6;background:#0d0b06;border:1px dashed #4a3f22;border-radius:6px;padding:8px 12px;margin-bottom:8px;}
   .eqPick .sub{color:#8f9a7a;}
   .eqEmptyMsg{color:#7a7358;font-size:12px;padding:14px;text-align:center;font-style:italic;}
+  /* ===== tela de equipamento gamificada (Parte 8) ===== */
+  .eqOvBody{padding:0;display:flex;flex-direction:column;overflow:hidden;}
+  .eqHeroTabs{display:flex;gap:8px;padding:12px 16px 6px;flex-wrap:wrap;}
+  .eqHeroTab{display:flex;align-items:center;gap:8px;background:#12100a;border:1.5px solid #2c2616;border-radius:8px;padding:6px 12px 6px 6px;cursor:pointer;transition:.12s;}
+  .eqHeroTab canvas{width:34px;height:34px;image-rendering:pixelated;border-radius:5px;background:#0a0906;}
+  .eqHeroTab .htn{font-size:12px;color:#c9c1a8;letter-spacing:.5px;}
+  .eqHeroTab .htl{font-size:10px;color:#8a815f;}
+  .eqHeroTab:hover{border-color:#4a3f22;} .eqHeroTab.on{border-color:var(--acc);background:#20180a;box-shadow:0 0 12px rgba(200,164,74,.25);}
+  .eqCols{flex:1;display:flex;gap:14px;padding:8px 16px 16px;min-height:0;}
+  .eqColL{width:310px;display:flex;flex-direction:column;gap:10px;overflow:auto;}
+  .eqColR{flex:1;display:flex;flex-direction:column;min-width:0;gap:10px;}
+  .eqHeroCard{display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,#171308,#0d0b06);border:1.5px solid #332c19;border-radius:10px;padding:12px;}
+  #eqPort{width:72px;height:72px;image-rendering:pixelated;border-radius:8px;background:#0a0906;border:1px solid #2a2416;}
+  .eqHeroName{font-size:17px;color:var(--acc);letter-spacing:1px;font-weight:bold;}
+  .eqHeroCls{font-size:12px;color:#9a8f6e;margin-top:2px;}
+  .eqEquipped{display:flex;flex-direction:column;gap:8px;}
+  .eqSlotCard{display:flex;align-items:center;gap:11px;background:#100d07;border:1.5px solid #2a2416;border-radius:9px;padding:9px 11px;cursor:pointer;position:relative;transition:.12s;}
+  .eqSlotCard:hover{border-color:#4a3f22;background:#151007;}
+  .eqSlotCard.sel{border-color:var(--acc);}
+  .eqSlotIco{width:46px;height:46px;flex:none;border-radius:7px;display:grid;place-items:center;background:#0a0906;border:2px solid #333;position:relative;}
+  .eqSlotIco canvas{width:34px;height:34px;image-rendering:pixelated;}
+  .eqSlotInfo{flex:1;min-width:0;}
+  .eqSlotType{font-size:10px;color:#7a7154;letter-spacing:1px;text-transform:uppercase;}
+  .eqSlotName{font-size:13px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .eqSlotName.empty{color:#5a5340;font-style:italic;font-weight:normal;}
+  .eqSlotSub{font-size:10.5px;color:#8fa87a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .eqUneq{position:absolute;top:6px;right:8px;font-size:10px;color:#9a7060;border:1px solid #5a3030;border-radius:4px;padding:2px 6px;background:#1a0e0c;opacity:0;transition:.12s;}
+  .eqSlotCard:hover .eqUneq{opacity:1;}
+  .eqStatBox{background:#100d07;border:1px solid #332c19;border-radius:9px;padding:11px 13px;}
+  .eqStatRow{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid #1c1810;}
+  .eqStatRow:last-child{border-bottom:none;}
+  .eqStatRow .k{color:#9a8f6e;letter-spacing:.5px;} .eqStatRow .v{color:#efe3bd;font-weight:bold;}
+  .eqStatRow .dp{color:#7ce07c;font-size:11px;margin-left:6px;} .eqStatRow .dn{color:#e0664a;font-size:11px;margin-left:6px;}
+  .eqSetBox{display:flex;flex-direction:column;gap:6px;}
+  .eqSetTag{font-size:11px;background:#0d0b06;border:1px dashed #4a3f22;border-radius:7px;padding:8px 11px;line-height:1.5;}
+  .eqBagHead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  #eqBagTitle{font-size:13px;color:var(--acc);letter-spacing:2px;}
+  .eqFilters{display:flex;gap:6px;flex-wrap:wrap;}
+  .eqFilt{font-size:11px;background:#12100a;border:1px solid #2c2616;color:#b6ad8e;border-radius:20px;padding:5px 12px;cursor:pointer;}
+  .eqFilt.on{border-color:var(--acc);color:var(--acc);background:#20180a;}
+  .eqBag{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:9px;align-content:start;padding:4px;background:#0a0906;border:1px solid #221d12;border-radius:10px;min-height:120px;}
+  .eqCard{aspect-ratio:1;border-radius:9px;background:#100d08;border:2px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;position:relative;transition:.1s;overflow:hidden;}
+  .eqCard canvas{width:38px;height:38px;image-rendering:pixelated;}
+  .eqCard .cn{font-size:8.5px;color:#b6ad8e;text-align:center;line-height:1.05;padding:0 3px;max-height:20px;overflow:hidden;}
+  .eqCard:hover{transform:translateY(-2px);filter:brightness(1.15);}
+  .eqCard.sel{outline:2px solid #fff0c4;outline-offset:1px;}
+  .eqCard .up{position:absolute;top:3px;right:4px;color:#7ce07c;font-size:11px;text-shadow:0 0 3px #000;}
+  .eqCard .setmk{position:absolute;top:3px;left:4px;font-size:9px;}
+  .eqCard .eqrb{position:absolute;bottom:0;left:0;right:0;height:3px;}
+  .eqBagEmpty{grid-column:1/-1;color:#7a7358;font-size:12px;padding:26px 10px;text-align:center;font-style:italic;}
+  .eqDetail{background:linear-gradient(180deg,#141009,#0c0a06);border:1.5px solid #332c19;border-radius:10px;padding:12px 14px;min-height:96px;}
+  .eqDetailHint{color:#6f6850;font-size:12px;font-style:italic;text-align:center;padding:22px 0;}
+  .eqDName{font-size:15px;font-weight:bold;letter-spacing:.5px;}
+  .eqDMeta{font-size:11px;color:#8a815f;margin:2px 0 8px;}
+  .eqDStats{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;margin-bottom:8px;}
+  .eqDStats .s{color:#d8cfa8;} .eqDStats .cmp .dp{color:#7ce07c;} .eqDStats .cmp .dn{color:#e0664a;}
+  .eqDSet{font-size:11px;line-height:1.5;border-top:1px solid #26200f;padding-top:7px;margin-bottom:9px;}
+  .eqDBtns{display:flex;gap:8px;}
+  .eqDBtn{flex:1;text-align:center;border-radius:7px;padding:9px;font-size:12px;letter-spacing:1px;cursor:pointer;border:1.5px solid;}
+  .eqDBtn.equip{border-color:var(--acc);color:#111;background:linear-gradient(180deg,#e8c15a,#c8992a);font-weight:bold;}
+  .eqDBtn.equipped{border-color:#3a5a3a;color:#7ca87c;background:#12180f;cursor:default;}
+  .eqDBtn.sell{border-color:#5a4530;color:#c9a86a;background:#1a1409;}
+  .eqDBtn:active{transform:scale(.98);}
+  @media(max-width:720px){ .eqCols{flex-direction:column;overflow:auto;} .eqColL{width:auto;} }
 
   /* ============ COMBATE ============ */
   #battle{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;
@@ -358,6 +422,30 @@
   <div class="overlay" id="campOv">
     <div class="ovhead"><span>ACAMPAMENTO</span><span class="x" data-close="campOv">VOLTAR ✕</span></div>
     <div class="ovbody"><div class="menuList" id="campMenu"></div></div>
+  </div>
+
+  <!-- EQUIPAMENTO (Parte 8) -->
+  <div class="overlay" id="equipOv">
+    <div class="ovhead"><span>⚔ EQUIPAMENTO</span><span class="x" data-close="equipOv">FECHAR ✕</span></div>
+    <div class="ovbody eqOvBody">
+      <div class="eqHeroTabs" id="eqHeroTabs"></div>
+      <div class="eqCols">
+        <div class="eqColL">
+          <div class="eqHeroCard">
+            <canvas id="eqPort" width="72" height="72"></canvas>
+            <div class="eqHeroMeta"><div id="eqHeroName" class="eqHeroName"></div><div id="eqHeroCls" class="eqHeroCls"></div></div>
+          </div>
+          <div class="eqEquipped" id="eqEquipped"></div>
+          <div class="eqStatBox" id="eqStatBox"></div>
+          <div class="eqSetBox" id="eqSetBox"></div>
+        </div>
+        <div class="eqColR">
+          <div class="eqBagHead"><span id="eqBagTitle">BOLSA</span><div class="eqFilters" id="eqFilters"></div></div>
+          <div class="eqBag" id="eqBag"></div>
+          <div class="eqDetail" id="eqDetail"><div class="eqDetailHint">Selecione uma peça para ver detalhes e comparar.</div></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- COMBATE -->

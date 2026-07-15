@@ -1258,29 +1258,37 @@ function genEquip(depth, opts){ opts=opts||{};
   item.power=itemPower(item);
   return item;
 }
-function recalcStats(c){
-  if(!c.baseStats) c.baseStats={mhp:c.mhp,mmp:c.mmp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck};
-  const b=c.baseStats; const add={mhp:0,mmp:0,str:0,mag:0,def:0,res:0,agi:0,luck:0,crit:0,critDmg:0}; const pct={};
-  const eq=c.equip||{};
-  for(const slot of ['weapon','armor','accessory']){ const it=eq[slot]; if(!it)continue;
+// cálculo puro (usado por recalcStats E pelo preview da UI, sem efeitos colaterais)
+function computeEquipStats(base, equip){
+  const b=base; const add={mhp:0,mmp:0,str:0,mag:0,def:0,res:0,agi:0,luck:0,crit:0,critDmg:0}; const pct={};
+  for(const slot of ['weapon','armor','accessory']){ const it=equip[slot]; if(!it)continue;
     for(const k in it.stats) add[k]=(add[k]||0)+it.stats[k];
     (it.affixes||[]).forEach(a=>{ for(const k in a.stats)add[k]=(add[k]||0)+a.stats[k]; for(const k in (a.pct||{}))pct[k]=(pct[k]||0)+a.pct[k]; });
   }
-  const cnt={}; for(const slot of ['weapon','armor','accessory']){ const it=eq[slot]; if(it&&it.set)cnt[it.set]=(cnt[it.set]||0)+1; }
-  c.activeSets=[];
+  const cnt={}; for(const slot of ['weapon','armor','accessory']){ const it=equip[slot]; if(it&&it.set)cnt[it.set]=(cnt[it.set]||0)+1; }
+  const sets=[];
   for(const sid in cnt){ const S=SETS[sid]; if(!S)continue;
-    S.bonuses.forEach(bp=>{ if(cnt[sid]>=bp.need){ c.activeSets.push({id:sid,name:S.name,need:bp.need,col:S.col,label:bp.label});
+    S.bonuses.forEach(bp=>{ if(cnt[sid]>=bp.need){ sets.push({id:sid,name:S.name,need:bp.need,col:S.col,label:bp.label});
       for(const k in (bp.stats||{}))add[k]=(add[k]||0)+bp.stats[k];
       for(const k in (bp.pct||{}))pct[k]=(pct[k]||0)+bp.pct[k];
       if(bp.crit)add.crit=(add.crit||0)+bp.crit; if(bp.critDmg)add.critDmg=(add.critDmg||0)+bp.critDmg; } });
   }
-  const ap=(base,k)=>Math.round((base+(add[k]||0))*(1+(pct[k]||0)));
-  c.mhp=Math.max(1,ap(b.mhp,'mhp')); c.mmp=Math.max(0,ap(b.mmp,'mmp'));
-  ['str','mag','def','res','agi','luck'].forEach(k=>c[k]=Math.max(0,ap(b[k],k)));
-  c.critBonus=add.crit||0; c.critDmg=add.critDmg||0; c.equipAdd=add; c.equipPct=pct;
+  const ap=(bv,k)=>Math.round((bv+(add[k]||0))*(1+(pct[k]||0)));
+  const out={ mhp:Math.max(1,ap(b.mhp,'mhp')), mmp:Math.max(0,ap(b.mmp,'mmp')), crit:add.crit||0, critDmg:add.critDmg||0, sets, add, pct };
+  ['str','mag','def','res','agi','luck'].forEach(k=>out[k]=Math.max(0,ap(b[k],k)));
+  return out;
+}
+function recalcStats(c){
+  if(!c.baseStats) c.baseStats={mhp:c.mhp,mmp:c.mmp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck};
+  const s=computeEquipStats(c.baseStats, c.equip||{});
+  c.mhp=s.mhp; c.mmp=s.mmp; ['str','mag','def','res','agi','luck'].forEach(k=>c[k]=s[k]);
+  c.critBonus=s.crit; c.critDmg=s.critDmg; c.activeSets=s.sets; c.equipAdd=s.add; c.equipPct=s.pct;
   if(c.hp==null)c.hp=c.mhp; if(c.mp==null)c.mp=c.mmp;
   c.hp=clamp(c.hp,0,c.mhp); c.mp=clamp(c.mp,0,c.mmp);
 }
+// stats projetados SE 'item' fosse equipado (sem alterar nada)
+function previewStats(c,item){ const eq=Object.assign({},c.equip); if(item)eq[item.slot]=item; return computeEquipStats(c.baseStats,eq); }
+function sellValue(it){ return Math.round(12 + it.power*1.6 + RARITY[it.rarity].idx*24 + (it.ilvl||1)*3); }
 function dropEquip(item){ if(!item)return; G.equipInv=G.equipInv||[]; G.equipInv.push(item); }
 function equipItem(c,item){ if(!item)return null; const slot=item.slot; const prev=c.equip[slot];
   const i=G.equipInv.indexOf(item); if(i>=0)G.equipInv.splice(i,1);
@@ -1527,9 +1535,19 @@ function weaponIcon(c){ return {Cavaleira:'sword',Samurai:'katana',Maga:'staff',
 function armorIcon(c){ return {Cavaleira:'plate',Samurai:'leather',Maga:'robe',['Sábio']:'robe'}[c.cls]||'leather'; }
 function renderInventory(){
   const W=$('#invWeapons'),A=$('#invArmors'),F=$('#invFood'),O=$('#invOther'); if(!W)return;
-  // ARMAS / ARMADURAS = equipamento da party (visual)
+  // ARMAS / ARMADURAS = equipamento REAL equipado da party (clique abre a tela de equipar)
   W.innerHTML=''; A.innerHTML='';
-  G.party.forEach(c=>{ W.appendChild(mkSlot(weaponIcon(c),0,c.name+' — arma')); A.appendChild(mkSlot(armorIcon(c),0,c.name+' — armadura')); });
+  G.party.forEach((c,ci)=>{
+    const w=c.equip&&c.equip.weapon, a=c.equip&&c.equip.armor;
+    const ws=mkSlot(w?w.icon:weaponIcon(c),0, c.name+(w?' — '+w.dispName+' ['+RARITY[w.rarity].name+']':' — sem arma'));
+    if(w){ ws.classList.add('has'); ws.style.borderColor=RARITY[w.rarity].col; }
+    ws.style.cursor='pointer'; ws.onclick=()=>{ if(G.state==='explore'){ SFX.ui(); openEquipUI(ci); } };
+    W.appendChild(ws);
+    const as=mkSlot(a?a.icon:armorIcon(c),0, c.name+(a?' — '+a.dispName+' ['+RARITY[a.rarity].name+']':' — sem armadura'));
+    if(a){ as.classList.add('has'); as.style.borderColor=RARITY[a.rarity].col; }
+    as.style.cursor='pointer'; as.onclick=()=>{ if(G.state==='explore'){ SFX.ui(); openEquipUI(ci); } };
+    A.appendChild(as);
+  });
   padSlots(W,5); padSlots(A,5);
   // COMIDA / OUTROS = itens
   F.innerHTML=''; O.innerHTML='';
@@ -2053,7 +2071,7 @@ function campAction(c){
   if(c==='form'){ renderFormation(); return; }
   if(c==='status'){ renderStatus(); return; }
   if(c==='item'){ renderCampItems(); return; }
-  if(c==='equip'){ renderEquip(0); return; }
+  if(c==='equip'){ openEquipUI(0); return; }
 }
 /* ---- tela de EQUIPAR (Parte 7 — funcional; visual gamificado na Parte 8) ---- */
 function renderEquip(ci){ ci=ci||0; const m=$('#campMenu'); const c=G.party[ci];
@@ -2090,6 +2108,89 @@ function renderEquipPick(ci,slot){ const m=$('#campMenu'); const c=G.party[ci];
   m.innerHTML=html;
   m.querySelectorAll('.eqPick').forEach(el=>el.onclick=()=>{ SFX.ui(); const it=G.equipInv.find(x=>x.uid==el.dataset.uid); if(it){equipItem(c,it);SFX.chest();} renderEquip(ci); });
   m.querySelector('[data-back]').onclick=()=>{SFX.back();renderEquip(ci);};
+}
+
+/* ================= UI DE EQUIPAMENTO GAMIFICADA (Parte 8) ================= */
+const EQUI={hero:0, filter:'all', focus:null};
+const SLOT_NAME={weapon:'Arma',armor:'Armadura',accessory:'Acessório'};
+function eqHero(){ return G.party[EQUI.hero]||G.party[0]; }
+function openEquipUI(hero){ if(hero!=null)EQUI.hero=clamp(hero,0,G.party.length-1); EQUI.focus=null; EQUI.filter='all';
+  $('#equipOv').classList.add('on'); eqRender(); }
+function eqRender(){ eqTabsR(); eqHeroR(); eqEquippedR(); eqStatR(); eqSetR(); eqBagR(); eqDetailR(); }
+function eqTabsR(){ const el=$('#eqHeroTabs'); if(!el)return; el.innerHTML='';
+  G.party.forEach((c,i)=>{ const b=document.createElement('div'); b.className='eqHeroTab'+(i===EQUI.hero?' on':'');
+    b.innerHTML=`<canvas width="64" height="64"></canvas><div><div class="htn">${c.name}</div><div class="htl">${c.cls} · Nv ${c.lv}</div></div>`;
+    el.appendChild(b); drawPortrait(b.querySelector('canvas'),c.pal);
+    b.onclick=()=>{ SFX.ui(); EQUI.hero=i; EQUI.focus=null; eqRender(); };
+  });
+}
+function eqHeroR(){ const c=eqHero(); const p=$('#eqPort'); if(p)drawPortrait(p,c.pal);
+  $('#eqHeroName').textContent=c.name.toUpperCase(); $('#eqHeroCls').textContent=c.cls+' · Nível '+c.lv; }
+function eqEquippedR(){ const c=eqHero(); const el=$('#eqEquipped'); el.innerHTML='';
+  ['weapon','armor','accessory'].forEach(slot=>{ const it=c.equip[slot]; const rc=it?RARITY[it.rarity].col:'#333';
+    const card=document.createElement('div'); card.className='eqSlotCard'+(EQUI.filter===slot?' sel':'');
+    card.innerHTML=`<div class="eqSlotIco" style="border-color:${rc}${it&&RARITY[it.rarity].glow>0.3?';box-shadow:0 0 '+Math.round(12*RARITY[it.rarity].glow)+'px '+rc+'88':''}"><canvas width="32" height="32"></canvas></div>
+      <div class="eqSlotInfo"><div class="eqSlotType">${SLOT_NAME[slot]}</div>
+        <div class="eqSlotName ${it?'':'empty'}" style="${it?'color:'+rc:''}">${it?it.dispName:'— vazio —'}</div>
+        <div class="eqSlotSub">${it?(RARITY[it.rarity].name+' · '+eqStatList(it).slice(0,2).join(' · ')):'toque para equipar'}</div></div>
+      ${it?'<div class="eqUneq" data-un="'+slot+'">retirar ✕</div>':''}`;
+    el.appendChild(card); if(it)drawItemIcon(card.querySelector('canvas').getContext('2d'),it.icon);
+    card.onclick=(e)=>{ if(e.target.dataset.un){ SFX.ui(); unequipSlot(c,e.target.dataset.un); eqRender(); return; }
+      SFX.ui(); EQUI.filter=slot; EQUI.focus=null; eqRender(); };
+  });
+}
+function eqDelta(dv,suf){ if(dv>0)return `<span class="dp">▲ +${dv}${suf||''}</span>`; if(dv<0)return `<span class="dn">▼ ${dv}${suf||''}</span>`; return ''; }
+function eqStatR(){ const c=eqHero(); const el=$('#eqStatBox');
+  const cur=computeEquipStats(c.baseStats,c.equip);
+  const focus=EQUI.focus?G.equipInv.find(x=>x.uid===EQUI.focus):null;
+  const prev=focus?previewStats(c,focus):null;
+  let html='';
+  [['HP','mhp'],['MP','mmp'],['FOR','str'],['MAG','mag'],['DEF','def'],['RES','res'],['AGI','agi'],['SORTE','luck']].forEach(([lbl,k])=>{
+    html+=`<div class="eqStatRow"><span class="k">${lbl}</span><span class="v">${cur[k]}${prev?eqDelta(prev[k]-cur[k]):''}</span></div>`; });
+  const cc=Math.round(cur.crit*100), pcc=prev?Math.round(prev.crit*100):cc;
+  html+=`<div class="eqStatRow"><span class="k">CRÍTICO</span><span class="v">+${cc}%${prev?eqDelta(pcc-cc,'%'):''}</span></div>`;
+  const cd=Math.round(cur.critDmg*100), pcd=prev?Math.round(prev.critDmg*100):cd;
+  html+=`<div class="eqStatRow"><span class="k">DANO CRÍT</span><span class="v">+${cd}%${prev?eqDelta(pcd-cd,'%'):''}</span></div>`;
+  el.innerHTML=html;
+}
+function eqSetR(){ const c=eqHero(); const el=$('#eqSetBox');
+  if(!c.activeSets||!c.activeSets.length){ el.innerHTML=''; return; }
+  el.innerHTML=c.activeSets.map(s=>`<div class="eqSetTag" style="border-color:${s.col}55"><b style="color:${s.col}">✦ ${s.name} (${s.need} peças)</b><br>${s.label}</div>`).join('');
+}
+function eqBagR(){ const c=eqHero(); const el=$('#eqBag'); const flt=EQUI.filter;
+  let items=G.equipInv.slice(); if(flt!=='all')items=items.filter(it=>it.slot===flt);
+  items.sort((a,b)=>b.power-a.power);
+  $('#eqBagTitle').textContent='BOLSA ('+G.equipInv.length+')';
+  const fEl=$('#eqFilters');
+  fEl.innerHTML=[['all','Tudo'],['weapon','⚔ Armas'],['armor','🛡 Armaduras'],['accessory','💍 Acessórios']]
+    .map(([k,l])=>`<span class="eqFilt${flt===k?' on':''}" data-f="${k}">${l}</span>`).join('');
+  fEl.querySelectorAll('.eqFilt').forEach(b=>b.onclick=()=>{ SFX.ui(); EQUI.filter=b.dataset.f; EQUI.focus=null; eqRender(); });
+  if(!items.length){ el.innerHTML=`<div class="eqBagEmpty">Bolsa vazia. Vença chefes, abra câmaras do tesouro e derrote elites para achar equipamento!</div>`; return; }
+  el.innerHTML='';
+  items.forEach(it=>{ const cur=c.equip[it.slot]; const better=!cur||it.power>cur.power; const R=RARITY[it.rarity]; const rc=R.col;
+    const card=document.createElement('div'); card.className='eqCard'+(EQUI.focus===it.uid?' sel':''); card.style.borderColor=rc;
+    if(R.glow>0.3)card.style.boxShadow=`0 0 ${Math.round(14*R.glow)}px ${rc}55, inset 0 0 12px ${rc}22`;
+    card.innerHTML=`<canvas width="38" height="38"></canvas><div class="cn">${it.dispName}</div>${better?'<span class="up">▲</span>':''}${it.set?'<span class="setmk" style="color:'+SETS[it.set].col+'">✦</span>':''}<div class="eqrb" style="background:${rc}"></div>`;
+    el.appendChild(card); drawItemIcon(card.querySelector('canvas').getContext('2d'),it.icon);
+    card.onclick=()=>{ SFX.ui(); EQUI.focus=it.uid; eqRender(); };
+    card.ondblclick=()=>{ equipItem(c,it); SFX.chest(); EQUI.focus=null; eqRender(); };
+  });
+}
+function eqDetailR(){ const c=eqHero(); const el=$('#eqDetail');
+  const it=EQUI.focus?G.equipInv.find(x=>x.uid===EQUI.focus):null;
+  if(!it){ el.innerHTML=`<div class="eqDetailHint">Selecione uma peça para ver detalhes e comparar.</div>`; return; }
+  const R=RARITY[it.rarity], rc=R.col, cur=c.equip[it.slot];
+  const stats=eqStatList(it).map(s=>`<span class="s">${s}</span>`).join('');
+  let cmp; if(cur){ const d=it.power-cur.power; cmp=`vs ${cur.dispName}: <span class="${d>=0?'dp':'dn'}">${d>=0?'▲ +':'▼ '}${d} poder</span>`; }
+  else cmp=`<span class="dp">▲ slot vazio</span>`;
+  let setHtml=''; if(it.set){ const S=SETS[it.set]; const have=['weapon','armor','accessory'].filter(sl=>c.equip[sl]&&c.equip[sl].set===it.set).length;
+    setHtml=`<div class="eqDSet" style="color:${S.col}">✦ Conjunto ${S.name} — equipadas ${have}/3<br>${S.bonuses.map(b=>'('+b.need+') '+b.label).join(' · ')}</div>`; }
+  el.innerHTML=`<div class="eqDName" style="color:${rc}">${it.dispName}</div>
+    <div class="eqDMeta">${R.name} · ${SLOT_NAME[it.slot]} · iLvl ${it.ilvl} · Poder ${it.power} · <span class="cmp">${cmp}</span></div>
+    <div class="eqDStats">${stats}</div>${setHtml}
+    <div class="eqDBtns"><div class="eqDBtn equip" data-equip>⚔ Equipar</div><div class="eqDBtn sell" data-sell>Vender · ${sellValue(it)} GP</div></div>`;
+  el.querySelector('[data-equip]').onclick=()=>{ equipItem(c,it); SFX.chest(); EQUI.focus=null; eqRender(); toast('Equipado em '+c.name+': '+it.dispName,1300); };
+  el.querySelector('[data-sell]').onclick=()=>{ const v=sellValue(it); const i=G.equipInv.indexOf(it); if(i>=0)G.equipInv.splice(i,1); G.gp+=v; SFX.chest(); EQUI.focus=null; renderHUD(); saveGame(); eqRender(); toast('Vendido: '+it.dispName+' (+'+v+' GP)',1400); };
 }
 function renderFormation(){ const m=$('#campMenu');
   m.innerHTML=`<div style="color:#c8a44a;letter-spacing:2px;margin-bottom:10px">FORMAÇÃO — toque p/ alternar frente/trás</div>`+
