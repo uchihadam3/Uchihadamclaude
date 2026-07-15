@@ -68,50 +68,162 @@ function render(){
 /* =========================================================================
    ARTE ASCII (original)
    ========================================================================= */
+/* Andarilho de Pedra — figura grande e detalhada, multi-frame (original).
+   Cada anim é uma lista de quadros; espaços são transparentes.            */
 const HERO = {
   idle: [
-    "  __",
-    " /..\\",
-    " \\--/|",
-    "/|##|+---",
-    " |##| ",
-    " |  | ",
-    "_/  \\_" ],
+[ "      .-\"-.",
+  "     / .-. \\",
+  "     |(o o)|",
+  "      \\ ^ /",
+  "     .'`-'`.",
+  "    / /|=|\\ \\",
+  "   ( / |=| \\ )",
+  "    \\| |=| |/",
+  "     | |=| |._",
+  "     | |=| | \\",
+  "     | |=| |  }==>",
+  "     |/   \\|_/",
+  "    /|     |\\",
+  "   (_|     |_)",
+  "     |_| |_|",
+  "    (___)___)" ],
+[ "      .-\"-.",
+  "     / .-. \\",
+  "     |(o o)|",
+  "      \\ ^ /",
+  "     .'`-'`.",
+  "    / /|=|\\ \\",
+  "   ( / |=| \\ )",
+  "    \\| |=| |/",
+  "     | |=| |._",
+  "     | |=| | \\",
+  "     | |=| |  }==>",
+  "     |/   \\|_/",
+  "    /|     |\\",
+  "   (_|     |_)",
+  "    /|_| |_|\\",
+  "   (__)  (__)" ] ],
   walk: [
-    "  __",
-    " /..\\",
-    " \\--/|",
-    "/|##|+---",
-    " |##| ",
-    " /  \\ ",
-    "_|  |_" ],
+[ "      .-\"-.",
+  "     / .-. \\",
+  "     |(o o)|",
+  "      \\ ^ /",
+  "     .'`-'`.",
+  "    / /|=|\\ \\",
+  "   ( / |=| \\ )",
+  "    \\| |=| |/",
+  "     | |=| |._",
+  "     | |=| | \\",
+  "     | |=| |  }==>",
+  "     |/   \\|_/",
+  "    /_|   |",
+  "   (__|   |\\",
+  "      |   |_\\",
+  "     (_) (__)" ],
+[ "      .-\"-.",
+  "     / .-. \\",
+  "     |(o o)|",
+  "      \\ ^ /",
+  "     .'`-'`.",
+  "    / /|=|\\ \\",
+  "   ( / |=| \\ )",
+  "    \\| |=| |/",
+  "     | |=| |._",
+  "     | |=| | \\",
+  "     | |=| |  }==>",
+  "     |/   \\|_/",
+  "       |   |_\\",
+  "      /|   |__)",
+  "    _/_|   |",
+  "   (__) (_)" ] ],
   atk: [
-    "  __      *",
-    " /..\\    /",
-    " \\--/|  /",
-    "/|##|+-*",
-    " |##| ",
-    " |  | ",
-    "_/  \\_" ],
+[ "      .-\"-.          /",
+  "     / .-. \\        /",
+  "     |(o o)|       /",
+  "      \\ ^ /       /",
+  "     .'`-'`.     *",
+  "    / /|=|\\ \\   /",
+  "   ( / |=| \\ )_/",
+  "    \\| |=| |/",
+  "     | |=| |",
+  "     | |=| |",
+  "     |/   \\|",
+  "    /|     |\\",
+  "   (_|     |_)",
+  "     |_| |_|",
+  "    (___)___)" ],
+[ "      .-\"-.",
+  "     / .-. \\",
+  "     |(o o)|",
+  "      \\ ^ /___",
+  "     .'`-'`.  \\",
+  "    / /|=|\\ \\  \\",
+  "   ( / |=| \\ )  \\",
+  "    \\| |=| |/   |",
+  "     | |=| |    *=========>",
+  "     | |=| |   /",
+  "     |/   \\|  *",
+  "    /|     |\\",
+  "   (_|     |_)",
+  "     |_| |_|",
+  "    (___)___)" ],
+[ "      .-\"-.",
+  "     / .-. \\",
+  "     |(o o)|",
+  "      \\ ^ /",
+  "     .'`-'`.",
+  "    / /|=|\\ \\",
+  "   ( / |=| \\ )._",
+  "    \\| |=| | \\ `.",
+  "     | |=| |  \\  \\",
+  "     | |=| |   \\  *===>",
+  "     |/   \\|    \\/",
+  "    /|     |\\    *",
+  "   (_|     |_)",
+  "     |_| |_|",
+  "    (___)___)" ] ],
   hurt: [
-    "  __",
-    " /xx\\",
-    " \\--/|",
-    "/|##|+---",
-    " |##| ",
-    " |  | ",
-    "_/  \\_" ],
+[ "      .-\"-.",
+  "     / .-. \\",
+  "     |(x x)|",
+  "      \\ _ /",
+  "     .'`-'`.",
+  "   \\ / /|=|\\ \\ /",
+  "   ( / |=| \\ )",
+  "    \\| |=| |/",
+  "     | |=| |._",
+  "     | |=| | \\",
+  "     | |=| |  }==>",
+  "     |/   \\|_/",
+  "    /|     |\\",
+  "   (_|     |_)",
+  "     |_| |_|",
+  "    (___)___)" ] ],
 };
+/* inimigos — maiores e detalhados; frames[] anima o idle (respiro/asas). */
 const ENEMIES = {
-  lodo:   { name:'Lodo Pálido', hp:14, atk:4, xp:6,  gold:4,  art:["      ","  .-~-.","( o  o )"," `~-~-' "] },
-  morcego:{ name:'Morcego Cavo', hp:12, atk:5, xp:7, gold:5, art:[" /\\_/\\ ","( o o )"," >   < "," ^   ^ "] },
-  caveira:{ name:'Caveira Errante', hp:20, atk:6, xp:10, gold:8, art:["  ,--.","  (oo)","  /||\\"," / || \\","  /  \\ "] },
-  aranha: { name:'Aranha de Cinza', hp:18, atk:7, xp:11, gold:9, art:[" , , , ","\\.\\|/./"," >(oo)< ","/'/|\\'\\"," ' ' ' "] },
-  espectro:{name:'Espectro Frio', hp:26, atk:8, xp:14, gold:12, art:["  ___ "," /o o\\"," | ~ | "," \\   / ","  ~V~  "] },
-  golem:  { name:'GOLEM DE PEDRA', hp:70, atk:12, xp:60, gold:60, boss:true, art:[
-    " [======] "," [|O  O|] "," [| -- |] ","[||    ||]"," [|_||_|] "," /_|  |_\\ "] },
-  liche:  { name:'LICHE DE OSSO', hp:95, atk:15, xp:90, gold:90, boss:true, art:[
-    "   /\\   ","  (##)  "," /(oo)\\ ","  |==|  "," _|::|_ ","/ |::| \\"," /|  |\\ "] },
+  lodo:{ name:'Lodo Pálido', hp:14, atk:4, xp:6, gold:4, frames:[
+    [ "    .-~~~-.  ","  ,'  _ _  '.","  ( ( o o ) )","   \\  \\_/  / "," .__`-...-'__.","(____________)"],
+    [ "    .-~~~-.  ","  ,'  _ _  '.","  ( ( o o ) )","   \\  \\_/  / "," ,__.`-.-'.__,","(_~________~_)"] ] },
+  morcego:{ name:'Morcego Cavo', hp:12, atk:5, xp:7, gold:5, frames:[
+    [ "\\__/\\    /\\__/","   \\ \\  / /   ","    \\(o..o)/  ","     )`vv'(   ","    /'    '\\  "],
+    [ " __ \\    / __ "," \\  \\\\  //  / ","  \\__(o..o)__/","     )`vv'(   ","     '    '   "] ] },
+  caveira:{ name:'Caveira Errante', hp:22, atk:6, xp:10, gold:8, frames:[
+    [ "     .-\"-.   ","    / _ _ \\  ","   | (o o) | ","   |  .-.  | ","    \\ '=' /  ","   __)`-'(__ ","  / |: :| \\  "," (  |: :|  ) ","  \\ |: :| /  ","   `|_:_|`   ","   (_) (_)   "],
+    [ "     .-\"-.   ","    / _ _ \\  ","   | (o o) | ","   |  .-.  | ","    \\ 'o' /  ","   __)`-'(__ "," _/  |: :|  \\_"," (   |: :|   )","  \\  |: :|  / ","   `|_:_|`   ","  (_)   (_)  "] ] },
+  aranha:{ name:'Aranha de Cinza', hp:18, atk:7, xp:11, gold:9, frames:[
+    [ " \\   .   /   ","  \\  |  /    ","\\__\\(o o)/__/","  _/(   )\\_  "," / / '-' \\ \\ ","'  /     \\  '"],
+    [ "  \\  .  /    "," \\_ \\ / _/   "," \\__(o o)__/ ","   /(   )\\   ","  //`-.-'\\\\  "," ''       '' "] ] },
+  espectro:{ name:'Espectro Frio', hp:28, atk:8, xp:14, gold:12, frames:[
+    [ "   .-~~~-.   ","  / (o o) \\  ","  |  \\_/  |  ","  \\  ~~~  /  ","   \\     /   ","    \\~ ~/    ","    ) . (    ","   ' ' ' '   "],
+    [ "   .-~~~-.   ","  / (o o) \\  ","  |  \\_/  |  ","  \\  ~~~  /  ","   \\     /   ","   /~ . ~\\   ","  ( .   . )  ","   '  '  '   "] ] },
+  golem:{ name:'GOLEM DE PEDRA', hp:78, atk:13, xp:60, gold:60, boss:true, frames:[
+    [ "  .========.  "," /|  ____  |\\ ","|#| /O  O\\ |#|","|#| |    | |#|","|#| \\ __ / |#|"," \\|  |__|  |/ ","  |========|  "," /| |    | |\\ ","| | |    | | |","|_| |____| |_|","    |_||_|    ","   (__)(__)   "],
+    [ "  .========.  "," /|  ____  |\\ ","|#| /O  O\\ |#|","|#| |    | |#|","|#| \\ -- / |#|"," \\|  |__|  |/ ","  |========|  "," /| |    | |\\ ","| | |    | | |","|_| |____| |_|","   _|_||_|_   ","  (__)  (__)  "] ] },
+  liche:{ name:'LICHE DE OSSO', hp:100, atk:16, xp:90, gold:90, boss:true, frames:[
+    [ "     ,---.     ","   _/(###)\\_   ","  / | o o | \\  "," (  |  ^  |  ) ","  \\ | '-' | /  ","   \\`-----'/   ","   _|:::::|_   ","  / |:::::| \\  "," (  |:::::|  ) ","  \\ |:::::| /  ","    |__:__|    ","   (__) (__)   "],
+    [ "     ,---.     ","   _/(###)\\_   ","  / | o o | \\  "," (  |  ~  |  ) ","  \\ | 'v' | /  ","   \\`-----'/   ","  _/|:::::|\\_  "," /  |:::::|  \\ ","(   |:::::|   )"," \\  |:::::|  / ","    |__:__|    ","  (__)   (__)  "] ] },
 };
 const ZONES = [
   { name:'Campo dos Caídos', deco:'tomb',  enemies:['lodo','morcego','caveira'] },
@@ -209,7 +321,7 @@ function spawnEnemy(){
   else key = z.enemies[Math.floor(Math.random()*z.enemies.length)];
   const base=ENEMIES[key]; const m=scaleMul();
   G.enemy = {
-    key, name:base.name, art:base.art, boss:!!base.boss,
+    key, name:base.name, frames:base.frames, boss:!!base.boss,
     hp:Math.round(base.hp*m), max:Math.round(base.hp*m),
     atk:Math.round(base.atk*m), xp:Math.round(base.xp*m), gold:Math.round(base.gold*(1+ (G.floor-1)*0.2)),
     hurtT:0, dieT:0,
@@ -226,7 +338,7 @@ function floatText(x,y,s,c){ G.floats.push({x,y,s,c,life:1.1}); }
 
 function heroAttack(power){
   if(!G.enemy||G.enemy.dieT>0) return;
-  G.hero.anim='atk'; G.hero.animT=0.28; G.hero.lungeT=0.2;
+  G.hero.anim='atk'; G.hero.animT=0.42; G.hero.lungeT=0.24;
   const dmg = Math.max(1, Math.round(G.hero.atk*(power||1) * (0.85+Math.random()*0.4)));
   G.enemy.hp -= dmg; G.enemy.hurtT=0.18;
   floatText(G.enemyX+3, 9, '-'+dmg, power>1?3:0);
@@ -339,24 +451,27 @@ function draw(){
 
   if(G.state==='play'||G.state==='dead'){
     const h=G.hero;
-    const hy=GROUND_Y-7;
-    const lunge = h.lungeT>0?2:0;
-    let art = HERO[h.anim]||HERO.idle;
-    if(h.hurtT>0 && Math.floor(G.t*20)%2) art=HERO.hurt;
-    sprite(h.x+lunge, hy, art, h.hurtT>0?0.7:0.95, h.hurtT>0?2:0);
-    // arma-luz do golpe carregado
-    if(h.anim==='atk' && h.animT>0.1) text(h.x+10, hy+1, '/*', 0.9, 1);
+    const frames = HERO[h.anim]||HERO.idle;
+    let fi;
+    if(h.anim==='atk'){ const p=1-(h.animT/0.42); fi=Math.max(0,Math.min(frames.length-1,Math.floor(p*frames.length))); }
+    else if(h.anim==='hurt'){ fi=0; }
+    else fi = Math.floor(G.t*(h.anim==='walk'?7:1.8))%frames.length;
+    const hart = frames[fi];
+    const hy = GROUND_Y-1-hart.length;
+    const lunge = h.lungeT>0?3:0;
+    sprite(h.x+lunge, hy, hart, h.hurtT>0?0.7:0.96, h.hurtT>0?2:0);
 
     if(G.enemy){ const e=G.enemy; const ex=Math.round(G.enemyX);
-      const el = e.lungeT>0?-2:0;
+      const el = e.lungeT>0?-3:0;
       const dieFade = e.dieT>0? Math.max(0.1,e.dieT/0.55):1;
-      const ey = GROUND_Y-1-e.art.length;
-      sprite(ex+el, ey, e.art, (e.hurtT>0?0.55:0.9)*dieFade, e.hurtT>0?2:0, true);
-      if(e.dieT>0){ text(ex, ey-1, '. * .', dieFade, 4); }
+      const efr = e.dieT>0 ? e.frames[0] : e.frames[Math.floor(G.t*3)%e.frames.length];
+      const ey = GROUND_Y-1-efr.length;
+      sprite(ex+el, ey, efr, (e.hurtT>0?0.55:0.92)*dieFade, e.hurtT>0?2:0);
+      if(e.dieT>0){ text(ex+3, ey-1, '. ˟ ✧ ˟ .', dieFade, 4); }
       else {
-        // barra de vida do inimigo
-        bar(ex-1, ey-2, e.boss?18:10, e.hp/e.max, e.boss?2:0);
-        text(ex-1, ey-3, e.name, e.boss?0.95:0.7, e.boss?2:0);
+        const bw=e.boss?18:12;
+        bar(ex, ey-2, bw, e.hp/e.max, e.boss?2:1);
+        text(ex, ey-3, e.name, e.boss?0.95:0.75, e.boss?2:0);
       }
     }
     // floats
