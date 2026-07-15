@@ -2484,7 +2484,7 @@ export function GameBoard() {
           }
         }, baseDelay);
 
-        baseDelay += 90; // ritmo rápido e satisfatório (estilo Balatro)
+        baseDelay += 130; // cada dado aparece de forma perceptível
       });
 
       setPointPops(newPops);
@@ -2498,7 +2498,7 @@ export function GameBoard() {
       });
 
       // Primeira ativação logo após os dados pontuarem
-      let activationDelay = baseDelay + 220;
+      let activationDelay = baseDelay + 350;
 
       modifierActivations.forEach((act, idx) => {
         setTimeout(() => {
@@ -2544,7 +2544,7 @@ export function GameBoard() {
           });
         }, activationDelay);
 
-        activationDelay += 200; // ritmo legível porém rápido
+        activationDelay += 420; // cada efeito (dado melhorado, relíquia...) fica visível
       });
 
       // Spawn the combo banner precisely 1200ms after all activations have fully settled
@@ -2647,7 +2647,7 @@ export function GameBoard() {
       setComboBanner(null);
       setPointPops([]);
       setLiveScoringHUD({ text: "", base: 0, mult: 0, isScoring: false });
-    }, 5000);
+    }, 7500);
     return () => clearTimeout(t);
   }, [isScoring]);
 
