@@ -742,20 +742,23 @@ function gainXP(c,xp){ c.xp+=xp; let up=false;
 
 /* ================= ITENS ================= */
 const ITEMS={
-  erva:{name:'Erva Curativa',use:'heal',pow:70,target:'ally',desc:'Cura 70 HP.'},
-  pocao:{name:'Poção Maior',use:'heal',pow:170,target:'ally',desc:'Cura 170 HP.'},
-  eter:{name:'Éter',use:'mp',pow:50,target:'ally',desc:'Restaura 50 MP.'},
-  fenix:{name:'Pena de Fênix',use:'revive',pow:0.6,target:'ally',desc:'Revive com 60% do HP.'},
-  antidoto:{name:'Antídoto',use:'cure',target:'ally',desc:'Remove status ruins.'},
-  bomba:{name:'Bomba de Fogo',use:'atk',type:'fire',pow:160,target:'allEnemy',desc:'Dano de fogo em todos.'},
-  raiz:{name:'Raiz do Trovão',use:'atk',type:'bolt',pow:150,target:'one',desc:'Relâmpago em um inimigo.'},
+  erva:{name:'Erva Curativa',use:'heal',pow:70,cat:'food',icon:'herb',desc:'Cura 70 HP.'},
+  maca:{name:'Maçã',use:'heal',pow:40,cat:'food',icon:'apple',desc:'Cura 40 HP.'},
+  pao:{name:'Pão Rústico',use:'heal',pow:55,cat:'food',icon:'bread',desc:'Cura 55 HP.'},
+  pocao:{name:'Poção Maior',use:'heal',pow:170,cat:'other',icon:'potion',desc:'Cura 170 HP.'},
+  eter:{name:'Éter',use:'mp',pow:50,cat:'other',icon:'eter',desc:'Restaura 50 MP.'},
+  fenix:{name:'Pena de Fênix',use:'revive',pow:0.6,cat:'other',icon:'fenix',desc:'Revive com 60% do HP.'},
+  antidoto:{name:'Antídoto',use:'cure',cat:'other',icon:'antidoto',desc:'Remove status ruins.'},
+  bomba:{name:'Bomba de Fogo',use:'atk',type:'fire',pow:160,target:'allEnemy',cat:'other',icon:'bomba',desc:'Dano de fogo em todos (combate).'},
+  raiz:{name:'Raiz do Trovão',use:'atk',type:'bolt',pow:150,target:'one',cat:'other',icon:'raiz',desc:'Relâmpago em um inimigo (combate).'},
+  chave:{name:'Chave Enferrujada',use:'none',cat:'other',icon:'chave',desc:'Abre alguma fechadura.'},
 };
 function addItem(id,n){ G.inv[id]=(G.inv[id]||0)+(n||1); }
 function openItems(c){
   const s=$('#bsub'); s.classList.add('on');
   let html=`<div class="subhead"><span>ITENS</span><span class="back" data-back>‹ voltar</span></div>`;
-  const ids=Object.keys(G.inv).filter(id=>G.inv[id]>0);
-  if(!ids.length)html+=`<div style="color:#888;padding:12px">Sem itens.</div>`;
+  const ids=Object.keys(G.inv).filter(id=>G.inv[id]>0 && ITEMS[id] && ['heal','mp','revive','cure','atk'].includes(ITEMS[id].use));
+  if(!ids.length)html+=`<div style="color:#888;padding:12px">Sem itens usáveis.</div>`;
   for(const id of ids){ const it=ITEMS[id];
     html+=`<div class="subitem" data-it="${id}"><div><div class="si-name">${it.name} ×${G.inv[id]}</div><div class="si-desc">${it.desc}</div></div></div>`;
   }
@@ -876,26 +879,125 @@ function loop(){ requestAnimationFrame(loop);
 
 /* ================= HUD / PAINEL ================= */
 function renderHUD(){
-  $('#gpN').textContent=G.gp.toLocaleString('pt-BR');
+  const g=G.gp.toLocaleString('pt-BR');
+  $('#gpN').textContent=g; const g2=$('#gpN2'); if(g2)g2.textContent=g;
   $('#flName').textContent=G.dun?G.dun.name:'—';
   $('#flPos').textContent='◈ '+['Norte','Leste','Sul','Oeste'][G.dir];
-  renderParty();
+  const kn=$('#keyN'); if(kn)kn.textContent=(G.inv.chave||0);
+  const it=$('#itemN'); if(it){ const n=Object.values(G.inv).reduce((a,b)=>a+b,0); it.textContent='· '+n+' itens'; }
+  const mn=$('#mmName'); if(mn&&G.dun)mn.textContent='ANDAR '+G.depth;
+  renderParty(); renderInventory(); drawMini();
 }
 function condChips(c){ const s=[]; for(const k in c.status){ const m={poison:'☠',burn:'🔥',stun:'✷',sleep:'z',blind:'◐',silence:'✕',slow:'▽',atkUp:'▲',atkDown:'▼',defUp:'◆',defDown:'◇',critUp:'✦',regen:'✚'}[k]; if(m)s.push(`<span>${m}</span>`); } return s.join(''); }
+function skGlyph(id){ const s=SKILLS[id]; if(!s)return '✦';
+  if(s.type&&ELEM[s.type])return ELEM[s.type];
+  if(s.kind==='heal')return '✚'; if(s.kind==='revive')return '✚'; if(s.kind==='cure')return '✦';
+  if(s.kind==='buff')return '▲'; if(s.kind==='debuff')return '▼'; if(s.kind==='util')return '🔍'; return '✦'; }
 function renderParty(){
-  const el=$('#party'); el.innerHTML='';
+  const el=$('#party'); if(!el)return; el.innerHTML='';
   G.party.forEach(c=>{
     const d=document.createElement('div'); d.className='pcard'+(c.alive?'':' dead');
-    d.innerHTML=`<canvas class="pport" width="64" height="64"></canvas>
-      <div class="pinfo">
-        <div class="prow1"><span class="pname">${c.name.toUpperCase()}</span><span class="plv">Nv <b>${c.lv}</b></span></div>
-        <div class="stat"><span class="lab">HP</span><div class="bar hp"><i style="width:${c.hp/c.mhp*100}%"></i><span class="bnum">${c.hp} / ${c.mhp}</span></div></div>
-        <div class="stat"><span class="lab">MP</span><div class="bar mp"><i style="width:${c.mmp?c.mp/c.mmp*100:0}%"></i><span class="bnum">${c.mp} / ${c.mmp}</span></div></div>
-        <div class="pcond">${condChips(c)}</div>
-      </div>`;
+    const sks=knownSkills(c).slice(0,3);
+    d.innerHTML=`<div class="pTop">
+        <canvas class="pport" width="64" height="64"></canvas>
+        <div class="pMeta">
+          <div class="pname">${c.name.toUpperCase()}</div>
+          <div class="plv">${c.cls} · Nv <b>${c.lv}</b></div>
+        </div></div>
+      <div class="pbars">
+        <div class="bar hp"><i style="width:${c.hp/c.mhp*100}%"></i><span class="bnum">${c.hp}/${c.mhp}</span></div>
+        <div class="bar mp"><i style="width:${c.mmp?c.mp/c.mmp*100:0}%"></i><span class="bnum">${c.mp}/${c.mmp}</span></div>
+      </div>
+      <div class="pslots">${sks.map(id=>`<div class="sk" title="${SKILLS[id].name}">${skGlyph(id)}</div>`).join('')}</div>
+      <div class="pcond">${condChips(c)}</div>`;
     el.appendChild(d);
     drawPortrait(d.querySelector('.pport'),c.pal);
   });
+}
+
+/* ---------- inventário (categorias com ícones) ---------- */
+function weaponIcon(c){ return {Cavaleira:'sword',Samurai:'katana',Maga:'staff',['Sábio']:'staff2'}[c.cls]||'sword'; }
+function armorIcon(c){ return {Cavaleira:'plate',Samurai:'leather',Maga:'robe',['Sábio']:'robe'}[c.cls]||'leather'; }
+function renderInventory(){
+  const W=$('#invWeapons'),A=$('#invArmors'),F=$('#invFood'),O=$('#invOther'); if(!W)return;
+  // ARMAS / ARMADURAS = equipamento da party (visual)
+  W.innerHTML=''; A.innerHTML='';
+  G.party.forEach(c=>{ W.appendChild(mkSlot(weaponIcon(c),0,c.name+' — arma')); A.appendChild(mkSlot(armorIcon(c),0,c.name+' — armadura')); });
+  padSlots(W,5); padSlots(A,5);
+  // COMIDA / OUTROS = itens
+  F.innerHTML=''; O.innerHTML='';
+  for(const id in G.inv){ if(G.inv[id]<=0)continue; const it=ITEMS[id]; if(!it)continue;
+    const slot=mkSlot(it.icon||id, G.inv[id], it.name+' — '+it.desc);
+    slot.classList.add('has'); slot.onclick=()=>useFromInv(id);
+    (it.cat==='food'?F:O).appendChild(slot);
+  }
+  padSlots(F,5); padSlots(O,5);
+}
+function mkSlot(icon,count,title){ const s=document.createElement('div'); s.className='slot'+(icon?' filled':''); if(title)s.title=title;
+  if(icon){ const cv=document.createElement('canvas'); cv.width=32;cv.height=32; drawItemIcon(cv.getContext('2d'),icon); s.appendChild(cv);
+    if(count>1){ const c=document.createElement('div'); c.className='cnt'; c.textContent=count; s.appendChild(c);} }
+  return s;
+}
+function padSlots(el,min){ while(el.children.length<min){ el.appendChild(mkSlot(null,0,'')); } }
+function useFromInv(id){ const it=ITEMS[id]; if(!it)return;
+  if(it.use==='atk'){ toast('Esse item é só para combate.',1200); return; }
+  const t=it.use==='revive'?G.party.find(p=>!p.alive):G.party.filter(p=>p.alive).sort((a,b)=>a.hp/a.mhp-b.hp/b.mhp)[0];
+  if(!t){ toast('Ninguém precisa disso agora.',1200); return; }
+  G.inv[id]--; SFX.heal();
+  if(it.use==='heal')t.hp=clamp(t.hp+it.pow,0,t.mhp);
+  else if(it.use==='mp')t.mp=clamp(t.mp+it.pow,0,t.mmp);
+  else if(it.use==='cure')t.status={};
+  else if(it.use==='revive'){t.alive=true;t.hp=Math.round(t.mhp*it.pow);t.status={};}
+  toast(it.name+' usado em '+t.name+'.',1300); renderHUD(); saveGame();
+}
+
+/* ---------- ícones pixel dos itens ---------- */
+function drawItemIcon(ctx,type){ ctx.clearRect(0,0,32,32); const R=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x*2,y*2,w*2,h*2);};
+  switch(type){
+    case 'sword': R(7,1,2,10,'#d8dce2');R(7,1,1,10,'#f2f4f8');R(5,10,6,2,'#c8a44a');R(7,12,2,3,'#7a4a20');R(6,14,4,1,'#c8a44a');break;
+    case 'katana': for(let i=0;i<9;i++)R(5+i,10-i,2,2,'#e2e6ec'); R(4,11,2,2,'#8f2620');R(3,12,2,3,'#5a1a1a');break;
+    case 'staff': R(7,2,2,13,'#6a4a28');R(7,2,2,4,'#8a6636'); R(5,1,6,4,'#3a78c8');R(6,1,3,2,'#8ac0ff');break;
+    case 'staff2': R(7,2,2,13,'#6a4a28'); R(6,1,4,4,'#e8c15a');R(7,1,2,2,'#fff0b0');break;
+    case 'mace': R(7,6,2,9,'#6a4a28'); R(5,1,6,6,'#9aa0a8'); R(4,3,2,2,'#c0c6cc');R(11,3,2,2,'#c0c6cc');R(7,0,2,2,'#c0c6cc');break;
+    case 'dagger': R(7,4,2,6,'#d8dce2');R(6,9,4,1,'#c8a44a');R(7,10,2,3,'#7a4a20');break;
+    case 'plate': R(4,3,8,9,'#8a9098');R(4,3,8,2,'#aab0b8');R(7,3,2,9,'#6a7078');R(3,4,2,4,'#7a8088');R(11,4,2,4,'#7a8088');break;
+    case 'leather': R(4,3,8,9,'#7a4a26');R(4,3,8,2,'#9a6636');R(7,4,2,7,'#5a3418');R(4,10,8,2,'#5a3418');break;
+    case 'robe': R(5,2,6,3,'#2a5aa8');R(3,4,10,8,'#22467e');R(3,4,2,8,'#2a5aa8');R(7,5,2,7,'#18345e');break;
+    case 'shield': R(4,2,8,7,'#9aa0a8');R(4,2,8,2,'#c0c6cc');R(5,9,6,2,'#8a9098');R(6,11,4,1,'#7a8088');R(7,4,2,4,'#c8a44a');break;
+    case 'herb': case 'erva': R(6,8,4,5,'#3a6a2a');R(3,4,5,4,'#5aa84a');R(8,3,5,4,'#5aa84a');R(5,6,3,2,'#7ac86a');break;
+    case 'potion': case 'pocao': R(6,2,4,2,'#7a4a20');R(5,4,6,9,'#c0392b');R(5,4,6,2,'#e05a4a');R(6,8,2,3,'#ff8a7a');break;
+    case 'eter': R(6,2,4,2,'#7a4a20');R(5,4,6,9,'#22467e');R(5,4,6,2,'#4a86d8');R(6,8,2,3,'#8ac0ff');break;
+    case 'antidoto': R(6,2,4,2,'#7a4a20');R(5,4,6,9,'#3a7a2a');R(5,4,6,2,'#5aa84a');break;
+    case 'fenix': for(let i=0;i<8;i++)R(7-(i>4?1:0),2+i,2,1,'#e8934a'); R(5,4,2,1,'#f0c060');R(9,6,2,1,'#f0c060');R(4,8,2,1,'#ff7a3a');break;
+    case 'bomba': case 'bomb': R(5,5,7,7,'#20232a');R(6,6,3,3,'#3a3f48');R(9,3,2,2,'#7a4a20');R(11,2,2,2,'#e8c15a');break;
+    case 'raiz': R(6,1,2,6,'#ffe14a');R(4,6,6,2,'#ffe14a');R(6,7,3,7,'#e8c020');R(4,12,4,2,'#ffe14a');break;
+    case 'apple': R(6,2,2,2,'#5a3418');R(4,4,8,8,'#c0392b');R(4,4,8,2,'#e05a4a');R(5,6,2,2,'#ff8a7a');break;
+    case 'pao': case 'bread': R(3,5,10,6,'#c99a5a');R(3,5,10,2,'#e0b878');R(5,7,1,2,'#8a6636');R(8,7,1,2,'#8a6636');break;
+    case 'chave': case 'key': R(4,4,4,4,'#e8c15a');R(5,5,2,2,'#0c0a06');R(8,5,6,2,'#e8c15a');R(12,7,2,2,'#e8c15a');R(10,7,1,2,'#e8c15a');break;
+    case 'picareta': R(2,2,12,2,'#9aa0a8');R(2,2,3,3,'#7a8088');R(11,2,3,3,'#7a8088');R(7,3,2,10,'#6a4a28');break;
+    case 'pena': for(let i=0;i<10;i++)R(6+Math.floor(i/3),2+i,2,1,'#e8ecf2'); R(5,5,2,1,'#c0c6cc');R(9,8,1,1,'#c0c6cc');break;
+    default: R(5,5,6,6,'#4a4438');R(6,6,4,4,'#6a6250');
+  }
+}
+
+/* ---------- minimapa sempre visível ---------- */
+function drawMini(){ const cv=$('#miniMap'),d=G.dun; if(!cv||!d)return;
+  const W=cv.clientWidth||160,H=cv.clientHeight||120; if(W<4)return; cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d'); ctx.clearRect(0,0,W,H);
+  const cell=Math.min((W-6)/d.w,(H-6)/d.h), ox=(W-cell*d.w)/2, oy=(H-cell*d.h)/2;
+  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ if(!d.explored[y][x])continue;
+    let t=d.grid[y][x]; if(t==='#'||(t==='S'&&!d.secretsRevealed.has(x+','+y)))continue;
+    let col='rgba(70,48,24,.45)';
+    if(t==='C'&&!d.looted.has(x+','+y))col='#b8892a'; else if(t==='>')col='#3a7a2a';
+    else if(t==='F')col='#2a6ab0'; else if(t==='B')col='#a83030'; else if(t==='+')col='#8a5a2a';
+    ctx.fillStyle=col; ctx.fillRect(ox+x*cell,oy+y*cell,Math.ceil(cell),Math.ceil(cell));
+  }
+  // seta do jogador
+  const cxp=ox+(Math.floor(G.px)+0.5)*cell, cyp=oy+(Math.floor(G.py)+0.5)*cell, r=cell*0.7, a=G.dir*Math.PI/2;
+  ctx.fillStyle='#c0201a'; ctx.beginPath();
+  ctx.moveTo(cxp+Math.cos(a)*r,cyp+Math.sin(a)*r);
+  ctx.lineTo(cxp+Math.cos(a+2.4)*r,cyp+Math.sin(a+2.4)*r);
+  ctx.lineTo(cxp+Math.cos(a-2.4)*r,cyp+Math.sin(a-2.4)*r); ctx.fill();
 }
 
 /* ================= SPRITES PIXEL — retratos ================= */
@@ -1118,7 +1220,9 @@ function popup(t,val,cls){ const cv=$('#benemies'),f=$('#bfield'); let x,y;
 
 /* ================= TOAST / MENSAGENS ================= */
 let toastT;
-function toast(s,ms){ const m=$('#msg'); m.textContent=s; m.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>m.classList.remove('on'),ms||1500); }
+function toast(s,ms){ const m=$('#msg'); if(m){m.textContent=s;m.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>m.classList.remove('on'),ms||1500);} logMsg(s); }
+function logMsg(s){ const l=$('#logText'); if(!l)return; const div=document.createElement('div');div.className='ln';div.textContent=(''+s).replace(/\n/g,'  ·  ');
+  l.appendChild(div); while(l.children.length>3)l.removeChild(l.firstChild); }
 
 /* ================= MAPA ================= */
 function openMap(){ const ov=$('#mapOv'); ov.classList.add('on'); $('#mapFl').textContent=G.dun.name; drawMapCv(); }
@@ -1219,7 +1323,7 @@ function loadGame(){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY)); if(
 }catch(e){ return false; } }
 
 /* ================= NOVO JOGO ================= */
-function newGame(){ G.gp=0;G.depth=1;G.floor=1;G.maxFloor=1;G.inv={erva:3,pocao:1,eter:1,antidoto:1};G.steps=0;G.kills=0;G.scenes={};
+function newGame(){ G.gp=0;G.depth=1;G.floor=1;G.maxFloor=1;G.inv={erva:3,maca:2,pao:1,pocao:1,eter:1,antidoto:1,fenix:1};G.steps=0;G.kills=0;G.scenes={};
   G.party=[mkChar('leona'),mkChar('sakura'),mkChar('celes'),mkChar('darius')];
   enterFloor(1); }
 
@@ -1243,6 +1347,12 @@ function bindInput(){
     if(m==='fw')tryMove(...DIRV[G.dir]); else if(m==='bw')tryMove(-DIRV[G.dir][0],-DIRV[G.dir][1]);
     else if(m==='tl')turn(-1); else if(m==='tr')turn(1);
     else if(m==='sl')tryMove(...DIRV[(G.dir+3)%4]); else if(m==='sr')tryMove(...DIRV[(G.dir+1)%4]);
+  });
+  // botões utilitários
+  $$('#utilBar .ub').forEach(b=>b.onclick=()=>{ SFX.ui(); const u=b.dataset.u;
+    if(u==='rest')openCamp(); else if(u==='map')openMap();
+    else if(u==='save'){saveGame();toast('Progresso salvo.',1100);}
+    else if(u==='wait'){ if(G.state==='explore'){toast('Você aguarda, atento às sombras...',900); G.stepsSince++; if(chance(0.2))setTimeout(()=>startBattle(rollFormation(false)),400);} }
   });
   // swipe no view p/ mover/virar — ignora toques que começam nos botões
   const vw=$('#viewWrap'); let sx,sy,sTarget=null;
