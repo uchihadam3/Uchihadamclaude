@@ -226,6 +226,75 @@ function decalFor(mx,my,side,rdx,rdy){
 }
 function buildTextures(){ setTheme(1); buildDecals(); }
 
+/* ============ SPRITE DO CHEFE NO CAMPO (grande e detalhado) ============ */
+function bossKeyFor(depth){ return depth>=10?'cavaleiro':'golem'; }
+let BOSSCACHE={};
+function bossSprite(key){ if(BOSSCACHE[key])return BOSSCACHE[key];
+  const SW=76,SH=92, cv=document.createElement('canvas'); cv.width=SW;cv.height=SH; const g=cv.getContext('2d');
+  drawBossField(g,key,SW,SH);
+  const id=g.getImageData(0,0,SW,SH);
+  BOSSCACHE[key]={data:new Uint32Array(id.data.buffer.slice(0)),w:SW,h:SH};
+  return BOSSCACHE[key];
+}
+function drawBossField(g,key,W,H){
+  const R=(x,y,w,h,c)=>{g.fillStyle=c;g.fillRect(x,y,w,h);};
+  const ell=(cx,cy,rx,ry,c)=>{g.fillStyle=c;for(let y=-ry;y<=ry;y++){const w=Math.floor(rx*Math.sqrt(Math.max(0,1-(y*y)/(ry*ry))));g.fillRect(cx-w,cy+y,w*2+1,1);}};
+  const cx=W/2;
+  if(key==='golem'){
+    // sombra
+    g.fillStyle='rgba(0,0,0,.35)'; g.fillRect(cx-26,H-6,52,4);
+    // pernas
+    R(cx-20,H-30,15,28,'#5a4c3c'); R(cx+5,H-30,15,28,'#5a4c3c'); R(cx-20,H-6,16,4,'#3f342a'); R(cx+4,H-6,16,4,'#3f342a');
+    R(cx-18,H-28,4,24,'#6a5a46'); R(cx+7,H-28,4,24,'#6a5a46');
+    // quadril/torso
+    ell(cx,H-42,28,22,'#6a5a46'); R(cx-26,H-56,52,26,'#6a5a46'); R(cx-26,H-56,52,5,'#8a7a5e');
+    // rachaduras brilhantes
+    g.strokeStyle='#ffcf5a'; g.lineWidth=1.5; g.beginPath(); g.moveTo(cx,H-56);g.lineTo(cx-3,H-40);g.lineTo(cx+4,H-30); g.moveTo(cx-14,H-48);g.lineTo(cx-10,H-38); g.stroke();
+    g.strokeStyle='rgba(255,180,60,.35)';g.lineWidth=4;g.stroke();
+    // placas peito
+    R(cx-14,H-52,28,3,'#3f342a'); R(cx-3,H-56,6,26,'#5a4c3c'); R(cx-20,H-44,40,2,'#4a3e30');
+    // braços enormes + punhos
+    R(cx-40,H-56,14,22,'#5a4c3c'); R(cx+26,H-56,14,22,'#5a4c3c');
+    ell(cx-40,H-30,12,11,'#6a5a46'); ell(cx+40,H-30,12,11,'#6a5a46'); // punhos
+    R(cx-48,H-34,6,10,'#4a3e30'); R(cx+42,H-34,6,10,'#4a3e30');
+    // ombros com espinhos de pedra
+    ell(cx-30,H-58,10,8,'#7a6a52'); ell(cx+30,H-58,10,8,'#7a6a52');
+    R(cx-34,H-68,4,8,'#6a5a46'); R(cx+30,H-68,4,8,'#6a5a46');
+    // cabeça
+    ell(cx,H-70,15,13,'#7a6a52'); R(cx-11,H-78,22,10,'#7a6a52'); R(cx-11,H-78,22,3,'#94836a');
+    // olhos brilhantes
+    R(cx-9,H-72,7,4,'#241a0e'); R(cx+2,H-72,7,4,'#241a0e');
+    R(cx-8,H-71,5,2,'#ffe24a'); R(cx+3,H-71,5,2,'#ffe24a'); R(cx-7,H-71,2,2,'#fff7d0'); R(cx+4,H-71,2,2,'#fff7d0');
+    // boca de pedra
+    R(cx-8,H-64,16,3,'#241a0e'); for(let i=0;i<5;i++)R(cx-8+i*4,H-66,1,5,'#4a3e30');
+    // musgo
+    for(let i=0;i<30;i++){const x=cx-26+Math.floor(Math.random()*52),y=H-58+Math.floor(Math.random()*30); if(Math.random()<0.5)R(x,y,2,2,'#3a6a2a');}
+  } else { // cavaleiro da cinza
+    g.fillStyle='rgba(0,0,0,.35)'; g.fillRect(cx-24,H-6,48,4);
+    // capa esvoaçante
+    R(cx-22,H-58,44,44,'#3a1420'); R(cx-24,H-40,6,26,'#2a0e18'); R(cx+18,H-40,6,26,'#2a0e18');
+    // pernas blindadas
+    R(cx-16,H-28,12,26,'#26262f'); R(cx+4,H-28,12,26,'#26262f'); R(cx-16,H-6,13,4,'#14141a'); R(cx+3,H-6,13,4,'#14141a');
+    R(cx-14,H-26,3,22,'#3a3a48'); R(cx+6,H-26,3,22,'#3a3a48');
+    // torso armadura + tabardo
+    R(cx-20,H-58,40,30,'#2c2c3a'); R(cx-20,H-58,40,4,'#44445a'); R(cx-5,H-58,10,30,'#5a1a26'); R(cx-3,H-52,6,22,'#7a2432');
+    // ombreiras
+    ell(cx-24,H-56,10,9,'#3a3a4a'); ell(cx+24,H-56,10,9,'#3a3a4a'); R(cx-30,H-62,7,4,'#4a4a5c'); R(cx+23,H-62,7,4,'#4a4a5c');
+    // braços + espadão
+    R(cx-30,H-56,10,24,'#2c2c3a'); R(cx+20,H-56,10,24,'#2c2c3a');
+    R(cx+30,H-84,5,54,'#5a5a6e'); R(cx+31,H-84,2,50,'#8a8aa0'); R(cx+26,H-40,12,4,'#3a3a48'); // lâmina
+    R(cx+31,H-32,3,10,'#3a2028'); // punho
+    // elmo com chifres
+    ell(cx,H-70,12,12,'#33333f'); R(cx-9,H-78,18,10,'#33333f'); R(cx-9,H-78,18,3,'#4a4a5c');
+    for(let i=0;i<5;i++){R(cx-11-i,H-80+i,3,3,'#4a4a5c'); R(cx+9+i,H-80+i,3,3,'#4a4a5c');} // chifres
+    // visor brilhante vermelho
+    R(cx-9,H-70,18,4,'#0a0a12'); R(cx-7,H-69,5,2,'#ff2a1e'); R(cx+3,H-69,5,2,'#ff2a1e');
+    R(cx-6,H-69,2,2,'#ff9'); R(cx+4,H-69,2,2,'#ff9'); R(cx-1,H-74,2,5,'#5a1a26');
+    // brasas de cinza
+    for(let i=0;i<24;i++){const x=cx-28+Math.floor(Math.random()*56),y=H-70+Math.floor(Math.random()*60); if(Math.random()<0.4)R(x,y,1,1,'#e06a3a');}
+  }
+}
+
 /* ================= RAYCASTER ================= */
 const RC={cv:null,ctx:null,RW:360,RH:230,img:null,buf:null,zbuf:null};
 function rcInit(){ RC.cv=$('#view'); RC.ctx=RC.cv.getContext('2d'); rcResize(); }
@@ -296,7 +365,34 @@ function rcRender(px,py,ang){
       } else buf[y*RW+x]=shade(tex[ty*TW+texX],fog);
     }
   }
+  rcSprites(px,py,ang);
   RC.ctx.putImageData(RC.img,0,0);
+}
+/* billboard do chefe no campo (com oclusão via zbuffer) */
+function rcSprites(px,py,ang){
+  const d=G.dun; if(!d||!d.bossPos||d.bossDefeated)return;
+  const spr=bossSprite(d.bossKey||'golem'); const {RW,RH,buf,zbuf}=RC;
+  const dirX=Math.cos(ang),dirY=Math.sin(ang), plane=RW/(2*RH), planeX=-dirY*plane,planeY=dirX*plane;
+  const sxr=(d.bossPos.x+0.5)-px, syr=(d.bossPos.y+0.5)-py;
+  const invDet=1/(planeX*dirY-dirX*planeY);
+  const tX=invDet*(dirY*sxr-dirX*syr), tY=invDet*(-planeY*sxr+planeX*syr);
+  if(tY<=0.35)return;
+  const scale=1.25, screenX=Math.floor((RW/2)*(1+tX/tY));
+  const sh=Math.abs(RH/tY)*scale, sw=sh*(spr.w/spr.h);
+  const bob=Math.sin(performance.now()/500)*2/tY;
+  const feetY=RH/2 + (RH/2)/tY + bob;                    // pés no chão
+  const startY=feetY-sh, endY=feetY;
+  const x0=Math.floor(screenX-sw/2), fog=clamp(1.35-tY*0.12,0.2,1.2);
+  for(let stripe=x0; stripe<x0+sw; stripe++){
+    if(stripe<0||stripe>=RW)continue;
+    if(zbuf&&tY>=zbuf[stripe])continue;                   // parede na frente → oculta
+    const texX=Math.floor((stripe-x0)*spr.w/sw); if(texX<0||texX>=spr.w)continue;
+    for(let y=Math.max(0,Math.floor(startY)); y<Math.min(RH,Math.floor(endY)); y++){
+      const texY=Math.floor((y-startY)*spr.h/sh); if(texY<0||texY>=spr.h)continue;
+      const c=spr.data[texY*spr.w+texX];
+      if(c>>>24>40){ buf[y*RW+stripe]=shade(c,fog); }
+    }
+  }
 }
 
 /* ================= ESTADO / MASMORRA ================= */
@@ -391,6 +487,7 @@ function genFloor(depth){
     spawn:{x:spawn[0]+0.5,y:spawn[1]+0.5,dir:spawnDir},
     doorsOpen:new Set(), secretsRevealed:new Set(), looted:new Set(), triggered:new Set(), rested:new Set(),
     isBoss:true, depth,
+    bossPos:{x:far[0],y:far[1]}, bossKey:bossKeyFor(depth), bossDefeated:false,
     explored:Array.from({length:H},()=>new Array(W).fill(false)),
   };
 }
@@ -1052,7 +1149,8 @@ function tryMove(dx,dy){ if(G.moving||G.state!=='explore')return;
   const nx=Math.floor(G.px)+dx, ny=Math.floor(G.py)+dy;
   const v=G.dun.grid[ny]&&G.dun.grid[ny][nx];
   if(v==='+'&&!G.dun.doorsOpen.has(nx+','+ny)){ G.dun.doorsOpen.add(nx+','+ny); SFX.door(); toast('A porta range e se abre.',1100); moveTo(nx,ny); return; }
-  if(v==='S'&&!G.dun.secretsRevealed.has(nx+','+ny)){ SFX.bump(); toast('Parece uma parede sólida... (tente Interagir aqui perto)',1400); return; }
+  if(v==='S'&&!G.dun.secretsRevealed.has(nx+','+ny)){ SFX.bump(); toast('Parece uma parede sólida...',1400); return; }
+  if(v==='B'&&!G.dun.bossDefeated){ SFX.bump(); toast('⚠ O guardião bloqueia a passagem!',1200); startBoss(); return; } // esbarrar no chefe = batalha
   if(isSolid(nx,ny)){ SFX.bump(); return; }
   moveTo(nx,ny);
 }
@@ -1107,9 +1205,9 @@ function fountain(x,y){ G.dun.rested.add(x+','+y); SFX.heal();
 }
 function startBoss(){ const f=rollFormation(true); f.wasBoss=true; startBattle(f,{boss:true}); G.battle.wasBoss=true; }
 function onBossDefeated(){ // abre saída / vitória de andar
-  toast('★ CHEFE DERROTADO! A passagem se abre.',2600);
-  // transforma tile boss em escada
-  const d=G.dun; for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++)if(d.grid[y][x]==='B')d.grid[y][x]='>';
+  toast('★ CHEFE DERROTADO! A escada se revela.',2600);
+  const d=G.dun; d.bossDefeated=true;
+  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++)if(d.grid[y][x]==='B')d.grid[y][x]='>';
   if(G.depth>=10){ setTimeout(()=>showWin(),1500); }
 }
 
@@ -1717,7 +1815,11 @@ function serialScene(d){ return {depth:d.depth,grid:d.grid.map(r=>r.join('')),na
   explored:d.explored.map(r=>r.map(v=>v?1:0)),isBoss:d.isBoss}; }
 function loadScene(s){ const d={depth:s.depth,w:s.grid[0].length,h:s.grid.length,grid:s.grid.map(r=>r.split('')),name:s.name,
   doorsOpen:new Set(s.doorsOpen),secretsRevealed:new Set(s.secretsRevealed),looted:new Set(s.looted),triggered:new Set(s.triggered),rested:new Set(s.rested),
-  explored:s.explored.map(r=>r.map(v=>!!v)),isBoss:s.isBoss,spawn:{x:1.5,y:1.5,dir:1}}; return d; }
+  explored:s.explored.map(r=>r.map(v=>!!v)),isBoss:s.isBoss,spawn:{x:1.5,y:1.5,dir:1}};
+  // deriva posição/estado do chefe a partir do grid
+  d.bossKey=bossKeyFor(s.depth); d.bossDefeated=true; d.bossPos=null;
+  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ if(d.grid[y][x]==='B'){d.bossPos={x,y};d.bossDefeated=false;} else if(d.grid[y][x]==='>'&&!d.bossPos){d.bossPos={x,y};} }
+  return d; }
 function hasSave(){ return !!localStorage.getItem(SAVEKEY); }
 function clearSave(){ try{localStorage.removeItem(SAVEKEY);}catch(e){} }
 function loadGame(){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY)); if(!s)return false;
