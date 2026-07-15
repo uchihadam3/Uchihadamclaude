@@ -396,15 +396,18 @@ const BEST={
             {name:'Julgamento',type:'dark',target:'one',power:260,magic:true,tell:'Uma luz negra se concentra...'}]},
 };
 function mkEnemy(key,lvBoost){
-  const b=BEST[key], lv=(G.depth||1)+(lvBoost||0), sc=1+(G.depth-1)*0.12;
-  return { key, side:'enemy', name:b.name, spr:b.spr, boss:!!b.boss, undead:!!b.undead,
+  const b=BEST[key], lv=(G.depth||1)+(lvBoost||0), sc=1+(G.depth-1)*0.13;
+  const e={ key, side:'enemy', name:b.name, spr:b.spr, boss:!!b.boss, undead:!!b.undead,
     mhp:Math.round(b.hp*sc), hp:Math.round(b.hp*sc),
     atk:Math.round(b.atk*sc), mag:Math.round(b.mag*sc), def:Math.round(b.def*sc), res:Math.round(b.res*sc),
     agi:b.agi, guardMax:b.guard, guard:b.guard, broken:false, brokenT:0,
     weak:new Set(b.weak||[]), resist:new Set(b.resist||[]), imm:new Set(b.imm||[]),
     xp:Math.round(b.xp*sc), gold:Math.round(b.gold*sc), skills:b.skills||[], ai:b.ai, front:b.front,
+    phases:b.phases, phase:0,
     status:{}, alive:true, scanned:false, discovered:new Set(),
     sx:0,sy:0,scale:1, hitFlash:0, bob:Math.random()*6 };
+  if(!b.boss && chance(eliteChance(G.depth||1))) makeElite(e);
+  return e;
 }
 // tabelas de encontro por profundidade
 function rollFormation(boss){
@@ -417,27 +420,88 @@ function rollFormation(boss){
   const f=pick(tables); return f.map(k=>mkEnemy(k));
 }
 
+/* ============ PRESSÁGIOS (condições de campo) ============ */
+const CONDITIONS={
+  nevoa:{name:'Névoa Espessa',icon:'🌫',desc:'Ataques erram mais.'},
+  veias_fogo:{name:'Veias de Fogo',icon:'🔥',desc:'Dano de FOGO +45%.'},
+  terra_sagrada:{name:'Terra Sagrada',icon:'✨',desc:'Dano SAGRADO +45%.'},
+  gelo_eterno:{name:'Frio Cortante',icon:'❄',desc:'Dano de GELO +45%.'},
+  tempestade:{name:'Tempestade',icon:'⚡',desc:'Dano de RAIO +45%.'},
+  escuridao:{name:'Escuridão Profunda',icon:'🌑',desc:'Inimigos golpeiam +25% mais forte.'},
+  chao_maldito:{name:'Chão Amaldiçoado',icon:'☠',desc:'Todos perdem HP a cada rodada.'},
+  frenesi:{name:'Frenesi',icon:'💨',desc:'Todos agem mais rápido.'},
+  sangue:{name:'Lua de Sangue',icon:'🩸',desc:'Chance de CRÍTICO muito maior.'},
+  guarda_ferrea:{name:'Guarda Férrea',icon:'🛡',desc:'Inimigos com guarda reforçada.'},
+  presenca:{name:'Presença Sombria',icon:'👁',desc:'Inimigos começam enfurecidos.'},
+  eco:{name:'Eco Arcano',icon:'🔮',desc:'Magias custam metade do MP.'},
+  fartura:{name:'Fartura de Ânimo',icon:'⚔',desc:'Vocês começam com Resolve cheio.'},
+};
+function rollConditions(depth,boss){ const out=[];
+  if(boss){ out.push(pick(['veias_fogo','terra_sagrada','escuridao','presenca','frenesi','sangue'])); if(depth>=10&&chance(.6))out.push('guarda_ferrea'); }
+  else { const n=(depth>=6&&chance(0.35))?2:((depth>=2||chance(0.45))?1:0);
+    const pool=shuffle(Object.keys(CONDITIONS)); for(let i=0;i<n;i++)out.push(pool[i]); }
+  return [...new Set(out)];
+}
+function has_c(k){ return G.battle&&G.battle.conds&&G.battle.conds.includes(k); }
+function elemAmp(type){ let m=1;
+  if(type==='fire'&&has_c('veias_fogo'))m*=1.45; if(type==='holy'&&has_c('terra_sagrada'))m*=1.45;
+  if(type==='ice'&&has_c('gelo_eterno'))m*=1.45; if(type==='bolt'&&has_c('tempestade'))m*=1.45;
+  return m; }
+
+/* ============ ELITES / AFIXOS ============ */
+const AFFIXES={
+  blindado:{name:'Blindado',color:'#6ab0ff',apply:e=>{e.guardMax+=2;e.guard+=2;e.def=Math.round(e.def*1.4);}},
+  voraz:{name:'Voraz',color:'#d8484a',lifesteal:0.45},
+  igneo:{name:'Ígneo',color:'#ff7a3a',apply:e=>{e.weak.delete('fire');e.weak.add('ice');e.resist.add('fire');},onHit:'burn'},
+  veloz:{name:'Veloz',color:'#7ce07c',apply:e=>{e.agi=Math.round(e.agi*1.4);},extraTurn:true},
+  vingativo:{name:'Vingativo',color:'#e8c24a',counter:0.6},
+  colossal:{name:'Colossal',color:'#c89aff',apply:e=>{e.mhp=Math.round(e.mhp*1.8);e.hp=e.mhp;e.atk=Math.round(e.atk*1.3);e.guardMax+=1;e.guard+=1;e.scaleMul=1.3;}},
+  regenerativo:{name:'Regenerativo',color:'#5ec86a',regen:true},
+  aquecido:{name:'Enfurecido',color:'#ff9a3a',apply:e=>{e.status.atkUp={turns:99,pot:1.4};}},
+};
+function eliteChance(depth){ return Math.min(0.4,0.08+depth*0.035); }
+function makeElite(e){ const key=pick(Object.keys(AFFIXES)), af=AFFIXES[key];
+  e.affix=key; e.affixName=af.name; e.affixColor=af.color; e.elite=true;
+  e.name=af.name+' '+e.name; e.xp=Math.round(e.xp*2.3); e.gold=Math.round(e.gold*2); e.eliteDrop=true;
+  if(af.apply)af.apply(e); if(af.regen)e.status.regen={turns:99,dmg:Math.round(e.mhp*0.06)};
+  return e; }
+
 /* ================= COMBATE ================= */
 function startBattle(formation,opts){
   opts=opts||{};
-  G.battle={enemies:formation, round:1, boss:!!opts.boss, log:[], over:false};
-  G.party.forEach(c=>{ c.resolve=Math.max(c.resolve,2); c.guardF=false; });
+  const conds=rollConditions(G.depth||1,!!opts.boss);
+  G.battle={enemies:formation, round:1, boss:!!opts.boss, log:[], over:false, conds, fury:0};
+  // aplica presságios de setup
+  formation.forEach(e=>{
+    if(conds.includes('guarda_ferrea')){ e.guardMax++; e.guard++; }
+    if(conds.includes('presenca')) e.status.atkUp={turns:99,pot:1.4};
+  });
+  G.party.forEach(c=>{ c.resolve = conds.includes('fartura')?5:Math.max(c.resolve,2); c.guardF=false; });
   G.state='battle';
   $('#battle').classList.add('on');
   musicStart('battle');
   layoutEnemies();
-  renderBparty(); renderTurnQ();
-  blog(opts.boss?('⚠ '+formation[0].name+' bloqueia o caminho!'):'Inimigos emboscam o grupo!');
+  renderBparty(); renderTurnQ(); renderFury();
+  const elites=formation.filter(e=>e.elite);
+  blog(opts.boss?('⚠ '+formation[0].name+' ergue-se diante de vocês!'):(elites.length?'Uma ameaça incomum emboscou o grupo!':'Inimigos emboscam o grupo!'));
   bfxLoop();
-  setTimeout(()=>battleLoop(),700);
+  showCondBanner(conds, opts.boss?formation[0].name:null);
+  setTimeout(()=>battleLoop(), conds.length?1900:800);
+}
+function showCondBanner(conds,bossName){
+  const f=$('#bfield'); const b=document.createElement('div'); b.id='condBanner';
+  b.innerHTML=(bossName?`<div class="cbBoss">${bossName}</div>`:'')+
+    (conds.length?`<div class="cbTitle">✦ PRESSÁGIOS ✦</div>`+conds.map(k=>`<div class="cbItem"><b>${CONDITIONS[k].icon} ${CONDITIONS[k].name}</b><small>${CONDITIONS[k].desc}</small></div>`).join(''):'');
+  if(!b.innerHTML)return; f.appendChild(b);
+  setTimeout(()=>{ b.style.opacity='0'; setTimeout(()=>b.remove(),600); }, bossName?2400:1600);
 }
 function layoutEnemies(){
   const es=G.battle.enemies, cv=$('#benemies'); const W=cv.clientWidth||cv.width, H=cv.clientHeight||cv.height;
   const n=es.length;
   es.forEach((e,i)=>{
-    if(e.boss){ e.sx=0.5; e.sy=0.52; e.scale=2.3; }
+    if(e.boss){ e.sx=0.5; e.sy=0.6; e.scale=2.0; }
     else{ const cols=Math.min(n,3), rowI=Math.floor(i/3), inRow=Math.min(cols,n-rowI*3), col=i%3;
-      e.sx=(col+0.5)/inRow*0.86+0.07; e.sy=0.42+rowI*0.22; e.scale=1.1-rowI*0.12; }
+      e.sx=(col+0.5)/inRow*0.86+0.07; e.sy=0.42+rowI*0.22; e.scale=(1.1-rowI*0.12)*(e.scaleMul||1); }
   });
 }
 function alliesAlive(){return G.party.filter(c=>c.alive);}
@@ -448,6 +512,7 @@ async function battleLoop(){
   while(!b.over){
     // ordem por agilidade efetiva
     const combatants=[...G.party.filter(c=>c.alive),...b.enemies.filter(e=>e.alive)];
+    b.enemies.filter(e=>e.alive&&e.affix==='veloz').forEach(e=>combatants.push(e)); // Veloz age 2x
     b.order=combatants.map(c=>({c,ini:effAgi(c)+rnd(0,4)})).sort((a,z)=>z.ini-a.ini).map(o=>o.c);
     renderTurnQ();
     for(const c of b.order){
@@ -466,7 +531,7 @@ async function battleLoop(){
     b.round++;
   }
 }
-function effAgi(c){ let a=c.agi; if(c.status.slow)a*=0.5; if(c.status.haste)a*=1.5; return a; }
+function effAgi(c){ let a=c.agi; if(c.status.slow)a*=0.5; if(c.status.haste)a*=1.5; if(has_c('frenesi'))a*=1.3; return a; }
 function name(c){return c.name;}
 
 function checkEnd(){
@@ -485,9 +550,11 @@ function playerTurn(c){ return new Promise(res=>{
 function finishTurn(){ const r=G.resolver; G.resolver=null; hideMenus(); if(r)r(); }
 
 function showActionMenu(c){
-  const m=$('#bmenu'); m.classList.add('on'); $('#bsub').classList.remove('on');
+  const m=$('#bmenu'); m.classList.add('on'); $('#bsub').classList.remove('on'); renderFury();
   const canMag=!c.status.silence;
+  const furyReady=G.battle&&G.battle.fury>=100;
   m.innerHTML=`<div class="actrow">
+    ${furyReady?`<div class="act fury" data-a="fury" style="flex-basis:100%;max-width:none">🔥 INVESTIDA FINAL<small>toda a party golpeia — gasta a FÚRIA</small></div>`:''}
     <div class="act hot" data-a="attack">⚔ ATACAR<small>${ELEM[c.wtype]} ${c.wtype}</small></div>
     <div class="act ${knownSkills(c).filter(id=>SKILLS[id].kind!=='heal'&&!SKILLS[id].magic).length? '':'dis'}" data-a="skill">✦ TÉCNICA<small>habilidades</small></div>
     <div class="act ${canMag&&knownSkills(c).some(id=>SKILLS[id].magic)?'':'dis'}" data-a="magic">✧ MAGIA<small>${c.mp}/${c.mmp} MP</small></div>
@@ -499,7 +566,8 @@ function showActionMenu(c){
 function hideMenus(){ $('#bmenu').classList.remove('on'); $('#bsub').classList.remove('on'); clearTargets(); }
 
 function onAction(c,a){
-  if(a==='guard'){ c.guardF=true; c.resolve=Math.min(5,c.resolve+1); blog(c.name+' assume a guarda.'); SFX.ui(); finishTurn(); return; }
+  if(a==='guard'){ c.guardF=true; c.resolve=Math.min(5,c.resolve+1); furyGain(4); blog(c.name+' assume a guarda.'); SFX.ui(); finishTurn(); return; }
+  if(a==='fury'){ chooseTarget(c,{kind:'fury'}); return; }
   if(a==='attack'){ chooseTarget(c,{kind:'attack'}); return; }
   if(a==='skill'){ openSub(c,knownSkills(c).filter(id=>!SKILLS[id].magic&&SKILLS[id].kind!=='heal'&&SKILLS[id].kind!=='revive'&&SKILLS[id].kind!=='cure'),'TÉCNICAS'); return; }
   if(a==='magic'){ openSub(c,knownSkills(c).filter(id=>SKILLS[id].magic||['heal','cure','revive','util'].includes(SKILLS[id].kind)),'MAGIAS'); return; }
@@ -543,7 +611,8 @@ function chooseTarget(c,act){
   if(canBoost){ for(let i=0;i<=maxLv;i++){ let pips=''; for(let k=0;k<i;k++)pips+='⚡';
     lvHtml+=`<div class="blvl${i===0?' on':''}" data-lv="${i}"><b>${pips||'○'}</b><small>${lvlText(i)}</small></div>`; } }
   const bar=document.createElement('div'); bar.id='tgtBar';
-  bar.innerHTML=`<div class="tgtHead"><span>${allyTarget?'💚 Escolha o aliado':'🎯 Toque no inimigo'}</span><span class="tgtCancel">✕ voltar</span></div>
+  const head = act.kind==='fury' ? '🔥 Alvo da INVESTIDA FINAL' : (allyTarget?'💚 Escolha o aliado':'🎯 Toque no inimigo');
+  bar.innerHTML=`<div class="tgtHead"><span>${head}</span><span class="tgtCancel">✕ voltar</span></div>
     ${canBoost?`<div class="boostRow"><span class="boostLbl">IMPULSO<br>⚡×${c.resolve}</span><div class="blvls">${lvHtml}</div></div>`:''}`;
   $('#bfield').appendChild(bar);
   if(canBoost){ bar.querySelectorAll('.blvl').forEach(el=>el.onclick=()=>{ UI.boost=+el.dataset.lv; SFX.ui();
@@ -561,7 +630,7 @@ function chooseTarget(c,act){
     targets.forEach(t=>{ const dot=document.createElement('div'); dot.className='tgtDot'; dot.textContent='▾';
       dot.style.left=(rect.left-frect.left+t.sx*rect.width)+'px'; dot.style.top=(rect.top-frect.top+t.sy*rect.height-t.scale*44)+'px';
       $('#bfield').appendChild(dot);
-      dot.onclick=()=>{ SFX.ui(); clearTargets(); act.kind==='attack'?doAttack(c,t):execSkill(c,act.id,[t]); };
+      dot.onclick=()=>{ SFX.ui(); clearTargets(); act.kind==='fury'?furyStrike(c,t):act.kind==='attack'?doAttack(c,t):execSkill(c,act.id,[t]); };
     });
   }
 }
@@ -634,15 +703,24 @@ function applyHit(src,tgt,o){
   } else { // dano em aliado (raro, magias inimigas)
     const aff=tgt.res_aff&&tgt.res_aff[o.type]; if(aff!=null)mult*=aff;
   }
-  if(tgt.broken)mult*=1.5;
-  dmg*=mult;
+  if(tgt.broken)mult*=1.75;                       // quebra recompensa mais
+  dmg*=mult; dmg*=elemAmp(o.type);                // presságios elementais
+  if(src.side==='enemy'&&has_c('escuridao'))dmg*=1.25;
   // crítico
-  let crit=false; const critC=(o.crit||0.06)+(src.status.critUp?0.25:0)+ (src.luck||0)/300;
-  if(mult>0&&chance(critC)){crit=true;dmg*=1.8;}
-  // acerto/erro (cego)
-  if(src.status.blind&&chance(0.4)){ popup(tgt,'ERROU','miss'); SFX.miss(); return; }
+  let crit=false; const critC=(o.crit||0.06)+(src.status.critUp?0.25:0)+(src.luck||0)/300+(has_c('sangue')?0.15:0);
+  if(mult>0&&chance(critC)){crit=true;dmg*=1.85;}
+  // acerto/erro (cego / névoa / escuridão)
+  let missC=(src.status.blind?0.4:0); if(has_c('nevoa'))missC+=0.16; if(has_c('escuridao')&&src.side==='party')missC+=0.1;
+  if(mult>0&&missC>0&&chance(missC)){ popup(tgt,'ERROU','miss'); SFX.miss(); return; }
   dmg=Math.max(mult>0?1:0,Math.round(dmg*rnd(0.9,1.1)));
   tgt.hp=clamp(tgt.hp-dmg,0,tgt.mhp); tgt.hitFlash=1;
+  // fúria + afixos ao causar dano
+  if(dmg>0){
+    if(src.side==='party') furyGain(clamp(dmg*0.07,1,13)); else if(tgt.side==='party') furyGain(6);
+    const saf=src.affix&&AFFIXES[src.affix];
+    if(saf&&saf.lifesteal&&src.alive){ const ls=Math.round(dmg*saf.lifesteal); if(ls>0){src.hp=clamp(src.hp+ls,0,src.mhp);popup(src,'+'+ls,'heal');} }
+    if(src.affix==='igneo'&&tgt.side==='party'&&chance(0.6)) applyStatus(tgt,{name:'burn',turns:2,dmg:Math.round((src.mag||8)*0.8+8)});
+  }
   // quebra de guarda
   if(tgt.side==='enemy'&&weak&&!tgt.broken){ tgt.guard=Math.max(0,tgt.guard-1); tgt.discovered.add(o.type);
     if(tgt.guard<=0){ breakEnemy(tgt); } }
@@ -661,8 +739,14 @@ function applyHit(src,tgt,o){
   // status colateral
   if(o.status && (o.status.chance==null||chance(o.status.chance)) && tgt.hp>0){ applyStatus(tgt,o.status); }
   if(tgt.hp<=0){ tgt.hp=0; killTarget(tgt); }
+  // contra-ataque (afixo Vingativo)
+  else if(!o.noCounter && tgt.side==='enemy' && tgt.affix && AFFIXES[tgt.affix]&&AFFIXES[tgt.affix].counter && src.side==='party' && src.alive){
+    setTimeout(()=>{ if(tgt.alive&&src.alive&&G.state==='battle'){ blog('↩ '+tgt.name+' contra-ataca!'); applyHit(tgt,src,{type:'blunt',power:95,noCounter:true}); markDirty(); renderBparty(); } }, 280);
+  }
 }
-function breakEnemy(e){ e.broken=true; e.brokenT=1; popup(e,'QUEBRADO!','break'); SFX.brk(); shakeField(15); const ps=enemyScreen(e); fxBreak(ps.x,ps.y); blog('⚡ '+e.name+' teve a guarda QUEBRADA!'); }
+function breakEnemy(e){ e.broken=true; e.brokenT=1; popup(e,'QUEBRADO!','break'); SFX.brk(); shakeField(15); const ps=enemyScreen(e); fxBreak(ps.x,ps.y); furyGain(18);
+  if(e.charging){ e.charging=null; blog('⚡ '+e.name+' QUEBRADO! A investida foi INTERROMPIDA!'); }
+  else blog('⚡ '+e.name+' teve a guarda QUEBRADA!'); }
 function heal(t,amt){ if(!t.alive)return; amt=Math.round(amt*rnd(0.95,1.08)); t.hp=clamp(t.hp+amt,0,t.mhp); popup(t,'+'+amt,'heal'); if(t.side==='party')flashCard(t,'#7ce07c'); }
 function applyStatus(t,st){ if(!st||!st.name)return;
   if(t.imm&&t.imm.has(st.name))return;
@@ -679,6 +763,7 @@ function tickOne(c,key){ const s=c.status[key]; if(!s)return; s.turns--; if(s.tu
 
 async function endOfRound(){
   const all=[...G.party,...G.battle.enemies];
+  if(has_c('chao_maldito')){ for(const c of all){ if(!c.alive)continue; const d=Math.round(c.mhp*0.05); c.hp=clamp(c.hp-d,0,c.mhp); popup(c,d,'weak'); if(c.hp<=0)killTarget(c); } blog('☠ O chão amaldiçoado drena a vida de todos.'); }
   for(const c of all){ if(!c.alive)continue;
     // dano/regen por status
     if(c.status.poison){ const d=Math.round(c.status.poison.dmg||10); c.hp=clamp(c.hp-d,0,c.mhp); popup(c,d,'weak'); if(c.hp<=0)killTarget(c); }
@@ -693,38 +778,65 @@ async function endOfRound(){
 }
 
 /* -------- IA inimiga -------- */
+function pickTarget(e,foes){
+  const taunter=G.party.find(c=>c.alive&&c._taunt>0); if(taunter)return taunter;
+  // casters miram a linha de trás (magos/curandeiros) com frequência
+  if((e.ai==='caster'||e.boss)&&chance(0.45)){ const back=foes.filter(c=>c.row===1); if(back.length)return pick(back); }
+  const pool=[...foes].sort((a,b)=>(a.hp/a.mhp)-(b.hp/b.mhp)); // foca o mais ferido
+  return chance(0.62)?pool[0]:pick(foes);
+}
+function bossPhaseCheck(e){ if(!e.boss)return; const hpf=e.hp/e.mhp;
+  if(e.key==='golem'){ if(e.phase<1&&hpf<=0.5){ e.phase=1; e.status.atkUp={turns:99,pot:1.35}; e.guard=e.guardMax; blog('🪨 O GOLEM racha e ENFURECE — a terra treme!'); flashScreen(0.4); shakeField(14); } }
+  if(e.key==='cavaleiro'){ if(e.phase<1&&hpf<=0.6){ e.phase=1; e.status.atkUp={turns:99,pot:1.25}; blog('🗡 O Cavaleiro reúne as cinzas ao seu redor...'); }
+    if(e.phase<2&&hpf<=0.3){ e.phase=2; e.status.critUp={turns:99}; e.guard=e.guardMax; blog('💀 As cinzas se erguem — o JULGAMENTO está próximo!'); flashScreen(0.5); shakeField(16); } }
+}
+function chooseEnemyAction(e){
+  const basic={type:'blunt',power:100,target:'one'};
+  if(e.boss){
+    if(e.key==='golem'){
+      if(e.phase>=1&&chance(0.4)) return {name:'Fúria de Pedra',type:'blunt',power:265,target:'one',charge:true};
+      if(chance(0.38)) return {name:'Terremoto',type:'blunt',power:110,target:'all',status:{name:'defDown',turns:2,pot:0.8,chance:0.5}};
+      if(chance(0.5)) return {name:'Punho Esmagador',type:'blunt',power:165,target:'one'};
+      return basic;
+    }
+    if(e.key==='cavaleiro'){
+      if(e.phase>=2&&chance(0.5)) return {name:'Julgamento das Cinzas',type:'dark',power:235,magic:true,target:'all',charge:true};
+      if(chance(0.3)) return {name:'Onda Umbral',type:'dark',power:125,magic:true,target:'all'};
+      if(chance(0.22)) return {kind:'buff',name:'Voto de Cinzas',status:{name:'atkUp',turns:3,pot:1.4},target:'self'};
+      if(chance(0.6)) return {name:'Lâmina Cinza',type:'slash',power:170,crit:0.3,target:'one'};
+      return basic;
+    }
+  }
+  if(e.skills&&e.skills.length && (e.ai==='caster'?chance(0.72):chance(0.5))){ const s=pick(e.skills);
+    return {name:s.name,type:s.type,power:s.power,magic:s.magic,crit:s.crit,target:s.target==='allEnemy'?'all':'one',status:s.status,kind:s.kind}; }
+  return basic;
+}
 async function enemyTurn(e){
   if(!e.alive)return;
-  await wait(360);
-  const foes=alliesAlive(); if(!foes.length)return;
-  // provocação
-  const taunter=G.party.find(c=>c.alive&&c._taunt>0);
-  let target = taunter || null;
-  let skill=null;
-  if(e.skills&&e.skills.length){
-    if(e.ai==='caster'||e.ai==='boss1'||e.ai==='boss2'){ skill=pick(e.skills); }
-    else if(chance(0.5)) skill=pick(e.skills);
+  bossPhaseCheck(e);
+  await wait(320);
+  let foes=alliesAlive(); if(!foes.length)return;
+  // libera a investida carregada
+  if(e.charging){ const ch=e.charging; e.charging=null; markDirty();
+    blog('💥 '+e.name+' DESATA '+ch.name+'!'); SFX.crit(); flashScreen(0.55); shakeField(18); await animEnemyAttack(e); await wait(160);
+    if(ch.target==='all'){ for(const f of alliesAlive()){ applyHit(e,f,{type:ch.type,power:ch.power,magic:ch.magic,crit:0.15,status:ch.status}); await wait(130);} }
+    else { const t=pickTarget(e,foes); applyHit(e,t,{type:ch.type,power:ch.power,magic:ch.magic,crit:0.25,status:ch.status}); }
+    markDirty(); renderBparty(); await wait(320); return;
   }
-  // escolha de alvo: mais fraco (menor HP%) com viés, respeitando taunt
-  if(!target){ const sorted=[...foes].sort((a,b)=>(a.hp/a.mhp)-(b.hp/b.mhp)); target= chance(0.6)?sorted[0]:pick(foes); }
+  const act=chooseEnemyAction(e);
   await animEnemyAttack(e);
-  if(skill){
-    if(skill.tell){ blog('⚠ '+(skill.tell)); }
-    if(skill.kind==='buff'){ applyStatus(e,skill.status); blog(e.name+' usa '+skill.name+'.'); markDirty(); await wait(500); return; }
-    if(skill.target==='allEnemy'){ for(const f of foes){ applyHit(e,f,{type:skill.type,power:skill.power,magic:skill.magic,status:skill.status}); await wait(120);} blog(e.name+' usa '+skill.name+'!'); }
-    else { applyHit(e,target,{type:skill.type,power:skill.power,magic:skill.magic,crit:skill.crit,status:skill.status}); blog(e.name+' usa '+skill.name+'!'); }
-  } else {
-    applyHit(e,target,{type:'blunt',power:100,magic:false});
-    blog(e.name+' ataca '+target.name+'.');
-  }
-  markDirty(); renderBparty(); await wait(320);
+  if(act.charge){ e.charging=act; blog('⚠⚠ '+e.name+' concentra '+act.name+'! QUEBRE a guarda para impedir!'); SFX.dark(); shakeField(6); markDirty(); await wait(450); return; }
+  if(act.kind==='buff'){ applyStatus(e,act.status); blog(e.name+' usa '+act.name+'.'); markDirty(); await wait(450); return; }
+  if(act.target==='all'){ for(const f of alliesAlive()){ applyHit(e,f,{type:act.type,power:act.power,magic:act.magic,status:act.status}); await wait(120);} blog(e.name+' usa '+act.name+'!'); }
+  else { const t=pickTarget(e,foes); applyHit(e,t,{type:act.type,power:act.power,magic:act.magic,crit:act.crit,status:act.status}); blog(act.name?(e.name+' usa '+act.name+'!'):(e.name+' ataca '+t.name+'.')); }
+  markDirty(); renderBparty(); await wait(300);
 }
 
 /* -------- fim de batalha -------- */
 async function winBattle(){
   const b=G.battle; musicStop(); SFX.win();
   let xp=0,gold=0; const drops=[];
-  b.enemies.forEach(e=>{ xp+=e.xp; gold+=e.gold; if(chance(e.boss?1:0.25))drops.push(rollDrop(e)); });
+  b.enemies.forEach(e=>{ xp+=e.xp; gold+=e.gold; if(e.boss||e.eliteDrop||chance(0.25))drops.push(rollDrop(e)); });
   G.gp+=gold; addLoot(drops);
   blog(`Vitória! +${xp} XP · +${gold} GP`);
   await wait(600);
@@ -1258,6 +1370,24 @@ function fxDraw(g){ for(const p of VFX){ const a=clamp(p.life/p.max,0,1);
 } g.globalAlpha=1; }
 function flashCard(t,color){ const i=G.party.indexOf(t); const el=$('#bparty').children[i]; if(!el)return;
   try{ el.animate([{boxShadow:`0 0 0 2px ${color},0 0 20px ${color}`,transform:'translateX(-3px)'},{transform:'translateX(3px)'},{boxShadow:'none',transform:'none'}],{duration:340}); }catch(e){} }
+function flashScreen(a){ const f=$('#flash'); if(!f)return; f.style.transition='none'; f.style.opacity=(a||0.55); requestAnimationFrame(()=>{ f.style.transition='opacity .45s'; f.style.opacity='0'; }); }
+/* ---------- FÚRIA (medidor de equipe) ---------- */
+function renderFury(){ const w=$('#furyWrap'); if(!w||!G.battle)return; const f=clamp(G.battle.fury||0,0,100);
+  w.querySelector('#furyBar>i').style.width=f+'%'; w.classList.toggle('full',f>=100);
+  w.querySelector('#furyLbl').textContent = f>=100?'🔥 FÚRIA!':'FÚRIA '+Math.floor(f)+'%'; }
+function furyGain(a){ if(!G.battle||G.battle.fury>=100)return; const was=G.battle.fury||0; G.battle.fury=clamp(was+a,0,100);
+  if(was<100&&G.battle.fury>=100){ blog('🔥 A FÚRIA do grupo transbordou! (toque em FÚRIA no seu turno)'); SFX.lvup(); } renderFury(); }
+async function furyStrike(c,target){
+  hideMenus(); G.battle.fury=0; renderFury(); flashScreen(0.6); SFX.crit();
+  blog('🔥🔥 INVESTIDA FINAL! 🔥🔥'); await wait(200);
+  for(const h of alliesAlive()){ if(!target||!target.alive){ target=enemiesAlive()[0]; if(!target)break; }
+    flashCard(h,'#ffcf6a'); const ps=enemyScreen(target); const mag=h.mag>h.str;
+    fxElem(ps.x,ps.y, mag?'holy':h.wtype); fxImpact(ps.x,ps.y,'#ffe27a'); shakeField(13);
+    applyHit(h,target,{type:mag?'holy':h.wtype,power:245,magic:mag,crit:0.6,noCounter:true});
+    await wait(310);
+  }
+  markDirty(); renderBparty(); await wait(300); finishTurn();
+}
 
 function drawBattleBg(ctx,W,H,t){
   let g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#241d2b');g.addColorStop(0.55,'#181320');g.addColorStop(1,'#090610'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
@@ -1300,12 +1430,23 @@ function bfxLoop(){ if(bfxRunning)return; bfxRunning=true;
       if(!e.alive){ if(e.dieT>0){ ctx.save();ctx.globalAlpha=Math.max(0,e.dieT);ctx.translate(0,(1-e.dieT)*14); drawEnemySprite(ctx,cx,cy,e.scale*2.3*breath,e.spr,0); ctx.restore(); e.dieT-=dt*2.2; } continue; }
       if(e.hitFlash>0)e.hitFlash=Math.max(0,e.hitFlash-dt*5);
       const recoil=e.hitFlash>0? -e.hitFlash*7:0;
+      // aura de ELITE
+      if(e.affix){ const ar=44*e.scale*2.3*0.5; const au=ctx.createRadialGradient(cx,cy-ar,ar*0.3,cx,cy-ar,ar*1.5);
+        const pulse=0.18+Math.sin(t*4+e.bob)*0.07; au.addColorStop(0,e.affixColor+'00'); au.addColorStop(0.6,hexA(e.affixColor,pulse)); au.addColorStop(1,e.affixColor+'00');
+        ctx.fillStyle=au; ctx.fillRect(cx-ar*1.6,cy-ar*2.6,ar*3.2,ar*3); }
+      // aura de conjuração (chefe carregando)
+      if(e.charging){ const ar=44*e.scale*2.3*0.5; const gl=0.3+Math.sin(t*10)*0.18; const cg=ctx.createRadialGradient(cx,cy-ar,4,cx,cy-ar,ar*1.7);
+        cg.addColorStop(0,`rgba(255,60,50,${gl})`); cg.addColorStop(1,'rgba(255,60,50,0)'); ctx.fillStyle=cg; ctx.fillRect(cx-ar*1.8,cy-ar*2.8,ar*3.6,ar*3.2); }
       drawEnemySprite(ctx,cx,cy+recoil,e.scale*2.3*breath,e.spr,e.hitFlash);
       const topY=cy-44*e.scale*2.3;
       ctx.textAlign='center';
-      // nome
-      ctx.font='bold 11px "Courier New"'; ctx.fillStyle=e.broken?'#ffd94a':'#e4ddc9';
-      ctx.shadowColor='#000';ctx.shadowBlur=3; ctx.fillText(e.name+(e.broken?'  ⚡QUEBRADO':''), cx, topY-18); ctx.shadowBlur=0;
+      // nome (elite em cor do afixo)
+      ctx.font='bold 11px "Courier New"'; ctx.fillStyle=e.broken?'#ffd94a':(e.affix?e.affixColor:'#e4ddc9');
+      ctx.shadowColor='#000';ctx.shadowBlur=3; ctx.fillText(e.name+(e.broken?'  ⚡QUEBRADO':''), cx, topY-(e.charging?30:18)); ctx.shadowBlur=0;
+      // barra de conjuração
+      if(e.charging){ const cw=(e.boss?150:100),cbx=cx-cw/2,cby=topY-24; ctx.fillStyle='#100'; ctx.fillRect(cbx-2,cby-2,cw+4,9);
+        ctx.fillStyle='#2a0a0a';ctx.fillRect(cbx,cby,cw,5); ctx.fillStyle='#ff5a3a';ctx.fillRect(cbx,cby,cw*0.8,5);
+        ctx.font='bold 10px "Courier New"';ctx.fillStyle='#ff8a6a';ctx.fillText('⚠ '+e.charging.name+' ⚠',cx,cby-3); }
       // hp bar (moldura)
       const bw=e.boss?134:52, bx=cx-bw/2, by=topY-11;
       ctx.fillStyle='#0a0a0a';ctx.fillRect(bx-2,by-2,bw+4,8); ctx.fillStyle='#3a1010';ctx.fillRect(bx,by,bw,4);
@@ -1324,6 +1465,7 @@ function bfxLoop(){ if(bfxRunning)return; bfxRunning=true;
   }
   frame();
 }
+function hexA(hex,a){ const h=hex.replace('#',''); const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16); return `rgba(${r},${g},${b},${a})`; }
 function shakeField(a){ shakeAmt=Math.max(shakeAmt,a); }
 async function animAttack(c){ blog('⚔ '+c.name+' ataca!'); await wait(120); }
 async function animCast(c,sk){ SFX.cast(); blog('✦ '+c.name+' conjura '+(sk?sk.name:'')+'...'); await wait(200); }
