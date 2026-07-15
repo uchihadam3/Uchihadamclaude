@@ -2564,17 +2564,20 @@ function drawMapCv(){ const cv=$('#mapCv'),d=G.dun; const cell=Math.floor(Math.m
 
 /* ================= CAMP ================= */
 function openCamp(){ if(G.state!=='explore')return; const ov=$('#campOv'); ov.classList.add('on'); renderCamp(); }
+function mrow(ic,title,sub,attr,cls){ return `<button class="mrow${cls?' '+cls:''}" ${attr}><span class="mrow-ic">${ic}</span><span class="mrow-bd"><span class="mrow-t">${title}</span>${sub?`<span class="mrow-s">${sub}</span>`:''}</span><span class="mrow-cv">›</span></button>`; }
+function mback(fn){ const b=$('#campMenu').querySelector('[data-back]'); if(b)b.onclick=()=>{SFX.back();fn();}; }
 function renderCamp(){ const m=$('#campMenu');
-  const invTxt=Object.keys(G.inv).filter(id=>G.inv[id]>0).map(id=>ITEMS[id].name+' ×'+G.inv[id]).join(', ')||'vazio';
-  m.innerHTML=`
-    <div class="mitem" data-c="rest"><span>🔥 Descansar</span><span class="sub">restaura 35% HP/MP · risco de emboscada</span></div>
-    <div class="mitem" data-c="equip"><span>⚔ Equipamento</span><span class="sub">${G.equipInv.length} ${G.equipInv.length===1?'item':'itens'} na bolsa</span></div>
-    <div class="mitem" data-c="item"><span>🜂 Usar Item</span><span class="sub">${invTxt}</span></div>
-    <div class="mitem" data-c="form"><span>↕ Formação</span><span class="sub">trocar frente/trás</span></div>
-    <div class="mitem" data-c="status"><span>📖 Fichas</span><span class="sub">ver atributos e técnicas</span></div>
-    <div class="mitem" data-c="mute"><span>🔊 Som: ${AU.muted?'OFF':'ON'}</span><span class="sub">liga/desliga áudio</span></div>
-    <div class="mitem" data-c="save"><span>💾 Salvar</span><span class="sub">progresso é salvo automaticamente</span></div>`;
-  m.querySelectorAll('.mitem').forEach(el=>el.onclick=()=>{ SFX.ui(); campAction(el.dataset.c); });
+  const n=G.equipInv.length, invN=Object.keys(G.inv).reduce((a,id)=>a+(G.inv[id]>0?1:0),0);
+  const invTxt=invN?`${invN} tipo${invN>1?'s':''} de item`:'bolsa vazia';
+  m.innerHTML=`<div class="campHero"><div class="campHeroT">◈ ACAMPAMENTO ◈</div><div class="campHeroS">Andar ${G.depth} · ${G.gp} GP · descanse, equipe-se e siga em frente</div></div>`+
+    mrow('🔥','Descansar','restaura 35% HP/MP · risco de emboscada','data-c="rest"','c-rest')+
+    mrow('⚔','Equipamento',`${n} ${n===1?'item':'itens'} na bolsa`,'data-c="equip"','c-equip')+
+    mrow('🧪','Usar Item',invTxt,'data-c="item"','c-item')+
+    mrow('↔','Formação','trocar frente / trás','data-c="form"','c-form')+
+    mrow('📜','Fichas','atributos e técnicas do grupo','data-c="status"','c-status')+
+    mrow(AU.muted?'🔇':'🔊',`Som: ${AU.muted?'OFF':'ON'}`,'liga / desliga áudio','data-c="mute"','c-mute')+
+    mrow('💾','Salvar','progresso salvo automaticamente','data-c="save"','c-save');
+  m.querySelectorAll('.mrow').forEach(el=>el.onclick=()=>{ SFX.ui(); campAction(el.dataset.c); });
 }
 function campAction(c){
   if(c==='rest'){ G.party.forEach(p=>{ if(p.alive){p.hp=clamp(p.hp+Math.round(p.mhp*0.35),0,p.mhp);p.mp=clamp(p.mp+Math.round(p.mmp*0.35),0,p.mmp);} });
@@ -2707,23 +2710,36 @@ function eqDetailR(){ const c=eqHero(); const el=$('#eqDetail');
   el.querySelector('[data-sell]').onclick=()=>{ const v=sellValue(it); const i=G.equipInv.indexOf(it); if(i>=0)G.equipInv.splice(i,1); G.gp+=v; SFX.chest(); EQUI.focus=null; renderHUD(); saveGame(); eqRender(); toast('Vendido: '+it.dispName+' (+'+v+' GP)',1400); };
 }
 function renderFormation(){ const m=$('#campMenu');
-  m.innerHTML=`<div style="color:#c8a44a;letter-spacing:2px;margin-bottom:10px">FORMAÇÃO — toque p/ alternar frente/trás</div>`+
-    G.party.map((c,i)=>`<div class="mitem" data-f="${i}"><span>${c.name}</span><span class="sub">${c.row===0?'⚔ Linha da FRENTE':'✧ Linha de TRÁS'}</span></div>`).join('')+
-    `<div class="mitem" data-back><span>‹ Voltar</span></div>`;
-  m.querySelectorAll('[data-f]').forEach(el=>el.onclick=()=>{ const c=G.party[+el.dataset.f]; c.row=c.row?0:1; SFX.ui(); renderFormation(); });
-  m.querySelector('[data-back]').onclick=()=>{SFX.back();renderCamp();};
+  m.innerHTML=`<div class="campSecH">↔ FORMAÇÃO<span>toque num herói para alternar frente / trás</span></div>`+
+    `<div class="fmDiag"><div class="fmLine"><span class="fmLbl">⚔ FRENTE</span><span class="fmDesc">recebe e causa mais dano corpo a corpo</span></div>`+
+    `<div class="fmLine back"><span class="fmLbl">✧ TRÁS</span><span class="fmDesc">protegido — ideal para magos e suporte</span></div></div>`+
+    G.party.map((c,i)=>`<button class="fmHero ${c.row===0?'front':'rear'}" data-f="${i}"><canvas width="44" height="44"></canvas><div class="fmHt"><div class="fmHn">${c.name}</div><div class="fmHc">${c.cls}</div></div><div class="fmTag">${c.row===0?'⚔ FRENTE':'✧ TRÁS'}</div></button>`).join('')+
+    `<button class="mrow back" data-back><span class="mrow-ic">‹</span><span class="mrow-bd"><span class="mrow-t">Voltar</span></span></button>`;
+  m.querySelectorAll('.fmHero').forEach(el=>{ drawPortrait(el.querySelector('canvas'),G.party[+el.dataset.f].pal);
+    el.onclick=()=>{ const c=G.party[+el.dataset.f]; c.row=c.row?0:1; SFX.ui(); renderFormation(); }; });
+  mback(renderCamp);
 }
 function renderStatus(){ const m=$('#campMenu');
-  m.innerHTML=G.party.map(c=>`<div class="mitem" style="flex-direction:column;align-items:flex-start;gap:4px">
-    <span>${c.name} — ${c.cls} · Nv ${c.lv}</span>
-    <span class="sub">HP ${c.mhp} · MP ${c.mmp} · FOR ${c.str} · MAG ${c.mag} · DEF ${c.def} · RES ${c.res} · AGI ${c.agi}</span>
-    <span class="sub" style="color:#8ac8ff">Técnicas: ${knownSkills(c).map(id=>SKILLS[id].name).join(', ')}</span></div>`).join('')+
-    `<div class="mitem" data-back><span>‹ Voltar</span></div>`;
-  m.querySelector('[data-back]').onclick=()=>{SFX.back();renderCamp();};
+  const bar=(v,mx,cls)=>`<div class="fiBar ${cls}"><i style="width:${Math.round(100*v/Math.max(1,mx))}%"></i></div>`;
+  m.innerHTML=`<div class="campSecH">📜 FICHAS<span>atributos e técnicas de cada herói</span></div>`+
+    G.party.map(c=>`<div class="fiche">
+      <div class="fiTopRow"><canvas class="fiPort" width="52" height="52"></canvas>
+        <div class="fiId"><div class="fiName">${c.name}</div><div class="fiCls">${c.cls} · Nível ${c.lv}</div>
+          <div class="fiBars"><span class="fiBk">HP</span>${bar(c.hp,c.mhp,'hp')}<span class="fiBv">${c.mhp}</span></div>
+          <div class="fiBars"><span class="fiBk">MP</span>${bar(c.mp,c.mmp,'mp')}<span class="fiBv">${c.mmp}</span></div></div></div>
+      <div class="fiStats">${[['FOR',c.str],['MAG',c.mag],['DEF',c.def],['RES',c.res],['AGI',c.agi],['SOR',c.luck]].map(([k,v])=>`<span class="fiChip"><b>${k}</b> ${v}</span>`).join('')}</div>
+      <div class="fiSkills">✦ ${knownSkills(c).map(id=>SKILLS[id].name).join(' · ')}</div></div>`).join('')+
+    `<button class="mrow back" data-back><span class="mrow-ic">‹</span><span class="mrow-bd"><span class="mrow-t">Voltar</span></span></button>`;
+  m.querySelectorAll('.fiche').forEach((el,i)=>drawPortrait(el.querySelector('.fiPort'),G.party[i].pal));
+  mback(renderCamp);
 }
 function renderCampItems(){ const m=$('#campMenu'); const ids=Object.keys(G.inv).filter(id=>G.inv[id]>0);
-  m.innerHTML=(ids.length?ids.map(id=>`<div class="mitem" data-u="${id}"><span>${ITEMS[id].name} ×${G.inv[id]}</span><span class="sub">${ITEMS[id].desc}</span></div>`).join(''):`<div class="mitem"><span>Sem itens.</span></div>`)+
-    `<div class="mitem" data-back><span>‹ Voltar</span></div>`;
+  const ico={heal:'🌿',mp:'🔷',cure:'✚',revive:'🪶'};
+  m.innerHTML=`<div class="campSecH">🧪 USAR ITEM<span>toque para usar no herói que mais precisa</span></div>`+
+    (ids.length?ids.map(id=>{ const it=ITEMS[id];
+      return `<button class="mrow" data-u="${id}"><span class="mrow-ic">${ico[it.use]||'🎒'}</span><span class="mrow-bd"><span class="mrow-t">${it.name}<span class="mrow-qty">×${G.inv[id]}</span></span><span class="mrow-s">${it.desc}</span></span><span class="mrow-cv">›</span></button>`;
+    }).join(''):`<div class="campEmpty">A bolsa de itens está vazia.<br><span>Ache itens em baús e recompensas de batalha.</span></div>`)+
+    `<button class="mrow back" data-back><span class="mrow-ic">‹</span><span class="mrow-bd"><span class="mrow-t">Voltar</span></span></button>`;
   m.querySelectorAll('[data-u]').forEach(el=>el.onclick=()=>{ const id=el.dataset.u,it=ITEMS[id];
     if(it.use==='heal'||it.use==='mp'||it.use==='cure'||it.use==='revive'){ // aplica ao grupo (mais ferido)
       const t=it.use==='revive'?G.party.find(p=>!p.alive):G.party.filter(p=>p.alive).sort((a,b)=>a.hp/a.mhp-b.hp/b.mhp)[0];
@@ -2732,7 +2748,7 @@ function renderCampItems(){ const m=$('#campMenu'); const ids=Object.keys(G.inv)
       SFX.heal(); renderHUD(); renderCampItems();
     } else { toast('Esse item é só para combate.',1300); }
   });
-  m.querySelector('[data-back]').onclick=()=>{SFX.back();renderCamp();};
+  mback(renderCamp);
 }
 
 /* ================= TELAS FIM ================= */
