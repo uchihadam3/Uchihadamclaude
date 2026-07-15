@@ -578,6 +578,7 @@ function startBattle(formation,opts){
   blog(opts.boss?('⚠ '+formation[0].name+' ergue-se diante de vocês!'):(elites.length?'Uma ameaça incomum emboscou o grupo!':'Inimigos emboscam o grupo!'));
   bfxLoop();
   showCondBanner(conds, opts.boss?formation[0].name:null);
+  renderCondChip();
   setTimeout(()=>battleLoop(), conds.length?1900:800);
 }
 function showCondBanner(conds,bossName){
@@ -586,6 +587,23 @@ function showCondBanner(conds,bossName){
     (conds.length?`<div class="cbTitle">✦ PRESSÁGIOS ✦</div>`+conds.map(k=>`<div class="cbItem"><b>${CONDITIONS[k].icon} ${CONDITIONS[k].name}</b><small>${CONDITIONS[k].desc}</small></div>`).join(''):'');
   if(!b.innerHTML)return; f.appendChild(b);
   setTimeout(()=>{ b.style.opacity='0'; setTimeout(()=>b.remove(),600); }, bossName?2400:1600);
+}
+function renderCondChip(){ const f=$('#bfield'); const old=$('#condChip'); if(old)old.remove(); const op=$('#condPanel'); if(op)op.remove();
+  const conds=(G.battle&&G.battle.conds)||[]; const elites=G.battle&&G.battle.enemies.filter(e=>e.affix);
+  if(!conds.length && !(elites&&elites.length))return;
+  const chip=document.createElement('div'); chip.id='condChip'; chip.textContent='✦'; chip.title='Ver presságios da batalha';
+  chip.onclick=showCondPanel; f.appendChild(chip);
+}
+function showCondPanel(){ const ex=$('#condPanel'); if(ex){ex.remove();return;}
+  const conds=(G.battle&&G.battle.conds)||[]; const p=document.createElement('div'); p.id='condPanel';
+  let html='<div class="cpTitle">✦ PRESSÁGIOS</div>';
+  if(!conds.length)html+='<div class="cpItem"><small>Batalha comum, sem presságios.</small></div>';
+  conds.forEach(k=>html+=`<div class="cpItem"><b>${CONDITIONS[k].icon} ${CONDITIONS[k].name}</b><small>${CONDITIONS[k].desc}</small></div>`);
+  const elites=(G.battle&&G.battle.enemies.filter(e=>e.affix))||[];
+  if(elites.length){ html+='<div class="cpTitle" style="margin-top:8px">👑 ELITES</div>';
+    elites.forEach(e=>html+=`<div class="cpItem"><b style="color:${e.affixColor}">${e.affixName}</b> <small>${e.name}</small></div>`); }
+  html+='<div class="cpClose">toque para fechar</div>';
+  p.innerHTML=html; p.onclick=()=>p.remove(); $('#bfield').appendChild(p);
 }
 function layoutEnemies(){
   const es=G.battle.enemies, cv=$('#benemies'); const W=cv.clientWidth||cv.width, H=cv.clientHeight||cv.height;
@@ -698,14 +716,15 @@ function chooseTarget(c,act){
   const multiHit=act.kind==='attack';
   const canBoost=c.resolve>0 && (multiHit||(sk&&(sk.kind==='atk'||sk.kind==='heal')));
   const maxLv=Math.min(3,c.resolve);
-  const lvlText=i=> multiHit ? (i===0?'1 golpe':(i+1)+' golpes') : (i===0?'normal':'+'+(i*50)+'% poder');
+  const lvlText=i=> multiHit ? (i===0?'1 golpe':(i+1)+' golpes') : (i===0?'normal':'+'+(i*50)+'%');
   let lvHtml='';
-  if(canBoost){ for(let i=0;i<=maxLv;i++){ let pips=''; for(let k=0;k<i;k++)pips+='⚡';
-    lvHtml+=`<div class="blvl${i===0?' on':''}" data-lv="${i}"><b>${pips||'○'}</b><small>${lvlText(i)}</small></div>`; } }
+  if(canBoost){ for(let i=0;i<=maxLv;i++){
+    lvHtml+=`<div class="blvl${i===0?' on':''}" data-lv="${i}"><b>${lvlText(i)}</b><small>${i===0?'grátis':'custa '+i+'⚡'}</small></div>`; } }
+  const havePips='⚡'.repeat(c.resolve)+'·'.repeat(Math.max(0,5-c.resolve));
   const bar=document.createElement('div'); bar.id='tgtBar';
   const head = act.kind==='fury' ? '🔥 Alvo da INVESTIDA FINAL' : (allyTarget?'💚 Escolha o aliado':'🎯 Toque no inimigo');
   bar.innerHTML=`<div class="tgtHead"><span>${head}</span><span class="tgtCancel">✕ voltar</span></div>
-    ${canBoost?`<div class="boostRow"><span class="boostLbl">IMPULSO<br>⚡×${c.resolve}</span><div class="blvls">${lvHtml}</div></div>`:''}`;
+    ${canBoost?`<div class="boostRow"><span class="boostLbl">IMPULSO<br><span class="impHave">${havePips}</span></span><div class="blvls">${lvHtml}</div></div>`:''}`;
   $('#bfield').appendChild(bar);
   if(canBoost){ bar.querySelectorAll('.blvl').forEach(el=>el.onclick=()=>{ UI.boost=+el.dataset.lv; SFX.ui();
     bar.querySelectorAll('.blvl').forEach(x=>x.classList.toggle('on',x===el)); }); }
@@ -729,10 +748,12 @@ function chooseTarget(c,act){
 function clearTargets(){ $$('#bfield .tgtDot').forEach(d=>d.remove()); const b=$('#tgtBar'); if(b)b.remove(); G.party.forEach((c,i)=>{const el=$('#bparty').children[i]; if(el)el.onclick=null;}); }
 
 /* -------- execução de ações -------- */
-function spend(c,sk){ if(sk&&sk.mp){c.mp=Math.max(0,c.mp-sk.mp);} if(UI.boost){c.resolve=Math.max(0,c.resolve-UI.boost);} }
-
+function spend(c,sk){ if(sk&&sk.mp){c.mp=Math.max(0,c.mp-sk.mp);}
+  const use=Math.min(UI.boost||0, c.resolve); UI.boost=use;      // trava: nunca gasta mais do que tem
+  if(use>0){ c.resolve=Math.max(0,c.resolve-use); popup(c,'−'+use+'⚡','miss'); flashCard(c,'#e8c15a'); }
+}
 async function doAttack(c,t){
-  hideMenus(); const boost=UI.boost; spend(c,null);
+  hideMenus(); spend(c,null); const boost=UI.boost;
   const hits=1+boost; // cada impulso = +1 golpe
   await animAttack(c);
   for(let i=0;i<hits;i++){ if(!t.alive)break;
@@ -742,7 +763,7 @@ async function doAttack(c,t){
   markDirty(); await wait(200); finishTurn();
 }
 async function execSkill(c,id,targets){
-  hideMenus(); const sk=SKILLS[id]; const boost=UI.boost; spend(c,sk);
+  hideMenus(); const sk=SKILLS[id]; spend(c,sk); const boost=UI.boost;
   await animCast(c,sk);
   if(sk.kind==='util'){ // analisar
     targets.forEach(t=>{ t.scanned=true; blog('Fraquezas de '+t.name+' reveladas!'); });
@@ -1574,7 +1595,7 @@ function renderBparty(){
         <div class="bpNm"><span class="bn">${c.name}</span><span class="brow">${c.row===0?'⚔ Frente':'✧ Trás'}</span></div></div>
       <div class="bpbar hp"><i style="width:${c.hp/c.mhp*100}%"></i><span class="t">${c.hp}/${c.mhp}</span></div>
       <div class="bpbar mp"><i style="width:${c.mmp?c.mp/c.mmp*100:0}%"></i><span class="t">${c.mp}/${c.mmp}</span></div>
-      <div class="rz" title="Resolve">${rz}</div><div class="cnd">${condChips(c)}</div>`;
+      <div class="rz" title="Impulso (${c.resolve}/5)"><span class="rzL">⚡</span>${rz}</div><div class="cnd">${condChips(c)}</div>`;
     el.appendChild(d);
     drawPortrait(d.querySelector('.bpPort'),c.pal);
   });
