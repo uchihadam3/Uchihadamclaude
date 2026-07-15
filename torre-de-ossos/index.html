@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#000000"/>
+<title>TORRE DE OSSOS</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Courier New',ui-monospace,monospace;cursor:pointer;}
+  #wrap{position:fixed;inset:0;background:#000;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block;image-rendering:pixelated;}
+  /* HUD botões (mínimos, estilo ascii) */
+  #btns{position:absolute;left:0;right:0;bottom:0;z-index:5;display:flex;gap:10px;justify-content:center;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));pointer-events:none;}
+  .b{pointer-events:auto;min-width:110px;text-align:center;font-family:'Courier New',monospace;font-weight:bold;font-size:15px;letter-spacing:1px;
+    color:#cfe8cf;background:rgba(10,16,10,.55);border:1px solid #2f5a2f;border-radius:4px;padding:12px 14px;cursor:pointer;
+    box-shadow:0 0 12px rgba(60,200,80,.12);transition:transform .06s,background .1s,box-shadow .1s;position:relative;overflow:hidden;}
+  .b:active{transform:translateY(2px);}
+  .b .cd{position:absolute;left:0;bottom:0;height:3px;background:#4fd06a;width:0;}
+  .b.ready{border-color:#4fd06a;color:#dfffe0;box-shadow:0 0 16px rgba(80,220,100,.35);}
+  .b small{display:block;font-size:10px;opacity:.7;font-weight:normal;letter-spacing:0;}
+  /* overlays */
+  .screen{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+    background:radial-gradient(ellipse at 50% 40%,rgba(6,14,6,.55),rgba(0,0,0,.92));padding:20px;}
+  .screen.hidden{display:none;}
+  pre.logo{color:#4fd06a;font-size:min(2.2vw,13px);line-height:1.02;text-shadow:0 0 10px rgba(80,220,100,.5);margin-bottom:6px;white-space:pre;}
+  .sub{color:#9fbf9f;letter-spacing:.4em;font-size:12px;margin:10px 0 2px;}
+  .tag{color:#7d987d;font-size:12.5px;max-width:420px;line-height:1.7;margin-top:14px;}
+  .start{margin-top:26px;color:#dfffe0;font-weight:bold;letter-spacing:2px;font-size:16px;border:1px solid #4fd06a;border-radius:5px;padding:13px 30px;cursor:pointer;
+    background:rgba(20,40,20,.4);box-shadow:0 0 18px rgba(80,220,100,.3);animation:pulse 2.2s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 12px rgba(80,220,100,.2)}50%{box-shadow:0 0 22px rgba(80,220,100,.5)}}
+  .hint{margin-top:22px;color:#6b7f6b;font-size:11.5px;line-height:1.9;}
+  .hint b{color:#9fd09f;}
+  .go{color:#d06a6a;font-size:34px;font-weight:bold;letter-spacing:4px;text-shadow:0 0 14px rgba(220,80,80,.5);}
+  .flash{position:absolute;inset:0;z-index:8;background:#fff;opacity:0;pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="flash" id="flash"></div>
+  <div id="btns">
+    <div class="b" id="bStrike">GOLPE<small>toque / espaço</small><div class="cd" id="cdStrike"></div></div>
+    <div class="b" id="bHeal">POÇÃO<small id="potN">×3</small></div>
+  </div>
+  <div class="screen" id="title">
+    <pre class="logo" id="logoArt"></pre>
+    <div class="sub">A ASCENSÃO</div>
+    <div class="tag">Um andarilho de pedra sobe a torre sem fim. Ela luta sozinha — você a guia. Some para a próxima zona, derrube o que vier e ascenda.</div>
+    <div class="start" id="btnStart">▶ COMEÇAR</div>
+    <div class="hint"><b>Toque</b> ou <b>espaço</b> = golpe carregado · <b>P</b> = poção<br>o resto acontece sozinho. só assista e ajude nas horas certas.</div>
+  </div>
+  <div class="screen hidden" id="over">
+    <div class="go" id="goTitle">VOCÊ TOMBOU</div>
+    <div class="tag" id="goStats"></div>
+    <div class="start" id="btnRetry">↻ ERGUER-SE</div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
