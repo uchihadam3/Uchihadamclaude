@@ -351,7 +351,14 @@
   .eqDBtn.equipped{border-color:#3a5a3a;color:#7ca87c;background:#12180f;cursor:default;}
   .eqDBtn.sell{border-color:#6a5330;color:#d1b073;background:linear-gradient(180deg,#231a0c,#150f07);}
   .eqDBtn:active{transform:scale(.98);}
-  @media(max-width:720px){ .eqCols{flex-direction:column;overflow:auto;padding:12px;} .eqColL{width:auto;} .eqBag{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));} }
+  @media(max-width:720px){
+    /* tudo num só scroll — nada de janelinha minúscula da bolsa por cima */
+    .eqOvBody{overflow:auto;}
+    .eqCols{flex-direction:column;flex:none;overflow:visible;padding:12px;min-height:0;}
+    .eqColL{width:auto;overflow:visible;}
+    .eqColR{flex:none;}
+    .eqBag{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));overflow:visible;flex:none;min-height:0;}
+  }
 
   /* ============ COMBATE ============ */
   #battle{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;
