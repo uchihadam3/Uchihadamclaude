@@ -81,6 +81,27 @@
   #dangerVig{position:fixed;inset:0;z-index:55;pointer-events:none;opacity:0;transition:opacity .3s;box-shadow:inset 0 0 120px 30px rgba(200,20,20,.55);}
   #dangerVig.on{animation:danger 1.3s ease-in-out infinite;}
   @keyframes danger{0%,100%{opacity:.35;}50%{opacity:.8;}}
+  /* ---- cutscenes (Parte 13) ---- */
+  #cutscene{position:fixed;inset:0;z-index:70;display:none;background:#000;cursor:pointer;}
+  #cutscene.on{display:block;}
+  #cutCv{position:absolute;inset:0;width:100%;height:100%;display:block;}
+  #cutSkip{position:absolute;top:16px;right:20px;z-index:3;font-size:12px;letter-spacing:2px;color:#b6ad8e;border:1px solid #4a4128;border-radius:6px;padding:8px 14px;background:rgba(10,8,5,.6);cursor:pointer;}
+  #cutSkip:hover{color:var(--acc);border-color:var(--acc);}
+  #cutTitle{position:absolute;top:26%;left:0;right:0;text-align:center;z-index:2;pointer-events:none;opacity:0;transition:opacity 1s;}
+  #cutTitle.on{opacity:1;}
+  #cutTitle .ctBig{font-size:clamp(30px,7vw,58px);font-weight:bold;letter-spacing:5px;color:#f4e4b0;text-shadow:0 3px 26px rgba(232,193,90,.5);}
+  #cutTitle .ctSub{font-size:clamp(12px,2.4vw,17px);letter-spacing:4px;color:#b09a6a;margin-top:12px;}
+  #cutBox{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);width:min(760px,92vw);min-height:104px;z-index:2;
+    display:flex;gap:16px;align-items:flex-start;background:linear-gradient(180deg,rgba(22,17,9,.94),rgba(8,6,4,.96));
+    border:1.5px solid #4a3f22;border-top:2px solid var(--gold);border-radius:12px;padding:16px 20px;box-shadow:0 10px 40px rgba(0,0,0,.6);}
+  #cutBox.hide{display:none;}
+  #cutPort{width:64px;height:64px;flex:none;border-radius:8px;background:#0a0906;border:1px solid #3a3220;image-rendering:pixelated;}
+  #cutTextWrap{flex:1;min-width:0;}
+  #cutBox .cutName{font-size:14px;letter-spacing:1.5px;color:var(--acc);font-weight:bold;margin-bottom:6px;}
+  #cutBox .cutName.narr{color:#8f8a7a;font-style:italic;font-weight:normal;}
+  #cutBox .cutLine{font-size:15px;line-height:1.65;color:#e7dcc0;min-height:44px;}
+  #cutBox .cutHint{position:absolute;right:16px;bottom:8px;font-size:10px;color:#6a6250;letter-spacing:1px;animation:cuthint 1.4s ease-in-out infinite;}
+  @keyframes cuthint{0%,100%{opacity:.4;}50%{opacity:.9;}}
   #logBox{flex:0 0 84px;padding:8px 12px;position:relative;display:flex;flex-direction:column;justify-content:space-between;}
   #logText{font-size:12px;color:#cbb48e;line-height:1.55;overflow:hidden;text-shadow:0 1px 1px #000;}
   #logText .ln{opacity:.55;} #logText .ln:last-child{opacity:1;color:#e7d9b4;}
@@ -504,6 +525,18 @@
   <div id="floorCard"><div class="fcInner"><div class="fcNum"></div><div class="fcName"></div><div class="fcFlavor"></div></div></div>
   <div id="lvBanner"></div>
   <div id="dangerVig"></div>
+
+  <!-- CUTSCENE (Parte 13) -->
+  <div id="cutscene">
+    <canvas id="cutCv"></canvas>
+    <div id="cutSkip">pular ⏭</div>
+    <div id="cutTitle"><div class="ctBig"></div><div class="ctSub"></div></div>
+    <div id="cutBox">
+      <canvas id="cutPort" width="64" height="64"></canvas>
+      <div id="cutTextWrap"><div class="cutName"></div><div class="cutLine"></div></div>
+      <div class="cutHint">▸ toque para continuar</div>
+    </div>
+  </div>
 
   <!-- TELAS -->
   <div class="screen" id="title">
