@@ -280,7 +280,7 @@
   .eqEmptyMsg{color:#7a7358;font-size:12px;padding:14px;text-align:center;font-style:italic;}
   /* ===== tela de equipamento gamificada (redesenhada) ===== */
   .eqOvBody{padding:0;display:flex;flex-direction:column;overflow:hidden;}
-  .eqHeroTabs{display:flex;gap:9px;padding:13px 16px 8px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;border-bottom:1px solid #241f13;}
+  .eqHeroTabs{display:flex;gap:9px;padding:13px 16px 12px;overflow-x:auto;overflow-y:visible;flex:0 0 auto;flex-wrap:nowrap;scrollbar-width:none;border-bottom:1px solid #241f13;}
   .eqHeroTabs::-webkit-scrollbar{display:none;}
   .eqHeroTab{flex:none;display:flex;align-items:center;gap:9px;background:linear-gradient(180deg,#16120b,#0d0b07);border:1.5px solid #2c2616;border-radius:11px;padding:7px 14px 7px 7px;cursor:pointer;transition:.14s;}
   .eqHeroTab canvas{width:38px;height:38px;image-rendering:pixelated;border-radius:7px;background:#0a0906;border:1px solid #35301f;}
@@ -354,6 +354,7 @@
   @media(max-width:720px){
     /* tudo num só scroll — nada de janelinha minúscula da bolsa por cima */
     .eqOvBody{overflow:auto;}
+    .eqHeroTabs{position:sticky;top:0;z-index:5;background:linear-gradient(180deg,#12100a,#0d0b07);}
     .eqCols{flex-direction:column;flex:none;overflow:visible;padding:12px;min-height:0;}
     .eqColL{width:auto;overflow:visible;}
     .eqColR{flex:none;}
