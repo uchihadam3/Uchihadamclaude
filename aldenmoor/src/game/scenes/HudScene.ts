@@ -46,6 +46,15 @@ export class HudScene extends Phaser.Scene {
 
   private toastText!: Phaser.GameObjects.Text;
 
+  // joystick virtual
+  private joyBase!: Phaser.GameObjects.Arc;
+  private joyKnob!: Phaser.GameObjects.Arc;
+  private joyX = 110;
+  private joyY = 400;
+  private joyR = 80;
+  private joyActive = false;
+  private joyPointerId = -1;
+
   private selected: WorldLocation | null = null;
   private selIsCurrent = false;
   private traveling = false;
@@ -124,6 +133,19 @@ export class HudScene extends Phaser.Scene {
       bus.emit(EVENTS.ACTION_ZOOM, -1),
     );
 
+    // ------ joystick virtual (base esquerda)
+    this.joyBase = this.add
+      .circle(0, 0, this.joyR, 0x2a1c0e, 0.28)
+      .setStrokeStyle(3, 0xc9a227, 0.55)
+      .setDepth(40);
+    this.joyKnob = this.add
+      .circle(0, 0, 34, 0x9a6636, 0.92)
+      .setStrokeStyle(2.5, 0x2a1808, 0.95)
+      .setDepth(41);
+    this.input.on("pointerdown", this.joyDown, this);
+    this.input.on("pointermove", this.joyMove, this);
+    this.input.on("pointerup", this.joyUp, this);
+
     // ------ toast
     this.toastText = this.add
       .text(0, 0, "", {
@@ -151,6 +173,45 @@ export class HudScene extends Phaser.Scene {
     });
 
     this.layout();
+  }
+
+  // ------------------------------------------------------------- joystick
+  private joyDown(p: Phaser.Input.Pointer) {
+    if (this.joyActive) return;
+    if (Phaser.Math.Distance.Between(p.x, p.y, this.joyX, this.joyY) > 160)
+      return;
+    this.joyActive = true;
+    this.joyPointerId = p.id;
+    this.registry.set("joyActive", true);
+    this.moveKnob(p.x, p.y);
+  }
+  private joyMove(p: Phaser.Input.Pointer) {
+    if (!this.joyActive || p.id !== this.joyPointerId) return;
+    this.moveKnob(p.x, p.y);
+  }
+  private joyUp(p: Phaser.Input.Pointer) {
+    if (!this.joyActive || p.id !== this.joyPointerId) return;
+    this.joyActive = false;
+    this.joyPointerId = -1;
+    this.registry.set("joyActive", false);
+    this.registry.set("joyDir", null);
+    this.joyKnob.setPosition(this.joyX, this.joyY);
+  }
+  private moveKnob(px: number, py: number) {
+    const dx = px - this.joyX;
+    const dy = py - this.joyY;
+    const dist = Math.hypot(dx, dy);
+    const clamped = Math.min(dist, this.joyR);
+    const ang = Math.atan2(dy, dx);
+    this.joyKnob.setPosition(
+      this.joyX + Math.cos(ang) * clamped,
+      this.joyY + Math.sin(ang) * clamped,
+    );
+    const mag = clamped / this.joyR;
+    this.registry.set(
+      "joyDir",
+      mag > 0.02 ? { x: Math.cos(ang), y: Math.sin(ang), mag } : null,
+    );
   }
 
   // -------------------------------------------------------------- botões
@@ -277,19 +338,11 @@ export class HudScene extends Phaser.Scene {
   private refreshButtons() {
     if (this.inLocation) return;
     this.enterBtn.label.setText("Entrar");
-    if (this.traveling) {
-      this.travelBtn.box.setVisible(false);
-      this.enterBtn.box.setVisible(false);
-      return;
-    }
-    // Viajar: visível quando o destino não é o local atual
-    const canTravel = !!this.selected && !this.selIsCurrent;
-    this.travelBtn.box.setVisible(canTravel);
-    this.setEnabled(this.travelBtn, canTravel && !this.traveling);
-    this.travelBtn.label.setText(this.traveling ? "Viajando…" : "Viajar");
+    // movimento é pelo joystick: "Viajar" não é mais usado
+    this.travelBtn.box.setVisible(false);
 
-    // Entrar: visível quando é o local atual (e não viajando)
-    const canEnter = !!this.selected && this.selIsCurrent && !this.traveling;
+    // Entrar: visível quando o personagem está sobre o local
+    const canEnter = !!this.selected && this.selIsCurrent;
     this.enterBtn.box.setVisible(canEnter);
     this.setEnabled(this.enterBtn, canEnter);
   }
@@ -312,29 +365,34 @@ export class HudScene extends Phaser.Scene {
 
     const W = this.scale.width;
     const H = this.scale.height;
-    const pad = 14;
 
-    // zoom (meio-direita, longe do card e do relógio)
-    this.zoomIn.box.setPosition(W - 40, H * 0.42);
-    this.zoomOut.box.setPosition(W - 40, H * 0.42 + 58);
+    // zoom (meio-direita)
+    this.zoomIn.box.setPosition(W - 40, H * 0.38);
+    this.zoomOut.box.setPosition(W - 40, H * 0.38 + 58);
 
-    // card (base, centralizado)
-    const cw = Math.min(540, W - 28);
-    const cardX = (W - cw) / 2;
+    // joystick (base esquerda inferior)
+    this.joyX = 24 + this.joyR;
+    this.joyY = H - 28 - this.joyR;
+    this.joyBase.setPosition(this.joyX, this.joyY);
+    if (!this.joyActive) this.joyKnob.setPosition(this.joyX, this.joyY);
+
+    // card (TOPO, abaixo do relógio) — não atrapalha o joystick embaixo
+    const cw = Math.min(460, W - 24);
+    const cardX = 12;
     const wrap = cw - 32;
     this.cardDesc.setWordWrapWidth(wrap, true);
 
-    const titleY = 16;
-    const subY = 48;
-    const descY = 74;
+    const titleY = 14;
+    const subY = 44;
+    const descY = 68;
     const descH = this.cardDesc.height;
-    const btnRowY = descY + descH + 16;
-    const ch = btnRowY + 46 + 16;
-    const cardY = H - ch - 12;
+    const btnRowY = descY + descH + 14;
+    const ch = btnRowY + 46 + 14;
+    const cardY = 62;
 
     this.card.setPosition(cardX, cardY);
     this.cardBg.clear();
-    this.cardBg.fillStyle(0xf2e6c4, 0.97);
+    this.cardBg.fillStyle(0xf2e6c4, 0.96);
     this.cardBg.fillRoundedRect(0, 0, cw, ch, 14);
     this.cardBg.lineStyle(3, 0x3a2a17, 0.9);
     this.cardBg.strokeRoundedRect(0, 0, cw, ch, 14);
