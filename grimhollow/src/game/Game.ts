@@ -16,7 +16,7 @@ import {
   TURN_MS,
   FOG_COLOR,
 } from "./config";
-import { COLS, ROWS, cellAt, isWalkable, findStart, MAP } from "./village";
+import { COLS, ROWS, cellAt, isDungeon, isWalkable, findStart, MAP } from "./village";
 import * as tex from "./textures";
 import { setupControls, type Action } from "./controls";
 
@@ -30,7 +30,7 @@ const DIRS: [number, number][] = [
 
 // pontos de interesse do vilarejo
 const WELL = { c: 4, r: 9 }; // poço na praça
-const DUNGEON = { c: 6, r: 0, dc: 0, dr: 1 }; // entrada da masmorra (parede norte)
+const TUNNEL_H = 3.2; // altura do teto do túnel da masmorra
 
 type Anim =
   | null
@@ -105,8 +105,7 @@ export class Game {
     const woodMats = woods.map(
       (m) => new THREE.MeshLambertMaterial({ map: m }),
     );
-    const cobbleTex = tex.cobblestone(7);
-    cobbleTex.repeat.set(COLS, ROWS);
+    const cobbleMat = new THREE.MeshLambertMaterial({ map: tex.cobblestone(7) });
     const thatchMat = new THREE.MeshLambertMaterial({
       map: tex.thatch(3),
       side: THREE.DoubleSide,
@@ -122,18 +121,16 @@ export class Game {
     });
     const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
 
-    // chão de pedra (um plano cobrindo o mapa)
-    const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(COLS * CELL, ROWS * CELL),
-      new THREE.MeshLambertMaterial({ map: cobbleTex }),
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(
-      ((COLS - 1) / 2) * CELL,
-      0,
-      ((ROWS - 1) / 2) * CELL,
-    );
-    this.scene.add(floor);
+    // chão de pedra da vila (por célula; NÃO cobre a masmorra p/ não tapar a escada)
+    const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        if (isDungeon(c, r)) continue; // o túnel tem chão próprio
+        const t = new THREE.Mesh(tileGeo, cobbleMat);
+        t.rotation.x = -Math.PI / 2;
+        t.position.set(c * CELL, 0, r * CELL);
+        this.scene.add(t);
+      }
 
     const boxGeo = new THREE.BoxGeometry(CELL, WALL_H, CELL);
     const hash = (a: number, b: number, s = 0) =>
@@ -156,9 +153,6 @@ export class Game {
         this.scene.add(box);
 
         for (const [dc, dr] of streetDirs) {
-          // a face da masmorra é tratada à parte
-          if (c === DUNGEON.c && r === DUNGEON.r && dc === DUNGEON.dc && dr === DUNGEON.dr)
-            continue;
           // porta/janela deterministicamente (o telhado é feito em trechos)
           const h = Math.abs(hash(c, r, dc * 2 + dr));
           if (h < 0.28) {
@@ -177,13 +171,67 @@ export class Game {
     // barris decorativos: encostados numa parede SEM porta, recuados p/ o canto
     this.buildBarrels(barrelMat, doorFaces, hash);
 
+    // montanha no canto + entrada da masmorra (túnel de tiles de dungeon)
+    this.buildMountain();
+    this.buildTunnel();
+
     // pontos de interesse
     this.buildWell();
-    this.buildDungeon();
     this.buildSigns();
     this.buildNPCs();
 
     void MAP;
+  }
+
+  // ---------------------------------------------- montanha (canto noroeste)
+  private buildMountain() {
+    const rockMat = new THREE.MeshLambertMaterial({ map: tex.rock(41) });
+    // canto da montanha (mais alto lá) p/ dar silhueta de morro
+    let cornerC = COLS;
+    let cornerR = ROWS;
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (cellAt(c, r) === "mountain") {
+          cornerC = Math.min(cornerC, c);
+          cornerR = Math.min(cornerR, r);
+        }
+    const heightAt = (c: number, r: number) => {
+      const dc = c - cornerC;
+      const dr = r - cornerR;
+      const dist = Math.sqrt(dc * dc + dr * dr);
+      return Math.max(WALL_H + 2.5, WALL_H + 11 - dist * 1.7 + this.mHash(c, r) * 2);
+    };
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        const k = cellAt(c, r);
+        const dungeon = k === "tunnel" || k === "stairs";
+        if (k !== "mountain" && !dungeon) continue;
+        const height = heightAt(c, r);
+        // a rocha do túnel começa acima do teto (a passagem é escavada na rocha)
+        const y0 = dungeon ? TUNNEL_H : 0;
+        const bh = height - y0;
+        if (bh <= 0.2) continue;
+        const box = new THREE.Mesh(new THREE.BoxGeometry(CELL, bh, CELL), rockMat);
+        box.position.set(c * CELL, y0 + bh / 2, r * CELL);
+        this.scene.add(box);
+        // blocos menores no topo p/ contorno irregular (pico)
+        if (!dungeon && this.mHash(c, r, 2) > 0.35) {
+          const s = 1.6 + this.mHash(c, r, 3) * 1.8;
+          const chunk = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), rockMat);
+          chunk.position.set(
+            c * CELL + (this.mHash(c, r, 4) - 0.5) * 2.4,
+            height + s * 0.25,
+            r * CELL + (this.mHash(c, r, 5) - 0.5) * 2.4,
+          );
+          chunk.rotation.y = this.mHash(c, r, 6) * Math.PI;
+          this.scene.add(chunk);
+        }
+      }
+  }
+
+  private mHash(a: number, b: number, s = 0): number {
+    const v = Math.sin(a * 41.3 + b * 17.7 + s * 7.13) * 9871.2;
+    return v - Math.floor(v);
   }
 
   // barris que só decoram: nunca bloqueiam passagem nem ficam na frente de portas
@@ -290,45 +338,143 @@ export class Game {
     this.scene.add(grp);
   }
 
-  // entrada da masmorra na parede norte + tochas
-  private buildDungeon() {
-    const { c, r, dc, dr } = DUNGEON;
-    const w = CELL * 0.86;
-    const h = WALL_H * 0.96;
-    const arch = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
-      new THREE.MeshLambertMaterial({
-        map: tex.dungeonArch(),
-        transparent: true,
-        side: THREE.DoubleSide,
-      }),
-    );
-    const fx = c * CELL + dc * (CELL / 2 + 0.05);
-    const fz = r * CELL + dr * (CELL / 2 + 0.05);
-    arch.position.set(fx, h / 2, fz);
-    if (dr === 1) arch.rotation.y = 0;
-    else if (dr === -1) arch.rotation.y = Math.PI;
-    else arch.rotation.y = (dc * Math.PI) / 2;
-    this.scene.add(arch);
-
-    // tochas dos dois lados + luz quente tremeluzente
-    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffb24a });
-    for (const s of [-1, 1]) {
-      const tx = fx + s * 1.7;
-      const post = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8),
-        new THREE.MeshLambertMaterial({ color: 0x2a1c10 }),
-      );
-      post.position.set(tx, 2.1, fz + 0.1);
-      this.scene.add(post);
-      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), flameMat);
-      flame.position.set(tx, 2.7, fz + 0.1);
-      this.scene.add(flame);
+  // túnel da masmorra: chão/paredes/teto de dungeon + escada descendo + tochas
+  private buildTunnel() {
+    const floorMat = new THREE.MeshLambertMaterial({
+      map: tex.dungeonFloor(43),
+      side: THREE.DoubleSide,
+    });
+    const wallMat = new THREE.MeshLambertMaterial({
+      map: tex.dungeonWall(47),
+      side: THREE.DoubleSide,
+    });
+    const ceilMat = new THREE.MeshLambertMaterial({
+      map: tex.dungeonWall(51),
+      side: THREE.DoubleSide,
+    });
+    // degraus em pedra clara p/ contrastar com as paredes escuras da masmorra
+    const stairMat = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    let mouth: [number, number] | null = null;
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        if (!isDungeon(c, r)) continue;
+        const cx = c * CELL;
+        const cz = r * CELL;
+        const stairs = cellAt(c, r) === "stairs";
+        // teto de rocha
+        const ceil = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), ceilMat);
+        ceil.rotation.x = Math.PI / 2;
+        ceil.position.set(cx, TUNNEL_H, cz);
+        this.scene.add(ceil);
+        // chão de laje (escada substitui o chão)
+        if (!stairs) {
+          const fl = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), floorMat);
+          fl.rotation.x = -Math.PI / 2;
+          fl.position.set(cx, 0.03, cz);
+          this.scene.add(fl);
+        }
+        // paredes onde encosta rocha/casa (o poço da escada cria as suas próprias)
+        for (const [dc, dr] of DIRS) {
+          const k = cellAt(c + dc, r + dr);
+          if (k === "street") mouth = [c, r]; // boca do túnel
+          else if ((k === "mountain" || k === "building") && !stairs)
+            this.addWall(cx, cz, dc, dr, 0, TUNNEL_H, wallMat);
+        }
+        if (stairs) this.buildStairs(c, r, cx, cz, wallMat, stairMat);
+      }
+    // tochas na boca + luz quente tremeluzente
+    if (mouth) {
+      const [mc, mr] = mouth;
+      const cx = mc * CELL;
+      const cz = mr * CELL;
+      const flameMat = new THREE.MeshBasicMaterial({ color: 0xffb24a });
+      for (const s of [-1, 1]) {
+        const post = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.05, 0.05, 1.1, 8),
+          new THREE.MeshLambertMaterial({ color: 0x2a1c10 }),
+        );
+        post.position.set(cx + s * (CELL / 2 - 0.25), 1.9, cz);
+        this.scene.add(post);
+        const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), flameMat);
+        flame.position.set(cx + s * (CELL / 2 - 0.25), 2.55, cz);
+        this.scene.add(flame);
+      }
+      const light = new THREE.PointLight(0xffa040, 7, 16, 2);
+      light.position.set(cx, 2.4, cz + 0.5);
+      this.scene.add(light);
+      this.torch = light;
     }
-    const light = new THREE.PointLight(0xffa84a, 6, 14, 2);
-    light.position.set(fx, 2.6, fz + 1.4);
-    this.scene.add(light);
-    this.torch = light;
+  }
+
+  private addWall(
+    cx: number,
+    cz: number,
+    dc: number,
+    dr: number,
+    y0: number,
+    y1: number,
+    mat: THREE.Material,
+  ) {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(CELL, y1 - y0), mat);
+    wall.position.set(
+      cx + dc * (CELL / 2),
+      (y0 + y1) / 2,
+      cz + dr * (CELL / 2),
+    );
+    if (dc === 1) wall.rotation.y = -Math.PI / 2;
+    else if (dc === -1) wall.rotation.y = Math.PI / 2;
+    else if (dr === 1) wall.rotation.y = Math.PI;
+    else wall.rotation.y = 0;
+    this.scene.add(wall);
+  }
+
+  // poço da escada: descendo p/ o norte, paredes vedando os lados até o fundo
+  private buildStairs(
+    c: number,
+    r: number,
+    cx: number,
+    cz: number,
+    wallMat: THREE.Material,
+    stepMat: THREE.Material,
+  ) {
+    const N = 5;
+    const stepH = 0.8;
+    const zSouth = cz + CELL / 2;
+    const stepD = CELL / N;
+    const bottomY = -N * stepH;
+    // paredes altas (do fundo até o teto) nos lados de rocha, vedando o poço
+    for (const [dc, dr] of DIRS) {
+      const k = cellAt(c + dc, r + dr);
+      if (k === "mountain" || k === "building")
+        this.addWall(cx, cz, dc, dr, bottomY, TUNNEL_H, wallMat);
+    }
+    // degraus (largura total da célula p/ encostar nas paredes)
+    for (let i = 0; i < N; i++) {
+      const topY = -i * stepH;
+      const zc = zSouth - (i + 0.5) * stepD;
+      const height = topY - bottomY;
+      const step = new THREE.Mesh(
+        new THREE.BoxGeometry(CELL, height, stepD + 0.02),
+        stepMat,
+      );
+      step.position.set(cx, topY - height / 2, zc);
+      this.scene.add(step);
+    }
+    // base escura do poço
+    const base = new THREE.Mesh(
+      new THREE.PlaneGeometry(CELL, CELL),
+      new THREE.MeshBasicMaterial({ color: 0x050506 }),
+    );
+    base.rotation.x = -Math.PI / 2;
+    base.position.set(cx, bottomY + 0.02, cz);
+    this.scene.add(base);
+    // luzes quentes iluminando os degraus de cima (revela o vão da escada)
+    const g1 = new THREE.PointLight(0xffbf70, 6, 13, 2);
+    g1.position.set(cx, 2.6, cz + CELL / 2 - 0.3);
+    this.scene.add(g1);
+    const g2 = new THREE.PointLight(0xffa050, 3.5, 8, 2);
+    g2.position.set(cx, 0.4, cz - 0.6);
+    this.scene.add(g2);
   }
 
   // placas de taverna e loja penduradas nas paredes da rua principal
@@ -366,16 +512,17 @@ export class Game {
       else grp.rotation.y = Math.PI;
       this.scene.add(grp);
     };
-    mount(4, 15, 1, 0, "tavern"); // parede oeste da rua (à esquerda subindo)
-    mount(8, 13, -1, 0, "shop"); // parede leste da rua (à direita subindo)
+    mount(5, 14, 1, 0, "tavern"); // parede oeste da rua (à esquerda subindo)
+    mount(9, 12, -1, 0, "shop"); // parede leste da rua (à direita subindo)
   }
 
   // aldeões (billboards que sempre encaram a câmera)
   private buildNPCs() {
     const spots: [number, number, number][] = [
       [2, 9, 1],
-      [10, 8, 2],
-      [5, 16, 3],
+      [9, 9, 2],
+      [7, 13, 3],
+      [10, 9, 5],
     ];
     for (const [c, r, seed] of spots) {
       const mat = new THREE.MeshLambertMaterial({
