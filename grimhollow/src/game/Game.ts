@@ -39,40 +39,43 @@ const DIRS: [number, number][] = [
 ];
 
 // pontos de interesse do vilarejo
-const WELL = { c: 4, r: 9 }; // poço na praça
+const WELL = { c: 7, r: 10 }; // poço no centro da praça
 const TUNNEL_H = 3.2; // altura do teto do túnel da masmorra
 
-// estabelecimentos: célula da casa + face (dc,dr) com a porta voltada p/ a rua
+// estabelecimentos: célula da casa + face (dc,dr) com a porta voltada p/ a praça,
+// e a célula (sc,sr) onde fica a placa-estaca no chão, à frente da loja.
 interface EstabDoor {
   c: number;
   r: number;
   dc: number;
   dr: number;
+  sc: number;
+  sr: number;
   kind: Estab;
 }
 const ESTAB_DOORS: EstabDoor[] = [
-  { c: 5, r: 14, dc: 1, dr: 0, kind: "tavern" },
-  { c: 9, r: 12, dc: -1, dr: 0, kind: "store" },
-  { c: 5, r: 10, dc: 1, dr: 0, kind: "smith" },
-  { c: 9, r: 15, dc: -1, dr: 0, kind: "alchemist" },
+  { c: 5, r: 5, dc: 0, dr: 1, sc: 4, sr: 7, kind: "tavern" }, // parede norte
+  { c: 9, r: 5, dc: 0, dr: 1, sc: 10, sr: 7, kind: "store" }, // parede norte
+  { c: 1, r: 9, dc: 1, dr: 0, sc: 3, sr: 8, kind: "smith" }, // parede oeste
+  { c: 13, r: 9, dc: -1, dr: 0, sc: 11, sr: 8, kind: "alchemist" }, // parede leste
 ];
 
 // nomes/falas dos aldeões da vila (por célula)
 const VILLAGERS: Record<string, { name: string; lines: string[] }> = {
-  "2,9": { name: "Aldeã", lines: ["Bom dia! O poço da praça nunca seca."] },
-  "9,9": {
+  "3,7": { name: "Aldeã", lines: ["Bom dia! O poço da praça nunca seca."] },
+  "11,7": {
     name: "Camponês",
     lines: ["Dizem que há algo à espreita naquela montanha ao norte..."],
   },
-  "7,13": {
+  "4,11": {
     name: "Velho Ancião",
     lines: [
       "Cuidado, jovem. A escada sob a montanha leva às profundezas.",
       "Equipe-se bem antes de descer.",
     ],
   },
-  "10,9": { name: "Guarda", lines: ["Mantenha a paz por aqui, forasteiro."] },
-  "5,9": {
+  "10,11": { name: "Guarda", lines: ["Mantenha a paz por aqui, forasteiro."] },
+  "7,8": {
     name: "Mercador Ambulante",
     lines: ["Passando por aqui a negócios. Belo vilarejo, não?"],
   },
@@ -205,8 +208,8 @@ export class Game {
   }
 
   private addInteriorLights() {
-    this.world.add(new THREE.AmbientLight(0xb59a66, 0.95));
-    this.world.add(new THREE.HemisphereLight(0x8a7550, 0x2a2018, 0.6));
+    this.world.add(new THREE.AmbientLight(0xc4a870, 1.15));
+    this.world.add(new THREE.HemisphereLight(0xa08a60, 0x3a3020, 0.75));
   }
 
   private buildVillage() {
@@ -269,16 +272,11 @@ export class Game {
         for (const [dc, dr] of streetDirs) {
           if (estabFaces.has(`${c},${r},${dc},${dr}`)) {
             doorFaces.add(`${c},${r},${dc},${dr}`);
-            continue; // tratado em buildEstablishments
+            continue; // porta tratada em buildEstablishments
           }
-          // porta/janela deterministicamente (o telhado é feito em trechos)
+          // apenas JANELAS nas casas comuns (nada de portas inacessíveis)
           const h = Math.abs(hash(c, r, dc * 2 + dr));
-          if (h < 0.28) {
-            this.addDecal(c, r, dc, dr, doorMat, "door");
-            doorFaces.add(`${c},${r},${dc},${dr}`);
-          } else if (h < 0.72) {
-            this.addDecal(c, r, dc, dr, winMat, "window");
-          }
+          if (h < 0.5) this.addDecal(c, r, dc, dr, winMat, "window");
         }
       }
     }
@@ -595,43 +593,40 @@ export class Game {
     this.world.add(g2);
   }
 
-  // portas dos estabelecimentos + placas com o nome; registra o alvo de entrada
+  // portas dos estabelecimentos + PLACAS-ESTACA no chão à frente de cada loja
   private buildEstablishments(doorMat: THREE.Material) {
-    const iconMat = (kind: "tavern" | "shop") =>
-      new THREE.MeshLambertMaterial({
-        map: tex.sign(kind),
-        transparent: true,
-        side: THREE.DoubleSide,
-      });
+    const postMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     for (const e of ESTAB_DOORS) {
-      const { c, r, dc, dr, kind } = e;
-      // porta
+      const { c, r, dc, dr, sc, sr, kind } = e;
+      // porta da loja
       this.addDecal(c, r, dc, dr, doorMat, "door");
       this.doorMap.set(`${c},${r},${dc},${dr}`, kind);
-      const fx = c * CELL + dc * (CELL / 2 + 0.05);
-      const fz = r * CELL + dr * (CELL / 2 + 0.05);
-      const rotY =
-        dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
-      // placa com o NOME sobre a porta
-      const sign = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.4, 0.84),
+
+      // placa-estaca plantada no chão, virada p/ quem chega (sentido -dc,-dr)
+      const grp = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.0, 0.16), postMat);
+      post.position.y = 1.0;
+      grp.add(post);
+      const board = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.9, 0.7),
         new THREE.MeshLambertMaterial({
           map: tex.signText(ESTAB[kind].name),
           transparent: true,
           side: THREE.DoubleSide,
         }),
       );
-      sign.position.set(fx, WALL_H * 0.86, fz);
-      sign.rotation.y = rotY;
-      this.world.add(sign);
-      // pequeno ícone pendurado (caneca p/ taverna, moeda p/ os demais)
-      const icon = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.0, 0.76),
-        iconMat(kind === "tavern" ? "tavern" : "shop"),
-      );
-      icon.position.set(fx, WALL_H * 0.55, fz);
-      icon.rotation.y = rotY;
-      this.world.add(icon);
+      board.position.set(0, 1.95, 0.05);
+      grp.add(board);
+      const board2 = board.clone();
+      board2.position.z = -0.05;
+      board2.rotation.y = Math.PI;
+      grp.add(board2);
+      grp.position.set(sc * CELL, 0, sr * CELL);
+      // vira a placa p/ olhar na direção oposta à porta (p/ o jogador que chega)
+      grp.rotation.y =
+        dc === 1 ? -Math.PI / 2 : dc === -1 ? Math.PI / 2 : dr === 1 ? Math.PI : 0;
+      this.world.add(grp);
+      this.blocked.add(`${sc},${sr}`); // a estaca tem colisão
     }
   }
 
@@ -660,11 +655,11 @@ export class Game {
   // aldeões da vila
   private buildNPCs() {
     const spots: [number, number, number][] = [
-      [2, 9, 1],
-      [9, 9, 2],
-      [7, 13, 3],
-      [10, 9, 5],
-      [5, 9, 7],
+      [3, 7, 1],
+      [11, 7, 2],
+      [4, 11, 3],
+      [10, 11, 5],
+      [7, 8, 7],
     ];
     for (const [c, r, seed] of spots) {
       const info = VILLAGERS[`${c},${r}`] ?? { name: "Aldeão", lines: ["..."] };
@@ -733,13 +728,13 @@ export class Game {
   }
 
   private buildInterior(kind: Estab) {
-    const CEIL = 3.4;
+    const CEIL = 3.0;
     const floorMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(9) });
     const wallMat = new THREE.MeshLambertMaterial({
       map: tex.woodPlanks(2),
       side: THREE.DoubleSide,
     });
-    const ceilMat = new THREE.MeshLambertMaterial({ color: 0x241a12, side: THREE.DoubleSide });
+    const ceilMat = new THREE.MeshLambertMaterial({ color: 0x4a3826, side: THREE.DoubleSide });
     const woodDark = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const doorMat = new THREE.MeshLambertMaterial({
       map: tex.door(11),
@@ -786,8 +781,8 @@ export class Game {
     const n = roomFind("N");
     const cxN = n.col * CELL;
     const czN = n.row * CELL + CELL / 2 + 0.2; // balcão logo à frente do atendente
-    this.box(cxN, 0.55, czN, CELL * 2.6, 1.1, 0.7, woodDark);
-    this.box(cxN, 1.12, czN, CELL * 2.6 + 0.2, 0.14, 0.95, woodDark); // tampo
+    this.box(cxN, 0.55, czN, CELL * 2.4, 1.1, 0.7, woodDark);
+    this.box(cxN, 1.12, czN, CELL * 2.4 + 0.2, 0.14, 0.95, woodDark); // tampo
     const info = ESTAB[kind];
     this.addNPC(n.col, n.row, info.seed, info.npc, info.lines);
     // luz quente sobre o balcão (destaca o atendente)
@@ -796,7 +791,7 @@ export class Game {
     this.world.add(clight);
 
     // luz central (lampião)
-    const lamp = new THREE.PointLight(0xffd89a, 9, 36, 2);
+    const lamp = new THREE.PointLight(0xffe0a8, 8, 34, 2);
     lamp.position.set(3 * CELL, CEIL - 0.3, 3 * CELL);
     this.world.add(lamp);
     this.box(
@@ -809,10 +804,10 @@ export class Game {
       new THREE.MeshBasicMaterial({ color: 0xffb85a }),
     );
 
-    if (kind === "tavern") this.propsTavern(woodDark);
+    if (kind === "tavern") this.propsTavern();
     else if (kind === "store") this.propsStore();
-    else if (kind === "smith") this.propsSmith(woodDark);
-    else this.propsAlchemist(woodDark);
+    else if (kind === "smith") this.propsSmith();
+    else this.propsAlchemist();
   }
 
   private glowLight(x: number, y: number, z: number, color: number, base: number, range: number) {
@@ -822,116 +817,134 @@ export class Game {
     this.flames.push({ light: l, base });
   }
 
-  private propsTavern(wood: THREE.Material) {
+  // coloca um prop numa célula encostado numa parede e dá colisão à célula
+  private wallCell(
+    col: number,
+    row: number,
+    wall: [number, number],
+    make: (x: number, z: number) => void,
+  ) {
+    const x = col * CELL + wall[0] * (CELL / 2 - 0.75);
+    const z = row * CELL + wall[1] * (CELL / 2 - 0.75);
+    make(x, z);
+    this.blocked.add(`${col},${row}`);
+  }
+
+  private propsTavern() {
+    const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
-    const fire = new THREE.MeshBasicMaterial({ color: 0xff7a1e });
-    // lareira na parede oeste
-    this.box(4.6, 1.0, 3 * CELL, 0.5, 2.0, 2.6, stone);
-    this.box(4.9, 0.5, 3 * CELL, 0.4, 0.7, 1.4, fire); // chamas
-    this.glowLight(6, 1.0, 3 * CELL, 0xff8a2e, 5, 12);
-    // mesas redondas com canecas
-    const mug = new THREE.MeshLambertMaterial({ color: 0xcaa24a });
-    for (const [mx, mz] of [
-      [5 * CELL - 2, 4 * CELL],
-      [5 * CELL - 2, 2 * CELL + 1],
-    ]) {
-      this.box(mx, 0.9, mz, 0.2, 1.0, 0.2, wood); // pé
-      const top = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 16), wood);
-      top.position.set(mx, 1.45, mz);
-      this.world.add(top);
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.3, 10), mug);
-      m.position.set(mx + 0.3, 1.68, mz);
-      this.world.add(m);
-    }
-    // barris atrás do balcão
     const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
-    for (const bx of [2 * CELL, 4 * CELL]) {
+    const mug = new THREE.MeshLambertMaterial({ color: 0xcaa24a });
+    // lareira (parede oeste)
+    this.wallCell(1, 3, [-1, 0], (x, z) => {
+      this.box(x, 1.1, z, 0.5, 2.2, 2.2, stone);
+      this.box(x + 0.4, 0.6, z, 0.35, 0.8, 1.2, new THREE.MeshBasicMaterial({ color: 0xff7a1e }));
+      this.glowLight(x + 1.3, 1.0, z, 0xff8a2e, 5, 11);
+    });
+    // barril
+    this.wallCell(1, 2, [-1, 0], (x, z) => {
       const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 1.3, 14), barrelMat);
-      b.position.set(bx, 0.65, 1 * CELL - 0.2);
+      b.position.set(x, 0.65, z);
       this.world.add(b);
-    }
+    });
+    // mesas com caneca (parede leste)
+    for (const row of [2, 4])
+      this.wallCell(5, row, [1, 0], (x, z) => {
+        this.box(x, 0.9, z, 0.2, 1.0, 0.2, wood);
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.15, 16), wood);
+        top.position.set(x, 1.45, z);
+        this.world.add(top);
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.28, 10), mug);
+        m.position.set(x, 1.66, z);
+        this.world.add(m);
+      });
   }
 
   private propsStore() {
     const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
     const goods = [0x8a3a3a, 0x3a5a8a, 0x4f7a3a, 0xb08a30, 0x7a3a7a];
-    // prateleiras nas paredes leste/oeste com mercadorias coloridas
-    for (const side of [-1, 1]) {
-      const wx = 3 * CELL + side * (2 * CELL - 0.3);
-      for (let s = 0; s < 3; s++) {
-        const sy = 0.8 + s * 0.9;
-        this.box(wx, sy, 3 * CELL, 0.5, 0.12, 3.2, wood);
-        for (let i = 0; i < 4; i++) {
-          const gm = new THREE.MeshLambertMaterial({ color: goods[(s + i) % goods.length] });
-          this.box(wx, sy + 0.35, 3 * CELL - 1.2 + i * 0.8, 0.4, 0.55, 0.4, gm);
+    let k = 0;
+    const shelf = (x: number, z: number, wallX: number) => {
+      this.box(x, 1.05, z, 0.5, 2.1, 2.4, wood); // armário
+      for (const sy of [0.7, 1.4]) // mercadorias em 2 níveis
+        for (const dz of [-0.7, 0.7]) {
+          const gm = new THREE.MeshLambertMaterial({ color: goods[k++ % goods.length] });
+          this.box(x - wallX * 0.35, sy, z + dz, 0.4, 0.5, 0.5, gm);
         }
-      }
-    }
-    // caixotes empilhados
-    for (const [bx, bz, by] of [
-      [5 * CELL - 1, 2 * CELL, 0.5],
-      [5 * CELL - 1, 2 * CELL, 1.5],
-      [1 * CELL + 1, 4 * CELL, 0.5],
-    ])
-      this.box(bx, by, bz, 1.0, 1.0, 1.0, wood);
+    };
+    for (const row of [2, 3, 4]) this.wallCell(1, row, [-1, 0], (x, z) => shelf(x, z, -1));
+    for (const row of [2, 3, 4]) this.wallCell(5, row, [1, 0], (x, z) => shelf(x, z, 1));
   }
 
-  private propsSmith(wood: THREE.Material) {
+  private propsSmith() {
     const iron = new THREE.MeshLambertMaterial({ color: 0x4a4e54 });
     const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
-    const coals = new THREE.MeshBasicMaterial({ color: 0xff6a12 });
-    // fornalha (canto oeste)
-    this.box(4.8, 0.9, 2 * CELL, 0.7, 1.8, 2.4, stone);
-    this.box(5.0, 1.0, 2 * CELL, 0.4, 0.5, 1.3, coals);
-    this.glowLight(6, 1.1, 2 * CELL, 0xff7a1e, 5.5, 12);
-    // bigorna no centro
-    this.box(3 * CELL, 0.7, 3 * CELL + 1, 0.5, 0.4, 1.1, iron);
-    this.box(3 * CELL, 0.4, 3 * CELL + 1, 0.5, 0.6, 0.5, wood); // cepo
-    // suporte de armas na parede leste (lâminas verticais)
-    for (let i = 0; i < 4; i++) {
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.4, 0.24), iron);
-      blade.position.set(5 * CELL - 0.3, 1.6, 2 * CELL + i * 0.7);
-      this.world.add(blade);
-    }
-    // barril d'água
+    const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
-    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 1.2, 14), barrelMat);
-    b.position.set(1 * CELL + 0.6, 0.6, 4 * CELL);
-    this.world.add(b);
+    // fornalha (oeste)
+    this.wallCell(1, 3, [-1, 0], (x, z) => {
+      this.box(x, 1.0, z, 0.6, 2.0, 2.2, stone);
+      this.box(x + 0.45, 1.0, z, 0.35, 0.5, 1.2, new THREE.MeshBasicMaterial({ color: 0xff6a12 }));
+      this.glowLight(x + 1.3, 1.1, z, 0xff7a1e, 5.5, 11);
+    });
+    // bigorna sobre cepo (oeste)
+    this.wallCell(1, 4, [-1, 0], (x, z) => {
+      this.box(x, 0.45, z, 0.6, 0.9, 0.6, wood);
+      this.box(x, 1.05, z, 0.5, 0.35, 1.0, iron);
+    });
+    // barril d'água (oeste)
+    this.wallCell(1, 2, [-1, 0], (x, z) => {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 1.2, 14), barrelMat);
+      b.position.set(x, 0.6, z);
+      this.world.add(b);
+    });
+    // suporte de armas (parede leste): lâminas verticais
+    for (const row of [2, 3, 4])
+      this.wallCell(5, row, [1, 0], (x, z) => {
+        this.box(x, 1.0, z, 0.25, 2.0, 1.4, wood);
+        for (const dz of [-0.4, 0.4]) {
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.5, 0.22), iron);
+          blade.position.set(x - 0.2, 1.4, z + dz);
+          this.world.add(blade);
+        }
+      });
   }
 
-  private propsAlchemist(wood: THREE.Material) {
-    const shelf = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
+  private propsAlchemist() {
+    const shelfMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
+    const iron = new THREE.MeshLambertMaterial({ color: 0x3a3e44 });
     const cols = [0x40b070, 0x5060c0, 0xc04070, 0xc0a030, 0x9040c0];
-    // prateleiras de frascos coloridos (paredes)
-    for (const side of [-1, 1]) {
-      const wx = 3 * CELL + side * (2 * CELL - 0.3);
-      for (let s = 0; s < 3; s++) {
-        const sy = 0.9 + s * 0.85;
-        this.box(wx, sy, 3 * CELL, 0.5, 0.1, 3.2, shelf);
-        for (let i = 0; i < 5; i++) {
-          const gm = new THREE.MeshLambertMaterial({ color: cols[(s * 2 + i) % cols.length] });
-          const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.4, 8), gm);
-          fr.position.set(wx, sy + 0.28, 3 * CELL - 1.3 + i * 0.65);
+    let k = 0;
+    const shelf = (x: number, z: number, wallX: number) => {
+      this.box(x, 1.05, z, 0.5, 2.1, 2.4, shelfMat);
+      for (const sy of [0.7, 1.35, 2.0])
+        for (const dz of [-0.7, 0.0, 0.7]) {
+          const gm = new THREE.MeshLambertMaterial({ color: cols[k++ % cols.length] });
+          const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.36, 8), gm);
+          fr.position.set(x - wallX * 0.32, sy, z + dz);
           this.world.add(fr);
         }
-      }
-    }
-    // caldeirão com brilho verde
-    const iron = new THREE.MeshLambertMaterial({ color: 0x3a3e44 });
-    const cauldron = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.55, 0.9, 16), iron);
-    cauldron.position.set(5 * CELL - 1, 0.55, 4 * CELL);
-    this.world.add(cauldron);
-    const brew = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.62, 0.62, 0.1, 16),
-      new THREE.MeshBasicMaterial({ color: 0x6bffa0 }),
-    );
-    brew.position.set(5 * CELL - 1, 1.0, 4 * CELL);
-    this.world.add(brew);
-    this.glowLight(5 * CELL - 1, 1.3, 4 * CELL, 0x50ff9a, 3, 9);
-    // mesa com livros
-    this.box(1 * CELL + 1, 0.8, 4 * CELL, 1.4, 0.15, 1.0, wood);
-    this.box(1 * CELL + 0.7, 0.98, 4 * CELL, 0.5, 0.16, 0.7, new THREE.MeshLambertMaterial({ color: 0x6a3a2a }));
+    };
+    for (const row of [2, 3]) this.wallCell(1, row, [-1, 0], (x, z) => shelf(x, z, -1));
+    for (const row of [2, 3]) this.wallCell(5, row, [1, 0], (x, z) => shelf(x, z, 1));
+    // caldeirão borbulhante (canto oeste-fundo)
+    this.wallCell(1, 4, [-1, 0], (x, z) => {
+      const cauldron = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.48, 0.85, 16), iron);
+      cauldron.position.set(x, 0.5, z);
+      this.world.add(cauldron);
+      const brew = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.53, 0.53, 0.1, 16),
+        new THREE.MeshBasicMaterial({ color: 0x6bffa0 }),
+      );
+      brew.position.set(x, 0.92, z);
+      this.world.add(brew);
+      this.glowLight(x + 0.9, 1.2, z, 0x50ff9a, 3.2, 8);
+    });
+    // mesa com livros (leste-fundo)
+    this.wallCell(5, 4, [1, 0], (x, z) => {
+      this.box(x, 0.8, z, 0.9, 0.15, 1.6, shelfMat);
+      this.box(x, 0.98, z + 0.3, 0.5, 0.16, 0.6, new THREE.MeshLambertMaterial({ color: 0x6a3a2a }));
+    });
   }
 
   // Detecta sequências contíguas de casas expostas à rua numa direção e faz
