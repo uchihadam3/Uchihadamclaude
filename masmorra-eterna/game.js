@@ -327,66 +327,70 @@ function tileVisual(x,y){
 function isSolid(x,y){ const v=tileVisual(x,y); return v==='#'||v==='+'; }
 
 /* -------- geração procedural -------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+/* mapas FIXOS por andar (semente = andar) — salas + corredores, grandes e sempre iguais */
 function genFloor(depth){
-  const W=15,H=13; // ímpares
-  const grid=[]; for(let y=0;y<H;y++){grid.push(new Array(W).fill('#'));}
-  function carve(cx,cy){ grid[cy][cx]='.';
-    for(const[dx,dy] of shuffle([[0,-2],[0,2],[-2,0],[2,0]])){
-      const nx=cx+dx,ny=cy+dy;
-      if(nx>0&&ny>0&&nx<W-1&&ny<H-1&&grid[ny][nx]==='#'){ grid[cy+dy/2][cx+dx/2]='.'; carve(nx,ny); }
+  const rng=mulberry32((0x9E3779B1 ^ (depth*2654435761))>>>0);
+  const ri=(a,b)=>a+Math.floor(rng()*(b-a+1));
+  const rpick=a=>a[Math.floor(rng()*a.length)];
+  const rsh=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  const W=19+Math.min(6,Math.floor((depth-1)/2)*2), H=15+Math.min(4,Math.floor((depth-1)/3)*2);
+  const g=Array.from({length:H},()=>new Array(W).fill('#'));
+  // ---- salas ----
+  const rooms=[];
+  for(let t=0;t<depth+30;t++){ const rw=ri(3,6),rh=ri(3,5),rx=ri(1,W-rw-2),ry=ri(1,H-rh-2);
+    let ok=true; for(const r of rooms){ if(rx<r.x+r.w+1&&rx+rw+1>r.x&&ry<r.y+r.h+1&&ry+rh+1>r.y){ok=false;break;} }
+    if(!ok)continue; const R={x:rx,y:ry,w:rw,h:rh,cx:rx+(rw>>1),cy:ry+(rh>>1)}; rooms.push(R);
+    for(let y=ry;y<ry+rh;y++)for(let x=rx;x<rx+rw;x++)g[y][x]='.';
+  }
+  const carveH=(x0,x1,y)=>{for(let x=Math.min(x0,x1);x<=Math.max(x0,x1);x++)g[y][x]='.';};
+  const carveV=(y0,y1,x)=>{for(let y=Math.min(y0,y1);y<=Math.max(y0,y1);y++)g[y][x]='.';};
+  // ---- corredores (conecta em cadeia = tudo alcançável) ----
+  const order=[...rooms].sort((a,b)=>a.cx-b.cx||a.cy-b.cy);
+  for(let i=1;i<order.length;i++){ const a=order[i-1],b=order[i]; if(rng()<0.5){carveH(a.cx,b.cx,a.cy);carveV(a.cy,b.cy,b.cx);}else{carveV(a.cy,b.cy,a.cx);carveH(a.cx,b.cx,b.cy);} }
+  for(let k=0;k<2+Math.floor(depth/2);k++){ const a=rpick(rooms),b=rpick(rooms); if(a!==b){carveH(a.cx,b.cx,a.cy);carveV(a.cy,b.cy,b.cx);} } // atalhos/loops
+  // ---- células ----
+  const cells=[]; for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(g[y][x]==='.')cells.push([x,y]);
+  const key=(x,y)=>x+','+y;
+  const sroom=rooms.reduce((p,c)=>(c.cx+c.cy<p.cx+p.cy?c:p)); const spawn=[sroom.cx,sroom.cy];
+  // BFS
+  const dist={}; dist[key(spawn[0],spawn[1])]=0; const q=[spawn];
+  while(q.length){const[cx,cy]=q.shift();for(const[dx,dy] of DIRV){const nx=cx+dx,ny=cy+dy;if(g[ny]&&g[ny][nx]!=='#'&&dist[key(nx,ny)]===undefined){dist[key(nx,ny)]=dist[key(cx,cy)]+1;q.push([nx,ny]);}}}
+  let far=spawn,fd=-1; for(const[x,y] of cells){const dd=dist[key(x,y)]; if(dd!==undefined&&dd>fd){fd=dd;far=[x,y];}}
+  const bossRoom=rooms.reduce((p,c)=>{const dp=Math.abs(p.cx-far[0])+Math.abs(p.cy-far[1]),dc=Math.abs(c.cx-far[0])+Math.abs(c.cy-far[1]);return dc<dp?c:p;});
+  g[far[1]][far[0]]='B'; // chefe guarda a saída
+  let spawnDir=1; for(let d=0;d<4;d++){const nx=spawn[0]+DIRV[d][0],ny=spawn[1]+DIRV[d][1]; if(g[ny]&&g[ny][nx]!=='#'){spawnDir=d;break;}}
+  // fonte numa sala intermediária
+  const rbd=rooms.map(r=>({r,d:dist[key(r.cx,r.cy)]??0})).sort((a,b)=>a.d-b.d);
+  const mid=rbd[Math.floor(rbd.length*0.5)]; if(mid&&g[mid.r.cy][mid.r.cx]==='.')g[mid.r.cy][mid.r.cx]='F';
+  // baús em salas distantes
+  let chests=0; for(const{r} of rbd.slice().reverse()){ if(chests>=2)break; if(r===sroom||r===bossRoom)continue; const x=r.x+1,y=r.y+1; if(g[y]&&g[y][x]==='.'){g[y][x]='C';chests++;} }
+  // encontros
+  let enc=0; for(const[x,y] of rsh(cells.slice())){ if(enc>=3)break; if(g[y][x]==='.'&&(dist[key(x,y)]??0)>4){g[y][x]='E';enc++;} }
+  // portas em gargalos
+  for(const[x,y] of cells){ if(g[y][x]!=='.')continue; if(rng()<0.08){ const horiz=g[y][x-1]!=='#'&&g[y][x+1]!=='#'&&g[y-1][x]==='#'&&g[y+1][x]==='#'; const vert=g[y-1][x]!=='#'&&g[y+1][x]!=='#'&&g[y][x-1]==='#'&&g[y][x+1]==='#'; if((horiz||vert)&&!(x===spawn[0]&&y===spawn[1]))g[y][x]='+'; } }
+  // 2 passagens secretas garantidas: parede com chão de um lado e espaço p/ bolso do outro
+  const scand=[];
+  for(let y=2;y<H-2;y++)for(let x=2;x<W-2;x++){ if(g[y][x]!=='#')continue;
+    for(const[dx,dy] of DIRV){ const fx=x-dx,fy=y-dy, bx=x+dx,by=y+dy, bx2=x+dx*2,by2=y+dy*2;
+      if(g[fy]&&g[fy][fx]==='.'&&g[by]&&g[by][bx]==='#'&&g[by2]&&g[by2][bx2]==='#'){ scand.push({x,y,dx,dy,fx,fy,bx,by,px:dy?1:0,py:dx?1:0}); break; }
     }
   }
-  carve(1,1);
-  // braid leve: liga alguns becos a corredores vizinhos (mantém largura 1 = visual de corredor)
-  for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){
-    if(grid[y][x]!=='.')continue;
-    let n=0; for(const[dx,dy] of DIRV) if(grid[y+dy][x+dx]==='.')n++;
-    if(n===1 && chance(0.32)){ // beco sem saída → abre 1 ligação
-      const opts=[]; for(const[dx,dy] of DIRV){ const wx=x+dx,wy=y+dy,ox=x+dx*2,oy=y+dy*2;
-        if(grid[wy]&&grid[wy][wx]==='#'&&grid[oy]&&grid[oy][ox]==='.'&&ox>0&&oy>0&&ox<W-1&&oy<H-1)opts.push([wx,wy]); }
-      if(opts.length){ const[wx,wy]=pick(opts); grid[wy][wx]='.'; }
-    }
+  rsh(scand); let sec=0; const used=[];
+  for(const c of scand){ if(sec>=2)break;
+    if(used.some(u=>Math.abs(u.x-c.x)+Math.abs(u.y-c.y)<6))continue;   // espalha as duas
+    g[c.y][c.x]='S'; g[c.by][c.bx]='.';                                // parede secreta + bolso
+    if(g[c.by+c.py]&&g[c.by+c.py][c.bx+c.px]==='#'&&c.bx+c.px<W-1&&c.by+c.py<H-1)g[c.by+c.py][c.bx+c.px]='.';
+    if(g[c.by-c.py]&&g[c.by-c.py][c.bx-c.px]==='#'&&c.bx-c.px>0&&c.by-c.py>0)g[c.by-c.py][c.bx-c.px]='.';
+    g[c.by][c.bx]=(sec===0?'C':'E');                                   // 1º tesouro, 2º elite
+    used.push(c); sec++;
   }
-  // lista de células abertas
-  const cells=[]; for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++)if(grid[y][x]==='.')cells.push([x,y]);
-  // spawn = canto sup esq, virado para o corredor aberto
-  const spawn=cells.reduce((a,b)=>(a[0]+a[1]<=b[0]+b[1]?a:b));
-  let spawnDir=1; for(let d=0;d<4;d++){ const nx=spawn[0]+DIRV[d][0],ny=spawn[1]+DIRV[d][1]; if(grid[ny]&&grid[ny][nx]!=='#'){spawnDir=d;break;} }
-  // BFS distâncias p/ achar ponto mais longe = escada/boss
-  const dist={}; const q=[spawn]; dist[spawn]=0;
-  while(q.length){const[cx,cy]=q.shift();for(const[dx,dy] of DIRV){const nx=cx+dx,ny=cy+dy;if(grid[ny]&&grid[ny][nx]==='.'&&dist[[nx,ny]]===undefined){dist[[nx,ny]]=dist[[cx,cy]]+1;q.push([nx,ny]);}}}
-  let far=spawn,fd=-1; for(const c of cells){const dd=dist[c]??0;if(dd>fd){fd=dd;far=c;}}
-  const isBoss=(depth%5===0); // chefe a cada 5 andares
-  // portas: em corredores estreitos aleatórios
-  for(const[x,y] of cells){ if(chance(0.09)){ const horiz=grid[y][x-1]!=='#'&&grid[y][x+1]!=='#'&&grid[y-1][x]==='#'&&grid[y+1][x]==='#';
-    const vert=grid[y-1][x]!=='#'&&grid[y+1][x]!=='#'&&grid[y][x-1]==='#'&&grid[y][x+1]==='#';
-    if((horiz||vert)&&!(x===spawn[0]&&y===spawn[1])) grid[y][x]='+'; } }
-  // segredos: becos sem saída → parede secreta p/ bolso com baú
-  const deadends=cells.filter(([x,y])=>{let n=0;for(const[dx,dy] of DIRV)if(grid[y+dy][x+dx]!=='#')n++;return n===1;});
-  let secretPlaced=0;
-  for(const[x,y] of shuffle(deadends)){ if(secretPlaced>=2)break;
-    for(const[dx,dy] of shuffle(DIRV.slice())){ const wx=x+dx,wy=y+dy, bx=x+dx*2,by=y+dy*2;
-      if(grid[wy]&&grid[wy][wx]==='#'&&grid[by]&&grid[by][bx]==='#'&&bx>0&&by>0&&bx<W-1&&by<H-1){
-        grid[wy][wx]='S'; grid[by][bx]='C'; secretPlaced++; break;
-      }
-    }
-  }
-  // baús normais em becos
-  let chests=0; for(const[x,y] of shuffle(deadends)){ if(chests>=2)break; if(grid[y][x]==='.'&&!(x===spawn[0]&&y===spawn[1])){grid[y][x]='C';chests++;} }
-  // fonte (descanso) numa célula média
-  const midCells=cells.filter(c=>{const d=dist[c]??0;return d>fd*0.3&&d<fd*0.7&&grid[c[1]][c[0]]==='.';});
-  if(midCells.length)  { const f=pick(midCells); grid[f[1]][f[0]]='F'; }
-  // encontros fixos: 2 nós
-  let enc=0; for(const c of shuffle(cells)){ if(enc>=2)break; if(grid[c[1]][c[0]]==='.'&&(dist[c]??0)>3&&!(c[0]===spawn[0]&&c[1]===spawn[1])){grid[c[1]][c[0]]='E';enc++;} }
-  // saída
-  grid[far[1]][far[0]]=isBoss?'B':'>';
-  // escada de subida no spawn-ish (se não andar 1)
-  if(depth>1){ const up=cells.find(c=>grid[c[1]][c[0]]==='.'&&c[0]!==spawn[0]); }
+  g[spawn[1]][spawn[0]]='.'; g[far[1]][far[0]]='B';   // reforça spawn/saída
   return {
-    w:W,h:H,grid, name: themeOf(depth).name+' — Andar '+depth,
+    w:W,h:H,grid:g, name: themeOf(depth).name+' — Andar '+depth,
     spawn:{x:spawn[0]+0.5,y:spawn[1]+0.5,dir:spawnDir},
     doorsOpen:new Set(), secretsRevealed:new Set(), looted:new Set(), triggered:new Set(), rested:new Set(),
-    isBoss, depth,
+    isBoss:true, depth,
     explored:Array.from({length:H},()=>new Array(W).fill(false)),
   };
 }
