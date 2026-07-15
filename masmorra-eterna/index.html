@@ -65,6 +65,14 @@
   #secretProg span{font-size:12px;color:#e7d9b4;letter-spacing:.5px;} #secretProg b{color:var(--gold);}
   #secretProg .spBar{width:180px;height:8px;background:#1a1206;border:1px solid #4a3a1e;border-radius:5px;overflow:hidden;}
   #secretProg .spBar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#c99a34,#f0d070);box-shadow:0 0 8px rgba(232,193,90,.6);}
+  /* balão de fala da party (Parte 13c) */
+  #banter{position:absolute;left:14px;bottom:14px;z-index:6;max-width:min(560px,78%);display:flex;gap:10px;align-items:flex-start;
+    background:linear-gradient(180deg,rgba(20,15,8,.95),rgba(8,6,4,.96));border:1.5px solid #4a3f22;border-left:3px solid var(--gold);
+    border-radius:10px;padding:9px 14px 9px 10px;box-shadow:0 6px 22px rgba(0,0,0,.5);opacity:0;transform:translateY(12px);transition:.28s;pointer-events:none;}
+  #banter.on{opacity:1;transform:translateY(0);}
+  #banterPort{width:48px;height:48px;flex:none;border-radius:7px;background:#0a0906;border:1px solid #3a3220;image-rendering:pixelated;}
+  #banter .bqName{font-size:12px;font-weight:bold;letter-spacing:1px;margin-bottom:3px;}
+  #banter .bqLine{font-size:13px;line-height:1.5;color:#e7dcc0;}
   /* ===== POLISH / game juice (Parte 12) ===== */
   #floorCard{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;}
   #floorCard.show{animation:fcard 3.1s ease forwards;}
@@ -437,6 +445,7 @@
         <div id="floorTag"><b id="flName">—</b><br><span id="flPos"></span></div>
         <div id="msg"></div>
         <div id="secretProg"><span>🔍 <b>examinando a parede…</b></span><div class="spBar"><i></i></div></div>
+        <div id="banter"><canvas id="banterPort" width="48" height="48"></canvas><div class="bqTx"><div class="bqName"></div><div class="bqLine"></div></div></div>
       </div>
       <div id="logBox" class="stone">
         <div id="logText"></div>

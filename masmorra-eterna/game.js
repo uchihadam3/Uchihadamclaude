@@ -809,6 +809,7 @@ function startBattle(formation,opts){
   renderBparty(); renderTurnQ(); renderFury();
   const elites=formation.filter(e=>e.elite);
   if(elites.length)milestone('elite1','🏆 CONQUISTA: um inimigo de ELITE apareceu — cuidado!');
+  if(opts.boss&&!opts.secretBoss)setTimeout(()=>banter('boss'),400); else if(elites.length&&!opts.elitePack)setTimeout(()=>banter('elite'),400);
   blog(opts.boss?('⚠ '+formation[0].name+' ergue-se diante de vocês!'):(elites.length?'Uma ameaça incomum emboscou o grupo!':'Inimigos emboscam o grupo!'));
   bfxLoop();
   showCondBanner(conds, opts.boss?formation[0].name:null);
@@ -1406,7 +1407,7 @@ function recalcStats(c){
 function previewStats(c,item){ const eq=Object.assign({},c.equip); if(item)eq[item.slot]=item; return computeEquipStats(c.baseStats,eq); }
 function sellValue(it){ return Math.round(12 + it.power*1.6 + RARITY[it.rarity].idx*24 + (it.ilvl||1)*3); }
 function dropEquip(item){ if(!item)return; G.equipInv=G.equipInv||[]; G.equipInv.push(item);
-  if(item.rarity==='lendario'||item.rarity==='reliquia') milestone('legend1','🏆 CONQUISTA: você achou um item '+RARITY[item.rarity].name+'!'); }
+  if(item.rarity==='lendario'||item.rarity==='reliquia'){ milestone('legend1','🏆 CONQUISTA: você achou um item '+RARITY[item.rarity].name+'!'); if(G.state==='explore')setTimeout(()=>banter('legendary'),600); } }
 function equipItem(c,item){ if(!item)return null; const slot=item.slot; const prev=c.equip[slot];
   const i=G.equipInv.indexOf(item); if(i>=0)G.equipInv.splice(i,1);
   c.equip[slot]=item; if(prev)G.equipInv.push(prev);
@@ -1519,7 +1520,9 @@ function interact(){ if(G.state!=='explore'||G.moving)return;
   if(v==='T'&&!G.dun.looted.has(fx+','+fy)){ G.dun.looted.add(fx+','+fy); openVault(fx,fy); return; }
   toast('Nada para interagir aqui.',900);
 }
-function descend(){ SFX.door(); G.stepsSince=0; enterFloor(G.depth+1); showFloorCard(G.depth); toast('Você desce ao Andar '+G.depth+'.',1600); musicStart('explore'); saveGame(); }
+function descend(){ SFX.door(); G.stepsSince=0; enterFloor(G.depth+1); showFloorCard(G.depth); toast('Você desce ao Andar '+G.depth+'.',1600); musicStart('explore');
+  if(STORY_DESCEND[G.depth])setTimeout(()=>showBanter(STORY_DESCEND[G.depth]),2700);
+  saveGame(); }
 function openChest(x,y){ G.dun.grid[y][x]='.'; SFX.chest();
   const roll=Math.random(); let msg;
   if(roll<0.5){ const g=rint(30,90)+G.depth*15; G.gp+=g; msg='◉ '+g+' GP'; }
@@ -1531,6 +1534,7 @@ function openChest(x,y){ G.dun.grid[y][x]='.'; SFX.chest();
 function fountain(x,y){ G.dun.rested.add(x+','+y); SFX.heal();
   G.party.forEach(c=>{ c.hp=c.mhp; c.mp=c.mmp; if(!c.alive){c.alive=true;c.hp=c.mhp;} c.status={}; });
   toast('✦ Fonte Sagrada — grupo totalmente restaurado!',2000); renderHUD();
+  setTimeout(()=>banter('fountain'),700);
 }
 function startBoss(){ const f=rollFormation(true); f.wasBoss=true; startBattle(f,{boss:true}); G.battle.wasBoss=true; }
 /* ---- CONTEÚDO DAS SALAS SECRETAS (Parte 6) ---- */
@@ -1543,6 +1547,7 @@ function openVault(x,y){ G.dun.grid[y][x]='.'; SFX.chest(); if(typeof shakeSecre
   if(chance(0.5)){ const e2=genEquip(G.depth,{lootTier:3}); dropEquip(e2); eqTxt+=' · '+e2.dispName+' ['+RARITY[e2.rarity].name+']'; }
   SFX.win();
   toast('❖ CÂMARA DO TESOURO!  ◉ '+g+' GP  ·  '+items.join(', ')+'\n⚔ '+eqTxt+' — equipe no Acampamento',3400);
+  setTimeout(()=>banter('vault'),800);
   renderHUD(); saveGame();
 }
 function startElitePack(){
@@ -1566,6 +1571,7 @@ function mkSecretBoss(depth){
 }
 function startSecretBoss(depth){
   const e=mkSecretBoss(depth);
+  banter('secretBoss'+depth);
   toast('☠ '+e.name+' desperta das sombras!',2600);
   startBattle([e],{boss:true,secretBoss:true});
   G.battle.secretBoss=true; G.battle.secretDepth=depth;   // NÃO abre escada (não é o chefe do andar)
@@ -1607,6 +1613,7 @@ function revealSecretAt(key){ const[x,y]=key.split(',').map(Number);
             : '✦ A parede se dissolve — passagem secreta revelada!';
   toast(msg,2600);
   milestone('secret1','🏆 CONQUISTA: você encontrou sua primeira passagem secreta!');
+  setTimeout(()=>banter('secret'),700);
   markExplored(); renderHUD(); saveGame();
 }
 function shakeSecret(){ const vw=$('#viewWrap'); if(!vw)return; try{ vw.animate([{transform:'translateX(0)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:300}); }catch(e){} }
@@ -2226,6 +2233,7 @@ function showLvBanner(names){ const el=$('#lvBanner'); if(!el||!names.length)ret
 function updateDanger(){ const el=$('#dangerVig'); if(!el)return;
   const on = G.state==='battle' && G.party.some(c=>!c.alive || (c.alive&&c.hp/c.mhp<0.25));
   el.classList.toggle('on', !!on);
+  if(on && G.battle && !G.battle._lowSaid){ G.battle._lowSaid=1; banter('low'); }
 }
 function milestone(key,text){ G.flags=G.flags||{}; if(G.flags[key])return; G.flags[key]=1;
   SFX.lvup(); setTimeout(()=>toast(text,3000),300);
@@ -2233,12 +2241,56 @@ function milestone(key,text){ G.flags=G.flags||{}; if(G.flags[key])return; G.fla
 
 /* ================= CUTSCENES (Parte 13) ================= */
 const CUT_CHARS={
-  leona:{name:'Leona',pal:'knight',cloak:'#3d5e2c',cloakD:'#26401a',hair:'#f0d074'},
-  sakura:{name:'Sakura',pal:'samurai',cloak:'#7a1a1a',cloakD:'#4a0f0f',hair:'#cc382d'},
-  celes:{name:'Celes',pal:'mage',cloak:'#22467e',cloakD:'#152c52',hair:'#e6ecf3'},
-  darius:{name:'Darius',pal:'sage',cloak:'#365f9a',cloakD:'#22406a',hair:'#ededed'},
-  narr:{name:'',pal:null,narr:true},
+  leona:{name:'Leona',pal:'knight',cloak:'#3d5e2c',cloakD:'#26401a',hair:'#f0d074',col:'#9ed46a'},
+  sakura:{name:'Sakura',pal:'samurai',cloak:'#7a1a1a',cloakD:'#4a0f0f',hair:'#cc382d',col:'#ff7a6a'},
+  celes:{name:'Celes',pal:'mage',cloak:'#22467e',cloakD:'#152c52',hair:'#e6ecf3',col:'#7ab8ff'},
+  darius:{name:'Darius',pal:'sage',cloak:'#365f9a',cloakD:'#22406a',hair:'#ededed',col:'#cdd6e8'},
+  narr:{name:'',pal:null,narr:true,col:'#9a8f7a'},
 };
+/* ---- diálogos contextuais / banter (Parte 13c) ---- */
+const BANTER={
+  secret:[ {who:'celes',text:'Ali! A parede não é sólida... eu sabia que sentia uma corrente de ar.'},
+           {who:'sakura',text:'Uma passagem escondida. Alguém não queria que a achássemos.'},
+           {who:'darius',text:'Segredos sobre segredos. Ossfeld sempre foi assim.'} ],
+  vault:[ {who:'celes',text:'Olhem esse tesouro! Valeu cada passo até aqui.'},
+          {who:'leona',text:'Peguem o que puderem carregar. Vamos precisar de tudo.'} ],
+  elite:[ {who:'sakura',text:'Esse é mais forte que os outros. Não subestimem.'},
+          {who:'leona',text:'Uma ameaça de verdade. Formação, agora!'} ],
+  boss:[ {who:'leona',text:'O guardião do andar. Não descemos sem derrubá-lo.'},
+         {who:'darius',text:'Cada guardião carrega um fragmento do que aconteceu aqui. Ouçam-nos.'} ],
+  fountain:[ {who:'darius',text:'Uma fonte sagrada... a Chama ainda toca este lugar. Descansem um pouco.'},
+             {who:'celes',text:'Água que cura! Bebam — vamos recuperar as forças.'} ],
+  legendary:[ {who:'celes',text:'Isto reluz como as relíquias reais! Impossível... e maravilhoso.'},
+              {who:'sakura',text:'Uma arma digna. Com isto, chegamos mais fundo.'} ],
+  secretBoss5:[ {who:'darius',text:'Este não deveria estar aqui... É forte demais para este andar. Recuem se precisarem — não é vergonha.'} ],
+  secretBoss10:[ {who:'sakura',text:'Sinto o ódio dele daqui. É o mais forte que já enfrentamos. Tudo ou nada.'} ],
+  low:[ {who:'leona',text:'Aguentem firme! Ninguém cai hoje — ninguém!'},
+        {who:'darius',text:'Estamos no limite. Cuidem-se, ou o Abismo nos leva.'} ],
+};
+const STORY_DESCEND={
+  2:{who:'sakura',text:'As catacumbas. Foi por aqui que a corte fugiu na noite da queda... e não voltou.'},
+  4:{who:'darius',text:'A forja real. Onde a Chama era alimentada dia e noite. Ou traída.'},
+  5:{who:'celes',text:'Metade do caminho. A Chama está mais forte agora — e mais triste, se é que isso faz sentido.'},
+  6:{who:'leona',text:'O grande salão. Eu montava guarda aqui. Parece uma vida atrás.'},
+  7:{who:'darius',text:'A necrópole. Meus antigos colegas repousam aqui. Se é que ainda repousam...'},
+  8:{who:'sakura',text:'Este frio não é natural. Estamos perto de algo muito antigo.'},
+  9:{who:'celes',text:'O abismo sussurra. Não escutem por muito tempo — as palavras mentem.'},
+  10:{who:'darius',text:'O trono. Foi aqui que tudo começou. Chegou a hora da verdade — e do meu perdão, se houver.'},
+};
+let _banterQ=[], _banterOn=false, _banterLast={};
+function banter(ev){ let list=BANTER[ev]; if(!list||!list.length)return;
+  let i=Math.floor(Math.random()*list.length); if(list.length>1&&i===_banterLast[ev])i=(i+1)%list.length; _banterLast[ev]=i;
+  showBanter(list[i]); }
+function showBanter(b){ if(!b)return;
+  if(G.state==='battle'){ const C=CUT_CHARS[b.who]||CUT_CHARS.narr; blog('💬 '+C.name+': '+b.text); return; }  // em combate vai pro log
+  _banterQ.push(b); if(!_banterOn)nextBanter(); }
+function nextBanter(){ const el=$('#banter'); if(!el)return; if(!_banterQ.length){ _banterOn=false; return; } _banterOn=true;
+  const b=_banterQ.shift(); const C=CUT_CHARS[b.who]||CUT_CHARS.narr;
+  const p=$('#banterPort'); if(p&&C.pal)drawFace(p.getContext('2d'),C.pal);
+  const nm=el.querySelector('.bqName'); nm.textContent=C.name; nm.style.color=C.col||'#e8c15a';
+  el.querySelector('.bqLine').textContent=b.text; el.classList.add('on'); SFX.ui();
+  clearTimeout(nextBanter._t); nextBanter._t=setTimeout(()=>{ el.classList.remove('on'); setTimeout(nextBanter,340); }, 3400);
+}
 const INTRO_SCRIPT=[
  {bg:'corridor', who:'narr', text:'Ossfeld. Um reino de luz, guardado pela Chama Eterna... engolido pela terra numa só noite.'},
  {who:'celes', text:'Dez anos se passaram — e eu ainda sinto a Chama pulsando lá no fundo. Fraca. Mas viva.'},
