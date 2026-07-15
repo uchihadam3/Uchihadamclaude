@@ -59,6 +59,12 @@
     background:rgba(8,7,6,.92);border:1px solid var(--edge);border-radius:6px;padding:9px 15px;font-size:13px;color:var(--ink);
     z-index:6;opacity:0;transition:opacity .25s;pointer-events:none;box-shadow:0 6px 24px rgba(0,0,0,.6);line-height:1.5;}
   #msg.on{opacity:1;}
+  #secretProg{position:absolute;left:50%;bottom:12%;transform:translateX(-50%);z-index:5;display:none;flex-direction:column;align-items:center;gap:6px;
+    background:rgba(8,6,4,.82);border:1px solid #5a4d30;border-radius:8px;padding:8px 16px;box-shadow:0 4px 16px rgba(0,0,0,.5);pointer-events:none;}
+  #secretProg.on{display:flex;}
+  #secretProg span{font-size:12px;color:#e7d9b4;letter-spacing:.5px;} #secretProg b{color:var(--gold);}
+  #secretProg .spBar{width:180px;height:8px;background:#1a1206;border:1px solid #4a3a1e;border-radius:5px;overflow:hidden;}
+  #secretProg .spBar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#c99a34,#f0d070);box-shadow:0 0 8px rgba(232,193,90,.6);}
   #logBox{flex:0 0 84px;padding:8px 12px;position:relative;display:flex;flex-direction:column;justify-content:space-between;}
   #logText{font-size:12px;color:#cbb48e;line-height:1.55;overflow:hidden;text-shadow:0 1px 1px #000;}
   #logText .ln{opacity:.55;} #logText .ln:last-child{opacity:1;color:#e7d9b4;}
@@ -295,6 +301,7 @@
         <div id="gp"><span class="coin">◉</span> <span id="gpN">0</span></div>
         <div id="floorTag"><b id="flName">—</b><br><span id="flPos"></span></div>
         <div id="msg"></div>
+        <div id="secretProg"><span>🔍 <b>examinando a parede…</b></span><div class="spBar"><i></i></div></div>
       </div>
       <div id="logBox" class="stone">
         <div id="logText"></div>

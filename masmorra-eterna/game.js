@@ -208,6 +208,13 @@ function buildDecals(){
   });
   DECAL.moss=D(set=>{ for(let i=0;i<440;i++){ const x=(hash2(i,7)*64)|0,y=(22+hash2(i,13)*40)|0; if(hash2(x,y)<0.6){const g=120+hash2(x*2,y)*80; set(x,y,abgrA((30+g*0.2)|0,g|0,(30+g*0.15)|0,(120+hash2(i,i)*120)|0));} } });
   DECAL.runes=D(set=>{ const seg=[[26,20,26,44],[26,20,38,20],[38,20,38,44],[26,44,38,44],[32,20,32,44],[26,32,38,32]]; seg.forEach((s,i)=>{ if(hash2(i,3)<0.65){ const[x0,y0,x1,y1]=s,n=22; for(let k=0;k<=n;k++){const x=(x0+(x1-x0)*k/n)|0,y=(y0+(y1-y0)*k/n)|0; set(x,y,abgrA(255,255,255,255)); set(x+1,y,abgrA(255,255,255,170));} } }); });
+  // dica SUTIL de passagem secreta: contorno de porta fininho + pequeno sigilo
+  DECAL.secret=D(set=>{
+    for(let y=7;y<57;y++){ set(20,y,abgrA(0,0,0,64)); set(44,y,abgrA(0,0,0,64)); }
+    for(let x=20;x<=44;x++){ set(x,7,abgrA(0,0,0,64)); set(x,57,abgrA(0,0,0,64)); }
+    for(let a=0;a<6.3;a+=0.15){ const x=32+Math.round(Math.cos(a)*5),y=30+Math.round(Math.sin(a)*5); set(x,y,abgrA(150,138,100,95)); }
+    set(32,27,abgrA(170,158,110,120)); set(32,33,abgrA(170,158,110,120)); set(29,30,abgrA(170,158,110,120)); set(35,30,abgrA(170,158,110,120));
+  });
   DEC_TORCH.tex=DECAL.torch;
 }
 function decalFor(mx,my,side,rdx,rdy){
@@ -348,7 +355,9 @@ function rcRender(px,py,ang){
     let texX=(wallX*TW)|0; if((side===0&&rdx>0)||(side===1&&rdy<0))texX=TW-texX-1; texX&=63;
     let tex=TEX.wall; if(tile==='+')tex=TEX.door; else if(tile==='A')tex=TEX.arch;
     const fog=clamp(1.42-perp*0.13,0.16,1.24)*(side===1?0.6:1)*flick;
-    const dc = (tile==='#'&&perp<7) ? decalFor(mapX,mapY,side,rdx,rdy) : null;   // decalques só em paredes próximas
+    let dc=null; const rawT=G.dun&&G.dun.grid[mapY]&&G.dun.grid[mapY][mapX];
+    if(rawT==='S'&&G.dun&&!G.dun.secretsRevealed.has(mapX+','+mapY)) dc={tex:DECAL.secret};   // dica sutil de segredo
+    else if(tile==='#'&&perp<7) dc=decalFor(mapX,mapY,side,rdx,rdy);
     const acc = TEX.accentRGB||[200,164,74];
     const stepTex=TW/lh; let texPos=(drawS-RH/2+lh/2)*stepTex;
     for(let y=drawS;y<=drawE;y++){ const ty=((texPos)|0)&63; texPos+=stepTex;
@@ -1183,8 +1192,7 @@ function interact(){ if(G.state!=='explore'||G.moving)return;
   const fx=Math.floor(G.px)+DIRV[G.dir][0], fy=Math.floor(G.py)+DIRV[G.dir][1];
   const here=G.dun.grid[Math.floor(G.py)][Math.floor(G.px)];
   const v=G.dun.grid[fy]&&G.dun.grid[fy][fx];
-  // revelar segredo à frente
-  if(v==='S'&&!G.dun.secretsRevealed.has(fx+','+fy)){ G.dun.secretsRevealed.add(fx+','+fy); SFX.secret(); toast('✦ Você encontra uma passagem secreta!',1800); return; }
+  if(v==='S'&&!G.dun.secretsRevealed.has(fx+','+fy)){ toast('Você examina a parede... fique parado perto por alguns segundos.',1600); return; }
   if(here==='>'){ descend(); return; }
   if(here==='F'&&!G.dun.rested.has(Math.floor(G.px)+','+Math.floor(G.py))){ fountain(Math.floor(G.px),Math.floor(G.py)); return; }
   // baú à frente
@@ -1212,9 +1220,30 @@ function onBossDefeated(){ // abre saída / vitória de andar
 }
 
 /* ================= RENDER LOOP ================= */
+const SECRET_SECS=10;
 function loop(){ requestAnimationFrame(loop);
-  if((G.state==='explore') && RC.ctx){ rcRender(G.px,G.py,G.ang); }
+  const now=performance.now(), dt=Math.min(0.1,(now-(loop._t||now))/1000); loop._t=now;
+  if((G.state==='explore') && RC.ctx){ rcRender(G.px,G.py,G.ang); tickSecret(dt); }
+  else if(loop._secOn){ showSecretUI(0,false); }
 }
+function showSecretUI(frac,on){ const el=$('#secretProg'); if(!el)return; loop._secOn=on;
+  el.classList.toggle('on',on); if(on)el.querySelector('.spBar>i').style.width=(frac*100)+'%'; }
+function tickSecret(dt){
+  if(G.moving){ return; }                                   // só conta parado
+  const d=G.dun, cx=Math.floor(G.px),cy=Math.floor(G.py); let found=null;
+  for(const[dx,dy] of DIRV){ const nx=cx+dx,ny=cy+dy, t=d.grid[ny]&&d.grid[ny][nx];
+    if(t==='S'&&!d.secretsRevealed.has(nx+','+ny)){ found=nx+','+ny; break; } }
+  if(!found){ if(loop._secKey){loop._secKey=null;loop._secT=0;} if(loop._secOn)showSecretUI(0,false); return; }
+  if(loop._secKey!==found){ loop._secKey=found; loop._secT=0; }
+  loop._secT=(loop._secT||0)+dt;
+  showSecretUI(Math.min(1,loop._secT/SECRET_SECS),true);
+  if(loop._secT>=SECRET_SECS){ revealSecretAt(found); loop._secKey=null; loop._secT=0; showSecretUI(0,false); }
+}
+function revealSecretAt(key){ const[x,y]=key.split(',').map(Number);
+  G.dun.secretsRevealed.add(key); SFX.secret(); shakeSecret(); toast('✦ A parede se dissolve — passagem secreta revelada!',2400);
+  markExplored(); renderHUD(); saveGame();
+}
+function shakeSecret(){ const vw=$('#viewWrap'); if(!vw)return; try{ vw.animate([{transform:'translateX(0)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:300}); }catch(e){} }
 
 /* ================= HUD / PAINEL ================= */
 function renderHUD(){
