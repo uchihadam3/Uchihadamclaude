@@ -417,195 +417,6 @@ const HAND_NAMES_PT: Record<string, string> = {
 };
 const handNamePT = (t: string): string => HAND_NAMES_PT[t] || t;
 
-// Pips de um dado (grid 3x3)
-const DIE_PIPS: Record<number, number[]> = {
-  1: [4],
-  2: [0, 8],
-  3: [0, 4, 8],
-  4: [0, 2, 6, 8],
-  5: [0, 2, 4, 6, 8],
-  6: [0, 2, 3, 5, 6, 8],
-};
-const MiniDie = ({ v, className = "" }: { v: number; className?: string }) => (
-  <div
-    className={`grid grid-cols-3 grid-rows-3 gap-[1px] rounded-[5px] bg-gradient-to-br from-white to-zinc-300 border border-zinc-100 shadow-[0_2px_5px_rgba(0,0,0,0.55),inset_0_1px_1px_rgba(255,255,255,0.9)] p-[3px] ${className}`}
-  >
-    {Array.from({ length: 9 }).map((_, i) => (
-      <span
-        key={i}
-        className={`rounded-full self-center justify-self-center w-[3px] h-[3px] md:w-[4px] md:h-[4px] ${
-          (DIE_PIPS[v] || []).includes(i) ? "bg-zinc-900" : "bg-transparent"
-        }`}
-      />
-    ))}
-  </div>
-);
-
-// Copo de dados (shaker) flutuante — segura os dados antes de arremessar,
-// pode ser chacoalhado "pra dar sorte" e, ao tocar, vira e lança os dados.
-const DiceCup = ({ onThrow }: { onThrow: () => void }) => {
-  const [vals, setVals] = useState<number[]>([5, 2, 6]);
-  const [phase, setPhase] = useState<"collect" | "idle" | "shake" | "throw">(
-    "collect",
-  );
-  const rattleRef = useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    const t = window.setTimeout(() => setPhase("idle"), 520);
-    return () => {
-      window.clearTimeout(t);
-      if (rattleRef.current) window.clearInterval(rattleRef.current);
-    };
-  }, []);
-
-  const doShake = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (phase === "throw" || phase === "shake") return;
-    setPhase("shake");
-    sfx.playLock();
-    let n = 0;
-    if (rattleRef.current) window.clearInterval(rattleRef.current);
-    rattleRef.current = window.setInterval(() => {
-      setVals((v) => v.map(() => 1 + Math.floor(Math.random() * 6)));
-      sfx.playLock();
-      n++;
-      if (n >= 5) {
-        if (rattleRef.current) window.clearInterval(rattleRef.current);
-        setPhase("idle");
-      }
-    }, 95);
-  };
-
-  const doThrow = () => {
-    if (phase === "throw") return;
-    if (rattleRef.current) window.clearInterval(rattleRef.current);
-    setPhase("throw");
-    sfx.playRoll();
-    window.setTimeout(() => onThrow(), 300);
-  };
-
-  const cupVariants: Variants = {
-    collect: { rotate: 26, y: 90, opacity: 0 },
-    idle: {
-      rotate: [-3, 3, -3],
-      y: [0, -5, 0],
-      opacity: 1,
-      transition: { rotate: { repeat: Infinity, duration: 3, ease: "easeInOut" }, y: { repeat: Infinity, duration: 3, ease: "easeInOut" }, opacity: { duration: 0.35 } },
-    },
-    shake: {
-      rotate: [-16, 15, -13, 12, -8, 0],
-      x: [-5, 5, -4, 4, -2, 0],
-      opacity: 1,
-      transition: { duration: 0.5 },
-    },
-    throw: {
-      rotate: -46,
-      y: -22,
-      x: 16,
-      opacity: 1,
-      transition: { duration: 0.28, ease: "easeIn" },
-    },
-  };
-
-  const diceVariants: Variants = {
-    collect: { y: 30, opacity: 0 },
-    idle: { y: [0, -3, 0], opacity: 1, transition: { y: { repeat: Infinity, duration: 2.6, ease: "easeInOut" }, opacity: { duration: 0.3 } } },
-    shake: { y: [0, -6, 3, -5, 0], opacity: 1, transition: { duration: 0.5 } },
-    throw: { y: -78, x: 10, opacity: 0, scale: 0.55, transition: { duration: 0.26, ease: "easeIn" } },
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-    <motion.button
-      type="button"
-      onClick={doThrow}
-      onMouseEnter={() => sfx.playHover()}
-      initial="collect"
-      animate={phase}
-      variants={cupVariants}
-      className="relative w-[128px] h-[150px] md:w-[150px] md:h-[176px] select-none cursor-pointer pointer-events-auto outline-none"
-      style={{ transformOrigin: "50% 78%" }}
-      aria-label="Arremessar os dados"
-    >
-      {/* dados dentro da boca do copo */}
-      <motion.div
-        variants={diceVariants}
-        className="absolute left-1/2 -translate-x-1/2 top-[10px] md:top-[12px] z-10 flex gap-[3px]"
-      >
-        {vals.map((v, i) => (
-          <MiniDie
-            key={i}
-            v={v}
-            className={`w-[26px] h-[26px] md:w-[30px] md:h-[30px] ${i === 1 ? "-translate-y-[3px]" : "translate-y-[2px]"}`}
-          />
-        ))}
-      </motion.div>
-
-      {/* corpo do copo + boca (atrás dos dados) */}
-      <svg
-        viewBox="0 0 120 150"
-        className="absolute inset-0 w-full h-full drop-shadow-[0_10px_18px_rgba(0,0,0,0.6)] z-0"
-      >
-        <defs>
-          <linearGradient id="cupBody" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#2f2016" />
-            <stop offset="0.16" stopColor="#5c3f2b" />
-            <stop offset="0.46" stopColor="#8a6142" />
-            <stop offset="0.62" stopColor="#6e4a31" />
-            <stop offset="0.85" stopColor="#4a3220" />
-            <stop offset="1" stopColor="#241811" />
-          </linearGradient>
-          <radialGradient id="cupMouth" cx="0.5" cy="0.4" r="0.62">
-            <stop offset="0" stopColor="#080503" />
-            <stop offset="0.72" stopColor="#1a110a" />
-            <stop offset="1" stopColor="#2c1d11" />
-          </radialGradient>
-          <linearGradient id="cupRim" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#b98a5d" />
-            <stop offset="1" stopColor="#6a4831" />
-          </linearGradient>
-        </defs>
-
-        {/* corpo (copo levemente afunilado) */}
-        <path
-          d="M20 40 C 18 80, 25 110, 34 125 C 44 135, 76 135, 86 125 C 95 110, 102 80, 100 40 Z"
-          fill="url(#cupBody)"
-          stroke="#1c120b"
-          strokeWidth="2.5"
-        />
-        {/* brilho / sombra vertical (cilíndrico) */}
-        <path d="M38 46 C 36 82, 40 108, 47 122" fill="none" stroke="#c99a6c" strokeWidth="3" opacity="0.32" strokeLinecap="round" />
-        <path d="M76 46 C 78 82, 74 108, 67 122" fill="none" stroke="#160d07" strokeWidth="4" opacity="0.42" strokeLinecap="round" />
-        {/* costura decorativa */}
-        <path d="M24 62 C 40 70, 80 70, 96 62" fill="none" stroke="#caa06e" strokeWidth="1.4" strokeDasharray="2 4" opacity="0.45" />
-        {/* base */}
-        <ellipse cx="60" cy="127" rx="24" ry="6" fill="#160d07" opacity="0.55" />
-        {/* boca interna (escura) — dados descansam aqui */}
-        <ellipse cx="60" cy="40" rx="40" ry="12.5" fill="url(#cupMouth)" stroke="url(#cupRim)" strokeWidth="4" />
-        {/* aro de trás (atrás dos dados) */}
-        <path d="M20 40 A 40 12.5 0 0 1 100 40" fill="none" stroke="#c49a6c" strokeWidth="2" opacity="0.85" />
-      </svg>
-
-      {/* lábio da frente do copo (na frente dos dados, dá profundidade de "dentro") */}
-      <svg
-        viewBox="0 0 120 150"
-        className="absolute inset-0 w-full h-full z-20 pointer-events-none"
-      >
-        <path d="M21 40 A 39 12 0 0 0 99 40" fill="none" stroke="url(#cupRim)" strokeWidth="7" strokeLinecap="round" />
-      </svg>
-    </motion.button>
-    <button
-      type="button"
-      onClick={doShake}
-      onMouseEnter={() => sfx.playHover()}
-      className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest text-amber-200/90 bg-amber-950/40 hover:bg-amber-900/50 active:scale-95 border border-amber-500/30 px-3 py-1.5 rounded-full pointer-events-auto transition-all"
-    >
-      🎲 Chacoalhar pra dar sorte
-    </button>
-    </div>
-  );
-};
-
 const RulesModal = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -900,12 +711,20 @@ const DiceManager = ({
   onRollComplete,
   pointPops = [],
   triggerExplosionCount = 0,
-  hideDice = false,
+  cupHold = false,
+  throwSignal = 0,
+  collectSignal = 0,
+  shakeSignal = 0,
+  onCupHeldChange,
 }: {
   onRollComplete: (hand: ReturnType<typeof evaluateHand>) => void;
   pointPops?: any[];
   triggerExplosionCount?: number;
-  hideDice?: boolean;
+  cupHold?: boolean;
+  throwSignal?: number;
+  collectSignal?: number;
+  shakeSignal?: number;
+  onCupHeldChange?: (held: boolean) => void;
 }) => {
   const { state, dispatch } = useGame();
 
@@ -954,6 +773,29 @@ const DiceManager = ({
   const rollStartTimeRef = useRef<number>(0);
   const rollEndTimeRef = useRef<number>(0);
 
+  // ---- 3D Dice Cup (shaker) ----
+  const cupGroupRef = useRef<THREE.Group | null>(null);
+  // Fases do copo: escondido / segurando os dados / arremessando / recolhendo
+  const cupPhaseRef = useRef<"hidden" | "held" | "throwing" | "collecting">(
+    "hidden",
+  );
+  const cupPhaseStartRef = useRef<number>(0);
+  const cupShakeUntilRef = useRef<number>(0); // "chacoalhar pra dar sorte"
+  // posições onde os dados estavam antes de serem recolhidos (para interpolar)
+  const collectFromRef = useRef<THREE.Vector3[]>([]);
+  const CUP_CENTER = useRef(new THREE.Vector3(0, -6.2, 2.6));
+  const CUP_HEIGHT = 5.2;
+  // Copo "deitado" em direção à câmera: vemos a parede externa + a boca no topo
+  const CUP_TILT = 1.33;
+  const onCupHeldChangeRef = useRef(onCupHeldChange);
+  onCupHeldChangeRef.current = onCupHeldChange;
+  const cupHeldReportedRef = useRef(false);
+  const reportCupHeld = (held: boolean) => {
+    if (cupHeldReportedRef.current === held) return;
+    cupHeldReportedRef.current = held;
+    onCupHeldChangeRef.current?.(held);
+  };
+
   // Trigger physical 3D dice shakes upon receiving scoring point pops with custom delay timings!
   const processedPopsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -977,6 +819,50 @@ const DiceManager = ({
       }, pop.delay);
     });
   }, [pointPops]);
+
+  // ---- Controle das fases do copo 3D ----
+  // Segurar os dados (início da rodada, antes de arremessar)
+  useEffect(() => {
+    if (cupHold) {
+      if (
+        cupPhaseRef.current === "hidden" ||
+        cupPhaseRef.current === "held"
+      ) {
+        cupPhaseRef.current = "held";
+        cupPhaseStartRef.current = performance.now();
+        if (cupGroupRef.current) cupGroupRef.current.visible = true;
+        reportCupHeld(true);
+      }
+    }
+    // quando cupHold fica falso NÃO escondemos aqui: o copo só some ao arremessar/rolar
+  }, [cupHold]);
+
+  // Arremessar: o copo tomba e joga os dados
+  useEffect(() => {
+    if (throwSignal <= 0) return;
+    cupPhaseRef.current = "throwing";
+    cupPhaseStartRef.current = performance.now();
+    if (cupGroupRef.current) cupGroupRef.current.visible = true;
+    reportCupHeld(false);
+  }, [throwSignal]);
+
+  // Recolher: ao fim de cada pontuação, o copo volta e recolhe os dados
+  useEffect(() => {
+    if (collectSignal <= 0) return;
+    const meshes = diceMeshesRef.current;
+    collectFromRef.current = meshes.map((m) =>
+      m ? m.position.clone() : new THREE.Vector3(),
+    );
+    cupPhaseRef.current = "collecting";
+    cupPhaseStartRef.current = performance.now();
+    if (cupGroupRef.current) cupGroupRef.current.visible = true;
+  }, [collectSignal]);
+
+  // Chacoalhar pra dar sorte
+  useEffect(() => {
+    if (shakeSignal <= 0) return;
+    cupShakeUntilRef.current = performance.now() + 550;
+  }, [shakeSignal]);
 
   useEffect(() => {
     // 1. Helper function to create face textures
@@ -1548,6 +1434,70 @@ const DiceManager = ({
     diceMeshesRef.current = diceMeshes;
     diceBodiesRef.current = diceBodies;
 
+    // ---- Build the 3D leather dice cup (shaker) ----
+    // Cilindro aberto no topo, com fundo e aro. Eixo local Y -> gira para Z (topo virado à câmera).
+    const cupGroup = new THREE.Group();
+    const cupR = 3.7; // raio da boca
+    const cupRBottom = 3.0; // raio da base (levemente afunilado)
+    const leatherOuter = new THREE.MeshStandardMaterial({
+      color: 0xc98a50,
+      roughness: 0.55,
+      metalness: 0.15,
+      emissive: 0x5a3818,
+      emissiveIntensity: 0.5,
+      side: THREE.DoubleSide,
+    });
+    const leatherInner = new THREE.MeshStandardMaterial({
+      color: 0x6a4326,
+      roughness: 0.9,
+      metalness: 0.05,
+      emissive: 0x2a1a0c,
+      emissiveIntensity: 0.5,
+      side: THREE.DoubleSide,
+    });
+    const wallGeo = new THREE.CylinderGeometry(
+      cupR,
+      cupRBottom,
+      CUP_HEIGHT,
+      48,
+      1,
+      true,
+    );
+    const wallOuter = new THREE.Mesh(wallGeo, leatherOuter);
+    wallOuter.castShadow = false;
+    const wallInner = new THREE.Mesh(wallGeo, leatherInner);
+    const bottomGeo = new THREE.CircleGeometry(cupRBottom, 48);
+    const bottomMesh = new THREE.Mesh(bottomGeo, leatherInner);
+    bottomMesh.position.y = -CUP_HEIGHT / 2 + 0.05;
+    bottomMesh.rotation.x = Math.PI / 2;
+    const rimGeo = new THREE.TorusGeometry(cupR, 0.44, 18, 48);
+    const rimMesh = new THREE.Mesh(
+      rimGeo,
+      new THREE.MeshStandardMaterial({
+        color: 0xe6b46a,
+        roughness: 0.35,
+        metalness: 0.55,
+        emissive: 0x8a5a1e,
+        emissiveIntensity: 1.3,
+      }),
+    );
+    rimMesh.position.y = CUP_HEIGHT / 2;
+    rimMesh.rotation.x = Math.PI / 2;
+    // costura decorativa perto da boca
+    const stitchGeo = new THREE.TorusGeometry(cupR * 0.98, 0.08, 8, 48);
+    const stitchMesh = new THREE.Mesh(
+      stitchGeo,
+      new THREE.MeshStandardMaterial({ color: 0xe6c48a, roughness: 0.6 }),
+    );
+    stitchMesh.position.y = CUP_HEIGHT / 2 - 1.1;
+    stitchMesh.rotation.x = Math.PI / 2;
+    cupGroup.add(wallOuter, wallInner, bottomMesh, rimMesh, stitchMesh);
+    cupGroup.rotation.x = Math.PI / 2; // boca (+Y local) aponta para +Z (câmera)
+    cupGroup.position.copy(CUP_CENTER.current);
+    cupGroup.visible = false;
+    scene.add(cupGroup);
+    cupGroupRef.current = cupGroup;
+
     // Helper functions for Euler Face Quaternion returns
     const getFaceQuaternion = (v: number) => {
       const q = new THREE.Quaternion();
@@ -1705,6 +1655,106 @@ const DiceManager = ({
     }
     handleResize();
 
+    // Slots (offset em relação ao centro do copo) onde os dados descansam dentro dele
+    // dados descansando na boca do copo (parte de cima, +Y, levemente para a câmera)
+    const CUP_SLOTS: [number, number, number][] = [
+      [0, 1.9, 1.35],
+      [-1.55, 1.7, 1.2],
+      [1.55, 1.7, 1.2],
+      [-0.8, 2.35, 1.5],
+      [0.8, 2.35, 1.5],
+    ];
+
+    // Anima o copo 3D a cada frame e devolve as posições-alvo dos dados dentro dele
+    const animateCup = (
+      now: number,
+    ): { active: boolean; override: (THREE.Vector3 | null)[]; scale: number } => {
+      const g = cupGroupRef.current;
+      const phase = cupPhaseRef.current;
+      const none = { active: false, override: [null, null, null, null, null], scale: 1 };
+      if (!g) return none;
+      // A visibilidade é controlada aqui (o tickFrame roda sempre), evitando
+      // corridas com a ordem dos efeitos na montagem.
+      g.visible = phase !== "hidden";
+      if (phase === "hidden") return none;
+
+      const t = (now - cupPhaseStartRef.current) / 1000;
+      const c = CUP_CENTER.current;
+      const center = new THREE.Vector3(c.x, c.y, c.z);
+      let scale = 0.8;
+
+      if (phase === "held") {
+        center.set(
+          c.x,
+          c.y + Math.sin(t * 1.5) * 0.15,
+          c.z + Math.sin(t * 1.2) * 0.22,
+        );
+        g.position.copy(center);
+        g.rotation.set(
+          Math.PI / 2 - CUP_TILT + Math.sin(t * 1.1) * 0.04,
+          0,
+          Math.sin(t * 0.9) * 0.03,
+        );
+      } else if (phase === "throwing") {
+        const p = Math.min(1, t / 0.32);
+        const e = p * p;
+        center.set(c.x, c.y + e * 1.4, c.z + e * 3.0);
+        g.position.copy(center);
+        g.rotation.set(Math.PI / 2 - CUP_TILT - e * 1.05, 0, 0);
+      } else if (phase === "collecting") {
+        const p = Math.min(1, t / 0.75);
+        const e = 1 - Math.pow(1 - p, 3); // easeOutCubic
+        center.set(
+          c.x,
+          THREE.MathUtils.lerp(-16, c.y, e),
+          THREE.MathUtils.lerp(0.6, c.z, e),
+        );
+        g.position.copy(center);
+        g.rotation.set(Math.PI / 2 - CUP_TILT, 0, 0);
+        scale = THREE.MathUtils.lerp(1.0, 0.8, e);
+        if (p >= 1) {
+          cupPhaseRef.current = "held";
+          cupPhaseStartRef.current = now;
+          reportCupHeld(true);
+        }
+      }
+
+      // "Chacoalhar pra dar sorte": treme o copo
+      let jx = 0;
+      let jy = 0;
+      if (cupShakeUntilRef.current > now && phase === "held") {
+        const s = (cupShakeUntilRef.current - now) / 550;
+        jx = Math.sin(now * 0.05) * 0.5 * s;
+        jy = Math.cos(now * 0.06) * 0.5 * s;
+        g.position.x += jx;
+        g.position.y += jy;
+        g.rotation.z += Math.sin(now * 0.045) * 0.14 * s;
+      }
+
+      const gp = g.position;
+      const override: (THREE.Vector3 | null)[] = [];
+      for (let i = 0; i < 5; i++) {
+        const d = diceStateRef.current[i];
+        if (!d || d.destroyed || d.locked) {
+          override.push(null);
+          continue;
+        }
+        const sl = CUP_SLOTS[i];
+        if (phase === "collecting") {
+          const p = Math.min(1, t / 0.75);
+          const e = p * p * (3 - 2 * p); // smoothstep
+          const from = collectFromRef.current[i] || gp.clone();
+          const to = new THREE.Vector3(gp.x + sl[0], gp.y + sl[1], gp.z + sl[2]);
+          override.push(from.clone().lerp(to, e));
+        } else {
+          override.push(
+            new THREE.Vector3(gp.x + sl[0], gp.y + sl[1], gp.z + sl[2]),
+          );
+        }
+      }
+      return { active: true, override, scale };
+    };
+
     // 9. Standard continuous Render Tick Loop
     let lastTime = performance.now();
     let frameId: number;
@@ -1746,12 +1796,24 @@ const DiceManager = ({
           }
         }
       } else {
+        const cup = animateCup(time);
         for (let i = 0; i < 5; i++) {
           const mesh = diceMeshes[i];
           const d = diceStateRef.current[i];
           if (!mesh) continue;
 
           if (!d) continue;
+
+          // Se o copo está segurando/recolhendo este dado, ele fica dentro do copo
+          if (cup.active && cup.override[i]) {
+            mesh.position.lerp(cup.override[i]!, 0.32);
+            const heldQuat = getFaceQuaternion(d.value);
+            mesh.quaternion.slerp(heldQuat, 0.2);
+            mesh.scale.setScalar(cup.scale);
+            mesh.castShadow = false; // evita "borrão" de sombra flutuando acima do copo
+            continue;
+          }
+          mesh.castShadow = true;
 
           const targetPos = new THREE.Vector3();
           let targetQuat = new THREE.Quaternion();
@@ -1953,6 +2015,10 @@ const DiceManager = ({
     currentStatusRef.current = state.status;
 
     if (state.status === "rolling") {
+      // Ao rolar, a física assume: some com o copo
+      cupPhaseRef.current = "hidden";
+      if (cupGroupRef.current) cupGroupRef.current.visible = false;
+      reportCupHeld(false);
       if (lastRolledStatusRef.current === "rolling") {
         return;
       }
@@ -2417,16 +2483,14 @@ const DiceManager = ({
     >
       <canvas
         ref={canvasRef}
-        className={`w-full h-full block touch-none z-10 transition-opacity duration-200 ${
-          hideDice ? "opacity-0" : "opacity-100"
-        }`}
+        className="w-full h-full block touch-none z-10"
       />
       <canvas
         ref={particleCanvasRef}
         className="absolute inset-0 pointer-events-none z-20 w-full h-full"
       />
 
-      {!hideDice &&
+      {!cupHold &&
         state.dice.map((die, i) => (
           <ScreenProjectedMarker
             key={`marker-${die.id}`}
@@ -2486,6 +2550,13 @@ export function GameBoard() {
   } | null>(null);
 
   const [explosionTriggerCount, setExplosionTriggerCount] = useState(0);
+  // Sinais para o copo 3D de dados
+  const [throwSignal, setThrowSignal] = useState(0);
+  const [collectSignal, setCollectSignal] = useState(0);
+  const [shakeSignal, setShakeSignal] = useState(0);
+  const [isThrowing, setIsThrowing] = useState(false);
+  const [cupOnTable, setCupOnTable] = useState(false); // copo está segurando os dados
+  const prevScoringRef = useRef(false);
   const [boardShake, setBoardShake] = useState<{
     active: boolean;
     intensity: number;
@@ -2849,10 +2920,48 @@ export function GameBoard() {
     return () => clearTimeout(t);
   }, [isScoring]);
 
-  const handleRoll = () => {
-    sfx.playRoll();
-    dispatch({ type: "ROLL" });
+  // Copo segurando os dados: condição para aparecer no início da rodada
+  const cupHold =
+    state.status === "playing" &&
+    state.rollsLeft === state.maxRolls &&
+    !isScoring &&
+    !isThrowing;
+
+  const throwFromCup = () => {
+    setIsThrowing(true);
+    setThrowSignal((s) => s + 1);
+    sfx.playHover();
+    window.setTimeout(() => {
+      setIsThrowing(false);
+      sfx.playRoll();
+      dispatch({ type: "ROLL" });
+    }, 320);
   };
+
+  const handleRoll = () => {
+    if (isThrowing || state.status === "rolling" || isScoring) return;
+    if (state.rollsLeft <= 0) return;
+    // Se o copo está segurando os dados, arremessa com o copo (tomba e joga)
+    if (cupOnTable) {
+      throwFromCup();
+    } else {
+      sfx.playRoll();
+      dispatch({ type: "ROLL" });
+    }
+  };
+
+  const handleCupShake = () => {
+    sfx.playLock();
+    setShakeSignal((s) => s + 1);
+  };
+
+  // Ao final de cada pontuação, o copo recolhe os dados
+  useEffect(() => {
+    if (prevScoringRef.current && !isScoring && state.status === "playing") {
+      setCollectSignal((s) => s + 1);
+    }
+    prevScoringRef.current = isScoring;
+  }, [isScoring, state.status]);
 
   useEffect(() => {
     if (
@@ -3931,30 +4040,44 @@ export function GameBoard() {
               onRollComplete={handleRollComplete}
               pointPops={pointPops}
               triggerExplosionCount={explosionTriggerCount}
-              hideDice={
-                state.status === "playing" &&
-                state.rollsLeft === state.maxRolls &&
-                !isScoring
-              }
+              cupHold={cupHold}
+              throwSignal={throwSignal}
+              collectSignal={collectSignal}
+              shakeSignal={shakeSignal}
+              onCupHeldChange={setCupOnTable}
             />
 
-            {/* Copo de dados (início da rodada / antes de arremessar) */}
+            {/* Controles do copo 3D: aparecem quando o copo está segurando os dados */}
             <AnimatePresence>
-              {state.status === "playing" &&
-                state.rollsLeft === state.maxRolls &&
-                !isScoring && (
+              {cupOnTable &&
+                state.status === "playing" &&
+                state.rollsLeft > 0 &&
+                !isScoring &&
+                !isThrowing && (
                   <motion.div
-                    key="dice-cup-overlay"
+                    key="dice-cup-controls"
                     id="initial-throw-overlay"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, transition: { duration: 0.18 } }}
-                    className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent flex flex-col items-center justify-end pb-2 z-30 rounded-xl pointer-events-none"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                    className="absolute inset-x-0 bottom-2 flex flex-col items-center gap-1.5 z-30 pointer-events-none"
                   >
-                    <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.25em] text-white/85 bg-black/55 px-3 py-1 rounded-full border border-white/15 mb-2 animate-pulse">
-                      Toque para arremessar
-                    </span>
-                    <DiceCup onThrow={handleRoll} />
+                    <button
+                      type="button"
+                      onClick={handleRoll}
+                      onMouseEnter={() => sfx.playHover()}
+                      className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.25em] text-white bg-black/60 hover:bg-black/80 active:scale-95 px-4 py-2 rounded-full border border-white/20 animate-pulse pointer-events-auto transition-all"
+                    >
+                      Toque para arremessar 🎲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCupShake}
+                      onMouseEnter={() => sfx.playHover()}
+                      className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-amber-200/90 bg-amber-950/40 hover:bg-amber-900/50 active:scale-95 border border-amber-500/30 px-3 py-1 rounded-full pointer-events-auto transition-all"
+                    >
+                      🎲 Chacoalhar pra dar sorte
+                    </button>
                   </motion.div>
                 )}
             </AnimatePresence>
