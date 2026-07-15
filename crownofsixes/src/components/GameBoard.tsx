@@ -416,6 +416,58 @@ const HAND_NAMES_PT: Record<string, string> = {
 };
 const handNamePT = (t: string): string => HAND_NAMES_PT[t] || t;
 
+// Mão em concha segurando os dados (aparece antes de arremessar)
+const DiceHand = () => (
+  <div className="relative w-[150px] h-[132px] md:w-[188px] md:h-[165px] select-none">
+    {/* dados descansando na palma */}
+    <div className="absolute left-1/2 -translate-x-1/2 top-1 z-20 flex gap-1.5">
+      {[4, 6, 3].map((v, i) => (
+        <motion.div
+          key={i}
+          animate={{ y: [0, -3, 0], rotate: [(i - 1) * 7, (i - 1) * 7 - 3, (i - 1) * 7] }}
+          transition={{ repeat: Infinity, duration: 2.2, delay: i * 0.25, ease: "easeInOut" }}
+          className="w-8 h-8 md:w-10 md:h-10 rounded-[7px] bg-gradient-to-br from-white to-zinc-300 shadow-[0_5px_12px_rgba(0,0,0,0.55)] border border-white flex items-center justify-center"
+        >
+          <span className="text-black font-black text-sm md:text-lg font-mono leading-none">{v}</span>
+        </motion.div>
+      ))}
+    </div>
+    {/* mão */}
+    <svg viewBox="0 0 200 175" className="absolute inset-0 w-full h-full drop-shadow-[0_-6px_22px_rgba(0,0,0,0.65)]">
+      <defs>
+        <linearGradient id="dh-skin" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f2c6a0" />
+          <stop offset="1" stopColor="#bd8154" />
+        </linearGradient>
+        <linearGradient id="dh-skin2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#e9b58c" />
+          <stop offset="1" stopColor="#b0774b" />
+        </linearGradient>
+      </defs>
+      {/* dedos ao fundo, curvando sobre os dados */}
+      <g fill="url(#dh-skin2)" stroke="#9c6238" strokeWidth="1.5">
+        <path d="M52 92 Q46 52 58 40 Q70 50 68 92 Z" />
+        <path d="M74 90 Q70 42 82 34 Q94 44 90 90 Z" />
+        <path d="M96 90 Q94 40 106 34 Q118 46 114 90 Z" />
+        <path d="M118 92 Q118 50 130 44 Q142 56 136 92 Z" />
+      </g>
+      {/* palma */}
+      <path
+        d="M40 96 Q34 150 66 168 Q100 178 134 168 Q166 150 160 96 Q150 74 100 74 Q50 74 40 96 Z"
+        fill="url(#dh-skin)" stroke="#9c6238" strokeWidth="2"
+      />
+      {/* polegar */}
+      <path
+        d="M154 104 Q182 96 180 68 Q176 54 162 62 Q150 78 154 104 Z"
+        fill="url(#dh-skin2)" stroke="#9c6238" strokeWidth="1.5"
+      />
+      {/* vincos da palma */}
+      <path d="M62 108 Q100 122 138 108" fill="none" stroke="#9c6238" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+      <path d="M70 128 Q100 138 130 128" fill="none" stroke="#9c6238" strokeWidth="1.4" strokeLinecap="round" opacity="0.4" />
+    </svg>
+  </div>
+);
+
 const RulesModal = ({ onClose }: { onClose: () => void }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -3735,34 +3787,26 @@ export function GameBoard() {
               triggerExplosionCount={explosionTriggerCount}
             />
 
-            {/* Glowing manual start/throw overlay */}
-            {state.status === "playing" && state.lastHandInfo === null && (
+            {/* Mão segurando os dados (início da rodada / antes de arremessar) */}
+            {state.status === "playing" && state.rollsLeft === state.maxRolls && !isScoring && (
               <div
                 id="initial-throw-overlay"
-                className="absolute inset-0 bg-black/60 backdrop-blur-[6px] flex items-center justify-center z-30 rounded-xl"
+                className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col items-end justify-end z-30 rounded-xl pointer-events-none"
               >
                 <motion.button
-                  key="initial-throw-btn"
+                  key="dice-hand-throw"
                   onMouseEnter={() => sfx.playHover()}
-                  initial={{ scale: 0.94, opacity: 0 }}
-                  animate={{ scale: [0.96, 1.04, 0.96], opacity: 1 }}
-                  transition={{
-                    scale: {
-                      repeat: Infinity,
-                      duration: 1.8,
-                      ease: "easeInOut",
-                    },
-                    opacity: { duration: 0.3 },
-                  }}
+                  initial={{ y: 60, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 60, opacity: 0 }}
+                  whileTap={{ y: -18, rotate: -6, transition: { duration: 0.12 } }}
                   onClick={handleRoll}
-                  className="px-6 py-4 md:px-8 md:py-5 bg-white text-black font-black text-base md:text-xl rounded-xl md:rounded-2xl uppercase tracking-widest shadow-[0_0_50px_rgba(255,255,255,0.45)] hover:scale-105 active:scale-95 transition-all flex flex-col items-center gap-1 cursor-pointer pointer-events-auto border-2 border-white"
+                  className="relative mx-auto mb-1 flex flex-col items-center gap-1 cursor-pointer pointer-events-auto group"
                 >
-                  <span className="text-[10px] md:text-xs font-bold text-zinc-500 font-mono tracking-widest">
-                    RODADA {state.round}
+                  <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.25em] text-white/80 bg-black/50 px-3 py-1 rounded-full border border-white/15 mb-1 animate-pulse">
+                    Toque para arremessar
                   </span>
-                  <span className="flex items-center gap-2">
-                    ARREMESSAR DADOS 🎲
-                  </span>
+                  <DiceHand />
                 </motion.button>
               </div>
             )}

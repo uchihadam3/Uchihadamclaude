@@ -31,6 +31,8 @@ type TabId = 'relics' | 'dice' | 'hands';
 
 const MOD_LABEL: Record<string, string> = { foil: 'Prata', holographic: 'Prisma', gold: 'Midas' };
 const MAT_LABEL: Record<string, string> = { wood: 'Madeira', glass: 'Cristal', steel: 'Aço', obsidian: 'Obsidiana', midas: 'Midas', normal: '' };
+const MOD_COLOR: Record<string, string> = { foil: 'text-zinc-200', holographic: 'text-fuchsia-300', gold: 'text-amber-300' };
+const MAT_COLOR: Record<string, string> = { wood: 'text-orange-300', glass: 'text-cyan-300', steel: 'text-zinc-200', obsidian: 'text-violet-300', midas: 'text-amber-300' };
 
 export function ShopScreen() {
   const { state, dispatch } = useGame();
@@ -329,20 +331,29 @@ export function ShopScreen() {
               </p>
               <div className="grid grid-cols-5 gap-2">
                 {state.dice.filter(d => !d.destroyed).map(d => {
-                  const cur = pending.kind === 'mod' ? MOD_LABEL[d.modifier || ''] : MAT_LABEL[d.material || 'normal'];
+                  const hasMod = !!(d.modifier && MOD_LABEL[d.modifier]);
+                  const hasMat = !!(d.material && d.material !== 'normal');
+                  const upgraded = hasMod || hasMat;
                   return (
                     <button
                       key={d.id}
                       onMouseEnter={() => sfx.playHover()}
                       onClick={() => applyToDie(d.id)}
-                      className="flex flex-col items-center gap-1.5 p-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-amber-400 hover:bg-amber-400/10 active:scale-95 transition-all cursor-pointer"
+                      className={`flex flex-col items-center gap-1 p-1.5 rounded-2xl bg-white/[0.04] border active:scale-95 transition-all cursor-pointer hover:bg-amber-400/10 hover:border-amber-400 ${upgraded ? 'border-amber-500/50' : 'border-white/10'}`}
                     >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-300 text-black font-black text-xl flex items-center justify-center shadow-inner">
+                      <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-300 text-black font-black text-xl flex items-center justify-center shadow-inner">
                         {d.value}
+                        {upgraded && (
+                          <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-400 border border-amber-200 flex items-center justify-center shadow">
+                            <Star className="w-2.5 h-2.5 text-black" fill="currentColor" />
+                          </span>
+                        )}
                       </div>
-                      <span className="text-[8px] font-bold uppercase tracking-tight text-zinc-400 leading-none h-3 flex items-center">
-                        {cur || '—'}
-                      </span>
+                      <div className="flex flex-col items-center leading-none min-h-[16px] gap-0.5">
+                        {hasMod && <span className={`text-[7px] font-black uppercase tracking-tight ${MOD_COLOR[d.modifier!] || 'text-zinc-300'}`}>{MOD_LABEL[d.modifier!]}</span>}
+                        {hasMat && <span className={`text-[7px] font-black uppercase tracking-tight ${MAT_COLOR[d.material!] || 'text-zinc-300'}`}>{MAT_LABEL[d.material!]}</span>}
+                        {!upgraded && <span className="text-[7px] font-bold uppercase text-zinc-600">Normal</span>}
+                      </div>
                     </button>
                   );
                 })}
