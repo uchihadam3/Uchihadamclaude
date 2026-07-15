@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Grimhollow</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0a0a0c;
+        overflow: hidden;
+        font-family: "Courier New", monospace;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+        touch-action: none;
+      }
+      /* canvas renderizado em baixa resolução e escalonado = look pixelado */
+      #app canvas {
+        width: 100% !important;
+        height: 100% !important;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        display: block;
+      }
+      * {
+        -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-CrYNGzbP.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
