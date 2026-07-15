@@ -482,14 +482,19 @@ function genFloor(depth){
     }
   }
   rsh(scand); let sec=0; const used=[];
-  for(const c of scand){ if(sec>=2)break;
-    if(used.some(u=>Math.abs(u.x-c.x)+Math.abs(u.y-c.y)<6))continue;   // espalha as duas
+  const hasSecretBoss=(depth===5||depth===10);          // superchefe secreto guardando um butim lendário
+  const secTiles=['T','M','X'];                          // 1º tesouro (câmara), 2º elite, 3º chefe secreto
+  const maxSec=hasSecretBoss?3:2;
+  const placeSecret=(c,minGap)=>{
+    if(used.some(u=>Math.abs(u.x-c.x)+Math.abs(u.y-c.y)<minGap))return false;
     g[c.y][c.x]='S'; g[c.by][c.bx]='.';                                // parede secreta + bolso
     if(g[c.by+c.py]&&g[c.by+c.py][c.bx+c.px]==='#'&&c.bx+c.px<W-1&&c.by+c.py<H-1)g[c.by+c.py][c.bx+c.px]='.';
     if(g[c.by-c.py]&&g[c.by-c.py][c.bx-c.px]==='#'&&c.bx-c.px>0&&c.by-c.py>0)g[c.by-c.py][c.bx-c.px]='.';
-    g[c.by][c.bx]=(sec===0?'C':'E');                                   // 1º tesouro, 2º elite
-    used.push(c); sec++;
-  }
+    g[c.by][c.bx]=secTiles[sec];
+    used.push(c); sec++; return true;
+  };
+  for(const c of scand){ if(sec>=maxSec)break; placeSecret(c,6); }               // espalha (gap 6)
+  if(sec<maxSec) for(const c of scand){ if(sec>=maxSec)break; placeSecret(c,2); } // fallback: relaxa espaçamento p/ garantir
   g[spawn[1]][spawn[0]]='.'; g[far[1]][far[0]]='B';   // reforça spawn/saída
   return {
     w:W,h:H,grid:g, name: themeOf(depth).name+' — Andar '+depth,
@@ -597,8 +602,8 @@ const BEST={
             {name:'Voto de Cinzas',type:'buff',target:'self',status:{name:'atkUp',turns:3,pot:1.5},tell:'O cavaleiro reúne as cinzas...'},
             {name:'Julgamento',type:'dark',target:'one',power:260,magic:true,tell:'Uma luz negra se concentra...'}]},
 };
-function mkEnemy(key,lvBoost){
-  const b=BEST[key], lv=(G.depth||1)+(lvBoost||0), sc=1+(G.depth-1)*0.13;
+function mkEnemy(key,lvBoost,opts){ opts=opts||{};
+  const b=BEST[key], dep=opts.depthAs||G.depth||1, lv=dep+(lvBoost||0), sc=1+(dep-1)*0.13;
   const e={ key, side:'enemy', name:b.name, spr:b.spr, boss:!!b.boss, undead:!!b.undead,
     mhp:Math.round(b.hp*sc), hp:Math.round(b.hp*sc),
     atk:Math.round(b.atk*sc), mag:Math.round(b.mag*sc), def:Math.round(b.def*sc), res:Math.round(b.res*sc),
@@ -608,7 +613,7 @@ function mkEnemy(key,lvBoost){
     phases:b.phases, phase:0,
     status:{}, alive:true, scanned:false, discovered:new Set(),
     sx:0,sy:0,scale:1, hitFlash:0, bob:Math.random()*6 };
-  if(!b.boss && chance(eliteChance(G.depth||1))) makeElite(e);
+  if(!b.boss && !opts.noElite && chance(eliteChance(dep))) makeElite(e);
   return e;
 }
 // tabelas de encontro por profundidade
@@ -719,7 +724,7 @@ function layoutEnemies(){
   const es=G.battle.enemies, cv=$('#benemies'); const W=cv.clientWidth||cv.width, H=cv.clientHeight||cv.height;
   const n=es.length;
   es.forEach((e,i)=>{
-    if(e.boss){ e.sx=0.5; e.sy=0.6; e.scale=2.0; }
+    if(e.boss){ e.sx=0.5; e.sy=0.6; e.scale=e.bossScale||2.0; }
     else{ const cols=Math.min(n,3), rowI=Math.floor(i/3), inRow=Math.min(cols,n-rowI*3), col=i%3;
       e.sx=(col+0.5)/inRow*0.86+0.07; e.sy=0.42+rowI*0.22; e.scale=(1.1-rowI*0.12)*(e.scaleMul||1); }
   });
@@ -1060,6 +1065,9 @@ async function winBattle(){
   const b=G.battle; musicStop(); SFX.win();
   let xp=0,gold=0; const drops=[];
   b.enemies.forEach(e=>{ xp+=e.xp; gold+=e.gold; if(e.boss||e.eliteDrop||chance(0.25))drops.push(rollDrop(e)); });
+  // butim extra das salas secretas (Parte 6) — Parte 7 vai somar equipamento lendário garantido
+  if(b.secretBoss){ gold+=400+G.depth*80; xp=Math.round(xp*1.3); drops.push(rollDrop({boss:1}),rollDrop({boss:1})); }
+  else if(b.elitePack){ gold+=120+G.depth*30; drops.push(rollDrop({boss:1})); }
   G.gp+=gold; addLoot(drops);
   blog(`Vitória! +${xp} XP · +${gold} GP`);
   await wait(600);
@@ -1072,6 +1080,7 @@ async function winBattle(){
   if(lvs.length)m+=`\n★ Subiu de nível: ${lvs.join(', ')}!`, SFX.lvup();
   toast(m,2600);
   if(b.wasBoss){ onBossDefeated(); }
+  if(b.secretBoss){ setTimeout(()=>{ SFX.win(); toast('★ SUPERCHEFE SECRETO derrotado! Um butim lendário é seu.',3200); },900); }
   renderHUD(); saveGame();
 }
 function loseBattle(){ musicStop(); G.state='dead'; $('#battle').classList.remove('on'); showDead(); }
@@ -1179,7 +1188,10 @@ function turn(dir){ if(G.moving||G.state!=='explore')return; G.moving=true; G.di
 function onEnterTile(x,y){ markExplored(); renderHUD();
   const d=G.dun,t=d.grid[y][x],key=x+','+y;
   if(t==='C'&&!d.looted.has(key)){ d.looted.add(key); openChest(x,y); return; }
-  if(t==='F'&&!d.rested.has(key)){ d.rested.has(key); fountain(x,y); return; }
+  if(t==='T'&&!d.looted.has(key)){ d.looted.add(key); openVault(x,y); return; }               // câmara secreta do tesouro
+  if(t==='M'&&!d.triggered.has(key)){ d.triggered.add(key); G.dun.grid[y][x]='.'; SFX.bump(); setTimeout(()=>startElitePack(),300); return; } // câmara dos guardiões (elite)
+  if(t==='X'&&!d.triggered.has(key)){ d.triggered.add(key); G.dun.grid[y][x]='.'; setTimeout(()=>startSecretBoss(G.depth),350); return; }    // superchefe secreto (andar 5/10)
+  if(t==='F'&&!d.rested.has(key)){ d.rested.add(key); fountain(x,y); return; }
   if(t==='E'&&!d.triggered.has(key)){ d.triggered.add(key); G.dun.grid[y][x]='.'; SFX.bump(); setTimeout(()=>startBattle(rollFormation(false)),260); return; }
   if(t==='B'&&!d.triggered.has(key)){ d.triggered.add(key); startBoss(); return; }
   if(t==='>'){ toast('Escada para baixo. (Interagir = descer)',1400); }
@@ -1197,6 +1209,7 @@ function interact(){ if(G.state!=='explore'||G.moving)return;
   if(here==='F'&&!G.dun.rested.has(Math.floor(G.px)+','+Math.floor(G.py))){ fountain(Math.floor(G.px),Math.floor(G.py)); return; }
   // baú à frente
   if(v==='C'&&!G.dun.looted.has(fx+','+fy)){ G.dun.looted.add(fx+','+fy); openChest(fx,fy); return; }
+  if(v==='T'&&!G.dun.looted.has(fx+','+fy)){ G.dun.looted.add(fx+','+fy); openVault(fx,fy); return; }
   toast('Nada para interagir aqui.',900);
 }
 function descend(){ SFX.door(); G.stepsSince=0; enterFloor(G.depth+1); toast('Você desce ao Andar '+G.depth+'.',1600); musicStart('explore'); saveGame(); }
@@ -1212,6 +1225,41 @@ function fountain(x,y){ G.dun.rested.add(x+','+y); SFX.heal();
   toast('✦ Fonte Sagrada — grupo totalmente restaurado!',2000); renderHUD();
 }
 function startBoss(){ const f=rollFormation(true); f.wasBoss=true; startBattle(f,{boss:true}); G.battle.wasBoss=true; }
+/* ---- CONTEÚDO DAS SALAS SECRETAS (Parte 6) ---- */
+function openVault(x,y){ G.dun.grid[y][x]='.'; SFX.chest(); if(typeof shakeSecret==='function')shakeSecret();
+  const g=rint(160,320)+G.depth*40; G.gp+=g;
+  const items=[]; const n=2+rint(0,1);                       // 2-3 itens premium garantidos
+  for(let i=0;i<n;i++){ const id=pick(['pocao','pocao','fenix','eter','bomba','raiz']); addItem(id); items.push(ITEMS[id].name); }
+  // TODO Parte 7: soltar aqui um equipamento raro+ garantido (a melhor recompensa do jogo)
+  SFX.win();
+  toast('❖ CÂMARA DO TESOURO!  ◉ '+g+' GP  ·  '+items.join(', '),3000);
+  renderHUD(); saveGame();
+}
+function startElitePack(){
+  const base=rollFormation(false);
+  let f = base.length>=2 ? base : base.concat(rollFormation(false));   // pacote de 2-3
+  f=f.slice(0,3);
+  f.forEach(e=>{ if(!e.elite) makeElite(e); e.mhp=Math.round(e.mhp*1.25); e.hp=e.mhp; e.atk=Math.round(e.atk*1.12); e.eliteDrop=true; });
+  toast('⚔ CÂMARA DOS GUARDIÕES — elite em vigília!',2000);
+  startBattle(f,{elitePack:true}); G.battle.elitePack=true;
+}
+function mkSecretBoss(depth){
+  // andar 5 -> força do CHEFE DO ANDAR 7 · andar 10 -> força do CHEFE DO ANDAR 12 (o mais forte do jogo)
+  const scaleDepth = depth<=5?7:12;
+  const e=mkEnemy('cavaleiro',0,{depthAs:scaleDepth,noElite:true});   // dark knight como superchefe
+  e.name = depth<=5?'ARAUTO DAS CINZAS':'SOBERANO DA CINZA ETERNA';
+  e.superBoss=true; e.superAura = depth<=5?'#b070e0':'#ff5a4a';
+  e.mhp=Math.round(e.mhp*(depth<=5?1.15:1.4)); e.hp=e.mhp;
+  e.atk=Math.round(e.atk*1.12); e.guardMax+=1; e.guard+=1;
+  e.bossScale = depth<=5?2.25:2.5;
+  return e;
+}
+function startSecretBoss(depth){
+  const e=mkSecretBoss(depth);
+  toast('☠ '+e.name+' desperta das sombras!',2600);
+  startBattle([e],{boss:true,secretBoss:true});
+  G.battle.secretBoss=true; G.battle.secretDepth=depth;   // NÃO abre escada (não é o chefe do andar)
+}
 function onBossDefeated(){ // abre saída / vitória de andar
   toast('★ CHEFE DERROTADO! A escada se revela.',2600);
   const d=G.dun; d.bossDefeated=true;
@@ -1240,7 +1288,13 @@ function tickSecret(dt){
   if(loop._secT>=SECRET_SECS){ revealSecretAt(found); loop._secKey=null; loop._secT=0; showSecretUI(0,false); }
 }
 function revealSecretAt(key){ const[x,y]=key.split(',').map(Number);
-  G.dun.secretsRevealed.add(key); SFX.secret(); shakeSecret(); toast('✦ A parede se dissolve — passagem secreta revelada!',2400);
+  G.dun.secretsRevealed.add(key); SFX.secret(); shakeSecret();
+  let kind=null; for(const[dx,dy] of DIRV){ const t=G.dun.grid[y+dy]&&G.dun.grid[y+dy][x+dx]; if(t==='T'||t==='M'||t==='X')kind=t; }
+  const msg = kind==='X' ? '☠ A parede rui — uma presença ANTIGA aguarda além!'
+            : kind==='M' ? '⚔ Passagem secreta — guardiões de elite lá dentro!'
+            : kind==='T' ? '❖ Passagem secreta — um tesouro reluz na escuridão!'
+            : '✦ A parede se dissolve — passagem secreta revelada!';
+  toast(msg,2600);
   markExplored(); renderHUD(); saveGame();
 }
 function shakeSecret(){ const vw=$('#viewWrap'); if(!vw)return; try{ vw.animate([{transform:'translateX(0)'},{transform:'translateX(-4px)'},{transform:'translateX(4px)'},{transform:'translateX(0)'}],{duration:300}); }catch(e){} }
@@ -1675,6 +1729,11 @@ function bfxLoop(){ if(bfxRunning)return; bfxRunning=true;
       if(!e.alive){ if(e.dieT>0){ ctx.save();ctx.globalAlpha=Math.max(0,e.dieT);ctx.translate(0,(1-e.dieT)*14); drawEnemySprite(ctx,cx,cy,e.scale*2.3*breath,e.spr,0); ctx.restore(); e.dieT-=dt*2.2; } continue; }
       if(e.hitFlash>0)e.hitFlash=Math.max(0,e.hitFlash-dt*5);
       const recoil=e.hitFlash>0? -e.hitFlash*7:0;
+      // aura de SUPERCHEFE secreto (mais intensa e pulsante)
+      if(e.superAura){ const ar=44*e.scale*2.3*0.5; const pulse=0.24+Math.sin(t*3+e.bob)*0.1;
+        const au=ctx.createRadialGradient(cx,cy-ar,ar*0.2,cx,cy-ar,ar*1.75);
+        au.addColorStop(0,hexA(e.superAura,pulse)); au.addColorStop(0.65,hexA(e.superAura,pulse*0.42)); au.addColorStop(1,e.superAura+'00');
+        ctx.fillStyle=au; ctx.fillRect(cx-ar*2,cy-ar*3,ar*4,ar*3.7); }
       // aura de ELITE
       if(e.affix){ const ar=44*e.scale*2.3*0.5; const au=ctx.createRadialGradient(cx,cy-ar,ar*0.3,cx,cy-ar,ar*1.5);
         const pulse=0.18+Math.sin(t*4+e.bob)*0.07; au.addColorStop(0,e.affixColor+'00'); au.addColorStop(0.6,hexA(e.affixColor,pulse)); au.addColorStop(1,e.affixColor+'00');
