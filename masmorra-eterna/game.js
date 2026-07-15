@@ -88,65 +88,96 @@ function hash2(a,b){ let h=(a*374761393+b*668265263)|0; h=Math.imul(h^(h>>>13),1
 function shade(c,f){ const r=(c&255),g=(c>>8)&255,b=(c>>16)&255; return abgr(clamp(r*f|0,0,255),clamp(g*f|0,0,255),clamp(b*f|0,0,255)); }
 function mkTex(fn){ const a=new Uint32Array(TW*TW); fn((x,y,c)=>{a[y*TW+x]=c;}); return a; }
 let TEX={};
-function buildTextures(){
-  // pedra / tijolo cinza — tijolos GRANDES e limpos, rejunte escuro, relevo
-  TEX.wall=mkTex(set=>{
+/* ============ 10 BIOMAS (temas por andar) ============ */
+const THEMES=[
+  {key:'cripta',   name:'Cripta de Pedra',     wBase:112,wVar:42,wTint:[1.00,0.96,0.85],mortar:30,mTint:[0.95,0.92,0.86],
+    fBase:50,fTint:[0.92,0.90,0.80],cBase:30,cTint:[0.82,0.86,1.0],moss:[0.5,0.72,0.42],mossF:0.06,crackF:0.10,door:'wood',accent:'#6a5a3a'},
+  {key:'catacumbas',name:'Catacumbas',         wBase:138,wVar:36,wTint:[1.06,1.00,0.82],mortar:40,mTint:[1.0,0.96,0.82],
+    fBase:60,fTint:[1.02,0.98,0.82],cBase:34,cTint:[0.9,0.88,0.8],moss:[0.6,0.55,0.45],mossF:0.02,crackF:0.16,door:'bone',accent:'#c8bfa0'},
+  {key:'inundada', name:'Cavernas Inundadas',  wBase:96, wVar:34,wTint:[0.80,0.92,1.06],mortar:26,mTint:[0.8,0.9,1.05],
+    fBase:44,fTint:[0.72,0.86,1.05],cBase:26,cTint:[0.75,0.85,1.1],moss:[0.35,0.7,0.55],mossF:0.10,crackF:0.08,door:'iron',accent:'#3a78a8'},
+  {key:'forja',    name:'Forja Abandonada',    wBase:92, wVar:30,wTint:[1.12,0.78,0.62],mortar:24,mTint:[1.05,0.7,0.55],
+    fBase:42,fTint:[1.05,0.72,0.55],cBase:24,cTint:[1.0,0.7,0.6],moss:[0.9,0.4,0.2],mossF:0.05,crackF:0.14,door:'iron',accent:'#c8461a',emberF:0.02},
+  {key:'jardim',   name:'Jardim Petrificado',  wBase:110,wVar:38,wTint:[0.86,1.02,0.80],mortar:28,mTint:[0.8,0.95,0.75],
+    fBase:48,fTint:[0.8,0.96,0.72],cBase:30,cTint:[0.8,0.95,0.82],moss:[0.4,0.75,0.35],mossF:0.16,crackF:0.10,door:'vine',accent:'#5aa84a'},
+  {key:'salao',    name:'Salão Real',          wBase:152,wVar:34,wTint:[1.06,0.99,0.80],mortar:44,mTint:[1.0,0.95,0.7],
+    fBase:66,fTint:[1.05,1.0,0.82],cBase:40,cTint:[1.0,0.95,0.78],moss:[0.9,0.75,0.35],mossF:0.06,crackF:0.06,door:'gold',accent:'#e8c15a',veinC:[0.95,0.8,0.4]},
+  {key:'necropole',name:'Necrópole',           wBase:82, wVar:32,wTint:[0.92,0.82,1.06],mortar:22,mTint:[0.85,0.78,1.05],
+    fBase:38,fTint:[0.82,0.76,1.02],cBase:22,cTint:[0.82,0.76,1.05],moss:[0.6,0.4,0.85],mossF:0.06,crackF:0.14,door:'obsidian',accent:'#a06adf'},
+  {key:'gelo',     name:'Câmaras de Gelo',     wBase:150,wVar:28,wTint:[0.86,0.96,1.10],mortar:40,mTint:[0.82,0.92,1.08],
+    fBase:64,fTint:[0.84,0.94,1.10],cBase:38,cTint:[0.85,0.94,1.12],moss:[0.6,0.85,1.0],mossF:0.05,crackF:0.10,door:'ice',accent:'#8ad0ff'},
+  {key:'abismo',   name:'O Abismo',            wBase:74, wVar:30,wTint:[1.16,0.60,0.55],mortar:18,mTint:[1.1,0.55,0.5],
+    fBase:34,fTint:[1.1,0.55,0.5],cBase:20,cTint:[1.05,0.5,0.5],moss:[1.0,0.4,0.2],mossF:0.08,crackF:0.16,door:'bone',accent:'#e0402e',emberF:0.03},
+  {key:'trono',    name:'Trono Eterno',        wBase:66, wVar:26,wTint:[1.02,0.90,0.60],mortar:16,mTint:[0.9,0.78,0.5],
+    fBase:36,fTint:[1.0,0.9,0.6],cBase:22,cTint:[1.0,0.88,0.6],moss:[0.95,0.8,0.4],mossF:0.04,crackF:0.10,door:'gold',accent:'#ffd24a',veinC:[1.0,0.82,0.35]},
+];
+function themeIdx(depth){ return clamp((depth||1)-1,0,THEMES.length-1); }
+function themeOf(depth){ return THEMES[themeIdx(depth)]; }
+const _themeCache={};
+function buildThemeTex(P){
+  const rgb=(base,tint)=>abgr(clamp(base*tint[0]|0,0,255),clamp(base*tint[1]|0,0,255),clamp(base*tint[2]|0,0,255));
+  const T={};
+  T.wall=mkTex(set=>{ const bH=16;
     for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){
-      const bH=16, row=Math.floor(y/bH), off=(row%2)?16:0, bx=x+off, col=Math.floor(bx/32);
-      const inX=bx%32, inY=y%bH, mortar=inX<2||inY<2;
-      let r,g,b;
-      if(mortar){ const m=30+hash2(x,y)*6; r=m*0.95;g=m*0.92;b=m*0.86; }
-      else{
-        let base=100+hash2(row*13+7,col*17+3)*40;         // variação por TIJOLO (não por pixel)
-        if(inY<3)base+=18; else if(inY>=bH-3)base-=16;      // relevo topo/baixo
-        if(inX<4)base+=10; else if(inX>=28)base-=10;
-        base+=hash2(x*2,y*2)*8-4;                           // grão bem sutil
-        if(hash2(row*7+2,col*11+5)<0.10)base-=30;           // tijolo mais escuro ocasional
-        r=base*1.0;g=base*0.95;b=base*0.83;
-        if(hash2(row*31,col*29)<0.07 && inY>bH*0.5){r=base*0.5;g=base*0.72;b=base*0.42;} // musgo raro na base
-      }
+      const row=Math.floor(y/bH), off=(row%2)?16:0, bx=x+off, col=Math.floor(bx/32), inX=bx%32, inY=y%bH, mortar=inX<2||inY<2;
+      if(mortar){ set(x,y,rgb(P.mortar+hash2(x,y)*6,P.mTint)); continue; }
+      let base=P.wBase+hash2(row*13+7,col*17+3)*P.wVar;
+      if(inY<3)base+=18; else if(inY>=bH-3)base-=16; if(inX<4)base+=10; else if(inX>=28)base-=10;
+      base+=hash2(x*2,y*2)*8-4;
+      if(hash2(row*7+2,col*11+5)<0.10)base-=28;
+      let r=base*P.wTint[0],g=base*P.wTint[1],b=base*P.wTint[2];
+      if(hash2(row*31,col*29)<P.mossF && inY>bH*0.5){ r=base*P.moss[0];g=base*P.moss[1];b=base*P.moss[2]; }
+      if(P.crackF && hash2(x*3+col,y*5+row)<P.crackF*0.06){ r*=0.4;g*=0.4;b*=0.4; }
+      if(P.veinC && hash2(row*17,col*23)<0.14 && (inX===16||inY===0)){ r=base*P.veinC[0]*1.4;g=base*P.veinC[1]*1.4;b=base*P.veinC[2]*1.4; }
       set(x,y,abgr(clamp(r|0,0,255),clamp(g|0,0,255),clamp(b|0,0,255)));
     }
   });
-  // porta de madeira — tábuas limpas, moldura de pedra, ferro
-  TEX.door=mkTex(set=>{
+  T.floor=mkTex(set=>{ const t=32;
     for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){
-      let r,g,b;
-      const frame=x<7||x>=57||y<4||y>=60;
-      if(frame){ const m=44+hash2(Math.floor(x/8),Math.floor(y/8))*20; r=m;g=m*0.95;b=m*0.85; }
-      else{
-        const px2=x-7,pw=50, plank=Math.floor(px2/12.5), edge=(px2%12.5)<1.4;
-        let base=78+plank*4+Math.sin(y*0.5+plank*2)*5+hash2(plank*3,Math.floor(y/6))*10;
-        if(edge)base*=0.55;
-        r=base*1.0;g=base*0.6;b=base*0.3;
-        // ferragens horizontais
-        if(y>14&&y<19||y>44&&y<49){ r=70;g=72;b=80; if((x%10<2)){r=150;g=150;b=160;} }
-      }
-      set(x,y,abgr(clamp(r|0,0,255),clamp(g|0,0,255),clamp(b|0,0,255)));
-    }
-  });
-  // arco/segredo revelado (parede escura com abertura)
-  TEX.arch=mkTex(set=>{ for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){ set(x,y,abgr(18,16,22)); } });
-  // chão — lajotas de pedra limpas (2 por célula) com rejunte
-  TEX.floor=mkTex(set=>{
-    for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){
-      const t=32,gx=Math.floor(x/t),gy=Math.floor(y/t),chk=(gx+gy)&1,inX=x%t,inY=y%t;
-      const grout=inX<2||inY<2;
+      const gx=Math.floor(x/t),gy=Math.floor(y/t),chk=(gx+gy)&1,inX=x%t,inY=y%t,grout=inX<2||inY<2;
       let base;
-      if(grout)base=20; else{ base=48+(chk?10:0)+hash2(gx*5+1,gy*7+2)*14; base+=(inY<4?6:inY>t-4?-6:0); }
-      set(x,y,abgr(clamp(base*0.9|0,0,255),clamp(base*0.9|0,0,255),clamp(base*0.8|0,0,255)));
+      if(grout)base=P.fBase*0.4; else{ base=P.fBase+(chk?10:0)+hash2(gx*5+1,gy*7+2)*14; base+=(inY<4?6:inY>t-4?-6:0); }
+      let r=base*P.fTint[0],g=base*P.fTint[1],b=base*P.fTint[2];
+      if(P.emberF && !grout && hash2(x*7,y*11)<P.emberF){ r=200;g=90;b=30; }
+      if(P.key==='inundada' && !grout && hash2(gx*3,gy*3)<0.5){ b*=1.15; g*=1.05; } // poças
+      set(x,y,abgr(clamp(r|0,0,255),clamp(g|0,0,255),clamp(b|0,0,255)));
     }
   });
-  // teto — pedra bem escura
-  TEX.ceil=mkTex(set=>{
+  T.ceil=mkTex(set=>{ const bH=16;
     for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){
-      const bH=16, row=Math.floor(y/bH), off=(row%2)?16:0, bx=x+off, inX=bx%32, inY=y%bH, mortar=inX<2||inY<2;
-      let base=mortar?12:(30+hash2(row*3,Math.floor(bx/32)*5)*10);
-      set(x,y,abgr(clamp(base*0.82|0,0,255),clamp(base*0.86|0,0,255),clamp(base|0,0,255)));
+      const row=Math.floor(y/bH), off=(row%2)?16:0, bx=x+off, inX=bx%32, inY=y%bH, mortar=inX<2||inY<2;
+      let base=mortar?P.cBase*0.4:(P.cBase+hash2(row*3,Math.floor(bx/32)*5)*10);
+      set(x,y,rgb(base,P.cTint));
     }
   });
-  // baú (marcador na parede não usado; chests via evento)
+  T.arch=mkTex(set=>{ for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){ set(x,y,rgb(14,P.cTint)); } });
+  T.door=buildDoor(P.door,P);
+  T.accent=P.accent;
+  return T;
 }
+function buildDoor(style,P){ return mkTex(set=>{
+  for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){
+    let r,g,b; const frame=x<7||x>=57||y<4||y>=60;
+    if(frame){ const m=44+hash2(Math.floor(x/8),Math.floor(y/8))*20; r=m*0.9;g=m*0.88;b=m*0.82; }
+    else{
+      const px2=x-7, plank=Math.floor(px2/12.5), edge=(px2%12.5)<1.4;
+      let base=78+plank*4+Math.sin(y*0.5+plank*2)*5+hash2(plank*3,Math.floor(y/6))*10;
+      if(edge)base*=0.55;
+      if(style==='wood'){ r=base;g=base*0.6;b=base*0.3; }
+      else if(style==='iron'){ r=base*0.7;g=base*0.72;b=base*0.8; if(hash2(plank,Math.floor(y/8))<0.2){r*=1.2;g*=1.2;b*=1.2;} }
+      else if(style==='bone'){ r=base*1.15;g=base*1.1;b=base*0.92; }
+      else if(style==='ice'){ r=base*0.8;g=base*0.95;b=base*1.2; }
+      else if(style==='gold'){ r=base*1.25;g=base*1.0;b=base*0.45; if(edge){r=base*0.8;g=base*0.6;b=base*0.25;} }
+      else if(style==='obsidian'){ r=base*0.55;g=base*0.5;b=base*0.7; }
+      else if(style==='vine'){ r=base*0.6;g=base*0.85;b=base*0.4; if(hash2(x,y)<0.06){r=40;g=120;b=40;} }
+      else { r=base;g=base*0.6;b=base*0.3; }
+      if(y>14&&y<19||y>44&&y<49){ r=r*0.6+70*0.4;g=g*0.6+72*0.4;b=b*0.6+80*0.4; if((x%10<2)){r=150;g=150;b=160;} }
+    }
+    set(x,y,abgr(clamp(r|0,0,255),clamp(g|0,0,255),clamp(b|0,0,255)));
+  }
+}); }
+function setTheme(depth){ const i=themeIdx(depth); if(!_themeCache[i])_themeCache[i]=buildThemeTex(THEMES[i]); TEX=_themeCache[i]; }
+function buildTextures(){ setTheme(1); }
 
 /* ================= RAYCASTER ================= */
 const RC={cv:null,ctx:null,RW:360,RH:230,img:null,buf:null,zbuf:null};
@@ -291,7 +322,7 @@ function genFloor(depth){
   // escada de subida no spawn-ish (se não andar 1)
   if(depth>1){ const up=cells.find(c=>grid[c[1]][c[0]]==='.'&&c[0]!==spawn[0]); }
   return {
-    w:W,h:H,grid, name: isBoss?('SANTUÁRIO — Andar '+depth):('Cripta — Andar '+depth),
+    w:W,h:H,grid, name: themeOf(depth).name+' — Andar '+depth,
     spawn:{x:spawn[0]+0.5,y:spawn[1]+0.5,dir:spawnDir},
     doorsOpen:new Set(), secretsRevealed:new Set(), looted:new Set(), triggered:new Set(), rested:new Set(),
     isBoss, depth,
@@ -922,6 +953,7 @@ function addLoot(drops){ drops.forEach(d=>addItem(d.id)); }
 /* ================= EXPLORAÇÃO ================= */
 function enterFloor(depth,fromUp){
   G.depth=depth; G.floor=depth; if(depth>G.maxFloor)G.maxFloor=depth;
+  setTheme(depth);
   G.dun = G.scenes[depth] || (G.scenes[depth]=genFloor(depth));
   const sp=G.dun.spawn; G.px=sp.x; G.py=sp.y; G.tx=sp.x; G.ty=sp.y; G.dir=sp.dir; G.ang=dirAng(G.dir); G.tang=G.ang;
   markExplored();
@@ -1605,7 +1637,7 @@ function clearSave(){ try{localStorage.removeItem(SAVEKEY);}catch(e){} }
 function loadGame(){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY)); if(!s)return false;
   G.gp=s.gp;G.depth=s.depth;G.floor=s.depth;G.maxFloor=s.maxFloor||s.depth;G.inv=s.inv||{};G.steps=s.steps||0;G.kills=s.kills||0;
   G.party=s.party.map(p=>{ const c=mkChar(p.id); Object.assign(c,{lv:p.lv,xp:p.xp,xpNext:p.xpNext,mhp:p.mhp,hp:p.hp,mmp:p.mmp,mp:p.mp,str:p.str,mag:p.mag,def:p.def,res:p.res,agi:p.agi,luck:p.luck,row:p.row}); return c; });
-  if(s.scene){ G.dun=loadScene(s.scene); G.scenes[s.depth]=G.dun; G.px=s.px;G.py=s.py;G.dir=s.dir;G.ang=dirAng(G.dir);G.tang=G.ang; }
+  if(s.scene){ setTheme(s.depth); G.dun=loadScene(s.scene); G.scenes[s.depth]=G.dun; G.px=s.px;G.py=s.py;G.dir=s.dir;G.ang=dirAng(G.dir);G.tang=G.ang; }
   else enterFloor(s.depth);
   return true;
 }catch(e){ return false; } }
