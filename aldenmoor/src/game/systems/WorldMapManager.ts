@@ -1,7 +1,7 @@
 // WorldMapManager — grafo de estradas + pathfinding A* entre locais.
 // Converte os dados do mundo (locais % + estradas) em um grafo navegável.
 
-import type { WorldData, WorldLocation } from "../types";
+import type { Continent, WorldData, WorldLocation } from "../types";
 import { pctToWorld, TERRAIN_COST } from "../config";
 
 interface Edge {
@@ -19,12 +19,16 @@ export class WorldMapManager {
   private locById = new Map<string, WorldLocation>();
   private posById = new Map<string, WorldPoint>();
   private adj = new Map<string, Edge[]>();
+  private contById = new Map<string, Continent>();
+  private defaultContId: string;
 
   constructor(world: WorldData) {
     this.world = world;
+    for (const c of world.continents) this.contById.set(c.id, c);
+    this.defaultContId = world.continents[0].id;
     for (const loc of world.locations) {
       this.locById.set(loc.id, loc);
-      this.posById.set(loc.id, pctToWorld(loc.x, loc.y));
+      this.posById.set(loc.id, this.contWorld(loc.continent, loc.x, loc.y));
       this.adj.set(loc.id, []);
     }
     for (const road of world.roads) {
@@ -35,6 +39,12 @@ export class WorldMapManager {
       this.adj.get(road.a)!.push({ to: road.b, cost });
       this.adj.get(road.b)!.push({ to: road.a, cost });
     }
+  }
+
+  /** Converte um ponto LOCAL (0..100) de um continente para px do mundo. */
+  contWorld(contId: string | undefined, lx: number, ly: number): WorldPoint {
+    const c = this.contById.get(contId ?? this.defaultContId)!;
+    return pctToWorld(c.ox + (lx / 100) * c.w, c.oy + (ly / 100) * c.h);
   }
 
   location(id: string): WorldLocation {

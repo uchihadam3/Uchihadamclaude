@@ -145,33 +145,35 @@ export class WorldMapScene extends Phaser.Scene {
     }
     world.add(hatch);
 
-    // polígono do continente
-    const pts = COAST.map(([xp, yp]) => pctToWorld(xp, yp));
-
-    // pergaminho recortado na terra (máscara geométrica)
-    const parchment = this.add.image(0, 0, "parchment").setOrigin(0);
+    // pergaminho esticado no mundo, recortado na UNIÃO de todos os continentes
+    const parchment = this.add
+      .image(0, 0, "parchment")
+      .setOrigin(0)
+      .setDisplaySize(WORLD_W, WORLD_H);
     const maskG = this.make.graphics({ x: 0, y: 0 });
     maskG.fillStyle(0xffffff);
-    maskG.beginPath();
-    maskG.moveTo(pts[0].x, pts[0].y);
-    pts.forEach((p) => maskG.lineTo(p.x, p.y));
-    maskG.closePath();
-    maskG.fillPath();
+    const coast = this.add.graphics();
+    for (const c of WORLD.continents) {
+      const pts = c.coast.map(([lx, ly]) => this.mgr.contWorld(c.id, lx, ly));
+      maskG.beginPath();
+      maskG.moveTo(pts[0].x, pts[0].y);
+      pts.forEach((p) => maskG.lineTo(p.x, p.y));
+      maskG.closePath();
+      maskG.fillPath();
+      // litoral (linha dupla estilo carta antiga)
+      const drawClosed = (w: number, color: number, alpha: number) => {
+        coast.lineStyle(w, color, alpha);
+        coast.beginPath();
+        coast.moveTo(pts[0].x, pts[0].y);
+        pts.forEach((p) => coast.lineTo(p.x, p.y));
+        coast.closePath();
+        coast.strokePath();
+      };
+      drawClosed(6, INK, 0.9);
+      drawClosed(2, INK_SOFT, 0.7);
+    }
     parchment.setMask(maskG.createGeometryMask());
     world.add(parchment);
-
-    // litoral (linha dupla estilo carta antiga)
-    const coast = this.add.graphics();
-    const drawClosed = (w: number, color: number, alpha: number) => {
-      coast.lineStyle(w, color, alpha);
-      coast.beginPath();
-      coast.moveTo(pts[0].x, pts[0].y);
-      pts.forEach((p) => coast.lineTo(p.x, p.y));
-      coast.closePath();
-      coast.strokePath();
-    };
-    drawClosed(6, INK, 0.9);
-    drawClosed(2, INK_SOFT, 0.7);
     world.add(coast);
   }
 
@@ -179,7 +181,8 @@ export class WorldMapScene extends Phaser.Scene {
     const map = new Map<string, { x: number; y: number; r: number }>();
     for (const reg of WORLD.regions) {
       const locs = WORLD.locations.filter((l) => l.region === reg.id);
-      const pos = locs.map((l) => pctToWorld(l.x, l.y));
+      if (!locs.length) continue;
+      const pos = locs.map((l) => this.mgr.pos(l.id));
       const cx = pos.reduce((s, p) => s + p.x, 0) / pos.length;
       const cy = pos.reduce((s, p) => s + p.y, 0) / pos.length;
       const r =
@@ -192,22 +195,18 @@ export class WorldMapScene extends Phaser.Scene {
   private drawRegions(world: Phaser.GameObjects.Container) {
     const centers = this.regionCenters();
     for (const reg of WORLD.regions) {
-      const c = centers.get(reg.id)!;
-      // tom suave da região
-      const g = this.add.graphics();
-      g.fillStyle(reg.color, 0.13);
-      g.fillCircle(c.x, c.y, c.r * 0.9);
-      world.add(g);
-      // rótulo da região
+      const c = centers.get(reg.id);
+      if (!c) continue;
+      // só o rótulo da região (sem disco de cor)
       const label = this.add
-        .text(c.x, c.y - c.r * 0.55, reg.name.toUpperCase(), {
+        .text(c.x, c.y - c.r * 0.5, reg.name.toUpperCase(), {
           fontFamily: "Georgia, serif",
-          fontSize: "34px",
+          fontSize: "46px",
           color: "#4a3420",
           fontStyle: "italic bold",
         })
         .setOrigin(0.5)
-        .setAlpha(0.42);
+        .setAlpha(0.4);
       world.add(label);
     }
   }
@@ -216,7 +215,8 @@ export class WorldMapScene extends Phaser.Scene {
     const centers = this.regionCenters();
     const g = this.add.graphics();
     for (const reg of WORLD.regions) {
-      const c = centers.get(reg.id)!;
+      const c = centers.get(reg.id);
+      if (!c) continue;
       const rand = rng(
         reg.id.split("").reduce((s, ch) => s + ch.charCodeAt(0), 0),
       );
@@ -227,21 +227,16 @@ export class WorldMapScene extends Phaser.Scene {
         const x = c.x + Math.cos(ang) * rad;
         const y = c.y + Math.sin(ang) * rad * 0.85;
         const s = 0.8 + rand() * 0.6;
-        switch (reg.id) {
-          case "picos":
-            this.glyphMountain(g, x, y, s);
-            break;
-          case "floresta":
-            this.glyphTree(g, x, y, s);
-            break;
-          case "ermo":
-            this.glyphDune(g, x, y, s);
-            break;
-          case "costa":
-            this.glyphWave(g, x, y, s);
-            break;
-          default:
-            this.glyphGrass(g, x, y, s);
+        if (reg.id === "picos" || reg.id === "n_tundra") {
+          this.glyphMountain(g, x, y, s);
+        } else if (reg.id === "floresta" || reg.id === "s_jungle") {
+          this.glyphTree(g, x, y, s);
+        } else if (reg.id === "ermo" || reg.id === "s_ash") {
+          this.glyphDune(g, x, y, s);
+        } else if (reg.id === "costa" || reg.id === "n_fjord") {
+          this.glyphWave(g, x, y, s);
+        } else {
+          this.glyphGrass(g, x, y, s);
         }
       }
     }
@@ -296,21 +291,27 @@ export class WorldMapScene extends Phaser.Scene {
   }
 
   private drawRivers(world: Phaser.GameObjects.Container) {
-    const riverPct: [number, number][] = [
-      [63, 15], [58, 24], [53, 34], [47, 44], [41, 53], [35, 60], [30, 65],
-    ];
-    const pts = riverPct.map(([xp, yp]) => pctToWorld(xp, yp));
+    // rios por continente (coords locais 0..100)
+    const rivers: Record<string, [number, number][]> = {
+      aldenmoor: [
+        [63, 15], [58, 24], [53, 34], [47, 44], [41, 53], [35, 60], [30, 65],
+      ],
+      norvik: [[50, 12], [54, 30], [46, 48], [40, 66], [30, 80]],
+      selara: [[40, 14], [48, 32], [58, 48], [64, 66], [58, 82]],
+    };
     const g = this.add.graphics();
-    g.lineStyle(7, 0x6f97a6, 0.85);
-    g.beginPath();
-    g.moveTo(pts[0].x, pts[0].y);
-    pts.forEach((p) => g.lineTo(p.x, p.y));
-    g.strokePath();
-    g.lineStyle(2.5, 0xbfe0e6, 0.5);
-    g.beginPath();
-    g.moveTo(pts[0].x, pts[0].y);
-    pts.forEach((p) => g.lineTo(p.x, p.y));
-    g.strokePath();
+    for (const [contId, riverPct] of Object.entries(rivers)) {
+      const pts = riverPct.map(([lx, ly]) => this.mgr.contWorld(contId, lx, ly));
+      const stroke = (w: number, color: number, a: number) => {
+        g.lineStyle(w, color, a);
+        g.beginPath();
+        g.moveTo(pts[0].x, pts[0].y);
+        pts.forEach((p) => g.lineTo(p.x, p.y));
+        g.strokePath();
+      };
+      stroke(7, 0x6f97a6, 0.85);
+      stroke(2.5, 0xbfe0e6, 0.5);
+    }
     world.add(g);
   }
 

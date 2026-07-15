@@ -10,6 +10,17 @@ export const RegionSchema = z.object({
   climate: z.string(),
   difficulty: z.number().int().min(1).max(5),
   color: z.number().int(),
+  continent: z.string().optional(),
+});
+
+export const ContinentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  ox: z.number(),
+  oy: z.number(),
+  w: z.number(),
+  h: z.number(),
+  coast: z.array(z.tuple([z.number(), z.number()])).min(3),
 });
 
 export const LocationTypeSchema = z.enum([
@@ -35,6 +46,7 @@ export const WorldLocationSchema = z.object({
   level: z.number().int().min(1),
   desc: z.string(),
   content: z.array(z.string()),
+  continent: z.string().optional(),
 });
 
 export const RoadSchema = z.object({
@@ -46,6 +58,7 @@ export const RoadSchema = z.object({
 export const WorldDataSchema = z.object({
   name: z.string(),
   subtitle: z.string(),
+  continents: z.array(ContinentSchema).min(1),
   regions: z.array(RegionSchema).min(1),
   locations: z.array(WorldLocationSchema).min(1),
   roads: z.array(RoadSchema),
@@ -60,11 +73,17 @@ export function validateWorld(raw: unknown) {
 
   const regionIds = new Set(world.regions.map((r) => r.id));
   const locationIds = new Set(world.locations.map((l) => l.id));
+  const contIds = new Set(world.continents.map((c) => c.id));
 
   for (const loc of world.locations) {
     if (!regionIds.has(loc.region)) {
       throw new Error(
         `Local "${loc.id}" referencia região inexistente "${loc.region}".`,
+      );
+    }
+    if (loc.continent && !contIds.has(loc.continent)) {
+      throw new Error(
+        `Local "${loc.id}" referencia continente inexistente "${loc.continent}".`,
       );
     }
   }
