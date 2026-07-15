@@ -145,6 +145,24 @@
     font-size:14px;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
   .mitem:active{transform:scale(.99);} .mitem:hover{border-color:var(--acc);}
   .mitem .sub{font-size:11px;color:var(--dim);letter-spacing:0;}
+  /* ---- tela de equipamento (Parte 7) ---- */
+  .eqHead{color:var(--acc);letter-spacing:2px;font-size:13px;margin-bottom:10px;text-align:center;}
+  .eqTabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;justify-content:center;}
+  .eqTab{background:#161309;border:1.5px solid #332c19;color:#c9c1a8;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;letter-spacing:.5px;}
+  .eqTab.on{border-color:var(--acc);color:var(--acc);background:#20180a;}
+  .eqRow{display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#161309,#0d0b06);border:1.5px solid #2a2416;border-radius:6px 6px 0 0;padding:9px 12px;border-bottom:none;}
+  .eqRl{font-size:12px;color:#9a8f6e;min-width:104px;letter-spacing:.5px;}
+  .eqIt{flex:1;font-size:13px;font-weight:bold;}
+  .eqIt.empty{color:#5a5340;font-weight:normal;font-style:italic;}
+  .eqAct{display:flex;gap:6px;}
+  .eqB{background:#20180a;border:1px solid #3a3018;color:#c9c1a8;border-radius:5px;padding:5px 9px;font-size:11px;cursor:pointer;}
+  .eqB.pri{border-color:var(--acc);color:var(--acc);} .eqB:hover{border-color:var(--acc);}
+  .eqRowStats{font-size:11px;color:#8fa87a;background:#0b0a06;border:1.5px solid #2a2416;border-top:none;border-radius:0 0 6px 6px;padding:6px 12px 8px;margin-bottom:9px;letter-spacing:.3px;}
+  .eqTotals{font-size:12px;color:#cdbf94;background:#100d07;border:1px solid #332c19;border-radius:6px;padding:9px 12px;margin:4px 0 8px;line-height:1.7;}
+  .eqTotals b{color:#fff0c4;}
+  .eqSets{font-size:11px;line-height:1.6;background:#0d0b06;border:1px dashed #4a3f22;border-radius:6px;padding:8px 12px;margin-bottom:8px;}
+  .eqPick .sub{color:#8f9a7a;}
+  .eqEmptyMsg{color:#7a7358;font-size:12px;padding:14px;text-align:center;font-style:italic;}
 
   /* ============ COMBATE ============ */
   #battle{position:absolute;inset:0;z-index:30;display:none;flex-direction:column;

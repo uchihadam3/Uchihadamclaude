@@ -406,7 +406,7 @@ function rcSprites(px,py,ang){
 
 /* ================= ESTADO / MASMORRA ================= */
 const G={
-  gp:0, floor:1, maxFloor:1, party:[], inv:{}, flags:{},
+  gp:0, floor:1, maxFloor:1, party:[], inv:{}, equipInv:[], flags:{},
   dun:null, // floor atual
   px:1.5,py:1.5,dir:0, // pos jogador (centro célula)
   ang:0, tang:0, tx:1.5,ty:1.5, moving:false,
@@ -554,12 +554,16 @@ function mkChar(cls){
       hp:120,mp:110,str:10,mag:28,def:11,res:24,agi:11,luck:12,
       skills:['cura','luz_sagrada','antidoto','cura_maior','bencao','reviver','trevas'], res_aff:{holy:0.4,dark:0.7}, pal:'sage'},
   }[cls];
-  return {
+  const c={
     id:cls, side:'party', ...base,
     lv:1, xp:0, xpNext:24,
     mhp:base.hp, hp:base.hp, mmp:base.mp, mp:base.mp,
     status:{}, resolve:2, alive:true, guardF:false,
+    equip:{weapon:null,armor:null,accessory:null},
+    baseStats:{mhp:base.hp,mmp:base.mp,str:base.str,mag:base.mag,def:base.def,res:base.res,agi:base.agi,luck:base.luck},
   };
+  recalcStats(c);
+  return c;
 }
 function knownSkills(c){ return c.skills.filter(id=>{ const s=SKILLS[id]; return !s.learn||c.lv>=s.learn; }); }
 
@@ -935,8 +939,8 @@ function applyHit(src,tgt,o){
   dmg*=mult; dmg*=elemAmp(o.type);                // presságios elementais
   if(src.side==='enemy'&&has_c('escuridao'))dmg*=1.25;
   // crítico
-  let crit=false; const critC=(o.crit||0.06)+(src.status.critUp?0.25:0)+(src.luck||0)/300+(has_c('sangue')?0.15:0);
-  if(mult>0&&chance(critC)){crit=true;dmg*=1.85;}
+  let crit=false; const critC=(o.crit||0.06)+(src.status.critUp?0.25:0)+(src.luck||0)/300+(has_c('sangue')?0.15:0)+(src.critBonus||0);
+  if(mult>0&&chance(critC)){crit=true;dmg*=1.85+(src.critDmg||0);}
   // acerto/erro (cego / névoa / escuridão)
   let missC=(src.status.blind?0.4:0); if(has_c('nevoa'))missC+=0.16; if(has_c('escuridao')&&src.side==='party')missC+=0.1;
   if(mult>0&&missC>0&&chance(missC)){ popup(tgt,'ERROU','miss'); SFX.miss(); return; }
@@ -1069,7 +1073,16 @@ async function winBattle(){
   if(b.secretBoss){ gold+=400+G.depth*80; xp=Math.round(xp*1.3); drops.push(rollDrop({boss:1}),rollDrop({boss:1})); }
   else if(b.elitePack){ gold+=120+G.depth*30; drops.push(rollDrop({boss:1})); }
   G.gp+=gold; addLoot(drops);
+  // equipamento (Parte 7): chefes/superchefes/elites soltam gear; inimigos comuns raramente
+  const eqDrops=[]; const anyElite=b.enemies.some(e=>e.elite);
+  if(b.secretBoss){ eqDrops.push(genEquip(G.depth,{lootTier:5}), genEquip(G.depth,{lootTier:5,rarity:'lendario'})); }
+  else if(b.boss){ eqDrops.push(genEquip(G.depth,{lootTier:4})); if(chance(0.6))eqDrops.push(genEquip(G.depth,{lootTier:4})); }
+  else if(b.elitePack){ eqDrops.push(genEquip(G.depth,{lootTier:3})); }
+  else if(anyElite){ if(chance(0.5))eqDrops.push(genEquip(G.depth,{lootTier:2})); }
+  else if(chance(0.14)){ eqDrops.push(genEquip(G.depth,{lootTier:1})); }
+  eqDrops.forEach(dropEquip); b._eqDrops=eqDrops;
   blog(`Vitória! +${xp} XP · +${gold} GP`);
+  if(eqDrops.length)blog('⚔ Equipamento na bolsa: '+eqDrops.map(e=>e.dispName).join(', '));
   await wait(600);
   const lvs=[]; G.party.forEach(c=>{ if(c.alive){ if(gainXP(c,xp))lvs.push(c.name); } });
   renderBparty();
@@ -1077,6 +1090,7 @@ async function winBattle(){
   $('#battle').classList.remove('on');
   G.state='explore'; musicStart('explore');
   let m=`⚔ Vitória!  +${xp} XP · +${gold} GP`; if(drops.length)m+=`  ·  ${drops.map(d=>d.name).join(', ')}`;
+  if(b._eqDrops&&b._eqDrops.length)m+=`\n⚔ ${b._eqDrops.map(e=>e.dispName+' ['+RARITY[e.rarity].name+']').join(' · ')}  — equipe no Acampamento`;
   if(lvs.length)m+=`\n★ Subiu de nível: ${lvs.join(', ')}!`, SFX.lvup();
   toast(m,2600);
   if(b.wasBoss){ onBossDefeated(); }
@@ -1087,9 +1101,11 @@ function loseBattle(){ musicStop(); G.state='dead'; $('#battle').classList.remov
 
 function gainXP(c,xp){ c.xp+=xp; let up=false;
   while(c.xp>=c.xpNext){ c.xp-=c.xpNext; c.lv++; up=true;
-    c.mhp+=Math.round(rnd(10,16)+ (c.cls==='Cavaleira'?6:0)); c.mmp+=Math.round(rnd(3,8)+ (c.mag>20?4:0));
-    c.str+=rnd(0.6,2.2); c.mag+=rnd(0.6,2.4); c.def+=rnd(0.5,1.6); c.res+=rnd(0.5,1.6); c.agi+=rnd(0.3,1.2); c.luck+=rnd(0.2,1);
-    ['str','mag','def','res','agi','luck'].forEach(k=>c[k]=Math.round(c[k]));
+    const bs=c.baseStats||(c.baseStats={mhp:c.mhp,mmp:c.mmp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck});
+    bs.mhp+=Math.round(rnd(10,16)+ (c.cls==='Cavaleira'?6:0)); bs.mmp+=Math.round(rnd(3,8)+ (c.mag>20?4:0));
+    bs.str+=rnd(0.6,2.2); bs.mag+=rnd(0.6,2.4); bs.def+=rnd(0.5,1.6); bs.res+=rnd(0.5,1.6); bs.agi+=rnd(0.3,1.2); bs.luck+=rnd(0.2,1);
+    ['str','mag','def','res','agi','luck'].forEach(k=>bs[k]=Math.round(bs[k]));
+    recalcStats(c);
     c.hp=c.mhp; c.mp=c.mmp; c.xpNext=Math.round(c.xpNext*1.35+10);
   }
   return up;
@@ -1109,6 +1125,172 @@ const ITEMS={
   chave:{name:'Chave Enferrujada',use:'none',cat:'other',icon:'chave',desc:'Abre alguma fechadura.'},
 };
 function addItem(id,n){ G.inv[id]=(G.inv[id]||0)+(n||1); }
+
+/* ================= EQUIPAMENTO (Parte 7) ================= */
+const RARITY = {
+  comum:    {name:'Comum',    idx:0, col:'#9aa4b0', affixes:0, mult:1.00, glow:0.00},
+  incomum:  {name:'Incomum',  idx:1, col:'#5ec86a', affixes:1, mult:1.16, glow:0.18},
+  raro:     {name:'Raro',     idx:2, col:'#4aa3ff', affixes:2, mult:1.36, glow:0.32},
+  epico:    {name:'Épico',    idx:3, col:'#b06bff', affixes:3, mult:1.60, glow:0.46},
+  lendario: {name:'Lendário', idx:4, col:'#ffb43a', affixes:4, mult:1.92, glow:0.64},
+  reliquia: {name:'Relíquia', idx:5, col:'#ff5a4a', affixes:5, mult:2.42, glow:0.9 },
+};
+const RARITY_ORDER=['comum','incomum','raro','epico','lendario','reliquia'];
+const STAT_LABEL={mhp:'HP',mmp:'MP',str:'FOR',mag:'MAG',def:'DEF',res:'RES',agi:'AGI',luck:'SOR',crit:'CRÍT',critDmg:'DANO CRÍT'};
+function statFmt(k,v){ if(k==='crit')return '+'+Math.round(v*100)+'% Crít';
+  if(k==='critDmg')return '+'+Math.round(v*100)+'% Dano Crít'; return '+'+v+' '+STAT_LABEL[k]; }
+// perfis base por slot/afinidade (phys=usa FOR, mag=usa MAG, any=todos). stats escalam com ilvl.
+const EQ_BASE = {
+  weapon: [
+    {tid:'espada',  name:'Espada',   icon:'sword',    aff:'phys', stats:{str:3}},
+    {tid:'katana',  name:'Katana',   icon:'katana',   aff:'phys', stats:{str:2.4,agi:1,crit:0.02}},
+    {tid:'machado', name:'Machado',  icon:'axe',      aff:'phys', stats:{str:3.6,crit:0.01}},
+    {tid:'lanca',   name:'Lança',    icon:'spear',    aff:'phys', stats:{str:2.6,agi:1.4}},
+    {tid:'cajado',  name:'Cajado',   icon:'staff',    aff:'mag',  stats:{mag:3,mmp:6}},
+    {tid:'grimorio',name:'Grimório', icon:'grimoire', aff:'mag',  stats:{mag:3.6,res:1}},
+    {tid:'cetro',   name:'Cetro',    icon:'scepter',  aff:'mag',  stats:{mag:2.6,mmp:10}},
+  ],
+  armor: [
+    {tid:'placa', name:'Armadura de Placas', icon:'plate',   aff:'phys', stats:{def:3,mhp:14}},
+    {tid:'cota',  name:'Cota de Malha',      icon:'plate',   aff:'phys', stats:{def:2.4,mhp:10,res:1}},
+    {tid:'couro', name:'Armadura de Couro',  icon:'leather', aff:'any',  stats:{def:1.8,agi:1,mhp:8}},
+    {tid:'tunica',name:'Túnica Arcana',      icon:'robe',    aff:'mag',  stats:{res:3,mmp:8,mag:1}},
+    {tid:'manto', name:'Manto de Seda',      icon:'robe',    aff:'mag',  stats:{res:2.2,mmp:12}},
+  ],
+  accessory: [
+    {tid:'anel',   name:'Anel',    icon:'ring',     aff:'any', stats:{luck:2,crit:0.015}},
+    {tid:'amuleto',name:'Amuleto', icon:'amulet',   aff:'any', stats:{mhp:12,res:1}},
+    {tid:'elmo',   name:'Elmo',    icon:'helm',     aff:'any', stats:{def:2,mhp:8}},
+    {tid:'botas',  name:'Botas',   icon:'boots',    aff:'any', stats:{agi:2.4}},
+    {tid:'capa',   name:'Capa',    icon:'cloak',    aff:'any', stats:{res:2,agi:1}},
+    {tid:'manopla',name:'Manopla', icon:'gauntlet', aff:'any', stats:{str:2,mag:2}},
+    {tid:'cinto',  name:'Cinto',   icon:'belt',     aff:'any', stats:{mhp:10,str:1,mag:1}},
+  ],
+};
+// afixos (prefixo/sufixo). per=stat escalado por ilvl · pct=percentual fixo · crit/critDmg fixos. tier=raridade mínima.
+const EQ_AFFIXES=[
+  {k:'urso',   kind:'pre', name:'do Urso',      per:{str:1.4}, tier:0},
+  {k:'aguia',  kind:'pre', name:'da Águia',     per:{agi:1.2}, tier:0},
+  {k:'sabio',  kind:'pre', name:'do Sábio',     per:{mag:1.4}, tier:0},
+  {k:'gigante',kind:'pre', name:'do Gigante',   per:{mhp:9},   tier:0},
+  {k:'fort',   kind:'pre', name:'da Fortaleza', per:{def:1.3}, tier:0},
+  {k:'mago',   kind:'pre', name:'do Mago',      per:{mmp:8},   tier:0},
+  {k:'guard',  kind:'pre', name:'do Guardião',  per:{res:1.3}, tier:0},
+  {k:'sorte',  kind:'suf', name:'da Sorte',     per:{luck:1.6},tier:0},
+  {k:'assas',  kind:'suf', name:'do Assassino', crit:0.03,     tier:1},
+  {k:'cruel',  kind:'suf', name:'Cruel',        critDmg:0.12,  tier:1},
+  {k:'veloz',  kind:'suf', name:'Veloz',        per:{agi:1.5}, tier:1},
+  {k:'vital',  kind:'suf', name:'da Vitalidade',per:{mhp:14},  tier:1},
+  {k:'feroz',  kind:'pre', name:'Feroz',        pct:{str:0.06},tier:2},
+  {k:'arcano', kind:'pre', name:'Arcano',       pct:{mag:0.06},tier:2},
+  {k:'colossal',kind:'pre',name:'Colossal',     pct:{mhp:0.08},tier:2},
+  {k:'divino', kind:'suf', name:'Divino',       pct:{str:0.05,mag:0.05}, tier:3},
+  {k:'eterno', kind:'suf', name:'Eterno',       pct:{mhp:0.1,def:0.06},  tier:3},
+  {k:'letal',  kind:'suf', name:'Letal',        crit:0.05, critDmg:0.2,  tier:3},
+];
+// conjuntos (sets) — bônus por peças equipadas
+const SETS = {
+  alvorecer:{ name:'Vigília do Alvorecer', col:'#ffe6a0', aff:'phys',
+    pieces:{weapon:'Lâmina do Alvorecer', armor:'Égide do Alvorecer', accessory:'Coroa do Alvorecer'},
+    bonuses:[ {need:2, stats:{def:12,res:8}, label:'+12 DEF · +8 RES'},
+              {need:3, pct:{mhp:0.12}, crit:0.06, label:'+12% HP · +6% Crít'} ] },
+  carmesim:{ name:'Fúria Carmesim', col:'#ff7a6a', aff:'phys',
+    pieces:{weapon:'Presa Carmesim', armor:'Placa Carmesim', accessory:'Sinete Carmesim'},
+    bonuses:[ {need:2, stats:{str:14}, crit:0.05, label:'+14 FOR · +5% Crít'},
+              {need:3, pct:{str:0.1}, critDmg:0.35, label:'+10% FOR · +35% Dano Crít'} ] },
+  arcano:{ name:'Véu do Arcano', col:'#b090ff', aff:'mag',
+    pieces:{weapon:'Bordão do Véu', armor:'Vestes do Véu', accessory:'Olho do Véu'},
+    bonuses:[ {need:2, stats:{mag:14,mmp:20}, label:'+14 MAG · +20 MP'},
+              {need:3, pct:{mag:0.12}, stats:{mmp:30}, label:'+12% MAG · +30 MP'} ] },
+  cacador:{ name:'Passos do Caçador', col:'#8ce0a0', aff:'any',
+    pieces:{weapon:'Garra do Caçador', armor:'Peliça do Caçador', accessory:'Amuleto do Caçador'},
+    bonuses:[ {need:2, stats:{agi:12,luck:8}, label:'+12 AGI · +8 SOR'},
+              {need:3, crit:0.08, pct:{agi:0.1}, label:'+8% Crít · +10% AGI'} ] },
+  eterno:{ name:'Ossos do Guardião Eterno', col:'#ff9a6a', aff:'any',
+    pieces:{weapon:'Cetro Eterno', armor:'Sudário Eterno', accessory:'Selo Eterno'},
+    bonuses:[ {need:2, stats:{str:12,mag:12,def:10}, label:'+12 FOR/MAG · +10 DEF'},
+              {need:3, pct:{mhp:0.15,str:0.08,mag:0.08}, crit:0.06, label:'+15% HP · +8% FOR/MAG · +6% Crít'} ] },
+};
+let _uid=1;
+function rollRarity(depth, lootTier){
+  const table={ 0:[70,24,6,0,0,0], 1:[40,34,20,6,0,0], 2:[14,30,34,18,4,0],
+    3:[0,14,32,34,17,3], 4:[0,4,18,34,34,10], 5:[0,0,6,24,44,26] }[clamp(lootTier,0,5)].slice();
+  const shift=Math.floor((depth-1)/2);
+  for(let s=0;s<shift;s++){ for(let r=0;r<5;r++){ const mv=table[r]*0.08; table[r]-=mv; table[r+1]+=mv; } }
+  let tot=table.reduce((a,b)=>a+b,0), roll=Math.random()*tot, acc=0;
+  for(let r=0;r<6;r++){ acc+=table[r]; if(roll<acc) return RARITY_ORDER[r]; }
+  return 'comum';
+}
+function assignSet(item, depth){
+  let cand=Object.keys(SETS).filter(s=> SETS[s].aff==='any'||SETS[s].aff===item.aff );
+  cand=cand.filter(s=> s!=='eterno' || depth>=8 );
+  const sid=pick(cand.length?cand:Object.keys(SETS));
+  item.set=sid; item.dispName=SETS[sid].pieces[item.slot]||item.dispName;
+}
+function itemPower(it){ const w={mhp:0.3,mmp:0.15,str:1,mag:1,def:0.85,res:0.75,agi:0.95,luck:0.6,crit:60,critDmg:25};
+  let p=0; const acc=o=>{ for(const k in o)p+=(o[k]||0)*(w[k]||0.5); };
+  acc(it.stats); (it.affixes||[]).forEach(a=>{ acc(a.stats); for(const k in (a.pct||{}))p+=a.pct[k]*40; });
+  if(it.set)p+=8; p+=RARITY[it.rarity].idx*3; return Math.round(p);
+}
+function genEquip(depth, opts){ opts=opts||{};
+  const slot = opts.slot || pick(['weapon','armor','armor','accessory','accessory']);
+  const rarity = opts.rarity || rollRarity(depth, opts.lootTier!=null?opts.lootTier:1);
+  const R=RARITY[rarity];
+  let pool=EQ_BASE[slot]; if(opts.aff) pool=pool.filter(t=>t.aff===opts.aff||t.aff==='any');
+  const tpl=pick(pool.length?pool:EQ_BASE[slot]);
+  const ilvl=Math.max(1,(opts.ilvl!=null?opts.ilvl:depth)+rint(0,2));
+  const item={ uid:_uid++, tid:tpl.tid, name:tpl.name, dispName:tpl.name, slot, icon:tpl.icon, aff:tpl.aff, rarity, ilvl, stats:{}, affixes:[], set:null };
+  for(const k in tpl.stats){ if(k==='crit'||k==='critDmg') item.stats[k]=Math.round(tpl.stats[k]*(1+R.mult*0.3)*1000)/1000;
+    else item.stats[k]=Math.max(1,Math.round(tpl.stats[k]*ilvl*R.mult)); }
+  const avail=EQ_AFFIXES.filter(a=>a.tier<=R.idx); const used=new Set();
+  for(let i=0;i<R.affixes && avail.length;i++){ let a,tries=0; do{ a=pick(avail); tries++; }while(used.has(a.k)&&tries<14);
+    if(used.has(a.k))break; used.add(a.k);
+    const af={k:a.k,name:a.name,kind:a.kind,stats:{},pct:{}};
+    if(a.per) for(const k in a.per) af.stats[k]=Math.max(1,Math.round(a.per[k]*ilvl*0.7*R.mult));
+    if(a.pct) for(const k in a.pct) af.pct[k]=a.pct[k];
+    if(a.crit) af.stats.crit=(af.stats.crit||0)+a.crit;
+    if(a.critDmg) af.stats.critDmg=(af.stats.critDmg||0)+a.critDmg;
+    item.affixes.push(af);
+  }
+  const pre=item.affixes.find(a=>a.kind==='pre'), suf=item.affixes.find(a=>a.kind==='suf');
+  item.dispName=(pre?pre.name+' ':'')+tpl.name+(suf?' '+suf.name:'');
+  if(R.idx>=4 && chance(R.idx>=5?0.9:0.55)) assignSet(item, depth);
+  item.power=itemPower(item);
+  return item;
+}
+function recalcStats(c){
+  if(!c.baseStats) c.baseStats={mhp:c.mhp,mmp:c.mmp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck};
+  const b=c.baseStats; const add={mhp:0,mmp:0,str:0,mag:0,def:0,res:0,agi:0,luck:0,crit:0,critDmg:0}; const pct={};
+  const eq=c.equip||{};
+  for(const slot of ['weapon','armor','accessory']){ const it=eq[slot]; if(!it)continue;
+    for(const k in it.stats) add[k]=(add[k]||0)+it.stats[k];
+    (it.affixes||[]).forEach(a=>{ for(const k in a.stats)add[k]=(add[k]||0)+a.stats[k]; for(const k in (a.pct||{}))pct[k]=(pct[k]||0)+a.pct[k]; });
+  }
+  const cnt={}; for(const slot of ['weapon','armor','accessory']){ const it=eq[slot]; if(it&&it.set)cnt[it.set]=(cnt[it.set]||0)+1; }
+  c.activeSets=[];
+  for(const sid in cnt){ const S=SETS[sid]; if(!S)continue;
+    S.bonuses.forEach(bp=>{ if(cnt[sid]>=bp.need){ c.activeSets.push({id:sid,name:S.name,need:bp.need,col:S.col,label:bp.label});
+      for(const k in (bp.stats||{}))add[k]=(add[k]||0)+bp.stats[k];
+      for(const k in (bp.pct||{}))pct[k]=(pct[k]||0)+bp.pct[k];
+      if(bp.crit)add.crit=(add.crit||0)+bp.crit; if(bp.critDmg)add.critDmg=(add.critDmg||0)+bp.critDmg; } });
+  }
+  const ap=(base,k)=>Math.round((base+(add[k]||0))*(1+(pct[k]||0)));
+  c.mhp=Math.max(1,ap(b.mhp,'mhp')); c.mmp=Math.max(0,ap(b.mmp,'mmp'));
+  ['str','mag','def','res','agi','luck'].forEach(k=>c[k]=Math.max(0,ap(b[k],k)));
+  c.critBonus=add.crit||0; c.critDmg=add.critDmg||0; c.equipAdd=add; c.equipPct=pct;
+  if(c.hp==null)c.hp=c.mhp; if(c.mp==null)c.mp=c.mmp;
+  c.hp=clamp(c.hp,0,c.mhp); c.mp=clamp(c.mp,0,c.mmp);
+}
+function dropEquip(item){ if(!item)return; G.equipInv=G.equipInv||[]; G.equipInv.push(item); }
+function equipItem(c,item){ if(!item)return null; const slot=item.slot; const prev=c.equip[slot];
+  const i=G.equipInv.indexOf(item); if(i>=0)G.equipInv.splice(i,1);
+  c.equip[slot]=item; if(prev)G.equipInv.push(prev);
+  recalcStats(c); renderHUD(); saveGame(); return prev;
+}
+function unequipSlot(c,slot){ const it=c.equip[slot]; if(!it)return; c.equip[slot]=null; G.equipInv.push(it); recalcStats(c); renderHUD(); saveGame(); }
+function eqStatList(it){ const parts=[]; for(const k in it.stats)parts.push(statFmt(k,it.stats[k]));
+  (it.affixes||[]).forEach(a=>{ for(const k in a.stats)parts.push(statFmt(k,a.stats[k])); for(const k in (a.pct||{}))parts.push('+'+Math.round(a.pct[k]*100)+'% '+STAT_LABEL[k]); });
+  return parts; }
 function openItems(c){
   const s=$('#bsub'); s.classList.add('on');
   let html=`<div class="subhead"><span>ITENS</span><span class="back" data-back>‹ voltar</span></div>`;
@@ -1218,7 +1400,8 @@ function openChest(x,y){ G.dun.grid[y][x]='.'; SFX.chest();
   if(roll<0.5){ const g=rint(30,90)+G.depth*15; G.gp+=g; msg='◉ '+g+' GP'; }
   else if(roll<0.85){ const id=pick(['erva','erva','pocao','eter','antidoto','fenix','raiz','bomba']); addItem(id); msg='🜂 '+ITEMS[id].name; }
   else { const g=rint(80,160)+G.depth*20; G.gp+=g; const id=pick(['pocao','fenix']); addItem(id); msg='◉ '+g+' GP + '+ITEMS[id].name; }
-  toast('Baú aberto!  '+msg,1900); renderHUD(); saveGame();
+  if(chance(0.24)){ const e=genEquip(G.depth,{lootTier:1}); dropEquip(e); msg+='\n⚔ '+e.dispName+' ['+RARITY[e.rarity].name+']'; }
+  toast('Baú aberto!  '+msg,2100); renderHUD(); saveGame();
 }
 function fountain(x,y){ G.dun.rested.add(x+','+y); SFX.heal();
   G.party.forEach(c=>{ c.hp=c.mhp; c.mp=c.mmp; if(!c.alive){c.alive=true;c.hp=c.mhp;} c.status={}; });
@@ -1230,9 +1413,11 @@ function openVault(x,y){ G.dun.grid[y][x]='.'; SFX.chest(); if(typeof shakeSecre
   const g=rint(160,320)+G.depth*40; G.gp+=g;
   const items=[]; const n=2+rint(0,1);                       // 2-3 itens premium garantidos
   for(let i=0;i<n;i++){ const id=pick(['pocao','pocao','fenix','eter','bomba','raiz']); addItem(id); items.push(ITEMS[id].name); }
-  // TODO Parte 7: soltar aqui um equipamento raro+ garantido (a melhor recompensa do jogo)
+  // equipamento raro+ garantido — a melhor recompensa de exploração (Parte 7)
+  const e1=genEquip(G.depth,{lootTier:3}); dropEquip(e1); let eqTxt=e1.dispName+' ['+RARITY[e1.rarity].name+']';
+  if(chance(0.5)){ const e2=genEquip(G.depth,{lootTier:3}); dropEquip(e2); eqTxt+=' · '+e2.dispName+' ['+RARITY[e2.rarity].name+']'; }
   SFX.win();
-  toast('❖ CÂMARA DO TESOURO!  ◉ '+g+' GP  ·  '+items.join(', '),3000);
+  toast('❖ CÂMARA DO TESOURO!  ◉ '+g+' GP  ·  '+items.join(', ')+'\n⚔ '+eqTxt+' — equipe no Acampamento',3400);
   renderHUD(); saveGame();
 }
 function startElitePack(){
@@ -1398,6 +1583,17 @@ function drawItemIcon(ctx,type){ ctx.clearRect(0,0,32,32); const R=(x,y,w,h,c)=>
     case 'chave': case 'key': R(4,4,4,4,'#e8c15a');R(5,5,2,2,'#0c0a06');R(8,5,6,2,'#e8c15a');R(12,7,2,2,'#e8c15a');R(10,7,1,2,'#e8c15a');break;
     case 'picareta': R(2,2,12,2,'#9aa0a8');R(2,2,3,3,'#7a8088');R(11,2,3,3,'#7a8088');R(7,3,2,10,'#6a4a28');break;
     case 'pena': for(let i=0;i<10;i++)R(6+Math.floor(i/3),2+i,2,1,'#e8ecf2'); R(5,5,2,1,'#c0c6cc');R(9,8,1,1,'#c0c6cc');break;
+    case 'axe': R(8,2,2,12,'#6a4a28'); R(3,2,6,5,'#c8ccd2');R(3,2,6,2,'#e2e6ec');R(9,3,3,3,'#9aa0a8');break;
+    case 'spear': R(7,4,2,11,'#6a4a28'); for(let i=0;i<4;i++)R(6+ (i<2?0:1),0+i,2,1,'#e2e6ec'); R(6,3,4,2,'#c8ccd2');break;
+    case 'grimoire': R(3,3,10,10,'#4a2a6a');R(3,3,10,2,'#6a3a8a');R(7,3,1,10,'#2a1642');R(6,6,4,4,'#e8c15a');R(7,7,2,2,'#fff0b0');break;
+    case 'scepter': R(7,3,2,12,'#c8a44a');R(6,1,4,4,'#b06bff');R(7,1,2,2,'#e0b0ff');R(6,5,4,1,'#e8c15a');break;
+    case 'ring': R(5,5,6,6,'#00000000'); R(5,6,6,5,'#c8a44a');R(6,7,4,3,'#0c0a06');R(6,4,4,3,'#4aa3ff');R(7,4,2,2,'#a0d0ff');break;
+    case 'amulet': R(7,2,2,4,'#c8a44a'); R(5,5,6,6,'#8a2a2a');R(5,5,6,2,'#c04a4a');R(7,7,2,2,'#ff9a9a');break;
+    case 'helm': R(4,3,8,6,'#8a9098');R(4,3,8,2,'#aab0b8');R(4,9,8,2,'#6a7078');R(6,5,1,3,'#2a2e34');R(9,5,1,3,'#2a2e34');break;
+    case 'boots': R(4,3,3,8,'#7a4a26');R(9,3,3,8,'#7a4a26');R(3,11,5,2,'#5a3418');R(8,11,5,2,'#5a3418');break;
+    case 'cloak': R(5,2,6,3,'#7a2a4a');R(3,4,10,9,'#5a1e38');R(3,4,3,9,'#7a2a4a');R(7,5,2,7,'#3a1024');break;
+    case 'gauntlet': R(5,3,6,7,'#9aa0a8');R(5,3,6,2,'#c0c6cc');R(4,10,2,3,'#7a8088');R(7,10,2,3,'#7a8088');R(10,10,2,3,'#7a8088');break;
+    case 'belt': R(3,6,10,3,'#5a3418');R(3,6,10,1,'#7a4a26');R(6,5,4,5,'#c8a44a');R(7,7,2,2,'#0c0a06');break;
     default: R(5,5,6,6,'#4a4438');R(6,6,4,4,'#6a6250');
   }
 }
@@ -1840,6 +2036,7 @@ function renderCamp(){ const m=$('#campMenu');
   const invTxt=Object.keys(G.inv).filter(id=>G.inv[id]>0).map(id=>ITEMS[id].name+' ×'+G.inv[id]).join(', ')||'vazio';
   m.innerHTML=`
     <div class="mitem" data-c="rest"><span>🔥 Descansar</span><span class="sub">restaura 35% HP/MP · risco de emboscada</span></div>
+    <div class="mitem" data-c="equip"><span>⚔ Equipamento</span><span class="sub">${G.equipInv.length} ${G.equipInv.length===1?'item':'itens'} na bolsa</span></div>
     <div class="mitem" data-c="item"><span>🜂 Usar Item</span><span class="sub">${invTxt}</span></div>
     <div class="mitem" data-c="form"><span>↕ Formação</span><span class="sub">trocar frente/trás</span></div>
     <div class="mitem" data-c="status"><span>📖 Fichas</span><span class="sub">ver atributos e técnicas</span></div>
@@ -1856,6 +2053,43 @@ function campAction(c){
   if(c==='form'){ renderFormation(); return; }
   if(c==='status'){ renderStatus(); return; }
   if(c==='item'){ renderCampItems(); return; }
+  if(c==='equip'){ renderEquip(0); return; }
+}
+/* ---- tela de EQUIPAR (Parte 7 — funcional; visual gamificado na Parte 8) ---- */
+function renderEquip(ci){ ci=ci||0; const m=$('#campMenu'); const c=G.party[ci];
+  const slotName={weapon:'Arma',armor:'Armadura',accessory:'Acessório'};
+  const slotIcon={weapon:'⚔',armor:'🛡',accessory:'💍'};
+  let html=`<div class="eqHead">⚔ EQUIPAMENTO</div>`;
+  html+=`<div class="eqTabs">`+G.party.map((h,i)=>`<button class="eqTab${i===ci?' on':''}" data-ci="${i}">${h.name}</button>`).join('')+`</div>`;
+  ['weapon','armor','accessory'].forEach(slot=>{ const it=c.equip[slot];
+    html+=`<div class="eqRow"><span class="eqRl">${slotIcon[slot]} ${slotName[slot]}</span>`+
+      (it?`<span class="eqIt" style="color:${RARITY[it.rarity].col}">${it.dispName}</span>`
+         :`<span class="eqIt empty">— vazio —</span>`)+
+      `<span class="eqAct">`+(it?`<button class="eqB" data-un="${slot}">retirar</button>`:``)+`<button class="eqB pri" data-eq="${slot}">trocar</button></span></div>`;
+    if(it)html+=`<div class="eqRowStats">${eqStatList(it).join(' · ')||'—'}${it.set?` · <b style="color:${SETS[it.set].col}">✦ ${SETS[it.set].name}</b>`:''}</div>`;
+  });
+  html+=`<div class="eqTotals">HP <b>${c.mhp}</b> · MP <b>${c.mmp}</b> · FOR <b>${c.str}</b> · MAG <b>${c.mag}</b> · DEF <b>${c.def}</b> · RES <b>${c.res}</b> · AGI <b>${c.agi}</b> · SOR <b>${c.luck}</b>${c.critBonus?` · Crít <b>+${Math.round(c.critBonus*100)}%</b>`:''}${c.critDmg?` · DanoC <b>+${Math.round(c.critDmg*100)}%</b>`:''}</div>`;
+  if(c.activeSets&&c.activeSets.length)html+=`<div class="eqSets">${c.activeSets.map(s=>`<div style="color:${s.col}">✦ ${s.name} (${s.need}) — ${s.label}</div>`).join('')}</div>`;
+  html+=`<div class="mitem" data-back><span>‹ Voltar</span></div>`;
+  m.innerHTML=html;
+  m.querySelectorAll('.eqTab').forEach(b=>b.onclick=()=>{SFX.ui();renderEquip(+b.dataset.ci);});
+  m.querySelectorAll('[data-un]').forEach(b=>b.onclick=()=>{SFX.ui();unequipSlot(c,b.dataset.un);renderEquip(ci);});
+  m.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{SFX.ui();renderEquipPick(ci,b.dataset.eq);});
+  m.querySelector('[data-back]').onclick=()=>{SFX.back();renderCamp();};
+}
+function renderEquipPick(ci,slot){ const m=$('#campMenu'); const c=G.party[ci];
+  const slotName={weapon:'arma',armor:'armadura',accessory:'acessório'}[slot];
+  const items=G.equipInv.filter(it=>it.slot===slot).sort((a,b)=>b.power-a.power);
+  const cur=c.equip[slot];
+  let html=`<div class="eqHead">Escolher ${slotName} — ${c.name}</div>`;
+  if(cur)html+=`<div class="eqRowStats" style="margin-bottom:8px">Atual: <span style="color:${RARITY[cur.rarity].col}">${cur.dispName}</span> — poder ${cur.power}</div>`;
+  if(!items.length)html+=`<div class="eqEmptyMsg">Nenhum ${slotName} na bolsa. Vença chefes e ache câmaras do tesouro!</div>`;
+  items.forEach(it=>{ const better=!cur||it.power>cur.power;
+    html+=`<div class="mitem eqPick" data-uid="${it.uid}"><span style="color:${RARITY[it.rarity].col}">${it.dispName} ${better?'<b style="color:#7ce07c">▲</b>':''}</span><span class="sub">${RARITY[it.rarity].name} · ${eqStatList(it).slice(0,3).join(' · ')}${it.set?' · ✦'+SETS[it.set].name:''}</span></div>`; });
+  html+=`<div class="mitem" data-back><span>‹ Voltar</span></div>`;
+  m.innerHTML=html;
+  m.querySelectorAll('.eqPick').forEach(el=>el.onclick=()=>{ SFX.ui(); const it=G.equipInv.find(x=>x.uid==el.dataset.uid); if(it){equipItem(c,it);SFX.chest();} renderEquip(ci); });
+  m.querySelector('[data-back]').onclick=()=>{SFX.back();renderEquip(ci);};
 }
 function renderFormation(){ const m=$('#campMenu');
   m.innerHTML=`<div style="color:#c8a44a;letter-spacing:2px;margin-bottom:10px">FORMAÇÃO — toque p/ alternar frente/trás</div>`+
@@ -1894,8 +2128,8 @@ function showWin(){ musicStop(); SFX.win(); $('#winStats').innerHTML=`Vocês ven
 
 /* ================= SAVE ================= */
 const SAVEKEY='masmorra_save_v1';
-function saveGame(){ try{ const s={gp:G.gp,depth:G.depth,maxFloor:G.maxFloor,inv:G.inv,steps:G.steps,kills:G.kills,
-    party:G.party.map(c=>({id:c.id,lv:c.lv,xp:c.xp,xpNext:c.xpNext,mhp:c.mhp,hp:c.hp,mmp:c.mmp,mp:c.mp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck,row:c.row})),
+function saveGame(){ try{ const s={gp:G.gp,depth:G.depth,maxFloor:G.maxFloor,inv:G.inv,equipInv:G.equipInv,steps:G.steps,kills:G.kills,
+    party:G.party.map(c=>({id:c.id,lv:c.lv,xp:c.xp,xpNext:c.xpNext,mhp:c.mhp,hp:c.hp,mmp:c.mmp,mp:c.mp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck,row:c.row,baseStats:c.baseStats,equip:c.equip})),
     scene:G.dun?serialScene(G.dun):null, px:G.px,py:G.py,dir:G.dir };
   localStorage.setItem(SAVEKEY,JSON.stringify(s)); }catch(e){} }
 function serialScene(d){ return {depth:d.depth,grid:d.grid.map(r=>r.join('')),name:d.name,
@@ -1911,15 +2145,22 @@ function loadScene(s){ const d={depth:s.depth,w:s.grid[0].length,h:s.grid.length
 function hasSave(){ return !!localStorage.getItem(SAVEKEY); }
 function clearSave(){ try{localStorage.removeItem(SAVEKEY);}catch(e){} }
 function loadGame(){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY)); if(!s)return false;
-  G.gp=s.gp;G.depth=s.depth;G.floor=s.depth;G.maxFloor=s.maxFloor||s.depth;G.inv=s.inv||{};G.steps=s.steps||0;G.kills=s.kills||0;
-  G.party=s.party.map(p=>{ const c=mkChar(p.id); Object.assign(c,{lv:p.lv,xp:p.xp,xpNext:p.xpNext,mhp:p.mhp,hp:p.hp,mmp:p.mmp,mp:p.mp,str:p.str,mag:p.mag,def:p.def,res:p.res,agi:p.agi,luck:p.luck,row:p.row}); return c; });
+  G.gp=s.gp;G.depth=s.depth;G.floor=s.depth;G.maxFloor=s.maxFloor||s.depth;G.inv=s.inv||{};G.equipInv=s.equipInv||[];G.steps=s.steps||0;G.kills=s.kills||0;
+  // garante uid único acima dos salvos
+  let mx=0; G.equipInv.forEach(it=>{if(it&&it.uid>mx)mx=it.uid;}); (s.party||[]).forEach(p=>{ for(const sl in (p.equip||{})){ const it=p.equip[sl]; if(it&&it.uid>mx)mx=it.uid; } }); _uid=Math.max(_uid,mx+1);
+  G.party=s.party.map(p=>{ const c=mkChar(p.id);
+    Object.assign(c,{lv:p.lv,xp:p.xp,xpNext:p.xpNext,mhp:p.mhp,hp:p.hp,mmp:p.mmp,mp:p.mp,str:p.str,mag:p.mag,def:p.def,res:p.res,agi:p.agi,luck:p.luck,row:p.row});
+    c.baseStats = p.baseStats || {mhp:p.mhp,mmp:p.mmp,str:p.str,mag:p.mag,def:p.def,res:p.res,agi:p.agi,luck:p.luck};
+    c.equip = p.equip || {weapon:null,armor:null,accessory:null};
+    recalcStats(c); c.hp=Math.min(p.hp,c.mhp); c.mp=Math.min(p.mp,c.mmp);
+    return c; });
   if(s.scene){ setTheme(s.depth); G.dun=loadScene(s.scene); G.scenes[s.depth]=G.dun; G.px=s.px;G.py=s.py;G.dir=s.dir;G.ang=dirAng(G.dir);G.tang=G.ang; }
   else enterFloor(s.depth);
   return true;
 }catch(e){ return false; } }
 
 /* ================= NOVO JOGO ================= */
-function newGame(){ G.gp=0;G.depth=1;G.floor=1;G.maxFloor=1;G.inv={erva:3,maca:2,pao:1,pocao:1,eter:1,antidoto:1,fenix:1};G.steps=0;G.kills=0;G.scenes={};
+function newGame(){ G.gp=0;G.depth=1;G.floor=1;G.maxFloor=1;G.inv={erva:3,maca:2,pao:1,pocao:1,eter:1,antidoto:1,fenix:1};G.equipInv=[];G.steps=0;G.kills=0;G.scenes={};
   G.party=[mkChar('leona'),mkChar('sakura'),mkChar('celes'),mkChar('darius')];
   enterFloor(1); }
 
