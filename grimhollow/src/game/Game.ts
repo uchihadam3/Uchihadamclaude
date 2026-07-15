@@ -71,7 +71,7 @@ export class Game {
     this.scene.background = new THREE.Color(FOG_COLOR);
     this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 2.6, CELL * 11);
 
-    this.camera = new THREE.PerspectiveCamera(66, 1, 0.05, 400);
+    this.camera = new THREE.PerspectiveCamera(78, 1, 0.05, 400);
 
     const start = findStart();
     this.col = start.col;
@@ -516,13 +516,14 @@ export class Game {
     mount(9, 12, -1, 0, "shop"); // parede leste da rua (à direita subindo)
   }
 
-  // aldeões (billboards que sempre encaram a câmera)
+  // aldeões (billboards que sempre encaram a câmera) — com colisão
   private buildNPCs() {
     const spots: [number, number, number][] = [
       [2, 9, 1],
       [9, 9, 2],
       [7, 13, 3],
       [10, 9, 5],
+      [5, 9, 7],
     ];
     for (const [c, r, seed] of spots) {
       const mat = new THREE.MeshLambertMaterial({
@@ -531,10 +532,11 @@ export class Game {
         alphaTest: 0.5,
         side: THREE.DoubleSide,
       });
-      const npc = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 2.0), mat);
-      npc.position.set(c * CELL, 1.0, r * CELL);
+      const npc = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.15), mat);
+      npc.position.set(c * CELL, 1.06, r * CELL);
       this.scene.add(npc);
       this.npcs.push(npc);
+      this.blocked.add(`${c},${r}`); // o jogador não atravessa o aldeão
     }
   }
 
