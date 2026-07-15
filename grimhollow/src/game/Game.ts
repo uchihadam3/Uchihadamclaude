@@ -18,7 +18,17 @@ import {
 } from "./config";
 import { COLS, ROWS, cellAt, isDungeon, isWalkable, findStart, MAP } from "./village";
 import * as tex from "./textures";
-import { setupControls, type Action } from "./controls";
+import { setupControls, type Action, type HUD } from "./controls";
+import {
+  ROOM,
+  ROOM_COLS,
+  ROOM_ROWS,
+  ESTAB,
+  roomFind,
+  roomChar,
+  roomWalkable,
+  type Estab,
+} from "./interiors";
 
 // direções: 0=N,1=E,2=S,3=O  (dcol, drow)
 const DIRS: [number, number][] = [
@@ -31,6 +41,50 @@ const DIRS: [number, number][] = [
 // pontos de interesse do vilarejo
 const WELL = { c: 4, r: 9 }; // poço na praça
 const TUNNEL_H = 3.2; // altura do teto do túnel da masmorra
+
+// estabelecimentos: célula da casa + face (dc,dr) com a porta voltada p/ a rua
+interface EstabDoor {
+  c: number;
+  r: number;
+  dc: number;
+  dr: number;
+  kind: Estab;
+}
+const ESTAB_DOORS: EstabDoor[] = [
+  { c: 5, r: 14, dc: 1, dr: 0, kind: "tavern" },
+  { c: 9, r: 12, dc: -1, dr: 0, kind: "store" },
+  { c: 5, r: 10, dc: 1, dr: 0, kind: "smith" },
+  { c: 9, r: 15, dc: -1, dr: 0, kind: "alchemist" },
+];
+
+// nomes/falas dos aldeões da vila (por célula)
+const VILLAGERS: Record<string, { name: string; lines: string[] }> = {
+  "2,9": { name: "Aldeã", lines: ["Bom dia! O poço da praça nunca seca."] },
+  "9,9": {
+    name: "Camponês",
+    lines: ["Dizem que há algo à espreita naquela montanha ao norte..."],
+  },
+  "7,13": {
+    name: "Velho Ancião",
+    lines: [
+      "Cuidado, jovem. A escada sob a montanha leva às profundezas.",
+      "Equipe-se bem antes de descer.",
+    ],
+  },
+  "10,9": { name: "Guarda", lines: ["Mantenha a paz por aqui, forasteiro."] },
+  "5,9": {
+    name: "Mercador Ambulante",
+    lines: ["Passando por aqui a negócios. Belo vilarejo, não?"],
+  },
+};
+
+// alvo que o jogador está encarando ao apertar interagir
+type Target =
+  | { kind: "enter"; estab: Estab }
+  | { kind: "exit" }
+  | { kind: "talk"; name: string; lines: string[] }
+  | { kind: "dungeon" }
+  | null;
 
 type Anim =
   | null
@@ -55,9 +109,18 @@ export class Game {
   private facing = 0;
   private anim: Anim = null;
 
-  private blocked = new Set<string>(); // células bloqueadas por props (poço)
+  private world = new THREE.Group(); // tudo do local atual (recriado ao trocar)
+  private blocked = new Set<string>(); // células bloqueadas por props/NPCs
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
-  private torch?: THREE.PointLight; // luz da masmorra (tremeluz)
+  private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
+  private ui!: HUD;
+
+  private location: "village" | Estab = "village";
+  private doorMap = new Map<string, Estab>(); // "c,r,dc,dr" -> estabelecimento
+  private npcMap = new Map<string, { name: string; lines: string[] }>(); // "c,r"
+  private returnTo = { col: 0, row: 0, facing: 0 }; // volta ao sair do interior
+  private dialogue: { name: string; lines: string[]; idx: number } | null = null;
+  private lastPrompt = " ";
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -69,35 +132,81 @@ export class Game {
     container.appendChild(this.renderer.domElement);
 
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 2.6, CELL * 11);
-
     this.camera = new THREE.PerspectiveCamera(78, 1, 0.05, 400);
-
-    const start = findStart();
-    this.col = start.col;
-    this.row = start.row;
-
-    this.buildLights();
-    this.buildVillage();
-
-    this.camera.position.set(this.col * CELL, EYE_H, this.row * CELL);
     this.camera.rotation.order = "YXZ";
-    this.camera.rotation.y = 0; // olhando p/ o norte
+    this.scene.add(this.world);
 
-    setupControls(container, (a) => this.onAction(a));
+    this.col = 0;
+    this.row = 0;
+
+    this.ui = setupControls(container, (a) => this.onAction(a));
+    const start = findStart();
+    this.enterLocation("village", start.col, start.row, 0);
+
     window.addEventListener("resize", () => this.resize());
     this.resize();
     this.renderer.setAnimationLoop((t) => this.tick(t));
   }
 
-  // ------------------------------------------------------------- cena
-  private buildLights() {
-    this.scene.add(new THREE.AmbientLight(0x8a92a2, 0.75));
-    const hemi = new THREE.HemisphereLight(0x9aa6b8, 0x3a2c1c, 0.7);
-    this.scene.add(hemi);
+  // ---------------------------------------------- troca de local (vila/interior)
+  private enterLocation(
+    loc: "village" | Estab,
+    col: number,
+    row: number,
+    facing: number,
+  ) {
+    this.clearWorld();
+    this.location = loc;
+    this.dialogue = null;
+    this.ui.hideDialogue();
+    if (loc === "village") {
+      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 2.6, CELL * 11);
+      this.scene.background = new THREE.Color(FOG_COLOR);
+      this.addVillageLights();
+      this.buildVillage();
+    } else {
+      this.scene.fog = new THREE.Fog(0x1a140d, CELL * 4, CELL * 12);
+      this.scene.background = new THREE.Color(0x120e09);
+      this.addInteriorLights();
+      this.buildInterior(loc);
+    }
+    this.col = col;
+    this.row = row;
+    this.facing = facing;
+    this.camera.position.set(col * CELL, EYE_H, row * CELL);
+    this.camera.rotation.y = -facing * (Math.PI / 2);
+    this.anim = null;
+    this.lastPrompt = " ";
+    this.ui.setPrompt(null); // limpa dica anterior ao trocar de local
+  }
+
+  private clearWorld() {
+    this.world.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+      else if (mat) mat.dispose();
+    });
+    this.world.clear();
+    this.blocked.clear();
+    this.npcs = [];
+    this.flames = [];
+    this.doorMap.clear();
+    this.npcMap.clear();
+  }
+
+  private addVillageLights() {
+    this.world.add(new THREE.AmbientLight(0x8a92a2, 0.75));
+    this.world.add(new THREE.HemisphereLight(0x9aa6b8, 0x3a2c1c, 0.7));
     const dir = new THREE.DirectionalLight(0xffe7c0, 0.55);
     dir.position.set(-6, 12, 4);
-    this.scene.add(dir);
+    this.world.add(dir);
+  }
+
+  private addInteriorLights() {
+    this.world.add(new THREE.AmbientLight(0xb59a66, 0.95));
+    this.world.add(new THREE.HemisphereLight(0x8a7550, 0x2a2018, 0.6));
   }
 
   private buildVillage() {
@@ -129,12 +238,17 @@ export class Game {
         const t = new THREE.Mesh(tileGeo, cobbleMat);
         t.rotation.x = -Math.PI / 2;
         t.position.set(c * CELL, 0, r * CELL);
-        this.scene.add(t);
+        this.world.add(t);
       }
 
     const boxGeo = new THREE.BoxGeometry(CELL, WALL_H, CELL);
     const hash = (a: number, b: number, s = 0) =>
       (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
+
+    // faces reservadas aos estabelecimentos (não recebem porta/janela aleatória)
+    const estabFaces = new Set(
+      ESTAB_DOORS.map((e) => `${e.c},${e.r},${e.dc},${e.dr}`),
+    );
 
     const doorFaces = new Set<string>();
     for (let r = 0; r < ROWS; r++) {
@@ -150,9 +264,13 @@ export class Game {
         const wm = woodMats[Math.floor((Math.abs(hash(c, r)) * 3) % 3)];
         const box = new THREE.Mesh(boxGeo, wm);
         box.position.set(c * CELL, WALL_H / 2, r * CELL);
-        this.scene.add(box);
+        this.world.add(box);
 
         for (const [dc, dr] of streetDirs) {
+          if (estabFaces.has(`${c},${r},${dc},${dr}`)) {
+            doorFaces.add(`${c},${r},${dc},${dr}`);
+            continue; // tratado em buildEstablishments
+          }
           // porta/janela deterministicamente (o telhado é feito em trechos)
           const h = Math.abs(hash(c, r, dc * 2 + dr));
           if (h < 0.28) {
@@ -177,7 +295,7 @@ export class Game {
 
     // pontos de interesse
     this.buildWell();
-    this.buildSigns();
+    this.buildEstablishments(doorMat);
     this.buildNPCs();
 
     void MAP;
@@ -213,7 +331,7 @@ export class Game {
         if (bh <= 0.2) continue;
         const box = new THREE.Mesh(new THREE.BoxGeometry(CELL, bh, CELL), rockMat);
         box.position.set(c * CELL, y0 + bh / 2, r * CELL);
-        this.scene.add(box);
+        this.world.add(box);
         // blocos menores no topo p/ contorno irregular (pico)
         if (!dungeon && this.mHash(c, r, 2) > 0.35) {
           const s = 1.6 + this.mHash(c, r, 3) * 1.8;
@@ -224,7 +342,7 @@ export class Game {
             r * CELL + (this.mHash(c, r, 5) - 0.5) * 2.4,
           );
           chunk.rotation.y = this.mHash(c, r, 6) * Math.PI;
-          this.scene.add(chunk);
+          this.world.add(chunk);
         }
       }
   }
@@ -282,7 +400,7 @@ export class Game {
           grp.add(b2);
         }
         grp.position.set(bx, 0, bz);
-        this.scene.add(grp);
+        this.world.add(grp);
       }
   }
 
@@ -335,7 +453,7 @@ export class Game {
     roof.rotation.y = Math.PI / 4;
     grp.add(roof);
     grp.position.set(wx, 0, wz);
-    this.scene.add(grp);
+    this.world.add(grp);
   }
 
   // túnel da masmorra: chão/paredes/teto de dungeon + escada descendo + tochas
@@ -365,13 +483,13 @@ export class Game {
         const ceil = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), ceilMat);
         ceil.rotation.x = Math.PI / 2;
         ceil.position.set(cx, TUNNEL_H, cz);
-        this.scene.add(ceil);
+        this.world.add(ceil);
         // chão de laje (escada substitui o chão)
         if (!stairs) {
           const fl = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), floorMat);
           fl.rotation.x = -Math.PI / 2;
           fl.position.set(cx, 0.03, cz);
-          this.scene.add(fl);
+          this.world.add(fl);
         }
         // paredes onde encosta rocha/casa (o poço da escada cria as suas próprias)
         for (const [dc, dr] of DIRS) {
@@ -394,15 +512,15 @@ export class Game {
           new THREE.MeshLambertMaterial({ color: 0x2a1c10 }),
         );
         post.position.set(cx + s * (CELL / 2 - 0.25), 1.9, cz);
-        this.scene.add(post);
+        this.world.add(post);
         const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), flameMat);
         flame.position.set(cx + s * (CELL / 2 - 0.25), 2.55, cz);
-        this.scene.add(flame);
+        this.world.add(flame);
       }
       const light = new THREE.PointLight(0xffa040, 7, 16, 2);
       light.position.set(cx, 2.4, cz + 0.5);
-      this.scene.add(light);
-      this.torch = light;
+      this.world.add(light);
+      this.flames.push({ light, base: 6 });
     }
   }
 
@@ -425,7 +543,7 @@ export class Game {
     else if (dc === -1) wall.rotation.y = Math.PI / 2;
     else if (dr === 1) wall.rotation.y = Math.PI;
     else wall.rotation.y = 0;
-    this.scene.add(wall);
+    this.world.add(wall);
   }
 
   // poço da escada: descendo p/ o norte, paredes vedando os lados até o fundo
@@ -458,7 +576,7 @@ export class Game {
         stepMat,
       );
       step.position.set(cx, topY - height / 2, zc);
-      this.scene.add(step);
+      this.world.add(step);
     }
     // base escura do poço
     const base = new THREE.Mesh(
@@ -467,56 +585,79 @@ export class Game {
     );
     base.rotation.x = -Math.PI / 2;
     base.position.set(cx, bottomY + 0.02, cz);
-    this.scene.add(base);
+    this.world.add(base);
     // luzes quentes iluminando os degraus de cima (revela o vão da escada)
     const g1 = new THREE.PointLight(0xffbf70, 6, 13, 2);
     g1.position.set(cx, 2.6, cz + CELL / 2 - 0.3);
-    this.scene.add(g1);
+    this.world.add(g1);
     const g2 = new THREE.PointLight(0xffa050, 3.5, 8, 2);
     g2.position.set(cx, 0.4, cz - 0.6);
-    this.scene.add(g2);
+    this.world.add(g2);
   }
 
-  // placas de taverna e loja penduradas nas paredes da rua principal
-  private buildSigns() {
-    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
-    const mount = (
-      c: number,
-      r: number,
-      dc: number,
-      dr: number,
-      kind: "tavern" | "shop",
-    ) => {
-      const grp = new THREE.Group();
-      const y = WALL_H * 0.78;
-      // suporte de madeira saindo da parede até a placa
-      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.55), woodMat);
-      bracket.position.set(0, y + 0.78, 0.26);
-      grp.add(bracket);
-      const board = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.9, 1.45),
+  // portas dos estabelecimentos + placas com o nome; registra o alvo de entrada
+  private buildEstablishments(doorMat: THREE.Material) {
+    const iconMat = (kind: "tavern" | "shop") =>
+      new THREE.MeshLambertMaterial({
+        map: tex.sign(kind),
+        transparent: true,
+        side: THREE.DoubleSide,
+      });
+    for (const e of ESTAB_DOORS) {
+      const { c, r, dc, dr, kind } = e;
+      // porta
+      this.addDecal(c, r, dc, dr, doorMat, "door");
+      this.doorMap.set(`${c},${r},${dc},${dr}`, kind);
+      const fx = c * CELL + dc * (CELL / 2 + 0.05);
+      const fz = r * CELL + dr * (CELL / 2 + 0.05);
+      const rotY =
+        dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
+      // placa com o NOME sobre a porta
+      const sign = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.4, 0.84),
         new THREE.MeshLambertMaterial({
-          map: tex.sign(kind),
+          map: tex.signText(ESTAB[kind].name),
           transparent: true,
           side: THREE.DoubleSide,
         }),
       );
-      board.position.set(0, y, 0.45); // pende à frente da parede
-      grp.add(board);
-      const fx = c * CELL + dc * (CELL / 2 + 0.06);
-      const fz = r * CELL + dr * (CELL / 2 + 0.06);
-      grp.position.set(fx, 0, fz);
-      if (dc === 1) grp.rotation.y = Math.PI / 2;
-      else if (dc === -1) grp.rotation.y = -Math.PI / 2;
-      else if (dr === 1) grp.rotation.y = 0;
-      else grp.rotation.y = Math.PI;
-      this.scene.add(grp);
-    };
-    mount(5, 14, 1, 0, "tavern"); // parede oeste da rua (à esquerda subindo)
-    mount(9, 12, -1, 0, "shop"); // parede leste da rua (à direita subindo)
+      sign.position.set(fx, WALL_H * 0.86, fz);
+      sign.rotation.y = rotY;
+      this.world.add(sign);
+      // pequeno ícone pendurado (caneca p/ taverna, moeda p/ os demais)
+      const icon = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.0, 0.76),
+        iconMat(kind === "tavern" ? "tavern" : "shop"),
+      );
+      icon.position.set(fx, WALL_H * 0.55, fz);
+      icon.rotation.y = rotY;
+      this.world.add(icon);
+    }
   }
 
-  // aldeões (billboards que sempre encaram a câmera) — com colisão
+  // aldeão billboard com colisão e diálogo
+  private addNPC(
+    c: number,
+    r: number,
+    seed: number,
+    name: string,
+    lines: string[],
+  ) {
+    const mat = new THREE.MeshLambertMaterial({
+      map: tex.villager(seed),
+      transparent: true,
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+    });
+    const npc = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.15), mat);
+    npc.position.set(c * CELL, 1.06, r * CELL);
+    this.world.add(npc);
+    this.npcs.push(npc);
+    this.blocked.add(`${c},${r}`);
+    this.npcMap.set(`${c},${r}`, { name, lines });
+  }
+
+  // aldeões da vila
   private buildNPCs() {
     const spots: [number, number, number][] = [
       [2, 9, 1],
@@ -526,22 +667,271 @@ export class Game {
       [5, 9, 7],
     ];
     for (const [c, r, seed] of spots) {
-      const mat = new THREE.MeshLambertMaterial({
-        map: tex.villager(seed),
-        transparent: true,
-        alphaTest: 0.5,
-        side: THREE.DoubleSide,
-      });
-      const npc = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.15), mat);
-      npc.position.set(c * CELL, 1.06, r * CELL);
-      this.scene.add(npc);
-      this.npcs.push(npc);
-      this.blocked.add(`${c},${r}`); // o jogador não atravessa o aldeão
+      const info = VILLAGERS[`${c},${r}`] ?? { name: "Aldeão", lines: ["..."] };
+      this.addNPC(c, r, seed, info.name, info.lines);
     }
   }
 
   private canWalk(c: number, r: number): boolean {
-    return isWalkable(c, r) && !this.blocked.has(`${c},${r}`);
+    const ok =
+      this.location === "village" ? isWalkable(c, r) : roomWalkable(c, r);
+    return ok && !this.blocked.has(`${c},${r}`);
+  }
+
+  // ---------------------------------------------- interação
+  private doInteract() {
+    const t = this.facingTarget();
+    if (!t) return;
+    if (t.kind === "enter") {
+      this.returnTo = { col: this.col, row: this.row, facing: this.facing };
+      const p = roomFind("P");
+      this.enterLocation(t.estab, p.col, p.row, 0);
+    } else if (t.kind === "exit") {
+      const { col, row, facing } = this.returnTo;
+      this.enterLocation("village", col, row, facing);
+    } else if (t.kind === "talk") {
+      this.dialogue = { name: t.name, lines: t.lines, idx: 0 };
+      this.ui.showDialogue(t.name, t.lines[0]);
+    } else if (t.kind === "dungeon") {
+      this.dialogue = {
+        name: "Masmorra",
+        lines: [
+          "A escada de pedra desce para a escuridão.",
+          "(Em breve você poderá explorar a masmorra.)",
+        ],
+        idx: 0,
+      };
+      this.ui.showDialogue("Masmorra", this.dialogue.lines[0]);
+    }
+  }
+
+  private advanceDialogue() {
+    if (!this.dialogue) return;
+    this.dialogue.idx++;
+    if (this.dialogue.idx >= this.dialogue.lines.length) {
+      this.dialogue = null;
+      this.ui.hideDialogue();
+    } else {
+      this.ui.showDialogue(this.dialogue.name, this.dialogue.lines[this.dialogue.idx]);
+    }
+  }
+
+  // ---------------------------------------------- interior de estabelecimento
+  private box(
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+    h: number,
+    d: number,
+    mat: THREE.Material,
+  ): THREE.Mesh {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(x, y, z);
+    this.world.add(m);
+    return m;
+  }
+
+  private buildInterior(kind: Estab) {
+    const CEIL = 3.4;
+    const floorMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(9) });
+    const wallMat = new THREE.MeshLambertMaterial({
+      map: tex.woodPlanks(2),
+      side: THREE.DoubleSide,
+    });
+    const ceilMat = new THREE.MeshLambertMaterial({ color: 0x241a12, side: THREE.DoubleSide });
+    const woodDark = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const doorMat = new THREE.MeshLambertMaterial({
+      map: tex.door(11),
+      side: THREE.DoubleSide,
+    });
+    const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
+
+    // casca: chão + teto + paredes
+    for (let r = 0; r < ROOM_ROWS; r++)
+      for (let c = 0; c < ROOM_COLS; c++) {
+        if (!roomWalkable(c, r)) continue;
+        const fl = new THREE.Mesh(tileGeo, floorMat);
+        fl.rotation.x = -Math.PI / 2;
+        fl.position.set(c * CELL, 0, r * CELL);
+        this.world.add(fl);
+        const ce = new THREE.Mesh(tileGeo, ceilMat);
+        ce.rotation.x = Math.PI / 2;
+        ce.position.set(c * CELL, CEIL, r * CELL);
+        this.world.add(ce);
+        for (const [dc, dr] of DIRS)
+          if (roomChar(c + dc, r + dr) === "#")
+            this.addWall(c * CELL, r * CELL, dc, dr, 0, CEIL, wallMat);
+      }
+
+    // porta de saída na parede sul da célula X (voltada p/ o interior)
+    const x = roomFind("X");
+    const exit = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, DOOR_H), doorMat);
+    exit.position.set(x.col * CELL, DOOR_H / 2, x.row * CELL + CELL / 2 - 0.06);
+    exit.rotation.y = Math.PI;
+    this.world.add(exit);
+    const exitSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.7, 0.6),
+      new THREE.MeshLambertMaterial({
+        map: tex.signText("SAÍDA"),
+        transparent: true,
+        side: THREE.DoubleSide,
+      }),
+    );
+    exitSign.position.set(x.col * CELL, DOOR_H + 0.5, x.row * CELL + CELL / 2 - 0.08);
+    exitSign.rotation.y = Math.PI;
+    this.world.add(exitSign);
+
+    // balcão do atendente + atendente
+    const n = roomFind("N");
+    const cxN = n.col * CELL;
+    const czN = n.row * CELL + CELL / 2 + 0.2; // balcão logo à frente do atendente
+    this.box(cxN, 0.55, czN, CELL * 2.6, 1.1, 0.7, woodDark);
+    this.box(cxN, 1.12, czN, CELL * 2.6 + 0.2, 0.14, 0.95, woodDark); // tampo
+    const info = ESTAB[kind];
+    this.addNPC(n.col, n.row, info.seed, info.npc, info.lines);
+    // luz quente sobre o balcão (destaca o atendente)
+    const clight = new THREE.PointLight(0xffd49a, 4.5, 15, 2);
+    clight.position.set(cxN, 2.5, n.row * CELL + 1.6);
+    this.world.add(clight);
+
+    // luz central (lampião)
+    const lamp = new THREE.PointLight(0xffd89a, 9, 36, 2);
+    lamp.position.set(3 * CELL, CEIL - 0.3, 3 * CELL);
+    this.world.add(lamp);
+    this.box(
+      3 * CELL,
+      CEIL - 0.25,
+      3 * CELL,
+      0.4,
+      0.3,
+      0.4,
+      new THREE.MeshBasicMaterial({ color: 0xffb85a }),
+    );
+
+    if (kind === "tavern") this.propsTavern(woodDark);
+    else if (kind === "store") this.propsStore();
+    else if (kind === "smith") this.propsSmith(woodDark);
+    else this.propsAlchemist(woodDark);
+  }
+
+  private glowLight(x: number, y: number, z: number, color: number, base: number, range: number) {
+    const l = new THREE.PointLight(color, base, range, 2);
+    l.position.set(x, y, z);
+    this.world.add(l);
+    this.flames.push({ light: l, base });
+  }
+
+  private propsTavern(wood: THREE.Material) {
+    const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const fire = new THREE.MeshBasicMaterial({ color: 0xff7a1e });
+    // lareira na parede oeste
+    this.box(4.6, 1.0, 3 * CELL, 0.5, 2.0, 2.6, stone);
+    this.box(4.9, 0.5, 3 * CELL, 0.4, 0.7, 1.4, fire); // chamas
+    this.glowLight(6, 1.0, 3 * CELL, 0xff8a2e, 5, 12);
+    // mesas redondas com canecas
+    const mug = new THREE.MeshLambertMaterial({ color: 0xcaa24a });
+    for (const [mx, mz] of [
+      [5 * CELL - 2, 4 * CELL],
+      [5 * CELL - 2, 2 * CELL + 1],
+    ]) {
+      this.box(mx, 0.9, mz, 0.2, 1.0, 0.2, wood); // pé
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.15, 16), wood);
+      top.position.set(mx, 1.45, mz);
+      this.world.add(top);
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.3, 10), mug);
+      m.position.set(mx + 0.3, 1.68, mz);
+      this.world.add(m);
+    }
+    // barris atrás do balcão
+    const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
+    for (const bx of [2 * CELL, 4 * CELL]) {
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 1.3, 14), barrelMat);
+      b.position.set(bx, 0.65, 1 * CELL - 0.2);
+      this.world.add(b);
+    }
+  }
+
+  private propsStore() {
+    const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
+    const goods = [0x8a3a3a, 0x3a5a8a, 0x4f7a3a, 0xb08a30, 0x7a3a7a];
+    // prateleiras nas paredes leste/oeste com mercadorias coloridas
+    for (const side of [-1, 1]) {
+      const wx = 3 * CELL + side * (2 * CELL - 0.3);
+      for (let s = 0; s < 3; s++) {
+        const sy = 0.8 + s * 0.9;
+        this.box(wx, sy, 3 * CELL, 0.5, 0.12, 3.2, wood);
+        for (let i = 0; i < 4; i++) {
+          const gm = new THREE.MeshLambertMaterial({ color: goods[(s + i) % goods.length] });
+          this.box(wx, sy + 0.35, 3 * CELL - 1.2 + i * 0.8, 0.4, 0.55, 0.4, gm);
+        }
+      }
+    }
+    // caixotes empilhados
+    for (const [bx, bz, by] of [
+      [5 * CELL - 1, 2 * CELL, 0.5],
+      [5 * CELL - 1, 2 * CELL, 1.5],
+      [1 * CELL + 1, 4 * CELL, 0.5],
+    ])
+      this.box(bx, by, bz, 1.0, 1.0, 1.0, wood);
+  }
+
+  private propsSmith(wood: THREE.Material) {
+    const iron = new THREE.MeshLambertMaterial({ color: 0x4a4e54 });
+    const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const coals = new THREE.MeshBasicMaterial({ color: 0xff6a12 });
+    // fornalha (canto oeste)
+    this.box(4.8, 0.9, 2 * CELL, 0.7, 1.8, 2.4, stone);
+    this.box(5.0, 1.0, 2 * CELL, 0.4, 0.5, 1.3, coals);
+    this.glowLight(6, 1.1, 2 * CELL, 0xff7a1e, 5.5, 12);
+    // bigorna no centro
+    this.box(3 * CELL, 0.7, 3 * CELL + 1, 0.5, 0.4, 1.1, iron);
+    this.box(3 * CELL, 0.4, 3 * CELL + 1, 0.5, 0.6, 0.5, wood); // cepo
+    // suporte de armas na parede leste (lâminas verticais)
+    for (let i = 0; i < 4; i++) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.4, 0.24), iron);
+      blade.position.set(5 * CELL - 0.3, 1.6, 2 * CELL + i * 0.7);
+      this.world.add(blade);
+    }
+    // barril d'água
+    const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.44, 1.2, 14), barrelMat);
+    b.position.set(1 * CELL + 0.6, 0.6, 4 * CELL);
+    this.world.add(b);
+  }
+
+  private propsAlchemist(wood: THREE.Material) {
+    const shelf = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
+    const cols = [0x40b070, 0x5060c0, 0xc04070, 0xc0a030, 0x9040c0];
+    // prateleiras de frascos coloridos (paredes)
+    for (const side of [-1, 1]) {
+      const wx = 3 * CELL + side * (2 * CELL - 0.3);
+      for (let s = 0; s < 3; s++) {
+        const sy = 0.9 + s * 0.85;
+        this.box(wx, sy, 3 * CELL, 0.5, 0.1, 3.2, shelf);
+        for (let i = 0; i < 5; i++) {
+          const gm = new THREE.MeshLambertMaterial({ color: cols[(s * 2 + i) % cols.length] });
+          const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.4, 8), gm);
+          fr.position.set(wx, sy + 0.28, 3 * CELL - 1.3 + i * 0.65);
+          this.world.add(fr);
+        }
+      }
+    }
+    // caldeirão com brilho verde
+    const iron = new THREE.MeshLambertMaterial({ color: 0x3a3e44 });
+    const cauldron = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.55, 0.9, 16), iron);
+    cauldron.position.set(5 * CELL - 1, 0.55, 4 * CELL);
+    this.world.add(cauldron);
+    const brew = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.62, 0.62, 0.1, 16),
+      new THREE.MeshBasicMaterial({ color: 0x6bffa0 }),
+    );
+    brew.position.set(5 * CELL - 1, 1.0, 4 * CELL);
+    this.world.add(brew);
+    this.glowLight(5 * CELL - 1, 1.3, 4 * CELL, 0x50ff9a, 3, 9);
+    // mesa com livros
+    this.box(1 * CELL + 1, 0.8, 4 * CELL, 1.4, 0.15, 1.0, wood);
+    this.box(1 * CELL + 0.7, 0.98, 4 * CELL, 0.5, 0.16, 0.7, new THREE.MeshLambertMaterial({ color: 0x6a3a2a }));
   }
 
   // Detecta sequências contíguas de casas expostas à rua numa direção e faz
@@ -658,17 +1048,17 @@ export class Game {
       backLen = Math.abs(ridgeZ - backZ) / CELL + 0.5;
     }
     // água frontal (voltada p/ a rua) e água dos fundos
-    this.scene.add(this.quad(s0, s1, k1, k0, mat, len, frontLen));
-    this.scene.add(this.quad(k0, k1, b1, b0, mat, len, backLen));
+    this.world.add(this.quad(s0, s1, k1, k0, mat, len, frontLen));
+    this.world.add(this.quad(k0, k1, b1, b0, mat, len, backLen));
     // tampas de empena (triângulos) nas duas pontas do trecho
-    this.scene.add(this.tri(s0, k0, b0, mat));
-    this.scene.add(this.tri(s1, b1, k1, mat));
+    this.world.add(this.tri(s0, k0, b0, mat));
+    this.world.add(this.tri(s1, b1, k1, mat));
     // borda de palha (beiral frontal) — dá espessura sobre a rua
     const s0d = s0.clone();
     s0d.y -= FASCIA;
     const s1d = s1.clone();
     s1d.y -= FASCIA;
-    this.scene.add(this.quad(s0d, s1d, s1, s0, mat, len, 0.3));
+    this.world.add(this.quad(s0d, s1d, s1, s0, mat, len, 0.3));
   }
 
   private tri(
@@ -714,7 +1104,7 @@ export class Game {
     else if (dc === -1) plane.rotation.y = -Math.PI / 2;
     else if (dr === 1) plane.rotation.y = 0;
     else plane.rotation.y = Math.PI;
-    this.scene.add(plane);
+    this.world.add(plane);
   }
 
   private quad(
@@ -748,6 +1138,15 @@ export class Game {
 
   // ------------------------------------------------------------- input
   private onAction(a: Action) {
+    // diálogo aberto: interagir avança/fecha; o resto é ignorado
+    if (this.dialogue) {
+      if (a === "interact") this.advanceDialogue();
+      return;
+    }
+    if (a === "interact") {
+      this.doInteract();
+      return;
+    }
     if (this.anim) return; // ignora enquanto anima (o hold-repeat cuida da continuidade)
     if (a === "turnLeft" || a === "turnRight") {
       const d = a === "turnLeft" ? 1 : -1;
@@ -806,10 +1205,48 @@ export class Game {
     const cz = this.camera.position.z;
     for (const npc of this.npcs)
       npc.rotation.y = Math.atan2(cx - npc.position.x, cz - npc.position.z);
-    // tocha da masmorra tremeluz
-    if (this.torch)
-      this.torch.intensity = 5.2 + Math.sin(now * 0.011) * 0.8 + Math.sin(now * 0.027) * 0.5;
+    // fogo (tochas, fornalha, caldeirão) tremeluz
+    for (const f of this.flames)
+      f.light.intensity =
+        f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
+    // atualiza a dica de interação só quando o jogador não está animando
+    if (!this.anim) this.updatePrompt();
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // dica contextual sobre o que está à frente
+  private updatePrompt() {
+    const t = this.facingTarget();
+    let text = " ";
+    if (t) {
+      if (t.kind === "enter") text = `Entrar — ${ESTAB[t.estab].name}`;
+      else if (t.kind === "exit") text = "Sair";
+      else if (t.kind === "talk") text = `Falar com ${t.name}`;
+      else if (t.kind === "dungeon") text = "Descer à masmorra";
+    }
+    if (text !== this.lastPrompt) {
+      this.lastPrompt = text;
+      this.ui.setPrompt(text === " " ? null : text);
+    }
+  }
+
+  // o que o jogador encara (célula à frente na direção atual)
+  private facingTarget(): Target {
+    const [dc, dr] = DIRS[this.facing];
+    const fc = this.col + dc;
+    const fr = this.row + dr;
+    // NPC logo à frente
+    const npc = this.npcMap.get(`${fc},${fr}`);
+    if (npc) return { kind: "talk", name: npc.name, lines: npc.lines };
+    if (this.location === "village") {
+      // porta de estabelecimento (na face da casa voltada p/ o jogador)
+      const estab = this.doorMap.get(`${fc},${fr},${-dc},${-dr}`);
+      if (estab) return { kind: "enter", estab };
+      if (cellAt(fc, fr) === "stairs") return { kind: "dungeon" };
+    } else {
+      if (roomChar(fc, fr) === "X") return { kind: "exit" };
+    }
+    return null;
   }
 
   private resize() {
