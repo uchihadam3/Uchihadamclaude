@@ -152,7 +152,7 @@ function buildThemeTex(P){
   });
   T.arch=mkTex(set=>{ for(let y=0;y<TW;y++)for(let x=0;x<TW;x++){ set(x,y,rgb(14,P.cTint)); } });
   T.door=buildDoor(P.door,P);
-  T.accent=P.accent;
+  T.accent=P.accent; T.accentRGB=hexRGB(P.accent);
   return T;
 }
 function buildDoor(style,P){ return mkTex(set=>{
@@ -177,7 +177,54 @@ function buildDoor(style,P){ return mkTex(set=>{
   }
 }); }
 function setTheme(depth){ const i=themeIdx(depth); if(!_themeCache[i])_themeCache[i]=buildThemeTex(THEMES[i]); TEX=_themeCache[i]; }
-function buildTextures(){ setTheme(1); }
+function hexRGB(hex){ const h=hex.replace('#',''); return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]; }
+function abgrA(r,g,b,a){return ((a&255)<<24)|((b&255)<<16)|((g&255)<<8)|(r&255);}
+
+/* ============ DECALQUES (objetos nas paredes p/ orientação) ============ */
+let DECAL={}; const DEC_TORCH={torch:true};
+function buildDecals(){
+  const D=fn=>{const a=new Uint32Array(TW*TW); fn((x,y,c)=>{if(x>=0&&x<TW&&y>=0&&y<TW)a[y*TW+x]=c;}); return a;};
+  DECAL.torch=D(set=>{
+    for(let y=30;y<48;y++)for(let x=30;x<34;x++)set(x,y,abgrA(58,56,64,255));
+    for(let x=26;x<38;x++)set(x,47,abgrA(80,78,88,255));
+    for(let y=26;y<31;y++)for(let x=26;x<38;x++)if(Math.abs(x-32)<6-(y-26))set(x,y,abgrA(44,42,50,255));
+    for(let y=8;y<28;y++)for(let x=23;x<41;x++){ const w=(28-y)*0.55-Math.abs(x-32); if(w>0){ const t=(28-y)/20; set(x,y,abgrA(255,(110+t*130)|0,(30+t*40)|0,255)); } }
+    for(let y=13;y<27;y++)for(let x=30;x<34;x++)if(Math.abs(x-32)<2.5)set(x,y,abgrA(255,240,170,255));
+  });
+  DECAL.banner=D(set=>{
+    for(let x=16;x<48;x++)set(x,9,abgrA(120,110,90,255));
+    for(let y=11;y<54;y++)for(let x=19;x<45;x++){ const bottom=(y<49)||(((x-19)%13)<7); if(bottom){ const s=0.75+0.25*Math.sin(x*0.5); set(x,y,abgrA((235*s)|0,(235*s)|0,(235*s)|0,255)); } }
+    for(let y=22;y<40;y++)for(let x=25;x<39;x++)if(Math.abs(x-32)+Math.abs(y-31)<7)set(x,y,abgrA(70,70,70,255));
+  });
+  DECAL.crack=D(set=>{ let x=32,y=6; while(y<58){ set(x,y,abgrA(0,0,0,150)); set(x+1,y,abgrA(0,0,0,110)); if(hash2(x,y)<0.3)set(x-1,y,abgrA(0,0,0,100)); x+=Math.round(hash2(y,3)*2-1); y+=1;
+    if(hash2(y*3,x)<0.09){ let bx=x,by=y; for(let k=0;k<10;k++){set(bx,by,abgrA(0,0,0,120)); bx+=Math.round(hash2(bx,by)*2-1); by+=1;} } } });
+  DECAL.chains=D(set=>{ for(const cx of [24,40]){ for(let y=6;y<50;y+=6){ for(let k=0;k<4;k++){const yy=y+k; set(cx,yy,abgrA(150,150,160,255)); set(cx+1,yy,abgrA(110,110,120,255));} }
+    for(let a=0;a<7;a+=0.25){set((cx+Math.cos(a)*4)|0,(50+Math.sin(a)*3)|0,abgrA(95,95,105,255));} } });
+  DECAL.skull=D(set=>{
+    for(let y=18;y<46;y++)for(let x=22;x<42;x++){ const dx=(x-32)/10,dy=(y-30)/12; if(dx*dx+dy*dy<1)set(x,y,abgrA(0,0,0,160)); }
+    for(let y=22;y<40;y++)for(let x=25;x<39;x++){ const dx=(x-32)/6.5,dy=(y-30)/8; if(dx*dx+dy*dy<1)set(x,y,abgrA(225,220,205,255)); }
+    set(28,30,abgrA(20,16,14,255));set(29,30,abgrA(20,16,14,255)); set(35,30,abgrA(20,16,14,255));set(36,30,abgrA(20,16,14,255));
+    for(let x=30;x<35;x++)set(x,37,abgrA(30,24,20,255));
+  });
+  DECAL.moss=D(set=>{ for(let i=0;i<440;i++){ const x=(hash2(i,7)*64)|0,y=(22+hash2(i,13)*40)|0; if(hash2(x,y)<0.6){const g=120+hash2(x*2,y)*80; set(x,y,abgrA((30+g*0.2)|0,g|0,(30+g*0.15)|0,(120+hash2(i,i)*120)|0));} } });
+  DECAL.runes=D(set=>{ const seg=[[26,20,26,44],[26,20,38,20],[38,20,38,44],[26,44,38,44],[32,20,32,44],[26,32,38,32]]; seg.forEach((s,i)=>{ if(hash2(i,3)<0.65){ const[x0,y0,x1,y1]=s,n=22; for(let k=0;k<=n;k++){const x=(x0+(x1-x0)*k/n)|0,y=(y0+(y1-y0)*k/n)|0; set(x,y,abgrA(255,255,255,255)); set(x+1,y,abgrA(255,255,255,170));} } }); });
+  DEC_TORCH.tex=DECAL.torch;
+}
+function decalFor(mx,my,side,rdx,rdy){
+  const face = side===0 ? (rdx>0?3:1) : (rdy>0?0:2);
+  const key=((mx*73856093)^(my*19349663)^(face*83492791))>>>0;
+  const h=(key%997)/997, th=themeOf(G.depth);
+  const horiz=(face===0||face===2), along=horiz?mx:my;
+  if(along%4===2) return DEC_TORCH;                          // tochas em ritmo (~a cada 4)
+  if(h<0.05) return {tex:DECAL.banner,accent:true};
+  if(h<0.10) return {tex:DECAL.runes,accent:true,glow:true};
+  if(h<0.16) return {tex:DECAL.skull};
+  if(h<0.24) return {tex:DECAL.crack};
+  if(h<0.30) return {tex:DECAL.chains};
+  if(th.mossF>0.08 && h<0.44) return {tex:DECAL.moss};
+  return null;
+}
+function buildTextures(){ setTheme(1); buildDecals(); }
 
 /* ================= RAYCASTER ================= */
 const RC={cv:null,ctx:null,RW:360,RH:230,img:null,buf:null,zbuf:null};
@@ -232,8 +279,22 @@ function rcRender(px,py,ang){
     let texX=(wallX*TW)|0; if((side===0&&rdx>0)||(side===1&&rdy<0))texX=TW-texX-1; texX&=63;
     let tex=TEX.wall; if(tile==='+')tex=TEX.door; else if(tile==='A')tex=TEX.arch;
     const fog=clamp(1.42-perp*0.13,0.16,1.24)*(side===1?0.6:1)*flick;
+    const dc = (tile==='#'&&perp<7) ? decalFor(mapX,mapY,side,rdx,rdy) : null;   // decalques só em paredes próximas
+    const acc = TEX.accentRGB||[200,164,74];
     const stepTex=TW/lh; let texPos=(drawS-RH/2+lh/2)*stepTex;
-    for(let y=drawS;y<=drawE;y++){ const ty=((texPos)|0)&63; texPos+=stepTex; buf[y*RW+x]=shade(tex[ty*TW+texX],fog); }
+    for(let y=drawS;y<=drawE;y++){ const ty=((texPos)|0)&63; texPos+=stepTex;
+      const dp = dc? dc.tex[ty*TW+texX] : 0;
+      if(dp>>>24){ let dr=dp&255,dg=(dp>>8)&255,db=(dp>>16)&255; const al=(dp>>>24)/255;
+        if(dc.accent){ dr=dr*acc[0]/255; dg=dg*acc[1]/255; db=db*acc[2]/255; }
+        const df = dc.torch? Math.min(1.8,fog*1.55)*flick : (dc.glow? Math.min(1.5,fog*1.3):fog);
+        if(al>=0.98){ buf[y*RW+x]=shade(abgr(dr|0,dg|0,db|0),df); }
+        else { // mistura com a parede (rachadura/musgo)
+          const wc=shade(tex[ty*TW+texX],fog); const wr=wc&255,wg=(wc>>8)&255,wb=(wc>>16)&255;
+          const sr=(dr*df)|0,sg=(dg*df)|0,sb=(db*df)|0;
+          buf[y*RW+x]=abgr((wr*(1-al)+sr*al)|0,(wg*(1-al)+sg*al)|0,(wb*(1-al)+sb*al)|0);
+        }
+      } else buf[y*RW+x]=shade(tex[ty*TW+texX],fog);
+    }
   }
   RC.ctx.putImageData(RC.img,0,0);
 }
