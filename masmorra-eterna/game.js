@@ -58,21 +58,133 @@ const SFX={
   ui(){beep(440,0.05,'square',0.1);},
   back(){beep(300,0.05,'square',0.08,-40);},
 };
-/* música ambiente simples por contexto */
-function musicStart(mode){ if(!AU.ctx)return; musicStop();
-  const scaleExp=[0,3,5,7,10,12], scaleBat=[0,2,3,5,7,8,10];
-  const root=mode==='battle'?110:82, sc=mode==='battle'?scaleBat:scaleExp, step=mode==='battle'?0.42:0.9;
-  let i=0;
-  AU.timer=setInterval(()=>{ if(AU.muted)return;
-    const n=sc[Math.floor(Math.random()*sc.length)]+ (chance(.3)?12:0);
-    const f=root*Math.pow(2,n/12);
-    beep(f,step*0.9,mode==='battle'?'sawtooth':'triangle',0.05,0,AU.music);
-    if(i%4===0)beep(root/2*Math.pow(2,(sc[0])/12),step*3,'sine',0.06,0,AU.music);
-    if(mode==='battle'&&i%2===0)beep(root*2,step*0.4,'square',0.03,0,AU.music);
-    i++;
-  }, step*1000);
+/* ============ MÚSICA GENERATIVA POR ANDAR (Parte 9) ============
+   20 faixas: 10 batalha + 10 boss (uma por bioma/andar) + ambiente de exploração.
+   Motor com escalonamento por relógio do AudioContext + camadas (bateria, baixo,
+   pad, arpejo, lead), progressão de acordes e arranjo evolutivo (2-3 min) que
+   varia a cada volta -> nunca soa repetitivo. */
+const SCALES={
+  aeolian:[0,2,3,5,7,8,10], phrygian:[0,1,3,5,7,8,10], dorian:[0,2,3,5,7,9,10],
+  harmMinor:[0,2,3,5,7,8,11], phrygDom:[0,1,4,5,7,8,10], minorPent:[0,3,5,7,10],
+  octatonic:[0,1,3,4,6,7,9,10],
+};
+// identidade musical de cada bioma (índice = andar-1)
+const BIOME_MUS=[
+  {name:'cripta',    bpm:96,  root:55.00, scale:'aeolian',   prog:[0,5,3,4], pal:{bass:'triangle',pad:'sine',    lead:'square',  arp:'triangle'}},
+  {name:'catacumbas',bpm:100, root:73.42, scale:'phrygian',  prog:[0,1,0,5], pal:{bass:'sawtooth',pad:'triangle',lead:'square',  arp:'square'}},
+  {name:'inundada',  bpm:86,  root:65.41, scale:'dorian',    prog:[0,3,4,0], pal:{bass:'sine',    pad:'sine',    lead:'triangle',arp:'sine'}},
+  {name:'forja',     bpm:130, root:82.41, scale:'minorPent', prog:[0,0,3,4], pal:{bass:'sawtooth',pad:'sawtooth',lead:'square',  arp:'square'}},
+  {name:'jardim',    bpm:104, root:65.41, scale:'dorian',    prog:[0,4,5,3], pal:{bass:'triangle',pad:'triangle',lead:'triangle',arp:'triangle'}},
+  {name:'salao',     bpm:112, root:61.74, scale:'harmMinor', prog:[0,3,4,4], pal:{bass:'triangle',pad:'sine',    lead:'triangle',arp:'square'}},
+  {name:'necropole', bpm:92,  root:87.31, scale:'phrygDom',  prog:[0,1,4,0], pal:{bass:'sawtooth',pad:'triangle',lead:'square',  arp:'triangle'}},
+  {name:'gelo',      bpm:100, root:110.0, scale:'aeolian',   prog:[0,2,5,4], pal:{bass:'triangle',pad:'sine',    lead:'sine',    arp:'triangle'}},
+  {name:'abismo',    bpm:120, root:92.50, scale:'octatonic', prog:[0,3,6,1], pal:{bass:'sawtooth',pad:'sawtooth',lead:'square',  arp:'square'}},
+  {name:'trono',     bpm:116, root:73.42, scale:'harmMinor', prog:[0,3,5,4], pal:{bass:'sawtooth',pad:'triangle',lead:'square',  arp:'square'}},
+];
+// motivos ritmicos p/ o lead (passos de 1/16 num compasso de 16): [passo, grauDoAcorde, duracao]
+const MOTIFS=[
+  [[0,0,2],[2,1,2],[4,2,2],[6,1,1],[7,2,1],[8,3,4],[12,2,2],[14,1,2]],
+  [[0,2,3],[3,1,1],[4,0,2],[8,3,2],[10,4,2],[12,2,4]],
+  [[0,0,1],[1,1,1],[2,2,1],[3,3,1],[4,2,4],[10,4,2],[12,3,2],[14,2,2]],
+  [[0,3,4],[4,2,2],[6,3,2],[8,1,4],[12,0,4]],
+  [[0,0,2],[4,2,2],[7,3,1],[8,4,4],[12,3,2],[14,4,2]],
+  [[2,1,2],[6,2,2],[8,3,2],[11,4,1],[12,2,4]],
+];
+function biomeMus(floor){ return BIOME_MUS[clamp((floor||1)-1,0,9)]; }
+function _noiseBuf(){ if(AU._nb)return AU._nb; const n=Math.floor(AU.ctx.sampleRate*1); const b=AU.ctx.createBuffer(1,n,AU.ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<n;i++)d[i]=Math.random()*2-1; AU._nb=b; return b; }
+function mvoice(t,freq,dur,o){ o=o||{}; if(!AU.ctx)return;
+  const vc=o.voices||1; for(let v=0;v<vc;v++){
+    const osc=AU.ctx.createOscillator(), g=AU.ctx.createGain(); osc.type=o.type||'triangle';
+    osc.frequency.setValueAtTime(freq,t); if(o.slide)osc.frequency.exponentialRampToValueAtTime(Math.max(20,freq*o.slide),t+dur);
+    if(vc>1)osc.detune.value=(v-(vc-1)/2)*(o.spread||8);
+    let node=osc; if(o.filter){ const f=AU.ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.setValueAtTime(o.filter,t); if(o.fenv)f.frequency.exponentialRampToValueAtTime(Math.max(80,o.filter*o.fenv),t+dur); osc.connect(f); node=f; }
+    const vol=(o.vol||0.08)/vc, atk=o.atk||0.008, rel=o.rel||0.12;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+atk); g.gain.setValueAtTime(vol,t+Math.max(atk,dur*0.6)); g.gain.exponentialRampToValueAtTime(0.0001,t+dur+rel);
+    node.connect(g); g.connect(AU.music); osc.start(t); osc.stop(t+dur+rel+0.03);
+  }
 }
-function musicStop(){ if(AU.timer){clearInterval(AU.timer);AU.timer=null;} }
+function dkick(t,vol){ const o=AU.ctx.createOscillator(),g=AU.ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(46,t+0.11); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.2); o.connect(g); g.connect(AU.music); o.start(t); o.stop(t+0.22); }
+function dsnare(t,vol){ const s=AU.ctx.createBufferSource(); s.buffer=_noiseBuf(); s.playbackRate.value=1.4; const f=AU.ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=1300; const g=AU.ctx.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.16); s.connect(f); f.connect(g); g.connect(AU.music); s.start(t); s.stop(t+0.18);
+  const o=AU.ctx.createOscillator(),g2=AU.ctx.createGain(); o.type='triangle'; o.frequency.setValueAtTime(190,t); g2.gain.setValueAtTime(vol*0.5,t); g2.gain.exponentialRampToValueAtTime(0.0001,t+0.1); o.connect(g2); g2.connect(AU.music); o.start(t); o.stop(t+0.12); }
+function dhat(t,vol,open){ const s=AU.ctx.createBufferSource(); s.buffer=_noiseBuf(); s.playbackRate.value=2.2; const f=AU.ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=7000; const g=AU.ctx.createGain(); const dur=open?0.14:0.035; g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); s.connect(f); f.connect(g); g.connect(AU.music); s.start(t); s.stop(t+dur+0.02); }
+function buildTrack(kind, floor){
+  const B=biomeMus(floor), boss=kind==='boss', batt=kind==='battle'||boss;
+  const scale=SCALES[B.scale];
+  const bpm = boss? Math.round(B.bpm*1.14)+6 : batt? B.bpm : Math.round(B.bpm*0.8);
+  // arranjo (em compassos) — evolui e depois repete a partir da secao 1 (variando via rng)
+  let arr;
+  if(!batt) arr=[ {bars:4,l:{pad:1,bell:1},int:0.4}, {bars:8,l:{pad:1,bell:1,bass:1},int:0.5}, {bars:8,l:{pad:1,bell:1,bass:1,arp:1},int:0.6} ];
+  else if(boss) arr=[ {bars:2,l:{pad:1,bass:1},int:0.7}, {bars:8,l:{bass:1,drums:1,arp:1,pad:1},int:0.9}, {bars:8,l:{bass:1,drums:1,lead:1,pad:1},int:1.0}, {bars:4,l:{bass:1,drums:1,pad:1},int:0.75}, {bars:8,l:{bass:1,drums:1,lead:1,arp:1,pad:1},int:1.05} ];
+  else arr=[ {bars:4,l:{pad:1,bass:1},int:0.5}, {bars:4,l:{pad:1,bass:1,arp:1},int:0.65}, {bars:8,l:{bass:1,drums:1,arp:1,pad:1},int:0.85}, {bars:8,l:{bass:1,drums:1,lead:1,pad:1},int:1.0}, {bars:4,l:{bass:1,drums:1,pad:1},int:0.7}, {bars:8,l:{bass:1,drums:1,lead:1,arp:1,pad:1},int:1.0} ];
+  const loopStart = batt?1:1; // volta pra secao 1 (pula o intro)
+  return { kind, floor, boss, batt, bpm, root:B.root, scale, prog:B.prog, pal:B.pal, arr, loopStart,
+    seed:(0x51ED^(floor*2654435761)^(boss?0xB055:0x0))>>>0, name:B.name };
+}
+function sfreq(track, deg, oct){ const sc=track.scale, len=sc.length; let d=deg,o=oct||0; while(d<0){d+=len;o--;} while(d>=len){d-=len;o++;} return track.root*Math.pow(2,(sc[d]+12*o)/12); }
+function musicStart(mode){ if(!AU.ctx)return; musicStop();
+  const floor=clamp(G.depth||1,1,10);
+  const kind = mode==='boss'?'boss' : mode==='battle'?'battle' : 'explore';
+  const track=buildTrack(kind, floor);
+  const spb=60/track.bpm/4; // 1/16
+  AU.seq={ track, step:0, spb, next:AU.ctx.currentTime+0.08, rng:mulberry32(track.seed), cyc:0 };
+  AU.timer=setInterval(musSched, 25);
+}
+function musicStop(){ if(AU.timer){clearInterval(AU.timer);AU.timer=null;} AU.seq=null; }
+function musSched(){ if(!AU.ctx||!AU.seq||AU.muted)return;
+  const s=AU.seq, ahead=AU.ctx.currentTime+0.14;
+  while(s.next<ahead){ musStep(s, s.next, s.step); s.step++; s.next+=s.spb; }
+}
+function musSection(track, bar){ // devolve {sec, intBar, loopedBar}
+  let b=bar, total=track.arr.reduce((a,c)=>a+c.bars,0);
+  const loopBars=track.arr.slice(track.loopStart).reduce((a,c)=>a+c.bars,0);
+  if(b>=total){ b=track.loopStart>0? (track.arr.slice(0,track.loopStart).reduce((a,c)=>a+c.bars,0) + ((b-total)%loopBars)) : (b%total); }
+  let acc=0; for(const sec of track.arr){ if(b<acc+sec.bars) return {sec, barInSec:b-acc}; acc+=sec.bars; }
+  return {sec:track.arr[track.arr.length-1], barInSec:0};
+}
+function musStep(s, t, step){ const track=s.track, rng=s.rng;
+  const bar=Math.floor(step/16), st=step%16;
+  const {sec, barInSec}=musSection(track, bar);
+  const L=sec.l, intn=sec.int;
+  const chordDeg=track.prog[bar%track.prog.length];
+  // nova volta -> avança um pouco o rng p/ variar as frases
+  if(step>0 && step% (16*track.arr.reduce((a,c)=>a+c.bars,0)) ===0){ s.cyc++; for(let k=0;k<3;k++)rng(); }
+  // ---- PAD (acorde sustentado no inicio do compasso) ----
+  if(L.pad && st===0){ const dur=(60/track.bpm)*4*0.98;
+    [0,2,4].forEach((iv,ix)=>{ mvoice(t, sfreq(track, chordDeg+iv, ix===0?0:0), dur, {type:track.pal.pad, vol:0.045*intn, voices:2, spread:6, atk:0.4, rel:0.6, filter:1600+700*intn}); });
+    mvoice(t, sfreq(track, chordDeg, -1), dur, {type:'sine', vol:0.05*intn, atk:0.3, rel:0.6}); // sub do acorde
+  }
+  // ---- BASS ----
+  if(L.bass){ const pat = track.boss? [1,0,0,1, 1,0,1,0, 1,0,0,1, 0,1,0,0] : [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,1,0];
+    if(pat[st]){ const deg=(st>=8&&chance_r(rng,0.3))?chordDeg+4:chordDeg;
+      mvoice(t, sfreq(track, deg, -1), s.spb*(track.boss?2.2:3.2), {type:track.pal.bass, vol:0.13*Math.min(1,intn+0.2), filter:track.boss?900:600, fenv:track.boss?0.5:1, atk:0.005, rel:0.05}); } }
+  // ---- DRUMS ----
+  if(L.drums){ const bossD=track.boss;
+    if(st===0||st===8||(bossD&&st===11)) dkick(t, 0.5*intn);
+    if(bossD&&st===6) dkick(t,0.34*intn);
+    if(st===4||st===12) dsnare(t, 0.34*intn);
+    const hatEvery = intn>0.9? (bossD?1:2) : 4;
+    if(st%hatEvery===0) dhat(t, 0.10*intn*(st%4===0?1:0.6), false);
+    // fill no fim de frases de 4 compassos
+    if(barInSec%4===3 && st>=12){ dsnare(t, 0.22*intn); if(st===15)dkick(t,0.4); }
+  }
+  // ---- ARP (arpejo de 1/8 ou 1/16 pelas notas do acorde) ----
+  if(L.arp){ const rate=track.boss?1:2; if(st%rate===0){ const seqTone=[0,2,4,2,4,6,4,2][(Math.floor(step/rate))%8];
+    mvoice(t, sfreq(track, chordDeg+seqTone, 1), s.spb*rate*0.9, {type:track.pal.arp, vol:0.05*intn, atk:0.005, rel:0.06, filter:2600}); } }
+  // ---- LEAD (frase melodica de 2 compassos, escolhida/variada) ----
+  if(L.lead){ if(st===0 && bar%2===0){ // dispara a frase no inicio de cada 2 compassos
+      const motif=MOTIFS[Math.floor(rng()*MOTIFS.length)]; const octV=chance_r(rng,0.3)?1:0; const rev=chance_r(rng,0.25);
+      const notes = rev? motif.slice().reverse() : motif;
+      notes.forEach(([ps,tone,d])=>{ const nt=t + ps*s.spb; const dur=d*s.spb*0.95;
+        const deg=chordDeg + [0,2,4,5][tone%4] + (tone>=4?7:0);
+        mvoice(nt, sfreq(track, deg, 1+octV), dur, {type:track.pal.lead, vol:0.075*intn, voices:track.boss?2:1, spread:5, atk:0.01, rel:0.12, filter:3200, slide: (track.boss&&chance_r(rng,0.15))?1.0:0}); });
+      // tensao no boss: stab de trítono ocasional
+      if(track.boss && chance_r(rng,0.3)) mvoice(t, sfreq(track, chordDeg, 0)*Math.pow(2,6/12), s.spb*4, {type:'sawtooth', vol:0.05, atk:0.02, rel:0.3, filter:1200});
+  } }
+  // ---- BELL (exploração: sino esparso e etéreo) ----
+  if(L.bell){ if(st%8===0 && chance_r(rng,0.55)){ const tone=[0,2,4,6][Math.floor(rng()*4)];
+    mvoice(t, sfreq(track, chordDeg+tone, 1), s.spb*6, {type:'sine', vol:0.06, voices:2, spread:4, atk:0.02, rel:0.8, filter:2400}); } }
+}
+function chance_r(rng,p){ return rng()<p; }
 
 /* ================= PIXEL ART HELPERS ================= */
 function px(ctx,x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(x,y,w,h);}
@@ -690,7 +802,7 @@ function startBattle(formation,opts){
   G.party.forEach(c=>{ c.resolve = conds.includes('fartura')?5:Math.max(c.resolve,2); c.guardF=false; });
   G.state='battle';
   $('#battle').classList.add('on');
-  musicStart('battle');
+  musicStart(opts.boss?'boss':'battle');
   layoutEnemies();
   renderBparty(); renderTurnQ(); renderFury();
   const elites=formation.filter(e=>e.elite);
