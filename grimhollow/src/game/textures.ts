@@ -337,64 +337,159 @@ export function sign(kind: "tavern" | "shop"): THREE.Texture {
   return toSprite(c);
 }
 
-// -------- aldeão (sprite billboard, fundo transparente) --------
+// -------- aldeão (sprite 2D detalhado, billboard) --------
+// Personagem de frente com rosto, cabelo/chapéu e roupas variadas por seed.
 export function villager(seed = 1): THREE.Texture {
   const W = 64;
   const H = 112;
   const { c, ctx } = makeCanvas(W, H);
   ctx.clearRect(0, 0, W, H);
   const r = rnd(seed);
-  const robes = ["#6b5030", "#4a5a68", "#5a4448", "#3f5540", "#6a4d5a"];
-  const robe = robes[Math.floor(r() * robes.length)];
-  const cx = W / 2;
+  const pick = <T>(a: T[]) => a[Math.floor(r() * a.length)];
+  const skin = pick(["#ecbd93", "#d99b68", "#c2895b", "#a26c46"]);
+  const tunic = pick([
+    "#7c4a44", "#45566e", "#566a44", "#6d5a34", "#743a4e", "#3d5a58", "#8a6a3a",
+  ]);
+  const pants = pick(["#3a2c20", "#2c2c34", "#40331e", "#4a3a2a"]);
+  const hair = pick(["#241810", "#43301c", "#6a4826", "#9a9188", "#caa24a"]);
+  const type = Math.floor(r() * 4); // 0 aldeão 1 mercador 2 mulher 3 ancião
+  const cx = 32;
+  const hy = 26; // centro da cabeça
+  const hr = 11; // raio da cabeça
+  const dress = type === 2;
+  const bodyTop = 40;
+  const bodyBot = dress ? 100 : 76;
+
   // sombra no chão
-  ctx.fillStyle = "rgba(0,0,0,0.25)";
-  ctx.beginPath();
-  ctx.ellipse(cx, H - 5, 16, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // manto (corpo trapezoidal)
-  ctx.fillStyle = robe;
-  ctx.beginPath();
-  ctx.moveTo(cx - 9, 44);
-  ctx.lineTo(cx + 9, 44);
-  ctx.lineTo(cx + 20, H - 8);
-  ctx.lineTo(cx - 20, H - 8);
-  ctx.closePath();
-  ctx.fill();
-  // sombra lateral do manto (volume)
-  ctx.fillStyle = "rgba(0,0,0,0.18)";
-  ctx.beginPath();
-  ctx.moveTo(cx, 44);
-  ctx.lineTo(cx + 9, 44);
-  ctx.lineTo(cx + 20, H - 8);
-  ctx.lineTo(cx, H - 8);
-  ctx.closePath();
-  ctx.fill();
-  // cinto
-  ctx.fillStyle = "rgba(40,26,12,0.8)";
-  ctx.fillRect(cx - 12, 70, 24, 5);
-  // capuz / ombros
-  ctx.fillStyle = robe;
-  ctx.beginPath();
-  ctx.moveTo(cx - 15, 52);
-  ctx.quadraticCurveTo(cx, 24, cx + 15, 52);
-  ctx.closePath();
-  ctx.fill();
-  // cabeça
-  ctx.fillStyle = "#caa17a";
-  ctx.beginPath();
-  ctx.arc(cx, 34, 10, 0, Math.PI * 2);
-  ctx.fill();
-  // sombra do capuz sobre o rosto
   ctx.fillStyle = "rgba(0,0,0,0.28)";
   ctx.beginPath();
-  ctx.arc(cx, 30, 10, Math.PI, Math.PI * 2);
+  ctx.ellipse(cx, H - 5, 15, 5, 0, 0, Math.PI * 2);
   ctx.fill();
-  // cabelo/capuz topo
-  ctx.fillStyle = robe;
+
+  // cajado do ancião (atrás)
+  if (type === 3) {
+    ctx.strokeStyle = "#5a4326";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx + 17, 30);
+    ctx.lineTo(cx + 15, H - 8);
+    ctx.stroke();
+  }
+
+  // pernas + sapatos (quem não usa vestido)
+  if (!dress) {
+    ctx.fillStyle = pants;
+    ctx.fillRect(cx - 9, bodyBot - 2, 8, 26);
+    ctx.fillRect(cx + 1, bodyBot - 2, 8, 26);
+    ctx.fillStyle = "#2a1c12";
+    ctx.fillRect(cx - 11, H - 12, 11, 6);
+    ctx.fillRect(cx, H - 12, 11, 6);
+  } else {
+    ctx.fillStyle = "#2a1c12";
+    ctx.fillRect(cx - 8, H - 11, 7, 5);
+    ctx.fillRect(cx + 1, H - 11, 7, 5);
+  }
+
+  // corpo (túnica / vestido) — trapézio
+  ctx.fillStyle = tunic;
   ctx.beginPath();
-  ctx.arc(cx, 30, 11, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.moveTo(cx - 11, bodyTop);
+  ctx.lineTo(cx + 11, bodyTop);
+  ctx.lineTo(cx + (dress ? 18 : 13), bodyBot);
+  ctx.lineTo(cx - (dress ? 18 : 13), bodyBot);
+  ctx.closePath();
   ctx.fill();
+  // sombra de volume (lado direito)
+  ctx.fillStyle = "rgba(0,0,0,0.16)";
+  ctx.beginPath();
+  ctx.moveTo(cx, bodyTop);
+  ctx.lineTo(cx + 11, bodyTop);
+  ctx.lineTo(cx + (dress ? 18 : 13), bodyBot);
+  ctx.lineTo(cx, bodyBot);
+  ctx.closePath();
+  ctx.fill();
+
+  // braços (mangas) + mãos
+  ctx.fillStyle = tunic;
+  ctx.fillRect(cx - 16, 44, 6, 28);
+  ctx.fillRect(cx + 10, 44, 6, 28);
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.arc(cx - 13, 73, 3.4, 0, Math.PI * 2);
+  ctx.arc(cx + 13, 73, 3.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // avental do mercador
+  if (type === 1) {
+    ctx.fillStyle = "rgba(230,220,200,0.85)";
+    ctx.fillRect(cx - 8, 50, 16, bodyBot - 52);
+  }
+  // cinto
+  if (type !== 2) {
+    ctx.fillStyle = "rgba(38,24,12,0.85)";
+    ctx.fillRect(cx - 13, 71, 26, 5);
+    ctx.fillStyle = "#c9a227";
+    ctx.fillRect(cx - 2, 71, 4, 5);
+  }
+
+  // pescoço
+  ctx.fillStyle = skin;
+  ctx.fillRect(cx - 4, hy + hr - 3, 8, 7);
+  // cabeça
+  ctx.beginPath();
+  ctx.arc(cx, hy, hr, 0, Math.PI * 2);
+  ctx.fill();
+
+  // rosto
+  ctx.fillStyle = "#2a1a12";
+  ctx.beginPath();
+  ctx.ellipse(cx - 4, hy - 1, 1.6, 2.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx + 4, hy - 1, 1.6, 2.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,0.18)"; // nariz
+  ctx.fillRect(cx - 0.7, hy + 1, 1.4, 3);
+  ctx.strokeStyle = "rgba(90,40,30,0.6)"; // boca
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 3, hy + 6);
+  ctx.lineTo(cx + 3, hy + 6);
+  ctx.stroke();
+
+  // cabelo / barba / chapéu
+  if (type === 3) {
+    // ancião: calva + barba branca
+    ctx.fillStyle = "#d8d2c4";
+    ctx.beginPath();
+    ctx.arc(cx, hy + 4, hr - 1, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.lineTo(cx - hr + 3, hy + 2);
+    ctx.fill();
+    ctx.fillStyle = hair;
+    ctx.beginPath();
+    ctx.arc(cx, hy - 2, hr, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.fill();
+  } else if (dress) {
+    // cabelo longo emoldurando o rosto
+    ctx.fillStyle = hair;
+    ctx.beginPath();
+    ctx.arc(cx, hy - 1, hr + 1, Math.PI * 0.92, Math.PI * 2.08);
+    ctx.fill();
+    ctx.fillRect(cx - hr - 1, hy - 2, 4, 16);
+    ctx.fillRect(cx + hr - 3, hy - 2, 4, 16);
+  } else {
+    // cabelo curto (calota)
+    ctx.fillStyle = hair;
+    ctx.beginPath();
+    ctx.arc(cx, hy - 1, hr + 0.5, Math.PI * 1.03, Math.PI * 1.97);
+    ctx.fill();
+    ctx.fillRect(cx - hr, hy - 3, 3, 6);
+    ctx.fillRect(cx + hr - 3, hy - 3, 3, 6);
+    // mercador com chapéu simples
+    if (type === 1) {
+      ctx.fillStyle = "#4a3320";
+      ctx.fillRect(cx - hr - 2, hy - hr + 2, 2 * hr + 4, 3);
+      ctx.fillRect(cx - hr + 2, hy - hr - 4, 2 * hr - 4, 7);
+    }
+  }
   return toSprite(c);
 }
 
@@ -456,4 +551,117 @@ function roundRect(
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+// -------- rocha da montanha (áspera, cinza-marrom) --------
+export function rock(seed = 41): THREE.Texture {
+  const W = 96;
+  const H = 96;
+  const { c, ctx } = makeCanvas(W, H);
+  const r = rnd(seed);
+  // base ruidosa
+  for (let y = 0; y < H; y += 2)
+    for (let x = 0; x < W; x += 2) {
+      const g = 78 + Math.floor(r() * 34);
+      ctx.fillStyle = `rgb(${g},${(g * 0.94) | 0},${(g * 0.84) | 0})`;
+      ctx.fillRect(x, y, 2, 2);
+    }
+  // facetas de rocha (polígonos com sombra)
+  for (let i = 0; i < 26; i++) {
+    const ox = r() * W;
+    const oy = r() * H;
+    const rad = 10 + r() * 16;
+    const sh = r() < 0.5 ? 0.22 : -0.18;
+    ctx.fillStyle = sh > 0 ? `rgba(0,0,0,${sh})` : `rgba(255,250,240,${-sh})`;
+    ctx.beginPath();
+    const n = 4 + ((r() * 3) | 0);
+    for (let s = 0; s <= n; s++) {
+      const a = (s / n) * Math.PI * 2 + r() * 0.3;
+      const rr = rad * (0.7 + r() * 0.4);
+      const px = ox + Math.cos(a) * rr;
+      const py = oy + Math.sin(a) * rr * 0.8;
+      s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  // fissuras
+  ctx.strokeStyle = "rgba(20,16,12,0.5)";
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 7; i++) {
+    ctx.beginPath();
+    let x = r() * W;
+    let y = r() * H;
+    ctx.moveTo(x, y);
+    for (let s = 0; s < 5; s++) {
+      x += (r() - 0.5) * 26;
+      y += (r() - 0.5) * 26;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  return toTex(c);
+}
+
+// -------- chão de masmorra (lajes escuras) --------
+export function dungeonFloor(seed = 43): THREE.Texture {
+  const W = 96;
+  const H = 96;
+  const { c, ctx } = makeCanvas(W, H);
+  const r = rnd(seed);
+  ctx.fillStyle = "#161514";
+  ctx.fillRect(0, 0, W, H);
+  const t = 32;
+  for (let gy = 0; gy < H; gy += t)
+    for (let gx = 0; gx < W; gx += t) {
+      const g = 40 + Math.floor(r() * 20);
+      ctx.fillStyle = `rgb(${g},${(g * 0.98) | 0},${(g * 0.94) | 0})`;
+      ctx.fillRect(gx + 2, gy + 2, t - 4, t - 4);
+      ctx.fillStyle = "rgba(0,0,0,0.4)"; // rejunte/sombra
+      ctx.fillRect(gx + 2, gy + t - 4, t - 4, 2);
+      ctx.fillStyle = "rgba(255,255,255,0.05)";
+      ctx.fillRect(gx + 2, gy + 2, t - 4, 1);
+      // rachaduras ocasionais
+      if (r() < 0.3) {
+        ctx.strokeStyle = "rgba(0,0,0,0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(gx + 6 + r() * 10, gy + 6);
+        ctx.lineTo(gx + 8 + r() * 12, gy + t - 6);
+        ctx.stroke();
+      }
+    }
+  return toTex(c);
+}
+
+// -------- parede/teto de masmorra (blocos escuros com musgo) --------
+export function dungeonWall(seed = 47): THREE.Texture {
+  const W = 96;
+  const H = 96;
+  const { c, ctx } = makeCanvas(W, H);
+  const r = rnd(seed);
+  ctx.fillStyle = "#0f0e0d";
+  ctx.fillRect(0, 0, W, H);
+  const bh = 18;
+  for (let gy = 0, row = 0; gy < H; gy += bh, row++) {
+    const off = row % 2 ? 18 : 0;
+    for (let gx = -18; gx < W; gx += 36) {
+      const x = gx + off;
+      const g = 44 + Math.floor(r() * 20);
+      ctx.fillStyle = `rgb(${(g * 0.9) | 0},${g},${(g * 0.86) | 0})`;
+      ctx.fillRect(x + 1, gy + 1, 34, bh - 2);
+      ctx.fillStyle = "rgba(0,0,0,0.45)";
+      ctx.fillRect(x + 1, gy + bh - 3, 34, 2);
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
+      ctx.fillRect(x + 1, gy + 1, 34, 1);
+      // musgo
+      if (r() < 0.35) {
+        ctx.fillStyle = `rgba(70,90,50,${0.18 + r() * 0.2})`;
+        ctx.beginPath();
+        ctx.ellipse(x + 6 + r() * 20, gy + 4 + r() * 8, 5, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  return toTex(c);
 }
