@@ -142,8 +142,7 @@ export class Game {
         this.scene.add(box);
 
         for (const [dc, dr] of streetDirs) {
-          this.addRoof(c, r, dc, dr, thatchMat);
-          // porta/janela deterministicamente
+          // porta/janela deterministicamente (o telhado é feito em trechos)
           const h = Math.abs(hash(c, r, dc * 2 + dr));
           if (h < 0.28) this.addDecal(c, r, dc, dr, doorMat, "door");
           else if (h < 0.72) this.addDecal(c, r, dc, dr, winMat, "window");
@@ -151,21 +150,155 @@ export class Game {
       }
     }
 
-    // barris (menores, encostados na parede)
-    const barrelGeo = new THREE.CylinderGeometry(0.58, 0.5, 1.5, 12);
+    // telhados CONTÍNUOS por trecho de parede (evita retalhos soltos)
+    this.buildRoofs(thatchMat);
+
+    // barris (pequenos, encostados na parede)
+    const barrelGeo = new THREE.CylinderGeometry(0.42, 0.36, 1.1, 12);
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++)
         if (cellAt(c, r) === "barrel") {
           const b = new THREE.Mesh(barrelGeo, barrelMat);
-          // encosta o barril na parede de casa mais próxima
           const near = DIRS.find(([dc, dr]) => cellAt(c + dc, r + dr) === "building");
-          const ox = near ? near[0] * (CELL / 2 - 0.7) : 0;
-          const oz = near ? near[1] * (CELL / 2 - 0.7) : 0;
-          b.position.set(c * CELL + ox, 0.75, r * CELL + oz);
+          const ox = near ? near[0] * (CELL / 2 - 0.6) : 0;
+          const oz = near ? near[1] * (CELL / 2 - 0.6) : 0;
+          b.position.set(c * CELL + ox, 0.55, r * CELL + oz);
           this.scene.add(b);
         }
 
     void MAP;
+  }
+
+  // Detecta sequências contíguas de casas expostas à rua numa direção e faz
+  // UM telhado inclinado por sequência (telhado contínuo, sem frestas).
+  private buildRoofs(mat: THREE.Material) {
+    const exposed = (c: number, r: number, dc: number, dr: number) => {
+      if (cellAt(c, r) !== "building") return false;
+      const k = cellAt(c + dc, r + dr);
+      return k === "street" || k === "barrel";
+    };
+    // faces leste/oeste (dc=±1): trechos verticais (varia a linha)
+    for (const dc of [1, -1]) {
+      for (let c = 0; c < COLS; c++) {
+        let r = 0;
+        while (r < ROWS) {
+          if (exposed(c, r, dc, 0)) {
+            let r1 = r;
+            while (r1 + 1 < ROWS && exposed(c, r1 + 1, dc, 0)) r1++;
+            this.addRoofRun(c, r, c, r1, dc, 0, mat);
+            r = r1 + 1;
+          } else r++;
+        }
+      }
+    }
+    // faces norte/sul (dr=±1): trechos horizontais (varia a coluna)
+    for (const dr of [1, -1]) {
+      for (let r = 0; r < ROWS; r++) {
+        let c = 0;
+        while (c < COLS) {
+          if (exposed(c, r, 0, dr)) {
+            let c1 = c;
+            while (c1 + 1 < COLS && exposed(c1 + 1, r, 0, dr)) c1++;
+            this.addRoofRun(c, r, c1, r, 0, dr, mat);
+            c = c1 + 1;
+          } else c++;
+        }
+      }
+    }
+  }
+
+  private addRoofRun(
+    c0: number,
+    r0: number,
+    c1: number,
+    r1: number,
+    dc: number,
+    dr: number,
+    mat: THREE.Material,
+  ) {
+    const eaveY = WALL_H - 0.15;
+    const ridgeY = WALL_H + ROOF_H;
+    // Telhado de DUAS águas (fechado): beiral da rua (baixo, com balanço) →
+    // cumeeira (alto, recuado sobre a casa) → beiral dos fundos (baixo).
+    // As pontas do trecho são tampadas por triângulos p/ não sobrar fresta.
+    // s0/s1 = pontos do beiral da rua; k0/k1 = cumeeira; b0/b1 = beiral fundos.
+    const s0 = new THREE.Vector3();
+    const s1 = new THREE.Vector3();
+    const k0 = new THREE.Vector3();
+    const k1 = new THREE.Vector3();
+    const b0 = new THREE.Vector3();
+    const b1 = new THREE.Vector3();
+    let len: number;
+    let frontLen: number; // comprimento da água frontal (p/ tiling em v)
+    let backLen: number;
+    if (dc !== 0) {
+      // trecho vertical (varia z), inclina no eixo x
+      const streetX = c0 * CELL + dc * (CELL / 2 + ROOF_OVER); // beiral rua
+      const ridgeX = c0 * CELL; // cumeeira no centro da célula
+      const backX = c0 * CELL - dc * (CELL / 2); // beiral fundos
+      const z0 = r0 * CELL - CELL / 2;
+      const z1 = r1 * CELL + CELL / 2;
+      s0.set(streetX, eaveY, z0);
+      s1.set(streetX, eaveY, z1);
+      k0.set(ridgeX, ridgeY, z0);
+      k1.set(ridgeX, ridgeY, z1);
+      b0.set(backX, eaveY, z0);
+      b1.set(backX, eaveY, z1);
+      len = r1 - r0 + 1;
+      frontLen = Math.abs(streetX - ridgeX) / CELL + 0.5;
+      backLen = Math.abs(ridgeX - backX) / CELL + 0.5;
+    } else {
+      // trecho horizontal (varia x), inclina no eixo z
+      const streetZ = r0 * CELL + dr * (CELL / 2 + ROOF_OVER);
+      const ridgeZ = r0 * CELL;
+      const backZ = r0 * CELL - dr * (CELL / 2);
+      const x0 = c0 * CELL - CELL / 2;
+      const x1 = c1 * CELL + CELL / 2;
+      s0.set(x0, eaveY, streetZ);
+      s1.set(x1, eaveY, streetZ);
+      k0.set(x0, ridgeY, ridgeZ);
+      k1.set(x1, ridgeY, ridgeZ);
+      b0.set(x0, eaveY, backZ);
+      b1.set(x1, eaveY, backZ);
+      len = c1 - c0 + 1;
+      frontLen = Math.abs(streetZ - ridgeZ) / CELL + 0.5;
+      backLen = Math.abs(ridgeZ - backZ) / CELL + 0.5;
+    }
+    // água frontal (voltada p/ a rua) e água dos fundos
+    this.scene.add(this.quad(s0, s1, k1, k0, mat, len, frontLen));
+    this.scene.add(this.quad(k0, k1, b1, b0, mat, len, backLen));
+    // tampas de empena (triângulos) nas duas pontas do trecho
+    this.scene.add(this.tri(s0, k0, b0, mat));
+    this.scene.add(this.tri(s1, b1, k1, mat));
+    // borda de palha (beiral frontal) — dá espessura sobre a rua
+    const s0d = s0.clone();
+    s0d.y -= FASCIA;
+    const s1d = s1.clone();
+    s1d.y -= FASCIA;
+    this.scene.add(this.quad(s0d, s1d, s1, s0, mat, len, 0.3));
+  }
+
+  private tri(
+    a: THREE.Vector3,
+    b: THREE.Vector3,
+    c: THREE.Vector3,
+    mat: THREE.Material,
+  ): THREE.Mesh {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute(
+      "position",
+      new THREE.BufferAttribute(
+        new Float32Array([a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z]),
+        3,
+      ),
+    );
+    g.setAttribute(
+      "uv",
+      new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2),
+    );
+    g.setIndex([0, 1, 2]);
+    g.computeVertexNormals();
+    return new THREE.Mesh(g, mat);
   }
 
   private addDecal(
@@ -191,43 +324,14 @@ export class Game {
     this.scene.add(plane);
   }
 
-  private addRoof(
-    c: number,
-    r: number,
-    dc: number,
-    dr: number,
-    mat: THREE.Material,
-  ) {
-    const cx = c * CELL;
-    const cz = r * CELL;
-    // frente (beiral, sobre a rua, baixo) e trás (cumeeira, no interior, alto)
-    const fx = cx + dc * (CELL / 2 + ROOF_OVER);
-    const fz = cz + dr * (CELL / 2 + ROOF_OVER);
-    const bx = cx - dc * (CELL / 2);
-    const bz = cz - dr * (CELL / 2);
-    const px = dr; // perpendicular no plano XZ
-    const pz = -dc;
-    const half = CELL / 2 + 0.06; // leve sobreposição p/ fechar frestas entre células
-    const eaveY = WALL_H - 0.15;
-    const ridgeY = WALL_H + ROOF_H;
-    // superfície inclinada de palha (topo)
-    const a = new THREE.Vector3(fx + px * half, eaveY, fz + pz * half);
-    const b = new THREE.Vector3(fx - px * half, eaveY, fz - pz * half);
-    const d = new THREE.Vector3(bx + px * half, ridgeY, bz + pz * half);
-    const e = new THREE.Vector3(bx - px * half, ridgeY, bz - pz * half);
-    this.scene.add(this.quad(a, b, e, d, mat));
-    // borda de palha no beiral (dá espessura ao telhado)
-    const a2 = new THREE.Vector3(fx + px * half, eaveY - FASCIA, fz + pz * half);
-    const b2 = new THREE.Vector3(fx - px * half, eaveY - FASCIA, fz - pz * half);
-    this.scene.add(this.quad(a2, b2, b, a, mat));
-  }
-
   private quad(
     a: THREE.Vector3,
     b: THREE.Vector3,
     c: THREE.Vector3,
     d: THREE.Vector3,
     mat: THREE.Material,
+    uRep = 1,
+    vRep = 1,
   ): THREE.Mesh {
     const g = new THREE.BufferGeometry();
     const pos = new Float32Array([
@@ -240,7 +344,7 @@ export class Game {
     g.setAttribute(
       "uv",
       new THREE.BufferAttribute(
-        new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+        new Float32Array([0, 0, uRep, 0, uRep, vRep, 0, vRep]),
         2,
       ),
     );
