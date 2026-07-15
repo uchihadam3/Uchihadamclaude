@@ -4,9 +4,14 @@ import {
   WALL_H,
   ROOF_H,
   ROOF_OVER,
+  ROOF_DEPTH,
   FASCIA,
   EYE_H,
-  RENDER_H,
+  DOOR_W,
+  DOOR_H,
+  WIN_W,
+  WIN_H,
+  WIN_Y,
   MOVE_MS,
   TURN_MS,
   FOG_COLOR,
@@ -49,16 +54,16 @@ export class Game {
   constructor(container: HTMLElement) {
     this.container = container;
     this.renderer = new THREE.WebGLRenderer({
-      antialias: false,
+      antialias: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(1);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     container.appendChild(this.renderer.domElement);
 
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 2.2, CELL * 8.5);
+    this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 2.6, CELL * 11);
 
-    this.camera = new THREE.PerspectiveCamera(72, 1, 0.1, 400);
+    this.camera = new THREE.PerspectiveCamera(66, 1, 0.05, 400);
 
     const start = findStart();
     this.col = start.col;
@@ -185,7 +190,10 @@ export class Game {
           if (exposed(c, r, dc, 0)) {
             let r1 = r;
             while (r1 + 1 < ROWS && exposed(c, r1 + 1, dc, 0)) r1++;
-            this.addRoofRun(c, r, c, r1, dc, 0, mat);
+            let depth = ROOF_DEPTH;
+            for (let rr = r; rr <= r1; rr++)
+              depth = Math.min(depth, this.depthInto(c, rr, -dc, 0));
+            this.addRoofRun(c, r, c, r1, dc, 0, depth, mat);
             r = r1 + 1;
           } else r++;
         }
@@ -199,12 +207,23 @@ export class Game {
           if (exposed(c, r, 0, dr)) {
             let c1 = c;
             while (c1 + 1 < COLS && exposed(c1 + 1, r, 0, dr)) c1++;
-            this.addRoofRun(c, r, c1, r, 0, dr, mat);
+            let depth = ROOF_DEPTH;
+            for (let cc = c; cc <= c1; cc++)
+              depth = Math.min(depth, this.depthInto(cc, r, 0, -dr));
+            this.addRoofRun(c, r, c1, r, 0, dr, depth, mat);
             c = c1 + 1;
           } else c++;
         }
       }
     }
+  }
+
+  // quantas células de casa existem entrando no bloco (limitado a ROOF_DEPTH)
+  private depthInto(c: number, r: number, ndc: number, ndr: number): number {
+    let n = 0;
+    while (n < ROOF_DEPTH && cellAt(c + ndc * n, r + ndr * n) === "building")
+      n++;
+    return Math.max(1, n);
   }
 
   private addRoofRun(
@@ -214,14 +233,14 @@ export class Game {
     r1: number,
     dc: number,
     dr: number,
+    depth: number,
     mat: THREE.Material,
   ) {
     const eaveY = WALL_H - 0.15;
     const ridgeY = WALL_H + ROOF_H;
-    // Telhado de DUAS águas (fechado): beiral da rua (baixo, com balanço) →
-    // cumeeira (alto, recuado sobre a casa) → beiral dos fundos (baixo).
-    // As pontas do trecho são tampadas por triângulos p/ não sobrar fresta.
-    // s0/s1 = pontos do beiral da rua; k0/k1 = cumeeira; b0/b1 = beiral fundos.
+    // Telhado de DUAS águas (fechado) cobrindo `depth` células p/ dentro da
+    // casa: beiral da rua (baixo, com balanço) → cumeeira (alto, no meio da
+    // casa) → beiral dos fundos (baixo). As pontas são tampadas por triângulos.
     const s0 = new THREE.Vector3();
     const s1 = new THREE.Vector3();
     const k0 = new THREE.Vector3();
@@ -231,11 +250,14 @@ export class Game {
     let len: number;
     let frontLen: number; // comprimento da água frontal (p/ tiling em v)
     let backLen: number;
+    // distância do centro da célula da fachada até o fundo coberto do telhado
+    const backDist = depth * CELL - CELL / 2;
     if (dc !== 0) {
       // trecho vertical (varia z), inclina no eixo x
-      const streetX = c0 * CELL + dc * (CELL / 2 + ROOF_OVER); // beiral rua
-      const ridgeX = c0 * CELL; // cumeeira no centro da célula
-      const backX = c0 * CELL - dc * (CELL / 2); // beiral fundos
+      const faceX = c0 * CELL + dc * (CELL / 2); // face externa da parede
+      const streetX = faceX + dc * ROOF_OVER; // beiral sobre a rua
+      const backX = c0 * CELL - dc * backDist; // beiral dos fundos
+      const ridgeX = (streetX + backX) / 2; // cumeeira no meio
       const z0 = r0 * CELL - CELL / 2;
       const z1 = r1 * CELL + CELL / 2;
       s0.set(streetX, eaveY, z0);
@@ -249,9 +271,10 @@ export class Game {
       backLen = Math.abs(ridgeX - backX) / CELL + 0.5;
     } else {
       // trecho horizontal (varia x), inclina no eixo z
-      const streetZ = r0 * CELL + dr * (CELL / 2 + ROOF_OVER);
-      const ridgeZ = r0 * CELL;
-      const backZ = r0 * CELL - dr * (CELL / 2);
+      const faceZ = r0 * CELL + dr * (CELL / 2);
+      const streetZ = faceZ + dr * ROOF_OVER;
+      const backZ = r0 * CELL - dr * backDist;
+      const ridgeZ = (streetZ + backZ) / 2;
       const x0 = c0 * CELL - CELL / 2;
       const x1 = c1 * CELL + CELL / 2;
       s0.set(x0, eaveY, streetZ);
@@ -309,9 +332,9 @@ export class Game {
     mat: THREE.Material,
     kind: "door" | "window",
   ) {
-    const w = kind === "door" ? CELL * 0.5 : CELL * 0.42;
-    const h = kind === "door" ? WALL_H * 0.62 : CELL * 0.42;
-    const y = kind === "door" ? h / 2 + 0.05 : WALL_H * 0.55;
+    const w = kind === "door" ? DOOR_W : WIN_W;
+    const h = kind === "door" ? DOOR_H : WIN_H;
+    const y = kind === "door" ? h / 2 + 0.02 : WIN_Y;
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     const fx = c * CELL + dc * (CELL / 2 + 0.04);
     const fz = r * CELL + dr * (CELL / 2 + 0.04);
@@ -414,8 +437,7 @@ export class Game {
   private resize() {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
-    const scale = RENDER_H / h;
-    this.renderer.setSize(Math.max(1, Math.round(w * scale)), RENDER_H, false);
+    this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
