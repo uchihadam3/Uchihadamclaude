@@ -1,16 +1,15 @@
 // Constantes globais do mundo/mapa.
 
 // Tamanho do "mundo" em pixels (o pergaminho). Coordenadas % dos locais
-// são convertidas para este espaço.
-export const WORLD_W = 2400;
-export const WORLD_H = 1600;
+// são convertidas para este espaço. Mapa expandido = mais espaço p/ explorar.
+export const WORLD_W = 3800;
+export const WORLD_H = 2500;
 
 // Viagem: quantos minutos de jogo passam por unidade de distância percorrida.
-// Ajustado para uma travessia larga custar ~algumas horas de jogo.
-export const MINUTES_PER_UNIT = 0.55;
+export const MINUTES_PER_UNIT = 0.32;
 
-// Velocidade visual do marcador (px/seg no espaço do mundo).
-export const TRAVEL_PX_PER_SEC = 260;
+// Velocidade de caminhada do personagem (px/seg no espaço do mundo).
+export const TRAVEL_PX_PER_SEC = 135;
 
 // Multiplicador de custo por tipo de terreno (estrada é mais rápida).
 export const TERRAIN_COST: Record<string, number> = {

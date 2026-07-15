@@ -15,7 +15,7 @@ import {
   SEA,
 } from "../config";
 
-const MAX_ZOOM = 1.6;
+const MAX_ZOOM = 2.0;
 const CREAM = 0xf4e7c4;
 const RED = 0x8f3a2a;
 const GOLD = 0xc9a227;
@@ -47,11 +47,13 @@ export class WorldMapScene extends Phaser.Scene {
 
   private currentId: string | null = START_LOCATION_ID; // null = em campo aberto
   private selectedId: string | null = null;
-  // movimentação livre: anda em linha reta até um ponto (locId se for um local)
-  private walk: { x: number; y: number; locId: string | null } | null = null;
   private inLocation = false;
+  // movimentação por joystick
+  private moving = false;
+  private moveDir = { x: 0, y: 0 };
 
   private marker!: Phaser.GameObjects.Container;
+  private dirArrow!: Phaser.GameObjects.Container;
   private selRing!: Phaser.GameObjects.Arc;
   private overlay!: Phaser.GameObjects.Rectangle;
   private vision!: Phaser.GameObjects.Image;
@@ -623,15 +625,22 @@ export class WorldMapScene extends Phaser.Scene {
     world.add(c);
     this.marker = c;
 
-    // leve balanço
-    this.tweens.add({
-      targets: c,
-      y: start.y - 4,
-      duration: 1400,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.inOut",
-    });
+    // seta/arco de direção (aparece ao mover), aponta para +x por padrão
+    const arrow = this.add.container(start.x, start.y).setDepth(499);
+    const ag = this.add.graphics();
+    ag.fillStyle(GOLD, 0.95);
+    ag.lineStyle(2, 0x2a1808, 0.9);
+    // arco curvo saindo do personagem
+    ag.beginPath();
+    ag.arc(0, 0, 34, -0.5, 0.5, false);
+    ag.strokePath();
+    // ponta da seta
+    ag.fillTriangle(30, -14, 46, 0, 30, 14);
+    ag.strokeTriangle(30, -14, 46, 0, 30, 14);
+    arrow.add(ag);
+    arrow.setVisible(false);
+    world.add(arrow);
+    this.dirArrow = arrow;
   }
 
   // --------------------------------------------------------------- câmera
@@ -646,15 +655,17 @@ export class WorldMapScene extends Phaser.Scene {
   private setupCamera() {
     const cam = this.cameras.main;
     cam.setBounds(0, 0, WORLD_W, WORLD_H);
-    cam.setBackgroundColor(0x17272a); // mar profundo nas bordas (evita "vazio" preto)
-    this.minZoom = this.fitZoom();
-    // começa em "cover" (preenche a tela) centrado no jogador
-    cam.setZoom(Math.min(MAX_ZOOM, this.coverZoom() * 1.05));
+    cam.setBackgroundColor(0x17272a);
+    // minZoom = "cover": o mapa SEMPRE preenche a tela (nada de vazio/mancha).
+    this.minZoom = this.coverZoom();
+    cam.setZoom(Math.min(MAX_ZOOM, this.coverZoom() * 1.8)); // começa mais perto
     const s = this.mgr.pos(this.currentId!);
     cam.centerOn(s.x, s.y);
+    // câmera acompanha o personagem o tempo todo
+    cam.startFollow(this.marker, false, 0.12, 0.12);
 
     this.scale.on("resize", (gameSize: Phaser.Structs.Size) => {
-      this.minZoom = this.fitZoom();
+      this.minZoom = this.coverZoom();
       if (cam.zoom < this.minZoom) cam.setZoom(this.minZoom);
       this.overlay.setSize(gameSize.width, gameSize.height);
       this.sizeVision();
@@ -682,20 +693,13 @@ export class WorldMapScene extends Phaser.Scene {
 
   // --------------------------------------------------------------- input
   private setupInput() {
-    this.input.addPointer(2);
+    this.input.addPointer(3);
 
-    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      this.dragging = true;
-      this.lastX = p.x;
-      this.lastY = p.y;
-      this.dragDist = 0;
-    });
-
-    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+    // pinça de zoom (dois dedos). O movimento é pelo joystick.
+    this.input.on("pointermove", () => {
       const p1 = this.input.pointer1;
       const p2 = this.input.pointer2;
-      if (p1.isDown && p2.isDown) {
-        // pinça
+      if (p1.isDown && p2.isDown && !this.registry.get("joyActive")) {
         const d = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
         if (this.pinchDist > 0) {
           const mx = (p1.x + p2.x) / 2;
@@ -703,34 +707,11 @@ export class WorldMapScene extends Phaser.Scene {
           this.zoomAt(mx, my, this.cameras.main.zoom * (d / this.pinchDist));
         }
         this.pinchDist = d;
-        this.dragDist = 999;
-        return;
       }
-      if (!this.dragging || this.inLocation) return;
-      const dx = p.x - this.lastX;
-      const dy = p.y - this.lastY;
-      this.cameras.main.scrollX -= dx / this.cameras.main.zoom;
-      this.cameras.main.scrollY -= dy / this.cameras.main.zoom;
-      this.dragDist += Math.hypot(dx, dy);
-      this.lastX = p.x;
-      this.lastY = p.y;
     });
 
-    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
-      this.dragging = false;
+    this.input.on("pointerup", () => {
       this.pinchDist = 0;
-      // toque em terreno livre (não em POI, sem arrastar, fora da UI) => andar até lá
-      if (
-        !this.consumedTap &&
-        this.dragDist < 10 &&
-        !this.inLocation &&
-        !this.registry.get("uiCapture")
-      ) {
-        const wp = this.cameras.main.getWorldPoint(p.x, p.y);
-        this.startWalk(wp.x, wp.y, null);
-        this.selectLocation(null);
-      }
-      this.consumedTap = false;
     });
 
     this.input.on(
@@ -743,10 +724,8 @@ export class WorldMapScene extends Phaser.Scene {
 
   // ------------------------------------------------------------ seleção
   private onPoiTap(loc: WorldLocation) {
-    // movimentação livre: toca num local => anda até ele
+    // tocar num local só mostra a ficha (informação); mover é pelo joystick
     this.selectLocation(loc);
-    const p = this.mgr.pos(loc.id);
-    this.startWalk(p.x, p.y, loc.id);
   }
 
   private selectLocation(loc: WorldLocation | null) {
@@ -760,41 +739,12 @@ export class WorldMapScene extends Phaser.Scene {
     bus.emit(EVENTS.LOCATION_SELECT, {
       loc,
       isCurrent: loc?.id === this.currentId,
-      traveling: !!this.walk,
+      traveling: this.moving,
     });
   }
 
-  // ------------------------------------------------------- movimentação livre
-  private startWalk(x: number, y: number, locId: string | null) {
-    if (this.inLocation) return;
-    this.walk = { x, y, locId };
-    this.currentId = null;
-    this.tweens.killTweensOf(this.marker);
-    this.cameras.main.startFollow(this.marker, false, 0.09, 0.09);
-    this.selRing.setVisible(false);
-    // ao sair andando, volta a câmera para a escala de campo aberto
-    if (this.cameras.main.zoom > this.coverZoom() * 1.12) {
-      this.cameras.main.zoomTo(this.coverZoom() * 1.05, 350);
-    }
-    bus.emit(EVENTS.TRAVEL_START, locId ? this.mgr.location(locId) : null);
-  }
-
-  // compat.: HUD antigo poderia pedir viagem por id
-  private onTravelRequest(toId: string) {
-    const p = this.mgr.pos(toId);
-    this.selectLocation(this.mgr.location(toId));
-    this.startWalk(p.x, p.y, toId);
-  }
-
-  private resumeBob() {
-    this.tweens.add({
-      targets: this.marker,
-      y: this.marker.y - 4,
-      duration: 1400,
-      yoyo: true,
-      repeat: -1,
-      ease: "Sine.inOut",
-    });
+  private onTravelRequest() {
+    /* obsoleto: movimento agora é pelo joystick */
   }
 
   // -------------------------------------------------------- entrar / sair
@@ -802,7 +752,6 @@ export class WorldMapScene extends Phaser.Scene {
     if (this.inLocation || this.currentId !== locId) return;
     this.inLocation = true;
     const p = this.mgr.pos(locId);
-    // "zoom" que muda a escala ao entrar na cidade
     this.cameras.main.stopFollow();
     this.cameras.main.pan(p.x, p.y, 450, "Sine.easeInOut");
     this.cameras.main.zoomTo(MAX_ZOOM, 550, "Sine.easeInOut");
@@ -811,52 +760,70 @@ export class WorldMapScene extends Phaser.Scene {
   private onExit() {
     if (!this.inLocation) return;
     this.inLocation = false;
-    this.cameras.main.zoomTo(this.coverZoom() * 1.05, 450, "Sine.easeInOut");
+    this.cameras.main.zoomTo(this.coverZoom() * 1.8, 450, "Sine.easeInOut");
+    this.cameras.main.startFollow(this.marker, false, 0.12, 0.12);
   }
 
   update(_t: number, deltaMs: number) {
     const dt = deltaMs / 1000;
 
-    if (this.walk && !this.inLocation) {
-      const dx = this.walk.x - this.marker.x;
-      const dy = this.walk.y - this.marker.y;
-      const dist = Math.hypot(dx, dy);
-      const step = TRAVEL_PX_PER_SEC * dt;
-
-      // "aproximação": ao chegar perto de um local, a escala aumenta suavemente
-      if (this.walk.locId && dist < 240) {
-        const target = Math.min(MAX_ZOOM, this.coverZoom() * 1.45);
-        this.cameras.main.setZoom(
-          Phaser.Math.Linear(this.cameras.main.zoom, target, 0.05),
-        );
-      }
-
-      if (dist <= step || dist < 1) {
-        this.marker.setPosition(this.walk.x, this.walk.y);
-        this.gameClock.advance(dist * MINUTES_PER_UNIT);
-        const locId = this.walk.locId;
-        this.walk = null;
-        this.cameras.main.stopFollow();
-        this.resumeBob();
-        if (locId) {
-          this.currentId = locId;
-          const loc = this.mgr.location(locId);
-          bus.emit(EVENTS.TRAVEL_END, loc);
-          bus.emit(EVENTS.LOCATION_ARRIVE, loc);
-          this.selectLocation(loc);
-        } else {
-          this.currentId = null;
-          bus.emit(EVENTS.TRAVEL_END, null);
-        }
-      } else {
-        this.marker.x += (dx / dist) * step;
-        this.marker.y += (dy / dist) * step;
-        this.gameClock.advance(step * MINUTES_PER_UNIT);
-      }
+    // ------- movimentação por joystick
+    const joy = this.registry.get("joyDir") as
+      | { x: number; y: number; mag: number }
+      | null
+      | undefined;
+    if (!this.inLocation && joy && joy.mag > 0.12) {
+      const step = TRAVEL_PX_PER_SEC * dt * joy.mag;
+      const nx = Phaser.Math.Clamp(this.marker.x + joy.x * step, 60, WORLD_W - 60);
+      const ny = Phaser.Math.Clamp(this.marker.y + joy.y * step, 60, WORLD_H - 60);
+      const moved = Math.hypot(nx - this.marker.x, ny - this.marker.y);
+      this.marker.setPosition(nx, ny);
+      this.gameClock.advance(moved * MINUTES_PER_UNIT);
+      this.moveDir = { x: joy.x, y: joy.y };
+      this.moving = moved > 0.01;
+      this.updateNearby();
+    } else {
+      this.moving = false;
     }
 
+    this.updateArrow();
     this.updateVision();
     this.updateEnvironment();
+  }
+
+  // Detecta o local sob o personagem (mostra ficha + habilita "Entrar")
+  private updateNearby() {
+    let nearId: string | null = null;
+    let best = 62; // raio de "estar em cima" do local (mundo)
+    for (const loc of WORLD.locations) {
+      const p = this.mgr.pos(loc.id);
+      const d = Math.hypot(p.x - this.marker.x, p.y - this.marker.y);
+      if (d < best) {
+        best = d;
+        nearId = loc.id;
+      }
+    }
+    if (nearId !== this.currentId) {
+      this.currentId = nearId;
+      if (nearId) {
+        const loc = this.mgr.location(nearId);
+        bus.emit(EVENTS.LOCATION_ARRIVE, loc);
+        this.selectLocation(loc);
+      } else {
+        this.selectLocation(null);
+      }
+    }
+  }
+
+  private updateArrow() {
+    if (this.moving) {
+      this.dirArrow
+        .setPosition(this.marker.x, this.marker.y)
+        .setRotation(Math.atan2(this.moveDir.y, this.moveDir.x))
+        .setVisible(true);
+    } else {
+      this.dirArrow.setVisible(false);
+    }
   }
 
   private updateVision() {
