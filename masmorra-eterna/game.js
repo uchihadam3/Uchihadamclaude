@@ -1729,23 +1729,73 @@ function drawItemIcon(ctx,type){ ctx.clearRect(0,0,32,32); const R=(x,y,w,h,c)=>
 }
 
 /* ---------- minimapa sempre visível ---------- */
+/* ---------- pintor de mapa compartilhado (Parte 10) ---------- */
+function _rrect(ctx,x,y,w,h,r){ ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath(); }
+function _star(ctx,R,pts){ ctx.beginPath(); for(let i=0;i<pts*2;i++){ const ang=Math.PI/pts*i-Math.PI/2, rad=i%2?R*0.42:R; ctx[i?'lineTo':'moveTo'](Math.cos(ang)*rad,Math.sin(ang)*rad);} ctx.closePath(); ctx.fill(); }
+function _tridown(ctx,R){ ctx.beginPath();ctx.moveTo(-R,-R*0.7);ctx.lineTo(R,-R*0.7);ctx.lineTo(0,R*0.85);ctx.closePath();ctx.fill(); }
+function _skull(ctx,R,col){ ctx.fillStyle=col; ctx.beginPath();ctx.arc(0,-R*0.18,R*0.82,Math.PI,0);ctx.rect(-R*0.82,-R*0.18,R*1.64,R*0.85);ctx.fill();
+  ctx.fillStyle='#160707'; ctx.beginPath();ctx.arc(-R*0.36,-R*0.02,R*0.25,0,7);ctx.arc(R*0.36,-R*0.02,R*0.25,0,7);ctx.fill();
+  ctx.fillStyle=col; for(let i=-1;i<=1;i++)ctx.fillRect(i*R*0.32-R*0.1,R*0.5,R*0.2,R*0.36); }
+function _swords(ctx,R,col){ ctx.strokeStyle=col; ctx.lineWidth=Math.max(1.4,R*0.3); ctx.lineCap='round';
+  ctx.beginPath();ctx.moveTo(-R*0.75,-R*0.75);ctx.lineTo(R*0.75,R*0.75);ctx.moveTo(R*0.75,-R*0.75);ctx.lineTo(-R*0.75,R*0.75);ctx.stroke(); }
+function mapGlyph(ctx,type,cx,cy,cell,d,x,y,big){
+  const looted=d.looted&&d.looted.has(x+','+y), trig=d.triggered&&d.triggered.has(x+','+y);
+  const done=((type==='C'||type==='T')&&looted)||((type==='M'||type==='X')&&trig);
+  ctx.save(); ctx.translate(cx,cy); const r=cell*0.34;
+  if(done){ ctx.fillStyle='rgba(120,112,92,.45)'; ctx.beginPath();ctx.arc(0,0,cell*0.13,0,7);ctx.fill(); ctx.restore(); return; }
+  if(big){ ctx.shadowBlur=cell*0.45; }
+  if(!big){ // mini: formas simples color-coded (legiveis em célula pequena)
+    const map={C:['#e8c15a','sq'],T:['#ffd45a','di'],F:['#4a9ad8','ci'],'>':['#6ad06a','tr'],B:['#ff5a5a','ring'],M:['#ff9a4a','di'],X:['#c060ff','di'],A:['#c88cff','pl']};
+    const g=map[type]||['#888','sq']; ctx.fillStyle=g[0]; const s=Math.max(2,cell*0.42);
+    if(g[1]==='sq')ctx.fillRect(-s,-s,s*2,s*2);
+    else if(g[1]==='ci'){ctx.beginPath();ctx.arc(0,0,s,0,7);ctx.fill();}
+    else if(g[1]==='di'){ctx.beginPath();ctx.moveTo(0,-s*1.3);ctx.lineTo(s*1.1,0);ctx.lineTo(0,s*1.3);ctx.lineTo(-s*1.1,0);ctx.closePath();ctx.fill();}
+    else if(g[1]==='tr'){_tridown(ctx,s*1.2);}
+    else if(g[1]==='ring'){ctx.beginPath();ctx.arc(0,0,s,0,7);ctx.fill();ctx.fillStyle='#2a0808';ctx.beginPath();ctx.arc(0,0,s*0.45,0,7);ctx.fill();}
+    else if(g[1]==='pl'){ctx.fillRect(-s*0.35,-s,s*0.7,s*2);ctx.fillRect(-s,-s*0.35,s*2,s*0.7);}
+    ctx.restore(); return;
+  }
+  switch(type){
+    case 'C': ctx.shadowColor='#e8c15a'; ctx.fillStyle='#e8c15a'; _rrect(ctx,-r,-r*0.75,r*2,r*1.5,r*0.28); ctx.fill(); ctx.shadowBlur=0; ctx.fillStyle='#8a6420'; ctx.fillRect(-r,-r*0.08,r*2,r*0.22); ctx.fillStyle='#3a2a10'; ctx.fillRect(-r*0.12,-r*0.2,r*0.24,r*0.4); break;
+    case 'T': ctx.shadowColor='#ffd45a'; ctx.fillStyle='#ffd45a'; _star(ctx,r*1.3,4); ctx.shadowBlur=0; ctx.fillStyle='#fff6d0'; _star(ctx,r*0.5,4); break;
+    case 'F': ctx.shadowColor='#4a9ad8'; ctx.fillStyle='#357bbb'; ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill(); ctx.shadowBlur=0; ctx.fillStyle='#bfe4ff'; ctx.beginPath();ctx.arc(0,-r*0.12,r*0.42,0,7);ctx.fill(); break;
+    case '>': ctx.shadowColor='#6ad06a'; ctx.fillStyle='#6ad06a'; _tridown(ctx,r); ctx.fillStyle='#2e5e2e'; ctx.save();ctx.translate(0,-r*0.35);_tridown(ctx,r*0.55);ctx.restore(); break;
+    case 'B': ctx.shadowColor='#ff5a5a'; _skull(ctx,r,'#ff6a6a'); break;
+    case 'M': ctx.shadowColor='#ff9a4a'; _swords(ctx,r,'#ffb060'); break;
+    case 'X': ctx.shadowColor='#c060ff'; _skull(ctx,r*1.12,'#c884ff'); break;
+    case 'A': ctx.shadowColor='#c88cff'; ctx.fillStyle='#c88cff'; _star(ctx,r*0.85,4); break;
+  }
+  ctx.restore();
+}
+function paintMapTiles(ctx,d,cell,ox,oy,big){
+  const FL='#2c2734', FLE='#211c29', WALL='#141119', DOOR='#7a5324', FOG='#0c0c11';
+  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ const px=ox+x*cell, py=oy+y*cell;
+    if(!d.explored[y][x]){ if(big){ctx.fillStyle=FOG;ctx.fillRect(px,py,cell-1,cell-1);} continue; }
+    let t=d.grid[y][x]; const wall=t==='#'||(t==='S'&&!d.secretsRevealed.has(x+','+y));
+    if(wall){ if(big){ctx.fillStyle=WALL;ctx.fillRect(px,py,cell-1,cell-1);} continue; }
+    ctx.fillStyle = t==='+'?DOOR:FL; ctx.fillRect(px,py,Math.ceil(cell)-(big?1:0),Math.ceil(cell)-(big?1:0));
+    if(big){ ctx.strokeStyle=FLE; ctx.lineWidth=1; ctx.strokeRect(px+0.5,py+0.5,cell-1,cell-1); }
+  }
+  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ if(!d.explored[y][x])continue;
+    let t=d.grid[y][x]; if(t==='S'){ if(!d.secretsRevealed.has(x+','+y))continue; t='A'; }
+    if('CTF>BMXA'.indexOf(t)<0)continue;
+    mapGlyph(ctx,t,ox+(x+0.5)*cell,oy+(y+0.5)*cell,cell,d,x,y,big);
+  }
+}
+function drawPlayerArrow(ctx,cx,cy,r){ const a=dirAng(G.dir); ctx.save();
+  ctx.shadowColor='#ff6a4a'; ctx.shadowBlur=Math.max(4,r*0.9);
+  ctx.fillStyle='#ff5040'; ctx.strokeStyle='#ffe6d8'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);
+  ctx.lineTo(cx+Math.cos(a+2.5)*r*0.82,cy+Math.sin(a+2.5)*r*0.82);
+  ctx.lineTo(cx+Math.cos(a-2.5)*r*0.82,cy+Math.sin(a-2.5)*r*0.82);
+  ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+}
 function drawMini(){ const cv=$('#miniMap'),d=G.dun; if(!cv||!d)return;
   const W=cv.clientWidth||160,H=cv.clientHeight||120; if(W<4)return; cv.width=W;cv.height=H;
-  const ctx=cv.getContext('2d'); ctx.clearRect(0,0,W,H);
+  const ctx=cv.getContext('2d'); ctx.clearRect(0,0,W,H); ctx.fillStyle='#0a0a0e'; ctx.fillRect(0,0,W,H);
   const cell=Math.min((W-6)/d.w,(H-6)/d.h), ox=(W-cell*d.w)/2, oy=(H-cell*d.h)/2;
-  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ if(!d.explored[y][x])continue;
-    let t=d.grid[y][x]; if(t==='#'||(t==='S'&&!d.secretsRevealed.has(x+','+y)))continue;
-    let col='rgba(70,48,24,.45)';
-    if(t==='C'&&!d.looted.has(x+','+y))col='#b8892a'; else if(t==='>')col='#3a7a2a';
-    else if(t==='F')col='#2a6ab0'; else if(t==='B')col='#a83030'; else if(t==='+')col='#8a5a2a';
-    ctx.fillStyle=col; ctx.fillRect(ox+x*cell,oy+y*cell,Math.ceil(cell),Math.ceil(cell));
-  }
-  // seta do jogador
-  const cxp=ox+(Math.floor(G.px)+0.5)*cell, cyp=oy+(Math.floor(G.py)+0.5)*cell, r=cell*0.7, a=dirAng(G.dir);
-  ctx.fillStyle='#c0201a'; ctx.beginPath();
-  ctx.moveTo(cxp+Math.cos(a)*r,cyp+Math.sin(a)*r);
-  ctx.lineTo(cxp+Math.cos(a+2.4)*r,cyp+Math.sin(a+2.4)*r);
-  ctx.lineTo(cxp+Math.cos(a-2.4)*r,cyp+Math.sin(a-2.4)*r); ctx.fill();
+  paintMapTiles(ctx,d,cell,ox,oy,false);
+  drawPlayerArrow(ctx, ox+(Math.floor(G.px)+0.5)*cell, oy+(Math.floor(G.py)+0.5)*cell, Math.max(3,cell*0.7));
 }
 
 /* ================= SPRITES PIXEL — retratos ================= */
@@ -2144,20 +2194,10 @@ function logMsg(s){ const l=$('#logText'); if(!l)return; const div=document.crea
 
 /* ================= MAPA ================= */
 function openMap(){ const ov=$('#mapOv'); ov.classList.add('on'); $('#mapFl').textContent=G.dun.name; drawMapCv(); }
-function drawMapCv(){ const cv=$('#mapCv'),d=G.dun; const cell=Math.floor(Math.min(520,window.innerWidth-40)/d.w); cv.width=d.w*cell;cv.height=d.h*cell;
-  const ctx=cv.getContext('2d'); ctx.fillStyle='#050505';ctx.fillRect(0,0,cv.width,cv.height);
-  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ const px=x*cell,py=y*cell; const ex=d.explored[y][x];
-    if(!ex){ ctx.fillStyle='#0d0d0f'; ctx.fillRect(px,py,cell-1,cell-1); continue; }
-    let t=d.grid[y][x]; let col='#2a2a30';
-    if(t==='#')col='#181820'; else if(t==='+')col='#7a5a2a'; else if(t==='S'&&!d.secretsRevealed.has(x+','+y))col='#181820';
-    else if(t==='C'&&!d.looted.has(x+','+y))col='#c8a44a'; else if(t==='>')col='#5aa85a'; else if(t==='<')col='#3a6ab0';
-    else if(t==='F')col='#4a86d8'; else if(t==='B')col='#c83a3a'; else col='#3a3a44';
-    ctx.fillStyle=col; ctx.fillRect(px,py,cell-1,cell-1);
-  }
-  // jogador
-  const jx=Math.floor(G.px)*cell,jy=Math.floor(G.py)*cell; ctx.fillStyle='#e8c15a';
-  ctx.beginPath(); const cxp=jx+cell/2,cyp=jy+cell/2,r=cell*0.35, a=dirAng(G.dir);
-  ctx.moveTo(cxp+Math.cos(a)*r,cyp+Math.sin(a)*r); ctx.lineTo(cxp+Math.cos(a+2.4)*r,cyp+Math.sin(a+2.4)*r); ctx.lineTo(cxp+Math.cos(a-2.4)*r,cyp+Math.sin(a-2.4)*r); ctx.fill();
+function drawMapCv(){ const cv=$('#mapCv'),d=G.dun; const cell=Math.floor(Math.min(560,window.innerWidth-40)/d.w); cv.width=d.w*cell;cv.height=d.h*cell;
+  const ctx=cv.getContext('2d'); ctx.fillStyle='#070709';ctx.fillRect(0,0,cv.width,cv.height);
+  paintMapTiles(ctx,d,cell,0,0,true);
+  drawPlayerArrow(ctx, (Math.floor(G.px)+0.5)*cell, (Math.floor(G.py)+0.5)*cell, cell*0.42);
 }
 
 /* ================= CAMP ================= */
