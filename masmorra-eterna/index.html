@@ -370,6 +370,22 @@
   .cta:active{transform:translateY(2px);box-shadow:0 2px 0 #7a5a18;}
   .cta.ghost{background:none;color:var(--ink);border:1.5px solid #4a4128;box-shadow:none;font-size:13px;padding:11px 26px;margin-top:14px;}
   .tinfo{margin-top:26px;font-size:11px;color:#6b6656;line-height:1.9;} .tinfo b{color:var(--acc);}
+  /* ---- menu principal / slots de save (Parte 13) ---- */
+  .menuBox{display:flex;flex-direction:column;align-items:center;gap:0;margin-top:24px;width:min(420px,86vw);}
+  .menuBox.hidden{display:none;}
+  #mainMenu .cta{width:280px;} #mainMenu .cta.ghost{margin-top:12px;}
+  .slotHead{font-size:13px;letter-spacing:3px;color:var(--acc);margin-bottom:14px;}
+  .slotCard{position:relative;width:100%;background:linear-gradient(180deg,#171308,#0d0b06);border:1.5px solid #332c19;border-radius:9px;padding:14px 18px;margin-bottom:11px;cursor:pointer;text-align:left;transition:.12s;}
+  .slotCard:hover{border-color:var(--acc);background:#20180a;}
+  .slotCard.dis{opacity:.4;cursor:default;filter:grayscale(.6);} .slotCard.dis:hover{border-color:#332c19;background:#171308;}
+  .slotCard .slotN{font-size:12px;letter-spacing:2px;color:#c9a44a;margin-bottom:5px;}
+  .slotCard .slotInfo{font-size:14px;color:#e7d9b4;line-height:1.5;} .slotCard .slotInfo.empty{color:#6a6350;font-style:italic;font-size:13px;}
+  .slotCard .slotWhen{font-size:11px;color:#8a815f;}
+  .slotCard .slotDel{position:absolute;top:12px;right:14px;font-size:15px;opacity:.5;padding:4px;border-radius:5px;}
+  .slotCard .slotDel:hover{opacity:1;background:#3a1414;}
+  .cta.sm{font-size:12px;padding:9px 22px;margin-top:6px;}
+  .optRow{display:flex;justify-content:space-between;align-items:center;width:100%;background:#141109;border:1.5px solid #2c2616;border-radius:8px;padding:13px 18px;margin-bottom:10px;cursor:pointer;font-size:14px;color:#d8cfa8;}
+  .optRow:hover{border-color:var(--acc);} .optRow .optVal{color:var(--acc);font-weight:bold;font-size:13px;}
   #dead .gtitle{color:var(--bad);text-shadow:0 4px 0 #3a0e0e,0 0 26px rgba(200,60,60,.4);}
   #win .gtitle{color:#ffe89a;}
   .flash{position:absolute;inset:0;z-index:35;background:#fff;opacity:0;pointer-events:none;}
@@ -493,10 +509,15 @@
   <div class="screen" id="title">
     <div class="gtitle">MASMORRA<br>ETERNA</div>
     <div class="gsub">O ABISMO DE OSSFELD</div>
-    <div class="glore">Quatro almas descem à masmorra que engoliu um reino. Vinte andares de pedra, sombra e segredo. Sonde o inimigo, quebre sua guarda, e ascenda — ou torne-se mais um osso no fosso.</div>
-    <button class="cta" id="btnPlay">▶ DESCER</button>
-    <button class="cta ghost" id="btnCont" style="display:none;">↻ CONTINUAR EXPEDIÇÃO</button>
-    <div class="tinfo"><b>Combate por turnos:</b> descubra fraquezas → <b>Quebre</b> a guarda → castigue.<br>Acumule <b>Resolve</b> e desate golpes potencializados. Posição, elemento e recurso importam.</div>
+    <div class="glore">Há dez anos, o reino de Ossfeld foi engolido pela terra numa única noite. Quatro herdeiros da tragédia descem agora ao abismo — atrás de respostas, de vingança, e da Chama que um dia protegeu o mundo.</div>
+    <div id="mainMenu" class="menuBox">
+      <button class="cta" data-menu="new">▶ NOVO JOGO</button>
+      <button class="cta ghost" data-menu="load">↻ CARREGAR</button>
+      <button class="cta ghost" data-menu="opt">⚙ OPÇÕES</button>
+    </div>
+    <div id="slotPick" class="menuBox hidden"></div>
+    <div id="optPanel" class="menuBox hidden"></div>
+    <div class="tinfo"><b>Combate por turnos:</b> descubra fraquezas → <b>Quebre</b> a guarda → castigue.<br>Acumule <b>Impulso</b> e desate golpes potencializados. Posição, elemento e recurso importam.</div>
   </div>
   <div class="screen hidden" id="dead">
     <div class="gtitle">A PARTY TOMBOU</div><div class="glore" id="deadStats"></div>

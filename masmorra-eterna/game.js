@@ -2419,11 +2419,17 @@ function showWin(){ musicStop(); SFX.win(); $('#winStats').innerHTML=`Vocês ven
   $('#win').classList.remove('hidden'); }
 
 /* ================= SAVE ================= */
-const SAVEKEY='masmorra_save_v1';
-function saveGame(){ try{ const s={gp:G.gp,depth:G.depth,maxFloor:G.maxFloor,inv:G.inv,equipInv:G.equipInv,flags:G.flags,steps:G.steps,kills:G.kills,
+const SAVEKEY=i=>'masmorra_save_slot'+i;   // 3 slots (Parte 13)
+let CURSLOT=0;
+function saveGame(){ if(CURSLOT<0)return; try{ const s={ver:2,ts:Date.now(),avgLv:Math.round(G.party.reduce((a,c)=>a+c.lv,0)/Math.max(1,G.party.length)),
+    gp:G.gp,depth:G.depth,maxFloor:G.maxFloor,inv:G.inv,equipInv:G.equipInv,flags:G.flags,steps:G.steps,kills:G.kills,
     party:G.party.map(c=>({id:c.id,lv:c.lv,xp:c.xp,xpNext:c.xpNext,mhp:c.mhp,hp:c.hp,mmp:c.mmp,mp:c.mp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck,row:c.row,baseStats:c.baseStats,equip:c.equip})),
     scene:G.dun?serialScene(G.dun):null, px:G.px,py:G.py,dir:G.dir };
-  localStorage.setItem(SAVEKEY,JSON.stringify(s)); }catch(e){} }
+  localStorage.setItem(SAVEKEY(CURSLOT),JSON.stringify(s)); }catch(e){} }
+function slotMeta(i){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY(i))); if(!s)return null;
+    return {depth:s.depth, maxFloor:s.maxFloor||s.depth, avgLv:s.avgLv||Math.round((s.party&&s.party.reduce((a,c)=>a+c.lv,0)/Math.max(1,s.party.length))||1), gp:s.gp||0, ts:s.ts||0, name:s.scene?s.scene.name:('Andar '+s.depth)}; }catch(e){ return null; } }
+function slotHasSave(i){ return !!localStorage.getItem(SAVEKEY(i)); }
+function clearSlot(i){ try{localStorage.removeItem(SAVEKEY(i));}catch(e){} }
 function serialScene(d){ return {depth:d.depth,grid:d.grid.map(r=>r.join('')),name:d.name,
   doorsOpen:[...d.doorsOpen],secretsRevealed:[...d.secretsRevealed],looted:[...d.looted],triggered:[...d.triggered],rested:[...d.rested],
   explored:d.explored.map(r=>r.map(v=>v?1:0)),isBoss:d.isBoss}; }
@@ -2434,9 +2440,9 @@ function loadScene(s){ const d={depth:s.depth,w:s.grid[0].length,h:s.grid.length
   d.bossKey=bossKeyFor(s.depth); d.bossDefeated=true; d.bossPos=null;
   for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ if(d.grid[y][x]==='B'){d.bossPos={x,y};d.bossDefeated=false;} else if(d.grid[y][x]==='>'&&!d.bossPos){d.bossPos={x,y};} }
   return d; }
-function hasSave(){ return !!localStorage.getItem(SAVEKEY); }
-function clearSave(){ try{localStorage.removeItem(SAVEKEY);}catch(e){} }
-function loadGame(){ try{ const s=JSON.parse(localStorage.getItem(SAVEKEY)); if(!s)return false;
+function hasSave(){ return [0,1,2].some(slotHasSave); }
+function clearSave(){ clearSlot(CURSLOT); }
+function loadGame(slot){ try{ if(slot!=null)CURSLOT=slot; const s=JSON.parse(localStorage.getItem(SAVEKEY(CURSLOT))); if(!s)return false;
   G.gp=s.gp;G.depth=s.depth;G.floor=s.depth;G.maxFloor=s.maxFloor||s.depth;G.inv=s.inv||{};G.equipInv=s.equipInv||[];G.flags=s.flags||{};G.steps=s.steps||0;G.kills=s.kills||0;
   // garante uid único acima dos salvos
   let mx=0; G.equipInv.forEach(it=>{if(it&&it.uid>mx)mx=it.uid;}); (s.party||[]).forEach(p=>{ for(const sl in (p.equip||{})){ const it=p.equip[sl]; if(it&&it.uid>mx)mx=it.uid; } }); _uid=Math.max(_uid,mx+1);
@@ -2496,20 +2502,59 @@ function bindInput(){
   },{passive:true});
   // fechar overlays
   $$('[data-close]').forEach(el=>el.onclick=()=>$('#'+el.dataset.close).classList.remove('on'));
-  // botões de tela
-  $('#btnPlay').onclick=()=>{ auInit(); if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume(); startNew(); };
-  $('#btnCont').onclick=()=>{ auInit(); if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume(); startCont(); };
-  $('#btnRevive').onclick=()=>{ $('#dead').classList.add('hidden'); startNew(); };
+  // menu principal (Parte 13)
+  $$('#mainMenu [data-menu]').forEach(b=>b.onclick=()=>{ auInit(); if(AU.ctx&&AU.ctx.state==='suspended')AU.ctx.resume(); SFX.ui();
+    const m=b.dataset.menu; if(m==='new')openSlots('new'); else if(m==='load')openSlots('load'); else openOptions(); });
+  $('#btnRevive').onclick=()=>{ $('#dead').classList.add('hidden'); backToMenuScreen(); };
   $('#btnWinCont').onclick=()=>{ $('#win').classList.add('hidden'); G.state='explore'; musicStart('explore'); };
 }
-function startNew(){ newGame(); $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(()=>showFloorCard(1),120); setTimeout(rcResize,80); saveGame(); }
-function startCont(){ if(loadGame()){ $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(rcResize,80); } else startNew(); }
+/* ---------- MENU / 3 SLOTS DE SAVE (Parte 13) ---------- */
+function backToMenuScreen(){ musicStop(); G.state='title'; $('#title').classList.remove('hidden'); showMainMenu(); }
+function showMainMenu(){ $('#mainMenu').classList.remove('hidden'); $('#slotPick').classList.add('hidden'); $('#optPanel').classList.add('hidden'); }
+function fmtWhen(ts){ if(!ts)return ''; const d=new Date(ts); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function openSlots(mode){ const el=$('#slotPick'); $('#mainMenu').classList.add('hidden'); $('#optPanel').classList.add('hidden'); el.classList.remove('hidden');
+  let html=`<div class="slotHead">${mode==='new'?'NOVO JOGO — ESCOLHA UM ESPAÇO':'CARREGAR — ESCOLHA UM JOGO'}</div>`;
+  for(let i=0;i<3;i++){ const m=slotMeta(i);
+    html+=`<div class="slotCard ${m?'has':'empty'} ${mode==='load'&&!m?'dis':''}" data-slot="${i}">
+      <div class="slotN">◈ ESPAÇO ${i+1}</div>`+
+      (m?`<div class="slotInfo"><b>Andar ${m.depth}</b> · Nível médio ${m.avgLv} · ${m.gp} GP<br><span class="slotWhen">${m.name} · ${fmtWhen(m.ts)}</span></div>${m?`<div class="slotDel" data-del="${i}" title="Apagar">🗑</div>`:''}`
+        :`<div class="slotInfo empty">— espaço vazio —</div>`)+
+      `</div>`;
+  }
+  html+=`<button class="cta ghost sm" data-back>‹ Voltar</button>`;
+  el.innerHTML=html;
+  el.querySelectorAll('.slotCard').forEach(c=>{ if(c.classList.contains('dis'))return;
+    c.onclick=(e)=>{ const del=e.target&&e.target.dataset&&e.target.dataset.del;
+      if(del!=null){ SFX.back(); if(confirm('Apagar o jogo do Espaço '+(+del+1)+'?')){ clearSlot(+del); openSlots(mode);} return; }
+      const i=+c.dataset.slot; SFX.ui();
+      if(mode==='load'){ if(slotHasSave(i))loadFromSlot(i); }
+      else { if(slotHasSave(i) && !confirm('O Espaço '+(i+1)+' já tem um jogo salvo. Começar um novo por cima?'))return; beginNewGame(i); }
+    };
+  });
+  el.querySelector('[data-back]').onclick=()=>{SFX.back();showMainMenu();};
+}
+function openOptions(){ $('#mainMenu').classList.add('hidden'); $('#slotPick').classList.add('hidden'); const el=$('#optPanel'); el.classList.remove('hidden');
+  el.innerHTML=`<div class="slotHead">OPÇÕES</div>
+    <div class="optRow" data-opt="sound"><span>🔊 Som</span><span class="optVal">${AU.muted?'DESLIGADO':'LIGADO'}</span></div>
+    <div class="optRow" data-opt="wipe"><span>🗑 Apagar todos os saves</span><span class="optVal">3 espaços</span></div>
+    <button class="cta ghost sm" data-back>‹ Voltar</button>`;
+  el.querySelector('[data-opt="sound"]').onclick=function(){ AU.muted=!AU.muted; if(AU.muted)musicStop(); this.querySelector('.optVal').textContent=AU.muted?'DESLIGADO':'LIGADO'; SFX.ui(); };
+  el.querySelector('[data-opt="wipe"]').onclick=()=>{ if(confirm('Apagar TODOS os 3 espaços de save? Isso não pode ser desfeito.')){ [0,1,2].forEach(clearSlot); SFX.back(); openOptions(); } };
+  el.querySelector('[data-back]').onclick=()=>{SFX.back();showMainMenu();};
+}
+function beginNewGame(slot){ CURSLOT=slot; newGame(); playIntro(()=>startGameplay(true)); }
+function loadFromSlot(slot){ if(loadGame(slot)){ startGameplay(false); } }
+function startGameplay(isNew){ $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(rcResize,80);
+  if(isNew){ setTimeout(()=>showFloorCard(1),160); saveGame(); } }
+function playIntro(cb){ cb(); }   // cutscene inicial entra na Parte 13b
 
 /* ================= BOOT ================= */
 function boot(){ buildTextures(); rcInit(); bindInput();
   let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(rcResize,120);});
   window.addEventListener('orientationchange',()=>setTimeout(rcResize,250));
-  if(hasSave())$('#btnCont').style.display='inline-block';
+  // migra save antigo (v1, slot único) para o Espaço 1
+  try{ const old=localStorage.getItem('masmorra_save_v1'); if(old && !slotHasSave(0)){ localStorage.setItem(SAVEKEY(0),old); localStorage.removeItem('masmorra_save_v1'); } }catch(e){}
+  showMainMenu();
   loop();
 }
 boot();
