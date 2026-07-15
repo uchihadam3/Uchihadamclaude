@@ -9,7 +9,7 @@ export const WORLD_H = 2500;
 export const MINUTES_PER_UNIT = 0.32;
 
 // Velocidade de caminhada do personagem (px/seg no espaço do mundo).
-export const TRAVEL_PX_PER_SEC = 135;
+export const TRAVEL_PX_PER_SEC = 62;
 
 // Multiplicador de custo por tipo de terreno (estrada é mais rápida).
 export const TERRAIN_COST: Record<string, number> = {

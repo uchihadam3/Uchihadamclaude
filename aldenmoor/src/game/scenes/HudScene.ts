@@ -46,6 +46,10 @@ export class HudScene extends Phaser.Scene {
 
   private toastText!: Phaser.GameObjects.Text;
 
+  // efeitos de tela (não sofrem zoom da câmera do mundo)
+  private dayNight!: Phaser.GameObjects.Rectangle;
+  private vision!: Phaser.GameObjects.Image;
+
   // joystick virtual
   private joyBase!: Phaser.GameObjects.Arc;
   private joyKnob!: Phaser.GameObjects.Arc;
@@ -65,6 +69,14 @@ export class HudScene extends Phaser.Scene {
   }
 
   create() {
+    // ------ efeitos de tela: fog + dia/noite (abaixo de tudo, mas sobre o mundo)
+    this.dayNight = this.add
+      .rectangle(0, 0, this.scale.width, this.scale.height, 0x0b1636, 0)
+      .setOrigin(0)
+      .setDepth(-3);
+    this.vision = this.add.image(0, 0, "vision").setDepth(-2);
+    this.sizeVision();
+
     // ------ relógio / dia-noite (topo direito)
     this.clockPanel = this.add.graphics();
     this.clockIcon = this.add
@@ -173,6 +185,23 @@ export class HudScene extends Phaser.Scene {
     });
 
     this.layout();
+  }
+
+  // ------------------------------------------------- efeitos de tela (loop)
+  private sizeVision() {
+    const diag = Math.hypot(this.scale.width, this.scale.height) * 1.18;
+    this.vision.setDisplaySize(diag, diag);
+  }
+
+  update() {
+    const env = this.registry.get("env") as
+      | { color: number; alpha: number }
+      | undefined;
+    if (env) this.dayNight.setFillStyle(env.color, env.alpha);
+    const ps = this.registry.get("pScreen") as
+      | { x: number; y: number }
+      | undefined;
+    if (ps) this.vision.setPosition(ps.x, ps.y);
   }
 
   // ------------------------------------------------------------- joystick
@@ -365,6 +394,9 @@ export class HudScene extends Phaser.Scene {
 
     const W = this.scale.width;
     const H = this.scale.height;
+
+    this.dayNight.setSize(W, H);
+    this.sizeVision();
 
     // zoom (meio-direita)
     this.zoomIn.box.setPosition(W - 40, H * 0.38);

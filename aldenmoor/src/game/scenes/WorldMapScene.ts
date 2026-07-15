@@ -55,8 +55,6 @@ export class WorldMapScene extends Phaser.Scene {
   private marker!: Phaser.GameObjects.Container;
   private dirArrow!: Phaser.GameObjects.Container;
   private selRing!: Phaser.GameObjects.Arc;
-  private overlay!: Phaser.GameObjects.Rectangle;
-  private vision!: Phaser.GameObjects.Image;
 
   // input / câmera
   private minZoom = 0.3;
@@ -94,19 +92,8 @@ export class WorldMapScene extends Phaser.Scene {
       .setVisible(false);
     world.add(this.selRing);
 
-    // overlay dia/noite (fixo à tela, abaixo do HUD que é outra cena)
-    this.overlay = this.add
-      .rectangle(0, 0, this.scale.width, this.scale.height, 0x0b1636, 0)
-      .setOrigin(0)
-      .setScrollFactor(0)
-      .setDepth(998);
-
-    // holofote de visão (fog-of-war) — acompanha o jogador
-    this.vision = this.add
-      .image(0, 0, "vision")
-      .setScrollFactor(0)
-      .setDepth(999);
-    this.sizeVision();
+    // Os efeitos de tela (dia/noite + fog) ficam na cena de HUD, cuja câmera
+    // NÃO dá zoom — assim cobrem sempre a tela toda (nada de "caixa escura").
 
     this.setupCamera();
     this.setupInput();
@@ -118,6 +105,11 @@ export class WorldMapScene extends Phaser.Scene {
       bus.emit(EVENTS.LOCATION_ARRIVE, startLoc);
       this.emitTime(true);
     });
+
+    // dev: avançar o relógio para testes
+    if (import.meta.env.DEV) {
+      bus.on("debug:advance", (m: number) => this.gameClock.advance(m), this);
+    }
 
     // HUD -> mundo
     bus.on(EVENTS.ACTION_TRAVEL, this.onTravelRequest, this);
@@ -132,10 +124,6 @@ export class WorldMapScene extends Phaser.Scene {
     });
   }
 
-  private sizeVision() {
-    const diag = Math.hypot(this.scale.width, this.scale.height) * 1.18;
-    this.vision.setDisplaySize(diag, diag);
-  }
 
   // ---------------------------------------------------------------- desenho
   private drawSeaAndLand(world: Phaser.GameObjects.Container) {
@@ -664,11 +652,9 @@ export class WorldMapScene extends Phaser.Scene {
     // câmera acompanha o personagem o tempo todo
     cam.startFollow(this.marker, false, 0.12, 0.12);
 
-    this.scale.on("resize", (gameSize: Phaser.Structs.Size) => {
+    this.scale.on("resize", () => {
       this.minZoom = this.coverZoom();
       if (cam.zoom < this.minZoom) cam.setZoom(this.minZoom);
-      this.overlay.setSize(gameSize.width, gameSize.height);
-      this.sizeVision();
     });
   }
 
@@ -826,17 +812,17 @@ export class WorldMapScene extends Phaser.Scene {
     }
   }
 
+  // Publica no registry a posição do jogador NA TELA (para o fog no HUD seguir).
   private updateVision() {
     const cam = this.cameras.main;
-    // posição do jogador na tela (para o holofote acompanhar)
     const sx = (this.marker.x - cam.worldView.x) * cam.zoom;
     const sy = (this.marker.y - cam.worldView.y) * cam.zoom;
-    this.vision.setPosition(sx, sy);
+    this.registry.set("pScreen", { x: sx, y: sy });
   }
 
   private updateEnvironment() {
-    const env = this.gameClock.environment();
-    this.overlay.setFillStyle(env.color, env.alpha);
+    // publica cor/alpha do ambiente para o overlay do HUD
+    this.registry.set("env", this.gameClock.environment());
     this.emitTime(false);
   }
 
