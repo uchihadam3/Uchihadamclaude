@@ -337,8 +337,8 @@ export function sign(kind: "tavern" | "shop"): THREE.Texture {
   return toSprite(c);
 }
 
-// -------- aldeão (sprite 2D detalhado, billboard) --------
-// Personagem de frente com rosto expressivo, cabelo/chapéu e roupas variadas.
+// -------- NPC estilo Dragon Quest (cabelo espetado, cores vivas, classes) --------
+// 5 arquétipos: herói, guerreiro, mago, aventureiro, curandeira.
 export function villager(seed = 1): THREE.Texture {
   const W = 76;
   const H = 128;
@@ -347,7 +347,10 @@ export function villager(seed = 1): THREE.Texture {
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   const r = rnd(seed);
-  const pick = <T>(a: T[]) => a[Math.floor(r() * a.length)];
+  const OUT = "#241812";
+  const cx = W / 2;
+  const hy = 29; // centro da cabeça
+  const hr = 13;
   const shade = (hex: string, f: number) => {
     const n = parseInt(hex.slice(1), 16);
     let R = (n >> 16) & 255;
@@ -365,296 +368,275 @@ export function villager(seed = 1): THREE.Texture {
     }
     return `rgb(${R | 0},${G | 0},${B | 0})`;
   };
-  const OUT = "#20160f";
-  const stroke = (w = 2) => {
+  const path = (pts: number[][], color: string, ol = 2.2) => {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    if (ol) {
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = ol;
+      ctx.stroke();
+    }
+  };
+  const disc = (x: number, y: number, rad: number, color: string, ol = 2) => {
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    if (ol) {
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = ol;
+      ctx.stroke();
+    }
+  };
+  const rrect = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    rad: number,
+    color: string,
+    ol = 2,
+  ) => {
+    ctx.beginPath();
+    roundRect(ctx, x, y, w, h, rad);
+    ctx.fillStyle = color;
+    ctx.fill();
+    if (ol) {
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = ol;
+      ctx.stroke();
+    }
+  };
+  const clipFill = (pts: number[][], style: string) => {
+    ctx.save();
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.clip();
+    ctx.fillStyle = style;
+    ctx.fillRect(cx + 2, 40, 44, 90);
+    ctx.restore();
+  };
+
+  const skins = ["#f4cc9c", "#eab488", "#d89a68"];
+  const skin = skins[Math.floor(r() * skins.length)];
+  const skinSh = shade(skin, -0.16);
+  const type = Math.floor(r() * 5); // 0 herói 1 guerreiro 2 mago 3 aventureiro 4 curandeira
+
+  // ---- sombra ----
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.beginPath();
+  ctx.ellipse(cx, H - 5, 15, 4.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ---- rosto (pescoço + cabeça + olhos altos estilo Toriyama) ----
+  const drawFace = () => {
+    ctx.fillStyle = skinSh;
+    ctx.fillRect(cx - 4, 36, 8, 12);
+    disc(cx, hy, hr, skin);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, hy, hr, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = "rgba(0,0,0,0.10)";
+    ctx.fillRect(cx + 3, hy - hr, hr, 2 * hr);
+    ctx.restore();
+    for (const s of [-1, 1]) {
+      const ex = cx + s * 4.6;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.ellipse(ex, hy - 0.3, 2.3, 3.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#241812";
+      ctx.beginPath();
+      ctx.ellipse(ex + s * 0.3, hy, 1.6, 3.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(ex - 0.7, hy - 1.8, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.strokeStyle = OUT;
-    ctx.lineWidth = w;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, hy - 5.5);
+    ctx.lineTo(cx - 2.5, hy - 6);
+    ctx.moveTo(cx + 2.5, hy - 6);
+    ctx.lineTo(cx + 8, hy - 5.5);
+    ctx.stroke();
+    ctx.fillStyle = skinSh;
+    ctx.fillRect(cx - 0.6, hy + 3, 1.3, 2.4);
+    ctx.strokeStyle = "#9c4a38";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(cx, hy + 6, 2.2, 0.18 * Math.PI, 0.82 * Math.PI);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(232,120,110,0.28)";
+    ctx.beginPath();
+    ctx.arc(cx - 7.5, hy + 4, 2, 0, Math.PI * 2);
+    ctx.arc(cx + 7.5, hy + 4, 2, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  // ---- cabelo espetado ----
+  const spikyHair = (color: string) => {
+    ctx.beginPath();
+    ctx.arc(cx, hy - 1, hr + 1, Math.PI * 0.98, Math.PI * 2.02);
+    ctx.lineTo(cx + hr, hy + 2);
+    ctx.lineTo(cx + 8, hy - 3);
+    ctx.lineTo(cx + 5, hy - 1);
+    ctx.lineTo(cx + 2, hy - 4);
+    ctx.lineTo(cx - 1, hy - 1);
+    ctx.lineTo(cx - 4, hy - 4);
+    ctx.lineTo(cx - 7, hy - 1);
+    ctx.lineTo(cx - hr, hy + 2);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    const dxs = [-11, -7, -3, 1, 5, 9, 12];
+    for (const dx of dxs) {
+      const bx = cx + dx * 0.9;
+      const on = Math.max(0, hr * hr - dx * dx);
+      const by = hy - Math.sqrt(on) + 3;
+      const tx = cx + dx * 1.7 + (dx > 0 ? 2 : -2);
+      const ty = by - 10 - (12 - Math.abs(dx)) * 0.5;
+      path([[bx - 3.4, by], [tx, ty], [bx + 3.4, by]], color, 1.8);
+    }
+    ctx.strokeStyle = shade(color, 0.35);
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, hy - 6);
+    ctx.lineTo(cx - 2, hy - hr + 1);
+    ctx.moveTo(cx + 3, hy - 6);
+    ctx.lineTo(cx + 5, hy - hr + 2);
     ctx.stroke();
   };
 
-  const skin = pick(["#f0c39a", "#dda06e", "#c68a5b", "#a4703f"]);
-  const tunic = pick([
-    "#8a4c46", "#3f5570", "#4f6a42", "#6d5a34", "#763a52", "#356a68", "#5a4a7a",
-  ]);
-  const pants = pick(["#3a2c20", "#2c2c34", "#40331e", "#463726"]);
-  const hair = pick(["#241810", "#4a3220", "#6f4a26", "#9a9188", "#c8a24a", "#111114"]);
-  const type = Math.floor(r() * 5); // 0 aldeão 1 mercador 2 mulher 3 ancião 4 guarda
-  const dress = type === 2;
-  const cx = W / 2;
-  const hy = 30; // centro da cabeça
-  const hr = 13; // raio da cabeça
-  const bodyTop = 48;
-  const bodyBot = dress ? 116 : 90;
+  // ---- membros ----
+  const armSleeve = (color: string, glove: string) => {
+    path([[cx - 12, 48], [cx - 20, 52], [cx - 18, 74], [cx - 11, 70]], color, 2);
+    path([[cx + 12, 48], [cx + 20, 52], [cx + 18, 74], [cx + 11, 70]], color, 2);
+    disc(cx - 18, 76, 3.6, glove, 1.8);
+    disc(cx + 18, 76, 3.6, glove, 1.8);
+  };
+  const legs = (pants: string, boots: string) => {
+    path([[cx - 9, 82], [cx - 1, 82], [cx - 2, 112], [cx - 9, 112]], pants, 2);
+    path([[cx + 1, 82], [cx + 9, 82], [cx + 9, 112], [cx + 2, 112]], pants, 2);
+    rrect(cx - 11, 110, 10, 11, 3, boots, 2);
+    rrect(cx + 1, 110, 10, 11, 3, boots, 2);
+  };
+  const celBody = (pts: number[][], color: string) => {
+    path(pts, color, 2.2);
+    clipFill(pts, "rgba(0,0,0,0.16)");
+  };
 
-  // ---- cajado do ancião / lança do guarda (atrás) ----
-  if (type === 3 || type === 4) {
-    ctx.strokeStyle = type === 4 ? "#6a5238" : "#5a4326";
-    ctx.lineWidth = 3.2;
+  if (type === 0) {
+    // HERÓI — túnica verde, cinto, boné pontudo, cabelo loiro
+    legs("#2f6f9a", "#6a4526");
+    celBody([[cx - 12, 46], [cx + 12, 46], [cx + 14, 84], [cx - 14, 84]], "#37a34a");
+    path([[cx - 14, 80], [cx + 14, 80], [cx + 14, 84], [cx - 14, 84]], "#e8e0b0", 1.4);
+    armSleeve("#2f8f40", "#e0b070");
+    rrect(cx - 14, 79, 28, 5, 2, "#5a3a1e", 1.8);
+    rrect(cx - 3, 78, 6, 7, 1.5, "#e6c040", 1.4);
+    drawFace();
+    spikyHair("#f0d24a");
+    path(
+      [[cx - hr, hy - 6], [cx + hr, hy - 6], [cx + 5, hy - hr - 13], [cx - 2, hy - hr - 7]],
+      "#2f8f3f",
+      2,
+    );
+    disc(cx + 4, hy - hr - 12, 2.4, "#e6c040", 1.4);
+  } else if (type === 1) {
+    // GUERREIRO — armadura de couro, ombreiras, bandana verde, cabelo laranja
+    legs("#33507e", "#3a4656");
+    celBody([[cx - 13, 46], [cx + 13, 46], [cx + 14, 82], [cx - 14, 82]], "#8a5a2e");
+    path([[cx - 8, 50], [cx + 8, 50], [cx + 9, 74], [cx - 9, 74]], "#6f4522", 1.8);
+    ctx.strokeStyle = "#e6c040";
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.moveTo(cx + 22, 22);
-    ctx.lineTo(cx + 20, 124);
+    ctx.moveTo(cx - 7, 56);
+    ctx.lineTo(cx + 7, 60);
     ctx.stroke();
-    if (type === 4) {
-      ctx.fillStyle = "#b9c0c8"; // ponta de lança
-      ctx.beginPath();
-      ctx.moveTo(cx + 21, 8);
-      ctx.lineTo(cx + 16, 24);
-      ctx.lineTo(cx + 26, 24);
-      ctx.closePath();
-      ctx.fill();
-      stroke(1.4);
-    } else {
-      ctx.fillStyle = "#7a5a30"; // castão do cajado
-      ctx.beginPath();
-      ctx.arc(cx + 22, 22, 4, 0, Math.PI * 2);
-      ctx.fill();
-      stroke(1.4);
-    }
-  }
-
-  // ---- pernas + botas ----
-  if (!dress) {
-    ctx.fillStyle = pants;
+    armSleeve("#7a4d26", "#3a4656");
+    disc(cx - 15, 49, 5.5, "#9a6a38", 2);
+    disc(cx + 15, 49, 5.5, "#9a6a38", 2);
+    rrect(cx - 14, 78, 28, 5, 2, "#4a2f18", 1.8);
+    drawFace();
+    spikyHair("#e07028");
+    rrect(cx - hr - 1, hy - 8, 2 * hr + 2, 4.5, 1.5, "#2f8f3f", 1.8);
+    path([[cx + hr - 1, hy - 7], [cx + hr + 6, hy - 2], [cx + hr + 4, hy - 9]], "#2f8f3f", 1.4);
+  } else if (type === 2) {
+    // MAGO — manto azul longo com faixa dourada, cajado, cabelo azul
+    const robe = [[cx - 11, 46], [cx + 11, 46], [cx + 20, 116], [cx - 20, 116]];
+    path(robe, "#2a52b0", 2.2);
+    clipFill(robe, "rgba(0,0,0,0.16)");
+    path([[cx - 4, 52], [cx + 4, 52], [cx + 6, 116], [cx - 6, 116]], "#e6b83a", 1.6);
+    rrect(cx - 20, 112, 40, 5, 2, "#e6b83a", 1.6);
+    path([[cx - 11, 48], [cx - 21, 58], [cx - 17, 84], [cx - 9, 74]], "#2a52b0", 2);
+    path([[cx + 11, 48], [cx + 21, 58], [cx + 17, 84], [cx + 9, 74]], "#2a52b0", 2);
+    disc(cx - 17, 86, 3.4, skin, 1.6);
+    disc(cx + 17, 86, 3.4, skin, 1.6);
+    drawFace();
+    spikyHair("#4aa8d8");
+    ctx.strokeStyle = "#8a5a2e";
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.rect(cx - 11, bodyBot - 4, 9, 28);
-    ctx.rect(cx + 2, bodyBot - 4, 9, 28);
-    ctx.fill();
-    stroke(1.6);
-    ctx.fillStyle = "#2a1c12"; // botas
-    ctx.beginPath();
-    roundRect(ctx, cx - 13, H - 12, 12, 9, 2);
-    roundRect(ctx, cx + 1, H - 12, 12, 9, 2);
-    ctx.fill();
-    stroke(1.6);
+    ctx.moveTo(cx + 19, 40);
+    ctx.lineTo(cx + 19, 118);
+    ctx.stroke();
+    disc(cx + 19, 33, 5, "#e6c040", 2);
+    disc(cx + 19, 33, 2.2, "#fff6c0", 0);
+  } else if (type === 3) {
+    // AVENTUREIRO — capa vermelha, túnica azul, cabelo laranja
+    const cape = [[cx - 13, 46], [cx + 13, 46], [cx + 22, 100], [cx - 22, 100]];
+    path(cape, "#c0432a", 2.2);
+    clipFill(cape, "rgba(0,0,0,0.18)");
+    legs("#2a2f45", "#5a3a22");
+    celBody([[cx - 11, 48], [cx + 11, 48], [cx + 13, 82], [cx - 13, 82]], "#356ab8");
+    armSleeve("#2f5aa0", "#d8a070");
+    rrect(cx - 13, 78, 26, 5, 2, "#4a3018", 1.8);
+    path([[cx - 12, 46], [cx - 4, 44], [cx - 6, 52]], "#c0432a", 1.6);
+    path([[cx + 12, 46], [cx + 4, 44], [cx + 6, 52]], "#c0432a", 1.6);
+    drawFace();
+    spikyHair("#e8802a");
   } else {
-    ctx.fillStyle = "#2a1c12"; // sapatos sob o vestido
+    // CURANDEIRA — manto claro com sobrepeliz, cabelo comprido
+    const robe = [[cx - 11, 46], [cx + 11, 46], [cx + 18, 116], [cx - 18, 116]];
+    path(robe, "#dcd6c6", 2.2);
+    clipFill(robe, "rgba(0,0,0,0.12)");
+    rrect(cx - 18, 112, 36, 5, 2, "#c05a86", 1.6);
+    path([[cx - 5, 46], [cx + 5, 46], [cx + 3, 74], [cx - 3, 74]], "#c05a86", 1.4);
+    path([[cx - 11, 48], [cx - 19, 58], [cx - 15, 82], [cx - 9, 74]], "#dcd6c6", 2);
+    path([[cx + 11, 48], [cx + 19, 58], [cx + 15, 82], [cx + 9, 74]], "#dcd6c6", 2);
+    disc(cx - 15, 84, 3.4, skin, 1.6);
+    disc(cx + 15, 84, 3.4, skin, 1.6);
+    drawFace();
+    const hc = "#7a4a2a";
+    path([[cx - hr - 2, hy - 4], [cx - hr - 3, hy + 26], [cx - 5, hy + 20], [cx - 4, hy]], hc, 2);
+    path([[cx + hr + 2, hy - 4], [cx + hr + 3, hy + 26], [cx + 5, hy + 20], [cx + 4, hy]], hc, 2);
     ctx.beginPath();
-    roundRect(ctx, cx - 9, H - 10, 8, 6, 2);
-    roundRect(ctx, cx + 1, H - 10, 8, 6, 2);
-    ctx.fill();
-    stroke(1.4);
-  }
-
-  // ---- corpo (túnica / vestido) ----
-  const bw = dress ? 24 : 17;
-  ctx.fillStyle = tunic;
-  ctx.beginPath();
-  ctx.moveTo(cx - 14, bodyTop);
-  ctx.lineTo(cx + 14, bodyTop);
-  ctx.lineTo(cx + bw, bodyBot);
-  ctx.lineTo(cx - bw, bodyBot);
-  ctx.closePath();
-  ctx.fill();
-  stroke(2);
-  // sombra de volume (lado direito) e brilho (esquerdo)
-  ctx.save();
-  ctx.clip();
-  ctx.fillStyle = shade(tunic, -0.22);
-  ctx.fillRect(cx + 3, bodyTop - 2, bw + 4, bodyBot);
-  ctx.fillStyle = shade(tunic, 0.14);
-  ctx.fillRect(cx - bw - 4, bodyTop - 2, 7, bodyBot);
-  ctx.restore();
-  // gola em V
-  ctx.fillStyle = shade(skin, -0.12);
-  ctx.beginPath();
-  ctx.moveTo(cx - 6, bodyTop);
-  ctx.lineTo(cx + 6, bodyTop);
-  ctx.lineTo(cx, bodyTop + 9);
-  ctx.closePath();
-  ctx.fill();
-
-  // ---- braços + mãos ----
-  ctx.fillStyle = shade(tunic, -0.08);
-  ctx.beginPath();
-  roundRect(ctx, cx - 21, 52, 8, 34, 4);
-  roundRect(ctx, cx + 13, 52, 8, 34, 4);
-  ctx.fill();
-  stroke(1.8);
-  ctx.fillStyle = skin;
-  ctx.beginPath();
-  ctx.arc(cx - 17, 88, 4.2, 0, Math.PI * 2);
-  ctx.arc(cx + 17, 88, 4.2, 0, Math.PI * 2);
-  ctx.fill();
-  stroke(1.4);
-
-  // ---- avental (mercador) ----
-  if (type === 1) {
-    ctx.fillStyle = "#d8cbb0";
-    ctx.beginPath();
-    roundRect(ctx, cx - 10, 60, 20, bodyBot - 62, 3);
-    ctx.fill();
-    stroke(1.4);
-  }
-  // ---- couraça (guarda) ----
-  if (type === 4) {
-    ctx.fillStyle = "#8b939c";
-    ctx.beginPath();
-    roundRect(ctx, cx - 13, bodyTop + 2, 26, 30, 5);
-    ctx.fill();
-    stroke(1.6);
-    ctx.strokeStyle = shade("#8b939c", -0.3);
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(cx, bodyTop + 4);
-    ctx.lineTo(cx, bodyTop + 30);
-    ctx.stroke();
-  }
-  // ---- cinto ----
-  if (type !== 2) {
-    ctx.fillStyle = "#39240f";
-    ctx.fillRect(cx - 15, 84, 30, 6);
-    ctx.fillStyle = "#c9a227";
-    ctx.fillRect(cx - 3, 83, 6, 8);
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(cx - 15, 84, 30, 6);
-  }
-
-  // ---- pescoço + cabeça ----
-  ctx.fillStyle = shade(skin, -0.1);
-  ctx.fillRect(cx - 5, hy + hr - 5, 10, 9);
-  ctx.fillStyle = skin;
-  ctx.beginPath();
-  ctx.arc(cx, hy, hr, 0, Math.PI * 2);
-  ctx.fill();
-  stroke(2);
-  // sombra lateral do rosto
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, hy, hr, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.fillStyle = shade(skin, -0.14);
-  ctx.fillRect(cx + 4, hy - hr, hr, 2 * hr);
-  ctx.restore();
-  // orelhas
-  ctx.fillStyle = skin;
-  ctx.beginPath();
-  ctx.arc(cx - hr, hy + 1, 2.6, 0, Math.PI * 2);
-  ctx.arc(cx + hr, hy + 1, 2.6, 0, Math.PI * 2);
-  ctx.fill();
-  stroke(1.2);
-
-  // ---- rosto ----
-  const beard = type === 3;
-  // olhos (branco + íris + pupila)
-  for (const s of [-1, 1]) {
-    const ex = cx + s * 4.5;
-    ctx.fillStyle = "#f6f3ec";
-    ctx.beginPath();
-    ctx.ellipse(ex, hy - 1, 2.5, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#3a2416";
-    ctx.beginPath();
-    ctx.arc(ex, hy - 0.5, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.beginPath();
-    ctx.arc(ex + 0.6, hy - 1.3, 0.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // sobrancelhas
-  ctx.strokeStyle = shade(hair, -0.1);
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  ctx.moveTo(cx - 7, hy - 5);
-  ctx.lineTo(cx - 2, hy - 5.6);
-  ctx.moveTo(cx + 2, hy - 5.6);
-  ctx.lineTo(cx + 7, hy - 5);
-  ctx.stroke();
-  // nariz
-  ctx.strokeStyle = shade(skin, -0.28);
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.moveTo(cx, hy - 1);
-  ctx.lineTo(cx - 1.5, hy + 3.5);
-  ctx.lineTo(cx + 1, hy + 3.8);
-  ctx.stroke();
-  // bochechas
-  ctx.fillStyle = "rgba(210,120,110,0.28)";
-  ctx.beginPath();
-  ctx.arc(cx - 7, hy + 3.5, 2.4, 0, Math.PI * 2);
-  ctx.arc(cx + 7, hy + 3.5, 2.4, 0, Math.PI * 2);
-  ctx.fill();
-  // boca (só se não tiver barba grande)
-  if (!beard) {
-    ctx.strokeStyle = "#8a3b34";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(cx, hy + 5, 3, 0.15 * Math.PI, 0.85 * Math.PI);
-    ctx.stroke();
-  }
-
-  // ---- cabelo / barba / chapéu / elmo ----
-  if (beard) {
-    // ancião: barba branca cheia + cabelo lateral
-    ctx.fillStyle = "#e2ddd0";
-    ctx.beginPath();
-    ctx.moveTo(cx - hr + 1, hy + 1);
-    ctx.quadraticCurveTo(cx - hr, hy + hr + 6, cx, hy + hr + 9);
-    ctx.quadraticCurveTo(cx + hr, hy + hr + 6, cx + hr - 1, hy + 1);
-    ctx.quadraticCurveTo(cx, hy + 8, cx - hr + 1, hy + 1);
-    ctx.fill();
-    stroke(1.6);
-    ctx.fillStyle = "#efe9dc"; // bigode
-    ctx.beginPath();
-    ctx.ellipse(cx, hy + 4, 5, 2.2, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = hair; // coroa de cabelo
-    ctx.beginPath();
-    ctx.arc(cx, hy - 1, hr + 1, Math.PI * 1.12, Math.PI * 1.88);
-    ctx.lineTo(cx, hy - 2);
-    ctx.fill();
-  } else if (dress) {
-    // cabelo longo emoldurando o rosto
-    ctx.fillStyle = hair;
-    ctx.beginPath();
-    ctx.arc(cx, hy - 1, hr + 2, Math.PI * 0.88, Math.PI * 2.12);
-    ctx.fill();
-    ctx.beginPath();
-    roundRect(ctx, cx - hr - 2, hy - 3, 5, 22, 3);
-    roundRect(ctx, cx + hr - 3, hy - 3, 5, 22, 3);
-    ctx.fill();
-    stroke(1.4);
-  } else {
-    // cabelo curto
-    ctx.fillStyle = hair;
-    ctx.beginPath();
-    ctx.arc(cx, hy - 1, hr + 1, Math.PI * 1.0, Math.PI * 2.0);
-    ctx.lineTo(cx + hr + 1, hy + 2);
-    ctx.lineTo(cx + hr - 3, hy + 3);
-    ctx.lineTo(cx - hr + 3, hy + 3);
-    ctx.lineTo(cx - hr - 1, hy + 2);
+    ctx.arc(cx, hy - 1, hr + 1, Math.PI * 0.92, Math.PI * 2.08);
+    ctx.lineTo(cx + hr - 1, hy + 1);
+    ctx.lineTo(cx + 7, hy - 2);
+    ctx.lineTo(cx + 4, hy + 1);
+    ctx.lineTo(cx + 1, hy - 3);
+    ctx.lineTo(cx - 2, hy + 1);
+    ctx.lineTo(cx - 5, hy - 2);
+    ctx.lineTo(cx - hr + 1, hy + 1);
     ctx.closePath();
+    ctx.fillStyle = hc;
     ctx.fill();
-    stroke(1.4);
-    if (type === 1) {
-      // chapéu de mercador (aba + copa)
-      ctx.fillStyle = "#4a3320";
-      ctx.beginPath();
-      ctx.ellipse(cx, hy - hr + 3, hr + 5, 3.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      stroke(1.4);
-      ctx.beginPath();
-      roundRect(ctx, cx - hr + 2, hy - hr - 6, 2 * hr - 4, 10, 3);
-      ctx.fill();
-      stroke(1.4);
-    }
-    if (type === 4) {
-      // elmo do guarda
-      ctx.fillStyle = "#9aa2ab";
-      ctx.beginPath();
-      ctx.arc(cx, hy - 2, hr + 1.5, Math.PI, Math.PI * 2);
-      ctx.rect(cx - hr - 1.5, hy - 2, 2 * hr + 3, 5);
-      ctx.fill();
-      stroke(1.6);
-      ctx.strokeStyle = shade("#9aa2ab", -0.35);
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(cx, hy - hr - 1);
-      ctx.lineTo(cx, hy + 2);
-      ctx.stroke();
-    }
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
+
   return toSprite(c);
 }
 
