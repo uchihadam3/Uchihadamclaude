@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useGame } from "../game/GameContext";
 import { evaluateHand } from "../game/engine";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
+import type { Variants } from "framer-motion";
 
 const ScreenProjectedMarker = ({
   die,
@@ -416,57 +417,194 @@ const HAND_NAMES_PT: Record<string, string> = {
 };
 const handNamePT = (t: string): string => HAND_NAMES_PT[t] || t;
 
-// Mão em concha segurando os dados (aparece antes de arremessar)
-const DiceHand = () => (
-  <div className="relative w-[150px] h-[132px] md:w-[188px] md:h-[165px] select-none">
-    {/* dados descansando na palma */}
-    <div className="absolute left-1/2 -translate-x-1/2 top-1 z-20 flex gap-1.5">
-      {[4, 6, 3].map((v, i) => (
-        <motion.div
-          key={i}
-          animate={{ y: [0, -3, 0], rotate: [(i - 1) * 7, (i - 1) * 7 - 3, (i - 1) * 7] }}
-          transition={{ repeat: Infinity, duration: 2.2, delay: i * 0.25, ease: "easeInOut" }}
-          className="w-8 h-8 md:w-10 md:h-10 rounded-[7px] bg-gradient-to-br from-white to-zinc-300 shadow-[0_5px_12px_rgba(0,0,0,0.55)] border border-white flex items-center justify-center"
-        >
-          <span className="text-black font-black text-sm md:text-lg font-mono leading-none">{v}</span>
-        </motion.div>
-      ))}
-    </div>
-    {/* mão */}
-    <svg viewBox="0 0 200 175" className="absolute inset-0 w-full h-full drop-shadow-[0_-6px_22px_rgba(0,0,0,0.65)]">
-      <defs>
-        <linearGradient id="dh-skin" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#f2c6a0" />
-          <stop offset="1" stopColor="#bd8154" />
-        </linearGradient>
-        <linearGradient id="dh-skin2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#e9b58c" />
-          <stop offset="1" stopColor="#b0774b" />
-        </linearGradient>
-      </defs>
-      {/* dedos ao fundo, curvando sobre os dados */}
-      <g fill="url(#dh-skin2)" stroke="#9c6238" strokeWidth="1.5">
-        <path d="M52 92 Q46 52 58 40 Q70 50 68 92 Z" />
-        <path d="M74 90 Q70 42 82 34 Q94 44 90 90 Z" />
-        <path d="M96 90 Q94 40 106 34 Q118 46 114 90 Z" />
-        <path d="M118 92 Q118 50 130 44 Q142 56 136 92 Z" />
-      </g>
-      {/* palma */}
-      <path
-        d="M40 96 Q34 150 66 168 Q100 178 134 168 Q166 150 160 96 Q150 74 100 74 Q50 74 40 96 Z"
-        fill="url(#dh-skin)" stroke="#9c6238" strokeWidth="2"
+// Pips de um dado (grid 3x3)
+const DIE_PIPS: Record<number, number[]> = {
+  1: [4],
+  2: [0, 8],
+  3: [0, 4, 8],
+  4: [0, 2, 6, 8],
+  5: [0, 2, 4, 6, 8],
+  6: [0, 2, 3, 5, 6, 8],
+};
+const MiniDie = ({ v, className = "" }: { v: number; className?: string }) => (
+  <div
+    className={`grid grid-cols-3 grid-rows-3 gap-[1px] rounded-[5px] bg-gradient-to-br from-white to-zinc-300 border border-zinc-100 shadow-[0_2px_5px_rgba(0,0,0,0.55),inset_0_1px_1px_rgba(255,255,255,0.9)] p-[3px] ${className}`}
+  >
+    {Array.from({ length: 9 }).map((_, i) => (
+      <span
+        key={i}
+        className={`rounded-full self-center justify-self-center w-[3px] h-[3px] md:w-[4px] md:h-[4px] ${
+          (DIE_PIPS[v] || []).includes(i) ? "bg-zinc-900" : "bg-transparent"
+        }`}
       />
-      {/* polegar */}
-      <path
-        d="M154 104 Q182 96 180 68 Q176 54 162 62 Q150 78 154 104 Z"
-        fill="url(#dh-skin2)" stroke="#9c6238" strokeWidth="1.5"
-      />
-      {/* vincos da palma */}
-      <path d="M62 108 Q100 122 138 108" fill="none" stroke="#9c6238" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-      <path d="M70 128 Q100 138 130 128" fill="none" stroke="#9c6238" strokeWidth="1.4" strokeLinecap="round" opacity="0.4" />
-    </svg>
+    ))}
   </div>
 );
+
+// Copo de dados (shaker) flutuante — segura os dados antes de arremessar,
+// pode ser chacoalhado "pra dar sorte" e, ao tocar, vira e lança os dados.
+const DiceCup = ({ onThrow }: { onThrow: () => void }) => {
+  const [vals, setVals] = useState<number[]>([5, 2, 6]);
+  const [phase, setPhase] = useState<"collect" | "idle" | "shake" | "throw">(
+    "collect",
+  );
+  const rattleRef = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setPhase("idle"), 520);
+    return () => {
+      window.clearTimeout(t);
+      if (rattleRef.current) window.clearInterval(rattleRef.current);
+    };
+  }, []);
+
+  const doShake = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (phase === "throw" || phase === "shake") return;
+    setPhase("shake");
+    sfx.playLock();
+    let n = 0;
+    if (rattleRef.current) window.clearInterval(rattleRef.current);
+    rattleRef.current = window.setInterval(() => {
+      setVals((v) => v.map(() => 1 + Math.floor(Math.random() * 6)));
+      sfx.playLock();
+      n++;
+      if (n >= 5) {
+        if (rattleRef.current) window.clearInterval(rattleRef.current);
+        setPhase("idle");
+      }
+    }, 95);
+  };
+
+  const doThrow = () => {
+    if (phase === "throw") return;
+    if (rattleRef.current) window.clearInterval(rattleRef.current);
+    setPhase("throw");
+    sfx.playRoll();
+    window.setTimeout(() => onThrow(), 300);
+  };
+
+  const cupVariants: Variants = {
+    collect: { rotate: 26, y: 90, opacity: 0 },
+    idle: {
+      rotate: [-3, 3, -3],
+      y: [0, -5, 0],
+      opacity: 1,
+      transition: { rotate: { repeat: Infinity, duration: 3, ease: "easeInOut" }, y: { repeat: Infinity, duration: 3, ease: "easeInOut" }, opacity: { duration: 0.35 } },
+    },
+    shake: {
+      rotate: [-16, 15, -13, 12, -8, 0],
+      x: [-5, 5, -4, 4, -2, 0],
+      opacity: 1,
+      transition: { duration: 0.5 },
+    },
+    throw: {
+      rotate: -46,
+      y: -22,
+      x: 16,
+      opacity: 1,
+      transition: { duration: 0.28, ease: "easeIn" },
+    },
+  };
+
+  const diceVariants: Variants = {
+    collect: { y: 30, opacity: 0 },
+    idle: { y: [0, -3, 0], opacity: 1, transition: { y: { repeat: Infinity, duration: 2.6, ease: "easeInOut" }, opacity: { duration: 0.3 } } },
+    shake: { y: [0, -6, 3, -5, 0], opacity: 1, transition: { duration: 0.5 } },
+    throw: { y: -78, x: 10, opacity: 0, scale: 0.55, transition: { duration: 0.26, ease: "easeIn" } },
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+    <motion.button
+      type="button"
+      onClick={doThrow}
+      onMouseEnter={() => sfx.playHover()}
+      initial="collect"
+      animate={phase}
+      variants={cupVariants}
+      className="relative w-[128px] h-[150px] md:w-[150px] md:h-[176px] select-none cursor-pointer pointer-events-auto outline-none"
+      style={{ transformOrigin: "50% 78%" }}
+      aria-label="Arremessar os dados"
+    >
+      {/* dados dentro da boca do copo */}
+      <motion.div
+        variants={diceVariants}
+        className="absolute left-1/2 -translate-x-1/2 top-[10px] md:top-[12px] z-10 flex gap-[3px]"
+      >
+        {vals.map((v, i) => (
+          <MiniDie
+            key={i}
+            v={v}
+            className={`w-[26px] h-[26px] md:w-[30px] md:h-[30px] ${i === 1 ? "-translate-y-[3px]" : "translate-y-[2px]"}`}
+          />
+        ))}
+      </motion.div>
+
+      {/* corpo do copo + boca (atrás dos dados) */}
+      <svg
+        viewBox="0 0 120 150"
+        className="absolute inset-0 w-full h-full drop-shadow-[0_10px_18px_rgba(0,0,0,0.6)] z-0"
+      >
+        <defs>
+          <linearGradient id="cupBody" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#2f2016" />
+            <stop offset="0.16" stopColor="#5c3f2b" />
+            <stop offset="0.46" stopColor="#8a6142" />
+            <stop offset="0.62" stopColor="#6e4a31" />
+            <stop offset="0.85" stopColor="#4a3220" />
+            <stop offset="1" stopColor="#241811" />
+          </linearGradient>
+          <radialGradient id="cupMouth" cx="0.5" cy="0.4" r="0.62">
+            <stop offset="0" stopColor="#080503" />
+            <stop offset="0.72" stopColor="#1a110a" />
+            <stop offset="1" stopColor="#2c1d11" />
+          </radialGradient>
+          <linearGradient id="cupRim" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#b98a5d" />
+            <stop offset="1" stopColor="#6a4831" />
+          </linearGradient>
+        </defs>
+
+        {/* corpo (copo levemente afunilado) */}
+        <path
+          d="M20 40 C 18 80, 25 110, 34 125 C 44 135, 76 135, 86 125 C 95 110, 102 80, 100 40 Z"
+          fill="url(#cupBody)"
+          stroke="#1c120b"
+          strokeWidth="2.5"
+        />
+        {/* brilho / sombra vertical (cilíndrico) */}
+        <path d="M38 46 C 36 82, 40 108, 47 122" fill="none" stroke="#c99a6c" strokeWidth="3" opacity="0.32" strokeLinecap="round" />
+        <path d="M76 46 C 78 82, 74 108, 67 122" fill="none" stroke="#160d07" strokeWidth="4" opacity="0.42" strokeLinecap="round" />
+        {/* costura decorativa */}
+        <path d="M24 62 C 40 70, 80 70, 96 62" fill="none" stroke="#caa06e" strokeWidth="1.4" strokeDasharray="2 4" opacity="0.45" />
+        {/* base */}
+        <ellipse cx="60" cy="127" rx="24" ry="6" fill="#160d07" opacity="0.55" />
+        {/* boca interna (escura) — dados descansam aqui */}
+        <ellipse cx="60" cy="40" rx="40" ry="12.5" fill="url(#cupMouth)" stroke="url(#cupRim)" strokeWidth="4" />
+        {/* aro de trás (atrás dos dados) */}
+        <path d="M20 40 A 40 12.5 0 0 1 100 40" fill="none" stroke="#c49a6c" strokeWidth="2" opacity="0.85" />
+      </svg>
+
+      {/* lábio da frente do copo (na frente dos dados, dá profundidade de "dentro") */}
+      <svg
+        viewBox="0 0 120 150"
+        className="absolute inset-0 w-full h-full z-20 pointer-events-none"
+      >
+        <path d="M21 40 A 39 12 0 0 0 99 40" fill="none" stroke="url(#cupRim)" strokeWidth="7" strokeLinecap="round" />
+      </svg>
+    </motion.button>
+    <button
+      type="button"
+      onClick={doShake}
+      onMouseEnter={() => sfx.playHover()}
+      className="flex items-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-widest text-amber-200/90 bg-amber-950/40 hover:bg-amber-900/50 active:scale-95 border border-amber-500/30 px-3 py-1.5 rounded-full pointer-events-auto transition-all"
+    >
+      🎲 Chacoalhar pra dar sorte
+    </button>
+    </div>
+  );
+};
 
 const RulesModal = ({ onClose }: { onClose: () => void }) => {
   return (
@@ -762,10 +900,12 @@ const DiceManager = ({
   onRollComplete,
   pointPops = [],
   triggerExplosionCount = 0,
+  hideDice = false,
 }: {
   onRollComplete: (hand: ReturnType<typeof evaluateHand>) => void;
   pointPops?: any[];
   triggerExplosionCount?: number;
+  hideDice?: boolean;
 }) => {
   const { state, dispatch } = useGame();
 
@@ -2275,21 +2415,27 @@ const DiceManager = ({
       ref={containerRef}
       className="relative w-full flex-1 flex items-center justify-center overflow-hidden bg-gradient-to-b from-[#050608] to-[#0a0c10] border-none shadow-[inset_0_4px_50px_rgba(0,0,0,0.8)]"
     >
-      <canvas ref={canvasRef} className="w-full h-full block touch-none z-10" />
+      <canvas
+        ref={canvasRef}
+        className={`w-full h-full block touch-none z-10 transition-opacity duration-200 ${
+          hideDice ? "opacity-0" : "opacity-100"
+        }`}
+      />
       <canvas
         ref={particleCanvasRef}
         className="absolute inset-0 pointer-events-none z-20 w-full h-full"
       />
 
-      {state.dice.map((die, i) => (
-        <ScreenProjectedMarker
-          key={`marker-${die.id}`}
-          die={die}
-          cameraRef={cameraRef}
-          meshRef={diceMeshesRef.current[i]}
-          rendererRef={rendererRef}
-        />
-      ))}
+      {!hideDice &&
+        state.dice.map((die, i) => (
+          <ScreenProjectedMarker
+            key={`marker-${die.id}`}
+            die={die}
+            cameraRef={cameraRef}
+            meshRef={diceMeshesRef.current[i]}
+            rendererRef={rendererRef}
+          />
+        ))}
 
       {pointPops.map((pop) => (
         <ScreenProjectedPopup
@@ -3785,31 +3931,33 @@ export function GameBoard() {
               onRollComplete={handleRollComplete}
               pointPops={pointPops}
               triggerExplosionCount={explosionTriggerCount}
+              hideDice={
+                state.status === "playing" &&
+                state.rollsLeft === state.maxRolls &&
+                !isScoring
+              }
             />
 
-            {/* Mão segurando os dados (início da rodada / antes de arremessar) */}
-            {state.status === "playing" && state.rollsLeft === state.maxRolls && !isScoring && (
-              <div
-                id="initial-throw-overlay"
-                className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col items-end justify-end z-30 rounded-xl pointer-events-none"
-              >
-                <motion.button
-                  key="dice-hand-throw"
-                  onMouseEnter={() => sfx.playHover()}
-                  initial={{ y: 60, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 60, opacity: 0 }}
-                  whileTap={{ y: -18, rotate: -6, transition: { duration: 0.12 } }}
-                  onClick={handleRoll}
-                  className="relative mx-auto mb-1 flex flex-col items-center gap-1 cursor-pointer pointer-events-auto group"
-                >
-                  <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.25em] text-white/80 bg-black/50 px-3 py-1 rounded-full border border-white/15 mb-1 animate-pulse">
-                    Toque para arremessar
-                  </span>
-                  <DiceHand />
-                </motion.button>
-              </div>
-            )}
+            {/* Copo de dados (início da rodada / antes de arremessar) */}
+            <AnimatePresence>
+              {state.status === "playing" &&
+                state.rollsLeft === state.maxRolls &&
+                !isScoring && (
+                  <motion.div
+                    key="dice-cup-overlay"
+                    id="initial-throw-overlay"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0, transition: { duration: 0.18 } }}
+                    className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent flex flex-col items-center justify-end pb-2 z-30 rounded-xl pointer-events-none"
+                  >
+                    <span className="text-[9px] md:text-[11px] font-black uppercase tracking-[0.25em] text-white/85 bg-black/55 px-3 py-1 rounded-full border border-white/15 mb-2 animate-pulse">
+                      Toque para arremessar
+                    </span>
+                    <DiceCup onThrow={handleRoll} />
+                  </motion.div>
+                )}
+            </AnimatePresence>
 
             {state.round === 1 && state.lastHandInfo !== null && (
               <motion.p
