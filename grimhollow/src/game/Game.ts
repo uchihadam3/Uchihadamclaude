@@ -29,6 +29,14 @@ import {
   roomWalkable,
   type Estab,
 } from "./interiors";
+import taverneiroUrl from "../assets/npc/taverneiro.png";
+import mercadoraUrl from "../assets/npc/mercadora.png";
+
+// artes 2D enviadas para atendentes (URL por estabelecimento)
+const NPC_ART: Partial<Record<Estab, string>> = {
+  tavern: taverneiroUrl,
+  store: mercadoraUrl,
+};
 
 // direções: 0=N,1=E,2=S,3=O  (dcol, drow)
 const DIRS: [number, number][] = [
@@ -122,6 +130,7 @@ export class Game {
   private returnTo = { col: 0, row: 0, facing: 0 }; // volta ao sair do interior
   private dialogue: { name: string; lines: string[]; idx: number } | null = null;
   private lastPrompt = " ";
+  private npcArt: Partial<Record<Estab, THREE.Texture>> = {}; // cache das artes 2D
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -634,15 +643,20 @@ export class Game {
     seed: number,
     name: string,
     lines: string[],
+    img?: THREE.Texture,
   ) {
+    // com imagem (arte 2D enviada): usa a textura e a proporção da imagem
     const mat = new THREE.MeshLambertMaterial({
-      map: tex.villager(seed),
+      map: img ?? tex.villager(seed),
       transparent: true,
       alphaTest: 0.5,
       side: THREE.DoubleSide,
     });
-    const npc = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.15), mat);
-    npc.position.set(c * CELL, 1.06, r * CELL);
+    const h = img ? 2.4 : 2.15;
+    const w = img ? h * 0.671 : 1.3; // aspecto 848x1264
+    const y = img ? h / 2 - 0.08 : 1.06;
+    const npc = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    npc.position.set(c * CELL, y, r * CELL);
     this.world.add(npc);
     this.npcs.push(npc);
     this.blocked.add(`${c},${r}`);
@@ -662,6 +676,22 @@ export class Game {
       const info = VILLAGERS[`${c},${r}`] ?? { name: "Aldeão", lines: ["..."] };
       this.addNPC(c, r, seed, info.name, info.lines);
     }
+  }
+
+  // carrega (uma vez) a arte 2D de um atendente, se houver
+  private npcArtTex(kind: Estab): THREE.Texture | undefined {
+    const url = NPC_ART[kind];
+    if (!url) return undefined;
+    if (!this.npcArt[kind]) {
+      const t = new THREE.TextureLoader().load(url);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.magFilter = THREE.LinearFilter;
+      t.minFilter = THREE.LinearMipmapLinearFilter;
+      t.generateMipmaps = true;
+      t.anisotropy = 8;
+      this.npcArt[kind] = t;
+    }
+    return this.npcArt[kind];
   }
 
   private canWalk(c: number, r: number): boolean {
@@ -781,7 +811,7 @@ export class Game {
     this.box(cxN, 0.55, czN, CELL * 2.4, 1.1, 0.7, woodDark);
     this.box(cxN, 1.12, czN, CELL * 2.4 + 0.2, 0.14, 0.95, woodDark); // tampo
     const info = ESTAB[kind];
-    this.addNPC(n.col, n.row, info.seed, info.npc, info.lines);
+    this.addNPC(n.col, n.row, info.seed, info.npc, info.lines, this.npcArtTex(kind));
     // luz quente sobre o balcão (destaca o atendente)
     const clight = new THREE.PointLight(0xffd49a, 4.5, 15, 2);
     clight.position.set(cxN, 2.5, n.row * CELL + 1.6);
