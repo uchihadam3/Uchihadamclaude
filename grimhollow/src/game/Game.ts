@@ -28,6 +28,10 @@ const DIRS: [number, number][] = [
   [-1, 0],
 ];
 
+// pontos de interesse do vilarejo
+const WELL = { c: 4, r: 9 }; // poço na praça
+const DUNGEON = { c: 6, r: 0, dc: 0, dr: 1 }; // entrada da masmorra (parede norte)
+
 type Anim =
   | null
   | {
@@ -50,6 +54,10 @@ export class Game {
   private row: number;
   private facing = 0;
   private anim: Anim = null;
+
+  private blocked = new Set<string>(); // células bloqueadas por props (poço)
+  private npcs: THREE.Object3D[] = []; // aldeões (billboards)
+  private torch?: THREE.PointLight; // luz da masmorra (tremeluz)
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -131,6 +139,7 @@ export class Game {
     const hash = (a: number, b: number, s = 0) =>
       (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
 
+    const doorFaces = new Set<string>();
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         if (cellAt(c, r) !== "building") continue;
@@ -147,10 +156,17 @@ export class Game {
         this.scene.add(box);
 
         for (const [dc, dr] of streetDirs) {
+          // a face da masmorra é tratada à parte
+          if (c === DUNGEON.c && r === DUNGEON.r && dc === DUNGEON.dc && dr === DUNGEON.dr)
+            continue;
           // porta/janela deterministicamente (o telhado é feito em trechos)
           const h = Math.abs(hash(c, r, dc * 2 + dr));
-          if (h < 0.28) this.addDecal(c, r, dc, dr, doorMat, "door");
-          else if (h < 0.72) this.addDecal(c, r, dc, dr, winMat, "window");
+          if (h < 0.28) {
+            this.addDecal(c, r, dc, dr, doorMat, "door");
+            doorFaces.add(`${c},${r},${dc},${dr}`);
+          } else if (h < 0.72) {
+            this.addDecal(c, r, dc, dr, winMat, "window");
+          }
         }
       }
     }
@@ -158,20 +174,225 @@ export class Game {
     // telhados CONTÍNUOS por trecho de parede (evita retalhos soltos)
     this.buildRoofs(thatchMat);
 
-    // barris (pequenos, encostados na parede)
-    const barrelGeo = new THREE.CylinderGeometry(0.42, 0.36, 1.1, 12);
-    for (let r = 0; r < ROWS; r++)
-      for (let c = 0; c < COLS; c++)
-        if (cellAt(c, r) === "barrel") {
-          const b = new THREE.Mesh(barrelGeo, barrelMat);
-          const near = DIRS.find(([dc, dr]) => cellAt(c + dc, r + dr) === "building");
-          const ox = near ? near[0] * (CELL / 2 - 0.6) : 0;
-          const oz = near ? near[1] * (CELL / 2 - 0.6) : 0;
-          b.position.set(c * CELL + ox, 0.55, r * CELL + oz);
-          this.scene.add(b);
-        }
+    // barris decorativos: encostados numa parede SEM porta, recuados p/ o canto
+    this.buildBarrels(barrelMat, doorFaces, hash);
+
+    // pontos de interesse
+    this.buildWell();
+    this.buildDungeon();
+    this.buildSigns();
+    this.buildNPCs();
 
     void MAP;
+  }
+
+  // barris que só decoram: nunca bloqueiam passagem nem ficam na frente de portas
+  private buildBarrels(
+    mat: THREE.Material,
+    doorFaces: Set<string>,
+    hash: (a: number, b: number, s?: number) => number,
+  ) {
+    const geo = new THREE.CylinderGeometry(0.4, 0.34, 1.05, 14);
+    const lid = new THREE.CylinderGeometry(0.41, 0.41, 0.08, 14);
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        if (cellAt(c, r) !== "barrel") continue;
+        const walls = DIRS.filter(([dc, dr]) => cellAt(c + dc, r + dr) === "building");
+        if (walls.length === 0) continue;
+        // prefere uma parede sem porta
+        const wall =
+          walls.find(([dc, dr]) => !doorFaces.has(`${c + dc},${r + dr},${-dc},${-dr}`)) ||
+          walls[0];
+        const [dc, dr] = wall;
+        // recuo perpendicular p/ o canto (encaixa contra outra parede se houver)
+        let px = 0;
+        let pz = 0;
+        const shift = 1.05;
+        if (dc !== 0) {
+          const zdir =
+            cellAt(c, r - 1) === "building" ? -1 : cellAt(c, r + 1) === "building" ? 1 : hash(c, r) > 0 ? 1 : -1;
+          pz = zdir * shift;
+        } else {
+          const xdir =
+            cellAt(c - 1, r) === "building" ? -1 : cellAt(c + 1, r) === "building" ? 1 : hash(c, r) > 0 ? 1 : -1;
+          px = xdir * shift;
+        }
+        const bx = c * CELL + dc * (CELL / 2 - 0.5) + px;
+        const bz = r * CELL + dr * (CELL / 2 - 0.5) + pz;
+        const grp = new THREE.Group();
+        const b = new THREE.Mesh(geo, mat);
+        b.position.y = 0.52;
+        grp.add(b);
+        const top = new THREE.Mesh(lid, mat);
+        top.position.y = 1.05;
+        grp.add(top);
+        // às vezes um segundo barril menor ao lado
+        if (hash(c, r, 5) > 0.15) {
+          const b2 = new THREE.Mesh(geo, mat);
+          b2.scale.set(0.82, 0.82, 0.82);
+          b2.position.set(-px * 0.5 - dc * 0.1, 0.42, -pz * 0.5 - dr * 0.1);
+          grp.add(b2);
+        }
+        grp.position.set(bx, 0, bz);
+        this.scene.add(grp);
+      }
+  }
+
+  // poço de pedra no centro da praça
+  private buildWell() {
+    const wx = WELL.c * CELL;
+    const wz = WELL.r * CELL;
+    this.blocked.add(`${WELL.c},${WELL.r}`);
+    const stoneMat = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const thatchMat = new THREE.MeshLambertMaterial({
+      map: tex.thatch(3),
+      side: THREE.DoubleSide,
+    });
+    const grp = new THREE.Group();
+    // mureta de pedra
+    const ring = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.15, 1.25, 1.05, 20),
+      stoneMat,
+    );
+    ring.position.y = 0.52;
+    grp.add(ring);
+    // "água" escura no topo
+    const water = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.92, 0.92, 0.06, 20),
+      new THREE.MeshBasicMaterial({ color: 0x10171c }),
+    );
+    water.position.y = 0.95;
+    grp.add(water);
+    // dois postes
+    const postGeo = new THREE.BoxGeometry(0.16, 2.0, 0.16);
+    for (const s of [-1, 1]) {
+      const post = new THREE.Mesh(postGeo, woodMat);
+      post.position.set(s * 0.95, 1.55, 0);
+      grp.add(post);
+    }
+    // travessa + balde
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 0.14), woodMat);
+    bar.position.y = 2.5;
+    grp.add(bar);
+    const bucket = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.2, 0.34, 12),
+      woodMat,
+    );
+    bucket.position.set(0.2, 1.7, 0);
+    grp.add(bucket);
+    // telhadinho de palha (pirâmide)
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.7, 0.95, 4), thatchMat);
+    roof.position.y = 3.05;
+    roof.rotation.y = Math.PI / 4;
+    grp.add(roof);
+    grp.position.set(wx, 0, wz);
+    this.scene.add(grp);
+  }
+
+  // entrada da masmorra na parede norte + tochas
+  private buildDungeon() {
+    const { c, r, dc, dr } = DUNGEON;
+    const w = CELL * 0.86;
+    const h = WALL_H * 0.96;
+    const arch = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshLambertMaterial({
+        map: tex.dungeonArch(),
+        transparent: true,
+        side: THREE.DoubleSide,
+      }),
+    );
+    const fx = c * CELL + dc * (CELL / 2 + 0.05);
+    const fz = r * CELL + dr * (CELL / 2 + 0.05);
+    arch.position.set(fx, h / 2, fz);
+    if (dr === 1) arch.rotation.y = 0;
+    else if (dr === -1) arch.rotation.y = Math.PI;
+    else arch.rotation.y = (dc * Math.PI) / 2;
+    this.scene.add(arch);
+
+    // tochas dos dois lados + luz quente tremeluzente
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffb24a });
+    for (const s of [-1, 1]) {
+      const tx = fx + s * 1.7;
+      const post = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8),
+        new THREE.MeshLambertMaterial({ color: 0x2a1c10 }),
+      );
+      post.position.set(tx, 2.1, fz + 0.1);
+      this.scene.add(post);
+      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 10), flameMat);
+      flame.position.set(tx, 2.7, fz + 0.1);
+      this.scene.add(flame);
+    }
+    const light = new THREE.PointLight(0xffa84a, 6, 14, 2);
+    light.position.set(fx, 2.6, fz + 1.4);
+    this.scene.add(light);
+    this.torch = light;
+  }
+
+  // placas de taverna e loja penduradas nas paredes da rua principal
+  private buildSigns() {
+    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const mount = (
+      c: number,
+      r: number,
+      dc: number,
+      dr: number,
+      kind: "tavern" | "shop",
+    ) => {
+      const grp = new THREE.Group();
+      const y = WALL_H * 0.78;
+      // suporte de madeira saindo da parede até a placa
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.55), woodMat);
+      bracket.position.set(0, y + 0.78, 0.26);
+      grp.add(bracket);
+      const board = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.9, 1.45),
+        new THREE.MeshLambertMaterial({
+          map: tex.sign(kind),
+          transparent: true,
+          side: THREE.DoubleSide,
+        }),
+      );
+      board.position.set(0, y, 0.45); // pende à frente da parede
+      grp.add(board);
+      const fx = c * CELL + dc * (CELL / 2 + 0.06);
+      const fz = r * CELL + dr * (CELL / 2 + 0.06);
+      grp.position.set(fx, 0, fz);
+      if (dc === 1) grp.rotation.y = Math.PI / 2;
+      else if (dc === -1) grp.rotation.y = -Math.PI / 2;
+      else if (dr === 1) grp.rotation.y = 0;
+      else grp.rotation.y = Math.PI;
+      this.scene.add(grp);
+    };
+    mount(4, 15, 1, 0, "tavern"); // parede oeste da rua (à esquerda subindo)
+    mount(8, 13, -1, 0, "shop"); // parede leste da rua (à direita subindo)
+  }
+
+  // aldeões (billboards que sempre encaram a câmera)
+  private buildNPCs() {
+    const spots: [number, number, number][] = [
+      [2, 9, 1],
+      [10, 8, 2],
+      [5, 16, 3],
+    ];
+    for (const [c, r, seed] of spots) {
+      const mat = new THREE.MeshLambertMaterial({
+        map: tex.villager(seed),
+        transparent: true,
+        alphaTest: 0.5,
+        side: THREE.DoubleSide,
+      });
+      const npc = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 2.0), mat);
+      npc.position.set(c * CELL, 1.0, r * CELL);
+      this.scene.add(npc);
+      this.npcs.push(npc);
+    }
+  }
+
+  private canWalk(c: number, r: number): boolean {
+    return isWalkable(c, r) && !this.blocked.has(`${c},${r}`);
   }
 
   // Detecta sequências contíguas de casas expostas à rua numa direção e faz
@@ -398,7 +619,7 @@ export class Game {
     const [dc, dr] = DIRS[fi];
     const nc = this.col + dc;
     const nr = this.row + dr;
-    if (!isWalkable(nc, nr)) return;
+    if (!this.canWalk(nc, nr)) return;
     this.anim = {
       kind: "move",
       t0: performance.now(),
@@ -431,6 +652,14 @@ export class Game {
         if (p >= 1) this.anim = null;
       }
     }
+    // aldeões sempre encaram a câmera (billboard no eixo Y)
+    const cx = this.camera.position.x;
+    const cz = this.camera.position.z;
+    for (const npc of this.npcs)
+      npc.rotation.y = Math.atan2(cx - npc.position.x, cz - npc.position.z);
+    // tocha da masmorra tremeluz
+    if (this.torch)
+      this.torch.intensity = 5.2 + Math.sin(now * 0.011) * 0.8 + Math.sin(now * 0.027) * 0.5;
     this.renderer.render(this.scene, this.camera);
   }
 

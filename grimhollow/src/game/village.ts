@@ -40,7 +40,9 @@ export function cellAt(col: number, row: number): CellKind {
 }
 
 export function isWalkable(col: number, row: number): boolean {
-  return cellAt(col, row) === "street";
+  const k = cellAt(col, row);
+  // barris agora são decorativos (encostados na parede) e não bloqueiam
+  return k === "street" || k === "barrel";
 }
 
 export function findStart(): { col: number; row: number } {
