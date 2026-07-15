@@ -67,12 +67,12 @@ type Action =
   | { type: 'MUTATE_GOLD'; amount: number }
   | { type: 'UPGRADE_HAND'; hand: string; cost: number }
   | { type: 'REROLL_SHOP' }
-  | { type: 'UPGRADE_DICE'; modifier: 'gold' | 'foil' | 'holographic'; cost: number }
+  | { type: 'UPGRADE_DICE'; modifier: 'gold' | 'foil' | 'holographic'; cost: number; diceId?: string }
   | { type: 'UNLOCK_DICE_SET'; id: string; cost: number }
   | { type: 'SELECT_DICE_SET'; id: string }
   | { type: 'BUY_CONSUMABLE'; id: string; cost: number }
   | { type: 'USE_CONSUMABLE'; id: string; targetDieId?: string; chosenValue?: number; targetDieId2?: string }
-  | { type: 'UPGRADE_DICE_MATERIAL'; material: 'glass' | 'steel' | 'midas' | 'wood' | 'obsidian'; cost: number }
+  | { type: 'UPGRADE_DICE_MATERIAL'; material: 'glass' | 'steel' | 'midas' | 'wood' | 'obsidian'; cost: number; diceId?: string }
   | { type: 'ENTER_META_LAB' }
   | { type: 'LEAVE_META_LAB' }
   | { type: 'BUY_META_UPGRADE'; upgradesPatch: Partial<MetaUpgrades>; shardCost: number }
@@ -107,9 +107,9 @@ const initialMeta = loadMetaState();
 
 export const generateDirective = (round: number): NonNullable<GameState['activeDirective']> => {
   const directives = [
-    { id: 'seq', text: 'Sintetize uma Sequência', rewardType: 'gold', rewardValue: 15 },
+    { id: 'seq', text: 'Sintetize uma Sequência', rewardType: 'gold', rewardValue: 6 },
     { id: 'quad', text: 'Sintetize um Quad', rewardType: 'meta_shards', rewardValue: 5 },
-    { id: 'score', text: 'Supere a meta primária em +50%', rewardType: 'gold', rewardValue: 10 },
+    { id: 'score', text: 'Supere a meta primária em +50%', rewardType: 'gold', rewardValue: 5 },
   ];
   const choice = directives[Math.floor(Math.random() * directives.length)];
   return { ...choice, completed: false } as NonNullable<GameState['activeDirective']>;
@@ -438,8 +438,8 @@ function reducer(state: GameState, action: Action): GameState {
       let earnedGold = 0;
       
       if (state.currentRoundScore >= state.targetScore) {
-        // Calculate gold based on remaining rolls & base reward
-        earnedGold = 3 + (state.rollsLeft * 1);
+        // Recompensa base mais enxuta (economia apertada no começo)
+        earnedGold = 3 + Math.floor(state.rollsLeft / 2);
         
         // Add gold from gold dice
         const activeDice = state.dice.filter(d => !d.destroyed);
@@ -607,14 +607,21 @@ function reducer(state: GameState, action: Action): GameState {
 
     case 'UPGRADE_DICE': {
         if (state.gold < action.cost) return state;
-        const diceOptions = state.dice.filter(d => d.modifier !== action.modifier);
-        if (diceOptions.length === 0) return state;
-        const target = diceOptions[Math.floor(Math.random() * diceOptions.length)];
-        
+        let targetId = action.diceId;
+        if (!targetId) {
+          // fallback: dado aleatório sem esse modificador
+          const opts = state.dice.filter(d => d.modifier !== action.modifier && !d.destroyed);
+          if (opts.length === 0) return state;
+          targetId = opts[Math.floor(Math.random() * opts.length)].id;
+        } else {
+          const t = state.dice.find(d => d.id === targetId);
+          if (!t || t.destroyed) return state;
+        }
         return {
            ...state,
            gold: state.gold - action.cost,
-           dice: state.dice.map(d => d.id === target.id ? { ...d, modifier: action.modifier } : d)
+           // aplicar um modificador substitui o anterior no dado escolhido
+           dice: state.dice.map(d => d.id === targetId ? { ...d, modifier: action.modifier } : d)
         };
     }
 
@@ -751,13 +758,20 @@ function reducer(state: GameState, action: Action): GameState {
         }
         case 'UPGRADE_DICE_MATERIAL': {
           if (state.gold < action.cost) return state;
-          const diceOptions = state.dice.filter(d => d.material !== action.material);
-          if (diceOptions.length === 0) return state;
-          const target = diceOptions[Math.floor(Math.random() * diceOptions.length)];
+          let targetId = action.diceId;
+          if (!targetId) {
+            const opts = state.dice.filter(d => d.material !== action.material && !d.destroyed);
+            if (opts.length === 0) return state;
+            targetId = opts[Math.floor(Math.random() * opts.length)].id;
+          } else {
+            const t = state.dice.find(d => d.id === targetId);
+            if (!t || t.destroyed) return state;
+          }
           return {
             ...state,
             gold: state.gold - action.cost,
-            dice: state.dice.map(d => d.id === target.id ? { ...d, material: action.material } : d)
+            // aplicar um material substitui o anterior no dado escolhido
+            dice: state.dice.map(d => d.id === targetId ? { ...d, material: action.material } : d)
           };
         }
 

@@ -29,18 +29,31 @@ const RAR = {
 
 type TabId = 'relics' | 'dice' | 'hands';
 
+const MOD_LABEL: Record<string, string> = { foil: 'Prata', holographic: 'Prisma', gold: 'Midas' };
+const MAT_LABEL: Record<string, string> = { wood: 'Madeira', glass: 'Cristal', steel: 'Aço', obsidian: 'Obsidiana', midas: 'Midas', normal: '' };
+
 export function ShopScreen() {
   const { state, dispatch } = useGame();
   const [tab, setTab] = useState<TabId>('relics');
   const [showCurses, setShowCurses] = useState(false);
+  // Compra pendente de modificador/material aguardando o jogador escolher o dado
+  const [pending, setPending] = useState<{ kind: 'mod' | 'mat'; id: string; cost: number; name: string } | null>(null);
 
   const gold = state.gold;
   const afford = (c: number) => gold >= c;
 
   const buyRelic = (id: string, cost: number) => { if (afford(cost)) { sfx.playPowerup(); dispatch({ type: 'BUY_RELIC', id, cost }); } };
   const upgradeHand = (hand: string, cost: number) => { if (afford(cost)) { sfx.playPowerup(); dispatch({ type: 'UPGRADE_HAND', hand, cost }); } };
-  const buyMod = (id: any, cost: number) => { if (afford(cost)) { sfx.playPowerup(); dispatch({ type: 'UPGRADE_DICE', modifier: id, cost }); } };
-  const buyMat = (id: any, cost: number) => { if (afford(cost)) { sfx.playPowerup(); dispatch({ type: 'UPGRADE_DICE_MATERIAL', material: id, cost }); } };
+  const openPicker = (kind: 'mod' | 'mat', id: string, cost: number, name: string) => {
+    if (afford(cost)) { sfx.playClick(); setPending({ kind, id, cost, name }); }
+  };
+  const applyToDie = (diceId: string) => {
+    if (!pending || !afford(pending.cost)) { setPending(null); return; }
+    sfx.playPowerup();
+    if (pending.kind === 'mod') dispatch({ type: 'UPGRADE_DICE', modifier: pending.id as any, cost: pending.cost, diceId });
+    else dispatch({ type: 'UPGRADE_DICE_MATERIAL', material: pending.id as any, cost: pending.cost, diceId });
+    setPending(null);
+  };
   const reroll = () => { if (afford(1)) { sfx.playPowerup(); dispatch({ type: 'REROLL_SHOP' }); } };
   const leave = () => { sfx.playPowerup(); dispatch({ type: 'LEAVE_SHOP' }); };
 
@@ -242,7 +255,7 @@ export function ShopScreen() {
                       <CoinBtn
                         cost={m.cost}
                         disabled={!afford(m.cost)}
-                        onClick={() => (('icon' in m && DICE_MODS.some(d => d.id === m.id)) ? buyMod(m.id, m.cost) : buyMat(m.id, m.cost))}
+                        onClick={() => openPicker(DICE_MODS.some(d => d.id === m.id) ? 'mod' : 'mat', m.id, m.cost, m.name)}
                       />
                     </motion.div>
                   );
@@ -289,6 +302,55 @@ export function ShopScreen() {
           Próximo Blind <ChevronRight className="w-5 h-5" />
         </button>
       </footer>
+
+      {/* ===== SELETOR DE DADO (aplicar modificador/material) ===== */}
+      <AnimatePresence>
+        {pending && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm p-3"
+            onClick={() => setPending(null)}
+          >
+            <motion.div
+              initial={{ y: 30, scale: 0.98 }} animate={{ y: 0, scale: 1 }} exit={{ y: 30, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md bg-[#0d0b12] border border-white/15 rounded-3xl p-4 shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-base font-black uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" /> Aplicar {pending.name}
+                </h3>
+                <button onClick={() => setPending(null)} className="text-zinc-400 hover:text-white cursor-pointer">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-[11px] text-zinc-400 mb-4">
+                Escolha o dado que receberá o efeito — ele substitui o {pending.kind === 'mod' ? 'modificador' : 'material'} atual desse dado.
+              </p>
+              <div className="grid grid-cols-5 gap-2">
+                {state.dice.filter(d => !d.destroyed).map(d => {
+                  const cur = pending.kind === 'mod' ? MOD_LABEL[d.modifier || ''] : MAT_LABEL[d.material || 'normal'];
+                  return (
+                    <button
+                      key={d.id}
+                      onMouseEnter={() => sfx.playHover()}
+                      onClick={() => applyToDie(d.id)}
+                      className="flex flex-col items-center gap-1.5 p-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-amber-400 hover:bg-amber-400/10 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-300 text-black font-black text-xl flex items-center justify-center shadow-inner">
+                        {d.value}
+                      </div>
+                      <span className="text-[8px] font-bold uppercase tracking-tight text-zinc-400 leading-none h-3 flex items-center">
+                        {cur || '—'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
