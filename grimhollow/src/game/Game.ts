@@ -4,6 +4,7 @@ import {
   WALL_H,
   ROOF_H,
   ROOF_OVER,
+  FASCIA,
   EYE_H,
   RENDER_H,
   MOVE_MS,
@@ -150,18 +151,17 @@ export class Game {
       }
     }
 
-    // barris
-    const barrelGeo = new THREE.CylinderGeometry(
-      CELL * 0.26,
-      CELL * 0.23,
-      2.3,
-      12,
-    );
+    // barris (menores, encostados na parede)
+    const barrelGeo = new THREE.CylinderGeometry(0.58, 0.5, 1.5, 12);
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++)
         if (cellAt(c, r) === "barrel") {
           const b = new THREE.Mesh(barrelGeo, barrelMat);
-          b.position.set(c * CELL, 1.15, r * CELL);
+          // encosta o barril na parede de casa mais próxima
+          const near = DIRS.find(([dc, dr]) => cellAt(c + dc, r + dr) === "building");
+          const ox = near ? near[0] * (CELL / 2 - 0.7) : 0;
+          const oz = near ? near[1] * (CELL / 2 - 0.7) : 0;
+          b.position.set(c * CELL + ox, 0.75, r * CELL + oz);
           this.scene.add(b);
         }
 
@@ -200,19 +200,26 @@ export class Game {
   ) {
     const cx = c * CELL;
     const cz = r * CELL;
-    // frente (lado da rua, baixo) e trás (interior, alto)
+    // frente (beiral, sobre a rua, baixo) e trás (cumeeira, no interior, alto)
     const fx = cx + dc * (CELL / 2 + ROOF_OVER);
     const fz = cz + dr * (CELL / 2 + ROOF_OVER);
     const bx = cx - dc * (CELL / 2);
     const bz = cz - dr * (CELL / 2);
     const px = dr; // perpendicular no plano XZ
     const pz = -dc;
-    const half = CELL / 2;
-    const a = new THREE.Vector3(fx + px * half, WALL_H, fz + pz * half);
-    const b = new THREE.Vector3(fx - px * half, WALL_H, fz - pz * half);
-    const d = new THREE.Vector3(bx + px * half, WALL_H + ROOF_H, bz + pz * half);
-    const e = new THREE.Vector3(bx - px * half, WALL_H + ROOF_H, bz - pz * half);
+    const half = CELL / 2 + 0.06; // leve sobreposição p/ fechar frestas entre células
+    const eaveY = WALL_H - 0.15;
+    const ridgeY = WALL_H + ROOF_H;
+    // superfície inclinada de palha (topo)
+    const a = new THREE.Vector3(fx + px * half, eaveY, fz + pz * half);
+    const b = new THREE.Vector3(fx - px * half, eaveY, fz - pz * half);
+    const d = new THREE.Vector3(bx + px * half, ridgeY, bz + pz * half);
+    const e = new THREE.Vector3(bx - px * half, ridgeY, bz - pz * half);
     this.scene.add(this.quad(a, b, e, d, mat));
+    // borda de palha no beiral (dá espessura ao telhado)
+    const a2 = new THREE.Vector3(fx + px * half, eaveY - FASCIA, fz + pz * half);
+    const b2 = new THREE.Vector3(fx - px * half, eaveY - FASCIA, fz - pz * half);
+    this.scene.add(this.quad(a2, b2, b, a, mat));
   }
 
   private quad(
