@@ -157,12 +157,18 @@
     text-shadow:0 1px 2px #000;line-height:1.4;}
   #blog .ln{opacity:0;animation:logIn .3s forwards;}
   @keyframes logIn{to{opacity:1;}}
-  #bparty{flex:0 0 auto;display:flex;gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom,0));background:#0a0908;border-top:2px solid #221e14;}
-  .bpc{flex:1 1 0;min-width:0;background:linear-gradient(180deg,#15130d,#0a0906);border:1.5px solid #2c2717;border-radius:5px;padding:5px 7px;position:relative;}
-  .bpc.turn{border-color:var(--gold);box-shadow:0 0 10px rgba(232,193,90,.3);}
+  #bparty{flex:0 0 auto;display:flex;gap:6px;padding:7px 8px calc(7px + env(safe-area-inset-bottom,0));
+    background:linear-gradient(180deg,#14110c,#0a0806);border-top:2px solid #3a3120;box-shadow:0 -4px 14px rgba(0,0,0,.5);}
+  .bpc{flex:1 1 0;min-width:0;background:linear-gradient(180deg,#221d14,#0d0b07);border:1.5px solid #46402c;border-radius:6px;padding:5px 6px;position:relative;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05),inset 0 0 8px rgba(0,0,0,.5);}
+  .bpc.turn{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 16px rgba(232,193,90,.4);}
+  .bpc.turn::before{content:'▸';position:absolute;left:-2px;top:-9px;color:var(--gold);font-size:12px;}
   .bpc.dead{filter:grayscale(1) brightness(.45);}
-  .bpc .bn{font-size:12px;font-weight:bold;letter-spacing:.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .bpc .row{color:var(--acc);font-size:9px;position:absolute;right:6px;top:5px;}
+  .bpTop{display:flex;align-items:center;gap:5px;}
+  .bpPort{width:30px;height:30px;flex:0 0 30px;background:#000;border:1.5px solid #4a4026;border-radius:4px;}
+  .bpNm{min-width:0;display:flex;flex-direction:column;line-height:1.1;}
+  .bpc .bn{font-size:12px;font-weight:bold;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bpc .brow{font-size:8.5px;color:var(--acc);}
   .bpc .bpbar{height:9px;margin-top:3px;background:#000;border:1px solid #2a2519;border-radius:2px;overflow:hidden;position:relative;}
   .bpc .bpbar>i{display:block;height:100%;transition:width .3s;}
   .bpc .bpbar.hp>i{background:linear-gradient(90deg,#7a2420,#d24a3e);}
