@@ -718,6 +718,57 @@ function roundRect(
   ctx.closePath();
 }
 
+// -------- placa com o NOME do estabelecimento (texto) --------
+export function signText(name: string): THREE.Texture {
+  const W = 160;
+  const H = 56;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  // tábua de madeira
+  ctx.fillStyle = "#33220f";
+  roundRect(ctx, 2, 2, W - 4, H - 4, 6);
+  ctx.fill();
+  ctx.fillStyle = "#59401f";
+  roundRect(ctx, 6, 6, W - 12, H - 12, 5);
+  ctx.fill();
+  // grão
+  ctx.strokeStyle = "rgba(30,18,8,0.35)";
+  ctx.lineWidth = 1;
+  for (let y = 12; y < H - 8; y += 6) {
+    ctx.beginPath();
+    ctx.moveTo(10, y);
+    ctx.lineTo(W - 10, y + 1);
+    ctx.stroke();
+  }
+  // parafusos nos cantos
+  ctx.fillStyle = "#2a1a0a";
+  for (const [px, py] of [
+    [12, 12],
+    [W - 12, 12],
+    [12, H - 12],
+    [W - 12, H - 12],
+  ]) {
+    ctx.beginPath();
+    ctx.arc(px, py, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // texto (ajusta o tamanho p/ caber)
+  let fs = 26;
+  ctx.fillStyle = "#f2dda0";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `bold ${fs}px Georgia, "Times New Roman", serif`;
+  while (ctx.measureText(name).width > W - 22 && fs > 10) {
+    fs -= 1;
+    ctx.font = `bold ${fs}px Georgia, "Times New Roman", serif`;
+  }
+  ctx.strokeStyle = "rgba(0,0,0,0.55)";
+  ctx.lineWidth = 3;
+  ctx.strokeText(name, W / 2, H / 2 + 1);
+  ctx.fillText(name, W / 2, H / 2 + 1);
+  return toSprite(c);
+}
+
 // -------- rocha da montanha (áspera, cinza-marrom) --------
 export function rock(seed = 41): THREE.Texture {
   const W = 96;
