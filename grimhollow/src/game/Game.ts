@@ -42,22 +42,20 @@ const DIRS: [number, number][] = [
 const WELL = { c: 7, r: 10 }; // poço no centro da praça
 const TUNNEL_H = 3.2; // altura do teto do túnel da masmorra
 
-// estabelecimentos: célula da casa + face (dc,dr) com a porta voltada p/ a praça,
-// e a célula (sc,sr) onde fica a placa-estaca no chão, à frente da loja.
+// estabelecimentos: célula da casa + face (dc,dr) com a porta voltada p/ a praça.
+// A placa-estaca fica encostada na parede, logo ao lado da porta.
 interface EstabDoor {
   c: number;
   r: number;
   dc: number;
   dr: number;
-  sc: number;
-  sr: number;
   kind: Estab;
 }
 const ESTAB_DOORS: EstabDoor[] = [
-  { c: 5, r: 5, dc: 0, dr: 1, sc: 4, sr: 7, kind: "tavern" }, // parede norte
-  { c: 9, r: 5, dc: 0, dr: 1, sc: 10, sr: 7, kind: "store" }, // parede norte
-  { c: 1, r: 9, dc: 1, dr: 0, sc: 3, sr: 8, kind: "smith" }, // parede oeste
-  { c: 13, r: 9, dc: -1, dr: 0, sc: 11, sr: 8, kind: "alchemist" }, // parede leste
+  { c: 5, r: 5, dc: 0, dr: 1, kind: "tavern" }, // parede norte
+  { c: 9, r: 5, dc: 0, dr: 1, kind: "store" }, // parede norte
+  { c: 1, r: 9, dc: 1, dr: 0, kind: "smith" }, // parede oeste
+  { c: 13, r: 9, dc: -1, dr: 0, kind: "alchemist" }, // parede leste
 ];
 
 // nomes/falas dos aldeões da vila (por célula)
@@ -593,40 +591,39 @@ export class Game {
     this.world.add(g2);
   }
 
-  // portas dos estabelecimentos + PLACAS-ESTACA no chão à frente de cada loja
+  // portas dos estabelecimentos + PLACA-ESTACA encostada na parede ao lado da porta
   private buildEstablishments(doorMat: THREE.Material) {
     const postMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     for (const e of ESTAB_DOORS) {
-      const { c, r, dc, dr, sc, sr, kind } = e;
+      const { c, r, dc, dr, kind } = e;
       // porta da loja
       this.addDecal(c, r, dc, dr, doorMat, "door");
       this.doorMap.set(`${c},${r},${dc},${dr}`, kind);
 
-      // placa-estaca plantada no chão, virada p/ quem chega (sentido -dc,-dr)
+      // placa numa estaca curta, rente à parede e deslocada p/ o lado da porta
       const grp = new THREE.Group();
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.0, 0.16), postMat);
-      post.position.y = 1.0;
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.2, 0.14), postMat);
+      post.position.y = 1.1;
       grp.add(post);
       const board = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.9, 0.7),
+        new THREE.PlaneGeometry(1.5, 0.62),
         new THREE.MeshLambertMaterial({
           map: tex.signText(ESTAB[kind].name),
           transparent: true,
           side: THREE.DoubleSide,
         }),
       );
-      board.position.set(0, 1.95, 0.05);
+      board.position.set(0, 2.05, 0.03);
       grp.add(board);
-      const board2 = board.clone();
-      board2.position.z = -0.05;
-      board2.rotation.y = Math.PI;
-      grp.add(board2);
-      grp.position.set(sc * CELL, 0, sr * CELL);
-      // vira a placa p/ olhar na direção oposta à porta (p/ o jogador que chega)
+      // posição: face da parede + pequeno recuo, deslocada 1.2 p/ o lado da porta
+      const fx = c * CELL + dc * (CELL / 2 + 0.16);
+      const fz = r * CELL + dr * (CELL / 2 + 0.16);
+      const px = dr; // perpendicular à normal da porta
+      const pz = -dc;
+      grp.position.set(fx + px * 1.2, 0, fz + pz * 1.2);
       grp.rotation.y =
-        dc === 1 ? -Math.PI / 2 : dc === -1 ? Math.PI / 2 : dr === 1 ? Math.PI : 0;
+        dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
       this.world.add(grp);
-      this.blocked.add(`${sc},${sr}`); // a estaca tem colisão
     }
   }
 
