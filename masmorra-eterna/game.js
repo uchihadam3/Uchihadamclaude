@@ -1581,7 +1581,7 @@ function onBossDefeated(){ // abre saída / vitória de andar
   milestone('boss1','🏆 CONQUISTA: primeiro guardião de andar derrotado!');
   const d=G.dun; d.bossDefeated=true;
   for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++)if(d.grid[y][x]==='B')d.grid[y][x]='>';
-  if(G.depth>=10){ setTimeout(()=>showWin(),1500); }
+  if(G.depth>=10){ setTimeout(()=>playEnding(()=>showWin()),1300); }
 }
 
 /* ================= RENDER LOOP ================= */
@@ -2375,10 +2375,24 @@ function cutCorridor(ctx,W,H,t){ const vpx=W/2, vpy=H*0.40, iw=W*0.11, ih=H*0.12
   const vg=ctx.createRadialGradient(vpx,H*0.5,H*0.3,vpx,H*0.55,H*0.95); vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.75)'); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
 }
 // cenários adicionais (usados no final — Parte 13d)
-function cutThrone(ctx,W,H,t){ let g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#1a0a12');g.addColorStop(1,'#050206'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  const cx=W/2, fl=0.7+Math.sin(t*6)*0.2; const rg=ctx.createRadialGradient(cx,H*0.3,10,cx,H*0.3,H*0.7); rg.addColorStop(0,`rgba(255,70,50,${0.22*fl})`);rg.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle='#0d0810'; ctx.beginPath(); ctx.moveTo(cx-W*0.16,H*0.9);ctx.lineTo(cx+W*0.16,H*0.9);ctx.lineTo(cx+W*0.1,H*0.32);ctx.lineTo(cx-W*0.1,H*0.32);ctx.closePath(); ctx.fill(); // trono
-  const vg=ctx.createRadialGradient(cx,H*0.5,H*0.3,cx,H*0.55,H*0.95); vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.7)'); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H); }
+function cutThrone(ctx,W,H,t){ let g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#1a0a12');g.addColorStop(0.6,'#0c0510');g.addColorStop(1,'#040206'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const cx=W/2, s=Math.min(W,H)/150, fl=0.65+Math.sin(t*5)*0.2+Math.random()*0.06;
+  const rg=ctx.createRadialGradient(cx,H*0.28,10,cx,H*0.35,H*0.8); rg.addColorStop(0,`rgba(255,80,50,${0.2*fl})`);rg.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  // degraus
+  ctx.fillStyle='#14101a'; for(let i=0;i<4;i++){ const w=W*(0.22+i*0.06); ctx.fillRect(cx-w,H*(0.86-i*0.04),w*2,H*0.05); }
+  // trono
+  ctx.fillStyle='#0d0812'; ctx.beginPath(); ctx.moveTo(cx-W*0.13,H*0.82);ctx.lineTo(cx+W*0.13,H*0.82);ctx.lineTo(cx+W*0.09,H*0.3);ctx.lineTo(cx-W*0.09,H*0.3);ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#1c1426'; ctx.fillRect(cx-W*0.11,H*0.28,W*0.22,H*0.03); // encosto topo
+  // rei caído (silhueta sentada) com coroa
+  ctx.save(); ctx.translate(cx,H*0.7); ctx.fillStyle='#050208';
+  ctx.beginPath(); ctx.moveTo(-9*s,0); ctx.lineTo(9*s,0); ctx.lineTo(6*s,-26*s); ctx.lineTo(-6*s,-26*s); ctx.closePath(); ctx.fill(); // manto
+  ctx.beginPath(); ctx.arc(0,-30*s,5.5*s,0,7); ctx.fill(); // cabeça pendida
+  ctx.fillStyle=`rgba(232,193,90,${0.5+0.3*fl})`; // coroa
+  for(let i=-2;i<=2;i++){ ctx.fillRect(i*2.4*s-0.6*s,-37*s,1.4*s,3.5*s); } ctx.fillRect(-6*s,-34.5*s,12*s,2*s);
+  ctx.restore();
+  // brasas subindo
+  for(let i=0;i<30;i++){ const yy=(H - (t*36+i*53)%(H+60)); const xx=cx+Math.sin(i*1.3+t*0.7)*W*0.22*(1-yy/H); const a=0.5*(1-yy/H); ctx.fillStyle=`rgba(255,${(120+i*4)%180+80},60,${a})`; ctx.fillRect(xx,yy,2,2); }
+  const vg=ctx.createRadialGradient(cx,H*0.5,H*0.3,cx,H*0.55,H*0.98); vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.72)'); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H); }
 function cutFlame(ctx,W,H,t){ ctx.fillStyle='#05040a'; ctx.fillRect(0,0,W,H); const cx=W/2, cy=H*0.55;
   for(let r=H*0.5;r>0;r-=8){ const fl=0.5+Math.sin(t*4 - r*0.02)*0.3; const g=ctx.createRadialGradient(cx,cy,r*0.2,cx,cy,r); g.addColorStop(0,`rgba(255,220,120,${0.05*fl})`);g.addColorStop(0.6,`rgba(255,140,50,${0.03*fl})`);g.addColorStop(1,'rgba(255,90,30,0)'); ctx.fillStyle=g; ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.fill(); }
   for(let i=0;i<5;i++){ const fx=Math.sin(t*3+i)*10; const h=H*0.34*(0.7+Math.sin(t*5+i)*0.25); ctx.fillStyle=`rgba(255,${(160+i*18)|0},60,${0.5})`; ctx.beginPath(); ctx.moveTo(cx-14+i*7,cy+20); ctx.quadraticCurveTo(cx-8+i*7+fx,cy-h*0.5,cx-2+i*3,cy-h); ctx.quadraticCurveTo(cx+i*4-fx,cy-h*0.5,cx+12+i*3,cy+20); ctx.closePath(); ctx.fill(); }
@@ -2392,6 +2406,22 @@ function cutDawn(ctx,W,H,t){ let g=ctx.createLinearGradient(0,0,0,H); g.addColor
   ctx.fillStyle='#fff6d8'; ctx.beginPath();ctx.arc(sx,sy,R,0,7);ctx.fill();
   ctx.fillStyle='#241528'; ctx.beginPath(); ctx.moveTo(0,H); for(let x=0;x<=W;x+=W/8){ ctx.lineTo(x,H*0.7+Math.sin(x*0.01)*20); } ctx.lineTo(W,H); ctx.closePath(); ctx.fill(); }
 function playIntro(cb){ if(G.flags&&G.flags.skipIntro){ cb(); return; } startCutscene(INTRO_SCRIPT, cb); }
+const ENDING_SCRIPT=[
+ {bg:'throne', who:'narr', text:'No fundo de tudo, o guardião tomba. E sob a coroa de cinzas... um rosto que Darius conhecia bem demais.'},
+ {bg:'throne', who:'darius', text:'Aldric. Meu rei. Perdoe-me... fui eu quem lhe implorou para prender a Chama, para salvar Ossfeld da seca. E foi isso que condenou a todos.'},
+ {bg:'throne', who:'leona', text:'Então a queda... foi um sacrifício. E o senhor carregou este peso sozinho por dez anos inteiros.'},
+ {bg:'throne', who:'sakura', text:'Chega de culpa, velho. O que fazemos agora vale mais que qualquer passado.'},
+ {bg:'throne', who:'celes', text:'A Chama ainda pulsa aqui — mas presa, sufocada. Ela não precisa de mais força. Só que a soltem.'},
+ {bg:'flame', who:'darius', text:'Então soltamos. Não com poder — com o que nos resta. Nossa dor. Nossa esperança. Tudo.'},
+ {bg:'flame', who:'narr', text:'Um a um, eles entregam à Chama o peso que carregaram até aqui. E a Chama, enfim... aceita.'},
+ {bg:'flame', title:'A CHAMA RENASCE', sub:'e o Abismo se desfaz', who:'narr', text:'', sfx:'holy'},
+ {bg:'ascend', who:'celes', text:'Está subindo! O labirinto inteiro — a masmorra está voltando para a luz!'},
+ {bg:'ascend', who:'leona', text:'Fiquem juntos. Como sempre foi. Até o fim... e depois dele.'},
+ {bg:'dawn', who:'narr', text:'Ao amanhecer, as pedras de Ossfeld emergem da terra. Um reino de luz, reacendido pelas mãos de quatro almas.'},
+ {bg:'dawn', who:'darius', text:'Obrigado. Por me deixarem chegar até aqui. O rei descansa em paz. E, enfim... eu também posso.'},
+ {bg:'dawn', title:'FIM', sub:'Masmorra Eterna — O Abismo de Ossfeld', who:'narr', text:''},
+];
+function playEnding(cb){ musicStop(); startCutscene(ENDING_SCRIPT, cb); }
 
 /* ================= MAPA ================= */
 function openMap(){ const ov=$('#mapOv'); ov.classList.add('on'); $('#mapFl').textContent=G.dun.name; drawMapCv(); }
