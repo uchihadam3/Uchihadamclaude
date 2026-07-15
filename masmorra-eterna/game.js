@@ -719,7 +719,8 @@ const BEST={
             {name:'Julgamento',type:'dark',target:'one',power:260,magic:true,tell:'Uma luz negra se concentra...'}]},
 };
 // dificuldade — inimigos mais resistentes (HP) e mais fortes (ATK/MAG)
-const ENEMY_HP_MUL=1.55, ENEMY_ATK_MUL=1.4;
+// NORMAL_HP_EXTRA: HP a mais SÓ para inimigos comuns (chefes já estão no ponto)
+const ENEMY_HP_MUL=1.55, ENEMY_ATK_MUL=1.4, NORMAL_HP_EXTRA=1.5;
 function mkEnemy(key,lvBoost,opts){ opts=opts||{};
   const b=BEST[key], dep=opts.depthAs||G.depth||1, lv=dep+(lvBoost||0), sc=1+(dep-1)*0.15;
   const e={ key, side:'enemy', name:b.name, spr:b.spr, boss:!!b.boss, undead:!!b.undead,
@@ -733,6 +734,7 @@ function mkEnemy(key,lvBoost,opts){ opts=opts||{};
     sx:0,sy:0,scale:1, hitFlash:0, bob:Math.random()*6 };
   if(b.boss){ // chefes são PAREDES: muito mais HP e ataque que sobe com a profundidade (suave cedo, forte tarde) — Parte 11
     const atkM=1.28+(dep-1)*0.03; e.mhp=Math.round(e.mhp*1.7); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
+  else { e.mhp=Math.round(e.mhp*NORMAL_HP_EXTRA); e.hp=e.mhp; } // inimigos comuns mais resistentes (aguentam mais golpes)
   if(!b.boss && !opts.noElite && chance(eliteChance(dep))) makeElite(e);
   return e;
 }
