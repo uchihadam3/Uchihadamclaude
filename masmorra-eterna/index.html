@@ -104,15 +104,24 @@
   .ub:active{transform:translateY(1px);} .ub:hover{border-color:var(--gold);}
   #hints{display:none;}
 
-  /* responsivo: telas estreitas empilham */
+  /* responsivo: no celular cabe tudo numa tela só (sem scroll) */
   @media (max-aspect-ratio:1/1){
-    #explore{flex-direction:column;overflow:auto;padding:5px;gap:5px;}
-    #centerCol{order:1;flex:0 0 auto;height:52vh;}
-    #rightCol{order:2;flex:0 0 auto;}
-    #leftCol{order:3;flex:0 0 auto;}
-    #party{grid-template-rows:auto auto;}
-    #miniWrap{height:130px;}
-    #invPanel{max-height:none;}
+    #explore{flex-direction:column;overflow:hidden;padding:4px;gap:4px;}
+    #leftCol{display:none;}                    /* inventário/minimapa via botões 🔥 e 🗺 */
+    #centerCol{order:1;flex:1 1 auto;min-height:0;gap:4px;}
+    #logBox{display:none;}
+    #rightCol{order:2;flex:0 0 auto;gap:4px;}
+    #party{padding:4px;gap:4px;}
+    .pcard{padding:4px;gap:2px;} .pport{width:34px;height:34px;flex-basis:34px;}
+    .pname{font-size:10px;} .plv{font-size:9px;} .bnum{font-size:7px;}
+    .pslots{margin-top:2px;} .pslots .sk{max-width:18px;font-size:9px;}
+    #dpad{padding:4px;} .dgrid{max-width:340px;} .dbtn{font-size:19px;aspect-ratio:1.7;}
+    #utilBar{padding:4px;} .ub{aspect-ratio:1.6;font-size:17px;}
+    #gp{font-size:16px;}
+  }
+  @media (max-aspect-ratio:1/1) and (max-height:640px){
+    .pport{width:28px;height:28px;flex-basis:28px;} .pslots{display:none;}
+    .dbtn{aspect-ratio:2;}
   }
 
   /* ============ OVERLAYS ============ */

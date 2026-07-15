@@ -150,14 +150,18 @@ function buildTextures(){
 
 /* ================= RAYCASTER ================= */
 const RC={cv:null,ctx:null,RW:360,RH:230,img:null,buf:null,zbuf:null};
-function rcInit(){
-  RC.cv=$('#view'); RC.ctx=RC.cv.getContext('2d');
-  RC.cv.width=RC.RW; RC.cv.height=RC.RH;
-  RC.img=RC.ctx.createImageData(RC.RW,RC.RH); RC.buf=new Uint32Array(RC.img.data.buffer);
+function rcInit(){ RC.cv=$('#view'); RC.ctx=RC.cv.getContext('2d'); rcResize(); }
+function rcResize(){ if(!RC.cv)return;
+  const w=RC.cv.clientWidth||640, h=RC.cv.clientHeight||400;
+  let RW=clamp(Math.round(w/2),220,520);
+  let RH=clamp(Math.round(RW*(h/w)),140,460);
+  RC.RW=RW; RC.RH=RH; RC.cv.width=RW; RC.cv.height=RH;
+  RC.img=RC.ctx.createImageData(RW,RH); RC.buf=new Uint32Array(RC.img.data.buffer); RC.zbuf=new Float32Array(RW);
 }
 function rcRender(px,py,ang){
   const {RW,RH,buf}=RC;
-  const dirX=Math.cos(ang),dirY=Math.sin(ang), plane=0.66, planeX=-dirY*plane,planeY=dirX*plane;
+  // plano = RW/(2*RH) garante pixels quadrados (perspectiva sem distorção) em qualquer proporção
+  const dirX=Math.cos(ang),dirY=Math.sin(ang), plane=RW/(2*RH), planeX=-dirY*plane,planeY=dirX*plane;
   const posX=px,posY=py, horizon=RH/2, posZ=0.5*RH;
   const flick=0.98+Math.sin(performance.now()/160)*0.02+Math.random()*0.012;
   // teto + chão (floorcasting Lodev)
@@ -1373,11 +1377,13 @@ function bindInput(){
   $('#btnRevive').onclick=()=>{ $('#dead').classList.add('hidden'); startNew(); };
   $('#btnWinCont').onclick=()=>{ $('#win').classList.add('hidden'); G.state='explore'; musicStart('explore'); };
 }
-function startNew(){ newGame(); $('#title').classList.add('hidden'); G.state='explore'; renderHUD(); musicStart('explore'); saveGame(); }
-function startCont(){ if(loadGame()){ $('#title').classList.add('hidden'); G.state='explore'; renderHUD(); musicStart('explore'); } else startNew(); }
+function startNew(){ newGame(); $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(rcResize,80); saveGame(); }
+function startCont(){ if(loadGame()){ $('#title').classList.add('hidden'); G.state='explore'; rcResize(); renderHUD(); musicStart('explore'); setTimeout(rcResize,80); } else startNew(); }
 
 /* ================= BOOT ================= */
-function boot(){ buildTextures(); rcInit(); RC.zbuf=new Float32Array(RC.RW); bindInput();
+function boot(){ buildTextures(); rcInit(); bindInput();
+  let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(rcResize,120);});
+  window.addEventListener('orientationchange',()=>setTimeout(rcResize,250));
   if(hasSave())$('#btnCont').style.display='inline-block';
   loop();
 }
