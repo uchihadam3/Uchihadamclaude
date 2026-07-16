@@ -67,24 +67,37 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 /* ============ GAME / HUD ============ */
 #game{z-index:3}
 #hud{position:relative;z-index:4;padding:calc(var(--safe-t) + 10px) 14px 6px;display:flex;flex-direction:column;gap:8px}
-.sigilRow{display:flex;justify-content:space-between;gap:6px}
+.sigilRow{display:flex;justify-content:space-between;gap:9px;align-items:flex-start}
 .sigil{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
-.sigDisc{position:relative;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
-  background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.1),rgba(0,0,0,.35));
-  border:2px solid var(--c,#fff);box-shadow:0 0 0 3px rgba(0,0,0,.35),0 6px 16px rgba(0,0,0,.5), inset 0 0 12px var(--glow,transparent);
+.sigDisc{position:relative;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(circle at 50% 32%,rgba(255,255,255,.12),rgba(0,0,0,.45));
+  border:2px solid var(--c,#fff);box-shadow:0 0 10px var(--glow,transparent),0 4px 10px rgba(0,0,0,.5);
   transition:box-shadow .3s,transform .2s}
-.sigDisc svg{width:26px;height:26px}
-.sigDisc .ring{position:absolute;inset:-2px;border-radius:50%;pointer-events:none}
+.sigDisc svg{width:22px;height:22px;position:relative;z-index:2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.sigLiquid{position:absolute;left:0;right:0;bottom:0;background:var(--c);opacity:.30;z-index:1;
+  transition:height .7s cubic-bezier(.2,.8,.2,1);border-top:1.5px solid var(--c)}
+.sigName{font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
+/* barra-medidor com ZONAS: vermelho nas pontas (perigo), verde no meio (seguro) */
+.sigBar{position:relative;width:100%;max-width:78px;height:9px;border-radius:5px;overflow:visible;
+  background:linear-gradient(90deg,#ff3b5c 0%,#ff3b5c 15%,#7a5a2a 21%,#4a7a4a 40%,#4a7a4a 60%,#7a5a2a 79%,#ff3b5c 85%,#ff3b5c 100%);
+  border:1px solid rgba(0,0,0,.55);box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
+.sigBar .safe{position:absolute;left:21%;right:21%;top:0;bottom:0;background:rgba(0,0,0,.12)}
+.sigMark{position:absolute;top:-3px;width:5px;height:15px;border-radius:3px;background:#fff;
+  box-shadow:0 0 7px #fff,0 0 2px #000, 0 1px 3px rgba(0,0,0,.7);transform:translateX(-50%);
+  transition:left .7s cubic-bezier(.2,.8,.2,1);z-index:3}
+.sigNum{font-family:var(--disp);font-weight:800;font-size:13px;color:var(--ink);line-height:1;margin-top:1px}
 .sig-crit .sigDisc{animation:sigPulse .8s infinite}
-@keyframes sigPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,60,90,.2),0 0 18px var(--c);transform:scale(1)}
-  50%{box-shadow:0 0 0 5px rgba(255,60,90,.5),0 0 30px var(--c);transform:scale(1.06)}}
+.sig-crit .sigMark{background:var(--bad);box-shadow:0 0 10px var(--bad),0 0 3px #000;width:6px}
+.sig-crit .sigNum{color:var(--bad)}
+.sig-crit .sigName{color:var(--bad)}
+@keyframes sigPulse{0%,100%{box-shadow:0 0 6px var(--c),0 0 0 2px rgba(255,60,90,.3);transform:scale(1)}
+  50%{box-shadow:0 0 20px #ff3b5c,0 0 0 4px rgba(255,60,90,.6);transform:scale(1.08)}}
 .sig-bump .sigDisc{animation:sigBump .45s}
 @keyframes sigBump{0%{transform:scale(1)}35%{transform:scale(1.22)}100%{transform:scale(1)}}
-.sigName{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-faint);font-weight:600}
-.sigDelta{position:absolute;top:-6px;font-family:var(--disp);font-weight:800;font-size:15px;opacity:0;pointer-events:none;
-  text-shadow:0 2px 6px #000}
-.sigDelta.show{animation:deltaFloat 1s ease-out}
-@keyframes deltaFloat{0%{opacity:0;transform:translateY(4px)}20%{opacity:1}100%{opacity:0;transform:translateY(-16px)}}
+.sigDelta{position:absolute;top:-8px;font-family:var(--disp);font-weight:800;font-size:16px;opacity:0;pointer-events:none;
+  text-shadow:0 2px 6px #000;z-index:5}
+.sigDelta.show{animation:deltaFloat 1.1s ease-out}
+@keyframes deltaFloat{0%{opacity:0;transform:translateY(4px)}20%{opacity:1}100%{opacity:0;transform:translateY(-18px)}}
 
 /* star / doom bar */
 #starBar{position:relative;height:26px;border-radius:13px;overflow:hidden;margin-top:2px;

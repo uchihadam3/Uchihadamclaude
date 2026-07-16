@@ -51,6 +51,8 @@ function startGame(state){
   AUDIO.music(moodForChapter());
   nextCard(true);
   save();
+  // tutorial automático na primeira vez
+  if(!localStorage.getItem('rde_tut')){ localStorage.setItem('rde_tut','1'); setTimeout(showHowTo, 500); }
 }
 
 /* ============ HUD ============ */
@@ -59,8 +61,10 @@ function buildHud(){
   RESOURCES.forEach(r=>{
     const d=document.createElement('div'); d.className='sigil'; d.dataset.id=r.id;
     d.innerHTML=`<div class="sigDelta"></div>
-      <div class="sigDisc" style="--c:${r.c};--glow:${r.glow}"><div class="ring"></div>${ART.ICON[r.ico]}</div>
-      <div class="sigName">${r.name}</div>`;
+      <div class="sigDisc" style="--c:${r.c};--glow:${r.glow}"><div class="sigLiquid"></div>${ART.ICON[r.ico]}</div>
+      <div class="sigName">${r.name}</div>
+      <div class="sigBar" style="--c:${r.c}"><div class="safe"></div><div class="sigMark"></div></div>
+      <div class="sigNum">50</div>`;
     row.appendChild(d);
   });
   updateHud();
@@ -68,9 +72,11 @@ function buildHud(){
 function updateHud(anim){
   RESOURCES.forEach(r=>{
     const el=$(`.sigil[data-id="${r.id}"]`); if(!el) return;
-    const v=Math.round(S.res[r.id]); const deg=v/100*360;
-    el.querySelector('.ring').style.background=`conic-gradient(from -90deg, ${r.c} 0deg, ${r.c} ${deg}deg, rgba(255,255,255,.05) ${deg}deg)`;
-    el.classList.toggle('sig-crit', v<=18||v>=82);
+    const v=Math.round(S.res[r.id]); const danger=v<=20||v>=80;
+    el.querySelector('.sigLiquid').style.height=v+'%';
+    el.querySelector('.sigMark').style.left=v+'%';
+    el.querySelector('.sigNum').textContent=v;
+    el.classList.toggle('sig-crit', danger);
   });
   // star bar
   const sp=Math.max(0,Math.round(S.res.star)); $('#starFill').style.width=sp+'%'; $('#starPct').textContent=sp;
@@ -539,15 +545,28 @@ function showEndingGallery(){
   $('#charSheet').classList.add('on'); $('#charSheet').onclick=(e)=>{ if(e.target.id==='charSheet') $('#charSheet').classList.remove('on'); };
 }
 function showHowTo(){
-  $('#csCard').innerHTML=`<div class="csName" style="margin-bottom:10px">A Arte de Reinar</div>
-    <div class="csBio">Você governa o Império do Coração pela <b>decisão</b>. Cada carta traz alguém da corte e um dilema.</div>
+  // mini-demo visual do medidor
+  const meter=`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;margin:2px 0 10px">
+    <div class="sigBar" style="--c:#68e0c8;width:100%;max-width:220px;height:13px">
+      <div class="safe"></div><div class="sigMark" style="left:50%;width:6px;height:19px"></div></div>
+    <div style="display:flex;justify-content:space-between;width:100%;max-width:220px;font-size:10px;font-weight:700;letter-spacing:.5px">
+      <span style="color:var(--bad)">◄ VAZIO = FIM</span><span style="color:var(--good)">SEGURO</span><span style="color:var(--bad)">CHEIO = FIM ►</span></div></div>`;
+  $('#csCard').innerHTML=`<div class="csName" style="margin-bottom:6px">A Arte de Reinar</div>
+    <div class="csBio" style="margin-bottom:12px">Você governa o Império pela <b>decisão</b>. Cada carta traz alguém da corte e um dilema — só há dois lados.</div>
     <div class="csThreads">
-      <div class="csThread"><div class="dot"></div><p><b>Arraste a carta</b> para a <b>esquerda</b> ou <b>direita</b> para escolher. Antes de soltar, veja no topo da carta <b>quais poderes</b> a escolha afeta.</p></div>
-      <div class="csThread"><div class="dot"></div><p>Equilibre os quatro poderes: <b style="color:var(--temple)">Templo</b>, <b style="color:var(--povo)">Povo</b>, <b style="color:var(--frota)">Frota</b> e <b style="color:var(--eter)">Éter</b>. Se qualquer um <b>esvaziar</b> ou <b>transbordar</b>, seu reinado acaba.</p></div>
-      <div class="csThread"><div class="dot"></div><p>A <b style="color:var(--star)">Luz do Coração</b> mingua a cada ano. É o relógio da estrela morrendo — e o coração da sua história.</p></div>
-      <div class="csThread"><div class="dot"></div><p>Explore as abas: <b>a Corte</b> (quem ama e quem trai), <b>Relíquias</b>, a <b>Crônica</b> (sua história) e o <b>Império</b>. A <b>Voz na coroa</b> sussurrará conselhos — nem sempre honestos.</p></div>
-    </div>`;
+      <div class="csThread"><div class="dot"></div><p><b>Arraste a carta</b> para a <b>esquerda ◄</b> ou <b>► direita</b> para escolher. Antes de soltar, o topo da carta mostra <b>quais poderes</b> vão subir (▲) ou descer (▼).</p></div>
+      <div class="csThread"><div class="dot"></div><p><b>O medidor de cada poder</b> é uma barra com um marcador branco:</p></div>
+    </div>
+    ${meter}
+    <div class="csThreads">
+      <div class="csThread"><div class="dot" style="background:var(--good);box-shadow:0 0 8px var(--good)"></div><p><b style="color:var(--good)">Verde no meio = seguro.</b> Mantenha os quatro marcadores por aqui.</p></div>
+      <div class="csThread"><div class="dot" style="background:var(--bad);box-shadow:0 0 8px var(--bad)"></div><p><b style="color:var(--bad)">Vermelho nas pontas = perigo.</b> Se um marcador chegar ao vermelho — <b>vazio OU cheio demais</b> — seu reinado termina. O número embaixo (0 a 100) mostra o valor exato; ele fica vermelho e pulsa quando está perigoso.</p></div>
+      <div class="csThread"><div class="dot" style="background:var(--star);box-shadow:0 0 8px var(--star)"></div><p>A barra <b style="color:var(--star)">Luz do Coração</b> mingua sozinha a cada ano — é o relógio da estrela morrendo, o coração da história. Não deixe chegar a 0%.</p></div>
+      <div class="csThread"><div class="dot"></div><p>Abas embaixo: <b>a Corte</b>, <b>Relíquias</b>, a <b>Crônica</b> e o <b>Império</b>. A <b style="color:var(--eter)">Voz na coroa</b> dá conselhos — nem sempre honestos.</p></div>
+    </div>
+    <button class="mBtn prime" id="tutOk" style="margin-top:16px;width:100%">ENTENDI — COMEÇAR A REINAR</button>`;
   $('#charSheet').classList.add('on'); $('#charSheet').onclick=(e)=>{ if(e.target.id==='charSheet') $('#charSheet').classList.remove('on'); };
+  const ok=$('#tutOk'); if(ok) ok.onclick=()=>{ AUDIO.SFX.ui(); $('#charSheet').classList.remove('on'); };
 }
 
 /* ============ UTIL ============ */
