@@ -733,7 +733,7 @@ function mkEnemy(key,lvBoost,opts){ opts=opts||{};
     status:{}, alive:true, scanned:false, discovered:new Set(),
     sx:0,sy:0,scale:1, hitFlash:0, bob:Math.random()*6 };
   if(b.boss){ // chefes são PAREDES: muito mais HP e ataque que sobe com a profundidade (suave cedo, forte tarde) — Parte 11
-    const atkM=1.45+(dep-1)*0.035; e.mhp=Math.round(e.mhp*2.05); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
+    const atkM=1.34+(dep-1)*0.026; e.mhp=Math.round(e.mhp*2.05); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
   else { e.mhp=Math.round(e.mhp*NORMAL_HP_EXTRA); e.hp=e.mhp; } // inimigos comuns mais resistentes (aguentam mais golpes)
   if(!b.boss && !opts.noElite && chance(eliteChance(dep))) makeElite(e);
   return e;
