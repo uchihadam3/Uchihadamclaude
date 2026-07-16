@@ -206,6 +206,31 @@ const VILLAGE_NPCS: VillageNPC[] = [
 // importá-la e mapear o id aqui — o resto já está pronto.
 const VILLAGER_ART: Record<string, string> = {};
 
+// tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
+// Falas maiores são quebradas em várias páginas ("…" e o jogador continua).
+const DLG_MAX = 96;
+function paginate(lines: string[], max = DLG_MAX): string[] {
+  const pages: string[] = [];
+  for (const line of lines) {
+    if (line.length <= max) {
+      pages.push(line);
+      continue;
+    }
+    const words = line.split(/\s+/);
+    let cur = "";
+    for (const w of words) {
+      if (cur && cur.length + 1 + w.length > max) {
+        pages.push(cur + " …");
+        cur = w;
+      } else {
+        cur = cur ? cur + " " + w : w;
+      }
+    }
+    if (cur) pages.push(cur);
+  }
+  return pages;
+}
+
 // alvo que o jogador está encarando ao apertar interagir
 type Target =
   | { kind: "enter"; estab: Estab }
@@ -737,18 +762,14 @@ export class Game {
 
   // portas dos estabelecimentos + PLACA-ESTACA encostada na parede ao lado da porta
   private buildEstablishments(doorMat: THREE.Material) {
-    const postMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     for (const e of ESTAB_DOORS) {
       const { c, r, dc, dr, kind } = e;
       // porta da loja
       this.addDecal(c, r, dc, dr, doorMat, "door");
       this.doorMap.set(`${c},${r},${dc},${dr}`, kind);
 
-      // placa numa estaca curta, rente à parede e deslocada p/ o lado da porta
+      // letreiro rente à parede, ao lado da porta (sem estaca)
       const grp = new THREE.Group();
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.2, 0.14), postMat);
-      post.position.y = 1.1;
-      grp.add(post);
       const board = new THREE.Mesh(
         new THREE.PlaneGeometry(1.5, 0.62),
         new THREE.MeshLambertMaterial({
@@ -830,9 +851,9 @@ export class Game {
     const iw = im.naturalWidth || im.width || 0;
     const ih = im.naturalHeight || im.height || 0;
     if (!iw || !ih) return null;
-    // fração da altura usada como lado do recorte quadrado (rosto + ombros)
-    const sideFrac = isArt ? 0.3 : 0.42;
-    const topFrac = isArt ? 0.03 : 0.06;
+    // fração da altura usada como lado do recorte quadrado — zoom fechado no rosto
+    const sideFrac = isArt ? 0.18 : 0.26;
+    const topFrac = isArt ? 0.05 : 0.095;
     let side = ih * sideFrac;
     let sx = iw * 0.5 - side / 2;
     let sy = ih * topFrac;
@@ -892,31 +913,33 @@ export class Game {
     const t = this.facingTarget();
     if (!t) return;
     if (t.kind === "enter") {
-      this.returnTo = { col: this.col, row: this.row, facing: this.facing };
+      // ao sair, o jogador deve olhar p/ fora (oposto à porta que encarou p/ entrar)
+      this.returnTo = {
+        col: this.col,
+        row: this.row,
+        facing: (this.facing + 2) % 4,
+      };
       const p = roomFind("P");
       this.enterLocation(t.estab, p.col, p.row, 0);
     } else if (t.kind === "exit") {
       const { col, row, facing } = this.returnTo;
       this.enterLocation("village", col, row, facing);
     } else if (t.kind === "talk") {
+      const pages = paginate(t.lines);
       this.dialogue = {
         name: t.name,
-        lines: t.lines,
+        lines: pages,
         idx: 0,
         portrait: t.portrait ?? null,
       };
-      this.ui.showDialogue(t.name, t.lines[0], t.portrait ?? null);
+      this.ui.showDialogue(t.name, pages[0], t.portrait ?? null);
     } else if (t.kind === "dungeon") {
-      this.dialogue = {
-        name: "Masmorra",
-        lines: [
-          "A escada de pedra desce para a escuridão.",
-          "(Em breve você poderá explorar a masmorra.)",
-        ],
-        idx: 0,
-        portrait: null,
-      };
-      this.ui.showDialogue("Masmorra", this.dialogue.lines[0], null);
+      const pages = paginate([
+        "A escada de pedra desce para a escuridão.",
+        "(Em breve você poderá explorar a masmorra.)",
+      ]);
+      this.dialogue = { name: "Masmorra", lines: pages, idx: 0, portrait: null };
+      this.ui.showDialogue("Masmorra", pages[0], null);
     }
   }
 
