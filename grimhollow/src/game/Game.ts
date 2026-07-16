@@ -104,6 +104,22 @@ const ESTAB_DOORS: EstabDoor[] = [
   { c: 13, r: 9, dc: -1, dr: 0, kind: "alchemist" }, // parede leste
 ];
 
+// casas de aldeões (lares, não lojas). Cada uma tem uma porta na parede voltada
+// p/ a praça e um interior aconchegante com seus moradores.
+type HomeId = "irmaos" | "hedda" | "elspethhome";
+interface HomeDoor {
+  c: number;
+  r: number;
+  dc: number;
+  dr: number;
+  id: HomeId;
+}
+const HOME_DOORS: HomeDoor[] = [
+  { c: 7, r: 5, dc: 0, dr: 1, id: "irmaos" }, // parede norte (entre taverna e loja)
+  { c: 1, r: 7, dc: 1, dr: 0, id: "hedda" }, // parede oeste
+  { c: 13, r: 11, dc: -1, dr: 0, id: "elspethhome" }, // parede leste
+];
+
 // aldeões da vila espalhados pela praça.
 // id  -> chave da arte 2D (ver VILLAGER_ART); col/row = célula; seed = sprite
 // procedural provisório enquanto a arte não chega; name/lines = diálogo.
@@ -130,30 +146,6 @@ const VILLAGE_NPCS: VillageNPC[] = [
     ],
   },
   {
-    id: "pip",
-    c: 7,
-    r: 6,
-    seed: 4,
-    scale: 0.7,
-    name: "Pip",
-    lines: [
-      "Olha minha espada de madeira! Um dia vou ser aventureiro igual você!",
-      "A Wilma disse que viu um fantasma perto da montanha. Eu não tenho medo... quase.",
-    ],
-  },
-  {
-    id: "wilma",
-    c: 8,
-    r: 8,
-    seed: 6,
-    scale: 0.66,
-    name: "Wilma",
-    lines: [
-      "Você viu minha boneca? Ah, está aqui!",
-      "Não vá para a montanha, moço. De lá vêm barulhos à noite.",
-    ],
-  },
-  {
     id: "corvin",
     c: 11,
     r: 7,
@@ -162,17 +154,6 @@ const VILLAGE_NPCS: VillageNPC[] = [
     lines: [
       "Cortar lenha é honesto, mas o bosque anda estranho ultimamente.",
       "Dizem que há algo à espreita naquela montanha ao norte...",
-    ],
-  },
-  {
-    id: "hedda",
-    c: 5,
-    r: 9,
-    seed: 8,
-    name: "Hedda, a Matriarca",
-    lines: [
-      "Cuide-se por aí, meu jovem. Falta água, deixe-me encher o jarro.",
-      "Se precisar de comida quente, a taverna do Bruno é logo ali.",
     ],
   },
   {
@@ -263,6 +244,72 @@ const VILLAGER_ART: Record<string, string> = {
 // aldeões animados por sprite-sheet (id -> tira com N quadros, alinhados).
 const VILLAGER_ANIM: Record<string, { url: string; frames: number; fps: number }> = {};
 
+// moradores de cada casa (posicionados no grid da ROOM interna)
+interface HomeResident {
+  col: number;
+  row: number;
+  seed: number;
+  name: string;
+  lines: string[];
+  art?: string;
+  scale?: number;
+}
+interface HomeInfo {
+  name: string; // letreiro/dica
+  residents: HomeResident[];
+}
+const HOMES: Record<HomeId, HomeInfo> = {
+  irmaos: {
+    name: "Casa dos Irmãos",
+    residents: [
+      {
+        col: 2,
+        row: 2,
+        seed: 4,
+        scale: 0.7,
+        name: "Pip",
+        art: pipUrl,
+        lines: [
+          "Essa é a nossa casa! Eu e a Wilma somos irmãos.",
+          "Um dia vou ser aventureiro igual você — a Wilma que fica de babá!",
+        ],
+      },
+      {
+        col: 4,
+        row: 2,
+        seed: 6,
+        scale: 0.66,
+        name: "Wilma",
+        art: wilmaUrl,
+        lines: [
+          "O Pip vive fugindo pra praça. Alguém tem que cuidar dele!",
+          "À noite dá pra ouvir barulhos vindo da montanha... eu tranco a porta.",
+        ],
+      },
+    ],
+  },
+  hedda: {
+    name: "Casa de Hedda",
+    residents: [
+      {
+        col: 3,
+        row: 2,
+        seed: 8,
+        name: "Hedda, a Matriarca",
+        art: heddaUrl,
+        lines: [
+          "Entre, entre. Minha casa é modesta, mas aquecida.",
+          "Já vi muitos invernos passarem por Grimhollow. Sente-se, tome um chá.",
+        ],
+      },
+    ],
+  },
+  elspethhome: {
+    name: "Casa de Elspeth",
+    residents: [], // Elspeth está na praça de dia; a casa fica dela
+  },
+};
+
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
 // Falas maiores são quebradas em várias páginas ("…" e o jogador continua).
 const DLG_MAX = 96;
@@ -291,6 +338,7 @@ function paginate(lines: string[], max = DLG_MAX): string[] {
 // alvo que o jogador está encarando ao apertar interagir
 type Target =
   | { kind: "enter"; estab: Estab }
+  | { kind: "enterhome"; id: HomeId }
   | { kind: "exit" }
   | { kind: "talk"; name: string; lines: string[]; key: string }
   | { kind: "dungeon" }
@@ -327,10 +375,13 @@ export class Game {
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
+  private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
+  private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
-  private location: "village" | "forest" | Estab = "village";
+  private location: "village" | "forest" | Estab | HomeId = "village";
   private doorMap = new Map<string, Estab>(); // "c,r,dc,dr" -> estabelecimento
+  private homeDoorMap = new Map<string, HomeId>(); // "c,r,dc,dr" -> casa de aldeão
   // "c,r" -> NPC (guarda a textura p/ recortar o retrato do diálogo)
   private npcMap = new Map<
     string,
@@ -399,7 +450,7 @@ export class Game {
 
   // ---------------------------------------------- troca de local (vila/interior)
   private enterLocation(
-    loc: "village" | "forest" | Estab,
+    loc: "village" | "forest" | Estab | HomeId,
     col: number,
     row: number,
     facing: number,
@@ -421,11 +472,16 @@ export class Game {
       this.scene.background = new THREE.Color(FOG_COLOR);
       this.addForestLights();
       this.buildForest();
+    } else if (loc in HOMES) {
+      this.scene.fog = new THREE.Fog(0x241a10, CELL * 4, CELL * 12);
+      this.scene.background = new THREE.Color(0x160f08);
+      this.addInteriorLights();
+      this.buildHome(loc as HomeId);
     } else {
       this.scene.fog = new THREE.Fog(0x1a140d, CELL * 4, CELL * 12);
       this.scene.background = new THREE.Color(0x120e09);
       this.addInteriorLights();
-      this.buildInterior(loc);
+      this.buildInterior(loc as Estab);
     }
     this.col = col;
     this.row = row;
@@ -451,8 +507,10 @@ export class Game {
     this.flames = [];
     this.animTex = [];
     this.walkers = [];
+    this.smoke = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
+    this.homeDoorMap.clear();
     this.npcMap.clear();
   }
 
@@ -509,10 +567,11 @@ export class Game {
 
     const boxGeo = new THREE.BoxGeometry(CELL, WALL_H, CELL);
 
-    // faces reservadas aos estabelecimentos (não recebem porta/janela aleatória)
-    const estabFaces = new Set(
-      ESTAB_DOORS.map((e) => `${e.c},${e.r},${e.dc},${e.dr}`),
-    );
+    // faces reservadas a portas (lojas E casas): não recebem janela aleatória
+    const estabFaces = new Set([
+      ...ESTAB_DOORS.map((e) => `${e.c},${e.r},${e.dc},${e.dr}`),
+      ...HOME_DOORS.map((e) => `${e.c},${e.r},${e.dc},${e.dr}`),
+    ]);
 
     const doorFaces = new Set<string>();
     for (let r = 0; r < ROWS; r++) {
@@ -555,10 +614,110 @@ export class Game {
     // pontos de interesse
     this.buildWell();
     this.buildEstablishments(doorMat);
+    this.buildHomes(doorMat);
     this.buildVillageForestGate();
+    this.buildVillageProps();
+    this.buildChimneySmoke();
     this.buildNPCs();
 
     void MAP;
+  }
+
+  // adereços procedurais que dão vida à praça: lenha, caixotes/sacos, floreiras.
+  // (props "herói" em PNG virão por cima deste sistema.)
+  private buildVillageProps() {
+    const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const woodDk = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
+    const sackMat = new THREE.MeshLambertMaterial({ color: 0xb7a06a });
+    const crateMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
+    const leaf = new THREE.MeshLambertMaterial({ color: 0x5a7a3a });
+    const soil = new THREE.MeshLambertMaterial({ color: 0x4a3524 });
+
+    // pilha de lenha encostada numa parede
+    const firewood = (x: number, z: number) => {
+      for (let i = 0; i < 5; i++) {
+        const log = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.3, 8), woodDk);
+        log.rotation.z = Math.PI / 2;
+        log.position.set(x, 0.14 + (i % 2) * 0.24, z + (i - 2) * 0.26);
+        this.world.add(log);
+      }
+    };
+    // caixotes empilhados + um saco
+    const crates = (x: number, z: number) => {
+      this.box(x, 0.4, z, 0.8, 0.8, 0.8, crateMat);
+      this.box(x + 0.5, 0.3, z + 0.2, 0.6, 0.6, 0.6, crateMat);
+      const sack = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.34, 0.7, 10), sackMat);
+      sack.position.set(x - 0.4, 0.35, z + 0.3);
+      this.world.add(sack);
+    };
+    // floreira sob uma janela
+    const planter = (x: number, z: number) => {
+      this.box(x, 0.22, z, 1.1, 0.34, 0.4, woodDk);
+      this.box(x, 0.42, z, 1.0, 0.14, 0.32, soil);
+      for (let i = -2; i <= 2; i++) {
+        const f = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), leaf);
+        f.position.set(x + i * 0.2, 0.56, z);
+        this.world.add(f);
+      }
+    };
+    // posições encostadas em paredes de casas comuns (não em portas)
+    firewood(2.4 * CELL, 6.6 * CELL);
+    crates(10.4 * CELL, 6.5 * CELL);
+    firewood(11.5 * CELL, 8 * CELL);
+    planter(4 * CELL, 12.5 * CELL);
+    planter(8 * CELL, 12.5 * CELL);
+    void wood;
+  }
+
+  // fumaça saindo das chaminés das casas (planos macios que sobem e somem)
+  private buildChimneySmoke() {
+    const tex_ = this.smokeTex();
+    const cols: [number, number][] = [
+      [5, 5],
+      [9, 5],
+      [1, 9],
+      [13, 9],
+      [7, 5],
+      [1, 7],
+    ];
+    for (const [c, r] of cols) {
+      const puffs: THREE.Mesh[] = [];
+      for (let i = 0; i < 4; i++) {
+        const m = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.4, 1.4),
+          new THREE.MeshBasicMaterial({
+            map: tex_,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0.0,
+          }),
+        );
+        m.position.set(c * CELL + 0.4, WALL_H + ROOF_H, r * CELL);
+        m.userData = { phase: (c * 3.1 + r * 1.7 + i * 1.3) % 4, baseX: c * CELL + 0.4, baseZ: r * CELL };
+        this.world.add(m);
+        this.smoke.push(m);
+        puffs.push(m);
+      }
+    }
+  }
+
+  private smokeTex(): THREE.Texture {
+    if (this._smokeTex) return this._smokeTex;
+    const cv = document.createElement("canvas");
+    cv.width = 64;
+    cv.height = 64;
+    const ctx = cv.getContext("2d")!;
+    const g = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+    g.addColorStop(0, "rgba(220,220,224,0.9)");
+    g.addColorStop(1, "rgba(220,220,224,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(32, 32, 30, 0, Math.PI * 2);
+    ctx.fill();
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this._smokeTex = t;
+    return t;
   }
 
   // portal de madeira que marca a saída do vilarejo rumo à floresta (ao sul)
@@ -980,6 +1139,35 @@ export class Game {
       const px = dr; // perpendicular à normal da porta
       const pz = -dc;
       grp.position.set(fx + px * 1.2, 0, fz + pz * 1.2);
+      grp.rotation.y =
+        dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
+      this.world.add(grp);
+    }
+  }
+
+  // portas das casas de aldeões (lares) + placa discreta ao lado
+  private buildHomes(doorMat: THREE.Material) {
+    for (const e of HOME_DOORS) {
+      const { c, r, dc, dr, id } = e;
+      this.addDecal(c, r, dc, dr, doorMat, "door");
+      this.homeDoorMap.set(`${c},${r},${dc},${dr}`, id);
+      // pequena placa de madeira ao lado da porta
+      const grp = new THREE.Group();
+      const board = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.4, 0.5),
+        new THREE.MeshLambertMaterial({
+          map: tex.signText(HOMES[id].name),
+          transparent: true,
+          side: THREE.DoubleSide,
+        }),
+      );
+      board.position.set(0, 1.95, 0.03);
+      grp.add(board);
+      const fx = c * CELL + dc * (CELL / 2 + 0.16);
+      const fz = r * CELL + dr * (CELL / 2 + 0.16);
+      const px = dr;
+      const pz = -dc;
+      grp.position.set(fx + px * 1.15, 0, fz + pz * 1.15);
       grp.rotation.y =
         dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
       this.world.add(grp);
@@ -1611,6 +1799,14 @@ export class Game {
       };
       const p = roomFind("P");
       this.enterLocation(t.estab, p.col, p.row, 0);
+    } else if (t.kind === "enterhome") {
+      this.returnTo = {
+        col: this.col,
+        row: this.row,
+        facing: (this.facing + 2) % 4,
+      };
+      const p = roomFind("P");
+      this.enterLocation(t.id, p.col, p.row, 0);
     } else if (t.kind === "exit") {
       const { col, row, facing } = this.returnTo;
       this.enterLocation("village", col, row, facing);
@@ -1678,22 +1874,22 @@ export class Game {
     return m;
   }
 
-  private buildInterior(kind: Estab) {
+  // casca comum de qualquer interior (chão, teto, paredes, porta de saída).
+  // floorSeed/wallSeed/ceilColor deixam a casa parecer diferente da loja.
+  private buildRoomShell(floorSeed = 9, wallSeed = 2, ceilColor = 0x4a3826) {
     const CEIL = 3.0;
-    const floorMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(9) });
+    const floorMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(floorSeed) });
     const wallMat = new THREE.MeshLambertMaterial({
-      map: tex.woodPlanks(2),
+      map: tex.woodPlanks(wallSeed),
       side: THREE.DoubleSide,
     });
-    const ceilMat = new THREE.MeshLambertMaterial({ color: 0x4a3826, side: THREE.DoubleSide });
-    const woodDark = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const ceilMat = new THREE.MeshLambertMaterial({ color: ceilColor, side: THREE.DoubleSide });
     const doorMat = new THREE.MeshLambertMaterial({
       map: tex.door(11),
       side: THREE.DoubleSide,
     });
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
 
-    // casca: chão + teto + paredes
     for (let r = 0; r < ROOM_ROWS; r++)
       for (let c = 0; c < ROOM_COLS; c++) {
         if (!roomWalkable(c, r)) continue;
@@ -1727,6 +1923,78 @@ export class Game {
     exitSign.position.set(x.col * CELL, DOOR_H + 0.5, x.row * CELL + CELL / 2 - 0.08);
     exitSign.rotation.y = Math.PI;
     this.world.add(exitSign);
+  }
+
+  // interior de uma casa de aldeão: casca + mobília aconchegante + moradores
+  private buildHome(id: HomeId) {
+    const CEIL = 3.0;
+    this.buildRoomShell(9, 6, 0x3c2c1a);
+    const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const woodDk = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
+    const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const cloth = new THREE.MeshLambertMaterial({ color: 0x6d4530 });
+    const linen = new THREE.MeshLambertMaterial({ color: 0xcbb489 });
+
+    // lareira acesa (parede oeste, célula 1,3) — coração da casa
+    this.wallCell(1, 3, [-1, 0], (x, z) => {
+      this.box(x, 1.2, z, 0.5, 2.4, 2.0, stone);
+      this.box(x + 0.42, 0.55, z, 0.34, 0.7, 1.1, new THREE.MeshBasicMaterial({ color: 0xff7a1e }));
+      this.glowLight(x + 1.4, 1.0, z, 0xff8a2e, 4.2, 10);
+    });
+    // mesa central + dois bancos
+    const tcx = 3 * CELL;
+    const tcz = 3 * CELL;
+    this.box(tcx, 0.95, tcz, 1.7, 0.12, 1.1, wood); // tampo
+    for (const [ox, oz] of [[-0.7, 0], [0.7, 0], [0, -0.5], [0, 0.5]] as [number, number][])
+      this.box(tcx + ox * 0.9, 0.42, tcz + oz, 0.16, 0.84, 0.16, woodDk); // pernas
+    this.box(tcx, 0.45, tcz - 0.95, 1.4, 0.12, 0.4, woodDk); // banco
+    this.box(tcx, 0.45, tcz + 0.95, 1.4, 0.12, 0.4, woodDk); // banco
+    // louça na mesa
+    this.box(tcx - 0.4, 1.06, tcz, 0.22, 0.1, 0.22, linen);
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.22, 12), woodDk);
+    pot.position.set(tcx + 0.35, 1.11, tcz);
+    this.world.add(pot);
+    // camas (parede leste)
+    const beds = HOMES[id].residents.length >= 2 ? [[5, 2], [5, 4]] : [[5, 3]];
+    for (const [bc, br] of beds as [number, number][]) {
+      this.wallCell(bc, br, [1, 0], (x, z) => {
+        this.box(x, 0.35, z, 0.9, 0.5, 1.9, woodDk); // estrado
+        this.box(x, 0.66, z, 0.86, 0.16, 1.8, linen); // colchão
+        this.box(x, 0.78, z - 0.7, 0.7, 0.18, 0.4, cloth); // travesseiro
+      });
+    }
+    // prateleira com potes (parede norte)
+    this.wallCell(2, 1, [0, -1], (x, z) => {
+      this.box(x, 1.7, z, 1.6, 0.1, 0.4, wood);
+      for (let i = -1; i <= 1; i++) {
+        const j = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.28, 10), i === 0 ? woodDk : linen);
+        j.position.set(x + i * 0.45, 1.9, z);
+        this.world.add(j);
+      }
+    });
+    // tapete no centro
+    const rug = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.2, 1.6),
+      new THREE.MeshLambertMaterial({ color: 0x7a3b2a }),
+    );
+    rug.rotation.x = -Math.PI / 2;
+    rug.position.set(3 * CELL, 0.02, 3 * CELL + 0.2);
+    this.world.add(rug);
+
+    // luz central suave
+    const lamp = new THREE.PointLight(0xffe0a8, 5.5, 30, 2);
+    lamp.position.set(3 * CELL, CEIL - 0.4, 3 * CELL);
+    this.world.add(lamp);
+
+    // moradores
+    for (const m of HOMES[id].residents)
+      this.addNPC(m.col, m.row, m.seed, m.name, m.lines, m.art, m.scale ?? 1);
+  }
+
+  private buildInterior(kind: Estab) {
+    const CEIL = 3.0;
+    const woodDark = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    this.buildRoomShell(9, 2, 0x4a3826);
 
     // balcão do atendente + atendente
     const n = roomFind("N");
@@ -2238,6 +2506,17 @@ export class Game {
       a.tex.offset.x = (Math.floor((now / 1000) * a.fps) % a.frames) / a.frames;
     // NPCs que caminham
     this.updateWalkers(now);
+    // fumaça das chaminés: sobe, dilata e some; sempre encara a câmera
+    for (const s of this.smoke) {
+      const u = s.userData as { phase: number; baseX: number; baseZ: number };
+      const t = ((now * 0.00028 + u.phase) % 4) / 4; // 0..1 ao longo do ciclo
+      const rise = t * 4.2;
+      s.position.set(u.baseX + Math.sin(now * 0.0006 + u.phase) * 0.5, WALL_H + ROOF_H + rise, u.baseZ);
+      const sc = 0.6 + t * 1.6;
+      s.scale.set(sc, sc, sc);
+      (s.material as THREE.MeshBasicMaterial).opacity = Math.sin(t * Math.PI) * 0.42;
+      s.rotation.y = Math.atan2(cx - s.position.x, cz - s.position.z);
+    }
     // água do poço cintila suavemente
     if (this.waterGlint) {
       const m = this.waterGlint.material as THREE.MeshBasicMaterial;
@@ -2256,6 +2535,7 @@ export class Game {
     let text = " ";
     if (t) {
       if (t.kind === "enter") text = `Entrar — ${ESTAB[t.estab].name}`;
+      else if (t.kind === "enterhome") text = `Entrar — ${HOMES[t.id].name}`;
       else if (t.kind === "exit") text = "Sair";
       else if (t.kind === "talk") text = `Falar com ${t.name}`;
       else if (t.kind === "dungeon") text = "Descer à masmorra";
@@ -2287,6 +2567,8 @@ export class Game {
       // porta de estabelecimento (na face da casa voltada p/ o jogador)
       const estab = this.doorMap.get(`${fc},${fr},${-dc},${-dr}`);
       if (estab) return { kind: "enter", estab };
+      const home = this.homeDoorMap.get(`${fc},${fr},${-dc},${-dr}`);
+      if (home) return { kind: "enterhome", id: home };
       if (cellAt(fc, fr) === "stairs") return { kind: "dungeon" };
       // trilha da floresta: valendo de frente ou já em cima dela
       if (cellAt(fc, fr) === "forestgate" || cellAt(this.col, this.row) === "forestgate")
