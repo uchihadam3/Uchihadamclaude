@@ -449,6 +449,22 @@
   .bpc .rz{display:flex;gap:2px;margin-top:3px;align-items:center;}
   .bpc .rz .rzL{font-size:9px;color:#c8763a;margin-right:1px;}
   .bpc .rz i{flex:1;height:5px;border-radius:1px;background:#2a2519;}
+  /* barra de OVERDRIVE (por herói) */
+  .bpc .ovbar{height:8px;margin-top:3px;background:#100d06;border:1px solid #3a2f14;border-radius:2px;overflow:hidden;position:relative;}
+  .bpc .ovbar>i{display:block;height:100%;background:linear-gradient(90deg,#7a5a12,#e8c15a);transition:width .25s;}
+  .bpc .ovbar .ovt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:7px;letter-spacing:1px;color:#c9b586;text-shadow:0 1px 1px #000;font-weight:bold;}
+  .bpc.ovfull{border-color:#ffe27a;box-shadow:0 0 0 1px #ffe27a,0 0 18px rgba(255,220,120,.55);animation:ovPulse 1.1s infinite;}
+  .bpc.ovfull .ovbar>i{background:linear-gradient(90deg,#ffd24a,#fff0b0);}
+  .bpc.ovfull .ovbar .ovt{color:#1a1206;}
+  @keyframes ovPulse{0%,100%{box-shadow:0 0 0 1px #ffe27a,0 0 14px rgba(255,220,120,.45);}50%{box-shadow:0 0 0 1px #ffe27a,0 0 24px rgba(255,220,120,.8);}}
+  /* momentum de COMBO */
+  #comboBadge{position:absolute;left:50%;top:46px;transform:translateX(-50%) scale(.8);z-index:8;opacity:0;pointer-events:none;transition:.15s;
+    font-family:'Cinzel','Rubik',serif;font-weight:800;font-size:14px;letter-spacing:1px;color:#ffe27a;white-space:nowrap;
+    background:linear-gradient(180deg,rgba(42,22,8,.95),rgba(20,10,4,.95));border:1.5px solid #e8a54a;border-radius:20px;padding:5px 16px;
+    text-shadow:var(--txtout);box-shadow:0 0 18px rgba(255,150,60,.5);}
+  #comboBadge.on{opacity:1;transform:translateX(-50%) scale(1);}
+  #comboBadge b{color:#ff8a3a;font-size:17px;} #comboBadge small{font-size:9px;color:#e8c49a;letter-spacing:.5px;font-weight:normal;}
+  .lvb.skill{background:linear-gradient(180deg,#1a2c3a,#0c1622);border-color:#5aa8ff;color:#bfe0ff;text-shadow:0 1px 4px #000;}
   .bpc .rz i.on{background:linear-gradient(90deg,#e8c15a,#fff0b0);box-shadow:0 0 4px rgba(232,193,90,.6);}
   .bpc .cnd{position:absolute;left:6px;bottom:4px;display:flex;gap:2px;}
   .bpc .cnd span{font-size:8px;padding:0 2px;border-radius:2px;}
@@ -670,6 +686,7 @@
   <div id="battle">
     <div id="bfield">
       <canvas id="benemies"></canvas><canvas id="bfx"></canvas>
+      <div id="comboBadge"></div>
       <div id="turnQ"></div><div id="blog"></div>
     </div>
     <div id="furyWrap"><span id="furyLbl">FÚRIA</span><div id="furyBar"><i></i></div></div>

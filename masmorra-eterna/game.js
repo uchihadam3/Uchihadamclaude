@@ -678,26 +678,41 @@ const SKILLS={
   bencao:{name:'Bênção',kind:'heal',target:'allAlly',power:75,mp:16,magic:true,desc:'Cura todo o grupo.',learn:8},
   reviver:{name:'Reviver',kind:'revive',target:'ally',power:0.5,mp:18,magic:true,desc:'Traz um aliado de volta com metade do HP.',learn:5},
   trevas:{name:'Lâmina Umbral',kind:'atk',type:'dark',target:'one',power:135,mp:8,magic:true,desc:'Golpe das sombras.',learn:7},
+  // ---- habilidades novas por nível ----
+  abalo:{name:'Abalo Sísmico',kind:'atk',type:'blunt',target:'allEnemy',power:82,mp:12,desc:'Golpeia o chão; dano em todos + reduz defesa.',status:{name:'defDown',turns:2,pot:0.78,chance:0.6},learn:10},
+  vinganca:{name:'Vingança',kind:'atk',type:'slash',target:'one',power:120,mp:9,desc:'Dano maior quanto menos HP você tiver.',special:'lowhp',learn:13},
+  corte_cruzado:{name:'Corte Cruzado',kind:'atk',type:'pierce',target:'one',power:66,mp:6,hits:2,crit:0.2,desc:'Dois talhos perfurantes rápidos.',learn:4},
+  sangria:{name:'Retalhar',kind:'atk',type:'slash',target:'one',power:120,mp:8,desc:'Corte profundo que causa sangramento.',status:{name:'poison',turns:3,pot:18,chance:0.9},learn:10},
+  meteoro:{name:'Meteoro',kind:'atk',type:'fire',target:'one',power:250,mp:16,magic:true,desc:'Uma rocha flamejante despenca sobre o alvo.',learn:10},
+  zero_absoluto:{name:'Zero Absoluto',kind:'atk',type:'ice',target:'allEnemy',power:135,mp:20,magic:true,desc:'Congela o campo inteiro; retarda os inimigos.',status:{name:'slow',turns:2,chance:0.6},learn:13},
+  julgamento_sagrado:{name:'Julgamento Sagrado',kind:'atk',type:'holy',target:'one',power:210,mp:14,magic:true,desc:'Luz devastadora; arrasa mortos-vivos.',learn:10},
+  ressurreicao:{name:'Ressurreição',kind:'revive',target:'ally',power:1.0,mp:24,magic:true,desc:'Traz um aliado com HP TOTAL.',learn:13},
+  // ---- ULTIMATES (usadas com a barra de OVERDRIVE cheia; comportamento em useUltimate) ----
+  ult_leona:{name:'Juízo da Égide',ult:true,desc:'Golpe brutal no alvo + escudo divino para todo o grupo.'},
+  ult_sakura:{name:'Dança das Mil Lâminas',ult:true,desc:'Rajada de 6 cortes com crítico altíssimo.'},
+  ult_celes:{name:'Cataclismo Arcano',ult:true,desc:'Explosão elemental devastadora em todos os inimigos.'},
+  ult_darius:{name:'Bênção da Chama Eterna',ult:true,desc:'Revive e cura todo o grupo + luz sagrada em área.'},
 };
+const ULT_OF={leona:'ult_leona',sakura:'ult_sakura',celes:'ult_celes',darius:'ult_darius'};
 
 function mkChar(cls){
   const base={
     leona:{name:'Leona',cls:'Cavaleira',wtype:'slash',row:0,
       hp:180,mp:20,str:26,mag:8,def:22,res:14,agi:12,luck:10,
-      skills:['golpe_escudo','guarda_leal','brado','luz_egide'], res_aff:{dark:1.0,holy:0.5}, pal:'knight'},
+      skills:['golpe_escudo','guarda_leal','brado','luz_egide','abalo','vinganca'], res_aff:{dark:1.0,holy:0.5}, pal:'knight'},
     sakura:{name:'Sakura',cls:'Samurai',wtype:'slash',row:0,
       hp:150,mp:24,str:30,mag:10,def:14,res:12,agi:20,luck:16,
-      skills:['corte_triplo','estocada','postura_lamina','furacao_aco'], res_aff:{}, pal:'samurai'},
+      skills:['corte_triplo','estocada','postura_lamina','corte_cruzado','furacao_aco','sangria'], res_aff:{}, pal:'samurai'},
     celes:{name:'Celes',cls:'Maga',wtype:'blunt',row:1,
       hp:110,mp:120,str:9,mag:32,def:9,res:22,agi:15,luck:12,
-      skills:['fagulha','lasca_gelo','faisca','analisar','labareda','nevasca'], res_aff:{fire:0.5}, pal:'mage'},
+      skills:['fagulha','lasca_gelo','faisca','analisar','labareda','nevasca','meteoro','zero_absoluto'], res_aff:{fire:0.5}, pal:'mage'},
     darius:{name:'Darius',cls:'Sábio',wtype:'blunt',row:1,
       hp:120,mp:110,str:10,mag:28,def:11,res:24,agi:11,luck:12,
-      skills:['cura','luz_sagrada','antidoto','cura_maior','bencao','reviver','trevas'], res_aff:{holy:0.4,dark:0.7}, pal:'sage'},
+      skills:['cura','luz_sagrada','antidoto','cura_maior','bencao','reviver','trevas','julgamento_sagrado','ressurreicao'], res_aff:{holy:0.4,dark:0.7}, pal:'sage'},
   }[cls];
   const c={
     id:cls, side:'party', ...base,
-    lv:1, xp:0, xpNext:24,
+    lv:1, xp:0, xpNext:24, ov:0, ultId:ULT_OF[cls],
     mhp:base.hp, hp:base.hp, mmp:base.mp, mp:base.mp,
     status:{}, resolve:2, alive:true, guardF:false,
     equip:{weapon:null,armor:null,accessory:null},
@@ -828,13 +843,13 @@ function makeElite(e){ const key=pick(Object.keys(AFFIXES)), af=AFFIXES[key];
 function startBattle(formation,opts){
   opts=opts||{};
   const conds=rollConditions(G.depth||1,!!opts.boss);
-  G.battle={enemies:formation, round:1, boss:!!opts.boss, log:[], over:false, conds, fury:0};
+  G.battle={enemies:formation, round:1, boss:!!opts.boss, log:[], over:false, conds, fury:0, combo:0};
   // aplica presságios de setup
   formation.forEach(e=>{
     if(conds.includes('guarda_ferrea')){ e.guardMax++; e.guard++; }
     if(conds.includes('presenca')) e.status.atkUp={turns:99,pot:1.4};
   });
-  G.party.forEach(c=>{ c.resolve = conds.includes('fartura')?5:Math.max(c.resolve,2); c.guardF=false; });
+  G.party.forEach(c=>{ c.resolve = conds.includes('fartura')?5:Math.max(c.resolve,2); c.guardF=false; c.ov=conds.includes('fartura')?100:(c.ov||0); });
   G.state='battle';
   const reveal=()=>{ $('#battle').classList.add('on'); layoutEnemies(); renderBparty(); renderTurnQ(); renderFury(); bfxLoop();
     showCondBanner(conds, opts.boss?formation[0].name:null); renderCondChip(); };
@@ -941,9 +956,9 @@ function finishTurn(){ const r=G.resolver; G.resolver=null; hideMenus(); if(r)r(
 function showActionMenu(c){
   const m=$('#bmenu'); m.classList.add('on'); $('#bsub').classList.remove('on'); renderFury();
   const canMag=!c.status.silence;
-  const furyReady=G.battle&&G.battle.fury>=100;
+  const ovReady=(c.ov||0)>=100, ultName=(SKILLS[c.ultId]||{}).name||'';
   m.innerHTML=`<div class="actrow">
-    ${furyReady?`<div class="act fury" data-a="fury" style="flex-basis:100%;max-width:none">🔥 INVESTIDA FINAL<small>cada herói desata seu golpe supremo — gasta a FÚRIA</small></div>`:''}
+    ${ovReady?`<div class="act fury" data-a="ult" style="flex-basis:100%;max-width:none">⚡ ULTIMATE — ${ultName}<small>${SKILLS[c.ultId]?SKILLS[c.ultId].desc:''}</small></div>`:''}
     <div class="act hot" data-a="attack">⚔ ATACAR<small>${ELEM[c.wtype]} ${c.wtype}</small></div>
     <div class="act ${knownSkills(c).filter(id=>SKILLS[id].kind!=='heal'&&!SKILLS[id].magic).length? '':'dis'}" data-a="skill">✦ TÉCNICA<small>habilidades</small></div>
     <div class="act ${canMag&&knownSkills(c).some(id=>SKILLS[id].magic)?'':'dis'}" data-a="magic">✧ MAGIA<small>${c.mp}/${c.mmp} MP</small></div>
@@ -956,8 +971,8 @@ function showActionMenu(c){
 function hideMenus(){ $('#bmenu').classList.remove('on'); $('#bsub').classList.remove('on'); clearTargets(); }
 
 function onAction(c,a){
-  if(a==='guard'){ c.guardF=true; c.resolve=Math.min(5,c.resolve+1); furyGain(4); blog(c.name+' assume a guarda.'); SFX.ui(); finishTurn(); return; }
-  if(a==='fury'){ chooseTarget(c,{kind:'fury'}); return; }
+  if(a==='guard'){ c.guardF=true; c.resolve=Math.min(5,c.resolve+1); ovGain(c,10); blog(c.name+' assume a guarda.'); SFX.ui(); finishTurn(); return; }
+  if(a==='ult'){ if(ultNeedsTarget(c))chooseTarget(c,{kind:'ult'}); else useUltimate(c); return; }
   if(a==='attack'){ chooseTarget(c,{kind:'attack'}); return; }
   if(a==='skill'){ openSub(c,knownSkills(c).filter(id=>!SKILLS[id].magic&&SKILLS[id].kind!=='heal'&&SKILLS[id].kind!=='revive'&&SKILLS[id].kind!=='cure'),'TÉCNICAS'); return; }
   if(a==='magic'){ openSub(c,knownSkills(c).filter(id=>SKILLS[id].magic||['heal','cure','revive','util'].includes(SKILLS[id].kind)),'MAGIAS'); return; }
@@ -1028,7 +1043,7 @@ function chooseTarget(c,act){
     lvHtml+=`<div class="blvl${i===0?' on':''}" data-lv="${i}"><b>${lvlText(i)}</b><small>${i===0?'grátis':'custa '+i+'⚡'}</small></div>`; } }
   const havePips='⚡'.repeat(c.resolve)+'·'.repeat(Math.max(0,5-c.resolve));
   const bar=document.createElement('div'); bar.id='tgtBar';
-  const head = act.kind==='fury' ? '🔥 Alvo da INVESTIDA FINAL' : (allyTarget?'💚 Escolha o aliado':'🎯 Toque no inimigo');
+  const head = act.kind==='ult' ? '⚡ Alvo da ULTIMATE' : (allyTarget?'💚 Escolha o aliado':'🎯 Toque no inimigo');
   bar.innerHTML=`<div class="tgtHead"><span>${head}</span><span class="tgtCancel">✕ voltar</span></div>
     ${canBoost?`<div class="boostRow"><span class="boostLbl">IMPULSO<br><span class="impHave">${havePips}</span></span><div class="blvls">${lvHtml}</div></div>`:''}`;
   $('#bfield').appendChild(bar);
@@ -1047,7 +1062,7 @@ function chooseTarget(c,act){
     targets.forEach(t=>{ const dot=document.createElement('div'); dot.className='tgtDot'; dot.textContent='▾';
       dot.style.left=(rect.left-frect.left+t.sx*rect.width)+'px'; dot.style.top=(rect.top-frect.top+t.sy*rect.height-t.scale*44)+'px';
       $('#bfield').appendChild(dot);
-      dot.onclick=()=>{ SFX.ui(); clearTargets(); act.kind==='fury'?furyStrike(c,t):act.kind==='attack'?doAttack(c,t):execSkill(c,act.id,[t]); };
+      dot.onclick=()=>{ SFX.ui(); clearTargets(); act.kind==='ult'?useUltimate(c,t):act.kind==='attack'?doAttack(c,t):execSkill(c,act.id,[t]); };
     });
   }
 }
@@ -1088,9 +1103,10 @@ async function execSkill(c,id,targets){
   }
   if(sk.kind==='cure'){ targets.forEach(t=>{ t.status={}; }); SFX.heal(); blog(c.name+' purifica '+targets[0].name+'.'); markDirty(); await wait(350); finishTurn(); return; }
   if(sk.kind==='revive'){ targets.forEach(t=>{ t.alive=true; t.hp=Math.round(t.mhp*0.5); t.status={}; }); SFX.holy(); blog(c.name+' revive '+targets[0].name+'!'); markDirty(); await wait(500); finishTurn(); return; }
-  if(sk.kind==='atk'){ const hits=sk.hits||1;
+  if(sk.kind==='atk'){ const hits=sk.hits||1; let pw=sk.power*(1+boost*0.5);
+    if(sk.special==='lowhp') pw*=1+(1-c.hp/c.mhp)*1.4;                 // Vingança: mais dano quanto menos HP
     for(const t of targets){ if(!t.alive)continue;
-      for(let h=0;h<hits;h++){ if(!t.alive)break; applyHit(c,t,{type:sk.type,power:sk.power*(1+boost*0.5)/ (targets.length>1?1:1),magic:sk.magic,crit:sk.crit,status:sk.status}); await wait(140); }
+      for(let h=0;h<hits;h++){ if(!t.alive)break; applyHit(c,t,{type:sk.type,power:pw,magic:sk.magic,crit:sk.crit,status:sk.status}); await wait(140); }
     }
     blog(c.name+' usa '+sk.name+'.'); markDirty(); await wait(250); finishTurn(); return;
   }
@@ -1125,17 +1141,18 @@ function applyHit(src,tgt,o){
   if(tgt.broken)mult*=1.75;                       // quebra recompensa mais
   dmg*=mult; dmg*=elemAmp(o.type);                // presságios elementais
   if(src.side==='enemy'&&has_c('escuridao'))dmg*=1.25;
+  if(src.side==='party' && G.battle && G.battle.combo>0) dmg*= 1 + Math.min(G.battle.combo,6)*0.07;   // COMBO: momentum aumenta o dano
   // crítico
   let crit=false; const critC=(o.crit||0.06)+(src.status.critUp?0.25:0)+(src.luck||0)/300+(has_c('sangue')?0.15:0)+(src.critBonus||0);
   if(mult>0&&chance(critC)){crit=true;dmg*=1.85+(src.critDmg||0);}
   // acerto/erro (cego / névoa / escuridão)
   let missC=(src.status.blind?0.4:0); if(has_c('nevoa'))missC+=0.16; if(has_c('escuridao')&&src.side==='party')missC+=0.1;
-  if(mult>0&&missC>0&&chance(missC)){ popup(tgt,'ERROU','miss'); SFX.miss(); return; }
+  if(mult>0&&missC>0&&chance(missC)){ popup(tgt,'ERROU','miss'); SFX.miss(); if(src.side==='party')resetCombo(); return; }
   dmg=Math.max(mult>0?1:0,Math.round(dmg*rnd(0.9,1.1)));
   tgt.hp=clamp(tgt.hp-dmg,0,tgt.mhp); tgt.hitFlash=1;
   // fúria + afixos ao causar dano
   if(dmg>0){
-    if(src.side==='party') furyGain(clamp(dmg*0.07,1,13)); else if(tgt.side==='party') furyGain(6);
+    if(src.side==='party') ovGain(src,clamp(dmg*0.09,3,16)); else if(tgt.side==='party') ovGain(tgt,9);
     const saf=src.affix&&AFFIXES[src.affix];
     if(saf&&saf.lifesteal&&src.alive){ const ls=Math.round(dmg*saf.lifesteal); if(ls>0){src.hp=clamp(src.hp+ls,0,src.mhp);popup(src,'+'+ls,'heal');} }
     if(src.affix==='igneo'&&tgt.side==='party'&&chance(0.6)) applyStatus(tgt,{name:'burn',turns:2,dmg:Math.round((src.mag||8)*0.8+8)});
@@ -1155,6 +1172,7 @@ function applyHit(src,tgt,o){
     } else { flashCard(tgt, crit?'#ff9a3a':'#e04a3e'); }
   }
   if(weak&&!crit)popup(tgt,'FRACO!','break');
+  if(src.side==='party' && dmg>0 && (weak||crit)) bumpCombo(1);   // fraqueza/crítico alimentam o COMBO
   // status colateral
   if(o.status && (o.status.chance==null||chance(o.status.chance)) && tgt.hp>0){ applyStatus(tgt,o.status); }
   if(tgt.hp<=0){ tgt.hp=0; killTarget(tgt); }
@@ -1163,7 +1181,11 @@ function applyHit(src,tgt,o){
     setTimeout(()=>{ if(tgt.alive&&src.alive&&G.state==='battle'){ blog('↩ '+tgt.name+' contra-ataca!'); applyHit(tgt,src,{type:'blunt',power:95,noCounter:true}); markDirty(); renderBparty(); } }, 280);
   }
 }
-function breakEnemy(e){ e.broken=true; e.brokenT=1; popup(e,'QUEBRADO!','break'); SFX.brk(); shakeField(15); const ps=enemyScreen(e); fxBreak(ps.x,ps.y); furyGain(18);
+function bumpCombo(n){ if(!G.battle)return; G.battle.combo=Math.min(8,(G.battle.combo||0)+(n||1)); renderCombo(); }
+function resetCombo(){ if(G.battle&&(G.battle.combo||0)>0){ G.battle.combo=0; renderCombo(); } }
+function renderCombo(){ const el=$('#comboBadge'); if(!el)return; const n=(G.battle&&G.battle.combo)||0;
+  if(n>=2){ el.innerHTML='COMBO <b>×'+n+'</b> <small>+'+Math.min(n,6)*7+'% dano</small>'; el.classList.add('on'); } else el.classList.remove('on'); }
+function breakEnemy(e){ e.broken=true; e.brokenT=1; popup(e,'QUEBRADO!','break'); SFX.brk(); shakeField(15); const ps=enemyScreen(e); fxBreak(ps.x,ps.y); ovGain(G.curActor,22); bumpCombo(2);
   if(e.charging){ e.charging=null; blog('⚡ '+e.name+' QUEBRADO! A investida foi INTERROMPIDA!'); }
   else blog('⚡ '+e.name+' teve a guarda QUEBRADA!'); }
 function heal(t,amt){ if(!t.alive)return; amt=Math.round(amt*rnd(0.95,1.08)); t.hp=clamp(t.hp+amt,0,t.mhp); popup(t,'+'+amt,'heal'); if(t.side==='party')flashCard(t,'#7ce07c'); }
@@ -1232,6 +1254,7 @@ function chooseEnemyAction(e){
 }
 async function enemyTurn(e){
   if(!e.alive)return;
+  resetCombo();                                   // o inimigo quebra o momentum do grupo
   bossPhaseCheck(e);
   await wait(320);
   let foes=alliesAlive(); if(!foes.length)return;
@@ -1279,6 +1302,8 @@ async function winBattle(){
   let m=`⚔ Vitória!  +${xp} XP · +${gold} GP`; if(drops.length)m+=`  ·  ${drops.map(d=>d.name).join(', ')}`;
   if(b._eqDrops&&b._eqDrops.length)m+=`\n⚔ ${b._eqDrops.map(e=>e.dispName+' ['+RARITY[e.rarity].name+']').join(' · ')}  — equipe no Acampamento`;
   if(lvs.length){ m+=`\n★ Subiu de nível: ${lvs.join(', ')}!`; SFX.lvup(); showLvBanner(lvs); }
+  const learned=[]; G.party.forEach(c=>{ if(c._learned&&c._learned.length){ c._learned.forEach(n=>learned.push(c.name+' aprendeu '+n)); c._learned=null; } });
+  if(learned.length){ m+=`\n✦ Nova habilidade! ${learned.join(' · ')}`; setTimeout(()=>showLvBanner(learned.map(s=>'✦ '+s),'skill'),700); }
   $('#dangerVig').classList.remove('on');
   toast(m,2600);
   if(b.wasBoss){ onBossDefeated(); }
@@ -1287,7 +1312,7 @@ async function winBattle(){
 }
 function loseBattle(){ musicStop(); G.state='dead'; $('#battle').classList.remove('on'); $('#dangerVig').classList.remove('on'); showDead(); }
 
-function gainXP(c,xp){ c.xp+=xp; let up=false;
+function gainXP(c,xp){ c.xp+=xp; let up=false; const before=new Set(knownSkills(c));
   while(c.xp>=c.xpNext){ c.xp-=c.xpNext; c.lv++; up=true;
     const bs=c.baseStats||(c.baseStats={mhp:c.mhp,mmp:c.mmp,str:c.str,mag:c.mag,def:c.def,res:c.res,agi:c.agi,luck:c.luck});
     bs.mhp+=Math.round(rnd(10,16)+ (c.cls==='Cavaleira'?6:0)); bs.mmp+=Math.round(rnd(3,8)+ (c.mag>20?4:0));
@@ -1296,6 +1321,7 @@ function gainXP(c,xp){ c.xp+=xp; let up=false;
     recalcStats(c);   // sobe os máximos; HP/MP atuais NÃO são restaurados ao subir de nível
     c.xpNext=Math.round(c.xpNext*1.35+10);
   }
+  if(up){ const learned=knownSkills(c).filter(id=>!before.has(id)&&!SKILLS[id].ult); if(learned.length)c._learned=(c._learned||[]).concat(learned.map(id=>SKILLS[id].name)); }
   return up;
 }
 
@@ -2155,47 +2181,44 @@ function flashCard(t,color){ const i=G.party.indexOf(t); const el=$('#bparty').c
   try{ el.animate([{boxShadow:`0 0 0 2px ${color},0 0 20px ${color}`,transform:'translateX(-3px)'},{transform:'translateX(3px)'},{boxShadow:'none',transform:'none'}],{duration:340}); }catch(e){} }
 function flashScreen(a){ const f=$('#flash'); if(!f)return; f.style.transition='none'; f.style.opacity=(a||0.55); requestAnimationFrame(()=>{ f.style.transition='opacity .45s'; f.style.opacity='0'; }); }
 /* ---------- FÚRIA (medidor de equipe) ---------- */
-function renderFury(){ const w=$('#furyWrap'); if(!w||!G.battle)return; const f=clamp(G.battle.fury||0,0,100);
-  w.querySelector('#furyBar>i').style.width=f+'%'; w.classList.toggle('full',f>=100);
-  w.querySelector('#furyLbl').textContent = f>=100?'🔥 FÚRIA!':'FÚRIA '+Math.floor(f)+'%'; }
-function furyGain(a){ if(!G.battle||G.battle.furyLock||G.battle.fury>=100)return; const was=G.battle.fury||0; G.battle.fury=clamp(was+a,0,100);
-  if(was<100&&G.battle.fury>=100){ blog('🔥 A FÚRIA do grupo transbordou! (toque em FÚRIA no seu turno)'); SFX.lvup(); } renderFury(); }
-// papel na INVESTIDA FINAL: cada herói desata um golpe supremo do SEU tipo
-function furyRole(h){ const heals=knownSkills(h).some(id=>{const s=SKILLS[id];return s.kind==='heal'||s.kind==='revive';});
-  if(heals && h.mag>=h.str) return 'support';   // Darius — sábio/curandeiro
-  if(h.mag>h.str) return 'magic';               // Celes — maga (nuke em área)
-  return 'phys'; }                              // Leona/Sakura — golpe físico brutal
-async function furyStrike(c,target){
-  hideMenus(); G.battle.fury=0; G.battle.furyLock=true; renderFury(); flashScreen(0.6); SFX.crit();
-  blog('🔥🔥 INVESTIDA FINAL! 🔥🔥'); await wait(220);
-  for(const h of alliesAlive()){
-    let enemies=enemiesAlive(); if(!enemies.length)break;
-    const role=furyRole(h);
-    if(role==='support'){
-      // SÁBIO: revive os caídos, cura e purifica TODO o grupo, e desfere luz sagrada em todos
-      flashCard(h,'#8ef0b0'); SFX.heal();
-      G.party.filter(p=>!p.alive).forEach(d=>{ d.alive=true; d.hp=Math.round(d.mhp*0.6); d.status={}; flashCard(d,'#8ef0b0'); popup(d,'REVIVE','heal'); });
-      for(const a of alliesAlive()){ const heal=Math.round(a.mhp*0.5)+Math.round((h.mag||0)*2.2); a.hp=clamp(a.hp+heal,0,a.mhp); a.status={};
-        const ci=G.party.indexOf(a), el=$('#bparty').children[ci]; if(el){ const r=el.getBoundingClientRect(),fr=$('#bfield').getBoundingClientRect(); fxHeal(r.left-fr.left+r.width/2,r.top-fr.top+r.height/2); } popup(a,'+'+heal,'heal'); }
-      blog('💚 '+h.name+' derrama a bênção da Chama — o grupo renasce!');
-      for(const e of enemies){ if(!e.alive)continue; const ps=enemyScreen(e); fxElem(ps.x,ps.y,'holy'); fxImpact(ps.x,ps.y,'#fff0b0');
-        applyHit(h,e,{type:'holy',power:180,magic:true,crit:0.5,noCounter:true}); }
-      shakeField(11); renderBparty(); await wait(420);
-    } else if(role==='magic'){
-      // MAGA: explosão elemental devastadora em TODOS os inimigos
-      flashCard(h,'#9ad0ff'); blog('✨ '+h.name+' concentra o arcano e detona o campo!'); SFX.crit();
-      for(const e of enemies){ if(!e.alive)continue; const ps=enemyScreen(e); fxElem(ps.x,ps.y,'fire'); fxImpact(ps.x,ps.y,'#ffd27a');
-        applyHit(h,e,{type:'fire',power:250,magic:true,crit:0.55,noCounter:true}); }
-      shakeField(15); await wait(400);
-    } else {
-      // FÍSICO: golpe brutal e certeiro no alvo
-      if(!target||!target.alive) target=enemies[0];
-      flashCard(h,'#ffcf6a'); const ps=enemyScreen(target); fxElem(ps.x,ps.y,h.wtype); fxImpact(ps.x,ps.y,'#ffe27a'); shakeField(13);
-      applyHit(h,target,{type:h.wtype,power:300,crit:0.6,noCounter:true});
-      await wait(320);
-    }
+// OVERDRIVE individual: a antiga barra de FÚRIA compartilhada não é mais usada
+function renderFury(){ const w=$('#furyWrap'); if(w)w.style.display='none'; }
+function ovGain(c,a){ if(!c||!c.alive||c._ovLock||(c.ov||0)>=100)return; const was=c.ov||0; c.ov=clamp(was+a,0,100);
+  if(was<100&&c.ov>=100){ blog('⚡ '+c.name+' entrou em OVERDRIVE! Use a ULTIMATE no turno dele.'); SFX.lvup(); }
+  updateOvBar(c); }
+function updateOvBar(c){ const i=G.party.indexOf(c); const card=$('#bparty')&&$('#bparty').children[i]; if(!card)return;
+  const bar=card.querySelector('.ovbar>i'); if(bar)bar.style.width=(c.ov||0)+'%'; card.classList.toggle('ovfull',(c.ov||0)>=100); }
+function furyGain(a){}                                   // compat — ganho de recurso agora é por herói (ovGain)
+function ultNeedsTarget(c){ return c.id==='leona'||c.id==='sakura'; }   // golpe único precisa de alvo
+async function useUltimate(c,target){
+  hideMenus(); c.ov=0; c._ovLock=true; updateOvBar(c); flashScreen(0.6); SFX.crit();
+  const ultName=(SKILLS[c.ultId]||{}).name||'ULTIMATE';
+  blog('⚡⚡ '+c.name+' — '+ultName.toUpperCase()+'! ⚡⚡'); await wait(220);
+  let enemies=enemiesAlive();
+  if(c.id==='leona'){                                    // Juízo da Égide: golpe brutal + escudo do grupo
+    if(!target||!target.alive)target=enemies[0];
+    if(target){ flashCard(c,'#ffe27a'); const ps=enemyScreen(target); fxElem(ps.x,ps.y,c.wtype); fxImpact(ps.x,ps.y,'#ffe27a'); shakeField(15);
+      applyHit(c,target,{type:c.wtype,power:340,crit:0.5,noCounter:true}); await wait(280); }
+    for(const a of alliesAlive()){ applyStatus(a,{name:'defUp',turns:3,pot:1.5}); flashCard(a,'#bfe0ff'); } blog('🛡 A Égide de Luz protege todo o grupo!'); shakeField(8);
+  } else if(c.id==='sakura'){                             // Dança das Mil Lâminas: 6 cortes
+    if(!target||!target.alive)target=enemies[0];
+    for(let k=0;k<6;k++){ if(!target||!target.alive){ target=enemiesAlive()[0]; if(!target)break; }
+      const ps=enemyScreen(target); fxElem(ps.x,ps.y,c.wtype); fxImpact(ps.x,ps.y,'#ffe0a0'); shakeField(9);
+      applyHit(c,target,{type:c.wtype,power:72,crit:0.45,noCounter:true}); await wait(120); }
+  } else if(c.id==='celes'){                              // Cataclismo Arcano: nuke em área
+    flashCard(c,'#9ad0ff');
+    for(const e of enemies){ if(!e.alive)continue; const ps=enemyScreen(e); fxElem(ps.x,ps.y,'fire'); fxImpact(ps.x,ps.y,'#ffd27a');
+      applyHit(c,e,{type:'fire',power:270,magic:true,crit:0.5,noCounter:true}); } shakeField(16); await wait(380);
+  } else if(c.id==='darius'){                             // Bênção da Chama Eterna: revive + cura total + luz em área
+    flashCard(c,'#8ef0b0'); SFX.heal();
+    G.party.filter(p=>!p.alive).forEach(d=>{ d.alive=true; d.hp=Math.round(d.mhp*0.7); d.status={}; flashCard(d,'#8ef0b0'); popup(d,'REVIVE','heal'); });
+    for(const a of alliesAlive()){ a.hp=a.mhp; a.status={}; const ci=G.party.indexOf(a), el=$('#bparty').children[ci];
+      if(el){ const r=el.getBoundingClientRect(),fr=$('#bfield').getBoundingClientRect(); fxHeal(r.left-fr.left+r.width/2,r.top-fr.top+r.height/2); } popup(a,'CURA TOTAL','heal'); }
+    blog('💚 A Chama Eterna restaura todo o grupo!');
+    for(const e of enemies){ if(!e.alive)continue; const ps=enemyScreen(e); fxElem(ps.x,ps.y,'holy'); fxImpact(ps.x,ps.y,'#fff0b0');
+      applyHit(c,e,{type:'holy',power:190,magic:true,crit:0.5,noCounter:true}); } shakeField(12); await wait(360);
   }
-  G.battle.furyLock=false; markDirty(); renderBparty(); await wait(300); finishTurn();
+  c._ovLock=false; markDirty(); renderBparty(); await wait(300); finishTurn();
 }
 
 function drawBattleBg(ctx,W,H,t){
@@ -2269,8 +2292,14 @@ function bfxLoop(){ if(bfxRunning)return; bfxRunning=true;
       const hpg=ctx.createLinearGradient(bx,0,bx+bw,0); hpg.addColorStop(0,e.broken?'#ffd24a':'#e0563e');hpg.addColorStop(1,e.broken?'#ffb04a':'#a02820');
       ctx.fillStyle=hpg; ctx.fillRect(bx,by,bw*(e.hp/e.mhp),4);
       // escudos de guarda
-      ctx.font='11px "Courier New"'; let gtxt=''; for(let i=0;i<e.guardMax;i++)gtxt+= i<e.guard?'◆':'◇';
+      ctx.font='11px "Rubik",system-ui,sans-serif'; let gtxt=''; for(let i=0;i<e.guardMax;i++)gtxt+= i<e.guard?'◆':'◇';
       ctx.fillStyle=e.broken?'#ff6a4a':'#7ec8ff'; ctx.fillText(gtxt,cx,by-5);
+      // ÍCONES DE STATUS do inimigo (bem visíveis)
+      { const ic={poison:'☠',burn:'🔥',stun:'✷',sleep:'💤',blind:'👁',silence:'✕',slow:'🐌',atkUp:'🔺',atkDown:'🔻',defUp:'🛡',defDown:'💔',critUp:'✦',regen:'✚'};
+        const sIcons=Object.keys(e.status).map(k=>ic[k]).filter(Boolean);
+        if(sIcons.length){ ctx.font='13px "Rubik",system-ui,sans-serif'; const sy2=by+9, sw2=sIcons.length*15, sxx=cx-sw2/2+7;
+          ctx.fillStyle='rgba(6,6,8,.6)'; if(ctx.beginPath){ctx.beginPath();ctx.roundRect?ctx.roundRect(cx-sw2/2-2,sy2-8,sw2+4,15,4):ctx.rect(cx-sw2/2-2,sy2-8,sw2+4,15);ctx.fill();}
+          sIcons.forEach((ico,i)=>{ ctx.fillStyle='#fff'; ctx.fillText(ico, sxx+i*15, sy2+3); }); } }
       // fraquezas
       const shown=[...(e.scanned?[...e.weak]:[...e.discovered].filter(x=>e.weak.has(x)))];
       if(shown.length){ ctx.font='12px sans-serif'; ctx.fillStyle='#ffcf6a'; ctx.fillText(shown.map(w=>ELEM[w]).join(' '), cx, cy+10); }
@@ -2291,12 +2320,14 @@ function renderBparty(){
   const el=$('#bparty'); el.innerHTML='';
   G.party.forEach((c,i)=>{
     const turn=(G.curActor===c && G.state==='battle');
-    const d=document.createElement('div'); d.className='bpc'+(c.alive?'':' dead')+(turn?' turn':'');
+    const ovFull=(c.ov||0)>=100;
+    const d=document.createElement('div'); d.className='bpc'+(c.alive?'':' dead')+(turn?' turn':'')+(ovFull?' ovfull':'');
     let rz=''; for(let k=0;k<5;k++)rz+=`<i class="${k<c.resolve?'on':''}"></i>`;
     d.innerHTML=`<div class="bpTop"><canvas class="bpPort" width="64" height="64"></canvas>
         <div class="bpNm"><span class="bn">${c.name}</span><span class="brow">${c.row===0?'⚔ Frente':'✧ Trás'}</span></div></div>
       <div class="bpbar hp"><i style="width:${c.hp/c.mhp*100}%"></i><span class="t">${c.hp}/${c.mhp}</span></div>
       <div class="bpbar mp"><i style="width:${c.mmp?c.mp/c.mmp*100:0}%"></i><span class="t">${c.mp}/${c.mmp}</span></div>
+      <div class="ovbar" title="Overdrive ${Math.floor(c.ov||0)}%"><i style="width:${clamp(c.ov||0,0,100)}%"></i><span class="ovt">${ovFull?'⚡ ULTIMATE':'OVERDRIVE'}</span></div>
       <div class="rz" title="Impulso (${c.resolve}/5)"><span class="rzL">⚡</span>${rz}</div><div class="cnd">${condChips(c)}</div>`;
     el.appendChild(d);
     drawPortrait(d.querySelector('.bpPort'),c.pal);
@@ -2354,8 +2385,9 @@ function showFloorCard(depth){ const el=$('#floorCard'); if(!el)return; const th
   el.querySelector('.fcFlavor').textContent=FLOOR_FLAVOR[clamp(depth-1,0,9)]||'';
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); SFX.secret();
 }
-function showLvBanner(names){ const el=$('#lvBanner'); if(!el||!names.length)return;
-  names.forEach((nm,i)=>{ const d=document.createElement('div'); d.className='lvb'; d.textContent='★ '+nm+' subiu de nível!';
+function showLvBanner(names,type){ const el=$('#lvBanner'); if(!el||!names.length)return;
+  names.forEach((nm,i)=>{ const d=document.createElement('div'); d.className='lvb'+(type==='skill'?' skill':'');
+    d.textContent= type==='skill'? nm : ('★ '+nm+' subiu de nível!');
     d.style.animationDelay=(i*0.18)+'s'; el.appendChild(d); setTimeout(()=>d.remove(),2600+i*180); });
 }
 function updateDanger(){ const el=$('#dangerVig'); if(!el)return;
