@@ -216,9 +216,11 @@ function injectStyle() {
     border:2px solid rgba(201,162,39,0.6);
     image-rendering:auto; align-self:flex-start;
   }
-  .gh-dlg-body { flex:1 1 auto; min-width:0; }
+  .gh-dlg-body { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
   .gh-dlg-name { color:#f0c040; font-weight:bold; font-size:15px; margin-bottom:4px; }
-  .gh-dlg-text { font-size:16px; line-height:1.35; }
+  /* altura fixa do texto: a caixa fica sempre do mesmo tamanho (falas longas
+     são paginadas no código, então nunca ultrapassam este espaço) */
+  .gh-dlg-text { font-size:16px; line-height:1.35; min-height:66px; }
   .gh-dlg-hint { text-align:right; font-size:12px; color:#a8966a; margin-top:6px; }
   @media (min-width: 900px) {
     .gh-btn { opacity:0.75; }
