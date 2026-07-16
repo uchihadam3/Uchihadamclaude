@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0a0c10">
 <title>Bairro Zero — sobrevivência zumbi</title>
 <style>
-:root{ --ui:#e8e4d8; --dim:#9a968a; --panel:rgba(14,16,20,.88); --edge:rgba(255,255,255,.12);
-  --red:#c04a3a; --gold:#c8a24a; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); }
+:root{ --ui:#e8e4d8; --dim:#9a968a; --panel:rgba(14,16,20,.9); --edge:rgba(255,255,255,.12);
+  --red:#c04a3a; --gold:#c8a24a; --green:#5a7a3a; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:#05070d}
 body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--ui);position:fixed;inset:0;-webkit-user-select:none;user-select:none}
@@ -16,23 +16,36 @@ body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--ui);position:fixed;
 button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
 
 /* ============ MENU ============ */
-#menu{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;
+#menu,#profSel{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;
   background:radial-gradient(120% 90% at 50% 20%,#16202a 0%,#0a0e14 55%,#05070a 100%);text-align:center;padding:22px}
-#menu.on{display:flex}
+#menu.on,#profSel.on{display:flex}
 .mTitle{font-size:clamp(40px,11vw,68px);font-weight:900;letter-spacing:4px;line-height:.95;
   color:#d8d4c8;text-shadow:0 2px 0 #2a2e24,0 6px 24px rgba(0,0,0,.8)}
 .mTitle b{color:#8fae5a}
 .mTag{font-style:italic;color:var(--red);font-size:clamp(15px,4.5vw,20px);margin-top:14px;letter-spacing:1px;
   text-shadow:0 2px 10px rgba(192,74,58,.4)}
-.mBtn{margin-top:30px;padding:16px 44px;font-size:18px;font-weight:800;letter-spacing:2px;border-radius:8px;
+.mBtn{margin-top:26px;padding:16px 44px;font-size:18px;font-weight:800;letter-spacing:2px;border-radius:8px;
   background:linear-gradient(180deg,#5a7a3a,#3c5226);border:1px solid #7a9a58;color:#eef4e0;
   box-shadow:0 10px 30px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.25)}
 .mBtn:active{transform:scale(.96)}
+.mBtn:disabled{opacity:.4;filter:grayscale(.8)}
+.mBtn .sm{display:block;font-size:11px;font-weight:500;letter-spacing:.5px;opacity:.75;margin-top:3px;text-transform:none}
 .mSmall{margin-top:14px;padding:10px 24px;font-size:13px;color:var(--dim);border:1px solid var(--edge);border-radius:8px}
-#how{display:none;margin-top:18px;max-width:420px;text-align:left;background:var(--panel);border:1px solid var(--edge);
-  border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;color:#c8c4b8}
+#how{display:none;margin-top:16px;max-width:430px;text-align:left;background:var(--panel);border:1px solid var(--edge);
+  border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.5;color:#c8c4b8;max-height:40vh;overflow-y:auto}
 #how.on{display:block}
 #how b{color:var(--gold)}
+/* profissões */
+.profTitle{font-size:22px;font-weight:800;letter-spacing:2px;margin-bottom:4px}
+.profSub{color:var(--dim);font-size:13px;margin-bottom:20px;font-style:italic}
+.profGrid{display:flex;flex-direction:column;gap:12px;width:min(400px,90vw)}
+.profCard{display:flex;align-items:center;gap:14px;text-align:left;padding:14px 16px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(40,46,54,.9),rgba(18,22,26,.95));border:1px solid var(--edge);
+  box-shadow:0 8px 24px rgba(0,0,0,.5);transition:transform .12s,border-color .2s}
+.profCard:active{transform:scale(.97);border-color:#8fae5a}
+.profCard .pi{font-size:34px}
+.profCard .pn{font-size:16px;font-weight:800;letter-spacing:1px}
+.profCard .pd{font-size:12px;color:var(--dim);margin-top:3px;line-height:1.4}
 
 /* ============ HUD ============ */
 #hud{position:absolute;inset:0;z-index:10;pointer-events:none;display:none}
@@ -41,20 +54,34 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 #clock{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;letter-spacing:1px}
 #killbox{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--dim)}
 #killbox b{color:var(--ui)}
-#moodles{position:absolute;top:calc(var(--safe-t) + 10px);right:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
-.moodle{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:20px;
+.sqBtn{pointer-events:auto;width:44px;height:44px;border-radius:12px;background:var(--panel);border:1px solid var(--edge);
+  display:grid;place-items:center;font-size:19px}
+#btnHealth{position:absolute;left:12px;top:calc(var(--safe-t) + 88px)}
+#btnSkills{position:absolute;left:12px;top:calc(var(--safe-t) + 140px)}
+#btnInv{position:absolute;right:12px;top:calc(var(--safe-t) + 10px)}
+#weight{position:absolute;right:64px;top:calc(var(--safe-t) + 22px);font-size:11px;font-weight:700;color:var(--dim);
+  background:var(--panel);padding:4px 8px;border-radius:6px;border:1px solid var(--edge)}
+#moodles{position:absolute;top:calc(var(--safe-t) + 64px);right:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.moodle{position:relative;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:20px;
   background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.1),rgba(0,0,0,.55));
   border:2.5px solid #c8a24a;box-shadow:0 4px 12px rgba(0,0,0,.5);animation:moodIn .3s}
+.moodle i{position:absolute;right:50px;top:50%;transform:translateY(-50%);font-style:normal;font-size:10px;font-weight:700;
+  letter-spacing:.5px;color:var(--dim);background:var(--panel);padding:3px 7px;border-radius:6px;opacity:0;transition:.2s;white-space:nowrap}
+.moodle:hover i{opacity:1}
 .moodle.l2{border-color:#c87a3a}
 .moodle.l3{border-color:#c05a3a;animation:moodPulse 1.6s infinite}
 .moodle.l4{border-color:#ff4a3a;animation:moodPulse .8s infinite}
 @keyframes moodIn{from{transform:scale(.4);opacity:0}}
 @keyframes moodPulse{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.5)}50%{box-shadow:0 0 18px rgba(255,74,58,.8)}}
-#hpWrap{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-b) + 118px);width:min(300px,56vw);
-  height:14px;border-radius:7px;background:rgba(0,0,0,.6);border:1px solid var(--edge);overflow:hidden}
+#hpWrap{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-b) + 128px);width:min(300px,54vw)}
+#hpBar{height:13px;border-radius:7px;background:rgba(0,0,0,.6);border:1px solid var(--edge);overflow:hidden}
 #hpFill{height:100%;width:100%;background:#5a9a4a;transition:width .3s,background .3s}
+#endBar{height:5px;border-radius:3px;background:rgba(0,0,0,.6);border:1px solid var(--edge);overflow:hidden;margin-top:3px}
+#endFill{height:100%;width:100%;background:#5a7a9a;transition:width .2s}
 #redFlash{position:absolute;inset:0;z-index:20;pointer-events:none;opacity:0;
   background:radial-gradient(circle,transparent 40%,rgba(180,20,10,.55) 100%)}
+#sleepFade{position:absolute;inset:0;z-index:45;background:#000;opacity:0;pointer-events:none;transition:opacity 1s}
+#sleepFade.on{opacity:.94;pointer-events:auto}
 
 /* controles */
 #joyZone{position:absolute;left:0;bottom:0;width:46%;height:52%;pointer-events:auto;touch-action:none}
@@ -65,49 +92,68 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
   background:rgba(220,220,210,.35);border:1px solid rgba(255,255,255,.3)}
 .abtn{position:absolute;pointer-events:auto;display:grid;place-items:center;border-radius:50%;
   background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.14),rgba(10,12,16,.7));
-  border:2px solid var(--edge);box-shadow:0 6px 18px rgba(0,0,0,.5);font-weight:800;letter-spacing:1px}
+  border:2px solid var(--edge);box-shadow:0 6px 18px rgba(0,0,0,.5);font-weight:800;letter-spacing:.5px}
 .abtn:active{transform:scale(.92)}
-#btnAtk{right:18px;bottom:calc(var(--safe-b) + 26px);width:86px;height:86px;font-size:14px;border-color:#8a5a4a;color:#f0d8c8}
-#btnRun{right:118px;bottom:calc(var(--safe-b) + 20px);width:60px;height:60px;font-size:11px;color:var(--dim)}
-#btnRun.on{border-color:#8fae5a;color:#cfe4a8;background:radial-gradient(circle at 50% 35%,rgba(143,174,90,.3),rgba(10,12,16,.7))}
-#btnUse{right:36px;bottom:calc(var(--safe-b) + 126px);min-width:120px;height:52px;border-radius:26px;padding:0 18px;
-  font-size:12px;opacity:0;transition:opacity .2s;border-color:var(--gold);color:#f0e4c0}
+#btnAtk{right:16px;bottom:calc(var(--safe-b) + 24px);width:84px;height:84px;font-size:13px;border-color:#8a5a4a;color:#f0d8c8}
+#btnShove{right:106px;bottom:calc(var(--safe-b) + 18px);width:62px;height:62px;font-size:10px;color:#d8d0c0}
+#btnRun{right:172px;bottom:calc(var(--safe-b) + 16px);width:54px;height:54px;font-size:10px;color:var(--dim)}
+#btnRun.on{border-color:#8fae5a;color:#cfe4a8}
+#btnSneak{right:16px;bottom:calc(var(--safe-b) + 116px);width:54px;height:54px;font-size:10px;color:var(--dim)}
+#btnSneak.on{border-color:#7a8ac8;color:#c8d0f0}
+#btnUse{right:80px;bottom:calc(var(--safe-b) + 122px);min-width:118px;height:48px;border-radius:24px;padding:0 16px;
+  font-size:11px;opacity:0;transition:opacity .2s;border-color:var(--gold);color:#f0e4c0}
 #btnUse.on{opacity:1;animation:usePulse 1.6s infinite}
+#btnBarr{right:80px;bottom:calc(var(--safe-b) + 178px);min-width:118px;height:42px;border-radius:22px;padding:0 14px;
+  font-size:11px;opacity:0;transition:opacity .2s;border-color:#8a6a44;color:#e0c8a0}
+#btnBarr.on{opacity:1}
 @keyframes usePulse{0%,100%{box-shadow:0 6px 18px rgba(0,0,0,.5)}50%{box-shadow:0 0 18px rgba(200,162,74,.6)}}
-#btnInv{right:12px;top:calc(var(--safe-t) + 10px);width:48px;height:48px;font-size:20px;pointer-events:auto;
-  position:absolute;border-radius:12px;background:var(--panel);border:1px solid var(--edge);display:grid;place-items:center}
-#moodles{right:12px;top:calc(var(--safe-t) + 66px)}
 
-/* ============ SHEET (loot / inventário) ============ */
+/* ============ SHEET ============ */
 #sheet{position:absolute;left:0;right:0;bottom:0;z-index:30;transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);
   background:linear-gradient(180deg,#181c22,#101318);border-top:2px solid #3a4a2a;border-radius:18px 18px 0 0;
-  padding:14px 16px calc(var(--safe-b) + 16px);max-height:60%;display:flex;flex-direction:column;pointer-events:auto}
+  padding:14px 16px calc(var(--safe-b) + 16px);max-height:62%;display:flex;flex-direction:column;pointer-events:auto}
 #sheet.on{transform:translateY(0)}
 #sheetHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 #sheetTitle{font-size:16px;font-weight:800;letter-spacing:.5px}
 #sheetClose{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--edge);font-size:16px}
 #sheetList{overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.secHead{font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-top:6px}
 .itemCard{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border:1px solid var(--edge);
-  border-radius:12px;padding:10px 12px}
-.itemCard .ic{font-size:24px}
-.itemCard .nm{flex:1;font-size:14px;font-weight:600}
-.itemCard .take{padding:8px 14px;border-radius:8px;background:#3c5226;border:1px solid #7a9a58;font-size:11px;font-weight:800;letter-spacing:1px;color:#eef4e0}
+  border-radius:12px;padding:9px 12px}
+.itemCard.equipped{border-color:#5a7a3a;background:rgba(90,122,58,.12)}
+.itemCard .ic{font-size:23px}
+.itemCard .nm{flex:1;font-size:13.5px;font-weight:600;line-height:1.25}
+.itemCard .nm small{display:block;font-size:10.5px;color:var(--dim);font-weight:500}
+.itemCard .take{padding:8px 13px;border-radius:8px;background:#3c5226;border:1px solid #7a9a58;font-size:10.5px;font-weight:800;letter-spacing:.5px;color:#eef4e0}
 .itemCard .drop{padding:8px 10px;border-radius:8px;background:rgba(192,74,58,.2);border:1px solid #6a3a32;font-size:11px;color:#e0a8a0}
 .takeAll{margin-top:4px;padding:12px;border-radius:10px;background:#5a7a3a;border:1px solid #8fae5a;font-weight:800;letter-spacing:1px;color:#eef4e0}
-.empty{text-align:center;color:var(--dim);font-style:italic;padding:20px}
+.empty{text-align:center;color:var(--dim);font-style:italic;padding:16px;font-size:13px}
+.healthTop{padding:6px 2px}
+.hbar{height:12px;border-radius:6px;background:rgba(0,0,0,.5);border:1px solid var(--edge);overflow:hidden}
+.hbar i{display:block;height:100%;background:linear-gradient(90deg,#c04a3a,#5a9a4a);}
+.hnotes{font-size:13px;color:var(--dim);margin-top:8px;font-style:italic}
+.skillCard{background:rgba(255,255,255,.05);border:1px solid var(--edge);border-radius:12px;padding:10px 12px}
+.skTop{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:700}
+.pips{display:flex;gap:3px}
+.pips i{width:9px;height:9px;border-radius:2px;background:rgba(255,255,255,.12)}
+.pips i.on{background:#8fae5a}
+.skDesc{font-size:11px;color:var(--dim);margin-top:3px}
+.skXp{height:4px;border-radius:2px;background:rgba(0,0,0,.5);margin-top:7px;overflow:hidden}
+.skXp i{display:block;height:100%;background:#c8a24a}
 
 /* ============ TOAST / MORTE ============ */
-#toast{position:absolute;left:50%;transform:translateX(-50%) translateY(-8px);top:calc(var(--safe-t) + 66px);z-index:40;
+#toast{position:absolute;left:50%;transform:translateX(-50%) translateY(-8px);top:calc(var(--safe-t) + 64px);z-index:40;
   background:var(--panel);border:1px solid var(--gold);color:#f0e4c0;border-radius:10px;padding:10px 18px;font-size:14px;
-  opacity:0;transition:.3s;pointer-events:none;max-width:86%;text-align:center}
+  opacity:0;transition:.3s;pointer-events:none;max-width:86%;text-align:center;line-height:1.35}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 #death{position:absolute;inset:0;z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;
   background:radial-gradient(circle,rgba(30,4,2,.88),rgba(5,1,0,.97));text-align:center;padding:24px}
 #death.on{display:flex;animation:deathIn 1.2s}
 @keyframes deathIn{from{opacity:0}}
 .dTitle{font-size:clamp(26px,8vw,44px);font-weight:900;color:#c04a3a;letter-spacing:2px;text-shadow:0 4px 30px rgba(192,74,58,.5)}
-.dSub{font-style:italic;color:#9a8a84;margin-top:10px;font-size:16px}
-.dStats{display:flex;gap:34px;margin:26px 0}
+.dSub{font-style:italic;color:#9a8a84;margin-top:10px;font-size:15px}
+#deathCause{color:#c8b4a8;margin-top:8px;font-size:14px;font-style:italic}
+.dStats{display:flex;gap:34px;margin:24px 0}
 .dStats b{display:block;font-size:30px;color:var(--ui)}
 .dStats span{font-size:11px;letter-spacing:1px;color:var(--dim);text-transform:uppercase}
 </style>
@@ -119,30 +165,56 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 <div id="menu" class="on">
   <div class="mTitle">BAIRRO<br><b>ZERO</b></div>
   <div class="mTag">É assim que você morreu.</div>
-  <button class="mBtn" id="btnStart">SOBREVIVER</button>
+  <button class="mBtn" id="btnStart">NOVO JOGO<span class="sm">escolha quem você era</span></button>
+  <button class="mBtn" id="btnCont" disabled style="margin-top:12px">CONTINUAR<span class="sm">nenhum jogo salvo</span></button>
   <button class="mSmall" id="btnHow">como jogar</button>
   <div id="how">
-    <b>Mova-se</b> com o direcional (ou WASD). <b>CORRER</b> é mais rápido — mas faz barulho, e eles ouvem.<br><br>
-    Entre nas casas, <b>saqueie geladeiras, armários e prateleiras</b>: comida, água, bandagens e armas.
-    Equipe um <b>taco</b> e ataque com o botão vermelho (ou espaço).<br><br>
-    Fique de olho nos <b>ícones à direita</b> (fome, sede, dor, pânico, sangramento) — no vermelho, você definha.
-    À noite eles enxergam pouco... você também. <b>Sobreviva o máximo de dias que puder.</b>
+    <b>Mova-se</b> com o direcional (WASD). <b>CORRER</b> faz barulho; <b>AGACHAR</b> (C) esconde você.<br><br>
+    <b>Combate:</b> ATACAR (espaço) balança a arma — cada golpe gasta <b>resistência</b> e desgasta a arma.
+    <b>EMPURRAR</b> (Q) derruba zumbis; com um no chão, ATACAR vira <b>pisão</b>.<br><br>
+    <b>Ferimentos:</b> arranhão (7% de infecção), laceração (25%), <b>mordida (100%)</b>. A infecção Knox
+    não tem cura. Enfaixe sangramentos no painel <b>❤ Saúde</b>.<br><br>
+    <b>Sobreviva:</b> saqueie comida (lata precisa de <b>abridor</b>), a comida fresca <b>estraga</b> (geladeira conserva
+    enquanto houver luz). A <b>água corta no dia 3</b> — encha garrafas antes! A <b>luz cai no dia 5</b>.<br><br>
+    <b>Base:</b> martelo + tábuas + pregos <b>barricam janelas</b>. Zumbis quebram portas e vidros. Durma em camas.
+    Ler revistas espanta o tédio. Mochilas aumentam o peso que você carrega.
+  </div>
+</div>
+
+<!-- PROFISSÕES -->
+<div id="profSel">
+  <div class="profTitle">QUEM VOCÊ ERA?</div>
+  <div class="profSub">antes de tudo acabar</div>
+  <div class="profGrid">
+    <button class="profCard" data-prof="bombeiro"><span class="pi">🚒</span>
+      <span><span class="pn">BOMBEIRO</span><div class="pd">+2 Força, +1 Aptidão. Bate forte e corre mais tempo sem cansar.</div></span></button>
+    <button class="profCard" data-prof="enfermeira"><span class="pi">💉</span>
+      <span><span class="pn">ENFERMEIRA</span><div class="pd">Curativos 2× melhores. Começa com 2 bandagens e analgésico.</div></span></button>
+    <button class="profCard" data-prof="ladrao"><span class="pi">🥷</span>
+      <span><span class="pn">LADRÃO</span><div class="pd">+3 Furtividade. Quase não faz barulho. Começa com pé de cabra.</div></span></button>
   </div>
 </div>
 
 <!-- HUD -->
 <div id="hud">
-  <div id="topbar"><div id="clock">Dia 1 · 09:00</div><div id="killbox">☠ Zumbis: <b id="kills">0</b></div></div>
-  <button id="btnInv">🎒</button>
+  <div id="topbar"><div id="clock">Dia 1 · 07:30</div><div id="killbox">☠ Zumbis: <b id="kills">0</b></div></div>
+  <button class="sqBtn" id="btnHealth">❤</button>
+  <button class="sqBtn" id="btnSkills">📊</button>
+  <button class="sqBtn" id="btnInv">🎒</button>
+  <div id="weight">0/8kg</div>
   <div id="moodles"></div>
-  <div id="hpWrap"><div id="hpFill"></div></div>
+  <div id="hpWrap"><div id="hpBar"><div id="hpFill"></div></div><div id="endBar"><div id="endFill"></div></div></div>
   <div id="joyZone"><div id="joyBase"><div id="joyStick"></div></div></div>
   <button class="abtn" id="btnAtk">ATACAR</button>
+  <button class="abtn" id="btnShove">EMPURRAR</button>
   <button class="abtn" id="btnRun">CORRER</button>
+  <button class="abtn" id="btnSneak">AGACHAR</button>
   <button class="abtn" id="btnUse"><span id="useLbl">Interagir</span></button>
+  <button class="abtn" id="btnBarr">🔨 Barricar</button>
 </div>
 
 <div id="redFlash"></div>
+<div id="sleepFade"></div>
 <div id="toast"></div>
 
 <!-- SHEET -->
@@ -155,6 +227,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 <div id="death">
   <div class="dTitle">VOCÊ MORREU</div>
   <div class="dSub">Foi assim que você morreu. Como todos, no fim.</div>
+  <div id="deathCause"></div>
   <div class="dStats">
     <div><b id="deathDays">1</b><span>dias vivos</span></div>
     <div><b id="deathKills">0</b><span>zumbis mortos</span></div>
@@ -163,6 +236,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 </div>
 
 <script src="three.min.js"></script>
+<script src="chars.js"></script>
 <script src="world.js"></script>
 <script src="game.js"></script>
 </body>
