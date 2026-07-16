@@ -633,6 +633,10 @@ function genFloor(depth){
   for(const c of scand){ if(sec>=maxSec)break; placeSecret(c,6); }               // espalha (gap 6)
   if(sec<maxSec) for(const c of scand){ if(sec>=maxSec)break; placeSecret(c,2); } // fallback: relaxa espaçamento p/ garantir
   g[spawn[1]][spawn[0]]='.'; g[far[1]][far[0]]='B';   // reforça spawn/saída
+  // ESCADA da saída — sempre VISÍVEL, na célula por onde se chega ao guardião (o chefe a protege até cair)
+  { let appr=null,ad=Infinity;
+    for(const[dx,dy] of DIRV){ const ax=far[0]+dx,ay=far[1]+dy; if(g[ay]&&g[ay][ax]==='.'){ const dd=dist[key(ax,ay)]; if(dd!==undefined&&dd<ad){ad=dd;appr=[ax,ay];} } }
+    if(appr)g[appr[1]][appr[0]]='>'; }
   return {
     w:W,h:H,grid:g, name: themeOf(depth).name+' — Andar '+depth,
     spawn:{x:spawn[0]+0.5,y:spawn[1]+0.5,dir:spawnDir},
@@ -1577,7 +1581,7 @@ function onEnterTile(x,y){ markExplored(); renderHUD();
   if(t==='F'&&!d.rested.has(key)){ d.rested.add(key); fountain(x,y); return; }
   if(t==='E'&&!d.triggered.has(key)){ d.triggered.add(key); G.dun.grid[y][x]='.'; SFX.bump(); setTimeout(()=>startBattle(rollFormation(false)),260); return; }
   if(t==='B'&&!d.triggered.has(key)){ d.triggered.add(key); startBoss(); return; }
-  if(t==='>'){ toast('Escada para baixo. (Interagir = descer)',1400); }
+  if(t==='>'){ toast((d.bossPos&&!d.bossDefeated)?'A escada está protegida pelo Guardião do Andar.':'▼ Escada para baixo — toque em DESCER.',1500); }
   // encontro aleatório
   G.stepsSince++; G.steps++;
   if(G.stepsSince>3 && chance(G.encRate + G.stepsSince*0.02)){ G.stepsSince=0; setTimeout(()=>startBattle(rollFormation(false)),200); }
@@ -1588,12 +1592,17 @@ function interact(){ if(G.state!=='explore'||G.moving)return;
   const here=G.dun.grid[Math.floor(G.py)][Math.floor(G.px)];
   const v=G.dun.grid[fy]&&G.dun.grid[fy][fx];
   // parede secreta: interagir NÃO revela nada (parece parede comum). Só ficar parado 10s abre.
-  if(here==='>'){ descend(); return; }
+  if(here==='>'){ tryDescend(); return; }
   if(here==='F'&&!G.dun.rested.has(Math.floor(G.px)+','+Math.floor(G.py))){ fountain(Math.floor(G.px),Math.floor(G.py)); return; }
   // baú à frente
   if(v==='C'&&!G.dun.looted.has(fx+','+fy)){ G.dun.looted.add(fx+','+fy); openChest(fx,fy); return; }
   if(v==='T'&&!G.dun.looted.has(fx+','+fy)){ G.dun.looted.add(fx+','+fy); openVault(fx,fy); return; }
   toast('Nada para interagir aqui.',900);
+}
+function tryDescend(){ if(G.state!=='explore'||G.moving)return;
+  const d=G.dun;
+  if(d && d.bossPos && !d.bossDefeated){ SFX.bump(); toast('⚔ O Guardião do Andar protege a escada. Derrote-o primeiro!',1900); return; }
+  descend();
 }
 function descend(){ SFX.door(); G.stepsSince=0; enterFloor(G.depth+1); showFloorCard(G.depth); toast('Você desce ao Andar '+G.depth+'.',1600); musicStart('explore');
   if(STORY_DESCEND[G.depth])setTimeout(()=>showBanter(STORY_DESCEND[G.depth]),2700);
@@ -1655,7 +1664,8 @@ function onBossDefeated(){ // abre saída / vitória de andar
   toast('★ CHEFE DERROTADO! A escada se revela.',2600);
   milestone('boss1','🏆 CONQUISTA: primeiro guardião de andar derrotado!');
   const d=G.dun; d.bossDefeated=true;
-  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++)if(d.grid[y][x]==='B')d.grid[y][x]='>';
+  const hasStairs=d.grid.some(row=>row.indexOf('>')>=0);                    // já existe escada visível? então só remove o chefe
+  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++)if(d.grid[y][x]==='B')d.grid[y][x]= hasStairs?'.':'>';
   if(G.depth>=10){ setTimeout(()=>playEnding(()=>showWin()),1300); }
 }
 
@@ -1668,11 +1678,14 @@ function loop(){ requestAnimationFrame(loop);
 }
 // mostra o botão DESCER quando o jogador está sobre ou ao lado da escada
 function tickStairs(){ const el=$('#descendPrompt'); if(!el)return;
-  if(!el._wired){ el._wired=1; el.querySelector('#descBtn').onclick=()=>{ if(G.state==='explore'&&!G.moving)descend(); }; }
+  if(!el._wired){ el._wired=1; el.querySelector('#descBtn').onclick=()=>{ if(G.state==='explore'&&!G.moving)tryDescend(); }; }
   const d=G.dun; if(!d){ el.classList.remove('on'); return; }
   const cx=Math.floor(G.px),cy=Math.floor(G.py); let near=false;
   for(let dy=-1;dy<=1&&!near;dy++)for(let dx=-1;dx<=1;dx++){ const t=d.grid[cy+dy]&&d.grid[cy+dy][cx+dx]; if(t==='>'){near=true;break;} }
-  if(near){ if(!el.classList.contains('on')){ el.querySelector('#descLbl').textContent='DESCER AO ANDAR '+(G.depth+1); } el.classList.add('on'); }
+  if(near){ const locked=!!(d.bossPos&&!d.bossDefeated); const btn=el.querySelector('#descBtn');
+    btn.classList.toggle('locked',locked);
+    el.querySelector('#descLbl').textContent = locked ? '🔒 DERROTE O GUARDIÃO' : '▼ DESCER AO ANDAR '+(G.depth+1);
+    el.classList.add('on'); }
   else el.classList.remove('on');
 }
 // SEGREDO: nenhuma dica/indicador. Só a marca sutil na parede. Fique parado 10s perto e ela abre.
