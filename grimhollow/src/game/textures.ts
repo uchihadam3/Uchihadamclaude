@@ -866,6 +866,227 @@ export function dungeonFloor(seed = 43): THREE.Texture {
   return toTex(c);
 }
 
+// ======================= FLORESTA (bioma externo) =======================
+
+// -------- grama (chão da floresta) --------
+export function grass(seed = 61): THREE.Texture {
+  const W = 64;
+  const H = 64;
+  const { c, ctx } = makeCanvas(W, H);
+  const r = rnd(seed);
+  // base verde com variação
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const n = r();
+      const g = 96 + Math.floor(n * 46);
+      ctx.fillStyle = `rgb(${(g * 0.42) | 0},${g},${(g * 0.36) | 0})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  // manchas mais claras / mais escuras
+  for (let i = 0; i < 26; i++) {
+    const dark = r() < 0.5;
+    ctx.fillStyle = dark ? "rgba(30,52,24,0.28)" : "rgba(150,190,90,0.22)";
+    ctx.beginPath();
+    ctx.ellipse(r() * W, r() * H, 3 + r() * 6, 2 + r() * 4, r() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // fiapos de capim (traços curtos verticais)
+  for (let i = 0; i < 130; i++) {
+    const x = r() * W;
+    const y = r() * H;
+    const h = 2 + r() * 4;
+    const lum = 70 + r() * 90;
+    ctx.strokeStyle = `rgba(${(lum * 0.4) | 0},${lum | 0},${(lum * 0.35) | 0},0.5)`;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (r() - 0.5) * 1.5, y - h);
+    ctx.stroke();
+  }
+  return toTex(c);
+}
+
+// -------- caminho de terra batida --------
+export function dirtPath(seed = 63): THREE.Texture {
+  const W = 64;
+  const H = 64;
+  const { c, ctx } = makeCanvas(W, H);
+  const r = rnd(seed);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const n = r();
+      const g = 104 + Math.floor(n * 30);
+      ctx.fillStyle = `rgb(${g},${(g * 0.74) | 0},${(g * 0.5) | 0})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  // pedrinhas
+  for (let i = 0; i < 34; i++) {
+    const g = 120 + r() * 70;
+    ctx.fillStyle = `rgba(${g | 0},${(g * 0.94) | 0},${(g * 0.86) | 0},0.85)`;
+    ctx.beginPath();
+    ctx.ellipse(r() * W, r() * H, 1 + r() * 2.2, 1 + r() * 1.6, r() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // marcas de terra escura (sulcos)
+  for (let i = 0; i < 14; i++) {
+    ctx.fillStyle = "rgba(60,40,24,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(r() * W, r() * H, 4 + r() * 7, 2 + r() * 3, r() * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return toTex(c);
+}
+
+// -------- pinheiro (sprite p/ planos cruzados) --------
+export function pineTree(seed = 65): THREE.Texture {
+  const W = 128;
+  const H = 256;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  const r = rnd(seed);
+  const cx = W / 2;
+  const snow = r() < 0.5; // metade dos pinheiros com neve nas pontas
+  // tronco
+  const trunkW = 12;
+  const trunkTop = H * 0.82;
+  const tg = ctx.createLinearGradient(cx - trunkW, 0, cx + trunkW, 0);
+  tg.addColorStop(0, "#3a2716");
+  tg.addColorStop(0.5, "#5c3f22");
+  tg.addColorStop(1, "#2e1e10");
+  ctx.fillStyle = tg;
+  ctx.fillRect(cx - trunkW / 2, trunkTop, trunkW, H - trunkTop);
+  // copa em camadas (triângulos sobrepostos)
+  const tiers = 5;
+  const topY = H * 0.06;
+  const botY = H * 0.86;
+  for (let t = 0; t < tiers; t++) {
+    const f = t / (tiers - 1);
+    const y = topY + (botY - topY) * f;
+    const halfW = 14 + f * (W * 0.42);
+    const tierH = (botY - topY) / tiers * 1.9;
+    const green = 60 + Math.floor(r() * 24);
+    // sombra da camada
+    ctx.fillStyle = `rgb(${(green * 0.5) | 0},${(green * 0.85) | 0},${(green * 0.5) | 0})`;
+    ctx.beginPath();
+    ctx.moveTo(cx, y - tierH * 0.2);
+    ctx.lineTo(cx + halfW, y + tierH);
+    ctx.lineTo(cx - halfW, y + tierH);
+    ctx.closePath();
+    ctx.fill();
+    // frente iluminada da camada
+    ctx.fillStyle = `rgb(${(green * 0.55) | 0},${green + 34},${(green * 0.5) | 0})`;
+    ctx.beginPath();
+    ctx.moveTo(cx, y);
+    ctx.lineTo(cx + halfW * 0.82, y + tierH * 0.9);
+    ctx.lineTo(cx - halfW * 0.82, y + tierH * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    // dabs de folhagem irregular nas bordas
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (r() - 0.5) * Math.PI;
+      const rr = halfW * (0.5 + r() * 0.5);
+      ctx.fillStyle = `rgba(${(green * 0.55) | 0},${(green + 20) | 0},${(green * 0.45) | 0},0.9)`;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * rr, y + tierH * 0.85, 2 + r() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (snow) {
+      ctx.fillStyle = "rgba(240,246,255,0.85)";
+      ctx.beginPath();
+      ctx.moveTo(cx, y + 1);
+      ctx.lineTo(cx + halfW * 0.32, y + tierH * 0.3);
+      ctx.lineTo(cx - halfW * 0.32, y + tierH * 0.3);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  return toSprite(c);
+}
+
+// -------- arbusto (sprite p/ planos cruzados baixos) --------
+export function bush(seed = 67): THREE.Texture {
+  const W = 128;
+  const H = 96;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  const r = rnd(seed);
+  const cx = W / 2;
+  const baseY = H * 0.94;
+  // aglomerado de folhagem
+  const blobs = 12;
+  for (let i = 0; i < blobs; i++) {
+    const bx = cx + (r() - 0.5) * W * 0.8;
+    const by = baseY - r() * H * 0.72;
+    const rad = 12 + r() * 18;
+    const green = 54 + Math.floor(r() * 40);
+    const grd = ctx.createRadialGradient(bx, by - rad * 0.3, rad * 0.2, bx, by, rad);
+    grd.addColorStop(0, `rgb(${(green * 0.6) | 0},${green + 40},${(green * 0.5) | 0})`);
+    grd.addColorStop(1, `rgb(${(green * 0.4) | 0},${(green * 0.8) | 0},${(green * 0.4) | 0})`);
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(bx, by, rad, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // baguinhas ocasionais
+  for (let i = 0; i < 5; i++) {
+    ctx.fillStyle = "rgba(150,40,50,0.8)";
+    ctx.beginPath();
+    ctx.arc(cx + (r() - 0.5) * W * 0.6, baseY - r() * H * 0.5, 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return toSprite(c);
+}
+
+// -------- pilha de caveiras/ossos (decoração no chão) --------
+export function skullPile(seed = 69): THREE.Texture {
+  const W = 128;
+  const H = 96;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  const r = rnd(seed);
+  const drawSkull = (x: number, y: number, s: number) => {
+    // crânio
+    ctx.fillStyle = "#e7e2d2";
+    ctx.beginPath();
+    ctx.ellipse(x, y, s, s * 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // maxilar
+    ctx.fillStyle = "#d8d2c0";
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.7, s * 0.6, s * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // órbitas
+    ctx.fillStyle = "#2a2620";
+    ctx.beginPath();
+    ctx.ellipse(x - s * 0.4, y - s * 0.1, s * 0.24, s * 0.28, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + s * 0.4, y - s * 0.1, s * 0.24, s * 0.28, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // nariz
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.1);
+    ctx.lineTo(x - s * 0.12, y + s * 0.4);
+    ctx.lineTo(x + s * 0.12, y + s * 0.4);
+    ctx.fill();
+  };
+  // alguns ossos espalhados por baixo
+  ctx.strokeStyle = "#d5cfbe";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 6; i++) {
+    const x = 20 + r() * (W - 40);
+    const y = H * 0.7 + r() * H * 0.22;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (r() - 0.5) * 34, y + (r() - 0.5) * 10);
+    ctx.stroke();
+  }
+  // pilha de crânios
+  drawSkull(W * 0.5, H * 0.72, 15);
+  drawSkull(W * 0.32, H * 0.8, 12);
+  drawSkull(W * 0.68, H * 0.8, 12);
+  drawSkull(W * 0.46, H * 0.5, 13);
+  return toSprite(c);
+}
+
 // -------- parede/teto de masmorra (blocos escuros com musgo) --------
 export function dungeonWall(seed = 47): THREE.Texture {
   const W = 96;
