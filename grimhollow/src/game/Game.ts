@@ -938,6 +938,10 @@ export class Game {
     // dados p/ o idle procedural (respiração) — fase varia por célula p/ dessincronizar
     npc.userData = { baseY: y, h, ph: (c * 12.9 + r * 7.3) % (Math.PI * 2) };
     this.world.add(npc);
+    // plaquinha de nome (só o nome principal) flutuando acima da cabeça
+    const tag = this.makeNameTag(name.split(",")[0].trim());
+    tag.position.set(c * CELL, y + h / 2 + 0.18, r * CELL);
+    this.world.add(tag);
     this.npcs.push(npc);
     this.blocked.add(`${c},${r}`);
     const key = `${c},${r}`;
@@ -984,6 +988,56 @@ export class Game {
         waitUntil: 0,
       });
     }
+  }
+
+  // plaquinha de nome (sprite que sempre encara a câmera) acima do NPC
+  private makeNameTag(text: string): THREE.Sprite {
+    const fontPx = 40;
+    const pad = 18;
+    const font = `bold ${fontPx}px system-ui, -apple-system, Segoe UI, sans-serif`;
+    const meas = document.createElement("canvas").getContext("2d")!;
+    meas.font = font;
+    const tw = Math.ceil(meas.measureText(text).width);
+    const W = tw + pad * 2;
+    const H = fontPx + pad;
+    const cv = document.createElement("canvas");
+    cv.width = W;
+    cv.height = H;
+    const ctx = cv.getContext("2d")!;
+    // pílula de fundo
+    const rr = H / 2;
+    ctx.beginPath();
+    ctx.moveTo(rr, 0);
+    ctx.arcTo(W, 0, W, H, rr);
+    ctx.arcTo(W, H, 0, H, rr);
+    ctx.arcTo(0, H, 0, 0, rr);
+    ctx.arcTo(0, 0, W, 0, rr);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(16,12,8,0.74)";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(201,162,39,0.7)";
+    ctx.stroke();
+    // texto com contorno
+    ctx.font = font;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.strokeText(text, W / 2, H / 2 + 1);
+    ctx.fillStyle = "#f0dca2";
+    ctx.fillText(text, W / 2, H / 2 + 1);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    const spr = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }),
+    );
+    const hWorld = 0.4;
+    spr.scale.set(hWorld * (W / H), hWorld, 1);
+    return spr;
   }
 
   // textura da sombra de contato (gradiente radial escuro -> transparente)
