@@ -249,7 +249,7 @@ function paginate(lines: string[], max = DLG_MAX): string[] {
 type Target =
   | { kind: "enter"; estab: Estab }
   | { kind: "exit" }
-  | { kind: "talk"; name: string; lines: string[]; portrait?: string | null }
+  | { kind: "talk"; name: string; lines: string[]; key: string }
   | { kind: "dungeon" }
   | null;
 
@@ -304,8 +304,7 @@ export class Game {
     portrait?: string | null;
   } | null = null;
   private lastPrompt = " ";
-  private npcArt: Partial<Record<Estab, THREE.Texture>> = {}; // cache das artes 2D
-  private villagerArt: Record<string, THREE.Texture> = {}; // cache das artes dos aldeões
+  private artCache = new Map<string, THREE.Texture>(); // artes 2D já carregadas (por URL)
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -848,65 +847,85 @@ export class Game {
     }
   }
 
-  // aldeão billboard com colisão e diálogo
+  // aldeão billboard com colisão e diálogo.
+  // Nasce SEMPRE visível com o sprite procedural; se houver arte 2D, ela é
+  // carregada em segundo plano e substitui o sprite quando pronta. Se a arte
+  // falhar (rede/404), o NPC continua visível (procedural) em vez de sumir.
   private addNPC(
     c: number,
     r: number,
     seed: number,
     name: string,
     lines: string[],
-    img?: THREE.Texture,
+    artUrl?: string,
     scale = 1,
   ) {
-    // com imagem (arte 2D enviada): usa a textura e a proporção da imagem
-    const map = img ?? tex.villager(seed);
+    const proc = tex.villager(seed);
+    const hasArt = !!artUrl;
     const mat = new THREE.MeshLambertMaterial({
-      map,
+      map: proc,
       transparent: true,
       alphaTest: 0.5,
       side: THREE.DoubleSide,
     });
-    const h = (img ? 2.4 : 2.15) * scale;
-    const w = img ? h * 0.671 : 1.3 * scale; // aspecto 848x1264
-    const y = img ? h / 2 - 0.08 : 1.06 * scale;
+    // dimensões do plano: se há arte, já usa o aspecto da arte (848x1264)
+    const h = (hasArt ? 2.4 : 2.15) * scale;
+    const w = (hasArt ? h * 0.671 : 1.3) * (hasArt ? 1 : scale);
+    const y = (hasArt ? h / 2 - 0.08 : 1.06 * scale);
     const npc = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     npc.position.set(c * CELL, y, r * CELL);
     this.world.add(npc);
     this.npcs.push(npc);
     this.blocked.add(`${c},${r}`);
-    this.npcMap.set(`${c},${r}`, { name, lines, tex: map, art: !!img });
+    const key = `${c},${r}`;
+    this.npcMap.set(key, { name, lines, tex: proc, art: false });
+    if (artUrl) {
+      this.loadArt(artUrl, (t) => {
+        mat.map = t;
+        mat.needsUpdate = true;
+        const e = this.npcMap.get(key);
+        if (e) {
+          e.tex = t;
+          e.art = true;
+          e.portrait = undefined; // regenera o retrato a partir da arte
+        }
+      });
+    }
+  }
+
+  // carrega uma arte 2D (com cache por URL) e chama onReady quando pronta.
+  // Em caso de erro, não faz nada — o NPC permanece com o sprite procedural.
+  private loadArt(url: string, onReady: (t: THREE.Texture) => void) {
+    const cached = this.artCache.get(url);
+    if (cached) {
+      onReady(cached);
+      return;
+    }
+    new THREE.TextureLoader().load(
+      url,
+      (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.magFilter = THREE.LinearFilter;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        t.generateMipmaps = true;
+        t.anisotropy = 8;
+        t.wrapS = THREE.ClampToEdgeWrapping; // segurança p/ textura non-power-of-two
+        t.wrapT = THREE.ClampToEdgeWrapping;
+        this.artCache.set(url, t);
+        onReady(t);
+      },
+      undefined,
+      () => {
+        /* falha de carregamento: mantém o sprite procedural (nunca invisível) */
+      },
+    );
   }
 
   // aldeões da vila (espalhados pela praça)
   private buildNPCs() {
     for (const v of VILLAGE_NPCS) {
-      this.addNPC(
-        v.c,
-        v.r,
-        v.seed,
-        v.name,
-        v.lines,
-        this.villagerArtTex(v.id),
-        v.scale ?? 1,
-      );
+      this.addNPC(v.c, v.r, v.seed, v.name, v.lines, VILLAGER_ART[v.id], v.scale ?? 1);
     }
-  }
-
-  // carrega (uma vez) a arte 2D de um aldeão, se houver
-  private villagerArtTex(id: string): THREE.Texture | undefined {
-    const url = VILLAGER_ART[id];
-    if (!url) return undefined;
-    const key = `v:${id}`;
-    if (!this.villagerArt[key]) {
-      const t = new THREE.TextureLoader().load(url);
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.magFilter = THREE.LinearFilter;
-      t.minFilter = THREE.LinearMipmapLinearFilter;
-      t.generateMipmaps = true;
-      t.anisotropy = 8;
-      this.villagerArt[key] = t;
-    }
-    return this.villagerArt[key];
   }
 
   // recorta o rosto do NPC para o retrato do diálogo.
@@ -1026,22 +1045,6 @@ export class Game {
     return p;
   }
 
-  // carrega (uma vez) a arte 2D de um atendente, se houver
-  private npcArtTex(kind: Estab): THREE.Texture | undefined {
-    const url = NPC_ART[kind];
-    if (!url) return undefined;
-    if (!this.npcArt[kind]) {
-      const t = new THREE.TextureLoader().load(url);
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.magFilter = THREE.LinearFilter;
-      t.minFilter = THREE.LinearMipmapLinearFilter;
-      t.generateMipmaps = true;
-      t.anisotropy = 8;
-      this.npcArt[kind] = t;
-    }
-    return this.npcArt[kind];
-  }
-
   private canWalk(c: number, r: number): boolean {
     const ok =
       this.location === "village" ? isWalkable(c, r) : roomWalkable(c, r);
@@ -1066,13 +1069,9 @@ export class Game {
       this.enterLocation("village", col, row, facing);
     } else if (t.kind === "talk") {
       const pages = paginate(t.lines);
-      this.dialogue = {
-        name: t.name,
-        lines: pages,
-        idx: 0,
-        portrait: t.portrait ?? null,
-      };
-      this.ui.showDialogue(t.name, pages[0], t.portrait ?? null);
+      const portrait = this.portraitFor(t.key); // gera o retrato só ao conversar
+      this.dialogue = { name: t.name, lines: pages, idx: 0, portrait };
+      this.ui.showDialogue(t.name, pages[0], portrait);
     } else if (t.kind === "dungeon") {
       const pages = paginate([
         "A escada de pedra desce para a escuridão.",
@@ -1171,7 +1170,7 @@ export class Game {
     this.box(cxN, 0.55, czN, CELL * 2.4, 1.1, 0.7, woodDark);
     this.box(cxN, 1.12, czN, CELL * 2.4 + 0.2, 0.14, 0.95, woodDark); // tampo
     const info = ESTAB[kind];
-    this.addNPC(n.col, n.row, info.seed, info.npc, info.lines, this.npcArtTex(kind));
+    this.addNPC(n.col, n.row, info.seed, info.npc, info.lines, NPC_ART[kind]);
     // luz quente sobre o balcão (destaca o atendente)
     const clight = new THREE.PointLight(0xffd49a, 4.5, 15, 2);
     clight.position.set(cxN, 2.5, n.row * CELL + 1.6);
@@ -1649,7 +1648,7 @@ export class Game {
         kind: "talk",
         name: npc.name,
         lines: npc.lines,
-        portrait: this.portraitFor(`${fc},${fr}`),
+        key: `${fc},${fr}`,
       };
     if (this.location === "village") {
       // porta de estabelecimento (na face da casa voltada p/ o jogador)
