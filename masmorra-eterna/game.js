@@ -903,7 +903,7 @@ function showActionMenu(c){
   const canMag=!c.status.silence;
   const furyReady=G.battle&&G.battle.fury>=100;
   m.innerHTML=`<div class="actrow">
-    ${furyReady?`<div class="act fury" data-a="fury" style="flex-basis:100%;max-width:none">🔥 INVESTIDA FINAL<small>toda a party golpeia — gasta a FÚRIA</small></div>`:''}
+    ${furyReady?`<div class="act fury" data-a="fury" style="flex-basis:100%;max-width:none">🔥 INVESTIDA FINAL<small>cada herói desata seu golpe supremo — gasta a FÚRIA</small></div>`:''}
     <div class="act hot" data-a="attack">⚔ ATACAR<small>${ELEM[c.wtype]} ${c.wtype}</small></div>
     <div class="act ${knownSkills(c).filter(id=>SKILLS[id].kind!=='heal'&&!SKILLS[id].magic).length? '':'dis'}" data-a="skill">✦ TÉCNICA<small>habilidades</small></div>
     <div class="act ${canMag&&knownSkills(c).some(id=>SKILLS[id].magic)?'':'dis'}" data-a="magic">✧ MAGIA<small>${c.mp}/${c.mmp} MP</small></div>
@@ -2059,18 +2059,44 @@ function flashScreen(a){ const f=$('#flash'); if(!f)return; f.style.transition='
 function renderFury(){ const w=$('#furyWrap'); if(!w||!G.battle)return; const f=clamp(G.battle.fury||0,0,100);
   w.querySelector('#furyBar>i').style.width=f+'%'; w.classList.toggle('full',f>=100);
   w.querySelector('#furyLbl').textContent = f>=100?'🔥 FÚRIA!':'FÚRIA '+Math.floor(f)+'%'; }
-function furyGain(a){ if(!G.battle||G.battle.fury>=100)return; const was=G.battle.fury||0; G.battle.fury=clamp(was+a,0,100);
+function furyGain(a){ if(!G.battle||G.battle.furyLock||G.battle.fury>=100)return; const was=G.battle.fury||0; G.battle.fury=clamp(was+a,0,100);
   if(was<100&&G.battle.fury>=100){ blog('🔥 A FÚRIA do grupo transbordou! (toque em FÚRIA no seu turno)'); SFX.lvup(); } renderFury(); }
+// papel na INVESTIDA FINAL: cada herói desata um golpe supremo do SEU tipo
+function furyRole(h){ const heals=knownSkills(h).some(id=>{const s=SKILLS[id];return s.kind==='heal'||s.kind==='revive';});
+  if(heals && h.mag>=h.str) return 'support';   // Darius — sábio/curandeiro
+  if(h.mag>h.str) return 'magic';               // Celes — maga (nuke em área)
+  return 'phys'; }                              // Leona/Sakura — golpe físico brutal
 async function furyStrike(c,target){
-  hideMenus(); G.battle.fury=0; renderFury(); flashScreen(0.6); SFX.crit();
-  blog('🔥🔥 INVESTIDA FINAL! 🔥🔥'); await wait(200);
-  for(const h of alliesAlive()){ if(!target||!target.alive){ target=enemiesAlive()[0]; if(!target)break; }
-    flashCard(h,'#ffcf6a'); const ps=enemyScreen(target); const mag=h.mag>h.str;
-    fxElem(ps.x,ps.y, mag?'holy':h.wtype); fxImpact(ps.x,ps.y,'#ffe27a'); shakeField(13);
-    applyHit(h,target,{type:mag?'holy':h.wtype,power:245,magic:mag,crit:0.6,noCounter:true});
-    await wait(310);
+  hideMenus(); G.battle.fury=0; G.battle.furyLock=true; renderFury(); flashScreen(0.6); SFX.crit();
+  blog('🔥🔥 INVESTIDA FINAL! 🔥🔥'); await wait(220);
+  for(const h of alliesAlive()){
+    let enemies=enemiesAlive(); if(!enemies.length)break;
+    const role=furyRole(h);
+    if(role==='support'){
+      // SÁBIO: revive os caídos, cura e purifica TODO o grupo, e desfere luz sagrada em todos
+      flashCard(h,'#8ef0b0'); SFX.heal();
+      G.party.filter(p=>!p.alive).forEach(d=>{ d.alive=true; d.hp=Math.round(d.mhp*0.6); d.status={}; flashCard(d,'#8ef0b0'); popup(d,'REVIVE','heal'); });
+      for(const a of alliesAlive()){ const heal=Math.round(a.mhp*0.5)+Math.round((h.mag||0)*2.2); a.hp=clamp(a.hp+heal,0,a.mhp); a.status={};
+        const ci=G.party.indexOf(a), el=$('#bparty').children[ci]; if(el){ const r=el.getBoundingClientRect(),fr=$('#bfield').getBoundingClientRect(); fxHeal(r.left-fr.left+r.width/2,r.top-fr.top+r.height/2); } popup(a,'+'+heal,'heal'); }
+      blog('💚 '+h.name+' derrama a bênção da Chama — o grupo renasce!');
+      for(const e of enemies){ if(!e.alive)continue; const ps=enemyScreen(e); fxElem(ps.x,ps.y,'holy'); fxImpact(ps.x,ps.y,'#fff0b0');
+        applyHit(h,e,{type:'holy',power:180,magic:true,crit:0.5,noCounter:true}); }
+      shakeField(11); renderBparty(); await wait(420);
+    } else if(role==='magic'){
+      // MAGA: explosão elemental devastadora em TODOS os inimigos
+      flashCard(h,'#9ad0ff'); blog('✨ '+h.name+' concentra o arcano e detona o campo!'); SFX.crit();
+      for(const e of enemies){ if(!e.alive)continue; const ps=enemyScreen(e); fxElem(ps.x,ps.y,'fire'); fxImpact(ps.x,ps.y,'#ffd27a');
+        applyHit(h,e,{type:'fire',power:250,magic:true,crit:0.55,noCounter:true}); }
+      shakeField(15); await wait(400);
+    } else {
+      // FÍSICO: golpe brutal e certeiro no alvo
+      if(!target||!target.alive) target=enemies[0];
+      flashCard(h,'#ffcf6a'); const ps=enemyScreen(target); fxElem(ps.x,ps.y,h.wtype); fxImpact(ps.x,ps.y,'#ffe27a'); shakeField(13);
+      applyHit(h,target,{type:h.wtype,power:300,crit:0.6,noCounter:true});
+      await wait(320);
+    }
   }
-  markDirty(); renderBparty(); await wait(300); finishTurn();
+  G.battle.furyLock=false; markDirty(); renderBparty(); await wait(300); finishTurn();
 }
 
 function drawBattleBg(ctx,W,H,t){
