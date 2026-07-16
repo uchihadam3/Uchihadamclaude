@@ -32,12 +32,14 @@ import {
 import taverneiroUrl from "../assets/npc/taverneiro.png";
 import mercadoraUrl from "../assets/npc/mercadora.png";
 import ferreiroUrl from "../assets/npc/ferreiro.png";
+import alquimistaUrl from "../assets/npc/alquimista.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
   tavern: taverneiroUrl,
   store: mercadoraUrl,
   smith: ferreiroUrl,
+  alchemist: alquimistaUrl,
 };
 
 // direções: 0=N,1=E,2=S,3=O  (dcol, drow)
