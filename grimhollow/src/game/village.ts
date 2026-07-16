@@ -4,9 +4,11 @@
 //  'M' = montanha (rocha, bloqueia)
 //  'T' = túnel da masmorra (andável, com paredes/teto/chão de dungeon)
 //  'S' = escada descendo (andável, início da masmorra)
+//  'F' = portão/trilha para a floresta (andável, leva ao bioma externo)
 // Norte = para cima (linhas menores). Rua principal vertical, praça, casas,
 // e uma MONTANHA no canto noroeste com um túnel de 3 tiles até a escada.
 // Praça aberta central com poço, lojas nas bordas e a montanha/masmorra a NO.
+// Ao sul do início há a trilha 'F' que sai do vilarejo rumo à floresta.
 export const MAP: string[] = [
   "MMMMM##########",
   "MMMMM##########",
@@ -24,7 +26,7 @@ export const MAP: string[] = [
   "######...######",
   "######...######",
   "######.P.######",
-  "###############",
+  "#######F#######",
 ];
 
 export const ROWS = MAP.length;
@@ -36,7 +38,8 @@ export type CellKind =
   | "barrel"
   | "mountain"
   | "tunnel"
-  | "stairs";
+  | "stairs"
+  | "forestgate";
 
 export function cellAt(col: number, row: number): CellKind {
   if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return "building";
@@ -46,6 +49,7 @@ export function cellAt(col: number, row: number): CellKind {
   if (ch === "M") return "mountain";
   if (ch === "T") return "tunnel";
   if (ch === "S") return "stairs";
+  if (ch === "F") return "forestgate";
   return "street";
 }
 
@@ -57,8 +61,14 @@ export function isDungeon(col: number, row: number): boolean {
 
 export function isWalkable(col: number, row: number): boolean {
   const k = cellAt(col, row);
-  // barris são decorativos; túnel e escada são andáveis
-  return k === "street" || k === "barrel" || k === "tunnel" || k === "stairs";
+  // barris são decorativos; túnel, escada e trilha da floresta são andáveis
+  return (
+    k === "street" ||
+    k === "barrel" ||
+    k === "tunnel" ||
+    k === "stairs" ||
+    k === "forestgate"
+  );
 }
 
 export function findStart(): { col: number; row: number } {
@@ -67,4 +77,13 @@ export function findStart(): { col: number; row: number } {
     if (c >= 0) return { col: c, row: r };
   }
   return { col: 1, row: 1 };
+}
+
+// célula da trilha da floresta ('F') — usada p/ posicionar o jogador ao voltar
+export function findForestGate(): { col: number; row: number } {
+  for (let r = 0; r < ROWS; r++) {
+    const c = MAP[r].indexOf("F");
+    if (c >= 0) return { col: c, row: r };
+  }
+  return { col: 7, row: ROWS - 1 };
 }
