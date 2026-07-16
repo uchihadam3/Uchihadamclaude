@@ -38,6 +38,7 @@ import wilmaUrl from "../assets/npc/wilma.png";
 import fazendeiroUrl from "../assets/npc/fazendeiro.png";
 import camponesaUrl from "../assets/npc/camponesa.png";
 import lenhadorUrl from "../assets/npc/lenhador.png";
+import heddaAnimUrl from "../assets/npc/hedda_anim.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -224,6 +225,11 @@ const VILLAGER_ART: Record<string, string> = {
   corvin: lenhadorUrl,
 };
 
+// aldeões animados por sprite-sheet (id -> tira com N quadros, alinhados).
+const VILLAGER_ANIM: Record<string, { url: string; frames: number; fps: number }> = {
+  hedda: { url: heddaAnimUrl, frames: 4, fps: 4 },
+};
+
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
 // Falas maiores são quebradas em várias páginas ("…" e o jogador continua).
 const DLG_MAX = 96;
@@ -297,6 +303,7 @@ export class Game {
       lines: string[];
       tex: THREE.Texture;
       art: boolean;
+      frames?: number; // >1 se a textura for um sprite-sheet
       portrait?: string | null;
     }
   >();
@@ -310,6 +317,8 @@ export class Game {
   private lastPrompt = " ";
   private artCache = new Map<string, THREE.Texture>(); // artes 2D já carregadas (por URL)
   private _shadowTex?: THREE.Texture; // sombra de contato dos NPCs (gerada uma vez)
+  // texturas de sprite-sheet que animam por UV (offset.x avança pelos quadros)
+  private animTex: { tex: THREE.Texture; frames: number; fps: number }[] = [];
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -381,6 +390,7 @@ export class Game {
     this.blocked.clear();
     this.npcs = [];
     this.flames = [];
+    this.animTex = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
     this.npcMap.clear();
@@ -868,6 +878,7 @@ export class Game {
     lines: string[],
     artUrl?: string,
     scale = 1,
+    anim?: { frames: number; fps: number },
   ) {
     const proc = tex.villager(seed);
     const hasArt = !!artUrl;
@@ -906,12 +917,19 @@ export class Game {
     this.npcMap.set(key, { name, lines, tex: proc, art: false });
     if (artUrl) {
       this.loadArt(artUrl, (t) => {
+        if (anim) {
+          // sprite-sheet horizontal: mostra 1/frames por vez e anima no tick
+          t.repeat.set(1 / anim.frames, 1);
+          t.offset.set(0, 0);
+          this.animTex.push({ tex: t, frames: anim.frames, fps: anim.fps });
+        }
         mat.map = t;
         mat.needsUpdate = true;
         const e = this.npcMap.get(key);
         if (e) {
           e.tex = t;
           e.art = true;
+          e.frames = anim?.frames ?? 1;
           e.portrait = undefined; // regenera o retrato a partir da arte
         }
       });
@@ -970,19 +988,31 @@ export class Game {
   // aldeões da vila (espalhados pela praça)
   private buildNPCs() {
     for (const v of VILLAGE_NPCS) {
-      this.addNPC(v.c, v.r, v.seed, v.name, v.lines, VILLAGER_ART[v.id], v.scale ?? 1);
+      const anim = VILLAGER_ANIM[v.id];
+      const url = anim ? anim.url : VILLAGER_ART[v.id];
+      this.addNPC(
+        v.c,
+        v.r,
+        v.seed,
+        v.name,
+        v.lines,
+        url,
+        v.scale ?? 1,
+        anim ? { frames: anim.frames, fps: anim.fps } : undefined,
+      );
     }
   }
 
   // recorta o rosto do NPC para o retrato do diálogo.
   // Detecta a CABEÇA pelo maior trecho contíguo opaco no topo (ignora saliências
   // finas como espadas/cajados) e centraliza nela — funciona p/ adultos e crianças.
-  private makePortrait(image: unknown, _isArt: boolean): string | null {
+  private makePortrait(image: unknown, frames = 1): string | null {
     const im = image as
       | { width?: number; height?: number; naturalWidth?: number; naturalHeight?: number }
       | null;
     if (!im) return null;
-    const iw = im.naturalWidth || im.width || 0;
+    // se for sprite-sheet, analisa/recorta apenas o 1º quadro
+    const iw = Math.floor((im.naturalWidth || im.width || 0) / frames);
     const ih = im.naturalHeight || im.height || 0;
     if (!iw || !ih) return null;
     const S = 132;
@@ -1086,7 +1116,7 @@ export class Game {
     if (e.portrait !== undefined) return e.portrait;
     const img = e.tex.image as unknown;
     if (!img) return null; // ainda carregando; tenta de novo depois
-    const p = this.makePortrait(img, e.art);
+    const p = this.makePortrait(img, e.frames ?? 1);
     if (p) e.portrait = p; // só guarda em cache quando conseguiu recortar
     return p;
   }
@@ -1654,6 +1684,9 @@ export class Game {
     for (const f of this.flames)
       f.light.intensity =
         f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
+    // sprite-sheets animam (avança o quadro por UV)
+    for (const a of this.animTex)
+      a.tex.offset.x = (Math.floor((now / 1000) * a.fps) % a.frames) / a.frames;
     // água do poço cintila suavemente
     if (this.waterGlint) {
       const m = this.waterGlint.material as THREE.MeshBasicMaterial;
