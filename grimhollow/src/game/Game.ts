@@ -57,6 +57,10 @@ import camponesaUrl from "../assets/npc/camponesa.png";
 import lenhadorUrl from "../assets/npc/lenhador.png";
 import heddaUrl from "../assets/npc/hedda.png";
 import costureiraUrl from "../assets/npc/costureira.png";
+import guntherUrl from "../assets/npc/gunther.png";
+import anselmoUrl from "../assets/npc/anselmo.png";
+import tamUrl from "../assets/npc/tam.png";
+import lyleUrl from "../assets/npc/lyle.png";
 import pine1Url from "../assets/env/pine1.png";
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
@@ -250,6 +254,10 @@ const VILLAGER_ART: Record<string, string> = {
   corvin: lenhadorUrl,
   hedda: heddaUrl,
   wren: costureiraUrl,
+  gunther: guntherUrl,
+  anselmo: anselmoUrl,
+  tam: tamUrl,
+  lyle: lyleUrl,
 };
 
 // aldeões animados por sprite-sheet (id -> tira com N quadros, alinhados).
