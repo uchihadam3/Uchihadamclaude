@@ -57,6 +57,12 @@ import camponesaUrl from "../assets/npc/camponesa.png";
 import lenhadorUrl from "../assets/npc/lenhador.png";
 import heddaUrl from "../assets/npc/hedda.png";
 import costureiraUrl from "../assets/npc/costureira.png";
+import pine1Url from "../assets/env/pine1.png";
+
+// artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
+// first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
+const TREE_ART: string[] = [pine1Url];
+const TREE_ASPECT = 0.625; // largura/altura da arte de árvore (800x1280)
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -1353,16 +1359,21 @@ export class Game {
         }
       }
 
-    // materiais de vegetação
-    const pineMats = [65, 66, 67, 71, 79].map(
-      (s) =>
-        new THREE.MeshLambertMaterial({
-          map: tex.pineTree(s),
-          transparent: true,
-          alphaTest: 0.4,
-          side: THREE.DoubleSide,
-        }),
-    );
+    // materiais de vegetação — pinheiros: procedural-first, trocam pela arte 2D
+    const useArt = TREE_ART.length > 0;
+    const pineMats = (useArt ? TREE_ART : [65, 66, 67, 71, 79]).map((v, idx) => {
+      const mat = new THREE.MeshLambertMaterial({
+        map: tex.pineTree(65 + idx * 6),
+        transparent: true,
+        alphaTest: 0.4,
+        side: THREE.DoubleSide,
+      });
+      if (useArt) this.loadArt(v as string, (t) => {
+        mat.map = t;
+        mat.needsUpdate = true;
+      });
+      return mat;
+    });
     const bushMats = [67, 73].map(
       (s) =>
         new THREE.MeshLambertMaterial({
@@ -1398,19 +1409,25 @@ export class Game {
       w: number,
       h: number,
       mat: THREE.Material,
+      flip = false,
     ) => {
       const g = new THREE.PlaneGeometry(w, h);
+      const sx = flip ? -1 : 1;
       const p1 = new THREE.Mesh(g, mat);
       p1.position.set(x, h / 2, z);
+      p1.scale.x = sx;
       const p2 = new THREE.Mesh(g, mat);
       p2.position.set(x, h / 2, z);
       p2.rotation.y = Math.PI / 2;
+      p2.scale.x = sx;
       this.world.add(p1);
       this.world.add(p2);
     };
+    const pineAspect = useArt ? TREE_ASPECT : 0.44;
     const addPine = (x: number, z: number, th: number, c: number, r: number) => {
       const mat = pineMats[Math.floor(hash(c, r, 4) * pineMats.length) % pineMats.length];
-      addCross(x, z, th * 0.44, th, mat);
+      // espelha metade das árvores p/ quebrar a repetição da arte
+      addCross(x, z, th * pineAspect, th, mat, hash(c, r, 16) > 0.5);
     };
 
     for (let r = 0; r < H; r++)
