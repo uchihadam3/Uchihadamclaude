@@ -11,8 +11,10 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:#05070d}
 body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--ui);position:fixed;inset:0;-webkit-user-select:none;user-select:none}
-#game3d{position:absolute;inset:0}
+#game3d{position:absolute;inset:0;filter:saturate(.82) contrast(1.07) brightness(.95)}
 #game3d canvas{display:block}
+#vig{position:absolute;inset:0;z-index:6;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 46%,transparent 52%,rgba(8,10,8,.38) 100%)}
 button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
 
 /* ============ MENU ============ */
@@ -160,6 +162,7 @@ button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:n
 </head>
 <body>
 <div id="game3d"></div>
+<div id="vig"></div>
 
 <!-- MENU -->
 <div id="menu" class="on">

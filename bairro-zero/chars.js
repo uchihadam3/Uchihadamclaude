@@ -75,16 +75,34 @@ const CHARS = (() => {
     g.fillStyle=shade(col,0.1); for(let i=0;i<5;i++) g.fillRect(i*3+1,2,1,12);
     return c; }; }
 
+  /* ---------- textura de torso nu (ferido) ---------- */
+  function bareTex(skin){ return ()=>{ const c=cv(32,48), g=c.getContext('2d');
+    g.fillStyle=skin; g.fillRect(0,0,32,48);
+    g.fillStyle=shade(skin,-0.12); g.fillRect(8,10,4,3); g.fillRect(20,10,4,3);   // peito
+    g.fillStyle=shade(skin,-0.08); g.fillRect(15,6,2,30);
+    g.fillStyle='#4a1210'; g.fillRect(4,16,10,8); g.fillRect(19,30,9,7);          // feridas
+    g.fillStyle='#661a12'; g.fillRect(6,18,6,4); g.fillRect(21,32,5,3);
+    g.fillStyle=shade(skin,-0.25); g.fillRect(2,38,8,4);
+    return c; }; }
+  function dressTex(col){ return ()=>{ const c=cv(32,48), g=c.getContext('2d');
+    g.fillStyle=col; g.fillRect(0,0,32,48);
+    g.fillStyle=shade(col,0.1); for(let x=2;x<32;x+=6)g.fillRect(x,4,2,40);       // pregas
+    g.fillStyle='#4a1210'; g.fillRect(5,12,9,8); g.fillRect(20,28,8,6);           // sangue
+    g.fillStyle=shade(col,-0.2); g.fillRect(0,44,32,4);
+    return c; }; }
+
   /* ---------- construção do rig ---------- */
-  // pal: {skin, shirt, pants, hair, eyes, zombie, pocket}
+  // pal: {skin, shirt, pants, hair, eyes, zombie, pocket, outfit:'shirt'|'bare'|'dress', bald}
   function build(pal){
     const g=new THREE.Group();
     const key=(s)=>s+'|'+JSON.stringify(pal);
     const skinM=mat(key('sk'),skinTex(pal.skin,pal.zombie));
     const faceM=mat(key('fc'),faceTex(pal.skin,{zombie:pal.zombie,eyes:pal.eyes}));
-    const hairM=mat(key('hr'),hairTex(pal.hair));
-    const shirtM=mat(key('sh'),shirtTex(pal.shirt,{zombie:pal.zombie,pocket:pal.pocket}));
-    const pantsM=mat(key('pt'),pantsTex(pal.pants,pal.zombie));
+    const hairM=pal.bald? mat(key('hrb'),skinTex(pal.skin,pal.zombie)) : mat(key('hr'),hairTex(pal.hair));
+    const shirtM= pal.outfit==='bare'? mat(key('br'),bareTex(pal.skin))
+      : pal.outfit==='dress'? mat(key('dr'),dressTex(pal.shirt))
+      : mat(key('sh'),shirtTex(pal.shirt,{zombie:pal.zombie,pocket:pal.pocket}));
+    const pantsM= pal.outfit==='dress'? mat(key('drp'),dressTex(pal.shirt)) : mat(key('pt'),pantsTex(pal.pants,pal.zombie));
     const B=(w,h,d,m)=>new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m);
     const root=new THREE.Group(); g.add(root);            // root = corpo (p/ cair/deitar)
     // pélvis + torso
@@ -98,7 +116,7 @@ const CHARS = (() => {
     // braços (2 segmentos)
     function arm(side){
       const sh=new THREE.Group(); sh.position.set(side*0.27,1.56,0); root.add(sh);
-      const up=B(0.12,0.3,0.12,shirtM); up.position.y=-0.15; sh.add(up);
+      const up=B(0.12,0.3,0.12,(pal.outfit==='bare'||pal.outfit==='dress')?skinM:shirtM); up.position.y=-0.15; sh.add(up);
       const el=new THREE.Group(); el.position.y=-0.3; sh.add(el);
       const fo=B(0.11,0.3,0.11,skinM); fo.position.y=-0.15; el.add(fo);
       return {sh,el};
@@ -155,10 +173,20 @@ const CHARS = (() => {
       const s=Math.sin(t*3);
       aLsh=-2.6+s*0.5; aLel=-0.5; aRsh=-2.6-s*0.5; aRel=-0.5;
       lLh=0.3+s*0.15; lRh=0.3-s*0.15;
-    } else if(o.act==='swing'){ const p=o.actP;      // 0..1
-      aRsh=p<0.4? L(-2.4,-2.4,p/0.4) : L(-2.4,0.6,(p-0.4)/0.6);
+    } else if(o.act==='swing'){ const p=o.actP;      // 0..1 — arco com torção do tronco
+      aRsh=p<0.4? L(-2.4,-2.4,p/0.4) : L(-2.4,0.7,(p-0.4)/0.6);
       aRel=p<0.4? -0.5 : L(-0.5,-0.1,(p-0.4)/0.6);
-      aLsh=0.3; lean=0.25; neckX=0.1;
+      aLsh=0.35; lean=0.28; neckX=0.1;
+      rig.root.rotation.y=p<0.4? L(0,-0.5,p/0.4) : L(-0.5,0.55,(p-0.4)/0.6);
+    } else if(o.act==='stab'){ const p=o.actP;       // estocada rápida de faca
+      const e=p<0.3? p/0.3 : 1-(p-0.3)/0.7;
+      aRsh=L(-0.6,-1.7,e); aRel=L(-0.4,-0.05,e); aLsh=0.25; lean=0.32*e;
+    } else if(o.act==='lunge'){ const p=o.actP;      // AGARRÃO do zumbi (aviso antes da mordida)
+      const e=p<0.55? p/0.55 : 1;
+      aLsh=L(-1.2,-2.15,e); aRsh=L(-1.1,-2.05,e); aLel=-0.15; aRel=-0.2;
+      lean=L(0.1,-0.22,Math.min(1,p/0.5));           // inclina pra trás armando...
+      if(p>0.72){ lean=0.5; neckX=0.35; }            // ...e dá o bote
+      rig.group.rotation.z=Math.sin(p*20)*0.03;
     } else if(o.act==='shove'){ const p=o.actP;
       const e=p<0.35? p/0.35 : 1-(p-0.35)/0.65;
       aLsh=L(0,-1.5,e); aRsh=L(0,-1.5,e); aLel=L(0,-0.2,e); aRel=L(0,-0.2,e); lean=0.3*e;
@@ -201,6 +229,7 @@ const CHARS = (() => {
     if(!rootRX) rig.root.rotation.x=L(rig.root.rotation.x, lean, k);
     rig.root.position.y=L(rig.root.position.y, rootY+bobY, k);
     rig.neck.rotation.x=L(rig.neck.rotation.x,neckX,k);
+    if(o.act!=='swing') rig.root.rotation.y=L(rig.root.rotation.y,0,k);
     if(!o.zombie) rig.group.rotation.z=L(rig.group.rotation.z,0,k);
   }
 
@@ -210,10 +239,14 @@ const CHARS = (() => {
   const PANTS=['#3a4252','#4a4238','#2e3a2e','#52422e','#3a3a44'];
   const HAIRS=['#2a1c10','#3a2a1a','#1a1512','#5a3a1a','#6a6258','#8a4a2a'];
   const ZSKINS=['#8a9a72','#7a8a62','#9aa682','#6d7d58','#a8a888'];
+  const DRESSES=['#7a4a6a','#4a6a7a','#8a7a4a','#6a4a4a'];
   function randomPal(rnd, zombie){
     const R=a=>a[(rnd()*a.length)|0];
-    if(zombie) return { skin:R(ZSKINS), shirt:R(SHIRTS), pants:R(PANTS), hair:R(HAIRS), zombie:true, pocket:rnd()<0.4 };
-    return { skin:R(SKINS), shirt:R(SHIRTS), pants:R(PANTS), hair:R(HAIRS), eyes:'#3a2a1a', pocket:rnd()<0.5 };
+    if(zombie){ const r=rnd();
+      const outfit=r<0.6?'shirt':r<0.82?'bare':'dress';
+      return { skin:R(ZSKINS), shirt:outfit==='dress'?R(DRESSES):R(SHIRTS), pants:R(PANTS), hair:R(HAIRS),
+        zombie:true, pocket:rnd()<0.4, outfit, bald:rnd()<0.22 }; }
+    return { skin:R(SKINS), shirt:R(SHIRTS), pants:R(PANTS), hair:R(HAIRS), eyes:'#3a2a1a', pocket:rnd()<0.5, outfit:'shirt' };
   }
   return { build, pose, showWeapon, showPack, randomPal };
 })();

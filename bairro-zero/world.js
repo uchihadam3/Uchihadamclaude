@@ -4,7 +4,7 @@
    ===================================================================== */
 const WORLD = (() => {
   const W = 72, TPX = 16;
-  const T = { GRASS:0, ROAD:1, SIDE:3, DRIVE:4, DIRT:5, WOOD:10, TILEF:11, CARPET:12, CARPET2:13, STORE:14, STOCK:15 };
+  const T = { GRASS:0, ROAD:1, SIDE:3, DRIVE:4, DIRT:5, WOOD:10, TILEF:11, CARPET:12, CARPET2:13, STORE:14, STOCK:15, CHAR:16 };
   const ground = new Uint8Array(W*W); ground.fill(T.GRASS);
   // arestas: 0 livre · 1 parede · 2 janela · 3 porta fechada · 4 porta aberta · 5 cerca
   const EV = new Uint8Array((W+1)*(W+1)), EH = new Uint8Array((W+1)*(W+1));
@@ -24,7 +24,9 @@ const WORLD = (() => {
   function paintTile(g,x,z,t){
     const px=x*TPX, py=z*TPX;
     const R=(c)=>{ g.fillStyle=c; g.fillRect(px,py,TPX,TPX); };
-    if(t===T.GRASS){ R('#4d6b32'); for(let i=0;i<14;i++){ g.fillStyle=shade('#4d6b32',(rng()-0.45)*0.16); g.fillRect(px+rng()*TPX,py+rng()*TPX,1,2); } if(rng()<0.06){ g.fillStyle='#6d8446'; g.fillRect(px+rng()*12,py+rng()*12,3,2);} }
+    if(t===T.GRASS){ R('#556238'); for(let i=0;i<14;i++){ g.fillStyle=shade('#556238',(rng()-0.45)*0.16); g.fillRect(px+rng()*TPX,py+rng()*TPX,1,2); }
+      if(rng()<0.14){ g.fillStyle='#8a7a4a'; g.fillRect(px+rng()*10,py+rng()*10,4+rng()*4,3+rng()*3);} // grama morta
+      if(rng()<0.06){ g.fillStyle='#6d8446'; g.fillRect(px+rng()*12,py+rng()*12,3,2);} }
     else if(t===T.ROAD){ R('#3b3b40'); for(let i=0;i<10;i++){ g.fillStyle=shade('#3b3b40',(rng()-0.5)*0.10); g.fillRect(px+rng()*TPX,py+rng()*TPX,2,2);} if(rng()<0.08){ g.fillStyle='#2e2e33'; g.fillRect(px+2,py+rng()*14,10,1);} }
     else if(t===T.SIDE){ R('#8d8d88'); g.strokeStyle='#75756f'; g.lineWidth=1; g.strokeRect(px+0.5,py+0.5,TPX-1,TPX-1); jitter(g.canvas,px,py,TPX,TPX,'#8d8d88',0.08,6); }
     else if(t===T.DRIVE){ R('#9a978f'); g.strokeStyle='#82807a'; g.strokeRect(px+0.5,py+0.5,TPX-1,TPX-1); }
@@ -35,6 +37,7 @@ const WORLD = (() => {
     else if(t===T.CARPET2){ R('#6a7d6e'); jitter(g.canvas,px,py,TPX,TPX,'#6a7d6e',0.07,8); }
     else if(t===T.STORE){ R('#a8a8a0'); g.strokeStyle='#8f8f88'; g.strokeRect(px+0.5,py+0.5,TPX-1,TPX-1); if((x+z)%2){ g.fillStyle='#b2b2aa'; g.fillRect(px+1,py+1,TPX-2,TPX-2);} }
     else if(t===T.STOCK){ R('#7c7468'); jitter(g.canvas,px,py,TPX,TPX,'#7c7468',0.08,6); }
+    else if(t===T.CHAR){ R('#1a1614'); for(let i=0;i<10;i++){ g.fillStyle=['#0e0c0a','#2a221a','#3a2e20'][i%3]; g.fillRect(px+rng()*TPX,py+rng()*TPX,2+rng()*3,1+rng()*3); } }
   }
   function texSiding(base){ const c=cv(64,128), g=c.getContext('2d');
     g.fillStyle=base; g.fillRect(0,0,64,128);
@@ -108,7 +111,7 @@ const WORLD = (() => {
     taco:{n:'Taco de Beisebol',i:'🏏',t:'weapon',dmg:[30,44],spd:0.95,kg:1.5,cond:24,knock:0.35},
     frig:{n:'Frigideira',i:'🍳',t:'weapon',dmg:[22,32],spd:0.8,kg:1.2,cond:18,knock:0.2},
     peca:{n:'Pé de Cabra',i:'🪛',t:'weapon',dmg:[28,40],spd:1.05,kg:2.0,cond:40,knock:0.25},
-    faca:{n:'Faca de Cozinha',i:'🔪',t:'weapon',dmg:[18,28],spd:0.5,kg:0.4,cond:12,knock:0.02,opener:true},
+    faca:{n:'Faca de Cozinha',i:'🔪',t:'weapon',dmg:[17,26],spd:0.45,kg:0.4,cond:15,knock:0.02,opener:true,stab:true},
     martelo:{n:'Martelo',i:'🔨',t:'weapon',dmg:[20,30],spd:0.85,kg:1.0,cond:30,knock:0.15,tool:true},
     // ferramentas / construção
     pregos:{n:'Pregos',i:'📎',t:'misc',kg:0.1}, tabua:{n:'Tábua',i:'🪵',t:'misc',kg:2.0},
@@ -132,7 +135,7 @@ const WORLD = (() => {
     'Balcão': ()=>roll([['faca',.35],['martelo',.3],['pregos',.4],['abridor',.3],['vela',.25]]),
     'Lixeira': ()=>roll([['chips',.18],['rev',.2],['garrafa',.3]]),
     'Estoque': ()=>roll([['tabua',.6],['tabua',.4],['pregos',.6],['martelo',.35],['peca',.3],['feijao',.5],['agua',.5],['arroz',.4]]),
-    'Corpo': ()=>roll([['band',.15],['choc',.12],['faca',.08],['pregos',.1],['analg',.1],['garrafa',.12]]),
+    'Corpo': ()=>roll([['band',.18],['choc',.12],['faca',.14],['pregos',.1],['analg',.12],['garrafa',.12],['chips',.1]]),
   };
 
   /* ================= CHÃO / PAREDES ================= */
@@ -342,14 +345,68 @@ const WORLD = (() => {
   function addLamp(fL,x,z){ fL.push({w:0.12,h:3.4,d:0.12,x,y:1.7,z,col:'#3a3a40'});
     fL.push({w:0.7,h:0.1,d:0.12,x:x+0.3,y:3.4,z,col:'#3a3a40'});
     lamps.push({x:x+0.6,z}); }
-  function addCar(scene3,x,z,col){
+  function addCar(scene3,x,z,col,opts){
+    opts=opts||{};
+    const burnt=opts.burnt;
+    const body= burnt? '#26221e' : col;
     const g=new THREE.Group(); const M=(w,h,d,px,py,pz,c)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshLambertMaterial({color:c})); m.position.set(px,py,pz); g.add(m); return m; };
-    M(3.6,0.55,1.7,0,0.55,0,col); M(2.0,0.55,1.5,-0.2,1.05,0,col);
-    M(1.8,0.45,1.4,-0.2,1.08,0,'#20242c');
-    [[-1.25,0.75],[1.25,0.75],[-1.25,-0.75],[1.25,-0.75]].forEach(([a,b])=>M(0.55,0.55,0.25,a,0.3,b,'#181818'));
-    M(0.15,0.15,1.5,1.8,0.6,0,'#e8e4c8');
-    g.position.set(x,0,z); scene3.add(g);
-    for(let dx=-2;dx<=2;dx++) S(Math.floor(x)+dx, Math.floor(z));
+    M(3.6,0.55,1.7,0,0.55,0,body); M(2.0,0.55,1.5,-0.2,1.05,0,body);
+    M(1.8,0.45,1.4,-0.2,1.08,0,burnt?'#141210':'#20242c');
+    [[-1.25,0.75],[1.25,0.75],[-1.25,-0.75],[1.25,-0.75]].forEach(([a,b])=>M(0.55,0.55,0.25,a,0.3,b,burnt?'#100e0c':'#181818'));
+    if(!burnt) M(0.15,0.15,1.5,1.8,0.6,0,'#e8e4c8');
+    if(opts.police){ M(1.2,0.16,0.5,-0.2,1.36,0,'#20242c');
+      M(0.4,0.14,0.4,-0.42,1.42,0,'#c03028'); M(0.4,0.14,0.4,0.02,1.42,0,'#2858c0');
+      M(3.58,0.2,1.72,0,0.72,0,'#e8e4dc'); }
+    if(opts.doorOpen){ const d=M(0.08,0.5,0.8,1.0,0.72,1.15,body); d.rotation.y=0.9; }
+    if(opts.hood){ const h=M(1.2,0.08,1.5,1.35,1.0,0,body); h.rotation.z=0.5; }
+    g.position.set(x,0,z); g.rotation.y=opts.ry||0;
+    if(opts.tilt) g.rotation.z=opts.tilt;
+    scene3.add(g);
+    // sólidos aproximados considerando rotação
+    const c2=Math.abs(Math.cos(opts.ry||0)), s2=Math.abs(Math.sin(opts.ry||0));
+    const hx=2*c2+1*s2, hz=2*s2+1*c2;
+    for(let dx=-Math.ceil(hx);dx<=Math.ceil(hx);dx++)for(let dz=-Math.ceil(hz);dz<=Math.ceil(hz);dz++)
+      if(Math.abs(dx)<=hx&&Math.abs(dz)<=hz) S(Math.floor(x)+dx, Math.floor(z)+dz);
+    return g;
+  }
+  function addBarrier(fL,x,z,ry){ // cavalete policial
+    fL.push({w:1.6,h:0.16,d:0.1,x,y:0.82,z,ry,col:'#d8d4c8'});
+    fL.push({w:1.6,h:0.14,d:0.08,x,y:0.5,z,ry,col:'#c05028'});
+    fL.push({w:0.08,h:0.9,d:0.4,x:x-0.7*Math.cos(ry||0),y:0.45,z:z+0.7*Math.sin(ry||0),ry,col:'#8a8a82'});
+    fL.push({w:0.08,h:0.9,d:0.4,x:x+0.7*Math.cos(ry||0),y:0.45,z:z-0.7*Math.sin(ry||0),ry,col:'#8a8a82'});
+  }
+  function addCorpse(fL,x,z,ry,cloth){ // corpo caído (saqueável)
+    const skin='#b8a088';
+    fL.push({w:0.5,h:0.14,d:0.3,x,y:0.09,z,ry,col:cloth});
+    fL.push({w:0.24,h:0.13,d:0.24,x:x+0.42*Math.sin((ry||0)+1.57),y:0.08,z:z+0.42*Math.cos((ry||0)+1.57),ry,col:skin});
+    fL.push({w:0.13,h:0.1,d:0.5,x:x+0.3*Math.cos(ry||0),y:0.06,z:z-0.28*Math.sin(ry||0),ry:(ry||0)+0.5,col:cloth});
+    fL.push({w:0.13,h:0.1,d:0.5,x:x-0.3*Math.cos(ry||0),y:0.06,z:z+0.2*Math.sin(ry||0),ry:(ry||0)-0.4,col:skin});
+    fL.push({w:0.15,h:0.1,d:0.6,x:x-0.35*Math.sin((ry||0)+1.57),y:0.06,z:z-0.35*Math.cos((ry||0)+1.57),ry:(ry||0)+0.2,col:'#3a3a44'});
+    fL.push({w:0.15,h:0.1,d:0.55,x:x-0.5*Math.sin((ry||0)+1.57),y:0.06,z:z-0.5*Math.cos((ry||0)+1.57),ry:(ry||0)-0.3,col:'#3a3a44'});
+    containers.push({x:Math.floor(x),z:Math.floor(z),name:'Corpo',loot:LOOT['Corpo'](),opened:false});
+    bloodSpots.push({x,z,s:1.2});
+  }
+  function addTrashBag(fL,x,z){ fL.push({w:0.5,h:0.4,d:0.5,x,y:0.2,z,ry:rng()*3,col:'#22262a'});
+    fL.push({w:0.3,h:0.25,d:0.3,x:x+0.3,y:0.12,z:z+0.2,ry:rng()*3,col:'#2a2e32'}); }
+  function addTuft(fL,x,z){ const h=0.18+rng()*0.25;
+    fL.push({w:0.1,h,d:0.1,x,y:h/2,z,col:'#5a7a38'});
+    fL.push({w:0.1,h:h*0.8,d:0.1,x:x+0.12,y:h*0.4,z:z+0.08,col:'#4d6b32'});
+    fL.push({w:0.1,h:h*0.7,d:0.1,x:x-0.1,y:h*0.35,z:z+0.12,col:'#6a8a42'}); }
+  function addTires(fL,x,z){ for(let i=0;i<2;i++) fL.push({w:0.65,h:0.22,d:0.65,x,y:0.12+i*0.23,z,ry:rng(),col:'#1a1a1c'}); }
+  function addSuitcase(fL,x,z){ fL.push({w:0.7,h:0.16,d:0.5,x,y:0.08,z,ry:0.4,col:'#6a4a3a'});
+    fL.push({w:0.7,h:0.14,d:0.5,x:x+0.25,y:0.06,z:z+0.5,ry:2.2,col:'#6a4a3a'});
+    for(let i=0;i<4;i++) fL.push({w:0.2,h:0.05,d:0.15,x:x+(rng()-0.5)*1.4,y:0.03,z:z+(rng()-0.5)*1.4,ry:rng()*3,col:['#c8c0b0','#8a9aa8','#b0a890'][i%3]}); }
+  const bloodSpots=[]; // manchas pintadas no chão depois
+  function addWires(scene3){ // fiação caída entre postes
+    const pairs=[[lamps[4],lamps[0]],[lamps[0],lamps[3]],[lamps[1],lamps[5]]];
+    const mat3=new THREE.LineBasicMaterial({color:0x14161a});
+    pairs.forEach(([a,b])=>{ if(!a||!b) return;
+      const pts=[]; for(let i=0;i<=12;i++){ const t=i/12;
+        const x=a.x+(b.x-a.x)*t, z=a.z+(b.z-a.z)*t;
+        const y=3.35-Math.sin(t*Math.PI)*0.55;
+        pts.push(new THREE.Vector3(x,y,z)); }
+      const geo=new THREE.BufferGeometry().setFromPoints(pts);
+      scene3.add(new THREE.Line(geo,mat3)); });
   }
 
   /* ================= CONSTRUÇÃO ================= */
@@ -366,12 +423,12 @@ const WORLD = (() => {
     fillGround(33,33,36,36,T.ROAD);
 
     const defs=[];
-    function houseAt(fn,ox,oz,doorN,mi){ const fL=[], wL=[]; const b=fn(fL,wL,ox,oz,doorN,mi); defs.push({b,fL,wL,mi}); return b; }
+    function houseAt(fn,ox,oz,doorN,mi,opts){ const fL=[], wL=[]; const b=fn(fL,wL,ox,oz,doorN,mi); defs.push({b,fL,wL,mi,...(opts||{})}); return b; }
     houseAt(casaFamilia,  8,22,false,0);
     houseAt(bangalo,     22,24,false,1);
     houseAt(casaGrande,  41,22,false,2);
     houseAt(casaFamilia, 56,23,false,3);
-    houseAt(bangalo,     24,41,true, 2);
+    houseAt(bangalo,     24,41,true, 2, {burnt:true});   // a casa que pegou fogo
     houseAt(bangalo,     41,41,true, 3);
     houseAt(casaGrande,  52,41,true, 0);
     { const fL=[], wL=[]; const b=mercado(fL,wL,8,40); defs.push({b,fL,wL,mi:'store'}); }
@@ -379,9 +436,19 @@ const WORLD = (() => {
     const paths=[[10,30,10,31],[26,31,26,31],[46,31,46,31],[58,31,58,31],[28,38,28,40],[45,38,45,40],[57,38,57,40],[14,38,14,39]];
     paths.forEach(([x,za,_,zb])=>{ for(let z=za;z<=zb;z++) ground[x*W+z]=T.DIRT; });
 
-    defs.forEach(({b,fL,wL,mi})=>{
+    // textura carbonizada (casa incendiada)
+    const charTx=(()=>{ const c=cv(64,128), g=c.getContext('2d');
+      g.fillStyle='#1e1a16'; g.fillRect(0,0,64,128);
+      for(let y=0;y<128;y+=13){ g.fillStyle='#14100c'; g.fillRect(0,y+11,64,2); }
+      for(let i=0;i<40;i++){ g.fillStyle=['#2a221c','#0e0c0a','#3a2e22'][i%3]; g.fillRect(rng()*64,rng()*128,3+rng()*6,2+rng()*10); }
+      g.fillStyle='#4a3a28'; g.fillRect(0,120,64,8); return tex(c); })();
+    defs.forEach((def)=>{
+      const {b,fL,wL,mi,burnt}=def;
       const extMat = mi==='store'? new THREE.MeshLambertMaterial({map:brick}) : new THREE.MeshLambertMaterial({map:sidings[mi]});
-      const mats=[extMat, new THREE.MeshLambertMaterial({map:paint}), extMat, new THREE.MeshLambertMaterial({map:brick})];
+      const charMat = new THREE.MeshLambertMaterial({map:charTx});
+      const mats=[extMat, new THREE.MeshLambertMaterial({map:paint}), extMat, new THREE.MeshLambertMaterial({map:brick}), charMat];
+      if(burnt){ wL.forEach(it=>it.mi=4);
+        fL.forEach(it=>{ const c=new THREE.Color(it.col||'#888'); c.multiplyScalar(0.28); it.col='#'+c.getHexString(); }); }
       const keep=[], fade=[];
       wL.forEach(it=>{
         const isV = it.w<0.2;
@@ -393,10 +460,12 @@ const WORLD = (() => {
       keepMesh.castShadow=true; fadeMesh.castShadow=true;
       scene.add(keepMesh); scene.add(fadeMesh);
       const rT = mi==='store'? roofT[1] : roofT[(typeof mi==='number'?mi:0)];
-      const roof=new THREE.Mesh(new THREE.BoxGeometry(b.x1-b.x0+0.7,0.28,b.z1-b.z0+0.7), new THREE.MeshLambertMaterial({map:rT}));
+      const roofMat= burnt? new THREE.MeshLambertMaterial({color:'#181410'}) : new THREE.MeshLambertMaterial({map:rT});
+      const roof=new THREE.Mesh(new THREE.BoxGeometry(b.x1-b.x0+0.7,0.28,b.z1-b.z0+0.7), roofMat);
       roof.position.set((b.x0+b.x1)/2,2.65,(b.z0+b.z1)/2); roof.castShadow=true; scene.add(roof);
+      if(burnt){ roof.rotation.z=0.045; roof.position.y=2.5; } // telhado cedendo
       if(fL.length){ const fm=mergeBoxes(fL,[new THREE.MeshLambertMaterial({vertexColors:true})]); fm.castShadow=true; scene.add(fm); }
-      buildings.push({...b, keepMesh, fadeMesh, fadeMats, roof, winGlass:[]});
+      buildings.push({...b, burnt, keepMesh, fadeMesh, fadeMats, roof, winGlass:[]});
     });
     // placa do mercado
     { const sign=new THREE.Mesh(new THREE.BoxGeometry(8,1.1,0.2), new THREE.MeshLambertMaterial({map:tex(texStoreSign())}));
@@ -425,6 +494,21 @@ const WORLD = (() => {
       if(bld) bld.winGlass.push(gm);
     });
 
+    /* ---- PÓS-APOCALIPSE: a casa queimada ---- */
+    const burntB=buildings.find(b=>b.burnt);
+    if(burntB){
+      fillGround(burntB.x0,burntB.z0,burntB.x1-1,burntB.z1-1,T.CHAR);
+      windows.forEach(w=>{ const inB= w.x>=burntB.x0&&w.x<=burntB.x1&&w.z>=burntB.z0&&w.z<=burntB.z1;
+        if(inB) smashWindow(w); });
+      doors.forEach(d=>{ const inB= d.x>=burntB.x0&&d.x<=burntB.x1&&d.z>=burntB.z0&&d.z<=burntB.z1;
+        if(inB&&d.exterior) breakDoor(d); });
+      containers.forEach(c=>{ if(c.x>=burntB.x0&&c.x<burntB.x1&&c.z>=burntB.z0&&c.z<burntB.z1) c.loot=[]; });
+    }
+    /* ---- janelas pré-barricadas (algum sobrevivente passou aqui) ---- */
+    windows.forEach(w=>{ if(w.z===41&&w.x>=52&&w.x<=64){ barricade(w); barricade(w); } });
+    /* ---- portas abertas (casas já saqueadas) ---- */
+    doors.forEach(d=>{ if(d.exterior&&((d.x===26&&d.z===31)||(d.x===45&&d.z===41))) toggleDoor(d); });
+
     // exterior
     const dL=[];
     for(let i=0;i<46;i++){ const side=i%4; let x,z;
@@ -439,8 +523,31 @@ const WORLD = (() => {
     fenceRun(dL,'H',58,24,32); fenceRun(dL,'V',50,41,50);
     [[31,31],[38,38],[31,45],[38,24],[14,31],[52,38]].forEach(([x,z])=>addLamp(dL,x+0.2,z+0.2));
     FURN.bin(dL,7,30); FURN.bin(dL,21,30); FURN.bin(dL,40,30); FURN.bin(dL,23,40); FURN.mail(dL,11,31); FURN.mail(dL,27,31); FURN.mail(dL,47,31); FURN.mail(dL,59,31);
+    /* ---- PÓS-APOCALIPSE: destroços, bloqueio, corpos, lixo, mato ---- */
+    // bloqueio policial abandonado no cruzamento leste
+    addBarrier(dL,39.4,33.9,0.15); addBarrier(dL,39.7,35.9,-0.1); addBarrier(dL,40.1,34.9,0.05);
+    // cones caídos
+    [[39.0,34.4],[40.5,36.2],[38.6,35.3]].forEach(([x,z])=>{ dL.push({w:0.3,h:0.5,d:0.3,x,y:0.12,z,ry:rng()*3,col:'#c05028'}); });
+    // corpos nas ruas (dias de pânico)
+    addCorpse(dL,40.2,35.1,0.4,'#2a3a5a'); addCorpse(dL,41.6,33.9,2.2,'#5a5a52');
+    addCorpse(dL,28.4,31.6,1.1,'#6a4a42'); addCorpse(dL,57.8,33.4,5.2,'#4a5a4a');
+    addCorpse(dL,14.2,45.5,0.8,'#7a6a5a'); addCorpse(dL,35.4,42.5,3.6,'#5a4a5a');
+    // sacos de lixo e entulho
+    [[7.8,29.2],[21.5,29.3],[23.5,39.5],[15,50.8],[16.2,50.3],[40.5,29.5],[58.5,30.6],[33.2,38.6],[36.8,30.8]].forEach(([x,z])=>addTrashBag(dL,x,z));
+    addTires(dL,9.5,50.6); addTires(dL,10.3,50.4); addSuitcase(dL,13.2,35.6);
+    // mato crescendo (gramados abandonados + rachaduras da rua)
+    for(let i=0;i<85;i++){ const x=2+rng()*(W-4), z=2+rng()*(W-4);
+      if(ground[Math.floor(x)*W+Math.floor(z)]===T.GRASS && !solid[Math.floor(x)*W+Math.floor(z)]) addTuft(dL,x,z); }
+    [[18.4,33.2],[29.6,36.7],[43.3,33.4],[55.7,36.3],[34.3,12.5],[36.6,48.4],[33.4,58.6],[24.2,32.4],[50.5,37.6]].forEach(([x,z])=>addTuft(dL,x,z));
     const deco=mergeBoxes(dL,[new THREE.MeshLambertMaterial({vertexColors:true})]); deco.castShadow=true; scene.add(deco);
-    addCar(scene,26,34.6,'#7a3a32'); addCar(scene,48,35.4,'#3a5a7a');
+    // carros: estacionados, batidos, queimados, viatura
+    addCar(scene,26,34.6,'#7a3a32',{doorOpen:true});
+    addCar(scene,48,35.4,'#3a5a7a');
+    addCar(scene,40.9,34.6,'#e8e4dc',{police:true,ry:0.35,doorOpen:true});
+    addCar(scene,20.6,36.2,'#5a6a4a',{ry:0.5,hood:true});           // bateu no poste
+    addCar(scene,35.3,17.8,'#000000',{burnt:true,ry:1.62});          // carcaça queimada
+    addCar(scene,54.6,39.6,'#8a7a5a',{ry:-0.55,doorOpen:true});      // subiu no gramado
+    addWires(scene);
     lamps.forEach(l=>{
       const head=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.14,0.24), new THREE.MeshLambertMaterial({color:'#c8b060',emissive:'#000000'}));
       head.position.set(l.x,3.35,l.z); scene.add(head); l.head=head;
@@ -450,10 +557,53 @@ const WORLD = (() => {
     // chão
     const gc=cv(W*TPX,W*TPX), g2=gc.getContext('2d');
     for(let x=0;x<W;x++)for(let z=0;z<W;z++) paintTile(g2,x,z,ground[x*W+z]);
-    g2.fillStyle='#c8c8b8';
-    for(let x=0;x<W;x+=2){ if(x>30&&x<39) continue; g2.fillRect(x*TPX+3,35*TPX-1,TPX-6,2); }
-    for(let z=0;z<W;z+=2){ if(z>30&&z<39) continue; g2.fillRect(35*TPX-1,z*TPX+3,2,TPX-6); }
+    g2.fillStyle='#b8b8a8';
+    for(let x=0;x<W;x+=2){ if(x>30&&x<39) continue; if(rng()<0.2) continue; g2.fillRect(x*TPX+3,35*TPX-1,TPX-6,2); }
+    for(let z=0;z<W;z+=2){ if(z>30&&z<39) continue; if(rng()<0.2) continue; g2.fillRect(35*TPX-1,z*TPX+3,2,TPX-6); }
     for(let k=0;k<4;k++){ g2.fillRect((33.4+k*0.85)*TPX,32.2*TPX,8,12); g2.fillRect((33.4+k*0.85)*TPX,37.1*TPX,8,12); }
+    /* ---- decalques pós-apocalípticos ---- */
+    const px2=(x)=>x*TPX;
+    // rachaduras no asfalto
+    g2.strokeStyle='#26262a'; g2.lineWidth=1.5;
+    for(let i=0;i<16;i++){ const onV=rng()<0.4;
+      let x=onV? (33+rng()*3):(rng()*W), z=onV? (rng()*W):(33+rng()*3);
+      g2.beginPath(); g2.moveTo(px2(x),px2(z));
+      for(let s=0;s<5;s++){ x+=(rng()-0.5)*1.6; z+=(rng()-0.5)*1.6; g2.lineTo(px2(x),px2(z)); }
+      g2.stroke(); }
+    // manchas de óleo
+    [[27,35.2],[49.2,35.8],[34.8,50],[40.9,34.9],[20.4,36.1]].forEach(([x,z])=>{
+      g2.fillStyle='rgba(14,14,18,.55)'; g2.beginPath(); g2.ellipse(px2(x),px2(z),13+rng()*8,8+rng()*5,rng(),0,6.29); g2.fill(); });
+    // marcas de frenagem
+    g2.strokeStyle='rgba(16,16,18,.6)'; g2.lineWidth=3;
+    [[46,34.3,41.5,34.7],[25,35.9,21.2,36.2],[36.2,26,35.4,19.5]].forEach(([xa,za,xb,zb])=>{
+      for(const off of [-0.28,0.28]){ g2.beginPath(); g2.moveTo(px2(xa),px2(za+off));
+        g2.quadraticCurveTo(px2((xa+xb)/2),px2(za+off+(rng()-0.5)*0.4),px2(xb),px2(zb+off)); g2.stroke(); } });
+    // folhas secas sob as árvores
+    trees.forEach(t=>{ for(let i=0;i<22;i++){ const a=rng()*6.29, r=rng()*1.6*TPX;
+      g2.fillStyle=['#8a6a3a','#a07a42','#6d5a30','#5a4a28'][i%4];
+      g2.fillRect(px2(t.x)+Math.cos(a)*r, px2(t.z)+Math.sin(a)*r, 2, 2); } });
+    // papéis e entulho nas ruas e calçadas
+    for(let i=0;i<90;i++){ const x=rng()*W, z=rng()*W; const t=ground[Math.floor(x)*W+Math.floor(z)];
+      if(t!==T.ROAD&&t!==T.SIDE) continue;
+      g2.fillStyle=rng()<0.6?'#c8c4b4':'#9a968a'; g2.fillRect(px2(x),px2(z),2+rng()*3,2+rng()*2); }
+    // fuligem ao redor da casa queimada
+    if(burntB){ const cx=(burntB.x0+burntB.x1)/2, cz=(burntB.z0+burntB.z1)/2;
+      const rg=g2.createRadialGradient(px2(cx),px2(cz),TPX*2,px2(cx),px2(cz),TPX*7.5);
+      rg.addColorStop(0,'rgba(10,8,6,.5)'); rg.addColorStop(1,'rgba(10,8,6,0)');
+      g2.fillStyle=rg; g2.fillRect(px2(burntB.x0-3),px2(burntB.z0-3),px2(burntB.x1-burntB.x0+6),px2(burntB.z1-burntB.z0+6));
+      for(let i=0;i<30;i++){ g2.fillStyle='rgba(20,16,12,.6)'; g2.fillRect(px2(burntB.x0-1+rng()*(burntB.x1-burntB.x0+2)),px2(burntB.z0-1+rng()*(burntB.z1-burntB.z0+2)),3+rng()*5,2+rng()*4); } }
+    // carcaça queimada: chamuscado
+    { const rg=g2.createRadialGradient(px2(35.3),px2(17.8),4,px2(35.3),px2(17.8),TPX*2.6);
+      rg.addColorStop(0,'rgba(12,10,8,.7)'); rg.addColorStop(1,'rgba(12,10,8,0)');
+      g2.fillStyle=rg; g2.beginPath(); g2.arc(px2(35.3),px2(17.8),TPX*2.6,0,6.29); g2.fill(); }
+    // sangue: poças sob corpos + arrastões antigos
+    bloodSpots.forEach(bs=>{ g2.fillStyle='rgba(96,16,10,.6)';
+      g2.beginPath(); g2.ellipse(px2(bs.x),px2(bs.z),TPX*0.55*bs.s,TPX*0.4*bs.s,rng(),0,6.29); g2.fill();
+      for(let i=0;i<5;i++){ g2.fillStyle='rgba(96,16,10,.4)';
+        g2.fillRect(px2(bs.x)+(rng()-0.5)*TPX*1.6, px2(bs.z)+(rng()-0.5)*TPX*1.4, 2+rng()*4, 2+rng()*3); } });
+    [[30,32.4,33,32.4],[12,38.2,10.5,40.2],[44.5,38,45,41]].forEach(([xa,za,xb,zb])=>{
+      g2.strokeStyle='rgba(90,14,8,.35)'; g2.lineWidth=5;
+      g2.beginPath(); g2.moveTo(px2(xa),px2(za)); g2.lineTo(px2(xb),px2(zb)); g2.stroke(); });
     const gtex=new THREE.CanvasTexture(gc); gtex.magFilter=THREE.NearestFilter; gtex.minFilter=THREE.LinearMipMapLinearFilter; gtex.anisotropy=4;
     const gp=new THREE.Mesh(new THREE.PlaneGeometry(W,W), new THREE.MeshLambertMaterial({map:gtex}));
     gp.rotation.x=-Math.PI/2; gp.position.set(W/2,0,W/2); gp.receiveShadow=true; scene.add(gp);

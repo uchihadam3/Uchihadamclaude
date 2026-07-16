@@ -15,7 +15,7 @@ let renderer, scene, camera, sun, hemi, playerLight;
 let player=null, zombies=[], bloodPool=[], corpseLoots=[];
 let running=false, dead=false, sleeping=false, frame=0;
 let gameMin=7*60+30;
-const CAMDIR=new THREE.Vector3(1,1.15,1).normalize();
+const CAMDIR=new THREE.Vector3(1,1.46,1).normalize();   // câmera mais alta, ângulo PZ
 const ZOOM=9;
 const clock=new THREE.Clock();
 const camPos=new THREE.Vector3();
@@ -119,10 +119,12 @@ function spawnZombies(fromSave){
     const pal=CHARS.randomPal(WORLD.rng,true);
     const rig=CHARS.build(pal);
     rig.group.position.set(s.x,0,s.z); scene.add(rig.group);
+    const sprinter=WORLD.rng()<0.06;                       // raros "recém-virados" mais rápidos
     zombies.push({ x:s.x,z:s.z, hp:s.hp!=null?s.hp:60+WORLD.rng()*50, dead:s.hp<=0,
       crawler:!!s.crawler, downed:0, state:s.state||'wander', mem:null, dir:Math.random()*6.28,
-      speed:(0.42+WORLD.rng()*0.3)*(s.crawler?0.55:1), chaseSpeed:(1.5+WORLD.rng()*1.15)*(s.crawler?0.4:1),
-      rig, attackCd:0, stagger:0, wanderT:2+WORLD.rng()*6, pause:WORLD.rng()<0.5,
+      speed:(0.4+WORLD.rng()*0.28)*(s.crawler?0.55:1),
+      chaseSpeed:(sprinter?2.2:1.05+WORLD.rng()*0.75)*(s.crawler?0.45:1),
+      rig, attackCd:0, stagger:0, lunge:0, wanderT:2+WORLD.rng()*6, pause:WORLD.rng()<0.5,
       groanT:WORLD.rng()*10, thumpT:0, climb:0, climbTo:null });
     if(s.hp<=0){ zombies[zombies.length-1].dead=true; }
   });
@@ -167,13 +169,31 @@ function updateZombie(zb,dt,idx){
       if(zb.memT<=0){ zb.state='investigate'; }
     }
   }
-  if(zb.stagger>0){ zb.rig.group.position.set(zb.x,0,zb.z); return; }
+  if(zb.stagger>0){ zb.lunge=0; zb.rig.group.position.set(zb.x,0,zb.z); return; }
+  // AGARRÃO (aviso): o zumbi arma o bote — dá tempo de reagir (empurrar/recuar)
+  if(zb.lunge>0&&!dead){
+    zb.lunge-=dt;
+    const a=Math.atan2(p.x-zb.x,p.z-zb.z); zb.dir=a;
+    const drift=zb.crawler?0.9:0.55;                     // avança devagar durante o bote
+    const [lx,lz]=WORLD.moveCircle(zb.x,zb.z,zb.x+Math.sin(a)*drift*dt,zb.z+Math.cos(a)*drift*dt,0.3);
+    zb.x=lx; zb.z=lz;
+    CHARS.pose(zb.rig,dt,{act:'lunge',actP:1-zb.lunge/zb.lungeDur,zombie:true,speed:0,crawler:zb.crawler});
+    zb.rig.group.position.set(zb.x,0,zb.z); zb.rig.group.rotation.y=zb.dir;
+    if(zb.lunge<=0){
+      zb.attackCd=1.7+Math.random()*0.7;
+      const d2=Math.hypot(p.x-zb.x,p.z-zb.z);
+      if(d2<1.25) zombieAttack(zb);                      // só acerta se você ficou perto
+    }
+    return;
+  }
   let vx=0,vz=0,sp=0;
   const chasing=zb.state==='chase';
   if(chasing&&!dead){
     const d=Math.hypot(p.x-zb.x,p.z-zb.z);
     zb.mem={x:p.x,z:p.z};
-    if(d<0.95){ if(zb.attackCd<=0){ zb.attackCd=1.5; zombieAttack(zb); } }
+    if(d<(zb.crawler?1.5:1.1)){
+      if(zb.attackCd<=0){ zb.lungeDur=zb.crawler?0.55:0.75; zb.lunge=zb.lungeDur; AU.growl(0.8); }
+    }
     else { sp=zb.chaseSpeed; const a=Math.atan2(p.x-zb.x,p.z-zb.z); zb.dir=a; vx=Math.sin(a)*sp; vz=Math.cos(a)*sp; }
   } else if(zb.state==='breach'){
     const tgt=zb.breach;
@@ -266,8 +286,8 @@ function zombieAttack(zb){
   redFlashT=0.5; blood(player.x,1.1,player.z); splat(player.x,player.z,0.5);
   if(player.hp<=0) die('Devorado pelos mortos.');
 }
-function damageZombie(zb,dmg,fromX,fromZ,knockCh){
-  const crit=Math.random()<0.08+skill('corpo')*0.03;
+function damageZombie(zb,dmg,fromX,fromZ,knockCh,critB){
+  const crit=Math.random()<0.08+skill('corpo')*0.03+(critB||0);
   if(crit){ dmg*=1.8; AU.crit(); } else AU.hit();
   zb.hp-=dmg; zb.stagger=0.4;
   const kb=0.5, dx=zb.x-fromX, dz=zb.z-fromZ, d=Math.hypot(dx,dz)||1;
@@ -340,7 +360,7 @@ function updateDayNight(dt){
   sun.position.set(player.x+Math.sin(sa)*20, 14+elev*16, player.z+8+Math.cos(sa)*6);
   sun.target.position.set(player.x,0,player.z); sun.target.updateMatrixWorld();
   let amb, bg;
-  if(sunUp){ amb=0.55+elev*0.25; hemi.color.setHex(0xbfd4e8); hemi.groundColor.setHex(0x6a6a58); bg=new THREE.Color().setHSL(0.58,0.3,0.12+elev*0.05); }
+  if(sunUp){ amb=0.5+elev*0.22; hemi.color.setHex(0xb4c8d8); hemi.groundColor.setHex(0x5e5e50); bg=new THREE.Color().setHSL(0.56,0.22,0.11+elev*0.045); }
   else { amb=0.15; hemi.color.setHex(0x24304a); hemi.groundColor.setHex(0x141820); bg=new THREE.Color('#05070d'); }
   const dusk=(h>=18&&h<19.5)||(h>=5&&h<6);
   if(dusk){ amb=0.3; hemi.color.setHex(0x6a5a68); bg=new THREE.Color('#1a1220'); }
@@ -515,13 +535,24 @@ function doAttack(){
     return;
   }
   const wep=p.weapon? ITEMS[p.weapon.id]:null;
+  const stab=wep&&wep.stab;
   p.attackCd=(wep? wep.spd:0.55)*(p.endurance<18?1.4:1);
-  AU.swing(); playerAct('swing',0.34);
-  p.endurance=Math.max(0,p.endurance-(wep? 4+wep.kg*2 : 3)*(1-skill('aptidao')*0.05));
-  emitNoise(p.x,p.z,wep?10:6);
+  AU.swing(); playerAct(stab?'stab':'swing',stab?0.26:0.34);
+  p.endurance=Math.max(0,p.endurance-(wep? (stab?2.5:4+wep.kg*2) : 3)*(1-skill('aptidao')*0.05));
+  emitNoise(p.x,p.z,wep?(stab?4:10):6);
   const exhausted=p.endurance<18;
   let hit=false;
-  zombies.forEach(zb=>{ if(zb.dead)return;
+  if(stab){ // FACA: estocada rápida num único alvo à frente (alta chance de crítico)
+    let best=null,bd=1.45;
+    zombies.forEach(zb=>{ if(zb.dead)return;
+      const d=Math.hypot(zb.x-p.x,zb.z-p.z); if(d>bd)return;
+      const a=Math.atan2(zb.x-p.x,zb.z-p.z);
+      let dA=Math.abs(a-p.facing); if(dA>Math.PI)dA=6.283-dA;
+      if(dA<0.8){ bd=d; best=zb; } });
+    if(best){ let dmg=wep.dmg[0]+Math.random()*(wep.dmg[1]-wep.dmg[0]);
+      dmg*=(1+skill('forca')*0.06); if(exhausted)dmg*=0.55;
+      damageZombie(best,dmg,p.x,p.z,0.02,0.22); hit=true; }
+  } else zombies.forEach(zb=>{ if(zb.dead)return;
     const d=Math.hypot(zb.x-p.x,zb.z-p.z); if(d>1.8) return;
     const a=Math.atan2(zb.x-p.x,zb.z-p.z);
     let dA=Math.abs(a-p.facing); if(dA>Math.PI)dA=6.283-dA;
