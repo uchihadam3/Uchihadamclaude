@@ -465,13 +465,29 @@
   .tgtGo{margin-top:8px;text-align:center;background:linear-gradient(180deg,#c99a34,#a67c22);color:#100c04;font-weight:bold;
     letter-spacing:2px;border-radius:7px;padding:11px;font-size:14px;cursor:pointer;box-shadow:0 3px 0 #6a4f14;}
   .tgtGo:active{transform:translateY(2px);box-shadow:0 1px 0 #6a4f14;}
-  #bsub .subhead{font-size:12px;color:var(--acc);letter-spacing:2px;padding:4px 6px 8px;display:flex;justify-content:space-between;}
-  #bsub .subhead .back{color:var(--dim);cursor:pointer;}
-  .subitem{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border:1px solid #2a2517;border-radius:5px;
-    margin-bottom:5px;background:linear-gradient(180deg,#141109,#0b0906);cursor:pointer;}
-  .subitem:hover{border-color:var(--acc);} .subitem.dis{opacity:.4;pointer-events:none;}
-  .subitem .si-name{font-size:13px;font-weight:bold;} .subitem .si-desc{font-size:10.5px;color:var(--dim);margin-top:2px;letter-spacing:0;}
-  .subitem .si-cost{font-size:11px;color:var(--mp);font-weight:bold;white-space:nowrap;} .subitem .si-cost.res{color:var(--gold);}
+  #bsub .subhead{font-size:13px;color:var(--gold);letter-spacing:3px;font-weight:bold;padding:2px 4px 10px;display:flex;justify-content:space-between;align-items:center;font-family:'Cinzel','Rubik',serif;}
+  #bsub .subhead .back{color:#d0af6e;cursor:pointer;border:1.5px solid #4a3f22;border-radius:7px;padding:5px 12px;font-size:11px;letter-spacing:1px;font-family:'Rubik',sans-serif;}
+  #bsub .subhead .back:hover{border-color:var(--gold);color:var(--gold);}
+  /* grade de habilidades/itens gamificada */
+  .skGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:8px;}
+  .subEmpty{color:#8a8168;font-style:italic;padding:16px;text-align:center;}
+  .skcard{position:relative;display:flex;align-items:center;gap:10px;text-align:left;cursor:pointer;color:var(--ink);font-family:inherit;
+    background:linear-gradient(180deg,#181309,#0c0a06);border:1.5px solid #33301f;border-left:3px solid var(--skc,#c8a44a);
+    border-radius:11px;padding:9px 11px;transition:.13s;box-shadow:0 2px 6px rgba(0,0,0,.4);overflow:hidden;}
+  .skcard::before{content:'';position:absolute;inset:0;background:radial-gradient(120% 100% at 0% 0%,color-mix(in srgb,var(--skc) 22%,transparent),transparent 60%);pointer-events:none;}
+  .skcard:hover{border-color:var(--skc);transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.5),0 0 12px color-mix(in srgb,var(--skc) 35%,transparent);}
+  .skcard:active{transform:translateY(0);}
+  .skcard.dis{opacity:.42;pointer-events:none;filter:grayscale(.5);}
+  .sk-ic{flex:none;width:40px;height:40px;display:grid;place-items:center;font-size:21px;border-radius:9px;z-index:1;
+    background:radial-gradient(circle at 40% 32%,color-mix(in srgb,var(--skc) 30%,#141009),#0c0a06);
+    border:1.5px solid color-mix(in srgb,var(--skc) 55%,#33301f);box-shadow:0 0 10px color-mix(in srgb,var(--skc) 25%,transparent);}
+  .sk-body{flex:1;min-width:0;z-index:1;display:flex;flex-direction:column;gap:1px;}
+  .sk-name{font-size:13.5px;font-weight:700;color:#f2e8cc;letter-spacing:.3px;}
+  .sk-desc{font-size:10px;color:#9a9078;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .sk-tag{font-size:9px;color:var(--skc);font-weight:700;letter-spacing:.5px;margin-top:2px;text-transform:uppercase;opacity:.9;}
+  .sk-cost{flex:none;z-index:1;text-align:center;min-width:34px;color:var(--mp);}
+  .sk-cost b{font-size:15px;font-weight:800;display:block;line-height:1;} .sk-cost small{font-size:8px;color:#6f83a8;letter-spacing:.5px;}
+  .sk-cost.free{color:var(--gold);font-size:17px;} .sk-cost.qty{color:var(--gold);font-size:14px;font-weight:800;}
   .tgtDot{position:absolute;transform:translate(-50%,-50%);z-index:8;pointer-events:auto;cursor:pointer;
     font-size:22px;color:var(--gold);text-shadow:0 0 8px #000;animation:bob .7s infinite alternate;}
   @keyframes bob{to{transform:translate(-50%,-64%);}}

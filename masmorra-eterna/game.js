@@ -940,18 +940,26 @@ function tryFlee(c){
     finishTurn();                                  // fuga falhou = turno perdido
   }
 }
+function skIcon(sk){ if(sk.kind==='heal')return '💚'; if(sk.kind==='revive')return '🪶'; if(sk.kind==='cure')return '✚'; if(sk.kind==='buff'||sk.type==='buff')return '⤴'; if(sk.kind==='util')return '🔍'; return ELEM[sk.type]||'⚔'; }
+function skColor(sk){ if(sk.kind==='heal'||sk.kind==='revive')return '#5fce6a'; if(sk.kind==='cure')return '#6fd0c2'; if(sk.kind==='buff'||sk.type==='buff')return '#e8c15a'; if(sk.kind==='util')return '#8fb4e0'; return ELCOL[sk.type]||'#c8a44a'; }
+function skTag(sk){ if(sk.target==='allEnemy')return 'todos os inimigos'; if(sk.target==='allAlly')return 'todo o grupo'; if(sk.target==='ally')return 'aliado'; if(sk.hits>1)return sk.hits+'× golpes'; return ''; }
 function openSub(c,ids,label){
   const s=$('#bsub'); s.classList.add('on'); $('#bmenu').classList.remove('on'); clearTargets();
   let html=`<div class="subhead"><span>${label}</span><span class="back" data-back>‹ voltar</span></div>`;
-  if(!ids.length)html+=`<div style="color:#888;padding:12px">Nada disponível.</div>`;
-  for(const id of ids){ const sk=SKILLS[id]; const afford=c.mp>=(sk.mp||0);
-    const cost=sk.mp?`<span class="si-cost">${sk.mp} MP</span>`:`<span class="si-cost res">—</span>`;
-    html+=`<div class="subitem ${afford?'':'dis'}" data-sk="${id}">
-      <div><div class="si-name">${sk.type?ELEM[sk.type]+' ':''}${sk.name}</div><div class="si-desc">${sk.desc}</div></div>${cost}</div>`;
+  if(!ids.length)html+=`<div class="subEmpty">Nada disponível.</div>`;
+  else{ html+=`<div class="skGrid">`;
+    for(const id of ids){ const sk=SKILLS[id]; const afford=c.mp>=(sk.mp||0); const col=skColor(sk); const tag=skTag(sk);
+      const cost=sk.mp?`<span class="sk-cost"><b>${sk.mp}</b><small>MP</small></span>`:`<span class="sk-cost free">✦</span>`;
+      html+=`<button class="skcard ${afford?'':'dis'}" data-sk="${id}" style="--skc:${col}">
+        <span class="sk-ic">${skIcon(sk)}</span>
+        <span class="sk-body"><span class="sk-name">${sk.name}</span><span class="sk-desc">${sk.desc}</span>${tag?`<span class="sk-tag">${tag}</span>`:''}</span>
+        ${cost}</button>`;
+    }
+    html+=`</div>`;
   }
   s.innerHTML=html;
   s.querySelector('[data-back]').onclick=()=>{SFX.back();showActionMenu(c);};
-  s.querySelectorAll('.subitem').forEach(el=>{ if(el.classList.contains('dis'))return;
+  s.querySelectorAll('.skcard').forEach(el=>{ if(el.classList.contains('dis'))return;
     el.onclick=()=>{ SFX.ui(); onSkill(c,el.dataset.sk); }; });
 }
 function onSkill(c,id){ const sk=SKILLS[id];
@@ -1443,13 +1451,21 @@ function openItems(c){
   const s=$('#bsub'); s.classList.add('on');
   let html=`<div class="subhead"><span>ITENS</span><span class="back" data-back>‹ voltar</span></div>`;
   const ids=Object.keys(G.inv).filter(id=>G.inv[id]>0 && ITEMS[id] && ['heal','mp','revive','cure','atk'].includes(ITEMS[id].use));
-  if(!ids.length)html+=`<div style="color:#888;padding:12px">Sem itens usáveis.</div>`;
-  for(const id of ids){ const it=ITEMS[id];
-    html+=`<div class="subitem" data-it="${id}"><div><div class="si-name">${it.name} ×${G.inv[id]}</div><div class="si-desc">${it.desc}</div></div></div>`;
+  const ico={heal:'🌿',mp:'🔷',cure:'✚',revive:'🪶',atk:'💥'};
+  const col={heal:'#5fce6a',mp:'#5aa8ff',cure:'#6fd0c2',revive:'#e0c060',atk:'#ff7a4a'};
+  if(!ids.length)html+=`<div class="subEmpty">Sem itens usáveis.</div>`;
+  else{ html+=`<div class="skGrid">`;
+    for(const id of ids){ const it=ITEMS[id];
+      html+=`<button class="skcard" data-it="${id}" style="--skc:${col[it.use]||'#c8a44a'}">
+        <span class="sk-ic">${ico[it.use]||'🎒'}</span>
+        <span class="sk-body"><span class="sk-name">${it.name}</span><span class="sk-desc">${it.desc}</span></span>
+        <span class="sk-cost qty">×${G.inv[id]}</span></button>`;
+    }
+    html+=`</div>`;
   }
   s.innerHTML=html;
   s.querySelector('[data-back]').onclick=()=>{SFX.back();showActionMenu(c);};
-  s.querySelectorAll('.subitem').forEach(el=>el.onclick=()=>{ SFX.ui(); useItemCombat(c,el.dataset.it); });
+  s.querySelectorAll('.skcard').forEach(el=>el.onclick=()=>{ SFX.ui(); useItemCombat(c,el.dataset.it); });
 }
 function useItemCombat(c,id){ const it=ITEMS[id];
   if(it.target==='allEnemy'){ G.inv[id]--; (async()=>{ for(const e of enemiesAlive()){applyHit(c,e,{type:it.type,power:it.pow,magic:true});await wait(120);} blog(c.name+' usa '+it.name+'!'); markDirty(); await wait(300); finishTurn(); })(); return; }
