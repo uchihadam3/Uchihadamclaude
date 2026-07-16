@@ -34,6 +34,7 @@ import mercadoraUrl from "../assets/npc/mercadora.png";
 import ferreiroUrl from "../assets/npc/ferreiro.png";
 import alquimistaUrl from "../assets/npc/alquimista.png";
 import pipUrl from "../assets/npc/pip.png";
+import wilmaUrl from "../assets/npc/wilma.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -214,6 +215,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
 // importá-la e mapear o id aqui — o resto já está pronto.
 const VILLAGER_ART: Record<string, string> = {
   pip: pipUrl,
+  wilma: wilmaUrl,
 };
 
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
