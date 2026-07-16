@@ -11,7 +11,7 @@ export type Action =
 
 export interface HUD {
   setPrompt(text: string | null): void;
-  showDialogue(name: string, text: string): void;
+  showDialogue(name: string, text: string, portrait?: string | null): void;
   hideDialogue(): void;
 }
 
@@ -111,7 +111,12 @@ export function setupControls(
   dlg.id = "gh-dialogue";
   dlg.style.display = "none";
   dlg.innerHTML =
-    '<div class="gh-dlg-name"></div><div class="gh-dlg-text"></div><div class="gh-dlg-hint">toque para continuar ▸</div>';
+    '<img class="gh-dlg-portrait" alt="" />' +
+    '<div class="gh-dlg-body">' +
+    '<div class="gh-dlg-name"></div>' +
+    '<div class="gh-dlg-text"></div>' +
+    '<div class="gh-dlg-hint">toque para continuar ▸</div>' +
+    "</div>";
   dlg.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     onAction("interact");
@@ -119,6 +124,7 @@ export function setupControls(
   pad.appendChild(dlg);
   const dlgName = dlg.querySelector(".gh-dlg-name") as HTMLElement;
   const dlgText = dlg.querySelector(".gh-dlg-text") as HTMLElement;
+  const dlgPortrait = dlg.querySelector(".gh-dlg-portrait") as HTMLImageElement;
 
   injectStyle();
 
@@ -133,10 +139,17 @@ export function setupControls(
         act.classList.remove("gh-act-on");
       }
     },
-    showDialogue(name: string, text: string) {
+    showDialogue(name: string, text: string, portrait?: string | null) {
       dlgName.textContent = name;
       dlgText.textContent = text;
-      dlg.style.display = "block";
+      if (portrait) {
+        dlgPortrait.src = portrait;
+        dlgPortrait.style.display = "block";
+      } else {
+        dlgPortrait.removeAttribute("src");
+        dlgPortrait.style.display = "none";
+      }
+      dlg.style.display = "flex";
       prompt.style.display = "none";
     },
     hideDialogue() {
@@ -191,11 +204,19 @@ function injectStyle() {
   #gh-dialogue {
     pointer-events:auto; position:absolute; left:50%; transform:translateX(-50%);
     bottom:110px; width:min(560px,88%);
+    display:flex; align-items:stretch; gap:12px;
     background:rgba(18,14,9,0.92); color:#ece0c4;
     border:2px solid rgba(201,162,39,0.6); border-radius:12px;
     padding:12px 16px 10px; box-shadow:0 6px 22px rgba(0,0,0,0.6);
     cursor:pointer; touch-action:none;
   }
+  .gh-dlg-portrait {
+    flex:0 0 auto; width:64px; height:64px; border-radius:9px; object-fit:cover;
+    object-position:top center; background:rgba(0,0,0,0.35);
+    border:2px solid rgba(201,162,39,0.6);
+    image-rendering:auto; align-self:flex-start;
+  }
+  .gh-dlg-body { flex:1 1 auto; min-width:0; }
   .gh-dlg-name { color:#f0c040; font-weight:bold; font-size:15px; margin-bottom:4px; }
   .gh-dlg-text { font-size:16px; line-height:1.35; }
   .gh-dlg-hint { text-align:right; font-size:12px; color:#a8966a; margin-top:6px; }

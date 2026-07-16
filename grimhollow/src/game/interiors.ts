@@ -26,37 +26,37 @@ export interface EstabInfo {
 export const ESTAB: Record<Estab, EstabInfo> = {
   tavern: {
     name: "TAVERNA",
-    npc: "Taverneiro",
+    npc: "Bruno, o Taverneiro",
     seed: 11,
     lines: [
-      "Bem-vindo à Taverna do Javali!",
+      "Bem-vindo à Taverna do Javali! Eu sou o Bruno.",
       "Sente-se e descanse — logo você poderá pagar por um quarto e recuperar as forças.",
     ],
   },
   store: {
     name: "MERCADOR",
-    npc: "Mercadora",
+    npc: "Rosa, a Mercadora",
     seed: 2,
     lines: [
-      "Tenho de tudo um pouco, aventureiro.",
+      "Tenho de tudo um pouco, aventureiro. Sou a Rosa.",
       "Em breve abriremos o comércio: poções, cordas, tochas e mais.",
     ],
   },
   smith: {
     name: "FERREIRO",
-    npc: "Ferreiro",
+    npc: "Brandt, o Ferreiro",
     seed: 23,
     lines: [
-      "O fogo está quente e a bigorna, pronta.",
+      "O fogo está quente e a bigorna, pronta. Brandt, ao seu dispor.",
       "Traga minério e ouro que eu aprimoro suas armas e armaduras.",
     ],
   },
   alchemist: {
     name: "ALQUIMISTA",
-    npc: "Alquimista",
+    npc: "Isolde, a Alquimista",
     seed: 31,
     lines: [
-      "Cuidado com o que respira aqui dentro...",
+      "Cuidado com o que respira aqui dentro... sou Isolde.",
       "Elixires e poções logo estarão à venda na minha bancada.",
     ],
   },
