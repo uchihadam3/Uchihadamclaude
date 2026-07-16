@@ -38,7 +38,7 @@ import wilmaUrl from "../assets/npc/wilma.png";
 import fazendeiroUrl from "../assets/npc/fazendeiro.png";
 import camponesaUrl from "../assets/npc/camponesa.png";
 import lenhadorUrl from "../assets/npc/lenhador.png";
-import heddaAnimUrl from "../assets/npc/hedda_anim.png";
+import heddaUrl from "../assets/npc/hedda.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -230,12 +230,11 @@ const VILLAGER_ART: Record<string, string> = {
   alard: fazendeiroUrl,
   elspeth: camponesaUrl,
   corvin: lenhadorUrl,
+  hedda: heddaUrl,
 };
 
 // aldeões animados por sprite-sheet (id -> tira com N quadros, alinhados).
-const VILLAGER_ANIM: Record<string, { url: string; frames: number; fps: number }> = {
-  hedda: { url: heddaAnimUrl, frames: 4, fps: 4 },
-};
+const VILLAGER_ANIM: Record<string, { url: string; frames: number; fps: number }> = {};
 
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
 // Falas maiores são quebradas em várias páginas ("…" e o jogador continua).
