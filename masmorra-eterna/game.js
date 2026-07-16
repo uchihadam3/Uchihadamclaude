@@ -720,9 +720,9 @@ const BEST={
 };
 // dificuldade — inimigos mais resistentes (HP) e mais fortes (ATK/MAG)
 // NORMAL_HP_EXTRA: HP a mais SÓ para inimigos comuns (chefes já estão no ponto)
-const ENEMY_HP_MUL=1.55, ENEMY_ATK_MUL=1.4, NORMAL_HP_EXTRA=1.5;
+const ENEMY_HP_MUL=1.55, ENEMY_ATK_MUL=1.72, NORMAL_HP_EXTRA=1.85;
 function mkEnemy(key,lvBoost,opts){ opts=opts||{};
-  const b=BEST[key], dep=opts.depthAs||G.depth||1, lv=dep+(lvBoost||0), sc=1+(dep-1)*0.15;
+  const b=BEST[key], dep=opts.depthAs||G.depth||1, lv=dep+(lvBoost||0), sc=1+(dep-1)*0.17;
   const e={ key, side:'enemy', name:b.name, spr:b.spr, boss:!!b.boss, undead:!!b.undead,
     mhp:Math.round(b.hp*sc*ENEMY_HP_MUL), hp:Math.round(b.hp*sc*ENEMY_HP_MUL),
     atk:Math.round(b.atk*sc*ENEMY_ATK_MUL), mag:Math.round(b.mag*sc*ENEMY_ATK_MUL), def:Math.round(b.def*sc), res:Math.round(b.res*sc),
@@ -733,7 +733,7 @@ function mkEnemy(key,lvBoost,opts){ opts=opts||{};
     status:{}, alive:true, scanned:false, discovered:new Set(),
     sx:0,sy:0,scale:1, hitFlash:0, bob:Math.random()*6 };
   if(b.boss){ // chefes são PAREDES: muito mais HP e ataque que sobe com a profundidade (suave cedo, forte tarde) — Parte 11
-    const atkM=1.28+(dep-1)*0.03; e.mhp=Math.round(e.mhp*1.7); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
+    const atkM=1.45+(dep-1)*0.035; e.mhp=Math.round(e.mhp*2.05); e.hp=e.mhp; e.atk=Math.round(e.atk*atkM); e.mag=Math.round(e.mag*atkM); }
   else { e.mhp=Math.round(e.mhp*NORMAL_HP_EXTRA); e.hp=e.mhp; } // inimigos comuns mais resistentes (aguentam mais golpes)
   if(!b.boss && !opts.noElite && chance(eliteChance(dep))) makeElite(e);
   return e;
