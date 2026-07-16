@@ -87,6 +87,7 @@ interface VillageNPC {
   name: string;
   lines: string[];
   scale?: number; // altura relativa (ex.: crianças ~0.7)
+  patrol?: [number, number][]; // células adjacentes que o NPC percorre (ping-pong)
 }
 const VILLAGE_NPCS: VillageNPC[] = [
   {
@@ -140,6 +141,12 @@ const VILLAGE_NPCS: VillageNPC[] = [
     c: 5,
     r: 9,
     seed: 8,
+    patrol: [
+      [5, 9],
+      [6, 9],
+      [7, 9],
+      [8, 9],
+    ],
     name: "Hedda, a Matriarca",
     lines: [
       "Cuide-se por aí, meu jovem. Falta água, deixe-me encher o jarro.",
@@ -319,6 +326,21 @@ export class Game {
   private _shadowTex?: THREE.Texture; // sombra de contato dos NPCs (gerada uma vez)
   // texturas de sprite-sheet que animam por UV (offset.x avança pelos quadros)
   private animTex: { tex: THREE.Texture; frames: number; fps: number }[] = [];
+  // NPCs que caminham por uma rota (patrulha)
+  private walkers: {
+    mesh: THREE.Mesh;
+    shadow: THREE.Mesh;
+    baseY: number;
+    path: { c: number; r: number }[];
+    idx: number;
+    dirn: number;
+    key: string; // célula atual no npcMap/blocked
+    moving: boolean;
+    t0: number;
+    from: { c: number; r: number };
+    to: { c: number; r: number };
+    waitUntil: number;
+  }[] = [];
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -391,6 +413,7 @@ export class Game {
     this.npcs = [];
     this.flames = [];
     this.animTex = [];
+    this.walkers = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
     this.npcMap.clear();
@@ -879,6 +902,7 @@ export class Game {
     artUrl?: string,
     scale = 1,
     anim?: { frames: number; fps: number },
+    patrol?: [number, number][],
   ) {
     const proc = tex.villager(seed);
     const hasArt = !!artUrl;
@@ -914,7 +938,16 @@ export class Game {
     this.npcs.push(npc);
     this.blocked.add(`${c},${r}`);
     const key = `${c},${r}`;
-    this.npcMap.set(key, { name, lines, tex: proc, art: false });
+    // guarda a REFERÊNCIA da entrada (walkers movem esse objeto entre células)
+    const entry = {
+      name,
+      lines,
+      tex: proc as THREE.Texture,
+      art: false,
+      frames: 1 as number,
+      portrait: undefined as string | null | undefined,
+    };
+    this.npcMap.set(key, entry);
     if (artUrl) {
       this.loadArt(artUrl, (t) => {
         if (anim) {
@@ -925,13 +958,27 @@ export class Game {
         }
         mat.map = t;
         mat.needsUpdate = true;
-        const e = this.npcMap.get(key);
-        if (e) {
-          e.tex = t;
-          e.art = true;
-          e.frames = anim?.frames ?? 1;
-          e.portrait = undefined; // regenera o retrato a partir da arte
-        }
+        entry.tex = t;
+        entry.art = true;
+        entry.frames = anim?.frames ?? 1;
+        entry.portrait = undefined; // regenera o retrato a partir da arte
+      });
+    }
+    // patrulha: registra um "walker" que caminha pela rota
+    if (patrol && patrol.length > 1) {
+      this.walkers.push({
+        mesh: npc,
+        shadow,
+        baseY: y,
+        path: patrol.map(([pc, pr]) => ({ c: pc, r: pr })),
+        idx: 0,
+        dirn: 1,
+        key,
+        moving: false,
+        t0: 0,
+        from: { c, r },
+        to: { c, r },
+        waitUntil: 0,
       });
     }
   }
@@ -999,6 +1046,7 @@ export class Game {
         url,
         v.scale ?? 1,
         anim ? { frames: anim.frames, fps: anim.fps } : undefined,
+        v.patrol,
       );
     }
   }
@@ -1655,6 +1703,56 @@ export class Game {
     this.row = nr;
   }
 
+  // NPCs em patrulha caminham célula a célula (com colisão e ping-pong)
+  private updateWalkers(now: number) {
+    if (this.dialogue) return; // parados durante o diálogo
+    const WALK_MS = 900;
+    for (const w of this.walkers) {
+      if (w.moving) {
+        const p = Math.min(1, (now - w.t0) / WALK_MS);
+        const e = p * p * (3 - 2 * p);
+        const x = (w.from.c + (w.to.c - w.from.c) * e) * CELL;
+        const z = (w.from.r + (w.to.r - w.from.r) * e) * CELL;
+        w.mesh.position.x = x;
+        w.mesh.position.z = z;
+        w.mesh.position.y = w.baseY + Math.sin(p * Math.PI) * 0.05; // leve balanço
+        w.shadow.position.x = x;
+        w.shadow.position.z = z;
+        if (p >= 1) {
+          w.moving = false;
+          w.mesh.position.y = w.baseY;
+          this.blocked.delete(`${w.from.c},${w.from.r}`); // libera a origem
+          w.waitUntil = now + 350;
+        }
+      } else if (now >= w.waitUntil) {
+        let ni = w.idx + w.dirn;
+        if (ni < 0 || ni >= w.path.length) {
+          w.dirn *= -1;
+          ni = w.idx + w.dirn;
+        }
+        const to = w.path[ni];
+        const tk = `${to.c},${to.r}`;
+        // não caminha p/ a célula do jogador nem p/ célula ocupada por outro
+        if ((to.c === this.col && to.r === this.row) || this.blocked.has(tk)) {
+          w.waitUntil = now + 400;
+          continue;
+        }
+        this.blocked.add(tk); // reserva o destino (origem segue bloqueada no passo)
+        const entry = this.npcMap.get(w.key);
+        if (entry) {
+          this.npcMap.delete(w.key);
+          this.npcMap.set(tk, entry);
+        }
+        w.from = w.path[w.idx];
+        w.to = to;
+        w.idx = ni;
+        w.key = tk;
+        w.moving = true;
+        w.t0 = now;
+      }
+    }
+  }
+
   private tick(now: number) {
     const an = this.anim;
     if (an) {
@@ -1687,6 +1785,8 @@ export class Game {
     // sprite-sheets animam (avança o quadro por UV)
     for (const a of this.animTex)
       a.tex.offset.x = (Math.floor((now / 1000) * a.fps) % a.frames) / a.frames;
+    // NPCs que caminham
+    this.updateWalkers(now);
     // água do poço cintila suavemente
     if (this.waterGlint) {
       const m = this.waterGlint.material as THREE.MeshBasicMaterial;
