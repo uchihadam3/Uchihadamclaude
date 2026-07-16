@@ -938,66 +938,140 @@ export function dirtPath(seed = 63): THREE.Texture {
 }
 
 // -------- pinheiro (sprite p/ planos cruzados) --------
+// Silhueta de abeto densa: base escura (contorno), camadas frontais iluminadas,
+// galhos caídos e textura de agulhas. Neve leve só em alguns (a neblina domina).
 export function pineTree(seed = 65): THREE.Texture {
   const W = 128;
-  const H = 256;
+  const H = 300;
   const { c, ctx } = makeCanvas(W, H);
   ctx.clearRect(0, 0, W, H);
   const r = rnd(seed);
   const cx = W / 2;
-  const snow = r() < 0.5; // metade dos pinheiros com neve nas pontas
-  // tronco
-  const trunkW = 12;
-  const trunkTop = H * 0.82;
-  const tg = ctx.createLinearGradient(cx - trunkW, 0, cx + trunkW, 0);
-  tg.addColorStop(0, "#3a2716");
-  tg.addColorStop(0.5, "#5c3f22");
-  tg.addColorStop(1, "#2e1e10");
+  const snow = r() < 0.35;
+  const hueShift = (r() - 0.5) * 12; // varia o verde entre árvores
+  // tronco levemente cônico
+  const trunkTop = H * 0.8;
+  ctx.beginPath();
+  ctx.moveTo(cx - 8, H);
+  ctx.lineTo(cx - 5, trunkTop);
+  ctx.lineTo(cx + 5, trunkTop);
+  ctx.lineTo(cx + 8, H);
+  ctx.closePath();
+  const tg = ctx.createLinearGradient(cx - 8, 0, cx + 8, 0);
+  tg.addColorStop(0, "#2a1c0f");
+  tg.addColorStop(0.5, "#553a20");
+  tg.addColorStop(1, "#20150a");
   ctx.fillStyle = tg;
-  ctx.fillRect(cx - trunkW / 2, trunkTop, trunkW, H - trunkTop);
-  // copa em camadas (triângulos sobrepostos)
-  const tiers = 5;
-  const topY = H * 0.06;
-  const botY = H * 0.86;
+  ctx.fill();
+
+  const tiers = 7;
+  const topY = H * 0.04;
+  const botY = H * 0.84;
+  // 1) silhueta escura de trás (dá contorno e volume)
   for (let t = 0; t < tiers; t++) {
     const f = t / (tiers - 1);
     const y = topY + (botY - topY) * f;
-    const halfW = 14 + f * (W * 0.42);
-    const tierH = (botY - topY) / tiers * 1.9;
-    const green = 60 + Math.floor(r() * 24);
-    // sombra da camada
-    ctx.fillStyle = `rgb(${(green * 0.5) | 0},${(green * 0.85) | 0},${(green * 0.5) | 0})`;
+    const halfW = 10 + f * (W * 0.46);
+    const tierH = ((botY - topY) / tiers) * 2.1;
+    const gd = 30 + hueShift;
+    ctx.fillStyle = `rgb(${(gd * 0.55) | 0},${(gd + 22) | 0},${(gd * 0.5) | 0})`;
     ctx.beginPath();
-    ctx.moveTo(cx, y - tierH * 0.2);
-    ctx.lineTo(cx + halfW, y + tierH);
-    ctx.lineTo(cx - halfW, y + tierH);
+    ctx.moveTo(cx, y - tierH * 0.25);
+    // bordas serrilhadas (galhos)
+    const steps = 7;
+    for (let s = 0; s <= steps; s++) {
+      const px = cx + halfW * (s / steps);
+      const jag = (s % 2 === 0 ? 0.86 : 1.0) * tierH;
+      ctx.lineTo(px, y + jag);
+    }
+    for (let s = steps; s >= 0; s--) {
+      const px = cx - halfW * (s / steps);
+      const jag = (s % 2 === 0 ? 0.86 : 1.0) * tierH;
+      ctx.lineTo(px, y + jag);
+    }
     ctx.closePath();
     ctx.fill();
-    // frente iluminada da camada
-    ctx.fillStyle = `rgb(${(green * 0.55) | 0},${green + 34},${(green * 0.5) | 0})`;
+  }
+  // 2) camadas frontais iluminadas (menores, deslocadas p/ cima)
+  for (let t = 0; t < tiers; t++) {
+    const f = t / (tiers - 1);
+    const y = topY + (botY - topY) * f + 2;
+    const halfW = (10 + f * (W * 0.46)) * 0.82;
+    const tierH = ((botY - topY) / tiers) * 1.9;
+    const green = 62 + Math.floor(r() * 20) + hueShift;
+    ctx.fillStyle = `rgb(${(green * 0.5) | 0},${(green + 30) | 0},${(green * 0.45) | 0})`;
     ctx.beginPath();
     ctx.moveTo(cx, y);
-    ctx.lineTo(cx + halfW * 0.82, y + tierH * 0.9);
-    ctx.lineTo(cx - halfW * 0.82, y + tierH * 0.9);
+    ctx.lineTo(cx + halfW, y + tierH * 0.92);
+    ctx.lineTo(cx - halfW, y + tierH * 0.92);
     ctx.closePath();
     ctx.fill();
-    // dabs de folhagem irregular nas bordas
-    for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + (r() - 0.5) * Math.PI;
-      const rr = halfW * (0.5 + r() * 0.5);
-      ctx.fillStyle = `rgba(${(green * 0.55) | 0},${(green + 20) | 0},${(green * 0.45) | 0},0.9)`;
+    // realce quente no lado do sol (esquerda-cima)
+    ctx.fillStyle = `rgba(${(green * 0.7) | 0},${(green + 60) | 0},${(green * 0.5) | 0},0.5)`;
+    ctx.beginPath();
+    ctx.moveTo(cx, y);
+    ctx.lineTo(cx - halfW * 0.7, y + tierH * 0.8);
+    ctx.lineTo(cx - halfW * 0.1, y + tierH * 0.8);
+    ctx.closePath();
+    ctx.fill();
+    // agulhas (pontinhos) nas bordas
+    for (let i = 0; i < 12; i++) {
+      const side = r() < 0.5 ? -1 : 1;
+      const rr = halfW * (0.4 + r() * 0.62);
+      ctx.fillStyle = `rgba(${(green * 0.45) | 0},${(green + 14) | 0},${(green * 0.4) | 0},0.85)`;
       ctx.beginPath();
-      ctx.arc(cx + Math.cos(a) * rr, y + tierH * 0.85, 2 + r() * 3, 0, Math.PI * 2);
+      ctx.arc(cx + side * rr, y + tierH * (0.55 + r() * 0.4), 1.4 + r() * 2.4, 0, Math.PI * 2);
       ctx.fill();
     }
     if (snow) {
-      ctx.fillStyle = "rgba(240,246,255,0.85)";
+      ctx.fillStyle = "rgba(238,244,255,0.8)";
       ctx.beginPath();
       ctx.moveTo(cx, y + 1);
-      ctx.lineTo(cx + halfW * 0.32, y + tierH * 0.3);
-      ctx.lineTo(cx - halfW * 0.32, y + tierH * 0.3);
+      ctx.lineTo(cx + halfW * 0.3, y + tierH * 0.34);
+      ctx.lineTo(cx - halfW * 0.3, y + tierH * 0.34);
       ctx.closePath();
       ctx.fill();
+    }
+  }
+  return toSprite(c);
+}
+
+// -------- samambaia / folhagem baixa (sprite p/ planos cruzados no chão) --------
+export function fern(seed = 75): THREE.Texture {
+  const W = 128;
+  const H = 96;
+  const { c, ctx } = makeCanvas(W, H);
+  ctx.clearRect(0, 0, W, H);
+  const r = rnd(seed);
+  const cx = W / 2;
+  const baseY = H * 0.98;
+  const blades = 9 + ((r() * 5) | 0);
+  for (let i = 0; i < blades; i++) {
+    const a = -Math.PI / 2 + (i / (blades - 1) - 0.5) * 1.7 + (r() - 0.5) * 0.2;
+    const len = H * (0.5 + r() * 0.45);
+    const green = 60 + Math.floor(r() * 40);
+    ctx.strokeStyle = `rgb(${(green * 0.42) | 0},${green},${(green * 0.34) | 0})`;
+    ctx.lineWidth = 2.4;
+    // haste curva
+    const ex = cx + Math.cos(a) * len;
+    const ey = baseY + Math.sin(a) * len;
+    const mx = cx + Math.cos(a) * len * 0.5 + (r() - 0.5) * 8;
+    const my = baseY + Math.sin(a) * len * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, baseY);
+    ctx.quadraticCurveTo(mx, my, ex, ey);
+    ctx.stroke();
+    // folíolos
+    ctx.lineWidth = 1;
+    for (let s = 0.25; s < 1; s += 0.16) {
+      const px = cx + (ex - cx) * s;
+      const py = baseY + (ey - baseY) * s;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - 5, py - 3);
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + 5, py - 3);
+      ctx.stroke();
     }
   }
   return toSprite(c);

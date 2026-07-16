@@ -32,6 +32,7 @@ import {
   forestCell,
   forestWalkable,
   forestFind,
+  forestSignText,
 } from "./forest";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD } from "./controls";
@@ -312,7 +313,6 @@ export class Game {
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
-  private _cloudTex?: THREE.Texture; // textura de nuvem (floresta), gerada 1x
   private ui!: HUD;
 
   private location: "village" | "forest" | Estab = "village";
@@ -400,9 +400,11 @@ export class Game {
       this.addVillageLights();
       this.buildVillage();
     } else if (loc === "forest") {
-      const SKY = 0x9ec6e8; // céu azul claro
-      this.scene.fog = new THREE.Fog(SKY, CELL * 10, CELL * 52);
-      this.scene.background = new THREE.Color(SKY);
+      // a MESMA neblina do vilarejo cobre a floresta — a névoa é um elemento
+      // constante do mundo (lore). Um pouco mais aberta que na vila, por ser
+      // externo, mas com a mesma cor/caráter.
+      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 3, CELL * 13);
+      this.scene.background = new THREE.Color(FOG_COLOR);
       this.addForestLights();
       this.buildForest();
     } else {
@@ -539,9 +541,69 @@ export class Game {
     // pontos de interesse
     this.buildWell();
     this.buildEstablishments(doorMat);
+    this.buildVillageForestGate();
     this.buildNPCs();
 
     void MAP;
+  }
+
+  // portal de madeira que marca a saída do vilarejo rumo à floresta (ao sul)
+  private buildVillageForestGate() {
+    const g = findForestGate();
+    const gx = g.col * CELL;
+    const gz = g.row * CELL;
+    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+
+    // trilha de terra saindo da praça até o portão (sinaliza o caminho)
+    const dirtMat = new THREE.MeshLambertMaterial({ map: tex.dirtPath(63) });
+    const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
+    for (let dr = 0; dr <= 2; dr++) {
+      const t = new THREE.Mesh(tileGeo, dirtMat);
+      t.rotation.x = -Math.PI / 2;
+      t.rotation.z = ((dr % 2) * Math.PI) / 2;
+      t.position.set(gx, 0.02, (g.row - dr) * CELL);
+      this.world.add(t);
+    }
+
+    // arco: dois montantes + travessa
+    const grp = new THREE.Group();
+    const postGeo = new THREE.BoxGeometry(0.36, 3.4, 0.36);
+    for (const s of [-1.5, 1.5]) {
+      const p = new THREE.Mesh(postGeo, woodMat);
+      p.position.set(s, 1.7, 0);
+      grp.add(p);
+    }
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(3.7, 0.36, 0.4), woodMat);
+    beam.position.set(0, 3.35, 0);
+    grp.add(beam);
+    // mãos-francesas (reforços diagonais)
+    for (const s of [-1, 1]) {
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.16, 0.16), woodMat);
+      brace.position.set(s * 1.05, 3.0, 0);
+      brace.rotation.z = s * (Math.PI / 4);
+      grp.add(brace);
+    }
+    // placa "Floresta" pendurada na travessa
+    const label = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.7, 0.6),
+      new THREE.MeshBasicMaterial({
+        map: tex.signText("Floresta"),
+        transparent: true,
+        side: THREE.DoubleSide,
+      }),
+    );
+    label.position.set(0, 2.72, 0);
+    label.rotation.y = Math.PI; // texto virado p/ o vilarejo (quem se aproxima)
+    grp.add(label);
+    // correntinhas da placa
+    const chainMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+    for (const s of [-0.7, 0.7]) {
+      const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 5), chainMat);
+      ch.position.set(s, 3.05, 0);
+      grp.add(ch);
+    }
+    grp.position.set(gx, 0, gz);
+    this.world.add(grp);
   }
 
   // ---------------------------------------------- montanha (canto noroeste)
@@ -1248,43 +1310,18 @@ export class Game {
 
   // ---------------------------------------------- floresta (bioma externo)
   private addForestLights() {
-    this.world.add(new THREE.AmbientLight(0xbcc9d6, 0.8));
-    this.world.add(new THREE.HemisphereLight(0xbfe0ff, 0x4c6a36, 0.95));
-    const sun = new THREE.DirectionalLight(0xfff2d2, 0.75);
-    sun.position.set(-8, 18, 6);
+    // luz de dia encoberto/nevoento: fria, difusa, sem sol duro
+    this.world.add(new THREE.AmbientLight(0x9aa4b2, 0.72));
+    this.world.add(new THREE.HemisphereLight(0x9fabbc, 0x40502e, 0.85));
+    const sun = new THREE.DirectionalLight(0xdfe6ec, 0.5);
+    sun.position.set(-8, 16, 5);
     this.world.add(sun);
-  }
-
-  // nuvem macia (gradiente radial) — gerada uma única vez e reaproveitada
-  private cloudTex(): THREE.Texture {
-    if (this._cloudTex) return this._cloudTex;
-    const cv = document.createElement("canvas");
-    cv.width = 256;
-    cv.height = 128;
-    const ctx = cv.getContext("2d")!;
-    ctx.clearRect(0, 0, 256, 128);
-    const blob = (x: number, y: number, r: number) => {
-      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, "rgba(255,255,255,0.95)");
-      g.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    };
-    blob(90, 80, 46);
-    blob(140, 62, 58);
-    blob(190, 82, 42);
-    blob(120, 90, 52);
-    const t = new THREE.CanvasTexture(cv);
-    t.colorSpace = THREE.SRGBColorSpace;
-    this._cloudTex = t;
-    return t;
   }
 
   private buildForest() {
     const W = FOREST_COLS;
     const H = FOREST_ROWS;
+    const welcomeCell = forestFind("s"); // placa de boas-vindas na entrada
     const hash = (a: number, b: number, s = 0) => {
       const v = Math.sin(a * 41.3 + b * 17.7 + s * 7.13) * 4213.1;
       return v - Math.floor(v);
@@ -1292,9 +1329,9 @@ export class Game {
 
     // chão base de grama cobrindo toda a área + margem (1 tile de grama por célula)
     const grassMat = new THREE.MeshLambertMaterial({ map: tex.grass(61) });
-    (grassMat.map as THREE.Texture).repeat.set(W + 8, H + 8);
+    (grassMat.map as THREE.Texture).repeat.set(W + 10, H + 10);
     const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry((W + 8) * CELL, (H + 8) * CELL),
+      new THREE.PlaneGeometry((W + 10) * CELL, (H + 10) * CELL),
       grassMat,
     );
     ground.rotation.x = -Math.PI / 2;
@@ -1307,7 +1344,7 @@ export class Game {
     for (let r = 0; r < H; r++)
       for (let c = 0; c < W; c++) {
         const k = forestCell(c, r);
-        if (k === "path" || k === "gate" || k === "spawn") {
+        if (k === "path" || k === "gate" || k === "spawn" || k === "sign") {
           const t = new THREE.Mesh(tileGeo, dirtMat);
           t.rotation.x = -Math.PI / 2;
           t.rotation.z = (Math.floor(hash(c, r, 9) * 4) * Math.PI) / 2;
@@ -1317,12 +1354,12 @@ export class Game {
       }
 
     // materiais de vegetação
-    const pineMats = [65, 66, 67, 71].map(
+    const pineMats = [65, 66, 67, 71, 79].map(
       (s) =>
         new THREE.MeshLambertMaterial({
           map: tex.pineTree(s),
           transparent: true,
-          alphaTest: 0.45,
+          alphaTest: 0.4,
           side: THREE.DoubleSide,
         }),
     );
@@ -1335,6 +1372,15 @@ export class Game {
           side: THREE.DoubleSide,
         }),
     );
+    const fernMats = [75, 77].map(
+      (s) =>
+        new THREE.MeshLambertMaterial({
+          map: tex.fern(s),
+          transparent: true,
+          alphaTest: 0.35,
+          side: THREE.DoubleSide,
+        }),
+    );
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.rock(41) });
     const skullMat = new THREE.MeshLambertMaterial({
       map: tex.skullPile(69),
@@ -1343,6 +1389,7 @@ export class Game {
       side: THREE.DoubleSide,
     });
     const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const barkMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
 
     // planos cruzados (dois quads perpendiculares) — dão volume sem billboard
     const addCross = (
@@ -1361,6 +1408,10 @@ export class Game {
       this.world.add(p1);
       this.world.add(p2);
     };
+    const addPine = (x: number, z: number, th: number, c: number, r: number) => {
+      const mat = pineMats[Math.floor(hash(c, r, 4) * pineMats.length) % pineMats.length];
+      addCross(x, z, th * 0.44, th, mat);
+    };
 
     for (let r = 0; r < H; r++)
       for (let c = 0; c < W; c++) {
@@ -1369,12 +1420,13 @@ export class Game {
         const z = r * CELL;
         if (k === "tree" || k === "edge") {
           const edge = k === "edge";
-          const th = (edge ? 7.2 : 5.2) + hash(c, r, 1) * 1.8;
-          const tw = th * 0.52;
-          const jx = (hash(c, r, 2) - 0.5) * CELL * 0.4;
-          const jz = (hash(c, r, 3) - 0.5) * CELL * 0.4;
-          const mat = pineMats[Math.floor(hash(c, r, 4) * pineMats.length) % pineMats.length];
-          addCross(x + jx, z + jz, tw, th, mat);
+          const th = (edge ? 8.0 : 5.4) + hash(c, r, 1) * 2.2;
+          const jx = (hash(c, r, 2) - 0.5) * CELL * 0.45;
+          const jz = (hash(c, r, 3) - 0.5) * CELL * 0.45;
+          addPine(x + jx, z + jz, th, c, r);
+          // moita de folhagem na base do pinheiro (esconde o "corte" no chão)
+          if (hash(c, r, 12) > 0.5)
+            addCross(x + jx, z + jz, 2.0, 1.1, fernMats[Math.floor(hash(c, r, 13) * fernMats.length) % fernMats.length]);
           this.blocked.add(`${c},${r}`);
         } else if (k === "bush") {
           const bw = 2.4 + hash(c, r, 5) * 0.8;
@@ -1390,75 +1442,125 @@ export class Game {
           rk.scale.y = 0.7;
           this.world.add(rk);
           this.blocked.add(`${c},${r}`);
+        } else if (k === "foliage") {
+          // samambaia (andável, decoração no chão)
+          const fw = 1.8 + hash(c, r, 5) * 0.8;
+          const fh = 0.9 + hash(c, r, 6) * 0.5;
+          addCross(
+            x + (hash(c, r, 2) - 0.5) * CELL * 0.4,
+            z + (hash(c, r, 3) - 0.5) * CELL * 0.4,
+            fw,
+            fh,
+            fernMats[Math.floor(hash(c, r, 7) * fernMats.length) % fernMats.length],
+          );
         } else if (k === "skull") {
           addCross(x, z, 2.0, 1.4, skullMat);
         } else if (k === "sign") {
-          this.buildForestSign(x, z, woodMat);
+          // a placa de boas-vindas encara de frente quem entra (olha p/ o sul);
+          // as demais viram-se p/ a trilha vizinha
+          const welcome = c === welcomeCell.col && r === welcomeCell.row;
+          const dir: [number, number] = welcome ? [0, 1] : this.forestSignFacing(c, r);
+          this.buildForestSign(x, z, woodMat, dir);
           this.blocked.add(`${c},${r}`);
         }
+        // toco/tronco caído esporádico na grama (decoração, não bloqueia)
+        if (k === "grass" && hash(c, r, 14) > 0.9) {
+          const log = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.34, 0.4, 2.4, 8),
+            barkMat,
+          );
+          log.rotation.set(0, hash(c, r, 15) * Math.PI, Math.PI / 2);
+          log.position.set(x, 0.34, z);
+          this.world.add(log);
+        }
       }
+
+    // anel externo de pinheiros (mais altos) atrás da borda: dá profundidade
+    // de "mata sem fim" que se dissolve na neblina (norte/leste/oeste)
+    for (let c = -2; c < W + 2; c += 2) {
+      const th = 10 + hash(c, -3, 1) * 3;
+      addPine(c * CELL + 1, -2 * CELL, th, c, -3);
+    }
+    for (let r = -1; r < H - 2; r += 2) {
+      const thl = 9 + hash(-3, r, 1) * 3;
+      addPine(-2 * CELL, r * CELL, thl, -3, r);
+      const thr = 9 + hash(W + 2, r, 1) * 3;
+      addPine((W + 1) * CELL, r * CELL, thr, W + 2, r);
+    }
 
     this.buildForestBackdrop();
     void MAP;
   }
 
-  // placa de madeira da trilha (poste + tábua inclinada)
-  private buildForestSign(x: number, z: number, woodMat: THREE.Material) {
+  // direção (dc,dr) para onde a placa deve "olhar" (célula de trilha vizinha)
+  private forestSignFacing(c: number, r: number): [number, number] {
+    const dirs: [number, number][] = [
+      [0, 1],
+      [1, 0],
+      [0, -1],
+      [-1, 0],
+    ];
+    let best: [number, number] = [0, 1];
+    for (const [dc, dr] of dirs) {
+      if (forestCell(c + dc, r + dr) === "path") return [dc, dr];
+      if (forestWalkable(c + dc, r + dr)) best = [dc, dr];
+    }
+    return best;
+  }
+
+  // placa de madeira: dois postes + tábua, virada p/ quem se aproxima
+  private buildForestSign(
+    x: number,
+    z: number,
+    woodMat: THREE.Material,
+    dir: [number, number],
+  ) {
     const grp = new THREE.Group();
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.4, 0.18), woodMat);
-    post.position.y = 1.2;
-    grp.add(post);
-    const board = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.72, 0.1), woodMat);
-    board.position.set(0, 1.95, 0);
-    board.rotation.y = 0.18;
+    const postGeo = new THREE.BoxGeometry(0.16, 2.3, 0.16);
+    for (const s of [-0.62, 0.62]) {
+      const post = new THREE.Mesh(postGeo, woodMat);
+      post.position.set(s, 1.15, 0);
+      grp.add(post);
+    }
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.66, 0.09), woodMat);
+    board.position.set(0, 1.78, 0.02);
     grp.add(board);
+    // moldura mais escura
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(1.85, 0.76, 0.06),
+      new THREE.MeshLambertMaterial({ color: 0x2a1c10 }),
+    );
+    frame.position.set(0, 1.78, -0.01);
+    grp.add(frame);
     grp.position.set(x, 0, z);
+    grp.rotation.y = Math.atan2(dir[0], dir[1]);
     this.world.add(grp);
   }
 
-  // montanhas nevadas ao norte + nuvens no céu
+  // silhuetas de montanhas: sombras mais escuras que a neblina, dissolvidas nela
   private buildForestBackdrop() {
-    const rockMat = new THREE.MeshLambertMaterial({ color: 0x6b7078 });
-    const snowMat = new THREE.MeshLambertMaterial({ color: 0xeaf1f8 });
+    const hillMat = new THREE.MeshBasicMaterial({ color: 0x6f7885 });
+    const snowMat = new THREE.MeshBasicMaterial({ color: 0xb8c2cf });
     const cx = (FOREST_COLS / 2 - 0.5) * CELL;
-    const zBack = -12 * CELL;
-    const peaks = [-2.2, -1.1, 0, 1.05, 2.15];
+    const zBack = -7 * CELL;
+    const peaks = [-2.4, -1.2, -0.1, 1.0, 2.2];
     peaks.forEach((f, i) => {
-      const h = 26 + ((i * 37) % 11);
-      const rad = 16 + ((i * 53) % 7);
-      const mx = cx + f * 26;
-      const mz = zBack - ((i * 31) % 9);
-      const m = new THREE.Mesh(new THREE.ConeGeometry(rad, h, 5), rockMat);
-      m.position.set(mx, h / 2 - 2, mz);
+      const h = 30 + ((i * 37) % 13);
+      const rad = 17 + ((i * 53) % 8);
+      const mx = cx + f * 24;
+      const mz = zBack - ((i * 31) % 8);
+      const m = new THREE.Mesh(new THREE.ConeGeometry(rad, h, 5), hillMat);
+      m.position.set(mx, h / 2 - 3, mz);
       m.rotation.y = i;
       this.world.add(m);
       const cap = new THREE.Mesh(
-        new THREE.ConeGeometry(rad * 0.42, h * 0.34, 5),
+        new THREE.ConeGeometry(rad * 0.4, h * 0.32, 5),
         snowMat,
       );
-      cap.position.set(mx, h - h * 0.17 - 2, mz);
+      cap.position.set(mx, h - h * 0.18 - 3, mz);
       cap.rotation.y = i;
       this.world.add(cap);
     });
-    // nuvens (não recebem neblina p/ ficarem brancas no fundo)
-    const cloudMat = new THREE.MeshBasicMaterial({
-      map: this.cloudTex(),
-      transparent: true,
-      depthWrite: false,
-      opacity: 0.9,
-      fog: false,
-    });
-    const cl: [number, number, number, number][] = [
-      [-32, 40, -70, 16],
-      [30, 52, -90, 22],
-      [72, 44, -60, 14],
-      [4, 62, -120, 26],
-    ];
-    for (const [ox, oy, oz, sc] of cl) {
-      const cloud = new THREE.Mesh(new THREE.PlaneGeometry(sc * 2.2, sc), cloudMat);
-      cloud.position.set(cx + ox, oy, oz);
-      this.world.add(cloud);
-    }
   }
 
   private canWalk(c: number, r: number): boolean {
@@ -2169,15 +2271,7 @@ export class Game {
       // portão de volta ao vilarejo (de frente ou em cima dele)
       if (k === "gate" || forestCell(this.col, this.row) === "gate")
         return { kind: "tovillage" };
-      if (k === "sign")
-        return {
-          kind: "sign",
-          lines: [
-            "Trilha da Floresta Sussurrante.",
-            "Ao norte erguem-se as Montanhas Cinzentas. Viajante, cuidado com o que se move entre os pinheiros.",
-            "(Novos caminhos serão abertos em breve.)",
-          ],
-        };
+      if (k === "sign") return { kind: "sign", lines: forestSignText(fc, fr) };
     } else {
       // saída: valendo tanto de frente para a porta quanto encostado nela
       // (em cima da própria célula de saída, onde a célula à frente já é a
