@@ -305,6 +305,7 @@ export class Game {
   } | null = null;
   private lastPrompt = " ";
   private artCache = new Map<string, THREE.Texture>(); // artes 2D já carregadas (por URL)
+  private _shadowTex?: THREE.Texture; // sombra de contato dos NPCs (gerada uma vez)
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -873,11 +874,25 @@ export class Game {
       side: THREE.DoubleSide,
     });
     // dimensões do plano: se há arte, já usa o aspecto da arte (848x1264).
-    // A arte é reenquadrada com os pés a ~1,5% do fundo do plano, então o centro
-    // fica em h/2 - h*0.015 para os pés assentarem no chão (+ 0.02 de folga).
+    // A arte é reenquadrada com os pés a ~1,5% do fundo do plano; levantamos um
+    // pouco (h*0.015 + 0.06) para os pés não serem "engolidos" pelo piso à frente.
     const h = (hasArt ? 2.4 : 2.15) * scale;
     const w = (hasArt ? h * 0.671 : 1.3) * (hasArt ? 1 : scale);
-    const y = hasArt ? h / 2 - h * 0.015 + 0.02 : 1.08 * scale;
+    const y = hasArt ? h / 2 - h * 0.015 + 0.06 : 1.1 * scale;
+    // sombra de contato no chão (ancora o NPC e o separa do piso movimentado)
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(w * 0.95, w * 0.55),
+      new THREE.MeshBasicMaterial({
+        map: this.shadowTex(),
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.55,
+      }),
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.set(c * CELL, 0.03, r * CELL);
+    shadow.renderOrder = 1;
+    this.world.add(shadow);
     const npc = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     npc.position.set(c * CELL, y, r * CELL);
     this.world.add(npc);
@@ -897,6 +912,27 @@ export class Game {
         }
       });
     }
+  }
+
+  // textura da sombra de contato (gradiente radial escuro -> transparente)
+  private shadowTex(): THREE.Texture {
+    if (!this._shadowTex) {
+      const S = 64;
+      const cv = document.createElement("canvas");
+      cv.width = S;
+      cv.height = S;
+      const ctx = cv.getContext("2d")!;
+      const g = ctx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+      g.addColorStop(0, "rgba(0,0,0,0.6)");
+      g.addColorStop(0.6, "rgba(0,0,0,0.32)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, S, S);
+      const t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace;
+      this._shadowTex = t;
+    }
+    return this._shadowTex;
   }
 
   // carrega uma arte 2D (com cache por URL) e chama onReady quando pronta.
