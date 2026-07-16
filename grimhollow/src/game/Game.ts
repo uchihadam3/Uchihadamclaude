@@ -933,6 +933,8 @@ export class Game {
     this.world.add(shadow);
     const npc = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     npc.position.set(c * CELL, y, r * CELL);
+    // dados p/ o idle procedural (respiração) — fase varia por célula p/ dessincronizar
+    npc.userData = { baseY: y, h, ph: (c * 12.9 + r * 7.3) % (Math.PI * 2) };
     this.world.add(npc);
     this.npcs.push(npc);
     this.blocked.add(`${c},${r}`);
@@ -1772,11 +1774,21 @@ export class Game {
         if (p >= 1) this.anim = null;
       }
     }
-    // aldeões sempre encaram a câmera (billboard no eixo Y)
+    // aldeões sempre encaram a câmera (billboard no eixo Y) + "respiram"
     const cx = this.camera.position.x;
     const cz = this.camera.position.z;
-    for (const npc of this.npcs)
+    for (const npc of this.npcs) {
       npc.rotation.y = Math.atan2(cx - npc.position.x, cz - npc.position.z);
+      const u = npc.userData as { baseY?: number; h?: number; ph?: number };
+      if (u && u.h) {
+        // respiração: estica/comprime vertical ancorado nos pés (cabeça sobe/desce)
+        const sy = 1 + Math.sin(now * 0.0016 + u.ph!) * 0.014;
+        npc.scale.y = sy;
+        npc.position.y = u.baseY! + ((sy - 1) * u.h) / 2;
+        // micro-balanço (leve inclinação, dessincronizado)
+        npc.rotation.z = Math.sin(now * 0.0011 + u.ph! * 1.7) * 0.007;
+      }
+    }
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
