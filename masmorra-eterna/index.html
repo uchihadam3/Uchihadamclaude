@@ -81,6 +81,14 @@
     background:linear-gradient(180deg,rgba(20,15,8,.95),rgba(8,6,4,.96));border:1.5px solid #4a3f22;border-left:3px solid var(--gold);
     border-radius:10px;padding:9px 14px 9px 10px;box-shadow:0 6px 22px rgba(0,0,0,.5);opacity:0;transform:translateY(12px);transition:.28s;pointer-events:none;}
   #banter.on{opacity:1;transform:translateY(0);}
+  /* prompt de DESCER quando perto da escada */
+  #descendPrompt{position:absolute;left:50%;bottom:16px;transform:translateX(-50%) translateY(10px);z-index:7;opacity:0;pointer-events:none;transition:.25s;}
+  #descendPrompt.on{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto;}
+  #descBtn{font-family:'Cinzel','Rubik',serif;font-weight:800;letter-spacing:2px;font-size:15px;color:#0c1a0c;cursor:pointer;
+    background:linear-gradient(180deg,#8df0a0,#3fb85e);border:2px solid #b6ffc4;border-radius:12px;padding:12px 22px;
+    box-shadow:0 4px 0 #1f6a34,0 0 22px rgba(90,240,120,.6);animation:descPulse 1.1s ease-in-out infinite;}
+  #descBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #1f6a34,0 0 22px rgba(90,240,120,.6);}
+  @keyframes descPulse{0%,100%{box-shadow:0 4px 0 #1f6a34,0 0 18px rgba(90,240,120,.5);}50%{box-shadow:0 4px 0 #1f6a34,0 0 30px rgba(90,240,120,.85);}}
   #banterPort{width:48px;height:48px;flex:none;border-radius:7px;background:#0a0906;border:1px solid #3a3220;image-rendering:pixelated;}
   #banter .bqName{font-size:12px;font-weight:bold;letter-spacing:1px;margin-bottom:3px;}
   #banter .bqLine{font-size:13px;line-height:1.5;color:#e7dcc0;}
@@ -582,6 +590,7 @@
         <div id="msg"></div>
         <div id="secretProg"><span>🔍 <b>examinando a parede…</b></span><div class="spBar"><i></i></div></div>
         <div id="banter"><canvas id="banterPort" width="48" height="48"></canvas><div class="bqTx"><div class="bqName"></div><div class="bqLine"></div></div></div>
+        <div id="descendPrompt"><button id="descBtn">▼ <span id="descLbl">DESCER</span></button></div>
       </div>
       <div id="logBox" class="stone">
         <div id="logText"></div>

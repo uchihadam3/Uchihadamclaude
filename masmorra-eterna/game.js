@@ -490,20 +490,36 @@ function rcRender(px,py,ang,TGT){
   R.ctx.putImageData(R.img,0,0);
 }
 /* billboard do chefe no campo (com oclusão via zbuffer) */
-function rcSprites(px,py,ang){
-  const d=G.dun; if(!d||!d.bossPos||d.bossDefeated)return;
-  const spr=bossSprite(d.bossKey||'golem'); const {RW,RH,buf,zbuf}=RC;
+// sprite da ESCADA PARA BAIXO (portal/arco verde brilhante, bem visível)
+let STAIRSPR=null;
+function stairsSprite(){ if(STAIRSPR)return STAIRSPR;
+  const W=58,H=78, cv=document.createElement('canvas'); cv.width=W;cv.height=H; const g=cv.getContext('2d');
+  const gl=g.createRadialGradient(W/2,H*0.6,4,W/2,H*0.6,W*0.72); gl.addColorStop(0,'rgba(100,245,130,.55)');gl.addColorStop(1,'rgba(60,220,100,0)');
+  g.fillStyle=gl; g.fillRect(0,0,W,H);                                            // aura verde
+  g.fillStyle='#5a5142'; g.beginPath(); g.moveTo(7,H); g.lineTo(7,34); g.quadraticCurveTo(W/2,5,W-7,34); g.lineTo(W-7,H); g.closePath(); g.fill(); // arco de pedra
+  g.strokeStyle='#8a7f62'; g.lineWidth=2; g.stroke();
+  g.fillStyle='#060a08'; g.beginPath(); g.moveTo(14,H); g.lineTo(14,39); g.quadraticCurveTo(W/2,15,W-14,39); g.lineTo(W-14,H); g.closePath(); g.fill(); // vão escuro
+  for(let i=0;i<8;i++){ const t=i/8, y=45+i*3.9, w=(W-32)*(1-t*0.55), x=W/2-w/2, c=Math.round(70+(1-t)*150); g.fillStyle='rgb(44,'+c+',66)'; g.fillRect(x,y,w,2.4); } // degraus descendo
+  g.fillStyle='rgba(150,255,175,.5)'; g.fillRect(W/2-2,45,4,28);                  // brilho central
+  g.fillStyle='#8dffa6'; for(let k=0;k<2;k++){ const yy=9+k*10; g.beginPath(); g.moveTo(W/2-10,yy); g.lineTo(W/2+10,yy); g.lineTo(W/2,yy+10); g.closePath(); g.fill(); } // ▼▼
+  const id=g.getImageData(0,0,W,H);
+  STAIRSPR={data:new Uint32Array(id.data.buffer.slice(0)),w:W,h:H};
+  return STAIRSPR;
+}
+function rcBillboard(px,py,ang,wx,wy,spr,scale,pulse){
+  const {RW,RH,buf,zbuf}=RC;
   const dirX=Math.cos(ang),dirY=Math.sin(ang), plane=RW/(2*RH), planeX=-dirY*plane,planeY=dirX*plane;
-  const sxr=(d.bossPos.x+0.5)-px, syr=(d.bossPos.y+0.5)-py;
+  const sxr=wx-px, syr=wy-py;
   const invDet=1/(planeX*dirY-dirX*planeY);
   const tX=invDet*(dirY*sxr-dirX*syr), tY=invDet*(-planeY*sxr+planeX*syr);
   if(tY<=0.35)return;
-  const scale=1.25, screenX=Math.floor((RW/2)*(1+tX/tY));
+  const screenX=Math.floor((RW/2)*(1+tX/tY));
   const sh=Math.abs(RH/tY)*scale, sw=sh*(spr.w/spr.h);
   const bob=Math.sin(performance.now()/500)*2/tY;
-  const feetY=RH/2 + (RH/2)/tY + bob;                    // pés no chão
+  const feetY=RH/2 + (RH/2)/tY + bob;                    // base no chão
   const startY=feetY-sh, endY=feetY;
-  const x0=Math.floor(screenX-sw/2), fog=clamp(1.35-tY*0.12,0.2,1.2);
+  const x0=Math.floor(screenX-sw/2); let fog=clamp(1.35-tY*0.12,0.2,1.2);
+  if(pulse)fog*=(1+Math.sin(performance.now()/300)*0.18);           // escada pulsa (chama atenção)
   for(let stripe=x0; stripe<x0+sw; stripe++){
     if(stripe<0||stripe>=RW)continue;
     if(zbuf&&tY>=zbuf[stripe])continue;                   // parede na frente → oculta
@@ -514,6 +530,15 @@ function rcSprites(px,py,ang){
       if(c>>>24>40){ buf[y*RW+stripe]=shade(c,fog); }
     }
   }
+}
+function rcSprites(px,py,ang){
+  const d=G.dun; if(!d)return;
+  const list=[];
+  if(d.bossPos&&!d.bossDefeated){ list.push({x:d.bossPos.x+0.5,y:d.bossPos.y+0.5,spr:bossSprite(d.bossKey||bossKeyFor(G.depth)),scale:1.25,pulse:false}); }
+  for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++){ if(d.grid[y][x]==='>'){ list.push({x:x+0.5,y:y+0.5,spr:stairsSprite(),scale:0.95,pulse:true}); } } // ESCADAS visíveis
+  list.forEach(b=>b._d=(b.x-px)*(b.x-px)+(b.y-py)*(b.y-py));
+  list.sort((a,b)=>b._d-a._d);                            // de longe pra perto (occlusão entre sprites)
+  for(const b of list) rcBillboard(px,py,ang,b.x,b.y,b.spr,b.scale,b.pulse);
 }
 
 /* ================= ESTADO / MASMORRA ================= */
@@ -1638,7 +1663,17 @@ function onBossDefeated(){ // abre saída / vitória de andar
 const SECRET_SECS=10;
 function loop(){ requestAnimationFrame(loop);
   const now=performance.now(), dt=Math.min(0.1,(now-(loop._t||now))/1000); loop._t=now;
-  if((G.state==='explore') && RC.ctx){ rcRender(G.px,G.py,G.ang); tickSecret(dt); }
+  if((G.state==='explore') && RC.ctx){ rcRender(G.px,G.py,G.ang); tickSecret(dt); tickStairs(); }
+  else { const el=$('#descendPrompt'); if(el)el.classList.remove('on'); }
+}
+// mostra o botão DESCER quando o jogador está sobre ou ao lado da escada
+function tickStairs(){ const el=$('#descendPrompt'); if(!el)return;
+  if(!el._wired){ el._wired=1; el.querySelector('#descBtn').onclick=()=>{ if(G.state==='explore'&&!G.moving)descend(); }; }
+  const d=G.dun; if(!d){ el.classList.remove('on'); return; }
+  const cx=Math.floor(G.px),cy=Math.floor(G.py); let near=false;
+  for(let dy=-1;dy<=1&&!near;dy++)for(let dx=-1;dx<=1;dx++){ const t=d.grid[cy+dy]&&d.grid[cy+dy][cx+dx]; if(t==='>'){near=true;break;} }
+  if(near){ if(!el.classList.contains('on')){ el.querySelector('#descLbl').textContent='DESCER AO ANDAR '+(G.depth+1); } el.classList.add('on'); }
+  else el.classList.remove('on');
 }
 // SEGREDO: nenhuma dica/indicador. Só a marca sutil na parede. Fique parado 10s perto e ela abre.
 function tickSecret(dt){
