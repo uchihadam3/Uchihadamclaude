@@ -909,7 +909,7 @@ function showActionMenu(c){
     <div class="act ${canMag&&knownSkills(c).some(id=>SKILLS[id].magic)?'':'dis'}" data-a="magic">✧ MAGIA<small>${c.mp}/${c.mmp} MP</small></div>
     <div class="act" data-a="item">🜂 ITEM<small>usar</small></div>
     <div class="act" data-a="guard">🛡 DEFENDER<small>+Resolve</small></div>
-    ${G.battle&&!G.battle.boss?`<div class="act flee" data-a="flee">🏃 FUGIR<small>tentar escapar</small></div>`:''}
+    <div class="act flee" data-a="flee">🏃 FUGIR<small>${G.battle&&G.battle.boss?'difícil contra chefe':'tentar escapar'}</small></div>
   </div>`;
   m.querySelectorAll('.act').forEach(el=>el.onclick=()=>{ if(el.classList.contains('dis'))return; SFX.ui(); onAction(c,el.dataset.a); });
 }
@@ -925,11 +925,12 @@ function onAction(c,a){
   if(a==='flee'){ tryFlee(c); return; }
 }
 function tryFlee(c){
-  const b=G.battle; if(b.boss){ blog('Não há como fugir deste inimigo!'); return; } // chefes: sem fuga
-  hideMenus();
+  const b=G.battle; hideMenus();
   const pA=alliesAlive().reduce((a,x)=>a+effAgi(x),0)/Math.max(1,alliesAlive().length);
   const eA=enemiesAlive().reduce((a,x)=>a+effAgi(x),0)/Math.max(1,enemiesAlive().length);
-  let ch=clamp(0.55+(pA-eA)*0.02, 0.3, 0.9);      // base 55%, ajustada pela agilidade média
+  // chefe: fuga mais difícil (base menor e teto menor), mas possível
+  let ch = b.boss ? clamp(0.3+(pA-eA)*0.015, 0.15, 0.6)
+                  : clamp(0.55+(pA-eA)*0.02, 0.3, 0.9);
   if(chance(ch)){
     blog('🏃 '+c.name+' comandou a retirada — fugiram em segurança!'); SFX.back();
     b.over=true; finishTurn();
@@ -2256,9 +2257,15 @@ function renderTurnQ(){
 }
 function blog(s){ const l=$('#blog'); const div=document.createElement('div'); div.className='ln'; div.textContent=s;
   l.appendChild(div); while(l.children.length>3)l.removeChild(l.firstChild); G.battle&&G.battle.log.push(s); }
+let _pops=[];
 function popup(t,val,cls){ const cv=$('#benemies'),f=$('#bfield'); let x,y;
   if(t.side==='enemy'){ const r=cv.getBoundingClientRect(),fr=f.getBoundingClientRect(); x=r.left-fr.left+t.sx*r.width; y=r.top-fr.top+t.sy*r.height-t.scale*40; }
   else { const idx=G.party.indexOf(t),card=$('#bparty').children[idx]; if(!card)return; const cr=card.getBoundingClientRect(),fr=$('#battle').getBoundingClientRect(); x=cr.left-fr.left+cr.width/2; y=cr.top-fr.top; }
+  // escalona popups próximos para não empilharem um em cima do outro (multi-hit, fraco, cura, etc.)
+  const now=performance.now(); _pops=_pops.filter(p=>now-p.t<850);
+  const near=_pops.filter(p=>Math.abs(p.x-x)<72).length;
+  if(near){ y-=near*27; x+=(near%2?1:-1)*Math.min(near,4)*13; }
+  _pops.push({x,y,t:now});
   const p=document.createElement('div'); p.className='pop '+(cls||''); p.textContent=val; p.style.left=x+'px';p.style.top=y+'px';
   ($('#battle')).appendChild(p); setTimeout(()=>p.remove(),1000);
 }

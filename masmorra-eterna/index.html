@@ -528,8 +528,11 @@
   .slotCard .slotDel{position:absolute;top:12px;right:14px;font-size:15px;opacity:.5;padding:4px;border-radius:5px;}
   .slotCard .slotDel:hover{opacity:1;background:#3a1414;}
   .cta.sm{font-size:12px;padding:9px 22px;margin-top:6px;}
-  .optRow{display:flex;justify-content:space-between;align-items:center;width:100%;background:#141109;border:1.5px solid #2c2616;border-radius:8px;padding:13px 18px;margin-bottom:10px;cursor:pointer;font-size:14px;color:#d8cfa8;}
-  .optRow:hover{border-color:var(--acc);} .optRow .optVal{color:var(--acc);font-weight:bold;font-size:13px;}
+  .optRow{display:flex;justify-content:space-between;align-items:center;width:100%;gap:10px;
+    background:linear-gradient(180deg,#191510,#100d08);border:1.5px solid #33301f;border-left:3px solid #4a3f22;
+    border-radius:11px;padding:14px 16px;margin-bottom:10px;cursor:pointer;font-size:15px;color:#f0e6c8;font-weight:600;letter-spacing:.5px;transition:.14s;box-shadow:0 2px 6px rgba(0,0,0,.4);}
+  .optRow:hover{border-color:var(--acc);border-left-color:var(--gold);transform:translateX(2px);}
+  .optRow .optVal{color:var(--gold);font-weight:bold;font-size:12px;background:#241b0c;border:1px solid #4a3f22;border-radius:20px;padding:4px 12px;letter-spacing:1px;}
   #dead .gtitle{color:var(--bad);text-shadow:0 4px 0 #3a0e0e,0 0 26px rgba(200,60,60,.4);}
   #win .gtitle{color:#ffe89a;}
   .flash{position:absolute;inset:0;z-index:35;background:#fff;opacity:0;pointer-events:none;}
