@@ -66,32 +66,151 @@ const ESTAB_DOORS: EstabDoor[] = [
   { c: 13, r: 9, dc: -1, dr: 0, kind: "alchemist" }, // parede leste
 ];
 
-// nomes/falas dos aldeões da vila (por célula)
-const VILLAGERS: Record<string, { name: string; lines: string[] }> = {
-  "3,7": { name: "Aldeã", lines: ["Bom dia! O poço da praça nunca seca."] },
-  "11,7": {
-    name: "Camponês",
-    lines: ["Dizem que há algo à espreita naquela montanha ao norte..."],
-  },
-  "4,11": {
-    name: "Velho Ancião",
+// aldeões da vila espalhados pela praça.
+// id  -> chave da arte 2D (ver VILLAGER_ART); col/row = célula; seed = sprite
+// procedural provisório enquanto a arte não chega; name/lines = diálogo.
+interface VillageNPC {
+  id: string;
+  c: number;
+  r: number;
+  seed: number;
+  name: string;
+  lines: string[];
+}
+const VILLAGE_NPCS: VillageNPC[] = [
+  {
+    id: "elspeth",
+    c: 3,
+    r: 6,
+    seed: 1,
+    name: "Elspeth, a Camponesa",
     lines: [
-      "Cuidado, jovem. A escada sob a montanha leva às profundezas.",
-      "Equipe-se bem antes de descer.",
+      "Bom dia! Colhi legumes fresquinhos hoje cedo.",
+      "O poço da praça nunca seca, pode beber à vontade.",
     ],
   },
-  "10,11": { name: "Guarda", lines: ["Mantenha a paz por aqui, forasteiro."] },
-  "7,8": {
-    name: "Mercador Ambulante",
-    lines: ["Passando por aqui a negócios. Belo vilarejo, não?"],
+  {
+    id: "pip",
+    c: 7,
+    r: 6,
+    seed: 4,
+    name: "Pip",
+    lines: [
+      "Olha minha espada de madeira! Um dia vou ser aventureiro igual você!",
+      "A Wilma disse que viu um fantasma perto da montanha. Eu não tenho medo... quase.",
+    ],
   },
-};
+  {
+    id: "wilma",
+    c: 8,
+    r: 8,
+    seed: 6,
+    name: "Wilma",
+    lines: [
+      "Você viu minha boneca? Ah, está aqui!",
+      "Não vá para a montanha, moço. De lá vêm barulhos à noite.",
+    ],
+  },
+  {
+    id: "corvin",
+    c: 11,
+    r: 7,
+    seed: 2,
+    name: "Corvin, o Lenhador",
+    lines: [
+      "Cortar lenha é honesto, mas o bosque anda estranho ultimamente.",
+      "Dizem que há algo à espreita naquela montanha ao norte...",
+    ],
+  },
+  {
+    id: "hedda",
+    c: 5,
+    r: 9,
+    seed: 8,
+    name: "Hedda, a Matriarca",
+    lines: [
+      "Cuide-se por aí, meu jovem. Falta água, deixe-me encher o jarro.",
+      "Se precisar de comida quente, a taverna do Bruno é logo ali.",
+    ],
+  },
+  {
+    id: "wren",
+    c: 9,
+    r: 9,
+    seed: 3,
+    name: "Wren, a Costureira",
+    lines: [
+      "Precisa remendar essa capa? Faço um preço justo.",
+      "Roupa boa aquece o corpo — e o frio lá embaixo é de rachar.",
+    ],
+  },
+  {
+    id: "alard",
+    c: 3,
+    r: 11,
+    seed: 5,
+    name: "Alard, o Velho Fazendeiro",
+    lines: [
+      "Cuidado, jovem. A escada sob a montanha leva às profundezas.",
+      "Equipe-se bem antes de descer. Já vi muitos partirem e nenhum voltar.",
+    ],
+  },
+  {
+    id: "gunther",
+    c: 11,
+    r: 11,
+    seed: 9,
+    name: "Gunther, o Vigia",
+    lines: [
+      "Mantenha a paz por aqui, forasteiro.",
+      "Enquanto eu montar guarda, o vilarejo dorme tranquilo.",
+    ],
+  },
+  {
+    id: "anselmo",
+    c: 3,
+    r: 8,
+    seed: 7,
+    name: "Frei Anselmo",
+    lines: [
+      "Que a luz o acompanhe nas trevas, viajante.",
+      "Reze antes de descer àquela masmorra. Vai precisar.",
+    ],
+  },
+  {
+    id: "tam",
+    c: 5,
+    r: 12,
+    seed: 10,
+    name: "Velho Tam",
+    lines: [
+      "Uma moedinha para um pobre velho?",
+      "Já fui aventureiro como você... até a montanha levar tudo de mim.",
+    ],
+  },
+  {
+    id: "lyle",
+    c: 10,
+    r: 12,
+    seed: 12,
+    name: "Lyle, o Bardo",
+    lines: [
+      "Ei! Quer ouvir a balada do herói que desceu à masmorra?",
+      "Faça feitos grandiosos e eu comporei uma canção sobre você!",
+    ],
+  },
+];
+
+// artes 2D dos aldeões (id -> URL importada). Vazio por enquanto: cada aldeão
+// usa o sprite procedural até a arte chegar. Ao receber uma imagem, basta
+// importá-la e mapear o id aqui — o resto já está pronto.
+const VILLAGER_ART: Record<string, string> = {};
 
 // alvo que o jogador está encarando ao apertar interagir
 type Target =
   | { kind: "enter"; estab: Estab }
   | { kind: "exit" }
-  | { kind: "talk"; name: string; lines: string[] }
+  | { kind: "talk"; name: string; lines: string[]; portrait?: string | null }
   | { kind: "dungeon" }
   | null;
 
@@ -126,11 +245,27 @@ export class Game {
 
   private location: "village" | Estab = "village";
   private doorMap = new Map<string, Estab>(); // "c,r,dc,dr" -> estabelecimento
-  private npcMap = new Map<string, { name: string; lines: string[] }>(); // "c,r"
+  // "c,r" -> NPC (guarda a textura p/ recortar o retrato do diálogo)
+  private npcMap = new Map<
+    string,
+    {
+      name: string;
+      lines: string[];
+      tex: THREE.Texture;
+      art: boolean;
+      portrait?: string | null;
+    }
+  >();
   private returnTo = { col: 0, row: 0, facing: 0 }; // volta ao sair do interior
-  private dialogue: { name: string; lines: string[]; idx: number } | null = null;
+  private dialogue: {
+    name: string;
+    lines: string[];
+    idx: number;
+    portrait?: string | null;
+  } | null = null;
   private lastPrompt = " ";
   private npcArt: Partial<Record<Estab, THREE.Texture>> = {}; // cache das artes 2D
+  private villagerArt: Record<string, THREE.Texture> = {}; // cache das artes dos aldeões
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -646,8 +781,9 @@ export class Game {
     img?: THREE.Texture,
   ) {
     // com imagem (arte 2D enviada): usa a textura e a proporção da imagem
+    const map = img ?? tex.villager(seed);
     const mat = new THREE.MeshLambertMaterial({
-      map: img ?? tex.villager(seed),
+      map,
       transparent: true,
       alphaTest: 0.5,
       side: THREE.DoubleSide,
@@ -660,22 +796,73 @@ export class Game {
     this.world.add(npc);
     this.npcs.push(npc);
     this.blocked.add(`${c},${r}`);
-    this.npcMap.set(`${c},${r}`, { name, lines });
+    this.npcMap.set(`${c},${r}`, { name, lines, tex: map, art: !!img });
   }
 
-  // aldeões da vila
+  // aldeões da vila (espalhados pela praça)
   private buildNPCs() {
-    const spots: [number, number, number][] = [
-      [3, 7, 1],
-      [11, 7, 2],
-      [4, 11, 3],
-      [10, 11, 5],
-      [7, 8, 7],
-    ];
-    for (const [c, r, seed] of spots) {
-      const info = VILLAGERS[`${c},${r}`] ?? { name: "Aldeão", lines: ["..."] };
-      this.addNPC(c, r, seed, info.name, info.lines);
+    for (const v of VILLAGE_NPCS) {
+      this.addNPC(v.c, v.r, v.seed, v.name, v.lines, this.villagerArtTex(v.id));
     }
+  }
+
+  // carrega (uma vez) a arte 2D de um aldeão, se houver
+  private villagerArtTex(id: string): THREE.Texture | undefined {
+    const url = VILLAGER_ART[id];
+    if (!url) return undefined;
+    const key = `v:${id}`;
+    if (!this.villagerArt[key]) {
+      const t = new THREE.TextureLoader().load(url);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.magFilter = THREE.LinearFilter;
+      t.minFilter = THREE.LinearMipmapLinearFilter;
+      t.generateMipmaps = true;
+      t.anisotropy = 8;
+      this.villagerArt[key] = t;
+    }
+    return this.villagerArt[key];
+  }
+
+  // recorta o rosto do NPC (topo-centro) para o retrato do diálogo
+  private makePortrait(image: unknown, isArt: boolean): string | null {
+    const im = image as { width?: number; height?: number; naturalWidth?: number; naturalHeight?: number } | null;
+    if (!im) return null;
+    const iw = im.naturalWidth || im.width || 0;
+    const ih = im.naturalHeight || im.height || 0;
+    if (!iw || !ih) return null;
+    // fração da altura usada como lado do recorte quadrado (rosto + ombros)
+    const sideFrac = isArt ? 0.3 : 0.42;
+    const topFrac = isArt ? 0.03 : 0.06;
+    let side = ih * sideFrac;
+    let sx = iw * 0.5 - side / 2;
+    let sy = ih * topFrac;
+    sx = Math.max(0, Math.min(sx, iw - side));
+    side = Math.min(side, iw, ih - sy);
+    const S = 132;
+    const cv = document.createElement("canvas");
+    cv.width = S;
+    cv.height = S;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return null;
+    ctx.imageSmoothingQuality = "high";
+    try {
+      ctx.drawImage(image as CanvasImageSource, sx, sy, side, side, 0, 0, S, S);
+      return cv.toDataURL("image/png");
+    } catch {
+      return null;
+    }
+  }
+
+  // retrato do NPC de uma célula (gera e guarda em cache quando a arte carregar)
+  private portraitFor(key: string): string | null {
+    const e = this.npcMap.get(key);
+    if (!e) return null;
+    if (e.portrait !== undefined) return e.portrait;
+    const img = e.tex.image as unknown;
+    if (!img) return null; // ainda carregando; tenta de novo depois
+    const p = this.makePortrait(img, e.art);
+    if (p) e.portrait = p; // só guarda em cache quando conseguiu recortar
+    return p;
   }
 
   // carrega (uma vez) a arte 2D de um atendente, se houver
@@ -712,8 +899,13 @@ export class Game {
       const { col, row, facing } = this.returnTo;
       this.enterLocation("village", col, row, facing);
     } else if (t.kind === "talk") {
-      this.dialogue = { name: t.name, lines: t.lines, idx: 0 };
-      this.ui.showDialogue(t.name, t.lines[0]);
+      this.dialogue = {
+        name: t.name,
+        lines: t.lines,
+        idx: 0,
+        portrait: t.portrait ?? null,
+      };
+      this.ui.showDialogue(t.name, t.lines[0], t.portrait ?? null);
     } else if (t.kind === "dungeon") {
       this.dialogue = {
         name: "Masmorra",
@@ -722,8 +914,9 @@ export class Game {
           "(Em breve você poderá explorar a masmorra.)",
         ],
         idx: 0,
+        portrait: null,
       };
-      this.ui.showDialogue("Masmorra", this.dialogue.lines[0]);
+      this.ui.showDialogue("Masmorra", this.dialogue.lines[0], null);
     }
   }
 
@@ -734,7 +927,11 @@ export class Game {
       this.dialogue = null;
       this.ui.hideDialogue();
     } else {
-      this.ui.showDialogue(this.dialogue.name, this.dialogue.lines[this.dialogue.idx]);
+      this.ui.showDialogue(
+        this.dialogue.name,
+        this.dialogue.lines[this.dialogue.idx],
+        this.dialogue.portrait ?? null,
+      );
     }
   }
 
@@ -1277,7 +1474,13 @@ export class Game {
     const fr = this.row + dr;
     // NPC logo à frente
     const npc = this.npcMap.get(`${fc},${fr}`);
-    if (npc) return { kind: "talk", name: npc.name, lines: npc.lines };
+    if (npc)
+      return {
+        kind: "talk",
+        name: npc.name,
+        lines: npc.lines,
+        portrait: this.portraitFor(`${fc},${fr}`),
+      };
     if (this.location === "village") {
       // porta de estabelecimento (na face da casa voltada p/ o jogador)
       const estab = this.doorMap.get(`${fc},${fr},${-dc},${-dr}`);
