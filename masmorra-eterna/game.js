@@ -1243,19 +1243,13 @@ async function winBattle(){
   if(eqDrops.length)blog('⚔ Equipamento na bolsa: '+eqDrops.map(e=>e.dispName).join(', '));
   await wait(600);
   const lvs=[]; G.party.forEach(c=>{ if(c.alive){ if(gainXP(c,xp))lvs.push(c.name); } });
-  if(lvs.length){ // subir de nível restaura TODO o grupo (HP e MP) — recompensa clara
-    for(const c of alliesAlive()){ c.hp=c.mhp; c.mp=c.mmp;
-      const ci=G.party.indexOf(c), el=$('#bparty').children[ci];
-      if(el){ const r=el.getBoundingClientRect(),fr=$('#battle').getBoundingClientRect(); fxHeal(r.left-fr.left+r.width/2,r.top-fr.top+r.height/2); } }
-    blog('✨ Novo nível! O grupo recupera todo o HP e MP!');
-  }
   renderBparty();
   await wait(400);
   $('#battle').classList.remove('on');
   G.state='explore'; musicStart('explore');
   let m=`⚔ Vitória!  +${xp} XP · +${gold} GP`; if(drops.length)m+=`  ·  ${drops.map(d=>d.name).join(', ')}`;
   if(b._eqDrops&&b._eqDrops.length)m+=`\n⚔ ${b._eqDrops.map(e=>e.dispName+' ['+RARITY[e.rarity].name+']').join(' · ')}  — equipe no Acampamento`;
-  if(lvs.length){ m+=`\n★ Subiu de nível: ${lvs.join(', ')}!  ·  HP/MP restaurados 💚`; SFX.lvup(); showLvBanner(lvs); }
+  if(lvs.length){ m+=`\n★ Subiu de nível: ${lvs.join(', ')}!`; SFX.lvup(); showLvBanner(lvs); }
   $('#dangerVig').classList.remove('on');
   toast(m,2600);
   if(b.wasBoss){ onBossDefeated(); }
@@ -1270,8 +1264,8 @@ function gainXP(c,xp){ c.xp+=xp; let up=false;
     bs.mhp+=Math.round(rnd(10,16)+ (c.cls==='Cavaleira'?6:0)); bs.mmp+=Math.round(rnd(3,8)+ (c.mag>20?4:0));
     bs.str+=rnd(0.6,2.2); bs.mag+=rnd(0.6,2.4); bs.def+=rnd(0.5,1.6); bs.res+=rnd(0.5,1.6); bs.agi+=rnd(0.3,1.2); bs.luck+=rnd(0.2,1);
     ['str','mag','def','res','agi','luck'].forEach(k=>bs[k]=Math.round(bs[k]));
-    recalcStats(c);
-    c.hp=c.mhp; c.mp=c.mmp; c.xpNext=Math.round(c.xpNext*1.35+10);
+    recalcStats(c);   // sobe os máximos; HP/MP atuais NÃO são restaurados ao subir de nível
+    c.xpNext=Math.round(c.xpNext*1.35+10);
   }
   return up;
 }
