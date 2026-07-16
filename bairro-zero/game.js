@@ -125,7 +125,8 @@ function spawnZombies(fromSave){
       speed:(0.4+WORLD.rng()*0.28)*(s.crawler?0.55:1),
       chaseSpeed:(sprinter?2.2:1.05+WORLD.rng()*0.75)*(s.crawler?0.45:1),
       rig, attackCd:0, stagger:0, lunge:0, wanderT:2+WORLD.rng()*6, pause:WORLD.rng()<0.5,
-      groanT:WORLD.rng()*10, thumpT:0, climb:0, climbTo:null });
+      groanT:WORLD.rng()*10, thumpT:0, climb:0, climbTo:null,
+      gait:WORLD.rng()*6.28, swaySeed:WORLD.rng()*6.28 });
     if(s.hp<=0){ zombies[zombies.length-1].dead=true; }
   });
 }
@@ -173,9 +174,9 @@ function updateZombie(zb,dt,idx){
   // AGARRÃO (aviso): o zumbi arma o bote — dá tempo de reagir (empurrar/recuar)
   if(zb.lunge>0&&!dead){
     zb.lunge-=dt;
-    const a=Math.atan2(p.x-zb.x,p.z-zb.z); zb.dir=a;
+    turnToward(zb,Math.atan2(p.x-zb.x,p.z-zb.z),6.5,dt);
     const drift=zb.crawler?0.9:0.55;                     // avança devagar durante o bote
-    const [lx,lz]=WORLD.moveCircle(zb.x,zb.z,zb.x+Math.sin(a)*drift*dt,zb.z+Math.cos(a)*drift*dt,0.3);
+    const [lx,lz]=WORLD.moveCircle(zb.x,zb.z,zb.x+Math.sin(zb.dir)*drift*dt,zb.z+Math.cos(zb.dir)*drift*dt,0.3);
     zb.x=lx; zb.z=lz;
     CHARS.pose(zb.rig,dt,{act:'lunge',actP:1-zb.lunge/zb.lungeDur,zombie:true,speed:0,crawler:zb.crawler});
     zb.rig.group.position.set(zb.x,0,zb.z); zb.rig.group.rotation.y=zb.dir;
@@ -194,7 +195,11 @@ function updateZombie(zb,dt,idx){
     if(d<(zb.crawler?1.5:1.1)){
       if(zb.attackCd<=0){ zb.lungeDur=zb.crawler?0.55:0.75; zb.lunge=zb.lungeDur; AU.growl(0.8); }
     }
-    else { sp=zb.chaseSpeed; const a=Math.atan2(p.x-zb.x,p.z-zb.z); zb.dir=a; vx=Math.sin(a)*sp; vz=Math.cos(a)*sp; }
+    else { sp=zb.chaseSpeed;
+      // rumo com limite de giro + balanço lateral (cambaleio de perseguição)
+      const want=Math.atan2(p.x-zb.x,p.z-zb.z)+Math.sin(zb.gait*0.6+zb.swaySeed)*0.16;
+      turnToward(zb,want,3.6,dt);
+      vx=Math.sin(zb.dir)*sp; vz=Math.cos(zb.dir)*sp; }
   } else if(zb.state==='breach'){
     const tgt=zb.breach;
     const done=!tgt || tgt.broken || tgt.open || (tgt.state==='smashed'&&tgt.barr<=0);
@@ -223,14 +228,28 @@ function updateZombie(zb,dt,idx){
     }
   } else if(zb.state==='investigate'&&zb.mem){
     const d=Math.hypot(zb.mem.x-zb.x,zb.mem.z-zb.z);
-    if(d<0.8){ if(zb.mem.ref){ zb.state='breach'; zb.breach=zb.mem.ref; } else zb.state='wander'; zb.mem=null; }
-    else { sp=zb.speed*1.5; const a=Math.atan2(zb.mem.x-zb.x,zb.mem.z-zb.z); zb.dir=a; vx=Math.sin(a)*sp; vz=Math.cos(a)*sp; }
+    if(d<0.8){ if(zb.mem.ref){ zb.state='breach'; zb.breach=zb.mem.ref; }
+      else { zb.state='mill'; zb.millT=3+Math.random()*4; }   // chegou: fica rondando o barulho
+      zb.mem=null; }
+    else { sp=zb.speed*1.5; turnToward(zb,Math.atan2(zb.mem.x-zb.x,zb.mem.z-zb.z),2.6,dt);
+      vx=Math.sin(zb.dir)*sp; vz=Math.cos(zb.dir)*sp; }
+  } else if(zb.state==='mill'){                                // ronda o local, farejando
+    zb.millT-=dt;
+    if(zb.millT<=0){ zb.state='wander'; zb.wanderT=1; }
+    else { zb.millSpin=zb.millSpin||(Math.random()<0.5?-1:1);
+      zb.dir+=zb.millSpin*0.55*dt;
+      if(Math.sin(zb.millT*2.1)>0.2){ sp=zb.speed*0.5; vx=Math.sin(zb.dir)*sp; vz=Math.cos(zb.dir)*sp; } }
   } else {
     zb.wanderT-=dt;
-    if(zb.wanderT<0){ zb.wanderT=3+Math.random()*7; zb.dir=Math.random()*6.283; zb.pause=Math.random()<0.5; }
-    if(!zb.pause){ sp=zb.speed; vx=Math.sin(zb.dir)*sp; vz=Math.cos(zb.dir)*sp; }
+    if(zb.wanderT<0){ zb.wanderT=3.5+Math.random()*7; zb.wantDir=Math.random()*6.283; zb.pause=Math.random()<0.6; zb.idleSpin=Math.random()<0.3; }
+    if(zb.pause){ if(zb.idleSpin) zb.dir+=0.22*dt*(zb.swaySeed>3?-1:1); }  // parado, girando devagar
+    else { turnToward(zb,zb.wantDir||zb.dir,1.3,dt); sp=zb.speed; vx=Math.sin(zb.dir)*sp; vz=Math.cos(zb.dir)*sp; }
   }
   if(sp>0){
+    // CAMBALEIO: o zumbi avança em arrancos (lurch), não em velocidade constante
+    zb.gait+=dt*sp*2.4;
+    const lurch=zb.crawler? (0.35+0.65*Math.max(0,Math.sin(zb.gait))) : (0.58+0.42*Math.abs(Math.sin(zb.gait)));
+    vx*=lurch; vz*=lurch;
     zombies.forEach(o=>{ if(o===zb||o.dead)return; const dx=zb.x-o.x,dz=zb.z-o.z,d2=dx*dx+dz*dz;
       if(d2<0.36&&d2>0.0001){ const d=Math.sqrt(d2); vx+=dx/d*1.2; vz+=dz/d*1.2; } });
     const ox=zb.x, oz=zb.z;
@@ -262,6 +281,11 @@ function updateZombie(zb,dt,idx){
   zb.rig.group.position.set(zb.x,0,zb.z);
   zb.rig.group.rotation.y=zb.dir;
 }
+function turnToward(zb,want,rate,dt){ // gira o rumo com limite de velocidade angular
+  let d=want-zb.dir;
+  while(d>Math.PI)d-=6.28318; while(d<-Math.PI)d+=6.28318;
+  const m=rate*dt; zb.dir+= Math.abs(d)<m? d : Math.sign(d)*m;
+}
 function emitNoiseSilent(x,z,r){ // barulho que não vem do jogador (sem furtividade)
   zombies.forEach(zb=>{ if(zb.dead)return; const d=Math.hypot(zb.x-x,zb.z-z);
     if(d<r&&zb.state==='wander'){ zb.state='investigate'; zb.mem={x,z}; } });
@@ -289,6 +313,7 @@ function zombieAttack(zb){
 function damageZombie(zb,dmg,fromX,fromZ,knockCh,critB){
   const crit=Math.random()<0.08+skill('corpo')*0.03+(critB||0);
   if(crit){ dmg*=1.8; AU.crit(); } else AU.hit();
+  camShake=Math.min(0.22,camShake+(crit?0.12:0.07));
   zb.hp-=dmg; zb.stagger=0.4;
   const kb=0.5, dx=zb.x-fromX, dz=zb.z-fromZ, d=Math.hypot(dx,dz)||1;
   const [nx,nz]=WORLD.moveCircle(zb.x,zb.z,zb.x+dx/d*kb,zb.z+dz/d*kb,0.3); zb.x=nx; zb.z=nz;
@@ -462,10 +487,13 @@ function setupInput(){
   zone.addEventListener('pointerdown',e=>{ pid=e.pointerId; cx=e.clientX; cy=e.clientY;
     base.style.left=cx+'px'; base.style.top=cy+'px'; base.classList.add('on'); zone.setPointerCapture(pid); });
   zone.addEventListener('pointermove',e=>{ if(e.pointerId!==pid)return;
-    let dx=e.clientX-cx, dy=e.clientY-cy; const d=Math.hypot(dx,dy), max=46;
-    if(d>max){ dx*=max/d; dy*=max/d; }
+    let dx=e.clientX-cx, dy=e.clientY-cy; const d=Math.hypot(dx,dy), max=48;
+    if(d>max){ // o joystick "segue" o dedo se arrastar longe (re-ancora) — controle contínuo
+      const ex=dx-dx*max/d, ey=dy-dy*max/d; cx+=ex; cy+=ey;
+      base.style.left=cx+'px'; base.style.top=cy+'px';
+      dx*=max/d; dy*=max/d; }
     stick.style.transform=`translate(${dx}px,${dy}px)`;
-    joy.on=d>8; joy.dx=dx/max; joy.dz=dy/max; });
+    joy.on=d>5; joy.dx=dx/max; joy.dz=dy/max; });
   const end=e=>{ if(e.pointerId!==pid)return; pid=null; joy.on=false; base.classList.remove('on'); stick.style.transform=''; };
   zone.addEventListener('pointerup',end); zone.addEventListener('pointercancel',end);
   $('#btnAtk').addEventListener('pointerdown',e=>{ e.preventDefault(); doAttack(); });
@@ -497,16 +525,18 @@ function movePlayer(dt){
   const exhausted=p.endurance<18;
   const run=(keys['shift']||p.run)&&!exhausted&&!p.sneak;
   const mag=Math.hypot(dx,dz);
-  if(mag>0.1){
-    const ang=Math.atan2(dx,dz)-Math.PI/4;
+  if(mag>0.06){
+    // TELA → MUNDO ISO (câmera em +x,+z): direita da tela = (+x,-z) · cima = (-x,-z)
+    const s=Math.min(1,mag)/(mag||1); dx*=s; dz*=s;
+    const IS=0.70710678;
     let sp=(run?4.9:p.sneak?1.7:2.9);
     if(p.pain>70)sp*=0.75; if(wr>1)sp*=Math.max(0.5,1-(wr-1)*0.8); if(exhausted)sp*=0.8;
     if(p.fatigue>85)sp*=0.85;
-    const vx=Math.sin(ang)*sp*Math.min(1,mag), vz=Math.cos(ang)*sp*Math.min(1,mag);
+    const vx=(dx+dz)*IS*sp, vz=(dz-dx)*IS*sp;
     const [nx,nz]=WORLD.moveCircle(p.x,p.z,p.x+vx*dt,p.z+vz*dt,0.32);
     p.x=nx; p.z=nz;
     p.facing=Math.atan2(vx,vz);
-    p.speed=sp;
+    p.speed=sp*Math.hypot(dx,dz);
     if(run){ p.endurance=Math.max(0,p.endurance-dt*7*(1-skill('aptidao')*0.06)); gainXP('aptidao',dt*2);
       noiseT-=dt; if(noiseT<0){ noiseT=0.5; emitNoise(p.x,p.z,9); } }
     else if(p.sneak){ gainXP('furtiv',dt*1.5); noiseT-=dt; if(noiseT<0){ noiseT=1.0; emitNoise(p.x,p.z,1.2); } }
@@ -515,7 +545,10 @@ function movePlayer(dt){
   CHARS.pose(p.rig,dt,{speed:p.speed>0?(run?1.5:p.sneak?0.5:1):0, sneak:p.sneak,
     act:p.actT>0?p.act:null, actP:p.actT>0?1-p.actT/p.actDur:0});
   p.rig.group.position.set(p.x,0,p.z);
-  p.rig.group.rotation.y=p.facing;
+  // giro suave e rápido (arco mais curto) — preciso sem "pipocar"
+  { let d=p.facing-p.rig.group.rotation.y;
+    while(d>Math.PI)d-=6.28318; while(d<-Math.PI)d+=6.28318;
+    const m=16*dt; p.rig.group.rotation.y+= Math.abs(d)<m? d : Math.sign(d)*m; }
 }
 function playerAct(act,dur){ player.act=act; player.actT=dur; player.actDur=dur; }
 
@@ -536,8 +569,18 @@ function doAttack(){
   }
   const wep=p.weapon? ITEMS[p.weapon.id]:null;
   const stab=wep&&wep.stab;
-  p.attackCd=(wep? wep.spd:0.55)*(p.endurance<18?1.4:1);
+  p.attackCd=(wep? wep.spd:0.5)*(p.endurance<18?1.4:1);
   AU.swing(); playerAct(stab?'stab':'swing',stab?0.26:0.34);
+  // MIRA ASSISTIDA: encara automaticamente o zumbi mais próximo à sua frente
+  { let aimA=null,aimD=2.3;
+    zombies.forEach(zb=>{ if(zb.dead)return; const d=Math.hypot(zb.x-p.x,zb.z-p.z);
+      if(d>aimD)return; const a=Math.atan2(zb.x-p.x,zb.z-p.z);
+      let dA=Math.abs(a-p.facing); if(dA>Math.PI)dA=6.28318-dA;
+      if(dA<1.7){ aimD=d; aimA=a; } });
+    if(aimA!=null){ p.facing=aimA; p.rig.group.rotation.y=aimA; } }
+  // passo curto pra frente — peso do golpe
+  { const [sx,sz]=WORLD.moveCircle(p.x,p.z,p.x+Math.sin(p.facing)*0.13,p.z+Math.cos(p.facing)*0.13,0.32);
+    p.x=sx; p.z=sz; }
   p.endurance=Math.max(0,p.endurance-(wep? (stab?2.5:4+wep.kg*2) : 3)*(1-skill('aptidao')*0.05));
   emitNoise(p.x,p.z,wep?(stab?4:10):6);
   const exhausted=p.endurance<18;
@@ -902,12 +945,15 @@ function initThree(){
     camera.left=-ZOOM*a2; camera.right=ZOOM*a2; camera.top=ZOOM; camera.bottom=-ZOOM;
     camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
 }
+let camShake=0;
 function updateCamera(dt){
   const tx=player.x+CAMDIR.x*40, ty=CAMDIR.y*40, tz=player.z+CAMDIR.z*40;
   if(camPos.x===0&&camPos.y===0) camPos.set(tx,ty,tz);
   camPos.x+=(tx-camPos.x)*Math.min(1,dt*7); camPos.y=ty; camPos.z+=(tz-camPos.z)*Math.min(1,dt*7);
-  camera.position.copy(camPos);
-  camera.lookAt(camPos.x-CAMDIR.x*40, 0.8, camPos.z-CAMDIR.z*40);
+  camShake*=Math.exp(-9*dt);
+  const shx=(Math.random()-0.5)*camShake, shz=(Math.random()-0.5)*camShake;
+  camera.position.set(camPos.x+shx,camPos.y,camPos.z+shz);
+  camera.lookAt(camPos.x-CAMDIR.x*40+shx, 0.8, camPos.z-CAMDIR.z*40+shz);
 }
 
 /* ================= LOOP ================= */
