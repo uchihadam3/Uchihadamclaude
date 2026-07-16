@@ -92,12 +92,12 @@ export function cobblestone(seed = 7): THREE.Texture {
   const H = 160;
   const { c, ctx } = makeCanvas(W, H);
   const r = rnd(seed);
-  // argamassa (fundo terroso escuro) com granulado
-  ctx.fillStyle = "#241f18";
+  // argamassa (fundo terroso médio, sem preto duro) com granulado leve
+  ctx.fillStyle = "#4a4136";
   ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 1400; i++) {
-    const g = 26 + (r() * 34) | 0;
-    ctx.fillStyle = `rgba(${g},${(g * 0.85) | 0},${(g * 0.66) | 0},0.5)`;
+  for (let i = 0; i < 900; i++) {
+    const g = 58 + (r() * 26) | 0;
+    ctx.fillStyle = `rgba(${g},${(g * 0.88) | 0},${(g * 0.72) | 0},0.4)`;
     ctx.fillRect(r() * W, r() * H, 2, 2);
   }
   const cell = 22;
@@ -106,7 +106,7 @@ export function cobblestone(seed = 7): THREE.Texture {
     const pts: [number, number][] = [];
     for (let s = 0; s < sides; s++) {
       const a = (s / sides) * Math.PI * 2;
-      const q = rad * (0.76 + r() * 0.36);
+      const q = rad * (0.78 + r() * 0.3);
       pts.push([ox + Math.cos(a) * q, oy + Math.sin(a) * q * 0.92]);
     }
     const path = () => {
@@ -114,50 +114,42 @@ export function cobblestone(seed = 7): THREE.Texture {
       pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
       ctx.closePath();
     };
-    // paleta: cinza-quente, ardósia azulada, arenito
-    const base = 104 + Math.floor(r() * 66);
+    // paleta MUITO próxima entre si (baixo contraste p/ não competir com os NPCs)
+    const base = 120 + Math.floor(r() * 34); // 120-154, faixa estreita
     const t = r();
     let R: number, G: number, B: number;
-    if (t < 0.36) {
+    if (t < 0.45) {
       R = base;
-      G = (base * 0.95) | 0;
-      B = (base * 0.88) | 0;
-    } else if (t < 0.66) {
-      R = (base * 0.82) | 0;
-      G = (base * 0.87) | 0;
-      B = (base * 0.92) | 0;
+      G = (base * 0.96) | 0;
+      B = (base * 0.9) | 0;
+    } else if (t < 0.75) {
+      R = (base * 0.9) | 0;
+      G = (base * 0.93) | 0;
+      B = (base * 0.96) | 0;
     } else {
-      R = Math.min(255, (base * 1.04) | 0);
-      G = (base * 0.9) | 0;
-      B = (base * 0.7) | 0;
+      R = Math.min(255, (base * 1.0) | 0);
+      G = (base * 0.92) | 0;
+      B = (base * 0.78) | 0;
     }
-    // sombra de contato (deslocada p/ baixo-direita)
+    // sombra de contato leve
     ctx.save();
-    ctx.translate(0.8, 1.4);
+    ctx.translate(0.6, 1.0);
     path();
-    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fillStyle = "rgba(40,34,26,0.35)";
     ctx.fill();
     ctx.restore();
     // corpo da pedra
     path();
     ctx.fillStyle = `rgb(${R},${G},${B})`;
     ctx.fill();
-    // volume: topo iluminado, base sombreada
+    // volume suave: topo um pouco claro, base um pouco escura
     const grd = ctx.createLinearGradient(ox, oy - rad, ox, oy + rad);
-    grd.addColorStop(0, "rgba(255,248,230,0.22)");
+    grd.addColorStop(0, "rgba(255,250,236,0.1)");
     grd.addColorStop(0.5, "rgba(255,255,255,0)");
-    grd.addColorStop(1, "rgba(0,0,0,0.28)");
+    grd.addColorStop(1, "rgba(30,24,18,0.14)");
     path();
     ctx.fillStyle = grd;
     ctx.fill();
-    // desgaste: pontinhos claros/escuros
-    for (let i = 0; i < 7; i++) {
-      const px = ox + (r() - 0.5) * rad * 1.3;
-      const py = oy + (r() - 0.5) * rad * 1.3;
-      const lite = r() < 0.5;
-      ctx.fillStyle = lite ? "rgba(255,250,235,0.09)" : "rgba(0,0,0,0.12)";
-      ctx.fillRect(px, py, 1.6, 1.6);
-    }
   };
   // desenha com sobreposição nas bordas p/ ladrilhar melhor
   for (let gy = -1; gy < H / cell + 1; gy++) {
