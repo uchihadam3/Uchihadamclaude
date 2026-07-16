@@ -909,6 +909,7 @@ function showActionMenu(c){
     <div class="act ${canMag&&knownSkills(c).some(id=>SKILLS[id].magic)?'':'dis'}" data-a="magic">✧ MAGIA<small>${c.mp}/${c.mmp} MP</small></div>
     <div class="act" data-a="item">🜂 ITEM<small>usar</small></div>
     <div class="act" data-a="guard">🛡 DEFENDER<small>+Resolve</small></div>
+    ${G.battle&&!G.battle.boss?`<div class="act flee" data-a="flee">🏃 FUGIR<small>tentar escapar</small></div>`:''}
   </div>`;
   m.querySelectorAll('.act').forEach(el=>el.onclick=()=>{ if(el.classList.contains('dis'))return; SFX.ui(); onAction(c,el.dataset.a); });
 }
@@ -921,6 +922,23 @@ function onAction(c,a){
   if(a==='skill'){ openSub(c,knownSkills(c).filter(id=>!SKILLS[id].magic&&SKILLS[id].kind!=='heal'&&SKILLS[id].kind!=='revive'&&SKILLS[id].kind!=='cure'),'TÉCNICAS'); return; }
   if(a==='magic'){ openSub(c,knownSkills(c).filter(id=>SKILLS[id].magic||['heal','cure','revive','util'].includes(SKILLS[id].kind)),'MAGIAS'); return; }
   if(a==='item'){ openItems(c); return; }
+  if(a==='flee'){ tryFlee(c); return; }
+}
+function tryFlee(c){
+  const b=G.battle; if(b.boss){ blog('Não há como fugir deste inimigo!'); return; } // chefes: sem fuga
+  hideMenus();
+  const pA=alliesAlive().reduce((a,x)=>a+effAgi(x),0)/Math.max(1,alliesAlive().length);
+  const eA=enemiesAlive().reduce((a,x)=>a+effAgi(x),0)/Math.max(1,enemiesAlive().length);
+  let ch=clamp(0.55+(pA-eA)*0.02, 0.3, 0.9);      // base 55%, ajustada pela agilidade média
+  if(chance(ch)){
+    blog('🏃 '+c.name+' comandou a retirada — fugiram em segurança!'); SFX.back();
+    b.over=true; finishTurn();
+    $('#battle').classList.remove('on'); G.state='explore'; $('#dangerVig').classList.remove('on');
+    musicStart('explore'); renderHUD(); saveGame(); toast('🏃 Vocês fugiram da batalha.',1700);
+  } else {
+    blog('🏃 A fuga falhou! '+c.name+' perde o turno.'); SFX.miss(); shakeField(8);
+    finishTurn();                                  // fuga falhou = turno perdido
+  }
 }
 function openSub(c,ids,label){
   const s=$('#bsub'); s.classList.add('on'); $('#bmenu').classList.remove('on'); clearTargets();
