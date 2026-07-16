@@ -97,6 +97,24 @@
   #lvBanner{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:62;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;}
   #lvBanner .lvb{background:linear-gradient(180deg,#3a2c0e,#1a1408);border:1.5px solid var(--gold);border-radius:10px;padding:10px 22px;font-size:15px;color:#ffe8a8;font-weight:bold;letter-spacing:1px;box-shadow:0 4px 24px rgba(232,193,90,.35);animation:lvpop 2.4s ease forwards;text-shadow:0 1px 4px #000;}
   @keyframes lvpop{0%{transform:translateY(14px) scale(.8);opacity:0;}12%{transform:translateY(0) scale(1.05);opacity:1;}20%{transform:scale(1);}82%{opacity:1;}100%{transform:translateY(-10px);opacity:0;}}
+  /* transição de entrada da batalha */
+  #battleTrans{position:fixed;inset:0;z-index:66;pointer-events:none;overflow:hidden;}
+  #battleTrans .btStripes{position:absolute;inset:-3% -3%;}
+  #battleTrans .btStripes span{position:absolute;left:-3%;width:106%;height:calc(100% / 7 + 3px);top:calc(var(--i) * (100% / 7));
+    background:linear-gradient(90deg,#050403,#18120a 45%,#0b0806);transform:translateX(var(--from));box-shadow:0 0 14px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.03);}
+  #battleTrans.go .btStripes span{animation:btBand .8s cubic-bezier(.72,0,.28,1) forwards;animation-delay:var(--d);}
+  @keyframes btBand{0%{transform:translateX(var(--from));}44%{transform:translateX(0);}58%{transform:translateX(0);}100%{transform:translateX(var(--to));}}
+  #battleTrans .btFlash{position:absolute;inset:0;opacity:0;background:radial-gradient(circle at 50% 50%,#fff,rgba(255,220,150,.5) 38%,transparent 68%);}
+  #battleTrans.go .btFlash{animation:btFlash .8s ease forwards;}
+  @keyframes btFlash{0%,36%{opacity:0;}47%{opacity:.95;}64%{opacity:0;}100%{opacity:0;}}
+  #battleTrans .btWord{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.4);opacity:0;white-space:nowrap;
+    font-family:'Cinzel','Rubik',serif;font-weight:900;font-size:min(15vw,86px);letter-spacing:10px;color:#ffe27a;
+    text-shadow:var(--txtout),0 0 34px rgba(255,180,60,.85);}
+  #battleTrans.go .btWord{animation:btWord .8s cubic-bezier(.5,0,.2,1) forwards;}
+  @keyframes btWord{0%,32%{opacity:0;transform:translate(-50%,-50%) scale(.35);}46%{opacity:1;transform:translate(-50%,-50%) scale(1.1);}
+    60%{opacity:1;transform:translate(-50%,-50%) scale(1);}82%{opacity:1;}100%{opacity:0;transform:translate(-50%,-58%) scale(1.03);}}
+  #battleTrans.boss .btStripes span{background:linear-gradient(90deg,#0b0304,#2c0a0c 45%,#0b0304);}
+  #battleTrans.boss .btWord{color:#ff6a5a;letter-spacing:14px;text-shadow:var(--txtout),0 0 34px rgba(255,60,50,.9);}
   #dangerVig{position:fixed;inset:0;z-index:55;pointer-events:none;opacity:0;transition:opacity .3s;box-shadow:inset 0 0 120px 30px rgba(200,20,20,.55);}
   #dangerVig.on{animation:danger 1.3s ease-in-out infinite;}
   @keyframes danger{0%,100%{opacity:.35;}50%{opacity:.8;}}

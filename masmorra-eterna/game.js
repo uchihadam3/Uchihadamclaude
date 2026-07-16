@@ -807,18 +807,29 @@ function startBattle(formation,opts){
   });
   G.party.forEach(c=>{ c.resolve = conds.includes('fartura')?5:Math.max(c.resolve,2); c.guardF=false; });
   G.state='battle';
-  $('#battle').classList.add('on');
+  const reveal=()=>{ $('#battle').classList.add('on'); layoutEnemies(); renderBparty(); renderTurnQ(); renderFury(); bfxLoop();
+    showCondBanner(conds, opts.boss?formation[0].name:null); renderCondChip(); };
+  const t0=battleTransition(!!opts.boss, reveal);           // transição de entrada; revela a batalha no meio
   musicStart(opts.boss?'boss':'battle');
-  layoutEnemies();
-  renderBparty(); renderTurnQ(); renderFury();
   const elites=formation.filter(e=>e.elite);
   if(elites.length)milestone('elite1','🏆 CONQUISTA: um inimigo de ELITE apareceu — cuidado!');
-  if(opts.boss&&!opts.secretBoss)setTimeout(()=>banter('boss'),400); else if(elites.length&&!opts.elitePack)setTimeout(()=>banter('elite'),400);
+  if(opts.boss&&!opts.secretBoss)setTimeout(()=>banter('boss'),t0+400); else if(elites.length&&!opts.elitePack)setTimeout(()=>banter('elite'),t0+400);
   blog(opts.boss?('⚠ '+formation[0].name+' ergue-se diante de vocês!'):(elites.length?'Uma ameaça incomum emboscou o grupo!':'Inimigos emboscam o grupo!'));
-  bfxLoop();
-  showCondBanner(conds, opts.boss?formation[0].name:null);
-  renderCondChip();
-  setTimeout(()=>battleLoop(), conds.length?1900:800);
+  setTimeout(()=>battleLoop(), t0 + (conds.length?1900:800));
+}
+// transição de entrada da batalha (persianas diagonais + flash + palavra); retorna o ms em que a batalha é revelada
+function battleTransition(isBoss,onReveal){
+  const N=7, revealMs=480;
+  const ov=document.createElement('div'); ov.id='battleTrans'; if(isBoss)ov.classList.add('boss');
+  let sp=''; for(let i=0;i<N;i++){ const dir=i%2?1:-1; sp+=`<span style="--i:${i};--from:${dir*118}%;--to:${dir*-118}%;--d:${(i*0.02).toFixed(2)}s"></span>`; }
+  ov.innerHTML=`<div class="btStripes">${sp}</div><div class="btFlash"></div><div class="btWord">${isBoss?'CHEFE':'BATALHA'}</div>`;
+  document.body.appendChild(ov);
+  try{ SFX.dark&&SFX.dark(); }catch(e){}
+  void ov.offsetWidth;            // força layout inicial antes de animar (rAF pode ser estrangulado)
+  ov.classList.add('go');
+  setTimeout(()=>{ try{ (isBoss?SFX.crit:SFX.brk)&&(isBoss?SFX.crit():SFX.brk()); }catch(e){} onReveal&&onReveal(); }, revealMs);
+  setTimeout(()=>ov.remove(), 980);
+  return revealMs;
 }
 function showCondBanner(conds,bossName){
   const f=$('#bfield'); const b=document.createElement('div'); b.id='condBanner';
@@ -1232,13 +1243,19 @@ async function winBattle(){
   if(eqDrops.length)blog('⚔ Equipamento na bolsa: '+eqDrops.map(e=>e.dispName).join(', '));
   await wait(600);
   const lvs=[]; G.party.forEach(c=>{ if(c.alive){ if(gainXP(c,xp))lvs.push(c.name); } });
+  if(lvs.length){ // subir de nível restaura TODO o grupo (HP e MP) — recompensa clara
+    for(const c of alliesAlive()){ c.hp=c.mhp; c.mp=c.mmp;
+      const ci=G.party.indexOf(c), el=$('#bparty').children[ci];
+      if(el){ const r=el.getBoundingClientRect(),fr=$('#battle').getBoundingClientRect(); fxHeal(r.left-fr.left+r.width/2,r.top-fr.top+r.height/2); } }
+    blog('✨ Novo nível! O grupo recupera todo o HP e MP!');
+  }
   renderBparty();
   await wait(400);
   $('#battle').classList.remove('on');
   G.state='explore'; musicStart('explore');
   let m=`⚔ Vitória!  +${xp} XP · +${gold} GP`; if(drops.length)m+=`  ·  ${drops.map(d=>d.name).join(', ')}`;
   if(b._eqDrops&&b._eqDrops.length)m+=`\n⚔ ${b._eqDrops.map(e=>e.dispName+' ['+RARITY[e.rarity].name+']').join(' · ')}  — equipe no Acampamento`;
-  if(lvs.length){ m+=`\n★ Subiu de nível: ${lvs.join(', ')}!`; SFX.lvup(); showLvBanner(lvs); }
+  if(lvs.length){ m+=`\n★ Subiu de nível: ${lvs.join(', ')}!  ·  HP/MP restaurados 💚`; SFX.lvup(); showLvBanner(lvs); }
   $('#dangerVig').classList.remove('on');
   toast(m,2600);
   if(b.wasBoss){ onBossDefeated(); }
