@@ -33,6 +33,7 @@ import taverneiroUrl from "../assets/npc/taverneiro.png";
 import mercadoraUrl from "../assets/npc/mercadora.png";
 import ferreiroUrl from "../assets/npc/ferreiro.png";
 import alquimistaUrl from "../assets/npc/alquimista.png";
+import pipUrl from "../assets/npc/pip.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -80,6 +81,7 @@ interface VillageNPC {
   seed: number;
   name: string;
   lines: string[];
+  scale?: number; // altura relativa (ex.: crianças ~0.7)
 }
 const VILLAGE_NPCS: VillageNPC[] = [
   {
@@ -98,6 +100,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     c: 7,
     r: 6,
     seed: 4,
+    scale: 0.7,
     name: "Pip",
     lines: [
       "Olha minha espada de madeira! Um dia vou ser aventureiro igual você!",
@@ -109,6 +112,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     c: 8,
     r: 8,
     seed: 6,
+    scale: 0.66,
     name: "Wilma",
     lines: [
       "Você viu minha boneca? Ah, está aqui!",
@@ -208,7 +212,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
 // artes 2D dos aldeões (id -> URL importada). Vazio por enquanto: cada aldeão
 // usa o sprite procedural até a arte chegar. Ao receber uma imagem, basta
 // importá-la e mapear o id aqui — o resto já está pronto.
-const VILLAGER_ART: Record<string, string> = {};
+const VILLAGER_ART: Record<string, string> = {
+  pip: pipUrl,
+};
 
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
 // Falas maiores são quebradas em várias páginas ("…" e o jogador continua).
@@ -804,6 +810,7 @@ export class Game {
     name: string,
     lines: string[],
     img?: THREE.Texture,
+    scale = 1,
   ) {
     // com imagem (arte 2D enviada): usa a textura e a proporção da imagem
     const map = img ?? tex.villager(seed);
@@ -813,9 +820,9 @@ export class Game {
       alphaTest: 0.5,
       side: THREE.DoubleSide,
     });
-    const h = img ? 2.4 : 2.15;
-    const w = img ? h * 0.671 : 1.3; // aspecto 848x1264
-    const y = img ? h / 2 - 0.08 : 1.06;
+    const h = (img ? 2.4 : 2.15) * scale;
+    const w = img ? h * 0.671 : 1.3 * scale; // aspecto 848x1264
+    const y = img ? h / 2 - 0.08 : 1.06 * scale;
     const npc = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     npc.position.set(c * CELL, y, r * CELL);
     this.world.add(npc);
@@ -827,7 +834,15 @@ export class Game {
   // aldeões da vila (espalhados pela praça)
   private buildNPCs() {
     for (const v of VILLAGE_NPCS) {
-      this.addNPC(v.c, v.r, v.seed, v.name, v.lines, this.villagerArtTex(v.id));
+      this.addNPC(
+        v.c,
+        v.r,
+        v.seed,
+        v.name,
+        v.lines,
+        this.villagerArtTex(v.id),
+        v.scale ?? 1,
+      );
     }
   }
 
