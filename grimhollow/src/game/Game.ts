@@ -37,6 +37,7 @@ import pipUrl from "../assets/npc/pip.png";
 import wilmaUrl from "../assets/npc/wilma.png";
 import fazendeiroUrl from "../assets/npc/fazendeiro.png";
 import camponesaUrl from "../assets/npc/camponesa.png";
+import lenhadorUrl from "../assets/npc/lenhador.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -220,6 +221,7 @@ const VILLAGER_ART: Record<string, string> = {
   wilma: wilmaUrl,
   alard: fazendeiroUrl,
   elspeth: camponesaUrl,
+  corvin: lenhadorUrl,
 };
 
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
