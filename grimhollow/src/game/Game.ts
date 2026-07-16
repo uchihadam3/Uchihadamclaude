@@ -141,6 +141,12 @@ const VILLAGE_NPCS: VillageNPC[] = [
     c: 5,
     r: 9,
     seed: 8,
+    patrol: [
+      [5, 9],
+      [6, 9],
+      [7, 9],
+      [8, 9],
+    ],
     name: "Hedda, a Matriarca",
     lines: [
       "Cuide-se por aí, meu jovem. Falta água, deixe-me encher o jarro.",
