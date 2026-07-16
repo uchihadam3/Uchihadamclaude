@@ -45,6 +45,8 @@ const AU=(()=>{ let ctx=null,master=null;
     door(){ ens(); t(180,0.28,{type:'sawtooth',g:0.035,slide:40}); n(0.06,{g:0.05,f:900}); },
     doorBreak(){ ens(); n(0.3,{g:0.25,f:400,q:0.8}); t(90,0.3,{g:0.2,slide:-30}); },
     glass(){ ens(); n(0.25,{g:0.22,f:3200,q:0.5}); n(0.18,{g:0.12,f:5000,q:0.5}); },
+    gunshot(){ ens(); n(0.05,{g:0.4,f:1400,q:0.4}); n(0.22,{g:0.3,f:350,q:0.5}); t(70,0.3,{g:0.25,slide:-30}); },
+    click(){ ens(); n(0.03,{g:0.1,f:2200,q:3}); },
     thump(){ ens(); t(75,0.14,{g:0.18}); n(0.07,{g:0.09,f:200,q:2}); },
     eat(){ ens(); n(0.1,{g:0.09,f:700}); setTimeout(()=>n(0.1,{g:0.07,f:600}),140); },
     drink(){ ens(); t(400,0.12,{g:0.05,slide:120}); setTimeout(()=>t(500,0.1,{g:0.04,slide:100}),140); },
@@ -147,8 +149,22 @@ function edgeAhead(zb,vx,vz){ // que aresta está bloqueando o caminho?
 function updateZombie(zb,dt,idx){
   if(zb.dead) return;
   const p=player;
+  // culling: longe do jogador → sem rig visível nem animação (a IA continua)
+  const pdist=Math.hypot(p.x-zb.x,p.z-zb.z);
+  const far=pdist>34;
+  if(far!==!zb.rig.group.visible) zb.rig.group.visible=!far;
+  zb.far=far;
   zb.attackCd=Math.max(0,zb.attackCd-dt); zb.stagger=Math.max(0,zb.stagger-dt);
-  if(zb.downed>0){ zb.downed-=dt; CHARS.pose(zb.rig,dt,{fallen:1,zombie:true,speed:0}); zb.rig.group.position.set(zb.x,0,zb.z); return; }
+  if(zb.downed>0){ // derrubado: tomba → fica estirado → LEVANTA com animação
+    zb.downed-=dt;
+    const el=(zb.downedDur||3)-zb.downed;
+    let o;
+    if(el<0.28) o={act:'fall',actP:el/0.28};
+    else if(zb.downed>0.95) o={fallen:1};
+    else o={act:'getup',actP:1-zb.downed/0.95};
+    CHARS.pose(zb.rig,dt,{...o,zombie:true,speed:0});
+    zb.rig.group.position.set(zb.x,0,zb.z);
+    return; }
   zb.groanT-=dt; if(zb.groanT<0){ zb.groanT=6+Math.random()*10; const d=Math.hypot(p.x-zb.x,p.z-zb.z);
     if(d<14) (zb.state==='chase'?AU.growl:AU.groan)(Math.max(0.1,1-d/14)); }
   // escalada de janela
@@ -277,9 +293,11 @@ function updateZombie(zb,dt,idx){
       }
     } else zb.blockT=0;
   }
-  CHARS.pose(zb.rig,dt,{speed:sp>0?(chasing?1.2:0.5):0, zombie:true, chasing, crawler:zb.crawler});
-  zb.rig.group.position.set(zb.x,0,zb.z);
-  zb.rig.group.rotation.y=zb.dir;
+  if(!zb.far){
+    CHARS.pose(zb.rig,dt,{speed:sp>0?(chasing?1.2:0.5):0, zombie:true, chasing, crawler:zb.crawler});
+    zb.rig.group.position.set(zb.x,0,zb.z);
+    zb.rig.group.rotation.y=zb.dir;
+  }
 }
 function turnToward(zb,want,rate,dt){ // gira o rumo com limite de velocidade angular
   let d=want-zb.dir;
@@ -317,7 +335,7 @@ function damageZombie(zb,dmg,fromX,fromZ,knockCh,critB){
   zb.hp-=dmg; zb.stagger=0.4;
   const kb=0.5, dx=zb.x-fromX, dz=zb.z-fromZ, d=Math.hypot(dx,dz)||1;
   const [nx,nz]=WORLD.moveCircle(zb.x,zb.z,zb.x+dx/d*kb,zb.z+dz/d*kb,0.3); zb.x=nx; zb.z=nz;
-  if(!zb.crawler && Math.random()<(knockCh||0)+skill('forca')*0.04){ zb.downed=2.2+Math.random()*1.6; }
+  if(!zb.crawler && Math.random()<(knockCh||0)+skill('forca')*0.04){ zb.downed=2.6+Math.random()*1.6; zb.downedDur=zb.downed; }
   blood(zb.x,1.1,zb.z); splat(zb.x,zb.z,0.45);
   gainXP('forca',3); gainXP('corpo',5);
   if(zb.hp<=0) killZombie(zb);
@@ -392,7 +410,10 @@ function updateDayNight(dt){
   hemi.intensity=amb;
   renderer.setClearColor(bg);
   const night=isNight(), pw=powerOn();
-  WORLD.lamps.forEach(l=>{ l.light.intensity=(night&&pw)?1.1:0; l.head.material.emissive.setHex((night&&pw)?0xffc060:0x000000); });
+  // só os 5 postes mais próximos acendem luz REAL (perf); os outros só brilham
+  const byDist=WORLD.lamps.map(l=>({l,d:Math.hypot(l.x-player.x,l.z-player.z)})).sort((a,b)=>a.d-b.d);
+  byDist.forEach((e,i)=>{ e.l.light.intensity=(night&&pw&&i<5)?1.1:0;
+    e.l.head.material.emissive.setHex((night&&pw)?0xffc060:0x000000); });
   playerLight.intensity=night?0.9:0;
   playerLight.position.set(player.x,2.2,player.z);
   const hh=String(Math.floor(h)).padStart(2,'0'), mm=String(Math.floor(gameMin%60)).padStart(2,'0');
@@ -585,6 +606,25 @@ function doAttack(){
   emitNoise(p.x,p.z,wep?(stab?4:10):6);
   const exhausted=p.endurance<18;
   let hit=false;
+  if(wep&&wep.gun){ // PISTOLA: alcance longo, ensurdecedora — toda a cidade ouve
+    if((p.balas||0)<=0){ AU.click(); toast('🔫 Sem balas. Use uma caixa de munição no inventário.'); p.attackCd=0.3; return; }
+    p.balas--; AU.gunshot(); camShake=Math.min(0.3,camShake+0.16);
+    muzzleFlash();
+    emitNoise(p.x,p.z,38);                                  // TODOS ouvem
+    let best=null,bd=10.5;
+    zombies.forEach(zb=>{ if(zb.dead)return;
+      const d=Math.hypot(zb.x-p.x,zb.z-p.z); if(d>bd)return;
+      const a=Math.atan2(zb.x-p.x,zb.z-p.z);
+      let dA=Math.abs(a-p.facing); if(dA>Math.PI)dA=6.283-dA;
+      if(dA<0.5 && WORLD.lineOfSight(p.x,p.z,zb.x,zb.z)){ bd=d; best=zb; } });
+    if(best){
+      const acc=Math.max(0.45, 0.95-bd*0.05-(p.panic>60?0.15:0));
+      if(Math.random()<acc){ const dmg=wep.dmg[0]+Math.random()*(wep.dmg[1]-wep.dmg[0]);
+        damageZombie(best,dmg,p.x,p.z,0.35,0.1); }
+      else { blood(best.x+(Math.random()-0.5),1.4,best.z+(Math.random()-0.5)); toast('Errou o tiro!'); }
+    }
+    return;
+  }
   if(stab){ // FACA: estocada rápida num único alvo à frente (alta chance de crítico)
     let best=null,bd=1.45;
     zombies.forEach(zb=>{ if(zb.dead)return;
@@ -608,6 +648,13 @@ function doAttack(){
   if(hit&&p.weapon){ p.weapon.cond--; if(p.weapon.cond<=0){
       toast('💔 Sua '+ITEMS[p.weapon.id].n+' QUEBROU!'); p.weapon=null; CHARS.showWeapon(p.rig,null); } }
 }
+let muzzle=null;
+function muzzleFlash(){
+  if(!muzzle) return;
+  muzzle.position.set(player.x+Math.sin(player.facing)*0.8, 1.4, player.z+Math.cos(player.facing)*0.8);
+  muzzle.intensity=3.2;
+  setTimeout(()=>{ muzzle.intensity=0; },70);
+}
 function doShove(){
   if(dead||sleeping||player.shoveCd>0) return;
   const p=player;
@@ -622,7 +669,7 @@ function doShove(){
       const kb=1.1, dx=zb.x-p.x, dz=zb.z-p.z, dd=Math.hypot(dx,dz)||1;
       const [nx,nz]=WORLD.moveCircle(zb.x,zb.z,zb.x+dx/dd*kb,zb.z+dz/dd*kb,0.3);
       zb.x=nx; zb.z=nz; zb.stagger=0.6;
-      if(!zb.crawler&&Math.random()<0.28+skill('forca')*0.06) zb.downed=2.4+Math.random()*1.6;
+      if(!zb.crawler&&Math.random()<0.28+skill('forca')*0.06) { zb.downed=2.8+Math.random()*1.6; zb.downedDur=zb.downed; }
       gainXP('forca',2);
     } });
 }
@@ -810,6 +857,12 @@ function renderInv(){
     else if(def.t==='bag') act('VESTIR',()=>{ if(player.bag)player.inv.push(player.bag);
       player.bag=it; player.inv.splice(i,1); CHARS.showPack(player.rig,def.tier); renderInv(); toast(def.n+' nas costas (+'+def.cap+'kg).'); });
     else if(def.t==='read') act('LER',()=>{ readItem(i); renderInv(); });
+    else if(def.t==='ammo') act('CARREGAR',()=>{ player.balas=(player.balas||0)+def.balas; player.inv.splice(i,1);
+      AU.ui(); renderInv(); toast('🔫 Pistola carregada: '+player.balas+' balas.'); });
+    else if(def.t==='disinfect') act('LIMPAR FERIDA',()=>{ const inj=player.injuries.find(j=>!j.clean);
+      if(!inj){ toast('Nenhum ferimento para limpar.'); return; }
+      inj.clean=true; if(inj.infectChance) inj.infectChance*=0.35;
+      player.inv.splice(i,1); renderInv(); toast('🧴 Ferida limpa — bem menos risco de infecção.'); });
     const drop=document.createElement('button'); drop.className='drop'; drop.textContent='✕';
     drop.onclick=()=>{ player.inv.splice(i,1); renderInv(); };
     d.appendChild(drop); list.appendChild(d);
@@ -941,6 +994,7 @@ function initThree(){
   scene.add(sun); scene.add(sun.target);
   hemi=new THREE.HemisphereLight(0xbfd4e8,0x6a6a58,0.7); scene.add(hemi);
   playerLight=new THREE.PointLight(0xffe0b0,0,7); scene.add(playerLight);
+  muzzle=new THREE.PointLight(0xffc860,0,8); scene.add(muzzle);
   addEventListener('resize',()=>{ const a2=innerWidth/innerHeight;
     camera.left=-ZOOM*a2; camera.right=ZOOM*a2; camera.top=ZOOM; camera.bottom=-ZOOM;
     camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });

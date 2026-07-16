@@ -3,8 +3,9 @@
    itens com peso e perecibilidade, spawns zonais (estilo Project Zomboid)
    ===================================================================== */
 const WORLD = (() => {
-  const W = 72, TPX = 16;
-  const T = { GRASS:0, ROAD:1, SIDE:3, DRIVE:4, DIRT:5, WOOD:10, TILEF:11, CARPET:12, CARPET2:13, STORE:14, STOCK:15, CHAR:16 };
+  const W = 128, TPX = 16;                  // cidade expandida (3x) — tudo desenhado à mão
+  const T = { GRASS:0, ROAD:1, SIDE:3, DRIVE:4, DIRT:5, WOOD:10, TILEF:11, CARPET:12, CARPET2:13, STORE:14, STOCK:15, CHAR:16,
+    ASPH:17, PLAZA:18, SCHOOL:19, CLINIC:20, BARF:21 };
   const ground = new Uint8Array(W*W); ground.fill(T.GRASS);
   // arestas: 0 livre · 1 parede · 2 janela · 3 porta fechada · 4 porta aberta · 5 cerca
   const EV = new Uint8Array((W+1)*(W+1)), EH = new Uint8Array((W+1)*(W+1));
@@ -38,6 +39,11 @@ const WORLD = (() => {
     else if(t===T.STORE){ R('#a8a8a0'); g.strokeStyle='#8f8f88'; g.strokeRect(px+0.5,py+0.5,TPX-1,TPX-1); if((x+z)%2){ g.fillStyle='#b2b2aa'; g.fillRect(px+1,py+1,TPX-2,TPX-2);} }
     else if(t===T.STOCK){ R('#7c7468'); jitter(g.canvas,px,py,TPX,TPX,'#7c7468',0.08,6); }
     else if(t===T.CHAR){ R('#1a1614'); for(let i=0;i<10;i++){ g.fillStyle=['#0e0c0a','#2a221a','#3a2e20'][i%3]; g.fillRect(px+rng()*TPX,py+rng()*TPX,2+rng()*3,1+rng()*3); } }
+    else if(t===T.ASPH){ R('#46464c'); for(let i=0;i<8;i++){ g.fillStyle=shade('#46464c',(rng()-0.5)*0.08); g.fillRect(px+rng()*TPX,py+rng()*TPX,2,2);} }
+    else if(t===T.PLAZA){ R('#a89684'); g.strokeStyle='#907e6c'; g.strokeRect(px+0.5,py+0.5,8,8); g.strokeRect(px+8.5,py+8.5,8,8); jitter(g.canvas,px,py,TPX,TPX,'#a89684',0.06,5); }
+    else if(t===T.SCHOOL){ R('#b0a890'); g.strokeStyle='#988e76'; g.strokeRect(px+0.5,py+0.5,TPX-1,TPX-1); if((x+z)%2){ g.fillStyle='#b8b098'; g.fillRect(px+1,py+1,TPX-2,TPX-2);} }
+    else if(t===T.CLINIC){ R('#c8d0cc'); g.strokeStyle='#aab4ae'; g.strokeRect(px+0.5,py+0.5,8,8); g.strokeRect(px+8.5,py+8.5,8,8); }
+    else if(t===T.BARF){ R('#6a5238'); for(let i=0;i<4;i++){ g.fillStyle=shade('#6a5238',(i%2?-0.06:0.04)); g.fillRect(px,py+i*4,TPX,4);} g.fillStyle='#54402c'; g.fillRect(px,py,TPX,1); }
   }
   function texSiding(base){ const c=cv(64,128), g=c.getContext('2d');
     g.fillStyle=base; g.fillRect(0,0,64,128);
@@ -121,21 +127,46 @@ const WORLD = (() => {
     // leitura / misc
     rev:{n:'Revista Velha',i:'📖',t:'read',fun:22,kg:0.2}, livro:{n:'Livro de Romance',i:'📕',t:'read',fun:45,kg:0.5},
     vela:{n:'Vela',i:'🕯️',t:'misc',kg:0.2},
+    // arma de fogo (delegacia/viaturas — MUITO barulhenta)
+    pistola:{n:'Pistola 9mm',i:'🔫',t:'weapon',gun:true,dmg:[48,72],spd:0.7,kg:1.1,cond:999,knock:0.3},
+    municao:{n:'Munição 9mm (x6)',i:'📦',t:'ammo',balas:6,kg:0.3},
+    desinf:{n:'Desinfetante',i:'🧴',t:'disinfect',kg:0.4},
   };
   function roll(tbl){ const out=[]; tbl.forEach(([id,ch])=>{ if(rng()<ch) out.push({id}); }); return out; }
+  /* ---- LOOT ESCASSO E CONTEXTUAL (estilo PZ: cada coisa no seu lugar) ---- */
   const LOOT = {
-    'Geladeira': ()=>roll([['agua',.7],['refri',.55],['suco',.5],['sobras',.55],['banana',.4],['maca',.4],['pao',.35]]),
-    'Armário de Cozinha': ()=>roll([['feijao',.5],['sopa',.5],['atum',.35],['arroz',.4],['cereal',.4],['abridor',.4],['frig',.22],['faca',.3]]),
-    'Guarda-roupa': ()=>roll([['band',.35],['mochila',.3],['rev',.25],['analg',.2],['mochilao',.08]]),
-    'Estante': ()=>roll([['livro',.55],['rev',.65],['vela',.3]]),
-    'Cômoda': ()=>roll([['band',.4],['analg',.4],['rev',.25]]),
-    'Prateleira': ()=>roll([['feijao',.45],['sopa',.4],['atum',.3],['chips',.5],['choc',.4],['agua',.45],['refri',.4],['cereal',.3],['pao',.3]]),
-    'Freezer': ()=>roll([['sobras',.6],['choc',.5],['sopa',.3]]),
-    'Caixa Registradora': ()=>roll([['chips',.5],['choc',.4],['analg',.3]]),
-    'Balcão': ()=>roll([['faca',.35],['martelo',.3],['pregos',.4],['abridor',.3],['vela',.25]]),
-    'Lixeira': ()=>roll([['chips',.18],['rev',.2],['garrafa',.3]]),
-    'Estoque': ()=>roll([['tabua',.6],['tabua',.4],['pregos',.6],['martelo',.35],['peca',.3],['feijao',.5],['agua',.5],['arroz',.4]]),
-    'Corpo': ()=>roll([['band',.18],['choc',.12],['faca',.14],['pregos',.1],['analg',.12],['garrafa',.12],['chips',.1]]),
+    // casas — pouca coisa, às vezes nada
+    'Geladeira': ()=>roll([['agua',.35],['refri',.25],['sobras',.3],['banana',.2],['maca',.2],['pao',.18]]),
+    'Armário de Cozinha': ()=>roll([['feijao',.25],['sopa',.25],['atum',.15],['arroz',.2],['cereal',.18],['abridor',.2],['frig',.1],['faca',.18]]),
+    'Guarda-roupa': ()=>roll([['band',.15],['mochila',.15],['rev',.15],['mochilao',.04]]),
+    'Estante': ()=>roll([['livro',.4],['rev',.45],['vela',.15]]),
+    'Cômoda': ()=>roll([['band',.2],['analg',.2],['rev',.15]]),
+    'Balcão': ()=>roll([['faca',.15],['abridor',.15],['vela',.15],['pregos',.15]]),
+    'Lixeira': ()=>roll([['garrafa',.25],['rev',.1]]),
+    // mercado — já foi saqueado; sobras
+    'Prateleira': ()=>roll([['feijao',.2],['sopa',.18],['atum',.12],['chips',.22],['choc',.18],['agua',.2],['refri',.18],['cereal',.14]]),
+    'Freezer': ()=>roll([['sobras',.3],['choc',.2]]),
+    'Caixa Registradora': ()=>roll([['chips',.2],['choc',.15]]),
+    'Estoque': ()=>roll([['tabua',.4],['pregos',.35],['martelo',.2],['feijao',.25],['agua',.25],['arroz',.2]]),
+    'Corpo': ()=>roll([['band',.12],['choc',.08],['faca',.08],['analg',.08],['garrafa',.1]]),
+    // DELEGACIA — armas só aqui e nas viaturas
+    'Armário de Armas': ()=>roll([['pistola',.55],['municao',.8],['municao',.5],['band',.3]]),
+    'Arquivo': ()=>roll([['rev',.25],['analg',.12],['vela',.1]]),
+    'Armário Policial': ()=>roll([['band',.3],['municao',.25],['choc',.2],['lanterna',0]]).concat(roll([['mochila',.2]])),
+    'Porta-malas': ()=>roll([['municao',.35],['band',.25],['tabua',.25],['pistola',.12],['peca',.15]]),
+    // ESCOLA
+    'Armário Escolar': ()=>roll([['mochila',.35],['chips',.2],['choc',.2],['rev',.2],['suco',.25]]),
+    'Cozinha Industrial': ()=>roll([['arroz',.45],['feijao',.4],['sopa',.3],['cereal',.3],['frig',.25],['faca',.2]]),
+    'Estante Escolar': ()=>roll([['livro',.5],['rev',.4]]),
+    // CLÍNICA — remédio é aqui
+    'Prateleira de Remédios': ()=>roll([['band',.55],['analg',.5],['desinf',.4],['band',.3]]),
+    'Maca': ()=>roll([['band',.2],['desinf',.15]]),
+    // BAR
+    'Balcão de Bar': ()=>roll([['garrafa',.5],['refri',.35],['chips',.3],['faca',.12]]),
+    // OFICINA — ferramentas é aqui
+    'Bancada': ()=>roll([['martelo',.45],['pregos',.6],['peca',.35],['tabua',.4],['abridor',.2]]),
+    // POSTO
+    'Prateleira do Posto': ()=>roll([['chips',.35],['choc',.3],['refri',.35],['agua',.3],['rev',.2],['municao',.06]]),
   };
 
   /* ================= CHÃO / PAREDES ================= */
@@ -231,6 +262,73 @@ const WORLD = (() => {
       f.push({w:0.62,h:0.08,d:0.62,x:x+0.5,y:0.84,z:z+0.5,col:'#2e3a2e'}); S(x,z); addContainer(x,z,'Lixeira'); },
     mail(f,x,z){ f.push({w:0.08,h:0.9,d:0.08,x:x+0.5,y:0.45,z:z+0.5,col:'#5a4a3a'});
       f.push({w:0.4,h:0.25,d:0.25,x:x+0.5,y:0.98,z:z+0.5,col:'#8a2a22'}); },
+    /* ---- mobília dos novos prédios públicos (feita à mão) ---- */
+    carteira(f,x,z){ f.push({w:0.6,h:0.08,d:0.45,x:x+0.5,y:0.62,z:z+0.4,col:'#b09a72'});
+      f.push({w:0.06,h:0.6,d:0.06,x:x+0.3,y:0.31,z:z+0.4,col:'#5a5a62'}); f.push({w:0.06,h:0.6,d:0.06,x:x+0.7,y:0.31,z:z+0.4,col:'#5a5a62'});
+      f.push({w:0.42,h:0.4,d:0.08,x:x+0.5,y:0.55,z:z+0.78,col:'#8a6844'}); f.push({w:0.42,h:0.08,d:0.36,x:x+0.5,y:0.36,z:z+0.72,col:'#8a6844'}); },
+    lousa(f,x,z,ry){ f.push({w:2.6,h:1.1,d:0.08,x:x+1.5,y:1.5,z:z+0.1,ry,col:'#274e3a'});
+      f.push({w:2.8,h:0.06,d:0.12,x:x+1.5,y:0.92,z:z+0.12,ry,col:'#8a6844'});
+      f.push({w:0.5,h:0.06,d:0.03,x:x+0.8,y:1.3,z:z+0.06,ry,col:'#e8e4d8'}); },
+    mesaLonga(f,x,z){ f.push({w:2.9,h:0.09,d:0.9,x:x+1.5,y:0.68,z:z+0.5,col:'#c8b088'});
+      [[x+0.3,z+0.5],[x+2.7,z+0.5]].forEach(([px2,pz])=>f.push({w:0.1,h:0.66,d:0.7,x:px2,y:0.33,z:pz,col:'#8a8a92'}));
+      f.push({w:2.9,h:0.3,d:0.25,x:x+1.5,y:0.42,z:z-0.15,col:'#a89060'});
+      f.push({w:2.9,h:0.3,d:0.25,x:x+1.5,y:0.42,z:z+1.15,col:'#a89060'});
+      S(x,z); S(x+1,z); S(x+2,z); },
+    armarioEsc(f,x,z){ for(let k=0;k<3;k++) f.push({w:0.3,h:1.7,d:0.4,x:x+0.17+k*0.33,y:0.85,z:z+0.3,col:k%2?'#7a3a2a':'#8a4232'});
+      S(x,z); addContainer(x,z,'Armário Escolar'); },
+    armarioArmas(f,x,z){ f.push({w:0.9,h:1.85,d:0.5,x:x+0.5,y:0.93,z:z+0.3,col:'#3a4048'});
+      f.push({w:0.7,h:1.5,d:0.06,x:x+0.5,y:0.95,z:z+0.57,col:'#2a3038'});
+      f.push({w:0.1,h:0.3,d:0.04,x:x+0.78,y:0.95,z:z+0.58,col:'#c8b060'}); S(x,z); addContainer(x,z,'Armário de Armas'); },
+    arquivo(f,x,z){ f.push({w:0.55,h:1.3,d:0.6,x:x+0.5,y:0.65,z:z+0.35,col:'#6a7076'});
+      for(let k=0;k<4;k++) f.push({w:0.45,h:0.05,d:0.04,x:x+0.5,y:0.25+k*0.3,z:z+0.66,col:'#4a5056'});
+      S(x,z); addContainer(x,z,'Arquivo'); },
+    mesaEscr(f,x,z){ f.push({w:1.4,h:0.09,d:0.7,x:x+0.75,y:0.7,z:z+0.4,col:'#6a5236'});
+      f.push({w:0.5,h:0.35,d:0.35,x:x+0.5,y:1.0,z:z+0.35,col:'#2a2e36'});
+      f.push({w:0.5,h:0.5,d:0.5,x:x+0.75,y:0.25,z:z+1.1,col:'#3a3e46'}); S(x,z); },
+    maca(f,x,z,ry){ f.push({w:1.9,h:0.12,d:0.8,x:x+1,y:0.6,z:z+0.5,ry,col:'#d8dcd8'});
+      f.push({w:1.7,h:0.1,d:0.7,x:x+1,y:0.7,z:z+0.5,ry,col:'#e8ecE8'.toLowerCase()});
+      f.push({w:0.45,h:0.1,d:0.6,x:x+0.4,y:0.78,z:z+0.5,ry,col:'#f0f0ec'});
+      [[x+0.2,z+0.2],[x+1.8,z+0.2],[x+0.2,z+0.8],[x+1.8,z+0.8]].forEach(([px2,pz])=>f.push({w:0.07,h:0.58,d:0.07,x:px2,y:0.29,z:pz,ry,col:'#8a9096'}));
+      S(x,z); S(x+1,z); addContainer(x,z,'Maca'); },
+    pratMed(f,x,z){ f.push({w:0.94,h:1.6,d:0.4,x:x+0.5,y:0.8,z:z+0.28,col:'#e0e4e0'});
+      for(let k=0;k<3;k++){ f.push({w:0.8,h:0.04,d:0.34,x:x+0.5,y:0.45+k*0.45,z:z+0.28,col:'#c0c8c4'});
+        for(let j=0;j<3;j++) if(rng()<0.7) f.push({w:0.12,h:0.18,d:0.12,x:x+0.22+j*0.28,y:0.58+k*0.45,z:z+0.28,col:['#c05a4a','#4a8ac0','#e8e4d8'][j%3]}); }
+      S(x,z); addContainer(x,z,'Prateleira de Remédios'); },
+    balcaoBar(f,x,z,len){ for(let k=0;k<len;k++){ f.push({w:0.94,h:1.0,d:0.7,x:x+0.5+k,y:0.5,z:z+0.35,col:'#4a3626'});
+      f.push({w:1.0,h:0.07,d:0.8,x:x+0.5+k,y:1.05,z:z+0.35,col:'#6a5236'}); S(x+k,z); }
+      addContainer(x,z,'Balcão de Bar');
+      for(let k=0;k<4;k++) if(rng()<0.8) f.push({w:0.12,h:0.3,d:0.12,x:x+0.3+rng()*len*0.8,y:1.25,z:z+0.3,col:['#3a6a3a','#6a3a2a','#c8b060'][k%3]}); },
+    banqueta(f,x,z){ f.push({w:0.35,h:0.08,d:0.35,x:x+0.5,y:0.62,z:z+0.5,col:'#8a2a22'});
+      f.push({w:0.08,h:0.6,d:0.08,x:x+0.5,y:0.3,z:z+0.5,col:'#3a3e44'}); },
+    bancada(f,x,z,len){ for(let k=0;k<len;k++){ f.push({w:0.94,h:0.9,d:0.8,x:x+0.5+k,y:0.45,z:z+0.4,col:'#5a5248'});
+      f.push({w:1.0,h:0.06,d:0.9,x:x+0.5+k,y:0.93,z:z+0.4,col:'#7a7268'}); S(x+k,z); }
+      addContainer(x,z,'Bancada');
+      f.push({w:0.3,h:0.12,d:0.1,x:x+0.4,y:1.02,z:z+0.3,col:'#c05a2a'}); f.push({w:0.12,h:0.25,d:0.1,x:x+1.2,y:1.08,z:z+0.4,col:'#4a5058'}); },
+    bomba(f,x,z){ f.push({w:0.5,h:1.4,d:0.35,x:x+0.5,y:0.7,z:z+0.5,col:'#c03a2a'});
+      f.push({w:0.4,h:0.35,d:0.3,x:x+0.5,y:1.05,z:z+0.5,col:'#e8e4d8'});
+      f.push({w:0.08,h:0.5,d:0.08,x:x+0.75,y:0.85,z:z+0.5,col:'#1a1a1c'}); S(x,z); },
+    banco(f,x,z,ry){ f.push({w:1.7,h:0.07,d:0.45,x:x+1,y:0.48,z:z+0.5,ry,col:'#7a6142'});
+      f.push({w:1.7,h:0.4,d:0.07,x:x+1,y:0.75,z:z+0.5+(ry?0:-0.2),ry,col:'#7a6142'});
+      [[x+0.3],[x+1.7]].forEach(([px2])=>f.push({w:0.09,h:0.46,d:0.4,x:px2,y:0.23,z:z+0.5,ry,col:'#3a3e44'})); },
+    balanco(f,x,z){ f.push({w:0.1,h:2.0,d:0.1,x:x,y:1.0,z:z+0.5,col:'#c8683a'});
+      f.push({w:0.1,h:2.0,d:0.1,x:x+2.4,y:1.0,z:z+0.5,col:'#c8683a'});
+      f.push({w:2.6,h:0.1,d:0.1,x:x+1.2,y:2.0,z:z+0.5,col:'#c8683a'});
+      for(const sx of [0.7,1.7]){ f.push({w:0.04,h:1.2,d:0.04,x:x+sx-0.18,y:1.35,z:z+0.5,col:'#4a4a52'});
+        f.push({w:0.04,h:1.2,d:0.04,x:x+sx+0.18,y:1.35,z:z+0.5,col:'#4a4a52'});
+        f.push({w:0.45,h:0.06,d:0.25,x:x+sx,y:0.72,z:z+0.5,col:'#5a4a30'}); }
+      S(x,z); S(x+1,z); S(x+2,z); },
+    escorrega(f,x,z){ f.push({w:0.5,h:1.5,d:0.5,x:x+0.4,y:0.75,z:z+0.5,col:'#3a7ac0'});
+      f.push({w:1.6,h:0.08,d:0.55,x:x+1.3,y:0.78,z:z+0.5,ry:0,col:'#e8c840'});
+      f.push({w:0.06,h:0.75,d:0.5,x:x+2.05,y:0.37,z:z+0.5,col:'#e8c840'});
+      S(x,z); S(x+1,z); S(x+2,z);
+      f.length&&(f[f.length-2].ry=0); },
+    chafariz(f,x,z){ f.push({w:2.6,h:0.5,d:2.6,x:x+1.5,y:0.25,z:z+1.5,col:'#8a8a82'});
+      f.push({w:2.2,h:0.15,d:2.2,x:x+1.5,y:0.5,z:z+1.5,col:'#5a6a72'});
+      f.push({w:0.4,h:1.1,d:0.4,x:x+1.5,y:0.8,z:z+1.5,col:'#8a8a82'});
+      f.push({w:0.7,h:0.12,d:0.7,x:x+1.5,y:1.35,z:z+1.5,col:'#9a9a92'});
+      for(let dx=0;dx<3;dx++)for(let dz=0;dz<3;dz++) S(x+dx,z+dz); },
+    mesaRed(f,x,z){ f.push({w:0.85,h:0.08,d:0.85,x:x+0.5,y:0.7,z:z+0.5,col:'#5a4632'});
+      f.push({w:0.1,h:0.68,d:0.1,x:x+0.5,y:0.34,z:z+0.5,col:'#3a3026'}); S(x,z); },
   };
 
   /* ================= CASAS ================= */
@@ -326,6 +424,245 @@ const WORLD = (() => {
     return {x0,z0,x1,z1,name:'Mercado Estrela',store:true};
   }
 
+  /* ============================================================
+     DISTRITOS NOVOS — cada prédio desenhado à mão, único
+     ============================================================ */
+  function delegacia(fL,wL,ox,oz){ // 16×13, entrada ao sul — recepção, escritório, 2 celas, arsenal
+    const x0=ox,z0=oz,x1=ox+16,z1=oz+13;
+    fillGround(x0,z0,x1-1,z1-1,T.TILEF);
+    fillGround(x0,z0,x0+6,z0+5,T.STOCK);                    // celas: piso cru
+    // perímetro (tijolo)
+    wallRun(wL,'H',z0,x0,x1,{mi:3,ext:1,wins:[ox+9,ox+13]});
+    wallRun(wL,'H',z1,x0,x1,{mi:3,ext:1,doors:[ox+8],wins:[ox+3,ox+12]});
+    wallRun(wL,'V',x0,z0,z1,{mi:3,ext:1,wins:[oz+8]});
+    wallRun(wL,'V',x1,z0,z1,{mi:3,ext:1,wins:[oz+3,oz+9]});
+    // celas (noroeste): corredor + 2 celas com GRADES
+    wallRun(wL,'H',z0+6,x0,x0+7,{mi:1,doors:[x0+6]});
+    wallRun(wL,'V',x0+7,z0,z0+6,{mi:1,doors:[z0+4]});
+    wallRun(wL,'V',x0+3,z0,z0+3,{mi:1});                     // parede entre as 2 celas
+    barsRun(fL,'H',z0+3,x0,x0+3,{door:x0+1});                // grade cela 1
+    barsRun(fL,'H',z0+3,x0+4,x0+7,{door:x0+5});              // grade cela 2
+    // arsenal (nordeste, porta única)
+    wallRun(wL,'H',z0+5,x1-5,x1,{mi:1});
+    wallRun(wL,'V',x1-5,z0,z0+5,{mi:1,doors:[z0+3]});
+    // escritório (centro-oeste)
+    wallRun(wL,'V',x0+8,z0+6,z1-4,{mi:1,doors:[z0+8]});
+    wallRun(wL,'H',z1-4,x0,x0+8,{mi:1,doors:[x0+4]});
+    // mobília — celas: catres
+    fL.push({w:1.6,h:0.3,d:0.7,x:x0+1.5,y:0.2,z:z0+1,col:'#4a4e56'}); S(x0+1,z0+1);
+    fL.push({w:1.6,h:0.3,d:0.7,x:x0+5.5,y:0.2,z:z0+1,col:'#4a4e56'}); S(x0+5,z0+1);
+    FURN.toilet(fL,x0,z0+2); FURN.toilet(fL,x0+4,z0+2);
+    // arsenal — o primeiro armário SEMPRE tem a pistola da cidade
+    FURN.armarioArmas(fL,x1-2,z0);
+    if(!containers[containers.length-1].loot.some(l=>l.id==='pistola')) containers[containers.length-1].loot.push({id:'pistola'});
+    FURN.armarioArmas(fL,x1-3,z0);
+    FURN.arquivo(fL,x1-1,z0+3); FURN.armarioEsc(fL,x1-4,z0); containers[containers.length-1].name='Armário Policial'; containers[containers.length-1].loot=LOOT['Armário Policial']();
+    // escritório: mesas + arquivos
+    FURN.mesaEscr(fL,x0+2,z0+7); FURN.mesaEscr(fL,x0+5,z0+9); FURN.mesaEscr(fL,x0+2,z1-6);
+    FURN.arquivo(fL,x0,z0+6); FURN.arquivo(fL,x0+1,z0+6); FURN.arquivo(fL,x0,z1-5);
+    // recepção (sul): balcão + bancos
+    FURN.balcaoBar(fL,x0+10,z1-3,3); containers[containers.length-1].name='Arquivo'; containers[containers.length-1].loot=LOOT['Arquivo']();
+    FURN.banco(fL,x0+12,z1-1,0); FURN.banco(fL,x0+9,z1-1,0);
+    FURN.mesaEscr(fL,x0+10,z0+7); FURN.arquivo(fL,x1-1,z0+6);
+    return {x0,z0,x1,z1,name:'Delegacia'};
+  }
+  function barsRun(fL,axis,at,from,to,opts){ // grades de cela (bloqueiam passo, deixam ver)
+    opts=opts||{};
+    for(let i=from;i<to;i++){
+      if(opts.door===i){ (axis==='V'?EV:EH)[eIdx(axis==='V'?at:i, axis==='V'?i:at)]=3;
+        doors.push({edge:axis, x:axis==='V'?at:i, z:axis==='V'?i:at, open:false, exterior:false, jail:true});
+        continue; }
+      (axis==='V'?EV:EH)[eIdx(axis==='V'?at:i, axis==='V'?i:at)]=5;
+      for(let b=0;b<5;b++){
+        if(axis==='V') fL.push({w:0.05,h:2.4,d:0.05,x:at,y:1.2,z:i+0.12+b*0.2,col:'#3a3e46'});
+        else fL.push({w:0.05,h:2.4,d:0.05,x:i+0.12+b*0.2,y:1.2,z:at,col:'#3a3e46'});
+      }
+      if(axis==='V') fL.push({w:0.07,h:0.08,d:1.0,x:at,y:2.4,z:i+0.5,col:'#3a3e46'});
+      else fL.push({w:1.0,h:0.08,d:0.07,x:i+0.5,y:2.4,z:at,col:'#3a3e46'});
+    }
+  }
+  function escola(fL,wL,ox,oz){ // 22×16, entrada ao norte — 2 salas, refeitório+cozinha, biblioteca
+    const x0=ox,z0=oz,x1=ox+22,z1=oz+16;
+    fillGround(x0,z0,x1-1,z1-1,T.SCHOOL);
+    // perímetro
+    wallRun(wL,'H',z0,x0,x1,{mi:0,ext:1,doors:[ox+10,ox+11],wins:[ox+3,ox+6,ox+15,ox+18]});
+    wallRun(wL,'H',z1,x0,x1,{mi:0,ext:1,doors:[ox+4],wins:[ox+8,ox+14,ox+18]});
+    wallRun(wL,'V',x0,z0,z1,{mi:0,ext:1,wins:[oz+4,oz+11]});
+    wallRun(wL,'V',x1,z0,z1,{mi:0,ext:1,wins:[oz+4,oz+11]});
+    // corredor central z0+5..z0+8: salas ao norte, refeitório/biblioteca ao sul
+    wallRun(wL,'H',z0+5,x0,x1,{mi:1,doors:[x0+3,x0+13,x0+19]});
+    wallRun(wL,'H',z0+9,x0,x1,{mi:1,doors:[x0+5,x0+16]});
+    wallRun(wL,'V',x0+8,z0,z0+5,{mi:1});                     // divide salas 1|2
+    wallRun(wL,'V',x0+16,z0,z0+5,{mi:1});                    // sala 2 | armários
+    wallRun(wL,'V',x0+11,z0+9,z1,{mi:1});                    // refeitório | biblioteca
+    // SALA 1: lousa + 9 carteiras em fileiras
+    FURN.lousa(fL,x0+2,z0,0);
+    for(let r=0;r<3;r++)for(let c=0;c<3;c++) FURN.carteira(fL,x0+1+c*2,z0+1.6+r*1.2);
+    // SALA 2: idem
+    FURN.lousa(fL,x0+10,z0,0);
+    for(let r=0;r<3;r++)for(let c=0;c<3;c++) FURN.carteira(fL,x0+9+c*2,z0+1.6+r*1.2);
+    // armários no corredor leste
+    FURN.armarioEsc(fL,x1-2,z0); FURN.armarioEsc(fL,x1-3,z0); FURN.armarioEsc(fL,x1-2,z0+2);
+    FURN.armarioEsc(fL,x0,z0+6); FURN.armarioEsc(fL,x1-1,z0+6);
+    // REFEITÓRIO (sudoeste): 2 mesas longas + cozinha industrial
+    FURN.mesaLonga(fL,x0+1,z0+10.4); FURN.mesaLonga(fL,x0+1,z0+13);
+    FURN.counter(fL,x0+7,z1-1,'sink'); FURN.counter(fL,x0+8,z1-1,'stove');
+    FURN.cab(fL,x0+9,z1-1); containers[containers.length-1].name='Cozinha Industrial'; containers[containers.length-1].loot=LOOT['Cozinha Industrial']();
+    FURN.cab(fL,x0+10,z1-1); containers[containers.length-1].name='Cozinha Industrial'; containers[containers.length-1].loot=LOOT['Cozinha Industrial']();
+    // BIBLIOTECA (sudeste): estantes + mesas
+    for(const bx of [x0+12,x0+14,x0+16,x0+18]){ FURN.book(fL,bx,z0+10); containers[containers.length-1].name='Estante Escolar'; containers[containers.length-1].loot=LOOT['Estante Escolar'](); }
+    for(const bx of [x0+13,x0+17]){ FURN.book(fL,bx,z1-1); containers[containers.length-1].name='Estante Escolar'; containers[containers.length-1].loot=LOOT['Estante Escolar'](); }
+    FURN.mesaRed(fL,x0+14,z0+12); FURN.mesaRed(fL,x0+18,z0+13);
+    return {x0,z0,x1,z1,name:'Escola Municipal'};
+  }
+  function clinica(fL,wL,ox,oz){ // 13×10, entrada ao norte — recepção, 2 consultórios, farmácia
+    const x0=ox,z0=oz,x1=ox+13,z1=oz+10;
+    fillGround(x0,z0,x1-1,z1-1,T.CLINIC);
+    wallRun(wL,'H',z0,x0,x1,{mi:0,ext:1,doors:[ox+6],wins:[ox+2,ox+10]});
+    wallRun(wL,'H',z1,x0,x1,{mi:0,ext:1,wins:[ox+3,ox+9]});
+    wallRun(wL,'V',x0,z0,z1,{mi:0,ext:1,wins:[oz+5]});
+    wallRun(wL,'V',x1,z0,z1,{mi:0,ext:1});
+    // consultórios ao sul + farmácia a leste
+    wallRun(wL,'H',z0+5,x0,x0+9,{mi:1,doors:[x0+2,x0+7]});
+    wallRun(wL,'V',x0+4,z0+5,z1,{mi:1});
+    wallRun(wL,'V',x0+9,z0,z1,{mi:1,doors:[z0+2]});
+    // recepção
+    FURN.balcaoBar(fL,x0+2,z0+2,2); containers[containers.length-1].name='Arquivo'; containers[containers.length-1].loot=LOOT['Arquivo']();
+    FURN.banco(fL,x0+5,z0+0.4,0); FURN.banco(fL,x0+5,z0+3.6,0);
+    // consultórios: maca + mesa
+    FURN.maca(fL,x0+1,z0+7,0); FURN.mesaEscr(fL,x0,z1-1);
+    FURN.maca(fL,x0+5,z0+7,0); FURN.mesaEscr(fL,x0+7,z1-1);
+    // farmácia: prateleiras de remédio
+    FURN.pratMed(fL,x0+10,z0); FURN.pratMed(fL,x0+11,z0); FURN.pratMed(fL,x0+12,z0);
+    FURN.pratMed(fL,x0+10,z1-1); FURN.pratMed(fL,x0+12,z1-1);
+    return {x0,z0,x1,z1,name:'Posto de Saúde'};
+  }
+  function barZe(fL,wL,ox,oz){ // 10×8, entrada ao norte — balcão, banquetas, mesas
+    const x0=ox,z0=oz,x1=ox+10,z1=oz+8;
+    fillGround(x0,z0,x1-1,z1-1,T.BARF);
+    wallRun(wL,'H',z0,x0,x1,{mi:3,ext:1,doors:[ox+4],wins:[ox+1,ox+7]});
+    wallRun(wL,'H',z1,x0,x1,{mi:3,ext:1,doors:[ox+8]});
+    wallRun(wL,'V',x0,z0,z1,{mi:3,ext:1,wins:[oz+4]});
+    wallRun(wL,'V',x1,z0,z1,{mi:3,ext:1});
+    FURN.balcaoBar(fL,x0+2,z1-3,5);
+    for(const bx of [2.5,4,5.5]) FURN.banqueta(fL,x0+bx,z1-4);
+    FURN.mesaRed(fL,x0+1,z0+2); FURN.mesaRed(fL,x0+4,z0+1.6); FURN.mesaRed(fL,x0+7,z0+2.4);
+    FURN.banqueta(fL,x0+1,z0+1); FURN.banqueta(fL,x0+2,z0+2.4); FURN.banqueta(fL,x0+4.8,z0+2.6);
+    FURN.banqueta(fL,x0+7.8,z0+1.5); FURN.banqueta(fL,x0+6.4,z0+2.2);
+    // fundos: estoque de garrafas
+    FURN.shelf(fL,x0+8,z1-1); containers[containers.length-1].name='Balcão de Bar'; containers[containers.length-1].loot=LOOT['Balcão de Bar']();
+    return {x0,z0,x1,z1,name:'Bar do Zé'};
+  }
+  function oficina(fL,wL,ox,oz){ // 12×9, portão largo ao norte — bancadas, carro no macaco
+    const x0=ox,z0=oz,x1=ox+12,z1=oz+9;
+    fillGround(x0,z0,x1-1,z1-1,T.ASPH);
+    wallRun(wL,'H',z0,x0,x1,{mi:3,ext:1,doors:[ox+3,ox+4,ox+5]});    // portão de 3 vãos
+    wallRun(wL,'H',z1,x0,x1,{mi:3,ext:1,doors:[ox+10]});
+    wallRun(wL,'V',x0,z0,z1,{mi:3,ext:1});
+    wallRun(wL,'V',x1,z0,z1,{mi:3,ext:1,wins:[oz+4]});
+    wallRun(wL,'H',z1-3,x0+8,x1,{mi:1,doors:[x0+9]});                 // escritório dos fundos
+    FURN.bancada(fL,x0,z1-1,3); FURN.bancada(fL,x0,z0+1,2);
+    FURN.bancada(fL,x0+6,z1-1,2);
+    // carro suspenso no macaco
+    fL.push({w:0.5,h:0.6,d:0.5,x:x0+3.5,y:0.3,z:z0+4.5,col:'#8a2a22'});
+    fL.push({w:0.5,h:0.6,d:0.5,x:x0+5.5,y:0.3,z:z0+4.5,col:'#8a2a22'});
+    S(x0+3,z0+4); S(x0+5,z0+4);
+    // pilha de pneus + tambor
+    FURN.mesaEscr(fL,x0+9,z1-2);
+    fL.push({w:0.6,h:0.9,d:0.6,x:x1-1.5,y:0.45,z:z0+1.5,col:'#3a5a8a'}); S(x1-2,z0+1);
+    return {x0,z0,x1,z1,name:'Oficina do Tonho',liftCar:{x:x0+4.5,z:z0+4.5}};
+  }
+  function postoGas(fL,wL,ox,oz){ // lojinha 8×6 + pátio de bombas (cobertura à parte)
+    const x0=ox,z0=oz,x1=ox+8,z1=oz+6;
+    fillGround(x0,z0,x1-1,z1-1,T.STORE);
+    fillGround(x0-1,z1,x1+5,z1+7,T.ASPH);                    // pátio
+    wallRun(wL,'H',z0,x0,x1,{mi:0,ext:1});
+    wallRun(wL,'H',z1,x0,x1,{mi:0,ext:1,doors:[ox+3],wins:[ox+1,ox+5]});
+    wallRun(wL,'V',x0,z0,z1,{mi:0,ext:1});
+    wallRun(wL,'V',x1,z0,z1,{mi:0,ext:1,wins:[oz+2]});
+    for(const sx of [x0,x0+1,x0+2]){ FURN.shelf(fL,sx,z0); containers[containers.length-1].name='Prateleira do Posto'; containers[containers.length-1].loot=LOOT['Prateleira do Posto'](); }
+    FURN.freezer(fL,x0+6,z0); containers[containers.length-1].name='Prateleira do Posto'; containers[containers.length-1].loot=LOOT['Prateleira do Posto']();
+    FURN.cash(fL,x0+4,z0+3);
+    // bombas no pátio
+    FURN.bomba(fL,x0+1,z1+3); FURN.bomba(fL,x0+4,z1+3);
+    return {x0,z0,x1,z1,name:'Posto Estrela',pumps:true};
+  }
+  /* ---- casas novas, cada uma única ---- */
+  function casaVaranda(fL,wL,ox,oz,doorN){ // 9×8 com varanda de frente
+    const x0=ox,z0=oz,x1=ox+9,z1=oz+8;
+    const vz = doorN? z0 : z1-2;                             // faixa da varanda
+    fillGround(x0,z0,x1-1,z1-1,T.WOOD);
+    fillGround(x0,vz,x1-1,vz+1,T.BARF);                      // deck da varanda
+    // varanda: pilares + telhadinho é o próprio roof (estendido)
+    for(const px of [x0+0.5,x0+4.5,x1-0.5]) fL.push({w:0.16,h:2.4,d:0.16,x:px,y:1.2,z:doorN?z0+0.3:z1-0.3,col:'#5a4630'});
+    // corpo da casa (recuado da varanda)
+    const hz0=doorN? z0+2:z0, hz1=doorN? z1:z1-2;
+    wallRun(wL,'H',hz0,x0,x1,{mi:0,ext:1,doors:doorN?[ox+4]:[],wins:doorN?[ox+1,ox+7]:[ox+2,ox+6]});
+    wallRun(wL,'H',hz1,x0,x1,{mi:0,ext:1,doors:doorN?[]:[ox+4],wins:doorN?[ox+2,ox+6]:[ox+1,ox+7]});
+    wallRun(wL,'V',x0,hz0,hz1,{mi:0,ext:1,wins:[oz+4]});
+    wallRun(wL,'V',x1,hz0,hz1,{mi:0,ext:1,wins:[oz+4]});
+    const iz = doorN? hz0+3 : hz1-3;
+    wallRun(wL,'V',x0+5,doorN?iz:hz0,doorN?hz1:iz,{mi:1,doors:[doorN?iz+1:hz0+1]});
+    wallRun(wL,'H',iz,x0,x0+5,{mi:1,doors:[x0+2]});
+    // sala + cozinha compacta + quarto
+    FURN.sofa(fL,x0+1,doorN?hz0+1:hz1-2,0); FURN.tv(fL,x0+1,doorN?hz0+0.2:hz1-1);
+    FURN.fridge(fL,x1-1,doorN?hz0:hz1-1); FURN.counter(fL,x1-2,doorN?hz0:hz1-1,'sink');
+    FURN.bed(fL,x0+1,doorN?iz+1:hz0+1,0); FURN.wardrobe(fL,x0+4,doorN?hz1-1:hz0);
+    FURN.mesaRed(fL,x0+7,doorN?hz0+2:hz1-3);
+    return {x0,z0:hz0,x1,z1:hz1,name:'Casa com Varanda'};
+  }
+  function casaL(fL,wL,ox,oz){ // formato L com garagem (portão aberto), porta ao norte
+    const x0=ox,z0=oz,x1=ox+12,z1=oz+9;
+    // ala principal 12×6 + garagem 5×3 no sudoeste
+    fillGround(x0,z0,x1-1,z0+5,T.WOOD);
+    fillGround(x0,z0+6,x0+4,z1-1,T.ASPH);                    // garagem
+    wallRun(wL,'H',z0,x0,x1,{mi:0,ext:1,doors:[ox+6],wins:[ox+2,ox+9]});
+    wallRun(wL,'H',z0+6,x0+5,x1,{mi:0,ext:1,wins:[ox+7,ox+10]});
+    wallRun(wL,'V',x0,z0,z1,{mi:0,ext:1,wins:[oz+2]});
+    wallRun(wL,'V',x1,z0,z0+6,{mi:0,ext:1,wins:[oz+3]});
+    wallRun(wL,'H',z1,x0,x0+5,{mi:0,ext:1,doors:[ox+1,ox+2,ox+3]});  // portão da garagem
+    wallRun(wL,'V',x0+5,z0+6,z1,{mi:0,ext:1});
+    wallRun(wL,'H',z0+6,x0,x0+5,{mi:1,doors:[x0+4]});
+    wallRun(wL,'V',x0+7,z0,z0+3,{mi:1});                     // cozinha | sala
+    wallRun(wL,'H',z0+3,x0+7,x1,{mi:1,doors:[x0+9]});
+    FURN.fridge(fL,x1-1,z0); FURN.counter(fL,x1-2,z0,'stove'); FURN.counter(fL,x1-3,z0,'sink'); FURN.cab(fL,x1-4,z0);
+    FURN.sofa(fL,x0+1,z0+3.4,0); FURN.tv(fL,x0+1,z0+1); FURN.coffee(fL,x0+2,z0+2.4);
+    FURN.bed(fL,x0+8,z0+4,0); FURN.dresser(fL,x1-1,z0+5);
+    // garagem: bancada + carro velho
+    FURN.bancada(fL,x0,z0+7,2);
+    return {x0,z0,x1,z1,name:'Casa em L'};
+  }
+  function kitnet(fL,wL,ox,oz,doorN){ // 6×5, tudo num cômodo
+    const x0=ox,z0=oz,x1=ox+6,z1=oz+5;
+    fillGround(x0,z0,x1-1,z1-1,T.CARPET2);
+    wallRun(wL,'H',z0,x0,x1,{mi:0,ext:1,doors:doorN?[ox+2]:[],wins:doorN?[]:[ox+2]});
+    wallRun(wL,'H',z1,x0,x1,{mi:0,ext:1,doors:doorN?[]:[ox+2],wins:doorN?[ox+2]:[]});
+    wallRun(wL,'V',x0,z0,z1,{mi:0,ext:1,wins:[oz+2]});
+    wallRun(wL,'V',x1,z0,z1,{mi:0,ext:1});
+    FURN.bed(fL,x0+3,doorN?z1-1:z0,0); FURN.fridge(fL,x0,doorN?z1-1:z0);
+    FURN.counter(fL,x0+1,doorN?z1-1:z0,'sink'); FURN.mesaRed(fL,x0+1,z0+2);
+    FURN.dresser(fL,x1-1,z0+2);
+    return {x0,z0,x1,z1,name:'Kitnet'};
+  }
+  function casaJardim(fL,wL,ox,oz){ // 10×7 com jardim murado nos fundos, porta ao norte
+    const x0=ox,z0=oz,x1=ox+10,z1=oz+7;
+    fillGround(x0,z0,x1-1,z1-1,T.WOOD);
+    fillGround(x0+6,z0,x1-1,z0+3,T.TILEF);
+    wallRun(wL,'H',z0,x0,x1,{mi:0,ext:1,doors:[ox+3],wins:[ox+1,ox+7]});
+    wallRun(wL,'H',z1,x0,x1,{mi:0,ext:1,doors:[ox+8],wins:[ox+2]});
+    wallRun(wL,'V',x0,z0,z1,{mi:0,ext:1,wins:[oz+3]});
+    wallRun(wL,'V',x1,z0,z1,{mi:0,ext:1,wins:[oz+2,oz+5]});
+    wallRun(wL,'V',x0+6,z0,z0+3,{mi:1,doors:[z0+1]});
+    wallRun(wL,'H',z0+3,x0+6,x1,{mi:1});
+    wallRun(wL,'V',x0+4,z0+3,z1,{mi:1,doors:[z0+5]});
+    FURN.sofa(fL,x0+1,z0+4,0); FURN.tv(fL,x0+1,z0+5.6); FURN.book(fL,x0,z0+3);
+    FURN.fridge(fL,x0+7,z0); FURN.counter(fL,x0+8,z0,'sink'); FURN.cab(fL,x0+9,z0);
+    FURN.bed(fL,x0+5,z0+4,0); FURN.wardrobe(fL,x0+9,z0+4); FURN.night(fL,x0+4.2,z0+4);
+    // jardim murado nos fundos (cerca)
+    fenceRun(fL,'H',z1+3,x0,x1); fenceRun(fL,'V',x0,z1,z1+3); fenceRun(fL,'V',x1,z1,z1+3);
+    return {x0,z0,x1,z1,name:'Casa do Jardim'};
+  }
+
   /* ================= EXTERIOR ================= */
   function addTree(fL,x,z,big){ const h=big?2.2:1.6, r=big?1.5:1.0;
     fL.push({w:0.35,h:h,d:0.35,x:x,y:h/2,z:z,col:'#5a4630'});
@@ -361,6 +698,7 @@ const WORLD = (() => {
     if(opts.hood){ const h=M(1.2,0.08,1.5,1.35,1.0,0,body); h.rotation.z=0.5; }
     g.position.set(x,0,z); g.rotation.y=opts.ry||0;
     if(opts.tilt) g.rotation.z=opts.tilt;
+    if(opts.trunk) containers.push({x:Math.floor(x),z:Math.floor(z),name:'Porta-malas',loot:LOOT['Porta-malas'](),opened:false});
     scene3.add(g);
     // sólidos aproximados considerando rotação
     const c2=Math.abs(Math.cos(opts.ry||0)), s2=Math.abs(Math.sin(opts.ry||0));
@@ -417,13 +755,19 @@ const WORLD = (() => {
     const brick=tex(texBrick());
     const roofT=[tex(texRoof('#6e4a3a')),tex(texRoof('#4a4a52')),tex(texRoof('#5a4a62')),tex(texRoof('#3a4a44'))];
 
-    fillGround(0,33,W-1,36,T.ROAD); fillGround(33,0,36,W-1,T.ROAD);
+    /* ---- MALHA VIÁRIA (2 avenidas × 2 ruas) ---- */
+    fillGround(0,33,W-1,36,T.ROAD); fillGround(33,0,36,W-1,T.ROAD);       // Rua Velha (E-O) + Rua da Igreja (N-S)
     fillGround(0,32,W-1,32,T.SIDE); fillGround(0,37,W-1,37,T.SIDE);
     fillGround(32,0,32,W-1,T.SIDE); fillGround(37,0,37,W-1,T.SIDE);
-    fillGround(33,33,36,36,T.ROAD);
+    fillGround(0,88,W-1,91,T.ROAD); fillGround(88,0,91,W-1,T.ROAD);       // Avenida Sul (E-O) + Rua do Centro (N-S)
+    fillGround(0,87,W-1,87,T.SIDE); fillGround(0,92,W-1,92,T.SIDE);
+    fillGround(87,0,87,W-1,T.SIDE); fillGround(92,0,92,W-1,T.SIDE);
+    fillGround(33,33,36,36,T.ROAD); fillGround(88,88,91,91,T.ROAD);
+    fillGround(33,88,36,91,T.ROAD); fillGround(88,33,91,36,T.ROAD);
 
     const defs=[];
     function houseAt(fn,ox,oz,doorN,mi,opts){ const fL=[], wL=[]; const b=fn(fL,wL,ox,oz,doorN,mi); defs.push({b,fL,wL,mi,...(opts||{})}); return b; }
+    /* ---- VILA ANTIGA (bairro original) ---- */
     houseAt(casaFamilia,  8,22,false,0);
     houseAt(bangalo,     22,24,false,1);
     houseAt(casaGrande,  41,22,false,2);
@@ -432,9 +776,29 @@ const WORLD = (() => {
     houseAt(bangalo,     41,41,true, 3);
     houseAt(casaGrande,  52,41,true, 0);
     { const fL=[], wL=[]; const b=mercado(fL,wL,8,40); defs.push({b,fL,wL,mi:'store'}); }
+    /* ---- CENTRO (nordeste): posto, delegacia, praça ---- */
+    { const fL=[], wL=[]; const b=postoGas(fL,wL,68,19); defs.push({b,fL,wL,mi:1}); }
+    { const fL=[], wL=[]; const b=delegacia(fL,wL,96,18); defs.push({b,fL,wL,mi:'store'}); }
+    fillGround(113,20,121,28,T.ASPH);                     // estacionamento da delegacia
+    /* ---- LESTE: clínica + casa em L ---- */
+    { const fL=[], wL=[]; const b=clinica(fL,wL,96,42); defs.push({b,fL,wL,mi:0}); }
+    houseAt(casaL, 106,58,false,2);
+    /* ---- SUL: escola (quadra ao norte) ---- */
+    { const fL=[], wL=[]; const b=escola(fL,wL,8,70); defs.push({b,fL,wL,mi:2}); }
+    fillGround(10,58,26,68,T.ASPH);                       // quadra esportiva
+    /* ---- AVENIDA SUL (lado sul): bar, oficina, casas novas ---- */
+    { const fL=[], wL=[]; const b=barZe(fL,wL,42,93); defs.push({b,fL,wL,mi:3}); }
+    { const fL=[], wL=[]; const b=oficina(fL,wL,58,93); defs.push({b,fL,wL,mi:'store'}); }
+    houseAt(casaVaranda, 74,93,true,1);
+    houseAt(kitnet,      96,93,true,3);
+    houseAt(casaJardim, 106,93,false,0);
 
-    const paths=[[10,30,10,31],[26,31,26,31],[46,31,46,31],[58,31,58,31],[28,38,28,40],[45,38,45,40],[57,38,57,40],[14,38,14,39]];
+    const paths=[[10,30,10,31],[26,31,26,31],[46,31,46,31],[58,31,58,31],[28,38,28,40],[45,38,45,40],[57,38,57,40],[14,38,14,39],
+      // distritos novos: portas → calçadas
+      [104,32,104,41],[110,53,110,57],[12,86,12,87],[46,92,46,92],[68,92,68,92],[78,92,78,92],[98,92,98,92],[109,92,109,92]];
     paths.forEach(([x,za,_,zb])=>{ for(let z=za;z<=zb;z++) ground[x*W+z]=T.DIRT; });
+    // trilha da praça à delegacia
+    for(let x=87;x<=95;x++) ground[x*W+14]=T.DIRT;
 
     // textura carbonizada (casa incendiada)
     const charTx=(()=>{ const c=cv(64,128), g=c.getContext('2d');
@@ -539,14 +903,55 @@ const WORLD = (() => {
     for(let i=0;i<85;i++){ const x=2+rng()*(W-4), z=2+rng()*(W-4);
       if(ground[Math.floor(x)*W+Math.floor(z)]===T.GRASS && !solid[Math.floor(x)*W+Math.floor(z)]) addTuft(dL,x,z); }
     [[18.4,33.2],[29.6,36.7],[43.3,33.4],[55.7,36.3],[34.3,12.5],[36.6,48.4],[33.4,58.6],[24.2,32.4],[50.5,37.6]].forEach(([x,z])=>addTuft(dL,x,z));
+    /* ================= NOVOS DISTRITOS: decoração à mão ================= */
+    // PRAÇA CENTRAL (entre a Rua da Igreja e a delegacia)
+    fillGround(70,8,86,20,T.GRASS);
+    fillGround(77,8,79,20,T.PLAZA); fillGround(70,13,86,15,T.PLAZA);      // caminhos em cruz
+    FURN.chafariz(dL,76.5,12.5);
+    FURN.banco(dL,72,12.2,0); FURN.banco(dL,81,12.2,0); FURN.banco(dL,72,15.6,0); FURN.banco(dL,81,15.6,0);
+    FURN.balanco(dL,71,17.5); FURN.escorrega(dL,81,17.5);
+    FURN.bin(dL,75,13); FURN.bin(dL,80,15);
+    addTree(dL,71.5,9.5,true); addTree(dL,84.5,9.5,true); addTree(dL,71.5,19,false); addTree(dL,84.8,19.5,true);
+    // quadra da escola: traves
+    dL.push({w:0.1,h:1.2,d:2.2,x:11,y:0.6,z:63,col:'#d8d4c8'}); dL.push({w:0.1,h:1.2,d:2.2,x:25,y:0.6,z:63,col:'#d8d4c8'});
+    dL.push({w:0.1,h:0.1,d:2.2,x:11,y:1.25,z:63,col:'#d8d4c8'}); dL.push({w:0.1,h:0.1,d:2.2,x:25,y:1.25,z:63,col:'#d8d4c8'});
+    // posto: cobertura sobre as bombas
+    dL.push({w:8,h:0.3,d:5,x:72,y:3.2,z:28.5,col:'#c8443a'});
+    dL.push({w:0.25,h:3.1,d:0.25,x:68.6,y:1.55,z:26.6,col:'#8a8a92'}); dL.push({w:0.25,h:3.1,d:0.25,x:75.4,y:1.55,z:26.6,col:'#8a8a92'});
+    dL.push({w:0.25,h:3.1,d:0.25,x:68.6,y:1.55,z:30.4,col:'#8a8a92'}); dL.push({w:0.25,h:3.1,d:0.25,x:75.4,y:1.55,z:30.4,col:'#8a8a92'});
+    // árvores das avenidas novas + quintais do sul
+    [[46,86],[54,86],[70,86],[100,86],[118,86],[46,94.5],[88,20],[94,12],[118,14],[120,40],[102,64],[112,72],[16,92],[30,92],[36,64],[6,64],[62,60],[122,96],[94,110],[70,108]].forEach(([x,z])=>{
+      if(ground[Math.floor(x)*W+Math.floor(z)]===T.GRASS) addTree(dL,x+rng(),z+rng(),rng()<0.5); });
+    [[60,87],[78,92.3],[98,87],[110,92.3],[87,50],[92.3,70],[87,14],[113,31]].forEach(([x,z])=>addLamp(dL,x+0.2,z+0.2));
+    // lixo/entulho dos distritos
+    [[44,92.4],[59,92.3],[76,92.5],[97,92.4],[108,92.6],[95,31.5],[113,29],[70,31.5],[13,86.5],[27,86.4]].forEach(([x,z])=>addTrashBag(dL,x,z));
+    FURN.bin(dL,66,31); FURN.bin(dL,94,31); FURN.bin(dL,112,31); FURN.bin(dL,45,92); FURN.bin(dL,98,42);
+    FURN.mail(dL,76,92); FURN.mail(dL,98,92); FURN.mail(dL,108,92); FURN.mail(dL,108,57);
+    addTires(dL,60.5,94.5); addTires(dL,69,101);
+    // corpos das zonas novas
+    addCorpse(dL,89.5,34.8,1.2,'#2a3a5a');                     // policial na esquina
+    addCorpse(dL,104,30.5,0.6,'#5a4a42'); addCorpse(dL,18,63,2.8,'#6a5a6a');
+    addCorpse(dL,90.2,89.6,4.1,'#4a4a52'); addCorpse(dL,79,14.2,0.3,'#7a5a4a');
+    addCorpse(dL,100.5,45.5,2.0,'#e0e0e8');                    // enfermeira na clínica
+    // barricada militar na Avenida Sul (leste)
+    addBarrier(dL,120.5,88.8,0.1); addBarrier(dL,120.8,90.6,-0.12);
+    [[119.8,89.5],[121.6,90.2]].forEach(([x,z])=>{ dL.push({w:0.3,h:0.5,d:0.3,x,y:0.12,z,ry:rng()*3,col:'#c05028'}); });
     const deco=mergeBoxes(dL,[new THREE.MeshLambertMaterial({vertexColors:true})]); deco.castShadow=true; scene.add(deco);
-    // carros: estacionados, batidos, queimados, viatura
+    // carros: estacionados, batidos, queimados, viaturas
     addCar(scene,26,34.6,'#7a3a32',{doorOpen:true});
     addCar(scene,48,35.4,'#3a5a7a');
     addCar(scene,40.9,34.6,'#e8e4dc',{police:true,ry:0.35,doorOpen:true});
     addCar(scene,20.6,36.2,'#5a6a4a',{ry:0.5,hood:true});           // bateu no poste
     addCar(scene,35.3,17.8,'#000000',{burnt:true,ry:1.62});          // carcaça queimada
     addCar(scene,54.6,39.6,'#8a7a5a',{ry:-0.55,doorOpen:true});      // subiu no gramado
+    // distritos novos
+    addCar(scene,115.5,22.5,'#e8e4dc',{police:true,ry:1.57,trunk:true});   // viatura no pátio (porta-malas!)
+    addCar(scene,118.5,26,'#e8e4dc',{police:true,ry:1.35,doorOpen:true});
+    addCar(scene,71.8,32.4,'#8a6a3a',{ry:0.08});                     // posto
+    addCar(scene,90.5,86.2,'#3a4a6a',{ry:0.9,hood:true});            // batido na esquina da avenida
+    addCar(scene,62,89.8,'#7a4a5a',{burnt:true,ry:-0.2});            // queimado na avenida
+    addCar(scene,101,90.2,'#4a6a5a',{ry:0.02,trunk:true});           // abandonado c/ porta-malas
+    addCar(scene,110.8,60.5,'#6a5a8a',{ry:1.5});                     // casa em L
     addWires(scene);
     lamps.forEach(l=>{
       const head=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.14,0.24), new THREE.MeshLambertMaterial({color:'#c8b060',emissive:'#000000'}));
@@ -558,15 +963,27 @@ const WORLD = (() => {
     const gc=cv(W*TPX,W*TPX), g2=gc.getContext('2d');
     for(let x=0;x<W;x++)for(let z=0;z<W;z++) paintTile(g2,x,z,ground[x*W+z]);
     g2.fillStyle='#b8b8a8';
-    for(let x=0;x<W;x+=2){ if(x>30&&x<39) continue; if(rng()<0.2) continue; g2.fillRect(x*TPX+3,35*TPX-1,TPX-6,2); }
-    for(let z=0;z<W;z+=2){ if(z>30&&z<39) continue; if(rng()<0.2) continue; g2.fillRect(35*TPX-1,z*TPX+3,2,TPX-6); }
-    for(let k=0;k<4;k++){ g2.fillRect((33.4+k*0.85)*TPX,32.2*TPX,8,12); g2.fillRect((33.4+k*0.85)*TPX,37.1*TPX,8,12); }
+    const noDash=(v)=>(v>30&&v<39)||(v>85&&v<94);
+    for(const rc of [35,90]){ // faixas centrais das 2 vias E-O e 2 vias N-S
+      for(let x=0;x<W;x+=2){ if(noDash(x)) continue; if(rng()<0.2) continue; g2.fillRect(x*TPX+3,rc*TPX-1,TPX-6,2); }
+      for(let z=0;z<W;z+=2){ if(noDash(z)) continue; if(rng()<0.2) continue; g2.fillRect(rc*TPX-1,z*TPX+3,2,TPX-6); } }
+    for(let k=0;k<4;k++){ g2.fillRect((33.4+k*0.85)*TPX,32.2*TPX,8,12); g2.fillRect((33.4+k*0.85)*TPX,37.1*TPX,8,12);
+      g2.fillRect((88.4+k*0.85)*TPX,32.2*TPX,8,12); g2.fillRect((33.4+k*0.85)*TPX,92.1*TPX,8,12);
+      g2.fillRect((88.4+k*0.85)*TPX,92.1*TPX,8,12); }
+    /* linhas da quadra esportiva da escola */
+    g2.strokeStyle='#e8e4d8'; g2.lineWidth=2;
+    g2.strokeRect(10.6*TPX,58.6*TPX,15.6*TPX,9*TPX);
+    g2.beginPath(); g2.moveTo(18.4*TPX,58.6*TPX); g2.lineTo(18.4*TPX,67.6*TPX); g2.stroke();
+    g2.beginPath(); g2.arc(18.4*TPX,63.1*TPX,1.7*TPX,0,6.29); g2.stroke();
+    /* vagas do estacionamento da delegacia */
+    g2.strokeStyle='#c8c4b0';
+    for(let k=0;k<3;k++) g2.strokeRect((113.5+k*2.6)*TPX,21*TPX,2.2*TPX,5.5*TPX);
     /* ---- decalques pós-apocalípticos ---- */
     const px2=(x)=>x*TPX;
     // rachaduras no asfalto
     g2.strokeStyle='#26262a'; g2.lineWidth=1.5;
-    for(let i=0;i<16;i++){ const onV=rng()<0.4;
-      let x=onV? (33+rng()*3):(rng()*W), z=onV? (rng()*W):(33+rng()*3);
+    for(let i=0;i<26;i++){ const onV=rng()<0.4; const band=rng()<0.5?33:88;
+      let x=onV? (band+rng()*3):(rng()*W), z=onV? (rng()*W):(band+rng()*3);
       g2.beginPath(); g2.moveTo(px2(x),px2(z));
       for(let s=0;s<5;s++){ x+=(rng()-0.5)*1.6; z+=(rng()-0.5)*1.6; g2.lineTo(px2(x),px2(z)); }
       g2.stroke(); }
@@ -630,6 +1047,29 @@ const WORLD = (() => {
     SP(44,44,{inside:true}); SP(56,44); SP(61,55); SP(48,60); SP(28,58);
     // campos norte / oeste distante
     SP(28,8); SP(44,6); SP(6,8); SP(64,8);
+    /* ---- DISTRITOS NOVOS (zonas com densidades próprias) ---- */
+    // ESCOLA: a horda do pátio (o lugar mais perigoso da cidade)
+    SP(14,62); SP(16,63.5); SP(18.5,61.5); SP(20,64); SP(22,62.5); SP(17,66); SP(24,65,{crawler:true});
+    SP(14,74,{inside:true}); SP(24,78,{inside:true}); SP(11,80,{inside:true});
+    // DELEGACIA: policiais mortos em serviço (2 presos nas celas!)
+    SP(97.5,19.5,{inside:true}); SP(101.5,19.5,{inside:true}); SP(104,28,{inside:true}); SP(116,24); SP(113,30);
+    // PRAÇA
+    SP(75,13.5); SP(80,16); SP(73,18,{crawler:true});
+    // POSTO
+    SP(71,30); SP(74.5,33.5);
+    // CLÍNICA (enfermaria caída)
+    SP(99,45,{inside:true}); SP(105,49,{inside:true}); SP(101,39); SP(108,54);
+    // AVENIDA SUL (espalhados + grupinho na barricada militar)
+    SP(50,89.5); SP(58,90.5); SP(66,89); SP(80,90.2); SP(95,89.6); SP(104,90.5);
+    SP(118,89); SP(119.5,90.4); SP(121,89.8); SP(117,91.2,{crawler:true});
+    // BAR + OFICINA
+    SP(46,96,{inside:true}); SP(63,97,{inside:true}); SP(61,95);
+    // casas novas do sul
+    SP(78,97,{inside:true}); SP(98,95.5); SP(110,97,{inside:true}); SP(90,100);
+    // RUA DO CENTRO (vertical leste)
+    SP(89.5,50); SP(90.5,62); SP(89,74,{crawler:true}); SP(90,14); SP(89.5,104); SP(90.5,116);
+    // campos do sudeste
+    SP(116,108); SP(76,116); SP(24,116); SP(120,66);
   }
 
   /* ================= COLISÃO / VISÃO ================= */

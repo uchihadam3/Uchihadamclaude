@@ -142,6 +142,8 @@ const CHARS = (() => {
       faca:(()=>{ const m=B(0.04,0.3,0.02,knifeM); m.position.y=-0.12; return m; })(),
       martelo:(()=>{ const grp=new THREE.Group(); const h=B(0.05,0.4,0.05,batM); h.position.y=-0.12; grp.add(h);
         const hd=B(0.16,0.08,0.08,panM); hd.position.y=-0.3; grp.add(hd); return grp; })(),
+      pistola:(()=>{ const grp=new THREE.Group(); const c2=B(0.05,0.09,0.24,panM); c2.position.set(0,-0.1,0.1); grp.add(c2);
+        const cabo=B(0.05,0.12,0.06,plain('gcabo','#3a2e22')); cabo.position.set(0,-0.16,0.0); grp.add(cabo); return grp; })(),
     };
     Object.values(wMeshes).forEach(m=>{ m.visible=false; weapon.add(m); });
     // mochila
@@ -166,8 +168,22 @@ const CHARS = (() => {
     rig.t+=dt*(1+o.speed*2.2);
     const k=Math.min(1,dt*10), t=rig.t;
     let aLsh=0,aLel=0,aRsh=0,aRel=0, lLh=0,lLk=0,lRh=0,lRk=0, lean=0, bobY=0, neckX=0, rootRX=0, rootY=0;
-    if(o.dead||o.fallen>=1){ rootRX=-Math.PI/2; rootY=-0.72;
+    if(o.dead||o.fallen>=1){ rootRX=-Math.PI/2; rootY=0.15;   // estirado NO chão (visível)
       aLsh=0.4; aRsh=0.5; lLh=0.15; lRh=-0.1;
+    } else if(o.act==='fall'){ const p=o.actP;                 // tombando
+      rootRX=-Math.PI/2*Math.min(1,p*1.2); rootY=L(0,0.15,p);
+      aLsh=-1.1*p; aRsh=-1.4*p; aLel=-0.4*p; aRel=-0.5*p;      // braços amparando
+      lLh=0.3*p; lRh=-0.2*p;
+    } else if(o.act==='getup'){ const p=o.actP;                // levantando em 2 fases
+      if(p<0.45){ const e=p/0.45;                              // 1) empurra o chão, ergue o tronco
+        rootRX=-Math.PI/2+e*0.95; rootY=L(0.15,0.34,e);
+        aLsh=L(0.4,-2.1,e); aRsh=L(0.5,-2.1,e); aLel=-1.1*e; aRel=-1.1*e;
+        lLh=0.85*e; lLk=1.1*e; lRh=0.6*e; lRk=0.9*e; neckX=0.3*e;
+      } else { const e=(p-0.45)/0.55;                          // 2) firma as pernas e sobe cambaleando
+        rootRX=(-Math.PI/2+0.95)*(1-e); rootY=L(0.34,0,e);
+        aLsh=-2.1*(1-e); aRsh=-2.1*(1-e); aLel=-1.1*(1-e); aRel=-1.1*(1-e);
+        lLh=0.85*(1-e); lLk=1.1*(1-e); lRh=0.6*(1-e); lRk=0.9*(1-e);
+        lean=0.4*(1-e)*Math.sin(e*6); neckX=0.3*(1-e); }
     } else if(o.crawler){
       rootRX=-Math.PI/2+0.18; rootY=-0.62;
       const s=Math.sin(t*3);
