@@ -1,36 +1,39 @@
-// Mapa da floresta (bioma externo, protótipo).
-//  '.' = grama (andável)          '=' = caminho de terra (andável)
-//  'T' = pinheiro (bloqueia)      'b' = arbusto (bloqueia)
-//  'r' = rocha (bloqueia)         's' = placa de madeira (bloqueia, com texto)
-//  'k' = pilha de caveiras (decoração no chão, andável)
-//  '#' = mata densa da borda (bloqueia, forma o paredão de árvores)
-//  'P' = início do jogador (olhando p/ o norte, subindo o caminho)
-//  'V' = portão de volta ao vilarejo (borda sul)
-// Norte = para cima (montanhas ao fundo). O caminho sobe serpenteando entre
-// os pinheiros; a grama em volta é aberta e explorável.
+// Mapa da floresta (bioma externo).
+//  '.' grama (andável)        '=' trilha de terra (andável)
+//  'T' pinheiro (bloqueia)    'b' arbusto (bloqueia)      'r' rocha (bloqueia)
+//  'f' folhagem/samambaia (decoração no chão, andável)
+//  'k' pilha de caveiras (decoração no chão, andável)
+//  's' placa de boas-vindas   'j' placa direcional (encruzilhada)
+//  'N'/'E'/'W' marcos das trilhas futuras (montanhas / charco / ruínas)
+//  '#' mata densa da borda (bloqueia)
+//  'P' início do jogador (olhando p/ o norte)   'V' portão de volta ao vilarejo
+//
+// A entrada ao sul sobe por um tronco de trilha até uma ENCRUZILHADA central,
+// de onde partem caminhos p/ o norte, leste e oeste — cada ponta termina num
+// marco de um local futuro. A neblina do jogo cobre tudo (lore).
 export const FOREST: string[] = [
-  "###############",
-  "#.......TT....#",
-  "#T....=....b.T#",
-  "#.rbT.==.....T#",
-  "#......=.T...b#",
-  "#.TT...=.....T#",
-  "#.T..T..==.T..#",
-  "#T......=.....#",
-  "#.TT...=......#",
-  "#b..T..==..T.b#",
-  "#.....=...TT.T#",
-  "#.TTT.=....TTT#",
-  "#b..T..==.T.T.#",
-  "#...T..=.....T#",
-  "#r..T..=....TT#",
-  "#.TTT..==....T#",
-  "#TT.k.=...T...#",
-  "#.....=...T...#",
-  "#..bT..==s..r.#",
-  "#T.TTT.=..b.TT#",
-  "#..T...P.b....#",
-  "#######V#######",
+  "#################",
+  "#.Tb.T......rTT.#",
+  "#T..b...N.TT.Tb.#",
+  "#fTTTT..=..TrT..#",
+  "#....T..=.rb.TT.#",
+  "#.TT..T.=.T..Tb.#",
+  "#.T..Tf.=.TT.rT.#",
+  "#Tr.r...=.b...TT#",
+  "#.TT....=......T#",
+  "#T..T...=.rTbTTT#",
+  "#.......=.......#",
+  "#W=============E#",
+  "#......===j.....#",
+  "#.r.T...=....TT.#",
+  "#Tr.Tfb.=.r.TT..#",
+  "#.TT....=....T..#",
+  "#TT..k..=.T....T#",
+  "#fbb....=...bf.r#",
+  "#rfTT...=...T..T#",
+  "#TrTTT..=s..TTTT#",
+  "#f.T....P.....T.#",
+  "########V########",
 ];
 
 export const FOREST_ROWS = FOREST.length;
@@ -42,8 +45,9 @@ export type ForestCell =
   | "tree"
   | "bush"
   | "rock"
-  | "sign"
+  | "foliage"
   | "skull"
+  | "sign"
   | "edge"
   | "gate"
   | "spawn";
@@ -61,10 +65,16 @@ export function forestCell(col: number, row: number): ForestCell {
       return "bush";
     case "r":
       return "rock";
-    case "s":
-      return "sign";
+    case "f":
+      return "foliage";
     case "k":
       return "skull";
+    case "s":
+    case "j":
+    case "N":
+    case "E":
+    case "W":
+      return "sign";
     case "V":
       return "gate";
     case "P":
@@ -76,7 +86,54 @@ export function forestCell(col: number, row: number): ForestCell {
 
 export function forestWalkable(col: number, row: number): boolean {
   const k = forestCell(col, row);
-  return k === "grass" || k === "path" || k === "skull" || k === "gate" || k === "spawn";
+  return (
+    k === "grass" ||
+    k === "path" ||
+    k === "foliage" ||
+    k === "skull" ||
+    k === "gate" ||
+    k === "spawn"
+  );
+}
+
+// texto de cada placa/marco, conforme o caractere na célula
+export function forestSignText(col: number, row: number): string[] {
+  const ch = FOREST[row]?.[col];
+  switch (ch) {
+    case "s":
+      return [
+        "Trilha da Mata Sussurrante.",
+        "A neblina nunca se levanta por aqui. Dizem que ela se lembra de quem passa.",
+        "Siga a trilha até a encruzilhada.",
+      ];
+    case "j":
+      return [
+        "Encruzilhada da Mata.",
+        "Ao sul: Vilarejo de Grimhollow.",
+        "Norte: Montanhas Cinzentas · Leste: o Charco · Oeste: as Ruínas.",
+        "(Esses caminhos se abrirão em breve.)",
+      ];
+    case "N":
+      return [
+        "Trilha das Montanhas Cinzentas.",
+        "O caminho sobe rumo ao nevoeiro gelado.",
+        "(Bloqueado — em breve.)",
+      ];
+    case "E":
+      return [
+        "Trilha do Charco.",
+        "Um cheiro de água parada vem do leste.",
+        "(Bloqueado — em breve.)",
+      ];
+    case "W":
+      return [
+        "Trilha das Ruínas.",
+        "Pedras antigas espreitam entre as árvores a oeste.",
+        "(Bloqueado — em breve.)",
+      ];
+    default:
+      return ["Uma placa de madeira, gasta pelo tempo."];
+  }
 }
 
 export function forestFind(ch: string): { col: number; row: number } {
@@ -84,5 +141,5 @@ export function forestFind(ch: string): { col: number; row: number } {
     const c = FOREST[r].indexOf(ch);
     if (c >= 0) return { col: c, row: r };
   }
-  return { col: 7, row: FOREST_ROWS - 2 };
+  return { col: 8, row: FOREST_ROWS - 2 };
 }
