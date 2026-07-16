@@ -39,6 +39,7 @@ import fazendeiroUrl from "../assets/npc/fazendeiro.png";
 import camponesaUrl from "../assets/npc/camponesa.png";
 import lenhadorUrl from "../assets/npc/lenhador.png";
 import heddaUrl from "../assets/npc/hedda.png";
+import costureiraUrl from "../assets/npc/costureira.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -231,6 +232,7 @@ const VILLAGER_ART: Record<string, string> = {
   elspeth: camponesaUrl,
   corvin: lenhadorUrl,
   hedda: heddaUrl,
+  wren: costureiraUrl,
 };
 
 // aldeões animados por sprite-sheet (id -> tira com N quadros, alinhados).
