@@ -35,6 +35,7 @@ import ferreiroUrl from "../assets/npc/ferreiro.png";
 import alquimistaUrl from "../assets/npc/alquimista.png";
 import pipUrl from "../assets/npc/pip.png";
 import wilmaUrl from "../assets/npc/wilma.png";
+import fazendeiroUrl from "../assets/npc/fazendeiro.png";
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -216,6 +217,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
 const VILLAGER_ART: Record<string, string> = {
   pip: pipUrl,
   wilma: wilmaUrl,
+  alard: fazendeiroUrl,
 };
 
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
@@ -278,6 +280,7 @@ export class Game {
   private blocked = new Set<string>(); // células bloqueadas por props/NPCs
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
+  private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
   private ui!: HUD;
 
   private location: "village" | Estab = "village";
@@ -374,6 +377,7 @@ export class Game {
     this.blocked.clear();
     this.npcs = [];
     this.flames = [];
+    this.waterGlint = undefined;
     this.doorMap.clear();
     this.npcMap.clear();
   }
@@ -593,20 +597,54 @@ export class Game {
       side: THREE.DoubleSide,
     });
     const grp = new THREE.Group();
-    // mureta de pedra
-    const ring = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.15, 1.25, 1.05, 20),
+    // mureta de pedra OCA (parede externa aberta em cima) — deixa ver a água
+    const outer = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.15, 1.25, 1.05, 24, 1, true),
       stoneMat,
     );
-    ring.position.y = 0.52;
-    grp.add(ring);
-    // "água" escura no topo
-    const water = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.92, 0.92, 0.06, 20),
-      new THREE.MeshBasicMaterial({ color: 0x10171c }),
+    outer.position.y = 0.52;
+    grp.add(outer);
+    // parede interna escura (o fundo do poço)
+    const shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.98, 0.98, 1.05, 24, 1, true),
+      new THREE.MeshLambertMaterial({ color: 0x171310, side: THREE.BackSide }),
     );
-    water.position.y = 0.95;
+    shaft.position.y = 0.52;
+    grp.add(shaft);
+    // borda superior (anel de pedra ligando parede externa e interna)
+    const rim = new THREE.Mesh(
+      new THREE.RingGeometry(0.98, 1.16, 24),
+      new THREE.MeshLambertMaterial({ color: 0x8d8377, side: THREE.DoubleSide }),
+    );
+    rim.rotation.x = -Math.PI / 2;
+    rim.position.y = 1.045;
+    grp.add(rim);
+    // água azul dentro do poço (visível pela abertura)
+    const water = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.97, 0.97, 0.05, 28),
+      new THREE.MeshPhongMaterial({
+        color: 0x2f7288,
+        specular: 0xbfeeff,
+        shininess: 100,
+        transparent: true,
+        opacity: 0.95,
+      }),
+    );
+    water.position.y = 0.86;
     grp.add(water);
+    // reflexo claro sobre a água (cintila no tick)
+    const glint = new THREE.Mesh(
+      new THREE.CircleGeometry(0.6, 24),
+      new THREE.MeshBasicMaterial({
+        color: 0xbfeaf5,
+        transparent: true,
+        opacity: 0.25,
+      }),
+    );
+    glint.rotation.x = -Math.PI / 2;
+    glint.position.set(-0.12, 0.87, -0.08);
+    grp.add(glint);
+    this.waterGlint = glint;
     // dois postes
     const postGeo = new THREE.BoxGeometry(0.16, 2.0, 0.16);
     for (const s of [-1, 1]) {
@@ -614,10 +652,16 @@ export class Game {
       post.position.set(s * 0.95, 1.55, 0);
       grp.add(post);
     }
-    // travessa + balde
+    // travessa + balde + corda
     const bar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 0.14), woodMat);
     bar.position.y = 2.5;
     grp.add(bar);
+    const rope = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.025, 0.025, 0.72, 6),
+      new THREE.MeshLambertMaterial({ color: 0x6b5636 }),
+    );
+    rope.position.set(0.2, 2.08, 0);
+    grp.add(rope);
     const bucket = new THREE.Mesh(
       new THREE.CylinderGeometry(0.24, 0.2, 0.34, 12),
       woodMat,
@@ -865,21 +909,17 @@ export class Game {
     return this.villagerArt[key];
   }
 
-  // recorta o rosto do NPC (topo-centro) para o retrato do diálogo
-  private makePortrait(image: unknown, isArt: boolean): string | null {
-    const im = image as { width?: number; height?: number; naturalWidth?: number; naturalHeight?: number } | null;
+  // recorta o rosto do NPC para o retrato do diálogo.
+  // Detecta a CABEÇA pelo maior trecho contíguo opaco no topo (ignora saliências
+  // finas como espadas/cajados) e centraliza nela — funciona p/ adultos e crianças.
+  private makePortrait(image: unknown, _isArt: boolean): string | null {
+    const im = image as
+      | { width?: number; height?: number; naturalWidth?: number; naturalHeight?: number }
+      | null;
     if (!im) return null;
     const iw = im.naturalWidth || im.width || 0;
     const ih = im.naturalHeight || im.height || 0;
     if (!iw || !ih) return null;
-    // fração da altura usada como lado do recorte quadrado — zoom fechado no rosto
-    const sideFrac = isArt ? 0.18 : 0.26;
-    const topFrac = isArt ? 0.05 : 0.095;
-    let side = ih * sideFrac;
-    let sx = iw * 0.5 - side / 2;
-    let sy = ih * topFrac;
-    sx = Math.max(0, Math.min(sx, iw - side));
-    side = Math.min(side, iw, ih - sy);
     const S = 132;
     const cv = document.createElement("canvas");
     cv.width = S;
@@ -887,6 +927,85 @@ export class Game {
     const ctx = cv.getContext("2d");
     if (!ctx) return null;
     ctx.imageSmoothingQuality = "high";
+
+    // enquadramento automático a partir do canal alpha
+    let sx = iw * 0.5 - ih * 0.09;
+    let sy = ih * 0.05;
+    let side = ih * 0.18;
+    try {
+      const tmp = document.createElement("canvas");
+      tmp.width = iw;
+      tmp.height = ih;
+      const tc = tmp.getContext("2d");
+      if (tc) {
+        tc.drawImage(image as CanvasImageSource, 0, 0);
+        const d = tc.getImageData(0, 0, iw, ih).data;
+        const A = 40;
+        // maior trecho contíguo opaco de uma linha -> {w, cx}
+        const rowRun = (y: number) => {
+          let best = 0,
+            bs = 0,
+            curS = -1;
+          for (let x = 0; x <= iw; x++) {
+            const op = x < iw && d[(y * iw + x) * 4 + 3] > A;
+            if (op) {
+              if (curS < 0) curS = x;
+            } else if (curS >= 0) {
+              const w = x - curS;
+              if (w > best) {
+                best = w;
+                bs = curS;
+              }
+              curS = -1;
+            }
+          }
+          return { w: best, cx: bs + best / 2 };
+        };
+        let topY = -1,
+          botY = -1;
+        for (let y = 0; y < ih && topY < 0; y++)
+          for (let x = 0; x < iw; x++)
+            if (d[(y * iw + x) * 4 + 3] > A) {
+              topY = y;
+              break;
+            }
+        for (let y = ih - 1; y >= 0 && botY < 0; y--)
+          for (let x = 0; x < iw; x++)
+            if (d[(y * iw + x) * 4 + 3] > A) {
+              botY = y;
+              break;
+            }
+        if (topY >= 0 && botY > topY) {
+          const figH = botY - topY + 1;
+          // topo da cabeça: 1a linha com trecho contíguo largo (pula saliências finas)
+          let hY = topY;
+          for (let y = topY; y < topY + figH * 0.3; y++)
+            if (rowRun(y).w > iw * 0.06) {
+              hY = y;
+              break;
+            }
+          // largura/centro da cabeça na faixa logo abaixo do topo
+          let headW = 0,
+            xc = iw / 2;
+          const band = Math.round(figH * 0.14);
+          for (let y = hY; y < hY + band; y++) {
+            const r = rowRun(y);
+            if (r.w > headW) {
+              headW = r.w;
+              xc = r.cx;
+            }
+          }
+          side = Math.max(figH * 0.13, Math.min(headW * 1.55, figH * 0.3, ih * 0.55));
+          sx = xc - side / 2;
+          sy = hY - side * 0.12;
+        }
+      }
+    } catch {
+      /* imagem "tainted": usa o enquadramento-padrão acima */
+    }
+    sx = Math.max(0, Math.min(sx, iw - side));
+    sy = Math.max(0, Math.min(sy, ih - side));
+    side = Math.min(side, iw, ih);
     try {
       ctx.drawImage(image as CanvasImageSource, sx, sy, side, side, 0, 0, S, S);
       return cv.toDataURL("image/png");
@@ -1490,6 +1609,13 @@ export class Game {
     for (const f of this.flames)
       f.light.intensity =
         f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
+    // água do poço cintila suavemente
+    if (this.waterGlint) {
+      const m = this.waterGlint.material as THREE.MeshBasicMaterial;
+      m.opacity = 0.18 + (Math.sin(now * 0.0016) + 1) * 0.11;
+      const sc = 1 + Math.sin(now * 0.0013 + 1) * 0.08;
+      this.waterGlint.scale.set(sc, sc, sc);
+    }
     // atualiza a dica de interação só quando o jogador não está animando
     if (!this.anim) this.updatePrompt();
     this.renderer.render(this.scene, this.camera);
