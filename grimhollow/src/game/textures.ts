@@ -88,41 +88,83 @@ export function woodPlanks(seed = 1): THREE.Texture {
 
 // -------- pedra da rua (paralelepípedos) --------
 export function cobblestone(seed = 7): THREE.Texture {
-  const W = 96;
-  const H = 96;
+  const W = 160;
+  const H = 160;
   const { c, ctx } = makeCanvas(W, H);
-  ctx.fillStyle = "#2a2620";
-  ctx.fillRect(0, 0, W, H);
   const r = rnd(seed);
-  const cell = 12;
-  for (let gy = 0; gy < H / cell + 1; gy++) {
-    for (let gx = 0; gx < W / cell + 1; gx++) {
-      const ox = gx * cell + (r() - 0.5) * 4 + (gy % 2 ? cell / 2 : 0);
-      const oy = gy * cell + (r() - 0.5) * 4;
-      const rad = cell * 0.42 + r() * 2.5;
-      const g = 90 + Math.floor(r() * 70);
-      const tone = r();
-      const col =
-        tone < 0.4
-          ? `rgb(${g},${(g * 0.9) | 0},${(g * 0.78) | 0})`
-          : `rgb(${(g * 0.8) | 0},${(g * 0.74) | 0},${(g * 0.62) | 0})`;
-      ctx.fillStyle = col;
+  // argamassa (fundo terroso escuro) com granulado
+  ctx.fillStyle = "#241f18";
+  ctx.fillRect(0, 0, W, H);
+  for (let i = 0; i < 1400; i++) {
+    const g = 26 + (r() * 34) | 0;
+    ctx.fillStyle = `rgba(${g},${(g * 0.85) | 0},${(g * 0.66) | 0},0.5)`;
+    ctx.fillRect(r() * W, r() * H, 2, 2);
+  }
+  const cell = 22;
+  const stone = (ox: number, oy: number, rad: number) => {
+    const sides = 6 + Math.floor(r() * 4);
+    const pts: [number, number][] = [];
+    for (let s = 0; s < sides; s++) {
+      const a = (s / sides) * Math.PI * 2;
+      const q = rad * (0.76 + r() * 0.36);
+      pts.push([ox + Math.cos(a) * q, oy + Math.sin(a) * q * 0.92]);
+    }
+    const path = () => {
       ctx.beginPath();
-      const sides = 5 + Math.floor(r() * 3);
-      for (let s = 0; s <= sides; s++) {
-        const a = (s / sides) * Math.PI * 2;
-        const rr = rad * (0.8 + r() * 0.3);
-        const px = ox + Math.cos(a) * rr;
-        const py = oy + Math.sin(a) * rr * 0.8;
-        s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-      }
+      pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])));
       ctx.closePath();
-      ctx.fill();
-      // brilho no topo da pedra
-      ctx.fillStyle = "rgba(255,250,235,0.10)";
-      ctx.beginPath();
-      ctx.ellipse(ox, oy - rad * 0.3, rad * 0.5, rad * 0.25, 0, 0, Math.PI * 2);
-      ctx.fill();
+    };
+    // paleta: cinza-quente, ardósia azulada, arenito
+    const base = 104 + Math.floor(r() * 66);
+    const t = r();
+    let R: number, G: number, B: number;
+    if (t < 0.36) {
+      R = base;
+      G = (base * 0.95) | 0;
+      B = (base * 0.88) | 0;
+    } else if (t < 0.66) {
+      R = (base * 0.82) | 0;
+      G = (base * 0.87) | 0;
+      B = (base * 0.92) | 0;
+    } else {
+      R = Math.min(255, (base * 1.04) | 0);
+      G = (base * 0.9) | 0;
+      B = (base * 0.7) | 0;
+    }
+    // sombra de contato (deslocada p/ baixo-direita)
+    ctx.save();
+    ctx.translate(0.8, 1.4);
+    path();
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.fill();
+    ctx.restore();
+    // corpo da pedra
+    path();
+    ctx.fillStyle = `rgb(${R},${G},${B})`;
+    ctx.fill();
+    // volume: topo iluminado, base sombreada
+    const grd = ctx.createLinearGradient(ox, oy - rad, ox, oy + rad);
+    grd.addColorStop(0, "rgba(255,248,230,0.22)");
+    grd.addColorStop(0.5, "rgba(255,255,255,0)");
+    grd.addColorStop(1, "rgba(0,0,0,0.28)");
+    path();
+    ctx.fillStyle = grd;
+    ctx.fill();
+    // desgaste: pontinhos claros/escuros
+    for (let i = 0; i < 7; i++) {
+      const px = ox + (r() - 0.5) * rad * 1.3;
+      const py = oy + (r() - 0.5) * rad * 1.3;
+      const lite = r() < 0.5;
+      ctx.fillStyle = lite ? "rgba(255,250,235,0.09)" : "rgba(0,0,0,0.12)";
+      ctx.fillRect(px, py, 1.6, 1.6);
+    }
+  };
+  // desenha com sobreposição nas bordas p/ ladrilhar melhor
+  for (let gy = -1; gy < H / cell + 1; gy++) {
+    for (let gx = -1; gx < W / cell + 1; gx++) {
+      const ox = gx * cell + (gy & 1 ? cell / 2 : 0) + (r() - 0.5) * 5;
+      const oy = gy * cell + (r() - 0.5) * 5;
+      stone(ox, oy, cell * 0.52 + r() * 3);
     }
   }
   return toTex(c);

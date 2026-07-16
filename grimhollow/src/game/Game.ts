@@ -415,20 +415,24 @@ export class Game {
     });
     const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
 
-    // chão de pedra da vila (por célula; NÃO cobre a masmorra p/ não tapar a escada)
+    const hash = (a: number, b: number, s = 0) =>
+      (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
+
+    // chão de pedra da vila (por célula; NÃO cobre a masmorra p/ não tapar a escada).
+    // Rotação de 0/90/180/270° por célula quebra a repetição visível do padrão.
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
         if (isDungeon(c, r)) continue; // o túnel tem chão próprio
         const t = new THREE.Mesh(tileGeo, cobbleMat);
         t.rotation.x = -Math.PI / 2;
+        const quarter = Math.floor(Math.abs(hash(c, r, 5)) * 4) % 4;
+        t.rotation.z = (quarter * Math.PI) / 2;
         t.position.set(c * CELL, 0, r * CELL);
         this.world.add(t);
       }
 
     const boxGeo = new THREE.BoxGeometry(CELL, WALL_H, CELL);
-    const hash = (a: number, b: number, s = 0) =>
-      (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
 
     // faces reservadas aos estabelecimentos (não recebem porta/janela aleatória)
     const estabFaces = new Set(
@@ -868,10 +872,12 @@ export class Game {
       alphaTest: 0.5,
       side: THREE.DoubleSide,
     });
-    // dimensões do plano: se há arte, já usa o aspecto da arte (848x1264)
+    // dimensões do plano: se há arte, já usa o aspecto da arte (848x1264).
+    // A arte é reenquadrada com os pés a ~1,5% do fundo do plano, então o centro
+    // fica em h/2 - h*0.015 para os pés assentarem no chão (+ 0.02 de folga).
     const h = (hasArt ? 2.4 : 2.15) * scale;
     const w = (hasArt ? h * 0.671 : 1.3) * (hasArt ? 1 : scale);
-    const y = (hasArt ? h / 2 - 0.08 : 1.06 * scale);
+    const y = hasArt ? h / 2 - h * 0.015 + 0.02 : 1.08 * scale;
     const npc = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     npc.position.set(c * CELL, y, r * CELL);
     this.world.add(npc);
