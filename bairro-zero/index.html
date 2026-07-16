@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0c10">
+<title>Bairro Zero — sobrevivência zumbi</title>
+<style>
+:root{ --ui:#e8e4d8; --dim:#9a968a; --panel:rgba(14,16,20,.88); --edge:rgba(255,255,255,.12);
+  --red:#c04a3a; --gold:#c8a24a; --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px); }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#05070d}
+body{font-family:'Segoe UI',system-ui,sans-serif;color:var(--ui);position:fixed;inset:0;-webkit-user-select:none;user-select:none}
+#game3d{position:absolute;inset:0}
+#game3d canvas{display:block}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+
+/* ============ MENU ============ */
+#menu{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(120% 90% at 50% 20%,#16202a 0%,#0a0e14 55%,#05070a 100%);text-align:center;padding:22px}
+#menu.on{display:flex}
+.mTitle{font-size:clamp(40px,11vw,68px);font-weight:900;letter-spacing:4px;line-height:.95;
+  color:#d8d4c8;text-shadow:0 2px 0 #2a2e24,0 6px 24px rgba(0,0,0,.8)}
+.mTitle b{color:#8fae5a}
+.mTag{font-style:italic;color:var(--red);font-size:clamp(15px,4.5vw,20px);margin-top:14px;letter-spacing:1px;
+  text-shadow:0 2px 10px rgba(192,74,58,.4)}
+.mBtn{margin-top:30px;padding:16px 44px;font-size:18px;font-weight:800;letter-spacing:2px;border-radius:8px;
+  background:linear-gradient(180deg,#5a7a3a,#3c5226);border:1px solid #7a9a58;color:#eef4e0;
+  box-shadow:0 10px 30px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.25)}
+.mBtn:active{transform:scale(.96)}
+.mSmall{margin-top:14px;padding:10px 24px;font-size:13px;color:var(--dim);border:1px solid var(--edge);border-radius:8px}
+#how{display:none;margin-top:18px;max-width:420px;text-align:left;background:var(--panel);border:1px solid var(--edge);
+  border-radius:12px;padding:14px 16px;font-size:14px;line-height:1.55;color:#c8c4b8}
+#how.on{display:block}
+#how b{color:var(--gold)}
+
+/* ============ HUD ============ */
+#hud{position:absolute;inset:0;z-index:10;pointer-events:none;display:none}
+#hud.on{display:block}
+#topbar{position:absolute;top:calc(var(--safe-t) + 10px);left:12px;display:flex;flex-direction:column;gap:6px}
+#clock{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:6px 12px;font-size:13px;font-weight:700;letter-spacing:1px}
+#killbox{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--dim)}
+#killbox b{color:var(--ui)}
+#moodles{position:absolute;top:calc(var(--safe-t) + 10px);right:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.moodle{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:20px;
+  background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.1),rgba(0,0,0,.55));
+  border:2.5px solid #c8a24a;box-shadow:0 4px 12px rgba(0,0,0,.5);animation:moodIn .3s}
+.moodle.l2{border-color:#c87a3a}
+.moodle.l3{border-color:#c05a3a;animation:moodPulse 1.6s infinite}
+.moodle.l4{border-color:#ff4a3a;animation:moodPulse .8s infinite}
+@keyframes moodIn{from{transform:scale(.4);opacity:0}}
+@keyframes moodPulse{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.5)}50%{box-shadow:0 0 18px rgba(255,74,58,.8)}}
+#hpWrap{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--safe-b) + 118px);width:min(300px,56vw);
+  height:14px;border-radius:7px;background:rgba(0,0,0,.6);border:1px solid var(--edge);overflow:hidden}
+#hpFill{height:100%;width:100%;background:#5a9a4a;transition:width .3s,background .3s}
+#redFlash{position:absolute;inset:0;z-index:20;pointer-events:none;opacity:0;
+  background:radial-gradient(circle,transparent 40%,rgba(180,20,10,.55) 100%)}
+
+/* controles */
+#joyZone{position:absolute;left:0;bottom:0;width:46%;height:52%;pointer-events:auto;touch-action:none}
+#joyBase{position:absolute;width:110px;height:110px;border-radius:50%;border:2px solid rgba(255,255,255,.18);
+  background:rgba(20,24,30,.35);transform:translate(-50%,-50%);display:none}
+#joyBase.on{display:block}
+#joyStick{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;border-radius:50%;
+  background:rgba(220,220,210,.35);border:1px solid rgba(255,255,255,.3)}
+.abtn{position:absolute;pointer-events:auto;display:grid;place-items:center;border-radius:50%;
+  background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.14),rgba(10,12,16,.7));
+  border:2px solid var(--edge);box-shadow:0 6px 18px rgba(0,0,0,.5);font-weight:800;letter-spacing:1px}
+.abtn:active{transform:scale(.92)}
+#btnAtk{right:18px;bottom:calc(var(--safe-b) + 26px);width:86px;height:86px;font-size:14px;border-color:#8a5a4a;color:#f0d8c8}
+#btnRun{right:118px;bottom:calc(var(--safe-b) + 20px);width:60px;height:60px;font-size:11px;color:var(--dim)}
+#btnRun.on{border-color:#8fae5a;color:#cfe4a8;background:radial-gradient(circle at 50% 35%,rgba(143,174,90,.3),rgba(10,12,16,.7))}
+#btnUse{right:36px;bottom:calc(var(--safe-b) + 126px);min-width:120px;height:52px;border-radius:26px;padding:0 18px;
+  font-size:12px;opacity:0;transition:opacity .2s;border-color:var(--gold);color:#f0e4c0}
+#btnUse.on{opacity:1;animation:usePulse 1.6s infinite}
+@keyframes usePulse{0%,100%{box-shadow:0 6px 18px rgba(0,0,0,.5)}50%{box-shadow:0 0 18px rgba(200,162,74,.6)}}
+#btnInv{right:12px;top:calc(var(--safe-t) + 10px);width:48px;height:48px;font-size:20px;pointer-events:auto;
+  position:absolute;border-radius:12px;background:var(--panel);border:1px solid var(--edge);display:grid;place-items:center}
+#moodles{right:12px;top:calc(var(--safe-t) + 66px)}
+
+/* ============ SHEET (loot / inventário) ============ */
+#sheet{position:absolute;left:0;right:0;bottom:0;z-index:30;transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);
+  background:linear-gradient(180deg,#181c22,#101318);border-top:2px solid #3a4a2a;border-radius:18px 18px 0 0;
+  padding:14px 16px calc(var(--safe-b) + 16px);max-height:60%;display:flex;flex-direction:column;pointer-events:auto}
+#sheet.on{transform:translateY(0)}
+#sheetHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+#sheetTitle{font-size:16px;font-weight:800;letter-spacing:.5px}
+#sheetClose{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.07);border:1px solid var(--edge);font-size:16px}
+#sheetList{overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.itemCard{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border:1px solid var(--edge);
+  border-radius:12px;padding:10px 12px}
+.itemCard .ic{font-size:24px}
+.itemCard .nm{flex:1;font-size:14px;font-weight:600}
+.itemCard .take{padding:8px 14px;border-radius:8px;background:#3c5226;border:1px solid #7a9a58;font-size:11px;font-weight:800;letter-spacing:1px;color:#eef4e0}
+.itemCard .drop{padding:8px 10px;border-radius:8px;background:rgba(192,74,58,.2);border:1px solid #6a3a32;font-size:11px;color:#e0a8a0}
+.takeAll{margin-top:4px;padding:12px;border-radius:10px;background:#5a7a3a;border:1px solid #8fae5a;font-weight:800;letter-spacing:1px;color:#eef4e0}
+.empty{text-align:center;color:var(--dim);font-style:italic;padding:20px}
+
+/* ============ TOAST / MORTE ============ */
+#toast{position:absolute;left:50%;transform:translateX(-50%) translateY(-8px);top:calc(var(--safe-t) + 66px);z-index:40;
+  background:var(--panel);border:1px solid var(--gold);color:#f0e4c0;border-radius:10px;padding:10px 18px;font-size:14px;
+  opacity:0;transition:.3s;pointer-events:none;max-width:86%;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#death{position:absolute;inset:0;z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle,rgba(30,4,2,.88),rgba(5,1,0,.97));text-align:center;padding:24px}
+#death.on{display:flex;animation:deathIn 1.2s}
+@keyframes deathIn{from{opacity:0}}
+.dTitle{font-size:clamp(26px,8vw,44px);font-weight:900;color:#c04a3a;letter-spacing:2px;text-shadow:0 4px 30px rgba(192,74,58,.5)}
+.dSub{font-style:italic;color:#9a8a84;margin-top:10px;font-size:16px}
+.dStats{display:flex;gap:34px;margin:26px 0}
+.dStats b{display:block;font-size:30px;color:var(--ui)}
+.dStats span{font-size:11px;letter-spacing:1px;color:var(--dim);text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="game3d"></div>
+
+<!-- MENU -->
+<div id="menu" class="on">
+  <div class="mTitle">BAIRRO<br><b>ZERO</b></div>
+  <div class="mTag">É assim que você morreu.</div>
+  <button class="mBtn" id="btnStart">SOBREVIVER</button>
+  <button class="mSmall" id="btnHow">como jogar</button>
+  <div id="how">
+    <b>Mova-se</b> com o direcional (ou WASD). <b>CORRER</b> é mais rápido — mas faz barulho, e eles ouvem.<br><br>
+    Entre nas casas, <b>saqueie geladeiras, armários e prateleiras</b>: comida, água, bandagens e armas.
+    Equipe um <b>taco</b> e ataque com o botão vermelho (ou espaço).<br><br>
+    Fique de olho nos <b>ícones à direita</b> (fome, sede, dor, pânico, sangramento) — no vermelho, você definha.
+    À noite eles enxergam pouco... você também. <b>Sobreviva o máximo de dias que puder.</b>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="topbar"><div id="clock">Dia 1 · 09:00</div><div id="killbox">☠ Zumbis: <b id="kills">0</b></div></div>
+  <button id="btnInv">🎒</button>
+  <div id="moodles"></div>
+  <div id="hpWrap"><div id="hpFill"></div></div>
+  <div id="joyZone"><div id="joyBase"><div id="joyStick"></div></div></div>
+  <button class="abtn" id="btnAtk">ATACAR</button>
+  <button class="abtn" id="btnRun">CORRER</button>
+  <button class="abtn" id="btnUse"><span id="useLbl">Interagir</span></button>
+</div>
+
+<div id="redFlash"></div>
+<div id="toast"></div>
+
+<!-- SHEET -->
+<div id="sheet">
+  <div id="sheetHead"><div id="sheetTitle">Inventário</div><button id="sheetClose">✕</button></div>
+  <div id="sheetList"></div>
+</div>
+
+<!-- MORTE -->
+<div id="death">
+  <div class="dTitle">VOCÊ MORREU</div>
+  <div class="dSub">Foi assim que você morreu. Como todos, no fim.</div>
+  <div class="dStats">
+    <div><b id="deathDays">1</b><span>dias vivos</span></div>
+    <div><b id="deathKills">0</b><span>zumbis mortos</span></div>
+  </div>
+  <button class="mBtn" id="btnAgain">TENTAR DE NOVO</button>
+</div>
+
+<script src="three.min.js"></script>
+<script src="world.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
