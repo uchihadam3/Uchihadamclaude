@@ -64,12 +64,16 @@ import lyleUrl from "../assets/npc/lyle.png";
 import pine1Url from "../assets/env/pine1.png";
 import pine2Url from "../assets/env/pine2.png";
 import pine3Url from "../assets/env/pine3.png";
+import cluster1Url from "../assets/env/cluster1.png";
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
 const TREE_ART: string[] = [pine1Url, pine2Url]; // pinheiros vivos
 const DEAD_TREE_ART: string[] = [pine3Url]; // árvores mortas (raras, clima)
 const TREE_ASPECT = 0.625; // largura/altura da arte de árvore (800x1280)
+// aglomerados: muralha larga de mata usada como paredão ao fundo (some na névoa)
+const CLUSTER_ART: string[] = [cluster1Url];
+const CLUSTER_ASPECT = 1.96; // largura/altura da arte do aglomerado
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -1715,17 +1719,48 @@ export class Game {
         }
       }
 
-    // anel externo de pinheiros (mais altos) atrás da borda: dá profundidade
-    // de "mata sem fim" que se dissolve na neblina (norte/leste/oeste)
-    for (let c = -2; c < W + 2; c += 2) {
-      const th = 10 + hash(c, -3, 1) * 3;
-      addPine(c * CELL + 1, -2 * CELL, th, c, -3);
-    }
-    for (let r = -1; r < H - 2; r += 2) {
-      const thl = 9 + hash(-3, r, 1) * 3;
-      addPine(-2 * CELL, r * CELL, thl, -3, r);
-      const thr = 9 + hash(W + 2, r, 1) * 3;
-      addPine((W + 1) * CELL, r * CELL, thr, W + 2, r);
+    // paredão de mata ao fundo: se houver arte de aglomerado, usa muralhas
+    // largas (norte/leste/oeste); senão, cai no anel de pinheiros individuais.
+    if (CLUSTER_ART.length > 0) {
+      // materiais dos aglomerados (invisíveis até a arte carregar)
+      const clusterMats = CLUSTER_ART.map((url) => {
+        const mat = new THREE.MeshLambertMaterial({
+          transparent: true,
+          opacity: 0,
+          side: THREE.DoubleSide,
+        });
+        this.loadArt(url, (t) => {
+          mat.map = t;
+          mat.alphaTest = 0.35;
+          mat.opacity = 1;
+          mat.needsUpdate = true;
+        });
+        return mat;
+      });
+      const addWall = (x: number, z: number, roty: number, key: number) => {
+        const h = 15 + hash(key, 0, 2) * 3;
+        const w = h * CLUSTER_ASPECT;
+        const mat = clusterMats[Math.floor(hash(key, 0, 4) * clusterMats.length) % clusterMats.length];
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+        m.position.set(x, h / 2 - 1, z);
+        m.rotation.y = roty;
+        if (hash(key, 0, 5) > 0.5) m.scale.x = -1;
+        this.world.add(m);
+        return w;
+      };
+      const wcl = 15 * CLUSTER_ASPECT * 0.72; // passo com sobreposição
+      let key = 0;
+      for (let x = -CELL; x <= (W + 1) * CELL; x += wcl) addWall(x, -3 * CELL, 0, key++);
+      for (let z = -CELL; z <= H * CELL; z += wcl) {
+        addWall(-3 * CELL, z, Math.PI / 2, key++);
+        addWall((W + 2) * CELL, z, -Math.PI / 2, key++);
+      }
+    } else {
+      for (let c = -2; c < W + 2; c += 2) addPine(c * CELL + 1, -2 * CELL, 10 + hash(c, -3, 1) * 3, c, -3);
+      for (let r = -1; r < H - 2; r += 2) {
+        addPine(-2 * CELL, r * CELL, 9 + hash(-3, r, 1) * 3, -3, r);
+        addPine((W + 1) * CELL, r * CELL, 9 + hash(W + 2, r, 1) * 3, W + 2, r);
+      }
     }
 
     this.buildForestBackdrop();
