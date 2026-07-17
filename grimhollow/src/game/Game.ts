@@ -76,6 +76,12 @@ const NPC_ART: Partial<Record<Estab, string>> = {
   alchemist: alquimistaUrl,
 };
 
+// placas 2D (PNG) das lojas — procedural-first: enquanto vazio, usa o letreiro
+// de texto; ao mapear um id aqui, a placa pintada substitui o texto.
+// Proporção esperada da arte da placa: ~2.6:1 (larga, tipo tabuleta pendurada).
+const SHOP_SIGN_ART: Partial<Record<Estab, string>> = {};
+const SIGN_ASPECT = 2.6; // largura/altura da placa (usada no plano)
+
 // direções: 0=N,1=E,2=S,3=O  (dcol, drow)
 const DIRS: [number, number][] = [
   [0, -1],
@@ -660,12 +666,17 @@ export class Game {
         this.world.add(f);
       }
     };
-    // posições encostadas em paredes de casas comuns (não em portas)
-    firewood(2.4 * CELL, 6.6 * CELL);
-    crates(10.4 * CELL, 6.5 * CELL);
-    firewood(11.5 * CELL, 8 * CELL);
-    planter(4 * CELL, 12.5 * CELL);
-    planter(8 * CELL, 12.5 * CELL);
+    // coloca o prop no centro da célula e dá colisão a ela
+    const at = (c: number, r: number, fn: (x: number, z: number) => void) => {
+      fn(c * CELL, r * CELL);
+      this.blocked.add(`${c},${r}`);
+    };
+    // células livres encostadas nas bordas da praça (sem NPC/porta)
+    at(2, 6, firewood);
+    at(11, 6, crates);
+    at(12, 10, firewood);
+    at(4, 12, planter);
+    at(8, 12, planter);
     void wood;
   }
 
@@ -1121,18 +1132,34 @@ export class Game {
       this.addDecal(c, r, dc, dr, doorMat, "door");
       this.doorMap.set(`${c},${r},${dc},${dr}`, kind);
 
-      // letreiro rente à parede, ao lado da porta (sem estaca)
+      // letreiro rente à parede, ao lado da porta (sem estaca).
+      // procedural-first: nasce com o texto e troca pela placa PNG se houver.
       const grp = new THREE.Group();
+      const signH = 0.62;
+      const signMat = new THREE.MeshLambertMaterial({
+        map: tex.signText(ESTAB[kind].name),
+        transparent: true,
+        side: THREE.DoubleSide,
+      });
       const board = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.5, 0.62),
-        new THREE.MeshLambertMaterial({
-          map: tex.signText(ESTAB[kind].name),
-          transparent: true,
-          side: THREE.DoubleSide,
-        }),
+        new THREE.PlaneGeometry(signH * SIGN_ASPECT, signH),
+        signMat,
       );
       board.position.set(0, 2.05, 0.03);
       grp.add(board);
+      const artUrl = SHOP_SIGN_ART[kind];
+      if (artUrl)
+        this.loadArt(artUrl, (t) => {
+          signMat.map = t;
+          signMat.needsUpdate = true;
+          // ajusta o plano ao aspecto real da arte, mantendo a altura
+          const im = t.image as { width: number; height: number } | undefined;
+          if (im && im.width && im.height) {
+            const asp = im.width / im.height;
+            board.geometry.dispose();
+            board.geometry = new THREE.PlaneGeometry(signH * asp, signH);
+          }
+        });
       // posição: face da parede + pequeno recuo, deslocada 1.2 p/ o lado da porta
       const fx = c * CELL + dc * (CELL / 2 + 0.16);
       const fz = r * CELL + dr * (CELL / 2 + 0.16);
@@ -1145,32 +1172,12 @@ export class Game {
     }
   }
 
-  // portas das casas de aldeões (lares) + placa discreta ao lado
+  // portas das casas de aldeões (lares) — sem placa; só a porta na parede
   private buildHomes(doorMat: THREE.Material) {
     for (const e of HOME_DOORS) {
       const { c, r, dc, dr, id } = e;
       this.addDecal(c, r, dc, dr, doorMat, "door");
       this.homeDoorMap.set(`${c},${r},${dc},${dr}`, id);
-      // pequena placa de madeira ao lado da porta
-      const grp = new THREE.Group();
-      const board = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.4, 0.5),
-        new THREE.MeshLambertMaterial({
-          map: tex.signText(HOMES[id].name),
-          transparent: true,
-          side: THREE.DoubleSide,
-        }),
-      );
-      board.position.set(0, 1.95, 0.03);
-      grp.add(board);
-      const fx = c * CELL + dc * (CELL / 2 + 0.16);
-      const fz = r * CELL + dr * (CELL / 2 + 0.16);
-      const px = dr;
-      const pz = -dc;
-      grp.position.set(fx + px * 1.15, 0, fz + pz * 1.15);
-      grp.rotation.y =
-        dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
-      this.world.add(grp);
     }
   }
 
@@ -1941,9 +1948,10 @@ export class Game {
       this.box(x + 0.42, 0.55, z, 0.34, 0.7, 1.1, new THREE.MeshBasicMaterial({ color: 0xff7a1e }));
       this.glowLight(x + 1.4, 1.0, z, 0xff8a2e, 4.2, 10);
     });
-    // mesa central + dois bancos
+    // mesa central + dois bancos (a célula fica com colisão)
     const tcx = 3 * CELL;
     const tcz = 3 * CELL;
+    this.blocked.add("3,3");
     this.box(tcx, 0.95, tcz, 1.7, 0.12, 1.1, wood); // tampo
     for (const [ox, oz] of [[-0.7, 0], [0.7, 0], [0, -0.5], [0, 0.5]] as [number, number][])
       this.box(tcx + ox * 0.9, 0.42, tcz + oz, 0.16, 0.84, 0.16, woodDk); // pernas
@@ -2535,7 +2543,7 @@ export class Game {
     let text = " ";
     if (t) {
       if (t.kind === "enter") text = `Entrar — ${ESTAB[t.estab].name}`;
-      else if (t.kind === "enterhome") text = `Entrar — ${HOMES[t.id].name}`;
+      else if (t.kind === "enterhome") text = "Entrar na casa";
       else if (t.kind === "exit") text = "Sair";
       else if (t.kind === "talk") text = `Falar com ${t.name}`;
       else if (t.kind === "dungeon") text = "Descer à masmorra";
