@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 11 prontos · 🟡 6 faltando · 17 no total
+**Status:** ✅ 11 prontos · 🟡 7 faltando · 18 no total
 
 ---
 
@@ -162,12 +162,33 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 
 ## 06 · Combate — espada (protótipo de ação)
 
-**Só a espada** (sem mão). É um objeto rígido, então basta **UMA imagem** — eu animo o golpe girando/movendo ela no motor (rotação por código + risco de movimento no corte). A mão desarmada a gente faz depois, num overlay separado.
+Agora com **2 sprites** da espada: um de **descanso** (parada) e um de **golpe**
+(a lâmina em movimento). No jogo, o motor troca do sprite 1 pro sprite 2 no
+instante do golpe — o corte fica bem mais convincente do que só girar a imagem
+parada. Os dois têm que ser **a mesma espada** (mesmo formato/cor), só a pose
+muda.
 
-Melhor orientação: espada **em pé, lâmina apontando pra cima**, cabo/punho embaixo (facilita eu girar em torno do punho).
+> Dica de recorte: mande num **fundo verde chapado** (verde-limão), que é o que
+> recorta mais fácil e limpo.
 
-### ✅ Espada inicial (pronto) — já no jogo, com golpe no botão ⚔ (ou tecla J/K)
+### ✅ Sprite 1 — espada em descanso (pronto) — já no jogo, golpe no botão ⚔ / tecla J
+
+Espada **em pé, lâmina apontando pra cima**, cabo/punho embaixo.
 
 ```
-Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. A single worn medieval short sword shown on its own, straight side view, the blade pointing straight up and the grip, crossguard and pommel at the bottom, perfectly vertical, the whole sword centered and fully visible. Weathered steel blade with a few small nicks, a simple iron crossguard, leather-wrapped grip, round pommel. Cool desaturated palette, soft even lighting, no strong cast shadow. Flat side view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no hand, no arm, no text, no watermark. Tall portrait canvas ~768x1280.
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. A single worn medieval short sword shown on its own, straight side view, the blade pointing straight up and the grip, crossguard and pommel at the bottom, perfectly vertical, the whole sword centered and fully visible. Weathered steel blade with a few small nicks, a simple iron crossguard, leather-wrapped grip, round pommel. Cool desaturated palette, soft even lighting, no strong cast shadow. Flat side view, no perspective distortion. Clean cutout on a flat solid lime-green background (chroma key), crisp edges, nothing else in frame, no hand, no arm, no text, no watermark. Tall portrait canvas ~768x1280.
 ```
+
+### 🟡 Sprite 2 — espada em golpe / corte (falta)
+
+**A MESMA espada** do sprite 1, mas capturada **no meio do golpe**: a lâmina
+inclinada na **diagonal** (ponta pra cima-esquerda, punho embaixo-direita), com
+um **borrão de velocidade / rastro de movimento** ao longo do fio da lâmina, como
+numa foto de ação. É esse borrão que vende o corte.
+
+```
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. The SAME single worn medieval short sword as before — same weathered steel blade with small nicks, same simple iron crossguard, same leather-wrapped grip and round pommel — but captured MID-SWING in a diagonal slashing pose: the blade tilted diagonally with the tip pointing toward the upper-left and the grip at the lower-right. Strong motion blur and a sweeping speed-trail streak along the edge of the blade, as if frozen in a fast downward slash, giving a clear sense of a cutting arc. Cool desaturated palette, soft even lighting, no strong cast shadow. Clean cutout on a flat solid lime-green background (chroma key), crisp edges on the grip and crossguard, nothing else in frame, no hand, no arm, no text, no watermark. Tall portrait canvas ~1024x1280.
+```
+
+Quando você mandar o sprite 2, eu recorto, ligo o slot no motor e o golpe passa
+a trocar de sprite automaticamente.
