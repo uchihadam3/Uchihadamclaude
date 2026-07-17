@@ -707,10 +707,11 @@ export class Game {
       fn(c * CELL, r * CELL);
       this.blocked.add(`${c},${r}`);
     };
-    // células livres encostadas nas bordas da praça (sem NPC/porta)
-    at(2, 6, firewood);
-    at(11, 6, crates);
-    at(12, 10, firewood);
+    // células livres da praça — SEM bloquear portas, poço, NPCs nem o túnel da
+    // masmorra (a lenha antes ficava em (2,6), tapando a entrada da dungeon).
+    at(4, 7, firewood);
+    at(10, 8, crates);
+    at(11, 10, firewood);
     at(4, 12, planter);
     at(8, 12, planter);
     void wood;

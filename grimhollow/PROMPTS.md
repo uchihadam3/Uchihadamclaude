@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 10 prontos · 🟡 6 faltando · 16 no total
+**Status:** ✅ 10 prontos · 🟡 10 faltando · 20 no total
 
 ---
 
@@ -153,4 +153,37 @@ Paisagem larga ~2048×1100.
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A small humble medieval hamlet seen straight-on from outside, as a distant destination: a short row of modest wooden houses standing side by side at natural spacing along the ground (a believable little settlement, NOT houses piled or stacked on top of each other), each with a steep thatched straw roof, weathered vertical wood-plank walls, small dark square windows and a simple wooden plank door. At the front, a simple timber gate archway marking the entrance to the hamlet. Rising directly behind the houses, a large rugged solid grey rocky mountain going up into the mist (bare stone, NO caves, NO openings, NO tunnels, NO dungeon entrance). No trees at all. Everything wreathed in thick cold grey-blue fog that gets denser toward the top and the sides, so only the houses, the gate and the base of the mountain read clearly and the rest dissolves into mist. Cold desaturated palette (muted browns, greyed straw, grey stone, blue-grey fog). Flat front-facing orthographic view, no perspective distortion, even flat overcast lighting, no ground cast-shadow. Clean cutout on a transparent background where the fog fades out; the bases of the houses sit along the very bottom edge of the frame. No readable text or signs, no watermark. Wide landscape canvas ~2048x1100.
+```
+
+
+---
+
+## 06 · Combate — espada em 1ª pessoa (protótipo de ação)
+
+Visão em PRIMEIRA PESSOA de uma mão segurando uma espada (como se fosse a sua mão), entrando pelo canto **inferior-direito** da tela. São **4 quadros** de um golpe, acionados no botão de ataque. Mantenha a MESMA mão e a MESMA espada nos 4 — só a pose muda. Fundo transparente. Canvas ~1024×1024.
+
+**Base de estilo (vale nos 4):** *Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: a leather-gloved hand gripping a simple worn medieval short sword, seen from the player's own perspective, the forearm entering from the bottom-right corner of the frame. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark.*
+
+### 🟡 Espada — quadro 1 (descanso/pronto)
+
+```
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: a leather-gloved hand gripping a simple worn medieval short sword, forearm entering from the bottom-right corner of the frame. Resting ready pose: the blade held calmly, angled up and to the left across the lower part of the view, tip pointing up-left, arm relaxed. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
+```
+
+### 🟡 Espada — quadro 2 (preparação/wind-up)
+
+```
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: the SAME leather-gloved hand gripping the SAME worn medieval short sword, forearm entering from the bottom-right corner. Wind-up pose: the sword pulled back and raised toward the upper-right of the frame, cocked and ready for a downward slash. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
+```
+
+### 🟡 Espada — quadro 3 (golpe/slash)
+
+```
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: the SAME leather-gloved hand gripping the SAME worn medieval short sword, forearm entering from the bottom-right corner. Mid-slash pose: the blade sweeping diagonally down-left across the CENTER of the view, in motion, with a subtle faint motion streak along the blade. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
+```
+
+### 🟡 Espada — quadro 4 (finalização/follow-through)
+
+```
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: the SAME leather-gloved hand gripping the SAME worn medieval short sword, forearm entering from the bottom-right corner. Follow-through pose: the swing finished, the blade ended low and to the LEFT, the arm extended across the bottom of the frame. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
 ```
