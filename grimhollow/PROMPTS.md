@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 10 prontos · 🟡 7 faltando · 17 no total
+**Status:** ✅ 11 prontos · 🟡 6 faltando · 17 no total
 
 ---
 
@@ -166,7 +166,7 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 
 Melhor orientação: espada **em pé, lâmina apontando pra cima**, cabo/punho embaixo (facilita eu girar em torno do punho).
 
-### 🟡 Espada inicial (falta)
+### ✅ Espada inicial (pronto) — já no jogo, com golpe no botão ⚔ (ou tecla J/K)
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. A single worn medieval short sword shown on its own, straight side view, the blade pointing straight up and the grip, crossguard and pommel at the bottom, perfectly vertical, the whole sword centered and fully visible. Weathered steel blade with a few small nicks, a simple iron crossguard, leather-wrapped grip, round pommel. Cool desaturated palette, soft even lighting, no strong cast shadow. Flat side view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no hand, no arm, no text, no watermark. Tall portrait canvas ~768x1280.

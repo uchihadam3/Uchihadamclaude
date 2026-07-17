@@ -71,6 +71,7 @@ import signTavernUrl from "../assets/env/sign_tavern.png";
 import signStoreUrl from "../assets/env/sign_store.png";
 import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
+import swordUrl from "../assets/env/sword.png";
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
@@ -481,7 +482,7 @@ export class Game {
     this.col = 0;
     this.row = 0;
 
-    this.ui = setupControls(container, (a) => this.onAction(a));
+    this.ui = setupControls(container, (a) => this.onAction(a), swordUrl);
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
 
@@ -2672,6 +2673,11 @@ export class Game {
     }
     if (a === "interact") {
       this.doInteract();
+      return;
+    }
+    if (a === "attack") {
+      // golpe é independente do movimento (pode golpear andando)
+      this.ui.swingWeapon();
       return;
     }
     if (this.anim) return; // ignora enquanto anima (o hold-repeat cuida da continuidade)
