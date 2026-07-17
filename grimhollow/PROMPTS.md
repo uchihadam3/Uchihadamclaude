@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 12 prontos · 🟡 6 faltando · 18 no total
+**Status:** ✅ 16 prontos · 🟡 3 faltando · 19 no total
 
 ---
 
@@ -107,7 +107,7 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 
 Objetos "herói" pra dar vida à praça. Base encostada embaixo, centralizada.
 
-### 🟡 Poste / lampião (falta)
+### ✅ Poste / lampião (pronto) — na praça
 
 Retrato ~768×1280.
 
@@ -115,7 +115,7 @@ Retrato ~768×1280.
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A medieval wrought-iron street lamp post, tall and slender, with a glass lantern housing at the top holding a warm candle flame and a small crossbar hook. Weathered black iron. Cool desaturated palette, soft overcast lighting, even diffuse light so it reads from any angle, no strong cast shadow. Flat front-facing orthographic view, no perspective distortion. The base of the post sits centered on the very bottom edge of the frame. Clean cutout on a fully transparent background, crisp edges, no ground, no atmospheric haze or fog, no text, no watermark. Tall portrait canvas ~768x1280.
 ```
 
-### 🟡 Barraca de feira (falta)
+### ✅ Barraca de feira (pronto) — na praça
 
 Paisagem ~1280×1024.
 
@@ -123,7 +123,7 @@ Paisagem ~1280×1024.
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A small medieval market stall: a wooden counter table under a striped cloth awning held by four posts, with sacks, woven baskets of produce, and clay pots on the counter. Weathered wood and faded cloth. Cool desaturated palette, soft overcast lighting, even diffuse light so it reads from any angle, no strong cast shadow. Flat front-facing orthographic view, no perspective distortion. The base sits centered on the very bottom edge of the frame. Clean cutout on a fully transparent background, crisp edges, no ground, no atmospheric haze or fog, no text, no watermark. Wide landscape canvas ~1280x1024.
 ```
 
-### 🟡 Carroça / carrinho (falta)
+### ✅ Carroça / carrinho (pronto) — na praça
 
 Paisagem ~1280×960 · vista de lado.
 
@@ -131,7 +131,7 @@ Paisagem ~1280×960 · vista de lado.
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A wooden handcart / small two-wheeled wagon with spoked wheels, loaded with hay bales and a couple of wooden barrels, with wooden pull handles. Seen from the side. Weathered wood and iron fittings. Cool desaturated palette, soft overcast lighting, even diffuse light so it reads from any angle, no strong cast shadow. Flat side orthographic view, no perspective distortion. The wheels rest centered on the very bottom edge of the frame. Clean cutout on a fully transparent background, crisp edges, no ground, no atmospheric haze or fog, no text, no watermark. Wide landscape canvas ~1280x960.
 ```
 
-### 🟡 Mural de avisos (falta)
+### ✅ Mural de avisos (pronto) — na praça
 
 Retrato ~1024×1152.
 
@@ -192,3 +192,25 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 
 Quando você mandar o sprite 2, eu recorto, ligo o slot no motor e o golpe passa
 a trocar de sprite automaticamente.
+
+---
+
+## 07 · Inimigos (billboard 2D)
+
+Mesmo estilo dos aldeões: **corpo inteiro, de frente, pés encostados na borda de
+baixo**, centralizado. É um billboard que sempre encara o jogador (como os NPCs).
+A masmorra fica numa cripta sob a cidade, então o 1º inimigo é morto-vivo.
+
+> Recorte: **fundo verde-limão chapado** (chroma key) é o que sai mais limpo. Se
+> preferir transparente de verdade, também serve.
+
+### 🟡 Inimigo 1 — esqueleto da cripta (falta)
+
+Retrato ~768×1280. De frente, encarando quem olha, postura ameaçadora, arma na mão.
+
+```
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. A single menacing undead skeleton warrior standing and facing the viewer head-on, full body with both feet flat on the very bottom-center edge of the frame. Yellowed weathered bones, tattered rotted cloth wrappings and rusty pauldrons, hollow eye sockets with a faint cold glow, gripping a chipped rusty short sword raised in a threatening stance. Cool desaturated palette (bone, rust, cold blue shadows), soft even diffuse lighting so it reads from any angle, no strong cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a flat solid lime-green background (chroma key), crisp edges, nothing else in frame, no ground, no atmospheric haze or fog, no text, no watermark. Tall portrait canvas ~768x1280.
+```
+
+Quando você mandar, eu recorto e coloco na masmorra como inimigo — ele leva o
+golpe da espada quando você ataca de perto (aí o combate ganha função de verdade).

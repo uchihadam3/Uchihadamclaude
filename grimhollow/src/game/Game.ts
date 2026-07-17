@@ -71,6 +71,10 @@ import signTavernUrl from "../assets/env/sign_tavern.png";
 import signStoreUrl from "../assets/env/sign_store.png";
 import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
+import propLampUrl from "../assets/env/prop_lamp.png";
+import propStallUrl from "../assets/env/prop_stall.png";
+import propCartUrl from "../assets/env/prop_cart.png";
+import propNoticeUrl from "../assets/env/prop_notice.png";
 import swordUrl from "../assets/env/sword.png";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
@@ -412,6 +416,7 @@ export class Game {
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
   private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
+  private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
@@ -560,6 +565,7 @@ export class Game {
     this.animTex = [];
     this.walkers = [];
     this.smoke = [];
+    this.billboardProps = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
     this.homeDoorMap.clear();
@@ -725,6 +731,38 @@ export class Game {
     at(4, 12, planter);
     at(8, 12, planter);
     void wood;
+
+    // props em PNG (billboards que encaram a câmera): poste, mural, carroça, barraca
+    this.addPropBillboard(11, 7, propLampUrl, 3.4);
+    this.addPropBillboard(3, 8, propNoticeUrl, 2.7);
+    this.addPropBillboard(4, 10, propCartUrl, 1.8);
+    this.addPropBillboard(10, 11, propStallUrl, 2.7);
+  }
+
+  // prop 2D (PNG recortado) como billboard: nasce invisível e aparece ao carregar
+  // a arte, com a base no chão e largura ajustada ao aspecto real. Encara a câmera.
+  private addPropBillboard(c: number, r: number, url: string, worldH: number) {
+    const mat = new THREE.MeshLambertMaterial({
+      transparent: true,
+      opacity: 0,
+      alphaTest: 0.4,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH, worldH), mat);
+    mesh.position.set(c * CELL, worldH / 2, r * CELL);
+    this.world.add(mesh);
+    this.billboardProps.push(mesh);
+    this.blocked.add(`${c},${r}`);
+    this.loadArt(url, (t) => {
+      const im = t.image as { width: number; height: number } | undefined;
+      const asp = im && im.width && im.height ? im.width / im.height : 1;
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.PlaneGeometry(worldH * asp, worldH);
+      mesh.position.y = worldH / 2; // mantém a base no chão
+      mat.map = t;
+      mat.opacity = 1;
+      mat.needsUpdate = true;
+    });
   }
 
   // fumaça saindo das chaminés das casas (planos macios que sobem e somem)
@@ -2826,6 +2864,9 @@ export class Game {
         npc.rotation.z = Math.sin(now * 0.0011 + u.ph! * 1.7) * 0.007;
       }
     }
+    // props 2D encaram a câmera (billboard no eixo Y), como os aldeões
+    for (const b of this.billboardProps)
+      b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
