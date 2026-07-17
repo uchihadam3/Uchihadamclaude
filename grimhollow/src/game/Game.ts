@@ -481,7 +481,7 @@ export class Game {
       // a MESMA neblina do vilarejo cobre a floresta — a névoa é um elemento
       // constante do mundo (lore). Um pouco mais aberta que na vila, por ser
       // externo, mas com a mesma cor/caráter.
-      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 3, CELL * 13);
+      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 3.5, CELL * 18);
       this.scene.background = new THREE.Color(FOG_COLOR);
       this.addForestLights();
       this.buildForest();
@@ -1749,11 +1749,12 @@ export class Game {
         return w;
       };
       const wcl = 15 * CLUSTER_ASPECT * 0.72; // passo com sobreposição
+      // muralhas logo atrás da borda (dentro do alcance da névoa, mas ao fundo)
       let key = 0;
-      for (let x = -CELL; x <= (W + 1) * CELL; x += wcl) addWall(x, -3 * CELL, 0, key++);
+      for (let x = -CELL; x <= (W + 1) * CELL; x += wcl) addWall(x, -1.5 * CELL, 0, key++);
       for (let z = -CELL; z <= H * CELL; z += wcl) {
-        addWall(-3 * CELL, z, Math.PI / 2, key++);
-        addWall((W + 2) * CELL, z, -Math.PI / 2, key++);
+        addWall(-1.5 * CELL, z, Math.PI / 2, key++);
+        addWall((W + 0.5) * CELL, z, -Math.PI / 2, key++);
       }
     } else {
       for (let c = -2; c < W + 2; c += 2) addPine(c * CELL + 1, -2 * CELL, 10 + hash(c, -3, 1) * 3, c, -3);
