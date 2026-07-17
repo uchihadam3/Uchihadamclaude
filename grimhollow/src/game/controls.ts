@@ -54,6 +54,7 @@ export function setupControls(
   let weapon: HTMLImageElement | null = null; // sprite de descanso
   let weaponAtk: HTMLImageElement | null = null; // sprite de golpe (2º, opcional)
   let slashFx: HTMLElement | null = null;
+  let impactFx: HTMLElement | null = null; // clarão de impacto no auge do golpe
   let swinging = false;
   const swingTimers: number[] = [];
   if (weaponUrl) {
@@ -83,7 +84,13 @@ export function setupControls(
       '<path d="M28,68 C88,30 168,42 214,104" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-opacity="0.85"/>' +
       "</svg>";
     root.appendChild(slashFx);
+    // clarão radial no ponto de impacto (some rápido)
+    impactFx = document.createElement("div");
+    impactFx.id = "gh-impact";
+    root.appendChild(impactFx);
   }
+  // canvas do jogo (p/ o "tranco" de câmera no impacto); resolvido no 1º golpe
+  let canvasEl: HTMLElement | null = null;
 
   // ---- botões na tela ----
   const pad = document.createElement("div");
@@ -222,43 +229,47 @@ export function setupControls(
         void el.offsetWidth;
         el.style.animation = `${name} ${ms}ms ease-out forwards`;
       };
-      // As 3 fases são disparadas por timers no MESMO relógio, então o arco de
-      // corte fica travado no instante exato do golpe (sincronia garantida).
-      // Fase 1 (0ms): armar — recua e encolhe
-      play(weapon, "gh-windup", 90);
-      // Fase 2 (90ms): golpe — troca p/ sprite de golpe (se houver) + arco
+      if (!canvasEl) canvasEl = root.querySelector("canvas");
+      // As 3 fases são disparadas por timers no MESMO relógio, então o corte, o
+      // clarão e o tranco de câmera ficam travados no instante exato do golpe.
+      // Fase 1 (0ms): armar — recua, encolhe e inclina a lâmina PRA TRÁS (3D)
+      play(weapon, "gh-windup", 100);
+      // Fase 2 (100ms): golpe — a lâmina AVANÇA pra dentro da cena (3D + escala),
+      // com borrão de velocidade, arco de corte, clarão e tranco de câmera
       swingTimers.push(
         window.setTimeout(() => {
           if (weaponAtk) {
-            // sprite de golpe já traz o rastro de corte pintado — não usa o arco
             weapon!.style.opacity = "0";
             weaponAtk.style.opacity = "1";
             play(weaponAtk, "gh-slashpose", 190);
           } else {
-            // sem 2º sprite: gira a espada de descanso + arco de corte do motor
-            play(weapon!, "gh-slashonly", 160);
-            if (slashFx) play(slashFx, "gh-slash", 150);
+            play(weapon!, "gh-slashonly", 200);
           }
-        }, 90),
+          if (slashFx) play(slashFx, "gh-slash", 180);
+          if (impactFx) play(impactFx, "gh-flash", 200);
+          if (canvasEl) play(canvasEl, "gh-kick", 220);
+        }, 100),
       );
-      // Fase 3 (250ms): recolher de volta ao descanso
+      // Fase 3 (290ms): recolher de volta ao descanso
       swingTimers.push(
         window.setTimeout(() => {
           if (weaponAtk) {
             weaponAtk.style.opacity = "0";
             weapon!.style.opacity = "1";
           }
-          play(weapon!, "gh-recover", 180);
-        }, 250),
+          play(weapon!, "gh-recover", 190);
+        }, 290),
       );
-      // Fim (430ms): limpa e libera o cooldown
+      // Fim (490ms): limpa e libera o cooldown
       swingTimers.push(
         window.setTimeout(() => {
           weapon!.style.animation = "";
           if (weaponAtk) weaponAtk.style.animation = "";
           if (slashFx) slashFx.style.animation = "";
+          if (impactFx) impactFx.style.animation = "";
+          if (canvasEl) canvasEl.style.animation = "";
           swinging = false;
-        }, 430),
+        }, 490),
       );
     },
   };
@@ -269,15 +280,19 @@ function injectStyle() {
   const s = document.createElement("style");
   s.id = "gh-style";
   s.textContent = `
-  /* arma em 1ª pessoa: base à direita, punho no canto inferior */
+  /* arma em 1ª pessoa: base à direita, punho no canto inferior.
+     perspective() no próprio transform habilita rotação 3D (rotateX/Y) — é o
+     que dá a PROFUNDIDADE: a lâmina inclina no espaço e avança pra dentro da
+     cena, em vez de só girar num plano chapado. */
   #gh-weapon {
     position:fixed; right:6%; bottom:-4%;
     height:62vh; max-height:640px; width:auto;
     pointer-events:none; z-index:8;
-    transform-origin:72% 92%;
-    transform:rotate(16deg) translate(0,2%) scale(1); /* REPOUSO */
+    transform-origin:72% 90%;
+    transform:perspective(760px) rotateX(0deg) rotateY(0deg) rotateZ(16deg) translate(0,2%) scale(1); /* REPOUSO */
     filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45));
-    will-change:transform, opacity;
+    will-change:transform, opacity, filter;
+    backface-visibility:hidden;
   }
   /* sprite de golpe: já vem na diagonal com o rastro pintado, então tem base
      e pivô próprios (punho no canto inferior-direito), escondido até o golpe */
@@ -291,20 +306,25 @@ function injectStyle() {
     will-change:transform, opacity;
   }
   /* O golpe é em 3 fases encadeadas (cada uma começa onde a anterior parou,
-     com fill 'forwards'), disparadas por timers no mesmo relógio do arco de
-     corte — por isso ficam sincronizadas. Poses de referência:
-       REPOUSO  rotate(16)  translate(0,2%)     scale(1)
-       ARMAR    rotate(36)  translate(9%,9%)    scale(0.9)
-       ESTOCADA rotate(-40) translate(-26%,-7%) scale(1.24)
-       SEGUIR   rotate(-24) translate(-14%,6%)  scale(1.06) */
+     com fill 'forwards'), disparadas por timers no mesmo relógio do corte, do
+     clarão e do tranco de câmera. A PROFUNDIDADE vem de 3 coisas juntas:
+       (1) rotateY/rotateX 3D — a lâmina gira no espaço em direção à câmera;
+       (2) escala: recua encolhendo (longe) e avança crescendo além de 1 (perto);
+       (3) borrão de velocidade (blur) no pico do golpe.
+     Poses-chave (perspective fixa em 760px):
+       REPOUSO   rotY 0   rotX 0    rotZ 16   scale 1     (blur 0)
+       ARMAR     rotY -26 rotX 10   rotZ 34   scale 0.82  (recua/afasta)
+       ESTOCADA  rotY 30  rotX -14  rotZ -46  scale 1.42  (avança/aproxima, blur)
+       SEGUIR    rotY 10  rotX -4   rotZ -26  scale 1.08 */
   @keyframes gh-windup {
-    0%   { transform:rotate(16deg) translate(0,2%)  scale(1);   }
-    100% { transform:rotate(36deg) translate(9%,9%) scale(0.9); }
+    0%   { transform:perspective(760px) rotateY(0deg)   rotateX(0deg)  rotateZ(16deg) translate(0,2%)  scale(1);    filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45)); }
+    100% { transform:perspective(760px) rotateY(-26deg) rotateX(10deg) rotateZ(34deg) translate(11%,9%) scale(0.82); filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45)); }
   }
-  @keyframes gh-slashonly { /* sem 2º sprite: gira a mesma espada */
-    0%   { transform:rotate(36deg)  translate(9%,9%)    scale(0.9);  }
-    55%  { transform:rotate(-40deg) translate(-26%,-7%) scale(1.24); }
-    100% { transform:rotate(-24deg) translate(-14%,6%)  scale(1.06); }
+  @keyframes gh-slashonly { /* avança pra dentro da cena, borrando no auge */
+    0%   { transform:perspective(760px) rotateY(-26deg) rotateX(10deg)  rotateZ(34deg)  translate(11%,9%)   scale(0.82); filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45)) blur(0px); }
+    45%  { transform:perspective(760px) rotateY(30deg)  rotateX(-14deg) rotateZ(-46deg) translate(-30%,-8%) scale(1.42); filter:drop-shadow(-10px 4px 12px rgba(0,0,0,0.5)) blur(2.4px); }
+    72%  { transform:perspective(760px) rotateY(12deg)  rotateX(-6deg)  rotateZ(-30deg) translate(-18%,4%)  scale(1.14); filter:drop-shadow(-8px 3px 10px rgba(0,0,0,0.48)) blur(0.4px); }
+    100% { transform:perspective(760px) rotateY(10deg)  rotateX(-4deg)  rotateZ(-26deg) translate(-14%,6%)  scale(1.08); filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45)) blur(0px); }
   }
   @keyframes gh-slashpose { /* 2º sprite (pose já diagonal): estocada rápida */
     0%   { transform:translate(12%,9%)   rotate(10deg)  scale(0.9);  opacity:0.85; }
@@ -312,8 +332,30 @@ function injectStyle() {
     100% { transform:translate(-14%,-7%) rotate(-13deg) scale(1.05); opacity:0.85; }
   }
   @keyframes gh-recover {
-    0%   { transform:rotate(-24deg) translate(-14%,6%) scale(1.06); }
-    100% { transform:rotate(16deg)  translate(0,2%)    scale(1);    }
+    0%   { transform:perspective(760px) rotateY(10deg) rotateX(-4deg) rotateZ(-26deg) translate(-14%,6%) scale(1.08); }
+    100% { transform:perspective(760px) rotateY(0deg)  rotateX(0deg)  rotateZ(16deg)  translate(0,2%)    scale(1);    }
+  }
+  /* tranco de câmera no impacto: o canvas dá um solavanco curto (recua girando
+     de leve e volta) — vende o baque do golpe e reforça a profundidade */
+  @keyframes gh-kick {
+    0%   { transform:translate(0,0)      scale(1);     }
+    18%  { transform:translate(-0.9%,1.1%) scale(1.022) rotate(-0.5deg); }
+    46%  { transform:translate(0.5%,-0.4%) scale(1.006) rotate(0.2deg);  }
+    100% { transform:translate(0,0)      scale(1);     }
+  }
+  /* clarão radial de impacto no ponto onde a lâmina corta */
+  #gh-impact {
+    position:fixed; right:26%; top:26%;
+    width:30vh; height:30vh; max-width:330px; max-height:330px;
+    pointer-events:none; z-index:9; opacity:0;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(210,235,255,0.55) 32%, rgba(180,220,255,0) 70%);
+    mix-blend-mode:screen;
+  }
+  @keyframes gh-flash {
+    0%   { opacity:0;   transform:scale(0.4); }
+    26%  { opacity:0.9; transform:scale(1);   }
+    100% { opacity:0;   transform:scale(1.5); }
   }
   /* rastro de corte: crescente rápido que pisca junto com a ESTOCADA e
      acompanha a lâmina varrendo p/ a esquerda; vida curta (~150ms) p/ não
