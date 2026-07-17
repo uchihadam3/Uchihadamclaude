@@ -66,6 +66,7 @@ import pine2Url from "../assets/env/pine2.png";
 import pine3Url from "../assets/env/pine3.png";
 import pine4Url from "../assets/env/pine4.png";
 import cluster1Url from "../assets/env/cluster1.png";
+import cluster2Url from "../assets/env/cluster2.png";
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
@@ -73,8 +74,14 @@ const TREE_ART: string[] = [pine1Url, pine2Url, pine4Url]; // pinheiros vivos
 const DEAD_TREE_ART: string[] = [pine3Url]; // árvores mortas (raras, clima)
 const TREE_ASPECT = 0.625; // largura/altura da arte de árvore (800x1280)
 // aglomerados: muralha larga de mata usada como paredão ao fundo (some na névoa)
-const CLUSTER_ART: string[] = [cluster1Url];
-const CLUSTER_ASPECT = 1.96; // largura/altura da arte do aglomerado
+// cada aglomerado tem seu próprio aspecto (largura/altura), pois variam
+const CLUSTER_ART: { url: string; aspect: number }[] = [
+  { url: cluster1Url, aspect: 1.96 },
+  { url: cluster2Url, aspect: 1.72 },
+];
+// pano de fundo do vilarejo (visto de fora) p/ a saída da floresta.
+// procedural-first: null = usa as casinhas do motor; ao chegar a arte, troca.
+const VILLAGE_BACKDROP_ART: string | null = null;
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
 const NPC_ART: Partial<Record<Estab, string>> = {
@@ -827,24 +834,36 @@ export class Game {
     this.buildTreelineBackdrop(gx, (g.row + 3.4) * CELL, Math.PI);
   }
 
+  // materiais dos aglomerados (procedural-first: invisível até a arte carregar),
+  // cada um com seu aspecto próprio
+  private makeClusterMats(): { mat: THREE.MeshLambertMaterial; aspect: number }[] {
+    return CLUSTER_ART.map((c) => {
+      const mat = new THREE.MeshLambertMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
+      this.loadArt(c.url, (t) => {
+        mat.map = t;
+        mat.alphaTest = 0.35;
+        mat.opacity = 1;
+        mat.needsUpdate = true;
+      });
+      return { mat, aspect: c.aspect };
+    });
+  }
+
   // paredão de árvores (aglomerado) como pano de fundo, virado p/ o jogador
   private buildTreelineBackdrop(cx: number, z: number, roty: number) {
     if (CLUSTER_ART.length === 0) return;
-    const mat = new THREE.MeshLambertMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
-    this.loadArt(CLUSTER_ART[0], (t) => {
-      mat.map = t;
-      mat.alphaTest = 0.35;
-      mat.opacity = 1;
-      mat.needsUpdate = true;
-    });
+    const cm = this.makeClusterMats();
     const h = 13;
-    const w = h * CLUSTER_ASPECT;
-    for (let i = -1; i <= 1; i++) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-      m.position.set(cx + i * w * 0.72, h / 2 - 1, z);
+    let x = cx - h * 1.9; // começa à esquerda e encaixa os aglomerados
+    for (let i = 0; i < 3; i++) {
+      const pick = cm[i % cm.length];
+      const w = h * pick.aspect;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), pick.mat);
+      m.position.set(x + w / 2, h / 2 - 1, z);
       m.rotation.y = roty;
-      if (i === 0) m.scale.x = -1;
+      if (i === 1) m.scale.x = -1;
       this.world.add(m);
+      x += w * 0.92;
     }
   }
 
@@ -1776,33 +1795,18 @@ export class Game {
     // paredão de mata ao fundo: se houver arte de aglomerado, usa muralhas
     // largas (norte/leste/oeste); senão, cai no anel de pinheiros individuais.
     if (CLUSTER_ART.length > 0) {
-      // materiais dos aglomerados (invisíveis até a arte carregar)
-      const clusterMats = CLUSTER_ART.map((url) => {
-        const mat = new THREE.MeshLambertMaterial({
-          transparent: true,
-          opacity: 0,
-          side: THREE.DoubleSide,
-        });
-        this.loadArt(url, (t) => {
-          mat.map = t;
-          mat.alphaTest = 0.35;
-          mat.opacity = 1;
-          mat.needsUpdate = true;
-        });
-        return mat;
-      });
+      const cm = this.makeClusterMats(); // {mat, aspect} por aglomerado
       const addWall = (x: number, z: number, roty: number, key: number) => {
         const h = 15 + hash(key, 0, 2) * 3;
-        const w = h * CLUSTER_ASPECT;
-        const mat = clusterMats[Math.floor(hash(key, 0, 4) * clusterMats.length) % clusterMats.length];
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+        const pick = cm[Math.floor(hash(key, 0, 4) * cm.length) % cm.length];
+        const w = h * pick.aspect;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), pick.mat);
         m.position.set(x, h / 2 - 1, z);
         m.rotation.y = roty;
         if (hash(key, 0, 5) > 0.5) m.scale.x = -1;
         this.world.add(m);
-        return w;
       };
-      const wcl = 15 * CLUSTER_ASPECT * 0.72; // passo com sobreposição
+      const wcl = 15 * 1.85 * 0.72; // passo com sobreposição
       // muralhas logo atrás da borda (dentro do alcance da névoa, mas ao fundo)
       let key = 0;
       for (let x = -CELL; x <= (W + 1) * CELL; x += wcl) addWall(x, -1.5 * CELL, 0, key++);
@@ -1833,25 +1837,45 @@ export class Game {
 
     // 1) paredão de árvores atrás/nas laterais, fechando a visão
     if (CLUSTER_ART.length > 0) {
+      const cm = this.makeClusterMats();
+      const h = 14;
+      let x = gx - h * 3.2;
+      for (let i = 0; i < 5; i++) {
+        const pick = cm[i % cm.length];
+        const w = h * pick.aspect;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), pick.mat);
+        m.position.set(x + w / 2, h / 2 - 1, gz + 5.2 * CELL);
+        m.rotation.y = Math.PI;
+        if (i % 2 === 0) m.scale.x = -1;
+        this.world.add(m);
+        x += w * 0.8;
+      }
+    }
+
+    // 2) vilarejo: se houver arte 2D, usa um billboard do vilarejo (mais fiel);
+    // senão, monta as casinhas do motor (procedural-first).
+    if (VILLAGE_BACKDROP_ART) {
       const mat = new THREE.MeshLambertMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
-      this.loadArt(CLUSTER_ART[0], (t) => {
+      const h = 11;
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(h * 1.9, h), mat);
+      plane.position.set(gx, h / 2 - 0.5, gz + 3.6 * CELL);
+      plane.rotation.y = Math.PI; // encara o jogador (norte)
+      this.world.add(plane);
+      this.loadArt(VILLAGE_BACKDROP_ART, (t) => {
         mat.map = t;
         mat.alphaTest = 0.35;
         mat.opacity = 1;
         mat.needsUpdate = true;
+        const im = t.image as { width: number; height: number } | undefined;
+        if (im && im.width && im.height) {
+          plane.geometry.dispose();
+          plane.geometry = new THREE.PlaneGeometry(h * (im.width / im.height), h);
+        }
       });
-      const h = 14;
-      const w = h * CLUSTER_ASPECT;
-      for (let i = -2; i <= 2; i++) {
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-        m.position.set(gx + i * w * 0.7, h / 2 - 1, gz + 5.2 * CELL);
-        m.rotation.y = Math.PI;
-        if (i % 2 === 0) m.scale.x = -1;
-        this.world.add(m);
-      }
+      return;
     }
 
-    // 2) vilarejo compacto: casas bem juntas, em duas fileiras
+    // vilarejo compacto: casas bem juntas, em duas fileiras
     const wallMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
     const roofMat = new THREE.MeshLambertMaterial({ map: tex.thatch(3), side: THREE.DoubleSide });
     const house = (x: number, z: number, wsz: number, h: number) => {

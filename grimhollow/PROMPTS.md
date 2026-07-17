@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 5 prontos · 🟡 10 faltando · 15 no total
+**Status:** ✅ 6 prontos · 🟡 10 faltando · 16 no total
 
 ---
 
@@ -59,7 +59,7 @@ Paisagem larga (~2048×1280). Muralha de árvores pro fundo — **bordas esquerd
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A dense cluster of 4 to 6 overlapping fir and pine trees forming a continuous wall of forest, seen straight-on, their trunk bases aligned along the bottom edge of the frame. Varied heights so the treeline top is uneven and natural. The left and right edges are tileable: trees continue past both sides so copies placed side by side blend into one endless treeline. Cool desaturated palette (deep greens, blue-grey shadows), soft overcast lighting, light frost/snow dusting on the tips. Flat front-facing orthographic view, no perspective distortion, even diffuse lighting, no ground cast-shadow. Clean cutout on a fully transparent background, crisp edges, no atmospheric haze or fog baked in, no text, no watermark. Wide landscape canvas ~2048x1280.
 ```
 
-### 🟡 Aglomerado 2 (falta)
+### ✅ Aglomerado 2 (pronto)
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A dense cluster of 5 to 7 overlapping fir and pine trees of mixed sizes forming a thick forest wall, seen straight-on, trunk bases aligned along the bottom edge of the frame, with a couple of taller peaks rising above the others. The left and right edges are tileable so copies placed side by side blend into one endless treeline. Cool desaturated palette (dark muted greens, blue-grey shadows), soft overcast lighting, light frost dusting on the tips. Flat front-facing orthographic view, no perspective distortion, even diffuse lighting, no ground cast-shadow. Clean cutout on a fully transparent background, crisp edges, no atmospheric haze or fog baked in, no text, no watermark. Wide landscape canvas ~2048x1280.
@@ -137,4 +137,20 @@ Retrato ~1024×1152.
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A wooden town notice board: a post-mounted board under a small shingled roof, with several pinned parchment notes and a weathered wanted poster. Aged wood, frayed paper. Cool desaturated palette, soft overcast lighting, even diffuse light so it reads from any angle, no strong cast shadow. Flat front-facing orthographic view, no perspective distortion. The base of the post sits centered on the very bottom edge of the frame. Clean cutout on a fully transparent background, crisp edges, no ground, no atmospheric haze or fog, no text, no watermark. Portrait canvas ~1024x1152.
+```
+
+---
+
+## 05 · Panos de fundo (backdrops)
+
+Billboards largos para o horizonte das saídas. **Aqui a névoa PODE ser pintada** (diferente do resto): é um fundo distante e a névoa ajuda a fechar a cena.
+
+### 🟡 Vilarejo visto de fora (falta) — pano de fundo da saída da floresta
+
+Representa o vilarejo atual **como se você estivesse chegando nele**: casas de madeira bem juntas com telhado de palha, portas visíveis, e a **montanha rochosa atrás (onde fica a masmorra)**. O resto some na neblina.
+
+Paisagem larga ~2048×1100.
+
+```
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A small medieval hamlet seen straight-on as if approaching it: a tight cluster of wooden houses packed close together with steep thatched straw roofs, weathered vertical wood-plank walls, small dark square windows, and a few visible wooden plank doors (house entrances) at ground level. Rising directly behind the rooftops, a rugged grey rocky mountain with a dark cave/tunnel mouth carved into the stone (an ominous dungeon entrance) and a hint of stone steps descending into darkness. A couple of thin wisps of chimney smoke. Everything wreathed in thick cold grey-blue fog that gets denser toward the top and the sides, so only the village and the mountain base read clearly and the rest dissolves into mist. Cold desaturated palette (muted browns, greyed straw, grey stone, blue-grey fog). Flat front-facing orthographic view, no perspective distortion, even flat overcast lighting, no ground cast-shadow. Clean cutout on a transparent background where the fog fades out; the bases of the front houses sit along the very bottom edge of the frame. No readable text or signs, no watermark. Wide landscape canvas ~2048x1100.
 ```
