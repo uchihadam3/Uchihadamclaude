@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 10 prontos · 🟡 10 faltando · 20 no total
+**Status:** ✅ 10 prontos · 🟡 7 faltando · 17 no total
 
 ---
 
@@ -158,32 +158,16 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 
 ---
 
-## 06 · Combate — espada em 1ª pessoa (protótipo de ação)
+---
 
-Visão em PRIMEIRA PESSOA de uma mão segurando uma espada (como se fosse a sua mão), entrando pelo canto **inferior-direito** da tela. São **4 quadros** de um golpe, acionados no botão de ataque. Mantenha a MESMA mão e a MESMA espada nos 4 — só a pose muda. Fundo transparente. Canvas ~1024×1024.
+## 06 · Combate — espada (protótipo de ação)
 
-**Base de estilo (vale nos 4):** *Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: a leather-gloved hand gripping a simple worn medieval short sword, seen from the player's own perspective, the forearm entering from the bottom-right corner of the frame. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark.*
+**Só a espada** (sem mão). É um objeto rígido, então basta **UMA imagem** — eu animo o golpe girando/movendo ela no motor (rotação por código + risco de movimento no corte). A mão desarmada a gente faz depois, num overlay separado.
 
-### 🟡 Espada — quadro 1 (descanso/pronto)
+Melhor orientação: espada **em pé, lâmina apontando pra cima**, cabo/punho embaixo (facilita eu girar em torno do punho).
 
-```
-Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: a leather-gloved hand gripping a simple worn medieval short sword, forearm entering from the bottom-right corner of the frame. Resting ready pose: the blade held calmly, angled up and to the left across the lower part of the view, tip pointing up-left, arm relaxed. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
-```
-
-### 🟡 Espada — quadro 2 (preparação/wind-up)
+### 🟡 Espada inicial (falta)
 
 ```
-Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: the SAME leather-gloved hand gripping the SAME worn medieval short sword, forearm entering from the bottom-right corner. Wind-up pose: the sword pulled back and raised toward the upper-right of the frame, cocked and ready for a downward slash. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
-```
-
-### 🟡 Espada — quadro 3 (golpe/slash)
-
-```
-Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: the SAME leather-gloved hand gripping the SAME worn medieval short sword, forearm entering from the bottom-right corner. Mid-slash pose: the blade sweeping diagonally down-left across the CENTER of the view, in motion, with a subtle faint motion streak along the blade. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
-```
-
-### 🟡 Espada — quadro 4 (finalização/follow-through)
-
-```
-Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. First-person player view: the SAME leather-gloved hand gripping the SAME worn medieval short sword, forearm entering from the bottom-right corner. Follow-through pose: the swing finished, the blade ended low and to the LEFT, the arm extended across the bottom of the frame. Cool desaturated palette, soft overcast lighting. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~1024x1024.
+Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy game. A single worn medieval short sword shown on its own, straight side view, the blade pointing straight up and the grip, crossguard and pommel at the bottom, perfectly vertical, the whole sword centered and fully visible. Weathered steel blade with a few small nicks, a simple iron crossguard, leather-wrapped grip, round pommel. Cool desaturated palette, soft even lighting, no strong cast shadow. Flat side view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, nothing else in frame, no hand, no arm, no text, no watermark. Tall portrait canvas ~768x1280.
 ```
