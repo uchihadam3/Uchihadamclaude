@@ -1220,10 +1220,11 @@ export class Game {
       this.addDecal(c, r, dc, dr, doorMat, "door");
       this.doorMap.set(`${c},${r},${dc},${dr}`, kind);
 
-      // letreiro rente à parede, ao lado da porta (sem estaca).
+      // letreiro rente à parede, AO LADO da porta, com folga clara (antes
+      // encostava na porta). Menor e recuado o suficiente pra não sobrepor.
       // procedural-first: nasce com o texto e troca pela placa PNG se houver.
       const grp = new THREE.Group();
-      const signH = 0.62;
+      const signH = 0.46; // menor que antes (0.62) p/ caber ao lado sem encostar
       const signMat = new THREE.MeshLambertMaterial({
         map: tex.signText(ESTAB[kind].name),
         transparent: true,
@@ -1233,7 +1234,8 @@ export class Game {
         new THREE.PlaneGeometry(signH * SIGN_ASPECT, signH),
         signMat,
       );
-      board.position.set(0, 2.05, 0.03);
+      // altura da placa: acima do meio da porta, bem abaixo do beiral do telhado
+      board.position.set(0, 1.74, 0.03);
       grp.add(board);
       const artUrl = SHOP_SIGN_ART[kind];
       if (artUrl)
@@ -1248,12 +1250,14 @@ export class Game {
             board.geometry = new THREE.PlaneGeometry(signH * asp, signH);
           }
         });
-      // posição: face da parede + pequeno recuo, deslocada 1.2 p/ o lado da porta
+      // posição: face da parede + recuo, deslocada 1.5 p/ o lado da porta.
+      // porta = 1.2 de largura (borda em 0.6); placa (~1.3 larga) centrada em
+      // 1.5 => borda interna ~0.85, folga clara da porta.
       const fx = c * CELL + dc * (CELL / 2 + 0.16);
       const fz = r * CELL + dr * (CELL / 2 + 0.16);
       const px = dr; // perpendicular à normal da porta
       const pz = -dc;
-      grp.position.set(fx + px * 1.2, 0, fz + pz * 1.2);
+      grp.position.set(fx + px * 1.5, 0, fz + pz * 1.5);
       grp.rotation.y =
         dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
       this.world.add(grp);
