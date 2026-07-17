@@ -416,15 +416,25 @@ export class Game {
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
   private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
   private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
-  // inimigo billboard (esqueleto da masmorra) — leva dano do golpe
+  private playerMaxHp = 100;
+  private playerHp = 100;
+  // inimigo billboard (esqueleto da masmorra) — leva dano e revida
   private enemy: {
     mesh: THREE.Mesh;
     mat: THREE.MeshLambertMaterial;
     c: number;
     r: number;
+    bx: number; // posição base no mundo (x)
+    bz: number; // posição base no mundo (z)
     hp: number;
-    hitAt: number; // instante do último acerto (flash)
+    maxHp: number;
+    hitAt: number; // instante do último acerto (flash/recuo)
     dyingAt: number; // instante em que começou a morrer (0 = vivo)
+    atkAt: number; // instante em que começou o ataque atual (0 = não atacando)
+    hitApplied: boolean; // já aplicou o dano deste ataque?
+    nextAtk: number; // instante mínimo do próximo ataque
+    bar: THREE.Group; // barra de vida flutuante
+    barFill: THREE.Mesh; // preenchimento da barra
   } | null = null;
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
@@ -506,6 +516,7 @@ export class Game {
       swordUrl,
       SWORD_ATK_ART ?? undefined,
     );
+    this.ui.setHealth(this.playerHp / this.playerMaxHp);
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
 
@@ -843,7 +854,28 @@ export class Game {
     this.world.add(mesh);
     this.billboardProps.push(mesh); // encara a câmera como os aldeões
     this.blocked.add(`${c},${r}`);
-    this.enemy = { mesh, mat, c, r, hp: 3, hitAt: 0, dyingAt: 0 };
+    // barra de vida flutuante acima do esqueleto (planos sem luz, sempre visíveis)
+    const barW = 1.3;
+    const bar = new THREE.Group();
+    const bg = new THREE.Mesh(
+      new THREE.PlaneGeometry(barW + 0.12, 0.26),
+      new THREE.MeshBasicMaterial({ color: 0x120d0a, transparent: true, opacity: 0.85 }),
+    );
+    const barFill = new THREE.Mesh(
+      new THREE.PlaneGeometry(barW, 0.16),
+      new THREE.MeshBasicMaterial({ color: 0xd23a2e }),
+    );
+    barFill.position.z = 0.01;
+    bar.add(bg);
+    bar.add(barFill);
+    bar.position.set(c * CELL, worldH + 0.45, r * CELL);
+    this.world.add(bar);
+    this.billboardProps.push(bar); // encara a câmera
+    this.enemy = {
+      mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
+      hp: 3, maxHp: 3, hitAt: 0, dyingAt: 0,
+      atkAt: 0, hitApplied: false, nextAtk: 0, bar, barFill,
+    };
     // luz fria azulada perto dele (atmosfera de cripta)
     const glow = new THREE.PointLight(0x6aa0d0, 0.55, 5, 2);
     glow.position.set(c * CELL, 1.7, r * CELL);
@@ -868,9 +900,29 @@ export class Game {
     if (this.col + dc !== e.c || this.row + dr !== e.r) return; // não está de frente
     e.hp -= 1;
     e.hitAt = performance.now();
+    const frac = Math.max(0.0001, e.hp / e.maxHp);
+    e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
+    e.barFill.position.x = -(1 - frac) * 1.3 / 2;
     if (e.hp <= 0) {
       e.dyingAt = e.hitAt; // começa a tombar/sumir
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
+    }
+  }
+
+  // aplica dano ao jogador (o esqueleto revidou)
+  private damagePlayer(n: number) {
+    if (this.playerHp <= 0) return;
+    this.playerHp = Math.max(0, this.playerHp - n);
+    this.ui.setHealth(this.playerHp / this.playerMaxHp);
+    this.ui.flashDamage();
+    if (this.playerHp <= 0) {
+      // derrota: recompõe a vida e volta ao início da vila
+      window.setTimeout(() => {
+        this.playerHp = this.playerMaxHp;
+        this.ui.setHealth(1);
+        const s = findStart();
+        this.enterLocation("village", s.col, s.row, 0);
+      }, 800);
     }
   }
 
@@ -2978,25 +3030,58 @@ export class Game {
     // props 2D encaram a câmera (billboard no eixo Y), como os aldeões
     for (const b of this.billboardProps)
       b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
-    // inimigo: pisca de vermelho ao ser atingido; ao morrer, tomba e some
+    // inimigo: ataca (investida), reage ao dano (brilho + recuo) e morre
     const e = this.enemy;
     if (e) {
-      const flash = Math.max(0, 1 - (now - e.hitAt) / 160);
-      e.mat.color.setRGB(1, 1 - flash * 0.75, 1 - flash * 0.75); // clareia p/ vermelho
+      const h = (e.mesh.geometry as THREE.PlaneGeometry).parameters.height;
+      // direção horizontal do inimigo p/ a câmera (usada na investida e no recuo)
+      let dx = cx - e.bx, dz = cz - e.bz;
+      const L = Math.hypot(dx, dz) || 1;
+      dx /= L;
+      dz /= L;
+      let lunge = 0, scale = 1, tiltZ = 0, emis = 0;
+      const sinceHit = now - e.hitAt;
       if (e.dyingAt) {
         const t = (now - e.dyingAt) / 600;
         e.mat.opacity = Math.max(0, 1 - t);
         e.mesh.rotation.z = -t * 1.4; // tomba p/ o lado
-        e.mesh.position.y = (e.mesh.geometry as THREE.PlaneGeometry).parameters.height / 2 - t * 0.6;
+        e.mesh.position.y = h / 2 - t * 0.6;
+        e.bar.visible = false;
         if (t >= 1) {
-          this.world.remove(e.mesh);
+          for (const o of [e.mesh, e.bar]) {
+            this.world.remove(o);
+            const idx = this.billboardProps.indexOf(o);
+            if (idx >= 0) this.billboardProps.splice(idx, 1);
+          }
           e.mesh.geometry.dispose();
           e.mat.dispose();
-          const idx = this.billboardProps.indexOf(e.mesh);
-          if (idx >= 0) this.billboardProps.splice(idx, 1);
           this.enemy = null;
         }
+      } else {
+        // IA: ataca quando o jogador está numa célula adjacente
+        const adj = Math.abs(this.col - e.c) + Math.abs(this.row - e.r) === 1;
+        if (!e.atkAt && adj && now >= e.nextAtk) e.atkAt = now;
+        if (e.atkAt) {
+          const t = (now - e.atkAt) / 700;
+          if (t < 0.4) { const k = t / 0.4; lunge = -0.35 * k; scale = 1 - 0.05 * k; } // arma p/ trás
+          else if (t < 0.6) { const k = (t - 0.4) / 0.2; lunge = -0.35 + 1.25 * k; scale = 0.95 + 0.27 * k; } // investe
+          else { const k = (t - 0.6) / 0.4; lunge = 0.9 * (1 - k); scale = 1.22 - 0.22 * k; } // recolhe
+          if (!e.hitApplied && t > 0.52) { e.hitApplied = true; if (adj) this.damagePlayer(12); }
+          if (t >= 1) { e.atkAt = 0; e.hitApplied = false; e.nextAtk = now + 1100; }
+        }
+        // reação ao dano: brilho vermelho-branco + recuo elástico
+        if (sinceHit < 240) {
+          const k = sinceHit / 240;
+          const spring = Math.sin((1 - k) * Math.PI);
+          lunge -= spring * 0.6;
+          emis = 1 - k * 0.7;
+          tiltZ = spring * 0.14;
+        }
+        e.mesh.position.set(e.bx + dx * lunge, h / 2, e.bz + dz * lunge);
+        e.mesh.scale.set(scale, scale, 1);
+        e.mesh.rotation.z = tiltZ;
       }
+      e.mat.emissive.setRGB(emis, emis * 0.18, emis * 0.14);
     }
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
