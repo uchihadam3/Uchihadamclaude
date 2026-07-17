@@ -732,15 +732,28 @@ export class Game {
     at(8, 12, planter);
     void wood;
 
-    // props em PNG (billboards que encaram a câmera): poste, mural, carroça, barraca
-    this.addPropBillboard(11, 7, propLampUrl, 3.4);
-    this.addPropBillboard(3, 8, propNoticeUrl, 2.7);
-    this.addPropBillboard(4, 10, propCartUrl, 1.8);
-    this.addPropBillboard(10, 11, propStallUrl, 2.7);
+    // POSTES de rua: vários, espalhados pela praça como de verdade (billboard que
+    // encara a câmera, simétrico) + luz quente tremeluz no topo.
+    const lamps: [number, number][] = [[4, 8], [10, 7], [4, 11], [9, 11]];
+    for (const [c, r] of lamps) this.addLampPost(c, r);
+    // props FIXOS colados na parede, virados numa ÚNICA direção (p/ a praça),
+    // longe de NPCs, portas, poço e do túnel da masmorra.
+    this.addWallProp(6, 6, propStallUrl, 2.7, "N"); // barraca na parede norte
+    this.addWallProp(12, 8, propCartUrl, 1.9, "E"); // carroça na parede leste
+    this.addWallProp(2, 10, propNoticeUrl, 2.7, "W"); // mural na parede oeste
   }
 
-  // prop 2D (PNG recortado) como billboard: nasce invisível e aparece ao carregar
-  // a arte, com a base no chão e largura ajustada ao aspecto real. Encara a câmera.
+  // poste de rua: billboard (encara a câmera, é simétrico) + luz quente no topo
+  private addLampPost(c: number, r: number) {
+    this.addPropBillboard(c, r, propLampUrl, 3.4);
+    const light = new THREE.PointLight(0xffcf8a, 0.85, 6, 2);
+    light.position.set(c * CELL, 3.0, r * CELL);
+    this.world.add(light);
+    this.flames.push({ light, base: 0.85 }); // tremeluz como uma vela
+  }
+
+  // prop 2D (PNG recortado) como billboard que ENCARA A CÂMERA (poste). Nasce
+  // invisível e aparece ao carregar a arte, base no chão, largura pelo aspecto.
   private addPropBillboard(c: number, r: number, url: string, worldH: number) {
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
@@ -759,6 +772,44 @@ export class Game {
       mesh.geometry.dispose();
       mesh.geometry = new THREE.PlaneGeometry(worldH * asp, worldH);
       mesh.position.y = worldH / 2; // mantém a base no chão
+      mat.map = t;
+      mat.opacity = 1;
+      mat.needsUpdate = true;
+    });
+  }
+
+  // prop 2D FIXO, colado numa parede e virado numa única direção (não gira).
+  // side: N/S/L(leste)/O(oeste) = qual parede ele encosta; a face olha p/ a praça.
+  private addWallProp(
+    c: number,
+    r: number,
+    url: string,
+    worldH: number,
+    side: "N" | "S" | "E" | "W",
+  ) {
+    const mat = new THREE.MeshLambertMaterial({
+      transparent: true,
+      opacity: 0,
+      alphaTest: 0.4,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH, worldH), mat);
+    const off = CELL / 2 - 0.2; // encosta na face da parede
+    let dx = 0, dz = 0, roty = 0;
+    if (side === "N") { roty = 0; dz = -off; } // parede ao norte, olha p/ o sul
+    else if (side === "S") { roty = Math.PI; dz = off; }
+    else if (side === "W") { roty = Math.PI / 2; dx = -off; } // parede a oeste, olha p/ leste
+    else { roty = -Math.PI / 2; dx = off; } // "E": parede a leste, olha p/ oeste
+    mesh.rotation.y = roty;
+    mesh.position.set(c * CELL + dx, worldH / 2, r * CELL + dz);
+    this.world.add(mesh);
+    this.blocked.add(`${c},${r}`);
+    this.loadArt(url, (t) => {
+      const im = t.image as { width: number; height: number } | undefined;
+      const asp = im && im.width && im.height ? im.width / im.height : 1;
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.PlaneGeometry(worldH * asp, worldH);
+      mesh.position.y = worldH / 2;
       mat.map = t;
       mat.opacity = 1;
       mat.needsUpdate = true;
