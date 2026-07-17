@@ -62,10 +62,13 @@ import anselmoUrl from "../assets/npc/anselmo.png";
 import tamUrl from "../assets/npc/tam.png";
 import lyleUrl from "../assets/npc/lyle.png";
 import pine1Url from "../assets/env/pine1.png";
+import pine2Url from "../assets/env/pine2.png";
+import pine3Url from "../assets/env/pine3.png";
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
-const TREE_ART: string[] = [pine1Url];
+const TREE_ART: string[] = [pine1Url, pine2Url]; // pinheiros vivos
+const DEAD_TREE_ART: string[] = [pine3Url]; // árvores mortas (raras, clima)
 const TREE_ASPECT = 0.625; // largura/altura da arte de árvore (800x1280)
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
@@ -1577,6 +1580,20 @@ export class Game {
       });
       return mat;
     });
+    // árvores mortas (raras) — mesmo esquema procedural-first
+    const deadMats = DEAD_TREE_ART.map((url, idx) => {
+      const mat = new THREE.MeshLambertMaterial({
+        map: tex.pineTree(83 + idx * 4),
+        transparent: true,
+        alphaTest: 0.4,
+        side: THREE.DoubleSide,
+      });
+      this.loadArt(url, (t) => {
+        mat.map = t;
+        mat.needsUpdate = true;
+      });
+      return mat;
+    });
     const bushMats = [67, 73].map(
       (s) =>
         new THREE.MeshLambertMaterial({
@@ -1628,7 +1645,10 @@ export class Game {
     };
     const pineAspect = useArt ? TREE_ASPECT : 0.44;
     const addPine = (x: number, z: number, th: number, c: number, r: number) => {
-      const mat = pineMats[Math.floor(hash(c, r, 4) * pineMats.length) % pineMats.length];
+      // ~12% das árvores são mortas (clima sombrio), o resto são pinheiros vivos
+      const dead = deadMats.length > 0 && hash(c, r, 17) < 0.12;
+      const pool = dead ? deadMats : pineMats;
+      const mat = pool[Math.floor(hash(c, r, 4) * pool.length) % pool.length];
       // espelha metade das árvores p/ quebrar a repetição da arte
       addCross(x, z, th * pineAspect, th, mat, hash(c, r, 16) > 0.5);
     };
