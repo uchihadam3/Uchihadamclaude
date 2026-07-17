@@ -74,6 +74,7 @@ import signAlchUrl from "../assets/env/sign_alch.png";
 import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
 import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
+import deathPoofUrl from "../assets/env/death_poof.png";
 import swordUrl from "../assets/env/sword.png";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
@@ -124,6 +125,8 @@ const DIRS: [number, number][] = [
 
 // pontos de interesse do vilarejo
 const WELL = { c: 7, r: 10 }; // poço no centro da praça
+const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
+const POOF_MS = 620; // duração da explosão
 const TUNNEL_H = 3.2; // altura do teto do túnel da masmorra
 
 // estabelecimentos: célula da casa + face (dc,dr) com a porta voltada p/ a praça.
@@ -436,15 +439,14 @@ export class Game {
     bar: THREE.Group; // barra de vida flutuante
     barFill: THREE.Mesh; // preenchimento da barra
   } | null = null;
-  // estilhaços de osso da morte do inimigo (voam e caem)
-  private deathBits: {
+  // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo
+  private poofs: {
     mesh: THREE.Mesh;
     mat: THREE.MeshBasicMaterial;
-    sx: number; sy: number; sz: number; // origem
-    vx: number; vy: number; vz: number; // velocidade
-    vr: number; // giro
+    tex: THREE.Texture;
     born: number;
   }[] = [];
+  private poofTex?: THREE.Texture; // sprite-sheet carregado (10 quadros)
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
@@ -596,7 +598,7 @@ export class Game {
     this.smoke = [];
     this.billboardProps = [];
     this.enemy = null;
-    this.deathBits = [];
+    this.poofs = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
     this.homeDoorMap.clear();
@@ -714,12 +716,13 @@ export class Game {
   // adereços da praça — apenas os props em PNG (poste + mural). Os objetos 3D
   // procedurais (lenha, caixotes, floreiras, sacos) foram removidos.
   private buildVillageProps() {
-    // POSTES de rua: nos CANTOS da praça, empurrados p/ perto das paredes
-    // (dx,dz = deslocamento em direção ao canto). Billboard simétrico + luz quente.
-    this.addLampPost(4, 6, 0, -1.5); // canto NO (parede norte)
-    this.addLampPost(12, 7, 1.5, -1.5); // canto NE
-    this.addLampPost(2, 12, -1.5, 1.5); // canto SO
-    this.addLampPost(12, 12, 1.5, 1.5); // canto SE
+    // POSTES de rua: nas quinas da praça, mas AFASTADOS das paredes p/ o topo
+    // (a lanterna) não ficar escondido dentro do beiral do telhado das casas.
+    // Formam um retângulo em volta do poço. Sem colisão (dá p/ passar por eles).
+    this.addLampPost(4, 7); // NO
+    this.addLampPost(10, 7); // NE
+    this.addLampPost(4, 11); // SO
+    this.addLampPost(10, 11); // SE
     // prop FIXO colado na parede, virado p/ a praça: só o mural (parede oeste)
     this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
   }
@@ -748,7 +751,7 @@ export class Game {
     mesh.position.set(c * CELL + dx, worldH / 2, r * CELL + dz);
     this.world.add(mesh);
     this.billboardProps.push(mesh);
-    this.blocked.add(`${c},${r}`);
+    // sem colisão: o jogador passa em frente/pelo poste (só decoração)
     this.loadArt(url, (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 1;
@@ -786,7 +789,7 @@ export class Game {
     mesh.rotation.y = roty;
     mesh.position.set(c * CELL + dx, worldH / 2, r * CELL + dz);
     this.world.add(mesh);
-    this.blocked.add(`${c},${r}`);
+    // sem colisão: colado na parede, o jogador passa em frente dele
     this.loadArt(url, (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 1;
@@ -840,6 +843,8 @@ export class Game {
     const glow = new THREE.PointLight(0x6aa0d0, 0.55, 5, 2);
     glow.position.set(c * CELL, 1.7, r * CELL);
     this.world.add(glow);
+    // pré-carrega o sprite-sheet da explosão (pronto quando o inimigo morrer)
+    if (!this.poofTex) this.loadArt(deathPoofUrl, (t) => (this.poofTex = t));
     this.loadArt(enemySkeletonUrl, (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 0.47;
@@ -866,55 +871,45 @@ export class Game {
     if (e.hp <= 0) {
       e.dyingAt = e.hitAt; // começa a tombar/sumir
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
-      this.spawnDeathBurst(e.bx, e.bz);
+      this.spawnPoof(e.bx, e.bz);
     }
   }
 
-  // explosão de estilhaços de osso quando o inimigo morre
-  private spawnDeathBurst(bx: number, bz: number) {
-    const geo = new THREE.PlaneGeometry(0.3, 0.3);
-    for (let i = 0; i < 10; i++) {
-      const mat = new THREE.MeshBasicMaterial({
-        color: i % 3 === 0 ? 0xb9a878 : 0xe6ddc2, // tons de osso
-        transparent: true,
-        side: THREE.DoubleSide,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      const sy = 0.7 + Math.random() * 1.4; // sai do corpo todo
-      mesh.position.set(bx, sy, bz);
-      mesh.scale.setScalar(0.5 + Math.random() * 0.9);
-      this.world.add(mesh);
-      const ang = Math.random() * Math.PI * 2;
-      const spd = 1.4 + Math.random() * 1.8;
-      this.deathBits.push({
-        mesh, mat, sx: bx, sy, sz: bz,
-        vx: Math.cos(ang) * spd,
-        vy: 2.2 + Math.random() * 2.4, // pra cima
-        vz: Math.sin(ang) * spd,
-        vr: (Math.random() - 0.5) * 18,
-        born: performance.now(),
-      });
-    }
+  // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo. 10 quadros
+  // 256x192 numa folha 2560x192; o fundo escuro do GIF virou transparente.
+  private spawnPoof(bx: number, bz: number) {
+    if (!this.poofTex) return; // ainda carregando
+    const tex = this.poofTex.clone();
+    tex.needsUpdate = true;
+    tex.repeat.set(1 / POOF_FRAMES, 1);
+    tex.offset.set(0, 0);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 2.85), mat);
+    mesh.position.set(bx, 1.5, bz);
+    this.world.add(mesh);
+    this.poofs.push({ mesh, mat, tex, born: performance.now() });
   }
 
-  // atualiza os estilhaços de osso (voo balístico + queda + fade)
-  private updateDeathBits(now: number) {
-    if (this.deathBits.length === 0) return;
-    for (let i = this.deathBits.length - 1; i >= 0; i--) {
-      const b = this.deathBits[i];
-      const age = (now - b.born) / 1000;
-      const x = b.sx + b.vx * age;
-      const y = Math.max(0.05, b.sy + b.vy * age - 5.5 * age * age); // gravidade
-      const z = b.sz + b.vz * age;
-      b.mesh.position.set(x, y, z);
-      b.mesh.rotation.z = b.vr * age;
-      b.mesh.rotation.y = b.vr * age * 0.5;
-      b.mat.opacity = Math.max(0, 1 - age / 0.85);
-      if (age > 0.85) {
-        this.world.remove(b.mesh);
-        b.mat.dispose();
-        this.deathBits.splice(i, 1);
+  // avança os quadros da explosão (UV) e a remove no fim; encara a câmera
+  private updatePoofs(now: number) {
+    if (this.poofs.length === 0) return;
+    const cx = this.camera.position.x, cz = this.camera.position.z;
+    for (let i = this.poofs.length - 1; i >= 0; i--) {
+      const pf = this.poofs[i];
+      const t = (now - pf.born) / POOF_MS;
+      if (t >= 1) {
+        this.world.remove(pf.mesh);
+        pf.mesh.geometry.dispose();
+        pf.mat.dispose();
+        pf.tex.dispose();
+        this.poofs.splice(i, 1);
+        continue;
       }
+      const frame = Math.min(POOF_FRAMES - 1, Math.floor(t * POOF_FRAMES));
+      pf.tex.offset.x = frame / POOF_FRAMES;
+      pf.mesh.rotation.y = Math.atan2(cx - pf.mesh.position.x, cz - pf.mesh.position.z);
     }
   }
 
@@ -1543,7 +1538,8 @@ export class Game {
     tag.position.set(c * CELL, y + h / 2 + 0.18, r * CELL);
     this.world.add(tag);
     this.npcs.push(npc);
-    this.blocked.add(`${c},${r}`);
+    // sem colisão de célula: o jogador passa pelos aldeões (conversa é por
+    // aproximação/olhar). O grid não permite colisão parcial, então soltamos.
     const key = `${c},${r}`;
     // guarda a REFERÊNCIA da entrada (walkers movem esse objeto entre células)
     const entry = {
@@ -3053,7 +3049,7 @@ export class Game {
       const sinceHit = now - e.hitAt;
       if (e.dyingAt) {
         const t = (now - e.dyingAt) / 650;
-        e.mat.opacity = Math.max(0, 1 - t * 1.15); // some um pouco antes de acabar
+        e.mat.opacity = Math.max(0, 1 - t * 3); // some rápido: a explosão o engole
         e.mesh.rotation.z = -t * 1.6; // tomba
         const sq = Math.max(0.12, 1 - t * 0.55); // esmaga verticalmente (desmorona)
         e.mesh.scale.set(1 + t * 0.35, sq, 1);
@@ -3100,7 +3096,7 @@ export class Game {
       }
       e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
-    this.updateDeathBits(now);
+    this.updatePoofs(now);
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
