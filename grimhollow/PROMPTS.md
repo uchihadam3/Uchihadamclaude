@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 16 prontos · 🟡 3 faltando · 19 no total
+**Status:** ✅ 15 prontos · 🟡 2 faltando · ❌ 2 removidas
 
 ---
 
@@ -115,7 +115,7 @@ Retrato ~768×1280.
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A medieval wrought-iron street lamp post, tall and slender, with a glass lantern housing at the top holding a warm candle flame and a small crossbar hook. Weathered black iron. Cool desaturated palette, soft overcast lighting, even diffuse light so it reads from any angle, no strong cast shadow. Flat front-facing orthographic view, no perspective distortion. The base of the post sits centered on the very bottom edge of the frame. Clean cutout on a fully transparent background, crisp edges, no ground, no atmospheric haze or fog, no text, no watermark. Tall portrait canvas ~768x1280.
 ```
 
-### ✅ Barraca de feira (pronto) — na praça
+### ❌ Barraca de feira (removida — não ficou boa no jogo)
 
 Paisagem ~1280×1024.
 
@@ -123,7 +123,7 @@ Paisagem ~1280×1024.
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A small medieval market stall: a wooden counter table under a striped cloth awning held by four posts, with sacks, woven baskets of produce, and clay pots on the counter. Weathered wood and faded cloth. Cool desaturated palette, soft overcast lighting, even diffuse light so it reads from any angle, no strong cast shadow. Flat front-facing orthographic view, no perspective distortion. The base sits centered on the very bottom edge of the frame. Clean cutout on a fully transparent background, crisp edges, no ground, no atmospheric haze or fog, no text, no watermark. Wide landscape canvas ~1280x1024.
 ```
 
-### ✅ Carroça / carrinho (pronto) — na praça
+### ❌ Carroça / carrinho (removida — não ficou boa no jogo)
 
 Paisagem ~1280×960 · vista de lado.
 
@@ -204,7 +204,7 @@ A masmorra fica numa cripta sob a cidade, então o 1º inimigo é morto-vivo.
 > Recorte: **fundo verde-limão chapado** (chroma key) é o que sai mais limpo. Se
 > preferir transparente de verdade, também serve.
 
-### 🟡 Inimigo 1 — esqueleto da cripta (falta)
+### ✅ Inimigo 1 — esqueleto da cripta (pronto) — no túnel da masmorra, leva dano do golpe
 
 Retrato ~768×1280. De frente, encarando quem olha, postura ameaçadora, arma na mão.
 

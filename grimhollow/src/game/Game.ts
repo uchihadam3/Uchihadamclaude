@@ -72,9 +72,8 @@ import signStoreUrl from "../assets/env/sign_store.png";
 import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
 import propLampUrl from "../assets/env/prop_lamp.png";
-import propStallUrl from "../assets/env/prop_stall.png";
-import propCartUrl from "../assets/env/prop_cart.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
+import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import swordUrl from "../assets/env/sword.png";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
@@ -417,6 +416,16 @@ export class Game {
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
   private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
   private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
+  // inimigo billboard (esqueleto da masmorra) — leva dano do golpe
+  private enemy: {
+    mesh: THREE.Mesh;
+    mat: THREE.MeshLambertMaterial;
+    c: number;
+    r: number;
+    hp: number;
+    hitAt: number; // instante do último acerto (flash)
+    dyingAt: number; // instante em que começou a morrer (0 = vivo)
+  } | null = null;
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
@@ -566,6 +575,7 @@ export class Game {
     this.walkers = [];
     this.smoke = [];
     this.billboardProps = [];
+    this.enemy = null;
     this.waterGlint = undefined;
     this.doorMap.clear();
     this.homeDoorMap.clear();
@@ -668,6 +678,7 @@ export class Game {
     // montanha no canto + entrada da masmorra (túnel de tiles de dungeon)
     this.buildMountain();
     this.buildTunnel();
+    this.buildDungeonEnemy();
 
     // pontos de interesse
     this.buildWell();
@@ -732,29 +743,30 @@ export class Game {
     at(8, 12, planter);
     void wood;
 
-    // POSTES de rua: vários, espalhados pela praça como de verdade (billboard que
-    // encara a câmera, simétrico) + luz quente tremeluz no topo.
-    const lamps: [number, number][] = [[4, 8], [10, 7], [4, 11], [9, 11]];
-    for (const [c, r] of lamps) this.addLampPost(c, r);
-    // props FIXOS colados na parede, virados numa ÚNICA direção (p/ a praça),
-    // longe de NPCs, portas, poço e do túnel da masmorra.
-    this.addWallProp(6, 6, propStallUrl, 2.7, "N"); // barraca na parede norte
-    this.addWallProp(12, 8, propCartUrl, 1.9, "E"); // carroça na parede leste
-    this.addWallProp(2, 10, propNoticeUrl, 2.7, "W"); // mural na parede oeste
+    // POSTES de rua: nos CANTOS da praça, empurrados p/ perto das paredes
+    // (dx,dz = deslocamento em direção ao canto). Billboard simétrico + luz quente.
+    this.addLampPost(4, 6, 0, -1.5); // canto NO (parede norte)
+    this.addLampPost(12, 7, 1.5, -1.5); // canto NE
+    this.addLampPost(2, 12, -1.5, 1.5); // canto SO
+    this.addLampPost(12, 12, 1.5, 1.5); // canto SE
+    // prop FIXO colado na parede, virado p/ a praça: só o mural (parede oeste)
+    this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
   }
 
-  // poste de rua: billboard (encara a câmera, é simétrico) + luz quente no topo
-  private addLampPost(c: number, r: number) {
-    this.addPropBillboard(c, r, propLampUrl, 3.4);
+  // poste de rua: billboard (encara a câmera) + luz quente no topo. dx/dz empurram
+  // o poste p/ perto da parede/canto (a colisão fica na célula).
+  private addLampPost(c: number, r: number, dx = 0, dz = 0) {
+    const x = c * CELL + dx, z = r * CELL + dz;
+    this.addPropBillboard(c, r, propLampUrl, 3.4, dx, dz);
     const light = new THREE.PointLight(0xffcf8a, 0.85, 6, 2);
-    light.position.set(c * CELL, 3.0, r * CELL);
+    light.position.set(x, 3.0, z);
     this.world.add(light);
     this.flames.push({ light, base: 0.85 }); // tremeluz como uma vela
   }
 
   // prop 2D (PNG recortado) como billboard que ENCARA A CÂMERA (poste). Nasce
   // invisível e aparece ao carregar a arte, base no chão, largura pelo aspecto.
-  private addPropBillboard(c: number, r: number, url: string, worldH: number) {
+  private addPropBillboard(c: number, r: number, url: string, worldH: number, dx = 0, dz = 0) {
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
       opacity: 0,
@@ -762,7 +774,7 @@ export class Game {
       side: THREE.DoubleSide,
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH, worldH), mat);
-    mesh.position.set(c * CELL, worldH / 2, r * CELL);
+    mesh.position.set(c * CELL + dx, worldH / 2, r * CELL + dz);
     this.world.add(mesh);
     this.billboardProps.push(mesh);
     this.blocked.add(`${c},${r}`);
@@ -814,6 +826,52 @@ export class Game {
       mat.opacity = 1;
       mat.needsUpdate = true;
     });
+  }
+
+  // inimigo billboard no túnel da masmorra: guarda a escada, encara a câmera e
+  // leva dano do golpe (3 acertos de perto e de frente e ele tomba).
+  private buildDungeonEnemy() {
+    const c = 2, r = 4, worldH = 2.6; // no túnel, uma célula antes da escada
+    const mat = new THREE.MeshLambertMaterial({
+      transparent: true,
+      opacity: 0,
+      alphaTest: 0.4,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH * 0.47, worldH), mat);
+    mesh.position.set(c * CELL, worldH / 2, r * CELL);
+    this.world.add(mesh);
+    this.billboardProps.push(mesh); // encara a câmera como os aldeões
+    this.blocked.add(`${c},${r}`);
+    this.enemy = { mesh, mat, c, r, hp: 3, hitAt: 0, dyingAt: 0 };
+    // luz fria azulada perto dele (atmosfera de cripta)
+    const glow = new THREE.PointLight(0x6aa0d0, 0.55, 5, 2);
+    glow.position.set(c * CELL, 1.7, r * CELL);
+    this.world.add(glow);
+    this.loadArt(enemySkeletonUrl, (t) => {
+      const im = t.image as { width: number; height: number } | undefined;
+      const asp = im && im.width && im.height ? im.width / im.height : 0.47;
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.PlaneGeometry(worldH * asp, worldH);
+      mesh.position.y = worldH / 2;
+      mat.map = t;
+      mat.opacity = 1;
+      mat.needsUpdate = true;
+    });
+  }
+
+  // aplica um golpe no inimigo se ele estiver na célula à frente do jogador
+  private tryHitEnemy() {
+    const e = this.enemy;
+    if (!e || e.dyingAt) return;
+    const [dc, dr] = DIRS[this.facing];
+    if (this.col + dc !== e.c || this.row + dr !== e.r) return; // não está de frente
+    e.hp -= 1;
+    e.hitAt = performance.now();
+    if (e.hp <= 0) {
+      e.dyingAt = e.hitAt; // começa a tombar/sumir
+      this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
+    }
   }
 
   // fumaça saindo das chaminés das casas (planos macios que sobem e somem)
@@ -2780,6 +2838,8 @@ export class Game {
     if (a === "attack") {
       // golpe é independente do movimento (pode golpear andando)
       this.ui.swingWeapon();
+      // o dano cai no auge do golpe (~155ms), junto do clarão de impacto
+      window.setTimeout(() => this.tryHitEnemy(), 155);
       return;
     }
     if (this.anim) return; // ignora enquanto anima (o hold-repeat cuida da continuidade)
@@ -2918,6 +2978,26 @@ export class Game {
     // props 2D encaram a câmera (billboard no eixo Y), como os aldeões
     for (const b of this.billboardProps)
       b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
+    // inimigo: pisca de vermelho ao ser atingido; ao morrer, tomba e some
+    const e = this.enemy;
+    if (e) {
+      const flash = Math.max(0, 1 - (now - e.hitAt) / 160);
+      e.mat.color.setRGB(1, 1 - flash * 0.75, 1 - flash * 0.75); // clareia p/ vermelho
+      if (e.dyingAt) {
+        const t = (now - e.dyingAt) / 600;
+        e.mat.opacity = Math.max(0, 1 - t);
+        e.mesh.rotation.z = -t * 1.4; // tomba p/ o lado
+        e.mesh.position.y = (e.mesh.geometry as THREE.PlaneGeometry).parameters.height / 2 - t * 0.6;
+        if (t >= 1) {
+          this.world.remove(e.mesh);
+          e.mesh.geometry.dispose();
+          e.mat.dispose();
+          const idx = this.billboardProps.indexOf(e.mesh);
+          if (idx >= 0) this.billboardProps.splice(idx, 1);
+          this.enemy = null;
+        }
+      }
+    }
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
