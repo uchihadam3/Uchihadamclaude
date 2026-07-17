@@ -15,6 +15,8 @@ import {
   MOVE_MS,
   TURN_MS,
   FOG_COLOR,
+  DAY_MS,
+  DAY_START,
 } from "./config";
 import {
   COLS,
@@ -416,6 +418,20 @@ export class Game {
   private blocked = new Set<string>(); // células bloqueadas por props/NPCs
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
+  // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
+  private lampFlames: { light: THREE.PointLight; base: number }[] = [];
+  // luzes principais moduladas pelo ciclo dia/noite (ambiente/hemisfério/sol)
+  private dayNightLights: {
+    light: THREE.Light;
+    dayI: number; // intensidade de dia (base)
+    dayColor: THREE.Color;
+    nightColor: THREE.Color;
+    nightMul: number; // fração da intensidade à noite
+  }[] = [];
+  private outdoor = false; // local atual participa do ciclo dia/noite?
+  private _sky = new THREE.Color(); // cor da atmosfera reaproveitada por quadro
+  private _cA = new THREE.Color();
+  private _cB = new THREE.Color();
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
   private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
   private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
@@ -545,6 +561,7 @@ export class Game {
   ) {
     this.clearWorld();
     this.location = loc;
+    this.outdoor = loc === "village" || loc === "forest";
     this.dialogue = null;
     this.ui.hideDialogue();
     if (loc === "village") {
@@ -593,6 +610,8 @@ export class Game {
     this.blocked.clear();
     this.npcs = [];
     this.flames = [];
+    this.lampFlames = [];
+    this.dayNightLights = [];
     this.animTex = [];
     this.walkers = [];
     this.smoke = [];
@@ -606,11 +625,82 @@ export class Game {
   }
 
   private addVillageLights() {
-    this.world.add(new THREE.AmbientLight(0x8a92a2, 0.75));
-    this.world.add(new THREE.HemisphereLight(0x9aa6b8, 0x3a2c1c, 0.7));
+    const amb = new THREE.AmbientLight(0x8a92a2, 0.75);
+    const hemi = new THREE.HemisphereLight(0x9aa6b8, 0x3a2c1c, 0.7);
     const dir = new THREE.DirectionalLight(0xffe7c0, 0.55);
     dir.position.set(-6, 12, 4);
+    this.world.add(amb);
+    this.world.add(hemi);
     this.world.add(dir);
+    // moduladas pelo ciclo dia/noite (cor + intensidade de dia → de noite)
+    this.registerDayLight(amb, 0x2b3a5e, 0.34);
+    this.registerDayLight(hemi, 0x223052, 0.4);
+    this.registerDayLight(dir, 0x5566a0, 0.1); // vira "luar" fraco à noite
+  }
+
+  // registra uma luz p/ o ciclo dia/noite: guarda os valores de dia e a meta noturna
+  private registerDayLight(light: THREE.Light, nightHex: number, nightMul: number) {
+    this.dayNightLights.push({
+      light,
+      dayI: light.intensity,
+      dayColor: (light.color as THREE.Color).clone(),
+      nightColor: new THREE.Color(nightHex),
+      nightMul,
+    });
+  }
+
+  // keyframes da cor da atmosfera (neblina + fundo) ao longo do ciclo [0,1)
+  private static readonly SKY_KEYS: [number, number][] = [
+    [0.0, 0x070b16], // meia-noite (azul quase preto)
+    [0.2, 0x0e1428], // madrugada
+    [0.25, 0x39395a], // primeira luz
+    [0.29, 0xcf8a58], // alvorada (quente)
+    [0.37, 0x9199a6], // manhã enevoada
+    [0.5, 0x8790a0], // meio-dia (neblina padrão)
+    [0.66, 0x949099], // tarde
+    [0.72, 0xcd7442], // poente (laranja)
+    [0.78, 0x4a3648], // crepúsculo
+    [0.85, 0x151830], // anoitecer
+    [1.0, 0x070b16], // volta à meia-noite
+  ];
+
+  // luminosidade do dia [0,1]: 0 à noite, 1 ao meio-dia (elevação do sol)
+  private daylight(t: number): number {
+    const elev = Math.sin((t - 0.25) * Math.PI * 2); // +1 ao meio-dia, <0 à noite
+    return Math.max(0, Math.min(1, elev * 1.15));
+  }
+
+  // cor da atmosfera no instante t (interpola entre os keyframes vizinhos)
+  private atmosColor(t: number, out: THREE.Color) {
+    const keys = Game.SKY_KEYS;
+    let a = keys[0], b = keys[keys.length - 1];
+    for (let i = 0; i < keys.length - 1; i++)
+      if (t >= keys[i][0] && t <= keys[i + 1][0]) { a = keys[i]; b = keys[i + 1]; break; }
+    const f = (t - a[0]) / (b[0] - a[0] || 1);
+    out.copy(this._cA.set(a[1])).lerp(this._cB.set(b[1]), f);
+  }
+
+  // avança o ciclo dia/noite e aplica cor/luz (só em locais externos)
+  private updateDayNight(now: number) {
+    if (!this.outdoor) return;
+    const t = (now / DAY_MS + DAY_START) % 1;
+    const lum = this.daylight(t);
+    // atmosfera: neblina + fundo acompanham a hora do dia
+    this.atmosColor(t, this._sky);
+    if (this.scene.fog) (this.scene.fog as THREE.Fog).color.copy(this._sky);
+    (this.scene.background as THREE.Color).copy(this._sky);
+    // luzes principais: intensidade e cor de dia → noite
+    for (const d of this.dayNightLights) {
+      const mul = d.nightMul + (1 - d.nightMul) * lum;
+      d.light.intensity = d.dayI * mul;
+      (d.light.color as THREE.Color).copy(d.nightColor).lerp(d.dayColor, lum);
+    }
+    // postes de rua: acendem ao anoitecer (ganho 0 de dia → 1 de noite)
+    const lampGain = Math.max(0, Math.min(1, (0.5 - lum) / 0.35));
+    for (const f of this.lampFlames) {
+      const flick = f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
+      f.light.intensity = Math.max(0, flick) * lampGain;
+    }
   }
 
   private addInteriorLights() {
@@ -735,7 +825,8 @@ export class Game {
     const light = new THREE.PointLight(0xffcf8a, 0.85, 6, 2);
     light.position.set(x, 3.0, z);
     this.world.add(light);
-    this.flames.push({ light, base: 0.85 }); // tremeluz como uma vela
+    // poste externo: tremeluz como vela E acende só à noite (ciclo dia/noite)
+    this.lampFlames.push({ light, base: 0.85 });
   }
 
   // prop 2D (PNG recortado) como billboard que ENCARA A CÂMERA (poste). Nasce
@@ -1825,11 +1916,17 @@ export class Game {
   // ---------------------------------------------- floresta (bioma externo)
   private addForestLights() {
     // luz de dia encoberto/nevoento: fria, difusa, sem sol duro
-    this.world.add(new THREE.AmbientLight(0x9aa4b2, 0.72));
-    this.world.add(new THREE.HemisphereLight(0x9fabbc, 0x40502e, 0.85));
+    const amb = new THREE.AmbientLight(0x9aa4b2, 0.72);
+    const hemi = new THREE.HemisphereLight(0x9fabbc, 0x40502e, 0.85);
     const sun = new THREE.DirectionalLight(0xdfe6ec, 0.5);
     sun.position.set(-8, 16, 5);
+    this.world.add(amb);
+    this.world.add(hemi);
     this.world.add(sun);
+    // moduladas pelo ciclo dia/noite
+    this.registerDayLight(amb, 0x2c3c60, 0.34);
+    this.registerDayLight(hemi, 0x243358, 0.4);
+    this.registerDayLight(sun, 0x6675ad, 0.1); // luar frio à noite
   }
 
   private buildForest() {
@@ -3097,6 +3194,8 @@ export class Game {
       e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
     this.updatePoofs(now);
+    // ciclo dia/noite (cor da atmosfera, luzes e postes) — só em locais externos
+    this.updateDayNight(now);
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
