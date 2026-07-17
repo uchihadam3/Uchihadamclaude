@@ -808,6 +808,44 @@ export class Game {
     }
     grp.position.set(gx, 0, gz);
     this.world.add(grp);
+
+    // trilha continua p/ o sul + paredão de árvores ao fundo: dá a perspectiva
+    // da floresta pra onde o jogador vai (em vez de só neblina/vazio).
+    const grassMat = new THREE.MeshLambertMaterial({ map: tex.grass(61) });
+    (grassMat.map as THREE.Texture).repeat.set(8, 5);
+    const gpatch = new THREE.Mesh(new THREE.PlaneGeometry(8 * CELL, 5 * CELL), grassMat);
+    gpatch.rotation.x = -Math.PI / 2;
+    gpatch.position.set(gx, -0.02, (g.row + 2.5) * CELL);
+    this.world.add(gpatch);
+    for (let ds = 1; ds <= 3; ds++) {
+      const t = new THREE.Mesh(tileGeo, dirtMat);
+      t.rotation.x = -Math.PI / 2;
+      t.rotation.z = ((ds % 2) * Math.PI) / 2;
+      t.position.set(gx, 0.02, (g.row + ds) * CELL);
+      this.world.add(t);
+    }
+    this.buildTreelineBackdrop(gx, (g.row + 3.4) * CELL, Math.PI);
+  }
+
+  // paredão de árvores (aglomerado) como pano de fundo, virado p/ o jogador
+  private buildTreelineBackdrop(cx: number, z: number, roty: number) {
+    if (CLUSTER_ART.length === 0) return;
+    const mat = new THREE.MeshLambertMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
+    this.loadArt(CLUSTER_ART[0], (t) => {
+      mat.map = t;
+      mat.alphaTest = 0.35;
+      mat.opacity = 1;
+      mat.needsUpdate = true;
+    });
+    const h = 13;
+    const w = h * CLUSTER_ASPECT;
+    for (let i = -1; i <= 1; i++) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      m.position.set(cx + i * w * 0.72, h / 2 - 1, z);
+      m.rotation.y = roty;
+      if (i === 0) m.scale.x = -1;
+      this.world.add(m);
+    }
   }
 
   // ---------------------------------------------- montanha (canto noroeste)
@@ -1781,7 +1819,37 @@ export class Game {
     }
 
     this.buildForestBackdrop();
+    this.buildForestVillageBackdrop();
     void MAP;
+  }
+
+  // silhueta do vilarejo ao sul do portão de volta: dá a perspectiva de "pra
+  // onde volto" (casinhas enevoadas no horizonte, atrás do portão da floresta).
+  private buildForestVillageBackdrop() {
+    const gate = forestFind("V");
+    const gx = gate.col * CELL;
+    const gz = gate.row * CELL;
+    const wallMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
+    const roofMat = new THREE.MeshLambertMaterial({ map: tex.thatch(3), side: THREE.DoubleSide });
+    const houses: [number, number, number][] = [
+      [-8, 3.0, 2.6],
+      [-4.5, 2.4, 3.1],
+      [-1, 3.4, 3.4],
+      [2.6, 2.6, 2.7],
+      [6, 3.0, 2.5],
+      [9.5, 2.3, 2.9],
+    ];
+    for (const [dx, wsz, h] of houses) {
+      const x = gx + dx * (CELL * 0.75);
+      const z = gz + (3.4 + Math.abs(dx) * 0.05) * CELL;
+      const wbox = new THREE.Mesh(new THREE.BoxGeometry(wsz, h, wsz), wallMat);
+      wbox.position.set(x, h / 2, z);
+      this.world.add(wbox);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(wsz * 0.92, h * 0.7, 4), roofMat);
+      roof.position.set(x, h + h * 0.34, z);
+      roof.rotation.y = Math.PI / 4;
+      this.world.add(roof);
+    }
   }
 
   // direção (dc,dr) para onde a placa deve "olhar" (célula de trilha vizinha)
