@@ -297,7 +297,7 @@ export function setupControls(
           play(rig, "gh-recover", 190);
         }, 290),
       );
-      // Fim (490ms): limpa e libera o cooldown
+      // Fim da animação (490ms): limpa
       swingTimers.push(
         window.setTimeout(() => {
           rig.style.animation = "";
@@ -305,8 +305,13 @@ export function setupControls(
           if (slashFx) slashFx.style.animation = "";
           if (impactFx) impactFx.style.animation = "";
           if (canvasEl) canvasEl.style.animation = "";
-          swinging = false;
         }, 490),
+      );
+      // Cooldown do ataque (mais lento): só libera o próximo golpe aqui
+      swingTimers.push(
+        window.setTimeout(() => {
+          swinging = false;
+        }, 820),
       );
     },
   };
