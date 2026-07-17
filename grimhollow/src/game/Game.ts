@@ -67,6 +67,10 @@ import pine3Url from "../assets/env/pine3.png";
 import pine4Url from "../assets/env/pine4.png";
 import cluster1Url from "../assets/env/cluster1.png";
 import cluster2Url from "../assets/env/cluster2.png";
+import signTavernUrl from "../assets/env/sign_tavern.png";
+import signStoreUrl from "../assets/env/sign_store.png";
+import signSmithUrl from "../assets/env/sign_smith.png";
+import signAlchUrl from "../assets/env/sign_alch.png";
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
@@ -94,7 +98,12 @@ const NPC_ART: Partial<Record<Estab, string>> = {
 // placas 2D (PNG) das lojas — procedural-first: enquanto vazio, usa o letreiro
 // de texto; ao mapear um id aqui, a placa pintada substitui o texto.
 // Proporção esperada da arte da placa: ~2.6:1 (larga, tipo tabuleta pendurada).
-const SHOP_SIGN_ART: Partial<Record<Estab, string>> = {};
+const SHOP_SIGN_ART: Partial<Record<Estab, string>> = {
+  tavern: signTavernUrl,
+  store: signStoreUrl,
+  smith: signSmithUrl,
+  alchemist: signAlchUrl,
+};
 const SIGN_ASPECT = 2.6; // largura/altura da placa (usada no plano)
 
 // direções: 0=N,1=E,2=S,3=O  (dcol, drow)
