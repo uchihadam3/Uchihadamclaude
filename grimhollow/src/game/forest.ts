@@ -8,42 +8,59 @@
 //  '#' mata densa da borda (bloqueia)
 //  'P' início do jogador (olhando p/ o norte)   'V' portão de volta ao vilarejo
 //
-// Mata grande e orgânica: a entrada ao sul sobe por um TRONCO SINUOSO até uma
-// ENCRUZILHADA central, de onde partem trilhas tortuosas p/ o norte (Montanhas),
-// leste (Charco) e oeste (Ruínas) — cada ponta termina num marco de local
-// futuro. Há clareiras e uma pilha de caveiras (ponto de interesse). Como as
-// árvores são andáveis, as trilhas são guias; a neblina do jogo cobre tudo.
+// Mata GRANDE e aberta (31x44): muralha DUPLA de árvores ('#') veda toda a
+// borda, e o interior é arejado — mais grama e clareiras que árvores, com
+// bosques em manchas. A entrada ao sul sobe por uma TRILHA SINUOSA até uma
+// ENCRUZILHADA central, de onde partem caminhos tortuosos p/ o norte
+// (Montanhas), leste (Charco) e oeste (Ruínas) — cada ponta termina num marco
+// de local futuro. Como as árvores são andáveis, as trilhas são guias; a
+// neblina do jogo cobre a distância. Espaço reservado p/ coleta futura
+// (cortar árvore, quebrar pedra, pescar, colher ervas).
 export const FOREST: string[] = [
-  "#######################",
-  "#.TT.rrTT.f.TTT..rfTTT#",
-  "#TTT..rTTT=NfTTT.bT...#",
-  "#r.fTTT.T==TTTfTTT.rfT#",
-  "#T.rbbTf==Tfr.TbTbTbr.#",
-  "#.TbrfT===fTr.fTf.bTTT#",
-  "#TT.T..=TTfTTTrr.TrT.T#",
-  "#..TTTf=TbrTfbTTfTffTf#",
-  "#Tbfb.T=fffbrTbfT.bTf.#",
-  "#r....===T..Tb.TT..TT.#",
-  "#fTTTTTf===T..ffrf.==E#",
-  "#T.TTTTff==.fb.T..===f#",
-  "#T.rT.T.f.==..TTf==T==#",
-  "#.fTTTTf..====Tf==TTT=#",
-  "#.T===========j==Tff.=#",
-  "#T.T==.TT...==TTfff===#",
-  "#T====TTT....=T.bT.T=T#",
-  "#W==T=f...T.T=TTT.T==T#",
-  "#T.=.=fTfTbrT=T.TT==ff#",
-  "#TT===f..TTTT=ffT.=ffr#",
-  "#bT.===ffT.TT==T..=.T.#",
-  "#rTfT.==T.TT==.TT==f.b#",
-  "#T...==fTbTT=Tf..==.TT#",
-  "#ff===TfTTTT=.f...=.fT#",
-  "#TTfTfTrT.f===...k=..f#",
-  "#.bb.T..T.f=TTT...==Tf#",
-  "#T.TTT.T.bf=.T........#",
-  "#T.TTTrbTbT==sTTT.bTTT#",
-  "#fTTT.TTrT.PT.TrTT.TTT#",
-  "###########V###########",
+  "###############################",
+  "###############################",
+  "##T...f...TrTT=N.rTTTTTT.T...##",
+  "##bf.TT...TTTf==Tf..fT..TTTT.##",
+  "##.Tr.TTTTTb.f==TTT.......T.T##",
+  "##.TfTrTT...f.=....T..T..TrT.##",
+  "##bTT..T.TTTTT=T.T.T..T..T..r##",
+  "##.T.T.T..T...=====TTT......T##",
+  "##b....T.rk..Tb==TTTb..f..frT##",
+  "##..TTT.T...T.r=TTb.bT..T.fT.##",
+  "##T.f.kT.TT.rT.=rT...r.TTTT.T##",
+  "##Tr..T...TTTTr=TTTTT.Tr...TT##",
+  "##..T......T..T==bTT.bT..T...##",
+  "##TTT.....f.TT.==.ffb.b..k.T.##",
+  "##T.TTfT..TTTT.=..f.TT.......##",
+  "##rTT.....Tk..T=..f.T.....TT.##",
+  "##f.Tr.bkT.f.kT=f...r....T...##",
+  "##.TfT..TT.T.r.=..TTTbT.fk..T##",
+  "##T..TTTT.TT.r.=======...r.=E##",
+  "##.TTb.T.T.T..T=.TTT...=====f##",
+  "##fk.fTrTrbT...====T.TT.T===T##",
+  "##TTT.bTT.T....=..k.T.T..=.TT##",
+  "##T.T.=========j===========.b##",
+  "##.TT===T.TT...=....TT...rTT.##",
+  "##.T==.Tr.r.T..=.....T..TTTTr##",
+  "##.==.T..TT..T.==TbTTbTT...T.##",
+  "##W==.ff.TfT..==TT.TTrf.rTT.T##",
+  "##...T.rTT..===T.T..bfTTT.T.T##",
+  "##TT..Tk.T.T=T..TfT.TrTTTTTT.##",
+  "##...TT..T..==k.TT.bTbTTb.fTT##",
+  "##.bTT..T.T.=.T.T..TT..TT.b.T##",
+  "##fTT.TT....=r.TTTTrTT.bbT.bT##",
+  "##.fT.r.....===TfT.TTT.TT..Tb##",
+  "##T.TTT....T===T..TT.....k.f.##",
+  "##f...T...brb.==..bT......T..##",
+  "##r.T.T..TT.TT==T.r.r...TT...##",
+  "##.rT.TTb.TTTb.=T.T.....k..r.##",
+  "##..Tk.Tr.TT.T.==TTT..TTT.T.T##",
+  "##T..TTfrfTk.r.=T.T.r.T......##",
+  "##r..TT.T.fTT.=====f...T.T.r.##",
+  "##...T.T.TT.=s=..TTkr.T.T..bb##",
+  "##Trk....fT.T.=PT.rrb..T..r.T##",
+  "###############=###############",
+  "###############V###############",
 ];
 
 export const FOREST_ROWS = FOREST.length;
