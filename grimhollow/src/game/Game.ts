@@ -436,15 +436,20 @@ export class Game {
     bar: THREE.Group; // barra de vida flutuante
     barFill: THREE.Mesh; // preenchimento da barra
   } | null = null;
-  // estilhaços de osso da morte do inimigo (voam e caem)
+  // partículas da explosão de morte do inimigo (clarão + brasas + fumaça)
   private deathBits: {
     mesh: THREE.Mesh;
     mat: THREE.MeshBasicMaterial;
     sx: number; sy: number; sz: number; // origem
     vx: number; vy: number; vz: number; // velocidade
-    vr: number; // giro
+    grav: number; // gravidade
+    size: number; // tamanho inicial
+    grow: number; // crescimento/s
+    life: number; // duração (s)
     born: number;
   }[] = [];
+  private particleTexCache?: THREE.Texture; // círculo suave (evita quadrados)
+  private particleGeoCache?: THREE.PlaneGeometry;
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
@@ -714,12 +719,13 @@ export class Game {
   // adereços da praça — apenas os props em PNG (poste + mural). Os objetos 3D
   // procedurais (lenha, caixotes, floreiras, sacos) foram removidos.
   private buildVillageProps() {
-    // POSTES de rua: nos CANTOS da praça, empurrados p/ perto das paredes
-    // (dx,dz = deslocamento em direção ao canto). Billboard simétrico + luz quente.
-    this.addLampPost(4, 6, 0, -1.5); // canto NO (parede norte)
-    this.addLampPost(12, 7, 1.5, -1.5); // canto NE
-    this.addLampPost(2, 12, -1.5, 1.5); // canto SO
-    this.addLampPost(12, 12, 1.5, 1.5); // canto SE
+    // POSTES de rua: nas quinas da praça, mas AFASTADOS das paredes p/ o topo
+    // (a lanterna) não ficar escondido dentro do beiral do telhado das casas.
+    // Formam um retângulo em volta do poço. Sem colisão (dá p/ passar por eles).
+    this.addLampPost(4, 7); // NO
+    this.addLampPost(10, 7); // NE
+    this.addLampPost(4, 11); // SO
+    this.addLampPost(10, 11); // SE
     // prop FIXO colado na parede, virado p/ a praça: só o mural (parede oeste)
     this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
   }
@@ -748,7 +754,7 @@ export class Game {
     mesh.position.set(c * CELL + dx, worldH / 2, r * CELL + dz);
     this.world.add(mesh);
     this.billboardProps.push(mesh);
-    this.blocked.add(`${c},${r}`);
+    // sem colisão: o jogador passa em frente/pelo poste (só decoração)
     this.loadArt(url, (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 1;
@@ -786,7 +792,7 @@ export class Game {
     mesh.rotation.y = roty;
     mesh.position.set(c * CELL + dx, worldH / 2, r * CELL + dz);
     this.world.add(mesh);
-    this.blocked.add(`${c},${r}`);
+    // sem colisão: colado na parede, o jogador passa em frente dele
     this.loadArt(url, (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 1;
@@ -870,51 +876,93 @@ export class Game {
     }
   }
 
-  // explosão de estilhaços de osso quando o inimigo morre
+  // textura de partícula: um círculo suave (radial) — evita o visual "quadrado"
+  private particleTex(): THREE.Texture {
+    if (this.particleTexCache) return this.particleTexCache;
+    const s = 64;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const ctx = cv.getContext("2d")!;
+    const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.45, "rgba(255,255,255,0.6)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, s, s);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.particleTexCache = t;
+    return t;
+  }
+
+  // explosão quando o inimigo morre: clarão central + brasas + fumaça (partículas
+  // redondas e macias, misturas aditivas p/ o brilho — parece uma explosão)
   private spawnDeathBurst(bx: number, bz: number) {
-    const geo = new THREE.PlaneGeometry(0.3, 0.3);
-    for (let i = 0; i < 10; i++) {
+    const tex = this.particleTex();
+    if (!this.particleGeoCache) this.particleGeoCache = new THREE.PlaneGeometry(1, 1);
+    const geo = this.particleGeoCache;
+    const cy = 1.2; // centro do corpo
+    const rnd = () => Math.random();
+    const add = (
+      color: number, sy: number, vx: number, vy: number, vz: number,
+      grav: number, size: number, grow: number, life: number,
+      blending: THREE.Blending,
+    ) => {
       const mat = new THREE.MeshBasicMaterial({
-        color: i % 3 === 0 ? 0xb9a878 : 0xe6ddc2, // tons de osso
-        transparent: true,
-        side: THREE.DoubleSide,
+        map: tex, color, transparent: true, depthWrite: false, blending,
       });
       const mesh = new THREE.Mesh(geo, mat);
-      const sy = 0.7 + Math.random() * 1.4; // sai do corpo todo
       mesh.position.set(bx, sy, bz);
-      mesh.scale.setScalar(0.5 + Math.random() * 0.9);
+      mesh.scale.setScalar(size);
       this.world.add(mesh);
-      const ang = Math.random() * Math.PI * 2;
-      const spd = 1.4 + Math.random() * 1.8;
       this.deathBits.push({
-        mesh, mat, sx: bx, sy, sz: bz,
-        vx: Math.cos(ang) * spd,
-        vy: 2.2 + Math.random() * 2.4, // pra cima
-        vz: Math.sin(ang) * spd,
-        vr: (Math.random() - 0.5) * 18,
+        mesh, mat, sx: bx, sy, sz: bz, vx, vy, vz, grav, size, grow, life,
         born: performance.now(),
       });
+    };
+    // clarão central (expande rápido e some) — aditivo
+    add(0xfff0c8, cy, 0, 0, 0, 0, 1.4, 10, 0.26, THREE.AdditiveBlending);
+    add(0xff8a2e, cy, 0, 0, 0, 0, 0.9, 14, 0.3, THREE.AdditiveBlending);
+    // brasas/faíscas (aditivo, voam pra fora com um arco)
+    for (let i = 0; i < 10; i++) {
+      const a = rnd() * Math.PI * 2, s = 2.5 + rnd() * 3.5;
+      add(0xffbe63, cy, Math.cos(a) * s, 1.5 + rnd() * 3, Math.sin(a) * s, 5, 0.4 + rnd() * 0.35, 1.2, 0.32 + rnd() * 0.28, THREE.AdditiveBlending);
+    }
+    // fumaça (normal, cinza, sobe e dilata)
+    for (let i = 0; i < 9; i++) {
+      const a = rnd() * Math.PI * 2, s = 1.1 + rnd() * 1.6;
+      add(0x4c443c, cy + rnd() * 0.7, Math.cos(a) * s, 1.4 + rnd() * 1.4, Math.sin(a) * s, 0.6, 0.8 + rnd() * 0.7, 2.4, 0.6 + rnd() * 0.35, THREE.NormalBlending);
+    }
+    // cacos de osso (tan) misturados
+    for (let i = 0; i < 6; i++) {
+      const a = rnd() * Math.PI * 2, s = 2 + rnd() * 2.5;
+      add(0xe6ddc2, cy, Math.cos(a) * s, 2 + rnd() * 2.5, Math.sin(a) * s, 6, 0.35 + rnd() * 0.2, 0.4, 0.45 + rnd() * 0.2, THREE.NormalBlending);
     }
   }
 
-  // atualiza os estilhaços de osso (voo balístico + queda + fade)
+  // atualiza as partículas da explosão (voo balístico + crescimento + fade),
+  // sempre encarando a câmera p/ ficarem redondas
   private updateDeathBits(now: number) {
     if (this.deathBits.length === 0) return;
+    const cx = this.camera.position.x, cz = this.camera.position.z;
     for (let i = this.deathBits.length - 1; i >= 0; i--) {
       const b = this.deathBits[i];
       const age = (now - b.born) / 1000;
-      const x = b.sx + b.vx * age;
-      const y = Math.max(0.05, b.sy + b.vy * age - 5.5 * age * age); // gravidade
-      const z = b.sz + b.vz * age;
-      b.mesh.position.set(x, y, z);
-      b.mesh.rotation.z = b.vr * age;
-      b.mesh.rotation.y = b.vr * age * 0.5;
-      b.mat.opacity = Math.max(0, 1 - age / 0.85);
-      if (age > 0.85) {
+      if (age >= b.life) {
         this.world.remove(b.mesh);
         b.mat.dispose();
         this.deathBits.splice(i, 1);
+        continue;
       }
+      const x = b.sx + b.vx * age;
+      const y = Math.max(0.05, b.sy + b.vy * age - b.grav * age * age);
+      const z = b.sz + b.vz * age;
+      b.mesh.position.set(x, y, z);
+      b.mesh.rotation.y = Math.atan2(cx - x, cz - z);
+      const k = age / b.life;
+      b.mesh.scale.setScalar(b.size + b.grow * age);
+      // pico rápido e desaparecimento suave
+      b.mat.opacity = k < 0.15 ? k / 0.15 : Math.max(0, 1 - (k - 0.15) / 0.85);
     }
   }
 
@@ -1543,7 +1591,8 @@ export class Game {
     tag.position.set(c * CELL, y + h / 2 + 0.18, r * CELL);
     this.world.add(tag);
     this.npcs.push(npc);
-    this.blocked.add(`${c},${r}`);
+    // sem colisão de célula: o jogador passa pelos aldeões (conversa é por
+    // aproximação/olhar). O grid não permite colisão parcial, então soltamos.
     const key = `${c},${r}`;
     // guarda a REFERÊNCIA da entrada (walkers movem esse objeto entre células)
     const entry = {
