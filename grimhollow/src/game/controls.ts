@@ -15,6 +15,8 @@ export interface HUD {
   showDialogue(name: string, text: string, portrait?: string | null): void;
   hideDialogue(): void;
   swingWeapon(): void; // toca a animação de golpe da arma
+  setHealth(frac: number): void; // 0..1 — barra de vida do jogador
+  flashDamage(): void; // vinheta vermelha ao levar dano
 }
 
 // Teclado (desktop) + botões na tela (mobile).
@@ -98,6 +100,19 @@ export function setupControls(
   }
   // canvas do jogo (p/ o "tranco" de câmera no impacto); resolvido no 1º golpe
   let canvasEl: HTMLElement | null = null;
+
+  // barra de vida do jogador (canto superior esquerdo)
+  const hpWrap = document.createElement("div");
+  hpWrap.id = "gh-hp";
+  hpWrap.innerHTML =
+    '<div class="gh-hp-heart">❤</div>' +
+    '<div class="gh-hp-track"><div class="gh-hp-fill"></div></div>';
+  root.appendChild(hpWrap);
+  const hpFill = hpWrap.querySelector(".gh-hp-fill") as HTMLElement;
+  // vinheta vermelha ao levar dano
+  const dmgFx = document.createElement("div");
+  dmgFx.id = "gh-dmg";
+  root.appendChild(dmgFx);
 
   // ---- botões na tela ----
   const pad = document.createElement("div");
@@ -224,6 +239,18 @@ export function setupControls(
     },
     hideDialogue() {
       dlg.style.display = "none";
+    },
+    setHealth(frac: number) {
+      const f = Math.max(0, Math.min(1, frac));
+      hpFill.style.width = f * 100 + "%";
+      // vermelho quando baixa
+      hpFill.style.background =
+        f > 0.5 ? "#c8443a" : f > 0.25 ? "#d8791f" : "#9a2018";
+    },
+    flashDamage() {
+      dmgFx.style.animation = "none";
+      void dmgFx.offsetWidth;
+      dmgFx.style.animation = "gh-dmg 360ms ease-out";
     },
     swingWeapon() {
       if (!weapon || swinging) return; // cooldown: ignora enquanto golpeia
@@ -386,6 +413,31 @@ function injectStyle() {
     0%   { opacity:0;    transform:rotate(-8deg) scale(0.7); }
     26%  { opacity:0.95; transform:rotate(-8deg) scale(1);   }
     100% { opacity:0;    transform:rotate(-8deg) scale(1.12); }
+  }
+  /* barra de vida do jogador */
+  #gh-hp {
+    position:fixed; left:16px; top:14px; z-index:11; pointer-events:none;
+    display:flex; align-items:center; gap:8px;
+  }
+  .gh-hp-heart { color:#e0403a; font-size:22px; text-shadow:0 1px 3px rgba(0,0,0,.7); line-height:1; }
+  .gh-hp-track {
+    width:180px; max-width:38vw; height:15px; border-radius:8px;
+    background:rgba(18,14,10,.72); border:2px solid rgba(201,162,39,.55);
+    box-shadow:0 2px 8px rgba(0,0,0,.5); overflow:hidden;
+  }
+  .gh-hp-fill {
+    height:100%; width:100%; background:#c8443a;
+    transition:width .28s ease, background .28s ease;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  /* vinheta vermelha ao levar dano */
+  #gh-dmg {
+    position:fixed; inset:0; z-index:9; pointer-events:none; opacity:0;
+    box-shadow:inset 0 0 120px 30px rgba(180,10,10,.85);
+    background:radial-gradient(ellipse at center, rgba(150,0,0,0) 45%, rgba(150,0,0,.4) 100%);
+  }
+  @keyframes gh-dmg {
+    0% { opacity:0; } 18% { opacity:1; } 100% { opacity:0; }
   }
   #pad { position:fixed; inset:0; pointer-events:none; z-index:10; font-family:inherit; }
   .gh-cluster { position:absolute; pointer-events:none; }
