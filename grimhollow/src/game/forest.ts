@@ -86,9 +86,13 @@ export function forestCell(col: number, row: number): ForestCell {
 
 export function forestWalkable(col: number, row: number): boolean {
   const k = forestCell(col, row);
+  // "tree" é andável: o jogador passa entre/por dentro das árvores do interior
+  // (o paredão da borda é "edge", que continua bloqueando). Arbustos, rochas e
+  // placas continuam sólidos.
   return (
     k === "grass" ||
     k === "path" ||
+    k === "tree" ||
     k === "foliage" ||
     k === "skull" ||
     k === "gate" ||
