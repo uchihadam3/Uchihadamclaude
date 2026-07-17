@@ -7,18 +7,21 @@ export type Action =
   | "turnRight"
   | "strafeLeft"
   | "strafeRight"
-  | "interact";
+  | "interact"
+  | "attack";
 
 export interface HUD {
   setPrompt(text: string | null): void;
   showDialogue(name: string, text: string, portrait?: string | null): void;
   hideDialogue(): void;
+  swingWeapon(): void; // toca a animação de golpe da arma
 }
 
 // Teclado (desktop) + botões na tela (mobile).
 export function setupControls(
   root: HTMLElement,
   onAction: (a: Action) => void,
+  weaponUrl?: string,
 ): HUD {
   // ---- teclado ----
   const keymap: Record<string, Action> = {
@@ -35,6 +38,8 @@ export function setupControls(
     Space: "interact",
     Enter: "interact",
     KeyF: "interact",
+    KeyJ: "attack",
+    KeyK: "attack",
   };
   window.addEventListener("keydown", (e) => {
     const a = keymap[e.code];
@@ -43,6 +48,17 @@ export function setupControls(
       onAction(a);
     }
   });
+
+  // ---- arma em 1ª pessoa (overlay) ----
+  let weapon: HTMLImageElement | null = null;
+  let swinging = false;
+  if (weaponUrl) {
+    weapon = document.createElement("img");
+    weapon.id = "gh-weapon";
+    weapon.src = weaponUrl;
+    weapon.alt = "";
+    root.appendChild(weapon);
+  }
 
   // ---- botões na tela ----
   const pad = document.createElement("div");
@@ -100,6 +116,21 @@ export function setupControls(
   act.addEventListener("contextmenu", (e) => e.preventDefault());
   pad.appendChild(act);
 
+  // botão de ataque (só aparece quando há arma equipada)
+  let atkBtn: HTMLButtonElement | null = null;
+  if (weaponUrl) {
+    atkBtn = document.createElement("button");
+    atkBtn.className = "gh-btn gh-atk";
+    atkBtn.textContent = "⚔";
+    const tapAtk = (e: Event) => {
+      e.preventDefault();
+      onAction("attack");
+    };
+    atkBtn.addEventListener("pointerdown", tapAtk);
+    atkBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+    pad.appendChild(atkBtn);
+  }
+
   // dica contextual (acima do botão de ação)
   const prompt = document.createElement("div");
   prompt.id = "gh-prompt";
@@ -155,6 +186,17 @@ export function setupControls(
     hideDialogue() {
       dlg.style.display = "none";
     },
+    swingWeapon() {
+      if (!weapon || swinging) return; // cooldown: ignora enquanto golpeia
+      swinging = true;
+      weapon.classList.remove("gh-swing");
+      void weapon.offsetWidth; // força reflow p/ reiniciar a animação
+      weapon.classList.add("gh-swing");
+      window.setTimeout(() => {
+        if (weapon) weapon.classList.remove("gh-swing");
+        swinging = false;
+      }, 430);
+    },
   };
 }
 
@@ -163,6 +205,24 @@ function injectStyle() {
   const s = document.createElement("style");
   s.id = "gh-style";
   s.textContent = `
+  /* arma em 1ª pessoa: base à direita, punho no canto inferior */
+  #gh-weapon {
+    position:fixed; right:6%; bottom:-4%;
+    height:62vh; max-height:640px; width:auto;
+    pointer-events:none; z-index:8;
+    transform-origin:72% 92%;
+    transform:rotate(16deg) translateY(2%);
+    filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45));
+    will-change:transform;
+  }
+  @keyframes gh-swing {
+    0%   { transform:rotate(16deg) translate(0,2%); }
+    14%  { transform:rotate(34deg) translate(6%,6%); }   /* recua p/ armar */
+    44%  { transform:rotate(-42deg) translate(-30%,-4%); } /* corte diagonal */
+    70%  { transform:rotate(-30deg) translate(-20%,4%); }  /* acompanhamento */
+    100% { transform:rotate(16deg) translate(0,2%); }
+  }
+  .gh-swing { animation:gh-swing 430ms cubic-bezier(.34,.62,.3,1); }
   #pad { position:fixed; inset:0; pointer-events:none; z-index:10; font-family:inherit; }
   .gh-cluster { position:absolute; pointer-events:none; }
   .gh-btn {
@@ -194,6 +254,15 @@ function injectStyle() {
     box-shadow:0 0 16px rgba(240,192,64,0.6);
   }
   .gh-act:active { transform:translateX(-50%) scale(0.94); }
+  /* ataque: acima do pad de movimento, à direita */
+  .gh-atk {
+    right:78px; bottom:220px;
+    width:66px; height:66px; border-radius:50%; font-size:30px;
+    color:#f2c9a0; border-color:rgba(200,80,50,0.7);
+    background:rgba(60,24,16,0.66);
+    box-shadow:0 0 14px rgba(200,70,40,0.35);
+  }
+  .gh-atk:active { transform:scale(0.9); background:rgba(200,80,50,0.6); }
   #gh-prompt {
     pointer-events:none; position:absolute; left:50%; transform:translateX(-50%);
     bottom:104px; max-width:70%; text-align:center;
