@@ -51,6 +51,10 @@ export function setupControls(
   });
 
   // ---- arma em 1ª pessoa (overlay) ----
+  // O "rig" é um suporte que agrupa a espada + o rastro de corte. É NELE que a
+  // animação do golpe (rotação 3D) é aplicada, então o rastro gira junto com a
+  // lâmina — o corte segue a espada de forma travada/sincronizada.
+  let weaponRig: HTMLElement | null = null;
   let weapon: HTMLImageElement | null = null; // sprite de descanso
   let weaponAtk: HTMLImageElement | null = null; // sprite de golpe (2º, opcional)
   let slashFx: HTMLElement | null = null;
@@ -58,19 +62,14 @@ export function setupControls(
   let swinging = false;
   const swingTimers: number[] = [];
   if (weaponUrl) {
+    weaponRig = document.createElement("div");
+    weaponRig.id = "gh-weapon-rig";
     weapon = document.createElement("img");
     weapon.id = "gh-weapon";
     weapon.src = weaponUrl;
     weapon.alt = "";
-    root.appendChild(weapon);
-    if (weaponAtkUrl) {
-      weaponAtk = document.createElement("img");
-      weaponAtk.id = "gh-weapon-atk";
-      weaponAtk.src = weaponAtkUrl;
-      weaponAtk.alt = "";
-      root.appendChild(weaponAtk);
-    }
-    // rastro de corte que aparece na ponta da lâmina durante o golpe
+    weaponRig.appendChild(weapon);
+    // rastro de corte — DENTRO do rig, encostado no fio da lâmina, p/ girar junto
     slashFx = document.createElement("div");
     slashFx.id = "gh-slash";
     slashFx.innerHTML =
@@ -83,7 +82,15 @@ export function setupControls(
       '<path d="M18,64 C82,20 172,30 226,112 C162,70 92,74 26,90 Z" fill="url(#ghslashg)"/>' +
       '<path d="M28,68 C88,30 168,42 214,104" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-opacity="0.85"/>' +
       "</svg>";
-    root.appendChild(slashFx);
+    weaponRig.appendChild(slashFx);
+    root.appendChild(weaponRig);
+    if (weaponAtkUrl) {
+      weaponAtk = document.createElement("img");
+      weaponAtk.id = "gh-weapon-atk";
+      weaponAtk.src = weaponAtkUrl;
+      weaponAtk.alt = "";
+      root.appendChild(weaponAtk);
+    }
     // clarão radial no ponto de impacto (some rápido)
     impactFx = document.createElement("div");
     impactFx.id = "gh-impact";
@@ -230,10 +237,11 @@ export function setupControls(
         el.style.animation = `${name} ${ms}ms ease-out forwards`;
       };
       if (!canvasEl) canvasEl = root.querySelector("canvas");
+      const rig = weaponRig!; // recebe a rotação 3D do golpe (o corte vai junto)
       // As 3 fases são disparadas por timers no MESMO relógio, então o corte, o
       // clarão e o tranco de câmera ficam travados no instante exato do golpe.
       // Fase 1 (0ms): armar — recua, encolhe e inclina a lâmina PRA TRÁS (3D)
-      play(weapon, "gh-windup", 100);
+      play(rig, "gh-windup", 100);
       // Fase 2 (100ms): golpe — a lâmina AVANÇA pra dentro da cena (3D + escala),
       // com borrão de velocidade, arco de corte, clarão e tranco de câmera
       swingTimers.push(
@@ -243,9 +251,11 @@ export function setupControls(
             weaponAtk.style.opacity = "1";
             play(weaponAtk, "gh-slashpose", 190);
           } else {
-            play(weapon!, "gh-slashonly", 200);
+            play(rig, "gh-slashonly", 200);
           }
-          if (slashFx) play(slashFx, "gh-slash", 180);
+          // o rastro só pisca (opacidade); a POSIÇÃO dele acompanha a lâmina
+          // porque ele está dentro do rig que está girando
+          if (slashFx) play(slashFx, "gh-slash-fade", 200);
           if (impactFx) play(impactFx, "gh-flash", 200);
           if (canvasEl) play(canvasEl, "gh-kick", 220);
         }, 100),
@@ -257,13 +267,13 @@ export function setupControls(
             weaponAtk.style.opacity = "0";
             weapon!.style.opacity = "1";
           }
-          play(weapon!, "gh-recover", 190);
+          play(rig, "gh-recover", 190);
         }, 290),
       );
       // Fim (490ms): limpa e libera o cooldown
       swingTimers.push(
         window.setTimeout(() => {
-          weapon!.style.animation = "";
+          rig.style.animation = "";
           if (weaponAtk) weaponAtk.style.animation = "";
           if (slashFx) slashFx.style.animation = "";
           if (impactFx) impactFx.style.animation = "";
@@ -280,19 +290,23 @@ function injectStyle() {
   const s = document.createElement("style");
   s.id = "gh-style";
   s.textContent = `
-  /* arma em 1ª pessoa: base à direita, punho no canto inferior.
-     perspective() no próprio transform habilita rotação 3D (rotateX/Y) — é o
-     que dá a PROFUNDIDADE: a lâmina inclina no espaço e avança pra dentro da
-     cena, em vez de só girar num plano chapado. */
-  #gh-weapon {
+  /* rig da arma: base à direita, punho no canto inferior. A rotação 3D do golpe
+     é aplicada AQUI, e a espada + o rastro de corte (filhos) giram juntos, então
+     o corte segue a lâmina de forma travada. perspective() habilita rotação 3D
+     (rotateX/Y) — é o que dá a PROFUNDIDADE. */
+  #gh-weapon-rig {
     position:fixed; right:6%; bottom:-4%;
-    height:62vh; max-height:640px; width:auto;
+    height:62vh; max-height:640px;
     pointer-events:none; z-index:8;
     transform-origin:72% 90%;
     transform:perspective(760px) rotateX(0deg) rotateY(0deg) rotateZ(16deg) translate(0,2%) scale(1); /* REPOUSO */
     filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45));
-    will-change:transform, opacity, filter;
+    will-change:transform, filter;
     backface-visibility:hidden;
+  }
+  #gh-weapon {
+    display:block; height:100%; width:auto;
+    pointer-events:none;
   }
   /* sprite de golpe: já vem na diagonal com o rastro pintado, então tem base
      e pivô próprios (punho no canto inferior-direito), escondido até o golpe */
@@ -357,21 +371,21 @@ function injectStyle() {
     26%  { opacity:0.9; transform:scale(1);   }
     100% { opacity:0;   transform:scale(1.5); }
   }
-  /* rastro de corte: crescente rápido que pisca junto com a ESTOCADA e
-     acompanha a lâmina varrendo p/ a esquerda; vida curta (~150ms) p/ não
-     ficar "atrasado" em relação ao golpe */
+  /* rastro de corte: fica DENTRO do rig, encostado no fio da lâmina, e por isso
+     gira junto com a espada (segue a lâmina). A animação dele é só de opacidade
+     (pisca no golpe) + um leve "abrir" — a posição vem do rig. */
   #gh-slash {
-    position:fixed; right:28%; top:30%;
-    width:34vh; height:28vh; max-width:380px; max-height:320px;
-    pointer-events:none; z-index:10; opacity:0;
-    transform-origin:50% 60%;
-    filter:drop-shadow(0 0 7px rgba(180,225,255,0.85));
+    position:absolute;
+    left:-118%; top:-16%; width:250%; height:66%;
+    pointer-events:none; z-index:2; opacity:0;
+    transform-origin:78% 88%; transform:rotate(-8deg) scale(1);
+    filter:drop-shadow(0 0 7px rgba(180,225,255,0.9));
   }
   #gh-slash svg { width:100%; height:100%; display:block; }
-  @keyframes gh-slash {
-    0%   { opacity:0;    transform:translate(16%,-8%)  rotate(6deg)  scale(0.55); }
-    38%  { opacity:0.95; transform:translate(0,0)      rotate(20deg) scale(1.05); }
-    100% { opacity:0;    transform:translate(-20%,10%) rotate(34deg) scale(1.3);  }
+  @keyframes gh-slash-fade {
+    0%   { opacity:0;    transform:rotate(-8deg) scale(0.7); }
+    26%  { opacity:0.95; transform:rotate(-8deg) scale(1);   }
+    100% { opacity:0;    transform:rotate(-8deg) scale(1.12); }
   }
   #pad { position:fixed; inset:0; pointer-events:none; z-index:10; font-family:inherit; }
   .gh-cluster { position:absolute; pointer-events:none; }
