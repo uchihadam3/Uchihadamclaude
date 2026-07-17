@@ -5,11 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-<<<<<<< HEAD
 **Status:** ✅ 5 prontos · 🟡 10 faltando · 15 no total
-=======
-**Status:** ✅ 4 prontos · 🟡 11 faltando · 15 no total
->>>>>>> origin/claude/otaku-quiz-game-54ifx7
 
 ---
 
@@ -45,11 +41,7 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A single old gnarled fir tree, slightly leaning crooked trunk, irregular natural silhouette with a few bare dead branches, full trunk visible with the base of the trunk touching the very bottom-center edge of the frame, tree fills the vertical space. Cool desaturated palette (dark muted greens, blue-grey shadows), soft overcast lighting, faint frost on the tips. Flat front-facing orthographic view, no perspective distortion, even diffuse lighting so it reads from any angle, no ground cast-shadow. Clean cutout on a fully transparent background, subject centered, crisp edges, no atmospheric haze or fog baked in, no text, no watermark. Tall portrait canvas ~1024x1600.
 ```
 
-<<<<<<< HEAD
 ### ✅ Árvore 4 — pinheiro jovem e arredondado (pronto)
-=======
-### 🟡 Árvore 4 — pinheiro jovem e arredondado (falta)
->>>>>>> origin/claude/otaku-quiz-game-54ifx7
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A single young rounded pine tree, shorter and fuller with soft bushy foliage, full trunk visible with the base of the trunk touching the very bottom-center edge of the frame, tree fills the vertical space. Cool desaturated palette (fresh muted greens, blue-grey shadows), soft overcast lighting, light frost dusting on the tips. Flat front-facing orthographic view, no perspective distortion, even diffuse lighting so it reads from any angle, no ground cast-shadow. Clean cutout on a fully transparent background, subject centered, crisp edges, no atmospheric haze or fog baked in, no text, no watermark. Tall portrait canvas ~1024x1600.
