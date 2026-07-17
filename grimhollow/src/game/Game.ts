@@ -420,6 +420,8 @@ export class Game {
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
   private lampFlames: { light: THREE.PointLight; base: number }[] = [];
+  private lampGlows: THREE.Sprite[] = []; // halo luminoso da lanterna (só à noite)
+  private glowTex?: THREE.Texture; // textura radial do brilho (cache)
   // luzes principais moduladas pelo ciclo dia/noite (ambiente/hemisfério/sol)
   private dayNightLights: {
     light: THREE.Light;
@@ -611,6 +613,7 @@ export class Game {
     this.npcs = [];
     this.flames = [];
     this.lampFlames = [];
+    this.lampGlows = [];
     this.dayNightLights = [];
     this.animTex = [];
     this.walkers = [];
@@ -632,10 +635,12 @@ export class Game {
     this.world.add(amb);
     this.world.add(hemi);
     this.world.add(dir);
-    // moduladas pelo ciclo dia/noite (cor + intensidade de dia → de noite)
-    this.registerDayLight(amb, 0x2b3a5e, 0.34);
-    this.registerDayLight(hemi, 0x223052, 0.4);
-    this.registerDayLight(dir, 0x5566a0, 0.1); // vira "luar" fraco à noite
+    // moduladas pelo ciclo dia/noite (cor + intensidade de dia → de noite).
+    // à noite continua visível (luar azulado) — escuro o bastante p/ os lampiões
+    // se destacarem, claro o bastante p/ o jogador enxergar o caminho.
+    this.registerDayLight(amb, 0x3a4a6a, 0.46);
+    this.registerDayLight(hemi, 0x2c3c5e, 0.5);
+    this.registerDayLight(dir, 0x5566a0, 0.14); // vira "luar" fraco à noite
   }
 
   // registra uma luz p/ o ciclo dia/noite: guarda os valores de dia e a meta noturna
@@ -651,8 +656,8 @@ export class Game {
 
   // keyframes da cor da atmosfera (neblina + fundo) ao longo do ciclo [0,1)
   private static readonly SKY_KEYS: [number, number][] = [
-    [0.0, 0x070b16], // meia-noite (azul quase preto)
-    [0.2, 0x0e1428], // madrugada
+    [0.0, 0x121a33], // meia-noite (azul noturno, não preto)
+    [0.2, 0x18223e], // madrugada
     [0.25, 0x39395a], // primeira luz
     [0.29, 0xcf8a58], // alvorada (quente)
     [0.37, 0x9199a6], // manhã enevoada
@@ -660,8 +665,8 @@ export class Game {
     [0.66, 0x949099], // tarde
     [0.72, 0xcd7442], // poente (laranja)
     [0.78, 0x4a3648], // crepúsculo
-    [0.85, 0x151830], // anoitecer
-    [1.0, 0x070b16], // volta à meia-noite
+    [0.85, 0x222c4c], // anoitecer
+    [1.0, 0x121a33], // volta à meia-noite
   ];
 
   // luminosidade do dia [0,1]: 0 à noite, 1 ao meio-dia (elevação do sol)
@@ -700,6 +705,11 @@ export class Game {
     for (const f of this.lampFlames) {
       const flick = f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
       f.light.intensity = Math.max(0, flick) * lampGain;
+    }
+    // halo da lanterna acompanha o ganho noturno, com leve tremeluzir
+    for (const g of this.lampGlows) {
+      const flick = 0.88 + Math.sin(now * 0.011) * 0.08 + Math.sin(now * 0.027) * 0.04;
+      (g.material as THREE.SpriteMaterial).opacity = lampGain * flick;
     }
   }
 
@@ -817,16 +827,48 @@ export class Game {
     this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
   }
 
-  // poste de rua: billboard (encara a câmera) + luz quente no topo. dx/dz empurram
-  // o poste p/ perto da parede/canto (a colisão fica na célula).
+  // textura radial (branco→transparente) p/ o halo luminoso da lanterna (cache)
+  private makeGlowTex(): THREE.Texture {
+    if (this.glowTex) return this.glowTex;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = 64;
+    const g = cv.getContext("2d")!;
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, "rgba(255,244,214,1)");
+    grd.addColorStop(0.28, "rgba(255,207,138,0.72)");
+    grd.addColorStop(1, "rgba(255,190,120,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 64, 64);
+    this.glowTex = new THREE.CanvasTexture(cv);
+    return this.glowTex;
+  }
+
+  // poste de rua: billboard (encara a câmera) + luz quente forte no topo + halo
+  // luminoso na lanterna. dx/dz empurram o poste p/ perto da parede/canto.
   private addLampPost(c: number, r: number, dx = 0, dz = 0) {
     const x = c * CELL + dx, z = r * CELL + dz;
     this.addPropBillboard(c, r, propLampUrl, 3.4, dx, dz);
-    const light = new THREE.PointLight(0xffcf8a, 0.85, 6, 2);
-    light.position.set(x, 3.0, z);
+    const HEAD = 2.95; // altura da lanterna (topo do poste)
+    // luz que ilumina de fato o chão e os arredores (piscina de luz quente)
+    const light = new THREE.PointLight(0xffcf8a, 4.2, 17, 2);
+    light.position.set(x, HEAD, z);
     this.world.add(light);
     // poste externo: tremeluz como vela E acende só à noite (ciclo dia/noite)
-    this.lampFlames.push({ light, base: 0.85 });
+    this.lampFlames.push({ light, base: 4.2 });
+    // halo luminoso na própria lanterna (senão o topo do PNG fica escuro à noite)
+    const glow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: this.makeGlowTex(),
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    glow.position.set(x, HEAD, z);
+    glow.scale.set(2.6, 2.6, 1);
+    this.world.add(glow);
+    this.lampGlows.push(glow);
   }
 
   // prop 2D (PNG recortado) como billboard que ENCARA A CÂMERA (poste). Nasce
@@ -1923,10 +1965,10 @@ export class Game {
     this.world.add(amb);
     this.world.add(hemi);
     this.world.add(sun);
-    // moduladas pelo ciclo dia/noite
-    this.registerDayLight(amb, 0x2c3c60, 0.34);
-    this.registerDayLight(hemi, 0x243358, 0.4);
-    this.registerDayLight(sun, 0x6675ad, 0.1); // luar frio à noite
+    // moduladas pelo ciclo dia/noite (noite visível, mas nítida como noite)
+    this.registerDayLight(amb, 0x36486a, 0.44);
+    this.registerDayLight(hemi, 0x2c3c5e, 0.5);
+    this.registerDayLight(sun, 0x6675ad, 0.14); // luar frio à noite
   }
 
   private buildForest() {
