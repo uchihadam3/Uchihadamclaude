@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 6 prontos · 🟡 10 faltando · 16 no total
+**Status:** ✅ 10 prontos · 🟡 6 faltando · 16 no total
 
 ---
 
@@ -77,25 +77,25 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 
 Tabuleta larga (~1040×400). Um símbolo no centro, **sem texto** (pra não brigar com idioma).
 
-### 🟡 Taverna — caneca (falta)
+### ✅ Taverna — caneca (pronto)
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A hanging wooden tavern sign board, a weathered rectangular plank framed in dark wood, painted with a foaming beer mug icon in the center. Aged wood, worn paint, iron corner brackets. Cool desaturated palette, soft overcast lighting, even diffuse light, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, no hanging chains, no ground, no atmospheric haze, no readable text, no watermark. Wide landscape canvas ~1040x400.
 ```
 
-### 🟡 Mercador — barril e moeda (falta)
+### ✅ Mercador — barril e moeda (pronto)
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A hanging wooden shop sign board, a weathered rectangular plank framed in dark wood, painted with a barrel and a gold coin icon in the center. Aged wood, worn paint, iron corner brackets. Cool desaturated palette, soft overcast lighting, even diffuse light, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, no hanging chains, no ground, no atmospheric haze, no readable text, no watermark. Wide landscape canvas ~1040x400.
 ```
 
-### 🟡 Ferreiro — bigorna (falta)
+### ✅ Ferreiro — bigorna (pronto)
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A hanging wooden blacksmith sign board, a weathered rectangular plank framed in dark wood, painted with an anvil and crossed hammer icon in the center. Aged wood, worn paint, iron corner brackets. Cool desaturated palette, soft overcast lighting, even diffuse light, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, no hanging chains, no ground, no atmospheric haze, no readable text, no watermark. Wide landscape canvas ~1040x400.
 ```
 
-### 🟡 Alquimista — frasco (falta)
+### ✅ Alquimista — frasco (pronto)
 
 ```
 Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy village. A hanging wooden alchemist sign board, a weathered rectangular plank framed in dark wood, painted with a glowing potion flask icon in the center. Aged wood, worn paint, iron corner brackets. Cool desaturated palette, soft overcast lighting, even diffuse light, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, no hanging chains, no ground, no atmospheric haze, no readable text, no watermark. Wide landscape canvas ~1040x400.

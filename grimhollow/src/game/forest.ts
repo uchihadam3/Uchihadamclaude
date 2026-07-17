@@ -8,32 +8,42 @@
 //  '#' mata densa da borda (bloqueia)
 //  'P' início do jogador (olhando p/ o norte)   'V' portão de volta ao vilarejo
 //
-// A entrada ao sul sobe por um tronco de trilha até uma ENCRUZILHADA central,
-// de onde partem caminhos p/ o norte, leste e oeste — cada ponta termina num
-// marco de um local futuro. A neblina do jogo cobre tudo (lore).
+// Mata grande e orgânica: a entrada ao sul sobe por um TRONCO SINUOSO até uma
+// ENCRUZILHADA central, de onde partem trilhas tortuosas p/ o norte (Montanhas),
+// leste (Charco) e oeste (Ruínas) — cada ponta termina num marco de local
+// futuro. Há clareiras e uma pilha de caveiras (ponto de interesse). Como as
+// árvores são andáveis, as trilhas são guias; a neblina do jogo cobre tudo.
 export const FOREST: string[] = [
-  "#################",
-  "#.Tb.T......rTT.#",
-  "#T..b...N.TT.Tb.#",
-  "#fTTTT..=..TrT..#",
-  "#....T..=.rb.TT.#",
-  "#.TT..T.=.T..Tb.#",
-  "#.T..Tf.=.TT.rT.#",
-  "#Tr.r...=.b...TT#",
-  "#.TT....=......T#",
-  "#T..T...=.rTbTTT#",
-  "#.......=.......#",
-  "#W=============E#",
-  "#......===j.....#",
-  "#.r.T...=....TT.#",
-  "#Tr.Tfb.=.r.TT..#",
-  "#.TT....=....T..#",
-  "#TT..k..=.T....T#",
-  "#fbb....=...bf.r#",
-  "#rfTT...=...T..T#",
-  "#TrTTT..=s..TTTT#",
-  "#f.T....P.....T.#",
-  "########V########",
+  "#######################",
+  "#.TT.rrTT.f.TTT..rfTTT#",
+  "#TTT..rTTT=NfTTT.bT...#",
+  "#r.fTTT.T==TTTfTTT.rfT#",
+  "#T.rbbTf==Tfr.TbTbTbr.#",
+  "#.TbrfT===fTr.fTf.bTTT#",
+  "#TT.T..=TTfTTTrr.TrT.T#",
+  "#..TTTf=TbrTfbTTfTffTf#",
+  "#Tbfb.T=fffbrTbfT.bTf.#",
+  "#r....===T..Tb.TT..TT.#",
+  "#fTTTTTf===T..ffrf.==E#",
+  "#T.TTTTff==.fb.T..===f#",
+  "#T.rT.T.f.==..TTf==T==#",
+  "#.fTTTTf..====Tf==TTT=#",
+  "#.T===========j==Tff.=#",
+  "#T.T==.TT...==TTfff===#",
+  "#T====TTT....=T.bT.T=T#",
+  "#W==T=f...T.T=TTT.T==T#",
+  "#T.=.=fTfTbrT=T.TT==ff#",
+  "#TT===f..TTTT=ffT.=ffr#",
+  "#bT.===ffT.TT==T..=.T.#",
+  "#rTfT.==T.TT==.TT==f.b#",
+  "#T...==fTbTT=Tf..==.TT#",
+  "#ff===TfTTTT=.f...=.fT#",
+  "#TTfTfTrT.f===...k=..f#",
+  "#.bb.T..T.f=TTT...==Tf#",
+  "#T.TTT.T.bf=.T........#",
+  "#T.TTTrbTbT==sTTT.bTTT#",
+  "#fTTT.TTrT.PT.TrTT.TTT#",
+  "###########V###########",
 ];
 
 export const FOREST_ROWS = FOREST.length;
