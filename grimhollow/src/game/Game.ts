@@ -72,10 +72,10 @@ import signStoreUrl from "../assets/env/sign_store.png";
 import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
 import swordUrl from "../assets/env/sword.png";
-import swordAtkUrl from "../assets/env/sword_atk.png";
-// 2º sprite da espada (pose de golpe, com rastro de corte pintado). O motor
-// troca do sprite de descanso pro de golpe no instante do corte.
-const SWORD_ATK_ART: string | null = swordAtkUrl;
+// Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
+// espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
+// desativado; a arte continua no repo caso a gente queira retomar depois.
+const SWORD_ATK_ART: string | null = null;
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
