@@ -230,13 +230,15 @@ export function setupControls(
       swingTimers.push(
         window.setTimeout(() => {
           if (weaponAtk) {
+            // sprite de golpe já traz o rastro de corte pintado — não usa o arco
             weapon!.style.opacity = "0";
             weaponAtk.style.opacity = "1";
-            play(weaponAtk, "gh-slashpose", 160);
+            play(weaponAtk, "gh-slashpose", 190);
           } else {
+            // sem 2º sprite: gira a espada de descanso + arco de corte do motor
             play(weapon!, "gh-slashonly", 160);
+            if (slashFx) play(slashFx, "gh-slash", 150);
           }
-          if (slashFx) play(slashFx, "gh-slash", 150);
         }, 90),
       );
       // Fase 3 (250ms): recolher de volta ao descanso
@@ -268,7 +270,7 @@ function injectStyle() {
   s.id = "gh-style";
   s.textContent = `
   /* arma em 1ª pessoa: base à direita, punho no canto inferior */
-  #gh-weapon, #gh-weapon-atk {
+  #gh-weapon {
     position:fixed; right:6%; bottom:-4%;
     height:62vh; max-height:640px; width:auto;
     pointer-events:none; z-index:8;
@@ -277,7 +279,17 @@ function injectStyle() {
     filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45));
     will-change:transform, opacity;
   }
-  #gh-weapon-atk { z-index:9; opacity:0; } /* sprite de golpe: escondido até o golpe */
+  /* sprite de golpe: já vem na diagonal com o rastro pintado, então tem base
+     e pivô próprios (punho no canto inferior-direito), escondido até o golpe */
+  #gh-weapon-atk {
+    position:fixed; right:0%; bottom:-6%;
+    height:72vh; max-height:720px; width:auto;
+    pointer-events:none; z-index:9; opacity:0;
+    transform-origin:82% 86%;
+    transform:translate(0,0) rotate(0deg) scale(1);
+    filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45));
+    will-change:transform, opacity;
+  }
   /* O golpe é em 3 fases encadeadas (cada uma começa onde a anterior parou,
      com fill 'forwards'), disparadas por timers no mesmo relógio do arco de
      corte — por isso ficam sincronizadas. Poses de referência:
@@ -294,10 +306,10 @@ function injectStyle() {
     55%  { transform:rotate(-40deg) translate(-26%,-7%) scale(1.24); }
     100% { transform:rotate(-24deg) translate(-14%,6%)  scale(1.06); }
   }
-  @keyframes gh-slashpose { /* com 2º sprite: varre a pose de golpe pela tela */
-    0%   { transform:rotate(24deg)  translate(18%,8%)  scale(1);    opacity:1; }
-    45%  { transform:rotate(-12deg) translate(-10%,-4%) scale(1.22); opacity:1; }
-    100% { transform:rotate(-34deg) translate(-30%,2%)  scale(1.1);  opacity:0.9; }
+  @keyframes gh-slashpose { /* 2º sprite (pose já diagonal): estocada rápida */
+    0%   { transform:translate(12%,9%)   rotate(10deg)  scale(0.9);  opacity:0.85; }
+    40%  { transform:translate(-2%,-2%)  rotate(-4deg)  scale(1.14); opacity:1;    }
+    100% { transform:translate(-14%,-7%) rotate(-13deg) scale(1.05); opacity:0.85; }
   }
   @keyframes gh-recover {
     0%   { transform:rotate(-24deg) translate(-14%,6%) scale(1.06); }
