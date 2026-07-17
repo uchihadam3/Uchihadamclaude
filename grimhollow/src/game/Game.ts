@@ -1823,33 +1823,54 @@ export class Game {
     void MAP;
   }
 
-  // silhueta do vilarejo ao sul do portão de volta: dá a perspectiva de "pra
-  // onde volto" (casinhas enevoadas no horizonte, atrás do portão da floresta).
+  // silhueta do vilarejo ao sul do portão de volta: um aglomerado COMPACTO de
+  // casas (bem juntas, em duas fileiras) com um paredão de árvores fechando o
+  // resto do horizonte — dá a noção de "pra onde volto".
   private buildForestVillageBackdrop() {
     const gate = forestFind("V");
     const gx = gate.col * CELL;
     const gz = gate.row * CELL;
+
+    // 1) paredão de árvores atrás/nas laterais, fechando a visão
+    if (CLUSTER_ART.length > 0) {
+      const mat = new THREE.MeshLambertMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
+      this.loadArt(CLUSTER_ART[0], (t) => {
+        mat.map = t;
+        mat.alphaTest = 0.35;
+        mat.opacity = 1;
+        mat.needsUpdate = true;
+      });
+      const h = 14;
+      const w = h * CLUSTER_ASPECT;
+      for (let i = -2; i <= 2; i++) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+        m.position.set(gx + i * w * 0.7, h / 2 - 1, gz + 5.2 * CELL);
+        m.rotation.y = Math.PI;
+        if (i % 2 === 0) m.scale.x = -1;
+        this.world.add(m);
+      }
+    }
+
+    // 2) vilarejo compacto: casas bem juntas, em duas fileiras
     const wallMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
     const roofMat = new THREE.MeshLambertMaterial({ map: tex.thatch(3), side: THREE.DoubleSide });
-    const houses: [number, number, number][] = [
-      [-8, 3.0, 2.6],
-      [-4.5, 2.4, 3.1],
-      [-1, 3.4, 3.4],
-      [2.6, 2.6, 2.7],
-      [6, 3.0, 2.5],
-      [9.5, 2.3, 2.9],
-    ];
-    for (const [dx, wsz, h] of houses) {
-      const x = gx + dx * (CELL * 0.75);
-      const z = gz + (3.4 + Math.abs(dx) * 0.05) * CELL;
+    const house = (x: number, z: number, wsz: number, h: number) => {
       const wbox = new THREE.Mesh(new THREE.BoxGeometry(wsz, h, wsz), wallMat);
       wbox.position.set(x, h / 2, z);
       this.world.add(wbox);
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(wsz * 0.92, h * 0.7, 4), roofMat);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(wsz * 0.95, h * 0.7, 4), roofMat);
       roof.position.set(x, h + h * 0.34, z);
       roof.rotation.y = Math.PI / 4;
       this.world.add(roof);
-    }
+    };
+    // fileira de trás (mais altas, espiam entre as da frente)
+    const bz = gz + 4.4 * CELL;
+    for (const [dx, wsz, h] of [[-4.4, 2.9, 3.3], [-1.3, 2.7, 3.6], [1.9, 3.0, 3.2], [5, 2.7, 3.5]] as [number, number, number][])
+      house(gx + dx, bz, wsz, h);
+    // fileira da frente (mais baixas e bem juntas — quase encostadas)
+    const fz = gz + 3.0 * CELL;
+    for (const [dx, wsz, h] of [[-6, 2.9, 2.5], [-3, 3.1, 2.7], [0, 2.9, 2.4], [3, 3.1, 2.6], [6, 2.8, 2.5]] as [number, number, number][])
+      house(gx + dx, fz, wsz, h);
   }
 
   // direção (dc,dr) para onde a placa deve "olhar" (célula de trilha vizinha)
