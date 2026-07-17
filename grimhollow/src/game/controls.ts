@@ -51,6 +51,7 @@ export function setupControls(
 
   // ---- arma em 1ª pessoa (overlay) ----
   let weapon: HTMLImageElement | null = null;
+  let slashFx: HTMLElement | null = null;
   let swinging = false;
   if (weaponUrl) {
     weapon = document.createElement("img");
@@ -58,6 +59,20 @@ export function setupControls(
     weapon.src = weaponUrl;
     weapon.alt = "";
     root.appendChild(weapon);
+    // rastro de corte que aparece na ponta da lâmina durante o golpe
+    slashFx = document.createElement("div");
+    slashFx.id = "gh-slash";
+    slashFx.innerHTML =
+      '<svg viewBox="0 0 240 200" preserveAspectRatio="none">' +
+      '<defs><linearGradient id="ghslashg" x1="0" y1="0" x2="1" y2="0.5">' +
+      '<stop offset="0" stop-color="#ffffff" stop-opacity="0"/>' +
+      '<stop offset="0.5" stop-color="#eaf6ff" stop-opacity="0.95"/>' +
+      '<stop offset="1" stop-color="#bfe3ff" stop-opacity="0"/>' +
+      "</linearGradient></defs>" +
+      '<path d="M18,64 C82,20 172,30 226,112 C162,70 92,74 26,90 Z" fill="url(#ghslashg)"/>' +
+      '<path d="M28,68 C88,30 168,42 214,104" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-opacity="0.85"/>' +
+      "</svg>";
+    root.appendChild(slashFx);
   }
 
   // ---- botões na tela ----
@@ -190,10 +205,13 @@ export function setupControls(
       if (!weapon || swinging) return; // cooldown: ignora enquanto golpeia
       swinging = true;
       weapon.classList.remove("gh-swing");
+      if (slashFx) slashFx.classList.remove("gh-slash-on");
       void weapon.offsetWidth; // força reflow p/ reiniciar a animação
       weapon.classList.add("gh-swing");
+      if (slashFx) slashFx.classList.add("gh-slash-on");
       window.setTimeout(() => {
         if (weapon) weapon.classList.remove("gh-swing");
+        if (slashFx) slashFx.classList.remove("gh-slash-on");
         swinging = false;
       }, 430);
     },
@@ -211,18 +229,36 @@ function injectStyle() {
     height:62vh; max-height:640px; width:auto;
     pointer-events:none; z-index:8;
     transform-origin:72% 92%;
-    transform:rotate(16deg) translateY(2%);
+    transform:rotate(16deg) translateY(2%) scale(1);
     filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45));
     will-change:transform;
   }
+  /* o golpe tem PROFUNDIDADE: recua encolhendo (armar) e avança crescendo
+     (estocada), depois recolhe — dá a sensação de entrar/sair da cena */
   @keyframes gh-swing {
-    0%   { transform:rotate(16deg) translate(0,2%); }
-    14%  { transform:rotate(34deg) translate(6%,6%); }   /* recua p/ armar */
-    44%  { transform:rotate(-42deg) translate(-30%,-4%); } /* corte diagonal */
-    70%  { transform:rotate(-30deg) translate(-20%,4%); }  /* acompanhamento */
-    100% { transform:rotate(16deg) translate(0,2%); }
+    0%   { transform:rotate(16deg)  translate(0,2%)     scale(1);    }
+    14%  { transform:rotate(36deg)  translate(9%,9%)    scale(0.88); } /* arma: recua e encolhe */
+    40%  { transform:rotate(-40deg) translate(-26%,-7%) scale(1.24); } /* estocada: avança grande */
+    68%  { transform:rotate(-26deg) translate(-15%,6%)  scale(1.06); } /* acompanhamento */
+    100% { transform:rotate(16deg)  translate(0,2%)     scale(1);    }
   }
   .gh-swing { animation:gh-swing 430ms cubic-bezier(.34,.62,.3,1); }
+  /* rastro de corte: crescente que pisca na ponta da lâmina no auge do golpe */
+  #gh-slash {
+    position:fixed; right:20%; top:18%;
+    width:40vh; height:32vh; max-width:440px; max-height:360px;
+    pointer-events:none; z-index:9; opacity:0;
+    transform-origin:50% 50%;
+    filter:drop-shadow(0 0 7px rgba(180,225,255,0.85));
+  }
+  #gh-slash svg { width:100%; height:100%; display:block; }
+  @keyframes gh-slash {
+    0%,30% { opacity:0;    transform:rotate(-14deg) scale(0.5); }
+    46%    { opacity:0.95; transform:rotate(6deg)   scale(1.05); }
+    70%    { opacity:0;    transform:rotate(20deg)  scale(1.25); }
+    100%   { opacity:0; }
+  }
+  .gh-slash-on { animation:gh-slash 430ms ease-out; }
   #pad { position:fixed; inset:0; pointer-events:none; z-index:10; font-family:inherit; }
   .gh-cluster { position:absolute; pointer-events:none; }
   .gh-btn {
