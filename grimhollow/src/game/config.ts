@@ -21,3 +21,7 @@ export const TURN_MS = 210;
 
 // neblina
 export const FOG_COLOR = 0x8790a0;
+
+// ciclo dia/noite (só em locais externos: vila e floresta)
+export const DAY_MS = 240000; // duração de um ciclo completo dia→noite (4 min)
+export const DAY_START = 0.34; // fase inicial do dia [0,1): 0.34 ≈ meio da manhã
