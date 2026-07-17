@@ -1827,63 +1827,115 @@ export class Game {
     void MAP;
   }
 
-  // Representação FIEL do vilarejo ao sul do portão de volta, como se você
-  // olhasse de fora pra dentro pela entrada: arco + chão de pedra + casas
-  // cercando o pátio + poço no centro + montanha ao fundo + árvores em volta.
+  // Vilarejo visto ao LONGE pela saída da floresta: grama em volta, um caminho
+  // de terra levando até a cidade lá no fundo — e só a cidade (pequena, em
+  // escala reduzida) tem o chão de pedra, o arco, as casas, o poço e a montanha.
   private buildForestVillageBackdrop() {
     const gate = forestFind("V");
     const cx = gate.col * CELL;
     const gz = gate.row * CELL;
+    const zc = gz + 9 * CELL; // cidade bem mais ao fundo
+    const S = 0.6; // escala reduzida (parece distante)
 
-    // chão de pedra (o MESMO da cidade), no lugar da grama
-    const cobbleMat = new THREE.MeshLambertMaterial({ map: tex.cobblestone(7) });
-    (cobbleMat.map as THREE.Texture).repeat.set(11, 8);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(11 * CELL, 8 * CELL), cobbleMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(cx, 0.03, gz + 3.8 * CELL);
-    this.world.add(floor);
+    // grama cobrindo o trecho do portão até a cidade (some a névoa ao fundo)
+    const grassMat = new THREE.MeshLambertMaterial({ map: tex.grass(61) });
+    (grassMat.map as THREE.Texture).repeat.set(20, 16);
+    const gp = new THREE.Mesh(new THREE.PlaneGeometry(22 * CELL, 16 * CELL), grassMat);
+    gp.rotation.x = -Math.PI / 2;
+    gp.position.set(cx, -0.02, gz + 6 * CELL);
+    this.world.add(gp);
 
-    // paredão de árvores ao fundo (a mata continua atrás do vilarejo)
-    if (CLUSTER_ART.length > 0) {
-      const cm = this.makeClusterMats();
-      const h = 14;
-      let x = cx - h * 3.4;
-      for (let i = 0; i < 5; i++) {
-        const pick = cm[i % cm.length];
-        const w = h * pick.aspect;
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), pick.mat);
-        m.position.set(x + w / 2, h / 2 - 1, gz + 7 * CELL);
-        m.rotation.y = Math.PI;
-        if (i % 2 === 0) m.scale.x = -1;
-        this.world.add(m);
-        x += w * 0.8;
-      }
+    // caminho de terra do portão até a cidade
+    const dirtMat = new THREE.MeshLambertMaterial({ map: tex.dirtPath(63) });
+    const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
+    for (let z = gz + 1 * CELL; z < zc - 2 * CELL; z += CELL) {
+      const t = new THREE.Mesh(tileGeo, dirtMat);
+      t.rotation.x = -Math.PI / 2;
+      t.rotation.z = (Math.round((z - gz) / CELL) % 2) * (Math.PI / 2);
+      t.position.set(cx, 0.02, z);
+      this.world.add(t);
     }
 
-    // montanha rochosa ao fundo (massa de pedra, como a do canto noroeste)
+    // árvores emoldurando a cidade (laterais + fundo) — tamanho normal
+    if (CLUSTER_ART.length > 0) {
+      const cm = this.makeClusterMats();
+      const h = 13;
+      const place = (x: number, z: number, flip: boolean, idx: number) => {
+        const pick = cm[idx % cm.length];
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(h * pick.aspect, h), pick.mat);
+        m.position.set(x, h / 2 - 1, z);
+        m.rotation.y = Math.PI;
+        if (flip) m.scale.x = -1;
+        this.world.add(m);
+      };
+      place(cx - 13, zc + 2 * CELL, false, 0); // fundo-esquerda
+      place(cx + 13, zc + 2 * CELL, true, 1); // fundo-direita
+      place(cx - 20, zc - 1 * CELL, false, 1); // lateral esquerda
+      place(cx + 20, zc - 1 * CELL, true, 0); // lateral direita
+    }
+
+    // --------- a cidade em si, num grupo com escala reduzida (distante) ---------
+    const G = new THREE.Group();
+    const wallMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
+    const roofMat = new THREE.MeshLambertMaterial({ map: tex.thatch(3), side: THREE.DoubleSide });
+    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.rock(41) });
-    const mtnZ = gz + 6.4 * CELL;
-    // massa base larga + picos largos e baixos (evita cara de "tenda")
-    const base = new THREE.Mesh(new THREE.BoxGeometry(34, 9, 7), rockMat);
-    base.position.set(cx - 2, 3.5, mtnZ + 1.5);
-    this.world.add(base);
+    const stoneMat = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const cobbleMat = new THREE.MeshLambertMaterial({ map: tex.cobblestone(7) });
+    const dark = new THREE.MeshLambertMaterial({ color: 0x201410 });
+
+    // chão de pedra SÓ da cidade (coords locais do grupo)
+    (cobbleMat.map as THREE.Texture).repeat.set(6, 5);
+    const cob = new THREE.Mesh(new THREE.PlaneGeometry(24, 18), cobbleMat);
+    cob.rotation.x = -Math.PI / 2;
+    cob.position.set(0, 0.06, 2);
+    G.add(cob);
+
+    // montanha atrás (massa de pedra)
+    const mBase = new THREE.Mesh(new THREE.BoxGeometry(34, 9, 7), rockMat);
+    mBase.position.set(-2, 3.5, 13);
+    G.add(mBase);
     for (const [ox, oz, rad, mh] of [
       [-4, 0, 11, 13], [1, -0.5, 10, 15], [5.5, 0.5, 9, 11], [-9, 0.8, 8, 10],
     ] as [number, number, number, number][]) {
       const m = new THREE.Mesh(new THREE.ConeGeometry(rad, mh, 7), rockMat);
-      m.position.set(cx + ox * 1.5, mh / 2 + 1.5, mtnZ + oz);
+      m.position.set(ox * 1.5, mh / 2 + 1.5, 13 + oz);
       m.rotation.y = ox;
-      this.world.add(m);
+      G.add(m);
     }
 
-    // se houver arte 2D do vilarejo, usa o billboard por cima do chão de pedra
+    // casa (coords locais) com porta + janelas na face voltada ao pátio
+    const house = (x: number, z: number, w: number, h: number, dir: [number, number]) => {
+      const wbox = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), wallMat);
+      wbox.position.set(x, h / 2, z);
+      G.add(wbox);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.82, h * 0.6, 4), roofMat);
+      roof.position.set(x, h + h * 0.28, z);
+      roof.rotation.y = Math.PI / 4;
+      G.add(roof);
+      const fx = x + dir[0] * (w / 2 + 0.03);
+      const fz = z + dir[1] * (w / 2 + 0.03);
+      const ry = Math.atan2(dir[0], dir[1]);
+      const door = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.26, h * 0.5), dark);
+      door.position.set(fx, h * 0.25, fz);
+      door.rotation.y = ry;
+      G.add(door);
+      for (const s of [-1, 1]) {
+        const win = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.16, h * 0.2), dark);
+        win.position.set(fx + s * dir[1] * w * 0.26, h * 0.62, fz - s * dir[0] * w * 0.26);
+        win.rotation.y = ry;
+        G.add(win);
+      }
+    };
+
     if (VILLAGE_BACKDROP_ART) {
+      // arte 2D do vilarejo no lugar das casas (montanha/pedra do grupo ficam)
       const mat = new THREE.MeshLambertMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide });
-      const h = 11;
+      const h = 10;
       const plane = new THREE.Mesh(new THREE.PlaneGeometry(h * 1.9, h), mat);
-      plane.position.set(cx, h / 2 - 0.5, gz + 4 * CELL);
+      plane.position.set(0, h / 2, 4);
       plane.rotation.y = Math.PI;
-      this.world.add(plane);
+      G.add(plane);
       this.loadArt(VILLAGE_BACKDROP_ART, (t) => {
         mat.map = t;
         mat.alphaTest = 0.35;
@@ -1895,92 +1947,46 @@ export class Game {
           plane.geometry = new THREE.PlaneGeometry(h * (im.width / im.height), h);
         }
       });
-      return;
-    }
-
-    // ---- vilarejo no motor: casas cercando o pátio + poço + arco ----
-    const wallMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
-    const roofMat = new THREE.MeshLambertMaterial({ map: tex.thatch(3), side: THREE.DoubleSide });
-    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x201410 });
-    // casa com porta + janelas na face voltada ao pátio (normal = dir)
-    const house = (x: number, z: number, w: number, h: number, dir: [number, number]) => {
-      const wbox = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), wallMat);
-      wbox.position.set(x, h / 2, z);
-      this.world.add(wbox);
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.82, h * 0.6, 4), roofMat);
-      roof.position.set(x, h + h * 0.28, z);
-      roof.rotation.y = Math.PI / 4;
-      this.world.add(roof);
-      // face voltada ao pátio
-      const fx = x + dir[0] * (w / 2 + 0.03);
-      const fz = z + dir[1] * (w / 2 + 0.03);
-      const ry = Math.atan2(dir[0], dir[1]);
-      const door = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.26, h * 0.5), dark);
-      door.position.set(fx, h * 0.25, fz);
-      door.rotation.y = ry;
-      this.world.add(door);
-      for (const s of [-1, 1]) {
-        const win = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.16, h * 0.2), dark);
-        win.position.set(fx + s * dir[1] * w * 0.26, h * 0.62, fz - s * dir[0] * w * 0.26);
-        win.rotation.y = ry;
-        this.world.add(win);
+    } else {
+      // fundo do pátio (virado ao jogador = -z local)
+      for (const [dx, w, h] of [[-6, 3.0, 3.2], [-2, 3.2, 3.4], [2, 3.0, 3.1], [6, 3.2, 3.3]] as [number, number, number][])
+        house(dx, 7, w, h, [0, -1]);
+      for (const dz of [2.5, 5]) house(-8, dz, 3.0, 3.1, [1, 0]); // lateral esq.
+      for (const dz of [2.5, 5]) house(8, dz, 3.0, 3.1, [-1, 0]); // lateral dir.
+      // poço no centro
+      const well = new THREE.Group();
+      const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 1.0, 16), stoneMat);
+      ring.position.y = 0.5;
+      well.add(ring);
+      for (const s of [-0.75, 0.75]) {
+        const p = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.9, 0.14), woodMat);
+        p.position.set(s, 1.45, 0);
+        well.add(p);
       }
-    };
-    // fundo do pátio (fileira ao fundo, virada ao jogador = -z)
-    for (const [dx, w, h] of [[-6, 3.0, 3.2], [-2, 3.2, 3.4], [2, 3.0, 3.1], [6, 3.2, 3.3]] as [number, number, number][])
-      house(cx + dx, gz + 5.2 * CELL, w, h, [0, -1]);
-    // lateral esquerda (viradas p/ +x, o pátio)
-    for (const dz of [3.6, 4.7]) house(cx - 7, gz + dz * CELL, 3.0, 3.1, [1, 0]);
-    // lateral direita (viradas p/ -x)
-    for (const dz of [3.6, 4.7]) house(cx + 7, gz + dz * CELL, 3.0, 3.1, [-1, 0]);
-
-    // poço no centro do pátio (marco do vilarejo)
-    const stoneMat = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
-    const well = new THREE.Group();
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.95, 1.0, 16), stoneMat);
-    ring.position.y = 0.5;
-    well.add(ring);
-    for (const s of [-0.75, 0.75]) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.9, 0.14), woodMat);
-      p.position.set(s, 1.45, 0);
-      well.add(p);
-    }
-    const wroof = new THREE.Mesh(new THREE.ConeGeometry(1.25, 0.7, 4), roofMat);
-    wroof.position.y = 2.5;
-    wroof.rotation.y = Math.PI / 4;
-    well.add(wroof);
-    well.position.set(cx, 0, gz + 3.4 * CELL);
-    this.world.add(well);
-
-    // arco de entrada (o MESMO do portão da cidade), na frente do pátio
-    const arch = new THREE.Group();
-    const postGeo = new THREE.BoxGeometry(0.36, 3.4, 0.36);
-    for (const s of [-1.6, 1.6]) {
-      const p = new THREE.Mesh(postGeo, woodMat);
-      p.position.set(s, 1.7, 0);
-      arch.add(p);
-    }
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.36, 0.4), woodMat);
-    beam.position.set(0, 3.35, 0);
-    arch.add(beam);
-    arch.position.set(cx, 0, gz + 1.7 * CELL);
-    this.world.add(arch);
-
-    // fumaça saindo de duas chaminés
-    const stex = this.smokeTex();
-    for (const [sx, sz] of [[cx - 2, gz + 5.2 * CELL], [cx + 6, gz + 5.2 * CELL]] as [number, number][]) {
-      for (let i = 0; i < 3; i++) {
-        const m = new THREE.Mesh(
-          new THREE.PlaneGeometry(1.4, 1.4),
-          new THREE.MeshBasicMaterial({ map: stex, transparent: true, depthWrite: false, opacity: 0 }),
-        );
-        m.position.set(sx, WALL_H + ROOF_H, sz);
-        m.userData = { phase: (sx * 3.1 + sz * 1.7 + i * 1.3) % 4, baseX: sx, baseZ: sz };
-        this.world.add(m);
-        this.smoke.push(m);
+      const wroof = new THREE.Mesh(new THREE.ConeGeometry(1.25, 0.7, 4), roofMat);
+      wroof.position.y = 2.5;
+      wroof.rotation.y = Math.PI / 4;
+      well.add(wroof);
+      well.position.set(0, 0, 2.5);
+      G.add(well);
+      // arco de entrada na frente
+      const arch = new THREE.Group();
+      const postGeo = new THREE.BoxGeometry(0.36, 3.4, 0.36);
+      for (const s of [-1.6, 1.6]) {
+        const p = new THREE.Mesh(postGeo, woodMat);
+        p.position.set(s, 1.7, 0);
+        arch.add(p);
       }
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.36, 0.4), woodMat);
+      beam.position.set(0, 3.35, 0);
+      arch.add(beam);
+      arch.position.set(0, 0, -3.5);
+      G.add(arch);
     }
+
+    G.scale.setScalar(S);
+    G.position.set(cx, 0, zc);
+    this.world.add(G);
   }
 
   // direção (dc,dr) para onde a placa deve "olhar" (célula de trilha vizinha)
