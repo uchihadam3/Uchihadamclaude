@@ -64,11 +64,12 @@ import lyleUrl from "../assets/npc/lyle.png";
 import pine1Url from "../assets/env/pine1.png";
 import pine2Url from "../assets/env/pine2.png";
 import pine3Url from "../assets/env/pine3.png";
+import pine4Url from "../assets/env/pine4.png";
 import cluster1Url from "../assets/env/cluster1.png";
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
-const TREE_ART: string[] = [pine1Url, pine2Url]; // pinheiros vivos
+const TREE_ART: string[] = [pine1Url, pine2Url, pine4Url]; // pinheiros vivos
 const DEAD_TREE_ART: string[] = [pine3Url]; // árvores mortas (raras, clima)
 const TREE_ASPECT = 0.625; // largura/altura da arte de árvore (800x1280)
 // aglomerados: muralha larga de mata usada como paredão ao fundo (some na névoa)
@@ -377,6 +378,7 @@ export class Game {
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private container: HTMLElement;
+  private foliageFx?: HTMLDivElement; // vinheta do efeito de roçar folhagem
 
   private col: number;
   private row: number;
@@ -443,6 +445,17 @@ export class Game {
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     container.appendChild(this.renderer.domElement);
+
+    // overlay p/ o efeito de roçar folhagem (vinheta verde nas bordas)
+    const fx = document.createElement("div");
+    fx.style.cssText =
+      "position:absolute;inset:0;pointer-events:none;opacity:0;z-index:5;" +
+      "background:radial-gradient(ellipse at center," +
+      "rgba(30,55,25,0) 42%,rgba(24,46,20,0.55) 78%,rgba(16,32,14,0.8) 100%);";
+    if (getComputedStyle(container).position === "static")
+      container.style.position = "relative";
+    container.appendChild(fx);
+    this.foliageFx = fx;
 
     this.scene.background = new THREE.Color(FOG_COLOR);
     this.camera = new THREE.PerspectiveCamera(78, 1, 0.05, 400);
@@ -1671,7 +1684,9 @@ export class Game {
           // moita de folhagem na base do pinheiro (esconde o "corte" no chão)
           if (hash(c, r, 12) > 0.5)
             addCross(x + jx, z + jz, 2.0, 1.1, fernMats[Math.floor(hash(c, r, 13) * fernMats.length) % fernMats.length]);
-          this.blocked.add(`${c},${r}`);
+          // SÓ a borda (paredão da mata) bloqueia; as árvores do interior são
+          // atravessáveis — o jogador serpenteia entre elas (colisão só "no tronco").
+          if (edge) this.blocked.add(`${c},${r}`);
         } else if (k === "bush") {
           const bw = 2.4 + hash(c, r, 5) * 0.8;
           const bh = 1.4 + hash(c, r, 6) * 0.5;
@@ -1707,7 +1722,7 @@ export class Game {
           this.buildForestSign(x, z, woodMat, dir);
           this.blocked.add(`${c},${r}`);
         }
-        // toco/tronco caído esporádico na grama (decoração, não bloqueia)
+        // toco/tronco caído esporádico na grama (agora com colisão)
         if (k === "grass" && hash(c, r, 14) > 0.9) {
           const log = new THREE.Mesh(
             new THREE.CylinderGeometry(0.34, 0.4, 2.4, 8),
@@ -1716,6 +1731,7 @@ export class Game {
           log.rotation.set(0, hash(c, r, 15) * Math.PI, Math.PI / 2);
           log.position.set(x, 0.34, z);
           this.world.add(log);
+          this.blocked.add(`${c},${r}`);
         }
       }
 
@@ -2474,6 +2490,21 @@ export class Game {
     };
     this.col = nc;
     this.row = nr;
+    // ao entrar numa célula com árvore, "roça" a folhagem (vinheta esverdeada)
+    if (this.location === "forest" && forestCell(nc, nr) === "tree")
+      this.brushFoliage();
+  }
+
+  // efeito sutil de atravessar a folhagem de uma árvore
+  private brushFoliage() {
+    const el = this.foliageFx;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.opacity = "0.55";
+    // força reflow p/ o fade valer
+    void el.offsetWidth;
+    el.style.transition = "opacity 620ms ease-out";
+    el.style.opacity = "0";
   }
 
   // NPCs em patrulha caminham célula a célula (com colisão e ping-pong)
