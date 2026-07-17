@@ -436,6 +436,15 @@ export class Game {
     bar: THREE.Group; // barra de vida flutuante
     barFill: THREE.Mesh; // preenchimento da barra
   } | null = null;
+  // estilhaços de osso da morte do inimigo (voam e caem)
+  private deathBits: {
+    mesh: THREE.Mesh;
+    mat: THREE.MeshBasicMaterial;
+    sx: number; sy: number; sz: number; // origem
+    vx: number; vy: number; vz: number; // velocidade
+    vr: number; // giro
+    born: number;
+  }[] = [];
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
@@ -587,6 +596,7 @@ export class Game {
     this.smoke = [];
     this.billboardProps = [];
     this.enemy = null;
+    this.deathBits = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
     this.homeDoorMap.clear();
@@ -625,7 +635,6 @@ export class Game {
       transparent: true,
       side: THREE.DoubleSide,
     });
-    const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
 
     const hash = (a: number, b: number, s = 0) =>
       (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
@@ -683,8 +692,7 @@ export class Game {
     // telhados CONTÍNUOS por trecho de parede (evita retalhos soltos)
     this.buildRoofs(thatchMat);
 
-    // barris decorativos: encostados numa parede SEM porta, recuados p/ o canto
-    this.buildBarrels(barrelMat, doorFaces, hash);
+    void doorFaces; // (barris procedurais removidos — só props em PNG na cidade)
 
     // montanha no canto + entrada da masmorra (túnel de tiles de dungeon)
     this.buildMountain();
@@ -703,57 +711,9 @@ export class Game {
     void MAP;
   }
 
-  // adereços procedurais que dão vida à praça: lenha, caixotes/sacos, floreiras.
-  // (props "herói" em PNG virão por cima deste sistema.)
+  // adereços da praça — apenas os props em PNG (poste + mural). Os objetos 3D
+  // procedurais (lenha, caixotes, floreiras, sacos) foram removidos.
   private buildVillageProps() {
-    const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
-    const woodDk = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
-    const sackMat = new THREE.MeshLambertMaterial({ color: 0xb7a06a });
-    const crateMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(3) });
-    const leaf = new THREE.MeshLambertMaterial({ color: 0x5a7a3a });
-    const soil = new THREE.MeshLambertMaterial({ color: 0x4a3524 });
-
-    // pilha de lenha encostada numa parede
-    const firewood = (x: number, z: number) => {
-      for (let i = 0; i < 5; i++) {
-        const log = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.3, 8), woodDk);
-        log.rotation.z = Math.PI / 2;
-        log.position.set(x, 0.14 + (i % 2) * 0.24, z + (i - 2) * 0.26);
-        this.world.add(log);
-      }
-    };
-    // caixotes empilhados + um saco
-    const crates = (x: number, z: number) => {
-      this.box(x, 0.4, z, 0.8, 0.8, 0.8, crateMat);
-      this.box(x + 0.5, 0.3, z + 0.2, 0.6, 0.6, 0.6, crateMat);
-      const sack = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.34, 0.7, 10), sackMat);
-      sack.position.set(x - 0.4, 0.35, z + 0.3);
-      this.world.add(sack);
-    };
-    // floreira sob uma janela
-    const planter = (x: number, z: number) => {
-      this.box(x, 0.22, z, 1.1, 0.34, 0.4, woodDk);
-      this.box(x, 0.42, z, 1.0, 0.14, 0.32, soil);
-      for (let i = -2; i <= 2; i++) {
-        const f = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 6), leaf);
-        f.position.set(x + i * 0.2, 0.56, z);
-        this.world.add(f);
-      }
-    };
-    // coloca o prop no centro da célula e dá colisão a ela
-    const at = (c: number, r: number, fn: (x: number, z: number) => void) => {
-      fn(c * CELL, r * CELL);
-      this.blocked.add(`${c},${r}`);
-    };
-    // células livres da praça — SEM bloquear portas, poço, NPCs nem o túnel da
-    // masmorra (a lenha antes ficava em (2,6), tapando a entrada da dungeon).
-    at(4, 7, firewood);
-    at(10, 8, crates);
-    at(11, 10, firewood);
-    at(4, 12, planter);
-    at(8, 12, planter);
-    void wood;
-
     // POSTES de rua: nos CANTOS da praça, empurrados p/ perto das paredes
     // (dx,dz = deslocamento em direção ao canto). Billboard simétrico + luz quente.
     this.addLampPost(4, 6, 0, -1.5); // canto NO (parede norte)
@@ -906,6 +866,55 @@ export class Game {
     if (e.hp <= 0) {
       e.dyingAt = e.hitAt; // começa a tombar/sumir
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
+      this.spawnDeathBurst(e.bx, e.bz);
+    }
+  }
+
+  // explosão de estilhaços de osso quando o inimigo morre
+  private spawnDeathBurst(bx: number, bz: number) {
+    const geo = new THREE.PlaneGeometry(0.3, 0.3);
+    for (let i = 0; i < 10; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: i % 3 === 0 ? 0xb9a878 : 0xe6ddc2, // tons de osso
+        transparent: true,
+        side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      const sy = 0.7 + Math.random() * 1.4; // sai do corpo todo
+      mesh.position.set(bx, sy, bz);
+      mesh.scale.setScalar(0.5 + Math.random() * 0.9);
+      this.world.add(mesh);
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 1.4 + Math.random() * 1.8;
+      this.deathBits.push({
+        mesh, mat, sx: bx, sy, sz: bz,
+        vx: Math.cos(ang) * spd,
+        vy: 2.2 + Math.random() * 2.4, // pra cima
+        vz: Math.sin(ang) * spd,
+        vr: (Math.random() - 0.5) * 18,
+        born: performance.now(),
+      });
+    }
+  }
+
+  // atualiza os estilhaços de osso (voo balístico + queda + fade)
+  private updateDeathBits(now: number) {
+    if (this.deathBits.length === 0) return;
+    for (let i = this.deathBits.length - 1; i >= 0; i--) {
+      const b = this.deathBits[i];
+      const age = (now - b.born) / 1000;
+      const x = b.sx + b.vx * age;
+      const y = Math.max(0.05, b.sy + b.vy * age - 5.5 * age * age); // gravidade
+      const z = b.sz + b.vz * age;
+      b.mesh.position.set(x, y, z);
+      b.mesh.rotation.z = b.vr * age;
+      b.mesh.rotation.y = b.vr * age * 0.5;
+      b.mat.opacity = Math.max(0, 1 - age / 0.85);
+      if (age > 0.85) {
+        this.world.remove(b.mesh);
+        b.mat.dispose();
+        this.deathBits.splice(i, 1);
+      }
     }
   }
 
@@ -2002,16 +2011,16 @@ export class Game {
           this.buildForestSign(x, z, woodMat, dir);
           this.blocked.add(`${c},${r}`);
         }
-        // toco/tronco caído esporádico na grama (agora com colisão)
+        // toco/tronco caído esporádico na grama — SEM colisão (o jogador passa
+        // por cima; antes travava a movimentação numa célula que parecia livre)
         if (k === "grass" && hash(c, r, 14) > 0.9) {
           const log = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.34, 0.4, 2.4, 8),
+            new THREE.CylinderGeometry(0.28, 0.32, 2.4, 8),
             barkMat,
           );
           log.rotation.set(0, hash(c, r, 15) * Math.PI, Math.PI / 2);
-          log.position.set(x, 0.34, z);
+          log.position.set(x, 0.28, z);
           this.world.add(log);
-          this.blocked.add(`${c},${r}`);
         }
       }
 
@@ -3039,14 +3048,19 @@ export class Game {
       const L = Math.hypot(dx, dz) || 1;
       dx /= L;
       dz /= L;
-      let lunge = 0, scale = 1, tiltZ = 0, emis = 0;
+      let lunge = 0, scale = 1, tiltZ = 0;
+      let emisR = 0, emisG = 0, emisB = 0;
       const sinceHit = now - e.hitAt;
       if (e.dyingAt) {
-        const t = (now - e.dyingAt) / 600;
-        e.mat.opacity = Math.max(0, 1 - t);
-        e.mesh.rotation.z = -t * 1.4; // tomba p/ o lado
-        e.mesh.position.y = h / 2 - t * 0.6;
+        const t = (now - e.dyingAt) / 650;
+        e.mat.opacity = Math.max(0, 1 - t * 1.15); // some um pouco antes de acabar
+        e.mesh.rotation.z = -t * 1.6; // tomba
+        const sq = Math.max(0.12, 1 - t * 0.55); // esmaga verticalmente (desmorona)
+        e.mesh.scale.set(1 + t * 0.35, sq, 1);
+        e.mesh.position.y = h / 2 - t * 0.75;
         e.bar.visible = false;
+        const df = Math.max(0, 1 - t * 4); // clarão BRANCO no golpe fatal
+        emisR = emisG = emisB = df;
         if (t >= 1) {
           for (const o of [e.mesh, e.bar]) {
             this.world.remove(o);
@@ -3074,15 +3088,19 @@ export class Game {
           const k = sinceHit / 240;
           const spring = Math.sin((1 - k) * Math.PI);
           lunge -= spring * 0.6;
-          emis = 1 - k * 0.7;
+          const g = 1 - k * 0.7;
+          emisR = g;
+          emisG = g * 0.2;
+          emisB = g * 0.16;
           tiltZ = spring * 0.14;
         }
         e.mesh.position.set(e.bx + dx * lunge, h / 2, e.bz + dz * lunge);
         e.mesh.scale.set(scale, scale, 1);
         e.mesh.rotation.z = tiltZ;
       }
-      e.mat.emissive.setRGB(emis, emis * 0.18, emis * 0.14);
+      e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
+    this.updateDeathBits(now);
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
