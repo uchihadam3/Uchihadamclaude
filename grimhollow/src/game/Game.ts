@@ -72,6 +72,10 @@ import signStoreUrl from "../assets/env/sign_store.png";
 import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
 import swordUrl from "../assets/env/sword.png";
+// 2º sprite da espada (pose de golpe). Enquanto null, o motor gira o sprite de
+// descanso; ao chegar a arte, é só importar e apontar aqui que o golpe passa a
+// trocar de sprite.
+const SWORD_ATK_ART: string | null = null;
 
 // artes 2D de árvores (billboards de plano cruzado). O sistema é procedural-
 // first: nasce com o pinheiro procedural e troca pela arte quando ela carrega.
@@ -482,7 +486,12 @@ export class Game {
     this.col = 0;
     this.row = 0;
 
-    this.ui = setupControls(container, (a) => this.onAction(a), swordUrl);
+    this.ui = setupControls(
+      container,
+      (a) => this.onAction(a),
+      swordUrl,
+      SWORD_ATK_ART ?? undefined,
+    );
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
 

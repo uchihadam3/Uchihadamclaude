@@ -22,6 +22,7 @@ export function setupControls(
   root: HTMLElement,
   onAction: (a: Action) => void,
   weaponUrl?: string,
+  weaponAtkUrl?: string, // 2º sprite (pose de golpe); opcional
 ): HUD {
   // ---- teclado ----
   const keymap: Record<string, Action> = {
@@ -50,15 +51,24 @@ export function setupControls(
   });
 
   // ---- arma em 1ª pessoa (overlay) ----
-  let weapon: HTMLImageElement | null = null;
+  let weapon: HTMLImageElement | null = null; // sprite de descanso
+  let weaponAtk: HTMLImageElement | null = null; // sprite de golpe (2º, opcional)
   let slashFx: HTMLElement | null = null;
   let swinging = false;
+  const swingTimers: number[] = [];
   if (weaponUrl) {
     weapon = document.createElement("img");
     weapon.id = "gh-weapon";
     weapon.src = weaponUrl;
     weapon.alt = "";
     root.appendChild(weapon);
+    if (weaponAtkUrl) {
+      weaponAtk = document.createElement("img");
+      weaponAtk.id = "gh-weapon-atk";
+      weaponAtk.src = weaponAtkUrl;
+      weaponAtk.alt = "";
+      root.appendChild(weaponAtk);
+    }
     // rastro de corte que aparece na ponta da lâmina durante o golpe
     slashFx = document.createElement("div");
     slashFx.id = "gh-slash";
@@ -204,16 +214,50 @@ export function setupControls(
     swingWeapon() {
       if (!weapon || swinging) return; // cooldown: ignora enquanto golpeia
       swinging = true;
-      weapon.classList.remove("gh-swing");
-      if (slashFx) slashFx.classList.remove("gh-slash-on");
-      void weapon.offsetWidth; // força reflow p/ reiniciar a animação
-      weapon.classList.add("gh-swing");
-      if (slashFx) slashFx.classList.add("gh-slash-on");
-      window.setTimeout(() => {
-        if (weapon) weapon.classList.remove("gh-swing");
-        if (slashFx) slashFx.classList.remove("gh-slash-on");
-        swinging = false;
-      }, 430);
+      swingTimers.forEach((t) => window.clearTimeout(t));
+      swingTimers.length = 0;
+      // (re)inicia uma animação CSS num elemento, forçando reflow
+      const play = (el: HTMLElement, name: string, ms: number) => {
+        el.style.animation = "none";
+        void el.offsetWidth;
+        el.style.animation = `${name} ${ms}ms ease-out forwards`;
+      };
+      // As 3 fases são disparadas por timers no MESMO relógio, então o arco de
+      // corte fica travado no instante exato do golpe (sincronia garantida).
+      // Fase 1 (0ms): armar — recua e encolhe
+      play(weapon, "gh-windup", 90);
+      // Fase 2 (90ms): golpe — troca p/ sprite de golpe (se houver) + arco
+      swingTimers.push(
+        window.setTimeout(() => {
+          if (weaponAtk) {
+            weapon!.style.opacity = "0";
+            weaponAtk.style.opacity = "1";
+            play(weaponAtk, "gh-slashpose", 160);
+          } else {
+            play(weapon!, "gh-slashonly", 160);
+          }
+          if (slashFx) play(slashFx, "gh-slash", 150);
+        }, 90),
+      );
+      // Fase 3 (250ms): recolher de volta ao descanso
+      swingTimers.push(
+        window.setTimeout(() => {
+          if (weaponAtk) {
+            weaponAtk.style.opacity = "0";
+            weapon!.style.opacity = "1";
+          }
+          play(weapon!, "gh-recover", 180);
+        }, 250),
+      );
+      // Fim (430ms): limpa e libera o cooldown
+      swingTimers.push(
+        window.setTimeout(() => {
+          weapon!.style.animation = "";
+          if (weaponAtk) weaponAtk.style.animation = "";
+          if (slashFx) slashFx.style.animation = "";
+          swinging = false;
+        }, 430),
+      );
     },
   };
 }
@@ -224,41 +268,57 @@ function injectStyle() {
   s.id = "gh-style";
   s.textContent = `
   /* arma em 1ª pessoa: base à direita, punho no canto inferior */
-  #gh-weapon {
+  #gh-weapon, #gh-weapon-atk {
     position:fixed; right:6%; bottom:-4%;
     height:62vh; max-height:640px; width:auto;
     pointer-events:none; z-index:8;
     transform-origin:72% 92%;
-    transform:rotate(16deg) translateY(2%) scale(1);
+    transform:rotate(16deg) translate(0,2%) scale(1); /* REPOUSO */
     filter:drop-shadow(-6px 2px 8px rgba(0,0,0,0.45));
-    will-change:transform;
+    will-change:transform, opacity;
   }
-  /* o golpe tem PROFUNDIDADE: recua encolhendo (armar) e avança crescendo
-     (estocada), depois recolhe — dá a sensação de entrar/sair da cena */
-  @keyframes gh-swing {
-    0%   { transform:rotate(16deg)  translate(0,2%)     scale(1);    }
-    14%  { transform:rotate(36deg)  translate(9%,9%)    scale(0.88); } /* arma: recua e encolhe */
-    40%  { transform:rotate(-40deg) translate(-26%,-7%) scale(1.24); } /* estocada: avança grande */
-    68%  { transform:rotate(-26deg) translate(-15%,6%)  scale(1.06); } /* acompanhamento */
-    100% { transform:rotate(16deg)  translate(0,2%)     scale(1);    }
+  #gh-weapon-atk { z-index:9; opacity:0; } /* sprite de golpe: escondido até o golpe */
+  /* O golpe é em 3 fases encadeadas (cada uma começa onde a anterior parou,
+     com fill 'forwards'), disparadas por timers no mesmo relógio do arco de
+     corte — por isso ficam sincronizadas. Poses de referência:
+       REPOUSO  rotate(16)  translate(0,2%)     scale(1)
+       ARMAR    rotate(36)  translate(9%,9%)    scale(0.9)
+       ESTOCADA rotate(-40) translate(-26%,-7%) scale(1.24)
+       SEGUIR   rotate(-24) translate(-14%,6%)  scale(1.06) */
+  @keyframes gh-windup {
+    0%   { transform:rotate(16deg) translate(0,2%)  scale(1);   }
+    100% { transform:rotate(36deg) translate(9%,9%) scale(0.9); }
   }
-  .gh-swing { animation:gh-swing 430ms cubic-bezier(.34,.62,.3,1); }
-  /* rastro de corte: crescente que pisca na ponta da lâmina no auge do golpe */
+  @keyframes gh-slashonly { /* sem 2º sprite: gira a mesma espada */
+    0%   { transform:rotate(36deg)  translate(9%,9%)    scale(0.9);  }
+    55%  { transform:rotate(-40deg) translate(-26%,-7%) scale(1.24); }
+    100% { transform:rotate(-24deg) translate(-14%,6%)  scale(1.06); }
+  }
+  @keyframes gh-slashpose { /* com 2º sprite: varre a pose de golpe pela tela */
+    0%   { transform:rotate(24deg)  translate(18%,8%)  scale(1);    opacity:1; }
+    45%  { transform:rotate(-12deg) translate(-10%,-4%) scale(1.22); opacity:1; }
+    100% { transform:rotate(-34deg) translate(-30%,2%)  scale(1.1);  opacity:0.9; }
+  }
+  @keyframes gh-recover {
+    0%   { transform:rotate(-24deg) translate(-14%,6%) scale(1.06); }
+    100% { transform:rotate(16deg)  translate(0,2%)    scale(1);    }
+  }
+  /* rastro de corte: crescente rápido que pisca junto com a ESTOCADA e
+     acompanha a lâmina varrendo p/ a esquerda; vida curta (~150ms) p/ não
+     ficar "atrasado" em relação ao golpe */
   #gh-slash {
-    position:fixed; right:20%; top:18%;
-    width:40vh; height:32vh; max-width:440px; max-height:360px;
-    pointer-events:none; z-index:9; opacity:0;
-    transform-origin:50% 50%;
+    position:fixed; right:28%; top:30%;
+    width:34vh; height:28vh; max-width:380px; max-height:320px;
+    pointer-events:none; z-index:10; opacity:0;
+    transform-origin:50% 60%;
     filter:drop-shadow(0 0 7px rgba(180,225,255,0.85));
   }
   #gh-slash svg { width:100%; height:100%; display:block; }
   @keyframes gh-slash {
-    0%,30% { opacity:0;    transform:rotate(-14deg) scale(0.5); }
-    46%    { opacity:0.95; transform:rotate(6deg)   scale(1.05); }
-    70%    { opacity:0;    transform:rotate(20deg)  scale(1.25); }
-    100%   { opacity:0; }
+    0%   { opacity:0;    transform:translate(16%,-8%)  rotate(6deg)  scale(0.55); }
+    38%  { opacity:0.95; transform:translate(0,0)      rotate(20deg) scale(1.05); }
+    100% { opacity:0;    transform:translate(-20%,10%) rotate(34deg) scale(1.3);  }
   }
-  .gh-slash-on { animation:gh-slash 430ms ease-out; }
   #pad { position:fixed; inset:0; pointer-events:none; z-index:10; font-family:inherit; }
   .gh-cluster { position:absolute; pointer-events:none; }
   .gh-btn {
