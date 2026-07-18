@@ -159,9 +159,10 @@ export function setupControls(
     { key: "belt", label: "Cinto", gc: "4 / 6", gr: "6 / 7" },
     { key: "feet", label: "Botas", gc: "6 / 8", gr: "5 / 7" },
   ];
+  // slots SEM texto (o rótulo fica só nos dados p/ o futuro "destaque" do slot
+  // certo ao clicar num item). O que vai dentro é o ícone do item equipado.
   const slotHtml = (s: { key: string; label: string; gc: string; gr: string }) =>
-    `<div class="gh-slot" data-slot="${s.key}" style="grid-column:${s.gc};grid-row:${s.gr}">` +
-    `<span class="gh-slot-cap">${s.label}</span></div>`;
+    `<div class="gh-slot" data-slot="${s.key}" title="${s.label}" style="grid-column:${s.gc};grid-row:${s.gr}"></div>`;
   // mochila (grade simples estilo WoW): 20 slots quadrados, reutilizando a MESMA
   // arte do slot (9-slice). Cada slot guarda 1 item; consumíveis empilham (badge).
   const BAG_SLOTS = 20;
@@ -182,11 +183,11 @@ export function setupControls(
     "</div>" +
     '<div class="gh-eq-body">' +
     '<div class="gh-tabpane" data-pane="equip">' +
-    '<div class="gh-section"><div class="gh-sec-head">Equipado</div>' +
+    '<div class="gh-section"><div class="gh-sec-head">Equipamentos</div>' +
     '<div class="gh-eq-doll">' +
     EQ_SLOTS.map(slotHtml).join("") +
     "</div></div>" +
-    '<div class="gh-section"><div class="gh-sec-head">Mochila</div>' +
+    '<div class="gh-section"><div class="gh-sec-head">Inventário</div>' +
     `<div class="gh-bag">${bagHtml}</div></div>` +
     "</div>" +
     '<div class="gh-tabpane gh-pane-hidden" data-pane="stats">' +
@@ -633,14 +634,16 @@ function injectStyle() {
     color:#e8dcc0; font-family:inherit; overflow:hidden;
   }
   .gh-eq-title {
-    text-align:center; font-size:clamp(14px,2.2vh,21px); letter-spacing:1px;
+    text-align:center; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(15px,2.4vh,23px); letter-spacing:1.5px;
     color:#f0e2bd; text-shadow:0 2px 4px rgba(0,0,0,.7);
   }
   /* abas (Equipamento / Atributos) */
   .gh-eq-tabs { display:flex; gap:8px; justify-content:center; }
   .gh-tab {
-    padding:4px 14px; cursor:pointer; border-radius:7px;
-    font-size:clamp(11px,1.6vh,14px); font-family:inherit;
+    padding:4px 15px; cursor:pointer; border-radius:7px;
+    font-family:"Cinzel",serif; font-weight:600; letter-spacing:.5px;
+    font-size:clamp(11px,1.6vh,14px);
     background:rgba(20,16,11,.5); color:#c9b98c; border:1px solid rgba(201,162,39,.4);
   }
   .gh-tab-on { background:rgba(201,162,39,.24); color:#f6ead0; border-color:rgba(201,162,39,.7); }
@@ -655,8 +658,9 @@ function injectStyle() {
     box-sizing:border-box; padding:1% 2% 2%;
   }
   .gh-sec-head {
-    text-align:center; font-size:clamp(11px,1.7vh,15px); color:#e0cf9e;
-    letter-spacing:.5px; margin:0 0 2.2%; text-shadow:0 1px 3px rgba(0,0,0,.8);
+    text-align:center; font-family:"Cinzel",serif; font-weight:600;
+    font-size:clamp(12px,1.8vh,16px); color:#e0cf9e;
+    letter-spacing:1px; margin:0 0 2.2%; text-shadow:0 1px 3px rgba(0,0,0,.8);
   }
   /* grade "boneco" 8×6 (célula quadrada via aspect-ratio) — disposição PoE */
   .gh-eq-doll {
@@ -680,16 +684,13 @@ function injectStyle() {
     box-sizing:border-box; min-width:0; min-height:0;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
   }
-  .gh-slot-cap {
-    font-size:clamp(7px,1.15vh,11px); color:#c9b98c;
-    opacity:.78; line-height:1.05; text-align:center; padding:1px;
-  }
   .gh-eq-stats {
     background:rgba(12,9,6,.5); border:1px solid rgba(201,162,39,.35);
     border-radius:8px; padding:3.5% 5%;
   }
   .gh-eq-lvl {
-    text-align:center; font-size:clamp(12px,1.9vh,17px); color:#f0e2bd; margin-bottom:6px;
+    text-align:center; font-family:"Cinzel",serif; font-weight:600;
+    font-size:clamp(13px,2vh,18px); color:#f0e2bd; margin-bottom:6px;
   }
   .gh-xp {
     height:8px; border-radius:5px; margin-top:4px; overflow:hidden;
@@ -775,7 +776,7 @@ function injectStyle() {
     image-rendering:auto; align-self:flex-start;
   }
   .gh-dlg-body { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
-  .gh-dlg-name { color:#f0c040; font-weight:bold; font-size:15px; margin-bottom:4px; }
+  .gh-dlg-name { color:#f0c040; font-family:"Cinzel",serif; font-weight:700; letter-spacing:.5px; font-size:16px; margin-bottom:4px; }
   /* altura fixa do texto: a caixa fica sempre do mesmo tamanho (falas longas
      são paginadas no código, então nunca ultrapassam este espaço) */
   .gh-dlg-text { font-size:16px; line-height:1.35; min-height:66px; }
