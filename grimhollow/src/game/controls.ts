@@ -2,6 +2,7 @@ import { MOVE_MS } from "./config";
 import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
+import eqContainerUrl from "../assets/ui/eq_container.png";
 
 export type Action =
   | "forward"
@@ -646,15 +647,16 @@ function injectStyle() {
   .gh-eq-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
   .gh-tabpane { display:flex; flex-direction:column; gap:2.4%; }
   .gh-pane-hidden { display:none; }
-  /* CAIXAS que separam "Equipado" da "Mochila" (o jogador distingue as áreas) */
+  /* CAIXAS que separam "Equipado" da "Mochila": painel pintado em 9-slice
+     (cantos ornamentados fixos, interior de pedra escura esticando). */
   .gh-section {
-    background:rgba(6,4,3,.34); border:1px solid rgba(201,162,39,.3);
-    border-radius:11px; padding:2.4% 3% 3.4%;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.35);
+    border:clamp(13px,2.2vh,24px) solid transparent;
+    border-image:url(${eqContainerUrl}) 88 fill;
+    box-sizing:border-box; padding:1% 2% 2%;
   }
   .gh-sec-head {
-    text-align:center; font-size:clamp(11px,1.7vh,15px); color:#d8c79a;
-    letter-spacing:.5px; margin-bottom:2.4%; text-shadow:0 1px 3px rgba(0,0,0,.6);
+    text-align:center; font-size:clamp(11px,1.7vh,15px); color:#e0cf9e;
+    letter-spacing:.5px; margin:0 0 2.2%; text-shadow:0 1px 3px rgba(0,0,0,.8);
   }
   /* grade "boneco" 8×6 (célula quadrada via aspect-ratio) — disposição PoE */
   .gh-eq-doll {

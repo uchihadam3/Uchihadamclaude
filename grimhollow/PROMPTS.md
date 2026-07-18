@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 18 prontos · 🟡 3 faltando · ❌ 2 removidas
+**Status:** ✅ 19 prontos · 🟡 2 faltando · ❌ 2 removidas
 
 ---
 
@@ -303,7 +303,7 @@ Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-
 As armas (mão principal/secundária) ficam em encaixes **retângulares mais altos**
 (estilo Diablo); os demais são quadrados. Tudo saído desse mesmo slot.
 
-#### 🟡 Peça C — Painel interno / container (falta)
+#### ✅ Peça C — Painel interno / container (pronto) — no jogo
 
 As caixas que separam "Equipado" da "Mochila". Hoje são feitas por código (borda
 fina) e destoam da arte. Um **painel pintado** deixa tudo coeso. **Um único**
