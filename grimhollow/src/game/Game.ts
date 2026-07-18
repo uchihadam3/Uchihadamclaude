@@ -168,19 +168,25 @@ const HOME_DOORS: HomeDoor[] = [
 // procedural provisório enquanto a arte não chega; name/lines = diálogo.
 interface VillageNPC {
   id: string;
-  c: number;
-  r: number;
+  c: number; // posição/pose de DIA (col) — perto de algo que faz sentido p/ ele
+  r: number; // posição/pose de DIA (linha)
+  night: [number, number]; // destino NOTURNO (taverna/casa/ronda) — caminha até lá
   seed: number;
   name: string;
   lines: string[];
   scale?: number; // altura relativa (ex.: crianças ~0.7)
-  patrol?: [number, number][]; // células adjacentes que o NPC percorre (ping-pong)
 }
+// Cada aldeão tem um LUGAR DE DIA (ancorado a um ponto que faz sentido: poço,
+// loja, casa) e um DESTINO DE NOITE. Ao anoitecer eles CAMINHAM até o destino
+// (a maioria se recolhe na taverna ou em casa; o vigia sai em ronda) e ao
+// amanhecer voltam ao posto de dia. Praça: colunas 2–12, linhas 6–12; poço em
+// (7,10). Taverna à frente em (5,6); casas em (7,6)/(2,7)/(12,11).
 const VILLAGE_NPCS: VillageNPC[] = [
   {
     id: "elspeth",
-    c: 3,
-    r: 6,
+    c: 5, // de dia: vendendo legumes perto do poço
+    r: 9,
+    night: [12, 11], // à noite: recolhe-se em casa (leste)
     seed: 1,
     name: "Elspeth, a Camponesa",
     lines: [
@@ -190,8 +196,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "corvin",
-    c: 11,
+    c: 9, // de dia: perto da loja (vende lenha)
     r: 7,
+    night: [5, 7], // à noite: bebe na taverna
     seed: 2,
     name: "Corvin, o Lenhador",
     lines: [
@@ -201,8 +208,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "wren",
-    c: 9,
-    r: 9,
+    c: 10, // de dia: perto de casa/ateliê (leste)
+    r: 10,
+    night: [2, 7], // à noite: recolhe-se em casa (oeste)
     seed: 3,
     name: "Wren, a Costureira",
     lines: [
@@ -212,8 +220,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "alard",
-    c: 3,
-    r: 11,
+    c: 4, // de dia: descansando a oeste (perto da ferraria)
+    r: 8,
+    night: [3, 7], // à noite: taverna
     seed: 5,
     name: "Alard, o Velho Fazendeiro",
     lines: [
@@ -223,8 +232,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "gunther",
-    c: 11,
-    r: 11,
+    c: 10, // de dia: de folga, perto das lojas ao norte
+    r: 7,
+    night: [8, 7], // à noite: em RONDA no centro da praça (o vigia trabalha à noite)
     seed: 9,
     name: "Gunther, o Vigia",
     lines: [
@@ -234,8 +244,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "anselmo",
-    c: 3,
-    r: 8,
+    c: 3, // de dia: abençoa num canto tranquilo (sudoeste)
+    r: 11,
+    night: [7, 6], // à noite: recolhe-se (casa dos irmãos, ao norte)
     seed: 7,
     name: "Frei Anselmo",
     lines: [
@@ -245,8 +256,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "tam",
-    c: 5,
-    r: 12,
+    c: 8, // de dia: pedindo esmola perto do poço (onde passa gente)
+    r: 9,
+    night: [6, 6], // à noite: abriga-se na taverna
     seed: 10,
     name: "Velho Tam",
     lines: [
@@ -256,8 +268,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "lyle",
-    c: 10,
-    r: 12,
+    c: 7, // de dia: toca no coração da praça (norte do poço)
+    r: 8,
+    night: [4, 6], // à noite: toca na taverna
     seed: 12,
     name: "Lyle, o Bardo",
     lines: [
@@ -496,20 +509,24 @@ export class Game {
   // texturas de sprite-sheet que animam por UV (offset.x avança pelos quadros)
   private animTex: { tex: THREE.Texture; frames: number; fps: number }[] = [];
   // NPCs que caminham por uma rota (patrulha)
+  // aldeões com rotina dia/noite: caminham do posto de dia até o destino noturno
+  // (taverna/casa/ronda) e voltam ao amanhecer — passo a passo, sem teletransporte.
   private walkers: {
     mesh: THREE.Mesh;
     shadow: THREE.Mesh;
+    tag: THREE.Sprite; // plaquinha de nome (acompanha o NPC ao andar)
     baseY: number;
-    path: { c: number; r: number }[];
-    idx: number;
-    dirn: number;
-    key: string; // célula atual no npcMap/blocked
+    cur: { c: number; r: number }; // célula atual
+    dayCell: { c: number; r: number };
+    nightCell: { c: number; r: number };
+    key: string; // célula atual no npcMap
     moving: boolean;
     t0: number;
     from: { c: number; r: number };
     to: { c: number; r: number };
     waitUntil: number;
   }[] = [];
+  private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -1631,7 +1648,7 @@ export class Game {
     artUrl?: string,
     scale = 1,
     anim?: { frames: number; fps: number },
-    patrol?: [number, number][],
+    routine?: { day: [number, number]; night: [number, number] },
   ) {
     const proc = tex.villager(seed);
     const hasArt = !!artUrl;
@@ -1700,15 +1717,17 @@ export class Game {
         entry.portrait = undefined; // regenera o retrato a partir da arte
       });
     }
-    // patrulha: registra um "walker" que caminha pela rota
-    if (patrol && patrol.length > 1) {
+    // rotina dia/noite: registra um "walker" que caminha entre o posto de dia e
+    // o destino noturno. Nasce onde foi posicionado (c,r = posição da fase atual).
+    if (routine) {
       this.walkers.push({
         mesh: npc,
         shadow,
+        tag,
         baseY: y,
-        path: patrol.map(([pc, pr]) => ({ c: pc, r: pr })),
-        idx: 0,
-        dirn: 1,
+        cur: { c, r },
+        dayCell: { c: routine.day[0], r: routine.day[1] },
+        nightCell: { c: routine.night[0], r: routine.night[1] },
         key,
         moving: false,
         t0: 0,
@@ -1820,19 +1839,24 @@ export class Game {
 
   // aldeões da vila (espalhados pela praça)
   private buildNPCs() {
+    // fase atual (dia/noite) p/ nascerem já no lugar certo — se o jogador entra
+    // na vila à noite, os aldeões já estão na taverna/casa, sem precisar andar.
+    const t = (performance.now() / DAY_MS + DAY_START) % 1;
+    this.npcNight = this.daylight(t) < 0.3;
     for (const v of VILLAGE_NPCS) {
       const anim = VILLAGER_ANIM[v.id];
       const url = anim ? anim.url : VILLAGER_ART[v.id];
+      const [sc, sr] = this.npcNight ? v.night : [v.c, v.r]; // célula de nascença
       this.addNPC(
-        v.c,
-        v.r,
+        sc,
+        sr,
         v.seed,
         v.name,
         v.lines,
         url,
         v.scale ?? 1,
         anim ? { frames: anim.frames, fps: anim.fps } : undefined,
-        v.patrol,
+        { day: [v.c, v.r], night: v.night },
       );
     }
   }
@@ -3086,10 +3110,100 @@ export class Game {
     el.style.opacity = "0";
   }
 
-  // NPCs em patrulha caminham célula a célula (com colisão e ping-pong)
+  // fase da rotina (dia/noite) com histerese: evita ficar oscilando no limiar.
+  // Ao anoitecer manda todos p/ o destino noturno; ao amanhecer, de volta ao dia.
+  private updateNpcPhase(now: number): boolean {
+    const t = (now / DAY_MS + DAY_START) % 1;
+    const lum = this.daylight(t);
+    if (!this.npcNight && lum < 0.26) {
+      this.npcNight = true;
+      this.staggerDepart(now); // saem escalonados p/ a taverna/casa/ronda
+    } else if (this.npcNight && lum > 0.44) {
+      this.npcNight = false;
+      this.staggerDepart(now); // voltam escalonados ao posto de dia
+    }
+    return this.npcNight;
+  }
+
+  // faz os aldeões partirem em fila (não todos de uma vez) — movimento harmônico
+  private staggerDepart(now: number) {
+    this.walkers.forEach((w, i) => {
+      w.waitUntil = Math.max(w.waitUntil, now + i * 650);
+    });
+  }
+
+  // célula andável da PRAÇA (retângulo cols 2–12 / linhas 6–12, sem o poço).
+  // Mantém os aldeões dentro da praça (não sobem o túnel nem saem pela trilha).
+  private plazaWalkable(c: number, r: number): boolean {
+    if (r < 6 || r > 12 || c < 2 || c > 12) return false;
+    if (c === WELL.c && r === WELL.r) return false;
+    return isWalkable(c, r);
+  }
+
+  // célula livre p/ o aldeão pisar agora: andável, sem o jogador e sem outro NPC
+  private cellFreeForWalker(c: number, r: number, self: object): boolean {
+    if (!this.plazaWalkable(c, r)) return false;
+    if (c === this.col && r === this.row) return false;
+    for (const o of this.walkers) {
+      if (o === self) continue;
+      if (o.cur.c === c && o.cur.r === r) return false;
+      if (o.moving && o.to.c === c && o.to.r === r) return false;
+    }
+    return true;
+  }
+
+  // BFS na praça: devolve o PRÓXIMO passo de 'from' rumo a 'goal' (ou null).
+  private bfsNextStep(
+    from: { c: number; r: number },
+    goal: { c: number; r: number },
+  ): { c: number; r: number } | null {
+    const K = (c: number, r: number) => c + "," + r;
+    if (from.c === goal.c && from.r === goal.r) return null;
+    const prev = new Map<string, { c: number; r: number } | null>();
+    prev.set(K(from.c, from.r), null);
+    const q: { c: number; r: number }[] = [from];
+    let head = 0;
+    const dirs = [
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+    ];
+    let found = false;
+    while (head < q.length) {
+      const cur = q[head++];
+      if (cur.c === goal.c && cur.r === goal.r) {
+        found = true;
+        break;
+      }
+      for (const [dc, dr] of dirs) {
+        const nc = cur.c + dc, nr = cur.r + dr, k = K(nc, nr);
+        if (prev.has(k)) continue;
+        const isGoal = nc === goal.c && nr === goal.r;
+        if (!isGoal && !this.plazaWalkable(nc, nr)) continue;
+        prev.set(k, cur);
+        q.push({ c: nc, r: nr });
+      }
+    }
+    if (!found && !prev.has(K(goal.c, goal.r))) return null;
+    // reconstrói de trás p/ frente até o passo logo após 'from'
+    let node = goal;
+    for (let guard = 0; guard < 400; guard++) {
+      const p = prev.get(K(node.c, node.r));
+      if (!p) return null;
+      if (p.c === from.c && p.r === from.r) return node;
+      node = p;
+    }
+    return null;
+  }
+
+  // rotina dos aldeões: caminham (passo a passo) do posto de dia ao destino
+  // noturno e de volta, conforme a hora. Nunca teletransportam.
   private updateWalkers(now: number) {
+    if (this.walkers.length === 0) return;
     if (this.dialogue) return; // parados durante o diálogo
     const WALK_MS = 900;
+    const night = this.updateNpcPhase(now);
     for (const w of this.walkers) {
       if (w.moving) {
         const p = Math.min(1, (now - w.t0) / WALK_MS);
@@ -3101,34 +3215,39 @@ export class Game {
         w.mesh.position.y = w.baseY + Math.sin(p * Math.PI) * 0.05; // leve balanço
         w.shadow.position.x = x;
         w.shadow.position.z = z;
+        w.tag.position.x = x; // a plaquinha de nome acompanha o NPC
+        w.tag.position.z = z;
         if (p >= 1) {
           w.moving = false;
           w.mesh.position.y = w.baseY;
-          this.blocked.delete(`${w.from.c},${w.from.r}`); // libera a origem
-          w.waitUntil = now + 350;
+          // pausa curta e variada entre passos (andar humano, não robótico)
+          w.waitUntil = now + 240 + ((w.cur.c * 37 + w.cur.r * 17) % 220);
         }
       } else if (now >= w.waitUntil) {
-        let ni = w.idx + w.dirn;
-        if (ni < 0 || ni >= w.path.length) {
-          w.dirn *= -1;
-          ni = w.idx + w.dirn;
-        }
-        const to = w.path[ni];
-        const tk = `${to.c},${to.r}`;
-        // não caminha p/ a célula do jogador nem p/ célula ocupada por outro
-        if ((to.c === this.col && to.r === this.row) || this.blocked.has(tk)) {
-          w.waitUntil = now + 400;
+        const goal = night ? w.nightCell : w.dayCell;
+        if (w.cur.c === goal.c && w.cur.r === goal.r) {
+          w.waitUntil = now + 500; // chegou: descansa no posto
           continue;
         }
-        this.blocked.add(tk); // reserva o destino (origem segue bloqueada no passo)
+        const step = this.bfsNextStep(w.cur, goal);
+        if (!step) {
+          w.waitUntil = now + 500;
+          continue;
+        }
+        if (!this.cellFreeForWalker(step.c, step.r, w)) {
+          w.waitUntil = now + 300; // caminho ocupado: espera e tenta de novo
+          continue;
+        }
+        // move a entrada do npcMap p/ a nova célula (diálogo é por célula)
+        const tk = `${step.c},${step.r}`;
         const entry = this.npcMap.get(w.key);
         if (entry) {
           this.npcMap.delete(w.key);
           this.npcMap.set(tk, entry);
         }
-        w.from = w.path[w.idx];
-        w.to = to;
-        w.idx = ni;
+        w.from = { c: w.cur.c, r: w.cur.r };
+        w.to = step;
+        w.cur = step;
         w.key = tk;
         w.moving = true;
         w.t0 = now;
