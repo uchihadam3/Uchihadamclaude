@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 16 prontos · 🟡 3 faltando · ❌ 2 removidas
+**Status:** ✅ 16 prontos · 🟡 4 faltando · ❌ 2 removidas
 
 ---
 
@@ -267,20 +267,36 @@ por código: **Nível + barra de XP**, **Vida**, **Mana**, **Ataque/Dano**,
 **Defesa/Armadura**, os atributos **Força / Destreza / Inteligência** (ligam com
 guerreiro / ladino / mago) e **Ouro**.
 
-> Recorte: **fundo transparente** de verdade (PNG com alpha). **Sem silhueta,
-> sem boneco/paper-doll de fundo** — SÓ os slots limpos, alinhados numa grade.
-> **Sem texto, sem números, sem ícones** dentro dos encaixes — vazios e escuros
-> pra eu preencher. Peça de UI: **vista reta, chapada**.
+**Por que em DUAS peças (importante):** IA de imagem é ruim em desenhar grades
+de slots alinhados — ela conta errado, deforma e desalinha (foi o que deu
+errado). A solução profissional: você gera **só duas coisas simples** que a IA
+faz muito bem, e **eu monto a grade perfeita por código**:
 
-Retrato ~1200×1400. Os slots são só quadrados vazios numa grade organizada; a
-posição/rótulo de cada um (elmo, arma, etc.) eu defino por código ao integrar.
+- **Peça A — a moldura** (a janela ornamentada vazia, sem nada dentro).
+- **Peça B — um slot** (um único encaixe quadrado).
+
+Eu repito o slot na grade certinha dentro da moldura, escrevo os atributos e
+ponho os ícones — tudo alinhado. Bônus: esse mesmo slot serve depois pro
+**inventário**. Gera as duas com **fundo transparente**, sem texto/números.
+
+#### Peça A — Moldura da janela (falta)
+
+Só a moldura ornamentada com o **miolo vazio** (sem slots, sem divisórias, sem
+texto). Retrato ~1024×1400.
 
 ```
-Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron and aged-bone frame style of the game's HUD. A large ornate EQUIPMENT window panel, portrait orientation. IMPORTANT: NO character figure, NO body silhouette, NO mannequin or paper-doll behind the slots — ONLY the empty slots themselves. In the upper two-thirds, a neat evenly-spaced arrangement of EMPTY equipment slots drawn as recessed ornate square sockets with riveted metal borders and deeply shadowed near-black hollow centers: laid out as two tidy vertical columns of four sockets each, aligned on a clean grid with even gaps, plus two wider rectangular weapon sockets side by side across the bottom of that area. The lower third is a separate empty inset sub-panel framed in iron (blank dark aged parchment) reserved for character stats. Every socket and the stats sub-panel are completely EMPTY and dark — do NOT draw any item icons, numbers, letters, text, or any character/figure anywhere. Gothic filigree in the corners, tarnished silver and bone accents, riveted edges. Cool desaturated palette (dark iron, tarnished silver, bone, muted cold highlights), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the panel, crisp edges, no watermark. Tall portrait canvas ~1200x1400.
+Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron and aged-bone frame style of the game's HUD. A single large ornate empty menu window frame, portrait orientation. A thick decorative border of weathered dark iron with gothic filigree in the corners, riveted metal edges, and tarnished silver and aged-bone accents, enclosing a plain flat empty interior surface (dark worn leather or aged dark stone) with ABSOLUTELY NOTHING on it — no slots, no compartments, no grid, no icons, no numbers, no text, no figures, no dividers, no lines. Just an ornate frame around a blank dark panel. Cool desaturated palette (dark iron, tarnished silver, bone), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the frame, crisp edges, no watermark. Tall portrait canvas ~1024x1400.
 ```
 
-Quando você mandar, eu recorto a janela, meço a posição de cada encaixe (como fiz
-com o HUD) e ligo tudo: os slots recebem os ícones dos itens equipados e o painel
-mostra os atributos. Os **ícones de cada item** (espada, cajado, escudo…) vêm
-depois, um PNG pequeno por item, no mesmo esquema — mas isso é o próximo passo,
-não precisa agora.
+#### Peça B — Slot de equipamento (falta)
+
+Um **único** encaixe quadrado vazio. Eu clono ele na grade. Quadrado ~512×512.
+
+```
+Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron style of the game's HUD. A SINGLE empty equipment slot socket shown on its own, centered: one rounded-square frame of weathered dark iron with riveted corners and a small gothic accent, enclosing a deeply recessed near-black hollow empty center (an empty inset where an item icon would later sit). Just the one socket and nothing else — no item, no icon, no symbol, no number, no text. Cool desaturated palette, tarnished silver highlights, soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, no watermark. Square canvas ~512x512.
+```
+
+Quando você mandar as duas, eu monto a janela: repito o slot na grade (9
+encaixes), escrevo os atributos no painel e, depois, ponho os ícones de cada
+item (espada, cajado, escudo…) — esses ícones são o próximo passo, um PNG
+pequeno por item, não precisa agora.
