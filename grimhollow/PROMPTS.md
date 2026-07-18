@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 19 prontos · 🟡 2 faltando · ❌ 2 removidas
+**Status:** ✅ 19 prontos · 🟡 3 faltando · ❌ 2 removidas
 
 ---
 
@@ -325,6 +325,31 @@ pequeno por item, não precisa agora.
 
 ---
 
+## 10 · Ícones de itens (folhas por tier)
+
+Os ícones que vão DENTRO dos slots. Estratégia: **uma folha por tier** com as 9
+armas juntas — você gera a folha, eu **recorto cada ícone** (grade com espaços).
+A raridade (cor) eu aplico por código; a folha é só o item "comum".
+
+> Recorte: **fundo transparente** (ou verde-limão chapado). Itens **numa grade
+> 3×3 com espaços** entre eles, **sem se tocar**, cada um centralizado na célula.
+> **Sem texto, sem números, sem moldura** (a moldura é o slot).
+
+### 🟡 Armas — Tier 1 (nível 1, "de Madeira") — folha das 9 armas (falta)
+
+Qualidade **rústica de iniciante**: madeira tosca, couro gasto, metal cru/opaco.
+Quadrado ~1536×1536 (3×3).
+
+```
+Hand-painted stylized-realism game item-icon SHEET, cohesive with a grim medieval dark-fantasy game. A neat 3x3 grid of NINE separate tier-1 starter weapon icons, evenly spaced with clear empty gaps between them so each can be cut apart, every weapon centered in its own cell at a consistent size and identical lighting. All nine are crude, humble beginner-quality gear made of rough-hewn wood, worn leather wraps and dull pitted crude iron — nothing ornate. The nine, one per cell: (1) a short sword, (2) a hand axe / hatchet, (3) a dagger, (4) a heavy two-handed maul / sledgehammer, (5) a mace, (6) a wooden staff made of a gnarled branch, (7) a round wooden shield, (8) a slender rapier, (9) a small caster focus (a rough crystal held in a carved wood mount). Each shown as a clean inventory icon, roughly upright or slightly diagonal, filling its cell. Cool desaturated palette, soft even lighting, no cast shadow, flat front view, no perspective distortion. Each weapon is a crisp cutout on a fully transparent background, clearly separated. No text, no numbers, no frames or borders, no watermark. Square canvas ~1536x1536.
+```
+
+Quando você mandar, eu separo os 9 ícones, coloco cada um no slot certo e ligo o
+sistema de equipar. As folhas dos próximos tiers (Cobre, Bronze…) seguem o mesmo
+molde, trocando só o material.
+
+---
+
 # 📜 Catálogo de Itens (planejamento de design)
 
 > Esta parte **não tem prompts ainda** — é o **mapa dos itens** que a gente
@@ -399,7 +424,8 @@ pequeno por item, não precisa agora.
 - 🧪 **Poção de Vida** — cura X% da vida, com **cooldown** (melhorável no
   alquimista: mais % / menos cooldown). Sem tipos pequeno/médio/grande.
 - 🔵 **Poção de Mana** — mesma lógica.
-- 🍖 **Comida** — cura ao longo do tempo (liga com pesca/coleta da floresta).
+- 🍖 **Comida** — cura ao longo do tempo. **Comprada pronta** no mercador (sem
+  pesca nem cozinha).
 - 📜 **Pergaminho de Retorno** — volta à cidade.
 - 🟢 **Futuro:** poções de **buff temporário** (Força, Inteligência, Destreza por
   X tempo).
@@ -410,9 +436,10 @@ pequeno por item, não precisa agora.
 - Madeira (Comum / Rija / Ancestral)
 - Minério (Ferro / Prata / Mithril) + Carvão
 - Ervas (Erva-sangue, Erva-arcana, Raiz-amarga, Cogumelo-pálido, Flor-da-névoa)
-- Peixe (vários — base da comida)
-- Couro/Pele (Rústico / Grosso)
 - Cristal / Gema (mineração)
+
+*(Cortados: couro/pele — exigiria caça/animais; peixe/pesca — não vale o
+subsistema. A **comida** vira consumível **comprado pronto** no mercador.)*
 
 **💀 Drops de inimigos:**
 - Pó Arcano (encantar — adiciona/reroda afixo)
@@ -424,7 +451,7 @@ pequeno por item, não precisa agora.
 - **Ferreiro:** reforçar arma/armadura (madeira + minério + pedra de reforço)
 - **Encantamento:** pó arcano / runa → afixo
 - **Alquimista:** erva + frasco → poção
-- **Cozinha/fogueira:** peixe + ingrediente → comida
+- *(Sem cozinha — comida é comprada pronta no mercador.)*
 
 ## O que vai precisar de PNG (produção futura, em folhas)
 
