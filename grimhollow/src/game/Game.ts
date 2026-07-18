@@ -181,12 +181,14 @@ interface VillageNPC {
 // (a maioria se recolhe na taverna ou em casa; o vigia sai em ronda) e ao
 // amanhecer voltam ao posto de dia. Praça: colunas 2–12, linhas 6–12; poço em
 // (7,10). Taverna à frente em (5,6); casas em (7,6)/(2,7)/(12,11).
+// Posições SEMPRE encostadas numa parede/prédio (ninguém fica parado no meio
+// do nada). A função wallLean() empurra o billboard p/ a parede vizinha.
 const VILLAGE_NPCS: VillageNPC[] = [
   {
     id: "elspeth",
-    c: 9, // de dia: vendendo legumes perto da loja (nordeste)
-    r: 7,
-    night: [12, 11], // à noite: recolhe-se em casa (sudeste)
+    c: 8, // de dia: encostada na parede norte, perto da loja
+    r: 6,
+    night: [12, 11], // à noite: recolhe-se em casa (canto sudeste)
     seed: 1,
     name: "Elspeth, a Camponesa",
     lines: [
@@ -196,9 +198,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "corvin",
-    c: 10, // de dia: perto da loja (vende lenha) — lado leste
-    r: 8,
-    night: [5, 7], // à noite: bebe na taverna
+    c: 10, // de dia: parede norte, ao lado da loja (vende lenha)
+    r: 6,
+    night: [4, 6], // à noite: taverna (parede norte)
     seed: 2,
     name: "Corvin, o Lenhador",
     lines: [
@@ -208,9 +210,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "wren",
-    c: 11, // de dia: no ateliê, canto leste
+    c: 12, // de dia: encostada na parede leste (ateliê)
     r: 10,
-    night: [2, 7], // à noite: recolhe-se em casa (oeste)
+    night: [2, 7], // à noite: recolhe-se em casa (parede oeste)
     seed: 3,
     name: "Wren, a Costureira",
     lines: [
@@ -220,9 +222,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "alard",
-    c: 3, // de dia: descansando a oeste (perto da ferraria)
-    r: 9,
-    night: [4, 7], // à noite: taverna
+    c: 2, // de dia: encostado na parede oeste (perto da ferraria)
+    r: 11,
+    night: [6, 6], // à noite: taverna (parede norte)
     seed: 5,
     name: "Alard, o Velho Fazendeiro",
     lines: [
@@ -232,9 +234,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "gunther",
-    c: 7, // de dia: GUARDA a entrada sul da cidade (portão)
+    c: 8, // de dia: GUARDA a entrada sul, encostado na parede do portão
     r: 13,
-    night: [7, 11], // à noite: faz a RONDA entrando na praça (o vigia trabalha à noite)
+    night: [11, 7], // à noite: RONDA — cruza a praça e vigia do canto nordeste
     seed: 9,
     name: "Gunther, o Vigia",
     lines: [
@@ -244,9 +246,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "anselmo",
-    c: 3, // de dia: à entrada da masmorra (noroeste), abençoando aventureiros
+    c: 3, // de dia: encostado na montanha, na boca da masmorra (noroeste)
     r: 6,
-    night: [2, 6], // à noite: vigília de oração na boca do túnel da masmorra
+    night: [2, 6], // à noite: vigília de oração na boca do túnel (parede oeste)
     seed: 7,
     name: "Frei Anselmo",
     lines: [
@@ -256,9 +258,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "tam",
-    c: 6, // de dia: pede esmola perto da entrada (onde chegam os viajantes)
+    c: 9, // de dia: encostado na parede sul, perto da entrada (pede esmola)
     r: 12,
-    night: [6, 6], // à noite: abriga-se na taverna
+    night: [8, 6], // à noite: abriga-se junto à taverna (parede norte)
     seed: 10,
     name: "Velho Tam",
     lines: [
@@ -268,9 +270,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "lyle",
-    c: 5, // de dia: toca a oeste da praça
+    c: 2, // de dia: encostado na parede oeste, tocando
     r: 8,
-    night: [5, 6], // à noite: toca na taverna
+    night: [5, 6], // à noite: toca na taverna (parede norte)
     seed: 12,
     name: "Lyle, o Bardo",
     lines: [
@@ -524,6 +526,10 @@ export class Game {
     t0: number;
     from: { c: number; r: number };
     to: { c: number; r: number };
+    fromX: number; // interpolação em coords do mundo (p/ encostar na parede)
+    fromZ: number;
+    toX: number;
+    toZ: number;
     waitUntil: number;
   }[] = [];
   private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
@@ -1674,18 +1680,22 @@ export class Game {
         opacity: 0.55,
       }),
     );
+    // encosta o aldeão na parede vizinha (só na vila, quem tem rotina); no
+    // interior das lojas o billboard fica centralizado (cellAt é da vila).
+    const lean = routine ? this.wallLean(c, r) : { x: 0, z: 0 };
+    const px = c * CELL + lean.x, pz = r * CELL + lean.z;
     shadow.rotation.x = -Math.PI / 2;
-    shadow.position.set(c * CELL, 0.03, r * CELL);
+    shadow.position.set(px, 0.03, pz);
     shadow.renderOrder = 1;
     this.world.add(shadow);
     const npc = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-    npc.position.set(c * CELL, y, r * CELL);
+    npc.position.set(px, y, pz);
     // dados p/ o idle procedural (respiração) — fase varia por célula p/ dessincronizar
     npc.userData = { baseY: y, h, ph: (c * 12.9 + r * 7.3) % (Math.PI * 2) };
     this.world.add(npc);
     // plaquinha de nome (só o nome principal) flutuando acima da cabeça
     const tag = this.makeNameTag(name.split(",")[0].trim());
-    tag.position.set(c * CELL, y + h / 2 + 0.18, r * CELL);
+    tag.position.set(px, y + h / 2 + 0.18, pz);
     this.world.add(tag);
     this.npcs.push(npc);
     // sem colisão de célula: o jogador passa pelos aldeões (conversa é por
@@ -1733,6 +1743,10 @@ export class Game {
         t0: 0,
         from: { c, r },
         to: { c, r },
+        fromX: px,
+        fromZ: pz,
+        toX: px,
+        toZ: pz,
         waitUntil: 0,
       });
     }
@@ -3132,6 +3146,24 @@ export class Game {
     });
   }
 
+  // deslocamento p/ ENCOSTAR o aldeão na parede/prédio vizinho (ninguém fica
+  // parado no meio do nada). Procura uma casa/montanha adjacente e empurra p/ lá.
+  private wallLean(c: number, r: number): { x: number; z: number } {
+    const L = 1.3; // quão perto da parede o NPC encosta (unidades)
+    const dirs = [
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+    ];
+    for (const [dc, dr] of dirs) {
+      const k = cellAt(c + dc, r + dr);
+      if (k === "building" || k === "mountain")
+        return { x: dc * L, z: dr * L };
+    }
+    return { x: 0, z: 0 };
+  }
+
   // célula andável para os aldeões: a praça (cols 2–12 / linhas 6–12, sem o poço)
   // MAIS o corredor da entrada sul (cols 6–8 / linhas 13–14), posto do vigia.
   // Mantém os aldeões na cidade (não sobem o túnel nem saem pela trilha ao sul).
@@ -3211,8 +3243,9 @@ export class Game {
       if (w.moving) {
         const p = Math.min(1, (now - w.t0) / WALK_MS);
         const e = p * p * (3 - 2 * p);
-        const x = (w.from.c + (w.to.c - w.from.c) * e) * CELL;
-        const z = (w.from.r + (w.to.r - w.from.r) * e) * CELL;
+        // interpola em coords do mundo (o destino já traz o "encoste" na parede)
+        const x = w.fromX + (w.toX - w.fromX) * e;
+        const z = w.fromZ + (w.toZ - w.fromZ) * e;
         w.mesh.position.x = x;
         w.mesh.position.z = z;
         w.mesh.position.y = w.baseY + Math.sin(p * Math.PI) * 0.05; // leve balanço
@@ -3248,6 +3281,14 @@ export class Game {
           this.npcMap.delete(w.key);
           this.npcMap.set(tk, entry);
         }
+        // no ÚLTIMO passo (chegando ao posto) já encosta na parede; nos passos
+        // intermediários anda pelo centro das células.
+        const isGoal = step.c === goal.c && step.r === goal.r;
+        const lean = isGoal ? this.wallLean(step.c, step.r) : { x: 0, z: 0 };
+        w.fromX = w.mesh.position.x;
+        w.fromZ = w.mesh.position.z;
+        w.toX = step.c * CELL + lean.x;
+        w.toZ = step.r * CELL + lean.z;
         w.from = { c: w.cur.c, r: w.cur.r };
         w.to = step;
         w.cur = step;
