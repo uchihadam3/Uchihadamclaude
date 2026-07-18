@@ -267,14 +267,16 @@ por código: **Nível + barra de XP**, **Vida**, **Mana**, **Ataque/Dano**,
 **Defesa/Armadura**, os atributos **Força / Destreza / Inteligência** (ligam com
 guerreiro / ladino / mago) e **Ouro**.
 
-> Recorte: **fundo transparente** de verdade (PNG com alpha). **Sem texto, sem
-> números, sem ícones** dentro dos encaixes — eles têm que ficar vazios e
-> escuros pra eu preencher. Peça de UI: **vista reta, chapada**.
+> Recorte: **fundo transparente** de verdade (PNG com alpha). **Sem silhueta,
+> sem boneco/paper-doll de fundo** — SÓ os slots limpos, alinhados numa grade.
+> **Sem texto, sem números, sem ícones** dentro dos encaixes — vazios e escuros
+> pra eu preencher. Peça de UI: **vista reta, chapada**.
 
-Retrato ~1200×1500.
+Retrato ~1200×1400. Os slots são só quadrados vazios numa grade organizada; a
+posição/rótulo de cada um (elmo, arma, etc.) eu defino por código ao integrar.
 
 ```
-Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron and aged-bone frame style of the game's HUD. A large ornate EQUIPMENT / CHARACTER window panel, portrait orientation. In the upper two-thirds, a "paper doll": a faint dark silhouette of a standing armored adventurer seen straight from the front, surrounded by EMPTY equipment slots drawn as recessed ornate square sockets with riveted metal borders and deeply shadowed near-black hollow centers — a socket above the head (helmet), one over the chest (body armor), one at the hands (gloves), one on the legs, one at the feet (boots), a small socket by the neck (amulet) and one by the hand (ring), plus two larger weapon sockets along the bottom edge of the doll area (main-hand and off-hand). The lower third is a separate empty inset sub-panel framed in iron (blank dark aged parchment) reserved for character stats. Every socket and the stats sub-panel are EMPTY and dark — do NOT draw any item icons, numbers, letters or text anywhere. Gothic filigree in the corners, tarnished silver and bone accents, riveted edges. Cool desaturated palette (dark iron, tarnished silver, bone, muted cold highlights), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the panel, crisp edges, no watermark. Tall portrait canvas ~1200x1500.
+Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron and aged-bone frame style of the game's HUD. A large ornate EQUIPMENT window panel, portrait orientation. IMPORTANT: NO character figure, NO body silhouette, NO mannequin or paper-doll behind the slots — ONLY the empty slots themselves. In the upper two-thirds, a neat evenly-spaced arrangement of EMPTY equipment slots drawn as recessed ornate square sockets with riveted metal borders and deeply shadowed near-black hollow centers: laid out as two tidy vertical columns of four sockets each, aligned on a clean grid with even gaps, plus two wider rectangular weapon sockets side by side across the bottom of that area. The lower third is a separate empty inset sub-panel framed in iron (blank dark aged parchment) reserved for character stats. Every socket and the stats sub-panel are completely EMPTY and dark — do NOT draw any item icons, numbers, letters, text, or any character/figure anywhere. Gothic filigree in the corners, tarnished silver and bone accents, riveted edges. Cool desaturated palette (dark iron, tarnished silver, bone, muted cold highlights), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the panel, crisp edges, no watermark. Tall portrait canvas ~1200x1400.
 ```
 
 Quando você mandar, eu recorto a janela, meço a posição de cada encaixe (como fiz
