@@ -181,11 +181,12 @@ export function setupControls(
     "</div>" +
     '<div class="gh-eq-body">' +
     '<div class="gh-tabpane" data-pane="equip">' +
+    '<div class="gh-section"><div class="gh-sec-head">Equipado</div>' +
     '<div class="gh-eq-doll">' +
     EQ_SLOTS.map(slotHtml).join("") +
-    "</div>" +
-    '<div class="gh-bag-label">Mochila</div>' +
-    `<div class="gh-bag">${bagHtml}</div>` +
+    "</div></div>" +
+    '<div class="gh-section"><div class="gh-sec-head">Mochila</div>' +
+    `<div class="gh-bag">${bagHtml}</div></div>` +
     "</div>" +
     '<div class="gh-tabpane gh-pane-hidden" data-pane="stats">' +
     '<div class="gh-eq-stats" id="gh-eq-stats"></div>' +
@@ -601,32 +602,33 @@ function injectStyle() {
     background:rgba(0,0,0,.58);
   }
   #gh-eq.gh-eq-hidden { display:none; }
-  /* largura por min() que respeita AMBOS os eixos (sem distorcer o aspect):
-     94vw (largura da tela), 62vh (deriva da altura) e um teto em px. A altura
-     sai do aspect-ratio. Assim cabe tanto no retrato do celular quanto no
-     paisagem do desktop. */
+  /* a moldura vira 9-slice (border-image): cantos fixos, miolo estica — assim a
+     janela pode ter QUALQUER tamanho (janela no desktop, tela cheia no celular)
+     sem deformar a borda ornamentada. */
   #gh-eq-win {
-    position:relative; width:min(94vw, 62vh, 470px); aspect-ratio:768 / 1105;
-    background:url(${eqFrameUrl}) no-repeat center / 100% 100%;
+    position:relative; box-sizing:border-box;
+    width:min(58vh,440px); height:min(90vh,780px);
+    border:clamp(22px,3.4vh,34px) solid transparent;
+    border-image:url(${eqFrameUrl}) 90 fill;
     filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));
   }
-  /* desktop (mouse/tela larga): janela um pouco menor, guiada pela altura */
-  @media (min-width:820px) and (pointer:fine) {
-    #gh-eq-win { width:min(60vh, 430px); }
-    #gh-char-btn { width:42px; height:42px; font-size:20px; }
-  }
-  /* celular estreito: aproveita mais a largura e sobe um tico as legendas */
-  @media (max-width:520px) {
-    #gh-eq-win { width:min(96vw, 68vh); }
+  #gh-char-btn { }
+  /* celular: inventário em TELA CHEIA (mais espaço, sem rolar) */
+  @media (max-width:640px) {
+    #gh-eq { padding:0; }
+    #gh-eq-win {
+      width:100vw; height:100vh; height:100dvh;
+      border-width:clamp(15px,2.6vh,24px);
+    }
   }
   #gh-eq-close {
-    position:absolute; right:5%; top:2.6%; z-index:2; width:34px; height:34px;
+    position:absolute; right:6px; top:6px; z-index:2; width:34px; height:34px;
     border-radius:8px; cursor:pointer; font-size:16px; line-height:1;
     background:rgba(20,16,11,.66); color:#e8d9b0; border:2px solid rgba(201,162,39,.55);
   }
   #gh-eq-inner {
-    position:absolute; left:8.5%; right:8.5%; top:5%; bottom:5.5%;
-    display:flex; flex-direction:column; gap:1.6%;
+    width:100%; height:100%;
+    display:flex; flex-direction:column; gap:1.4%;
     color:#e8dcc0; font-family:inherit; overflow:hidden;
   }
   .gh-eq-title {
@@ -642,23 +644,29 @@ function injectStyle() {
   }
   .gh-tab-on { background:rgba(201,162,39,.24); color:#f6ead0; border-color:rgba(201,162,39,.7); }
   .gh-eq-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
-  .gh-tabpane { display:flex; flex-direction:column; gap:2%; }
+  .gh-tabpane { display:flex; flex-direction:column; gap:2.4%; }
   .gh-pane-hidden { display:none; }
+  /* CAIXAS que separam "Equipado" da "Mochila" (o jogador distingue as áreas) */
+  .gh-section {
+    background:rgba(6,4,3,.34); border:1px solid rgba(201,162,39,.3);
+    border-radius:11px; padding:2.4% 3% 3.4%;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 2px 6px rgba(0,0,0,.35);
+  }
+  .gh-sec-head {
+    text-align:center; font-size:clamp(11px,1.7vh,15px); color:#d8c79a;
+    letter-spacing:.5px; margin-bottom:2.4%; text-shadow:0 1px 3px rgba(0,0,0,.6);
+  }
   /* grade "boneco" 8×6 (célula quadrada via aspect-ratio) — disposição PoE */
   .gh-eq-doll {
     display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(6,1fr);
-    gap:clamp(3px,0.8vh,6px); width:86%; aspect-ratio:4 / 3; margin:0 auto;
+    gap:clamp(3px,0.8vh,6px); width:88%; aspect-ratio:4 / 3; margin:0 auto;
   }
-  /* mochila (grade simples de itens, estilo WoW) */
-  .gh-bag-label {
-    text-align:center; font-size:clamp(11px,1.6vh,15px); color:#d8c79a;
-    margin-top:1%; text-shadow:0 1px 3px rgba(0,0,0,.6);
-  }
+  /* mochila (grade simples de itens, estilo WoW) — slots um pouco menores */
   .gh-bag {
-    display:grid; grid-template-columns:repeat(5,1fr); gap:clamp(3px,0.8vh,6px);
-    width:96%; margin:0 auto;
+    display:grid; grid-template-columns:repeat(5,1fr); gap:clamp(3px,0.7vh,5px);
+    width:100%; margin:0 auto;
   }
-  .gh-bag-slot { aspect-ratio:1; position:relative; }
+  .gh-bag-slot { aspect-ratio:1; position:relative; border-width:clamp(4px,0.85vh,7px); }
   /* contador de pilha (consumíveis empilhados) — usado quando houver itens */
   .gh-bag-slot .gh-count {
     position:absolute; right:2px; bottom:1px; font-size:clamp(9px,1.4vh,12px);
