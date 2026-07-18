@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 18 prontos · 🟡 2 faltando · ❌ 2 removidas
+**Status:** ✅ 18 prontos · 🟡 3 faltando · ❌ 2 removidas
 
 ---
 
@@ -302,6 +302,21 @@ Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-
 
 As armas (mão principal/secundária) ficam em encaixes **retângulares mais altos**
 (estilo Diablo); os demais são quadrados. Tudo saído desse mesmo slot.
+
+#### 🟡 Peça C — Painel interno / container (falta)
+
+As caixas que separam "Equipado" da "Mochila". Hoje são feitas por código (borda
+fina) e destoam da arte. Um **painel pintado** deixa tudo coeso. **Um único**
+painel resolve os dois: eu aplico **9-slice** e estico ele no tamanho de cada
+seção. Bandeja/inset ornamentado, **vazio** (eu ponho os slots e o título por
+cima). Borda **simétrica** nos quatro lados (pro 9-slice). Paisagem ~1200×800.
+
+```
+Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron and aged-bone style of the game's frames. A single ornate inset SUB-PANEL / container tray for a menu section: a recessed rectangular tray with a SYMMETRIC decorative border identical on all four sides — a slim band of weathered dark iron with small rivets and subtle gothic corner accents — enclosing a flat EMPTY recessed interior (dark, a bit darker than the surrounding, like worn dark leather or shadowed stone) with nothing on it. The even symmetric border is important so it can be resized cleanly. Completely empty interior — no slots, no icons, no numbers, no text, no figures. Cool desaturated palette (dark iron, tarnished silver, bone). Flat front-facing orthographic view, no perspective distortion, soft even lighting, no cast shadow. Clean cutout on a fully transparent background around the tray, crisp edges, no watermark. Wide landscape canvas ~1200x800.
+```
+
+Quando você mandar, eu meço a borda, troco as caixas de código por esse painel e
+mantenho os títulos "Equipado"/"Mochila" escritos por cima.
 
 Quando você mandar as duas, eu monto a janela: repito o slot na grade (9
 encaixes), escrevo os atributos no painel e, depois, ponho os ícones de cada
