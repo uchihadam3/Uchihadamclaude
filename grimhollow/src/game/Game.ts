@@ -184,9 +184,9 @@ interface VillageNPC {
 const VILLAGE_NPCS: VillageNPC[] = [
   {
     id: "elspeth",
-    c: 5, // de dia: vendendo legumes perto do poço
-    r: 9,
-    night: [12, 11], // à noite: recolhe-se em casa (leste)
+    c: 9, // de dia: vendendo legumes perto da loja (nordeste)
+    r: 7,
+    night: [12, 11], // à noite: recolhe-se em casa (sudeste)
     seed: 1,
     name: "Elspeth, a Camponesa",
     lines: [
@@ -196,8 +196,8 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "corvin",
-    c: 9, // de dia: perto da loja (vende lenha)
-    r: 7,
+    c: 10, // de dia: perto da loja (vende lenha) — lado leste
+    r: 8,
     night: [5, 7], // à noite: bebe na taverna
     seed: 2,
     name: "Corvin, o Lenhador",
@@ -208,7 +208,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "wren",
-    c: 10, // de dia: perto de casa/ateliê (leste)
+    c: 11, // de dia: no ateliê, canto leste
     r: 10,
     night: [2, 7], // à noite: recolhe-se em casa (oeste)
     seed: 3,
@@ -220,9 +220,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "alard",
-    c: 4, // de dia: descansando a oeste (perto da ferraria)
-    r: 8,
-    night: [3, 7], // à noite: taverna
+    c: 3, // de dia: descansando a oeste (perto da ferraria)
+    r: 9,
+    night: [4, 7], // à noite: taverna
     seed: 5,
     name: "Alard, o Velho Fazendeiro",
     lines: [
@@ -232,9 +232,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "gunther",
-    c: 10, // de dia: de folga, perto das lojas ao norte
-    r: 7,
-    night: [8, 7], // à noite: em RONDA no centro da praça (o vigia trabalha à noite)
+    c: 7, // de dia: GUARDA a entrada sul da cidade (portão)
+    r: 13,
+    night: [7, 11], // à noite: faz a RONDA entrando na praça (o vigia trabalha à noite)
     seed: 9,
     name: "Gunther, o Vigia",
     lines: [
@@ -244,9 +244,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "anselmo",
-    c: 3, // de dia: abençoa num canto tranquilo (sudoeste)
-    r: 11,
-    night: [7, 6], // à noite: recolhe-se (casa dos irmãos, ao norte)
+    c: 3, // de dia: à entrada da masmorra (noroeste), abençoando aventureiros
+    r: 6,
+    night: [2, 6], // à noite: vigília de oração na boca do túnel da masmorra
     seed: 7,
     name: "Frei Anselmo",
     lines: [
@@ -256,8 +256,8 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "tam",
-    c: 8, // de dia: pedindo esmola perto do poço (onde passa gente)
-    r: 9,
+    c: 6, // de dia: pede esmola perto da entrada (onde chegam os viajantes)
+    r: 12,
     night: [6, 6], // à noite: abriga-se na taverna
     seed: 10,
     name: "Velho Tam",
@@ -268,9 +268,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "lyle",
-    c: 7, // de dia: toca no coração da praça (norte do poço)
+    c: 5, // de dia: toca a oeste da praça
     r: 8,
-    night: [4, 6], // à noite: toca na taverna
+    night: [5, 6], // à noite: toca na taverna
     seed: 12,
     name: "Lyle, o Bardo",
     lines: [
@@ -3132,11 +3132,14 @@ export class Game {
     });
   }
 
-  // célula andável da PRAÇA (retângulo cols 2–12 / linhas 6–12, sem o poço).
-  // Mantém os aldeões dentro da praça (não sobem o túnel nem saem pela trilha).
+  // célula andável para os aldeões: a praça (cols 2–12 / linhas 6–12, sem o poço)
+  // MAIS o corredor da entrada sul (cols 6–8 / linhas 13–14), posto do vigia.
+  // Mantém os aldeões na cidade (não sobem o túnel nem saem pela trilha ao sul).
   private plazaWalkable(c: number, r: number): boolean {
-    if (r < 6 || r > 12 || c < 2 || c > 12) return false;
     if (c === WELL.c && r === WELL.r) return false;
+    const inPlaza = r >= 6 && r <= 12 && c >= 2 && c <= 12;
+    const inEntrance = r >= 13 && r <= 14 && c >= 6 && c <= 8;
+    if (!inPlaza && !inEntrance) return false;
     return isWalkable(c, r);
   }
 
