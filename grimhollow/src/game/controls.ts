@@ -1,5 +1,7 @@
 import { MOVE_MS } from "./config";
 import hudPlateUrl from "../assets/ui/hud_plate.png";
+import eqFrameUrl from "../assets/ui/eq_frame.png";
+import eqSlotUrl from "../assets/ui/eq_slot.png";
 
 export type Action =
   | "forward"
@@ -11,6 +13,23 @@ export type Action =
   | "interact"
   | "attack";
 
+// atributos do personagem exibidos na janela de equipamentos
+export interface CharStats {
+  level: number;
+  xp: number;
+  xpMax: number;
+  hp: number;
+  hpMax: number;
+  mp: number;
+  mpMax: number;
+  atk: number; // ataque / dano
+  def: number; // defesa / armadura
+  str: number; // força
+  dex: number; // destreza
+  int: number; // inteligência
+  gold: number; // ouro
+}
+
 export interface HUD {
   setPrompt(text: string | null): void;
   showDialogue(name: string, text: string, portrait?: string | null): void;
@@ -19,6 +38,7 @@ export interface HUD {
   setHealth(frac: number): void; // 0..1 — barra de vida do jogador
   setMana(frac: number): void; // 0..1 — barra de mana do jogador
   flashDamage(): void; // vinheta vermelha ao levar dano
+  setStats(s: CharStats): void; // atualiza a janela de equipamentos/atributos
 }
 
 // Teclado (desktop) + botões na tela (mobile).
@@ -114,6 +134,71 @@ export function setupControls(
   root.appendChild(hudWrap);
   const hpFill = hudWrap.querySelector(".gh-hud-hp-fill") as HTMLElement;
   const mpFill = hudWrap.querySelector(".gh-hud-mp-fill") as HTMLElement;
+
+  // ---- janela de equipamentos / personagem ----
+  // botão de abrir (canto superior direito)
+  const charBtn = document.createElement("button");
+  charBtn.id = "gh-char-btn";
+  charBtn.title = "Personagem (C)";
+  charBtn.textContent = "🛡";
+  root.appendChild(charBtn);
+
+  // define os 9 encaixes: armas (retângulos altos) + armadura/acessórios (quadrados)
+  const EQ_SLOTS: { key: string; label: string; wpn?: boolean }[] = [
+    { key: "main", label: "Arma", wpn: true },
+    { key: "off", label: "Secundária", wpn: true },
+    { key: "head", label: "Elmo" },
+    { key: "chest", label: "Peitoral" },
+    { key: "hands", label: "Luvas" },
+    { key: "legs", label: "Calças" },
+    { key: "feet", label: "Botas" },
+    { key: "amulet", label: "Amuleto" },
+    { key: "ring", label: "Anel" },
+  ];
+  const slotHtml = (s: { key: string; label: string; wpn?: boolean }) =>
+    `<div class="gh-slot-wrap"><div class="gh-slot${s.wpn ? " gh-slot-wpn" : ""}" data-slot="${s.key}"></div>` +
+    `<span class="gh-slot-cap">${s.label}</span></div>`;
+  const eq = document.createElement("div");
+  eq.id = "gh-eq";
+  eq.className = "gh-eq-hidden";
+  eq.innerHTML =
+    '<div id="gh-eq-win"><button id="gh-eq-close" title="Fechar (Esc)">✕</button>' +
+    '<div id="gh-eq-inner">' +
+    '<div class="gh-eq-title">Personagem</div>' +
+    '<div class="gh-eq-weapons">' +
+    EQ_SLOTS.filter((s) => s.wpn).map(slotHtml).join("") +
+    "</div>" +
+    '<div class="gh-eq-grid">' +
+    EQ_SLOTS.filter((s) => !s.wpn).map(slotHtml).join("") +
+    "</div>" +
+    '<div class="gh-eq-stats" id="gh-eq-stats"></div>' +
+    "</div></div>";
+  root.appendChild(eq);
+  const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
+  const openEq = () => eq.classList.remove("gh-eq-hidden");
+  const closeEq = () => eq.classList.add("gh-eq-hidden");
+  const toggleEq = () =>
+    eq.classList.contains("gh-eq-hidden") ? openEq() : closeEq();
+  charBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleEq();
+  });
+  (eq.querySelector("#gh-eq-close") as HTMLElement).addEventListener("click", (e) => {
+    e.preventDefault();
+    closeEq();
+  });
+  // clicar no fundo escuro (fora da janela) fecha
+  eq.addEventListener("click", (e) => {
+    if (e.target === eq) closeEq();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "KeyC") {
+      e.preventDefault();
+      toggleEq();
+    } else if (e.code === "Escape") {
+      closeEq();
+    }
+  });
   // vinheta vermelha ao levar dano
   const dmgFx = document.createElement("div");
   dmgFx.id = "gh-dmg";
@@ -259,6 +344,24 @@ export function setupControls(
     setMana(frac: number) {
       const f = Math.max(0, Math.min(1, frac));
       mpFill.style.width = f * 100 + "%";
+    },
+    setStats(s: CharStats) {
+      const xpFrac = s.xpMax > 0 ? Math.max(0, Math.min(1, s.xp / s.xpMax)) : 0;
+      const row = (label: string, val: string) =>
+        `<div class="gh-stat"><span>${label}</span><b>${val}</b></div>`;
+      eqStats.innerHTML =
+        `<div class="gh-eq-lvl">Nível ${s.level}` +
+        `<div class="gh-xp"><div class="gh-xp-fill" style="width:${xpFrac * 100}%"></div></div></div>` +
+        '<div class="gh-stat-cols">' +
+        row("Vida", `${s.hp}/${s.hpMax}`) +
+        row("Mana", `${s.mp}/${s.mpMax}`) +
+        row("Ataque", `${s.atk}`) +
+        row("Defesa", `${s.def}`) +
+        row("Força", `${s.str}`) +
+        row("Destreza", `${s.dex}`) +
+        row("Inteligência", `${s.int}`) +
+        row("Ouro", `${s.gold}`) +
+        "</div>";
     },
     flashDamage() {
       dmgFx.style.animation = "none";
@@ -452,6 +555,77 @@ function injectStyle() {
   }
   .gh-hud-hp-fill { background:linear-gradient(#e35d4c,#b3241a); }
   .gh-hud-mp-fill { background:linear-gradient(#57b0e8,#1c5fb3); }
+
+  /* botão de abrir a janela de personagem */
+  #gh-char-btn {
+    position:fixed; right:14px; top:12px; z-index:12; pointer-events:auto;
+    width:46px; height:46px; border-radius:10px; font-size:22px; cursor:pointer;
+    background:rgba(20,16,11,.72); color:#e8d9b0;
+    border:2px solid rgba(201,162,39,.6); box-shadow:0 2px 8px rgba(0,0,0,.5);
+    display:flex; align-items:center; justify-content:center;
+  }
+  #gh-char-btn:active { transform:scale(.94); }
+  /* janela de equipamentos */
+  #gh-eq {
+    position:fixed; inset:0; z-index:20; pointer-events:auto;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.58);
+  }
+  #gh-eq.gh-eq-hidden { display:none; }
+  #gh-eq-win {
+    position:relative; height:min(92vh,680px); aspect-ratio:768 / 1105;
+    background:url(${eqFrameUrl}) no-repeat center / 100% 100%;
+    filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));
+  }
+  #gh-eq-close {
+    position:absolute; right:5%; top:2.6%; z-index:2; width:34px; height:34px;
+    border-radius:8px; cursor:pointer; font-size:16px; line-height:1;
+    background:rgba(20,16,11,.66); color:#e8d9b0; border:2px solid rgba(201,162,39,.55);
+  }
+  #gh-eq-inner {
+    position:absolute; left:8.5%; right:8.5%; top:5%; bottom:5.5%;
+    display:flex; flex-direction:column; gap:2.4%;
+    color:#e8dcc0; font-family:inherit; overflow:hidden;
+  }
+  .gh-eq-title {
+    text-align:center; font-size:clamp(15px,2.4vh,22px); letter-spacing:1px;
+    color:#f0e2bd; text-shadow:0 2px 4px rgba(0,0,0,.7); margin-bottom:1%;
+  }
+  .gh-eq-weapons { display:flex; justify-content:center; gap:6%; }
+  .gh-eq-grid {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:4% 3%;
+    justify-items:center; align-content:start;
+  }
+  .gh-slot-wrap { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .gh-slot {
+    --sl:min(64px,9.2vh); width:var(--sl); height:var(--sl);
+    border:calc(var(--sl)*0.16) solid transparent;
+    border-image:url(${eqSlotUrl}) 89 fill;
+    box-sizing:border-box;
+  }
+  .gh-slot-wpn { height:calc(var(--sl)*1.62); }
+  .gh-slot-cap {
+    font-size:clamp(8px,1.3vh,11px); color:#c9b98c; opacity:.85; line-height:1;
+  }
+  .gh-eq-stats {
+    margin-top:auto; background:rgba(12,9,6,.5); border:1px solid rgba(201,162,39,.35);
+    border-radius:8px; padding:2.5% 4%;
+  }
+  .gh-eq-lvl {
+    text-align:center; font-size:clamp(12px,1.9vh,17px); color:#f0e2bd; margin-bottom:6px;
+  }
+  .gh-xp {
+    height:8px; border-radius:5px; margin-top:4px; overflow:hidden;
+    background:rgba(0,0,0,.5); border:1px solid rgba(201,162,39,.4);
+  }
+  .gh-xp-fill { height:100%; background:linear-gradient(#d8c24a,#8a7016); }
+  .gh-stat-cols {
+    display:grid; grid-template-columns:1fr 1fr; gap:2px 12px;
+    font-size:clamp(10px,1.55vh,14px);
+  }
+  .gh-stat { display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
+  .gh-stat span { color:#bfae82; }
+  .gh-stat b { color:#f0e6cc; font-weight:600; }
   /* vinheta vermelha ao levar dano */
   #gh-dmg {
     position:fixed; inset:0; z-index:9; pointer-events:none; opacity:0;

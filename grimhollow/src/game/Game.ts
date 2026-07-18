@@ -454,6 +454,10 @@ export class Game {
   private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
   private playerMaxHp = 100;
   private playerHp = 100;
+  private playerMaxMp = 100;
+  private playerMp = 100;
+  // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
+  private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
   // inimigo billboard (esqueleto da masmorra) — leva dano e revida
   private enemy: {
     mesh: THREE.Mesh;
@@ -569,7 +573,8 @@ export class Game {
       SWORD_ATK_ART ?? undefined,
     );
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
-    this.ui.setMana(1); // mana cheia por enquanto (mecânica entra depois)
+    this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
+    this.refreshStats();
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
 
@@ -1070,17 +1075,38 @@ export class Game {
     }
   }
 
+  // atualiza a janela de personagem com os atributos + vida/mana atuais
+  private refreshStats() {
+    this.ui.setStats({
+      level: this.stats.level,
+      xp: this.stats.xp,
+      xpMax: this.stats.xpMax,
+      hp: this.playerHp,
+      hpMax: this.playerMaxHp,
+      mp: this.playerMp,
+      mpMax: this.playerMaxMp,
+      atk: this.stats.atk,
+      def: this.stats.def,
+      str: this.stats.str,
+      dex: this.stats.dex,
+      int: this.stats.int,
+      gold: this.stats.gold,
+    });
+  }
+
   // aplica dano ao jogador (o esqueleto revidou)
   private damagePlayer(n: number) {
     if (this.playerHp <= 0) return;
     this.playerHp = Math.max(0, this.playerHp - n);
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
+    this.refreshStats();
     this.ui.flashDamage();
     if (this.playerHp <= 0) {
       // derrota: recompõe a vida e volta ao início da vila
       window.setTimeout(() => {
         this.playerHp = this.playerMaxHp;
         this.ui.setHealth(1);
+        this.refreshStats();
         const s = findStart();
         this.enterLocation("village", s.col, s.row, 0);
       }, 800);

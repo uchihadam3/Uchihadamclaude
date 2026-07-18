@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 16 prontos · 🟡 4 faltando · ❌ 2 removidas
+**Status:** ✅ 18 prontos · 🟡 2 faltando · ❌ 2 removidas
 
 ---
 
@@ -246,7 +246,7 @@ Recortei a placa, marquei os dois encaixes e desenho por dentro o preenchimento
 vermelho (vida) e azul (mana) que enche e esvazia — a vida reage ao dano; a
 mana entra cheia por enquanto (a mecânica de mana a gente liga depois).
 
-### 🟡 Janela de equipamentos / personagem (falta) — a base da progressão
+### ✅ Janela de equipamentos / personagem (pronto) — no jogo (botão 🛡 / tecla C)
 
 A **primeira peça da base do jogo**: a tela onde o jogador equipa arma, armadura
 e acessórios e vê seus atributos. Mesma regra do HUD — a arte é só a **moldura
@@ -279,7 +279,7 @@ Eu repito o slot na grade certinha dentro da moldura, escrevo os atributos e
 ponho os ícones — tudo alinhado. Bônus: esse mesmo slot serve depois pro
 **inventário**. Gera as duas com **fundo transparente**, sem texto/números.
 
-#### Peça A — Moldura da janela (falta)
+#### ✅ Peça A — Moldura da janela (pronto)
 
 Só a moldura ornamentada com o **miolo vazio** (sem slots, sem divisórias, sem
 texto). Retrato ~1024×1400.
@@ -288,7 +288,7 @@ texto). Retrato ~1024×1400.
 Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron and aged-bone frame style of the game's HUD. A single large ornate empty menu window frame, portrait orientation. A thick decorative border of weathered dark iron with gothic filigree in the corners, riveted metal edges, and tarnished silver and aged-bone accents, enclosing a plain flat empty interior surface (dark worn leather or aged dark stone) with ABSOLUTELY NOTHING on it — no slots, no compartments, no grid, no icons, no numbers, no text, no figures, no dividers, no lines. Just an ornate frame around a blank dark panel. Cool desaturated palette (dark iron, tarnished silver, bone), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the frame, crisp edges, no watermark. Tall portrait canvas ~1024x1400.
 ```
 
-#### Peça B — Slot de equipamento (falta)
+#### ✅ Peça B — Slot de equipamento (pronto)
 
 Um **único** encaixe quadrado vazio. Eu clono ele na grade — e, com a técnica de
 *9-slice* (cantos fixos, só o miolo estica), faço dele tanto os **quadrados**
