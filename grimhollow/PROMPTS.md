@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 15 prontos · 🟡 3 faltando · ❌ 2 removidas
+**Status:** ✅ 16 prontos · 🟡 3 faltando · ❌ 2 removidas
 
 ---
 
@@ -229,7 +229,7 @@ não dá pra animar. Então: **encaixes vazios/escuros**, o resto é enfeite.
 > texto. É uma peça de UI, então pode ser **vista reta, chapada** (não precisa
 > de "pé no chão" como os outros).
 
-### 🟡 Placa de status — vida + mana (falta) — canto superior esquerdo
+### ✅ Placa de status — vida + mana (pronto) — no jogo, canto superior esquerdo
 
 Uma placa única segurando **duas barras horizontais empilhadas**: a de cima é a
 **vida** (com um coração/emblema de vida na ponta esquerda) e a de baixo é a
@@ -242,7 +242,43 @@ Paisagem ~1024×460.
 Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game. A small ornate HUD status plate meant for the top-left corner of the screen, holding TWO empty horizontal bar slots stacked vertically with a thin gap between them. The plate is a weathered dark iron and aged-bone frame with subtle gothic filigree at the corners and riveted metal edges. The TOP slot is a health bar groove with a small heart / life rune emblem set into its left cap; the BOTTOM slot is a mana bar groove with a small blue gem / crystal droplet emblem set into its left cap. Both bar grooves are EMPTY hollow recessed channels, deeply shadowed and near-black inside, so a colored fill can be added later — do NOT paint the bars red or blue, leave the insides empty and dark. Rounded bar ends. Cool desaturated palette (dark iron, tarnished silver, bone, muted cold highlights), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the plate, crisp edges, no numbers, no readable text, no watermark. Wide landscape canvas ~1024x460.
 ```
 
-Quando você mandar, eu recorto a placa, marco a posição dos dois encaixes e
-desenho por dentro o preenchimento vermelho (vida) e azul (mana) que enche e
-esvazia — a vida já reage ao dano; a mana entra cheia por enquanto (a mecânica
-de mana a gente liga depois).
+Recortei a placa, marquei os dois encaixes e desenho por dentro o preenchimento
+vermelho (vida) e azul (mana) que enche e esvazia — a vida reage ao dano; a
+mana entra cheia por enquanto (a mecânica de mana a gente liga depois).
+
+### 🟡 Janela de equipamentos / personagem (falta) — a base da progressão
+
+A **primeira peça da base do jogo**: a tela onde o jogador equipa arma, armadura
+e acessórios e vê seus atributos. Mesma regra do HUD — a arte é só a **moldura
+com os encaixes VAZIOS**; os **ícones dos itens** e os **números dos atributos**
+eu desenho por código (assim mudam conforme o que você equipa).
+
+**Encaixes (9) que a janela precisa ter** (escolhi cobrir arma principal +
+secundária + armadura completa + 2 acessórios):
+
+- **Mão principal** (espada / cajado / machado / adaga / marreta / maça)
+- **Mão secundária** (escudo / rapieira / orbe)
+- **Elmo** (cabeça) · **Peitoral** (torso) · **Luvas** (mãos) · **Calças**
+  (pernas) · **Botas** (pés)
+- **Amuleto** (pescoço) · **Anel** (acessório)
+
+**Informações (o que acho mais necessário)** — vão num painel à parte, escritas
+por código: **Nível + barra de XP**, **Vida**, **Mana**, **Ataque/Dano**,
+**Defesa/Armadura**, os atributos **Força / Destreza / Inteligência** (ligam com
+guerreiro / ladino / mago) e **Ouro**.
+
+> Recorte: **fundo transparente** de verdade (PNG com alpha). **Sem texto, sem
+> números, sem ícones** dentro dos encaixes — eles têm que ficar vazios e
+> escuros pra eu preencher. Peça de UI: **vista reta, chapada**.
+
+Retrato ~1200×1500.
+
+```
+Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron and aged-bone frame style of the game's HUD. A large ornate EQUIPMENT / CHARACTER window panel, portrait orientation. In the upper two-thirds, a "paper doll": a faint dark silhouette of a standing armored adventurer seen straight from the front, surrounded by EMPTY equipment slots drawn as recessed ornate square sockets with riveted metal borders and deeply shadowed near-black hollow centers — a socket above the head (helmet), one over the chest (body armor), one at the hands (gloves), one on the legs, one at the feet (boots), a small socket by the neck (amulet) and one by the hand (ring), plus two larger weapon sockets along the bottom edge of the doll area (main-hand and off-hand). The lower third is a separate empty inset sub-panel framed in iron (blank dark aged parchment) reserved for character stats. Every socket and the stats sub-panel are EMPTY and dark — do NOT draw any item icons, numbers, letters or text anywhere. Gothic filigree in the corners, tarnished silver and bone accents, riveted edges. Cool desaturated palette (dark iron, tarnished silver, bone, muted cold highlights), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the panel, crisp edges, no watermark. Tall portrait canvas ~1200x1500.
+```
+
+Quando você mandar, eu recorto a janela, meço a posição de cada encaixe (como fiz
+com o HUD) e ligo tudo: os slots recebem os ícones dos itens equipados e o painel
+mostra os atributos. Os **ícones de cada item** (espada, cajado, escudo…) vêm
+depois, um PNG pequeno por item, no mesmo esquema — mas isso é o próximo passo,
+não precisa agora.
