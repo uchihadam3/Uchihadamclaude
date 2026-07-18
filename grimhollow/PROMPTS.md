@@ -331,6 +331,12 @@ Os ícones que vão DENTRO dos slots. Estratégia: **uma folha por tier** com as
 armas juntas — você gera a folha, eu **recorto cada ícone** (grade com espaços).
 A raridade (cor) eu aplico por código; a folha é só o item "comum".
 
+**Pose EM PÉ (dupla função):** as armas de mão (espada, machado, adaga, marreta,
+maça, cajado, rapieira) vêm **verticais, cabo embaixo e ponta pra cima** — igual
+à espada atual. Assim a **MESMA arte** serve de **ícone no inventário E de arma
+na mão** do jogador (o motor anima o golpe em cima dela). Escudo e orbe ficam
+**de frente** (servem de ícone; a visão "na mão" da secundária a gente vê depois).
+
 > Recorte: **fundo transparente** (ou verde-limão chapado). Itens **numa grade
 > 3×3 com espaços** entre eles, **sem se tocar**, cada um centralizado na célula.
 > **Sem texto, sem números, sem moldura** (a moldura é o slot).
@@ -338,15 +344,16 @@ A raridade (cor) eu aplico por código; a folha é só o item "comum".
 ### 🟡 Armas — Tier 1 (nível 1, "de Madeira") — folha das 9 armas (falta)
 
 Qualidade **rústica de iniciante**: madeira tosca, couro gasto, metal cru/opaco.
-Quadrado ~1536×1536 (3×3).
+Quadrado ~2304×2304 (3×3, ~768px por arma — resolução p/ servir também na mão).
 
 ```
-Hand-painted stylized-realism game item-icon SHEET, cohesive with a grim medieval dark-fantasy game. A neat 3x3 grid of NINE separate tier-1 starter weapon icons, evenly spaced with clear empty gaps between them so each can be cut apart, every weapon centered in its own cell at a consistent size and identical lighting. All nine are crude, humble beginner-quality gear made of rough-hewn wood, worn leather wraps and dull pitted crude iron — nothing ornate. The nine, one per cell: (1) a short sword, (2) a hand axe / hatchet, (3) a dagger, (4) a heavy two-handed maul / sledgehammer, (5) a mace, (6) a wooden staff made of a gnarled branch, (7) a round wooden shield, (8) a slender rapier, (9) a small caster focus (a rough crystal held in a carved wood mount). Each shown as a clean inventory icon, roughly upright or slightly diagonal, filling its cell. Cool desaturated palette, soft even lighting, no cast shadow, flat front view, no perspective distortion. Each weapon is a crisp cutout on a fully transparent background, clearly separated. No text, no numbers, no frames or borders, no watermark. Square canvas ~1536x1536.
+Hand-painted stylized-realism game weapon SHEET, cohesive with a grim medieval dark-fantasy game. A neat 3x3 grid of NINE separate tier-1 starter weapons, evenly spaced with clear empty gaps between them so each can be cut apart, every weapon centered in its own cell at a consistent size and identical lighting. Each bladed or hafted weapon is oriented UPRIGHT and vertical — grip/handle at the BOTTOM of its cell and the blade or head pointing straight UP, as if held ready — so the same art doubles as an inventory icon AND as the weapon seen in the player's first-person hand. All nine are crude, humble beginner-quality gear of rough-hewn wood, worn leather wraps and dull pitted crude iron, nothing ornate. One per cell: (1) a short sword, (2) a hand axe, (3) a dagger, (4) a heavy two-handed maul, (5) a mace, (6) a wooden staff (a gnarled branch), (7) a round wooden shield shown face-on, (8) a slender rapier, (9) a small caster focus orb (a rough crystal in a carved wood mount) shown face-on. Cool desaturated palette, soft even lighting, no cast shadow, flat straight-on view, no perspective distortion. Each weapon is a crisp cutout on a fully transparent background, clearly separated so it can be cut apart. No text, no numbers, no frames or borders, no watermark. Square canvas ~2304x2304.
 ```
 
-Quando você mandar, eu separo os 9 ícones, coloco cada um no slot certo e ligo o
-sistema de equipar. As folhas dos próximos tiers (Cobre, Bronze…) seguem o mesmo
-molde, trocando só o material.
+Quando você mandar, eu separo os 9, uso cada um como ícone no slot certo E como
+sprite na mão (a arma principal equipada aparece na mão como a espada de hoje), e
+ligo o sistema de equipar. As folhas dos próximos tiers (Cobre, Bronze…) seguem o
+mesmo molde, trocando só o material.
 
 ---
 
