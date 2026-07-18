@@ -161,6 +161,13 @@ export function setupControls(
   const slotHtml = (s: { key: string; label: string; gc: string; gr: string }) =>
     `<div class="gh-slot" data-slot="${s.key}" style="grid-column:${s.gc};grid-row:${s.gr}">` +
     `<span class="gh-slot-cap">${s.label}</span></div>`;
+  // mochila (grade simples estilo WoW): 20 slots quadrados, reutilizando a MESMA
+  // arte do slot (9-slice). Cada slot guarda 1 item; consumíveis empilham (badge).
+  const BAG_SLOTS = 20;
+  const bagHtml = Array.from(
+    { length: BAG_SLOTS },
+    (_, i) => `<div class="gh-slot gh-bag-slot" data-bag="${i}"></div>`,
+  ).join("");
   const eq = document.createElement("div");
   eq.id = "gh-eq";
   eq.className = "gh-eq-hidden";
@@ -168,12 +175,34 @@ export function setupControls(
     '<div id="gh-eq-win"><button id="gh-eq-close" title="Fechar (Esc)">✕</button>' +
     '<div id="gh-eq-inner">' +
     '<div class="gh-eq-title">Personagem</div>' +
+    '<div class="gh-eq-tabs">' +
+    '<button class="gh-tab gh-tab-on" data-tab="equip">Equipamento</button>' +
+    '<button class="gh-tab" data-tab="stats">Atributos</button>' +
+    "</div>" +
+    '<div class="gh-eq-body">' +
+    '<div class="gh-tabpane" data-pane="equip">' +
     '<div class="gh-eq-doll">' +
     EQ_SLOTS.map(slotHtml).join("") +
     "</div>" +
+    '<div class="gh-bag-label">Mochila</div>' +
+    `<div class="gh-bag">${bagHtml}</div>` +
+    "</div>" +
+    '<div class="gh-tabpane gh-pane-hidden" data-pane="stats">' +
     '<div class="gh-eq-stats" id="gh-eq-stats"></div>' +
-    "</div></div>";
+    "</div>" +
+    "</div></div></div>";
   root.appendChild(eq);
+  // troca de abas
+  eq.querySelectorAll(".gh-tab").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const tab = (btn as HTMLElement).dataset.tab;
+      eq.querySelectorAll(".gh-tab").forEach((b) => b.classList.toggle("gh-tab-on", b === btn));
+      eq.querySelectorAll(".gh-tabpane").forEach((p) =>
+        p.classList.toggle("gh-pane-hidden", (p as HTMLElement).dataset.pane !== tab),
+      );
+    }),
+  );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
   const openEq = () => eq.classList.remove("gh-eq-hidden");
   const closeEq = () => eq.classList.add("gh-eq-hidden");
@@ -597,17 +626,43 @@ function injectStyle() {
   }
   #gh-eq-inner {
     position:absolute; left:8.5%; right:8.5%; top:5%; bottom:5.5%;
-    display:flex; flex-direction:column; gap:2.4%;
+    display:flex; flex-direction:column; gap:1.6%;
     color:#e8dcc0; font-family:inherit; overflow:hidden;
   }
   .gh-eq-title {
-    text-align:center; font-size:clamp(15px,2.4vh,22px); letter-spacing:1px;
-    color:#f0e2bd; text-shadow:0 2px 4px rgba(0,0,0,.7); margin-bottom:1%;
+    text-align:center; font-size:clamp(14px,2.2vh,21px); letter-spacing:1px;
+    color:#f0e2bd; text-shadow:0 2px 4px rgba(0,0,0,.7);
   }
+  /* abas (Equipamento / Atributos) */
+  .gh-eq-tabs { display:flex; gap:8px; justify-content:center; }
+  .gh-tab {
+    padding:4px 14px; cursor:pointer; border-radius:7px;
+    font-size:clamp(11px,1.6vh,14px); font-family:inherit;
+    background:rgba(20,16,11,.5); color:#c9b98c; border:1px solid rgba(201,162,39,.4);
+  }
+  .gh-tab-on { background:rgba(201,162,39,.24); color:#f6ead0; border-color:rgba(201,162,39,.7); }
+  .gh-eq-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
+  .gh-tabpane { display:flex; flex-direction:column; gap:2%; }
+  .gh-pane-hidden { display:none; }
   /* grade "boneco" 8×6 (célula quadrada via aspect-ratio) — disposição PoE */
   .gh-eq-doll {
     display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(6,1fr);
-    gap:clamp(3px,0.8vh,6px); width:99%; aspect-ratio:4 / 3; margin:0 auto;
+    gap:clamp(3px,0.8vh,6px); width:86%; aspect-ratio:4 / 3; margin:0 auto;
+  }
+  /* mochila (grade simples de itens, estilo WoW) */
+  .gh-bag-label {
+    text-align:center; font-size:clamp(11px,1.6vh,15px); color:#d8c79a;
+    margin-top:1%; text-shadow:0 1px 3px rgba(0,0,0,.6);
+  }
+  .gh-bag {
+    display:grid; grid-template-columns:repeat(5,1fr); gap:clamp(3px,0.8vh,6px);
+    width:96%; margin:0 auto;
+  }
+  .gh-bag-slot { aspect-ratio:1; position:relative; }
+  /* contador de pilha (consumíveis empilhados) — usado quando houver itens */
+  .gh-bag-slot .gh-count {
+    position:absolute; right:2px; bottom:1px; font-size:clamp(9px,1.4vh,12px);
+    color:#fff; font-weight:700; text-shadow:0 1px 2px #000, 0 0 3px #000; line-height:1;
   }
   .gh-slot {
     border:clamp(5px,1.05vh,8px) solid transparent;
@@ -620,8 +675,8 @@ function injectStyle() {
     opacity:.78; line-height:1.05; text-align:center; padding:1px;
   }
   .gh-eq-stats {
-    margin-top:auto; background:rgba(12,9,6,.5); border:1px solid rgba(201,162,39,.35);
-    border-radius:8px; padding:2.5% 4%;
+    background:rgba(12,9,6,.5); border:1px solid rgba(201,162,39,.35);
+    border-radius:8px; padding:3.5% 5%;
   }
   .gh-eq-lvl {
     text-align:center; font-size:clamp(12px,1.9vh,17px); color:#f0e2bd; margin-bottom:6px;
