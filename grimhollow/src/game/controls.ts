@@ -572,10 +572,23 @@ function injectStyle() {
     background:rgba(0,0,0,.58);
   }
   #gh-eq.gh-eq-hidden { display:none; }
+  /* largura por min() que respeita AMBOS os eixos (sem distorcer o aspect):
+     94vw (largura da tela), 62vh (deriva da altura) e um teto em px. A altura
+     sai do aspect-ratio. Assim cabe tanto no retrato do celular quanto no
+     paisagem do desktop. */
   #gh-eq-win {
-    position:relative; height:min(92vh,680px); aspect-ratio:768 / 1105;
+    position:relative; width:min(94vw, 62vh, 470px); aspect-ratio:768 / 1105;
     background:url(${eqFrameUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));
+  }
+  /* desktop (mouse/tela larga): janela um pouco menor, guiada pela altura */
+  @media (min-width:820px) and (pointer:fine) {
+    #gh-eq-win { width:min(60vh, 430px); }
+    #gh-char-btn { width:42px; height:42px; font-size:20px; }
+  }
+  /* celular estreito: aproveita mais a largura e sobe um tico as legendas */
+  @media (max-width:520px) {
+    #gh-eq-win { width:min(96vw, 68vh); }
   }
   #gh-eq-close {
     position:absolute; right:5%; top:2.6%; z-index:2; width:34px; height:34px;
