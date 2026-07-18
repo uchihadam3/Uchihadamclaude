@@ -581,6 +581,17 @@ export class Game {
     window.addEventListener("resize", () => this.resize());
     this.resize();
     this.renderer.setAnimationLoop((t) => this.tick(t));
+
+    // as plaquinhas de nome são rasterizadas num canvas; quando a fonte medieval
+    // terminar de carregar, redesenha o local ATUAL (sem teletransportar) p/ elas
+    // saírem já na fonte certa em vez do fallback.
+    const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
+    if (fonts?.ready) {
+      fonts.ready.then(() => {
+        if (!this.dialogue)
+          this.enterLocation(this.location, this.col, this.row, this.facing);
+      });
+    }
   }
 
   // ---------------------------------------------- troca de local (vila/interior)
@@ -1783,7 +1794,7 @@ export class Game {
   private makeNameTag(text: string): THREE.Sprite {
     const fontPx = 40;
     const pad = 18;
-    const font = `bold ${fontPx}px system-ui, -apple-system, Segoe UI, sans-serif`;
+    const font = `bold ${fontPx}px "Cinzel", "MedievalSharp", system-ui, serif`;
     const meas = document.createElement("canvas").getContext("2d")!;
     meas.font = font;
     const tw = Math.ceil(meas.measureText(text).width);
