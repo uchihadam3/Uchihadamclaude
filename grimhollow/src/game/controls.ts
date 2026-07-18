@@ -143,20 +143,23 @@ export function setupControls(
   charBtn.textContent = "🛡";
   root.appendChild(charBtn);
 
-  // define os 9 encaixes: armas (retângulos altos) + armadura/acessórios (quadrados)
-  const EQ_SLOTS: { key: string; label: string; wpn?: boolean }[] = [
-    { key: "main", label: "Arma", wpn: true },
-    { key: "off", label: "Secundária", wpn: true },
-    { key: "head", label: "Elmo" },
-    { key: "chest", label: "Peitoral" },
-    { key: "hands", label: "Luvas" },
-    { key: "legs", label: "Calças" },
-    { key: "feet", label: "Botas" },
-    { key: "amulet", label: "Amuleto" },
-    { key: "ring", label: "Anel" },
+  // disposição "boneco" estilo Path of Exile numa grade 8×6 (célula quadrada):
+  // armas altas (2×4) nas laterais; elmo (2×2) no topo; peitoral (2×3) no centro;
+  // amuleto/anéis pequenos (1×1) ao redor; luvas/cinto/botas na base.
+  const EQ_SLOTS: { key: string; label: string; gc: string; gr: string }[] = [
+    { key: "main", label: "Arma", gc: "1 / 3", gr: "1 / 5" },
+    { key: "off", label: "Secundária", gc: "7 / 9", gr: "1 / 5" },
+    { key: "head", label: "Elmo", gc: "4 / 6", gr: "1 / 3" },
+    { key: "amulet", label: "Amul.", gc: "6 / 7", gr: "2 / 3" },
+    { key: "chest", label: "Peitoral", gc: "4 / 6", gr: "3 / 6" },
+    { key: "ring1", label: "Anel", gc: "3 / 4", gr: "4 / 5" },
+    { key: "ring2", label: "Anel", gc: "6 / 7", gr: "4 / 5" },
+    { key: "hands", label: "Luvas", gc: "2 / 4", gr: "5 / 7" },
+    { key: "belt", label: "Cinto", gc: "4 / 6", gr: "6 / 7" },
+    { key: "feet", label: "Botas", gc: "6 / 8", gr: "5 / 7" },
   ];
-  const slotHtml = (s: { key: string; label: string; wpn?: boolean }) =>
-    `<div class="gh-slot-wrap"><div class="gh-slot${s.wpn ? " gh-slot-wpn" : ""}" data-slot="${s.key}"></div>` +
+  const slotHtml = (s: { key: string; label: string; gc: string; gr: string }) =>
+    `<div class="gh-slot" data-slot="${s.key}" style="grid-column:${s.gc};grid-row:${s.gr}">` +
     `<span class="gh-slot-cap">${s.label}</span></div>`;
   const eq = document.createElement("div");
   eq.id = "gh-eq";
@@ -165,11 +168,8 @@ export function setupControls(
     '<div id="gh-eq-win"><button id="gh-eq-close" title="Fechar (Esc)">✕</button>' +
     '<div id="gh-eq-inner">' +
     '<div class="gh-eq-title">Personagem</div>' +
-    '<div class="gh-eq-weapons">' +
-    EQ_SLOTS.filter((s) => s.wpn).map(slotHtml).join("") +
-    "</div>" +
-    '<div class="gh-eq-grid">' +
-    EQ_SLOTS.filter((s) => !s.wpn).map(slotHtml).join("") +
+    '<div class="gh-eq-doll">' +
+    EQ_SLOTS.map(slotHtml).join("") +
     "</div>" +
     '<div class="gh-eq-stats" id="gh-eq-stats"></div>' +
     "</div></div>";
@@ -591,21 +591,20 @@ function injectStyle() {
     text-align:center; font-size:clamp(15px,2.4vh,22px); letter-spacing:1px;
     color:#f0e2bd; text-shadow:0 2px 4px rgba(0,0,0,.7); margin-bottom:1%;
   }
-  .gh-eq-weapons { display:flex; justify-content:center; gap:6%; }
-  .gh-eq-grid {
-    display:grid; grid-template-columns:repeat(4,1fr); gap:4% 3%;
-    justify-items:center; align-content:start;
+  /* grade "boneco" 8×6 (célula quadrada via aspect-ratio) — disposição PoE */
+  .gh-eq-doll {
+    display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(6,1fr);
+    gap:clamp(3px,0.8vh,6px); width:99%; aspect-ratio:4 / 3; margin:0 auto;
   }
-  .gh-slot-wrap { display:flex; flex-direction:column; align-items:center; gap:3px; }
   .gh-slot {
-    --sl:min(64px,9.2vh); width:var(--sl); height:var(--sl);
-    border:calc(var(--sl)*0.16) solid transparent;
+    border:clamp(5px,1.05vh,8px) solid transparent;
     border-image:url(${eqSlotUrl}) 89 fill;
-    box-sizing:border-box;
+    box-sizing:border-box; min-width:0; min-height:0;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
   }
-  .gh-slot-wpn { height:calc(var(--sl)*1.62); }
   .gh-slot-cap {
-    font-size:clamp(8px,1.3vh,11px); color:#c9b98c; opacity:.85; line-height:1;
+    font-size:clamp(7px,1.15vh,11px); color:#c9b98c;
+    opacity:.78; line-height:1.05; text-align:center; padding:1px;
   }
   .gh-eq-stats {
     margin-top:auto; background:rgba(12,9,6,.5); border:1px solid rgba(201,162,39,.35);
