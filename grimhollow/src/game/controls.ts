@@ -1,4 +1,5 @@
 import { MOVE_MS } from "./config";
+import hudPlateUrl from "../assets/ui/hud_plate.png";
 
 export type Action =
   | "forward"
@@ -16,6 +17,7 @@ export interface HUD {
   hideDialogue(): void;
   swingWeapon(): void; // toca a animação de golpe da arma
   setHealth(frac: number): void; // 0..1 — barra de vida do jogador
+  setMana(frac: number): void; // 0..1 — barra de mana do jogador
   flashDamage(): void; // vinheta vermelha ao levar dano
 }
 
@@ -101,14 +103,17 @@ export function setupControls(
   // canvas do jogo (p/ o "tranco" de câmera no impacto); resolvido no 1º golpe
   let canvasEl: HTMLElement | null = null;
 
-  // barra de vida do jogador (canto superior esquerdo)
-  const hpWrap = document.createElement("div");
-  hpWrap.id = "gh-hp";
-  hpWrap.innerHTML =
-    '<div class="gh-hp-heart">❤</div>' +
-    '<div class="gh-hp-track"><div class="gh-hp-fill"></div></div>';
-  root.appendChild(hpWrap);
-  const hpFill = hpWrap.querySelector(".gh-hp-fill") as HTMLElement;
+  // placa de status (arte) — vida em cima, mana embaixo (canto superior esq.).
+  // A placa é a moldura pintada; os preenchimentos vermelho/azul entram por
+  // código nos dois encaixes (posições medidas na arte, em % da placa).
+  const hudWrap = document.createElement("div");
+  hudWrap.id = "gh-hud";
+  hudWrap.innerHTML =
+    '<div class="gh-hud-bar gh-hud-hp"><div class="gh-hud-fill gh-hud-hp-fill"></div></div>' +
+    '<div class="gh-hud-bar gh-hud-mp"><div class="gh-hud-fill gh-hud-mp-fill"></div></div>';
+  root.appendChild(hudWrap);
+  const hpFill = hudWrap.querySelector(".gh-hud-hp-fill") as HTMLElement;
+  const mpFill = hudWrap.querySelector(".gh-hud-mp-fill") as HTMLElement;
   // vinheta vermelha ao levar dano
   const dmgFx = document.createElement("div");
   dmgFx.id = "gh-dmg";
@@ -243,9 +248,17 @@ export function setupControls(
     setHealth(frac: number) {
       const f = Math.max(0, Math.min(1, frac));
       hpFill.style.width = f * 100 + "%";
-      // vermelho quando baixa
+      // vermelho vivo cheio → alaranjado/escuro quando a vida cai
       hpFill.style.background =
-        f > 0.5 ? "#c8443a" : f > 0.25 ? "#d8791f" : "#9a2018";
+        f > 0.5
+          ? "linear-gradient(#e35d4c,#b3241a)"
+          : f > 0.25
+            ? "linear-gradient(#e08a2c,#9a4a10)"
+            : "linear-gradient(#c23a24,#7a1610)";
+    },
+    setMana(frac: number) {
+      const f = Math.max(0, Math.min(1, frac));
+      mpFill.style.width = f * 100 + "%";
     },
     flashDamage() {
       dmgFx.style.animation = "none";
@@ -419,22 +432,26 @@ function injectStyle() {
     26%  { opacity:0.95; transform:rotate(-8deg) scale(1);   }
     100% { opacity:0;    transform:rotate(-8deg) scale(1.12); }
   }
-  /* barra de vida do jogador */
-  #gh-hp {
-    position:fixed; left:16px; top:14px; z-index:11; pointer-events:none;
-    display:flex; align-items:center; gap:8px;
+  /* placa de status (vida + mana) — arte com encaixes preenchidos por código */
+  #gh-hud {
+    position:fixed; left:12px; top:10px; z-index:11; pointer-events:none;
+    width:min(300px,54vw); aspect-ratio:793 / 336;
+    background:url(${hudPlateUrl}) no-repeat center / 100% 100%;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
   }
-  .gh-hp-heart { color:#e0403a; font-size:22px; text-shadow:0 1px 3px rgba(0,0,0,.7); line-height:1; }
-  .gh-hp-track {
-    width:180px; max-width:38vw; height:15px; border-radius:8px;
-    background:rgba(18,14,10,.72); border:2px solid rgba(201,162,39,.55);
-    box-shadow:0 2px 8px rgba(0,0,0,.5); overflow:hidden;
+  .gh-hud-bar {
+    position:absolute; left:19.2%; width:72.2%; overflow:hidden;
+    border-radius:999px;
   }
-  .gh-hp-fill {
-    height:100%; width:100%; background:#c8443a;
+  .gh-hud-hp { top:22.9%; height:17.6%; }
+  .gh-hud-mp { top:56.9%; height:17.3%; }
+  .gh-hud-fill {
+    height:100%; width:100%;
     transition:width .28s ease, background .28s ease;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.3), inset 0 -3px 5px rgba(0,0,0,.4);
   }
+  .gh-hud-hp-fill { background:linear-gradient(#e35d4c,#b3241a); }
+  .gh-hud-mp-fill { background:linear-gradient(#57b0e8,#1c5fb3); }
   /* vinheta vermelha ao levar dano */
   #gh-dmg {
     position:fixed; inset:0; z-index:9; pointer-events:none; opacity:0;

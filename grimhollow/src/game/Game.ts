@@ -569,6 +569,7 @@ export class Game {
       SWORD_ATK_ART ?? undefined,
     );
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
+    this.ui.setMana(1); // mana cheia por enquanto (mecânica entra depois)
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
 
