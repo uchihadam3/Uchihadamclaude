@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 15 prontos · 🟡 2 faltando · ❌ 2 removidas
+**Status:** ✅ 15 prontos · 🟡 3 faltando · ❌ 2 removidas
 
 ---
 
@@ -214,3 +214,35 @@ Hand-painted stylized-realism game asset, cohesive with a grim medieval fantasy 
 
 Quando você mandar, eu recorto e coloco na masmorra como inimigo — ele leva o
 golpe da espada quando você ataca de perto (aí o combate ganha função de verdade).
+
+---
+
+## 08 · Interface / HUD
+
+A cara do jogo (a "moldura" da tela). Aqui a regra é diferente das outras: a
+arte é só a **moldura ornamentada com os encaixes VAZIOS** — o preenchimento
+das barras (vermelho da vida, azul da mana) **eu faço por código**, porque ele
+precisa encher e esvaziar conforme você joga. Se a IA pintar as barras cheias,
+não dá pra animar. Então: **encaixes vazios/escuros**, o resto é enfeite.
+
+> Recorte: **fundo transparente** de verdade (PNG com alpha). Sem número, sem
+> texto. É uma peça de UI, então pode ser **vista reta, chapada** (não precisa
+> de "pé no chão" como os outros).
+
+### 🟡 Placa de status — vida + mana (falta) — canto superior esquerdo
+
+Uma placa única segurando **duas barras horizontais empilhadas**: a de cima é a
+**vida** (com um coração/emblema de vida na ponta esquerda) e a de baixo é a
+**mana** (com uma gema/cristal azul na ponta esquerda). Os dois encaixes ficam
+**vazios e escuros** (eu coloco o vermelho e o azul por dentro depois).
+
+Paisagem ~1024×460.
+
+```
+Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game. A small ornate HUD status plate meant for the top-left corner of the screen, holding TWO empty horizontal bar slots stacked vertically with a thin gap between them. The plate is a weathered dark iron and aged-bone frame with subtle gothic filigree at the corners and riveted metal edges. The TOP slot is a health bar groove with a small heart / life rune emblem set into its left cap; the BOTTOM slot is a mana bar groove with a small blue gem / crystal droplet emblem set into its left cap. Both bar grooves are EMPTY hollow recessed channels, deeply shadowed and near-black inside, so a colored fill can be added later — do NOT paint the bars red or blue, leave the insides empty and dark. Rounded bar ends. Cool desaturated palette (dark iron, tarnished silver, bone, muted cold highlights), soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background around the plate, crisp edges, no numbers, no readable text, no watermark. Wide landscape canvas ~1024x460.
+```
+
+Quando você mandar, eu recorto a placa, marco a posição dos dois encaixes e
+desenho por dentro o preenchimento vermelho (vida) e azul (mana) que enche e
+esvazia — a vida já reage ao dano; a mana entra cheia por enquanto (a mecânica
+de mana a gente liga depois).
