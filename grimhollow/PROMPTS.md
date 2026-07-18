@@ -290,11 +290,18 @@ Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-
 
 #### Peça B — Slot de equipamento (falta)
 
-Um **único** encaixe quadrado vazio. Eu clono ele na grade. Quadrado ~512×512.
+Um **único** encaixe quadrado vazio. Eu clono ele na grade — e, com a técnica de
+*9-slice* (cantos fixos, só o miolo estica), faço dele tanto os **quadrados**
+(armadura/acessórios) quanto os **retângulos maiores** das armas (mão principal
+e secundária), sem deformar a borda. Por isso a borda tem que ser **simétrica e
+uniforme nos quatro lados**. Quadrado ~512×512.
 
 ```
-Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron style of the game's HUD. A SINGLE empty equipment slot socket shown on its own, centered: one rounded-square frame of weathered dark iron with riveted corners and a small gothic accent, enclosing a deeply recessed near-black hollow empty center (an empty inset where an item icon would later sit). Just the one socket and nothing else — no item, no icon, no symbol, no number, no text. Cool desaturated palette, tarnished silver highlights, soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion. Clean cutout on a fully transparent background, crisp edges, no watermark. Square canvas ~512x512.
+Hand-painted stylized-realism game UI asset, cohesive with a grim medieval dark-fantasy game, matching the weathered dark iron style of the game's HUD. A SINGLE empty equipment slot socket shown on its own, perfectly centered: one rounded-square frame of weathered dark iron with a SYMMETRIC, EVEN border that is identical on all four sides — small rivets at the four corners and a small matching accent centered on each side — enclosing a deeply recessed near-black hollow empty center (an empty inset where an item icon would later sit). The even symmetric border is important so it can be resized cleanly. Just the one socket and nothing else — no item, no icon, no symbol, no number, no text. Cool desaturated palette, tarnished silver highlights, soft even lighting, no cast shadow. Flat front-facing orthographic view, no perspective distortion, perfectly square and centered. Clean cutout on a fully transparent background, crisp edges, no watermark. Square canvas ~512x512.
 ```
+
+As armas (mão principal/secundária) ficam em encaixes **retângulares mais altos**
+(estilo Diablo); os demais são quadrados. Tudo saído desse mesmo slot.
 
 Quando você mandar as duas, eu monto a janela: repito o slot na grade (9
 encaixes), escrevo os atributos no painel e, depois, ponho os ícones de cada
