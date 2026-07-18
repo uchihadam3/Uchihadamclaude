@@ -322,3 +322,116 @@ Quando você mandar as duas, eu monto a janela: repito o slot na grade (9
 encaixes), escrevo os atributos no painel e, depois, ponho os ícones de cada
 item (espada, cajado, escudo…) — esses ícones são o próximo passo, um PNG
 pequeno por item, não precisa agora.
+
+---
+
+# 📜 Catálogo de Itens (planejamento de design)
+
+> Esta parte **não tem prompts ainda** — é o **mapa dos itens** que a gente
+> alinhou conversando. Serve de referência pra, no futuro, gerar os PNGs (em
+> **folhas por tier**) e ligar os sistemas. **Nada aqui está no jogo ainda.**
+> Conforme cada lista é aprovada, ela fica registrada aqui.
+
+## Regras gerais
+
+- **Nível máximo:** 100.
+- **Raridades (por COR, sem arte própria):** ⚪ Comum · 🔵 Mágico · 🟡 Raro ·
+  🟠 Lendário. A raridade é só uma **borda/brilho** no ícone + os afixos rolados
+  — **não precisa de PNG novo** por raridade.
+- **Crafting (2 passos, só APRIMORAR):** coleta/drop → usa **direto** pra
+  melhorar/encantar o que já se tem. Sem refino, sem criar item do zero. O
+  **loot** é a fonte de equipamento; o crafting só **aprimora**.
+
+## Equipamentos — tiers e nomes
+
+**Cronograma de tiers (12 — denso no começo e no fim, esparso no meio):**
+`nv 1 · 5 · 10 · 15 · 20 · 30 · 40 · 50 · 65 · 80 · 90 · 100`
+
+**Material por tier** (nome vira "[Arma/Peça] de [Material]"):
+
+| Tier | Nv | Material |
+|---|---|---|
+| 1 | 1 | Madeira |
+| 2 | 5 | Cobre |
+| 3 | 10 | Bronze |
+| 4 | 15 | Ferro |
+| 5 | 20 | Aço |
+| 6 | 30 | Ferro Negro |
+| 7 | 40 | Prata Lunar |
+| 8 | 50 | Aço Rúnico |
+| 9 | 65 | Obsidiana |
+| 10 | 80 | Mithril |
+| 11 | 90 | Adamante |
+| 12 | 100 | Dracônico |
+
+- **Armas corpo-a-corpo** (espada, machado, adaga, marreta, maça) e **armaduras**
+  (elmo, peitoral, luvas, botas, cinto) usam essa linha: *Espada de Ferro,
+  Peitoral de Aço, Machado Dracônico…*
+- **Armas secundárias:** escudo/rapieira usam a linha de metal; orbe/foco usam a
+  linha de conjurador (abaixo).
+- **Armaduras são universais** (qualquer classe) — a build vem dos **afixos**
+  (INT, FOR, mana, vida…), não do tipo de armadura.
+
+**Cajado / orbe (linha de conjurador):**
+
+| Tier | Nv | Material |
+|---|---|---|
+| 1 | 1 | Galho |
+| 2 | 5 | Osso |
+| 3 | 10 | Carvalho |
+| 4 | 15 | Cristal |
+| 5 | 20 | Rúnico |
+| 6 | 30 | Ébano |
+| 7 | 40 | Prata Lunar |
+| 8 | 50 | Cristal Arcano |
+| 9 | 65 | Obsidiana |
+| 10 | 80 | Mithril |
+| 11 | 90 | Etéreo |
+| 12 | 100 | Dracônico |
+
+**Acessórios (nomes ÚNICOS, começam no nv 10, ~5 tiers — nv 10/20/40/65/90):**
+
+- **Anéis:** Argola de Osso → Anel Rúnico → Selo de Prata → Anel Arcano → Sinete dos Anciões
+- **Amuletos:** Talismã de Osso → Amuleto Rúnico → Relicário de Prata → Medalhão Arcano → Lágrima dos Anciões
+
+## Consumíveis
+
+- 🧪 **Poção de Vida** — cura X% da vida, com **cooldown** (melhorável no
+  alquimista: mais % / menos cooldown). Sem tipos pequeno/médio/grande.
+- 🔵 **Poção de Mana** — mesma lógica.
+- 🍖 **Comida** — cura ao longo do tempo (liga com pesca/coleta da floresta).
+- 📜 **Pergaminho de Retorno** — volta à cidade.
+- 🟢 **Futuro:** poções de **buff temporário** (Força, Inteligência, Destreza por
+  X tempo).
+
+## Materiais (crafting em 2 passos)
+
+**🌲 Coleta (floresta/mundo):**
+- Madeira (Comum / Rija / Ancestral)
+- Minério (Ferro / Prata / Mithril) + Carvão
+- Ervas (Erva-sangue, Erva-arcana, Raiz-amarga, Cogumelo-pálido, Flor-da-névoa)
+- Peixe (vários — base da comida)
+- Couro/Pele (Rústico / Grosso)
+- Cristal / Gema (mineração)
+
+**💀 Drops de inimigos:**
+- Pó Arcano (encantar — adiciona/reroda afixo)
+- Runa elemental (fogo, gelo, raio… — bônus específico, liga com builds)
+- Pedra de Reforço (sobe tier/qualidade da peça)
+- Fragmento Lendário (upgrades de topo)
+
+**🔧 Usos (coleta → direto, sem refino):**
+- **Ferreiro:** reforçar arma/armadura (madeira + minério + pedra de reforço)
+- **Encantamento:** pó arcano / runa → afixo
+- **Alquimista:** erva + frasco → poção
+- **Cozinha/fogueira:** peixe + ingrediente → comida
+
+## O que vai precisar de PNG (produção futura, em folhas)
+
+- **Armas:** 9 tipos × 12 tiers → **1 folha por tier** (as 9 armas juntas)
+- **Armaduras:** 5 peças × 12 tiers → 1 folha por tier
+- **Acessórios:** 2 tipos × 5 tiers
+- **Consumíveis:** ~5 ícones
+- **Materiais:** ~15–20 ícones
+- Produção **incremental**: começa pelos tiers 1–3 (cobre o começo do jogo) e
+  cresce conforme o conteúdo alcança os níveis maiores.
