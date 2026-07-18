@@ -435,7 +435,7 @@ function injectStyle() {
   /* placa de status (vida + mana) — arte com encaixes preenchidos por código */
   #gh-hud {
     position:fixed; left:12px; top:10px; z-index:11; pointer-events:none;
-    width:min(300px,54vw); aspect-ratio:793 / 336;
+    width:min(238px,44vw); aspect-ratio:793 / 336;
     background:url(${hudPlateUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
   }
