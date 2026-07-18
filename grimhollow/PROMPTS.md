@@ -364,6 +364,34 @@ mesmo molde, trocando só o material.
 > **folhas por tier**) e ligar os sistemas. **Nada aqui está no jogo ainda.**
 > Conforme cada lista é aprovada, ela fica registrada aqui.
 
+## 🛡️ Classes primárias (aprovadas)
+
+> O **coração do jogo**. São **4 classes fixas**, cada uma definida pela FAMÍLIA
+> de armas que domina. Dentro da classe, a build vem da **árvore de talentos**
+> (fogo/gelo, cura/dano, etc.) — como no WoW. Sem árvore ainda; aqui só ficam
+> registradas as classes e suas armas.
+
+| Classe | Atributo | Armas | Papel |
+|---|---|---|---|
+| ⚔️ **Guerreiro** | Força | espada, machado (+ escudo) | Tanque / dano corpo-a-corpo |
+| 🗡️ **Ladino** | Destreza | adaga, rapieira | Dano rápido / crítico / furtivo |
+| 🔮 **Mago** | Inteligência | cajado, orbe | Dano à distância / elemental |
+| 🕯️ **Clérigo** | Inteligência (Fé) | marreta, maça (+ escudo, orbe) | Suporte / cura / contundente divino |
+
+**Notas de design:**
+- **Não há mais "arma secundária" como categoria** — a **rapieira** virou arma
+  **principal** do Ladino (não é mais só off-hand). O **escudo** e o **orbe** são
+  itens de **mão secundária** (off-hand), não classes de arma por si.
+- **Empunhadura 1-mão vs 2-mãos:** armas 1-mão (espada, machado, adaga, rapieira,
+  marreta, maça) liberam a off-hand (escudo/orbe); versões/armas 2-mãos ocupam as
+  duas mãos e dão mais dano bruto. Guerreiro pode ir *espada+escudo* (tanque) ou
+  *2-mãos* (dano) — a árvore decide.
+- **Guerreiro = lâminas** (espada/machado); **Clérigo = contundente divino**
+  (marreta/maça) — separação temática clássica.
+- As **4 classes cobrem todos os papéis** de um grupo: tanque, dano corpo-a-corpo,
+  dano à distância e cura. Uma 5ª (ex.: 🦴 **Necromante**) fica reservada pro
+  futuro.
+
 ## Regras gerais
 
 - **Nível máximo:** 100.
@@ -399,8 +427,8 @@ mesmo molde, trocando só o material.
 - **Armas corpo-a-corpo** (espada, machado, adaga, marreta, maça) e **armaduras**
   (elmo, peitoral, luvas, botas, cinto) usam essa linha: *Espada de Ferro,
   Peitoral de Aço, Machado Dracônico…*
-- **Armas secundárias:** escudo/rapieira usam a linha de metal; orbe/foco usam a
-  linha de conjurador (abaixo).
+- **Rapieira** (arma principal do Ladino) e **escudo** (off-hand) usam a linha de
+  metal; **orbe/foco** (off-hand) usam a linha de conjurador (abaixo).
 - **Armaduras são universais** (qualquer classe) — a build vem dos **afixos**
   (INT, FOR, mana, vida…), não do tipo de armadura.
 
