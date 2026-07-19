@@ -6,6 +6,7 @@ import eqContainerUrl from "../assets/ui/eq_container.png";
 
 // Key art do título (PNG). O logo/menu ficam por cima; a arte é sem texto.
 import titleArtUrl from "../assets/ui/title_bg.png";
+import createBgUrl from "../assets/ui/create_bg.png";
 const TITLE_ART: string | null = titleArtUrl;
 
 export function runIntro(root: HTMLElement): Promise<Character> {
@@ -224,9 +225,18 @@ function injectStyle() {
   #gh-intro .gh-disabled { opacity:.38; cursor:default; }
   /* --- criação de personagem --- */
   #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  /* fundo (arte da cripta) FIXO atrás da UI + véu p/ o texto ler bem */
+  #gh-intro .gh-create::before {
+    content:""; position:fixed; inset:0; z-index:0;
+    background:#0a0b10 center/cover no-repeat; background-image:url(${createBgUrl});
+  }
+  #gh-intro .gh-create::after {
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:linear-gradient(180deg, rgba(6,7,11,.74) 0%, rgba(6,7,11,.44) 32%, rgba(6,7,11,.5) 68%, rgba(6,7,11,.82) 100%);
+  }
   /* NADA encolhe abaixo do conteúdo (senão o rodapé sobrepõe o painel) — a tela
-     rola quando precisa. */
-  #gh-intro .gh-create > * { flex:0 0 auto; }
+     rola quando precisa; e tudo fica ACIMA do fundo (z-index:1). */
+  #gh-intro .gh-create > * { flex:0 0 auto; position:relative; z-index:1; }
   #gh-intro .gh-screen-h {
     font-family:"Cinzel",serif; font-weight:700; color:#eccf82; margin:4px 0 0;
     font-size:clamp(19px,3vh,28px); text-shadow:0 2px 8px #000;

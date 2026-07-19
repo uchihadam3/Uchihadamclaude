@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 21 prontos · 🟡 12 faltando · ❌ 2 removidas
+**Status:** ✅ 23 prontos · 🟡 10 faltando · ❌ 2 removidas
 
 ---
 
@@ -423,7 +423,7 @@ O fluxo **Título → Criação de personagem → Loading → Jogo** já está p
 funcionando (o Loading pré-carrega TODOS os PNGs, matando o bug de sprite
 faltando). Falta a **arte** — o código já tem os slots prontos: é só encaixar.
 
-### 🟡 Peça A — Key art do título (falta)
+### ✅ Peça A — Key art do título (PRONTO — no jogo)
 
 O fundo da tela inicial. Precisa ser **atmosférico, nível AAA**. Vertical (o mobile
 é retrato). Deixe o **terço de cima mais escuro/vazio** (céu/névoa) — é onde entra
@@ -436,20 +436,33 @@ Epic AAA dark-fantasy game cover key art, grim medieval horror mood. A fog-shrou
 ### 🟡 Peça B — Retratos das 4 classes (falta)
 
 Um **retrato marcante** por classe, aparece na criação de personagem (slot 3:4).
-Fundo escuro/atmosférico combinando (não precisa ser transparente — fica emoldurado).
-**Mesmo estilo pintado, sombrio e coeso** entre os quatro. Manda **um por vez**.
+Cada prompt abaixo é **completo** — é só **copiar e colar**, sem mudar nada. Manda
+**um por vez**. (Fundo já vem escuro/atmosférico; fica emoldurado no jogo.)
 
-**Prefixo de estilo (vale pros 4):** `Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm accents, detailed painterly rendering, dark atmospheric background (faint fog/embers), from the waist up, facing the viewer, heroic but grim. No text, no watermark, no UI. Tall portrait ~896x1200.`
+**⚔️ Guerreiro:**
+```
+Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm firelight accents, detailed painterly rendering, dark atmospheric background with faint fog and embers, shown from the waist up, facing the viewer, heroic but grim. A battle-worn human WARRIOR in dented heavy plate armor, gripping a broadsword with a round shield, a scarred determined face, grey-steel and iron tones. No text, no watermark, no UI. Tall portrait ~896x1200.
+```
 
-- ⚔️ **Guerreiro:** `...a battle-worn human WARRIOR in dented heavy plate armor, gripping a broadsword with a round shield on the back, scarred determined face, grey-steel and iron tones.`
-- 🗡️ **Ladino:** `...a hooded human ROGUE / assassin in dark worn leather, twin daggers, half-shadowed cunning face, lean and agile, deep blacks and muted browns.`
-- 🔮 **Mago:** `...a robed human MAGE holding a gnarled wooden staff topped with a glowing arcane crystal, faint blue-violet magic light on the hands and face, mystical and frail, dark hooded robes.`
-- 🕯️ **Clérigo:** `...a devout human CLERIC in robes over chainmail, holding a heavy mace and a holy symbol, faint warm divine glow, solemn faithful face, off-white and bronze tones.`
+**🗡️ Ladino:**
+```
+Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm firelight accents, detailed painterly rendering, dark atmospheric background with faint fog and embers, shown from the waist up, facing the viewer, heroic but grim. A hooded human ROGUE / assassin in dark worn leather armor, wielding twin daggers, a half-shadowed cunning face under the hood, lean and agile, deep blacks and muted browns. No text, no watermark, no UI. Tall portrait ~896x1200.
+```
+
+**🔮 Mago:**
+```
+Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm firelight accents, detailed painterly rendering, dark atmospheric background with faint fog and embers, shown from the waist up, facing the viewer, heroic but grim. A robed human MAGE holding a gnarled wooden staff topped with a glowing arcane crystal, faint blue-violet magic light on the hands and face, mystical and frail, dark hooded robes. No text, no watermark, no UI. Tall portrait ~896x1200.
+```
+
+**🕯️ Clérigo:**
+```
+Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm firelight accents, detailed painterly rendering, dark atmospheric background with faint fog and embers, shown from the waist up, facing the viewer, heroic but grim. A devout human CLERIC in robes over chainmail, holding a heavy mace and a holy symbol, a faint warm divine glow, a solemn faithful face, off-white and bronze tones. No text, no watermark, no UI. Tall portrait ~896x1200.
+```
 
 *(Quando mandar, eu importo e ligo `portrait` de cada classe — o retrato substitui
 o placeholder "arte em breve" na hora.)*
 
-### 🟡 Peça C — Fundo da tela de criação (falta)
+### ✅ Peça C — Fundo da tela de criação (PRONTO — no jogo)
 
 Um **fundo atmosférico** pra tela de criação de personagem (a UI fica por cima).
 Vertical, escuro nas bordas pra não brigar com o texto. Serve de "sala" onde o
