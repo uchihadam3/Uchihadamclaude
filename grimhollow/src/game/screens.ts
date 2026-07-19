@@ -253,11 +253,13 @@ function injectStyle() {
   #gh-intro .gh-class-main {
     display:flex; flex-direction:row; gap:14px; width:min(720px,96%); box-sizing:border-box;
     border:clamp(16px,3vw,24px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill;
-    padding:6px; align-items:flex-start; flex-shrink:0;
+    padding:6px; align-items:stretch; flex-shrink:0;
   }
-  #gh-intro .gh-class-art { flex:0 0 auto; width:min(38%,210px); }
+  /* a arte ESTICA até a altura da coluna de info (preenche o container, sem vazio
+     embaixo); object-fit cover mantém o retrato sem distorcer. */
+  #gh-intro .gh-class-art { flex:0 0 auto; width:min(38%,210px); align-self:stretch; min-height:238px; }
   #gh-intro .gh-class-portrait, #gh-intro .gh-class-ph {
-    width:100%; aspect-ratio:3/4; border-radius:8px; object-fit:cover;
+    width:100%; height:100%; border-radius:8px; object-fit:cover;
     border:2px solid rgba(201,162,39,.45); background:rgba(8,7,5,.6);
   }
   #gh-intro .gh-class-ph { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
@@ -287,7 +289,9 @@ function injectStyle() {
      lado (compacto, cabe sem rolar). */
   @media (max-width:380px) {
     #gh-intro .gh-class-main { flex-direction:column; align-items:center; }
-    #gh-intro .gh-class-art { width:min(58%,170px); }
+    /* empilhado: a arte volta a ter proporção 3:4 (não estica na vertical) */
+    #gh-intro .gh-class-art { width:min(58%,170px); align-self:center; min-height:0; }
+    #gh-intro .gh-class-portrait, #gh-intro .gh-class-ph { height:auto; aspect-ratio:3/4; }
     #gh-intro .gh-attr > span { width:74px; }
   }
   /* --- loading --- */
