@@ -63,6 +63,25 @@ function showCreate(overlay: HTMLElement, onStart: (c: Character) => void) {
   const main = overlay.querySelector("#gh-class-main") as HTMLElement;
   const render = (c: GameClass) => (main.innerHTML = classCard(c));
   render(sel);
+
+  // PADRONIZA a altura da janela: mede as 4 classes e fixa a MAIOR (Guerreiro) em
+  // todas. À prova de fonte/aparelho — mede o layout real renderizado.
+  const equalizeHeight = () => {
+    main.style.minHeight = "0";
+    let max = 0;
+    for (const c of CLASSES) {
+      main.innerHTML = classCard(c);
+      max = Math.max(max, main.getBoundingClientRect().height);
+    }
+    main.innerHTML = classCard(sel);
+    main.style.minHeight = Math.ceil(max) + "px";
+  };
+  equalizeHeight();
+  // remede quando a fonte medieval carregar (muda a quebra de linha) e ao girar a tela
+  const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
+  if (fonts?.ready) fonts.ready.then(() => { if (main.isConnected) equalizeHeight(); });
+  const onResize = () => { if (main.isConnected) equalizeHeight(); };
+  window.addEventListener("resize", onResize);
   overlay.querySelectorAll<HTMLElement>(".gh-class-tab").forEach((tab) =>
     tab.addEventListener("click", () => {
       overlay
@@ -287,14 +306,6 @@ function injectStyle() {
   #gh-intro .gh-name-input:focus { border-color:#f4c847; }
   /* só empilha (arte em cima) em telas MUITO estreitas; nos demais fica lado a
      lado (compacto, cabe sem rolar). */
-  /* MOBILE: padroniza a altura da janela entre as classes — reserva um espaço
-     fixo pros trechos que variam (descrição e armas), então todas ficam do mesmo
-     tamanho mesmo que sobre um pouco de espaço nas mais curtas. (No desktop já
-     ficam iguais naturalmente.) */
-  @media (max-width:640px) {
-    #gh-intro .gh-class-desc { min-height:7.6em; }
-    #gh-intro .gh-class-weapons { min-height:2.7em; }
-  }
   @media (max-width:380px) {
     #gh-intro .gh-class-main { flex-direction:column; align-items:center; }
     /* empilhado: a arte volta a ter proporção 3:4 (não estica na vertical) */
