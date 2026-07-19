@@ -327,30 +327,32 @@ pequeno por item, não precisa agora.
 
 ## 10 · Ícones de itens (folhas por tier)
 
-Os ícones que vão DENTRO dos slots. Estratégia: **uma folha por tier** com as 9
+Os ícones que vão DENTRO dos slots. Estratégia: **uma folha por tier** com as 10
 armas juntas — você gera a folha, eu **recorto cada ícone** (grade com espaços).
 A raridade (cor) eu aplico por código; a folha é só o item "comum".
 
-**Pose EM PÉ (dupla função):** as armas de mão (espada, machado, adaga, marreta,
-maça, cajado, rapieira) vêm **verticais, cabo embaixo e ponta pra cima** — igual
-à espada atual. Assim a **MESMA arte** serve de **ícone no inventário E de arma
-na mão** do jogador (o motor anima o golpe em cima dela). Escudo e orbe ficam
+**Pose EM PÉ (dupla função):** as armas de mão (espada, espadão, machado, adaga,
+marreta, maça, cajado, rapieira) vêm **verticais, cabo embaixo e ponta pra cima**
+— igual à espada atual. Assim a **MESMA arte** serve de **ícone no inventário E de
+arma na mão** do jogador (o motor anima o golpe em cima dela). Escudo e orbe ficam
 **de frente** (servem de ícone; a visão "na mão" da secundária a gente vê depois).
 
-> Recorte: **fundo transparente** (ou verde-limão chapado). Itens **numa grade
-> 3×3 com espaços** entre eles, **sem se tocar**, cada um centralizado na célula.
-> **Sem texto, sem números, sem moldura** (a moldura é o slot).
+> **Fundo:** magenta CHAPADO (`#ff00ff`), cor única e uniforme — **nada de xadrez,
+> gradiente ou textura**. O aço cinza da lâmina se confunde com xadrez cinza (come
+> a lâmina no recorte); o magenta é a cor que **nenhuma arma tem**, então o recorte
+> sai perfeito. Itens **numa grade 4×3 com espaços** entre eles, **sem se tocar**,
+> cada um centralizado na sua célula. **Sem texto, sem números, sem moldura.**
 
-### 🟡 Armas — Tier 1 (nível 1, "de Madeira") — folha das 9 armas (falta)
+### 🟡 Armas — Tier 1 (nível 1, "de Madeira") — folha das 10 armas (falta)
 
 Qualidade **rústica de iniciante**: madeira tosca, couro gasto, metal cru/opaco.
-Quadrado ~2304×2304 (3×3, ~768px por arma — resolução p/ servir também na mão).
+Retrato ~2560×1920 (grade 4 colunas × 3 linhas → 10 armas + 2 células vazias).
 
 ```
-Hand-painted stylized-realism game weapon SHEET, cohesive with a grim medieval dark-fantasy game. A neat 3x3 grid of NINE separate tier-1 starter weapons, evenly spaced with clear empty gaps between them so each can be cut apart, every weapon centered in its own cell at a consistent size and identical lighting. Each bladed or hafted weapon is oriented UPRIGHT and vertical — grip/handle at the BOTTOM of its cell and the blade or head pointing straight UP, as if held ready — so the same art doubles as an inventory icon AND as the weapon seen in the player's first-person hand. All nine are crude, humble beginner-quality gear of rough-hewn wood, worn leather wraps and dull pitted crude iron, nothing ornate. One per cell: (1) a short sword, (2) a hand axe, (3) a dagger, (4) a heavy two-handed maul, (5) a mace, (6) a wooden staff (a gnarled branch), (7) a round wooden shield shown face-on, (8) a slender rapier, (9) a small caster focus orb (a rough crystal in a carved wood mount) shown face-on. Cool desaturated palette, soft even lighting, no cast shadow, flat straight-on view, no perspective distortion. Each weapon is a crisp cutout on a fully transparent background, clearly separated so it can be cut apart. No text, no numbers, no frames or borders, no watermark. Square canvas ~2304x2304.
+Hand-painted stylized-realism game weapon SHEET, cohesive with a grim medieval dark-fantasy game. A neat grid of 4 columns by 3 rows holding TEN separate tier-1 starter weapons (the last two cells left empty), evenly spaced with clear empty gaps between them so each can be cut apart, every weapon centered in its own cell at a consistent size and identical lighting. Each bladed or hafted weapon is oriented UPRIGHT and vertical — grip/handle at the BOTTOM of its cell and the blade or head pointing straight UP, as if held ready — so the same art doubles as an inventory icon AND as the weapon seen in the player's first-person hand. All ten are crude, humble beginner-quality gear of rough-hewn wood, worn leather wraps and dull pitted crude iron, nothing ornate. One per cell, in order: (1) a short one-handed sword, (2) a long TWO-HANDED greatsword / zweihander with a long broad blade and long grip, clearly bigger and longer than the short sword, (3) a hand axe, (4) a dagger, (5) a slender rapier, (6) a heavy two-handed maul, (7) a flanged mace, (8) a wooden staff (a gnarled branch), (9) a round wooden shield shown face-on, (10) a small caster focus orb (a rough crystal in a carved wood mount) shown face-on. Cool desaturated palette, soft even lighting, no cast shadow, flat straight-on view, no perspective distortion. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, no checker pattern, no gradient, no texture — each weapon a crisp separated shape on the magenta so it can be cut apart. No text, no numbers, no frames or borders, no watermark. Portrait canvas ~2560x1920.
 ```
 
-Quando você mandar, eu separo os 9, uso cada um como ícone no slot certo E como
+Quando você mandar, eu separo as 10, uso cada uma como ícone no slot certo E como
 sprite na mão (a arma principal equipada aparece na mão como a espada de hoje), e
 ligo o sistema de equipar. As folhas dos próximos tiers (Cobre, Bronze…) seguem o
 mesmo molde, trocando só o material.
@@ -373,7 +375,7 @@ mesmo molde, trocando só o material.
 
 | Classe | Atributo | Armas | Papel |
 |---|---|---|---|
-| ⚔️ **Guerreiro** | Força | espada, machado (+ escudo) | Tanque / dano corpo-a-corpo |
+| ⚔️ **Guerreiro** | Força | espada, espadão, machado (+ escudo) | Tanque / dano corpo-a-corpo |
 | 🗡️ **Ladino** | Destreza | adaga, rapieira | Dano rápido / crítico / furtivo |
 | 🔮 **Mago** | Inteligência | cajado, orbe | Dano à distância / elemental |
 | 🕯️ **Clérigo** | Inteligência (Fé) | marreta, maça (+ escudo, orbe) | Suporte / cura / contundente divino |
@@ -383,9 +385,9 @@ mesmo molde, trocando só o material.
   **principal** do Ladino (não é mais só off-hand). O **escudo** e o **orbe** são
   itens de **mão secundária** (off-hand), não classes de arma por si.
 - **Empunhadura 1-mão vs 2-mãos:** armas 1-mão (espada, machado, adaga, rapieira,
-  marreta, maça) liberam a off-hand (escudo/orbe); versões/armas 2-mãos ocupam as
-  duas mãos e dão mais dano bruto. Guerreiro pode ir *espada+escudo* (tanque) ou
-  *2-mãos* (dano) — a árvore decide.
+  maça) liberam a off-hand (escudo/orbe); armas 2-mãos (**espadão/montante**,
+  marreta) ocupam as duas mãos e dão mais dano bruto. Guerreiro pode ir
+  *espada+escudo* (tanque) ou *espadão* (2-mãos, dano) — a árvore decide.
 - **Guerreiro = lâminas** (espada/machado); **Clérigo = contundente divino**
   (marreta/maça) — separação temática clássica.
 - As **4 classes cobrem todos os papéis** de um grupo: tanque, dano corpo-a-corpo,
@@ -424,7 +426,7 @@ mesmo molde, trocando só o material.
 | 11 | 90 | Adamante |
 | 12 | 100 | Dracônico |
 
-- **Armas corpo-a-corpo** (espada, machado, adaga, marreta, maça) e **armaduras**
+- **Armas corpo-a-corpo** (espada, espadão, machado, adaga, marreta, maça) e **armaduras**
   (elmo, peitoral, luvas, botas, cinto) usam essa linha: *Espada de Ferro,
   Peitoral de Aço, Machado Dracônico…*
 - **Rapieira** (arma principal do Ladino) e **escudo** (off-hand) usam a linha de
@@ -490,7 +492,7 @@ subsistema. A **comida** vira consumível **comprado pronto** no mercador.)*
 
 ## O que vai precisar de PNG (produção futura, em folhas)
 
-- **Armas:** 9 tipos × 12 tiers → **1 folha por tier** (as 9 armas juntas)
+- **Armas:** 10 tipos × 12 tiers → **1 folha por tier** (as 10 armas juntas)
 - **Armaduras:** 5 peças × 12 tiers → 1 folha por tier
 - **Acessórios:** 2 tipos × 5 tiers
 - **Consumíveis:** ~5 ícones
