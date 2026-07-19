@@ -30,7 +30,7 @@ export interface StyleDef {
   follow: Pose; // seguir (logo após o impacto)
   windup: number; strike: number; recover: number; cooldown: number; // ms
   weight: number; // intensidade do clarão + tranco de câmera
-  fx: "arc" | "arcBig" | "streak"; // formato do rastro
+  fx: "arc" | "arcBig" | "streak" | "smashwave"; // formato do rastro/impacto
 }
 
 // 5 famílias de golpe. As poses são relativas ao rig (perspective 760px):
@@ -50,13 +50,13 @@ export const STYLES: Record<AtkStyle, StyleDef> = {
     wind:   { ry: -18, rx: 24,  rz: 22,  tx: 6,   ty: -8, s: 0.84 },
     hit:    { ry: 22,  rx: -26, rz: -14, tx: -18, ty: 15, s: 1.40 },
     follow: { ry: 8,   rx: -8,  rz: -8,  tx: -8,  ty: 8,  s: 1.10 },
-    windup: 140, strike: 240, recover: 220, cooldown: 840, weight: 1.5, fx: "arc",
+    windup: 140, strike: 240, recover: 220, cooldown: 840, weight: 1.6, fx: "arcBig",
   },
   smash: {
     wind:   { ry: -14, rx: 30,  rz: 14,  tx: 2,   ty: -12, s: 0.90 },
     hit:    { ry: 16,  rx: -32, rz: -4,  tx: -8,  ty: 22,  s: 1.55 },
     follow: { ry: 6,   rx: -10, rz: 2,   tx: -2,  ty: 10,  s: 1.16 },
-    windup: 210, strike: 320, recover: 280, cooldown: 1200, weight: 2.3, fx: "arcBig",
+    windup: 210, strike: 320, recover: 280, cooldown: 1200, weight: 2.4, fx: "smashwave",
   },
   thrust: {
     wind:   { ry: -10, rx: 8,   rz: 22,  tx: 12,  ty: 8,  s: 0.84 },
