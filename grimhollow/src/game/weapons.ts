@@ -95,22 +95,22 @@ export const STYLES: Record<AtkStyle, StyleDef> = {
     follow: { ry: -14, rx: 4,   rz: -24, tx: -10, ty: 0,  s: 1.00 },
     windup: 120, strike: 205, recover: 200, cooldown: 640, weight: 1.1, fx: "arc",
   },
-  // MACHADO — cabeca direcional: o fio precisa LIDERAR o golpe. Diferente da maca
-  // (simetrica), o machado nao pode "deitar" (rotateX grande mostra o LADO chato).
-  // Entao: rotateX BAIXO (fica de perfil, em pe) + rotateZ FORTE (desce na DIAGONAL,
-  // cabeca pra baixo-esquerda, fio a frente). So um tiquinho de rx p/ ir a frente.
+  // MACHADO — machadada DE CIMA PRA BAIXO: ergue bem alto (ty -22) e derruba
+  // fundo (ty +24) — a trajetoria vertical (o translate) e o que vende o "de cima".
+  // rotateZ pequeno (so um pouco de diagonal, sem varrer horizontal) + rotateX
+  // moderado (da o "por cima" sem deitar/mostrar o lado chato).
   axeChop: {
-    wind:   { ry: -12, rx: -16, rz: 30,  tx: 8,   ty: -8, s: 0.95 },
-    hit:    { ry: 10,  rx: 12,  rz: -50, tx: -16, ty: 6,  s: 1.18 },
-    follow: { ry: 6,   rx: 8,   rz: -40, tx: -10, ty: 6,  s: 1.05 },
+    wind:   { ry: -10, rx: -14, rz: 14,  tx: 5,   ty: -22, s: 0.94 },
+    hit:    { ry: 8,   rx: 22,  rz: -20, tx: -9,  ty: 24,  s: 1.18 },
+    follow: { ry: 5,   rx: 14,  rz: -14, tx: -5,  ty: 16,  s: 1.06 },
     windup: 150, strike: 230, recover: 220, cooldown: 820, weight: 1.6, fx: "arcBig",
   },
-  // MARRETA — mesma ideia do machado, mas pesada: a face bate na DIAGONAL (nao o
-  // lado). rotateX baixo (nao deita) + rotateZ forte (desce diagonal), lento/forte.
+  // MARRETA — mesma ideia do machado, porem pesada: derruba DE CIMA PRA BAIXO
+  // (ty -24 -> +28), trajetoria bem vertical, pouca diagonal, lento e forte.
   maulSmash: {
-    wind:   { ry: -10, rx: -18, rz: 28,  tx: 6,   ty: -6, s: 0.97 },
-    hit:    { ry: 9,   rx: 14,  rz: -46, tx: -14, ty: 8,  s: 1.30 },
-    follow: { ry: 5,   rx: 9,   rz: -36, tx: -8,  ty: 8,  s: 1.08 },
+    wind:   { ry: -8,  rx: -16, rz: 12,  tx: 4,   ty: -24, s: 0.96 },
+    hit:    { ry: 7,   rx: 24,  rz: -18, tx: -7,  ty: 28,  s: 1.30 },
+    follow: { ry: 4,   rx: 15,  rz: -12, tx: -4,  ty: 18,  s: 1.08 },
     windup: 220, strike: 320, recover: 300, cooldown: 1200, weight: 2.4, fx: "smashwave",
   },
 };
