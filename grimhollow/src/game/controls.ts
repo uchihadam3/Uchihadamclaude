@@ -94,6 +94,8 @@ export function setupControls(
   let weaponAtk: HTMLImageElement | null = null; // sprite de golpe (2º, opcional)
   let slashFx: HTMLElement | null = null;
   let impactFx: HTMLElement | null = null; // clarão de impacto no auge do golpe
+  let shockFx: HTMLElement | null = null; // onda de choque (golpes pesados)
+  let screenFx: HTMLElement | null = null; // lampejo de tela (pancada rombuda)
   let swinging = false;
   const swingTimers: number[] = [];
   if (weaponUrl) {
@@ -130,6 +132,13 @@ export function setupControls(
     impactFx = document.createElement("div");
     impactFx.id = "gh-impact";
     root.appendChild(impactFx);
+    // onda de choque (anel) + lampejo de tela — usados só nos golpes pesados
+    shockFx = document.createElement("div");
+    shockFx.id = "gh-shock";
+    root.appendChild(shockFx);
+    screenFx = document.createElement("div");
+    screenFx.id = "gh-screenflash";
+    root.appendChild(screenFx);
   }
   // canvas do jogo (p/ o "tranco" de câmera no impacto); resolvido no 1º golpe
   let canvasEl: HTMLElement | null = null;
@@ -448,13 +457,21 @@ export function setupControls(
         { duration: total, easing: "ease-out", fill: "both" },
       );
 
-      // 2) no AUGE do golpe: rastro + clarão + tranco de câmera (escalados p/ peso)
+      // 2) no AUGE do golpe: rastro + clarão + onda de choque + tranco de câmera.
+      // O visual muda por FAMÍLIA de golpe:
+      //   streak    = estocada: risco reto (adaga/rapieira)
+      //   arc       = corte: arco fino luminoso (espada/cajado)
+      //   arcBig    = machadada: arco GROSSO + onda de choque (machado/maça)
+      //   smashwave = pancada rombuda: SEM lâmina, só peso — smear largo,
+      //               onda de choque grande, clarão terroso, tremor duplo forte
+      //               (espadão/marreta)
+      const heavy = st.fx === "arcBig" || st.fx === "smashwave";
+      const blunt = st.fx === "smashwave";
       swingTimers.push(
         window.setTimeout(() => {
           if (slashFx) {
             slashFx.getAnimations?.().forEach((a) => a.cancel());
             if (st.fx === "streak") {
-              // estocada: um risco reto avançando, não um arco
               slashFx.animate(
                 [
                   { opacity: 0, transform: "rotate(-4deg) scaleX(0.35) scaleY(0.5)" },
@@ -463,17 +480,40 @@ export function setupControls(
                 ],
                 { duration: 190, easing: "ease-out" },
               );
+            } else if (blunt) {
+              // pancada: em vez de fio luminoso, um borrão largo e mais opaco
+              slashFx.animate(
+                [
+                  { opacity: 0, transform: "rotate(-8deg) scale(0.9)" },
+                  { opacity: 0.5, transform: "rotate(-8deg) scale(1.5) translateY(6%)", offset: 0.28 },
+                  { opacity: 0, transform: "rotate(-8deg) scale(1.75) translateY(10%)" },
+                ],
+                { duration: 230, easing: "ease-out" },
+              );
             } else {
-              const sc = st.fx === "arcBig" ? 1.28 : 1;
+              const sc = st.fx === "arcBig" ? 1.34 : 1; // machadada = arco mais grosso
               slashFx.animate(
                 [
                   { opacity: 0, transform: `rotate(-8deg) scale(${0.7 * sc})` },
-                  { opacity: 0.95, transform: `rotate(-8deg) scale(${1.0 * sc})`, offset: 0.26 },
+                  { opacity: 0.98, transform: `rotate(-8deg) scale(${1.0 * sc})`, offset: 0.26 },
                   { opacity: 0, transform: `rotate(-8deg) scale(${1.14 * sc})` },
                 ],
-                { duration: 210, easing: "ease-out" },
+                { duration: 220, easing: "ease-out" },
               );
             }
+          }
+          // onda de choque (só golpes pesados): anel expandindo no ponto do baque
+          if (shockFx && heavy) {
+            shockFx.getAnimations?.().forEach((a) => a.cancel());
+            const big = blunt ? 1.55 : 1.05;
+            shockFx.animate(
+              [
+                { opacity: 0, transform: "translate(-50%,-50%) scale(0.2)" },
+                { opacity: blunt ? 0.95 : 0.8, transform: `translate(-50%,-50%) scale(${0.72 * big})`, offset: 0.22 },
+                { opacity: 0, transform: `translate(-50%,-50%) scale(${1.4 * big})` },
+              ],
+              { duration: Math.round(240 + weight * 80), easing: "ease-out" },
+            );
           }
           if (impactFx) {
             impactFx.getAnimations?.().forEach((a) => a.cancel());
@@ -487,18 +527,44 @@ export function setupControls(
               { duration: Math.round(190 + weight * 60), easing: "ease-out" },
             );
           }
+          // pancada rombuda: um lampejo curto na tela inteira reforça o baque
+          if (screenFx && blunt) {
+            screenFx.getAnimations?.().forEach((a) => a.cancel());
+            screenFx.animate(
+              [
+                { opacity: 0 },
+                { opacity: 0.55, offset: 0.18 },
+                { opacity: 0 },
+              ],
+              { duration: 220, easing: "ease-out" },
+            );
+          }
           if (canvasEl) {
             canvasEl.getAnimations?.().forEach((a) => a.cancel());
             const k = weight;
-            canvasEl.animate(
-              [
-                { transform: "translate(0,0) scale(1)" },
-                { transform: `translate(${-0.8 * k}%,${1.0 * k}%) scale(${1 + 0.018 * k}) rotate(${-0.45 * k}deg)`, offset: 0.18 },
-                { transform: `translate(${0.45 * k}%,${-0.35 * k}%) scale(${1 + 0.005 * k}) rotate(${0.18 * k}deg)`, offset: 0.46 },
-                { transform: "translate(0,0) scale(1)" },
-              ],
-              { duration: Math.round(200 + weight * 45), easing: "ease-out" },
-            );
+            if (blunt) {
+              // tremor DUPLO (dois solavancos) — sensação de terra tremendo
+              canvasEl.animate(
+                [
+                  { transform: "translate(0,0) scale(1)" },
+                  { transform: `translate(${-1.1 * k}%,${1.3 * k}%) scale(${1 + 0.024 * k}) rotate(${-0.6 * k}deg)`, offset: 0.14 },
+                  { transform: `translate(${0.7 * k}%,${-0.6 * k}%) scale(${1 + 0.012 * k}) rotate(${0.4 * k}deg)`, offset: 0.34 },
+                  { transform: `translate(${-0.5 * k}%,${0.5 * k}%) scale(${1 + 0.006 * k}) rotate(${-0.2 * k}deg)`, offset: 0.56 },
+                  { transform: "translate(0,0) scale(1)" },
+                ],
+                { duration: Math.round(280 + weight * 55), easing: "ease-out" },
+              );
+            } else {
+              canvasEl.animate(
+                [
+                  { transform: "translate(0,0) scale(1)" },
+                  { transform: `translate(${-0.8 * k}%,${1.0 * k}%) scale(${1 + 0.018 * k}) rotate(${-0.45 * k}deg)`, offset: 0.18 },
+                  { transform: `translate(${0.45 * k}%,${-0.35 * k}%) scale(${1 + 0.005 * k}) rotate(${0.18 * k}deg)`, offset: 0.46 },
+                  { transform: "translate(0,0) scale(1)" },
+                ],
+                { duration: Math.round(200 + weight * 45), easing: "ease-out" },
+              );
+            }
           }
         }, impactMs),
       );
@@ -633,6 +699,26 @@ function injectStyle() {
     border-radius:50%;
     background:radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(210,235,255,0.55) 32%, rgba(180,220,255,0) 70%);
     mix-blend-mode:screen;
+  }
+  /* onda de choque: anel que estoura no ponto do baque (golpes pesados) */
+  #gh-shock {
+    position:fixed; left:52%; top:44%;
+    width:34vh; height:34vh; max-width:380px; max-height:380px;
+    transform:translate(-50%,-50%) scale(0.2);
+    pointer-events:none; z-index:9; opacity:0; border-radius:50%;
+    border:0.8vh solid rgba(255,238,205,0.92);
+    box-shadow:0 0 26px rgba(255,222,170,0.6), inset 0 0 22px rgba(255,222,170,0.45);
+    mix-blend-mode:screen;
+  }
+  /* lampejo curto na tela inteira no impacto rombudo */
+  #gh-screenflash {
+    position:fixed; inset:0; pointer-events:none; z-index:7; opacity:0;
+    background:radial-gradient(circle at 52% 44%, rgba(255,246,225,0.6), rgba(255,240,210,0) 62%);
+    mix-blend-mode:screen;
+  }
+  .gh-wpn-arcane #gh-shock {
+    border-color:rgba(214,186,255,0.92);
+    box-shadow:0 0 26px rgba(186,150,255,0.6), inset 0 0 22px rgba(186,150,255,0.45);
   }
   @keyframes gh-flash {
     0%   { opacity:0;   transform:scale(0.4); }
