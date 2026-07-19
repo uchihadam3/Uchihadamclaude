@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 19 prontos · 🟡 3 faltando · ❌ 2 removidas
+**Status:** ✅ 20 prontos · 🟡 2 faltando · ❌ 2 removidas
 
 ---
 
@@ -343,7 +343,10 @@ arma na mão** do jogador (o motor anima o golpe em cima dela). Escudo e orbe fi
 > sai perfeito. Itens **numa grade 4×3 com espaços** entre eles, **sem se tocar**,
 > cada um centralizado na sua célula. **Sem texto, sem números, sem moldura.**
 
-### 🟡 Armas — Tier 1 (nível 1, "de Madeira") — folha das 10 armas (falta)
+### ✅ Armas — Tier 1 (nível 1, "de Madeira") — folha das 10 armas (PRONTO)
+
+> Recortadas e **no jogo**: as 10 entram no inventário, dá pra equipar clicando
+> (a arma troca na mão) e **cada uma tem cadência/animação/efeito próprios**.
 
 Qualidade **rústica de iniciante**: madeira tosca, couro gasto, metal cru/opaco.
 Retrato ~2560×1920 (grade 4 colunas × 3 linhas → 10 armas + 2 células vazias).
@@ -376,20 +379,23 @@ mesmo molde, trocando só o material.
 | Classe | Atributo | Armas | Papel |
 |---|---|---|---|
 | ⚔️ **Guerreiro** | Força | espada, espadão, machado (+ escudo) | Tanque / dano corpo-a-corpo |
-| 🗡️ **Ladino** | Destreza | adaga, rapieira | Dano rápido / crítico / furtivo |
+| 🗡️ **Ladino** | Destreza | adaga, rapieira (**só 1-mão**) | Dano rápido / crítico / furtivo |
 | 🔮 **Mago** | Inteligência | cajado, orbe | Dano à distância / elemental |
-| 🕯️ **Clérigo** | Inteligência (Fé) | marreta, maça (+ escudo, orbe) | Suporte / cura / contundente divino |
+| 🕯️ **Clérigo** | Inteligência (Fé) | maça (+ escudo), martelo/marreta (2-mãos), cajado | Suporte / cura / contundente divino |
 
 **Notas de design:**
 - **Não há mais "arma secundária" como categoria** — a **rapieira** virou arma
   **principal** do Ladino (não é mais só off-hand). O **escudo** e o **orbe** são
   itens de **mão secundária** (off-hand), não classes de arma por si.
+- **Ladino NÃO usa armas de 2-mãos** — vai contra a estética ágil/furtiva da
+  classe. Só adaga e rapieira, ambas 1-mão.
 - **Empunhadura 1-mão vs 2-mãos:** armas 1-mão (espada, machado, adaga, rapieira,
   maça) liberam a off-hand (escudo/orbe); armas 2-mãos (**espadão/montante**,
-  marreta) ocupam as duas mãos e dão mais dano bruto. Guerreiro pode ir
-  *espada+escudo* (tanque) ou *espadão* (2-mãos, dano) — a árvore decide.
-- **Guerreiro = lâminas** (espada/machado); **Clérigo = contundente divino**
-  (marreta/maça) — separação temática clássica.
+  **martelo/marreta**) ocupam as duas mãos e dão mais dano bruto. Guerreiro pode ir
+  *espada+escudo* (tanque) ou *espadão* (2-mãos, dano); Clérigo pode ir
+  *maça+escudo* (suporte) ou *martelo* (2-mãos) — a árvore decide.
+- **Guerreiro = lâminas** (espada/espadão/machado); **Clérigo = contundente
+  divino** (maça/martelo) + cajado de fé — separação temática clássica.
 - As **4 classes cobrem todos os papéis** de um grupo: tanque, dano corpo-a-corpo,
   dano à distância e cura. Uma 5ª (ex.: 🦴 **Necromante**) fica reservada pro
   futuro.

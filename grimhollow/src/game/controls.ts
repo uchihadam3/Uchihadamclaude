@@ -1,4 +1,5 @@
 import { MOVE_MS } from "./config";
+import { STYLES, REST, type Weapon, type Pose } from "./weapons";
 import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
@@ -35,11 +36,15 @@ export interface HUD {
   setPrompt(text: string | null): void;
   showDialogue(name: string, text: string, portrait?: string | null): void;
   hideDialogue(): void;
-  swingWeapon(): void; // toca a animação de golpe da arma
+  // toca o golpe da arma equipada; retorna o instante (ms) do impacto p/ o dano
+  // cair sincronizado, ou -1 se não golpeou (sem arma / em recarga).
+  swingWeapon(): number;
   setHealth(frac: number): void; // 0..1 — barra de vida do jogador
   setMana(frac: number): void; // 0..1 — barra de mana do jogador
   flashDamage(): void; // vinheta vermelha ao levar dano
   setStats(s: CharStats): void; // atualiza a janela de equipamentos/atributos
+  setInventory(ids: string[]): void; // enche a mochila com esses itens
+  equipWeapon(id: string): void; // equipa (troca a arma na mão) e realça o slot
 }
 
 // Teclado (desktop) + botões na tela (mobile).
@@ -48,7 +53,12 @@ export function setupControls(
   onAction: (a: Action) => void,
   weaponUrl?: string,
   weaponAtkUrl?: string, // 2º sprite (pose de golpe); opcional
+  weapons?: Weapon[], // catálogo p/ inventário + perfis de golpe
+  onEquip?: (w: Weapon) => void, // avisa o jogo (dano/cadência/atributos)
 ): HUD {
+  const catalog: Record<string, Weapon> = {};
+  for (const w of weapons ?? []) catalog[w.id] = w;
+  let current: Weapon | null = null; // arma equipada na mão principal
   // ---- teclado ----
   const keymap: Record<string, Action> = {
     ArrowUp: "forward",
@@ -207,6 +217,7 @@ export function setupControls(
     }),
   );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
+  const bagSlots = Array.from(eq.querySelectorAll<HTMLElement>(".gh-bag-slot"));
   const openEq = () => eq.classList.remove("gh-eq-hidden");
   const closeEq = () => eq.classList.add("gh-eq-hidden");
   const toggleEq = () =>
@@ -400,67 +411,144 @@ export function setupControls(
       void dmgFx.offsetWidth;
       dmgFx.style.animation = "gh-dmg 360ms ease-out";
     },
-    swingWeapon() {
-      if (!weapon || swinging) return; // cooldown: ignora enquanto golpeia
+    swingWeapon(): number {
+      // só golpeia com arma de MÃO PRINCIPAL equipada, e fora da recarga
+      if (!weapon || !current || current.slot !== "main" || swinging) return -1;
       swinging = true;
       swingTimers.forEach((t) => window.clearTimeout(t));
       swingTimers.length = 0;
-      // (re)inicia uma animação CSS num elemento, forçando reflow
-      const play = (el: HTMLElement, name: string, ms: number) => {
-        el.style.animation = "none";
-        void el.offsetWidth;
-        el.style.animation = `${name} ${ms}ms ease-out forwards`;
-      };
       if (!canvasEl) canvasEl = root.querySelector("canvas");
-      const rig = weaponRig!; // recebe a rotação 3D do golpe (o corte vai junto)
-      // As 3 fases são disparadas por timers no MESMO relógio, então o corte, o
-      // clarão e o tranco de câmera ficam travados no instante exato do golpe.
-      // Fase 1 (0ms): armar — recua, encolhe e inclina a lâmina PRA TRÁS (3D)
-      play(rig, "gh-windup", 100);
-      // Fase 2 (100ms): golpe — a lâmina AVANÇA pra dentro da cena (3D + escala),
-      // com borrão de velocidade, arco de corte, clarão e tranco de câmera
+      const rig = weaponRig!;
+
+      // perfil de golpe da arma atual → poses + tempos + peso do impacto
+      const st = STYLES[current.style];
+      const total = st.windup + st.strike + st.recover;
+      const cd = current.cooldown ?? st.cooldown; // cadência (ms)
+      const impactMs = Math.round(st.windup + st.strike * 0.45); // auge do golpe
+      const wf = st.windup / total;
+      const hf = impactMs / total;
+      const ff = (st.windup + st.strike) / total;
+      const weight = st.weight;
+
+      const T = (p: Pose) =>
+        `perspective(760px) rotateY(${p.ry}deg) rotateX(${p.rx}deg) rotateZ(${p.rz}deg) translate(${p.tx}%,${p.ty}%) scale(${p.s})`;
+      const sh = "drop-shadow(-6px 2px 8px rgba(0,0,0,0.45))";
+      const filt = (b: number) => `${sh} blur(${b}px)`;
+
+      // 1) a arma inteira faz o arco do golpe (uma animação com as 4 poses)
+      rig.getAnimations?.().forEach((a) => a.cancel());
+      rig.animate(
+        [
+          { transform: T(REST), filter: filt(0), offset: 0 },
+          { transform: T(st.wind), filter: filt(0), offset: wf },
+          { transform: T(st.hit), filter: filt(Math.min(3, 1.6 * weight)), offset: hf },
+          { transform: T(st.follow), filter: filt(0.3), offset: ff },
+          { transform: T(REST), filter: filt(0), offset: 1 },
+        ],
+        { duration: total, easing: "ease-out", fill: "both" },
+      );
+
+      // 2) no AUGE do golpe: rastro + clarão + tranco de câmera (escalados p/ peso)
       swingTimers.push(
         window.setTimeout(() => {
-          if (weaponAtk) {
-            weapon!.style.opacity = "0";
-            weaponAtk.style.opacity = "1";
-            play(weaponAtk, "gh-slashpose", 190);
-          } else {
-            play(rig, "gh-slashonly", 200);
+          if (slashFx) {
+            slashFx.getAnimations?.().forEach((a) => a.cancel());
+            if (st.fx === "streak") {
+              // estocada: um risco reto avançando, não um arco
+              slashFx.animate(
+                [
+                  { opacity: 0, transform: "rotate(-4deg) scaleX(0.35) scaleY(0.5)" },
+                  { opacity: 0.9, transform: "rotate(-4deg) scaleX(1.15) scaleY(0.62)", offset: 0.3 },
+                  { opacity: 0, transform: "rotate(-4deg) scaleX(1.35) scaleY(0.66)" },
+                ],
+                { duration: 190, easing: "ease-out" },
+              );
+            } else {
+              const sc = st.fx === "arcBig" ? 1.28 : 1;
+              slashFx.animate(
+                [
+                  { opacity: 0, transform: `rotate(-8deg) scale(${0.7 * sc})` },
+                  { opacity: 0.95, transform: `rotate(-8deg) scale(${1.0 * sc})`, offset: 0.26 },
+                  { opacity: 0, transform: `rotate(-8deg) scale(${1.14 * sc})` },
+                ],
+                { duration: 210, easing: "ease-out" },
+              );
+            }
           }
-          // o rastro só pisca (opacidade); a POSIÇÃO dele acompanha a lâmina
-          // porque ele está dentro do rig que está girando
-          if (slashFx) play(slashFx, "gh-slash-fade", 200);
-          if (impactFx) play(impactFx, "gh-flash", 200);
-          if (canvasEl) play(canvasEl, "gh-kick", 220);
-        }, 100),
-      );
-      // Fase 3 (290ms): recolher de volta ao descanso
-      swingTimers.push(
-        window.setTimeout(() => {
-          if (weaponAtk) {
-            weaponAtk.style.opacity = "0";
-            weapon!.style.opacity = "1";
+          if (impactFx) {
+            impactFx.getAnimations?.().forEach((a) => a.cancel());
+            const peak = Math.max(0.85, 0.7 + 0.42 * (weight - 1) + 0.42);
+            impactFx.animate(
+              [
+                { opacity: 0, transform: "scale(0.4)" },
+                { opacity: Math.min(1, 0.66 + 0.16 * weight), transform: `scale(${peak})`, offset: 0.26 },
+                { opacity: 0, transform: `scale(${1.5 * (0.9 + 0.18 * weight)})` },
+              ],
+              { duration: Math.round(190 + weight * 60), easing: "ease-out" },
+            );
           }
-          play(rig, "gh-recover", 190);
-        }, 290),
+          if (canvasEl) {
+            canvasEl.getAnimations?.().forEach((a) => a.cancel());
+            const k = weight;
+            canvasEl.animate(
+              [
+                { transform: "translate(0,0) scale(1)" },
+                { transform: `translate(${-0.8 * k}%,${1.0 * k}%) scale(${1 + 0.018 * k}) rotate(${-0.45 * k}deg)`, offset: 0.18 },
+                { transform: `translate(${0.45 * k}%,${-0.35 * k}%) scale(${1 + 0.005 * k}) rotate(${0.18 * k}deg)`, offset: 0.46 },
+                { transform: "translate(0,0) scale(1)" },
+              ],
+              { duration: Math.round(200 + weight * 45), easing: "ease-out" },
+            );
+          }
+        }, impactMs),
       );
-      // Fim da animação (490ms): limpa
-      swingTimers.push(
-        window.setTimeout(() => {
-          rig.style.animation = "";
-          if (weaponAtk) weaponAtk.style.animation = "";
-          if (slashFx) slashFx.style.animation = "";
-          if (impactFx) impactFx.style.animation = "";
-          if (canvasEl) canvasEl.style.animation = "";
-        }, 490),
-      );
-      // Cooldown do ataque (mais lento): só libera o próximo golpe aqui
-      swingTimers.push(
-        window.setTimeout(() => {
-          swinging = false;
-        }, 820),
-      );
+
+      // 3) cadência: só libera o próximo golpe depois do cooldown da arma
+      swingTimers.push(window.setTimeout(() => (swinging = false), cd));
+      return impactMs;
+    },
+    setInventory(ids: string[]) {
+      bagSlots.forEach((slot, i) => {
+        const id = ids[i];
+        slot.onclick = null;
+        if (id && catalog[id]) {
+          slot.dataset.wid = id;
+          slot.innerHTML = `<img class="gh-item-ico" src="${catalog[id].url}" alt="" title="${catalog[id].name}"/>`;
+          slot.onclick = () => this.equipWeapon(id);
+        } else {
+          delete slot.dataset.wid;
+          slot.innerHTML = "";
+        }
+      });
+    },
+    equipWeapon(id: string) {
+      const w = catalog[id];
+      if (!w) return;
+      const putIcon = (slotKey: string) => {
+        const el = eq.querySelector(`.gh-slot[data-slot="${slotKey}"]`) as HTMLElement | null;
+        if (el) el.innerHTML = `<img class="gh-item-ico" src="${w.url}" alt="" title="${w.name}"/>`;
+      };
+      if (w.slot === "off") {
+        putIcon("off");
+      } else {
+        current = w;
+        weapon!.src = w.url;
+        if (weaponRig) {
+          weaponRig.style.height = `${(62 * w.scale).toFixed(1)}vh`;
+          weaponRig.style.maxHeight = `${Math.round(640 * w.scale)}px`;
+        }
+        root.classList.toggle("gh-wpn-arcane", w.tint === "arcane");
+        putIcon("main");
+        onEquip?.(w);
+      }
+      // realça (pulsa) o slot da mochila do item selecionado
+      bagSlots.forEach((s) => s.classList.remove("gh-slot-pulse"));
+      const src = eq.querySelector(`.gh-bag-slot[data-wid="${id}"]`) as HTMLElement | null;
+      if (src) {
+        src.classList.remove("gh-slot-pulse");
+        void src.offsetWidth;
+        src.classList.add("gh-slot-pulse");
+      }
     },
   };
 }
@@ -566,6 +654,13 @@ function injectStyle() {
     0%   { opacity:0;    transform:rotate(-8deg) scale(0.7); }
     26%  { opacity:0.95; transform:rotate(-8deg) scale(1);   }
     100% { opacity:0;    transform:rotate(-8deg) scale(1.12); }
+  }
+  /* arma arcana (cajado/orbe): rastro e clarão em tom roxo em vez de branco-azul */
+  .gh-wpn-arcane #gh-slash {
+    filter:drop-shadow(0 0 8px rgba(196,150,255,0.9)) hue-rotate(212deg) saturate(1.35);
+  }
+  .gh-wpn-arcane #gh-impact {
+    background:radial-gradient(circle, rgba(232,214,255,0.95) 0%, rgba(186,150,255,0.55) 32%, rgba(160,120,255,0) 70%);
   }
   /* placa de status (vida + mana) — arte com encaixes preenchidos por código */
   #gh-hud {
@@ -683,6 +778,20 @@ function injectStyle() {
     border-image:url(${eqSlotUrl}) 89 fill;
     box-sizing:border-box; min-width:0; min-height:0;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  /* ícone do item dentro de um slot (equipado ou na mochila) */
+  .gh-item-ico {
+    max-width:86%; max-height:86%; width:auto; height:auto; object-fit:contain;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)); pointer-events:none;
+  }
+  .gh-bag-slot[data-wid] { cursor:pointer; }
+  .gh-bag-slot[data-wid]:hover { filter:brightness(1.15); }
+  /* item selecionado: o slot pulsa/brilha (dourado) */
+  .gh-slot-pulse { animation:gh-slot-pulse 620ms ease-out 1; }
+  @keyframes gh-slot-pulse {
+    0%   { box-shadow:0 0 0 0 rgba(255,224,130,0); }
+    30%  { box-shadow:0 0 14px 3px rgba(255,224,130,.95); }
+    100% { box-shadow:0 0 0 0 rgba(255,224,130,0); }
   }
   .gh-eq-stats {
     background:rgba(12,9,6,.5); border:1px solid rgba(201,162,39,.35);
