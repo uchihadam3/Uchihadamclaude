@@ -1,9 +1,14 @@
 import { Game } from "./game/Game";
+import { runIntro } from "./game/screens";
 
 // build tag: efeito colateral real (não é removido pelo tree-shaking) p/ gerar
-// um nome de bundle NOVO e furar o cache do CDN/navegador — o arquivo anterior
-// tinha o mesmo nome e ficou preso em cache corrompido.
-document.documentElement.dataset.ghBuild = "2026-07-17b";
+// um nome de bundle NOVO e furar o cache do CDN/navegador.
+document.documentElement.dataset.ghBuild = "2026-07-19a";
 
 const app = document.getElementById("app")!;
-new Game(app);
+
+// Fluxo de abertura: Título → Criação de personagem → Loading (pré-carrega TODOS
+// os assets p/ nenhum PNG entrar faltando) → então monta o jogo com o personagem.
+runIntro(app).then((character) => {
+  new Game(app, character);
+});
