@@ -4144,7 +4144,7 @@ void main() {
   /* MOVIMENTO — D-pad em CRUZ (arte única). As 4 zonas de toque ficam por cima
      dos braços; a do braço pressionado acende. */
   .gh-move {
-    left:16px; bottom:20px; width:150px; height:150px;
+    left:16px; bottom:20px; width:124px; height:124px;
     background:url(${h0}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 3px 9px rgba(0,0,0,0.55));
   }
@@ -4163,14 +4163,15 @@ void main() {
   /* AÇÃO — canto inferior DIREITO (perto da arma/polegar): ataque em destaque
      embaixo, interagir logo acima. */
   .gh-atk {
-    position:absolute; right:22px; bottom:26px;
-    width:66px; height:66px; color:#f0b48a;
+    position:absolute; right:18px; bottom:22px;
+    width:58px; height:58px; color:#f0b48a;
     filter:drop-shadow(0 0 12px rgba(200,70,40,0.5)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
   .gh-atk:active { transform:scale(0.9); filter:drop-shadow(0 0 8px rgba(220,90,50,0.75)) brightness(1.15); }
+  /* interagir: à ESQUERDA do ataque (lado a lado), um tico menor */
   .gh-act {
-    position:absolute; right:28px; bottom:104px;
-    width:56px; height:56px;
+    position:absolute; right:88px; bottom:24px;
+    width:54px; height:54px;
     opacity:0.5; transition:opacity .15s, filter .15s;
   }
   .gh-act.gh-act-on {
