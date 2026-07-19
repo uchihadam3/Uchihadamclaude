@@ -30,9 +30,9 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
     <div class="gh-screen gh-title"${TITLE_ART ? ` style="background-image:url(${TITLE_ART})"` : ""}>
       <div class="gh-veil"></div>
       <div class="gh-title-inner">
-        <h1 class="gh-logo">Grimhollow</h1>
+        <h1 class="gh-logo">DungeOnline</h1>
         <div class="gh-rule"></div>
-        <p class="gh-tagline">As sombras de Grimhollow aguardam.</p>
+        <p class="gh-tagline">As masmorras aguardam a sua lâmina.</p>
         <div class="gh-menu">
           <button class="gh-menu-btn" id="gh-btn-new">⚔ Novo Jogo</button>
           <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
@@ -111,7 +111,7 @@ function classCard(c: GameClass): string {
 function showLoading(overlay: HTMLElement, onDone: () => void) {
   overlay.innerHTML = `
     <div class="gh-screen gh-loading">
-      <h1 class="gh-logo gh-logo-sm">Grimhollow</h1>
+      <h1 class="gh-logo gh-logo-sm">DungeOnline</h1>
       <div class="gh-load-bar"><div class="gh-load-fill" id="gh-load-fill"></div></div>
       <div class="gh-load-pct" id="gh-load-pct">Forjando o mundo…</div>
     </div>`;
@@ -213,12 +213,15 @@ function injectStyle() {
   #gh-intro .gh-menu-btn:active:not(.gh-disabled) { transform:translateY(1px) scale(.98); }
   #gh-intro .gh-disabled { opacity:.38; cursor:default; }
   /* --- criação de personagem --- */
-  #gh-intro .gh-create { justify-content:flex-start; gap:8px; }
+  #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  /* NADA encolhe abaixo do conteúdo (senão o rodapé sobrepõe o painel) — a tela
+     rola quando precisa. */
+  #gh-intro .gh-create > * { flex:0 0 auto; }
   #gh-intro .gh-screen-h {
-    font-family:"Cinzel",serif; font-weight:700; color:#eccf82; margin:6px 0 2px;
-    font-size:clamp(20px,3.2vh,30px); text-shadow:0 2px 8px #000;
+    font-family:"Cinzel",serif; font-weight:700; color:#eccf82; margin:4px 0 0;
+    font-size:clamp(19px,3vh,28px); text-shadow:0 2px 8px #000;
   }
-  #gh-intro .gh-class-tabs { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  #gh-intro .gh-class-tabs { display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
   #gh-intro .gh-class-tab {
     display:flex; flex-direction:column; align-items:center; gap:1px; cursor:pointer;
     padding:7px 15px; color:#d7c69a; font-family:"Cinzel",serif; font-size:13px;
@@ -228,11 +231,11 @@ function injectStyle() {
   #gh-intro .gh-class-tab.on { border-color:#f4c847; color:#fff; box-shadow:0 0 12px rgba(240,192,64,.4); }
   #gh-intro .gh-tab-emoji { font-size:20px; }
   #gh-intro .gh-class-main {
-    display:flex; gap:18px; width:min(780px,96%); box-sizing:border-box;
-    border:22px solid transparent; border-image:url(${eqContainerUrl}) 88 fill;
-    padding:6px; min-height:0;
+    display:flex; flex-direction:row; gap:14px; width:min(720px,96%); box-sizing:border-box;
+    border:clamp(16px,3vw,24px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill;
+    padding:6px; align-items:flex-start; flex-shrink:0;
   }
-  #gh-intro .gh-class-art { flex:0 0 auto; width:min(40%,230px); }
+  #gh-intro .gh-class-art { flex:0 0 auto; width:min(38%,210px); }
   #gh-intro .gh-class-portrait, #gh-intro .gh-class-ph {
     width:100%; aspect-ratio:3/4; border-radius:8px; object-fit:cover;
     border:2px solid rgba(201,162,39,.45); background:rgba(8,7,5,.6);
@@ -253,20 +256,19 @@ function injectStyle() {
   #gh-intro .gh-vitals { display:flex; gap:16px; font-size:14px; color:#e6d6ac; margin-bottom:6px; }
   #gh-intro .gh-class-weapons { font-size:13px; color:#cbbb8e; }
   #gh-intro .gh-class-weapons b { color:#e6d09a; font-family:"Cinzel",serif; }
-  #gh-intro .gh-create-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+  #gh-intro .gh-create-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; margin:2px 0 12px; }
   #gh-intro .gh-name-input {
     font-family:"MedievalSharp",serif; font-size:16px; color:#f0e6c8; text-align:center;
     padding:10px 16px; width:min(260px,70vw); background:rgba(12,9,6,.8);
     border:2px solid rgba(201,162,39,.55); border-radius:9px; outline:none;
   }
   #gh-intro .gh-name-input:focus { border-color:#f4c847; }
-  @media (max-width:640px) {
-    #gh-intro .gh-class-main { flex-direction:row; }
-    #gh-intro .gh-class-art { width:38%; }
-  }
-  @media (max-width:460px) {
+  /* só empilha (arte em cima) em telas MUITO estreitas; nos demais fica lado a
+     lado (compacto, cabe sem rolar). */
+  @media (max-width:380px) {
     #gh-intro .gh-class-main { flex-direction:column; align-items:center; }
-    #gh-intro .gh-class-art { width:min(55%,200px); }
+    #gh-intro .gh-class-art { width:min(58%,170px); }
+    #gh-intro .gh-attr > span { width:74px; }
   }
   /* --- loading --- */
   #gh-intro .gh-loading { background:#08090d; }

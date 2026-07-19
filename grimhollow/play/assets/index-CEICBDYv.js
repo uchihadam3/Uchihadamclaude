@@ -4216,9 +4216,9 @@ void main() {
     <div class="gh-screen gh-title">
       <div class="gh-veil"></div>
       <div class="gh-title-inner">
-        <h1 class="gh-logo">Grimhollow</h1>
+        <h1 class="gh-logo">DungeOnline</h1>
         <div class="gh-rule"></div>
-        <p class="gh-tagline">As sombras de Grimhollow aguardam.</p>
+        <p class="gh-tagline">As masmorras aguardam a sua lâmina.</p>
         <div class="gh-menu">
           <button class="gh-menu-btn" id="gh-btn-new">⚔ Novo Jogo</button>
           <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
@@ -4250,7 +4250,7 @@ void main() {
       <div class="gh-class-weapons"><b>Armas:</b> ${n}</div>
     </div>`}function K0(r,t){r.innerHTML=`
     <div class="gh-screen gh-loading">
-      <h1 class="gh-logo gh-logo-sm">Grimhollow</h1>
+      <h1 class="gh-logo gh-logo-sm">DungeOnline</h1>
       <div class="gh-load-bar"><div class="gh-load-fill" id="gh-load-fill"></div></div>
       <div class="gh-load-pct" id="gh-load-pct">Forjando o mundo…</div>
     </div>`;const e=r.querySelector("#gh-load-fill"),n=r.querySelector("#gh-load-pct"),i=performance.now();J0(s=>{const o=Math.round(s*100);e.style.width=o+"%",n.textContent=`Forjando o mundo… ${o}%`}).then(async()=>{const s=performance.now()-i;s<700&&await new Promise(o=>setTimeout(o,700-s)),e.style.width="100%",t()})}async function J0(r){const t=Object.assign({"../assets/env/cluster1.png":t0,"../assets/env/cluster2.png":e0,"../assets/env/death_poof.png":n0,"../assets/env/enemy_skeleton.png":i0,"../assets/env/pine1.png":r0,"../assets/env/pine2.png":s0,"../assets/env/pine3.png":a0,"../assets/env/pine4.png":o0,"../assets/env/prop_lamp.png":l0,"../assets/env/prop_notice.png":c0,"../assets/env/sign_alch.png":h0,"../assets/env/sign_smith.png":d0,"../assets/env/sign_store.png":u0,"../assets/env/sign_tavern.png":f0,"../assets/env/sword.png":p0,"../assets/env/sword_atk.png":m0,"../assets/env/wpn_axe.png":g0,"../assets/env/wpn_dagger.png":_0,"../assets/env/wpn_greatsword.png":x0,"../assets/env/wpn_mace.png":v0,"../assets/env/wpn_maul.png":M0,"../assets/env/wpn_orb.png":y0,"../assets/env/wpn_rapier.png":S0,"../assets/env/wpn_shield.png":b0,"../assets/env/wpn_staff.png":T0,"../assets/env/wpn_sword.png":w0,"../assets/npc/alquimista.png":E0,"../assets/npc/anselmo.png":A0,"../assets/npc/camponesa.png":R0,"../assets/npc/costureira.png":C0,"../assets/npc/fazendeiro.png":P0,"../assets/npc/ferreiro.png":L0,"../assets/npc/gunther.png":U0,"../assets/npc/hedda.png":D0,"../assets/npc/lenhador.png":I0,"../assets/npc/lyle.png":N0,"../assets/npc/mercadora.png":F0,"../assets/npc/pip.png":O0,"../assets/npc/tam.png":B0,"../assets/npc/taverneiro.png":z0,"../assets/npc/wilma.png":k0,"../assets/ui/btn_base.png":H0,"../assets/ui/dpad.png":G0,"../assets/ui/eq_container.png":V0,"../assets/ui/eq_frame.png":W0,"../assets/ui/eq_slot.png":X0,"../assets/ui/hud_plate.png":q0}),e=Array.from(new Set(Object.values(t)));if(e.length===0)return r(1);let n=0;await Promise.all(e.map(i=>new Promise(s=>{const o=new Image,a=()=>{n++,r(n/e.length),s()};o.onload=a,o.onerror=a,o.src=i})))}function Q0(){if(document.getElementById("gh-intro-style"))return;const r=document.createElement("style");r.id="gh-intro-style",r.textContent=`
@@ -4301,12 +4301,15 @@ void main() {
   #gh-intro .gh-menu-btn:active:not(.gh-disabled) { transform:translateY(1px) scale(.98); }
   #gh-intro .gh-disabled { opacity:.38; cursor:default; }
   /* --- criação de personagem --- */
-  #gh-intro .gh-create { justify-content:flex-start; gap:8px; }
+  #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  /* NADA encolhe abaixo do conteúdo (senão o rodapé sobrepõe o painel) — a tela
+     rola quando precisa. */
+  #gh-intro .gh-create > * { flex:0 0 auto; }
   #gh-intro .gh-screen-h {
-    font-family:"Cinzel",serif; font-weight:700; color:#eccf82; margin:6px 0 2px;
-    font-size:clamp(20px,3.2vh,30px); text-shadow:0 2px 8px #000;
+    font-family:"Cinzel",serif; font-weight:700; color:#eccf82; margin:4px 0 0;
+    font-size:clamp(19px,3vh,28px); text-shadow:0 2px 8px #000;
   }
-  #gh-intro .gh-class-tabs { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  #gh-intro .gh-class-tabs { display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
   #gh-intro .gh-class-tab {
     display:flex; flex-direction:column; align-items:center; gap:1px; cursor:pointer;
     padding:7px 15px; color:#d7c69a; font-family:"Cinzel",serif; font-size:13px;
@@ -4316,11 +4319,11 @@ void main() {
   #gh-intro .gh-class-tab.on { border-color:#f4c847; color:#fff; box-shadow:0 0 12px rgba(240,192,64,.4); }
   #gh-intro .gh-tab-emoji { font-size:20px; }
   #gh-intro .gh-class-main {
-    display:flex; gap:18px; width:min(780px,96%); box-sizing:border-box;
-    border:22px solid transparent; border-image:url(${Mc}) 88 fill;
-    padding:6px; min-height:0;
+    display:flex; flex-direction:row; gap:14px; width:min(720px,96%); box-sizing:border-box;
+    border:clamp(16px,3vw,24px) solid transparent; border-image:url(${Mc}) 88 fill;
+    padding:6px; align-items:flex-start; flex-shrink:0;
   }
-  #gh-intro .gh-class-art { flex:0 0 auto; width:min(40%,230px); }
+  #gh-intro .gh-class-art { flex:0 0 auto; width:min(38%,210px); }
   #gh-intro .gh-class-portrait, #gh-intro .gh-class-ph {
     width:100%; aspect-ratio:3/4; border-radius:8px; object-fit:cover;
     border:2px solid rgba(201,162,39,.45); background:rgba(8,7,5,.6);
@@ -4341,20 +4344,19 @@ void main() {
   #gh-intro .gh-vitals { display:flex; gap:16px; font-size:14px; color:#e6d6ac; margin-bottom:6px; }
   #gh-intro .gh-class-weapons { font-size:13px; color:#cbbb8e; }
   #gh-intro .gh-class-weapons b { color:#e6d09a; font-family:"Cinzel",serif; }
-  #gh-intro .gh-create-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; margin-top:4px; }
+  #gh-intro .gh-create-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; margin:2px 0 12px; }
   #gh-intro .gh-name-input {
     font-family:"MedievalSharp",serif; font-size:16px; color:#f0e6c8; text-align:center;
     padding:10px 16px; width:min(260px,70vw); background:rgba(12,9,6,.8);
     border:2px solid rgba(201,162,39,.55); border-radius:9px; outline:none;
   }
   #gh-intro .gh-name-input:focus { border-color:#f4c847; }
-  @media (max-width:640px) {
-    #gh-intro .gh-class-main { flex-direction:row; }
-    #gh-intro .gh-class-art { width:38%; }
-  }
-  @media (max-width:460px) {
+  /* só empilha (arte em cima) em telas MUITO estreitas; nos demais fica lado a
+     lado (compacto, cabe sem rolar). */
+  @media (max-width:380px) {
     #gh-intro .gh-class-main { flex-direction:column; align-items:center; }
-    #gh-intro .gh-class-art { width:min(55%,200px); }
+    #gh-intro .gh-class-art { width:min(58%,170px); }
+    #gh-intro .gh-attr > span { width:74px; }
   }
   /* --- loading --- */
   #gh-intro .gh-loading { background:#08090d; }

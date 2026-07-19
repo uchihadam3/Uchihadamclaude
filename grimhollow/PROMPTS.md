@@ -1,11 +1,11 @@
-# Grimhollow — Prompts de Arte (PNG)
+# DungeOnline — Prompts de Arte (PNG)
 
 Lista viva de tudo que falta pintar pro jogo, num lugar só. Cada bloco tem o
 prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão de
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 21 prontos · 🟡 9 faltando · ❌ 2 removidas
+**Status:** ✅ 21 prontos · 🟡 12 faltando · ❌ 2 removidas
 
 ---
 
@@ -448,6 +448,44 @@ Fundo escuro/atmosférico combinando (não precisa ser transparente — fica emo
 
 *(Quando mandar, eu importo e ligo `portrait` de cada classe — o retrato substitui
 o placeholder "arte em breve" na hora.)*
+
+### 🟡 Peça C — Fundo da tela de criação (falta)
+
+Um **fundo atmosférico** pra tela de criação de personagem (a UI fica por cima).
+Vertical, escuro nas bordas pra não brigar com o texto. Serve de "sala" onde o
+herói é escolhido.
+
+```
+Epic AAA dark-fantasy background art for a character-select screen, grim medieval mood. The interior of a dim ancient stone hall / crypt antechamber: rough carved stone walls, iron braziers with low warm flames, worn banners, a stone dais in the center, cold shafts of light through a high window cutting the smoky gloom. Deep atmospheric perspective, painterly hand-painted rendering, cool desaturated palette with warm firelight accents, empty center and darker edges so UI can sit on top. No characters, no text, no logo, no UI, no watermark. Tall portrait canvas ~1024x1536.
+```
+
+### 🟡 Peça D — Ícones das 4 classes (falta)
+
+Um **emblema/símbolo pintado** por classe (entra nas abas de seleção no lugar dos
+emojis). Metal gravado no tema (ferro + ouro), **fundo transparente**, centralizado.
+Manda **um por vez**, todos no mesmo estilo/moldura.
+
+- ⚔️ **Guerreiro:** `an emblem of crossed broadsword and a round shield, engraved dark iron with worn gold trim, centered on transparent background, ~256x256`
+- 🗡️ **Ladino:** `an emblem of two crossed daggers over a hood/cowl silhouette, engraved dark iron with worn gold trim, centered on transparent background, ~256x256`
+- 🔮 **Mago:** `an emblem of a wizard staff with a glowing arcane gem and small stars, engraved dark iron with worn gold and faint blue glow, centered on transparent background, ~256x256`
+- 🕯️ **Clérigo:** `an emblem of a heavy mace crossed with a holy sun/cross symbol, engraved dark iron with worn gold trim, centered on transparent background, ~256x256`
+
+*(Enquanto não chegam, as abas usam ícones gravados em código. Quando mandar, troco
+pelos pintados.)*
+
+### 🟡 Peça E — Botão de menu (placa) (falta)
+
+Uma **placa de botão horizontal** pintada, no tema, pra virar o fundo de TODOS os
+botões de menu (**Novo Jogo, Continuar, Iniciar Jornada**) no lugar das caixinhas
+de CSS. Eu estico ela por **9-slice**, então precisa ter **bordas/cantos definidos
+e o miolo liso** (o texto entra por cima, por código).
+
+```
+Hand-painted stylized-realism game UI button plate, cohesive with a grim medieval dark-fantasy game (aged dark iron, worn tarnished gold trim, rivets at the corners). A single WIDE horizontal rectangular button with slightly rounded corners, seen perfectly face-on: a beveled dark iron frame with a thin worn gold border and small corner rivets, the center a smooth flat dark metal plate (EMPTY, no text). Symmetric so it can be stretched horizontally without distorting the ends. Soft even lighting, no cast shadow, flat front orthographic view. Clean cutout on a fully transparent background, crisp edges, no text, no icon, no watermark. Wide canvas ~768x256.
+```
+
+*(Opcional: manda também uma variante "acesa/hover" — a mesma placa com o miolo
+iluminado dourado. Se não, eu faço o hover por código.)*
 
 ---
 
