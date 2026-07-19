@@ -472,19 +472,20 @@ herói é escolhido.
 Epic AAA dark-fantasy background art for a character-select screen, grim medieval mood. The interior of a dim ancient stone hall / crypt antechamber: rough carved stone walls, iron braziers with low warm flames, worn banners, a stone dais in the center, cold shafts of light through a high window cutting the smoky gloom. Deep atmospheric perspective, painterly hand-painted rendering, cool desaturated palette with warm firelight accents, empty center and darker edges so UI can sit on top. No characters, no text, no logo, no UI, no watermark. Tall portrait canvas ~1024x1536.
 ```
 
-### 🟡 Peça D — Ícones das 4 classes (falta)
+### 🟡 Peça D — Ícones das 4 classes (folha única) (falta)
 
-Um **emblema/símbolo pintado** por classe (entra nas abas de seleção no lugar dos
-emojis). Metal gravado no tema (ferro + ouro), **fundo transparente**, centralizado.
-Manda **um por vez**, todos no mesmo estilo/moldura.
+Os 4 emblemas das classes (entram nas abas de seleção no lugar dos emojis) numa
+**imagem só** — grade **2×2**, um por célula, **bem separados com espaço vazio**
+entre eles pra eu recortar. Metal gravado no tema (ferro + ouro), **fundo
+transparente**. Ordem: Guerreiro (cima-esq), Ladino (cima-dir), Mago (baixo-esq),
+Clérigo (baixo-dir).
 
-- ⚔️ **Guerreiro:** `an emblem of crossed broadsword and a round shield, engraved dark iron with worn gold trim, centered on transparent background, ~256x256`
-- 🗡️ **Ladino:** `an emblem of two crossed daggers over a hood/cowl silhouette, engraved dark iron with worn gold trim, centered on transparent background, ~256x256`
-- 🔮 **Mago:** `an emblem of a wizard staff with a glowing arcane gem and small stars, engraved dark iron with worn gold and faint blue glow, centered on transparent background, ~256x256`
-- 🕯️ **Clérigo:** `an emblem of a heavy mace crossed with a holy sun/cross symbol, engraved dark iron with worn gold trim, centered on transparent background, ~256x256`
+```
+A 2x2 grid sheet of FOUR hand-painted stylized-realism game class emblems for a grim medieval dark-fantasy RPG, all in one image, evenly spaced with clear empty gaps between them so each can be cut apart, every emblem centered in its own cell at the same size and identical engraved style. Each emblem is a circular medallion of aged dark engraved iron with a worn tarnished gold rim. Top-left: a WARRIOR emblem — a crossed broadsword and round shield. Top-right: a ROGUE emblem — two crossed daggers over a hood/cowl silhouette. Bottom-left: a MAGE emblem — a wizard staff with a glowing blue-violet arcane gem and small stars. Bottom-right: a CLERIC emblem — a heavy mace crossed with a holy sun/cross symbol. Cohesive dark iron and gold palette, soft even lighting, no cast shadow, flat front orthographic view. Each emblem is a crisp cutout on a fully transparent background, clearly separated so they can be cut apart. No text, no numbers, no watermark. Square canvas ~1024x1024.
+```
 
-*(Enquanto não chegam, as abas usam ícones gravados em código. Quando mandar, troco
-pelos pintados.)*
+*(Enquanto não chega, as abas usam ícones gravados em código. Quando mandar a folha,
+eu separo os 4 e troco pelos pintados.)*
 
 ### 🟡 Peça E — Botão de menu (placa) (falta)
 

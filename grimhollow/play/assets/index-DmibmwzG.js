@@ -4375,6 +4375,14 @@ void main() {
   #gh-intro .gh-name-input:focus { border-color:#f4c847; }
   /* só empilha (arte em cima) em telas MUITO estreitas; nos demais fica lado a
      lado (compacto, cabe sem rolar). */
+  /* MOBILE: padroniza a altura da janela entre as classes — reserva um espaço
+     fixo pros trechos que variam (descrição e armas), então todas ficam do mesmo
+     tamanho mesmo que sobre um pouco de espaço nas mais curtas. (No desktop já
+     ficam iguais naturalmente.) */
+  @media (max-width:640px) {
+    #gh-intro .gh-class-desc { min-height:7.6em; }
+    #gh-intro .gh-class-weapons { min-height:2.7em; }
+  }
   @media (max-width:380px) {
     #gh-intro .gh-class-main { flex-direction:column; align-items:center; }
     /* empilhado: a arte volta a ter proporção 3:4 (não estica na vertical) */
