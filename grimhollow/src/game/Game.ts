@@ -78,6 +78,7 @@ import propNoticeUrl from "../assets/env/prop_notice.png";
 import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 import swordUrl from "../assets/env/sword.png";
+import { WEAPONS, type Weapon } from "./weapons";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
 // desativado; a arte continua no repo caso a gente queira retomar depois.
@@ -458,6 +459,7 @@ export class Game {
   private playerMp = 100;
   // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
   private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
+  private currentWeapon: Weapon | null = null; // arma equipada na mão principal
   // inimigo billboard (esqueleto da masmorra) — leva dano e revida
   private enemy: {
     mesh: THREE.Mesh;
@@ -571,7 +573,12 @@ export class Game {
       (a) => this.onAction(a),
       swordUrl,
       SWORD_ATK_ART ?? undefined,
+      WEAPONS,
+      (w) => this.onEquip(w),
     );
+    // enche a mochila com TODAS as armas (pra testar) e começa com a espada
+    this.ui.setInventory(WEAPONS.map((w) => w.id));
+    this.ui.equipWeapon("sword");
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
     this.refreshStats();
@@ -1009,7 +1016,7 @@ export class Game {
     this.billboardProps.push(bar); // encara a câmera
     this.enemy = {
       mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
-      hp: 3, maxHp: 3, hitAt: 0, dyingAt: 0,
+      hp: 8, maxHp: 8, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0, bar, barFill,
     };
     // luz fria azulada perto dele (atmosfera de cripta)
@@ -1031,12 +1038,20 @@ export class Game {
   }
 
   // aplica um golpe no inimigo se ele estiver na célula à frente do jogador
+  // arma equipada trocou (via inventário): guarda o perfil e reflete no ataque
+  private onEquip(w: Weapon) {
+    this.currentWeapon = w;
+    // ataque exibido = base + dano da arma (só p/ dar feedback na janela)
+    this.stats.atk = 8 + w.dmg;
+    this.refreshStats();
+  }
+
   private tryHitEnemy() {
     const e = this.enemy;
     if (!e || e.dyingAt) return;
     const [dc, dr] = DIRS[this.facing];
     if (this.col + dc !== e.c || this.row + dr !== e.r) return; // não está de frente
-    e.hp -= 1;
+    e.hp -= this.currentWeapon?.dmg ?? 1;
     e.hitAt = performance.now();
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
@@ -3108,10 +3123,11 @@ export class Game {
       return;
     }
     if (a === "attack") {
-      // golpe é independente do movimento (pode golpear andando)
-      this.ui.swingWeapon();
-      // o dano cai no auge do golpe (~155ms), junto do clarão de impacto
-      window.setTimeout(() => this.tryHitEnemy(), 155);
+      // golpe é independente do movimento (pode golpear andando). Cada arma tem
+      // sua cadência/animação; swingWeapon devolve o instante do impacto (ou -1
+      // se está em recarga) p/ o dano cair exatamente no auge do golpe.
+      const impactMs = this.ui.swingWeapon();
+      if (impactMs >= 0) window.setTimeout(() => this.tryHitEnemy(), impactMs);
       return;
     }
     if (this.anim) return; // ignora enquanto anima (o hold-repeat cuida da continuidade)
