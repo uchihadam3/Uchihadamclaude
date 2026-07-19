@@ -4,10 +4,9 @@ import { CLASSES, CLASS_BY_ID, type GameClass, type Character } from "./classes"
 import { WEAPON_BY_ID } from "./weapons";
 import eqContainerUrl from "../assets/ui/eq_container.png";
 
-// Key art do título (PNG) — entra aqui quando a arte chegar; null = fundo pintado
-// por CSS (atmosférico) enquanto isso.
-// import titleArtUrl from "../assets/ui/title_bg.png";
-const TITLE_ART: string | null = null;
+// Key art do título (PNG). O logo/menu ficam por cima; a arte é sem texto.
+import titleArtUrl from "../assets/ui/title_bg.png";
+const TITLE_ART: string | null = titleArtUrl;
 
 export function runIntro(root: HTMLElement): Promise<Character> {
   injectStyle();
@@ -33,10 +32,10 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
         <h1 class="gh-logo">Nethergloam</h1>
         <div class="gh-flourish"><svg viewBox="0 0 260 14" preserveAspectRatio="xMidYMid meet"><g fill="#c9a24a"><circle cx="7" cy="7" r="2.6"/><rect x="15" y="6.1" width="97" height="1.8" rx="0.9"/><path d="M130 1 L138 7 L130 13 L122 7 Z"/><rect x="148" y="6.1" width="97" height="1.8" rx="0.9"/><circle cx="253" cy="7" r="2.6"/></g></svg></div>
         <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
-        <div class="gh-menu">
-          <button class="gh-menu-btn" id="gh-btn-new">⚔ Novo Jogo</button>
-          <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
-        </div>
+      </div>
+      <div class="gh-menu">
+        <button class="gh-menu-btn" id="gh-btn-new">⚔ Novo Jogo</button>
+        <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
       </div>
     </div>`;
   overlay.querySelector("#gh-btn-new")!.addEventListener("click", onNew);
@@ -176,19 +175,23 @@ function injectStyle() {
     align-items:center; justify-content:center; padding:16px; overflow:auto;
   }
   /* --- título --- */
+  /* título: key art de fundo (cover); logo no topo (céu escuro), menu embaixo */
   #gh-intro .gh-title {
+    justify-content:space-between; padding:10vh 18px 8vh;
     background:#0a0b10 center/cover no-repeat;
     background-image:
-      radial-gradient(ellipse at 50% 30%, rgba(120,70,30,.28), rgba(10,11,16,0) 60%),
-      radial-gradient(ellipse at 50% 120%, rgba(90,40,20,.35), rgba(10,11,16,0) 55%),
+      radial-gradient(ellipse at 50% 30%, rgba(120,70,30,.2), rgba(10,11,16,0) 60%),
       linear-gradient(#12131a, #05060a);
   }
-  #gh-intro .gh-title[style] { } /* key art via inline background-image quando houver */
+  /* escurece topo (atrás do logo) e base (atrás do menu) p/ o texto ler bem sobre
+     a arte, mantendo o meio (a figura com a lanterna) visível. */
   #gh-intro .gh-veil {
     position:absolute; inset:0; pointer-events:none;
-    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.6) 100%);
+    background:
+      linear-gradient(180deg, rgba(4,5,9,.6) 0%, rgba(4,5,9,0) 26%, rgba(4,5,9,0) 56%, rgba(4,5,9,.84) 100%),
+      radial-gradient(ellipse at 50% 42%, rgba(0,0,0,0) 55%, rgba(0,0,0,.4) 100%);
   }
-  #gh-intro .gh-title-inner { position:relative; text-align:center; }
+  #gh-intro .gh-title-inner { position:relative; z-index:1; text-align:center; }
   /* wordmark: letras com gradiente metálico dourado (brilho + bevel), borda
      escura gravada e brilho quente — cara de logo de verdade. */
   #gh-intro .gh-logo {
@@ -207,7 +210,7 @@ function injectStyle() {
   }
   #gh-intro .gh-flourish svg { width:100%; height:auto; display:block; }
   #gh-intro .gh-tagline { font-style:italic; opacity:.82; margin:0 0 6px; font-size:clamp(13px,2.4vh,17px); }
-  #gh-intro .gh-menu { display:flex; flex-direction:column; gap:12px; margin-top:26px; align-items:center; }
+  #gh-intro .gh-menu { position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; align-items:center; }
   #gh-intro .gh-menu-btn {
     font-family:"Cinzel",serif; font-size:clamp(15px,2.4vh,20px); letter-spacing:1px;
     padding:12px 44px; min-width:220px; color:#f0e0b4; cursor:pointer;
