@@ -995,15 +995,12 @@ function injectStyle() {
               ▲(2,1)
         ⟲(1,2)      ⟳(3,2)
               ▼(2,3)            */
-  .gh-move {
-    left:16px; bottom:20px;
-    display:grid; grid-template-columns:repeat(3,54px); grid-template-rows:repeat(3,54px);
-    gap:8px;
-  }
-  .gh-fwd  { grid-column:2; grid-row:1; }
-  .gh-tl   { grid-column:1; grid-row:2; }
-  .gh-tr   { grid-column:3; grid-row:2; }
-  .gh-back { grid-column:2; grid-row:3; }
+  .gh-move { left:18px; bottom:22px; width:114px; height:114px; }
+  .gh-move .gh-btn { position:absolute; width:52px; height:52px; }
+  .gh-fwd  { top:0;    left:31px; }
+  .gh-back { bottom:0; left:31px; }
+  .gh-tl   { top:31px; left:0; }
+  .gh-tr   { top:31px; right:0; }
   /* AÇÃO — canto inferior DIREITO (perto da arma/polegar): ataque em destaque
      embaixo, interagir logo acima. */
   .gh-atk {
