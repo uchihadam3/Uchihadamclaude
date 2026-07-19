@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 20 prontos · 🟡 2 faltando · ❌ 2 removidas
+**Status:** ✅ 20 prontos · 🟡 4 faltando · ❌ 2 removidas
 
 ---
 
@@ -359,6 +359,47 @@ Quando você mandar, eu separo as 10, uso cada uma como ícone no slot certo E c
 sprite na mão (a arma principal equipada aparece na mão como a espada de hoje), e
 ligo o sistema de equipar. As folhas dos próximos tiers (Cobre, Bronze…) seguem o
 mesmo molde, trocando só o material.
+
+---
+
+## 11 · Botões de controle (HUD)
+
+Trocar as setas/emoji feios por botões pintados no clima do jogo. A estratégia é a
+mesma que deu certo nas outras UIs: **uma peça reutilizável** (a base do botão) +
+**ícones simples soltos** por cima. Assim eu monto tudo no código e fica coerente.
+
+> **Fundo transparente**, vista **de frente reta**, luz difusa, **sem sombra no
+> chão**, objeto centralizado, sem texto/marca d'água. Manda **uma por vez**.
+
+### 🟡 Peça A — base do botão (a mais importante) (falta)
+
+Um **único botão redondo vazio** — vira o fundo de TODOS os botões (mover, girar,
+atacar, interagir). O símbolo NÃO vai aqui (entra por cima, na Peça B).
+
+```
+Hand-painted stylized-realism game UI button, cohesive with a grim medieval dark-fantasy game (aged dark iron and bronze, worn tarnished gold trim, small rivets). A single ROUND control button seen perfectly face-on: a thick circular beveled frame of dark pitted wrought iron with a thin worn gold rim and a few small rivets around the edge, the center a smooth slightly recessed EMPTY dark metal plate with NO symbol on it. Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, perfectly centered and circular, crisp edges, no text, no icon, no symbol, no watermark. Square canvas ~512x512.
+```
+
+*(Opcional: se quiser, manda também uma variante "acesa/pressionada" — a mesma base
+com o miolo brilhando âmbar/dourado. Se não mandar, eu faço o estado pressionado por
+código, com um brilho.)*
+
+### 🟡 Peça B — ícones (símbolos soltos) (falta)
+
+Símbolos claros (bronze claro / osso pálido / prata) que entram **por cima** da base.
+Cada um numa imagem, **centralizado**, fundo transparente. Preciso de poucos porque
+eu **giro/espelho no código**:
+
+- **Seta** — uma **seta/chevron apontando pra CIMA** (eu giro ela p/ baixo, esquerda,
+  direita e p/ os passos laterais). `single bold engraved arrowhead chevron pointing straight UP, pale polished bronze with a soft bevel, centered on transparent background, ~256x256`
+- **Seta de girar** — uma **seta curva circular** (tipo símbolo de "girar/refresh")
+  indicando rotação. Eu espelho p/ virar à esquerda/direita. `a single curved circular rotation arrow (turn/refresh symbol) curving clockwise, pale polished bronze, centered on transparent background, ~256x256`
+- **Ataque** — **duas espadas cruzadas** (X). `two crossed medieval swords forming an X, worn steel with bronze hilts, centered on transparent background, ~256x256`
+- **Interagir** — uma **manopla/mão aberta** (palma pra frente). `an open armored gauntlet hand, palm facing forward, dark iron with bronze trim, centered on transparent background, ~256x256`
+
+*(O botão de personagem eu reaproveito a arte do **escudo** que já temos. E se você
+preferir, eu desço esses 4 ícones em código — posso desenhar setas/espadas gravadas
+que já ficam bem melhores que os emojis atuais; a base (Peça A) é o ganho grande.)*
 
 ---
 
