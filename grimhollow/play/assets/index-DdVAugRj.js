@@ -4123,8 +4123,8 @@ void main() {
   .gh-cluster { position:absolute; pointer-events:none; }
   /* botões: a base é a arte redonda pintada; o ícone (svg) fica por cima */
   .gh-btn {
-    pointer-events:auto; position:absolute;
-    width:62px; height:62px; border-radius:50%;
+    pointer-events:auto;
+    width:52px; height:52px; border-radius:50%; flex:0 0 auto;
     background:url(${Dl}) no-repeat center / 100% 100%;
     border:none; padding:0; color:#ecd9a6;
     display:flex; align-items:center; justify-content:center;
@@ -4136,28 +4136,34 @@ void main() {
     width:50%; height:50%; display:block; pointer-events:none;
     color:inherit; filter:drop-shadow(0 1px 1px rgba(0,0,0,.85));
   }
-  .gh-move { right:20px; bottom:24px; width:190px; height:190px; }
-  .gh-fwd  { right:65px; bottom:120px; }
-  .gh-back { right:65px; bottom:0px; }
-  .gh-tl   { right:130px; bottom:60px; }
-  .gh-tr   { right:0px;   bottom:60px; }
-  .gh-strafe { left:20px; bottom:24px; width:140px; height:64px; }
-  .gh-sl { left:0px; bottom:0px; }
-  .gh-sr { left:70px; bottom:0px; }
+  /* MOVIMENTO (canto inferior direito): losango em GRID 3x3 — espaçamento
+     garantido, sem sobreposição. Miolo (2,2) vazio. */
+  .gh-move {
+    right:12px; bottom:18px;
+    display:grid; grid-template-columns:repeat(3,52px); grid-template-rows:repeat(3,52px);
+    gap:9px;
+  }
+  .gh-fwd  { grid-column:2; grid-row:1; }
+  .gh-tl   { grid-column:1; grid-row:2; }
+  .gh-tr   { grid-column:3; grid-row:2; }
+  .gh-back { grid-column:2; grid-row:3; }
+  /* STRAFE (canto inferior esquerdo): dois botões lado a lado */
+  .gh-strafe { left:14px; bottom:18px; display:flex; gap:12px; }
+  /* INTERAGIR: acima do strafe, à esquerda */
   .gh-act {
-    left:50%; transform:translateX(-50%); bottom:30px;
-    width:70px; height:70px;
+    position:absolute; left:44px; bottom:84px;
+    width:56px; height:56px;
     opacity:0.5; transition:opacity .15s, filter .15s;
   }
   .gh-act.gh-act-on {
     opacity:1;
     filter:drop-shadow(0 0 12px rgba(240,192,64,0.85)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
-  .gh-act:active { transform:translateX(-50%) scale(0.92); }
-  /* ataque: acima do pad de movimento, à direita — ícone avermelhado + brilho */
+  .gh-act:active { transform:scale(0.92); }
+  /* ATAQUE: acima do losango de movimento, à direita — avermelhado + brilho */
   .gh-atk {
-    right:80px; bottom:222px;
-    width:70px; height:70px; color:#f0b48a;
+    position:absolute; right:70px; bottom:202px;
+    width:56px; height:56px; color:#f0b48a;
     filter:drop-shadow(0 0 12px rgba(200,70,40,0.5)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
   .gh-atk:active { transform:scale(0.9); filter:drop-shadow(0 0 8px rgba(220,90,50,0.75)) brightness(1.15); }
