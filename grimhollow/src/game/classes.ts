@@ -2,11 +2,11 @@
 // armas) e para configurar o jogador ao iniciar. O `portrait` recebe a arte (PNG)
 // quando ela for gerada; até lá fica null e a tela mostra um placeholder.
 
-// Artes de retrato das classes (preenchidas quando os PNGs chegarem):
-// import guerreiroArt from "../assets/ui/class_guerreiro.png";
-// import ladinoArt from "../assets/ui/class_ladino.png";
-// import magoArt from "../assets/ui/class_mago.png";
-// import clerigoArt from "../assets/ui/class_clerigo.png";
+// Artes de retrato das classes:
+import guerreiroArt from "../assets/ui/class_guerreiro.png";
+import ladinoArt from "../assets/ui/class_ladino.png";
+import magoArt from "../assets/ui/class_mago.png";
+import clerigoArt from "../assets/ui/class_clerigo.png";
 
 export interface GameClass {
   id: string;
@@ -34,7 +34,7 @@ export const CLASSES: GameClass[] = [
     mp: 40,
     weapons: ["sword", "greatsword", "axe", "shield"],
     startWeapon: "sword",
-    portrait: null,
+    portrait: guerreiroArt,
   },
   {
     id: "ladino",
@@ -47,7 +47,7 @@ export const CLASSES: GameClass[] = [
     mp: 50,
     weapons: ["dagger", "rapier"],
     startWeapon: "dagger",
-    portrait: null,
+    portrait: ladinoArt,
   },
   {
     id: "mago",
@@ -60,7 +60,7 @@ export const CLASSES: GameClass[] = [
     mp: 110,
     weapons: ["staff", "orb"],
     startWeapon: "staff",
-    portrait: null,
+    portrait: magoArt,
   },
   {
     id: "clerigo",
@@ -73,7 +73,7 @@ export const CLASSES: GameClass[] = [
     mp: 90,
     weapons: ["mace", "maul", "shield", "staff"],
     startWeapon: "mace",
-    portrait: null,
+    portrait: clerigoArt,
   },
 ];
 
