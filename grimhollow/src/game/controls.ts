@@ -317,21 +317,20 @@ export function setupControls(
     return b;
   };
 
-  // pad de movimento (direita) — uma seta girada por direção + setas curvas p/ girar
+  // BÚSSOLA de movimento — CENTRALIZADA (fora da arma, que fica à direita).
+  // Cardeais movem (frente/trás/passo-lado); as duas diagonais de cima giram.
+  //   ⟲  ▲  ⟳
+  //   ◄     ►
+  //      ▼
   const move = document.createElement("div");
   move.className = "gh-cluster gh-move";
-  move.appendChild(mkBtn("arrow", "forward", "gh-fwd"));
-  move.appendChild(mkBtn("turn", "turnLeft", "gh-tl", "scaleX(-1)"));
-  move.appendChild(mkBtn("arrow", "back", "gh-back", "rotate(180deg)"));
-  move.appendChild(mkBtn("turn", "turnRight", "gh-tr"));
+  move.appendChild(mkBtn("turn", "turnLeft", "gh-tl", "scaleX(-1)")); // diag. cima-esq
+  move.appendChild(mkBtn("arrow", "forward", "gh-fwd")); // N
+  move.appendChild(mkBtn("turn", "turnRight", "gh-tr")); // diag. cima-dir
+  move.appendChild(mkBtn("arrow", "strafeLeft", "gh-sl", "rotate(-90deg)")); // O
+  move.appendChild(mkBtn("arrow", "strafeRight", "gh-sr", "rotate(90deg)")); // L
+  move.appendChild(mkBtn("arrow", "back", "gh-back", "rotate(180deg)")); // S
   pad.appendChild(move);
-
-  // strafe (esquerda)
-  const strafe = document.createElement("div");
-  strafe.className = "gh-cluster gh-strafe";
-  strafe.appendChild(mkBtn("arrow", "strafeLeft", "gh-sl", "rotate(-90deg)"));
-  strafe.appendChild(mkBtn("arrow", "strafeRight", "gh-sr", "rotate(90deg)"));
-  pad.appendChild(strafe);
 
   // botão de interação (não repete) — manopla
   const act = document.createElement("button");
@@ -993,23 +992,34 @@ function injectStyle() {
     width:50%; height:50%; display:block; pointer-events:none;
     color:inherit; filter:drop-shadow(0 1px 1px rgba(0,0,0,.85));
   }
-  /* MOVIMENTO (canto inferior direito): losango em GRID 3x3 — espaçamento
-     garantido, sem sobreposição. Miolo (2,2) vazio. */
+  /* BÚSSOLA de movimento — CENTRALIZADA na horizontal (longe da arma à direita).
+     GRID 3x3: cardeais movem, diagonais de cima giram. Miolo (2,2) vazio.
+        ⟲(1,1)  ▲(2,1)  ⟳(3,1)
+        ◄(1,2)          ►(3,2)
+                ▼(2,3)              */
   .gh-move {
-    right:12px; bottom:18px;
+    left:50%; transform:translateX(-50%); bottom:18px;
     display:grid; grid-template-columns:repeat(3,52px); grid-template-rows:repeat(3,52px);
-    gap:9px;
+    gap:8px;
   }
+  .gh-tl   { grid-column:1; grid-row:1; }
   .gh-fwd  { grid-column:2; grid-row:1; }
-  .gh-tl   { grid-column:1; grid-row:2; }
-  .gh-tr   { grid-column:3; grid-row:2; }
+  .gh-tr   { grid-column:3; grid-row:1; }
+  .gh-sl   { grid-column:1; grid-row:2; }
+  .gh-sr   { grid-column:3; grid-row:2; }
   .gh-back { grid-column:2; grid-row:3; }
-  /* STRAFE (canto inferior esquerdo): dois botões lado a lado */
-  .gh-strafe { left:14px; bottom:18px; display:flex; gap:12px; }
-  /* INTERAGIR: acima do strafe, à esquerda */
+  /* AÇÃO — canto inferior direito, abaixo da arma: ataque embaixo, interagir em
+     cima (empilhados p/ não colidir com a bússola central). Esquerda fica livre
+     p/ a futura barra de habilidades. */
+  .gh-atk {
+    position:absolute; right:16px; bottom:16px;
+    width:58px; height:58px; color:#f0b48a;
+    filter:drop-shadow(0 0 12px rgba(200,70,40,0.5)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
+  }
+  .gh-atk:active { transform:scale(0.9); filter:drop-shadow(0 0 8px rgba(220,90,50,0.75)) brightness(1.15); }
   .gh-act {
-    position:absolute; left:44px; bottom:84px;
-    width:56px; height:56px;
+    position:absolute; right:16px; bottom:84px;
+    width:58px; height:58px;
     opacity:0.5; transition:opacity .15s, filter .15s;
   }
   .gh-act.gh-act-on {
@@ -1017,13 +1027,6 @@ function injectStyle() {
     filter:drop-shadow(0 0 12px rgba(240,192,64,0.85)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
   .gh-act:active { transform:scale(0.92); }
-  /* ATAQUE: acima do losango de movimento, à direita — avermelhado + brilho */
-  .gh-atk {
-    position:absolute; right:70px; bottom:202px;
-    width:56px; height:56px; color:#f0b48a;
-    filter:drop-shadow(0 0 12px rgba(200,70,40,0.5)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
-  }
-  .gh-atk:active { transform:scale(0.9); filter:drop-shadow(0 0 8px rgba(220,90,50,0.75)) brightness(1.15); }
   #gh-prompt {
     pointer-events:none; position:absolute; left:50%; transform:translateX(-50%);
     bottom:104px; max-width:70%; text-align:center;
