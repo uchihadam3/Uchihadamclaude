@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 23 prontos · 🟡 10 faltando · ❌ 2 removidas
+**Status:** ✅ 24 prontos · 🟡 9 faltando · ❌ 2 removidas
 
 ---
 
@@ -433,7 +433,7 @@ o logo "Grimhollow". **Sem texto/logo na arte** (o título é escrito por cima).
 Epic AAA dark-fantasy game cover key art, grim medieval horror mood. A fog-shrouded decrepit village at dusk under a heavy brooding sky: crooked timber-and-thatch houses, muddy lanes, a lone cloaked figure with a lantern seen from behind, and in the misty distance a looming ruined keep / dark dungeon gateway. Faint warm torch and lantern glows piercing the cold blue-grey fog, a few ravens in the air, wet cobblestones. Cinematic composition with strong atmospheric depth, painterly hand-painted rendering, cool desaturated palette with warm ember accents, ominous and melancholic. The UPPER THIRD is darker and emptier (sky and fog) to leave room for a title. No text, no logo, no letters, no watermark, no UI. Tall portrait canvas ~1024x1536.
 ```
 
-### 🟡 Peça B — Retratos das 4 classes (falta)
+### ✅ Peça B — Retratos das 4 classes (PRONTO — no jogo)
 
 Um **retrato marcante** por classe, aparece na criação de personagem (slot 3:4).
 Cada prompt abaixo é **completo** — é só **copiar e colar**, sem mudar nada. Manda
