@@ -1,4 +1,4 @@
-# DungeOnline — Prompts de Arte (PNG)
+# Nethergloam — Prompts de Arte (PNG)
 
 Lista viva de tudo que falta pintar pro jogo, num lugar só. Cada bloco tem o
 prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão de

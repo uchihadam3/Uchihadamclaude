@@ -30,9 +30,9 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
     <div class="gh-screen gh-title"${TITLE_ART ? ` style="background-image:url(${TITLE_ART})"` : ""}>
       <div class="gh-veil"></div>
       <div class="gh-title-inner">
-        <h1 class="gh-logo">DungeOnline</h1>
-        <div class="gh-rule"></div>
-        <p class="gh-tagline">As masmorras aguardam a sua lâmina.</p>
+        <h1 class="gh-logo">Nethergloam</h1>
+        <div class="gh-flourish"><svg viewBox="0 0 260 14" preserveAspectRatio="xMidYMid meet"><g fill="#c9a24a"><circle cx="7" cy="7" r="2.6"/><rect x="15" y="6.1" width="97" height="1.8" rx="0.9"/><path d="M130 1 L138 7 L130 13 L122 7 Z"/><rect x="148" y="6.1" width="97" height="1.8" rx="0.9"/><circle cx="253" cy="7" r="2.6"/></g></svg></div>
+        <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
         <div class="gh-menu">
           <button class="gh-menu-btn" id="gh-btn-new">⚔ Novo Jogo</button>
           <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
@@ -111,7 +111,7 @@ function classCard(c: GameClass): string {
 function showLoading(overlay: HTMLElement, onDone: () => void) {
   overlay.innerHTML = `
     <div class="gh-screen gh-loading">
-      <h1 class="gh-logo gh-logo-sm">DungeOnline</h1>
+      <h1 class="gh-logo gh-logo-sm">Nethergloam</h1>
       <div class="gh-load-bar"><div class="gh-load-fill" id="gh-load-fill"></div></div>
       <div class="gh-load-pct" id="gh-load-pct">Forjando o mundo…</div>
     </div>`;
@@ -189,16 +189,23 @@ function injectStyle() {
     background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,.6) 100%);
   }
   #gh-intro .gh-title-inner { position:relative; text-align:center; }
+  /* wordmark: letras com gradiente metálico dourado (brilho + bevel), borda
+     escura gravada e brilho quente — cara de logo de verdade. */
   #gh-intro .gh-logo {
-    font-family:"Cinzel",serif; font-weight:700; margin:0;
-    font-size:clamp(42px,11vw,86px); letter-spacing:3px; color:#e9c979;
-    text-shadow:0 3px 12px #000, 0 0 30px rgba(220,160,60,.45);
+    font-family:"Cinzel",serif; font-weight:700; margin:0; line-height:1.04;
+    font-size:clamp(34px,9vw,74px); letter-spacing:2px;
+    background:linear-gradient(180deg,#fbefc0 0%,#e9cd72 30%,#b58230 52%,#f3dc8f 68%,#9c6e22 100%);
+    -webkit-background-clip:text; background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+    -webkit-text-stroke:0.6px rgba(58,38,10,.55);
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.75)) drop-shadow(0 0 24px rgba(220,160,60,.38));
   }
-  #gh-intro .gh-logo-sm { font-size:clamp(30px,7vw,52px); }
-  #gh-intro .gh-rule {
-    width:min(340px,70vw); height:2px; margin:10px auto 6px;
-    background:linear-gradient(90deg, transparent, rgba(201,162,39,.8), transparent);
+  #gh-intro .gh-logo-sm { font-size:clamp(28px,7vw,50px); }
+  #gh-intro .gh-flourish {
+    width:min(320px,74vw); margin:9px auto 6px;
+    filter:drop-shadow(0 0 6px rgba(201,162,39,.4));
   }
+  #gh-intro .gh-flourish svg { width:100%; height:auto; display:block; }
   #gh-intro .gh-tagline { font-style:italic; opacity:.82; margin:0 0 6px; font-size:clamp(13px,2.4vh,17px); }
   #gh-intro .gh-menu { display:flex; flex-direction:column; gap:12px; margin-top:26px; align-items:center; }
   #gh-intro .gh-menu-btn {
