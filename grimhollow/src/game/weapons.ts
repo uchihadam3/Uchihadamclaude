@@ -13,7 +13,14 @@ import staffUrl from "../assets/env/wpn_staff.png";
 import shieldUrl from "../assets/env/wpn_shield.png";
 import orbUrl from "../assets/env/wpn_orb.png";
 
-export type AtkStyle = "slash" | "chop" | "smash" | "thrust" | "swipe";
+export type AtkStyle =
+  | "slash"
+  | "chop"
+  | "smash"
+  | "thrust"
+  | "swipe"
+  | "axeChop"
+  | "maulSmash";
 export type Grip = "1h" | "2h";
 export type Slot = "main" | "off";
 
@@ -88,6 +95,24 @@ export const STYLES: Record<AtkStyle, StyleDef> = {
     follow: { ry: -14, rx: 4,   rz: -24, tx: -10, ty: 0,  s: 1.00 },
     windup: 120, strike: 205, recover: 200, cooldown: 640, weight: 1.1, fx: "arc",
   },
+  // MACHADO — cabeca direcional: o fio precisa LIDERAR o golpe. Diferente da maca
+  // (simetrica), o machado nao pode "deitar" (rotateX grande mostra o LADO chato).
+  // Entao: rotateX BAIXO (fica de perfil, em pe) + rotateZ FORTE (desce na DIAGONAL,
+  // cabeca pra baixo-esquerda, fio a frente). So um tiquinho de rx p/ ir a frente.
+  axeChop: {
+    wind:   { ry: -12, rx: -16, rz: 30,  tx: 8,   ty: -8, s: 0.95 },
+    hit:    { ry: 10,  rx: 12,  rz: -50, tx: -16, ty: 6,  s: 1.18 },
+    follow: { ry: 6,   rx: 8,   rz: -40, tx: -10, ty: 6,  s: 1.05 },
+    windup: 150, strike: 230, recover: 220, cooldown: 820, weight: 1.6, fx: "arcBig",
+  },
+  // MARRETA — mesma ideia do machado, mas pesada: a face bate na DIAGONAL (nao o
+  // lado). rotateX baixo (nao deita) + rotateZ forte (desce diagonal), lento/forte.
+  maulSmash: {
+    wind:   { ry: -10, rx: -18, rz: 28,  tx: 6,   ty: -6, s: 0.97 },
+    hit:    { ry: 9,   rx: 14,  rz: -46, tx: -14, ty: 8,  s: 1.30 },
+    follow: { ry: 5,   rx: 9,   rz: -36, tx: -8,  ty: 8,  s: 1.08 },
+    windup: 220, strike: 320, recover: 300, cooldown: 1200, weight: 2.4, fx: "smashwave",
+  },
 };
 
 export interface Weapon {
@@ -108,10 +133,10 @@ export interface Weapon {
 export const WEAPONS: Weapon[] = [
   { id: "sword",      name: "Espada",   url: swordUrl,      slot: "main", grip: "1h", style: "slash",  scale: 1.00, dmg: 1, cls: "Guerreiro" },
   { id: "greatsword", name: "Espadão",  url: greatswordUrl, slot: "main", grip: "2h", style: "smash",  scale: 1.20, dmg: 3, cls: "Guerreiro", cooldown: 1150 },
-  { id: "axe",        name: "Machado",  url: axeUrl,        slot: "main", grip: "1h", style: "chop",   scale: 1.00, dmg: 2, cls: "Guerreiro" },
+  { id: "axe",        name: "Machado",  url: axeUrl,        slot: "main", grip: "1h", style: "axeChop", scale: 1.00, dmg: 2, cls: "Guerreiro" },
   { id: "dagger",     name: "Adaga",    url: daggerUrl,     slot: "main", grip: "1h", style: "thrust", scale: 0.64, dmg: 1, cls: "Ladino",   cooldown: 300 },
   { id: "rapier",     name: "Rapieira", url: rapierUrl,     slot: "main", grip: "1h", style: "thrust", scale: 1.05, dmg: 1, cls: "Ladino",   cooldown: 380 },
-  { id: "maul",       name: "Marreta",  url: maulUrl,       slot: "main", grip: "2h", style: "smash",  scale: 1.12, dmg: 3, cls: "Clérigo",  cooldown: 1260 },
+  { id: "maul",       name: "Marreta",  url: maulUrl,       slot: "main", grip: "2h", style: "maulSmash", scale: 1.12, dmg: 3, cls: "Clérigo",  cooldown: 1260 },
   { id: "mace",       name: "Maça",     url: maceUrl,       slot: "main", grip: "1h", style: "chop",   scale: 0.96, dmg: 2, cls: "Clérigo" },
   { id: "staff",      name: "Cajado",   url: staffUrl,      slot: "main", grip: "2h", style: "swipe",  scale: 1.06, dmg: 1, cls: "Mago",     tint: "arcane" },
   { id: "shield",     name: "Escudo",   url: shieldUrl,     slot: "off",  grip: "1h", style: "slash",  scale: 0.9,  dmg: 0, cls: "Guerreiro" },
