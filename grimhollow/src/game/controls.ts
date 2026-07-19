@@ -457,6 +457,25 @@ export function setupControls(
         { duration: total, easing: "ease-out", fill: "both" },
       );
 
+      // 1b) GIRO DE PAPEL: a PRÓPRIA imagem gira no seu eixo vertical (pivô no
+      // centro dela, perspectiva própria) — o PNG fica fininho como papel e a
+      // cabeça "vira de frente". Independente do movimento do rig (machado/marreta).
+      if (st.imgSpin && weapon) {
+        weapon.getAnimations?.().forEach((a) => a.cancel());
+        const sp = st.imgSpin;
+        const iT = (deg: number) => `perspective(620px) rotateY(${deg}deg)`;
+        weapon.animate(
+          [
+            { transform: iT(0), offset: 0 },
+            { transform: iT(sp.wind), offset: wf },
+            { transform: iT(sp.hit), offset: hf },
+            { transform: iT(sp.follow), offset: ff },
+            { transform: iT(0), offset: 1 },
+          ],
+          { duration: total, easing: "ease-out", fill: "both" },
+        );
+      }
+
       // 2) no AUGE do golpe: rastro + clarão + onda de choque + tranco de câmera.
       // O visual muda por FAMÍLIA de golpe:
       //   streak    = estocada: risco reto (adaga/rapieira)
@@ -598,6 +617,13 @@ export function setupControls(
         putIcon("off");
       } else {
         current = w;
+        // encerra qualquer golpe/giro em andamento e volta ao repouso
+        swinging = false;
+        swingTimers.forEach((t) => window.clearTimeout(t));
+        swingTimers.length = 0;
+        weaponRig?.getAnimations?.().forEach((a) => a.cancel());
+        weapon?.getAnimations?.().forEach((a) => a.cancel());
+        weapon!.style.transform = "";
         weapon!.src = w.url;
         if (weaponRig) {
           weaponRig.style.height = `${(62 * w.scale).toFixed(1)}vh`;
@@ -641,6 +667,10 @@ function injectStyle() {
   #gh-weapon {
     display:block; height:100%; width:auto;
     pointer-events:none;
+    /* pivô no CENTRO da imagem: o "giro de papel" (rotateY da própria arte) roda
+       em torno da linha vertical central dela, não do punho */
+    transform-origin:50% 50%;
+    backface-visibility:hidden;
   }
   /* sprite de golpe: já vem na diagonal com o rastro pintado, então tem base
      e pivô próprios (punho no canto inferior-direito), escondido até o golpe */
