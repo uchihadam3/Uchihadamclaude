@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 21 prontos · 🟡 4 faltando · ❌ 2 removidas
+**Status:** ✅ 21 prontos · 🟡 9 faltando · ❌ 2 removidas
 
 ---
 
@@ -414,6 +414,40 @@ Hand-painted stylized-realism game UI directional pad (D-pad), cohesive with a g
 
 *(Manda uma imagem só. Eu recorto a cruz e troco os 4 círculos por ela, com as
 zonas de toque nos braços e um brilho no braço pressionado.)*
+
+---
+
+## 12 · Telas de abertura (título + classes)
+
+O fluxo **Título → Criação de personagem → Loading → Jogo** já está programado e
+funcionando (o Loading pré-carrega TODOS os PNGs, matando o bug de sprite
+faltando). Falta a **arte** — o código já tem os slots prontos: é só encaixar.
+
+### 🟡 Peça A — Key art do título (falta)
+
+O fundo da tela inicial. Precisa ser **atmosférico, nível AAA**. Vertical (o mobile
+é retrato). Deixe o **terço de cima mais escuro/vazio** (céu/névoa) — é onde entra
+o logo "Grimhollow". **Sem texto/logo na arte** (o título é escrito por cima).
+
+```
+Epic AAA dark-fantasy game cover key art, grim medieval horror mood. A fog-shrouded decrepit village at dusk under a heavy brooding sky: crooked timber-and-thatch houses, muddy lanes, a lone cloaked figure with a lantern seen from behind, and in the misty distance a looming ruined keep / dark dungeon gateway. Faint warm torch and lantern glows piercing the cold blue-grey fog, a few ravens in the air, wet cobblestones. Cinematic composition with strong atmospheric depth, painterly hand-painted rendering, cool desaturated palette with warm ember accents, ominous and melancholic. The UPPER THIRD is darker and emptier (sky and fog) to leave room for a title. No text, no logo, no letters, no watermark, no UI. Tall portrait canvas ~1024x1536.
+```
+
+### 🟡 Peça B — Retratos das 4 classes (falta)
+
+Um **retrato marcante** por classe, aparece na criação de personagem (slot 3:4).
+Fundo escuro/atmosférico combinando (não precisa ser transparente — fica emoldurado).
+**Mesmo estilo pintado, sombrio e coeso** entre os quatro. Manda **um por vez**.
+
+**Prefixo de estilo (vale pros 4):** `Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm accents, detailed painterly rendering, dark atmospheric background (faint fog/embers), from the waist up, facing the viewer, heroic but grim. No text, no watermark, no UI. Tall portrait ~896x1200.`
+
+- ⚔️ **Guerreiro:** `...a battle-worn human WARRIOR in dented heavy plate armor, gripping a broadsword with a round shield on the back, scarred determined face, grey-steel and iron tones.`
+- 🗡️ **Ladino:** `...a hooded human ROGUE / assassin in dark worn leather, twin daggers, half-shadowed cunning face, lean and agile, deep blacks and muted browns.`
+- 🔮 **Mago:** `...a robed human MAGE holding a gnarled wooden staff topped with a glowing arcane crystal, faint blue-violet magic light on the hands and face, mystical and frail, dark hooded robes.`
+- 🕯️ **Clérigo:** `...a devout human CLERIC in robes over chainmail, holding a heavy mace and a holy symbol, faint warm divine glow, solemn faithful face, off-white and bronze tones.`
+
+*(Quando mandar, eu importo e ligo `portrait` de cada classe — o retrato substitui
+o placeholder "arte em breve" na hora.)*
 
 ---
 

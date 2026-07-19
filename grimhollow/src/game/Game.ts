@@ -79,6 +79,7 @@ import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
+import { CLASS_BY_ID, type Character } from "./classes";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
 // desativado; a arte continua no repo caso a gente queira retomar depois.
@@ -460,6 +461,8 @@ export class Game {
   // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
   private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
   private currentWeapon: Weapon | null = null; // arma equipada na mão principal
+  private playerName = "Herói"; // nome escolhido na criação
+  private classId = "guerreiro"; // classe escolhida na criação
   // inimigo billboard (esqueleto da masmorra) — leva dano e revida
   private enemy: {
     mesh: THREE.Mesh;
@@ -540,8 +543,21 @@ export class Game {
   }[] = [];
   private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, character?: Character) {
     this.container = container;
+    // aplica a CLASSE escolhida (vida/mana/atributos + arma inicial)
+    const cls = character ? CLASS_BY_ID[character.classId] : null;
+    if (cls && character) {
+      this.playerName = character.name;
+      this.classId = cls.id;
+      this.playerMaxHp = cls.hp;
+      this.playerHp = cls.hp;
+      this.playerMaxMp = cls.mp;
+      this.playerMp = cls.mp;
+      this.stats.str = cls.attr.str;
+      this.stats.dex = cls.attr.dex;
+      this.stats.int = cls.attr.int;
+    }
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
@@ -576,9 +592,9 @@ export class Game {
       WEAPONS,
       (w) => this.onEquip(w),
     );
-    // enche a mochila com TODAS as armas (pra testar) e começa com a espada
+    // enche a mochila com TODAS as armas (pra testar) e começa com a arma da classe
     this.ui.setInventory(WEAPONS.map((w) => w.id));
-    this.ui.equipWeapon("sword");
+    this.ui.equipWeapon(cls?.startWeapon ?? "sword");
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
     this.refreshStats();
