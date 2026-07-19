@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 20 prontos · 🟡 4 faltando · ❌ 2 removidas
+**Status:** ✅ 21 prontos · 🟡 4 faltando · ❌ 2 removidas
 
 ---
 
@@ -371,7 +371,7 @@ mesma que deu certo nas outras UIs: **uma peça reutilizável** (a base do botã
 > **Fundo transparente**, vista **de frente reta**, luz difusa, **sem sombra no
 > chão**, objeto centralizado, sem texto/marca d'água. Manda **uma por vez**.
 
-### 🟡 Peça A — base do botão (a mais importante) (falta)
+### ✅ Peça A — base do botão (a mais importante) (PRONTO — no jogo)
 
 Um **único botão redondo vazio** — vira o fundo de TODOS os botões (mover, girar,
 atacar, interagir). O símbolo NÃO vai aqui (entra por cima, na Peça B).
@@ -397,9 +397,23 @@ eu **giro/espelho no código**:
 - **Ataque** — **duas espadas cruzadas** (X). `two crossed medieval swords forming an X, worn steel with bronze hilts, centered on transparent background, ~256x256`
 - **Interagir** — uma **manopla/mão aberta** (palma pra frente). `an open armored gauntlet hand, palm facing forward, dark iron with bronze trim, centered on transparent background, ~256x256`
 
-*(O botão de personagem eu reaproveito a arte do **escudo** que já temos. E se você
-preferir, eu desço esses 4 ícones em código — posso desenhar setas/espadas gravadas
-que já ficam bem melhores que os emojis atuais; a base (Peça A) é o ganho grande.)*
+*(O botão de personagem eu reaproveito a arte do **escudo** que já temos. Os 4
+ícones da Peça B **já estão desenhados em código** e no jogo — a Peça B só é
+necessária se você quiser ícones pintados à mão no lugar.)*
+
+### 🟡 Peça C — D-pad de movimento (cruz) (falta)
+
+No lugar dos 4 botões redondos do movimento, **uma peça só em CRUZ** (estilo
+controle de videogame), no tema do jogo. Combina com os botões redondos e as
+janelas (mesmo ferro escuro + ouro gasto + rebites). Eu coloco 4 zonas de toque
+invisíveis nos braços: **cima = frente, baixo = trás, esquerda/direita = virar**.
+
+```
+Hand-painted stylized-realism game UI directional pad (D-pad), cohesive with a grim medieval dark-fantasy game — SAME materials as the game's iron-and-gold round buttons and ornate frames: aged dark pitted wrought iron, worn tarnished gold/brass trim, small rivets. A single PLUS / CROSS shaped D-pad seen perfectly face-on and symmetric, four equal short arms pointing up, down, left and right. Each arm is a slightly recessed dark iron panel bearing one subtle embossed engraved directional ARROW (up arrow on the top arm, down arrow on the bottom, left arrow on the left arm, right arrow on the right arm). A raised worn gold rim runs around the whole cross outline with a few rivets; in the very center a small domed iron boss/stud. Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, the cross perfectly centered and filling the frame, crisp edges, nothing outside the cross shape, no text, no numbers, no watermark. Square canvas ~640x640.
+```
+
+*(Manda uma imagem só. Eu recorto a cruz e troco os 4 círculos por ela, com as
+zonas de toque nos braços e um brilho no braço pressionado.)*
 
 ---
 
