@@ -5,6 +5,7 @@ import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
 import eqContainerUrl from "../assets/ui/eq_container.png";
 import btnBaseUrl from "../assets/ui/btn_base.png";
+import dpadUrl from "../assets/ui/dpad.png";
 import shieldIconUrl from "../assets/env/wpn_shield.png";
 
 export type Action =
@@ -294,40 +295,40 @@ export function setupControls(
   const svgIcon = (name: string, transform = "") =>
     `<svg class="gh-ico" viewBox="0 0 100 100"${transform ? ` style="transform:${transform}"` : ""}>${ICON[name]}</svg>`;
 
-  const mkBtn = (icon: string, action: Action, cls: string, transform = "") => {
-    const b = document.createElement("button");
-    b.className = "gh-btn " + cls;
-    b.innerHTML = svgIcon(icon, transform);
+  // segurar pressionado repete a ação (o jogo ignora enquanto anima)
+  const holdRepeat = (el: HTMLElement, action: Action) => {
     let iv: number | undefined;
     const start = (e: Event) => {
       e.preventDefault();
       onAction(action);
-      // manter pressionado repete (o jogo ignora enquanto anima)
       iv = window.setInterval(() => onAction(action), MOVE_MS);
     };
     const stop = () => {
       if (iv) window.clearInterval(iv);
       iv = undefined;
     };
-    b.addEventListener("pointerdown", start);
-    b.addEventListener("pointerup", stop);
-    b.addEventListener("pointerleave", stop);
-    b.addEventListener("pointercancel", stop);
-    b.addEventListener("contextmenu", (e) => e.preventDefault());
-    return b;
+    el.addEventListener("pointerdown", start);
+    el.addEventListener("pointerup", stop);
+    el.addEventListener("pointerleave", stop);
+    el.addEventListener("pointercancel", stop);
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
   };
 
-  // MOVIMENTO — canto inferior ESQUERDO (lado que controla o personagem no
-  // mobile). D-pad de 4 botões: cima=frente, baixo=trás, laterais=virar esq/dir.
-  //      ▲
-  //   ⟲     ⟳
-  //      ▼
+  // MOVIMENTO — D-pad em CRUZ (arte única) no canto inferior ESQUERDO. A cruz é o
+  // fundo; por cima ficam 4 ZONAS DE TOQUE invisíveis nos braços. cima=frente,
+  // baixo=trás, esquerda/direita=virar. O braço pressionado acende (brilho).
   const move = document.createElement("div");
   move.className = "gh-cluster gh-move";
-  move.appendChild(mkBtn("arrow", "forward", "gh-fwd")); // cima = frente
-  move.appendChild(mkBtn("turn", "turnLeft", "gh-tl", "scaleX(-1)")); // esq = virar esq
-  move.appendChild(mkBtn("turn", "turnRight", "gh-tr")); // dir = virar dir
-  move.appendChild(mkBtn("arrow", "back", "gh-back", "rotate(180deg)")); // baixo = trás
+  const mkTap = (action: Action, cls: string) => {
+    const z = document.createElement("button");
+    z.className = "gh-dtap " + cls;
+    holdRepeat(z, action);
+    return z;
+  };
+  move.appendChild(mkTap("forward", "gh-dup"));
+  move.appendChild(mkTap("back", "gh-ddown"));
+  move.appendChild(mkTap("turnLeft", "gh-dleft"));
+  move.appendChild(mkTap("turnRight", "gh-dright"));
   pad.appendChild(move);
 
   // botão de interação (não repete) — manopla
@@ -995,12 +996,25 @@ function injectStyle() {
               ▲(2,1)
         ⟲(1,2)      ⟳(3,2)
               ▼(2,3)            */
-  .gh-move { left:18px; bottom:22px; width:114px; height:114px; }
-  .gh-move .gh-btn { position:absolute; width:52px; height:52px; }
-  .gh-fwd  { top:0;    left:31px; }
-  .gh-back { bottom:0; left:31px; }
-  .gh-tl   { top:31px; left:0; }
-  .gh-tr   { top:31px; right:0; }
+  /* MOVIMENTO — D-pad em CRUZ (arte única). As 4 zonas de toque ficam por cima
+     dos braços; a do braço pressionado acende. */
+  .gh-move {
+    left:16px; bottom:20px; width:150px; height:150px;
+    background:url(${dpadUrl}) no-repeat center / 100% 100%;
+    filter:drop-shadow(0 3px 9px rgba(0,0,0,0.55));
+  }
+  .gh-dtap {
+    position:absolute; background:transparent; border:none; padding:0;
+    pointer-events:auto; cursor:pointer; border-radius:16px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .gh-dtap:active {
+    background:radial-gradient(circle, rgba(255,226,140,0.5) 0%, rgba(255,210,110,0.18) 45%, rgba(255,210,110,0) 70%);
+  }
+  .gh-dup    { left:30%; top:0;    width:40%; height:44%; }
+  .gh-ddown  { left:30%; bottom:0; width:40%; height:44%; }
+  .gh-dleft  { left:0;   top:30%;  width:44%; height:40%; }
+  .gh-dright { right:0;  top:30%;  width:44%; height:40%; }
   /* AÇÃO — canto inferior DIREITO (perto da arma/polegar): ataque em destaque
      embaixo, interagir logo acima. */
   .gh-atk {
