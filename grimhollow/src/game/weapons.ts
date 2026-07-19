@@ -18,7 +18,7 @@ export type AtkStyle =
   | "quickslash"
   | "chop"
   | "smash"
-  | "thrust"
+  | "lunge"
   | "swipe"
   | "axeChop"
   | "maulSmash";
@@ -93,13 +93,15 @@ export const STYLES: Record<AtkStyle, StyleDef> = {
     follow: { ry: 6,   rx: 21,  rz: -2,  tx: -2,  ty: 9,  s: 1.08 },
     windup: 220, strike: 320, recover: 300, cooldown: 1200, weight: 2.4, fx: "smashwave",
   },
-  // ADAGA / RAPIEIRA — estocada: recolhe perto (rx -10) e DISPARA a ponta pra
-  // DENTRO da cena, na direção do inimigo (rx +12, avança pro centro).
-  thrust: {
-    wind:   { ry: 24,  rx: -10, rz: 22,  tx: 12,  ty: 6,   s: 0.94 },
-    hit:    { ry: -8,  rx: 12,  rz: 10,  tx: -16, ty: -10, s: 1.24 },
-    follow: { ry: -2,  rx: 4,   rz: 14,  tx: -8,  ty: -4,  s: 1.04 },
-    windup: 75, strike: 145, recover: 150, cooldown: 320, weight: 0.75, fx: "streak",
+  // RAPIEIRA — ESTOCADA de esgrima. Pega IMPULSO: recua e DESCE um pouco na tela
+  // (wind ty +16), depois DISPARA pra cima e pra frente de uma vez (hit ty -12).
+  // O rotateZ DEITA a lâmina pra frente: sai de quase em pé (rz +30) e vira pra
+  // diagonal apontando pro inimigo no centro (rz -46), como uma lança estendida.
+  lunge: {
+    wind:   { ry: 6,  rx: -8, rz: 30,  tx: 10,  ty: 16,  s: 0.86 },
+    hit:    { ry: -4, rx: 20, rz: -46, tx: -18, ty: -12, s: 1.50 },
+    follow: { ry: -2, rx: 12, rz: -30, tx: -10, ty: -2,  s: 1.16 },
+    windup: 100, strike: 90, recover: 150, cooldown: 400, weight: 0.85, fx: "streak",
   },
   // CAJADO — rodada mágica: giro horizontal largo projetado À FRENTE (rx +12),
   // como se rodopiasse o bastão, com rastro arcano.
@@ -152,7 +154,7 @@ export const WEAPONS: Weapon[] = [
   { id: "greatsword", name: "Espadão",  url: greatswordUrl, slot: "main", grip: "2h", style: "smash",  scale: 1.20, dmg: 3, cls: "Guerreiro", cooldown: 1150 },
   { id: "axe",        name: "Machado",  url: axeUrl,        slot: "main", grip: "1h", style: "axeChop", scale: 1.00, dmg: 2, cls: "Guerreiro" },
   { id: "dagger",     name: "Adaga",    url: daggerUrl,     slot: "main", grip: "1h", style: "quickslash", scale: 0.64, dmg: 1, cls: "Ladino",   cooldown: 280 },
-  { id: "rapier",     name: "Rapieira", url: rapierUrl,     slot: "main", grip: "1h", style: "quickslash", scale: 1.05, dmg: 1, cls: "Ladino",   cooldown: 360 },
+  { id: "rapier",     name: "Rapieira", url: rapierUrl,     slot: "main", grip: "1h", style: "lunge",      scale: 1.05, dmg: 1, cls: "Ladino",   cooldown: 420 },
   { id: "maul",       name: "Marreta",  url: maulUrl,       slot: "main", grip: "2h", style: "maulSmash", scale: 1.12, dmg: 3, cls: "Clérigo",  cooldown: 1260 },
   { id: "mace",       name: "Maça",     url: maceUrl,       slot: "main", grip: "1h", style: "chop",   scale: 0.96, dmg: 2, cls: "Clérigo" },
   { id: "staff",      name: "Cajado",   url: staffUrl,      slot: "main", grip: "2h", style: "swipe",  scale: 1.06, dmg: 1, cls: "Mago",     tint: "arcane" },
