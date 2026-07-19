@@ -317,19 +317,17 @@ export function setupControls(
     return b;
   };
 
-  // BÚSSOLA de movimento — CENTRALIZADA (fora da arma, que fica à direita).
-  // Cardeais movem (frente/trás/passo-lado); as duas diagonais de cima giram.
-  //   ⟲  ▲  ⟳
-  //   ◄     ►
+  // MOVIMENTO — canto inferior ESQUERDO (lado que controla o personagem no
+  // mobile). D-pad de 4 botões: cima=frente, baixo=trás, laterais=virar esq/dir.
+  //      ▲
+  //   ⟲     ⟳
   //      ▼
   const move = document.createElement("div");
   move.className = "gh-cluster gh-move";
-  move.appendChild(mkBtn("turn", "turnLeft", "gh-tl", "scaleX(-1)")); // diag. cima-esq
-  move.appendChild(mkBtn("arrow", "forward", "gh-fwd")); // N
-  move.appendChild(mkBtn("turn", "turnRight", "gh-tr")); // diag. cima-dir
-  move.appendChild(mkBtn("arrow", "strafeLeft", "gh-sl", "rotate(-90deg)")); // O
-  move.appendChild(mkBtn("arrow", "strafeRight", "gh-sr", "rotate(90deg)")); // L
-  move.appendChild(mkBtn("arrow", "back", "gh-back", "rotate(180deg)")); // S
+  move.appendChild(mkBtn("arrow", "forward", "gh-fwd")); // cima = frente
+  move.appendChild(mkBtn("turn", "turnLeft", "gh-tl", "scaleX(-1)")); // esq = virar esq
+  move.appendChild(mkBtn("turn", "turnRight", "gh-tr")); // dir = virar dir
+  move.appendChild(mkBtn("arrow", "back", "gh-back", "rotate(180deg)")); // baixo = trás
   pad.appendChild(move);
 
   // botão de interação (não repete) — manopla
@@ -992,34 +990,31 @@ function injectStyle() {
     width:50%; height:50%; display:block; pointer-events:none;
     color:inherit; filter:drop-shadow(0 1px 1px rgba(0,0,0,.85));
   }
-  /* BÚSSOLA de movimento — CENTRALIZADA na horizontal (longe da arma à direita).
-     GRID 3x3: cardeais movem, diagonais de cima giram. Miolo (2,2) vazio.
-        ⟲(1,1)  ▲(2,1)  ⟳(3,1)
-        ◄(1,2)          ►(3,2)
-                ▼(2,3)              */
+  /* MOVIMENTO — D-pad de 4 botões no canto inferior ESQUERDO. GRID 3x3 em
+     diamante (cima/baixo/esq/dir); cantos e miolo vazios.
+              ▲(2,1)
+        ⟲(1,2)      ⟳(3,2)
+              ▼(2,3)            */
   .gh-move {
-    left:50%; transform:translateX(-50%); bottom:18px;
-    display:grid; grid-template-columns:repeat(3,52px); grid-template-rows:repeat(3,52px);
+    left:16px; bottom:20px;
+    display:grid; grid-template-columns:repeat(3,54px); grid-template-rows:repeat(3,54px);
     gap:8px;
   }
-  .gh-tl   { grid-column:1; grid-row:1; }
   .gh-fwd  { grid-column:2; grid-row:1; }
-  .gh-tr   { grid-column:3; grid-row:1; }
-  .gh-sl   { grid-column:1; grid-row:2; }
-  .gh-sr   { grid-column:3; grid-row:2; }
+  .gh-tl   { grid-column:1; grid-row:2; }
+  .gh-tr   { grid-column:3; grid-row:2; }
   .gh-back { grid-column:2; grid-row:3; }
-  /* AÇÃO — canto inferior direito, abaixo da arma: ataque embaixo, interagir em
-     cima (empilhados p/ não colidir com a bússola central). Esquerda fica livre
-     p/ a futura barra de habilidades. */
+  /* AÇÃO — canto inferior DIREITO (perto da arma/polegar): ataque em destaque
+     embaixo, interagir logo acima. */
   .gh-atk {
-    position:absolute; right:16px; bottom:16px;
-    width:58px; height:58px; color:#f0b48a;
+    position:absolute; right:22px; bottom:26px;
+    width:66px; height:66px; color:#f0b48a;
     filter:drop-shadow(0 0 12px rgba(200,70,40,0.5)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
   .gh-atk:active { transform:scale(0.9); filter:drop-shadow(0 0 8px rgba(220,90,50,0.75)) brightness(1.15); }
   .gh-act {
-    position:absolute; right:16px; bottom:84px;
-    width:58px; height:58px;
+    position:absolute; right:28px; bottom:104px;
+    width:56px; height:56px;
     opacity:0.5; transition:opacity .15s, filter .15s;
   }
   .gh-act.gh-act-on {
