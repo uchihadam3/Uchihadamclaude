@@ -39,50 +39,53 @@ export interface StyleDef {
 //   smash  = pancada pesada e lenta de cima (espadão, marreta) — muito impacto
 //   thrust = estocada reta pra frente (adaga, rapieira) — rápida, pouca rotação
 //   swipe  = rodada horizontal (cajado) — com tom arcano
-// Cada estilo é uma sequência de poses 3D. O segredo da "virada" é o rotateY:
-// a arte plana gira em torno do eixo vertical durante o golpe (fica de perfil no
-// meio e reaparece do outro lado), vendendo um giro real em 3D. A PROFUNDIDADE
-// vem de 3 eixos somados: rotateY (vira/gira), rotateX (levanta e desce por cima),
-// e scale (avança/recua em direção à câmera).
+// Cada estilo é uma sequência de poses 3D. Dois princípios:
+//   (1) VIRADA — rotateY gira a arte plana no eixo vertical (fica de perfil no
+//       meio e reaparece do outro lado): giro 3D real.
+//   (2) IMPACTO PRA FRENTE — a lâmina fica ACIMA do pivô (punho). Com a
+//       perspectiva, rotateX POSITIVO joga a lâmina PRA DENTRO da cena (longe da
+//       câmera, na direção do inimigo); rotateX NEGATIVO a traria pro rosto do
+//       jogador (parecia "bater em si mesmo"). Então: ARMA com rx negativo (arma
+//       recuada/erguida perto) e BATE com rx POSITIVO. Escala do golpe moderada.
 export const STYLES: Record<AtkStyle, StyleDef> = {
-  // ESPADA — corte diagonal amplo: gira de um lado (ry +48) e varre pro outro
-  // (ry -48), a lâmina "vira" atravessando a tela.
+  // ESPADA — corte diagonal amplo que vira de um lado ao outro, projetado À FRENTE
+  // (rx passa de negativo p/ POSITIVO: a lâmina vai pra dentro da cena, não pro rosto)
   slash: {
-    wind:   { ry: 48,  rx: 8,   rz: 40,  tx: 15,  ty: 8,  s: 0.80 },
-    hit:    { ry: -50, rx: -16, rz: -52, tx: -32, ty: -6, s: 1.52 },
-    follow: { ry: -18, rx: -6,  rz: -30, tx: -15, ty: 6,  s: 1.12 },
+    wind:   { ry: 44,  rx: -8,  rz: 36,  tx: 12,  ty: 4,  s: 0.96 },
+    hit:    { ry: -42, rx: 16,  rz: -42, tx: -26, ty: -8, s: 1.18 },
+    follow: { ry: -16, rx: 7,   rz: -24, tx: -12, ty: -2, s: 1.02 },
     windup: 105, strike: 190, recover: 190, cooldown: 560, weight: 1.0, fx: "arc",
   },
-  // MACHADO / MAÇA — machadada por cima: ergue atrás (rx +38) e crava pra frente
-  // e pra baixo (rx -44), a cabeça gira e "desce" na direção da câmera.
+  // MACHADO / MAÇA — machadada por cima: ergue atrás/perto (rx -26) e CRAVA pra
+  // frente e pra baixo, DENTRO da cena (rx +40).
   chop: {
-    wind:   { ry: -26, rx: 38,  rz: 4,   tx: 3,   ty: -15, s: 0.85 },
-    hit:    { ry: 22,  rx: -44, rz: -30, tx: -15, ty: 21,  s: 1.50 },
-    follow: { ry: 9,   rx: -15, rz: -15, tx: -8,  ty: 10,  s: 1.13 },
+    wind:   { ry: -22, rx: -26, rz: 22,  tx: 6,   ty: -2, s: 0.96 },
+    hit:    { ry: 18,  rx: 40,  rz: -18, tx: -12, ty: 9,  s: 1.22 },
+    follow: { ry: 8,   rx: 17,  rz: -10, tx: -6,  ty: 8,  s: 1.05 },
     windup: 150, strike: 230, recover: 220, cooldown: 820, weight: 1.6, fx: "arcBig",
   },
-  // ESPADÃO / MARRETA — pancada colossal de cima: heave pra trás bem alto (rx +46)
-  // e esmaga reto pra baixo pelo centro (rx -52), escala enorme = vem "em cima".
+  // ESPADÃO / MARRETA — pancada colossal: heave pra trás/cima (rx -32) e ESMAGA
+  // reto pra baixo E pra dentro da cena (rx +50).
   smash: {
-    wind:   { ry: -18, rx: 46,  rz: 6,   tx: 0,   ty: -19, s: 0.92 },
-    hit:    { ry: 14,  rx: -52, rz: -6,  tx: -6,  ty: 27,  s: 1.66 },
-    follow: { ry: 6,   rx: -19, rz: 0,   tx: -2,  ty: 12,  s: 1.18 },
+    wind:   { ry: -16, rx: -32, rz: 16,  tx: 2,   ty: 0,  s: 0.98 },
+    hit:    { ry: 12,  rx: 50,  rz: -6,  tx: -6,  ty: 13, s: 1.36 },
+    follow: { ry: 6,   rx: 21,  rz: -2,  tx: -2,  ty: 9,  s: 1.08 },
     windup: 220, strike: 320, recover: 300, cooldown: 1200, weight: 2.4, fx: "smashwave",
   },
-  // ADAGA / RAPIEIRA — estocada: recolhe girando (ry +26), depois DISPARA a ponta
-  // em direção à câmera (scale 1.75, ry -14) — a profundidade é o avanço reto.
+  // ADAGA / RAPIEIRA — estocada: recolhe perto (rx -10) e DISPARA a ponta pra
+  // DENTRO da cena, na direção do inimigo (rx +12, avança pro centro).
   thrust: {
-    wind:   { ry: 26,  rx: 10,  rz: 24,  tx: 13,  ty: 9,   s: 0.82 },
-    hit:    { ry: -14, rx: -14, rz: 8,   tx: -20, ty: -10, s: 1.75 },
-    follow: { ry: -3,  rx: -4,  rz: 14,  tx: -8,  ty: -2,  s: 1.16 },
+    wind:   { ry: 24,  rx: -10, rz: 22,  tx: 12,  ty: 6,   s: 0.94 },
+    hit:    { ry: -8,  rx: 12,  rz: 10,  tx: -16, ty: -10, s: 1.24 },
+    follow: { ry: -2,  rx: 4,   rz: 14,  tx: -8,  ty: -4,  s: 1.04 },
     windup: 75, strike: 145, recover: 150, cooldown: 320, weight: 0.75, fx: "streak",
   },
-  // CAJADO — rodada mágica: giro horizontal largo (ry +42 → -46, rz +48 → -56),
+  // CAJADO — rodada mágica: giro horizontal largo projetado À FRENTE (rx +12),
   // como se rodopiasse o bastão, com rastro arcano.
   swipe: {
-    wind:   { ry: 42,  rx: 6,   rz: 48,  tx: 13,  ty: 6,  s: 0.86 },
-    hit:    { ry: -46, rx: -10, rz: -56, tx: -30, ty: -2, s: 1.34 },
-    follow: { ry: -15, rx: -2,  rz: -26, tx: -12, ty: 4,  s: 1.06 },
+    wind:   { ry: 40,  rx: -8,  rz: 44,  tx: 12,  ty: 4,  s: 0.96 },
+    hit:    { ry: -42, rx: 12,  rz: -50, tx: -26, ty: -4, s: 1.16 },
+    follow: { ry: -14, rx: 4,   rz: -24, tx: -10, ty: 0,  s: 1.00 },
     windup: 120, strike: 205, recover: 200, cooldown: 640, weight: 1.1, fx: "arc",
   },
 };
