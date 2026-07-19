@@ -4,6 +4,8 @@ import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
 import eqContainerUrl from "../assets/ui/eq_container.png";
+import btnBaseUrl from "../assets/ui/btn_base.png";
+import shieldIconUrl from "../assets/env/wpn_shield.png";
 
 export type Action =
   | "forward"
@@ -160,7 +162,7 @@ export function setupControls(
   const charBtn = document.createElement("button");
   charBtn.id = "gh-char-btn";
   charBtn.title = "Personagem (C)";
-  charBtn.textContent = "🛡";
+  charBtn.innerHTML = `<img class="gh-char-ico" src="${shieldIconUrl}" alt=""/>`;
   root.appendChild(charBtn);
 
   // disposição "boneco" estilo Path of Exile numa grade 8×6 (célula quadrada):
@@ -261,10 +263,41 @@ export function setupControls(
   pad.id = "pad";
   root.appendChild(pad);
 
-  const mkBtn = (label: string, action: Action, cls: string) => {
+  // ícones desenhados em código (gravados, tom bronze claro) — usam currentColor
+  // p/ a cor vir do CSS. Ficam POR CIMA da base pintada do botão.
+  const ICON: Record<string, string> = {
+    // seta cheia p/ cima (giro por CSS cobre baixo/lados)
+    arrow: '<path fill="currentColor" d="M50 16 L84 56 L64 56 L64 86 L36 86 L36 56 L16 56 Z"/>',
+    // seta curva de girar (espelhada por CSS p/ o outro lado)
+    turn:
+      '<path fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" d="M74 40 A28 28 0 1 0 80 54"/>' +
+      '<path fill="currentColor" d="M84 18 L88 46 L60 38 Z"/>',
+    // espadas cruzadas
+    swords:
+      '<g stroke="currentColor" fill="none" stroke-linecap="round">' +
+      '<line x1="24" y1="80" x2="78" y2="24" stroke-width="7"/>' +
+      '<line x1="76" y1="80" x2="22" y2="24" stroke-width="7"/>' +
+      '<line x1="15" y1="66" x2="33" y2="84" stroke-width="6"/>' +
+      '<line x1="85" y1="66" x2="67" y2="84" stroke-width="6"/>' +
+      "</g>",
+    // manopla / mão aberta
+    hand:
+      '<g fill="currentColor">' +
+      '<rect x="33" y="23" width="9" height="39" rx="4.5"/>' +
+      '<rect x="45" y="16" width="9" height="46" rx="4.5"/>' +
+      '<rect x="57" y="20" width="9" height="42" rx="4.5"/>' +
+      '<rect x="69" y="30" width="9" height="32" rx="4.5"/>' +
+      '<path d="M27 55 q-7 5 -4 15 l4 12 q4 11 16 11 h14 q13 0 15 -15 l2 -21 z"/>' +
+      '<path d="M30 57 q-13 -3 -17 8 q-2 6 5 8 q8 2 14 -7 z"/>' +
+      "</g>",
+  };
+  const svgIcon = (name: string, transform = "") =>
+    `<svg class="gh-ico" viewBox="0 0 100 100"${transform ? ` style="transform:${transform}"` : ""}>${ICON[name]}</svg>`;
+
+  const mkBtn = (icon: string, action: Action, cls: string, transform = "") => {
     const b = document.createElement("button");
     b.className = "gh-btn " + cls;
-    b.textContent = label;
+    b.innerHTML = svgIcon(icon, transform);
     let iv: number | undefined;
     const start = (e: Event) => {
       e.preventDefault();
@@ -284,26 +317,26 @@ export function setupControls(
     return b;
   };
 
-  // pad de movimento (direita)
+  // pad de movimento (direita) — uma seta girada por direção + setas curvas p/ girar
   const move = document.createElement("div");
   move.className = "gh-cluster gh-move";
-  move.appendChild(mkBtn("▲", "forward", "gh-fwd"));
-  move.appendChild(mkBtn("⟲", "turnLeft", "gh-tl"));
-  move.appendChild(mkBtn("▼", "back", "gh-back"));
-  move.appendChild(mkBtn("⟳", "turnRight", "gh-tr"));
+  move.appendChild(mkBtn("arrow", "forward", "gh-fwd"));
+  move.appendChild(mkBtn("turn", "turnLeft", "gh-tl", "scaleX(-1)"));
+  move.appendChild(mkBtn("arrow", "back", "gh-back", "rotate(180deg)"));
+  move.appendChild(mkBtn("turn", "turnRight", "gh-tr"));
   pad.appendChild(move);
 
   // strafe (esquerda)
   const strafe = document.createElement("div");
   strafe.className = "gh-cluster gh-strafe";
-  strafe.appendChild(mkBtn("◄", "strafeLeft", "gh-sl"));
-  strafe.appendChild(mkBtn("►", "strafeRight", "gh-sr"));
+  strafe.appendChild(mkBtn("arrow", "strafeLeft", "gh-sl", "rotate(-90deg)"));
+  strafe.appendChild(mkBtn("arrow", "strafeRight", "gh-sr", "rotate(90deg)"));
   pad.appendChild(strafe);
 
-  // botão de interação (não repete)
+  // botão de interação (não repete) — manopla
   const act = document.createElement("button");
   act.className = "gh-btn gh-act";
-  act.textContent = "✋";
+  act.innerHTML = svgIcon("hand");
   const tapAct = (e: Event) => {
     e.preventDefault();
     onAction("interact");
@@ -312,12 +345,12 @@ export function setupControls(
   act.addEventListener("contextmenu", (e) => e.preventDefault());
   pad.appendChild(act);
 
-  // botão de ataque (só aparece quando há arma equipada)
+  // botão de ataque (só aparece quando há arma equipada) — espadas cruzadas
   let atkBtn: HTMLButtonElement | null = null;
   if (weaponUrl) {
     atkBtn = document.createElement("button");
     atkBtn.className = "gh-btn gh-atk";
-    atkBtn.textContent = "⚔";
+    atkBtn.innerHTML = svgIcon("swords");
     const tapAtk = (e: Event) => {
       e.preventDefault();
       onAction("attack");
@@ -802,12 +835,17 @@ function injectStyle() {
   /* botão de abrir a janela de personagem */
   #gh-char-btn {
     position:fixed; right:14px; top:12px; z-index:12; pointer-events:auto;
-    width:46px; height:46px; border-radius:10px; font-size:22px; cursor:pointer;
-    background:rgba(20,16,11,.72); color:#e8d9b0;
-    border:2px solid rgba(201,162,39,.6); box-shadow:0 2px 8px rgba(0,0,0,.5);
+    width:52px; height:52px; border-radius:50%; cursor:pointer;
+    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+    border:none; padding:0;
+    filter:drop-shadow(0 2px 7px rgba(0,0,0,.55));
     display:flex; align-items:center; justify-content:center;
   }
-  #gh-char-btn:active { transform:scale(.94); }
+  .gh-char-ico {
+    width:58%; height:58%; object-fit:contain; pointer-events:none;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.7));
+  }
+  #gh-char-btn:active { transform:scale(.94); filter:brightness(1.25) drop-shadow(0 1px 4px rgba(0,0,0,.6)); }
   /* janela de equipamentos */
   #gh-eq {
     position:fixed; inset:0; z-index:20; pointer-events:auto;
@@ -940,17 +978,21 @@ function injectStyle() {
   }
   #pad { position:fixed; inset:0; pointer-events:none; z-index:10; font-family:inherit; }
   .gh-cluster { position:absolute; pointer-events:none; }
+  /* botões: a base é a arte redonda pintada; o ícone (svg) fica por cima */
   .gh-btn {
     pointer-events:auto; position:absolute;
-    width:60px; height:60px; border-radius:12px;
-    background:rgba(28,22,16,0.62); color:#e8d9b4;
-    border:2px solid rgba(201,162,39,0.5);
-    font-size:26px; line-height:1; font-family:inherit;
+    width:62px; height:62px; border-radius:50%;
+    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+    border:none; padding:0; color:#ecd9a6;
     display:flex; align-items:center; justify-content:center;
-    box-shadow:0 3px 10px rgba(0,0,0,0.5); cursor:pointer;
-    touch-action:none;
+    filter:drop-shadow(0 3px 8px rgba(0,0,0,0.55)); cursor:pointer;
+    touch-action:none; -webkit-tap-highlight-color:transparent;
   }
-  .gh-btn:active { background:rgba(201,162,39,0.55); transform:scale(0.94); }
+  .gh-btn:active { transform:scale(0.92); filter:drop-shadow(0 1px 4px rgba(0,0,0,.6)) brightness(1.28); }
+  .gh-ico {
+    width:50%; height:50%; display:block; pointer-events:none;
+    color:inherit; filter:drop-shadow(0 1px 1px rgba(0,0,0,.85));
+  }
   .gh-move { right:20px; bottom:24px; width:190px; height:190px; }
   .gh-fwd  { right:65px; bottom:120px; }
   .gh-back { right:65px; bottom:0px; }
@@ -961,23 +1003,21 @@ function injectStyle() {
   .gh-sr { left:70px; bottom:0px; }
   .gh-act {
     left:50%; transform:translateX(-50%); bottom:30px;
-    width:66px; height:66px; border-radius:50%; font-size:30px;
-    opacity:0.45; transition:opacity .15s, box-shadow .15s;
+    width:70px; height:70px;
+    opacity:0.5; transition:opacity .15s, filter .15s;
   }
   .gh-act.gh-act-on {
-    opacity:1; border-color:#f0c040;
-    box-shadow:0 0 16px rgba(240,192,64,0.6);
+    opacity:1;
+    filter:drop-shadow(0 0 12px rgba(240,192,64,0.85)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
-  .gh-act:active { transform:translateX(-50%) scale(0.94); }
-  /* ataque: acima do pad de movimento, à direita */
+  .gh-act:active { transform:translateX(-50%) scale(0.92); }
+  /* ataque: acima do pad de movimento, à direita — ícone avermelhado + brilho */
   .gh-atk {
-    right:78px; bottom:220px;
-    width:66px; height:66px; border-radius:50%; font-size:30px;
-    color:#f2c9a0; border-color:rgba(200,80,50,0.7);
-    background:rgba(60,24,16,0.66);
-    box-shadow:0 0 14px rgba(200,70,40,0.35);
+    right:80px; bottom:222px;
+    width:70px; height:70px; color:#f0b48a;
+    filter:drop-shadow(0 0 12px rgba(200,70,40,0.5)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
-  .gh-atk:active { transform:scale(0.9); background:rgba(200,80,50,0.6); }
+  .gh-atk:active { transform:scale(0.9); filter:drop-shadow(0 0 8px rgba(220,90,50,0.75)) brightness(1.15); }
   #gh-prompt {
     pointer-events:none; position:absolute; left:50%; transform:translateX(-50%);
     bottom:104px; max-width:70%; text-align:center;
