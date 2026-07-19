@@ -93,15 +93,17 @@ export const STYLES: Record<AtkStyle, StyleDef> = {
     follow: { ry: 6,   rx: 21,  rz: -2,  tx: -2,  ty: 9,  s: 1.08 },
     windup: 220, strike: 320, recover: 300, cooldown: 1200, weight: 2.4, fx: "smashwave",
   },
-  // RAPIEIRA — ESTOCADA de esgrima. Pega IMPULSO: recua e DESCE um pouco na tela
-  // (wind ty +16), depois DISPARA pra cima e pra frente de uma vez (hit ty -12).
-  // O rotateZ DEITA a lâmina pra frente: sai de quase em pé (rz +30) e vira pra
-  // diagonal apontando pro inimigo no centro (rz -46), como uma lança estendida.
+  // RAPIEIRA — ESTOCADA de verdade (NÃO é corte). NADA de varrer em arco: a lâmina
+  // AVANÇA reta. Sequência: recua e DESCE na tela pegando impulso (wind ty +17,
+  // s 0.80 = retraída/pequena), depois DISPARA pra cima/frente de uma vez (hit
+  // ty -16, s 1.46 = estende em direção ao inimigo). A lâmina DEITA PRA FRENTE
+  // apontando pro alvo com rotateX forte (rx +42 = tomba pra dentro da cena);
+  // rotateZ quase constante (só leve inclinação) p/ NÃO parecer corte/sweep.
   lunge: {
-    wind:   { ry: 6,  rx: -8, rz: 30,  tx: 10,  ty: 16,  s: 0.86 },
-    hit:    { ry: -4, rx: 20, rz: -46, tx: -18, ty: -12, s: 1.50 },
-    follow: { ry: -2, rx: 12, rz: -30, tx: -10, ty: -2,  s: 1.16 },
-    windup: 100, strike: 90, recover: 150, cooldown: 400, weight: 0.85, fx: "streak",
+    wind:   { ry: 6,  rx: -10, rz: 4,   tx: 9,   ty: 17,  s: 0.80 },
+    hit:    { ry: -4, rx: 42,  rz: -22, tx: -15, ty: -16, s: 1.46 },
+    follow: { ry: -2, rx: 24,  rz: -14, tx: -9,  ty: -6,  s: 1.18 },
+    windup: 110, strike: 85, recover: 155, cooldown: 420, weight: 0.9, fx: "streak",
   },
   // CAJADO — rodada mágica: giro horizontal largo projetado À FRENTE (rx +12),
   // como se rodopiasse o bastão, com rastro arcano.
