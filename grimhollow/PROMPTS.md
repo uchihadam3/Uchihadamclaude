@@ -449,9 +449,9 @@ Hand-painted stylized-realism character portrait for a grim medieval dark-fantas
 Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm firelight accents, detailed painterly rendering, dark atmospheric background with faint fog and embers, shown from the waist up, facing the viewer, heroic but grim. A hooded human ROGUE / assassin in dark worn leather armor, wielding twin daggers, a half-shadowed cunning face under the hood, lean and agile, deep blacks and muted browns. No text, no watermark, no UI. Tall portrait ~896x1200.
 ```
 
-**🔮 Mago:**
+**🔮 Mago:** *(refeito — antes ficava parecido demais com o Ladino encapuzado)*
 ```
-Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with warm firelight accents, detailed painterly rendering, dark atmospheric background with faint fog and embers, shown from the waist up, facing the viewer, heroic but grim. A robed human MAGE holding a gnarled wooden staff topped with a glowing arcane crystal, faint blue-violet magic light on the hands and face, mystical and frail, dark hooded robes. No text, no watermark, no UI. Tall portrait ~896x1200.
+Hand-painted stylized-realism character portrait for a grim medieval dark-fantasy RPG, cohesive dark cinematic style, dramatic moody lighting, cool desaturated palette with vivid arcane accents, detailed painterly rendering, dark atmospheric background with faint fog and floating embers, shown from the waist up, facing the viewer. An OLD human MAGE / wizard with NO hood — an aged sorcerer with long grey hair and a long grey beard, wearing ornate deep-blue arcane robes covered in faintly glowing runic symbols and a high collar, one hand raised and crackling with swirling blue-violet elemental magic (motes of fire, ice and lightning), the other hand gripping a tall gnarled staff topped with a bright glowing arcane crystal, a soft magic-circle glow around him underlighting his face. Overtly magical and powerful, clearly a spellcaster, rich blue and violet magical light contrasting the surrounding gloom. No text, no watermark, no UI. Tall portrait ~896x1200.
 ```
 
 **🕯️ Clérigo:**
