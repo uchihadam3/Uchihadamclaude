@@ -168,9 +168,55 @@ const LADINO: ClassTree = {
   ],
 };
 
+// ---------------------------------------------------------------------- MAGO
+const MAGO: ClassTree = {
+  classId: "mago",
+  branches: [
+    {
+      id: "chamas", name: "Chamas", color: "#e0672c",
+      skills: [
+        A("m_bola_fogo", "Bola de Fogo", "sk_mago_01", "Lança um projétil flamejante no alvo.", 5),
+        P("m_piromania", "Piromania", "mdmg", "+3% Dano de Fogo por rank."),
+        A("m_explosao_fogo", "Explosão de Fogo", "sk_mago_02", "Explosão que fere em área.", 5),
+        P("m_combustao", "Combustão", "crit", "+2% chance de magia crítica por rank."),
+        A("m_meteoro", "Meteoro", "sk_mago_03", "Invoca um meteoro devastador em área.", 3),
+        P("m_chama_persist", "Chama Persistente", "poison", "+3% Dano de queimadura por rank."),
+        A("m_muralha_fogo", "Muralha de Fogo", "sk_mago_04", "Cria uma zona de fogo contínua.", 3),
+        A("m_imolacao", "Imolação", "sk_mago_05", "Aura ardente que queima inimigos próximos.", 5),
+      ],
+    },
+    {
+      id: "gelo_arcano", name: "Gelo & Arcano", color: "#4f9be0",
+      skills: [
+        P("m_frieza", "Frieza", "mres", "+2 Resist. Mágica por rank."),
+        A("m_nova_gelo", "Nova de Gelo", "sk_mago_06", "Congela os inimigos ao redor.", 5),
+        P("m_foco_arcano", "Foco Arcano", "cdr", "−2% Recarga por rank."),
+        A("m_lanca_gelo", "Lança de Gelo", "sk_mago_07", "Estilhaço de gelo que perfura.", 5),
+        P("m_barreira", "Barreira", "def", "+2 Defesa por rank."),
+        A("m_escudo_arcano", "Escudo Arcano", "sk_mago_08", "Escudo que absorve dano por um tempo.", 5),
+        A("m_teleporte", "Teleporte", "sk_mago_09", "Reposiciona instantaneamente.", 3),
+        A("m_prisao_gelo", "Prisão de Gelo", "sk_mago_10", "Prende o alvo num bloco de gelo.", 3),
+      ],
+    },
+    {
+      id: "tempestade", name: "Tempestade", color: "#9a6cff",
+      skills: [
+        A("m_raio_arcano", "Raio Arcano", "sk_mago_11", "Raio que atinge o alvo em linha.", 5),
+        P("m_conducao", "Condução", "mdmg", "+3% Dano de Raio por rank."),
+        A("m_corrente", "Corrente", "sk_mago_12", "Raio que salta entre vários inimigos.", 5),
+        P("m_estatica", "Estática", "crit", "+2% chance de atordoar por rank."),
+        A("m_tempestade", "Tempestade", "sk_mago_13", "Tempestade que fere em área continuamente.", 3),
+        P("m_energia", "Energia", "mana", "+5% Mana por rank."),
+        A("m_descarga", "Descarga", "sk_mago_14", "Explosão de energia instantânea.", 3),
+        A("m_nova_arcana", "Nova Arcana", "sk_mago_15", "Nova arcana que arrasa tudo em volta.", 3),
+      ],
+    },
+  ],
+};
+
 export const SKILL_TREES: Record<string, ClassTree | undefined> = {
   guerreiro: GUERREIRO,
   ladino: LADINO,
-  mago: undefined,
+  mago: MAGO,
   clerigo: undefined,
 };
