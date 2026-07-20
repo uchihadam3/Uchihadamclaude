@@ -601,6 +601,9 @@ export class Game {
     this.ui.equipWeapon(cls?.startWeapon ?? "sword");
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
+    // árvore de habilidades: classe + pontos. 24 pontos de TESTE por enquanto (até o
+    // sistema de nível/XP existir, que dará 1 ponto por nível).
+    this.ui.setSkillInfo(this.classId, 24);
     this.refreshStats();
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
