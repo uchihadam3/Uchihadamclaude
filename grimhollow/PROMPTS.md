@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 27 prontos · 🟡 3 faltando · ⚪ 1 opcional · ❌ 2 removidas
+**Status:** ✅ 28 prontos · 🟡 2 faltando · ⚪ 1 opcional · ❌ 2 removidas
 
 ---
 
@@ -15,7 +15,6 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
-| 🟡 | **Logo "Nethergloam" com painel de fundo** (tela de início) | [§12 · Peça F](#-peça-f--logo-do-nome-nethergloam-com-painel-embutido-falta) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
 | ⚪ | *(opcional)* Ícones de controle pintados | [§11 · Peça B](#-peça-b--ícones-símbolos-soltos-opcional) |
@@ -524,11 +523,12 @@ Hand-painted stylized-realism game UI button plate, cohesive with a grim medieva
 *(Opcional: manda também uma variante "acesa/hover" — a mesma placa com o miolo
 iluminado dourado. Se não, eu faço o hover por código.)*
 
-### 🟡 Peça F — Logo do nome "Nethergloam" (com painel embutido) (falta)
+### ✅ Peça F — Logo do nome "Nethergloam" (com painel embutido) (PRONTO — no jogo)
 
 O **nome do jogo como logotipo (wordmark) já COM o painel/caixa de fundo embutido
-na própria arte** — pra eu encaixar direto na tela de início **sem recortar as
-letras**.
+na própria arte** — encaixado direto na tela de início (e no loading) **sem recortar
+as letras**. Recortei só a placa contra o magenta; as letras vêm assentadas no painel
+escuro, então ficou 100% limpo, sem resíduo.
 
 > ⚠️ **Por que com painel:** as letras de metal cinza se confundem com fundo neutro
 > na hora de recortar (fica resíduo ou come a letra). Com o **painel escuro atrás
