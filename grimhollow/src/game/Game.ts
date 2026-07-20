@@ -81,7 +81,12 @@ import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
 import { derive } from "./stats";
-import { passiveTotals, type StatKey } from "./skills";
+import {
+  passiveTotals,
+  activeSkillsFor,
+  combatFor,
+  type StatKey,
+} from "./skills";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
 // desativado; a arte continua no repo caso a gente queira retomar depois.
@@ -468,6 +473,19 @@ export class Game {
   private baseDef = 2;
   // totais acumulados das passivas alocadas na árvore de habilidades
   private passive: Partial<Record<StatKey, number>> = {};
+  // ranks das habilidades (cópia local vinda do HUD) p/ acionar as ativas
+  private skillRanks: Record<string, number> = {};
+  // alvo selecionado (o esqueleto, quando escolhido/na mira)
+  private target: Game["enemy"] = null;
+  // recarga de cada habilidade: instante (ms) em que fica pronta de novo
+  private cooldownUntil: Record<string, number> = {};
+  // buff temporário ativo (multiplicador de dano / redução de dano recebido)
+  private buff: { atkMul: number; defReduc: number; until: number } | null = null;
+  // retículo de mira (billboard que marca o alvo selecionado)
+  private reticle: THREE.Mesh | null = null;
+  private raycaster = new THREE.Raycaster();
+  private lastTickMs = 0; // p/ regen de mana por segundo
+  private buffActive = false; // se havia buff no frame anterior (p/ atualizar UI)
   private currentWeapon: Weapon | null = null; // arma equipada na mão principal
   private playerName = "Herói"; // nome escolhido na criação
   private classId = "guerreiro"; // classe escolhida na criação
@@ -606,6 +624,11 @@ export class Game {
       WEAPONS,
       (w) => this.onEquip(w),
       (ranks) => this.applyPassives(ranks),
+      (id) => this.useSkill(id),
+    );
+    // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
+    this.renderer.domElement.addEventListener("pointerdown", (e) =>
+      this.onCanvasPointer(e),
     );
     // enche a mochila com TODAS as armas (pra testar) e começa com a arma da classe
     this.ui.setInventory(WEAPONS.map((w) => w.id));
@@ -702,6 +725,8 @@ export class Game {
     this.smoke = [];
     this.billboardProps = [];
     this.enemy = null;
+    this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
+    this.clearTarget();
     this.poofs = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
@@ -1094,6 +1119,8 @@ export class Game {
   // recalcula os atributos a partir dos ranks de passivas alocados na árvore.
   // As passivas são somadas sobre os valores BASE (idempotente ao realocar).
   private applyPassives(ranks: Record<string, number>) {
+    this.skillRanks = { ...ranks };
+    this.refreshActionBar();
     this.passive = passiveTotals(ranks);
     // guarda a fração atual p/ preservar vida/mana proporcional ao mudar o teto
     const hpFrac = this.playerMaxHp > 0 ? this.playerHp / this.playerMaxHp : 1;
@@ -1116,7 +1143,13 @@ export class Game {
     if (!e || e.dyingAt) return;
     const [dc, dr] = DIRS[this.facing];
     if (this.col + dc !== e.c || this.row + dr !== e.r) return; // não está de frente
-    e.hp -= this.atkWithBonus(this.currentWeapon?.dmg ?? 1); // dano + passivas (%)
+    this.dealDamageToEnemy(e, this.atkWithBonus(this.currentWeapon?.dmg ?? 1));
+  }
+
+  // aplica dano a um inimigo, atualiza a barra e cuida da morte (poof/recompensa).
+  private dealDamageToEnemy(e: NonNullable<Game["enemy"]>, amount: number) {
+    if (e.dyingAt) return;
+    e.hp -= Math.max(1, Math.round(amount));
     e.hitAt = performance.now();
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
@@ -1125,6 +1158,7 @@ export class Game {
       e.dyingAt = e.hitAt; // começa a tombar/sumir
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
       this.spawnPoof(e.bx, e.bz);
+      if (this.target === e) this.clearTarget();
       // recompensa escala com o nível do inimigo: ouro variável (base + faixa
       // aleatória por nível) e XP proporcional.
       const lv = e.elevel;
@@ -1133,6 +1167,154 @@ export class Game {
       this.gainXp(30 + lv * 15);
       this.ui.toast(`+${gold} ouro`);
     }
+  }
+
+  // distância em células (Chebyshev) entre o herói e um inimigo
+  private cellDist(e: NonNullable<Game["enemy"]>): number {
+    return Math.max(Math.abs(this.col - e.c), Math.abs(this.row - e.r));
+  }
+
+  // multiplicador de dano do buff ativo (1 se nenhum)
+  private buffAtkMul(): number {
+    return this.buff && performance.now() < this.buff.until ? this.buff.atkMul : 1;
+  }
+  // fração de redução do dano recebido pelo buff ativo (0 se nenhum)
+  private buffDefReduc(): number {
+    return this.buff && performance.now() < this.buff.until ? this.buff.defReduc : 0;
+  }
+
+  // (re)constrói a barra de ação com as ativas aprendidas
+  private refreshActionBar() {
+    const list = activeSkillsFor(this.classId, this.skillRanks);
+    this.ui.setActionBar(
+      list.map((s) => ({ id: s.id, name: s.name, icon: s.icon, mana: s.combat.mana })),
+    );
+  }
+
+  // aciona uma habilidade da barra de ação (respeita mana, alvo, alcance e recarga)
+  private useSkill(id: string) {
+    const rank = this.skillRanks[id] || 0;
+    if (rank <= 0) return;
+    const cb = combatFor(id);
+    const now = performance.now();
+    // recarga
+    if ((this.cooldownUntil[id] ?? 0) > now) {
+      this.ui.toast("Recarregando…");
+      return;
+    }
+    // mana
+    if (this.playerMp < cb.mana) {
+      this.ui.toast("Mana insuficiente");
+      return;
+    }
+    // alvo / alcance (habilidades ofensivas)
+    if (cb.target === "enemy") {
+      // auto-mira: se não há alvo, mira o inimigo presente
+      if ((!this.target || this.target.dyingAt) && this.enemy && !this.enemy.dyingAt)
+        this.setTarget(this.enemy);
+      const t = this.target;
+      if (!t || t.dyingAt) {
+        this.ui.toast("Sem alvo");
+        return;
+      }
+      const dist = this.cellDist(t);
+      const reach = cb.melee ? 1 : cb.range;
+      if (dist > reach) {
+        this.ui.toast(cb.melee ? "Muito longe (corpo-a-corpo)" : "Fora de alcance");
+        return;
+      }
+    }
+    // paga o custo e dispara a recarga
+    this.playerMp = Math.max(0, this.playerMp - cb.mana);
+    this.ui.setMana(this.playerMp / this.playerMaxMp);
+    this.cooldownUntil[id] = now + cb.cd;
+    this.ui.skillCooldown(id, cb.cd);
+    // efeito
+    if (cb.effect === "dmg" && this.target) {
+      const pct = cb.magic ? this.passive.mdmg ?? 0 : this.passive.dmg ?? 0;
+      const scaled = cb.power * (1 + 0.25 * (rank - 1)) * (1 + pct) * this.buffAtkMul();
+      this.dealDamageToEnemy(this.target, scaled);
+      // vira o herói para o alvo (feedback) e balança a arma se for corpo-a-corpo
+      if (cb.melee) this.ui.swingWeapon();
+    } else if (cb.effect === "heal") {
+      const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)));
+      this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+      this.refreshStats();
+      this.ui.toast(`+${amt} vida`);
+    } else if (cb.effect === "buff") {
+      this.buff = {
+        atkMul: cb.atkMul ?? 1,
+        defReduc: cb.defReduc ?? 0,
+        until: now + (cb.dur ?? 6000),
+      };
+      this.stats.atk = this.atkWithBonus(8 + (this.currentWeapon?.dmg ?? 0));
+      this.refreshStats();
+      this.ui.toast("Fortalecido!");
+    }
+  }
+
+  // ---- seleção de alvo ----
+  private setTarget(e: NonNullable<Game["enemy"]>) {
+    this.target = e;
+    this.ensureReticle();
+    if (this.reticle) this.reticle.visible = true;
+  }
+  private clearTarget() {
+    this.target = null;
+    if (this.reticle) this.reticle.visible = false;
+  }
+
+  // cria (uma vez) o retículo de mira: um billboard com quatro cantos dourados
+  private ensureReticle() {
+    if (this.reticle) return;
+    const cv = document.createElement("canvas");
+    cv.width = 128;
+    cv.height = 128;
+    const g = cv.getContext("2d")!;
+    g.strokeStyle = "#ffd257";
+    g.lineWidth = 10;
+    g.lineCap = "round";
+    g.shadowColor = "rgba(0,0,0,.8)";
+    g.shadowBlur = 6;
+    const m = 14, L = 34, S = 128;
+    const corner = (x: number, y: number, sx: number, sy: number) => {
+      g.beginPath();
+      g.moveTo(x, y + sy * L);
+      g.lineTo(x, y);
+      g.lineTo(x + sx * L, y);
+      g.stroke();
+    };
+    corner(m, m, 1, 1);
+    corner(S - m, m, -1, 1);
+    corner(m, S - m, 1, -1);
+    corner(S - m, S - m, -1, -1);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      depthTest: true, // ocluído por paredes (não aparece atravessando prédios)
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), mat);
+    mesh.renderOrder = 999;
+    mesh.visible = false;
+    this.reticle = mesh;
+    this.world.add(mesh);
+    this.billboardProps.push(mesh); // encara a câmera
+  }
+
+  // clique na cena: raycast p/ selecionar o esqueleto como alvo
+  private onCanvasPointer(ev: PointerEvent) {
+    const e = this.enemy;
+    if (!e || e.dyingAt) return;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const nx = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(new THREE.Vector2(nx, ny), this.camera);
+    const hit = this.raycaster.intersectObject(e.mesh, false);
+    if (hit.length) this.setTarget(e);
   }
 
   // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo. 10 quadros
@@ -1223,7 +1405,9 @@ export class Game {
   // aplica dano ao jogador (o esqueleto revidou)
   private damagePlayer(n: number) {
     if (this.playerHp <= 0) return;
-    this.playerHp = Math.max(0, this.playerHp - n);
+    // buffs defensivos reduzem o dano recebido; a defesa amortece um pouco
+    const reduced = n * (1 - this.buffDefReduc());
+    this.playerHp = Math.max(0, this.playerHp - Math.max(1, Math.round(reduced)));
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.refreshStats();
     this.ui.flashDamage();
@@ -3512,6 +3696,37 @@ export class Game {
     // props 2D encaram a câmera (billboard no eixo Y), como os aldeões
     for (const b of this.billboardProps)
       b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
+    // retículo de mira segue o alvo selecionado (levemente à frente do sprite,
+    // na direção da câmera, p/ não brigar em profundidade com o inimigo)
+    if (this.reticle && this.target && !this.target.dyingAt) {
+      this.reticle.visible = true;
+      let rx = cx - this.target.bx, rz = cz - this.target.bz;
+      const rl = Math.hypot(rx, rz) || 1;
+      rx /= rl;
+      rz /= rl;
+      this.reticle.position.set(
+        this.target.bx + rx * 0.35,
+        1.3,
+        this.target.bz + rz * 0.35,
+      );
+    } else if (this.reticle) {
+      this.reticle.visible = false;
+    }
+    // regen de mana (~4/s) + expiração de buff
+    const dt = this.lastTickMs ? Math.min(0.1, (now - this.lastTickMs) / 1000) : 0;
+    this.lastTickMs = now;
+    if (dt > 0 && this.playerMp < this.playerMaxMp) {
+      this.playerMp = Math.min(this.playerMaxMp, this.playerMp + this.playerMaxMp * 0.03 * dt + 1.5 * dt);
+      this.ui.setMana(this.playerMp / this.playerMaxMp);
+    }
+    const nowBuff = !!this.buff && now < this.buff.until;
+    if (this.buffActive && !nowBuff) {
+      // buff acabou: reflete no ataque exibido
+      this.buff = null;
+      this.stats.atk = this.atkWithBonus(8 + (this.currentWeapon?.dmg ?? 0));
+      this.refreshStats();
+    }
+    this.buffActive = nowBuff;
     // inimigo: ataca (investida), reage ao dano (brilho + recuo) e morre
     const e = this.enemy;
     if (e) {

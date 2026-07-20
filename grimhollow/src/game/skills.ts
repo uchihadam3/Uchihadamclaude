@@ -315,3 +315,130 @@ export const SKILL_TREES: Record<string, ClassTree | undefined> = {
   mago: MAGO,
   clerigo: CLERIGO,
 };
+
+// ------------------------------------------------------- COMBATE (ativas)
+// Cada ativa tem um perfil de combate: quem recebe, alcance, efeito e custo.
+//  - melee  → só ativa "colado" no alvo (distância 1 célula)
+//  - ranged → ativa dentro do alcance (em células)
+//  - heal/buff → sempre no PRÓPRIO herói (self)
+export type SkillEffect = "dmg" | "heal" | "buff";
+export interface SkillCombat {
+  target: "enemy" | "self";
+  melee: boolean;
+  range: number; // alcance em células (melee usa 1)
+  effect: SkillEffect;
+  magic: boolean; // dano mágico/sagrado (escala com mdmg) vs físico (dmg)
+  power: number; // base de dano/cura (o rank aumenta)
+  mana: number; // custo de mana
+  cd: number; // recarga (ms)
+  atkMul?: number; // buff: multiplicador de dano temporário
+  defReduc?: number; // buff: redução do dano recebido (0..1) temporária
+  dur?: number; // buff: duração (ms)
+}
+// construtores compactos
+const mDmg = (power: number, mana: number, cd: number): SkillCombat =>
+  ({ target: "enemy", melee: true, range: 1, effect: "dmg", magic: false, power, mana, cd });
+const rDmg = (power: number, range: number, mana: number, cd: number, magic = true): SkillCombat =>
+  ({ target: "enemy", melee: false, range, effect: "dmg", magic, power, mana, cd });
+const heal = (power: number, mana: number, cd: number): SkillCombat =>
+  ({ target: "self", melee: false, range: 0, effect: "heal", magic: true, power, mana, cd });
+const buff = (o: { atkMul?: number; defReduc?: number; dur: number; mana: number; cd: number }): SkillCombat =>
+  ({ target: "self", melee: false, range: 0, effect: "buff", magic: false, power: 0,
+     mana: o.mana, cd: o.cd, atkMul: o.atkMul, defReduc: o.defReduc, dur: o.dur });
+
+export const SKILL_COMBAT: Record<string, SkillCombat> = {
+  // ---- Guerreiro (físico corpo-a-corpo; alguns buffs/cura) ----
+  g_golpe_poderoso: mDmg(16, 12, 4000),
+  g_investida: mDmg(12, 10, 6000),
+  g_golpe_giratorio: mDmg(16, 14, 6000),
+  g_quebra_armadura: mDmg(12, 10, 7000),
+  g_decapitar: mDmg(26, 18, 10000),
+  g_provocar: buff({ defReduc: 0.25, dur: 6000, mana: 8, cd: 10000 }),
+  g_muro_escudo: buff({ defReduc: 0.5, dur: 6000, mana: 14, cd: 14000 }),
+  g_reflexao: buff({ defReduc: 0.3, dur: 6000, mana: 12, cd: 12000 }),
+  g_aco_absoluto: buff({ defReduc: 0.9, dur: 3000, mana: 20, cd: 20000 }),
+  g_ultimo_suspiro: heal(90, 20, 16000),
+  g_grito_guerra: buff({ atkMul: 1.5, dur: 8000, mana: 14, cd: 14000 }),
+  g_frenesi: buff({ atkMul: 1.35, dur: 8000, mana: 12, cd: 12000 }),
+  g_investida_brutal: mDmg(18, 14, 8000),
+  g_terremoto: mDmg(24, 18, 11000),
+  g_golpe_final: mDmg(40, 30, 18000),
+  // ---- Ladino (corpo-a-corpo; arremesso à distância; buffs) ----
+  l_apunhalar: mDmg(18, 12, 4000),
+  l_rajada_laminas: mDmg(16, 14, 6000),
+  l_golpe_sombras: mDmg(18, 14, 7000),
+  l_estocada: mDmg(14, 10, 6000),
+  l_execucao_a: mDmg(26, 18, 10000),
+  l_passo_sombrio: buff({ defReduc: 0.4, dur: 4000, mana: 8, cd: 9000 }),
+  l_bomba_fumaca: buff({ defReduc: 0.5, dur: 5000, mana: 12, cd: 12000 }),
+  l_nuvem_toxica: rDmg(12, 3, 14, 8000, false),
+  l_desaparecer: buff({ defReduc: 0.8, dur: 2500, mana: 16, cd: 16000 }),
+  l_toxina: rDmg(10, 2, 10, 7000, false),
+  l_rajada_dupla: mDmg(14, 10, 4000),
+  l_arremesso: rDmg(16, 4, 12, 5000, false),
+  l_contra_ataque: buff({ atkMul: 1.3, dur: 6000, mana: 10, cd: 10000 }),
+  l_danca_laminas: mDmg(18, 16, 8000),
+  l_marca_mortal: rDmg(10, 4, 10, 9000, false),
+  // ---- Mago (mágico à distância; buffs) ----
+  m_bola_fogo: rDmg(18, 5, 12, 3500),
+  m_explosao_fogo: rDmg(18, 4, 14, 6000),
+  m_meteoro: rDmg(40, 5, 30, 16000),
+  m_muralha_fogo: rDmg(16, 4, 16, 9000),
+  m_imolacao: rDmg(12, 2, 12, 7000),
+  m_nova_gelo: rDmg(16, 3, 14, 6000),
+  m_lanca_gelo: rDmg(18, 5, 12, 4500),
+  m_escudo_arcano: buff({ defReduc: 0.5, dur: 6000, mana: 14, cd: 12000 }),
+  m_teleporte: buff({ defReduc: 0.3, dur: 2000, mana: 10, cd: 10000 }),
+  m_prisao_gelo: rDmg(12, 4, 12, 9000),
+  m_raio_arcano: rDmg(18, 5, 12, 4000),
+  m_corrente: rDmg(16, 4, 14, 6000),
+  m_tempestade: rDmg(26, 4, 20, 11000),
+  m_descarga: rDmg(18, 3, 14, 6000),
+  m_nova_arcana: rDmg(40, 4, 30, 16000),
+  // ---- Clérigo (Luz: cura/buff · Julgamento: dano sagrado à distância · Fé: buff/cura) ----
+  c_cura: heal(50, 12, 6000),
+  c_cura_area: heal(70, 18, 9000),
+  c_bencao: buff({ atkMul: 1.4, dur: 10000, mana: 14, cd: 14000 }),
+  c_aura_protecao: buff({ defReduc: 0.4, dur: 8000, mana: 14, cd: 12000 }),
+  c_renovacao: heal(60, 16, 11000),
+  c_martelo_sagrado: rDmg(18, 4, 12, 4000),
+  c_punicao: rDmg(16, 4, 12, 6000),
+  c_luz_radiante: rDmg(18, 3, 14, 6000),
+  c_selo_sagrado: rDmg(24, 4, 18, 9000),
+  c_condenacao: rDmg(38, 5, 28, 15000),
+  c_escudo_divino: buff({ defReduc: 0.9, dur: 3000, mana: 20, cd: 20000 }),
+  c_repreensao: rDmg(12, 3, 12, 9000),
+  c_intervencao: heal(90, 22, 14000),
+  c_ressurreicao: heal(150, 30, 60000),
+  c_aura_fe: buff({ atkMul: 1.3, dur: 10000, mana: 14, cd: 12000 }),
+};
+
+// perfil de combate de uma ativa (fallback: golpe corpo-a-corpo básico)
+export function combatFor(id: string): SkillCombat {
+  return SKILL_COMBAT[id] ?? mDmg(12, 8, 4000);
+}
+
+// lista as ATIVAS aprendidas (rank ≥ 1) da classe, em ordem da árvore
+export interface ActiveSkill {
+  id: string;
+  name: string;
+  icon?: string;
+  rank: number;
+  combat: SkillCombat;
+}
+export function activeSkillsFor(
+  classId: string,
+  ranks: Record<string, number>,
+): ActiveSkill[] {
+  const tree = SKILL_TREES[classId];
+  if (!tree) return [];
+  const out: ActiveSkill[] = [];
+  for (const b of tree.branches)
+    for (const sk of b.skills) {
+      if (sk.kind !== "active") continue;
+      const rank = ranks[sk.id] || 0;
+      if (rank <= 0) continue;
+      out.push({ id: sk.id, name: sk.name, icon: sk.icon, rank, combat: combatFor(sk.id) });
+    }
+  return out;
+}

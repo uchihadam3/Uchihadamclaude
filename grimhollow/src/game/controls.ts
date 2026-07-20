@@ -61,8 +61,21 @@ export interface HUD {
   setClock(phase: number, daylight: number): void;
   // árvore de habilidades: define a classe e quantos pontos o herói tem
   setSkillInfo(classId: string, points: number): void;
+  // barra de ação: preenche com as habilidades ATIVAS aprendidas
+  setActionBar(items: ActionSkill[]): void;
+  // dispara a animação de recarga de uma habilidade (ms)
+  skillCooldown(id: string, ms: number): void;
+  // realça o botão de habilidade quando indisponível (sem mana/alvo/fora de alcance)
   // mensagem flutuante breve (ex.: "Nível 3!")
   toast(msg: string): void;
+}
+
+// item da barra de ação (habilidade ativa aprendida)
+export interface ActionSkill {
+  id: string;
+  name: string;
+  icon?: string;
+  mana: number;
 }
 
 export interface MinimapState {
@@ -84,6 +97,7 @@ export function setupControls(
   weapons?: Weapon[], // catálogo p/ inventário + perfis de golpe
   onEquip?: (w: Weapon) => void, // avisa o jogo (dano/cadência/atributos)
   onSkills?: (ranks: Record<string, number>) => void, // ranks das habilidades mudaram
+  onSkill?: (id: string) => void, // jogador acionou uma habilidade da barra
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -607,6 +621,35 @@ export function setupControls(
     pad.appendChild(atkBtn);
   }
 
+  // BARRA DE AÇÃO — habilidades ATIVAS aprendidas, faixa central inferior (entre
+  // o D-pad e o botão de ataque). Cada slot mostra o ícone, o custo de mana e uma
+  // "varredura" de recarga por cima quando acionado.
+  const actbar = document.createElement("div");
+  actbar.id = "gh-actbar";
+  pad.appendChild(actbar);
+  const renderActionBar = (items: ActionSkill[]) => {
+    actbar.innerHTML = items
+      .map(
+        (s) =>
+          `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}">` +
+          (s.icon ? `<img src="${s.icon}" alt=""/>` : `<span class="gh-ss-x">✦</span>`) +
+          `<span class="gh-ss-mana">${s.mana}</span>` +
+          `<span class="gh-ss-cool"></span>` +
+          `</button>`,
+      )
+      .join("");
+    actbar.style.display = items.length ? "flex" : "none";
+    actbar.querySelectorAll<HTMLButtonElement>(".gh-sslot").forEach((b) => {
+      b.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        const id = b.dataset.skill;
+        if (id) onSkill?.(id);
+      });
+      b.addEventListener("contextmenu", (e) => e.preventDefault());
+    });
+  };
+  renderActionBar([]);
+
   // dica contextual (acima do botão de ação)
   const prompt = document.createElement("div");
   prompt.id = "gh-prompt";
@@ -932,6 +975,18 @@ export function setupControls(
       skillClassId = classId;
       skillPointsTotal = points;
       renderSkills();
+    },
+    setActionBar(items: ActionSkill[]) {
+      renderActionBar(items);
+    },
+    skillCooldown(id: string, ms: number) {
+      const el = actbar.querySelector<HTMLElement>(
+        `.gh-sslot[data-skill="${id}"] .gh-ss-cool`,
+      );
+      if (!el) return;
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.animation = `gh-cool ${ms}ms linear forwards`;
     },
     toast(msg: string) {
       toastEl.textContent = msg;
@@ -1469,6 +1524,40 @@ function injectStyle() {
     filter:drop-shadow(0 0 12px rgba(240,192,64,0.85)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
   .gh-act:active { transform:scale(0.92); }
+  /* BARRA DE AÇÃO — habilidades ativas, faixa central inferior */
+  @property --gh-cd { syntax:'<angle>'; inherits:false; initial-value:0deg; }
+  #gh-actbar {
+    position:absolute; left:50%; transform:translateX(-50%); bottom:20px;
+    display:none; gap:7px; align-items:center; padding:4px 6px;
+    max-width:min(440px, calc(100vw - 320px)); overflow-x:auto; overflow-y:hidden;
+    pointer-events:auto; touch-action:pan-x; scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  #gh-actbar::-webkit-scrollbar { display:none; }
+  .gh-sslot {
+    position:relative; flex:0 0 auto;
+    width:46px; height:46px; border-radius:50%; padding:0; border:none;
+    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
+    -webkit-tap-highlight-color:transparent; overflow:hidden;
+  }
+  .gh-sslot:active { transform:scale(0.9); filter:brightness(1.2); }
+  .gh-sslot img { width:70%; height:70%; object-fit:contain; pointer-events:none;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+  .gh-ss-x { font-size:20px; color:#e6d29a; }
+  .gh-ss-mana {
+    position:absolute; right:2px; bottom:1px; min-width:13px; height:13px;
+    padding:0 2px; border-radius:7px; background:rgba(20,40,80,.9);
+    color:#8ecbff; font-size:9px; line-height:13px; text-align:center;
+    font-family:"Cinzel",serif; border:1px solid rgba(120,170,230,.6);
+    pointer-events:none;
+  }
+  .gh-ss-cool {
+    position:absolute; inset:0; border-radius:50%; pointer-events:none;
+    background:conic-gradient(rgba(6,6,10,.72) var(--gh-cd), transparent 0);
+  }
+  @keyframes gh-cool { from { --gh-cd:360deg; } to { --gh-cd:0deg; } }
   #gh-prompt {
     pointer-events:none; position:absolute; left:50%; transform:translateX(-50%);
     bottom:104px; max-width:70%; text-align:center;
