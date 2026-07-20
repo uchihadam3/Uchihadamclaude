@@ -214,9 +214,55 @@ const MAGO: ClassTree = {
   ],
 };
 
+// ------------------------------------------------------------------- CLÉRIGO
+const CLERIGO: ClassTree = {
+  classId: "clerigo",
+  branches: [
+    {
+      id: "luz", name: "Luz", color: "#e6d38a",
+      skills: [
+        A("c_cura", "Cura", "sk_clerigo_01", "Restaura vida do herói.", 5),
+        P("c_fe", "Fé", "regen", "+3% Poder de Cura por rank."),
+        A("c_cura_area", "Cura em Área", "sk_clerigo_02", "Cura em volta do herói.", 5),
+        P("c_graca", "Graça", "mana", "+4% Regeneração de Mana por rank."),
+        A("c_bencao", "Bênção", "sk_clerigo_03", "Abençoa o herói, aumentando atributos.", 3),
+        P("c_vigor_divino", "Vigor Divino", "life", "+4% Vida por rank."),
+        A("c_aura_protecao", "Aura de Proteção", "sk_clerigo_04", "Reduz o dano recebido por um tempo.", 3),
+        A("c_renovacao", "Renovação", "sk_clerigo_05", "Cura contínua ao longo do tempo.", 5),
+      ],
+    },
+    {
+      id: "julgamento", name: "Julgamento", color: "#e0a63c",
+      skills: [
+        A("c_martelo_sagrado", "Martelo Sagrado", "sk_clerigo_06", "Golpe de dano sagrado no alvo.", 5),
+        P("c_zelo", "Zelo", "mdmg", "+3% Dano Sagrado por rank."),
+        A("c_punicao", "Punição", "sk_clerigo_07", "Fere e reduz a cura do alvo.", 5),
+        P("c_conviccao", "Convicção", "dmg", "+3% Dano com a vida cheia (por rank)."),
+        A("c_luz_radiante", "Luz Radiante", "sk_clerigo_08", "Explosão de luz que fere em área.", 5),
+        P("c_fervor", "Fervor", "aspd", "+3% Vel. de conjuração por rank."),
+        A("c_selo_sagrado", "Selo Sagrado", "sk_clerigo_09", "Selo que explode após alguns segundos.", 3),
+        A("c_condenacao", "Condenação", "sk_clerigo_10", "Pilar de luz sagrada de grande dano.", 3),
+      ],
+    },
+    {
+      id: "fe", name: "Fé", color: "#cbb8e0",
+      skills: [
+        P("c_devocao", "Devoção", "mres", "+2 Resist. Mágica por rank."),
+        A("c_escudo_divino", "Escudo Divino", "sk_clerigo_11", "Fica imune a dano por um breve instante.", 3),
+        P("c_perseveranca", "Perseverança", "regen", "+1% Vida regenerada por rank."),
+        A("c_repreensao", "Repreensão", "sk_clerigo_12", "Clarão que atordoa os inimigos.", 3),
+        P("c_martir", "Mártir", "leech", "+2% do dano causado vira cura (por rank)."),
+        A("c_intervencao", "Intervenção", "sk_clerigo_13", "Cura forte + escudo instantâneo.", 3),
+        A("c_ressurreicao", "Ressurreição", "sk_clerigo_14", "Revive automaticamente uma vez (recarga longa).", 1),
+        A("c_aura_fe", "Aura de Fé", "sk_clerigo_15", "Aura que fortalece o herói continuamente.", 5),
+      ],
+    },
+  ],
+};
+
 export const SKILL_TREES: Record<string, ClassTree | undefined> = {
   guerreiro: GUERREIRO,
   ladino: LADINO,
   mago: MAGO,
-  clerigo: undefined,
+  clerigo: CLERIGO,
 };
