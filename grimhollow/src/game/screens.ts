@@ -156,7 +156,7 @@ function showAllocate(
   const main = overlay.querySelector("#gh-alloc-main") as HTMLElement;
   const spent = () =>
     alloc.str - base.str + (alloc.dex - base.dex) + (alloc.int - base.int);
-  const render = () => {
+  const renderCard = () => {
     main.innerHTML = allocCard(cls, alloc, base, START_POINTS - spent());
     main.querySelectorAll<HTMLButtonElement>(".gh-pm").forEach((btn) =>
       btn.addEventListener("click", () => {
@@ -165,13 +165,39 @@ function showAllocate(
         if (d < 0 && alloc[k] <= base[k]) return;
         if (d > 0 && spent() >= START_POINTS) return;
         alloc[k] += d;
-        render();
+        renderCard();
       }),
     );
   };
-  render();
-  overlay.querySelector("#gh-back")!.addEventListener("click", onBack);
+  // TAMANHO FIXO = igual ao painel de seleção de classe. Mede a MAIOR das 4 classes
+  // num PROBE fora de tela (com a MESMA largura de moldura e retrato normais, não o
+  // retrato estreito do passo de atributos) e trava essa altura no painel.
+  const lockToClassHeight = () => {
+    const w = main.getBoundingClientRect().width; // largura REAL da moldura (border-box)
+    const probe = document.createElement("div");
+    probe.className = "gh-class-main";
+    probe.style.cssText = `position:absolute; left:-9999px; top:0; visibility:hidden; pointer-events:none; height:auto; width:${w}px;`;
+    main.parentElement!.appendChild(probe);
+    let mx = 0;
+    for (const c of CLASSES) {
+      probe.innerHTML = classCard(c);
+      mx = Math.max(mx, probe.getBoundingClientRect().height);
+    }
+    probe.remove();
+    main.style.height = Math.ceil(mx) + "px";
+    renderCard();
+  };
+  lockToClassHeight();
+  const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
+  if (fonts?.ready) fonts.ready.then(() => { if (main.isConnected) lockToClassHeight(); });
+  const onResize = () => { if (main.isConnected) lockToClassHeight(); };
+  window.addEventListener("resize", onResize);
+  overlay.querySelector("#gh-back")!.addEventListener("click", () => {
+    window.removeEventListener("resize", onResize);
+    onBack();
+  });
   overlay.querySelector("#gh-start")!.addEventListener("click", () => {
+    window.removeEventListener("resize", onResize);
     onStart({ name, classId: cls.id, attr: { ...alloc } });
   });
 }
@@ -194,9 +220,11 @@ function allocCard(
     const plus = remaining <= 0 ? " disabled" : "";
     return `<div class="gh-prim-row">
       <span class="gh-prim-name">${label}</span>
-      <button class="gh-pm" data-k="${key}" data-d="-1"${minus}>−</button>
-      <b class="gh-prim-val">${v}${up ? `<i class="gh-prim-up">+${up}</i>` : ""}</b>
-      <button class="gh-pm" data-k="${key}" data-d="1"${plus}>＋</button>
+      <span class="gh-prim-step">
+        <button class="gh-pm" data-k="${key}" data-d="-1"${minus}>−</button>
+        <b class="gh-prim-val">${v}${up ? `<i class="gh-prim-up">+${up}</i>` : ""}</b>
+        <button class="gh-pm" data-k="${key}" data-d="1"${plus}>＋</button>
+      </span>
     </div>`;
   };
   const sr = (label: string, val: string | number) =>
@@ -214,23 +242,22 @@ function allocCard(
       <div class="gh-sec-blocks">
         <div class="gh-sec-col">
           <h4>⚔️ Ofensivo</h4>
-          ${sr("Ataque Físico", sec.atkPhys)}
-          ${sr("Ataque Mágico", sec.atkMag)}
+          ${sr("Atq. Físico", sec.atkPhys)}
+          ${sr("Atq. Mágico", sec.atkMag)}
           ${sr("Crítico", sec.crit + "%")}
-          ${sr("Dano Crítico", sec.critDmg + "%")}
+          ${sr("Dano Crít.", sec.critDmg + "%")}
           ${sr("Precisão", sec.precision + "%")}
         </div>
         <div class="gh-sec-col">
           <h4>🛡️ Defensivo</h4>
           ${sr("Vida", sec.hp)}
           ${sr("Defesa", sec.def)}
-          ${sr("Resist. Mágica", sec.magRes)}
+          ${sr("Res. Mágica", sec.magRes)}
           ${sr("Evasão", sec.evasion + "%")}
         </div>
         <div class="gh-sec-col">
           <h4>🔷 Recursos</h4>
           ${sr("Mana", sec.mp)}
-          <div class="gh-sec-note">Roubo de Vida, Redução de Recarga e Bloqueio vêm de equipamento e talentos.</div>
         </div>
       </div>
     </div>`;
@@ -465,34 +492,48 @@ function injectStyle() {
   #gh-intro .gh-class-weapons { font-size:13px; color:#cbbb8e; }
   #gh-intro .gh-class-weapons b { color:#e6d09a; font-family:"Cinzel",serif; }
   /* --- distribuição de atributos (passo 2) --- */
-  #gh-intro .gh-alloc { display:flex; flex-direction:column; gap:8px; }
-  #gh-intro .gh-alloc-points { font-size:14px; color:#d7c79a; }
-  #gh-intro .gh-alloc-points b { font-family:"Cinzel",serif; font-size:16px; color:#8f8262; padding:0 2px; }
+  /* ocupa toda a altura fixa da moldura; se faltar espaço, rola POR DENTRO (a
+     moldura nunca muda de tamanho). */
+  #gh-intro .gh-alloc {
+    display:flex; flex-direction:column; gap:4px;
+    height:100%; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:4px;
+  }
+  #gh-intro .gh-alloc-points { font-size:13px; color:#d7c79a; }
+  #gh-intro .gh-alloc-points b { font-family:"Cinzel",serif; font-size:15px; color:#8f8262; padding:0 2px; }
   #gh-intro .gh-alloc-points b.gh-pts-on { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.5); }
-  #gh-intro .gh-prim { display:flex; flex-direction:column; gap:6px; padding:8px 0; border-top:1px solid rgba(201,162,39,.22); border-bottom:1px solid rgba(201,162,39,.22); }
-  #gh-intro .gh-prim-row { display:flex; align-items:center; gap:10px; }
-  #gh-intro .gh-prim-name { flex:1; font-family:"Cinzel",serif; font-size:15px; color:#e7d7a6; }
-  #gh-intro .gh-prim-val { min-width:44px; text-align:center; font-size:18px; color:#fff; }
-  #gh-intro .gh-prim-up { font-style:normal; font-size:11px; color:#7ee08a; margin-left:3px; vertical-align:super; }
+  #gh-intro .gh-prim { display:flex; flex-direction:column; gap:2px; padding:4px 0; border-top:1px solid rgba(201,162,39,.22); border-bottom:1px solid rgba(201,162,39,.22); }
+  /* linha do primário: nome ELÁSTICO (encolhe, com reticências) + stepper compacto
+     à direita — nunca vaza a moldura. */
+  #gh-intro .gh-prim-row { display:flex; align-items:center; gap:8px; }
+  #gh-intro .gh-prim-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:"Cinzel",serif; font-size:14px; color:#e7d7a6; }
+  #gh-intro .gh-prim-step { flex:0 0 auto; display:flex; align-items:center; gap:6px; }
+  #gh-intro .gh-prim-val { min-width:30px; text-align:center; font-size:16px; color:#fff; }
+  #gh-intro .gh-prim-up { font-style:normal; font-size:10px; color:#7ee08a; margin-left:2px; vertical-align:super; }
   #gh-intro .gh-pm {
-    width:30px; height:30px; flex:0 0 auto; cursor:pointer; font-size:19px; line-height:1;
+    width:24px; height:24px; flex:0 0 auto; cursor:pointer; font-size:16px; line-height:1;
     color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
-    border:2px solid rgba(201,162,39,.6); border-radius:8px;
+    border:2px solid rgba(201,162,39,.6); border-radius:7px;
     display:flex; align-items:center; justify-content:center; padding:0;
     transition:border-color .12s, transform .08s, color .12s;
   }
   #gh-intro .gh-pm:hover:not(:disabled) { border-color:#f4c847; color:#fff; }
   #gh-intro .gh-pm:active:not(:disabled) { transform:scale(.9); }
   #gh-intro .gh-pm:disabled { opacity:.3; cursor:default; }
-  #gh-intro .gh-sec-blocks { display:flex; flex-wrap:wrap; gap:6px 18px; }
-  #gh-intro .gh-sec-col { flex:1 1 130px; min-width:120px; }
+  /* no passo de atributos o retrato é um pouco mais estreito → sobra largura pros
+     números, garantindo 2 colunas na moldura estreita do celular. */
+  #gh-intro #gh-alloc-main .gh-class-art { width:min(36%,170px); }
+  /* secundários: grade auto-ajustável — 3 colunas nas telas largas (fica baixinho),
+     2 colunas no celular (mais alto, mas cabe na moldura travada). */
+  #gh-intro .gh-sec-blocks { display:grid; grid-template-columns:repeat(auto-fit, minmax(84px, 1fr)); gap:3px 10px; align-content:start; }
+  #gh-intro .gh-sec-col { min-width:0; }
   #gh-intro .gh-sec-col h4 {
-    margin:2px 0 4px; font-family:"Cinzel",serif; font-size:13px; color:#eccf82;
+    margin:2px 0 3px; font-family:"Cinzel",serif; font-size:12px; color:#eccf82; white-space:nowrap;
     border-bottom:1px solid rgba(201,162,39,.28); padding-bottom:2px;
   }
-  #gh-intro .gh-sec-row { display:flex; justify-content:space-between; gap:8px; font-size:12.5px; color:#cdbd90; padding:1.5px 0; }
-  #gh-intro .gh-sec-row b { color:#f0e0b0; font-variant-numeric:tabular-nums; }
-  #gh-intro .gh-sec-note { font-size:11px; font-style:italic; color:#9c8f6d; margin-top:6px; line-height:1.35; }
+  #gh-intro .gh-sec-row { display:flex; justify-content:space-between; gap:6px; font-size:12px; color:#cdbd90; padding:0.5px 0; }
+  #gh-intro .gh-sec-row span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #gh-intro .gh-sec-row b { color:#f0e0b0; font-variant-numeric:tabular-nums; flex:0 0 auto; }
+  #gh-intro .gh-sec-note { font-size:10.5px; font-style:italic; color:#9c8f6d; margin-top:5px; line-height:1.3; }
   #gh-intro .gh-menu-btn-sec { min-width:120px; padding:15px 22px; opacity:.9; }
   #gh-intro .gh-create-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; margin:2px 0 12px; }
   #gh-intro .gh-name-input {
