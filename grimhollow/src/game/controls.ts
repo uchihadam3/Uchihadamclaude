@@ -177,7 +177,7 @@ export function setupControls(
   const hpFill = hudWrap.querySelector(".gh-hud-hp-fill") as HTMLElement;
   const mpFill = hudWrap.querySelector(".gh-hud-mp-fill") as HTMLElement;
 
-  // ---- MAPA (canto superior direito): moldura + canvas do minimapa ----
+  // ---- MAPA (canto superior direito): moldura + canvas do minimapa (zoom) ----
   const mapWrap = document.createElement("div");
   mapWrap.id = "gh-map";
   const mapCanvas = document.createElement("canvas");
@@ -185,8 +185,100 @@ export function setupControls(
   mapCanvas.width = 132;
   mapCanvas.height = 132;
   mapWrap.appendChild(mapCanvas);
+  // botão de EXPANDIR (abre o mapa grande estilo PoE/Diablo)
+  const mapExpand = document.createElement("button");
+  mapExpand.id = "gh-map-expand";
+  mapExpand.title = "Expandir mapa (M)";
+  mapExpand.innerHTML =
+    '<svg viewBox="0 0 24 24" width="14" height="14"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+  mapWrap.appendChild(mapExpand);
   root.appendChild(mapWrap);
   const mapCtx = mapCanvas.getContext("2d");
+  const MINI_RADIUS = 4; // células visíveis ao redor do jogador (janela 2R+1)
+
+  // ---- MAPA GRANDE (overlay) ----
+  const bigMap = document.createElement("div");
+  bigMap.id = "gh-bigmap";
+  bigMap.className = "gh-bigmap-hidden";
+  bigMap.innerHTML =
+    '<div id="gh-bigmap-win"><button id="gh-bigmap-close" title="Fechar (Esc/M)">✕</button>' +
+    '<canvas id="gh-bigmap-canvas" width="720" height="720"></canvas></div>';
+  root.appendChild(bigMap);
+  const bigCanvas = bigMap.querySelector("#gh-bigmap-canvas") as HTMLCanvasElement;
+  const bigCtx = bigCanvas.getContext("2d");
+  let lastMini: MinimapState | null = null;
+  const bigOpen = () => !bigMap.classList.contains("gh-bigmap-hidden");
+  const drawArrow = (
+    ctx: CanvasRenderingContext2D,
+    px: number,
+    py: number,
+    rad: number,
+    ang: number,
+  ) => {
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(ang);
+    ctx.beginPath();
+    ctx.moveTo(rad, 0);
+    ctx.lineTo(-rad * 0.7, rad * 0.62);
+    ctx.lineTo(-rad * 0.7, -rad * 0.62);
+    ctx.closePath();
+    ctx.fillStyle = "#ffd964";
+    ctx.shadowColor = "rgba(255,210,90,.9)";
+    ctx.shadowBlur = 5;
+    ctx.fill();
+    ctx.restore();
+  };
+  // minimapa PEQUENO: janela de (2R+1)² células centrada no herói (zoom local)
+  const drawSmall = (s: MinimapState) => {
+    const ctx = mapCtx;
+    if (!ctx) return;
+    const W = mapCanvas.width, H = mapCanvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#0b0d12";
+    ctx.fillRect(0, 0, W, H);
+    const R = MINI_RADIUS, n = 2 * R + 1, cell = W / n;
+    for (let dy = -R; dy <= R; dy++) {
+      for (let dx = -R; dx <= R; dx++) {
+        const c = s.col + dx, r = s.row + dy;
+        const inside = c >= 0 && c < s.cols && r >= 0 && r < s.rows;
+        ctx.fillStyle = !inside ? "#0b0d12" : s.cells[r * s.cols + c] ? "#54606f" : "#171b22";
+        ctx.fillRect(Math.round((dx + R) * cell), Math.round((dy + R) * cell), Math.ceil(cell) - 1, Math.ceil(cell) - 1);
+      }
+    }
+    drawArrow(ctx, W / 2, H / 2, Math.max(4, cell * 0.42), Math.atan2(s.dr, s.dc));
+  };
+  // mapa GRANDE: o local inteiro cabendo na tela (estilo PoE/Diablo)
+  const drawBig = (s: MinimapState) => {
+    const ctx = bigCtx;
+    if (!ctx) return;
+    const W = bigCanvas.width, H = bigCanvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#0b0d12";
+    ctx.fillRect(0, 0, W, H);
+    const pad = 12;
+    const cell = Math.max(3, Math.floor(Math.min((W - 2 * pad) / s.cols, (H - 2 * pad) / s.rows)));
+    const gw = cell * s.cols, gh = cell * s.rows;
+    const ox = Math.round((W - gw) / 2), oy = Math.round((H - gh) / 2);
+    for (let r = 0; r < s.rows; r++)
+      for (let c = 0; c < s.cols; c++) {
+        ctx.fillStyle = s.cells[r * s.cols + c] ? "#5a6675" : "#171b22";
+        ctx.fillRect(ox + c * cell, oy + r * cell, cell - 1, cell - 1);
+      }
+    drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(6, cell * 0.75), Math.atan2(s.dr, s.dc));
+  };
+  const openBigMap = () => {
+    bigMap.classList.remove("gh-bigmap-hidden");
+    if (lastMini) drawBig(lastMini);
+  };
+  const closeBigMap = () => bigMap.classList.add("gh-bigmap-hidden");
+  mapExpand.addEventListener("click", (e) => { e.preventDefault(); openBigMap(); });
+  (bigMap.querySelector("#gh-bigmap-close") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); closeBigMap(); });
+  bigMap.addEventListener("click", (e) => { if (e.target === bigMap) closeBigMap(); });
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "KeyM") { e.preventDefault(); bigOpen() ? closeBigMap() : openBigMap(); }
+    else if (e.code === "Escape") closeBigMap();
+  });
 
   // ---- RELÓGIO dia/noite (sol/lua orbitando) — logo abaixo do mapa ----
   const clock = document.createElement("div");
@@ -688,42 +780,9 @@ export function setupControls(
       }
     },
     updateMinimap(s: MinimapState) {
-      if (!mapCtx) return;
-      const W = mapCanvas.width, H = mapCanvas.height;
-      mapCtx.clearRect(0, 0, W, H);
-      // escala p/ caber a grade toda, centralizada
-      const pad = 4;
-      const cell = Math.max(2, Math.floor(Math.min((W - pad * 2) / s.cols, (H - pad * 2) / s.rows)));
-      const gw = cell * s.cols, gh = cell * s.rows;
-      const ox = Math.round((W - gw) / 2), oy = Math.round((H - gh) / 2);
-      // fundo do miolo
-      mapCtx.fillStyle = "#0b0d12";
-      mapCtx.fillRect(0, 0, W, H);
-      // células: caminhável = pedra clara; parede/prédio = escuro
-      for (let r = 0; r < s.rows; r++) {
-        for (let c = 0; c < s.cols; c++) {
-          mapCtx.fillStyle = s.cells[r * s.cols + c] ? "#54606f" : "#171b22";
-          mapCtx.fillRect(ox + c * cell, oy + r * cell, cell - 1, cell - 1);
-        }
-      }
-      // herói: seta apontando na direção (facing 0..3 → N/E/S/O conforme DIRS)
-      const px = ox + s.col * cell + cell / 2;
-      const py = oy + s.row * cell + cell / 2;
-      const ang = Math.atan2(s.dr, s.dc); // aponta pro vetor de direção (dc,dr)
-      mapCtx.save();
-      mapCtx.translate(px, py);
-      mapCtx.rotate(ang);
-      const rad = Math.max(3, cell * 0.7);
-      mapCtx.beginPath();
-      mapCtx.moveTo(rad, 0);
-      mapCtx.lineTo(-rad * 0.7, rad * 0.6);
-      mapCtx.lineTo(-rad * 0.7, -rad * 0.6);
-      mapCtx.closePath();
-      mapCtx.fillStyle = "#ffd964";
-      mapCtx.shadowColor = "rgba(255,210,90,.9)";
-      mapCtx.shadowBlur = 5;
-      mapCtx.fill();
-      mapCtx.restore();
+      lastMini = s;
+      drawSmall(s); // minimapa pequeno (zoom ao redor do herói)
+      if (bigOpen()) drawBig(s); // se o mapa grande estiver aberto, atualiza também
     },
     setClock(phase: number, daylight: number) {
       // órbita: sol no TOPO ao meio-dia (fase 0.25). ângulo cresce com o tempo.
@@ -881,7 +940,7 @@ function injectStyle() {
   /* placa de status (vida + mana) — arte com encaixes preenchidos por código */
   #gh-hud {
     position:fixed; left:12px; top:10px; z-index:11; pointer-events:none;
-    width:min(238px,44vw); aspect-ratio:793 / 336;
+    width:min(230px,40vw); aspect-ratio:793 / 336;
     background:url(${hudPlateUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
   }
@@ -903,17 +962,50 @@ function injectStyle() {
     position:absolute; inset:0; width:100%; height:100%;
     border-radius:2px; image-rendering:auto;
   }
-  /* RELÓGIO dia/noite: mostrador redondo (base de botão) com sol e lua orbitando */
+  /* botão de expandir o mapa (canto inferior direito do minimapa) */
+  #gh-map-expand {
+    position:absolute; right:2px; bottom:2px; z-index:3; pointer-events:auto;
+    width:22px; height:22px; border-radius:6px; cursor:pointer; padding:0;
+    display:flex; align-items:center; justify-content:center;
+    color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
+    border:1.5px solid rgba(201,162,39,.6);
+    box-shadow:0 1px 3px rgba(0,0,0,.6);
+  }
+  #gh-map-expand:hover { color:#fff; border-color:#f4c847; }
+  #gh-map-expand:active { transform:scale(.9); }
+  /* mapa GRANDE (overlay estilo PoE/Diablo) */
+  #gh-bigmap {
+    position:fixed; inset:0; z-index:19; pointer-events:auto;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(4,5,9,.72);
+  }
+  #gh-bigmap.gh-bigmap-hidden { display:none; }
+  #gh-bigmap-win {
+    position:relative; width:min(88vw,88vh); aspect-ratio:1; box-sizing:border-box;
+    border:clamp(20px,6vw,42px) solid transparent;
+    border-image:url(${mapFrameUrl}) 130 repeat;
+    filter:drop-shadow(0 6px 22px rgba(0,0,0,.7));
+  }
+  #gh-bigmap-canvas { position:absolute; inset:0; width:100%; height:100%; }
+  #gh-bigmap-close {
+    position:absolute; top:calc(-8px - clamp(20px,6vw,42px)); right:0; z-index:3; cursor:pointer;
+    width:34px; height:34px; border-radius:8px; font-size:17px; line-height:1;
+    color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
+    border:2px solid rgba(201,162,39,.6); display:flex; align-items:center; justify-content:center;
+  }
+  #gh-bigmap-close:hover { color:#fff; border-color:#f4c847; }
+  /* RELÓGIO dia/noite: só um ANEL FINO desenhado em CSS (sem PNG de fundo), no
+     topo-centro colado no limite da tela. Sol e lua orbitam na linha do anel. */
   #gh-clock {
-    position:fixed; z-index:11; pointer-events:none;
-    top:calc(10px + min(118px,27vw) + 6px);
-    right:calc(12px + (min(118px,27vw) - min(52px,13vw)) / 2);
-    width:min(52px,13vw); height:min(52px,13vw);
-    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
-    filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
+    position:fixed; z-index:12; pointer-events:none;
+    top:2px; left:50%; transform:translateX(-50%);
+    width:38px; height:38px; border-radius:50%;
+    border:1.5px solid rgba(201,162,39,.6);
+    background:radial-gradient(circle, rgba(8,9,14,.24), rgba(8,9,14,.08) 72%, rgba(8,9,14,0));
+    box-shadow:0 1px 4px rgba(0,0,0,.45);
   }
   #gh-clock .gh-sun, #gh-clock .gh-moon {
-    position:absolute; width:52%; height:52%; object-fit:contain;
+    position:absolute; width:46%; height:46%; object-fit:contain;
     transform:translate(-50%,-50%); left:50%; top:50%;
     transition:opacity .5s linear, filter .5s linear;
   }
@@ -928,7 +1020,7 @@ function injectStyle() {
   /* botão de abrir a janela de personagem — no lado ESQUERDO, logo abaixo da placa
      de vida/mana (o canto superior direito fica livre p/ o mapa). */
   #gh-char-btn {
-    position:fixed; left:14px; top:calc(20px + min(238px, 44vw) * 0.424); z-index:12; pointer-events:auto;
+    position:fixed; left:14px; top:calc(20px + min(230px, 40vw) * 0.424); z-index:12; pointer-events:auto;
     width:52px; height:52px; border-radius:50%; cursor:pointer;
     background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
     border:none; padding:0;
