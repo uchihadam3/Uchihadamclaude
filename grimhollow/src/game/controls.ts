@@ -6,7 +6,9 @@ import eqSlotUrl from "../assets/ui/eq_slot.png";
 import eqContainerUrl from "../assets/ui/eq_container.png";
 import btnBaseUrl from "../assets/ui/btn_base.png";
 import dpadUrl from "../assets/ui/dpad.png";
-import shieldIconUrl from "../assets/env/wpn_shield.png";
+import icoAttackUrl from "../assets/ui/ico_attack.png";
+import icoActionUrl from "../assets/ui/ico_action.png";
+import icoInventoryUrl from "../assets/ui/ico_inventory.png";
 
 export type Action =
   | "forward"
@@ -163,7 +165,7 @@ export function setupControls(
   const charBtn = document.createElement("button");
   charBtn.id = "gh-char-btn";
   charBtn.title = "Personagem (C)";
-  charBtn.innerHTML = `<img class="gh-char-ico" src="${shieldIconUrl}" alt=""/>`;
+  charBtn.innerHTML = `<img class="gh-char-ico" src="${icoInventoryUrl}" alt=""/>`;
   root.appendChild(charBtn);
 
   // disposição "boneco" estilo Path of Exile numa grade 8×6 (célula quadrada):
@@ -264,36 +266,10 @@ export function setupControls(
   pad.id = "pad";
   root.appendChild(pad);
 
-  // ícones desenhados em código (gravados, tom bronze claro) — usam currentColor
-  // p/ a cor vir do CSS. Ficam POR CIMA da base pintada do botão.
-  const ICON: Record<string, string> = {
-    // seta cheia p/ cima (giro por CSS cobre baixo/lados)
-    arrow: '<path fill="currentColor" d="M50 16 L84 56 L64 56 L64 86 L36 86 L36 56 L16 56 Z"/>',
-    // seta curva de girar (espelhada por CSS p/ o outro lado)
-    turn:
-      '<path fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" d="M74 40 A28 28 0 1 0 80 54"/>' +
-      '<path fill="currentColor" d="M84 18 L88 46 L60 38 Z"/>',
-    // espadas cruzadas
-    swords:
-      '<g stroke="currentColor" fill="none" stroke-linecap="round">' +
-      '<line x1="24" y1="80" x2="78" y2="24" stroke-width="7"/>' +
-      '<line x1="76" y1="80" x2="22" y2="24" stroke-width="7"/>' +
-      '<line x1="15" y1="66" x2="33" y2="84" stroke-width="6"/>' +
-      '<line x1="85" y1="66" x2="67" y2="84" stroke-width="6"/>' +
-      "</g>",
-    // manopla / mão aberta
-    hand:
-      '<g fill="currentColor">' +
-      '<rect x="33" y="23" width="9" height="39" rx="4.5"/>' +
-      '<rect x="45" y="16" width="9" height="46" rx="4.5"/>' +
-      '<rect x="57" y="20" width="9" height="42" rx="4.5"/>' +
-      '<rect x="69" y="30" width="9" height="32" rx="4.5"/>' +
-      '<path d="M27 55 q-7 5 -4 15 l4 12 q4 11 16 11 h14 q13 0 15 -15 l2 -21 z"/>' +
-      '<path d="M30 57 q-13 -3 -17 8 q-2 6 5 8 q8 2 14 -7 z"/>' +
-      "</g>",
-  };
-  const svgIcon = (name: string, transform = "") =>
-    `<svg class="gh-ico" viewBox="0 0 100 100"${transform ? ` style="transform:${transform}"` : ""}>${ICON[name]}</svg>`;
+  // ícones dos botões de ação = PNGs pintados (recortados em magenta), postos POR
+  // CIMA da base redonda. As setas de movimento ficam no D-pad (arte), sem ícone.
+  const btnIcon = (url: string) =>
+    `<img class="gh-btn-ico" src="${url}" alt="" draggable="false"/>`;
 
   // segurar pressionado repete a ação (o jogo ignora enquanto anima)
   const holdRepeat = (el: HTMLElement, action: Action) => {
@@ -334,7 +310,7 @@ export function setupControls(
   // botão de interação (não repete) — manopla
   const act = document.createElement("button");
   act.className = "gh-btn gh-act";
-  act.innerHTML = svgIcon("hand");
+  act.innerHTML = btnIcon(icoActionUrl);
   const tapAct = (e: Event) => {
     e.preventDefault();
     onAction("interact");
@@ -348,7 +324,7 @@ export function setupControls(
   if (weaponUrl) {
     atkBtn = document.createElement("button");
     atkBtn.className = "gh-btn gh-atk";
-    atkBtn.innerHTML = svgIcon("swords");
+    atkBtn.innerHTML = btnIcon(icoAttackUrl);
     const tapAtk = (e: Event) => {
       e.preventDefault();
       onAction("attack");
@@ -987,9 +963,9 @@ function injectStyle() {
     touch-action:none; -webkit-tap-highlight-color:transparent;
   }
   .gh-btn:active { transform:scale(0.92); filter:drop-shadow(0 1px 4px rgba(0,0,0,.6)) brightness(1.28); }
-  .gh-ico {
-    width:50%; height:50%; display:block; pointer-events:none;
-    color:inherit; filter:drop-shadow(0 1px 1px rgba(0,0,0,.85));
+  .gh-btn-ico {
+    width:66%; height:66%; object-fit:contain; display:block; pointer-events:none;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.85));
   }
   /* MOVIMENTO — D-pad de 4 botões no canto inferior ESQUERDO. GRID 3x3 em
      diamante (cima/baixo/esq/dir); cantos e miolo vazios.
