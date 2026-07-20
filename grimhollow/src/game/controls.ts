@@ -233,20 +233,31 @@ export function setupControls(
   const drawSmall = (s: MinimapState) => {
     const ctx = mapCtx;
     if (!ctx) return;
+    // casa a resolução do canvas com o tamanho REAL exibido (nitidez, sem borrar)
+    const dpr = window.devicePixelRatio || 1;
+    const disp = Math.round(mapCanvas.clientWidth * dpr);
+    if (disp > 0 && mapCanvas.width !== disp) {
+      mapCanvas.width = disp;
+      mapCanvas.height = disp;
+    }
     const W = mapCanvas.width, H = mapCanvas.height;
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = "#0b0d12";
     ctx.fillRect(0, 0, W, H);
-    const R = MINI_RADIUS, n = 2 * R + 1, cell = W / n;
+    const R = MINI_RADIUS, n = 2 * R + 1;
+    const cell = Math.floor(W / n); // célula INTEIRA → grade uniforme (sem gaps tortos)
+    const off = Math.floor((W - cell * n) / 2); // centraliza a janela
     for (let dy = -R; dy <= R; dy++) {
       for (let dx = -R; dx <= R; dx++) {
         const c = s.col + dx, r = s.row + dy;
         const inside = c >= 0 && c < s.cols && r >= 0 && r < s.rows;
         ctx.fillStyle = !inside ? "#0b0d12" : s.cells[r * s.cols + c] ? "#54606f" : "#171b22";
-        ctx.fillRect(Math.round((dx + R) * cell), Math.round((dy + R) * cell), Math.ceil(cell) - 1, Math.ceil(cell) - 1);
+        ctx.fillRect(off + (dx + R) * cell, off + (dy + R) * cell, cell - 1, cell - 1);
       }
     }
-    drawArrow(ctx, W / 2, H / 2, Math.max(4, cell * 0.42), Math.atan2(s.dr, s.dc));
+    // herói SEMPRE no centro exato da janela (célula central)
+    const pc = off + R * cell + Math.floor(cell / 2);
+    drawArrow(ctx, pc, pc, Math.max(4, cell * 0.42), Math.atan2(s.dr, s.dc));
   };
   // mapa GRANDE: o local inteiro cabendo na tela (estilo PoE/Diablo)
   const drawBig = (s: MinimapState) => {
@@ -998,7 +1009,7 @@ function injectStyle() {
      topo-centro colado no limite da tela. Sol e lua orbitam na linha do anel. */
   #gh-clock {
     position:fixed; z-index:12; pointer-events:none;
-    top:2px; left:50%; transform:translateX(-50%);
+    top:8px; right:calc(12px + min(118px,27vw) + 8px);
     width:38px; height:38px; border-radius:50%;
     border:1.5px solid rgba(201,162,39,.6);
     background:radial-gradient(circle, rgba(8,9,14,.24), rgba(8,9,14,.08) 72%, rgba(8,9,14,0));
