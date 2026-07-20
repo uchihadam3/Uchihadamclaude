@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 28 prontos · 🟡 2 faltando · ⚪ 1 opcional · ❌ 2 removidas
+**Status:** ✅ 28 prontos · 🟡 3 faltando · ❌ 2 removidas
 
 ---
 
@@ -15,9 +15,9 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
+| 🟡 | **Ícones dos botões** (ataque · ação · elmo p/ inventário) | [§11 · Peça B](#-peça-b--ícones-dos-botões-de-ação-ataque--ação--inventário-falta) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
-| ⚪ | *(opcional)* Ícones de controle pintados | [§11 · Peça B](#-peça-b--ícones-símbolos-soltos-opcional) |
 
 ---
 
@@ -406,22 +406,37 @@ Hand-painted stylized-realism game UI button, cohesive with a grim medieval dark
 com o miolo brilhando âmbar/dourado. Se não mandar, eu faço o estado pressionado por
 código, com um brilho.)*
 
-### ⚪ Peça B — ícones (símbolos soltos) (opcional)
+### 🟡 Peça B — Ícones dos botões de ação (ataque · ação · inventário) (falta)
 
-Símbolos claros (bronze claro / osso pálido / prata) que entram **por cima** da base.
-Cada um numa imagem, **centralizado**, fundo transparente. Preciso de poucos porque
-eu **giro/espelho no código**:
+Os **3 símbolos pintados** que entram **por cima da base redonda** (Peça A), no
+lugar dos ícones que hoje são desenhados em código (não casam com o resto da arte).
+As **setas de movimento** continuam no D-pad (Peça C), então **não** precisam de arte.
 
-- **Seta** — uma **seta/chevron apontando pra CIMA** (eu giro ela p/ baixo, esquerda,
-  direita e p/ os passos laterais). `single bold engraved arrowhead chevron pointing straight UP, pale polished bronze with a soft bevel, centered on transparent background, ~256x256`
-- **Seta de girar** — uma **seta curva circular** (tipo símbolo de "girar/refresh")
-  indicando rotação. Eu espelho p/ virar à esquerda/direita. `a single curved circular rotation arrow (turn/refresh symbol) curving clockwise, pale polished bronze, centered on transparent background, ~256x256`
-- **Ataque** — **duas espadas cruzadas** (X). `two crossed medieval swords forming an X, worn steel with bronze hilts, centered on transparent background, ~256x256`
-- **Interagir** — uma **manopla/mão aberta** (palma pra frente). `an open armored gauntlet hand, palm facing forward, dark iron with bronze trim, centered on transparent background, ~256x256`
+> **Como cada um deve ser:** um **emblema/símbolo único, centralizado**, em **metal
+> claro** (bronze polido claro + aço, com leve gravação) pra **saltar sobre o botão
+> escuro** — **sem disco/moldura atrás** (a base já é o círculo). **Fundo magenta
+> chapado** (`#ff00ff`) pra recorte limpo (o cinza do metal se perde em fundo neutro).
+> Vista de frente reta, sem sombra no chão. Manda **um por vez** (ou os 3 juntos numa
+> fileira bem espaçada, que eu separo). Cada prompt abaixo é **copiar e colar**.
 
-*(O botão de personagem eu reaproveito a arte do **escudo** que já temos. Os 4
-ícones da Peça B **já estão desenhados em código** e no jogo — a Peça B só é
-necessária se você quiser ícones pintados à mão no lugar.)*
+**⚔️ Ataque — espadas cruzadas:**
+```
+Hand-painted stylized-realism game UI ICON, cohesive with a grim medieval dark-fantasy game. TWO crossed medieval swords forming a bold X, blades pointing up and outward, made of bright polished steel with worn bronze crossguards and leather-wrapped grips, subtle engraving and soft bevels, light and high-contrast so it stands out on a dark button. A single clean emblem, perfectly centered, bold clear silhouette, NO background disc, NO frame, NO circle behind it. Flat front orthographic view, soft even lighting, no cast shadow, no perspective. Clean cutout on a flat solid pure magenta background (#ff00ff), single uniform chroma color, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~512x512.
+```
+
+**✋ Ação / Interagir — manopla aberta:**
+```
+Hand-painted stylized-realism game UI ICON, cohesive with a grim medieval dark-fantasy game. A single open armored GAUNTLET hand seen palm-forward with fingers spread, made of pale polished steel and worn bronze plates with subtle engraving and soft bevels, light and high-contrast so it stands out on a dark button. A single clean emblem, perfectly centered, bold clear silhouette, NO background disc, NO frame, NO circle behind it. Flat front orthographic view, soft even lighting, no cast shadow, no perspective. Clean cutout on a flat solid pure magenta background (#ff00ff), single uniform chroma color, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~512x512.
+```
+
+**🪖 Inventário / Personagem — elmo:**
+```
+Hand-painted stylized-realism game UI ICON, cohesive with a grim medieval dark-fantasy game. A single medieval knight's great helm / closed helmet seen straight from the FRONT, with a T-shaped visor slit, made of pale polished steel with worn bronze trim and rivets, subtle engraving and soft bevels, light and high-contrast so it stands out on a dark button. A single clean emblem, perfectly centered, bold clear silhouette, NO background disc, NO frame, NO circle behind it, NO neck or body — just the helmet. Flat front orthographic view, soft even lighting, no cast shadow, no perspective. Clean cutout on a flat solid pure magenta background (#ff00ff), single uniform chroma color, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~512x512.
+```
+
+*(Quando mandar, eu recorto cada um e ponho por cima da base: o **elmo** vira o botão
+de inventário/personagem no lugar do escudo — faz mais sentido pra "equipamento".
+Enquanto não chega, os ícones de código seguem no jogo.)*
 
 ### ✅ Peça C — D-pad de movimento (cruz) (PRONTO — no jogo)
 
