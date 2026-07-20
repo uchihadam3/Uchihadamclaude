@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 32 prontos · 🟡 2 faltando · ❌ 2 removidas
+**Status:** ✅ 32 prontos · 🟡 7 faltando · ❌ 2 removidas
 
 ---
 
@@ -15,6 +15,7 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
+| 🟡 | **Skill Tree** — 5 folhas (4 de ativas + 1 de passivas) | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
 
@@ -624,6 +625,97 @@ tecla **M**) abre o **mapa grande** do local inteiro, estilo PoE/Diablo. O **rel
 é só um **anel fino em CSS** no **topo-centro** da tela: sol e lua orbitam na linha, o
 sol acende de dia e a lua de noite — opacidade do sol = luz do dia, da lua = 1 − luz do
 dia, ligado no ciclo dia/noite que já roda no jogo.)*
+
+---
+
+## 14 · Skill Tree (Habilidades) — APROVADO
+
+Árvore de talentos por classe (estilo D2/PoE-lite). **Estrutura:**
+
+- **3 ramos por classe**, cada um com **~5 ativas + ~12 passivas** → **~15 ativas + ~36
+  passivas por classe** (~200 nós no total).
+- **Ranks:** cada skill sobe até **5×** (mais efeito por ponto). **1 ponto de habilidade
+  por nível** (100 no total) → build importa (não dá pra maximizar tudo).
+- **Ativa** = habilidade usável (mana + recarga), vai pra uma barra de ação no combate.
+  **Passiva** = efeito automático (mexe nos atributos/combate).
+- Distinção visual: **ativa = moldura DOURADA**, **passiva = moldura PRATA**. Fica numa
+  aba **"Habilidades"** na janela de Personagem.
+
+**Estratégia de arte (eficiente — 5 folhas cobrem tudo):**
+- **4 folhas de ATIVAS** (1 por classe, grade **4×4** = 15 ícones únicos cada). Arte
+  única e marcante por skill.
+- **1 folha GENÉRICA de PASSIVAS** (16 emblemas de status). As ~36 passivas de cada
+  classe **reutilizam** esses 16 ícones, que eu **tinjo por cor do ramo** por código —
+  então não precisa de arte nova por passiva. Rank aparece como número, sem arte extra.
+- Fundo **magenta** (`#ff00ff`) pra recorte limpo (já tenho o cortador). Manda **uma
+  folha por vez**.
+
+> ⚠️ São 15 ícones distintos por folha — se algum sair confuso, a gente regenera só
+> aquela folha. Eu corto os 15 pela grade e mapeio na ordem abaixo (dá pra remapear
+> depois se algum ficar melhor pra outra skill).
+
+### 🟡 As 15 ATIVAS por classe (ordem da grade 4×4)
+
+**⚔️ Guerreiro** — *Armas · Baluarte · Fúria:* Golpe Poderoso · Investida · Golpe
+Giratório · Quebra-Armadura · Decapitar · Provocar · Muro de Escudo · Reflexão · Aço
+Absoluto · Último Suspiro · Grito de Guerra · Frenesi · Investida Brutal · Terremoto ·
+Golpe Final
+
+**🗡️ Ladino** — *Assassino · Sombra · Precisão:* Apunhalar · Rajada de Lâminas · Golpe
+nas Sombras · Estocada Perfurante · Execução · Passo Sombrio · Bomba de Fumaça · Nuvem
+Tóxica · Desaparecer · Lâmina Envenenada · Rajada Dupla · Arremesso de Adaga ·
+Contra-Ataque · Dança das Lâminas · Marca Mortal
+
+**🔮 Mago** — *Chamas · Gelo & Arcano · Tempestade:* Bola de Fogo · Explosão de Fogo ·
+Meteoro · Muralha de Fogo · Imolação · Nova de Gelo · Lança de Gelo · Escudo Arcano ·
+Teleporte · Prisão de Gelo · Raio Arcano · Corrente · Tempestade · Descarga · Nova Arcana
+
+**🕯️ Clérigo** — *Luz · Julgamento · Fé:* Cura · Cura em Área · Bênção · Aura de
+Proteção · Renovação · Martelo Sagrado · Punição · Luz Radiante · Selo Sagrado ·
+Condenação · Escudo Divino · Repreensão · Intervenção · Ressurreição · Aura de Fé
+
+### 🟡 As 16 PASSIVAS genéricas (folha única, reaproveitada por todas as classes)
+
+Emblemas de status neutros (prata) que viram os nós passivos, tingidos por ramo:
++Dano Físico · +Dano Mágico · +Vida · +Mana · +Defesa · +Resist. Mágica · +Precisão ·
++Chance Crítica · +Dano Crítico · +Evasão · +Vel. de Ataque · +Roubo de Vida · +Veneno ·
++Regeneração · −Recarga · +Bloqueio.
+
+---
+
+### 🟡 Peça A — Folha de ATIVAS do Guerreiro (falta)
+
+```
+Hand-painted stylized-realism game SKILL-ICON SHEET for a WARRIOR class in a grim medieval dark-fantasy game. A neat grid of 4 columns by 4 rows holding 15 distinct ability icons (leave the last cell empty), evenly spaced with clear gaps between them so each can be cut apart, every icon centered in its own cell at the same size and identical style — each a circular emblem with a worn GOLD ring frame on a dark iron medallion (active-ability look). In reading order: (1) a heavy overhead sword smash, (2) a charging shoulder-bash lunge, (3) a spinning whirlwind of blades, (4) a cracked shattered armor plate, (5) a decapitating axe stroke, (6) a roaring taunt helm with sound rings, (7) a raised tower-shield wall, (8) a shield deflecting arrows, (9) a glowing runic shield (invulnerability), (10) a last-stand heart crossed with a shield, (11) a blowing war-horn, (12) a frenzied blade with speed streaks, (13) a brutal armored ram charge, (14) a ground-shattering earthquake stomp, (15) a massive final overhead cleave with impact. Cohesive dark iron and worn gold palette, bold clear silhouettes that read when small. Flat front orthographic view, soft even lighting, no cast shadow. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, each icon a crisp separated shape on the magenta. No text, no numbers, no frames around the whole sheet, no watermark. Square canvas ~2048x2048.
+```
+
+### 🟡 Peça B — Folha de ATIVAS do Ladino (falta)
+
+```
+Hand-painted stylized-realism game SKILL-ICON SHEET for a ROGUE/ASSASSIN class in a grim medieval dark-fantasy game. A neat grid of 4 columns by 4 rows holding 15 distinct ability icons (leave the last cell empty), evenly spaced with clear gaps so each can be cut apart, every icon centered at the same size — each a circular emblem with a worn GOLD ring frame on a dark iron medallion (active-ability look). In reading order: (1) a dagger stabbing (backstab), (2) a fan of flying blades, (3) a dagger bursting from shadow, (4) a piercing thrust dagger, (5) an execution dagger over a skull, (6) a shadowy dodge step with smoke, (7) a smoke bomb burst, (8) a green toxic cloud, (9) a vanishing cloaked silhouette fading, (10) a dagger dripping green venom, (11) two quick crossed daggers with speed streaks, (12) a thrown spinning dagger, (13) a parry/counter dagger with spark, (14) a swirling dance of many blades, (15) a red target mark/reticle over a heart. Cohesive dark leather, steel and muted green palette, bold clear silhouettes that read when small. Flat front orthographic view, soft even lighting, no cast shadow. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, each icon crisp and separated. No text, no numbers, no watermark. Square canvas ~2048x2048.
+```
+
+### 🟡 Peça C — Folha de ATIVAS do Mago (falta)
+
+```
+Hand-painted stylized-realism game SKILL-ICON SHEET for a MAGE class in a grim medieval dark-fantasy game. A neat grid of 4 columns by 4 rows holding 15 distinct ability icons (leave the last cell empty), evenly spaced with clear gaps so each can be cut apart, every icon centered at the same size — each a circular emblem with a worn GOLD ring frame on a dark iron medallion (active-ability look). In reading order: (1) a blazing fireball, (2) a bursting fire explosion, (3) a falling meteor, (4) a standing wall of fire, (5) a self burning aura figure, (6) an icy frost nova burst, (7) a sharp ice spear, (8) a glowing blue arcane shield, (9) a swirling teleport portal, (10) a target frozen in an ice prison, (11) a crackling arcane bolt, (12) chained lightning between points, (13) a raging storm cloud with bolts, (14) an instant energy discharge burst, (15) a violet arcane nova explosion. Vivid fire-orange, ice-blue and arcane-violet accents on dark medallions, bold clear silhouettes that read when small. Flat front orthographic view, soft even lighting, no cast shadow. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, each icon crisp and separated. No text, no numbers, no watermark. Square canvas ~2048x2048.
+```
+
+### 🟡 Peça D — Folha de ATIVAS do Clérigo (falta)
+
+```
+Hand-painted stylized-realism game SKILL-ICON SHEET for a CLERIC class in a grim medieval dark-fantasy game. A neat grid of 4 columns by 4 rows holding 15 distinct ability icons (leave the last cell empty), evenly spaced with clear gaps so each can be cut apart, every icon centered at the same size — each a circular emblem with a worn GOLD ring frame on a dark iron medallion (active-ability look). In reading order: (1) a radiant healing hand, (2) a healing burst over an area, (3) a blessing with upward light rays, (4) a protective glowing dome, (5) a gentle renewing light over a heart, (6) a holy war-hammer smiting down, (7) a punishing beam of light, (8) a radiant burst of holy light, (9) a glowing holy seal/sigil, (10) a condemning pillar of light, (11) a golden divine shield, (12) a rebuking flash that stuns, (13) a shield-and-heart divine intervention, (14) an ankh/cross of resurrection glowing, (15) a shining aura of faith halo. Cohesive off-white, warm gold and soft divine-light accents on dark medallions, bold clear silhouettes that read when small. Flat front orthographic view, soft even lighting, no cast shadow. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, each icon crisp and separated. No text, no numbers, no watermark. Square canvas ~2048x2048.
+```
+
+### 🟡 Peça E — Folha GENÉRICA de PASSIVAS (falta)
+
+```
+Hand-painted stylized-realism game PASSIVE STAT-ICON SHEET for a grim medieval dark-fantasy RPG. A neat grid of 4 columns by 4 rows holding 16 simple generic stat emblems, evenly spaced with clear gaps so each can be cut apart, every icon centered at the same size — each a bold clear symbol on a small dark medallion with a worn SILVER ring frame (passive-node look), kept NEUTRAL and desaturated so it can be color-tinted later. In reading order: (1) crossed swords = physical damage, (2) a flaming star = magic damage, (3) a heart = life, (4) a blue droplet = mana, (5) a kite shield = armor, (6) a glowing rune = magic resistance, (7) a targeting reticle = precision, (8) a skull = critical chance, (9) a spiked skull = critical damage, (10) a feather = evasion, (11) a lightning bolt = attack speed, (12) a red droplet = life leech, (13) a green vial = poison, (14) a cross-leaf = regeneration, (15) an hourglass = cooldown reduction, (16) a studded round buckler = block. Bold clear silhouettes that read when tiny, consistent size and style, tarnished silver and grey tones. Flat front orthographic view, soft even lighting, no cast shadow. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, each icon crisp and separated. No text, no numbers, no watermark. Square canvas ~2048x2048.
+```
+
+*(Quando mandar cada folha, eu corto os 15/16 pela grade, ligo no ramo certo e monto a
+aba "Habilidades" com os nós, ranks e tooltips. As passivas eu tinjo por cor de ramo no
+código.)*
 
 ---
 
