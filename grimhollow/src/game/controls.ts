@@ -684,23 +684,33 @@ export function setupControls(
     }
     return pos;
   };
+  const BASE_SLOTS = 6; // slots SEMPRE visíveis na HUD (vazios até aprender)
   const renderActionBar = (items: ActionSkill[]) => {
-    const pos = arcLayout(items.length);
-    actbar.innerHTML = items
-      .map((s, i) => {
-        const p = pos[i] ?? { right: 47, bottom: 51 };
-        return (
+    // mostra pelo menos BASE_SLOTS (padrão da meia-lua); se aprendeu mais, cresce.
+    const total = Math.max(BASE_SLOTS, items.length);
+    const pos = arcLayout(total);
+    let html = "";
+    for (let i = 0; i < total; i++) {
+      const p = pos[i] ?? { right: 47, bottom: 51 };
+      const s = items[i];
+      if (s) {
+        html +=
           `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}" ` +
           `style="right:${p.right}px;bottom:${p.bottom}px">` +
           (s.icon ? `<img src="${s.icon}" alt=""/>` : `<span class="gh-ss-x">✦</span>`) +
           `<span class="gh-ss-mana">${s.mana}</span>` +
           `<span class="gh-ss-cool"></span>` +
-          `</button>`
-        );
-      })
-      .join("");
-    actbar.style.display = items.length ? "block" : "none";
-    actbar.querySelectorAll<HTMLButtonElement>(".gh-sslot").forEach((b) => {
+          `</button>`;
+      } else {
+        // slot VAZIO (placeholder) — não clicável, marca o lugar da habilidade
+        html +=
+          `<span class="gh-sslot gh-ss-empty" style="right:${p.right}px;bottom:${p.bottom}px">` +
+          `<span class="gh-ss-rune">◈</span></span>`;
+      }
+    }
+    actbar.innerHTML = html;
+    actbar.style.display = "block"; // sempre visível
+    actbar.querySelectorAll<HTMLButtonElement>(".gh-sslot[data-skill]").forEach((b) => {
       b.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         const id = b.dataset.skill;
@@ -1690,6 +1700,14 @@ function injectStyle() {
   .gh-sslot:active { transform:scale(0.9); filter:brightness(1.2); }
   .gh-sslot img { width:70%; height:70%; object-fit:contain; pointer-events:none;
     filter:drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
+  /* slot VAZIO: soquete apagado (marca o lugar da futura habilidade) */
+  .gh-ss-empty {
+    filter:grayscale(.6) brightness(.5); opacity:.62; cursor:default;
+    box-shadow:inset 0 0 8px rgba(0,0,0,.55);
+  }
+  .gh-ss-empty:active { transform:none; filter:grayscale(.6) brightness(.5); }
+  .gh-ss-rune { font-size:18px; color:rgba(220,200,150,.5); pointer-events:none;
+    text-shadow:0 1px 2px rgba(0,0,0,.8); }
   .gh-ss-x { font-size:20px; color:#e6d29a; }
   .gh-ss-mana {
     position:absolute; right:2px; bottom:1px; min-width:13px; height:13px;
