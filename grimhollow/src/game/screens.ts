@@ -7,7 +7,18 @@ import eqContainerUrl from "../assets/ui/eq_container.png";
 // Key art do título (PNG). O logo/menu ficam por cima; a arte é sem texto.
 import titleArtUrl from "../assets/ui/title_bg.png";
 import createBgUrl from "../assets/ui/create_bg.png";
+import iconGuerreiro from "../assets/ui/class_icon_guerreiro.png";
+import iconLadino from "../assets/ui/class_icon_ladino.png";
+import iconMago from "../assets/ui/class_icon_mago.png";
+import iconClerigo from "../assets/ui/class_icon_clerigo.png";
 const TITLE_ART: string | null = titleArtUrl;
+// emblema (medalhão) de cada classe — entra nas abas e no nome
+const CLASS_ICON: Record<string, string> = {
+  guerreiro: iconGuerreiro,
+  ladino: iconLadino,
+  mago: iconMago,
+  clerigo: iconClerigo,
+};
 
 export function runIntro(root: HTMLElement): Promise<Character> {
   injectStyle();
@@ -51,7 +62,7 @@ function showCreate(overlay: HTMLElement, onStart: (c: Character) => void) {
       <div class="gh-class-tabs">
         ${CLASSES.map(
           (c, i) =>
-            `<button class="gh-class-tab${i === 0 ? " on" : ""}" data-id="${c.id}"><span class="gh-tab-emoji">${c.emoji}</span><span>${c.name}</span></button>`,
+            `<button class="gh-class-tab${i === 0 ? " on" : ""}" data-id="${c.id}"><img class="gh-tab-ico" src="${CLASS_ICON[c.id]}" alt=""/><span>${c.name}</span></button>`,
         ).join("")}
       </div>
       <div class="gh-class-main" id="gh-class-main"></div>
@@ -113,7 +124,7 @@ function classCard(c: GameClass): string {
   return `
     <div class="gh-class-art">${art}</div>
     <div class="gh-class-info">
-      <div class="gh-class-name">${c.emoji} ${c.name}</div>
+      <div class="gh-class-name"><img class="gh-name-ico" src="${CLASS_ICON[c.id]}" alt=""/>${c.name}</div>
       <div class="gh-class-tag">${c.tag}</div>
       <p class="gh-class-desc">${c.desc}</p>
       <div class="gh-attrs">
@@ -268,7 +279,10 @@ function injectStyle() {
     transition:.15s;
   }
   #gh-intro .gh-class-tab.on { border-color:#f4c847; color:#fff; box-shadow:0 0 12px rgba(240,192,64,.4); }
-  #gh-intro .gh-tab-emoji { font-size:20px; }
+  #gh-intro .gh-tab-ico {
+    width:30px; height:30px; object-fit:contain; display:block; margin:0 auto 1px;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.7));
+  }
   #gh-intro .gh-class-main {
     display:flex; flex-direction:row; gap:14px; width:min(720px,96%); box-sizing:border-box;
     border:clamp(16px,3vw,24px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill;
@@ -285,7 +299,8 @@ function injectStyle() {
   #gh-intro .gh-ph-emoji { font-size:64px; filter:drop-shadow(0 3px 8px #000); }
   #gh-intro .gh-ph-txt { font-style:italic; opacity:.6; font-size:13px; }
   #gh-intro .gh-class-info { flex:1 1 auto; min-width:0; }
-  #gh-intro .gh-class-name { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(18px,2.8vh,24px); color:#f0dca2; }
+  #gh-intro .gh-class-name { display:flex; align-items:center; gap:8px; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(18px,2.8vh,24px); color:#f0dca2; }
+  #gh-intro .gh-name-ico { width:30px; height:30px; object-fit:contain; flex:0 0 auto; filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
   #gh-intro .gh-class-tag { color:#c9a84f; font-style:italic; margin-bottom:6px; font-size:14px; }
   #gh-intro .gh-class-desc { font-size:clamp(13px,1.9vh,15px); line-height:1.4; margin:0 0 10px; color:#ddd0b0; }
   #gh-intro .gh-attrs { display:flex; flex-direction:column; gap:5px; margin-bottom:8px; }

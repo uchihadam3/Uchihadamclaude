@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 24 prontos · 🟡 9 faltando · ❌ 2 removidas
+**Status:** ✅ 25 prontos · 🟡 8 faltando · ❌ 2 removidas
 
 ---
 
@@ -472,7 +472,7 @@ herói é escolhido.
 Epic AAA dark-fantasy background art for a character-select screen, grim medieval mood. The interior of a dim ancient stone hall / crypt antechamber: rough carved stone walls, iron braziers with low warm flames, worn banners, a stone dais in the center, cold shafts of light through a high window cutting the smoky gloom. Deep atmospheric perspective, painterly hand-painted rendering, cool desaturated palette with warm firelight accents, empty center and darker edges so UI can sit on top. No characters, no text, no logo, no UI, no watermark. Tall portrait canvas ~1024x1536.
 ```
 
-### 🟡 Peça D — Ícones das 4 classes (folha única) (falta)
+### ✅ Peça D — Ícones das 4 classes (folha única) (PRONTO — no jogo)
 
 Os 4 emblemas das classes (entram nas abas de seleção no lugar dos emojis) numa
 **imagem só** — grade **2×2**, um por célula, **bem separados com espaço vazio**
