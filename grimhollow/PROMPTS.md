@@ -5,7 +5,7 @@ prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão
 copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
 página é atualizada conforme novos prompts são criados.**
 
-**Status:** ✅ 25 prontos · 🟡 8 faltando · ❌ 2 removidas
+**Status:** ✅ 26 prontos · 🟡 7 faltando · ❌ 2 removidas
 
 ---
 
@@ -487,7 +487,7 @@ A 2x2 grid sheet of FOUR hand-painted stylized-realism game class emblems for a 
 *(Enquanto não chega, as abas usam ícones gravados em código. Quando mandar a folha,
 eu separo os 4 e troco pelos pintados.)*
 
-### 🟡 Peça E — Botão de menu (placa) (falta)
+### ✅ Peça E — Botão de menu (placa) (PRONTO — no jogo)
 
 Uma **placa de botão horizontal** pintada, no tema, pra virar o fundo de TODOS os
 botões de menu (**Novo Jogo, Continuar, Iniciar Jornada**) no lugar das caixinhas
