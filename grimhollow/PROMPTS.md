@@ -615,6 +615,50 @@ dourado que já está lá, é só avisar.)*
   dano à distância e cura. Uma 5ª (ex.: 🦴 **Necromante**) fica reservada pro
   futuro.
 
+## 🧬 Atributos (APROVADO — painel de distribuição no jogo)
+
+> **No jogo:** a criação de personagem tem um **passo 2** (retrato à esquerda,
+> distribuição à direita) com **preview ao vivo** dos secundários. Números **baixos
+> e cadenciados** de propósito. Código: `src/game/stats.ts`.
+
+**3 PRIMÁRIOS** (o jogador distribui pontos — **+5 na criação**, **+3 por nível**):
+
+| Primário | Alimenta |
+|---|---|
+| **Força (FOR)** | Ataque Físico · Vida · Defesa |
+| **Destreza (DES)** | Precisão · Evasão · Chance Crítica · Ataque Físico (armas ágeis) |
+| **Inteligência (INT)** | Ataque Mágico · Mana · Resistência Mágica |
+
+**SECUNDÁRIOS** (derivados — 3 blocos, que são o layout do painel):
+
+- **⚔️ Ofensivo:** Ataque Físico · Ataque Mágico · Chance Crítica (%) · Dano
+  Crítico (%) · Precisão (%) · *(Velocidade de Ataque vem da cadência da arma)*
+- **🛡️ Defensivo:** Vida · Defesa/Armadura · Resistência Mágica · Evasão (%) ·
+  *(Bloqueio % só com escudo)*
+- **🔷 Recursos:** Mana · *(Regeneração futura via afixo)*
+
+**Fórmulas (baixas, em `stats.ts`):** AtqFís `2 + FOR·1.2 + DES·0.6` · AtqMág
+`1 + INT·1.4` · Crít `3 + DES·0.8`% · DanoCrít `150 + DES`% · Precisão
+`85 + DES·0.6`% (máx 99) · Vida `baseClasse + FOR·2` · Defesa `1 + FOR·0.5` ·
+ResMág `INT·0.5` · Evasão `2 + DES·0.7`% · Mana `baseClasse + INT·3`.
+
+**De equipamento / talentos (NÃO dos primários):**
+- **Roubo de Vida (%)** — cura parte do dano causado (ótimo p/ builds de Guerreiro).
+- **Redução de Recarga (%)** — **só habilidades/magias**, **nunca** o ataque básico
+  (build de Mago que "gasta mais").
+- **Bloqueio (%)** — só com escudo equipado.
+
+**Sistema de Acerto/Erro & Crítico:**
+- **Miss:** cada golpe rola **Precisão (atacante) vs Evasão (alvo)** → pode dar
+  **"Errou!"**. Vale pros dois lados (você erra o inimigo / o inimigo erra você).
+- **Crítico:** ao acertar, rola **Chance Crítica**; se critar, dano × **Dano Crítico**.
+- **Físico vs Mágico:** AtqFís bate na **Defesa**; AtqMág bate na **Resist. Mágica**.
+- **Elementos** (fogo/gelo/raio) diferem por **dano/efeito**, não por resistências
+  separadas (ex.: fogo bate um pouco mais que gelo).
+
+*(Isto define os números; a **aplicação no combate** — miss/crit/dano por tipo — entra
+na fase de mecânica. O painel de distribuição já está no jogo.)*
+
 ## Regras gerais
 
 - **Nível máximo:** 100.

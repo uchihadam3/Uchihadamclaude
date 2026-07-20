@@ -80,6 +80,7 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
+import { derive } from "./stats";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
 // desativado; a arte continua no repo caso a gente queira retomar depois.
@@ -550,13 +551,16 @@ export class Game {
     if (cls && character) {
       this.playerName = character.name;
       this.classId = cls.id;
-      this.playerMaxHp = cls.hp;
-      this.playerHp = cls.hp;
-      this.playerMaxMp = cls.mp;
-      this.playerMp = cls.mp;
-      this.stats.str = cls.attr.str;
-      this.stats.dex = cls.attr.dex;
-      this.stats.int = cls.attr.int;
+      // primários FINAIS (base da classe + pontos distribuídos na criação)
+      const prim = character.attr ?? cls.attr;
+      const sec = derive(prim, cls.hp, cls.mp);
+      this.stats.str = prim.str;
+      this.stats.dex = prim.dex;
+      this.stats.int = prim.int;
+      this.playerMaxHp = sec.hp;
+      this.playerHp = sec.hp;
+      this.playerMaxMp = sec.mp;
+      this.playerMp = sec.mp;
     }
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
