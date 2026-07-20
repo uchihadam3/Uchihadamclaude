@@ -9,6 +9,9 @@ import dpadUrl from "../assets/ui/dpad.png";
 import icoAttackUrl from "../assets/ui/ico_attack.png";
 import icoActionUrl from "../assets/ui/ico_action.png";
 import icoInventoryUrl from "../assets/ui/ico_inventory.png";
+import mapFrameUrl from "../assets/ui/map_frame.png";
+import clockSunUrl from "../assets/ui/clock_sun.png";
+import clockMoonUrl from "../assets/ui/clock_moon.png";
 
 export type Action =
   | "forward"
@@ -50,6 +53,20 @@ export interface HUD {
   setStats(s: CharStats): void; // atualiza a janela de equipamentos/atributos
   setInventory(ids: string[]): void; // enche a mochila com esses itens
   equipWeapon(id: string): void; // equipa (troca a arma na mão) e realça o slot
+  // minimapa (canto sup. direito): grade da célula atual + posição/direção do herói
+  updateMinimap(s: MinimapState): void;
+  // relógio dia/noite: fase [0,1) e luz do dia [0,1] (sol acende/lua apaga e vice-versa)
+  setClock(phase: number, daylight: number): void;
+}
+
+export interface MinimapState {
+  cols: number;
+  rows: number;
+  cells: Uint8Array; // 1 = caminhável, 0 = parede/prédio (comprimento cols*rows)
+  col: number;
+  row: number;
+  dc: number; // vetor da direção que o herói encara (célula)
+  dr: number;
 }
 
 // Teclado (desktop) + botões na tela (mobile).
@@ -159,6 +176,27 @@ export function setupControls(
   root.appendChild(hudWrap);
   const hpFill = hudWrap.querySelector(".gh-hud-hp-fill") as HTMLElement;
   const mpFill = hudWrap.querySelector(".gh-hud-mp-fill") as HTMLElement;
+
+  // ---- MAPA (canto superior direito): moldura + canvas do minimapa ----
+  const mapWrap = document.createElement("div");
+  mapWrap.id = "gh-map";
+  const mapCanvas = document.createElement("canvas");
+  mapCanvas.id = "gh-map-canvas";
+  mapCanvas.width = 132;
+  mapCanvas.height = 132;
+  mapWrap.appendChild(mapCanvas);
+  root.appendChild(mapWrap);
+  const mapCtx = mapCanvas.getContext("2d");
+
+  // ---- RELÓGIO dia/noite (sol/lua orbitando) — logo abaixo do mapa ----
+  const clock = document.createElement("div");
+  clock.id = "gh-clock";
+  clock.innerHTML =
+    `<img class="gh-sun" src="${clockSunUrl}" alt="" draggable="false"/>` +
+    `<img class="gh-moon" src="${clockMoonUrl}" alt="" draggable="false"/>`;
+  root.appendChild(clock);
+  const sunEl = clock.querySelector(".gh-sun") as HTMLElement;
+  const moonEl = clock.querySelector(".gh-moon") as HTMLElement;
 
   // ---- janela de equipamentos / personagem ----
   // botão de abrir (canto superior direito)
@@ -649,6 +687,61 @@ export function setupControls(
         src.classList.add("gh-slot-pulse");
       }
     },
+    updateMinimap(s: MinimapState) {
+      if (!mapCtx) return;
+      const W = mapCanvas.width, H = mapCanvas.height;
+      mapCtx.clearRect(0, 0, W, H);
+      // escala p/ caber a grade toda, centralizada
+      const pad = 4;
+      const cell = Math.max(2, Math.floor(Math.min((W - pad * 2) / s.cols, (H - pad * 2) / s.rows)));
+      const gw = cell * s.cols, gh = cell * s.rows;
+      const ox = Math.round((W - gw) / 2), oy = Math.round((H - gh) / 2);
+      // fundo do miolo
+      mapCtx.fillStyle = "#0b0d12";
+      mapCtx.fillRect(0, 0, W, H);
+      // células: caminhável = pedra clara; parede/prédio = escuro
+      for (let r = 0; r < s.rows; r++) {
+        for (let c = 0; c < s.cols; c++) {
+          mapCtx.fillStyle = s.cells[r * s.cols + c] ? "#54606f" : "#171b22";
+          mapCtx.fillRect(ox + c * cell, oy + r * cell, cell - 1, cell - 1);
+        }
+      }
+      // herói: seta apontando na direção (facing 0..3 → N/E/S/O conforme DIRS)
+      const px = ox + s.col * cell + cell / 2;
+      const py = oy + s.row * cell + cell / 2;
+      const ang = Math.atan2(s.dr, s.dc); // aponta pro vetor de direção (dc,dr)
+      mapCtx.save();
+      mapCtx.translate(px, py);
+      mapCtx.rotate(ang);
+      const rad = Math.max(3, cell * 0.7);
+      mapCtx.beginPath();
+      mapCtx.moveTo(rad, 0);
+      mapCtx.lineTo(-rad * 0.7, rad * 0.6);
+      mapCtx.lineTo(-rad * 0.7, -rad * 0.6);
+      mapCtx.closePath();
+      mapCtx.fillStyle = "#ffd964";
+      mapCtx.shadowColor = "rgba(255,210,90,.9)";
+      mapCtx.shadowBlur = 5;
+      mapCtx.fill();
+      mapCtx.restore();
+    },
+    setClock(phase: number, daylight: number) {
+      // órbita: sol no TOPO ao meio-dia (fase 0.25). ângulo cresce com o tempo.
+      const theta = (phase - 0.25) * Math.PI * 2;
+      const R = 33; // % do raio da órbita
+      const place = (el: HTMLElement, ang: number) => {
+        const x = Math.sin(ang), y = -Math.cos(ang); // ang=0 → topo
+        el.style.left = 50 + x * R + "%";
+        el.style.top = 50 + y * R + "%";
+      };
+      place(sunEl, theta);
+      place(moonEl, theta + Math.PI);
+      const d = Math.max(0, Math.min(1, daylight));
+      sunEl.style.opacity = (0.28 + 0.72 * d).toFixed(3);
+      moonEl.style.opacity = (0.28 + 0.72 * (1 - d)).toFixed(3);
+      sunEl.style.filter = `drop-shadow(0 0 ${(3 + 7 * d).toFixed(1)}px rgba(240,180,70,${(0.5 * d + 0.15).toFixed(2)}))`;
+      moonEl.style.filter = `drop-shadow(0 0 ${(3 + 7 * (1 - d)).toFixed(1)}px rgba(150,190,255,${(0.5 * (1 - d) + 0.15).toFixed(2)}))`;
+    },
   };
 }
 
@@ -798,6 +891,32 @@ function injectStyle() {
   }
   .gh-hud-hp { top:22.9%; height:17.6%; }
   .gh-hud-mp { top:56.9%; height:17.3%; }
+  /* MAPA (canto superior direito): moldura 9-slice + canvas do minimapa no miolo */
+  #gh-map {
+    position:fixed; right:12px; top:10px; z-index:11; pointer-events:none;
+    width:min(118px,27vw); aspect-ratio:1; box-sizing:border-box;
+    border:clamp(13px,3.6vw,20px) solid transparent;
+    border-image:url(${mapFrameUrl}) 130 repeat;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
+  }
+  #gh-map-canvas {
+    position:absolute; inset:0; width:100%; height:100%;
+    border-radius:2px; image-rendering:auto;
+  }
+  /* RELÓGIO dia/noite: mostrador redondo (base de botão) com sol e lua orbitando */
+  #gh-clock {
+    position:fixed; z-index:11; pointer-events:none;
+    top:calc(10px + min(118px,27vw) + 6px);
+    right:calc(12px + (min(118px,27vw) - min(52px,13vw)) / 2);
+    width:min(52px,13vw); height:min(52px,13vw);
+    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
+  }
+  #gh-clock .gh-sun, #gh-clock .gh-moon {
+    position:absolute; width:52%; height:52%; object-fit:contain;
+    transform:translate(-50%,-50%); left:50%; top:50%;
+    transition:opacity .5s linear, filter .5s linear;
+  }
   .gh-hud-fill {
     height:100%; width:100%;
     transition:width .28s ease, background .28s ease;

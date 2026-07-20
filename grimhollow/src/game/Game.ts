@@ -665,6 +665,8 @@ export class Game {
     this.anim = null;
     this.lastPrompt = " ";
     this.ui.setPrompt(null); // limpa dica anterior ao trocar de local
+    this.buildMiniGrid(); // grade do novo local
+    this.pushMinimap();
   }
 
   private clearWorld() {
@@ -2548,6 +2550,25 @@ export class Game {
     return ok && !this.blocked.has(`${c},${r}`);
   }
 
+  // ---- minimapa (HUD) ----
+  private miniGrid: { cols: number; rows: number; cells: Uint8Array } | null = null;
+  private buildMiniGrid() {
+    let cols: number, rows: number, walk: (c: number, r: number) => boolean;
+    if (this.location === "village") { cols = COLS; rows = ROWS; walk = isWalkable; }
+    else if (this.location === "forest") { cols = FOREST_COLS; rows = FOREST_ROWS; walk = forestWalkable; }
+    else { cols = ROOM_COLS; rows = ROOM_ROWS; walk = roomWalkable; }
+    const cells = new Uint8Array(cols * rows);
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) cells[r * cols + c] = walk(c, r) ? 1 : 0;
+    this.miniGrid = { cols, rows, cells };
+  }
+  private pushMinimap() {
+    if (!this.miniGrid) this.buildMiniGrid();
+    const g = this.miniGrid!;
+    const [dc, dr] = DIRS[this.facing];
+    this.ui.updateMinimap({ cols: g.cols, rows: g.rows, cells: g.cells, col: this.col, row: this.row, dc, dr });
+  }
+
   // ---------------------------------------------- interação
   private doInteract() {
     const t = this.facingTarget();
@@ -3154,6 +3175,7 @@ export class Game {
     if (a === "turnLeft" || a === "turnRight") {
       const d = a === "turnLeft" ? 1 : -1;
       this.facing = (this.facing + (d === 1 ? 3 : 1)) % 4;
+      this.pushMinimap();
       this.anim = {
         kind: "turn",
         t0: performance.now(),
@@ -3181,6 +3203,7 @@ export class Game {
     };
     this.col = nc;
     this.row = nr;
+    this.pushMinimap();
     // ao entrar numa célula com árvore, "roça" a folhagem (vinheta esverdeada)
     if (this.location === "forest" && forestCell(nc, nr) === "tree")
       this.brushFoliage();
@@ -3475,6 +3498,9 @@ export class Game {
     this.updatePoofs(now);
     // ciclo dia/noite (cor da atmosfera, luzes e postes) — só em locais externos
     this.updateDayNight(now);
+    // relógio do HUD (sol/lua orbitando) — anda mesmo em interiores
+    const tday = (now / DAY_MS + DAY_START) % 1;
+    this.ui.setClock(tday, this.daylight(tday));
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
