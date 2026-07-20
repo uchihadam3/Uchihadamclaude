@@ -723,7 +723,7 @@ Hand-painted stylized-realism game PASSIVE STAT-ICON SHEET for a grim medieval d
 aba "Habilidades" com os nós, ranks e tooltips. As passivas eu tinjo por cor de ramo no
 código.)*
 
-### 🟡 Peça F — Fundos da árvore (estilo PoE) — 1 por classe (falta)
+### ✅ Peça F — Fundos da árvore (estilo PoE) — 1 por classe (NO JOGO)
 
 Pano de fundo atmosférico atrás dos nós de cada árvore (como no PoE). **Escuro e de
 baixo contraste** (bordas bem escuras) pra os nós e as linhas lerem por cima. Vertical
