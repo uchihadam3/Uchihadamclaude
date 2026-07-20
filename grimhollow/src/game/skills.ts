@@ -121,9 +121,56 @@ const GUERREIRO: ClassTree = {
   ],
 };
 
+// -------------------------------------------------------------------- LADINO
+const LADINO: ClassTree = {
+  classId: "ladino",
+  branches: [
+    {
+      id: "assassino", name: "Assassino", color: "#d94c6a",
+      skills: [
+        A("l_apunhalar", "Apunhalar", "sk_ladino_01", "Golpe pelas costas com dano crítico garantido.", 5),
+        P("l_precisao_letal", "Precisão Letal", "crit", "+2% Chance Crítica por rank."),
+        A("l_rajada_laminas", "Rajada de Lâminas", "sk_ladino_02", "Vários golpes rápidos em sequência.", 5),
+        P("l_execucao", "Execução", "critd", "+8% Dano Crítico por rank."),
+        A("l_golpe_sombras", "Golpe nas Sombras", "sk_ladino_03", "Teleporta atrás do alvo e ataca.", 3),
+        P("l_ponto_fraco", "Ponto Fraco", "dmg", "+3% Dano em alvos com vida cheia (por rank)."),
+        A("l_estocada", "Estocada Perfurante", "sk_ladino_04", "Estocada que ignora parte da defesa.", 3),
+        A("l_execucao_a", "Golpe Mortal", "sk_ladino_05", "Executa alvos com pouca vida.", 3),
+      ],
+    },
+    {
+      id: "sombra", name: "Sombra", color: "#7fb08a",
+      skills: [
+        P("l_reflexos", "Reflexos", "eva", "+2% Evasão por rank."),
+        A("l_passo_sombrio", "Passo Sombrio", "sk_ladino_06", "Esquiva rápida reposicionando o herói.", 3),
+        P("l_lamina_env", "Lâmina Envenenada", "poison", "+3% Dano de Veneno por rank."),
+        A("l_bomba_fumaca", "Bomba de Fumaça", "sk_ladino_07", "Solta fumaça e aumenta a evasão.", 3),
+        P("l_camuflagem", "Camuflagem", "eva", "+2% Evasão ao ficar parado (por rank)."),
+        A("l_nuvem_toxica", "Nuvem Tóxica", "sk_ladino_08", "Nuvem venenosa que fere em área.", 5),
+        A("l_desaparecer", "Desaparecer", "sk_ladino_09", "Some por um instante e zera a ameaça.", 3),
+        A("l_toxina", "Toxina", "sk_ladino_10", "Aplica um veneno forte no alvo.", 5),
+      ],
+    },
+    {
+      id: "precisao", name: "Precisão", color: "#d8c86a",
+      skills: [
+        P("l_agilidade", "Agilidade", "aspd", "+3% Vel. de Ataque por rank."),
+        A("l_rajada_dupla", "Rajada Dupla", "sk_ladino_11", "Dois golpes rápidos num só toque.", 5),
+        P("l_maos_rapidas", "Mãos Rápidas", "cdr", "−2% Recarga por rank."),
+        A("l_arremesso", "Arremesso de Adaga", "sk_ladino_12", "Lança uma adaga à distância.", 5),
+        P("l_passos_leves", "Passos Leves", "eva", "+2% Evasão ao se mover (por rank)."),
+        A("l_contra_ataque", "Contra-Ataque", "sk_ladino_13", "Revida ao esquivar de um golpe.", 3),
+        P("l_olhar", "Olhar Aguçado", "prec", "+2 Precisão por rank."),
+        A("l_danca_laminas", "Dança das Lâminas", "sk_ladino_14", "Gira acertando vários alvos ao redor.", 5),
+        A("l_marca_mortal", "Marca Mortal", "sk_ladino_15", "Marca o alvo: ele recebe mais dano.", 3),
+      ],
+    },
+  ],
+};
+
 export const SKILL_TREES: Record<string, ClassTree | undefined> = {
   guerreiro: GUERREIRO,
-  ladino: undefined,
+  ladino: LADINO,
   mago: undefined,
   clerigo: undefined,
 };
