@@ -237,12 +237,14 @@ function injectStyle() {
     filter:drop-shadow(0 2px 2px rgba(0,0,0,.75)) drop-shadow(0 0 24px rgba(220,160,60,.38));
   }
   #gh-intro .gh-logo-sm { font-size:clamp(28px,7vw,50px); }
-  /* logo do nome como ARTE (PNG) — brilho quente por baixo pra assentar na névoa */
+  /* logo do nome como ARTE (PNG) — já vem com base esfumaçada e brilho embutidos;
+     a largura é maior porque a arte inclui a fumaça em volta. Margens negativas
+     compensam o "respiro" transparente da fumaça pra não abrir buraco no layout. */
   #gh-intro .gh-logo-img {
-    display:block; width:min(600px,86vw); height:auto; margin:0 auto;
-    filter:drop-shadow(0 3px 7px rgba(0,0,0,.85)) drop-shadow(0 0 30px rgba(220,160,60,.3));
+    display:block; width:min(820px,98vw); height:auto; margin:-4% auto -6%;
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.6));
   }
-  #gh-intro .gh-logo-img-sm { width:min(360px,66vw); }
+  #gh-intro .gh-logo-img-sm { width:min(520px,84vw); margin:-3% auto -5%; }
   #gh-intro .gh-flourish {
     width:min(320px,74vw); margin:9px auto 6px;
     filter:drop-shadow(0 0 6px rgba(201,162,39,.4));
