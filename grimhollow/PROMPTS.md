@@ -618,10 +618,12 @@ Hand-painted stylized-realism game ICON of the MOON, cohesive with a grim mediev
 ```
 
 *(**No jogo:** a **moldura do mapa** está no canto superior direito com um **minimapa
-real desenhado por código** (células caminháveis vs paredes + seta do herói girando
-conforme a direção). Abaixo dela, o **relógio**: sol e lua orbitam num mostrador, o
-sol acende de dia e a lua de noite — opacidade do sol = luz do dia, da lua = 1 − luz
-do dia, tudo ligado no ciclo dia/noite que já roda no jogo.)*
+real desenhado por código**, **zoomado ao redor do herói** (janela de células, seta
+central girando conforme a direção). Um **botão de expandir** (canto do minimapa, ou
+tecla **M**) abre o **mapa grande** do local inteiro, estilo PoE/Diablo. O **relógio**
+é só um **anel fino em CSS** no **topo-centro** da tela: sol e lua orbitam na linha, o
+sol acende de dia e a lua de noite — opacidade do sol = luz do dia, da lua = 1 − luz do
+dia, ligado no ciclo dia/noite que já roda no jogo.)*
 
 ---
 
