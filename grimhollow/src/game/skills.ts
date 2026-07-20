@@ -12,6 +12,19 @@ const ICONS = import.meta.glob("../assets/ui/skills/*.png", {
 const ic = (name: string): string | undefined =>
   ICONS[`../assets/ui/skills/${name}.png`];
 
+// ícones GENÉRICOS das passivas (folha única sk_passive_01..16) mapeados por tipo de
+// status — na MESMA ordem da folha. "rage" reaproveita o emblema de chama (mdmg).
+const PASSIVE_ORDER: StatKey[] = [
+  "dmg", "mdmg", "life", "mana", "def", "mres", "prec", "crit",
+  "critd", "eva", "aspd", "leech", "poison", "regen", "cdr", "block",
+];
+export const PASSIVE_ICON: Partial<Record<StatKey, string>> = {};
+PASSIVE_ORDER.forEach((k, i) => {
+  const url = ic(`sk_passive_${String(i + 1).padStart(2, "0")}`);
+  if (url) PASSIVE_ICON[k] = url;
+});
+PASSIVE_ICON.rage = ic("sk_passive_02"); // Fúria usa o emblema de chama
+
 export type SkillKind = "active" | "passive";
 
 // tipos de status das passivas (definem símbolo + cor do placeholder e, no futuro,

@@ -1,6 +1,6 @@
 import { MOVE_MS } from "./config";
 import { STYLES, REST, type Weapon, type Pose } from "./weapons";
-import { SKILL_TREES, STAT_META, type Skill } from "./skills";
+import { SKILL_TREES, STAT_META, PASSIVE_ICON, type Skill } from "./skills";
 import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
@@ -416,10 +416,13 @@ export function setupControls(
               !unlocked ? "gh-sk-locked" : "",
               canBuy ? "gh-sk-buy" : "",
             ].join(" ");
+            const passIcon = sk.stat ? PASSIVE_ICON[sk.stat] : undefined;
             const inner =
               sk.kind === "active" && sk.icon
                 ? `<img src="${sk.icon}" alt=""/>`
-                : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
+                : passIcon
+                  ? `<img src="${passIcon}" alt=""/>`
+                  : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
             const line = i > 0 ? `<div class="gh-sk-line" style="background:${b.color}"></div>` : "";
             return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}" data-branch="${b.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
           })
