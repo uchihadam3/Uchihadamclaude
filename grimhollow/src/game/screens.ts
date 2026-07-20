@@ -8,7 +8,6 @@ import eqContainerUrl from "../assets/ui/eq_container.png";
 import titleArtUrl from "../assets/ui/title_bg.png";
 import createBgUrl from "../assets/ui/create_bg.png";
 import menuPlateUrl from "../assets/ui/menu_plate.png";
-import logoUrl from "../assets/ui/logo_name.png";
 import iconGuerreiro from "../assets/ui/class_icon_guerreiro.png";
 import iconLadino from "../assets/ui/class_icon_ladino.png";
 import iconMago from "../assets/ui/class_icon_mago.png";
@@ -43,7 +42,7 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
     <div class="gh-screen gh-title"${TITLE_ART ? ` style="background-image:url(${TITLE_ART})"` : ""}>
       <div class="gh-veil"></div>
       <div class="gh-title-inner">
-        <img class="gh-logo-img" src="${logoUrl}" alt="Nethergloam" />
+        <h1 class="gh-logo">Nethergloam</h1>
         <div class="gh-flourish"><svg viewBox="0 0 260 14" preserveAspectRatio="xMidYMid meet"><g fill="#c9a24a"><circle cx="7" cy="7" r="2.6"/><rect x="15" y="6.1" width="97" height="1.8" rx="0.9"/><path d="M130 1 L138 7 L130 13 L122 7 Z"/><rect x="148" y="6.1" width="97" height="1.8" rx="0.9"/><circle cx="253" cy="7" r="2.6"/></g></svg></div>
         <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
       </div>
@@ -143,7 +142,7 @@ function classCard(c: GameClass): string {
 function showLoading(overlay: HTMLElement, onDone: () => void) {
   overlay.innerHTML = `
     <div class="gh-screen gh-loading">
-      <img class="gh-logo-img gh-logo-img-sm" src="${logoUrl}" alt="Nethergloam" />
+      <h1 class="gh-logo gh-logo-sm">Nethergloam</h1>
       <div class="gh-load-bar"><div class="gh-load-fill" id="gh-load-fill"></div></div>
       <div class="gh-load-pct" id="gh-load-pct">Forjando o mundo…</div>
     </div>`;
@@ -237,14 +236,6 @@ function injectStyle() {
     filter:drop-shadow(0 2px 2px rgba(0,0,0,.75)) drop-shadow(0 0 24px rgba(220,160,60,.38));
   }
   #gh-intro .gh-logo-sm { font-size:clamp(28px,7vw,50px); }
-  /* logo do nome como ARTE (PNG) — já vem com base esfumaçada e brilho embutidos;
-     a largura é maior porque a arte inclui a fumaça em volta. Margens negativas
-     compensam o "respiro" transparente da fumaça pra não abrir buraco no layout. */
-  #gh-intro .gh-logo-img {
-    display:block; width:min(820px,98vw); height:auto; margin:-4% auto -6%;
-    filter:drop-shadow(0 2px 5px rgba(0,0,0,.6));
-  }
-  #gh-intro .gh-logo-img-sm { width:min(520px,84vw); margin:-3% auto -5%; }
   #gh-intro .gh-flourish {
     width:min(320px,74vw); margin:9px auto 6px;
     filter:drop-shadow(0 0 6px rgba(201,162,39,.4));

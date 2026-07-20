@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 28 prontos · 🟡 2 faltando · ⚪ 1 opcional · ❌ 2 removidas
+**Status:** ✅ 27 prontos · 🟡 3 faltando · ⚪ 1 opcional · ❌ 2 removidas
 
 ---
 
@@ -15,6 +15,7 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
+| 🟡 | **Logo "Nethergloam" com painel de fundo** (tela de início) | [§12 · Peça F](#-peça-f--logo-do-nome-nethergloam-com-painel-embutido-falta) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
 | ⚪ | *(opcional)* Ícones de controle pintados | [§11 · Peça B](#-peça-b--ícones-símbolos-soltos-opcional) |
@@ -523,11 +524,28 @@ Hand-painted stylized-realism game UI button plate, cohesive with a grim medieva
 *(Opcional: manda também uma variante "acesa/hover" — a mesma placa com o miolo
 iluminado dourado. Se não, eu faço o hover por código.)*
 
-### ✅ Peça F — Logo do nome "Nethergloam" (PRONTO — no jogo)
+### 🟡 Peça F — Logo do nome "Nethergloam" (com painel embutido) (falta)
 
-O **nome do jogo pintado como logotipo** (wordmark), no lugar do texto CSS na tela
-de início (e na tela de loading). Letras metálicas ornamentadas, recortadas em
-fundo transparente, encaixadas por cima da key art com um brilho quente por baixo.
+O **nome do jogo como logotipo (wordmark) já COM o painel/caixa de fundo embutido
+na própria arte** — pra eu encaixar direto na tela de início **sem recortar as
+letras**.
+
+> ⚠️ **Por que com painel:** as letras de metal cinza se confundem com fundo neutro
+> na hora de recortar (fica resíduo ou come a letra). Com o **painel escuro atrás
+> das letras já pintado na imagem**, o problema some — o recorte é só do painel
+> inteiro (borda bem definida), não das letras.
+>
+> ⚠️ **Grafia:** confere se saiu exatamente `NETHERGLOAM` (uma palavra, sem trocar
+> letra). Se sair errado, gera de novo. Manda **na horizontal**.
+
+```
+A hand-painted stylized dark-fantasy game TITLE LOGO on an ornate horizontal plaque, cohesive with a grim medieval dark-fantasy game. The single word "NETHERGLOAM" (one word, spelled N-E-T-H-E-R-G-L-O-A-M) in large ornate tarnished-gold-and-dark-iron metal lettering with worn bevels and subtle gothic serifs, engraved and centered across a WIDE horizontal decorative BANNER PLATE behind the text: a weathered dark iron and aged-bronze plaque with a worn gold border, corner rivets, small gothic flourishes and a slightly darker recessed center panel that the letters sit on, with a faint warm inner glow and tiny embers. The dark plaque behind the letters is solid and clearly darker than the letters so the wordmark reads with high contrast. Grim, atmospheric, AAA game logo. The whole plaque with its text is a crisp cutout on a flat solid pure magenta background (#ff00ff), single uniform chroma color around the plaque so it can be cut apart cleanly, no checker, no gradient. No extra words, no tagline, no misspelling, no watermark. Wide banner canvas ~1792x640.
+```
+
+*(Fundo magenta pra eu recortar SÓ o painel — a borda ornamentada contra o magenta
+sai limpa, e as letras já vêm assentadas no painel escuro. Quando mandar, eu recorto
+o painel e ponho na tela de início no lugar do texto atual. Se preferir sem painel/
+caixa, o texto dourado em CSS que está lá hoje também funciona.)*
 
 > ⚠️ **Cuidado com a grafia:** IA de imagem erra letra fácil. Confere se saiu
 > escrito **exatamente `NETHERGLOAM`** (uma palavra só, sem trocar/dobrar letra);
