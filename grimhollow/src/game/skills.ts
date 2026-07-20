@@ -60,6 +60,32 @@ export const STAT_META: Record<StatKey, { sym: string; color: string; label: str
   rage:  { sym: "🔥", color: "#e06a3c", label: "Fúria" },
 };
 
+// magnitude POR RANK de cada passiva. Os valores em % são aplicados como
+// frações (0.03 = +3%); os planos como inteiros. Só um subconjunto afeta os
+// atributos exibidos hoje; o resto fica reservado p/ a barra de ação/skills.
+export const PASSIVE_VALUE: Record<StatKey, number> = {
+  dmg: 0.03, mdmg: 0.03, life: 0.05, mana: 0.05, def: 2, mres: 2,
+  prec: 2, crit: 0.02, critd: 0.06, eva: 0.02, aspd: 0.03, leech: 0.02,
+  poison: 0.04, regen: 1, cdr: 0.03, block: 0.02, rage: 0.04,
+};
+
+// soma os pontos de cada passiva a partir dos ranks alocados (rank × valor).
+export function passiveTotals(
+  ranks: Record<string, number>,
+): Partial<Record<StatKey, number>> {
+  const out: Partial<Record<StatKey, number>> = {};
+  for (const tree of Object.values(SKILL_TREES)) {
+    if (!tree) continue;
+    for (const b of tree.branches)
+      for (const sk of b.skills) {
+        const rk = ranks[sk.id] || 0;
+        if (rk <= 0 || sk.kind !== "passive" || !sk.stat) continue;
+        out[sk.stat] = (out[sk.stat] || 0) + rk * PASSIVE_VALUE[sk.stat];
+      }
+  }
+  return out;
+}
+
 export interface Skill {
   id: string;
   name: string;

@@ -10,6 +10,7 @@ import dpadUrl from "../assets/ui/dpad.png";
 import icoAttackUrl from "../assets/ui/ico_attack.png";
 import icoActionUrl from "../assets/ui/ico_action.png";
 import icoInventoryUrl from "../assets/ui/ico_inventory.png";
+import coinUrl from "../assets/ui/coin.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
 import clockMoonUrl from "../assets/ui/clock_moon.png";
@@ -82,6 +83,7 @@ export function setupControls(
   weaponAtkUrl?: string, // 2º sprite (pose de golpe); opcional
   weapons?: Weapon[], // catálogo p/ inventário + perfis de golpe
   onEquip?: (w: Weapon) => void, // avisa o jogo (dano/cadência/atributos)
+  onSkills?: (ranks: Record<string, number>) => void, // ranks das habilidades mudaram
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -358,7 +360,8 @@ export function setupControls(
     '<div class="gh-eq-doll">' +
     EQ_SLOTS.map(slotHtml).join("") +
     "</div></div>" +
-    '<div class="gh-section"><div class="gh-sec-head">Inventário</div>' +
+    '<div class="gh-section"><div class="gh-sec-head gh-sec-inv">Inventário' +
+    `<span class="gh-gold" id="gh-gold"><img src="${coinUrl}" alt=""/><b>0</b></span></div>` +
     `<div class="gh-bag">${bagHtml}</div></div>` +
     "</div>" +
     '<div class="gh-tabpane gh-pane-hidden" data-pane="stats">' +
@@ -381,6 +384,7 @@ export function setupControls(
     }),
   );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
+  const goldVal = eq.querySelector("#gh-gold b") as HTMLElement;
   const bagSlots = Array.from(eq.querySelectorAll<HTMLElement>(".gh-bag-slot"));
 
   // ---- árvore de habilidades ----
@@ -464,10 +468,19 @@ export function setupControls(
         `<div class="gh-sk-tdesc">${sk.desc}</div>${btn}`;
     }
     skillsPane.innerHTML =
-      (tree.bg ? `<div class="gh-sk-bg" style="background-image:url(${tree.bg})"></div>` : "") +
       `<div class="gh-sk-top">Pontos: <b class="${avail > 0 ? "gh-sk-pts" : ""}">${avail}</b></div>` +
       `<div class="gh-sk-cols">${cols}</div>` +
       `<div class="gh-sk-tip" id="gh-sk-tip">${tip}</div>`;
+    // fundo (estilo PoE) pintado NO PRÓPRIO #gh-skills (não como filho absoluto —
+    // senão ele escapa do scroll e cobre as abas). Escurecido pelos gradientes.
+    if (tree.bg) {
+      skillsPane.style.backgroundImage = `linear-gradient(rgba(7,7,11,.66), rgba(7,7,11,.66)), url(${tree.bg})`;
+      skillsPane.style.backgroundSize = "cover";
+      skillsPane.style.backgroundPosition = "center top";
+      skillsPane.style.backgroundRepeat = "no-repeat";
+    } else {
+      skillsPane.style.backgroundImage = "";
+    }
     // clicar num nó só SELECIONA (mostra detalhes) — não gasta ponto
     skillsPane.querySelectorAll<HTMLElement>(".gh-sk-node").forEach((n) => {
       n.addEventListener("click", () => {
@@ -483,6 +496,7 @@ export function setupControls(
         if (inf && inf.canBuy) {
           skillRanks[inf.sk.id] = inf.rank + 1;
           renderSkills();
+          onSkills?.(skillRanks); // avisa o jogo p/ reaplicar passivas nos atributos
         }
       });
   };
@@ -664,6 +678,7 @@ export function setupControls(
       mpFill.style.width = f * 100 + "%";
     },
     setStats(s: CharStats) {
+      if (goldVal) goldVal.textContent = `${s.gold}`;
       const xpFrac = s.xpMax > 0 ? Math.max(0, Math.min(1, s.xp / s.xpMax)) : 0;
       const row = (label: string, val: string) =>
         `<div class="gh-stat"><span>${label}</span><b>${val}</b></div>`;
@@ -1222,7 +1237,9 @@ function injectStyle() {
     background:rgba(20,16,11,.5); color:#c9b98c; border:1px solid rgba(201,162,39,.4);
   }
   .gh-tab-on { background:rgba(201,162,39,.24); color:#f6ead0; border-color:rgba(201,162,39,.7); }
-  .gh-eq-body { flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
+  .gh-eq-body { flex:1 1 0; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:2px; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
+  /* título e abas NUNCA rolam (ficam fixos no topo da janela) */
+  .gh-eq-title, .gh-eq-tabs { flex:0 0 auto; }
   .gh-tabpane { display:flex; flex-direction:column; gap:2.4%; }
   .gh-pane-hidden { display:none; }
   /* CAIXAS que separam "Equipado" da "Mochila": painel pintado em 9-slice
@@ -1237,6 +1254,17 @@ function injectStyle() {
     font-size:clamp(12px,1.8vh,16px); color:#e0cf9e;
     letter-spacing:1px; margin:0 0 2.2%; text-shadow:0 1px 3px rgba(0,0,0,.8);
   }
+  /* cabeçalho "Inventário" com o saldo de ouro à direita (ícone de moeda) */
+  .gh-sec-inv {
+    display:flex; align-items:center; justify-content:center; gap:6px; position:relative;
+  }
+  .gh-gold {
+    position:absolute; right:2%; top:50%; transform:translateY(-50%);
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:"Cinzel",serif; letter-spacing:.5px;
+  }
+  .gh-gold img { width:clamp(15px,2.2vh,20px); height:auto; filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+  .gh-gold b { color:#f4d873; font-size:clamp(12px,1.7vh,15px); text-shadow:0 1px 3px rgba(0,0,0,.85); }
   /* grade "boneco" 8×6 (célula quadrada via aspect-ratio) — disposição PoE */
   .gh-eq-doll {
     display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(6,1fr);
@@ -1303,18 +1331,7 @@ function injectStyle() {
   .gh-stat span { color:#bfae82; }
   .gh-stat b { color:#f0e6cc; font-weight:600; }
   /* --- árvore de habilidades --- */
-  #gh-skills { position:relative; }
-  /* fundo da árvore (estilo PoE) — escurecido + vinheta pros nós lerem por cima */
-  .gh-sk-bg {
-    position:absolute; inset:0; z-index:0; border-radius:8px; overflow:hidden;
-    background-position:center top; background-size:cover;
-  }
-  .gh-sk-bg::after {
-    content:""; position:absolute; inset:0;
-    background:linear-gradient(180deg, rgba(6,6,10,.7), rgba(6,6,10,.62));
-    box-shadow:inset 0 0 70px 26px rgba(4,4,8,.85);
-  }
-  #gh-skills .gh-sk-top, #gh-skills .gh-sk-cols, #gh-skills .gh-sk-tip { position:relative; z-index:1; }
+  #gh-skills { position:relative; border-radius:8px; padding:8px; }
   .gh-sk-soon { text-align:center; padding:34px 12px; font-style:italic; color:#b6a877; }
   .gh-sk-top { text-align:center; font-size:13px; color:#d7c79a; margin-bottom:8px; }
   .gh-sk-top b { font-family:"Cinzel",serif; font-size:16px; color:#8f8262; padding:0 3px; }
