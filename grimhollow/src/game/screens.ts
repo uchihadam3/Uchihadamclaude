@@ -9,6 +9,7 @@ import titleArtUrl from "../assets/ui/title_bg.png";
 import createBgUrl from "../assets/ui/create_bg.png";
 import menuPlateUrl from "../assets/ui/menu_plate.png";
 import logoPlateArt from "../assets/ui/logo_plate.png";
+import loadSwordUrl from "../assets/ui/load_sword.png";
 import iconGuerreiro from "../assets/ui/class_icon_guerreiro.png";
 import iconLadino from "../assets/ui/class_icon_ladino.png";
 import iconMago from "../assets/ui/class_icon_mago.png";
@@ -28,12 +29,15 @@ export function runIntro(root: HTMLElement): Promise<Character> {
     const overlay = document.createElement("div");
     overlay.id = "gh-intro";
     root.appendChild(overlay);
-    const start = (char: Character) =>
-      showLoading(overlay, () => {
-        overlay.remove();
-        resolve(char);
-      });
-    showTitle(overlay, () => showCreate(overlay, start));
+    const finish = (char: Character) => {
+      overlay.remove();
+      resolve(char);
+    };
+    // BOOT: tela preta pré-carregando TODOS os assets (espada enchendo no canto)
+    // ANTES do título — assim título e criação já entram com tudo pronto.
+    showBoot(overlay, () =>
+      showTitle(overlay, () => showCreate(overlay, finish)),
+    );
   });
 }
 
@@ -139,26 +143,35 @@ function classCard(c: GameClass): string {
     </div>`;
 }
 
-// ---------------------------------------------------------------- LOADING
-function showLoading(overlay: HTMLElement, onDone: () => void) {
+// ------------------------------------------------------------------- BOOT
+// Tela preta inicial que pré-carrega TUDO. O indicador é a ESPADA na horizontal
+// no canto inferior direito, cujo interior enche de dourado conforme o progresso
+// (o PNG da espada vira máscara; um gradiente pinta só o miolo até X%).
+function showBoot(overlay: HTMLElement, onDone: () => void) {
   overlay.innerHTML = `
-    <div class="gh-screen gh-loading">
-      <img class="gh-logo-img gh-logo-img-sm" src="${logoPlateArt}" alt="Nethergloam" />
-      <div class="gh-load-bar"><div class="gh-load-fill" id="gh-load-fill"></div></div>
-      <div class="gh-load-pct" id="gh-load-pct">Forjando o mundo…</div>
+    <div class="gh-screen gh-boot">
+      <div class="gh-boot-corner">
+        <div class="gh-boot-sword" id="gh-boot-sword" style="--p:0%">
+          <img class="gh-bs-base" src="${loadSwordUrl}" alt="" />
+          <div class="gh-bs-fill"></div>
+        </div>
+        <div class="gh-boot-txt" id="gh-boot-txt">Forjando o mundo… 0%</div>
+      </div>
     </div>`;
-  const fill = overlay.querySelector("#gh-load-fill") as HTMLElement;
-  const pct = overlay.querySelector("#gh-load-pct") as HTMLElement;
+  const sword = overlay.querySelector("#gh-boot-sword") as HTMLElement;
+  const txt = overlay.querySelector("#gh-boot-txt") as HTMLElement;
   const t0 = performance.now();
   preloadAll((f) => {
     const p = Math.round(f * 100);
-    fill.style.width = p + "%";
-    pct.textContent = `Forjando o mundo… ${p}%`;
+    sword.style.setProperty("--p", p + "%");
+    txt.textContent = `Forjando o mundo… ${p}%`;
   }).then(async () => {
-    // tempo mínimo de exibição p/ a barra não "piscar"
+    // tempo mínimo de exibição p/ não "piscar"
     const el = performance.now() - t0;
-    if (el < 700) await new Promise((r) => setTimeout(r, 700 - el));
-    fill.style.width = "100%";
+    if (el < 900) await new Promise((r) => setTimeout(r, 900 - el));
+    sword.style.setProperty("--p", "100%");
+    txt.textContent = "Pronto";
+    await new Promise((r) => setTimeout(r, 220));
     onDone();
   });
 }
@@ -346,15 +359,32 @@ function injectStyle() {
     #gh-intro .gh-class-portrait, #gh-intro .gh-class-ph { height:auto; aspect-ratio:3/4; }
     #gh-intro .gh-attr > span { width:74px; }
   }
-  /* --- loading --- */
-  #gh-intro .gh-loading { background:#08090d; }
-  #gh-intro .gh-load-bar {
-    width:min(360px,72vw); height:15px; margin-top:24px; overflow:hidden;
-    background:rgba(0,0,0,.55); border:2px solid rgba(201,162,39,.55); border-radius:9px;
-    box-shadow:inset 0 0 10px #000;
+  /* --- boot (tela preta + espada enchendo no canto) --- */
+  #gh-intro .gh-boot { background:#000; }
+  #gh-intro .gh-boot-corner {
+    position:absolute; right:clamp(14px,3vw,34px); bottom:clamp(16px,4vh,36px);
+    display:flex; flex-direction:column; align-items:flex-end; gap:8px;
   }
-  #gh-intro .gh-load-fill { width:0; height:100%; background:linear-gradient(#e6cc5c,#8a6c16); transition:width .2s ease-out; }
-  #gh-intro .gh-load-pct { margin-top:12px; font-family:"Cinzel",serif; letter-spacing:1px; color:#d9c68e; font-size:14px; }
+  #gh-intro .gh-boot-sword { position:relative; width:min(300px,60vw); aspect-ratio:332/81; }
+  /* base = a espada apagada (o "vazio") */
+  #gh-intro .gh-bs-base {
+    width:100%; height:100%; display:block;
+    filter:brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000);
+  }
+  /* miolo dourado revelado até --p, recortado pela silhueta da espada (máscara) */
+  #gh-intro .gh-bs-fill {
+    position:absolute; inset:0;
+    -webkit-mask:url(${loadSwordUrl}) center/100% 100% no-repeat;
+    mask:url(${loadSwordUrl}) center/100% 100% no-repeat;
+    background:linear-gradient(90deg,
+      #e0a63a 0, #ffcf6a calc(var(--p) - 6%), #fff2c8 var(--p), rgba(255,242,200,0) var(--p));
+    filter:drop-shadow(0 0 9px rgba(240,190,80,.75));
+    transition:background .25s linear;
+  }
+  #gh-intro .gh-boot-txt {
+    font-family:"Cinzel",serif; letter-spacing:1px; font-size:12px;
+    color:#cbb98a; text-shadow:0 1px 3px #000;
+  }
   `;
   document.head.appendChild(s);
 }
