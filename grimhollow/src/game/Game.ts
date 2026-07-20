@@ -81,6 +81,7 @@ import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
 import { derive } from "./stats";
+import { passiveTotals, type StatKey } from "./skills";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
 // espada) e o efeito de corte (arco luminoso). O 2º sprite (pose de golpe) foi
 // desativado; a arte continua no repo caso a gente queira retomar depois.
@@ -461,6 +462,12 @@ export class Game {
   private playerMp = 100;
   // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
   private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
+  // valores BASE (antes das passivas) — as passivas são reaplicadas sobre eles
+  private baseMaxHp = 100;
+  private baseMaxMp = 100;
+  private baseDef = 2;
+  // totais acumulados das passivas alocadas na árvore de habilidades
+  private passive: Partial<Record<StatKey, number>> = {};
   private currentWeapon: Weapon | null = null; // arma equipada na mão principal
   private playerName = "Herói"; // nome escolhido na criação
   private classId = "guerreiro"; // classe escolhida na criação
@@ -474,6 +481,7 @@ export class Game {
     bz: number; // posição base no mundo (z)
     hp: number;
     maxHp: number;
+    elevel: number; // nível do inimigo (escala XP/ouro dropado)
     hitAt: number; // instante do último acerto (flash/recuo)
     dyingAt: number; // instante em que começou a morrer (0 = vivo)
     atkAt: number; // instante em que começou o ataque atual (0 = não atacando)
@@ -561,6 +569,8 @@ export class Game {
       this.playerHp = sec.hp;
       this.playerMaxMp = sec.mp;
       this.playerMp = sec.mp;
+      this.baseMaxHp = sec.hp;
+      this.baseMaxMp = sec.mp;
     }
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -595,6 +605,7 @@ export class Game {
       SWORD_ATK_ART ?? undefined,
       WEAPONS,
       (w) => this.onEquip(w),
+      (ranks) => this.applyPassives(ranks),
     );
     // enche a mochila com TODAS as armas (pra testar) e começa com a arma da classe
     this.ui.setInventory(WEAPONS.map((w) => w.id));
@@ -1009,6 +1020,10 @@ export class Game {
   // inimigo billboard no túnel da masmorra: guarda a escada, encara a câmera e
   // leva dano do golpe (3 acertos de perto e de frente e ele tomba).
   private buildDungeonEnemy() {
+    // nível do inimigo escala com o do herói (variação -1..+1, mínimo 1). Define
+    // a vida e, na morte, o XP e o ouro dropado.
+    const elevel = Math.max(1, this.stats.level + (Math.floor(Math.random() * 3) - 1));
+    const emaxHp = 8 + (elevel - 1) * 3;
     const c = 2, r = 4, worldH = 2.6; // no túnel, uma célula antes da escada
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
@@ -1040,7 +1055,7 @@ export class Game {
     this.billboardProps.push(bar); // encara a câmera
     this.enemy = {
       mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
-      hp: 8, maxHp: 8, hitAt: 0, dyingAt: 0,
+      hp: emaxHp, maxHp: emaxHp, elevel, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0, bar, barFill,
     };
     // luz fria azulada perto dele (atmosfera de cripta)
@@ -1065,8 +1080,34 @@ export class Game {
   // arma equipada trocou (via inventário): guarda o perfil e reflete no ataque
   private onEquip(w: Weapon) {
     this.currentWeapon = w;
-    // ataque exibido = base + dano da arma (só p/ dar feedback na janela)
-    this.stats.atk = 8 + w.dmg;
+    // ataque exibido = base + dano da arma + bônus de passivas (%)
+    this.stats.atk = this.atkWithBonus(8 + w.dmg);
+    this.refreshStats();
+  }
+
+  // aplica os bônus percentuais de dano das passivas sobre um ataque base
+  private atkWithBonus(base: number): number {
+    const pct = (this.passive.dmg ?? 0) + (this.passive.mdmg ?? 0);
+    return Math.round(base * (1 + pct));
+  }
+
+  // recalcula os atributos a partir dos ranks de passivas alocados na árvore.
+  // As passivas são somadas sobre os valores BASE (idempotente ao realocar).
+  private applyPassives(ranks: Record<string, number>) {
+    this.passive = passiveTotals(ranks);
+    // guarda a fração atual p/ preservar vida/mana proporcional ao mudar o teto
+    const hpFrac = this.playerMaxHp > 0 ? this.playerHp / this.playerMaxHp : 1;
+    const mpFrac = this.playerMaxMp > 0 ? this.playerMp / this.playerMaxMp : 1;
+    this.playerMaxHp = Math.round(this.baseMaxHp * (1 + (this.passive.life ?? 0)));
+    this.playerMaxMp = Math.round(this.baseMaxMp * (1 + (this.passive.mana ?? 0)));
+    this.playerHp = Math.max(1, Math.round(this.playerMaxHp * hpFrac));
+    this.playerMp = Math.round(this.playerMaxMp * mpFrac);
+    this.stats.def =
+      this.baseDef + Math.round((this.passive.def ?? 0) + (this.passive.mres ?? 0));
+    const wdmg = this.currentWeapon?.dmg ?? 0;
+    this.stats.atk = this.atkWithBonus(8 + wdmg);
+    this.ui.setHealth(this.playerHp / this.playerMaxHp);
+    this.ui.setMana(this.playerMp / this.playerMaxMp);
     this.refreshStats();
   }
 
@@ -1075,7 +1116,7 @@ export class Game {
     if (!e || e.dyingAt) return;
     const [dc, dr] = DIRS[this.facing];
     if (this.col + dc !== e.c || this.row + dr !== e.r) return; // não está de frente
-    e.hp -= this.currentWeapon?.dmg ?? 1;
+    e.hp -= this.atkWithBonus(this.currentWeapon?.dmg ?? 1); // dano + passivas (%)
     e.hitAt = performance.now();
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
@@ -1084,9 +1125,13 @@ export class Game {
       e.dyingAt = e.hitAt; // começa a tombar/sumir
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
       this.spawnPoof(e.bx, e.bz);
-      // recompensa: XP (pode subir de nível) e um pouco de ouro
-      this.stats.gold += 5;
-      this.gainXp(45);
+      // recompensa escala com o nível do inimigo: ouro variável (base + faixa
+      // aleatória por nível) e XP proporcional.
+      const lv = e.elevel;
+      const gold = 4 + lv * 3 + Math.floor(Math.random() * (3 + lv * 2));
+      this.stats.gold += gold;
+      this.gainXp(30 + lv * 15);
+      this.ui.toast(`+${gold} ouro`);
     }
   }
 
