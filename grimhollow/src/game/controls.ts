@@ -431,6 +431,7 @@ export function setupControls(
       })
       .join("");
     skillsPane.innerHTML =
+      (tree.bg ? `<div class="gh-sk-bg" style="background-image:url(${tree.bg})"></div>` : "") +
       `<div class="gh-sk-top">Pontos: <b class="${avail > 0 ? "gh-sk-pts" : ""}">${avail}</b></div>` +
       `<div class="gh-sk-cols">${cols}</div>` +
       '<div class="gh-sk-tip" id="gh-sk-tip">Toque num nó pra ver detalhes. Gaste pontos de cima pra baixo em cada ramo.</div>';
@@ -1256,6 +1257,18 @@ function injectStyle() {
   .gh-stat span { color:#bfae82; }
   .gh-stat b { color:#f0e6cc; font-weight:600; }
   /* --- árvore de habilidades --- */
+  #gh-skills { position:relative; }
+  /* fundo da árvore (estilo PoE) — escurecido + vinheta pros nós lerem por cima */
+  .gh-sk-bg {
+    position:absolute; inset:0; z-index:0; border-radius:8px; overflow:hidden;
+    background-position:center top; background-size:cover;
+  }
+  .gh-sk-bg::after {
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(180deg, rgba(6,6,10,.7), rgba(6,6,10,.62));
+    box-shadow:inset 0 0 70px 26px rgba(4,4,8,.85);
+  }
+  #gh-skills .gh-sk-top, #gh-skills .gh-sk-cols, #gh-skills .gh-sk-tip { position:relative; z-index:1; }
   .gh-sk-soon { text-align:center; padding:34px 12px; font-style:italic; color:#b6a877; }
   .gh-sk-top { text-align:center; font-size:13px; color:#d7c79a; margin-bottom:8px; }
   .gh-sk-top b { font-family:"Cinzel",serif; font-size:16px; color:#8f8262; padding:0 3px; }

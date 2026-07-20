@@ -3,6 +3,12 @@
 // tipo de status (arte genérica futura) — por enquanto um placeholder por código.
 // Por ora só o Guerreiro está preenchido; as demais entram conforme a arte chega.
 
+// fundos das árvores (estilo PoE) — um por classe
+import bgGuerreiro from "../assets/ui/skills/bg_guerreiro.jpg";
+import bgLadino from "../assets/ui/skills/bg_ladino.jpg";
+import bgMago from "../assets/ui/skills/bg_mago.jpg";
+import bgClerigo from "../assets/ui/skills/bg_clerigo.jpg";
+
 // mapa de ícones recortados das folhas de ativas (../assets/ui/skills/*.png)
 const ICONS = import.meta.glob("../assets/ui/skills/*.png", {
   eager: true,
@@ -88,6 +94,7 @@ const P = (id: string, name: string, stat: StatKey, desc: string, maxRank = 5): 
 // ----------------------------------------------------------------- GUERREIRO
 const GUERREIRO: ClassTree = {
   classId: "guerreiro",
+  bg: bgGuerreiro,
   branches: [
     {
       id: "armas", name: "Armas", color: "#d9a34a",
@@ -137,6 +144,7 @@ const GUERREIRO: ClassTree = {
 // -------------------------------------------------------------------- LADINO
 const LADINO: ClassTree = {
   classId: "ladino",
+  bg: bgLadino,
   branches: [
     {
       id: "assassino", name: "Assassino", color: "#d94c6a",
@@ -184,6 +192,7 @@ const LADINO: ClassTree = {
 // ---------------------------------------------------------------------- MAGO
 const MAGO: ClassTree = {
   classId: "mago",
+  bg: bgMago,
   branches: [
     {
       id: "chamas", name: "Chamas", color: "#e0672c",
@@ -230,6 +239,7 @@ const MAGO: ClassTree = {
 // ------------------------------------------------------------------- CLÉRIGO
 const CLERIGO: ClassTree = {
   classId: "clerigo",
+  bg: bgClerigo,
   branches: [
     {
       id: "luz", name: "Luz", color: "#e6d38a",
