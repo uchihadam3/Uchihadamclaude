@@ -60,6 +60,8 @@ export interface HUD {
   setClock(phase: number, daylight: number): void;
   // árvore de habilidades: define a classe e quantos pontos o herói tem
   setSkillInfo(classId: string, points: number): void;
+  // mensagem flutuante breve (ex.: "Nível 3!")
+  toast(msg: string): void;
 }
 
 export interface MinimapState {
@@ -386,12 +388,26 @@ export function setupControls(
   let skillClassId = "";
   let skillPointsTotal = 0;
   const skillRanks: Record<string, number> = {};
+  let skillSelected: string | null = null; // nó selecionado (aguardando confirmação)
   const spentPoints = () =>
     Object.values(skillRanks).reduce((a, b) => a + b, 0);
-  const showSkillTip = (sk: Skill, rank: number) => {
-    const tip = skillsPane.querySelector("#gh-sk-tip") as HTMLElement | null;
-    if (!tip) return;
-    tip.innerHTML = `<b>${sk.name}</b> <i>(${sk.kind === "active" ? "Ativa" : "Passiva"} · ${rank}/${sk.maxRank})</i><br>${sk.desc}`;
+  // localiza um skill pelo id + seu estado (destravado? no máximo? dá pra comprar?)
+  const skillInfo = (id: string) => {
+    const tree = SKILL_TREES[skillClassId];
+    if (!tree) return null;
+    for (const b of tree.branches) {
+      const idx = b.skills.findIndex((x) => x.id === id);
+      if (idx >= 0) {
+        const sk = b.skills[idx];
+        const prev = idx > 0 ? b.skills[idx - 1] : null;
+        const unlocked = !prev || (skillRanks[prev.id] || 0) >= 1;
+        const rank = skillRanks[id] || 0;
+        const maxed = rank >= sk.maxRank;
+        const avail = skillPointsTotal - spentPoints();
+        return { sk, unlocked, rank, maxed, canBuy: unlocked && !maxed && avail > 0 };
+      }
+    }
+    return null;
   };
   const renderSkills = () => {
     const tree = SKILL_TREES[skillClassId];
@@ -415,6 +431,7 @@ export function setupControls(
               rank > 0 ? "gh-sk-on" : "",
               !unlocked ? "gh-sk-locked" : "",
               canBuy ? "gh-sk-buy" : "",
+              sk.id === skillSelected ? "gh-sk-sel" : "",
             ].join(" ");
             const passIcon = sk.stat ? PASSIVE_ICON[sk.stat] : undefined;
             const inner =
@@ -424,32 +441,50 @@ export function setupControls(
                   ? `<img src="${passIcon}" alt=""/>`
                   : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
             const line = i > 0 ? `<div class="gh-sk-line" style="background:${b.color}"></div>` : "";
-            return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}" data-branch="${b.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
+            return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
           })
           .join("");
         return `<div class="gh-sk-branch"><div class="gh-sk-bhead" style="color:${b.color}">${b.name}</div>${nodes}</div>`;
       })
       .join("");
+    // painel de detalhe/confirmação (embaixo)
+    let tip =
+      '<div class="gh-sk-thint">Toque num nó pra ver os detalhes; depois confirme para gastar o ponto.</div>';
+    const info = skillSelected ? skillInfo(skillSelected) : null;
+    if (info) {
+      const { sk, unlocked, rank, maxed, canBuy } = info;
+      let btn: string;
+      if (maxed) btn = '<span class="gh-sk-cbtn gh-sk-cdim">No máximo</span>';
+      else if (!unlocked) btn = '<span class="gh-sk-cbtn gh-sk-cdim">Requer o nó acima</span>';
+      else if (!canBuy) btn = '<span class="gh-sk-cbtn gh-sk-cdim">Sem pontos</span>';
+      else
+        btn = `<button class="gh-sk-cbtn gh-sk-cbuy" id="gh-sk-confirm">${rank > 0 ? `Melhorar → ${rank + 1}/${sk.maxRank}` : "Aprender"} · 1 ponto</button>`;
+      tip =
+        `<div class="gh-sk-tname"><b>${sk.name}</b> <i>${sk.kind === "active" ? "Ativa" : "Passiva"} · ${rank}/${sk.maxRank}</i></div>` +
+        `<div class="gh-sk-tdesc">${sk.desc}</div>${btn}`;
+    }
     skillsPane.innerHTML =
       (tree.bg ? `<div class="gh-sk-bg" style="background-image:url(${tree.bg})"></div>` : "") +
       `<div class="gh-sk-top">Pontos: <b class="${avail > 0 ? "gh-sk-pts" : ""}">${avail}</b></div>` +
       `<div class="gh-sk-cols">${cols}</div>` +
-      '<div class="gh-sk-tip" id="gh-sk-tip">Toque num nó pra ver detalhes. Gaste pontos de cima pra baixo em cada ramo.</div>';
+      `<div class="gh-sk-tip" id="gh-sk-tip">${tip}</div>`;
+    // clicar num nó só SELECIONA (mostra detalhes) — não gasta ponto
     skillsPane.querySelectorAll<HTMLElement>(".gh-sk-node").forEach((n) => {
-      const branch = tree.branches.find((x) => x.id === n.dataset.branch)!;
-      const sk = branch.skills.find((x) => x.id === n.dataset.sk)!;
       n.addEventListener("click", () => {
-        const idx = branch.skills.indexOf(sk);
-        const prev = idx > 0 ? branch.skills[idx - 1] : null;
-        const unlocked = !prev || (skillRanks[prev.id] || 0) >= 1;
-        const rank = skillRanks[sk.id] || 0;
-        if (unlocked && rank < sk.maxRank && skillPointsTotal - spentPoints() > 0) {
-          skillRanks[sk.id] = rank + 1;
-          renderSkills();
-        }
-        showSkillTip(sk, skillRanks[sk.id] || 0);
+        skillSelected = n.dataset.sk!;
+        renderSkills();
       });
     });
+    // o botão CONFIRMAR é quem gasta o ponto
+    const confirm = skillsPane.querySelector("#gh-sk-confirm");
+    if (confirm)
+      confirm.addEventListener("click", () => {
+        const inf = skillSelected ? skillInfo(skillSelected) : null;
+        if (inf && inf.canBuy) {
+          skillRanks[inf.sk.id] = inf.rank + 1;
+          renderSkills();
+        }
+      });
   };
   const openEq = () => eq.classList.remove("gh-eq-hidden");
   const closeEq = () => eq.classList.add("gh-eq-hidden");
@@ -479,6 +514,11 @@ export function setupControls(
   const dmgFx = document.createElement("div");
   dmgFx.id = "gh-dmg";
   root.appendChild(dmgFx);
+
+  // toast (mensagem flutuante — ex.: subir de nível)
+  const toastEl = document.createElement("div");
+  toastEl.id = "gh-toast";
+  root.appendChild(toastEl);
 
   // ---- botões na tela ----
   const pad = document.createElement("div");
@@ -877,6 +917,12 @@ export function setupControls(
       skillClassId = classId;
       skillPointsTotal = points;
       renderSkills();
+    },
+    toast(msg: string) {
+      toastEl.textContent = msg;
+      toastEl.style.animation = "none";
+      void toastEl.offsetWidth;
+      toastEl.style.animation = "gh-toast 1.8s ease-out";
     },
     setClock(phase: number, daylight: number) {
       // órbita: sol no TOPO ao meio-dia (fase 0.25). ângulo cresce com o tempo.
@@ -1292,6 +1338,7 @@ function injectStyle() {
   .gh-sk-sym { font-size:clamp(13px,2.2vh,18px); line-height:1; pointer-events:none; }
   .gh-sk-node.gh-sk-locked { opacity:.32; filter:grayscale(.65); }
   .gh-sk-node.gh-sk-on { box-shadow:0 0 0 2px rgba(255,215,100,.55), 0 0 10px rgba(255,200,80,.4); }
+  .gh-sk-node.gh-sk-sel { border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.85), 0 0 12px rgba(255,240,180,.6); }
   .gh-sk-node.gh-sk-buy { animation:gh-sk-pulse 1.25s ease-in-out infinite; }
   @keyframes gh-sk-pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(255,220,120,0);} 50%{ box-shadow:0 0 11px 2px rgba(255,220,120,.6);} }
   .gh-sk-rank {
@@ -1300,10 +1347,42 @@ function injectStyle() {
     font-size:10px; color:#f0dca2; line-height:1.35; font-variant-numeric:tabular-nums;
   }
   .gh-sk-tip {
-    margin-top:10px; min-height:40px; padding:8px 11px; font-size:12.5px; line-height:1.4;
-    background:rgba(8,7,5,.6); border:1px solid rgba(201,162,39,.3); border-radius:8px; color:#d8cba0;
+    margin-top:10px; min-height:40px; padding:9px 12px; font-size:12.5px; line-height:1.4;
+    background:rgba(8,7,5,.72); border:1px solid rgba(201,162,39,.3); border-radius:8px; color:#d8cba0;
   }
-  .gh-sk-tip b { color:#f0e2bd; font-family:"Cinzel",serif; }
+  .gh-sk-thint { font-style:italic; color:#b6a877; }
+  .gh-sk-tname b { color:#f0e2bd; font-family:"Cinzel",serif; font-size:14px; }
+  .gh-sk-tname i { color:#c9a84f; font-style:italic; font-size:11.5px; margin-left:4px; }
+  .gh-sk-tdesc { margin:4px 0 8px; }
+  /* botão de CONFIRMAR a alocação do ponto */
+  .gh-sk-cbtn {
+    display:inline-block; font-family:"Cinzel",serif; font-size:13px; letter-spacing:.5px;
+    padding:8px 18px; border-radius:8px; text-align:center;
+  }
+  .gh-sk-cbuy {
+    cursor:pointer; color:#1c150a; border:none;
+    background:linear-gradient(#f4d873,#c99a34); box-shadow:0 2px 6px rgba(0,0,0,.5);
+    font-weight:700;
+  }
+  .gh-sk-cbuy:hover { background:linear-gradient(#ffe98c,#dcae3e); }
+  .gh-sk-cbuy:active { transform:translateY(1px) scale(.98); }
+  .gh-sk-cdim { color:#9c8f6d; border:1px solid rgba(201,162,39,.3); background:rgba(20,16,11,.6); }
+  /* toast (nível/aviso) */
+  #gh-toast {
+    position:fixed; top:24%; left:50%; transform:translateX(-50%); z-index:14;
+    pointer-events:none; opacity:0; text-align:center; white-space:nowrap;
+    font-family:"Cinzel",serif; font-weight:700; letter-spacing:1.5px;
+    font-size:clamp(22px,5vw,34px);
+    color:#ffe089; -webkit-text-stroke:0.6px rgba(60,40,10,.6);
+    text-shadow:0 3px 10px #000, 0 0 22px rgba(240,190,70,.6);
+  }
+  @keyframes gh-toast {
+    0% { opacity:0; transform:translate(-50%,10px) scale(.8); }
+    18% { opacity:1; transform:translate(-50%,0) scale(1.06); }
+    30% { transform:translate(-50%,0) scale(1); }
+    78% { opacity:1; }
+    100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
+  }
   /* vinheta vermelha ao levar dano */
   #gh-dmg {
     position:fixed; inset:0; z-index:9; pointer-events:none; opacity:0;

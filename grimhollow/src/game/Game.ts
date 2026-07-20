@@ -601,9 +601,8 @@ export class Game {
     this.ui.equipWeapon(cls?.startWeapon ?? "sword");
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
-    // árvore de habilidades: classe + pontos. 24 pontos de TESTE por enquanto (até o
-    // sistema de nível/XP existir, que dará 1 ponto por nível).
-    this.ui.setSkillInfo(this.classId, 24);
+    // árvore de habilidades: classe + pontos = nível (1 ponto por nível).
+    this.ui.setSkillInfo(this.classId, this.stats.level);
     this.refreshStats();
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
@@ -1085,6 +1084,9 @@ export class Game {
       e.dyingAt = e.hitAt; // começa a tombar/sumir
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
       this.spawnPoof(e.bx, e.bz);
+      // recompensa: XP (pode subir de nível) e um pouco de ouro
+      this.stats.gold += 5;
+      this.gainXp(45);
     }
   }
 
@@ -1127,6 +1129,34 @@ export class Game {
   }
 
   // atualiza a janela de personagem com os atributos + vida/mana atuais
+  // XP necessário pra passar do nível atual (curva suave)
+  private nextXpMax(level: number): number {
+    return Math.round(100 + (level - 1) * 60);
+  }
+  // ganha XP; sobe de nível (1 ponto de habilidade por nível) e recompensa.
+  private gainXp(amount: number) {
+    if (this.stats.level >= 100) return;
+    this.stats.xp += amount;
+    let leveled = false;
+    while (this.stats.level < 100 && this.stats.xp >= this.stats.xpMax) {
+      this.stats.xp -= this.stats.xpMax;
+      this.stats.level++;
+      this.stats.xpMax = this.nextXpMax(this.stats.level);
+      leveled = true;
+    }
+    if (this.stats.level >= 100) this.stats.xp = 0;
+    if (leveled) {
+      // recupera vida/mana e concede pontos de habilidade (1 por nível ganho)
+      this.playerHp = this.playerMaxHp;
+      this.playerMp = this.playerMaxMp;
+      this.ui.setHealth(1);
+      this.ui.setMana(1);
+      this.ui.setSkillInfo(this.classId, this.stats.level); // total = nível
+      this.ui.toast(`Nível ${this.stats.level}!`);
+    }
+    this.refreshStats();
+  }
+
   private refreshStats() {
     this.ui.setStats({
       level: this.stats.level,
@@ -3468,6 +3498,10 @@ export class Game {
           e.mesh.geometry.dispose();
           e.mat.dispose();
           this.enemy = null;
+          // renasce depois de um tempo (pra continuar dando XP/loot enquanto testa)
+          window.setTimeout(() => {
+            if (!this.enemy && this.location === "village") this.buildDungeonEnemy();
+          }, 5000);
         }
       } else {
         // IA: ataca quando o jogador está numa célula adjacente
