@@ -275,17 +275,24 @@ function injectStyle() {
     font-family:"Cinzel",serif; font-weight:700; color:#eccf82; margin:4px 0 0;
     font-size:clamp(19px,3vh,28px); text-shadow:0 2px 8px #000;
   }
-  #gh-intro .gh-class-tabs { display:flex; gap:7px; flex-wrap:wrap; justify-content:center; }
+  #gh-intro .gh-class-tabs { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+  /* aba = SÓ o ícone clicável (sem caixa/borda). O selecionado brilha; os outros
+     ficam mais apagados. */
   #gh-intro .gh-class-tab {
-    display:flex; flex-direction:column; align-items:center; gap:1px; cursor:pointer;
-    padding:7px 15px; color:#d7c69a; font-family:"Cinzel",serif; font-size:13px;
-    background:rgba(20,16,11,.72); border:2px solid rgba(201,162,39,.4); border-radius:10px;
-    transition:.15s;
+    display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
+    padding:2px 4px; color:#b6a877; font-family:"Cinzel",serif; font-size:13px;
+    background:none; border:0; border-radius:0;
+    opacity:.6; filter:grayscale(.25); transition:opacity .15s, filter .15s, color .15s, transform .1s;
   }
-  #gh-intro .gh-class-tab.on { border-color:#f4c847; color:#fff; box-shadow:0 0 12px rgba(240,192,64,.4); }
+  #gh-intro .gh-class-tab:hover { opacity:.9; }
+  #gh-intro .gh-class-tab:active { transform:scale(.94); }
+  #gh-intro .gh-class-tab.on { opacity:1; filter:none; color:#f4d98a; }
   #gh-intro .gh-tab-ico {
-    width:30px; height:30px; object-fit:contain; display:block; margin:0 auto 1px;
-    filter:drop-shadow(0 1px 2px rgba(0,0,0,.7));
+    width:52px; height:52px; object-fit:contain; display:block; margin:0 auto;
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.75));
+  }
+  #gh-intro .gh-class-tab.on .gh-tab-ico {
+    filter:drop-shadow(0 0 9px rgba(240,200,90,.75)) drop-shadow(0 2px 3px rgba(0,0,0,.7));
   }
   #gh-intro .gh-class-main {
     display:flex; flex-direction:row; gap:14px; width:min(720px,96%); box-sizing:border-box;

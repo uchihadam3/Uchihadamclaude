@@ -1,11 +1,34 @@
 # Nethergloam — Prompts de Arte (PNG)
 
-Lista viva de tudo que falta pintar pro jogo, num lugar só. Cada bloco tem o
-prompt pronto com o estilo embutido — é só copiar (o GitHub mostra um botão de
-copiar no canto de cada bloco). O que já está no jogo está marcado. **Esta
-página é atualizada conforme novos prompts são criados.**
+Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto**
+(é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
+**⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 26 prontos · 🟡 7 faltando · ❌ 2 removidas
+**Status:** ✅ 27 prontos · 🟡 3 faltando · ⚪ 1 opcional · ❌ 2 removidas
+
+---
+
+## 🎯 O que falta agora — a fazer
+
+Só **isto** está pendente. O resto já está no jogo (referência abaixo). Manda
+**uma imagem por vez com o nome** que eu recorto e integro.
+
+| Prioridade | Peça | Onde está o prompt |
+|:--:|---|---|
+| 🟡 | **Logo do nome "Nethergloam"** (tela de início) | [§12 · Peça F](#-peça-f--logo-do-nome-nethergloam-falta) |
+| 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
+| 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
+| ⚪ | *(opcional)* Ícones de controle pintados | [§11 · Peça B](#-peça-b--ícones-símbolos-soltos-opcional) |
+
+---
+
+## 🗂️ Índice das seções
+
+**Mundo/cenário:** [01 Árvores](#01--árvores-individuais) · [02 Aglomerados de mata](#02--aglomerados-de-mata) · [03 Placas de loja](#03--placas-das-lojas) · [04 Adereços da cidade](#04--adereços-da-cidade) · [05 Panos de fundo](#05--panos-de-fundo-backdrops)
+**Combate/jogo:** [06 Espada](#06--combate--espada-protótipo-de-ação) · [07 Inimigos](#07--inimigos-billboard-2d) · [10 Ícones de itens](#10--ícones-de-itens-folhas-por-tier)
+**Interface:** [08 HUD/janelas](#08--interface--hud) · [11 Botões de controle](#11--botões-de-controle-hud) · [12 Telas de abertura](#12--telas-de-abertura-título--classes)
+
+Mais abaixo: [📜 Catálogo de Itens](#-catálogo-de-itens-planejamento-de-design) (mapa de design — sem prompts ainda).
 
 ---
 
@@ -384,7 +407,7 @@ Hand-painted stylized-realism game UI button, cohesive with a grim medieval dark
 com o miolo brilhando âmbar/dourado. Se não mandar, eu faço o estado pressionado por
 código, com um brilho.)*
 
-### 🟡 Peça B — ícones (símbolos soltos) (falta)
+### ⚪ Peça B — ícones (símbolos soltos) (opcional)
 
 Símbolos claros (bronze claro / osso pálido / prata) que entram **por cima** da base.
 Cada um numa imagem, **centralizado**, fundo transparente. Preciso de poucos porque
@@ -401,11 +424,11 @@ eu **giro/espelho no código**:
 ícones da Peça B **já estão desenhados em código** e no jogo — a Peça B só é
 necessária se você quiser ícones pintados à mão no lugar.)*
 
-### 🟡 Peça C — D-pad de movimento (cruz) (falta)
+### ✅ Peça C — D-pad de movimento (cruz) (PRONTO — no jogo)
 
 No lugar dos 4 botões redondos do movimento, **uma peça só em CRUZ** (estilo
 controle de videogame), no tema do jogo. Combina com os botões redondos e as
-janelas (mesmo ferro escuro + ouro gasto + rebites). Eu coloco 4 zonas de toque
+janelas (mesmo ferro escuro + ouro gasto + rebites). Coloquei 4 zonas de toque
 invisíveis nos braços: **cima = frente, baixo = trás, esquerda/direita = virar**.
 
 ```
@@ -500,6 +523,26 @@ Hand-painted stylized-realism game UI button plate, cohesive with a grim medieva
 
 *(Opcional: manda também uma variante "acesa/hover" — a mesma placa com o miolo
 iluminado dourado. Se não, eu faço o hover por código.)*
+
+### 🟡 Peça F — Logo do nome "Nethergloam" (falta)
+
+O **nome do jogo pintado como logotipo** (wordmark), pra substituir o texto que
+hoje é feito em CSS na tela de início. Uma **arte só**, com a palavra
+**Nethergloam** em letras metálicas ornamentadas, fundo **transparente** — eu
+encaixo por cima da key art (Peça A), centralizado no topo.
+
+> ⚠️ **Cuidado com a grafia:** IA de imagem erra letra fácil. Confere se saiu
+> escrito **exatamente `NETHERGLOAM`** (uma palavra só, sem trocar/dobrar letra);
+> se sair errado, é só gerar de novo. Se quiser, gera 2–3 variações e me manda a
+> que ficou certa. Vem **na horizontal, largo e baixo** (é uma faixa de título).
+
+```
+A hand-painted stylized dark-fantasy game LOGO WORDMARK reading exactly the single word "NETHERGLOAM" (one word, spelled N-E-T-H-E-R-G-L-O-A-M), horizontal single line, large and legible. Ornate weathered metal lettering — tarnished gold and dark iron with worn bevels, subtle gothic serifs and small decorative flourishes, faint cold mist and tiny embers clinging to the letters, a grim medieval horror mood. Slight distress and cracks in the metal, soft inner glow, dramatic but readable. Centered on a fully transparent background, the letters as a clean cutout, no plaque or box behind the text, no background scene, no tagline, no extra words, no misspelling, no watermark. Wide banner canvas ~1600x500.
+```
+
+*(Quando mandar, eu recorto o logo e troco o texto CSS pela arte na tela de
+início — o resto do layout continua igual. Se preferir manter o logo em CSS
+dourado que já está lá, é só avisar.)*
 
 ---
 
