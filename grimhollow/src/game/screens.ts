@@ -301,7 +301,7 @@ function showBoot(overlay: HTMLElement, onDone: () => void) {
       <div class="gh-boot-corner">
         <div class="gh-boot-sword" id="gh-boot-sword" style="--p:0%">
           <img class="gh-bs-base" src="${loadSwordUrl}" alt="" />
-          <div class="gh-bs-fill"></div>
+          <div class="gh-bs-fill"><div class="gh-bs-lava"></div></div>
         </div>
         <div class="gh-boot-txt" id="gh-boot-txt">Forjando o mundo… 0%</div>
       </div>
@@ -557,21 +557,49 @@ function injectStyle() {
     position:absolute; right:clamp(14px,3vw,34px); bottom:clamp(16px,4vh,36px);
     display:flex; flex-direction:column; align-items:flex-end; gap:8px;
   }
-  #gh-intro .gh-boot-sword { position:relative; width:min(300px,60vw); aspect-ratio:332/81; }
+  @property --p { syntax:'<percentage>'; inherits:true; initial-value:0%; }
+  #gh-intro .gh-boot-sword {
+    position:relative; width:min(300px,60vw); aspect-ratio:332/81;
+    transition:--p .3s linear; /* o nível da lava sobe suave a cada passo */
+    animation:gh-lavaglow 1.6s ease-in-out infinite; /* brilho quente pulsando */
+  }
   /* base = a espada apagada (o "vazio") */
   #gh-intro .gh-bs-base {
     width:100%; height:100%; display:block;
     filter:brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000);
   }
-  /* miolo dourado revelado até --p, recortado pela silhueta da espada (máscara) */
+  /* LAVA: fluido incandescente enchendo a lâmina até --p (esq→dir). Recortado
+     pela INTERSEÇÃO da silhueta da espada com o nível preenchido, e com blobs
+     quentes que se agitam (parece líquido borbulhando). */
+  /* CLIPE por LARGURA (overflow hidden) — recorte universal e à prova de GPU.
+     A largura é var(--p) do container; o nível da lava sobe esq→dir. */
   #gh-intro .gh-bs-fill {
-    position:absolute; inset:0;
-    -webkit-mask:url(${loadSwordUrl}) center/100% 100% no-repeat;
-    mask:url(${loadSwordUrl}) center/100% 100% no-repeat;
-    background:linear-gradient(90deg,
-      #e0a63a 0, #ffcf6a calc(var(--p) - 6%), #fff2c8 var(--p), rgba(255,242,200,0) var(--p));
-    filter:drop-shadow(0 0 9px rgba(240,190,80,.75));
-    transition:background .25s linear;
+    position:absolute; left:0; top:0; bottom:0; width:var(--p);
+    overflow:hidden;
+  }
+  /* a LAVA tem SEMPRE a largura da espada (mesma expressão), então o recorte por
+     largura do pai revela só a parte cheia, alinhada à silhueta. */
+  #gh-intro .gh-bs-lava {
+    position:absolute; left:0; top:0; height:100%; width:min(300px,60vw);
+    -webkit-mask:url(${loadSwordUrl}) left center / 100% 100% no-repeat;
+    mask:url(${loadSwordUrl}) left center / 100% 100% no-repeat;
+    background:
+      radial-gradient(60% 150% at 22% 32%, rgba(255,246,180,.60), transparent 55%),
+      radial-gradient(48% 160% at 58% 70%, rgba(255,150,44,.60), transparent 60%),
+      radial-gradient(42% 150% at 84% 42%, rgba(255,104,26,.55), transparent 62%),
+      linear-gradient(90deg,#5c1604 0,#b8360d 32%,#ee6a1c 60%,#ffab3e 82%,#ffe27f 95%,#fff6cf 100%);
+    background-size:170% 210%,200% 240%,220% 200%,100% 100%;
+    background-repeat:no-repeat;
+    animation:gh-lava 2.8s ease-in-out infinite; /* blobs quentes se agitam (fluido) */
+  }
+  @keyframes gh-lava {
+    0%   { background-position:10% 28%, 82% 72%, 38% 50%, 0 0; }
+    50%  { background-position:46% 66%, 44% 34%, 72% 58%, 0 0; }
+    100% { background-position:10% 28%, 82% 72%, 38% 50%, 0 0; }
+  }
+  @keyframes gh-lavaglow {
+    0%,100% { filter:drop-shadow(0 0 9px rgba(255,120,32,.8)) drop-shadow(0 0 3px rgba(255,220,120,.85)) brightness(1); }
+    50%     { filter:drop-shadow(0 0 15px rgba(255,150,50,.95)) drop-shadow(0 0 6px rgba(255,236,150,1)) brightness(1.14); }
   }
   #gh-intro .gh-boot-txt {
     font-family:"Cinzel",serif; letter-spacing:1px; font-size:12px;

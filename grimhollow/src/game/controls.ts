@@ -650,24 +650,56 @@ export function setupControls(
     pad.appendChild(atkBtn);
   }
 
-  // BARRA DE AÇÃO — habilidades ATIVAS aprendidas, faixa central inferior (entre
-  // o D-pad e o botão de ataque). Cada slot mostra o ícone, o custo de mana e uma
+  // BARRA DE AÇÃO — habilidades ATIVAS aprendidas em MEIA-LUA ao redor do botão de
+  // ataque (mão direita = combate). Cada slot mostra o ícone, o custo de mana e uma
   // "varredura" de recarga por cima quando acionado.
   const actbar = document.createElement("div");
   actbar.id = "gh-actbar";
   pad.appendChild(actbar);
+  // dispõe N slots num leque (quadrante superior-esquerdo) ancorado no botão de
+  // ataque (canto inf. direito). Anéis concêntricos p/ caber muitas habilidades.
+  const SLOT = 48; // px
+  const arcLayout = (n: number): { right: number; bottom: number }[] => {
+    const ATKx = 47, ATKy = 51; // centro do botão de ataque (dist. do canto)
+    const STEP = 22; // espaçamento angular alvo (graus)
+    const RINGS = [
+      { R: 118, a0: 96, a1: 150 },
+      { R: 170, a0: 96, a1: 168 },
+      { R: 222, a0: 98, a1: 172 },
+      { R: 274, a0: 100, a1: 176 },
+    ];
+    const pos: { right: number; bottom: number }[] = [];
+    let idx = 0;
+    for (const ring of RINGS) {
+      if (idx >= n) break;
+      const cap = Math.max(1, Math.floor((ring.a1 - ring.a0) / STEP) + 1);
+      const take = Math.min(cap, n - idx);
+      const start = (ring.a0 + ring.a1) / 2 - ((take - 1) * STEP) / 2;
+      for (let k = 0; k < take; k++, idx++) {
+        const a = ((start + k * STEP) * Math.PI) / 180;
+        const rp = ATKx + ring.R * -Math.cos(a);
+        const bp = ATKy + ring.R * Math.sin(a);
+        pos.push({ right: Math.round(rp - SLOT / 2), bottom: Math.round(bp - SLOT / 2) });
+      }
+    }
+    return pos;
+  };
   const renderActionBar = (items: ActionSkill[]) => {
+    const pos = arcLayout(items.length);
     actbar.innerHTML = items
-      .map(
-        (s) =>
-          `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}">` +
+      .map((s, i) => {
+        const p = pos[i] ?? { right: 47, bottom: 51 };
+        return (
+          `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}" ` +
+          `style="right:${p.right}px;bottom:${p.bottom}px">` +
           (s.icon ? `<img src="${s.icon}" alt=""/>` : `<span class="gh-ss-x">✦</span>`) +
           `<span class="gh-ss-mana">${s.mana}</span>` +
           `<span class="gh-ss-cool"></span>` +
-          `</button>`,
-      )
+          `</button>`
+        );
+      })
       .join("");
-    actbar.style.display = items.length ? "flex" : "none";
+    actbar.style.display = items.length ? "block" : "none";
     actbar.querySelectorAll<HTMLButtonElement>(".gh-sslot").forEach((b) => {
       b.addEventListener("pointerdown", (e) => {
         e.preventDefault();
@@ -1641,20 +1673,18 @@ function injectStyle() {
   .gh-act:active { transform:scale(0.92); }
   /* BARRA DE AÇÃO — habilidades ativas, faixa central inferior */
   @property --gh-cd { syntax:'<angle>'; inherits:false; initial-value:0deg; }
+  /* container passa-cliques; os slots são posicionados em ARCO (meia-lua)
+     ao redor do botão de ataque via right/bottom inline. */
   #gh-actbar {
-    position:absolute; left:50%; transform:translateX(-50%); bottom:20px;
-    display:none; gap:7px; align-items:center; padding:4px 6px;
-    max-width:min(440px, calc(100vw - 320px)); overflow-x:auto; overflow-y:hidden;
-    pointer-events:auto; touch-action:pan-x; scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;
+    position:absolute; inset:0; display:none; pointer-events:none;
   }
-  #gh-actbar::-webkit-scrollbar { display:none; }
   .gh-sslot {
-    position:relative; flex:0 0 auto;
-    width:46px; height:46px; border-radius:50%; padding:0; border:none;
+    position:absolute;
+    width:48px; height:48px; border-radius:50%; padding:0; border:none;
     background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
     display:flex; align-items:center; justify-content:center; cursor:pointer;
-    filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
+    pointer-events:auto;
+    filter:drop-shadow(0 2px 7px rgba(0,0,0,.6));
     -webkit-tap-highlight-color:transparent; overflow:hidden;
   }
   .gh-sslot:active { transform:scale(0.9); filter:brightness(1.2); }
