@@ -40,6 +40,18 @@ export interface CharStats {
   dex: number; // destreza
   int: number; // inteligência
   gold: number; // ouro
+  // distribuição de atributos (3 pontos por nível)
+  points: number; // pontos ainda não distribuídos
+  strMin: number; // piso de cada primário (não dá pra baixar da base da criação)
+  dexMin: number;
+  intMin: number;
+  // secundários (derivados dos primários) exibidos na aba de atributos
+  atkMag: number;
+  crit: number; // %
+  critDmg: number; // %
+  precision: number; // %
+  magRes: number;
+  evasion: number; // %
 }
 
 export interface HUD {
@@ -65,7 +77,8 @@ export interface HUD {
   setActionBar(items: ActionSkill[]): void;
   // dispara a animação de recarga de uma habilidade (ms)
   skillCooldown(id: string, ms: number): void;
-  // realça o botão de habilidade quando indisponível (sem mana/alvo/fora de alcance)
+  // número de dano flutuante na tela (x,y em px). kind muda cor/tamanho.
+  floatText(x: number, y: number, text: string, kind: "hit" | "crit" | "player" | "heal"): void;
   // mensagem flutuante breve (ex.: "Nível 3!")
   toast(msg: string): void;
 }
@@ -98,6 +111,7 @@ export function setupControls(
   onEquip?: (w: Weapon) => void, // avisa o jogo (dano/cadência/atributos)
   onSkills?: (ranks: Record<string, number>) => void, // ranks das habilidades mudaram
   onSkill?: (id: string) => void, // jogador acionou uma habilidade da barra
+  onAttr?: (key: "str" | "dex" | "int", delta: number) => void, // distribuiu atributo
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -398,6 +412,16 @@ export function setupControls(
     }),
   );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
+  // distribuição de atributos: delega o clique nos +/- (a aba é re-renderizada
+  // a cada setStats, então um único listener no container evita re-anexar)
+  eqStats.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest(".gh-pm") as HTMLElement | null;
+    if (!btn || btn.hasAttribute("disabled")) return;
+    e.preventDefault();
+    const key = btn.dataset.attr as "str" | "dex" | "int" | undefined;
+    const d = Number(btn.dataset.d || "0");
+    if (key && d) onAttr?.(key, d);
+  });
   const goldVal = eq.querySelector("#gh-gold b") as HTMLElement;
   const bagSlots = Array.from(eq.querySelectorAll<HTMLElement>(".gh-bag-slot"));
 
@@ -547,6 +571,11 @@ export function setupControls(
   const toastEl = document.createElement("div");
   toastEl.id = "gh-toast";
   root.appendChild(toastEl);
+
+  // camada de DANO FLUTUANTE (números que sobem e somem sobre a cena)
+  const floatLayer = document.createElement("div");
+  floatLayer.id = "gh-float";
+  root.appendChild(floatLayer);
 
   // ---- botões na tela ----
   const pad = document.createElement("div");
@@ -723,20 +752,45 @@ export function setupControls(
     setStats(s: CharStats) {
       if (goldVal) goldVal.textContent = `${s.gold}`;
       const xpFrac = s.xpMax > 0 ? Math.max(0, Math.min(1, s.xp / s.xpMax)) : 0;
-      const row = (label: string, val: string) =>
-        `<div class="gh-stat"><span>${label}</span><b>${val}</b></div>`;
+      // linha de PRIMÁRIO com +/- (distribuição em jogo, 3 pontos por nível)
+      const prim = (label: string, key: string, v: number, min: number) => {
+        const minus = v <= min || s.points < 0 ? " disabled" : "";
+        const plus = s.points <= 0 ? " disabled" : "";
+        return `<div class="gh-prow"><span>${label}</span><span class="gh-pstep">` +
+          `<button class="gh-pm" data-attr="${key}" data-d="-1"${minus}>−</button>` +
+          `<b>${v}</b>` +
+          `<button class="gh-pm" data-attr="${key}" data-d="1"${plus}>＋</button>` +
+          `</span></div>`;
+      };
+      const sr = (label: string, val: string | number) =>
+        `<div class="gh-sec-row"><span>${label}</span><b>${val}</b></div>`;
       eqStats.innerHTML =
         `<div class="gh-eq-lvl">Nível ${s.level}` +
         `<div class="gh-xp"><div class="gh-xp-fill" style="width:${xpFrac * 100}%"></div></div></div>` +
-        '<div class="gh-stat-cols">' +
-        row("Vida", `${s.hp}/${s.hpMax}`) +
-        row("Mana", `${s.mp}/${s.mpMax}`) +
-        row("Ataque", `${s.atk}`) +
-        row("Defesa", `${s.def}`) +
-        row("Força", `${s.str}`) +
-        row("Destreza", `${s.dex}`) +
-        row("Inteligência", `${s.int}`) +
-        row("Ouro", `${s.gold}`) +
+        `<div class="gh-alloc-pts${s.points > 0 ? " gh-pts-on" : ""}">Pontos a distribuir: <b>${s.points}</b></div>` +
+        '<div class="gh-prim-box">' +
+        prim("Força", "str", s.str, s.strMin) +
+        prim("Destreza", "dex", s.dex, s.dexMin) +
+        prim("Inteligência", "int", s.int, s.intMin) +
+        "</div>" +
+        '<div class="gh-sec-blocks">' +
+        '<div class="gh-sec-col"><h4>⚔️ Ofensivo</h4>' +
+        sr("Atq. Físico", s.atk) +
+        sr("Atq. Mágico", s.atkMag) +
+        sr("Crítico", s.crit + "%") +
+        sr("Dano Crít.", s.critDmg + "%") +
+        sr("Precisão", s.precision + "%") +
+        "</div>" +
+        '<div class="gh-sec-col"><h4>🛡️ Defensivo</h4>' +
+        sr("Vida", `${s.hp}/${s.hpMax}`) +
+        sr("Defesa", s.def) +
+        sr("Res. Mágica", s.magRes) +
+        sr("Evasão", s.evasion + "%") +
+        "</div>" +
+        '<div class="gh-sec-col"><h4>🔷 Recursos</h4>' +
+        sr("Mana", `${s.mp}/${s.mpMax}`) +
+        sr("Ouro", s.gold) +
+        "</div>" +
         "</div>";
     },
     flashDamage() {
@@ -987,6 +1041,17 @@ export function setupControls(
       el.style.animation = "none";
       void el.offsetWidth;
       el.style.animation = `gh-cool ${ms}ms linear forwards`;
+    },
+    floatText(x: number, y: number, text: string, kind) {
+      const el = document.createElement("div");
+      el.className = "gh-float-n gh-fl-" + kind;
+      el.textContent = text;
+      // leve dispersão horizontal p/ números não se sobreporem
+      const jitter = ((Math.abs(x * 7 + y * 13) % 24) - 12) | 0;
+      el.style.left = x + jitter + "px";
+      el.style.top = y + "px";
+      floatLayer.appendChild(el);
+      window.setTimeout(() => el.remove(), 1000);
     },
     toast(msg: string) {
       toastEl.textContent = msg;
@@ -1385,6 +1450,56 @@ function injectStyle() {
   .gh-stat { display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
   .gh-stat span { color:#bfae82; }
   .gh-stat b { color:#f0e6cc; font-weight:600; }
+  /* --- distribuição de atributos (aba Atributos, em jogo) --- */
+  .gh-alloc-pts {
+    text-align:center; margin:8px 0 6px; font-size:clamp(11px,1.7vh,14px); color:#b6a877;
+  }
+  .gh-alloc-pts b { color:#8f8262; font-family:"Cinzel",serif; }
+  .gh-alloc-pts.gh-pts-on b { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.55); }
+  .gh-prim-box {
+    display:flex; flex-direction:column; gap:5px; margin-bottom:10px;
+    padding:8px 10px; border-radius:8px;
+    background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.28);
+  }
+  .gh-prow { display:flex; align-items:center; justify-content:space-between; }
+  .gh-prow > span { color:#d7c79a; font-size:clamp(11px,1.7vh,14px); }
+  .gh-pstep { display:flex; align-items:center; gap:9px; }
+  .gh-pstep > b { min-width:22px; text-align:center; color:#f0e6cc; font-weight:700; font-size:clamp(12px,1.9vh,15px); }
+  .gh-pm {
+    width:26px; height:26px; border-radius:50%; flex:0 0 auto; cursor:pointer;
+    border:1px solid rgba(201,162,39,.6); background:linear-gradient(#4a3f28,#2c2519);
+    color:#f0d98c; font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .gh-pm:active { transform:scale(.9); filter:brightness(1.2); }
+  .gh-pm[disabled] { opacity:.32; cursor:default; }
+  .gh-sec-blocks { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:clamp(10px,1.5vh,13px); }
+  .gh-sec-col:last-child { grid-column:1 / -1; }
+  .gh-sec-col h4 {
+    margin:4px 0 2px; font-size:clamp(10px,1.5vh,13px); color:#e0cf9e;
+    font-family:"Cinzel",serif; font-weight:600; letter-spacing:.5px;
+  }
+  .gh-sec-row { display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
+  .gh-sec-row span { color:#bfae82; }
+  .gh-sec-row b { color:#f0e6cc; font-weight:600; }
+  /* --- dano flutuante (números que sobem sobre a cena) --- */
+  #gh-float { position:fixed; inset:0; pointer-events:none; z-index:9; overflow:hidden; }
+  .gh-float-n {
+    position:absolute; transform:translate(-50%,-50%);
+    font-family:"Cinzel",serif; font-weight:700; white-space:nowrap;
+    text-shadow:0 2px 4px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7);
+    animation:gh-float-rise 1s ease-out forwards; will-change:transform,opacity;
+  }
+  .gh-fl-hit  { color:#fbe6b6; font-size:22px; }
+  .gh-fl-crit { color:#ff8a3c; font-size:34px; text-shadow:0 2px 5px rgba(0,0,0,.95), 0 0 12px rgba(255,120,40,.7); }
+  .gh-fl-player { color:#ff5a4e; font-size:24px; }
+  .gh-fl-heal { color:#8ff0a0; font-size:22px; }
+  @keyframes gh-float-rise {
+    0%   { opacity:0; transform:translate(-50%,-40%) scale(.7); }
+    15%  { opacity:1; transform:translate(-50%,-55%) scale(1.08); }
+    35%  { transform:translate(-50%,-70%) scale(1); }
+    100% { opacity:0; transform:translate(-50%,-135%) scale(1); }
+  }
   /* --- árvore de habilidades --- */
   #gh-skills { position:relative; border-radius:8px; padding:8px; }
   .gh-sk-soon { text-align:center; padding:34px 12px; font-style:italic; color:#b6a877; }

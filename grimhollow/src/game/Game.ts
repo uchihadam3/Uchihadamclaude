@@ -80,7 +80,12 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
-import { derive } from "./stats";
+import {
+  derive,
+  POINTS_PER_LEVEL,
+  type Primaries,
+  type Secondaries,
+} from "./stats";
 import {
   passiveTotals,
   activeSkillsFor,
@@ -209,7 +214,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     id: "corvin",
     c: 10, // de dia: parede norte, ao lado da loja (vende lenha)
     r: 6,
-    night: [4, 6], // à noite: taverna (parede norte)
+    night: [5, 6], // à noite: entra na taverna (porta em (5,6))
     seed: 2,
     name: "Corvin, o Lenhador",
     lines: [
@@ -233,7 +238,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     id: "alard",
     c: 2, // de dia: encostado na parede oeste (perto da ferraria)
     r: 11,
-    night: [6, 6], // à noite: taverna (parede norte)
+    night: [5, 6], // à noite: entra na taverna (porta em (5,6))
     seed: 5,
     name: "Alard, o Velho Fazendeiro",
     lines: [
@@ -269,7 +274,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     id: "tam",
     c: 9, // de dia: encostado na parede sul, perto da entrada (pede esmola)
     r: 12,
-    night: [8, 6], // à noite: abriga-se junto à taverna (parede norte)
+    night: [7, 6], // à noite: recolhe-se na casa dos irmãos (porta em (7,6))
     seed: 10,
     name: "Velho Tam",
     lines: [
@@ -467,10 +472,14 @@ export class Game {
   private playerMp = 100;
   // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
   private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
-  // valores BASE (antes das passivas) — as passivas são reaplicadas sobre eles
-  private baseMaxHp = 100;
-  private baseMaxMp = 100;
-  private baseDef = 2;
+  // PRIMÁRIOS atuais + piso (base da criação, não dá pra baixar disso) e a base
+  // de vida/mana da classe. Os SECUNDÁRIOS são derivados destes.
+  private prim: Primaries = { str: 5, dex: 5, int: 5 };
+  private baseAttr: Primaries = { str: 5, dex: 5, int: 5 };
+  private clsHp = 100;
+  private clsMp = 100;
+  private sec: Secondaries = derive({ str: 5, dex: 5, int: 5 }, 100, 100);
+  private unspent = 0; // pontos de atributo por distribuir (3 por nível)
   // totais acumulados das passivas alocadas na árvore de habilidades
   private passive: Partial<Record<StatKey, number>> = {};
   // ranks das habilidades (cópia local vinda do HUD) p/ acionar as ativas
@@ -567,6 +576,10 @@ export class Game {
     toX: number;
     toZ: number;
     waitUntil: number;
+    // entrar/sair pela porta ao anoitecer/amanhecer
+    inside: boolean; // recolhido dentro do prédio (invisível)
+    doorDir: { dc: number; dr: number } | null | undefined; // dir da porta no posto noturno (undefined = não calculado)
+    trans: { kind: "enter" | "exit"; t0: number; fromX: number; fromZ: number; toX: number; toZ: number } | null;
   }[] = [];
   private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
 
@@ -577,18 +590,20 @@ export class Game {
     if (cls && character) {
       this.playerName = character.name;
       this.classId = cls.id;
-      // primários FINAIS (base da classe + pontos distribuídos na criação)
-      const prim = character.attr ?? cls.attr;
-      const sec = derive(prim, cls.hp, cls.mp);
-      this.stats.str = prim.str;
-      this.stats.dex = prim.dex;
-      this.stats.int = prim.int;
-      this.playerMaxHp = sec.hp;
-      this.playerHp = sec.hp;
-      this.playerMaxMp = sec.mp;
-      this.playerMp = sec.mp;
-      this.baseMaxHp = sec.hp;
-      this.baseMaxMp = sec.mp;
+      // primários FINAIS (base da classe + pontos distribuídos na criação).
+      // A base da criação vira o PISO (não dá pra baixar disso na aba Atributos).
+      this.prim = { ...(character.attr ?? cls.attr) };
+      this.baseAttr = { ...(character.attr ?? cls.attr) };
+      this.clsHp = cls.hp;
+      this.clsMp = cls.mp;
+      this.sec = derive(this.prim, this.clsHp, this.clsMp);
+      this.stats.str = this.prim.str;
+      this.stats.dex = this.prim.dex;
+      this.stats.int = this.prim.int;
+      this.playerMaxHp = this.sec.hp;
+      this.playerHp = this.sec.hp;
+      this.playerMaxMp = this.sec.mp;
+      this.playerMp = this.sec.mp;
     }
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -625,6 +640,7 @@ export class Game {
       (w) => this.onEquip(w),
       (ranks) => this.applyPassives(ranks),
       (id) => this.useSkill(id),
+      (key, delta) => this.allocAttr(key, delta),
     );
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
@@ -1048,7 +1064,9 @@ export class Game {
     // nível do inimigo escala com o do herói (variação -1..+1, mínimo 1). Define
     // a vida e, na morte, o XP e o ouro dropado.
     const elevel = Math.max(1, this.stats.level + (Math.floor(Math.random() * 3) - 1));
-    const emaxHp = 8 + (elevel - 1) * 3;
+    // vida do inimigo sobe com o nível — dá pra sobreviver a alguns golpes agora
+    // que o Atq. Físico (dos atributos) entra no dano do ataque básico.
+    const emaxHp = 26 + (elevel - 1) * 8;
     const c = 2, r = 4, worldH = 2.6; // no túnel, uma célula antes da escada
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
@@ -1105,9 +1123,7 @@ export class Game {
   // arma equipada trocou (via inventário): guarda o perfil e reflete no ataque
   private onEquip(w: Weapon) {
     this.currentWeapon = w;
-    // ataque exibido = base + dano da arma + bônus de passivas (%)
-    this.stats.atk = this.atkWithBonus(8 + w.dmg);
-    this.refreshStats();
+    this.recomputeDerived();
   }
 
   // aplica os bônus percentuais de dano das passivas sobre um ataque base
@@ -1116,26 +1132,70 @@ export class Game {
     return Math.round(base * (1 + pct));
   }
 
-  // recalcula os atributos a partir dos ranks de passivas alocados na árvore.
-  // As passivas são somadas sobre os valores BASE (idempotente ao realocar).
+  // atualiza a cópia local dos ranks + a barra de ação + os totais de passivas,
+  // e recalcula os atributos derivados.
   private applyPassives(ranks: Record<string, number>) {
     this.skillRanks = { ...ranks };
     this.refreshActionBar();
     this.passive = passiveTotals(ranks);
-    // guarda a fração atual p/ preservar vida/mana proporcional ao mudar o teto
+    this.recomputeDerived();
+  }
+
+  // distribui (ou devolve) 1 ponto num primário. Não baixa do piso da criação.
+  private allocAttr(key: keyof Primaries, delta: number) {
+    if (delta > 0) {
+      if (this.unspent <= 0) return;
+      this.prim[key] += 1;
+      this.unspent -= 1;
+    } else {
+      if (this.prim[key] <= this.baseAttr[key]) return;
+      this.prim[key] -= 1;
+      this.unspent += 1;
+    }
+    this.recomputeDerived();
+  }
+
+  // recalcula TODOS os secundários a partir dos primários + base da classe, e
+  // aplica as passivas por cima (vida/mana/defesa/ataque). Preserva a fração de
+  // vida/mana ao mudar os tetos. É a fonte única de verdade dos atributos.
+  private recomputeDerived() {
+    this.sec = derive(this.prim, this.clsHp, this.clsMp);
     const hpFrac = this.playerMaxHp > 0 ? this.playerHp / this.playerMaxHp : 1;
     const mpFrac = this.playerMaxMp > 0 ? this.playerMp / this.playerMaxMp : 1;
-    this.playerMaxHp = Math.round(this.baseMaxHp * (1 + (this.passive.life ?? 0)));
-    this.playerMaxMp = Math.round(this.baseMaxMp * (1 + (this.passive.mana ?? 0)));
+    this.playerMaxHp = Math.round(this.sec.hp * (1 + (this.passive.life ?? 0)));
+    this.playerMaxMp = Math.round(this.sec.mp * (1 + (this.passive.mana ?? 0)));
     this.playerHp = Math.max(1, Math.round(this.playerMaxHp * hpFrac));
     this.playerMp = Math.round(this.playerMaxMp * mpFrac);
+    this.stats.str = this.prim.str;
+    this.stats.dex = this.prim.dex;
+    this.stats.int = this.prim.int;
     this.stats.def =
-      this.baseDef + Math.round((this.passive.def ?? 0) + (this.passive.mres ?? 0));
+      this.sec.def + Math.round((this.passive.def ?? 0) + (this.passive.mres ?? 0));
     const wdmg = this.currentWeapon?.dmg ?? 0;
-    this.stats.atk = this.atkWithBonus(8 + wdmg);
+    this.stats.atk = Math.round(this.atkWithBonus(this.sec.atkPhys + wdmg) * this.buffAtkMul());
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp);
     this.refreshStats();
+  }
+
+  // rola o dano de um golpe: base × passivas(%) × buff, com chance de CRÍTICO
+  // (usa a chance/dano crítico dos secundários). Retorna o valor final e se crit.
+  private rollDamage(base: number, magic: boolean): { dmg: number; crit: boolean } {
+    const pct = magic ? this.passive.mdmg ?? 0 : this.passive.dmg ?? 0;
+    let dmg = base * (1 + pct) * this.buffAtkMul();
+    const crit = Math.random() * 100 < this.sec.crit;
+    if (crit) dmg *= this.sec.critDmg / 100;
+    return { dmg: Math.max(1, Math.round(dmg)), crit };
+  }
+
+  // projeta um ponto do mundo p/ pixels de tela (p/ o dano flutuante)
+  private projectToScreen(x: number, y: number, z: number): { x: number; y: number } {
+    const v = new THREE.Vector3(x, y, z).project(this.camera);
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    return {
+      x: rect.left + ((v.x + 1) / 2) * rect.width,
+      y: rect.top + ((1 - v.y) / 2) * rect.height,
+    };
   }
 
   private tryHitEnemy() {
@@ -1143,17 +1203,29 @@ export class Game {
     if (!e || e.dyingAt) return;
     const [dc, dr] = DIRS[this.facing];
     if (this.col + dc !== e.c || this.row + dr !== e.r) return; // não está de frente
-    this.dealDamageToEnemy(e, this.atkWithBonus(this.currentWeapon?.dmg ?? 1));
+    // dano do ataque básico = Atq. Físico + arma, com chance de crítico
+    const base = this.sec.atkPhys + (this.currentWeapon?.dmg ?? 0);
+    const r = this.rollDamage(base, false);
+    this.dealDamageToEnemy(e, r.dmg, r.crit);
   }
 
-  // aplica dano a um inimigo, atualiza a barra e cuida da morte (poof/recompensa).
-  private dealDamageToEnemy(e: NonNullable<Game["enemy"]>, amount: number) {
+  // aplica dano a um inimigo, atualiza a barra, mostra o número flutuante e
+  // cuida da morte (poof/recompensa). isCrit deixa o número maior e com "!".
+  private dealDamageToEnemy(
+    e: NonNullable<Game["enemy"]>,
+    amount: number,
+    isCrit = false,
+  ) {
     if (e.dyingAt) return;
-    e.hp -= Math.max(1, Math.round(amount));
+    const dmg = Math.max(1, Math.round(amount));
+    e.hp -= dmg;
     e.hitAt = performance.now();
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
     e.barFill.position.x = -(1 - frac) * 1.3 / 2;
+    // número de dano flutuante sobre o inimigo (crítico = maior + "!")
+    const sp = this.projectToScreen(e.bx, 1.8, e.bz);
+    this.ui.floatText(sp.x, sp.y, isCrit ? `${dmg}!` : `${dmg}`, isCrit ? "crit" : "hit");
     if (e.hp <= 0) {
       e.dyingAt = e.hitAt; // começa a tombar/sumir
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
@@ -1231,16 +1303,19 @@ export class Game {
     this.ui.skillCooldown(id, cb.cd);
     // efeito
     if (cb.effect === "dmg" && this.target) {
-      const pct = cb.magic ? this.passive.mdmg ?? 0 : this.passive.dmg ?? 0;
-      const scaled = cb.power * (1 + 0.25 * (rank - 1)) * (1 + pct) * this.buffAtkMul();
-      this.dealDamageToEnemy(this.target, scaled);
+      const base = cb.power * (1 + 0.25 * (rank - 1));
+      const r = this.rollDamage(base, cb.magic);
+      this.dealDamageToEnemy(this.target, r.dmg, r.crit);
       // vira o herói para o alvo (feedback) e balança a arma se for corpo-a-corpo
       if (cb.melee) this.ui.swingWeapon();
     } else if (cb.effect === "heal") {
       const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)));
+      const before = this.playerHp;
       this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
       this.ui.setHealth(this.playerHp / this.playerMaxHp);
       this.refreshStats();
+      const healed = this.playerHp - before;
+      this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${healed}`, "heal");
       this.ui.toast(`+${amt} vida`);
     } else if (cb.effect === "buff") {
       this.buff = {
@@ -1248,8 +1323,7 @@ export class Game {
         defReduc: cb.defReduc ?? 0,
         until: now + (cb.dur ?? 6000),
       };
-      this.stats.atk = this.atkWithBonus(8 + (this.currentWeapon?.dmg ?? 0));
-      this.refreshStats();
+      this.recomputeDerived();
       this.ui.toast("Fortalecido!");
     }
   }
@@ -1364,18 +1438,19 @@ export class Game {
   private gainXp(amount: number) {
     if (this.stats.level >= 100) return;
     this.stats.xp += amount;
-    let leveled = false;
+    let gained = 0;
     while (this.stats.level < 100 && this.stats.xp >= this.stats.xpMax) {
       this.stats.xp -= this.stats.xpMax;
       this.stats.level++;
       this.stats.xpMax = this.nextXpMax(this.stats.level);
-      leveled = true;
+      gained++;
     }
     if (this.stats.level >= 100) this.stats.xp = 0;
-    if (leveled) {
-      // recupera vida/mana e concede pontos de habilidade (1 por nível ganho)
+    if (gained > 0) {
+      // recupera vida/mana; concede 1 ponto de habilidade e 3 de atributo por nível
       this.playerHp = this.playerMaxHp;
       this.playerMp = this.playerMaxMp;
+      this.unspent += gained * POINTS_PER_LEVEL;
       this.ui.setHealth(1);
       this.ui.setMana(1);
       this.ui.setSkillInfo(this.classId, this.stats.level); // total = nível
@@ -1399,6 +1474,16 @@ export class Game {
       dex: this.stats.dex,
       int: this.stats.int,
       gold: this.stats.gold,
+      points: this.unspent,
+      strMin: this.baseAttr.str,
+      dexMin: this.baseAttr.dex,
+      intMin: this.baseAttr.int,
+      atkMag: this.atkWithBonus(this.sec.atkMag),
+      crit: this.sec.crit,
+      critDmg: this.sec.critDmg,
+      precision: this.sec.precision,
+      magRes: this.sec.magRes,
+      evasion: this.sec.evasion,
     });
   }
 
@@ -1407,10 +1492,13 @@ export class Game {
     if (this.playerHp <= 0) return;
     // buffs defensivos reduzem o dano recebido; a defesa amortece um pouco
     const reduced = n * (1 - this.buffDefReduc());
-    this.playerHp = Math.max(0, this.playerHp - Math.max(1, Math.round(reduced)));
+    const taken = Math.max(1, Math.round(reduced));
+    this.playerHp = Math.max(0, this.playerHp - taken);
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.refreshStats();
     this.ui.flashDamage();
+    // dano sofrido pelo jogador: número vermelho no centro-baixo da tela
+    this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.58, `-${taken}`, "player");
     if (this.playerHp <= 0) {
       // derrota: recompõe a vida e volta ao início da vila
       window.setTimeout(() => {
@@ -2085,6 +2173,9 @@ export class Game {
         toX: px,
         toZ: pz,
         waitUntil: 0,
+        inside: false,
+        doorDir: undefined,
+        trans: null,
       });
     }
   }
@@ -3523,6 +3614,48 @@ export class Game {
     return { x: 0, z: 0 };
   }
 
+  // se a célula (posto noturno) fica em frente a uma PORTA (loja ou lar), devolve
+  // a direção da porta (do NPC p/ dentro do prédio); senão null (vigia/oração ao
+  // relento não têm porta e ficam parados como antes).
+  private nightDoorDir(cell: { c: number; r: number }): { dc: number; dr: number } | null {
+    const dirs = [
+      [-1, 0], [1, 0], [0, -1], [0, 1],
+    ];
+    for (const [dc, dr] of dirs) {
+      const bc = cell.c + dc, br = cell.r + dr;
+      if (cellAt(bc, br) !== "building") continue;
+      // porta nesse prédio voltada de volta p/ a célula: normal = (-dc,-dr)
+      const key = `${bc},${br},${-dc},${-dr}`;
+      if (this.doorMap.has(key) || this.homeDoorMap.has(key)) return { dc, dr };
+    }
+    return null;
+  }
+
+  // opacidade do aldeão (mesh + sombra + plaquinha) durante entrar/sair pela porta
+  private setWalkerOpacity(
+    w: { mesh: THREE.Mesh; shadow: THREE.Mesh; tag: THREE.Sprite },
+    op: number,
+  ) {
+    const m = w.mesh.material as THREE.MeshLambertMaterial;
+    // durante o fade baixamos o alphaTest (senão o sprite some de vez em ~0.5)
+    const at = op >= 0.99 ? 0.5 : 0.02;
+    if (m.alphaTest !== at) {
+      m.alphaTest = at;
+      m.needsUpdate = true;
+    }
+    m.opacity = op;
+    (w.shadow.material as THREE.MeshBasicMaterial).opacity = 0.55 * op;
+    (w.tag.material as THREE.SpriteMaterial).opacity = op;
+  }
+  private setWalkerVisible(
+    w: { mesh: THREE.Mesh; shadow: THREE.Mesh; tag: THREE.Sprite },
+    vis: boolean,
+  ) {
+    w.mesh.visible = vis;
+    w.shadow.visible = vis;
+    w.tag.visible = vis;
+  }
+
   // célula andável para os aldeões: a praça (cols 2–12 / linhas 6–12, sem o poço)
   // MAIS o corredor da entrada sul (cols 6–8 / linhas 13–14), posto do vigia.
   // Mantém os aldeões na cidade (não sobem o túnel nem saem pela trilha ao sul).
@@ -3540,6 +3673,7 @@ export class Game {
     if (c === this.col && r === this.row) return false;
     for (const o of this.walkers) {
       if (o === self) continue;
+      if (o.inside) continue; // recolhidos não ocupam a célula
       if (o.cur.c === c && o.cur.r === r) return false;
       if (o.moving && o.to.c === c && o.to.r === r) return false;
     }
@@ -3597,8 +3731,51 @@ export class Game {
     if (this.walkers.length === 0) return;
     if (this.dialogue) return; // parados durante o diálogo
     const WALK_MS = 900;
+    const TRANS_MS = 640; // atravessar a porta (entrar/sair)
     const night = this.updateNpcPhase(now);
     for (const w of this.walkers) {
+      // transição: atravessando a porta (entra ao anoitecer, sai ao amanhecer)
+      if (w.trans) {
+        const p = Math.min(1, (now - w.trans.t0) / TRANS_MS);
+        const e = p * p * (3 - 2 * p);
+        const x = w.trans.fromX + (w.trans.toX - w.trans.fromX) * e;
+        const z = w.trans.fromZ + (w.trans.toZ - w.trans.fromZ) * e;
+        w.mesh.position.x = x;
+        w.mesh.position.z = z;
+        w.shadow.position.x = x;
+        w.shadow.position.z = z;
+        w.tag.position.x = x;
+        w.tag.position.z = z;
+        this.setWalkerOpacity(w, w.trans.kind === "enter" ? 1 - e : e);
+        if (p >= 1) {
+          if (w.trans.kind === "enter") {
+            w.inside = true;
+            this.setWalkerVisible(w, false); // recolhido dentro do prédio
+          } else {
+            this.setWalkerOpacity(w, 1); // saiu: restaura opacidade/alphaTest
+            w.mesh.position.set(w.toX, w.baseY, w.toZ);
+            w.shadow.position.set(w.toX, 0.03, w.toZ);
+          }
+          w.trans = null;
+        }
+        continue;
+      }
+      // recolhido: aguarda o amanhecer p/ sair pela porta
+      if (w.inside) {
+        if (!night) {
+          const dir = w.doorDir ?? this.nightDoorDir(w.nightCell);
+          const lean = this.wallLean(w.nightCell.c, w.nightCell.r);
+          const nx = w.nightCell.c * CELL + lean.x;
+          const nz = w.nightCell.r * CELL + lean.z;
+          const doorX = w.nightCell.c * CELL + (dir?.dc ?? 0) * (CELL / 2 + 0.2);
+          const doorZ = w.nightCell.r * CELL + (dir?.dr ?? 0) * (CELL / 2 + 0.2);
+          this.setWalkerVisible(w, true);
+          this.setWalkerOpacity(w, 0);
+          w.mesh.position.set(doorX, w.baseY, doorZ);
+          w.trans = { kind: "exit", t0: now, fromX: doorX, fromZ: doorZ, toX: nx, toZ: nz };
+        }
+        continue;
+      }
       if (w.moving) {
         const p = Math.min(1, (now - w.t0) / WALK_MS);
         const e = p * p * (3 - 2 * p);
@@ -3621,7 +3798,21 @@ export class Game {
       } else if (now >= w.waitUntil) {
         const goal = night ? w.nightCell : w.dayCell;
         if (w.cur.c === goal.c && w.cur.r === goal.r) {
-          w.waitUntil = now + 500; // chegou: descansa no posto
+          // chegou ao posto. À noite, se o posto tem PORTA, atravessa e recolhe-se.
+          if (night) {
+            if (w.doorDir === undefined) w.doorDir = this.nightDoorDir(w.nightCell);
+            if (w.doorDir) {
+              const doorX = w.nightCell.c * CELL + w.doorDir.dc * (CELL / 2 + 0.2);
+              const doorZ = w.nightCell.r * CELL + w.doorDir.dr * (CELL / 2 + 0.2);
+              w.trans = {
+                kind: "enter", t0: now,
+                fromX: w.mesh.position.x, fromZ: w.mesh.position.z,
+                toX: doorX, toZ: doorZ,
+              };
+              continue;
+            }
+          }
+          w.waitUntil = now + 500; // sem porta: descansa no posto
           continue;
         }
         const step = this.bfsNextStep(w.cur, goal);
@@ -3723,8 +3914,7 @@ export class Game {
     if (this.buffActive && !nowBuff) {
       // buff acabou: reflete no ataque exibido
       this.buff = null;
-      this.stats.atk = this.atkWithBonus(8 + (this.currentWeapon?.dmg ?? 0));
-      this.refreshStats();
+      this.recomputeDerived();
     }
     this.buffActive = nowBuff;
     // inimigo: ataca (investida), reage ao dano (brilho + recuo) e morre
