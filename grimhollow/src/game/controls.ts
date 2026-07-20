@@ -192,7 +192,7 @@ export function setupControls(
   const BAG_SLOTS = 20;
   const bagHtml = Array.from(
     { length: BAG_SLOTS },
-    (_, i) => `<div class="gh-slot gh-bag-slot" data-bag="${i}"></div>`,
+    (_, i) => `<div class="gh-bag-slot" data-bag="${i}"></div>`,
   ).join("");
   const eq = document.createElement("div");
   eq.id = "gh-eq";
@@ -806,9 +806,10 @@ function injectStyle() {
   .gh-hud-hp-fill { background:linear-gradient(#e35d4c,#b3241a); }
   .gh-hud-mp-fill { background:linear-gradient(#57b0e8,#1c5fb3); }
 
-  /* botão de abrir a janela de personagem */
+  /* botão de abrir a janela de personagem — no lado ESQUERDO, logo abaixo da placa
+     de vida/mana (o canto superior direito fica livre p/ o mapa). */
   #gh-char-btn {
-    position:fixed; right:14px; top:12px; z-index:12; pointer-events:auto;
+    position:fixed; left:14px; top:calc(20px + min(238px, 44vw) * 0.424); z-index:12; pointer-events:auto;
     width:52px; height:52px; border-radius:50%; cursor:pointer;
     background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
     border:none; padding:0;
@@ -890,12 +891,21 @@ function injectStyle() {
     display:grid; grid-template-columns:repeat(8,1fr); grid-template-rows:repeat(6,1fr);
     gap:clamp(3px,0.8vh,6px); width:88%; aspect-ratio:4 / 3; margin:0 auto;
   }
-  /* mochila (grade simples de itens, estilo WoW) — slots um pouco menores */
+  /* MOCHILA: um ÚNICO container escuro dividido por LINHAS FINAS (sem molduras
+     grossas por célula). As linhas são a cor de fundo aparecendo no gap de 1px. */
   .gh-bag {
-    display:grid; grid-template-columns:repeat(5,1fr); gap:clamp(3px,0.7vh,5px);
-    width:100%; margin:0 auto;
+    display:grid; grid-template-columns:repeat(5,1fr); gap:1px;
+    width:100%; margin:0 auto; overflow:hidden;
+    background:rgba(201,162,39,.20);           /* cor das linhas (via gap) */
+    border:1px solid rgba(201,162,39,.34);
+    border-radius:5px; box-shadow:inset 0 2px 12px rgba(0,0,0,.6);
   }
-  .gh-bag-slot { aspect-ratio:1; position:relative; border-width:clamp(4px,0.85vh,7px); }
+  .gh-bag-slot {
+    aspect-ratio:1; position:relative; border:none; border-image:none;
+    background:rgba(11,9,6,.72); min-width:0; min-height:0;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .gh-bag-slot[data-wid]:hover { background:rgba(34,27,15,.9); filter:none; }
   /* contador de pilha (consumíveis empilhados) — usado quando houver itens */
   .gh-bag-slot .gh-count {
     position:absolute; right:2px; bottom:1px; font-size:clamp(9px,1.4vh,12px);
@@ -913,7 +923,7 @@ function injectStyle() {
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)); pointer-events:none;
   }
   .gh-bag-slot[data-wid] { cursor:pointer; }
-  .gh-bag-slot[data-wid]:hover { filter:brightness(1.15); }
+  .gh-bag-slot[data-wid]:hover { background:rgba(34,27,15,.92); }
   /* item selecionado: o slot pulsa/brilha (dourado) */
   .gh-slot-pulse { animation:gh-slot-pulse 620ms ease-out 1; }
   @keyframes gh-slot-pulse {

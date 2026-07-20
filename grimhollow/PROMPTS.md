@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 29 prontos · 🟡 2 faltando · ❌ 2 removidas
+**Status:** ✅ 29 prontos · 🟡 5 faltando · ❌ 2 removidas
 
 ---
 
@@ -15,6 +15,8 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
+| 🟡 | **Moldura do mapa** (quadrada) — HUD | [§13 · Peça A](#️-peça-a--moldura-do-mapa-quadrada-falta) |
+| 🟡 | **Sol** + **Lua** do relógio dia/noite — HUD | [§13 · Peça B/C](#️-peça-b--sol-do-relógio-falta) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
 
@@ -574,6 +576,53 @@ A hand-painted stylized dark-fantasy game LOGO WORDMARK reading exactly the sing
 *(Quando mandar, eu recorto o logo e troco o texto CSS pela arte na tela de
 início — o resto do layout continua igual. Se preferir manter o logo em CSS
 dourado que já está lá, é só avisar.)*
+
+---
+
+## 13 · HUD — Mapa e Relógio dia/noite
+
+Duas peças novas do HUD. O **botão de inventário já foi movido pra ESQUERDA** (abaixo
+da placa de vida/mana) pra liberar o **canto superior direito**, onde entra o **mapa**.
+O **relógio** usa o ciclo de dia/noite que o jogo já tem (o sol acende de dia e vai
+apagando, a lua acende de noite — eu faço esse *crossfade* por código).
+
+> **Fundo:** magenta chapado (`#ff00ff`) pra recorte limpo (a moldura contra o magenta,
+> e o sol/lua idem). Vista de frente reta, sem sombra no chão, sem texto. Manda **uma
+> por vez**. Cada prompt é **copiar e colar**.
+
+### 🗺️ Peça A — Moldura do mapa (quadrada) (falta)
+
+Uma **moldura quadrada** ornamentada (ferro escuro + ouro gasto + rebites, no tema),
+com o **miolo VAZIO/escuro** — eu desenho o mapa (a planta da cidade/masmorra) por
+código dentro dela. Cantos bem definidos (uso 9-slice se precisar esticar).
+
+```
+Hand-painted stylized-realism game UI MAP FRAME, cohesive with a grim medieval dark-fantasy game (aged dark iron, worn tarnished gold trim, small corner rivets, subtle gothic filigree in the corners). A single SQUARE ornate frame seen perfectly face-on, with a thick decorative border and an EMPTY dark recessed center (flat near-black interior) where a map will be drawn later — NOTHING inside, no drawing, no lines, no compass, no text. Symmetric border on all four sides. Soft even lighting, no cast shadow, flat front orthographic view. Clean cutout on a flat solid pure magenta background (#ff00ff), single uniform chroma color around the frame, crisp edges, no watermark. Square canvas ~768x768.
+```
+
+### ☀️ Peça B — Sol (do relógio) (falta)
+
+Um **sol** brilhante e estilizado (disco dourado com raios), pra acender de dia.
+Vai **por cima** de um mostrador redondo (uso a base de botão redonda que já tenho
+como aro, ou você manda um aro dedicado depois).
+
+```
+Hand-painted stylized-realism game ICON of the SUN, cohesive with a grim medieval dark-fantasy game. A single stylized radiant sun — a glowing golden-amber disc with engraved metallic rays around it, warm inner glow, worn gold and bronze tones, bold clear silhouette, centered. No face, no background disc or ring, no frame. Flat front orthographic view, soft even lighting, no cast shadow. Clean cutout on a flat solid pure magenta background (#ff00ff), single uniform chroma color, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~512x512.
+```
+
+### 🌙 Peça C — Lua (do relógio) (falta)
+
+Uma **lua** (crescente ou cheia) fria e prateada, pra acender de noite — mesmo
+tamanho/estilo do sol, pra trocar no mesmo lugar.
+
+```
+Hand-painted stylized-realism game ICON of the MOON, cohesive with a grim medieval dark-fantasy game. A single stylized crescent moon — a pale silver-blue glowing crescent with subtle engraved craters and a soft cold halo, weathered silver tones, bold clear silhouette, centered, roughly the same size as a sun icon so they can swap in the same spot. No face, no background disc or ring, no frame. Flat front orthographic view, soft even lighting, no cast shadow. Clean cutout on a flat solid pure magenta background (#ff00ff), single uniform chroma color, crisp edges, nothing else in frame, no text, no watermark. Square canvas ~512x512.
+```
+
+*(Quando mandar as três: eu ponho a **moldura do mapa** no canto superior direito com
+o mapa desenhado por dentro (por código); e monto o **relógio** — sol e lua no mesmo
+mostrador, com o sol em opacidade = luz do dia e a lua = 1 − luz do dia, ligados no
+ciclo dia/noite que já roda no jogo.)*
 
 ---
 
