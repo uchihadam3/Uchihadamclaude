@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 28 prontos · 🟡 3 faltando · ❌ 2 removidas
+**Status:** ✅ 29 prontos · 🟡 2 faltando · ❌ 2 removidas
 
 ---
 
@@ -15,7 +15,6 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
-| 🟡 | **Ícones dos botões** (ataque · ação · elmo p/ inventário) | [§11 · Peça B](#-peça-b--ícones-dos-botões-de-ação-ataque--ação--inventário-falta) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
 
@@ -406,11 +405,12 @@ Hand-painted stylized-realism game UI button, cohesive with a grim medieval dark
 com o miolo brilhando âmbar/dourado. Se não mandar, eu faço o estado pressionado por
 código, com um brilho.)*
 
-### 🟡 Peça B — Ícones dos botões de ação (ataque · ação · inventário) (falta)
+### ✅ Peça B — Ícones dos botões de ação (ataque · ação · inventário) (PRONTO — no jogo)
 
 Os **3 símbolos pintados** que entram **por cima da base redonda** (Peça A), no
-lugar dos ícones que hoje são desenhados em código (não casam com o resto da arte).
-As **setas de movimento** continuam no D-pad (Peça C), então **não** precisam de arte.
+lugar dos ícones que eram desenhados em código. **No jogo:** espadas cruzadas
+(ataque), manopla (ação/interagir) e **elmo** (inventário/personagem, no lugar do
+escudo). As **setas de movimento** ficam no D-pad (Peça C), então não precisam de arte.
 
 > **Como cada um deve ser:** um **emblema/símbolo único, centralizado**, em **metal
 > claro** (bronze polido claro + aço, com leve gravação) pra **saltar sobre o botão
