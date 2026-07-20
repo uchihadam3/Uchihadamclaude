@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 32 prontos · 🟡 7 faltando · ❌ 2 removidas
+**Status:** ✅ 33 recortados · 🟡 10 faltando · ❌ 2 removidas
 
 ---
 
@@ -15,7 +15,7 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
-| 🟡 | **Skill Tree** — 5 folhas (4 de ativas + 1 de passivas) | [§14](#14--skill-tree-habilidades--aprovado) |
+| 🟡 | **Skill Tree** — faltam 3 folhas de ativas (Ladino/Mago/Clérigo) + 1 de passivas + 4 fundos | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
 
@@ -683,7 +683,7 @@ Emblemas de status neutros (prata) que viram os nós passivos, tingidos por ramo
 
 ---
 
-### 🟡 Peça A — Folha de ATIVAS do Guerreiro (falta)
+### ✅ Peça A — Folha de ATIVAS do Guerreiro (RECORTADA — no repo)
 
 ```
 Hand-painted stylized-realism game SKILL-ICON SHEET for a WARRIOR class in a grim medieval dark-fantasy game. A neat grid of 4 columns by 4 rows holding 15 distinct ability icons (leave the last cell empty), evenly spaced with clear gaps between them so each can be cut apart, every icon centered in its own cell at the same size and identical style — each a circular emblem with a worn GOLD ring frame on a dark iron medallion (active-ability look). In reading order: (1) a heavy overhead sword smash, (2) a charging shoulder-bash lunge, (3) a spinning whirlwind of blades, (4) a cracked shattered armor plate, (5) a decapitating axe stroke, (6) a roaring taunt helm with sound rings, (7) a raised tower-shield wall, (8) a shield deflecting arrows, (9) a glowing runic shield (invulnerability), (10) a last-stand heart crossed with a shield, (11) a blowing war-horn, (12) a frenzied blade with speed streaks, (13) a brutal armored ram charge, (14) a ground-shattering earthquake stomp, (15) a massive final overhead cleave with impact. Cohesive dark iron and worn gold palette, bold clear silhouettes that read when small. Flat front orthographic view, soft even lighting, no cast shadow. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, each icon a crisp separated shape on the magenta. No text, no numbers, no frames around the whole sheet, no watermark. Square canvas ~2048x2048.
@@ -716,6 +716,36 @@ Hand-painted stylized-realism game PASSIVE STAT-ICON SHEET for a grim medieval d
 *(Quando mandar cada folha, eu corto os 15/16 pela grade, ligo no ramo certo e monto a
 aba "Habilidades" com os nós, ranks e tooltips. As passivas eu tinjo por cor de ramo no
 código.)*
+
+### 🟡 Peça F — Fundos da árvore (estilo PoE) — 1 por classe (falta)
+
+Pano de fundo atmosférico atrás dos nós de cada árvore (como no PoE). **Escuro e de
+baixo contraste** (bordas bem escuras) pra os nós e as linhas lerem por cima. Vertical
+grande, sem elementos no centro. Manda **um por vez**. (Fundo pode ser da própria cena,
+NÃO precisa ser magenta — eu escureço/vinheto por código.)
+
+**⚔️ Guerreiro:**
+```
+Epic dark-fantasy skill-tree BACKGROUND art, grim medieval mood, for a WARRIOR talent tree. A brooding vertical backdrop of a war-forge and iron rampart: dark hammered-iron walls, glowing forge embers deep in the gloom, hanging chains, crossed banners and worn weapon racks fading into shadow. Very dark, low-contrast, desaturated iron-grey and ember-orange, heavy vignette with the edges nearly black so UI nodes and connecting lines read clearly on top. Painterly, atmospheric depth, empty uncluttered center. No characters, no icons, no text, no UI, no watermark. Tall portrait canvas ~1024x1536.
+```
+
+**🗡️ Ladino:**
+```
+Epic dark-fantasy skill-tree BACKGROUND art, grim medieval mood, for a ROGUE talent tree. A brooding vertical backdrop of shadowed rooftops and dark alleys: moonlit tiled roofs, narrow misty alleyways, hanging cloth, faint distant lanterns swallowed by darkness. Very dark, low-contrast, desaturated blue-black and muted green, heavy vignette with the edges nearly black so UI nodes and connecting lines read clearly on top. Painterly, atmospheric depth, empty uncluttered center. No characters, no icons, no text, no UI, no watermark. Tall portrait canvas ~1024x1536.
+```
+
+**🔮 Mago:**
+```
+Epic dark-fantasy skill-tree BACKGROUND art, grim medieval mood, for a MAGE talent tree. A brooding vertical backdrop of an arcane observatory / starry void: a dark stone tower interior opening to a deep night sky with faint constellations, floating glowing runes and orbiting arcane glyphs dissolving into darkness. Very dark, low-contrast, deep blue-violet with faint arcane glow, heavy vignette with the edges nearly black so UI nodes and connecting lines read clearly on top. Painterly, atmospheric depth, empty uncluttered center. No characters, no icons, no text, no UI, no watermark. Tall portrait canvas ~1024x1536.
+```
+
+**🕯️ Clérigo:**
+```
+Epic dark-fantasy skill-tree BACKGROUND art, grim medieval mood, for a CLERIC talent tree. A brooding vertical backdrop of a ruined cathedral: broken stone arches, a tall shattered stained-glass window with faint colored light, dusty pews and guttering candles fading into shadow. Very dark, low-contrast, desaturated stone-grey with soft warm gold and muted stained-glass tints, heavy vignette with the edges nearly black so UI nodes and connecting lines read clearly on top. Painterly, atmospheric depth, empty uncluttered center. No characters, no icons, no text, no UI, no watermark. Tall portrait canvas ~1024x1536.
+```
+
+*(Quando mandar, eu ponho cada fundo atrás da árvore da classe, escurecido/vinhetado pra
+os nós e conexões ficarem legíveis.)*
 
 ---
 
