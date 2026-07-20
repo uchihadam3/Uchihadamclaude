@@ -683,7 +683,13 @@ Emblemas de status neutros (prata) que viram os nós passivos, tingidos por ramo
 
 ---
 
-### ✅ Peça A — Folha de ATIVAS do Guerreiro (RECORTADA — no repo)
+### ✅ Peça A — Folha de ATIVAS do Guerreiro (NO JOGO — aba Habilidades)
+
+> A aba **"Habilidades"** já está no jogo com a **árvore do Guerreiro** montada (3 ramos,
+> nós ativos com os ícones reais, passivos com placeholder, ranks, pré-requisitos e
+> tooltips). As passivas trocam pela folha genérica (Peça E) quando chegar; as outras
+> classes entram conforme as folhas B/C/D. (Pontos de teste: 24, até o sistema de nível.)
+
 
 ```
 Hand-painted stylized-realism game SKILL-ICON SHEET for a WARRIOR class in a grim medieval dark-fantasy game. A neat grid of 4 columns by 4 rows holding 15 distinct ability icons (leave the last cell empty), evenly spaced with clear gaps between them so each can be cut apart, every icon centered in its own cell at the same size and identical style — each a circular emblem with a worn GOLD ring frame on a dark iron medallion (active-ability look). In reading order: (1) a heavy overhead sword smash, (2) a charging shoulder-bash lunge, (3) a spinning whirlwind of blades, (4) a cracked shattered armor plate, (5) a decapitating axe stroke, (6) a roaring taunt helm with sound rings, (7) a raised tower-shield wall, (8) a shield deflecting arrows, (9) a glowing runic shield (invulnerability), (10) a last-stand heart crossed with a shield, (11) a blowing war-horn, (12) a frenzied blade with speed streaks, (13) a brutal armored ram charge, (14) a ground-shattering earthquake stomp, (15) a massive final overhead cleave with impact. Cohesive dark iron and worn gold palette, bold clear silhouettes that read when small. Flat front orthographic view, soft even lighting, no cast shadow. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, each icon a crisp separated shape on the magenta. No text, no numbers, no frames around the whole sheet, no watermark. Square canvas ~2048x2048.

@@ -1,5 +1,6 @@
 import { MOVE_MS } from "./config";
 import { STYLES, REST, type Weapon, type Pose } from "./weapons";
+import { SKILL_TREES, STAT_META, type Skill } from "./skills";
 import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
@@ -57,6 +58,8 @@ export interface HUD {
   updateMinimap(s: MinimapState): void;
   // relógio dia/noite: fase [0,1) e luz do dia [0,1] (sol acende/lua apaga e vice-versa)
   setClock(phase: number, daylight: number): void;
+  // árvore de habilidades: define a classe e quantos pontos o herói tem
+  setSkillInfo(classId: string, points: number): void;
 }
 
 export interface MinimapState {
@@ -345,6 +348,7 @@ export function setupControls(
     '<div class="gh-eq-tabs">' +
     '<button class="gh-tab gh-tab-on" data-tab="equip">Equipamento</button>' +
     '<button class="gh-tab" data-tab="stats">Atributos</button>' +
+    '<button class="gh-tab" data-tab="skills">Habilidades</button>' +
     "</div>" +
     '<div class="gh-eq-body">' +
     '<div class="gh-tabpane" data-pane="equip">' +
@@ -357,6 +361,9 @@ export function setupControls(
     "</div>" +
     '<div class="gh-tabpane gh-pane-hidden" data-pane="stats">' +
     '<div class="gh-eq-stats" id="gh-eq-stats"></div>' +
+    "</div>" +
+    '<div class="gh-tabpane gh-pane-hidden" data-pane="skills">' +
+    '<div id="gh-skills"></div>' +
     "</div>" +
     "</div></div></div>";
   root.appendChild(eq);
@@ -373,6 +380,73 @@ export function setupControls(
   );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
   const bagSlots = Array.from(eq.querySelectorAll<HTMLElement>(".gh-bag-slot"));
+
+  // ---- árvore de habilidades ----
+  const skillsPane = eq.querySelector("#gh-skills") as HTMLElement;
+  let skillClassId = "";
+  let skillPointsTotal = 0;
+  const skillRanks: Record<string, number> = {};
+  const spentPoints = () =>
+    Object.values(skillRanks).reduce((a, b) => a + b, 0);
+  const showSkillTip = (sk: Skill, rank: number) => {
+    const tip = skillsPane.querySelector("#gh-sk-tip") as HTMLElement | null;
+    if (!tip) return;
+    tip.innerHTML = `<b>${sk.name}</b> <i>(${sk.kind === "active" ? "Ativa" : "Passiva"} · ${rank}/${sk.maxRank})</i><br>${sk.desc}`;
+  };
+  const renderSkills = () => {
+    const tree = SKILL_TREES[skillClassId];
+    if (!tree) {
+      skillsPane.innerHTML =
+        '<div class="gh-sk-soon">A árvore de habilidades desta classe chega em breve.</div>';
+      return;
+    }
+    const avail = skillPointsTotal - spentPoints();
+    const cols = tree.branches
+      .map((b) => {
+        const nodes = b.skills
+          .map((sk, i) => {
+            const rank = skillRanks[sk.id] || 0;
+            const prev = i > 0 ? b.skills[i - 1] : null;
+            const unlocked = !prev || (skillRanks[prev.id] || 0) >= 1;
+            const maxed = rank >= sk.maxRank;
+            const canBuy = unlocked && !maxed && avail > 0;
+            const kindCls = sk.kind === "active" ? "gh-sk-active" : "gh-sk-passive";
+            const state = [
+              rank > 0 ? "gh-sk-on" : "",
+              !unlocked ? "gh-sk-locked" : "",
+              canBuy ? "gh-sk-buy" : "",
+            ].join(" ");
+            const inner =
+              sk.kind === "active" && sk.icon
+                ? `<img src="${sk.icon}" alt=""/>`
+                : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
+            const line = i > 0 ? `<div class="gh-sk-line" style="background:${b.color}"></div>` : "";
+            return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}" data-branch="${b.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
+          })
+          .join("");
+        return `<div class="gh-sk-branch"><div class="gh-sk-bhead" style="color:${b.color}">${b.name}</div>${nodes}</div>`;
+      })
+      .join("");
+    skillsPane.innerHTML =
+      `<div class="gh-sk-top">Pontos: <b class="${avail > 0 ? "gh-sk-pts" : ""}">${avail}</b></div>` +
+      `<div class="gh-sk-cols">${cols}</div>` +
+      '<div class="gh-sk-tip" id="gh-sk-tip">Toque num nó pra ver detalhes. Gaste pontos de cima pra baixo em cada ramo.</div>';
+    skillsPane.querySelectorAll<HTMLElement>(".gh-sk-node").forEach((n) => {
+      const branch = tree.branches.find((x) => x.id === n.dataset.branch)!;
+      const sk = branch.skills.find((x) => x.id === n.dataset.sk)!;
+      n.addEventListener("click", () => {
+        const idx = branch.skills.indexOf(sk);
+        const prev = idx > 0 ? branch.skills[idx - 1] : null;
+        const unlocked = !prev || (skillRanks[prev.id] || 0) >= 1;
+        const rank = skillRanks[sk.id] || 0;
+        if (unlocked && rank < sk.maxRank && skillPointsTotal - spentPoints() > 0) {
+          skillRanks[sk.id] = rank + 1;
+          renderSkills();
+        }
+        showSkillTip(sk, skillRanks[sk.id] || 0);
+      });
+    });
+  };
   const openEq = () => eq.classList.remove("gh-eq-hidden");
   const closeEq = () => eq.classList.add("gh-eq-hidden");
   const toggleEq = () =>
@@ -795,6 +869,11 @@ export function setupControls(
       drawSmall(s); // minimapa pequeno (zoom ao redor do herói)
       if (bigOpen()) drawBig(s); // se o mapa grande estiver aberto, atualiza também
     },
+    setSkillInfo(classId: string, points: number) {
+      skillClassId = classId;
+      skillPointsTotal = points;
+      renderSkills();
+    },
     setClock(phase: number, daylight: number) {
       // órbita: sol no TOPO ao meio-dia (fase 0.25). ângulo cresce com o tempo.
       const theta = (phase - 0.25) * Math.PI * 2;
@@ -1173,6 +1252,42 @@ function injectStyle() {
   .gh-stat { display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
   .gh-stat span { color:#bfae82; }
   .gh-stat b { color:#f0e6cc; font-weight:600; }
+  /* --- árvore de habilidades --- */
+  .gh-sk-soon { text-align:center; padding:34px 12px; font-style:italic; color:#b6a877; }
+  .gh-sk-top { text-align:center; font-size:13px; color:#d7c79a; margin-bottom:8px; }
+  .gh-sk-top b { font-family:"Cinzel",serif; font-size:16px; color:#8f8262; padding:0 3px; }
+  .gh-sk-top b.gh-sk-pts { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.5); }
+  .gh-sk-cols { display:flex; gap:6px; justify-content:space-between; align-items:flex-start; }
+  .gh-sk-branch { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; }
+  .gh-sk-bhead {
+    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.6vh,14px);
+    margin-bottom:6px; text-shadow:0 1px 3px #000; text-align:center; letter-spacing:.5px;
+  }
+  .gh-sk-line { width:3px; height:11px; opacity:.5; border-radius:2px; }
+  .gh-sk-node {
+    position:relative; border-radius:50%; cursor:pointer; padding:0; flex:0 0 auto;
+    background:rgba(10,9,6,.72); display:flex; align-items:center; justify-content:center;
+    border:2px solid #6a5a2e; transition:box-shadow .15s, transform .08s, filter .15s;
+  }
+  .gh-sk-node:active { transform:scale(.92); }
+  .gh-sk-active { width:clamp(38px,6.6vh,50px); height:clamp(38px,6.6vh,50px); border-color:#c9a24a; }
+  .gh-sk-passive { width:clamp(28px,5vh,38px); height:clamp(28px,5vh,38px); border-color:#9aa2ad; }
+  .gh-sk-node img { width:100%; height:100%; object-fit:contain; border-radius:50%; pointer-events:none; }
+  .gh-sk-sym { font-size:clamp(13px,2.2vh,18px); line-height:1; pointer-events:none; }
+  .gh-sk-node.gh-sk-locked { opacity:.32; filter:grayscale(.65); }
+  .gh-sk-node.gh-sk-on { box-shadow:0 0 0 2px rgba(255,215,100,.55), 0 0 10px rgba(255,200,80,.4); }
+  .gh-sk-node.gh-sk-buy { animation:gh-sk-pulse 1.25s ease-in-out infinite; }
+  @keyframes gh-sk-pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(255,220,120,0);} 50%{ box-shadow:0 0 11px 2px rgba(255,220,120,.6);} }
+  .gh-sk-rank {
+    position:absolute; right:-5px; bottom:-5px; background:rgba(8,7,5,.94);
+    border:1px solid rgba(201,162,39,.6); border-radius:6px; padding:0 3px;
+    font-size:10px; color:#f0dca2; line-height:1.35; font-variant-numeric:tabular-nums;
+  }
+  .gh-sk-tip {
+    margin-top:10px; min-height:40px; padding:8px 11px; font-size:12.5px; line-height:1.4;
+    background:rgba(8,7,5,.6); border:1px solid rgba(201,162,39,.3); border-radius:8px; color:#d8cba0;
+  }
+  .gh-sk-tip b { color:#f0e2bd; font-family:"Cinzel",serif; }
   /* vinheta vermelha ao levar dano */
   #gh-dmg {
     position:fixed; inset:0; z-index:9; pointer-events:none; opacity:0;
