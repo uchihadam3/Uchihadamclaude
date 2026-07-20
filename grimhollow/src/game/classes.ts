@@ -85,4 +85,7 @@ export const CLASS_BY_ID: Record<string, GameClass> = Object.fromEntries(
 export interface Character {
   name: string;
   classId: string;
+  // primários FINAIS após distribuir os pontos na criação (base da classe + alocado).
+  // Se ausente, o Game usa os atributos-base da classe.
+  attr?: { str: number; dex: number; int: number };
 }

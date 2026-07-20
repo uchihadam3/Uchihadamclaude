@@ -2,6 +2,7 @@
 // os assets) → resolve com o personagem escolhido. As telas são overlays em HTML.
 import { CLASSES, CLASS_BY_ID, type GameClass, type Character } from "./classes";
 import { WEAPON_BY_ID } from "./weapons";
+import { derive, START_POINTS, type Primaries } from "./stats";
 import eqContainerUrl from "../assets/ui/eq_container.png";
 
 // Key art do título (PNG). O logo/menu ficam por cima; a arte é sem texto.
@@ -35,8 +36,17 @@ export function runIntro(root: HTMLElement): Promise<Character> {
     };
     // BOOT: tela preta pré-carregando TODOS os assets (espada enchendo no canto)
     // ANTES do título — assim título e criação já entram com tudo pronto.
+    // Fluxo: Boot → Título → Escolha de classe → Distribuição de pontos → Jogo.
+    const toAlloc = (cls: GameClass, name: string) =>
+      showAllocate(
+        overlay,
+        cls,
+        name,
+        finish,
+        () => showCreate(overlay, toAlloc, cls.id, name),
+      );
     showBoot(overlay, () =>
-      showTitle(overlay, () => showCreate(overlay, finish)),
+      showTitle(overlay, () => showCreate(overlay, toAlloc)),
     );
   });
 }
@@ -60,21 +70,27 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
-function showCreate(overlay: HTMLElement, onStart: (c: Character) => void) {
-  let sel: GameClass = CLASSES[0];
+// Passo 1: escolha da classe. "Continuar" leva ao passo 2 (distribuição de pontos).
+function showCreate(
+  overlay: HTMLElement,
+  onChosen: (cls: GameClass, name: string) => void,
+  initialId?: string,
+  initialName?: string,
+) {
+  let sel: GameClass = (initialId && CLASS_BY_ID[initialId]) || CLASSES[0];
   overlay.innerHTML = `
     <div class="gh-screen gh-create">
       <h2 class="gh-screen-h">Crie seu Herói</h2>
       <div class="gh-class-tabs">
         ${CLASSES.map(
-          (c, i) =>
-            `<button class="gh-class-tab${i === 0 ? " on" : ""}" data-id="${c.id}"><img class="gh-tab-ico" src="${CLASS_ICON[c.id]}" alt=""/><span>${c.name}</span></button>`,
+          (c) =>
+            `<button class="gh-class-tab${c.id === sel.id ? " on" : ""}" data-id="${c.id}"><img class="gh-tab-ico" src="${CLASS_ICON[c.id]}" alt=""/><span>${c.name}</span></button>`,
         ).join("")}
       </div>
       <div class="gh-class-main" id="gh-class-main"></div>
       <div class="gh-create-foot">
-        <input class="gh-name-input" id="gh-name" maxlength="18" placeholder="Nome do herói" />
-        <button class="gh-menu-btn" id="gh-btn-start">Iniciar Jornada ▸</button>
+        <input class="gh-name-input" id="gh-name" maxlength="18" placeholder="Nome do herói" value="${initialName ? initialName.replace(/"/g, "&quot;") : ""}" />
+        <button class="gh-menu-btn" id="gh-btn-start">Continuar ▸</button>
       </div>
     </div>`;
   const main = overlay.querySelector("#gh-class-main") as HTMLElement;
@@ -111,8 +127,113 @@ function showCreate(overlay: HTMLElement, onStart: (c: Character) => void) {
   overlay.querySelector("#gh-btn-start")!.addEventListener("click", () => {
     const nameEl = overlay.querySelector("#gh-name") as HTMLInputElement;
     const name = nameEl.value.trim() || "Herói";
-    onStart({ name, classId: sel.id });
+    window.removeEventListener("resize", onResize);
+    onChosen(sel, name);
   });
+}
+
+// ---------------------------------------- PASSO 2: DISTRIBUIÇÃO DE ATRIBUTOS
+// Mesmo enquadramento do cartão de classe (retrato à esquerda), mas o lado direito
+// vira a distribuição de pontos com PREVIEW AO VIVO dos secundários.
+function showAllocate(
+  overlay: HTMLElement,
+  cls: GameClass,
+  name: string,
+  onStart: (c: Character) => void,
+  onBack: () => void,
+) {
+  const base: Primaries = { ...cls.attr };
+  const alloc: Primaries = { ...cls.attr };
+  overlay.innerHTML = `
+    <div class="gh-screen gh-create">
+      <h2 class="gh-screen-h">Distribua os Atributos</h2>
+      <div class="gh-class-main" id="gh-alloc-main"></div>
+      <div class="gh-create-foot">
+        <button class="gh-menu-btn gh-menu-btn-sec" id="gh-back">◂ Voltar</button>
+        <button class="gh-menu-btn" id="gh-start">Iniciar Jornada ▸</button>
+      </div>
+    </div>`;
+  const main = overlay.querySelector("#gh-alloc-main") as HTMLElement;
+  const spent = () =>
+    alloc.str - base.str + (alloc.dex - base.dex) + (alloc.int - base.int);
+  const render = () => {
+    main.innerHTML = allocCard(cls, alloc, base, START_POINTS - spent());
+    main.querySelectorAll<HTMLButtonElement>(".gh-pm").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const k = btn.dataset.k as keyof Primaries;
+        const d = Number(btn.dataset.d);
+        if (d < 0 && alloc[k] <= base[k]) return;
+        if (d > 0 && spent() >= START_POINTS) return;
+        alloc[k] += d;
+        render();
+      }),
+    );
+  };
+  render();
+  overlay.querySelector("#gh-back")!.addEventListener("click", onBack);
+  overlay.querySelector("#gh-start")!.addEventListener("click", () => {
+    onStart({ name, classId: cls.id, attr: { ...alloc } });
+  });
+}
+
+// cartão da distribuição: retrato + colunas de primários (com +/-) e secundários
+function allocCard(
+  cls: GameClass,
+  alloc: Primaries,
+  base: Primaries,
+  remaining: number,
+): string {
+  const art = cls.portrait
+    ? `<img class="gh-class-portrait" src="${cls.portrait}" alt="" />`
+    : `<div class="gh-class-ph"><div class="gh-ph-emoji">${cls.emoji}</div></div>`;
+  const sec = derive(alloc, cls.hp, cls.mp);
+  const prim = (label: string, key: keyof Primaries) => {
+    const v = alloc[key];
+    const up = v - base[key];
+    const minus = v <= base[key] ? " disabled" : "";
+    const plus = remaining <= 0 ? " disabled" : "";
+    return `<div class="gh-prim-row">
+      <span class="gh-prim-name">${label}</span>
+      <button class="gh-pm" data-k="${key}" data-d="-1"${minus}>−</button>
+      <b class="gh-prim-val">${v}${up ? `<i class="gh-prim-up">+${up}</i>` : ""}</b>
+      <button class="gh-pm" data-k="${key}" data-d="1"${plus}>＋</button>
+    </div>`;
+  };
+  const sr = (label: string, val: string | number) =>
+    `<div class="gh-sec-row"><span>${label}</span><b>${val}</b></div>`;
+  return `
+    <div class="gh-class-art">${art}</div>
+    <div class="gh-class-info gh-alloc">
+      <div class="gh-class-name"><img class="gh-name-ico" src="${CLASS_ICON[cls.id]}" alt=""/>${cls.name}</div>
+      <div class="gh-alloc-points">Pontos a distribuir: <b class="${remaining > 0 ? "gh-pts-on" : ""}">${remaining}</b></div>
+      <div class="gh-prim">
+        ${prim("Força", "str")}
+        ${prim("Destreza", "dex")}
+        ${prim("Inteligência", "int")}
+      </div>
+      <div class="gh-sec-blocks">
+        <div class="gh-sec-col">
+          <h4>⚔️ Ofensivo</h4>
+          ${sr("Ataque Físico", sec.atkPhys)}
+          ${sr("Ataque Mágico", sec.atkMag)}
+          ${sr("Crítico", sec.crit + "%")}
+          ${sr("Dano Crítico", sec.critDmg + "%")}
+          ${sr("Precisão", sec.precision + "%")}
+        </div>
+        <div class="gh-sec-col">
+          <h4>🛡️ Defensivo</h4>
+          ${sr("Vida", sec.hp)}
+          ${sr("Defesa", sec.def)}
+          ${sr("Resist. Mágica", sec.magRes)}
+          ${sr("Evasão", sec.evasion + "%")}
+        </div>
+        <div class="gh-sec-col">
+          <h4>🔷 Recursos</h4>
+          ${sr("Mana", sec.mp)}
+          <div class="gh-sec-note">Roubo de Vida, Redução de Recarga e Bloqueio vêm de equipamento e talentos.</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 // cartão da classe (arte + atributos + armas) — a "imagem/png" da classe fica no
@@ -343,6 +464,36 @@ function injectStyle() {
   #gh-intro .gh-vitals { display:flex; gap:16px; font-size:14px; color:#e6d6ac; margin-bottom:6px; }
   #gh-intro .gh-class-weapons { font-size:13px; color:#cbbb8e; }
   #gh-intro .gh-class-weapons b { color:#e6d09a; font-family:"Cinzel",serif; }
+  /* --- distribuição de atributos (passo 2) --- */
+  #gh-intro .gh-alloc { display:flex; flex-direction:column; gap:8px; }
+  #gh-intro .gh-alloc-points { font-size:14px; color:#d7c79a; }
+  #gh-intro .gh-alloc-points b { font-family:"Cinzel",serif; font-size:16px; color:#8f8262; padding:0 2px; }
+  #gh-intro .gh-alloc-points b.gh-pts-on { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.5); }
+  #gh-intro .gh-prim { display:flex; flex-direction:column; gap:6px; padding:8px 0; border-top:1px solid rgba(201,162,39,.22); border-bottom:1px solid rgba(201,162,39,.22); }
+  #gh-intro .gh-prim-row { display:flex; align-items:center; gap:10px; }
+  #gh-intro .gh-prim-name { flex:1; font-family:"Cinzel",serif; font-size:15px; color:#e7d7a6; }
+  #gh-intro .gh-prim-val { min-width:44px; text-align:center; font-size:18px; color:#fff; }
+  #gh-intro .gh-prim-up { font-style:normal; font-size:11px; color:#7ee08a; margin-left:3px; vertical-align:super; }
+  #gh-intro .gh-pm {
+    width:30px; height:30px; flex:0 0 auto; cursor:pointer; font-size:19px; line-height:1;
+    color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
+    border:2px solid rgba(201,162,39,.6); border-radius:8px;
+    display:flex; align-items:center; justify-content:center; padding:0;
+    transition:border-color .12s, transform .08s, color .12s;
+  }
+  #gh-intro .gh-pm:hover:not(:disabled) { border-color:#f4c847; color:#fff; }
+  #gh-intro .gh-pm:active:not(:disabled) { transform:scale(.9); }
+  #gh-intro .gh-pm:disabled { opacity:.3; cursor:default; }
+  #gh-intro .gh-sec-blocks { display:flex; flex-wrap:wrap; gap:6px 18px; }
+  #gh-intro .gh-sec-col { flex:1 1 130px; min-width:120px; }
+  #gh-intro .gh-sec-col h4 {
+    margin:2px 0 4px; font-family:"Cinzel",serif; font-size:13px; color:#eccf82;
+    border-bottom:1px solid rgba(201,162,39,.28); padding-bottom:2px;
+  }
+  #gh-intro .gh-sec-row { display:flex; justify-content:space-between; gap:8px; font-size:12.5px; color:#cdbd90; padding:1.5px 0; }
+  #gh-intro .gh-sec-row b { color:#f0e0b0; font-variant-numeric:tabular-nums; }
+  #gh-intro .gh-sec-note { font-size:11px; font-style:italic; color:#9c8f6d; margin-top:6px; line-height:1.35; }
+  #gh-intro .gh-menu-btn-sec { min-width:120px; padding:15px 22px; opacity:.9; }
   #gh-intro .gh-create-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; margin:2px 0 12px; }
   #gh-intro .gh-name-input {
     font-family:"MedievalSharp",serif; font-size:16px; color:#f0e6c8; text-align:center;
