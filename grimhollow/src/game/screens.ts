@@ -7,6 +7,7 @@ import eqContainerUrl from "../assets/ui/eq_container.png";
 // Key art do título (PNG). O logo/menu ficam por cima; a arte é sem texto.
 import titleArtUrl from "../assets/ui/title_bg.png";
 import createBgUrl from "../assets/ui/create_bg.png";
+import menuPlateUrl from "../assets/ui/menu_plate.png";
 import iconGuerreiro from "../assets/ui/class_icon_guerreiro.png";
 import iconLadino from "../assets/ui/class_icon_ladino.png";
 import iconMago from "../assets/ui/class_icon_mago.png";
@@ -46,7 +47,7 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
         <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
       </div>
       <div class="gh-menu">
-        <button class="gh-menu-btn" id="gh-btn-new">⚔ Novo Jogo</button>
+        <button class="gh-menu-btn" id="gh-btn-new">Novo Jogo</button>
         <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
       </div>
     </div>`;
@@ -242,17 +243,20 @@ function injectStyle() {
   #gh-intro .gh-flourish svg { width:100%; height:auto; display:block; }
   #gh-intro .gh-tagline { font-style:italic; opacity:.82; margin:0 0 6px; font-size:clamp(13px,2.4vh,17px); }
   #gh-intro .gh-menu { position:relative; z-index:1; display:flex; flex-direction:column; gap:12px; align-items:center; }
+  /* botão de menu = placa de pedra (arte PNG) em 9-slice; texto dourado por cima */
   #gh-intro .gh-menu-btn {
     font-family:"Cinzel",serif; font-size:clamp(15px,2.4vh,20px); letter-spacing:1px;
-    padding:12px 44px; min-width:220px; color:#f0e0b4; cursor:pointer;
-    background:linear-gradient(#2b2218,#160f08);
-    border:2px solid rgba(201,162,39,.6); border-radius:10px;
-    box-shadow:0 3px 10px #0008, inset 0 0 22px rgba(0,0,0,.45);
-    transition:border-color .15s, box-shadow .15s, color .15s, transform .1s;
+    padding:15px 46px; min-width:236px; color:#f0e0b4; cursor:pointer;
+    background:transparent;
+    border-style:solid; border-width:17px 28px;
+    border-image:url(${menuPlateUrl}) 150 165 fill;
+    text-shadow:0 2px 4px #000, 0 0 10px rgba(0,0,0,.6);
+    filter:drop-shadow(0 3px 8px rgba(0,0,0,.5));
+    transition:filter .15s, color .15s, transform .1s;
   }
-  #gh-intro .gh-menu-btn:hover:not(.gh-disabled) { border-color:#f4c847; color:#fff; box-shadow:0 0 18px rgba(240,192,64,.5); }
-  #gh-intro .gh-menu-btn:active:not(.gh-disabled) { transform:translateY(1px) scale(.98); }
-  #gh-intro .gh-disabled { opacity:.38; cursor:default; }
+  #gh-intro .gh-menu-btn:hover:not(.gh-disabled) { color:#fff; filter:drop-shadow(0 0 14px rgba(240,192,64,.55)); }
+  #gh-intro .gh-menu-btn:active:not(.gh-disabled) { transform:translateY(1px) scale(.985); }
+  #gh-intro .gh-disabled { opacity:.42; cursor:default; }
   /* --- criação de personagem --- */
   #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   /* fundo (arte da cripta) FIXO atrás da UI + véu p/ o texto ler bem */
