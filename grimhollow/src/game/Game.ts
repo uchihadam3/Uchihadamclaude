@@ -151,7 +151,7 @@ const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
 // entram só adicionando aqui (skill → arquivo + nº de quadros).
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   m_bola_fogo: { url: fxFireballUrl, frames: 17 },
-  m_lanca_gelo: { url: fxIceUrl, frames: 17 },
+  m_lanca_gelo: { url: fxIceUrl, frames: 10 },
   m_raio_arcano: { url: fxRayUrl, frames: 16 },
 };
 const FX_MS = 640; // duração da animação do efeito (no alvo)
