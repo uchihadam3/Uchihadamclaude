@@ -189,7 +189,18 @@ const SKILL_FX: Record<string, { url: string; frames: number }> = {
   m_descarga: FX_DESCARGA,
   m_nova_arcana: FX_ARCANE,
 };
-const FX_MS = 640; // duração da animação do efeito (no alvo)
+// duração da animação (por skill): ~85ms por quadro, com piso/teto, p/ não soar
+// instantâneo. Skills com mais quadros duram mais.
+const FX_MS_DEFAULT = 900;
+const fxDurationFor = (id: string): number => {
+  const fx = SKILL_FX[id];
+  if (!fx) return FX_MS_DEFAULT;
+  return Math.min(1600, Math.max(950, Math.round(fx.frames * 85)));
+};
+// skills cujo DANO só acontece no ÚLTIMO quadro (a animação "cai" e aí fere)
+const FX_IMPACT_END = new Set(["m_meteoro", "m_tempestade", "m_prisao_gelo"]);
+// skills desenhadas COLADAS NO CHÃO (base tocando o piso sob o inimigo)
+const FX_GROUND = new Set(["m_muralha_fogo", "m_descarga"]);
 
 // TESTE: começa com muitos pontos de habilidade p/ experimentar todas as skills.
 // (voltar p/ o nível quando terminar de testar — trocar para false)
@@ -586,6 +597,7 @@ export class Game {
     tex: THREE.Texture;
     frames: number;
     born: number;
+    ms: number; // duração desta animação (varia por skill)
     fromX: number; fromZ: number; toX: number; toZ: number;
   }[] = [];
   private fxTexCache: Record<string, THREE.Texture> = {};
@@ -1378,12 +1390,18 @@ export class Game {
       // magias (mago/clérigo) têm um pequeno TEMPO DE CONJURAÇÃO; melee é instantâneo
       const castMs = !cb.melee && cb.magic ? 360 : 0;
       if (castMs > 0) this.ui.castBar(skillName(id), castMs); // barra "conjurando…"
-      const resolve = () => {
-        if (SKILL_FX[id]) this.spawnEffect(id, tx, tz); // efeito EM CIMA do alvo
+      const fxMs = fxDurationFor(id);
+      const impactEnd = FX_IMPACT_END.has(id); // dano só no fim da animação
+      const dealDmg = () => {
         if (this.enemy === enemyRef && !enemyRef.dyingAt) {
           const r = this.rollDamage(base, cb.magic);
           this.dealDamageToEnemy(enemyRef, r.dmg, r.crit);
         }
+      };
+      const resolve = () => {
+        if (SKILL_FX[id]) this.spawnEffect(id, tx, tz); // efeito EM CIMA do alvo
+        if (impactEnd) window.setTimeout(dealDmg, fxMs); // espera o efeito "cair"
+        else dealDmg();
       };
       if (castMs > 0) window.setTimeout(resolve, castMs);
       else resolve();
@@ -1563,11 +1581,14 @@ export class Game {
     const w = asp >= 1 ? S : S * asp;
     const h = asp >= 1 ? S / asp : S;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-    mesh.position.set(tx, 1.5, tz); // igual ao poof
+    // efeitos "de chão" (muralha de fogo, descarga) tocam o piso: base no y=0.
+    // os demais estouram na altura do corpo do inimigo (igual ao poof).
+    const y = FX_GROUND.has(skillId) ? h / 2 : 1.5;
+    mesh.position.set(tx, y, tz);
     mesh.renderOrder = 20; // desenha depois do inimigo (fica por cima)
     this.world.add(mesh);
     this.projectiles.push({
-      mesh, mat, tex, frames: FR, born: performance.now(),
+      mesh, mat, tex, frames: FR, born: performance.now(), ms: fxDurationFor(skillId),
       fromX: tx, fromZ: tz, toX: tx, toZ: tz,
     });
   }
@@ -1578,7 +1599,7 @@ export class Game {
     const cx = this.camera.position.x, cz = this.camera.position.z;
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
-      const t = (now - p.born) / FX_MS;
+      const t = (now - p.born) / p.ms;
       if (t >= 1) {
         this.world.remove(p.mesh);
         p.mesh.geometry.dispose();
