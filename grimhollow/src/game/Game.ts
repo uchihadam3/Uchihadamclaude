@@ -191,11 +191,12 @@ const SKILL_FX: Record<string, { url: string; frames: number }> = {
 };
 // duração da animação (por skill): ~85ms por quadro, com piso/teto, p/ não soar
 // instantâneo. Skills com mais quadros duram mais.
-const FX_MS_DEFAULT = 900;
+const FX_MS_DEFAULT = 1200;
 const fxDurationFor = (id: string): number => {
   const fx = SKILL_FX[id];
   if (!fx) return FX_MS_DEFAULT;
-  return Math.min(1600, Math.max(950, Math.round(fx.frames * 85)));
+  // ~115ms por quadro (mais cadenciado, menos "instantâneo")
+  return Math.min(2100, Math.max(1200, Math.round(fx.frames * 115)));
 };
 // skills cujo DANO só acontece no ÚLTIMO quadro (a animação "cai" e aí fere)
 const FX_IMPACT_END = new Set(["m_meteoro", "m_tempestade", "m_prisao_gelo"]);
