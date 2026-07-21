@@ -1341,39 +1341,43 @@ export class Game {
     if (this.reticle) this.reticle.visible = false;
   }
 
-  // cria (uma vez) o retículo de mira: um billboard com quatro cantos dourados
+  // cria (uma vez) o marcador de mira: uma seta/chevron discreta que paira sobre
+  // o alvo (limpa, nada de molduras grossas).
   private ensureReticle() {
     if (this.reticle) return;
     const cv = document.createElement("canvas");
     cv.width = 128;
     cv.height = 128;
     const g = cv.getContext("2d")!;
-    g.strokeStyle = "#ffd257";
-    g.lineWidth = 10;
+    const C = 64;
+    // anel FINO (limpo, discreto) + 4 tracinhos curtos nos pontos cardeais
+    g.shadowColor = "rgba(0,0,0,.5)";
+    g.shadowBlur = 5;
+    g.strokeStyle = "rgba(255,228,150,.9)";
+    g.lineWidth = 4;
+    g.beginPath();
+    g.arc(C, C, 50, 0, Math.PI * 2);
+    g.stroke();
     g.lineCap = "round";
-    g.shadowColor = "rgba(0,0,0,.8)";
-    g.shadowBlur = 6;
-    const m = 14, L = 34, S = 128;
-    const corner = (x: number, y: number, sx: number, sy: number) => {
+    g.lineWidth = 5;
+    const tick = (ang: number) => {
+      const c = Math.cos(ang), s = Math.sin(ang);
       g.beginPath();
-      g.moveTo(x, y + sy * L);
-      g.lineTo(x, y);
-      g.lineTo(x + sx * L, y);
+      g.moveTo(C + c * 44, C + s * 44);
+      g.lineTo(C + c * 56, C + s * 56);
       g.stroke();
     };
-    corner(m, m, 1, 1);
-    corner(S - m, m, -1, 1);
-    corner(m, S - m, 1, -1);
-    corner(S - m, S - m, -1, -1);
+    tick(-Math.PI / 2); tick(Math.PI / 2); tick(0); tick(Math.PI);
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
-      depthTest: true, // ocluído por paredes (não aparece atravessando prédios)
+      opacity: 0.9,
+      depthTest: true, // ocluído por paredes (não atravessa prédios)
       depthWrite: false,
     });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), mat);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.15), mat);
     mesh.renderOrder = 999;
     mesh.visible = false;
     this.reticle = mesh;
@@ -3893,14 +3897,15 @@ export class Game {
     // na direção da câmera, p/ não brigar em profundidade com o inimigo)
     if (this.reticle && this.target && !this.target.dyingAt) {
       this.reticle.visible = true;
+      // anel no centro do corpo, levemente à frente (evita brigar em profundidade)
       let rx = cx - this.target.bx, rz = cz - this.target.bz;
       const rl = Math.hypot(rx, rz) || 1;
       rx /= rl;
       rz /= rl;
       this.reticle.position.set(
-        this.target.bx + rx * 0.35,
-        1.3,
-        this.target.bz + rz * 0.35,
+        this.target.bx + rx * 0.3,
+        1.35,
+        this.target.bz + rz * 0.3,
       );
     } else if (this.reticle) {
       this.reticle.visible = false;
