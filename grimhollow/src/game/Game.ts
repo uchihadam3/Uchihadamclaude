@@ -79,6 +79,7 @@ import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 import fxFireballUrl from "../assets/ui/fx/fx_fireball.png";
 import fxIceUrl from "../assets/ui/fx/fx_ice.png";
+import fxIceLanceUrl from "../assets/ui/fx/fx_ice_lance.png";
 import fxRayUrl from "../assets/ui/fx/fx_ray.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
@@ -152,6 +153,7 @@ const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
 // um efeito, não só as três que tinham arte própria.
 const FX_FIRE = { url: fxFireballUrl, frames: 17 };
 const FX_ICE = { url: fxIceUrl, frames: 6 };
+const FX_ICE_LANCE = { url: fxIceLanceUrl, frames: 12 }; // arte própria da Lança de Gelo
 const FX_ARCANE = { url: fxRayUrl, frames: 16 };
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   // ---- Mago: Fogo
@@ -162,7 +164,7 @@ const SKILL_FX: Record<string, { url: string; frames: number }> = {
   m_imolacao: FX_FIRE,
   // ---- Mago: Gelo
   m_nova_gelo: FX_ICE,
-  m_lanca_gelo: FX_ICE,
+  m_lanca_gelo: FX_ICE_LANCE, // estilhaço de gelo (arte própria)
   m_prisao_gelo: FX_ICE,
   // ---- Mago: Tempestade / Arcano
   m_raio_arcano: FX_ARCANE,
