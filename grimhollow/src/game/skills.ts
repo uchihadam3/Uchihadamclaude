@@ -418,6 +418,17 @@ export function combatFor(id: string): SkillCombat {
   return SKILL_COMBAT[id] ?? mDmg(12, 8, 4000);
 }
 
+// nome legível de uma habilidade (para a barra de conjuração, tooltips, etc.)
+export function skillName(id: string): string {
+  for (const key in SKILL_TREES) {
+    const tree = SKILL_TREES[key];
+    if (!tree) continue;
+    for (const b of tree.branches)
+      for (const sk of b.skills) if (sk.id === id) return sk.name;
+  }
+  return "";
+}
+
 // lista as ATIVAS aprendidas (rank ≥ 1) da classe, em ordem da árvore
 export interface ActiveSkill {
   id: string;

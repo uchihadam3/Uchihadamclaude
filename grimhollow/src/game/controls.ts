@@ -84,6 +84,9 @@ export interface HUD {
   floatText(x: number, y: number, text: string, kind: "hit" | "crit" | "player" | "heal" | "mana"): void;
   // mensagem flutuante breve (ex.: "Nível 3!")
   toast(msg: string): void;
+  // barra de conjuração: mostra `name` e enche em `ms`. cancelCast() esconde antes.
+  castBar(name: string, ms: number): void;
+  cancelCast(): void;
 }
 
 // item da barra de ação (habilidade ativa aprendida)
@@ -574,6 +577,17 @@ export function setupControls(
   const toastEl = document.createElement("div");
   toastEl.id = "gh-toast";
   root.appendChild(toastEl);
+
+  // barra de CONJURAÇÃO (aparece enquanto a magia "carrega")
+  const castEl = document.createElement("div");
+  castEl.id = "gh-cast";
+  castEl.innerHTML =
+    `<span class="gh-cast-name"></span>` +
+    `<span class="gh-cast-track"><i class="gh-cast-fill"></i></span>`;
+  root.appendChild(castEl);
+  const castName = castEl.querySelector<HTMLElement>(".gh-cast-name")!;
+  const castFill = castEl.querySelector<HTMLElement>(".gh-cast-fill")!;
+  let castTimer = 0;
 
   // camada de DANO FLUTUANTE (números que sobem e somem sobre a cena)
   const floatLayer = document.createElement("div");
@@ -1116,6 +1130,26 @@ export function setupControls(
       void toastEl.offsetWidth;
       toastEl.style.animation = "gh-toast 1.8s ease-out";
     },
+    castBar(name: string, ms: number) {
+      if (castTimer) window.clearTimeout(castTimer);
+      castName.textContent = name;
+      castEl.classList.add("gh-cast-on");
+      // reinicia a animação de preenchimento (0 → 100% em `ms`)
+      castFill.style.transition = "none";
+      castFill.style.width = "0%";
+      void castFill.offsetWidth; // força reflow p/ o transition valer
+      castFill.style.transition = `width ${ms}ms linear`;
+      castFill.style.width = "100%";
+      castTimer = window.setTimeout(() => {
+        castEl.classList.remove("gh-cast-on");
+        castTimer = 0;
+      }, ms);
+    },
+    cancelCast() {
+      if (castTimer) window.clearTimeout(castTimer);
+      castTimer = 0;
+      castEl.classList.remove("gh-cast-on");
+    },
     setClock(phase: number, daylight: number) {
       // órbita: sol no TOPO ao meio-dia (fase 0.25). ângulo cresce com o tempo.
       const theta = (phase - 0.25) * Math.PI * 2;
@@ -1627,6 +1661,30 @@ function injectStyle() {
     30% { transform:translate(-50%,0) scale(1); }
     78% { opacity:1; }
     100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
+  }
+  /* barra de conjuração (magias com cast time) */
+  #gh-cast {
+    position:fixed; left:50%; bottom:30%; transform:translate(-50%,0);
+    z-index:13; pointer-events:none; width:min(280px,52vw);
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    opacity:0; transition:opacity .12s ease;
+  }
+  #gh-cast.gh-cast-on { opacity:1; }
+  .gh-cast-name {
+    font-family:"Cinzel",serif; font-weight:700; letter-spacing:1px;
+    font-size:clamp(13px,3.4vw,17px); color:#d9ecff;
+    text-shadow:0 2px 6px #000, 0 0 12px rgba(90,170,255,.6);
+  }
+  .gh-cast-track {
+    width:100%; height:11px; border-radius:6px; overflow:hidden;
+    background:rgba(8,14,26,.85);
+    border:1px solid rgba(150,190,255,.5);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.5);
+  }
+  .gh-cast-fill {
+    display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,#2a6fd0,#69c0ff 60%,#bfe6ff);
+    box-shadow:0 0 10px rgba(105,192,255,.9), inset 0 1px 0 rgba(255,255,255,.4);
   }
   /* vinheta vermelha ao levar dano */
   #gh-dmg {
