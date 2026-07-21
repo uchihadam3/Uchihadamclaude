@@ -146,13 +146,30 @@ const DIRS: [number, number][] = [
 const WELL = { c: 7, r: 10 }; // poço no centro da praça
 const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
 
-// efeitos de PROJÉTIL por habilidade: sprite-sheet horizontal (N quadros numa
-// linha) desenhado com blend ADITIVO (o fundo preto some sozinho). Novas artes
-// entram só adicionando aqui (skill → arquivo + nº de quadros).
+// efeitos de habilidade por TIPO/elemento: um sprite-sheet horizontal (N quadros
+// numa linha) que estoura em cima do alvo. Em vez de uma arte por skill, reusamos
+// o mesmo efeito para todas as skills do mesmo elemento — assim TODA magia mostra
+// um efeito, não só as três que tinham arte própria.
+const FX_FIRE = { url: fxFireballUrl, frames: 17 };
+const FX_ICE = { url: fxIceUrl, frames: 6 };
+const FX_ARCANE = { url: fxRayUrl, frames: 16 };
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
-  m_bola_fogo: { url: fxFireballUrl, frames: 17 },
-  m_lanca_gelo: { url: fxIceUrl, frames: 6 },
-  m_raio_arcano: { url: fxRayUrl, frames: 16 },
+  // ---- Mago: Fogo
+  m_bola_fogo: FX_FIRE,
+  m_explosao_fogo: FX_FIRE,
+  m_meteoro: FX_FIRE,
+  m_muralha_fogo: FX_FIRE,
+  m_imolacao: FX_FIRE,
+  // ---- Mago: Gelo
+  m_nova_gelo: FX_ICE,
+  m_lanca_gelo: FX_ICE,
+  m_prisao_gelo: FX_ICE,
+  // ---- Mago: Tempestade / Arcano
+  m_raio_arcano: FX_ARCANE,
+  m_corrente: FX_ARCANE,
+  m_tempestade: FX_ARCANE,
+  m_descarga: FX_ARCANE,
+  m_nova_arcana: FX_ARCANE,
 };
 const FX_MS = 640; // duração da animação do efeito (no alvo)
 
@@ -701,6 +718,7 @@ export class Game {
           this.enterLocation(this.location, this.col, this.row, this.facing);
       });
     }
+    (window as unknown as { __game?: Game }).__game = this; // DEBUG: acesso p/ teste
   }
 
   // ---------------------------------------------- troca de local (vila/interior)
