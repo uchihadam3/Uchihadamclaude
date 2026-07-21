@@ -659,18 +659,18 @@ export function setupControls(
   const actbar = document.createElement("div");
   actbar.id = "gh-actbar";
   pad.appendChild(actbar);
-  // dispõe N slots num leque (quadrante superior-esquerdo) ancorado no botão de
-  // ataque (canto inf. direito). Espaçamento ANGULAR uniforme; até 6 num único
-  // arco, acima disso divide em dois arcos concêntricos (cada um uniforme).
-  const SLOT = 48; // px
+  // dispõe os slots num leque COMPACTO (dois arcos concêntricos de 3) ancorado no
+  // botão de ataque (canto inf. direito). Fechado o bastante p/ não subir demais.
+  const SLOT = 46; // px
   const ATKx = 47, ATKy = 51; // centro do botão de ataque (dist. do canto)
-  const A0 = 95, A1 = 180; // faixa do arco (graus) no quadrante sup-esquerdo
-  // posições de `count` slots UNIFORMEMENTE distribuídos na faixa, num raio R
-  const evenArc = (count: number, R: number): { right: number; bottom: number }[] => {
+  const A0 = 116, A1 = 176; // faixa angular (graus) — fan fechado no quadrante sup-esq
+  // posições de `count` slots UNIFORMEMENTE distribuídos na faixa [a0,a1], raio R
+  const evenArc = (
+    count: number, R: number, a0 = A0, a1 = A1,
+  ): { right: number; bottom: number }[] => {
     const pos: { right: number; bottom: number }[] = [];
     for (let i = 0; i < count; i++) {
-      // centraliza: 1 slot no meio; vários preenchem A0..A1 por igual
-      const a = count === 1 ? (A0 + A1) / 2 : A0 + ((A1 - A0) * i) / (count - 1);
+      const a = count === 1 ? (a0 + a1) / 2 : a0 + ((a1 - a0) * i) / (count - 1);
       const ar = (a * Math.PI) / 180;
       const rp = ATKx + R * -Math.cos(ar);
       const bp = ATKy + R * Math.sin(ar);
@@ -679,22 +679,15 @@ export function setupControls(
     return pos;
   };
   const arcLayout = (n: number): { right: number; bottom: number }[] => {
-    if (n <= 6) {
-      // raio cresce com a contagem p/ manter uma folga UNIFORME entre vizinhos
-      const step = n > 1 ? (A1 - A0) / (n - 1) : A1 - A0;
-      const gap = SLOT + 8; // distância mínima entre centros
-      let R = n > 1 ? gap / (2 * Math.sin((step * Math.PI) / 180 / 2)) : 138;
-      R = Math.max(138, Math.min(196, R));
-      return evenArc(n, R);
-    }
-    // muitas habilidades: dois arcos concêntricos, cada um uniforme
+    if (n <= 3) return evenArc(n, 118);
+    // dois arcos concêntricos alinhados (colunas radiais) — compacto e uniforme
     const inner = Math.ceil(n / 2);
-    return [...evenArc(inner, 150), ...evenArc(n - inner, 212)];
+    return [...evenArc(inner, 98), ...evenArc(n - inner, 150)];
   };
-  const BASE_SLOTS = 6; // slots SEMPRE visíveis na HUD (vazios até aprender)
+  const BASE_SLOTS = 6; // SEMPRE 6 slots — o jogador escolhe quais habilidades usar
   const renderActionBar = (items: ActionSkill[]) => {
-    // mostra pelo menos BASE_SLOTS (padrão da meia-lua); se aprendeu mais, cresce.
-    const total = Math.max(BASE_SLOTS, items.length);
+    // hotbar fixa de 6: preenche com as aprendidas (as 6 primeiras) + vazios
+    const total = BASE_SLOTS;
     const pos = arcLayout(total);
     let html = "";
     for (let i = 0; i < total; i++) {
