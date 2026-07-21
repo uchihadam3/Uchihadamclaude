@@ -151,7 +151,7 @@ const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
 // entram só adicionando aqui (skill → arquivo + nº de quadros).
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   m_bola_fogo: { url: fxFireballUrl, frames: 17 },
-  m_lanca_gelo: { url: fxIceUrl, frames: 12 },
+  m_lanca_gelo: { url: fxIceUrl, frames: 6 },
   m_raio_arcano: { url: fxRayUrl, frames: 16 },
 };
 const FX_MS = 640; // duração da animação do efeito (no alvo)
@@ -4079,11 +4079,7 @@ export class Game {
         e.mesh.scale.set(1 + t * 0.35, sq, 1);
         e.mesh.position.y = h / 2 - t * 0.75;
         e.bar.visible = false;
-        // clarão do golpe fatal: curto e suave (antes tomava a tela de branco)
-        const df = Math.max(0, 1 - t * 6) * 0.5;
-        emisR = df;
-        emisG = df;
-        emisB = df * 1.1; // leve viés frio, não um branco estourado
+        // sem clarão no golpe fatal (o inimigo só tomba e some)
 
         if (t >= 1) {
           for (const o of [e.mesh, e.bar]) {
