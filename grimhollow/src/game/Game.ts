@@ -77,6 +77,9 @@ import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
 import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
+import fxFireballUrl from "../assets/ui/fx/fx_fireball.png";
+import fxIceUrl from "../assets/ui/fx/fx_ice.png";
+import fxRayUrl from "../assets/ui/fx/fx_ray.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
@@ -142,6 +145,21 @@ const DIRS: [number, number][] = [
 // pontos de interesse do vilarejo
 const WELL = { c: 7, r: 10 }; // poço no centro da praça
 const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
+
+// efeitos de PROJÉTIL por habilidade: sprite-sheet horizontal (N quadros numa
+// linha) desenhado com blend ADITIVO (o fundo preto some sozinho). Novas artes
+// entram só adicionando aqui (skill → arquivo + nº de quadros).
+const SKILL_FX: Record<string, { url: string; frames: number }> = {
+  m_bola_fogo: { url: fxFireballUrl, frames: 17 },
+  m_lanca_gelo: { url: fxIceUrl, frames: 19 },
+  m_raio_arcano: { url: fxRayUrl, frames: 14 },
+};
+const FX_MS = 600; // duração do voo do projétil
+
+// TESTE: começa com muitos pontos de habilidade p/ experimentar todas as skills.
+// (voltar p/ o nível quando terminar de testar — trocar para false)
+const TEST_ALL_SKILLS = true;
+const skillPointsFor = (level: number) => (TEST_ALL_SKILLS ? 100 : level);
 const POOF_MS = 620; // duração da explosão
 const TUNNEL_H = 3.2; // altura do teto do túnel da masmorra
 
@@ -526,6 +544,16 @@ export class Game {
     born: number;
   }[] = [];
   private poofTex?: THREE.Texture; // sprite-sheet carregado (10 quadros)
+  // projéteis de habilidade (bola de fogo etc.) voando até o alvo
+  private projectiles: {
+    mesh: THREE.Mesh;
+    mat: THREE.MeshBasicMaterial;
+    tex: THREE.Texture;
+    frames: number;
+    born: number;
+    fromX: number; fromZ: number; toX: number; toZ: number;
+  }[] = [];
+  private fxTexCache: Record<string, THREE.Texture> = {};
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
@@ -653,8 +681,9 @@ export class Game {
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
     // árvore de habilidades: classe + pontos = nível (1 ponto por nível).
-    this.ui.setSkillInfo(this.classId, this.stats.level);
+    this.ui.setSkillInfo(this.classId, skillPointsFor(this.stats.level));
     this.refreshStats();
+    this.preloadFx(); // pré-carrega as folhas de efeito das habilidades
     const start = findStart();
     this.enterLocation("village", start.col, start.row, 0);
 
@@ -744,6 +773,14 @@ export class Game {
     this.enemy = null;
     this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
     this.clearTarget();
+    // projéteis ficam na CENA (não no world) — limpa manualmente ao trocar de local
+    for (const pr of this.projectiles) {
+      this.scene.remove(pr.mesh);
+      pr.mesh.geometry.dispose();
+      pr.mat.dispose();
+      pr.tex.dispose();
+    }
+    this.projectiles = [];
     this.poofs = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
@@ -1305,10 +1342,14 @@ export class Game {
     this.coolingSkills.add(id); // o tick atualiza o overlay + contagem regressiva
     // efeito
     if (cb.effect === "dmg" && this.target) {
+      // guarda a posição do alvo ANTES do dano (a morte limpa this.target)
+      const tx = this.target.bx, tz = this.target.bz;
       const base = cb.power * (1 + 0.25 * (rank - 1));
       const r = this.rollDamage(base, cb.magic);
+      // à distância com arte própria: lança o projétil (bola de fogo etc.)
+      if (!cb.melee && SKILL_FX[id]) this.spawnProjectile(id, tx, tz);
       this.dealDamageToEnemy(this.target, r.dmg, r.crit);
-      // vira o herói para o alvo (feedback) e balança a arma se for corpo-a-corpo
+      // balança a arma se for corpo-a-corpo
       if (cb.melee) this.ui.swingWeapon();
     } else if (cb.effect === "heal") {
       const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)));
@@ -1435,6 +1476,80 @@ export class Game {
     }
   }
 
+  // pré-carrega as folhas de efeito (prontas quando a skill for usada)
+  private preloadFx() {
+    for (const id in SKILL_FX) {
+      const url = SKILL_FX[id].url;
+      if (!this.fxTexCache[url]) this.loadArt(url, (t) => (this.fxTexCache[url] = t));
+    }
+  }
+
+  // dispara o projétil de uma habilidade (billboard aditivo) rumo ao alvo (tx,tz)
+  private spawnProjectile(skillId: string, tx: number, tz: number) {
+    const fx = SKILL_FX[skillId];
+    if (!fx) return;
+    const base = this.fxTexCache[fx.url];
+    if (!base) {
+      this.loadArt(fx.url, (t) => (this.fxTexCache[fx.url] = t)); // carrega p/ a próxima
+      return;
+    }
+    const tex = base.clone();
+    tex.needsUpdate = true;
+    tex.repeat.set(1 / fx.frames, 1);
+    tex.offset.set(0, 0);
+    const img = base.image as { width: number; height: number } | undefined;
+    const asp = img && img.height ? img.width / fx.frames / img.height : 1;
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      blending: THREE.AdditiveBlending, // o preto do sheet some; o brilho acende
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const H = 1.5;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(H * asp, H), mat);
+    // nasce logo à frente do jogador, rumo ao alvo
+    const camX = this.camera.position.x, camZ = this.camera.position.z;
+    const fromX = camX + (tx - camX) * 0.22;
+    const fromZ = camZ + (tz - camZ) * 0.22;
+    mesh.position.set(fromX, 1.5, fromZ);
+    mesh.frustumCulled = false; // billboard móvel — não deixar o cull sumir com ele
+    mesh.renderOrder = 998;
+    this.scene.add(mesh); // na cena (não no world; lá o billboard não aparecia)
+    this.projectiles.push({
+      mesh, mat, tex, frames: fx.frames, born: performance.now(),
+      fromX, fromZ, toX: tx, toZ: tz,
+    });
+  }
+
+  // move os projéteis do jogador até o alvo, animando os quadros; encara a câmera
+  private updateProjectiles(now: number) {
+    if (this.projectiles.length === 0) return;
+    const cx = this.camera.position.x, cz = this.camera.position.z;
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i];
+      const t = (now - p.born) / FX_MS;
+      if (t >= 1) {
+        this.scene.remove(p.mesh);
+        p.mesh.geometry.dispose();
+        p.mat.dispose();
+        p.tex.dispose();
+        this.projectiles.splice(i, 1);
+        continue;
+      }
+      const e = Math.max(0, t);
+      const x = p.fromX + (p.toX - p.fromX) * e;
+      const z = p.fromZ + (p.toZ - p.fromZ) * e;
+      p.mesh.position.x = x;
+      p.mesh.position.z = z;
+      // a animação toca UMA vez ao longo do voo: sai brilhante (orbe) e "estoura"
+      // ao chegar no alvo (últimos quadros = impacto).
+      const frame = Math.min(p.frames - 1, Math.max(0, Math.floor(e * p.frames)));
+      p.tex.offset.x = frame / p.frames;
+      p.mesh.rotation.y = Math.atan2(cx - x, cz - z);
+    }
+  }
+
   // atualiza a janela de personagem com os atributos + vida/mana atuais
   // XP necessário pra passar do nível atual (curva suave)
   private nextXpMax(level: number): number {
@@ -1459,7 +1574,7 @@ export class Game {
       this.unspent += gained * POINTS_PER_LEVEL;
       this.ui.setHealth(1);
       this.ui.setMana(1);
-      this.ui.setSkillInfo(this.classId, this.stats.level); // total = nível
+      this.ui.setSkillInfo(this.classId, skillPointsFor(this.stats.level)); // total = nível
       this.ui.toast(`Nível ${this.stats.level}!`);
     }
     this.refreshStats();
@@ -4004,6 +4119,7 @@ export class Game {
       e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
     this.updatePoofs(now);
+    this.updateProjectiles(now);
     // ciclo dia/noite (cor da atmosfera, luzes e postes) — só em locais externos
     this.updateDayNight(now);
     // relógio do HUD (sol/lua orbitando) — anda mesmo em interiores
