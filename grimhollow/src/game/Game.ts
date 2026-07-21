@@ -94,6 +94,7 @@ import {
   passiveTotals,
   activeSkillsFor,
   combatFor,
+  skillName,
   type StatKey,
 } from "./skills";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
@@ -1361,6 +1362,7 @@ export class Game {
       const base = cb.power * (1 + 0.25 * (rank - 1));
       // magias (mago/clérigo) têm um pequeno TEMPO DE CONJURAÇÃO; melee é instantâneo
       const castMs = !cb.melee && cb.magic ? 360 : 0;
+      if (castMs > 0) this.ui.castBar(skillName(id), castMs); // barra "conjurando…"
       const resolve = () => {
         if (SKILL_FX[id]) this.spawnEffect(id, tx, tz); // efeito EM CIMA do alvo
         if (this.enemy === enemyRef && !enemyRef.dyingAt) {
