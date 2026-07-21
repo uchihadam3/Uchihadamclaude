@@ -81,6 +81,13 @@ import fxFireballUrl from "../assets/ui/fx/fx_fireball.png";
 import fxIceUrl from "../assets/ui/fx/fx_ice.png";
 import fxIceLanceUrl from "../assets/ui/fx/fx_ice_lance.png";
 import fxRayUrl from "../assets/ui/fx/fx_ray.png";
+import fxMeteoroUrl from "../assets/ui/fx/fx_meteoro.png";
+import fxMuralhaUrl from "../assets/ui/fx/fx_muralha.png";
+import fxImolacaoUrl from "../assets/ui/fx/fx_imolacao.png";
+import fxPrisaoUrl from "../assets/ui/fx/fx_prisao.png";
+import fxCorrenteUrl from "../assets/ui/fx/fx_corrente.png";
+import fxTempestadeUrl from "../assets/ui/fx/fx_tempestade.png";
+import fxDescargaUrl from "../assets/ui/fx/fx_descarga.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
@@ -156,22 +163,30 @@ const FX_FIRE = { url: fxFireballUrl, frames: 17 };
 const FX_ICE = { url: fxIceUrl, frames: 6 };
 const FX_ICE_LANCE = { url: fxIceLanceUrl, frames: 12 }; // arte própria da Lança de Gelo
 const FX_ARCANE = { url: fxRayUrl, frames: 16 };
+// artes próprias por skill (arquivo + nº de quadros da sprite-sheet)
+const FX_METEORO = { url: fxMeteoroUrl, frames: 15 };
+const FX_MURALHA = { url: fxMuralhaUrl, frames: 16 };
+const FX_IMOLACAO = { url: fxImolacaoUrl, frames: 15 };
+const FX_PRISAO = { url: fxPrisaoUrl, frames: 17 };
+const FX_CORRENTE = { url: fxCorrenteUrl, frames: 19 };
+const FX_TEMPESTADE = { url: fxTempestadeUrl, frames: 20 };
+const FX_DESCARGA = { url: fxDescargaUrl, frames: 11 };
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   // ---- Mago: Fogo
   m_bola_fogo: FX_FIRE,
   m_explosao_fogo: FX_FIRE,
-  m_meteoro: FX_FIRE,
-  m_muralha_fogo: FX_FIRE,
-  m_imolacao: FX_FIRE,
+  m_meteoro: FX_METEORO,
+  m_muralha_fogo: FX_MURALHA,
+  m_imolacao: FX_IMOLACAO,
   // ---- Mago: Gelo
   m_nova_gelo: FX_ICE,
   m_lanca_gelo: FX_ICE_LANCE, // estilhaço de gelo (arte própria)
-  m_prisao_gelo: FX_ICE,
+  m_prisao_gelo: FX_PRISAO,
   // ---- Mago: Tempestade / Arcano
   m_raio_arcano: FX_ARCANE,
-  m_corrente: FX_ARCANE,
-  m_tempestade: FX_ARCANE,
-  m_descarga: FX_ARCANE,
+  m_corrente: FX_CORRENTE,
+  m_tempestade: FX_TEMPESTADE,
+  m_descarga: FX_DESCARGA,
   m_nova_arcana: FX_ARCANE,
 };
 const FX_MS = 640; // duração da animação do efeito (no alvo)
