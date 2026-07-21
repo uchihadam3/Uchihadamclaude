@@ -151,10 +151,10 @@ const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
 // entram só adicionando aqui (skill → arquivo + nº de quadros).
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   m_bola_fogo: { url: fxFireballUrl, frames: 17 },
-  m_lanca_gelo: { url: fxIceUrl, frames: 19 },
-  m_raio_arcano: { url: fxRayUrl, frames: 14 },
+  m_lanca_gelo: { url: fxIceUrl, frames: 17 },
+  m_raio_arcano: { url: fxRayUrl, frames: 16 },
 };
-const FX_MS = 600; // duração do voo do projétil
+const FX_MS = 640; // duração da animação do efeito (no alvo)
 
 // TESTE: começa com muitos pontos de habilidade p/ experimentar todas as skills.
 // (voltar p/ o nível quando terminar de testar — trocar para false)
@@ -773,14 +773,7 @@ export class Game {
     this.enemy = null;
     this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
     this.clearTarget();
-    // projéteis ficam na CENA (não no world) — limpa manualmente ao trocar de local
-    for (const pr of this.projectiles) {
-      this.scene.remove(pr.mesh);
-      pr.mesh.geometry.dispose();
-      pr.mat.dispose();
-      pr.tex.dispose();
-    }
-    this.projectiles = [];
+    this.projectiles = []; // as meshes já saíram no world.clear() acima
     this.poofs = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
@@ -1342,14 +1335,21 @@ export class Game {
     this.coolingSkills.add(id); // o tick atualiza o overlay + contagem regressiva
     // efeito
     if (cb.effect === "dmg" && this.target) {
-      // guarda a posição do alvo ANTES do dano (a morte limpa this.target)
+      // guarda alvo/posição ANTES do dano (a morte limpa this.target)
       const tx = this.target.bx, tz = this.target.bz;
+      const enemyRef = this.target;
       const base = cb.power * (1 + 0.25 * (rank - 1));
-      const r = this.rollDamage(base, cb.magic);
-      // à distância com arte própria: lança o projétil (bola de fogo etc.)
-      if (!cb.melee && SKILL_FX[id]) this.spawnProjectile(id, tx, tz);
-      this.dealDamageToEnemy(this.target, r.dmg, r.crit);
-      // balança a arma se for corpo-a-corpo
+      // magias (mago/clérigo) têm um pequeno TEMPO DE CONJURAÇÃO; melee é instantâneo
+      const castMs = !cb.melee && cb.magic ? 360 : 0;
+      const resolve = () => {
+        if (SKILL_FX[id]) this.spawnEffect(id, tx, tz); // efeito EM CIMA do alvo
+        if (this.enemy === enemyRef && !enemyRef.dyingAt) {
+          const r = this.rollDamage(base, cb.magic);
+          this.dealDamageToEnemy(enemyRef, r.dmg, r.crit);
+        }
+      };
+      if (castMs > 0) window.setTimeout(resolve, castMs);
+      else resolve();
       if (cb.melee) this.ui.swingWeapon();
     } else if (cb.effect === "heal") {
       const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)));
@@ -1484,8 +1484,9 @@ export class Game {
     }
   }
 
-  // dispara o projétil de uma habilidade (billboard aditivo) rumo ao alvo (tx,tz)
-  private spawnProjectile(skillId: string, tx: number, tz: number) {
+  // toca o EFEITO de uma habilidade EM CIMA do alvo (tx,tz), sem voar — a
+  // animação (sprite-sheet) estoura no lugar e some.
+  private spawnEffect(skillId: string, tx: number, tz: number) {
     const fx = SKILL_FX[skillId];
     if (!fx) return;
     const base = this.fxTexCache[fx.url];
@@ -1493,36 +1494,33 @@ export class Game {
       this.loadArt(fx.url, (t) => (this.fxTexCache[fx.url] = t)); // carrega p/ a próxima
       return;
     }
+    const FR = fx.frames;
     const tex = base.clone();
     tex.needsUpdate = true;
-    tex.repeat.set(1 / fx.frames, 1);
+    tex.repeat.set(1 / FR, 1);
     tex.offset.set(0, 0);
     const img = base.image as { width: number; height: number } | undefined;
-    const asp = img && img.height ? img.width / fx.frames / img.height : 1;
+    const asp = img && img.height ? img.width / FR / img.height : 1;
+    // MESMA receita da fumaça de morte (renderiza sempre): alpha normal, no world
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
-      blending: THREE.AdditiveBlending, // o preto do sheet some; o brilho acende
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    const H = 1.5;
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(H * asp, H), mat);
-    // nasce logo à frente do jogador, rumo ao alvo
-    const camX = this.camera.position.x, camZ = this.camera.position.z;
-    const fromX = camX + (tx - camX) * 0.22;
-    const fromZ = camZ + (tz - camZ) * 0.22;
-    mesh.position.set(fromX, 1.5, fromZ);
-    mesh.frustumCulled = false; // billboard móvel — não deixar o cull sumir com ele
-    mesh.renderOrder = 998;
-    this.scene.add(mesh); // na cena (não no world; lá o billboard não aparecia)
+    const S = 2.8; // encaixa no tamanho do inimigo, mantendo o aspecto
+    const w = asp >= 1 ? S : S * asp;
+    const h = asp >= 1 ? S / asp : S;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    mesh.position.set(tx, 1.5, tz); // igual ao poof
+    this.world.add(mesh);
     this.projectiles.push({
-      mesh, mat, tex, frames: fx.frames, born: performance.now(),
-      fromX, fromZ, toX: tx, toZ: tz,
+      mesh, mat, tex, frames: FR, born: performance.now(),
+      fromX: tx, fromZ: tz, toX: tx, toZ: tz,
     });
   }
 
-  // move os projéteis do jogador até o alvo, animando os quadros; encara a câmera
+  // avança os quadros do efeito (parado no alvo) e o remove no fim; encara a câmera
   private updateProjectiles(now: number) {
     if (this.projectiles.length === 0) return;
     const cx = this.camera.position.x, cz = this.camera.position.z;
@@ -1530,23 +1528,16 @@ export class Game {
       const p = this.projectiles[i];
       const t = (now - p.born) / FX_MS;
       if (t >= 1) {
-        this.scene.remove(p.mesh);
+        this.world.remove(p.mesh);
         p.mesh.geometry.dispose();
         p.mat.dispose();
         p.tex.dispose();
         this.projectiles.splice(i, 1);
         continue;
       }
-      const e = Math.max(0, t);
-      const x = p.fromX + (p.toX - p.fromX) * e;
-      const z = p.fromZ + (p.toZ - p.fromZ) * e;
-      p.mesh.position.x = x;
-      p.mesh.position.z = z;
-      // a animação toca UMA vez ao longo do voo: sai brilhante (orbe) e "estoura"
-      // ao chegar no alvo (últimos quadros = impacto).
-      const frame = Math.min(p.frames - 1, Math.max(0, Math.floor(e * p.frames)));
+      const frame = Math.min(p.frames - 1, Math.max(0, Math.floor(t * p.frames)));
       p.tex.offset.x = frame / p.frames;
-      p.mesh.rotation.y = Math.atan2(cx - x, cz - z);
+      p.mesh.rotation.y = Math.atan2(cx - p.mesh.position.x, cz - p.mesh.position.z);
     }
   }
 
