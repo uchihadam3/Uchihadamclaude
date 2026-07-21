@@ -1480,8 +1480,19 @@ export class Game {
   private preloadFx() {
     for (const id in SKILL_FX) {
       const url = SKILL_FX[id].url;
-      if (!this.fxTexCache[url]) this.loadArt(url, (t) => (this.fxTexCache[url] = t));
+      if (!this.fxTexCache[url]) this.loadArt(url, (t) => (this.fxTexCache[url] = this.fxFilter(t)));
     }
+  }
+
+  // Folhas de efeito são sprite-sheets LARGAS. Mipmap faz a média dos quadros e
+  // some com conteúdo esparso (o gelo desaparecia) e espalha os brancos do raio
+  // num "retângulo branco". Filtragem linear sem mipmap resolve os dois.
+  private fxFilter(t: THREE.Texture): THREE.Texture {
+    t.minFilter = THREE.LinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.generateMipmaps = false;
+    t.needsUpdate = true;
+    return t;
   }
 
   // toca o EFEITO de uma habilidade EM CIMA do alvo (tx,tz), sem voar — a
@@ -1491,12 +1502,12 @@ export class Game {
     if (!fx) return;
     const base = this.fxTexCache[fx.url];
     if (!base) {
-      this.loadArt(fx.url, (t) => (this.fxTexCache[fx.url] = t)); // carrega p/ a próxima
+      this.loadArt(fx.url, (t) => (this.fxTexCache[fx.url] = this.fxFilter(t))); // carrega p/ a próxima
       return;
     }
     const FR = fx.frames;
     const tex = base.clone();
-    tex.needsUpdate = true;
+    this.fxFilter(tex); // sem mipmap: mantém quadros nítidos e sem "halo" branco
     tex.repeat.set(1 / FR, 1);
     tex.offset.set(0, 0);
     const img = base.image as { width: number; height: number } | undefined;
