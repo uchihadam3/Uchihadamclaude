@@ -151,7 +151,7 @@ const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
 // entram só adicionando aqui (skill → arquivo + nº de quadros).
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   m_bola_fogo: { url: fxFireballUrl, frames: 17 },
-  m_lanca_gelo: { url: fxIceUrl, frames: 10 },
+  m_lanca_gelo: { url: fxIceUrl, frames: 12 },
   m_raio_arcano: { url: fxRayUrl, frames: 16 },
 };
 const FX_MS = 640; // duração da animação do efeito (no alvo)
@@ -1137,7 +1137,7 @@ export class Game {
     glow.position.set(c * CELL, 1.7, r * CELL);
     this.world.add(glow);
     // pré-carrega o sprite-sheet da explosão (pronto quando o inimigo morrer)
-    if (!this.poofTex) this.loadArt(deathPoofUrl, (t) => (this.poofTex = t));
+    if (!this.poofTex) this.loadArt(deathPoofUrl, (t) => (this.poofTex = this.fxFilter(t)));
     this.loadArt(enemySkeletonUrl, (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 0.47;
@@ -1512,11 +1512,14 @@ export class Game {
     tex.offset.set(0, 0);
     const img = base.image as { width: number; height: number } | undefined;
     const asp = img && img.height ? img.width / FR / img.height : 1;
-    // MESMA receita da fumaça de morte (renderiza sempre): alpha normal, no world
+    // MESMA receita da fumaça de morte (renderiza sempre): alpha normal, no world.
+    // depthTest desligado + renderOrder alto → o efeito SEMPRE aparece por cima do
+    // inimigo (senão o corpo dele podia esconder o estouro em cima dele).
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       side: THREE.DoubleSide,
     });
     const S = 2.8; // encaixa no tamanho do inimigo, mantendo o aspecto
@@ -1524,6 +1527,7 @@ export class Game {
     const h = asp >= 1 ? S / asp : S;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     mesh.position.set(tx, 1.5, tz); // igual ao poof
+    mesh.renderOrder = 20; // desenha depois do inimigo (fica por cima)
     this.world.add(mesh);
     this.projectiles.push({
       mesh, mat, tex, frames: FR, born: performance.now(),
@@ -4075,8 +4079,12 @@ export class Game {
         e.mesh.scale.set(1 + t * 0.35, sq, 1);
         e.mesh.position.y = h / 2 - t * 0.75;
         e.bar.visible = false;
-        const df = Math.max(0, 1 - t * 4); // clarão BRANCO no golpe fatal
-        emisR = emisG = emisB = df;
+        // clarão do golpe fatal: curto e suave (antes tomava a tela de branco)
+        const df = Math.max(0, 1 - t * 6) * 0.5;
+        emisR = df;
+        emisG = df;
+        emisB = df * 1.1; // leve viés frio, não um branco estourado
+
         if (t >= 1) {
           for (const o of [e.mesh, e.bar]) {
             this.world.remove(o);
