@@ -583,7 +583,8 @@ export function setupControls(
   castEl.id = "gh-cast";
   castEl.innerHTML =
     `<span class="gh-cast-name"></span>` +
-    `<span class="gh-cast-track"><i class="gh-cast-fill"></i></span>`;
+    `<span class="gh-cast-frame"><span class="gh-cast-track">` +
+    `<i class="gh-cast-fill"></i></span></span>`;
   root.appendChild(castEl);
   const castName = castEl.querySelector<HTMLElement>(".gh-cast-name")!;
   const castFill = castEl.querySelector<HTMLElement>(".gh-cast-fill")!;
@@ -1662,29 +1663,36 @@ function injectStyle() {
     78% { opacity:1; }
     100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
   }
-  /* barra de conjuração (magias com cast time) */
+  /* barra de conjuração (magias com cast time) — usa a MOLDURA do mapa (9-slice)
+     como container, igual ao minimapa, p/ combinar com o resto do HUD. */
   #gh-cast {
-    position:fixed; left:50%; bottom:30%; transform:translate(-50%,0);
-    z-index:13; pointer-events:none; width:min(280px,52vw);
-    display:flex; flex-direction:column; align-items:center; gap:5px;
+    position:fixed; left:50%; bottom:29%; transform:translate(-50%,0);
+    z-index:13; pointer-events:none; width:min(300px,58vw);
+    display:flex; flex-direction:column; align-items:center; gap:6px;
     opacity:0; transition:opacity .12s ease;
   }
   #gh-cast.gh-cast-on { opacity:1; }
   .gh-cast-name {
     font-family:"Cinzel",serif; font-weight:700; letter-spacing:1px;
-    font-size:clamp(13px,3.4vw,17px); color:#d9ecff;
-    text-shadow:0 2px 6px #000, 0 0 12px rgba(90,170,255,.6);
+    font-size:clamp(13px,3.4vw,17px); color:#f0e6c8;
+    text-shadow:0 2px 6px #000, 0 0 12px rgba(120,160,230,.55);
+  }
+  .gh-cast-frame {
+    width:100%; box-sizing:border-box;
+    border:clamp(12px,3vw,16px) solid transparent;
+    border-image:url(${mapFrameUrl}) 130 repeat;
+    background:rgba(6,9,16,.92); background-clip:padding-box;
+    filter:drop-shadow(0 2px 7px rgba(0,0,0,.6));
   }
   .gh-cast-track {
-    width:100%; height:11px; border-radius:6px; overflow:hidden;
-    background:rgba(8,14,26,.85);
-    border:1px solid rgba(150,190,255,.5);
-    box-shadow:inset 0 1px 3px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.5);
+    display:block; height:clamp(9px,2.3vw,12px); overflow:hidden;
+    border-radius:2px; background:rgba(4,6,12,.9);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.85);
   }
   .gh-cast-fill {
     display:block; height:100%; width:0%;
-    background:linear-gradient(90deg,#2a6fd0,#69c0ff 60%,#bfe6ff);
-    box-shadow:0 0 10px rgba(105,192,255,.9), inset 0 1px 0 rgba(255,255,255,.4);
+    background:linear-gradient(90deg,#2a6fd0,#69c0ff 60%,#cfeaff);
+    box-shadow:0 0 10px rgba(105,192,255,.9), inset 0 1px 0 rgba(255,255,255,.45);
   }
   /* vinheta vermelha ao levar dano */
   #gh-dmg {
