@@ -75,10 +75,13 @@ export interface HUD {
   setSkillInfo(classId: string, points: number): void;
   // barra de ação: preenche com as habilidades ATIVAS aprendidas
   setActionBar(items: ActionSkill[]): void;
-  // dispara a animação de recarga de uma habilidade (ms)
-  skillCooldown(id: string, ms: number): void;
+  // estado da recarga de uma habilidade: frac 1→0 (escurece e vai preenchendo),
+  // secs = segundos restantes exibidos no centro (0 = pronta, limpa o overlay)
+  setSkillCooldown(id: string, frac: number, secs: number): void;
+  // número flutuante do custo de mana perto do slot da habilidade usada
+  skillManaFloat(id: string, cost: number): void;
   // número de dano flutuante na tela (x,y em px). kind muda cor/tamanho.
-  floatText(x: number, y: number, text: string, kind: "hit" | "crit" | "player" | "heal"): void;
+  floatText(x: number, y: number, text: string, kind: "hit" | "crit" | "player" | "heal" | "mana"): void;
   // mensagem flutuante breve (ex.: "Nível 3!")
   toast(msg: string): void;
 }
@@ -657,32 +660,36 @@ export function setupControls(
   actbar.id = "gh-actbar";
   pad.appendChild(actbar);
   // dispõe N slots num leque (quadrante superior-esquerdo) ancorado no botão de
-  // ataque (canto inf. direito). Anéis concêntricos p/ caber muitas habilidades.
+  // ataque (canto inf. direito). Espaçamento ANGULAR uniforme; até 6 num único
+  // arco, acima disso divide em dois arcos concêntricos (cada um uniforme).
   const SLOT = 48; // px
-  const arcLayout = (n: number): { right: number; bottom: number }[] => {
-    const ATKx = 47, ATKy = 51; // centro do botão de ataque (dist. do canto)
-    const STEP = 22; // espaçamento angular alvo (graus)
-    const RINGS = [
-      { R: 118, a0: 96, a1: 150 },
-      { R: 170, a0: 96, a1: 168 },
-      { R: 222, a0: 98, a1: 172 },
-      { R: 274, a0: 100, a1: 176 },
-    ];
+  const ATKx = 47, ATKy = 51; // centro do botão de ataque (dist. do canto)
+  const A0 = 95, A1 = 180; // faixa do arco (graus) no quadrante sup-esquerdo
+  // posições de `count` slots UNIFORMEMENTE distribuídos na faixa, num raio R
+  const evenArc = (count: number, R: number): { right: number; bottom: number }[] => {
     const pos: { right: number; bottom: number }[] = [];
-    let idx = 0;
-    for (const ring of RINGS) {
-      if (idx >= n) break;
-      const cap = Math.max(1, Math.floor((ring.a1 - ring.a0) / STEP) + 1);
-      const take = Math.min(cap, n - idx);
-      const start = (ring.a0 + ring.a1) / 2 - ((take - 1) * STEP) / 2;
-      for (let k = 0; k < take; k++, idx++) {
-        const a = ((start + k * STEP) * Math.PI) / 180;
-        const rp = ATKx + ring.R * -Math.cos(a);
-        const bp = ATKy + ring.R * Math.sin(a);
-        pos.push({ right: Math.round(rp - SLOT / 2), bottom: Math.round(bp - SLOT / 2) });
-      }
+    for (let i = 0; i < count; i++) {
+      // centraliza: 1 slot no meio; vários preenchem A0..A1 por igual
+      const a = count === 1 ? (A0 + A1) / 2 : A0 + ((A1 - A0) * i) / (count - 1);
+      const ar = (a * Math.PI) / 180;
+      const rp = ATKx + R * -Math.cos(ar);
+      const bp = ATKy + R * Math.sin(ar);
+      pos.push({ right: Math.round(rp - SLOT / 2), bottom: Math.round(bp - SLOT / 2) });
     }
     return pos;
+  };
+  const arcLayout = (n: number): { right: number; bottom: number }[] => {
+    if (n <= 6) {
+      // raio cresce com a contagem p/ manter uma folga UNIFORME entre vizinhos
+      const step = n > 1 ? (A1 - A0) / (n - 1) : A1 - A0;
+      const gap = SLOT + 8; // distância mínima entre centros
+      let R = n > 1 ? gap / (2 * Math.sin((step * Math.PI) / 180 / 2)) : 138;
+      R = Math.max(138, Math.min(196, R));
+      return evenArc(n, R);
+    }
+    // muitas habilidades: dois arcos concêntricos, cada um uniforme
+    const inner = Math.ceil(n / 2);
+    return [...evenArc(inner, 150), ...evenArc(n - inner, 212)];
   };
   const BASE_SLOTS = 6; // slots SEMPRE visíveis na HUD (vazios até aprender)
   const renderActionBar = (items: ActionSkill[]) => {
@@ -698,8 +705,8 @@ export function setupControls(
           `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}" ` +
           `style="right:${p.right}px;bottom:${p.bottom}px">` +
           (s.icon ? `<img src="${s.icon}" alt=""/>` : `<span class="gh-ss-x">✦</span>`) +
-          `<span class="gh-ss-mana">${s.mana}</span>` +
           `<span class="gh-ss-cool"></span>` +
+          `<span class="gh-ss-cd"></span>` +
           `</button>`;
       } else {
         // slot VAZIO (placeholder) — não clicável, marca o lugar da habilidade
@@ -1075,14 +1082,29 @@ export function setupControls(
     setActionBar(items: ActionSkill[]) {
       renderActionBar(items);
     },
-    skillCooldown(id: string, ms: number) {
-      const el = actbar.querySelector<HTMLElement>(
-        `.gh-sslot[data-skill="${id}"] .gh-ss-cool`,
-      );
-      if (!el) return;
-      el.style.animation = "none";
-      void el.offsetWidth;
-      el.style.animation = `gh-cool ${ms}ms linear forwards`;
+    setSkillCooldown(id: string, frac: number, secs: number) {
+      const slot = actbar.querySelector<HTMLElement>(`.gh-sslot[data-skill="${id}"]`);
+      if (!slot) return;
+      const cool = slot.querySelector<HTMLElement>(".gh-ss-cool");
+      const cd = slot.querySelector<HTMLElement>(".gh-ss-cd");
+      if (frac <= 0) {
+        if (cool) { cool.style.opacity = "0"; cool.style.setProperty("--gh-cd", "0deg"); }
+        if (cd) cd.textContent = "";
+        return;
+      }
+      // escurece e vai "preenchendo" (o setor escuro encolhe no sentido horário)
+      if (cool) {
+        cool.style.opacity = "1";
+        cool.style.setProperty("--gh-cd", (Math.max(0, Math.min(1, frac)) * 360).toFixed(1) + "deg");
+      }
+      if (cd) cd.textContent = String(secs); // segundos restantes no centro
+    },
+    skillManaFloat(id: string, cost: number) {
+      const slot = actbar.querySelector<HTMLElement>(`.gh-sslot[data-skill="${id}"]`);
+      if (!slot) return;
+      const r = slot.getBoundingClientRect();
+      // sobe a partir do topo do slot (não fica escondido atrás do ícone)
+      this.floatText(r.left + r.width / 2, r.top - 2, `-${cost}`, "mana");
     },
     floatText(x: number, y: number, text: string, kind) {
       const el = document.createElement("div");
@@ -1525,7 +1547,7 @@ function injectStyle() {
   .gh-sec-row span { color:#bfae82; }
   .gh-sec-row b { color:#f0e6cc; font-weight:600; }
   /* --- dano flutuante (números que sobem sobre a cena) --- */
-  #gh-float { position:fixed; inset:0; pointer-events:none; z-index:9; overflow:hidden; }
+  #gh-float { position:fixed; inset:0; pointer-events:none; z-index:11; overflow:hidden; }
   .gh-float-n {
     position:absolute; transform:translate(-50%,-50%);
     font-family:"Cinzel",serif; font-weight:700; white-space:nowrap;
@@ -1536,6 +1558,7 @@ function injectStyle() {
   .gh-fl-crit { color:#ff8a3c; font-size:34px; text-shadow:0 2px 5px rgba(0,0,0,.95), 0 0 12px rgba(255,120,40,.7); }
   .gh-fl-player { color:#ff5a4e; font-size:24px; }
   .gh-fl-heal { color:#8ff0a0; font-size:22px; }
+  .gh-fl-mana { color:#7fc4ff; font-size:18px; }
   @keyframes gh-float-rise {
     0%   { opacity:0; transform:translate(-50%,-40%) scale(.7); }
     15%  { opacity:1; transform:translate(-50%,-55%) scale(1.08); }
@@ -1709,18 +1732,18 @@ function injectStyle() {
   .gh-ss-rune { font-size:18px; color:rgba(220,200,150,.5); pointer-events:none;
     text-shadow:0 1px 2px rgba(0,0,0,.8); }
   .gh-ss-x { font-size:20px; color:#e6d29a; }
-  .gh-ss-mana {
-    position:absolute; right:2px; bottom:1px; min-width:13px; height:13px;
-    padding:0 2px; border-radius:7px; background:rgba(20,40,80,.9);
-    color:#8ecbff; font-size:9px; line-height:13px; text-align:center;
-    font-family:"Cinzel",serif; border:1px solid rgba(120,170,230,.6);
-    pointer-events:none;
-  }
+  /* recarga: setor escuro (conic) que ENCOLHE conforme --gh-cd (frac×360) cai */
   .gh-ss-cool {
-    position:absolute; inset:0; border-radius:50%; pointer-events:none;
-    background:conic-gradient(rgba(6,6,10,.72) var(--gh-cd), transparent 0);
+    position:absolute; inset:0; border-radius:50%; pointer-events:none; opacity:0;
+    --gh-cd:0deg;
+    background:conic-gradient(rgba(6,6,10,.74) var(--gh-cd), transparent 0);
   }
-  @keyframes gh-cool { from { --gh-cd:360deg; } to { --gh-cd:0deg; } }
+  /* segundos restantes no centro do ícone durante a recarga */
+  .gh-ss-cd {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; font-family:"Cinzel",serif; font-weight:700;
+    font-size:18px; color:#fff2c8; text-shadow:0 1px 3px rgba(0,0,0,.95);
+  }
   #gh-prompt {
     pointer-events:none; position:absolute; left:50%; transform:translateX(-50%);
     bottom:104px; max-width:70%; text-align:center;

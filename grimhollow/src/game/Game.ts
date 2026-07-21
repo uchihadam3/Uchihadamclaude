@@ -488,6 +488,7 @@ export class Game {
   private target: Game["enemy"] = null;
   // recarga de cada habilidade: instante (ms) em que fica pronta de novo
   private cooldownUntil: Record<string, number> = {};
+  private coolingSkills = new Set<string>(); // ids em recarga (tick atualiza a UI)
   // buff temporário ativo (multiplicador de dano / redução de dano recebido)
   private buff: { atkMul: number; defReduc: number; until: number } | null = null;
   // retículo de mira (billboard que marca o alvo selecionado)
@@ -1296,11 +1297,12 @@ export class Game {
         return;
       }
     }
-    // paga o custo e dispara a recarga
+    // paga o custo (número flutuante de mana perto do slot) e dispara a recarga
     this.playerMp = Math.max(0, this.playerMp - cb.mana);
     this.ui.setMana(this.playerMp / this.playerMaxMp);
+    this.ui.skillManaFloat(id, cb.mana);
     this.cooldownUntil[id] = now + cb.cd;
-    this.ui.skillCooldown(id, cb.cd);
+    this.coolingSkills.add(id); // o tick atualiza o overlay + contagem regressiva
     // efeito
     if (cb.effect === "dmg" && this.target) {
       const base = cb.power * (1 + 0.25 * (rank - 1));
@@ -3917,6 +3919,20 @@ export class Game {
       this.recomputeDerived();
     }
     this.buffActive = nowBuff;
+    // recargas: atualiza o overlay (escurece e preenche) + a contagem regressiva
+    if (this.coolingSkills.size) {
+      for (const id of this.coolingSkills) {
+        const until = this.cooldownUntil[id] ?? 0;
+        const remaining = until - now;
+        if (remaining <= 0) {
+          this.ui.setSkillCooldown(id, 0, 0);
+          this.coolingSkills.delete(id);
+        } else {
+          const total = combatFor(id).cd;
+          this.ui.setSkillCooldown(id, remaining / total, Math.ceil(remaining / 1000));
+        }
+      }
+    }
     // inimigo: ataca (investida), reage ao dano (brilho + recuo) e morre
     const e = this.enemy;
     if (e) {
