@@ -967,17 +967,11 @@ export class Game {
     // A cor MULTIPLICA a textura (dá variação sem precisar de mais arte).
     const wallTint = (t: THREE.Texture, hex: number) =>
       new THREE.MeshLambertMaterial({ map: t, color: new THREE.Color(hex) });
-    // Dois TIPOS de pedra (lisa e com musgo) + madeira → diferenciação REAL, não
-    // só cor. Cada tipo ainda ganha tons variados por casa.
+    // Paredes das casas: SÓ PEDRA, em cor NATURAL (sem tint, sem madeira). A
+    // diferenciação vem das plantas/fissuras/janelas coladas depois.
     const wallMats = [
-      wallTint(tex.stone(31), 0xf3e6c4), // pedra clara/quente (creme)
-      wallTint(tex.stone(31), 0xd7dde4), // pedra fria (cinza-azulada)
-      wallTint(tex.stone(31), 0xe6c78f), // arenito (bege dourado)
-      wallTint(tex.stoneMossy(), 0xffffff), // pedra com musgo (natural)
-      wallTint(tex.stoneMossy(), 0xd8cbb2), // pedra com musgo (mais clara)
-      wallTint(tex.stone(31), 0xd9b7a0), // pedra avermelhada
-      wallTint(tex.woodPlanks(5), 0xcf9a5e), // casa de madeira (quente)
-      wallTint(tex.woodPlanks(9), 0xb08447), // casa de madeira escura
+      new THREE.MeshLambertMaterial({ map: tex.stone(31) }), // pedra lisa
+      new THREE.MeshLambertMaterial({ map: tex.stoneMossy() }), // pedra com musgo
     ];
     // TELHADOS de palha em tons variados (uns dourados, uns castanhos, uns velhos).
     const roofMats = [
@@ -1045,15 +1039,16 @@ export class Game {
           const roll = Math.abs(hash(c, r, dc * 7 + dr * 3)) % 1;
           const fx = c * CELL + dc * (CELL / 2 + 0.05);
           const fz = r * CELL + dr * (CELL / 2 + 0.05);
-          // (bandeira NÃO entra aqui — é exclusiva das lojas, em buildEstablishments)
-          if (roll < 0.46) {
+          // Paredes são todas de pedra natural → a diferença vem das plantas e
+          // fissuras (mais frequentes). Bandeira é exclusiva das lojas.
+          if (roll < 0.4) {
             this.addWallDecal(c, r, dc, dr, winMat, 1.9, 1.9, 1.75);
-          } else if (roll < 0.6) {
+          } else if (roll < 0.5) {
             this.addWallDecal(c, r, dc, dr, torchMat, 0.95, 1.55, 2.15);
             this.glowLight(fx + dc * 0.25, 2.35, fz + dr * 0.25, 0xffa040, 3.0, 9);
-          } else if (roll < 0.73) {
+          } else if (roll < 0.71) {
             this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
-          } else if (roll < 0.82) {
+          } else if (roll < 0.87) {
             this.addWallDecal(c, r, dc, dr, cracksMat, 1.8, 1.6, 1.6);
           }
         }
