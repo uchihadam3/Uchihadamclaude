@@ -8,6 +8,7 @@ import texThatchUrl from "../assets/env/tex_thatch.jpg";
 import texWoodUrl from "../assets/env/tex_wood.jpg";
 import texDirtUrl from "../assets/env/tex_dirt.jpg";
 import texGrassUrl from "../assets/env/tex_grass.jpg";
+import texMossUrl from "../assets/env/tex_mosswall.jpg";
 
 const _pngBase = new Map<string, THREE.Texture>();
 const _pngLoader = new THREE.TextureLoader();
@@ -312,6 +313,9 @@ export function dirt(seed = 23): THREE.Texture {
 }
 
 // -------- pedra de cantaria (poço, arco da masmorra) --------
+export function stoneMossy(_seed = 32): THREE.Texture {
+  return pngTex(texMossUrl);
+}
 export function stone(seed = 31): THREE.Texture {
   return pngTex(texStoneUrl);
   // eslint-disable-next-line no-unreachable

@@ -77,6 +77,12 @@ import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
 import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
+import decWindowUrl from "../assets/env/dec_window.png";
+import decDoorUrl from "../assets/env/dec_door.png";
+import decTorchUrl from "../assets/env/dec_torch.png";
+import decIvyUrl from "../assets/env/dec_ivy.png";
+import decBannerUrl from "../assets/env/dec_banner.png";
+import decCracksUrl from "../assets/env/dec_cracks.png";
 import fxFireballUrl from "../assets/ui/fx/fx_fireball.png";
 import fxIceUrl from "../assets/ui/fx/fx_ice.png";
 import fxIceLanceUrl from "../assets/ui/fx/fx_ice_lance.png";
@@ -961,13 +967,15 @@ export class Game {
     // A cor MULTIPLICA a textura (dá variação sem precisar de mais arte).
     const wallTint = (t: THREE.Texture, hex: number) =>
       new THREE.MeshLambertMaterial({ map: t, color: new THREE.Color(hex) });
+    // Dois TIPOS de pedra (lisa e com musgo) + madeira → diferenciação REAL, não
+    // só cor. Cada tipo ainda ganha tons variados por casa.
     const wallMats = [
       wallTint(tex.stone(31), 0xf3e6c4), // pedra clara/quente (creme)
       wallTint(tex.stone(31), 0xd7dde4), // pedra fria (cinza-azulada)
       wallTint(tex.stone(31), 0xe6c78f), // arenito (bege dourado)
-      wallTint(tex.stone(31), 0xc7a882), // pedra terrosa (marrom)
-      wallTint(tex.stone(31), 0xb6c9a6), // pedra com musgo (esverdeada)
-      wallTint(tex.stone(31), 0xd9b7a0), // pedra rosada/avermelhada
+      wallTint(tex.stoneMossy(), 0xffffff), // pedra com musgo (natural)
+      wallTint(tex.stoneMossy(), 0xd8cbb2), // pedra com musgo (mais clara)
+      wallTint(tex.stone(31), 0xd9b7a0), // pedra avermelhada
       wallTint(tex.woodPlanks(5), 0xcf9a5e), // casa de madeira (quente)
       wallTint(tex.woodPlanks(9), 0xb08447), // casa de madeira escura
     ];
@@ -978,15 +986,13 @@ export class Game {
       wallTint(tex.thatch(3), 0xaa9678),
     ];
     roofMats.forEach((m) => (m.side = THREE.DoubleSide));
-    const doorMat = new THREE.MeshLambertMaterial({
-      map: tex.door(11),
-      side: THREE.DoubleSide,
-    });
-    const winMat = new THREE.MeshLambertMaterial({
-      map: tex.window_(13),
-      transparent: true,
-      side: THREE.DoubleSide,
-    });
+    // portas/janelas e adornos: DECALQUES em PNG (arte) colados na parede.
+    const doorMat = this.decalMat(decDoorUrl, 0.4);
+    const winMat = this.decalMat(decWindowUrl, 0.4);
+    const torchMat = this.decalMat(decTorchUrl, 0.1); // chama suave
+    const bannerMat = this.decalMat(decBannerUrl, 0.4);
+    const ivyMat = this.decalMat(decIvyUrl, 0.4);
+    const cracksMat = this.decalMat(decCracksUrl, 0.08); // fissuras finas
 
     const hash = (a: number, b: number, s = 0) =>
       (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
@@ -1034,9 +1040,23 @@ export class Game {
             doorFaces.add(`${c},${r},${dc},${dr}`);
             continue; // porta tratada em buildEstablishments
           }
-          // apenas JANELAS nas casas comuns (nada de portas inacessíveis)
-          const h = Math.abs(hash(c, r, dc * 2 + dr));
-          if (h < 0.5) this.addDecal(c, r, dc, dr, winMat, "window");
+          // adorno da face: janela (comum) + tocha/bandeira/hera/rachadura sorteados
+          // → cada casa fica diferente e a cidade ganha vida.
+          const roll = Math.abs(hash(c, r, dc * 7 + dr * 3)) % 1;
+          const fx = c * CELL + dc * (CELL / 2 + 0.05);
+          const fz = r * CELL + dr * (CELL / 2 + 0.05);
+          if (roll < 0.44) {
+            this.addWallDecal(c, r, dc, dr, winMat, 1.9, 1.9, 1.75);
+          } else if (roll < 0.57) {
+            this.addWallDecal(c, r, dc, dr, torchMat, 0.95, 1.55, 2.15);
+            this.glowLight(fx + dc * 0.25, 2.35, fz + dr * 0.25, 0xffa040, 3.0, 9);
+          } else if (roll < 0.66) {
+            this.addWallDecal(c, r, dc, dr, bannerMat, 1.25, 2.05, 1.95);
+          } else if (roll < 0.77) {
+            this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
+          } else if (roll < 0.85) {
+            this.addWallDecal(c, r, dc, dr, cracksMat, 1.8, 1.6, 1.6);
+          }
         }
       }
     }
@@ -3687,6 +3707,49 @@ export class Game {
     g.setIndex([0, 1, 2]);
     g.computeVertexNormals();
     return new THREE.Mesh(g, mat);
+  }
+
+  // material de decalque (PNG transic. c/ alpha) — alphaTest evita halo/ordenação
+  private decalMat(url: string, aTest = 0.35): THREE.MeshLambertMaterial {
+    const m = new THREE.MeshLambertMaterial({
+      transparent: true,
+      alphaTest: aTest,
+      side: THREE.DoubleSide,
+    });
+    // invisível (nem cor nem profundidade) até a textura chegar → sem "retângulo
+    // branco" enquanto carrega.
+    m.colorWrite = false;
+    m.depthWrite = false;
+    this.loadArt(url, (t) => {
+      m.map = t;
+      m.colorWrite = true;
+      m.depthWrite = true;
+      m.needsUpdate = true;
+    });
+    return m;
+  }
+
+  // plano decorativo na face da parede (tamanho/altura livres). encara p/ fora.
+  private addWallDecal(
+    c: number,
+    r: number,
+    dc: number,
+    dr: number,
+    mat: THREE.Material,
+    w: number,
+    h: number,
+    y: number,
+  ) {
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    plane.position.set(
+      c * CELL + dc * (CELL / 2 + 0.05),
+      y,
+      r * CELL + dr * (CELL / 2 + 0.05),
+    );
+    plane.rotation.y =
+      dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
+    plane.renderOrder = 4; // desenha depois da parede
+    this.world.add(plane);
   }
 
   private addDecal(
