@@ -36,6 +36,15 @@ import {
   forestFind,
   forestSignText,
 } from "./forest";
+import {
+  DUNGEON_COLS,
+  DUNGEON_ROWS,
+  dungeonCell,
+  dungeonWalkable,
+  dungeonSolidLook,
+  dungeonFind,
+  dungeonAll,
+} from "./dungeon";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD } from "./controls";
 import {
@@ -644,7 +653,7 @@ export class Game {
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
-  private location: "village" | "forest" | Estab | HomeId = "village";
+  private location: "village" | "forest" | "dungeon" | Estab | HomeId = "village";
   private doorMap = new Map<string, Estab>(); // "c,r,dc,dr" -> estabelecimento
   private homeDoorMap = new Map<string, HomeId>(); // "c,r,dc,dr" -> casa de aldeão
   // "c,r" -> NPC (guarda a textura p/ recortar o retrato do diálogo)
@@ -793,7 +802,7 @@ export class Game {
 
   // ---------------------------------------------- troca de local (vila/interior)
   private enterLocation(
-    loc: "village" | "forest" | Estab | HomeId,
+    loc: "village" | "forest" | "dungeon" | Estab | HomeId,
     col: number,
     row: number,
     facing: number,
@@ -816,6 +825,12 @@ export class Game {
       this.scene.background = new THREE.Color(FOG_COLOR);
       this.addForestLights();
       this.buildForest();
+    } else if (loc === "dungeon") {
+      // masmorra: escuridão fechada, névoa curta e preta (só as tochas iluminam).
+      this.scene.fog = new THREE.Fog(0x07070a, CELL * 2, CELL * 9);
+      this.scene.background = new THREE.Color(0x050507);
+      this.addDungeonLights();
+      this.buildDungeon();
     } else if (loc in HOMES) {
       this.scene.fog = new THREE.Fog(0x241a10, CELL * 4, CELL * 12);
       this.scene.background = new THREE.Color(0x160f08);
@@ -1201,14 +1216,14 @@ export class Game {
 
   // inimigo billboard no túnel da masmorra: guarda a escada, encara a câmera e
   // leva dano do golpe (3 acertos de perto e de frente e ele tomba).
-  private buildDungeonEnemy() {
+  private buildDungeonEnemy(c = 2, r = 4) {
     // nível do inimigo escala com o do herói (variação -1..+1, mínimo 1). Define
     // a vida e, na morte, o XP e o ouro dropado.
     const elevel = Math.max(1, this.stats.level + (Math.floor(Math.random() * 3) - 1));
     // vida do inimigo sobe com o nível — dá pra sobreviver a alguns golpes agora
     // que o Atq. Físico (dos atributos) entra no dano do ataque básico.
     const emaxHp = 26 + (elevel - 1) * 8;
-    const c = 2, r = 4, worldH = 2.6; // no túnel, uma célula antes da escada
+    const worldH = 2.6; // célula do inimigo (parametrizada por local)
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
       opacity: 0,
@@ -2179,6 +2194,111 @@ export class Game {
       this.world.add(light);
       this.flames.push({ light, base: 6 });
     }
+  }
+
+  // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
+  private addDungeonLights() {
+    this.world.add(new THREE.AmbientLight(0x5a5566, 0.72));
+    this.world.add(new THREE.HemisphereLight(0x6a6474, 0x14121a, 0.5));
+  }
+
+  // constrói a MASMORRA a partir da grade fixa (dungeon.ts): piso/teto/paredes,
+  // tochas, props e a parede ilusória do segredo.
+  private buildDungeon() {
+    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = 3.6;
+    const hash = (a: number, b: number, s = 0) =>
+      Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
+    const floorMat = new THREE.MeshLambertMaterial({ map: tex.dungeonFloor(43) });
+    const wallMat = new THREE.MeshLambertMaterial({ map: tex.dungeonWall(47), side: THREE.DoubleSide });
+    const ceilMat = new THREE.MeshLambertMaterial({ color: 0x0c0a12, side: THREE.DoubleSide });
+    const torchMat = this.decalMat(decTorchUrl, 0.1);
+    const crackMat = this.decalMat(decCracksUrl, 0.08);
+    const boneMat = new THREE.MeshLambertMaterial({
+      map: tex.skullPile(69), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide,
+    });
+    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const ironMat = new THREE.MeshLambertMaterial({ color: 0x27231d });
+    const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
+
+    const isCorr = (c: number, r: number) => {
+      const k = dungeonCell(c, r);
+      if (k === "wall" || k === "secret") return false;
+      return (
+        (dungeonSolidLook(c - 1, r) && dungeonSolidLook(c + 1, r)) ||
+        (dungeonSolidLook(c, r - 1) && dungeonSolidLook(c, r + 1))
+      );
+    };
+    let torches = 0;
+
+    for (let r = 0; r < H; r++)
+      for (let c = 0; c < W; c++) {
+        const k = dungeonCell(c, r);
+        if (k === "wall") continue;
+        const cx = c * CELL, cz = r * CELL;
+        const secret = k === "secret";
+        // piso + teto (o segredo também tem, p/ não virar vão)
+        const fl = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), floorMat);
+        fl.rotation.x = -Math.PI / 2; fl.position.set(cx, 0.02, cz); this.world.add(fl);
+        const ce = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), ceilMat);
+        ce.rotation.x = Math.PI / 2; ce.position.set(cx, CH, cz); this.world.add(ce);
+        // paredes
+        for (const [dc, dr] of DIRS) {
+          const nk = dungeonCell(c + dc, r + dr);
+          if (nk === "wall") {
+            this.addWall(cx, cz, dc, dr, 0, CH, wallMat); // rocha sólida
+          } else if (secret && nk !== "secret" && isCorr(c + dc, r + dr)) {
+            // parede ILUSÓRIA: parece rocha do lado do corredor, mas é atravessável
+            this.addWall(cx, cz, dc, dr, 0, CH, wallMat);
+            this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7); // dica sutil
+          }
+          // tocha esporádica em paredes de rocha (ilumina)
+          if (nk === "wall" && !secret && torches < 30 && hash(c, r, dc * 5 + dr) < 0.2) {
+            this.addWallDecal(c, r, dc, dr, torchMat, 0.85, 1.4, 2.1);
+            this.glowLight(cx + dc * 0.3, 2.3, cz + dr * 0.3, 0xffa040, 4.4, 12);
+            torches++;
+          }
+        }
+        // props
+        if (k === "bones") {
+          const b = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.3), boneMat);
+          b.rotation.x = -Math.PI / 2; b.position.set(cx, 0.05, cz); this.world.add(b);
+        } else if (k === "barrel") {
+          const g = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.95, 12), barrelMat);
+          g.position.set(cx, 0.48, cz); this.world.add(g); this.blocked.add(`${c},${r}`);
+        } else if (k === "chest") {
+          this.buildChest(cx, cz, woodMat, ironMat); this.blocked.add(`${c},${r}`);
+        }
+      }
+
+    // escada de saída (U): um facho de luz frio marcando o caminho de volta
+    const up = dungeonFind("U");
+    const beam = new THREE.PointLight(0xbfe0ff, 3.2, 13, 2);
+    beam.position.set(up.col * CELL, 2.7, up.row * CELL); this.world.add(beam);
+
+    this.spawnDungeonEnemy(); // um inimigo perto do jogador
+  }
+
+  private buildChest(cx: number, cz: number, wood: THREE.Material, iron: THREE.Material) {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.7), wood);
+    body.position.set(cx, 0.3, cz); this.world.add(body);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.03, 0.3, 0.73), wood);
+    lid.position.set(cx, 0.73, cz); this.world.add(lid);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.95, 0.14), iron);
+    band.position.set(cx, 0.46, cz); this.world.add(band);
+    const glow = new THREE.PointLight(0xffcf7a, 1.4, 5, 2);
+    glow.position.set(cx, 1.1, cz); this.world.add(glow);
+  }
+
+  // nasce um inimigo no ponto 'E' mais próximo do jogador (não na célula dele)
+  private spawnDungeonEnemy() {
+    const es = dungeonAll("E").filter((e) => !(e.col === this.col && e.row === this.row));
+    if (!es.length) return;
+    let best = es[0], bd = Infinity;
+    for (const e of es) {
+      const d = Math.abs(e.col - this.col) + Math.abs(e.row - this.row);
+      if (d < bd) { bd = d; best = e; }
+    }
+    this.buildDungeonEnemy(best.col, best.row);
   }
 
   private addWall(
@@ -3160,7 +3280,9 @@ export class Game {
         ? isWalkable(c, r)
         : this.location === "forest"
           ? forestWalkable(c, r)
-          : roomWalkable(c, r);
+          : this.location === "dungeon"
+            ? dungeonWalkable(c, r)
+            : roomWalkable(c, r);
     return ok && !this.blocked.has(`${c},${r}`);
   }
 
@@ -3170,6 +3292,7 @@ export class Game {
     let cols: number, rows: number, walk: (c: number, r: number) => boolean;
     if (this.location === "village") { cols = COLS; rows = ROWS; walk = isWalkable; }
     else if (this.location === "forest") { cols = FOREST_COLS; rows = FOREST_ROWS; walk = forestWalkable; }
+    else if (this.location === "dungeon") { cols = DUNGEON_COLS; rows = DUNGEON_ROWS; walk = dungeonWalkable; }
     else { cols = ROOM_COLS; rows = ROOM_ROWS; walk = roomWalkable; }
     const cells = new Uint8Array(cols * rows);
     for (let r = 0; r < rows; r++)
@@ -3213,12 +3336,14 @@ export class Game {
       this.dialogue = { name: t.name, lines: pages, idx: 0, portrait };
       this.ui.showDialogue(t.name, pages[0], portrait);
     } else if (t.kind === "dungeon") {
-      const pages = paginate([
-        "A escada de pedra desce para a escuridão.",
-        "(Em breve você poderá explorar a masmorra.)",
-      ]);
-      this.dialogue = { name: "Masmorra", lines: pages, idx: 0, portrait: null };
-      this.ui.showDialogue("Masmorra", pages[0], null);
+      // desce à masmorra; guarda o ponto de volta ao vilarejo (usado pela escada U)
+      this.returnTo = {
+        col: this.col,
+        row: this.row,
+        facing: (this.facing + 2) % 4,
+      };
+      const p = dungeonFind("S");
+      this.enterLocation("dungeon", p.col, p.row, 0);
     } else if (t.kind === "toforest") {
       // ao voltar, o jogador olha p/ dentro do vilarejo (oposto à trilha)
       this.returnTo = {
@@ -4272,7 +4397,9 @@ export class Game {
           this.enemy = null;
           // renasce depois de um tempo (pra continuar dando XP/loot enquanto testa)
           window.setTimeout(() => {
-            if (!this.enemy && this.location === "village") this.buildDungeonEnemy();
+            if (this.enemy) return;
+            if (this.location === "village") this.buildDungeonEnemy();
+            else if (this.location === "dungeon") this.spawnDungeonEnemy();
           }, 5000);
         }
       } else {
@@ -4393,6 +4520,10 @@ export class Game {
       if (k === "gate" || forestCell(this.col, this.row) === "gate")
         return { kind: "tovillage" };
       if (k === "sign") return { kind: "sign", lines: forestSignText(fc, fr) };
+    } else if (this.location === "dungeon") {
+      // escada de volta ao vilarejo (de frente ou em cima dela) → usa returnTo
+      if (dungeonCell(fc, fr) === "stairs" || dungeonCell(this.col, this.row) === "stairs")
+        return { kind: "exit" };
     } else {
       // saída: valendo tanto de frente para a porta quanto encostado nela
       // (em cima da própria célula de saída, onde a célula à frente já é a
