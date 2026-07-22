@@ -88,6 +88,16 @@ import fxPrisaoUrl from "../assets/ui/fx/fx_prisao.png";
 import fxCorrenteUrl from "../assets/ui/fx/fx_corrente.png";
 import fxTempestadeUrl from "../assets/ui/fx/fx_tempestade.png";
 import fxDescargaUrl from "../assets/ui/fx/fx_descarga.png";
+import fxLApunhalarUrl from "../assets/ui/fx/fx_l_apunhalar.png";
+import fxLRajadaUrl from "../assets/ui/fx/fx_l_rajada.png";
+import fxLSombrasUrl from "../assets/ui/fx/fx_l_sombras.png";
+import fxLEstocadaUrl from "../assets/ui/fx/fx_l_estocada.png";
+import fxLMortalUrl from "../assets/ui/fx/fx_l_mortal.png";
+import fxLDuplaUrl from "../assets/ui/fx/fx_l_dupla.png";
+import fxLDancaUrl from "../assets/ui/fx/fx_l_danca.png";
+import fxLArremessoUrl from "../assets/ui/fx/fx_l_arremesso.png";
+import fxLNuvemUrl from "../assets/ui/fx/fx_l_nuvem.png";
+import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
@@ -171,6 +181,17 @@ const FX_PRISAO = { url: fxPrisaoUrl, frames: 17 };
 const FX_CORRENTE = { url: fxCorrenteUrl, frames: 19 };
 const FX_TEMPESTADE = { url: fxTempestadeUrl, frames: 20 };
 const FX_DESCARGA = { url: fxDescargaUrl, frames: 11 };
+// ---- Ladino (arte própria por skill)
+const FX_L_APUNHALAR = { url: fxLApunhalarUrl, frames: 5 };
+const FX_L_RAJADA = { url: fxLRajadaUrl, frames: 20 };
+const FX_L_SOMBRAS = { url: fxLSombrasUrl, frames: 7 };
+const FX_L_ESTOCADA = { url: fxLEstocadaUrl, frames: 11 };
+const FX_L_MORTAL = { url: fxLMortalUrl, frames: 6 };
+const FX_L_DUPLA = { url: fxLDuplaUrl, frames: 8 };
+const FX_L_DANCA = { url: fxLDancaUrl, frames: 20 };
+const FX_L_ARREMESSO = { url: fxLArremessoUrl, frames: 14 };
+const FX_L_NUVEM = { url: fxLNuvemUrl, frames: 7 };
+const FX_L_TOXINA = { url: fxLToxinaUrl, frames: 19 };
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   // ---- Mago: Fogo
   m_bola_fogo: FX_FIRE,
@@ -188,6 +209,17 @@ const SKILL_FX: Record<string, { url: string; frames: number }> = {
   m_tempestade: FX_TEMPESTADE,
   m_descarga: FX_DESCARGA,
   m_nova_arcana: FX_ARCANE,
+  // ---- Ladino
+  l_apunhalar: FX_L_APUNHALAR,
+  l_rajada_laminas: FX_L_RAJADA,
+  l_golpe_sombras: FX_L_SOMBRAS,
+  l_estocada: FX_L_ESTOCADA,
+  l_execucao_a: FX_L_MORTAL, // Golpe Mortal
+  l_rajada_dupla: FX_L_DUPLA,
+  l_danca_laminas: FX_L_DANCA,
+  l_arremesso: FX_L_ARREMESSO,
+  l_nuvem_toxica: FX_L_NUVEM,
+  l_toxina: FX_L_TOXINA,
 };
 // duração da animação (por skill): ~85ms por quadro, com piso/teto, p/ não soar
 // instantâneo. Skills com mais quadros duram mais.
@@ -195,8 +227,9 @@ const FX_MS_DEFAULT = 1200;
 const fxDurationFor = (id: string): number => {
   const fx = SKILL_FX[id];
   if (!fx) return FX_MS_DEFAULT;
-  // ~115ms por quadro (mais cadenciado, menos "instantâneo")
-  return Math.min(2100, Math.max(1200, Math.round(fx.frames * 115)));
+  // ~115ms por quadro (cadenciado). Piso mais baixo p/ golpes curtos (poucos
+  // quadros) não ficarem "travados"; magias longas seguem lentas/pesadas.
+  return Math.min(2100, Math.max(900, Math.round(fx.frames * 115)));
 };
 // skills cujo DANO só acontece no ÚLTIMO quadro (a animação "cai" e aí fere)
 const FX_IMPACT_END = new Set(["m_meteoro", "m_tempestade", "m_prisao_gelo"]);
