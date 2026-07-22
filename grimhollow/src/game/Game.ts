@@ -955,15 +955,29 @@ export class Game {
   }
 
   private buildVillage() {
-    const woods = [tex.woodPlanks(1), tex.woodPlanks(5), tex.woodPlanks(9)];
-    const woodMats = woods.map(
-      (m) => new THREE.MeshLambertMaterial({ map: m }),
-    );
     const cobbleMat = new THREE.MeshLambertMaterial({ map: tex.cobblestone(7) });
-    const thatchMat = new THREE.MeshLambertMaterial({
-      map: tex.thatch(3),
-      side: THREE.DoubleSide,
-    });
+    // PAREDES das casas: PEDRA em tons variados (quebra o cinza monótono) + umas
+    // poucas de MADEIRA (casas de taipa). Cada casa sorteia um tom → cidade viva.
+    // A cor MULTIPLICA a textura (dá variação sem precisar de mais arte).
+    const wallTint = (t: THREE.Texture, hex: number) =>
+      new THREE.MeshLambertMaterial({ map: t, color: new THREE.Color(hex) });
+    const wallMats = [
+      wallTint(tex.stone(31), 0xf3e6c4), // pedra clara/quente (creme)
+      wallTint(tex.stone(31), 0xd7dde4), // pedra fria (cinza-azulada)
+      wallTint(tex.stone(31), 0xe6c78f), // arenito (bege dourado)
+      wallTint(tex.stone(31), 0xc7a882), // pedra terrosa (marrom)
+      wallTint(tex.stone(31), 0xb6c9a6), // pedra com musgo (esverdeada)
+      wallTint(tex.stone(31), 0xd9b7a0), // pedra rosada/avermelhada
+      wallTint(tex.woodPlanks(5), 0xcf9a5e), // casa de madeira (quente)
+      wallTint(tex.woodPlanks(9), 0xb08447), // casa de madeira escura
+    ];
+    // TELHADOS de palha em tons variados (uns dourados, uns castanhos, uns velhos).
+    const roofMats = [
+      wallTint(tex.thatch(3), 0xe9d197),
+      wallTint(tex.thatch(3), 0xc3a066),
+      wallTint(tex.thatch(3), 0xaa9678),
+    ];
+    roofMats.forEach((m) => (m.side = THREE.DoubleSide));
     const doorMat = new THREE.MeshLambertMaterial({
       map: tex.door(11),
       side: THREE.DoubleSide,
@@ -1010,7 +1024,7 @@ export class Game {
         });
         if (streetDirs.length === 0) continue;
 
-        const wm = woodMats[Math.floor((Math.abs(hash(c, r)) * 3) % 3)];
+        const wm = wallMats[Math.floor(Math.abs(hash(c, r)) * 997) % wallMats.length];
         const box = new THREE.Mesh(boxGeo, wm);
         box.position.set(c * CELL, WALL_H / 2, r * CELL);
         this.world.add(box);
@@ -1028,7 +1042,7 @@ export class Game {
     }
 
     // telhados CONTÍNUOS por trecho de parede (evita retalhos soltos)
-    this.buildRoofs(thatchMat);
+    this.buildRoofs(roofMats);
 
     void doorFaces; // (barris procedurais removidos — só props em PNG na cidade)
 
@@ -3524,7 +3538,10 @@ export class Game {
 
   // Detecta sequências contíguas de casas expostas à rua numa direção e faz
   // UM telhado inclinado por sequência (telhado contínuo, sem frestas).
-  private buildRoofs(mat: THREE.Material) {
+  private buildRoofs(mats: THREE.Material[]) {
+    // sorteia um tom de palha por trecho de telhado (variação entre casas)
+    const pick = (c: number, r: number) =>
+      mats[Math.floor(Math.abs(this.mHash(c, r, 9)) * 997) % mats.length];
     const exposed = (c: number, r: number, dc: number, dr: number) => {
       if (cellAt(c, r) !== "building") return false;
       const k = cellAt(c + dc, r + dr);
@@ -3541,7 +3558,7 @@ export class Game {
             let depth = ROOF_DEPTH;
             for (let rr = r; rr <= r1; rr++)
               depth = Math.min(depth, this.depthInto(c, rr, -dc, 0));
-            this.addRoofRun(c, r, c, r1, dc, 0, depth, mat);
+            this.addRoofRun(c, r, c, r1, dc, 0, depth, pick(c, r));
             r = r1 + 1;
           } else r++;
         }
@@ -3558,7 +3575,7 @@ export class Game {
             let depth = ROOF_DEPTH;
             for (let cc = c; cc <= c1; cc++)
               depth = Math.min(depth, this.depthInto(cc, r, 0, -dr));
-            this.addRoofRun(c, r, c1, r, 0, dr, depth, mat);
+            this.addRoofRun(c, r, c1, r, 0, dr, depth, pick(c, r));
             c = c1 + 1;
           } else c++;
         }
