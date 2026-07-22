@@ -24,30 +24,56 @@ const CLASS_ICON: Record<string, string> = {
   clerigo: iconClerigo,
 };
 
+// só o necessário pras telas de abertura (título/criação) — carrega rapidinho.
+const ESSENTIALS = [
+  titleArtUrl, createBgUrl, menuPlateUrl, logoPlateArt, loadSwordUrl,
+  iconGuerreiro, iconLadino, iconMago, iconClerigo, eqContainerUrl,
+];
+
 export function runIntro(root: HTMLElement): Promise<Character> {
   injectStyle();
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
     overlay.id = "gh-intro";
     root.appendChild(overlay);
-    const finish = (char: Character) => {
-      overlay.remove();
-      resolve(char);
+
+    // Pré-carrega TODO o resto EM SEGUNDO PLANO — mas SÓ depois dos essenciais, pra
+    // não competir por banda com o carregamento das telas de abertura. Roda enquanto
+    // o jogador lê o título e cria o personagem; só espera no fim se não terminar.
+    let bgFrac = 0;
+    let bgDone = false;
+    let bgPromise: Promise<void> = Promise.resolve();
+    const startBg = () => {
+      bgPromise = preloadUrls(allAssetUrls(), (f) => (bgFrac = f)).then(() => {
+        bgDone = true;
+      });
     };
-    // BOOT: tela preta pré-carregando TODOS os assets (espada enchendo no canto)
-    // ANTES do título — assim título e criação já entram com tudo pronto.
-    // Fluxo: Boot → Título → Escolha de classe → Distribuição de pontos → Jogo.
+
+    const finish = (char: Character) => {
+      if (bgDone) {
+        overlay.remove();
+        resolve(char);
+        return;
+      }
+      // ainda carregando: mostra a espada só até o resto terminar
+      showLoading(overlay, () => bgFrac, bgPromise, 300, () => {
+        overlay.remove();
+        resolve(char);
+      });
+    };
     const toAlloc = (cls: GameClass, name: string) =>
-      showAllocate(
-        overlay,
-        cls,
-        name,
-        finish,
-        () => showCreate(overlay, toAlloc, cls.id, name),
+      showAllocate(overlay, cls, name, finish, () =>
+        showCreate(overlay, toAlloc, cls.id, name),
       );
-    showBoot(overlay, () =>
-      showTitle(overlay, () => showCreate(overlay, toAlloc)),
-    );
+
+    // Boot CURTO: carrega só os essenciais das telas → título entra rápido, com o
+    // cenário pesado carregando por trás. Fluxo: Boot(leve) → Título → Criação → Jogo.
+    let eFrac = 0;
+    const ePromise = preloadUrls(ESSENTIALS, (f) => (eFrac = f));
+    showLoading(overlay, () => eFrac, ePromise, 500, () => {
+      startBg(); // só agora carrega o resto (sem competir com os essenciais)
+      showTitle(overlay, () => showCreate(overlay, toAlloc));
+    });
   });
 }
 
@@ -295,7 +321,15 @@ function classCard(c: GameClass): string {
 // Tela preta inicial que pré-carrega TUDO. O indicador é a ESPADA na horizontal
 // no canto inferior direito, cujo interior enche de dourado conforme o progresso
 // (o PNG da espada vira máscara; um gradiente pinta só o miolo até X%).
-function showBoot(overlay: HTMLElement, onDone: () => void) {
+// Tela da espada. Enche conforme `getFrac()` e chama `onDone` quando `promise`
+// termina (respeitando um tempo mínimo `minMs` p/ não piscar).
+function showLoading(
+  overlay: HTMLElement,
+  getFrac: () => number,
+  promise: Promise<void>,
+  minMs: number,
+  onDone: () => void,
+) {
   overlay.innerHTML = `
     <div class="gh-screen gh-boot">
       <div class="gh-boot-corner">
@@ -309,31 +343,43 @@ function showBoot(overlay: HTMLElement, onDone: () => void) {
   const sword = overlay.querySelector("#gh-boot-sword") as HTMLElement;
   const txt = overlay.querySelector("#gh-boot-txt") as HTMLElement;
   const t0 = performance.now();
-  preloadAll((f) => {
-    const p = Math.round(f * 100);
+  let raf = 0;
+  const tick = () => {
+    const p = Math.round(getFrac() * 100);
     sword.style.setProperty("--p", p + "%");
     txt.textContent = `Forjando o mundo… ${p}%`;
-  }).then(async () => {
-    // tempo mínimo de exibição p/ não "piscar"
+    raf = requestAnimationFrame(tick);
+  };
+  tick();
+  promise.then(async () => {
     const el = performance.now() - t0;
-    if (el < 900) await new Promise((r) => setTimeout(r, 900 - el));
+    if (el < minMs) await new Promise((r) => setTimeout(r, minMs - el));
+    cancelAnimationFrame(raf);
     sword.style.setProperty("--p", "100%");
     txt.textContent = "Pronto";
-    await new Promise((r) => setTimeout(r, 220));
+    await new Promise((r) => setTimeout(r, 160));
     onDone();
   });
 }
 
 // pré-carrega (e decodifica) TODOS os PNG/GIF do bundle antes do jogo montar, p/
 // nenhum sprite entrar "faltando". import.meta.glob pega tudo de /assets.
-async function preloadAll(onProgress: (frac: number) => void): Promise<void> {
-  const mods = import.meta.glob(["../assets/**/*.png", "../assets/**/*.gif"], {
-    eager: true,
-    query: "?url",
-    import: "default",
-  });
-  const urls = Array.from(new Set(Object.values(mods) as string[]));
-  if (urls.length === 0) return onProgress(1);
+function allAssetUrls(): string[] {
+  const mods = import.meta.glob(
+    ["../assets/**/*.png", "../assets/**/*.gif", "../assets/**/*.jpg"],
+    { eager: true, query: "?url", import: "default" },
+  );
+  return Array.from(new Set(Object.values(mods) as string[]));
+}
+
+async function preloadUrls(
+  urls: string[],
+  onProgress: (frac: number) => void,
+): Promise<void> {
+  if (urls.length === 0) {
+    onProgress(1);
+    return;
+  }
   let done = 0;
   await Promise.all(
     urls.map(

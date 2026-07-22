@@ -1,4 +1,33 @@
 import * as THREE from "three";
+// Texturas de cenário em PNG (arte). Substituem as versões procedurais das
+// superfícies principais da cidade/dungeon. Cada material recebe um CLONE (repeat
+// independente) que COMPARTILHA o mesmo upload de GPU (source), então não pesa.
+import texCobbleUrl from "../assets/env/tex_cobble.jpg";
+import texStoneUrl from "../assets/env/tex_stonewall.jpg";
+import texThatchUrl from "../assets/env/tex_thatch.jpg";
+import texWoodUrl from "../assets/env/tex_wood.jpg";
+import texDirtUrl from "../assets/env/tex_dirt.jpg";
+import texGrassUrl from "../assets/env/tex_grass.jpg";
+
+const _pngBase = new Map<string, THREE.Texture>();
+const _pngLoader = new THREE.TextureLoader();
+function pngTex(url: string, repeatX = 1, repeatY = 1): THREE.Texture {
+  let base = _pngBase.get(url);
+  if (!base) {
+    base = _pngLoader.load(url);
+    base.wrapS = THREE.RepeatWrapping;
+    base.wrapT = THREE.RepeatWrapping;
+    base.colorSpace = THREE.SRGBColorSpace;
+    base.anisotropy = 8;
+    _pngBase.set(url, base);
+  }
+  const t = base.clone();
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeatX, repeatY);
+  t.needsUpdate = true;
+  return t;
+}
 
 // Texturas geradas por código, com filtragem suave (sem look pixelado).
 // Renderizamos as texturas com super-amostragem (SS) p/ ficarem nítidas.
@@ -50,6 +79,8 @@ const rnd = (seed: number) => {
 
 // -------- madeira (tábuas verticais) --------
 export function woodPlanks(seed = 1): THREE.Texture {
+  return pngTex(texWoodUrl);
+  // eslint-disable-next-line no-unreachable
   const W = 64;
   const H = 64;
   const { c, ctx } = makeCanvas(W, H);
@@ -88,6 +119,8 @@ export function woodPlanks(seed = 1): THREE.Texture {
 
 // -------- pedra da rua (paralelepípedos) --------
 export function cobblestone(seed = 7): THREE.Texture {
+  return pngTex(texCobbleUrl);
+  // eslint-disable-next-line no-unreachable
   const W = 160;
   const H = 160;
   const { c, ctx } = makeCanvas(W, H);
@@ -164,6 +197,8 @@ export function cobblestone(seed = 7): THREE.Texture {
 
 // -------- palha / colmo do telhado --------
 export function thatch(seed = 3): THREE.Texture {
+  return pngTex(texThatchUrl);
+  // eslint-disable-next-line no-unreachable
   const W = 64;
   const H = 64;
   const { c, ctx } = makeCanvas(W, H);
@@ -278,6 +313,8 @@ export function dirt(seed = 23): THREE.Texture {
 
 // -------- pedra de cantaria (poço, arco da masmorra) --------
 export function stone(seed = 31): THREE.Texture {
+  return pngTex(texStoneUrl);
+  // eslint-disable-next-line no-unreachable
   const W = 96;
   const H = 96;
   const { c, ctx } = makeCanvas(W, H);
@@ -870,6 +907,8 @@ export function dungeonFloor(seed = 43): THREE.Texture {
 
 // -------- grama (chão da floresta) --------
 export function grass(seed = 61): THREE.Texture {
+  return pngTex(texGrassUrl);
+  // eslint-disable-next-line no-unreachable
   const W = 64;
   const H = 64;
   const { c, ctx } = makeCanvas(W, H);
@@ -908,6 +947,8 @@ export function grass(seed = 61): THREE.Texture {
 
 // -------- caminho de terra batida --------
 export function dirtPath(seed = 63): THREE.Texture {
+  return pngTex(texDirtUrl);
+  // eslint-disable-next-line no-unreachable
   const W = 64;
   const H = 64;
   const { c, ctx } = makeCanvas(W, H);
