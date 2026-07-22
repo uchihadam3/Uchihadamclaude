@@ -9,8 +9,9 @@ export const ROOF_DEPTH = 2; // quantas células o telhado cobre p/ dentro da ca
 export const FASCIA = 0.35; // espessura da borda de palha no beiral
 
 // portas e janelas em tamanho humano (metros)
-export const DOOR_W = 1.2;
-export const DOOR_H = 2.1;
+// o PNG da porta inclui a moldura de pedra, então o decalque é maior que o vão
+export const DOOR_W = 1.65;
+export const DOOR_H = 2.7;
 export const WIN_W = 1.0;
 export const WIN_H = 1.0;
 export const WIN_Y = 1.85; // altura do centro da janela
