@@ -24,12 +24,6 @@ const CLASS_ICON: Record<string, string> = {
   clerigo: iconClerigo,
 };
 
-// só o necessário pras telas de abertura (título/criação) — carrega rapidinho.
-const ESSENTIALS = [
-  titleArtUrl, createBgUrl, menuPlateUrl, logoPlateArt, loadSwordUrl,
-  iconGuerreiro, iconLadino, iconMago, iconClerigo, eqContainerUrl,
-];
-
 export function runIntro(root: HTMLElement): Promise<Character> {
   injectStyle();
   return new Promise((resolve) => {
@@ -37,43 +31,22 @@ export function runIntro(root: HTMLElement): Promise<Character> {
     overlay.id = "gh-intro";
     root.appendChild(overlay);
 
-    // Pré-carrega TODO o resto EM SEGUNDO PLANO — mas SÓ depois dos essenciais, pra
-    // não competir por banda com o carregamento das telas de abertura. Roda enquanto
-    // o jogador lê o título e cria o personagem; só espera no fim se não terminar.
-    let bgFrac = 0;
-    let bgDone = false;
-    let bgPromise: Promise<void> = Promise.resolve();
-    const startBg = () => {
-      bgPromise = preloadUrls(allAssetUrls(), (f) => (bgFrac = f)).then(() => {
-        bgDone = true;
-      });
-    };
-
     const finish = (char: Character) => {
-      if (bgDone) {
-        overlay.remove();
-        resolve(char);
-        return;
-      }
-      // ainda carregando: mostra a espada só até o resto terminar
-      showLoading(overlay, () => bgFrac, bgPromise, 300, () => {
-        overlay.remove();
-        resolve(char);
-      });
+      overlay.remove();
+      resolve(char);
     };
     const toAlloc = (cls: GameClass, name: string) =>
       showAllocate(overlay, cls, name, finish, () =>
         showCreate(overlay, toAlloc, cls.id, name),
       );
 
-    // Boot CURTO: carrega só os essenciais das telas → título entra rápido, com o
-    // cenário pesado carregando por trás. Fluxo: Boot(leve) → Título → Criação → Jogo.
-    let eFrac = 0;
-    const ePromise = preloadUrls(ESSENTIALS, (f) => (eFrac = f));
-    showLoading(overlay, () => eFrac, ePromise, 500, () => {
-      startBg(); // só agora carrega o resto (sem competir com os essenciais)
-      showTitle(overlay, () => showCreate(overlay, toAlloc));
-    });
+    // BOOT: tela preta que pré-carrega TODOS os assets (espada enchendo no canto)
+    // ANTES do título — assim título/criação/jogo entram com tudo pronto.
+    let frac = 0;
+    const all = preloadUrls(allAssetUrls(), (f) => (frac = f));
+    showLoading(overlay, () => frac, all, 900, () =>
+      showTitle(overlay, () => showCreate(overlay, toAlloc)),
+    );
   });
 }
 

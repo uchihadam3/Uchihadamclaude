@@ -1045,16 +1045,15 @@ export class Game {
           const roll = Math.abs(hash(c, r, dc * 7 + dr * 3)) % 1;
           const fx = c * CELL + dc * (CELL / 2 + 0.05);
           const fz = r * CELL + dr * (CELL / 2 + 0.05);
-          if (roll < 0.44) {
+          // (bandeira NÃO entra aqui — é exclusiva das lojas, em buildEstablishments)
+          if (roll < 0.46) {
             this.addWallDecal(c, r, dc, dr, winMat, 1.9, 1.9, 1.75);
-          } else if (roll < 0.57) {
+          } else if (roll < 0.6) {
             this.addWallDecal(c, r, dc, dr, torchMat, 0.95, 1.55, 2.15);
             this.glowLight(fx + dc * 0.25, 2.35, fz + dr * 0.25, 0xffa040, 3.0, 9);
-          } else if (roll < 0.66) {
-            this.addWallDecal(c, r, dc, dr, bannerMat, 1.25, 2.05, 1.95);
-          } else if (roll < 0.77) {
+          } else if (roll < 0.73) {
             this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
-          } else if (roll < 0.85) {
+          } else if (roll < 0.82) {
             this.addWallDecal(c, r, dc, dr, cracksMat, 1.8, 1.6, 1.6);
           }
         }
@@ -1073,7 +1072,7 @@ export class Game {
 
     // pontos de interesse
     this.buildWell();
-    this.buildEstablishments(doorMat);
+    this.buildEstablishments(doorMat, bannerMat);
     this.buildHomes(doorMat);
     this.buildVillageForestGate();
     this.buildVillageProps();
@@ -2259,12 +2258,26 @@ export class Game {
   }
 
   // portas dos estabelecimentos + PLACA-ESTACA encostada na parede ao lado da porta
-  private buildEstablishments(doorMat: THREE.Material) {
+  private buildEstablishments(doorMat: THREE.Material, bannerMat: THREE.Material) {
     for (const e of ESTAB_DOORS) {
       const { c, r, dc, dr, kind } = e;
       // porta da loja
       this.addDecal(c, r, dc, dr, doorMat, "door");
       this.doorMap.set(`${c},${r},${dc},${dr}`, kind);
+
+      // BANDEIRA heráldica pendurada na fachada da loja (lado OPOSTO à placa),
+      // pendendo do alto da parede. Exclusiva das lojas.
+      const bx = c * CELL + dc * (CELL / 2 + 0.06);
+      const bz = r * CELL + dr * (CELL / 2 + 0.06);
+      const banner = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.05, 1.75),
+        bannerMat,
+      );
+      banner.position.set(bx - dr * 1.3, 2.05, bz + dc * 1.3);
+      banner.rotation.y =
+        dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
+      banner.renderOrder = 4;
+      this.world.add(banner);
 
       // letreiro rente à parede, AO LADO da porta, com folga clara (antes
       // encostava na porta). Menor e recuado o suficiente pra não sobrepor.
