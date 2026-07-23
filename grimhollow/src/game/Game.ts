@@ -528,6 +528,7 @@ type Target =
   | { kind: "exit" }
   | { kind: "talk"; name: string; lines: string[]; key: string }
   | { kind: "dungeon" }
+  | { kind: "gate"; key: string }
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
@@ -559,6 +560,8 @@ export class Game {
 
   private world = new THREE.Group(); // tudo do local atual (recriado ao trocar)
   private blocked = new Set<string>(); // células bloqueadas por props/NPCs
+  // portões da masmorra: "c,r" → malhas (grade+verga) que somem ao abrir o portão
+  private gates = new Map<string, THREE.Object3D[]>();
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
@@ -866,6 +869,7 @@ export class Game {
     });
     this.world.clear();
     this.blocked.clear();
+    this.gates.clear();
     this.npcs = [];
     this.flames = [];
     this.lampFlames = [];
@@ -2368,19 +2372,28 @@ export class Game {
         }
       }
 
-    // PORTÕES (grade) nas entradas de salas — SELADOS: o portão fica no chão e a
-    // rocha preenche do arco até o teto (parece encaixado, sem vão por cima).
+    // PORTÕES (grade) em corredores 1-largura que SELAM a passagem p/ tesouro.
+    // O portão preenche a largura TODA do corredor (encaixado nas paredes) e uma
+    // parede de ROCHA atrás fecha do chão ao teto — a grade fica embutida na rocha
+    // (arco arredondado cortado na pedra, sem vão nem "quadrado" por fora). Bloqueia
+    // a passagem até o jogador abri-lo (interação). Cada entrada: [célula, dir->jogador].
     const gateMat = this.decalMat(decGateUrl, 0.4);
-    const GATE_H = 4.4; // altura do portão (arco no topo)
+    const GATE_H = 4.7; // altura do arco
     const gates: [number, number, number, number][] = [
-      [22, 25, 0, -1], // entrada do grande salão central
-      [22, 11, 0, -1], // entrada da sala do tesouro (norte)
+      [22, 12, 0, 1], // sela o corredor p/ a sala do tesouro (norte)
+      [17, 35, 1, 0], // sela o corredor p/ o COFRE (a oeste do hall)
     ];
     for (const [gc, gr, gdc, gdr] of gates) {
-      if (!dungeonWalkable(gc, gr)) continue;
-      this.addWallDecal(gc, gr, gdc, gdr, gateMat, 3.9, GATE_H, GATE_H / 2 - 0.15);
-      // veda a rocha do arco até o teto (fecha o vão por cima)
-      this.addWall(gc * CELL, gr * CELL, gdc, gdr, GATE_H - 0.5, CH, rockMat);
+      if (dungeonCell(gc, gr) !== "gate") continue;
+      const parts: THREE.Object3D[] = [];
+      // rocha atrás (do chão ao teto) — a grade fica embutida, vedando tudo por trás
+      parts.push(this.addWall(gc * CELL, gr * CELL, gdc, gdr, 0, CH, rockMat));
+      // a grade em arco, na largura toda do corredor (encostando nas paredes)
+      parts.push(this.addWallDecal(gc, gr, gdc, gdr, gateMat, CELL, GATE_H, GATE_H / 2));
+      // tocha ao lado p/ destacar o portão
+      this.glowLight(gc * CELL + gdc * 0.4, 2.4, gr * CELL + gdr * 0.4, 0xffb45a, 3.4, 9);
+      this.blocked.add(`${gc},${gr}`); // bloqueia a passagem até abrir
+      this.gates.set(`${gc},${gr}`, parts);
     }
 
     // escada de saída (U): um facho de luz frio marcando o caminho de volta
@@ -2434,6 +2447,7 @@ export class Game {
     else if (dr === 1) wall.rotation.y = Math.PI;
     else wall.rotation.y = 0;
     this.world.add(wall);
+    return wall;
   }
 
   // poço da escada: descendo p/ o norte, paredes vedando os lados até o fundo
@@ -3457,6 +3471,8 @@ export class Game {
       };
       const p = dungeonFind("S");
       this.enterLocation("dungeon", p.col, p.row, 0);
+    } else if (t.kind === "gate") {
+      this.openGate(t.key);
     } else if (t.kind === "toforest") {
       // ao voltar, o jogador olha p/ dentro do vilarejo (oposto à trilha)
       this.returnTo = {
@@ -3476,6 +3492,20 @@ export class Game {
       this.dialogue = { name: "Placa", lines: pages, idx: 0, portrait: null };
       this.ui.showDialogue("Placa", pages[0], null);
     }
+  }
+
+  // abre um portão da masmorra: remove a grade + a rocha atrás e libera a passagem.
+  // (não descarta os MATERIAIS — são compartilhados com as outras paredes.)
+  private openGate(key: string) {
+    const parts = this.gates.get(key);
+    if (!parts) return;
+    for (const o of parts) {
+      this.world.remove(o);
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+    }
+    this.gates.delete(key);
+    this.blocked.delete(key); // agora a célula é andável
   }
 
   private advanceDialogue() {
@@ -3996,6 +4026,7 @@ export class Game {
       dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
     plane.renderOrder = 4; // desenha depois da parede
     this.world.add(plane);
+    return plane;
   }
 
   private addDecal(
@@ -4637,6 +4668,9 @@ export class Game {
       // escada de volta ao vilarejo (de frente ou em cima dela) → usa returnTo
       if (dungeonCell(fc, fr) === "stairs" || dungeonCell(this.col, this.row) === "stairs")
         return { kind: "exit" };
+      // portão de grade fechado logo à frente → interagir p/ abrir
+      const gk = `${fc},${fr}`;
+      if (this.gates.has(gk)) return { kind: "gate", key: gk };
     } else {
       // saída: valendo tanto de frente para a porta quanto encostado nela
       // (em cima da própria célula de saída, onde a célula à frente já é a
