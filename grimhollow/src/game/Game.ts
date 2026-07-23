@@ -92,6 +92,7 @@ import decTorchUrl from "../assets/env/dec_torch.png";
 import decIvyUrl from "../assets/env/dec_ivy.png";
 import decBannerUrl from "../assets/env/dec_banner.png";
 import decCracksUrl from "../assets/env/dec_cracks.png";
+import decGateUrl from "../assets/env/dec_gate.png";
 import fxFireballUrl from "../assets/ui/fx/fx_fireball.png";
 import fxIceUrl from "../assets/ui/fx/fx_ice.png";
 import fxIceLanceUrl from "../assets/ui/fx/fx_ice_lance.png";
@@ -2284,9 +2285,11 @@ export class Game {
     const HALF = CELL / 2;
     const hash = (a: number, b: number, s = 0) =>
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
-    const rockMat = new THREE.MeshLambertMaterial({ map: tex.dungeonWall(47), side: THREE.DoubleSide });
-    const floorMat = new THREE.MeshLambertMaterial({ map: tex.dungeonFloor(43), side: THREE.DoubleSide });
-    const ceilMat = new THREE.MeshLambertMaterial({ map: tex.dungeonWall(51), side: THREE.DoubleSide });
+    // texturas de caverna (PNG). O teto usa a rocha mais escura → sensação de
+    // PROFUNDIDADE (o relevo do teto some no escuro lá em cima).
+    const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
+    const floorMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
+    const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
@@ -2320,8 +2323,8 @@ export class Game {
         const secret = k === "secret";
         // PISO com relevo (chão irregular, leve)
         this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 4, 4, 0.5, floorMat, 1, 1);
-        // TETO ALTO com relevo (bulbos descendo — sensação de rocha viva)
-        this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 4, 4, 2.6, ceilMat, 1, 1);
+        // TETO ALTO com relevo forte (bulbos descendo — profundidade de caverna)
+        this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 3.4, ceilMat, 1, 1);
         // paredes de ROCHA com relevo
         for (const [dc, dr] of DIRS) {
           const nk = dungeonCell(c + dc, r + dr);
@@ -2363,6 +2366,15 @@ export class Game {
           this.buildChest(cx, cz, woodMat, ironMat); this.blocked.add(`${c},${r}`);
         }
       }
+
+    // PORTÕES (grade) decorativos nas entradas de salas — passagem livre
+    const gateMat = this.decalMat(decGateUrl, 0.4);
+    const gates: [number, number, number, number][] = [
+      [22, 25, 0, -1], // entrada do grande salão central
+      [22, 11, 0, -1], // entrada da sala do tesouro (norte)
+    ];
+    for (const [gc, gr, gdc, gdr] of gates)
+      if (dungeonWalkable(gc, gr)) this.addWallDecal(gc, gr, gdc, gdr, gateMat, 4.0, 4.7, 2.35);
 
     // escada de saída (U): um facho de luz frio marcando o caminho de volta
     const up = dungeonFind("U");
