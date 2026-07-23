@@ -5,6 +5,7 @@
 //   'S' entrada (spawn, desceu a escada)   'U' escada de volta ao vilarejo
 //   'E' ponto de inimigo    'C' baú (tesouro)   'K' ossada    'B' barril
 //   'X' parede ILUSÓRIA (parece sólida, mas dá passagem ao segredo)
+//   'G' PORTÃO de grade — sela um corredor 1-largura que dá p/ tesouro (abre ao interagir)
 export const DUNGEON: string[] = [
   "############################################",
   "############################################",
@@ -18,7 +19,7 @@ export const DUNGEON: string[] = [
   "######.##########..K.......#################",
   "######.##########..........#################",
   "######.###############.#####################",
-  "######.###############.#####################",
+  "######.###############G#####################",
   "###.........##########.#########.........###",
   "###.........##########.#########.........###",
   "###.........###..............###...E.....###",
@@ -40,9 +41,9 @@ export const DUNGEON: string[] = [
   "###..K......#########..#########..K......###",
   "###.........#########..#########.........###",
   "##################........##################",
-  "##################........##################",
-  "##################........##################",
-  "##################...S.U..##################",
+  "#############....#........##################",
+  "#############.C..G........##################",
+  "#############....#...S.U..##################",
   "##################........##################",
   "############################################",
   "############################################",
@@ -60,6 +61,7 @@ export type DungeonCell =
   | "chest"
   | "bones"
   | "barrel"
+  | "gate" // portão de grade: sela um corredor (bloqueia até ser aberto)
   | "secret"; // parede ilusória: renderiza como rocha, mas é andável
 
 export function dungeonChar(col: number, row: number): string {
@@ -83,6 +85,8 @@ export function dungeonCell(col: number, row: number): DungeonCell {
       return "bones";
     case "B":
       return "barrel";
+    case "G":
+      return "gate";
     case "X":
       return "secret";
     default:
