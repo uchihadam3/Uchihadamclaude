@@ -2368,14 +2368,20 @@ export class Game {
         }
       }
 
-    // PORTÕES (grade) decorativos nas entradas de salas — passagem livre
+    // PORTÕES (grade) nas entradas de salas — SELADOS: o portão fica no chão e a
+    // rocha preenche do arco até o teto (parece encaixado, sem vão por cima).
     const gateMat = this.decalMat(decGateUrl, 0.4);
+    const GATE_H = 4.4; // altura do portão (arco no topo)
     const gates: [number, number, number, number][] = [
       [22, 25, 0, -1], // entrada do grande salão central
       [22, 11, 0, -1], // entrada da sala do tesouro (norte)
     ];
-    for (const [gc, gr, gdc, gdr] of gates)
-      if (dungeonWalkable(gc, gr)) this.addWallDecal(gc, gr, gdc, gdr, gateMat, 4.0, 4.7, 2.35);
+    for (const [gc, gr, gdc, gdr] of gates) {
+      if (!dungeonWalkable(gc, gr)) continue;
+      this.addWallDecal(gc, gr, gdc, gdr, gateMat, 3.9, GATE_H, GATE_H / 2 - 0.15);
+      // veda a rocha do arco até o teto (fecha o vão por cima)
+      this.addWall(gc * CELL, gr * CELL, gdc, gdr, GATE_H - 0.5, CH, rockMat);
+    }
 
     // escada de saída (U): um facho de luz frio marcando o caminho de volta
     const up = dungeonFind("U");
