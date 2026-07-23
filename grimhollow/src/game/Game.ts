@@ -2198,19 +2198,95 @@ export class Game {
 
   // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
   private addDungeonLights() {
-    this.world.add(new THREE.AmbientLight(0x5a5566, 0.72));
-    this.world.add(new THREE.HemisphereLight(0x6a6474, 0x14121a, 0.5));
+    this.world.add(new THREE.AmbientLight(0x5f5a6a, 0.82));
+    this.world.add(new THREE.HemisphereLight(0x726c7e, 0x171520, 0.55));
+  }
+
+  // ---- relevo de CAVERNA (ruído) ----
+  private vnoise(x: number, y: number, z: number): number {
+    const h = (a: number, b: number, c: number) => {
+      const n = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453;
+      return n - Math.floor(n);
+    };
+    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+    const xf = x - xi, yf = y - yi, zf = z - zi;
+    const s = (t: number) => t * t * (3 - 2 * t);
+    const u = s(xf), v = s(yf), w = s(zf);
+    const L = (a: number, b: number, t: number) => a + (b - a) * t;
+    const x00 = L(h(xi, yi, zi), h(xi + 1, yi, zi), u);
+    const x10 = L(h(xi, yi + 1, zi), h(xi + 1, yi + 1, zi), u);
+    const x01 = L(h(xi, yi, zi + 1), h(xi + 1, yi, zi + 1), u);
+    const x11 = L(h(xi, yi + 1, zi + 1), h(xi + 1, yi + 1, zi + 1), u);
+    return L(L(x00, x10, v), L(x01, x11, v), w);
+  }
+  private fbm(x: number, y: number, z: number): number {
+    return (
+      this.vnoise(x, y, z) * 0.6 +
+      this.vnoise(x * 2.1, y * 2.1, z * 2.1) * 0.3 +
+      this.vnoise(x * 4.4, y * 4.4, z * 4.4) * 0.1
+    );
+  }
+  // malha subdividida DESLOCADA por ruído (relevo), em coords de MUNDO. Cada vértice:
+  // p = origin + ax*u + ay*v (u,v em [0,1]) deslocado ao longo de `nrm` por ruído.
+  // A borda fica plana (taper) → costura estanque entre células vizinhas.
+  private caveMesh(
+    origin: [number, number, number],
+    ax: [number, number, number],
+    ay: [number, number, number],
+    nrm: [number, number, number],
+    su: number, sv: number, amp: number, mat: THREE.Material,
+    uRep = 1, vRep = 1,
+  ): THREE.Mesh {
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    for (let j = 0; j <= sv; j++)
+      for (let i = 0; i <= su; i++) {
+        const u = i / su, v = j / sv;
+        let x = origin[0] + ax[0] * u + ay[0] * v;
+        let y = origin[1] + ax[1] * u + ay[1] * v;
+        let z = origin[2] + ax[2] * u + ay[2] * v;
+        const taper = Math.sin(Math.PI * u) * Math.sin(Math.PI * v);
+        const d = amp * (this.fbm(x * 0.32, y * 0.32, z * 0.32) - 0.5) * taper;
+        x += nrm[0] * d; y += nrm[1] * d; z += nrm[2] * d;
+        pos.push(x, y, z); uv.push(u * uRep, v * vRep);
+      }
+    for (let j = 0; j < sv; j++)
+      for (let i = 0; i < su; i++) {
+        const a = j * (su + 1) + i, b = a + 1, cc = a + su + 1, dd = cc + 1;
+        idx.push(a, cc, b, b, cc, dd);
+      }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat); this.world.add(m); return m;
+  }
+  // formação rochosa (estalagmite/estalactite) — cone irregular deslocado
+  private rockSpire(cx: number, cz: number, base: number, top: number, rad: number, mat: THREE.Material) {
+    const g = new THREE.ConeGeometry(rad, Math.abs(top - base), 7, 4);
+    const p = g.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i);
+      const n = this.fbm(vx * 2 + cx, vy * 2, vz * 2 + cz) - 0.5;
+      p.setXYZ(i, vx + n * rad * 0.7, vy, vz + n * rad * 0.7);
+    }
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mat);
+    m.position.set(cx, (base + top) / 2, cz);
+    if (top < base) m.rotation.z = Math.PI; // estalactite (ponta pra baixo)
+    this.world.add(m);
+    return m;
   }
 
   // constrói a MASMORRA a partir da grade fixa (dungeon.ts): piso/teto/paredes,
   // tochas, props e a parede ilusória do segredo.
   private buildDungeon() {
-    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = 3.6;
+    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = 8.5; // caverna de teto ALTO
+    const HALF = CELL / 2;
     const hash = (a: number, b: number, s = 0) =>
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
-    const floorMat = new THREE.MeshLambertMaterial({ map: tex.dungeonFloor(43) });
-    const wallMat = new THREE.MeshLambertMaterial({ map: tex.dungeonWall(47), side: THREE.DoubleSide });
-    const ceilMat = new THREE.MeshLambertMaterial({ color: 0x0c0a12, side: THREE.DoubleSide });
+    const rockMat = new THREE.MeshLambertMaterial({ map: tex.dungeonWall(47), side: THREE.DoubleSide });
+    const floorMat = new THREE.MeshLambertMaterial({ map: tex.dungeonFloor(43), side: THREE.DoubleSide });
+    const ceilMat = new THREE.MeshLambertMaterial({ map: tex.dungeonWall(51), side: THREE.DoubleSide });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
@@ -2228,6 +2304,12 @@ export class Game {
         (dungeonSolidLook(c, r - 1) && dungeonSolidLook(c, r + 1))
       );
     };
+    // câmara aberta (não corredor, cercada de piso) → onde nascem formações
+    const isChamber = (c: number, r: number) => {
+      let open = 0;
+      for (const [dc, dr] of DIRS) if (!dungeonSolidLook(c + dc, r + dr)) open++;
+      return open >= 3 && !isCorr(c, r);
+    };
     let torches = 0;
 
     for (let r = 0; r < H; r++)
@@ -2236,26 +2318,38 @@ export class Game {
         if (k === "wall") continue;
         const cx = c * CELL, cz = r * CELL;
         const secret = k === "secret";
-        // piso + teto (o segredo também tem, p/ não virar vão)
-        const fl = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), floorMat);
-        fl.rotation.x = -Math.PI / 2; fl.position.set(cx, 0.02, cz); this.world.add(fl);
-        const ce = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), ceilMat);
-        ce.rotation.x = Math.PI / 2; ce.position.set(cx, CH, cz); this.world.add(ce);
-        // paredes
+        // PISO com relevo (chão irregular, leve)
+        this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 4, 4, 0.5, floorMat, 1, 1);
+        // TETO ALTO com relevo (bulbos descendo — sensação de rocha viva)
+        this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 4, 4, 2.6, ceilMat, 1, 1);
+        // paredes de ROCHA com relevo
         for (const [dc, dr] of DIRS) {
           const nk = dungeonCell(c + dc, r + dr);
-          if (nk === "wall") {
-            this.addWall(cx, cz, dc, dr, 0, CH, wallMat); // rocha sólida
-          } else if (secret && nk !== "secret" && isCorr(c + dc, r + dr)) {
-            // parede ILUSÓRIA: parece rocha do lado do corredor, mas é atravessável
-            this.addWall(cx, cz, dc, dr, 0, CH, wallMat);
-            this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7); // dica sutil
+          const isRock = nk === "wall";
+          const illus = secret && nk !== "secret" && isCorr(c + dc, r + dr);
+          if (isRock || illus) {
+            // face da parede: largura ao longo da tangente, altura em Y, relevo na normal
+            const ox = cx + dc * HALF, oz = cz + dr * HALF;
+            const tang: [number, number, number] = dc !== 0 ? [0, 0, CELL] : [CELL, 0, 0];
+            const org: [number, number, number] = dc !== 0 ? [ox, 0, oz - HALF] : [ox - HALF, 0, oz];
+            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 2.4);
+            if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
           // tocha esporádica em paredes de rocha (ilumina)
           if (nk === "wall" && !secret && torches < 30 && hash(c, r, dc * 5 + dr) < 0.2) {
             this.addWallDecal(c, r, dc, dr, torchMat, 0.85, 1.4, 2.1);
             this.glowLight(cx + dc * 0.3, 2.3, cz + dr * 0.3, 0xffa040, 4.4, 12);
             torches++;
+          }
+        }
+        // FORMAÇÕES rochosas nas câmaras (estalagmites no chão, estalactites no teto)
+        if (!secret && isChamber(c, r)) {
+          const hv = hash(c, r, 3);
+          if (hv < 0.16) {
+            const off = () => (hash(c, r, 7) - 0.5) * 1.6;
+            this.rockSpire(cx + off(), cz - off(), 0, 1.4 + hv * 6, 0.45 + hv, rockMat);
+          } else if (hv < 0.34) {
+            this.rockSpire(cx, cz, CH, CH - (1.4 + hash(c, r, 9) * 3.2), 0.4 + hash(c, r, 2) * 0.5, rockMat);
           }
         }
         // props
