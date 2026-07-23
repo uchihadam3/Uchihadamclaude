@@ -3567,8 +3567,10 @@ export class Game {
   private openGate(key: string) {
     const g = this.gates.get(key);
     if (!g) return;
+    // abre ~60° (não 90°): as folhas ficam bem VISÍVEIS/escancaradas em ângulo,
+    // sem colar de perfil nas paredes (o que as faria "sumir" da vista no corredor).
     this.gateAnims.push({
-      pivotL: g.pivotL, pivotR: g.pivotR, t0: this.now, dur: 620, to: 1.62, // ~93°
+      pivotL: g.pivotL, pivotR: g.pivotR, t0: this.now, dur: 620, to: 1.05, // ~60°
     });
     this.gates.delete(key); // deixa de ser "portão fechado" (não interage mais)
     this.blocked.delete(key); // agora a célula é andável (atravessa o vão)
