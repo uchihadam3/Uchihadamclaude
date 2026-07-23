@@ -2369,16 +2369,19 @@ export class Game {
           g.position.set(cx, 0.48, cz); this.world.add(g); this.blocked.add(`${c},${r}`);
         } else if (k === "chest") {
           this.buildChest(cx, cz, woodMat, ironMat); this.blocked.add(`${c},${r}`);
+          // brilho dourado suave — o tesouro chama a atenção (visível pela grade)
+          this.glowLight(cx, 0.9, cz, 0xffc367, 1.5, 6.5);
         }
       }
 
     // PORTÕES (grade) em corredores 1-largura que SELAM a passagem p/ tesouro.
-    // O portão preenche a largura TODA do corredor (encaixado nas paredes) e uma
-    // parede de ROCHA atrás fecha do chão ao teto — a grade fica embutida na rocha
-    // (arco arredondado cortado na pedra, sem vão nem "quadrado" por fora). Bloqueia
-    // a passagem até o jogador abri-lo (interação). Cada entrada: [célula, dir->jogador].
+    // A rocha apenas CONTORNA o arco (parede com buraco em arco): veda laterais,
+    // cantos e o vão até o teto, mas deixa VER através da grade o que há do outro
+    // lado. Bloqueia a passagem até o jogador abri-lo. Cada entrada: [célula, dir->jogador].
     const gateMat = this.decalMat(decGateUrl, 0.4);
     const GATE_H = 4.7; // altura do arco
+    const HOLE_HW = 1.5; // meia-largura do vão (fica sob a moldura de pedra da grade)
+    const HOLE_BASE = 2.6; // altura onde o arco começa a curvar (topo do vão = 4.1)
     const gates: [number, number, number, number][] = [
       [22, 12, 0, 1], // sela o corredor p/ a sala do tesouro (norte)
       [17, 35, 1, 0], // sela o corredor p/ o COFRE (a oeste do hall)
@@ -2386,12 +2389,14 @@ export class Game {
     for (const [gc, gr, gdc, gdr] of gates) {
       if (dungeonCell(gc, gr) !== "gate") continue;
       const parts: THREE.Object3D[] = [];
-      // rocha atrás (do chão ao teto) — a grade fica embutida, vedando tudo por trás
-      parts.push(this.addWall(gc * CELL, gr * CELL, gdc, gdr, 0, CH, rockMat));
+      // rocha contornando o arco (vão aberto no meio → vê-se o outro lado)
+      parts.push(this.addArchWall(gc, gr, gdc, gdr, rockMat, HOLE_HW, HOLE_BASE, CH));
       // a grade em arco, na largura toda do corredor (encostando nas paredes)
       parts.push(this.addWallDecal(gc, gr, gdc, gdr, gateMat, CELL, GATE_H, GATE_H / 2));
       // tocha ao lado p/ destacar o portão
       this.glowLight(gc * CELL + gdc * 0.4, 2.4, gr * CELL + gdr * 0.4, 0xffb45a, 3.4, 9);
+      // brilho do OUTRO LADO da grade → ilumina a sala além p/ o jogador enxergar
+      this.glowLight((gc - gdc) * CELL, 1.8, (gr - gdr) * CELL, 0xffbf72, 2.2, 9);
       this.blocked.add(`${gc},${gr}`); // bloqueia a passagem até abrir
       this.gates.set(`${gc},${gr}`, parts);
     }
@@ -2448,6 +2453,43 @@ export class Game {
     else wall.rotation.y = 0;
     this.world.add(wall);
     return wall;
+  }
+
+  // parede de rocha que CONTORNA um arco: preenche a face toda da célula (largura
+  // CELL, do chão a yTop) MENOS um buraco em arco (retângulo + semicírculo no topo).
+  // Assim a rocha veda laterais/cantos/topo, mas dá pra VER através do vão (a grade
+  // do portão fica na frente e enxerga-se a sala do outro lado pelos vãos das barras).
+  private addArchWall(
+    gc: number, gr: number, dc: number, dr: number, mat: THREE.Material,
+    holeHalfW: number, holeBaseY: number, yTop: number,
+  ): THREE.Mesh {
+    const HW = CELL / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(-HW, 0);
+    shape.lineTo(HW, 0);
+    shape.lineTo(HW, yTop);
+    shape.lineTo(-HW, yTop);
+    shape.closePath();
+    const hole = new THREE.Path();
+    hole.moveTo(-holeHalfW, 0);
+    hole.lineTo(holeHalfW, 0);
+    hole.lineTo(holeHalfW, holeBaseY);
+    hole.absarc(0, holeBaseY, holeHalfW, 0, Math.PI, false); // semicírculo do topo
+    hole.lineTo(-holeHalfW, 0);
+    shape.holes.push(hole);
+    const geo = new THREE.ShapeGeometry(shape, 20);
+    // UVs da ShapeGeometry vêm em unidades de mundo → reduz p/ a rocha não ficar densa
+    const uv = geo.attributes.uv as THREE.BufferAttribute;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 0.18, uv.getY(i) * 0.18);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(gc * CELL + dc * (CELL / 2), 0, gr * CELL + dr * (CELL / 2));
+    if (dc === 1) m.rotation.y = -Math.PI / 2;
+    else if (dc === -1) m.rotation.y = Math.PI / 2;
+    else if (dr === 1) m.rotation.y = Math.PI;
+    else m.rotation.y = 0;
+    m.renderOrder = 3; // antes da grade (renderOrder 4)
+    this.world.add(m);
+    return m;
   }
 
   // poço da escada: descendo p/ o norte, paredes vedando os lados até o fundo
