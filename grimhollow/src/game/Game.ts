@@ -827,9 +827,10 @@ export class Game {
       this.addForestLights();
       this.buildForest();
     } else if (loc === "dungeon") {
-      // masmorra: escuridão fechada, névoa curta e preta (só as tochas iluminam).
-      this.scene.fog = new THREE.Fog(0x07070a, CELL * 2, CELL * 9);
-      this.scene.background = new THREE.Color(0x050507);
+      // masmorra: neblina cinza-azulada fechada (como a cidade, porém mais escura)
+      // — dá profundidade e clareia o fundo sem perder o clima de caverna.
+      this.scene.fog = new THREE.Fog(0x3a3e49, CELL * 2.5, CELL * 13);
+      this.scene.background = new THREE.Color(0x2f323c);
       this.addDungeonLights();
       this.buildDungeon();
     } else if (loc in HOMES) {
@@ -2199,8 +2200,8 @@ export class Game {
 
   // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
   private addDungeonLights() {
-    this.world.add(new THREE.AmbientLight(0x5f5a6a, 0.82));
-    this.world.add(new THREE.HemisphereLight(0x726c7e, 0x171520, 0.55));
+    this.world.add(new THREE.AmbientLight(0x767183, 1.05));
+    this.world.add(new THREE.HemisphereLight(0x8b8698, 0x201d29, 0.72));
   }
 
   // ---- relevo de CAVERNA (ruído) ----
