@@ -560,8 +560,12 @@ export class Game {
 
   private world = new THREE.Group(); // tudo do local atual (recriado ao trocar)
   private blocked = new Set<string>(); // células bloqueadas por props/NPCs
-  // portões da masmorra: "c,r" → malhas (grade+verga) que somem ao abrir o portão
-  private gates = new Map<string, THREE.Object3D[]>();
+  // portões da masmorra FECHADOS: "c,r" → as duas meias-portas (dobradiças).
+  // Ao abrir, elas GIRAM (não somem). O portão aberto sai deste mapa.
+  private gates = new Map<string, { pivotL: THREE.Object3D; pivotR: THREE.Object3D }>();
+  // animações de abertura de portão em curso
+  private gateAnims: { pivotL: THREE.Object3D; pivotR: THREE.Object3D; t0: number; dur: number; to: number }[] = [];
+  private now = 0; // timestamp do frame atual (p/ animações disparadas fora do tick)
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
@@ -870,6 +874,7 @@ export class Game {
     this.world.clear();
     this.blocked.clear();
     this.gates.clear();
+    this.gateAnims = [];
     this.npcs = [];
     this.flames = [];
     this.lampFlames = [];
@@ -2312,12 +2317,6 @@ export class Game {
         (dungeonSolidLook(c, r - 1) && dungeonSolidLook(c, r + 1))
       );
     };
-    // câmara aberta (não corredor, cercada de piso) → onde nascem formações
-    const isChamber = (c: number, r: number) => {
-      let open = 0;
-      for (const [dc, dr] of DIRS) if (!dungeonSolidLook(c + dc, r + dr)) open++;
-      return open >= 3 && !isCorr(c, r);
-    };
     let torches = 0;
 
     for (let r = 0; r < H; r++)
@@ -2326,8 +2325,8 @@ export class Game {
         if (k === "wall") continue;
         const cx = c * CELL, cz = r * CELL;
         const secret = k === "secret";
-        // PISO com relevo (chão irregular, leve)
-        this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 4, 4, 0.5, floorMat, 1, 1);
+        // PISO quase liso (chão "clean", só um leve relevo p/ não ficar chapado)
+        this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 3, 3, 0.12, floorMat, 1, 1);
         // TETO ALTO com relevo forte (bulbos descendo — profundidade de caverna)
         this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 3.4, ceilMat, 1, 1);
         // paredes de ROCHA com relevo
@@ -2350,16 +2349,7 @@ export class Game {
             torches++;
           }
         }
-        // FORMAÇÕES rochosas nas câmaras (estalagmites no chão, estalactites no teto)
-        if (!secret && isChamber(c, r)) {
-          const hv = hash(c, r, 3);
-          if (hv < 0.16) {
-            const off = () => (hash(c, r, 7) - 0.5) * 1.6;
-            this.rockSpire(cx + off(), cz - off(), 0, 1.4 + hv * 6, 0.45 + hv, rockMat);
-          } else if (hv < 0.34) {
-            this.rockSpire(cx, cz, CH, CH - (1.4 + hash(c, r, 9) * 3.2), 0.4 + hash(c, r, 2) * 0.5, rockMat);
-          }
-        }
+        // (sem estalagmites/estalactites — chão limpo e teto sem formações)
         // props
         if (k === "bones") {
           const b = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.3), boneMat);
@@ -2388,17 +2378,16 @@ export class Game {
     ];
     for (const [gc, gr, gdc, gdr] of gates) {
       if (dungeonCell(gc, gr) !== "gate") continue;
-      const parts: THREE.Object3D[] = [];
       // rocha contornando o arco (vão aberto no meio → vê-se o outro lado)
-      parts.push(this.addArchWall(gc, gr, gdc, gdr, rockMat, HOLE_HW, HOLE_BASE, CH));
-      // a grade em arco, na largura toda do corredor (encostando nas paredes)
-      parts.push(this.addWallDecal(gc, gr, gdc, gdr, gateMat, CELL, GATE_H, GATE_H / 2));
+      this.addArchWall(gc, gr, gdc, gdr, rockMat, HOLE_HW, HOLE_BASE, CH);
+      // a grade dividida ao meio em duas folhas com DOBRADIÇAS (giram ao abrir)
+      const { pivotL, pivotR } = this.buildSwingGate(gc, gr, gdc, gdr, gateMat, CELL, GATE_H);
       // tocha ao lado p/ destacar o portão
       this.glowLight(gc * CELL + gdc * 0.4, 2.4, gr * CELL + gdr * 0.4, 0xffb45a, 3.4, 9);
       // brilho do OUTRO LADO da grade → ilumina a sala além p/ o jogador enxergar
       this.glowLight((gc - gdc) * CELL, 1.8, (gr - gdr) * CELL, 0xffbf72, 2.2, 9);
       this.blocked.add(`${gc},${gr}`); // bloqueia a passagem até abrir
-      this.gates.set(`${gc},${gr}`, parts);
+      this.gates.set(`${gc},${gr}`, { pivotL, pivotR });
     }
 
     // escada de saída (U): um facho de luz frio marcando o caminho de volta
@@ -2490,6 +2479,43 @@ export class Game {
     m.renderOrder = 3; // antes da grade (renderOrder 4)
     this.world.add(m);
     return m;
+  }
+
+  // geometria de meia-folha do portão: um plano w×h com UV mapeando METADE da
+  // textura (side 0 = metade esquerda 0..0.5; side 1 = metade direita 0.5..1).
+  private halfPlaneGeo(w: number, h: number, side: 0 | 1): THREE.PlaneGeometry {
+    const g = new THREE.PlaneGeometry(w, h);
+    const uv = g.attributes.uv as THREE.BufferAttribute;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * 0.5 + side * 0.5);
+    return g;
+  }
+
+  // portão de DUAS FOLHAS com dobradiças nas bordas: fechado forma a grade inteira;
+  // ao abrir, cada folha gira p/ dentro (como porta dupla). Retorna os pivôs p/ animar.
+  private buildSwingGate(
+    gc: number, gr: number, dc: number, dr: number, mat: THREE.Material, w: number, h: number,
+  ): { pivotL: THREE.Object3D; pivotR: THREE.Object3D } {
+    const grp = new THREE.Group();
+    grp.position.set(gc * CELL + dc * (CELL / 2 + 0.06), 0, gr * CELL + dr * (CELL / 2 + 0.06));
+    grp.rotation.y = dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
+    // folha esquerda: dobradiça na borda esquerda (x = -w/2)
+    const pivotL = new THREE.Group();
+    pivotL.position.set(-w / 2, 0, 0);
+    const planeL = new THREE.Mesh(this.halfPlaneGeo(w / 2, h, 0), mat);
+    planeL.position.set(w / 4, h / 2, 0);
+    planeL.renderOrder = 4;
+    pivotL.add(planeL);
+    // folha direita: dobradiça na borda direita (x = +w/2)
+    const pivotR = new THREE.Group();
+    pivotR.position.set(w / 2, 0, 0);
+    const planeR = new THREE.Mesh(this.halfPlaneGeo(w / 2, h, 1), mat);
+    planeR.position.set(-w / 4, h / 2, 0);
+    planeR.renderOrder = 4;
+    pivotR.add(planeR);
+    grp.add(pivotL);
+    grp.add(pivotR);
+    this.world.add(grp);
+    return { pivotL, pivotR };
   }
 
   // poço da escada: descendo p/ o norte, paredes vedando os lados até o fundo
@@ -3536,18 +3562,16 @@ export class Game {
     }
   }
 
-  // abre um portão da masmorra: remove a grade + a rocha atrás e libera a passagem.
-  // (não descarta os MATERIAIS — são compartilhados com as outras paredes.)
+  // abre um portão da masmorra: as duas folhas GIRAM nas dobradiças (não somem) e a
+  // passagem é liberada. A animação roda no tick a partir de gateAnims.
   private openGate(key: string) {
-    const parts = this.gates.get(key);
-    if (!parts) return;
-    for (const o of parts) {
-      this.world.remove(o);
-      const m = o as THREE.Mesh;
-      if (m.geometry) m.geometry.dispose();
-    }
-    this.gates.delete(key);
-    this.blocked.delete(key); // agora a célula é andável
+    const g = this.gates.get(key);
+    if (!g) return;
+    this.gateAnims.push({
+      pivotL: g.pivotL, pivotR: g.pivotR, t0: this.now, dur: 620, to: 1.62, // ~93°
+    });
+    this.gates.delete(key); // deixa de ser "portão fechado" (não interage mais)
+    this.blocked.delete(key); // agora a célula é andável (atravessa o vão)
   }
 
   private advanceDialogue() {
@@ -4468,6 +4492,7 @@ export class Game {
   }
 
   private tick(now: number) {
+    this.now = now;
     const an = this.anim;
     if (an) {
       if (an.kind === "move") {
@@ -4624,6 +4649,16 @@ export class Game {
     // relógio do HUD (sol/lua orbitando) — anda mesmo em interiores
     const tday = (now / DAY_MS + DAY_START) % 1;
     this.ui.setClock(tday, this.daylight(tday));
+    // portões abrindo: as duas folhas giram nas dobradiças (para dentro)
+    if (this.gateAnims.length) {
+      for (const a of this.gateAnims) {
+        const p = Math.min(1, (now - a.t0) / a.dur);
+        const e = p * p * (3 - 2 * p); // smoothstep
+        a.pivotL.rotation.y = a.to * e;
+        a.pivotR.rotation.y = -a.to * e;
+      }
+      this.gateAnims = this.gateAnims.filter((a) => now - a.t0 < a.dur);
+    }
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
