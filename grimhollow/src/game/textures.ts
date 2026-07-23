@@ -9,6 +9,9 @@ import texWoodUrl from "../assets/env/tex_wood.jpg";
 import texDirtUrl from "../assets/env/tex_dirt.jpg";
 import texGrassUrl from "../assets/env/tex_grass.jpg";
 import texMossUrl from "../assets/env/tex_mosswall.jpg";
+import texCaveWallUrl from "../assets/env/tex_cavewall.jpg";
+import texCaveFloorUrl from "../assets/env/tex_cavefloor.jpg";
+import texCaveCeilUrl from "../assets/env/tex_caveceil.jpg";
 
 const _pngBase = new Map<string, THREE.Texture>();
 const _pngLoader = new THREE.TextureLoader();
@@ -315,6 +318,16 @@ export function dirt(seed = 23): THREE.Texture {
 // -------- pedra de cantaria (poço, arco da masmorra) --------
 export function stoneMossy(_seed = 32): THREE.Texture {
   return pngTex(texMossUrl);
+}
+// texturas de CAVERNA (PNG) — parede de rocha, chão de laje, teto de rocha escura
+export function caveWall(): THREE.Texture {
+  return pngTex(texCaveWallUrl);
+}
+export function caveFloor(): THREE.Texture {
+  return pngTex(texCaveFloorUrl);
+}
+export function caveCeil(): THREE.Texture {
+  return pngTex(texCaveCeilUrl);
 }
 export function stone(seed = 31): THREE.Texture {
   return pngTex(texStoneUrl);
