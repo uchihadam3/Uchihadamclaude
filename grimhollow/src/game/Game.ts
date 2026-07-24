@@ -587,10 +587,11 @@ export class Game {
   private motes: { pts: THREE.Points; sp: Float32Array; y0: number; y1: number; sway: number }[] = [];
   private moteTexCache?: THREE.Texture;
   // fumaça animada (sprites macios que derivam) — dá vida à névoa
-  private fogPuffs: { s: THREE.Sprite; bx: number; bz: number; by: number; ph: number; rad: number; baseOp: number }[] = [];
+  private fogPuffs: { s: THREE.Sprite; bx: number; bz: number; by: number; ph: number; rad: number; baseOp: number; rotSp: number; rise: number }[] = [];
   private softPuffCache?: THREE.Texture;
   private cloudTexCache?: THREE.Texture;
   private fogDome?: THREE.Mesh; // cúpula de nuvens que gira devagar (céu de névoa)
+  private smokeTexes: THREE.Texture[] = []; // texturas de fumaça (mechas por ruído)
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
@@ -2380,16 +2381,46 @@ export class Game {
     return t;
   }
 
+  // textura de FUMAÇA real: mechas/tendões irregulares (ruído fbm) com borda macia —
+  // parece um chumaço de fumaça, não um borrão redondo. Várias variantes p/ variar.
+  private fogSmokeTex(variant: number): THREE.Texture {
+    if (this.smokeTexes[variant]) return this.smokeTexes[variant];
+    const S = 128;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = S;
+    const ctx = cv.getContext("2d")!;
+    const img = ctx.createImageData(S, S);
+    const off = variant * 17.3;
+    for (let y = 0; y < S; y++)
+      for (let x = 0; x < S; x++) {
+        const nx = x / S - 0.5, ny = y / S - 0.5;
+        const d = Math.sqrt(nx * nx + ny * ny) * 2.05; // 0 centro .. >1 borda
+        const fall = Math.max(0, 1 - d * d); // queda radial macia
+        const n = this.fbm(x * 0.055 + off, y * 0.055 + off, variant * 4.7);
+        let a = fall * Math.min(1, Math.max(0, (n - 0.28) * 2.2)); // mechas
+        a = Math.pow(a, 0.85);
+        const i = (y * S + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+        img.data[i + 3] = Math.round(Math.min(1, a) * 255);
+      }
+    ctx.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(cv);
+    this.smokeTexes[variant] = t;
+    return t;
+  }
+
   // FUMAÇA que se MOVE: sprites macios grandes que derivam devagar pelo cenário,
   // dando a sensação de neblina viva (e quebrando qualquer "borda" reta).
   private spawnFogPuffs(
     cx: number, cz: number, count: number, yLo: number, yHi: number, radius: number,
-    color: number, rMin = 0.3, rMax = 1.1, opBase = 0.09, sizeLo = 6, sizeHi = 13,
+    cLo: number, cHi: number, rMin = 0.3, rMax = 1.1, opBase = 0.16, sizeLo = 8, sizeHi = 18,
   ) {
-    const tx = this.softPuffTex();
+    const loC = new THREE.Color(cLo), hiC = new THREE.Color(cHi);
     for (let i = 0; i < count; i++) {
+      const tint = loC.clone().lerp(hiC, Math.random()); // brilho variado (luz/sombra)
       const m = new THREE.SpriteMaterial({
-        map: tx, color, transparent: true, opacity: opBase, depthWrite: false, fog: false,
+        map: this.fogSmokeTex(i % 4), color: tint, transparent: true,
+        opacity: opBase, depthWrite: false, fog: false, rotation: Math.random() * Math.PI * 2,
       });
       const s = new THREE.Sprite(m);
       const sc = sizeLo + Math.random() * (sizeHi - sizeLo);
@@ -2402,7 +2433,8 @@ export class Game {
       this.world.add(s);
       this.fogPuffs.push({
         s, bx, bz, by, ph: Math.random() * 6.28,
-        rad: 1.4 + Math.random() * 2.4, baseOp: opBase + Math.random() * 0.06,
+        rad: 1.2 + Math.random() * 2.6, baseOp: opBase * (0.7 + Math.random() * 0.6),
+        rotSp: (Math.random() - 0.5) * 0.04, rise: 0.3 + Math.random() * 0.7,
       });
     }
   }
@@ -2553,14 +2585,16 @@ export class Game {
     this.world.add(dome);
     this.fogDome = dome;
 
-    // PARTÍCULAS: leves e claras dentro do santuário
-    this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 90, 0xeaf2ff, 0.11, 0.0022);
-    // FUMAÇA que se MOVE:
-    //  - banco BAIXO rente ao chão (mistério nos pés)
-    this.spawnFogPuffs(CX, CZ, 16, TOP_Y + 0.1, TOP_Y + 1.6, R + 1.0, FOGC, 0.3, 1.0, 0.1);
-    //  - banco DENSO e GRANDE colado ao anel, cobrindo a faixa onde as paredes somem
-    //    (a "linha") com fumaça de verdade, em movimento, de todos os ângulos.
-    this.spawnFogPuffs(CX, CZ, 54, yClear, yFull + 3.0, R + 0.3, FOGC, 0.7, 1.2, 0.2, 10, 20);
+    // PARTÍCULAS: pontinhos claros flutuando (poeira) — bem sutis
+    this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 70, 0xdfe6f2, 0.1, 0.0022);
+    // FUMAÇA VOLUMÉTRICA (várias camadas com brilho variado — luz e sombra):
+    const cDark = 0x4e5765, cLight = 0x9aa2b2;
+    //  - PAREDÃO de fumaça billowing em volta do anel (some as paredes na bruma)
+    this.spawnFogPuffs(CX, CZ, 46, TOP_Y + 0.8, TOP_Y + WALL_H + 1, R + 0.6, cDark, cLight, 0.82, 1.35, 0.2, 14, 30);
+    //  - MECHAS derivando pelo interior (mais leves; deixam ver a estátua)
+    this.spawnFogPuffs(CX, CZ, 16, TOP_Y + 1.4, TOP_Y + 5.5, R * 0.9, 0x707886, cLight, 0.15, 0.95, 0.1, 9, 18);
+    //  - BRUMA baixa rente à grama (mistério nos pés)
+    this.spawnFogPuffs(CX, CZ, 20, TOP_Y + 0.05, TOP_Y + 1.3, R + 1.0, cDark, 0x8a92a2, 0.0, 1.15, 0.14, 8, 16);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
@@ -5039,13 +5073,16 @@ export class Game {
       }
       pos.needsUpdate = true;
     }
-    // FUMAÇA que se move: deriva devagar (círculos lentos) + respira a opacidade
+    // FUMAÇA que se move: deriva em círculos lentos, GIRA (churn), sobe de leve e
+    // respira a opacidade → parece fumaça volumétrica viva.
     for (const f of this.fogPuffs) {
       const t = now * 0.00009;
       f.s.position.x = f.bx + Math.cos(t + f.ph) * f.rad;
       f.s.position.z = f.bz + Math.sin(t * 0.8 + f.ph) * f.rad;
-      f.s.position.y = f.by + Math.sin(t * 1.3 + f.ph) * 0.7;
-      (f.s.material as THREE.SpriteMaterial).opacity = f.baseOp * (0.65 + 0.35 * Math.sin(t * 2.2 + f.ph));
+      f.s.position.y = f.by + Math.sin(t * 1.1 + f.ph) * f.rise;
+      const mat = f.s.material as THREE.SpriteMaterial;
+      mat.rotation += f.rotSp * 0.016;
+      mat.opacity = f.baseOp * (0.6 + 0.4 * Math.sin(t * 2.0 + f.ph));
     }
     // cúpula de névoa gira devagar → as nuvens "andam" pelo céu
     if (this.fogDome) this.fogDome.rotation.y = now * 0.00002;
