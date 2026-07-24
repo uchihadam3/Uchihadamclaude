@@ -2514,24 +2514,29 @@ export class Game {
     disc.position.set(CX, TOP_Y + 0.02, CZ);
     this.world.add(disc);
 
-    // parede/parapeito redondo, com um VÃO na direção da entrada (sul, +z)
-    const gap = 0.62; // meia-abertura (rad) do vão da entrada
+    // parede/parapeito redondo, com um VÃO na direção da entrada (sul, +z).
+    // A abertura tem a LARGURA EXATA do corredor: assim a borda do anel cai em
+    // x = ±doorHalf, alinhada com as jambas retas → conecta sem emenda/gap.
+    const doorHalf = 1.5 * CELL; // meia-largura do corredor
+    const gap = Math.asin(Math.min(0.98, doorHalf / R)); // meia-abertura (rad)
     const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(R, R, WALL_H, 48, 1, true, gap, Math.PI * 2 - gap * 2),
+      new THREE.CylinderGeometry(R, R, WALL_H, 64, 1, true, gap, Math.PI * 2 - gap * 2),
       ringWallMat,
     );
     wall.position.set(CX, TOP_Y + WALL_H / 2, CZ);
     this.world.add(wall);
-    // base/degrau externo do anel (dá volume ao pé da parede)
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.5, R + 0.7, 0.5, 48, 1, true), stoneMat);
+    // base/degrau externo do anel (mesmo vão, p/ não cruzar a entrada)
+    const ring = new THREE.Mesh(
+      new THREE.CylinderGeometry(R + 0.5, R + 0.7, 0.5, 64, 1, true, gap, Math.PI * 2 - gap * 2),
+      stoneMat,
+    );
     ring.position.set(CX, TOP_Y + 0.25, CZ);
     this.world.add(ring);
-    // JAMBAS retas fechando a junção do anel com o corredor da entrada (sem vãos)
-    const doorHalf = 1.5 * CELL; // meia-largura do corredor
+    // JAMBAS retas: da borda do anel (x=±doorHalf, z=zWall) até o corredor
     const zWall = CZ + R * Math.cos(gap); // z da borda do vão do anel
     const zCorr = (SHOW_SPAWN.row - 5.5) * CELL; // ~borda norte do corredor (linha 8)
-    addFlatWall(CX - doorHalf, zWall - 0.4, zCorr, 0, TOP_Y + WALL_H, +1);
-    addFlatWall(CX + doorHalf, zWall - 0.4, zCorr, 0, TOP_Y + WALL_H, -1);
+    addFlatWall(CX - doorHalf, zWall - 0.3, zCorr, 0, TOP_Y + WALL_H, +1);
+    addFlatWall(CX + doorHalf, zWall - 0.3, zCorr, 0, TOP_Y + WALL_H, -1);
 
     // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
     const st = SHOW_STATUE;
