@@ -298,6 +298,7 @@ function bindUI(){
   document.getElementById('btnPlay').onclick=()=>{ AUDIO.resume(); AUDIO.startMusic(); AUDIO.ui(); openLevelSelect(); };
   document.getElementById('btnBackMenu').onclick=()=>{ AUDIO.ui(); showScreen('menu'); };
   document.getElementById('btnPause').onclick=()=>{ AUDIO.ui(); openLevelSelect(); };
+  document.getElementById('btnRestart').onclick=()=>{ AUDIO.ui(); AUDIO.hold(0); if(G.level) startLevel(G.level); };
   document.getElementById('btnRot').addEventListener('click',()=>AUDIO.ui());
   document.getElementById('btnFlip').addEventListener('click',()=>AUDIO.ui());
   const mute=document.getElementById('btnMute'); if(mute) mute.onclick=()=>{ const m=AUDIO.toggleMute(); mute.textContent=m?'🔇':'🔊'; };
