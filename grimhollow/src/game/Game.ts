@@ -46,10 +46,16 @@ import {
   dungeonAll,
 } from "./dungeon";
 import {
-  SHOW_SPAWN,
   STATIONS,
   SHOW_LAST,
   stationPose,
+  MOUTH_YAW,
+  ENTRY,
+  isMouth,
+  terraceWalkable,
+  terraceCells,
+  TERRACE_Y,
+  SHOW_STATUE,
   HELIX_CX,
   HELIX_CZ,
   HELIX_RP,
@@ -829,7 +835,7 @@ export class Game {
     if (this.startAt === "showcase") {
       // acesso direto à sala-vitrine (?show=1); "sair" volta ao vilarejo
       this.returnTo = { col: start.col, row: start.row, facing: 0 };
-      this.enterLocation("showcase", SHOW_SPAWN.col, SHOW_SPAWN.row, 0);
+      this.enterLocation("showcase", 0, 0, 0);
     } else {
       this.enterLocation("village", start.col, start.row, 0);
     }
@@ -2499,7 +2505,7 @@ export class Game {
     };
 
     // ---- HÉLICE: degraus em leque + espelhos (risers) ----
-    const helix = STATIONS.filter((s) => s.kind === "helix");
+    const helix = STATIONS.slice(0, HELIX_STEPS + 1); // estações da hélice (0..STEPS)
     const ang = (s: { x: number; z: number }) => Math.atan2(s.z - CZ, s.x - CX);
     const dth = ang(helix[1]) - ang(helix[0]);
     const sPos: number[] = [], sUv: number[] = [], sIdx: number[] = [];
@@ -2535,9 +2541,9 @@ export class Game {
     base.rotation.x = -Math.PI / 2; base.position.set(CX, 0.02, CZ); this.world.add(base);
 
     // ---- CORREDOR no topo (ponte de pedra) da hélice até o terraço ----
-    const cLen = CORR_X0 - CORR_X1 + 3, cMidX = (CORR_X0 + CORR_X1) / 2 - 1.5, cw = 1.7, cCeil = 3.4;
+    const cLen = CORR_X0 - CORR_X1, cMidX = (CORR_X0 + CORR_X1) / 2, cw = 1.7, cCeil = 3.4;
     const cf = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cw * 2), corrFloorMat);
-    cf.rotation.x = -Math.PI / 2; cf.position.set(cMidX, TOP_Y + 0.03, CORR_Z); this.world.add(cf);
+    cf.rotation.x = -Math.PI / 2; cf.position.set(cMidX, TOP_Y + 0.02, CORR_Z); this.world.add(cf);
     for (const s of [-1, 1]) {
       const wl = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cCeil), corrWallMat);
       wl.position.set(cMidX, TOP_Y + cCeil / 2, CORR_Z + s * cw);
@@ -2546,10 +2552,18 @@ export class Game {
     const cc = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cw * 2), corrWallMat);
     cc.rotation.x = Math.PI / 2; cc.position.set(cMidX, TOP_Y + cCeil, CORR_Z); this.world.add(cc);
 
-    // ---- TERRAÇO REDONDO ABERTO (santuário): grama + estátua + toda a névoa ----
-    const SCX = SHRINE_CX, SCZ = SHRINE_CZ, DR = SHRINE_RADIUS + 2;
+    // ---- TERRAÇO ABERTO (movimento normal em grade): grama + estátua + névoa ----
+    const SCX = SHRINE_CX, SCZ = SHRINE_CZ, DR = SHRINE_RADIUS + 1;
+    // grama por célula (garante piso sob o jogador em toda a área andável)
+    const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
+    for (const [tc, tr] of terraceCells()) {
+      const g = new THREE.Mesh(tileGeo, grassMat);
+      g.rotation.x = -Math.PI / 2; g.position.set(tc * CELL, TOP_Y + 0.02, tr * CELL); this.world.add(g);
+    }
+    // disco redondo por cima → arredonda o visual (aberto, some na névoa)
     const disc = new THREE.Mesh(new THREE.CircleGeometry(DR, 40), grassMat);
-    disc.rotation.x = -Math.PI / 2; disc.position.set(SCX, TOP_Y + 0.04, SCZ); this.world.add(disc);
+    disc.rotation.x = -Math.PI / 2; disc.position.set(SCX, TOP_Y + 0.05, SCZ); this.world.add(disc);
+    this.blocked.add(`${SHOW_STATUE.col},${SHOW_STATUE.row}`); // estátua bloqueia o centro
     // ESTÁTUA (placeholder): pedestal + monólito claro que brilha
     const sx = SHOW_STATUE_W.x, sz = SHOW_STATUE_W.z;
     const pedMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
@@ -3852,41 +3866,78 @@ export class Game {
           : this.location === "dungeon"
             ? dungeonWalkable(c, r)
             : this.location === "showcase"
-              ? false // sala-vitrine: movimento por estações (hélice), não usa a grade
+              ? terraceWalkable(c, r) // terraço do topo: movimento NORMAL em grade
               : roomWalkable(c, r);
     return ok && !this.blocked.has(`${c},${r}`);
   }
 
-  // altura (Y) do piso numa célula (a sala-vitrine é por estações, não usa isto).
+  // altura (Y) do piso numa célula: a sala-vitrine tem o TERRAÇO plano no topo.
   private floorYAt(_c: number, _r: number): number {
-    return 0;
+    return this.location === "showcase" ? TERRACE_Y : 0;
   }
 
-  // ---- sala-vitrine: movimento por ESTAÇÕES ao longo do caminho (hélice) ----
+  // ---- ESCADA (hélice): movimento por ESTAÇÕES (só frente/trás) ----
   private applyShowcasePose() {
     const s = stationPose(this.showIdx);
     this.camera.position.set(s.x, s.y + EYE_H, s.z);
     this.camera.rotation.y = s.yaw;
   }
 
-  private showcaseMove(a: Action) {
-    // Up = sobe o caminho; Down = desce; virar/estrafe não têm efeito (a hélice guia).
-    let d = 0;
-    if (a === "forward") d = +1;
-    else if (a === "back") d = -1;
-    else return;
-    const ni = this.showIdx + d;
-    if (ni < 0) { this.exitShowcase(); return; } // "descer" na base = sair
-    if (ni > SHOW_LAST) return; // fim do caminho (diante do altar)
+  // um passo na escada: a câmera encara a DIREÇÃO DO MOVIMENTO (subindo = tangente
+  // ascendente; descendo = oposta), girando suave ao acompanhar a curva.
+  private stationStep(ni: number, dir: number) {
     const from = stationPose(this.showIdx), to = stationPose(ni);
     this.showIdx = ni;
-    let fy = from.yaw, ty = to.yaw; // gira pelo menor arco
+    const toYaw = dir > 0 ? to.yaw : to.yaw + Math.PI;
+    let fy = this.camera.rotation.y, ty = toYaw;
     while (ty - fy > Math.PI) ty -= Math.PI * 2;
     while (ty - fy < -Math.PI) ty += Math.PI * 2;
     this.anim = {
       kind: "move", t0: performance.now(),
       fromX: from.x, fromZ: from.z, toX: to.x, toZ: to.z,
       fromY: from.y, toY: to.y, fromYaw: fy, toYaw: ty,
+    };
+    this.pushMinimap();
+  }
+
+  private showcaseStationMove(a: Action) {
+    if (a === "forward") {
+      if (this.showIdx < SHOW_LAST) this.stationStep(this.showIdx + 1, +1);
+      else this.enterTerraceFromStairs(); // topo da escada → entra no terraço (grade)
+    } else if (a === "back") {
+      if (this.showIdx > 0) this.stationStep(this.showIdx - 1, -1);
+      else this.exitShowcase(); // base → sai
+    }
+    // virar/estrafe: sem efeito na escada (a hélice guia)
+  }
+
+  // topo da escada → TERRAÇO: passa pro movimento normal (grade), 1ª célula a oeste.
+  private enterTerraceFromStairs() {
+    const from = stationPose(SHOW_LAST);
+    this.showIdx = -1;
+    this.col = ENTRY.c; this.row = ENTRY.r; this.facing = 3; // oeste
+    let fy = this.camera.rotation.y, ty = MOUTH_YAW;
+    while (ty - fy > Math.PI) ty -= Math.PI * 2;
+    while (ty - fy < -Math.PI) ty += Math.PI * 2;
+    this.anim = {
+      kind: "move", t0: performance.now(),
+      fromX: from.x, fromZ: from.z, toX: ENTRY.c * CELL, toZ: ENTRY.r * CELL,
+      fromY: from.y, toY: TERRACE_Y, fromYaw: fy, toYaw: ty,
+    };
+    this.pushMinimap();
+  }
+
+  // TERRAÇO → escada: volta pro modo estações na "boca", já virado p/ descer.
+  private enterStairsFromTerrace() {
+    const to = stationPose(SHOW_LAST);
+    this.showIdx = SHOW_LAST;
+    let fy = this.camera.rotation.y, ty = MOUTH_YAW + Math.PI; // direção de descida
+    while (ty - fy > Math.PI) ty -= Math.PI * 2;
+    while (ty - fy < -Math.PI) ty += Math.PI * 2;
+    this.anim = {
+      kind: "move", t0: performance.now(),
+      fromX: this.col * CELL, fromZ: this.row * CELL, toX: to.x, toZ: to.z,
+      fromY: TERRACE_Y, toY: to.y, fromYaw: fy, toYaw: ty,
     };
     this.pushMinimap();
   }
@@ -3903,7 +3954,7 @@ export class Game {
     if (this.location === "village") { cols = COLS; rows = ROWS; walk = isWalkable; }
     else if (this.location === "forest") { cols = FOREST_COLS; rows = FOREST_ROWS; walk = forestWalkable; }
     else if (this.location === "dungeon") { cols = DUNGEON_COLS; rows = DUNGEON_ROWS; walk = dungeonWalkable; }
-    else if (this.location === "showcase") { cols = 1; rows = 1; walk = () => false; }
+    else if (this.location === "showcase") { cols = 6; rows = 10; walk = terraceWalkable; }
     else { cols = ROOM_COLS; rows = ROOM_ROWS; walk = roomWalkable; }
     const cells = new Uint8Array(cols * rows);
     for (let r = 0; r < rows; r++)
@@ -4585,7 +4636,9 @@ export class Game {
       return;
     }
     if (this.anim) return; // ignora enquanto anima (o hold-repeat cuida da continuidade)
-    if (this.location === "showcase") { this.showcaseMove(a); return; } // hélice: por estações
+    // na ESCADA (showIdx>=0): movimento por estações. No TERRAÇO (showIdx<0): cai no
+    // movimento NORMAL em grade abaixo (vira, anda livre), com volta pra escada na boca.
+    if (this.location === "showcase" && this.showIdx >= 0) { this.showcaseStationMove(a); return; }
     if (a === "turnLeft" || a === "turnRight") {
       const d = a === "turnLeft" ? 1 : -1;
       this.facing = (this.facing + (d === 1 ? 3 : 1)) % 4;
@@ -4606,6 +4659,8 @@ export class Game {
     const [dc, dr] = DIRS[fi];
     const nc = this.col + dc;
     const nr = this.row + dr;
+    // terraço: pisar na "boca" (leste) volta pra escada (modo estações, descendo)
+    if (this.location === "showcase" && isMouth(nc, nr)) { this.enterStairsFromTerrace(); return; }
     if (!this.canWalk(nc, nr)) return;
     this.anim = {
       kind: "move",
