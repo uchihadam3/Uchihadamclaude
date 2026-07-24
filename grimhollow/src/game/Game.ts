@@ -2394,11 +2394,13 @@ export class Game {
     for (let y = 0; y < S; y++)
       for (let x = 0; x < S; x++) {
         const nx = x / S - 0.5, ny = y / S - 0.5;
-        const d = Math.sqrt(nx * nx + ny * ny) * 2.05; // 0 centro .. >1 borda
-        const fall = Math.max(0, 1 - d * d); // queda radial macia
-        const n = this.fbm(x * 0.055 + off, y * 0.055 + off, variant * 4.7);
-        let a = fall * Math.min(1, Math.max(0, (n - 0.28) * 2.2)); // mechas
-        a = Math.pow(a, 0.85);
+        const d = Math.sqrt(nx * nx + ny * ny) * 2; // 0 centro; 1 no círculo inscrito
+        // queda radial FORTE → alpha 0 bem antes da borda quadrada (blob REDONDO,
+        // sem cantos): nenhum "quadrado" aparece por baixo do sprite.
+        const radial = Math.max(0, 1 - d);
+        const soft = radial * radial;
+        const n = this.fbm(x * 0.05 + off, y * 0.05 + off, variant * 4.7); // 0..1 mechas suaves
+        const a = soft * (0.45 + 0.55 * n);
         const i = (y * S + x) * 4;
         img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
         img.data[i + 3] = Math.round(Math.min(1, a) * 255);
@@ -2448,6 +2450,7 @@ export class Game {
     const CX = SHOW_CENTER.c * CELL, CZ = SHOW_CENTER.r * CELL;
     const WALL_H = 26.0; // paredes ALTÍSSIMAS (penhasco/montanha) — o topo fica muito
     // acima do campo de visão: o jogador vê a rocha subindo e SUMINDO na fumaça.
+    const CAVE_CEIL = 8.0; // teto da CAVERNA sobre o corredor (o santuário é aberto)
     const FOGC = 0x7c8390; // névoa moody (mais escura → menos contraste com a rocha)
     // dissolução por altura LONGA e gradual: limpo na altura dos olhos, sumindo aos
     // poucos até virar névoa lá no alto → a rocha "se perde" na bruma, sem linha.
@@ -2465,7 +2468,7 @@ export class Game {
     // um plano de 4 de largura com o repeat do cilindro vira riscos verticais.
     const flatMap = tex.caveWall();
     flatMap.wrapS = flatMap.wrapT = THREE.RepeatWrapping;
-    flatMap.repeat.set(1, WALL_H / CELL); // ≈6.5 telhas na altura → ~4u/telha
+    flatMap.repeat.set(1, CAVE_CEIL / CELL); // ~4u/telha na altura da caverna
     const flatWallMat = new THREE.MeshLambertMaterial({ map: flatMap, side: THREE.DoubleSide });
     // chão do santuário: GRAMA/terra
     const grassMap = tex.grass(61);
@@ -2497,14 +2500,18 @@ export class Game {
         for (const [dc, dr] of DIRS) {
           const nz = showZone(c + dc, r + dr);
           if (nz === "wall") {
-            // paredes do corredor TÃO ALTAS quanto o anel (vão da porta sobe até a
-            // fumaça, sem topo baixo) — sem teto: a entrada é um vão alto no penhasco.
-            this.addWall(cx, cz, dc, dr, 0, WALL_H, flatWallMat);
+            // paredes do corredor até o TETO da caverna
+            this.addWall(cx, cz, dc, dr, 0, CAVE_CEIL, flatWallMat);
           } else if (nz !== "shrine") {
             const nfy = showFloorY(c + dc, r + dr);
             if (nfy < fy - 0.02) this.addWall(cx, cz, dc, dr, nfy, fy, stoneMat); // face do degrau
           }
         }
+        // TETO de CAVERNA sobre o corredor (some ao chegar no gramado do santuário)
+        const ce = new THREE.Mesh(tileGeo, ceilMat);
+        ce.rotation.x = Math.PI / 2;
+        ce.position.set(cx, CAVE_CEIL, cz);
+        this.world.add(ce);
       }
 
     // ---- SANTUÁRIO REDONDO ----
@@ -2525,6 +2532,15 @@ export class Game {
     );
     wall.position.set(CX, TOP_Y + WALL_H / 2, CZ);
     this.world.add(wall);
+    // LINTEL: fecha o vão do anel ACIMA da boca da caverna (do teto do corredor p/
+    // cima) → a entrada vira uma BOCA DE CAVERNA na base da parede alta do santuário.
+    const lintelH = TOP_Y + WALL_H - CAVE_CEIL;
+    const lintel = new THREE.Mesh(
+      new THREE.CylinderGeometry(R, R, lintelH, 32, 1, true, -gap, gap * 2),
+      ringWallMat,
+    );
+    lintel.position.set(CX, CAVE_CEIL + lintelH / 2, CZ);
+    this.world.add(lintel);
     // base/degrau externo do anel (mesmo vão, p/ não cruzar a entrada)
     const ring = new THREE.Mesh(
       new THREE.CylinderGeometry(R + 0.5, R + 0.7, 0.5, 64, 1, true, gap, Math.PI * 2 - gap * 2),
@@ -2535,8 +2551,8 @@ export class Game {
     // JAMBAS retas: da borda do anel (x=±doorHalf, z=zWall) até o corredor
     const zWall = CZ + R * Math.cos(gap); // z da borda do vão do anel
     const zCorr = (SHOW_SPAWN.row - 5.5) * CELL; // ~borda norte do corredor (linha 8)
-    addFlatWall(CX - doorHalf, zWall - 0.3, zCorr, 0, TOP_Y + WALL_H, +1);
-    addFlatWall(CX + doorHalf, zWall - 0.3, zCorr, 0, TOP_Y + WALL_H, -1);
+    addFlatWall(CX - doorHalf, zWall - 0.3, zCorr, 0, CAVE_CEIL, +1);
+    addFlatWall(CX + doorHalf, zWall - 0.3, zCorr, 0, CAVE_CEIL, -1);
 
     // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
     const st = SHOW_STATUE;
@@ -2571,17 +2587,8 @@ export class Game {
     ray.renderOrder = 7;
     this.world.add(ray);
 
-    // CÚPULA de névoa (nuvens macias que giram devagar) — enche o "céu" com fumaça
-    // texturizada, então nunca há fundo chapado pra criar borda com as paredes.
-    const domeMat = new THREE.MeshBasicMaterial({
-      map: this.cloudDomeTex(), color: FOGC, transparent: true,
-      side: THREE.BackSide, depthWrite: false, fog: false,
-    });
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(46, 40, 26), domeMat);
-    dome.position.set(CX, TOP_Y + 2.5, CZ);
-    dome.renderOrder = -3;
-    this.world.add(dome);
-    this.fogDome = dome;
+    // (sem "cúpula" de nuvens — ela criava aquele arco/círculo visível no topo. O
+    // céu é só a névoa da cena + a fumaça em sprites.)
 
     // PARTÍCULAS: pontinhos claros flutuando (poeira) — bem sutis
     this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 70, 0xdfe6f2, 0.1, 0.0022);
