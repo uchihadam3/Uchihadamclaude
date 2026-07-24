@@ -56,6 +56,7 @@ import {
   showWalkable,
   showFloorY,
   showIsCorridor,
+  showIsShrine,
   SHOW_SPAWN,
   SHOW_EXIT,
   SHOW_STATUE,
@@ -880,12 +881,10 @@ export class Game {
       // Enche o recinto até o chão e some o topo das paredes. background = MESMA
       // cor da névoa → o vazio acima vira névoa (sem borda de "céu").
       const fogCol = 0x7c8390; // névoa moody (igual à do santuário)
-      // névoa CONTÍNUA por distância — é matematicamente sem borda (o grosso da
-      // névoa vem daqui + da névoa por altura; sprites são só um toque de movimento).
-      // densidade mais BAIXA que o santuário compacto: a escadaria é longa e
-      // sinuosa — o jogador precisa VÊ-LA subindo; o topo (santuário) ainda some
-      // na distância e a névoa por altura esconde o topo das paredes.
-      this.scene.fog = new THREE.FogExp2(fogCol, 0.05);
+      // névoa CONTÍNUA por distância — sem borda. Densidade média: densa o bastante
+      // p/ o clima do santuário no topo (bruma fechada), mas ainda deixa ver a rampa
+      // subindo dentro da torre. A névoa por altura esconde o topo das paredes.
+      this.scene.fog = new THREE.FogExp2(fogCol, 0.062);
       this.scene.background = new THREE.Color(fogCol);
       this.addShowcaseLights();
       this.buildShowcase();
@@ -2447,12 +2446,13 @@ export class Game {
     }
   }
 
-  // constrói a TORRE DA ESPIRAL: túnel de entrada → base da torre → escadaria em
-  // espiral quadrada que sobe ~2 voltas em torno do pináculo central (estátua no
-  // cume). Topo ABERTO à bruma; as voltas encostadas formam o poço central.
+  // constrói a TORRE DA ESPIRAL: túnel de entrada → rampa em espiral (1 volta) que
+  // sobe em torno de um núcleo maciço → no topo, um TERRAÇO REDONDO e ABERTO com
+  // grama, estátua ao centro e toda a névoa (o santuário aberto de sempre).
   private buildShowcase() {
     const W = SHOW_COLS, H = SHOW_ROWS;
-    const TOP_Y = SHOW_TOP * SHOW_RISE; // altura do cume (estátua)
+    const TOP_Y = SHOW_TOP * SHOW_RISE; // altura do terraço (santuário)
+    const R = SHOW_RADIUS * CELL; // raio do disco de grama
     const CX = SHOW_CENTER.c * CELL, CZ = SHOW_CENTER.r * CELL;
     const WALL_H = TOP_Y + 22.0; // casca da torre ALTÍSSIMA — some muito acima do olhar
     const CORR_CEIL = 7.0; // teto BAIXO do túnel de entrada
@@ -2460,17 +2460,17 @@ export class Game {
     // dissolução por altura: limpa na altura dos olhos, sumindo aos poucos lá no alto.
     const yClear = TOP_Y + 2.4, yFull = TOP_Y + 14;
 
-    // PEDRA LAVRADA (blocos) p/ os degraus/pisos — visual de torre Souls-like.
+    // PEDRA LAVRADA (blocos) p/ os degraus/pisos.
     const stepMap = tex.stone(31);
     stepMap.wrapS = stepMap.wrapT = THREE.RepeatWrapping;
     stepMap.repeat.set(2, 2);
     const stepMat = new THREE.MeshLambertMaterial({ map: stepMap, side: THREE.DoubleSide });
-    // face do degrau / poço central (banda de blocos, um tom mais claro)
+    // face do degrau / paredes do núcleo central (banda de blocos, tom mais claro)
     const riserMap = tex.stone(31);
     riserMap.wrapS = riserMap.wrapT = THREE.RepeatWrapping;
     riserMap.repeat.set(2, 1);
     const riserMat = new THREE.MeshLambertMaterial({ map: riserMap, color: 0xc4c4c4, side: THREE.DoubleSide });
-    // casca externa da TORRE: blocos de pedra, altíssima → some na bruma
+    // casca externa da TORRE: blocos de pedra, altíssima → SÓLIDA até a bruma (sem vãos)
     const shellMap = tex.stone(31);
     shellMap.wrapS = shellMap.wrapT = THREE.RepeatWrapping;
     shellMap.repeat.set(1, WALL_H / CELL);
@@ -2481,7 +2481,12 @@ export class Game {
     tunnelMap.repeat.set(1, CORR_CEIL / CELL);
     const tunnelMat = new THREE.MeshLambertMaterial({ map: tunnelMap, side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
-    // dissolve na névoa: casca da torre e riser somem pra cima
+    // chão do terraço: GRAMA/terra
+    const grassMap = tex.grass(61);
+    grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
+    grassMap.repeat.set(4, 4);
+    const grassMat = new THREE.MeshLambertMaterial({ map: grassMap, side: THREE.DoubleSide });
+    // dissolve na névoa: casca da torre e núcleo somem pra cima
     for (const m of [shellMat, riserMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
     const HALF = CELL / 2;
@@ -2492,13 +2497,15 @@ export class Game {
       this.world.add(nose);
     };
 
-    // ---- TORRE + ESPIRAL (células quadradas): piso, degraus, poço, casca ----
+    // ---- TORRE (rampa + núcleo + terraço): piso, degraus, paredes SÓLIDAS ----
     for (let r = 0; r < H; r++)
       for (let c = 0; c < W; c++) {
         if (!showWalkable(c, r)) continue;
         const corr = showIsCorridor(c, r); // túnel de entrada (teto baixo)
+        const shrine = showIsShrine(c, r); // terraço aberto do topo (grama)
         const cx = c * CELL, cz = r * CELL;
         const fy = showFloorY(c, r);
+        // piso: pedra na rampa/túnel; no terraço vai pedra por baixo + disco de grama
         const fl = new THREE.Mesh(tileGeo, stepMat);
         fl.rotation.x = -Math.PI / 2;
         fl.position.set(cx, fy + 0.01, cz);
@@ -2506,52 +2513,50 @@ export class Game {
         for (const [dc, dr] of DIRS) {
           const nc = c + dc, nr = r + dr;
           if (!showWalkable(nc, nr)) {
-            // vizinho não-caminhável: casca da torre (alta) ou parede do túnel (baixa)
+            // vizinho não-caminhável → PAREDE SÓLIDA (sem vãos/janelas): casca alta da
+            // torre, ou parede baixa do túnel de caverna.
             if (corr) this.addWall(cx, cz, dc, dr, 0, CORR_CEIL, tunnelMat);
             else this.addWall(cx, cz, dc, dr, 0, WALL_H, shellMat);
           } else {
             const nfy = showFloorY(nc, nr);
-            // desnível p/ o vizinho MAIS BAIXO: degrau (pequeno) ou poço central (alto)
+            // desnível p/ vizinho MAIS BAIXO: degrau (pequeno) ou parede do núcleo (alta)
             if (nfy < fy - 0.02) {
               this.addWall(cx, cz, dc, dr, nfy, fy, riserMat);
-              if (fy - nfy < SHOW_RISE * 1.5) addNosing(cx, cz, dc, dr, fy); // nariz só em degrau real
+              if (fy - nfy < SHOW_RISE * 1.5) addNosing(cx, cz, dc, dr, fy); // nariz só em degrau
             }
           }
         }
-        // TETO só sobre o túnel de entrada (a torre é aberta ao céu enevoado)
+        // TETO só sobre o túnel de entrada (a torre e o terraço são ABERTOS à bruma)
         if (corr) {
           const ce = new THREE.Mesh(tileGeo, ceilMat);
           ce.rotation.x = Math.PI / 2;
           ce.position.set(cx, CORR_CEIL, cz);
           this.world.add(ce);
         }
+        void shrine;
       }
 
-    // ---- CUME: plataforma + ESTÁTUA (placeholder) no pináculo central ----
+    // ---- TERRAÇO REDONDO ABERTO (santuário): grama + estátua + toda a névoa ----
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(R, 40), grassMat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.set(CX, TOP_Y + 0.05, CZ);
+    this.world.add(disc);
+
+    // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
     const st = SHOW_STATUE;
     const sx = st.col * CELL, sz = st.row * CELL;
-    // piso da plataforma do cume (fica na célula bloqueada do centro)
-    const plat = new THREE.Mesh(tileGeo, stepMat);
-    plat.rotation.x = -Math.PI / 2;
-    plat.position.set(sx, TOP_Y + 0.01, sz);
-    this.world.add(plat);
-    // faces do pináculo (poço) descendo p/ os 4 vizinhos mais baixos
-    for (const [dc, dr] of DIRS) {
-      const nfy = showFloorY(st.col + dc, st.row + dr);
-      if (nfy < TOP_Y - 0.02) this.addWall(sx, sz, dc, dr, nfy, TOP_Y, riserMat);
-    }
     const pedMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 0.7, 16), pedMat);
-    ped.position.set(sx, TOP_Y + 0.35, sz);
+    ped.position.set(sx, TOP_Y + 0.4, sz);
     this.world.add(ped);
     const paleMat = new THREE.MeshLambertMaterial({ color: 0xd6d9df, emissive: 0x1f2531 });
     const idol = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 2.4, 6), paleMat);
-    idol.position.set(sx, TOP_Y + 0.7 + 1.2, sz);
+    idol.position.set(sx, TOP_Y + 0.75 + 1.2, sz);
     this.world.add(idol);
     this.blocked.add(`${st.col},${st.row}`);
-    this.glowLight(sx, TOP_Y + 1.8, sz, 0xcfe6ff, 3.6, 13); // brilho forte → foco no cume
+    this.glowLight(sx, TOP_Y + 1.9, sz, 0xcfe6ff, 3.6, 13); // brilho frio → foco no altar
 
-    // TOCHAS espiralando pela casca da torre (luz quente, sobem com a escada)
+    // TOCHAS espiralando pela casca da torre (luz quente, sobem com a rampa)
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     // [célula c, r, dir->parede externa] — em níveis crescentes ao redor da torre
     const torchSpots: [number, number, number, number][] = [
@@ -2563,10 +2568,16 @@ export class Game {
       this.addWallDecal(tc, tr, tdc, tdr, torchMat, 0.95, 1.5, ty);
       this.glowLight(tc * CELL + tdc * 0.4, ty + 0.2, tr * CELL + tdr * 0.4, 0xffa040, 5.5, 11);
     }
+    // 2 tochas quentes ladeando o altar
+    for (const th of [Math.PI * 1.15, Math.PI * 1.85]) {
+      const px = CX + Math.cos(th) * (R - 0.5), pz = CZ + Math.sin(th) * (R - 0.5);
+      this.glowLight(px, TOP_Y + 2.4, pz, 0xffa040, 2.6, 9);
+    }
 
-    // PARTÍCULAS: poeira flutuando no poço da torre + um toque de fumaça no cume
-    this.spawnMotes(CX, CZ, CELL * 5, CELL * 5, 1.0, TOP_Y + 4, 80, 0xdfe6f2, 0.09, 0.0022);
-    this.spawnFogPuffs(CX, CZ, 20, TOP_Y + 1.0, TOP_Y + 11, CELL * 1.4, 0x707886, 0xaab2c0, 0.0, 1.0, 0.05, 16, 34);
+    // NÉVOA do santuário (igual ao de antes): poeira + fumaça densa sobre o terraço,
+    // encostando no chão e subindo — o topo aberto vira bruma (sem borda de "céu").
+    this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 60, 0xdfe6f2, 0.09, 0.0022);
+    this.spawnFogPuffs(CX, CZ, 24, TOP_Y + 0.6, TOP_Y + 10, R * 0.6, 0x707886, 0xaab2c0, 0.0, 1.0, 0.05, 16, 34);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
