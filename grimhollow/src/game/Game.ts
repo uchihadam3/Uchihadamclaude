@@ -881,7 +881,7 @@ export class Game {
       const fogCol = 0x7c8390; // névoa moody (igual à do santuário)
       // névoa CONTÍNUA por distância — é matematicamente sem borda (o grosso da
       // névoa vem daqui + da névoa por altura; sprites são só um toque de movimento).
-      this.scene.fog = new THREE.FogExp2(fogCol, 0.078);
+      this.scene.fog = new THREE.FogExp2(fogCol, 0.098);
       this.scene.background = new THREE.Color(fogCol);
       this.addShowcaseLights();
       this.buildShowcase();
@@ -2452,11 +2452,11 @@ export class Game {
     const CX = SHOW_CENTER.c * CELL, CZ = SHOW_CENTER.r * CELL;
     const WALL_H = 26.0; // paredes ALTÍSSIMAS (penhasco/montanha) — o topo fica muito
     // acima do campo de visão: o jogador vê a rocha subindo e SUMINDO na fumaça.
-    const CAVE_CEIL = 8.0; // teto da CAVERNA sobre o corredor (o santuário é aberto)
+    const CAVE_CEIL = 18.0; // teto ALTO da caverna → some na névoa, fora da tela
     const FOGC = 0x7c8390; // névoa moody (mais escura → menos contraste com a rocha)
     // dissolução por altura LONGA e gradual: limpo na altura dos olhos, sumindo aos
     // poucos até virar névoa lá no alto → a rocha "se perde" na bruma, sem linha.
-    const yClear = TOP_Y + 2.5, yFull = TOP_Y + 17;
+    const yClear = TOP_Y + 2.2, yFull = TOP_Y + 11; // dissolve mais baixo (denso)
 
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
     const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
@@ -2580,18 +2580,7 @@ export class Game {
       this.glowLight(px, TOP_Y + 2.4, pz, 0xffa040, 2.6, 9);
     }
 
-    // (a névoa volumétrica da cena — FogExp2 — já enche o recinto e some o topo
-    // das paredes; nada de "domo de céu" aqui.)
-    // um feixe de luz suave descendo sobre a estátua
-    const rayMat = new THREE.MeshBasicMaterial({
-      color: 0xdfeaff, transparent: true, opacity: 0.2, side: THREE.DoubleSide,
-      depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
-    });
-    const ray = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 13), rayMat);
-    ray.position.set(sx, TOP_Y + 6, sz);
-    ray.rotation.z = 0.14;
-    ray.renderOrder = 7;
-    this.world.add(ray);
+    // (sem feixe de luz sobre a estátua — a névoa densa dá o clima sozinha.)
 
     // (sem "cúpula" de nuvens — ela criava aquele arco/círculo visível no topo. O
     // céu é só a névoa da cena + a fumaça em sprites.)
