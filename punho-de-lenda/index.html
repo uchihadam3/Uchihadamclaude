@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0a0d14">
+<title>Punho de Lenda — simulador de carreira nas lutas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0a0d14; --bg2:#111725; --panel:#161d2e; --panel2:#1d2740; --edge:rgba(140,170,220,.16); --edge2:rgba(160,190,240,.32);
+  --ink:#eef2fb; --dim:#95a3bd; --faint:#5f6d88; --gold:#e8c860; --red:#e0453a; --green:#4ade80; --blue:#5aa0ff; --purple:#a06aff;
+  --disp:'Anton',sans-serif; --cond:'Barlow Condensed',sans-serif; --ui:'Oswald',sans-serif;
+  --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px); }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:radial-gradient(120% 90% at 50% -10%,#18233c,#0a0d14 55%,#05070c);color:var(--ink);font-family:var(--ui);
+  position:fixed;inset:0;-webkit-user-select:none;user-select:none}
+#app{position:relative;width:100%;height:100%;max-width:560px;margin:0 auto;overflow:hidden}
+button{font-family:inherit;color:inherit;cursor:pointer;border:none;background:none}
+canvas{display:block}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;opacity:0;transition:opacity .35s}
+.screen.on{display:flex;opacity:1}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.scroll::-webkit-scrollbar{width:0}
+.hidden{display:none!important}
+
+/* botões */
+.btn{position:relative;padding:14px 22px;border-radius:12px;font-family:var(--disp);letter-spacing:1.5px;font-size:17px;
+  background:linear-gradient(180deg,#2a3652,#1a2338);border:1px solid var(--edge2);color:var(--ink);
+  box-shadow:0 8px 22px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .1s}
+.btn:active{transform:scale(.97)}
+.btn.prime{background:linear-gradient(180deg,#e0453a,#a32018);border-color:#ff7a6a;box-shadow:0 10px 28px rgba(200,40,30,.4)}
+.btn.gold{background:linear-gradient(180deg,#e8c860,#a9861f);border-color:#ffe89a;color:#2a1e04}
+.btn.sm{padding:10px 16px;font-size:14px}
+.btn:disabled{opacity:.4;filter:grayscale(.6)}
+
+/* header */
+.hdr{display:flex;align-items:center;gap:12px;padding:calc(var(--st) + 14px) 16px 12px;border-bottom:1px solid var(--edge)}
+.hdr .back{width:40px;height:40px;border-radius:11px;background:rgba(255,255,255,.06);border:1px solid var(--edge);display:grid;place-items:center;font-size:19px}
+.hdr h2{font-family:var(--disp);font-size:21px;letter-spacing:1px;flex:1}
+.hdr .sub{font-family:var(--cond);color:var(--dim);font-size:14px}
+
+/* ===== MENU ===== */
+#menu{align-items:center;justify-content:center;text-align:center;padding:26px}
+.logo{font-family:var(--disp);font-size:clamp(46px,15vw,82px);line-height:.86;letter-spacing:1px;
+  background:linear-gradient(180deg,#fff,#e8c860 60%,#a9861f);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 4px 30px rgba(232,200,96,.25)}
+.logo .l2{color:var(--red);-webkit-text-fill-color:var(--red)}
+.tag{font-family:var(--cond);font-size:clamp(15px,4.6vw,20px);color:var(--dim);letter-spacing:3px;text-transform:uppercase;margin-top:12px}
+.menuBtns{display:flex;flex-direction:column;gap:12px;margin-top:34px;width:min(320px,84vw)}
+.rec{margin-top:22px;font-family:var(--cond);color:var(--faint);font-size:14px;letter-spacing:.5px}
+.rec b{color:var(--gold)}
+
+/* ===== ESTILOS ===== */
+.styleGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
+.styleCard{position:relative;border-radius:16px;padding:16px 14px;background:linear-gradient(180deg,var(--panel2),var(--panel));
+  border:1px solid var(--edge2);box-shadow:0 8px 20px rgba(0,0,0,.4);text-align:center;transition:transform .12s,border-color .2s}
+.styleCard:active{transform:scale(.97)}
+.styleCard .em{font-size:38px}
+.styleCard .nm{font-family:var(--disp);font-size:19px;letter-spacing:.5px;margin-top:4px}
+.styleCard .rg{font-family:var(--cond);font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+/* ===== CARTA DE LUTADOR (reutilizada) ===== */
+.fcard{position:relative;width:100%;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 16px 34px rgba(0,0,0,.55);border:2.5px solid rgba(255,255,255,.2)}
+.fcard.rBronze{background:linear-gradient(160deg,#6a4a32,#3a2a1c)} .fcard.rMedio{background:linear-gradient(160deg,#8a94a2,#3f4652)}
+.fcard.rForte{background:linear-gradient(160deg,#e8c860,#9a7420);border-color:rgba(255,240,180,.5)}
+.fcard.rMuitoforte{background:linear-gradient(160deg,#e8c860,#8a6410);border-color:rgba(255,245,190,.6)}
+.fcard.rLenda{background:linear-gradient(160deg,#3a2a58,#15102a);border-color:rgba(180,140,255,.6);box-shadow:0 16px 40px rgba(140,90,255,.3)}
+.fcTop{display:flex;justify-content:space-between;padding:12px 14px 2px;z-index:2;color:#1a1206}
+.fcard.rLenda .fcTop,.fcard.rMedio .fcTop{color:#f2eeff}
+.fcOvr{font-family:var(--disp);font-size:40px;line-height:.85;display:flex;flex-direction:column;align-items:center}
+.fcOvr span{font-family:var(--cond);font-size:13px;letter-spacing:2px;font-weight:600}
+.fcSt{text-align:center;line-height:1} .fcSt .em{font-size:26px} .fcSt small{font-family:var(--cond);font-weight:600;font-size:11px;letter-spacing:1px;text-transform:uppercase;opacity:.85}
+.fcPort{position:relative;height:0;padding-bottom:62%} .fcPort canvas{position:absolute;inset:0;width:100%;height:100%}
+.fcName{text-align:center;font-family:var(--disp);font-size:22px;letter-spacing:.5px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.6);margin-top:-6px;z-index:2;position:relative;padding:0 6px}
+.fcName .flag{font-size:16px}
+.fcInfo{margin:2px 10px 12px;background:rgba(8,11,20,.6);border-radius:12px;padding:9px 11px;position:relative;z-index:2}
+.fcDeriv{display:flex;justify-content:space-around;text-align:center;border-bottom:1px solid rgba(255,255,255,.14);padding-bottom:7px;margin-bottom:7px}
+.fcDeriv b{font-family:var(--disp);font-size:21px;color:#fff} .fcDeriv span{display:block;font-family:var(--cond);font-size:10px;letter-spacing:1px;color:#aeb9cd;text-transform:uppercase}
+.fcAttrs{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
+.fcAttr{display:flex;justify-content:space-between;font-family:var(--cond);font-size:14px;font-weight:600;color:#dbe3f0}
+.fcAttr b{font-family:var(--ui);font-weight:700}
+.v90{color:#4ade80}.v80{color:#a3e635}.v70{color:#facc15}.v60{color:#fb923c}.v50{color:#f87171}
+.fcAbis{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.abi{font-family:var(--cond);font-size:12px;font-weight:600;padding:3px 9px;border-radius:8px;background:rgba(120,90,220,.28);border:1px solid rgba(160,130,255,.4);color:#e6ddff}
+.fcard.rForte .abi,.fcard.rMuitoforte .abi{background:rgba(120,80,20,.4);border-color:rgba(255,220,120,.5);color:#fff2cc}
+
+/* draft */
+.draftWrap{padding:14px;display:flex;flex-direction:column;gap:14px}
+.draftHint{font-family:var(--cond);font-size:14px;line-height:1.4;color:var(--dim);background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:11px;padding:10px 13px}
+.draftHint b{color:var(--gold)}
+.draftRow{display:flex;gap:12px;align-items:stretch}
+.draftRow .fcard{flex:1}
+.pickBtn{width:100%;margin-top:8px}
+
+/* distribuição de pontos */
+.ptWrap{padding:14px}
+.ptHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.ptHead .pts{font-family:var(--disp);font-size:15px;color:var(--gold);letter-spacing:1px}
+.attrEdit{display:flex;flex-direction:column;gap:8px}
+.aRow{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:11px;padding:8px 12px}
+.aRow .an{font-family:var(--cond);font-weight:600;font-size:15px;flex:1}
+.aRow .abar{width:90px;height:8px;border-radius:4px;background:rgba(0,0,0,.4);overflow:hidden}
+.aRow .abar i{display:block;height:100%;background:linear-gradient(90deg,#e0453a,#e8c860 60%,#4ade80)}
+.aRow .av{font-family:var(--disp);font-size:18px;width:34px;text-align:center}
+.aRow .pm{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.08);border:1px solid var(--edge2);font-size:20px;display:grid;place-items:center}
+.aRow .pm:disabled{opacity:.3}
+.grpLbl{font-family:var(--cond);font-size:12px;letter-spacing:2px;color:var(--faint);text-transform:uppercase;margin:10px 0 2px}
+
+/* ===== HUB / TORNEIO ===== */
+.hubTop{padding:14px 16px;display:flex;gap:14px;align-items:center;background:linear-gradient(180deg,var(--panel),transparent)}
+.hubTop .miniPort{width:60px;height:60px;border-radius:12px;overflow:hidden;border:2px solid var(--edge2);flex:0 0 auto}
+.hubTop .miniPort canvas{width:100%;height:100%}
+.hubTop .who{flex:1}
+.hubTop .who .nm{font-family:var(--disp);font-size:20px}
+.hubTop .who .st{font-family:var(--cond);color:var(--dim);font-size:14px}
+.hubTop .ovrBadge{font-family:var(--disp);font-size:30px;color:var(--gold);text-align:center;line-height:.9}
+.hubTop .ovrBadge span{font-family:var(--cond);font-size:11px;color:var(--dim);display:block}
+.hubStats{display:flex;gap:8px;padding:0 16px;flex-wrap:wrap}
+.hubStats .st{font-family:var(--cond);font-size:13px;background:rgba(255,255,255,.05);border:1px solid var(--edge);border-radius:9px;padding:5px 10px}
+.hubStats .st b{color:var(--gold)}
+.tierTitle{font-family:var(--disp);font-size:24px;text-align:center;margin:16px 0 2px;letter-spacing:1px}
+.tierSub{font-family:var(--cond);text-align:center;color:var(--dim);font-size:14px;margin-bottom:12px}
+/* bracket */
+.bracket{display:flex;gap:8px;padding:0 12px 12px;justify-content:center}
+.bcol{flex:1;display:flex;flex-direction:column;justify-content:space-around;gap:6px}
+.bcol .bhd{font-family:var(--cond);font-size:11px;letter-spacing:1px;color:var(--faint);text-align:center;text-transform:uppercase;margin-bottom:2px}
+.bmatch{background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:8px;overflow:hidden}
+.bslot{display:flex;justify-content:space-between;font-family:var(--cond);font-size:12px;padding:5px 7px;color:var(--dim)}
+.bslot+.bslot{border-top:1px solid var(--edge)}
+.bslot.win{color:var(--ink);font-weight:700} .bslot.you{color:var(--gold)} .bslot.out{opacity:.4;text-decoration:line-through}
+.bslot small{opacity:.7}
+.hubBtns{padding:14px 16px calc(var(--sb) + 16px);display:flex;flex-direction:column;gap:10px}
+
+/* ===== LUTA ===== */
+#fight{background:radial-gradient(120% 80% at 50% 0%,#241528,#0a0d14 60%,#05070c)}
+.fArena{display:flex;justify-content:space-between;align-items:flex-start;padding:calc(var(--st) + 12px) 14px 8px;gap:8px}
+.fCorner{flex:1;max-width:44%}
+.fCorner .cport{width:100%;height:0;padding-bottom:100%;border-radius:14px;overflow:hidden;border:2px solid var(--edge2);position:relative;background:#0a0d14}
+.fCorner .cport canvas{position:absolute;inset:0;width:100%;height:100%}
+.fCorner.right .cport{transform:scaleX(-1)}
+.fCorner .cnm{font-family:var(--disp);font-size:15px;text-align:center;margin-top:5px;line-height:1}
+.fCorner .cnm small{font-family:var(--cond);color:var(--dim);display:block;font-size:12px}
+.fCorner .bar{height:12px;border-radius:6px;background:rgba(0,0,0,.5);overflow:hidden;margin-top:5px;border:1px solid var(--edge)}
+.fCorner .bar i{display:block;height:100%;transition:width .3s}
+.fCorner .hp i{background:linear-gradient(90deg,#e0453a,#f87171)}
+.fCorner .stam i{background:linear-gradient(90deg,#3a7a2a,#a3e635)}
+.fCorner .barlbl{font-family:var(--cond);font-size:10px;color:var(--faint);letter-spacing:1px;margin-top:1px}
+.fMid{width:70px;text-align:center;flex:0 0 auto}
+.fMid .rd{font-family:var(--disp);font-size:15px;color:var(--gold);letter-spacing:1px}
+.fMid .vs{font-family:var(--disp);font-size:26px;color:var(--red);margin-top:6px}
+.fMid .cards{font-family:var(--cond);font-size:12px;color:var(--dim);margin-top:8px;line-height:1.4}
+.feed{flex:1;margin:6px 12px;padding:10px 12px;border-radius:14px;background:rgba(8,11,20,.6);border:1px solid var(--edge);overflow-y:auto;
+  display:flex;flex-direction:column;gap:6px;font-family:var(--cond);font-size:15px}
+.feed::-webkit-scrollbar{width:0}
+.fl{padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.03);line-height:1.3;animation:flin .25s}
+@keyframes flin{from{opacity:0;transform:translateY(6px)}}
+.fl.round{background:rgba(232,200,96,.14);color:var(--gold);font-family:var(--disp);letter-spacing:1px;text-align:center;font-size:14px}
+.fl.roundend{color:var(--dim);font-style:italic}
+.fl.big{background:rgba(224,69,58,.18);border-left:3px solid var(--red);font-weight:700;color:#ffd9d0}
+.fl.kd{background:rgba(232,200,96,.2);border-left:3px solid var(--gold);font-weight:700;color:#fff2cc}
+.fl.finish{background:linear-gradient(90deg,rgba(232,200,96,.3),rgba(224,69,58,.2));font-family:var(--disp);letter-spacing:.5px;color:#fff;font-size:16px}
+.fl.decision{color:var(--blue)}
+.fl.intro{color:var(--dim);font-style:italic;text-align:center}
+.fCtrl{padding:8px 14px calc(var(--sb) + 12px);display:flex;gap:10px;align-items:center}
+.fCtrl .spd{font-family:var(--cond);font-size:13px;color:var(--dim);padding:8px 12px;border:1px solid var(--edge);border-radius:9px}
+.fCtrl .spd.on{color:var(--gold);border-color:var(--gold)}
+
+/* ===== RESULTADO ===== */
+#result{align-items:center;justify-content:center;text-align:center;padding:26px}
+.rBanner{font-family:var(--disp);font-size:clamp(34px,11vw,58px);letter-spacing:2px}
+.rBanner.win{color:var(--green);text-shadow:0 4px 30px rgba(74,222,128,.35)}
+.rBanner.lose{color:var(--red)}
+.rMethod{font-family:var(--cond);font-size:20px;color:var(--ink);margin-top:6px}
+.rDetail{font-family:var(--cond);color:var(--dim);font-size:15px;margin-top:4px;max-width:400px;line-height:1.4}
+.rReward{margin:22px 0;display:flex;gap:24px;justify-content:center}
+.rReward b{display:block;font-family:var(--disp);font-size:30px;color:var(--gold)} .rReward span{font-family:var(--cond);font-size:12px;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+
+/* toast */
+#toast{position:absolute;left:50%;bottom:calc(var(--sb) + 90px);transform:translateX(-50%) translateY(20px);z-index:60;
+  background:rgba(12,16,26,.95);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:11px 18px;
+  font-family:var(--cond);font-size:16px;opacity:0;transition:.3s;pointer-events:none;max-width:86%;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.belt{display:inline-block;font-family:var(--cond);font-size:12px;background:rgba(232,200,96,.18);border:1px solid var(--gold);color:var(--gold);border-radius:8px;padding:3px 9px;margin:2px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- MENU -->
+  <div id="menu" class="screen on">
+    <div class="logo">PUNHO<br><span class="l2">DE LENDA</span></div>
+    <div class="tag">Do anonimato ao topo do mundo</div>
+    <div class="menuBtns">
+      <button class="btn prime" id="btnNew">NOVA CARREIRA</button>
+      <button class="btn" id="btnCont">CONTINUAR</button>
+      <button class="btn" id="btnHow">COMO JOGAR</button>
+    </div>
+    <div class="rec" id="rec"></div>
+  </div>
+
+  <!-- ESCOLHA DE ESTILO -->
+  <div id="styleSel" class="screen">
+    <div class="hdr"><button class="back" data-goto="menu">‹</button><h2>ESCOLHA O ESTILO</h2></div>
+    <div class="scroll"><div class="styleGrid" id="styleGrid"></div></div>
+  </div>
+
+  <!-- DRAFT DE LUTADORES -->
+  <div id="draft" class="screen">
+    <div class="hdr"><button class="back" data-goto="styleSel">‹</button><h2>ESCOLHA SEU LUTADOR</h2>
+      <span class="sub" id="draftSt"></span></div>
+    <div class="scroll"><div class="draftWrap" id="draftWrap"></div></div>
+  </div>
+
+  <!-- DISTRIBUIR PONTOS -->
+  <div id="points" class="screen">
+    <div class="hdr"><button class="back" data-goto="draft">‹</button><h2>PREPARE SEU LUTADOR</h2></div>
+    <div class="scroll"><div class="ptWrap" id="ptWrap"></div></div>
+    <div class="hubBtns"><button class="btn gold" id="btnStartCareer">INICIAR CARREIRA ›</button></div>
+  </div>
+
+  <!-- HUB / TORNEIO -->
+  <div id="hub" class="screen">
+    <div class="hubTop" id="hubTop"></div>
+    <div class="hubStats" id="hubStats"></div>
+    <div class="scroll">
+      <div class="tierTitle" id="tierTitle"></div>
+      <div class="tierSub" id="tierSub"></div>
+      <div class="bracket" id="bracket"></div>
+    </div>
+    <div class="hubBtns" id="hubBtns"></div>
+  </div>
+
+  <!-- LUTA -->
+  <div id="fight" class="screen">
+    <div class="fArena">
+      <div class="fCorner left"><div class="cport"><canvas width="200" height="200"></canvas></div>
+        <div class="cnm" id="fnA">—<small id="fsA"></small></div>
+        <div class="bar hp"><i id="hpA" style="width:100%"></i></div><div class="barlbl">VITALIDADE</div>
+        <div class="bar stam"><i id="stA" style="width:100%"></i></div><div class="barlbl">FÔLEGO</div></div>
+      <div class="fMid"><div class="rd" id="fRound">ROUND 1</div><div class="vs">VS</div><div class="cards" id="fCards"></div></div>
+      <div class="fCorner right"><div class="cport"><canvas width="200" height="200"></canvas></div>
+        <div class="cnm" id="fnB">—<small id="fsB"></small></div>
+        <div class="bar hp"><i id="hpB" style="width:100%"></i></div><div class="barlbl">VITALIDADE</div>
+        <div class="bar stam"><i id="stB" style="width:100%"></i></div><div class="barlbl">FÔLEGO</div></div>
+    </div>
+    <div class="feed" id="feed"></div>
+    <div class="fCtrl">
+      <button class="spd" id="btnSpd">VELOCIDADE 1×</button>
+      <button class="btn sm" id="btnSkip" style="margin-left:auto">PULAR ▶▶</button>
+    </div>
+  </div>
+
+  <!-- RESULTADO -->
+  <div id="result" class="screen">
+    <div class="rBanner" id="rBanner"></div>
+    <div class="rMethod" id="rMethod"></div>
+    <div class="rDetail" id="rDetail"></div>
+    <div class="rReward" id="rReward"></div>
+    <div class="menuBtns" id="resBtns"></div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+<script src="data.js"></script>
+<script src="art.js"></script>
+<script src="sim.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
