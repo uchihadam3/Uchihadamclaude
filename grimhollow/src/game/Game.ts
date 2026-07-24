@@ -2446,26 +2446,32 @@ export class Game {
     const TOP_Y = SHOW_TOP * SHOW_RISE; // altura do piso do santuário
     const R = SHOW_RADIUS * CELL; // raio do santuário (em unidades)
     const CX = SHOW_CENTER.c * CELL, CZ = SHOW_CENTER.r * CELL;
-    const WALL_H = 9.0; // paredes ALTAS — o topo fica muito acima e some na névoa
+    const WALL_H = 26.0; // paredes ALTÍSSIMAS (penhasco/montanha) — o topo fica muito
+    // acima do campo de visão: o jogador vê a rocha subindo e SUMINDO na fumaça.
     const FOGC = 0x7c8390; // névoa moody (mais escura → menos contraste com a rocha)
-    // névoa por altura: limpo perto do chão, névoa CHEIA já logo acima dos olhos
-    // (baixa e densa) → paredes/pilares somem cedo, sem linha marcada.
-    const yClear = TOP_Y + 1.4, yFull = TOP_Y + 3.7;
+    // dissolução por altura LONGA e gradual: limpo na altura dos olhos, sumindo aos
+    // poucos até virar névoa lá no alto → a rocha "se perde" na bruma, sem linha.
+    const yClear = TOP_Y + 2.5, yFull = TOP_Y + 17;
 
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
     const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
+    // parede do ANEL: rocha repetida VERTICALMENTE (não estica na altura enorme)
+    const ringMap = tex.caveWall();
+    ringMap.wrapS = ringMap.wrapT = THREE.RepeatWrapping;
+    ringMap.repeat.set(16, 7);
+    const ringWallMat = new THREE.MeshLambertMaterial({ map: ringMap, side: THREE.DoubleSide });
     // chão do santuário: GRAMA/terra
     const grassMap = tex.grass(61);
     grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
     grassMap.repeat.set(5, 5);
     const grassMat = new THREE.MeshLambertMaterial({ map: grassMap, side: THREE.DoubleSide });
-    // dissolve na névoa: paredes, teto e pilares somem pra cima
-    for (const m of [rockMat, ceilMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
+    // dissolve na névoa: paredes e teto somem pra cima
+    for (const m of [rockMat, ceilMat, ringWallMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
     // parede reta (jamba) livre — conecta o anel redondo ao corredor da entrada
     const addFlatWall = (x: number, z0: number, z1: number, y0: number, y1: number, faceX: number) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), rockMat);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), ringWallMat);
       m.position.set(x, (y0 + y1) / 2, (z0 + z1) / 2);
       m.rotation.y = faceX > 0 ? Math.PI / 2 : -Math.PI / 2;
       this.world.add(m);
@@ -2509,7 +2515,7 @@ export class Game {
     const gap = 0.62; // meia-abertura (rad) do vão da entrada
     const wall = new THREE.Mesh(
       new THREE.CylinderGeometry(R, R, WALL_H, 48, 1, true, gap, Math.PI * 2 - gap * 2),
-      rockMat,
+      ringWallMat,
     );
     wall.position.set(CX, TOP_Y + WALL_H / 2, CZ);
     this.world.add(wall);
@@ -2523,22 +2529,6 @@ export class Game {
     const zCorr = (SHOW_SPAWN.row - 5.5) * CELL; // ~borda norte do corredor (linha 8)
     addFlatWall(CX - doorHalf, zWall - 0.4, zCorr, 0, TOP_Y + WALL_H, +1);
     addFlatWall(CX + doorHalf, zWall - 0.4, zCorr, 0, TOP_Y + WALL_H, -1);
-
-    // colunas/pilares em volta (dão o ar de santuário), pulando o vão da entrada
-    const NP = 8;
-    const pillarMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
-    this.applyHeightFog(pillarMat, yClear, yFull, FOGC);
-    for (let i = 0; i < NP; i++) {
-      const th = (i / NP) * Math.PI * 2;
-      // pula os pilares perto do vão (sul, +z → th ≈ π/2 no sistema do cilindro)
-      if (Math.abs(Math.atan2(Math.sin(th), Math.cos(th)) - Math.PI / 2) < gap + 0.3) continue;
-      const px = CX + Math.cos(th) * (R - 0.2), pz = CZ + Math.sin(th) * (R - 0.2);
-      // pilares mais BAIXOS: topo logo acima da linha de névoa cheia → somem sem stub
-      const ph = (yFull - TOP_Y) + 1.4;
-      const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, ph, 8), pillarMat);
-      pil.position.set(px, TOP_Y + ph / 2, pz);
-      this.world.add(pil);
-    }
 
     // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
     const st = SHOW_STATUE;
@@ -2589,10 +2579,10 @@ export class Game {
     this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 70, 0xdfe6f2, 0.1, 0.0022);
     // FUMAÇA VOLUMÉTRICA (várias camadas com brilho variado — luz e sombra):
     const cDark = 0x4e5765, cLight = 0x9aa2b2;
-    //  - PAREDÃO de fumaça billowing em volta do anel (some as paredes na bruma)
-    this.spawnFogPuffs(CX, CZ, 46, TOP_Y + 0.8, TOP_Y + WALL_H + 1, R + 0.6, cDark, cLight, 0.82, 1.35, 0.2, 14, 30);
+    //  - PAREDÃO de fumaça billowing subindo pela rocha (a rocha some na bruma no alto)
+    this.spawnFogPuffs(CX, CZ, 52, TOP_Y + 2.0, TOP_Y + 15, R + 0.6, cDark, cLight, 0.82, 1.3, 0.2, 16, 34);
     //  - MECHAS derivando pelo interior (mais leves; deixam ver a estátua)
-    this.spawnFogPuffs(CX, CZ, 16, TOP_Y + 1.4, TOP_Y + 5.5, R * 0.9, 0x707886, cLight, 0.15, 0.95, 0.1, 9, 18);
+    this.spawnFogPuffs(CX, CZ, 16, TOP_Y + 1.4, TOP_Y + 6.0, R * 0.9, 0x707886, cLight, 0.15, 0.95, 0.1, 9, 18);
     //  - BRUMA baixa rente à grama (mistério nos pés)
     this.spawnFogPuffs(CX, CZ, 20, TOP_Y + 0.05, TOP_Y + 1.3, R + 1.0, cDark, 0x8a92a2, 0.0, 1.15, 0.14, 8, 16);
   }
