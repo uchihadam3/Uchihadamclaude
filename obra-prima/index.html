@@ -6,87 +6,136 @@
 <meta name="theme-color" content="#8fc7e8">
 <title>Obra-Prima — empilhe até o topo</title>
 <style>
-:root{ --ink:#22242b; --gold:#e8b930; --green:#35d07a; --red:#e0453a;
-  --disp:'Arial Black',sans-serif; --ui:system-ui,'Segoe UI',sans-serif;
+:root{ --ink:#22242b; --gold:#e8b930; --green:#35d07a; --red:#e0453a; --blue:#3a72d0;
+  --disp:'Arial Black','Arial',sans-serif; --ui:system-ui,'Segoe UI',sans-serif;
   --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px); }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:#8fc7e8;font-family:var(--ui);color:var(--ink);
-  position:fixed;inset:0;-webkit-user-select:none;user-select:none;touch-action:none}
+html,body{height:100%;overflow:hidden;background:#8fc7e8;font-family:var(--ui);color:var(--ink);position:fixed;inset:0;-webkit-user-select:none;user-select:none;touch-action:none}
 #c{display:block;width:100%;height:100%}
 #ui{position:absolute;inset:0;pointer-events:none}
 #ui>*{pointer-events:auto}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+  background:linear-gradient(180deg,rgba(20,30,45,.55),rgba(20,30,45,.78))}
+.title{font-family:var(--disp);font-size:clamp(38px,13vw,72px);color:#fff;text-shadow:0 4px 0 #d0842a,0 8px 24px rgba(0,0,0,.5);letter-spacing:1px;text-align:center;line-height:.95}
+.title .sub{display:block;font-family:var(--ui);font-weight:600;font-size:15px;letter-spacing:3px;color:#ffe9b0;margin-top:10px;text-shadow:none}
+.bigbtn{margin-top:30px;border:none;border-radius:18px;font-family:var(--disp);font-size:22px;color:#fff;padding:18px 46px;
+  background:linear-gradient(180deg,#ffb43a,#e0842a);box-shadow:0 7px 0 #b5661c,0 12px 24px rgba(0,0,0,.4);transition:transform .08s,box-shadow .08s}
+.bigbtn:active{transform:translateY(4px);box-shadow:0 3px 0 #b5661c}
+.mtip{color:#e8eef6;font-size:13px;margin-top:22px;max-width:340px;text-align:center;line-height:1.5;opacity:.9}
 
-/* HUD topo */
-.hud{position:absolute;top:calc(var(--st) + 12px);left:12px;right:12px;display:flex;gap:8px;align-items:flex-start}
-.stat{background:rgba(20,24,32,.62);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);
-  border-radius:12px;padding:7px 12px;color:#fff;min-width:66px;text-align:center}
-.stat b{display:block;font-size:19px;font-weight:800;line-height:1}
-.stat span{font-size:10px;letter-spacing:1px;text-transform:uppercase;opacity:.7}
-.stat.tgt b{color:var(--green)} .stat.h b{color:var(--gold)}
+/* level select */
+.lsHead{width:100%;max-width:560px;display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.lsHead h2{font-family:var(--disp);color:#fff;font-size:24px;flex:1;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.lvlGrid{width:100%;max-width:560px;display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;overflow-y:auto;max-height:74vh;padding:4px}
+.lvlCard{background:linear-gradient(180deg,#fff,#e8ecf2);border:none;border-radius:14px;padding:10px 6px;text-align:center;box-shadow:0 4px 0 rgba(0,0,0,.2);cursor:pointer;transition:transform .08s}
+.lvlCard:active{transform:scale(.96)}
+.lvlCard.locked{filter:grayscale(1) brightness(.72);cursor:not-allowed}
+.lvlCard .ln{font-family:var(--disp);font-size:22px;color:#2a2d34;line-height:1}
+.lvlCard .lname{font-size:10px;color:#5a6270;height:22px;display:flex;align-items:center;justify-content:center;line-height:1.05}
+.lvlCard .lstars{color:var(--gold);font-size:14px;letter-spacing:1px}
+.lvlCard .lt{font-size:10px;color:#8a929e;font-weight:700}
+
+/* result */
+.resCard{background:#fff;border-radius:22px;padding:22px;width:min(400px,90vw);box-shadow:0 16px 50px rgba(0,0,0,.5);text-align:center}
+.resTitle{font-family:var(--disp);font-size:26px}.resTitle.win{color:var(--green)}.resTitle.lose{color:var(--red)}
+.resStars{margin:8px 0 6px;font-size:0}
+.rstar{font-size:44px;color:#d8dde4;margin:0 3px;display:inline-block;transition:transform .3s}
+.rstar.on{color:var(--gold);text-shadow:0 3px 10px rgba(232,185,48,.5);transform:scale(1.12)}
+.resBody{margin:8px 0 16px;text-align:left}
+.rrow{display:flex;justify-content:space-between;font-size:15px;padding:4px 2px;color:#3a3f48}
+.rrow.sub{font-size:12px;color:#8a929e;padding:2px}
+.rrow.total{border-top:2px solid #eef0f3;margin-top:6px;padding-top:8px;font-family:var(--disp);font-size:18px;color:#2a2d34}
+.rmsg{font-size:14px;color:#6a7280;line-height:1.5;margin-top:8px}
+.resBtns{display:flex;flex-direction:column;gap:9px}
+.btn2{border:none;border-radius:13px;font-family:var(--disp);font-size:16px;color:#fff;padding:13px;box-shadow:0 4px 0 rgba(0,0,0,.22);transition:transform .08s}
+.btn2:active{transform:translateY(3px)}
+.btn2.prime{background:linear-gradient(180deg,#3ec972,#1fa855)}
+.btn2.sec{background:linear-gradient(180deg,#8a929e,#5a626e)}
+
+/* HUD jogo */
+#play{position:absolute;inset:0;pointer-events:none}
+#play>*{pointer-events:auto}
+.hud{position:absolute;top:calc(var(--st) + 10px);left:10px;right:10px;display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap}
+.stat{background:rgba(20,24,32,.62);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:6px 10px;color:#fff;text-align:center;min-width:58px}
+.stat b{display:block;font-size:17px;font-weight:800;line-height:1}
+.stat span{font-size:9px;letter-spacing:1px;text-transform:uppercase;opacity:.7}
+.stat.tgt b{color:var(--green)}.stat.h b{color:var(--gold)}
 .spacer{flex:1}
-
-/* barra de progresso vertical (altura) */
-.prog{position:absolute;right:12px;top:90px;bottom:150px;width:12px;background:rgba(20,24,32,.5);
-  border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.15)}
-.prog i{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(0deg,var(--gold),var(--green));transition:height .2s}
-.prog .mark{position:absolute;left:-3px;right:-3px;height:2px;background:var(--green);bottom:100%}
-
-/* próxima peça */
-.next{position:absolute;top:calc(var(--st) + 64px);left:12px;background:rgba(20,24,32,.62);
-  border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:6px 12px;color:#fff;font-size:13px}
+.pausebtn{background:rgba(20,24,32,.62);border:1px solid rgba(255,255,255,.14);border-radius:11px;color:#fff;font-size:18px;padding:6px 12px}
+.lvlTag{position:absolute;top:calc(var(--st) + 58px);left:10px;background:rgba(20,24,32,.55);border-radius:9px;color:#fff;font-size:12px;font-weight:700;padding:4px 10px}
+.next{position:absolute;top:calc(var(--st) + 58px);right:10px;background:rgba(20,24,32,.62);border-radius:9px;padding:4px 10px;color:#fff;font-size:12px}
 .next b{color:var(--gold)}
-
-/* barra de altura (lateral esquerda) */
-.hbar{position:absolute;left:14px;top:120px;bottom:150px;width:52px;display:flex;flex-direction:column;align-items:center;gap:6px}
-.hbar .lbl{color:#fff;font-size:10px;letter-spacing:1px;opacity:.8;text-shadow:0 1px 3px rgba(0,0,0,.6)}
-#hslider{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;direction:rtl;width:14px;flex:1;
-  background:rgba(20,24,32,.5);border-radius:8px;border:1px solid rgba(255,255,255,.16);cursor:pointer}
+.holdWrap{position:absolute;top:24%;left:50%;transform:translateX(-50%);width:180px;opacity:0;transition:opacity .2s;text-align:center;pointer-events:none}
+.holdWrap .hl{color:#fff;font-family:var(--disp);font-size:14px;text-shadow:0 2px 6px rgba(0,0,0,.6);margin-bottom:4px}
+.holdBar{height:10px;background:rgba(0,0,0,.4);border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.3)}
+.holdBar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,#ffd24a,#35d07a)}
+.hbar{position:absolute;left:12px;top:110px;bottom:150px;width:50px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.hbar .lbl{color:#fff;font-size:11px;opacity:.85;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#hslider{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;direction:rtl;width:14px;flex:1;background:rgba(20,24,32,.5);border-radius:8px;border:1px solid rgba(255,255,255,.16)}
 #hslider::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:26px;border-radius:8px;background:linear-gradient(180deg,#ffd24a,#e0842a);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
 #hslider::-moz-range-thumb{width:34px;height:26px;border-radius:8px;background:linear-gradient(180deg,#ffd24a,#e0842a);border:2px solid #fff}
-
-/* controles */
-.ctrl{position:absolute;left:0;right:0;bottom:calc(var(--sb) + 16px);display:flex;gap:9px;justify-content:center;align-items:stretch;padding:0 12px}
-.btn{border:none;border-radius:15px;font-family:var(--disp);font-size:13px;letter-spacing:.3px;color:#fff;
-  padding:14px 12px;box-shadow:0 5px 0 rgba(0,0,0,.25),0 9px 18px rgba(0,0,0,.3);transition:transform .08s,box-shadow .08s;
-  display:flex;flex-direction:column;align-items:center;gap:3px;min-width:62px}
-.btn .ic{font-size:20px;line-height:1}
+.hint{position:absolute;left:50%;top:13%;transform:translateX(-50%);color:#fff;background:rgba(20,24,32,.55);padding:8px 15px;border-radius:20px;font-size:12.5px;text-align:center;pointer-events:none;animation:fade 7s forwards;max-width:90%}
+@keyframes fade{0%,74%{opacity:1}100%{opacity:0}}
+.ctrl{position:absolute;left:0;right:0;bottom:calc(var(--sb) + 14px);display:flex;gap:8px;justify-content:center;align-items:stretch;padding:0 10px}
+.btn{border:none;border-radius:15px;font-family:var(--disp);font-size:12px;color:#fff;padding:12px 10px;box-shadow:0 5px 0 rgba(0,0,0,.25);transition:transform .08s,box-shadow .08s;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:58px}
+.btn .ic{font-size:19px;line-height:1}
 .btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
 .btn.rot{background:linear-gradient(180deg,#6aa9ff,#3a72d0)}
 .btn.flip{background:linear-gradient(180deg,#9a7bff,#6a4fd0)}
 .btn.rest{background:linear-gradient(180deg,#7a8290,#565d69)}
-.btn.drop{background:linear-gradient(180deg,#ffb43a,#e0842a);flex:1;max-width:190px;font-size:17px;justify-content:center}
-
-/* dica */
-.hint{position:absolute;left:50%;top:15%;transform:translateX(-50%);color:#fff;background:rgba(20,24,32,.55);
-  padding:8px 15px;border-radius:20px;font-size:13px;text-align:center;pointer-events:none;animation:fade 6.5s forwards;max-width:88%}
-@keyframes fade{0%,72%{opacity:1}100%{opacity:0}}
-
-/* banner */
-.banner{position:absolute;left:50%;top:32%;transform:translate(-50%,-10px);opacity:0;transition:.3s;
-  font-family:var(--disp);font-size:30px;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.5);pointer-events:none;text-align:center}
-.banner.show{opacity:1;transform:translate(-50%,0)}
-.banner.win{color:var(--green)}
+.btn.drop{background:linear-gradient(180deg,#ffb43a,#e0842a);flex:1;max-width:180px;font-size:16px;justify-content:center}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="ui">
-  <div class="hud">
-    <div class="stat h"><b id="hHeight">0.0m</b><span>Altura</span></div>
-    <div class="stat tgt"><b id="hTarget">6.0m</b><span>Alvo</span></div>
-    <div class="spacer"></div>
-    <div class="stat"><b id="hPieces">0</b><span>Peças</span></div>
+
+  <!-- MENU -->
+  <div class="overlay" id="scr-menu">
+    <div class="title">OBRA<span style="color:#ffd24a">-</span>PRIMA<span class="sub">EMPILHE ATÉ O TOPO</span></div>
+    <button class="bigbtn" id="btnPlay">JOGAR ▶</button>
+    <div class="mtip">Posicione as peças em 3D na mesa (frente/trás e altura), gire a câmera com 2 dedos e empilhe com física real até a linha-alvo. 20 fases cada vez mais difíceis!</div>
   </div>
-  <div class="next">Próxima: <b id="hNext">—</b></div>
-  <div class="hbar"><span class="lbl">▲</span><input type="range" id="hslider" min="0" max="100" value="45"><span class="lbl">▼</span></div>
-  <div class="hint">Arraste para posicionar na mesa (frente/trás também) · barra ↕ = altura · 2 dedos giram a câmera · ENCOSTAR desce · COLOCAR solta de leve</div>
-  <div class="banner" id="banner"></div>
-  <div class="ctrl">
-    <button class="btn rot" id="btnRot"><span class="ic">⟳</span>GIRAR</button>
-    <button class="btn flip" id="btnFlip"><span class="ic">⤢</span>VIRAR</button>
-    <button class="btn rest" id="btnRest"><span class="ic">▼</span>ENCOSTAR</button>
-    <button class="btn drop" id="btnDrop"><span class="ic">✋</span>COLOCAR</button>
+
+  <!-- SELEÇÃO DE FASE -->
+  <div class="overlay" id="scr-levelSelect" style="display:none;justify-content:flex-start;padding-top:calc(var(--st) + 20px)">
+    <div class="lsHead"><h2>FASES</h2><button class="pausebtn" id="btnBackMenu">✕</button></div>
+    <div class="lvlGrid" id="lvlGrid"></div>
   </div>
+
+  <!-- RESULTADO -->
+  <div class="overlay" id="scr-result" style="display:none">
+    <div class="resCard">
+      <div class="resTitle" id="resTitle">FASE CONCLUÍDA!</div>
+      <div class="resStars" id="resStars"></div>
+      <div class="resBody" id="resBody"></div>
+      <div class="resBtns" id="resBtns"></div>
+    </div>
+  </div>
+
+  <!-- JOGO (HUD) -->
+  <div id="play" style="display:none">
+    <div class="hud">
+      <div class="stat h"><b id="hHeight">0.0m</b><span>Altura</span></div>
+      <div class="stat tgt"><b id="hTarget">6.0m</b><span>Alvo</span></div>
+      <div class="stat"><b id="hTime">0s</b><span>Tempo</span></div>
+      <div class="spacer"></div>
+      <div class="stat"><b id="hPieces">0/0</b><span>Peças</span></div>
+      <button class="pausebtn" id="btnPause">☰</button>
+    </div>
+    <div class="lvlTag" id="lvlTag">FASE 1</div>
+    <div class="next">Próxima: <b id="hNext">—</b></div>
+    <div class="holdWrap" id="holdWrap"><div class="hl">SEGURE FIRME!</div><div class="holdBar"><i id="holdFill"></i></div></div>
+    <div class="hbar"><span class="lbl">▲</span><input type="range" id="hslider" min="0" max="100" value="45"><span class="lbl">▼</span></div>
+    <div class="hint">1 dedo = posiciona na mesa · 2 dedos = giram a câmera · barra ↕ = altura · ENCOSTAR desce · COLOCAR solta de leve</div>
+    <div class="ctrl">
+      <button class="btn rot" id="btnRot"><span class="ic">⟳</span>GIRAR</button>
+      <button class="btn flip" id="btnFlip"><span class="ic">⤢</span>VIRAR</button>
+      <button class="btn rest" id="btnRest"><span class="ic">▼</span>ENCOSTAR</button>
+      <button class="btn drop" id="btnDrop"><span class="ic">✋</span>COLOCAR</button>
+    </div>
+  </div>
+
 </div>
 <script type="module" src="js/main.js"></script>
 </body>
