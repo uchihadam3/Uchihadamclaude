@@ -16,8 +16,7 @@ import {
 import { useChatUnread } from "@/lib/chatNotify";
 import { CoachModal } from "@/components/CoachModal";
 import { computeCoachState, getCoachEffects, setActiveCoachEffects, computeIdoloOvrBump, bankXPFromSaves } from "@/lib/coach";
-import wordmarkAsset from "@/assets/wordmark.png.asset.json";
-import mascotAsset from "@/assets/mascot-hero.png.asset.json";
+// imagens locais servidas de public/ (mascot-hero.png, wordmark.png)
 
 interface Props {
   userId: string;
@@ -207,14 +206,14 @@ export function SlotsScreen({ userId, userEmail, onOpen, onCreate }: Props) {
         <div className="absolute -left-8 bottom-0 h-40 w-40 rounded-full bg-emerald-300/15 blur-2xl" />
         <div className="relative flex items-center gap-3 p-4">
           <img
-            src={mascotAsset.url}
+            src="/mascot-hero.png"
             alt=""
             aria-hidden
             className="h-28 w-28 shrink-0 drop-shadow-[0_6px_0_rgba(0,0,0,0.5)] sm:h-32 sm:w-32"
           />
           <div className="min-w-0 flex-1">
             <img
-              src={wordmarkAsset.url}
+              src="/wordmark.png"
               alt="Lendas do Brasileirão"
               className="h-auto w-full max-w-[260px] drop-shadow-[0_4px_0_rgba(0,0,0,0.55)]"
             />

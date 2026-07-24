@@ -180,13 +180,13 @@ function AuthPage() {
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-6 py-10">
       <div className="text-center">
         <img
-          src="/__l5e/assets-v1/152f827a-abb4-4696-8ccb-ff296d818ef2/mascot-hero.png"
+          src="/mascot-hero.png"
           alt=""
           aria-hidden
           className="mx-auto h-40 w-40 drop-shadow-[0_8px_0_rgba(0,0,0,0.45)]"
         />
         <img
-          src="/__l5e/assets-v1/20b356f6-a635-45c2-9a1c-978d868252cd/wordmark.png"
+          src="/wordmark.png"
           alt="Lendas do Brasileirão"
           className="mx-auto mt-2 h-auto w-full max-w-[300px] drop-shadow-[0_4px_0_rgba(0,0,0,0.5)]"
         />
