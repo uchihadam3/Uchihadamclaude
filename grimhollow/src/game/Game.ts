@@ -879,7 +879,9 @@ export class Game {
       // Enche o recinto até o chão e some o topo das paredes. background = MESMA
       // cor da névoa → o vazio acima vira névoa (sem borda de "céu").
       const fogCol = 0x7c8390; // névoa moody (igual à do santuário)
-      this.scene.fog = new THREE.FogExp2(fogCol, 0.05); // haze de distância suave
+      // névoa CONTÍNUA por distância — é matematicamente sem borda (o grosso da
+      // névoa vem daqui + da névoa por altura; sprites são só um toque de movimento).
+      this.scene.fog = new THREE.FogExp2(fogCol, 0.078);
       this.scene.background = new THREE.Color(fogCol);
       this.addShowcaseLights();
       this.buildShowcase();
@@ -2591,20 +2593,11 @@ export class Game {
     // céu é só a névoa da cena + a fumaça em sprites.)
 
     // PARTÍCULAS: pontinhos claros flutuando (poeira) — bem sutis
-    this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 70, 0xdfe6f2, 0.1, 0.0022);
-    // FUMAÇA VOLUMÉTRICA SUPER DENSA e IRREGULAR (camadas sobrepostas em raios e
-    // alturas diferentes, tamanhos MUITO variados → patchy, com claros e escuros):
-    const cDark = 0x4e5765, cLight = 0x9aa2b2;
-    //  - PAREDÃO subindo pela rocha (2 camadas em raios diferentes → irregular)
-    this.spawnFogPuffs(CX, CZ, 52, TOP_Y + 1.5, TOP_Y + 16, R + 0.6, cDark, cLight, 0.8, 1.4, 0.3, 16, 44);
-    this.spawnFogPuffs(CX, CZ, 30, TOP_Y + 3.0, TOP_Y + 13, R + 2.5, cDark, cLight, 0.55, 1.7, 0.26, 22, 54);
-    //  - MECHAS pelo interior (menos densas no miolo → a estátua aparece como foco)
-    this.spawnFogPuffs(CX, CZ, 14, TOP_Y + 1.6, TOP_Y + 7, R * 1.05, 0x707886, cLight, 0.4, 1.0, 0.1, 12, 28);
-    //  - BRUMA baixa rente à grama (mistério nos pés)
-    this.spawnFogPuffs(CX, CZ, 20, TOP_Y + 0.05, TOP_Y + 1.6, R + 1.2, cDark, 0x8a92a2, 0.0, 1.2, 0.16, 10, 22);
-    //  - fumaça no VÃO DA ENTRADA (corredor), tão densa quanto o resto
-    const ez = 11 * CELL;
-    this.spawnFogPuffs(CX, ez, 22, TOP_Y - 1.5, TOP_Y + 12, 2.4 * CELL, cDark, cLight, 0.0, 1.25, 0.24, 14, 34);
+    this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 60, 0xdfe6f2, 0.09, 0.0022);
+    // SÓ um toque de movimento: poucas mechas MUITO fracas, flutuando no AR ABERTO
+    // do miolo (longe das paredes, p/ não clipar geometria e não criar borda). O
+    // grosso da névoa é o FogExp2 + a névoa por altura (contínuos, sem borda).
+    this.spawnFogPuffs(CX, CZ, 24, TOP_Y + 1.5, TOP_Y + 10, R * 0.5, 0x707886, 0xaab2c0, 0.0, 1.0, 0.05, 16, 34);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
