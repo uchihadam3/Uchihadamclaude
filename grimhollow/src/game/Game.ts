@@ -2491,17 +2491,14 @@ export class Game {
         for (const [dc, dr] of DIRS) {
           const nz = showZone(c + dc, r + dr);
           if (nz === "wall") {
-            this.addWall(cx, cz, dc, dr, 0, 5.5, rockMat);
+            // paredes do corredor TÃO ALTAS quanto o anel (vão da porta sobe até a
+            // fumaça, sem topo baixo) — sem teto: a entrada é um vão alto no penhasco.
+            this.addWall(cx, cz, dc, dr, 0, WALL_H, ringWallMat);
           } else if (nz !== "shrine") {
             const nfy = showFloorY(c + dc, r + dr);
             if (nfy < fy - 0.02) this.addWall(cx, cz, dc, dr, nfy, fy, stoneMat); // face do degrau
           }
         }
-        // teto de pedra sobre a entrada/escada (o santuário é aberto)
-        const ce = new THREE.Mesh(tileGeo, ceilMat);
-        ce.rotation.x = Math.PI / 2;
-        ce.position.set(cx, 5.5, cz);
-        this.world.add(ce);
       }
 
     // ---- SANTUÁRIO REDONDO ----
@@ -2542,7 +2539,7 @@ export class Game {
     idol.position.set(sx, TOP_Y + 0.7 + 1.2, sz);
     this.world.add(idol);
     this.blocked.add(`${st.col},${st.row}`);
-    this.glowLight(sx, TOP_Y + 1.8, sz, 0xbfe0ff, 2.6, 10);
+    this.glowLight(sx, TOP_Y + 1.8, sz, 0xcfe6ff, 3.4, 12); // brilho forte → foco na bruma
 
     // tochas em 2 pilares p/ aquecer a luz
     for (const th of [Math.PI * 1.15, Math.PI * 1.85]) {
@@ -2554,11 +2551,11 @@ export class Game {
     // das paredes; nada de "domo de céu" aqui.)
     // um feixe de luz suave descendo sobre a estátua
     const rayMat = new THREE.MeshBasicMaterial({
-      color: 0xdfeaff, transparent: true, opacity: 0.12, side: THREE.DoubleSide,
+      color: 0xdfeaff, transparent: true, opacity: 0.2, side: THREE.DoubleSide,
       depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     });
-    const ray = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 10), rayMat);
-    ray.position.set(sx, TOP_Y + 5, sz);
+    const ray = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 13), rayMat);
+    ray.position.set(sx, TOP_Y + 6, sz);
     ray.rotation.z = 0.14;
     ray.renderOrder = 7;
     this.world.add(ray);
@@ -2577,14 +2574,19 @@ export class Game {
 
     // PARTÍCULAS: pontinhos claros flutuando (poeira) — bem sutis
     this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 70, 0xdfe6f2, 0.1, 0.0022);
-    // FUMAÇA VOLUMÉTRICA (várias camadas com brilho variado — luz e sombra):
+    // FUMAÇA VOLUMÉTRICA SUPER DENSA e IRREGULAR (camadas sobrepostas em raios e
+    // alturas diferentes, tamanhos MUITO variados → patchy, com claros e escuros):
     const cDark = 0x4e5765, cLight = 0x9aa2b2;
-    //  - PAREDÃO de fumaça billowing subindo pela rocha (a rocha some na bruma no alto)
-    this.spawnFogPuffs(CX, CZ, 52, TOP_Y + 2.0, TOP_Y + 15, R + 0.6, cDark, cLight, 0.82, 1.3, 0.2, 16, 34);
-    //  - MECHAS derivando pelo interior (mais leves; deixam ver a estátua)
-    this.spawnFogPuffs(CX, CZ, 16, TOP_Y + 1.4, TOP_Y + 6.0, R * 0.9, 0x707886, cLight, 0.15, 0.95, 0.1, 9, 18);
+    //  - PAREDÃO subindo pela rocha (2 camadas em raios diferentes → irregular)
+    this.spawnFogPuffs(CX, CZ, 52, TOP_Y + 1.5, TOP_Y + 16, R + 0.6, cDark, cLight, 0.8, 1.4, 0.3, 16, 44);
+    this.spawnFogPuffs(CX, CZ, 30, TOP_Y + 3.0, TOP_Y + 13, R + 2.5, cDark, cLight, 0.55, 1.7, 0.26, 22, 54);
+    //  - MECHAS pelo interior (menos densas no miolo → a estátua aparece como foco)
+    this.spawnFogPuffs(CX, CZ, 14, TOP_Y + 1.6, TOP_Y + 7, R * 1.05, 0x707886, cLight, 0.4, 1.0, 0.1, 12, 28);
     //  - BRUMA baixa rente à grama (mistério nos pés)
-    this.spawnFogPuffs(CX, CZ, 20, TOP_Y + 0.05, TOP_Y + 1.3, R + 1.0, cDark, 0x8a92a2, 0.0, 1.15, 0.14, 8, 16);
+    this.spawnFogPuffs(CX, CZ, 20, TOP_Y + 0.05, TOP_Y + 1.6, R + 1.2, cDark, 0x8a92a2, 0.0, 1.2, 0.16, 10, 22);
+    //  - fumaça no VÃO DA ENTRADA (corredor), tão densa quanto o resto
+    const ez = 11 * CELL;
+    this.spawnFogPuffs(CX, ez, 22, TOP_Y - 1.5, TOP_Y + 12, 2.4 * CELL, cDark, cLight, 0.0, 1.25, 0.24, 14, 34);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
