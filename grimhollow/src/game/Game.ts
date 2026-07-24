@@ -92,7 +92,8 @@ import decTorchUrl from "../assets/env/dec_torch.png";
 import decIvyUrl from "../assets/env/dec_ivy.png";
 import decBannerUrl from "../assets/env/dec_banner.png";
 import decCracksUrl from "../assets/env/dec_cracks.png";
-import decGateUrl from "../assets/env/dec_gate.png";
+import decGateFrameUrl from "../assets/env/dec_gate_frame.png";
+import decGateBarsUrl from "../assets/env/dec_gate_bars.png";
 import fxFireballUrl from "../assets/ui/fx/fx_fireball.png";
 import fxIceUrl from "../assets/ui/fx/fx_ice.png";
 import fxIceLanceUrl from "../assets/ui/fx/fx_ice_lance.png";
@@ -2368,7 +2369,9 @@ export class Game {
     // A rocha apenas CONTORNA o arco (parede com buraco em arco): veda laterais,
     // cantos e o vão até o teto, mas deixa VER através da grade o que há do outro
     // lado. Bloqueia a passagem até o jogador abri-lo. Cada entrada: [célula, dir->jogador].
-    const gateMat = this.decalMat(decGateUrl, 0.4);
+    // A moldura de PEDRA é uma camada FIXA; só a GRADE DE AÇO (outra camada) gira.
+    const frameMat = this.decalMat(decGateFrameUrl, 0.4);
+    const barsMat = this.decalMat(decGateBarsUrl, 0.4);
     const GATE_H = 4.7; // altura do arco
     const HOLE_HW = 1.5; // meia-largura do vão (fica sob a moldura de pedra da grade)
     const HOLE_BASE = 2.6; // altura onde o arco começa a curvar (topo do vão = 4.1)
@@ -2380,8 +2383,10 @@ export class Game {
       if (dungeonCell(gc, gr) !== "gate") continue;
       // rocha contornando o arco (vão aberto no meio → vê-se o outro lado)
       this.addArchWall(gc, gr, gdc, gdr, rockMat, HOLE_HW, HOLE_BASE, CH);
-      // a grade dividida ao meio em duas folhas com DOBRADIÇAS (giram ao abrir)
-      const { pivotL, pivotR } = this.buildSwingGate(gc, gr, gdc, gdr, gateMat, CELL, GATE_H);
+      // moldura de pedra FIXA (não se move ao abrir)
+      this.addWallDecal(gc, gr, gdc, gdr, frameMat, CELL, GATE_H, GATE_H / 2);
+      // só a grade de aço, dividida em duas folhas com DOBRADIÇAS (giram ao abrir)
+      const { pivotL, pivotR } = this.buildSwingGate(gc, gr, gdc, gdr, barsMat, CELL, GATE_H);
       // tocha ao lado p/ destacar o portão
       this.glowLight(gc * CELL + gdc * 0.4, 2.4, gr * CELL + gdr * 0.4, 0xffb45a, 3.4, 9);
       // brilho do OUTRO LADO da grade → ilumina a sala além p/ o jogador enxergar
