@@ -45,6 +45,21 @@ import {
   dungeonFind,
   dungeonAll,
 } from "./dungeon";
+import {
+  SHOW_COLS,
+  SHOW_ROWS,
+  SHOW_RISE,
+  SHOW_TOP,
+  showZone,
+  showWalkable,
+  showFloorY,
+  showIsGrove,
+  showLevelIdx,
+  SHOW_SPAWN,
+  SHOW_EXIT,
+  SHOW_STATUE,
+  SHOW_TREES,
+} from "./showcase";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD } from "./controls";
 import {
@@ -544,6 +559,8 @@ type Anim =
       fromZ: number;
       toX: number;
       toZ: number;
+      fromY: number; // altura do piso (níveis/escadas) — a câmera acompanha
+      toY: number;
     }
   | { kind: "turn"; t0: number; fromY: number; toY: number };
 
@@ -567,6 +584,9 @@ export class Game {
   // animações de abertura de portão em curso
   private gateAnims: { pivotL: THREE.Object3D; pivotR: THREE.Object3D; t0: number; dur: number; to: number }[] = [];
   private now = 0; // timestamp do frame atual (p/ animações disparadas fora do tick)
+  // partículas flutuantes (poeira/esporos) — cada nuvem sobe devagar e reinicia
+  private motes: { pts: THREE.Points; sp: Float32Array; y0: number; y1: number; sway: number }[] = [];
+  private moteTexCache?: THREE.Texture;
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
@@ -662,7 +682,7 @@ export class Game {
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
-  private location: "village" | "forest" | "dungeon" | Estab | HomeId = "village";
+  private location: "village" | "forest" | "dungeon" | "showcase" | Estab | HomeId = "village";
   private doorMap = new Map<string, Estab>(); // "c,r,dc,dr" -> estabelecimento
   private homeDoorMap = new Map<string, HomeId>(); // "c,r,dc,dr" -> casa de aldeão
   // "c,r" -> NPC (guarda a textura p/ recortar o retrato do diálogo)
@@ -717,8 +737,10 @@ export class Game {
   }[] = [];
   private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
 
-  constructor(container: HTMLElement, character?: Character) {
+  private startAt?: string;
+  constructor(container: HTMLElement, character?: Character, startAt?: string) {
     this.container = container;
+    this.startAt = startAt;
     // aplica a CLASSE escolhida (vida/mana/atributos + arma inicial)
     const cls = character ? CLASS_BY_ID[character.classId] : null;
     if (cls && character) {
@@ -790,7 +812,13 @@ export class Game {
     this.refreshStats();
     this.preloadFx(); // pré-carrega as folhas de efeito das habilidades
     const start = findStart();
-    this.enterLocation("village", start.col, start.row, 0);
+    if (this.startAt === "showcase") {
+      // acesso direto à sala-vitrine (?show=1); "sair" volta ao vilarejo
+      this.returnTo = { col: start.col, row: start.row, facing: 0 };
+      this.enterLocation("showcase", SHOW_SPAWN.col, SHOW_SPAWN.row, 0);
+    } else {
+      this.enterLocation("village", start.col, start.row, 0);
+    }
 
     window.addEventListener("resize", () => this.resize());
     this.resize();
@@ -811,7 +839,7 @@ export class Game {
 
   // ---------------------------------------------- troca de local (vila/interior)
   private enterLocation(
-    loc: "village" | "forest" | "dungeon" | Estab | HomeId,
+    loc: "village" | "forest" | "dungeon" | "showcase" | Estab | HomeId,
     col: number,
     row: number,
     facing: number,
@@ -841,6 +869,12 @@ export class Game {
       this.scene.background = new THREE.Color(0x2f323c);
       this.addDungeonLights();
       this.buildDungeon();
+    } else if (loc === "showcase") {
+      // sala-vitrine: névoa clara/azulada (clima aberto, com "luz de fora")
+      this.scene.fog = new THREE.Fog(0x6f7a8c, CELL * 4, CELL * 22);
+      this.scene.background = new THREE.Color(0x5a6474);
+      this.addShowcaseLights();
+      this.buildShowcase();
     } else if (loc in HOMES) {
       this.scene.fog = new THREE.Fog(0x241a10, CELL * 4, CELL * 12);
       this.scene.background = new THREE.Color(0x160f08);
@@ -855,7 +889,7 @@ export class Game {
     this.col = col;
     this.row = row;
     this.facing = facing;
-    this.camera.position.set(col * CELL, EYE_H, row * CELL);
+    this.camera.position.set(col * CELL, this.floorYAt(col, row) + EYE_H, row * CELL);
     this.camera.rotation.y = -facing * (Math.PI / 2);
     this.anim = null;
     this.lastPrompt = " ";
@@ -876,6 +910,7 @@ export class Game {
     this.blocked.clear();
     this.gates.clear();
     this.gateAnims = [];
+    this.motes = [];
     this.npcs = [];
     this.flames = [];
     this.lampFlames = [];
@@ -2214,6 +2249,180 @@ export class Game {
     this.world.add(new THREE.HemisphereLight(0x8b8698, 0x201d29, 0.72));
   }
 
+  private addShowcaseLights() {
+    this.world.add(new THREE.AmbientLight(0x8b93a6, 1.05));
+    // hemisfério claro (céu azulado) → dá o ar de "luz de fora" na clareira
+    this.world.add(new THREE.HemisphereLight(0xbcc9de, 0x3a352f, 1.0));
+    // "sol" difuso descendo sobre a clareira (norte-alto)
+    const sky = new THREE.DirectionalLight(0xdfeaff, 0.75);
+    sky.position.set(7 * CELL, 22, 2 * CELL);
+    this.world.add(sky);
+  }
+
+  // textura suave (dot radial) p/ as partículas
+  private moteTex(): THREE.Texture {
+    if (this.moteTexCache) return this.moteTexCache;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = 32;
+    const ctx = cv.getContext("2d")!;
+    const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.4, "rgba(255,255,255,0.5)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 32, 32);
+    const t = new THREE.CanvasTexture(cv);
+    this.moteTexCache = t;
+    return t;
+  }
+
+  // nuvem de partículas flutuantes num volume (poeira/esporos)
+  private spawnMotes(
+    cx: number, cz: number, rx: number, rz: number,
+    y0: number, y1: number, count: number, color: number, size: number, sway = 0.0016,
+  ) {
+    const pos = new Float32Array(count * 3);
+    const sp = new Float32Array(count);
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = cx + (Math.random() - 0.5) * rx;
+      pos[i * 3 + 1] = y0 + Math.random() * (y1 - y0);
+      pos[i * 3 + 2] = cz + (Math.random() - 0.5) * rz;
+      sp[i] = 0.12 + Math.random() * 0.5;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({
+      color, size, map: this.moteTex(), transparent: true, opacity: 0.72,
+      depthWrite: false, sizeAttenuation: true, blending: THREE.AdditiveBlending,
+    });
+    const p = new THREE.Points(g, m);
+    p.renderOrder = 8;
+    this.world.add(p);
+    this.motes.push({ pts: p, sp, y0, y1, sway });
+  }
+
+  // constrói a SALA-VITRINE: átrio → escadaria → terraço → clareira aberta.
+  private buildShowcase() {
+    const W = SHOW_COLS, H = SHOW_ROWS;
+    const CEIL = 9.5; // teto de pedra do átrio/escada/terraço
+    const GROVE_TOP = SHOW_TOP * SHOW_RISE; // altura do piso da clareira/terraço
+    const hash = (a: number, b: number, s = 0) =>
+      Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
+
+    const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
+    const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
+    const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
+    const dirtMat = new THREE.MeshLambertMaterial({ map: tex.dirtPath(63), side: THREE.DoubleSide });
+    const torchMat = this.decalMat(decTorchUrl, 0.1);
+    // materiais de árvore com a MESMA arte da floresta (procedural-first, troca p/ PNG)
+    const treeMats = TREE_ART.map((url, idx) => {
+      const mat = new THREE.MeshLambertMaterial({
+        map: tex.pineTree(65 + idx * 6), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide,
+      });
+      this.loadArt(url, (t) => { mat.map = t; mat.needsUpdate = true; });
+      return mat;
+    });
+    const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
+
+    // planos cruzados (dão volume à árvore sem billboard)
+    const addTree = (x: number, z: number, y: number, th: number, seed: number) => {
+      const mat = treeMats[seed % treeMats.length];
+      const g = new THREE.PlaneGeometry(th * TREE_ASPECT, th);
+      for (let k = 0; k < 2; k++) {
+        const m = new THREE.Mesh(g, mat);
+        m.position.set(x, y + th / 2, z);
+        m.rotation.y = (k * Math.PI) / 2;
+        this.world.add(m);
+      }
+    };
+
+    let torches = 0;
+    for (let r = 0; r < H; r++)
+      for (let c = 0; c < W; c++) {
+        const z = showZone(c, r);
+        if (z === "wall") continue;
+        const cx = c * CELL, cz = r * CELL;
+        const fy = showFloorY(c, r);
+        const grove = z === "grove";
+        // PISO (terra na clareira; pedra no resto)
+        const fmat = grove ? dirtMat : stoneMat;
+        const fl = new THREE.Mesh(tileGeo, fmat);
+        fl.rotation.x = -Math.PI / 2;
+        fl.position.set(cx, fy + 0.01, cz);
+        this.world.add(fl);
+        // PAREDES e DEGRAUS nas 4 direções
+        for (const [dc, dr] of DIRS) {
+          const nz = showZone(c + dc, r + dr);
+          if (nz === "wall") {
+            // parede de rocha do chão ao teto (mais alta em volta da clareira)
+            this.addWall(cx, cz, dc, dr, 0, grove ? CEIL + 3.5 : CEIL, rockMat);
+            // tocha esporádica nas paredes de pedra (não na clareira)
+            if (!grove && torches < 10 && hash(c, r, dc * 5 + dr) < 0.22) {
+              this.addWallDecal(c, r, dc, dr, torchMat, 0.85, 1.4, fy + 2.0);
+              this.glowLight(cx + dc * 0.3, fy + 2.2, cz + dr * 0.3, 0xffa040, 3.6, 11);
+              torches++;
+            }
+          } else {
+            const nfy = showFloorY(c + dc, r + dr);
+            // degrau: face vertical do nível de baixo até este (só no lado "descida")
+            if (nfy < fy - 0.02) this.addWall(cx, cz, dc, dr, nfy, fy, stoneMat);
+          }
+        }
+        // TETO de pedra só nas zonas fechadas (a clareira é ABERTA)
+        if (!grove) {
+          const ce = new THREE.Mesh(tileGeo, ceilMat);
+          ce.rotation.x = Math.PI / 2;
+          ce.position.set(cx, CEIL, cz);
+          this.world.add(ce);
+        }
+      }
+
+    // ÁRVORES da clareira
+    for (const [c, r] of SHOW_TREES) {
+      if (showZone(c, r) !== "grove") continue;
+      const jx = (hash(c, r, 2) - 0.5) * CELL * 0.4;
+      const jz = (hash(c, r, 3) - 0.5) * CELL * 0.4;
+      addTree(c * CELL + jx, r * CELL + jz, GROVE_TOP, 6.0 + hash(c, r, 1) * 2.4, Math.floor(hash(c, r, 4) * 3));
+      this.blocked.add(`${c},${r}`);
+    }
+
+    // MARCO central da clareira: um monólito claro que brilha (troca por estátua depois)
+    const st = SHOW_STATUE;
+    const paleMat = new THREE.MeshLambertMaterial({ color: 0xd6d9df, emissive: 0x2a2f3a });
+    const mono = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 3.0, 6), paleMat);
+    mono.position.set(st.col * CELL, GROVE_TOP + 1.5, st.row * CELL);
+    this.world.add(mono);
+    this.blocked.add(`${st.col},${st.row}`);
+    this.glowLight(st.col * CELL, GROVE_TOP + 1.6, st.row * CELL, 0xbfe0ff, 2.4, 9);
+
+    // CLARABÓIA: um plano claro bem alto sobre a clareira (luz "de fora")
+    const skyMat = new THREE.MeshBasicMaterial({
+      color: 0x9fb4d4, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, fog: false,
+    });
+    const sky = new THREE.Mesh(new THREE.PlaneGeometry(13 * CELL, 8 * CELL), skyMat);
+    sky.rotation.x = Math.PI / 2;
+    sky.position.set(7 * CELL, GROVE_TOP + 12, 4 * CELL);
+    this.world.add(sky);
+
+    // FEIXES DE LUZ (god-rays): quads translúcidos inclinados descendo na clareira
+    const rayMat = new THREE.MeshBasicMaterial({
+      color: 0xdfeaff, transparent: true, opacity: 0.1, side: THREE.DoubleSide,
+      depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    });
+    for (const [rc, rr] of [[4, 3], [9, 2], [7, 5]] as [number, number][]) {
+      const ray = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 13), rayMat);
+      ray.position.set(rc * CELL, GROVE_TOP + 5.5, rr * CELL);
+      ray.rotation.z = 0.32;
+      ray.rotation.y = hash(rc, rr, 5) * Math.PI;
+      ray.renderOrder = 7;
+      this.world.add(ray);
+    }
+
+    // PARTÍCULAS: densas e claras na clareira; poucas/frias no átrio de pedra
+    this.spawnMotes(7 * CELL, 4 * CELL, 13 * CELL, 8 * CELL, GROVE_TOP + 0.2, GROVE_TOP + 9, 150, 0xeaf2ff, 0.13, 0.003);
+    this.spawnMotes(7 * CELL, 15 * CELL, 6 * CELL, 8 * CELL, 0.3, 7, 60, 0x9fb0c8, 0.1, 0.0016);
+  }
+
   // ---- relevo de CAVERNA (ruído) ----
   private vnoise(x: number, y: number, z: number): number {
     const h = (a: number, b: number, c: number) => {
@@ -3482,8 +3691,15 @@ export class Game {
           ? forestWalkable(c, r)
           : this.location === "dungeon"
             ? dungeonWalkable(c, r)
-            : roomWalkable(c, r);
+            : this.location === "showcase"
+              ? showWalkable(c, r)
+              : roomWalkable(c, r);
     return ok && !this.blocked.has(`${c},${r}`);
+  }
+
+  // altura (Y) do piso numa célula — 0 em quase tudo; a sala-vitrine tem níveis.
+  private floorYAt(c: number, r: number): number {
+    return this.location === "showcase" ? showFloorY(c, r) : 0;
   }
 
   // ---- minimapa (HUD) ----
@@ -3493,6 +3709,7 @@ export class Game {
     if (this.location === "village") { cols = COLS; rows = ROWS; walk = isWalkable; }
     else if (this.location === "forest") { cols = FOREST_COLS; rows = FOREST_ROWS; walk = forestWalkable; }
     else if (this.location === "dungeon") { cols = DUNGEON_COLS; rows = DUNGEON_ROWS; walk = dungeonWalkable; }
+    else if (this.location === "showcase") { cols = SHOW_COLS; rows = SHOW_ROWS; walk = showWalkable; }
     else { cols = ROOM_COLS; rows = ROOM_ROWS; walk = roomWalkable; }
     const cells = new Uint8Array(cols * rows);
     for (let r = 0; r < rows; r++)
@@ -4202,6 +4419,8 @@ export class Game {
       fromZ: this.row * CELL,
       toX: nc * CELL,
       toZ: nr * CELL,
+      fromY: this.floorYAt(this.col, this.row),
+      toY: this.floorYAt(nc, nr),
     };
     this.col = nc;
     this.row = nr;
@@ -4507,9 +4726,11 @@ export class Game {
         const e = p * p * (3 - 2 * p); // smoothstep
         this.camera.position.x = an.fromX + (an.toX - an.fromX) * e;
         this.camera.position.z = an.fromZ + (an.toZ - an.fromZ) * e;
-        this.camera.position.y = EYE_H + Math.sin(p * Math.PI) * 0.07; // bob
+        // altura do piso interpola (sobe/desce escadas) + "bob" do passo
+        const fy = an.fromY + (an.toY - an.fromY) * e;
+        this.camera.position.y = fy + EYE_H + Math.sin(p * Math.PI) * 0.07;
         if (p >= 1) {
-          this.camera.position.y = EYE_H;
+          this.camera.position.y = an.toY + EYE_H;
           this.anim = null;
         }
       } else {
@@ -4666,6 +4887,18 @@ export class Game {
       }
       this.gateAnims = this.gateAnims.filter((a) => now - a.t0 < a.dur);
     }
+    // partículas flutuantes (poeira/esporos) sobem devagar e reiniciam embaixo
+    for (const mo of this.motes) {
+      const pos = mo.pts.geometry.attributes.position as THREE.BufferAttribute;
+      const arr = pos.array as Float32Array;
+      for (let i = 0; i < mo.sp.length; i++) {
+        let y = arr[i * 3 + 1] + mo.sp[i] * 0.012;
+        arr[i * 3] += Math.sin(now * 0.0006 + i * 1.7) * mo.sway;
+        if (y > mo.y1) y = mo.y0;
+        arr[i * 3 + 1] = y;
+      }
+      pos.needsUpdate = true;
+    }
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
@@ -4755,6 +4988,13 @@ export class Game {
       // portão de grade fechado logo à frente → interagir p/ abrir
       const gk = `${fc},${fr}`;
       if (this.gates.has(gk)) return { kind: "gate", key: gk };
+    } else if (this.location === "showcase") {
+      // portal de saída (de frente ou em cima dele) → volta de onde veio
+      if (
+        (fc === SHOW_EXIT.col && fr === SHOW_EXIT.row) ||
+        (this.col === SHOW_EXIT.col && this.row === SHOW_EXIT.row)
+      )
+        return { kind: "exit" };
     } else {
       // saída: valendo tanto de frente para a porta quanto encostado nela
       // (em cima da própria célula de saída, onde a célula à frente já é a
