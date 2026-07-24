@@ -869,9 +869,12 @@ export class Game {
       this.addDungeonLights();
       this.buildDungeon();
     } else if (loc === "showcase") {
-      // sala-vitrine: névoa clara/azulada (clima aberto, com "luz de fora")
-      this.scene.fog = new THREE.Fog(0x6f7a8c, CELL * 4, CELL * 22);
-      this.scene.background = new THREE.Color(0x5a6474);
+      // mini-santuário: NÉVOA volumétrica densa (exponencial) — moody, não "céu".
+      // Enche o recinto até o chão e some o topo das paredes. background = MESMA
+      // cor da névoa → o vazio acima vira névoa (sem borda de "céu").
+      const fogCol = 0x8a919d;
+      this.scene.fog = new THREE.FogExp2(fogCol, 0.085);
+      this.scene.background = new THREE.Color(fogCol);
       this.addShowcaseLights();
       this.buildShowcase();
     } else if (loc in HOMES) {
@@ -2341,7 +2344,19 @@ export class Game {
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
     const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
+    // chão do santuário: GRAMA/terra
+    const grassMap = tex.grass(61);
+    grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
+    grassMap.repeat.set(5, 5);
+    const grassMat = new THREE.MeshLambertMaterial({ map: grassMap, side: THREE.DoubleSide });
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
+    // parede reta (jamba) livre — conecta o anel redondo ao corredor da entrada
+    const addFlatWall = (x: number, z0: number, z1: number, y0: number, y1: number, faceX: number) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), rockMat);
+      m.position.set(x, (y0 + y1) / 2, (z0 + z1) / 2);
+      m.rotation.y = faceX > 0 ? Math.PI / 2 : -Math.PI / 2;
+      this.world.add(m);
+    };
 
     // ---- ENTRADA + DEGRAUS (células quadradas): piso, paredes e degraus ----
     for (let r = 0; r < H; r++)
@@ -2371,14 +2386,14 @@ export class Game {
       }
 
     // ---- SANTUÁRIO REDONDO ----
-    // piso circular (disco de pedra)
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(R + 0.4, 40), stoneMat);
+    // piso circular de GRAMA (disco grande, encosta no corredor)
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(R + 1.4, 44), grassMat);
     disc.rotation.x = -Math.PI / 2;
     disc.position.set(CX, TOP_Y + 0.02, CZ);
     this.world.add(disc);
 
     // parede/parapeito redondo, com um VÃO na direção da entrada (sul, +z)
-    const gap = 0.7; // meia-abertura (rad) do vão da entrada
+    const gap = 0.62; // meia-abertura (rad) do vão da entrada
     const wall = new THREE.Mesh(
       new THREE.CylinderGeometry(R, R, WALL_H, 48, 1, true, gap, Math.PI * 2 - gap * 2),
       rockMat,
@@ -2389,6 +2404,12 @@ export class Game {
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.5, R + 0.7, 0.5, 48, 1, true), stoneMat);
     ring.position.set(CX, TOP_Y + 0.25, CZ);
     this.world.add(ring);
+    // JAMBAS retas fechando a junção do anel com o corredor da entrada (sem vãos)
+    const doorHalf = 1.5 * CELL; // meia-largura do corredor
+    const zWall = CZ + R * Math.cos(gap); // z da borda do vão do anel
+    const zCorr = (SHOW_SPAWN.row - 5.5) * CELL; // ~borda norte do corredor (linha 8)
+    addFlatWall(CX - doorHalf, zWall - 0.4, zCorr, 0, TOP_Y + WALL_H, +1);
+    addFlatWall(CX + doorHalf, zWall - 0.4, zCorr, 0, TOP_Y + WALL_H, -1);
 
     // colunas/pilares em volta (dão o ar de santuário), pulando o vão da entrada
     const NP = 8;
@@ -2423,8 +2444,8 @@ export class Game {
       this.glowLight(px, TOP_Y + 2.4, pz, 0xffa040, 2.6, 9);
     }
 
-    // NEBLINA VERTICAL sobre o santuário (densa no topo, some na altura dos olhos)
-    this.addHeightFog(CX, TOP_Y + EYE_H, CZ, 42, 0x9aa7bc);
+    // (a névoa volumétrica da cena — FogExp2 — já enche o recinto e some o topo
+    // das paredes; nada de "domo de céu" aqui.)
     // um feixe de luz suave descendo sobre a estátua
     const rayMat = new THREE.MeshBasicMaterial({
       color: 0xdfeaff, transparent: true, opacity: 0.12, side: THREE.DoubleSide,
