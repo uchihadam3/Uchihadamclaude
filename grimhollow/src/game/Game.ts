@@ -46,20 +46,24 @@ import {
   dungeonAll,
 } from "./dungeon";
 import {
-  SHOW_COLS,
-  SHOW_ROWS,
-  SHOW_RISE,
-  SHOW_TOP,
-  SHOW_CENTER,
-  SHOW_RADIUS,
-  showZone,
-  showWalkable,
-  showFloorY,
-  showIsCorridor,
-  showIsShrine,
   SHOW_SPAWN,
-  SHOW_EXIT,
-  SHOW_STATUE,
+  STATIONS,
+  SHOW_LAST,
+  stationPose,
+  HELIX_CX,
+  HELIX_CZ,
+  HELIX_RP,
+  HELIX_INNER,
+  HELIX_OUTER,
+  HELIX_STEPS,
+  HELIX_TOP,
+  CORR_X0,
+  CORR_X1,
+  CORR_Z,
+  SHRINE_CX,
+  SHRINE_CZ,
+  SHRINE_RADIUS,
+  SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD } from "./controls";
@@ -562,6 +566,8 @@ type Anim =
       toZ: number;
       fromY: number; // altura do piso (níveis/escadas) — a câmera acompanha
       toY: number;
+      fromYaw?: number; // rotação da câmera (escada em espiral: gira ao andar)
+      toYaw?: number;
     }
   | { kind: "turn"; t0: number; fromY: number; toY: number };
 
@@ -576,6 +582,7 @@ export class Game {
   private row: number;
   private facing = 0;
   private anim: Anim = null;
+  private showIdx = 0; // posição do jogador ao longo do caminho da sala-vitrine (hélice)
 
   private world = new THREE.Group(); // tudo do local atual (recriado ao trocar)
   private blocked = new Set<string>(); // células bloqueadas por props/NPCs
@@ -902,8 +909,14 @@ export class Game {
     this.col = col;
     this.row = row;
     this.facing = facing;
-    this.camera.position.set(col * CELL, this.floorYAt(col, row) + EYE_H, row * CELL);
-    this.camera.rotation.y = -facing * (Math.PI / 2);
+    if (this.location === "showcase") {
+      // sala-vitrine: movimento por ESTAÇÕES (hélice); a câmera segue o caminho.
+      this.showIdx = 0;
+      this.applyShowcasePose();
+    } else {
+      this.camera.position.set(col * CELL, this.floorYAt(col, row) + EYE_H, row * CELL);
+      this.camera.rotation.y = -facing * (Math.PI / 2);
+    }
     this.anim = null;
     this.lastPrompt = " ";
     this.ui.setPrompt(null); // limpa dica anterior ao trocar de local
@@ -2446,138 +2459,128 @@ export class Game {
     }
   }
 
-  // constrói a TORRE DA ESPIRAL: túnel de entrada → rampa em espiral (1 volta) que
-  // sobe em torno de um núcleo maciço → no topo, um TERRAÇO REDONDO e ABERTO com
-  // grama, estátua ao centro e toda a névoa (o santuário aberto de sempre).
+  // constrói a TORRE DA ESPIRAL REDONDA: hélice de pedra subindo em torno de um
+  // núcleo → corredor no topo → TERRAÇO ABERTO com grama, estátua e névoa. Tudo em
+  // coordenadas de mundo (o movimento aqui é por estações, não em grade).
   private buildShowcase() {
-    const W = SHOW_COLS, H = SHOW_ROWS;
-    const TOP_Y = SHOW_TOP * SHOW_RISE; // altura do terraço (santuário)
-    const R = SHOW_RADIUS * CELL; // raio do disco de grama
-    const CX = SHOW_CENTER.c * CELL, CZ = SHOW_CENTER.r * CELL;
-    const WALL_H = TOP_Y + 22.0; // casca da torre ALTÍSSIMA — some muito acima do olhar
-    const CORR_CEIL = 7.0; // teto BAIXO do túnel de entrada
-    const FOGC = 0x7c8390; // névoa moody (mais escura → menos contraste com a pedra)
-    // dissolução por altura: limpa na altura dos olhos, sumindo aos poucos lá no alto.
-    const yClear = TOP_Y + 2.4, yFull = TOP_Y + 14;
+    const CX = HELIX_CX, CZ = HELIX_CZ;
+    const RI = HELIX_INNER, RO = HELIX_OUTER;
+    const TOP_Y = HELIX_TOP;
+    const FOGC = 0x7c8390;
+    const yClear = TOP_Y - 3.2, yFull = TOP_Y + 3.5; // dissolve o topo do poço na bruma
 
-    // PEDRA LAVRADA (blocos) p/ os degraus/pisos.
-    const stepMap = tex.stone(31);
-    stepMap.wrapS = stepMap.wrapT = THREE.RepeatWrapping;
-    stepMap.repeat.set(2, 2);
-    const stepMat = new THREE.MeshLambertMaterial({ map: stepMap, side: THREE.DoubleSide });
-    // face do degrau / paredes do núcleo central (banda de blocos, tom mais claro)
-    const riserMap = tex.stone(31);
-    riserMap.wrapS = riserMap.wrapT = THREE.RepeatWrapping;
-    riserMap.repeat.set(2, 1);
-    const riserMat = new THREE.MeshLambertMaterial({ map: riserMap, color: 0xc4c4c4, side: THREE.DoubleSide });
-    // casca externa da TORRE: blocos de pedra, altíssima → SÓLIDA até a bruma (sem vãos)
-    const shellMap = tex.stone(31);
-    shellMap.wrapS = shellMap.wrapT = THREE.RepeatWrapping;
-    shellMap.repeat.set(1, WALL_H / CELL);
-    const shellMat = new THREE.MeshLambertMaterial({ map: shellMap, side: THREE.DoubleSide });
-    // parede/teto do túnel de entrada (rocha de caverna, teto baixo)
-    const tunnelMap = tex.caveWall();
-    tunnelMap.wrapS = tunnelMap.wrapT = THREE.RepeatWrapping;
-    tunnelMap.repeat.set(1, CORR_CEIL / CELL);
-    const tunnelMat = new THREE.MeshLambertMaterial({ map: tunnelMap, side: THREE.DoubleSide });
-    const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
-    // chão do terraço: GRAMA/terra
+    // materiais de PEDRA LAVRADA
+    const mkStone = (rx: number, ry: number, tint?: number) => {
+      const m = tex.stone(31);
+      m.wrapS = m.wrapT = THREE.RepeatWrapping;
+      m.repeat.set(rx, ry);
+      return new THREE.MeshLambertMaterial({ map: m, color: tint ?? 0xffffff, side: THREE.DoubleSide });
+    };
+    const stepMat = mkStone(1.4, 1.4);
+    const riserMat = mkStone(1.4, 0.5, 0xc7c7c7);
+    const shellMat = mkStone(6, 3);
+    const coreMat = mkStone(5, 3, 0xb8b8b8);
+    const corrFloorMat = mkStone(2, 2);
+    const corrWallMat = mkStone(3, 2);
     const grassMap = tex.grass(61);
     grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
     grassMap.repeat.set(4, 4);
     const grassMat = new THREE.MeshLambertMaterial({ map: grassMap, side: THREE.DoubleSide });
-    // dissolve na névoa: casca da torre e núcleo somem pra cima
-    for (const m of [shellMat, riserMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
-    const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
-    const HALF = CELL / 2;
-    // NARIZ do degrau: bloco fino saliente na aresta de descida → aresta 3D chunky
-    const addNosing = (cx: number, cz: number, dc: number, dr: number, fy: number) => {
-      const nose = new THREE.Mesh(new THREE.BoxGeometry(dc !== 0 ? 0.4 : CELL, 0.22, dr !== 0 ? 0.4 : CELL), stepMat);
-      nose.position.set(cx + dc * HALF, fy + 0.11, cz + dr * HALF);
-      this.world.add(nose);
+    // o poço (casca+núcleo+rampa) some na bruma perto do topo → sem borda dura
+    for (const m of [shellMat, coreMat, stepMat, riserMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
+
+    // helper: quad (2 triângulos) num array de posições/uv
+    const addQuad = (pos: number[], uv: number[], idx: number[],
+      a: number[], b: number[], c: number[], d: number[]) => {
+      const n = pos.length / 3;
+      pos.push(...a, ...b, ...c, ...d);
+      uv.push(0, 0, 1, 0, 1, 1, 0, 1);
+      idx.push(n, n + 1, n + 2, n, n + 2, n + 3);
     };
 
-    // ---- TORRE (rampa + núcleo + terraço): piso, degraus, paredes SÓLIDAS ----
-    for (let r = 0; r < H; r++)
-      for (let c = 0; c < W; c++) {
-        if (!showWalkable(c, r)) continue;
-        const corr = showIsCorridor(c, r); // túnel de entrada (teto baixo)
-        const shrine = showIsShrine(c, r); // terraço aberto do topo (grama)
-        const cx = c * CELL, cz = r * CELL;
-        const fy = showFloorY(c, r);
-        // piso: pedra na rampa/túnel; no terraço vai pedra por baixo + disco de grama
-        const fl = new THREE.Mesh(tileGeo, stepMat);
-        fl.rotation.x = -Math.PI / 2;
-        fl.position.set(cx, fy + 0.01, cz);
-        this.world.add(fl);
-        for (const [dc, dr] of DIRS) {
-          const nc = c + dc, nr = r + dr;
-          if (!showWalkable(nc, nr)) {
-            // vizinho não-caminhável → PAREDE SÓLIDA (sem vãos/janelas): casca alta da
-            // torre, ou parede baixa do túnel de caverna.
-            if (corr) this.addWall(cx, cz, dc, dr, 0, CORR_CEIL, tunnelMat);
-            else this.addWall(cx, cz, dc, dr, 0, WALL_H, shellMat);
-          } else {
-            const nfy = showFloorY(nc, nr);
-            // desnível p/ vizinho MAIS BAIXO: degrau (pequeno) ou parede do núcleo (alta)
-            if (nfy < fy - 0.02) {
-              this.addWall(cx, cz, dc, dr, nfy, fy, riserMat);
-              if (fy - nfy < SHOW_RISE * 1.5) addNosing(cx, cz, dc, dr, fy); // nariz só em degrau
-            }
-          }
-        }
-        // TETO só sobre o túnel de entrada (a torre e o terraço são ABERTOS à bruma)
-        if (corr) {
-          const ce = new THREE.Mesh(tileGeo, ceilMat);
-          ce.rotation.x = Math.PI / 2;
-          ce.position.set(cx, CORR_CEIL, cz);
-          this.world.add(ce);
-        }
-        void shrine;
+    // ---- HÉLICE: degraus em leque + espelhos (risers) ----
+    const helix = STATIONS.filter((s) => s.kind === "helix");
+    const ang = (s: { x: number; z: number }) => Math.atan2(s.z - CZ, s.x - CX);
+    const dth = ang(helix[1]) - ang(helix[0]);
+    const sPos: number[] = [], sUv: number[] = [], sIdx: number[] = [];
+    const rPos: number[] = [], rUv: number[] = [], rIdx: number[] = [];
+    const P = (th: number, rad: number, y: number) => [CX + rad * Math.cos(th), y, CZ + rad * Math.sin(th)];
+    for (let i = 0; i < helix.length; i++) {
+      const th = ang(helix[i]), y = helix[i].y;
+      const a0 = th - dth / 2, a1 = th + dth / 2;
+      // piso do degrau (leque INNER→OUTER)
+      addQuad(sPos, sUv, sIdx, P(a0, RI, y), P(a1, RI, y), P(a1, RO, y), P(a0, RO, y));
+      // espelho até o degrau anterior (na aresta de trás)
+      if (i > 0) {
+        const yp = helix[i - 1].y;
+        addQuad(rPos, rUv, rIdx, P(a0, RI, yp), P(a0, RO, yp), P(a0, RO, y), P(a0, RI, y));
       }
+    }
+    const mkMesh = (pos: number[], uv: number[], idx: number[], mat: THREE.Material) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); this.world.add(m); return m;
+    };
+    mkMesh(sPos, sUv, sIdx, stepMat);
+    mkMesh(rPos, rUv, rIdx, riserMat);
+
+    // núcleo central (cilindro) + casca externa (poço) + piso da base
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(RI, RI, TOP_Y, 32, 1, true), coreMat);
+    core.position.set(CX, TOP_Y / 2, CZ); this.world.add(core);
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(RO, RO, TOP_Y, 48, 1, true), shellMat);
+    shell.position.set(CX, TOP_Y / 2, CZ); this.world.add(shell);
+    const base = new THREE.Mesh(new THREE.CircleGeometry(RO, 40), stepMat);
+    base.rotation.x = -Math.PI / 2; base.position.set(CX, 0.02, CZ); this.world.add(base);
+
+    // ---- CORREDOR no topo (ponte de pedra) da hélice até o terraço ----
+    const cLen = CORR_X0 - CORR_X1 + 3, cMidX = (CORR_X0 + CORR_X1) / 2 - 1.5, cw = 1.7, cCeil = 3.4;
+    const cf = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cw * 2), corrFloorMat);
+    cf.rotation.x = -Math.PI / 2; cf.position.set(cMidX, TOP_Y + 0.03, CORR_Z); this.world.add(cf);
+    for (const s of [-1, 1]) {
+      const wl = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cCeil), corrWallMat);
+      wl.position.set(cMidX, TOP_Y + cCeil / 2, CORR_Z + s * cw);
+      wl.rotation.y = 0; this.world.add(wl);
+    }
+    const cc = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cw * 2), corrWallMat);
+    cc.rotation.x = Math.PI / 2; cc.position.set(cMidX, TOP_Y + cCeil, CORR_Z); this.world.add(cc);
 
     // ---- TERRAÇO REDONDO ABERTO (santuário): grama + estátua + toda a névoa ----
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(R, 40), grassMat);
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.set(CX, TOP_Y + 0.05, CZ);
-    this.world.add(disc);
-
-    // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
-    const st = SHOW_STATUE;
-    const sx = st.col * CELL, sz = st.row * CELL;
+    const SCX = SHRINE_CX, SCZ = SHRINE_CZ, DR = SHRINE_RADIUS + 2;
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(DR, 40), grassMat);
+    disc.rotation.x = -Math.PI / 2; disc.position.set(SCX, TOP_Y + 0.04, SCZ); this.world.add(disc);
+    // ESTÁTUA (placeholder): pedestal + monólito claro que brilha
+    const sx = SHOW_STATUE_W.x, sz = SHOW_STATUE_W.z;
     const pedMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 0.7, 16), pedMat);
-    ped.position.set(sx, TOP_Y + 0.4, sz);
-    this.world.add(ped);
+    ped.position.set(sx, TOP_Y + 0.4, sz); this.world.add(ped);
     const paleMat = new THREE.MeshLambertMaterial({ color: 0xd6d9df, emissive: 0x1f2531 });
     const idol = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 2.4, 6), paleMat);
-    idol.position.set(sx, TOP_Y + 0.75 + 1.2, sz);
-    this.world.add(idol);
-    this.blocked.add(`${st.col},${st.row}`);
-    this.glowLight(sx, TOP_Y + 1.9, sz, 0xcfe6ff, 3.6, 13); // brilho frio → foco no altar
+    idol.position.set(sx, TOP_Y + 0.75 + 1.2, sz); this.world.add(idol);
+    this.glowLight(sx, TOP_Y + 1.9, sz, 0xcfe6ff, 3.6, 13);
 
-    // TOCHAS espiralando pela casca da torre (luz quente, sobem com a rampa)
+    // TOCHAS espiralando pela casca (luz quente, sobem com a hélice)
     const torchMat = this.decalMat(decTorchUrl, 0.1);
-    // [célula c, r, dir->parede externa] — em níveis crescentes ao redor da torre
-    const torchSpots: [number, number, number, number][] = [
-      [8, 7, 1, 0], [5, 7, 0, 1], [4, 6, -1, 0], [4, 4, -1, 0],
-      [5, 3, 0, -1], [7, 3, 0, -1], [8, 4, 1, 0], [8, 6, 1, 0],
-    ];
-    for (const [tc, tr, tdc, tdr] of torchSpots) {
-      const ty = showFloorY(tc, tr) + 2.4;
-      this.addWallDecal(tc, tr, tdc, tdr, torchMat, 0.95, 1.5, ty);
-      this.glowLight(tc * CELL + tdc * 0.4, ty + 0.2, tr * CELL + tdr * 0.4, 0xffa040, 5.5, 11);
+    for (let i = 2; i < helix.length; i += 4) {
+      const th = ang(helix[i]), y = helix[i].y + 2.0;
+      const tx = CX + (RO - 0.25) * Math.cos(th), tz = CZ + (RO - 0.25) * Math.sin(th);
+      const tm = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.4), torchMat);
+      tm.position.set(tx, y, tz);
+      tm.rotation.y = Math.atan2(CX - tx, CZ - tz); // encara o centro
+      this.world.add(tm);
+      this.glowLight(tx, y + 0.2, tz, 0xffa040, 5.0, 10);
     }
     // 2 tochas quentes ladeando o altar
-    for (const th of [Math.PI * 1.15, Math.PI * 1.85]) {
-      const px = CX + Math.cos(th) * (R - 0.5), pz = CZ + Math.sin(th) * (R - 0.5);
-      this.glowLight(px, TOP_Y + 2.4, pz, 0xffa040, 2.6, 9);
+    for (const th of [Math.PI * 0.6, Math.PI * 1.4]) {
+      this.glowLight(SCX + Math.cos(th) * (DR - 1), TOP_Y + 2.4, SCZ + Math.sin(th) * (DR - 1), 0xffa040, 2.6, 9);
     }
 
-    // NÉVOA do santuário (igual ao de antes): poeira + fumaça densa sobre o terraço,
-    // encostando no chão e subindo — o topo aberto vira bruma (sem borda de "céu").
-    this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 60, 0xdfe6f2, 0.09, 0.0022);
-    this.spawnFogPuffs(CX, CZ, 24, TOP_Y + 0.6, TOP_Y + 10, R * 0.6, 0x707886, 0xaab2c0, 0.0, 1.0, 0.05, 16, 34);
+    // NÉVOA do santuário (igual ao de antes): poeira + fumaça densa sobre o terraço.
+    this.spawnMotes(SCX, SCZ, DR * 2, DR * 2, TOP_Y + 0.2, TOP_Y + 6, 60, 0xdfe6f2, 0.09, 0.0022);
+    this.spawnFogPuffs(SCX, SCZ, 24, TOP_Y + 0.6, TOP_Y + 10, DR * 0.55, 0x707886, 0xaab2c0, 0.0, 1.0, 0.05, 16, 34);
+    // um toque de fumaça subindo pelo poço da hélice também
+    this.spawnFogPuffs(CX, CZ, 10, 1.0, TOP_Y - 1, RI + 0.5, 0x707886, 0x9aa2b0, 0.0, 0.7, 0.04, 14, 26);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
@@ -3849,14 +3852,48 @@ export class Game {
           : this.location === "dungeon"
             ? dungeonWalkable(c, r)
             : this.location === "showcase"
-              ? showWalkable(c, r)
+              ? false // sala-vitrine: movimento por estações (hélice), não usa a grade
               : roomWalkable(c, r);
     return ok && !this.blocked.has(`${c},${r}`);
   }
 
-  // altura (Y) do piso numa célula — 0 em quase tudo; a sala-vitrine tem níveis.
-  private floorYAt(c: number, r: number): number {
-    return this.location === "showcase" ? showFloorY(c, r) : 0;
+  // altura (Y) do piso numa célula (a sala-vitrine é por estações, não usa isto).
+  private floorYAt(_c: number, _r: number): number {
+    return 0;
+  }
+
+  // ---- sala-vitrine: movimento por ESTAÇÕES ao longo do caminho (hélice) ----
+  private applyShowcasePose() {
+    const s = stationPose(this.showIdx);
+    this.camera.position.set(s.x, s.y + EYE_H, s.z);
+    this.camera.rotation.y = s.yaw;
+  }
+
+  private showcaseMove(a: Action) {
+    // Up = sobe o caminho; Down = desce; virar/estrafe não têm efeito (a hélice guia).
+    let d = 0;
+    if (a === "forward") d = +1;
+    else if (a === "back") d = -1;
+    else return;
+    const ni = this.showIdx + d;
+    if (ni < 0) { this.exitShowcase(); return; } // "descer" na base = sair
+    if (ni > SHOW_LAST) return; // fim do caminho (diante do altar)
+    const from = stationPose(this.showIdx), to = stationPose(ni);
+    this.showIdx = ni;
+    let fy = from.yaw, ty = to.yaw; // gira pelo menor arco
+    while (ty - fy > Math.PI) ty -= Math.PI * 2;
+    while (ty - fy < -Math.PI) ty += Math.PI * 2;
+    this.anim = {
+      kind: "move", t0: performance.now(),
+      fromX: from.x, fromZ: from.z, toX: to.x, toZ: to.z,
+      fromY: from.y, toY: to.y, fromYaw: fy, toYaw: ty,
+    };
+    this.pushMinimap();
+  }
+
+  private exitShowcase() {
+    const rt = this.returnTo;
+    this.enterLocation("village", rt.col, rt.row, rt.facing);
   }
 
   // ---- minimapa (HUD) ----
@@ -3866,7 +3903,7 @@ export class Game {
     if (this.location === "village") { cols = COLS; rows = ROWS; walk = isWalkable; }
     else if (this.location === "forest") { cols = FOREST_COLS; rows = FOREST_ROWS; walk = forestWalkable; }
     else if (this.location === "dungeon") { cols = DUNGEON_COLS; rows = DUNGEON_ROWS; walk = dungeonWalkable; }
-    else if (this.location === "showcase") { cols = SHOW_COLS; rows = SHOW_ROWS; walk = showWalkable; }
+    else if (this.location === "showcase") { cols = 1; rows = 1; walk = () => false; }
     else { cols = ROOM_COLS; rows = ROOM_ROWS; walk = roomWalkable; }
     const cells = new Uint8Array(cols * rows);
     for (let r = 0; r < rows; r++)
@@ -4548,6 +4585,7 @@ export class Game {
       return;
     }
     if (this.anim) return; // ignora enquanto anima (o hold-repeat cuida da continuidade)
+    if (this.location === "showcase") { this.showcaseMove(a); return; } // hélice: por estações
     if (a === "turnLeft" || a === "turnRight") {
       const d = a === "turnLeft" ? 1 : -1;
       this.facing = (this.facing + (d === 1 ? 3 : 1)) % 4;
@@ -4569,13 +4607,6 @@ export class Game {
     const nc = this.col + dc;
     const nr = this.row + dr;
     if (!this.canWalk(nc, nr)) return;
-    // ESCADARIA: só sobe/desce UM nível por passo. Na torre em espiral as voltas
-    // ficam encostadas — isso impede "pular" de uma volta pra outra (força a subida).
-    if (
-      this.location === "showcase" &&
-      Math.abs(this.floorYAt(nc, nr) - this.floorYAt(this.col, this.row)) > SHOW_RISE * 1.05
-    )
-      return;
     this.anim = {
       kind: "move",
       t0: performance.now(),
@@ -4893,8 +4924,12 @@ export class Game {
         // altura do piso interpola (sobe/desce escadas) + "bob" do passo
         const fy = an.fromY + (an.toY - an.fromY) * e;
         this.camera.position.y = fy + EYE_H + Math.sin(p * Math.PI) * 0.07;
+        // hélice: a câmera GIRA acompanhando a curva (yaw interpola junto)
+        if (an.fromYaw !== undefined && an.toYaw !== undefined)
+          this.camera.rotation.y = an.fromYaw + (an.toYaw - an.fromYaw) * e;
         if (p >= 1) {
           this.camera.position.y = an.toY + EYE_H;
+          if (an.toYaw !== undefined) this.camera.rotation.y = an.toYaw;
           this.anim = null;
         }
       } else {
@@ -5166,12 +5201,8 @@ export class Game {
       const gk = `${fc},${fr}`;
       if (this.gates.has(gk)) return { kind: "gate", key: gk };
     } else if (this.location === "showcase") {
-      // portal de saída (de frente ou em cima dele) → volta de onde veio
-      if (
-        (fc === SHOW_EXIT.col && fr === SHOW_EXIT.row) ||
-        (this.col === SHOW_EXIT.col && this.row === SHOW_EXIT.row)
-      )
-        return { kind: "exit" };
+      // na base da hélice, interagir sai da sala-vitrine (volta de onde veio)
+      if (this.showIdx === 0) return { kind: "exit" };
     } else {
       // saída: valendo tanto de frente para a porta quanto encostado nela
       // (em cima da própria célula de saída, onde a célula à frente já é a
