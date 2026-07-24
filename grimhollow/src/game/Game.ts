@@ -2456,22 +2456,28 @@ export class Game {
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
     const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
-    // parede do ANEL: rocha repetida VERTICALMENTE (não estica na altura enorme)
+    // parede do ANEL (cilindro): rocha repetida p/ a CIRCUNFERÊNCIA (não estica)
     const ringMap = tex.caveWall();
     ringMap.wrapS = ringMap.wrapT = THREE.RepeatWrapping;
     ringMap.repeat.set(16, 7);
     const ringWallMat = new THREE.MeshLambertMaterial({ map: ringMap, side: THREE.DoubleSide });
+    // parede RETA (entrada/jambas): tiling por unidade de MUNDO (~4u/telha) — senão
+    // um plano de 4 de largura com o repeat do cilindro vira riscos verticais.
+    const flatMap = tex.caveWall();
+    flatMap.wrapS = flatMap.wrapT = THREE.RepeatWrapping;
+    flatMap.repeat.set(1, WALL_H / CELL); // ≈6.5 telhas na altura → ~4u/telha
+    const flatWallMat = new THREE.MeshLambertMaterial({ map: flatMap, side: THREE.DoubleSide });
     // chão do santuário: GRAMA/terra
     const grassMap = tex.grass(61);
     grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
     grassMap.repeat.set(5, 5);
     const grassMat = new THREE.MeshLambertMaterial({ map: grassMap, side: THREE.DoubleSide });
     // dissolve na névoa: paredes e teto somem pra cima
-    for (const m of [rockMat, ceilMat, ringWallMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
+    for (const m of [rockMat, ceilMat, ringWallMat, flatWallMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
     // parede reta (jamba) livre — conecta o anel redondo ao corredor da entrada
     const addFlatWall = (x: number, z0: number, z1: number, y0: number, y1: number, faceX: number) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), ringWallMat);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), flatWallMat);
       m.position.set(x, (y0 + y1) / 2, (z0 + z1) / 2);
       m.rotation.y = faceX > 0 ? Math.PI / 2 : -Math.PI / 2;
       this.world.add(m);
@@ -2493,7 +2499,7 @@ export class Game {
           if (nz === "wall") {
             // paredes do corredor TÃO ALTAS quanto o anel (vão da porta sobe até a
             // fumaça, sem topo baixo) — sem teto: a entrada é um vão alto no penhasco.
-            this.addWall(cx, cz, dc, dr, 0, WALL_H, ringWallMat);
+            this.addWall(cx, cz, dc, dr, 0, WALL_H, flatWallMat);
           } else if (nz !== "shrine") {
             const nfy = showFloorY(c + dc, r + dr);
             if (nfy < fy - 0.02) this.addWall(cx, cz, dc, dr, nfy, fy, stoneMat); // face do degrau
