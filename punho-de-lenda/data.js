@@ -262,6 +262,79 @@ const DATA = (() => {
     { id:'mundial',  name:'Campeonato Mundial',   ovr:[84,95], pts:1200, win:130, belt:'Cinturão Mundial' },
   ];
 
+  /* ---- METADADOS DE HABILIDADE (p/ evolução por nível + descoberta) ----
+     core: atributos que o nível da habilidade turbina na luta.
+     cat: categoria (usada pra sugerir habilidades novas coerentes). */
+  const SKILL_META = {
+    nocauteador:  { core:['forca','precisao'],   cat:'striking' },
+    maos_rapidas: { core:['velocidade','tecnica'],cat:'striking' },
+    contragolpe:  { core:['reflexo','precisao'],  cat:'counter'  },
+    queixo_ferro: { core:['queixo','coracao'],    cat:'defense'  },
+    faro_final:   { core:['precisao','qi'],       cat:'finish'   },
+    gas_infinito: { core:['folego','coracao'],    cat:'fisico'   },
+    rei_clinch:   { core:['forca','tecnica'],     cat:'clinch'   },
+    rasteira:     { core:['tecnica','forca'],     cat:'grappling'},
+    guarda_ferro: { core:['tecnica','qi'],        cat:'grappling'},
+    danca:        { core:['esquiva','agilidade'], cat:'movement' },
+    espirito:     { core:['coracao','queixo'],    cat:'mental'   },
+    pressao:      { core:['folego','forca'],      cat:'pressure' },
+    chute_giratorio:{core:['agilidade','precisao'],cat:'striking'},
+    veterano:     { core:['qi','guarda'],         cat:'mental'   },
+    imprevisivel: { core:['agilidade','qi'],      cat:'movement' },
+  };
+  // afinidade de cada estilo com categorias de habilidade (p/ descoberta coerente)
+  const STYLE_SKILL_AFF = {
+    boxe:['striking','counter','movement','finish'], muaythai:['clinch','pressure','striking','fisico'],
+    kickboxing:['striking','counter','finish','defense'], karate:['striking','movement','counter','finish'],
+    taekwondo:['striking','movement','finish','fisico'], kungfu:['movement','striking','counter','mental'],
+    jiujitsu:['grappling','mental','fisico','pressure'], mma:['grappling','striking','pressure','fisico','finish'],
+  };
+  const NIV_NAME=['','I','II','III']; // nível de habilidade 1..3
+
+  /* ---- TREINOS (o técnico escolhe; o resto é automático) ----
+     attrs: peso de ganho por atributo · fat: fadiga · cond: custo de condição
+     inj: risco-base de lesão · sx: XP técnico (rumo a nova habilidade) */
+  const TRAIN = [
+    { id:'musculacao', name:'Musculação',        em:'💪', grp:'Físico',
+      desc:'Força e potência. Base pra bater forte e segurar o tranco.',
+      attrs:{forca:1.25,coracao:0.3}, fat:9, cond:-8, inj:0.05, sx:0.2 },
+    { id:'cardio',     name:'Cardio / Corrida',  em:'🏃', grp:'Físico',
+      desc:'Fôlego e recuperação. O motor que segura os rounds finais.',
+      attrs:{folego:1.3,coracao:0.6}, fat:6, cond:-5, inj:0.02, sx:0.15 },
+    { id:'velocidade', name:'Velocidade & Reflexo',em:'⚡', grp:'Físico',
+      desc:'Explosão, mãos rápidas e reação. Chegar primeiro.',
+      attrs:{velocidade:1.05,agilidade:0.9,reflexo:0.6}, fat:7, cond:-6, inj:0.04, sx:0.3 },
+    { id:'sparring',   name:'Sparring',          em:'🥊', grp:'Luta',
+      desc:'Luta de verdade no treino. Onde mais se evolui — e mais se machuca.',
+      attrs:{tecnica:0.7,reflexo:0.7,queixo:0.65,precisao:0.6,qi:0.5}, fat:13, cond:-11, inj:0.15, sx:1.6 },
+    { id:'pads',       name:'Aparadores (técnica)',em:'🎯', grp:'Luta',
+      desc:'Manoplas e sacos: técnica e precisão apuradas com baixo risco.',
+      attrs:{tecnica:1.15,precisao:1.1}, fat:5, cond:-5, inj:0.02, sx:1.0 },
+    { id:'defesa',     name:'Defesa & Esquiva',  em:'🛡️', grp:'Luta',
+      desc:'Guarda, esquiva e leitura. Apanhar menos ganha lutas.',
+      attrs:{guarda:1.1,esquiva:1.1,reflexo:0.55}, fat:6, cond:-5, inj:0.03, sx:0.5 },
+    { id:'especifico', name:'Específico do Estilo',em:'🎓', grp:'Luta',
+      desc:'O que o SEU estilo faz de melhor. Turbina seus pontos naturais.',
+      attrs:{}, fat:8, cond:-7, inj:0.06, sx:0.9, styleFocus:true },
+    { id:'mental',     name:'Mental & Estratégia',em:'🧠', grp:'Mente',
+      desc:'QI de luta e frieza. Ler o adversário e administrar a luta.',
+      attrs:{qi:1.3,coracao:0.5}, fat:3, cond:-3, inj:0.01, sx:0.6 },
+    { id:'descanso',   name:'Descanso & Recuperação',em:'🛌', grp:'Recuperar',
+      desc:'Nada de pancada. Recupera condição, alivia fadiga e cura lesões.',
+      attrs:{}, fat:-26, cond:+24, inj:0, sx:0, rest:true },
+  ];
+  const TRAIN_BY={}; TRAIN.forEach(t=>TRAIN_BY[t.id]=t);
+
+  const INTENS = {
+    leve:     { name:'Leve',     mult:0.65, fat:0.6, inj:0.5, em:'🟢' },
+    moderado: { name:'Moderado', mult:1.0,  fat:1.0, inj:1.0, em:'🟡' },
+    pesado:   { name:'Pesado',   mult:1.28, fat:1.55,inj:2.1, em:'🔴' },
+  };
+
+  const CAMP = { weeksFirst:6, weeksTier:5, weeksBetweenFights:1, slotsPerWeek:3,
+    breakthroughXp:8, levelXpPer:5, natFat:11, natCond:5 };
+
   return { STYLES, STYLE_LIST, MU, matchup, ABIL, FIGHTERS, byId, byStyle, genOpponent, TIERS,
-    OFF, DEF, PHY, ALL, ATTR_NAME, RAR, RAR_NAME, derived };
+    OFF, DEF, PHY, ALL, ATTR_NAME, RAR, RAR_NAME, derived,
+    SKILL_META, STYLE_SKILL_AFF, NIV_NAME, TRAIN, TRAIN_BY, INTENS, CAMP };
 })();

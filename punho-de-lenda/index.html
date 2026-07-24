@@ -178,6 +178,77 @@ canvas{display:block}
 .rReward{margin:22px 0;display:flex;gap:24px;justify-content:center}
 .rReward b{display:block;font-family:var(--disp);font-size:30px;color:var(--gold)} .rReward span{font-family:var(--cond);font-size:12px;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
 
+/* ===== ACADEMIA ===== */
+.acTop{padding:14px 16px;display:flex;gap:14px;align-items:center;background:linear-gradient(180deg,var(--panel),transparent)}
+.acTop .miniPort{width:66px;height:66px;border-radius:13px;overflow:hidden;border:2px solid var(--edge2);flex:0 0 auto}
+.acTop .miniPort canvas{width:100%;height:100%}
+.acTop .who{flex:1}.acTop .who .nm{font-family:var(--disp);font-size:20px}.acTop .who .st{font-family:var(--cond);color:var(--dim);font-size:14px}
+.acTop .ovrBadge{font-family:var(--disp);font-size:32px;color:var(--gold);text-align:center;line-height:.9}
+.acTop .ovrBadge span{font-family:var(--cond);font-size:11px;color:var(--dim);display:block}
+.acVitals{padding:0 16px;display:flex;flex-direction:column;gap:7px;margin-top:4px}
+.vit{display:flex;align-items:center;gap:10px;font-family:var(--cond);font-size:14px}
+.vit>span{width:66px;color:var(--dim)}.vit>b{width:30px;text-align:right;font-family:var(--ui);font-weight:700}
+.vbar{flex:1;height:9px;border-radius:5px;background:rgba(0,0,0,.45);overflow:hidden}.vbar.sm{height:7px}
+.vbar i{display:block;height:100%;transition:width .4s} .vbar i.good{background:linear-gradient(90deg,#3a7a2a,#4ade80)}
+.vbar i.mid{background:linear-gradient(90deg,#a97a1f,#e8c860)} .vbar i.bad{background:linear-gradient(90deg,#7a1e18,#e0453a)}
+.vitInj{font-family:var(--cond);font-size:13px;color:#ffb4a0;background:rgba(224,69,58,.14);border:1px solid rgba(224,69,58,.4);border-radius:9px;padding:5px 10px}
+.acDeriv{display:flex;justify-content:space-around;text-align:center;margin:12px 16px 0;padding:10px;background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:12px}
+.acDeriv b{font-family:var(--disp);font-size:22px;display:block}.acDeriv span{font-family:var(--cond);font-size:10px;letter-spacing:1px;color:var(--dim);text-transform:uppercase}
+.acEvent{margin:12px 16px 0;padding:10px 13px;border-radius:12px;background:linear-gradient(90deg,rgba(232,200,96,.14),rgba(224,69,58,.08));border:1px solid rgba(232,200,96,.3)}
+.acEvent .evTitle{font-family:var(--cond);font-size:15px}.acEvent .evTitle b{color:var(--gold)}
+.acEvent .evSub{font-family:var(--cond);font-size:13px;color:var(--dim);margin-top:2px}.acEvent .evSub b{color:var(--ink)}
+.acAbis{display:flex;flex-wrap:wrap;gap:5px;padding:12px 16px 0}
+.acAbis .abi{font-family:var(--cond);font-size:12px;font-weight:600;padding:4px 9px;border-radius:8px;background:rgba(120,90,220,.24);border:1px solid rgba(160,130,255,.4);color:#e6ddff;display:flex;align-items:center;gap:5px}
+.pips{display:inline-flex;gap:2px}.pips i{width:5px;height:5px;border-radius:1px;background:rgba(255,255,255,.2)}.pips i.on{background:var(--gold)}
+.acSxp{padding:12px 16px 0}.sxLbl{font-family:var(--cond);font-size:12px;color:var(--dim);margin-bottom:3px}
+.plannerHd{font-family:var(--disp);font-size:16px;letter-spacing:.5px;padding:16px 16px 4px}.plannerHd .dim,.dim{color:var(--faint);font-weight:400;font-size:12px;font-family:var(--cond)}
+.acFocus{padding:0 12px;display:flex;flex-direction:column;gap:8px}
+.focGrp{}.focGrpT{font-family:var(--cond);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--faint);margin:6px 4px 3px}
+.focChip{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 12px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid var(--edge);margin-bottom:5px;transition:.12s}
+.focChip.on{background:linear-gradient(90deg,rgba(224,69,58,.22),rgba(224,69,58,.08));border-color:var(--red)}
+.focChip .fe{font-size:20px}.focChip .fn{flex:1;font-family:var(--cond);font-weight:600;font-size:15px}
+.focChip .fmeta{font-family:var(--cond);font-size:11px}
+.dot{padding:2px 7px;border-radius:6px}.dot.baixo{background:rgba(74,222,128,.16);color:#8ef0b0}.dot.médio{background:rgba(232,200,96,.16);color:#f0d878}.dot.alto{background:rgba(224,69,58,.18);color:#ff9d8e}.dot.rest{background:rgba(90,160,255,.16);color:#a8ccff}
+.intensHd{font-family:var(--cond);font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--faint);padding:10px 16px 3px}
+.acIntens{display:flex;gap:8px;padding:0 16px}
+.intBtn{flex:1;padding:9px;border-radius:10px;font-family:var(--cond);font-weight:600;font-size:14px;background:rgba(255,255,255,.04);border:1px solid var(--edge)}
+.intBtn.on{background:rgba(232,200,96,.16);border-color:var(--gold);color:var(--gold)}
+.acSkillFocus{padding:12px 16px 4px}.sfLbl{font-family:var(--cond);font-size:14px;margin-bottom:6px}
+.sfRow{display:flex;flex-wrap:wrap;gap:6px}
+.sfChip{font-family:var(--cond);font-size:13px;font-weight:600;padding:6px 11px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid var(--edge);display:flex;align-items:center;gap:6px}
+.sfChip.on{background:rgba(90,160,255,.18);border-color:var(--blue);color:#cfe4ff}.sfChip.max{opacity:.5}
+.sfXp{font-family:var(--cond);font-size:12px;color:var(--blue);margin-top:6px}
+.wk{background:rgba(0,0,0,.3);border-radius:6px;padding:1px 7px;font-size:14px}
+
+/* ===== RELATÓRIO DE TREINO ===== */
+.trMontage{padding:16px;display:flex;flex-direction:column;gap:8px;min-height:40vh}
+.monLine{font-family:var(--cond);font-size:16px;padding:10px 13px;border-radius:11px;background:rgba(255,255,255,.04);border-left:3px solid var(--blue);animation:flin .3s}
+.trBottom{opacity:0;max-height:0;overflow:hidden;transition:opacity .4s;padding:0 16px}.trBottom.show{opacity:1;max-height:none;padding:0 16px 16px}
+.trSec{margin-top:8px}.trSecT{font-family:var(--disp);font-size:15px;letter-spacing:.5px;margin-bottom:8px}
+.trDeltas{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dRow{display:flex;justify-content:space-between;font-family:var(--cond);font-size:14px;padding:7px 11px;border-radius:9px;background:rgba(255,255,255,.04)}
+.dRow.up b{color:var(--green)}.dRow.down b{color:var(--red)}.dRow.flat,.dRow.flat span{grid-column:span 2;color:var(--dim);justify-content:center}
+.trVitals{display:flex;gap:12px;margin-top:12px}
+.tvi{flex:1;font-family:var(--cond);font-size:14px;background:rgba(255,255,255,.04);border:1px solid var(--edge);border-radius:10px;padding:9px 12px}
+.tvi span{color:var(--dim)}.tvi b.up{color:var(--green)}.tvi b.down{color:var(--red)}
+.trEvents{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.evBanner{font-family:var(--cond);font-weight:600;font-size:14px;padding:10px 13px;border-radius:11px}
+.evBanner.inj{background:rgba(224,69,58,.16);border:1px solid rgba(224,69,58,.45);color:#ffb4a0}
+.evBanner.warn{background:rgba(232,200,96,.14);border:1px solid rgba(232,200,96,.4);color:#f0d878}
+.evBanner.up{background:rgba(74,222,128,.14);border:1px solid rgba(74,222,128,.4);color:#a8f0c0}
+.evBanner.new{background:linear-gradient(90deg,rgba(160,106,255,.24),rgba(232,200,96,.16));border:1px solid rgba(180,140,255,.5);color:#e6ddff}
+
+/* ===== SKILL PICK ===== */
+.skIntro{font-family:var(--cond);font-size:15px;color:var(--dim);padding:10px 18px;text-align:center}.skIntro b{color:var(--ink)}
+.skWrap{padding:8px 16px 20px;display:flex;flex-direction:column;gap:12px}
+.skCard{text-align:left;padding:16px;border-radius:16px;background:linear-gradient(160deg,var(--panel2),var(--panel));border:1.5px solid var(--edge2);position:relative;transition:transform .12s}
+.skCard:active{transform:scale(.98)}
+.skCard.cat-striking{border-color:rgba(224,69,58,.5)}.skCard.cat-grappling{border-color:rgba(90,160,255,.5)}.skCard.cat-mental,.skCard.cat-movement{border-color:rgba(160,106,255,.5)}
+.skIcon{font-size:22px;color:var(--gold)}.skName{font-family:var(--disp);font-size:21px;margin-top:2px}
+.skDesc{font-family:var(--cond);font-size:14px;color:var(--dim);margin-top:5px;line-height:1.35}
+.skCore{font-family:var(--cond);font-size:12px;color:var(--gold);margin-top:7px}
+.skPick{position:absolute;top:16px;right:16px;font-family:var(--disp);font-size:13px;letter-spacing:1px;color:var(--red);border:1px solid var(--red);border-radius:8px;padding:5px 10px}
+
 /* toast */
 #toast{position:absolute;left:50%;bottom:calc(var(--sb) + 90px);transform:translateX(-50%) translateY(20px);z-index:60;
   background:rgba(12,16,26,.95);border:1px solid var(--gold);color:var(--gold);border-radius:12px;padding:11px 18px;
@@ -213,11 +284,44 @@ canvas{display:block}
     <div class="scroll"><div class="draftWrap" id="draftWrap"></div></div>
   </div>
 
-  <!-- DISTRIBUIR PONTOS -->
-  <div id="points" class="screen">
-    <div class="hdr"><button class="back" data-goto="draft">‹</button><h2>PREPARE SEU LUTADOR</h2></div>
-    <div class="scroll"><div class="ptWrap" id="ptWrap"></div></div>
-    <div class="hubBtns"><button class="btn gold" id="btnStartCareer">INICIAR CARREIRA ›</button></div>
+  <!-- ACADEMIA (hub do técnico) -->
+  <div id="academia" class="screen">
+    <div class="hdr"><h2>ACADEMIA</h2><span class="sub">você é o técnico</span></div>
+    <div class="scroll">
+      <div class="acTop" id="acTop"></div>
+      <div class="acVitals" id="acVitals"></div>
+      <div class="acDeriv" id="acDeriv"></div>
+      <div class="acEvent" id="acEvent"></div>
+      <div class="acAbis" id="acAbis"></div>
+      <div class="acSxp" id="acSxp"></div>
+      <div class="plannerHd">🥊 PLANO DA SEMANA <span class="dim">(escolha até 3 focos)</span></div>
+      <div class="acFocus" id="acFocus"></div>
+      <div class="intensHd">Intensidade</div>
+      <div class="acIntens" id="acIntens"></div>
+      <div class="acSkillFocus" id="acSkillFocus"></div>
+    </div>
+    <div class="hubBtns" id="acBtns"></div>
+  </div>
+
+  <!-- RELATÓRIO DE TREINO -->
+  <div id="trainReport" class="screen">
+    <div class="hdr"><h2 id="trWeek">SEMANA</h2><button class="back sm" id="trSkip">pular ▶▶</button></div>
+    <div class="scroll">
+      <div class="trMontage" id="trMontage"></div>
+      <div class="trBottom" id="trBottom">
+        <div class="trSec"><div class="trSecT">Evolução dos atributos</div><div class="trDeltas" id="trDeltas"></div></div>
+        <div class="trVitals" id="trVitals"></div>
+        <div class="trEvents" id="trEvents"></div>
+      </div>
+    </div>
+    <div class="hubBtns"><button class="btn prime" id="trBtn">CONTINUAR ›</button></div>
+  </div>
+
+  <!-- ESCOLHER NOVA HABILIDADE -->
+  <div id="skillPick" class="screen">
+    <div class="hdr"><h2>NOVA HABILIDADE</h2><span class="sub">avanço técnico!</span></div>
+    <div class="skIntro">Seu lutador destravou o próximo nível. <b>Escolha UMA</b> habilidade pra ele aprender:</div>
+    <div class="scroll"><div class="skWrap" id="skWrap"></div></div>
   </div>
 
   <!-- HUB / TORNEIO -->
@@ -266,6 +370,7 @@ canvas{display:block}
 <script src="data.js"></script>
 <script src="art.js"></script>
 <script src="sim.js"></script>
+<script src="train.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
