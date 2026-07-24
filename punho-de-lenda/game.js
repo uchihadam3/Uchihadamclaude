@@ -10,6 +10,17 @@ const {STYLES,STYLE_LIST,FIGHTERS,byId,byStyle,genOpponent,TIERS,OFF,DEF,PHY,ALL
 let S=null;
 const RARCLS={fraco:'rBronze',medio:'rMedio',forte:'rForte',muitoforte:'rMuitoforte',lenda:'rLenda'};
 
+/* ---------- retratos reais (imagem) com fallback pro desenho procedural ---------- */
+const IMG_IDS=new Set(['tyson','ali','mayweather','canelo','pacquiao','saenchai','buakaw','rodtang','samart','dieselnoi','hoost','schilt','petrosyan','badrhari','aerts']);
+const PORTS={};
+function preloadPortraits(){ IMG_IDS.forEach(id=>{ const im=new Image(); im.src='portraits/'+id+'.png'; PORTS[id]=im; }); }
+function coverDraw(cv,im){ const c=cv.getContext('2d'),W=cv.width,H=cv.height; c.clearRect(0,0,W,H);
+  const s=Math.max(W/im.naturalWidth,H/im.naturalHeight), dw=im.naturalWidth*s, dh=im.naturalHeight*s;
+  c.drawImage(im,(W-dw)/2,(H-dh)*0.08,dw,dh); }
+function drawPortrait(cv,f){ const im=f&&f.id&&PORTS[f.id];
+  if(im){ if(im.complete&&im.naturalWidth) coverDraw(cv,im); else { if(f.spec)ART.fighter(cv,f.spec); im.addEventListener('load',()=>coverDraw(cv,im),{once:true}); } }
+  else ART.fighter(cv,f.spec); }
+
 /* ---------- util ---------- */
 function show(id){ $$('.screen').forEach(s=>s.classList.remove('on')); $('#'+id).classList.add('on'); }
 function vcls(v){ return 'v'+(v>=90?90:v>=80?80:v>=70?70:v>=60?60:50); }
@@ -32,7 +43,7 @@ function cardHTML(f,opts){ opts=opts||{};
       <div class="fcAbis">${abis}</div>
     </div></div>`;
 }
-function paintCards(root){ root.querySelectorAll('.fcard').forEach(card=>{ const cv=card.querySelector('canvas'); if(cv&&cv._f) ART.fighter(cv,cv._f.spec); }); }
+function paintCards(root){ root.querySelectorAll('.fcard').forEach(card=>{ const cv=card.querySelector('canvas'); if(cv&&cv._f) drawPortrait(cv,cv._f); }); }
 
 /* ---------- MENU ---------- */
 function initMenu(){
@@ -104,7 +115,7 @@ function openAcademia(){
     <div class="who"><div class="nm">${f.pais} ${f.name}</div>
       <div class="st">${f.styleEm} ${f.styleName} · ${f.rarName} · ${S.age|0} anos</div></div>
     <div class="ovrBadge">${f.d.geral}<span>GERAL</span></div>`;
-  ART.fighter(top.querySelector('canvas'),f.spec);
+  drawPortrait(top.querySelector('canvas'),f);
   // vitais
   const inj=S.injury? `<div class="vitInj">🩹 ${S.injury.name} (${S.injury.sev}) — ${S.injury.weeksLeft} sem.</div>`:'';
   $('#acVitals').innerHTML=`
@@ -277,7 +288,7 @@ function openHub(){
   const top=$('#hubTop'); top.innerHTML=`<div class="miniPort"><canvas width="120" height="120"></canvas></div>
     <div class="who"><div class="nm">${f.pais} ${f.name}</div><div class="st">${f.styleEm} ${f.styleName} · ${f.rarName}</div></div>
     <div class="ovrBadge">${f.d.geral}<span>GERAL</span></div>`;
-  ART.fighter(top.querySelector('canvas'),f.spec);
+  drawPortrait(top.querySelector('canvas'),f);
   const injTxt=S.injury?` · 🩹 ${S.injury.sev}`:'';
   $('#hubStats').innerHTML=`<div class="st">🏆 Vitórias <b>${S.wins}</b></div><div class="st">⭐ Pontos <b>${S.score}</b></div>
     <div class="st">🎖️ Títulos <b>${S.belts.length}</b></div>
@@ -320,8 +331,8 @@ function startFight(opp){
   show('fight');
   $('#fnA').firstChild.textContent=A.name; $('#fsA').textContent=A.styleName+' · '+A.d.geral+(S.cond<70?' (cond '+(S.cond|0)+')':'');
   $('#fnB').firstChild.textContent=B.name; $('#fsB').textContent=B.styleName+' · '+B.d.geral;
-  ART.fighter($('#fight .fCorner.left canvas'),A.spec);
-  ART.fighter($('#fight .fCorner.right canvas'),B.spec);
+  drawPortrait($('#fight .fCorner.left canvas'),A);
+  drawPortrait($('#fight .fCorner.right canvas'),B);
   $('#hpA').style.width='100%'; $('#hpB').style.width='100%'; $('#stA').style.width='100%'; $('#stB').style.width='100%';
   $('#feed').innerHTML=''; $('#fCards').innerHTML=''; $('#fRound').textContent='ROUND 1';
   playSpeed=1; $('#btnSpd').textContent='VELOCIDADE 1×'; $('#btnSpd').classList.remove('on');
@@ -415,7 +426,7 @@ function save(){ if(S) try{ localStorage.setItem('pl_save', JSON.stringify(S)); 
 function load(){ try{ return JSON.parse(localStorage.getItem('pl_save')); }catch(e){ return null; } }
 
 /* ---------- BOOT + hook de teste ---------- */
-window.addEventListener('load', initMenu);
+window.addEventListener('load', ()=>{ preloadPortraits(); initMenu(); });
 window.PL={ get S(){return S;},
   start(styleId){ buildStyles(); buildDraft(styleId||'boxe'); },
   pick(i){ const b=$$('#draftWrap .pickBtn')[i||0]; b&&b.click(); },
