@@ -36,19 +36,30 @@ html,body{height:100%;overflow:hidden;background:#8fc7e8;font-family:var(--ui);c
   border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:6px 12px;color:#fff;font-size:13px}
 .next b{color:var(--gold)}
 
-/* controles */
-.ctrl{position:absolute;left:0;right:0;bottom:calc(var(--sb) + 18px);display:flex;gap:12px;justify-content:center;align-items:center;padding:0 16px}
-.btn{border:none;border-radius:16px;font-family:var(--disp);font-size:17px;letter-spacing:.5px;color:#fff;
-  padding:16px 22px;box-shadow:0 6px 0 rgba(0,0,0,.25),0 10px 20px rgba(0,0,0,.3);transition:transform .08s,box-shadow .08s}
-.btn:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
-.btn.rot{background:linear-gradient(180deg,#6aa9ff,#3a72d0)}
-.btn.drop{background:linear-gradient(180deg,#ffb43a,#e0842a);flex:1;max-width:260px;font-size:20px}
-.btn.small{padding:12px 16px;font-size:14px;background:linear-gradient(180deg,#7a8290,#565d69)}
+/* barra de altura (lateral esquerda) */
+.hbar{position:absolute;left:14px;top:120px;bottom:150px;width:52px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.hbar .lbl{color:#fff;font-size:10px;letter-spacing:1px;opacity:.8;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#hslider{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;direction:rtl;width:14px;flex:1;
+  background:rgba(20,24,32,.5);border-radius:8px;border:1px solid rgba(255,255,255,.16);cursor:pointer}
+#hslider::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:26px;border-radius:8px;background:linear-gradient(180deg,#ffd24a,#e0842a);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+#hslider::-moz-range-thumb{width:34px;height:26px;border-radius:8px;background:linear-gradient(180deg,#ffd24a,#e0842a);border:2px solid #fff}
 
-/* dica de arrastar */
-.hint{position:absolute;left:50%;top:44%;transform:translateX(-50%);color:#fff;background:rgba(20,24,32,.55);
-  padding:8px 16px;border-radius:20px;font-size:14px;pointer-events:none;animation:fade 4s forwards}
-@keyframes fade{0%,60%{opacity:1}100%{opacity:0}}
+/* controles */
+.ctrl{position:absolute;left:0;right:0;bottom:calc(var(--sb) + 16px);display:flex;gap:9px;justify-content:center;align-items:stretch;padding:0 12px}
+.btn{border:none;border-radius:15px;font-family:var(--disp);font-size:13px;letter-spacing:.3px;color:#fff;
+  padding:14px 12px;box-shadow:0 5px 0 rgba(0,0,0,.25),0 9px 18px rgba(0,0,0,.3);transition:transform .08s,box-shadow .08s;
+  display:flex;flex-direction:column;align-items:center;gap:3px;min-width:62px}
+.btn .ic{font-size:20px;line-height:1}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.btn.rot{background:linear-gradient(180deg,#6aa9ff,#3a72d0)}
+.btn.flip{background:linear-gradient(180deg,#9a7bff,#6a4fd0)}
+.btn.rest{background:linear-gradient(180deg,#7a8290,#565d69)}
+.btn.drop{background:linear-gradient(180deg,#ffb43a,#e0842a);flex:1;max-width:190px;font-size:17px;justify-content:center}
+
+/* dica */
+.hint{position:absolute;left:50%;top:15%;transform:translateX(-50%);color:#fff;background:rgba(20,24,32,.55);
+  padding:8px 15px;border-radius:20px;font-size:13px;text-align:center;pointer-events:none;animation:fade 6.5s forwards;max-width:88%}
+@keyframes fade{0%,72%{opacity:1}100%{opacity:0}}
 
 /* banner */
 .banner{position:absolute;left:50%;top:32%;transform:translate(-50%,-10px);opacity:0;transition:.3s;
@@ -67,12 +78,14 @@ html,body{height:100%;overflow:hidden;background:#8fc7e8;font-family:var(--ui);c
     <div class="stat"><b id="hPieces">0</b><span>Peças</span></div>
   </div>
   <div class="next">Próxima: <b id="hNext">—</b></div>
-  <div class="prog"><i id="progFill"></i></div>
-  <div class="hint">Arraste ⇆ para mirar · gire · solte</div>
+  <div class="hbar"><span class="lbl">▲</span><input type="range" id="hslider" min="0" max="100" value="45"><span class="lbl">▼</span></div>
+  <div class="hint">Arraste para posicionar na mesa (frente/trás também) · barra ↕ = altura · 2 dedos giram a câmera · ENCOSTAR desce · COLOCAR solta de leve</div>
   <div class="banner" id="banner"></div>
   <div class="ctrl">
-    <button class="btn rot" id="btnRot">⟳ GIRAR</button>
-    <button class="btn drop" id="btnDrop">SOLTAR ▼</button>
+    <button class="btn rot" id="btnRot"><span class="ic">⟳</span>GIRAR</button>
+    <button class="btn flip" id="btnFlip"><span class="ic">⤢</span>VIRAR</button>
+    <button class="btn rest" id="btnRest"><span class="ic">▼</span>ENCOSTAR</button>
+    <button class="btn drop" id="btnDrop"><span class="ic">✋</span>COLOCAR</button>
   </div>
 </div>
 <script type="module" src="js/main.js"></script>
