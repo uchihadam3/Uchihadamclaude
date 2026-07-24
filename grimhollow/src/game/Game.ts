@@ -879,7 +879,9 @@ export class Game {
       // Enche o recinto até o chão e some o topo das paredes. background = MESMA
       // cor da névoa → o vazio acima vira névoa (sem borda de "céu").
       const fogCol = 0x7c8390; // névoa moody (igual à do santuário)
-      this.scene.fog = new THREE.FogExp2(fogCol, 0.05); // haze de distância suave
+      // névoa de distância BEM leve: a "fumaça" vem dos sprites (com mechas), não
+      // de um véu cinza uniforme (que virava um retângulo chapado na porta).
+      this.scene.fog = new THREE.FogExp2(fogCol, 0.02);
       this.scene.background = new THREE.Color(fogCol);
       this.addShowcaseLights();
       this.buildShowcase();
@@ -2453,41 +2455,56 @@ export class Game {
     // poucos até virar névoa lá no alto → a rocha "se perde" na bruma, sem linha.
     const yClear = TOP_Y + 2.5, yFull = TOP_Y + 17;
 
-    const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
     const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
-    const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
     // parede do ANEL (cilindro): rocha repetida p/ a CIRCUNFERÊNCIA (não estica)
     const ringMap = tex.caveWall();
     ringMap.wrapS = ringMap.wrapT = THREE.RepeatWrapping;
     ringMap.repeat.set(16, 7);
     const ringWallMat = new THREE.MeshLambertMaterial({ map: ringMap, side: THREE.DoubleSide });
-    // parede RETA (entrada/jambas): tiling por unidade de MUNDO (~4u/telha) — senão
-    // um plano de 4 de largura com o repeat do cilindro vira riscos verticais.
-    const flatMap = tex.caveWall();
-    flatMap.wrapS = flatMap.wrapT = THREE.RepeatWrapping;
-    flatMap.repeat.set(1, WALL_H / CELL); // ≈6.5 telhas na altura → ~4u/telha
-    const flatWallMat = new THREE.MeshLambertMaterial({ map: flatMap, side: THREE.DoubleSide });
+    // parede RETA do corredor: base com repeat (1,1) — o tiling vem das UVs por
+    // unidade de MUNDO em CADA plano (peças ÚNICAS e contínuas → SEM costura).
+    const wallBaseMap = tex.caveWall();
+    wallBaseMap.wrapS = wallBaseMap.wrapT = THREE.RepeatWrapping;
+    wallBaseMap.repeat.set(1, 1);
+    const wallBaseMat = new THREE.MeshLambertMaterial({ map: wallBaseMap, side: THREE.DoubleSide });
     // chão do santuário: GRAMA/terra
     const grassMap = tex.grass(61);
     grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
     grassMap.repeat.set(5, 5);
     const grassMat = new THREE.MeshLambertMaterial({ map: grassMap, side: THREE.DoubleSide });
-    // dissolve na névoa: paredes e teto somem pra cima
-    for (const m of [rockMat, ceilMat, ringWallMat, flatWallMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
+    // dissolve na névoa: paredes somem pra cima (bem gradual)
+    for (const m of [ringWallMat, wallBaseMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
-    // parede reta (jamba) livre — conecta o anel redondo ao corredor da entrada
-    const addFlatWall = (x: number, z0: number, z1: number, y0: number, y1: number, faceX: number) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(z1 - z0, y1 - y0), flatWallMat);
+    const TILE = 4; // ~4 unidades por telha da textura de rocha
+    // parede RETA contínua (peça única). wallX: em x fixo, ao longo de Z.
+    const wallX = (x: number, z0: number, z1: number, y0: number, y1: number, face: number) => {
+      const len = z1 - z0, h = y1 - y0;
+      const g = new THREE.PlaneGeometry(len, h);
+      const uv = g.attributes.uv as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * len) / TILE, (uv.getY(i) * h) / TILE);
+      const m = new THREE.Mesh(g, wallBaseMat);
       m.position.set(x, (y0 + y1) / 2, (z0 + z1) / 2);
-      m.rotation.y = faceX > 0 ? Math.PI / 2 : -Math.PI / 2;
+      m.rotation.y = face > 0 ? Math.PI / 2 : -Math.PI / 2;
+      this.world.add(m);
+    };
+    // wallZ: em z fixo, ao longo de X.
+    const wallZ = (z: number, x0: number, x1: number, y0: number, y1: number, face: number) => {
+      const len = x1 - x0, h = y1 - y0;
+      const g = new THREE.PlaneGeometry(len, h);
+      const uv = g.attributes.uv as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * len) / TILE, (uv.getY(i) * h) / TILE);
+      const m = new THREE.Mesh(g, wallBaseMat);
+      m.position.set((x0 + x1) / 2, (y0 + y1) / 2, z);
+      m.rotation.y = face > 0 ? 0 : Math.PI;
       this.world.add(m);
     };
 
-    // ---- ENTRADA + DEGRAUS (células quadradas): piso, paredes e degraus ----
+    // ---- ENTRADA + DEGRAUS: só PISO e faces dos degraus (as paredes do corredor
+    // são planos ÚNICOS, montados depois — sem costura célula-a-célula) ----
     for (let r = 0; r < H; r++)
       for (let c = 0; c < W; c++) {
         const z = showZone(c, r);
-        if (z === "wall" || z === "shrine") continue; // o santuário é desenhado à parte (redondo)
+        if (z === "wall" || z === "shrine") continue;
         const cx = c * CELL, cz = r * CELL;
         const fy = showFloorY(c, r);
         const fl = new THREE.Mesh(tileGeo, stoneMat);
@@ -2496,11 +2513,7 @@ export class Game {
         this.world.add(fl);
         for (const [dc, dr] of DIRS) {
           const nz = showZone(c + dc, r + dr);
-          if (nz === "wall") {
-            // paredes do corredor TÃO ALTAS quanto o anel (vão da porta sobe até a
-            // fumaça, sem topo baixo) — sem teto: a entrada é um vão alto no penhasco.
-            this.addWall(cx, cz, dc, dr, 0, WALL_H, flatWallMat);
-          } else if (nz !== "shrine") {
+          if (nz !== "wall" && nz !== "shrine") {
             const nfy = showFloorY(c + dc, r + dr);
             if (nfy < fy - 0.02) this.addWall(cx, cz, dc, dr, nfy, fy, stoneMat); // face do degrau
           }
@@ -2532,11 +2545,13 @@ export class Game {
     );
     ring.position.set(CX, TOP_Y + 0.25, CZ);
     this.world.add(ring);
-    // JAMBAS retas: da borda do anel (x=±doorHalf, z=zWall) até o corredor
+    // PAREDES DO CORREDOR: planos ÚNICOS e altos, da borda do anel até o fundo do
+    // corredor (sem costura). Oeste/Leste em x=±doorHalf; fundo (sul) fecha o vão.
     const zWall = CZ + R * Math.cos(gap); // z da borda do vão do anel
-    const zCorr = (SHOW_SPAWN.row - 5.5) * CELL; // ~borda norte do corredor (linha 8)
-    addFlatWall(CX - doorHalf, zWall - 0.3, zCorr, 0, TOP_Y + WALL_H, +1);
-    addFlatWall(CX + doorHalf, zWall - 0.3, zCorr, 0, TOP_Y + WALL_H, -1);
+    const zSouth = 14.5 * CELL; // fundo do corredor (borda sul, linha 14/15)
+    wallX(CX - doorHalf, zWall - 0.25, zSouth, 0, WALL_H, +1); // oeste (face p/ dentro)
+    wallX(CX + doorHalf, zWall - 0.25, zSouth, 0, WALL_H, -1); // leste
+    wallZ(zSouth, CX - doorHalf, CX + doorHalf, 0, WALL_H, -1); // fundo (face p/ o jogador)
 
     // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
     const st = SHOW_STATUE;
@@ -2585,19 +2600,19 @@ export class Game {
 
     // PARTÍCULAS: pontinhos claros flutuando (poeira) — bem sutis
     this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 70, 0xdfe6f2, 0.1, 0.0022);
-    // FUMAÇA VOLUMÉTRICA SUPER DENSA e IRREGULAR (camadas sobrepostas em raios e
-    // alturas diferentes, tamanhos MUITO variados → patchy, com claros e escuros):
-    const cDark = 0x4e5765, cLight = 0x9aa2b2;
-    //  - PAREDÃO subindo pela rocha (2 camadas em raios diferentes → irregular)
-    this.spawnFogPuffs(CX, CZ, 52, TOP_Y + 1.5, TOP_Y + 16, R + 0.6, cDark, cLight, 0.8, 1.4, 0.3, 16, 44);
-    this.spawnFogPuffs(CX, CZ, 30, TOP_Y + 3.0, TOP_Y + 13, R + 2.5, cDark, cLight, 0.55, 1.7, 0.26, 22, 54);
-    //  - MECHAS pelo interior (menos densas no miolo → a estátua aparece como foco)
-    this.spawnFogPuffs(CX, CZ, 14, TOP_Y + 1.6, TOP_Y + 7, R * 1.05, 0x707886, cLight, 0.4, 1.0, 0.1, 12, 28);
-    //  - BRUMA baixa rente à grama (mistério nos pés)
-    this.spawnFogPuffs(CX, CZ, 20, TOP_Y + 0.05, TOP_Y + 1.6, R + 1.2, cDark, 0x8a92a2, 0.0, 1.2, 0.16, 10, 22);
-    //  - fumaça no VÃO DA ENTRADA (corredor), tão densa quanto o resto
+    // FUMAÇA VOLUMÉTRICA — muitas MECHAS wispy espalhadas por todo o VOLUME (não só
+    // num anel), com forte contraste claro/escuro → parece fumaça de verdade, não um
+    // véu chapado. Tamanhos e profundidades bem variados = irregular/esfumaçado.
+    const cDark = 0x3d4653, cLight = 0xc4ccda; // contraste amplo (sombra ↔ luz)
+    //  - VOLUME geral do santuário (miolo + bordas, alturas variadas)
+    this.spawnFogPuffs(CX, CZ, 70, TOP_Y + 1.2, TOP_Y + 14, R + 1.5, cDark, cLight, 0.0, 1.35, 0.14, 10, 30);
+    //  - reforço subindo pela ROCHA (some as paredes bem no alto)
+    this.spawnFogPuffs(CX, CZ, 34, TOP_Y + 5, TOP_Y + 16, R + 1.5, cDark, cLight, 0.7, 1.4, 0.14, 16, 40);
+    //  - BRUMA baixa densa rente à grama (mistério nos pés)
+    this.spawnFogPuffs(CX, CZ, 24, TOP_Y + 0.05, TOP_Y + 1.8, R + 1.4, cDark, 0x9aa2b2, 0.0, 1.25, 0.14, 10, 24);
+    //  - fumaça enchendo o VÃO DA ENTRADA (corredor)
     const ez = 11 * CELL;
-    this.spawnFogPuffs(CX, ez, 22, TOP_Y - 1.5, TOP_Y + 12, 2.4 * CELL, cDark, cLight, 0.0, 1.25, 0.24, 14, 34);
+    this.spawnFogPuffs(CX, ez, 26, TOP_Y - 1.5, TOP_Y + 13, 2.4 * CELL, cDark, cLight, 0.0, 1.25, 0.14, 12, 30);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
