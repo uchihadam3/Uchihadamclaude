@@ -1,0 +1,1 @@
+UPDATE public.save_slots SET score = 1028 WHERE team_name = 'Uchihadam' AND score = 1012;

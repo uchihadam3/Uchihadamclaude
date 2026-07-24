@@ -1,0 +1,2 @@
+ALTER TABLE public.user_badges DROP CONSTRAINT user_badges_kind_check;
+ALTER TABLE public.user_badges ADD CONSTRAINT user_badges_kind_check CHECK (kind = ANY (ARRAY['best'::text, 'mid'::text, 'worst'::text]));

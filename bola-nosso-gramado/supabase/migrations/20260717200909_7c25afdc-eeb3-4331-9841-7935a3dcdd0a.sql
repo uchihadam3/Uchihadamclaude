@@ -1,0 +1,1 @@
+UPDATE public.save_slots SET score = score + 25 WHERE (stats->'trophies'->>'brasileirao')::boolean = true;

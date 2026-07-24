@@ -1,0 +1,1 @@
+ALTER TABLE public.coach_progress ADD COLUMN IF NOT EXISTS earned_xp integer NOT NULL DEFAULT 0;

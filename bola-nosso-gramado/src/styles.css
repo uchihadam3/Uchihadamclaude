@@ -1,0 +1,974 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.16 0.04 155);
+  --foreground: oklch(0.98 0.01 100);
+  --card: oklch(0.22 0.05 155);
+  --card-foreground: oklch(0.98 0.01 100);
+  --popover: oklch(0.22 0.05 155);
+  --popover-foreground: oklch(0.98 0.01 100);
+  --primary: oklch(0.85 0.19 90);
+  --primary-foreground: oklch(0.16 0.04 155);
+  --secondary: oklch(0.28 0.06 155);
+  --secondary-foreground: oklch(0.98 0.01 100);
+  --muted: oklch(0.24 0.04 155);
+  --muted-foreground: oklch(0.75 0.03 140);
+  --accent: oklch(0.75 0.18 145);
+  --accent-foreground: oklch(0.15 0.04 155);
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 100);
+  --border: oklch(0.32 0.05 155);
+  --input: oklch(0.28 0.05 155);
+  --ring: oklch(0.85 0.19 90);
+  --pitch-line: oklch(0.98 0.01 100 / 0.15);
+  --gold: oklch(0.85 0.19 90);
+  --gold-dark: oklch(0.65 0.17 75);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@theme inline {
+  --font-display: "Bebas Neue", "Impact", system-ui, sans-serif;
+  --font-condensed: "Barlow Condensed", "Bebas Neue", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    background:
+      radial-gradient(1200px 600px at 50% -10%, oklch(0.35 0.12 145 / 0.7), transparent 60%),
+      radial-gradient(900px 500px at 90% 110%, oklch(0.45 0.18 90 / 0.35), transparent 60%),
+      radial-gradient(700px 500px at 10% 100%, oklch(0.32 0.14 200 / 0.4), transparent 60%),
+      linear-gradient(180deg, oklch(0.14 0.04 155) 0%, oklch(0.09 0.03 155) 100%),
+      var(--color-background);
+    background-attachment: fixed;
+    color: var(--color-foreground);
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Grain / noise overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(oklch(1 0 0 / 0.06) 1px, transparent 1px);
+    background-size: 3px 3px;
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+    z-index: 0;
+  }
+
+  /* Stadium spotlights sweeping the top corners */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(600px 300px at 15% 0%, oklch(0.95 0.12 95 / 0.10), transparent 70%),
+      radial-gradient(600px 300px at 85% 0%, oklch(0.95 0.12 95 / 0.10), transparent 70%);
+    z-index: 0;
+    mix-blend-mode: screen;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: "Barlow Condensed", "Bebas Neue", system-ui, sans-serif;
+    letter-spacing: 0.01em;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@utility font-display {
+  font-family: "Bebas Neue", "Impact", system-ui, sans-serif;
+  letter-spacing: 0.03em;
+}
+
+@utility font-condensed {
+  font-family: "Barlow Condensed", "Bebas Neue", system-ui, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+@utility pitch-bg {
+  position: relative;
+  background-image:
+    radial-gradient(ellipse at center, oklch(0.38 0.12 145) 0%, oklch(0.22 0.08 150) 70%, oklch(0.15 0.06 150) 100%),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 40px,
+      oklch(1 0 0 / 0.05) 40px,
+      oklch(1 0 0 / 0.05) 80px
+    );
+  background-blend-mode: overlay;
+  border: 2px solid #000;
+  box-shadow:
+    inset 0 0 0 3px rgba(250, 204, 21, 0.85),
+    inset 0 0 40px oklch(0 0 0 / 0.5),
+    4px 4px 0 0 rgba(0, 0, 0, 0.55);
+}
+
+@utility gold-text {
+  background: linear-gradient(180deg, oklch(0.98 0.15 95) 0%, oklch(0.85 0.19 90) 45%, oklch(0.6 0.16 70) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 12px oklch(0.85 0.19 90 / 0.35);
+  filter: drop-shadow(0 1px 0 oklch(0 0 0 / 0.35));
+}
+
+@utility card-glow {
+  background: linear-gradient(180deg, oklch(0.26 0.06 155) 0%, oklch(0.18 0.04 155) 100%);
+  border: 2px solid oklch(0.08 0.02 155);
+  box-shadow:
+    0 4px 0 oklch(0.06 0.02 155),
+    0 14px 30px -12px oklch(0 0 0 / 0.55),
+    inset 0 1px 0 oklch(1 0 0 / 0.08),
+    inset 0 0 0 1px oklch(0.85 0.19 90 / 0.15);
+}
+
+/* Thick outlined pill chip echoing badge ribbons — for stat pills, small tags */
+@utility chip-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.55rem;
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 999px;
+  background: linear-gradient(180deg, oklch(0.32 0.06 155) 0%, oklch(0.2 0.04 155) 100%);
+  box-shadow: 0 2px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.1);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Chunky tab pill row — badge-style. Wraps the row; use `chunky-tab` for buttons. */
+@utility chunky-tabs {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.35rem;
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, oklch(0.2 0.05 155) 0%, oklch(0.14 0.04 155) 100%);
+  box-shadow: 0 3px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.05);
+}
+@utility chunky-tab {
+  flex: 1 1 0;
+  padding: 0.45rem 0.5rem;
+  border-radius: 0.7rem;
+  border: 2px solid transparent;
+  font-family: "Bebas Neue", "Impact", system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  color: oklch(0.75 0.03 140);
+  transition: transform 0.1s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+@utility chunky-tab {
+  &:hover { color: oklch(0.98 0.01 100); }
+  &[data-active="true"] {
+    color: oklch(0.12 0.04 155);
+    background: linear-gradient(180deg, oklch(0.92 0.19 95) 0%, oklch(0.78 0.19 85) 100%);
+    border-color: oklch(0.08 0.02 155);
+    box-shadow: 0 2px 0 oklch(0.45 0.13 65), inset 0 1px 0 oklch(1 0 0 / 0.5);
+    text-shadow: 0 1px 0 oklch(1 0 0 / 0.3);
+  }
+}
+
+/* Premium glass panel with faint gold hairline — use on major cards/modals */
+@utility panel-premium {
+  position: relative;
+  background:
+    linear-gradient(180deg, oklch(0.24 0.05 155 / 0.85), oklch(0.16 0.04 155 / 0.92));
+  border: 1px solid oklch(0.85 0.19 90 / 0.25);
+  border-radius: 1rem;
+  box-shadow:
+    0 30px 60px -30px oklch(0 0 0 / 0.8),
+    0 0 40px -12px oklch(0.85 0.19 90 / 0.18),
+    inset 0 1px 0 oklch(1 0 0 / 0.08),
+    inset 0 -1px 0 oklch(0 0 0 / 0.3);
+  backdrop-filter: blur(10px);
+}
+@utility panel-premium {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, oklch(0.85 0.19 90 / 0.4), transparent 40%, transparent 60%, oklch(0.85 0.19 90 / 0.25));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+@utility btn-primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, oklch(0.92 0.19 95) 0%, oklch(0.78 0.19 85) 50%, oklch(0.62 0.18 75) 100%);
+  color: oklch(0.15 0.04 155);
+  border: 2px solid oklch(0.08 0.02 155);
+  box-shadow:
+    0 6px 0 oklch(0.06 0.02 155),
+    0 12px 24px -8px oklch(0.85 0.19 90 / 0.55),
+    inset 0 1px 0 oklch(1 0 0 / 0.6);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.2s ease;
+  filter: saturate(1.05);
+  text-shadow: 0 1px 0 oklch(1 0 0 / 0.35);
+}
+@utility btn-primary {
+  &:hover {
+    filter: saturate(1.15) brightness(1.05);
+  }
+  &:active {
+    transform: translateY(4px);
+    box-shadow:
+      0 2px 0 oklch(0.06 0.02 155),
+      0 4px 10px -4px oklch(0.85 0.19 90 / 0.4),
+      inset 0 1px 0 oklch(1 0 0 / 0.4);
+  }
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, oklch(1 0 0 / 0.35) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+  &:hover::after {
+    transform: translateX(100%);
+  }
+}
+
+@utility ring-gold {
+  box-shadow:
+    0 0 0 2px oklch(0.85 0.19 90 / 0.6),
+    0 0 20px oklch(0.85 0.19 90 / 0.35);
+}
+
+/* Sticker-card: chunky black outline + offset drop shadow, mimics the
+ * cel-shaded feel of the badges. Use on major menu cards / hero blocks. */
+@utility sticker-card {
+  position: relative;
+  background: linear-gradient(180deg, oklch(0.26 0.07 155) 0%, oklch(0.18 0.05 155) 100%);
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 6px 0 oklch(0.06 0.02 155),
+    0 14px 30px -10px oklch(0 0 0 / 0.55),
+    inset 0 1px 0 oklch(1 0 0 / 0.08),
+    inset 0 0 0 1px oklch(0.85 0.19 90 / 0.18);
+}
+
+/* Ribbon-tag: little green banner label like the badge ribbons */
+@utility ribbon-tag {
+  display: inline-block;
+  padding: 0.25rem 0.9rem;
+  background: linear-gradient(180deg, oklch(0.62 0.19 150) 0%, oklch(0.45 0.16 150) 100%);
+  color: oklch(0.98 0.02 100);
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 999px;
+  font-family: "Bebas Neue", "Impact", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  box-shadow:
+    0 3px 0 oklch(0.06 0.02 155),
+    inset 0 1px 0 oklch(1 0 0 / 0.25);
+  text-shadow: 0 1px 0 oklch(0 0 0 / 0.4);
+}
+
+/* Gold star burst — decorative background behind hero elements */
+@utility star-burst {
+  position: relative;
+}
+@utility star-burst {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -12%;
+    background:
+      radial-gradient(closest-side, oklch(0.85 0.19 90 / 0.35), transparent 65%),
+      conic-gradient(from 0deg,
+        oklch(0.85 0.19 90 / 0.25) 0deg 10deg,
+        transparent 10deg 30deg,
+        oklch(0.85 0.19 90 / 0.25) 30deg 40deg,
+        transparent 40deg 60deg,
+        oklch(0.85 0.19 90 / 0.25) 60deg 70deg,
+        transparent 70deg 90deg,
+        oklch(0.85 0.19 90 / 0.25) 90deg 100deg,
+        transparent 100deg 120deg,
+        oklch(0.85 0.19 90 / 0.25) 120deg 130deg,
+        transparent 130deg 150deg,
+        oklch(0.85 0.19 90 / 0.25) 150deg 160deg,
+        transparent 160deg 180deg,
+        oklch(0.85 0.19 90 / 0.25) 180deg 190deg,
+        transparent 190deg 210deg,
+        oklch(0.85 0.19 90 / 0.25) 210deg 220deg,
+        transparent 220deg 240deg,
+        oklch(0.85 0.19 90 / 0.25) 240deg 250deg,
+        transparent 250deg 270deg,
+        oklch(0.85 0.19 90 / 0.25) 270deg 280deg,
+        transparent 280deg 300deg,
+        oklch(0.85 0.19 90 / 0.25) 300deg 310deg,
+        transparent 310deg 330deg,
+        oklch(0.85 0.19 90 / 0.25) 330deg 340deg,
+        transparent 340deg 360deg);
+    filter: blur(2px);
+    z-index: -1;
+    pointer-events: none;
+    animation: star-burst-spin 60s linear infinite;
+  }
+}
+
+@keyframes star-burst-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Chunky "cartoon" heading — thick black stroke + gold fill, echoing wordmark */
+@utility cartoon-title {
+  font-family: "Bebas Neue", "Impact", system-ui, sans-serif;
+  letter-spacing: 0.03em;
+  color: oklch(0.9 0.18 90);
+  -webkit-text-stroke: 2px oklch(0.08 0.02 155);
+  paint-order: stroke fill;
+  text-shadow:
+    0 3px 0 oklch(0.06 0.02 155),
+    0 6px 12px oklch(0 0 0 / 0.45);
+}
+
+/* ============================================================
+ * COMPETITION THEMES — apply as classes on hero headers / bars
+ * .theme-brasileirao / .theme-libertadores / .theme-sulamericana / .theme-mundial
+ * ============================================================ */
+@utility theme-brasileirao {
+  background:
+    linear-gradient(135deg, oklch(0.55 0.19 145) 0%, oklch(0.42 0.16 150) 55%, oklch(0.85 0.19 95) 100%);
+  color: oklch(0.14 0.04 155);
+  border: 1px solid oklch(0.85 0.19 90 / 0.5);
+  box-shadow: 0 12px 32px -12px oklch(0.55 0.19 145 / 0.6);
+}
+@utility theme-libertadores {
+  background:
+    linear-gradient(135deg, oklch(0.65 0.22 30) 0%, oklch(0.55 0.22 25) 45%, oklch(0.85 0.19 95) 100%);
+  color: oklch(1 0 0);
+  border: 1px solid oklch(0.85 0.19 90 / 0.55);
+  box-shadow: 0 12px 32px -12px oklch(0.55 0.22 25 / 0.6);
+}
+@utility theme-sulamericana {
+  background:
+    linear-gradient(135deg, oklch(0.75 0.2 60) 0%, oklch(0.6 0.2 45) 55%, oklch(0.4 0.15 30) 100%);
+  color: oklch(1 0 0);
+  border: 1px solid oklch(0.85 0.19 90 / 0.35);
+  box-shadow: 0 12px 32px -12px oklch(0.65 0.2 45 / 0.6);
+}
+@utility theme-mundial {
+  background:
+    linear-gradient(135deg, oklch(0.9 0.16 95) 0%, oklch(0.72 0.18 85) 45%, oklch(0.45 0.13 60) 100%);
+  color: oklch(0.14 0.04 155);
+  border: 1px solid oklch(1 0 0 / 0.4);
+  box-shadow: 0 12px 32px -12px oklch(0.85 0.19 90 / 0.75);
+}
+
+/* ============================================================
+ * TV-STYLE SCOREBOARD BAR — for match header
+ * ============================================================ */
+@utility scoreboard-tv {
+  background:
+    linear-gradient(180deg, oklch(0.14 0.04 155 / 0.95), oklch(0.09 0.03 155 / 0.98));
+  border: 1px solid oklch(0.85 0.19 90 / 0.35);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 20px 40px -20px oklch(0 0 0 / 0.7),
+    0 0 30px -12px oklch(0.85 0.19 90 / 0.3),
+    inset 0 1px 0 oklch(1 0 0 / 0.1);
+  position: relative;
+  overflow: hidden;
+}
+@utility scoreboard-tv {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, transparent 0, transparent 3px, oklch(1 0 0 / 0.02) 3px, oklch(1 0 0 / 0.02) 4px);
+    pointer-events: none;
+  }
+}
+
+/* Ranking row highlight (top 3 medals) */
+@utility rank-gold {
+  background: linear-gradient(90deg, oklch(0.85 0.19 90 / 0.25), transparent 70%);
+  border-left: 3px solid oklch(0.85 0.19 90);
+}
+@utility rank-silver {
+  background: linear-gradient(90deg, oklch(0.85 0.02 240 / 0.2), transparent 70%);
+  border-left: 3px solid oklch(0.82 0.02 240);
+}
+@utility rank-bronze {
+  background: linear-gradient(90deg, oklch(0.6 0.15 55 / 0.22), transparent 70%);
+  border-left: 3px solid oklch(0.6 0.15 55);
+}
+
+/* Podium bars for top 3 view */
+@utility podium-1 {
+  background: linear-gradient(180deg, oklch(0.92 0.18 95), oklch(0.62 0.16 75));
+  border: 2px solid oklch(0.08 0.02 155);
+  box-shadow: 0 4px 0 oklch(0.06 0.02 155), 0 0 30px -8px oklch(0.85 0.19 90 / 0.7), inset 0 2px 0 oklch(1 0 0 / 0.6);
+}
+@utility podium-2 {
+  background: linear-gradient(180deg, oklch(0.9 0.02 240), oklch(0.6 0.02 240));
+  border: 2px solid oklch(0.08 0.02 155);
+  box-shadow: 0 4px 0 oklch(0.06 0.02 155), 0 0 24px -8px oklch(0.85 0.02 240 / 0.5), inset 0 2px 0 oklch(1 0 0 / 0.5);
+}
+@utility podium-3 {
+  background: linear-gradient(180deg, oklch(0.75 0.14 55), oklch(0.48 0.13 45));
+  border: 2px solid oklch(0.08 0.02 155);
+  box-shadow: 0 4px 0 oklch(0.06 0.02 155), 0 0 24px -8px oklch(0.6 0.15 55 / 0.5), inset 0 2px 0 oklch(1 0 0 / 0.4);
+}
+
+/* Cartoon-sticker ranking row */
+@utility rank-row {
+  border-radius: 1rem;
+  border: 2px solid oklch(0.08 0.02 155);
+  background: linear-gradient(180deg, oklch(0.24 0.06 155) 0%, oklch(0.17 0.05 155) 100%);
+  box-shadow: 0 4px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.08);
+}
+@utility rank-row-gold {
+  background: linear-gradient(180deg, oklch(0.42 0.13 95) 0%, oklch(0.24 0.08 95) 100%);
+  box-shadow: 0 4px 0 oklch(0.06 0.02 155), 0 0 18px -6px oklch(0.85 0.19 90 / 0.6), inset 0 1px 0 oklch(1 0 0 / 0.18);
+}
+@utility rank-row-silver {
+  background: linear-gradient(180deg, oklch(0.42 0.02 240) 0%, oklch(0.26 0.02 240) 100%);
+  box-shadow: 0 4px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.15);
+}
+@utility rank-row-bronze {
+  background: linear-gradient(180deg, oklch(0.4 0.1 55) 0%, oklch(0.24 0.08 55) 100%);
+  box-shadow: 0 4px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.15);
+}
+
+/* FIFA-card style wrap for player picks — apply on the outer button */
+@utility player-card {
+  position: relative;
+  background:
+    linear-gradient(160deg, oklch(0.28 0.06 155 / 0.95) 0%, oklch(0.18 0.04 155 / 0.95) 60%, oklch(0.14 0.04 155 / 0.98) 100%);
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 0.9rem;
+  box-shadow:
+    0 5px 0 oklch(0.06 0.02 155),
+    0 14px 30px -14px oklch(0 0 0 / 0.75),
+    0 0 20px -12px oklch(0.85 0.19 90 / 0.4),
+    inset 0 1px 0 oklch(1 0 0 / 0.12),
+    inset 0 0 0 1px oklch(0.85 0.19 90 / 0.22);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.2s ease;
+  overflow: hidden;
+}
+@utility player-card {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 40%, oklch(1 0 0 / 0.06) 50%, transparent 60%);
+    pointer-events: none;
+  }
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 7px 0 oklch(0.06 0.02 155),
+      0 22px 40px -14px oklch(0 0 0 / 0.85),
+      0 0 32px -10px oklch(0.85 0.19 90 / 0.55),
+      inset 0 1px 0 oklch(1 0 0 / 0.14),
+      inset 0 0 0 1px oklch(0.85 0.19 90 / 0.35);
+  }
+}
+@utility player-card-legend {
+  border-color: oklch(0.08 0.02 155);
+  box-shadow:
+    0 5px 0 oklch(0.06 0.02 155),
+    0 14px 30px -14px oklch(0 0 0 / 0.75),
+    0 0 34px -6px oklch(0.85 0.19 90 / 0.7),
+    inset 0 1px 0 oklch(1 0 0 / 0.2),
+    inset 0 0 0 2px oklch(0.85 0.19 90 / 0.65);
+}
+
+/* Chip / pill common styling */
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: oklch(1 0 0 / 0.08);
+  border: 2px solid oklch(0.08 0.02 155);
+  color: oklch(0.98 0.01 100);
+  box-shadow: 0 2px 0 oklch(0.06 0.02 155);
+}
+@utility chip-gold {
+  background: linear-gradient(180deg, oklch(0.92 0.19 95) 0%, oklch(0.72 0.18 85) 100%);
+  border: 2px solid oklch(0.08 0.02 155);
+  color: oklch(0.14 0.04 155);
+  text-shadow: 0 1px 0 oklch(1 0 0 / 0.35);
+}
+
+/* Cartoon crest frame — thick black ring around every team badge */
+@utility crest-frame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 30% 25%, oklch(1 0.05 95 / 0.9) 0%, transparent 45%),
+    linear-gradient(180deg, oklch(0.95 0.21 95) 0%, oklch(0.72 0.19 85) 100%);
+  border: 2px solid oklch(0.08 0.02 155);
+  box-shadow:
+    0 3px 0 oklch(0.06 0.02 155),
+    0 0 12px oklch(0.88 0.2 95 / 0.55),
+    inset 0 1px 0 oklch(1 0 0 / 0.5);
+
+  & > * {
+    filter:
+      saturate(1.85)
+      contrast(1.28)
+      brightness(1.08)
+      drop-shadow(0 0 0.6px oklch(0.08 0.02 155))
+      drop-shadow(0 0 0.6px oklch(0.08 0.02 155))
+      drop-shadow(0 0 0.6px oklch(0.08 0.02 155))
+      drop-shadow(0 1px 2px oklch(0.06 0.02 155 / 0.6));
+  }
+}
+
+/* Small "Fechar" / "✕" pill used in modal headers */
+@utility sticker-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.7rem;
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 999px;
+  background: linear-gradient(180deg, oklch(0.98 0.01 100) 0%, oklch(0.86 0.01 100) 100%);
+  color: oklch(0.14 0.04 155);
+  font-family: "Bebas Neue", "Impact", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  font-size: 0.78rem;
+  box-shadow: 0 2px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.4);
+  transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.08s ease;
+}
+@utility sticker-close {
+  &:hover { filter: brightness(1.06); }
+  &:active { transform: translateY(1px); box-shadow: 0 1px 0 oklch(0.06 0.02 155); }
+}
+
+/* Segmented sticker tab (Próximo jogo / Tabela) */
+@utility sticker-tab {
+  flex: 1;
+  padding: 0.45rem 0.5rem;
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 0.7rem;
+  background: linear-gradient(180deg, oklch(0.32 0.05 155) 0%, oklch(0.2 0.04 155) 100%);
+  color: oklch(0.94 0.02 100);
+  font-family: "Bebas Neue", "Impact", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  font-size: 0.9rem;
+  box-shadow: 0 3px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.15);
+  transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.08s ease;
+}
+@utility sticker-tab-active {
+  background: linear-gradient(180deg, oklch(0.92 0.19 95) 0%, oklch(0.72 0.18 85) 100%);
+  color: oklch(0.14 0.04 155);
+  text-shadow: 0 1px 0 oklch(1 0 0 / 0.35);
+}
+
+/* Bracket connector — draw over parent using ::before/::after (utility just applies base styles) */
+@utility bracket-line {
+  position: relative;
+}
+@utility bracket-line {
+  &::after {
+    content: "";
+    position: absolute;
+    right: -1rem;
+    top: 50%;
+    width: 1rem;
+    height: 2px;
+    background: linear-gradient(90deg, oklch(0.85 0.19 90 / 0.6), transparent);
+  }
+}
+
+/* ============================================================
+ * ANIMATIONS
+ * ============================================================ */
+@keyframes goal-pop {
+  0% { transform: scale(0.5) rotate(-4deg); opacity: 0; }
+  40% { transform: scale(1.25) rotate(2deg); opacity: 1; }
+  70% { transform: scale(0.95) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+@utility animate-goal {
+  animation: goal-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@utility animate-slide-up {
+  animation: slide-up 0.4s ease-out both;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px -6px oklch(0.85 0.19 90 / 0.55); }
+  50% { box-shadow: 0 0 32px -4px oklch(0.85 0.19 90 / 0.9); }
+}
+@utility glow-pulse {
+  animation: glow-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@utility shimmer-text {
+  background: linear-gradient(90deg,
+    oklch(0.85 0.19 90) 0%,
+    oklch(1 0.05 100) 45%,
+    oklch(0.85 0.19 90) 55%,
+    oklch(0.7 0.17 80) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes float-up {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-60px) scale(1.4); opacity: 0; }
+}
+@utility animate-float-up {
+  animation: float-up 1.2s ease-out both;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@utility animate-pop-in {
+  animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Subtle floating loop for hero elements (e.g., main menu crest) */
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-6px) rotate(1deg); }
+}
+@utility animate-hero-float {
+  animation: hero-float 6s ease-in-out infinite;
+}
+
+/* Confetti-ish flash overlay when a goal or title happens */
+@keyframes flash-burst {
+  0% { opacity: 0; transform: scale(0.6); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+@utility animate-flash-burst {
+  animation: flash-burst 0.9s ease-out both;
+}
+
+/* Level-up ring animation */
+@keyframes level-up-ring {
+  0% { box-shadow: 0 0 0 0 oklch(0.85 0.19 90 / 0.7); }
+  100% { box-shadow: 0 0 0 40px oklch(0.85 0.19 90 / 0); }
+}
+@utility animate-level-up {
+  animation: level-up-ring 1.2s ease-out infinite;
+}
+
+/* Ticker / marquee slide for news lines */
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@utility animate-ticker {
+  animation: ticker 22s linear infinite;
+}
+
+@utility text-stroke {
+  -webkit-text-stroke: 1px oklch(0 0 0 / 0.45);
+  text-shadow: 0 2px 4px oklch(0 0 0 / 0.4);
+}
+
+/* Sticker icon button — usado no header (chat, troféu, som, histórico, ?).
+ * Botão redondo cartunesco com borda preta grossa e sombra offset. */
+@utility sticker-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 999px;
+  background: linear-gradient(180deg, oklch(0.32 0.06 155) 0%, oklch(0.2 0.04 155) 100%);
+  color: oklch(0.98 0.01 100);
+  font-size: 0.95rem;
+  box-shadow: 0 2px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.1);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+}
+@utility sticker-icon-btn {
+  &:hover { filter: brightness(1.12); }
+  &:active { transform: translateY(1px); box-shadow: 0 1px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.1); }
+}
+@utility sticker-icon-btn-gold {
+  background: linear-gradient(180deg, oklch(0.92 0.19 95) 0%, oklch(0.72 0.18 85) 100%);
+  color: oklch(0.14 0.04 155);
+  text-shadow: 0 1px 0 oklch(1 0 0 / 0.35);
+}
+@utility sticker-icon-btn-emerald {
+  background: linear-gradient(180deg, oklch(0.72 0.19 150) 0%, oklch(0.52 0.17 150) 100%);
+  color: oklch(0.14 0.04 155);
+}
+@utility sticker-icon-btn-white {
+  background: linear-gradient(180deg, oklch(0.98 0.01 100) 0%, oklch(0.88 0.01 100) 100%);
+  color: oklch(0.14 0.04 155);
+  text-shadow: 0 1px 0 oklch(1 0 0 / 0.35);
+}
+
+/* Botão sticker retangular (chunky) — pra "Sair", "Voltar", ações do menu */
+@utility sticker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.85rem;
+  border: 2px solid oklch(0.08 0.02 155);
+  border-radius: 0.7rem;
+  background: linear-gradient(180deg, oklch(0.98 0.01 100) 0%, oklch(0.88 0.01 100) 100%);
+  color: oklch(0.14 0.04 155);
+  font-family: "Bebas Neue", "Impact", system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  font-size: 0.85rem;
+  box-shadow: 0 3px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.35);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+}
+@utility sticker-btn {
+  &:hover { filter: brightness(1.05); }
+  &:active { transform: translateY(2px); box-shadow: 0 1px 0 oklch(0.06 0.02 155), inset 0 1px 0 oklch(1 0 0 / 0.35); }
+}
+@utility sticker-btn-gold {
+  background: linear-gradient(180deg, oklch(0.92 0.19 95) 0%, oklch(0.72 0.18 85) 100%);
+  color: oklch(0.14 0.04 155);
+}
+@utility sticker-btn-emerald {
+  background: linear-gradient(180deg, oklch(0.72 0.19 150) 0%, oklch(0.5 0.16 150) 100%);
+  color: oklch(0.98 0.01 100);
+  text-shadow: 0 1px 0 oklch(0 0 0 / 0.35);
+}
+@utility sticker-btn-danger {
+  background: linear-gradient(180deg, oklch(0.72 0.22 25) 0%, oklch(0.52 0.2 25) 100%);
+  color: oklch(0.98 0.01 100);
+  text-shadow: 0 1px 0 oklch(0 0 0 / 0.35);
+}
+@utility sticker-btn {
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+/* Custom scrollbar for a more polished feel */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.85 0.19 90 / 0.4) transparent;
+  }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, oklch(0.85 0.19 90 / 0.55), oklch(0.62 0.16 75 / 0.55));
+    border-radius: 999px;
+  }
+}
+
+/* ============================================================
+ * PODIUM — animated top-3 reveal for championship end screens
+ * ============================================================ */
+@keyframes podium-rise {
+  0%   { transform: translateY(120%); opacity: 0; }
+  60%  { transform: translateY(-6%); opacity: 1; }
+  100% { transform: translateY(0);   opacity: 1; }
+}
+@utility animate-podium-rise {
+  animation: podium-rise 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes trophy-drop {
+  0%   { transform: translateY(-40px) scale(0.6) rotate(-8deg); opacity: 0; }
+  70%  { transform: translateY(6px) scale(1.05) rotate(3deg); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+}
+@utility animate-trophy-drop {
+  animation: trophy-drop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(-40px) rotate(0deg);   opacity: 0; }
+  10%  { opacity: 1; }
+  100% { transform: translateY(240px) rotate(540deg); opacity: 0; }
+}
+@utility animate-confetti {
+  animation: confetti-fall 2.4s linear infinite;
+}
+
+@keyframes spotlight-sweep {
+  0%   { transform: translateX(-40%) rotate(20deg); }
+  100% { transform: translateX(140%) rotate(20deg); }
+}
+@utility comp-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+@utility comp-hero {
+  &::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: 0;
+    width: 40%;
+    height: 200%;
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.18), transparent);
+    animation: spotlight-sweep 4.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
