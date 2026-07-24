@@ -589,6 +589,8 @@ export class Game {
   // fumaça animada (sprites macios que derivam) — dá vida à névoa
   private fogPuffs: { s: THREE.Sprite; bx: number; bz: number; by: number; ph: number; rad: number; baseOp: number }[] = [];
   private softPuffCache?: THREE.Texture;
+  private cloudTexCache?: THREE.Texture;
+  private fogDome?: THREE.Mesh; // cúpula de nuvens que gira devagar (céu de névoa)
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
   // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
@@ -875,8 +877,8 @@ export class Game {
       // mini-santuário: NÉVOA volumétrica densa (exponencial) — moody, não "céu".
       // Enche o recinto até o chão e some o topo das paredes. background = MESMA
       // cor da névoa → o vazio acima vira névoa (sem borda de "céu").
-      const fogCol = 0x8a919d;
-      this.scene.fog = new THREE.FogExp2(fogCol, 0.055); // haste de distância suave
+      const fogCol = 0x7c8390; // névoa moody (igual à do santuário)
+      this.scene.fog = new THREE.FogExp2(fogCol, 0.05); // haze de distância suave
       this.scene.background = new THREE.Color(fogCol);
       this.addShowcaseLights();
       this.buildShowcase();
@@ -917,6 +919,7 @@ export class Game {
     this.gateAnims = [];
     this.motes = [];
     this.fogPuffs = [];
+    this.fogDome = undefined;
     this.npcs = [];
     this.flames = [];
     this.lampFlames = [];
@@ -2347,18 +2350,51 @@ export class Game {
     return t;
   }
 
+  // textura da cúpula de névoa: nuvens macias (fbm), OPACAS no zênite e sumindo
+  // até transparente no horizonte → vira "céu de fumaça", sem fundo chapado.
+  private cloudDomeTex(): THREE.Texture {
+    if (this.cloudTexCache) return this.cloudTexCache;
+    const W = 512, H = 256;
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d")!;
+    const img = ctx.createImageData(W, H);
+    for (let y = 0; y < H; y++) {
+      const v = y / (H - 1); // 0 = topo da imagem (zênite), 1 = base (horizonte)
+      const vert = Math.min(1, Math.max(0, (0.7 - v) / 0.7)); // 1 no topo, 0 em v≥0.7
+      for (let x = 0; x < W; x++) {
+        const n = this.fbm(x * 0.02, y * 0.05, 3.3); // padrão de nuvem macio
+        const cloud = Math.min(1, Math.max(0, (n - 0.34) * 2.3));
+        let a = vert * (0.4 + 0.6 * cloud);
+        if (v < 0.14) a = Math.max(a, (0.14 - v) / 0.14); // zênite bem cheio
+        const i = (y * W + x) * 4;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+        img.data[i + 3] = Math.round(Math.min(1, a) * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(cv);
+    t.wrapS = THREE.RepeatWrapping;
+    t.flipY = false; // topo da imagem (denso) fica no polo de CIMA da esfera
+    this.cloudTexCache = t;
+    return t;
+  }
+
   // FUMAÇA que se MOVE: sprites macios grandes que derivam devagar pelo cenário,
   // dando a sensação de neblina viva (e quebrando qualquer "borda" reta).
-  private spawnFogPuffs(cx: number, cz: number, count: number, yLo: number, yHi: number, radius: number, color: number) {
+  private spawnFogPuffs(
+    cx: number, cz: number, count: number, yLo: number, yHi: number, radius: number,
+    color: number, rMin = 0.3, rMax = 1.1, opBase = 0.09, sizeLo = 6, sizeHi = 13,
+  ) {
     const tx = this.softPuffTex();
     for (let i = 0; i < count; i++) {
       const m = new THREE.SpriteMaterial({
-        map: tx, color, transparent: true, opacity: 0.16, depthWrite: false, fog: false,
+        map: tx, color, transparent: true, opacity: opBase, depthWrite: false, fog: false,
       });
       const s = new THREE.Sprite(m);
-      const sc = 6 + Math.random() * 7;
+      const sc = sizeLo + Math.random() * (sizeHi - sizeLo);
       s.scale.set(sc, sc, 1);
-      const ang = Math.random() * Math.PI * 2, rr = radius * (0.3 + Math.random() * 0.8);
+      const ang = Math.random() * Math.PI * 2, rr = radius * (rMin + Math.random() * (rMax - rMin));
       const bx = cx + Math.cos(ang) * rr, bz = cz + Math.sin(ang) * rr;
       const by = yLo + Math.random() * (yHi - yLo);
       s.position.set(bx, by, bz);
@@ -2366,7 +2402,7 @@ export class Game {
       this.world.add(s);
       this.fogPuffs.push({
         s, bx, bz, by, ph: Math.random() * 6.28,
-        rad: 1.4 + Math.random() * 2.4, baseOp: 0.09 + Math.random() * 0.13,
+        rad: 1.4 + Math.random() * 2.4, baseOp: opBase + Math.random() * 0.06,
       });
     }
   }
@@ -2379,10 +2415,10 @@ export class Game {
     const R = SHOW_RADIUS * CELL; // raio do santuário (em unidades)
     const CX = SHOW_CENTER.c * CELL, CZ = SHOW_CENTER.r * CELL;
     const WALL_H = 9.0; // paredes ALTAS — o topo fica muito acima e some na névoa
-    const FOGC = 0x8a919d; // MESMA cor da névoa da cena
-    // névoa por altura: limpo perto do chão, névoa CHEIA já a ~6.5 (bem abaixo do
-    // topo da parede) → as paredes se dissolvem sem deixar linha marcada.
-    const yClear = TOP_Y + 2.0, yFull = TOP_Y + 5.6;
+    const FOGC = 0x7c8390; // névoa moody (mais escura → menos contraste com a rocha)
+    // névoa por altura: limpo perto do chão, névoa CHEIA já logo acima dos olhos
+    // (baixa e densa) → paredes/pilares somem cedo, sem linha marcada.
+    const yClear = TOP_Y + 1.4, yFull = TOP_Y + 3.7;
 
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
     const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
@@ -2465,8 +2501,10 @@ export class Game {
       // pula os pilares perto do vão (sul, +z → th ≈ π/2 no sistema do cilindro)
       if (Math.abs(Math.atan2(Math.sin(th), Math.cos(th)) - Math.PI / 2) < gap + 0.3) continue;
       const px = CX + Math.cos(th) * (R - 0.2), pz = CZ + Math.sin(th) * (R - 0.2);
-      const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, WALL_H + 1.2, 8), pillarMat);
-      pil.position.set(px, TOP_Y + (WALL_H + 1.2) / 2, pz);
+      // pilares mais BAIXOS: topo logo acima da linha de névoa cheia → somem sem stub
+      const ph = (yFull - TOP_Y) + 1.4;
+      const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, ph, 8), pillarMat);
+      pil.position.set(px, TOP_Y + ph / 2, pz);
       this.world.add(pil);
     }
 
@@ -2503,12 +2541,26 @@ export class Game {
     ray.renderOrder = 7;
     this.world.add(ray);
 
+    // CÚPULA de névoa (nuvens macias que giram devagar) — enche o "céu" com fumaça
+    // texturizada, então nunca há fundo chapado pra criar borda com as paredes.
+    const domeMat = new THREE.MeshBasicMaterial({
+      map: this.cloudDomeTex(), color: FOGC, transparent: true,
+      side: THREE.BackSide, depthWrite: false, fog: false,
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(46, 40, 26), domeMat);
+    dome.position.set(CX, TOP_Y + 2.5, CZ);
+    dome.renderOrder = -3;
+    this.world.add(dome);
+    this.fogDome = dome;
+
     // PARTÍCULAS: leves e claras dentro do santuário
     this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 90, 0xeaf2ff, 0.11, 0.0022);
-    // FUMAÇA que se MOVE: bancos baixos (nível do chão) + faixa alta na zona onde as
-    // paredes somem — dá o clima de neblina viva e desmancha qualquer borda reta.
-    this.spawnFogPuffs(CX, CZ, 14, TOP_Y + 0.2, TOP_Y + 1.8, R + 1.5, FOGC);
-    this.spawnFogPuffs(CX, CZ, 16, TOP_Y + 4.0, TOP_Y + 7.5, R + 2.5, FOGC);
+    // FUMAÇA que se MOVE:
+    //  - banco BAIXO rente ao chão (mistério nos pés)
+    this.spawnFogPuffs(CX, CZ, 16, TOP_Y + 0.1, TOP_Y + 1.6, R + 1.0, FOGC, 0.3, 1.0, 0.1);
+    //  - banco DENSO e GRANDE colado ao anel, cobrindo a faixa onde as paredes somem
+    //    (a "linha") com fumaça de verdade, em movimento, de todos os ângulos.
+    this.spawnFogPuffs(CX, CZ, 54, yClear, yFull + 3.0, R + 0.3, FOGC, 0.7, 1.2, 0.2, 10, 20);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
@@ -4995,6 +5047,8 @@ export class Game {
       f.s.position.y = f.by + Math.sin(t * 1.3 + f.ph) * 0.7;
       (f.s.material as THREE.SpriteMaterial).opacity = f.baseOp * (0.65 + 0.35 * Math.sin(t * 2.2 + f.ph));
     }
+    // cúpula de névoa gira devagar → as nuvens "andam" pelo céu
+    if (this.fogDome) this.fogDome.rotation.y = now * 0.00002;
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
