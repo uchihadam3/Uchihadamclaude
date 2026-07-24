@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#8fc7e8">
+<title>Obra-Prima — empilhe até o topo</title>
+<style>
+:root{ --ink:#22242b; --gold:#e8b930; --green:#35d07a; --red:#e0453a;
+  --disp:'Arial Black',sans-serif; --ui:system-ui,'Segoe UI',sans-serif;
+  --sb:env(safe-area-inset-bottom,0px); --st:env(safe-area-inset-top,0px); }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#8fc7e8;font-family:var(--ui);color:var(--ink);
+  position:fixed;inset:0;-webkit-user-select:none;user-select:none;touch-action:none}
+#c{display:block;width:100%;height:100%}
+#ui{position:absolute;inset:0;pointer-events:none}
+#ui>*{pointer-events:auto}
+
+/* HUD topo */
+.hud{position:absolute;top:calc(var(--st) + 12px);left:12px;right:12px;display:flex;gap:8px;align-items:flex-start}
+.stat{background:rgba(20,24,32,.62);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);
+  border-radius:12px;padding:7px 12px;color:#fff;min-width:66px;text-align:center}
+.stat b{display:block;font-size:19px;font-weight:800;line-height:1}
+.stat span{font-size:10px;letter-spacing:1px;text-transform:uppercase;opacity:.7}
+.stat.tgt b{color:var(--green)} .stat.h b{color:var(--gold)}
+.spacer{flex:1}
+
+/* barra de progresso vertical (altura) */
+.prog{position:absolute;right:12px;top:90px;bottom:150px;width:12px;background:rgba(20,24,32,.5);
+  border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.15)}
+.prog i{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(0deg,var(--gold),var(--green));transition:height .2s}
+.prog .mark{position:absolute;left:-3px;right:-3px;height:2px;background:var(--green);bottom:100%}
+
+/* próxima peça */
+.next{position:absolute;top:calc(var(--st) + 64px);left:12px;background:rgba(20,24,32,.62);
+  border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:6px 12px;color:#fff;font-size:13px}
+.next b{color:var(--gold)}
+
+/* controles */
+.ctrl{position:absolute;left:0;right:0;bottom:calc(var(--sb) + 18px);display:flex;gap:12px;justify-content:center;align-items:center;padding:0 16px}
+.btn{border:none;border-radius:16px;font-family:var(--disp);font-size:17px;letter-spacing:.5px;color:#fff;
+  padding:16px 22px;box-shadow:0 6px 0 rgba(0,0,0,.25),0 10px 20px rgba(0,0,0,.3);transition:transform .08s,box-shadow .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.btn.rot{background:linear-gradient(180deg,#6aa9ff,#3a72d0)}
+.btn.drop{background:linear-gradient(180deg,#ffb43a,#e0842a);flex:1;max-width:260px;font-size:20px}
+.btn.small{padding:12px 16px;font-size:14px;background:linear-gradient(180deg,#7a8290,#565d69)}
+
+/* dica de arrastar */
+.hint{position:absolute;left:50%;top:44%;transform:translateX(-50%);color:#fff;background:rgba(20,24,32,.55);
+  padding:8px 16px;border-radius:20px;font-size:14px;pointer-events:none;animation:fade 4s forwards}
+@keyframes fade{0%,60%{opacity:1}100%{opacity:0}}
+
+/* banner */
+.banner{position:absolute;left:50%;top:32%;transform:translate(-50%,-10px);opacity:0;transition:.3s;
+  font-family:var(--disp);font-size:30px;color:#fff;text-shadow:0 3px 12px rgba(0,0,0,.5);pointer-events:none;text-align:center}
+.banner.show{opacity:1;transform:translate(-50%,0)}
+.banner.win{color:var(--green)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div class="hud">
+    <div class="stat h"><b id="hHeight">0.0m</b><span>Altura</span></div>
+    <div class="stat tgt"><b id="hTarget">6.0m</b><span>Alvo</span></div>
+    <div class="spacer"></div>
+    <div class="stat"><b id="hPieces">0</b><span>Peças</span></div>
+  </div>
+  <div class="next">Próxima: <b id="hNext">—</b></div>
+  <div class="prog"><i id="progFill"></i></div>
+  <div class="hint">Arraste ⇆ para mirar · gire · solte</div>
+  <div class="banner" id="banner"></div>
+  <div class="ctrl">
+    <button class="btn rot" id="btnRot">⟳ GIRAR</button>
+    <button class="btn drop" id="btnDrop">SOLTAR ▼</button>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
