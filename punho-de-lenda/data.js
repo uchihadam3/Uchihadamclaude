@@ -69,7 +69,7 @@ const DATA = (() => {
   // ---------- BOXE ----------
   add({ id:'tyson', name:'Mike Tyson', style:'boxe', pais:'🇺🇸', rar:'muitoforte',
     f:['forca','velocidade','queixo'], l:['esquiva'], ab:['nocauteador','maos_rapidas','pressao','faro_final'],
-    spec:{skin:'#5a3826',hair:'#0e0a08',hairStyle:'buzz',beard:'none',nose:'flat',eyes:'#1a0f08',expr:'intense',phys:0.95,gap:1,gloveCol:'#111',shirt:'#101014',rim:'#ff8a5a'} });
+    spec:{skin:'#5a3826',hair:'#0e0a08',hairStyle:'buzz',beard:'none',nose:'flat',noseW:1.4,eyes:'#1a0f08',expr:'intense',phys:1.0,face:'square',jaw:0.97,headW:56,gap:1,faceTattoo:1,gloveCol:'#111',shirt:'#101014',rim:'#ff8a5a'} });
   add({ id:'ali', name:'Muhammad Ali', style:'boxe', pais:'🇺🇸', rar:'lenda',
     f:['velocidade','tecnica','esquiva','qi','coracao'], l:['forca'], ab:['danca','veterano','maos_rapidas','espirito','imprevisivel'],
     spec:{skin:'#7a4a30',hair:'#161010',hairStyle:'short',beard:'none',eyes:'#241610',expr:'smirk',phys:0.62,gloveCol:'#b01e1e',shirt:'#e8e8e2'} });
@@ -78,7 +78,7 @@ const DATA = (() => {
     spec:{skin:'#6a4028',hair:'#0e0a08',hairStyle:'slick',beard:'mustache',eyes:'#1a0f08',expr:'smirk',phys:0.55,gloveCol:'#d4a017',shirt:'#20202a'} });
   add({ id:'canelo', name:'Canelo Álvarez', style:'boxe', pais:'🇲🇽', rar:'muitoforte',
     f:['forca','precisao','queixo','tecnica'], l:['agilidade'], ab:['contragolpe','nocauteador','queixo_ferro','faro_final'],
-    spec:{skin:'#e0b48c',hair:'#b5561f',hairStyle:'short',beard:'full',eyes:'#4a6a3a',expr:'intense',phys:0.72,gloveCol:'#b01e1e',shirt:'#7a1010'} });
+    spec:{skin:'#e6bc94',hair:'#c05a1f',hairStyle:'short',beard:'full',eyes:'#5a7a3a',expr:'intense',phys:0.72,face:'square',jaw:0.9,freckles:1,gloveCol:'#b01e1e',shirt:'#7a1010'} });
   add({ id:'pacquiao', name:'Manny Pacquiao', style:'boxe', pais:'🇵🇭', rar:'muitoforte',
     f:['velocidade','agilidade','forca','coracao'], l:['queixo'], ab:['maos_rapidas','pressao','nocauteador','espirito'],
     spec:{skin:'#b07a4a',hair:'#141010',hairStyle:'short',beard:'none',eyes:'#241610',expr:'intense',phys:0.6,gloveCol:'#c8b060',shirt:'#0a3a7a'} });
@@ -221,7 +221,7 @@ const DATA = (() => {
   // aplica retrato faltante (shirt padrão) + monta objeto lutador completo
   function make(fr){
     const a=buildAttrs(fr); const d=derived(a);
-    const spec=Object.assign({}, STYLES[fr.style].gear, fr.spec||{});
+    const spec=Object.assign({ seed:hash(fr.id) }, STYLES[fr.style].gear, fr.spec||{});
     return { ...fr, a, d, spec, rarC:RAR[fr.rar].c, rarName:RAR_NAME[fr.rar],
       styleName:STYLES[fr.style].name, styleEm:STYLES[fr.style].em };
   }
@@ -242,7 +242,7 @@ const DATA = (() => {
     const nAb=RAR[rar].ab; const abKeys=Object.keys(ABIL);
     const chosen=[]; while(chosen.length<nAb){ const k=abKeys[(rn()*abKeys.length)|0]; if(!chosen.includes(k))chosen.push(k); }
     const skin=SKINS[(rn()*SKINS.length)|0];
-    const spec=Object.assign({}, STYLES[style].gear, { skin, hair:HAIRS[(rn()*HAIRS.length)|0],
+    const spec=Object.assign({ seed:seed>>>0 }, STYLES[style].gear, { skin, hair:HAIRS[(rn()*HAIRS.length)|0],
       hairStyle:HSTY[(rn()*HSTY.length)|0], beard:rn()<0.4?'stubble':rn()<0.2?'full':'none',
       eyes:'#241610', expr:rn()<0.5?'intense':'calm', phys:0.5+rn()*0.4, shirt:['#101014','#7a1010','#0a3a7a','#3a1a5a','#0a5a3a'][(rn()*5)|0] });
     const fr={ id:'op_'+seed, name:(rn()<0.5?FIRST[(rn()*FIRST.length)|0]+' ':'')+NAMES[(rn()*NAMES.length)|0],
