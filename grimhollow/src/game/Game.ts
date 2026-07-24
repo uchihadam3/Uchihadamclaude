@@ -50,15 +50,14 @@ import {
   SHOW_ROWS,
   SHOW_RISE,
   SHOW_TOP,
+  SHOW_CENTER,
+  SHOW_RADIUS,
   showZone,
   showWalkable,
   showFloorY,
-  showIsGrove,
-  showLevelIdx,
   SHOW_SPAWN,
   SHOW_EXIT,
   SHOW_STATUE,
-  SHOW_TREES,
 } from "./showcase";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD } from "./controls";
@@ -2301,126 +2300,144 @@ export class Game {
     this.motes.push({ pts: p, sp, y0, y1, sway });
   }
 
-  // constrói a SALA-VITRINE: átrio → escadaria → terraço → clareira aberta.
+  // NEBLINA VERTICAL: uma cúpula (esfera por dentro) com gradiente de opacidade —
+  // BEM densa no topo, sumindo até ficar transparente na altura dos olhos. Esconde
+  // o "vazio" acima das paredes de um recinto de teto aberto.
+  private addHeightFog(cx: number, cy: number, cz: number, radius: number, color: number) {
+    const cv = document.createElement("canvas");
+    cv.width = 4; cv.height = 256;
+    const ctx = cv.getContext("2d")!;
+    const col = new THREE.Color(color);
+    const rr = Math.round(col.r * 255), gg = Math.round(col.g * 255), bb = Math.round(col.b * 255);
+    for (let y = 0; y < 256; y++) {
+      const v = y / 255; // 0 = topo da imagem = ZÊNITE da cúpula; 0.5 = horizonte
+      let a: number;
+      if (v < 0.30) a = 1; // topo: neblina cheia
+      else if (v < 0.52) a = 1 - (v - 0.30) / 0.22; // desce até 0 no horizonte
+      else a = 0; // altura dos olhos e abaixo: limpo
+      ctx.fillStyle = `rgba(${rr},${gg},${bb},${a})`;
+      ctx.fillRect(0, y, 4, 1);
+    }
+    const tx = new THREE.CanvasTexture(cv);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tx, transparent: true, side: THREE.BackSide, depthWrite: false, fog: false,
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 18), mat);
+    dome.position.set(cx, cy, cz);
+    dome.renderOrder = -5; // desenha como "céu", atrás de tudo
+    this.world.add(dome);
+  }
+
+  // constrói o MINI-SANTUÁRIO redondo: entrada → poucos degraus → recinto circular
+  // com estátua central e teto ABERTO (escondido pela neblina vertical).
   private buildShowcase() {
     const W = SHOW_COLS, H = SHOW_ROWS;
-    const CEIL = 9.5; // teto de pedra do átrio/escada/terraço
-    const GROVE_TOP = SHOW_TOP * SHOW_RISE; // altura do piso da clareira/terraço
-    const hash = (a: number, b: number, s = 0) =>
-      Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
+    const TOP_Y = SHOW_TOP * SHOW_RISE; // altura do piso do santuário
+    const R = SHOW_RADIUS * CELL; // raio do santuário (em unidades)
+    const CX = SHOW_CENTER.c * CELL, CZ = SHOW_CENTER.r * CELL;
+    const WALL_H = 6.5; // altura da parede redonda (alta o bastante p/ o nível dos
+    // olhos ficar LIMPO — a neblina densa só aparece acima da parede)
 
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
     const stoneMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
-    const dirtMat = new THREE.MeshLambertMaterial({ map: tex.dirtPath(63), side: THREE.DoubleSide });
-    const torchMat = this.decalMat(decTorchUrl, 0.1);
-    // materiais de árvore com a MESMA arte da floresta (procedural-first, troca p/ PNG)
-    const treeMats = TREE_ART.map((url, idx) => {
-      const mat = new THREE.MeshLambertMaterial({
-        map: tex.pineTree(65 + idx * 6), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide,
-      });
-      this.loadArt(url, (t) => { mat.map = t; mat.needsUpdate = true; });
-      return mat;
-    });
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
 
-    // planos cruzados (dão volume à árvore sem billboard)
-    const addTree = (x: number, z: number, y: number, th: number, seed: number) => {
-      const mat = treeMats[seed % treeMats.length];
-      const g = new THREE.PlaneGeometry(th * TREE_ASPECT, th);
-      for (let k = 0; k < 2; k++) {
-        const m = new THREE.Mesh(g, mat);
-        m.position.set(x, y + th / 2, z);
-        m.rotation.y = (k * Math.PI) / 2;
-        this.world.add(m);
-      }
-    };
-
-    let torches = 0;
+    // ---- ENTRADA + DEGRAUS (células quadradas): piso, paredes e degraus ----
     for (let r = 0; r < H; r++)
       for (let c = 0; c < W; c++) {
         const z = showZone(c, r);
-        if (z === "wall") continue;
+        if (z === "wall" || z === "shrine") continue; // o santuário é desenhado à parte (redondo)
         const cx = c * CELL, cz = r * CELL;
         const fy = showFloorY(c, r);
-        const grove = z === "grove";
-        // PISO (terra na clareira; pedra no resto)
-        const fmat = grove ? dirtMat : stoneMat;
-        const fl = new THREE.Mesh(tileGeo, fmat);
+        const fl = new THREE.Mesh(tileGeo, stoneMat);
         fl.rotation.x = -Math.PI / 2;
         fl.position.set(cx, fy + 0.01, cz);
         this.world.add(fl);
-        // PAREDES e DEGRAUS nas 4 direções
         for (const [dc, dr] of DIRS) {
           const nz = showZone(c + dc, r + dr);
           if (nz === "wall") {
-            // parede de rocha do chão ao teto (mais alta em volta da clareira)
-            this.addWall(cx, cz, dc, dr, 0, grove ? CEIL + 3.5 : CEIL, rockMat);
-            // tocha esporádica nas paredes de pedra (não na clareira)
-            if (!grove && torches < 10 && hash(c, r, dc * 5 + dr) < 0.22) {
-              this.addWallDecal(c, r, dc, dr, torchMat, 0.85, 1.4, fy + 2.0);
-              this.glowLight(cx + dc * 0.3, fy + 2.2, cz + dr * 0.3, 0xffa040, 3.6, 11);
-              torches++;
-            }
-          } else {
+            this.addWall(cx, cz, dc, dr, 0, 5.5, rockMat);
+          } else if (nz !== "shrine") {
             const nfy = showFloorY(c + dc, r + dr);
-            // degrau: face vertical do nível de baixo até este (só no lado "descida")
-            if (nfy < fy - 0.02) this.addWall(cx, cz, dc, dr, nfy, fy, stoneMat);
+            if (nfy < fy - 0.02) this.addWall(cx, cz, dc, dr, nfy, fy, stoneMat); // face do degrau
           }
         }
-        // TETO de pedra só nas zonas fechadas (a clareira é ABERTA)
-        if (!grove) {
-          const ce = new THREE.Mesh(tileGeo, ceilMat);
-          ce.rotation.x = Math.PI / 2;
-          ce.position.set(cx, CEIL, cz);
-          this.world.add(ce);
-        }
+        // teto de pedra sobre a entrada/escada (o santuário é aberto)
+        const ce = new THREE.Mesh(tileGeo, ceilMat);
+        ce.rotation.x = Math.PI / 2;
+        ce.position.set(cx, 5.5, cz);
+        this.world.add(ce);
       }
 
-    // ÁRVORES da clareira
-    for (const [c, r] of SHOW_TREES) {
-      if (showZone(c, r) !== "grove") continue;
-      const jx = (hash(c, r, 2) - 0.5) * CELL * 0.4;
-      const jz = (hash(c, r, 3) - 0.5) * CELL * 0.4;
-      addTree(c * CELL + jx, r * CELL + jz, GROVE_TOP, 6.0 + hash(c, r, 1) * 2.4, Math.floor(hash(c, r, 4) * 3));
-      this.blocked.add(`${c},${r}`);
+    // ---- SANTUÁRIO REDONDO ----
+    // piso circular (disco de pedra)
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(R + 0.4, 40), stoneMat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.set(CX, TOP_Y + 0.02, CZ);
+    this.world.add(disc);
+
+    // parede/parapeito redondo, com um VÃO na direção da entrada (sul, +z)
+    const gap = 0.7; // meia-abertura (rad) do vão da entrada
+    const wall = new THREE.Mesh(
+      new THREE.CylinderGeometry(R, R, WALL_H, 48, 1, true, gap, Math.PI * 2 - gap * 2),
+      rockMat,
+    );
+    wall.position.set(CX, TOP_Y + WALL_H / 2, CZ);
+    this.world.add(wall);
+    // base/degrau externo do anel (dá volume ao pé da parede)
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(R + 0.5, R + 0.7, 0.5, 48, 1, true), stoneMat);
+    ring.position.set(CX, TOP_Y + 0.25, CZ);
+    this.world.add(ring);
+
+    // colunas/pilares em volta (dão o ar de santuário), pulando o vão da entrada
+    const NP = 8;
+    const pillarMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
+    for (let i = 0; i < NP; i++) {
+      const th = (i / NP) * Math.PI * 2;
+      // pula os pilares perto do vão (sul, +z → th ≈ π/2 no sistema do cilindro)
+      if (Math.abs(Math.atan2(Math.sin(th), Math.cos(th)) - Math.PI / 2) < gap + 0.3) continue;
+      const px = CX + Math.cos(th) * (R - 0.2), pz = CZ + Math.sin(th) * (R - 0.2);
+      const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, WALL_H + 1.2, 8), pillarMat);
+      pil.position.set(px, TOP_Y + (WALL_H + 1.2) / 2, pz);
+      this.world.add(pil);
     }
 
-    // MARCO central da clareira: um monólito claro que brilha (troca por estátua depois)
+    // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
     const st = SHOW_STATUE;
-    const paleMat = new THREE.MeshLambertMaterial({ color: 0xd6d9df, emissive: 0x2a2f3a });
-    const mono = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.6, 3.0, 6), paleMat);
-    mono.position.set(st.col * CELL, GROVE_TOP + 1.5, st.row * CELL);
-    this.world.add(mono);
+    const sx = st.col * CELL, sz = st.row * CELL;
+    const pedMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
+    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 0.7, 16), pedMat);
+    ped.position.set(sx, TOP_Y + 0.35, sz);
+    this.world.add(ped);
+    const paleMat = new THREE.MeshLambertMaterial({ color: 0xd6d9df, emissive: 0x1f2531 });
+    const idol = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 2.4, 6), paleMat);
+    idol.position.set(sx, TOP_Y + 0.7 + 1.2, sz);
+    this.world.add(idol);
     this.blocked.add(`${st.col},${st.row}`);
-    this.glowLight(st.col * CELL, GROVE_TOP + 1.6, st.row * CELL, 0xbfe0ff, 2.4, 9);
+    this.glowLight(sx, TOP_Y + 1.8, sz, 0xbfe0ff, 2.6, 10);
 
-    // CLARABÓIA: um plano claro bem alto sobre a clareira (luz "de fora")
-    const skyMat = new THREE.MeshBasicMaterial({
-      color: 0x9fb4d4, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, fog: false,
-    });
-    const sky = new THREE.Mesh(new THREE.PlaneGeometry(13 * CELL, 8 * CELL), skyMat);
-    sky.rotation.x = Math.PI / 2;
-    sky.position.set(7 * CELL, GROVE_TOP + 12, 4 * CELL);
-    this.world.add(sky);
+    // tochas em 2 pilares p/ aquecer a luz
+    for (const th of [Math.PI * 1.15, Math.PI * 1.85]) {
+      const px = CX + Math.cos(th) * (R - 0.4), pz = CZ + Math.sin(th) * (R - 0.4);
+      this.glowLight(px, TOP_Y + 2.4, pz, 0xffa040, 2.6, 9);
+    }
 
-    // FEIXES DE LUZ (god-rays): quads translúcidos inclinados descendo na clareira
+    // NEBLINA VERTICAL sobre o santuário (densa no topo, some na altura dos olhos)
+    this.addHeightFog(CX, TOP_Y + EYE_H, CZ, 42, 0x9aa7bc);
+    // um feixe de luz suave descendo sobre a estátua
     const rayMat = new THREE.MeshBasicMaterial({
-      color: 0xdfeaff, transparent: true, opacity: 0.1, side: THREE.DoubleSide,
+      color: 0xdfeaff, transparent: true, opacity: 0.12, side: THREE.DoubleSide,
       depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     });
-    for (const [rc, rr] of [[4, 3], [9, 2], [7, 5]] as [number, number][]) {
-      const ray = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 13), rayMat);
-      ray.position.set(rc * CELL, GROVE_TOP + 5.5, rr * CELL);
-      ray.rotation.z = 0.32;
-      ray.rotation.y = hash(rc, rr, 5) * Math.PI;
-      ray.renderOrder = 7;
-      this.world.add(ray);
-    }
+    const ray = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 10), rayMat);
+    ray.position.set(sx, TOP_Y + 5, sz);
+    ray.rotation.z = 0.14;
+    ray.renderOrder = 7;
+    this.world.add(ray);
 
-    // PARTÍCULAS: densas e claras na clareira; poucas/frias no átrio de pedra
-    this.spawnMotes(7 * CELL, 4 * CELL, 13 * CELL, 8 * CELL, GROVE_TOP + 0.2, GROVE_TOP + 9, 150, 0xeaf2ff, 0.13, 0.003);
-    this.spawnMotes(7 * CELL, 15 * CELL, 6 * CELL, 8 * CELL, 0.3, 7, 60, 0x9fb0c8, 0.1, 0.0016);
+    // PARTÍCULAS: leves e claras dentro do santuário
+    this.spawnMotes(CX, CZ, R * 2, R * 2, TOP_Y + 0.2, TOP_Y + 6, 90, 0xeaf2ff, 0.11, 0.0022);
   }
 
   // ---- relevo de CAVERNA (ruído) ----
