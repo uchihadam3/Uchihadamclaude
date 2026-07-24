@@ -1,74 +1,61 @@
-// MINI-SANTUÁRIO com ESCADARIA SINUOSA: uma grande escada de pedra que sobe em
-// LANCES com CURVAS (switchbacks), estilo Souls, dentro de um recinto fechado de
-// pedra. No topo, o santuário ARREDONDADO com a estátua. Teto ABERTO no santuário
-// (escondido por neblina vertical densa).
+// TORRE DA ESPIRAL: uma grande escadaria em ESPIRAL QUADRADA que sobe girando
+// em torno de um pináculo central. O jogador entra por um túnel ao sul, emerge na
+// base da torre e sobe ~2 voltas completas até o cume, onde fica a estátua/marco.
+// Topo ABERTO ao "céu" enevoado; as voltas encostadas viram as paredes do poço
+// central (a regra de "1 nível por passo" impede pular de uma volta pra outra).
 
 export const SHOW_COLS = 13;
-export const SHOW_ROWS = 26;
+export const SHOW_ROWS = 13;
 export const SHOW_RISE = 0.55; // altura de cada degrau/nível
-export const SHOW_CENTER = { c: 6, r: 4 }; // centro do círculo (topo)
-export const SHOW_RADIUS = 2.3; // raio do santuário (em células)
 
-// Segmentos que compõem o caminho. Cada um é um retângulo de células.
-//  kind 'flat'   → piso plano no nível lvl.
-//  kind 'stairN' → degraus subindo para o NORTE (r maior = mais baixo). O nível
-//                  de cada linha = lvl + (r1 - r), então r1 é o degrau mais baixo.
-type Seg = { c0: number; c1: number; r0: number; r1: number; kind: "flat" | "stairN"; lvl: number };
-
-const SEGS: Seg[] = [
-  { c0: 5, c1: 7, r0: 22, r1: 24, kind: "flat", lvl: 0 },   // base / spawn
-  { c0: 5, c1: 7, r0: 18, r1: 21, kind: "stairN", lvl: 1 }, // Lance 1 (N): r21=1 .. r18=4
-  { c0: 5, c1: 9, r0: 16, r1: 17, kind: "flat", lvl: 4 },   // Patamar 1 (alarga p/ leste)
-  { c0: 7, c1: 9, r0: 12, r1: 15, kind: "stairN", lvl: 5 }, // Lance 2 (N, deslocado leste): r15=5 .. r12=8
-  { c0: 4, c1: 9, r0: 10, r1: 11, kind: "flat", lvl: 8 },   // Patamar 2 (alarga p/ oeste)
-  { c0: 5, c1: 7, r0: 7, r1: 9, kind: "stairN", lvl: 9 },   // Lance 3 (N): r9=9, r8=10, r7=11
+// Caminho da espiral (ordem = nível). Espiral quadrada densa 5x5 (cols 4..8,
+// rows 3..7); nível 0 = entrada (canto sul-leste), nível 24 = cume (centro).
+const PATH: [number, number][] = [
+  [8, 7], [7, 7], [6, 7], [5, 7], [4, 7], // volta externa (base) → oeste
+  [4, 6], [4, 5], [4, 4], [4, 3],         // sobe pelo lado oeste
+  [5, 3], [6, 3], [7, 3], [8, 3],         // topo → leste
+  [8, 4], [8, 5], [8, 6],                 // lado leste
+  [7, 6], [6, 6], [5, 6],                 // volta interna
+  [5, 5], [5, 4],
+  [6, 4], [7, 4],
+  [7, 5],
+  [6, 5], // CUME (estátua)
 ];
+// túnel de entrada (nível 0), ao sul da base da torre
+const CORRIDOR: [number, number][] = [[8, 8], [8, 9], [8, 10], [8, 11]];
 
-const SHOW_TOP = 11; // nível do piso do santuário (= topo do Lance 3)
-export { SHOW_TOP };
+const LEVELS = new Map<string, number>();
+PATH.forEach(([c, r], i) => LEVELS.set(`${c},${r}`, i));
+for (const [c, r] of CORRIDOR) if (!LEVELS.has(`${c},${r}`)) LEVELS.set(`${c},${r}`, 0);
 
-function dist(c: number, r: number): number {
-  const dc = c - SHOW_CENTER.c, dr = r - SHOW_CENTER.r;
-  return Math.sqrt(dc * dc + dr * dr);
-}
+export const SHOW_TOP = PATH.length - 1; // 24 — nível do cume (estátua)
+export const SHOW_CENTER = { c: 6, r: 5 }; // pináculo central (estátua)
+export const SHOW_RADIUS = 2.2; // (mantido p/ compat.)
 
-export type ShowZone = "wall" | "stair" | "shrine";
-
-function segAt(c: number, r: number): Seg | null {
-  for (const s of SEGS) {
-    if (c >= s.c0 && c <= s.c1 && r >= s.r0 && r <= s.r1) return s;
-  }
-  return null;
-}
+export type ShowZone = "wall" | "path" | "summit";
 
 export function showZone(c: number, r: number): ShowZone {
-  if (dist(c, r) <= SHOW_RADIUS) return "shrine";
-  if (segAt(c, r)) return "stair";
-  return "wall";
+  if (c === SHOW_CENTER.c && r === SHOW_CENTER.r) return "summit";
+  return LEVELS.has(`${c},${r}`) ? "path" : "wall";
 }
 
 export function showWalkable(c: number, r: number): boolean {
-  return showZone(c, r) !== "wall";
+  return LEVELS.has(`${c},${r}`);
 }
 
 export function showLevelIdx(c: number, r: number): number {
-  if (dist(c, r) <= SHOW_RADIUS) return SHOW_TOP;
-  const s = segAt(c, r);
-  if (!s) return 0;
-  if (s.kind === "stairN") return s.lvl + (s.r1 - r);
-  return s.lvl;
+  return LEVELS.get(`${c},${r}`) ?? 0;
 }
 
 export function showFloorY(c: number, r: number): number {
   return showLevelIdx(c, r) * SHOW_RISE;
 }
 
-// true se a célula é um degrau de escada (para renderizar sub-degraus de pedra).
-export function showIsStair(c: number, r: number): boolean {
-  const s = segAt(c, r);
-  return !!s && s.kind === "stairN";
+// true se a célula faz parte do túnel de entrada (teto baixo), não da torre aberta.
+export function showIsCorridor(c: number, r: number): boolean {
+  return r >= 8;
 }
 
-export const SHOW_SPAWN = { col: 6, row: 23 };
-export const SHOW_EXIT = { col: 6, row: 24 }; // portal de volta (sul do spawn)
-export const SHOW_STATUE = { col: 6, row: 4 }; // marco central
+export const SHOW_SPAWN = { col: 8, row: 10 };
+export const SHOW_EXIT = { col: 8, row: 11 }; // portal de volta (sul do spawn)
+export const SHOW_STATUE = { col: 6, row: 5 }; // marco central (cume)
