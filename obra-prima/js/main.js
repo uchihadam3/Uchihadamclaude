@@ -227,21 +227,23 @@ function updateCamera(dt){
 }
 
 /* ---------------- INPUT ---------------- */
-const pointers=new Map(); let orbitLock=false, orbitPrev=null, pinchPrev=0;
+const pointers=new Map(); let orbitLock=false, orbitPrev=null, pinchPrev=0, armAt=0;
 function orbitMid(){ const p=[...pointers.values()]; if(!p.length)return null; return {x:p.reduce((s,q)=>s+q.x,0)/p.length, y:p.reduce((s,q)=>s+q.y,0)/p.length}; }
 function pinchDist(){ const p=[...pointers.values()]; return p.length>=2?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):0; }
 function setOrbitRef(){ orbitPrev=orbitMid(); pinchPrev=pinchDist(); }
 function bindInput(){
   const cv=renderer.domElement;
-  cv.addEventListener('pointerdown',e=>{ if(G.state!=='play')return; cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  cv.addEventListener('pointerdown',e=>{ if(G.state!=='play')return; try{cv.setPointerCapture(e.pointerId);}catch(_){} pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pointers.size>=2 || e.button===2 || e.button===1){ orbitLock=true; setOrbitRef(); }
-    else if(!orbitLock){ movePieceTo(e.clientX,e.clientY); } });
+    // 1 dedo: NÃO move ao tocar. Arma o movimento e espera 90ms pra ver se vem um 2º dedo.
+    else { armAt=performance.now()+90; }
+  });
   cv.addEventListener('pointermove',e=>{ if(!pointers.has(e.pointerId))return; pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(orbitLock || pointers.size>=2){ const m=orbitMid();
       if(orbitPrev&&m){ cam.az-=(m.x-orbitPrev.x)*0.006; cam.el=THREE.MathUtils.clamp(cam.el+(m.y-orbitPrev.y)*0.005,0.12,1.45); } orbitPrev=m;
       if(pointers.size>=2){ const d=pinchDist(); if(pinchPrev&&d) cam.distMul=THREE.MathUtils.clamp(cam.distMul*(pinchPrev/d),0.45,2.4); pinchPrev=d; }
-    } else if(pointers.size===1){ movePieceTo(e.clientX,e.clientY); } });
-  const up=e=>{ pointers.delete(e.pointerId); if(pointers.size===0){ orbitLock=false; orbitPrev=null; pinchPrev=0; } else setOrbitRef(); };
+    } else if(pointers.size===1 && !orbitLock && performance.now()>=armAt){ movePieceTo(e.clientX,e.clientY); } });
+  const up=e=>{ pointers.delete(e.pointerId); if(pointers.size===0){ orbitLock=false; orbitPrev=null; pinchPrev=0; armAt=0; } else setOrbitRef(); };
   cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
   cv.addEventListener('contextmenu',e=>e.preventDefault());
   cv.addEventListener('wheel',e=>{ cam.distMul=THREE.MathUtils.clamp(cam.distMul*(1+Math.sign(e.deltaY)*0.08),0.45,2.4); },{passive:true});
