@@ -6,6 +6,7 @@ import * as THREE from '../vendor/three.module.js';
 import RAPIER from '../vendor/rapier.es.js';
 import { MATERIALS, SHAPES, buildMesh } from './pieces.js';
 import { LEVELS, buildQueue } from './levels.js';
+import { AUDIO } from './audio.js';
 
 let renderer, scene, camera, world, platform, ground, tableGroup, platBody;
 const bodies=[];
@@ -133,7 +134,8 @@ function updateGhost(){
   const hits=raycaster.intersectObjects([platform, ...bodies.map(b=>b.mesh)], true).filter(h=>h.point.y<=gPos.y+0.01);
   const surfY = hits.length? hits[0].point.y : 0; G.contactY=surfY;
   _box.setFromObject(ghost); const bottom=_box.min.y;
-  G.touching = (bottom-surfY) < 0.12;
+  const wasT=G.touching; G.touching = (bottom-surfY) < 0.12;
+  if(G.touching && !wasT) AUDIO.tick();
   const col=G.touching? 0x35d07a : 0xffd24a;
   if(footprint){ footprint.visible=true; footprint.position.set(gPos.x, surfY+0.02, gPos.z);
     const r=Math.max(0.35,(_box.max.x-_box.min.x)*0.5); footprint.geometry.dispose(); footprint.geometry=new THREE.RingGeometry(r*0.85,r,28); footprint.material.color.setHex(col); }
@@ -147,8 +149,8 @@ function placePiece(){
     .setRotation({x:gQuat.x,y:gQuat.y,z:gQuat.z,w:gQuat.w}).setLinvel(0,0,0).setLinearDamping(0.05).setAngularDamping(0.14));
   addColliders(body,p.shape,p.mat);
   const mesh=buildMesh(p.shape,p.mat); scene.add(mesh);
-  const rec={mesh,body,tDrop:performance.now(),speed:9}; bodies.push(rec);
-  scene.remove(ghost); ghost=null; G.pieces++; playThunk();
+  const rec={mesh,body,matId:p.mat,tDrop:performance.now(),speed:9,prevSpeed:0,lastImpact:0}; bodies.push(rec);
+  scene.remove(ghost); ghost=null; G.pieces++; AUDIO.place(p.mat);
   G.awaitSettle=rec; updateGhost(); updateHUD();
 }
 
@@ -169,15 +171,23 @@ function animate(){ requestAnimationFrame(animate);
   updateCamera(dt); renderer.render(scene,camera);
 }
 function syncBodies(dt){
-  let settledTop=0, anyTop=0, allSlow=true;
+  let settledTop=0, anyTop=0, allSlow=true, newlyFast=0;
+  const tn=performance.now();
   for(const b of bodies){
     const t=b.body.translation(), r=b.body.rotation();
     b.mesh.position.set(t.x,t.y,t.z); b.mesh.quaternion.set(r.x,r.y,r.z,r.w);
-    const v=b.body.linvel(), av=b.body.angvel(); b.speed=Math.hypot(v.x,v.y,v.z)+Math.hypot(av.x,av.y,av.z)*0.25;
+    const v=b.body.linvel(), av=b.body.angvel(); const sp=Math.hypot(v.x,v.y,v.z)+Math.hypot(av.x,av.y,av.z)*0.25;
+    // impacto = desaceleração brusca (colisão)
+    const decel=(b.prevSpeed||0)-sp;
+    if(decel>1.3 && t.y>-2 && tn-b.lastImpact>55){ AUDIO.impact(b.matId, Math.min(1.2, decel/5)); b.lastImpact=tn; }
+    if(sp>2.2 && (b.prevSpeed||0)<=2.2 && b.settledOnce) newlyFast++;
+    if(sp<0.55) b.settledOnce=true;
+    b.prevSpeed=sp; b.speed=sp;
     if(t.y<-2){ b.fallen=true; continue; }
     _box.setFromObject(b.mesh); const topY=_box.max.y; anyTop=Math.max(anyTop,topY);
-    if(b.speed<0.55) settledTop=Math.max(settledTop,topY); else allSlow=false;
+    if(sp<0.55) settledTop=Math.max(settledTop,topY); else allSlow=false;
   }
+  if(newlyFast>=3 && tn-(G.lastCollapse||0)>900){ AUDIO.collapse(); G.lastCollapse=tn; }
   G.maxTop=settledTop; G.anyTop=anyTop; G.settled=allSlow;
   if(G.awaitSettle){ const b=G.awaitSettle;
     if(b.fallen || b.speed<0.55 || performance.now()-b.tDrop>2600){ G.awaitSettle=null; if(G.state==='play'){ if(queue.length) spawnGhost(); else G.outOfPieces=true; } } }
@@ -187,15 +197,17 @@ function syncBodies(dt){
 function checkEnd(dt){
   if(G.maxTop>=G.target && G.settled){ G.holdT+=dt; } else { G.holdT=Math.max(0,G.holdT-dt*0.6); }
   const need=2.0;
-  document.getElementById('holdWrap').style.opacity = (G.holdT>0.05 && G.maxTop>=G.target)?'1':'0';
+  const showHold=(G.holdT>0.05 && G.maxTop>=G.target);
+  document.getElementById('holdWrap').style.opacity = showHold?'1':'0';
   document.getElementById('holdFill').style.width=Math.min(100,(G.holdT/need)*100)+'%';
+  AUDIO.hold(showHold? G.holdT/need : 0);
   if(G.holdT>=need){ endLevel(true); return; }
   if(G.outOfPieces && !ghost && !G.awaitSettle && G.settled && G.maxTop<G.target){ G.endGrace+=dt; if(G.endGrace>1.6) endLevel(false); }
 }
 function endLevel(won){
   if(G.state!=='play') return;
   G.state = won?'won':'lost'; G.won=won; if(ghost){scene.remove(ghost);ghost=null;}
-  if(won) playFanfare(); else playFail();
+  AUDIO.hold(0); if(won) AUDIO.win(); else AUDIO.fail();
   showResult(won);
 }
 
@@ -283,9 +295,12 @@ function showScreen(name){
   document.getElementById('play').style.display = name==='play'?'':'none';
 }
 function bindUI(){
-  document.getElementById('btnPlay').onclick=()=>openLevelSelect();
-  document.getElementById('btnBackMenu').onclick=()=>showScreen('menu');
-  document.getElementById('btnPause').onclick=()=>{ openLevelSelect(); };
+  document.getElementById('btnPlay').onclick=()=>{ AUDIO.resume(); AUDIO.startMusic(); AUDIO.ui(); openLevelSelect(); };
+  document.getElementById('btnBackMenu').onclick=()=>{ AUDIO.ui(); showScreen('menu'); };
+  document.getElementById('btnPause').onclick=()=>{ AUDIO.ui(); openLevelSelect(); };
+  document.getElementById('btnRot').addEventListener('click',()=>AUDIO.ui());
+  document.getElementById('btnFlip').addEventListener('click',()=>AUDIO.ui());
+  const mute=document.getElementById('btnMute'); if(mute) mute.onclick=()=>{ const m=AUDIO.toggleMute(); mute.textContent=m?'🔇':'🔊'; };
 }
 function openLevelSelect(){
   const grid=document.getElementById('lvlGrid'); grid.innerHTML='';
@@ -304,6 +319,7 @@ function showResult(won){
   document.getElementById('resTitle').textContent = won? 'FASE CONCLUÍDA!' : 'NÃO ATINGIU O ALVO';
   document.getElementById('resTitle').className = 'resTitle '+(won?'win':'lose');
   document.getElementById('resStars').innerHTML = won? [0,1,2].map(i=>`<span class="rstar ${i<stars?'on':''}">★</span>`).join('') : '';
+  if(won) for(let i=0;i<stars;i++) setTimeout(()=>AUDIO.star(i), 500+i*260);
   document.getElementById('resBody').innerHTML = won?
     `<div class="rrow"><span>Altura</span><b>${G.maxTop.toFixed(1)}m / ${G.target}m</b></div>
      <div class="rrow"><span>Peças usadas</span><b>${r.pieces}/${G.budget}</b></div>
@@ -326,14 +342,6 @@ function showResult(won){
 /* ---------------- SAVE ---------------- */
 function loadSave(){ try{ SAVE=Object.assign({unlocked:1,stars:{},best:{}}, JSON.parse(localStorage.getItem('op_save'))||{}); }catch(e){} }
 function saveSave(){ try{ localStorage.setItem('op_save', JSON.stringify(SAVE)); }catch(e){} }
-
-/* ---------------- ÁUDIO ---------------- */
-let AC; function ac(){ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); return AC; }
-function blip(f,d,type,g){ try{ const c=ac(),o=c.createOscillator(),ga=c.createGain(); o.type=type||'sine'; o.frequency.value=f; ga.gain.value=g||0.12;
-  o.connect(ga).connect(c.destination); o.start(); ga.gain.exponentialRampToValueAtTime(0.001,c.currentTime+(d||0.12)); o.stop(c.currentTime+(d||0.12)); }catch(e){} }
-function playThunk(){ blip(150,0.13,'square',0.13); }
-function playFanfare(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>blip(f,0.18,'triangle',0.12),i*90)); }
-function playFail(){ [330,247,196].forEach((f,i)=>setTimeout(()=>blip(f,0.22,'sawtooth',0.1),i*130)); }
 
 function onResize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); }
 
