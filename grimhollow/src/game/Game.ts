@@ -2534,14 +2534,19 @@ export class Game {
     );
     wall.position.set(CX, TOP_Y + WALL_H / 2, CZ);
     this.world.add(wall);
-    // LINTEL: fecha o vão do anel ACIMA da boca da caverna (do teto do corredor p/
-    // cima) → a entrada vira uma BOCA DE CAVERNA na base da parede alta do santuário.
+    // LINTEL RETO fechando o vão do anel ACIMA da boca (topo RETO → boca de túnel
+    // natural, sem aquela faixa curva). As bordas laterais caem em x=±doorHalf,
+    // z=zWall — exatamente onde termina o anel → conecta sem emenda.
+    const zWall = CZ + R * Math.cos(gap); // z da borda do vão do anel
     const lintelH = TOP_Y + WALL_H - CAVE_CEIL;
-    const lintel = new THREE.Mesh(
-      new THREE.CylinderGeometry(R, R, lintelH, 32, 1, true, -gap, gap * 2),
-      ringWallMat,
-    );
-    lintel.position.set(CX, CAVE_CEIL + lintelH / 2, CZ);
+    const lintelMap = tex.caveWall();
+    lintelMap.wrapS = lintelMap.wrapT = THREE.RepeatWrapping;
+    lintelMap.repeat.set((doorHalf * 2) / 4, lintelH / 4); // ~4u/telha
+    const lintelMat = new THREE.MeshLambertMaterial({ map: lintelMap, side: THREE.DoubleSide });
+    this.applyHeightFog(lintelMat, yClear, yFull, FOGC);
+    const lintel = new THREE.Mesh(new THREE.PlaneGeometry(doorHalf * 2, lintelH), lintelMat);
+    lintel.position.set(CX, CAVE_CEIL + lintelH / 2, zWall);
+    lintel.rotation.y = Math.PI; // face p/ o interior do santuário
     this.world.add(lintel);
     // base/degrau externo do anel (mesmo vão, p/ não cruzar a entrada)
     const ring = new THREE.Mesh(
@@ -2551,10 +2556,19 @@ export class Game {
     ring.position.set(CX, TOP_Y + 0.25, CZ);
     this.world.add(ring);
     // JAMBAS retas: da borda do anel (x=±doorHalf, z=zWall) até o corredor
-    const zWall = CZ + R * Math.cos(gap); // z da borda do vão do anel
     const zCorr = (SHOW_SPAWN.row - 5.5) * CELL; // ~borda norte do corredor (linha 8)
     addFlatWall(CX - doorHalf, zWall - 0.3, zCorr, 0, CAVE_CEIL, +1);
     addFlatWall(CX + doorHalf, zWall - 0.3, zCorr, 0, CAVE_CEIL, -1);
+
+    // ROCHAS quebrando o retângulo da boca (visíveis POR DENTRO) → cara de caverna.
+    const mouthRockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
+    // pedras PENDENDO do topo da boca (tiram o "topo reto")
+    const hang: [number, number][] = [[CX - 3.6, 1.5], [CX - 0.6, 1.8], [CX + 2.4, 1.4], [CX + 4.4, 1.2]];
+    for (const [hx, hr] of hang)
+      this.rockSpire(hx, zWall - 0.15, CAVE_CEIL + 0.9, CAVE_CEIL - 1.6, hr, mouthRockMat);
+    // pedregulhos na BASE, encostados nas jambas (afunila p/ o centro)
+    this.rockSpire(CX - doorHalf + 0.5, zWall - 0.5, TOP_Y - 0.3, TOP_Y + 2.1, 1.1, mouthRockMat);
+    this.rockSpire(CX + doorHalf - 0.5, zWall - 0.5, TOP_Y - 0.3, TOP_Y + 2.4, 1.2, mouthRockMat);
 
     // ESTÁTUA central (placeholder): pedestal + monólito claro que brilha
     const st = SHOW_STATUE;
