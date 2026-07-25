@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi } from "./controls";
 import {
   ROOM,
   ROOM_COLS,
@@ -4134,11 +4134,76 @@ export class Game {
       for (let c = 0; c < cols; c++) cells[r * cols + c] = walk(c, r) ? 1 : 0;
     this.miniGrid = { cols, rows, cells };
   }
+  // nome amigável do local atual (banner no minimapa)
+  private miniLocName(): string {
+    switch (this.location) {
+      case "village": return "Vilarejo";
+      case "forest": return "Floresta Sussurrante";
+      case "dungeon": return "Masmorra";
+      case "showcase": return "Santuário";
+      case "tavern": return "Taverna";
+      case "store": return "Mercador";
+      case "smith": return "Ferreiro";
+      case "alchemist": return "Alquimista";
+      default: return "Casa";
+    }
+  }
+  // marcadores do minimapa p/ o local atual (lojas, NPCs, saídas, pontos-chave)
+  private buildMiniPois(): MiniPoi[] {
+    const pois: MiniPoi[] = [];
+    const cap = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
+    if (this.location === "village") {
+      for (const e of ESTAB_DOORS) {
+        const kind = e.kind === "store" ? "store" : e.kind === "tavern" ? "tavern" : e.kind === "alchemist" ? "alchemist" : "smith";
+        pois.push({ c: e.c, r: e.r, kind, label: cap(ESTAB[e.kind].name) });
+      }
+      for (const h of HOME_DOORS) pois.push({ c: h.c, r: h.r, kind: "home", label: "Casa" });
+      pois.push({ c: WELL.c, r: WELL.r, kind: "well", label: "Poço" });
+      // saídas: masmorra (escada) e floresta (trilha)
+      for (let r = 0; r < ROWS; r++)
+        for (let c = 0; c < COLS; c++) {
+          const k = cellAt(c, r);
+          if (k === "stairs") pois.push({ c, r, kind: "dungeon", label: "Masmorra" });
+          else if (k === "forestgate") pois.push({ c, r, kind: "forest", label: "Floresta" });
+        }
+      // NPCs (posição atual — acompanham a rotina dia/noite)
+      for (const [key, npc] of this.npcMap) {
+        const [c, r] = key.split(",").map(Number);
+        pois.push({ c, r, kind: "npc", label: npc.name.split(/[ ,]/)[0] });
+      }
+    } else if (this.location === "forest") {
+      for (let r = 0; r < FOREST_ROWS; r++)
+        for (let c = 0; c < FOREST_COLS; c++) {
+          const k = forestCell(c, r);
+          if (k === "gate") pois.push({ c, r, kind: "exit", label: "Vilarejo" });
+          else if (k === "sign") pois.push({ c, r, kind: "sign", label: "Placa" });
+        }
+    } else if (this.location === "dungeon") {
+      for (const s of dungeonAll("S")) pois.push({ c: s.col, r: s.row, kind: "stair", label: "Saída" });
+      for (const s of dungeonAll("A")) pois.push({ c: s.col, r: s.row, kind: "sanctuary", label: "Escadaria" });
+      for (const s of dungeonAll("L")) pois.push({ c: s.col, r: s.row, kind: "gate", label: "Portão Selado" });
+      for (const key of this.gates.keys()) {
+        const [c, r] = key.split(",").map(Number);
+        pois.push({ c, r, kind: "gate", label: "Grade" });
+      }
+    } else if (this.location !== "showcase") {
+      // interiores (loja/casa): atendente + saída
+      const n = roomFind("N"), x = roomFind("X");
+      const who = (this.location === "tavern" || this.location === "store" || this.location === "smith" || this.location === "alchemist")
+        ? ESTAB[this.location].npc.split(/[ ,]/)[0] : "Morador";
+      pois.push({ c: n.col, r: n.row, kind: "npc", label: who });
+      pois.push({ c: x.col, r: x.row, kind: "exit", label: "Sair" });
+    }
+    return pois;
+  }
   private pushMinimap() {
     if (!this.miniGrid) this.buildMiniGrid();
     const g = this.miniGrid!;
     const [dc, dr] = DIRS[this.facing];
-    this.ui.updateMinimap({ cols: g.cols, rows: g.rows, cells: g.cells, col: this.col, row: this.row, dc, dr });
+    this.ui.updateMinimap({
+      cols: g.cols, rows: g.rows, cells: g.cells, col: this.col, row: this.row, dc, dr,
+      pois: this.buildMiniPois(), locName: this.miniLocName(),
+    });
   }
 
   // ---------------------------------------------- interação
