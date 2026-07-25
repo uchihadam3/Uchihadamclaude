@@ -4109,7 +4109,9 @@ void main() {
   .gh-sm-dmg { font-size:clamp(11px,1.6vh,13px); color:#c7b789; }
   .gh-sm-dmg .gh-g { color:#8fdf7a; font-weight:700; }
   /* NO LUGAR DA SETINHA: a espada do loading, apagada; enche esq→dir ao aprimorar */
-  .gh-sm-anvil { position:relative; align-self:center; flex:0 0 auto; width:clamp(44px,8.6vh,72px); aspect-ratio:332/81; margin-top:1.5em; }
+  /* margin-top centraliza a espada na ALTURA dos dois slots (rótulo + gap + meio-slot) */
+  .gh-sm-anvil { position:relative; align-self:flex-start; flex:0 0 auto; width:clamp(44px,8.6vh,72px); aspect-ratio:332/81;
+    margin-top:calc(clamp(10px,1.5vh,12px) + 3px + (clamp(58px,10vh,84px) - clamp(44px,8.6vh,72px) * 0.244) / 2); }
   .gh-sm-sword-base { width:100%; height:100%; display:block; filter:brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000); transition:filter .3s; }
   .gh-sm-sword-fill { position:absolute; left:0; top:0; bottom:0; width:0%; overflow:hidden; }
   .gh-sm-sword-lava {
@@ -4156,10 +4158,12 @@ void main() {
   .gh-sm-btn.gh-sm-dim { filter:grayscale(.72) brightness(.6); cursor:default; font-size:clamp(11px,1.7vh,13px); letter-spacing:1px; }
   .gh-sm-btn.gh-sm-busy { pointer-events:none; filter:brightness(1.12); }
   .gh-sm-max, .gh-sm-empty { text-align:center; color:#c7b789; padding:6% 4%; font-size:clamp(12px,1.7vh,14px); }
-  /* INVENTÁRIO em escala reduzida (20 slots, 5 col) — cabe inteiro, sem rolar */
+  /* INVENTÁRIO em escala reduzida (20 slots, 5 col) — cabe inteiro, sem rolar.
+     gap/fundo mais fortes p/ as SEPARAÇÕES dos slots ficarem nítidas. */
   .gh-sm-sec-inv { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-  .gh-sm-bag { grid-template-columns:repeat(5, minmax(0, clamp(36px,7.6vh,58px))); justify-content:center; width:auto; margin:0 auto; }
-  .gh-sm-cell { cursor:pointer; }
+  .gh-sm-bag { grid-template-columns:repeat(5, minmax(0, clamp(36px,7.6vh,58px))); justify-content:center; width:auto; margin:0 auto;
+    gap:2px; background:rgba(201,162,39,.34); border-color:rgba(201,162,39,.5); }
+  .gh-sm-cell { cursor:pointer; box-shadow:inset 0 0 0 1px rgba(201,162,39,.22); }
   .gh-sm-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.35vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; box-shadow:0 1px 2px #000; }
   .gh-sm-sel { background:rgba(40,32,16,.95); box-shadow:inset 0 0 0 2px #f4d873, 0 0 12px 2px rgba(244,216,115,.7); }
   #gh-eq-inner {
@@ -4914,4 +4918,4 @@ varying float vWorldY;
     font-family:"Cinzel",serif; letter-spacing:1px; font-size:12px;
     color:#cbb98a; text-shadow:0 1px 3px #000;
   }
-  `,document.head.appendChild(s)}document.documentElement.dataset.ghBuild="2026-07-24x";const Wr=document.getElementById("app"),Gh=new URLSearchParams(location.search);Gh.has("show")?new zs(Wr,{name:"Test",classId:"mago"},"showcase"):Gh.has("test")?new zs(Wr,{name:"Test",classId:"mago"}):sy(Wr).then(s=>{new zs(Wr,s)});
+  `,document.head.appendChild(s)}document.documentElement.dataset.ghBuild="2026-07-24y";const Wr=document.getElementById("app"),Gh=new URLSearchParams(location.search);Gh.has("show")?new zs(Wr,{name:"Test",classId:"mago"},"showcase"):Gh.has("test")?new zs(Wr,{name:"Test",classId:"mago"}):sy(Wr).then(s=>{new zs(Wr,s)});
