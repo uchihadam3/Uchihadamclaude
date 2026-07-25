@@ -366,33 +366,23 @@ export function setupControls(
   ) => {
     ctx.save();
     ctx.translate(px, py);
-    // base: disco escuro com aro bronze (mesmo material dos medalhões)
-    ctx.beginPath();
-    ctx.arc(0, 0, rad * 1.15, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(26,19,11,.94)";
-    ctx.fill();
-    const rim = ctx.createLinearGradient(0, -rad, 0, rad);
-    rim.addColorStop(0, "#efd68a"); rim.addColorStop(0.5, "#b9923e"); rim.addColorStop(1, "#7a5a26");
-    ctx.lineWidth = Math.max(1.4, rad * 0.3);
-    ctx.strokeStyle = rim;
-    ctx.stroke();
-    // ponta de seta dourada apontando p/ a direção (passa um pouco da borda)
     ctx.rotate(ang);
+    // ponta de seta dourada apontando p/ a direção — SEM moeda/círculo de fundo
     ctx.beginPath();
-    ctx.moveTo(rad * 1.42, 0);
-    ctx.lineTo(rad * 0.18, rad * 0.72);
-    ctx.lineTo(rad * 0.5, 0);
-    ctx.lineTo(rad * 0.18, -rad * 0.72);
+    ctx.moveTo(rad * 1.3, 0);
+    ctx.lineTo(-rad * 0.85, rad * 0.82);
+    ctx.lineTo(-rad * 0.38, 0);
+    ctx.lineTo(-rad * 0.85, -rad * 0.82);
     ctx.closePath();
-    const gold = ctx.createLinearGradient(0, -rad, rad * 1.4, rad);
-    gold.addColorStop(0, "#fff2b8"); gold.addColorStop(1, "#ffca4a");
+    const gold = ctx.createLinearGradient(-rad, -rad, rad * 1.3, rad);
+    gold.addColorStop(0, "#fff2b8"); gold.addColorStop(1, "#ffc63e");
     ctx.fillStyle = gold;
     ctx.shadowColor = "rgba(255,214,110,.95)";
-    ctx.shadowBlur = rad * 0.9;
+    ctx.shadowBlur = rad * 0.85;
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.lineWidth = Math.max(0.8, rad * 0.1);
-    ctx.strokeStyle = "rgba(92,62,18,.85)";
+    ctx.lineWidth = Math.max(0.8, rad * 0.13);
+    ctx.strokeStyle = "rgba(92,62,18,.9)";
     ctx.stroke();
     ctx.restore();
   };
@@ -429,9 +419,9 @@ export function setupControls(
       ctx.lineWidth = Math.max(1, size * 0.1); ctx.strokeStyle = col; ctx.stroke();
       ctx.restore();
     }
-    // rótulo (só no mapa grande) — ABAIXO da moeda (nunca em cima), com uma
-    // pílula escura de fundo p/ ler mesmo quando dois rótulos se aproximam.
-    if (withLabel && poi.label) {
+    // rótulo (só no mapa grande) — APENAS p/ NPCs. Os locais já têm o nome
+    // gravado na própria arte do medalhão, então dispensam texto embaixo.
+    if (withLabel && poi.label && poi.kind === "npc") {
       const npc = poi.kind === "npc";
       const fs = Math.max(8, Math.round(size * (npc ? 0.26 : 0.33)));
       ctx.save();
@@ -516,16 +506,9 @@ export function setupControls(
         drawPoi(ctx, x, y, cell * (miniMinor(p.kind) ? 0.9 : 1.26), p, mapPhase, false);
       }
     }
-    // herói SEMPRE no centro exato da janela (célula central)
+    // herói SEMPRE no centro exato da janela (célula central) — só a seta, sem círculo
     const pc = off + R * cell + Math.floor(cell / 2);
-    // halo pulsante do herói (dá vida ao mapa)
-    const hp = (mapPhase * 1.1) % 1;
-    ctx.save();
-    ctx.globalAlpha = (1 - hp) * 0.45;
-    ctx.strokeStyle = "#ffe08a"; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(pc, pc, cell * (0.3 + hp * 0.45), 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
-    drawArrow(ctx, pc, pc, Math.max(4, cell * 0.3), Math.atan2(s.dr, s.dc));
+    drawArrow(ctx, pc, pc, Math.max(4, cell * 0.32), Math.atan2(s.dr, s.dc));
     drawLocBanner(ctx, W, s.locName, Math.round(H * 0.16));
   };
   // mapa GRANDE: o local inteiro cabendo na tela (estilo PoE/Diablo)
