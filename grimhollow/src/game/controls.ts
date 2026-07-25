@@ -207,6 +207,8 @@ const POI_COLOR: Record<MiniPoiKind, string> = {
 };
 // marcadores que "pulsam" (interativos: valem uma visita)
 const POI_PULSE = new Set<MiniPoiKind>(["smith", "tavern", "store", "alchemist", "dungeon", "forest", "exit", "gate", "sanctuary", "npc", "portal", "statue", "stair"]);
+// marcadores "menores" (secundários): NPCs e casas comuns
+const miniMinor = (k: MiniPoiKind) => k === "npc" || k === "home";
 
 // Teclado (desktop) + botões na tela (mobile).
 export function setupControls(
@@ -338,7 +340,7 @@ export function setupControls(
   mapWrap.appendChild(mapExpand);
   root.appendChild(mapWrap);
   const mapCtx = mapCanvas.getContext("2d");
-  const MINI_RADIUS = 4; // células visíveis ao redor do jogador (janela 2R+1)
+  const MINI_RADIUS = 3; // células ao redor do jogador (janela 2R+1=7×7) — mais zoom, ícones maiores
 
   // ---- MAPA GRANDE (overlay) ----
   const bigMap = document.createElement("div");
@@ -427,17 +429,29 @@ export function setupControls(
       ctx.lineWidth = Math.max(1, size * 0.1); ctx.strokeStyle = col; ctx.stroke();
       ctx.restore();
     }
-    // rótulo (só no mapa grande) — NPC menor/mais discreto que locais
+    // rótulo (só no mapa grande) — ABAIXO da moeda (nunca em cima), com uma
+    // pílula escura de fundo p/ ler mesmo quando dois rótulos se aproximam.
     if (withLabel && poi.label) {
       const npc = poi.kind === "npc";
+      const fs = Math.max(9, Math.round(size * (npc ? 0.34 : 0.42)));
       ctx.save();
-      ctx.font = `600 ${Math.max(9, Math.round(size * (npc ? 0.46 : 0.56)))}px "Cinzel",serif`;
+      ctx.font = `600 ${fs}px "Cinzel",serif`;
       ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      const ty = y + size * 0.6;
-      ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(0,0,0,.9)";
-      ctx.strokeText(poi.label, x, ty);
-      ctx.fillStyle = npc ? "#c8d6ea" : "#f7e9c4";
+      ctx.textBaseline = "middle";
+      const tw = ctx.measureText(poi.label).width;
+      const ty = y + d * 0.5 + fs * 0.95; // logo abaixo da borda da moeda, com folga
+      const padX = fs * 0.5, ph = fs * 1.34;
+      ctx.fillStyle = "rgba(8,8,12,.72)";
+      const rx = x - tw / 2 - padX, rw = tw + padX * 2, rr = ph * 0.42;
+      ctx.beginPath();
+      ctx.moveTo(rx + rr, ty - ph / 2);
+      ctx.arcTo(rx + rw, ty - ph / 2, rx + rw, ty + ph / 2, rr);
+      ctx.arcTo(rx + rw, ty + ph / 2, rx, ty + ph / 2, rr);
+      ctx.arcTo(rx, ty + ph / 2, rx, ty - ph / 2, rr);
+      ctx.arcTo(rx, ty - ph / 2, rx + rw, ty - ph / 2, rr);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = npc ? "#cbd8ea" : "#f7e9c4";
       ctx.fillText(poi.label, x, ty);
       ctx.restore();
     }
@@ -491,15 +505,15 @@ export function setupControls(
       }
     }
     // marcadores dentro da janela (ícones, sem rótulo — o mapa é pequeno).
-    // Locais MAIORES que NPCs; NPCs primeiro p/ os locais ficarem por cima.
+    // Locais MAIORES; NPCs e casas menores e desenhados por baixo.
     if (s.pois) {
-      const order = [...s.pois].sort((a, b) => (a.kind === "npc" ? 0 : 1) - (b.kind === "npc" ? 0 : 1));
+      const order = [...s.pois].sort((a, b) => (miniMinor(a.kind) ? 0 : 1) - (miniMinor(b.kind) ? 0 : 1));
       for (const p of order) {
         const dx = p.c - s.col, dy = p.r - s.row;
         if (Math.abs(dx) > R || Math.abs(dy) > R) continue;
         const x = off + (dx + R) * cell + cell / 2;
         const y = off + (dy + R) * cell + cell / 2;
-        drawPoi(ctx, x, y, cell * (p.kind === "npc" ? 0.9 : 1.26), p, mapPhase, false);
+        drawPoi(ctx, x, y, cell * (miniMinor(p.kind) ? 0.9 : 1.26), p, mapPhase, false);
       }
     }
     // herói SEMPRE no centro exato da janela (célula central)
@@ -535,9 +549,9 @@ export function setupControls(
     // p/ os rótulos das lojas/saídas não ficarem escondidos.
     if (s.pois) {
       const base = Math.max(15, cell * 1.15);
-      const order = [...s.pois].sort((a, b) => (a.kind === "npc" ? 0 : 1) - (b.kind === "npc" ? 0 : 1));
+      const order = [...s.pois].sort((a, b) => (miniMinor(a.kind) ? 0 : 1) - (miniMinor(b.kind) ? 0 : 1));
       for (const p of order) {
-        drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, p.kind === "npc" ? base * 0.72 : base * 1.24, p, mapPhase, true);
+        drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, miniMinor(p.kind) ? base * 0.72 : base * 1.24, p, mapPhase, true);
       }
     }
     drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(8, cell * 0.8), Math.atan2(s.dr, s.dc));
@@ -548,7 +562,9 @@ export function setupControls(
     if (lastMini) drawBig(lastMini);
   };
   const closeBigMap = () => bigMap.classList.add("gh-bigmap-hidden");
-  mapExpand.addEventListener("click", (e) => { e.preventDefault(); openBigMap(); });
+  mapExpand.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); openBigMap(); });
+  // clicar em qualquer lugar do minimapa (canvas) também expande
+  mapCanvas.addEventListener("click", (e) => { e.preventDefault(); openBigMap(); });
   (bigMap.querySelector("#gh-bigmap-close") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); closeBigMap(); });
   bigMap.addEventListener("click", (e) => { if (e.target === bigMap) closeBigMap(); });
   window.addEventListener("keydown", (e) => {
@@ -1691,6 +1707,7 @@ function injectStyle() {
   #gh-map-canvas {
     position:absolute; inset:0; width:100%; height:100%;
     border-radius:2px; image-rendering:auto;
+    pointer-events:auto; cursor:pointer; /* clicar no mapa expande */
   }
   /* botão de expandir o mapa (canto inferior direito do minimapa) */
   #gh-map-expand {
