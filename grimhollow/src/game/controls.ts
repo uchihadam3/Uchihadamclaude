@@ -392,18 +392,6 @@ export function setupControls(
     poi: MiniPoi, phase: number, withLabel: boolean,
   ) => {
     const col = POI_COLOR[poi.kind] ?? "#e8dcc0";
-    // anel pulsante (interativos) — pulsa em volta do medalhão
-    if (POI_PULSE.has(poi.kind)) {
-      const t = (phase * 1.6 + (poi.c + poi.r) * 0.35) % 1; // dessincroniza por célula
-      ctx.save();
-      ctx.globalAlpha = (1 - t) * 0.6;
-      ctx.strokeStyle = col;
-      ctx.lineWidth = Math.max(1, size * 0.08);
-      ctx.beginPath();
-      ctx.arc(x, y, size * (0.56 + t * 0.6), 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
     // medalhão (arte própria). Se ainda não carregou, cai num disco simples.
     const img = POI_IMG[poi.kind];
     const d = size * 1.16;
@@ -554,18 +542,8 @@ export function setupControls(
     if (e.code === "KeyM") { e.preventDefault(); bigOpen() ? closeBigMap() : openBigMap(); }
     else if (e.code === "Escape") closeBigMap();
   });
-  // loop de animação do mapa: mantém os marcadores/halo pulsando (mapa dinâmico).
-  // Leve (~18fps) e só redesenha o que está visível.
-  let mapLastPulse = 0;
-  const mapPulse = (t: number) => {
-    requestAnimationFrame(mapPulse);
-    if (t - mapLastPulse < 55) return;
-    mapLastPulse = t; mapPhase = t / 1000;
-    if (!lastMini || document.hidden) return;
-    if (bigOpen()) drawBig(lastMini);
-    else if (mapCanvas.clientWidth > 0) drawSmall(lastMini);
-  };
-  requestAnimationFrame(mapPulse);
+  // (sem loop de animação: os marcadores não pulsam mais; o mapa é redesenhado
+  // a cada movimento via updateMinimap)
 
   // ---- RELÓGIO dia/noite (sol/lua orbitando) — logo abaixo do mapa ----
   const clock = document.createElement("div");
