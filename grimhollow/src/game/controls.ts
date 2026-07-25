@@ -15,68 +15,44 @@ import loadSwordUrl from "../assets/ui/load_sword.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
 import clockMoonUrl from "../assets/ui/clock_moon.png";
+import forgeFillUrl from "../assets/audio/forge_fill.mp3";
+import forgeFailUrl from "../assets/audio/forge_fail.mp3";
+import forgeSuccessUrl from "../assets/audio/forge_success.wav";
 
-// ---- FORJA: animação de encher a espada (lava) + efeitos sonoros -----------
-// enche a lâmina de 0→100% em ~1.1s (mesma sensação do loading) e chama onEnd().
+// ---- FORJA: efeitos sonoros (arquivos enviados pelo jogador) ----------------
+const forgeFillSnd = new Audio(forgeFillUrl); // toca ENQUANTO a espada enche
+const forgeFailSnd = new Audio(forgeFailUrl); // aprimoramento falhou
+const forgeSuccessSnd = new Audio(forgeSuccessUrl); // aprimoramento deu certo
+forgeFillSnd.preload = "auto"; forgeFailSnd.preload = "auto"; forgeSuccessSnd.preload = "auto";
+forgeFillSnd.volume = 0.85; forgeFailSnd.volume = 0.9; forgeSuccessSnd.volume = 0.9;
+function play(a: HTMLAudioElement) { try { a.currentTime = 0; a.play().catch(() => {}); } catch { /* ignora */ } }
+function stopSnd(a: HTMLAudioElement) { try { a.pause(); a.currentTime = 0; } catch { /* ignora */ } }
+
+// ---- FORJA: animação de encher a espada (lava), ~6s, bem incandescente ------
+// Enche a lâmina de 0→100% com frente derretida, brasas e brilho crescente;
+// toca o som de forja durante o processo e chama onEnd() ao completar.
+const FORGE_DUR = 6000; // ~6 segundos, como o jogador pediu
 function runForge(anvil: HTMLElement, onEnd: () => void) {
   const fill = anvil.querySelector(".gh-sm-sword-fill") as HTMLElement;
+  const base = anvil.querySelector(".gh-sm-sword-base") as HTMLElement;
   anvil.classList.remove("gh-forge-ok", "gh-forge-fail");
   anvil.classList.add("gh-forging");
   fill.style.transition = "none";
   fill.style.width = "0%";
+  play(forgeFillSnd); // som de aprimoramento durante o enchimento
   const t0 = performance.now();
-  const DUR = 1100;
   const step = (now: number) => {
-    const k = Math.min(1, (now - t0) / DUR);
-    fill.style.width = (k * 100).toFixed(1) + "%";
+    const k = Math.min(1, (now - t0) / FORGE_DUR);
+    // easing suave (começa devagar, acelera no meio) p/ dar peso ao processo
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    fill.style.width = (e * 100).toFixed(2) + "%";
+    anvil.style.setProperty("--fk", e.toFixed(3)); // 0→1 p/ o CSS puxar o brilho
+    // a lâmina esquenta: escura → alaranjada conforme enche
+    base.style.filter = `brightness(${(0.24 + e * 0.5).toFixed(2)}) saturate(${(0.3 + e * 1.4).toFixed(2)}) sepia(${(e * 0.5).toFixed(2)}) drop-shadow(0 2px 4px #000)`;
     if (k < 1) requestAnimationFrame(step);
-    else onEnd();
+    else { stopSnd(forgeFillSnd); onEnd(); }
   };
   requestAnimationFrame(step);
-}
-
-// som via Web Audio (sem assets): acorde ascendente = sucesso; grave grave = falha.
-let _forgeAC: AudioContext | null = null;
-function playForge(success: boolean) {
-  try {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    _forgeAC = _forgeAC || new AC();
-    const ac = _forgeAC;
-    if (ac.state === "suspended") ac.resume();
-    const t0 = ac.currentTime;
-    const beep = (freq: number, at: number, dur: number, type: OscillatorType, vol: number) => {
-      const o = ac.createOscillator();
-      const g = ac.createGain();
-      o.type = type;
-      o.frequency.setValueAtTime(freq, t0 + at);
-      g.gain.setValueAtTime(0.0001, t0 + at);
-      g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
-      o.connect(g).connect(ac.destination);
-      o.start(t0 + at);
-      o.stop(t0 + at + dur + 0.02);
-    };
-    if (success) {
-      // martelada + acorde brilhante subindo (forja concluída)
-      beep(180, 0, 0.09, "square", 0.16);
-      beep(523.25, 0.08, 0.14, "triangle", 0.2); // C5
-      beep(659.25, 0.2, 0.16, "triangle", 0.2); // E5
-      beep(987.77, 0.34, 0.32, "triangle", 0.22); // B5
-    } else {
-      // zumbido grave descendente (falhou)
-      const o = ac.createOscillator();
-      const g = ac.createGain();
-      o.type = "sawtooth";
-      o.frequency.setValueAtTime(220, t0);
-      o.frequency.exponentialRampToValueAtTime(70, t0 + 0.45);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.03);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5);
-      o.connect(g).connect(ac.destination);
-      o.start(t0);
-      o.stop(t0 + 0.52);
-    }
-  } catch { /* áudio indisponível: silencioso */ }
 }
 
 export type Action =
@@ -532,9 +508,11 @@ export function setupControls(
         '<div class="gh-sm-col"><div class="gh-sm-lbl">ITEM</div>' + slot(s.icon, s.lvl) +
         `<div class="gh-sm-nm">${s.name}${s.lvl ? " +" + s.lvl : ""}</div><div class="gh-sm-dmg">Dano ${s.dmg}</div></div>` +
         // NO LUGAR DA SETINHA: a espada do loading, apagada. Enche ao aprimorar.
-        '<div class="gh-sm-anvil" id="gh-sm-anvil">' +
+        '<div class="gh-sm-anvil" id="gh-sm-anvil" style="--fk:0">' +
         `<img class="gh-sm-sword-base" src="${loadSwordUrl}" alt=""/>` +
-        '<div class="gh-sm-sword-fill"><div class="gh-sm-sword-lava"></div></div></div>' +
+        '<div class="gh-sm-sword-fill"><div class="gh-sm-sword-lava"></div><span class="gh-sm-front"></span></div>' +
+        `<img class="gh-sm-sword-glow" src="${loadSwordUrl}" alt=""/>` +
+        '<div class="gh-sm-embers"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>' +
         '<div class="gh-sm-col"><div class="gh-sm-lbl">RESULTADO</div>' + slot(s.icon, s.lvl + 1, true) +
         `<div class="gh-sm-nm gh-up">${s.name} +${s.lvl + 1}</div><div class="gh-sm-dmg">Dano <span class="gh-g">${n.dmg} ▲</span></div></div>` +
         "</div>" +
@@ -576,17 +554,21 @@ export function setupControls(
         if (!res) { up.classList.remove("gh-sm-busy"); return; }
         runForge(anvil, () => {
           const fill = anvil.querySelector(".gh-sm-sword-fill") as HTMLElement;
+          const base = anvil.querySelector(".gh-sm-sword-base") as HTMLElement;
+          anvil.classList.remove("gh-forging");
           if (res.success) {
-            playForge(true);
+            play(forgeSuccessSnd); // som de SUCESSO
+            base.style.filter = ""; // deixa a regra .gh-forge-ok clarear a lâmina
             anvil.classList.add("gh-forge-ok");
-            setTimeout(() => renderSmith(res.data), 620);
+            setTimeout(() => renderSmith(res.data), 900);
           } else {
-            playForge(false);
+            play(forgeFailSnd); // som de FALHA
             anvil.classList.add("gh-forge-fail");
             // a espada volta a ficar escura (esvazia).
-            fill.style.transition = "width .4s ease-in";
+            base.style.filter = "brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000)";
+            fill.style.transition = "width .5s ease-in";
             fill.style.width = "0%";
-            setTimeout(() => renderSmith(res.data), 950);
+            setTimeout(() => renderSmith(res.data), 1100);
           }
         });
       };
@@ -1651,37 +1633,70 @@ function injectStyle() {
   .gh-sm-nm.gh-up { color:#f6ead0; }
   .gh-sm-dmg { font-size:clamp(11px,1.6vh,13px); color:#c7b789; }
   .gh-sm-dmg .gh-g { color:#8fdf7a; font-weight:700; }
-  /* NO LUGAR DA SETINHA: a espada do loading, apagada; enche esq→dir ao aprimorar */
-  /* margin-top centraliza a espada na ALTURA dos dois slots (rótulo + gap + meio-slot) */
-  .gh-sm-anvil { position:relative; align-self:flex-start; flex:0 0 auto; width:clamp(44px,8.6vh,72px); aspect-ratio:332/81;
+  /* NO LUGAR DA SETINHA: a espada do loading, apagada; enche esq→dir ao aprimorar.
+     Efeito rico: frente derretida, brasas subindo, brilho e lâmina esquentando.
+     margin-top centraliza a espada na ALTURA dos dois slots. --fk (0→1) = progresso. */
+  .gh-sm-anvil { position:relative; align-self:flex-start; flex:0 0 auto; overflow:visible;
+    width:clamp(44px,8.6vh,72px); aspect-ratio:332/81;
     margin-top:calc(clamp(10px,1.5vh,12px) + 3px + (clamp(58px,10vh,84px) - clamp(44px,8.6vh,72px) * 0.244) / 2); }
-  .gh-sm-sword-base { width:100%; height:100%; display:block; filter:brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000); transition:filter .3s; }
-  .gh-sm-sword-fill { position:absolute; left:0; top:0; bottom:0; width:0%; overflow:hidden; }
+  .gh-sm-sword-base { position:relative; z-index:1; width:100%; height:100%; display:block; filter:brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000); transition:filter .3s; }
+  .gh-sm-sword-fill { position:absolute; left:0; top:0; bottom:0; width:0%; overflow:hidden; z-index:2; }
   .gh-sm-sword-lava {
     position:absolute; left:0; top:0; height:100%; width:clamp(44px,8.6vh,72px);
     -webkit-mask:url(${loadSwordUrl}) left center / 100% 100% no-repeat;
     mask:url(${loadSwordUrl}) left center / 100% 100% no-repeat;
     background:
-      radial-gradient(60% 150% at 22% 32%, rgba(255,246,180,.60), transparent 55%),
-      radial-gradient(48% 160% at 58% 70%, rgba(255,150,44,.60), transparent 60%),
-      radial-gradient(42% 150% at 84% 42%, rgba(255,104,26,.55), transparent 62%),
-      linear-gradient(90deg,#5c1604 0,#b8360d 32%,#ee6a1c 60%,#ffab3e 82%,#ffe27f 95%,#fff6cf 100%);
+      radial-gradient(55% 150% at 20% 30%, rgba(255,248,200,.75), transparent 55%),
+      radial-gradient(48% 160% at 55% 72%, rgba(255,160,50,.72), transparent 60%),
+      radial-gradient(42% 150% at 84% 40%, rgba(255,110,26,.68), transparent 62%),
+      linear-gradient(90deg,#5c1604 0,#c23a0c 30%,#f4700f 56%,#ffb23e 78%,#ffe487 92%,#fff8d6 100%);
     background-size:170% 210%,200% 240%,220% 200%,100% 100%; background-repeat:no-repeat;
   }
-  .gh-sm-anvil.gh-forging, .gh-sm-anvil.gh-forge-ok { animation:gh-smglow 1.2s ease-in-out infinite; }
-  .gh-sm-anvil.gh-forging .gh-sm-sword-lava, .gh-sm-anvil.gh-forge-ok .gh-sm-sword-lava { animation:gh-smlava 2.6s ease-in-out infinite; }
-  .gh-sm-anvil.gh-forge-ok .gh-sm-sword-base { filter:brightness(1) drop-shadow(0 0 9px rgba(255,196,90,.95)); }
-  .gh-sm-anvil.gh-forge-fail { animation:gh-smshake .4s ease-in-out 1; }
+  /* frente incandescente que viaja com o nível de preenchimento (borda direita) */
+  .gh-sm-front { position:absolute; top:0; bottom:0; right:0; width:9px; opacity:0; pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(255,196,80,.85) 45%, #fff7d6);
+    filter:blur(1.5px); }
+  /* bloom aditivo sobre a lâmina inteira, cresce com o progresso */
+  .gh-sm-sword-glow { position:absolute; inset:0; z-index:3; width:100%; height:100%; pointer-events:none;
+    opacity:0; mix-blend-mode:screen;
+    filter:brightness(1.7) sepia(1) saturate(6) hue-rotate(-18deg) drop-shadow(0 0 6px rgba(255,150,40,.9)); }
+  /* brasas subindo da lâmina */
+  .gh-sm-embers { position:absolute; inset:0; z-index:4; pointer-events:none; overflow:visible; opacity:0; }
+  .gh-sm-embers i { position:absolute; bottom:34%; width:3px; height:3px; border-radius:50%;
+    background:radial-gradient(circle, #fff3c4, #ff8a2b 60%, transparent); opacity:0;
+    filter:drop-shadow(0 0 3px rgba(255,150,40,.95)); }
+  .gh-sm-embers i:nth-child(1){ left:10%; } .gh-sm-embers i:nth-child(2){ left:26%; }
+  .gh-sm-embers i:nth-child(3){ left:42%; } .gh-sm-embers i:nth-child(4){ left:58%; }
+  .gh-sm-embers i:nth-child(5){ left:74%; } .gh-sm-embers i:nth-child(6){ left:88%; }
+  /* ---- estados ---- */
+  .gh-sm-anvil.gh-forging { animation:gh-smpulse 1.1s ease-in-out infinite;
+    filter:drop-shadow(0 0 calc(4px + var(--fk,0) * 22px) rgba(255,150,50, calc(.35 + var(--fk,0) * .6)))
+           drop-shadow(0 0 calc(2px + var(--fk,0) * 7px) rgba(255,238,150,.95)); }
+  .gh-sm-anvil.gh-forging .gh-sm-sword-lava { animation:gh-smlava 1.8s ease-in-out infinite; }
+  .gh-sm-anvil.gh-forging .gh-sm-front { opacity:1; }
+  .gh-sm-anvil.gh-forging .gh-sm-sword-glow { opacity:calc(var(--fk,0) * .55); }
+  .gh-sm-anvil.gh-forging .gh-sm-embers { opacity:1; }
+  .gh-sm-anvil.gh-forging .gh-sm-embers i { animation:gh-ember 1.3s ease-out infinite; }
+  .gh-sm-embers i:nth-child(1){ animation-delay:0s; } .gh-sm-embers i:nth-child(2){ animation-delay:.5s; }
+  .gh-sm-embers i:nth-child(3){ animation-delay:.9s; } .gh-sm-embers i:nth-child(4){ animation-delay:.3s; }
+  .gh-sm-embers i:nth-child(5){ animation-delay:1.1s; } .gh-sm-embers i:nth-child(6){ animation-delay:.7s; }
+  .gh-sm-anvil.gh-forge-ok { animation:gh-smflash .8s ease-out 1;
+    filter:drop-shadow(0 0 20px rgba(255,180,70,1)) drop-shadow(0 0 8px rgba(255,244,170,1)); }
+  .gh-sm-anvil.gh-forge-ok .gh-sm-sword-base { filter:brightness(1.05) saturate(1.3) drop-shadow(0 0 9px rgba(255,206,110,.95)); }
+  .gh-sm-anvil.gh-forge-fail { animation:gh-smshake .45s ease-in-out 1; }
   @keyframes gh-smlava {
     0%   { background-position:10% 28%, 82% 72%, 38% 50%, 0 0; }
-    50%  { background-position:46% 66%, 44% 34%, 72% 58%, 0 0; }
+    50%  { background-position:52% 70%, 40% 30%, 76% 60%, 0 0; }
     100% { background-position:10% 28%, 82% 72%, 38% 50%, 0 0; }
   }
-  @keyframes gh-smglow {
-    0%,100% { filter:drop-shadow(0 0 8px rgba(255,120,32,.8)) drop-shadow(0 0 3px rgba(255,220,120,.85)); }
-    50%     { filter:drop-shadow(0 0 14px rgba(255,150,50,.95)) drop-shadow(0 0 6px rgba(255,236,150,1)); }
+  @keyframes gh-ember {
+    0%   { transform:translate(0,0) scale(.5); opacity:0; }
+    18%  { opacity:1; }
+    100% { transform:translate(4px,-24px) scale(1.15); opacity:0; }
   }
-  @keyframes gh-smshake { 0%,100%{ transform:translateX(0); } 25%{ transform:translateX(-3px); } 75%{ transform:translateX(3px); } }
+  @keyframes gh-smpulse { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.05); } }
+  @keyframes gh-smflash { 0%{ transform:scale(1.2); filter:brightness(1.9) drop-shadow(0 0 32px #fff); } 100%{ transform:scale(1); } }
+  @keyframes gh-smshake { 0%,100%{ transform:translateX(0); } 20%{ transform:translateX(-3px); } 60%{ transform:translateX(3px); } }
   .gh-sm-mats-h { text-align:center; font-size:clamp(11px,1.5vh,12px); color:#b39a63; letter-spacing:1px; margin:2.6% 0 1.8%; font-family:"Cinzel",serif; border-top:1px solid rgba(201,162,39,.28); padding-top:2.4%; }
   .gh-sm-mats { display:flex; justify-content:center; gap:3%; }
   .gh-sm-mat { width:23%; display:flex; flex-direction:column; align-items:center; gap:2px; }
@@ -1701,12 +1716,13 @@ function injectStyle() {
   .gh-sm-btn.gh-sm-dim { filter:grayscale(.72) brightness(.6); cursor:default; font-size:clamp(11px,1.7vh,13px); letter-spacing:1px; }
   .gh-sm-btn.gh-sm-busy { pointer-events:none; filter:brightness(1.12); }
   .gh-sm-max, .gh-sm-empty { text-align:center; color:#c7b789; padding:6% 4%; font-size:clamp(12px,1.7vh,14px); }
-  /* INVENTÁRIO em escala reduzida (20 slots, 5 col) — cabe inteiro, sem rolar.
-     gap/fundo mais fortes p/ as SEPARAÇÕES dos slots ficarem nítidas. */
+  /* INVENTÁRIO (20 slots, 5 col) — cabe inteiro, sem rolar. As SEPARAÇÕES dos
+     slots vêm UNICAMENTE do "gap" dourado (grade limpa, sem linhas duplicadas).
+     Seletor composto .gh-bag.gh-sm-bag p/ vencer o .gh-bag padrão (mesma classe). */
   .gh-sm-sec-inv { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-  .gh-sm-bag { grid-template-columns:repeat(5, minmax(0, clamp(36px,7.6vh,58px))); justify-content:center; width:auto; margin:0 auto;
-    gap:2px; background:rgba(201,162,39,.34); border-color:rgba(201,162,39,.5); }
-  .gh-sm-cell { cursor:pointer; box-shadow:inset 0 0 0 1px rgba(201,162,39,.22); }
+  .gh-bag.gh-sm-bag { grid-template-columns:repeat(5,1fr); width:100%; margin:0 auto;
+    gap:2px; background:rgba(212,175,55,.7); border:2px solid rgba(212,175,55,.6); }
+  .gh-sm-cell { cursor:pointer; }
   .gh-sm-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.35vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; box-shadow:0 1px 2px #000; }
   .gh-sm-sel { background:rgba(40,32,16,.95); box-shadow:inset 0 0 0 2px #f4d873, 0 0 12px 2px rgba(244,216,115,.7); }
   #gh-eq-inner {
