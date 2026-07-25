@@ -15,6 +15,7 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
+| 🟡 | **Ícones do minimapa** — 15 medalhões (lojas, NPC, entrada/saída, portão, portal, estátua…) | [§15](#15--ícones-do-minimapa-pois--🟡-falta-gerar) |
 | 🟡 | **Skill Tree** — faltam 3 folhas de ativas (Ladino/Mago/Clérigo) + 1 de passivas + 4 fundos | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
@@ -752,6 +753,103 @@ Epic dark-fantasy skill-tree BACKGROUND art, grim medieval mood, for a CLERIC ta
 
 *(Quando mandar, eu ponho cada fundo atrás da árvore da classe, escurecido/vinhetado pra
 os nós e conexões ficarem legíveis.)*
+
+---
+
+## 15 · Ícones do minimapa (POIs) — 🟡 falta gerar
+
+Substituem os **emojis** provisórios do minimapa por arte própria. São **medalhões
+redondos** (moeda de bronze envelhecido com o símbolo em relevo) — um conjunto
+coeso que lê bem tanto no mapa pequeno (~24 px) quanto no grande. O motor ainda
+desenha o **anel pulsante colorido** atrás dos interativos, então o medalhão pode
+ser neutro que o destaque vem do jogo.
+
+**Regra do conjunto (vale p/ TODOS os 15):** mesmo material (bronze/ferro
+patinado), mesma borda em bisel, mesma luz de cima, mesmo enquadramento centrado.
+Manda **uma imagem por vez com o nome** (ex.: `mm_ferreiro`, `mm_portal`…) que eu
+recorto e ligo no lugar do emoji.
+
+> Fórmula: *Hand-painted stylized-realism game MAP ICON… bold emblem embossed on a
+> round weathered dark bronze medallion… legible at tiny sizes… transparent
+> background around the coin… no text, no letters, no numbers, no watermark. Square ~512×512.*
+
+### 🟡 15.1 — `mm_ferreiro` (Ferreiro / loja)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single blacksmith's anvil with a crossed hammer and tongs over it and a few glowing forge embers, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint warm-orange (#ff9a4d) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.2 — `mm_taverna` (Taverna)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single overflowing foaming beer tankard flanked by a small curved boar tusk, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint amber (#ffcf5a) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.3 — `mm_mercador` (Mercador / loja)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single bulging drawstring coin pouch beside a small merchant's balance scale, a couple of coins spilling, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint cool-blue (#6fd3ff) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.4 — `mm_alquimista` (Alquimista)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single round-bottom alchemy flask with glowing green-violet liquid and a curl of rising vapor, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint violet (#b98cff) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.5 — `mm_casa` (Casa / lar)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single cozy steep-roofed medieval cottage with a chimney and a small door, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint warm-tan (#d8b06a) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.6 — `mm_poco` (Poço)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single round stone village well with a little wooden roof and a hanging bucket on a rope, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint blue (#6fb8ff) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.7 — `mm_floresta` (Floresta / local)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. Three overlapping fir/pine trees forming a small dense grove, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint pine-green (#7fd06a) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.8 — `mm_npc` (NPC / aldeão)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single friendly hooded villager bust seen from the front, simple cloak and shoulders, calm featureless face in soft shadow (a generic "person here" marker), as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint green (#8fe07a) glow behind the emblem. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.9 — `mm_entrada` (Entrada de masmorra / descer)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A dark stone archway with worn steps descending down into blackness and a small downward chevron arrow, hinting "enter / go down", as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint blood-red (#ff6b5a) glow spilling from the dark opening. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.10 — `mm_saida` (Saída / subir / sair)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. An open wooden door within a stone arch with a warm beam of daylight pouring out and stone steps rising, plus a small upward chevron arrow, hinting "exit / go up / leave", as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint gold (#ffd964) glow. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.11 — `mm_portao` (Portão / grade de ferro)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A heavy iron portcullis / barred dungeon gate: thick vertical riveted iron bars with pointed spikes at the bottom, set in a stone frame, clearly a solid physical barred gate (NOT magical), as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint hot-iron orange-red (#ff8a5a) glow behind the bars. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.12 — `mm_portal` (Portal arcano — ≠ portão)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A free-standing ARCANE PORTAL: an upright oval ring of carved glowing runestones framing a swirling luminous vortex of blue-violet magical energy with sparks and a spiraling event-horizon, clearly MAGICAL and immaterial (definitely NOT a barred metal gate), as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a strong arcane violet-cyan (#c79bff) glow radiating from the vortex. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.13 — `mm_santuario` (Santuário / escadaria)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A spiraling stone tower staircase seen slightly from above, winding steps coiling upward around a central column, hinting the sanctuary's helical climb, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint mystic violet (#c79bff) glow from above. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.14 — `mm_estatua` (Estátua do santuário)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A weathered pale-marble guardian statue on a short pedestal — a solemn robed hooded sentinel figure with folded angelic wings, moss-touched stone, a faint holy aura, as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint ivory-gold (#f0e2b8) glow behind the statue. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+### 🟡 15.15 — `mm_placa` (Placa / aviso)
+```
+Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-fantasy RPG UI. A single weathered wooden signpost plank on a short stake (blank, no writing), as a bold emblem embossed on a round weathered dark bronze medallion with a raised beveled rim, aged pitted metal, soft top-down light and inner shadow, a faint parchment (#e8dcc0) glow behind the sign. Centered, thick high-contrast silhouette that stays legible at ~24px, clean and uncluttered. Flat front-facing orthographic view, no perspective, no drop shadow outside the coin. Clean cutout on a fully transparent background around the circular medallion, crisp edges, no text, no letters, no numbers, no watermark. Square canvas ~512x512.
+```
+
+*(Dá pra pedir variações de `mm_estatua` — uma por estátua do santuário — quando
+a gente definir cada uma. E o `mm_npc` pode ganhar versões por cor/importância.)*
 
 ---
 
