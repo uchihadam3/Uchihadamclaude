@@ -483,7 +483,7 @@ export function setupControls(
       }
     }
     // marcadores dentro da janela (ícones, sem rótulo — o mapa é pequeno).
-    // Locais MAIORES; NPCs e casas menores e desenhados por baixo.
+    // TODOS do mesmo tamanho; locais desenhados por cima em caso de sobreposição.
     if (s.pois) {
       const order = [...s.pois].sort((a, b) => (miniMinor(a.kind) ? 0 : 1) - (miniMinor(b.kind) ? 0 : 1));
       for (const p of order) {
@@ -491,7 +491,7 @@ export function setupControls(
         if (Math.abs(dx) > R || Math.abs(dy) > R) continue;
         const x = off + (dx + R) * cell + cell / 2;
         const y = off + (dy + R) * cell + cell / 2;
-        drawPoi(ctx, x, y, cell * (miniMinor(p.kind) ? 0.9 : 1.26), p, mapPhase, false);
+        drawPoi(ctx, x, y, cell * 0.9, p, mapPhase, false);
       }
     }
     // herói SEMPRE no centro exato da janela (célula central) — só a seta, sem círculo
@@ -522,7 +522,7 @@ export function setupControls(
       const base = Math.max(15, cell * 1.15);
       const order = [...s.pois].sort((a, b) => (miniMinor(a.kind) ? 0 : 1) - (miniMinor(b.kind) ? 0 : 1));
       for (const p of order) {
-        drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, miniMinor(p.kind) ? base * 0.72 : base * 1.24, p, mapPhase, true);
+        drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, base * 0.72, p, mapPhase, true);
       }
     }
     drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(8, cell * 0.8), Math.atan2(s.dr, s.dc));
