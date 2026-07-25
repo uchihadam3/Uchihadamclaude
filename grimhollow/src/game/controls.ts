@@ -11,6 +11,7 @@ import icoAttackUrl from "../assets/ui/ico_attack.png";
 import icoActionUrl from "../assets/ui/ico_action.png";
 import icoInventoryUrl from "../assets/ui/ico_inventory.png";
 import coinUrl from "../assets/ui/coin.png";
+import loadSwordUrl from "../assets/ui/load_sword.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
 import clockMoonUrl from "../assets/ui/clock_moon.png";
@@ -435,11 +436,18 @@ export function setupControls(
     e.preventDefault(); sm.classList.add("gh-eq-hidden");
   });
   const renderSmith = (d: SmithData) => {
-    const mat = (emoji: string, need: number, have: number, cap: string) => {
+    // material: slot (só o ícone) + números FORA do container (embaixo)
+    const mat = (emoji: string, need: number, have: number, cap: string, gold = false) => {
       const ok = have >= need;
-      return `<div class="gh-sm-mat"><div class="gh-sm-mslot">${emoji}<span class="gh-sm-req">${need}</span></div>` +
-        `<div class="gh-sm-have ${ok ? "gh-ok" : "gh-no"}">${ok ? "✓ " : ""}${have}</div><div class="gh-sm-cap">${cap}</div></div>`;
+      const inner = gold ? `<img src="${coinUrl}" alt=""/>` : emoji;
+      return `<div class="gh-sm-mat"><div class="gh-sm-mslot${gold ? " gh-sm-mgold" : ""}">${inner}</div>` +
+        `<div class="gh-sm-mnum ${ok ? "gh-ok" : "gh-no"}">${need}<span class="gh-sm-mhave">/${have}</span></div>` +
+        `<div class="gh-sm-cap">${cap}</div></div>`;
     };
+    // slot da forja: o selo +N fica FORA do slot (num wrapper que não corta)
+    const slot = (icon: string, lvl: number, res = false) =>
+      `<div class="gh-sm-slotwrap"><div class="gh-slot gh-sm-slot${res ? " gh-sm-res" : ""}"><img class="gh-item-ico" src="${icon}"/></div>` +
+      `<span class="gh-sm-tier${res ? " gh-sm-tier-up" : ""}">+${lvl}</span></div>`;
     const s = d.sel;
     let forge: string;
     if (!s) {
@@ -447,7 +455,7 @@ export function setupControls(
     } else if (s.max || !s.next) {
       forge =
         '<div class="gh-sm-forge"><div class="gh-sm-col"><div class="gh-sm-lbl">ITEM</div>' +
-        `<div class="gh-slot gh-sm-slot"><img class="gh-item-ico" src="${s.icon}"/><span class="gh-sm-tier">+${s.lvl}</span></div>` +
+        slot(s.icon, s.lvl) +
         `<div class="gh-sm-nm">${s.name} +${s.lvl}</div><div class="gh-sm-dmg">Dano ${s.dmg}</div></div></div>` +
         '<div class="gh-sm-max">Reforço máximo atingido.</div>';
     } else {
@@ -456,30 +464,38 @@ export function setupControls(
       const can = d.mats.madeira >= n.madeira && d.mats.minerio >= n.minerio && d.mats.reforco >= n.reforco && gOk;
       forge =
         '<div class="gh-sm-forge">' +
-        '<div class="gh-sm-col"><div class="gh-sm-lbl">ITEM</div>' +
-        `<div class="gh-slot gh-sm-slot"><img class="gh-item-ico" src="${s.icon}"/><span class="gh-sm-tier">+${s.lvl}</span></div>` +
+        '<div class="gh-sm-col"><div class="gh-sm-lbl">ITEM</div>' + slot(s.icon, s.lvl) +
         `<div class="gh-sm-nm">${s.name}${s.lvl ? " +" + s.lvl : ""}</div><div class="gh-sm-dmg">Dano ${s.dmg}</div></div>` +
         '<div class="gh-sm-arrow">➜</div>' +
-        '<div class="gh-sm-col"><div class="gh-sm-lbl">RESULTADO</div>' +
-        `<div class="gh-slot gh-sm-slot gh-sm-res"><img class="gh-item-ico" src="${s.icon}"/><span class="gh-sm-tier">+${s.lvl + 1}</span></div>` +
+        '<div class="gh-sm-col"><div class="gh-sm-lbl">RESULTADO</div>' + slot(s.icon, s.lvl + 1, true) +
         `<div class="gh-sm-nm gh-up">${s.name} +${s.lvl + 1}</div><div class="gh-sm-dmg">Dano <span class="gh-g">${n.dmg} ▲</span></div></div>` +
         "</div>" +
         '<div class="gh-sm-mats-h">MATERIAIS NECESSÁRIOS</div><div class="gh-sm-mats">' +
         mat("🪵", n.madeira, d.mats.madeira, "Madeira") +
         mat("🪨", n.minerio, d.mats.minerio, "Minério") +
         mat("🔶", n.reforco, d.mats.reforco, "Pedra de Reforço") +
-        `<div class="gh-sm-mat gh-sm-gold"><div class="gh-sm-mslot"><img src="${coinUrl}" alt=""/><span class="gh-sm-req">${n.gold}</span></div>` +
-        `<div class="gh-sm-have ${gOk ? "gh-ok" : "gh-no"}">${gOk ? "✓" : ""}</div><div class="gh-sm-cap">Ouro</div></div></div>` +
-        `<button class="gh-sm-btn ${can ? "" : "gh-sm-dim"}" id="gh-sm-up">${can ? "APRIMORAR" : "FALTAM MATERIAIS"}</button>`;
+        mat("", n.gold, d.gold, "Ouro", true) +
+        "</div>" +
+        // BOTÃO = a espada sendo forjada (lava). Brilha quando dá; apaga quando falta.
+        `<div class="gh-sm-forgewrap"><div class="gh-sm-forgebtn ${can ? "gh-sm-hot" : "gh-sm-cold"}" id="gh-sm-up"></div>` +
+        `<div class="gh-sm-forgelbl ${can ? "" : "gh-sm-lblno"}">${can ? "APRIMORAR" : "FALTAM MATERIAIS"}</div></div>`;
     }
-    const bag = d.items.map((it) =>
-      `<div class="gh-bag-slot gh-sm-cell ${s && it.id === s.id ? "gh-sm-sel" : ""}" data-sid="${it.id}">` +
-      `<img class="gh-item-ico" src="${it.icon}" title="${it.name}"/>${it.lvl ? `<span class="gh-count">+${it.lvl}</span>` : ""}</div>`,
-    ).join("");
+    // INVENTÁRIO: mesmo nº de slots do inventário real (BAG_SLOTS), em escala reduzida
+    const cells: string[] = [];
+    for (let i = 0; i < BAG_SLOTS; i++) {
+      const it = d.items[i];
+      if (!it) { cells.push('<div class="gh-bag-slot gh-sm-cell"></div>'); continue; }
+      cells.push(
+        `<div class="gh-bag-slot gh-sm-cell ${s && it.id === s.id ? "gh-sm-sel" : ""}" data-sid="${it.id}">` +
+        `<img class="gh-item-ico" src="${it.icon}" title="${it.name}"/>${it.lvl ? `<span class="gh-sm-badge">+${it.lvl}</span>` : ""}</div>`,
+      );
+    }
     smBody.innerHTML =
-      `<div class="gh-eq-title gh-sm-title">Ferreiro — A Bigorna<span class="gh-gold" style="left:6px;right:auto;top:9px;transform:none"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
+      '<div class="gh-eq-title gh-sm-title">Ferreiro — A Bigorna</div>' +
       `<div class="gh-section gh-sm-sec">${forge}</div>` +
-      `<div class="gh-section gh-sm-sec"><div class="gh-sec-head">Inventário — toque um item</div><div class="gh-bag gh-sm-bag">${bag}</div></div>`;
+      '<div class="gh-section gh-sm-sec"><div class="gh-sec-head gh-sec-inv">Inventário' +
+      `<span class="gh-gold"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
+      `<div class="gh-bag gh-sm-bag">${cells.join("")}</div></div>`;
     smBody.querySelectorAll<HTMLElement>("[data-sid]").forEach((el) => {
       el.onclick = () => onSmithSelect?.(el.dataset.sid!);
     });
@@ -1533,11 +1549,14 @@ function injectStyle() {
   .gh-sm-forge { display:flex; align-items:flex-start; justify-content:center; gap:2%; }
   .gh-sm-col { display:flex; flex-direction:column; align-items:center; gap:4px; width:44%; }
   .gh-sm-lbl { font-size:clamp(10px,1.5vh,12px); letter-spacing:1px; color:#b39a63; font-family:"Cinzel",serif; }
-  .gh-sm-slot { width:clamp(62px,11vh,90px); height:clamp(62px,11vh,90px); position:relative; }
-  .gh-sm-tier { position:absolute; top:-6px; right:-6px; font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:6px; padding:1px 6px; border:1px solid #6b4f18; box-shadow:0 1px 3px #000; }
+  /* slot da forja num WRAPPER que NÃO corta → o selo +N fica fora, inteiro */
+  .gh-sm-slotwrap { position:relative; width:clamp(62px,11vh,90px); height:clamp(62px,11vh,90px); overflow:visible; }
+  .gh-sm-slot { width:100%; height:100%; }
+  .gh-sm-tier { position:absolute; top:-9px; right:-11px; z-index:3; font-family:"Cinzel",serif; font-size:clamp(11px,1.7vh,14px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:7px; padding:1px 7px; border:1px solid #6b4f18; box-shadow:0 1px 4px #000; }
+  .gh-sm-tier-up { background:linear-gradient(#8fe07a,#3f9a2e); border-color:#215016; box-shadow:0 0 8px rgba(120,240,110,.6); }
   .gh-sm-res { box-shadow:0 0 16px 3px rgba(244,216,115,.5); border-radius:8px; }
   .gh-sm-res .gh-item-ico { filter:drop-shadow(0 0 8px rgba(255,224,130,.9)); }
-  .gh-sm-nm { font-size:clamp(12px,1.7vh,14px); color:#efe2c0; text-align:center; line-height:1.15; min-height:2.4em; margin-top:4px; }
+  .gh-sm-nm { font-size:clamp(12px,1.7vh,14px); color:#efe2c0; text-align:center; line-height:1.15; min-height:2.4em; margin-top:8px; }
   .gh-sm-nm.gh-up { color:#f6ead0; }
   .gh-sm-dmg { font-size:clamp(11px,1.6vh,13px); color:#c7b789; }
   .gh-sm-dmg .gh-g { color:#8fdf7a; font-weight:700; }
@@ -1545,16 +1564,26 @@ function injectStyle() {
   .gh-sm-mats-h { text-align:center; font-size:clamp(11px,1.5vh,12px); color:#b39a63; letter-spacing:1px; margin:4% 0 2.5%; font-family:"Cinzel",serif; border-top:1px solid rgba(201,162,39,.28); padding-top:3.5%; }
   .gh-sm-mats { display:flex; justify-content:center; gap:3%; }
   .gh-sm-mat { width:23%; display:flex; flex-direction:column; align-items:center; gap:3px; }
-  .gh-sm-mslot { width:clamp(44px,7.5vh,56px); height:clamp(44px,7.5vh,56px); position:relative; display:flex; align-items:center; justify-content:center; border:8px solid transparent; border-image:url(${eqSlotUrl}) 89 fill; font-size:clamp(20px,3.4vh,26px); }
-  .gh-sm-mslot img { width:58%; height:58%; }
-  .gh-sm-req { position:absolute; right:-4px; bottom:-4px; font-size:clamp(10px,1.5vh,12px); font-weight:700; color:#fff; background:#2a2114; border:1px solid rgba(201,162,39,.6); border-radius:6px; padding:0 4px; text-shadow:0 1px 2px #000; }
-  .gh-sm-have { font-size:clamp(10px,1.4vh,12px); }
+  .gh-sm-mslot { width:clamp(44px,7.5vh,56px); height:clamp(44px,7.5vh,56px); display:flex; align-items:center; justify-content:center; border:8px solid transparent; border-image:url(${eqSlotUrl}) 89 fill; font-size:clamp(20px,3.4vh,26px); }
+  .gh-sm-mslot img { width:62%; height:62%; }
+  /* números FORA do slot: "precisa/tem" (verde ou vermelho) */
+  .gh-sm-mnum { font-size:clamp(13px,1.9vh,16px); font-weight:700; font-family:"Cinzel",serif; line-height:1; margin-top:1px; }
+  .gh-sm-mhave { font-size:clamp(9px,1.35vh,11px); font-weight:400; color:#a89468; }
   .gh-ok { color:#8fdf7a; } .gh-no { color:#e17b6b; }
   .gh-sm-cap { font-size:clamp(9px,1.25vh,11px); color:#a89468; text-align:center; line-height:1.05; }
-  .gh-sm-btn { margin:5% auto 1%; display:flex; align-items:center; justify-content:center; width:78%; height:clamp(44px,7vh,54px); cursor:pointer; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(15px,2.2vh,18px); letter-spacing:2px; color:#12100a; border:none; background:url(${btnBaseUrl}) no-repeat center / 100% 100%; text-shadow:0 1px 0 rgba(255,235,180,.5); }
-  .gh-sm-btn.gh-sm-dim { filter:grayscale(.7) brightness(.65); color:#4a4330; font-size:clamp(11px,1.7vh,14px); cursor:default; }
+  /* BOTÃO = espada sendo forjada (lava). Brilha quando dá; apaga quando falta. */
+  .gh-sm-forgewrap { display:flex; flex-direction:column; align-items:center; gap:2px; margin:4% auto 1%; }
+  .gh-sm-forgebtn { width:clamp(78px,13vh,104px); height:clamp(78px,13vh,104px); cursor:pointer; background:url(${loadSwordUrl}) no-repeat center / contain; }
+  .gh-sm-forgebtn.gh-sm-hot { animation:gh-forge-glow 1.5s ease-in-out infinite; }
+  @keyframes gh-forge-glow { 0%,100%{ filter:drop-shadow(0 0 6px rgba(255,120,30,.5)); } 50%{ filter:drop-shadow(0 0 20px rgba(255,170,60,.95)); } }
+  .gh-sm-forgebtn.gh-sm-cold { filter:grayscale(.85) brightness(.5); cursor:default; }
+  .gh-sm-forgelbl { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2vh,16px); letter-spacing:2px; color:#f4d873; text-shadow:0 1px 3px #000,0 0 6px rgba(0,0,0,.8); }
+  .gh-sm-forgelbl.gh-sm-lblno { color:#9a8f6a; font-size:clamp(11px,1.7vh,13px); letter-spacing:1px; }
   .gh-sm-max, .gh-sm-empty { text-align:center; color:#c7b789; padding:6% 4%; font-size:clamp(12px,1.7vh,14px); }
+  /* INVENTÁRIO em escala reduzida (20 slots, 5 col) — item +N num selo interno */
+  .gh-sm-bag { grid-template-columns:repeat(5,1fr); }
   .gh-sm-cell { cursor:pointer; }
+  .gh-sm-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.35vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; box-shadow:0 1px 2px #000; }
   .gh-sm-sel { background:rgba(40,32,16,.95); box-shadow:inset 0 0 0 2px #f4d873, 0 0 12px 2px rgba(244,216,115,.7); }
   #gh-eq-inner {
     width:100%; height:100%;
