@@ -353,6 +353,8 @@ export function setupControls(
   let lastMini: MinimapState | null = null;
   let mapPhase = 0; // fase de animação (pulsos) — avança no loop rAF
   const bigOpen = () => !bigMap.classList.contains("gh-bigmap-hidden");
+  // marcador do HERÓI: uma "moeda" bronze (combina com os medalhões dos POIs)
+  // com uma ponta de seta dourada brilhante que gira p/ a direção que ele encara.
   const drawArrow = (
     ctx: CanvasRenderingContext2D,
     px: number,
@@ -362,16 +364,34 @@ export function setupControls(
   ) => {
     ctx.save();
     ctx.translate(px, py);
+    // base: disco escuro com aro bronze (mesmo material dos medalhões)
+    ctx.beginPath();
+    ctx.arc(0, 0, rad * 1.15, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(26,19,11,.94)";
+    ctx.fill();
+    const rim = ctx.createLinearGradient(0, -rad, 0, rad);
+    rim.addColorStop(0, "#efd68a"); rim.addColorStop(0.5, "#b9923e"); rim.addColorStop(1, "#7a5a26");
+    ctx.lineWidth = Math.max(1.4, rad * 0.3);
+    ctx.strokeStyle = rim;
+    ctx.stroke();
+    // ponta de seta dourada apontando p/ a direção (passa um pouco da borda)
     ctx.rotate(ang);
     ctx.beginPath();
-    ctx.moveTo(rad, 0);
-    ctx.lineTo(-rad * 0.7, rad * 0.62);
-    ctx.lineTo(-rad * 0.7, -rad * 0.62);
+    ctx.moveTo(rad * 1.42, 0);
+    ctx.lineTo(rad * 0.18, rad * 0.72);
+    ctx.lineTo(rad * 0.5, 0);
+    ctx.lineTo(rad * 0.18, -rad * 0.72);
     ctx.closePath();
-    ctx.fillStyle = "#ffd964";
-    ctx.shadowColor = "rgba(255,210,90,.9)";
-    ctx.shadowBlur = 5;
+    const gold = ctx.createLinearGradient(0, -rad, rad * 1.4, rad);
+    gold.addColorStop(0, "#fff2b8"); gold.addColorStop(1, "#ffca4a");
+    ctx.fillStyle = gold;
+    ctx.shadowColor = "rgba(255,214,110,.95)";
+    ctx.shadowBlur = rad * 0.9;
     ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = Math.max(0.8, rad * 0.1);
+    ctx.strokeStyle = "rgba(92,62,18,.85)";
+    ctx.stroke();
     ctx.restore();
   };
   // desenha um marcador (disco colorido + emoji) com anel pulsante se interativo
@@ -470,14 +490,16 @@ export function setupControls(
         ctx.fillRect(off + (dx + R) * cell, off + (dy + R) * cell, cell - 1, cell - 1);
       }
     }
-    // marcadores dentro da janela (ícones, sem rótulo — o mapa é pequeno)
+    // marcadores dentro da janela (ícones, sem rótulo — o mapa é pequeno).
+    // Locais MAIORES que NPCs; NPCs primeiro p/ os locais ficarem por cima.
     if (s.pois) {
-      for (const p of s.pois) {
+      const order = [...s.pois].sort((a, b) => (a.kind === "npc" ? 0 : 1) - (b.kind === "npc" ? 0 : 1));
+      for (const p of order) {
         const dx = p.c - s.col, dy = p.r - s.row;
         if (Math.abs(dx) > R || Math.abs(dy) > R) continue;
         const x = off + (dx + R) * cell + cell / 2;
         const y = off + (dy + R) * cell + cell / 2;
-        drawPoi(ctx, x, y, cell * 1.05, p, mapPhase, false);
+        drawPoi(ctx, x, y, cell * (p.kind === "npc" ? 0.9 : 1.26), p, mapPhase, false);
       }
     }
     // herói SEMPRE no centro exato da janela (célula central)
@@ -515,7 +537,7 @@ export function setupControls(
       const base = Math.max(15, cell * 1.15);
       const order = [...s.pois].sort((a, b) => (a.kind === "npc" ? 0 : 1) - (b.kind === "npc" ? 0 : 1));
       for (const p of order) {
-        drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, p.kind === "npc" ? base * 0.78 : base, p, mapPhase, true);
+        drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, p.kind === "npc" ? base * 0.72 : base * 1.24, p, mapPhase, true);
       }
     }
     drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(8, cell * 0.8), Math.atan2(s.dr, s.dc));
