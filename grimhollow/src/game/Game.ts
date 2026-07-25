@@ -4153,12 +4153,14 @@ export class Game {
     const pois: MiniPoi[] = [];
     const cap = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
     if (this.location === "village") {
+      // a porta fica na PAREDE (c,r); o marcador vai p/ a célula da praça em
+      // frente à porta (c+dc, r+dr) p/ ficar DENTRO do mapa caminhável.
       for (const e of ESTAB_DOORS) {
         const kind = e.kind === "store" ? "store" : e.kind === "tavern" ? "tavern" : e.kind === "alchemist" ? "alchemist" : "smith";
-        pois.push({ c: e.c, r: e.r, kind, label: cap(ESTAB[e.kind].name) });
+        pois.push({ c: e.c + e.dc, r: e.r + e.dr, kind, label: cap(ESTAB[e.kind].name) });
       }
       // casas comuns: só o ícone, SEM rótulo "Casa" (evita poluição no mapa)
-      for (const h of HOME_DOORS) pois.push({ c: h.c, r: h.r, kind: "home", label: "" });
+      for (const h of HOME_DOORS) pois.push({ c: h.c + h.dc, r: h.r + h.dr, kind: "home", label: "" });
       pois.push({ c: WELL.c, r: WELL.r, kind: "well", label: "Poço" });
       // saídas: masmorra (escada) e floresta (trilha)
       for (let r = 0; r < ROWS; r++)
