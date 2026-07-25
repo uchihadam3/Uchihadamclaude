@@ -433,7 +433,7 @@ export function setupControls(
     // pílula escura de fundo p/ ler mesmo quando dois rótulos se aproximam.
     if (withLabel && poi.label) {
       const npc = poi.kind === "npc";
-      const fs = Math.max(9, Math.round(size * (npc ? 0.34 : 0.42)));
+      const fs = Math.max(8, Math.round(size * (npc ? 0.26 : 0.33)));
       ctx.save();
       ctx.font = `600 ${fs}px "Cinzel",serif`;
       ctx.textAlign = "center";
@@ -521,11 +521,11 @@ export function setupControls(
     // halo pulsante do herói (dá vida ao mapa)
     const hp = (mapPhase * 1.1) % 1;
     ctx.save();
-    ctx.globalAlpha = (1 - hp) * 0.5;
-    ctx.strokeStyle = "#ffe08a"; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(pc, pc, cell * (0.4 + hp * 0.6), 0, Math.PI * 2); ctx.stroke();
+    ctx.globalAlpha = (1 - hp) * 0.45;
+    ctx.strokeStyle = "#ffe08a"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(pc, pc, cell * (0.3 + hp * 0.45), 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
-    drawArrow(ctx, pc, pc, Math.max(4, cell * 0.42), Math.atan2(s.dr, s.dc));
+    drawArrow(ctx, pc, pc, Math.max(4, cell * 0.3), Math.atan2(s.dr, s.dc));
     drawLocBanner(ctx, W, s.locName, Math.round(H * 0.16));
   };
   // mapa GRANDE: o local inteiro cabendo na tela (estilo PoE/Diablo)
