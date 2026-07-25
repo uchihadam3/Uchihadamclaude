@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood } from "./controls";
 import {
   ROOM,
   ROOM_COLS,
@@ -142,7 +142,7 @@ import fxLArremessoUrl from "../assets/ui/fx/fx_l_arremesso.png";
 import fxLNuvemUrl from "../assets/ui/fx/fx_l_nuvem.png";
 import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
-import { WEAPONS, type Weapon } from "./weapons";
+import { WEAPONS, WEAPON_BY_ID, type Weapon } from "./weapons";
 import { CLASS_BY_ID, type Character } from "./classes";
 import {
   derive,
@@ -295,6 +295,23 @@ interface EstabDoor {
   dr: number;
   kind: Estab;
 }
+// MERCADOR: catálogo de mercadorias (preço de COMPRA em ouro). madeira/minério/
+// reforço abastecem a forja; o resto são consumíveis. Preço de venda = metade.
+interface Merch { id: string; name: string; icon: string; price: number; desc: string }
+const MERCH: Merch[] = [
+  { id: "pot_hp", name: "Poção de Vida", icon: "🧪", price: 25, desc: "restaura 40% da vida" },
+  { id: "pot_mp", name: "Poção de Mana", icon: "🔵", price: 30, desc: "restaura 40% da mana" },
+  { id: "food", name: "Ração de Viagem", icon: "🍖", price: 15, desc: "cura aos poucos" },
+  { id: "scroll_return", name: "Pergaminho de Retorno", icon: "📜", price: 60, desc: "volta ao vilarejo" },
+  { id: "torch", name: "Tocha", icon: "🔥", price: 8, desc: "ilumina o caminho" },
+  { id: "rope", name: "Corda", icon: "🪢", price: 12, desc: "utilidade de exploração" },
+  { id: "madeira", name: "Madeira", icon: "🪵", price: 10, desc: "material de forja" },
+  { id: "minerio", name: "Minério", icon: "🪨", price: 18, desc: "material de forja" },
+  { id: "reforco", name: "Pedra de Reforço", icon: "🔶", price: 40, desc: "material de forja" },
+];
+const MERCH_BY_ID: Record<string, Merch> = {};
+for (const m of MERCH) MERCH_BY_ID[m.id] = m;
+
 const ESTAB_DOORS: EstabDoor[] = [
   { c: 5, r: 5, dc: 0, dr: 1, kind: "tavern" }, // parede norte
   { c: 9, r: 5, dc: 0, dr: 1, kind: "store" }, // parede norte
@@ -559,6 +576,7 @@ type Target =
   | { kind: "lockgate" } // portão selado do santuário (não abre)
   | { kind: "sanctuary" } // entrada do santuário (leva à sala-vitrine)
   | { kind: "smithshop" } // ferreiro (abre a janela de aprimoramento)
+  | { kind: "storeshop" } // mercador (abre a janela de comprar/vender)
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
@@ -644,6 +662,23 @@ export class Game {
   private materials = { madeira: 8, minerio: 5, reforco: 3 };
   private smithSel = "sword";
   private static readonly SMITH_MAX = 10;
+  // MERCADOR: consumíveis que o jogador possui, armas possuídas, modo da janela
+  private consumables: Record<string, number> = {};
+  private ownedWeapons: string[] = [];
+  private storeMode: "buy" | "sell" = "buy";
+  private static readonly SELL_RATE = 0.5; // mercador paga metade do preço de compra
+  // quanto o jogador TEM de um bem empilhável (roteia p/ materiais ou consumíveis)
+  private goodHave(id: string): number {
+    if (id === "madeira" || id === "minerio" || id === "reforco") return this.materials[id];
+    return this.consumables[id] ?? 0;
+  }
+  private goodAdd(id: string, n: number): void {
+    if (id === "madeira" || id === "minerio" || id === "reforco") this.materials[id] = Math.max(0, this.materials[id] + n);
+    else this.consumables[id] = Math.max(0, (this.consumables[id] ?? 0) + n);
+  }
+  private weaponSell(id: string): number {
+    return 35 + (this.reinforce[id] ?? 0) * 20; // reforço agrega valor
+  }
   // PRIMÁRIOS atuais + piso (base da criação, não dá pra baixar disso) e a base
   // de vida/mana da classe. Os SECUNDÁRIOS são derivados destes.
   private prim: Primaries = { str: 5, dex: 5, int: 5 };
@@ -829,13 +864,16 @@ export class Game {
       (key, delta) => this.allocAttr(key, delta),
       (id) => { this.smithSel = id; this.ui.openSmith(this.buildSmithData()); }, // seleção no ferreiro
       () => this.smithUpgrade(), // apertou "Aprimorar"
+      (mode) => this.setStoreMode(mode), // trocou aba comprar/vender
+      (id, qty) => this.storeTrade(id, qty), // confirmou compra/venda
     );
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
       this.onCanvasPointer(e),
     );
     // enche a mochila com TODAS as armas (pra testar) e começa com a arma da classe
-    this.ui.setInventory(WEAPONS.map((w) => w.id));
+    this.ownedWeapons = WEAPONS.map((w) => w.id);
+    this.ui.setInventory(this.ownedWeapons);
     this.ui.equipWeapon(cls?.startWeapon ?? "sword");
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
@@ -1427,6 +1465,68 @@ export class Game {
       this.ui.toast(Game.SMITH_FREE ? `O reforço de ${w.name} falhou!` : `O reforço de ${w.name} falhou! Materiais perdidos.`);
     }
     return { success, data: this.buildSmithData() };
+  }
+
+  // ---- MERCADOR (comprar/vender) ----
+  private buildStoreData(): StoreData {
+    const goods: StoreGood[] = [];
+    if (this.storeMode === "buy") {
+      for (const m of MERCH)
+        goods.push({ id: m.id, name: m.name, icon: m.icon, price: m.price, desc: m.desc, have: this.goodHave(m.id) });
+    } else {
+      // VENDER: consumíveis/materiais que possui (>0) + armas (menos a equipada)
+      for (const m of MERCH) {
+        const have = this.goodHave(m.id);
+        if (have > 0) goods.push({ id: m.id, name: m.name, icon: m.icon, price: Math.max(1, Math.round(m.price * Game.SELL_RATE)), desc: m.desc, have });
+      }
+      for (const id of this.ownedWeapons) {
+        if (this.currentWeapon?.id === id) continue; // não vende a arma equipada
+        const w = WEAPON_BY_ID[id];
+        if (!w) continue;
+        const lvl = this.reinforce[id] ?? 0;
+        goods.push({ id: "w:" + id, name: w.name + (lvl ? ` +${lvl}` : ""), iconUrl: w.url, price: this.weaponSell(id), desc: "arma", have: 1, single: true });
+      }
+    }
+    return { gold: this.stats.gold, mode: this.storeMode, goods };
+  }
+  private setStoreMode(mode: "buy" | "sell") {
+    this.storeMode = mode;
+    this.ui.openStore(this.buildStoreData());
+  }
+  // compra/venda de `qty` unidades do item `id` no modo atual; devolve novo estado
+  private storeTrade(id: string, qty: number): StoreData {
+    qty = Math.max(1, Math.floor(qty));
+    if (this.storeMode === "buy") {
+      const m = MERCH_BY_ID[id];
+      if (m) {
+        const cost = m.price * qty;
+        if (this.stats.gold < cost) { this.ui.toast("Ouro insuficiente."); }
+        else { this.stats.gold -= cost; this.goodAdd(id, qty); this.refreshStats(); this.ui.toast(`Comprou ${qty}× ${m.name}.`); }
+      }
+    } else if (id.startsWith("w:")) {
+      const wid = id.slice(2);
+      const idx = this.ownedWeapons.indexOf(wid);
+      if (idx >= 0 && this.currentWeapon?.id !== wid) {
+        const val = this.weaponSell(wid);
+        this.ownedWeapons.splice(idx, 1);
+        delete this.reinforce[wid];
+        this.stats.gold += val;
+        this.ui.setInventory(this.ownedWeapons);
+        this.refreshStats();
+        this.ui.toast(`Vendeu ${WEAPON_BY_ID[wid]?.name} por ${val} ouro.`);
+      }
+    } else {
+      const m = MERCH_BY_ID[id];
+      if (m) {
+        qty = Math.min(qty, this.goodHave(id));
+        if (qty > 0) {
+          const val = Math.max(1, Math.round(m.price * Game.SELL_RATE)) * qty;
+          this.goodAdd(id, -qty); this.stats.gold += val; this.refreshStats();
+          this.ui.toast(`Vendeu ${qty}× ${m.name} por ${val} ouro.`);
+        }
+      }
+    }
+    return this.buildStoreData();
   }
 
   // aplica os bônus percentuais de dano das passivas sobre um ataque base
@@ -4264,6 +4364,10 @@ export class Game {
     } else if (t.kind === "smithshop") {
       // FERREIRO: abre a janela de aprimoramento (reforço +N)
       this.ui.openSmith(this.buildSmithData());
+    } else if (t.kind === "storeshop") {
+      // MERCADOR: abre a janela de comprar/vender
+      this.storeMode = "buy";
+      this.ui.openStore(this.buildStoreData());
     } else if (t.kind === "toforest") {
       // ao voltar, o jogador olha p/ dentro do vilarejo (oposto à trilha)
       this.returnTo = {
@@ -5476,6 +5580,7 @@ export class Game {
       else if (t.kind === "lockgate") text = "Portão selado";
       else if (t.kind === "sanctuary") text = "Subir a escadaria";
       else if (t.kind === "smithshop") text = "Ferreiro — Aprimorar";
+      else if (t.kind === "storeshop") text = "Mercador — Comprar / Vender";
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
@@ -5492,6 +5597,8 @@ export class Game {
     const npc = this.npcMap.get(`${fc},${fr}`);
     // no interior do FERREIRO, falar com o atendente abre a janela de aprimoramento
     if (npc && this.location === "smith") return { kind: "smithshop" };
+    // no MERCADOR, falar com a atendente abre a janela de comprar/vender
+    if (npc && this.location === "store") return { kind: "storeshop" };
     if (npc)
       return {
         kind: "talk",
