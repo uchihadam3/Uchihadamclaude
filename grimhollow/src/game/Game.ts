@@ -2576,23 +2576,23 @@ export class Game {
     shellGeo.setIndex(shIdx); shellGeo.computeVertexNormals();
     this.world.add(new THREE.Mesh(shellGeo, shellMat));
 
-    // ---- CORREDOR no topo (ponte de pedra) da hélice até o terraço ----
-    const cLen = CORR_X0 - CORR_X1, cMidX = (CORR_X0 + CORR_X1) / 2, cw = 1.7, cCeil = 3.4;
+    // ---- TERRAÇO de ROCHA + CORREDOR que ENCAIXA na muralha (porta) ----
+    const SCX = SHRINE_CX, SCZ = SHRINE_CZ;
+    const RW = SHRINE_RADIUS + 1.8; // raio da muralha de rocha
+    const cw = 2.0, cCeil = 3.4; // corredor: meia-largura e altura do teto
+    // CORREDOR (ponte de pedra): da torre até a muralha — termina EXATAMENTE nela
+    // (overlap de 0.6 p/ dentro → sem fresta no encaixe), atravessando a porta.
+    const cX1 = SCX + RW - 0.2, cLen = CORR_X0 - cX1, cMidX = (CORR_X0 + cX1) / 2;
     const cf = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cw * 2), corrFloorMat);
     cf.rotation.x = -Math.PI / 2; cf.position.set(cMidX, TOP_Y + 0.02, CORR_Z); this.world.add(cf);
     for (const s of [-1, 1]) {
       const wl = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cCeil), corrWallMat);
-      wl.position.set(cMidX, TOP_Y + cCeil / 2, CORR_Z + s * cw);
-      wl.rotation.y = 0; this.world.add(wl);
+      wl.position.set(cMidX, TOP_Y + cCeil / 2, CORR_Z + s * cw); this.world.add(wl);
     }
     const cc = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cw * 2), corrWallMat);
     cc.rotation.x = Math.PI / 2; cc.position.set(cMidX, TOP_Y + cCeil, CORR_Z); this.world.add(cc);
-
-    // ---- TERRAÇO: recinto REDONDO de ROCHA, aberto SÓ no teto (luz vem de cima) ----
-    const SCX = SHRINE_CX, SCZ = SHRINE_CZ;
-    const RW = SHRINE_RADIUS + 1.8; // raio da muralha (logo além da grama)
-    const DR = RW; // a grama encosta na muralha
-    // grama por célula (piso sob o jogador em toda a área andável)
+    // GRAMA (por célula + disco redondo encostando na muralha)
+    const DR = RW;
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
     for (const [tc, tr] of terraceCells()) {
       const g = new THREE.Mesh(tileGeo, grassMat);
@@ -2600,23 +2600,25 @@ export class Game {
     }
     const disc = new THREE.Mesh(new THREE.CircleGeometry(DR, 44), grassMat);
     disc.rotation.x = -Math.PI / 2; disc.position.set(SCX, TOP_Y + 0.05, SCZ); this.world.add(disc);
-    // MURALHA redonda de ROCHA (dungeon), ALTÍSSIMA, com um VÃO GENEROSO só onde o
-    // CORREDOR encosta (leste, ângulo 0). Construída por arcos (controle exato do vão,
-    // sem depender da convenção do CylinderGeometry). Sem teto → aberta só por cima.
-    const gapHalf = 0.55; // meia-abertura do vão do corredor (leste) — bem aberta
-    const wSegs = 64, wYb = TOP_Y - 2, wYt = TOP_Y - 2 + WALL_H;
-    const arcTile = (RW * 2 * Math.PI) / wSegs / 4, vTile = WALL_H / 4; // ~1 telha/4u
+    // MURALHA redonda de ROCHA, ALTÍSSIMA, com uma PORTA (leste) que casa com a
+    // largura do corredor e SÓ na altura dele (sólida acima → sem fenda por cima).
+    const rDoorHalf = Math.asin(Math.min(0.98, cw / RW)) - 0.03; // rocha ENCOSTA nas paredes do corredor (sem fresta)
+    const rSegs = 72, rYb = TOP_Y - 2, rDoorTop = TOP_Y + cCeil, rYt = TOP_Y - 2 + WALL_H;
+    const arcTile = (RW * 2 * Math.PI) / rSegs / 4;
+    const rBands: [number, number, boolean][] = [[rYb, rDoorTop, true], [rDoorTop, rYt, false]];
     const wPos: number[] = [], wUv: number[] = [], wIdx: number[] = [];
-    for (let i = 0; i < wSegs; i++) {
-      const a0 = (i / wSegs) * Math.PI * 2, a1 = ((i + 1) / wSegs) * Math.PI * 2;
-      const acN = Math.atan2(Math.sin((a0 + a1) / 2), Math.cos((a0 + a1) / 2)); // -π..π
-      if (Math.abs(acN) < gapHalf) continue; // pula o setor do corredor (leste) → VÃO
-      const x0 = SCX + RW * Math.cos(a0), z0 = SCZ + RW * Math.sin(a0);
-      const x1 = SCX + RW * Math.cos(a1), z1 = SCZ + RW * Math.sin(a1);
-      const u0 = i * arcTile, u1 = (i + 1) * arcTile, n = wPos.length / 3;
-      wPos.push(x0, wYb, z0, x1, wYb, z1, x1, wYt, z1, x0, wYt, z0);
-      wUv.push(u0, 0, u1, 0, u1, vTile, u0, vTile);
-      wIdx.push(n, n + 1, n + 2, n, n + 2, n + 3);
+    for (const [yb, yt, isDoor] of rBands) {
+      for (let i = 0; i < rSegs; i++) {
+        const a0 = (i / rSegs) * Math.PI * 2, a1 = ((i + 1) / rSegs) * Math.PI * 2;
+        const acN = Math.atan2(Math.sin((a0 + a1) / 2), Math.cos((a0 + a1) / 2));
+        if (isDoor && Math.abs(acN) < rDoorHalf) continue; // PORTA (leste), só na altura do corredor
+        const x0 = SCX + RW * Math.cos(a0), z0 = SCZ + RW * Math.sin(a0);
+        const x1 = SCX + RW * Math.cos(a1), z1 = SCZ + RW * Math.sin(a1);
+        const u0 = i * arcTile, u1 = (i + 1) * arcTile, n = wPos.length / 3;
+        wPos.push(x0, yb, z0, x1, yb, z1, x1, yt, z1, x0, yt, z0);
+        wUv.push(u0, yb / 4, u1, yb / 4, u1, yt / 4, u0, yt / 4);
+        wIdx.push(n, n + 1, n + 2, n, n + 2, n + 3);
+      }
     }
     const twall = new THREE.BufferGeometry();
     twall.setAttribute("position", new THREE.Float32BufferAttribute(wPos, 3));
