@@ -87,6 +87,9 @@ export interface HUD {
   // barra de conjuração: mostra `name` e enche em `ms`. cancelCast() esconde antes.
   castBar(name: string, ms: number): void;
   cancelCast(): void;
+  // FERREIRO: abre/atualiza a janela de aprimoramento (ou fecha)
+  openSmith(data: SmithData): void;
+  closeSmith(): void;
 }
 
 // item da barra de ação (habilidade ativa aprendida)
@@ -95,6 +98,18 @@ export interface ActionSkill {
   name: string;
   icon?: string;
   mana: number;
+}
+
+// ---- FERREIRO (aprimoramento por reforço +N) ----
+export interface SmithItem { id: string; name: string; icon: string; lvl: number; }
+export interface SmithData {
+  gold: number;
+  mats: { madeira: number; minerio: number; reforco: number };
+  items: SmithItem[]; // itens do inventário que dá p/ aprimorar
+  sel: {
+    id: string; name: string; icon: string; lvl: number; dmg: number; max: boolean;
+    next?: { dmg: number; madeira: number; minerio: number; reforco: number; gold: number };
+  } | null;
 }
 
 export interface MinimapState {
@@ -118,6 +133,8 @@ export function setupControls(
   onSkills?: (ranks: Record<string, number>) => void, // ranks das habilidades mudaram
   onSkill?: (id: string) => void, // jogador acionou uma habilidade da barra
   onAttr?: (key: "str" | "dex" | "int", delta: number) => void, // distribuiu atributo
+  onSmithSelect?: (id: string) => void, // escolheu um item no ferreiro
+  onSmithUpgrade?: () => void, // apertou "Aprimorar" no ferreiro
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -406,6 +423,69 @@ export function setupControls(
     "</div>" +
     "</div></div></div>";
   root.appendChild(eq);
+
+  // ---- FERREIRO: janela de aprimoramento (reforço +N) ----
+  const sm = document.createElement("div");
+  sm.id = "gh-sm";
+  sm.className = "gh-eq-hidden";
+  sm.innerHTML = '<div id="gh-sm-win"><button id="gh-sm-close" title="Fechar">✕</button><div id="gh-sm-body"></div></div>';
+  root.appendChild(sm);
+  const smBody = sm.querySelector("#gh-sm-body") as HTMLElement;
+  (sm.querySelector("#gh-sm-close") as HTMLElement).addEventListener("click", (e) => {
+    e.preventDefault(); sm.classList.add("gh-eq-hidden");
+  });
+  const renderSmith = (d: SmithData) => {
+    const mat = (emoji: string, need: number, have: number, cap: string) => {
+      const ok = have >= need;
+      return `<div class="gh-sm-mat"><div class="gh-sm-mslot">${emoji}<span class="gh-sm-req">${need}</span></div>` +
+        `<div class="gh-sm-have ${ok ? "gh-ok" : "gh-no"}">${ok ? "✓ " : ""}${have}</div><div class="gh-sm-cap">${cap}</div></div>`;
+    };
+    const s = d.sel;
+    let forge: string;
+    if (!s) {
+      forge = '<div class="gh-sm-empty">Escolha um item no inventário abaixo para aprimorar.</div>';
+    } else if (s.max || !s.next) {
+      forge =
+        '<div class="gh-sm-forge"><div class="gh-sm-col"><div class="gh-sm-lbl">ITEM</div>' +
+        `<div class="gh-slot gh-sm-slot"><img class="gh-item-ico" src="${s.icon}"/><span class="gh-sm-tier">+${s.lvl}</span></div>` +
+        `<div class="gh-sm-nm">${s.name} +${s.lvl}</div><div class="gh-sm-dmg">Dano ${s.dmg}</div></div></div>` +
+        '<div class="gh-sm-max">Reforço máximo atingido.</div>';
+    } else {
+      const n = s.next;
+      const gOk = d.gold >= n.gold;
+      const can = d.mats.madeira >= n.madeira && d.mats.minerio >= n.minerio && d.mats.reforco >= n.reforco && gOk;
+      forge =
+        '<div class="gh-sm-forge">' +
+        '<div class="gh-sm-col"><div class="gh-sm-lbl">ITEM</div>' +
+        `<div class="gh-slot gh-sm-slot"><img class="gh-item-ico" src="${s.icon}"/><span class="gh-sm-tier">+${s.lvl}</span></div>` +
+        `<div class="gh-sm-nm">${s.name}${s.lvl ? " +" + s.lvl : ""}</div><div class="gh-sm-dmg">Dano ${s.dmg}</div></div>` +
+        '<div class="gh-sm-arrow">➜</div>' +
+        '<div class="gh-sm-col"><div class="gh-sm-lbl">RESULTADO</div>' +
+        `<div class="gh-slot gh-sm-slot gh-sm-res"><img class="gh-item-ico" src="${s.icon}"/><span class="gh-sm-tier">+${s.lvl + 1}</span></div>` +
+        `<div class="gh-sm-nm gh-up">${s.name} +${s.lvl + 1}</div><div class="gh-sm-dmg">Dano <span class="gh-g">${n.dmg} ▲</span></div></div>` +
+        "</div>" +
+        '<div class="gh-sm-mats-h">MATERIAIS NECESSÁRIOS</div><div class="gh-sm-mats">' +
+        mat("🪵", n.madeira, d.mats.madeira, "Madeira") +
+        mat("🪨", n.minerio, d.mats.minerio, "Minério") +
+        mat("🔶", n.reforco, d.mats.reforco, "Pedra de Reforço") +
+        `<div class="gh-sm-mat gh-sm-gold"><div class="gh-sm-mslot"><img src="${coinUrl}" alt=""/><span class="gh-sm-req">${n.gold}</span></div>` +
+        `<div class="gh-sm-have ${gOk ? "gh-ok" : "gh-no"}">${gOk ? "✓" : ""}</div><div class="gh-sm-cap">Ouro</div></div></div>` +
+        `<button class="gh-sm-btn ${can ? "" : "gh-sm-dim"}" id="gh-sm-up">${can ? "APRIMORAR" : "FALTAM MATERIAIS"}</button>`;
+    }
+    const bag = d.items.map((it) =>
+      `<div class="gh-bag-slot gh-sm-cell ${s && it.id === s.id ? "gh-sm-sel" : ""}" data-sid="${it.id}">` +
+      `<img class="gh-item-ico" src="${it.icon}" title="${it.name}"/>${it.lvl ? `<span class="gh-count">+${it.lvl}</span>` : ""}</div>`,
+    ).join("");
+    smBody.innerHTML =
+      `<div class="gh-eq-title gh-sm-title">Ferreiro — A Bigorna<span class="gh-gold" style="left:6px;right:auto;top:9px;transform:none"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
+      `<div class="gh-section gh-sm-sec">${forge}</div>` +
+      `<div class="gh-section gh-sm-sec"><div class="gh-sec-head">Inventário — toque um item</div><div class="gh-bag gh-sm-bag">${bag}</div></div>`;
+    smBody.querySelectorAll<HTMLElement>("[data-sid]").forEach((el) => {
+      el.onclick = () => onSmithSelect?.(el.dataset.sid!);
+    });
+    const up = smBody.querySelector("#gh-sm-up") as HTMLElement | null;
+    if (up) up.onclick = () => onSmithUpgrade?.();
+  };
   // troca de abas
   eq.querySelectorAll(".gh-tab").forEach((btn) =>
     btn.addEventListener("click", (e) => {
@@ -1077,6 +1157,13 @@ export function setupControls(
         src.classList.add("gh-slot-pulse");
       }
     },
+    openSmith(data: SmithData) {
+      renderSmith(data);
+      sm.classList.remove("gh-eq-hidden");
+    },
+    closeSmith() {
+      sm.classList.add("gh-eq-hidden");
+    },
     updateMinimap(s: MinimapState) {
       lastMini = s;
       drawSmall(s); // minimapa pequeno (zoom ao redor do herói)
@@ -1430,6 +1517,45 @@ function injectStyle() {
     border-radius:8px; cursor:pointer; font-size:16px; line-height:1;
     background:rgba(20,16,11,.66); color:#e8d9b0; border:2px solid rgba(201,162,39,.55);
   }
+  /* ---- FERREIRO (janela de aprimoramento) ---- */
+  #gh-sm { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
+  #gh-sm.gh-eq-hidden { display:none; }
+  #gh-sm-win {
+    position:relative; box-sizing:border-box; width:min(58vh,440px); height:min(94vh,820px);
+    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill;
+    filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));
+  }
+  @media (max-width:640px){ #gh-sm-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
+  #gh-sm-close { position:absolute; right:6px; top:6px; z-index:2; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:16px; background:rgba(20,16,11,.66); color:#e8d9b0; border:2px solid rgba(201,162,39,.55); }
+  #gh-sm-body { width:100%; height:100%; display:flex; flex-direction:column; gap:2%; color:#e8dcc0; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
+  .gh-sm-title { flex:0 0 auto; position:relative; padding:0 8px; }
+  .gh-sm-sec { flex:0 0 auto; padding:2.5% 3.5% 3.5%; }
+  .gh-sm-forge { display:flex; align-items:flex-start; justify-content:center; gap:2%; }
+  .gh-sm-col { display:flex; flex-direction:column; align-items:center; gap:4px; width:44%; }
+  .gh-sm-lbl { font-size:clamp(10px,1.5vh,12px); letter-spacing:1px; color:#b39a63; font-family:"Cinzel",serif; }
+  .gh-sm-slot { width:clamp(62px,11vh,90px); height:clamp(62px,11vh,90px); position:relative; }
+  .gh-sm-tier { position:absolute; top:-6px; right:-6px; font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:6px; padding:1px 6px; border:1px solid #6b4f18; box-shadow:0 1px 3px #000; }
+  .gh-sm-res { box-shadow:0 0 16px 3px rgba(244,216,115,.5); border-radius:8px; }
+  .gh-sm-res .gh-item-ico { filter:drop-shadow(0 0 8px rgba(255,224,130,.9)); }
+  .gh-sm-nm { font-size:clamp(12px,1.7vh,14px); color:#efe2c0; text-align:center; line-height:1.15; min-height:2.4em; margin-top:4px; }
+  .gh-sm-nm.gh-up { color:#f6ead0; }
+  .gh-sm-dmg { font-size:clamp(11px,1.6vh,13px); color:#c7b789; }
+  .gh-sm-dmg .gh-g { color:#8fdf7a; font-weight:700; }
+  .gh-sm-arrow { font-size:clamp(22px,3.4vh,30px); color:#f4d873; text-shadow:0 0 10px rgba(244,216,115,.8); margin-top:1.7em; }
+  .gh-sm-mats-h { text-align:center; font-size:clamp(11px,1.5vh,12px); color:#b39a63; letter-spacing:1px; margin:4% 0 2.5%; font-family:"Cinzel",serif; border-top:1px solid rgba(201,162,39,.28); padding-top:3.5%; }
+  .gh-sm-mats { display:flex; justify-content:center; gap:3%; }
+  .gh-sm-mat { width:23%; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .gh-sm-mslot { width:clamp(44px,7.5vh,56px); height:clamp(44px,7.5vh,56px); position:relative; display:flex; align-items:center; justify-content:center; border:8px solid transparent; border-image:url(${eqSlotUrl}) 89 fill; font-size:clamp(20px,3.4vh,26px); }
+  .gh-sm-mslot img { width:58%; height:58%; }
+  .gh-sm-req { position:absolute; right:-4px; bottom:-4px; font-size:clamp(10px,1.5vh,12px); font-weight:700; color:#fff; background:#2a2114; border:1px solid rgba(201,162,39,.6); border-radius:6px; padding:0 4px; text-shadow:0 1px 2px #000; }
+  .gh-sm-have { font-size:clamp(10px,1.4vh,12px); }
+  .gh-ok { color:#8fdf7a; } .gh-no { color:#e17b6b; }
+  .gh-sm-cap { font-size:clamp(9px,1.25vh,11px); color:#a89468; text-align:center; line-height:1.05; }
+  .gh-sm-btn { margin:5% auto 1%; display:flex; align-items:center; justify-content:center; width:78%; height:clamp(44px,7vh,54px); cursor:pointer; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(15px,2.2vh,18px); letter-spacing:2px; color:#12100a; border:none; background:url(${btnBaseUrl}) no-repeat center / 100% 100%; text-shadow:0 1px 0 rgba(255,235,180,.5); }
+  .gh-sm-btn.gh-sm-dim { filter:grayscale(.7) brightness(.65); color:#4a4330; font-size:clamp(11px,1.7vh,14px); cursor:default; }
+  .gh-sm-max, .gh-sm-empty { text-align:center; color:#c7b789; padding:6% 4%; font-size:clamp(12px,1.7vh,14px); }
+  .gh-sm-cell { cursor:pointer; }
+  .gh-sm-sel { background:rgba(40,32,16,.95); box-shadow:inset 0 0 0 2px #f4d873, 0 0 12px 2px rgba(244,216,115,.7); }
   #gh-eq-inner {
     width:100%; height:100%;
     display:flex; flex-direction:column; gap:1.4%;
