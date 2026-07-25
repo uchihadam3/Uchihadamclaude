@@ -18,6 +18,22 @@ import clockMoonUrl from "../assets/ui/clock_moon.png";
 import forgeFillUrl from "../assets/audio/forge_fill.mp3";
 import forgeFailUrl from "../assets/audio/forge_fail.mp3";
 import forgeSuccessUrl from "../assets/audio/forge_success.wav";
+// medalhões do minimapa (arte própria recortada da folha)
+import mmSmith from "../assets/ui/minimap/mm_smith.png";
+import mmTavern from "../assets/ui/minimap/mm_tavern.png";
+import mmStore from "../assets/ui/minimap/mm_store.png";
+import mmAlchemist from "../assets/ui/minimap/mm_alchemist.png";
+import mmHome from "../assets/ui/minimap/mm_home.png";
+import mmWell from "../assets/ui/minimap/mm_well.png";
+import mmForest from "../assets/ui/minimap/mm_forest.png";
+import mmNpc from "../assets/ui/minimap/mm_npc.png";
+import mmEntrance from "../assets/ui/minimap/mm_entrance.png";
+import mmExit from "../assets/ui/minimap/mm_exit.png";
+import mmGate from "../assets/ui/minimap/mm_gate.png";
+import mmPortal from "../assets/ui/minimap/mm_portal.png";
+import mmSanctuary from "../assets/ui/minimap/mm_sanctuary.png";
+import mmStatue from "../assets/ui/minimap/mm_statue.png";
+import mmSign from "../assets/ui/minimap/mm_sign.png";
 
 // ---- FORJA: efeitos sonoros (arquivos enviados pelo jogador) ----------------
 const forgeFillSnd = new Audio(forgeFillUrl); // toca ENQUANTO a espada enche
@@ -158,7 +174,7 @@ export interface SmithData {
 export type MiniPoiKind =
   | "smith" | "tavern" | "store" | "alchemist" | "npc"
   | "dungeon" | "forest" | "exit" | "home" | "well"
-  | "stair" | "gate" | "sanctuary" | "sign";
+  | "stair" | "gate" | "sanctuary" | "sign" | "portal" | "statue";
 export interface MiniPoi { c: number; r: number; kind: MiniPoiKind; label: string; }
 
 export interface MinimapState {
@@ -173,19 +189,24 @@ export interface MinimapState {
   locName?: string; // nome do local atual (banner no topo do mapa)
 }
 
-// ícone (emoji) e cor de cada tipo de marcador do minimapa
-const POI_ICON: Record<MiniPoiKind, string> = {
-  smith: "⚒️", tavern: "🍺", store: "🛒", alchemist: "⚗️", npc: "🧑",
-  dungeon: "💀", forest: "🌲", exit: "🚪", home: "🏠", well: "🪣",
-  stair: "🪜", gate: "⛓️", sanctuary: "🌀", sign: "📜",
+// medalhão (arte própria) e cor de destaque de cada tipo de marcador
+const POI_SRC: Record<MiniPoiKind, string> = {
+  smith: mmSmith, tavern: mmTavern, store: mmStore, alchemist: mmAlchemist, npc: mmNpc,
+  dungeon: mmEntrance, forest: mmForest, exit: mmExit, home: mmHome, well: mmWell,
+  stair: mmExit, gate: mmGate, sanctuary: mmSanctuary, sign: mmSign, portal: mmPortal, statue: mmStatue,
 };
+// pré-carrega os medalhões (uma vez) p/ desenhar no canvas
+const POI_IMG: Partial<Record<MiniPoiKind, HTMLImageElement>> = {};
+for (const k of Object.keys(POI_SRC) as MiniPoiKind[]) {
+  const im = new Image(); im.src = POI_SRC[k]; POI_IMG[k] = im;
+}
 const POI_COLOR: Record<MiniPoiKind, string> = {
   smith: "#ff9a4d", tavern: "#ffcf5a", store: "#6fd3ff", alchemist: "#b98cff", npc: "#8fe07a",
   dungeon: "#ff6b5a", forest: "#7fd06a", exit: "#ffd964", home: "#d8b06a", well: "#6fb8ff",
-  stair: "#ffd964", gate: "#ff8a5a", sanctuary: "#c79bff", sign: "#e8dcc0",
+  stair: "#ffd964", gate: "#ff8a5a", sanctuary: "#c79bff", sign: "#e8dcc0", portal: "#8fb8ff", statue: "#f0e2b8",
 };
 // marcadores que "pulsam" (interativos: valem uma visita)
-const POI_PULSE = new Set<MiniPoiKind>(["smith", "tavern", "store", "alchemist", "dungeon", "forest", "exit", "gate", "sanctuary", "npc"]);
+const POI_PULSE = new Set<MiniPoiKind>(["smith", "tavern", "store", "alchemist", "dungeon", "forest", "exit", "gate", "sanctuary", "npc", "portal", "statue", "stair"]);
 
 // Teclado (desktop) + botões na tela (mobile).
 export function setupControls(
@@ -359,37 +380,33 @@ export function setupControls(
     poi: MiniPoi, phase: number, withLabel: boolean,
   ) => {
     const col = POI_COLOR[poi.kind] ?? "#e8dcc0";
-    // anel pulsante (interativos)
+    // anel pulsante (interativos) — pulsa em volta do medalhão
     if (POI_PULSE.has(poi.kind)) {
       const t = (phase * 1.6 + (poi.c + poi.r) * 0.35) % 1; // dessincroniza por célula
       ctx.save();
-      ctx.globalAlpha = (1 - t) * 0.55;
+      ctx.globalAlpha = (1 - t) * 0.6;
       ctx.strokeStyle = col;
-      ctx.lineWidth = Math.max(1, size * 0.09);
+      ctx.lineWidth = Math.max(1, size * 0.08);
       ctx.beginPath();
-      ctx.arc(x, y, size * (0.5 + t * 0.7), 0, Math.PI * 2);
+      ctx.arc(x, y, size * (0.56 + t * 0.6), 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
-    // disco de fundo
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, size * 0.52, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(10,10,14,.82)";
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, size * 0.1);
-    ctx.strokeStyle = col;
-    ctx.shadowColor = col;
-    ctx.shadowBlur = size * 0.5;
-    ctx.stroke();
-    ctx.restore();
-    // emoji
-    ctx.save();
-    ctx.font = `${Math.round(size * 0.82)}px "Segoe UI Emoji","Noto Color Emoji",serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(POI_ICON[poi.kind] ?? "•", x, y + size * 0.04);
-    ctx.restore();
+    // medalhão (arte própria). Se ainda não carregou, cai num disco simples.
+    const img = POI_IMG[poi.kind];
+    const d = size * 1.16;
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = size * 0.18; ctx.shadowOffsetY = size * 0.04;
+      ctx.drawImage(img, x - d / 2, y - d / 2, d, d);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, size * 0.52, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(10,10,14,.85)"; ctx.fill();
+      ctx.lineWidth = Math.max(1, size * 0.1); ctx.strokeStyle = col; ctx.stroke();
+      ctx.restore();
+    }
     // rótulo (só no mapa grande) — NPC menor/mais discreto que locais
     if (withLabel && poi.label) {
       const npc = poi.kind === "npc";

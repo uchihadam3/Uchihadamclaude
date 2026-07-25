@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 33 recortados · 🟡 10 faltando · ❌ 2 removidas
+**Status:** ✅ 48 recortados · 🟡 9 faltando · ❌ 2 removidas
 
 ---
 
@@ -15,7 +15,6 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
-| 🟡 | **Ícones do minimapa** — 15 medalhões (lojas, NPC, entrada/saída, portão, portal, estátua…) | [§15](#15--ícones-do-minimapa-pois--🟡-falta-gerar) |
 | 🟡 | **Skill Tree** — faltam 3 folhas de ativas (Ladino/Mago/Clérigo) + 1 de passivas + 4 fundos | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
@@ -756,7 +755,11 @@ os nós e conexões ficarem legíveis.)*
 
 ---
 
-## 15 · Ícones do minimapa (POIs) — 🟡 falta gerar
+## 15 · Ícones do minimapa (POIs) — ✅ NO JOGO
+
+> Folha `mm_sheet` gerada, os **15 medalhões recortados** e **já no minimapa**
+> (mapa pequeno e grande), no lugar dos emojis, com anel pulsante de destaque.
+> Prompts abaixo mantidos p/ referência / regeração.
 
 Substituem os **emojis** provisórios do minimapa por arte própria. São **medalhões
 redondos** (moeda de bronze envelhecido com o símbolo em relevo) — um conjunto
