@@ -2489,14 +2489,14 @@ export class Game {
     };
     const stepMat = mkStone(1.4, 1.4);
     const riserMat = mkStone(1.4, 0.5, 0xc7c7c7);
-    const shellMat = mkStone(6, 8);
+    const shellMat = mkStone(1, 1); // UV por mundo (casca construída à mão, com porta)
     const coreMat = mkStone(5, 3, 0xb8b8b8);
     const corrFloorMat = mkStone(2, 2);
     const corrWallMat = mkStone(3, 2);
-    // ROCHA de caverna (dungeon) p/ a MURALHA redonda do terraço
+    // ROCHA de caverna (dungeon) p/ a MURALHA redonda do terraço (UV por mundo)
     const rockMap = tex.caveWall();
     rockMap.wrapS = rockMap.wrapT = THREE.RepeatWrapping;
-    rockMap.repeat.set(14, 10);
+    rockMap.repeat.set(1, 1); // as UVs já vêm em nº de telhas (mundo/4)
     const rockWallMat = new THREE.MeshLambertMaterial({ map: rockMap, side: THREE.DoubleSide });
     const grassMap = tex.grass(61);
     grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
@@ -2542,13 +2542,39 @@ export class Game {
     mkMesh(sPos, sUv, sIdx, stepMat);
     mkMesh(rPos, rUv, rIdx, riserMat);
 
-    // núcleo central (cilindro) + casca externa (poço) ALTÍSSIMA + piso da base
+    // núcleo central (cilindro) + piso da base
     const core = new THREE.Mesh(new THREE.CylinderGeometry(RI, RI, TOP_Y, 32, 1, true), coreMat);
     core.position.set(CX, TOP_Y / 2, CZ); this.world.add(core);
-    const shell = new THREE.Mesh(new THREE.CylinderGeometry(RO, RO, WALL_H, 48, 1, true), shellMat);
-    shell.position.set(CX, WALL_H / 2, CZ); this.world.add(shell);
     const base = new THREE.Mesh(new THREE.CircleGeometry(RO, 40), stepMat);
     base.rotation.x = -Math.PI / 2; base.position.set(CX, 0.02, CZ); this.world.add(base);
+    // CASCA externa (poço) ALTÍSSIMA, construída à mão com uma PORTA na altura do
+    // corredor → a casca alta não fecha mais a passagem que liga a torre ao terraço.
+    // Ângulo da porta = onde o corredor (z=CORR_Z) cruza a casca (lado oeste da torre).
+    const doorAng = Math.atan2(CORR_Z - CZ, -Math.sqrt(Math.max(0, RO * RO - (CORR_Z - CZ) ** 2)));
+    const doorHalf = 0.36, dyLo = TOP_Y - 1, dyHi = TOP_Y + 4.5; // vão só na faixa do corredor
+    const angDiff = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+    const sA = 60;
+    const bands: [number, number][] = [[0, dyLo], [dyLo, dyHi], [dyHi, WALL_H]];
+    const shPos: number[] = [], shUv: number[] = [], shIdx: number[] = [];
+    const arcT = (RO * 2 * Math.PI) / sA / 4;
+    for (const [yb, yt] of bands) {
+      const isDoorBand = yb === dyLo;
+      for (let i = 0; i < sA; i++) {
+        const a0 = (i / sA) * Math.PI * 2, a1 = ((i + 1) / sA) * Math.PI * 2;
+        if (isDoorBand && angDiff((a0 + a1) / 2, doorAng) < doorHalf) continue; // PORTA
+        const x0 = CX + RO * Math.cos(a0), z0 = CZ + RO * Math.sin(a0);
+        const x1 = CX + RO * Math.cos(a1), z1 = CZ + RO * Math.sin(a1);
+        const u0 = i * arcT, u1 = (i + 1) * arcT, n = shPos.length / 3;
+        shPos.push(x0, yb, z0, x1, yb, z1, x1, yt, z1, x0, yt, z0);
+        shUv.push(u0, yb / 4, u1, yb / 4, u1, yt / 4, u0, yt / 4);
+        shIdx.push(n, n + 1, n + 2, n, n + 2, n + 3);
+      }
+    }
+    const shellGeo = new THREE.BufferGeometry();
+    shellGeo.setAttribute("position", new THREE.Float32BufferAttribute(shPos, 3));
+    shellGeo.setAttribute("uv", new THREE.Float32BufferAttribute(shUv, 2));
+    shellGeo.setIndex(shIdx); shellGeo.computeVertexNormals();
+    this.world.add(new THREE.Mesh(shellGeo, shellMat));
 
     // ---- CORREDOR no topo (ponte de pedra) da hélice até o terraço ----
     const cLen = CORR_X0 - CORR_X1, cMidX = (CORR_X0 + CORR_X1) / 2, cw = 1.7, cCeil = 3.4;
@@ -2574,14 +2600,29 @@ export class Game {
     }
     const disc = new THREE.Mesh(new THREE.CircleGeometry(DR, 44), grassMat);
     disc.rotation.x = -Math.PI / 2; disc.position.set(SCX, TOP_Y + 0.05, SCZ); this.world.add(disc);
-    // MURALHA redonda de ROCHA (dungeon), ALTÍSSIMA, com um VÃO só p/ o corredor
-    // (leste). Sem teto → aberta só por cima; some na bruma lá no alto.
-    const gapHalf = 0.34; // meia-abertura do vão do corredor
-    const twall = new THREE.Mesh(
-      new THREE.CylinderGeometry(RW, RW, WALL_H, 56, 1, true, Math.PI / 2 + gapHalf, Math.PI * 2 - gapHalf * 2),
-      rockWallMat,
-    );
-    twall.position.set(SCX, TOP_Y - 2 + WALL_H / 2, SCZ); this.world.add(twall);
+    // MURALHA redonda de ROCHA (dungeon), ALTÍSSIMA, com um VÃO GENEROSO só onde o
+    // CORREDOR encosta (leste, ângulo 0). Construída por arcos (controle exato do vão,
+    // sem depender da convenção do CylinderGeometry). Sem teto → aberta só por cima.
+    const gapHalf = 0.55; // meia-abertura do vão do corredor (leste) — bem aberta
+    const wSegs = 64, wYb = TOP_Y - 2, wYt = TOP_Y - 2 + WALL_H;
+    const arcTile = (RW * 2 * Math.PI) / wSegs / 4, vTile = WALL_H / 4; // ~1 telha/4u
+    const wPos: number[] = [], wUv: number[] = [], wIdx: number[] = [];
+    for (let i = 0; i < wSegs; i++) {
+      const a0 = (i / wSegs) * Math.PI * 2, a1 = ((i + 1) / wSegs) * Math.PI * 2;
+      const acN = Math.atan2(Math.sin((a0 + a1) / 2), Math.cos((a0 + a1) / 2)); // -π..π
+      if (Math.abs(acN) < gapHalf) continue; // pula o setor do corredor (leste) → VÃO
+      const x0 = SCX + RW * Math.cos(a0), z0 = SCZ + RW * Math.sin(a0);
+      const x1 = SCX + RW * Math.cos(a1), z1 = SCZ + RW * Math.sin(a1);
+      const u0 = i * arcTile, u1 = (i + 1) * arcTile, n = wPos.length / 3;
+      wPos.push(x0, wYb, z0, x1, wYb, z1, x1, wYt, z1, x0, wYt, z0);
+      wUv.push(u0, 0, u1, 0, u1, vTile, u0, vTile);
+      wIdx.push(n, n + 1, n + 2, n, n + 2, n + 3);
+    }
+    const twall = new THREE.BufferGeometry();
+    twall.setAttribute("position", new THREE.Float32BufferAttribute(wPos, 3));
+    twall.setAttribute("uv", new THREE.Float32BufferAttribute(wUv, 2));
+    twall.setIndex(wIdx); twall.computeVertexNormals();
+    this.world.add(new THREE.Mesh(twall, rockWallMat));
     this.blocked.add(`${SHOW_STATUE.col},${SHOW_STATUE.row}`); // estátua bloqueia o centro
     // ESTÁTUA (placeholder): pedestal + monólito claro que brilha
     const sx = SHOW_STATUE_W.x, sz = SHOW_STATUE_W.z;
