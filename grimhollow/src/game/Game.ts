@@ -2857,20 +2857,29 @@ export class Game {
       this.glowLight(lg.col * CELL + ldc * 0.4, 2.4, lg.row * CELL, 0xffb45a, 3.0, 8);
       this.blocked.add(`${lg.col},${lg.row}`); // SELADO — nunca abre
     }
-    // PORTAL DO SANTUÁRIO (atrás do portão): arco escuro com brilho místico
+    // ESCADARIA DE PEDRA subindo atrás do portão → o jogador VÊ a escada que leva
+    // ao santuário (não é teleporte: ao passar, um loading leva ao pé da escada).
     const sanc = dungeonAll("A")[0];
     if (sanc) {
-      const scx = sanc.col * CELL, scz = sanc.row * CELL;
-      const arch = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.22, 8, 20, Math.PI), rockMat);
-      arch.position.set(scx, 0.1, scz); arch.rotation.y = -Math.PI / 2; this.world.add(arch);
-      const glow = new THREE.Mesh(
-        new THREE.PlaneGeometry(2.2, 3.0),
-        new THREE.MeshBasicMaterial({ color: 0x86a8ff, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
-      );
-      glow.position.set(scx + 0.15, 1.7, scz); glow.rotation.y = Math.PI / 2; this.world.add(glow);
-      const pl = new THREE.PointLight(0x9fc0ff, 3.4, 11, 2);
-      pl.position.set(scx - 0.6, 1.9, scz); this.world.add(pl);
-      this.flames.push({ light: pl, base: 3.4 }); // pulsa suavemente como as tochas
+      const stMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide });
+      const bx = sanc.col * CELL - CELL * 0.4, bz = sanc.row * CELL; // pé da escada (célula 'A')
+      const N = 9; // degraus subindo p/ leste, sumindo no escuro (a escada "continua")
+      for (let i = 0; i < N; i++) {
+        const h = 0.15 + (i + 1) * 0.42;
+        const st = new THREE.Mesh(new THREE.BoxGeometry(0.66, h, 3.0), stMat);
+        st.position.set(bx + i * 0.6, h / 2, bz);
+        this.world.add(st);
+      }
+      // paredes laterais do vão da escada (dá o enquadramento de "escadaria")
+      for (const s of [-1, 1]) {
+        const side = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 1.5, CH), rockMat);
+        side.position.set(bx + CELL * 0.6, CH / 2, bz + s * 1.5);
+        side.rotation.y = s > 0 ? Math.PI : 0; this.world.add(side);
+      }
+      // luz quente iluminando a escadaria (deixa CLARO que é uma escada subindo);
+      // o topo some no escuro → a escada "continua" lá pra cima.
+      this.glowLight(bx + 0.4, 2.4, bz, 0xffc06a, 4.6, 11);
+      this.glowLight(bx + 2.6, 3.4, bz, 0xffb45a, 2.6, 8);
     }
 
     // escada de saída (U): um facho de luz frio marcando o caminho de volta
@@ -4774,6 +4783,12 @@ export class Game {
     const nr = this.row + dr;
     // terraço: pisar na "boca" (leste) volta pra escada (modo estações, descendo)
     if (this.location === "showcase" && isMouth(nc, nr)) { this.enterStairsFromTerrace(); return; }
+    // masmorra: pisar no PÉ DA ESCADARIA → loading → sala-vitrine (ao pé da hélice)
+    if (this.location === "dungeon" && dungeonCell(nc, nr) === "sanctuary" && this.canWalk(nc, nr)) {
+      this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: this.facing };
+      this.enterLocation("showcase", 0, 0, 0);
+      return;
+    }
     if (!this.canWalk(nc, nr)) return;
     this.anim = {
       kind: "move",
@@ -5325,7 +5340,7 @@ export class Game {
       else if (t.kind === "tovillage") text = "Voltar ao Vilarejo";
       else if (t.kind === "sign") text = "Ler a placa";
       else if (t.kind === "lockgate") text = "Portão selado";
-      else if (t.kind === "sanctuary") text = "Entrar no Santuário";
+      else if (t.kind === "sanctuary") text = "Subir a escadaria";
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
