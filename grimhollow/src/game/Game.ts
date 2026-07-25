@@ -4157,7 +4157,8 @@ export class Game {
         const kind = e.kind === "store" ? "store" : e.kind === "tavern" ? "tavern" : e.kind === "alchemist" ? "alchemist" : "smith";
         pois.push({ c: e.c, r: e.r, kind, label: cap(ESTAB[e.kind].name) });
       }
-      for (const h of HOME_DOORS) pois.push({ c: h.c, r: h.r, kind: "home", label: "Casa" });
+      // casas comuns: só o ícone, SEM rótulo "Casa" (evita poluição no mapa)
+      for (const h of HOME_DOORS) pois.push({ c: h.c, r: h.r, kind: "home", label: "" });
       pois.push({ c: WELL.c, r: WELL.r, kind: "well", label: "Poço" });
       // saídas: masmorra (escada) e floresta (trilha)
       for (let r = 0; r < ROWS; r++)

@@ -3,7 +3,7 @@ import { runIntro } from "./game/screens";
 
 // build tag: efeito colateral real (não é removido pelo tree-shaking) p/ gerar
 // um nome de bundle NOVO e furar o cache do CDN/navegador.
-document.documentElement.dataset.ghBuild = "2026-07-25e";
+document.documentElement.dataset.ghBuild = "2026-07-25f";
 
 const app = document.getElementById("app")!;
 
