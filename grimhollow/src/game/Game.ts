@@ -1377,7 +1377,11 @@ export class Game {
 
   // ---- FERREIRO (aprimoramento por reforço +N) ----
   // custo do próximo reforço (nível atual → +1): madeira + minério + pedra + ouro
+  // TESTE: aprimorar de graça (sem custo de ouro/materiais). Trocar p/ false
+  // depois de testar, que os custos abaixo voltam a valer.
+  private static readonly SMITH_FREE = true;
   private smithCost(lvl: number) {
+    if (Game.SMITH_FREE) return { madeira: 0, minerio: 0, reforco: 0, gold: 0 };
     return { madeira: 2 + lvl, minerio: 2 + lvl, reforco: 1 + Math.floor(lvl / 3), gold: 80 * (lvl + 1) };
   }
   // "Dano" exibido: o ataque resultante se essa arma nesse reforço estivesse equipada
@@ -1420,7 +1424,7 @@ export class Game {
       if (this.currentWeapon?.id === w.id) this.recomputeDerived(); // dano sobe se equipada
       this.ui.toast(`${w.name} reforçada para +${lvl + 1}!`);
     } else {
-      this.ui.toast(`O reforço de ${w.name} falhou! Materiais perdidos.`);
+      this.ui.toast(Game.SMITH_FREE ? `O reforço de ${w.name} falhou!` : `O reforço de ${w.name} falhou! Materiais perdidos.`);
     }
     return { success, data: this.buildSmithData() };
   }
