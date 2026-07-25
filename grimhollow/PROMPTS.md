@@ -766,10 +766,26 @@ ser neutro que o destaque vem do jogo.
 
 **Regra do conjunto (vale p/ TODOS os 15):** mesmo material (bronze/ferro
 patinado), mesma borda em bisel, mesma luz de cima, mesmo enquadramento centrado.
-Manda **uma imagem por vez com o nome** (ex.: `mm_ferreiro`, `mm_portal`…) que eu
-recorto e ligo no lugar do emoji.
 
-> Fórmula: *Hand-painted stylized-realism game MAP ICON… bold emblem embossed on a
+### 🟡 15.0 — `mm_sheet` — FOLHA ÚNICA (recomendado, igual às armas)
+
+Assim como a folha das 10 armas: você gera **UMA imagem** com os 15 medalhões numa
+**grade 5×3** sobre **magenta chapado**, e eu **recorto cada um** por código e ligo
+no lugar dos emojis. A cor de destaque (anel pulsante) o motor aplica — o medalhão
+fica neutro. **Ordem por célula** (esq→dir, cima→baixo):
+
+`1 Ferreiro · 2 Taverna · 3 Mercador · 4 Alquimista · 5 Casa`
+`6 Poço · 7 Floresta · 8 NPC · 9 Entrada · 10 Saída`
+`11 Portão · 12 Portal · 13 Santuário · 14 Estátua · 15 Placa`
+
+```
+Hand-painted stylized-realism game MAP-ICON SHEET, cohesive with a grim medieval dark-fantasy RPG UI. A neat grid of 5 columns by 3 rows holding FIFTEEN separate round map-marker medallions, evenly spaced with clear empty gaps between them so each can be cut apart, every medallion centered in its own cell at the SAME size, the SAME weathered dark bronze coin with a raised beveled rim and aged pitted metal, the SAME soft top-down lighting — a perfectly matched set. Each coin carries ONE bold emblem embossed in relief, a thick high-contrast silhouette that stays legible when shrunk to ~24px, no per-coin colored glow. One per cell, in reading order (left to right, top to bottom): (1) a blacksmith ANVIL with a crossed hammer and tongs; (2) an overflowing foaming BEER TANKARD beside a small curved boar tusk; (3) a bulging drawstring COIN POUCH beside a merchant's balance SCALE; (4) a round-bottom ALCHEMY FLASK with bubbling liquid and a curl of rising vapor; (5) a cozy steep-roofed COTTAGE with a chimney; (6) a round stone WELL with a little wooden roof and a hanging bucket; (7) a small GROVE of three overlapping fir and pine trees; (8) a hooded VILLAGER BUST seen from the front, a calm generic "person here" marker; (9) a dark stone ARCHWAY with worn steps DESCENDING into blackness and a small downward chevron arrow (a dungeon entrance / go down); (10) an open wooden DOOR set in a stone arch with a warm beam of daylight pouring out, steps rising, and a small upward chevron arrow (an exit / go up / leave); (11) a heavy iron PORTCULLIS of thick riveted vertical bars with pointed spikes at the bottom in a stone frame, a solid physical barred gate; (12) an ARCANE PORTAL — an upright oval ring of glowing carved runestones framing a swirling luminous vortex of blue-violet magical energy with sparks, clearly immaterial and MAGICAL, absolutely NOT a metal gate; (13) a SPIRAL stone tower STAIRCASE coiling upward around a central column, seen slightly from above; (14) a weathered pale-marble winged GUARDIAN STATUE (a solemn robed hooded sentinel) on a short pedestal; (15) a weathered blank wooden SIGNPOST plank on a short stake. Consistent style across all fifteen, flat straight-on orthographic view, no perspective distortion, no cast shadows. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, no checker pattern, no gradient, no texture — each medallion a crisp separated shape on the magenta so it cuts apart cleanly. No text, no letters, no numbers, no frames or borders, no watermark. Portrait canvas ~2560x1536.
+```
+
+*(Prefere avulso? Os 15 prompts individuais — mesmo estilo, 512×512 cada — estão
+logo abaixo, com o nome de arquivo de cada um.)*
+
+> Fórmula do avulso: *Hand-painted stylized-realism game MAP ICON… bold emblem embossed on a
 > round weathered dark bronze medallion… legible at tiny sizes… transparent
 > background around the coin… no text, no letters, no numbers, no watermark. Square ~512×512.*
 
