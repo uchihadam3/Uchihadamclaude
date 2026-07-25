@@ -11,6 +11,7 @@ import icoAttackUrl from "../assets/ui/ico_attack.png";
 import icoActionUrl from "../assets/ui/ico_action.png";
 import icoInventoryUrl from "../assets/ui/ico_inventory.png";
 import coinUrl from "../assets/ui/coin.png";
+import mercadoraUrl from "../assets/npc/mercadora.png";
 import loadSwordUrl from "../assets/ui/load_sword.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
@@ -146,6 +147,9 @@ export interface HUD {
   // FERREIRO: abre/atualiza a janela de aprimoramento (ou fecha)
   openSmith(data: SmithData): void;
   closeSmith(): void;
+  // MERCADOR: abre/atualiza a janela de comprar/vender (ou fecha)
+  openStore(data: StoreData): void;
+  closeStore(): void;
 }
 
 // item da barra de ação (habilidade ativa aprendida)
@@ -168,6 +172,23 @@ export interface SmithData {
     id: string; name: string; icon: string; lvl: number; dmg: number; max: boolean;
     next?: { dmg: number; madeira: number; minerio: number; reforco: number; gold: number };
   } | null;
+}
+
+// ---- MERCADOR (comprar / vender com caixa de quantidade) ----
+export interface StoreGood {
+  id: string;
+  name: string;
+  icon?: string; // emoji (consumíveis/materiais)
+  iconUrl?: string; // imagem (armas)
+  price: number; // preço unitário no modo atual (compra ou venda)
+  desc: string;
+  have: number; // quanto o jogador possui (limite ao vender)
+  single?: boolean; // item único (arma): vende 1, sem stepper
+}
+export interface StoreData {
+  gold: number;
+  mode: "buy" | "sell";
+  goods: StoreGood[];
 }
 
 // marcadores no minimapa: lojas, NPCs, saídas, pontos de interesse
@@ -223,6 +244,8 @@ export function setupControls(
   onAttr?: (key: "str" | "dex" | "int", delta: number) => void, // distribuiu atributo
   onSmithSelect?: (id: string) => void, // escolheu um item no ferreiro
   onSmithUpgrade?: () => SmithUpgradeResult | null, // aprimora; devolve sucesso + novo estado
+  onStoreMode?: (mode: "buy" | "sell") => void, // trocou aba comprar/vender no mercador
+  onStoreTrade?: (id: string, qty: number) => StoreData, // confirmou compra/venda; devolve novo estado
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -910,6 +933,99 @@ export function setupControls(
   const toastEl = document.createElement("div");
   toastEl.id = "gh-toast";
   root.appendChild(toastEl);
+  const showToast = (msg: string) => {
+    toastEl.textContent = msg;
+    toastEl.style.animation = "none";
+    void toastEl.offsetWidth;
+    toastEl.style.animation = "gh-toast 1.8s ease-out";
+  };
+
+  // ---- MERCADOR: janela de comprar/vender + caixa de quantidade ----
+  const st = document.createElement("div");
+  st.id = "gh-st";
+  st.className = "gh-eq-hidden";
+  st.innerHTML = '<div id="gh-st-win"><button id="gh-st-close" title="Fechar">✕</button><div id="gh-st-body"></div><div id="gh-st-qty" class="gh-st-qty-hidden"></div></div>';
+  root.appendChild(st);
+  const stBody = st.querySelector("#gh-st-body") as HTMLElement;
+  const stQty = st.querySelector("#gh-st-qty") as HTMLElement;
+  (st.querySelector("#gh-st-close") as HTMLElement).addEventListener("click", (e) => {
+    e.preventDefault(); st.classList.add("gh-eq-hidden");
+  });
+  let storeMode: "buy" | "sell" = "buy";
+  let storeGold = 0;
+  let qtyState: { g: StoreGood; qty: number; max: number } | null = null;
+  const goodIcon = (g: StoreGood) =>
+    g.iconUrl ? `<img class="gh-item-ico" src="${g.iconUrl}"/>` : `<span class="gh-st-emo">${g.icon ?? "•"}</span>`;
+  // desenha (ou redesenha) a CAIXA de quantidade
+  const renderQty = () => {
+    if (!qtyState) return;
+    const { g, qty, max } = qtyState;
+    const total = qty * g.price;
+    const verb = storeMode === "buy" ? "COMPRAR" : "VENDER";
+    const head = storeMode === "buy" ? "QUANTAS DESEJA COMPRAR?" : "QUANTAS DESEJA VENDER?";
+    stQty.innerHTML =
+      '<div class="gh-st-qbox">' +
+      `<div class="gh-st-qtop"><div class="gh-slot gh-st-qico">${goodIcon(g)}</div>` +
+      `<div class="gh-st-qinfo"><div class="gh-st-qn">${g.name}</div>` +
+      `<div class="gh-st-qu"><img src="${coinUrl}" alt=""/>${g.price} cada · ${g.desc}</div>` +
+      `<div class="gh-st-qh">${g.single ? "CONFIRMAR VENDA" : head}</div></div></div>` +
+      (g.single ? "" :
+        '<div class="gh-st-stepper"><button class="gh-st-step" data-d="-1">−</button>' +
+        `<span class="gh-st-qnum">${qty}</span>` +
+        '<button class="gh-st-step" data-d="1">＋</button></div>' +
+        `<button class="gh-st-max">MÁX (${max})</button>`) +
+      `<div class="gh-st-total"><span class="gh-st-x">${qty} ×</span><img src="${coinUrl}" alt=""/>${total}</div>` +
+      '<div class="gh-st-qbtns"><button class="gh-st-qbtn gh-st-cancel">CANCELAR</button>' +
+      `<button class="gh-st-qbtn gh-st-ok">${verb}</button></div></div>`;
+    stQty.querySelectorAll<HTMLElement>(".gh-st-step").forEach((b) => {
+      b.onclick = () => { qtyState!.qty = Math.min(max, Math.max(1, qtyState!.qty + Number(b.dataset.d))); renderQty(); };
+    });
+    const mx = stQty.querySelector<HTMLElement>(".gh-st-max");
+    if (mx) mx.onclick = () => { qtyState!.qty = max; renderQty(); };
+    (stQty.querySelector(".gh-st-cancel") as HTMLElement).onclick = () => { stQty.classList.add("gh-st-qty-hidden"); qtyState = null; };
+    (stQty.querySelector(".gh-st-ok") as HTMLElement).onclick = () => {
+      const gid = qtyState!.g.id, q = qtyState!.qty;
+      stQty.classList.add("gh-st-qty-hidden"); qtyState = null;
+      const data = onStoreTrade?.(gid, q);
+      if (data) renderStore(data);
+    };
+  };
+  const openQtyBox = (g: StoreGood) => {
+    let max = g.single ? 1 : storeMode === "buy" ? Math.min(99, g.price > 0 ? Math.floor(storeGold / g.price) : 0) : g.have;
+    if (storeMode === "buy" && max < 1) { showToast("Ouro insuficiente."); return; }
+    if (max < 1) return;
+    qtyState = { g, qty: 1, max };
+    stQty.classList.remove("gh-st-qty-hidden");
+    renderQty();
+  };
+  const renderStore = (d: StoreData) => {
+    storeMode = d.mode; storeGold = d.gold;
+    const cells = d.goods.length
+      ? d.goods.map((g) =>
+          `<div class="gh-st-good" data-gid="${g.id}"><div class="gh-slot gh-st-gslot">${goodIcon(g)}` +
+          `${g.have > 0 && !g.single ? `<span class="gh-count gh-st-cnt">${g.have}</span>` : ""}</div>` +
+          `<div class="gh-st-gname">${g.name}</div>` +
+          `<div class="gh-st-gprice"><img src="${coinUrl}" alt=""/>${g.price}</div></div>`,
+        ).join("")
+      : `<div class="gh-st-empty">${d.mode === "sell" ? "Você não tem nada para vender." : "Sem mercadorias."}</div>`;
+    stBody.innerHTML =
+      '<div class="gh-eq-title gh-st-title"><img class="gh-st-portr" src="' + mercadoraUrl + '" alt=""/>' +
+      '<span class="gh-st-tt">Mercador<small>O Empório de Rosa</small></span>' +
+      `<span class="gh-gold gh-st-gold"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
+      '<div class="gh-st-tabs">' +
+      `<button class="gh-st-tab${d.mode === "buy" ? " gh-st-on" : ""}" data-mode="buy">COMPRAR</button>` +
+      `<button class="gh-st-tab${d.mode === "sell" ? " gh-st-on" : ""}" data-mode="sell">VENDER</button></div>` +
+      '<div class="gh-section gh-st-sec"><div class="gh-sec-head">' +
+      (d.mode === "buy" ? "À VENDA — toque para comprar" : "SEU INVENTÁRIO — toque para vender") +
+      `</div><div class="gh-st-shop">${cells}</div></div>`;
+    stBody.querySelectorAll<HTMLElement>(".gh-st-tab").forEach((b) => {
+      b.onclick = () => { if (b.dataset.mode !== storeMode) onStoreMode?.(b.dataset.mode as "buy" | "sell"); };
+    });
+    stBody.querySelectorAll<HTMLElement>(".gh-st-good").forEach((el) => {
+      const g = d.goods.find((x) => x.id === el.dataset.gid);
+      if (g) el.onclick = () => openQtyBox(g);
+    });
+  };
 
   // barra de CONJURAÇÃO (aparece enquanto a magia "carrega")
   const castEl = document.createElement("div");
@@ -1417,6 +1533,14 @@ export function setupControls(
     closeSmith() {
       sm.classList.add("gh-eq-hidden");
     },
+    openStore(data: StoreData) {
+      stQty.classList.add("gh-st-qty-hidden");
+      renderStore(data);
+      st.classList.remove("gh-eq-hidden");
+    },
+    closeStore() {
+      st.classList.add("gh-eq-hidden");
+    },
     updateMinimap(s: MinimapState) {
       lastMini = s;
       drawSmall(s); // minimapa pequeno (zoom ao redor do herói)
@@ -1915,6 +2039,66 @@ function injectStyle() {
     72%  { opacity:1; transform:scale(1); }
     100% { opacity:0; transform:scale(1.08); }
   }
+  /* ---- MERCADOR (comprar/vender + caixa de quantidade) ---- */
+  #gh-st { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
+  #gh-st.gh-eq-hidden { display:none; }
+  #gh-st-win { position:relative; box-sizing:border-box; width:min(60vh,460px); height:min(94vh,820px);
+    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
+  @media (max-width:640px){ #gh-st-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
+  #gh-st-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
+    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
+  #gh-st-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.6%; color:#e8dcc0; overflow:hidden; }
+  .gh-st-title { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding:0 46px 0 2px; }
+  .gh-st-portr { width:clamp(38px,6vh,50px); height:clamp(38px,6vh,50px); border-radius:9px; border:2px solid rgba(201,162,39,.6);
+    background:#1a130c; object-fit:cover; object-position:50% 20%; box-shadow:inset 0 0 10px #000; flex:0 0 auto; }
+  .gh-st-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(17px,2.6vh,23px);
+    letter-spacing:2px; color:#f2e4bf; text-shadow:0 2px 5px #000; line-height:1.05; }
+  .gh-st-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.3vh,11px); color:#b39a63; letter-spacing:3px; margin-top:1px; }
+  .gh-gold.gh-st-gold { position:static; transform:none; flex:0 0 auto; font-size:clamp(13px,2vh,16px); }
+  .gh-st-tabs { display:flex; gap:8px; justify-content:center; flex:0 0 auto; }
+  .gh-st-tab { flex:1; max-width:170px; min-height:clamp(34px,5vh,42px); cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(13px,2vh,16px); letter-spacing:2px; color:#c9b478; border:clamp(10px,1.6vh,12px) solid transparent;
+    border-image:url(${btnBaseUrl}) 40 fill; background:transparent; filter:grayscale(.55) brightness(.7); }
+  .gh-st-tab.gh-st-on { color:#12100a; filter:none; text-shadow:0 1px 0 rgba(255,235,180,.5); }
+  .gh-st-sec { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; padding:2% 3.5% 3%; }
+  .gh-st-shop { flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; display:grid; grid-template-columns:repeat(3,1fr);
+    gap:8px; align-content:start; padding-right:2px; overscroll-behavior:contain; }
+  .gh-st-good { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; }
+  .gh-st-gslot { width:100%; aspect-ratio:1; position:relative; }
+  .gh-st-emo { font-size:clamp(22px,4.4vh,34px); line-height:1; }
+  .gh-st-cnt { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.4vh,12px); font-weight:700; color:#fff; text-shadow:0 1px 2px #000,0 0 3px #000; }
+  .gh-st-gname { font-size:clamp(9px,1.4vh,11px); color:#efe2c0; text-align:center; line-height:1.05; min-height:2.1em; }
+  .gh-st-gprice { display:flex; align-items:center; gap:3px; font-family:"Cinzel",serif; font-size:clamp(11px,1.7vh,13px); color:#f4d873; font-weight:700; }
+  .gh-st-gprice img { width:13px; height:13px; }
+  .gh-st-good:active .gh-st-gslot { filter:brightness(1.16); }
+  .gh-st-empty { grid-column:1/-1; text-align:center; color:#c7b789; padding:14% 6%; font-size:clamp(13px,1.9vh,15px); }
+  #gh-st-qty { position:absolute; inset:0; z-index:8; display:flex; align-items:center; justify-content:center; background:rgba(6,4,2,.72); }
+  #gh-st-qty.gh-st-qty-hidden { display:none; }
+  .gh-st-qbox { width:min(90%,320px); padding:6% 6%; border:clamp(20px,3vh,26px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill;
+    display:flex; flex-direction:column; align-items:center; gap:4%; }
+  .gh-st-qtop { display:flex; align-items:center; gap:10px; width:100%; }
+  .gh-st-qico { width:clamp(48px,8vh,60px); height:clamp(48px,8vh,60px); flex:0 0 auto; }
+  .gh-st-qinfo { flex:1; min-width:0; }
+  .gh-st-qn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(14px,2.1vh,16px); color:#f2e4bf; }
+  .gh-st-qu { display:flex; align-items:center; gap:4px; font-size:clamp(10px,1.5vh,12px); color:#b39a63; margin-top:2px; }
+  .gh-st-qu img { width:12px; height:12px; }
+  .gh-st-qh { font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,12px); color:#c9b478; letter-spacing:1px; margin-top:4px; }
+  .gh-st-stepper { display:flex; align-items:center; gap:14px; }
+  .gh-st-step { width:clamp(38px,6.4vh,44px); height:clamp(38px,6.4vh,44px); border-radius:9px; cursor:pointer;
+    font-size:clamp(22px,3.6vh,26px); font-weight:700; color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
+    border:2px solid rgba(201,162,39,.55); box-shadow:0 1px 3px #000; display:flex; align-items:center; justify-content:center; }
+  .gh-st-qnum { font-family:"Cinzel",serif; font-size:clamp(26px,5vh,32px); font-weight:700; color:#f7ecc9; min-width:2ch; text-align:center; text-shadow:0 2px 4px #000; }
+  .gh-st-max { font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,12px); letter-spacing:1px; color:#e6d3a0; cursor:pointer;
+    padding:4px 14px; border-radius:6px; background:rgba(30,24,14,.85); border:1px solid rgba(201,162,39,.5); }
+  .gh-st-total { display:flex; align-items:center; justify-content:center; gap:6px; font-family:"Cinzel",serif;
+    font-size:clamp(16px,2.6vh,19px); color:#f4d873; font-weight:700; border-top:1px solid rgba(201,162,39,.28); padding-top:4%; width:100%; }
+  .gh-st-total img { width:18px; height:18px; }
+  .gh-st-x { color:#b39a63; font-size:clamp(12px,1.7vh,14px); font-weight:400; }
+  .gh-st-qbtns { display:flex; gap:10px; width:100%; }
+  .gh-st-qbtn { flex:1; min-height:clamp(40px,6vh,46px); cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(13px,2vh,15px); letter-spacing:1px; color:#12100a; border:clamp(11px,1.7vh,13px) solid transparent;
+    border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
+  .gh-st-qbtn.gh-st-cancel { filter:grayscale(.6) brightness(.72); }
   #gh-eq-inner {
     width:100%; height:100%;
     display:flex; flex-direction:column; gap:1.4%;
