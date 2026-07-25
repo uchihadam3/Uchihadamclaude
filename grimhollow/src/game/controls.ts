@@ -154,6 +154,13 @@ export interface SmithData {
   } | null;
 }
 
+// marcadores no minimapa: lojas, NPCs, saídas, pontos de interesse
+export type MiniPoiKind =
+  | "smith" | "tavern" | "store" | "alchemist" | "npc"
+  | "dungeon" | "forest" | "exit" | "home" | "well"
+  | "stair" | "gate" | "sanctuary" | "sign";
+export interface MiniPoi { c: number; r: number; kind: MiniPoiKind; label: string; }
+
 export interface MinimapState {
   cols: number;
   rows: number;
@@ -162,7 +169,23 @@ export interface MinimapState {
   row: number;
   dc: number; // vetor da direção que o herói encara (célula)
   dr: number;
+  pois?: MiniPoi[]; // marcadores (lojas, NPCs, saídas…)
+  locName?: string; // nome do local atual (banner no topo do mapa)
 }
+
+// ícone (emoji) e cor de cada tipo de marcador do minimapa
+const POI_ICON: Record<MiniPoiKind, string> = {
+  smith: "⚒️", tavern: "🍺", store: "🛒", alchemist: "⚗️", npc: "🧑",
+  dungeon: "💀", forest: "🌲", exit: "🚪", home: "🏠", well: "🪣",
+  stair: "🪜", gate: "⛓️", sanctuary: "🌀", sign: "📜",
+};
+const POI_COLOR: Record<MiniPoiKind, string> = {
+  smith: "#ff9a4d", tavern: "#ffcf5a", store: "#6fd3ff", alchemist: "#b98cff", npc: "#8fe07a",
+  dungeon: "#ff6b5a", forest: "#7fd06a", exit: "#ffd964", home: "#d8b06a", well: "#6fb8ff",
+  stair: "#ffd964", gate: "#ff8a5a", sanctuary: "#c79bff", sign: "#e8dcc0",
+};
+// marcadores que "pulsam" (interativos: valem uma visita)
+const POI_PULSE = new Set<MiniPoiKind>(["smith", "tavern", "store", "alchemist", "dungeon", "forest", "exit", "gate", "sanctuary", "npc"]);
 
 // Teclado (desktop) + botões na tela (mobile).
 export function setupControls(
@@ -307,6 +330,7 @@ export function setupControls(
   const bigCanvas = bigMap.querySelector("#gh-bigmap-canvas") as HTMLCanvasElement;
   const bigCtx = bigCanvas.getContext("2d");
   let lastMini: MinimapState | null = null;
+  let mapPhase = 0; // fase de animação (pulsos) — avança no loop rAF
   const bigOpen = () => !bigMap.classList.contains("gh-bigmap-hidden");
   const drawArrow = (
     ctx: CanvasRenderingContext2D,
@@ -327,6 +351,80 @@ export function setupControls(
     ctx.shadowColor = "rgba(255,210,90,.9)";
     ctx.shadowBlur = 5;
     ctx.fill();
+    ctx.restore();
+  };
+  // desenha um marcador (disco colorido + emoji) com anel pulsante se interativo
+  const drawPoi = (
+    ctx: CanvasRenderingContext2D, x: number, y: number, size: number,
+    poi: MiniPoi, phase: number, withLabel: boolean,
+  ) => {
+    const col = POI_COLOR[poi.kind] ?? "#e8dcc0";
+    // anel pulsante (interativos)
+    if (POI_PULSE.has(poi.kind)) {
+      const t = (phase * 1.6 + (poi.c + poi.r) * 0.35) % 1; // dessincroniza por célula
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * 0.55;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = Math.max(1, size * 0.09);
+      ctx.beginPath();
+      ctx.arc(x, y, size * (0.5 + t * 0.7), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // disco de fundo
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.52, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(10,10,14,.82)";
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, size * 0.1);
+    ctx.strokeStyle = col;
+    ctx.shadowColor = col;
+    ctx.shadowBlur = size * 0.5;
+    ctx.stroke();
+    ctx.restore();
+    // emoji
+    ctx.save();
+    ctx.font = `${Math.round(size * 0.82)}px "Segoe UI Emoji","Noto Color Emoji",serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(POI_ICON[poi.kind] ?? "•", x, y + size * 0.04);
+    ctx.restore();
+    // rótulo (só no mapa grande) — NPC menor/mais discreto que locais
+    if (withLabel && poi.label) {
+      const npc = poi.kind === "npc";
+      ctx.save();
+      ctx.font = `600 ${Math.max(9, Math.round(size * (npc ? 0.46 : 0.56)))}px "Cinzel",serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const ty = y + size * 0.6;
+      ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(0,0,0,.9)";
+      ctx.strokeText(poi.label, x, ty);
+      ctx.fillStyle = npc ? "#c8d6ea" : "#f7e9c4";
+      ctx.fillText(poi.label, x, ty);
+      ctx.restore();
+    }
+  };
+  // faixa com o nome do local + bússola "N" no topo do mapa
+  const drawLocBanner = (ctx: CanvasRenderingContext2D, W: number, name: string | undefined, h: number) => {
+    ctx.save();
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "rgba(8,8,12,.9)"); g.addColorStop(1, "rgba(8,8,12,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, h);
+    if (name) {
+      ctx.font = `700 ${Math.round(h * 0.5)}px "Cinzel",serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "#f4d873";
+      ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
+      ctx.fillText(name, W / 2, h * 0.52);
+    }
+    // "N" (norte = topo, o mapa é fixo)
+    ctx.shadowBlur = 0;
+    ctx.font = `700 ${Math.round(h * 0.44)}px "Cinzel",serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillStyle = "#9fb4d6";
+    ctx.fillText("N", 5, h * 0.52);
     ctx.restore();
   };
   // minimapa PEQUENO: janela de (2R+1)² células centrada no herói (zoom local)
@@ -355,9 +453,27 @@ export function setupControls(
         ctx.fillRect(off + (dx + R) * cell, off + (dy + R) * cell, cell - 1, cell - 1);
       }
     }
+    // marcadores dentro da janela (ícones, sem rótulo — o mapa é pequeno)
+    if (s.pois) {
+      for (const p of s.pois) {
+        const dx = p.c - s.col, dy = p.r - s.row;
+        if (Math.abs(dx) > R || Math.abs(dy) > R) continue;
+        const x = off + (dx + R) * cell + cell / 2;
+        const y = off + (dy + R) * cell + cell / 2;
+        drawPoi(ctx, x, y, cell * 1.05, p, mapPhase, false);
+      }
+    }
     // herói SEMPRE no centro exato da janela (célula central)
     const pc = off + R * cell + Math.floor(cell / 2);
+    // halo pulsante do herói (dá vida ao mapa)
+    const hp = (mapPhase * 1.1) % 1;
+    ctx.save();
+    ctx.globalAlpha = (1 - hp) * 0.5;
+    ctx.strokeStyle = "#ffe08a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(pc, pc, cell * (0.4 + hp * 0.6), 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
     drawArrow(ctx, pc, pc, Math.max(4, cell * 0.42), Math.atan2(s.dr, s.dc));
+    drawLocBanner(ctx, W, s.locName, Math.round(H * 0.16));
   };
   // mapa GRANDE: o local inteiro cabendo na tela (estilo PoE/Diablo)
   const drawBig = (s: MinimapState) => {
@@ -367,7 +483,7 @@ export function setupControls(
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = "#0b0d12";
     ctx.fillRect(0, 0, W, H);
-    const pad = 12;
+    const pad = 40;
     const cell = Math.max(3, Math.floor(Math.min((W - 2 * pad) / s.cols, (H - 2 * pad) / s.rows)));
     const gw = cell * s.cols, gh = cell * s.rows;
     const ox = Math.round((W - gw) / 2), oy = Math.round((H - gh) / 2);
@@ -376,7 +492,17 @@ export function setupControls(
         ctx.fillStyle = s.cells[r * s.cols + c] ? "#5a6675" : "#171b22";
         ctx.fillRect(ox + c * cell, oy + r * cell, cell - 1, cell - 1);
       }
-    drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(6, cell * 0.75), Math.atan2(s.dr, s.dc));
+    // marcadores COM rótulo — NPCs primeiro (menores, embaixo) e locais por cima,
+    // p/ os rótulos das lojas/saídas não ficarem escondidos.
+    if (s.pois) {
+      const base = Math.max(15, cell * 1.15);
+      const order = [...s.pois].sort((a, b) => (a.kind === "npc" ? 0 : 1) - (b.kind === "npc" ? 0 : 1));
+      for (const p of order) {
+        drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, p.kind === "npc" ? base * 0.78 : base, p, mapPhase, true);
+      }
+    }
+    drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(8, cell * 0.8), Math.atan2(s.dr, s.dc));
+    drawLocBanner(ctx, W, s.locName, 40);
   };
   const openBigMap = () => {
     bigMap.classList.remove("gh-bigmap-hidden");
@@ -390,6 +516,18 @@ export function setupControls(
     if (e.code === "KeyM") { e.preventDefault(); bigOpen() ? closeBigMap() : openBigMap(); }
     else if (e.code === "Escape") closeBigMap();
   });
+  // loop de animação do mapa: mantém os marcadores/halo pulsando (mapa dinâmico).
+  // Leve (~18fps) e só redesenha o que está visível.
+  let mapLastPulse = 0;
+  const mapPulse = (t: number) => {
+    requestAnimationFrame(mapPulse);
+    if (t - mapLastPulse < 55) return;
+    mapLastPulse = t; mapPhase = t / 1000;
+    if (!lastMini || document.hidden) return;
+    if (bigOpen()) drawBig(lastMini);
+    else if (mapCanvas.clientWidth > 0) drawSmall(lastMini);
+  };
+  requestAnimationFrame(mapPulse);
 
   // ---- RELÓGIO dia/noite (sol/lua orbitando) — logo abaixo do mapa ----
   const clock = document.createElement("div");
@@ -1732,11 +1870,16 @@ function injectStyle() {
      aparelhos deixando as células "esticadas"). As separações vêm só do "gap"
      dourado. Seletor composto .gh-bag.gh-sm-bag p/ vencer o .gh-bag padrão. */
   .gh-sm-sec-inv { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; justify-content:flex-start; }
-  .gh-bag.gh-sm-bag { --cell:clamp(38px,6.7vh,58px);
-    grid-template-columns:repeat(5, var(--cell)); grid-auto-rows:var(--cell);
-    justify-content:center; align-content:start; width:max-content; max-width:100%; margin:0 auto;
+  /* A grade (5×4) escala como UM bloco de proporção 5:4 p/ caber inteira no
+     espaço disponível — TODOS os 20 slots sempre visíveis, sem cortar, e as
+     células ficam quadradas em qualquer aparelho (largura OU altura manda). */
+  .gh-bag.gh-sm-bag {
+    grid-template-columns:repeat(5,1fr); grid-template-rows:repeat(4,1fr);
+    aspect-ratio:5/4; flex:0 1 auto; min-height:0; min-width:0;
+    max-width:100%; max-height:100%; width:auto; height:auto;
+    align-self:center; margin-block:auto;
     gap:3px; background:rgba(212,175,55,.7); border:2px solid rgba(212,175,55,.6); }
-  .gh-bag.gh-sm-bag .gh-sm-cell { aspect-ratio:auto; width:var(--cell); height:var(--cell); cursor:pointer; }
+  .gh-bag.gh-sm-bag .gh-sm-cell { aspect-ratio:auto; width:auto; height:auto; min-width:0; min-height:0; cursor:pointer; }
   .gh-sm-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.35vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; box-shadow:0 1px 2px #000; }
   .gh-sm-sel { background:rgba(40,32,16,.95); box-shadow:inset 0 0 0 2px #f4d873, 0 0 12px 2px rgba(244,216,115,.7); }
   /* LETREIRO garrafal SUCESSO!/FALHOU! após a forja (aparece breve e some) */
