@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData } from "./controls";
 import {
   ROOM,
   ROOM_COLS,
@@ -558,6 +558,7 @@ type Target =
   | { kind: "gate"; key: string }
   | { kind: "lockgate" } // portão selado do santuário (não abre)
   | { kind: "sanctuary" } // entrada do santuário (leva à sala-vitrine)
+  | { kind: "smithshop" } // ferreiro (abre a janela de aprimoramento)
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
@@ -638,6 +639,11 @@ export class Game {
   private playerMp = 100;
   // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
   private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
+  // FERREIRO: nível de reforço (+N) por arma + materiais + item selecionado na janela
+  private reinforce: Record<string, number> = {};
+  private materials = { madeira: 8, minerio: 5, reforco: 3 };
+  private smithSel = "sword";
+  private static readonly SMITH_MAX = 10;
   // PRIMÁRIOS atuais + piso (base da criação, não dá pra baixar disso) e a base
   // de vida/mana da classe. Os SECUNDÁRIOS são derivados destes.
   private prim: Primaries = { str: 5, dex: 5, int: 5 };
@@ -821,6 +827,8 @@ export class Game {
       (ranks) => this.applyPassives(ranks),
       (id) => this.useSkill(id),
       (key, delta) => this.allocAttr(key, delta),
+      (id) => { this.smithSel = id; this.ui.openSmith(this.buildSmithData()); }, // seleção no ferreiro
+      () => this.smithUpgrade(), // apertou "Aprimorar"
     );
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
@@ -1367,6 +1375,43 @@ export class Game {
     this.recomputeDerived();
   }
 
+  // ---- FERREIRO (aprimoramento por reforço +N) ----
+  // custo do próximo reforço (nível atual → +1): madeira + minério + pedra + ouro
+  private smithCost(lvl: number) {
+    return { madeira: 2 + lvl, minerio: 2 + lvl, reforco: 1 + Math.floor(lvl / 3), gold: 80 * (lvl + 1) };
+  }
+  // "Dano" exibido: o ataque resultante se essa arma nesse reforço estivesse equipada
+  private smithDmg(w: Weapon, lvl: number): number {
+    return Math.round(this.atkWithBonus(this.sec.atkPhys + w.dmg + lvl) * this.buffAtkMul());
+  }
+  private buildSmithData(): SmithData {
+    const items = WEAPONS.map((w) => ({ id: w.id, name: w.name, icon: w.url, lvl: this.reinforce[w.id] ?? 0 }));
+    const w = WEAPONS.find((x) => x.id === this.smithSel) ?? WEAPONS[0];
+    const lvl = this.reinforce[w.id] ?? 0;
+    const base = { id: w.id, name: w.name, icon: w.url, lvl, dmg: this.smithDmg(w, lvl) };
+    const sel = lvl >= Game.SMITH_MAX
+      ? { ...base, max: true }
+      : { ...base, max: false, next: { dmg: this.smithDmg(w, lvl + 1), ...this.smithCost(lvl) } };
+    return { gold: this.stats.gold, mats: { ...this.materials }, items, sel };
+  }
+  private smithUpgrade() {
+    const w = WEAPONS.find((x) => x.id === this.smithSel);
+    if (!w) return;
+    const lvl = this.reinforce[w.id] ?? 0;
+    if (lvl >= Game.SMITH_MAX) return;
+    const c = this.smithCost(lvl);
+    if (this.materials.madeira < c.madeira || this.materials.minerio < c.minerio ||
+        this.materials.reforco < c.reforco || this.stats.gold < c.gold) {
+      this.ui.toast("Faltam materiais ou ouro."); return;
+    }
+    this.materials.madeira -= c.madeira; this.materials.minerio -= c.minerio;
+    this.materials.reforco -= c.reforco; this.stats.gold -= c.gold;
+    this.reinforce[w.id] = lvl + 1;
+    if (this.currentWeapon?.id === w.id) this.recomputeDerived(); // dano sobe se equipada
+    this.ui.toast(`${w.name} reforçada para +${lvl + 1}!`);
+    this.ui.openSmith(this.buildSmithData());
+  }
+
   // aplica os bônus percentuais de dano das passivas sobre um ataque base
   private atkWithBonus(base: number): number {
     const pct = (this.passive.dmg ?? 0) + (this.passive.mdmg ?? 0);
@@ -1412,7 +1457,8 @@ export class Game {
     this.stats.int = this.prim.int;
     this.stats.def =
       this.sec.def + Math.round((this.passive.def ?? 0) + (this.passive.mres ?? 0));
-    const wdmg = this.currentWeapon?.dmg ?? 0;
+    const rlvl = this.currentWeapon ? (this.reinforce[this.currentWeapon.id] ?? 0) : 0;
+    const wdmg = (this.currentWeapon?.dmg ?? 0) + rlvl; // reforço +N do ferreiro soma no dano
     this.stats.atk = Math.round(this.atkWithBonus(this.sec.atkPhys + wdmg) * this.buffAtkMul());
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp);
@@ -4130,6 +4176,9 @@ export class Game {
       // entra no SANTUÁRIO (sala-vitrine); guarda o retorno p/ a masmorra
       this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
       this.enterLocation("showcase", 0, 0, 0);
+    } else if (t.kind === "smithshop") {
+      // FERREIRO: abre a janela de aprimoramento (reforço +N)
+      this.ui.openSmith(this.buildSmithData());
     } else if (t.kind === "toforest") {
       // ao voltar, o jogador olha p/ dentro do vilarejo (oposto à trilha)
       this.returnTo = {
@@ -5341,6 +5390,7 @@ export class Game {
       else if (t.kind === "sign") text = "Ler a placa";
       else if (t.kind === "lockgate") text = "Portão selado";
       else if (t.kind === "sanctuary") text = "Subir a escadaria";
+      else if (t.kind === "smithshop") text = "Ferreiro — Aprimorar";
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
@@ -5355,6 +5405,8 @@ export class Game {
     const fr = this.row + dr;
     // NPC logo à frente
     const npc = this.npcMap.get(`${fc},${fr}`);
+    // no interior do FERREIRO, falar com o atendente abre a janela de aprimoramento
+    if (npc && this.location === "smith") return { kind: "smithshop" };
     if (npc)
       return {
         kind: "talk",
