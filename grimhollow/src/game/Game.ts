@@ -2284,13 +2284,16 @@ export class Game {
   }
 
   private addShowcaseLights() {
-    this.world.add(new THREE.AmbientLight(0x8b93a6, 1.05));
-    // hemisfério claro (céu azulado) → dá o ar de "luz de fora" na clareira
-    this.world.add(new THREE.HemisphereLight(0xbcc9de, 0x3a352f, 1.0));
-    // "sol" difuso descendo sobre a clareira (norte-alto)
-    const sky = new THREE.DirectionalLight(0xdfeaff, 0.75);
-    sky.position.set(7 * CELL, 22, 2 * CELL);
-    this.world.add(sky);
+    // ambiente BAIXO (recinto fechado de rocha) — a luz vem de CIMA (o óculo aberto
+    // do terraço) e das tochas da escada.
+    this.world.add(new THREE.AmbientLight(0x6a7182, 0.55));
+    this.world.add(new THREE.HemisphereLight(0x9fb0c8, 0x2a2620, 0.5));
+    // FEIXE de cima sobre o terraço (aberto só no teto): desce reto sobre a estátua
+    const beam = new THREE.DirectionalLight(0xdfeaff, 1.3);
+    beam.position.set(SHRINE_CX, HELIX_TOP + 30, SHRINE_CZ);
+    beam.target.position.set(SHRINE_CX, HELIX_TOP, SHRINE_CZ);
+    this.world.add(beam.target);
+    this.world.add(beam);
   }
 
   // textura suave (dot radial) p/ as partículas
@@ -2472,10 +2475,12 @@ export class Game {
     const CX = HELIX_CX, CZ = HELIX_CZ;
     const RI = HELIX_INNER, RO = HELIX_OUTER;
     const TOP_Y = HELIX_TOP;
+    const WALL_H = TOP_Y + 32; // paredes ALTÍSSIMAS → o jogador nunca vê o topo faltando
     const FOGC = 0x7c8390;
-    const yClear = TOP_Y - 3.2, yFull = TOP_Y + 3.5; // dissolve o topo do poço na bruma
+    // dissolve BEM alto: as paredes sobem muito e só somem lá em cima na bruma.
+    const yClear = TOP_Y + 4, yFull = TOP_Y + 26;
 
-    // materiais de PEDRA LAVRADA
+    // materiais de PEDRA LAVRADA (escada)
     const mkStone = (rx: number, ry: number, tint?: number) => {
       const m = tex.stone(31);
       m.wrapS = m.wrapT = THREE.RepeatWrapping;
@@ -2484,16 +2489,21 @@ export class Game {
     };
     const stepMat = mkStone(1.4, 1.4);
     const riserMat = mkStone(1.4, 0.5, 0xc7c7c7);
-    const shellMat = mkStone(6, 3);
+    const shellMat = mkStone(6, 8);
     const coreMat = mkStone(5, 3, 0xb8b8b8);
     const corrFloorMat = mkStone(2, 2);
     const corrWallMat = mkStone(3, 2);
+    // ROCHA de caverna (dungeon) p/ a MURALHA redonda do terraço
+    const rockMap = tex.caveWall();
+    rockMap.wrapS = rockMap.wrapT = THREE.RepeatWrapping;
+    rockMap.repeat.set(14, 10);
+    const rockWallMat = new THREE.MeshLambertMaterial({ map: rockMap, side: THREE.DoubleSide });
     const grassMap = tex.grass(61);
     grassMap.wrapS = grassMap.wrapT = THREE.RepeatWrapping;
     grassMap.repeat.set(4, 4);
     const grassMat = new THREE.MeshLambertMaterial({ map: grassMap, side: THREE.DoubleSide });
-    // o poço (casca+núcleo+rampa) some na bruma perto do topo → sem borda dura
-    for (const m of [shellMat, coreMat, stepMat, riserMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
+    // paredes somem na bruma SÓ lá no alto → sem borda dura, sem topo visível
+    for (const m of [shellMat, coreMat, stepMat, riserMat, rockWallMat]) this.applyHeightFog(m, yClear, yFull, FOGC);
 
     // helper: quad (2 triângulos) num array de posições/uv
     const addQuad = (pos: number[], uv: number[], idx: number[],
@@ -2532,11 +2542,11 @@ export class Game {
     mkMesh(sPos, sUv, sIdx, stepMat);
     mkMesh(rPos, rUv, rIdx, riserMat);
 
-    // núcleo central (cilindro) + casca externa (poço) + piso da base
+    // núcleo central (cilindro) + casca externa (poço) ALTÍSSIMA + piso da base
     const core = new THREE.Mesh(new THREE.CylinderGeometry(RI, RI, TOP_Y, 32, 1, true), coreMat);
     core.position.set(CX, TOP_Y / 2, CZ); this.world.add(core);
-    const shell = new THREE.Mesh(new THREE.CylinderGeometry(RO, RO, TOP_Y, 48, 1, true), shellMat);
-    shell.position.set(CX, TOP_Y / 2, CZ); this.world.add(shell);
+    const shell = new THREE.Mesh(new THREE.CylinderGeometry(RO, RO, WALL_H, 48, 1, true), shellMat);
+    shell.position.set(CX, WALL_H / 2, CZ); this.world.add(shell);
     const base = new THREE.Mesh(new THREE.CircleGeometry(RO, 40), stepMat);
     base.rotation.x = -Math.PI / 2; base.position.set(CX, 0.02, CZ); this.world.add(base);
 
@@ -2552,17 +2562,26 @@ export class Game {
     const cc = new THREE.Mesh(new THREE.PlaneGeometry(cLen, cw * 2), corrWallMat);
     cc.rotation.x = Math.PI / 2; cc.position.set(cMidX, TOP_Y + cCeil, CORR_Z); this.world.add(cc);
 
-    // ---- TERRAÇO ABERTO (movimento normal em grade): grama + estátua + névoa ----
-    const SCX = SHRINE_CX, SCZ = SHRINE_CZ, DR = SHRINE_RADIUS + 1;
-    // grama por célula (garante piso sob o jogador em toda a área andável)
+    // ---- TERRAÇO: recinto REDONDO de ROCHA, aberto SÓ no teto (luz vem de cima) ----
+    const SCX = SHRINE_CX, SCZ = SHRINE_CZ;
+    const RW = SHRINE_RADIUS + 1.8; // raio da muralha (logo além da grama)
+    const DR = RW; // a grama encosta na muralha
+    // grama por célula (piso sob o jogador em toda a área andável)
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
     for (const [tc, tr] of terraceCells()) {
       const g = new THREE.Mesh(tileGeo, grassMat);
       g.rotation.x = -Math.PI / 2; g.position.set(tc * CELL, TOP_Y + 0.02, tr * CELL); this.world.add(g);
     }
-    // disco redondo por cima → arredonda o visual (aberto, some na névoa)
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(DR, 40), grassMat);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(DR, 44), grassMat);
     disc.rotation.x = -Math.PI / 2; disc.position.set(SCX, TOP_Y + 0.05, SCZ); this.world.add(disc);
+    // MURALHA redonda de ROCHA (dungeon), ALTÍSSIMA, com um VÃO só p/ o corredor
+    // (leste). Sem teto → aberta só por cima; some na bruma lá no alto.
+    const gapHalf = 0.34; // meia-abertura do vão do corredor
+    const twall = new THREE.Mesh(
+      new THREE.CylinderGeometry(RW, RW, WALL_H, 56, 1, true, Math.PI / 2 + gapHalf, Math.PI * 2 - gapHalf * 2),
+      rockWallMat,
+    );
+    twall.position.set(SCX, TOP_Y - 2 + WALL_H / 2, SCZ); this.world.add(twall);
     this.blocked.add(`${SHOW_STATUE.col},${SHOW_STATUE.row}`); // estátua bloqueia o centro
     // ESTÁTUA (placeholder): pedestal + monólito claro que brilha
     const sx = SHOW_STATUE_W.x, sz = SHOW_STATUE_W.z;
@@ -2573,6 +2592,8 @@ export class Game {
     const idol = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 2.4, 6), paleMat);
     idol.position.set(sx, TOP_Y + 0.75 + 1.2, sz); this.world.add(idol);
     this.glowLight(sx, TOP_Y + 1.9, sz, 0xcfe6ff, 3.6, 13);
+    // FEIXE de luz de cima (o óculo aberto) → foco no altar, luz só do teto
+    this.glowLight(SCX, TOP_Y + 13, SCZ, 0xdfeaff, 4.5, 34);
 
     // TOCHAS espiralando pela casca (luz quente, sobem com a hélice)
     const torchMat = this.decalMat(decTorchUrl, 0.1);
