@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult } from "./controls";
 import {
   ROOM,
   ROOM_COLS,
@@ -1394,22 +1394,35 @@ export class Game {
       : { ...base, max: false, next: { dmg: this.smithDmg(w, lvl + 1), ...this.smithCost(lvl) } };
     return { gold: this.stats.gold, mats: { ...this.materials }, items, sel };
   }
-  private smithUpgrade() {
+  // chance de sucesso do reforço: alta no começo, cai conforme o nível sobe.
+  private smithChance(lvl: number): number {
+    return Math.max(0.25, Math.min(0.92, 0.92 - lvl * 0.07));
+  }
+  // Aprimora: gasta os materiais SEMPRE (o risco), rola o sucesso e sobe +1 se
+  // deu certo. NÃO re-renderiza aqui — devolve o resultado p/ a HUD animar a
+  // espada (enche/acende no sucesso, apaga na falha) e só então re-desenhar.
+  private smithUpgrade(): SmithUpgradeResult | null {
     const w = WEAPONS.find((x) => x.id === this.smithSel);
-    if (!w) return;
+    if (!w) return null;
     const lvl = this.reinforce[w.id] ?? 0;
-    if (lvl >= Game.SMITH_MAX) return;
+    if (lvl >= Game.SMITH_MAX) return null;
     const c = this.smithCost(lvl);
     if (this.materials.madeira < c.madeira || this.materials.minerio < c.minerio ||
         this.materials.reforco < c.reforco || this.stats.gold < c.gold) {
-      this.ui.toast("Faltam materiais ou ouro."); return;
+      this.ui.toast("Faltam materiais ou ouro."); return null;
     }
+    // consome os recursos (mesmo na falha)
     this.materials.madeira -= c.madeira; this.materials.minerio -= c.minerio;
     this.materials.reforco -= c.reforco; this.stats.gold -= c.gold;
-    this.reinforce[w.id] = lvl + 1;
-    if (this.currentWeapon?.id === w.id) this.recomputeDerived(); // dano sobe se equipada
-    this.ui.toast(`${w.name} reforçada para +${lvl + 1}!`);
-    this.ui.openSmith(this.buildSmithData());
+    const success = Math.random() < this.smithChance(lvl);
+    if (success) {
+      this.reinforce[w.id] = lvl + 1;
+      if (this.currentWeapon?.id === w.id) this.recomputeDerived(); // dano sobe se equipada
+      this.ui.toast(`${w.name} reforçada para +${lvl + 1}!`);
+    } else {
+      this.ui.toast(`O reforço de ${w.name} falhou! Materiais perdidos.`);
+    }
+    return { success, data: this.buildSmithData() };
   }
 
   // aplica os bônus percentuais de dano das passivas sobre um ataque base
