@@ -42,9 +42,9 @@ export const DUNGEON: string[] = [
   "###.........#########..#########.........###",
   "##################........##################",
   "#############....#........##################",
-  "#############.C..G........##################",
-  "#############....#...S.U..##################",
-  "##################........##################",
+  "#############.C..G........#...##############",
+  "#############....#...S.U..L.A.##############",
+  "##################........#...##############",
   "############################################",
   "############################################",
 ];
@@ -62,6 +62,8 @@ export type DungeonCell =
   | "bones"
   | "barrel"
   | "gate" // portão de grade: sela um corredor (bloqueia até ser aberto)
+  | "lockgate" // portão SELADO (não abre) — esconde a entrada do santuário
+  | "sanctuary" // portal/entrada do SANTUÁRIO (leva à sala-vitrine)
   | "secret"; // parede ilusória: renderiza como rocha, mas é andável
 
 export function dungeonChar(col: number, row: number): string {
@@ -87,6 +89,10 @@ export function dungeonCell(col: number, row: number): DungeonCell {
       return "barrel";
     case "G":
       return "gate";
+    case "L":
+      return "lockgate";
+    case "A":
+      return "sanctuary";
     case "X":
       return "secret";
     default:
