@@ -470,12 +470,21 @@ export function setupControls(
   const sm = document.createElement("div");
   sm.id = "gh-sm";
   sm.className = "gh-eq-hidden";
-  sm.innerHTML = '<div id="gh-sm-win"><button id="gh-sm-close" title="Fechar">✕</button><div id="gh-sm-body"></div></div>';
+  sm.innerHTML = '<div id="gh-sm-win"><button id="gh-sm-close" title="Fechar">✕</button><div id="gh-sm-body"></div><div id="gh-sm-flash"></div></div>';
   root.appendChild(sm);
   const smBody = sm.querySelector("#gh-sm-body") as HTMLElement;
+  const smFlash = sm.querySelector("#gh-sm-flash") as HTMLElement;
   (sm.querySelector("#gh-sm-close") as HTMLElement).addEventListener("click", (e) => {
     e.preventDefault(); sm.classList.add("gh-eq-hidden");
   });
+  // grande "SUCESSO!"/"FALHOU!" que aparece brevemente após os 6s de forja
+  const showForgeFlash = (text: string, ok: boolean) => {
+    smFlash.textContent = text;
+    smFlash.className = "";
+    void smFlash.offsetWidth; // reinicia a animação
+    smFlash.classList.add("gh-flash-show", ok ? "gh-flash-ok" : "gh-flash-fail");
+    window.setTimeout(() => { smFlash.className = ""; }, 1600);
+  };
   const renderSmith = (d: SmithData) => {
     // material: slot (só o ícone) + números FORA do container (embaixo)
     const mat = (emoji: string, need: number, have: number, cap: string, gold = false) => {
@@ -558,17 +567,19 @@ export function setupControls(
           anvil.classList.remove("gh-forging");
           if (res.success) {
             play(forgeSuccessSnd); // som de SUCESSO
+            showForgeFlash("SUCESSO!", true); // letreiro garrafal
             base.style.filter = ""; // deixa a regra .gh-forge-ok clarear a lâmina
             anvil.classList.add("gh-forge-ok");
-            setTimeout(() => renderSmith(res.data), 900);
+            setTimeout(() => renderSmith(res.data), 1200);
           } else {
             play(forgeFailSnd); // som de FALHA
+            showForgeFlash("FALHOU!", false); // letreiro garrafal
             anvil.classList.add("gh-forge-fail");
             // a espada volta a ficar escura (esvazia).
             base.style.filter = "brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000)";
             fill.style.transition = "width .5s ease-in";
             fill.style.width = "0%";
-            setTimeout(() => renderSmith(res.data), 1100);
+            setTimeout(() => renderSmith(res.data), 1300);
           }
         });
       };
@@ -1716,15 +1727,34 @@ function injectStyle() {
   .gh-sm-btn.gh-sm-dim { filter:grayscale(.72) brightness(.6); cursor:default; font-size:clamp(11px,1.7vh,13px); letter-spacing:1px; }
   .gh-sm-btn.gh-sm-busy { pointer-events:none; filter:brightness(1.12); }
   .gh-sm-max, .gh-sm-empty { text-align:center; color:#c7b789; padding:6% 4%; font-size:clamp(12px,1.7vh,14px); }
-  /* INVENTÁRIO (20 slots, 5 col) — cabe inteiro, sem rolar. As SEPARAÇÕES dos
-     slots vêm UNICAMENTE do "gap" dourado (grade limpa, sem linhas duplicadas).
-     Seletor composto .gh-bag.gh-sm-bag p/ vencer o .gh-bag padrão (mesma classe). */
-  .gh-sm-sec-inv { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
-  .gh-bag.gh-sm-bag { grid-template-columns:repeat(5,1fr); width:100%; margin:0 auto;
-    gap:2px; background:rgba(212,175,55,.7); border:2px solid rgba(212,175,55,.6); }
-  .gh-sm-cell { cursor:pointer; }
+  /* INVENTÁRIO (20 slots, 5 col). Células QUADRADAS de tamanho FIXO (--cell) em
+     linha E coluna — não depende de aspect-ratio/flex (que quebrava em alguns
+     aparelhos deixando as células "esticadas"). As separações vêm só do "gap"
+     dourado. Seletor composto .gh-bag.gh-sm-bag p/ vencer o .gh-bag padrão. */
+  .gh-sm-sec-inv { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; justify-content:flex-start; }
+  .gh-bag.gh-sm-bag { --cell:clamp(38px,6.7vh,58px);
+    grid-template-columns:repeat(5, var(--cell)); grid-auto-rows:var(--cell);
+    justify-content:center; align-content:start; width:max-content; max-width:100%; margin:0 auto;
+    gap:3px; background:rgba(212,175,55,.7); border:2px solid rgba(212,175,55,.6); }
+  .gh-bag.gh-sm-bag .gh-sm-cell { aspect-ratio:auto; width:var(--cell); height:var(--cell); cursor:pointer; }
   .gh-sm-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.35vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; box-shadow:0 1px 2px #000; }
   .gh-sm-sel { background:rgba(40,32,16,.95); box-shadow:inset 0 0 0 2px #f4d873, 0 0 12px 2px rgba(244,216,115,.7); }
+  /* LETREIRO garrafal SUCESSO!/FALHOU! após a forja (aparece breve e some) */
+  #gh-sm-flash { position:absolute; inset:0; z-index:12; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; opacity:0; font-family:"Cinzel",serif; font-weight:700; letter-spacing:2px;
+    font-size:clamp(30px,7.6vh,54px); text-transform:uppercase; text-align:center; white-space:nowrap;
+    overflow:hidden; -webkit-text-stroke:1.5px rgba(0,0,0,.55); }
+  #gh-sm-flash.gh-flash-show { animation:gh-flash-pop 1.6s cubic-bezier(.18,1.3,.32,1) 1; }
+  #gh-sm-flash.gh-flash-ok { color:#93ec7c; text-shadow:0 0 24px rgba(120,240,110,.95), 0 0 8px rgba(200,255,180,.9), 0 4px 8px #000; }
+  #gh-sm-flash.gh-flash-fail { color:#f56a55; text-shadow:0 0 24px rgba(240,70,50,.95), 0 0 8px rgba(255,150,130,.85), 0 4px 8px #000; }
+  @keyframes gh-flash-pop {
+    0%   { opacity:0; transform:scale(.35) rotate(-7deg); }
+    14%  { opacity:1; transform:scale(1.22) rotate(-2deg); }
+    28%  { transform:scale(.96) rotate(0deg); }
+    40%  { transform:scale(1.02); }
+    72%  { opacity:1; transform:scale(1); }
+    100% { opacity:0; transform:scale(1.08); }
+  }
   #gh-eq-inner {
     width:100%; height:100%;
     display:flex; flex-direction:column; gap:1.4%;
