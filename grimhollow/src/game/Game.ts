@@ -556,6 +556,8 @@ type Target =
   | { kind: "talk"; name: string; lines: string[]; key: string }
   | { kind: "dungeon" }
   | { kind: "gate"; key: string }
+  | { kind: "lockgate" } // portão selado do santuário (não abre)
+  | { kind: "sanctuary" } // entrada do santuário (leva à sala-vitrine)
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
@@ -589,6 +591,8 @@ export class Game {
   private facing = 0;
   private anim: Anim = null;
   private showIdx = 0; // posição do jogador ao longo do caminho da sala-vitrine (hélice)
+  // p/ onde voltar ao SAIR da sala-vitrine (masmorra, se entrou pelo portal; senão vila)
+  private showcaseReturn: { loc: string; col: number; row: number; facing: number } | null = null;
 
   private world = new THREE.Group(); // tudo do local atual (recriado ao trocar)
   private blocked = new Set<string>(); // células bloqueadas por props/NPCs
@@ -2842,6 +2846,33 @@ export class Game {
       this.gates.set(`${gc},${gr}`, { pivotL, pivotR });
     }
 
+    // PORTÃO SELADO (não abre) — esconde a ENTRADA DO SANTUÁRIO. O jogador vê o
+    // portal brilhando através da grade, mas NÃO consegue passar (por enquanto).
+    const lg = dungeonAll("L")[0];
+    if (lg) {
+      const ldc = -1, ldr = 0; // o jogador chega pelo oeste
+      this.addArchWall(lg.col, lg.row, ldc, ldr, rockMat, HOLE_HW, HOLE_BASE, CH);
+      this.addWallDecal(lg.col, lg.row, ldc, ldr, frameMat, CELL, GATE_H, GATE_H / 2);
+      this.addWallDecal(lg.col, lg.row, ldc, ldr, barsMat, CELL, GATE_H, GATE_H / 2); // grade FIXA
+      this.glowLight(lg.col * CELL + ldc * 0.4, 2.4, lg.row * CELL, 0xffb45a, 3.0, 8);
+      this.blocked.add(`${lg.col},${lg.row}`); // SELADO — nunca abre
+    }
+    // PORTAL DO SANTUÁRIO (atrás do portão): arco escuro com brilho místico
+    const sanc = dungeonAll("A")[0];
+    if (sanc) {
+      const scx = sanc.col * CELL, scz = sanc.row * CELL;
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.22, 8, 20, Math.PI), rockMat);
+      arch.position.set(scx, 0.1, scz); arch.rotation.y = -Math.PI / 2; this.world.add(arch);
+      const glow = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.2, 3.0),
+        new THREE.MeshBasicMaterial({ color: 0x86a8ff, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
+      );
+      glow.position.set(scx + 0.15, 1.7, scz); glow.rotation.y = Math.PI / 2; this.world.add(glow);
+      const pl = new THREE.PointLight(0x9fc0ff, 3.4, 11, 2);
+      pl.position.set(scx - 0.6, 1.9, scz); this.world.add(pl);
+      this.flames.push({ light: pl, base: 3.4 }); // pulsa suavemente como as tochas
+    }
+
     // escada de saída (U): um facho de luz frio marcando o caminho de volta
     const up = dungeonFind("U");
     const beam = new THREE.PointLight(0xbfe0ff, 3.2, 13, 2);
@@ -4007,8 +4038,14 @@ export class Game {
   }
 
   private exitShowcase() {
-    const rt = this.returnTo;
-    this.enterLocation("village", rt.col, rt.row, rt.facing);
+    const sr = this.showcaseReturn;
+    if (sr) { // entrou pelo portal da masmorra → volta pra lá
+      this.showcaseReturn = null;
+      this.enterLocation(sr.loc as Parameters<typeof this.enterLocation>[0], sr.col, sr.row, sr.facing);
+    } else {
+      const rt = this.returnTo;
+      this.enterLocation("village", rt.col, rt.row, rt.facing);
+    }
   }
 
   // ---- minimapa (HUD) ----
@@ -4072,6 +4109,18 @@ export class Game {
       this.enterLocation("dungeon", p.col, p.row, 0);
     } else if (t.kind === "gate") {
       this.openGate(t.key);
+    } else if (t.kind === "lockgate") {
+      // portão SELADO — não abre; mostra uma mensagem
+      const pages = paginate([
+        "Um portão de ferro antigo, coberto de selos.",
+        "Uma força além da tua o mantém trancado. Ainda não há como passar...",
+      ]);
+      this.dialogue = { name: "Portão Selado", lines: pages, idx: 0, portrait: null };
+      this.ui.showDialogue("Portão Selado", pages[0], null);
+    } else if (t.kind === "sanctuary") {
+      // entra no SANTUÁRIO (sala-vitrine); guarda o retorno p/ a masmorra
+      this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
+      this.enterLocation("showcase", 0, 0, 0);
     } else if (t.kind === "toforest") {
       // ao voltar, o jogador olha p/ dentro do vilarejo (oposto à trilha)
       this.returnTo = {
@@ -5275,6 +5324,8 @@ export class Game {
       else if (t.kind === "toforest") text = "Ir para a Floresta";
       else if (t.kind === "tovillage") text = "Voltar ao Vilarejo";
       else if (t.kind === "sign") text = "Ler a placa";
+      else if (t.kind === "lockgate") text = "Portão selado";
+      else if (t.kind === "sanctuary") text = "Entrar no Santuário";
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
@@ -5319,6 +5370,11 @@ export class Game {
       // portão de grade fechado logo à frente → interagir p/ abrir
       const gk = `${fc},${fr}`;
       if (this.gates.has(gk)) return { kind: "gate", key: gk };
+      // portão SELADO do santuário logo à frente → não abre (mensagem)
+      if (dungeonCell(fc, fr) === "lockgate") return { kind: "lockgate" };
+      // portal do santuário (de frente ou em cima dele) → entra na sala-vitrine
+      if (dungeonCell(fc, fr) === "sanctuary" || dungeonCell(this.col, this.row) === "sanctuary")
+        return { kind: "sanctuary" };
     } else if (this.location === "showcase") {
       // na base da hélice, interagir sai da sala-vitrine (volta de onde veio)
       if (this.showIdx === 0) return { kind: "exit" };
