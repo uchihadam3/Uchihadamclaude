@@ -4619,8 +4619,10 @@ export class Game {
         const kind = e.kind === "store" ? "store" : e.kind === "tavern" ? "tavern" : e.kind === "alchemist" ? "alchemist" : "smith";
         pois.push({ c: e.c + e.dc, r: e.r + e.dr, kind, label: cap(ESTAB[e.kind].name) });
       }
-      // casas comuns: só o ícone, SEM rótulo "Casa" (evita poluição no mapa)
-      for (const h of HOME_DOORS) pois.push({ c: h.c + h.dc, r: h.r + h.dr, kind: "home", label: "" });
+      // casas comuns: só o ícone, SEM rótulo "Casa" (evita poluição no mapa).
+      // A casa da Hedda guarda o BAÚ — vira um marcador de baú p/ o jogador achar.
+      for (const h of HOME_DOORS)
+        pois.push({ c: h.c + h.dc, r: h.r + h.dr, kind: h.id === "hedda" ? "chest" : "home", label: h.id === "hedda" ? "Baú" : "" });
       pois.push({ c: WELL.c, r: WELL.r, kind: "well", label: "Poço" });
       // saídas: masmorra (escada) e floresta (trilha)
       for (let r = 0; r < ROWS; r++)
@@ -4656,6 +4658,8 @@ export class Game {
         ? ESTAB[this.location].npc.split(/[ ,]/)[0] : "Morador";
       pois.push({ c: n.col, r: n.row, kind: "npc", label: who });
       pois.push({ c: x.col, r: x.row, kind: "exit", label: "Sair" });
+      // o baú da Hedda aparece no mapa do interior dela
+      if (this.stashCell) pois.push({ c: this.stashCell.col, r: this.stashCell.row, kind: "chest", label: "Baú" });
     }
     return pois;
   }

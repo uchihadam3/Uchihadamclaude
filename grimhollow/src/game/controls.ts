@@ -44,6 +44,8 @@ import mmPortal from "../assets/ui/minimap/mm_portal.png";
 import mmSanctuary from "../assets/ui/minimap/mm_sanctuary.png";
 import mmStatue from "../assets/ui/minimap/mm_statue.png";
 import mmSign from "../assets/ui/minimap/mm_sign.png";
+import mmChest from "../assets/ui/minimap/mm_chest.png";
+import mmStair from "../assets/ui/minimap/mm_stair.png";
 
 // ---- FORJA: efeitos sonoros (arquivos enviados pelo jogador) ----------------
 // Registrados no canal SFX do gerenciador de áudio (o volume efetivo respeita a
@@ -265,7 +267,7 @@ export interface TavernData {
 export type MiniPoiKind =
   | "smith" | "tavern" | "store" | "alchemist" | "npc"
   | "dungeon" | "forest" | "exit" | "home" | "well"
-  | "stair" | "gate" | "sanctuary" | "sign" | "portal" | "statue";
+  | "stair" | "gate" | "sanctuary" | "sign" | "portal" | "statue" | "chest";
 export interface MiniPoi { c: number; r: number; kind: MiniPoiKind; label: string; }
 
 export interface MinimapState {
@@ -284,7 +286,8 @@ export interface MinimapState {
 const POI_SRC: Record<MiniPoiKind, string> = {
   smith: mmSmith, tavern: mmTavern, store: mmStore, alchemist: mmAlchemist, npc: mmNpc,
   dungeon: mmEntrance, forest: mmForest, exit: mmExit, home: mmHome, well: mmWell,
-  stair: mmExit, gate: mmGate, sanctuary: mmSanctuary, sign: mmSign, portal: mmPortal, statue: mmStatue,
+  stair: mmStair, gate: mmGate, sanctuary: mmSanctuary, sign: mmSign, portal: mmPortal, statue: mmStatue,
+  chest: mmChest,
 };
 // pré-carrega os medalhões (uma vez) p/ desenhar no canvas
 const POI_IMG: Partial<Record<MiniPoiKind, HTMLImageElement>> = {};
@@ -295,9 +298,10 @@ const POI_COLOR: Record<MiniPoiKind, string> = {
   smith: "#ff9a4d", tavern: "#ffcf5a", store: "#6fd3ff", alchemist: "#b98cff", npc: "#8fe07a",
   dungeon: "#ff6b5a", forest: "#7fd06a", exit: "#ffd964", home: "#d8b06a", well: "#6fb8ff",
   stair: "#ffd964", gate: "#ff8a5a", sanctuary: "#c79bff", sign: "#e8dcc0", portal: "#8fb8ff", statue: "#f0e2b8",
+  chest: "#e6b45a",
 };
 // marcadores que "pulsam" (interativos: valem uma visita)
-const POI_PULSE = new Set<MiniPoiKind>(["smith", "tavern", "store", "alchemist", "dungeon", "forest", "exit", "gate", "sanctuary", "npc", "portal", "statue", "stair"]);
+const POI_PULSE = new Set<MiniPoiKind>(["smith", "tavern", "store", "alchemist", "dungeon", "forest", "exit", "gate", "sanctuary", "npc", "portal", "statue", "stair", "chest"]);
 // marcadores "menores" (secundários): NPCs e casas comuns
 const miniMinor = (k: MiniPoiKind) => k === "npc" || k === "home";
 
@@ -490,9 +494,11 @@ export function setupControls(
     poi: MiniPoi, phase: number, withLabel: boolean,
   ) => {
     const col = POI_COLOR[poi.kind] ?? "#e8dcc0";
-    // medalhão (arte própria). Se ainda não carregou, cai num disco simples.
+    // ícone discreto (arte própria, sem medalhão). Se ainda não carregou, cai
+    // num disco simples. Um pouco maior que o medalhão antigo p/ compensar o
+    // recorte transparente ao redor e ganhar legibilidade no minimapa.
     const img = POI_IMG[poi.kind];
-    const d = size * 1.16;
+    const d = size * 1.42;
     if (img && img.complete && img.naturalWidth > 0) {
       ctx.save();
       ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = size * 0.18; ctx.shadowOffsetY = size * 0.04;
