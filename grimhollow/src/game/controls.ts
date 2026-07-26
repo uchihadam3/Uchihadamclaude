@@ -183,6 +183,9 @@ export interface HUD {
   // TAVERNA: abre/atualiza a janela de descanso + bebidas + missões (ou fecha)
   openTavern(data: TavernData): void;
   closeTavern(): void;
+  // BAÚ: abre/atualiza a janela de guardar/retirar (ou fecha)
+  openStash(data: StashData): void;
+  closeStash(): void;
 }
 
 // item da barra de ação (habilidade ativa aprendida)
@@ -225,6 +228,13 @@ export interface StoreData {
   title?: string; // nome do vendedor no cabeçalho (padrão: Mercador)
   subtitle?: string; // subtítulo/estabelecimento (padrão: O Empório de Rosa)
   portraitUrl?: string; // retrato do vendedor (padrão: mercadora)
+}
+
+// ---- BAÚ / ARMAZÉM (guardar/retirar itens, materiais, armas e ouro) ----
+export interface StashData {
+  mode: "deposit" | "withdraw";     // guardar (mochila→baú) / retirar (baú→mochila)
+  goods: StoreGood[];               // reusa o shape de bem (price é ignorado)
+  title?: string; subtitle?: string; portraitUrl?: string;
 }
 
 // ---- BANDEJA DE CONSUMÍVEIS (usar item no HUD) ----
@@ -302,6 +312,8 @@ export function setupControls(
   onSmithUpgrade?: () => SmithUpgradeResult | null, // aprimora; devolve sucesso + novo estado
   onStoreMode?: (mode: "buy" | "sell") => void, // trocou aba comprar/vender no mercador
   onStoreTrade?: (id: string, qty: number) => StoreData, // confirmou compra/venda; devolve novo estado
+  onStashMode?: (mode: "deposit" | "withdraw") => void, // trocou aba guardar/retirar no baú
+  onStashMove?: (id: string, qty: number) => StashData, // confirmou guardar/retirar; devolve novo estado
   onUseItem?: (id: string) => void, // usou um consumível na bandeja do HUD
   onBuyDrink?: (id: string) => TavernData | null, // comprou bebida; devolve novo estado
   onQuest?: (id: string, action: "accept" | "turnin") => TavernData | null, // missão
@@ -1147,6 +1159,87 @@ export function setupControls(
     });
   };
 
+  // ---- BAÚ / ARMAZÉM: mesma linguagem visual da loja (classes gh-st-*), mas sem
+  // custo — só move itens entre a mochila e o baú (guardar/retirar) ----
+  const stash = document.createElement("div");
+  stash.id = "gh-stash";
+  stash.className = "gh-eq-hidden";
+  stash.innerHTML = '<div id="gh-stash-win"><button id="gh-stash-close" title="Fechar">✕</button><div id="gh-stash-body"></div><div id="gh-stash-qty" class="gh-st-qty-hidden"></div></div>';
+  root.appendChild(stash);
+  const stashBody = stash.querySelector("#gh-stash-body") as HTMLElement;
+  const stashQtyEl = stash.querySelector("#gh-stash-qty") as HTMLElement;
+  (stash.querySelector("#gh-stash-close") as HTMLElement).addEventListener("click", (e) => {
+    e.preventDefault(); stash.classList.add("gh-eq-hidden");
+  });
+  let stashMode: "deposit" | "withdraw" = "deposit";
+  let stashQty: { g: StoreGood; qty: number; max: number } | null = null;
+  const stashIcon = (g: StoreGood) => g.id === "gold"
+    ? `<img class="gh-item-ico" src="${coinUrl}"/>` : goodIcon(g);
+  const renderStashQty = () => {
+    if (!stashQty) return;
+    const { g, qty, max } = stashQty;
+    const verb = stashMode === "deposit" ? "GUARDAR" : "RETIRAR";
+    stashQtyEl.innerHTML =
+      '<div class="gh-st-qbox">' +
+      `<div class="gh-st-qtop"><div class="gh-slot gh-st-qico">${stashIcon(g)}</div>` +
+      `<div class="gh-st-qinfo"><div class="gh-st-qn">${g.name}</div>` +
+      `<div class="gh-st-qh">${g.single ? "CONFIRMAR" : `QUANTO DESEJA ${verb}?`}</div></div></div>` +
+      (g.single ? "" :
+        '<div class="gh-st-stepper"><button class="gh-st-step" data-d="-1">−</button>' +
+        `<span class="gh-st-qnum">${qty}</span>` +
+        '<button class="gh-st-step" data-d="1">＋</button></div>' +
+        `<button class="gh-st-max">MÁX (${max})</button>`) +
+      '<div class="gh-st-qbtns"><button class="gh-st-qbtn gh-st-cancel">CANCELAR</button>' +
+      `<button class="gh-st-qbtn gh-st-ok">${verb}</button></div></div>`;
+    stashQtyEl.querySelectorAll<HTMLElement>(".gh-st-step").forEach((b) => {
+      b.onclick = () => { stashQty!.qty = Math.min(max, Math.max(1, stashQty!.qty + Number(b.dataset.d))); renderStashQty(); };
+    });
+    const mx = stashQtyEl.querySelector<HTMLElement>(".gh-st-max");
+    if (mx) mx.onclick = () => { stashQty!.qty = max; renderStashQty(); };
+    (stashQtyEl.querySelector(".gh-st-cancel") as HTMLElement).onclick = () => { stashQtyEl.classList.add("gh-st-qty-hidden"); stashQty = null; };
+    (stashQtyEl.querySelector(".gh-st-ok") as HTMLElement).onclick = () => {
+      const gid = stashQty!.g.id, q = stashQty!.qty;
+      stashQtyEl.classList.add("gh-st-qty-hidden"); stashQty = null;
+      const data = onStashMove?.(gid, q);
+      if (data) renderStash(data);
+    };
+  };
+  const openStashQtyBox = (g: StoreGood) => {
+    const max = g.single ? 1 : g.have;
+    if (max < 1) return;
+    stashQty = { g, qty: 1, max };
+    stashQtyEl.classList.remove("gh-st-qty-hidden");
+    renderStashQty();
+  };
+  const renderStash = (d: StashData) => {
+    stashMode = d.mode;
+    const cells = d.goods.length
+      ? d.goods.map((g) => {
+          const isGold = g.id === "gold";
+          const badge = (!g.single && !isGold && g.have > 0) ? `<span class="gh-count gh-st-cnt">${g.have}</span>` : "";
+          const sub = isGold ? `<div class="gh-st-gprice"><img src="${coinUrl}" alt=""/>${g.have}</div>` : "";
+          return `<div class="gh-st-good" data-gid="${g.id}"><div class="gh-slot gh-st-gslot">${stashIcon(g)}${badge}</div>` +
+            `<div class="gh-st-gname">${g.name}</div>${sub}</div>`;
+        }).join("")
+      : `<div class="gh-st-empty">${d.mode === "deposit" ? "Nada para guardar." : "O baú está vazio."}</div>`;
+    stashBody.innerHTML =
+      `<div class="gh-eq-title gh-st-title"><img class="gh-st-portr" src="${d.portraitUrl ?? mercadoraUrl}" alt=""/>` +
+      `<span class="gh-st-tt">${d.title ?? "Baú"}<small>${d.subtitle ?? ""}</small></span></div>` +
+      '<div class="gh-st-tabs">' +
+      `<button class="gh-st-tab${d.mode === "deposit" ? " gh-st-on" : ""}" data-mode="deposit">GUARDAR</button>` +
+      `<button class="gh-st-tab${d.mode === "withdraw" ? " gh-st-on" : ""}" data-mode="withdraw">RETIRAR</button></div>` +
+      '<div class="gh-section gh-st-sec"><div class="gh-sec-head">' +
+      (d.mode === "deposit" ? "SUA MOCHILA — toque para guardar" : "NO BAÚ — toque para retirar") +
+      `</div><div class="gh-st-shop">${cells}</div></div>`;
+    stashBody.querySelectorAll<HTMLElement>(".gh-st-tab").forEach((b) => {
+      b.onclick = () => { if (b.dataset.mode !== stashMode) onStashMode?.(b.dataset.mode as "deposit" | "withdraw"); };
+    });
+    stashBody.querySelectorAll<HTMLElement>(".gh-st-good").forEach((el) => {
+      const g = d.goods.find((x) => x.id === el.dataset.gid);
+      if (g) el.onclick = () => openStashQtyBox(g);
+    });
+  };
+
   // ---- BANDEJA DE CONSUMÍVEIS (usar item) — canto inf. esquerdo, acima do dpad ----
   const tray = document.createElement("div");
   tray.id = "gh-tray";
@@ -1750,6 +1843,14 @@ export function setupControls(
     closeStore() {
       st.classList.add("gh-eq-hidden");
     },
+    openStash(data: StashData) {
+      stashQtyEl.classList.add("gh-st-qty-hidden");
+      renderStash(data);
+      stash.classList.remove("gh-eq-hidden");
+    },
+    closeStash() {
+      stash.classList.add("gh-eq-hidden");
+    },
     playSfx(name) {
       const a = SFX[name];
       if (a) playClone(a);
@@ -2313,6 +2414,17 @@ function injectStyle() {
   #gh-st-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
     font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
   #gh-st-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.6%; color:#e8dcc0; overflow:hidden; }
+  /* BAÚ: reaproveita todo o interior gh-st-*; só os ids externos são próprios */
+  #gh-stash { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
+  #gh-stash.gh-eq-hidden { display:none; }
+  #gh-stash-win { position:relative; box-sizing:border-box; width:min(60vh,460px); height:min(94vh,820px);
+    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
+  @media (max-width:640px){ #gh-stash-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
+  #gh-stash-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
+    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
+  #gh-stash-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.6%; color:#e8dcc0; overflow:hidden; }
+  #gh-stash-qty { position:absolute; inset:0; z-index:8; display:flex; align-items:center; justify-content:center; background:rgba(6,4,2,.72); }
+  #gh-stash-qty.gh-st-qty-hidden { display:none; }
   .gh-st-title { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding:0 46px 0 2px; }
   .gh-st-portr { width:clamp(38px,6vh,50px); height:clamp(38px,6vh,50px); border-radius:9px; border:2px solid rgba(201,162,39,.6);
     background:#1a130c; object-fit:cover; object-position:50% 20%; box-shadow:inset 0 0 10px #000; flex:0 0 auto; }

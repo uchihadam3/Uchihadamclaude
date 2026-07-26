@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -628,6 +628,7 @@ type Target =
   | { kind: "storeshop" } // mercador (abre a janela de comprar/vender)
   | { kind: "alchshop" } // alquimista (loja de poções + materiais de forja)
   | { kind: "tavernshop" } // taverna (descanso + bebidas + missões)
+  | { kind: "stash" } // baú da Hedda (guardar/retirar)
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
@@ -724,6 +725,11 @@ export class Game {
   };
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
+  // BAÚ da Hedda: pertences guardados (bens empilháveis, armas c/ reforço, ouro)
+  private stash: { goods: Record<string, number>; weapons: string[]; reinforce: Record<string, number>; gold: number } =
+    { goods: {}, weapons: [], reinforce: {}, gold: 0 };
+  private stashMode: "deposit" | "withdraw" = "deposit";
+  private stashCell: { col: number; row: number } | null = null; // célula do baú (só na casa da Hedda)
   private static readonly SELL_RATE = 0.5; // mercador paga metade do preço de compra
   // quanto o jogador TEM de um bem empilhável (roteia p/ materiais ou consumíveis)
   private goodHave(id: string): number {
@@ -944,6 +950,8 @@ export class Game {
       () => this.smithUpgrade(), // apertou "Aprimorar"
       (mode) => this.setStoreMode(mode), // trocou aba comprar/vender
       (id, qty) => this.storeTrade(id, qty), // confirmou compra/venda
+      (mode) => this.setStashMode(mode), // trocou aba guardar/retirar no baú
+      (id, qty) => this.stashMove(id, qty), // confirmou guardar/retirar
       (id) => this.useConsumable(id), // usou um consumível na bandeja do HUD
       (id) => this.tavernBuyDrink(id), // comprou uma bebida
       (id, action) => this.tavernQuest(id, action), // aceitou/entregou missão
@@ -1012,6 +1020,7 @@ export class Game {
     this.location = loc;
     this.outdoor = loc === "village" || loc === "forest";
     this.dialogue = null;
+    this.stashCell = null; // só a casa da Hedda define o baú (em buildHome)
     this.ui.hideDialogue();
     if (loc === "village") {
       this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 2.6, CELL * 11);
@@ -1691,6 +1700,60 @@ export class Game {
     }
     this.refreshConsumables(); // compra/venda pode mexer nos consumíveis do HUD
     return this.buildStoreData();
+  }
+
+  // ---- BAÚ / ARMAZÉM (guardar/retirar) ----
+  private static readonly STASH_STACK = ["pot_hp", "pot_mp", "beer", "scroll_return", "madeira", "minerio", "reforco"];
+  private buildStashData(): StashData {
+    const dep = this.stashMode === "deposit";
+    const goods: StoreGood[] = [];
+    // OURO (item especial id "gold")
+    goods.push({ id: "gold", name: "Ouro", icon: "🪙", price: 0, desc: "", have: dep ? this.stats.gold : this.stash.gold });
+    // consumíveis + materiais
+    for (const id of Game.STASH_STACK) {
+      const have = dep ? this.goodHave(id) : (this.stash.goods[id] ?? 0);
+      if (have > 0) { const m = GOODS_BY_ID[id]; goods.push({ id, name: m.name, icon: m.icon, iconUrl: m.iconUrl, price: 0, desc: "", have }); }
+    }
+    // armas (na deposição, menos a equipada)
+    const list = dep ? this.ownedWeapons : this.stash.weapons;
+    for (const wid of list) {
+      if (dep && this.currentWeapon?.id === wid) continue;
+      const w = WEAPON_BY_ID[wid]; if (!w) continue;
+      const lvl = (dep ? this.reinforce[wid] : this.stash.reinforce[wid]) ?? 0;
+      goods.push({ id: "w:" + wid, name: w.name + (lvl ? ` +${lvl}` : ""), iconUrl: w.url, price: 0, desc: "arma", have: 1, single: true });
+    }
+    return { mode: this.stashMode, goods, title: "Baú de Hedda", subtitle: "SEUS PERTENCES GUARDADOS", portraitUrl: heddaUrl };
+  }
+  private setStashMode(mode: "deposit" | "withdraw"): void {
+    this.stashMode = mode;
+    this.ui.openStash(this.buildStashData());
+  }
+  // move `qty` do item `id` entre mochila e baú, no modo atual
+  private stashMove(id: string, qty: number): StashData {
+    qty = Math.max(1, Math.floor(qty));
+    const dep = this.stashMode === "deposit";
+    if (id === "gold") {
+      qty = Math.min(qty, dep ? this.stats.gold : this.stash.gold);
+      if (qty > 0) { if (dep) { this.stats.gold -= qty; this.stash.gold += qty; } else { this.stash.gold -= qty; this.stats.gold += qty; } this.refreshStats(); }
+    } else if (id.startsWith("w:")) {
+      const wid = id.slice(2);
+      if (dep) {
+        if (this.currentWeapon?.id === wid) { this.ui.toast("Não dá para guardar a arma equipada."); }
+        else {
+          const i = this.ownedWeapons.indexOf(wid);
+          if (i >= 0) { this.ownedWeapons.splice(i, 1); this.stash.weapons.push(wid); this.stash.reinforce[wid] = this.reinforce[wid] ?? 0; delete this.reinforce[wid]; this.ui.setInventory(this.ownedWeapons); }
+        }
+      } else {
+        const i = this.stash.weapons.indexOf(wid);
+        if (i >= 0) { this.stash.weapons.splice(i, 1); this.ownedWeapons.push(wid); this.reinforce[wid] = this.stash.reinforce[wid] ?? 0; delete this.stash.reinforce[wid]; this.ui.setInventory(this.ownedWeapons); }
+      }
+    } else {
+      // bem empilhável
+      if (dep) { qty = Math.min(qty, this.goodHave(id)); if (qty > 0) { this.goodAdd(id, -qty); this.stash.goods[id] = (this.stash.goods[id] ?? 0) + qty; } }
+      else { qty = Math.min(qty, this.stash.goods[id] ?? 0); if (qty > 0) { this.stash.goods[id] -= qty; this.goodAdd(id, qty); } }
+      this.refreshConsumables();
+    }
+    return this.buildStashData();
   }
 
   // ---- TAVERNA (bebidas + missões) ----
@@ -4660,6 +4723,10 @@ export class Game {
     } else if (t.kind === "tavernshop") {
       // TAVERNA: descanso pago + bebidas + mural de missões
       this.ui.openTavern(this.buildTavernData());
+    } else if (t.kind === "stash") {
+      // BAÚ DE HEDDA: guarda/retira itens, materiais, armas e ouro
+      this.stashMode = "deposit";
+      this.ui.openStash(this.buildStashData());
     } else if (t.kind === "toforest") {
       // ao voltar, o jogador olha p/ dentro do vilarejo (oposto à trilha)
       this.returnTo = {
@@ -4839,6 +4906,20 @@ export class Game {
     const lamp = new THREE.PointLight(0xffe0a8, 5.5, 30, 2);
     lamp.position.set(3 * CELL, CEIL - 0.4, 3 * CELL);
     this.world.add(lamp);
+
+    // BAÚ da Hedda: só na casa dela (parede leste, célula 5,5). Guarda pertences.
+    if (id === "hedda") {
+      this.stashCell = { col: 5, row: 5 };
+      this.blocked.add("5,5");
+      const iron = new THREE.MeshLambertMaterial({ color: 0x2e2620 });
+      this.wallCell(5, 5, [1, 0], (x, z) => {
+        this.box(x, 0.34, z, 0.55, 0.58, 0.95, woodDk);        // corpo
+        this.box(x, 0.68, z, 0.6, 0.16, 1.0, wood);            // tampa
+        this.box(x, 0.5, z, 0.6, 0.66, 0.12, iron);            // faixa de ferro central
+        this.box(x + 0.28, 0.5, z, 0.06, 0.66, 1.02, iron);    // cantoneira frontal
+        this.glowLight(x + 0.9, 0.9, z, 0xffcf8a, 1.6, 6);     // leve destaque
+      });
+    }
 
     // moradores
     for (const m of HOMES[id].residents)
@@ -5881,6 +5962,7 @@ export class Game {
       else if (t.kind === "storeshop") text = "Mercador — Comprar / Vender";
       else if (t.kind === "alchshop") text = "Alquimista — Poções & Materiais";
       else if (t.kind === "tavernshop") text = "Taverna — Bruno, o Taverneiro";
+      else if (t.kind === "stash") text = "Abrir o baú";
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
@@ -5893,6 +5975,9 @@ export class Game {
     const [dc, dr] = DIRS[this.facing];
     const fc = this.col + dc;
     const fr = this.row + dr;
+    // BAÚ da Hedda logo à frente (célula do baú, dentro da casa dela)
+    if (this.stashCell && fc === this.stashCell.col && fr === this.stashCell.row)
+      return { kind: "stash" };
     // NPC logo à frente
     const npc = this.npcMap.get(`${fc},${fr}`);
     // no interior do FERREIRO, falar com o atendente abre a janela de aprimoramento
