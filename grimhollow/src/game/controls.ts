@@ -175,6 +175,9 @@ export interface HUD {
   closeStore(): void;
   // toca um efeito sonoro de combate (canal Efeitos)
   playSfx(name: "swing" | "hit" | "hurt" | "cast"): void;
+  // transição de porta: escurece a tela (a promise resolve no preto total) / clareia
+  fadeOut(ms: number): Promise<void>;
+  fadeIn(ms: number): void;
   // bandeja de consumíveis do HUD (poção/cerveja) — toque usa o item
   setConsumables(items: ConsumSlot[]): void;
   // TAVERNA: abre/atualiza a janela de descanso + bebidas + missões (ou fecha)
@@ -1030,6 +1033,22 @@ export function setupControls(
   dmgFx.id = "gh-dmg";
   root.appendChild(dmgFx);
 
+  // véu preto de TRANSIÇÃO de porta (fade in/out ao atravessar)
+  const fadeEl = document.createElement("div");
+  fadeEl.id = "gh-fade";
+  root.appendChild(fadeEl);
+  const fadeOut = (ms: number): Promise<void> => new Promise((resolve) => {
+    fadeEl.style.pointerEvents = "auto";
+    fadeEl.style.opacity = "1"; // estado final (fica preto)
+    fadeEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: "ease-in", fill: "forwards" });
+    window.setTimeout(resolve, ms);
+  });
+  const fadeIn = (ms: number): void => {
+    fadeEl.style.opacity = "0"; // estado final (transparente)
+    fadeEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: "ease-out", fill: "forwards" });
+    window.setTimeout(() => { fadeEl.style.pointerEvents = "none"; }, ms);
+  };
+
   // toast (mensagem flutuante — ex.: subir de nível)
   const toastEl = document.createElement("div");
   toastEl.id = "gh-toast";
@@ -1735,6 +1754,8 @@ export function setupControls(
       const a = SFX[name];
       if (a) playClone(a);
     },
+    fadeOut(ms) { return fadeOut(ms); },
+    fadeIn(ms) { fadeIn(ms); },
     setConsumables(items: ConsumSlot[]) {
       renderTray(items);
     },
@@ -2612,6 +2633,9 @@ function injectStyle() {
     position:fixed; inset:0; z-index:9; pointer-events:none; opacity:0;
     box-shadow:inset 0 0 120px 30px rgba(180,10,10,.85);
     background:radial-gradient(ellipse at center, rgba(150,0,0,0) 45%, rgba(150,0,0,.4) 100%);
+  }
+  #gh-fade {
+    position:fixed; inset:0; z-index:40; pointer-events:none; opacity:0; background:#000;
   }
   @keyframes gh-dmg {
     0% { opacity:0; } 18% { opacity:1; } 100% { opacity:0; }

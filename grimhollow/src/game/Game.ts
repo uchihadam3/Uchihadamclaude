@@ -958,6 +958,16 @@ export class Game {
     (window as unknown as { __game?: Game }).__game = this; // DEBUG: acesso p/ teste
   }
 
+  // TRANSIÇÃO DE PORTA: fade preto rápido → constrói o novo cenário no escuro
+  // (esconde o "pop-in" do PNG dos NPCs) → clareia. Simula atravessar a porta.
+  private async doorTransition(build: () => void) {
+    await this.ui.fadeOut(150);
+    build();
+    // segura o preto um instante p/ a arte do NPC carregar antes de aparecer
+    await new Promise<void>((r) => window.setTimeout(r, 150));
+    this.ui.fadeIn(260);
+  }
+
   // ---------------------------------------------- troca de local (vila/interior)
   private enterLocation(
     loc: "village" | "forest" | "dungeon" | "showcase" | Estab | HomeId,
@@ -4533,7 +4543,7 @@ export class Game {
         facing: (this.facing + 2) % 4,
       };
       const p = roomFind("P");
-      this.enterLocation(t.estab, p.col, p.row, 0);
+      void this.doorTransition(() => this.enterLocation(t.estab, p.col, p.row, 0));
     } else if (t.kind === "enterhome") {
       this.returnTo = {
         col: this.col,
@@ -4541,10 +4551,10 @@ export class Game {
         facing: (this.facing + 2) % 4,
       };
       const p = roomFind("P");
-      this.enterLocation(t.id, p.col, p.row, 0);
+      void this.doorTransition(() => this.enterLocation(t.id, p.col, p.row, 0));
     } else if (t.kind === "exit") {
       const { col, row, facing } = this.returnTo;
-      this.enterLocation("village", col, row, facing);
+      void this.doorTransition(() => this.enterLocation("village", col, row, facing));
     } else if (t.kind === "talk") {
       const pages = paginate(t.lines);
       const portrait = this.portraitFor(t.key); // gera o retrato só ao conversar
@@ -4657,18 +4667,19 @@ export class Game {
 
   // casca comum de qualquer interior (chão, teto, paredes, porta de saída).
   // floorSeed/wallSeed/ceilColor deixam a casa parecer diferente da loja.
-  private buildRoomShell(floorSeed = 9, wallSeed = 2, ceilColor = 0x4a3826) {
+  private buildRoomShell(floorSeed = 9, _wallSeed = 2, ceilColor = 0x4a3826) {
     const CEIL = 3.0;
+    // chão de madeira (aconchegante) + PAREDES DE PEDRA com tom quente (parede
+    // rebocada) — bem melhor que a madeira repetitiva de antes.
     const floorMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(floorSeed) });
     const wallMat = new THREE.MeshLambertMaterial({
-      map: tex.woodPlanks(wallSeed),
+      map: tex.stone(31),
+      color: 0xd8ccb0, // clareia/aquenta a pedra → aspecto de reboco
       side: THREE.DoubleSide,
     });
     const ceilMat = new THREE.MeshLambertMaterial({ color: ceilColor, side: THREE.DoubleSide });
-    const doorMat = new THREE.MeshLambertMaterial({
-      map: tex.door(11),
-      side: THREE.DoubleSide,
-    });
+    // porta de saída = MESMO PNG das portas externas (dec_door.png)
+    const doorMat = this.decalMat(decDoorUrl, 0.4);
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
 
     for (let r = 0; r < ROOM_ROWS; r++)
