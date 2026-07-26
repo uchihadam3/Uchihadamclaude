@@ -32,6 +32,12 @@ jobs:
         working-directory: grimhollow
         run: npm ci
 
+      - name: Render prompts page (best effort)
+        working-directory: grimhollow
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check markdown || true
+          python3 scripts/render_prompts.py || echo "render de prompts falhou; usando versão commitada"
+
       - name: Build
         working-directory: grimhollow
         run: npm run build
