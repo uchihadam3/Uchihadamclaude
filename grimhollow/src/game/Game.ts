@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type ConsumSlot } from "./controls";
 import {
   ROOM,
   ROOM_COLS,
@@ -302,6 +302,7 @@ interface Merch { id: string; name: string; icon: string; price: number; desc: s
 const GOODS: Merch[] = [
   { id: "pot_hp", name: "Poção de Vida", icon: "🧪", price: 25, desc: "restaura 40% da vida" },
   { id: "pot_mp", name: "Poção de Mana", icon: "🔵", price: 30, desc: "restaura 40% da mana" },
+  { id: "beer", name: "Cerveja do Javali", icon: "🍺", price: 12, desc: "regenera vida por 3 min" },
   { id: "scroll_return", name: "Pergaminho de Retorno", icon: "📜", price: 60, desc: "volta ao vilarejo" },
   { id: "madeira", name: "Madeira", icon: "🪵", price: 10, desc: "material de forja" },
   { id: "minerio", name: "Minério", icon: "🪨", price: 18, desc: "material de forja" },
@@ -584,6 +585,7 @@ type Target =
   | { kind: "smithshop" } // ferreiro (abre a janela de aprimoramento)
   | { kind: "storeshop" } // mercador (abre a janela de comprar/vender)
   | { kind: "alchshop" } // alquimista (loja de poções + materiais de forja)
+  | { kind: "tavernshop" } // taverna (descanso + bebidas + missões)
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
@@ -672,6 +674,12 @@ export class Game {
   // MERCADOR: consumíveis que o jogador possui, armas possuídas, modo da janela
   private consumables: Record<string, number> = {};
   private ownedWeapons: string[] = [];
+  // TAVERNA: estado das missões (piloto "ossos": matar N esqueletos na masmorra)
+  private quests: Record<string, { status: "available" | "active" | "ready" | "done"; progress: number }> = {
+    ossos: { status: "available", progress: 0 },
+  };
+  private static readonly QUEST_OSSOS_GOAL = 8;
+  private static readonly REST_COST = 20; // ouro p/ descansar (cura HP+MP)
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   private static readonly SELL_RATE = 0.5; // mercador paga metade do preço de compra
@@ -717,6 +725,7 @@ export class Game {
   private coolingSkills = new Set<string>(); // ids em recarga (tick atualiza a UI)
   // buff temporário ativo (multiplicador de dano / redução de dano recebido)
   private buff: { atkMul: number; defReduc: number; until: number } | null = null;
+  private hpRegenUntil = 0; // cerveja: regenera vida até este instante (ms)
   // retículo de mira (billboard que marca o alvo selecionado)
   private reticle: THREE.Mesh | null = null;
   private raycaster = new THREE.Raycaster();
@@ -885,6 +894,10 @@ export class Game {
       () => this.smithUpgrade(), // apertou "Aprimorar"
       (mode) => this.setStoreMode(mode), // trocou aba comprar/vender
       (id, qty) => this.storeTrade(id, qty), // confirmou compra/venda
+      (id) => this.useConsumable(id), // usou um consumível na bandeja do HUD
+      () => this.tavernRest(), // descansou na taverna
+      (id) => this.tavernBuyDrink(id), // comprou uma bebida
+      (id, action) => this.tavernQuest(id, action), // aceitou/entregou missão
     );
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
@@ -901,6 +914,7 @@ export class Game {
     // árvore de habilidades: classe + pontos = nível (1 ponto por nível).
     this.ui.setSkillInfo(this.classId, skillPointsFor(this.stats.level));
     this.refreshStats();
+    this.refreshConsumables(); // bandeja de itens do HUD (vazia no começo)
     this.preloadFx(); // pré-carrega as folhas de efeito das habilidades
     const start = findStart();
     if (this.startAt === "showcase") {
@@ -1584,7 +1598,118 @@ export class Game {
         }
       }
     }
+    this.refreshConsumables(); // compra/venda pode mexer nos consumíveis do HUD
     return this.buildStoreData();
+  }
+
+  // ---- TAVERNA (descanso pago + bebidas + missões) ----
+  private buildTavernData(): TavernData {
+    const beer = GOODS_BY_ID["beer"];
+    const needsRest = this.playerHp < this.playerMaxHp || this.playerMp < this.playerMaxMp;
+    return {
+      gold: this.stats.gold,
+      hp: Math.round(this.playerHp), maxHp: Math.round(this.playerMaxHp),
+      mp: Math.round(this.playerMp), maxMp: Math.round(this.playerMaxMp),
+      restCost: Game.REST_COST,
+      canRest: needsRest && this.stats.gold >= Game.REST_COST,
+      drink: { id: beer.id, name: beer.name, icon: beer.icon, price: beer.price, desc: beer.desc, have: this.goodHave(beer.id) },
+      quests: this.buildQuests(),
+    };
+  }
+  private buildQuests(): TavernQuest[] {
+    const q = this.quests.ossos;
+    const goal = Game.QUEST_OSSOS_GOAL;
+    return [{
+      id: "ossos",
+      icon: "💀",
+      title: "Ossos Inquietos",
+      desc: "Os mortos não descansam na masmorra. Elimine 8 esqueletos.",
+      reward: "120 ouro · 🍺 ×2",
+      status: q.status,
+      progress: (q.status === "active" || q.status === "ready")
+        ? `${Math.min(q.progress, goal)} / ${goal} esqueletos` : undefined,
+    }];
+  }
+  // paga ouro e recupera vida + mana por completo
+  private tavernRest(): TavernData {
+    if (this.playerHp >= this.playerMaxHp && this.playerMp >= this.playerMaxMp) {
+      this.ui.toast("Você já está em plena forma.");
+    } else if (this.stats.gold < Game.REST_COST) {
+      this.ui.toast("Ouro insuficiente para o quarto.");
+    } else {
+      this.stats.gold -= Game.REST_COST;
+      this.playerHp = this.playerMaxHp; this.playerMp = this.playerMaxMp;
+      this.ui.setHealth(1); this.ui.setMana(1); this.refreshStats();
+      this.ui.toast("Descansado! Vida e mana recuperadas.");
+    }
+    return this.buildTavernData();
+  }
+  private tavernBuyDrink(id: string): TavernData {
+    const m = GOODS_BY_ID[id];
+    if (m) {
+      if (this.stats.gold < m.price) this.ui.toast("Ouro insuficiente.");
+      else { this.stats.gold -= m.price; this.goodAdd(id, 1); this.refreshStats(); this.refreshConsumables(); this.ui.toast(`Comprou ${m.name}.`); }
+    }
+    return this.buildTavernData();
+  }
+  private tavernQuest(id: string, action: "accept" | "turnin"): TavernData {
+    const q = this.quests[id];
+    if (q) {
+      if (action === "accept" && q.status === "available") {
+        q.status = "active";
+        this.ui.toast("Missão aceita: Ossos Inquietos.");
+      } else if (action === "turnin" && q.status === "ready") {
+        q.status = "done";
+        this.stats.gold += 120; this.goodAdd("beer", 2);
+        this.refreshStats(); this.refreshConsumables();
+        this.ui.toast("Missão concluída! +120 ouro e 2 cervejas.");
+      }
+    }
+    return this.buildTavernData();
+  }
+  // conta um esqueleto abatido na masmorra p/ a missão ativa
+  private questOnKill() {
+    const q = this.quests.ossos;
+    if (!q || q.status !== "active" || this.location !== "dungeon") return;
+    q.progress++;
+    if (q.progress >= Game.QUEST_OSSOS_GOAL) {
+      q.status = "ready";
+      this.ui.toast("Ossos Inquietos concluída! Volte ao Bruno para a recompensa.");
+    } else {
+      this.ui.toast(`Ossos Inquietos: ${q.progress}/${Game.QUEST_OSSOS_GOAL} esqueletos`);
+    }
+  }
+
+  // ---- USAR ITEM (bandeja de consumíveis do HUD) ----
+  private consumableTray(): ConsumSlot[] {
+    const out: ConsumSlot[] = [];
+    for (const id of ["pot_hp", "pot_mp", "beer"]) {
+      const n = this.goodHave(id);
+      if (n > 0) { const m = GOODS_BY_ID[id]; out.push({ id, icon: m.icon, name: m.name, count: n }); }
+    }
+    return out;
+  }
+  private refreshConsumables() { this.ui.setConsumables(this.consumableTray()); }
+  private useConsumable(id: string) {
+    if (this.goodHave(id) <= 0) return;
+    if (id === "pot_hp") {
+      if (this.playerHp >= this.playerMaxHp) { this.ui.toast("Vida já está cheia."); return; }
+      const amt = Math.round(this.playerMaxHp * 0.4);
+      this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp); this.refreshStats();
+      this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${amt}`, "heal");
+    } else if (id === "pot_mp") {
+      if (this.playerMp >= this.playerMaxMp) { this.ui.toast("Mana já está cheia."); return; }
+      const amt = Math.round(this.playerMaxMp * 0.4);
+      this.playerMp = Math.min(this.playerMaxMp, this.playerMp + amt);
+      this.ui.setMana(this.playerMp / this.playerMaxMp);
+      this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.52, `+${amt}`, "mana");
+    } else if (id === "beer") {
+      this.hpRegenUntil = performance.now() + 180000; // 3 min de regeneração
+      this.ui.toast("Você bebe a cerveja — vida se regenera por 3 min!");
+    } else return;
+    this.goodAdd(id, -1);
+    this.refreshConsumables();
   }
 
   // aplica os bônus percentuais de dano das passivas sobre um ataque base
@@ -1700,6 +1825,7 @@ export class Game {
       this.stats.gold += gold;
       this.gainXp(30 + lv * 15);
       this.ui.toast(`+${gold} ouro`);
+      this.questOnKill(); // progresso da missão "Ossos Inquietos"
     }
   }
 
@@ -4432,6 +4558,9 @@ export class Game {
       this.shopVendor = "alchemist";
       this.storeMode = "buy";
       this.ui.openStore(this.buildStoreData());
+    } else if (t.kind === "tavernshop") {
+      // TAVERNA: descanso pago + bebidas + mural de missões
+      this.ui.openTavern(this.buildTavernData());
     } else if (t.kind === "toforest") {
       // ao voltar, o jogador olha p/ dentro do vilarejo (oposto à trilha)
       this.returnTo = {
@@ -5466,6 +5595,11 @@ export class Game {
       this.playerMp = Math.min(this.playerMaxMp, this.playerMp + this.playerMaxMp * 0.03 * dt + 1.5 * dt);
       this.ui.setMana(this.playerMp / this.playerMaxMp);
     }
+    // CERVEJA: regenera vida gradualmente enquanto o efeito durar (~3 min)
+    if (dt > 0 && now < this.hpRegenUntil && this.playerHp < this.playerMaxHp) {
+      this.playerHp = Math.min(this.playerMaxHp, this.playerHp + this.playerMaxHp * 0.012 * dt + 2 * dt);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+    }
     const nowBuff = !!this.buff && now < this.buff.until;
     if (this.buffActive && !nowBuff) {
       // buff acabou: reflete no ataque exibido
@@ -5646,6 +5780,7 @@ export class Game {
       else if (t.kind === "smithshop") text = "Ferreiro — Aprimorar";
       else if (t.kind === "storeshop") text = "Mercador — Comprar / Vender";
       else if (t.kind === "alchshop") text = "Alquimista — Poções & Materiais";
+      else if (t.kind === "tavernshop") text = "Taverna — Bruno, o Taverneiro";
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
@@ -5666,6 +5801,8 @@ export class Game {
     if (npc && this.location === "store") return { kind: "storeshop" };
     // na ALQUIMISTA, falar com a Isolde abre a loja de poções + materiais
     if (npc && this.location === "alchemist") return { kind: "alchshop" };
+    // na TAVERNA, falar com o Bruno abre descanso + bebidas + missões
+    if (npc && this.location === "tavern") return { kind: "tavernshop" };
     if (npc)
       return {
         kind: "talk",

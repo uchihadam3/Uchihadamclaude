@@ -12,6 +12,7 @@ import icoActionUrl from "../assets/ui/ico_action.png";
 import icoInventoryUrl from "../assets/ui/ico_inventory.png";
 import coinUrl from "../assets/ui/coin.png";
 import mercadoraUrl from "../assets/npc/mercadora.png";
+import taverneiroUrl from "../assets/npc/taverneiro.png";
 import loadSwordUrl from "../assets/ui/load_sword.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
@@ -150,6 +151,11 @@ export interface HUD {
   // MERCADOR: abre/atualiza a janela de comprar/vender (ou fecha)
   openStore(data: StoreData): void;
   closeStore(): void;
+  // bandeja de consumíveis do HUD (poção/cerveja) — toque usa o item
+  setConsumables(items: ConsumSlot[]): void;
+  // TAVERNA: abre/atualiza a janela de descanso + bebidas + missões (ou fecha)
+  openTavern(data: TavernData): void;
+  closeTavern(): void;
 }
 
 // item da barra de ação (habilidade ativa aprendida)
@@ -192,6 +198,28 @@ export interface StoreData {
   title?: string; // nome do vendedor no cabeçalho (padrão: Mercador)
   subtitle?: string; // subtítulo/estabelecimento (padrão: O Empório de Rosa)
   portraitUrl?: string; // retrato do vendedor (padrão: mercadora)
+}
+
+// ---- BANDEJA DE CONSUMÍVEIS (usar item no HUD) ----
+export interface ConsumSlot { id: string; icon: string; name: string; count: number; }
+
+// ---- TAVERNA (descanso + bebidas + missões) ----
+export interface TavernQuest {
+  id: string;
+  icon: string;
+  title: string;
+  desc: string;
+  reward: string; // texto da recompensa
+  status: "available" | "active" | "ready" | "done";
+  progress?: string; // ex.: "3 / 8 esqueletos" (quando ativa)
+}
+export interface TavernData {
+  gold: number;
+  hp: number; maxHp: number; mp: number; maxMp: number;
+  restCost: number;
+  canRest: boolean; // tem ouro e precisa descansar
+  drink: StoreGood; // a cerveja (reusa o shape de bem: id/name/icon/price/desc/have)
+  quests: TavernQuest[];
 }
 
 // marcadores no minimapa: lojas, NPCs, saídas, pontos de interesse
@@ -249,6 +277,10 @@ export function setupControls(
   onSmithUpgrade?: () => SmithUpgradeResult | null, // aprimora; devolve sucesso + novo estado
   onStoreMode?: (mode: "buy" | "sell") => void, // trocou aba comprar/vender no mercador
   onStoreTrade?: (id: string, qty: number) => StoreData, // confirmou compra/venda; devolve novo estado
+  onUseItem?: (id: string) => void, // usou um consumível na bandeja do HUD
+  onRest?: () => TavernData | null, // descansou na taverna; devolve novo estado
+  onBuyDrink?: (id: string) => TavernData | null, // comprou bebida; devolve novo estado
+  onQuest?: (id: string, action: "accept" | "turnin") => TavernData | null, // missão
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -1030,6 +1062,87 @@ export function setupControls(
     });
   };
 
+  // ---- BANDEJA DE CONSUMÍVEIS (usar item) — canto inf. esquerdo, acima do dpad ----
+  const tray = document.createElement("div");
+  tray.id = "gh-tray";
+  root.appendChild(tray);
+  const renderTray = (items: ConsumSlot[]) => {
+    if (!items.length) { tray.innerHTML = ""; tray.style.display = "none"; return; }
+    tray.style.display = "flex";
+    tray.innerHTML = items.map((it) =>
+      `<button class="gh-tray-slot" data-id="${it.id}" title="${it.name}">` +
+      `<span class="gh-tray-emo">${it.icon}</span>` +
+      `<span class="gh-tray-cnt">${it.count}</span></button>`,
+    ).join("");
+    tray.querySelectorAll<HTMLButtonElement>(".gh-tray-slot").forEach((b) => {
+      b.addEventListener("pointerdown", (e) => { e.preventDefault(); const id = b.dataset.id; if (id) onUseItem?.(id); });
+      b.addEventListener("contextmenu", (e) => e.preventDefault());
+    });
+  };
+  renderTray([]);
+
+  // ---- TAVERNA: janela de descanso + bebidas + missões ----
+  const tv = document.createElement("div");
+  tv.id = "gh-tv";
+  tv.className = "gh-eq-hidden";
+  tv.innerHTML = '<div id="gh-tv-win"><button id="gh-tv-close" title="Fechar">✕</button><div id="gh-tv-body"></div></div>';
+  root.appendChild(tv);
+  const tvBody = tv.querySelector("#gh-tv-body") as HTMLElement;
+  (tv.querySelector("#gh-tv-close") as HTMLElement).addEventListener("click", (e) => {
+    e.preventDefault(); tv.classList.add("gh-eq-hidden");
+  });
+  const questBtn = (q: TavernQuest): string => {
+    if (q.status === "available") return `<button class="gh-tv-qbtn" data-qid="${q.id}" data-act="accept">ACEITAR</button>`;
+    if (q.status === "ready") return `<button class="gh-tv-qbtn gh-tv-qready" data-qid="${q.id}" data-act="turnin">ENTREGAR</button>`;
+    if (q.status === "done") return `<span class="gh-tv-qtag gh-tv-done">CONCLUÍDA</span>`;
+    return `<span class="gh-tv-qtag gh-tv-inprog">EM ANDAMENTO</span>`; // active
+  };
+  const renderTavern = (d: TavernData) => {
+    const hpFrac = d.maxHp ? Math.max(0, Math.min(1, d.hp / d.maxHp)) : 0;
+    const mpFrac = d.maxMp ? Math.max(0, Math.min(1, d.mp / d.maxMp)) : 0;
+    const quests = d.quests.map((q) =>
+      `<div class="gh-tv-quest">` +
+      `<div class="gh-tv-qic">${q.icon}</div>` +
+      `<div class="gh-tv-qbody"><div class="gh-tv-qtitle">${q.title}</div>` +
+      `<div class="gh-tv-qdesc">${q.desc}</div>` +
+      (q.progress ? `<div class="gh-tv-qprog">Progresso: ${q.progress}</div>`
+        : `<div class="gh-tv-qrew"><img src="${coinUrl}" alt=""/>${q.reward}</div>`) +
+      `</div><div class="gh-tv-qact">${questBtn(q)}</div></div>`,
+    ).join("");
+    tvBody.innerHTML =
+      `<div class="gh-eq-title gh-tv-title"><img class="gh-tv-portr" src="${taverneiroUrl}" alt=""/>` +
+      `<span class="gh-tv-tt">Taverna do Javali<small>BRUNO, O TAVERNEIRO</small></span>` +
+      `<span class="gh-gold gh-tv-gold"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
+      // DESCANSAR
+      `<div class="gh-tv-sec"><div class="gh-tv-h">DESCANSAR — recupere as forças</div>` +
+      `<div class="gh-tv-rest"><div class="gh-tv-bars">` +
+      `<div class="gh-tv-bar gh-tv-hp"><i style="width:${hpFrac * 100}%"></i><span>Vida ${d.hp} / ${d.maxHp}</span></div>` +
+      `<div class="gh-tv-bar gh-tv-mp"><i style="width:${mpFrac * 100}%"></i><span>Mana ${d.mp} / ${d.maxMp}</span></div></div>` +
+      `<button class="gh-tv-restbtn${d.canRest ? "" : " gh-tv-dim"}" id="gh-tv-rest"><b>DESCANSAR</b>` +
+      `<em><img src="${coinUrl}" alt=""/>${d.restCost}</em></button></div></div>` +
+      // BEBIDAS
+      `<div class="gh-tv-sec"><div class="gh-tv-h">NA TORNEIRA — bebidas</div>` +
+      `<div class="gh-tv-drink"><div class="gh-slot gh-tv-dslot"><span class="gh-tv-demo">${d.drink.icon}</span>` +
+      `${d.drink.have > 0 ? `<span class="gh-count gh-tv-dhave">${d.drink.have}</span>` : ""}</div>` +
+      `<div class="gh-tv-dinfo"><div class="gh-tv-dn">${d.drink.name}</div>` +
+      `<div class="gh-tv-de">${d.drink.desc}.</div>` +
+      `<button class="gh-tv-buybtn" id="gh-tv-buy"><img src="${coinUrl}" alt=""/>${d.drink.price} · COMPRAR</button>` +
+      `</div></div></div>` +
+      // MISSÕES
+      `<div class="gh-tv-sec gh-tv-secq"><div class="gh-tv-h">MURAL DE MISSÕES</div>` +
+      `<div class="gh-tv-quests">${quests}</div></div>`;
+    const rb = tvBody.querySelector<HTMLElement>("#gh-tv-rest");
+    if (rb) rb.onclick = () => { const nd = onRest?.(); if (nd) renderTavern(nd); };
+    const bb = tvBody.querySelector<HTMLElement>("#gh-tv-buy");
+    if (bb) bb.onclick = () => { const nd = onBuyDrink?.(d.drink.id); if (nd) renderTavern(nd); };
+    tvBody.querySelectorAll<HTMLElement>(".gh-tv-qbtn").forEach((b) => {
+      b.onclick = () => {
+        const nd = onQuest?.(b.dataset.qid!, b.dataset.act as "accept" | "turnin");
+        if (nd) renderTavern(nd);
+      };
+    });
+  };
+
   // barra de CONJURAÇÃO (aparece enquanto a magia "carrega")
   const castEl = document.createElement("div");
   castEl.id = "gh-cast";
@@ -1543,6 +1656,16 @@ export function setupControls(
     },
     closeStore() {
       st.classList.add("gh-eq-hidden");
+    },
+    setConsumables(items: ConsumSlot[]) {
+      renderTray(items);
+    },
+    openTavern(data: TavernData) {
+      renderTavern(data);
+      tv.classList.remove("gh-eq-hidden");
+    },
+    closeTavern() {
+      tv.classList.add("gh-eq-hidden");
     },
     updateMinimap(s: MinimapState) {
       lastMini = s;
@@ -2508,6 +2631,92 @@ function injectStyle() {
     .gh-act { opacity:0.5; }
     .gh-act.gh-act-on { opacity:1; }
   }
+
+  /* ---- BANDEJA DE CONSUMÍVEIS (usar item) ---- */
+  #gh-tray { position:fixed; left:16px; bottom:154px; z-index:12; display:none; gap:7px; pointer-events:auto; }
+  .gh-tray-slot { position:relative; width:clamp(42px,7vh,50px); height:clamp(42px,7vh,50px); cursor:pointer;
+    border:clamp(8px,1.3vh,10px) solid transparent; border-image:url(${eqSlotUrl}) 89 fill; background:transparent;
+    display:flex; align-items:center; justify-content:center; padding:0; -webkit-tap-highlight-color:transparent; }
+  .gh-tray-slot:active { filter:brightness(1.3); }
+  .gh-tray-emo { font-size:clamp(20px,3.4vh,26px); line-height:1; filter:drop-shadow(0 1px 2px #000); }
+  .gh-tray-cnt { position:absolute; right:-3px; bottom:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:8px;
+    background:#1a130c; border:1.5px solid rgba(201,162,39,.7); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
+    font-size:11px; line-height:14px; text-align:center; box-shadow:0 1px 3px #000; }
+
+  /* ---- TAVERNA ---- */
+  #gh-tv { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
+  #gh-tv.gh-eq-hidden { display:none; }
+  #gh-tv-win { position:relative; box-sizing:border-box; width:min(60vh,460px); height:min(94vh,820px);
+    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
+  @media (max-width:640px){ #gh-tv-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
+  #gh-tv-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
+    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
+  #gh-tv-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.4%; color:#e8dcc0; overflow-y:auto; }
+  .gh-tv-title { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding:0 46px 0 2px; }
+  .gh-tv-portr { width:clamp(38px,6vh,50px); height:clamp(38px,6vh,50px); border-radius:9px; border:2px solid rgba(201,162,39,.6);
+    background:#1a130c; object-fit:cover; object-position:50% 22%; box-shadow:inset 0 0 10px #000; flex:0 0 auto; }
+  .gh-tv-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(16px,2.5vh,22px);
+    letter-spacing:2px; color:#f2e4bf; text-shadow:0 2px 5px #000; line-height:1.05; }
+  .gh-tv-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.2vh,11px); color:#b39a63; letter-spacing:3px; margin-top:1px; }
+  .gh-gold.gh-tv-gold { position:static; transform:none; flex:0 0 auto; font-size:clamp(13px,2vh,16px); }
+  .gh-tv-sec { flex:0 0 auto; border:clamp(13px,2vh,16px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; padding:2% 4% 3.5%; }
+  .gh-tv-secq { flex:1 1 auto; }
+  .gh-tv-h { text-align:center; font-family:"Cinzel",serif; font-weight:600; font-size:clamp(11px,1.7vh,13px); color:#e5cf95;
+    letter-spacing:1.5px; margin-bottom:3%; text-shadow:0 1px 3px #000; }
+  /* descansar */
+  .gh-tv-rest { display:flex; align-items:center; gap:12px; }
+  .gh-tv-bars { flex:1; display:flex; flex-direction:column; gap:6px; }
+  .gh-tv-bar { height:clamp(14px,2.1vh,17px); border-radius:8px; background:#0d0a07; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.35);
+    position:relative; overflow:hidden; }
+  .gh-tv-bar i { position:absolute; inset:0 auto 0 0; border-radius:8px; }
+  .gh-tv-hp i { background:linear-gradient(#e0584e,#a52820); }
+  .gh-tv-mp i { background:linear-gradient(#4a8fe0,#2352a5); }
+  .gh-tv-bar span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:"Cinzel",serif;
+    font-size:clamp(9px,1.3vh,10px); color:#fff; text-shadow:0 1px 2px #000; }
+  .gh-tv-restbtn { flex:0 0 auto; width:clamp(116px,20vh,140px); min-height:clamp(46px,7vh,54px); cursor:pointer;
+    font-family:"Cinzel",serif; font-weight:700; color:#12100a; border:clamp(11px,1.8vh,13px) solid transparent;
+    border-image:url(${btnBaseUrl}) 40 fill; background:transparent; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; line-height:1.05; text-shadow:0 1px 0 rgba(255,235,180,.5); gap:1px; }
+  .gh-tv-restbtn b { font-size:clamp(13px,2vh,15px); letter-spacing:.5px; }
+  .gh-tv-restbtn em { font-style:normal; font-size:clamp(10px,1.5vh,12px); display:flex; align-items:center; gap:3px; }
+  .gh-tv-restbtn em img { width:12px; height:12px; }
+  .gh-tv-restbtn.gh-tv-dim { filter:grayscale(.5) brightness(.72); }
+  /* bebidas */
+  .gh-tv-drink { display:flex; align-items:center; gap:12px; }
+  .gh-tv-dslot { position:relative; width:clamp(56px,9vh,68px); height:clamp(56px,9vh,68px); flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; border:clamp(8px,1.4vh,10px) solid transparent; border-image:url(${eqSlotUrl}) 89 fill; }
+  .gh-tv-demo { font-size:clamp(26px,5vh,34px); line-height:1; }
+  .gh-tv-dhave { position:absolute; right:-3px; bottom:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:8px;
+    background:#1a130c; border:1.5px solid rgba(201,162,39,.7); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
+    font-size:11px; line-height:14px; text-align:center; box-shadow:0 1px 3px #000; }
+  .gh-tv-dinfo { flex:1; min-width:0; }
+  .gh-tv-dn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(14px,2.2vh,16px); color:#f0e6cf; }
+  .gh-tv-de { font-size:clamp(11px,1.6vh,12px); color:#c8b892; margin:2px 0 6px; line-height:1.25; }
+  .gh-tv-buybtn { display:inline-flex; align-items:center; gap:5px; cursor:pointer; padding:6px 16px; font-family:"Cinzel",serif;
+    font-weight:700; font-size:clamp(12px,1.8vh,13px); color:#12100a; border:clamp(9px,1.5vh,11px) solid transparent;
+    border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
+  .gh-tv-buybtn img { width:13px; height:13px; }
+  /* missões */
+  .gh-tv-quests { display:flex; flex-direction:column; gap:8px; }
+  .gh-tv-quest { display:flex; gap:10px; align-items:center; padding:8px 9px; border-radius:9px;
+    background:rgba(12,9,6,.55); box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.28); }
+  .gh-tv-qic { width:40px; height:40px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:23px;
+    border-radius:8px; background:#0d0a07; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.3); }
+  .gh-tv-qbody { flex:1; min-width:0; }
+  .gh-tv-qtitle { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2vh,14px); color:#f0e6cf; }
+  .gh-tv-qdesc { font-size:clamp(10px,1.5vh,11px); color:#b6a883; margin-top:2px; line-height:1.2; }
+  .gh-tv-qrew { font-size:clamp(10px,1.5vh,11px); color:#e8c56a; margin-top:3px; display:flex; align-items:center; gap:4px; }
+  .gh-tv-qrew img { width:12px; height:12px; }
+  .gh-tv-qprog { font-size:clamp(10px,1.5vh,11px); color:#9fb98a; margin-top:3px; font-family:"Cinzel",serif; }
+  .gh-tv-qact { flex:0 0 auto; align-self:center; }
+  .gh-tv-qbtn { cursor:pointer; padding:8px 14px; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,12px);
+    color:#12100a; border:clamp(9px,1.5vh,11px) solid transparent; border-image:url(${btnBaseUrl}) 40 fill; background:transparent; }
+  .gh-tv-qready { animation:gh-tv-pulse 1.4s ease-in-out infinite; }
+  @keyframes gh-tv-pulse { 0%,100%{filter:none} 50%{filter:brightness(1.25)} }
+  .gh-tv-qtag { font-family:"Cinzel",serif; font-weight:600; font-size:clamp(9px,1.4vh,10px); letter-spacing:.5px; padding:4px 8px;
+    border-radius:7px; align-self:center; white-space:nowrap; }
+  .gh-tv-inprog { background:#5a4a1e; color:#f0d477; }
+  .gh-tv-done { background:#3a5a2a; color:#bfe89a; }
   `;
   document.head.appendChild(s);
 }
