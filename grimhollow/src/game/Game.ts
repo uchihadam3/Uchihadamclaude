@@ -110,6 +110,14 @@ import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
 import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
+// ícones dos itens (consumíveis + materiais + cerveja)
+import icoPotHpUrl from "../assets/item/pot_hp.png";
+import icoPotMpUrl from "../assets/item/pot_mp.png";
+import icoBeerUrl from "../assets/item/beer.png";
+import icoScrollUrl from "../assets/item/scroll_return.png";
+import icoMadeiraUrl from "../assets/item/madeira.png";
+import icoMinerioUrl from "../assets/item/minerio.png";
+import icoReforcoUrl from "../assets/item/reforco.png";
 import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 import decWindowUrl from "../assets/env/dec_window.png";
@@ -298,15 +306,15 @@ interface EstabDoor {
 // Bens empilháveis não-arma (preço de COMPRA em ouro; venda = metade). Ficam num
 // lugar só e cada loja vende um subconjunto — madeira/minério/reforço abastecem a
 // forja, o resto são consumíveis.
-interface Merch { id: string; name: string; icon: string; price: number; desc: string }
+interface Merch { id: string; name: string; icon: string; iconUrl?: string; price: number; desc: string }
 const GOODS: Merch[] = [
-  { id: "pot_hp", name: "Poção de Vida", icon: "🧪", price: 25, desc: "restaura 40% da vida" },
-  { id: "pot_mp", name: "Poção de Mana", icon: "🔵", price: 30, desc: "restaura 40% da mana" },
-  { id: "beer", name: "Cerveja do Javali", icon: "🍺", price: 12, desc: "regenera vida por 3 min" },
-  { id: "scroll_return", name: "Pergaminho de Retorno", icon: "📜", price: 60, desc: "volta ao vilarejo" },
-  { id: "madeira", name: "Madeira", icon: "🪵", price: 10, desc: "material de forja" },
-  { id: "minerio", name: "Minério", icon: "🪨", price: 18, desc: "material de forja" },
-  { id: "reforco", name: "Pedra de Reforço", icon: "🔶", price: 40, desc: "material de forja" },
+  { id: "pot_hp", name: "Poção de Vida", icon: "🧪", iconUrl: icoPotHpUrl, price: 25, desc: "restaura 40% da vida" },
+  { id: "pot_mp", name: "Poção de Mana", icon: "🔵", iconUrl: icoPotMpUrl, price: 30, desc: "restaura 40% da mana" },
+  { id: "beer", name: "Cerveja do Javali", icon: "🍺", iconUrl: icoBeerUrl, price: 12, desc: "regenera vida por 3 min" },
+  { id: "scroll_return", name: "Pergaminho de Retorno", icon: "📜", iconUrl: icoScrollUrl, price: 60, desc: "volta ao vilarejo" },
+  { id: "madeira", name: "Madeira", icon: "🪵", iconUrl: icoMadeiraUrl, price: 10, desc: "material de forja" },
+  { id: "minerio", name: "Minério", icon: "🪨", iconUrl: icoMinerioUrl, price: 18, desc: "material de forja" },
+  { id: "reforco", name: "Pedra de Reforço", icon: "🔶", iconUrl: icoReforcoUrl, price: 40, desc: "material de forja" },
 ];
 const GOODS_BY_ID: Record<string, Merch> = {};
 for (const m of GOODS) GOODS_BY_ID[m.id] = m;
@@ -1521,14 +1529,14 @@ export class Game {
       }
       for (const id of goodIds) {
         const m = GOODS_BY_ID[id];
-        goods.push({ id: m.id, name: m.name, icon: m.icon, price: m.price, desc: m.desc, have: this.goodHave(m.id) });
+        goods.push({ id: m.id, name: m.name, icon: m.icon, iconUrl: m.iconUrl, price: m.price, desc: m.desc, have: this.goodHave(m.id) });
       }
     } else {
       // VENDER: bens empilháveis dessa loja que o jogador possui (>0)...
       for (const id of goodIds) {
         const m = GOODS_BY_ID[id];
         const have = this.goodHave(id);
-        if (have > 0) goods.push({ id: m.id, name: m.name, icon: m.icon, price: Math.max(1, Math.round(m.price * Game.SELL_RATE)), desc: m.desc, have });
+        if (have > 0) goods.push({ id: m.id, name: m.name, icon: m.icon, iconUrl: m.iconUrl, price: Math.max(1, Math.round(m.price * Game.SELL_RATE)), desc: m.desc, have });
       }
       // ...e, no mercador, as armas possuídas (menos a equipada)
       if (tradesWeapons) for (const id of this.ownedWeapons) {
@@ -1612,7 +1620,7 @@ export class Game {
       mp: Math.round(this.playerMp), maxMp: Math.round(this.playerMaxMp),
       restCost: Game.REST_COST,
       canRest: needsRest && this.stats.gold >= Game.REST_COST,
-      drink: { id: beer.id, name: beer.name, icon: beer.icon, price: beer.price, desc: beer.desc, have: this.goodHave(beer.id) },
+      drink: { id: beer.id, name: beer.name, icon: beer.icon, iconUrl: beer.iconUrl, price: beer.price, desc: beer.desc, have: this.goodHave(beer.id) },
       quests: this.buildQuests(),
     };
   }
@@ -1685,7 +1693,7 @@ export class Game {
     const out: ConsumSlot[] = [];
     for (const id of ["pot_hp", "pot_mp", "beer"]) {
       const n = this.goodHave(id);
-      if (n > 0) { const m = GOODS_BY_ID[id]; out.push({ id, icon: m.icon, name: m.name, count: n }); }
+      if (n > 0) { const m = GOODS_BY_ID[id]; out.push({ id, icon: m.icon, iconUrl: m.iconUrl, name: m.name, count: n }); }
     }
     return out;
   }

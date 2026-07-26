@@ -13,6 +13,9 @@ import icoInventoryUrl from "../assets/ui/ico_inventory.png";
 import coinUrl from "../assets/ui/coin.png";
 import mercadoraUrl from "../assets/npc/mercadora.png";
 import taverneiroUrl from "../assets/npc/taverneiro.png";
+import icoMadeiraUrl from "../assets/item/madeira.png";
+import icoMinerioUrl from "../assets/item/minerio.png";
+import icoReforcoUrl from "../assets/item/reforco.png";
 import loadSwordUrl from "../assets/ui/load_sword.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
@@ -201,7 +204,7 @@ export interface StoreData {
 }
 
 // ---- BANDEJA DE CONSUMÍVEIS (usar item no HUD) ----
-export interface ConsumSlot { id: string; icon: string; name: string; count: number; }
+export interface ConsumSlot { id: string; icon: string; iconUrl?: string; name: string; count: number; }
 
 // ---- TAVERNA (descanso + bebidas + missões) ----
 export interface TavernQuest {
@@ -699,9 +702,9 @@ export function setupControls(
   };
   const renderSmith = (d: SmithData) => {
     // material: slot (só o ícone) + números FORA do container (embaixo)
-    const mat = (emoji: string, need: number, have: number, cap: string, gold = false) => {
+    const mat = (icon: string, need: number, have: number, cap: string, gold = false) => {
       const ok = have >= need;
-      const inner = gold ? `<img src="${coinUrl}" alt=""/>` : emoji;
+      const inner = gold ? `<img src="${coinUrl}" alt=""/>` : `<img class="gh-item-ico" src="${icon}" alt=""/>`;
       return `<div class="gh-sm-mat"><div class="gh-sm-mslot${gold ? " gh-sm-mgold" : ""}">${inner}</div>` +
         `<div class="gh-sm-mnum ${ok ? "gh-ok" : "gh-no"}">${need}<span class="gh-sm-mhave">/${have}</span></div>` +
         `<div class="gh-sm-cap">${cap}</div></div>`;
@@ -738,9 +741,9 @@ export function setupControls(
         `<div class="gh-sm-nm gh-up">${s.name} +${s.lvl + 1}</div><div class="gh-sm-dmg">Dano <span class="gh-g">${n.dmg} ▲</span></div></div>` +
         "</div>" +
         '<div class="gh-sm-mats-h">MATERIAIS NECESSÁRIOS</div><div class="gh-sm-mats">' +
-        mat("🪵", n.madeira, d.mats.madeira, "Madeira") +
-        mat("🪨", n.minerio, d.mats.minerio, "Minério") +
-        mat("🔶", n.reforco, d.mats.reforco, "Pedra de Reforço") +
+        mat(icoMadeiraUrl, n.madeira, d.mats.madeira, "Madeira") +
+        mat(icoMinerioUrl, n.minerio, d.mats.minerio, "Minério") +
+        mat(icoReforcoUrl, n.reforco, d.mats.reforco, "Pedra de Reforço") +
         mat("", n.gold, d.gold, "Ouro", true) +
         "</div>" +
         `<button class="gh-sm-btn${can ? "" : " gh-sm-dim"}" id="gh-sm-up"${can ? "" : " disabled"}>${can ? "APRIMORAR" : "FALTAM MATERIAIS"}</button>`;
@@ -1071,7 +1074,7 @@ export function setupControls(
     tray.style.display = "flex";
     tray.innerHTML = items.map((it) =>
       `<button class="gh-tray-slot" data-id="${it.id}" title="${it.name}">` +
-      `<span class="gh-tray-emo">${it.icon}</span>` +
+      (it.iconUrl ? `<img class="gh-tray-img" src="${it.iconUrl}" alt=""/>` : `<span class="gh-tray-emo">${it.icon}</span>`) +
       `<span class="gh-tray-cnt">${it.count}</span></button>`,
     ).join("");
     tray.querySelectorAll<HTMLButtonElement>(".gh-tray-slot").forEach((b) => {
@@ -1122,7 +1125,7 @@ export function setupControls(
       `<em><img src="${coinUrl}" alt=""/>${d.restCost}</em></button></div></div>` +
       // BEBIDAS
       `<div class="gh-tv-sec"><div class="gh-tv-h">NA TORNEIRA — bebidas</div>` +
-      `<div class="gh-tv-drink"><div class="gh-slot gh-tv-dslot"><span class="gh-tv-demo">${d.drink.icon}</span>` +
+      `<div class="gh-tv-drink"><div class="gh-slot gh-tv-dslot">${d.drink.iconUrl ? `<img class="gh-tv-dimg" src="${d.drink.iconUrl}" alt=""/>` : `<span class="gh-tv-demo">${d.drink.icon}</span>`}` +
       `${d.drink.have > 0 ? `<span class="gh-count gh-tv-dhave">${d.drink.have}</span>` : ""}</div>` +
       `<div class="gh-tv-dinfo"><div class="gh-tv-dn">${d.drink.name}</div>` +
       `<div class="gh-tv-de">${d.drink.desc}.</div>` +
@@ -2639,6 +2642,7 @@ function injectStyle() {
     display:flex; align-items:center; justify-content:center; padding:0; -webkit-tap-highlight-color:transparent; }
   .gh-tray-slot:active { filter:brightness(1.3); }
   .gh-tray-emo { font-size:clamp(20px,3.4vh,26px); line-height:1; filter:drop-shadow(0 1px 2px #000); }
+  .gh-tray-img { width:84%; height:84%; object-fit:contain; filter:drop-shadow(0 1px 2px #000); pointer-events:none; }
   .gh-tray-cnt { position:absolute; right:-3px; bottom:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:8px;
     background:#1a130c; border:1.5px solid rgba(201,162,39,.7); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
     font-size:11px; line-height:14px; text-align:center; box-shadow:0 1px 3px #000; }
@@ -2686,6 +2690,7 @@ function injectStyle() {
   .gh-tv-dslot { position:relative; width:clamp(56px,9vh,68px); height:clamp(56px,9vh,68px); flex:0 0 auto;
     display:flex; align-items:center; justify-content:center; border:clamp(8px,1.4vh,10px) solid transparent; border-image:url(${eqSlotUrl}) 89 fill; }
   .gh-tv-demo { font-size:clamp(26px,5vh,34px); line-height:1; }
+  .gh-tv-dimg { width:86%; height:86%; object-fit:contain; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
   .gh-tv-dhave { position:absolute; right:-3px; bottom:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:8px;
     background:#1a130c; border:1.5px solid rgba(201,162,39,.7); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
     font-size:11px; line-height:14px; text-align:center; box-shadow:0 1px 3px #000; }
