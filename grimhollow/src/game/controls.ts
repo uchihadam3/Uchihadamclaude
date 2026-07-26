@@ -189,6 +189,9 @@ export interface StoreData {
   gold: number;
   mode: "buy" | "sell";
   goods: StoreGood[];
+  title?: string; // nome do vendedor no cabeçalho (padrão: Mercador)
+  subtitle?: string; // subtítulo/estabelecimento (padrão: O Empório de Rosa)
+  portraitUrl?: string; // retrato do vendedor (padrão: mercadora)
 }
 
 // marcadores no minimapa: lojas, NPCs, saídas, pontos de interesse
@@ -1009,8 +1012,8 @@ export function setupControls(
         ).join("")
       : `<div class="gh-st-empty">${d.mode === "sell" ? "Você não tem nada para vender." : "Sem mercadorias."}</div>`;
     stBody.innerHTML =
-      '<div class="gh-eq-title gh-st-title"><img class="gh-st-portr" src="' + mercadoraUrl + '" alt=""/>' +
-      '<span class="gh-st-tt">Mercador<small>O Empório de Rosa</small></span>' +
+      '<div class="gh-eq-title gh-st-title"><img class="gh-st-portr" src="' + (d.portraitUrl ?? mercadoraUrl) + '" alt=""/>' +
+      '<span class="gh-st-tt">' + (d.title ?? "Mercador") + '<small>' + (d.subtitle ?? "O Empório de Rosa") + '</small></span>' +
       `<span class="gh-gold gh-st-gold"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
       '<div class="gh-st-tabs">' +
       `<button class="gh-st-tab${d.mode === "buy" ? " gh-st-on" : ""}" data-mode="buy">COMPRAR</button>` +

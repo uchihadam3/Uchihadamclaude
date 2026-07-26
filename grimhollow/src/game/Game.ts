@@ -312,6 +312,12 @@ const MERCH: Merch[] = [
 const MERCH_BY_ID: Record<string, Merch> = {};
 for (const m of MERCH) MERCH_BY_ID[m.id] = m;
 
+// ALQUIMISTA (Isolde): loja especializada — vende POÇÕES (vida/mana/futuras) e
+// os MATERIAIS BÁSICOS que abastecem os aprimoramentos do ferreiro. Reaproveita
+// os itens do mercador (mesmos ids/preços) p/ não criar itens novos a balancear.
+const ALCH_IDS = ["pot_hp", "pot_mp", "madeira", "minerio", "reforco"];
+const ALCH: Merch[] = ALCH_IDS.map((id) => MERCH_BY_ID[id]);
+
 const ESTAB_DOORS: EstabDoor[] = [
   { c: 5, r: 5, dc: 0, dr: 1, kind: "tavern" }, // parede norte
   { c: 9, r: 5, dc: 0, dr: 1, kind: "store" }, // parede norte
@@ -577,6 +583,7 @@ type Target =
   | { kind: "sanctuary" } // entrada do santuário (leva à sala-vitrine)
   | { kind: "smithshop" } // ferreiro (abre a janela de aprimoramento)
   | { kind: "storeshop" } // mercador (abre a janela de comprar/vender)
+  | { kind: "alchshop" } // alquimista (loja de poções + materiais de forja)
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
@@ -666,6 +673,7 @@ export class Game {
   private consumables: Record<string, number> = {};
   private ownedWeapons: string[] = [];
   private storeMode: "buy" | "sell" = "buy";
+  private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   private static readonly SELL_RATE = 0.5; // mercador paga metade do preço de compra
   // quanto o jogador TEM de um bem empilhável (roteia p/ materiais ou consumíveis)
   private goodHave(id: string): number {
@@ -1470,16 +1478,19 @@ export class Game {
   // ---- MERCADOR (comprar/vender) ----
   private buildStoreData(): StoreData {
     const goods: StoreGood[] = [];
+    const alch = this.shopVendor === "alchemist";
+    const catalog = alch ? ALCH : MERCH;
     if (this.storeMode === "buy") {
-      for (const m of MERCH)
+      for (const m of catalog)
         goods.push({ id: m.id, name: m.name, icon: m.icon, price: m.price, desc: m.desc, have: this.goodHave(m.id) });
     } else {
-      // VENDER: consumíveis/materiais que possui (>0) + armas (menos a equipada)
-      for (const m of MERCH) {
+      // VENDER: consumíveis/materiais do catálogo que possui (>0); o mercador
+      // também compra armas de volta (a alquimista não).
+      for (const m of catalog) {
         const have = this.goodHave(m.id);
         if (have > 0) goods.push({ id: m.id, name: m.name, icon: m.icon, price: Math.max(1, Math.round(m.price * Game.SELL_RATE)), desc: m.desc, have });
       }
-      for (const id of this.ownedWeapons) {
+      if (!alch) for (const id of this.ownedWeapons) {
         if (this.currentWeapon?.id === id) continue; // não vende a arma equipada
         const w = WEAPON_BY_ID[id];
         if (!w) continue;
@@ -1487,7 +1498,10 @@ export class Game {
         goods.push({ id: "w:" + id, name: w.name + (lvl ? ` +${lvl}` : ""), iconUrl: w.url, price: this.weaponSell(id), desc: "arma", have: 1, single: true });
       }
     }
-    return { gold: this.stats.gold, mode: this.storeMode, goods };
+    const ident = alch
+      ? { title: "Alquimista", subtitle: "O Laboratório de Isolde", portraitUrl: alquimistaUrl }
+      : {};
+    return { gold: this.stats.gold, mode: this.storeMode, goods, ...ident };
   }
   private setStoreMode(mode: "buy" | "sell") {
     this.storeMode = mode;
@@ -4366,6 +4380,12 @@ export class Game {
       this.ui.openSmith(this.buildSmithData());
     } else if (t.kind === "storeshop") {
       // MERCADOR: abre a janela de comprar/vender
+      this.shopVendor = "store";
+      this.storeMode = "buy";
+      this.ui.openStore(this.buildStoreData());
+    } else if (t.kind === "alchshop") {
+      // ALQUIMISTA: mesma janela, catálogo de poções + materiais de forja
+      this.shopVendor = "alchemist";
       this.storeMode = "buy";
       this.ui.openStore(this.buildStoreData());
     } else if (t.kind === "toforest") {
@@ -5581,6 +5601,7 @@ export class Game {
       else if (t.kind === "sanctuary") text = "Subir a escadaria";
       else if (t.kind === "smithshop") text = "Ferreiro — Aprimorar";
       else if (t.kind === "storeshop") text = "Mercador — Comprar / Vender";
+      else if (t.kind === "alchshop") text = "Alquimista — Poções & Materiais";
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
@@ -5599,6 +5620,8 @@ export class Game {
     if (npc && this.location === "smith") return { kind: "smithshop" };
     // no MERCADOR, falar com a atendente abre a janela de comprar/vender
     if (npc && this.location === "store") return { kind: "storeshop" };
+    // na ALQUIMISTA, falar com a Isolde abre a loja de poções + materiais
+    if (npc && this.location === "alchemist") return { kind: "alchshop" };
     if (npc)
       return {
         kind: "talk",
