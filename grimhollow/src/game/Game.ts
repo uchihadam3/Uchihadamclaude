@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type ConsumSlot } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -320,6 +320,38 @@ const GOODS: Merch[] = [
 ];
 const GOODS_BY_ID: Record<string, Merch> = {};
 for (const m of GOODS) GOODS_BY_ID[m.id] = m;
+
+// MISSÕES da taverna. "kill" conta abates na masmorra; "delivery" completa ao
+// FALAR com o NPC-alvo (ensina onde cada um fica). target casa por SUBSTRING do
+// nome do NPC. reward = chips exibidos; grant = o que o jogador recebe de fato.
+interface QuestDef {
+  id: string; icon: string; title: string; desc: string;
+  reward: TavernReward[];
+  grant: { gold?: number; items?: [string, number][] };
+  kind: "kill" | "delivery";
+  goal?: number;                          // kill
+  target?: string; targetHint?: string;   // delivery
+}
+const QUEST_DEFS: QuestDef[] = [
+  {
+    id: "ossos", icon: "💀", title: "Ossos Inquietos",
+    desc: "Os mortos não descansam na masmorra. Elimine 8 esqueletos.",
+    reward: [{ gold: true, label: "120" }, { iconUrl: icoBeerUrl, label: "×2" }],
+    grant: { gold: 120, items: [["beer", 2]] }, kind: "kill", goal: 8,
+  },
+  {
+    id: "entrega_hedda", icon: "📦", title: "Encomenda da Rosa",
+    desc: "A mercadora Rosa pediu para levar uma encomenda à Hedda, a matriarca.",
+    reward: [{ gold: true, label: "45" }],
+    grant: { gold: 45 }, kind: "delivery", target: "Hedda", targetHint: "na casa dela, a oeste da praça",
+  },
+  {
+    id: "entrega_anselmo", icon: "📜", title: "Preces ao Frei",
+    desc: "Leve as preces do bardo Lyle ao Frei Anselmo, que vigia a boca da masmorra.",
+    reward: [{ gold: true, label: "35" }, { iconUrl: icoPotHpUrl, label: "×1" }],
+    grant: { gold: 35, items: [["pot_hp", 1]] }, kind: "delivery", target: "Anselmo", targetHint: "perto da masmorra (noroeste)",
+  },
+];
 
 // Papéis das lojas:
 //  MERCADOR — equipamento (ARMAS) + o Pergaminho de Retorno. Não vende poção nem
@@ -684,11 +716,12 @@ export class Game {
   // MERCADOR: consumíveis que o jogador possui, armas possuídas, modo da janela
   private consumables: Record<string, number> = {};
   private ownedWeapons: string[] = [];
-  // TAVERNA: estado das missões (piloto "ossos": matar N esqueletos na masmorra)
+  // TAVERNA: estado das missões (ver QUEST_DEFS). status por id + progresso (kill)
   private quests: Record<string, { status: "available" | "active" | "ready" | "done"; progress: number }> = {
     ossos: { status: "available", progress: 0 },
+    entrega_hedda: { status: "available", progress: 0 },
+    entrega_anselmo: { status: "available", progress: 0 },
   };
-  private static readonly QUEST_OSSOS_GOAL = 8;
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   private static readonly SELL_RATE = 0.5; // mercador paga metade do preço de compra
@@ -1321,6 +1354,11 @@ export class Game {
     this.addLampPost(10, 7); // NE
     this.addLampPost(4, 11); // SO
     this.addLampPost(10, 11); // SE
+    // mais lampiões pelo perímetro da praça — só pra iluminar/dar clima à noite
+    this.addLampPost(7, 6); // norte-centro (perto das portas/lojas)
+    this.addLampPost(2, 9); // parede oeste
+    this.addLampPost(12, 9); // parede leste
+    this.addLampPost(7, 12); // sul (perto do portão)
     // prop FIXO colado na parede, virado p/ a praça: só o mural (parede oeste)
     this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
   }
@@ -1665,18 +1703,25 @@ export class Game {
     };
   }
   private buildQuests(): TavernQuest[] {
-    const q = this.quests.ossos;
-    const goal = Game.QUEST_OSSOS_GOAL;
-    return [{
-      id: "ossos",
-      icon: "💀",
-      title: "Ossos Inquietos",
-      desc: "Os mortos não descansam na masmorra. Elimine 8 esqueletos.",
-      reward: [{ gold: true, label: "120" }, { iconUrl: icoBeerUrl, label: "×2" }],
-      status: q.status,
-      progress: (q.status === "active" || q.status === "ready")
-        ? `${Math.min(q.progress, goal)} / ${goal} esqueletos` : undefined,
-    }];
+    return QUEST_DEFS.map((def) => {
+      const q = this.quests[def.id];
+      let progress: string | undefined;
+      if (def.kind === "kill" && (q.status === "active" || q.status === "ready"))
+        progress = `${Math.min(q.progress, def.goal ?? 0)} / ${def.goal} esqueletos`;
+      else if (def.kind === "delivery" && q.status === "active")
+        progress = `Entregar a ${def.target} — ${def.targetHint}`;
+      return { id: def.id, icon: def.icon, title: def.title, desc: def.desc, reward: def.reward, status: q.status, progress };
+    });
+  }
+  // dá a recompensa de uma missão (ouro + itens) e avisa
+  private grantQuest(def: QuestDef) {
+    if (def.grant.gold) this.stats.gold += def.grant.gold;
+    for (const [gid, n] of def.grant.items ?? []) this.goodAdd(gid, n);
+    this.refreshStats(); this.refreshConsumables();
+    const parts: string[] = [];
+    if (def.grant.gold) parts.push(`${def.grant.gold} ouro`);
+    for (const [gid, n] of def.grant.items ?? []) parts.push(`${n}× ${GOODS_BY_ID[gid]?.name ?? gid}`);
+    this.ui.toast(`Recompensa: ${parts.join(" e ")}.`);
   }
   private tavernBuyDrink(id: string): TavernData {
     const m = GOODS_BY_ID[id];
@@ -1688,30 +1733,44 @@ export class Game {
   }
   private tavernQuest(id: string, action: "accept" | "turnin"): TavernData {
     const q = this.quests[id];
-    if (q) {
+    const def = QUEST_DEFS.find((d) => d.id === id);
+    if (q && def) {
       if (action === "accept" && q.status === "available") {
         q.status = "active";
-        this.ui.toast("Missão aceita: Ossos Inquietos.");
-      } else if (action === "turnin" && q.status === "ready") {
+        this.ui.toast(`Missão aceita: ${def.title}.`);
+      } else if (action === "turnin" && q.status === "ready") { // só as "kill" chegam a ready
         q.status = "done";
-        this.stats.gold += 120; this.goodAdd("beer", 2);
-        this.refreshStats(); this.refreshConsumables();
-        this.ui.toast("Missão concluída! +120 ouro e 2 cervejas.");
+        this.grantQuest(def);
       }
     }
     return this.buildTavernData();
   }
-  // conta um esqueleto abatido na masmorra p/ a missão ativa
+  // conta um esqueleto abatido na masmorra p/ a missão "ossos" ativa
   private questOnKill() {
     const q = this.quests.ossos;
     if (!q || q.status !== "active" || this.location !== "dungeon") return;
+    const goal = QUEST_DEFS.find((d) => d.id === "ossos")?.goal ?? 8;
     q.progress++;
-    if (q.progress >= Game.QUEST_OSSOS_GOAL) {
+    if (q.progress >= goal) {
       q.status = "ready";
       this.ui.toast("Ossos Inquietos concluída! Volte ao Bruno para a recompensa.");
     } else {
-      this.ui.toast(`Ossos Inquietos: ${q.progress}/${Game.QUEST_OSSOS_GOAL} esqueletos`);
+      this.ui.toast(`Ossos Inquietos: ${q.progress}/${goal} esqueletos`);
     }
+  }
+  // ENTREGA: se algum recado ativo é p/ este NPC, conclui e devolve a fala de
+  // agradecimento (senão null → diálogo normal).
+  private deliverTo(name: string): string | null {
+    for (const def of QUEST_DEFS) {
+      if (def.kind !== "delivery" || !def.target) continue;
+      const q = this.quests[def.id];
+      if (q.status === "active" && name.includes(def.target)) {
+        q.status = "done";
+        this.grantQuest(def);
+        return "Ah, era isto que eu aguardava! Muito obrigado, viajante. Que a estrada te guarde.";
+      }
+    }
+    return null;
   }
 
   // ---- USAR ITEM (bandeja de consumíveis do HUD) ----
@@ -4556,7 +4615,9 @@ export class Game {
       const { col, row, facing } = this.returnTo;
       void this.doorTransition(() => this.enterLocation("village", col, row, facing));
     } else if (t.kind === "talk") {
-      const pages = paginate(t.lines);
+      // se o jogador carrega um recado p/ este NPC, entrega (fala de agradecimento)
+      const thanks = this.deliverTo(t.name);
+      const pages = paginate(thanks ? [thanks] : t.lines);
       const portrait = this.portraitFor(t.key); // gera o retrato só ao conversar
       this.dialogue = { name: t.name, lines: pages, idx: 0, portrait };
       this.ui.showDialogue(t.name, pages[0], portrait);
