@@ -295,28 +295,28 @@ interface EstabDoor {
   dr: number;
   kind: Estab;
 }
-// MERCADOR: catálogo de mercadorias (preço de COMPRA em ouro). madeira/minério/
-// reforço abastecem a forja; o resto são consumíveis. Preço de venda = metade.
+// Bens empilháveis não-arma (preço de COMPRA em ouro; venda = metade). Ficam num
+// lugar só e cada loja vende um subconjunto — madeira/minério/reforço abastecem a
+// forja, o resto são consumíveis.
 interface Merch { id: string; name: string; icon: string; price: number; desc: string }
-const MERCH: Merch[] = [
+const GOODS: Merch[] = [
   { id: "pot_hp", name: "Poção de Vida", icon: "🧪", price: 25, desc: "restaura 40% da vida" },
   { id: "pot_mp", name: "Poção de Mana", icon: "🔵", price: 30, desc: "restaura 40% da mana" },
-  { id: "food", name: "Ração de Viagem", icon: "🍖", price: 15, desc: "cura aos poucos" },
   { id: "scroll_return", name: "Pergaminho de Retorno", icon: "📜", price: 60, desc: "volta ao vilarejo" },
-  { id: "torch", name: "Tocha", icon: "🔥", price: 8, desc: "ilumina o caminho" },
-  { id: "rope", name: "Corda", icon: "🪢", price: 12, desc: "utilidade de exploração" },
   { id: "madeira", name: "Madeira", icon: "🪵", price: 10, desc: "material de forja" },
   { id: "minerio", name: "Minério", icon: "🪨", price: 18, desc: "material de forja" },
   { id: "reforco", name: "Pedra de Reforço", icon: "🔶", price: 40, desc: "material de forja" },
 ];
-const MERCH_BY_ID: Record<string, Merch> = {};
-for (const m of MERCH) MERCH_BY_ID[m.id] = m;
+const GOODS_BY_ID: Record<string, Merch> = {};
+for (const m of GOODS) GOODS_BY_ID[m.id] = m;
 
-// ALQUIMISTA (Isolde): loja especializada — vende POÇÕES (vida/mana/futuras) e
-// os MATERIAIS BÁSICOS que abastecem os aprimoramentos do ferreiro. Reaproveita
-// os itens do mercador (mesmos ids/preços) p/ não criar itens novos a balancear.
-const ALCH_IDS = ["pot_hp", "pot_mp", "madeira", "minerio", "reforco"];
-const ALCH: Merch[] = ALCH_IDS.map((id) => MERCH_BY_ID[id]);
+// Papéis das lojas:
+//  MERCADOR — equipamento (ARMAS) + o Pergaminho de Retorno. Não vende poção nem
+//    material de forja (isso é da alquimista).
+//  ALQUIMISTA (Isolde) — POÇÕES (vida/mana/futuras) + os MATERIAIS BÁSICOS de forja.
+//  FERREIRO — não vende nada; apenas aprimora.
+const STORE_GOODS = ["scroll_return"];
+const ALCH_GOODS = ["pot_hp", "pot_mp", "madeira", "minerio", "reforco"];
 
 const ESTAB_DOORS: EstabDoor[] = [
   { c: 5, r: 5, dc: 0, dr: 1, kind: "tavern" }, // parede norte
@@ -687,6 +687,17 @@ export class Game {
   private weaponSell(id: string): number {
     return 35 + (this.reinforce[id] ?? 0) * 20; // reforço agrega valor
   }
+  // preço de COMPRA de uma arma no mercador (Tier 1 "básico"): escala com o dano.
+  // dano 0 (escudo/orbe) 60 · 1 → 100 · 2 → 140 · 3 → 180
+  private weaponBuy(id: string): number {
+    const w = WEAPON_BY_ID[id];
+    return w ? 60 + w.dmg * 40 : 0;
+  }
+  // descrição curta da arma na vitrine do mercador
+  private weaponDesc(w: Weapon): string {
+    const hands = w.grip === "2h" ? "2 mãos" : "1 mão";
+    return w.slot === "off" ? `mão secundária · ${w.cls}` : `dano ${w.dmg} · ${hands} · ${w.cls}`;
+  }
   // PRIMÁRIOS atuais + piso (base da criação, não dá pra baixar disso) e a base
   // de vida/mana da classe. Os SECUNDÁRIOS são derivados destes.
   private prim: Primaries = { str: 5, dex: 5, int: 5 };
@@ -879,10 +890,12 @@ export class Game {
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
       this.onCanvasPointer(e),
     );
-    // enche a mochila com TODAS as armas (pra testar) e começa com a arma da classe
-    this.ownedWeapons = WEAPONS.map((w) => w.id);
+    // começa APENAS com a arma da classe; as demais se compram no mercador
+    const startW = cls?.startWeapon ?? "sword";
+    this.ownedWeapons = [startW];
+    this.smithSel = startW;
     this.ui.setInventory(this.ownedWeapons);
-    this.ui.equipWeapon(cls?.startWeapon ?? "sword");
+    this.ui.equipWeapon(startW);
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
     // árvore de habilidades: classe + pontos = nível (1 ponto por nível).
@@ -1435,8 +1448,13 @@ export class Game {
     return Math.round(this.atkWithBonus(this.sec.atkPhys + w.dmg + lvl) * this.buffAtkMul());
   }
   private buildSmithData(): SmithData {
-    const items = WEAPONS.map((w) => ({ id: w.id, name: w.name, icon: w.url, lvl: this.reinforce[w.id] ?? 0 }));
-    const w = WEAPONS.find((x) => x.id === this.smithSel) ?? WEAPONS[0];
+    // o ferreiro só aprimora as armas que o jogador POSSUI
+    const owned = this.ownedWeapons.map((id) => WEAPON_BY_ID[id]).filter(Boolean) as Weapon[];
+    if (!owned.some((x) => x.id === this.smithSel)) // seleção saiu do inventário: reancora
+      this.smithSel = (this.currentWeapon && this.ownedWeapons.includes(this.currentWeapon.id)
+        ? this.currentWeapon.id : owned[0]?.id) ?? this.smithSel;
+    const items = owned.map((w) => ({ id: w.id, name: w.name, icon: w.url, lvl: this.reinforce[w.id] ?? 0 }));
+    const w = owned.find((x) => x.id === this.smithSel) ?? owned[0] ?? WEAPONS[0];
     const lvl = this.reinforce[w.id] ?? 0;
     const base = { id: w.id, name: w.name, icon: w.url, lvl, dmg: this.smithDmg(w, lvl) };
     const sel = lvl >= Game.SMITH_MAX
@@ -1475,22 +1493,31 @@ export class Game {
     return { success, data: this.buildSmithData() };
   }
 
-  // ---- MERCADOR (comprar/vender) ----
+  // ---- LOJAS (mercador / alquimista — comprar/vender) ----
   private buildStoreData(): StoreData {
     const goods: StoreGood[] = [];
     const alch = this.shopVendor === "alchemist";
-    const catalog = alch ? ALCH : MERCH;
+    const goodIds = alch ? ALCH_GOODS : STORE_GOODS; // bens empilháveis dessa loja
+    const tradesWeapons = !alch; // só o mercador negocia armas/equipamento
     if (this.storeMode === "buy") {
-      for (const m of catalog)
+      // MERCADOR: armas ainda NÃO possuídas (equipamento à venda)
+      if (tradesWeapons) for (const w of WEAPONS) {
+        if (this.ownedWeapons.includes(w.id)) continue; // já tem essa arma
+        goods.push({ id: "w:" + w.id, name: w.name, iconUrl: w.url, price: this.weaponBuy(w.id), desc: this.weaponDesc(w), have: 0, single: true });
+      }
+      for (const id of goodIds) {
+        const m = GOODS_BY_ID[id];
         goods.push({ id: m.id, name: m.name, icon: m.icon, price: m.price, desc: m.desc, have: this.goodHave(m.id) });
+      }
     } else {
-      // VENDER: consumíveis/materiais do catálogo que possui (>0); o mercador
-      // também compra armas de volta (a alquimista não).
-      for (const m of catalog) {
-        const have = this.goodHave(m.id);
+      // VENDER: bens empilháveis dessa loja que o jogador possui (>0)...
+      for (const id of goodIds) {
+        const m = GOODS_BY_ID[id];
+        const have = this.goodHave(id);
         if (have > 0) goods.push({ id: m.id, name: m.name, icon: m.icon, price: Math.max(1, Math.round(m.price * Game.SELL_RATE)), desc: m.desc, have });
       }
-      if (!alch) for (const id of this.ownedWeapons) {
+      // ...e, no mercador, as armas possuídas (menos a equipada)
+      if (tradesWeapons) for (const id of this.ownedWeapons) {
         if (this.currentWeapon?.id === id) continue; // não vende a arma equipada
         const w = WEAPON_BY_ID[id];
         if (!w) continue;
@@ -1511,11 +1538,28 @@ export class Game {
   private storeTrade(id: string, qty: number): StoreData {
     qty = Math.max(1, Math.floor(qty));
     if (this.storeMode === "buy") {
-      const m = MERCH_BY_ID[id];
-      if (m) {
-        const cost = m.price * qty;
-        if (this.stats.gold < cost) { this.ui.toast("Ouro insuficiente."); }
-        else { this.stats.gold -= cost; this.goodAdd(id, qty); this.refreshStats(); this.ui.toast(`Comprou ${qty}× ${m.name}.`); }
+      if (id.startsWith("w:")) {
+        // COMPRA de arma (mercador): única, entra no inventário
+        const wid = id.slice(2);
+        const w = WEAPON_BY_ID[wid];
+        if (w && !this.ownedWeapons.includes(wid)) {
+          const cost = this.weaponBuy(wid);
+          if (this.stats.gold < cost) { this.ui.toast("Ouro insuficiente."); }
+          else {
+            this.stats.gold -= cost;
+            this.ownedWeapons.push(wid);
+            this.ui.setInventory(this.ownedWeapons);
+            this.refreshStats();
+            this.ui.toast(`Comprou ${w.name}.`);
+          }
+        }
+      } else {
+        const m = GOODS_BY_ID[id];
+        if (m) {
+          const cost = m.price * qty;
+          if (this.stats.gold < cost) { this.ui.toast("Ouro insuficiente."); }
+          else { this.stats.gold -= cost; this.goodAdd(id, qty); this.refreshStats(); this.ui.toast(`Comprou ${qty}× ${m.name}.`); }
+        }
       }
     } else if (id.startsWith("w:")) {
       const wid = id.slice(2);
@@ -1530,7 +1574,7 @@ export class Game {
         this.ui.toast(`Vendeu ${WEAPON_BY_ID[wid]?.name} por ${val} ouro.`);
       }
     } else {
-      const m = MERCH_BY_ID[id];
+      const m = GOODS_BY_ID[id];
       if (m) {
         qty = Math.min(qty, this.goodHave(id));
         if (qty > 0) {
