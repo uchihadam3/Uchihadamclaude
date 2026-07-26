@@ -220,6 +220,8 @@ export interface StoreGood {
   desc: string;
   have: number; // quanto o jogador possui (limite ao vender)
   single?: boolean; // item único (arma): vende 1, sem stepper
+  moveMax?: number; // baú: máximo transferível nesta ação (respeita o teto de pilha 99)
+  lvl?: number; // baú: nível de reforço da arma (+N), mostrado como selo no slot
 }
 export interface StoreData {
   gold: number;
@@ -234,6 +236,8 @@ export interface StoreData {
 export interface StashData {
   mode: "deposit" | "withdraw";     // guardar (mochila→baú) / retirar (baú→mochila)
   goods: StoreGood[];               // reusa o shape de bem (price é ignorado)
+  slots: number;                    // capacidade total do baú (grade de slots)
+  gold: number;                     // ouro guardado no baú (para o cabeçalho)
   title?: string; subtitle?: string; portraitUrl?: string;
 }
 
@@ -1205,36 +1209,55 @@ export function setupControls(
     };
   };
   const openStashQtyBox = (g: StoreGood) => {
-    const max = g.single ? 1 : g.have;
+    const max = g.single ? 1 : (g.moveMax ?? g.have);
     if (max < 1) return;
     stashQty = { g, qty: 1, max };
     stashQtyEl.classList.remove("gh-st-qty-hidden");
     renderStashQty();
   };
+  // BAÚ: grade compacta de slots (como o inventário do ferreiro), sem rótulos —
+  // só o ícone + a contagem da pilha (teto de 99). O ouro fica no cabeçalho.
   const renderStash = (d: StashData) => {
     stashMode = d.mode;
-    const cells = d.goods.length
-      ? d.goods.map((g) => {
-          const isGold = g.id === "gold";
-          const badge = (!g.single && !isGold && g.have > 0) ? `<span class="gh-count gh-st-cnt">${g.have}</span>` : "";
-          const sub = isGold ? `<div class="gh-st-gprice"><img src="${coinUrl}" alt=""/>${g.have}</div>` : "";
-          return `<div class="gh-st-good" data-gid="${g.id}"><div class="gh-slot gh-st-gslot">${stashIcon(g)}${badge}</div>` +
-            `<div class="gh-st-gname">${g.name}</div>${sub}</div>`;
-        }).join("")
-      : `<div class="gh-st-empty">${d.mode === "deposit" ? "Nada para guardar." : "O baú está vazio."}</div>`;
+    // itens que dá p/ mover no modo atual (mochila no GUARDAR, baú no RETIRAR),
+    // fora o ouro (que vira um "slot" fixo no início da grade)
+    const items = d.goods.filter((g) => g.id !== "gold");
+    const cells: string[] = [];
+    // slot de OURO — sempre 1º; mostra a moeda + o total (sem teto de 99)
+    const gold = d.goods.find((g) => g.id === "gold");
+    const goldHave = gold?.have ?? 0;
+    cells.push(
+      `<div class="gh-bag-slot gh-stash-cell gh-stash-gold${goldHave > 0 ? "" : " gh-stash-off"}" data-gid="gold" title="Ouro">` +
+      `<img class="gh-item-ico" src="${coinUrl}"/><span class="gh-stash-badge gh-stash-goldn">${goldHave}</span></div>`,
+    );
+    // demais itens (empilháveis + armas), um slot cada, sem nome; a arma leva o
+    // selo de reforço (+N) no canto, os empilháveis levam a contagem da pilha
+    for (const g of items) {
+      const badgeHtml = g.single
+        ? (g.lvl ? `<span class="gh-stash-badge gh-stash-lvl">+${g.lvl}</span>` : "")
+        : `<span class="gh-stash-badge">${g.have}</span>`;
+      cells.push(
+        `<div class="gh-bag-slot gh-stash-cell" data-gid="${g.id}" title="${g.name}">` +
+        `${stashIcon(g)}${badgeHtml}</div>`,
+      );
+    }
+    // completa a grade com slots vazios até a capacidade do baú
+    const filled = cells.length;
+    for (let i = filled; i < d.slots; i++) cells.push('<div class="gh-bag-slot gh-stash-cell gh-stash-empty"></div>');
     stashBody.innerHTML =
       `<div class="gh-eq-title gh-st-title"><img class="gh-st-portr" src="${d.portraitUrl ?? mercadoraUrl}" alt=""/>` +
       `<span class="gh-st-tt">${d.title ?? "Baú"}<small>${d.subtitle ?? ""}</small></span></div>` +
       '<div class="gh-st-tabs">' +
       `<button class="gh-st-tab${d.mode === "deposit" ? " gh-st-on" : ""}" data-mode="deposit">GUARDAR</button>` +
       `<button class="gh-st-tab${d.mode === "withdraw" ? " gh-st-on" : ""}" data-mode="withdraw">RETIRAR</button></div>` +
-      '<div class="gh-section gh-st-sec"><div class="gh-sec-head">' +
-      (d.mode === "deposit" ? "SUA MOCHILA — toque para guardar" : "NO BAÚ — toque para retirar") +
-      `</div><div class="gh-st-shop">${cells}</div></div>`;
+      '<div class="gh-section gh-st-sec gh-stash-sec"><div class="gh-sec-head gh-stash-head">' +
+      `<span>${d.mode === "deposit" ? "SUA MOCHILA — toque para guardar" : "NO BAÚ — toque para retirar"}</span>` +
+      `<span class="gh-stash-cap">${filled}/${d.slots}</span></div>` +
+      `<div class="gh-bag gh-stash-grid">${cells.join("")}</div></div>`;
     stashBody.querySelectorAll<HTMLElement>(".gh-st-tab").forEach((b) => {
       b.onclick = () => { if (b.dataset.mode !== stashMode) onStashMode?.(b.dataset.mode as "deposit" | "withdraw"); };
     });
-    stashBody.querySelectorAll<HTMLElement>(".gh-st-good").forEach((el) => {
+    stashBody.querySelectorAll<HTMLElement>(".gh-stash-cell[data-gid]").forEach((el) => {
       const g = d.goods.find((x) => x.id === el.dataset.gid);
       if (g) el.onclick = () => openStashQtyBox(g);
     });
@@ -2425,6 +2448,30 @@ function injectStyle() {
   #gh-stash-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.6%; color:#e8dcc0; overflow:hidden; }
   #gh-stash-qty { position:absolute; inset:0; z-index:8; display:flex; align-items:center; justify-content:center; background:rgba(6,4,2,.72); }
   #gh-stash-qty.gh-st-qty-hidden { display:none; }
+  /* BAÚ — grade compacta de slots (espaçoso: mais slots que a mochila, em
+     escala menor), rolável quando cheia. Cabeçalho mostra a lotação. */
+  .gh-stash-sec { padding:2% 3.5% 3%; }
+  .gh-stash-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .gh-stash-cap { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(10px,1.5vh,12px); color:#d8bd72; letter-spacing:1px; flex:0 0 auto; }
+  .gh-bag.gh-stash-grid {
+    grid-template-columns:repeat(5,1fr); grid-auto-rows:1fr; gap:5px;
+    flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; align-content:start;
+    padding:6px; background:rgba(20,15,9,.55); border:2px solid rgba(201,162,39,.4);
+    border-radius:8px; overscroll-behavior:contain; }
+  .gh-stash-cell { position:relative; aspect-ratio:1; width:auto; height:auto; min-width:0; min-height:0;
+    display:flex; align-items:center; justify-content:center; cursor:default; }
+  .gh-stash-cell[data-gid] { cursor:pointer; }
+  .gh-stash-cell[data-gid]:hover { background:rgba(40,32,16,.9); }
+  .gh-stash-cell[data-gid]:active { filter:brightness(1.16); }
+  .gh-stash-empty { background:rgba(8,6,3,.5); box-shadow:inset 0 0 0 1px rgba(201,162,39,.12); }
+  .gh-stash-cell .gh-item-ico { width:82%; height:82%; object-fit:contain; }
+  .gh-stash-cell .gh-st-emo { font-size:clamp(18px,3.4vh,26px); line-height:1; }
+  .gh-stash-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(9px,1.35vh,12px); color:#fff; text-shadow:0 1px 2px #000,0 0 3px #000; pointer-events:none; }
+  .gh-stash-lvl { color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; text-shadow:none; box-shadow:0 1px 2px #000; }
+  .gh-stash-gold { background:rgba(48,38,14,.55); box-shadow:inset 0 0 0 1px rgba(201,162,39,.5); }
+  .gh-stash-goldn { right:3px; bottom:2px; color:#f4d873; font-size:clamp(9px,1.4vh,12px); }
+  .gh-stash-off { opacity:.4; }
   .gh-st-title { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding:0 46px 0 2px; }
   .gh-st-portr { width:clamp(38px,6vh,50px); height:clamp(38px,6vh,50px); border-radius:9px; border:2px solid rgba(201,162,39,.6);
     background:#1a130c; object-fit:cover; object-position:50% 20%; box-shadow:inset 0 0 10px #000; flex:0 0 auto; }

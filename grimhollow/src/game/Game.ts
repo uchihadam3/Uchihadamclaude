@@ -1704,25 +1704,34 @@ export class Game {
 
   // ---- BAÚ / ARMAZÉM (guardar/retirar) ----
   private static readonly STASH_STACK = ["pot_hp", "pot_mp", "beer", "scroll_return", "madeira", "minerio", "reforco"];
+  private static readonly STASH_SLOTS = 40;   // capacidade do baú (grade de slots)
+  private static readonly STASH_CAP = 99;     // teto de itens por pilha no baú
   private buildStashData(): StashData {
     const dep = this.stashMode === "deposit";
     const goods: StoreGood[] = [];
-    // OURO (item especial id "gold")
+    // OURO (item especial id "gold") — sem teto de pilha
     goods.push({ id: "gold", name: "Ouro", icon: "🪙", price: 0, desc: "", have: dep ? this.stats.gold : this.stash.gold });
-    // consumíveis + materiais
+    // consumíveis + materiais: na deposição, o teto de 99 do baú limita o quanto
+    // ainda cabe na pilha guardada; na retirada, dá p/ tirar tudo.
     for (const id of Game.STASH_STACK) {
       const have = dep ? this.goodHave(id) : (this.stash.goods[id] ?? 0);
-      if (have > 0) { const m = GOODS_BY_ID[id]; goods.push({ id, name: m.name, icon: m.icon, iconUrl: m.iconUrl, price: 0, desc: "", have }); }
+      if (have <= 0) continue;
+      const m = GOODS_BY_ID[id];
+      const moveMax = dep ? Math.min(have, Game.STASH_CAP - (this.stash.goods[id] ?? 0)) : have;
+      goods.push({ id, name: m.name, icon: m.icon, iconUrl: m.iconUrl, price: 0, desc: "", have, moveMax });
     }
-    // armas (na deposição, menos a equipada)
+    // armas (na deposição, menos a equipada) — o nível de reforço vira selo (+N)
     const list = dep ? this.ownedWeapons : this.stash.weapons;
     for (const wid of list) {
       if (dep && this.currentWeapon?.id === wid) continue;
       const w = WEAPON_BY_ID[wid]; if (!w) continue;
       const lvl = (dep ? this.reinforce[wid] : this.stash.reinforce[wid]) ?? 0;
-      goods.push({ id: "w:" + wid, name: w.name + (lvl ? ` +${lvl}` : ""), iconUrl: w.url, price: 0, desc: "arma", have: 1, single: true });
+      goods.push({ id: "w:" + wid, name: w.name, iconUrl: w.url, price: 0, desc: "arma", have: 1, single: true, lvl });
     }
-    return { mode: this.stashMode, goods, title: "Baú de Hedda", subtitle: "SEUS PERTENCES GUARDADOS", portraitUrl: heddaUrl };
+    return {
+      mode: this.stashMode, goods, slots: Game.STASH_SLOTS, gold: this.stash.gold,
+      title: "Baú de Hedda", subtitle: "SEUS PERTENCES GUARDADOS", portraitUrl: heddaUrl,
+    };
   }
   private setStashMode(mode: "deposit" | "withdraw"): void {
     this.stashMode = mode;
@@ -1748,9 +1757,16 @@ export class Game {
         if (i >= 0) { this.stash.weapons.splice(i, 1); this.ownedWeapons.push(wid); this.reinforce[wid] = this.stash.reinforce[wid] ?? 0; delete this.stash.reinforce[wid]; this.ui.setInventory(this.ownedWeapons); }
       }
     } else {
-      // bem empilhável
-      if (dep) { qty = Math.min(qty, this.goodHave(id)); if (qty > 0) { this.goodAdd(id, -qty); this.stash.goods[id] = (this.stash.goods[id] ?? 0) + qty; } }
-      else { qty = Math.min(qty, this.stash.goods[id] ?? 0); if (qty > 0) { this.stash.goods[id] -= qty; this.goodAdd(id, qty); } }
+      // bem empilhável; no baú cada pilha respeita o teto de 99
+      if (dep) {
+        const room = Game.STASH_CAP - (this.stash.goods[id] ?? 0); // vaga na pilha do baú
+        qty = Math.min(qty, this.goodHave(id), room);
+        if (room <= 0) this.ui.toast("Essa pilha no baú já está cheia (99).");
+        if (qty > 0) { this.goodAdd(id, -qty); this.stash.goods[id] = (this.stash.goods[id] ?? 0) + qty; }
+      } else {
+        qty = Math.min(qty, this.stash.goods[id] ?? 0);
+        if (qty > 0) { this.stash.goods[id] -= qty; this.goodAdd(id, qty); }
+      }
       this.refreshConsumables();
     }
     return this.buildStashData();
