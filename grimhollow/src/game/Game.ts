@@ -73,6 +73,7 @@ import {
 } from "./showcase";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type ConsumSlot } from "./controls";
+import { audio } from "./audio";
 import {
   ROOM,
   ROOM_COLS,
@@ -734,12 +735,13 @@ export class Game {
   // buff temporário ativo (multiplicador de dano / redução de dano recebido)
   private buff: { atkMul: number; defReduc: number; until: number } | null = null;
   private hpRegenUntil = 0; // cerveja: regenera vida até este instante (ms)
-  // trilha de fundo do vilarejo (loop); toca na vila e nos interiores
-  private bgmVillage: HTMLAudioElement = (() => {
+  // trilha de fundo do vilarejo (loop); toca na vila e nos interiores.
+  // registrada no canal MÚSICA (volume controlado pelas Opções).
+  private bgmVillage: HTMLAudioElement = audio.register((() => {
     const a = new Audio(bgmVilarejoUrl);
-    a.loop = true; a.volume = 0.4; a.preload = "auto";
+    a.loop = true; a.preload = "auto";
     return a;
-  })();
+  })(), "music");
   private musicArmed = false; // já há um listener de gesto aguardando p/ religar?
   // retículo de mira (billboard que marca o alvo selecionado)
   private reticle: THREE.Mesh | null = null;

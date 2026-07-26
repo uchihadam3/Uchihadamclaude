@@ -23,6 +23,7 @@ import clockMoonUrl from "../assets/ui/clock_moon.png";
 import forgeFillUrl from "../assets/audio/forge_fill.mp3";
 import forgeFailUrl from "../assets/audio/forge_fail.mp3";
 import forgeSuccessUrl from "../assets/audio/forge_success.wav";
+import { audio } from "./audio";
 // medalhões do minimapa (arte própria recortada da folha)
 import mmSmith from "../assets/ui/minimap/mm_smith.png";
 import mmTavern from "../assets/ui/minimap/mm_tavern.png";
@@ -41,11 +42,12 @@ import mmStatue from "../assets/ui/minimap/mm_statue.png";
 import mmSign from "../assets/ui/minimap/mm_sign.png";
 
 // ---- FORJA: efeitos sonoros (arquivos enviados pelo jogador) ----------------
-const forgeFillSnd = new Audio(forgeFillUrl); // toca ENQUANTO a espada enche
-const forgeFailSnd = new Audio(forgeFailUrl); // aprimoramento falhou
-const forgeSuccessSnd = new Audio(forgeSuccessUrl); // aprimoramento deu certo
+// Registrados no canal SFX do gerenciador de áudio (o volume efetivo respeita a
+// barra de "Efeitos Especiais" e o mudo das Opções).
+const forgeFillSnd = audio.register(new Audio(forgeFillUrl), "sfx", 0.85); // toca ENQUANTO a espada enche
+const forgeFailSnd = audio.register(new Audio(forgeFailUrl), "sfx", 0.9); // aprimoramento falhou
+const forgeSuccessSnd = audio.register(new Audio(forgeSuccessUrl), "sfx", 0.9); // aprimoramento deu certo
 forgeFillSnd.preload = "auto"; forgeFailSnd.preload = "auto"; forgeSuccessSnd.preload = "auto";
-forgeFillSnd.volume = 0.85; forgeFailSnd.volume = 0.9; forgeSuccessSnd.volume = 0.9;
 function play(a: HTMLAudioElement) { try { a.currentTime = 0; a.play().catch(() => {}); } catch { /* ignora */ } }
 function stopSnd(a: HTMLAudioElement) { try { a.pause(); a.currentTime = 0; } catch { /* ignora */ } }
 
@@ -620,6 +622,51 @@ export function setupControls(
   charBtn.title = "Personagem (C)";
   charBtn.innerHTML = `<img class="gh-char-ico" src="${icoInventoryUrl}" alt=""/>`;
   root.appendChild(charBtn);
+
+  // ---- botão + janela de OPÇÕES (áudio) ----
+  const optBtn = document.createElement("button");
+  optBtn.id = "gh-opt-btn";
+  optBtn.title = "Opções";
+  optBtn.innerHTML = `<span class="gh-opt-gear">⚙</span>`;
+  root.appendChild(optBtn);
+
+  const opt = document.createElement("div");
+  opt.id = "gh-opt";
+  opt.className = "gh-eq-hidden";
+  const pct = (v: number) => Math.round(v * 100);
+  const sliderRow = (ch: string, label: string, val: number) =>
+    `<div class="gh-opt-row"><label>${label}</label>` +
+    `<input type="range" min="0" max="100" value="${pct(val)}" class="gh-opt-slider" data-ch="${ch}"/>` +
+    `<span class="gh-opt-val" data-for="${ch}">${pct(val)}%</span></div>`;
+  opt.innerHTML =
+    '<div id="gh-opt-win"><button id="gh-opt-close" title="Fechar">✕</button>' +
+    '<div class="gh-opt-title">OPÇÕES</div>' +
+    `<div class="gh-opt-sec${audio.muted ? " gh-opt-mutedsec" : ""}" id="gh-opt-audio">` +
+    '<div class="gh-opt-sh">ÁUDIO</div>' +
+    sliderRow("sfx", "Efeitos Especiais", audio.sfx) +
+    sliderRow("music", "Música", audio.music) +
+    '<div class="gh-opt-row gh-opt-rowmute"><label>Mudo</label>' +
+    `<button class="gh-opt-toggle${audio.muted ? " gh-opt-on" : ""}" id="gh-opt-mute" aria-label="Mudo"><span class="gh-opt-knob"></span></button></div>` +
+    '</div></div>';
+  root.appendChild(opt);
+  const optAudioSec = opt.querySelector("#gh-opt-audio") as HTMLElement;
+  const muteBtn = opt.querySelector("#gh-opt-mute") as HTMLElement;
+  const syncMuteUI = () => {
+    optAudioSec.classList.toggle("gh-opt-mutedsec", audio.muted);
+    muteBtn.classList.toggle("gh-opt-on", audio.muted);
+  };
+  opt.querySelectorAll<HTMLInputElement>(".gh-opt-slider").forEach((s) => {
+    s.addEventListener("input", () => {
+      const v = Number(s.value) / 100;
+      if (s.dataset.ch === "sfx") audio.setSfx(v); else audio.setMusic(v);
+      const lab = opt.querySelector(`.gh-opt-val[data-for="${s.dataset.ch}"]`);
+      if (lab) lab.textContent = `${s.value}%`;
+    });
+  });
+  muteBtn.addEventListener("click", (e) => { e.preventDefault(); audio.setMuted(!audio.muted); syncMuteUI(); });
+  optBtn.addEventListener("click", (e) => { e.preventDefault(); opt.classList.toggle("gh-eq-hidden"); });
+  (opt.querySelector("#gh-opt-close") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); opt.classList.add("gh-eq-hidden"); });
+  opt.addEventListener("click", (e) => { if (e.target === opt) opt.classList.add("gh-eq-hidden"); });
 
   // disposição "boneco" estilo Path of Exile numa grade 8×6 (célula quadrada):
   // armas altas (2×4) nas laterais; elmo (2×2) no topo; peitoral (2×3) no centro;
@@ -1997,6 +2044,46 @@ function injectStyle() {
     filter:drop-shadow(0 1px 2px rgba(0,0,0,.7));
   }
   #gh-char-btn:active { transform:scale(.94); filter:brightness(1.25) drop-shadow(0 1px 4px rgba(0,0,0,.6)); }
+  /* botão de OPÇÕES (engrenagem, abaixo do botão de personagem) */
+  #gh-opt-btn {
+    position:fixed; left:14px; top:calc(20px + min(230px, 40vw) * 0.424 + 60px); z-index:12; pointer-events:auto;
+    width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0; border:none;
+    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+    filter:drop-shadow(0 2px 7px rgba(0,0,0,.55)); display:flex; align-items:center; justify-content:center;
+  }
+  .gh-opt-gear { font-size:26px; line-height:1; color:#2a1e0e; filter:drop-shadow(0 1px 1px rgba(255,235,180,.4)); }
+  #gh-opt-btn:active { transform:scale(.94); filter:brightness(1.15); }
+  /* janela de OPÇÕES */
+  #gh-opt { position:fixed; inset:0; z-index:23; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
+  #gh-opt.gh-eq-hidden { display:none; }
+  #gh-opt-win { position:relative; box-sizing:border-box; width:min(420px,92vw); max-height:90vh; overflow-y:auto;
+    border:clamp(20px,3vh,30px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); padding:2px 6px 10px; }
+  #gh-opt-close { position:absolute; right:8px; top:8px; z-index:9; width:34px; height:34px; border-radius:9px; cursor:pointer;
+    font-size:16px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
+  .gh-opt-title { text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(18px,2.8vh,22px); letter-spacing:3px;
+    color:#f6e7c2; text-shadow:0 2px 6px #000; padding:6px 40px 10px; }
+  .gh-opt-sec { border:clamp(12px,1.9vh,15px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; padding:4% 6% 6%; }
+  .gh-opt-sh { text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.8vh,14px); color:#e8b24a;
+    letter-spacing:2px; text-shadow:0 1px 3px #000; margin-bottom:6%; }
+  .gh-opt-row { display:flex; align-items:center; gap:12px; margin:5% 0; }
+  .gh-opt-row label { flex:0 0 42%; font-family:"MedievalSharp",serif; font-size:clamp(12px,1.8vh,14px); color:#e8dcc0; }
+  .gh-opt-val { flex:0 0 44px; text-align:right; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.8vh,14px); color:#f4d074; }
+  .gh-opt-slider { flex:1; -webkit-appearance:none; appearance:none; height:7px; border-radius:5px; cursor:pointer;
+    background:linear-gradient(#3a2c16,#241a0d); box-shadow:inset 0 0 0 1px rgba(201,162,39,.35); outline:none; }
+  .gh-opt-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:19px; height:19px; border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, #f6df9a, #c9922a); border:1px solid #8a6a1e; box-shadow:0 1px 3px #000, inset 0 1px 1px rgba(255,255,255,.45); cursor:pointer; }
+  .gh-opt-slider::-moz-range-thumb { width:19px; height:19px; border-radius:50%;
+    background:radial-gradient(circle at 40% 35%, #f6df9a, #c9922a); border:1px solid #8a6a1e; box-shadow:0 1px 3px #000; cursor:pointer; }
+  .gh-opt-rowmute { justify-content:space-between; }
+  .gh-opt-rowmute label { flex:0 0 auto; }
+  .gh-opt-toggle { width:54px; height:28px; border-radius:16px; position:relative; cursor:pointer; border:none; padding:0;
+    background:#241a0d; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.4); transition:background .15s; }
+  .gh-opt-toggle.gh-opt-on { background:#8a2c1e; box-shadow:inset 0 0 0 1.5px rgba(232,120,90,.65); }
+  .gh-opt-knob { position:absolute; top:3px; left:3px; width:22px; height:22px; border-radius:50%; transition:left .15s;
+    background:radial-gradient(circle at 40% 35%, #f4ecd2, #c9a24f); box-shadow:0 1px 3px #000; }
+  .gh-opt-toggle.gh-opt-on .gh-opt-knob { left:29px; }
+  .gh-opt-mutedsec .gh-opt-slider, .gh-opt-mutedsec .gh-opt-val,
+  .gh-opt-mutedsec .gh-opt-row:not(.gh-opt-rowmute) label { opacity:.45; }
   /* janela de equipamentos */
   #gh-eq {
     position:fixed; inset:0; z-index:20; pointer-events:auto;
