@@ -687,7 +687,6 @@ export class Game {
     ossos: { status: "available", progress: 0 },
   };
   private static readonly QUEST_OSSOS_GOAL = 8;
-  private static readonly REST_COST = 20; // ouro p/ descansar (cura HP+MP)
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   private static readonly SELL_RATE = 0.5; // mercador paga metade do preço de compra
@@ -903,7 +902,6 @@ export class Game {
       (mode) => this.setStoreMode(mode), // trocou aba comprar/vender
       (id, qty) => this.storeTrade(id, qty), // confirmou compra/venda
       (id) => this.useConsumable(id), // usou um consumível na bandeja do HUD
-      () => this.tavernRest(), // descansou na taverna
       (id) => this.tavernBuyDrink(id), // comprou uma bebida
       (id, action) => this.tavernQuest(id, action), // aceitou/entregou missão
     );
@@ -1610,16 +1608,11 @@ export class Game {
     return this.buildStoreData();
   }
 
-  // ---- TAVERNA (descanso pago + bebidas + missões) ----
+  // ---- TAVERNA (bebidas + missões) ----
   private buildTavernData(): TavernData {
     const beer = GOODS_BY_ID["beer"];
-    const needsRest = this.playerHp < this.playerMaxHp || this.playerMp < this.playerMaxMp;
     return {
       gold: this.stats.gold,
-      hp: Math.round(this.playerHp), maxHp: Math.round(this.playerMaxHp),
-      mp: Math.round(this.playerMp), maxMp: Math.round(this.playerMaxMp),
-      restCost: Game.REST_COST,
-      canRest: needsRest && this.stats.gold >= Game.REST_COST,
       drink: { id: beer.id, name: beer.name, icon: beer.icon, iconUrl: beer.iconUrl, price: beer.price, desc: beer.desc, have: this.goodHave(beer.id) },
       quests: this.buildQuests(),
     };
@@ -1632,25 +1625,11 @@ export class Game {
       icon: "💀",
       title: "Ossos Inquietos",
       desc: "Os mortos não descansam na masmorra. Elimine 8 esqueletos.",
-      reward: "120 ouro · 🍺 ×2",
+      reward: [{ gold: true, label: "120" }, { iconUrl: icoBeerUrl, label: "×2" }],
       status: q.status,
       progress: (q.status === "active" || q.status === "ready")
         ? `${Math.min(q.progress, goal)} / ${goal} esqueletos` : undefined,
     }];
-  }
-  // paga ouro e recupera vida + mana por completo
-  private tavernRest(): TavernData {
-    if (this.playerHp >= this.playerMaxHp && this.playerMp >= this.playerMaxMp) {
-      this.ui.toast("Você já está em plena forma.");
-    } else if (this.stats.gold < Game.REST_COST) {
-      this.ui.toast("Ouro insuficiente para o quarto.");
-    } else {
-      this.stats.gold -= Game.REST_COST;
-      this.playerHp = this.playerMaxHp; this.playerMp = this.playerMaxMp;
-      this.ui.setHealth(1); this.ui.setMana(1); this.refreshStats();
-      this.ui.toast("Descansado! Vida e mana recuperadas.");
-    }
-    return this.buildTavernData();
   }
   private tavernBuyDrink(id: string): TavernData {
     const m = GOODS_BY_ID[id];

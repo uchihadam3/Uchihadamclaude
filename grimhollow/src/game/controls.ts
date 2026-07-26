@@ -206,21 +206,19 @@ export interface StoreData {
 // ---- BANDEJA DE CONSUMÍVEIS (usar item no HUD) ----
 export interface ConsumSlot { id: string; icon: string; iconUrl?: string; name: string; count: number; }
 
-// ---- TAVERNA (descanso + bebidas + missões) ----
+// ---- TAVERNA (bebidas + missões) ----
+export interface TavernReward { gold?: boolean; iconUrl?: string; label: string; } // moeda ou item
 export interface TavernQuest {
   id: string;
   icon: string;
   title: string;
   desc: string;
-  reward: string; // texto da recompensa
+  reward: TavernReward[]; // recompensas em "chips" (moeda + itens)
   status: "available" | "active" | "ready" | "done";
   progress?: string; // ex.: "3 / 8 esqueletos" (quando ativa)
 }
 export interface TavernData {
   gold: number;
-  hp: number; maxHp: number; mp: number; maxMp: number;
-  restCost: number;
-  canRest: boolean; // tem ouro e precisa descansar
   drink: StoreGood; // a cerveja (reusa o shape de bem: id/name/icon/price/desc/have)
   quests: TavernQuest[];
 }
@@ -281,7 +279,6 @@ export function setupControls(
   onStoreMode?: (mode: "buy" | "sell") => void, // trocou aba comprar/vender no mercador
   onStoreTrade?: (id: string, qty: number) => StoreData, // confirmou compra/venda; devolve novo estado
   onUseItem?: (id: string) => void, // usou um consumível na bandeja do HUD
-  onRest?: () => TavernData | null, // descansou na taverna; devolve novo estado
   onBuyDrink?: (id: string) => TavernData | null, // comprou bebida; devolve novo estado
   onQuest?: (id: string, action: "accept" | "turnin") => TavernData | null, // missão
 ): HUD {
@@ -1094,48 +1091,55 @@ export function setupControls(
   (tv.querySelector("#gh-tv-close") as HTMLElement).addEventListener("click", (e) => {
     e.preventDefault(); tv.classList.add("gh-eq-hidden");
   });
+  // faixa lateral de status + selo/botão de ação de cada missão
+  const questAccent = (q: TavernQuest): string =>
+    q.status === "available" ? "gh-tv-q-new" : q.status === "ready" ? "gh-tv-q-ready"
+      : q.status === "done" ? "gh-tv-q-done" : "gh-tv-q-active";
+  const questRibbon = (q: TavernQuest): string => {
+    if (q.status === "available") return `<span class="gh-tv-rib gh-tv-rib-new">NOVA</span>`;
+    if (q.status === "ready") return `<span class="gh-tv-rib gh-tv-rib-ready">PRONTA</span>`;
+    if (q.status === "done") return `<span class="gh-tv-rib gh-tv-rib-done">CONCLUÍDA</span>`;
+    return `<span class="gh-tv-rib gh-tv-rib-active">EM ANDAMENTO</span>`;
+  };
   const questBtn = (q: TavernQuest): string => {
     if (q.status === "available") return `<button class="gh-tv-qbtn" data-qid="${q.id}" data-act="accept">ACEITAR</button>`;
     if (q.status === "ready") return `<button class="gh-tv-qbtn gh-tv-qready" data-qid="${q.id}" data-act="turnin">ENTREGAR</button>`;
-    if (q.status === "done") return `<span class="gh-tv-qtag gh-tv-done">CONCLUÍDA</span>`;
-    return `<span class="gh-tv-qtag gh-tv-inprog">EM ANDAMENTO</span>`; // active
+    return ""; // ativa/concluída: sem botão (o selo já comunica)
   };
+  const rewardChip = (r: TavernReward): string =>
+    `<span class="gh-tv-rw">` +
+    (r.gold ? `<img src="${coinUrl}" alt=""/>` : r.iconUrl ? `<img src="${r.iconUrl}" alt=""/>` : "") +
+    `${r.label}</span>`;
   const renderTavern = (d: TavernData) => {
-    const hpFrac = d.maxHp ? Math.max(0, Math.min(1, d.hp / d.maxHp)) : 0;
-    const mpFrac = d.maxMp ? Math.max(0, Math.min(1, d.mp / d.maxMp)) : 0;
     const quests = d.quests.map((q) =>
-      `<div class="gh-tv-quest">` +
+      `<div class="gh-tv-quest ${questAccent(q)}"><div class="gh-tv-accent"></div>` +
       `<div class="gh-tv-qic">${q.icon}</div>` +
-      `<div class="gh-tv-qbody"><div class="gh-tv-qtitle">${q.title}</div>` +
+      `<div class="gh-tv-qbody">` +
+      `<div class="gh-tv-qtop"><span class="gh-tv-qtitle">${q.title}</span>${questRibbon(q)}</div>` +
       `<div class="gh-tv-qdesc">${q.desc}</div>` +
-      (q.progress ? `<div class="gh-tv-qprog">Progresso: ${q.progress}</div>`
-        : `<div class="gh-tv-qrew"><img src="${coinUrl}" alt=""/>${q.reward}</div>`) +
-      `</div><div class="gh-tv-qact">${questBtn(q)}</div></div>`,
-    ).join("");
+      (q.progress ? `<div class="gh-tv-qprog">Progresso: ${q.progress}</div>` : "") +
+      `<div class="gh-tv-rewards">${q.reward.map(rewardChip).join("")}</div>` +
+      `</div>` +
+      (questBtn(q) ? `<div class="gh-tv-qact">${questBtn(q)}</div>` : "") +
+      `</div>`,
+    ).join("") || `<div class="gh-tv-empty">Nenhuma missão disponível no momento.<br>Volte mais tarde, aventureiro.</div>`;
     tvBody.innerHTML =
       `<div class="gh-eq-title gh-tv-title"><img class="gh-tv-portr" src="${taverneiroUrl}" alt=""/>` +
       `<span class="gh-tv-tt">Taverna do Javali<small>BRUNO, O TAVERNEIRO</small></span>` +
       `<span class="gh-gold gh-tv-gold"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
-      // DESCANSAR
-      `<div class="gh-tv-sec"><div class="gh-tv-h">DESCANSAR — recupere as forças</div>` +
-      `<div class="gh-tv-rest"><div class="gh-tv-bars">` +
-      `<div class="gh-tv-bar gh-tv-hp"><i style="width:${hpFrac * 100}%"></i><span>Vida ${d.hp} / ${d.maxHp}</span></div>` +
-      `<div class="gh-tv-bar gh-tv-mp"><i style="width:${mpFrac * 100}%"></i><span>Mana ${d.mp} / ${d.maxMp}</span></div></div>` +
-      `<button class="gh-tv-restbtn${d.canRest ? "" : " gh-tv-dim"}" id="gh-tv-rest"><b>DESCANSAR</b>` +
-      `<em><img src="${coinUrl}" alt=""/>${d.restCost}</em></button></div></div>` +
-      // BEBIDAS
-      `<div class="gh-tv-sec"><div class="gh-tv-h">NA TORNEIRA — bebidas</div>` +
-      `<div class="gh-tv-drink"><div class="gh-slot gh-tv-dslot">${d.drink.iconUrl ? `<img class="gh-tv-dimg" src="${d.drink.iconUrl}" alt=""/>` : `<span class="gh-tv-demo">${d.drink.icon}</span>`}` +
-      `${d.drink.have > 0 ? `<span class="gh-count gh-tv-dhave">${d.drink.have}</span>` : ""}</div>` +
+      `<div class="gh-tv-rule"><span>◆</span></div>` +
+      // BEBIDAS — card compacto
+      `<div class="gh-tv-block"><div class="gh-tv-h"><b>NA TORNEIRA</b><i>— bebidas</i></div>` +
+      `<div class="gh-tv-drinkcard"><div class="gh-tv-dslot">` +
+      `${d.drink.iconUrl ? `<img class="gh-tv-dimg" src="${d.drink.iconUrl}" alt=""/>` : `<span class="gh-tv-demo">${d.drink.icon}</span>`}` +
+      `${d.drink.have > 0 ? `<span class="gh-tv-dhave">${d.drink.have}</span>` : ""}</div>` +
       `<div class="gh-tv-dinfo"><div class="gh-tv-dn">${d.drink.name}</div>` +
-      `<div class="gh-tv-de">${d.drink.desc}.</div>` +
-      `<button class="gh-tv-buybtn" id="gh-tv-buy"><img src="${coinUrl}" alt=""/>${d.drink.price} · COMPRAR</button>` +
-      `</div></div></div>` +
-      // MISSÕES
-      `<div class="gh-tv-sec gh-tv-secq"><div class="gh-tv-h">MURAL DE MISSÕES</div>` +
+      `<div class="gh-tv-chip">❤ ${d.drink.desc}</div></div>` +
+      `<div class="gh-tv-buywrap"><button class="gh-tv-buybtn" id="gh-tv-buy"><img src="${coinUrl}" alt=""/>${d.drink.price}</button>` +
+      `<em>COMPRAR</em></div></div></div>` +
+      // MISSÕES — protagonista
+      `<div class="gh-tv-board"><div class="gh-tv-h gh-tv-h-c"><b>MURAL DE MISSÕES</b></div>` +
       `<div class="gh-tv-quests">${quests}</div></div>`;
-    const rb = tvBody.querySelector<HTMLElement>("#gh-tv-rest");
-    if (rb) rb.onclick = () => { const nd = onRest?.(); if (nd) renderTavern(nd); };
     const bb = tvBody.querySelector<HTMLElement>("#gh-tv-buy");
     if (bb) bb.onclick = () => { const nd = onBuyDrink?.(d.drink.id); if (nd) renderTavern(nd); };
     tvBody.querySelectorAll<HTMLElement>(".gh-tv-qbtn").forEach((b) => {
@@ -2647,81 +2651,87 @@ function injectStyle() {
     background:#1a130c; border:1.5px solid rgba(201,162,39,.7); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
     font-size:11px; line-height:14px; text-align:center; box-shadow:0 1px 3px #000; }
 
-  /* ---- TAVERNA ---- */
-  #gh-tv { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
+  /* ---- TAVERNA (bebidas + missões, tema âmbar) ---- */
+  #gh-tv { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
   #gh-tv.gh-eq-hidden { display:none; }
   #gh-tv-win { position:relative; box-sizing:border-box; width:min(60vh,460px); height:min(94vh,820px);
     border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
   @media (max-width:640px){ #gh-tv-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
   #gh-tv-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
-    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
-  #gh-tv-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.4%; color:#e8dcc0; overflow-y:auto; }
-  .gh-tv-title { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding:0 46px 0 2px; }
-  .gh-tv-portr { width:clamp(38px,6vh,50px); height:clamp(38px,6vh,50px); border-radius:9px; border:2px solid rgba(201,162,39,.6);
-    background:#1a130c; object-fit:cover; object-position:50% 22%; box-shadow:inset 0 0 10px #000; flex:0 0 auto; }
-  .gh-tv-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(16px,2.5vh,22px);
-    letter-spacing:2px; color:#f2e4bf; text-shadow:0 2px 5px #000; line-height:1.05; }
-  .gh-tv-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.2vh,11px); color:#b39a63; letter-spacing:3px; margin-top:1px; }
+    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
+  #gh-tv-body { width:100%; height:100%; display:flex; flex-direction:column; gap:2.2%; color:#e8dcc0; overflow-y:auto; }
+  .gh-tv-title { display:flex; align-items:center; gap:11px; flex:0 0 auto; padding:0 46px 0 2px; }
+  .gh-tv-portr { width:clamp(40px,6.4vh,52px); height:clamp(40px,6.4vh,52px); border-radius:10px; border:2px solid rgba(232,178,74,.65);
+    background:#1a130c; object-fit:cover; object-position:50% 22%; box-shadow:inset 0 0 10px #000, 0 0 12px rgba(232,178,74,.25); flex:0 0 auto; }
+  .gh-tv-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(15px,2.3vh,20px);
+    letter-spacing:1px; color:#f6e7c2; text-shadow:0 2px 6px #000; line-height:1.02; white-space:nowrap; }
+  .gh-tv-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.2vh,10.5px); color:#c39a5a; letter-spacing:3px; margin-top:2px; white-space:nowrap; }
   .gh-gold.gh-tv-gold { position:static; transform:none; flex:0 0 auto; font-size:clamp(13px,2vh,16px); }
-  .gh-tv-sec { flex:0 0 auto; border:clamp(13px,2vh,16px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; padding:2% 4% 3.5%; }
-  .gh-tv-secq { flex:1 1 auto; }
-  .gh-tv-h { text-align:center; font-family:"Cinzel",serif; font-weight:600; font-size:clamp(11px,1.7vh,13px); color:#e5cf95;
-    letter-spacing:1.5px; margin-bottom:3%; text-shadow:0 1px 3px #000; }
-  /* descansar */
-  .gh-tv-rest { display:flex; align-items:center; gap:12px; }
-  .gh-tv-bars { flex:1; display:flex; flex-direction:column; gap:6px; }
-  .gh-tv-bar { height:clamp(14px,2.1vh,17px); border-radius:8px; background:#0d0a07; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.35);
-    position:relative; overflow:hidden; }
-  .gh-tv-bar i { position:absolute; inset:0 auto 0 0; border-radius:8px; }
-  .gh-tv-hp i { background:linear-gradient(#e0584e,#a52820); }
-  .gh-tv-mp i { background:linear-gradient(#4a8fe0,#2352a5); }
-  .gh-tv-bar span { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:"Cinzel",serif;
-    font-size:clamp(9px,1.3vh,10px); color:#fff; text-shadow:0 1px 2px #000; }
-  .gh-tv-restbtn { flex:0 0 auto; width:clamp(116px,20vh,140px); min-height:clamp(46px,7vh,54px); cursor:pointer;
-    font-family:"Cinzel",serif; font-weight:700; color:#12100a; border:clamp(11px,1.8vh,13px) solid transparent;
-    border-image:url(${btnBaseUrl}) 40 fill; background:transparent; display:flex; flex-direction:column; align-items:center;
-    justify-content:center; line-height:1.05; text-shadow:0 1px 0 rgba(255,235,180,.5); gap:1px; }
-  .gh-tv-restbtn b { font-size:clamp(13px,2vh,15px); letter-spacing:.5px; }
-  .gh-tv-restbtn em { font-style:normal; font-size:clamp(10px,1.5vh,12px); display:flex; align-items:center; gap:3px; }
-  .gh-tv-restbtn em img { width:12px; height:12px; }
-  .gh-tv-restbtn.gh-tv-dim { filter:grayscale(.5) brightness(.72); }
-  /* bebidas */
-  .gh-tv-drink { display:flex; align-items:center; gap:12px; }
-  .gh-tv-dslot { position:relative; width:clamp(56px,9vh,68px); height:clamp(56px,9vh,68px); flex:0 0 auto;
-    display:flex; align-items:center; justify-content:center; border:clamp(8px,1.4vh,10px) solid transparent; border-image:url(${eqSlotUrl}) 89 fill; }
-  .gh-tv-demo { font-size:clamp(26px,5vh,34px); line-height:1; }
+  .gh-gold.gh-tv-gold b { color:#f4d074; }
+  /* divisória ornamental */
+  .gh-tv-rule { flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:8px; color:#9a7c44; margin:-1% 0; }
+  .gh-tv-rule::before, .gh-tv-rule::after { content:""; height:1px; flex:1; max-width:150px; background:linear-gradient(90deg,transparent,rgba(232,178,74,.5),transparent); }
+  .gh-tv-rule span { font-size:11px; color:#c9a24f; }
+  /* cabeçalho de bloco */
+  .gh-tv-block { flex:0 0 auto; }
+  .gh-tv-h { display:flex; align-items:center; gap:7px; justify-content:center; margin-bottom:2.4%; }
+  .gh-tv-h b { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,13px); color:#e8b24a; letter-spacing:2px; text-shadow:0 1px 3px #000; }
+  .gh-tv-h i { font-style:normal; color:#8a6f3f; font-size:clamp(10px,1.5vh,12px); }
+  /* card da bebida */
+  .gh-tv-drinkcard { display:flex; align-items:center; gap:13px; padding:3% 4%; border-radius:12px;
+    background:linear-gradient(180deg, rgba(58,42,20,.5), rgba(30,20,10,.45)); box-shadow:inset 0 0 0 1.5px rgba(232,178,74,.32), 0 2px 10px rgba(0,0,0,.4); }
+  .gh-tv-dslot { position:relative; width:clamp(60px,10vh,76px); height:clamp(60px,10vh,76px); flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; border:clamp(8px,1.5vh,10px) solid transparent; border-image:url(${eqSlotUrl}) 89 fill;
+    box-shadow:0 0 16px 2px rgba(232,178,74,.32); }
+  .gh-tv-demo { font-size:clamp(28px,5.4vh,36px); line-height:1; }
   .gh-tv-dimg { width:86%; height:86%; object-fit:contain; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
-  .gh-tv-dhave { position:absolute; right:-3px; bottom:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:8px;
-    background:#1a130c; border:1.5px solid rgba(201,162,39,.7); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
-    font-size:11px; line-height:14px; text-align:center; box-shadow:0 1px 3px #000; }
+  .gh-tv-dhave { position:absolute; right:-4px; bottom:-4px; min-width:18px; height:18px; padding:0 4px; border-radius:9px;
+    background:#1a130c; border:1.5px solid rgba(232,178,74,.75); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
+    font-size:11px; line-height:15px; text-align:center; box-shadow:0 1px 3px #000; }
   .gh-tv-dinfo { flex:1; min-width:0; }
-  .gh-tv-dn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(14px,2.2vh,16px); color:#f0e6cf; }
-  .gh-tv-de { font-size:clamp(11px,1.6vh,12px); color:#c8b892; margin:2px 0 6px; line-height:1.25; }
-  .gh-tv-buybtn { display:inline-flex; align-items:center; gap:5px; cursor:pointer; padding:6px 16px; font-family:"Cinzel",serif;
-    font-weight:700; font-size:clamp(12px,1.8vh,13px); color:#12100a; border:clamp(9px,1.5vh,11px) solid transparent;
+  .gh-tv-dn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(15px,2.3vh,17px); color:#f4ebd4; }
+  .gh-tv-chip { display:inline-flex; align-items:center; gap:4px; margin-top:6px; padding:3px 10px; border-radius:20px;
+    font-size:clamp(10px,1.5vh,11px); background:rgba(90,60,30,.5); color:#f0c98a; box-shadow:inset 0 0 0 1px rgba(232,178,74,.35); }
+  .gh-tv-buywrap { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .gh-tv-buybtn { display:inline-flex; align-items:center; gap:5px; cursor:pointer; padding:9px 15px; font-family:"Cinzel",serif;
+    font-weight:700; font-size:clamp(13px,2vh,14px); color:#1a1408; border:clamp(10px,1.7vh,12px) solid transparent;
     border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
-  .gh-tv-buybtn img { width:13px; height:13px; }
-  /* missões */
-  .gh-tv-quests { display:flex; flex-direction:column; gap:8px; }
-  .gh-tv-quest { display:flex; gap:10px; align-items:center; padding:8px 9px; border-radius:9px;
-    background:rgba(12,9,6,.55); box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.28); }
-  .gh-tv-qic { width:40px; height:40px; flex:0 0 auto; display:flex; align-items:center; justify-content:center; font-size:23px;
-    border-radius:8px; background:#0d0a07; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.3); }
+  .gh-tv-buybtn img { width:14px; height:14px; }
+  .gh-tv-buywrap em { font-style:normal; font-size:clamp(9px,1.3vh,10px); color:#a8905f; font-family:"Cinzel",serif; letter-spacing:1px; }
+  /* mural de missões (protagonista) */
+  .gh-tv-board { flex:1 1 auto; display:flex; flex-direction:column; padding:3% 3.5% 3.5%;
+    border:clamp(13px,2vh,15px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; }
+  .gh-tv-h-c { margin-bottom:3.4%; }
+  .gh-tv-quests { display:flex; flex-direction:column; gap:10px; }
+  .gh-tv-empty { text-align:center; color:#8a7550; font-size:clamp(11px,1.7vh,13px); line-height:1.6; padding:16% 6%; font-family:"MedievalSharp",serif; }
+  .gh-tv-quest { position:relative; display:flex; gap:11px; align-items:stretch; padding:3% 3%; border-radius:11px; overflow:hidden;
+    background:linear-gradient(180deg, rgba(40,30,17,.55), rgba(22,15,9,.5)); box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.28); }
+  .gh-tv-accent { position:absolute; left:0; top:0; bottom:0; width:4px; }
+  .gh-tv-q-new .gh-tv-accent { background:linear-gradient(#7bd06a,#3a7a2a); }
+  .gh-tv-q-ready .gh-tv-accent { background:linear-gradient(#f4d074,#c98a2a); }
+  .gh-tv-q-active .gh-tv-accent { background:linear-gradient(#c9a24f,#7a5a1e); }
+  .gh-tv-q-done .gh-tv-accent { background:linear-gradient(#8aa07a,#4a5a3a); }
+  .gh-tv-qic { width:clamp(42px,7vh,48px); height:clamp(42px,7vh,48px); flex:0 0 auto; align-self:center; display:flex; align-items:center; justify-content:center;
+    font-size:clamp(23px,4vh,26px); border-radius:9px; background:#0d0a07; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.35); }
   .gh-tv-qbody { flex:1; min-width:0; }
-  .gh-tv-qtitle { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2vh,14px); color:#f0e6cf; }
-  .gh-tv-qdesc { font-size:clamp(10px,1.5vh,11px); color:#b6a883; margin-top:2px; line-height:1.2; }
-  .gh-tv-qrew { font-size:clamp(10px,1.5vh,11px); color:#e8c56a; margin-top:3px; display:flex; align-items:center; gap:4px; }
-  .gh-tv-qrew img { width:12px; height:12px; }
-  .gh-tv-qprog { font-size:clamp(10px,1.5vh,11px); color:#9fb98a; margin-top:3px; font-family:"Cinzel",serif; }
+  .gh-tv-qtop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .gh-tv-qtitle { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2.1vh,15px); color:#f4ebd4; }
+  .gh-tv-rib { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(8px,1.3vh,9px); letter-spacing:.5px; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+  .gh-tv-rib-new { background:#2f4a22; color:#bfe89a; box-shadow:inset 0 0 0 1px rgba(150,220,120,.4); }
+  .gh-tv-rib-ready { background:#5a4415; color:#ffd98a; box-shadow:inset 0 0 0 1px rgba(240,200,120,.4); }
+  .gh-tv-rib-active { background:#4a3a18; color:#f0d477; box-shadow:inset 0 0 0 1px rgba(201,162,39,.35); }
+  .gh-tv-rib-done { background:#3a4a2f; color:#bfe89a; box-shadow:inset 0 0 0 1px rgba(150,200,120,.35); }
+  .gh-tv-qdesc { font-size:clamp(10px,1.55vh,11.5px); color:#b6a883; margin-top:3px; line-height:1.3; }
+  .gh-tv-qprog { font-size:clamp(10px,1.5vh,11px); color:#9fb98a; margin-top:4px; font-family:"Cinzel",serif; }
+  .gh-tv-rewards { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
+  .gh-tv-rw { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:7px; font-size:clamp(10px,1.5vh,11px); color:#e8c56a;
+    background:rgba(12,9,6,.6); box-shadow:inset 0 0 0 1px rgba(201,162,39,.3); }
+  .gh-tv-rw img { width:15px; height:15px; object-fit:contain; }
   .gh-tv-qact { flex:0 0 auto; align-self:center; }
-  .gh-tv-qbtn { cursor:pointer; padding:8px 14px; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,12px);
-    color:#12100a; border:clamp(9px,1.5vh,11px) solid transparent; border-image:url(${btnBaseUrl}) 40 fill; background:transparent; }
+  .gh-tv-qbtn { cursor:pointer; padding:9px 14px; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,12px);
+    color:#1a1408; border:clamp(9px,1.5vh,11px) solid transparent; border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-tv-qready { animation:gh-tv-pulse 1.4s ease-in-out infinite; }
-  @keyframes gh-tv-pulse { 0%,100%{filter:none} 50%{filter:brightness(1.25)} }
-  .gh-tv-qtag { font-family:"Cinzel",serif; font-weight:600; font-size:clamp(9px,1.4vh,10px); letter-spacing:.5px; padding:4px 8px;
-    border-radius:7px; align-self:center; white-space:nowrap; }
-  .gh-tv-inprog { background:#5a4a1e; color:#f0d477; }
-  .gh-tv-done { background:#3a5a2a; color:#bfe89a; }
+  @keyframes gh-tv-pulse { 0%,100%{filter:none} 50%{filter:brightness(1.22)} }
   `;
   document.head.appendChild(s);
 }
