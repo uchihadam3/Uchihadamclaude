@@ -110,6 +110,7 @@ import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
 import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
+import bgmVilarejoUrl from "../assets/audio/bgm_vilarejo.mp3";
 // ícones dos itens (consumíveis + materiais + cerveja)
 import icoPotHpUrl from "../assets/item/pot_hp.png";
 import icoPotMpUrl from "../assets/item/pot_mp.png";
@@ -733,6 +734,13 @@ export class Game {
   // buff temporário ativo (multiplicador de dano / redução de dano recebido)
   private buff: { atkMul: number; defReduc: number; until: number } | null = null;
   private hpRegenUntil = 0; // cerveja: regenera vida até este instante (ms)
+  // trilha de fundo do vilarejo (loop); toca na vila e nos interiores
+  private bgmVillage: HTMLAudioElement = (() => {
+    const a = new Audio(bgmVilarejoUrl);
+    a.loop = true; a.volume = 0.4; a.preload = "auto";
+    return a;
+  })();
+  private musicArmed = false; // já há um listener de gesto aguardando p/ religar?
   // retículo de mira (billboard que marca o alvo selecionado)
   private reticle: THREE.Mesh | null = null;
   private raycaster = new THREE.Raycaster();
@@ -1019,6 +1027,33 @@ export class Game {
     this.ui.setPrompt(null); // limpa dica anterior ao trocar de local
     this.buildMiniGrid(); // grade do novo local
     this.pushMinimap();
+    this.updateMusic(); // trilha do vilarejo toca na vila e nos interiores
+  }
+
+  // ---- TRILHA DE FUNDO ----
+  // A música do vilarejo toca na praça E nos interiores (taverna/lojas/casas);
+  // silencia na floresta, na masmorra e na sala-vitrine.
+  private updateMusic() {
+    const wantVillage = this.location !== "forest" && this.location !== "dungeon" && this.location !== "showcase";
+    if (wantVillage) {
+      if (this.bgmVillage.paused) this.bgmVillage.play().catch(() => this.armMusicGesture());
+    } else if (!this.bgmVillage.paused) {
+      this.bgmVillage.pause();
+    }
+  }
+  // navegadores bloqueiam autoplay até um gesto do usuário; se o play() falhar,
+  // religa a trilha no primeiro toque/tecla.
+  private armMusicGesture() {
+    if (this.musicArmed) return;
+    this.musicArmed = true;
+    const resume = () => {
+      window.removeEventListener("pointerdown", resume);
+      window.removeEventListener("keydown", resume);
+      this.musicArmed = false;
+      this.updateMusic();
+    };
+    window.addEventListener("pointerdown", resume, { once: true });
+    window.addEventListener("keydown", resume, { once: true });
   }
 
   private clearWorld() {
