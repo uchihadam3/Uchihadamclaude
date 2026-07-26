@@ -515,7 +515,7 @@ export function setupControls(
     ctx: CanvasRenderingContext2D, cx: number, cy: number,
     text: string, fs: number, tw: number, color: string,
   ) => {
-    const padX = fs * 0.5, ph = fs * 1.34, rw = tw + padX * 2, rr = ph * 0.42;
+    const padX = fs * 0.4, ph = fs * 1.24, rw = tw + padX * 2, rr = ph * 0.42;
     const rx = cx - rw / 2, ry = cy - ph / 2;
     ctx.save();
     ctx.font = `600 ${fs}px "Cinzel",serif`;
@@ -533,53 +533,23 @@ export function setupControls(
     ctx.fillText(text, cx, cy);
     ctx.restore();
   };
-  // coloca os rótulos dos NPCs escolhendo o lado (baixo→cima→direita→esquerda)
-  // que MENOS obstrui os outros ícones/rótulos já postos e cabe na tela.
-  type Box = { x0: number; y0: number; x1: number; y1: number };
-  const overlap = (a: Box, b: Box) =>
-    Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) *
-    Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+  // rótulos dos NPCs: SEMPRE embaixo do ícone, mas BEM colados (encostados na
+  // arte, tucados no vão transparente do próprio ícone) e com fonte pequena, p/
+  // o nome caber quase inteiro dentro da célula e não avançar sobre os vizinhos.
   const placeLabels = (
-    ctx: CanvasRenderingContext2D, W: number, H: number,
-    allIcons: { x: number; y: number; d: number }[],
+    ctx: CanvasRenderingContext2D,
     items: { x: number; y: number; d: number; label: string; color: string }[],
     fs: number,
   ) => {
     ctx.save();
     ctx.font = `600 ${fs}px "Cinzel",serif`;
-    // caixas de TODOS os ícones do mapa (o rótulo não deve cobrir nenhum)
-    const iconBoxes: Box[] = allIcons.map((it) => ({
-      x0: it.x - it.d / 2, y0: it.y - it.d / 2, x1: it.x + it.d / 2, y1: it.y + it.d / 2,
-    }));
-    const placed: Box[] = [];
-    const ph = fs * 1.34, gap = fs * 0.7;
-    items.forEach((it) => {
+    const ph = fs * 1.24;
+    for (const it of items) {
       const tw = ctx.measureText(it.label).width;
-      const rw = tw + fs; // padX*2 = fs
-      const half = it.d / 2;
-      // candidatos por ordem de preferência: baixo, cima, direita, esquerda
-      const cands = [
-        { cx: it.x, cy: it.y + half + gap + ph / 2 },
-        { cx: it.x, cy: it.y - half - gap - ph / 2 },
-        { cx: it.x + half + gap + rw / 2, cy: it.y },
-        { cx: it.x - half - gap - rw / 2, cy: it.y },
-      ];
-      let best = cands[0], bestScore = Infinity;
-      for (const c of cands) {
-        const box: Box = { x0: c.cx - rw / 2, y0: c.cy - ph / 2, x1: c.cx + rw / 2, y1: c.cy + ph / 2 };
-        let score = 0;
-        for (const ib of iconBoxes) score += overlap(box, ib) * 3;
-        for (const pb of placed) score += overlap(box, pb) * 2;
-        // penaliza sair da tela
-        const outX = Math.max(0, -box.x0) + Math.max(0, box.x1 - W);
-        const outY = Math.max(0, -box.y0) + Math.max(0, box.y1 - H);
-        score += (outX + outY) * 20;
-        if (score < bestScore) { bestScore = score; best = c; }
-        if (score === 0) break; // lugar limpo: fica com o 1º da ordem de preferência
-      }
-      placed.push({ x0: best.cx - rw / 2, y0: best.cy - ph / 2, x1: best.cx + rw / 2, y1: best.cy + ph / 2 });
-      drawLabelPill(ctx, best.cx, best.cy, it.label, fs, tw, it.color);
-    });
+      // a arte visível ocupa ~0,6·d de meia-altura; o topo da plaquinha encosta aí
+      const cy = it.y + it.d * 0.30 + ph / 2;
+      drawLabelPill(ctx, it.x, cy, it.label, fs, tw, it.color);
+    }
     ctx.restore();
   };
   // faixa com o nome do local + bússola "N" no topo do mapa
@@ -673,14 +643,12 @@ export function setupControls(
       for (const p of order) {
         drawPoi(ctx, ox + p.c * cell + cell / 2, oy + p.r * cell + cell / 2, size, p, mapPhase);
       }
-      // rótulos: só NPCs (os locais são óbvios pela arte). Evitam cobrir QUALQUER
-      // ícone do mapa — inclusive a seta do herói.
-      const allIcons = order.map((p) => ({ x: ox + p.c * cell + cell / 2, y: oy + p.r * cell + cell / 2, d }));
-      allIcons.push({ x: ox + s.col * cell + cell / 2, y: oy + s.row * cell + cell / 2, d: Math.max(16, cell * 1.6) });
+      // rótulos: só NPCs (os locais são óbvios pela arte), sempre embaixo e bem
+      // colados ao ícone, com fonte pequena p/ não avançar sobre os vizinhos.
       const labels = order
         .filter((p) => p.kind === "npc" && p.label)
         .map((p) => ({ x: ox + p.c * cell + cell / 2, y: oy + p.r * cell + cell / 2, d, label: p.label, color: "#cbd8ea" }));
-      if (labels.length) placeLabels(ctx, W, H, allIcons, labels, Math.max(8, Math.round(size * 0.26)));
+      if (labels.length) placeLabels(ctx, labels, Math.max(7, Math.round(size * 0.2)));
     }
     drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(8, cell * 0.8), Math.atan2(s.dr, s.dc));
     drawLocBanner(ctx, W, s.locName, 40);
