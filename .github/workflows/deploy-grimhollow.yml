@@ -1,0 +1,43 @@
+name: Deploy Grimhollow to GitHub Pages
+
+on:
+  push:
+    branches:
+      - claude/road-fighter-recreation-kzjegl
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-grimhollow
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: grimhollow/package-lock.json
+
+      - name: Install dependencies
+        working-directory: grimhollow
+        run: npm ci
+
+      - name: Build
+        working-directory: grimhollow
+        run: npm run build
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./grimhollow/dist
+          publish_branch: gh-pages
