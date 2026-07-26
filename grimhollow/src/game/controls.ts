@@ -23,6 +23,10 @@ import clockMoonUrl from "../assets/ui/clock_moon.png";
 import forgeFillUrl from "../assets/audio/forge_fill.mp3";
 import forgeFailUrl from "../assets/audio/forge_fail.mp3";
 import forgeSuccessUrl from "../assets/audio/forge_success.wav";
+import sfxSwingUrl from "../assets/audio/sfx_swing.wav";
+import sfxHitUrl from "../assets/audio/sfx_hit.wav";
+import sfxHurtUrl from "../assets/audio/sfx_hurt.wav";
+import sfxCastUrl from "../assets/audio/sfx_cast.wav";
 import { audio } from "./audio";
 // medalhões do minimapa (arte própria recortada da folha)
 import mmSmith from "../assets/ui/minimap/mm_smith.png";
@@ -50,6 +54,19 @@ const forgeSuccessSnd = audio.register(new Audio(forgeSuccessUrl), "sfx", 0.9); 
 forgeFillSnd.preload = "auto"; forgeFailSnd.preload = "auto"; forgeSuccessSnd.preload = "auto";
 function play(a: HTMLAudioElement) { try { a.currentTime = 0; a.play().catch(() => {}); } catch { /* ignora */ } }
 function stopSnd(a: HTMLAudioElement) { try { a.pause(); a.currentTime = 0; } catch { /* ignora */ } }
+
+// ---- EFEITOS de COMBATE (sintetizados): ataque, dano no inimigo, dano no
+// jogador e conjuração de skill. Canal SFX (respeitam a barra "Efeitos"). Tocam
+// via CLONE p/ permitir sobreposição em golpes rápidos.
+const swingSnd = audio.register(new Audio(sfxSwingUrl), "sfx", 0.5);
+const hitSnd = audio.register(new Audio(sfxHitUrl), "sfx", 0.55);
+const hurtSnd = audio.register(new Audio(sfxHurtUrl), "sfx", 0.7);
+const castSnd = audio.register(new Audio(sfxCastUrl), "sfx", 0.6);
+[swingSnd, hitSnd, hurtSnd, castSnd].forEach((a) => { a.preload = "auto"; });
+function playClone(a: HTMLAudioElement) {
+  try { const c = a.cloneNode(true) as HTMLAudioElement; c.volume = a.volume; c.play().catch(() => {}); } catch { /* ignora */ }
+}
+const SFX: Record<string, HTMLAudioElement> = { swing: swingSnd, hit: hitSnd, hurt: hurtSnd, cast: castSnd };
 
 // ---- FORJA: animação de encher a espada (lava), ~6s, bem incandescente ------
 // Enche a lâmina de 0→100% com frente derretida, brasas e brilho crescente;
@@ -156,6 +173,8 @@ export interface HUD {
   // MERCADOR: abre/atualiza a janela de comprar/vender (ou fecha)
   openStore(data: StoreData): void;
   closeStore(): void;
+  // toca um efeito sonoro de combate (canal Efeitos)
+  playSfx(name: "swing" | "hit" | "hurt" | "cast"): void;
   // bandeja de consumíveis do HUD (poção/cerveja) — toque usa o item
   setConsumables(items: ConsumSlot[]): void;
   // TAVERNA: abre/atualiza a janela de descanso + bebidas + missões (ou fecha)
@@ -643,7 +662,7 @@ export function setupControls(
     '<div class="gh-opt-title">OPÇÕES</div>' +
     `<div class="gh-opt-sec${audio.muted ? " gh-opt-mutedsec" : ""}" id="gh-opt-audio">` +
     '<div class="gh-opt-sh">ÁUDIO</div>' +
-    sliderRow("sfx", "Efeitos Especiais", audio.sfx) +
+    sliderRow("sfx", "Efeitos", audio.sfx) +
     sliderRow("music", "Música", audio.music) +
     '<div class="gh-opt-row gh-opt-rowmute"><label>Mudo</label>' +
     `<button class="gh-opt-toggle${audio.muted ? " gh-opt-on" : ""}" id="gh-opt-mute" aria-label="Mudo"><span class="gh-opt-knob"></span></button></div>` +
@@ -1478,6 +1497,7 @@ export function setupControls(
       // só golpeia com arma de MÃO PRINCIPAL equipada, e fora da recarga
       if (!weapon || !current || current.slot !== "main" || swinging) return -1;
       swinging = true;
+      playClone(swingSnd); // whoosh do golpe
       swingTimers.forEach((t) => window.clearTimeout(t));
       swingTimers.length = 0;
       if (!canvasEl) canvasEl = root.querySelector("canvas");
@@ -1710,6 +1730,10 @@ export function setupControls(
     },
     closeStore() {
       st.classList.add("gh-eq-hidden");
+    },
+    playSfx(name) {
+      const a = SFX[name];
+      if (a) playClone(a);
     },
     setConsumables(items: ConsumSlot[]) {
       renderTray(items);

@@ -1831,6 +1831,7 @@ export class Game {
     const dmg = Math.max(1, Math.round(amount));
     e.hp -= dmg;
     e.hitAt = performance.now();
+    this.ui.playSfx("hit"); // estalo de dano no inimigo
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
     e.barFill.position.x = -(1 - frac) * 1.3 / 2;
@@ -1914,6 +1915,8 @@ export class Game {
     this.ui.skillManaFloat(id, cb.mana);
     this.cooldownUntil[id] = now + cb.cd;
     this.coolingSkills.add(id); // o tick atualiza o overlay + contagem regressiva
+    // som: skills corpo-a-corpo já tocam o "swing"; as demais (magia/buff/cura) tocam "cast"
+    if (!cb.melee) this.ui.playSfx("cast");
     // efeito
     if (cb.effect === "dmg" && this.target) {
       // guarda alvo/posição ANTES do dano (a morte limpa this.target)
@@ -2215,6 +2218,7 @@ export class Game {
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.refreshStats();
     this.ui.flashDamage();
+    this.ui.playSfx("hurt"); // baque de dano no jogador
     // dano sofrido pelo jogador: número vermelho no centro-baixo da tela
     this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.58, `-${taken}`, "player");
     if (this.playerHp <= 0) {
