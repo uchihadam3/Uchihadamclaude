@@ -35,9 +35,11 @@ jobs:
         working-directory: grimhollow
         run: npm run build
 
-      - name: Deploy to gh-pages branch
+      - name: Deploy to gh-pages branch (subpasta /nethergloam)
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./grimhollow/dist
           publish_branch: gh-pages
+          destination_dir: nethergloam
+          force_orphan: true
