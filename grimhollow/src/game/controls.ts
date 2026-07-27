@@ -20,6 +20,7 @@ import loadSwordUrl from "../assets/ui/load_sword.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
 import clockMoonUrl from "../assets/ui/clock_moon.png";
+import levelupGifUrl from "../assets/ui/levelup.gif";
 import forgeFillUrl from "../assets/audio/forge_fill.mp3";
 import forgeFailUrl from "../assets/audio/forge_fail.mp3";
 import forgeSuccessUrl from "../assets/audio/forge_success.wav";
@@ -176,6 +177,8 @@ export interface HUD {
   floatText(x: number, y: number, text: string, kind: "hit" | "crit" | "player" | "heal" | "mana"): void;
   // mensagem flutuante breve (ex.: "Nível 3!")
   toast(msg: string): void;
+  // efeito de SUBIR DE NÍVEL: animação (GIF) + "LEVEL UP!" em letras garrafais
+  levelUp(level: number): void;
   // barra de conjuração: mostra `name` e enche em `ms`. cancelCast() esconde antes.
   castBar(name: string, ms: number): void;
   cancelCast(): void;
@@ -1264,6 +1267,29 @@ export function setupControls(
     toastEl.style.animation = "gh-toast 1.8s ease-out";
   };
 
+  // ---- SUBIR DE NÍVEL: animação (GIF: seta subindo) + "LEVEL UP!" garrafal ----
+  const levelupEl = document.createElement("div");
+  levelupEl.id = "gh-levelup";
+  levelupEl.innerHTML =
+    `<img class="gh-lu-gif" alt="" draggable="false"/>` +
+    `<div class="gh-lu-word" data-text="LEVEL UP!">LEVEL UP!</div>` +
+    `<div class="gh-lu-sub"></div>`;
+  root.appendChild(levelupEl);
+  const luGif = levelupEl.querySelector(".gh-lu-gif") as HTMLImageElement;
+  const luSub = levelupEl.querySelector(".gh-lu-sub") as HTMLElement;
+  let luTimer = 0;
+  const showLevelUp = (level: number) => {
+    luSub.textContent = `Nível ${level}`;
+    // reinicia o GIF do zero (recarrega a src p/ a animação tocar de novo)
+    luGif.src = "";
+    luGif.src = levelupGifUrl;
+    levelupEl.classList.remove("gh-lu-on");
+    void levelupEl.offsetWidth; // força reflow p/ reiniciar as animações CSS
+    levelupEl.classList.add("gh-lu-on");
+    window.clearTimeout(luTimer);
+    luTimer = window.setTimeout(() => levelupEl.classList.remove("gh-lu-on"), 2600);
+  };
+
   // ---- MERCADOR: janela de comprar/vender + caixa de quantidade ----
   const st = document.createElement("div");
   st.id = "gh-st";
@@ -2174,6 +2200,7 @@ export function setupControls(
       void toastEl.offsetWidth;
       toastEl.style.animation = "gh-toast 1.8s ease-out";
     },
+    levelUp(level: number) { showLevelUp(level); },
     castBar(name: string, ms: number) {
       if (castTimer) window.clearTimeout(castTimer);
       castName.textContent = name;
@@ -2419,13 +2446,13 @@ function injectStyle() {
   .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
   .gh-preplay #gh-tracker, .gh-preplay #gh-actbar, .gh-preplay #gh-tray,
   .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
-  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk {
+  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk, .gh-preplay #pad {
     opacity:0 !important; pointer-events:none !important;
   }
   .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
   .gh-revealing #gh-tracker, .gh-revealing #gh-actbar, .gh-revealing #gh-tray,
   .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,
-  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk {
+  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk, .gh-revealing #pad {
     animation:gh-hud-in .55s ease both;
   }
   @keyframes gh-hud-in { from { opacity:0; } to { opacity:1; } }
@@ -3067,6 +3094,58 @@ function injectStyle() {
     78% { opacity:1; }
     100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
   }
+  /* --- SUBIR DE NÍVEL: GIF (seta subindo) + "LEVEL UP!" garrafal dourado --- */
+  #gh-levelup {
+    position:fixed; inset:0; z-index:23; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:2px; visibility:hidden;
+  }
+  #gh-levelup.gh-lu-on { visibility:visible; }
+  #gh-levelup .gh-lu-gif {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-54%);
+    width:min(340px,72vw); height:auto; opacity:0;
+    filter:drop-shadow(0 0 24px rgba(255,190,70,.5));
+    mix-blend-mode:screen; /* fundo preto do GIF sai, só a luz fica */
+    /* esmaece as BORDAS retangulares do GIF (o resíduo do fundo escuro some) */
+    -webkit-mask-image:radial-gradient(ellipse 62% 66% at 50% 52%, #000 52%, rgba(0,0,0,0) 88%);
+    mask-image:radial-gradient(ellipse 62% 66% at 50% 52%, #000 52%, rgba(0,0,0,0) 88%);
+  }
+  #gh-levelup.gh-lu-on .gh-lu-gif { animation:gh-lu-gif 2.5s ease-out both; }
+  @keyframes gh-lu-gif {
+    0% { opacity:0; transform:translate(-50%,-40%) scale(.7); }
+    16% { opacity:1; transform:translate(-50%,-54%) scale(1); }
+    75% { opacity:1; }
+    100% { opacity:0; transform:translate(-50%,-60%) scale(1.03); }
+  }
+  /* palavra garrafal: fonte pesada, contorno escuro grosso + preenchimento dourado */
+  #gh-levelup .gh-lu-word {
+    position:relative; z-index:1; font-family:"Cinzel",serif; font-weight:900;
+    font-size:clamp(34px,10vw,78px); letter-spacing:3px; line-height:1;
+    background:linear-gradient(180deg,#fff3c4 0%,#ffd979 32%,#e0a233 60%,#c07f1e 100%);
+    -webkit-background-clip:text; background-clip:text;
+    color:transparent; -webkit-text-fill-color:transparent;
+    -webkit-text-stroke:2.2px #3a2708;
+    filter:drop-shadow(0 3px 0 #2a1c06) drop-shadow(0 5px 10px rgba(0,0,0,.85)) drop-shadow(0 0 26px rgba(255,196,80,.75));
+    transform:translateY(6px); opacity:0;
+  }
+  #gh-levelup.gh-lu-on .gh-lu-word { animation:gh-lu-word 2.6s cubic-bezier(.2,1.2,.3,1) both; }
+  @keyframes gh-lu-word {
+    0% { opacity:0; transform:translateY(30px) scale(.6); }
+    22% { opacity:1; transform:translateY(6px) scale(1.14); }
+    38% { transform:translateY(6px) scale(1); }
+    82% { opacity:1; }
+    100% { opacity:0; transform:translateY(-8px) scale(1); }
+  }
+  #gh-levelup .gh-lu-sub {
+    position:relative; z-index:1; margin-top:6px; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(15px,3.2vw,22px); letter-spacing:2px; color:#ffe6a6;
+    text-shadow:0 2px 5px #000, 0 0 14px rgba(240,190,70,.6); opacity:0;
+  }
+  #gh-levelup.gh-lu-on .gh-lu-sub { animation:gh-lu-sub 2.6s ease-out both; }
+  @keyframes gh-lu-sub {
+    0%,14% { opacity:0; }
+    30% { opacity:1; } 82% { opacity:1; } 100% { opacity:0; }
+  }
   /* barra de conjuração (magias com cast time) — usa a MOLDURA do mapa (9-slice)
      como container, igual ao minimapa, p/ combinar com o resto do HUD. */
   #gh-cast {
@@ -3268,6 +3347,44 @@ function injectStyle() {
     .gh-btn { opacity:0.75; }
     .gh-act { opacity:0.5; }
     .gh-act.gh-act-on { opacity:1; }
+  }
+
+  /* ============================================================= LANDSCAPE
+     TERCEIRO layout: celular DEITADO (paisagem). Só ativa em telas BAIXAS e
+     largas (altura ≤ 560px) → não afeta desktop (alto) nem o portrait (alto e
+     estreito). Reorganiza tudo p/ caber na pouca altura: HUD e mapa menores no
+     topo, os 3 botões utilitários numa FILEIRA no topo-centro (longe do d-pad),
+     e os controles recuados nos cantos de baixo. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    #gh-hud { top:6px; left:8px; width:min(188px,30vw); }
+    .gh-hud-bar { left:19.2%; width:72.2%; }
+    #gh-map {
+      top:6px; right:8px; width:min(104px,22vh);
+      border-width:clamp(10px,2.6vh,16px);
+    }
+    #gh-tracker {
+      top:calc(6px + min(104px,22vh) + 4px); right:8px; width:min(196px,36vw);
+      padding:5px 8px 6px;
+    }
+    #gh-tracker .gh-tk-title { font-size:11px; }
+    #gh-tracker .gh-tk-obj { font-size:10px; margin-top:2px; }
+    #gh-clock { display:none; }               /* relógio some no aperto do landscape */
+    /* utilitários: fileira horizontal centralizada no TOPO (nunca sobre o d-pad) */
+    #gh-char-btn, #gh-opt-btn, #gh-journal-btn { top:6px; width:44px; height:44px; }
+    #gh-char-btn    { left:calc(50% - 70px); }
+    #gh-opt-btn     { left:calc(50% - 22px); }
+    #gh-journal-btn { left:calc(50% + 26px); }
+    /* d-pad e ação recuados nos cantos de baixo, um pouco menores */
+    .gh-move { left:10px; bottom:10px; width:108px; height:108px; }
+    .gh-atk  { right:12px; bottom:12px; width:54px; height:54px; }
+    .gh-act  { right:76px; bottom:14px; width:50px; height:50px; }
+    /* bandeja de itens logo acima do d-pad */
+    #gh-tray { left:10px; bottom:126px; }
+    /* caixa de diálogo e dica mais baixas p/ sobrar céu/cena */
+    #gh-dialogue { bottom:12px; width:min(620px,66%); }
+    #gh-prompt { bottom:92px; }
+    .gh-dlg-portrait { width:52px; height:52px; }
+    .gh-dlg-text { min-height:44px; font-size:14px; }
   }
 
   /* ---- BANDEJA DE CONSUMÍVEIS (usar item) ---- */

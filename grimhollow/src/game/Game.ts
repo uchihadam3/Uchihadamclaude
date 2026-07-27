@@ -373,6 +373,8 @@ interface MQStep {
   items?: [string, number][];        // deliver: itens exigidos
   location?: string;                 // enter: id do local (ex.: "showcase")
 }
+// referência dos objetos 3D de um NPC (p/ mover mesh+sombra+plaquinha juntos)
+interface NpcRig { mesh: THREE.Object3D; shadow: THREE.Object3D; tag: THREE.Object3D; baseY: number; homeKey: string; }
 // opção do menu de conversa (estilo WoW)
 interface ConvOption {
   id: string;
@@ -948,6 +950,11 @@ export class Game {
   private introShown = false;                                    // narração de abertura (1×)
   private waking = false;                                        // sequência de "acordar" em curso
   private wakeStart = -1;                                        // instante-base (setado no 1º tick)
+  private introWalk = false;                                     // Hedda caminhando até o jogador (trava a entrada)
+  // referências dos NPCs (mesh+sombra+plaquinha) p/ animar caminhada roteirizada
+  private npcRig = new Map<string, NpcRig>();
+  // caminhada roteirizada da Hedda ao acordar: pontos (mundo) + índice de tempo
+  private wakeWalk: { rig: NpcRig; pts: { x: number; z: number }[]; endCell: string; t0: number; onArrive: () => void } | null = null;
   private static readonly BLINK_MS = 2200;                       // fase 1: deitado piscando
   private static readonly WAKE_MS = 2000;                        // fase 2: levantar (subida da câmera)
   private static readonly LIE_Y = 0.48;                          // altura da câmera "deitado" (no colchão)
@@ -1219,8 +1226,9 @@ export class Game {
       // da névoa. Ao sair, cai na praça, em frente à casa dela.
       const hd = HOME_DOORS.find((h) => h.id === "hedda")!;
       this.returnTo = { col: hd.c + hd.dc, row: hd.r + hd.dr, facing: 1 };
-      const p = roomFind("P");
-      this.enterLocation("hedda", p.col, p.row, 0);
+      // acorda DEITADO na cama (parede leste, célula 5,3): a câmera fica na célula
+      // ao lado da cama (4,3), voltada p/ o sul — de onde a Hedda vai se aproximar.
+      this.enterLocation("hedda", 4, 3, 2);
       this.startWake();
     }
 
@@ -1340,6 +1348,24 @@ export class Game {
     this.camera.position.y = fy + Game.LIE_Y;   // deitado no colchão, câmera baixa
     this.camera.rotation.x = Game.LIE_PITCH;    // olhando reto p/ o teto de vigas
     this.ui.setPrompt(null);
+    // a Hedda começa AFASTADA (canto sudoeste) p/ depois caminhar até a cama
+    this.moveNpcTo("Hedda", 2, 5);
+  }
+  // acha o rig de um NPC por trecho do nome
+  private findRig(nameSub: string): NpcRig | null {
+    for (const [nm, r] of this.npcRig) if (nm.includes(nameSub)) return r;
+    return null;
+  }
+  // reposiciona instantaneamente o rig de um NPC (mesh+sombra+plaquinha) numa célula
+  private moveNpcTo(nameSub: string, col: number, row: number) {
+    const rig = this.findRig(nameSub);
+    if (!rig) return;
+    this.setRigXZ(rig, col * CELL, row * CELL);
+  }
+  private setRigXZ(rig: NpcRig, x: number, z: number) {
+    rig.mesh.position.x = x; rig.mesh.position.z = z;
+    rig.shadow.position.x = x; rig.shadow.position.z = z;
+    rig.tag.position.x = x; rig.tag.position.z = z;
   }
   // cobertura das pálpebras (vh) durante a fase de piscar — groggy: fecha bem,
   // entreabre, pisca, abre mais, pisca rápido, abre de vez. Interpola keyframes.
@@ -1354,13 +1380,50 @@ export class Game {
     }
     return 0;
   }
-  // 1ª parte: narração fria do despertar (sem retrato) → depois a Hedda fala
+  // 1ª parte: narração fria do despertar (sem retrato) → a Hedda CAMINHA até você
   private startWakeDialogue() {
     this.openDialogue("", [
       "Escuro. Frio. Cheiro de fumaça de lenha e de ervas secas.",
-      "Você abre os olhos sob um teto de vigas baixas. Não se lembra de ter se deitado aqui. Não se lembra… de muita coisa.",
-      "Passos macios se aproximam do colchão. Uma mulher idosa, de xale cinzento, senta-se ao seu lado e observa você despertar.",
-    ], null, { onClose: () => this.wakeHeddaDialogue() });
+      "Você abre os olhos sob um teto de vigas baixas. Está deitado numa cama estranha. Não se lembra de ter se deitado aqui. Não se lembra… de muita coisa.",
+      "Do outro lado do cômodo, uma mulher idosa de xale cinzento nota que você despertou. Ela larga o que fazia e vem em sua direção.",
+    ], null, { onClose: () => this.startHeddaWalk() });
+  }
+  // a Hedda caminha (passo a passo, sem atravessar objetos) do canto até a cama
+  private startHeddaWalk() {
+    const rig = this.findRig("Hedda");
+    if (!rig) { this.wakeHeddaDialogue(); return; } // sem rig (fallback): fala direto
+    this.introWalk = true; // trava a entrada durante a caminhada (sem diálogo aberto)
+    // caminho válido pelo chão: (2,5)→(2,4)→(3,4)→(4,4), ao lado da cama do jogador
+    const cells: [number, number][] = [[2, 5], [2, 4], [3, 4], [4, 4]];
+    const pts = cells.map(([c, r]) => ({ x: c * CELL, z: r * CELL }));
+    this.wakeWalk = {
+      rig, pts, endCell: "4,4", t0: -1,
+      onArrive: () => { this.introWalk = false; this.wakeHeddaDialogue(); },
+    };
+  }
+  // anima a caminhada roteirizada da Hedda (chamado a cada quadro no tick)
+  private updateWakeWalk(now: number) {
+    const w = this.wakeWalk;
+    if (!w) return;
+    const STEP_MS = 640; // por célula
+    if (w.t0 < 0) w.t0 = now;
+    const t = now - w.t0;
+    const seg = Math.floor(t / STEP_MS);
+    if (seg >= w.pts.length - 1) {
+      const last = w.pts[w.pts.length - 1];
+      this.setRigXZ(w.rig, last.x, last.z);
+      w.rig.mesh.position.y = w.rig.baseY;
+      // atualiza a chave de interação p/ a célula final (talk por aproximação)
+      const entry = this.npcMap.get(w.rig.homeKey);
+      if (entry) { this.npcMap.delete(w.rig.homeKey); this.npcMap.set(w.endCell, entry); w.rig.homeKey = w.endCell; }
+      const cb = w.onArrive; this.wakeWalk = null; cb();
+      return;
+    }
+    const p = (t % STEP_MS) / STEP_MS;
+    const e = p * p * (3 - 2 * p);
+    const a = w.pts[seg], b = w.pts[seg + 1];
+    this.setRigXZ(w.rig, a.x + (b.x - a.x) * e, a.z + (b.z - a.z) * e);
+    w.rig.mesh.position.y = w.rig.baseY + Math.sin(p * Math.PI) * 0.05; // leve balanço do passo
   }
   // 2ª parte: a matriarca Hedda explica o resgate, sonda a amnésia e ENTREGA a
   // arma. Ao fechar, o HUD (e a arma na mão) surge com um fade rápido.
@@ -1447,6 +1510,8 @@ export class Game {
     this.doorMap.clear();
     this.homeDoorMap.clear();
     this.npcMap.clear();
+    this.npcRig.clear();
+    this.wakeWalk = null;
   }
 
   private addVillageLights() {
@@ -1667,10 +1732,12 @@ export class Game {
     this.addLampPost(10, 7); // NE
     this.addLampPost(4, 11); // SO
     this.addLampPost(10, 11); // SE
-    // mais lampiões pelo perímetro da praça — só pra iluminar/dar clima à noite
-    this.addLampPost(7, 6); // norte-centro (perto das portas/lojas)
-    this.addLampPost(2, 9); // parede oeste
-    this.addLampPost(12, 9); // parede leste
+    // lampiões extras — AFASTADOS das portas (nunca na célula em frente a uma porta):
+    // as portas do norte ficam em (5,6)(7,6)(9,6); a do ferreiro em (2,9); a do
+    // alquimista em (12,9). Recuamos um passo p/ dentro da praça p/ não obstruir.
+    this.addLampPost(7, 8); // norte-centro, recuado da fileira de portas (era 7,6)
+    this.addLampPost(3, 8); // oeste, ao lado da porta do ferreiro (era 2,9)
+    this.addLampPost(11, 8); // leste, ao lado da porta do alquimista (era 12,9)
     this.addLampPost(7, 12); // sul (perto do portão)
     // prop FIXO colado na parede, virado p/ a praça: só o mural (parede oeste)
     this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
@@ -2977,7 +3044,7 @@ export class Game {
       this.ui.setHealth(1);
       this.ui.setMana(1);
       this.ui.setSkillInfo(this.classId, skillPointsFor(this.stats.level)); // total = nível
-      this.ui.toast(`Nível ${this.stats.level}!`);
+      this.ui.levelUp(this.stats.level); // efeito garrafal "LEVEL UP!" + animação
     }
     this.refreshStats();
   }
@@ -4385,6 +4452,8 @@ export class Game {
       portrait: undefined as string | null | undefined,
     };
     this.npcMap.set(key, entry);
+    // guarda o "rig" (mesh+sombra+plaquinha) por nome, p/ caminhada roteirizada
+    this.npcRig.set(name, { mesh: npc, shadow, tag, baseY: y, homeKey: key });
     if (artUrl) {
       this.loadArt(artUrl, (t) => {
         if (anim) {
@@ -6140,7 +6209,7 @@ export class Game {
 
   // ------------------------------------------------------------- input
   private onAction(a: Action) {
-    if (this.waking) return; // travado durante a sequência de acordar
+    if (this.waking || this.introWalk) return; // travado durante o acordar / a Hedda chegar
     // diálogo aberto: interagir avança/fecha; o resto é ignorado
     if (this.dialogue) {
       if (a === "interact") this.advanceDialogue();
@@ -6568,6 +6637,7 @@ export class Game {
     // props 2D encaram a câmera (billboard no eixo Y), como os aldeões
     for (const b of this.billboardProps)
       b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
+    this.updateWakeWalk(now); // caminhada roteirizada da Hedda ao acordar
     this.updateBeacon(now); // facho-guia da missão sobre a célula de destino
     // retículo de mira segue o alvo selecionado (levemente à frente do sprite,
     // na direção da câmera, p/ não brigar em profundidade com o inimigo)
