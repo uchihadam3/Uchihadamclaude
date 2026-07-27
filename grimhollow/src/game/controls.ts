@@ -2449,6 +2449,10 @@ function injectStyle() {
   .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk, .gh-preplay #pad {
     opacity:0 !important; pointer-events:none !important;
   }
+  /* os filhos do #pad (d-pad/ação) têm pointer-events:auto próprio — força TODO o
+     subárvore a ignorar toques enquanto escondido (senão botões invisíveis roubam
+     o toque da caixa de diálogo na introdução). */
+  .gh-preplay #pad * { pointer-events:none !important; }
   .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
   .gh-revealing #gh-tracker, .gh-revealing #gh-actbar, .gh-revealing #gh-tray,
   .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,

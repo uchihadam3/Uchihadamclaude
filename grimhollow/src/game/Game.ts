@@ -1389,6 +1389,7 @@ export class Game {
     ], null, { onClose: () => this.startHeddaWalk() });
   }
   // a Hedda caminha (passo a passo, sem atravessar objetos) do canto até a cama
+  private static readonly WAKE_STEP_MS = 640; // duração da caminhada por célula
   private startHeddaWalk() {
     const rig = this.findRig("Hedda");
     if (!rig) { this.wakeHeddaDialogue(); return; } // sem rig (fallback): fala direto
@@ -1396,29 +1397,39 @@ export class Game {
     // caminho válido pelo chão: (2,5)→(2,4)→(3,4)→(4,4), ao lado da cama do jogador
     const cells: [number, number][] = [[2, 5], [2, 4], [3, 4], [4, 4]];
     const pts = cells.map(([c, r]) => ({ x: c * CELL, z: r * CELL }));
-    this.wakeWalk = {
-      rig, pts, endCell: "4,4", t0: -1,
-      onArrive: () => { this.introWalk = false; this.wakeHeddaDialogue(); },
-    };
+    this.wakeWalk = { rig, pts, endCell: "4,4", t0: -1, onArrive: () => {} };
+    // FAILSAFE (não depende do laço de render): se por qualquer motivo a caminhada
+    // não terminar (aba throttled, exceção no quadro, etc.), força a chegada aqui —
+    // assim a conversa SEMPRE abre e o jogo NUNCA fica travado na introdução.
+    const total = Game.WAKE_STEP_MS * (pts.length - 1) + 500;
+    window.setTimeout(() => this.arriveHedda(), total);
   }
-  // anima a caminhada roteirizada da Hedda (chamado a cada quadro no tick)
-  private updateWakeWalk(now: number) {
+  // conclui a chegada da Hedda (idempotente): fixa a posição, reabre a interação e
+  // inicia a fala. Chamado tanto pela animação quanto pelo failsafe (o 1º que ocorrer).
+  private arriveHedda() {
+    if (!this.introWalk) return; // já chegou
     const w = this.wakeWalk;
-    if (!w) return;
-    const STEP_MS = 640; // por célula
-    if (w.t0 < 0) w.t0 = now;
-    const t = now - w.t0;
-    const seg = Math.floor(t / STEP_MS);
-    if (seg >= w.pts.length - 1) {
+    if (w) {
       const last = w.pts[w.pts.length - 1];
       this.setRigXZ(w.rig, last.x, last.z);
       w.rig.mesh.position.y = w.rig.baseY;
       // atualiza a chave de interação p/ a célula final (talk por aproximação)
       const entry = this.npcMap.get(w.rig.homeKey);
       if (entry) { this.npcMap.delete(w.rig.homeKey); this.npcMap.set(w.endCell, entry); w.rig.homeKey = w.endCell; }
-      const cb = w.onArrive; this.wakeWalk = null; cb();
-      return;
     }
+    this.wakeWalk = null;
+    this.introWalk = false;
+    this.wakeHeddaDialogue();
+  }
+  // anima a caminhada roteirizada da Hedda (chamado a cada quadro no tick)
+  private updateWakeWalk(now: number) {
+    const w = this.wakeWalk;
+    if (!w) return;
+    const STEP_MS = Game.WAKE_STEP_MS;
+    if (w.t0 < 0) w.t0 = now;
+    const t = now - w.t0;
+    const seg = Math.floor(t / STEP_MS);
+    if (seg >= w.pts.length - 1) { this.arriveHedda(); return; }
     const p = (t % STEP_MS) / STEP_MS;
     const e = p * p * (3 - 2 * p);
     const a = w.pts[seg], b = w.pts[seg + 1];
@@ -1512,6 +1523,7 @@ export class Game {
     this.npcMap.clear();
     this.npcRig.clear();
     this.wakeWalk = null;
+    this.introWalk = false; // nunca deixa a entrada travada ao trocar de local
   }
 
   private addVillageLights() {
@@ -6565,7 +6577,20 @@ export class Game {
     }
   }
 
+  // envelope à prova de falhas: o setAnimationLoop do three.js PARA de agendar o
+  // próximo quadro se o callback lançar exceção (o requestAnimationFrame vem
+  // DEPOIS da chamada) — ou seja, um erro solto CONGELA o jogo inteiro. Aqui a
+  // gente captura, loga uma vez e mantém o laço vivo (ainda renderiza a cena).
   private tick(now: number) {
+    try {
+      this.frame(now);
+    } catch (e) {
+      if (!this.tickErrLogged) { this.tickErrLogged = true; console.error("[grimhollow] erro no quadro:", e); }
+      try { this.renderer.render(this.scene, this.camera); } catch { /* ignora */ }
+    }
+  }
+  private tickErrLogged = false;
+  private frame(now: number) {
     this.now = now;
     // SEQUÊNCIA DE ACORDAR (toda por QUADRO): 1) deitado olhando o teto, piscando
     // (pálpebras); 2) levanta (câmera sobe e o olhar baixa do teto p/ a frente).
