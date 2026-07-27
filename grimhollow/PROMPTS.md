@@ -8,47 +8,22 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 
 ---
 
-## 🎬 Prólogo — imagens da abertura (estilo SNES)
+## 🎬 Prólogo — arte única do crawl (estilo Symphony of the Night)
 
-Cinco cenas pintadas para os slides do prólogo (com movimento de câmera + texto).
-**Proporção 16:9 · sem texto/marca d'água · 1 imagem por slide.** Gere, nomeie
-**`pro_1.png` … `pro_5.png`** e me envie que eu ligo no jogo. Cada bloco abaixo
-já vem com o estilo embutido — é só **Copiar**.
+**UMA imagem vertical bem ALTA** que sobe devagar por baixo, com o texto subindo
+junto por cima. Melhor que 5 imagens: mais coesa e fácil de dirigir.
 
-### 🎬 1 — Antes da névoa
-> *"…houve um tempo em que o sol tocava os telhados e a estrada fervilhava de vozes e mercadores."*
-
-```
-A thriving medieval mountain village in warm golden late-afternoon sunlight, thatched and shingled rooftops, a busy cobblestone road with merchants and carts, snow-capped peaks in the distance, clear hopeful sky, alive and warm, grim dark medieval dark-fantasy, painterly digital concept art, moody volumetric fog, muted desaturated palette with warm lantern accents, cinematic wide composition, dramatic lighting, highly detailed, no text, no watermark, 16:9
-```
-
-### 🎬 2 — O Selo
-> *"…antes que os fundadores enterrassem, nas entranhas da montanha, aquilo que nenhuma boca ousa nomear."*
+**Proporção VERTICAL/alta (9:16, ou mais alta se puder) · sem texto/marca
+d'água.** Gere, nomeie **`pro_crawl.png`** e me envie que eu ligo no jogo. É só
+**Copiar**:
 
 ```
-Ancient hooded founders in ritual robes sealing a colossal iron gate deep underground, glowing arcane runes carved into the seal, flickering torchlight, oppressive stone vault, dust and shadow, ominous and sacred, grim dark medieval dark-fantasy, painterly digital concept art, moody volumetric fog, muted desaturated palette with warm lantern accents, cinematic wide composition, dramatic lighting, highly detailed, no text, no watermark, 16:9
+A towering vertical panorama of a doomed medieval town: at the base, the fog-shrouded village of Grimhollow with cobblestone streets, thatched rooftops and a few warm lantern lights; rising through stone ramparts, dead trees and crumbling walls into a colossal ruined gothic cathedral and jagged keep that vanish into thick eternal mist at the very top; warm amber glow below fading to cold pale grey fog above, moonlight, ravens, grim dark medieval dark-fantasy, painterly digital concept art, extremely tall vertical composition, dramatic atmospheric perspective, highly detailed, no text, no watermark, 9:16 vertical
 ```
 
-### 🎬 3 — O Nethergloam
-> *"…a névoa que devora: rouba o calor, apaga os nomes e não deixa os mortos dormirem."*
-
-```
-A living hungry fog engulfing an old graveyard at night, pale grey-green mist swirling into a dark hollow void, gaunt skeletal figures half-emerging from the mist, eerie faint glow, dread and decay, grim dark medieval dark-fantasy, painterly digital concept art, moody volumetric fog, muted desaturated palette with warm lantern accents, cinematic wide composition, dramatic lighting, highly detailed, no text, no watermark, 16:9
-```
-
-### 🎬 4 — A vigília
-> *"…a bruma ronda os muros, paciente e faminta. Mas o ferro envelhece…"*
-
-```
-A fog-shrouded medieval village at night seen from outside its stone walls, thick mist prowling against the ramparts, a few dim orange lantern lights glowing in the murk, a lone watchtower silhouette, tense and foreboding, grim dark medieval dark-fantasy, painterly digital concept art, moody volumetric fog, muted desaturated palette with warm lantern accents, cinematic wide composition, dramatic lighting, highly detailed, no text, no watermark, 16:9
-```
-
-### 🎬 5 — O forasteiro
-> *"…chega um forasteiro. Sobreviveu à névoa inteira — mas deixou nela pedaços da própria memória."* — de costas e encapuzado, serve para qualquer classe.
-
-```
-A lone hooded traveler seen from behind holding a glowing lantern, walking a foggy road at dusk toward the dim silhouette of a walled medieval village gate, thick mist, cold blue tones with warm lantern glow, solitary and mysterious, face not visible, grim dark medieval dark-fantasy, painterly digital concept art, moody volumetric fog, muted desaturated palette with warm lantern accents, cinematic wide composition, dramatic lighting, highly detailed, no text, no watermark, 16:9
-```
+> A cena vai da base (o vilarejo aconchegante, embaixo) até o alto (a catedral em
+> ruínas sumindo na névoa) — o scroll sobe revelando de baixo para cima. Quanto
+> mais alta a imagem, mais longo e bonito fica o movimento.
 
 ---
 

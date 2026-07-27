@@ -78,43 +78,49 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
 // pan + zoom lento) + névoa à deriva + texto narrativo, em letterbox. Avança
 // sozinho, ao toque, e há botão "Pular". Conta a lore antes da criação.
 function showPrologue(overlay: HTMLElement, onDone: () => void) {
-  const slides: { img: string; pan: string; text: string }[] = [
-    { img: titleArtUrl, pan: "a", text: "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de vozes e mercadores." },
-    { img: createBgUrl, pan: "b", text: "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas entranhas da montanha, aquilo que nenhuma boca ousa nomear." },
-    { img: createBgUrl, pan: "c", text: "O que jaz lá embaixo não é morte; é fome. Chamam-na de Nethergloam — a névoa que devora. Ela rouba o calor, apaga os nomes e não deixa os mortos dormirem." },
-    { img: titleArtUrl, pan: "d", text: "Enquanto o Selo resistir, a bruma apenas ronda os muros, paciente e faminta. Mas o ferro envelhece, e a cada lua ela conquista mais um palmo de mundo." },
-    { img: titleArtUrl, pan: "e", text: "Então, pela estrada que ninguém ousa cruzar, chega um forasteiro. Sobreviveu à névoa inteira — mas deixou nela, em algum ponto, pedaços da própria memória." },
+  // narração em blocos — sobe como uma "crawl" (estilo Symphony of the Night):
+  // UMA arte vertical alta rola devagar por baixo, o texto sobe junto por cima.
+  const paras = [
+    "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de vozes e mercadores.",
+    "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas entranhas da montanha, aquilo que nenhuma boca ousa nomear.",
+    "O que jaz lá embaixo não é morte; é fome. Chamam-na de Nethergloam — a névoa que devora. Ela rouba o calor, apaga os nomes e não deixa os mortos dormirem.",
+    "Enquanto o Selo resistir, a bruma apenas ronda os muros, paciente e faminta. Mas o ferro envelhece, e a cada lua ela conquista mais um palmo de mundo.",
+    "Então, pela estrada que ninguém ousa cruzar, chega um forasteiro. Sobreviveu à névoa inteira — mas deixou nela, em algum ponto, pedaços da própria memória.",
   ];
+  // arte do crawl — PLACEHOLDER (a chave de título) até você enviar a peça
+  // vertical alta (pro_crawl.png). Trocar aqui liga a sua arte.
+  const crawlImg = titleArtUrl;
   // TRILHA: música da abertura no canal "música" (respeita volume/mudo). Começa
   // após o clique em "Novo Jogo" (gesto do usuário → o navegador libera o áudio).
   const bgm = new Audio(prologueBgmUrl);
   bgm.loop = true;
   audio.register(bgm, "music", 0.7);
   bgm.play().catch(() => { /* política de autoplay: ignora se bloquear */ });
-  let i = 0;
+  let ended = false;
   let timer = 0;
-  const stopBgm = () => { try { bgm.pause(); bgm.currentTime = 0; } catch { /* ignora */ } };
-  const done = () => { window.clearTimeout(timer); stopBgm(); onDone(); };
-  const advance = () => { window.clearTimeout(timer); i++; if (i >= slides.length) done(); else render(); };
-  const render = () => {
-    const s = slides[i];
-    overlay.innerHTML = `
-      <div class="gh-screen gh-prologue">
-        <div class="gh-pro-bg gh-pan-${s.pan}" style="background-image:url(${s.img})"></div>
-        <div class="gh-pro-fog"></div>
-        <div class="gh-pro-vig"></div>
-        <div class="gh-pro-text"><p>${s.text}</p></div>
-        <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
-        <div class="gh-pro-dots">${slides.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div>
-        <div class="gh-pro-hint">toque para continuar ▸</div>
-      </div>`;
-    const scr = overlay.querySelector(".gh-prologue") as HTMLElement;
-    scr.addEventListener("click", advance);
-    const skip = overlay.querySelector("#gh-pro-skip") as HTMLElement;
-    skip.addEventListener("click", (e) => { e.stopPropagation(); done(); });
-    timer = window.setTimeout(advance, 6200);
+  const done = () => {
+    if (ended) return;
+    ended = true;
+    window.clearTimeout(timer);
+    try { bgm.pause(); bgm.currentTime = 0; } catch { /* ignora */ }
+    onDone();
   };
-  render();
+  overlay.innerHTML = `
+    <div class="gh-screen gh-crawl">
+      <div class="gh-crawl-bg" style="background-image:url(${crawlImg})"></div>
+      <div class="gh-crawl-shade"></div>
+      <div class="gh-crawl-textwrap"><div class="gh-crawl-text" id="gh-crawl-text">
+        ${paras.map((p) => `<p>${p}</p>`).join("")}
+        <div class="gh-crawl-end">⚜</div>
+      </div></div>
+      <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
+      <div class="gh-pro-hint">Pular ▸</div>
+    </div>`;
+  const text = overlay.querySelector("#gh-crawl-text") as HTMLElement;
+  text.addEventListener("animationend", done);           // acabou a subida → segue
+  const skip = overlay.querySelector("#gh-pro-skip") as HTMLElement;
+  skip.addEventListener("click", (e) => { e.stopPropagation(); done(); });
+  timer = window.setTimeout(done, 24000);                // trava de segurança (= duração)
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
@@ -493,56 +499,36 @@ function injectStyle() {
   #gh-intro .gh-menu-btn:hover:not(.gh-disabled) { color:#fff; filter:drop-shadow(0 0 14px rgba(240,192,64,.55)); }
   #gh-intro .gh-menu-btn:active:not(.gh-disabled) { transform:translateY(1px) scale(.985); }
   #gh-intro .gh-disabled { opacity:.42; cursor:default; }
-  /* --- PRÓLOGO (slides estilo 16-bit: pan/zoom + névoa + texto) --- */
-  #gh-intro .gh-prologue { background:#000; overflow:hidden; cursor:pointer; padding:0; }
-  #gh-intro .gh-pro-bg {
-    position:absolute; inset:-9%; background:#0a0b10 center/cover no-repeat;
-    transform-origin:center; will-change:transform,opacity;
-    animation:gh-pro-fade .9s ease-out both, gh-pro-pan 7s ease-in-out both;
+  /* --- PRÓLOGO (crawl vertical estilo Symphony of the Night) --- */
+  /* UMA arte vertical alta sobe devagar; o texto sobe junto por cima. */
+  #gh-intro .gh-crawl { background:#000; overflow:hidden; padding:0; }
+  #gh-intro .gh-crawl-bg {
+    position:absolute; inset:0; background:#0a0b10 center bottom / cover no-repeat;
+    will-change:background-position;
+    animation:gh-crawl-pan 22s linear both;
   }
-  @keyframes gh-pro-fade { from { opacity:0; } to { opacity:1; } }
-  /* cinco variações de câmera (pan + zoom lentos) p/ cada slide ter movimento próprio */
-  #gh-intro .gh-pan-a { animation-name:gh-pro-fade, gh-kb-a; }
-  #gh-intro .gh-pan-b { animation-name:gh-pro-fade, gh-kb-b; }
-  #gh-intro .gh-pan-c { animation-name:gh-pro-fade, gh-kb-c; }
-  #gh-intro .gh-pan-d { animation-name:gh-pro-fade, gh-kb-d; }
-  #gh-intro .gh-pan-e { animation-name:gh-pro-fade, gh-kb-e; }
-  @keyframes gh-kb-a { from { transform:scale(1.06) translate(-2%,-1%); } to { transform:scale(1.2) translate(2%,1.5%); } }
-  @keyframes gh-kb-b { from { transform:scale(1.22) translate(3%,2%); } to { transform:scale(1.06) translate(-2%,-1%); } }
-  @keyframes gh-kb-c { from { transform:scale(1.08) translate(2%,-2%); } to { transform:scale(1.24) translate(-3%,2%); } }
-  @keyframes gh-kb-d { from { transform:scale(1.2) translate(-3%,1%); } to { transform:scale(1.06) translate(2%,-1.5%); } }
-  @keyframes gh-kb-e { from { transform:scale(1.05) translate(0,2%); } to { transform:scale(1.22) translate(0,-2%); } }
-  /* névoa à deriva por cima da arte */
-  #gh-intro .gh-pro-fog {
-    position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen;
-    background:
-      radial-gradient(60% 40% at 20% 70%, rgba(200,205,215,.22), transparent 60%),
-      radial-gradient(55% 38% at 80% 60%, rgba(190,196,208,.18), transparent 62%),
-      linear-gradient(180deg, rgba(180,188,200,.06), rgba(180,188,200,.14));
-    background-size:180% 180%, 200% 200%, 100% 100%;
-    animation:gh-pro-fogdrift 20s ease-in-out infinite;
-  }
-  @keyframes gh-pro-fogdrift {
-    0% { background-position:10% 60%, 80% 50%, 0 0; }
-    50% { background-position:40% 50%, 55% 62%, 0 0; }
-    100% { background-position:10% 60%, 80% 50%, 0 0; }
-  }
-  /* vinheta + letterbox cinematográfico (barras pretas topo/base) */
-  #gh-intro .gh-pro-vig {
+  /* pan vertical: do rodapé da arte (base) até o topo — revela de baixo p/ cima */
+  @keyframes gh-crawl-pan { from { background-position:center 100%; } to { background-position:center 0%; } }
+  /* véu p/ o texto ler bem + vinheta */
+  #gh-intro .gh-crawl-shade {
     position:absolute; inset:0; pointer-events:none;
     background:
-      linear-gradient(180deg, #000 0, rgba(0,0,0,0) 12%, rgba(0,0,0,0) 78%, #000 100%),
-      radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 52%, rgba(0,0,0,.62) 100%);
+      linear-gradient(180deg, rgba(4,5,9,.55) 0%, rgba(4,5,9,.18) 30%, rgba(4,5,9,.34) 68%, rgba(4,5,9,.82) 100%),
+      radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0) 46%, rgba(0,0,0,.5) 100%);
   }
-  #gh-intro .gh-pro-text {
-    position:absolute; left:0; right:0; bottom:13%; z-index:2; padding:0 8vw; text-align:center;
-    animation:gh-pro-textin 1.1s .35s ease-out both;
+  #gh-intro .gh-crawl-textwrap { position:absolute; inset:0; overflow:hidden; z-index:2; }
+  #gh-intro .gh-crawl-text {
+    position:absolute; left:0; right:0; margin:0 auto; max-width:680px; padding:0 8vw; text-align:center;
+    will-change:transform; animation:gh-crawl-rise 22s linear both;
   }
-  #gh-intro .gh-pro-text p {
-    margin:0 auto; max-width:760px; color:#f0e6cc; font-family:"MedievalSharp","Trebuchet MS",serif;
-    font-size:clamp(15px,2.6vh,21px); line-height:1.5; text-shadow:0 2px 6px #000, 0 0 16px rgba(0,0,0,.9); letter-spacing:.3px;
+  /* o bloco de texto sobe da base da tela até sumir no topo */
+  @keyframes gh-crawl-rise { from { transform:translateY(98vh); } to { transform:translateY(-165vh); } }
+  #gh-intro .gh-crawl-text p {
+    color:#f2e6c8; font-family:"MedievalSharp","Trebuchet MS",serif;
+    font-size:clamp(17px,3vh,24px); line-height:1.62; margin:0 0 2.3em;
+    text-shadow:0 2px 8px #000, 0 0 18px rgba(0,0,0,.92); letter-spacing:.3px;
   }
-  @keyframes gh-pro-textin { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+  #gh-intro .gh-crawl-end { color:#e8b24a; font-size:34px; margin-top:.3em; text-shadow:0 2px 10px #000; }
   #gh-intro .gh-pro-skip {
     position:absolute; top:16px; right:16px; z-index:3; cursor:pointer;
     font-family:"Cinzel",serif; font-size:13px; letter-spacing:1px; color:#d8c48a;
@@ -550,13 +536,10 @@ function injectStyle() {
     text-shadow:0 1px 3px #000; transition:color .15s, border-color .15s;
   }
   #gh-intro .gh-pro-skip:hover { color:#fff; border-color:#f4c847; }
-  #gh-intro .gh-pro-dots { position:absolute; left:0; right:0; bottom:6%; z-index:3; display:flex; gap:7px; justify-content:center; }
-  #gh-intro .gh-pro-dots i { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.25); }
-  #gh-intro .gh-pro-dots i.on { background:#f0d27a; box-shadow:0 0 6px rgba(240,210,122,.7); }
-  #gh-intro .gh-pro-hint { position:absolute; right:18px; bottom:calc(6% + 20px); z-index:3; font-size:11px; color:#b6a877; opacity:.7; animation:gh-pro-blink 1.8s ease-in-out infinite; }
+  #gh-intro .gh-pro-hint { position:absolute; right:20px; bottom:16px; z-index:3; font-size:11px; color:#b6a877; opacity:.7; animation:gh-pro-blink 1.8s ease-in-out infinite; }
   @keyframes gh-pro-blink { 0%,100% { opacity:.35; } 50% { opacity:.8; } }
   @media (prefers-reduced-motion: reduce) {
-    #gh-intro .gh-pro-bg, #gh-intro .gh-pro-fog, #gh-intro .gh-pro-text, #gh-intro .gh-pro-hint { animation-duration:.01s; }
+    #gh-intro .gh-crawl-bg, #gh-intro .gh-crawl-text { animation-duration:6s; }
   }
   /* --- criação de personagem --- */
   #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
