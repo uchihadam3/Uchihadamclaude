@@ -45,7 +45,8 @@ export function runIntro(root: HTMLElement): Promise<Character> {
     let frac = 0;
     const all = preloadUrls(allAssetUrls(), (f) => (frac = f));
     showLoading(overlay, () => frac, all, 900, () =>
-      showTitle(overlay, () => showCreate(overlay, toAlloc)),
+      // Título → PRÓLOGO (slides estilo SNES) → Criação → Atributos
+      showTitle(overlay, () => showPrologue(overlay, () => showCreate(overlay, toAlloc))),
     );
   });
 }
@@ -66,6 +67,43 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
       </div>
     </div>`;
   overlay.querySelector("#gh-btn-new")!.addEventListener("click", onNew);
+}
+
+// ---------------------------------------------------------------- PRÓLOGO
+// Abertura estilo 16-bit: artes pintadas com movimento de câmera (Ken Burns:
+// pan + zoom lento) + névoa à deriva + texto narrativo, em letterbox. Avança
+// sozinho, ao toque, e há botão "Pular". Conta a lore antes da criação.
+function showPrologue(overlay: HTMLElement, onDone: () => void) {
+  const slides: { img: string; pan: string; text: string }[] = [
+    { img: titleArtUrl, pan: "a", text: "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de mercadores." },
+    { img: createBgUrl, pan: "b", text: "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas profundezas sob o vilarejo, aquilo que não deveria ter nome." },
+    { img: createBgUrl, pan: "c", text: "O que jaz lá embaixo não é morte; é fome. Chamam-na de Nethergloam, a névoa que devora: consome o corpo, apaga os nomes e nega aos mortos o seu descanso." },
+    { img: titleArtUrl, pan: "d", text: "Enquanto o Selo resistir, a bruma apenas ronda os muros, paciente. Mas os selos são de ferro, e o ferro cansa — a cada lua, a névoa avança um palmo." },
+    { img: titleArtUrl, pan: "e", text: "E então, pela estrada, chega um forasteiro que a atravessou inteira e sobreviveu — embora tenha deixado, em algum ponto da bruma, pedaços da própria lembrança." },
+  ];
+  let i = 0;
+  let timer = 0;
+  const done = () => { window.clearTimeout(timer); onDone(); };
+  const advance = () => { window.clearTimeout(timer); i++; if (i >= slides.length) done(); else render(); };
+  const render = () => {
+    const s = slides[i];
+    overlay.innerHTML = `
+      <div class="gh-screen gh-prologue">
+        <div class="gh-pro-bg gh-pan-${s.pan}" style="background-image:url(${s.img})"></div>
+        <div class="gh-pro-fog"></div>
+        <div class="gh-pro-vig"></div>
+        <div class="gh-pro-text"><p>${s.text}</p></div>
+        <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
+        <div class="gh-pro-dots">${slides.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div>
+        <div class="gh-pro-hint">toque para continuar ▸</div>
+      </div>`;
+    const scr = overlay.querySelector(".gh-prologue") as HTMLElement;
+    scr.addEventListener("click", advance);
+    const skip = overlay.querySelector("#gh-pro-skip") as HTMLElement;
+    skip.addEventListener("click", (e) => { e.stopPropagation(); done(); });
+    timer = window.setTimeout(advance, 6200);
+  };
+  render();
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
@@ -444,6 +482,71 @@ function injectStyle() {
   #gh-intro .gh-menu-btn:hover:not(.gh-disabled) { color:#fff; filter:drop-shadow(0 0 14px rgba(240,192,64,.55)); }
   #gh-intro .gh-menu-btn:active:not(.gh-disabled) { transform:translateY(1px) scale(.985); }
   #gh-intro .gh-disabled { opacity:.42; cursor:default; }
+  /* --- PRÓLOGO (slides estilo 16-bit: pan/zoom + névoa + texto) --- */
+  #gh-intro .gh-prologue { background:#000; overflow:hidden; cursor:pointer; padding:0; }
+  #gh-intro .gh-pro-bg {
+    position:absolute; inset:-9%; background:#0a0b10 center/cover no-repeat;
+    transform-origin:center; will-change:transform,opacity;
+    animation:gh-pro-fade .9s ease-out both, gh-pro-pan 7s ease-in-out both;
+  }
+  @keyframes gh-pro-fade { from { opacity:0; } to { opacity:1; } }
+  /* cinco variações de câmera (pan + zoom lentos) p/ cada slide ter movimento próprio */
+  #gh-intro .gh-pan-a { animation-name:gh-pro-fade, gh-kb-a; }
+  #gh-intro .gh-pan-b { animation-name:gh-pro-fade, gh-kb-b; }
+  #gh-intro .gh-pan-c { animation-name:gh-pro-fade, gh-kb-c; }
+  #gh-intro .gh-pan-d { animation-name:gh-pro-fade, gh-kb-d; }
+  #gh-intro .gh-pan-e { animation-name:gh-pro-fade, gh-kb-e; }
+  @keyframes gh-kb-a { from { transform:scale(1.06) translate(-2%,-1%); } to { transform:scale(1.2) translate(2%,1.5%); } }
+  @keyframes gh-kb-b { from { transform:scale(1.22) translate(3%,2%); } to { transform:scale(1.06) translate(-2%,-1%); } }
+  @keyframes gh-kb-c { from { transform:scale(1.08) translate(2%,-2%); } to { transform:scale(1.24) translate(-3%,2%); } }
+  @keyframes gh-kb-d { from { transform:scale(1.2) translate(-3%,1%); } to { transform:scale(1.06) translate(2%,-1.5%); } }
+  @keyframes gh-kb-e { from { transform:scale(1.05) translate(0,2%); } to { transform:scale(1.22) translate(0,-2%); } }
+  /* névoa à deriva por cima da arte */
+  #gh-intro .gh-pro-fog {
+    position:absolute; inset:0; pointer-events:none; opacity:.5; mix-blend-mode:screen;
+    background:
+      radial-gradient(60% 40% at 20% 70%, rgba(200,205,215,.22), transparent 60%),
+      radial-gradient(55% 38% at 80% 60%, rgba(190,196,208,.18), transparent 62%),
+      linear-gradient(180deg, rgba(180,188,200,.06), rgba(180,188,200,.14));
+    background-size:180% 180%, 200% 200%, 100% 100%;
+    animation:gh-pro-fogdrift 20s ease-in-out infinite;
+  }
+  @keyframes gh-pro-fogdrift {
+    0% { background-position:10% 60%, 80% 50%, 0 0; }
+    50% { background-position:40% 50%, 55% 62%, 0 0; }
+    100% { background-position:10% 60%, 80% 50%, 0 0; }
+  }
+  /* vinheta + letterbox cinematográfico (barras pretas topo/base) */
+  #gh-intro .gh-pro-vig {
+    position:absolute; inset:0; pointer-events:none;
+    background:
+      linear-gradient(180deg, #000 0, rgba(0,0,0,0) 12%, rgba(0,0,0,0) 78%, #000 100%),
+      radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 52%, rgba(0,0,0,.62) 100%);
+  }
+  #gh-intro .gh-pro-text {
+    position:absolute; left:0; right:0; bottom:13%; z-index:2; padding:0 8vw; text-align:center;
+    animation:gh-pro-textin 1.1s .35s ease-out both;
+  }
+  #gh-intro .gh-pro-text p {
+    margin:0 auto; max-width:760px; color:#f0e6cc; font-family:"MedievalSharp","Trebuchet MS",serif;
+    font-size:clamp(15px,2.6vh,21px); line-height:1.5; text-shadow:0 2px 6px #000, 0 0 16px rgba(0,0,0,.9); letter-spacing:.3px;
+  }
+  @keyframes gh-pro-textin { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+  #gh-intro .gh-pro-skip {
+    position:absolute; top:16px; right:16px; z-index:3; cursor:pointer;
+    font-family:"Cinzel",serif; font-size:13px; letter-spacing:1px; color:#d8c48a;
+    background:rgba(10,8,5,.55); border:1px solid rgba(201,162,39,.5); border-radius:8px; padding:7px 14px;
+    text-shadow:0 1px 3px #000; transition:color .15s, border-color .15s;
+  }
+  #gh-intro .gh-pro-skip:hover { color:#fff; border-color:#f4c847; }
+  #gh-intro .gh-pro-dots { position:absolute; left:0; right:0; bottom:6%; z-index:3; display:flex; gap:7px; justify-content:center; }
+  #gh-intro .gh-pro-dots i { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.25); }
+  #gh-intro .gh-pro-dots i.on { background:#f0d27a; box-shadow:0 0 6px rgba(240,210,122,.7); }
+  #gh-intro .gh-pro-hint { position:absolute; right:18px; bottom:calc(6% + 20px); z-index:3; font-size:11px; color:#b6a877; opacity:.7; animation:gh-pro-blink 1.8s ease-in-out infinite; }
+  @keyframes gh-pro-blink { 0%,100% { opacity:.35; } 50% { opacity:.8; } }
+  @media (prefers-reduced-motion: reduce) {
+    #gh-intro .gh-pro-bg, #gh-intro .gh-pro-fog, #gh-intro .gh-pro-text, #gh-intro .gh-pro-hint { animation-duration:.01s; }
+  }
   /* --- criação de personagem --- */
   #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   /* fundo (arte da cripta) FIXO atrás da UI + véu p/ o texto ler bem */
