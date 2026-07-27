@@ -89,8 +89,10 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
   const flourish = '<svg viewBox="0 0 260 14" preserveAspectRatio="xMidYMid meet"><g fill="#c9a24a"><circle cx="7" cy="7" r="2.6"/><rect x="15" y="6.1" width="97" height="1.8" rx="0.9"/><path d="M130 1 L138 7 L130 13 L122 7 Z"/><rect x="148" y="6.1" width="97" height="1.8" rx="0.9"/><circle cx="253" cy="7" r="2.6"/></g></svg>';
   overlay.innerHTML = `
     <div class="gh-screen gh-crawl">
-      <div class="gh-crawl-bg" id="gh-crawl-bg" style="background-image:url(${crawlImg})"></div>
-      <div class="gh-crawl-curtain" id="gh-crawl-curtain"></div>
+      <div class="gh-ow" id="gh-ow">
+        <div class="gh-ow-img" id="gh-ow-img" style="background-image:url(${crawlImg})"></div>
+        <div class="gh-ow-void"></div>
+      </div>
       <div class="gh-crawl-shade"></div>
       <div class="gh-crawl-textwrap" id="gh-crawl-tw"><div class="gh-crawl-text" id="gh-crawl-text">
         ${paras.map((p) => `<p>${p}</p>`).join("")}
@@ -107,21 +109,23 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
       </div>
       <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
     </div>`;
-  // VÉU PRETO com borda IRREGULAR (ruído/turbulência) que recua p/ cima, revelando
-  // a imagem aos poucos — a "tinta preta" some de forma orgânica, não chapada.
-  const curtain = overlay.querySelector("#gh-crawl-curtain") as HTMLElement;
+  // A câmera "sobe" por um vazio PRETO; lá no alto está a cidade. A borda de baixo
+  // da imagem é IRREGULAR (máscara de ruído) → ela desce pro quadro de forma
+  // orgânica, não chapada, conforme a câmera chega.
+  const world = overlay.querySelector("#gh-ow") as HTMLElement;
+  const img = overlay.querySelector("#gh-ow-img") as HTMLElement;
   const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='420' height='340' preserveAspectRatio='none'>" +
     "<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>" +
     "<stop offset='0' stop-color='#fff' stop-opacity='1'/>" +
-    "<stop offset='0.66' stop-color='#fff' stop-opacity='1'/>" +
+    "<stop offset='0.72' stop-color='#fff' stop-opacity='1'/>" +
     "<stop offset='1' stop-color='#fff' stop-opacity='0'/></linearGradient>" +
     "<filter id='t' x='-25%' y='-25%' width='150%' height='150%'>" +
-    "<feTurbulence type='fractalNoise' baseFrequency='0.016 0.03' numOctaves='2' seed='6' result='n'/>" +
-    "<feDisplacementMap in='SourceGraphic' in2='n' scale='78' xChannelSelector='R' yChannelSelector='G'/>" +
+    "<feTurbulence type='fractalNoise' baseFrequency='0.015 0.028' numOctaves='2' seed='6' result='n'/>" +
+    "<feDisplacementMap in='SourceGraphic' in2='n' scale='84' xChannelSelector='R' yChannelSelector='G'/>" +
     "</filter></defs><rect width='420' height='340' fill='url(#g)' filter='url(#t)'/></svg>";
   const maskUri = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-  curtain.style.webkitMaskImage = maskUri;
-  curtain.style.maskImage = maskUri;
+  img.style.webkitMaskImage = maskUri;
+  img.style.maskImage = maskUri;
 
   const text = overlay.querySelector("#gh-crawl-text") as HTMLElement;
   const tw = overlay.querySelector("#gh-crawl-tw") as HTMLElement;
@@ -133,16 +137,19 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
     if (revealed) return;
     revealed = true;
     window.clearTimeout(timer);
-    curtain.style.animation = "none";            // véu totalmente recolhido
-    curtain.style.transform = "translateY(-130%)";
-    tw.style.display = "none";                    // some o texto (subiu até o fim)
+    world.style.animation = "none";              // câmera no topo: imagem inteira
+    world.style.transform = "translateY(0)";
+    img.style.webkitMaskImage = "none";          // imagem fica sólida (sem borda rasgada)
+    img.style.maskImage = "none";
+    tw.style.display = "none";                    // some o texto (já subiu tudo)
     skip.style.display = "none";
-    titleEl.classList.add("show");               // surge o título (logo + Começar)
+    titleEl.classList.add("show");               // título MATERIALIZA aos poucos
     (overlay.querySelector("#gh-btn-new") as HTMLElement).addEventListener("click", onNew);
   };
-  text.addEventListener("animationend", reveal); // acabou a subida → revela o título
+  // revela o título só DEPOIS de uma pausa após o texto terminar de subir
+  text.addEventListener("animationend", () => window.setTimeout(reveal, 900));
   skip.addEventListener("click", (e) => { e.stopPropagation(); reveal(); });
-  timer = window.setTimeout(reveal, 24000);       // trava de segurança
+  timer = window.setTimeout(reveal, 25000);       // trava de segurança
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
@@ -534,19 +541,32 @@ function injectStyle() {
   /* --- PRÓLOGO (crawl vertical estilo Symphony of the Night) --- */
   /* UMA arte vertical alta sobe devagar; o texto sobe junto por cima. */
   #gh-intro .gh-crawl { background:#000; overflow:hidden; padding:0; }
-  /* a imagem fica ESTÁTICA; o véu preto por cima é que recua revelando-a */
-  #gh-intro .gh-crawl-bg {
-    position:absolute; inset:0; background:#0a0b10 center center / cover no-repeat;
+  /* MUNDO alto que a "câmera" percorre de baixo (vazio preto) p/ cima (a cidade).
+     A cidade fica no topo; o vazio preto embaixo. translateY sobe a câmera. */
+  #gh-intro .gh-ow {
+    position:absolute; left:0; right:0; top:0; width:100%; height:310vh; z-index:0;
+    will-change:transform; animation:gh-ow-rise 22s cubic-bezier(.4,0,.5,1) both;
   }
-  /* VÉU PRETO com borda irregular (máscara de ruído aplicada via JS) que sobe */
-  #gh-intro .gh-crawl-curtain {
-    position:absolute; left:-2%; right:-2%; top:0; height:152%; z-index:1; background:#05060a;
+  #gh-intro .gh-ow-img {
+    height:100vh; background:#0a0b10 center center / cover no-repeat;
     -webkit-mask-size:100% 100%; mask-size:100% 100%;
     -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-    will-change:transform; animation:gh-curtain-up 22s linear both;
   }
-  /* recua para cima: revela a imagem de baixo p/ cima, com a borda rasgada */
-  @keyframes gh-curtain-up { from { transform:translateY(0); } to { transform:translateY(-130%); } }
+  #gh-intro .gh-ow-void { height:210vh; background:#000; }
+  /* câmera sobe: começa mostrando o vazio (embaixo) e chega na cidade (no topo) */
+  @keyframes gh-ow-rise { from { transform:translateY(-210vh); } to { transform:translateY(0); } }
+  /* materialização do TÍTULO — surge "da névoa" (blur+brilho) aos poucos */
+  #gh-intro .gh-open-title.show .gh-logo-img { animation:gh-title-mat 2.6s ease-out both; }
+  #gh-intro .gh-open-title.show .gh-flourish { animation:gh-title-fade 1.6s .9s ease-out both; }
+  #gh-intro .gh-open-title.show .gh-tagline { animation:gh-title-fade 1.6s 1.4s ease-out both; }
+  #gh-intro .gh-open-title.show .gh-menu { animation:gh-title-rise 1s 1.9s ease-out both; }
+  @keyframes gh-title-mat {
+    0% { opacity:0; filter:blur(16px) brightness(2.4); transform:scale(1.09); }
+    55% { opacity:1; }
+    100% { opacity:1; filter:blur(0) brightness(1); transform:scale(1); }
+  }
+  @keyframes gh-title-fade { from { opacity:0; } to { opacity:1; } }
+  @keyframes gh-title-rise { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
   /* véu p/ o texto ler bem + vinheta */
   #gh-intro .gh-crawl-shade {
     position:absolute; inset:0; pointer-events:none;
