@@ -875,6 +875,8 @@ export class Game {
   private smokeTexes: THREE.Texture[] = []; // texturas de fumaça (mechas por ruído)
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
+  private fireFlames: THREE.Mesh[] = []; // línguas de chama animadas (lareira) — tremem e encaram a câmera
+  private _fireTex?: THREE.Texture;      // textura de chama (gerada 1×)
   // postes de rua externos: acendem à noite, apagam de dia (ciclo dia/noite)
   private lampFlames: { light: THREE.PointLight; base: number }[] = [];
   private lampGlows: THREE.Sprite[] = []; // halo luminoso da lanterna (só à noite)
@@ -1374,6 +1376,7 @@ export class Game {
     this.fogDome = undefined;
     this.npcs = [];
     this.flames = [];
+    this.fireFlames = [];
     this.lampFlames = [];
     this.lampGlows = [];
     this.dayNightLights = [];
@@ -5464,11 +5467,7 @@ export class Game {
     const linen = new THREE.MeshLambertMaterial({ color: 0xcbb489 });
 
     // lareira acesa (parede oeste, célula 1,3) — coração da casa
-    this.wallCell(1, 3, [-1, 0], (x, z) => {
-      this.box(x, 1.2, z, 0.5, 2.4, 2.0, stone);
-      this.box(x + 0.42, 0.55, z, 0.34, 0.7, 1.1, new THREE.MeshBasicMaterial({ color: 0xff7a1e }));
-      this.glowLight(x + 1.4, 1.0, z, 0xff8a2e, 4.2, 10);
-    });
+    this.wallCell(1, 3, [-1, 0], (x, z) => this.buildHearth(x, z));
     // mesa central + dois bancos (a célula fica com colisão)
     const tcx = 3 * CELL;
     const tcz = 3 * CELL;
@@ -5577,6 +5576,69 @@ export class Game {
     l.position.set(x, y, z);
     this.world.add(l);
     this.flames.push({ light: l, base });
+  }
+  // textura de CHAMA (teardrop com gradiente quente e bordas suaves), gerada 1×
+  private fireTex(): THREE.Texture {
+    if (this._fireTex) return this._fireTex;
+    const c = document.createElement("canvas");
+    c.width = 64; c.height = 128;
+    const g = c.getContext("2d")!;
+    g.filter = "blur(3px)"; // bordas macias → cara de fogo no additive
+    g.beginPath();
+    g.moveTo(32, 6);
+    g.bezierCurveTo(58, 52, 56, 112, 32, 124);
+    g.bezierCurveTo(8, 112, 6, 52, 32, 6);
+    g.closePath();
+    const grd = g.createLinearGradient(0, 128, 0, 0);
+    grd.addColorStop(0.0, "#fff6cc");
+    grd.addColorStop(0.22, "#ffd23a");
+    grd.addColorStop(0.5, "#ff7e17");
+    grd.addColorStop(0.78, "#dc330a");
+    grd.addColorStop(1.0, "rgba(110,8,0,0)");
+    g.fillStyle = grd;
+    g.fill();
+    const t = new THREE.CanvasTexture(c);
+    t.needsUpdate = true;
+    this._fireTex = t;
+    return t;
+  }
+  // lareira acesa (parede oeste da casa): pedra + toras + brasa + línguas de chama
+  // animadas (aditivas, encaram a câmera) + luz que tremeluz.
+  private buildHearth(x: number, z: number) {
+    const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    this.box(x, 1.2, z, 0.5, 2.4, 2.0, stone);                                   // corpo de pedra
+    this.box(x + 0.3, 0.66, z, 0.14, 1.05, 1.55, new THREE.MeshBasicMaterial({ color: 0x120a05 })); // boca escura
+    // toras cruzadas
+    const logMat = new THREE.MeshLambertMaterial({ color: 0x2a1a0e });
+    for (const rot of [0.6, -0.6]) {
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.2, 8), logMat);
+      log.position.set(x + 0.44, 0.26, z);
+      log.rotation.set(0, rot, Math.PI / 2);
+      this.world.add(log);
+    }
+    // brasa: plano quente aditivo rente ao chão
+    const ember = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0xff5a12, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    ember.rotation.x = -Math.PI / 2;
+    ember.position.set(x + 0.44, 0.14, z);
+    this.world.add(ember);
+    // línguas de chama (billboard + tremor no tick)
+    const ftex = this.fireTex();
+    for (const [dx, sc, ph] of [[-0.26, 0.78, 0], [0.02, 1.05, 1.7], [0.28, 0.72, 3.4]] as [number, number, number][]) {
+      const fl = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.72 * sc, 1.2 * sc),
+        new THREE.MeshBasicMaterial({ map: ftex, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      const baseY = 0.28 + 0.6 * sc;
+      fl.position.set(x + 0.44 + dx, baseY, z);
+      fl.userData = { phase: ph, baseY, h: 1.2 * sc };
+      fl.renderOrder = 5;
+      this.world.add(fl);
+      this.fireFlames.push(fl);
+    }
+    this.glowLight(x + 1.2, 1.0, z, 0xff8a2e, 4.4, 11);
   }
 
   // coloca um prop numa célula encostado numa parede e dá colisão à célula
@@ -6542,6 +6604,15 @@ export class Game {
     for (const f of this.flames)
       f.light.intensity =
         f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
+    // línguas de chama da lareira: encaram a câmera + tremem (altura/opacidade)
+    for (const fl of this.fireFlames) {
+      fl.rotation.y = Math.atan2(cx - fl.position.x, cz - fl.position.z);
+      const u = fl.userData as { phase: number; baseY: number; h: number };
+      const flick = 0.86 + 0.16 * Math.sin(now * 0.02 + u.phase) + 0.07 * Math.sin(now * 0.041 + u.phase * 1.7);
+      fl.scale.set(0.94 + 0.1 * Math.sin(now * 0.033 + u.phase), flick, 1);
+      fl.position.y = u.baseY + (flick - 1) * u.h * 0.5; // ancora na base
+      (fl.material as THREE.MeshBasicMaterial).opacity = 0.82 + 0.16 * Math.sin(now * 0.028 + u.phase * 1.3);
+    }
     // sprite-sheets animam (avança o quadro por UV)
     for (const a of this.animTex)
       a.tex.offset.x = (Math.floor((now / 1000) * a.fps) % a.frames) / a.frames;
