@@ -146,9 +146,13 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
     img.style.maskImage = "none";
     tw.style.display = "none";                    // texto já subiu tudo
     skip.style.display = "none";
-    shade.style.opacity = "0";                   // véu some → título nítido
-    titleblock.classList.add("ready");           // libera os botões do menu
-    (overlay.querySelector("#gh-btn-new") as HTMLElement).addEventListener("click", onNew);
+    shade.style.opacity = "0";                   // véu some → imagem nítida
+    // 1º fica SÓ a imagem por um instante; DEPOIS o título/logo + botões surgem aos
+    // poucos por cima (não vêm "escritos" junto da imagem subindo).
+    window.setTimeout(() => {
+      titleblock.classList.add("ready");         // logo → flourish → tagline → menu (escalonado)
+      (overlay.querySelector("#gh-btn-new") as HTMLElement).addEventListener("click", onNew);
+    }, 950);
   };
   world.addEventListener("animationend", settle); // fim da subida da câmera
   skip.addEventListener("click", (e) => { e.stopPropagation(); settle(); });
@@ -557,13 +561,37 @@ function injectStyle() {
     -webkit-mask-size:100% 100%; mask-size:100% 100%;
     -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
   }
-  /* o título (logo + flourish + tagline + menu) fica COLADO na cena, sobre a arte */
+  /* o título (logo + flourish + tagline + menu) fica COLADO na cena, sobre a arte,
+     mas ESCONDIDO durante a subida da câmera — só a imagem aparece primeiro. */
   #gh-intro .gh-ow-titleblock {
     position:absolute; inset:0; z-index:1; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:6px; text-align:center; padding:6vh 18px;
+    opacity:0; /* invisível até settle() (imagem primeiro) */
+  }
+  #gh-intro .gh-ow-titleblock.ready { opacity:1; }
+  /* cada peça começa apagada e deslocada; ao ficar .ready, surgem ESCALONADAS
+     (logo primeiro, depois floreio, tagline e por fim os botões) — "de pouco em
+     pouco", nada de aparecer tudo de uma vez. */
+  #gh-intro .gh-ow-titleblock .gh-logo-img,
+  #gh-intro .gh-ow-titleblock .gh-flourish,
+  #gh-intro .gh-ow-titleblock .gh-tagline,
+  #gh-intro .gh-ow-titleblock .gh-menu {
+    opacity:0; transform:translateY(12px);
+  }
+  #gh-intro .gh-ow-titleblock.ready .gh-logo-img {
+    opacity:1; transform:none; transition:opacity 1.3s ease, transform 1.3s ease;
+  }
+  #gh-intro .gh-ow-titleblock.ready .gh-flourish {
+    opacity:1; transform:none; transition:opacity .9s ease .9s, transform .9s ease .9s;
+  }
+  #gh-intro .gh-ow-titleblock.ready .gh-tagline {
+    opacity:1; transform:none; transition:opacity .9s ease 1.2s, transform .9s ease 1.2s;
   }
   #gh-intro .gh-ow-titleblock .gh-menu { margin-top:14px; pointer-events:none; }
-  #gh-intro .gh-ow-titleblock.ready .gh-menu { pointer-events:auto; }
+  #gh-intro .gh-ow-titleblock.ready .gh-menu {
+    opacity:1; transform:none; pointer-events:auto;
+    transition:opacity 1s ease 1.6s, transform 1s ease 1.6s;
+  }
   #gh-intro .gh-ow-void { height:200vh; background:#000; }
   /* câmera sobe: começa mostrando o vazio preto (embaixo) e chega na cena (topo) */
   @keyframes gh-ow-rise { from { transform:translateY(-200vh); } to { transform:translateY(0); } }

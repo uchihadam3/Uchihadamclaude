@@ -191,6 +191,12 @@ export interface HUD {
   fadeOut(ms: number): Promise<void>;
   fadeIn(ms: number): void;
   wakeEyelids(vh: number): void;
+  // ABERTURA: esconde o HUD (só a visão do jogador) e depois o revela com um fade
+  // rápido (a NPC "entrega" a arma → botões surgem).
+  hudConceal(): void;
+  hudReveal(): void;
+  // rastreador de missão (abaixo do minimapa): missão ativa + objetivo; null = some
+  setTracker(data: TrackerData | null): void;
   // bandeja de consumíveis do HUD (poção/cerveja) — toque usa o item
   setConsumables(items: ConsumSlot[]): void;
   // TAVERNA: abre/atualiza a janela de descanso + bebidas + missões (ou fecha)
@@ -307,6 +313,13 @@ export interface MinimapState {
   waypoint?: { c: number; r: number }; // destino da missão ativa (marcador-guia)
 }
 
+// rastreador de missão (painel abaixo do minimapa): missão ativa + objetivo atual
+export interface TrackerData {
+  title: string;      // nome da missão ativa
+  objective: string;  // resumo do que fazer agora ("Visite Rosa", "8/8 esqueletos"…)
+  guideOn: boolean;    // guia/marcador do mapa ligado?
+}
+
 // medalhão (arte própria) e cor de destaque de cada tipo de marcador
 const POI_SRC: Record<MiniPoiKind, string> = {
   smith: mmSmith, tavern: mmTavern, store: mmStore, alchemist: mmAlchemist, npc: mmNpc,
@@ -352,6 +365,7 @@ export function setupControls(
   onQuest?: (id: string, action: "accept" | "turnin") => TavernData | null, // missão
   onDialogueChoice?: (id: string) => void, // clicou num botão de escolha do diálogo
   onOpenJournal?: () => JournalData | null, // abriu o Diário de Missões (Game monta os dados)
+  onToggleGuide?: () => void, // ligou/desligou o guia (marcador) do mapa pelo rastreador
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -470,6 +484,32 @@ export function setupControls(
   root.appendChild(mapWrap);
   const mapCtx = mapCanvas.getContext("2d");
   const MINI_RADIUS = 3; // células ao redor do jogador (janela 2R+1=7×7) — mais zoom, ícones maiores
+
+  // ---- RASTREADOR DE MISSÃO (logo abaixo do minimapa) ----
+  // Painel discreto: nome da missão ativa + objetivo atual, com um botão que
+  // liga/desliga o marcador-guia (no mapa e no mundo).
+  const tracker = document.createElement("div");
+  tracker.id = "gh-tracker";
+  tracker.style.display = "none";
+  tracker.innerHTML =
+    '<div class="gh-tk-head">' +
+    '<span class="gh-tk-title"></span>' +
+    '<button class="gh-tk-guide" title="Mostrar/ocultar guia no mapa"><svg viewBox="0 0 24 24" width="13" height="13"><path fill="currentColor" d="M12 3l2.5 5.6L20 9.3l-4 4 1 6-5-2.9L7 19.3l1-6-4-4 5.5-.7z"/></svg></button>' +
+    '</div>' +
+    '<div class="gh-tk-obj"></div>';
+  root.appendChild(tracker);
+  const tkTitle = tracker.querySelector(".gh-tk-title") as HTMLElement;
+  const tkObj = tracker.querySelector(".gh-tk-obj") as HTMLElement;
+  const tkGuide = tracker.querySelector(".gh-tk-guide") as HTMLElement;
+  tkGuide.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onToggleGuide?.(); };
+  const setTracker = (data: TrackerData | null) => {
+    if (!data || !data.title) { tracker.style.display = "none"; return; }
+    tracker.style.display = "block";
+    tkTitle.textContent = data.title;
+    tkObj.textContent = data.objective ? "▸ " + data.objective : "";
+    tkGuide.classList.toggle("gh-tk-guide-off", !data.guideOn);
+    tkGuide.title = data.guideOn ? "Ocultar guia no mapa" : "Mostrar guia no mapa";
+  };
 
   // ---- MAPA GRANDE (overlay) ----
   const bigMap = document.createElement("div");
@@ -2062,6 +2102,14 @@ export function setupControls(
     fadeOut(ms) { return fadeOut(ms); },
     fadeIn(ms) { fadeIn(ms); },
     wakeEyelids(vh) { wakeEyelids(vh); },
+    hudConceal() { root.classList.add("gh-preplay"); root.classList.remove("gh-revealing"); },
+    hudReveal() {
+      if (!root.classList.contains("gh-preplay")) return;
+      root.classList.add("gh-revealing");   // dispara o fade de entrada
+      root.classList.remove("gh-preplay");
+      window.setTimeout(() => root.classList.remove("gh-revealing"), 700);
+    },
+    setTracker(data: TrackerData | null) { setTracker(data); },
     setConsumables(items: ConsumSlot[]) {
       renderTray(items);
     },
@@ -2336,6 +2384,51 @@ function injectStyle() {
   }
   #gh-map-expand:hover { color:#fff; border-color:#f4c847; }
   #gh-map-expand:active { transform:scale(.9); }
+  /* RASTREADOR DE MISSÃO: painel logo abaixo do minimapa (canto sup. direito) */
+  #gh-tracker {
+    position:fixed; right:12px; z-index:11; pointer-events:none;
+    top:calc(10px + min(118px,27vw) + 6px);
+    width:min(198px,46vw); box-sizing:border-box;
+    padding:7px 9px 8px; border-radius:8px;
+    background:linear-gradient(180deg, rgba(14,12,9,.86), rgba(10,9,7,.8));
+    border:1px solid rgba(201,162,39,.42);
+    box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 0 0 1px rgba(0,0,0,.35);
+    color:#e9dcbe; font-family:"Trebuchet MS",sans-serif;
+  }
+  #gh-tracker .gh-tk-head { display:flex; align-items:center; gap:6px; }
+  #gh-tracker .gh-tk-title {
+    flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-family:"Cinzel",serif; font-weight:700; font-size:12.5px; color:#f2d891;
+    text-shadow:0 1px 2px #000; letter-spacing:.3px;
+  }
+  #gh-tracker .gh-tk-guide {
+    flex:0 0 auto; pointer-events:auto; cursor:pointer; width:22px; height:20px; padding:0;
+    display:flex; align-items:center; justify-content:center; border-radius:5px;
+    color:#ffd66e; background:rgba(60,44,16,.55); border:1px solid rgba(201,162,39,.55);
+    transition:color .12s, border-color .12s, opacity .12s, transform .08s;
+  }
+  #gh-tracker .gh-tk-guide:hover { color:#fff; border-color:#f4c847; }
+  #gh-tracker .gh-tk-guide:active { transform:scale(.9); }
+  /* guia DESLIGADO: estrela apagada/vazada */
+  #gh-tracker .gh-tk-guide.gh-tk-guide-off { color:#8b7f5f; background:rgba(30,26,18,.5); opacity:.75; }
+  #gh-tracker .gh-tk-obj {
+    margin-top:3px; font-size:11.5px; line-height:1.32; color:#d7c9a3;
+    text-shadow:0 1px 2px #000;
+  }
+  /* --- ABERTURA: esconder/revelar o HUD (só a visão do jogador no início) --- */
+  .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
+  .gh-preplay #gh-tracker, .gh-preplay #gh-actbar, .gh-preplay #gh-tray,
+  .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
+  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk {
+    opacity:0 !important; pointer-events:none !important;
+  }
+  .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
+  .gh-revealing #gh-tracker, .gh-revealing #gh-actbar, .gh-revealing #gh-tray,
+  .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,
+  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk {
+    animation:gh-hud-in .55s ease both;
+  }
+  @keyframes gh-hud-in { from { opacity:0; } to { opacity:1; } }
   /* mapa GRANDE (overlay estilo PoE/Diablo) */
   #gh-bigmap {
     position:fixed; inset:0; z-index:19; pointer-events:auto;

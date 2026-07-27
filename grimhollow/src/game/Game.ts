@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -943,7 +943,8 @@ export class Game {
   private mainFlags: Record<string, boolean> = {}; // ex.: lantern = tem a Lanterna da Bruma
   private sealCell: { col: number; row: number } | null = null; // Portão Selado (masmorra)
   private sealBars: THREE.Object3D | null = null;                // grade do Portão (some ao romper)
-  private beacon: THREE.Group | null = null;                     // facho-guia da missão (mundo 3D)
+  private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
+  private guideOn = true;                                         // guia/marcador (mapa+mundo) ligado?
   private introShown = false;                                    // narração de abertura (1×)
   private waking = false;                                        // sequência de "acordar" em curso
   private wakeStart = -1;                                        // instante-base (setado no 1º tick)
@@ -1188,6 +1189,7 @@ export class Game {
       (id, action) => this.tavernQuest(id, action), // aceitou/entregou missão
       (id) => this.onDialogueChoice(id), // clicou num botão de escolha do diálogo
       () => this.buildJournalData(), // abriu o Diário de Missões
+      () => this.toggleGuide(), // ligou/desligou o guia pelo rastreador de missão
     );
     this.initMainQuests(); // "A Névoa Devoradora": cap.1 disponível, resto trancado
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
@@ -1333,6 +1335,7 @@ export class Game {
     this.waking = true;
     this.wakeStart = -1;                        // setado no 1º tick (base de tempo)
     this.introShown = true; // desativa a antiga narração de vila
+    this.ui.hudConceal(); // só a VISÃO do jogador: nada de HUD/arma até a Hedda entregar a arma
     const fy = this.floorYAt(this.col, this.row);
     this.camera.position.y = fy + Game.LIE_Y;   // deitado no colchão, câmera baixa
     this.camera.rotation.x = Game.LIE_PITCH;    // olhando reto p/ o teto de vigas
@@ -1356,15 +1359,32 @@ export class Game {
     this.openDialogue("", [
       "Escuro. Frio. Cheiro de fumaça de lenha e de ervas secas.",
       "Você abre os olhos sob um teto de vigas baixas. Não se lembra de ter se deitado aqui. Não se lembra… de muita coisa.",
+      "Passos macios se aproximam do colchão. Uma mulher idosa, de xale cinzento, senta-se ao seu lado e observa você despertar.",
     ], null, { onClose: () => this.wakeHeddaDialogue() });
   }
-  // 2ª parte: a matriarca Hedda explica o resgate, a amnésia e conduz ao tour
+  // 2ª parte: a matriarca Hedda explica o resgate, sonda a amnésia e ENTREGA a
+  // arma. Ao fechar, o HUD (e a arma na mão) surge com um fade rápido.
   private wakeHeddaDialogue() {
     this.openDialogue("Hedda, a Matriarca", [
-      "Acordou, enfim. Encontrei você caído na estrada, na boca da névoa, e o arrastei para dentro antes que a bruma o levasse.",
-      "Dormiu dois dias inteiros. Falava enquanto dormia — nomes, lugares —, mas duvido que se lembre deles agora. A névoa cobra esse preço de quem a atravessa.",
-      "Levante-se, com calma. Quando estiver pronto, conheça o vilarejo e a nossa gente. Depois volte aqui: temos muito o que conversar.",
-    ], heddaUrl, { onClose: () => { const d = this.mqDef("mq1"); if (d) this.mqObjectiveToast(d); } });
+      "Ah… os seus olhos voltaram a enxergar. Louvado seja o que ainda vela por este vilarejo.",
+      "Fique quieto mais um instante. Encontrei você caído na boca da névoa, roxo de frio, e o arrastei para dentro antes que a bruma fechasse o cerco sobre você. Dormiu dois dias inteiros.",
+      "Diga-me: lembra do seu nome? …De como veio parar na estrada? Não. Eu imaginava.",
+      "Não se martirize por isso. A névoa cobra esse preço de todos que a atravessam — leva primeiro as lembranças, depois o nome, e por fim a pessoa inteira. Você teve sorte de parar aqui.",
+      "Falava enquanto dormia. Nomes, uma estrada longa, um sino tocando ao longe. Guardei cada palavra, para o caso de um dia voltarem a lhe pertencer.",
+      "Chega de conversa deitado. Isto aqui estava amarrado às suas costas quando o encontrei — a única coisa que a bruma não lhe tomou. É sua. Segure-a firme: vai precisar dela por estas bandas.",
+    ], heddaUrl, { onClose: () => this.finishWakeIntro() });
+  }
+  // ENTREGA da arma: revela o HUD (arma + botões surgem juntos, fade rápido) e só
+  // então aponta o primeiro objetivo — "agora o jogo realmente começou".
+  private finishWakeIntro() {
+    this.ui.hudReveal();
+    const wname = WEAPON_BY_ID[this.ownedWeapons[0]]?.name ?? "sua arma";
+    this.ui.toast(`⚔ ${wname} em mãos`);
+    window.setTimeout(() => {
+      const d = this.mqDef("mq1");
+      if (d) this.mqObjectiveToast(d);
+      this.pushTracker();
+    }, 950);
   }
 
   // ---- TRILHA DE FUNDO ----
@@ -2221,16 +2241,9 @@ export class Game {
   // ENTRA na conversa com um NPC: monta a saudação + o menu conforme o estado das
   // missões e se ele é atendente de loja. É o coração do sistema robusto.
   private talkNpc(name: string, portrait: string | null, shop?: "store" | "tavern" | "smith" | "alchemist", gossip?: string[]) {
-    // saudação: normalmente a genérica do NPC; no TOUR, a apresentação do tour
-    let greet = [this.greetingFor(name)];
-    if (shop) {
-      const act = this.mqActive();
-      const step = act ? act.steps[this.mainQuests[act.id].step] : null;
-      if (act && step && step.kind === "visit" && step.shop === shop) {
-        greet = step.atLines ?? greet;   // fala de apresentação (1ª visita do tour)
-        this.mqAdvance(act);             // conversar já cumpre a etapa "visit"
-      }
-    }
+    // saudação SEMPRE genérica; a etapa do TOUR só é cumprida quando o jogador
+    // ESCOLHE "Falar sobre a missão" no menu (nunca automaticamente ao chegar).
+    const greet = [this.greetingFor(name)];
     const root = () => this.talkNpc(name, portrait, shop, gossip); // usado por "Voltar"
     const opts: ConvOption[] = [];
     // 1) LOJA
@@ -2243,7 +2256,10 @@ export class Game {
         opts.push({ id: "mq:" + def.id, kind: "quest", primary: true, label: `Falar sobre — ${def.title}`, note: "nova missão", run: () => this.convQuestOffer(def, name, portrait, root) });
       } else if (st.status === "active") {
         const step = def.steps[st.step];
-        if (step && step.target && name.includes(step.target) && (step.kind === "talk" || step.kind === "deliver")) {
+        if (step && step.kind === "visit" && step.shop && step.shop === shop) {
+          // TOUR: a etapa "visit" só é cumprida quando o jogador escolhe este tópico
+          opts.push({ id: "mq:" + def.id, kind: "quest", primary: true, label: `Falar sobre — ${def.title}`, note: "missão", run: () => this.convQuestVisit(def, name, portrait, root) });
+        } else if (step && step.target && name.includes(step.target) && (step.kind === "talk" || step.kind === "deliver")) {
           opts.push({ id: "mq:" + def.id, kind: "quest", primary: true, label: `Sobre — ${def.title}`, note: "em andamento", run: () => this.convQuestStep(def, name, portrait, root) });
         } else if (def.giver && name.includes(def.giver) && def.active?.length) {
           opts.push({ id: "mq:" + def.id, kind: "quest", label: `Sobre — ${def.title}`, note: "em andamento", run: () => this.openConvNode(name, portrait, def.active!, [{ id: "back", kind: "back", label: "Voltar", run: root }]) });
@@ -2278,6 +2294,13 @@ export class Game {
       } },
       { id: "back", kind: "back", label: "Agora não", run: root },
     ]);
+  }
+  // TÓPICO: etapa "visit" do tour (mq1) — o NPC se apresenta e a etapa avança ao
+  // fechar. Só roda quando o jogador ESCOLHE o tópico (corrige o auto-avanço).
+  private convQuestVisit(def: MainQuestDef, name: string, portrait: string | null, root: () => void) {
+    const st = this.mainQuests[def.id];
+    const step = def.steps[st.step];
+    this.openDialogue(name, step.atLines ?? ["…"], portrait, { onClose: () => { this.mqAdvance(def); root(); } });
   }
   // TÓPICO: etapa ativa cujo alvo é este NPC (talk/deliver) — cumpre ao conversar
   private convQuestStep(def: MainQuestDef, name: string, portrait: string | null, root: () => void) {
@@ -2439,48 +2462,47 @@ export class Game {
     }
     return null;
   }
-  // cria (uma vez) o facho-guia: um pilar de luz dourada + um losango flutuante.
-  // Fica na CENA (não em world), sobrevivendo à troca de local.
+  // cria (uma vez) o marcador-guia: um marcador DISCRETO — losango dourado
+  // pequeno flutuando + uma seta apontando p/ baixo (sem o antigo pilar de luz
+  // gritante). Fica na CENA (não em world), sobrevivendo à troca de local.
   private ensureBeacon(): THREE.Group {
     if (this.beacon) return this.beacon;
     const g = new THREE.Group();
-    // pilar de luz dourado, alto o bastante p/ furar a névoa. Não escreve
-    // profundidade (não é ocluído pelo chão/prédios de longe → sempre visível).
-    // fog:false p/ a névoa não lavar a cor até o branco.
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: 0xffb520, transparent: true, opacity: 0.5,
-      depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false,
-    });
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.24, 9, 14, 1, true), beamMat);
-    beam.position.y = 4.5;
-    beam.name = "beam";
-    beam.renderOrder = 7;
-    g.add(beam);
-    // losango flutuante (octaedro dourado) girando sobre o pilar
-    const diaMat = new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 1, depthTest: false, fog: false });
-    const dia = new THREE.Mesh(new THREE.OctahedronGeometry(0.34), diaMat);
-    dia.position.y = 2.0;
+    // losango pequeno (octaedro dourado); depthTest:false p/ ainda ser achável de
+    // longe, mas pequeno e suave. fog:false p/ a névoa não lavar a cor.
+    const diaMat = new THREE.MeshBasicMaterial({ color: 0xffce5a, transparent: true, opacity: 0.85, depthTest: false, fog: false });
+    const dia = new THREE.Mesh(new THREE.OctahedronGeometry(0.2), diaMat);
+    dia.position.y = 2.35;
     dia.name = "dia";
     dia.renderOrder = 8;
     g.add(dia);
-    g.renderOrder = 7;
+    // seta (cone) apontando p/ baixo, logo abaixo do losango — "é aqui"
+    const tipMat = new THREE.MeshBasicMaterial({ color: 0xffce5a, transparent: true, opacity: 0.7, depthTest: false, fog: false });
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.22, 4), tipMat);
+    tip.rotation.x = Math.PI; // ponta p/ baixo
+    tip.position.y = 2.02;
+    tip.name = "tip";
+    tip.renderOrder = 8;
+    g.add(tip);
+    g.renderOrder = 8;
     g.visible = false;
     this.scene.add(g);
     this.beacon = g;
     return g;
   }
-  // posiciona o facho na célula-guia do local atual; some se não houver guia
+  // posiciona o marcador na célula-guia do local atual; some se não houver guia,
+  // durante diálogo, ou se o jogador desligou o guia no rastreador.
   private updateBeacon(now: number) {
     const b = this.ensureBeacon();
-    const cell = this.guideCell();
-    // não mostra durante diálogo/telas nem em locais sem guia
+    const cell = this.guideOn ? this.guideCell() : null;
     if (!cell || this.dialogue) { b.visible = false; return; }
     b.visible = true;
     b.position.set(cell.col * CELL, 0, cell.row * CELL);
+    const bob = Math.sin(now * 0.003) * 0.11;
     const dia = b.getObjectByName("dia");
-    if (dia) { dia.rotation.y = now * 0.0018; dia.position.y = 2.0 + Math.sin(now * 0.003) * 0.16; }
-    const beam = b.getObjectByName("beam") as THREE.Mesh | undefined;
-    if (beam) (beam.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.14 * (0.5 + 0.5 * Math.sin(now * 0.004));
+    if (dia) { dia.rotation.y = now * 0.0016; dia.position.y = 2.35 + bob; }
+    const tip = b.getObjectByName("tip");
+    if (tip) tip.position.y = 2.02 + bob;
   }
 
   // ---- USAR ITEM (bandeja de consumíveis do HUD) ----
@@ -5303,12 +5325,42 @@ export class Game {
     if (!this.miniGrid) this.buildMiniGrid();
     const g = this.miniGrid!;
     const [dc, dr] = DIRS[this.facing];
-    const wp = this.guideCell();
+    const wp = this.guideOn ? this.guideCell() : null; // guia desligado → sem marcador
     this.ui.updateMinimap({
       cols: g.cols, rows: g.rows, cells: g.cells, col: this.col, row: this.row, dc, dr,
       pois: this.buildMiniPois(), locName: this.miniLocName(),
       waypoint: wp ? { c: wp.col, r: wp.row } : undefined,
     });
+    this.pushTracker(); // mantém o rastreador em sincronia com o estado da missão
+  }
+  // dados do rastreador (missão ativa + objetivo atual); null quando não há missão
+  private trackerData(): TrackerData | null {
+    const act = this.mqActive();
+    if (act) {
+      const st = this.mainQuests[act.id];
+      const step = act.steps[st.step];
+      let objective = step?.objective ?? "";
+      if (step?.kind === "kill") objective = `${step.objective} (${Math.min(st.progress, step.goal ?? 0)}/${step.goal})`;
+      return { title: act.title, objective, guideOn: this.guideOn };
+    }
+    // sem capítulo ativo → 1ª missão secundária ativa (mural do Bruno)
+    for (const def of QUEST_DEFS) {
+      const q = this.quests[def.id];
+      if (q?.status === "active" || q?.status === "ready") {
+        let objective = "";
+        if (def.kind === "kill") objective = `${Math.min(q.progress, def.goal ?? 0)}/${def.goal} esqueletos`;
+        else if (def.kind === "delivery") objective = q.status === "ready" ? "Entregue no mural do Bruno" : `Entregar a ${def.target}`;
+        return { title: def.title, objective, guideOn: this.guideOn };
+      }
+    }
+    return null;
+  }
+  private pushTracker() { this.ui.setTracker(this.trackerData()); }
+  // liga/desliga o guia (marcador no mapa + marcador no mundo), pelo rastreador
+  private toggleGuide() {
+    this.guideOn = !this.guideOn;
+    this.pushMinimap();  // waypoint aparece/some no minimapa (e re-empurra o rastreador)
+    this.ui.toast(this.guideOn ? "Guia do mapa: ligado" : "Guia do mapa: desligado");
   }
 
   // ---------------------------------------------- interação
