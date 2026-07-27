@@ -90,66 +90,69 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
   overlay.innerHTML = `
     <div class="gh-screen gh-crawl">
       <div class="gh-ow" id="gh-ow">
-        <div class="gh-ow-img" id="gh-ow-img" style="background-image:url(${crawlImg})"></div>
+        <div class="gh-ow-scene">
+          <div class="gh-ow-img" id="gh-ow-img" style="background-image:url(${crawlImg})"></div>
+          <div class="gh-ow-titleblock" id="gh-ow-title">
+            <img class="gh-logo-img" src="${logoPlateArt}" alt="Nethergloam" />
+            <div class="gh-flourish">${flourish}</div>
+            <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
+            <div class="gh-menu">
+              <button class="gh-menu-btn" id="gh-btn-new">Começar</button>
+              <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
+            </div>
+          </div>
+        </div>
         <div class="gh-ow-void"></div>
       </div>
-      <div class="gh-crawl-shade"></div>
+      <div class="gh-crawl-shade" id="gh-crawl-shade"></div>
       <div class="gh-crawl-textwrap" id="gh-crawl-tw"><div class="gh-crawl-text" id="gh-crawl-text">
         ${paras.map((p) => `<p>${p}</p>`).join("")}
         <div class="gh-crawl-end">⚜</div>
       </div></div>
-      <div class="gh-open-title" id="gh-open-title">
-        <img class="gh-logo-img" src="${logoPlateArt}" alt="Nethergloam" />
-        <div class="gh-flourish">${flourish}</div>
-        <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
-        <div class="gh-menu">
-          <button class="gh-menu-btn" id="gh-btn-new">Começar</button>
-          <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
-        </div>
-      </div>
       <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
     </div>`;
-  // A câmera "sobe" por um vazio PRETO; lá no alto está a cidade. A borda de baixo
-  // da imagem é IRREGULAR (máscara de ruído) → ela desce pro quadro de forma
-  // orgânica, não chapada, conforme a câmera chega.
+  // A imagem do título tem 2 telas PRETAS esticadas embaixo. A "câmera" começa lá
+  // embaixo (só preto) e SOBE de verdade até a cena — o TÍTULO inteiro (logo +
+  // menu) está colado na cena, então sobe junto (nada de fade). A borda de baixo
+  // da imagem é IRREGULAR (máscara de ruído) → a cidade "rasga" o preto ao entrar.
   const world = overlay.querySelector("#gh-ow") as HTMLElement;
   const img = overlay.querySelector("#gh-ow-img") as HTMLElement;
-  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='420' height='340' preserveAspectRatio='none'>" +
+  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='420' height='260' preserveAspectRatio='none'>" +
     "<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>" +
     "<stop offset='0' stop-color='#fff' stop-opacity='1'/>" +
-    "<stop offset='0.72' stop-color='#fff' stop-opacity='1'/>" +
+    "<stop offset='0.85' stop-color='#fff' stop-opacity='1'/>" +
     "<stop offset='1' stop-color='#fff' stop-opacity='0'/></linearGradient>" +
     "<filter id='t' x='-25%' y='-25%' width='150%' height='150%'>" +
-    "<feTurbulence type='fractalNoise' baseFrequency='0.015 0.028' numOctaves='2' seed='6' result='n'/>" +
-    "<feDisplacementMap in='SourceGraphic' in2='n' scale='84' xChannelSelector='R' yChannelSelector='G'/>" +
-    "</filter></defs><rect width='420' height='340' fill='url(#g)' filter='url(#t)'/></svg>";
+    "<feTurbulence type='fractalNoise' baseFrequency='0.014 0.026' numOctaves='2' seed='6' result='n'/>" +
+    "<feDisplacementMap in='SourceGraphic' in2='n' scale='72' xChannelSelector='R' yChannelSelector='G'/>" +
+    "</filter></defs><rect width='420' height='260' fill='url(#g)' filter='url(#t)'/></svg>";
   const maskUri = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   img.style.webkitMaskImage = maskUri;
   img.style.maskImage = maskUri;
 
-  const text = overlay.querySelector("#gh-crawl-text") as HTMLElement;
   const tw = overlay.querySelector("#gh-crawl-tw") as HTMLElement;
-  const titleEl = overlay.querySelector("#gh-open-title") as HTMLElement;
+  const shade = overlay.querySelector("#gh-crawl-shade") as HTMLElement;
+  const titleblock = overlay.querySelector("#gh-ow-title") as HTMLElement;
   const skip = overlay.querySelector("#gh-pro-skip") as HTMLElement;
-  let revealed = false;
+  let settled = false;
   let timer = 0;
-  const reveal = () => {
-    if (revealed) return;
-    revealed = true;
+  const settle = () => {
+    if (settled) return;
+    settled = true;
     window.clearTimeout(timer);
-    world.style.animation = "none";              // câmera no topo: imagem inteira
+    world.style.animation = "none";              // câmera parada no topo (cena inteira)
     world.style.transform = "translateY(0)";
-    img.style.webkitMaskImage = "none";          // imagem fica sólida (sem borda rasgada)
+    img.style.webkitMaskImage = "none";          // imagem sólida e limpa no fim
     img.style.maskImage = "none";
-    tw.style.display = "none";                    // some o texto (já subiu tudo)
+    tw.style.display = "none";                    // texto já subiu tudo
     skip.style.display = "none";
-    titleEl.classList.add("show");               // título MATERIALIZA aos poucos
+    shade.style.opacity = "0";                   // véu some → título nítido
+    titleblock.classList.add("ready");           // libera os botões do menu
     (overlay.querySelector("#gh-btn-new") as HTMLElement).addEventListener("click", onNew);
   };
-  // revela o título só DEPOIS de uma pausa após o texto terminar de subir
-  text.addEventListener("animationend", () => window.setTimeout(reveal, 900));
-  skip.addEventListener("click", (e) => { e.stopPropagation(); reveal(); });
-  timer = window.setTimeout(reveal, 25000);       // trava de segurança
+  world.addEventListener("animationend", settle); // fim da subida da câmera
+  skip.addEventListener("click", (e) => { e.stopPropagation(); settle(); });
+  timer = window.setTimeout(settle, 23000);       // trava de segurança
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
@@ -541,32 +544,30 @@ function injectStyle() {
   /* --- PRÓLOGO (crawl vertical estilo Symphony of the Night) --- */
   /* UMA arte vertical alta sobe devagar; o texto sobe junto por cima. */
   #gh-intro .gh-crawl { background:#000; overflow:hidden; padding:0; }
-  /* MUNDO alto que a "câmera" percorre de baixo (vazio preto) p/ cima (a cidade).
-     A cidade fica no topo; o vazio preto embaixo. translateY sobe a câmera. */
+  /* MUNDO alto: cena do título (1 tela) no TOPO + 2 telas PRETAS esticadas embaixo.
+     A "câmera" (translateY) começa lá embaixo (só preto) e SOBE até a cena. Tudo
+     que está na cena — imagem E título (logo/menu) — sobe junto, sem fade. */
   #gh-intro .gh-ow {
-    position:absolute; left:0; right:0; top:0; width:100%; height:310vh; z-index:0;
-    will-change:transform; animation:gh-ow-rise 22s cubic-bezier(.4,0,.5,1) both;
+    position:absolute; left:0; right:0; top:0; width:100%; height:300vh; z-index:0;
+    will-change:transform; animation:gh-ow-rise 20s cubic-bezier(.38,0,.5,1) both;
   }
+  #gh-intro .gh-ow-scene { position:relative; height:100vh; }
   #gh-intro .gh-ow-img {
-    height:100vh; background:#0a0b10 center center / cover no-repeat;
+    position:absolute; inset:0; background:#0a0b10 center center / cover no-repeat;
     -webkit-mask-size:100% 100%; mask-size:100% 100%;
     -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
   }
-  #gh-intro .gh-ow-void { height:210vh; background:#000; }
-  /* câmera sobe: começa mostrando o vazio (embaixo) e chega na cidade (no topo) */
-  @keyframes gh-ow-rise { from { transform:translateY(-210vh); } to { transform:translateY(0); } }
-  /* materialização do TÍTULO — surge "da névoa" (blur+brilho) aos poucos */
-  #gh-intro .gh-open-title.show .gh-logo-img { animation:gh-title-mat 2.6s ease-out both; }
-  #gh-intro .gh-open-title.show .gh-flourish { animation:gh-title-fade 1.6s .9s ease-out both; }
-  #gh-intro .gh-open-title.show .gh-tagline { animation:gh-title-fade 1.6s 1.4s ease-out both; }
-  #gh-intro .gh-open-title.show .gh-menu { animation:gh-title-rise 1s 1.9s ease-out both; }
-  @keyframes gh-title-mat {
-    0% { opacity:0; filter:blur(16px) brightness(2.4); transform:scale(1.09); }
-    55% { opacity:1; }
-    100% { opacity:1; filter:blur(0) brightness(1); transform:scale(1); }
+  /* o título (logo + flourish + tagline + menu) fica COLADO na cena, sobre a arte */
+  #gh-intro .gh-ow-titleblock {
+    position:absolute; inset:0; z-index:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:6px; text-align:center; padding:6vh 18px;
   }
-  @keyframes gh-title-fade { from { opacity:0; } to { opacity:1; } }
-  @keyframes gh-title-rise { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  #gh-intro .gh-ow-titleblock .gh-menu { margin-top:14px; pointer-events:none; }
+  #gh-intro .gh-ow-titleblock.ready .gh-menu { pointer-events:auto; }
+  #gh-intro .gh-ow-void { height:200vh; background:#000; }
+  /* câmera sobe: começa mostrando o vazio preto (embaixo) e chega na cena (topo) */
+  @keyframes gh-ow-rise { from { transform:translateY(-200vh); } to { transform:translateY(0); } }
+  #gh-intro .gh-crawl-shade { transition:opacity 1.2s ease-out; }
   /* véu p/ o texto ler bem + vinheta */
   #gh-intro .gh-crawl-shade {
     position:absolute; inset:0; pointer-events:none;
@@ -577,7 +578,7 @@ function injectStyle() {
   #gh-intro .gh-crawl-textwrap { position:absolute; inset:0; overflow:hidden; z-index:2; }
   #gh-intro .gh-crawl-text {
     position:absolute; left:0; right:0; margin:0 auto; max-width:680px; padding:0 8vw; text-align:center;
-    will-change:transform; animation:gh-crawl-rise 22s linear both;
+    will-change:transform; animation:gh-crawl-rise 18s linear both;
   }
   /* o bloco de texto sobe da base da tela até sumir no topo */
   @keyframes gh-crawl-rise { from { transform:translateY(98vh); } to { transform:translateY(-165vh); } }
