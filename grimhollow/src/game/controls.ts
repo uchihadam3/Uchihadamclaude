@@ -136,9 +136,12 @@ export interface CharStats {
   evasion: number; // %
 }
 
+// botão de escolha num diálogo (aceitar/recusar missão, escolher recompensa…)
+export interface DialogueChoice { id: string; label: string; primary?: boolean; }
+
 export interface HUD {
   setPrompt(text: string | null): void;
-  showDialogue(name: string, text: string, portrait?: string | null): void;
+  showDialogue(name: string, text: string, portrait?: string | null, choices?: DialogueChoice[]): void;
   hideDialogue(): void;
   // toca o golpe da arma equipada; retorna o instante (ms) do impacto p/ o dano
   // cair sincronizado, ou -1 se não golpeou (sem arma / em recarga).
@@ -325,6 +328,7 @@ export function setupControls(
   onUseItem?: (id: string) => void, // usou um consumível na bandeja do HUD
   onBuyDrink?: (id: string) => TavernData | null, // comprou bebida; devolve novo estado
   onQuest?: (id: string, action: "accept" | "turnin") => TavernData | null, // missão
+  onDialogueChoice?: (id: string) => void, // clicou num botão de escolha do diálogo
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -1551,9 +1555,12 @@ export function setupControls(
     '<div class="gh-dlg-body">' +
     '<div class="gh-dlg-name"></div>' +
     '<div class="gh-dlg-text"></div>' +
+    '<div class="gh-dlg-choices"></div>' +
     '<div class="gh-dlg-hint">toque para continuar ▸</div>' +
     "</div>";
   dlg.addEventListener("pointerdown", (e) => {
+    // com escolhas na tela, o toque no fundo NÃO avança — o jogador usa os botões
+    if (dlg.dataset.choices === "1") return;
     e.preventDefault();
     onAction("interact");
   });
@@ -1561,6 +1568,8 @@ export function setupControls(
   const dlgName = dlg.querySelector(".gh-dlg-name") as HTMLElement;
   const dlgText = dlg.querySelector(".gh-dlg-text") as HTMLElement;
   const dlgPortrait = dlg.querySelector(".gh-dlg-portrait") as HTMLImageElement;
+  const dlgChoices = dlg.querySelector(".gh-dlg-choices") as HTMLElement;
+  const dlgHint = dlg.querySelector(".gh-dlg-hint") as HTMLElement;
 
   injectStyle();
 
@@ -1575,7 +1584,7 @@ export function setupControls(
         act.classList.remove("gh-act-on");
       }
     },
-    showDialogue(name: string, text: string, portrait?: string | null) {
+    showDialogue(name: string, text: string, portrait?: string | null, choices?: DialogueChoice[]) {
       dlgName.textContent = name;
       dlgText.textContent = text;
       if (portrait) {
@@ -1584,6 +1593,23 @@ export function setupControls(
       } else {
         dlgPortrait.removeAttribute("src");
         dlgPortrait.style.display = "none";
+      }
+      // botões de escolha (aceitar/recusar de missão, etc.) — só na página final
+      if (choices && choices.length) {
+        dlg.dataset.choices = "1";
+        dlgHint.style.display = "none";
+        dlgChoices.style.display = "flex";
+        dlgChoices.innerHTML = choices
+          .map((c) => `<button class="gh-dlg-choice${c.primary ? " gh-dlg-choice-on" : ""}" data-cid="${c.id}">${c.label}</button>`)
+          .join("");
+        dlgChoices.querySelectorAll<HTMLElement>(".gh-dlg-choice").forEach((b) => {
+          b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onDialogueChoice?.(b.dataset.cid!); };
+        });
+      } else {
+        dlg.dataset.choices = "0";
+        dlgChoices.style.display = "none";
+        dlgChoices.innerHTML = "";
+        dlgHint.style.display = "block";
       }
       dlg.style.display = "flex";
       prompt.style.display = "none";
@@ -2954,6 +2980,12 @@ function injectStyle() {
      são paginadas no código, então nunca ultrapassam este espaço) */
   .gh-dlg-text { font-size:16px; line-height:1.35; min-height:66px; }
   .gh-dlg-hint { text-align:right; font-size:12px; color:#a8966a; margin-top:6px; }
+  .gh-dlg-choices { display:none; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .gh-dlg-choice { flex:1 1 auto; min-width:120px; cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
+    font-size:14px; letter-spacing:1px; color:#c9b478; padding:9px 14px; border-radius:9px;
+    background:linear-gradient(#2b2218,#160f08); border:2px solid rgba(201,162,39,.5); box-shadow:0 2px 6px #000; }
+  .gh-dlg-choice-on { color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-color:#f4d873; text-shadow:0 1px 0 rgba(255,235,180,.5); }
+  .gh-dlg-choice:active { transform:translateY(1px); }
   @media (min-width: 900px) {
     .gh-btn { opacity:0.75; }
     .gh-act { opacity:0.5; }

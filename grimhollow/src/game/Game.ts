@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -350,6 +350,149 @@ const QUEST_DEFS: QuestDef[] = [
     desc: "Leve as preces do bardo Lyle ao Frei Anselmo, que vigia a boca da masmorra.",
     reward: [{ gold: true, label: "35" }, { iconUrl: icoPotHpUrl, label: "×1" }],
     grant: { gold: 35, items: [["pot_hp", 1]] }, kind: "delivery", target: "Anselmo", targetHint: "perto da masmorra (noroeste)",
+  },
+];
+
+// ============================ MAIN QUEST LINE ============================
+// "A Névoa Devoradora" — a névoa eterna de Grimhollow é uma maldição viva que
+// consome a memória e o descanso dos mortos. O herói descobre sua origem nas
+// profundezas e precisa romper o Portão Selado p/ libertar o vilarejo.
+//
+// Cada capítulo tem ETAPAS encadeadas; NPCs-chave têm fala PRÓPRIA (oferta,
+// enquanto corre e ao concluir). Gatilhos: falar com alguém, matar N inimigos,
+// entregar itens, romper o Portão Selado e entrar num local.
+type MQStepKind = "talk" | "kill" | "deliver" | "seal" | "enter";
+interface MQStep {
+  kind: MQStepKind;
+  objective: string;                 // objetivo (toast + diário)
+  target?: string;                   // NPC-alvo por substring (talk/deliver)
+  atLines?: string[];                // fala do alvo ao cumprir a etapa
+  goal?: number;                     // kill: quantos inimigos
+  items?: [string, number][];        // deliver: itens exigidos
+  location?: string;                 // enter: id do local (ex.: "showcase")
+}
+interface MainQuestDef {
+  id: string;
+  order: number;                     // ordem do capítulo (1..N)
+  giver?: string;                    // NPC que oferece (substring); ausente => auto-inicia
+  icon: string;
+  title: string;
+  summary: string;                   // resumo p/ o diário
+  offer: string[];                   // fala ao OFERECER (antes de aceitar)
+  active?: string[];                 // fala do giver enquanto a missão corre
+  steps: MQStep[];
+  grant: { gold?: number; items?: [string, number][] };
+  reward: TavernReward[];            // chips de exibição
+  done: string[];                    // fala ao concluir (giver ou narrador)
+  flag?: string;                     // marca narrativa ("lantern")
+}
+const MAIN_QUESTS: MainQuestDef[] = [
+  {
+    id: "mq1", order: 1, giver: "Hedda", icon: "🕯️",
+    title: "Sussurros na Névoa",
+    summary: "A matriarca Hedda sente a névoa se adensar. Fale com Frei Anselmo, na boca da masmorra.",
+    offer: [
+      "Você… não é daqui. Chegou pela estrada, através da bruma. Poucos conseguem.",
+      "A névoa está mudando, viajante. Mais espessa. Mais faminta. Os velhos sonham com nomes que já esqueceram — ela come até a memória.",
+      "Se veio para ajudar, procure o Frei Anselmo, na boca da masmorra. Ele guarda o que resta das antigas verdades. Vai fazer isso por Grimhollow?",
+    ],
+    active: ["Fale com o Frei Anselmo, criança. Ele espera na boca da masmorra, a noroeste."],
+    steps: [
+      {
+        kind: "talk", target: "Anselmo",
+        objective: "Fale com Frei Anselmo, na boca da masmorra (noroeste)",
+        atLines: [
+          "A Hedda o enviou? Então ela também sentiu. A névoa não é clima, viajante — é fome.",
+          "Há gerações selamos algo lá embaixo, atrás do Portão. Enquanto o selo resistir, a bruma apenas ronda. Mas o selo enfraquece… e os mortos já não dormem.",
+          "Se quer entender o mal, precisa vê-lo. Desça e silencie os mortos-vivos inquietos. Volte quando tiver provas de que enfrentou o que sobe das profundezas.",
+        ],
+      },
+    ],
+    grant: { gold: 50, items: [["pot_hp", 1]] },
+    reward: [{ gold: true, label: "50" }, { iconUrl: icoPotHpUrl, label: "×1" }],
+    done: [],
+  },
+  {
+    id: "mq2", order: 2, giver: "Anselmo", icon: "💀",
+    title: "Ossos que Não Dormem",
+    summary: "Silencie os mortos-vivos que sobem das profundezas e traga provas a Frei Anselmo.",
+    offer: [
+      "A cada lua que míngua, mais deles sobem. O selo range como madeira velha sob a tempestade.",
+      "Desça à masmorra e ponha oito destes mortos de volta ao repouso. Que a luz os alcance onde a minha prece não chega.",
+      "Aceita o fardo, viajante?",
+    ],
+    active: ["Os mortos ainda caminham lá embaixo. Oito deles, ao repouso — e volte a mim."],
+    steps: [
+      {
+        kind: "kill", goal: 8,
+        objective: "Silencie 8 mortos-vivos na masmorra",
+      },
+      {
+        kind: "talk", target: "Anselmo",
+        objective: "Volte a Frei Anselmo com as provas",
+        atLines: [
+          "Eu vi a luz da tua lâmina lá de cima. Então é verdade — eles cedem, mas voltam. Silenciá-los não basta.",
+          "A raiz está além do Portão Selado, no Santuário que enterramos. Só uma luz forjada pelas antigas artes pode partir aquele selo sem soltar o que ele contém.",
+          "Leve isto à Hedda: ela guarda o rito. Peça a Lanterna da Bruma. Reúna com Isolde, a alquimista, os reagentes que a matriarca pedir — e leve-os a Hedda.",
+        ],
+      },
+    ],
+    grant: { gold: 120, items: [["pot_hp", 2]] },
+    reward: [{ gold: true, label: "120" }, { iconUrl: icoPotHpUrl, label: "×2" }],
+    done: [],
+  },
+  {
+    id: "mq3", order: 3, giver: "Hedda", icon: "🏮",
+    title: "A Oferenda à Bruma",
+    summary: "Traga a Hedda 6 Minério e 5 Madeira (compre com Isolde) para forjar a Lanterna da Bruma.",
+    offer: [
+      "Então o Anselmo mandou você. A Lanterna da Bruma… sim, ainda lembro o rito. Minha avó o fazia quando a névoa vinha para os berços.",
+      "Preciso de bastante metal que nunca viu o sol e de lenha do coração da mata. Isolde, a alquimista, guarda esses reagentes — seis de Minério e cinco de Madeira.",
+      "Traga-os a mim, e forjaremos a luz que a bruma teme. Você fará isso?",
+    ],
+    active: ["Traga-me seis Minério e cinco Madeira, criança. Isolde os vende no laboratório dela."],
+    steps: [
+      {
+        kind: "deliver", target: "Hedda", items: [["minerio", 6], ["madeira", 5]],
+        objective: "Leve 6 Minério e 5 Madeira a Hedda",
+        atLines: [
+          "Isto servirá. Afaste-se do fogo, viajante, e não olhe direto para a chama enquanto eu recito.",
+          "…Está feito. A Lanterna da Bruma arde com uma luz que não projeta sombra. Enquanto ela queimar, a névoa se abrirá diante de você.",
+          "Desça uma última vez. Leve a Lanterna ao Portão Selado — e que os antigos tenham piedade do que encontrarmos atrás dele.",
+        ],
+      },
+    ],
+    grant: { gold: 90, items: [["pot_mp", 1]] },
+    reward: [{ gold: true, label: "90" }, { iconUrl: icoPotMpUrl, label: "×1" }],
+    done: [], flag: "lantern",
+  },
+  {
+    id: "mq4", order: 4, icon: "🌫️",   // auto-inicia após mq3 (sem giver)
+    title: "O Coração da Névoa",
+    summary: "Com a Lanterna da Bruma, rompa o Portão Selado na masmorra e alcance o Santuário.",
+    offer: [],
+    steps: [
+      {
+        kind: "seal",
+        objective: "Rompa o Portão Selado com a Lanterna da Bruma (masmorra)",
+        atLines: [
+          "Você ergue a Lanterna da Bruma. A chama sem sombra lambe os selos de ferro…",
+          "Um a um, os símbolos se apagam. Uma golfada de ar frio sobe das profundezas — e o Portão cede, rangendo, revelando a escadaria enterrada.",
+        ],
+      },
+      {
+        kind: "enter", location: "showcase",
+        objective: "Suba ao Santuário, além do Portão",
+        atLines: [
+          "O Santuário se abre diante de você. No alto, onde a névoa sempre nasceu, a bruma redemoinha em torno de um vazio faminto — o Coração da Névoa.",
+          "Você ergue a Lanterna. A luz sem sombra toca o vazio, e a fome cessa. A névoa recua, fiapo a fiapo, e — pela primeira vez em gerações — um raio de céu limpo desce sobre Grimhollow.",
+          "O vilarejo lembrará seu nome, viajante. A bruma foi domada… por ora.",
+        ],
+      },
+    ],
+    grant: { gold: 250, items: [["pot_hp", 2], ["scroll_return", 1]] },
+    reward: [{ gold: true, label: "250" }, { iconUrl: icoPotHpUrl, label: "×2" }, { iconUrl: icoScrollUrl, label: "×1" }],
+    done: [],
   },
 ];
 
@@ -723,6 +866,12 @@ export class Game {
     entrega_hedda: { status: "available", progress: 0 },
     entrega_anselmo: { status: "available", progress: 0 },
   };
+  // MAIN QUEST ("A Névoa Devoradora"): estado por capítulo + marcas narrativas.
+  // cap.1 começa disponível; os demais destravam quando o anterior conclui.
+  private mainQuests: Record<string, { status: "locked" | "available" | "active" | "done"; step: number; progress: number }> = {};
+  private mainFlags: Record<string, boolean> = {}; // ex.: lantern = tem a Lanterna da Bruma
+  private sealCell: { col: number; row: number } | null = null; // Portão Selado (masmorra)
+  private sealBars: THREE.Object3D | null = null;                // grade do Portão (some ao romper)
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   // BAÚ da Hedda: pertences guardados (bens empilháveis, armas c/ reforço, ouro)
@@ -852,6 +1001,9 @@ export class Game {
     lines: string[];
     idx: number;
     portrait?: string | null;
+    choices?: DialogueChoice[];              // botões na última página (aceitar/recusar…)
+    onChoice?: (id: string) => void;         // resposta ao clicar num botão
+    onClose?: () => void;                    // roda ao fechar o diálogo (encadear ofertas)
   } | null = null;
   private lastPrompt = " ";
   private artCache = new Map<string, THREE.Texture>(); // artes 2D já carregadas (por URL)
@@ -955,7 +1107,9 @@ export class Game {
       (id) => this.useConsumable(id), // usou um consumível na bandeja do HUD
       (id) => this.tavernBuyDrink(id), // comprou uma bebida
       (id, action) => this.tavernQuest(id, action), // aceitou/entregou missão
+      (id) => this.onDialogueChoice(id), // clicou num botão de escolha do diálogo
     );
+    this.initMainQuests(); // "A Névoa Devoradora": cap.1 disponível, resto trancado
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
       this.onCanvasPointer(e),
@@ -1082,6 +1236,7 @@ export class Game {
     this.buildMiniGrid(); // grade do novo local
     this.pushMinimap();
     this.updateMusic(); // trilha do vilarejo toca na vila e nos interiores
+    this.mainQuestOnEnter(loc as string); // etapa "enter" (ex.: Santuário) do capítulo ativo
   }
 
   // ---- TRILHA DE FUNDO ----
@@ -1852,6 +2007,164 @@ export class Game {
     return null;
   }
 
+  // ======================= MOTOR DA MAIN QUEST =======================
+  // inicializa o estado dos capítulos (cap.1 disponível; resto trancado)
+  private initMainQuests() {
+    for (const def of MAIN_QUESTS)
+      this.mainQuests[def.id] = { status: def.order === 1 ? "available" : "locked", step: 0, progress: 0 };
+  }
+  private mqDef(id: string) { return MAIN_QUESTS.find((d) => d.id === id); }
+  private mqActive(): MainQuestDef | null {
+    for (const def of MAIN_QUESTS) if (this.mainQuests[def.id]?.status === "active") return def;
+    return null;
+  }
+  // destrava o próximo capítulo; auto-inicia os que não têm 'giver'
+  private mqUnlockNext(order: number) {
+    const next = MAIN_QUESTS.find((d) => d.order === order + 1);
+    if (!next) return;
+    const st = this.mainQuests[next.id];
+    if (st.status !== "locked") return;
+    if (next.giver) { st.status = "available"; }
+    else { st.status = "active"; st.step = 0; st.progress = 0; this.mqObjectiveToast(next); }
+  }
+  private mqObjectiveToast(def: MainQuestDef) {
+    const step = def.steps[this.mainQuests[def.id].step];
+    if (step) this.ui.toast(`◈ ${def.title}: ${step.objective}`);
+  }
+  // concede a recompensa do capítulo + marca narrativa, e conclui
+  private mqComplete(def: MainQuestDef) {
+    const st = this.mainQuests[def.id];
+    st.status = "done";
+    if (def.grant.gold) this.stats.gold += def.grant.gold;
+    for (const [gid, n] of def.grant.items ?? []) this.goodAdd(gid, n);
+    if (def.flag) this.mainFlags[def.flag] = true;
+    this.refreshStats(); this.refreshConsumables();
+    const parts: string[] = [];
+    if (def.grant.gold) parts.push(`${def.grant.gold} ouro`);
+    for (const [gid, n] of def.grant.items ?? []) parts.push(`${n}× ${GOODS_BY_ID[gid]?.name ?? gid}`);
+    this.ui.toast(`✦ Capítulo concluído: ${def.title}${parts.length ? ` — ${parts.join(", ")}` : ""}`);
+    this.mqUnlockNext(def.order);
+  }
+  // avança a etapa atual; se era a última, conclui o capítulo
+  private mqAdvance(def: MainQuestDef) {
+    const st = this.mainQuests[def.id];
+    st.step++; st.progress = 0;
+    if (st.step >= def.steps.length) this.mqComplete(def);
+    else this.mqObjectiveToast(def);
+  }
+  // FALAR com um NPC no contexto da main quest. Retorna true se abriu diálogo
+  // próprio (oferta/etapa/lembrete); false p/ cair no diálogo comum do NPC.
+  private mainQuestTalk(name: string, portrait: string | null): boolean {
+    // 1) cumprir a ETAPA atual, se o alvo é este NPC (talk/deliver)
+    const act = this.mqActive();
+    if (act) {
+      const st = this.mainQuests[act.id];
+      const step = act.steps[st.step];
+      if (step && step.target && name.includes(step.target)) {
+        if (step.kind === "talk") {
+          this.openDialogue(name, step.atLines ?? ["…"], portrait, {
+            onClose: () => { this.mqAdvance(act); this.mainQuestOfferAt(name, portrait); },
+          });
+          return true;
+        }
+        if (step.kind === "deliver") {
+          const missing = (step.items ?? []).filter(([gid, n]) => this.goodHave(gid) < n);
+          if (missing.length) {
+            const need = (step.items ?? []).map(([gid, n]) => `${n}× ${GOODS_BY_ID[gid]?.name ?? gid}`).join(" e ");
+            this.openDialogue(name, [`Ainda não trouxe o que preciso. Volte com ${need}.`], portrait);
+            return true;
+          }
+          for (const [gid, n] of step.items ?? []) this.goodAdd(gid, -n);
+          this.refreshConsumables();
+          this.openDialogue(name, step.atLines ?? ["Obrigado."], portrait, {
+            onClose: () => { this.mqAdvance(act); this.mainQuestOfferAt(name, portrait); },
+          });
+          return true;
+        }
+      }
+      // giver do capítulo ativo, mas o objetivo é em outro lugar → lembrete
+      if (act.giver && name.includes(act.giver) && act.active?.length) {
+        this.openDialogue(name, act.active, portrait);
+        return true;
+      }
+    }
+    // 2) OFERECER um capítulo disponível deste NPC
+    return this.mainQuestOfferAt(name, portrait);
+  }
+  // se este NPC oferece um capítulo disponível, abre a oferta com aceitar/recusar
+  private mainQuestOfferAt(name: string, portrait: string | null): boolean {
+    for (const def of MAIN_QUESTS) {
+      const st = this.mainQuests[def.id];
+      if (!st || st.status !== "available" || !def.giver || !name.includes(def.giver)) continue;
+      this.openDialogue(name, def.offer, portrait, {
+        choices: [
+          { id: "mq_accept", label: "Aceitar", primary: true },
+          { id: "mq_decline", label: "Agora não" },
+        ],
+        onChoice: (cid) => {
+          if (cid === "mq_accept") {
+            st.status = "active"; st.step = 0; st.progress = 0;
+            this.closeDialogue();
+            this.ui.toast(`◈ Missão aceita: ${def.title}`);
+            this.mqObjectiveToast(def);
+          } else {
+            this.closeDialogue();
+          }
+        },
+      });
+      return true;
+    }
+    return false;
+  }
+  // um inimigo abatido: alimenta a etapa "kill" do capítulo ativo
+  private mainQuestOnKill() {
+    const act = this.mqActive();
+    if (!act) return;
+    const st = this.mainQuests[act.id];
+    const step = act.steps[st.step];
+    if (!step || step.kind !== "kill" || this.location !== "dungeon") return;
+    st.progress++;
+    const goal = step.goal ?? 1;
+    if (st.progress >= goal) { this.ui.toast(`◈ ${act.title}: objetivo cumprido!`); this.mqAdvance(act); }
+    else this.ui.toast(`◈ ${act.title}: ${st.progress}/${goal}`);
+  }
+  // entrou num local: fecha a etapa "enter" do capítulo ativo (ex.: Santuário)
+  private mainQuestOnEnter(loc: string) {
+    const act = this.mqActive();
+    if (!act) return;
+    const st = this.mainQuests[act.id];
+    const step = act.steps[st.step];
+    if (!step || step.kind !== "enter" || step.location !== loc) return;
+    // mostra a fala da etapa (clímax) e conclui ao fechar
+    const lines = step.atLines ?? [];
+    if (lines.length) this.openDialogue("A Névoa", lines, null, { onClose: () => this.mqAdvance(act) });
+    else this.mqAdvance(act);
+  }
+  // interagiu com o Portão Selado com a etapa "seal" ativa: rompe o selo.
+  // Retorna true se tratou (rompeu); false p/ cair na mensagem padrão do portão.
+  private mainQuestSeal(): boolean {
+    const act = this.mqActive();
+    if (!act) return false;
+    const st = this.mainQuests[act.id];
+    const step = act.steps[st.step];
+    if (!step || step.kind !== "seal") return false;
+    if (!this.mainFlags["lantern"]) {
+      this.openDialogue("Portão Selado", [
+        "Os selos de ferro resistem. Sem uma luz forjada pelas antigas artes, não há como parti-los.",
+      ], null);
+      return true;
+    }
+    this.openDialogue("Portão Selado", step.atLines ?? ["O selo se rompe."], null, {
+      onClose: () => {
+        this.mainFlags["seal_broken"] = true; // fica rompido mesmo se reconstruir a masmorra
+        if (this.sealCell) { this.blocked.delete(`${this.sealCell.col},${this.sealCell.row}`); }
+        if (this.sealBars) { this.sealBars.visible = false; this.sealBars = null; }
+        this.mqAdvance(act);
+      },
+    });
+    return true;
+  }
+
   // ---- USAR ITEM (bandeja de consumíveis do HUD) ----
   private consumableTray(): ConsumSlot[] {
     const out: ConsumSlot[] = [];
@@ -1999,6 +2312,7 @@ export class Game {
       this.gainXp(30 + lv * 15);
       this.ui.toast(`+${gold} ouro`);
       this.questOnKill(); // progresso da missão "Ossos Inquietos"
+      this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
     }
   }
 
@@ -3376,9 +3690,13 @@ export class Game {
       const ldc = -1, ldr = 0; // o jogador chega pelo oeste
       this.addArchWall(lg.col, lg.row, ldc, ldr, rockMat, HOLE_HW, HOLE_BASE, CH);
       this.addWallDecal(lg.col, lg.row, ldc, ldr, frameMat, CELL, GATE_H, GATE_H / 2);
-      this.addWallDecal(lg.col, lg.row, ldc, ldr, barsMat, CELL, GATE_H, GATE_H / 2); // grade FIXA
+      // grade FIXA — some quando a Lanterna da Bruma romper o selo (cap.4)
+      this.sealBars = this.addWallDecal(lg.col, lg.row, ldc, ldr, barsMat, CELL, GATE_H, GATE_H / 2);
       this.glowLight(lg.col * CELL + ldc * 0.4, 2.4, lg.row * CELL, 0xffb45a, 3.0, 8);
-      this.blocked.add(`${lg.col},${lg.row}`); // SELADO — nunca abre
+      this.sealCell = { col: lg.col, row: lg.row };
+      // já rompido numa visita anterior? mantém aberto e sem grade.
+      if (this.mainFlags["seal_broken"]) { this.sealBars.visible = false; }
+      else { this.blocked.add(`${lg.col},${lg.row}`); } // SELADO até romper (cap.4)
     }
     // ESCADARIA DE PEDRA subindo atrás do portão → o jogador VÊ a escada que leva
     // ao santuário (não é teleporte: ao passar, um loading leva ao pé da escada).
@@ -4698,12 +5016,12 @@ export class Game {
       const { col, row, facing } = this.returnTo;
       void this.doorTransition(() => this.enterLocation("village", col, row, facing));
     } else if (t.kind === "talk") {
-      // se o jogador carrega um recado p/ este NPC, entrega (fala de agradecimento)
-      const thanks = this.deliverTo(t.name);
-      const pages = paginate(thanks ? [thanks] : t.lines);
       const portrait = this.portraitFor(t.key); // gera o retrato só ao conversar
-      this.dialogue = { name: t.name, lines: pages, idx: 0, portrait };
-      this.ui.showDialogue(t.name, pages[0], portrait);
+      // 1) MAIN QUEST: oferta/etapa/lembrete com fala própria do NPC
+      if (this.mainQuestTalk(t.name, portrait)) return;
+      // 2) recado de missão secundária (fala de agradecimento), senão fala comum
+      const thanks = this.deliverTo(t.name);
+      this.openDialogue(t.name, thanks ? [thanks] : t.lines, portrait);
     } else if (t.kind === "dungeon") {
       // desce à masmorra; guarda o ponto de volta ao vilarejo (usado pela escada U)
       this.returnTo = {
@@ -4716,13 +5034,13 @@ export class Game {
     } else if (t.kind === "gate") {
       this.openGate(t.key);
     } else if (t.kind === "lockgate") {
-      // portão SELADO — não abre; mostra uma mensagem
-      const pages = paginate([
+      // MAIN QUEST cap.4: com a Lanterna da Bruma, o selo se rompe aqui
+      if (this.mainQuestSeal()) return;
+      // senão, portão SELADO — não abre; mostra a mensagem padrão
+      this.openDialogue("Portão Selado", [
         "Um portão de ferro antigo, coberto de selos.",
         "Uma força além da tua o mantém trancado. Ainda não há como passar...",
-      ]);
-      this.dialogue = { name: "Portão Selado", lines: pages, idx: 0, portrait: null };
-      this.ui.showDialogue("Portão Selado", pages[0], null);
+      ], null);
     } else if (t.kind === "sanctuary") {
       // entra no SANTUÁRIO (sala-vitrine); guarda o retorno p/ a masmorra
       this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
@@ -4782,19 +5100,45 @@ export class Game {
     this.blocked.delete(key); // agora a célula é andável (atravessa o vão)
   }
 
+  // abre um diálogo (com falas paginadas). opts: botões de escolha na última
+  // página, resposta a um botão e/ou callback ao fechar (encadeia ofertas etc.)
+  private openDialogue(
+    name: string, rawLines: string[], portrait: string | null,
+    opts?: { choices?: DialogueChoice[]; onChoice?: (id: string) => void; onClose?: () => void },
+  ) {
+    const lines = paginate(rawLines);
+    this.dialogue = {
+      name, lines, idx: 0, portrait,
+      choices: opts?.choices, onChoice: opts?.onChoice, onClose: opts?.onClose,
+    };
+    this.showDialoguePage();
+  }
+  // fecha o diálogo atual e dispara o onClose (uma vez)
+  private closeDialogue() {
+    const d = this.dialogue;
+    this.dialogue = null;
+    this.ui.hideDialogue();
+    d?.onClose?.();
+  }
+  // desenha a página atual; os botões de escolha só aparecem na ÚLTIMA página
+  private showDialoguePage() {
+    const d = this.dialogue;
+    if (!d) return;
+    const last = d.idx >= d.lines.length - 1;
+    this.ui.showDialogue(d.name, d.lines[d.idx], d.portrait ?? null, last ? d.choices : undefined);
+  }
   private advanceDialogue() {
     if (!this.dialogue) return;
+    // com escolhas na última página, o toque não fecha — espera um botão
+    const last = this.dialogue.idx >= this.dialogue.lines.length - 1;
+    if (last && this.dialogue.choices?.length) return;
     this.dialogue.idx++;
-    if (this.dialogue.idx >= this.dialogue.lines.length) {
-      this.dialogue = null;
-      this.ui.hideDialogue();
-    } else {
-      this.ui.showDialogue(
-        this.dialogue.name,
-        this.dialogue.lines[this.dialogue.idx],
-        this.dialogue.portrait ?? null,
-      );
-    }
+    if (this.dialogue.idx >= this.dialogue.lines.length) this.closeDialogue();
+    else this.showDialoguePage();
+  }
+  // clique num botão de escolha do diálogo
+  private onDialogueChoice(id: string) {
+    this.dialogue?.onChoice?.(id);
   }
 
   // ---------------------------------------------- interior de estabelecimento
