@@ -3,7 +3,11 @@
 import { CLASSES, CLASS_BY_ID, type GameClass, type Character } from "./classes";
 import { WEAPON_BY_ID } from "./weapons";
 import { derive, START_POINTS, type Primaries } from "./stats";
+import { audio } from "./audio";
 import eqContainerUrl from "../assets/ui/eq_container.png";
+// TRILHA DO PRÓLOGO — placeholder silencioso; troque o arquivo por sua música
+// (mesmo nome) que ela toca sozinha na abertura. Canal "música" (volume/mudo).
+import prologueBgmUrl from "../assets/audio/bgm_prologue.mp3";
 
 // Key art do título (PNG). O logo/menu ficam por cima; a arte é sem texto.
 import titleArtUrl from "../assets/ui/title_bg.png";
@@ -75,15 +79,22 @@ function showTitle(overlay: HTMLElement, onNew: () => void) {
 // sozinho, ao toque, e há botão "Pular". Conta a lore antes da criação.
 function showPrologue(overlay: HTMLElement, onDone: () => void) {
   const slides: { img: string; pan: string; text: string }[] = [
-    { img: titleArtUrl, pan: "a", text: "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de mercadores." },
-    { img: createBgUrl, pan: "b", text: "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas profundezas sob o vilarejo, aquilo que não deveria ter nome." },
-    { img: createBgUrl, pan: "c", text: "O que jaz lá embaixo não é morte; é fome. Chamam-na de Nethergloam, a névoa que devora: consome o corpo, apaga os nomes e nega aos mortos o seu descanso." },
-    { img: titleArtUrl, pan: "d", text: "Enquanto o Selo resistir, a bruma apenas ronda os muros, paciente. Mas os selos são de ferro, e o ferro cansa — a cada lua, a névoa avança um palmo." },
-    { img: titleArtUrl, pan: "e", text: "E então, pela estrada, chega um forasteiro que a atravessou inteira e sobreviveu — embora tenha deixado, em algum ponto da bruma, pedaços da própria lembrança." },
+    { img: titleArtUrl, pan: "a", text: "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de vozes e mercadores." },
+    { img: createBgUrl, pan: "b", text: "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas entranhas da montanha, aquilo que nenhuma boca ousa nomear." },
+    { img: createBgUrl, pan: "c", text: "O que jaz lá embaixo não é morte; é fome. Chamam-na de Nethergloam — a névoa que devora. Ela rouba o calor, apaga os nomes e não deixa os mortos dormirem." },
+    { img: titleArtUrl, pan: "d", text: "Enquanto o Selo resistir, a bruma apenas ronda os muros, paciente e faminta. Mas o ferro envelhece, e a cada lua ela conquista mais um palmo de mundo." },
+    { img: titleArtUrl, pan: "e", text: "Então, pela estrada que ninguém ousa cruzar, chega um forasteiro. Sobreviveu à névoa inteira — mas deixou nela, em algum ponto, pedaços da própria memória." },
   ];
+  // TRILHA: música da abertura no canal "música" (respeita volume/mudo). Começa
+  // após o clique em "Novo Jogo" (gesto do usuário → o navegador libera o áudio).
+  const bgm = new Audio(prologueBgmUrl);
+  bgm.loop = true;
+  audio.register(bgm, "music", 0.7);
+  bgm.play().catch(() => { /* política de autoplay: ignora se bloquear */ });
   let i = 0;
   let timer = 0;
-  const done = () => { window.clearTimeout(timer); onDone(); };
+  const stopBgm = () => { try { bgm.pause(); bgm.currentTime = 0; } catch { /* ignora */ } };
+  const done = () => { window.clearTimeout(timer); stopBgm(); onDone(); };
   const advance = () => { window.clearTimeout(timer); i++; if (i >= slides.length) done(); else render(); };
   const render = () => {
     const s = slides[i];
