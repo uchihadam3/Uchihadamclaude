@@ -297,6 +297,7 @@ export interface MinimapState {
   dr: number;
   pois?: MiniPoi[]; // marcadores (lojas, NPCs, saídas…)
   locName?: string; // nome do local atual (banner no topo do mapa)
+  waypoint?: { c: number; r: number }; // destino da missão ativa (marcador-guia)
 }
 
 // medalhão (arte própria) e cor de destaque de cada tipo de marcador
@@ -529,6 +530,31 @@ export function setupControls(
       ctx.restore();
     }
   };
+  // marcador-GUIA da missão ativa: losango dourado com um "!" e um pino/haste,
+  // bem destacado sobre os demais ícones, na célula de destino.
+  const drawWaypoint = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => {
+    const s = size * 0.62;
+    ctx.save();
+    ctx.translate(x, y - size * 0.15);
+    // halo suave
+    ctx.beginPath(); ctx.arc(0, size * 0.15, s * 1.15, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(244,216,115,.16)"; ctx.fill();
+    // haste do pino
+    ctx.strokeStyle = "rgba(20,15,6,.85)"; ctx.lineWidth = Math.max(2, s * 0.14);
+    ctx.beginPath(); ctx.moveTo(0, s * 0.5); ctx.lineTo(0, size * 0.42); ctx.stroke();
+    // losango
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 0.78); ctx.lineTo(s * 0.62, 0); ctx.lineTo(0, s * 0.78); ctx.lineTo(-s * 0.62, 0); ctx.closePath();
+    const g = ctx.createLinearGradient(0, -s, 0, s);
+    g.addColorStop(0, "#ffe9a6"); g.addColorStop(1, "#d69a24");
+    ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = Math.max(1.5, s * 0.1); ctx.strokeStyle = "#5a3d0e"; ctx.stroke();
+    // "!"
+    ctx.fillStyle = "#3a2708"; ctx.font = `700 ${Math.round(s * 0.92)}px "Cinzel",serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("!", 0, -s * 0.04);
+    ctx.restore();
+  };
   // pinta a "plaquinha" do rótulo (pílula escura + texto) centrada em (cx,cy)
   const drawLabelPill = (
     ctx: CanvasRenderingContext2D, cx: number, cy: number,
@@ -631,6 +657,12 @@ export function setupControls(
         drawPoi(ctx, x, y, cell * 0.9, p, mapPhase);
       }
     }
+    // marcador-guia da missão (por cima dos ícones), se estiver na janela
+    if (s.waypoint) {
+      const dx = s.waypoint.c - s.col, dy = s.waypoint.r - s.row;
+      if (Math.abs(dx) <= R && Math.abs(dy) <= R)
+        drawWaypoint(ctx, off + (dx + R) * cell + cell / 2, off + (dy + R) * cell + cell / 2, cell * 1.1);
+    }
     // herói SEMPRE no centro exato da janela (célula central) — só a seta, sem círculo
     const pc = off + R * cell + Math.floor(cell / 2);
     drawArrow(ctx, pc, pc, Math.max(4, cell * 0.32), Math.atan2(s.dr, s.dc));
@@ -669,6 +701,9 @@ export function setupControls(
         .map((p) => ({ x: ox + p.c * cell + cell / 2, y: oy + p.r * cell + cell / 2, d, label: p.label, color: "#cbd8ea" }));
       if (labels.length) placeLabels(ctx, labels, Math.max(7, Math.round(size * 0.2)));
     }
+    // marcador-guia da missão ativa, por cima de tudo
+    if (s.waypoint)
+      drawWaypoint(ctx, ox + s.waypoint.c * cell + cell / 2, oy + s.waypoint.r * cell + cell / 2, Math.max(18, cell * 1.35));
     drawArrow(ctx, ox + s.col * cell + cell / 2, oy + s.row * cell + cell / 2, Math.max(8, cell * 0.8), Math.atan2(s.dr, s.dc));
     drawLocBanner(ctx, W, s.locName, 40);
   };

@@ -361,12 +361,14 @@ const QUEST_DEFS: QuestDef[] = [
 // Cada capítulo tem ETAPAS encadeadas; NPCs-chave têm fala PRÓPRIA (oferta,
 // enquanto corre e ao concluir). Gatilhos: falar com alguém, matar N inimigos,
 // entregar itens, romper o Portão Selado e entrar num local.
-type MQStepKind = "talk" | "kill" | "deliver" | "seal" | "enter";
+type MQStepKind = "talk" | "kill" | "deliver" | "seal" | "enter" | "visit";
 interface MQStep {
   kind: MQStepKind;
   objective: string;                 // objetivo (toast + diário)
   target?: string;                   // NPC-alvo por substring (talk/deliver)
-  atLines?: string[];                // fala do alvo ao cumprir a etapa
+  shop?: "store" | "tavern" | "smith" | "alchemist"; // loja a visitar (visit)
+  atLines?: string[];                // fala do alvo ao cumprir a etapa (talk/deliver)
+  visitToast?: string;               // aviso curto ao cumprir uma etapa "visit"
   goal?: number;                     // kill: quantos inimigos
   items?: [string, number][];        // deliver: itens exigidos
   location?: string;                 // enter: id do local (ex.: "showcase")
@@ -388,15 +390,58 @@ interface MainQuestDef {
 }
 const MAIN_QUESTS: MainQuestDef[] = [
   {
-    id: "mq1", order: 1, giver: "Hedda", icon: "🕯️",
-    title: "Sussurros na Névoa",
-    summary: "A matriarca Hedda sente a névoa se adensar. Fale com Frei Anselmo, na boca da masmorra.",
-    offer: [
-      "Você… não é daqui. Chegou pela estrada, através da bruma. Poucos conseguem.",
-      "A névoa está mudando, viajante. Mais espessa. Mais faminta. Os velhos sonham com nomes que já esqueceram — ela come até a memória.",
-      "Se veio para ajudar, procure o Frei Anselmo, na boca da masmorra. Ele guarda o que resta das antigas verdades. Vai fazer isso por Grimhollow?",
+    // CAP.1 — introdução: conhecer o vilarejo e seus moradores (auto-inicia).
+    // Ensina onde fica cada NPC/loja e conduz o jogador pela praça.
+    id: "mq1", order: 1, icon: "🧭",
+    title: "Forasteiro em Grimhollow",
+    summary: "Você acaba de chegar pela estrada da névoa. Conheça os moradores do vilarejo antes de qualquer coisa.",
+    offer: [],
+    steps: [
+      {
+        kind: "visit", shop: "store",
+        objective: "Visite Rosa, a mercadora",
+        visitToast: "Você conheceu o Empório de Rosa — armas e suprimentos para a estrada.",
+      },
+      {
+        kind: "visit", shop: "alchemist",
+        objective: "Visite Isolde, a alquimista",
+        visitToast: "Você conheceu o Laboratório de Isolde — poções e reagentes das antigas artes.",
+      },
+      {
+        kind: "visit", shop: "smith",
+        objective: "Visite o ferreiro",
+        visitToast: "Você conheceu a Bigorna — o ferreiro tempera e aprimora o aço.",
+      },
+      {
+        kind: "visit", shop: "tavern",
+        objective: "Visite Bruno, o taverneiro",
+        visitToast: "Você conheceu a taverna de Bruno — histórias, bebida e um mural de missões.",
+      },
+      {
+        kind: "talk", target: "Hedda",
+        objective: "Apresente-se a Hedda, a matriarca, na casa dela (oeste da praça)",
+        atLines: [
+          "Então já percorreu Grimhollow e conheceu os nossos. Bem-vindo, viajante — ou ao que restou de bem-vindo sob esta névoa eterna.",
+          "Entre, sente-se, tome um chá. Poucos chegam até nós pela estrada da bruma; menos ainda escolhem ficar.",
+          "Descanse os pés. Depois precisamos conversar — há algo rondando o vilarejo que não se diz em voz alta.",
+        ],
+      },
     ],
-    active: ["Fale com o Frei Anselmo, criança. Ele espera na boca da masmorra, a noroeste."],
+    grant: { gold: 40, items: [["pot_hp", 1]] },
+    reward: [{ gold: true, label: "40" }, { iconUrl: icoPotHpUrl, label: "×1" }],
+    done: [],
+  },
+  {
+    // CAP.2 — a névoa se revela; Hedda envia o herói ao Frei Anselmo.
+    id: "mq2", order: 2, giver: "Hedda", icon: "🕯️",
+    title: "Sussurros na Névoa",
+    summary: "Hedda confia a você o segredo da bruma. Procure Frei Anselmo, na boca da masmorra.",
+    offer: [
+      "Agora que conhece o vilarejo, ouça o que ninguém repete em voz alta: a névoa está mudando. Mais espessa a cada lua. Mais faminta.",
+      "Os velhos acordam chamando por nomes que já não lembram. A bruma não devora apenas o corpo, viajante — devora a memória.",
+      "Se veio para ajudar, procure o Frei Anselmo, na boca da masmorra. Ele guarda o que restou das antigas verdades. Fará isso por Grimhollow?",
+    ],
+    active: ["Procure o Frei Anselmo, criança. Ele mantém vigília na boca da masmorra, a noroeste da praça."],
     steps: [
       {
         kind: "talk", target: "Anselmo",
@@ -404,16 +449,17 @@ const MAIN_QUESTS: MainQuestDef[] = [
         atLines: [
           "A Hedda o enviou? Então ela também sentiu. A névoa não é clima, viajante — é fome.",
           "Há gerações selamos algo lá embaixo, atrás do Portão. Enquanto o selo resistir, a bruma apenas ronda. Mas o selo enfraquece… e os mortos já não dormem.",
-          "Se quer entender o mal, precisa vê-lo. Desça e silencie os mortos-vivos inquietos. Volte quando tiver provas de que enfrentou o que sobe das profundezas.",
+          "Se quer compreender o mal, precisa encará-lo. Desça e silencie os mortos-vivos inquietos. Volte quando tiver provas de que enfrentou o que sobe das profundezas.",
         ],
       },
     ],
-    grant: { gold: 50, items: [["pot_hp", 1]] },
-    reward: [{ gold: true, label: "50" }, { iconUrl: icoPotHpUrl, label: "×1" }],
+    grant: { gold: 60, items: [["pot_hp", 1]] },
+    reward: [{ gold: true, label: "60" }, { iconUrl: icoPotHpUrl, label: "×1" }],
     done: [],
   },
   {
-    id: "mq2", order: 2, giver: "Anselmo", icon: "💀",
+    // CAP.3 — provar-se contra os mortos-vivos e voltar a Anselmo.
+    id: "mq3", order: 3, giver: "Anselmo", icon: "💀",
     title: "Ossos que Não Dormem",
     summary: "Silencie os mortos-vivos que sobem das profundezas e traga provas a Frei Anselmo.",
     offer: [
@@ -421,7 +467,7 @@ const MAIN_QUESTS: MainQuestDef[] = [
       "Desça à masmorra e ponha oito destes mortos de volta ao repouso. Que a luz os alcance onde a minha prece não chega.",
       "Aceita o fardo, viajante?",
     ],
-    active: ["Os mortos ainda caminham lá embaixo. Oito deles, ao repouso — e volte a mim."],
+    active: ["Os mortos ainda caminham lá embaixo. Oito deles, de volta ao repouso — e retorne a mim."],
     steps: [
       {
         kind: "kill", goal: 8,
@@ -431,9 +477,9 @@ const MAIN_QUESTS: MainQuestDef[] = [
         kind: "talk", target: "Anselmo",
         objective: "Volte a Frei Anselmo com as provas",
         atLines: [
-          "Eu vi a luz da tua lâmina lá de cima. Então é verdade — eles cedem, mas voltam. Silenciá-los não basta.",
-          "A raiz está além do Portão Selado, no Santuário que enterramos. Só uma luz forjada pelas antigas artes pode partir aquele selo sem soltar o que ele contém.",
-          "Leve isto à Hedda: ela guarda o rito. Peça a Lanterna da Bruma. Reúna com Isolde, a alquimista, os reagentes que a matriarca pedir — e leve-os a Hedda.",
+          "Eu vi a luz da tua lâmina lá de baixo. Então é verdade — eles cedem, mas voltam. Silenciá-los não basta.",
+          "A raiz está além do Portão Selado, no Santuário que enterramos. Somente uma luz forjada pelas antigas artes pode partir aquele selo sem libertar o que ele contém.",
+          "Volte à Hedda: ela guarda o rito da Lanterna da Bruma. Reúna com Isolde, a alquimista, os reagentes que a matriarca pedir — e leve-os a Hedda.",
         ],
       },
     ],
@@ -442,23 +488,24 @@ const MAIN_QUESTS: MainQuestDef[] = [
     done: [],
   },
   {
-    id: "mq3", order: 3, giver: "Hedda", icon: "🏮",
+    // CAP.4 — forjar a Lanterna da Bruma com Hedda (reagentes de Isolde).
+    id: "mq4", order: 4, giver: "Hedda", icon: "🏮",
     title: "A Oferenda à Bruma",
     summary: "Traga a Hedda 6 Minério e 5 Madeira (compre com Isolde) para forjar a Lanterna da Bruma.",
     offer: [
-      "Então o Anselmo mandou você. A Lanterna da Bruma… sim, ainda lembro o rito. Minha avó o fazia quando a névoa vinha para os berços.",
-      "Preciso de bastante metal que nunca viu o sol e de lenha do coração da mata. Isolde, a alquimista, guarda esses reagentes — seis de Minério e cinco de Madeira.",
-      "Traga-os a mim, e forjaremos a luz que a bruma teme. Você fará isso?",
+      "Então o Anselmo o mandou de volta. A Lanterna da Bruma… sim, ainda me lembro do rito. Minha avó o cumpria quando a névoa vinha buscar os berços.",
+      "Preciso de bastante metal que jamais viu o sol e de lenha vinda do coração da mata. Isolde, a alquimista, guarda esses reagentes — seis de Minério e cinco de Madeira.",
+      "Traga-os a mim e forjaremos a luz que a bruma teme. Você o fará?",
     ],
-    active: ["Traga-me seis Minério e cinco Madeira, criança. Isolde os vende no laboratório dela."],
+    active: ["Traga-me seis de Minério e cinco de Madeira, criança. Isolde os vende no laboratório dela."],
     steps: [
       {
         kind: "deliver", target: "Hedda", items: [["minerio", 6], ["madeira", 5]],
         objective: "Leve 6 Minério e 5 Madeira a Hedda",
         atLines: [
-          "Isto servirá. Afaste-se do fogo, viajante, e não olhe direto para a chama enquanto eu recito.",
+          "Isto servirá. Afaste-se do fogo, viajante, e não encare a chama enquanto eu recito.",
           "…Está feito. A Lanterna da Bruma arde com uma luz que não projeta sombra. Enquanto ela queimar, a névoa se abrirá diante de você.",
-          "Desça uma última vez. Leve a Lanterna ao Portão Selado — e que os antigos tenham piedade do que encontrarmos atrás dele.",
+          "Desça uma última vez. Leve a Lanterna ao Portão Selado — e que os antigos tenham piedade do que houver atrás dele.",
         ],
       },
     ],
@@ -467,7 +514,8 @@ const MAIN_QUESTS: MainQuestDef[] = [
     done: [], flag: "lantern",
   },
   {
-    id: "mq4", order: 4, icon: "🌫️",   // auto-inicia após mq3 (sem giver)
+    // CAP.5 — clímax: romper o Portão Selado e alcançar o Santuário (auto-inicia).
+    id: "mq5", order: 5, icon: "🌫️",
     title: "O Coração da Névoa",
     summary: "Com a Lanterna da Bruma, rompa o Portão Selado na masmorra e alcance o Santuário.",
     offer: [],
@@ -484,9 +532,9 @@ const MAIN_QUESTS: MainQuestDef[] = [
         kind: "enter", location: "showcase",
         objective: "Suba ao Santuário, além do Portão",
         atLines: [
-          "O Santuário se abre diante de você. No alto, onde a névoa sempre nasceu, a bruma redemoinha em torno de um vazio faminto — o Coração da Névoa.",
+          "O Santuário se abre diante de você. Lá no alto, onde a névoa sempre nasceu, a bruma redemoinha em torno de um vazio faminto — o Coração da Névoa.",
           "Você ergue a Lanterna. A luz sem sombra toca o vazio, e a fome cessa. A névoa recua, fiapo a fiapo, e — pela primeira vez em gerações — um raio de céu limpo desce sobre Grimhollow.",
-          "O vilarejo lembrará seu nome, viajante. A bruma foi domada… por ora.",
+          "O vilarejo lembrará o seu nome, viajante. A bruma foi domada… por ora.",
         ],
       },
     ],
@@ -872,6 +920,8 @@ export class Game {
   private mainFlags: Record<string, boolean> = {}; // ex.: lantern = tem a Lanterna da Bruma
   private sealCell: { col: number; row: number } | null = null; // Portão Selado (masmorra)
   private sealBars: THREE.Object3D | null = null;                // grade do Portão (some ao romper)
+  private beacon: THREE.Group | null = null;                     // facho-guia da missão (mundo 3D)
+  private introShown = false;                                    // narração de abertura (1×)
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   // BAÚ da Hedda: pertences guardados (bens empilháveis, armas c/ reforço, ouro)
@@ -1238,6 +1288,19 @@ export class Game {
     this.pushMinimap();
     this.updateMusic(); // trilha do vilarejo toca na vila e nos interiores
     this.mainQuestOnEnter(loc as string); // etapa "enter" (ex.: Santuário) do capítulo ativo
+    this.maybeShowIntro(); // narração de abertura na 1ª vez que a vila carrega
+  }
+  // abertura: apresenta o vilarejo e o 1º objetivo (só uma vez, com a missão ativa)
+  private maybeShowIntro() {
+    if (this.introShown || this.location !== "village") return;
+    const mq1 = this.mainQuests["mq1"];
+    if (!mq1 || mq1.status !== "active") return;
+    this.introShown = true;
+    this.openDialogue("Grimhollow", [
+      "A estrada termina aqui, engolida pela névoa. À luz mortiça dos lampiões ergue-se o vilarejo de Grimhollow — o último refúgio antes das montanhas.",
+      "Você chegou sem nada além do que carrega. Antes de tudo, convém conhecer quem aqui vive.",
+      "Percorra a praça e apresente-se aos moradores. O marcador dourado no mapa e o facho de luz mostrarão o caminho.",
+    ], null, { onClose: () => { const d = this.mqDef("mq1"); if (d) this.mqObjectiveToast(d); } });
   }
 
   // ---- TRILHA DE FUNDO ----
@@ -2012,7 +2075,8 @@ export class Game {
   // inicializa o estado dos capítulos (cap.1 disponível; resto trancado)
   private initMainQuests() {
     for (const def of MAIN_QUESTS)
-      this.mainQuests[def.id] = { status: def.order === 1 ? "available" : "locked", step: 0, progress: 0 };
+      // cap.1 já começa ATIVO (auto), p/ o jogador ter guia desde o início
+      this.mainQuests[def.id] = { status: def.order === 1 ? "active" : "locked", step: 0, progress: 0 };
   }
   private mqDef(id: string) { return MAIN_QUESTS.find((d) => d.id === id); }
   private mqActive(): MainQuestDef | null {
@@ -2117,6 +2181,18 @@ export class Game {
     }
     return false;
   }
+  // visitou uma loja: cumpre a etapa "visit" do capítulo ativo (tour inicial).
+  // Retorna true se cumpriu a etapa (p/ o gatilho saber que houve progresso).
+  private mainQuestVisit(shop: "store" | "tavern" | "smith" | "alchemist"): boolean {
+    const act = this.mqActive();
+    if (!act) return false;
+    const st = this.mainQuests[act.id];
+    const step = act.steps[st.step];
+    if (!step || step.kind !== "visit" || step.shop !== shop) return false;
+    if (step.visitToast) this.ui.toast(`◈ ${step.visitToast}`);
+    this.mqAdvance(act);
+    return true;
+  }
   // um inimigo abatido: alimenta a etapa "kill" do capítulo ativo
   private mainQuestOnKill() {
     const act = this.mqActive();
@@ -2190,6 +2266,113 @@ export class Game {
       return { icon: def.icon, title: def.title, summary: def.desc, status, objective };
     });
     return { main, side };
+  }
+
+  // ===================== GUIA / WAYPOINT DE MISSÃO =====================
+  // acha a célula de um NPC pelo nome (posição ATUAL, já que eles caminham)
+  private npcCellByName(sub: string): { col: number; row: number } | null {
+    for (const [key, npc] of this.npcMap)
+      if (npc.name.includes(sub)) { const [c, r] = key.split(",").map(Number); return { col: c, row: r }; }
+    return null;
+  }
+  // célula da escada p/ a masmorra no VILAREJO (destino "descer")
+  private villageDungeonCell(): { col: number; row: number } | null {
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (cellAt(c, r) === "stairs") return { col: c, row: r };
+    return null;
+  }
+  // ZONA do objetivo atual (main tem prioridade; senão 1ª secundária ativa)
+  private objectiveTarget(): { zone: "village" | "dungeon" | "hedda"; npc?: string; shop?: string; cell?: [number, number] } | null {
+    const act = this.mqActive();
+    if (act) {
+      const step = act.steps[this.mainQuests[act.id].step];
+      if (step) {
+        if (step.kind === "visit" && step.shop) return { zone: "village", shop: step.shop };
+        if ((step.kind === "talk" || step.kind === "deliver") && step.target)
+          return step.target.includes("Hedda") ? { zone: "hedda" } : { zone: "village", npc: step.target };
+        if (step.kind === "kill") return { zone: "dungeon" };
+        if (step.kind === "seal") { const l = dungeonAll("L")[0]; return { zone: "dungeon", cell: l ? [l.col, l.row] : undefined }; }
+        if (step.kind === "enter" && step.location === "showcase") { const a = dungeonAll("A")[0]; return { zone: "dungeon", cell: a ? [a.col, a.row] : undefined }; }
+      }
+    }
+    for (const def of QUEST_DEFS) {
+      if (this.quests[def.id]?.status !== "active") continue;
+      if (def.kind === "kill") return { zone: "dungeon" };
+      if (def.kind === "delivery" && def.target)
+        return def.target.includes("Hedda") ? { zone: "hedda" } : { zone: "village", npc: def.target };
+    }
+    return null;
+  }
+  // célula-guia DENTRO do local atual: o destino, ou a transição que leva a ele
+  private guideCell(): { col: number; row: number } | null {
+    const t = this.objectiveTarget();
+    if (!t) return null;
+    const L = this.location;
+    const interior = L !== "village" && L !== "dungeon" && L !== "forest" && L !== "showcase";
+    const inZone = (): { col: number; row: number } | null => {
+      if (t.zone === "village") {
+        if (t.shop) { const d = ESTAB_DOORS.find((e) => e.kind === t.shop); return d ? { col: d.c + d.dc, row: d.r + d.dr } : null; }
+        if (t.npc) return this.npcCellByName(t.npc);
+        return null;
+      }
+      if (t.zone === "hedda") return { col: 3, row: 2 };      // Hedda dentro da casa dela
+      if (t.zone === "dungeon") return t.cell ? { col: t.cell[0], row: t.cell[1] } : null; // kill: sem célula
+      return null;
+    };
+    const sameZone = (t.zone === "village" && L === "village") || (t.zone === "hedda" && L === "hedda") || (t.zone === "dungeon" && L === "dungeon");
+    if (sameZone) return inZone();
+    // zonas diferentes → aponta p/ a saída/transição a partir do local atual
+    if (L === "village") {
+      if (t.zone === "dungeon") return this.villageDungeonCell();
+      if (t.zone === "hedda") { const d = HOME_DOORS.find((h) => h.id === "hedda"); return d ? { col: d.c + d.dc, row: d.r + d.dr } : null; }
+    } else if (L === "dungeon") {
+      const u = dungeonFind("U"); return u ? { col: u.col, row: u.row } : null; // sobe p/ a vila
+    } else if (interior) {
+      const x = roomFind("X"); return { col: x.col, row: x.row }; // porta de saída
+    }
+    return null;
+  }
+  // cria (uma vez) o facho-guia: um pilar de luz dourada + um losango flutuante.
+  // Fica na CENA (não em world), sobrevivendo à troca de local.
+  private ensureBeacon(): THREE.Group {
+    if (this.beacon) return this.beacon;
+    const g = new THREE.Group();
+    // pilar de luz dourado, alto o bastante p/ furar a névoa. Não escreve
+    // profundidade (não é ocluído pelo chão/prédios de longe → sempre visível).
+    // fog:false p/ a névoa não lavar a cor até o branco.
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0xffb520, transparent: true, opacity: 0.5,
+      depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false,
+    });
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.24, 9, 14, 1, true), beamMat);
+    beam.position.y = 4.5;
+    beam.name = "beam";
+    beam.renderOrder = 7;
+    g.add(beam);
+    // losango flutuante (octaedro dourado) girando sobre o pilar
+    const diaMat = new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 1, depthTest: false, fog: false });
+    const dia = new THREE.Mesh(new THREE.OctahedronGeometry(0.34), diaMat);
+    dia.position.y = 2.0;
+    dia.name = "dia";
+    dia.renderOrder = 8;
+    g.add(dia);
+    g.renderOrder = 7;
+    g.visible = false;
+    this.scene.add(g);
+    this.beacon = g;
+    return g;
+  }
+  // posiciona o facho na célula-guia do local atual; some se não houver guia
+  private updateBeacon(now: number) {
+    const b = this.ensureBeacon();
+    const cell = this.guideCell();
+    // não mostra durante diálogo/telas nem em locais sem guia
+    if (!cell || this.dialogue) { b.visible = false; return; }
+    b.visible = true;
+    b.position.set(cell.col * CELL, 0, cell.row * CELL);
+    const dia = b.getObjectByName("dia");
+    if (dia) { dia.rotation.y = now * 0.0018; dia.position.y = 2.0 + Math.sin(now * 0.003) * 0.16; }
+    const beam = b.getObjectByName("beam") as THREE.Mesh | undefined;
+    if (beam) (beam.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.14 * (0.5 + 0.5 * Math.sin(now * 0.004));
   }
 
   // ---- USAR ITEM (bandeja de consumíveis do HUD) ----
@@ -5012,9 +5195,11 @@ export class Game {
     if (!this.miniGrid) this.buildMiniGrid();
     const g = this.miniGrid!;
     const [dc, dr] = DIRS[this.facing];
+    const wp = this.guideCell();
     this.ui.updateMinimap({
       cols: g.cols, rows: g.rows, cells: g.cells, col: this.col, row: this.row, dc, dr,
       pois: this.buildMiniPois(), locName: this.miniLocName(),
+      waypoint: wp ? { c: wp.col, r: wp.row } : undefined,
     });
   }
 
@@ -5073,19 +5258,23 @@ export class Game {
       this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
       this.enterLocation("showcase", 0, 0, 0);
     } else if (t.kind === "smithshop") {
+      this.mainQuestVisit("smith"); // tour inicial: conheceu o ferreiro
       // FERREIRO: abre a janela de aprimoramento (reforço +N)
       this.ui.openSmith(this.buildSmithData());
     } else if (t.kind === "storeshop") {
+      this.mainQuestVisit("store"); // tour inicial: conheceu a mercadora
       // MERCADOR: abre a janela de comprar/vender
       this.shopVendor = "store";
       this.storeMode = "buy";
       this.ui.openStore(this.buildStoreData());
     } else if (t.kind === "alchshop") {
+      this.mainQuestVisit("alchemist"); // tour inicial: conheceu a alquimista
       // ALQUIMISTA: mesma janela, catálogo de poções + materiais de forja
       this.shopVendor = "alchemist";
       this.storeMode = "buy";
       this.ui.openStore(this.buildStoreData());
     } else if (t.kind === "tavernshop") {
+      this.mainQuestVisit("tavern"); // tour inicial: conheceu o taverneiro
       // TAVERNA: descanso pago + bebidas + mural de missões
       this.ui.openTavern(this.buildTavernData());
     } else if (t.kind === "stash") {
@@ -6143,6 +6332,7 @@ export class Game {
     // props 2D encaram a câmera (billboard no eixo Y), como os aldeões
     for (const b of this.billboardProps)
       b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
+    this.updateBeacon(now); // facho-guia da missão sobre a célula de destino
     // retículo de mira segue o alvo selecionado (levemente à frente do sprite,
     // na direção da câmera, p/ não brigar em profundidade com o inimigo)
     if (this.reticle && this.target && !this.target.dyingAt) {
