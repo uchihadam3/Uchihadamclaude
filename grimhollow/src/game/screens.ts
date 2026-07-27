@@ -35,7 +35,24 @@ export function runIntro(root: HTMLElement): Promise<Character> {
     overlay.id = "gh-intro";
     root.appendChild(overlay);
 
+    // TRILHA da abertura (crawl + título) — canal "música"; só toca após um
+    // gesto do usuário (o "toque para começar" libera o autoplay do navegador).
+    let openBgm: HTMLAudioElement | null = null;
+    const startMusic = () => {
+      if (openBgm) return;
+      openBgm = new Audio(prologueBgmUrl);
+      openBgm.loop = true;
+      audio.register(openBgm, "music", 0.7);
+      openBgm.play().catch(() => { /* autoplay bloqueado: ignora */ });
+    };
+    const stopMusic = () => {
+      if (!openBgm) return;
+      try { openBgm.pause(); openBgm.currentTime = 0; } catch { /* ignora */ }
+      openBgm = null;
+    };
+
     const finish = (char: Character) => {
+      stopMusic();
       overlay.remove();
       resolve(char);
     };
@@ -44,42 +61,39 @@ export function runIntro(root: HTMLElement): Promise<Character> {
         showCreate(overlay, toAlloc, cls.id, name),
       );
 
-    // BOOT: tela preta que pré-carrega TODOS os assets (espada enchendo no canto)
-    // ANTES do título — assim título/criação/jogo entram com tudo pronto.
+    // BOOT (pré-carrega tudo) → "toque para começar" (gesto libera a música) →
+    // ABERTURA (crawl sobe com a trilha e revela o título) → Criação → Atributos.
     let frac = 0;
     const all = preloadUrls(allAssetUrls(), (f) => (frac = f));
     showLoading(overlay, () => frac, all, 900, () =>
-      // Título → PRÓLOGO (slides estilo SNES) → Criação → Atributos
-      showTitle(overlay, () => showPrologue(overlay, () => showCreate(overlay, toAlloc))),
+      showStart(overlay, () => {
+        startMusic();
+        showOpening(overlay, () => { stopMusic(); showCreate(overlay, toAlloc); });
+      }),
     );
   });
 }
 
-// ---------------------------------------------------------------- TÍTULO
-function showTitle(overlay: HTMLElement, onNew: () => void) {
+// ---------------------------------------- "TOQUE PARA COMEÇAR" (libera o áudio)
+function showStart(overlay: HTMLElement, onBegin: () => void) {
   overlay.innerHTML = `
-    <div class="gh-screen gh-title"${TITLE_ART ? ` style="background-image:url(${TITLE_ART})"` : ""}>
-      <div class="gh-veil"></div>
-      <div class="gh-title-inner">
-        <img class="gh-logo-img" src="${logoPlateArt}" alt="Nethergloam" />
-        <div class="gh-flourish"><svg viewBox="0 0 260 14" preserveAspectRatio="xMidYMid meet"><g fill="#c9a24a"><circle cx="7" cy="7" r="2.6"/><rect x="15" y="6.1" width="97" height="1.8" rx="0.9"/><path d="M130 1 L138 7 L130 13 L122 7 Z"/><rect x="148" y="6.1" width="97" height="1.8" rx="0.9"/><circle cx="253" cy="7" r="2.6"/></g></svg></div>
-        <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
-      </div>
-      <div class="gh-menu">
-        <button class="gh-menu-btn" id="gh-btn-new">Novo Jogo</button>
-        <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
-      </div>
+    <div class="gh-screen gh-start"${TITLE_ART ? ` style="background-image:url(${TITLE_ART})"` : ""}>
+      <div class="gh-start-veil"></div>
+      <div class="gh-start-press">toque para começar ▸</div>
     </div>`;
-  overlay.querySelector("#gh-btn-new")!.addEventListener("click", onNew);
+  let began = false;
+  overlay.querySelector(".gh-start")!.addEventListener("click", () => {
+    if (began) return;
+    began = true;
+    onBegin();
+  });
 }
 
-// ---------------------------------------------------------------- PRÓLOGO
-// Abertura estilo 16-bit: artes pintadas com movimento de câmera (Ken Burns:
-// pan + zoom lento) + névoa à deriva + texto narrativo, em letterbox. Avança
-// sozinho, ao toque, e há botão "Pular". Conta a lore antes da criação.
-function showPrologue(overlay: HTMLElement, onDone: () => void) {
-  // narração em blocos — sobe como uma "crawl" (estilo Symphony of the Night):
-  // UMA arte vertical alta rola devagar por baixo, o texto sobe junto por cima.
+// ------------------------------------------- ABERTURA: crawl vertical → TÍTULO
+// Uma arte vertical alta sobe devagar; a narração sobe junto por cima (com a
+// música). Ao chegar ao topo, o texto some e o TÍTULO surge (logo + Começar),
+// tudo sobre o mesmo fundo — contínuo, estilo Symphony of the Night.
+function showOpening(overlay: HTMLElement, onNew: () => void) {
   const paras = [
     "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de vozes e mercadores.",
     "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas entranhas da montanha, aquilo que nenhuma boca ousa nomear.",
@@ -87,40 +101,49 @@ function showPrologue(overlay: HTMLElement, onDone: () => void) {
     "Enquanto o Selo resistir, a bruma apenas ronda os muros, paciente e faminta. Mas o ferro envelhece, e a cada lua ela conquista mais um palmo de mundo.",
     "Então, pela estrada que ninguém ousa cruzar, chega um forasteiro. Sobreviveu à névoa inteira — mas deixou nela, em algum ponto, pedaços da própria memória.",
   ];
-  // arte do crawl — PLACEHOLDER (a chave de título) até você enviar a peça
-  // vertical alta (pro_crawl.png). Trocar aqui liga a sua arte.
+  // arte do crawl — PLACEHOLDER (chave de título) até chegar a peça vertical alta (pro_crawl.png)
   const crawlImg = titleArtUrl;
-  // TRILHA: música da abertura no canal "música" (respeita volume/mudo). Começa
-  // após o clique em "Novo Jogo" (gesto do usuário → o navegador libera o áudio).
-  const bgm = new Audio(prologueBgmUrl);
-  bgm.loop = true;
-  audio.register(bgm, "music", 0.7);
-  bgm.play().catch(() => { /* política de autoplay: ignora se bloquear */ });
-  let ended = false;
-  let timer = 0;
-  const done = () => {
-    if (ended) return;
-    ended = true;
-    window.clearTimeout(timer);
-    try { bgm.pause(); bgm.currentTime = 0; } catch { /* ignora */ }
-    onDone();
-  };
+  const flourish = '<svg viewBox="0 0 260 14" preserveAspectRatio="xMidYMid meet"><g fill="#c9a24a"><circle cx="7" cy="7" r="2.6"/><rect x="15" y="6.1" width="97" height="1.8" rx="0.9"/><path d="M130 1 L138 7 L130 13 L122 7 Z"/><rect x="148" y="6.1" width="97" height="1.8" rx="0.9"/><circle cx="253" cy="7" r="2.6"/></g></svg>';
   overlay.innerHTML = `
     <div class="gh-screen gh-crawl">
-      <div class="gh-crawl-bg" style="background-image:url(${crawlImg})"></div>
+      <div class="gh-crawl-bg" id="gh-crawl-bg" style="background-image:url(${crawlImg})"></div>
       <div class="gh-crawl-shade"></div>
-      <div class="gh-crawl-textwrap"><div class="gh-crawl-text" id="gh-crawl-text">
+      <div class="gh-crawl-textwrap" id="gh-crawl-tw"><div class="gh-crawl-text" id="gh-crawl-text">
         ${paras.map((p) => `<p>${p}</p>`).join("")}
         <div class="gh-crawl-end">⚜</div>
       </div></div>
+      <div class="gh-open-title" id="gh-open-title">
+        <img class="gh-logo-img" src="${logoPlateArt}" alt="Nethergloam" />
+        <div class="gh-flourish">${flourish}</div>
+        <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
+        <div class="gh-menu">
+          <button class="gh-menu-btn" id="gh-btn-new">Começar</button>
+          <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
+        </div>
+      </div>
       <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
-      <div class="gh-pro-hint">Pular ▸</div>
     </div>`;
+  const bg = overlay.querySelector("#gh-crawl-bg") as HTMLElement;
   const text = overlay.querySelector("#gh-crawl-text") as HTMLElement;
-  text.addEventListener("animationend", done);           // acabou a subida → segue
+  const tw = overlay.querySelector("#gh-crawl-tw") as HTMLElement;
+  const titleEl = overlay.querySelector("#gh-open-title") as HTMLElement;
   const skip = overlay.querySelector("#gh-pro-skip") as HTMLElement;
-  skip.addEventListener("click", (e) => { e.stopPropagation(); done(); });
-  timer = window.setTimeout(done, 24000);                // trava de segurança (= duração)
+  let revealed = false;
+  let timer = 0;
+  const reveal = () => {
+    if (revealed) return;
+    revealed = true;
+    window.clearTimeout(timer);
+    bg.style.animation = "none";                 // congela o fundo no topo da arte
+    bg.style.backgroundPosition = "center 0%";
+    tw.style.display = "none";                    // some o texto (subiu até o fim)
+    skip.style.display = "none";
+    titleEl.classList.add("show");               // surge o título (logo + Começar)
+    (overlay.querySelector("#gh-btn-new") as HTMLElement).addEventListener("click", onNew);
+  };
+  text.addEventListener("animationend", reveal); // acabou a subida → revela o título
+  skip.addEventListener("click", (e) => { e.stopPropagation(); reveal(); });
+  timer = window.setTimeout(reveal, 24000);       // trava de segurança
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
@@ -540,6 +563,29 @@ function injectStyle() {
   @keyframes gh-pro-blink { 0%,100% { opacity:.35; } 50% { opacity:.8; } }
   @media (prefers-reduced-motion: reduce) {
     #gh-intro .gh-crawl-bg, #gh-intro .gh-crawl-text { animation-duration:6s; }
+  }
+  /* TÍTULO que surge no fim do crawl (sobre o mesmo fundo, congelado no topo) */
+  #gh-intro .gh-open-title {
+    position:absolute; inset:0; z-index:4; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:6px; text-align:center; padding:8vh 18px;
+    opacity:0; pointer-events:none; transition:opacity 1.1s ease-out;
+    background:linear-gradient(180deg, rgba(4,5,9,.5) 0%, rgba(4,5,9,.1) 40%, rgba(4,5,9,.72) 100%);
+  }
+  #gh-intro .gh-open-title.show { opacity:1; pointer-events:auto; }
+  #gh-intro .gh-open-title .gh-menu { margin-top:14px; }
+  /* "TOQUE PARA COMEÇAR" (libera o áudio antes da abertura) */
+  #gh-intro .gh-start {
+    background:#0a0b10 center/cover no-repeat; cursor:pointer;
+    justify-content:center; align-items:center;
+  }
+  #gh-intro .gh-start-veil {
+    position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 50%, rgba(4,5,9,.35) 0%, rgba(4,5,9,.82) 100%);
+  }
+  #gh-intro .gh-start-press {
+    position:relative; z-index:1; font-family:"Cinzel",serif; font-weight:700; letter-spacing:2px;
+    font-size:clamp(15px,2.6vh,20px); color:#f0d68a; text-shadow:0 2px 8px #000, 0 0 16px rgba(240,200,90,.35);
+    animation:gh-pro-blink 1.6s ease-in-out infinite;
   }
   /* --- criação de personagem --- */
   #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
