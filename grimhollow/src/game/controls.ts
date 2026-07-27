@@ -184,6 +184,7 @@ export interface HUD {
   // transição de porta: escurece a tela (a promise resolve no preto total) / clareia
   fadeOut(ms: number): Promise<void>;
   fadeIn(ms: number): void;
+  wakeEyelids(vh: number): void;
   // bandeja de consumíveis do HUD (poção/cerveja) — toque usa o item
   setConsumables(items: ConsumSlot[]): void;
   // TAVERNA: abre/atualiza a janela de descanso + bebidas + missões (ou fecha)
@@ -1189,6 +1190,22 @@ export function setupControls(
     fadeEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms, easing: "ease-out", fill: "forwards" });
     window.setTimeout(() => { fadeEl.style.pointerEvents = "none"; }, ms);
   };
+  // PÁLPEBRAS: duas barras pretas (cima/baixo) que fecham e abrem no centro —
+  // usadas na sequência de ACORDAR (jogador piscando). blinkWake() roda uma
+  // sequência groggy e resolve quando os olhos ficam abertos.
+  const eyelidTop = document.createElement("div");
+  eyelidTop.id = "gh-eyelid-top";
+  const eyelidBot = document.createElement("div");
+  eyelidBot.id = "gh-eyelid-bot";
+  root.appendChild(eyelidTop);
+  root.appendChild(eyelidBot);
+  // pálpebras controladas POR QUADRO pelo jogo (determinístico). vh = quanto cada
+  // barra cobre (0 = olhos abertos). O jogo dirige a sequência groggy no tick.
+  const wakeEyelids = (vh: number) => {
+    if (vh <= 0.1) { eyelidTop.style.display = "none"; eyelidBot.style.display = "none"; return; }
+    eyelidTop.style.display = "block"; eyelidBot.style.display = "block";
+    eyelidTop.style.height = vh + "vh"; eyelidBot.style.height = vh + "vh";
+  };
 
   // toast (mensagem flutuante — ex.: subir de nível)
   const toastEl = document.createElement("div");
@@ -2031,6 +2048,7 @@ export function setupControls(
     },
     fadeOut(ms) { return fadeOut(ms); },
     fadeIn(ms) { fadeIn(ms); },
+    wakeEyelids(vh) { wakeEyelids(vh); },
     setConsumables(items: ConsumSlot[]) {
       renderTray(items);
     },
@@ -2983,6 +3001,12 @@ function injectStyle() {
   #gh-fade {
     position:fixed; inset:0; z-index:40; pointer-events:none; opacity:0; background:#000;
   }
+  /* pálpebras (acordar): barras pretas que fecham/abrem no centro */
+  #gh-eyelid-top, #gh-eyelid-bot {
+    position:fixed; left:0; right:0; height:0; z-index:41; pointer-events:none; display:none; background:#000;
+  }
+  #gh-eyelid-top { top:0; box-shadow:0 10px 22px 4px #000; }
+  #gh-eyelid-bot { bottom:0; box-shadow:0 -10px 22px 4px #000; }
   @keyframes gh-dmg {
     0% { opacity:0; } 18% { opacity:1; } 100% { opacity:0; }
   }

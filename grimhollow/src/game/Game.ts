@@ -400,22 +400,34 @@ const MAIN_QUESTS: MainQuestDef[] = [
       {
         kind: "visit", shop: "store",
         objective: "Visite Rosa, a mercadora",
-        visitToast: "Você conheceu o Empório de Rosa — armas e suprimentos para a estrada.",
+        atLines: [
+          "Ah — você é o forasteiro que a Hedda tirou da névoa, não é? Rosa, a mercadora, ao seu dispor.",
+          "Armas, suprimentos, o que a estrada exigir. Passe aqui quando tiver com que pagar — e boa sorte lá embaixo.",
+        ],
       },
       {
         kind: "visit", shop: "alchemist",
         objective: "Visite Isolde, a alquimista",
-        visitToast: "Você conheceu o Laboratório de Isolde — poções e reagentes das antigas artes.",
+        atLines: [
+          "Então a bruma cuspiu mais um sobrevivente. Isolde, alquimista — cuido das poções e dos reagentes das antigas artes.",
+          "Tudo aqui tem seu preço e seu uso. Vai precisar de mim mais cedo do que imagina, viajante.",
+        ],
       },
       {
         kind: "visit", shop: "smith",
-        objective: "Visite o ferreiro",
-        visitToast: "Você conheceu a Bigorna — o ferreiro tempera e aprimora o aço.",
+        objective: "Visite Brandt, o ferreiro",
+        atLines: [
+          "Hm. Mãos que ainda não calejaram no aço. Brandt, ferreiro de Grimhollow.",
+          "Traga-me materiais e a sua arma, e eu a deixo digna do que espreita nas profundezas.",
+        ],
       },
       {
         kind: "visit", shop: "tavern",
         objective: "Visite Bruno, o taverneiro",
-        visitToast: "Você conheceu a taverna de Bruno — histórias, bebida e um mural de missões.",
+        atLines: [
+          "Sente-se, viajante! Bruno, taverneiro e guardião de toda fofoca de Grimhollow.",
+          "Uma caneca para espantar o frio da névoa? E dê uma olhada no mural — sempre há trabalho para quem tem coragem.",
+        ],
       },
       {
         kind: "talk", target: "Hedda",
@@ -925,9 +937,11 @@ export class Game {
   private beacon: THREE.Group | null = null;                     // facho-guia da missão (mundo 3D)
   private introShown = false;                                    // narração de abertura (1×)
   private waking = false;                                        // sequência de "acordar" em curso
-  private wakeStart = -1;                                        // instante inicial (setado no 1º tick)
-  private static readonly WAKE_MS = 2800;                        // duração da subida da câmera
-  private static readonly LIE_Y = 0.62;                          // altura da câmera "deitado"
+  private wakeStart = -1;                                        // instante-base (setado no 1º tick)
+  private static readonly BLINK_MS = 2200;                       // fase 1: deitado piscando
+  private static readonly WAKE_MS = 2000;                        // fase 2: levantar (subida da câmera)
+  private static readonly LIE_Y = 0.48;                          // altura da câmera "deitado" (no colchão)
+  private static readonly LIE_PITCH = 0.82;                      // + = olha p/ CIMA (teto) ao acordar
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   // BAÚ da Hedda: pertences guardados (bens empilháveis, armas c/ reforço, ouro)
@@ -1308,14 +1322,25 @@ export class Game {
   // até de pé (ver tick), sob um fade-in, e então a narração/fala começa.
   private startWake() {
     this.waking = true;
-    this.wakeStart = -1;
+    this.wakeStart = -1;                        // setado no 1º tick (base de tempo)
     this.introShown = true; // desativa a antiga narração de vila
     const fy = this.floorYAt(this.col, this.row);
-    this.camera.position.y = fy + Game.LIE_Y; // deitado
-    this.camera.rotation.x = -0.3;            // olhando p/ as vigas do teto
+    this.camera.position.y = fy + Game.LIE_Y;   // deitado no colchão, câmera baixa
+    this.camera.rotation.x = Game.LIE_PITCH;    // olhando reto p/ o teto de vigas
     this.ui.setPrompt(null);
-    void this.ui.fadeOut(0);                  // tela preta imediata
-    window.setTimeout(() => this.ui.fadeIn(1700), 300); // "abre os olhos" devagar
+  }
+  // cobertura das pálpebras (vh) durante a fase de piscar — groggy: fecha bem,
+  // entreabre, pisca, abre mais, pisca rápido, abre de vez. Interpola keyframes.
+  private wakeEyelidCover(ms: number): number {
+    const kf: [number, number][] = [[0, 52], [340, 12], [600, 46], [900, 6], [1220, 40], [1520, 4], [1820, 30], [2200, 0]];
+    for (let i = 1; i < kf.length; i++) {
+      if (ms <= kf[i][0]) {
+        const [t0, v0] = kf[i - 1], [t1, v1] = kf[i];
+        const f = (ms - t0) / (t1 - t0);
+        return v0 + (v1 - v0) * f;
+      }
+    }
+    return 0;
   }
   // 1ª parte: narração fria do despertar (sem retrato) → depois a Hedda fala
   private startWakeDialogue() {
@@ -2212,16 +2237,18 @@ export class Game {
     }
     return false;
   }
-  // visitou uma loja: cumpre a etapa "visit" do capítulo ativo (tour inicial).
-  // Retorna true se cumpriu a etapa (p/ o gatilho saber que houve progresso).
-  private mainQuestVisit(shop: "store" | "tavern" | "smith" | "alchemist"): boolean {
+  // visitou uma loja no TOUR inicial: o NPC se apresenta (fala própria) e, ao
+  // fechar, a missão avança e a janela da loja abre. Retorna true se tratou
+  // (mostrou a fala + adiou a abertura da loja); false p/ abrir a loja direto.
+  private mainQuestVisit(shop: "store" | "tavern" | "smith" | "alchemist", portrait: string, openShop: () => void): boolean {
     const act = this.mqActive();
     if (!act) return false;
     const st = this.mainQuests[act.id];
     const step = act.steps[st.step];
     if (!step || step.kind !== "visit" || step.shop !== shop) return false;
-    if (step.visitToast) this.ui.toast(`◈ ${step.visitToast}`);
-    this.mqAdvance(act);
+    this.openDialogue(ESTAB[shop].npc, step.atLines ?? ["…"], portrait, {
+      onClose: () => { this.mqAdvance(act); openShop(); },
+    });
     return true;
   }
   // um inimigo abatido: alimenta a etapa "kill" do capítulo ativo
@@ -2339,6 +2366,11 @@ export class Game {
     if (!t) return null;
     const L = this.location;
     const interior = L !== "village" && L !== "dungeon" && L !== "forest" && L !== "showcase";
+    // objetivo é uma LOJA e o jogador JÁ ESTÁ dentro dela → aponta pro atendente
+    // (senão o facho ficava preso na porta/saída). roomFind("N") = balcão.
+    if (t.zone === "village" && t.shop && L === t.shop) {
+      const n = roomFind("N"); return { col: n.col, row: n.row };
+    }
     const inZone = (): { col: number; row: number } | null => {
       if (t.zone === "village") {
         if (t.shop) { const d = ESTAB_DOORS.find((e) => e.kind === t.shop); return d ? { col: d.c + d.dc, row: d.r + d.dr } : null; }
@@ -5289,25 +5321,21 @@ export class Game {
       this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
       this.enterLocation("showcase", 0, 0, 0);
     } else if (t.kind === "smithshop") {
-      this.mainQuestVisit("smith"); // tour inicial: conheceu o ferreiro
-      // FERREIRO: abre a janela de aprimoramento (reforço +N)
-      this.ui.openSmith(this.buildSmithData());
+      // FERREIRO: no tour inicial, o Brandt se apresenta antes de abrir a forja
+      const open = () => this.ui.openSmith(this.buildSmithData());
+      if (!this.mainQuestVisit("smith", ferreiroUrl, open)) open();
     } else if (t.kind === "storeshop") {
-      this.mainQuestVisit("store"); // tour inicial: conheceu a mercadora
-      // MERCADOR: abre a janela de comprar/vender
-      this.shopVendor = "store";
-      this.storeMode = "buy";
-      this.ui.openStore(this.buildStoreData());
+      // MERCADOR: no tour, a Rosa se apresenta antes de abrir comprar/vender
+      const open = () => { this.shopVendor = "store"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); };
+      if (!this.mainQuestVisit("store", mercadoraUrl, open)) open();
     } else if (t.kind === "alchshop") {
-      this.mainQuestVisit("alchemist"); // tour inicial: conheceu a alquimista
-      // ALQUIMISTA: mesma janela, catálogo de poções + materiais de forja
-      this.shopVendor = "alchemist";
-      this.storeMode = "buy";
-      this.ui.openStore(this.buildStoreData());
+      // ALQUIMISTA: no tour, a Isolde se apresenta antes de abrir a loja
+      const open = () => { this.shopVendor = "alchemist"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); };
+      if (!this.mainQuestVisit("alchemist", alquimistaUrl, open)) open();
     } else if (t.kind === "tavernshop") {
-      this.mainQuestVisit("tavern"); // tour inicial: conheceu o taverneiro
-      // TAVERNA: descanso pago + bebidas + mural de missões
-      this.ui.openTavern(this.buildTavernData());
+      // TAVERNA: no tour, o Bruno se apresenta antes de abrir bebidas + mural
+      const open = () => this.ui.openTavern(this.buildTavernData());
+      if (!this.mainQuestVisit("tavern", taverneiroUrl, open)) open();
     } else if (t.kind === "stash") {
       // BAÚ DE HEDDA: guarda/retira itens, materiais, armas e ouro
       this.stashMode = "deposit";
@@ -6380,16 +6408,26 @@ export class Game {
 
   private tick(now: number) {
     this.now = now;
-    // SEQUÊNCIA DE ACORDAR: a câmera sobe de "deitado" até de pé; nada mais roda.
+    // SEQUÊNCIA DE ACORDAR (toda por QUADRO): 1) deitado olhando o teto, piscando
+    // (pálpebras); 2) levanta (câmera sobe e o olhar baixa do teto p/ a frente).
     if (this.waking) {
       if (this.wakeStart < 0) this.wakeStart = now;
-      const p = Math.min(1, (now - this.wakeStart) / Game.WAKE_MS);
-      const e = p * p * (3 - 2 * p); // smoothstep
+      const el = now - this.wakeStart;
       const fy = this.floorYAt(this.col, this.row);
-      this.camera.position.y = fy + Game.LIE_Y + (EYE_H - Game.LIE_Y) * e;
-      this.camera.rotation.x = -0.3 * (1 - e); // deixa de olhar p/ o teto
-      if (p >= 1) {
+      if (el < Game.BLINK_MS) {
+        // deitado; leve balanço groggy da cabeça + piscar das pálpebras
+        this.camera.position.y = fy + Game.LIE_Y + Math.sin(now * 0.0016) * 0.015;
+        this.camera.rotation.x = Game.LIE_PITCH + Math.sin(now * 0.0011) * 0.02;
+        this.ui.wakeEyelids(this.wakeEyelidCover(el));
+      } else if (el < Game.BLINK_MS + Game.WAKE_MS) {
+        this.ui.wakeEyelids(0); // olhos abertos
+        const p = (el - Game.BLINK_MS) / Game.WAKE_MS;
+        const e = p * p * (3 - 2 * p); // smoothstep
+        this.camera.position.y = fy + Game.LIE_Y + (EYE_H - Game.LIE_Y) * e;
+        this.camera.rotation.x = Game.LIE_PITCH * (1 - e); // baixa o olhar do teto p/ a frente
+      } else {
         this.waking = false;
+        this.ui.wakeEyelids(0);
         this.camera.position.y = fy + EYE_H;
         this.camera.rotation.x = 0;
         this.startWakeDialogue();
