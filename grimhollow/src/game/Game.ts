@@ -419,11 +419,11 @@ const MAIN_QUESTS: MainQuestDef[] = [
       },
       {
         kind: "talk", target: "Hedda",
-        objective: "Apresente-se a Hedda, a matriarca, na casa dela (oeste da praça)",
+        objective: "Volte a Hedda, a matriarca, na casa dela (oeste da praça)",
         atLines: [
-          "Então já percorreu Grimhollow e conheceu os nossos. Bem-vindo, viajante — ou ao que restou de bem-vindo sob esta névoa eterna.",
-          "Entre, sente-se, tome um chá. Poucos chegam até nós pela estrada da bruma; menos ainda escolhem ficar.",
-          "Descanse os pés. Depois precisamos conversar — há algo rondando o vilarejo que não se diz em voz alta.",
+          "De volta, e inteiro. Então já conhece a Rosa, a Isolde, o ferreiro e o Bruno — a nossa pequena Grimhollow.",
+          "Bom. Um forasteiro que sabe onde pisar dura mais por estas bandas.",
+          "Agora sente-se. Chegou a hora daquela conversa que eu adiei.",
         ],
       },
     ],
@@ -922,6 +922,10 @@ export class Game {
   private sealBars: THREE.Object3D | null = null;                // grade do Portão (some ao romper)
   private beacon: THREE.Group | null = null;                     // facho-guia da missão (mundo 3D)
   private introShown = false;                                    // narração de abertura (1×)
+  private waking = false;                                        // sequência de "acordar" em curso
+  private wakeStart = -1;                                        // instante inicial (setado no 1º tick)
+  private static readonly WAKE_MS = 2800;                        // duração da subida da câmera
+  private static readonly LIE_Y = 0.62;                          // altura da câmera "deitado"
   private storeMode: "buy" | "sell" = "buy";
   private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
   // BAÚ da Hedda: pertences guardados (bens empilháveis, armas c/ reforço, ouro)
@@ -1184,7 +1188,13 @@ export class Game {
       this.returnTo = { col: start.col, row: start.row, facing: 0 };
       this.enterLocation("showcase", 0, 0, 0);
     } else {
-      this.enterLocation("village", start.col, start.row, 0);
+      // ABERTURA: o forasteiro DESPERTA na casa da matriarca Hedda, que o acolheu
+      // da névoa. Ao sair, cai na praça, em frente à casa dela.
+      const hd = HOME_DOORS.find((h) => h.id === "hedda")!;
+      this.returnTo = { col: hd.c + hd.dc, row: hd.r + hd.dr, facing: 1 };
+      const p = roomFind("P");
+      this.enterLocation("hedda", p.col, p.row, 0);
+      this.startWake();
     }
 
     window.addEventListener("resize", () => this.resize());
@@ -1290,17 +1300,35 @@ export class Game {
     this.mainQuestOnEnter(loc as string); // etapa "enter" (ex.: Santuário) do capítulo ativo
     this.maybeShowIntro(); // narração de abertura na 1ª vez que a vila carrega
   }
-  // abertura: apresenta o vilarejo e o 1º objetivo (só uma vez, com a missão ativa)
-  private maybeShowIntro() {
-    if (this.introShown || this.location !== "village") return;
-    const mq1 = this.mainQuests["mq1"];
-    if (!mq1 || mq1.status !== "active") return;
-    this.introShown = true;
-    this.openDialogue("Grimhollow", [
-      "A estrada termina aqui, engolida pela névoa. À luz mortiça dos lampiões ergue-se o vilarejo de Grimhollow — o último refúgio antes das montanhas.",
-      "Você chegou sem nada além do que carrega. Antes de tudo, convém conhecer quem aqui vive.",
-      "Percorra a praça e apresente-se aos moradores. O marcador dourado no mapa e o facho de luz mostrarão o caminho.",
-    ], null, { onClose: () => { const d = this.mqDef("mq1"); if (d) this.mqObjectiveToast(d); } });
+  // (a narração de abertura agora acontece na sequência de ACORDAR, não na vila)
+  private maybeShowIntro() { /* substituído por startWake/startWakeDialogue */ }
+  // ABERTURA — o forasteiro desperta na casa da Hedda: a câmera sobe de "deitado"
+  // até de pé (ver tick), sob um fade-in, e então a narração/fala começa.
+  private startWake() {
+    this.waking = true;
+    this.wakeStart = -1;
+    this.introShown = true; // desativa a antiga narração de vila
+    const fy = this.floorYAt(this.col, this.row);
+    this.camera.position.y = fy + Game.LIE_Y; // deitado
+    this.camera.rotation.x = -0.3;            // olhando p/ as vigas do teto
+    this.ui.setPrompt(null);
+    void this.ui.fadeOut(0);                  // tela preta imediata
+    window.setTimeout(() => this.ui.fadeIn(1700), 300); // "abre os olhos" devagar
+  }
+  // 1ª parte: narração fria do despertar (sem retrato) → depois a Hedda fala
+  private startWakeDialogue() {
+    this.openDialogue("", [
+      "Escuro. Frio. Cheiro de fumaça de lenha e de ervas secas.",
+      "Você abre os olhos sob um teto de vigas baixas. Não se lembra de ter se deitado aqui. Não se lembra… de muita coisa.",
+    ], null, { onClose: () => this.wakeHeddaDialogue() });
+  }
+  // 2ª parte: a matriarca Hedda explica o resgate, a amnésia e conduz ao tour
+  private wakeHeddaDialogue() {
+    this.openDialogue("Hedda, a Matriarca", [
+      "Acordou, enfim. Encontrei você caído na estrada, na boca da névoa, e o arrastei para dentro antes que a bruma o levasse.",
+      "Dormiu dois dias inteiros. Falava enquanto dormia — nomes, lugares —, mas duvido que se lembre deles agora. A névoa cobra esse preço de quem a atravessa.",
+      "Levante-se, com calma. Quando estiver pronto, conheça o vilarejo e a nossa gente. Depois volte aqui: temos muito o que conversar.",
+    ], heddaUrl, { onClose: () => { const d = this.mqDef("mq1"); if (d) this.mqObjectiveToast(d); } });
   }
 
   // ---- TRILHA DE FUNDO ----
@@ -5932,6 +5960,7 @@ export class Game {
 
   // ------------------------------------------------------------- input
   private onAction(a: Action) {
+    if (this.waking) return; // travado durante a sequência de acordar
     // diálogo aberto: interagir avança/fecha; o resto é ignorado
     if (this.dialogue) {
       if (a === "interact") this.advanceDialogue();
@@ -6289,6 +6318,23 @@ export class Game {
 
   private tick(now: number) {
     this.now = now;
+    // SEQUÊNCIA DE ACORDAR: a câmera sobe de "deitado" até de pé; nada mais roda.
+    if (this.waking) {
+      if (this.wakeStart < 0) this.wakeStart = now;
+      const p = Math.min(1, (now - this.wakeStart) / Game.WAKE_MS);
+      const e = p * p * (3 - 2 * p); // smoothstep
+      const fy = this.floorYAt(this.col, this.row);
+      this.camera.position.y = fy + Game.LIE_Y + (EYE_H - Game.LIE_Y) * e;
+      this.camera.rotation.x = -0.3 * (1 - e); // deixa de olhar p/ o teto
+      if (p >= 1) {
+        this.waking = false;
+        this.camera.position.y = fy + EYE_H;
+        this.camera.rotation.x = 0;
+        this.startWakeDialogue();
+      }
+      this.renderer.render(this.scene, this.camera);
+      return;
+    }
     const an = this.anim;
     if (an) {
       if (an.kind === "move") {
