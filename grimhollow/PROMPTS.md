@@ -45,7 +45,7 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 ## 🗂️ Índice das seções
 
 **Mundo/cenário:** [01 Árvores](#01--árvores-individuais) · [02 Aglomerados de mata](#02--aglomerados-de-mata) · [03 Placas de loja](#03--placas-das-lojas) · [04 Adereços da cidade](#04--adereços-da-cidade) · [05 Panos de fundo](#05--panos-de-fundo-backdrops)
-**Combate/jogo:** [06 Espada](#06--combate--espada-protótipo-de-ação) · [07 Inimigos](#07--inimigos-billboard-2d) · [10 Ícones de itens](#10--ícones-de-itens-folhas-por-tier)
+**Combate/jogo:** [06 Espada](#06--combate--espada-protótipo-de-ação) · [07 Inimigos](#07--inimigos-billboard-2d) · [10 Ícones de itens](#10--ícones-de-itens-folhas-por-tier) · [🛡️ Armaduras early (T1–T3)](#armaduras-early)
 **Interface:** [08 HUD/janelas](#08--interface--hud) · [11 Botões de controle](#11--botões-de-controle-hud) · [12 Telas de abertura](#12--telas-de-abertura-título--classes)
 
 Mais abaixo: [📜 Catálogo de Itens](#-catálogo-de-itens-planejamento-de-design) (mapa de design — sem prompts ainda).
@@ -403,7 +403,7 @@ sprite na mão (a arma principal equipada aparece na mão como a espada de hoje)
 ligo o sistema de equipar. As folhas dos próximos tiers (Cobre, Bronze…) seguem o
 mesmo molde, trocando só o material.
 
-### 🛡️ Armaduras — Early game (Tiers 1–3): 3 folhas, 5 peças cada
+### 🛡️ Armaduras — Early game (Tiers 1–3): 3 folhas, 5 peças cada {: #armaduras-early }
 
 As peças que entram nos slots do "boneco" (Elmo, Peitoral, Luvas, Botas, Cinto).
 **Uma folha por tier** com as **5 peças juntas** numa grade **3×2** (última célula

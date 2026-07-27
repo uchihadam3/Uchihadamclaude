@@ -477,12 +477,14 @@ export function setupControls(
   // conforme o XP do nível atual. Um pequeno "Nv X" na ponta esquerda. ----
   const xpbar = document.createElement("div");
   xpbar.id = "gh-xpbar";
-  xpbar.innerHTML = '<div id="gh-xpbar-fill"></div>';
+  xpbar.innerHTML = '<div id="gh-xpbar-fill"></div><span id="gh-xpbar-lv">Nv 1</span>';
   root.appendChild(xpbar);
   const xpFill = xpbar.querySelector("#gh-xpbar-fill") as HTMLElement;
+  const xpLv = xpbar.querySelector("#gh-xpbar-lv") as HTMLElement;
   const setXp = (level: number, xp: number, xpMax: number) => {
     const frac = xpMax > 0 ? Math.max(0, Math.min(1, xp / xpMax)) : (level >= 100 ? 1 : 0);
     xpFill.style.width = (frac * 100).toFixed(2) + "%";
+    xpLv.textContent = "Nv " + level;
   };
 
   // ---- MAPA (canto superior direito): moldura + canvas do minimapa (zoom) ----
@@ -2269,7 +2271,7 @@ function injectStyle() {
      o corte segue a lâmina de forma travada. perspective() habilita rotação 3D
      (rotateX/Y) — é o que dá a PROFUNDIDADE. */
   #gh-weapon-rig {
-    position:fixed; right:6%; bottom:-4%;
+    position:fixed; right:12%; bottom:-4%;
     height:62vh; max-height:640px;
     pointer-events:none; z-index:8;
     transform-origin:72% 90%;
@@ -2289,7 +2291,7 @@ function injectStyle() {
   /* sprite de golpe: já vem na diagonal com o rastro pintado, então tem base
      e pivô próprios (punho no canto inferior-direito), escondido até o golpe */
   #gh-weapon-atk {
-    position:fixed; right:0%; bottom:-6%;
+    position:fixed; right:6%; bottom:-6%;
     height:72vh; max-height:720px; width:auto;
     pointer-events:none; z-index:9; opacity:0;
     transform-origin:82% 86%;
@@ -2535,6 +2537,13 @@ function injectStyle() {
     background:linear-gradient(90deg,#a9741f,#f4d074 62%,#fff2cc);
     box-shadow:0 0 8px rgba(244,208,116,.55);
     transition:width .35s ease;
+  }
+  /* "Nv X" pequeno, centralizado logo acima da barra */
+  #gh-xpbar-lv {
+    position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
+    font-family:"Cinzel",serif; font-weight:700; font-size:11px; letter-spacing:.5px;
+    color:#f2d891; white-space:nowrap;
+    text-shadow:0 1px 3px #000, 0 0 7px rgba(0,0,0,.9);
   }
 
   /* botão de abrir a janela de personagem — no lado ESQUERDO, logo abaixo da placa
