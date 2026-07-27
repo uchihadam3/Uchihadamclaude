@@ -90,6 +90,7 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
   overlay.innerHTML = `
     <div class="gh-screen gh-crawl">
       <div class="gh-crawl-bg" id="gh-crawl-bg" style="background-image:url(${crawlImg})"></div>
+      <div class="gh-crawl-curtain" id="gh-crawl-curtain"></div>
       <div class="gh-crawl-shade"></div>
       <div class="gh-crawl-textwrap" id="gh-crawl-tw"><div class="gh-crawl-text" id="gh-crawl-text">
         ${paras.map((p) => `<p>${p}</p>`).join("")}
@@ -106,7 +107,22 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
       </div>
       <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
     </div>`;
-  const bg = overlay.querySelector("#gh-crawl-bg") as HTMLElement;
+  // VÉU PRETO com borda IRREGULAR (ruído/turbulência) que recua p/ cima, revelando
+  // a imagem aos poucos — a "tinta preta" some de forma orgânica, não chapada.
+  const curtain = overlay.querySelector("#gh-crawl-curtain") as HTMLElement;
+  const svg = "<svg xmlns='http://www.w3.org/2000/svg' width='420' height='340' preserveAspectRatio='none'>" +
+    "<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'>" +
+    "<stop offset='0' stop-color='#fff' stop-opacity='1'/>" +
+    "<stop offset='0.66' stop-color='#fff' stop-opacity='1'/>" +
+    "<stop offset='1' stop-color='#fff' stop-opacity='0'/></linearGradient>" +
+    "<filter id='t' x='-25%' y='-25%' width='150%' height='150%'>" +
+    "<feTurbulence type='fractalNoise' baseFrequency='0.016 0.03' numOctaves='2' seed='6' result='n'/>" +
+    "<feDisplacementMap in='SourceGraphic' in2='n' scale='78' xChannelSelector='R' yChannelSelector='G'/>" +
+    "</filter></defs><rect width='420' height='340' fill='url(#g)' filter='url(#t)'/></svg>";
+  const maskUri = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  curtain.style.webkitMaskImage = maskUri;
+  curtain.style.maskImage = maskUri;
+
   const text = overlay.querySelector("#gh-crawl-text") as HTMLElement;
   const tw = overlay.querySelector("#gh-crawl-tw") as HTMLElement;
   const titleEl = overlay.querySelector("#gh-open-title") as HTMLElement;
@@ -117,8 +133,8 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
     if (revealed) return;
     revealed = true;
     window.clearTimeout(timer);
-    bg.style.animation = "none";                 // congela o fundo no topo da arte
-    bg.style.backgroundPosition = "center 0%";
+    curtain.style.animation = "none";            // véu totalmente recolhido
+    curtain.style.transform = "translateY(-130%)";
     tw.style.display = "none";                    // some o texto (subiu até o fim)
     skip.style.display = "none";
     titleEl.classList.add("show");               // surge o título (logo + Começar)
@@ -518,13 +534,19 @@ function injectStyle() {
   /* --- PRÓLOGO (crawl vertical estilo Symphony of the Night) --- */
   /* UMA arte vertical alta sobe devagar; o texto sobe junto por cima. */
   #gh-intro .gh-crawl { background:#000; overflow:hidden; padding:0; }
+  /* a imagem fica ESTÁTICA; o véu preto por cima é que recua revelando-a */
   #gh-intro .gh-crawl-bg {
-    position:absolute; inset:0; background:#0a0b10 center bottom / cover no-repeat;
-    will-change:background-position;
-    animation:gh-crawl-pan 22s linear both;
+    position:absolute; inset:0; background:#0a0b10 center center / cover no-repeat;
   }
-  /* pan vertical: do rodapé da arte (base) até o topo — revela de baixo p/ cima */
-  @keyframes gh-crawl-pan { from { background-position:center 100%; } to { background-position:center 0%; } }
+  /* VÉU PRETO com borda irregular (máscara de ruído aplicada via JS) que sobe */
+  #gh-intro .gh-crawl-curtain {
+    position:absolute; left:-2%; right:-2%; top:0; height:152%; z-index:1; background:#05060a;
+    -webkit-mask-size:100% 100%; mask-size:100% 100%;
+    -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+    will-change:transform; animation:gh-curtain-up 22s linear both;
+  }
+  /* recua para cima: revela a imagem de baixo p/ cima, com a borda rasgada */
+  @keyframes gh-curtain-up { from { transform:translateY(0); } to { transform:translateY(-130%); } }
   /* véu p/ o texto ler bem + vinheta */
   #gh-intro .gh-crawl-shade {
     position:absolute; inset:0; pointer-events:none;
@@ -555,7 +577,7 @@ function injectStyle() {
   #gh-intro .gh-pro-hint { position:absolute; right:20px; bottom:16px; z-index:3; font-size:11px; color:#b6a877; opacity:.7; animation:gh-pro-blink 1.8s ease-in-out infinite; }
   @keyframes gh-pro-blink { 0%,100% { opacity:.35; } 50% { opacity:.8; } }
   @media (prefers-reduced-motion: reduce) {
-    #gh-intro .gh-crawl-bg, #gh-intro .gh-crawl-text { animation-duration:6s; }
+    #gh-intro .gh-crawl-curtain, #gh-intro .gh-crawl-text { animation-duration:6s; }
   }
   /* TÍTULO que surge no fim do crawl (sobre o mesmo fundo, congelado no topo) */
   #gh-intro .gh-open-title {
