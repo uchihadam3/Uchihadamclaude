@@ -8,22 +8,31 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 
 ---
 
-## 🎬 Prólogo — arte única do crawl (estilo Symphony of the Night)
+## 🎬 Prólogo — arte única do crawl (corte vertical: vilarejo + masmorra)
 
 **UMA imagem vertical bem ALTA** que sobe devagar por baixo, com o texto subindo
-junto por cima. Melhor que 5 imagens: mais coesa e fácil de dirigir.
+junto por cima. É a arte do **nosso** mundo — o **vilarejo de Grimhollow** e a
+**masmorra** logo abaixo dele (um "corte"/cutaway vertical). Nada de castelo:
+uma vila humilde na superfície e as profundezas seladas embaixo.
 
 **Proporção VERTICAL/alta (9:16, ou mais alta se puder) · sem texto/marca
-d'água.** Gere, nomeie **`pro_crawl.png`** e me envie que eu ligo no jogo. É só
-**Copiar**:
+d'água.** Gere, nomeie **`pro_crawl.png`** e me envie. O scroll sobe **das
+profundezas até a superfície**, então o Portão Selado fica embaixo e o vilarejo
+em cima. É só **Copiar**:
 
 ```
-A towering vertical panorama of a doomed medieval town: at the base, the fog-shrouded village of Grimhollow with cobblestone streets, thatched rooftops and a few warm lantern lights; rising through stone ramparts, dead trees and crumbling walls into a colossal ruined gothic cathedral and jagged keep that vanish into thick eternal mist at the very top; warm amber glow below fading to cold pale grey fog above, moonlight, ravens, grim dark medieval dark-fantasy, painterly digital concept art, extremely tall vertical composition, dramatic atmospheric perspective, highly detailed, no text, no watermark, 9:16 vertical
+Vertical cutaway cross-section of a small grim medieval town and the dungeon buried beneath it, one continuous tall scene. TOP: the fog-shrouded village of Grimhollow — modest timber-and-stone houses, a muddy market square, a well, a few warm lantern lights, oppressive grey mist, no grand castle. MIDDLE: the ground opens into a worn stone stairway descending into darkness, roots and rubble. BOTTOM: deep underground catacombs lit by torches, and an ancient sealed iron gate covered in faintly glowing runes, wrapped in chains, scattered bones, cold blue-green light leaking from the seal. Warm amber tones on the surface fading to cold torchlit gloom below. grim dark medieval dark-fantasy, painterly digital concept art, extremely tall vertical composition, dramatic atmospheric perspective, volumetric fog, highly detailed, no text, no watermark, 9:16 vertical
 ```
 
-> A cena vai da base (o vilarejo aconchegante, embaixo) até o alto (a catedral em
-> ruínas sumindo na névoa) — o scroll sobe revelando de baixo para cima. Quanto
-> mais alta a imagem, mais longo e bonito fica o movimento.
+**Alternativa mais simples** (só o vilarejo, sem o corte subterrâneo) — uma rua
+enevoada subindo, humilde e sombria:
+
+```
+A tall vertical view of a grim, fog-shrouded medieval village street at dusk, humble timber-and-stone houses crowding a narrow muddy lane that climbs uphill, wooden shingled roofs, a few dim orange lanterns and a lit torch, ravens, thick grey mist swallowing the top of the lane, no castle, no cathedral, cozy but ominous, grim dark medieval dark-fantasy, painterly digital concept art, extremely tall vertical composition, atmospheric fog, highly detailed, no text, no watermark, 9:16 vertical
+```
+
+> Dica: quanto **mais alta** a imagem, mais longo e bonito fica o movimento de
+> subida. Escolha uma das duas (ou gere as duas e a gente decide).
 
 ---
 
