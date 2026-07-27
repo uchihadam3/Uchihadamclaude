@@ -2048,6 +2048,7 @@ export class Game {
             this.ui.setInventory(this.ownedWeapons);
             this.refreshStats();
             this.ui.toast(`Comprou ${w.name}.`);
+            this.ui.playSfx("coin");
           }
         }
       } else {
@@ -2055,7 +2056,7 @@ export class Game {
         if (m) {
           const cost = m.price * qty;
           if (this.stats.gold < cost) { this.ui.toast("Ouro insuficiente."); }
-          else { this.stats.gold -= cost; this.goodAdd(id, qty); this.refreshStats(); this.ui.toast(`Comprou ${qty}× ${m.name}.`); }
+          else { this.stats.gold -= cost; this.goodAdd(id, qty); this.refreshStats(); this.ui.toast(`Comprou ${qty}× ${m.name}.`); this.ui.playSfx("coin"); }
         }
       }
     } else if (id.startsWith("w:")) {
@@ -2069,6 +2070,7 @@ export class Game {
         this.ui.setInventory(this.ownedWeapons);
         this.refreshStats();
         this.ui.toast(`Vendeu ${WEAPON_BY_ID[wid]?.name} por ${val} ouro.`);
+        this.ui.playSfx("coin");
       }
     } else {
       const m = GOODS_BY_ID[id];
@@ -2078,6 +2080,7 @@ export class Game {
           const val = Math.max(1, Math.round(m.price * Game.SELL_RATE)) * qty;
           this.goodAdd(id, -qty); this.stats.gold += val; this.refreshStats();
           this.ui.toast(`Vendeu ${qty}× ${m.name} por ${val} ouro.`);
+          this.ui.playSfx("coin");
         }
       }
     }
@@ -2189,7 +2192,7 @@ export class Game {
     const m = GOODS_BY_ID[id];
     if (m) {
       if (this.stats.gold < m.price) this.ui.toast("Ouro insuficiente.");
-      else { this.stats.gold -= m.price; this.goodAdd(id, 1); this.refreshStats(); this.refreshConsumables(); this.ui.toast(`Comprou ${m.name}.`); }
+      else { this.stats.gold -= m.price; this.goodAdd(id, 1); this.refreshStats(); this.refreshConsumables(); this.ui.toast(`Comprou ${m.name}.`); this.ui.playSfx("coin"); }
     }
     return this.buildTavernData();
   }
@@ -2728,6 +2731,7 @@ export class Game {
       const lv = e.elevel;
       const gold = 4 + lv * 3 + Math.floor(Math.random() * (3 + lv * 2));
       this.stats.gold += gold;
+      this.ui.playSfx("coin"); // tilintar de moedas ao coletar o ouro do inimigo
       this.gainXp(30 + lv * 15);
       this.ui.toast(`+${gold} ouro`);
       this.questOnKill(); // progresso da missão "Ossos Inquietos"

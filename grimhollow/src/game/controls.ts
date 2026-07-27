@@ -28,6 +28,8 @@ import sfxSwingUrl from "../assets/audio/sfx_swing.wav";
 import sfxHitUrl from "../assets/audio/sfx_hit.wav";
 import sfxHurtUrl from "../assets/audio/sfx_hurt.wav";
 import sfxCastUrl from "../assets/audio/sfx_cast.wav";
+import sfxCoinUrl from "../assets/audio/sfx_coin.mp3";     // moedas: comprar/vender/coletar
+import sfxLevelUpUrl from "../assets/audio/sfx_levelup.mp3"; // fanfarra de subir de nível
 import { audio } from "./audio";
 // medalhões do minimapa (arte própria recortada da folha)
 import mmSmith from "../assets/ui/minimap/mm_smith.png";
@@ -65,11 +67,13 @@ const swingSnd = audio.register(new Audio(sfxSwingUrl), "sfx", 0.5);
 const hitSnd = audio.register(new Audio(sfxHitUrl), "sfx", 0.55);
 const hurtSnd = audio.register(new Audio(sfxHurtUrl), "sfx", 0.7);
 const castSnd = audio.register(new Audio(sfxCastUrl), "sfx", 0.6);
-[swingSnd, hitSnd, hurtSnd, castSnd].forEach((a) => { a.preload = "auto"; });
+const coinSnd = audio.register(new Audio(sfxCoinUrl), "sfx", 0.75);     // comprar/vender/coletar ouro
+const levelupSnd = audio.register(new Audio(sfxLevelUpUrl), "sfx", 0.85); // fanfarra de nível
+[swingSnd, hitSnd, hurtSnd, castSnd, coinSnd, levelupSnd].forEach((a) => { a.preload = "auto"; });
 function playClone(a: HTMLAudioElement) {
   try { const c = a.cloneNode(true) as HTMLAudioElement; c.volume = a.volume; c.play().catch(() => {}); } catch { /* ignora */ }
 }
-const SFX: Record<string, HTMLAudioElement> = { swing: swingSnd, hit: hitSnd, hurt: hurtSnd, cast: castSnd };
+const SFX: Record<string, HTMLAudioElement> = { swing: swingSnd, hit: hitSnd, hurt: hurtSnd, cast: castSnd, coin: coinSnd };
 
 // ---- FORJA: animação de encher a espada (lava), ~6s, bem incandescente ------
 // Enche a lâmina de 0→100% com frente derretida, brasas e brilho crescente;
@@ -189,7 +193,7 @@ export interface HUD {
   openStore(data: StoreData): void;
   closeStore(): void;
   // toca um efeito sonoro de combate (canal Efeitos)
-  playSfx(name: "swing" | "hit" | "hurt" | "cast"): void;
+  playSfx(name: "swing" | "hit" | "hurt" | "cast" | "coin"): void;
   // transição de porta: escurece a tela (a promise resolve no preto total) / clareia
   fadeOut(ms: number): Promise<void>;
   fadeIn(ms: number): void;
@@ -1279,6 +1283,7 @@ export function setupControls(
   const luSub = levelupEl.querySelector(".gh-lu-sub") as HTMLElement;
   let luTimer = 0;
   const showLevelUp = (level: number) => {
+    playClone(levelupSnd); // fanfarra junto com a animação
     luSub.textContent = `Nível ${level}`;
     // reinicia o GIF do zero (recarrega a src p/ a animação tocar de novo)
     luGif.src = "";
@@ -3111,9 +3116,8 @@ function injectStyle() {
   #gh-levelup .gh-lu-gif {
     position:absolute; left:50%; top:50%; transform:translate(-50%,-54%);
     width:min(340px,72vw); height:auto; opacity:0;
-    /* o fundo preto já foi RECORTADO no próprio arquivo (WebP com alfa): só a seta
-       e o brilho aparecem — sem blend/máscara. */
-    filter:drop-shadow(0 0 24px rgba(255,190,70,.5));
+    /* o fundo já foi RECORTADO no arquivo (WebP com alfa): só a seta e os brilhos
+       aparecem — sem blend, sem máscara e sem drop-shadow (que criava o "quadrado"). */
   }
   #gh-levelup.gh-lu-on .gh-lu-gif { animation:gh-lu-gif 2.5s ease-out both; }
   @keyframes gh-lu-gif {
