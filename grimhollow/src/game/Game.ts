@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -1108,6 +1108,7 @@ export class Game {
       (id) => this.tavernBuyDrink(id), // comprou uma bebida
       (id, action) => this.tavernQuest(id, action), // aceitou/entregou missão
       (id) => this.onDialogueChoice(id), // clicou num botão de escolha do diálogo
+      () => this.buildJournalData(), // abriu o Diário de Missões
     );
     this.initMainQuests(); // "A Névoa Devoradora": cap.1 disponível, resto trancado
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
@@ -2163,6 +2164,32 @@ export class Game {
       },
     });
     return true;
+  }
+  // monta o Diário de Missões: Linha Principal (capítulos) + secundárias (mural)
+  private buildJournalData(): JournalData {
+    const main: JournalEntry[] = MAIN_QUESTS.map((def) => {
+      const st = this.mainQuests[def.id];
+      let objective: string | undefined;
+      if (st.status === "active") {
+        const step = def.steps[st.step];
+        objective = step?.objective;
+        if (step?.kind === "kill") objective = `${step.objective} (${Math.min(st.progress, step.goal ?? 0)}/${step.goal})`;
+      }
+      return { icon: def.icon, title: def.title, summary: def.summary, status: st.status, objective };
+    });
+    // secundárias: reaproveita os QUEST_DEFS do mural (kill/entrega)
+    const side: JournalEntry[] = QUEST_DEFS.map((def) => {
+      const q = this.quests[def.id];
+      const status: JournalEntry["status"] =
+        q.status === "done" ? "done" : (q.status === "active" || q.status === "ready") ? "active" : "available";
+      let objective: string | undefined;
+      if (status === "active") {
+        if (def.kind === "kill") objective = `${Math.min(q.progress, def.goal ?? 0)} / ${def.goal} esqueletos`;
+        else if (def.kind === "delivery") objective = q.status === "ready" ? "Entregue no mural do Bruno" : `Entregar a ${def.target} — ${def.targetHint}`;
+      }
+      return { icon: def.icon, title: def.title, summary: def.desc, status, objective };
+    });
+    return { main, side };
   }
 
   // ---- USAR ITEM (bandeja de consumíveis do HUD) ----

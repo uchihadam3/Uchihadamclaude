@@ -143,6 +143,7 @@ export interface HUD {
   setPrompt(text: string | null): void;
   showDialogue(name: string, text: string, portrait?: string | null, choices?: DialogueChoice[]): void;
   hideDialogue(): void;
+  openJournal(data: JournalData): void;
   // toca o golpe da arma equipada; retorna o instante (ms) do impacto p/ o dano
   // cair sincronizado, ou -1 se não golpeou (sem arma / em recarga).
   swingWeapon(): number;
@@ -266,6 +267,19 @@ export interface TavernData {
   quests: TavernQuest[];
 }
 
+// ---- DIÁRIO DE MISSÕES ----
+export interface JournalEntry {
+  icon: string;
+  title: string;
+  summary: string;
+  status: "locked" | "available" | "active" | "done";
+  objective?: string;  // objetivo atual (quando ativa)
+}
+export interface JournalData {
+  main: JournalEntry[];  // Linha Principal (capítulos)
+  side: JournalEntry[];  // missões secundárias
+}
+
 // marcadores no minimapa: lojas, NPCs, saídas, pontos de interesse
 export type MiniPoiKind =
   | "smith" | "tavern" | "store" | "alchemist" | "npc"
@@ -329,6 +343,7 @@ export function setupControls(
   onBuyDrink?: (id: string) => TavernData | null, // comprou bebida; devolve novo estado
   onQuest?: (id: string, action: "accept" | "turnin") => TavernData | null, // missão
   onDialogueChoice?: (id: string) => void, // clicou num botão de escolha do diálogo
+  onOpenJournal?: () => JournalData | null, // abriu o Diário de Missões (Game monta os dados)
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -737,6 +752,46 @@ export function setupControls(
   (opt.querySelector("#gh-opt-close") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); opt.classList.add("gh-eq-hidden"); });
   opt.addEventListener("click", (e) => { if (e.target === opt) opt.classList.add("gh-eq-hidden"); });
 
+  // ---- botão + DIÁRIO DE MISSÕES ----
+  const jbtn = document.createElement("button");
+  jbtn.id = "gh-journal-btn";
+  jbtn.title = "Diário de Missões (J)";
+  jbtn.innerHTML = `<span class="gh-journal-ico">📜</span>`;
+  root.appendChild(jbtn);
+  const journal = document.createElement("div");
+  journal.id = "gh-journal";
+  journal.className = "gh-eq-hidden";
+  journal.innerHTML = '<div id="gh-journal-win"><button id="gh-journal-close" title="Fechar">✕</button>' +
+    '<div class="gh-jr-title">DIÁRIO DE MISSÕES</div><div id="gh-journal-body"></div></div>';
+  root.appendChild(journal);
+  const journalBody = journal.querySelector("#gh-journal-body") as HTMLElement;
+  const JR_BADGE: Record<string, string> = { done: "Concluída", active: "Em andamento", available: "Disponível", locked: "Selada" };
+  const renderJournal = (d: JournalData) => {
+    const entry = (e: JournalEntry, chap?: number) => {
+      if (e.status === "locked")
+        return `<div class="gh-jr-q gh-jr-locked"><div class="gh-jr-ico">🔒</div>` +
+          `<div class="gh-jr-txt"><div class="gh-jr-h">${chap ? `Capítulo ${chap}: ` : ""}???</div>` +
+          `<div class="gh-jr-d">Ainda não revelada.</div></div></div>`;
+      const obj = e.status === "active" && e.objective ? `<div class="gh-jr-obj">◈ ${e.objective}</div>` : "";
+      return `<div class="gh-jr-q gh-jr-${e.status}"><div class="gh-jr-ico">${e.icon}</div>` +
+        `<div class="gh-jr-txt"><div class="gh-jr-h">${chap ? `Capítulo ${chap}: ` : ""}${e.title}` +
+        `<span class="gh-jr-badge gh-jr-b-${e.status}">${JR_BADGE[e.status] ?? ""}</span></div>` +
+        `<div class="gh-jr-d">${e.summary}</div>${obj}</div></div>`;
+    };
+    const mainHtml = d.main.map((e, i) => entry(e, i + 1)).join("");
+    const sideHtml = d.side.length ? d.side.map((e) => entry(e)).join("")
+      : '<div class="gh-jr-empty">Nenhuma missão secundária no momento.</div>';
+    journalBody.innerHTML =
+      '<div class="gh-jr-sec"><div class="gh-jr-sh">✦ A Névoa Devoradora <small>Linha Principal</small></div>' +
+      `<div class="gh-jr-list">${mainHtml}</div></div>` +
+      '<div class="gh-jr-sec"><div class="gh-jr-sh">Missões</div>' +
+      `<div class="gh-jr-list">${sideHtml}</div></div>`;
+  };
+  const showJournal = () => { const d = onOpenJournal?.(); if (d) renderJournal(d); journal.classList.remove("gh-eq-hidden"); };
+  jbtn.addEventListener("click", (e) => { e.preventDefault(); if (journal.classList.contains("gh-eq-hidden")) showJournal(); else journal.classList.add("gh-eq-hidden"); });
+  (journal.querySelector("#gh-journal-close") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); journal.classList.add("gh-eq-hidden"); });
+  journal.addEventListener("click", (e) => { if (e.target === journal) journal.classList.add("gh-eq-hidden"); });
+
   // disposição "boneco" estilo Path of Exile numa grade 8×6 (célula quadrada):
   // armas altas (2×4) nas laterais; elmo (2×2) no topo; peitoral (2×3) no centro;
   // amuleto/anéis pequenos (1×1) ao redor; luvas/cinto/botas na base.
@@ -1071,8 +1126,12 @@ export function setupControls(
     if (e.code === "KeyC") {
       e.preventDefault();
       toggleEq();
+    } else if (e.code === "KeyJ") {
+      e.preventDefault();
+      if (journal.classList.contains("gh-eq-hidden")) showJournal(); else journal.classList.add("gh-eq-hidden");
     } else if (e.code === "Escape") {
       closeEq();
+      journal.classList.add("gh-eq-hidden");
     }
   });
   // vinheta vermelha ao levar dano
@@ -1616,6 +1675,10 @@ export function setupControls(
     },
     hideDialogue() {
       dlg.style.display = "none";
+    },
+    openJournal(data: JournalData) {
+      renderJournal(data);
+      journal.classList.remove("gh-eq-hidden");
     },
     setHealth(frac: number) {
       const f = Math.max(0, Math.min(1, frac));
@@ -2275,6 +2338,42 @@ function injectStyle() {
   }
   .gh-opt-gear { font-size:26px; line-height:1; color:#2a1e0e; filter:drop-shadow(0 1px 1px rgba(255,235,180,.4)); }
   #gh-opt-btn:active { transform:scale(.94); filter:brightness(1.15); }
+  /* botão do DIÁRIO DE MISSÕES (pergaminho, abaixo da engrenagem) */
+  #gh-journal-btn {
+    position:fixed; left:14px; top:calc(20px + min(230px, 40vw) * 0.424 + 120px); z-index:12; pointer-events:auto;
+    width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0; border:none;
+    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+    filter:drop-shadow(0 2px 7px rgba(0,0,0,.55)); display:flex; align-items:center; justify-content:center;
+  }
+  .gh-journal-ico { font-size:24px; line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.5)); }
+  #gh-journal-btn:active { transform:scale(.94); filter:brightness(1.15); }
+  /* janela do DIÁRIO */
+  #gh-journal { position:fixed; inset:0; z-index:23; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
+  #gh-journal.gh-eq-hidden { display:none; }
+  #gh-journal-win { position:relative; box-sizing:border-box; width:min(560px,94vw); max-height:88vh; overflow-y:auto;
+    border:clamp(20px,3vh,30px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); padding:2px 10px 14px; color:#e8dcc0; }
+  #gh-journal-close { position:absolute; right:8px; top:8px; z-index:9; width:34px; height:34px; border-radius:9px; cursor:pointer;
+    font-size:16px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
+  .gh-jr-title { text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(18px,2.8vh,22px); letter-spacing:3px; color:#f2e4bf; text-shadow:0 2px 5px #000; margin:2px 0 10px; }
+  .gh-jr-sec { margin-bottom:14px; }
+  .gh-jr-sh { font-family:"Cinzel",serif; font-weight:700; font-size:15px; letter-spacing:1.5px; color:#e6b45a; border-bottom:1px solid rgba(201,162,39,.35); padding-bottom:5px; margin-bottom:9px; }
+  .gh-jr-sh small { font-family:"MedievalSharp",serif; font-weight:400; letter-spacing:2px; color:#a8966a; font-size:11px; margin-left:6px; }
+  .gh-jr-list { display:flex; flex-direction:column; gap:8px; }
+  .gh-jr-q { display:flex; gap:11px; align-items:flex-start; padding:9px 11px; border-radius:10px; background:rgba(20,15,9,.5); border:1px solid rgba(201,162,39,.22); }
+  .gh-jr-q.gh-jr-done { opacity:.62; }
+  .gh-jr-q.gh-jr-active { background:rgba(46,36,16,.6); border-color:rgba(230,180,90,.55); }
+  .gh-jr-q.gh-jr-locked { opacity:.5; }
+  .gh-jr-ico { font-size:26px; line-height:1.1; flex:0 0 auto; width:30px; text-align:center; }
+  .gh-jr-txt { flex:1; min-width:0; }
+  .gh-jr-h { font-family:"Cinzel",serif; font-weight:700; font-size:14px; color:#f2e4bf; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .gh-jr-badge { font-family:"MedievalSharp",serif; font-weight:400; font-size:10px; letter-spacing:1px; padding:1px 7px; border-radius:6px; }
+  .gh-jr-b-done { background:rgba(120,150,110,.3); color:#bcd7ac; }
+  .gh-jr-b-active { background:rgba(230,180,90,.28); color:#f2d79a; }
+  .gh-jr-b-available { background:rgba(120,150,200,.28); color:#bcd0ea; }
+  .gh-jr-b-locked { background:rgba(120,120,120,.25); color:#bbb; }
+  .gh-jr-d { font-size:12.5px; line-height:1.4; color:#cdbf9c; margin-top:3px; }
+  .gh-jr-obj { font-size:12.5px; line-height:1.35; color:#f2d79a; margin-top:5px; font-weight:600; }
+  .gh-jr-empty { font-size:13px; color:#a8966a; padding:8px 4px; }
   /* janela de OPÇÕES */
   #gh-opt { position:fixed; inset:0; z-index:23; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
   #gh-opt.gh-eq-hidden { display:none; }
