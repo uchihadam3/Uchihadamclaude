@@ -403,6 +403,40 @@ sprite na mão (a arma principal equipada aparece na mão como a espada de hoje)
 ligo o sistema de equipar. As folhas dos próximos tiers (Cobre, Bronze…) seguem o
 mesmo molde, trocando só o material.
 
+### 🛡️ Armaduras — Early game (Tiers 1–3): 3 folhas, 5 peças cada
+
+As peças que entram nos slots do "boneco" (Elmo, Peitoral, Luvas, Botas, Cinto).
+**Uma folha por tier** com as **5 peças juntas** numa grade **3×2** (última célula
+vazia), na MESMA ordem sempre, pra eu recortar e mapear certinho no slot. Fundo
+**magenta chapado `#ff00ff`**, vista de frente, sem texto/sombra. A **cor da
+raridade** (⚪🔵🟡🟠) eu aplico por código — a folha é só a peça "comum".
+
+> Ordem fixa das células: **(1) Elmo · (2) Peitoral · (3) Luvas · (4) Botas ·
+> (5) Cinto · (6) vazia.** Gere **uma folha por vez** (T1, depois T2, depois T3).
+
+#### Tier 1 — "de Madeira" (nível 1, kit inicial cru: couro + madeira)
+
+```
+Hand-painted stylized-realism game ARMOR ICON SHEET, cohesive with a grim medieval dark-fantasy game. A neat grid of 3 columns by 2 rows holding FIVE separate tier-1 starter armor pieces (the last, sixth cell left empty), evenly spaced with clear empty gaps between them so each can be cut apart, every piece centered in its own cell at a consistent size and identical soft even lighting, each shown FRONT-ON as a clean inventory icon. All five are crude, humble beginner-quality gear made of rough worn leather, frayed rope lashings, coarse cloth and crude wooden/bark plank plates — no shiny metal, nothing ornate, the poorest possible starting kit. One per cell, in this exact order: (1) a simple leather cap or hood helmet, (2) a leather torso vest / breastplate reinforced with lashed wooden planks and rope ties, (3) a pair of leather gloves / hand wraps, (4) a pair of worn leather boots, (5) a wide leather belt with a crude carved wood or bone buckle. Cool desaturated palette, brown leather and pale weathered-wood tones, soft even lighting, no cast shadow, flat straight-on view, no perspective distortion. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, no checker pattern, no gradient, no texture — each piece a crisp separated shape floating on the magenta so it can be cut apart. No text, no numbers, no frames or borders, no watermark. Landscape canvas ~2400x1600.
+```
+
+#### Tier 2 — "de Cobre" (nível 5: couro reforçado com placas de cobre)
+
+```
+Hand-painted stylized-realism game ARMOR ICON SHEET, cohesive with a grim medieval dark-fantasy game. A neat grid of 3 columns by 2 rows holding FIVE separate tier-2 armor pieces (the last, sixth cell left empty), evenly spaced with clear empty gaps between them so each can be cut apart, every piece centered in its own cell at a consistent size and identical soft even lighting, each shown FRONT-ON as a clean inventory icon. All five are rugged low-tier gear: worn leather reinforced with hammered COPPER plates, rivets and studs — a clear step up from plain leather but still crude and battered, warm reddish-copper metal with a dull unpolished sheen. One per cell, in this exact order: (1) a leather helmet capped with a riveted copper dome / brow plate, (2) a leather breastplate faced with hammered copper chest plates and rivets, (3) a pair of leather gloves with copper-studded backs, (4) a pair of leather boots with copper toe caps and shin studs, (5) a leather belt with copper plates and a copper buckle. Cool desaturated palette warmed only by the reddish copper, soft even lighting, no cast shadow, flat straight-on view, no perspective distortion. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, no checker pattern, no gradient, no texture — each piece a crisp separated shape floating on the magenta so it can be cut apart. No text, no numbers, no frames or borders, no watermark. Landscape canvas ~2400x1600.
+```
+
+#### Tier 3 — "de Bronze" (nível 10: placas de bronze fundido sobre couro)
+
+```
+Hand-painted stylized-realism game ARMOR ICON SHEET, cohesive with a grim medieval dark-fantasy game. A neat grid of 3 columns by 2 rows holding FIVE separate tier-3 armor pieces (the last, sixth cell left empty), evenly spaced with clear empty gaps between them so each can be cut apart, every piece centered in its own cell at a consistent size and identical soft even lighting, each shown FRONT-ON as a clean inventory icon. All five are solid early-game gear made of CAST BRONZE plates over dark leather — clearly proper metal armor now, more defined and protective, aged bronze with a faint greenish patina in the crevices, still grim and utilitarian rather than ornate. One per cell, in this exact order: (1) a bronze plate helmet with a nasal guard over a leather liner, (2) a bronze breastplate / cuirass over leather, (3) a pair of bronze plated gauntlets, (4) a pair of bronze greaved boots over leather, (5) a leather belt with a broad cast-bronze plate buckle. Cool desaturated palette with muted greenish-gold bronze tones, soft even lighting, no cast shadow, flat straight-on view, no perspective distortion. Flat SOLID pure magenta background (#ff00ff), single uniform chroma color, no checker pattern, no gradient, no texture — each piece a crisp separated shape floating on the magenta so it can be cut apart. No text, no numbers, no frames or borders, no watermark. Landscape canvas ~2400x1600.
+```
+
+Quando você mandar as 3 folhas, eu recorto as 5 peças de cada, mapeio nos slots
+(Elmo→cabeça, Peitoral→torso, Luvas→mãos, Botas→pés, Cinto→cintura) e ligo o
+sistema de equipar + os atributos. Os tiers seguintes (Ferro, Aço…) usam o mesmo
+molde, só trocando o material.
+
 ---
 
 ## 11 · Botões de controle (HUD)

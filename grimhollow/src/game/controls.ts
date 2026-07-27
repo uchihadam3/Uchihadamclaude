@@ -473,6 +473,18 @@ export function setupControls(
   const hpFill = hudWrap.querySelector(".gh-hud-hp-fill") as HTMLElement;
   const mpFill = hudWrap.querySelector(".gh-hud-mp-fill") as HTMLElement;
 
+  // ---- BARRA DE XP: faixa BEM FINA na base da tela, de ponta a ponta, que enche
+  // conforme o XP do nível atual. Um pequeno "Nv X" na ponta esquerda. ----
+  const xpbar = document.createElement("div");
+  xpbar.id = "gh-xpbar";
+  xpbar.innerHTML = '<div id="gh-xpbar-fill"></div>';
+  root.appendChild(xpbar);
+  const xpFill = xpbar.querySelector("#gh-xpbar-fill") as HTMLElement;
+  const setXp = (level: number, xp: number, xpMax: number) => {
+    const frac = xpMax > 0 ? Math.max(0, Math.min(1, xp / xpMax)) : (level >= 100 ? 1 : 0);
+    xpFill.style.width = (frac * 100).toFixed(2) + "%";
+  };
+
   // ---- MAPA (canto superior direito): moldura + canvas do minimapa (zoom) ----
   const mapWrap = document.createElement("div");
   mapWrap.id = "gh-map";
@@ -1833,6 +1845,7 @@ export function setupControls(
     },
     setStats(s: CharStats) {
       if (goldVal) goldVal.textContent = `${s.gold}`;
+      setXp(s.level, s.xp, s.xpMax); // barra de XP fina na base da tela
       const xpFrac = s.xpMax > 0 ? Math.max(0, Math.min(1, s.xp / s.xpMax)) : 0;
       // linha de PRIMÁRIO com +/- (distribuição em jogo, 3 pontos por nível)
       const prim = (label: string, key: string, v: number, min: number) => {
@@ -2454,7 +2467,7 @@ function injectStyle() {
   .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
   .gh-preplay #gh-tracker, .gh-preplay #gh-actbar, .gh-preplay #gh-tray,
   .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
-  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk,
+  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk, .gh-preplay #gh-xpbar,
   .gh-preplay .gh-move, .gh-preplay .gh-act, .gh-preplay .gh-atk {
     opacity:0 !important; pointer-events:none !important;
   }
@@ -2463,7 +2476,7 @@ function injectStyle() {
   .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
   .gh-revealing #gh-tracker, .gh-revealing #gh-actbar, .gh-revealing #gh-tray,
   .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,
-  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk,
+  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk, .gh-revealing #gh-xpbar,
   .gh-revealing .gh-move, .gh-revealing .gh-act, .gh-revealing .gh-atk {
     animation:gh-hud-in .55s ease both;
   }
@@ -2511,6 +2524,18 @@ function injectStyle() {
   }
   .gh-hud-hp-fill { background:linear-gradient(#e35d4c,#b3241a); }
   .gh-hud-mp-fill { background:linear-gradient(#57b0e8,#1c5fb3); }
+  /* BARRA DE XP: fininha, colada na base da tela, de ponta a ponta */
+  #gh-xpbar {
+    position:fixed; left:0; right:0; bottom:0; height:6px; z-index:13; pointer-events:none;
+    background:rgba(8,6,4,.7); border-top:1px solid rgba(201,162,39,.32);
+    box-shadow:0 -1px 4px rgba(0,0,0,.45);
+  }
+  #gh-xpbar-fill {
+    height:100%; width:0%;
+    background:linear-gradient(90deg,#a9741f,#f4d074 62%,#fff2cc);
+    box-shadow:0 0 8px rgba(244,208,116,.55);
+    transition:width .35s ease;
+  }
 
   /* botão de abrir a janela de personagem — no lado ESQUERDO, logo abaixo da placa
      de vida/mana (o canto superior direito fica livre p/ o mapa). */
