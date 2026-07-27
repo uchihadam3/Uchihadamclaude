@@ -136,8 +136,14 @@ export interface CharStats {
   evasion: number; // %
 }
 
-// botão de escolha num diálogo (aceitar/recusar missão, escolher recompensa…)
-export interface DialogueChoice { id: string; label: string; primary?: boolean; }
+// opção num menu de diálogo (estilo WoW): rótulo + nota curta + tipo (p/ estilo)
+export interface DialogueChoice {
+  id: string;
+  label: string;
+  primary?: boolean;
+  note?: string;                              // chip curto à direita (ex.: "nova missão")
+  kind?: "quest" | "shop" | "exit" | "back";  // estilo do botão
+}
 
 export interface HUD {
   setPrompt(text: string | null): void;
@@ -1705,13 +1711,20 @@ export function setupControls(
         dlgPortrait.removeAttribute("src");
         dlgPortrait.style.display = "none";
       }
-      // botões de escolha (aceitar/recusar de missão, etc.) — só na página final
+      // botões de escolha — só na página final. Com >2 opções vira MENU vertical
+      // (estilo WoW): rótulo à esquerda + nota curta à direita, tipos com cor.
       if (choices && choices.length) {
         dlg.dataset.choices = "1";
         dlgHint.style.display = "none";
         dlgChoices.style.display = "flex";
+        dlgChoices.className = "gh-dlg-choices" + (choices.length > 2 ? " gh-dlg-menu" : "");
         dlgChoices.innerHTML = choices
-          .map((c) => `<button class="gh-dlg-choice${c.primary ? " gh-dlg-choice-on" : ""}" data-cid="${c.id}">${c.label}</button>`)
+          .map((c) => {
+            const k = c.kind ? ` gh-dlg-c-${c.kind}` : "";
+            const note = c.note ? `<span class="gh-dlg-cnote">${c.note}</span>` : "";
+            return `<button class="gh-dlg-choice${c.primary ? " gh-dlg-choice-on" : ""}${k}" data-cid="${c.id}">` +
+              `<span class="gh-dlg-clabel">${c.label}</span>${note}</button>`;
+          })
           .join("");
         dlgChoices.querySelectorAll<HTMLElement>(".gh-dlg-choice").forEach((b) => {
           b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); onDialogueChoice?.(b.dataset.cid!); };
@@ -3144,6 +3157,20 @@ function injectStyle() {
     background:linear-gradient(#2b2218,#160f08); border:2px solid rgba(201,162,39,.5); box-shadow:0 2px 6px #000; }
   .gh-dlg-choice-on { color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-color:#f4d873; text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-dlg-choice:active { transform:translateY(1px); }
+  /* MENU vertical (estilo WoW) quando há mais de 2 opções */
+  .gh-dlg-choices.gh-dlg-menu { flex-direction:column; gap:6px; flex-wrap:nowrap; }
+  .gh-dlg-menu .gh-dlg-choice { width:100%; min-width:0; display:flex; align-items:center; justify-content:space-between;
+    gap:10px; text-align:left; padding:9px 13px; font-size:14px; }
+  .gh-dlg-menu .gh-dlg-clabel { flex:1 1 auto; min-width:0; }
+  .gh-dlg-cnote { flex:0 0 auto; font-family:"MedievalSharp",serif; font-weight:400; letter-spacing:.5px;
+    font-size:11px; color:#12100a; background:rgba(244,216,115,.85); border-radius:6px; padding:1px 7px; }
+  /* tipos: missão (dourado, com selo), loja (âmbar), sair (apagado) */
+  .gh-dlg-menu .gh-dlg-c-quest { color:#f4d883; border-color:rgba(244,216,115,.65); box-shadow:0 0 10px rgba(240,200,90,.16), 0 2px 6px #000; }
+  .gh-dlg-menu .gh-dlg-c-quest .gh-dlg-clabel::before { content:"❕ "; color:#ffd873; }
+  .gh-dlg-menu .gh-dlg-c-shop .gh-dlg-clabel::before { content:"🛒 "; }
+  .gh-dlg-menu .gh-dlg-c-exit { color:#a2957a; border-color:rgba(150,140,110,.4); }
+  .gh-dlg-menu .gh-dlg-c-exit .gh-dlg-clabel::before { content:"↩ "; }
+  .gh-dlg-menu .gh-dlg-c-back .gh-dlg-clabel::before { content:"◂ "; }
   @media (min-width: 900px) {
     .gh-btn { opacity:0.75; }
     .gh-act { opacity:0.5; }

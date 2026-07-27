@@ -373,6 +373,15 @@ interface MQStep {
   items?: [string, number][];        // deliver: itens exigidos
   location?: string;                 // enter: id do local (ex.: "showcase")
 }
+// opção do menu de conversa (estilo WoW)
+interface ConvOption {
+  id: string;
+  label: string;
+  note?: string;
+  primary?: boolean;
+  kind?: "quest" | "shop" | "exit" | "back";
+  run: () => void;
+}
 interface MainQuestDef {
   id: string;
   order: number;                     // ordem do capítulo (1..N)
@@ -2173,83 +2182,119 @@ export class Game {
     if (st.step >= def.steps.length) this.mqComplete(def);
     else this.mqObjectiveToast(def);
   }
-  // FALAR com um NPC no contexto da main quest. Retorna true se abriu diálogo
-  // próprio (oferta/etapa/lembrete); false p/ cair no diálogo comum do NPC.
-  private mainQuestTalk(name: string, portrait: string | null): boolean {
-    // 1) cumprir a ETAPA atual, se o alvo é este NPC (talk/deliver)
-    const act = this.mqActive();
-    if (act) {
-      const st = this.mainQuests[act.id];
-      const step = act.steps[st.step];
-      if (step && step.target && name.includes(step.target)) {
-        if (step.kind === "talk") {
-          this.openDialogue(name, step.atLines ?? ["…"], portrait, {
-            onClose: () => { this.mqAdvance(act); this.mainQuestOfferAt(name, portrait); },
-          });
-          return true;
-        }
-        if (step.kind === "deliver") {
-          const missing = (step.items ?? []).filter(([gid, n]) => this.goodHave(gid) < n);
-          if (missing.length) {
-            const need = (step.items ?? []).map(([gid, n]) => `${n}× ${GOODS_BY_ID[gid]?.name ?? gid}`).join(" e ");
-            this.openDialogue(name, [`Ainda não trouxe o que preciso. Volte com ${need}.`], portrait);
-            return true;
-          }
-          for (const [gid, n] of step.items ?? []) this.goodAdd(gid, -n);
-          this.refreshConsumables();
-          this.openDialogue(name, step.atLines ?? ["Obrigado."], portrait, {
-            onClose: () => { this.mqAdvance(act); this.mainQuestOfferAt(name, portrait); },
-          });
-          return true;
-        }
-      }
-      // giver do capítulo ativo, mas o objetivo é em outro lugar → lembrete
-      if (act.giver && name.includes(act.giver) && act.active?.length) {
-        this.openDialogue(name, act.active, portrait);
-        return true;
+  // ===================== CONVERSA COM NPC (estilo WoW) =====================
+  // saudação + FAREWELL por NPC (por substring do nome); genérico se não houver
+  private greetingFor(name: string): string {
+    if (name.includes("Hedda")) return "Sente-se, criança — o fogo está aceso. Do que deseja falar?";
+    if (name.includes("Anselmo")) return "Que a luz o acompanhe nas trevas, viajante. Diga.";
+    if (name.includes("Rosa")) return "Bem-vindo ao meu empório. No que posso servir?";
+    if (name.includes("Isolde")) return "Procurando algo para as profundezas? Fale.";
+    if (name.includes("Brandt")) return "O aço não se tempera sozinho. Diga o que precisa.";
+    if (name.includes("Bruno")) return "Sente-se, forasteiro. O que vai ser?";
+    return "Sim, viajante? Diga.";
+  }
+  private farewellFor(name: string): string {
+    if (name.includes("Hedda")) return "Vá com cuidado, criança. E volte inteiro.";
+    if (name.includes("Anselmo")) return "Que a luz o guarde lá embaixo.";
+    if (name.includes("Bruno")) return "Volte sempre — e traga histórias!";
+    return "Até logo, viajante.";
+  }
+  private shopVerb(shop: "store" | "tavern" | "smith" | "alchemist"): string {
+    return shop === "store" ? "Ver a mercadoria"
+      : shop === "alchemist" ? "Ver poções e materiais"
+        : shop === "smith" ? "Abrir a forja (aprimorar)"
+          : "Beber e ver o mural";
+  }
+  private openShopWindow(shop: "store" | "tavern" | "smith" | "alchemist") {
+    if (shop === "smith") this.ui.openSmith(this.buildSmithData());
+    else if (shop === "store") { this.shopVendor = "store"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); }
+    else if (shop === "alchemist") { this.shopVendor = "alchemist"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); }
+    else this.ui.openTavern(this.buildTavernData());
+  }
+  // abre um "nó" de conversa: fala do NPC + menu de opções (na última página)
+  private openConvNode(name: string, portrait: string | null, lines: string[], opts: ConvOption[]) {
+    this.openDialogue(name, lines, portrait, {
+      choices: opts.map((o) => ({ id: o.id, label: o.label, note: o.note, primary: o.primary, kind: o.kind })),
+      onChoice: (id) => { const o = opts.find((x) => x.id === id); if (o) o.run(); },
+    });
+  }
+  // ENTRA na conversa com um NPC: monta a saudação + o menu conforme o estado das
+  // missões e se ele é atendente de loja. É o coração do sistema robusto.
+  private talkNpc(name: string, portrait: string | null, shop?: "store" | "tavern" | "smith" | "alchemist", gossip?: string[]) {
+    // saudação: normalmente a genérica do NPC; no TOUR, a apresentação do tour
+    let greet = [this.greetingFor(name)];
+    if (shop) {
+      const act = this.mqActive();
+      const step = act ? act.steps[this.mainQuests[act.id].step] : null;
+      if (act && step && step.kind === "visit" && step.shop === shop) {
+        greet = step.atLines ?? greet;   // fala de apresentação (1ª visita do tour)
+        this.mqAdvance(act);             // conversar já cumpre a etapa "visit"
       }
     }
-    // 2) OFERECER um capítulo disponível deste NPC
-    return this.mainQuestOfferAt(name, portrait);
-  }
-  // se este NPC oferece um capítulo disponível, abre a oferta com aceitar/recusar
-  private mainQuestOfferAt(name: string, portrait: string | null): boolean {
+    const root = () => this.talkNpc(name, portrait, shop, gossip); // usado por "Voltar"
+    const opts: ConvOption[] = [];
+    // 1) LOJA
+    if (shop) opts.push({ id: "shop", kind: "shop", label: this.shopVerb(shop), run: () => { this.closeDialogue(); this.openShopWindow(shop); } });
+    // 2) TÓPICOS DA MAIN QUEST relevantes a este NPC
     for (const def of MAIN_QUESTS) {
       const st = this.mainQuests[def.id];
-      if (!st || st.status !== "available" || !def.giver || !name.includes(def.giver)) continue;
-      this.openDialogue(name, def.offer, portrait, {
-        choices: [
-          { id: "mq_accept", label: "Aceitar", primary: true },
-          { id: "mq_decline", label: "Agora não" },
-        ],
-        onChoice: (cid) => {
-          if (cid === "mq_accept") {
-            st.status = "active"; st.step = 0; st.progress = 0;
-            this.closeDialogue();
-            this.ui.toast(`◈ Missão aceita: ${def.title}`);
-            this.mqObjectiveToast(def);
-          } else {
-            this.closeDialogue();
-          }
-        },
-      });
-      return true;
+      if (!st) continue;
+      if (st.status === "available" && def.giver && name.includes(def.giver)) {
+        opts.push({ id: "mq:" + def.id, kind: "quest", primary: true, label: `Falar sobre — ${def.title}`, note: "nova missão", run: () => this.convQuestOffer(def, name, portrait, root) });
+      } else if (st.status === "active") {
+        const step = def.steps[st.step];
+        if (step && step.target && name.includes(step.target) && (step.kind === "talk" || step.kind === "deliver")) {
+          opts.push({ id: "mq:" + def.id, kind: "quest", primary: true, label: `Sobre — ${def.title}`, note: "em andamento", run: () => this.convQuestStep(def, name, portrait, root) });
+        } else if (def.giver && name.includes(def.giver) && def.active?.length) {
+          opts.push({ id: "mq:" + def.id, kind: "quest", label: `Sobre — ${def.title}`, note: "em andamento", run: () => this.openConvNode(name, portrait, def.active!, [{ id: "back", kind: "back", label: "Voltar", run: root }]) });
+        }
+      }
     }
-    return false;
+    // 2b) ENTREGA de missão secundária ativa endereçada a este NPC
+    for (const def of QUEST_DEFS) {
+      if (def.kind === "delivery" && def.target && name.includes(def.target) && this.quests[def.id]?.status === "active") {
+        opts.push({ id: "sq:" + def.id, kind: "quest", label: `Entregar — ${def.title}`, note: "encomenda", run: () => {
+          const thanks = this.deliverTo(name);
+          this.openConvNode(name, portrait, thanks ? [thanks] : ["Obrigado, viajante."], [{ id: "back", kind: "back", label: "Voltar", run: root }]);
+        } });
+      }
+    }
+    // 3) CONVERSAR (sabor) — mostra as falas comuns do NPC
+    if (gossip?.length) opts.push({ id: "gossip", label: "Conversar", run: () => this.openConvNode(name, portrait, gossip, [{ id: "back", kind: "back", label: "Voltar", run: root }]) });
+    // 4) SAIR
+    opts.push({ id: "exit", kind: "exit", label: "Sair", run: () => this.openDialogue(name, [this.farewellFor(name)], portrait) });
+
+    // NPC de fundo (sem loja e sem missão): só a fala simples, sem menu
+    const hasMenu = !!shop || opts.some((o) => o.kind === "quest");
+    if (!hasMenu) { this.openDialogue(name, gossip?.length ? gossip : greet, portrait); return; }
+    this.openConvNode(name, portrait, greet, opts);
   }
-  // visitou uma loja no TOUR inicial: o NPC se apresenta (fala própria) e, ao
-  // fechar, a missão avança e a janela da loja abre. Retorna true se tratou
-  // (mostrou a fala + adiou a abertura da loja); false p/ abrir a loja direto.
-  private mainQuestVisit(shop: "store" | "tavern" | "smith" | "alchemist", portrait: string, openShop: () => void): boolean {
-    const act = this.mqActive();
-    if (!act) return false;
-    const st = this.mainQuests[act.id];
-    const step = act.steps[st.step];
-    if (!step || step.kind !== "visit" || step.shop !== shop) return false;
-    this.openDialogue(ESTAB[shop].npc, step.atLines ?? ["…"], portrait, {
-      onClose: () => { this.mqAdvance(act); openShop(); },
-    });
-    return true;
+  // TÓPICO: oferta de um capítulo (descreve + Aceitar/Agora não)
+  private convQuestOffer(def: MainQuestDef, name: string, portrait: string | null, root: () => void) {
+    this.openConvNode(name, portrait, def.offer, [
+      { id: "accept", kind: "quest", primary: true, label: "Aceitar a missão", run: () => {
+        const st = this.mainQuests[def.id]; st.status = "active"; st.step = 0; st.progress = 0;
+        this.ui.toast(`◈ Missão aceita: ${def.title}`); this.mqObjectiveToast(def); root();
+      } },
+      { id: "back", kind: "back", label: "Agora não", run: root },
+    ]);
+  }
+  // TÓPICO: etapa ativa cujo alvo é este NPC (talk/deliver) — cumpre ao conversar
+  private convQuestStep(def: MainQuestDef, name: string, portrait: string | null, root: () => void) {
+    const st = this.mainQuests[def.id];
+    const step = def.steps[st.step];
+    if (step.kind === "deliver") {
+      const missing = (step.items ?? []).filter(([gid, n]) => this.goodHave(gid) < n);
+      if (missing.length) {
+        const need = (step.items ?? []).map(([gid, n]) => `${n}× ${GOODS_BY_ID[gid]?.name ?? gid}`).join(" e ");
+        this.openConvNode(name, portrait, [`Ainda não trouxe o que preciso. Volte com ${need}.`], [{ id: "back", kind: "back", label: "Voltar", run: root }]);
+        return;
+      }
+      for (const [gid, n] of step.items ?? []) this.goodAdd(gid, -n);
+      this.refreshConsumables();
+    }
+    // fala da etapa; ao fechar, avança o capítulo e reabre o menu (encadeia o próximo)
+    this.openDialogue(name, step.atLines ?? ["…"], portrait, { onClose: () => { this.mqAdvance(def); root(); } });
   }
   // um inimigo abatido: alimenta a etapa "kill" do capítulo ativo
   private mainQuestOnKill() {
@@ -5292,11 +5337,8 @@ export class Game {
       void this.doorTransition(() => this.enterLocation("village", col, row, facing));
     } else if (t.kind === "talk") {
       const portrait = this.portraitFor(t.key); // gera o retrato só ao conversar
-      // 1) MAIN QUEST: oferta/etapa/lembrete com fala própria do NPC
-      if (this.mainQuestTalk(t.name, portrait)) return;
-      // 2) recado de missão secundária (fala de agradecimento), senão fala comum
-      const thanks = this.deliverTo(t.name);
-      this.openDialogue(t.name, thanks ? [thanks] : t.lines, portrait);
+      // CONVERSA estilo WoW: saudação + menu (missões/conversar/sair)
+      this.talkNpc(t.name, portrait, undefined, t.lines);
     } else if (t.kind === "dungeon") {
       // desce à masmorra; guarda o ponto de volta ao vilarejo (usado pela escada U)
       this.returnTo = {
@@ -5321,21 +5363,17 @@ export class Game {
       this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
       this.enterLocation("showcase", 0, 0, 0);
     } else if (t.kind === "smithshop") {
-      // FERREIRO: no tour inicial, o Brandt se apresenta antes de abrir a forja
-      const open = () => this.ui.openSmith(this.buildSmithData());
-      if (!this.mainQuestVisit("smith", ferreiroUrl, open)) open();
+      // FERREIRO: conversa (menu) — "Abrir a forja" + tópicos de missão + Sair
+      this.talkNpc(ESTAB.smith.npc, ferreiroUrl, "smith");
     } else if (t.kind === "storeshop") {
-      // MERCADOR: no tour, a Rosa se apresenta antes de abrir comprar/vender
-      const open = () => { this.shopVendor = "store"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); };
-      if (!this.mainQuestVisit("store", mercadoraUrl, open)) open();
+      // MERCADOR: conversa (menu) — "Ver a mercadoria" + tópicos + Sair
+      this.talkNpc(ESTAB.store.npc, mercadoraUrl, "store");
     } else if (t.kind === "alchshop") {
-      // ALQUIMISTA: no tour, a Isolde se apresenta antes de abrir a loja
-      const open = () => { this.shopVendor = "alchemist"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); };
-      if (!this.mainQuestVisit("alchemist", alquimistaUrl, open)) open();
+      // ALQUIMISTA: conversa (menu)
+      this.talkNpc(ESTAB.alchemist.npc, alquimistaUrl, "alchemist");
     } else if (t.kind === "tavernshop") {
-      // TAVERNA: no tour, o Bruno se apresenta antes de abrir bebidas + mural
-      const open = () => this.ui.openTavern(this.buildTavernData());
-      if (!this.mainQuestVisit("tavern", taverneiroUrl, open)) open();
+      // TAVERNA: conversa (menu) — beber/mural + tópicos + Sair
+      this.talkNpc(ESTAB.tavern.npc, taverneiroUrl, "tavern");
     } else if (t.kind === "stash") {
       // BAÚ DE HEDDA: guarda/retira itens, materiais, armas e ouro
       this.stashMode = "deposit";
