@@ -61,31 +61,14 @@ export function runIntro(root: HTMLElement): Promise<Character> {
         showCreate(overlay, toAlloc, cls.id, name),
       );
 
-    // BOOT (pré-carrega tudo) → "toque para começar" (gesto libera a música) →
-    // ABERTURA (crawl sobe com a trilha e revela o título) → Criação → Atributos.
+    // BOOT (pré-carrega tudo; ao fim, "toque para começar" NA MESMA tela, sobre a
+    // espada forjada — o gesto libera a música) → ABERTURA (crawl → título) → Criação.
     let frac = 0;
     const all = preloadUrls(allAssetUrls(), (f) => (frac = f));
-    showLoading(overlay, () => frac, all, 900, () =>
-      showStart(overlay, () => {
-        startMusic();
-        showOpening(overlay, () => { stopMusic(); showCreate(overlay, toAlloc); });
-      }),
-    );
-  });
-}
-
-// ---------------------------------------- "TOQUE PARA COMEÇAR" (libera o áudio)
-function showStart(overlay: HTMLElement, onBegin: () => void) {
-  overlay.innerHTML = `
-    <div class="gh-screen gh-start"${TITLE_ART ? ` style="background-image:url(${TITLE_ART})"` : ""}>
-      <div class="gh-start-veil"></div>
-      <div class="gh-start-press">toque para começar ▸</div>
-    </div>`;
-  let began = false;
-  overlay.querySelector(".gh-start")!.addEventListener("click", () => {
-    if (began) return;
-    began = true;
-    onBegin();
+    showLoading(overlay, () => frac, all, 900, () => {
+      startMusic();
+      showOpening(overlay, () => { stopMusic(); showCreate(overlay, toAlloc); });
+    });
   });
 }
 
@@ -406,10 +389,20 @@ function showLoading(
     const el = performance.now() - t0;
     if (el < minMs) await new Promise((r) => setTimeout(r, minMs - el));
     cancelAnimationFrame(raf);
-    sword.style.setProperty("--p", "100%");
-    txt.textContent = "Pronto";
-    await new Promise((r) => setTimeout(r, 160));
-    onDone();
+    sword.style.setProperty("--p", "100%"); // espada 100% forjada (fica brilhando)
+    await new Promise((r) => setTimeout(r, 220));
+    // "TOQUE PARA COMEÇAR" na MESMA tela, ACIMA da espada forjada (sem trocar de
+    // tela). O clique é o gesto que libera o áudio p/ a abertura.
+    const corner = overlay.querySelector(".gh-boot-corner") as HTMLElement;
+    txt.remove();
+    const press = document.createElement("div");
+    press.className = "gh-boot-press";
+    press.innerHTML = 'TOQUE PARA COMEÇAR <span class="gh-bp-arrow">▸</span>';
+    corner.insertBefore(press, corner.firstChild); // acima da espada
+    const boot = overlay.querySelector(".gh-boot") as HTMLElement;
+    boot.classList.add("gh-boot-ready");
+    let began = false;
+    boot.addEventListener("click", () => { if (began) return; began = true; onDone(); });
   });
 }
 
@@ -573,20 +566,15 @@ function injectStyle() {
   }
   #gh-intro .gh-open-title.show { opacity:1; pointer-events:auto; }
   #gh-intro .gh-open-title .gh-menu { margin-top:14px; }
-  /* "TOQUE PARA COMEÇAR" (libera o áudio antes da abertura) */
-  #gh-intro .gh-start {
-    background:#0a0b10 center/cover no-repeat; cursor:pointer;
-    justify-content:center; align-items:center;
+  /* "TOQUE PARA COMEÇAR" na tela de loading, acima da espada forjada */
+  #gh-intro .gh-boot-ready { cursor:pointer; }
+  #gh-intro .gh-boot-press {
+    font-family:"Cinzel",serif; font-weight:700; letter-spacing:2.5px; text-align:right;
+    font-size:clamp(13px,1.9vh,17px); color:#f0d68a; margin-bottom:9px;
+    text-shadow:0 2px 6px #000, 0 0 14px rgba(240,200,90,.5);
+    animation:gh-pro-blink 1.4s ease-in-out infinite;
   }
-  #gh-intro .gh-start-veil {
-    position:absolute; inset:0; pointer-events:none;
-    background:radial-gradient(ellipse at 50% 50%, rgba(4,5,9,.35) 0%, rgba(4,5,9,.82) 100%);
-  }
-  #gh-intro .gh-start-press {
-    position:relative; z-index:1; font-family:"Cinzel",serif; font-weight:700; letter-spacing:2px;
-    font-size:clamp(15px,2.6vh,20px); color:#f0d68a; text-shadow:0 2px 8px #000, 0 0 16px rgba(240,200,90,.35);
-    animation:gh-pro-blink 1.6s ease-in-out infinite;
-  }
+  #gh-intro .gh-bp-arrow { color:#f4d074; }
   /* --- criação de personagem --- */
   #gh-intro .gh-create { justify-content:flex-start; gap:9px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   /* fundo (arte da cripta) FIXO atrás da UI + véu p/ o texto ler bem */

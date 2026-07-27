@@ -8,31 +8,24 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 
 ---
 
-## 🎬 Prólogo — arte única do crawl (corte vertical: vilarejo + masmorra)
+## 🎬 Prólogo — arte única do crawl (cidade em cima, névoa/desconhecido embaixo)
 
-**UMA imagem vertical bem ALTA** que sobe devagar por baixo, com o texto subindo
-junto por cima. É a arte do **nosso** mundo — o **vilarejo de Grimhollow** e a
-**masmorra** logo abaixo dele (um "corte"/cutaway vertical). Nada de castelo:
-uma vila humilde na superfície e as profundezas seladas embaixo.
+**UMA imagem vertical bem ALTA**, no **mesmo estilo pintado da arte do menu**.
+No **topo**, só o **vilarejo de Grimhollow** (a cidade — sem castelo nenhum). De
+baixo dele, o mundo se dissolve numa **névoa densa = o desconhecido** (ainda não
+se sabe o que há nas profundezas). Como o scroll sobe de baixo pra cima, ele
+começa na bruma misteriosa e revela a cidade lá em cima.
 
 **Proporção VERTICAL/alta (9:16, ou mais alta se puder) · sem texto/marca
-d'água.** Gere, nomeie **`pro_crawl.png`** e me envie. O scroll sobe **das
-profundezas até a superfície**, então o Portão Selado fica embaixo e o vilarejo
-em cima. É só **Copiar**:
+d'água.** Gere, nomeie **`pro_crawl.png`** e me envie. É só **Copiar**:
 
 ```
-Vertical cutaway cross-section of a small grim medieval town and the dungeon buried beneath it, one continuous tall scene. TOP: the fog-shrouded village of Grimhollow — modest timber-and-stone houses, a muddy market square, a well, a few warm lantern lights, oppressive grey mist, no grand castle. MIDDLE: the ground opens into a worn stone stairway descending into darkness, roots and rubble. BOTTOM: deep underground catacombs lit by torches, and an ancient sealed iron gate covered in faintly glowing runes, wrapped in chains, scattered bones, cold blue-green light leaking from the seal. Warm amber tones on the surface fading to cold torchlit gloom below. grim dark medieval dark-fantasy, painterly digital concept art, extremely tall vertical composition, dramatic atmospheric perspective, volumetric fog, highly detailed, no text, no watermark, 9:16 vertical
+A tall vertical dark-fantasy key-art painting, same grim painterly style as a moody game title screen. TOP THIRD: a small fog-shrouded medieval village of Grimhollow perched at the edge of an abyss — modest timber-and-stone houses, wooden shingled roofs, a few warm orange lantern lights, ravens, oppressive grey sky, humble and lived-in, absolutely NO castle and NO cathedral. Below the village the ground falls away and the entire lower two thirds of the image dissolve into a vast bottomless bank of thick pale swirling mist and darkness — the unknown depths, nothing clearly visible, only churning fog with a faint ominous glow buried far below. Warm amber light at the top fading into cold impenetrable grey fog toward the bottom. grim dark medieval dark-fantasy, painterly digital concept art, extremely tall vertical composition, heavy volumetric fog, mysterious and foreboding, dramatic atmospheric perspective, highly detailed, no text, no watermark, 9:16 vertical
 ```
 
-**Alternativa mais simples** (só o vilarejo, sem o corte subterrâneo) — uma rua
-enevoada subindo, humilde e sombria:
-
-```
-A tall vertical view of a grim, fog-shrouded medieval village street at dusk, humble timber-and-stone houses crowding a narrow muddy lane that climbs uphill, wooden shingled roofs, a few dim orange lanterns and a lit torch, ravens, thick grey mist swallowing the top of the lane, no castle, no cathedral, cozy but ominous, grim dark medieval dark-fantasy, painterly digital concept art, extremely tall vertical composition, atmospheric fog, highly detailed, no text, no watermark, 9:16 vertical
-```
-
-> Dica: quanto **mais alta** a imagem, mais longo e bonito fica o movimento de
-> subida. Escolha uma das duas (ou gere as duas e a gente decide).
+> A ideia: a cidade no alto, e embaixo **só névoa** escondendo o que vem depois —
+> o mistério do que existe lá embaixo. Quanto mais alta a imagem, mais longo e
+> bonito fica o movimento de subida.
 
 ---
 
