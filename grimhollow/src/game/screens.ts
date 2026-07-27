@@ -156,7 +156,7 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
   };
   world.addEventListener("animationend", settle); // fim da subida da câmera
   skip.addEventListener("click", (e) => { e.stopPropagation(); settle(); });
-  timer = window.setTimeout(settle, 23000);       // trava de segurança
+  timer = window.setTimeout(settle, 30000);       // trava de segurança
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
@@ -553,7 +553,7 @@ function injectStyle() {
      que está na cena — imagem E título (logo/menu) — sobe junto, sem fade. */
   #gh-intro .gh-ow {
     position:absolute; left:0; right:0; top:0; width:100%; height:300vh; z-index:0;
-    will-change:transform; animation:gh-ow-rise 20s cubic-bezier(.38,0,.5,1) both;
+    will-change:transform; animation:gh-ow-rise 27s cubic-bezier(.38,0,.5,1) both;
   }
   #gh-intro .gh-ow-scene { position:relative; height:100vh; }
   #gh-intro .gh-ow-img {
@@ -606,7 +606,7 @@ function injectStyle() {
   #gh-intro .gh-crawl-textwrap { position:absolute; inset:0; overflow:hidden; z-index:2; }
   #gh-intro .gh-crawl-text {
     position:absolute; left:0; right:0; margin:0 auto; max-width:680px; padding:0 8vw; text-align:center;
-    will-change:transform; animation:gh-crawl-rise 18s linear both;
+    will-change:transform; animation:gh-crawl-rise 25s linear both;
   }
   /* o bloco de texto sobe da base da tela até sumir no topo */
   @keyframes gh-crawl-rise { from { transform:translateY(98vh); } to { transform:translateY(-165vh); } }

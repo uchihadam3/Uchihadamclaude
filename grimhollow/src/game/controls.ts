@@ -20,7 +20,7 @@ import loadSwordUrl from "../assets/ui/load_sword.png";
 import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
 import clockMoonUrl from "../assets/ui/clock_moon.png";
-import levelupGifUrl from "../assets/ui/levelup.gif";
+import levelupGifUrl from "../assets/ui/levelup.webp";
 import forgeFillUrl from "../assets/audio/forge_fill.mp3";
 import forgeFailUrl from "../assets/audio/forge_fail.mp3";
 import forgeSuccessUrl from "../assets/audio/forge_success.wav";
@@ -2443,20 +2443,23 @@ function injectStyle() {
     text-shadow:0 1px 2px #000;
   }
   /* --- ABERTURA: esconder/revelar o HUD (só a visão do jogador no início) --- */
+  /* IMPORTANTE: NÃO escondemos o #pad inteiro — a caixa de diálogo (#gh-dialogue)
+     e o prompt são filhos dele. Escondendo só os CONTROLES (d-pad/ação/barra), a
+     fala da Hedda continua visível e clicável durante a abertura. */
   .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
   .gh-preplay #gh-tracker, .gh-preplay #gh-actbar, .gh-preplay #gh-tray,
   .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
-  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk, .gh-preplay #pad {
+  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk,
+  .gh-preplay .gh-move, .gh-preplay .gh-act, .gh-preplay .gh-atk {
     opacity:0 !important; pointer-events:none !important;
   }
-  /* os filhos do #pad (d-pad/ação) têm pointer-events:auto próprio — força TODO o
-     subárvore a ignorar toques enquanto escondido (senão botões invisíveis roubam
-     o toque da caixa de diálogo na introdução). */
-  .gh-preplay #pad * { pointer-events:none !important; }
+  /* as zonas de toque do d-pad têm pointer-events próprio — desliga o subárvore */
+  .gh-preplay .gh-move * { pointer-events:none !important; }
   .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
   .gh-revealing #gh-tracker, .gh-revealing #gh-actbar, .gh-revealing #gh-tray,
   .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,
-  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk, .gh-revealing #pad {
+  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk,
+  .gh-revealing .gh-move, .gh-revealing .gh-act, .gh-revealing .gh-atk {
     animation:gh-hud-in .55s ease both;
   }
   @keyframes gh-hud-in { from { opacity:0; } to { opacity:1; } }
@@ -3108,11 +3111,9 @@ function injectStyle() {
   #gh-levelup .gh-lu-gif {
     position:absolute; left:50%; top:50%; transform:translate(-50%,-54%);
     width:min(340px,72vw); height:auto; opacity:0;
+    /* o fundo preto já foi RECORTADO no próprio arquivo (WebP com alfa): só a seta
+       e o brilho aparecem — sem blend/máscara. */
     filter:drop-shadow(0 0 24px rgba(255,190,70,.5));
-    mix-blend-mode:screen; /* fundo preto do GIF sai, só a luz fica */
-    /* esmaece as BORDAS retangulares do GIF (o resíduo do fundo escuro some) */
-    -webkit-mask-image:radial-gradient(ellipse 62% 66% at 50% 52%, #000 52%, rgba(0,0,0,0) 88%);
-    mask-image:radial-gradient(ellipse 62% 66% at 50% 52%, #000 52%, rgba(0,0,0,0) 88%);
   }
   #gh-levelup.gh-lu-on .gh-lu-gif { animation:gh-lu-gif 2.5s ease-out both; }
   @keyframes gh-lu-gif {
