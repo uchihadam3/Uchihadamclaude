@@ -1854,25 +1854,65 @@ export class Game {
     const hayMat = new THREE.MeshLambertMaterial({ map: tex.thatch(3), color: new THREE.Color(0xd8be77) });
     const sackMat = new THREE.MeshLambertMaterial({ color: 0xb2a17d });
     const crate = (s: number) => new THREE.Mesh(new THREE.BoxGeometry(s, s, s), wood);
+    const produceMats = [
+      new THREE.MeshLambertMaterial({ color: 0xa8451f }), // maçãs/tomates
+      new THREE.MeshLambertMaterial({ color: 0xc79a3a }), // abóboras/pães
+      new THREE.MeshLambertMaterial({ color: 0x6f7a3a }), // verduras
+    ];
 
-    // barraca: 4 postes + toldo listrado inclinado + balcão + mercadoria
+    // BARRACA de feira (maior e mais rica): 4 postes + vigas + toldo listrado com
+    // franja + balcão de tábuas + prateleira ao fundo + mercadoria variada.
     const buildStall = () => {
       const g = new THREE.Group();
-      for (const sx of [-0.95, 0.95]) for (const sz of [-0.55, 0.7]) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.8, 0.1), wood2);
-        post.position.set(sx, 0.9, sz); g.add(post);
+      const HW = 1.35, DB = -0.75, DF = 0.95, PH = 2.15; // meia-largura, fundo, frente, altura
+      // 4 postes
+      for (const sx of [-HW, HW]) for (const sz of [DB, DF]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, PH, 0.14), wood2);
+        post.position.set(sx, PH / 2, sz); g.add(post);
       }
+      // vigas de topo (frente + fundo) ligando os postes
+      for (const sz of [DB, DF]) {
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 + 0.14, 0.12, 0.12), wood2);
+        beam.position.set(0, PH, sz); g.add(beam);
+      }
+      // TOLDO listrado (7 faixas), inclinado p/ a frente, cobrindo além dos postes
       const awn = new THREE.Group();
-      awn.position.set(0, 1.82, 0.1); awn.rotation.x = -0.34; // inclina p/ a frente
-      for (let i = 0; i < 5; i++) {
-        const st = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 1.5), i % 2 ? cloth1 : cloth2);
-        st.position.set(-0.84 + i * 0.42, 0, 0); awn.add(st);
+      awn.position.set(0, PH + 0.14, 0.15); awn.rotation.x = -0.36;
+      const stripeW = (HW * 2 + 0.5) / 7, awnLen = 2.05;
+      for (let i = 0; i < 7; i++) {
+        const st = new THREE.Mesh(new THREE.BoxGeometry(stripeW + 0.01, 0.05, awnLen), i % 2 ? cloth1 : cloth2);
+        st.position.set(-(HW + 0.25) + stripeW * (i + 0.5), 0, 0); awn.add(st);
       }
       g.add(awn);
-      const counter = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 0.55), wood);
-      counter.position.set(0, 0.38, 0.62); g.add(counter);
-      const c1 = crate(0.4); c1.position.set(-0.6, 0.95, 0.62); g.add(c1);
-      const c2 = crate(0.34); c2.position.set(0.55, 0.92, 0.62); c2.rotation.y = 0.4; g.add(c2);
+      // FRANJA/babado na beira frontal do toldo (dá o ar de feira)
+      for (let i = 0; i < 9; i++) {
+        const f = new THREE.Mesh(new THREE.BoxGeometry((HW * 2 + 0.4) / 9 + 0.005, 0.2, 0.04), i % 2 ? cloth2 : cloth1);
+        f.position.set(-(HW + 0.18) + ((HW * 2 + 0.4) / 9) * (i + 0.5), PH + 0.42, DF + 0.42);
+        g.add(f);
+      }
+      // BALCÃO (tampo + frente de tábuas)
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 + 0.2, 0.16, 0.7), wood);
+      counter.position.set(0, 0.92, DF - 0.05); g.add(counter);
+      const apron = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 + 0.2, 0.86, 0.08), wood2);
+      apron.position.set(0, 0.45, DF + 0.28); g.add(apron);
+      // PRATELEIRA ao fundo com sacos
+      const shelf = new THREE.Mesh(new THREE.BoxGeometry(HW * 2, 0.1, 0.34), wood);
+      shelf.position.set(0, 1.35, DB + 0.2); g.add(shelf);
+      for (const x of [-0.7, 0.05, 0.75]) {
+        const sk = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), sackMat);
+        sk.scale.set(1, 1.25, 1); sk.position.set(x, 1.65, DB + 0.2); g.add(sk);
+      }
+      // MERCADORIA no balcão: caixotes + montinhos de "frutas" + um saco
+      const c1 = crate(0.42); c1.position.set(-HW + 0.45, 1.21, DF - 0.05); g.add(c1);
+      const c2 = crate(0.34); c2.position.set(HW - 0.4, 1.17, DF - 0.02); c2.rotation.y = 0.4; g.add(c2);
+      // pirâmide de frutas dentro do 1º caixote
+      let k = 0;
+      for (const [dx, dz] of [[-0.12, -0.1], [0.12, -0.1], [0, 0.12], [0, 0]] as [number, number][]) {
+        const fr = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), produceMats[k % 3]);
+        fr.position.set(-HW + 0.45 + dx, 1.46 + (k === 3 ? 0.08 : 0), DF - 0.05 + dz); g.add(fr); k++;
+      }
+      const sk2 = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), sackMat);
+      sk2.scale.set(1, 1.2, 1); sk2.position.set(0.15, 1.16, DF - 0.02); g.add(sk2);
       return g;
     };
     // pilha de caixotes
@@ -1911,9 +1951,11 @@ export class Game {
       this.world.add(g);
       this.blocked.add(`${c},${r}`);
     };
-    place(4, 6, 0, 1, buildStall());    // barraca na borda norte (abre p/ a praça)
-    place(10, 12, 0, -1, buildStall());  // barraca na borda sul
-    place(12, 8, -1, 0, buildCrates());  // caixotes na parede leste
+    // células escolhidas p/ NÃO ter poste de rua bem à frente (senão a lanterna
+    // corta a barraca no meio). Postes ficam em (4,7)(10,7)(4,11)(10,11)(7,8)…
+    place(6, 6, 0, 1, buildStall());     // barraca na borda norte (abre p/ a praça)
+    place(8, 12, 0, -1, buildStall());   // barraca na borda sul
+    place(12, 7, -1, 0, buildCrates());  // caixotes na parede leste
     place(2, 12, 1, 0, buildHay());      // feno no canto sudoeste
     place(5, 12, 0, -1, buildSacks());   // sacos na borda sul
     place(11, 12, 0, -1, buildCrates()); // caixotes na borda sul-leste
