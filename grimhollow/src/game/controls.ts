@@ -1,6 +1,7 @@
 import { MOVE_MS } from "./config";
 import { STYLES, REST, type Weapon, type Pose } from "./weapons";
 import { SKILL_TREES, STAT_META, PASSIVE_ICON, type Skill } from "./skills";
+import { CLASS_BY_ID } from "./classes";
 import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
@@ -139,6 +140,8 @@ export interface CharStats {
   precision: number; // %
   magRes: number;
   evasion: number; // %
+  regen: number; // regeneração de vida (HP/s)
+  classId: string; // classe (p/ retrato/nome no painel de atributos)
 }
 
 // opção num menu de diálogo (estilo WoW): rótulo + nota curta + tipo (p/ estilo)
@@ -1859,35 +1862,47 @@ export function setupControls(
           `<button class="gh-pm" data-attr="${key}" data-d="1"${plus}>＋</button>` +
           `</span></div>`;
       };
-      const sr = (label: string, val: string | number) =>
-        `<div class="gh-sec-row"><span>${label}</span><b>${val}</b></div>`;
+      const sr = (label: string, val: string | number, hint = "") =>
+        `<div class="gh-sr"${hint ? ` title="${hint}"` : ""}><span>${label}</span><b>${val}</b></div>`;
+      const cls = CLASS_BY_ID[s.classId];
+      const portrait = cls?.portrait ?? "";
       eqStats.innerHTML =
-        `<div class="gh-eq-lvl">Nível ${s.level}` +
-        `<div class="gh-xp"><div class="gh-xp-fill" style="width:${xpFrac * 100}%"></div></div></div>` +
-        `<div class="gh-alloc-pts${s.points > 0 ? " gh-pts-on" : ""}">Pontos a distribuir: <b>${s.points}</b></div>` +
-        '<div class="gh-prim-box">' +
-        prim("Força", "str", s.str, s.strMin) +
-        prim("Destreza", "dex", s.dex, s.dexMin) +
-        prim("Inteligência", "int", s.int, s.intMin) +
-        "</div>" +
-        '<div class="gh-sec-blocks">' +
-        '<div class="gh-sec-col"><h4>⚔️ Ofensivo</h4>' +
-        sr("Atq. Físico", s.atk) +
-        sr("Atq. Mágico", s.atkMag) +
-        sr("Crítico", s.crit + "%") +
-        sr("Dano Crít.", s.critDmg + "%") +
-        sr("Precisão", s.precision + "%") +
-        "</div>" +
-        '<div class="gh-sec-col"><h4>🛡️ Defensivo</h4>' +
-        sr("Vida", `${s.hp}/${s.hpMax}`) +
-        sr("Defesa", s.def) +
-        sr("Res. Mágica", s.magRes) +
-        sr("Evasão", s.evasion + "%") +
-        "</div>" +
-        '<div class="gh-sec-col"><h4>🔷 Recursos</h4>' +
-        sr("Mana", `${s.mp}/${s.mpMax}`) +
-        sr("Ouro", s.gold) +
-        "</div>" +
+        '<div class="gh-st2">' +
+          // cabeçalho: RETRATO da classe (emoldurado) + classe/nível/XP
+          '<div class="gh-st2-head">' +
+            (portrait ? `<div class="gh-st2-portr"><img src="${portrait}" alt=""/></div>` : "") +
+            '<div class="gh-st2-id">' +
+              `<div class="gh-st2-cls">${cls?.name ?? "Herói"}</div>` +
+              `<div class="gh-st2-lvl">Nível <b>${s.level}</b></div>` +
+              `<div class="gh-st2-xp"><i style="width:${(xpFrac * 100).toFixed(1)}%"></i></div>` +
+              `<div class="gh-st2-xptxt">${s.xp} / ${s.xpMax} XP</div>` +
+            "</div>" +
+          "</div>" +
+          // atributos primários (com +/-)
+          '<div class="gh-st2-panel gh-st2-prim">' +
+            `<div class="gh-st2-ph">Atributos<span class="gh-st2-pts${s.points > 0 ? " on" : ""}">${s.points} ${s.points === 1 ? "ponto" : "pontos"}</span></div>` +
+            prim("Força", "str", s.str, s.strMin) +
+            prim("Destreza", "dex", s.dex, s.dexMin) +
+            prim("Inteligência", "int", s.int, s.intMin) +
+          "</div>" +
+          // secundários em 3 blocos emoldurados
+          '<div class="gh-st2-secs">' +
+            '<div class="gh-st2-panel gh-st2-sec"><h5>⚔️ Ofensivo</h5>' +
+              sr("Atq. Físico", s.atk) + sr("Atq. Mágico", s.atkMag) +
+              sr("Crítico", s.crit + "%", "Chance de acerto crítico") +
+              sr("Dano Crít.", s.critDmg + "%", "Multiplicador do crítico") +
+              sr("Precisão", s.precision + "%", "Acerto vs. Evasão do alvo") +
+            "</div>" +
+            '<div class="gh-st2-panel gh-st2-sec"><h5>🛡️ Defensivo</h5>' +
+              sr("Vida", `${s.hp}/${s.hpMax}`) +
+              sr("Regen.", `${s.regen}/s`, "Regeneração de vida por segundo") +
+              sr("Defesa", s.def) + sr("Res. Mágica", s.magRes) +
+              sr("Evasão", s.evasion + "%", "Chance de esquivar") +
+            "</div>" +
+            '<div class="gh-st2-panel gh-st2-sec"><h5>🔷 Recursos</h5>' +
+              sr("Mana", `${s.mp}/${s.mpMax}`) + sr("Ouro", s.gold) +
+            "</div>" +
+          "</div>" +
         "</div>";
     },
     flashDamage() {
@@ -3051,6 +3066,65 @@ function injectStyle() {
   .gh-sec-row { display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
   .gh-sec-row span { color:#bfae82; }
   .gh-sec-row b { color:#f0e6cc; font-weight:600; }
+  /* ===================== ABA ATRIBUTOS (redesenhada) ===================== */
+  .gh-st2 { display:flex; flex-direction:column; gap:9px; }
+  /* CABEÇALHO — retrato da classe (emoldurado) + classe/nível/XP, num banner ornado */
+  .gh-st2-head {
+    display:flex; gap:12px; align-items:stretch;
+    border:16px solid transparent; border-image:url(${eqFrameUrl}) 90 fill;
+    padding:4px 8px;
+  }
+  .gh-st2-portr {
+    flex:0 0 auto; width:clamp(64px,12vh,86px); aspect-ratio:3/4; border-radius:7px; overflow:hidden;
+    border:2px solid rgba(201,162,39,.65);
+    box-shadow:0 2px 7px rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.5);
+    background:rgba(8,7,5,.6);
+  }
+  .gh-st2-portr img { width:100%; height:100%; object-fit:cover; object-position:top center; display:block; }
+  .gh-st2-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:3px; }
+  .gh-st2-cls {
+    font-family:"Cinzel",serif; font-weight:800; letter-spacing:.5px;
+    font-size:clamp(17px,3vh,24px); color:#f4dc92; text-shadow:0 2px 5px #000, 0 0 16px rgba(220,160,60,.25);
+  }
+  .gh-st2-lvl { font-size:clamp(12px,1.8vh,15px); color:#cdbd90; }
+  .gh-st2-lvl b { color:#ffe6a6; font-family:"Cinzel",serif; }
+  .gh-st2-xp {
+    height:9px; border-radius:6px; overflow:hidden; margin-top:3px;
+    background:rgba(0,0,0,.55); border:1px solid rgba(201,162,39,.45);
+  }
+  .gh-st2-xp i { display:block; height:100%; background:linear-gradient(90deg,#a9741f,#f4d074 65%,#fff2cc); box-shadow:0 0 6px rgba(244,208,116,.5); }
+  .gh-st2-xptxt { font-size:10.5px; color:#b1a279; text-align:right; font-variant-numeric:tabular-nums; }
+  /* PAINÉIS limpos (fundo pergaminho escuro + fio dourado + sombra interna) */
+  .gh-st2-panel {
+    background:linear-gradient(180deg, rgba(34,27,17,.62), rgba(18,14,9,.62));
+    border:1px solid rgba(201,162,39,.32); border-radius:9px; padding:8px 11px;
+    box-shadow:inset 0 0 16px rgba(0,0,0,.42), 0 1px 3px rgba(0,0,0,.4);
+  }
+  .gh-st2-ph {
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2vh,16px); color:#eccf82;
+    border-bottom:1px solid rgba(201,162,39,.25); padding-bottom:5px; margin-bottom:6px;
+  }
+  .gh-st2-pts {
+    font-family:"MedievalSharp",serif; font-size:11px; color:#8f8262; padding:2px 9px; border-radius:9px;
+    background:rgba(0,0,0,.32); border:1px solid rgba(201,162,39,.25);
+  }
+  .gh-st2-pts.on { color:#12100a; background:linear-gradient(#f4d074,#c9922a); border-color:#f4d873; text-shadow:0 1px 0 rgba(255,240,200,.5); box-shadow:0 0 9px rgba(240,200,90,.55); }
+  .gh-st2-prim { display:flex; flex-direction:column; gap:5px; }
+  .gh-st2-secs { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .gh-st2-sec:last-child { grid-column:1 / -1; }
+  .gh-st2-sec h5 {
+    margin:0 0 5px; font-family:"Cinzel",serif; font-weight:700; letter-spacing:.5px;
+    font-size:clamp(12px,1.8vh,15px); color:#e8d199;
+    border-bottom:1px solid rgba(201,162,39,.22); padding-bottom:3px;
+  }
+  .gh-sr {
+    display:flex; justify-content:space-between; gap:8px; padding:3px 0;
+    font-size:clamp(11px,1.6vh,13.5px); border-bottom:1px dashed rgba(201,162,39,.1);
+  }
+  .gh-sr:last-child { border-bottom:0; }
+  .gh-sr span { color:#c2b184; }
+  .gh-sr b { color:#f5ead0; font-weight:700; font-variant-numeric:tabular-nums; }
   /* --- dano flutuante (números que sobem sobre a cena) --- */
   #gh-float { position:fixed; inset:0; pointer-events:none; z-index:11; overflow:hidden; }
   .gh-float-n {

@@ -20,6 +20,7 @@ export interface Secondaries {
   magRes: number; // Resistência Mágica
   evasion: number; // Evasão (%)      → chance de dar Miss no atacante
   mp: number; // Mana
+  regen: number; // Regeneração de Vida (HP por segundo) — baixa de propósito
 }
 
 export const START_POINTS = 5; // pontos livres pra distribuir na CRIAÇÃO
@@ -40,5 +41,8 @@ export function derive(p: Primaries, baseHp: number, baseMp: number): Secondarie
     magRes: Math.round(p.int * 0.5),
     evasion: Math.round(2 + p.dex * 0.7),
     mp: baseMp + p.int * 3,
+    // regeneração BEM baixa: um fiapo de vida por segundo (+ leve escala com FOR).
+    // números pequenos de propósito — cura lenta fora de combate, sem substituir poção.
+    regen: Math.round((0.4 + p.str * 0.08) * 10) / 10,
   };
 }

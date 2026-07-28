@@ -924,6 +924,8 @@ export class Game {
   private playerHp = 100;
   private playerMaxMp = 100;
   private playerMp = 100;
+  private hpRegenAcc = 0;   // acumula a fração de vida regenerada até completar 1 HP
+  private lastNow = -1;     // timestamp do quadro anterior (p/ dt da regeneração)
   // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
   private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
   // FERREIRO: nível de reforço (+N) por arma + materiais + item selecionado na janela
@@ -3147,6 +3149,8 @@ export class Game {
       precision: this.sec.precision,
       magRes: this.sec.magRes,
       evasion: this.sec.evasion,
+      regen: this.sec.regen,
+      classId: this.classId,
     });
   }
 
@@ -6679,6 +6683,20 @@ export class Game {
       }
       this.renderer.render(this.scene, this.camera);
       return;
+    }
+    // REGENERAÇÃO DE VIDA (baixa): cura um fiapo por segundo fora da luta. Acumula
+    // a fração até fechar 1 HP. dt limitado p/ não dar salto após aba em segundo plano.
+    if (this.lastNow < 0) this.lastNow = now;
+    const dtReg = Math.min(0.1, (now - this.lastNow) / 1000);
+    this.lastNow = now;
+    if (this.playerHp > 0 && this.playerHp < this.playerMaxHp && this.sec.regen > 0) {
+      this.hpRegenAcc += this.sec.regen * dtReg;
+      if (this.hpRegenAcc >= 1) {
+        const heal = Math.floor(this.hpRegenAcc);
+        this.hpRegenAcc -= heal;
+        this.playerHp = Math.min(this.playerMaxHp, this.playerHp + heal);
+        this.ui.setHealth(this.playerHp / this.playerMaxHp);
+      }
     }
     const an = this.anim;
     if (an) {
