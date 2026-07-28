@@ -4155,8 +4155,11 @@ export class Game {
 
   // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
   private addDungeonLights() {
-    this.world.add(new THREE.AmbientLight(0x767183, 1.05));
-    this.world.add(new THREE.HemisphereLight(0x8b8698, 0x201d29, 0.72));
+    // masmorra-labirinto é grande e as tochas (limitadas) se espalham → sobe a luz
+    // ambiente base p/ os corredores sem tocha não ficarem pretos (visível como o
+    // Arcmaze), mantendo a paleta fria/pedra.
+    this.world.add(new THREE.AmbientLight(0x8b93a3, 1.5));
+    this.world.add(new THREE.HemisphereLight(0x9aa4b8, 0x33302c, 0.9));
   }
 
   private addShowcaseLights() {
@@ -4675,7 +4678,7 @@ export class Game {
   // constrói a MASMORRA a partir da grade fixa (dungeon.ts): piso/teto/paredes,
   // tochas, props e a parede ilusória do segredo.
   private buildDungeon() {
-    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = 8.5; // caverna de teto ALTO
+    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = 4.6; // teto BAIXO — masmorra fechada (estilo Arcmaze), não caverna aberta
     const HALF = CELL / 2;
     const hash = (a: number, b: number, s = 0) =>
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
@@ -4711,8 +4714,9 @@ export class Game {
         const secret = k === "secret";
         // PISO quase liso (chão "clean", só um leve relevo p/ não ficar chapado)
         this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 3, 3, 0.12, floorMat, 1, 1);
-        // TETO ALTO com relevo forte (bulbos descendo — profundidade de caverna)
-        this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 3.4, ceilMat, 1, 1);
+        // TETO BAIXO quase liso (masmorra fechada) — relevo suave p/ não descer na
+        // cara do jogador com o pé-direito reduzido.
+        this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 0.5, ceilMat, 1, 1);
         // paredes de ROCHA com relevo
         for (const [dc, dr] of DIRS) {
           const nk = dungeonCell(c + dc, r + dr);
