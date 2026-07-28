@@ -4155,8 +4155,10 @@ export class Game {
 
   // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
   private addDungeonLights() {
-    this.world.add(new THREE.AmbientLight(0x767183, 1.05));
-    this.world.add(new THREE.HemisphereLight(0x8b8698, 0x201d29, 0.72));
+    // ambiente um pouco MAIS BAIXO e neutro que antes: deixa o emissivo colorido de
+    // cada zona (cripta/fúngica/violeta/teal/carmesim) aparecer em vez de lavar tudo.
+    this.world.add(new THREE.AmbientLight(0x6d6a78, 0.82));
+    this.world.add(new THREE.HemisphereLight(0x807c8e, 0x1e1b26, 0.62));
   }
 
   private addShowcaseLights() {
@@ -4693,6 +4695,36 @@ export class Game {
     const ironMat = new THREE.MeshLambertMaterial({ color: 0x27231d });
     const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
 
+    // ZONAS DE COR (estilo Arcmaze): cada sala é banhada por UMA cor de luz própria.
+    // A cor entra por (a) um emissivo SUTIL no piso/parede daquela sala e (b) a cor da
+    // luz das tochas ali — assim cada região "lê" na sua cor mesmo com o teto de
+    // point lights do WebGL (o emissivo não depende de luz nenhuma). Fora das zonas
+    // fica o padrão âmbar de tocha. Sobrevive à futura troca de textura (só o .map muda).
+    type Zone = { c0: number; c1: number; r0: number; r1: number; light: number; floorEm: number; wallEm: number };
+    const ZONES: Zone[] = [
+      { c0: 4, c1: 9, r0: 4, r1: 8, light: 0x5f8fc0, floorEm: 0x0e1c2a, wallEm: 0x0a1622 }, // cripta NO — ciano frio
+      { c0: 31, c1: 39, r0: 13, r1: 20, light: 0xb64fca, floorEm: 0x1c0e26, wallEm: 0x160a1e }, // sala violeta (L)
+      { c0: 3, c1: 11, r0: 13, r1: 20, light: 0x54c25e, floorEm: 0x0c2011, wallEm: 0x0a1a0e }, // fúngica — verde
+      { c0: 3, c1: 11, r0: 27, r1: 32, light: 0x3fb0a2, floorEm: 0x0a201e, wallEm: 0x081a18 }, // sala teal
+      { c0: 31, c1: 39, r0: 27, r1: 32, light: 0xc9482f, floorEm: 0x260c07, wallEm: 0x1e0a06 }, // sala carmesim
+    ];
+    const zoneOf = (c: number, r: number) => ZONES.find((z) => c >= z.c0 && c <= z.c1 && r >= z.r0 && r <= z.r1);
+    // materiais tingidos por zona (cache; compartilham o MESMO mapa de textura base)
+    const floorByZone = new Map<Zone, THREE.Material>();
+    const wallByZone = new Map<Zone, THREE.Material>();
+    const zFloor = (z: Zone | undefined) => {
+      if (!z) return floorMat;
+      let m = floorByZone.get(z);
+      if (!m) { m = new THREE.MeshLambertMaterial({ map: floorMat.map, side: THREE.DoubleSide, emissive: new THREE.Color(z.floorEm) }); floorByZone.set(z, m); }
+      return m;
+    };
+    const zWall = (z: Zone | undefined) => {
+      if (!z) return rockMat;
+      let m = wallByZone.get(z);
+      if (!m) { m = new THREE.MeshLambertMaterial({ map: rockMat.map, side: THREE.DoubleSide, emissive: new THREE.Color(z.wallEm) }); wallByZone.set(z, m); }
+      return m;
+    };
+
     const isCorr = (c: number, r: number) => {
       const k = dungeonCell(c, r);
       if (k === "wall" || k === "secret") return false;
@@ -4709,8 +4741,9 @@ export class Game {
         if (k === "wall") continue;
         const cx = c * CELL, cz = r * CELL;
         const secret = k === "secret";
+        const zone = zoneOf(c, r); // cor de ambiente da sala (ou undefined = âmbar padrão)
         // PISO quase liso (chão "clean", só um leve relevo p/ não ficar chapado)
-        this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 3, 3, 0.12, floorMat, 1, 1);
+        this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 3, 3, 0.12, zFloor(zone), 1, 1);
         // TETO ALTO com relevo forte (bulbos descendo — profundidade de caverna)
         this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 3.4, ceilMat, 1, 1);
         // paredes de ROCHA com relevo
@@ -4723,13 +4756,14 @@ export class Game {
             const ox = cx + dc * HALF, oz = cz + dr * HALF;
             const tang: [number, number, number] = dc !== 0 ? [0, 0, CELL] : [CELL, 0, 0];
             const org: [number, number, number] = dc !== 0 ? [ox, 0, oz - HALF] : [ox - HALF, 0, oz];
-            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 2.4);
+            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, zWall(zone), 1, 2.4);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
-          // tocha esporádica em paredes de rocha (ilumina)
+          // tocha esporádica em paredes de rocha — a LUZ herda a cor da zona (pool
+          // colorido estilo Arcmaze); fora de zona, âmbar de tocha.
           if (nk === "wall" && !secret && torches < 30 && hash(c, r, dc * 5 + dr) < 0.2) {
             this.addWallDecal(c, r, dc, dr, torchMat, 0.85, 1.4, 2.1);
-            this.glowLight(cx + dc * 0.3, 2.3, cz + dr * 0.3, 0xffa040, 4.4, 12);
+            this.glowLight(cx + dc * 0.3, 2.3, cz + dr * 0.3, zone ? zone.light : 0xffa040, 4.4, 12);
             torches++;
           }
         }
