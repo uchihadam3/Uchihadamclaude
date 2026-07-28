@@ -612,6 +612,7 @@ interface VillageNPC {
   name: string;
   lines: string[];
   scale?: number; // altura relativa (ex.: crianças ~0.7)
+  roam?: number; // raio de perambulação DIURNA (células a partir do posto). 0 = fica parado.
 }
 // Cada aldeão tem um LUGAR DE DIA (ancorado a um ponto que faz sentido: poço,
 // loja, casa) e um DESTINO DE NOITE. Ao anoitecer eles CAMINHAM até o destino
@@ -675,6 +676,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     r: 13,
     night: [11, 7], // à noite: RONDA — cruza a praça e vigia do canto nordeste
     seed: 9,
+    roam: 1, // de dia patrulha um trecho curto guardando a entrada
     name: "Gunther, o Vigia",
     lines: [
       "Mantenha a paz por aqui, forasteiro.",
@@ -687,6 +689,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     r: 6,
     night: [2, 6], // à noite: vigília de oração na boca do túnel (parede oeste)
     seed: 7,
+    roam: 1, // de dia reza perto da boca da masmorra, sem se afastar muito
     name: "Frei Anselmo",
     lines: [
       "Que a luz o acompanhe nas trevas, viajante.",
@@ -699,6 +702,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     r: 12,
     night: [7, 6], // à noite: recolhe-se na casa dos irmãos (porta em (7,6))
     seed: 10,
+    roam: 1, // de dia mendiga perto da entrada, sem perambular muito
     name: "Velho Tam",
     lines: [
       "Uma moedinha para um pobre velho?",
@@ -711,6 +715,7 @@ const VILLAGE_NPCS: VillageNPC[] = [
     r: 8,
     night: [5, 6], // à noite: toca na taverna (parede norte)
     seed: 12,
+    roam: 0, // fica no posto tocando (não perambula)
     name: "Lyle, o Bardo",
     lines: [
       "Ei! Quer ouvir a balada do herói que desceu à masmorra?",
@@ -1154,6 +1159,8 @@ export class Game {
     doorDir: { dc: number; dr: number } | null | undefined; // dir da porta no posto noturno (undefined = não calculado)
     trans: { kind: "enter" | "exit"; t0: number; fromX: number; fromZ: number; toX: number; toZ: number } | null;
     entry: NpcEntry; // entrada de diálogo deste NPC (movida no npcMap ao andar)
+    dayGoal: { c: number; r: number }; // destino DIURNO atual (perambulação perto do posto)
+    roamRadius: number; // raio de perambulação diurna (0 = fica no posto)
   }[] = [];
   private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
 
@@ -4945,7 +4952,7 @@ export class Game {
     artUrl?: string,
     scale = 1,
     anim?: { frames: number; fps: number },
-    routine?: { day: [number, number]; night: [number, number] },
+    routine?: { day: [number, number]; night: [number, number]; roam?: number },
   ) {
     const proc = tex.villager(seed);
     const hasArt = !!artUrl;
@@ -5045,6 +5052,8 @@ export class Game {
         doorDir: undefined,
         trans: null,
         entry,
+        dayGoal: { c: routine.day[0], r: routine.day[1] },
+        roamRadius: routine.roam ?? 0,
       });
     }
   }
@@ -5167,7 +5176,7 @@ export class Game {
         url,
         v.scale ?? 1,
         anim ? { frames: anim.frames, fps: anim.fps } : undefined,
-        { day: [v.c, v.r], night: v.night },
+        { day: [v.c, v.r], night: v.night, roam: v.roam ?? 2 },
       );
     }
   }
@@ -6939,6 +6948,24 @@ export class Game {
     return isWalkable(c, r);
   }
 
+  // sorteia o próximo ponto de perambulação DIURNA: às vezes volta ao posto,
+  // às vezes uma célula andável perto dele (dentro do raio). Mantém o aldeão na
+  // sua "área" (o costureiro perto do ateliê, o vigia perto da entrada etc).
+  private pickDayRoam(w: { dayCell: { c: number; r: number }; roamRadius: number }): { c: number; r: number } {
+    const R = w.roamRadius;
+    if (R <= 0) return { c: w.dayCell.c, r: w.dayCell.r };
+    // ~40% das vezes retorna ao posto (não fica só vagando longe)
+    if (Math.random() < 0.4) return { c: w.dayCell.c, r: w.dayCell.r };
+    for (let tries = 0; tries < 14; tries++) {
+      const dc = Math.round((Math.random() * 2 - 1) * R);
+      const dr = Math.round((Math.random() * 2 - 1) * R);
+      if (dc === 0 && dr === 0) continue;
+      const c = w.dayCell.c + dc, r = w.dayCell.r + dr;
+      if (this.plazaWalkable(c, r)) return { c, r };
+    }
+    return { c: w.dayCell.c, r: w.dayCell.r };
+  }
+
   // célula livre p/ o aldeão pisar agora. IMPORTANTE: os aldeões NÃO colidem entre
   // si durante a rotina — vários compartilham o mesmo destino (ex.: 3 vão à porta
   // da taverna) e o BFS ignora a ocupação, então tratar outro NPC como bloqueio
@@ -7026,6 +7053,7 @@ export class Game {
             this.setWalkerOpacity(w, 1); // saiu: restaura opacidade/alphaTest
             w.mesh.position.set(w.toX, w.baseY, w.toZ);
             w.shadow.position.set(w.toX, 0.03, w.toZ);
+            w.dayGoal = { c: w.dayCell.c, r: w.dayCell.r }; // volta ao posto e então perambula
           }
           w.trans = null;
         }
@@ -7067,7 +7095,8 @@ export class Game {
           w.waitUntil = now + 240 + ((w.cur.c * 37 + w.cur.r * 17) % 220);
         }
       } else if (now >= w.waitUntil) {
-        const goal = night ? w.nightCell : w.dayCell;
+        // à noite o alvo é o destino noturno; de dia é o ponto de perambulação
+        const goal = night ? w.nightCell : w.dayGoal;
         if (w.cur.c === goal.c && w.cur.r === goal.r) {
           // chegou ao posto. À noite, se o posto tem PORTA, atravessa e recolhe-se.
           if (night) {
@@ -7082,8 +7111,13 @@ export class Game {
               };
               continue;
             }
+            w.waitUntil = now + 500; // ronda/vigília sem porta: descansa no posto
+            continue;
           }
-          w.waitUntil = now + 500; // sem porta: descansa no posto
+          // DIA: pausa mais longa e variada no ponto, depois sorteia o próximo
+          // destino de perambulação perto do posto (dá "vida" sem ser frenético).
+          w.dayGoal = this.pickDayRoam(w);
+          w.waitUntil = now + 2600 + ((w.cur.c * 53 + w.cur.r * 29) % 3800);
           continue;
         }
         const step = this.bfsNextStep(w.cur, goal);
