@@ -724,6 +724,34 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
 ];
 
+// falas AMBIENTE soltas (balão curto acima da cabeça, de vez em quando)
+const NPC_CHATTER: string[] = [
+  "Que frio de rachar...",
+  "A névoa nunca levanta.",
+  "Ouvi barulhos na montanha.",
+  "Que os deuses nos guardem.",
+  "Mais um dia cinzento.",
+  "Preciso de lenha pro fogo.",
+  "Algo desperta lá embaixo...",
+  "Hoje tranco bem a porta.",
+  "O poço anda com gosto estranho.",
+  "Reze pelos que desceram.",
+  "Dias difíceis, estes.",
+  "Sinto cheiro de chuva.",
+];
+// CONVERSAS em par: falas alternadas (A, B, A, B...) — uma troca rápida e coerente
+const NPC_TALKS: string[][] = [
+  ["Viu que o forasteiro acordou?", "Vi. Que dure mais que os outros."],
+  ["O bosque anda estranho.", "Não é o bosque... é a montanha.", "Melhor calar."],
+  ["Rosa recebeu mercadoria nova.", "Com esses preços? Prefiro passar fome."],
+  ["Dormiu bem?", "Sonhei com a névoa de novo.", "Todos sonhamos com ela."],
+  ["Ouviu os tambores à noite?", "Ouvi. Rezei até calarem."],
+  ["Falta pão outra vez.", "A colheita foi fraca. A terra adoeceu."],
+  ["A cerveja do Bruno tava aguada.", "Aguada é melhor que nenhuma."],
+  ["Cuidado ao anoitecer.", "Sempre. Ninguém anda sozinho aqui."],
+  ["Mais um que desceu à masmorra.", "Que a luz o acompanhe. Vai precisar."],
+];
+
 // artes 2D dos aldeões (id -> URL importada). Vazio por enquanto: cada aldeão
 // usa o sprite procedural até a arte chegar. Ao receber uma imagem, basta
 // importá-la e mapear o id aqui — o resto já está pronto.
@@ -1161,7 +1189,15 @@ export class Game {
     entry: NpcEntry; // entrada de diálogo deste NPC (movida no npcMap ao andar)
     dayGoal: { c: number; r: number }; // destino DIURNO atual (perambulação perto do posto)
     roamRadius: number; // raio de perambulação diurna (0 = fica no posto)
+    talking: boolean; // parado num papo com outro aldeão (não perambula)
+    talkCooldownUntil: number; // não inicia novo papo/fala antes disto
   }[] = [];
+  // balões de fala flutuantes (papo ambiente + conversas em par)
+  private bubbles: { spr: THREE.Sprite; follow: THREE.Object3D; offY: number; bornAt: number; ttl: number }[] = [];
+  // conversas em andamento entre dois aldeões (troca de falas alternada)
+  private convos: { a: Game["walkers"][number]; b: Game["walkers"][number]; lines: string[]; idx: number; nextAt: number }[] = [];
+  private nextChatterAt = 0; // próximo instante de fala ambiente solo
+  private nextTalkCheckAt = 0; // próximo instante de checar pares p/ conversar
   private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
 
   private startAt?: string;
@@ -1570,6 +1606,10 @@ export class Game {
     this.wakeWalk = null;
     this.introWalk = false; // nunca deixa a entrada travada ao trocar de local
     this.drops = []; // meshes já saíram no world.clear(); zera a lista lógica
+    this.bubbles = []; // balões de fala (sprites já saíram no world.clear())
+    this.convos = [];
+    this.nextChatterAt = 0;
+    this.nextTalkCheckAt = 0;
   }
 
   private addVillageLights() {
@@ -1775,6 +1815,7 @@ export class Game {
     this.buildHomes(doorMat);
     this.buildVillageForestGate();
     this.buildVillageProps();
+    this.buildPlazaProps(); // barracas/caixotes/feno (bloqueiam a célula)
     this.buildChimneySmoke();
     this.buildNPCs();
 
@@ -1800,6 +1841,82 @@ export class Game {
     this.addLampPost(7, 12); // sul (perto do portão)
     // prop FIXO colado na parede, virado p/ a praça: só o mural (parede oeste)
     this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
+  }
+
+  // PROPS de "praça viva": barracas de feira, caixotes, feno e sacos espalhados
+  // pelas bordas (dão vida sem parecer vazio). Cada célula ocupada entra em
+  // `blocked` → jogador e aldeões desviam (plazaWalkable também respeita blocked).
+  private buildPlazaProps() {
+    const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const wood2 = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(9), color: new THREE.Color(0xa78a5e) });
+    const cloth1 = new THREE.MeshLambertMaterial({ color: 0x8a3b34, side: THREE.DoubleSide }); // faixa vinho
+    const cloth2 = new THREE.MeshLambertMaterial({ color: 0xcdbf94, side: THREE.DoubleSide }); // faixa creme
+    const hayMat = new THREE.MeshLambertMaterial({ map: tex.thatch(3), color: new THREE.Color(0xd8be77) });
+    const sackMat = new THREE.MeshLambertMaterial({ color: 0xb2a17d });
+    const crate = (s: number) => new THREE.Mesh(new THREE.BoxGeometry(s, s, s), wood);
+
+    // barraca: 4 postes + toldo listrado inclinado + balcão + mercadoria
+    const buildStall = () => {
+      const g = new THREE.Group();
+      for (const sx of [-0.95, 0.95]) for (const sz of [-0.55, 0.7]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.8, 0.1), wood2);
+        post.position.set(sx, 0.9, sz); g.add(post);
+      }
+      const awn = new THREE.Group();
+      awn.position.set(0, 1.82, 0.1); awn.rotation.x = -0.34; // inclina p/ a frente
+      for (let i = 0; i < 5; i++) {
+        const st = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 1.5), i % 2 ? cloth1 : cloth2);
+        st.position.set(-0.84 + i * 0.42, 0, 0); awn.add(st);
+      }
+      g.add(awn);
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.75, 0.55), wood);
+      counter.position.set(0, 0.38, 0.62); g.add(counter);
+      const c1 = crate(0.4); c1.position.set(-0.6, 0.95, 0.62); g.add(c1);
+      const c2 = crate(0.34); c2.position.set(0.55, 0.92, 0.62); c2.rotation.y = 0.4; g.add(c2);
+      return g;
+    };
+    // pilha de caixotes
+    const buildCrates = () => {
+      const g = new THREE.Group();
+      const a = crate(0.7); a.position.set(-0.35, 0.35, 0); a.rotation.y = 0.2; g.add(a);
+      const b = crate(0.62); b.position.set(0.42, 0.31, 0.15); b.rotation.y = -0.3; g.add(b);
+      const c = crate(0.55); c.position.set(-0.22, 0.92, 0.02); c.rotation.y = 0.5; g.add(c);
+      return g;
+    };
+    // fardos de feno (cilindros deitados)
+    const buildHay = () => {
+      const g = new THREE.Group();
+      const bale = (x: number, z: number, y: number, rot: number) => {
+        const b = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.92, 12), hayMat);
+        b.rotation.z = Math.PI / 2; b.rotation.y = rot; b.position.set(x, y, z); g.add(b);
+      };
+      bale(-0.4, 0, 0.42, 0); bale(0.5, 0.12, 0.42, 0.3); bale(0.05, -0.05, 1.24, 0.12);
+      return g;
+    };
+    // sacos empilhados + um barril
+    const buildSacks = () => {
+      const g = new THREE.Group();
+      for (const [x, z, s] of [[-0.4, 0, 0.4], [0.2, 0.2, 0.36], [0.5, -0.3, 0.32]] as [number, number, number][]) {
+        const sk = new THREE.Mesh(new THREE.SphereGeometry(s, 10, 8), sackMat);
+        sk.scale.set(1, 1.3, 1); sk.position.set(x, s * 1.15, z); g.add(sk);
+      }
+      const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.34, 1, 12), wood);
+      bar.position.set(-0.55, 0.5, 0.5); g.add(bar);
+      return g;
+    };
+
+    const place = (c: number, r: number, dc: number, dr: number, g: THREE.Group) => {
+      g.position.set(c * CELL, 0, r * CELL);
+      g.rotation.y = Math.atan2(dc, dr); // "frente" (+Z local) aponta p/ a praça
+      this.world.add(g);
+      this.blocked.add(`${c},${r}`);
+    };
+    place(4, 6, 0, 1, buildStall());    // barraca na borda norte (abre p/ a praça)
+    place(10, 12, 0, -1, buildStall());  // barraca na borda sul
+    place(12, 8, -1, 0, buildCrates());  // caixotes na parede leste
+    place(2, 12, 1, 0, buildHay());      // feno no canto sudoeste
+    place(5, 12, 0, -1, buildSacks());   // sacos na borda sul
+    place(11, 12, 0, -1, buildCrates()); // caixotes na borda sul-leste
   }
 
   // textura radial (branco→transparente) p/ o halo luminoso da lanterna (cache)
@@ -5054,6 +5171,8 @@ export class Game {
         entry,
         dayGoal: { c: routine.day[0], r: routine.day[1] },
         roamRadius: routine.roam ?? 0,
+        talking: false,
+        talkCooldownUntil: 0,
       });
     }
   }
@@ -6942,6 +7061,7 @@ export class Game {
   // Mantém os aldeões na cidade (não sobem o túnel nem saem pela trilha ao sul).
   private plazaWalkable(c: number, r: number): boolean {
     if (c === WELL.c && r === WELL.r) return false;
+    if (this.blocked.has(`${c},${r}`)) return false; // poço, props da praça etc.
     const inPlaza = r >= 6 && r <= 12 && c >= 2 && c <= 12;
     const inEntrance = r >= 13 && r <= 14 && c >= 6 && c <= 8;
     if (!inPlaza && !inEntrance) return false;
@@ -7075,6 +7195,8 @@ export class Game {
         }
         continue;
       }
+      // parado num papo com outro aldeão: fica no lugar até a conversa acabar
+      if (w.talking) continue;
       if (w.moving) {
         const p = Math.min(1, (now - w.t0) / WALK_MS);
         const e = p * p * (3 - 2 * p);
@@ -7151,6 +7273,168 @@ export class Game {
         w.t0 = now;
       }
     }
+  }
+
+  // ====================================================== BALÕES DE FALA / PAPO
+  // textura de um balão de fala (parchemim escuro + rabicho), com quebra de linha
+  private makeBubbleTexture(text: string): { tex: THREE.Texture; w: number; h: number } {
+    const fontPx = 34;
+    const font = `600 ${fontPx}px "Cinzel", "MedievalSharp", system-ui, serif`;
+    const meas = document.createElement("canvas").getContext("2d")!;
+    meas.font = font;
+    // quebra em linhas de no máx ~15 caracteres (por palavra)
+    const words = text.split(" ");
+    const lines: string[] = [];
+    let cur = "";
+    for (const w of words) {
+      const t = cur ? cur + " " + w : w;
+      if (t.length > 16 && cur) { lines.push(cur); cur = w; } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    const pad = 22, lh = fontPx + 8, tail = 16;
+    const tw = Math.max(...lines.map((l) => Math.ceil(meas.measureText(l).width)));
+    const W = tw + pad * 2;
+    const bodyH = lines.length * lh + pad;
+    const H = bodyH + tail;
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d")!;
+    const rr = 16;
+    // corpo (retângulo arredondado)
+    ctx.beginPath();
+    ctx.moveTo(rr, 0);
+    ctx.arcTo(W, 0, W, bodyH, rr);
+    ctx.arcTo(W, bodyH, 0, bodyH, rr);
+    ctx.arcTo(0, bodyH, 0, 0, rr);
+    ctx.arcTo(0, 0, W, 0, rr);
+    ctx.closePath();
+    // rabicho apontando p/ baixo (em direção ao NPC)
+    ctx.moveTo(W / 2 - tail, bodyH - 1);
+    ctx.lineTo(W / 2, H);
+    ctx.lineTo(W / 2 + tail, bodyH - 1);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(18,14,10,0.86)";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(201,162,39,0.72)";
+    ctx.stroke();
+    // texto
+    ctx.font = font;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    lines.forEach((l, i) => {
+      const y = pad / 2 + lh * (i + 0.5);
+      ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,0.8)";
+      ctx.strokeText(l, W / 2, y);
+      ctx.fillStyle = "#f2e0ac"; ctx.fillText(l, W / 2, y);
+    });
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.generateMipmaps = true;
+    return { tex, w: W, h: H };
+  }
+
+  // mostra um balão acima de um objeto que o segue (a plaquinha de nome do NPC).
+  // Um NPC só exibe um balão por vez (remove o anterior).
+  private showBubble(follow: THREE.Object3D, text: string, ttl = 3200) {
+    for (let i = this.bubbles.length - 1; i >= 0; i--) {
+      if (this.bubbles[i].follow === follow) {
+        this.world.remove(this.bubbles[i].spr);
+        (this.bubbles[i].spr.material as THREE.Material).dispose();
+        this.bubbles.splice(i, 1);
+      }
+    }
+    const { tex, w, h } = this.makeBubbleTexture(text);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false, opacity: 0 }));
+    const hWorld = 0.62;
+    spr.scale.set(hWorld * (w / h), hWorld, 1);
+    spr.renderOrder = 20;
+    this.world.add(spr);
+    this.bubbles.push({ spr, follow, offY: 0.62, bornAt: this.now, ttl });
+  }
+
+  // reposiciona/fade dos balões; remove os vencidos ou de NPCs que sumiram
+  private updateBubbles(now: number) {
+    if (!this.bubbles.length) return;
+    for (let i = this.bubbles.length - 1; i >= 0; i--) {
+      const b = this.bubbles[i];
+      const age = now - b.bornAt;
+      const gone = age >= b.ttl || !b.follow.visible;
+      if (gone) {
+        this.world.remove(b.spr);
+        (b.spr.material as THREE.Material).dispose();
+        this.bubbles.splice(i, 1);
+        continue;
+      }
+      b.spr.position.set(b.follow.position.x, b.follow.position.y + b.offY, b.follow.position.z);
+      // fade in (180ms) e fade out (últimos 300ms)
+      const fin = Math.min(1, age / 180);
+      const fout = Math.min(1, (b.ttl - age) / 300);
+      (b.spr.material as THREE.SpriteMaterial).opacity = Math.min(fin, fout);
+    }
+  }
+
+  // papo dos aldeões: progride conversas ativas, forma novos pares e solta falas
+  // ambiente soltas. Só de DIA e no vilarejo (à noite estão se recolhendo).
+  private updateNpcChatter(now: number) {
+    if (this.location !== "village" || this.dialogue) return;
+    // 1) progride conversas em andamento (troca de falas alternada)
+    for (let i = this.convos.length - 1; i >= 0; i--) {
+      const c = this.convos[i];
+      if (now < c.nextAt) continue;
+      if (c.idx >= c.lines.length) {
+        c.a.talking = false; c.b.talking = false;
+        c.a.waitUntil = now + 500; c.b.waitUntil = now + 500;
+        c.a.talkCooldownUntil = now + 22000; c.b.talkCooldownUntil = now + 22000;
+        this.convos.splice(i, 1);
+        continue;
+      }
+      const speaker = c.idx % 2 === 0 ? c.a : c.b;
+      const text = c.lines[c.idx];
+      const dur = Math.max(2200, text.length * 70);
+      this.showBubble(speaker.tag, text, dur + 250);
+      c.nextAt = now + dur + 350;
+      c.idx++;
+    }
+    // 2) forma novos pares (dois aldeões próximos e parados começam a conversar)
+    if (now >= this.nextTalkCheckAt) {
+      this.nextTalkCheckAt = now + 2500;
+      this.tryStartConversation(now);
+    }
+    // 3) fala ambiente solo (de vez em quando, num aldeão visível qualquer)
+    if (now >= this.nextChatterAt) {
+      this.nextChatterAt = now + 6500 + Math.floor(Math.random() * 7000);
+      const avail = this.walkers.filter(
+        (w) => !w.inside && !w.talking && w.mesh.visible && now >= w.talkCooldownUntil,
+      );
+      if (avail.length) {
+        const w = avail[Math.floor(Math.random() * avail.length)];
+        this.showBubble(w.tag, NPC_CHATTER[Math.floor(Math.random() * NPC_CHATTER.length)]);
+        w.talkCooldownUntil = now + 12000;
+      }
+    }
+  }
+
+  // tenta iniciar uma conversa entre dois aldeões adjacentes, parados e livres
+  private tryStartConversation(now: number) {
+    if (this.convos.length >= 1) return; // uma conversa por vez (não polui a praça)
+    const free = this.walkers.filter(
+      (w) => !w.inside && !w.talking && !w.moving && w.mesh.visible && now >= w.talkCooldownUntil,
+    );
+    for (let i = 0; i < free.length; i++)
+      for (let j = i + 1; j < free.length; j++) {
+        const a = free[i], b = free[j];
+        const d = Math.max(Math.abs(a.cur.c - b.cur.c), Math.abs(a.cur.r - b.cur.r));
+        if (d > 1) continue;
+        if (Math.random() > 0.7) continue; // nem todo encontro vira papo
+        a.talking = true; b.talking = true;
+        a.moving = false; b.moving = false;
+        const lines = NPC_TALKS[Math.floor(Math.random() * NPC_TALKS.length)];
+        this.convos.push({ a, b, lines, idx: 0, nextAt: now + 250 });
+        return;
+      }
   }
 
   // envelope à prova de falhas: o setAnimationLoop do three.js PARA de agendar o
@@ -7433,6 +7717,8 @@ export class Game {
       a.tex.offset.x = (Math.floor((now / 1000) * a.fps) % a.frames) / a.frames;
     // NPCs que caminham
     this.updateWalkers(now);
+    this.updateNpcChatter(now); // papo ambiente + conversas em par (balões)
+    this.updateBubbles(now); // segue/fade dos balões de fala
     // fumaça das chaminés: sobe, dilata e some; sempre encara a câmera
     for (const s of this.smoke) {
       const u = s.userData as { phase: number; baseX: number; baseZ: number };
