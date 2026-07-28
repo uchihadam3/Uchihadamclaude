@@ -9,6 +9,7 @@ export interface TipLine { label: string; value: string; }
 export interface TipDelta { label: string; delta: number; pct?: boolean; }
 export interface ItemTip {
   name: string;
+  icon: string;                // ícone do item (mostrado no cabeçalho do popup)
   rarity: Rarity;
   sub: string;                 // "Mágico · Peitoral" / "Arma"
   lines: TipLine[];            // atributos próprios do item
@@ -987,14 +988,22 @@ export function setupControls(
     const dRow = (d: TipDelta) => {
       const s = d.delta > 0 ? "up" : d.delta < 0 ? "down" : "same";
       const sign = d.delta > 0 ? "+" : "";
-      return `<div class="gh-itip-d gh-itip-${s}"><span>${d.label}</span><b>${sign}${d.delta}${d.pct ? "%" : ""}</b></div>`;
+      return `<div class="gh-itip-d gh-itip-${s}"><span class="gh-itip-k">${d.label}</span><b>${sign}${d.delta}${d.pct ? "%" : ""}</b></div>`;
     };
+    const line = (l: TipLine) => `<div class="gh-itip-l"><span class="gh-itip-k">${l.label}</span><b>${l.value}</b></div>`;
     itip.className = "gh-itip gh-rname-" + tip.rarity;
     itip.innerHTML =
-      `<div class="gh-itip-name">${tip.name}</div>` +
-      `<div class="gh-itip-sub">${tip.sub}</div>` +
-      (tip.lines.length ? `<div class="gh-itip-lines">${tip.lines.map((l) => `<div class="gh-itip-l"><span>${l.label}</span><b>${l.value}</b></div>`).join("")}</div>` : "") +
-      (tip.deltas && tip.deltas.length ? `<div class="gh-itip-cmp"><div class="gh-itip-cmph">Ao trocar${tip.compareName ? ` (equipado: ${tip.compareName})` : ""}:</div>${tip.deltas.map(dRow).join("")}</div>` : "") +
+      '<div class="gh-itip-top">' +
+        `<span class="gh-itip-ic"><img src="${tip.icon}" alt=""/></span>` +
+        `<span class="gh-itip-hd"><span class="gh-itip-name">${tip.name}</span><span class="gh-itip-sub">${tip.sub}</span></span>` +
+      "</div>" +
+      '<div class="gh-itip-rule"></div>' +
+      (tip.lines.length ? `<div class="gh-itip-lines">${tip.lines.map(line).join("")}</div>` : "") +
+      (tip.deltas && tip.deltas.length
+        ? '<div class="gh-itip-rule"></div><div class="gh-itip-cmp">' +
+          `<div class="gh-itip-cmph">Ao trocar${tip.compareName ? ` · ${tip.compareName}` : ""}</div>` +
+          tip.deltas.map(dRow).join("") + "</div>"
+        : "") +
       `<button class="gh-itip-act">${tip.action === "equip" ? "Equipar" : "Desequipar"}</button>`;
     itip.classList.remove("gh-itip-hidden");
     // posiciona ao lado do slot, preso na tela
@@ -3100,39 +3109,53 @@ function injectStyle() {
   .gh-rar-lendario { box-shadow:inset 0 0 0 2px #ff8a2e, inset 0 0 11px rgba(255,138,46,.72); }
   .gh-bag-slot[data-wid], .gh-bag-slot[data-uid], .gh-slot-eq { cursor:pointer; }
   .gh-bag-slot[data-uid]:hover, .gh-slot-eq:hover { filter:brightness(1.15); }
-  /* ===== POPUP DE ITEM (tooltip com comparação) — casa com as janelas ===== */
+  /* ===== POPUP DE ITEM — moldura de arte (eq_frame), ícone + stats grandes ===== */
   #gh-itip {
-    position:fixed; z-index:30; pointer-events:auto; width:min(244px,76vw);
-    background:linear-gradient(180deg, rgba(23,17,11,.98), rgba(14,10,7,.98));
-    border:2px solid rgba(201,162,39,.62); border-radius:11px;
-    box-shadow:0 10px 30px rgba(0,0,0,.72), inset 0 0 0 1px rgba(0,0,0,.5);
-    padding:10px 12px 11px; color:#e8dcc0; font-family:"Trebuchet MS",sans-serif;
+    position:fixed; z-index:30; pointer-events:auto; width:min(272px,82vw);
+    box-sizing:border-box;
+    border:19px solid transparent; border-image:url(${eqFrameUrl}) 92 fill;
+    filter:drop-shadow(0 12px 30px rgba(0,0,0,.72));
+    color:#e8dcc0; font-family:"Trebuchet MS",sans-serif;
   }
   #gh-itip.gh-itip-hidden { display:none; }
-  .gh-itip-name { font-family:"Cinzel",serif; font-weight:800; font-size:15px; line-height:1.16; text-shadow:0 1px 3px #000; }
-  .gh-rname-comum    .gh-itip-name { color:#e6dcc2; }
-  .gh-rname-magico   .gh-itip-name { color:#74b3ff; }
-  .gh-rname-raro     .gh-itip-name { color:#f4d074; }
-  .gh-rname-lendario .gh-itip-name { color:#ff9a4a; text-shadow:0 0 10px rgba(255,138,46,.5), 0 1px 3px #000; }
-  .gh-itip-sub { font-size:11px; color:#a89873; margin:1px 0 7px; font-style:italic; }
-  .gh-itip-lines { display:flex; flex-direction:column; gap:2px; }
-  .gh-itip-l { display:flex; justify-content:space-between; gap:12px; font-size:12.5px; }
-  .gh-itip-l span { color:#c2b184; } .gh-itip-l b { color:#f2e8ce; font-variant-numeric:tabular-nums; }
-  .gh-itip-cmp { margin-top:8px; padding-top:7px; border-top:1px solid rgba(201,162,39,.28); }
-  .gh-itip-cmph { font-size:10.5px; color:#b6a877; margin-bottom:3px; }
-  .gh-itip-d { display:flex; justify-content:space-between; gap:12px; font-size:12.5px; }
-  .gh-itip-d span { color:#bfae82; }
-  .gh-itip-d b { font-variant-numeric:tabular-nums; font-weight:700; }
-  .gh-itip-up b { color:#6ede77; } .gh-itip-up b::after { content:" ▲"; font-size:9px; }
-  .gh-itip-down b { color:#e8695a; } .gh-itip-down b::after { content:" ▼"; font-size:9px; }
-  .gh-itip-same b { color:#9c8f6d; }
-  .gh-itip-act {
-    display:block; width:100%; margin-top:10px; cursor:pointer;
-    font-family:"Cinzel",serif; font-weight:700; font-size:13px; letter-spacing:.6px;
-    color:#12100a; padding:8px 10px; border:none; border-radius:8px;
-    background:linear-gradient(#f4d074,#c9922a); box-shadow:0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.35);
+  /* cabeçalho: ícone emoldurado + nome/subtítulo */
+  .gh-itip-top { display:flex; gap:10px; align-items:center; }
+  .gh-itip-ic {
+    flex:0 0 auto; width:48px; height:48px; border-radius:8px; overflow:hidden;
+    border:2px solid rgba(201,162,39,.62); background:rgba(6,5,3,.55);
+    box-shadow:inset 0 0 8px rgba(0,0,0,.6);
+    display:flex; align-items:center; justify-content:center;
   }
-  .gh-itip-act:active { transform:translateY(1px); filter:brightness(1.05); }
+  .gh-itip-ic img { width:90%; height:90%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.75)); }
+  .gh-itip-hd { min-width:0; display:flex; flex-direction:column; }
+  .gh-itip-name { font-family:"Cinzel",serif; font-weight:800; font-size:18px; line-height:1.14; text-shadow:0 1px 3px #000; }
+  .gh-rname-comum    .gh-itip-name { color:#efe4c8; }
+  .gh-rname-magico   .gh-itip-name { color:#7cbaff; text-shadow:0 0 9px rgba(90,150,240,.4), 0 1px 3px #000; }
+  .gh-rname-raro     .gh-itip-name { color:#f6d374; text-shadow:0 0 9px rgba(240,200,90,.4), 0 1px 3px #000; }
+  .gh-rname-lendario .gh-itip-name { color:#ff9a4a; text-shadow:0 0 11px rgba(255,138,46,.6), 0 1px 3px #000; }
+  .gh-itip-sub { font-size:12px; color:#b09c72; font-style:italic; margin-top:2px; }
+  /* divisória dourada */
+  .gh-itip-rule { height:0; border-top:1px solid rgba(201,162,39,.42); margin:9px 0 8px;
+    box-shadow:0 1px 0 rgba(0,0,0,.4); }
+  /* linhas de atributo — GRANDES e à mostra */
+  .gh-itip-lines, .gh-itip-cmp { display:flex; flex-direction:column; gap:5px; }
+  .gh-itip-l, .gh-itip-d { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+  .gh-itip-k { font-size:14.5px; color:#dcc99a; letter-spacing:.2px; }
+  .gh-itip-k::before { content:"◆"; color:#9a7c2e; font-size:8px; margin-right:6px; vertical-align:middle; }
+  .gh-itip-l b { font-size:15.5px; color:#ffe9b0; font-weight:700; font-variant-numeric:tabular-nums; text-shadow:0 1px 2px #000; }
+  .gh-itip-cmph { font-size:11.5px; color:#b6a877; font-style:italic; margin-bottom:1px; }
+  .gh-itip-d b { font-size:15.5px; font-weight:800; font-variant-numeric:tabular-nums; text-shadow:0 1px 2px #000; }
+  .gh-itip-up b { color:#77e982; } .gh-itip-up b::after { content:" ▲"; font-size:10px; }
+  .gh-itip-down b { color:#f2766c; } .gh-itip-down b::after { content:" ▼"; font-size:10px; }
+  .gh-itip-same b { color:#a89873; }
+  .gh-itip-act {
+    display:block; width:100%; margin-top:12px; cursor:pointer;
+    font-family:"Cinzel",serif; font-weight:700; font-size:14px; letter-spacing:.8px;
+    color:#12100a; padding:9px 10px; border:none; border-radius:8px;
+    background:linear-gradient(#f4d074,#c9922a); box-shadow:0 2px 7px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.4);
+  }
+  .gh-itip-act:hover { filter:brightness(1.06); }
+  .gh-itip-act:active { transform:translateY(1px); }
   /* ícone do item dentro de um slot (equipado ou na mochila) */
   .gh-item-ico {
     max-width:86%; max-height:86%; width:auto; height:auto; object-fit:contain;

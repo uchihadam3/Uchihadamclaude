@@ -2743,7 +2743,7 @@ export class Game {
   private armorTip(it: ItemInstance, action: "equip" | "unequip"): ItemTip {
     const total = itemTotal(it);
     const tip: ItemTip = {
-      name: it.name, rarity: it.rarity,
+      name: it.name, icon: it.icon, rarity: it.rarity,
       sub: `${RARITY_BY_KEY[it.rarity].label} · ${Game.ARMOR_SLOT_PT[it.slot]}`,
       lines: this.statLines(total), action,
     };
@@ -2764,7 +2764,7 @@ export class Game {
   private weaponTip(w: Weapon, action: "equip" | "unequip"): ItemTip {
     const eff = w.dmg + (this.reinforce[w.id] ?? 0);
     const tip: ItemTip = {
-      name: w.name, rarity: "comum",
+      name: w.name, icon: w.url, rarity: "comum",
       sub: `Arma${w.grip === "2h" ? " · 2 mãos" : ""}`,
       lines: [{ label: "Dano", value: String(eff) }], action,
     };
