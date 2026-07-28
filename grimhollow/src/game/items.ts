@@ -72,13 +72,19 @@ export const AFFIXES: Record<AffixKey, AffixDef> = {
   cdr:       { label: "Red. Recarga", pct: true, rareOnly: true, range: [[1, 2], [1, 2], [2, 3]] },
 };
 
-// POOL POR SLOT — a restrição que dá coerência (nada de Vida em Luva!):
+// POOL POR SLOT. Duas regras:
+//  • Os TRÊS atributos (str/dex/int) podem rolar em QUALQUER peça — as armaduras
+//    são universais, então um mago pode achar um peitoral com Inteligência e um
+//    guerreiro o mesmo peitoral com Força (nada de item "morto" p/ a classe).
+//  • Os stats TEMÁTICOS ficam onde fazem sentido (e são úteis a todas as classes):
+//    Vida no elmo/peitoral/cinto, crítico/precisão nas luvas, evasão nas botas.
+const ATTRS: AffixKey[] = ["str", "dex", "int"];
 export const SLOT_AFFIX_POOL: Record<ArmorSlot, AffixKey[]> = {
-  head:  ["hp", "def", "magRes", "int"],        // elmo: aguenta + toque arcano
-  chest: ["hp", "def", "magRes", "str"],        // peitoral: a peça-tanque (mais Vida)
-  hands: ["def", "dex", "crit", "precision"],   // luvas: mãos → crítico/precisão
-  feet:  ["def", "evasion", "dex"],             // botas: mobilidade/evasão
-  belt:  ["hp", "def", "mana", "magRes"],       // cinto: sustento/utilidade
+  head:  [...ATTRS, "hp", "def", "magRes"],       // elmo: aguenta
+  chest: [...ATTRS, "hp", "def", "magRes"],       // peitoral: a peça-tanque (mais Vida)
+  hands: [...ATTRS, "def", "crit", "precision"],  // luvas: mãos → crítico/precisão
+  feet:  [...ATTRS, "def", "evasion"],            // botas: mobilidade/evasão
+  belt:  [...ATTRS, "hp", "def", "mana", "magRes"], // cinto: sustento/utilidade
 };
 // POOL OFENSIVO das ARMAS (só ofensivo — entra quando as armas virarem instância):
 export const WEAPON_AFFIX_POOL_MELEE: AffixKey[] = ["atkPhys", "crit", "critDmg", "atkSpd", "str", "lifeSteal"];
