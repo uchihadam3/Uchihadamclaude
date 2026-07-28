@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -153,7 +153,7 @@ import fxLNuvemUrl from "../assets/ui/fx/fx_l_nuvem.png";
 import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, WEAPON_BY_ID, type Weapon } from "./weapons";
-import { generateArmor, sumBonuses, ARMOR_SLOTS, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus } from "./items";
+import { generateArmor, sumBonuses, itemSummary, ARMOR_SLOTS, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus } from "./items";
 import { CLASS_BY_ID, type Character } from "./classes";
 import {
   derive,
@@ -1203,6 +1203,8 @@ export class Game {
       (id) => this.onDialogueChoice(id), // clicou num botão de escolha do diálogo
       () => this.buildJournalData(), // abriu o Diário de Missões
       () => this.toggleGuide(), // ligou/desligou o guia pelo rastreador de missão
+      (uid) => this.equipArmor(uid), // clicou numa armadura da mochila → equipa
+      (slot) => this.unequipArmor(slot as ArmorSlot), // clicou no boneco → desequipa
     );
     this.initMainQuests(); // "A Névoa Devoradora": cap.1 disponível, resto trancado
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
@@ -1213,7 +1215,11 @@ export class Game {
     const startW = cls?.startWeapon ?? "sword";
     this.ownedWeapons = [startW];
     this.smithSel = startW;
-    this.ui.setInventory(this.ownedWeapons);
+    // KIT INICIAL de armadura (T1) na mochila p/ o jogador já poder se equipar —
+    // Comum, exceto um Mágico de brinde. (Fonte definitiva: loja + drops.)
+    for (const s of ARMOR_SLOTS) this.giveArmor(s, 1, "comum");
+    this.giveArmor("chest", 1, "magico");
+    this.pushEquipUI();
     this.ui.equipWeapon(startW);
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
@@ -2051,7 +2057,7 @@ export class Game {
           else {
             this.stats.gold -= cost;
             this.ownedWeapons.push(wid);
-            this.ui.setInventory(this.ownedWeapons);
+            this.pushEquipUI();
             this.refreshStats();
             this.ui.toast(`Comprou ${w.name}.`);
             this.ui.playSfx("coin");
@@ -2073,7 +2079,7 @@ export class Game {
         this.ownedWeapons.splice(idx, 1);
         delete this.reinforce[wid];
         this.stats.gold += val;
-        this.ui.setInventory(this.ownedWeapons);
+        this.pushEquipUI();
         this.refreshStats();
         this.ui.toast(`Vendeu ${WEAPON_BY_ID[wid]?.name} por ${val} ouro.`);
         this.ui.playSfx("coin");
@@ -2142,11 +2148,11 @@ export class Game {
         if (this.currentWeapon?.id === wid) { this.ui.toast("Não dá para guardar a arma equipada."); }
         else {
           const i = this.ownedWeapons.indexOf(wid);
-          if (i >= 0) { this.ownedWeapons.splice(i, 1); this.stash.weapons.push(wid); this.stash.reinforce[wid] = this.reinforce[wid] ?? 0; delete this.reinforce[wid]; this.ui.setInventory(this.ownedWeapons); }
+          if (i >= 0) { this.ownedWeapons.splice(i, 1); this.stash.weapons.push(wid); this.stash.reinforce[wid] = this.reinforce[wid] ?? 0; delete this.reinforce[wid]; this.pushEquipUI(); }
         }
       } else {
         const i = this.stash.weapons.indexOf(wid);
-        if (i >= 0) { this.stash.weapons.splice(i, 1); this.ownedWeapons.push(wid); this.reinforce[wid] = this.stash.reinforce[wid] ?? 0; delete this.stash.reinforce[wid]; this.ui.setInventory(this.ownedWeapons); }
+        if (i >= 0) { this.stash.weapons.splice(i, 1); this.ownedWeapons.push(wid); this.reinforce[wid] = this.stash.reinforce[wid] ?? 0; delete this.stash.reinforce[wid]; this.pushEquipUI(); }
       }
     } else {
       // bem empilhável; no baú cada pilha respeita o teto de 99
@@ -2728,8 +2734,22 @@ export class Game {
     this.pushEquipUI();
     return it;
   }
-  // liga a mochila/boneco à UI (implementado na fase da interface de equipar)
-  private pushEquipUI() { /* TODO: fase UI */ }
+  // monta a mochila (armas + armaduras) + peças equipadas e manda pra UI
+  private pushEquipUI() {
+    const bag: BagEntry[] = [];
+    for (const id of this.ownedWeapons) {
+      const w = WEAPON_BY_ID[id]; if (!w) continue;
+      bag.push({ kind: "weapon", id, icon: w.url, name: w.name, rarity: "comum", title: `${w.name} — arma` });
+    }
+    for (const it of this.armorInv)
+      bag.push({ kind: "armor", id: it.uid, icon: it.icon, name: it.name, rarity: it.rarity, title: itemSummary(it) });
+    const armor: EquipUIData["armor"] = {};
+    for (const s of ARMOR_SLOTS) {
+      const it = this.equippedArmor[s];
+      if (it) armor[s] = { icon: it.icon, rarity: it.rarity, title: itemSummary(it) };
+    }
+    this.ui.setEquip({ bag, armor });
+  }
 
   // rola o dano de um golpe: base × passivas(%) × buff, com chance de CRÍTICO
   // (usa a chance/dano crítico dos secundários). Retorna o valor final e se crit.

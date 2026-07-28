@@ -2,6 +2,12 @@ import { MOVE_MS } from "./config";
 import { STYLES, REST, type Weapon, type Pose } from "./weapons";
 import { SKILL_TREES, STAT_META, PASSIVE_ICON, type Skill } from "./skills";
 import { CLASS_BY_ID } from "./classes";
+import type { Rarity } from "./items";
+
+// item da mochila (arma ou armadura) e peça equipada no boneco
+export interface BagEntry { kind: "weapon" | "armor"; id: string; icon: string; name: string; rarity?: Rarity; title?: string; }
+export interface EquipSlotView { icon: string; rarity: Rarity; title: string; }
+export interface EquipUIData { bag: BagEntry[]; armor: Partial<Record<string, EquipSlotView>>; }
 import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
@@ -166,6 +172,8 @@ export interface HUD {
   flashDamage(): void; // vinheta vermelha ao levar dano
   setStats(s: CharStats): void; // atualiza a janela de equipamentos/atributos
   setInventory(ids: string[]): void; // enche a mochila com esses itens
+  // mochila (armas + armaduras) + peças equipadas no boneco, com molduras de raridade
+  setEquip(data: EquipUIData): void;
   equipWeapon(id: string): void; // equipa (troca a arma na mão) e realça o slot
   // minimapa (canto sup. direito): grade da célula atual + posição/direção do herói
   updateMinimap(s: MinimapState): void;
@@ -376,6 +384,8 @@ export function setupControls(
   onDialogueChoice?: (id: string) => void, // clicou num botão de escolha do diálogo
   onOpenJournal?: () => JournalData | null, // abriu o Diário de Missões (Game monta os dados)
   onToggleGuide?: () => void, // ligou/desligou o guia (marcador) do mapa pelo rastreador
+  onEquipArmor?: (uid: string) => void, // clicou numa armadura da mochila (equipar)
+  onUnequipArmor?: (slot: string) => void, // clicou numa peça do boneco (desequipar)
 ): HUD {
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
@@ -2097,6 +2107,37 @@ export function setupControls(
         }
       });
     },
+    // renderiza a mochila (armas + armaduras) com molduras de raridade + as peças
+    // equipadas nos slots do boneco (clicáveis p/ desequipar).
+    setEquip(data: EquipUIData) {
+      // MOCHILA
+      bagSlots.forEach((slot, i) => {
+        const e = data.bag[i];
+        slot.onclick = null;
+        slot.className = "gh-bag-slot";
+        delete slot.dataset.wid; delete slot.dataset.uid;
+        if (!e) { slot.innerHTML = ""; return; }
+        slot.classList.add("gh-rar-" + (e.rarity ?? "comum"));
+        slot.innerHTML = `<img class="gh-item-ico" src="${e.icon}" alt="" title="${e.title ?? e.name}"/>`;
+        if (e.kind === "weapon") { slot.dataset.wid = e.id; slot.onclick = () => this.equipWeapon(e.id); }
+        else { slot.dataset.uid = e.id; slot.onclick = () => onEquipArmor?.(e.id); }
+      });
+      // BONECO: slots de armadura (clicar desequipa)
+      for (const key of ["head", "chest", "hands", "feet", "belt"]) {
+        const el = eq.querySelector(`.gh-slot[data-slot="${key}"]`) as HTMLElement | null;
+        if (!el) continue;
+        const a = data.armor[key];
+        el.className = "gh-slot";
+        el.onclick = null;
+        if (a) {
+          el.classList.add("gh-slot-eq", "gh-rar-" + a.rarity);
+          el.innerHTML = `<img class="gh-item-ico" src="${a.icon}" alt="" title="${a.title}"/>`;
+          el.onclick = () => onUnequipArmor?.(key);
+        } else {
+          el.innerHTML = "";
+        }
+      }
+    },
     equipWeapon(id: string) {
       const w = catalog[id];
       if (!w) return;
@@ -3000,6 +3041,13 @@ function injectStyle() {
     box-sizing:border-box; min-width:0; min-height:0;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
   }
+  /* MOLDURAS DE RARIDADE (mochila + boneco): anel interno colorido + brilho */
+  .gh-rar-comum    { box-shadow:inset 0 0 0 1px rgba(185,180,166,.4); }
+  .gh-rar-magico   { box-shadow:inset 0 0 0 2px #4a90e2, inset 0 0 8px rgba(74,144,226,.55); }
+  .gh-rar-raro     { box-shadow:inset 0 0 0 2px #e8b24a, inset 0 0 9px rgba(232,178,74,.6); }
+  .gh-rar-lendario { box-shadow:inset 0 0 0 2px #ff8a2e, inset 0 0 11px rgba(255,138,46,.72); }
+  .gh-bag-slot[data-wid], .gh-bag-slot[data-uid], .gh-slot-eq { cursor:pointer; }
+  .gh-bag-slot[data-uid]:hover, .gh-slot-eq:hover { filter:brightness(1.15); }
   /* ícone do item dentro de um slot (equipado ou na mochila) */
   .gh-item-ico {
     max-width:86%; max-height:86%; width:auto; height:auto; object-fit:contain;

@@ -180,6 +180,15 @@ export function itemTotal(it: ItemInstance): StatBonus {
   for (const a of it.affixes) out[a.key] = (out[a.key] ?? 0) + a.value;
   return out;
 }
+// resumo legível do item (nome + raridade + base + afixos) — usado no tooltip
+export function itemSummary(it: ItemInstance): string {
+  const rar = RARITY_BY_KEY[it.rarity].label;
+  const fmt = (k: AffixKey, v: number) => `${v > 0 ? "+" : ""}${v}${AFFIXES[k].pct ? "%" : ""} ${AFFIXES[k].label}`;
+  const baseParts = (Object.keys(it.base) as AffixKey[]).map((k) => fmt(k, it.base[k] ?? 0));
+  const lines = [`${it.name} · ${rar}`, `Base: ${baseParts.join(", ")}`];
+  if (it.affixes.length) lines.push(`Afixos: ${it.affixes.map((a) => fmt(a.key, a.value)).join(", ")}`);
+  return lines.join("\n");
+}
 // soma o bônus de VÁRIAS instâncias equipadas
 export function sumBonuses(items: (ItemInstance | null | undefined)[]): StatBonus {
   const out: StatBonus = {};
