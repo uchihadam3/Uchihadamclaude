@@ -24,9 +24,10 @@ import t3_chest from "../assets/item/armor/t3_chest.png";
 import t3_hands from "../assets/item/armor/t3_hands.png";
 import t3_feet from "../assets/item/armor/t3_feet.png";
 import t3_belt from "../assets/item/armor/t3_belt.png";
-// versões RECORTADAS (conteúdo esticado p/ preencher o quadrado) — usadas SÓ na
-// mochila/inventário, p/ o ícone encaixar perfeitamente no slot. O boneco segue
-// com a arte original (com margem), que fica melhor nas molduras ornamentadas.
+// versões RECORTADAS no conteúdo (proporção natural, margem removida) — usadas
+// nos SLOTS EQUIPADOS (boneco), p/ o ícone preencher o formato do slot (o cinto
+// largo enche o slot achatado etc). A mochila e o popup seguem com a arte
+// original (com margem). (pasta chama-se inv/ por herança, mas é o ícone "fit".)
 import iv_t1_head from "../assets/item/armor/inv/t1_head.png";
 import iv_t1_chest from "../assets/item/armor/inv/t1_chest.png";
 import iv_t1_hands from "../assets/item/armor/inv/t1_hands.png";
@@ -126,8 +127,8 @@ const ICON: Record<ArmorSlot, string[]> = {
   feet:  [t1_feet, t2_feet, t3_feet],
   belt:  [t1_belt, t2_belt, t3_belt],
 };
-// ícone de INVENTÁRIO (recortado/esticado p/ preencher o slot). Mesmo índice.
-const INV_ICON: Record<ArmorSlot, string[]> = {
+// ícone RECORTADO que preenche o slot equipado (mesmo índice do ICON).
+const FIT_ICON: Record<ArmorSlot, string[]> = {
   head:  [iv_t1_head, iv_t2_head, iv_t3_head],
   chest: [iv_t1_chest, iv_t2_chest, iv_t3_chest],
   hands: [iv_t1_hands, iv_t2_hands, iv_t3_hands],
@@ -146,8 +147,8 @@ export interface ItemInstance {
   tier: number;
   rarity: Rarity;
   name: string;      // ex.: "Peitoral de Bronze"
-  icon: string;      // arte original (boneco/popup) — com margem, centralizada
-  invIcon: string;   // arte recortada p/ preencher o slot da mochila
+  icon: string;      // arte original (mochila/popup) — com margem, centralizada
+  fitIcon: string;   // arte recortada p/ preencher o slot EQUIPADO (boneco)
   base: StatBonus;
   affixes: RolledAffix[];
 }
@@ -196,7 +197,7 @@ export function generateArmor(slot: ArmorSlot, tier: number, opts?: { rarity?: R
     rarity,
     name: `${PIECE_NAME[slot]} de ${MATERIAL[tier]}`,
     icon: ICON[slot][tier - 1],
-    invIcon: INV_ICON[slot][tier - 1],
+    fitIcon: FIT_ICON[slot][tier - 1],
     base: { ...ARMOR_BASE[slot][tier - 1] },
     affixes,
   };

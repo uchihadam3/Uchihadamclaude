@@ -3029,12 +3029,14 @@ export class Game {
       bag.push({ kind: "weapon", id, icon: w.url, name: w.name, rarity: "comum", tip: this.weaponTip(w, "equip") });
     }
     for (const it of this.armorInv)
-      // MOCHILA usa o ícone recortado (encaixa no slot); o boneco/popup usam o original
-      bag.push({ kind: "armor", id: it.uid, icon: it.invIcon, name: it.name, rarity: it.rarity, tip: this.armorTip(it, "equip") });
+      // MOCHILA usa a arte ORIGINAL (já ficava boa aqui)
+      bag.push({ kind: "armor", id: it.uid, icon: it.icon, name: it.name, rarity: it.rarity, tip: this.armorTip(it, "equip") });
     const armor: EquipUIData["armor"] = {};
     for (const s of ARMOR_SLOTS) {
       const it = this.equippedArmor[s];
-      if (it) armor[s] = { icon: it.icon, rarity: it.rarity, tip: this.armorTip(it, "unequip") };
+      // SLOT EQUIPADO usa o ícone recortado, que preenche o formato do slot
+      // (ex.: o cinto largo enche o slot achatado); popup segue com o original
+      if (it) armor[s] = { icon: it.fitIcon, rarity: it.rarity, tip: this.armorTip(it, "unequip") };
     }
     this.ui.setEquip({ bag, armor });
   }
