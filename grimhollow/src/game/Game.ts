@@ -1755,6 +1755,7 @@ export class Game {
     void doorFaces; // (barris procedurais removidos — só props em PNG na cidade)
 
     // montanha no canto + entrada da masmorra (túnel de tiles de dungeon)
+    this.addSkyDome(); // céu soturno (gradiente + nuvens) por trás da névoa
     this.buildMountain();
     this.buildTunnel();
     this.buildDungeonEnemy();
@@ -3660,7 +3661,19 @@ export class Game {
 
   // ---------------------------------------------- montanha (canto noroeste)
   private buildMountain() {
-    const rockMat = new THREE.MeshLambertMaterial({ map: tex.rock(41) });
+    // material de ardósia FRIA (tinte azul-acinzentado). Textura tileada p/ mais
+    // detalhe nas faces grandes. 3 tons (claro/médio/escuro) p/ quebrar a monotonia.
+    const rockTex = tex.rock(41);
+    rockTex.wrapS = rockTex.wrapT = THREE.RepeatWrapping;
+    const mkRock = (hex: number) => {
+      const t = rockTex.clone();
+      t.needsUpdate = true;
+      t.repeat.set(1.6, 2.2); // tila as bandas de estrato ao longo da face
+      // emissivo BAIXO: nunca esmaga p/ preto na sombra (mantém o detalhe de ardósia)
+      return new THREE.MeshLambertMaterial({ map: t, color: new THREE.Color(hex), emissive: new THREE.Color(0x1a1e25) });
+    };
+    const rockMats = [mkRock(0xc2cad8), mkRock(0xa6aebd), mkRock(0x8b93a2)];
+    const rockOf = (c: number, r: number) => rockMats[Math.floor(this.mHash(c, r, 9) * rockMats.length) % rockMats.length];
     // canto da montanha (mais alto lá) p/ dar silhueta de morro
     let cornerC = COLS;
     let cornerR = ROWS;
@@ -3676,6 +3689,9 @@ export class Game {
       const dist = Math.sqrt(dc * dc + dr * dr);
       return Math.max(WALL_H + 2.5, WALL_H + 11 - dist * 1.7 + this.mHash(c, r) * 2);
     };
+    // uma célula "de borda" faz fronteira com a praça (rua) → recebe entulho/lascas
+    const bordersStreet = (c: number, r: number) =>
+      DIRS.some(([dc, dr]) => cellAt(c + dc, r + dr) === "street");
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
         const k = cellAt(c, r);
@@ -3686,20 +3702,55 @@ export class Game {
         const y0 = dungeon ? TUNNEL_H : 0;
         const bh = height - y0;
         if (bh <= 0.2) continue;
-        const box = new THREE.Mesh(new THREE.BoxGeometry(CELL, bh, CELL), rockMat);
+        const mat = rockOf(c, r);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(CELL, bh, CELL), mat);
         box.position.set(c * CELL, y0 + bh / 2, r * CELL);
         this.world.add(box);
         // blocos menores no topo p/ contorno irregular (pico)
         if (!dungeon && this.mHash(c, r, 2) > 0.35) {
           const s = 1.6 + this.mHash(c, r, 3) * 1.8;
-          const chunk = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), rockMat);
+          const chunk = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), rockOf(c, r));
           chunk.position.set(
             c * CELL + (this.mHash(c, r, 4) - 0.5) * 2.4,
             height + s * 0.25,
             r * CELL + (this.mHash(c, r, 5) - 0.5) * 2.4,
           );
-          chunk.rotation.y = this.mHash(c, r, 6) * Math.PI;
+          chunk.rotation.set(this.mHash(c, r, 7) * 0.5, this.mHash(c, r, 6) * Math.PI, this.mHash(c, r, 8) * 0.4);
           this.world.add(chunk);
+        }
+        // LASCAS protuberantes na FACE voltada p/ a praça — quebram o "slab" chapado.
+        // Só nas células de borda (fazem fronteira com a rua).
+        if (!dungeon && bordersStreet(c, r)) {
+          for (const [dc, dr] of DIRS) {
+            if (cellAt(c + dc, r + dr) !== "street") continue;
+            const nSlabs = 2 + Math.floor(this.mHash(c, r, dc * 3 + dr) * 2);
+            for (let i = 0; i < nSlabs; i++) {
+              const h1 = 2 + this.mHash(c, r, i + 20) * (bh * 0.55);
+              const w1 = 1 + this.mHash(c, r, i + 30) * 1.4;
+              const d1 = 0.7 + this.mHash(c, r, i + 40) * 0.9;
+              const slab = new THREE.Mesh(new THREE.BoxGeometry(w1, h1, d1), rockOf(c + i, r));
+              // encosta na face + projeta um pouco p/ a rua; espalha ao longo da face
+              const along = (this.mHash(c, r, i + 50) - 0.5) * (CELL * 0.7);
+              const px = c * CELL + dc * (CELL / 2 + d1 * 0.25) + (dc === 0 ? along : 0);
+              const pz = r * CELL + dr * (CELL / 2 + d1 * 0.25) + (dr === 0 ? along : 0);
+              slab.position.set(px, h1 / 2, pz);
+              slab.rotation.set((this.mHash(c, r, i + 60) - 0.5) * 0.4, this.mHash(c, r, i + 70) * Math.PI, (this.mHash(c, r, i + 80) - 0.5) * 0.5);
+              this.world.add(slab);
+            }
+            // ENTULHO no pé: pedregulhos soltos na beira da praça
+            const nRub = 1 + Math.floor(this.mHash(c, r, 90 + dc + dr) * 3);
+            for (let i = 0; i < nRub; i++) {
+              const rs = 0.32 + this.mHash(c, r, i + 100) * 0.5;
+              const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(rs, 0), rockOf(c + i + 1, r));
+              const along = (this.mHash(c, r, i + 110) - 0.5) * (CELL * 0.85);
+              const out = CELL / 2 + 0.15 + this.mHash(c, r, i + 120) * 0.5;
+              const px = c * CELL + dc * out + (dc === 0 ? along : 0);
+              const pz = r * CELL + dr * out + (dr === 0 ? along : 0);
+              rock.position.set(px, rs * 0.55, pz);
+              rock.rotation.set(this.mHash(c, r, i + 130) * Math.PI, this.mHash(c, r, i + 140) * Math.PI, this.mHash(c, r, i + 150) * Math.PI);
+              this.world.add(rock);
+            }
+          }
         }
       }
   }
@@ -4050,6 +4101,66 @@ export class Game {
     t.flipY = false; // topo da imagem (denso) fica no polo de CIMA da esfera
     this.cloudTexCache = t;
     return t;
+  }
+
+  // CÉU do vilarejo: textura COLORIDA (gradiente vertical soturno + nuvens densas)
+  // p/ a cúpula. Zênite = ardósia escura; horizonte = MESMA cor da névoa (costura
+  // perfeita com o fog). Nuvens carregadas (overcast) reforçam o clima "grim".
+  private skyDomeTex?: THREE.Texture;
+  private villageSkyTexture(): THREE.Texture {
+    if (this.skyDomeTex) return this.skyDomeTex;
+    const W = 512, H = 256;
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d")!;
+    const img = ctx.createImageData(W, H);
+    // ardósia escura (zênite) → cor da névoa (horizonte)
+    const top = [0x24, 0x28, 0x31];        // #242831
+    const hor = [0x87, 0x90, 0xa0];        // FOG_COLOR 0x8790a0
+    const mix = (a: number[], b: number[], t: number) =>
+      a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    for (let y = 0; y < H; y++) {
+      const v = y / (H - 1); // 0 = zênite (topo), 1 = horizonte (base)
+      // curva do gradiente: escurece devagar no alto, abre rápido perto do horizonte
+      const g = Math.pow(v, 0.72);
+      const base = mix(top, hor, g);
+      for (let x = 0; x < W; x++) {
+        // nuvens macias na metade superior (somem perto do horizonte)
+        const n = this.fbm(x * 0.018, y * 0.05, 5.1);
+        const cloud = Math.min(1, Math.max(0, (n - 0.42) * 2.6)) * (1 - v) * 0.75;
+        // nuvem escurece (overcast) — tom levemente mais frio
+        const cCol = [base[0] * 0.62, base[1] * 0.64, base[2] * 0.7];
+        const px = mix(base, cCol, cloud);
+        const i = (y * W + x) * 4;
+        img.data[i] = px[0]; img.data[i + 1] = px[1]; img.data[i + 2] = px[2];
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = THREE.RepeatWrapping;
+    t.flipY = false;
+    this.skyDomeTex = t;
+    return t;
+  }
+
+  // cúpula de céu (esfera invertida) — sem fog (senão a névoa a apagaria) e sem
+  // escrita de profundidade (fica sempre ATRÁS de tudo). Gira devagar no tick.
+  private addSkyDome() {
+    const geo = new THREE.SphereGeometry(CELL * 24, 32, 20);
+    const mat = new THREE.MeshBasicMaterial({
+      map: this.villageSkyTexture(),
+      side: THREE.BackSide,
+      fog: false,
+      depthWrite: false,
+    });
+    const dome = new THREE.Mesh(geo, mat);
+    dome.renderOrder = -10; // desenha antes de tudo (fundo)
+    // centra na praça p/ o horizonte cair de forma coerente ao redor do jogador
+    dome.position.set(WELL.c * CELL, 0, WELL.r * CELL);
+    this.world.add(dome);
+    this.fogDome = dome;
   }
 
   // textura de FUMAÇA real: mechas/tendões irregulares (ruído fbm) com borda macia —
@@ -4743,16 +4854,22 @@ export class Game {
       board.position.set(0, 1.74, 0.03);
       grp.add(board);
       const artUrl = SHOP_SIGN_ART[kind];
+      // segunda placa: tabuleta PENDURADA que projeta sobre a rua (perpendicular à
+      // parede) — legível de longe enquanto se anda pela praça. Compartilha a arte.
+      const hangH = 0.72, hangW0 = hangH * SIGN_ASPECT;
+      const hangBoard = new THREE.Mesh(new THREE.PlaneGeometry(hangW0, hangH), signMat);
       if (artUrl)
         this.loadArt(artUrl, (t) => {
           signMat.map = t;
           signMat.needsUpdate = true;
-          // ajusta o plano ao aspecto real da arte, mantendo a altura
+          // ajusta os planos ao aspecto real da arte, mantendo a altura
           const im = t.image as { width: number; height: number } | undefined;
           if (im && im.width && im.height) {
             const asp = im.width / im.height;
             board.geometry.dispose();
             board.geometry = new THREE.PlaneGeometry(signH * asp, signH);
+            hangBoard.geometry.dispose();
+            hangBoard.geometry = new THREE.PlaneGeometry(hangH * asp, hangH);
           }
         });
       // posição: face da parede + recuo, deslocada 1.5 p/ o lado da porta.
@@ -4766,6 +4883,41 @@ export class Game {
       grp.rotation.y =
         dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
       this.world.add(grp);
+
+      // ---- TABULETA PENDURADA (suporte de ferro + placa perpendicular) ----
+      // Convenção do grupo (após a rotação abaixo): +Z = normal da parede (aponta
+      // p/ a RUA), +X = ao longo da fachada. O braço sai em +Z; a placa pende dele
+      // com a face virada p/ os lados da rua (normal ao longo de X) → legível de longe.
+      const ironMat = new THREE.MeshLambertMaterial({ color: 0x1c1c22 });
+      const hang = new THREE.Group();
+      const armLen = 1.4;      // projeção sobre a rua
+      const armY = 2.82;       // logo abaixo do beiral (WALL_H=3.2)
+      // haste horizontal saindo da parede sobre a rua (ao longo de +Z)
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, armLen), ironMat);
+      arm.position.set(0, armY, armLen / 2);
+      hang.add(arm);
+      // reforço diagonal (plano Y-Z) segurando o braço
+      const stay = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.66, 0.06), ironMat);
+      stay.position.set(0, armY - 0.24, armLen * 0.34);
+      stay.rotation.x = -Math.PI / 4;
+      hang.add(stay);
+      // a placa pende do braço; normal ao longo de X (faces p/ a rua)
+      const boardZ = armLen * 0.56;
+      const boardTopY = armY - 0.06;
+      hangBoard.rotation.y = Math.PI / 2;
+      hangBoard.position.set(0, boardTopY - 0.18 - hangH / 2, boardZ);
+      hang.add(hangBoard);
+      // duas correntes do braço até o topo da placa (pontas da largura, ao longo de Z)
+      for (const dz of [-hangW0 * 0.34, hangW0 * 0.34]) {
+        const chain = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.32, 0.04), ironMat);
+        chain.position.set(0, boardTopY - 0.1, boardZ + dz);
+        hang.add(chain);
+      }
+      // ancora na face da parede, sobre a porta; roda igual ao letreiro
+      hang.position.set(fx, 0, fz);
+      hang.rotation.y =
+        dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;
+      this.world.add(hang);
     }
   }
 

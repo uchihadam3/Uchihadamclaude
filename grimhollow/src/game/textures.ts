@@ -841,50 +841,65 @@ export function signText(name: string): THREE.Texture {
 
 // -------- rocha da montanha (áspera, cinza-marrom) --------
 export function rock(seed = 41): THREE.Texture {
-  const W = 96;
-  const H = 96;
+  const W = 128;
+  const H = 128;
   const { c, ctx } = makeCanvas(W, H);
   const r = rnd(seed);
-  // base ruidosa
-  for (let y = 0; y < H; y += 2)
-    for (let x = 0; x < W; x += 2) {
-      const g = 78 + Math.floor(r() * 34);
-      ctx.fillStyle = `rgb(${g},${(g * 0.94) | 0},${(g * 0.84) | 0})`;
-      ctx.fillRect(x, y, 2, 2);
+  // base fria de ardósia (cinza-azulada) com granulado fino
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const g = 92 + Math.floor(r() * 30);
+      ctx.fillStyle = `rgb(${g},${(g * 1.02) | 0},${(g * 1.1) | 0})`;
+      ctx.fillRect(x, y, 1, 1);
     }
-  // facetas de rocha (polígonos com sombra)
-  for (let i = 0; i < 26; i++) {
-    const ox = r() * W;
-    const oy = r() * H;
-    const rad = 10 + r() * 16;
-    const sh = r() < 0.5 ? 0.22 : -0.18;
-    ctx.fillStyle = sh > 0 ? `rgba(0,0,0,${sh})` : `rgba(255,250,240,${-sh})`;
+  // ESTRATOS (bandas horizontais) — dá cara de rocha sedimentar/ardósia, não "teia"
+  let yy = 0;
+  while (yy < H) {
+    const bh = 5 + r() * 12;
+    const tone = r() < 0.5 ? -0.16 : 0.12;
+    ctx.fillStyle = tone < 0 ? `rgba(0,0,0,${-tone})` : `rgba(210,214,224,${tone})`;
+    // banda levemente ondulada
     ctx.beginPath();
-    const n = 4 + ((r() * 3) | 0);
+    ctx.moveTo(0, yy);
+    for (let x = 0; x <= W; x += 8) ctx.lineTo(x, yy + Math.sin(x * 0.12 + seed) * 1.6);
+    ctx.lineTo(W, yy + bh); ctx.lineTo(0, yy + bh);
+    ctx.closePath();
+    ctx.fill();
+    yy += bh;
+  }
+  // facetas angulares (planos de clivagem) com luz/sombra
+  for (let i = 0; i < 34; i++) {
+    const ox = r() * W, oy = r() * H;
+    const rad = 8 + r() * 18;
+    const sh = r() < 0.5 ? 0.26 : -0.2;
+    ctx.fillStyle = sh > 0 ? `rgba(0,0,0,${sh})` : `rgba(214,220,230,${-sh})`;
+    ctx.beginPath();
+    const n = 3 + ((r() * 3) | 0);
     for (let s = 0; s <= n; s++) {
-      const a = (s / n) * Math.PI * 2 + r() * 0.3;
-      const rr = rad * (0.7 + r() * 0.4);
-      const px = ox + Math.cos(a) * rr;
-      const py = oy + Math.sin(a) * rr * 0.8;
+      const a = (s / n) * Math.PI * 2 + r() * 0.5;
+      const rr = rad * (0.55 + r() * 0.5);
+      const px = ox + Math.cos(a) * rr, py = oy + Math.sin(a) * rr * 0.85;
       s === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
     }
     ctx.closePath();
     ctx.fill();
   }
-  // fissuras
-  ctx.strokeStyle = "rgba(20,16,12,0.5)";
-  ctx.lineWidth = 1.4;
-  for (let i = 0; i < 7; i++) {
+  // fissuras VERTICAIS finas (rocha racha na vertical) — discretas
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    ctx.strokeStyle = `rgba(14,16,20,${0.3 + r() * 0.25})`;
     ctx.beginPath();
-    let x = r() * W;
-    let y = r() * H;
+    let x = r() * W, y = r() * H;
     ctx.moveTo(x, y);
-    for (let s = 0; s < 5; s++) {
-      x += (r() - 0.5) * 26;
-      y += (r() - 0.5) * 26;
-      ctx.lineTo(x, y);
-    }
+    for (let s = 0; s < 6; s++) { x += (r() - 0.5) * 10; y += 8 + r() * 12; ctx.lineTo(x, y); }
     ctx.stroke();
+  }
+  // manchas de musgo esparsas (verde-acinzentado) na base do tom
+  for (let i = 0; i < 10; i++) {
+    ctx.fillStyle = `rgba(70,86,58,${0.1 + r() * 0.14})`;
+    ctx.beginPath();
+    ctx.ellipse(r() * W, r() * H, 4 + r() * 8, 3 + r() * 6, r() * 3, 0, Math.PI * 2);
+    ctx.fill();
   }
   return toTex(c);
 }
