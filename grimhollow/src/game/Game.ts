@@ -4808,12 +4808,49 @@ export class Game {
       this.glowLight(bx + 2.6, 3.4, bz, 0xffb45a, 2.6, 8);
     }
 
-    // escada de saída (U): um facho de luz frio marcando o caminho de volta
-    const up = dungeonFind("U");
-    const beam = new THREE.PointLight(0xbfe0ff, 3.2, 13, 2);
-    beam.position.set(up.col * CELL, 2.7, up.row * CELL); this.world.add(beam);
+    // ESCADARIA DE VOLTA (U): escada de pedra SUBINDO rumo à superfície, com um
+    // facho de LUZ DO DIA quente descendo (contraste com a treva fria da masmorra)
+    // — deixa claro que dali se volta ao vilarejo.
+    this.buildReturnStairs(dungeonFind("U"), rockMat, CH);
 
     this.spawnDungeonEnemy(); // um inimigo perto do jogador
+  }
+
+  // escadaria de pedra subindo à superfície na célula de saída (U). Degraus
+  // ascendentes p/ o norte, paredes laterais e um facho de luz do dia quente.
+  private buildReturnStairs(up: { col: number; row: number }, rockMat: THREE.Material, CH: number) {
+    const stMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide });
+    const bx = up.col * CELL, bz = up.row * CELL;
+    const N = 9; // degraus subindo p/ o norte (−z), sumindo na claridade lá em cima
+    for (let i = 0; i < N; i++) {
+      const h = 0.16 + (i + 1) * 0.4;
+      const st = new THREE.Mesh(new THREE.BoxGeometry(2.9, h, 0.66), stMat);
+      st.position.set(bx, h / 2, bz - i * 0.6);
+      this.world.add(st);
+    }
+    // paredes laterais do vão (enquadram a escadaria)
+    for (const s of [-1, 1]) {
+      const side = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 2.2, CH), rockMat);
+      side.position.set(bx + s * 1.55, CH / 2, bz - CELL * 0.7);
+      side.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+      this.world.add(side);
+    }
+    // "abertura" de pedra no topo (arco) por onde entra a luz
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.8, 1.2), stMat);
+    lintel.position.set(bx, CH * 0.62, bz - N * 0.58);
+    this.world.add(lintel);
+    // FACHO de luz do dia (cilindro macio aditivo) descendo do topo até os degraus
+    const shaftMat = new THREE.MeshBasicMaterial({
+      map: this.dropGlowTexture(), color: new THREE.Color(0xffe2b0),
+      transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    });
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.7, CH * 0.9, 16, 1, true), shaftMat);
+    shaft.position.set(bx, CH * 0.45, bz - N * 0.5);
+    this.world.add(shaft);
+    // luzes quentes: forte no alto (a superfície) + preenchimento sobre os degraus
+    this.glowLight(bx, CH * 0.75, bz - N * 0.55, 0xffdca0, 6.0, 18);
+    this.glowLight(bx, 2.0, bz - N * 0.3, 0xffcf8a, 3.2, 11);
   }
 
   private buildChest(cx: number, cz: number, wood: THREE.Material, iron: THREE.Material) {
@@ -6095,7 +6132,8 @@ export class Game {
           else if (k === "sign") pois.push({ c, r, kind: "sign", label: "Placa" });
         }
     } else if (this.location === "dungeon") {
-      for (const s of dungeonAll("S")) pois.push({ c: s.col, r: s.row, kind: "stair", label: "Saída" });
+      // marca a ESCADA DE VOLTA (U) como saída (é por onde se sobe ao vilarejo)
+      for (const s of dungeonAll("U")) pois.push({ c: s.col, r: s.row, kind: "stair", label: "Subir ao Vilarejo" });
       for (const s of dungeonAll("A")) pois.push({ c: s.col, r: s.row, kind: "sanctuary", label: "Escadaria" });
       for (const s of dungeonAll("L")) pois.push({ c: s.col, r: s.row, kind: "gate", label: "Portão Selado" });
       for (const key of this.gates.keys()) {
@@ -7794,7 +7832,7 @@ export class Game {
     if (t) {
       if (t.kind === "enter") text = `Entrar — ${ESTAB[t.estab].name}`;
       else if (t.kind === "enterhome") text = "Entrar na casa";
-      else if (t.kind === "exit") text = "Sair";
+      else if (t.kind === "exit") text = this.location === "dungeon" ? "Subir ao Vilarejo" : "Sair";
       else if (t.kind === "talk") text = `Falar com ${t.name}`;
       else if (t.kind === "dungeon") text = "Descer à masmorra";
       else if (t.kind === "toforest") text = "Ir para a Floresta";
