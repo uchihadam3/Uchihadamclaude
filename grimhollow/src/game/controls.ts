@@ -411,6 +411,7 @@ export function setupControls(
   const catalog: Record<string, Weapon> = {};
   for (const w of weapons ?? []) catalog[w.id] = w;
   let current: Weapon | null = null; // arma equipada na mão principal
+  let twoHandEquipped = false; // arma de 2 mãos ocupando o slot secundário (fantasma)
   // ---- teclado ----
   const keymap: Record<string, Action> = {
     ArrowUp: "forward",
@@ -2290,8 +2291,11 @@ export function setupControls(
         const el = eq.querySelector(`.gh-slot[data-slot="${slotKey}"]`) as HTMLElement | null;
         if (el) el.innerHTML = `<img class="gh-item-ico" src="${w.url}" alt="" title="${w.name}"/>`;
       };
+      const offEl = () => eq.querySelector('.gh-slot[data-slot="off"]') as HTMLElement | null;
       if (w.slot === "off") {
         putIcon("off");
+        offEl()?.classList.remove("gh-slot-2h"); // um item de verdade na mão secundária
+        twoHandEquipped = false;
       } else {
         current = w;
         // encerra qualquer golpe/giro em andamento e volta ao repouso
@@ -2308,6 +2312,18 @@ export function setupControls(
         }
         root.classList.toggle("gh-wpn-arcane", w.tint === "arcane");
         putIcon("main");
+        // 2 MÃOS (estilo PoE): a arma também aparece no slot secundário (fantasma
+        // levemente esmaecido, pra indicar que é a mesma peça ocupando a 2ª mão).
+        // 1 mão: limpa o fantasma que uma 2-mãos anterior tenha deixado.
+        const off = offEl();
+        if (w.grip === "2h") {
+          putIcon("off");
+          off?.classList.add("gh-slot-2h");
+          twoHandEquipped = true;
+        } else if (twoHandEquipped) {
+          if (off) { off.innerHTML = ""; off.classList.remove("gh-slot-2h"); }
+          twoHandEquipped = false;
+        }
         onEquip?.(w);
       }
       // realça (pulsa) o slot da mochila do item selecionado
@@ -3192,6 +3208,9 @@ function injectStyle() {
      ícone maior (preenche mais) p/ não ficar minúsculo como antes. */
   .gh-slot-acc { border-width:clamp(3px,0.62vh,5px); }
   .gh-slot-acc .gh-item-ico { max-width:94%; max-height:94%; }
+  /* arma de 2 MÃOS: a cópia no slot secundário fica esmaecida (é a mesma peça
+     ocupando a 2ª mão, não um item separado) — estilo Path of Exile. */
+  .gh-slot-2h .gh-item-ico { opacity:0.42; filter:grayscale(0.35) drop-shadow(0 2px 3px rgba(0,0,0,.6)); }
   /* MOLDURAS DE RARIDADE (mochila + boneco): anel interno colorido + brilho */
   .gh-rar-comum    { box-shadow:inset 0 0 0 1px rgba(185,180,166,.4); }
   .gh-rar-magico   { box-shadow:inset 0 0 0 2px #4a90e2, inset 0 0 8px rgba(74,144,226,.55); }
