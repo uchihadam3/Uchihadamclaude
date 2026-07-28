@@ -4085,13 +4085,23 @@ export class Game {
     const wallMat = new THREE.MeshLambertMaterial({
       map: tex.caveWall(),
       side: THREE.DoubleSide,
+      // a parede da montanha (ardósia) é coplanar com a parede do túnel na fronteira
+      // das células → z-fighting. polygonOffset puxa a rocha do túnel p/ a frente no
+      // z-buffer, então a MESMA rocha da masmorra sempre vence (some a ardósia azulada).
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -2,
     });
     const ceilMat = new THREE.MeshLambertMaterial({
       map: tex.caveCeil(),
       side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -2,
     });
-    // degraus em pedra clara p/ contrastar com as paredes escuras da caverna
-    const stairMat = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    // degraus na MESMA rocha do chão da masmorra (caveFloor) — pedra de verdade,
+    // não a antiga pedra clara que lembrava madeira.
+    const stairMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor() });
     let mouth: [number, number] | null = null;
     for (let r = 0; r < ROWS; r++)
       for (let c = 0; c < COLS; c++) {
@@ -5147,7 +5157,11 @@ export class Game {
     // rocha viva da masmorra, SEM tingir (emissivo neutro baixinho só p/ não ficar
     // preto onde a point light não alcança) — mantém a cor/pedra igual à da dungeon.
     const rockMat = (map: THREE.Texture | undefined) =>
-      new THREE.MeshLambertMaterial({ map, side: THREE.DoubleSide, emissive: new THREE.Color(0x14130f) });
+      new THREE.MeshLambertMaterial({
+        map, side: THREE.DoubleSide, emissive: new THREE.Color(0x14130f),
+        // igual ao túnel: vence a ardósia da montanha coplanar no z-buffer
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+      });
     // quad livre (4 cantos) com UV em escala de mundo (a rocha tila natural)
     const S = 2.6;
     const quad = (a: number[], b: number[], c2: number[], d: number[], mat: THREE.Material, uv: number[][]) => {
