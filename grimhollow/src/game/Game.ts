@@ -851,6 +851,17 @@ type Target =
   | { kind: "pickup"; uid: string; name: string } // item caído no chão à frente
   | null;
 
+// entrada de diálogo de um aldeão (guardada no npcMap por célula). Os walkers
+// carregam a referência da SUA entrada p/ movê-la sem clobber quando se sobrepõem.
+interface NpcEntry {
+  name: string;
+  lines: string[];
+  tex: THREE.Texture;
+  art: boolean;
+  frames?: number;
+  portrait?: string | null;
+}
+
 // item/ouro caído no chão (estilo WoW): ícone flutuante + facho sutil por raridade.
 // NÃO bloqueia a célula — o jogador passa por cima (ouro = auto; item = popup "Pegar").
 interface GroundDrop {
@@ -1101,17 +1112,7 @@ export class Game {
   private doorMap = new Map<string, Estab>(); // "c,r,dc,dr" -> estabelecimento
   private homeDoorMap = new Map<string, HomeId>(); // "c,r,dc,dr" -> casa de aldeão
   // "c,r" -> NPC (guarda a textura p/ recortar o retrato do diálogo)
-  private npcMap = new Map<
-    string,
-    {
-      name: string;
-      lines: string[];
-      tex: THREE.Texture;
-      art: boolean;
-      frames?: number; // >1 se a textura for um sprite-sheet
-      portrait?: string | null;
-    }
-  >();
+  private npcMap = new Map<string, NpcEntry>();
   private returnTo = { col: 0, row: 0, facing: 0 }; // volta ao sair do interior
   private dialogue: {
     name: string;
@@ -1152,6 +1153,7 @@ export class Game {
     inside: boolean; // recolhido dentro do prédio (invisível)
     doorDir: { dc: number; dr: number } | null | undefined; // dir da porta no posto noturno (undefined = não calculado)
     trans: { kind: "enter" | "exit"; t0: number; fromX: number; fromZ: number; toX: number; toZ: number } | null;
+    entry: NpcEntry; // entrada de diálogo deste NPC (movida no npcMap ao andar)
   }[] = [];
   private npcNight = false; // fase atual da rotina dos aldeões (com histerese)
 
@@ -5042,6 +5044,7 @@ export class Game {
         inside: false,
         doorDir: undefined,
         trans: null,
+        entry,
       });
     }
   }
@@ -6936,16 +6939,15 @@ export class Game {
     return isWalkable(c, r);
   }
 
-  // célula livre p/ o aldeão pisar agora: andável, sem o jogador e sem outro NPC
-  private cellFreeForWalker(c: number, r: number, self: object): boolean {
+  // célula livre p/ o aldeão pisar agora. IMPORTANTE: os aldeões NÃO colidem entre
+  // si durante a rotina — vários compartilham o mesmo destino (ex.: 3 vão à porta
+  // da taverna) e o BFS ignora a ocupação, então tratar outro NPC como bloqueio
+  // fazia dois se esperarem pra sempre (travava a ida pra casa ao anoitecer). Eles
+  // passam um pelo outro (aldeões de fundo) — só evitam parede/poço e a câmera do
+  // jogador (pra não atravessar a tela em 1ª pessoa).
+  private cellFreeForWalker(c: number, r: number, _self: object): boolean {
     if (!this.plazaWalkable(c, r)) return false;
     if (c === this.col && r === this.row) return false;
-    for (const o of this.walkers) {
-      if (o === self) continue;
-      if (o.inside) continue; // recolhidos não ocupam a célula
-      if (o.cur.c === c && o.cur.r === r) return false;
-      if (o.moving && o.to.c === c && o.to.r === r) return false;
-    }
     return true;
   }
 
@@ -7093,13 +7095,12 @@ export class Game {
           w.waitUntil = now + 300; // caminho ocupado: espera e tenta de novo
           continue;
         }
-        // move a entrada do npcMap p/ a nova célula (diálogo é por célula)
+        // move a entrada DESTE walker no npcMap p/ a nova célula (diálogo é por
+        // célula). Só apaga a célula de origem se ela ainda aponta p/ a MINHA
+        // entrada — quando dois se sobrepõem, não removo a entrada do outro.
         const tk = `${step.c},${step.r}`;
-        const entry = this.npcMap.get(w.key);
-        if (entry) {
-          this.npcMap.delete(w.key);
-          this.npcMap.set(tk, entry);
-        }
+        if (this.npcMap.get(w.key) === w.entry) this.npcMap.delete(w.key);
+        this.npcMap.set(tk, w.entry);
         // no ÚLTIMO passo (chegando ao posto) já encosta na parede; nos passos
         // intermediários anda pelo centro das células.
         const isGoal = step.c === goal.c && step.r === goal.r;
