@@ -975,26 +975,28 @@ export function setupControls(
   (journal.querySelector("#gh-journal-close") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); journal.classList.add("gh-eq-hidden"); });
   journal.addEventListener("click", (e) => { if (e.target === journal) journal.classList.add("gh-eq-hidden"); });
 
-  // disposição "boneco" estilo Path of Exile numa grade 10×8 (célula quadrada):
-  // armas ALTAS (2×6) nas laterais; elmo/amuleto no topo; peitoral no centro
-  // ladeado pelos anéis; luvas/cinto/botas na base. Todos os acessórios (amuleto,
-  // anéis, cinto) agora são 2×2 — do mesmo tamanho das luvas/botas (legíveis).
-  const EQ_SLOTS: { key: string; label: string; gc: string; gr: string }[] = [
-    { key: "main", label: "Arma", gc: "1 / 3", gr: "1 / 7" },
-    { key: "off", label: "Secundária", gc: "9 / 11", gr: "1 / 7" },
-    { key: "head", label: "Elmo", gc: "5 / 7", gr: "1 / 3" },
-    { key: "amulet", label: "Amuleto", gc: "7 / 9", gr: "1 / 3" },
-    { key: "chest", label: "Peitoral", gc: "5 / 7", gr: "3 / 6" },
-    { key: "ring1", label: "Anel", gc: "3 / 5", gr: "4 / 6" },
-    { key: "ring2", label: "Anel", gc: "7 / 9", gr: "4 / 6" },
-    { key: "hands", label: "Luvas", gc: "3 / 5", gr: "6 / 8" },
-    { key: "belt", label: "Cinto", gc: "5 / 7", gr: "6 / 8" },
-    { key: "feet", label: "Botas", gc: "7 / 9", gr: "6 / 8" },
+  // disposição "boneco" estilo Path of Exile numa grade 14×10 (célula quadrada).
+  // Tamanhos DIFERENTES por peça (como no PoE), não tudo igual:
+  //  • armas ALTAS (2×8) nas laterais; elmo/peitoral GRANDES (4 de largura);
+  //  • ACESSÓRIOS menores: amuleto/anéis são quadradinhos (2×2) e o CINTO é
+  //    ACHATADO (4×2 — largo e baixo). Molduras mais FINAS nesses (.gh-slot-acc)
+  //    p/ o ícone não ficar minúsculo apesar do slot menor.
+  const EQ_SLOTS: { key: string; label: string; gc: string; gr: string; acc?: boolean }[] = [
+    { key: "main", label: "Arma", gc: "1 / 3", gr: "1 / 9" },
+    { key: "off", label: "Secundária", gc: "13 / 15", gr: "1 / 9" },
+    { key: "head", label: "Elmo", gc: "6 / 10", gr: "1 / 4" },
+    { key: "amulet", label: "Amuleto", gc: "10 / 12", gr: "1 / 3", acc: true },
+    { key: "chest", label: "Peitoral", gc: "6 / 10", gr: "4 / 8" },
+    { key: "ring1", label: "Anel", gc: "4 / 6", gr: "5 / 7", acc: true },
+    { key: "ring2", label: "Anel", gc: "10 / 12", gr: "5 / 7", acc: true },
+    { key: "hands", label: "Luvas", gc: "3 / 6", gr: "8 / 11" },
+    { key: "belt", label: "Cinto", gc: "6 / 10", gr: "8 / 10", acc: true },
+    { key: "feet", label: "Botas", gc: "10 / 13", gr: "8 / 11" },
   ];
   // slots SEM texto (o rótulo fica só nos dados p/ o futuro "destaque" do slot
   // certo ao clicar num item). O que vai dentro é o ícone do item equipado.
-  const slotHtml = (s: { key: string; label: string; gc: string; gr: string }) =>
-    `<div class="gh-slot" data-slot="${s.key}" title="${s.label}" style="grid-column:${s.gc};grid-row:${s.gr}"></div>`;
+  const slotHtml = (s: { key: string; label: string; gc: string; gr: string; acc?: boolean }) =>
+    `<div class="gh-slot${s.acc ? " gh-slot-acc" : ""}" data-slot="${s.key}" title="${s.label}" style="grid-column:${s.gc};grid-row:${s.gr}"></div>`;
   // mochila (grade simples estilo WoW): 20 slots quadrados, reutilizando a MESMA
   // arte do slot (9-slice). Cada slot guarda 1 item; consumíveis empilham (badge).
   const BAG_SLOTS = 20;
@@ -3151,12 +3153,12 @@ function injectStyle() {
   }
   .gh-gold img { width:clamp(15px,2.2vh,20px); height:auto; filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
   .gh-gold b { color:#f4d873; font-size:clamp(12px,1.7vh,15px); text-shadow:0 1px 3px rgba(0,0,0,.85); }
-  /* grade "boneco" 10×8 (célula quadrada via aspect-ratio) — disposição PoE.
-     Acessórios (amuleto/anéis/cinto) agora ocupam 2×2 → legíveis, sem ficarem
-     minúsculos como quando eram 1×1. */
+  /* grade "boneco" 14×10 (célula quadrada) — disposição PoE com tamanhos
+     variados: elmo/peitoral grandes, amuleto/anéis quadradinhos (2×2) e cinto
+     ACHATADO (4×2). Grade fina p/ dar essas proporções; gap pequeno. */
   .gh-eq-doll {
-    display:grid; grid-template-columns:repeat(10,1fr); grid-template-rows:repeat(8,1fr);
-    gap:clamp(3px,0.8vh,6px); width:94%; aspect-ratio:5 / 4; margin:0 auto;
+    display:grid; grid-template-columns:repeat(14,1fr); grid-template-rows:repeat(10,1fr);
+    gap:clamp(2px,0.45vh,4px); width:96%; aspect-ratio:7 / 5; margin:0 auto;
   }
   /* MOCHILA: um ÚNICO container escuro dividido por LINHAS FINAS (sem molduras
      grossas por célula). As linhas são a cor de fundo aparecendo no gap de 1px. */
@@ -3184,6 +3186,10 @@ function injectStyle() {
     box-sizing:border-box; min-width:0; min-height:0;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
   }
+  /* ACESSÓRIOS (amuleto/anéis/cinto): slot menor/achatado → moldura mais FINA e
+     ícone maior (preenche mais) p/ não ficar minúsculo como antes. */
+  .gh-slot-acc { border-width:clamp(3px,0.62vh,5px); }
+  .gh-slot-acc .gh-item-ico { max-width:94%; max-height:94%; }
   /* MOLDURAS DE RARIDADE (mochila + boneco): anel interno colorido + brilho */
   .gh-rar-comum    { box-shadow:inset 0 0 0 1px rgba(185,180,166,.4); }
   .gh-rar-magico   { box-shadow:inset 0 0 0 2px #4a90e2, inset 0 0 8px rgba(74,144,226,.55); }
