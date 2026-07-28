@@ -5121,9 +5121,9 @@ export class Game {
     return { pivotL, pivotR };
   }
 
-  // TÚNEL DESCENDENTE: em vez de um "buraco" com parede chapada, o próprio túnel
-  // DESCE — chão (degraus), TETO e PAREDES afundam juntos, fatia por fatia, rumo
-  // ao norte. Mostra os primeiros degraus na boca e vai escurecendo até a treva.
+  // TÚNEL DESCENDENTE: o TETO e as PAREDES são planos LISOS descendo (rampa reta,
+  // sem degraus) — os degraus ficam SÓ no CHÃO. Usa a MESMA rocha (PNG) da
+  // masmorra, sem tingir. Vai escurecendo p/ o fundo (a treva da profundeza).
   private buildStairs(
     c: number,
     r: number,
@@ -5133,62 +5133,79 @@ export class Game {
     stepMat: THREE.Material,
     ceilMat: THREE.Material,
   ) {
-    const N = 6;                    // fatias/degraus da descida
-    const stepH = 0.55;             // queda por fatia
-    const stepD = CELL / N;         // avanço em z por fatia
+    const N = 6;                    // degraus do chão
+    const stepH = 0.55;             // queda por degrau
+    const stepD = CELL / N;         // avanço em z por degrau
+    const HW = CELL / 2;
     const zSouth = cz + CELL / 2;   // BOCA (sul), onde o jogador entra
-    const H = TUNNEL_H;             // altura do túnel (constante — desce junto)
-    const bottomY = -N * stepH;
+    const zEnd = zSouth - CELL;     // fundo (norte)
+    const H = TUNNEL_H;             // altura do túnel na boca
+    const bottomY = -N * stepH;     // piso do fundo
     const stoneMap = (stepMat as THREE.MeshLambertMaterial).map ?? undefined;
     const wallMap = (wallMat as THREE.MeshLambertMaterial).map ?? undefined;
     const ceilMap = (ceilMat as THREE.MeshLambertMaterial).map ?? undefined;
-    // material com emissivo que ESMAECE com a profundidade (topo visível → fundo
-    // na treva). Independe das point lights (a cena pode não aplicá-las por excesso).
-    const mk = (map: THREE.Texture | undefined, hot: number, t: number, p: number, dark = 0x050506) =>
-      new THREE.MeshLambertMaterial({ map, side: THREE.DoubleSide, emissive: new THREE.Color(dark).lerp(new THREE.Color(hot), Math.pow(Math.max(0, t), p)) });
+    // rocha viva da masmorra, SEM tingir (emissivo neutro baixinho só p/ não ficar
+    // preto onde a point light não alcança) — mantém a cor/pedra igual à da dungeon.
+    const rockMat = (map: THREE.Texture | undefined) =>
+      new THREE.MeshLambertMaterial({ map, side: THREE.DoubleSide, emissive: new THREE.Color(0x14130f) });
+    // quad livre (4 cantos) com UV em escala de mundo (a rocha tila natural)
+    const S = 2.6;
+    const quad = (a: number[], b: number[], c2: number[], d: number[], mat: THREE.Material, uv: number[][]) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute([...a, ...b, ...c2, ...a, ...c2, ...d], 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute([...uv[0], ...uv[1], ...uv[2], ...uv[0], ...uv[2], ...uv[3]], 2));
+      g.computeVertexNormals();
+      this.world.add(new THREE.Mesh(g, mat));
+    };
+    // yTeto(z): teto LISO descendo de H (boca) a bottomY+H (fundo)
+    const yCeil = (z: number) => H + bottomY * ((zSouth - z) / CELL);
+    // TETO liso (rampa reta) — um único plano descendo
+    quad(
+      [cx - HW, H, zSouth], [cx + HW, H, zSouth],
+      [cx + HW, yCeil(zEnd), zEnd], [cx - HW, yCeil(zEnd), zEnd], rockMat(ceilMap),
+      [[0, 0], [CELL / S, 0], [CELL / S, CELL / S], [0, CELL / S]],
+    );
+    // PAREDES lisas (topo acompanha o teto; base plana no fundo) — "a parede descendo"
+    for (const s of [-1, 1]) {
+      const x = cx + s * HW;
+      quad(
+        [x, H, zSouth], [x, yCeil(zEnd), zEnd], [x, bottomY, zEnd], [x, bottomY, zSouth], rockMat(wallMap),
+        [[0, (H - bottomY) / S], [CELL / S, (yCeil(zEnd) - bottomY) / S], [CELL / S, 0], [0, 0]],
+      );
+    }
+    // DEGRAUS SÓ NO CHÃO: cada degrau é UM espelho de altura (não um bloco até o
+    // fundo) — assim eles CASCATEIAM e todos os tampos aparecem descendo, em vez de
+    // a face frontal do 1º degrau virar uma parede que esconde os demais.
     const noseMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0c });
-
-    // FATIAS descendo: cada uma tem seu DEGRAU (chão), TETO e 2 PAREDES, tudo mais
-    // fundo que a anterior → o túnel inteiro afunda (perspectiva de descida real).
+    // preenchimento escuro sob a escadaria p/ não vazar o fundo em ângulos rasos
+    const fill = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.04, 0.4, CELL), new THREE.MeshBasicMaterial({ color: 0x060505 }));
+    fill.position.set(cx, bottomY - 0.2, (zSouth + zEnd) / 2); this.world.add(fill);
     for (let i = 0; i < N; i++) {
-      const yTop = -i * stepH;                  // altura do piso desta fatia (tampo do degrau)
-      const zc = zSouth - (i + 0.5) * stepD;    // centro da fatia em z
-      const t = 1 - i / N;                      // 1 na boca → ~0 no fundo
-      // DEGRAU (tampo + espelho): box do tampo até o fundo (staircase sólida).
-      // Bem claro e com queda LENTA de brilho → 3-4 degraus lêem no topo.
-      const step = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.04, yTop - bottomY, stepD + 0.02), mk(stoneMap, 0xe8bc7a, t, 0.72));
-      step.position.set(cx, (yTop + bottomY) / 2, zc); this.world.add(step);
-      // nariz do degrau (fio de sombra) — define o nível na perspectiva
+      const yTop = -i * stepH;
+      const zc = zSouth - (i + 0.5) * stepD;
+      const t = 1 - i / N;
+      // emissivo quente-pedra (NÃO amarelo-madeira) que esmaece devagar: 3-4 degraus
+      // lêem como pedra descendo antes de a treva engolir o resto.
+      const em = new THREE.Color(0x0b0908).lerp(new THREE.Color(0x8a6c42), Math.pow(t, 0.5));
+      const step = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.04, stepH + 0.02, stepD + 0.02), new THREE.MeshLambertMaterial({ map: stoneMap, emissive: em }));
+      step.position.set(cx, yTop - stepH / 2, zc); this.world.add(step);
       const nose = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.02, 0.06, 0.07), noseMat);
       nose.position.set(cx, yTop, zc + stepD / 2); this.world.add(nose);
-      // TETO da fatia (afunda junto)
-      const ceil = new THREE.Mesh(new THREE.PlaneGeometry(CELL, stepD + 0.02), mk(ceilMap, 0x6a5230, t, 1.15));
-      ceil.rotation.x = Math.PI / 2; ceil.position.set(cx, yTop + H, zc); this.world.add(ceil);
-      // PAREDES laterais da fatia (afundam junto) — "a parede descendo como um túnel"
-      for (const s of [-1, 1]) {
-        const w = new THREE.Mesh(new THREE.PlaneGeometry(stepD + 0.02, H), mk(wallMap, 0x6a5230, t, 1.15));
-        w.position.set(cx + s * (CELL / 2), yTop + H / 2, zc);
-        w.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2;
-        this.world.add(w);
-      }
     }
-    // PAREDE e CHÃO do FUNDO fechando o túnel na treva total
-    const zEnd = zSouth - N * stepD;
+    // PAREDE do FUNDO na treva total
     const back = new THREE.Mesh(new THREE.PlaneGeometry(CELL, H), new THREE.MeshBasicMaterial({ color: 0x050507 }));
     back.position.set(cx, bottomY + H / 2, zEnd + 0.03); this.world.add(back);
-    const base = new THREE.Mesh(new THREE.PlaneGeometry(CELL, stepD + 0.1), new THREE.MeshBasicMaterial({ color: 0x040405 }));
-    base.rotation.x = -Math.PI / 2; base.position.set(cx, bottomY + 0.02, zEnd + stepD / 2); this.world.add(base);
     // TOCHAS quentes flanqueando a boca (revelam os primeiros degraus) + luz baixa
-    // logo dentro da boca; o fundo permanece escuro (o mistério da profundeza).
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     for (const s of [-1, 1]) {
       this.addWallDecal(c, r, s, 0, torchMat, 0.8, 1.3, 2.0);
-      this.glowLight(cx + s * (CELL / 2 - 0.5), 2.1, zSouth - 0.5, 0xffb055, 3.0, 7);
+      this.glowLight(cx + s * (HW - 0.5), 2.1, zSouth - 0.5, 0xffb055, 3.0, 7);
     }
     const g1 = new THREE.PointLight(0xffbf70, 4.5, 11, 2);
     g1.position.set(cx, 2.2, zSouth - 0.6); this.world.add(g1);
-    const g2 = new THREE.PointLight(0xffb060, 3.5, 6, 2);
-    g2.position.set(cx, 0.2, zSouth - 1.5); this.world.add(g2);
+    // luz baixa raspando os degraus que descem — revela 2-3 tampos na boca
+    const g2 = new THREE.PointLight(0xffb060, 4.5, 8, 2);
+    g2.position.set(cx, -0.6, zSouth - 1.9); this.world.add(g2);
   }
 
   // portas dos estabelecimentos + PLACA-ESTACA encostada na parede ao lado da porta
