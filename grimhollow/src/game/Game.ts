@@ -153,6 +153,7 @@ import fxLNuvemUrl from "../assets/ui/fx/fx_l_nuvem.png";
 import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, WEAPON_BY_ID, type Weapon } from "./weapons";
+import { generateArmor, sumBonuses, ARMOR_SLOTS, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus } from "./items";
 import { CLASS_BY_ID, type Character } from "./classes";
 import {
   derive,
@@ -945,6 +946,9 @@ export class Game {
   private mainFlags: Record<string, boolean> = {}; // ex.: lantern = tem a Lanterna da Bruma
   private sealCell: { col: number; row: number } | null = null; // Portão Selado (masmorra)
   private sealBars: THREE.Object3D | null = null;                // grade do Portão (some ao romper)
+  // ---- EQUIPAMENTO (armaduras) ----
+  private armorInv: ItemInstance[] = [];                          // armaduras na mochila (não equipadas)
+  private equippedArmor: Partial<Record<ArmorSlot, ItemInstance>> = {}; // por slot
   private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
   private guideOn = true;                                         // guia/marcador (mapa+mundo) ligado?
   private introShown = false;                                    // narração de abertura (1×)
@@ -2651,8 +2655,30 @@ export class Game {
   // recalcula TODOS os secundários a partir dos primários + base da classe, e
   // aplica as passivas por cima (vida/mana/defesa/ataque). Preserva a fração de
   // vida/mana ao mudar os tetos. É a fonte única de verdade dos atributos.
+  // bônus total das armaduras equipadas (base + afixos rolados)
+  private equipBonus(): StatBonus {
+    return sumBonuses(ARMOR_SLOTS.map((s) => this.equippedArmor[s]));
+  }
   private recomputeDerived() {
-    this.sec = derive(this.prim, this.clsHp, this.clsMp);
+    const eq = this.equipBonus();
+    // 1) primários do equipamento entram ANTES da derivação (alimentam os secundários)
+    const p = {
+      str: this.prim.str + (eq.str ?? 0),
+      dex: this.prim.dex + (eq.dex ?? 0),
+      int: this.prim.int + (eq.int ?? 0),
+    };
+    this.sec = derive(p, this.clsHp, this.clsMp);
+    // 2) afixos/base DIRETOS somam por cima dos secundários derivados
+    this.sec.hp += eq.hp ?? 0;
+    this.sec.def += eq.def ?? 0;
+    this.sec.magRes += eq.magRes ?? 0;
+    this.sec.crit += eq.crit ?? 0;
+    this.sec.critDmg += eq.critDmg ?? 0;
+    this.sec.precision = Math.min(99, this.sec.precision + (eq.precision ?? 0));
+    this.sec.evasion += eq.evasion ?? 0;
+    this.sec.mp += eq.mana ?? 0;
+    this.sec.atkPhys += eq.atkPhys ?? 0;
+    this.sec.atkMag += eq.atkMag ?? 0;
     const hpFrac = this.playerMaxHp > 0 ? this.playerHp / this.playerMaxHp : 1;
     const mpFrac = this.playerMaxMp > 0 ? this.playerMp / this.playerMaxMp : 1;
     this.playerMaxHp = Math.round(this.sec.hp * (1 + (this.passive.life ?? 0)));
@@ -2671,6 +2697,37 @@ export class Game {
     this.ui.setMana(this.playerMp / this.playerMaxMp);
     this.refreshStats();
   }
+
+  // ---- EQUIPAR / DESEQUIPAR ARMADURA ----
+  // equipa uma peça da mochila no seu slot (a que estava lá volta pra mochila)
+  private equipArmor(uid: string) {
+    const idx = this.armorInv.findIndex((i) => i.uid === uid);
+    if (idx < 0) return;
+    const it = this.armorInv.splice(idx, 1)[0];
+    const prev = this.equippedArmor[it.slot];
+    this.equippedArmor[it.slot] = it;
+    if (prev) this.armorInv.push(prev);
+    this.recomputeDerived();
+    this.pushEquipUI();
+  }
+  private unequipArmor(slot: ArmorSlot) {
+    const it = this.equippedArmor[slot];
+    if (!it) return;
+    delete this.equippedArmor[slot];
+    this.armorInv.push(it);
+    this.recomputeDerived();
+    this.pushEquipUI();
+  }
+  // gera uma peça (rola raridade+afixos) e joga na mochila — fonte de teste; os
+  // DROPS estilo WoW vão usar o mesmo generateArmor.
+  private giveArmor(slot: ArmorSlot, tier: number, rarity?: Rarity): ItemInstance {
+    const it = generateArmor(slot, tier, rarity ? { rarity } : undefined);
+    this.armorInv.push(it);
+    this.pushEquipUI();
+    return it;
+  }
+  // liga a mochila/boneco à UI (implementado na fase da interface de equipar)
+  private pushEquipUI() { /* TODO: fase UI */ }
 
   // rola o dano de um golpe: base × passivas(%) × buff, com chance de CRÍTICO
   // (usa a chance/dano crítico dos secundários). Retorna o valor final e se crit.
