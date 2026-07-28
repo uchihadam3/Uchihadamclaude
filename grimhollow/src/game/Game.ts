@@ -4813,6 +4813,9 @@ export class Game {
     // — deixa claro que dali se volta ao vilarejo.
     this.buildReturnStairs(dungeonFind("U"), rockMat, CH);
 
+    // cenografia: salas temáticas (cripta/caverna fúngica) + destroços
+    this.buildDungeonDressing(CH);
+
     this.spawnDungeonEnemy(); // um inimigo perto do jogador
   }
 
@@ -4851,6 +4854,151 @@ export class Game {
     // luzes quentes: forte no alto (a superfície) + preenchimento sobre os degraus
     this.glowLight(bx, CH * 0.75, bz - N * 0.55, 0xffdca0, 6.0, 18);
     this.glowLight(bx, 2.0, bz - N * 0.3, 0xffcf8a, 3.2, 11);
+  }
+
+  // textura de TEIA DE ARANHA (raios + arcos concêntricos a partir de um canto)
+  private _webTex?: THREE.Texture;
+  private dungeonWebTex(): THREE.Texture {
+    if (this._webTex) return this._webTex;
+    const S = 128;
+    const cv = document.createElement("canvas"); cv.width = cv.height = S;
+    const g = cv.getContext("2d")!;
+    g.strokeStyle = "rgba(214,220,228,0.6)"; g.lineWidth = 1;
+    const spokes = 8;
+    for (let i = 0; i <= spokes; i++) {
+      const a = (i / spokes) * (Math.PI / 2);
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * S * 1.4, Math.sin(a) * S * 1.4); g.stroke();
+    }
+    for (let rr = S * 0.18; rr < S * 1.25; rr += S * 0.15) {
+      g.beginPath();
+      for (let i = 0; i <= spokes; i++) {
+        const a = (i / spokes) * (Math.PI / 2);
+        const x = Math.cos(a) * rr, y = Math.sin(a) * rr;
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.stroke();
+    }
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    this._webTex = t; return t;
+  }
+
+  // "cenografia" da masmorra: salas temáticas (CRIPTA com sarcófagos, CAVERNA
+  // FÚNGICA com cogumelos brilhantes) + destroços espalhados (pilares quebrados,
+  // entulho, teias, correntes penduradas, gaiolas). Tudo por hash determinístico,
+  // densidade baixa, só em piso liso e sem estrangular corredores (openN>=3).
+  private buildDungeonDressing(CH: number) {
+    const hash = (a: number, b: number, s = 0) => Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
+    const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide });
+    const stoneDk = new THREE.MeshLambertMaterial({ map: tex.stone(31), color: new THREE.Color(0x8a8578) });
+    const iron = new THREE.MeshLambertMaterial({ color: 0x2a2620 });
+    const mushStem = new THREE.MeshLambertMaterial({ color: 0xd7ddcb });
+    const mushCap = new THREE.MeshLambertMaterial({ color: 0x63c98a, emissive: new THREE.Color(0x2f8f52) });
+    const webMat = new THREE.MeshBasicMaterial({ map: this.dungeonWebTex(), transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
+    const boneMat = new THREE.MeshLambertMaterial({ map: tex.skullPile(69), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+
+    // ---- builders ----
+    const pillar = (cx: number, cz: number) => {
+      const hgt = 2.6 + hash(cx, cz) * 2.4;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.24, 1.25), stone); base.position.set(cx, 0.12, cz); this.world.add(base);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.52, hgt, 12), stone);
+      col.position.set(cx, 0.24 + hgt / 2, cz); col.rotation.z = (hash(cx, cz, 3) - 0.5) * 0.06; this.world.add(col);
+      // pedra tombada ao lado (o pilar "quebrou")
+      const chunk = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.8, 12), stone);
+      chunk.rotation.z = Math.PI / 2; chunk.position.set(cx + 0.85, 0.44, cz + 0.55); this.world.add(chunk);
+    };
+    const sarc = (cx: number, cz: number, alongX: boolean, dc: number, dr: number) => {
+      const nx = cx + dc * (CELL / 2 - 0.7), nz = cz + dr * (CELL / 2 - 0.7);
+      const L = 2.0, Wd = 0.92, Hh = 0.82;
+      const body = new THREE.Mesh(new THREE.BoxGeometry(alongX ? L : Wd, Hh, alongX ? Wd : L), stoneDk);
+      body.position.set(nx, Hh / 2, nz); this.world.add(body);
+      const lid = new THREE.Mesh(new THREE.BoxGeometry((alongX ? L : Wd) * 1.04, 0.18, (alongX ? Wd : L) * 1.04), stone);
+      lid.position.set(nx + (alongX ? 0.16 : 0), Hh + 0.09, nz + (alongX ? 0 : 0.16)); lid.rotation.y = 0.02; this.world.add(lid);
+    };
+    const mush = (cx: number, cz: number) => {
+      const n = 3 + Math.floor(hash(cx, cz, 7) * 3);
+      for (let i = 0; i < n; i++) {
+        const dx = (hash(cx, cz, i + 10) - 0.5) * 1.5, dz = (hash(cx, cz, i + 20) - 0.5) * 1.5;
+        const hgt = 0.28 + hash(cx, cz, i + 30) * 0.6;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.1, hgt, 8), mushStem);
+        stem.position.set(cx + dx, hgt / 2, cz + dz); this.world.add(stem);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.17 + hash(cx, cz, i + 40) * 0.13, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), mushCap);
+        cap.position.set(cx + dx, hgt, cz + dz); this.world.add(cap);
+      }
+      this.glowLight(cx, 0.7, cz, 0x4fc884, 1.7, 6.5); // brilho bioluminescente
+    };
+    const rubble = (cx: number, cz: number, dc: number, dr: number) => {
+      const n = 2 + Math.floor(hash(cx, cz, 5) * 3);
+      for (let i = 0; i < n; i++) {
+        const s = 0.24 + hash(cx, cz, i + 50) * 0.4;
+        const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), stoneDk);
+        const along = (hash(cx, cz, i + 60) - 0.5) * (CELL * 0.6);
+        const out = CELL / 2 - 0.25 - hash(cx, cz, i + 70) * 0.5;
+        rk.position.set(cx + dc * out + (dc ? 0 : along), s * 0.5, cz + dr * out + (dr ? 0 : along));
+        rk.rotation.set(hash(cx, cz, i + 80) * 3, hash(cx, cz, i + 90) * 3, hash(cx, cz, i + 100) * 3);
+        this.world.add(rk);
+      }
+    };
+    const cage = (cx: number, cz: number) => {
+      const HC = 2.0, y0 = 0.35;
+      for (const [sx, sz] of [[-0.42, -0.42], [0.42, -0.42], [0.42, 0.42], [-0.42, 0.42]] as [number, number][]) {
+        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, HC, 6), iron);
+        bar.position.set(cx + sx, y0 + HC / 2, cz + sz); this.world.add(bar);
+      }
+      const ring = (y: number) => { const t = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.045, 6, 14), iron); t.rotation.x = Math.PI / 2; t.position.set(cx, y, cz); this.world.add(t); };
+      ring(y0); ring(y0 + HC);
+      const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, CH - y0 - HC, 6), iron);
+      chain.position.set(cx, (y0 + HC + CH) / 2, cz); this.world.add(chain);
+      const skull = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), boneMat);
+      skull.position.set(cx, y0 + 0.5, cz); this.world.add(skull); // prisioneiro há muito ido
+    };
+    const hangChain = (cx: number, cz: number) => {
+      const len = CH * 0.35 + hash(cx, cz, 9) * CH * 0.32;
+      const x = cx + (hash(cx, cz, 11) - 0.5) * 1.4, z = cz + (hash(cx, cz, 12) - 0.5) * 1.4;
+      const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, len, 6), iron);
+      ch.position.set(x, CH - len / 2, z); this.world.add(ch);
+      const hook = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.03, 6, 10), iron);
+      hook.position.set(x, CH - len, z); this.world.add(hook);
+    };
+
+    const W = DUNGEON_COLS, H = DUNGEON_ROWS;
+    const isCorr = (c: number, r: number) =>
+      (dungeonSolidLook(c - 1, r) && dungeonSolidLook(c + 1, r)) ||
+      (dungeonSolidLook(c, r - 1) && dungeonSolidLook(c, r + 1));
+    let pillars = 0, cages = 0, mushN = 0, webs = 0, chains = 0, rubbles = 0, sarcs = 0;
+    for (let r = 0; r < H; r++)
+      for (let c = 0; c < W; c++) {
+        if (dungeonCell(c, r) !== "floor") continue; // só piso liso (evita E/C/K/B/S/U/A/G/L/X)
+        const cx = c * CELL, cz = r * CELL;
+        const wall = DIRS.find(([dc, dr]) => dungeonCell(c + dc, r + dr) === "wall");
+        const openN = DIRS.filter(([dc, dr]) => dungeonWalkable(c + dc, r + dr)).length;
+        const inCrypt = c >= 4 && c <= 9 && r >= 4 && r <= 8;
+        const inFungal = c >= 3 && c <= 11 && r >= 13 && r <= 20;
+        const free = !this.blocked.has(`${c},${r}`);
+
+        // BLOQUEANTES — só em área aberta (não estrangula passagem)
+        if (free && openN >= 3) {
+          const h = hash(c, r, 1);
+          if (inCrypt && wall && sarcs < 4 && h < 0.55) {
+            sarc(cx, cz, wall[1] !== 0, wall[0], wall[1]); this.blocked.add(`${c},${r}`); sarcs++;
+          } else if (!inCrypt && !inFungal && pillars < 11 && h < 0.05) {
+            pillar(cx, cz); this.blocked.add(`${c},${r}`); pillars++;
+          } else if (!inCrypt && cages < 3 && h >= 0.05 && h < 0.062) {
+            cage(cx, cz); this.blocked.add(`${c},${r}`); cages++;
+          }
+        }
+        // NÃO-bloqueantes
+        if (inFungal && mushN < 6 && hash(c, r, 2) < 0.3) { mush(cx, cz); mushN++; }
+        if (wall && rubbles < 28 && hash(c, r, 3) < 0.13) { rubble(cx, cz, wall[0], wall[1]); rubbles++; }
+        for (const [dc, dr] of DIRS)
+          if (dungeonCell(c + dc, r + dr) === "wall" && webs < 22 && hash(c, r, dc * 7 + dr + 4) < 0.045) {
+            this.addWallDecal(c, r, dc, dr, webMat, 1.6, 1.6, CH - 1.1); webs++;
+          }
+        if (isCorr(c, r) && chains < 15 && hash(c, r, 6) < 0.06) { hangChain(cx, cz); chains++; }
+      }
+    // luz fria/pálida na CRIPTA (túmulo) — a névoa esverdeada dos mortos, dá o
+    // clima e deixa ver os sarcófagos ao descobrir a sala secreta.
+    this.glowLight(6 * CELL, 2.4, 6 * CELL, 0x6f8fb4, 1.7, 10);
+    this.glowLight(8 * CELL, 1.8, 5 * CELL, 0x5f7ea6, 1.2, 8);
   }
 
   private buildChest(cx: number, cz: number, wood: THREE.Material, iron: THREE.Material) {
