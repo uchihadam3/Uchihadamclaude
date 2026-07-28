@@ -4,9 +4,21 @@ import { SKILL_TREES, STAT_META, PASSIVE_ICON, type Skill } from "./skills";
 import { CLASS_BY_ID } from "./classes";
 import type { Rarity } from "./items";
 
+// linha de atributo do item e delta de comparação (verde/vermelho) ao trocar
+export interface TipLine { label: string; value: string; }
+export interface TipDelta { label: string; delta: number; pct?: boolean; }
+export interface ItemTip {
+  name: string;
+  rarity: Rarity;
+  sub: string;                 // "Mágico · Peitoral" / "Arma"
+  lines: TipLine[];            // atributos próprios do item
+  compareName?: string;        // nome da peça equipada comparada
+  deltas?: TipDelta[];         // ganhos/perdas ao trocar (∅ se nada equipado no slot)
+  action: "equip" | "unequip"; // o que o botão do popup faz
+}
 // item da mochila (arma ou armadura) e peça equipada no boneco
-export interface BagEntry { kind: "weapon" | "armor"; id: string; icon: string; name: string; rarity?: Rarity; title?: string; }
-export interface EquipSlotView { icon: string; rarity: Rarity; title: string; }
+export interface BagEntry { kind: "weapon" | "armor"; id: string; icon: string; name: string; rarity?: Rarity; tip: ItemTip; }
+export interface EquipSlotView { icon: string; rarity: Rarity; tip: ItemTip; }
 export interface EquipUIData { bag: BagEntry[]; armor: Partial<Record<string, EquipSlotView>>; }
 import hudPlateUrl from "../assets/ui/hud_plate.png";
 import eqFrameUrl from "../assets/ui/eq_frame.png";
@@ -964,6 +976,43 @@ export function setupControls(
     "</div>" +
     "</div></div></div>";
   root.appendChild(eq);
+
+  // ---- POPUP DE ITEM (tooltip com comparação verde/vermelho) ----
+  const itip = document.createElement("div");
+  itip.id = "gh-itip";
+  itip.className = "gh-itip-hidden";
+  root.appendChild(itip);
+  const hideItip = () => itip.classList.add("gh-itip-hidden");
+  const showItemTip = (tip: ItemTip, anchor: DOMRect, doAction: () => void) => {
+    const dRow = (d: TipDelta) => {
+      const s = d.delta > 0 ? "up" : d.delta < 0 ? "down" : "same";
+      const sign = d.delta > 0 ? "+" : "";
+      return `<div class="gh-itip-d gh-itip-${s}"><span>${d.label}</span><b>${sign}${d.delta}${d.pct ? "%" : ""}</b></div>`;
+    };
+    itip.className = "gh-itip gh-rname-" + tip.rarity;
+    itip.innerHTML =
+      `<div class="gh-itip-name">${tip.name}</div>` +
+      `<div class="gh-itip-sub">${tip.sub}</div>` +
+      (tip.lines.length ? `<div class="gh-itip-lines">${tip.lines.map((l) => `<div class="gh-itip-l"><span>${l.label}</span><b>${l.value}</b></div>`).join("")}</div>` : "") +
+      (tip.deltas && tip.deltas.length ? `<div class="gh-itip-cmp"><div class="gh-itip-cmph">Ao trocar${tip.compareName ? ` (equipado: ${tip.compareName})` : ""}:</div>${tip.deltas.map(dRow).join("")}</div>` : "") +
+      `<button class="gh-itip-act">${tip.action === "equip" ? "Equipar" : "Desequipar"}</button>`;
+    itip.classList.remove("gh-itip-hidden");
+    // posiciona ao lado do slot, preso na tela
+    const w = itip.offsetWidth, h = itip.offsetHeight;
+    let x = anchor.right + 8;
+    if (x + w > window.innerWidth - 6) x = anchor.left - w - 8;
+    if (x < 6) x = Math.max(6, Math.round((window.innerWidth - w) / 2));
+    let y = anchor.top - 4;
+    if (y + h > window.innerHeight - 6) y = window.innerHeight - h - 6;
+    if (y < 6) y = 6;
+    itip.style.left = x + "px";
+    itip.style.top = y + "px";
+    (itip.querySelector(".gh-itip-act") as HTMLElement).onclick = (e) => { e.stopPropagation(); hideItip(); doAction(); };
+  };
+  // fecha ao tocar fora do popup (mas o toque no slot reabre)
+  document.addEventListener("pointerdown", (e) => {
+    if (!itip.classList.contains("gh-itip-hidden") && !itip.contains(e.target as Node)) hideItip();
+  }, true);
 
   // ---- FERREIRO: janela de aprimoramento (reforço +N) ----
   const sm = document.createElement("div");
@@ -2110,7 +2159,8 @@ export function setupControls(
     // renderiza a mochila (armas + armaduras) com molduras de raridade + as peças
     // equipadas nos slots do boneco (clicáveis p/ desequipar).
     setEquip(data: EquipUIData) {
-      // MOCHILA
+      hideItip();
+      // MOCHILA — clicar ABRE o popup (com comparação); o botão do popup equipa
       bagSlots.forEach((slot, i) => {
         const e = data.bag[i];
         slot.onclick = null;
@@ -2118,11 +2168,13 @@ export function setupControls(
         delete slot.dataset.wid; delete slot.dataset.uid;
         if (!e) { slot.innerHTML = ""; return; }
         slot.classList.add("gh-rar-" + (e.rarity ?? "comum"));
-        slot.innerHTML = `<img class="gh-item-ico" src="${e.icon}" alt="" title="${e.title ?? e.name}"/>`;
-        if (e.kind === "weapon") { slot.dataset.wid = e.id; slot.onclick = () => this.equipWeapon(e.id); }
-        else { slot.dataset.uid = e.id; slot.onclick = () => onEquipArmor?.(e.id); }
+        slot.innerHTML = `<img class="gh-item-ico" src="${e.icon}" alt=""/>`;
+        if (e.kind === "weapon") slot.dataset.wid = e.id; else slot.dataset.uid = e.id;
+        slot.onclick = () => showItemTip(e.tip, slot.getBoundingClientRect(), () => {
+          if (e.kind === "weapon") this.equipWeapon(e.id); else onEquipArmor?.(e.id);
+        });
       });
-      // BONECO: slots de armadura (clicar desequipa)
+      // BONECO: peças equipadas — clicar abre o popup (botão: Desequipar)
       for (const key of ["head", "chest", "hands", "feet", "belt"]) {
         const el = eq.querySelector(`.gh-slot[data-slot="${key}"]`) as HTMLElement | null;
         if (!el) continue;
@@ -2131,8 +2183,8 @@ export function setupControls(
         el.onclick = null;
         if (a) {
           el.classList.add("gh-slot-eq", "gh-rar-" + a.rarity);
-          el.innerHTML = `<img class="gh-item-ico" src="${a.icon}" alt="" title="${a.title}"/>`;
-          el.onclick = () => onUnequipArmor?.(key);
+          el.innerHTML = `<img class="gh-item-ico" src="${a.icon}" alt=""/>`;
+          el.onclick = () => showItemTip(a.tip, el.getBoundingClientRect(), () => onUnequipArmor?.(key));
         } else {
           el.innerHTML = "";
         }
@@ -3048,6 +3100,39 @@ function injectStyle() {
   .gh-rar-lendario { box-shadow:inset 0 0 0 2px #ff8a2e, inset 0 0 11px rgba(255,138,46,.72); }
   .gh-bag-slot[data-wid], .gh-bag-slot[data-uid], .gh-slot-eq { cursor:pointer; }
   .gh-bag-slot[data-uid]:hover, .gh-slot-eq:hover { filter:brightness(1.15); }
+  /* ===== POPUP DE ITEM (tooltip com comparação) — casa com as janelas ===== */
+  #gh-itip {
+    position:fixed; z-index:30; pointer-events:auto; width:min(244px,76vw);
+    background:linear-gradient(180deg, rgba(23,17,11,.98), rgba(14,10,7,.98));
+    border:2px solid rgba(201,162,39,.62); border-radius:11px;
+    box-shadow:0 10px 30px rgba(0,0,0,.72), inset 0 0 0 1px rgba(0,0,0,.5);
+    padding:10px 12px 11px; color:#e8dcc0; font-family:"Trebuchet MS",sans-serif;
+  }
+  #gh-itip.gh-itip-hidden { display:none; }
+  .gh-itip-name { font-family:"Cinzel",serif; font-weight:800; font-size:15px; line-height:1.16; text-shadow:0 1px 3px #000; }
+  .gh-rname-comum    .gh-itip-name { color:#e6dcc2; }
+  .gh-rname-magico   .gh-itip-name { color:#74b3ff; }
+  .gh-rname-raro     .gh-itip-name { color:#f4d074; }
+  .gh-rname-lendario .gh-itip-name { color:#ff9a4a; text-shadow:0 0 10px rgba(255,138,46,.5), 0 1px 3px #000; }
+  .gh-itip-sub { font-size:11px; color:#a89873; margin:1px 0 7px; font-style:italic; }
+  .gh-itip-lines { display:flex; flex-direction:column; gap:2px; }
+  .gh-itip-l { display:flex; justify-content:space-between; gap:12px; font-size:12.5px; }
+  .gh-itip-l span { color:#c2b184; } .gh-itip-l b { color:#f2e8ce; font-variant-numeric:tabular-nums; }
+  .gh-itip-cmp { margin-top:8px; padding-top:7px; border-top:1px solid rgba(201,162,39,.28); }
+  .gh-itip-cmph { font-size:10.5px; color:#b6a877; margin-bottom:3px; }
+  .gh-itip-d { display:flex; justify-content:space-between; gap:12px; font-size:12.5px; }
+  .gh-itip-d span { color:#bfae82; }
+  .gh-itip-d b { font-variant-numeric:tabular-nums; font-weight:700; }
+  .gh-itip-up b { color:#6ede77; } .gh-itip-up b::after { content:" ▲"; font-size:9px; }
+  .gh-itip-down b { color:#e8695a; } .gh-itip-down b::after { content:" ▼"; font-size:9px; }
+  .gh-itip-same b { color:#9c8f6d; }
+  .gh-itip-act {
+    display:block; width:100%; margin-top:10px; cursor:pointer;
+    font-family:"Cinzel",serif; font-weight:700; font-size:13px; letter-spacing:.6px;
+    color:#12100a; padding:8px 10px; border:none; border-radius:8px;
+    background:linear-gradient(#f4d074,#c9922a); box-shadow:0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .gh-itip-act:active { transform:translateY(1px); filter:brightness(1.05); }
   /* ícone do item dentro de um slot (equipado ou na mochila) */
   .gh-item-ico {
     max-width:86%; max-height:86%; width:auto; height:auto; object-fit:contain;

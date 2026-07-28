@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -153,7 +153,7 @@ import fxLNuvemUrl from "../assets/ui/fx/fx_l_nuvem.png";
 import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, WEAPON_BY_ID, type Weapon } from "./weapons";
-import { generateArmor, sumBonuses, itemSummary, ARMOR_SLOTS, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus } from "./items";
+import { generateArmor, sumBonuses, itemTotal, RARITY_BY_KEY, AFFIXES, ARMOR_SLOTS, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus, type AffixKey } from "./items";
 import { CLASS_BY_ID, type Character } from "./classes";
 import {
   derive,
@@ -2734,19 +2734,61 @@ export class Game {
     this.pushEquipUI();
     return it;
   }
+  private static readonly ARMOR_SLOT_PT: Record<ArmorSlot, string> = { head: "Elmo", chest: "Peitoral", hands: "Luvas", feet: "Botas", belt: "Cinto" };
+  private fmtStat(k: AffixKey, v: number): string { return `${v > 0 ? "+" : ""}${v}${AFFIXES[k].pct ? "%" : ""}`; }
+  private statLines(t: StatBonus): TipLine[] {
+    return (Object.keys(t) as AffixKey[]).map((k) => ({ label: AFFIXES[k].label, value: this.fmtStat(k, t[k] ?? 0) }));
+  }
+  // tooltip de ARMADURA: atributos próprios + (se equipando) o delta vs. a equipada
+  private armorTip(it: ItemInstance, action: "equip" | "unequip"): ItemTip {
+    const total = itemTotal(it);
+    const tip: ItemTip = {
+      name: it.name, rarity: it.rarity,
+      sub: `${RARITY_BY_KEY[it.rarity].label} · ${Game.ARMOR_SLOT_PT[it.slot]}`,
+      lines: this.statLines(total), action,
+    };
+    const cur = this.equippedArmor[it.slot];
+    if (action === "equip" && cur && cur.uid !== it.uid) {
+      const old = itemTotal(cur);
+      const keys = new Set<AffixKey>([...Object.keys(total), ...Object.keys(old)] as AffixKey[]);
+      const deltas: TipDelta[] = [];
+      for (const k of keys) {
+        const d = (total[k] ?? 0) - (old[k] ?? 0);
+        if (d !== 0) deltas.push({ label: AFFIXES[k].label, delta: d, pct: !!AFFIXES[k].pct });
+      }
+      tip.compareName = cur.name; tip.deltas = deltas;
+    }
+    return tip;
+  }
+  // tooltip de ARMA: dano (base + reforço) + (se equipando outra) o delta de dano
+  private weaponTip(w: Weapon, action: "equip" | "unequip"): ItemTip {
+    const eff = w.dmg + (this.reinforce[w.id] ?? 0);
+    const tip: ItemTip = {
+      name: w.name, rarity: "comum",
+      sub: `Arma${w.grip === "2h" ? " · 2 mãos" : ""}`,
+      lines: [{ label: "Dano", value: String(eff) }], action,
+    };
+    const cur = this.currentWeapon;
+    if (action === "equip" && cur && cur.id !== w.id && w.slot === "main" && cur.slot === "main") {
+      const curEff = cur.dmg + (this.reinforce[cur.id] ?? 0);
+      tip.compareName = cur.name;
+      tip.deltas = [{ label: "Dano", delta: eff - curEff }];
+    }
+    return tip;
+  }
   // monta a mochila (armas + armaduras) + peças equipadas e manda pra UI
   private pushEquipUI() {
     const bag: BagEntry[] = [];
     for (const id of this.ownedWeapons) {
       const w = WEAPON_BY_ID[id]; if (!w) continue;
-      bag.push({ kind: "weapon", id, icon: w.url, name: w.name, rarity: "comum", title: `${w.name} — arma` });
+      bag.push({ kind: "weapon", id, icon: w.url, name: w.name, rarity: "comum", tip: this.weaponTip(w, "equip") });
     }
     for (const it of this.armorInv)
-      bag.push({ kind: "armor", id: it.uid, icon: it.icon, name: it.name, rarity: it.rarity, title: itemSummary(it) });
+      bag.push({ kind: "armor", id: it.uid, icon: it.icon, name: it.name, rarity: it.rarity, tip: this.armorTip(it, "equip") });
     const armor: EquipUIData["armor"] = {};
     for (const s of ARMOR_SLOTS) {
       const it = this.equippedArmor[s];
-      if (it) armor[s] = { icon: it.icon, rarity: it.rarity, title: itemSummary(it) };
+      if (it) armor[s] = { icon: it.icon, rarity: it.rarity, tip: this.armorTip(it, "unequip") };
     }
     this.ui.setEquip({ bag, armor });
   }
