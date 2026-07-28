@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 48 recortados · 🟡 9 faltando · ❌ 2 removidas
+**Status:** ✅ 48 recortados · 🟡 19 faltando · ❌ 2 removidas
 
 ---
 
@@ -39,12 +39,13 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 | 🟡 | **Skill Tree** — faltam 3 folhas de ativas (Ladino/Mago/Clérigo) + 1 de passivas + 4 fundos | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
+| 🟡 | **Texturas de parede da masmorra** — 10 variações (seamless) | [§16](#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar) |
 
 ---
 
 ## 🗂️ Índice das seções
 
-**Mundo/cenário:** [01 Árvores](#01--árvores-individuais) · [02 Aglomerados de mata](#02--aglomerados-de-mata) · [03 Placas de loja](#03--placas-das-lojas) · [04 Adereços da cidade](#04--adereços-da-cidade) · [05 Panos de fundo](#05--panos-de-fundo-backdrops)
+**Mundo/cenário:** [01 Árvores](#01--árvores-individuais) · [02 Aglomerados de mata](#02--aglomerados-de-mata) · [03 Placas de loja](#03--placas-das-lojas) · [04 Adereços da cidade](#04--adereços-da-cidade) · [05 Panos de fundo](#05--panos-de-fundo-backdrops) · [16 Texturas de parede da masmorra](#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar)
 **Combate/jogo:** [06 Espada](#06--combate--espada-protótipo-de-ação) · [07 Inimigos](#07--inimigos-billboard-2d) · [10 Ícones de itens](#10--ícones-de-itens-folhas-por-tier) · [🛡️ Armaduras early (T1–T3)](#armaduras-early)
 **Interface:** [08 HUD/janelas](#08--interface--hud) · [11 Botões de controle](#11--botões-de-controle-hud) · [12 Telas de abertura](#12--telas-de-abertura-título--classes)
 
@@ -924,6 +925,68 @@ Hand-painted stylized-realism game MAP ICON, cohesive with a grim medieval dark-
 
 *(Dá pra pedir variações de `mm_estatua` — uma por estátua do santuário — quando
 a gente definir cada uma. E o `mm_npc` pode ganhar versões por cor/importância.)*
+
+---
+
+## 16 · Texturas de parede da masmorra (variações) — 🟡 a gerar
+
+**Objetivo:** enriquecer a masmorra com **variação de parede** (a rocha se repete
+por célula/região em vez de uma textura só). Todas na **nossa paleta fria/escura**
+(nada de dourado). São **texturas seamless (sem costura), 1024×1024**. Salve cada
+uma com o nome indicado em `grimhollow/src/assets/env/` e eu ligo o sorteio por
+área no código (cripta puxa ossos/runas, fúngica puxa musgo, corredores a rocha/
+alvenaria). **Não precisa gerar as 10 de cara — 4-5 já mostram o efeito.** Cada
+bloco já está **completo, é só Copiar**.
+
+### 🟡 16.1 — `tex_dwall_1` (Rocha crua)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: rough natural hewn cave rock, uneven bumpy surface, subtle chisel marks, small pits and pores. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.2 — `tex_dwall_2` (Rocha fissurada)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: weathered stone riddled with deep cracks and fractures, chipped flakes, spider-web fissures spreading across the surface. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.3 — `tex_dwall_3` (Alvenaria de blocos)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: cut ashlar stone-block masonry, large rectangular hewn blocks with deep recessed mortar joints, worn chipped edges. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.4 — `tex_dwall_4` (Pedra bruta encaixada)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: irregular fieldstone rubble masonry, many odd-shaped stones of varying size fitted together with dark mortar between them. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.5 — `tex_dwall_5` (Musgo e limo)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: damp stone wall overgrown with dark moss and slime in the crevices, wet sheen, patches of muted green-grey lichen. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.6 — `tex_dwall_6` (Estratos)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: layered sedimentary rock face, horizontal strata bands, sharp ledges and eroded seams. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.7 — `tex_dwall_7` (Ossos embutidos)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: grim catacomb wall of stone with pale human bones and skulls embedded and mortared into it, macabre, dusty, bones a muted bone-grey. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.8 — `tex_dwall_8` (Runas entalhadas)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: ancient stone wall carved with faint arcane runes and glyphs, worn shallow engravings and ritual markings, unlit (no glow). Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.9 — `tex_dwall_9` (Manchas de umidade)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: stone wall with long dark water stains and mineral streaks dripping down, damp blotches, pale calcite trails. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
+
+### 🟡 16.10 — `tex_dwall_10` (Parede desmoronada)
+```
+Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: crumbling collapsed stone wall, broken bricks and loose rubble, cracks with gaps and missing chunks. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
+```
 
 ---
 
