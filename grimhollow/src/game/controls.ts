@@ -3249,6 +3249,8 @@ function injectStyle() {
     max-width:86%; max-height:86%; width:auto; height:auto; object-fit:contain;
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.6)); pointer-events:none;
   }
+  /* MOCHILA: ícone recortado preenche o slot (a arte já vem "quadrada") */
+  .gh-bag-slot .gh-item-ico { max-width:100%; max-height:100%; width:100%; height:100%; object-fit:contain; }
   .gh-bag-slot[data-wid] { cursor:pointer; }
   .gh-bag-slot[data-wid]:hover { background:rgba(34,27,15,.92); }
   /* item selecionado: o slot pulsa/brilha (dourado) */

@@ -3029,7 +3029,8 @@ export class Game {
       bag.push({ kind: "weapon", id, icon: w.url, name: w.name, rarity: "comum", tip: this.weaponTip(w, "equip") });
     }
     for (const it of this.armorInv)
-      bag.push({ kind: "armor", id: it.uid, icon: it.icon, name: it.name, rarity: it.rarity, tip: this.armorTip(it, "equip") });
+      // MOCHILA usa o ícone recortado (encaixa no slot); o boneco/popup usam o original
+      bag.push({ kind: "armor", id: it.uid, icon: it.invIcon, name: it.name, rarity: it.rarity, tip: this.armorTip(it, "equip") });
     const armor: EquipUIData["armor"] = {};
     for (const s of ARMOR_SLOTS) {
       const it = this.equippedArmor[s];
