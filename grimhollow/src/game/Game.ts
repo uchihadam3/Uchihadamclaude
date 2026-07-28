@@ -5130,44 +5130,77 @@ export class Game {
     wallMat: THREE.Material,
     stepMat: THREE.Material,
   ) {
-    const N = 5;
-    const stepH = 0.8;
-    const zSouth = cz + CELL / 2;
+    const N = 7;            // mais degraus → descida mais funda e legível
+    const stepH = 0.5;
+    const zSouth = cz + CELL / 2; // BOCA (sul), onde o jogador entra
     const stepD = CELL / N;
     const bottomY = -N * stepH;
-    // paredes altas (do fundo até o teto) nos lados de rocha, vedando o poço
+    // veda o poço nos lados de rocha/prédio (do fundo ao teto)
     for (const [dc, dr] of DIRS) {
       const k = cellAt(c + dc, r + dr);
       if (k === "mountain" || k === "building")
         this.addWall(cx, cz, dc, dr, bottomY, TUNNEL_H, wallMat);
     }
-    // degraus (largura total da célula p/ encostar nas paredes)
+    // PAREDÕES laterais internos de PEDRA LAVRADA (esq/dir), da boca ao fundo —
+    // dão o enquadramento de "corredor descendente" (estilo Dungeon Master).
+    for (const s of [-1, 1]) {
+      const sw = new THREE.Mesh(new THREE.PlaneGeometry(CELL, TUNNEL_H - bottomY), stepMat);
+      sw.position.set(cx + s * (CELL / 2 - 0.03), (bottomY + TUNNEL_H) / 2, cz);
+      sw.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2;
+      this.world.add(sw);
+    }
+    // DEGRAUS de pedra (largura total), descendo p/ o norte. Cada degrau tem um
+    // EMISSIVO próprio que ESMAECE com a profundidade (topo quente → fundo preto):
+    // a escada "se ilumina" sozinha (independe das point lights, que a cena pode
+    // deixar de aplicar por excesso), formando o gradiente de descida à treva.
+    const stoneMap = (stepMat as THREE.MeshLambertMaterial).map ?? undefined;
+    const noseMat = new THREE.MeshBasicMaterial({ color: 0x0b0b0d });
     for (let i = 0; i < N; i++) {
       const topY = -i * stepH;
       const zc = zSouth - (i + 0.5) * stepD;
       const height = topY - bottomY;
-      const step = new THREE.Mesh(
-        new THREE.BoxGeometry(CELL, height, stepD + 0.02),
-        stepMat,
-      );
+      const t = 1 - i / (N - 1); // 1 no topo, 0 no último degrau
+      // esmaece com a profundidade, mas nunca some de vez (mantém a leitura da escada)
+      const em = new THREE.Color(0x0a0806).lerp(new THREE.Color(0xcaa062), Math.pow(t, 1.1));
+      const mat = new THREE.MeshLambertMaterial({ map: stoneMap, emissive: em });
+      const step = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.08, height, stepD + 0.02), mat);
       step.position.set(cx, topY - height / 2, zc);
       this.world.add(step);
+      // fio de sombra na quina do degrau (define cada nível na perspectiva)
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.06, 0.05, 0.06), noseMat);
+      nose.position.set(cx, topY - 0.02, zc + stepD / 2);
+      this.world.add(nose);
     }
-    // base escura do poço
-    const base = new THREE.Mesh(
-      new THREE.PlaneGeometry(CELL, CELL),
-      new THREE.MeshBasicMaterial({ color: 0x050506 }),
-    );
-    base.rotation.x = -Math.PI / 2;
-    base.position.set(cx, bottomY + 0.02, cz);
+    // fundo ESCURO: o abismo continua (chão + parede norte quase pretos)
+    const dark = new THREE.MeshBasicMaterial({ color: 0x050507 });
+    const base = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), dark);
+    base.rotation.x = -Math.PI / 2; base.position.set(cx, bottomY + 0.02, cz);
     this.world.add(base);
-    // luzes quentes iluminando os degraus de cima (revela o vão da escada)
-    const g1 = new THREE.PointLight(0xffbf70, 6, 13, 2);
-    g1.position.set(cx, 2.6, cz + CELL / 2 - 0.3);
-    this.world.add(g1);
-    const g2 = new THREE.PointLight(0xffa050, 3.5, 8, 2);
-    g2.position.set(cx, 0.4, cz - 0.6);
-    this.world.add(g2);
+    // ARCO DE PEDRA na boca: 2 pilastras + verga → enquadra a entrada da descida
+    const jambH = 2.55, jambW = 0.42;
+    for (const s of [-1, 1]) {
+      const jamb = new THREE.Mesh(new THREE.BoxGeometry(jambW, jambH, 0.55), stepMat);
+      jamb.position.set(cx + s * (CELL / 2 - jambW / 2 - 0.04), jambH / 2, zSouth - 0.12);
+      this.world.add(jamb);
+    }
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.55, 0.6), stepMat);
+    lintel.position.set(cx, jambH + 0.1, zSouth - 0.12);
+    this.world.add(lintel);
+    // TOCHAS quentes flanqueando a boca (chama nas pilastras) + luz que revela os
+    // primeiros degraus; o fundo permanece escuro (o mistério da profundeza).
+    const torchMat = this.decalMat(decTorchUrl, 0.1);
+    for (const s of [-1, 1]) {
+      this.addWallDecal(c, r, s, 0, torchMat, 0.8, 1.3, 2.0);
+      this.glowLight(cx + s * (CELL / 2 - 0.5), 2.1, zSouth - 0.4, 0xffb055, 3.2, 7);
+    }
+    const g1 = new THREE.PointLight(0xffbf70, 5.0, 12, 2);
+    g1.position.set(cx, 2.3, zSouth - 0.4); this.world.add(g1);
+    // luz baixa logo dentro da boca: acende os PRIMEIROS degraus (mostra que É
+    // uma escada descendo) e some rápido p/ o fundo (a treva da profundeza).
+    const g2 = new THREE.PointLight(0xffb562, 5.5, 7.5, 2);
+    g2.position.set(cx, 0.5, zSouth - 1.3); this.world.add(g2);
+    const g3 = new THREE.PointLight(0xff9a48, 2.2, 4.5, 2);
+    g3.position.set(cx, -1.4, cz - 0.4); this.world.add(g3); // brasa fraca lá no fundo
   }
 
   // portas dos estabelecimentos + PLACA-ESTACA encostada na parede ao lado da porta
