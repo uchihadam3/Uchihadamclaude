@@ -3318,7 +3318,6 @@ export class Game {
     if (d.kind !== "item" || !d.item) return;
     if (!this.drops.includes(d)) return; // já pego
     this.armorInv.push(d.item);
-    this.ui.playSfx("coin");
     this.ui.toast(`Pegou: ${d.item.name}`);
     this.removeDrop(d);
     this.refreshStats();
