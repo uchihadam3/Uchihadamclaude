@@ -72,7 +72,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -154,6 +154,7 @@ import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, WEAPON_BY_ID, type Weapon } from "./weapons";
 import { generateArmor, sumBonuses, itemTotal, RARITY_BY_KEY, AFFIXES, ARMOR_SLOTS, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus, type AffixKey } from "./items";
+import coinDropUrl from "../assets/ui/coin.png";
 import { CLASS_BY_ID, type Character } from "./classes";
 import {
   derive,
@@ -847,7 +848,26 @@ type Target =
   | { kind: "toforest" }
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
+  | { kind: "pickup"; uid: string; name: string } // item caído no chão à frente
   | null;
+
+// item/ouro caído no chão (estilo WoW): ícone flutuante + facho sutil por raridade.
+// NÃO bloqueia a célula — o jogador passa por cima (ouro = auto; item = popup "Pegar").
+interface GroundDrop {
+  c: number; r: number;
+  kind: "item" | "gold";
+  item?: ItemInstance;   // se kind === "item"
+  gold?: number;         // se kind === "gold"
+  color: string;         // cor da raridade (facho + bolinha no minimapa)
+  group: THREE.Group;    // container no mundo (ícone + facho)
+  icon: THREE.Mesh;      // billboard do ícone (encara a câmera)
+  glow: THREE.Sprite;    // facho/halo macio (aditivo, opacidade baixa)
+  baseY: number;         // altura-base do ícone (p/ o "flutuar")
+  ph: number;            // fase da flutuação (dessincroniza vários drops)
+  opened: boolean;       // popup já foi aberto ao pisar nesta célula (evita reabrir por frame)
+  bornAt: number;        // instante do drop (leve fade-in / plop)
+  dx: number; dz: number; // deslocamento dentro da célula (vários drops no mesmo lugar)
+}
 
 type Anim =
   | null
@@ -953,6 +973,8 @@ export class Game {
   private equippedArmor: Partial<Record<ArmorSlot, ItemInstance>> = {}; // por slot
   private storeStock: ItemInstance[] = [];                        // estoque rotativo da Rosa
   private storeStockPeriod = -1;                                  // meia-jornada da última rotação
+  private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
+  private dropGlowTex?: THREE.Texture;                            // textura do facho sutil (radial macia)
   private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
   private guideOn = true;                                         // guia/marcador (mapa+mundo) ligado?
   private introShown = false;                                    // narração de abertura (1×)
@@ -1538,6 +1560,7 @@ export class Game {
     this.npcRig.clear();
     this.wakeWalk = null;
     this.introWalk = false; // nunca deixa a entrada travada ao trocar de local
+    this.drops = []; // meshes já saíram no world.clear(); zera a lista lógica
   }
 
   private addVillageLights() {
@@ -2792,7 +2815,7 @@ export class Game {
     return (Object.keys(t) as AffixKey[]).map((k) => ({ label: AFFIXES[k].label, value: this.fmtStat(k, t[k] ?? 0) }));
   }
   // tooltip de ARMADURA: atributos próprios + (se equipando) o delta vs. a equipada
-  private armorTip(it: ItemInstance, action: "equip" | "unequip" | "buy", price?: number): ItemTip {
+  private armorTip(it: ItemInstance, action: "equip" | "unequip" | "buy" | "pickup", price?: number): ItemTip {
     const total = itemTotal(it);
     const tip: ItemTip = {
       name: it.name, icon: it.icon, rarity: it.rarity,
@@ -2904,10 +2927,10 @@ export class Game {
       // aleatória por nível) e XP proporcional.
       const lv = e.elevel;
       const gold = 4 + lv * 3 + Math.floor(Math.random() * (3 + lv * 2));
-      this.stats.gold += gold;
-      this.ui.playSfx("coin"); // tilintar de moedas ao coletar o ouro do inimigo
+      // LOOT estilo WoW: a sacola de ouro + (às vezes) uma peça caem no CHÃO na
+      // célula do inimigo; o jogador anda até lá p/ recolher (ouro auto, item por popup).
+      this.rollLoot(e.c, e.r, lv, gold);
       this.gainXp(30 + lv * 15);
-      this.ui.toast(`+${gold} ouro`);
       this.questOnKill(); // progresso da missão "Ossos Inquietos"
       this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
     }
@@ -3124,6 +3147,188 @@ export class Game {
       pf.tex.offset.x = frame / POOF_FRAMES;
       pf.mesh.rotation.y = Math.atan2(cx - pf.mesh.position.x, cz - pf.mesh.position.z);
     }
+  }
+
+  // ============================================================ DROPS (chão)
+  // Textura radial macia (branca) p/ o facho/halo — tingida pela cor da raridade.
+  private dropGlowTexture(): THREE.Texture {
+    if (this.dropGlowTex) return this.dropGlowTex;
+    const s = 96;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = s;
+    const g = cv.getContext("2d")!;
+    const grad = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    grad.addColorStop(0, "rgba(255,255,255,1)");
+    grad.addColorStop(0.4, "rgba(255,255,255,.55)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, s, s);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.dropGlowTex = t;
+    return t;
+  }
+
+  // conta quantos drops já existem na célula (p/ desviar levemente o novo)
+  private dropsInCell(c: number, r: number): number {
+    let n = 0;
+    for (const d of this.drops) if (d.c === c && d.r === r) n++;
+    return n;
+  }
+
+  // cria o container (ícone billboard + facho macio) de um drop na célula (c,r).
+  private makeDrop(c: number, r: number, color: string, iconUrl: string,
+    part: Partial<GroundDrop>): GroundDrop {
+    const idx = this.dropsInCell(c, r);
+    // vários drops na mesma célula → leque pequeno p/ não colar um no outro
+    const ang = idx * 2.399; // ângulo áureo
+    const rad = idx === 0 ? 0 : 0.34;
+    const dx = Math.cos(ang) * rad, dz = Math.sin(ang) * rad;
+    const grp = new THREE.Group();
+    grp.position.set(c * CELL + dx, 0, r * CELL + dz);
+    const baseY = 0.62;
+    // FACHO sutil (aditivo, opacidade baixa) — 1ª pessoa: nada de feixe gritante
+    const glowMat = new THREE.SpriteMaterial({
+      map: this.dropGlowTexture(), color: new THREE.Color(color),
+      transparent: true, opacity: 0.26, depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const glow = new THREE.Sprite(glowMat);
+    glow.scale.set(0.6, 0.98, 1);
+    glow.position.y = baseY;
+    grp.add(glow);
+    // ÍCONE do item (billboard) — começa invisível, aparece ao carregar a arte
+    const iconMat = new THREE.MeshBasicMaterial({
+      transparent: true, opacity: 0, depthWrite: false,
+      depthTest: false, side: THREE.DoubleSide, alphaTest: 0.06,
+    });
+    const icon = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), iconMat);
+    icon.position.y = baseY;
+    icon.renderOrder = 5;
+    grp.add(icon);
+    this.loadArt(iconUrl, (t) => {
+      const im = t.image as { width: number; height: number } | undefined;
+      const asp = im && im.width && im.height ? im.width / im.height : 1;
+      const h = 0.6, w = h * asp;
+      icon.geometry.dispose();
+      icon.geometry = new THREE.PlaneGeometry(w, h);
+      iconMat.map = t;
+      iconMat.opacity = 1;
+      iconMat.needsUpdate = true;
+    });
+    this.world.add(grp);
+    const d: GroundDrop = {
+      c, r, color, group: grp, icon, glow, baseY,
+      ph: idx * 1.3, opened: false, bornAt: this.now, dx, dz,
+      kind: part.kind ?? "item", item: part.item, gold: part.gold,
+    };
+    this.drops.push(d);
+    this.pushMinimap(); // bolinha aparece no minimapa
+    return d;
+  }
+
+  // cor viva por raridade p/ o facho e a bolinha do minimapa (Comum = branca)
+  private static DROP_COLOR: Record<Rarity, string> = {
+    comum: "#eaeaea", magico: "#4a90e2", raro: "#e8b24a", lendario: "#ff8a2e",
+  };
+  // dropa uma peça de armadura no chão da célula (c,r)
+  private spawnItemDrop(c: number, r: number, item: ItemInstance) {
+    this.makeDrop(c, r, Game.DROP_COLOR[item.rarity], item.icon, { kind: "item", item });
+  }
+  // dropa uma sacola de ouro (coin.png) no chão — recolhida ao pisar por cima
+  private spawnGoldDrop(c: number, r: number, gold: number) {
+    this.makeDrop(c, r, "#f4d873", coinDropUrl, { kind: "gold", gold });
+  }
+
+  // remove um drop do mundo (dispose) e da lista lógica
+  private removeDrop(d: GroundDrop) {
+    const i = this.drops.indexOf(d);
+    if (i < 0) return;
+    this.drops.splice(i, 1);
+    this.world.remove(d.group);
+    d.icon.geometry.dispose();
+    (d.icon.material as THREE.Material).dispose();
+    (d.glow.material as THREE.Material).dispose();
+    this.pushMinimap();
+  }
+
+  // sorteia loot ao matar um inimigo de nível `lv`: ouro (sacola) + chance de item.
+  private rollLoot(c: number, r: number, lv: number, gold: number) {
+    this.spawnGoldDrop(c, r, gold);
+    // ~38% de chance de cair uma peça de equipamento
+    if (Math.random() < 0.38) {
+      const slot = ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)];
+      // tier acompanha o nível do jogador (com leve variação), teto no nível do inimigo
+      const base = Math.min(3, 1 + Math.floor((this.stats.level - 1) / 3));
+      const tier = Math.max(1, Math.min(3, base + (Math.random() < 0.2 ? 1 : 0)));
+      // raridade sorteada pelos pesos (INCLUI Lendário — só cai em drop, nunca na loja)
+      const item = generateArmor(slot, tier);
+      this.spawnItemDrop(c, r, item);
+    }
+  }
+
+  // anima os drops (flutuar + facho pulsando) e faz o recolhimento automático do OURO
+  private updateDrops(now: number) {
+    if (!this.drops.length) return;
+    const cx = this.camera.position.x, cz = this.camera.position.z;
+    for (let i = this.drops.length - 1; i >= 0; i--) {
+      const d = this.drops[i];
+      // billboard: o ícone encara a câmera
+      d.icon.rotation.y = Math.atan2(cx - d.group.position.x, cz - d.group.position.z);
+      // flutuar suave
+      const bob = Math.sin(now * 0.003 + d.ph) * 0.06;
+      d.icon.position.y = d.baseY + bob;
+      // facho pulsando de leve (sutil)
+      const gm = d.glow.material as THREE.SpriteMaterial;
+      gm.opacity = 0.2 + (Math.sin(now * 0.0026 + d.ph) + 1) * 0.05;
+      d.glow.position.y = d.baseY - 0.04 + bob * 0.5;
+      // OURO: recolhe automático ao pisar na célula
+      if (d.kind === "gold" && this.col === d.c && this.row === d.r && !this.anim) {
+        this.stats.gold += d.gold ?? 0;
+        this.refreshStats();
+        this.ui.playSfx("coin");
+        this.ui.toast(`+${d.gold} ouro`);
+        this.removeDrop(d);
+      }
+    }
+  }
+
+  // item caído na célula (c,r) — o primeiro ainda-não-aberto (p/ o popup)
+  private itemDropAt(c: number, r: number): GroundDrop | null {
+    for (const d of this.drops) if (d.kind === "item" && d.c === c && d.r === r) return d;
+    return null;
+  }
+
+  // ao chegar numa célula (fim do passo): abre 1× o popup de item caído aqui.
+  private onArriveCell() {
+    const d = this.itemDropAt(this.col, this.row);
+    if (d && !d.opened) { d.opened = true; this.openDropPopup(d); }
+    // se saiu da célula, reseta o "opened" dos itens de outras células
+    for (const o of this.drops) if (!(o.c === this.col && o.r === this.row)) o.opened = false;
+  }
+
+  // abre o popup "Pegar" de um drop de item
+  private openDropPopup(d: GroundDrop) {
+    if (d.kind !== "item" || !d.item) return;
+    this.ui.showPickup(this.armorTip(d.item, "pickup"), () => this.takeDrop(d));
+  }
+
+  // recolhe o item do chão → mochila (com som + toast)
+  private takeDrop(d: GroundDrop) {
+    if (d.kind !== "item" || !d.item) return;
+    if (!this.drops.includes(d)) return; // já pego
+    this.armorInv.push(d.item);
+    this.ui.playSfx("coin");
+    this.ui.toast(`Pegou: ${d.item.name}`);
+    this.removeDrop(d);
+    this.refreshStats();
+    this.pushEquipUI();
+  }
+
+  // bolinhas do minimapa: só ITENS (cor = raridade). O ouro se pega andando por
+  // cima, então não polui o mapa (e evita conflito com a cor do Raro).
+  private buildMiniDrops(): MiniDrop[] {
+    return this.drops.filter((d) => d.kind === "item").map((d) => ({ c: d.c, r: d.r, color: d.color }));
   }
 
   // pré-carrega as folhas de efeito (prontas quando a skill for usada)
@@ -5591,6 +5796,7 @@ export class Game {
       cols: g.cols, rows: g.rows, cells: g.cells, col: this.col, row: this.row, dc, dr,
       pois: this.buildMiniPois(), locName: this.miniLocName(),
       waypoint: wp ? { c: wp.col, r: wp.row } : undefined,
+      drops: this.buildMiniDrops(),
     });
     this.pushTracker(); // mantém o rastreador em sincronia com o estado da missão
   }
@@ -5709,6 +5915,10 @@ export class Game {
       const pages = paginate(t.lines);
       this.dialogue = { name: "Placa", lines: pages, idx: 0, portrait: null };
       this.ui.showDialogue("Placa", pages[0], null);
+    } else if (t.kind === "pickup") {
+      // item caído: abre o popup "Pegar" (do item à frente ou sob os pés)
+      const d = this.drops.find((x) => x.item?.uid === t.uid);
+      if (d) this.openDropPopup(d);
     }
   }
 
@@ -6830,6 +7040,7 @@ export class Game {
           this.camera.position.y = an.toY + EYE_H;
           if (an.toYaw !== undefined) this.camera.rotation.y = an.toYaw;
           this.anim = null;
+          this.onArriveCell(); // pisou numa célula: recolhe ouro / abre popup de item caído
         }
       } else {
         const p = Math.min(1, (now - an.t0) / TURN_MS);
@@ -6858,6 +7069,7 @@ export class Game {
       b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
     this.updateWakeWalk(now); // caminhada roteirizada da Hedda ao acordar
     this.updateBeacon(now); // facho-guia da missão sobre a célula de destino
+    this.updateDrops(now); // itens/ouro caídos: flutuar + facho + recolher ouro auto
     // retículo de mira segue o alvo selecionado (levemente à frente do sprite,
     // na direção da câmera, p/ não brigar em profundidade com o inimigo)
     if (this.reticle && this.target && !this.target.dyingAt) {
@@ -7078,6 +7290,7 @@ export class Game {
       else if (t.kind === "alchshop") text = "Alquimista — Poções & Materiais";
       else if (t.kind === "tavernshop") text = "Taverna — Bruno, o Taverneiro";
       else if (t.kind === "stash") text = "Abrir o baú";
+      else if (t.kind === "pickup") text = `Pegar — ${t.name}`;
     }
     if (text !== this.lastPrompt) {
       this.lastPrompt = text;
@@ -7090,6 +7303,9 @@ export class Game {
     const [dc, dr] = DIRS[this.facing];
     const fc = this.col + dc;
     const fr = this.row + dr;
+    // ITEM caído logo à frente (ou na própria célula) → "Pegar"
+    const drop = this.itemDropAt(fc, fr) ?? this.itemDropAt(this.col, this.row);
+    if (drop && drop.item) return { kind: "pickup", uid: drop.item.uid, name: drop.item.name };
     // BAÚ da Hedda logo à frente (célula do baú, dentro da casa dela)
     if (this.stashCell && fc === this.stashCell.col && fr === this.stashCell.row)
       return { kind: "stash" };

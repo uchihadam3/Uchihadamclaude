@@ -15,7 +15,7 @@ export interface ItemTip {
   lines: TipLine[];            // atributos próprios do item
   compareName?: string;        // nome da peça equipada comparada
   deltas?: TipDelta[];         // ganhos/perdas ao trocar (∅ se nada equipado no slot)
-  action: "equip" | "unequip" | "buy"; // o que o botão do popup faz
+  action: "equip" | "unequip" | "buy" | "pickup"; // o que o botão do popup faz
   price?: number;              // preço (ação "buy")
 }
 // item da mochila (arma ou armadura) e peça equipada no boneco
@@ -188,6 +188,8 @@ export interface HUD {
   setInventory(ids: string[]): void; // enche a mochila com esses itens
   // mochila (armas + armaduras) + peças equipadas no boneco, com molduras de raridade
   setEquip(data: EquipUIData): void;
+  // DROP no chão: abre o popup do item (centralizado) com o botão "Pegar"
+  showPickup(tip: ItemTip, onTake: () => void): void;
   equipWeapon(id: string): void; // equipa (troca a arma na mão) e realça o slot
   // minimapa (canto sup. direito): grade da célula atual + posição/direção do herói
   updateMinimap(s: MinimapState): void;
@@ -345,7 +347,10 @@ export interface MinimapState {
   pois?: MiniPoi[]; // marcadores (lojas, NPCs, saídas…)
   locName?: string; // nome do local atual (banner no topo do mapa)
   waypoint?: { c: number; r: number }; // destino da missão ativa (marcador-guia)
+  drops?: MiniDrop[]; // itens caídos no chão (bolinha colorida por raridade)
 }
+// item caído no chão marcado no minimapa — cor = raridade (agrupados por célula)
+export interface MiniDrop { c: number; r: number; color: string; }
 
 // rastreador de missão (painel abaixo do minimapa): missão ativa + objetivo atual
 export interface TrackerData {
@@ -716,6 +721,36 @@ export function setupControls(
     ctx.fillText("N", 5, h * 0.52);
     ctx.restore();
   };
+  // agrupa os drops por célula: várias bolinhas no MESMO quadradinho quando há
+  // mais de um item caído no mesmo lugar (evita empilhar por cima).
+  const groupDrops = (drops: MiniDrop[]) => {
+    const by = new Map<string, string[]>();
+    for (const d of drops) {
+      const k = d.c + "," + d.r;
+      (by.get(k) ?? by.set(k, []).get(k)!).push(d.color);
+    }
+    return by;
+  };
+  // desenha as bolinhas de um grupo de drops dentro de uma célula (leque compacto)
+  const drawDropDots = (ctx: CanvasRenderingContext2D, cx: number, cy: number, cell: number, colors: string[]) => {
+    const rad = Math.max(1.6, cell * 0.16);
+    const n = Math.min(colors.length, 5); // no máx. 5 bolinhas por célula (legibilidade)
+    const spread = cell * 0.2;
+    for (let i = 0; i < n; i++) {
+      // 1 item = centro; 2+ = leque horizontal pequeno
+      const ox = n === 1 ? 0 : (i - (n - 1) / 2) * spread;
+      const oy = n <= 2 ? 0 : (i % 2 === 0 ? -spread * 0.5 : spread * 0.5);
+      ctx.beginPath();
+      ctx.arc(cx + ox, cy + oy, rad, 0, Math.PI * 2);
+      ctx.fillStyle = colors[i];
+      ctx.shadowColor = colors[i]; ctx.shadowBlur = rad * 1.6;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.lineWidth = Math.max(0.8, rad * 0.32);
+      ctx.strokeStyle = "rgba(6,7,10,.85)";
+      ctx.stroke();
+    }
+  };
   // minimapa PEQUENO: janela de (2R+1)² células centrada no herói (zoom local)
   const drawSmall = (s: MinimapState) => {
     const ctx = mapCtx;
@@ -752,6 +787,15 @@ export function setupControls(
         const x = off + (dx + R) * cell + cell / 2;
         const y = off + (dy + R) * cell + cell / 2;
         drawPoi(ctx, x, y, cell * 0.9, p, mapPhase);
+      }
+    }
+    // DROPS: bolinha colorida por raridade na célula do item (agrupadas)
+    if (s.drops && s.drops.length) {
+      for (const [k, colors] of groupDrops(s.drops)) {
+        const [c, r] = k.split(",").map(Number);
+        const dx = c - s.col, dy = r - s.row;
+        if (Math.abs(dx) > R || Math.abs(dy) > R) continue;
+        drawDropDots(ctx, off + (dx + R) * cell + cell / 2, off + (dy + R) * cell + cell / 2, cell, colors);
       }
     }
     // marcador-guia da missão (por cima dos ícones), se estiver na janela
@@ -797,6 +841,13 @@ export function setupControls(
         .filter((p) => p.kind === "npc" && p.label)
         .map((p) => ({ x: ox + p.c * cell + cell / 2, y: oy + p.r * cell + cell / 2, d, label: p.label, color: "#cbd8ea" }));
       if (labels.length) placeLabels(ctx, labels, Math.max(7, Math.round(size * 0.2)));
+    }
+    // DROPS: bolinhas coloridas por raridade (agrupadas por célula)
+    if (s.drops && s.drops.length) {
+      for (const [k, colors] of groupDrops(s.drops)) {
+        const [c, r] = k.split(",").map(Number);
+        drawDropDots(ctx, ox + c * cell + cell / 2, oy + r * cell + cell / 2, Math.max(10, cell), colors);
+      }
     }
     // marcador-guia da missão ativa, por cima de tudo
     if (s.waypoint)
@@ -987,7 +1038,12 @@ export function setupControls(
   itip.className = "gh-itip-hidden";
   root.appendChild(itip);
   const hideItip = () => itip.classList.add("gh-itip-hidden");
-  const showItemTip = (tip: ItemTip, anchor: DOMRect, doAction: () => void) => {
+  const actLabel = (tip: ItemTip) =>
+    tip.action === "buy" ? `Comprar · ${tip.price ?? 0} ouro`
+      : tip.action === "equip" ? "Equipar"
+      : tip.action === "pickup" ? "Pegar"
+      : "Desequipar";
+  const showItemTip = (tip: ItemTip, anchor: DOMRect, doAction: () => void, centered = false) => {
     const dRow = (d: TipDelta) => {
       const s = d.delta > 0 ? "up" : d.delta < 0 ? "down" : "same";
       const sign = d.delta > 0 ? "+" : "";
@@ -1007,19 +1063,32 @@ export function setupControls(
           `<div class="gh-itip-cmph">Ao trocar${tip.compareName ? ` · ${tip.compareName}` : ""}</div>` +
           tip.deltas.map(dRow).join("") + "</div>"
         : "") +
-      `<button class="gh-itip-act">${tip.action === "buy" ? `Comprar · ${tip.price ?? 0} ouro` : tip.action === "equip" ? "Equipar" : "Desequipar"}</button>`;
+      `<button class="gh-itip-act">${actLabel(tip)}</button>`;
     itip.classList.remove("gh-itip-hidden");
-    // posiciona ao lado do slot, preso na tela
     const w = itip.offsetWidth, h = itip.offsetHeight;
-    let x = anchor.right + 8;
-    if (x + w > window.innerWidth - 6) x = anchor.left - w - 8;
-    if (x < 6) x = Math.max(6, Math.round((window.innerWidth - w) / 2));
-    let y = anchor.top - 4;
-    if (y + h > window.innerHeight - 6) y = window.innerHeight - h - 6;
-    if (y < 6) y = 6;
+    let x: number, y: number;
+    if (centered) {
+      // DROP: popup no centro da tela (sem âncora de slot)
+      x = Math.round((window.innerWidth - w) / 2);
+      y = Math.round(window.innerHeight * 0.5 - h * 0.5);
+      if (y < 6) y = 6;
+    } else {
+      // posiciona ao lado do slot, preso na tela
+      x = anchor.right + 8;
+      if (x + w > window.innerWidth - 6) x = anchor.left - w - 8;
+      if (x < 6) x = Math.max(6, Math.round((window.innerWidth - w) / 2));
+      y = anchor.top - 4;
+      if (y + h > window.innerHeight - 6) y = window.innerHeight - h - 6;
+      if (y < 6) y = 6;
+    }
     itip.style.left = x + "px";
     itip.style.top = y + "px";
     (itip.querySelector(".gh-itip-act") as HTMLElement).onclick = (e) => { e.stopPropagation(); hideItip(); doAction(); };
+  };
+  // DROP: abre o popup do item centralizado, com o botão "Pegar"
+  const showPickup = (tip: ItemTip, onTake: () => void) => {
+    const r = new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0);
+    showItemTip(tip, r, onTake, true);
   };
   // fecha ao tocar fora do popup (mas o toque no slot reabre)
   document.addEventListener("pointerdown", (e) => {
@@ -2208,6 +2277,7 @@ export function setupControls(
         }
       }
     },
+    showPickup(tip: ItemTip, onTake: () => void) { showPickup(tip, onTake); },
     equipWeapon(id: string) {
       const w = catalog[id];
       if (!w) return;
