@@ -951,6 +951,8 @@ export class Game {
   // ---- EQUIPAMENTO (armaduras) ----
   private armorInv: ItemInstance[] = [];                          // armaduras na mochila (não equipadas)
   private equippedArmor: Partial<Record<ArmorSlot, ItemInstance>> = {}; // por slot
+  private storeStock: ItemInstance[] = [];                        // estoque rotativo da Rosa
+  private storeStockPeriod = -1;                                  // meia-jornada da última rotação
   private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
   private guideOn = true;                                         // guia/marcador (mapa+mundo) ligado?
   private introShown = false;                                    // narração de abertura (1×)
@@ -2003,6 +2005,32 @@ export class Game {
   }
 
   // ---- LOJAS (mercador / alquimista — comprar/vender) ----
+  // raridade da LOJA: SEM lendário (só drop). Comum comum, Mágico às vezes, Raro difícil.
+  private rollStoreRarity(): Rarity {
+    const r = Math.random();
+    if (r < 0.60) return "comum";
+    if (r < 0.88) return "magico";
+    return "raro";
+  }
+  private armorPrice(it: ItemInstance): number {
+    const tierBase = [22, 55, 120][it.tier - 1] ?? 22;
+    const rarMul: Record<Rarity, number> = { comum: 1, magico: 1.9, raro: 3.4, lendario: 6 };
+    return Math.round(tierBase * rarMul[it.rarity]);
+  }
+  // rotaciona o estoque de equipamento a cada MEIA-JORNADA (dia/noite), pelo relógio
+  private refreshStoreStock() {
+    const period = Math.floor((this.now / DAY_MS + DAY_START) * 2);
+    if (period === this.storeStockPeriod && this.storeStock.length) return;
+    this.storeStockPeriod = period;
+    const maxTier = this.stats.level >= 10 ? 3 : this.stats.level >= 5 ? 2 : 1;
+    const n = 4 + Math.floor(Math.random() * 2); // 4–5 peças por rotação
+    this.storeStock = [];
+    for (let i = 0; i < n; i++) {
+      const slot = ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)];
+      const tier = 1 + Math.floor(Math.random() * maxTier);
+      this.storeStock.push(generateArmor(slot, tier, { rarity: this.rollStoreRarity() }));
+    }
+  }
   private buildStoreData(): StoreData {
     const goods: StoreGood[] = [];
     const alch = this.shopVendor === "alchemist";
@@ -2013,6 +2041,14 @@ export class Game {
       if (tradesWeapons) for (const w of WEAPONS) {
         if (this.ownedWeapons.includes(w.id)) continue; // já tem essa arma
         goods.push({ id: "w:" + w.id, name: w.name, iconUrl: w.url, price: this.weaponBuy(w.id), desc: this.weaponDesc(w), have: 0, single: true });
+      }
+      // EQUIPAMENTO ROTATIVO (só o mercador): armaduras com raridade que giram pelo relógio
+      if (tradesWeapons) {
+        this.refreshStoreStock();
+        for (const it of this.storeStock) {
+          const price = this.armorPrice(it);
+          goods.push({ id: "a:" + it.uid, name: it.name, iconUrl: it.icon, price, desc: RARITY_BY_KEY[it.rarity].label, have: 0, single: true, rarity: it.rarity, tip: this.armorTip(it, "buy", price) });
+        }
       }
       for (const id of goodIds) {
         const m = GOODS_BY_ID[id];
@@ -2047,7 +2083,23 @@ export class Game {
   private storeTrade(id: string, qty: number): StoreData {
     qty = Math.max(1, Math.floor(qty));
     if (this.storeMode === "buy") {
-      if (id.startsWith("w:")) {
+      if (id.startsWith("a:")) {
+        // COMPRA de armadura do estoque rotativo → vai pra mochila
+        const uid = id.slice(2);
+        const idx = this.storeStock.findIndex((x) => x.uid === uid);
+        if (idx >= 0) {
+          const it = this.storeStock[idx];
+          const price = this.armorPrice(it);
+          if (this.stats.gold < price) { this.ui.toast("Ouro insuficiente."); }
+          else {
+            this.stats.gold -= price;
+            this.storeStock.splice(idx, 1);
+            this.armorInv.push(it);
+            this.refreshStats(); this.pushEquipUI(); this.ui.playSfx("coin");
+            this.ui.toast(`Comprou ${it.name}.`);
+          }
+        }
+      } else if (id.startsWith("w:")) {
         // COMPRA de arma (mercador): única, entra no inventário
         const wid = id.slice(2);
         const w = WEAPON_BY_ID[wid];
@@ -2740,15 +2792,16 @@ export class Game {
     return (Object.keys(t) as AffixKey[]).map((k) => ({ label: AFFIXES[k].label, value: this.fmtStat(k, t[k] ?? 0) }));
   }
   // tooltip de ARMADURA: atributos próprios + (se equipando) o delta vs. a equipada
-  private armorTip(it: ItemInstance, action: "equip" | "unequip"): ItemTip {
+  private armorTip(it: ItemInstance, action: "equip" | "unequip" | "buy", price?: number): ItemTip {
     const total = itemTotal(it);
     const tip: ItemTip = {
       name: it.name, icon: it.icon, rarity: it.rarity,
       sub: `${RARITY_BY_KEY[it.rarity].label} · ${Game.ARMOR_SLOT_PT[it.slot]}`,
-      lines: this.statLines(total), action,
+      lines: this.statLines(total), action, price,
     };
     const cur = this.equippedArmor[it.slot];
-    if (action === "equip" && cur && cur.uid !== it.uid) {
+    // comparação vs. equipado tanto ao equipar quanto ao comprar (ver antes de gastar)
+    if (action !== "unequip" && cur && cur.uid !== it.uid) {
       const old = itemTotal(cur);
       const keys = new Set<AffixKey>([...Object.keys(total), ...Object.keys(old)] as AffixKey[]);
       const deltas: TipDelta[] = [];

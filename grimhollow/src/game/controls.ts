@@ -15,7 +15,8 @@ export interface ItemTip {
   lines: TipLine[];            // atributos próprios do item
   compareName?: string;        // nome da peça equipada comparada
   deltas?: TipDelta[];         // ganhos/perdas ao trocar (∅ se nada equipado no slot)
-  action: "equip" | "unequip"; // o que o botão do popup faz
+  action: "equip" | "unequip" | "buy"; // o que o botão do popup faz
+  price?: number;              // preço (ação "buy")
 }
 // item da mochila (arma ou armadura) e peça equipada no boneco
 export interface BagEntry { kind: "weapon" | "armor"; id: string; icon: string; name: string; rarity?: Rarity; tip: ItemTip; }
@@ -272,6 +273,8 @@ export interface StoreGood {
   single?: boolean; // item único (arma): vende 1, sem stepper
   moveMax?: number; // baú: máximo transferível nesta ação (respeita o teto de pilha 99)
   lvl?: number; // baú: nível de reforço da arma (+N), mostrado como selo no slot
+  rarity?: Rarity; // equipamento com raridade: pinta a moldura da célula
+  tip?: ItemTip; // se houver, clicar abre o POPUP (comparação) em vez da caixa de qtd
 }
 export interface StoreData {
   gold: number;
@@ -1004,7 +1007,7 @@ export function setupControls(
           `<div class="gh-itip-cmph">Ao trocar${tip.compareName ? ` · ${tip.compareName}` : ""}</div>` +
           tip.deltas.map(dRow).join("") + "</div>"
         : "") +
-      `<button class="gh-itip-act">${tip.action === "equip" ? "Equipar" : "Desequipar"}</button>`;
+      `<button class="gh-itip-act">${tip.action === "buy" ? `Comprar · ${tip.price ?? 0} ouro` : tip.action === "equip" ? "Equipar" : "Desequipar"}</button>`;
     itip.classList.remove("gh-itip-hidden");
     // posiciona ao lado do slot, preso na tela
     const w = itip.offsetWidth, h = itip.offsetHeight;
@@ -1442,7 +1445,7 @@ export function setupControls(
     storeMode = d.mode; storeGold = d.gold;
     const cells = d.goods.length
       ? d.goods.map((g) =>
-          `<div class="gh-st-good" data-gid="${g.id}"><div class="gh-slot gh-st-gslot">${goodIcon(g)}` +
+          `<div class="gh-st-good" data-gid="${g.id}"><div class="gh-slot gh-st-gslot${g.rarity ? " gh-rar-" + g.rarity : ""}">${goodIcon(g)}` +
           `${g.have > 0 && !g.single ? `<span class="gh-count gh-st-cnt">${g.have}</span>` : ""}</div>` +
           `<div class="gh-st-gname">${g.name}</div>` +
           `<div class="gh-st-gprice"><img src="${coinUrl}" alt=""/>${g.price}</div></div>`,
@@ -1463,7 +1466,13 @@ export function setupControls(
     });
     stBody.querySelectorAll<HTMLElement>(".gh-st-good").forEach((el) => {
       const g = d.goods.find((x) => x.id === el.dataset.gid);
-      if (g) el.onclick = () => openQtyBox(g);
+      if (!g) return;
+      // equipamento com tip → POPUP (mostra atributos + comparação + "Comprar");
+      // demais (consumíveis/materiais/armas) → caixa de quantidade normal.
+      if (g.tip) el.onclick = () => showItemTip(g.tip!, el.getBoundingClientRect(), () => {
+        const nd = onStoreTrade?.(g.id, 1); if (nd) renderStore(nd);
+      });
+      else el.onclick = () => openQtyBox(g);
     });
   };
 
