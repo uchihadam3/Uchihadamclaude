@@ -840,6 +840,17 @@ const HOMES: Record<HomeId, HomeInfo> = {
 
 // tamanho máximo de uma "página" de diálogo (mantém a caixa sempre igual).
 // Falas maiores são quebradas em várias páginas ("…" e o jogador continua).
+// Faces em PNG de objetos "caixa" (baú etc.). import.meta.glob NÃO quebra o build se
+// os arquivos ainda não existem (retorna {}), então o baú usa PNG quando houver e cai
+// no baú procedural enquanto não. Basta soltar bau_*.png em assets/env/ que ativa.
+const FACE_PNG = import.meta.glob("../assets/env/bau_*.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+}) as Record<string, string>;
+const facePng = (name: string): string | undefined =>
+  FACE_PNG[`../assets/env/${name}.png`];
+
 const DLG_MAX = 96;
 function paginate(lines: string[], max = DLG_MAX): string[] {
   const pages: string[] = [];
@@ -5016,14 +5027,47 @@ export class Game {
   }
 
   private buildChest(cx: number, cz: number, wood: THREE.Material, iron: THREE.Material) {
+    const glow = () => {
+      const g = new THREE.PointLight(0xffcf7a, 1.4, 5, 2);
+      g.position.set(cx, 1.1, cz); this.world.add(g);
+    };
+    // OBJETO 3D COM PNG POR FACE: se os 4 PNGs do baú existirem, veste cada face do
+    // corpo/tampa com sua arte (BoxGeometry aceita 1 material por face). Ordem das
+    // faces do Box: [+x, -x, +y, -y, +z, -z] = [dir, esq, topo, base, frente, verso].
+    const uF = facePng("bau_frente"), uL = facePng("bau_lado");
+    const uTF = facePng("bau_tampa_frente"), uTT = facePng("bau_tampa_topo");
+    if (uF && uL && uTF && uTT) {
+      // material que começa branco e recebe o mapa quando o PNG carrega (sem tingir)
+      const mk = (url: string) => {
+        const m = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        this.loadArt(url, (t) => { m.map = t; m.needsUpdate = true; });
+        return m;
+      };
+      const mFrente = mk(uF), mLado = mk(uL), mTampaF = mk(uTF), mTampaT = mk(uTT);
+      const end = wood as THREE.MeshLambertMaterial; // topo/base ocultos → madeira lisa
+      // CORPO: frente/verso = bau_frente, laterais = bau_lado, topo/base = madeira
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.0, 0.6, 0.7),
+        [mLado, mLado, end, end, mFrente, mFrente],
+      );
+      body.position.set(cx, 0.3, cz); this.world.add(body);
+      // TAMPA: frente/verso = bau_tampa_frente, topo = bau_tampa_topo, laterais = bau_lado
+      const lid = new THREE.Mesh(
+        new THREE.BoxGeometry(1.03, 0.3, 0.73),
+        [mLado, mLado, mTampaT, end, mTampaF, mTampaF],
+      );
+      lid.position.set(cx, 0.73, cz); this.world.add(lid);
+      glow();
+      return;
+    }
+    // FALLBACK: baú procedural (madeira + banda de ferro) enquanto os PNGs não vierem
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.7), wood);
     body.position.set(cx, 0.3, cz); this.world.add(body);
     const lid = new THREE.Mesh(new THREE.BoxGeometry(1.03, 0.3, 0.73), wood);
     lid.position.set(cx, 0.73, cz); this.world.add(lid);
     const band = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.95, 0.14), iron);
     band.position.set(cx, 0.46, cz); this.world.add(band);
-    const glow = new THREE.PointLight(0xffcf7a, 1.4, 5, 2);
-    glow.position.set(cx, 1.1, cz); this.world.add(glow);
+    glow();
   }
 
   // nasce um inimigo no ponto 'E' mais próximo do jogador (não na célula dele)

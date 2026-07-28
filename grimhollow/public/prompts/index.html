@@ -47,7 +47,7 @@
 <p>Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o <strong>prompt pronto</strong>
 (é só copiar no botão do canto). Legenda: <strong>✅ já no jogo</strong> · <strong>🟡 falta gerar</strong> ·
 <strong>⚪ opcional</strong> (já tem versão em código) · <strong>❌ removido</strong>.</p>
-<p><strong>Status:</strong> ✅ 48 recortados · 🟡 19 faltando · ❌ 2 removidas</p>
+<p><strong>Status:</strong> ✅ 48 recortados · 🟡 23 faltando · ❌ 2 removidas</p>
 <hr />
 <h2 id="-prólogo--arte-única-do-crawl-cidade-em-cima-névoadesconhecido-embaixo">🎬 Prólogo — arte única do crawl (cidade em cima, névoa/desconhecido embaixo)</h2>
 <p><strong>UMA imagem vertical bem ALTA</strong>, no <strong>mesmo estilo pintado da arte do menu</strong>.
@@ -97,12 +97,17 @@ bonito fica o movimento de subida.</p>
 <td><strong>Texturas de parede da masmorra</strong> — 10 variações (seamless)</td>
 <td><a href="#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar">§16</a></td>
 </tr>
+<tr>
+<td style="text-align: center;">🟡</td>
+<td><strong>Baú 3D</strong> — 4 faces em PNG (frente/lado/tampa)</td>
+<td><a href="#17--baú-3d--faces-em-png-objeto-3d-vestido-com-arte--🟡-a-gerar">§17</a></td>
+</tr>
 </tbody>
 </table>
 <hr />
 <h2 id="-índice-das-seções">🗂️ Índice das seções</h2>
 <p><strong>Mundo/cenário:</strong> <a href="#01--árvores-individuais">01 Árvores</a> · <a href="#02--aglomerados-de-mata">02 Aglomerados de mata</a> · <a href="#03--placas-das-lojas">03 Placas de loja</a> · <a href="#04--adereços-da-cidade">04 Adereços da cidade</a> · <a href="#05--panos-de-fundo-backdrops">05 Panos de fundo</a> · <a href="#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar">16 Texturas de parede da masmorra</a>
-<strong>Combate/jogo:</strong> <a href="#06--combate--espada-protótipo-de-ação">06 Espada</a> · <a href="#07--inimigos-billboard-2d">07 Inimigos</a> · <a href="#10--ícones-de-itens-folhas-por-tier">10 Ícones de itens</a> · <a href="#armaduras-early">🛡️ Armaduras early (T1–T3)</a>
+<strong>Combate/jogo:</strong> <a href="#06--combate--espada-protótipo-de-ação">06 Espada</a> · <a href="#07--inimigos-billboard-2d">07 Inimigos</a> · <a href="#10--ícones-de-itens-folhas-por-tier">10 Ícones de itens</a> · <a href="#armaduras-early">🛡️ Armaduras early (T1–T3)</a> · <a href="#17--baú-3d--faces-em-png-objeto-3d-vestido-com-arte--🟡-a-gerar">17 Baú 3D (faces)</a>
 <strong>Interface:</strong> <a href="#08--interface--hud">08 HUD/janelas</a> · <a href="#11--botões-de-controle-hud">11 Botões de controle</a> · <a href="#12--telas-de-abertura-título--classes">12 Telas de abertura</a></p>
 <p>Mais abaixo: <a href="#-catálogo-de-itens-planejamento-de-design">📜 Catálogo de Itens</a> (mapa de design — sem prompts ainda).</p>
 <hr />
@@ -734,6 +739,36 @@ bloco já está <strong>completo, é só Copiar</strong>.</p>
 <h3 id="-1610--tex_dwall_10-parede-desmoronada">🟡 16.10 — <code>tex_dwall_10</code> (Parede desmoronada)</h3>
 <pre><code>Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: crumbling collapsed stone wall, broken bricks and loose rubble, cracks with gaps and missing chunks. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
 </code></pre>
+<hr />
+<h2 id="17--baú-3d--faces-em-png-objeto-3d-vestido-com-arte---a-gerar">17 · Baú 3D — faces em PNG (objeto 3D vestido com arte) — 🟡 a gerar</h2>
+<p><strong>Como funciona:</strong> o baú é um <strong>objeto 3D</strong> (corpo + tampa) e cada <strong>lado</strong> recebe
+um PNG como "adesivo". Já está ligado no código: soltou os <strong>4 arquivos</strong> abaixo em
+<code>grimhollow/src/assets/env/</code>, o baú da masmorra passa a usar sua arte automaticamente
+(enquanto não vierem, ele usa o baú de madeira procedural). Provado funcionando.</p>
+<p><strong>Regras destas faces (diferente do resto do arquivo):</strong>
+- <strong>SEM transparência</strong> — a arte <strong>preenche o quadrado inteiro</strong> (encosta nas bordas);
+  cada face é um retângulo, então o desenho vai até a borda.
+- <strong>Vista frontal reta (ortográfica)</strong>, luz difusa, <strong>sem sombra e sem perspectiva</strong> (a
+  profundidade/sombra vêm do 3D).
+- <strong>Mesma madeira escura + ferro</strong> nas quatro, pra parecerem o mesmo baú.
+- Paleta soturna (madeira escura desgastada, ferro velho). Sem texto/marca d'água.</p>
+<h3 id="-171--bau_frente-frente-do-corpo--com-fechadura">🟡 17.1 — <code>bau_frente</code> (frente do corpo — com fechadura)</h3>
+<pre><code>Flat front-facing orthographic texture of the FRONT panel of a grim medieval treasure chest, filling the entire square frame edge to edge. Dark aged wooden planks bound by riveted black iron corner brackets and two horizontal iron straps, a heavy ornate iron lock plate with a keyhole centered on the lower edge. Weathered, scuffed, dungeon-worn dark wood with cool desaturated tone. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+</code></pre>
+<h3 id="-172--bau_lado-lateral-do-corpo--sem-fechadura">🟡 17.2 — <code>bau_lado</code> (lateral do corpo — sem fechadura)</h3>
+<pre><code>Flat front-facing orthographic texture of the SIDE panel of a grim medieval treasure chest, filling the entire square frame edge to edge. Dark aged wooden planks bound by riveted black iron corner brackets and a horizontal iron strap, a small iron carry-handle ring on the side, NO lock. Same weathered dark cool-toned wood and aged iron as the front. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+</code></pre>
+<h3 id="-173--bau_tampa_frente-frente-da-tampa--faixa-larga-e-baixa">🟡 17.3 — <code>bau_tampa_frente</code> (frente da tampa — faixa larga e baixa)</h3>
+<pre><code>Flat front-facing orthographic texture of the FRONT edge of the LID of a grim medieval treasure chest — a WIDE SHORT horizontal strip, filling the entire frame edge to edge. Dark aged wooden planks with a horizontal riveted black iron strap and the iron hasp catch of the lock at the center bottom. Same weathered dark cool-toned wood and aged iron as the chest body. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+</code></pre>
+<h3 id="-174--bau_tampa_topo-topo-da-tampa--visto-de-cima">🟡 17.4 — <code>bau_tampa_topo</code> (topo da tampa — visto de cima)</h3>
+<pre><code>Flat top-down orthographic texture of the TOP of the LID of a grim medieval treasure chest, filling the entire frame edge to edge. Dark aged wooden planks running front-to-back, crossed by two riveted black iron straps and iron-bracket edges. Same weathered dark cool-toned wood and aged iron as the chest body. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+</code></pre>
+<blockquote>
+<p>Com essas 4 o baú fica fechado e bonito por todos os ângulos que aparecem no jogo
+(frente, lados, tampa). Verso e base reaproveitam a madeira. Depois dá pra fazer
+<code>bau_frente_aberto</code> / interior brilhando pra versão "baú aberto".</p>
+</blockquote>
 <hr />
 <h1 id="-catálogo-de-itens-planejamento-de-design">📜 Catálogo de Itens (planejamento de design)</h1>
 <blockquote>

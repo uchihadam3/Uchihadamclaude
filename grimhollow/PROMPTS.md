@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 48 recortados · 🟡 19 faltando · ❌ 2 removidas
+**Status:** ✅ 48 recortados · 🟡 23 faltando · ❌ 2 removidas
 
 ---
 
@@ -40,13 +40,14 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
 | 🟡 | **Texturas de parede da masmorra** — 10 variações (seamless) | [§16](#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar) |
+| 🟡 | **Baú 3D** — 4 faces em PNG (frente/lado/tampa) | [§17](#17--baú-3d--faces-em-png-objeto-3d-vestido-com-arte--🟡-a-gerar) |
 
 ---
 
 ## 🗂️ Índice das seções
 
 **Mundo/cenário:** [01 Árvores](#01--árvores-individuais) · [02 Aglomerados de mata](#02--aglomerados-de-mata) · [03 Placas de loja](#03--placas-das-lojas) · [04 Adereços da cidade](#04--adereços-da-cidade) · [05 Panos de fundo](#05--panos-de-fundo-backdrops) · [16 Texturas de parede da masmorra](#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar)
-**Combate/jogo:** [06 Espada](#06--combate--espada-protótipo-de-ação) · [07 Inimigos](#07--inimigos-billboard-2d) · [10 Ícones de itens](#10--ícones-de-itens-folhas-por-tier) · [🛡️ Armaduras early (T1–T3)](#armaduras-early)
+**Combate/jogo:** [06 Espada](#06--combate--espada-protótipo-de-ação) · [07 Inimigos](#07--inimigos-billboard-2d) · [10 Ícones de itens](#10--ícones-de-itens-folhas-por-tier) · [🛡️ Armaduras early (T1–T3)](#armaduras-early) · [17 Baú 3D (faces)](#17--baú-3d--faces-em-png-objeto-3d-vestido-com-arte--🟡-a-gerar)
 **Interface:** [08 HUD/janelas](#08--interface--hud) · [11 Botões de controle](#11--botões-de-controle-hud) · [12 Telas de abertura](#12--telas-de-abertura-título--classes)
 
 Mais abaixo: [📜 Catálogo de Itens](#-catálogo-de-itens-planejamento-de-design) (mapa de design — sem prompts ainda).
@@ -987,6 +988,47 @@ Seamless tileable texture, top-down orthographic, flat even lighting, no baked s
 ```
 Seamless tileable texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, PBR albedo/diffuse map, 1024x1024, tiles perfectly on all edges. COLD DESATURATED GREY DUNGEON STONE — ash/slate grey with a faint cool brown undertone, dark, damp and grim (NOT golden, NOT tan, NOT warm). Style: crumbling collapsed stone wall, broken bricks and loose rubble, cracks with gaps and missing chunks. Seamless and perfectly tileable, high detail, no text, no watermark, no border.
 ```
+
+---
+
+## 17 · Baú 3D — faces em PNG (objeto 3D vestido com arte) — 🟡 a gerar
+
+**Como funciona:** o baú é um **objeto 3D** (corpo + tampa) e cada **lado** recebe
+um PNG como "adesivo". Já está ligado no código: soltou os **4 arquivos** abaixo em
+`grimhollow/src/assets/env/`, o baú da masmorra passa a usar sua arte automaticamente
+(enquanto não vierem, ele usa o baú de madeira procedural). Provado funcionando.
+
+**Regras destas faces (diferente do resto do arquivo):**
+- **SEM transparência** — a arte **preenche o quadrado inteiro** (encosta nas bordas);
+  cada face é um retângulo, então o desenho vai até a borda.
+- **Vista frontal reta (ortográfica)**, luz difusa, **sem sombra e sem perspectiva** (a
+  profundidade/sombra vêm do 3D).
+- **Mesma madeira escura + ferro** nas quatro, pra parecerem o mesmo baú.
+- Paleta soturna (madeira escura desgastada, ferro velho). Sem texto/marca d'água.
+
+### 🟡 17.1 — `bau_frente` (frente do corpo — com fechadura)
+```
+Flat front-facing orthographic texture of the FRONT panel of a grim medieval treasure chest, filling the entire square frame edge to edge. Dark aged wooden planks bound by riveted black iron corner brackets and two horizontal iron straps, a heavy ornate iron lock plate with a keyhole centered on the lower edge. Weathered, scuffed, dungeon-worn dark wood with cool desaturated tone. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+```
+
+### 🟡 17.2 — `bau_lado` (lateral do corpo — sem fechadura)
+```
+Flat front-facing orthographic texture of the SIDE panel of a grim medieval treasure chest, filling the entire square frame edge to edge. Dark aged wooden planks bound by riveted black iron corner brackets and a horizontal iron strap, a small iron carry-handle ring on the side, NO lock. Same weathered dark cool-toned wood and aged iron as the front. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+```
+
+### 🟡 17.3 — `bau_tampa_frente` (frente da tampa — faixa larga e baixa)
+```
+Flat front-facing orthographic texture of the FRONT edge of the LID of a grim medieval treasure chest — a WIDE SHORT horizontal strip, filling the entire frame edge to edge. Dark aged wooden planks with a horizontal riveted black iron strap and the iron hasp catch of the lock at the center bottom. Same weathered dark cool-toned wood and aged iron as the chest body. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+```
+
+### 🟡 17.4 — `bau_tampa_topo` (topo da tampa — visto de cima)
+```
+Flat top-down orthographic texture of the TOP of the LID of a grim medieval treasure chest, filling the entire frame edge to edge. Dark aged wooden planks running front-to-back, crossed by two riveted black iron straps and iron-bracket edges. Same weathered dark cool-toned wood and aged iron as the chest body. Even diffuse lighting, no cast shadow, no perspective, no background, fills the frame completely. High detail, no text, no watermark.
+```
+
+> Com essas 4 o baú fica fechado e bonito por todos os ângulos que aparecem no jogo
+> (frente, lados, tampa). Verso e base reaproveitam a madeira. Depois dá pra fazer
+> `bau_frente_aberto` / interior brilhando pra versão "baú aberto".
 
 ---
 
