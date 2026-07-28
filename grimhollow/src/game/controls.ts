@@ -982,16 +982,18 @@ export function setupControls(
   //    ACHATADO (4×2 — largo e baixo). Molduras mais FINAS nesses (.gh-slot-acc)
   //    p/ o ícone não ficar minúsculo apesar do slot menor.
   const EQ_SLOTS: { key: string; label: string; gc: string; gr: string; acc?: boolean }[] = [
-    { key: "main", label: "Arma", gc: "1 / 3", gr: "1 / 9" },
-    { key: "off", label: "Secundária", gc: "13 / 15", gr: "1 / 9" },
+    // armas mais LARGAS (3 col) e com o fundo ERGUIDO (terminam na linha 8, acima
+    // da fileira de luvas/botas) — deixam de ser aquela tira estreita e comprida.
+    { key: "main", label: "Arma", gc: "1 / 4", gr: "1 / 8" },
+    { key: "off", label: "Secundária", gc: "12 / 15", gr: "1 / 8" },
     { key: "head", label: "Elmo", gc: "6 / 10", gr: "1 / 4" },
     { key: "amulet", label: "Amuleto", gc: "10 / 12", gr: "1 / 3", acc: true },
     { key: "chest", label: "Peitoral", gc: "6 / 10", gr: "4 / 8" },
     { key: "ring1", label: "Anel", gc: "4 / 6", gr: "5 / 7", acc: true },
     { key: "ring2", label: "Anel", gc: "10 / 12", gr: "5 / 7", acc: true },
-    { key: "hands", label: "Luvas", gc: "3 / 6", gr: "8 / 11" },
+    { key: "hands", label: "Luvas", gc: "2 / 6", gr: "8 / 11" },
     { key: "belt", label: "Cinto", gc: "6 / 10", gr: "8 / 10", acc: true },
-    { key: "feet", label: "Botas", gc: "10 / 13", gr: "8 / 11" },
+    { key: "feet", label: "Botas", gc: "10 / 14", gr: "8 / 11" },
   ];
   // slots SEM texto (o rótulo fica só nos dados p/ o futuro "destaque" do slot
   // certo ao clicar num item). O que vai dentro é o ícone do item equipado.
