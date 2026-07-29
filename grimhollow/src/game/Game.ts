@@ -989,6 +989,8 @@ export class Game {
   private facing = 0;
   private anim: Anim = null;
   private showIdx = 0; // posição do jogador ao longo do caminho da sala-vitrine (hélice)
+  private stairUp = true; // na escada em espiral: true = encara SUBINDO, false = descendo
+  // (forward anda p/ onde o jogador OLHA; virar 180° inverte)
   // p/ onde voltar ao SAIR da sala-vitrine (masmorra, se entrou pelo portal; senão vila)
   private showcaseReturn: { loc: string; col: number; row: number; facing: number } | null = null;
 
@@ -1471,6 +1473,7 @@ export class Game {
     if (this.location === "showcase") {
       // sala-vitrine: movimento por ESTAÇÕES (hélice); a câmera segue o caminho.
       this.showIdx = 0;
+      this.stairUp = true; // entra no pé da escada olhando p/ CIMA
       this.applyShowcasePose();
     } else {
       this.camera.position.set(col * CELL, this.floorYAt(col, row) + EYE_H, row * CELL);
@@ -4960,29 +4963,16 @@ export class Game {
       if (this.mainFlags["seal_broken"]) { this.sealBars.visible = false; }
       else { this.blocked.add(`${lg.col},${lg.row}`); } // SELADO até romper (cap.4)
     }
-    // ESCADARIA DE PEDRA subindo atrás do portão → o jogador VÊ a escada que leva
-    // ao santuário (não é teleporte: ao passar, um loading leva ao pé da escada).
+    // ESCADARIA DO SANTUÁRIO subindo atrás do PORTÃO SELADO (L): mesma construção
+    // caprichada da escada de volta (degraus recuados, paredes laterais + teto, fundo
+    // escuro), agora subindo p/ LESTE e ACOPLADA na parede. Luz ARCANA fria (não é a
+    // luz do dia — leva ao santuário). O portão 'L' na frente segue BLOQUEANDO: por
+    // enquanto o jogador só VÊ a escada pela grade; o acesso é secreto (cap. futuro).
     const sanc = dungeonAll("A")[0];
     if (sanc) {
-      const stMat = rockMat; // MESMA alvenaria PBR das paredes (coesão)
-      const bx = sanc.col * CELL - CELL * 0.4, bz = sanc.row * CELL; // pé da escada (célula 'A')
-      const N = 9; // degraus subindo p/ leste, sumindo no escuro (a escada "continua")
-      for (let i = 0; i < N; i++) {
-        const h = 0.15 + (i + 1) * 0.42;
-        const st = new THREE.Mesh(new THREE.BoxGeometry(0.66, h, 3.0), stMat);
-        st.position.set(bx + i * 0.6, h / 2, bz);
-        this.world.add(st);
-      }
-      // paredes laterais do vão da escada (dá o enquadramento de "escadaria")
-      for (const s of [-1, 1]) {
-        const side = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 1.5, CH), rockMat);
-        side.position.set(bx + CELL * 0.6, CH / 2, bz + s * 1.5);
-        side.rotation.y = s > 0 ? Math.PI : 0; this.world.add(side);
-      }
-      // luz quente iluminando a escadaria (deixa CLARO que é uma escada subindo);
-      // o topo some no escuro → a escada "continua" lá pra cima.
-      this.glowLight(bx + 0.4, 2.4, bz, 0xffc06a, 4.6, 11);
-      this.glowLight(bx + 2.6, 3.4, bz, 0xffb45a, 2.6, 8);
+      this.buildEmbeddedStairs(sanc, 1, 0, rockMat, CH, {
+        arch: false, shaft: true, shaftColor: 0xbfd6ff, light: 0xbcd2ff, lightLow: 0x9fb8e6,
+      });
     }
 
     // ESCADARIA DE VOLTA (U): escada de pedra SUBINDO rumo à superfície, com um
@@ -5001,45 +4991,66 @@ export class Game {
   // sobe), sumindo na claridade lá em cima. O jogador vê a "porta" na parede e a escada
   // subindo atrás dela.
   private buildReturnStairs(up: { col: number; row: number }, rockMat: THREE.Material, CH: number) {
+    // escada de volta ao vilarejo: sobe p/ o NORTE, com facho de LUZ DO DIA quente.
+    this.buildEmbeddedStairs(up, 0, -1, rockMat, CH, {
+      arch: true, shaft: true, shaftColor: 0xffe2b0, light: 0xffe0a8, lightLow: 0xffcf8a,
+    });
+  }
+
+  // ESCADARIA embutida na PAREDE (mesma construção da escada de volta): um vão em ARCO
+  // (opcional) na face (dc,dr), com os degraus subindo RECUADOS na parede, paredes
+  // laterais + teto formando um túnel que sobe, fundo escuro no topo ("continua") e um
+  // facho de luz. Serve p/ a escada de volta (norte, luz do dia) E p/ a do santuário
+  // (leste, luz arcana), sempre bem ACOPLADA na parede.
+  private buildEmbeddedStairs(
+    cell: { col: number; row: number }, dc: number, dr: number,
+    rockMat: THREE.Material, CH: number,
+    opt: { arch: boolean; shaft: boolean; shaftColor: number; light: number; lightLow: number },
+  ) {
     const stMat = rockMat; // MESMA alvenaria PBR das paredes (coesão total)
-    const ux = up.col * CELL, uz = up.row * CELL;
-    const zWall = uz - CELL / 2;      // plano da parede norte da célula U
-    const HW = 1.25;                  // meia-largura do vão
-    // 1) PORTA EM ARCO na parede norte (alvenaria contorna o vão até o teto)
-    this.addArchWall(up.col, up.row, 0, -1, rockMat, HW, 2.5, CH);
-    // 2) DEGRAUS subindo p/ o NORTE atrás do arco, RECUADOS na parede. Rampa SUAVE
-    //    (~31°): passo baixo (0.28) e piso FUNDO (0.46) → lê-se como escadaria de
-    //    verdade que sobe, não uma pilha quase vertical. Some no facho de luz lá em cima.
-    const N = 8, stepH = 0.28, stepD = 0.46;
+    const cx = cell.col * CELL, cz = cell.row * CELL;
+    const HALF = CELL / 2, HW = 1.25;
+    const fx = cx + dc * HALF, fz = cz + dr * HALF; // plano da face p/ onde a escada abre
+    const alongX = dc !== 0; // eixo do movimento da escada (X ou Z)
+    const N = 8, stepH = 0.28, stepD = 0.46, depth = N * stepD;
+    // 1) ARCO na face (alvenaria contorna o vão) — opcional (no santuário quem enquadra é o portão)
+    if (opt.arch) this.addArchWall(cell.col, cell.row, dc, dr, rockMat, HW, 2.5, CH);
+    // 2) DEGRAUS recuados subindo (~31°, piso fundo → lê como escada de verdade, não pilha)
     for (let i = 0; i < N; i++) {
-      const y = i * stepH, z = zWall - i * stepD;
-      // cada degrau é uma "caixa" com contra-degrau: espelho até o piso do degrau abaixo
-      const boxH = y + stepH; // do chão até o topo deste degrau (contra-degrau sólido)
-      const st = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 - 0.1, boxH, stepD + 0.02), stMat);
-      st.position.set(ux, boxH / 2, z); this.world.add(st);
+      const boxH = (i + 1) * stepH; // caixa do chão ao topo do degrau (contra-degrau sólido)
+      const ad = i * stepD;         // recuo pra dentro da parede
+      const px = fx + dc * ad, pz = fz + dr * ad;
+      const sx = alongX ? stepD + 0.02 : HW * 2 - 0.1;
+      const sz = alongX ? HW * 2 - 0.1 : stepD + 0.02;
+      const st = new THREE.Mesh(new THREE.BoxGeometry(sx, boxH, sz), stMat);
+      st.position.set(px, boxH / 2, pz); this.world.add(st);
     }
-    const depth = N * stepD; // profundidade do recesso (p/ dentro da parede)
-    // 3) PAREDES laterais e TETO do recesso (alvenaria) — enquadram o túnel que sobe
+    // 3) PAREDES laterais + TETO do recesso (enquadram o túnel que sobe)
+    const midDir = depth / 2 - 0.15;
     for (const s of [-1, 1]) {
       const side = new THREE.Mesh(new THREE.PlaneGeometry(depth + 0.3, CH), rockMat);
-      side.position.set(ux + s * HW, CH / 2, zWall - depth / 2 + 0.15);
-      side.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2; this.world.add(side);
+      if (alongX) { side.position.set(fx + dc * midDir, CH / 2, fz + s * HW); side.rotation.y = s > 0 ? Math.PI : 0; }
+      else { side.position.set(fx + s * HW, CH / 2, fz + dr * midDir); side.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2; }
+      this.world.add(side);
     }
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, depth + 0.3), rockMat);
-    top.rotation.x = Math.PI / 2; top.position.set(ux, CH, zWall - depth / 2 + 0.15); this.world.add(top);
-    // 4) FUNDO escuro no topo do recesso → a escada "continua" subindo p/ a superfície
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(alongX ? depth + 0.3 : HW * 2, alongX ? HW * 2 : depth + 0.3), rockMat);
+    top.rotation.x = Math.PI / 2; top.position.set(fx + dc * midDir, CH, fz + dr * midDir); this.world.add(top);
+    // 4) FUNDO escuro no topo → a escada "continua" subindo
     const back = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, CH), new THREE.MeshBasicMaterial({ color: 0x14161c }));
-    back.position.set(ux, CH / 2, zWall - depth - 0.05); this.world.add(back);
-    // 5) FACHO de luz do dia quente descendo pela escada + luzes de preenchimento
-    const shaftMat = new THREE.MeshBasicMaterial({
-      map: this.dropGlowTexture(), color: new THREE.Color(0xffe2b0),
-      transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-    });
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.2, CH * 0.9, 14, 1, true), shaftMat);
-    shaft.position.set(ux, CH * 0.5, zWall - depth * 0.6); this.world.add(shaft);
-    this.glowLight(ux, N * stepH + 0.4, zWall - depth * 0.7, 0xffe0a8, 5.5, 13);
-    this.glowLight(ux, 1.7, zWall - 0.3, 0xffcf8a, 2.8, 8);
+    back.position.set(fx + dc * (depth + 0.05), CH / 2, fz + dr * (depth + 0.05));
+    back.rotation.y = alongX ? Math.PI / 2 : 0; this.world.add(back);
+    // 5) FACHO de luz descendo pela escada + luzes de preenchimento
+    if (opt.shaft) {
+      const shaftMat = new THREE.MeshBasicMaterial({
+        map: this.dropGlowTexture(), color: new THREE.Color(opt.shaftColor),
+        transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+      });
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.2, CH * 0.9, 14, 1, true), shaftMat);
+      shaft.position.set(fx + dc * depth * 0.6, CH * 0.5, fz + dr * depth * 0.6); this.world.add(shaft);
+    }
+    this.glowLight(fx + dc * depth * 0.7, N * stepH + 0.4, fz + dr * depth * 0.7, opt.light, 5.5, 13);
+    this.glowLight(fx + dc * 0.3, 1.7, fz + dr * 0.3, opt.lightLow, 2.8, 8);
   }
 
   // textura de TEIA DE ARANHA (raios + arcos concêntricos a partir de um canto)
@@ -6503,12 +6514,14 @@ export class Game {
     this.camera.rotation.y = s.yaw;
   }
 
-  // um passo na escada: a câmera encara a DIREÇÃO DO MOVIMENTO (subindo = tangente
-  // ascendente; descendo = oposta), girando suave ao acompanhar a curva.
-  private stationStep(ni: number, dir: number) {
+  // um passo na escada: a câmera SEMPRE encara a orientação atual do jogador
+  // (stairUp), acompanhando a curva da hélice — não a direção do movimento. Assim,
+  // olhando p/ cima o jogador SOBE com "frente"; virando 180° ele passa a DESCER com
+  // "frente" (a câmera segue pra onde ele olha, não o contrário).
+  private stationStep(ni: number) {
     const from = stationPose(this.showIdx), to = stationPose(ni);
     this.showIdx = ni;
-    const toYaw = dir > 0 ? to.yaw : to.yaw + Math.PI;
+    const toYaw = this.stairUp ? to.yaw : to.yaw + Math.PI;
     let fy = this.camera.rotation.y, ty = toYaw;
     while (ty - fy > Math.PI) ty -= Math.PI * 2;
     while (ty - fy < -Math.PI) ty += Math.PI * 2;
@@ -6521,14 +6534,30 @@ export class Game {
   }
 
   private showcaseStationMove(a: Action) {
-    if (a === "forward") {
-      if (this.showIdx < SHOW_LAST) this.stationStep(this.showIdx + 1, +1);
-      else this.enterTerraceFromStairs(); // topo da escada → entra no terraço (grade)
-    } else if (a === "back") {
-      if (this.showIdx > 0) this.stationStep(this.showIdx - 1, -1);
-      else this.exitShowcase(); // base → sai
+    // VIRAR na escada (esq/dir) = dar meia-volta: passa a olhar p/ cima<->baixo.
+    // Assim o "frente" respeita o EIXO pra onde o jogador está virado.
+    if (a === "turnLeft" || a === "turnRight" || a === "back") {
+      if (a !== "back") {
+        this.stairUp = !this.stairUp;
+        const pose = stationPose(this.showIdx);
+        const toYaw = this.stairUp ? pose.yaw : pose.yaw + Math.PI;
+        let fy = this.camera.rotation.y, ty = toYaw;
+        while (ty - fy > Math.PI) ty -= Math.PI * 2;
+        while (ty - fy < -Math.PI) ty += Math.PI * 2;
+        this.anim = { kind: "turn", t0: performance.now(), fromY: fy, toY: ty };
+        return;
+      }
     }
-    // virar/estrafe: sem efeito na escada (a hélice guia)
+    // "frente" sobe/desce conforme a orientação; "trás" faz o oposto (dar ré na escada)
+    const goUp = a === "forward" ? this.stairUp : a === "back" ? !this.stairUp : null;
+    if (goUp === null) return; // estrafe: sem efeito (a hélice guia)
+    if (goUp) {
+      if (this.showIdx < SHOW_LAST) this.stationStep(this.showIdx + 1);
+      else this.enterTerraceFromStairs(); // topo → terraço (só sobe)
+    } else {
+      if (this.showIdx > 0) this.stationStep(this.showIdx - 1);
+      else this.exitShowcase(); // base → sai (só desce)
+    }
   }
 
   // topo da escada → TERRAÇO: passa pro movimento normal (grade), 1ª célula a oeste.
@@ -6551,6 +6580,7 @@ export class Game {
   private enterStairsFromTerrace() {
     const to = stationPose(SHOW_LAST);
     this.showIdx = SHOW_LAST;
+    this.stairUp = false; // chega no topo olhando p/ BAIXO (descendo)
     let fy = this.camera.rotation.y, ty = MOUTH_YAW + Math.PI; // direção de descida
     while (ty - fy > Math.PI) ty -= Math.PI * 2;
     while (ty - fy < -Math.PI) ty += Math.PI * 2;
