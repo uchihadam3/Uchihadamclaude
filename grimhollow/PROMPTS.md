@@ -1043,14 +1043,14 @@ gera o normal map/relevo sozinho a partir delas):
 pedra desgastada rica, tipo o "Lost Temple" do Arcmaze, mas ainda soturna (cinza-quente,
 não dourado gritante). Cada bloco já está **completo, é só Copiar**.
 
-### 🟡 18.1 — `tex_stonewall` (alvenaria universal rica)
+### 🟡 18.1 — `tex_stonewall` (alvenaria universal rica, PEDRA QUENTE)
 ```
-Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Rich weathered DUNGEON STONE-BLOCK MASONRY — hand-cut rectangular ashlar blocks of varying size with deep recessed mortar joints, each block full of character: chipped edges, hairline cracks, pitting, subtle mineral staining, faint dark moss and damp in the crevices. COOL-WARM GREY STONE with restrained earthy undertones (ash grey, faint ochre/brown, hints of green moss) — grim, moody, NOT bright golden, NOT saturated. High micro-detail so a normal map derived from it pops. no text, no watermark, no border.
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Rich weathered DUNGEON STONE-BLOCK MASONRY — hand-cut rectangular ashlar blocks of varying size with deep recessed mortar joints, each block full of character: chipped edges, hairline cracks, pitting, mineral staining, patches of damp and dark moss in the crevices. WARM WEATHERED STONE — grey-brown with real earthy variation from block to block (warm tan, ochre, dull terracotta, sandy beige, some cooler grey), alive and characterful like an ancient sunlit temple (Arcmaze "Lost Temple" vibe) yet still grim and moody — NOT flat dead grey, NOT bright saturated golden. High micro-detail so a normal map derived from it pops. no text, no watermark, no border.
 ```
 
-### 🟡 18.2 — `tex_cavefloor` (piso lajota que combina)
+### 🟡 18.2 — `tex_cavefloor` (piso lajota que combina, PEDRA QUENTE)
 ```
-Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ancient dungeon FLOOR of large flagstone slabs — worn rectangular stone tiles fitted with grouted joints, smoothed and polished in the centers by ages of footsteps, cracked corners, dark grime and faint moss in the seams. SAME cool-warm grey stone family as the walls (ash grey with faint earthy/ochre undertones), grim and moody, NOT golden. High micro-detail for normal-map relief. no text, no watermark, no border.
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ancient dungeon FLOOR of large flagstone slabs — worn rectangular stone tiles fitted with grouted joints, smoothed and polished in the centers by ages of footsteps, cracked corners, dark grime and faint moss in the seams. SAME warm weathered stone family as the walls (grey-brown with earthy tan/ochre/terracotta variation between tiles), alive and characterful yet grim — NOT flat dead grey, NOT bright golden. High micro-detail for normal-map relief. no text, no watermark, no border.
 ```
 
 > Salvou os 2 com esses nomes em `grimhollow/src/assets/env/` = **drop-in total**:
