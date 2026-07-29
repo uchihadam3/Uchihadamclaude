@@ -1065,27 +1065,35 @@ Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even l
 inimigos, equipamentos, props… e agora os **baús**). O baú deixa de ser objeto 3D
 (seção 17) e passa a ser **um PNG só**, plano que encara a câmera — igual aos aldeões.
 
+**2 frames:** `dec_chest` (fechado) → `dec_chest_open` (aberto). O motor troca de um pro
+outro ao interagir e ainda acende uma luz quente no baú aberto.
+
 **Regras destes PNGs (billboard):**
+- **VISTA TOTALMENTE FRONTAL** (de frente, reta/ortográfica) — **nada de 3/4 nem de
+  lado**. Como o sprite sempre gira encarando a câmera, o de lado fica torto quando o
+  jogador chega por um ângulo; **de frente** lê certo de qualquer lugar. Simétrico.
 - **Fundo 100% TRANSPARENTE** (alpha), recorte limpo, **sem sombra assada** no chão.
-- **Vista 3/4 frontal**, o baú **em pé apoiado no chão** — a base encosta na borda de
-  baixo do quadro (o motor põe o pé no piso).
+- O baú **em pé apoiado no chão** — a base encosta na borda de baixo do quadro (o motor
+  põe o pé no piso).
 - Estilo **arte de jogo pintada à mão**, casando com os outros sprites; paleta soturna
   (madeira escura desgastada, ferro velho), leve luz quente de tocha na borda.
 - **1024×1024**. Nomes → salvar em `grimhollow/src/assets/env/`.
 
-### 🟡 19.1 — `dec_chest` (baú FECHADO)
+### 🟡 19.1 — `dec_chest` (baú FECHADO, de frente)
 ```
-Single 2D game sprite of a grim medieval treasure chest, CLOSED, front three-quarter view, standing upright on the ground. Dark aged wooden planks bound by riveted black iron corner brackets and two horizontal iron straps, a heavy ornate iron lock plate with a keyhole on the front. Weathered dungeon-worn dark wood, cool desaturated tone with a faint warm rim of torchlight. Hand-painted stylized game-art billboard sprite matching cut-out character sprites. Clean crisp edges, FULLY TRANSPARENT background (alpha channel), NO baked ground shadow, the chest base sits exactly on the bottom edge of the frame. Centered, even soft lighting, no text, no watermark, no border. 1024x1024.
-```
-
-### 🟡 19.2 — `dec_chest_open` (baú ABERTO — opcional, estado saqueado)
-```
-Single 2D game sprite of the SAME grim medieval treasure chest but OPEN — the lid tilted back on its iron hinges, revealing a warm golden glow, a few gold coins and a gem inside. Same dark aged wood, black iron straps and lock, same front three-quarter view standing on the ground. Hand-painted stylized game-art billboard sprite. Clean edges, FULLY TRANSPARENT background (alpha), NO baked ground shadow, base on the bottom edge of the frame. Centered, even soft lighting with the inner glow, no text, no watermark, no border. 1024x1024.
+Single 2D game sprite of a grim medieval treasure chest, CLOSED, viewed STRAIGHT-ON FROM THE FRONT — flat frontal orthographic view, NOT angled, NOT three-quarter, NO side or top visible, perfectly symmetrical. Standing upright on the ground. Dark aged wooden planks bound by riveted black iron corner brackets and two horizontal iron straps, a heavy ornate iron lock plate with a keyhole centered on the front. Weathered dungeon-worn dark wood, cool desaturated tone with a faint warm rim of torchlight. Hand-painted stylized game-art billboard sprite matching cut-out character sprites. Clean crisp edges, FULLY TRANSPARENT background (alpha channel), NO baked ground shadow, the chest base sits exactly on the bottom edge of the frame. Centered, even soft lighting, no text, no watermark, no border. 1024x1024.
 ```
 
-> Ao soltar `dec_chest.png` (e opcionalmente `dec_chest_open.png`) na pasta, eu troco o
-> baú 3D da masmorra pelo billboard e ligo o "abre ao interagir". Enquanto não vier, o
-> baú 3D atual continua funcionando (sem regressão).
+### 🟡 19.2 — `dec_chest_open` (baú ABERTO — só LUZ, sem tesouro)
+```
+Single 2D game sprite of the SAME grim medieval treasure chest, now OPEN, viewed STRAIGHT-ON FROM THE FRONT — flat frontal orthographic view, NOT angled, NOT three-quarter, perfectly symmetrical. The lid raised and tilted back on its iron hinges. The open interior emits a soft warm magical GLOW of light spilling up and over the front rim — the chest is EMPTY inside, NO coins, NO gold, NO gems, NO treasure, NO items whatsoever, ONLY the glowing light. Same dark aged wood, black iron straps and lock plate, same straight frontal view standing on the ground. Hand-painted stylized game-art billboard sprite. Clean edges, FULLY TRANSPARENT background (alpha), NO baked ground shadow, base on the bottom edge of the frame. Centered and symmetrical, no text, no watermark, no border. 1024x1024.
+```
+
+> Por que **só luz** no aberto: se a arte já vier com ouro/rubi, mostra item que talvez
+> nem exista no jogo. O baú aberto só brilha; **o loot de verdade** sai pelo sistema de
+> drops. Ao soltar `dec_chest.png` + `dec_chest_open.png` na pasta, eu troco o baú 3D da
+> masmorra pelos 2 frames (fechado→aberto+luz) e ligo o "abre ao interagir". Enquanto não
+> vierem, o baú 3D atual continua funcionando (sem regressão).
 
 ---
 
