@@ -3010,6 +3010,14 @@ export class Game {
     this.sec.mp += eq.mana ?? 0;
     this.sec.atkPhys += eq.atkPhys ?? 0;
     this.sec.atkMag += eq.atkMag ?? 0;
+    // 2b) PASSIVAS da árvore de talentos entram nos secundários (antes eram INERTES:
+    // gastar pontos em crítico/evasão/etc. não fazia nada). Valores vêm como fração
+    // (0.02 = +2%); crit/critDmg/evasão são percentuais, precisão/regen são planos.
+    this.sec.crit += (this.passive.crit ?? 0) * 100;
+    this.sec.critDmg += (this.passive.critd ?? 0) * 100;
+    this.sec.evasion += (this.passive.eva ?? 0) * 100;
+    this.sec.precision = Math.min(99, this.sec.precision + (this.passive.prec ?? 0));
+    this.sec.regen += this.passive.regen ?? 0;
     const hpFrac = this.playerMaxHp > 0 ? this.playerHp / this.playerMaxHp : 1;
     const mpFrac = this.playerMaxMp > 0 ? this.playerMp / this.playerMaxMp : 1;
     this.playerMaxHp = Math.round(this.sec.hp * (1 + (this.passive.life ?? 0)));
@@ -3125,6 +3133,12 @@ export class Game {
   private rollDamage(base: number, magic: boolean): { dmg: number; crit: boolean } {
     const pct = magic ? this.passive.mdmg ?? 0 : this.passive.dmg ?? 0;
     let dmg = base * (1 + pct) * this.buffAtkMul();
+    // FÚRIA (talento): + dano conforme a vida está baixa (escala com a vida faltante)
+    const rage = this.passive.rage ?? 0;
+    if (rage > 0) {
+      const missing = 1 - this.playerHp / Math.max(1, this.playerMaxHp);
+      dmg *= 1 + rage * missing;
+    }
     const crit = Math.random() * 100 < this.sec.crit;
     if (crit) dmg *= this.sec.critDmg / 100;
     return { dmg: Math.max(1, Math.round(dmg)), crit };
@@ -3163,6 +3177,13 @@ export class Game {
     e.hp -= dmg;
     e.hitAt = performance.now();
     this.ui.playSfx("hit"); // estalo de dano no inimigo
+    // ROUBO DE VIDA (talento): cura o herói por uma fração do dano causado
+    const leech = this.passive.leech ?? 0;
+    if (leech > 0 && this.playerHp < this.playerMaxHp) {
+      const h = Math.max(1, Math.round(dmg * leech));
+      this.playerHp = Math.min(this.playerMaxHp, this.playerHp + h);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+    }
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
     e.barFill.position.x = -(1 - frac) * 1.3 / 2;
@@ -3246,7 +3267,9 @@ export class Game {
     this.playerMp = Math.max(0, this.playerMp - cb.mana);
     this.ui.setMana(this.playerMp / this.playerMaxMp);
     this.ui.skillManaFloat(id, cb.mana);
-    this.cooldownUntil[id] = now + cb.cd;
+    // REDUÇÃO DE RECARGA (talento): encurta a recarga (teto de 80%)
+    const cdr = Math.min(0.8, this.passive.cdr ?? 0);
+    this.cooldownUntil[id] = now + cb.cd * (1 - cdr);
     this.coolingSkills.add(id); // o tick atualiza o overlay + contagem regressiva
     // som: skills corpo-a-corpo já tocam o "swing"; as demais (magia/buff/cura) tocam "cast"
     if (!cb.melee) this.ui.playSfx("cast");
@@ -3727,8 +3750,15 @@ export class Game {
   // aplica dano ao jogador (o esqueleto revidou)
   private damagePlayer(n: number) {
     if (this.playerHp <= 0) return;
+    // EVASÃO (talento/atributo): chance de ESQUIVAR o golpe por completo
+    if (this.sec.evasion > 0 && Math.random() * 100 < this.sec.evasion) {
+      this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.54, "Esquiva!", "heal");
+      return;
+    }
     // buffs defensivos reduzem o dano recebido; a defesa amortece um pouco
-    const reduced = n * (1 - this.buffDefReduc());
+    let reduced = n * (1 - this.buffDefReduc());
+    // BLOQUEIO (talento): chance de aparar metade do golpe
+    if (Math.random() < (this.passive.block ?? 0)) reduced *= 0.5;
     const taken = Math.max(1, Math.round(reduced));
     this.playerHp = Math.max(0, this.playerHp - taken);
     this.ui.setHealth(this.playerHp / this.playerMaxHp);

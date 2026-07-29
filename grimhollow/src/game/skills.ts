@@ -1,7 +1,9 @@
 // Skill Tree (Habilidades) — 3 ramos por classe, mix de ATIVAS e PASSIVAS, com RANKS.
 // Ativas têm arte própria (folhas recortadas). Passivas usam ícones GENÉRICOS por
 // tipo de status (arte genérica futura) — por enquanto um placeholder por código.
-// Por ora só o Guerreiro está preenchido; as demais entram conforme a arte chega.
+// As 4 classes já estão preenchidas (Guerreiro, Ladino, Mago, Clérigo), com combate
+// (SKILL_COMBAT) e passivas ligadas aos atributos/combate. Faltam só: FX visual de
+// algumas ativas (Clérigo) e 2 passivas ainda inertes (aspd, poison).
 
 // fundos das árvores (estilo PoE) — um por classe
 import bgGuerreiro from "../assets/ui/skills/bg_guerreiro.jpg";
