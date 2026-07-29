@@ -1280,7 +1280,7 @@ export class Game {
     this.foliageFx = fx;
 
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.camera = new THREE.PerspectiveCamera(78, 1, 0.05, 400);
+    this.camera = new THREE.PerspectiveCamera(62, 1, 0.05, 400); // FOV mais fechado (menos grande-angular), como a referência do Arcmaze
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.world);
 
@@ -4824,24 +4824,8 @@ export class Game {
         }
       }
 
-    // PILARES DE CANTO (as "conexões" de parede do Arcmaze) — MESMA alvenaria: uma
-    // coluna do chão ao teto em cada vértice onde as paredes formam CANTO (3 das 4
-    // células ao redor são parede = canto interno de sala/corredor, ou 2 na diagonal =
-    // pinça). Unifica parede+teto+coluna na mesma pedra → o ambiente vira "um só".
-    const pcolGeo = new THREE.BoxGeometry(0.5, CH, 0.5);
-    const capGeo = new THREE.BoxGeometry(0.66, 0.16, 0.66);
-    const solidLk = (cc: number, rr: number) => dungeonSolidLook(cc, rr);
-    for (let r = 0; r < H - 1; r++) for (let c = 0; c < W - 1; c++) {
-      const nw = solidLk(c, r), ne = solidLk(c + 1, r), sw = solidLk(c, r + 1), se = solidLk(c + 1, r + 1);
-      const nWall = (nw ? 1 : 0) + (ne ? 1 : 0) + (sw ? 1 : 0) + (se ? 1 : 0);
-      const diag2 = nWall === 2 && ((nw && se) || (ne && sw));
-      if (nWall !== 3 && !diag2) continue; // só cantos internos e pinças
-      const px = c * CELL + CELL / 2, pz = r * CELL + CELL / 2;
-      const col = new THREE.Mesh(pcolGeo, rockMat);
-      col.position.set(px, CH / 2, pz); this.world.add(col);
-      const cap = new THREE.Mesh(capGeo, rockMat); cap.position.set(px, CH - 0.08, pz); this.world.add(cap);
-      const base = new THREE.Mesh(capGeo, rockMat); base.position.set(px, 0.09, pz); this.world.add(base);
-    }
+    // (os pilares de canto avulsos foram removidos — só ficam os que ENQUADRAM os
+    //  arcos dos portões, adicionados junto com a grade abaixo.)
 
     // PORTÕES (grade) em corredores 1-largura que SELAM a passagem p/ tesouro.
     // A rocha apenas CONTORNA o arco (parede com buraco em arco): veda laterais,
@@ -4853,6 +4837,19 @@ export class Game {
     const GATE_H = 4.7; // altura do arco
     const HOLE_HW = 1.5; // meia-largura do vão (fica sob a moldura de pedra da grade)
     const HOLE_BASE = 2.6; // altura onde o arco começa a curvar (topo do vão = 4.1)
+    // PILASTRAS que ENQUADRAM o arco do portão (como na referência): duas colunas de
+    // pedra, uma de cada lado do vão, ligando a parede ao arco — mesma alvenaria.
+    const gatePilasters = (gc: number, gr: number, dc: number, dr: number) => {
+      const halfW = HOLE_HW + 0.3, px0 = gc * CELL + dc * (CELL / 2), pz0 = gr * CELL + dr * (CELL / 2);
+      const geo = new THREE.BoxGeometry(dc !== 0 ? 0.7 : 0.6, GATE_H, dc !== 0 ? 0.6 : 0.7);
+      const capGeo = new THREE.BoxGeometry(dc !== 0 ? 0.86 : 0.78, 0.22, dc !== 0 ? 0.78 : 0.86);
+      for (const s of [-1, 1]) {
+        const ox = px0 + (dc !== 0 ? 0 : s * halfW), oz = pz0 + (dc !== 0 ? s * halfW : 0);
+        const col = new THREE.Mesh(geo, rockMat); col.position.set(ox, GATE_H / 2, oz); this.world.add(col);
+        const cap = new THREE.Mesh(capGeo, rockMat); cap.position.set(ox, GATE_H - 0.11, oz); this.world.add(cap);
+        const base = new THREE.Mesh(capGeo, rockMat); base.position.set(ox, 0.11, oz); this.world.add(base);
+      }
+    };
     const gates: [number, number, number, number][] = [
       [33, 16, -1, 0], // portão do TESOURO — jogador chega pelo oeste, cofre a leste
     ];
@@ -4860,6 +4857,7 @@ export class Game {
       if (dungeonCell(gc, gr) !== "gate") continue;
       // rocha contornando o arco (vão aberto no meio → vê-se o outro lado)
       this.addArchWall(gc, gr, gdc, gdr, rockMat, HOLE_HW, HOLE_BASE, CH);
+      gatePilasters(gc, gr, gdc, gdr); // colunas que enquadram o arco
       // moldura de pedra FIXA (não se move ao abrir)
       this.addWallDecal(gc, gr, gdc, gdr, frameMat, CELL, GATE_H, GATE_H / 2);
       // só a grade de aço, dividida em duas folhas com DOBRADIÇAS (giram ao abrir)
@@ -4878,6 +4876,7 @@ export class Game {
     if (lg) {
       const ldc = -1, ldr = 0; // o jogador chega pelo oeste
       this.addArchWall(lg.col, lg.row, ldc, ldr, rockMat, HOLE_HW, HOLE_BASE, CH);
+      gatePilasters(lg.col, lg.row, ldc, ldr); // colunas que enquadram o arco
       this.addWallDecal(lg.col, lg.row, ldc, ldr, frameMat, CELL, GATE_H, GATE_H / 2);
       // grade FIXA — some quando a Lanterna da Bruma romper o selo (cap.4)
       this.sealBars = this.addWallDecal(lg.col, lg.row, ldc, ldr, barsMat, CELL, GATE_H, GATE_H / 2);
