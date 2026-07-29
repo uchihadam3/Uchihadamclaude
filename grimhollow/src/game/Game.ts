@@ -116,6 +116,7 @@ import signAlchUrl from "../assets/env/sign_alch.png";
 // URLs cruas p/ gerar normal maps em runtime (relevo PBR) na masmorra
 import texStoneUrl from "../assets/env/tex_stonewall.jpg";
 import texMossUrl from "../assets/env/tex_mosswall.jpg";
+import texCobbleUrl from "../assets/env/tex_cobble.jpg";
 import texCaveFloorUrl from "../assets/env/tex_cavefloor.jpg";
 import texCaveCeilUrl from "../assets/env/tex_caveceil.jpg";
 import propLampUrl from "../assets/env/prop_lamp.png";
@@ -1264,7 +1265,7 @@ export class Game {
     // TONE MAPPING cinematográfico (ACES) — realça brilhos/cor como jogo moderno;
     // vale p/ todas as cenas. Exposição levemente acima de 1 p/ o clima quente.
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.38; // jogo mais claro no geral
     container.appendChild(this.renderer.domElement);
 
     // overlay p/ o efeito de roçar folhagem (vinheta verde nas bordas)
@@ -1415,10 +1416,10 @@ export class Game {
       this.addForestLights();
       this.buildForest();
     } else if (loc === "dungeon") {
-      // VISÃO LIMITADA (estilo Arcmaze): a escuridão engole a distância. Fog quase
-      // preto e perto → o que está longe some no breu; o entorno (tochas + PBR) fica
-      // claro e detalhado. Dá o clima fechado e o suspense de não ver o que vem.
-      this.scene.fog = new THREE.Fog(0x070809, CELL * 3, CELL * 9.5);
+      // VISÃO LIMITADA ~4-5 QUADRADOS: a escuridão engole a distância bem de perto.
+      // Claro até ~3 células, some no breu por volta de 5-6 → o jogador só vê o
+      // entorno imediato (clima fechado, suspense de não ver o que vem).
+      this.scene.fog = new THREE.Fog(0x070809, CELL * 3, CELL * 5.6);
       this.scene.background = new THREE.Color(0x060708);
       this.addDungeonLights();
       this.buildDungeon();
@@ -4748,7 +4749,9 @@ export class Game {
     // runtime → a luz esculpe o relevo das pedras (o "detalhe" tipo Arcmaze). Alvenaria
     // das casas (tex_stonewall) nas paredes/arcos/escadas.
     const rockMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
-    const floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.0 });
+    // CHÃO trocado: lajota de pedra (cobble) em vez da rocha antiga — piso de masmorra
+    void texCaveFloorUrl;
+    const floorMat = this.pbrStone(texCobbleUrl, "dfloor", { rough: 0.88, normal: 1.15 });
     // COESÃO (estilo Arcmaze): o TETO usa a MESMA alvenaria das paredes (não mais a
     // rocha escura diferente) — parede+teto+moldura+pilares na mesma pedra.
     const ceilMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
@@ -5078,8 +5081,8 @@ export class Game {
         const cx = c * CELL, cz = r * CELL;
         const wall = DIRS.find(([dc, dr]) => dungeonCell(c + dc, r + dr) === "wall");
         const openN = DIRS.filter(([dc, dr]) => dungeonWalkable(c + dc, r + dr)).length;
-        const inCrypt = c >= 4 && c <= 12 && r >= 4 && r <= 8;   // sala CRIPTA (topo-esq) do novo mapa
-        const inFungal = c >= 4 && c <= 11 && r >= 22 && r <= 27; // sala FÚNGICA (esq-baixo) do novo mapa
+        const inCrypt = c >= 4 && c <= 11 && r >= 4 && r <= 8;    // sala CRIPTA (topo-esq)
+        const inFungal = c >= 4 && c <= 11 && r >= 21 && r <= 26; // sala FÚNGICA (esq-baixo)
         const free = !this.blocked.has(`${c},${r}`);
 
         // BLOQUEANTES — só em área aberta (não estrangula passagem)
