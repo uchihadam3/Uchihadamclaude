@@ -4749,7 +4749,9 @@ export class Game {
     // das casas (tex_stonewall) nas paredes/arcos/escadas.
     const rockMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
     const floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.0 });
-    const ceilMat = this.pbrStone(texCaveCeilUrl, "dceil", { rough: 0.97, normal: 0.8 });
+    // COESÃO (estilo Arcmaze): o TETO usa a MESMA alvenaria das paredes (não mais a
+    // rocha escura diferente) — parede+teto+moldura+pilares na mesma pedra.
+    const ceilMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
@@ -4818,6 +4820,25 @@ export class Game {
           this.glowLight(cx, 0.9, cz, 0xffc367, 1.5, 6.5);
         }
       }
+
+    // PILARES DE CANTO (as "conexões" de parede do Arcmaze) — MESMA alvenaria: uma
+    // coluna do chão ao teto em cada vértice onde as paredes formam CANTO (3 das 4
+    // células ao redor são parede = canto interno de sala/corredor, ou 2 na diagonal =
+    // pinça). Unifica parede+teto+coluna na mesma pedra → o ambiente vira "um só".
+    const pcolGeo = new THREE.BoxGeometry(0.5, CH, 0.5);
+    const capGeo = new THREE.BoxGeometry(0.66, 0.16, 0.66);
+    const solidLk = (cc: number, rr: number) => dungeonSolidLook(cc, rr);
+    for (let r = 0; r < H - 1; r++) for (let c = 0; c < W - 1; c++) {
+      const nw = solidLk(c, r), ne = solidLk(c + 1, r), sw = solidLk(c, r + 1), se = solidLk(c + 1, r + 1);
+      const nWall = (nw ? 1 : 0) + (ne ? 1 : 0) + (sw ? 1 : 0) + (se ? 1 : 0);
+      const diag2 = nWall === 2 && ((nw && se) || (ne && sw));
+      if (nWall !== 3 && !diag2) continue; // só cantos internos e pinças
+      const px = c * CELL + CELL / 2, pz = r * CELL + CELL / 2;
+      const col = new THREE.Mesh(pcolGeo, rockMat);
+      col.position.set(px, CH / 2, pz); this.world.add(col);
+      const cap = new THREE.Mesh(capGeo, rockMat); cap.position.set(px, CH - 0.08, pz); this.world.add(cap);
+      const base = new THREE.Mesh(capGeo, rockMat); base.position.set(px, 0.09, pz); this.world.add(base);
+    }
 
     // PORTÕES (grade) em corredores 1-largura que SELAM a passagem p/ tesouro.
     // A rocha apenas CONTORNA o arco (parede com buraco em arco): veda laterais,
