@@ -4705,41 +4705,15 @@ export class Game {
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
     // texturas de caverna (PNG). O teto usa a rocha mais escura → sensação de
     // PROFUNDIDADE (o relevo do teto some no escuro lá em cima).
-    const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
-    // PAREDES VARIADAS (tex_dwall_1..10): cada célula sorteia uma variação, temática por
-    // região — cripta puxa ossos/runas, fúngica puxa musgo/umidade, o resto rocha/
-    // alvenaria/desmoronado. Some a monotonia. Fallback: caveWall única se os PNGs não
-    // existirem. Materiais em cache (compartilham textura por índice).
-    const dwallCache = new Map<number, THREE.Material>();
-    const dwall = (i: number): THREE.Material => {
-      let m = dwallCache.get(i);
-      if (m) return m;
-      const url = dwallUrl(i);
-      // color<branco escurece um tico: as PNGs variam de brilho (algumas bem claras) e
-      // isso deixava paredes "lavadas"; puxar todas p/ baixo unifica no tom soturno.
-      const mat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xb8b8b8 });
-      if (url) this.loadArt(url, (t) => {
-        t.wrapS = t.wrapT = THREE.RepeatWrapping; // caveMesh usa UV>1 → precisa tilar
-        mat.map = t; mat.needsUpdate = true;
-      });
-      else mat.map = rockMat.map; // sem PNG → rocha base
-      dwallCache.set(i, mat);
-      return mat;
-    };
-    const hasDwall = !!dwallUrl(1);
-    // subconjuntos por região (índices de tex_dwall_*)
-    // (tex_dwall_1 = rocha lisa clara fica "chapada" em parede grande → fora dos pools;
-    // todas as demais têm relevo/detalhe que lê bem)
-    const POOL_CRYPT = [7, 8, 2, 10];    // ossos, runas, fissurada, desmoronada
-    const POOL_FUNGAL = [5, 9, 6, 4];    // musgo, umidade, estratos, bruta
-    const POOL_GEN = [2, 3, 4, 6, 10];   // fissurada, alvenaria, bruta, estratos, desmoronada
-    const wallMatFor = (c: number, r: number): THREE.Material => {
-      if (!hasDwall) return rockMat;
-      const inCrypt = c >= 4 && c <= 9 && r >= 4 && r <= 8;
-      const inFungal = c >= 3 && c <= 11 && r >= 13 && r <= 20;
-      const pool = inCrypt ? POOL_CRYPT : inFungal ? POOL_FUNGAL : POOL_GEN;
-      return dwall(pool[Math.floor(hash(c, r, 91) * pool.length) % pool.length]);
-    };
+    // PAREDE DA MASMORRA: SÓ ALVENARIA (uma textura), como pedido — sem a variação das
+    // 10. Usa o PNG de alvenaria (tex_dwall_3); fallback p/ a pedra das casas se faltar.
+    // Leve escurecimento p/ o tom soturno. Serve p/ paredes, arcos e escadas (coeso).
+    const rockMat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xc2c2c2 });
+    {
+      const url = dwallUrl(3);
+      if (url) this.loadArt(url, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; rockMat.map = t; rockMat.needsUpdate = true; });
+      else rockMat.map = tex.stone(31); // fallback: alvenaria das casas
+    }
     const floorMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
@@ -4782,11 +4756,8 @@ export class Game {
             const ox = cx + dc * HALF, oz = cz + dr * HALF;
             const tang: [number, number, number] = dc !== 0 ? [0, 0, CELL] : [CELL, 0, 0];
             const org: [number, number, number] = dc !== 0 ? [ox, 0, oz - HALF] : [ox - HALF, 0, oz];
-            // parede ilusória (segredo) = rocha base p/ NÃO se destacar; demais = variação
-            // temática da célula. Repetição vertical baixa: mostra ~1 painel por parede
-            // (essas texturas são "painéis" — 2.4 tilava demais e virava padrão).
-            const wm = illus ? rockMat : wallMatFor(c, r);
-            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, wm, 1, 1.2);
+            // toda parede = alvenaria (rockMat). Repetição ~1 painel por face.
+            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 1.2);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
           // tocha esporádica em paredes de rocha (ilumina)
@@ -4822,8 +4793,7 @@ export class Game {
     const HOLE_HW = 1.5; // meia-largura do vão (fica sob a moldura de pedra da grade)
     const HOLE_BASE = 2.6; // altura onde o arco começa a curvar (topo do vão = 4.1)
     const gates: [number, number, number, number][] = [
-      [22, 12, 0, 1], // sela o corredor p/ a sala do tesouro (norte)
-      [17, 35, 1, 0], // sela o corredor p/ o COFRE (a oeste do hall)
+      [33, 16, -1, 0], // portão do TESOURO — jogador chega pelo oeste, cofre a leste
     ];
     for (const [gc, gr, gdc, gdr] of gates) {
       if (dungeonCell(gc, gr) !== "gate") continue;
@@ -5044,8 +5014,8 @@ export class Game {
         const cx = c * CELL, cz = r * CELL;
         const wall = DIRS.find(([dc, dr]) => dungeonCell(c + dc, r + dr) === "wall");
         const openN = DIRS.filter(([dc, dr]) => dungeonWalkable(c + dc, r + dr)).length;
-        const inCrypt = c >= 4 && c <= 9 && r >= 4 && r <= 8;
-        const inFungal = c >= 3 && c <= 11 && r >= 13 && r <= 20;
+        const inCrypt = c >= 4 && c <= 12 && r >= 4 && r <= 8;   // sala CRIPTA (topo-esq) do novo mapa
+        const inFungal = c >= 4 && c <= 11 && r >= 22 && r <= 27; // sala FÚNGICA (esq-baixo) do novo mapa
         const free = !this.blocked.has(`${c},${r}`);
 
         // BLOQUEANTES — só em área aberta (não estrangula passagem)
@@ -6527,7 +6497,9 @@ export class Game {
         facing: (this.facing + 2) % 4,
       };
       const p = dungeonFind("S");
-      this.enterLocation("dungeon", p.col, p.row, 0);
+      // spawn olhando p/ DENTRO da masmorra (sul); a escada de volta (U) fica ATRÁS,
+      // ao norte → o jogador chega "de costas" pra saída, como se tivesse descido.
+      this.enterLocation("dungeon", p.col, p.row, 2);
     } else if (t.kind === "gate") {
       this.openGate(t.key);
     } else if (t.kind === "lockgate") {
