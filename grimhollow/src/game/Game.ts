@@ -1,4 +1,8 @@
 import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import {
   CELL,
   WALL_H,
@@ -111,6 +115,7 @@ import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
 // URLs cruas p/ gerar normal maps em runtime (relevo PBR) na masmorra
 import texStoneUrl from "../assets/env/tex_stonewall.jpg";
+import texMossUrl from "../assets/env/tex_mosswall.jpg";
 import texCaveFloorUrl from "../assets/env/tex_cavefloor.jpg";
 import texCaveCeilUrl from "../assets/env/tex_caveceil.jpg";
 import propLampUrl from "../assets/env/prop_lamp.png";
@@ -956,6 +961,8 @@ type Anim =
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
+  private composer?: EffectComposer; // pós-processamento (bloom + tone mapping)
+  private bloom?: UnrealBloomPass;
   private scene = new THREE.Scene();
   private camera: THREE.PerspectiveCamera;
   private container: HTMLElement;
@@ -1276,6 +1283,18 @@ export class Game {
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.world);
 
+    // PÓS-PROCESSAMENTO: RenderPass (linear) → BLOOM (glow das luzes/tochas/portais) →
+    // OutputPass (aplica tone mapping + sRGB no fim). Bloom sutil: só o bem claro
+    // floresce (threshold alto), sem lavar a cena. Fallback: render direto.
+    try {
+      const w = container.clientWidth || window.innerWidth, h = container.clientHeight || window.innerHeight;
+      this.composer = new EffectComposer(this.renderer);
+      this.composer.addPass(new RenderPass(this.scene, this.camera));
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.72, 0.55, 0.72);
+      this.composer.addPass(this.bloom);
+      this.composer.addPass(new OutputPass());
+    } catch { this.composer = undefined; }
+
     this.col = 0;
     this.row = 0;
 
@@ -1396,10 +1415,11 @@ export class Game {
       this.addForestLights();
       this.buildForest();
     } else if (loc === "dungeon") {
-      // masmorra CLARA (estilo Arcmaze): neblina cinza mais clara e MAIS LONGE, p/ o
-      // ambiente ler bem iluminado em vez de escuro/fechado.
-      this.scene.fog = new THREE.Fog(0x565c66, CELL * 5, CELL * 20);
-      this.scene.background = new THREE.Color(0x4a4f59);
+      // VISÃO LIMITADA (estilo Arcmaze): a escuridão engole a distância. Fog quase
+      // preto e perto → o que está longe some no breu; o entorno (tochas + PBR) fica
+      // claro e detalhado. Dá o clima fechado e o suspense de não ver o que vem.
+      this.scene.fog = new THREE.Fog(0x070809, CELL * 3, CELL * 9.5);
+      this.scene.background = new THREE.Color(0x060708);
       this.addDungeonLights();
       this.buildDungeon();
     } else if (loc === "showcase") {
@@ -1741,9 +1761,10 @@ export class Game {
       new THREE.MeshLambertMaterial({ map: t, color: new THREE.Color(hex) });
     // Paredes das casas: SÓ PEDRA, em cor NATURAL (sem tint, sem madeira). A
     // diferenciação vem das plantas/fissuras/janelas coladas depois.
+    // PBR + normal map também nas CASAS (o relevo da alvenaria pega a luz do dia/noite)
     const wallMats = [
-      new THREE.MeshLambertMaterial({ map: tex.stone(31) }), // pedra lisa
-      new THREE.MeshLambertMaterial({ map: tex.stoneMossy() }), // pedra com musgo
+      this.pbrStone(texStoneUrl, "vwall", { rough: 0.9, normal: 1.25 }),   // pedra lisa
+      this.pbrStone(texMossUrl, "vwallmoss", { rough: 0.92, normal: 1.25 }), // pedra c/ musgo
     ];
     // TELHADOS de palha em tons variados (uns dourados, uns castanhos, uns velhos).
     const roofMats = [
@@ -4191,9 +4212,12 @@ export class Game {
     // chão quente → sombreia o relevo das pedras) e uma luz-chave quente p/ realces.
     // As tochas (point lights quentes) criam as poças de luz esculpindo a alvenaria.
     // Com tone mapping ACES, as áreas iluminadas ainda "estouram" claras (tipo Arcmaze).
-    this.world.add(new THREE.AmbientLight(0x818a99, 0.62));
-    this.world.add(new THREE.HemisphereLight(0xbac2d0, 0x4c3a26, 1.05));
-    const key = new THREE.DirectionalLight(0xffd7a2, 0.5);
+    // near BEM iluminado (o fog escuro é que engole o longe → visão limitada). Ambiente
+    // e hemisfério mais altos, sem matar o relevo (o normal map ainda pega o hemisfério
+    // e as tochas). Luz-chave quente p/ realces.
+    this.world.add(new THREE.AmbientLight(0x8f98a6, 1.0));
+    this.world.add(new THREE.HemisphereLight(0xc4ccd8, 0x52402a, 1.45));
+    const key = new THREE.DirectionalLight(0xffd7a2, 0.6);
     key.position.set(7, 13, 5);
     this.world.add(key);
   }
@@ -7873,8 +7897,13 @@ export class Game {
       this.frame(now);
     } catch (e) {
       if (!this.tickErrLogged) { this.tickErrLogged = true; console.error("[grimhollow] erro no quadro:", e); }
-      try { this.renderer.render(this.scene, this.camera); } catch { /* ignora */ }
+      try { this.renderScene(); } catch { /* ignora */ }
     }
+  }
+  // render com pós-processamento (bloom) quando disponível; senão, render direto
+  private renderScene() {
+    if (this.composer) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
   }
   private tickErrLogged = false;
   private frame(now: number) {
@@ -7903,7 +7932,7 @@ export class Game {
         this.camera.rotation.x = 0;
         this.startWakeDialogue();
       }
-      this.renderer.render(this.scene, this.camera);
+      this.renderScene();
       return;
     }
     // REGENERAÇÃO DE VIDA (baixa): cura um fiapo por segundo fora da luta. Acumula
@@ -8166,7 +8195,7 @@ export class Game {
     }
     // atualiza a dica de interação só quando o jogador não está animando
     if (!this.anim) this.updatePrompt();
-    this.renderer.render(this.scene, this.camera);
+    this.renderScene();
   }
 
   // dica contextual sobre o que está à frente
@@ -8270,6 +8299,8 @@ export class Game {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
+    this.composer?.setSize(w, h);
+    this.bloom?.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
