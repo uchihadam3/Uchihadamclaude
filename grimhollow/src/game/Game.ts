@@ -4749,9 +4749,9 @@ export class Game {
     // runtime → a luz esculpe o relevo das pedras (o "detalhe" tipo Arcmaze). Alvenaria
     // das casas (tex_stonewall) nas paredes/arcos/escadas.
     const rockMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
-    // CHÃO trocado: lajota de pedra (cobble) em vez da rocha antiga — piso de masmorra
-    void texCaveFloorUrl;
-    const floorMat = this.pbrStone(texCobbleUrl, "dfloor", { rough: 0.88, normal: 1.15 });
+    // CHÃO: lajota QUENTE (tex_cavefloor rico, gerado) — mesma família da parede.
+    void texCobbleUrl;
+    const floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
     // COESÃO (estilo Arcmaze): o TETO usa a MESMA alvenaria das paredes (não mais a
     // rocha escura diferente) — parede+teto+moldura+pilares na mesma pedra.
     const ceilMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });

@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 62 recortados · 🟡 11 faltando · ❌ 2 removidas
+**Status:** ✅ 64 recortados · 🟡 9 faltando · ❌ 2 removidas
 
 ---
 
@@ -1030,7 +1030,7 @@ Flat top-down orthographic texture of the TOP of the LID of a grim medieval trea
 
 ---
 
-## 18 · Texturas PBR ricas da masmorra (pedra coesa) — 🟡 a gerar
+## 18 · Texturas PBR ricas da masmorra (pedra coesa) — ✅ NO JOGO
 
 **A sacada de coesão (Arcmaze):** parede, TETO, molduras de porta e os pilares de canto
 usam a **MESMA pedra**. Então bastam **2 texturas** ricas que já ligam em tudo (o motor
@@ -1043,12 +1043,12 @@ gera o normal map/relevo sozinho a partir delas):
 pedra desgastada rica, tipo o "Lost Temple" do Arcmaze, mas ainda soturna (cinza-quente,
 não dourado gritante). Cada bloco já está **completo, é só Copiar**.
 
-### 🟡 18.1 — `tex_stonewall` (alvenaria universal rica, PEDRA QUENTE)
+### ✅ 18.1 — `tex_stonewall` (alvenaria universal rica, PEDRA QUENTE)
 ```
 Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Rich weathered DUNGEON STONE-BLOCK MASONRY — hand-cut rectangular ashlar blocks of varying size with deep recessed mortar joints, each block full of character: chipped edges, hairline cracks, pitting, mineral staining, patches of damp and dark moss in the crevices. WARM WEATHERED STONE — grey-brown with real earthy variation from block to block (warm tan, ochre, dull terracotta, sandy beige, some cooler grey), alive and characterful like an ancient sunlit temple (Arcmaze "Lost Temple" vibe) yet still grim and moody — NOT flat dead grey, NOT bright saturated golden. High micro-detail so a normal map derived from it pops. no text, no watermark, no border.
 ```
 
-### 🟡 18.2 — `tex_cavefloor` (piso lajota que combina, PEDRA QUENTE)
+### ✅ 18.2 — `tex_cavefloor` (piso lajota que combina, PEDRA QUENTE)
 ```
 Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ancient dungeon FLOOR of large flagstone slabs — worn rectangular stone tiles fitted with grouted joints, smoothed and polished in the centers by ages of footsteps, cracked corners, dark grime and faint moss in the seams. SAME warm weathered stone family as the walls (grey-brown with earthy tan/ochre/terracotta variation between tiles), alive and characterful yet grim — NOT flat dead grey, NOT bright golden. High micro-detail for normal-map relief. no text, no watermark, no border.
 ```
