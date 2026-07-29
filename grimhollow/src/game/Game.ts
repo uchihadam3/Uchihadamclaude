@@ -1884,6 +1884,9 @@ export class Game {
 
     // pontos de interesse
     this.buildWell();
+    // BAÚ de teste na praça, ao lado do poço (WELL em 7,10) → fácil de achar p/ testar
+    // o chocalho/abertura do baú sem precisar descer à masmorra.
+    this.buildChestBillboard(9 * CELL, 10 * CELL, 9, 10);
     this.buildEstablishments(doorMat, bannerMat);
     this.buildHomes(doorMat);
     this.buildVillageForestGate();
@@ -8356,6 +8359,7 @@ export class Game {
       else if (t.kind === "alchshop") text = "Alquimista — Poções & Materiais";
       else if (t.kind === "tavernshop") text = "Taverna — Bruno, o Taverneiro";
       else if (t.kind === "stash") text = "Abrir o baú";
+      else if (t.kind === "chest") text = "Abrir o baú";
       else if (t.kind === "pickup") text = `Pegar — ${t.name}`;
     }
     if (text !== this.lastPrompt) {
@@ -8375,6 +8379,9 @@ export class Game {
     // BAÚ da Hedda logo à frente (célula do baú, dentro da casa dela)
     if (this.stashCell && fc === this.stashCell.col && fr === this.stashCell.row)
       return { kind: "stash" };
+    // BAÚ 2D (masmorra ou praça) logo à frente e ainda não aberto → chocalha/abre
+    const chestT = this.chests.get(`${fc},${fr}`);
+    if (chestT && chestT.state !== "open") return { kind: "chest", key: `${fc},${fr}` };
     // NPC logo à frente
     const npc = this.npcMap.get(`${fc},${fr}`);
     // no interior do FERREIRO, falar com o atendente abre a janela de aprimoramento
@@ -8412,9 +8419,6 @@ export class Game {
       // escada de volta ao vilarejo (de frente ou em cima dela) → usa returnTo
       if (dungeonCell(fc, fr) === "stairs" || dungeonCell(this.col, this.row) === "stairs")
         return { kind: "exit" };
-      // BAÚ logo à frente (ainda não aberto) → interagir p/ chocalhar e abrir
-      const chest = this.chests.get(`${fc},${fr}`);
-      if (chest && chest.state !== "open") return { kind: "chest", key: `${fc},${fr}` };
       // portão de grade fechado logo à frente → interagir p/ abrir
       const gk = `${fc},${fr}`;
       if (this.gates.has(gk)) return { kind: "gate", key: gk };
