@@ -1279,7 +1279,7 @@ export class Game {
     this.foliageFx = fx;
 
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.camera = new THREE.PerspectiveCamera(62, 1, 0.05, 400); // FOV mais fechado (menos grande-angular), como a referência do Arcmaze
+    this.camera = new THREE.PerspectiveCamera(54, 1, 0.05, 400); // FOV mais fechado/centralizado (menos grande-angular), como a referência do Arcmaze
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.world);
 
@@ -7390,7 +7390,7 @@ export class Game {
   ) {
     const w = kind === "door" ? DOOR_W : WIN_W;
     const h = kind === "door" ? DOOR_H : WIN_H;
-    const y = kind === "door" ? h / 2 + 0.02 : WIN_Y;
+    const y = kind === "door" ? h / 2 : WIN_Y; // porta encosta o pé no chão (y=0)
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     const fx = c * CELL + dc * (CELL / 2 + 0.04);
     const fz = r * CELL + dr * (CELL / 2 + 0.04);

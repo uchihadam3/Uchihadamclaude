@@ -10,7 +10,10 @@ export const FASCIA = 0.35; // espessura da borda de palha no beiral
 
 // portas e janelas em tamanho humano (metros)
 // o PNG da porta inclui a moldura de pedra, então o decalque é maior que o vão
-export const DOOR_W = 1.65;
+// A arte da porta (dec_door.png) foi recortada até o conteúdo (sem margem
+// transparente) → o quad é a própria porta e ela ENCOSTA no chão. Largura casada
+// com a proporção real da arte (~0.80) p/ não esticar.
+export const DOOR_W = 2.16;
 export const DOOR_H = 2.7;
 export const WIN_W = 1.0;
 export const WIN_H = 1.0;
