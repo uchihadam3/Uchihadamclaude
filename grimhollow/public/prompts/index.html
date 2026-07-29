@@ -47,7 +47,7 @@
 <p>Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o <strong>prompt pronto</strong>
 (é só copiar no botão do canto). Legenda: <strong>✅ já no jogo</strong> · <strong>🟡 falta gerar</strong> ·
 <strong>⚪ opcional</strong> (já tem versão em código) · <strong>❌ removido</strong>.</p>
-<p><strong>Status:</strong> ✅ 62 recortados · 🟡 9 faltando · ❌ 2 removidas</p>
+<p><strong>Status:</strong> ✅ 62 recortados · 🟡 11 faltando · ❌ 2 removidas</p>
 <hr />
 <h2 id="-prólogo--arte-única-do-crawl-cidade-em-cima-névoadesconhecido-embaixo">🎬 Prólogo — arte única do crawl (cidade em cima, névoa/desconhecido embaixo)</h2>
 <p><strong>UMA imagem vertical bem ALTA</strong>, no <strong>mesmo estilo pintado da arte do menu</strong>.
@@ -758,6 +758,28 @@ um PNG como "adesivo". Já está ligado no código: soltou os <strong>4 arquivos
 <p>Com essas 4 o baú fica fechado e bonito por todos os ângulos que aparecem no jogo
 (frente, lados, tampa). Verso e base reaproveitam a madeira. Depois dá pra fazer
 <code>bau_frente_aberto</code> / interior brilhando pra versão "baú aberto".</p>
+</blockquote>
+<hr />
+<h2 id="18--texturas-pbr-ricas-da-masmorra-pedra-coesa---a-gerar">18 · Texturas PBR ricas da masmorra (pedra coesa) — 🟡 a gerar</h2>
+<p><strong>A sacada de coesão (Arcmaze):</strong> parede, TETO, molduras de porta e os pilares de canto
+usam a <strong>MESMA pedra</strong>. Então bastam <strong>2 texturas</strong> ricas que já ligam em tudo (o motor
+gera o normal map/relevo sozinho a partir delas):
+- <code>tex_stonewall.jpg</code> → alvenaria universal (paredes + teto + molduras + pilares + casas
+  da cidade). <strong>Drop-in</strong>: salvou por cima, atualiza tudo de uma vez.
+- <code>tex_cavefloor.jpg</code> → piso da masmorra (lajota que combina).</p>
+<p><strong>Seamless, 1024×1024</strong> (ou maior). Queremos <strong>mais detalhe/caráter</strong> que a atual —
+pedra desgastada rica, tipo o "Lost Temple" do Arcmaze, mas ainda soturna (cinza-quente,
+não dourado gritante). Cada bloco já está <strong>completo, é só Copiar</strong>.</p>
+<h3 id="-181--tex_stonewall-alvenaria-universal-rica">🟡 18.1 — <code>tex_stonewall</code> (alvenaria universal rica)</h3>
+<pre><code>Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Rich weathered DUNGEON STONE-BLOCK MASONRY — hand-cut rectangular ashlar blocks of varying size with deep recessed mortar joints, each block full of character: chipped edges, hairline cracks, pitting, subtle mineral staining, faint dark moss and damp in the crevices. COOL-WARM GREY STONE with restrained earthy undertones (ash grey, faint ochre/brown, hints of green moss) — grim, moody, NOT bright golden, NOT saturated. High micro-detail so a normal map derived from it pops. no text, no watermark, no border.
+</code></pre>
+<h3 id="-182--tex_cavefloor-piso-lajota-que-combina">🟡 18.2 — <code>tex_cavefloor</code> (piso lajota que combina)</h3>
+<pre><code>Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ancient dungeon FLOOR of large flagstone slabs — worn rectangular stone tiles fitted with grouted joints, smoothed and polished in the centers by ages of footsteps, cracked corners, dark grime and faint moss in the seams. SAME cool-warm grey stone family as the walls (ash grey with faint earthy/ochre undertones), grim and moody, NOT golden. High micro-detail for normal-map relief. no text, no watermark, no border.
+</code></pre>
+<blockquote>
+<p>Salvou os 2 com esses nomes em <code>grimhollow/src/assets/env/</code> = <strong>drop-in total</strong>:
+parede, teto, molduras, pilares, casas da cidade e o piso já pegam a pedra nova, com
+relevo PBR por cima. Zero mudança de código.</p>
 </blockquote>
 <hr />
 <h1 id="-catálogo-de-itens-planejamento-de-design">📜 Catálogo de Itens (planejamento de design)</h1>

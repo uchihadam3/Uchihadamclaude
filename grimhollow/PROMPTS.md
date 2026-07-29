@@ -4,7 +4,7 @@ Tudo que o jogo precisa de arte, num lugar só. Cada bloco tem o **prompt pronto
 (é só copiar no botão do canto). Legenda: **✅ já no jogo** · **🟡 falta gerar** ·
 **⚪ opcional** (já tem versão em código) · **❌ removido**.
 
-**Status:** ✅ 62 recortados · 🟡 9 faltando · ❌ 2 removidas
+**Status:** ✅ 62 recortados · 🟡 11 faltando · ❌ 2 removidas
 
 ---
 
@@ -1027,6 +1027,35 @@ Flat top-down orthographic texture of the TOP of the LID of a grim medieval trea
 > Com essas 4 o baú fica fechado e bonito por todos os ângulos que aparecem no jogo
 > (frente, lados, tampa). Verso e base reaproveitam a madeira. Depois dá pra fazer
 > `bau_frente_aberto` / interior brilhando pra versão "baú aberto".
+
+---
+
+## 18 · Texturas PBR ricas da masmorra (pedra coesa) — 🟡 a gerar
+
+**A sacada de coesão (Arcmaze):** parede, TETO, molduras de porta e os pilares de canto
+usam a **MESMA pedra**. Então bastam **2 texturas** ricas que já ligam em tudo (o motor
+gera o normal map/relevo sozinho a partir delas):
+- `tex_stonewall.jpg` → alvenaria universal (paredes + teto + molduras + pilares + casas
+  da cidade). **Drop-in**: salvou por cima, atualiza tudo de uma vez.
+- `tex_cavefloor.jpg` → piso da masmorra (lajota que combina).
+
+**Seamless, 1024×1024** (ou maior). Queremos **mais detalhe/caráter** que a atual —
+pedra desgastada rica, tipo o "Lost Temple" do Arcmaze, mas ainda soturna (cinza-quente,
+não dourado gritante). Cada bloco já está **completo, é só Copiar**.
+
+### 🟡 18.1 — `tex_stonewall` (alvenaria universal rica)
+```
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Rich weathered DUNGEON STONE-BLOCK MASONRY — hand-cut rectangular ashlar blocks of varying size with deep recessed mortar joints, each block full of character: chipped edges, hairline cracks, pitting, subtle mineral staining, faint dark moss and damp in the crevices. COOL-WARM GREY STONE with restrained earthy undertones (ash grey, faint ochre/brown, hints of green moss) — grim, moody, NOT bright golden, NOT saturated. High micro-detail so a normal map derived from it pops. no text, no watermark, no border.
+```
+
+### 🟡 18.2 — `tex_cavefloor` (piso lajota que combina)
+```
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ancient dungeon FLOOR of large flagstone slabs — worn rectangular stone tiles fitted with grouted joints, smoothed and polished in the centers by ages of footsteps, cracked corners, dark grime and faint moss in the seams. SAME cool-warm grey stone family as the walls (ash grey with faint earthy/ochre undertones), grim and moody, NOT golden. High micro-detail for normal-map relief. no text, no watermark, no border.
+```
+
+> Salvou os 2 com esses nomes em `grimhollow/src/assets/env/` = **drop-in total**:
+> parede, teto, molduras, pilares, casas da cidade e o piso já pegam a pedra nova, com
+> relevo PBR por cima. Zero mudança de código.
 
 ---
 
