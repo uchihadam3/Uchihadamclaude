@@ -1059,7 +1059,7 @@ Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even l
 
 ---
 
-## 19 · Baú em 2D (billboard PNG único) — 🟡 arte pendente
+## 19 · Baú em 2D (billboard PNG único) — ✅ NO JOGO
 
 **Mudança de estética:** assumimos o **billboard 2D como estética geral do jogo** (NPCs,
 inimigos, equipamentos, props… e agora os **baús**). O baú deixa de ser objeto 3D
@@ -1079,12 +1079,12 @@ outro ao interagir e ainda acende uma luz quente no baú aberto.
   (madeira escura desgastada, ferro velho), leve luz quente de tocha na borda.
 - **1024×1024**. Nomes → salvar em `grimhollow/src/assets/env/`.
 
-### 🟡 19.1 — `dec_chest` (baú FECHADO, de frente)
+### ✅ 19.1 — `dec_chest` (baú FECHADO, de frente)
 ```
 Single 2D game sprite of a grim medieval treasure chest, CLOSED, viewed STRAIGHT-ON FROM THE FRONT — flat frontal orthographic view, NOT angled, NOT three-quarter, NO side or top visible, perfectly symmetrical. Standing upright on the ground. Dark aged wooden planks bound by riveted black iron corner brackets and two horizontal iron straps, a heavy ornate iron lock plate with a keyhole centered on the front. Weathered dungeon-worn dark wood, cool desaturated tone with a faint warm rim of torchlight. Hand-painted stylized game-art billboard sprite matching cut-out character sprites. Clean crisp edges, FULLY TRANSPARENT background (alpha channel), NO baked ground shadow, the chest base sits exactly on the bottom edge of the frame. Centered, even soft lighting, no text, no watermark, no border. 1024x1024.
 ```
 
-### 🟡 19.2 — `dec_chest_open` (baú ABERTO — só LUZ, sem tesouro)
+### ✅ 19.2 — `dec_chest_open` (baú ABERTO — só LUZ, sem tesouro)
 ```
 Single 2D game sprite of the SAME grim medieval treasure chest, now OPEN, viewed STRAIGHT-ON FROM THE FRONT — flat frontal orthographic view, NOT angled, NOT three-quarter, perfectly symmetrical. The lid raised and tilted back on its iron hinges. The open interior emits a soft warm magical GLOW of light spilling up and over the front rim — the chest is EMPTY inside, NO coins, NO gold, NO gems, NO treasure, NO items whatsoever, ONLY the glowing light. Same dark aged wood, black iron straps and lock plate, same straight frontal view standing on the ground. Hand-painted stylized game-art billboard sprite. Clean edges, FULLY TRANSPARENT background (alpha), NO baked ground shadow, base on the bottom edge of the frame. Centered and symmetrical, no text, no watermark, no border. 1024x1024.
 ```

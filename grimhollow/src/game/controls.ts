@@ -94,7 +94,13 @@ const levelupSnd = audio.register(new Audio(sfxLevelUpUrl), "sfx", 0.85); // fan
 function playClone(a: HTMLAudioElement) {
   try { const c = a.cloneNode(true) as HTMLAudioElement; c.volume = a.volume; c.play().catch(() => {}); } catch { /* ignora */ }
 }
-const SFX: Record<string, HTMLAudioElement> = { swing: swingSnd, hit: hitSnd, hurt: hurtSnd, cast: castSnd, coin: coinSnd };
+// baú: chocalho (tentando abrir) + abertura. PLACEHOLDERS reaproveitando efeitos que
+// já existem — o jogador vai trocar por sons próprios depois (é só apontar aqui).
+const SFX: Record<string, HTMLAudioElement> = {
+  swing: swingSnd, hit: hitSnd, hurt: hurtSnd, cast: castSnd, coin: coinSnd,
+  chestRattle: hitSnd,   // chocalho = batidinha metálica (placeholder)
+  chestOpen: castSnd,    // abertura = "whoosh" (placeholder)
+};
 
 // ---- FORJA: animação de encher a espada (lava), ~6s, bem incandescente ------
 // Enche a lâmina de 0→100% com frente derretida, brasas e brilho crescente;
@@ -220,7 +226,7 @@ export interface HUD {
   openStore(data: StoreData): void;
   closeStore(): void;
   // toca um efeito sonoro de combate (canal Efeitos)
-  playSfx(name: "swing" | "hit" | "hurt" | "cast" | "coin"): void;
+  playSfx(name: "swing" | "hit" | "hurt" | "cast" | "coin" | "chestRattle" | "chestOpen"): void;
   // transição de porta: escurece a tela (a promise resolve no preto total) / clareia
   fadeOut(ms: number): Promise<void>;
   fadeIn(ms: number): void;

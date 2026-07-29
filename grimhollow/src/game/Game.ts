@@ -133,6 +133,8 @@ import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
+import decChestUrl from "../assets/env/dec_chest.png";
+import decChestOpenUrl from "../assets/env/dec_chest_open.png";
 import decTorchUrl from "../assets/env/dec_torch.png";
 import decIvyUrl from "../assets/env/dec_ivy.png";
 import decBannerUrl from "../assets/env/dec_banner.png";
@@ -912,7 +914,21 @@ type Target =
   | { kind: "tovillage" }
   | { kind: "sign"; lines: string[] }
   | { kind: "pickup"; uid: string; name: string } // item caído no chão à frente
+  | { kind: "chest"; key: string } // baú da masmorra (chocalha e abre ao interagir)
   | null;
+
+// baú 2D (billboard) da masmorra: estado + refs p/ animar o chocalho e a abertura
+type ChestRec = {
+  mesh: THREE.Mesh;
+  mat: THREE.MeshLambertMaterial;
+  openTex?: THREE.Texture;
+  cx: number;
+  cz: number;
+  state: "closed" | "opening" | "open";
+  t0: number;
+  knocks: number;
+  light?: THREE.PointLight;
+};
 
 // entrada de diálogo de um aldeão (guardada no npcMap por célula). Os walkers
 // carregam a referência da SUA entrada p/ movê-la sem clobber quando se sobrepõem.
@@ -1016,6 +1032,10 @@ export class Game {
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
   private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
   private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
+  // baús 2D (billboard) da masmorra: chocalham ao interagir e depois abrem (troca de
+  // frame + luz). Chaveado por "col,row".
+  private chests = new Map<string, ChestRec>();
+  private static readonly CHEST_W = 1.5; // largura do baú no mundo (os 2 frames a usam → alinham)
   private playerMaxHp = 100;
   private playerHp = 100;
   private playerMaxMp = 100;
@@ -1642,6 +1662,7 @@ export class Game {
     this.walkers = [];
     this.smoke = [];
     this.billboardProps = [];
+    this.chests.clear();
     this.enemy = null;
     this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
     this.clearTarget();
@@ -4819,9 +4840,7 @@ export class Game {
           const b = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.3), boneMat);
           b.rotation.x = -Math.PI / 2; b.position.set(cx, 0.05, cz); this.world.add(b);
         } else if (k === "chest") {
-          this.buildChest(cx, cz, woodMat, ironMat); this.blocked.add(`${c},${r}`);
-          // brilho dourado suave — o tesouro chama a atenção (visível pela grade)
-          this.glowLight(cx, 0.9, cz, 0xffc367, 1.5, 6.5);
+          this.buildChestBillboard(cx, cz, c, r); this.blocked.add(`${c},${r}`);
         }
       }
 
@@ -5165,49 +5184,75 @@ export class Game {
     if (asanc) this.glowLight(asanc.col * CELL - 1.2, 1.6, asanc.row * CELL, 0xb060ff, 3.2, 9);
   }
 
-  private buildChest(cx: number, cz: number, wood: THREE.Material, iron: THREE.Material) {
-    const glow = () => {
-      const g = new THREE.PointLight(0xffcf7a, 1.4, 5, 2);
-      g.position.set(cx, 1.1, cz); this.world.add(g);
-    };
-    // OBJETO 3D COM PNG POR FACE: se os 4 PNGs do baú existirem, veste cada face do
-    // corpo/tampa com sua arte (BoxGeometry aceita 1 material por face). Ordem das
-    // faces do Box: [+x, -x, +y, -y, +z, -z] = [dir, esq, topo, base, frente, verso].
-    const uF = facePng("bau_frente"), uL = facePng("bau_lado");
-    const uTF = facePng("bau_tampa_frente"), uTT = facePng("bau_tampa_topo");
-    if (uF && uL && uTF && uTT) {
-      // material com emissivo quente baixo → o baú (madeira escura) NÃO fica preto
-      // em canto sem luz; lê bem mesmo na sombra.
-      const mk = (url: string) => {
-        const m = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: new THREE.Color(0x2b2118) });
-        this.loadArt(url, (t) => { m.map = t; m.needsUpdate = true; });
-        return m;
-      };
-      const mFrente = mk(uF), mLado = mk(uL), mTampaF = mk(uTF), mTampaT = mk(uTT);
-      const end = wood as THREE.MeshLambertMaterial; // topo/base ocultos → madeira lisa
-      // CORPO: frente/verso = bau_frente, laterais = bau_lado, topo/base = madeira
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(1.0, 0.6, 0.7),
-        [mLado, mLado, end, end, mFrente, mFrente],
-      );
-      body.position.set(cx, 0.3, cz); this.world.add(body);
-      // TAMPA: frente/verso = bau_tampa_frente, topo = bau_tampa_topo, laterais = bau_lado
-      const lid = new THREE.Mesh(
-        new THREE.BoxGeometry(1.03, 0.3, 0.73),
-        [mLado, mLado, mTampaT, end, mTampaF, mTampaF],
-      );
-      lid.position.set(cx, 0.73, cz); this.world.add(lid);
-      glow();
-      return;
+  // BAÚ 2D (billboard, estética geral do jogo): plano que encara a câmera, com o frame
+  // FECHADO (dec_chest). Ao interagir, chocalha e troca p/ o frame ABERTO (dec_chest_open)
+  // + luz quente. Os 2 frames têm a MESMA largura → a base fica no chão e o corpo não
+  // "pula" ao abrir (só a tampa sobe).
+  private buildChestBillboard(cx: number, cz: number, c: number, r: number) {
+    const W = Game.CHEST_W;
+    const mat = new THREE.MeshLambertMaterial({
+      transparent: true, opacity: 0, alphaTest: 0.4, side: THREE.DoubleSide,
+      emissive: new THREE.Color(0x241a10), // não fica preto na treva
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W, W), mat);
+    mesh.position.set(cx, W / 2, cz);
+    this.world.add(mesh);
+    this.billboardProps.push(mesh); // encara a câmera (billboard no eixo Y)
+    const rec: ChestRec = { mesh, mat, cx, cz, state: "closed", t0: 0, knocks: 0 };
+    // luz quente sutil no baú FECHADO — chama a atenção (e é visível pela grade do tesouro)
+    const light = new THREE.PointLight(0xffc367, 1.2, 6.5, 2);
+    light.position.set(cx, 0.9, cz); this.world.add(light); rec.light = light;
+    this.chests.set(`${c},${r}`, rec);
+    // frame FECHADO (dimensiona pelo aspecto real, base no chão)
+    this.loadArt(decChestUrl, (t) => {
+      const im = t.image as { width: number; height: number } | undefined;
+      const asp = im && im.width && im.height ? im.width / im.height : 1;
+      const h = W / asp;
+      mesh.geometry.dispose(); mesh.geometry = new THREE.PlaneGeometry(W, h);
+      mesh.position.y = h / 2;
+      mat.map = t; mat.opacity = 1; mat.needsUpdate = true;
+    });
+    this.loadArt(decChestOpenUrl, (t) => { rec.openTex = t; }); // pré-carrega o ABERTO
+  }
+
+  // interagiu de frente com o baú fechado → começa o CHOCALHO (som + tremida)
+  private openChestStart(key: string) {
+    const rec = this.chests.get(key);
+    if (!rec || rec.state !== "closed") return;
+    rec.state = "opening"; rec.t0 = this.now; rec.knocks = 0;
+    this.ui.playSfx("chestRattle");
+  }
+
+  // anima os baús: chocalho (~0.7s tremendo, batidinhas) → abre (troca frame + luz + som)
+  private updateChests(now: number) {
+    for (const rec of this.chests.values()) {
+      if (rec.state !== "opening") continue;
+      const e = now - rec.t0;
+      const k = Math.min(1, e / 700);
+      const amp = 0.11 * (1 - k); // treme cada vez menos até destravar
+      rec.mesh.rotation.z = Math.sin(e * 0.05) * amp;
+      if (rec.knocks < 3 && e > rec.knocks * 190 + 130) { rec.knocks++; this.ui.playSfx("chestRattle"); }
+      if (e >= 700) this.openChestNow(rec);
     }
-    // FALLBACK: baú procedural (madeira + banda de ferro) enquanto os PNGs não vierem
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.6, 0.7), wood);
-    body.position.set(cx, 0.3, cz); this.world.add(body);
-    const lid = new THREE.Mesh(new THREE.BoxGeometry(1.03, 0.3, 0.73), wood);
-    lid.position.set(cx, 0.73, cz); this.world.add(lid);
-    const band = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.95, 0.14), iron);
-    band.position.set(cx, 0.46, cz); this.world.add(band);
-    glow();
+  }
+  private openChestNow(rec: ChestRec) {
+    rec.state = "open";
+    rec.mesh.rotation.z = 0;
+    // troca p/ o frame ABERTO (mais alto): mantém a base no chão (só a tampa sobe)
+    if (rec.openTex) {
+      const im = rec.openTex.image as { width: number; height: number } | undefined;
+      const asp = im && im.width && im.height ? im.width / im.height : 1;
+      const h = Game.CHEST_W / asp;
+      rec.mesh.geometry.dispose(); rec.mesh.geometry = new THREE.PlaneGeometry(Game.CHEST_W, h);
+      rec.mesh.position.y = h / 2;
+      rec.mat.map = rec.openTex; rec.mat.needsUpdate = true;
+    }
+    // reforça a luz quente saindo do baú (casa com o brilho pintado no PNG)
+    if (rec.light) {
+      rec.light.color.set(0xffdb8a); rec.light.intensity = 3.4;
+      rec.light.distance = 8.5; rec.light.position.y = 1.15;
+    }
+    this.ui.playSfx("chestOpen");
   }
 
   // nasce um inimigo no ponto 'E' mais próximo do jogador (não na célula dele)
@@ -6743,6 +6788,8 @@ export class Game {
       // item caído: abre o popup "Pegar" (do item à frente ou sob os pés)
       const d = this.drops.find((x) => x.item?.uid === t.uid);
       if (d) this.openDropPopup(d);
+    } else if (t.kind === "chest") {
+      this.openChestStart(t.key); // chocalha e abre
     }
   }
 
@@ -8083,6 +8130,7 @@ export class Game {
     // props 2D encaram a câmera (billboard no eixo Y), como os aldeões
     for (const b of this.billboardProps)
       b.rotation.y = Math.atan2(cx - b.position.x, cz - b.position.z);
+    this.updateChests(now); // baús: chocalho + abertura (roda depois do billboard)
     this.updateWakeWalk(now); // caminhada roteirizada da Hedda ao acordar
     this.updateBeacon(now); // facho-guia da missão sobre a célula de destino
     this.updateDrops(now); // itens/ouro caídos: flutuar + facho + recolher ouro auto
@@ -8364,6 +8412,9 @@ export class Game {
       // escada de volta ao vilarejo (de frente ou em cima dela) → usa returnTo
       if (dungeonCell(fc, fr) === "stairs" || dungeonCell(this.col, this.row) === "stairs")
         return { kind: "exit" };
+      // BAÚ logo à frente (ainda não aberto) → interagir p/ chocalhar e abrir
+      const chest = this.chests.get(`${fc},${fr}`);
+      if (chest && chest.state !== "open") return { kind: "chest", key: `${fc},${fr}` };
       // portão de grade fechado logo à frente → interagir p/ abrir
       const gk = `${fc},${fr}`;
       if (this.gates.has(gk)) return { kind: "gate", key: gk };
