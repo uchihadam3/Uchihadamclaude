@@ -115,7 +115,6 @@ import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
 // URLs cruas p/ gerar normal maps em runtime (relevo PBR) na masmorra
 import texStoneUrl from "../assets/env/tex_stonewall.jpg";
-import texMossUrl from "../assets/env/tex_mosswall.jpg";
 import texCobbleUrl from "../assets/env/tex_cobble.jpg";
 import texCaveFloorUrl from "../assets/env/tex_cavefloor.jpg";
 import texCaveCeilUrl from "../assets/env/tex_caveceil.jpg";
@@ -1763,14 +1762,12 @@ export class Game {
     // Paredes das casas: SÓ PEDRA, em cor NATURAL (sem tint, sem madeira). A
     // diferenciação vem das plantas/fissuras/janelas coladas depois.
     // PBR + normal map também nas CASAS (o relevo da alvenaria pega a luz do dia/noite)
-    // repeat (2, 1.6): a face da casa é 4 (larg) × 3.2 (alt) → esse repeat deixa os
-    // BLOCOS QUADRADOS (sem esticar) e num tamanho realista de alvenaria de casa; como
-    // a textura é seamless e o nº de telhas por face é ~inteiro, os painéis vizinhos
-    // continuam a junta sem "resetar" o padrão (bug de textura esticada/repetida).
-    const wallMats = [
-      this.pbrStone(texStoneUrl, "vwall", { rough: 0.92, normal: 0.95, repeat: [2, 1.6] }),   // pedra lisa
-      this.pbrStone(texMossUrl, "vwallmoss", { rough: 0.93, normal: 0.95, repeat: [2, 1.6] }), // pedra c/ musgo
-    ];
+    // MESMA alvenaria (tex_stonewall) e MESMA ESCALA da masmorra p/ coesão total:
+    // a masmorra tila ~0.25 telha/unidade; a face da casa é 4 (larg) × 3.2 (alt) →
+    // repeat (1, 0.8) reproduz exatamente esse tamanho de bloco (nada esticado, nada
+    // "resetando"), então dentro e fora e a dungeon parecem a MESMA construção.
+    const houseWall = this.pbrStone(texStoneUrl, "vwall", { rough: 0.92, normal: 1.5, repeat: [1, 0.8] });
+    const wallMats = [houseWall];
     // TELHADOS de palha em tons variados (uns dourados, uns castanhos, uns velhos).
     const roofMats = [
       wallTint(tex.thatch(3), 0xe9d197),
@@ -4766,7 +4763,6 @@ export class Game {
     });
     const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const ironMat = new THREE.MeshLambertMaterial({ color: 0x27231d });
-    const barrelMat = new THREE.MeshLambertMaterial({ map: tex.barrel(17) });
 
     const isCorr = (c: number, r: number) => {
       const k = dungeonCell(c, r);
@@ -4814,13 +4810,14 @@ export class Game {
           }
         }
         // (sem estalagmites/estalactites — chão limpo e teto sem formações)
-        // props
+        // props. NOTA: os BARRIS (k==="barrel") NÃO são mais renderizados dentro da
+        // masmorra — eram cilindros 3D que ficavam plantados nos corredores (inclusive
+        // um bem em frente à escada de saída) e BLOQUEAVAM a passagem. A célula vira
+        // piso livre. As ossadas ('bones') seguem, pois são decalques rentes ao chão
+        // (atmosfera) e não bloqueiam.
         if (k === "bones") {
           const b = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.3), boneMat);
           b.rotation.x = -Math.PI / 2; b.position.set(cx, 0.05, cz); this.world.add(b);
-        } else if (k === "barrel") {
-          const g = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.95, 12), barrelMat);
-          g.position.set(cx, 0.48, cz); this.world.add(g); this.blocked.add(`${c},${r}`);
         } else if (k === "chest") {
           this.buildChest(cx, cz, woodMat, ironMat); this.blocked.add(`${c},${r}`);
           // brilho dourado suave — o tesouro chama a atenção (visível pela grade)
@@ -5063,24 +5060,8 @@ export class Game {
     const webMat = new THREE.MeshBasicMaterial({ map: this.dungeonWebTex(), transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
     const boneMat = new THREE.MeshLambertMaterial({ map: tex.skullPile(69), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
 
-    // ---- builders ----
-    const pillar = (cx: number, cz: number) => {
-      const hgt = 2.6 + hash(cx, cz) * 2.4;
-      const base = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.24, 1.25), stone); base.position.set(cx, 0.12, cz); this.world.add(base);
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.52, hgt, 12), stone);
-      col.position.set(cx, 0.24 + hgt / 2, cz); col.rotation.z = (hash(cx, cz, 3) - 0.5) * 0.06; this.world.add(col);
-      // pedra tombada ao lado (o pilar "quebrou")
-      const chunk = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.8, 12), stone);
-      chunk.rotation.z = Math.PI / 2; chunk.position.set(cx + 0.85, 0.44, cz + 0.55); this.world.add(chunk);
-    };
-    const sarc = (cx: number, cz: number, alongX: boolean, dc: number, dr: number) => {
-      const nx = cx + dc * (CELL / 2 - 0.7), nz = cz + dr * (CELL / 2 - 0.7);
-      const L = 2.0, Wd = 0.92, Hh = 0.82;
-      const body = new THREE.Mesh(new THREE.BoxGeometry(alongX ? L : Wd, Hh, alongX ? Wd : L), stoneDk);
-      body.position.set(nx, Hh / 2, nz); this.world.add(body);
-      const lid = new THREE.Mesh(new THREE.BoxGeometry((alongX ? L : Wd) * 1.04, 0.18, (alongX ? Wd : L) * 1.04), stone);
-      lid.position.set(nx + (alongX ? 0.16 : 0), Hh + 0.09, nz + (alongX ? 0 : 0.16)); lid.rotation.y = 0.02; this.world.add(lid);
-    };
+    // ---- builders (só NÃO-bloqueantes; os que plantavam pilar/gaiola/sarcófago no
+    // caminho foram removidos p/ não atrapalhar a passagem) ----
     const mush = (cx: number, cz: number) => {
       const n = 3 + Math.floor(hash(cx, cz, 7) * 3);
       for (let i = 0; i < n; i++) {
@@ -5105,19 +5086,6 @@ export class Game {
         this.world.add(rk);
       }
     };
-    const cage = (cx: number, cz: number) => {
-      const HC = 2.0, y0 = 0.35;
-      for (const [sx, sz] of [[-0.42, -0.42], [0.42, -0.42], [0.42, 0.42], [-0.42, 0.42]] as [number, number][]) {
-        const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, HC, 6), iron);
-        bar.position.set(cx + sx, y0 + HC / 2, cz + sz); this.world.add(bar);
-      }
-      const ring = (y: number) => { const t = new THREE.Mesh(new THREE.TorusGeometry(0.56, 0.045, 6, 14), iron); t.rotation.x = Math.PI / 2; t.position.set(cx, y, cz); this.world.add(t); };
-      ring(y0); ring(y0 + HC);
-      const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, CH - y0 - HC, 6), iron);
-      chain.position.set(cx, (y0 + HC + CH) / 2, cz); this.world.add(chain);
-      const skull = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), boneMat);
-      skull.position.set(cx, y0 + 0.5, cz); this.world.add(skull); // prisioneiro há muito ido
-    };
     const hangChain = (cx: number, cz: number) => {
       const len = CH * 0.35 + hash(cx, cz, 9) * CH * 0.32;
       const x = cx + (hash(cx, cz, 11) - 0.5) * 1.4, z = cz + (hash(cx, cz, 12) - 0.5) * 1.4;
@@ -5140,19 +5108,10 @@ export class Game {
         const openN = DIRS.filter(([dc, dr]) => dungeonWalkable(c + dc, r + dr)).length;
         const inCrypt = c >= 4 && c <= 11 && r >= 4 && r <= 8;    // sala CRIPTA (topo-esq)
         const inFungal = c >= 4 && c <= 11 && r >= 21 && r <= 26; // sala FÚNGICA (esq-baixo)
-        const free = !this.blocked.has(`${c},${r}`);
-
-        // BLOQUEANTES — só em área aberta (não estrangula passagem)
-        if (free && openN >= 3) {
-          const h = hash(c, r, 1);
-          if (inCrypt && wall && sarcs < 4 && h < 0.55) {
-            sarc(cx, cz, wall[1] !== 0, wall[0], wall[1]); this.blocked.add(`${c},${r}`); sarcs++;
-          } else if (!inCrypt && !inFungal && pillars < 11 && h < 0.05) {
-            pillar(cx, cz); this.blocked.add(`${c},${r}`); pillars++;
-          } else if (!inCrypt && cages < 3 && h >= 0.05 && h < 0.062) {
-            cage(cx, cz); this.blocked.add(`${c},${r}`); cages++;
-          }
-        }
+        // (REMOVIDO) props BLOQUEANTES no piso — pilares quebrados, gaiolas e
+        // sarcófagos plantados no caminho ficavam ATRAPALHANDO a passagem (um pilar
+        // caía bem em frente à escada de saída). Agora a masmorra só recebe cenografia
+        // que NÃO bloqueia (entulho rente à parede, cogumelos, teias, correntes altas).
         // NÃO-bloqueantes
         if (inFungal && mushN < 6 && hash(c, r, 2) < 0.3) { mush(cx, cz); mushN++; }
         if (wall && rubbles < 28 && hash(c, r, 3) < 0.13) { rubble(cx, cz, wall[0], wall[1]); rubbles++; }
@@ -6865,11 +6824,10 @@ export class Game {
     // chão de madeira (aconchegante) + PAREDES DE PEDRA com tom quente (parede
     // rebocada) — bem melhor que a madeira repetitiva de antes.
     const floorMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(floorSeed) });
-    const wallMat = new THREE.MeshLambertMaterial({
-      map: tex.stone(31),
-      color: 0xd8ccb0, // clareia/aquenta a pedra → aspecto de reboco
-      side: THREE.DoubleSide,
-    });
+    // PAREDES INTERNAS = MESMA alvenaria (tex_stonewall) e MESMA ESCALA da masmorra e
+    // das fachadas → a casa é a mesma construção por dentro e por fora. Face 4×3.0 →
+    // repeat (1, 0.75) mantém o mesmo tamanho de bloco (~0.25 telha/unidade).
+    const wallMat = this.pbrStone(texStoneUrl, "introom", { rough: 0.92, normal: 1.3, repeat: [1, 0.75] });
     const ceilMat = new THREE.MeshLambertMaterial({ color: ceilColor, side: THREE.DoubleSide });
     // porta de saída = MESMO PNG das portas externas (dec_door.png)
     const doorMat = this.decalMat(decDoorUrl, 0.4);
