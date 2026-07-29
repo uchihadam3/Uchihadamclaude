@@ -109,6 +109,10 @@ import signTavernUrl from "../assets/env/sign_tavern.png";
 import signStoreUrl from "../assets/env/sign_store.png";
 import signSmithUrl from "../assets/env/sign_smith.png";
 import signAlchUrl from "../assets/env/sign_alch.png";
+// URLs cruas p/ gerar normal maps em runtime (relevo PBR) na masmorra
+import texStoneUrl from "../assets/env/tex_stonewall.jpg";
+import texCaveFloorUrl from "../assets/env/tex_cavefloor.jpg";
+import texCaveCeilUrl from "../assets/env/tex_caveceil.jpg";
 import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
 import bgmVilarejoUrl from "../assets/audio/bgm_vilarejo.mp3";
@@ -1250,6 +1254,10 @@ export class Game {
       powerPreference: "high-performance",
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // TONE MAPPING cinematográfico (ACES) — realça brilhos/cor como jogo moderno;
+    // vale p/ todas as cenas. Exposição levemente acima de 1 p/ o clima quente.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.15;
     container.appendChild(this.renderer.domElement);
 
     // overlay p/ o efeito de roçar folhagem (vinheta verde nas bordas)
@@ -4179,10 +4187,15 @@ export class Game {
     // masmorra-labirinto é grande e as tochas (limitadas) se espalham → sobe a luz
     // ambiente base p/ os corredores sem tocha não ficarem pretos (visível como o
     // Arcmaze), mantendo a paleta fria/pedra.
-    // masmorra CLARA (estilo Arcmaze) — o jogo estava escuro demais. Ambiente alto +
-    // hemisfério, paleta fria-neutra de pedra.
-    this.world.add(new THREE.AmbientLight(0xb9c0cc, 1.85));
-    this.world.add(new THREE.HemisphereLight(0xc2ccd8, 0x40403a, 1.05));
+    // PBR + normal maps: fill BAIXO (senão o relevo some), hemisfério forte (céu frio /
+    // chão quente → sombreia o relevo das pedras) e uma luz-chave quente p/ realces.
+    // As tochas (point lights quentes) criam as poças de luz esculpindo a alvenaria.
+    // Com tone mapping ACES, as áreas iluminadas ainda "estouram" claras (tipo Arcmaze).
+    this.world.add(new THREE.AmbientLight(0x818a99, 0.62));
+    this.world.add(new THREE.HemisphereLight(0xbac2d0, 0x4c3a26, 1.05));
+    const key = new THREE.DirectionalLight(0xffd7a2, 0.5);
+    key.position.set(7, 13, 5);
+    this.world.add(key);
   }
 
   private addShowcaseLights() {
@@ -4707,12 +4720,12 @@ export class Game {
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
     // texturas de caverna (PNG). O teto usa a rocha mais escura → sensação de
     // PROFUNDIDADE (o relevo do teto some no escuro lá em cima).
-    // PAREDE DA MASMORRA: ALVENARIA das CASAS (tex_stonewall) — blocos de pedra/cimento,
-    // como pedido. Cor cheia (branco) p/ ficar CLARO (o jogo estava escuro demais); a
-    // claridade vem da luz ambiente alta (estilo Arcmaze). Serve paredes/arcos/escadas.
-    const rockMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide, color: 0xffffff });
-    const floorMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
-    const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
+    // PAREDE/CHÃO/TETO da masmorra em PBR (MeshStandard) COM NORMAL MAP gerado em
+    // runtime → a luz esculpe o relevo das pedras (o "detalhe" tipo Arcmaze). Alvenaria
+    // das casas (tex_stonewall) nas paredes/arcos/escadas.
+    const rockMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
+    const floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.0 });
+    const ceilMat = this.pbrStone(texCaveCeilUrl, "dceil", { rough: 0.97, normal: 0.8 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
@@ -5605,6 +5618,62 @@ export class Game {
 
   // carrega uma arte 2D (com cache por URL) e chama onReady quando pronta.
   // Em caso de erro, não faz nada — o NPC permanece com o sprite procedural.
+  // NORMAL MAP em runtime a partir do difuso (Sobel na luminância → relevo por pixel).
+  // Sem gerar/committar PNG: destrava o "relevo de pedra" que a luz esculpe (PBR).
+  private _normalCache = new Map<string, THREE.Texture>();
+  private normalFromImage(img: CanvasImageSource, w: number, h: number, key: string, strength = 2.4): THREE.Texture | null {
+    const hit = this._normalCache.get(key);
+    if (hit) return hit;
+    if (!w || !h) return null;
+    const S = Math.min(512, w), sh = Math.max(1, Math.round((S * h) / w));
+    const c = document.createElement("canvas"); c.width = S; c.height = sh;
+    const g = c.getContext("2d"); if (!g) return null;
+    g.drawImage(img, 0, 0, S, sh);
+    let sd: Uint8ClampedArray;
+    try { sd = g.getImageData(0, 0, S, sh).data; } catch { return null; }
+    const out = g.createImageData(S, sh), od = out.data;
+    const lum = (x: number, y: number) => {
+      x = (x + S) % S; y = (y + sh) % sh; const i = (y * S + x) * 4;
+      return (sd[i] * 0.299 + sd[i + 1] * 0.587 + sd[i + 2] * 0.114) / 255;
+    };
+    for (let y = 0; y < sh; y++) for (let x = 0; x < S; x++) {
+      const dx = (lum(x - 1, y) - lum(x + 1, y)) * strength;
+      const dy = (lum(x, y - 1) - lum(x, y + 1)) * strength;
+      const nx = -dx, ny = -dy, nz = 1, len = Math.hypot(nx, ny, nz) || 1;
+      const i = (y * S + x) * 4;
+      od[i] = (nx / len * 0.5 + 0.5) * 255;
+      od[i + 1] = (ny / len * 0.5 + 0.5) * 255;
+      od[i + 2] = (nz / len * 0.5 + 0.5) * 255;
+      od[i + 3] = 255;
+    }
+    g.putImageData(out, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.NoColorSpace; // normal map é dado cru (linear), não sRGB
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.needsUpdate = true;
+    this._normalCache.set(key, t);
+    return t;
+  }
+
+  // material PBR de pedra (difuso + normal gerado) — o relevo aparece com a luz.
+  private pbrStone(url: string, key: string, opts: { rough?: number; normal?: number } = {}): THREE.MeshStandardMaterial {
+    const m = new THREE.MeshStandardMaterial({
+      side: THREE.DoubleSide, color: 0xffffff,
+      roughness: opts.rough ?? 0.95, metalness: 0.0,
+    });
+    this.loadArt(url, (t) => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      m.map = t;
+      const im = t.image as { width: number; height: number } | undefined;
+      if (im) {
+        const nrm = this.normalFromImage(t.image as CanvasImageSource, im.width, im.height, key);
+        if (nrm) { m.normalMap = nrm; m.normalScale.set(opts.normal ?? 1.3, opts.normal ?? 1.3); }
+      }
+      m.needsUpdate = true;
+    });
+    return m;
+  }
+
   private loadArt(url: string, onReady: (t: THREE.Texture) => void) {
     const cached = this.artCache.get(url);
     if (cached) {
