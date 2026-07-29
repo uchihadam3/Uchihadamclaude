@@ -4824,8 +4824,31 @@ export class Game {
         }
       }
 
-    // (os pilares de canto avulsos foram removidos — só ficam os que ENQUADRAM os
-    //  arcos dos portões, adicionados junto com a grade abaixo.)
+    // PILASTRAS ENTRE AS FOLHAS DAS PAREDES: uma coluna (base + fuste + capitel) em CADA
+    // junta parede/piso — ou seja, entre cada par de painéis de parede. Divide a parede
+    // em baias, estilo templo/Arcmaze, e "conecta" chão↔teto na mesma alvenaria.
+    // InstancedMesh → tudo numa só draw call (centenas de colunas sem pesar).
+    {
+      const solidLk = (cc: number, rr: number) => dungeonSolidLook(cc, rr);
+      const pts: [number, number][] = [];
+      for (let r = 0; r < H - 1; r++) for (let c = 0; c < W - 1; c++) {
+        const nw = solidLk(c, r), ne = solidLk(c + 1, r), sw = solidLk(c, r + 1), se = solidLk(c + 1, r + 1);
+        const nWall = (nw ? 1 : 0) + (ne ? 1 : 0) + (sw ? 1 : 0) + (se ? 1 : 0);
+        if (nWall === 0 || nWall === 4) continue; // só juntas parede/piso
+        pts.push([c * CELL + CELL / 2, r * CELL + CELL / 2]);
+      }
+      if (pts.length) {
+        const mk = (geo: THREE.BufferGeometry, y: number) => {
+          const inst = new THREE.InstancedMesh(geo, rockMat, pts.length);
+          const m = new THREE.Matrix4();
+          pts.forEach((p, i) => { m.makeTranslation(p[0], y, p[1]); inst.setMatrixAt(i, m); });
+          inst.instanceMatrix.needsUpdate = true; this.world.add(inst);
+        };
+        mk(new THREE.BoxGeometry(0.42, CH, 0.42), CH / 2);          // fuste
+        mk(new THREE.BoxGeometry(0.6, 0.18, 0.6), CH - 0.09);       // capitel
+        mk(new THREE.BoxGeometry(0.6, 0.2, 0.6), 0.1);              // base
+      }
+    }
 
     // PORTÕES (grade) em corredores 1-largura que SELAM a passagem p/ tesouro.
     // A rocha apenas CONTORNA o arco (parede com buraco em arco): veda laterais,
