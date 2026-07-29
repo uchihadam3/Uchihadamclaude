@@ -851,6 +851,16 @@ const FACE_PNG = import.meta.glob("../assets/env/bau_*.png", {
 const facePng = (name: string): string | undefined =>
   FACE_PNG[`../assets/env/${name}.png`];
 
+// VARIAÇÕES de parede da masmorra (tex_dwall_1..10). Mesmo esquema: se existirem,
+// a masmorra sorteia a rocha por região; se não, cai na caveWall única.
+const DWALL_PNG = import.meta.glob("../assets/env/tex_dwall_*.png", {
+  eager: true,
+  query: "?url",
+  import: "default",
+}) as Record<string, string>;
+const dwallUrl = (i: number): string | undefined =>
+  DWALL_PNG[`../assets/env/tex_dwall_${i}.png`];
+
 const DLG_MAX = 96;
 function paginate(lines: string[], max = DLG_MAX): string[] {
   const pages: string[] = [];
@@ -4169,8 +4179,8 @@ export class Game {
     // masmorra-labirinto é grande e as tochas (limitadas) se espalham → sobe a luz
     // ambiente base p/ os corredores sem tocha não ficarem pretos (visível como o
     // Arcmaze), mantendo a paleta fria/pedra.
-    this.world.add(new THREE.AmbientLight(0x8b93a3, 1.5));
-    this.world.add(new THREE.HemisphereLight(0x9aa4b8, 0x33302c, 0.9));
+    this.world.add(new THREE.AmbientLight(0x8b93a3, 1.15));
+    this.world.add(new THREE.HemisphereLight(0x9aa4b8, 0x2c2a26, 0.72));
   }
 
   private addShowcaseLights() {
@@ -4696,6 +4706,40 @@ export class Game {
     // texturas de caverna (PNG). O teto usa a rocha mais escura → sensação de
     // PROFUNDIDADE (o relevo do teto some no escuro lá em cima).
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.caveWall(), side: THREE.DoubleSide });
+    // PAREDES VARIADAS (tex_dwall_1..10): cada célula sorteia uma variação, temática por
+    // região — cripta puxa ossos/runas, fúngica puxa musgo/umidade, o resto rocha/
+    // alvenaria/desmoronado. Some a monotonia. Fallback: caveWall única se os PNGs não
+    // existirem. Materiais em cache (compartilham textura por índice).
+    const dwallCache = new Map<number, THREE.Material>();
+    const dwall = (i: number): THREE.Material => {
+      let m = dwallCache.get(i);
+      if (m) return m;
+      const url = dwallUrl(i);
+      // color<branco escurece um tico: as PNGs variam de brilho (algumas bem claras) e
+      // isso deixava paredes "lavadas"; puxar todas p/ baixo unifica no tom soturno.
+      const mat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xb8b8b8 });
+      if (url) this.loadArt(url, (t) => {
+        t.wrapS = t.wrapT = THREE.RepeatWrapping; // caveMesh usa UV>1 → precisa tilar
+        mat.map = t; mat.needsUpdate = true;
+      });
+      else mat.map = rockMat.map; // sem PNG → rocha base
+      dwallCache.set(i, mat);
+      return mat;
+    };
+    const hasDwall = !!dwallUrl(1);
+    // subconjuntos por região (índices de tex_dwall_*)
+    // (tex_dwall_1 = rocha lisa clara fica "chapada" em parede grande → fora dos pools;
+    // todas as demais têm relevo/detalhe que lê bem)
+    const POOL_CRYPT = [7, 8, 2, 10];    // ossos, runas, fissurada, desmoronada
+    const POOL_FUNGAL = [5, 9, 6, 4];    // musgo, umidade, estratos, bruta
+    const POOL_GEN = [2, 3, 4, 6, 10];   // fissurada, alvenaria, bruta, estratos, desmoronada
+    const wallMatFor = (c: number, r: number): THREE.Material => {
+      if (!hasDwall) return rockMat;
+      const inCrypt = c >= 4 && c <= 9 && r >= 4 && r <= 8;
+      const inFungal = c >= 3 && c <= 11 && r >= 13 && r <= 20;
+      const pool = inCrypt ? POOL_CRYPT : inFungal ? POOL_FUNGAL : POOL_GEN;
+      return dwall(pool[Math.floor(hash(c, r, 91) * pool.length) % pool.length]);
+    };
     const floorMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
@@ -4738,7 +4782,11 @@ export class Game {
             const ox = cx + dc * HALF, oz = cz + dr * HALF;
             const tang: [number, number, number] = dc !== 0 ? [0, 0, CELL] : [CELL, 0, 0];
             const org: [number, number, number] = dc !== 0 ? [ox, 0, oz - HALF] : [ox - HALF, 0, oz];
-            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 2.4);
+            // parede ilusória (segredo) = rocha base p/ NÃO se destacar; demais = variação
+            // temática da célula. Repetição vertical baixa: mostra ~1 painel por parede
+            // (essas texturas são "painéis" — 2.4 tilava demais e virava padrão).
+            const wm = illus ? rockMat : wallMatFor(c, r);
+            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, wm, 1, 1.2);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
           // tocha esporádica em paredes de rocha (ilumina)
