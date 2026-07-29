@@ -1763,9 +1763,13 @@ export class Game {
     // Paredes das casas: SÓ PEDRA, em cor NATURAL (sem tint, sem madeira). A
     // diferenciação vem das plantas/fissuras/janelas coladas depois.
     // PBR + normal map também nas CASAS (o relevo da alvenaria pega a luz do dia/noite)
+    // repeat (2, 1.6): a face da casa é 4 (larg) × 3.2 (alt) → esse repeat deixa os
+    // BLOCOS QUADRADOS (sem esticar) e num tamanho realista de alvenaria de casa; como
+    // a textura é seamless e o nº de telhas por face é ~inteiro, os painéis vizinhos
+    // continuam a junta sem "resetar" o padrão (bug de textura esticada/repetida).
     const wallMats = [
-      this.pbrStone(texStoneUrl, "vwall", { rough: 0.9, normal: 1.25 }),   // pedra lisa
-      this.pbrStone(texMossUrl, "vwallmoss", { rough: 0.92, normal: 1.25 }), // pedra c/ musgo
+      this.pbrStone(texStoneUrl, "vwall", { rough: 0.92, normal: 0.95, repeat: [2, 1.6] }),   // pedra lisa
+      this.pbrStone(texMossUrl, "vwallmoss", { rough: 0.93, normal: 0.95, repeat: [2, 1.6] }), // pedra c/ musgo
     ];
     // TELHADOS de palha em tons variados (uns dourados, uns castanhos, uns velhos).
     const roofMats = [
@@ -4824,29 +4828,57 @@ export class Game {
         }
       }
 
-    // PILASTRAS ENTRE AS FOLHAS DAS PAREDES: uma coluna (base + fuste + capitel) em CADA
-    // junta parede/piso — ou seja, entre cada par de painéis de parede. Divide a parede
-    // em baias, estilo templo/Arcmaze, e "conecta" chão↔teto na mesma alvenaria.
-    // InstancedMesh → tudo numa só draw call (centenas de colunas sem pesar).
+    // PILASTRAS ENCOSTADAS NA PAREDE (estilo templo/Arcmaze): em vez de COLUNAS SOLTAS
+    // no meio da junta (que apareciam plantadas nos corredores e BLOQUEAVAM passagens),
+    // agora são NERVURAS finas coladas NA FACE da parede, nas BORDAS de cada painel —
+    // "conectando as folhas" das paredes sem invadir o caminho (projetam só ~0.13 pra
+    // dentro, contra a parede). Uma nervura por seam (dedup) → o par de painéis divide
+    // a mesma pilastra. InstancedMesh → tudo numa só draw call.
     {
-      const solidLk = (cc: number, rr: number) => dungeonSolidLook(cc, rr);
-      const pts: [number, number][] = [];
-      for (let r = 0; r < H - 1; r++) for (let c = 0; c < W - 1; c++) {
-        const nw = solidLk(c, r), ne = solidLk(c + 1, r), sw = solidLk(c, r + 1), se = solidLk(c + 1, r + 1);
-        const nWall = (nw ? 1 : 0) + (ne ? 1 : 0) + (sw ? 1 : 0) + (se ? 1 : 0);
-        if (nWall === 0 || nWall === 4) continue; // só juntas parede/piso
-        pts.push([c * CELL + CELL / 2, r * CELL + CELL / 2]);
+      type Rib = { x: number; z: number; axis: 0 | 1 }; // axis: 0=comprida em X, 1=em Z
+      const seen = new Set<string>();
+      const ribs: Rib[] = [];
+      const OUT = 0.13;      // quanto projeta pra DENTRO do corredor (mínimo → nunca bloqueia)
+      const DEPTH = 0.26;    // espessura (dir da parede)
+      const addRib = (x: number, z: number, axis: 0 | 1) => {
+        const key = `${Math.round(x * 2)},${Math.round(z * 2)},${axis}`;
+        if (seen.has(key)) return; seen.add(key); ribs.push({ x, z, axis });
+      };
+      for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+        const k = dungeonCell(c, r);
+        if (k === "wall" || k === "secret") continue;            // célula sólida: sem nervura
+        if (k === "gate" || k === "lockgate" || k === "sanctuary") continue; // já têm enquadramento
+        const cx = c * CELL, cz = r * CELL;
+        for (const [dc, dr] of DIRS) {
+          if (dungeonCell(c + dc, r + dr) !== "wall") continue;   // só onde há FACE de parede
+          if (k === "stairs" && dc === 0 && dr === -1) continue;  // face do arco da escada U
+          const fx = cx + dc * HALF, fz = cz + dr * HALF;         // plano da face
+          // recuo pra encostar na parede (projeta OUT pra dentro do corredor)
+          const rx = fx - dc * (DEPTH / 2 - OUT), rz = fz - dr * (DEPTH / 2 - OUT);
+          if (dc !== 0) {
+            // parede leste/oeste → nervuras nas duas pontas ao longo de Z (comprida em Z)
+            addRib(rx, cz - HALF, 1); addRib(rx, cz + HALF, 1);
+          } else {
+            // parede norte/sul → nervuras nas duas pontas ao longo de X (comprida em X)
+            addRib(cx - HALF, rz, 0); addRib(cx + HALF, rz, 0);
+          }
+        }
       }
-      if (pts.length) {
-        const mk = (geo: THREE.BufferGeometry, y: number) => {
-          const inst = new THREE.InstancedMesh(geo, rockMat, pts.length);
+      if (ribs.length) {
+        const geoX = new THREE.BoxGeometry(0.52, CH, DEPTH);       // fuste (comprido em X)
+        const geoZ = new THREE.BoxGeometry(DEPTH, CH, 0.52);       // fuste (comprido em Z)
+        const capX = new THREE.BoxGeometry(0.64, 0.16, DEPTH + 0.06);
+        const capZ = new THREE.BoxGeometry(DEPTH + 0.06, 0.16, 0.64);
+        const mk = (geo: THREE.BufferGeometry, y: number, axis: 0 | 1) => {
+          const list = ribs.filter((rb) => rb.axis === axis);
+          if (!list.length) return;
+          const inst = new THREE.InstancedMesh(geo, rockMat, list.length);
           const m = new THREE.Matrix4();
-          pts.forEach((p, i) => { m.makeTranslation(p[0], y, p[1]); inst.setMatrixAt(i, m); });
+          list.forEach((rb, i) => { m.makeTranslation(rb.x, y, rb.z); inst.setMatrixAt(i, m); });
           inst.instanceMatrix.needsUpdate = true; this.world.add(inst);
         };
-        mk(new THREE.BoxGeometry(0.42, CH, 0.42), CH / 2);          // fuste
-        mk(new THREE.BoxGeometry(0.6, 0.18, 0.6), CH - 0.09);       // capitel
-        mk(new THREE.BoxGeometry(0.6, 0.2, 0.6), 0.1);              // base
+        mk(geoX, CH / 2, 0); mk(geoZ, CH / 2, 1);                  // fustes
+        mk(capX, CH - 0.09, 0); mk(capZ, CH - 0.09, 1);           // capitéis (junto ao teto)
       }
     }
 
@@ -4956,13 +4988,16 @@ export class Game {
     const HW = 1.25;                  // meia-largura do vão
     // 1) PORTA EM ARCO na parede norte (alvenaria contorna o vão até o teto)
     this.addArchWall(up.col, up.row, 0, -1, rockMat, HW, 2.5, CH);
-    // 2) DEGRAUS subindo p/ o NORTE atrás do arco, RECUADOS na parede (compactos e
-    //    íngremes → o topo some no alto). Começam no plano do arco e vão pra dentro.
-    const N = 8, stepH = 0.44, stepD = 0.3;
+    // 2) DEGRAUS subindo p/ o NORTE atrás do arco, RECUADOS na parede. Rampa SUAVE
+    //    (~31°): passo baixo (0.28) e piso FUNDO (0.46) → lê-se como escadaria de
+    //    verdade que sobe, não uma pilha quase vertical. Some no facho de luz lá em cima.
+    const N = 8, stepH = 0.28, stepD = 0.46;
     for (let i = 0; i < N; i++) {
       const y = i * stepH, z = zWall - i * stepD;
-      const st = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 - 0.1, stepH + 0.06, stepD + 0.02), stMat);
-      st.position.set(ux, y + stepH / 2, z); this.world.add(st);
+      // cada degrau é uma "caixa" com contra-degrau: espelho até o piso do degrau abaixo
+      const boxH = y + stepH; // do chão até o topo deste degrau (contra-degrau sólido)
+      const st = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 - 0.1, boxH, stepD + 0.02), stMat);
+      st.position.set(ux, boxH / 2, z); this.world.add(st);
     }
     const depth = N * stepD; // profundidade do recesso (p/ dentro da parede)
     // 3) PAREDES laterais e TETO do recesso (alvenaria) — enquadram o túnel que sobe
@@ -5764,18 +5799,31 @@ export class Game {
   }
 
   // material PBR de pedra (difuso + normal gerado) — o relevo aparece com a luz.
-  private pbrStone(url: string, key: string, opts: { rough?: number; normal?: number } = {}): THREE.MeshStandardMaterial {
+  private pbrStone(
+    url: string,
+    key: string,
+    opts: { rough?: number; normal?: number; repeat?: [number, number] } = {},
+  ): THREE.MeshStandardMaterial {
     const m = new THREE.MeshStandardMaterial({
       side: THREE.DoubleSide, color: 0xffffff,
       roughness: opts.rough ?? 0.95, metalness: 0.0,
     });
+    const rep = opts.repeat;
     this.loadArt(url, (t) => {
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      m.map = t;
+      // com repeat próprio, CLONA a textura (a original é cacheada e compartilhada
+      // com outros materiais — não podemos mudar seu .repeat globalmente).
+      let map = t;
+      if (rep) { map = t.clone(); map.needsUpdate = true; }
+      map.wrapS = map.wrapT = THREE.RepeatWrapping;
+      if (rep) map.repeat.set(rep[0], rep[1]);
+      m.map = map;
       const im = t.image as { width: number; height: number } | undefined;
       if (im) {
-        const nrm = this.normalFromImage(t.image as CanvasImageSource, im.width, im.height, key);
-        if (nrm) { m.normalMap = nrm; m.normalScale.set(opts.normal ?? 1.3, opts.normal ?? 1.3); }
+        let nrm = this.normalFromImage(t.image as CanvasImageSource, im.width, im.height, key);
+        if (nrm) {
+          if (rep) { nrm = nrm.clone(); nrm.needsUpdate = true; nrm.wrapS = nrm.wrapT = THREE.RepeatWrapping; nrm.repeat.set(rep[0], rep[1]); }
+          m.normalMap = nrm; m.normalScale.set(opts.normal ?? 1.3, opts.normal ?? 1.3);
+        }
       }
       m.needsUpdate = true;
     });
