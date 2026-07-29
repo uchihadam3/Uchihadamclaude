@@ -1059,6 +1059,62 @@ Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even l
 
 ---
 
+## 19 · Baú em 2D (billboard PNG único) — 🟡 arte pendente
+
+**Mudança de estética:** assumimos o **billboard 2D como estética geral do jogo** (NPCs,
+inimigos, equipamentos, props… e agora os **baús**). O baú deixa de ser objeto 3D
+(seção 17) e passa a ser **um PNG só**, plano que encara a câmera — igual aos aldeões.
+
+**Regras destes PNGs (billboard):**
+- **Fundo 100% TRANSPARENTE** (alpha), recorte limpo, **sem sombra assada** no chão.
+- **Vista 3/4 frontal**, o baú **em pé apoiado no chão** — a base encosta na borda de
+  baixo do quadro (o motor põe o pé no piso).
+- Estilo **arte de jogo pintada à mão**, casando com os outros sprites; paleta soturna
+  (madeira escura desgastada, ferro velho), leve luz quente de tocha na borda.
+- **1024×1024**. Nomes → salvar em `grimhollow/src/assets/env/`.
+
+### 🟡 19.1 — `dec_chest` (baú FECHADO)
+```
+Single 2D game sprite of a grim medieval treasure chest, CLOSED, front three-quarter view, standing upright on the ground. Dark aged wooden planks bound by riveted black iron corner brackets and two horizontal iron straps, a heavy ornate iron lock plate with a keyhole on the front. Weathered dungeon-worn dark wood, cool desaturated tone with a faint warm rim of torchlight. Hand-painted stylized game-art billboard sprite matching cut-out character sprites. Clean crisp edges, FULLY TRANSPARENT background (alpha channel), NO baked ground shadow, the chest base sits exactly on the bottom edge of the frame. Centered, even soft lighting, no text, no watermark, no border. 1024x1024.
+```
+
+### 🟡 19.2 — `dec_chest_open` (baú ABERTO — opcional, estado saqueado)
+```
+Single 2D game sprite of the SAME grim medieval treasure chest but OPEN — the lid tilted back on its iron hinges, revealing a warm golden glow, a few gold coins and a gem inside. Same dark aged wood, black iron straps and lock, same front three-quarter view standing on the ground. Hand-painted stylized game-art billboard sprite. Clean edges, FULLY TRANSPARENT background (alpha), NO baked ground shadow, base on the bottom edge of the frame. Centered, even soft lighting with the inner glow, no text, no watermark, no border. 1024x1024.
+```
+
+> Ao soltar `dec_chest.png` (e opcionalmente `dec_chest_open.png`) na pasta, eu troco o
+> baú 3D da masmorra pelo billboard e ligo o "abre ao interagir". Enquanto não vier, o
+> baú 3D atual continua funcionando (sem regressão).
+
+---
+
+## 20 · Props 2D em FOLHA p/ casas & lojas (billboard PNG) — 🟡 arte pendente
+
+**Ideia:** encher os interiores (casas/lojas) com **objetos 2D** (billboard) pra dar vida
+ao ambiente, na mesma estética. **Uma folha** com vários itens numa **grade regular** →
+eu **recorto** por célula e **posiciono** nos cômodos.
+
+**Regras da folha:**
+- **Grade 4 colunas × 3 linhas (12 itens)**, cada item **centralizado** na sua célula,
+  **mesma escala** e **mesma vista 3/4 frontal**, apoiado no chão (base perto da base da
+  célula). **Fundo TRANSPARENTE**, sem sombra assada, recorte limpo, **sem linhas de grade**.
+- Paleta soturna aconchegante (madeira envelhecida, ferro, luz de vela quente),
+  **iluminação consistente** entre todos os itens. **2048×1536**.
+- Nome → `props_casa.png` em `grimhollow/src/assets/env/`.
+
+### 🟡 20.1 — `props_casa` (folha de 12 props de interior)
+```
+Sprite sheet of medieval fantasy INTERIOR PROPS for a grim cozy village house and shop, arranged in a NEAT 4-column by 3-row GRID of 12 items, each item CENTERED in its own cell with generous even spacing, ALL at a consistent scale and the SAME front three-quarter billboard view, each standing on the ground (base near the bottom of its cell). Items, in order: (1) wooden barrel, (2) wooden crate, (3) stacked burlap sacks, (4) round clay pots and amphora, (5) three-legged wooden stool, (6) small round wooden table, (7) wooden bookshelf full of books, (8) tall wooden cupboard cabinet, (9) woven basket with produce, (10) iron candelabra with lit candles, (11) bundle of chopped firewood logs, (12) hanging bundle of dried herbs. Hand-painted stylized game art, dark cozy medieval palette (aged wood, black iron, warm candlelight), soft consistent lighting across every item, crisp cut-out edges. FULLY TRANSPARENT background (alpha channel), no baked shadows, no grid lines, no text, no watermark, no border. 2048x1536.
+```
+
+> Recorto os 12, cada um vira um billboard (igual aos aldeões), e eu espalho nos
+> interiores (barril/caixa/sacos no armazém, estante/mesa/vela na casa, etc.). Se ficar
+> bom, a gente faz **folhas temáticas** depois (ferraria: bigorna/rack de armas;
+> alquimista: caldeirão/prateleira de poções; taverna: canecas/tonéis).
+
+---
+
 # 📜 Catálogo de Itens (planejamento de design)
 
 > Esta parte **não tem prompts ainda** — é o **mapa dos itens** que a gente
