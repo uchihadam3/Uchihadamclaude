@@ -4891,7 +4891,7 @@ export class Game {
     // ao santuário (não é teleporte: ao passar, um loading leva ao pé da escada).
     const sanc = dungeonAll("A")[0];
     if (sanc) {
-      const stMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide });
+      const stMat = rockMat; // MESMA alvenaria PBR das paredes (coesão)
       const bx = sanc.col * CELL - CELL * 0.4, bz = sanc.row * CELL; // pé da escada (célula 'A')
       const N = 9; // degraus subindo p/ leste, sumindo no escuro (a escada "continua")
       for (let i = 0; i < N; i++) {
@@ -4928,7 +4928,7 @@ export class Game {
   // sobe), sumindo na claridade lá em cima. O jogador vê a "porta" na parede e a escada
   // subindo atrás dela.
   private buildReturnStairs(up: { col: number; row: number }, rockMat: THREE.Material, CH: number) {
-    const stMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide, emissive: new THREE.Color(0x2a2620) });
+    const stMat = rockMat; // MESMA alvenaria PBR das paredes (coesão total)
     const ux = up.col * CELL, uz = up.row * CELL;
     const zWall = uz - CELL / 2;      // plano da parede norte da célula U
     const HW = 1.25;                  // meia-largura do vão
@@ -5110,42 +5110,40 @@ export class Game {
     this.glowLight(6 * CELL, 2.4, 6 * CELL, 0x6f8fb4, 1.7, 10);
     this.glowLight(8 * CELL, 1.8, 5 * CELL, 0x5f7ea6, 1.2, 8);
 
-    // ACENTOS DE COR VIVA (estilo Arcmaze): CRISTAIS mágicos em alguns pontos. Gemas
-    // com emissivo FORTE → dão BLOOM (halo brilhante) e uma poça de luz colorida em
-    // volta, esmaecendo. A cor fica CONCENTRADA nesses focos; o resto segue soturno.
-    const crystal = (col: number, row: number, hex: number) => {
-      if (dungeonCell(col, row) !== "floor" || this.blocked.has(`${col},${row}`)) return;
+    // ACENTOS DE COR VIVA (estilo Arcmaze): CRISTAIS/lâmpadas mágicas EMBUTIDAS NO TETO.
+    // Gemas com emissivo FORTE → dão BLOOM (halo brilhante) e uma luz colorida descendo
+    // sobre o ambiente. Cor CONCENTRADA no foco; o resto segue soturno. (No teto, não no
+    // chão — não atrapalha a passagem.)
+    const ceilGem = (col: number, row: number, hex: number) => {
       const cx = col * CELL, cz = row * CELL, color = new THREE.Color(hex);
-      // pequena base de rocha
-      const base = new THREE.Mesh(new THREE.DodecahedronGeometry(0.42, 0), stoneDk);
-      base.position.set(cx, 0.16, cz); base.scale.y = 0.6; this.world.add(base);
-      // shards de cristal (octaedros alongados) emissivos → bloom
-      const gemMat = new THREE.MeshStandardMaterial({ color: hex, emissive: color, emissiveIntensity: 2.6, roughness: 0.18, metalness: 0.0 });
-      const n = 4 + Math.floor(hash(col, row, 3) * 3);
+      // soquete de pedra (MESMA alvenaria tex_stonewall) embutido no teto
+      const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.68, 0.3, 8), stone);
+      socket.position.set(cx, CH - 0.15, cz); this.world.add(socket);
+      const gemMat = new THREE.MeshStandardMaterial({ color: hex, emissive: color, emissiveIntensity: 2.9, roughness: 0.16, metalness: 0.0 });
+      // gema central pendendo do teto → bloom
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.3, 0), gemMat);
+      gem.position.set(cx, CH - 0.55, cz); gem.scale.y = 1.7; this.world.add(gem);
+      const n = 3 + Math.floor(hash(col, row, 3) * 3);
       for (let i = 0; i < n; i++) {
-        const hgt = 0.55 + hash(col, row, i + 5) * 1.0;
-        const a = hash(col, row, i + 9) * Math.PI * 2, rr = hash(col, row, i + 13) * 0.32;
-        const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.13 + hash(col, row, i) * 0.09, 0), gemMat);
-        shard.position.set(cx + Math.cos(a) * rr, 0.3 + hgt / 2, cz + Math.sin(a) * rr);
-        shard.scale.y = 2.0 + hash(col, row, i + 17) * 1.2; shard.rotation.set(0.2, a, 0.15);
-        this.world.add(shard);
+        const a = hash(col, row, i + 9) * Math.PI * 2, rr = 0.18 + hash(col, row, i + 13) * 0.22;
+        const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.09 + hash(col, row, i) * 0.06, 0), gemMat);
+        shard.position.set(cx + Math.cos(a) * rr, CH - 0.42 - hash(col, row, i + 5) * 0.32, cz + Math.sin(a) * rr);
+        shard.scale.y = 1.5; shard.rotation.set(0.3, a, 0.2); this.world.add(shard);
       }
-      this.glowLight(cx, 1.1, cz, hex, 3.4, 8.5); // poça colorida (onde o budget deixa)
-      this.blocked.add(`${col},${row}`);
+      this.glowLight(cx, CH - 1.0, cz, hex, 3.8, 9.5); // luz colorida descendo do teto
     };
-    // coloca perto do alvo, na 1ª célula de PISO livre (evita cair em E/C/K/B/parede)
-    const placeCrystal = (col: number, row: number, hex: number) => {
+    // acha um PISO (sala embaixo) perto do alvo e pendura a gema no TETO acima
+    const placeGem = (col: number, row: number, hex: number) => {
       const around = [[0,0],[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1],[2,0],[-2,0],[0,2],[0,-2]];
       for (const [dc, dr] of around) {
         const c = col + dc, r = row + dr;
-        if (dungeonCell(c, r) === "floor" && !this.blocked.has(`${c},${r}`)) { crystal(c, r, hex); return; }
+        if (dungeonCell(c, r) === "floor") { ceilGem(c, r, hex); return; }
       }
     };
-    // poucos e espalhados (acentos, não decoração de tudo): violeta, ciano, verde, âmbar
-    placeCrystal(35, 7, 0x9b5cff);   // NE — violeta arcano
-    placeCrystal(18, 15, 0x35d0ff);  // centro-alto — ciano
-    placeCrystal(28, 23, 0x53e06a);  // dir-baixo — verde
-    placeCrystal(8, 31, 0xff7a3c);   // esq-baixo — âmbar-quente
+    placeGem(35, 7, 0x9b5cff);   // NE — violeta arcano
+    placeGem(18, 15, 0x35d0ff);  // centro-alto — ciano
+    placeGem(28, 23, 0x53e06a);  // dir-baixo — verde
+    placeGem(8, 31, 0xff7a3c);   // esq-baixo — âmbar-quente
     // portal do SANTUÁRIO com brilho VIOLETA arcano (acento no ponto-chave)
     const asanc = dungeonAll("A")[0];
     if (asanc) this.glowLight(asanc.col * CELL - 1.2, 1.6, asanc.row * CELL, 0xb060ff, 3.2, 9);
