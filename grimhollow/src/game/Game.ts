@@ -1388,10 +1388,10 @@ export class Game {
       this.addForestLights();
       this.buildForest();
     } else if (loc === "dungeon") {
-      // masmorra: neblina cinza-azulada fechada (como a cidade, porém mais escura)
-      // — dá profundidade e clareia o fundo sem perder o clima de caverna.
-      this.scene.fog = new THREE.Fog(0x3a3e49, CELL * 2.5, CELL * 13);
-      this.scene.background = new THREE.Color(0x2f323c);
+      // masmorra CLARA (estilo Arcmaze): neblina cinza mais clara e MAIS LONGE, p/ o
+      // ambiente ler bem iluminado em vez de escuro/fechado.
+      this.scene.fog = new THREE.Fog(0x565c66, CELL * 5, CELL * 20);
+      this.scene.background = new THREE.Color(0x4a4f59);
       this.addDungeonLights();
       this.buildDungeon();
     } else if (loc === "showcase") {
@@ -4179,8 +4179,10 @@ export class Game {
     // masmorra-labirinto é grande e as tochas (limitadas) se espalham → sobe a luz
     // ambiente base p/ os corredores sem tocha não ficarem pretos (visível como o
     // Arcmaze), mantendo a paleta fria/pedra.
-    this.world.add(new THREE.AmbientLight(0x8b93a3, 1.15));
-    this.world.add(new THREE.HemisphereLight(0x9aa4b8, 0x2c2a26, 0.72));
+    // masmorra CLARA (estilo Arcmaze) — o jogo estava escuro demais. Ambiente alto +
+    // hemisfério, paleta fria-neutra de pedra.
+    this.world.add(new THREE.AmbientLight(0xb9c0cc, 1.85));
+    this.world.add(new THREE.HemisphereLight(0xc2ccd8, 0x40403a, 1.05));
   }
 
   private addShowcaseLights() {
@@ -4705,15 +4707,10 @@ export class Game {
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
     // texturas de caverna (PNG). O teto usa a rocha mais escura → sensação de
     // PROFUNDIDADE (o relevo do teto some no escuro lá em cima).
-    // PAREDE DA MASMORRA: SÓ ALVENARIA (uma textura), como pedido — sem a variação das
-    // 10. Usa o PNG de alvenaria (tex_dwall_3); fallback p/ a pedra das casas se faltar.
-    // Leve escurecimento p/ o tom soturno. Serve p/ paredes, arcos e escadas (coeso).
-    const rockMat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide, color: 0xc2c2c2 });
-    {
-      const url = dwallUrl(3);
-      if (url) this.loadArt(url, (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; rockMat.map = t; rockMat.needsUpdate = true; });
-      else rockMat.map = tex.stone(31); // fallback: alvenaria das casas
-    }
+    // PAREDE DA MASMORRA: ALVENARIA das CASAS (tex_stonewall) — blocos de pedra/cimento,
+    // como pedido. Cor cheia (branco) p/ ficar CLARO (o jogo estava escuro demais); a
+    // claridade vem da luz ambiente alta (estilo Arcmaze). Serve paredes/arcos/escadas.
+    const rockMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide, color: 0xffffff });
     const floorMat = new THREE.MeshLambertMaterial({ map: tex.caveFloor(), side: THREE.DoubleSide });
     const ceilMat = new THREE.MeshLambertMaterial({ map: tex.caveCeil(), side: THREE.DoubleSide });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
@@ -4749,6 +4746,9 @@ export class Game {
         // paredes de ROCHA com relevo
         for (const [dc, dr] of DIRS) {
           const nk = dungeonCell(c + dc, r + dr);
+          // a face NORTE da escada de volta (U) é da buildReturnStairs (arco + degraus
+          // recuados na parede) — não renderiza parede/tocha comum aqui.
+          if (k === "stairs" && dc === 0 && dr === -1) continue;
           const isRock = nk === "wall";
           const illus = secret && nk !== "secret" && isCorr(c + dc, r + dr);
           if (isRock || illus) {
@@ -4862,41 +4862,47 @@ export class Game {
     this.spawnDungeonEnemy(); // um inimigo perto do jogador
   }
 
-  // escadaria de pedra subindo à superfície na célula de saída (U). Degraus
-  // ascendentes p/ o norte, paredes laterais e um facho de luz do dia quente.
+  // ESCADA DE VOLTA (U): NÃO é um bloco solto no corredor — é um vão em ARCO na parede
+  // NORTE com os degraus subindo RECUADOS PARA DENTRO da parede (como um túnel que
+  // sobe), sumindo na claridade lá em cima. O jogador vê a "porta" na parede e a escada
+  // subindo atrás dela.
   private buildReturnStairs(up: { col: number; row: number }, rockMat: THREE.Material, CH: number) {
-    const stMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide });
-    const bx = up.col * CELL, bz = up.row * CELL;
-    const N = 9; // degraus subindo p/ o norte (−z), sumindo na claridade lá em cima
+    const stMat = new THREE.MeshLambertMaterial({ map: tex.stone(31), side: THREE.DoubleSide, emissive: new THREE.Color(0x2a2620) });
+    const ux = up.col * CELL, uz = up.row * CELL;
+    const zWall = uz - CELL / 2;      // plano da parede norte da célula U
+    const HW = 1.25;                  // meia-largura do vão
+    // 1) PORTA EM ARCO na parede norte (alvenaria contorna o vão até o teto)
+    this.addArchWall(up.col, up.row, 0, -1, rockMat, HW, 2.5, CH);
+    // 2) DEGRAUS subindo p/ o NORTE atrás do arco, RECUADOS na parede (compactos e
+    //    íngremes → o topo some no alto). Começam no plano do arco e vão pra dentro.
+    const N = 8, stepH = 0.44, stepD = 0.3;
     for (let i = 0; i < N; i++) {
-      const h = 0.16 + (i + 1) * 0.4;
-      const st = new THREE.Mesh(new THREE.BoxGeometry(2.9, h, 0.66), stMat);
-      st.position.set(bx, h / 2, bz - i * 0.6);
-      this.world.add(st);
+      const y = i * stepH, z = zWall - i * stepD;
+      const st = new THREE.Mesh(new THREE.BoxGeometry(HW * 2 - 0.1, stepH + 0.06, stepD + 0.02), stMat);
+      st.position.set(ux, y + stepH / 2, z); this.world.add(st);
     }
-    // paredes laterais do vão (enquadram a escadaria)
+    const depth = N * stepD; // profundidade do recesso (p/ dentro da parede)
+    // 3) PAREDES laterais e TETO do recesso (alvenaria) — enquadram o túnel que sobe
     for (const s of [-1, 1]) {
-      const side = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 2.2, CH), rockMat);
-      side.position.set(bx + s * 1.55, CH / 2, bz - CELL * 0.7);
-      side.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2;
-      this.world.add(side);
+      const side = new THREE.Mesh(new THREE.PlaneGeometry(depth + 0.3, CH), rockMat);
+      side.position.set(ux + s * HW, CH / 2, zWall - depth / 2 + 0.15);
+      side.rotation.y = s > 0 ? -Math.PI / 2 : Math.PI / 2; this.world.add(side);
     }
-    // "abertura" de pedra no topo (arco) por onde entra a luz
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.8, 1.2), stMat);
-    lintel.position.set(bx, CH * 0.62, bz - N * 0.58);
-    this.world.add(lintel);
-    // FACHO de luz do dia (cilindro macio aditivo) descendo do topo até os degraus
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, depth + 0.3), rockMat);
+    top.rotation.x = Math.PI / 2; top.position.set(ux, CH, zWall - depth / 2 + 0.15); this.world.add(top);
+    // 4) FUNDO escuro no topo do recesso → a escada "continua" subindo p/ a superfície
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, CH), new THREE.MeshBasicMaterial({ color: 0x14161c }));
+    back.position.set(ux, CH / 2, zWall - depth - 0.05); this.world.add(back);
+    // 5) FACHO de luz do dia quente descendo pela escada + luzes de preenchimento
     const shaftMat = new THREE.MeshBasicMaterial({
       map: this.dropGlowTexture(), color: new THREE.Color(0xffe2b0),
-      transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide,
+      transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
     });
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.7, CH * 0.9, 16, 1, true), shaftMat);
-    shaft.position.set(bx, CH * 0.45, bz - N * 0.5);
-    this.world.add(shaft);
-    // luzes quentes: forte no alto (a superfície) + preenchimento sobre os degraus
-    this.glowLight(bx, CH * 0.75, bz - N * 0.55, 0xffdca0, 6.0, 18);
-    this.glowLight(bx, 2.0, bz - N * 0.3, 0xffcf8a, 3.2, 11);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.2, CH * 0.9, 14, 1, true), shaftMat);
+    shaft.position.set(ux, CH * 0.5, zWall - depth * 0.6); this.world.add(shaft);
+    this.glowLight(ux, N * stepH + 0.4, zWall - depth * 0.7, 0xffe0a8, 5.5, 13);
+    this.glowLight(ux, 1.7, zWall - 0.3, 0xffcf8a, 2.8, 8);
   }
 
   // textura de TEIA DE ARANHA (raios + arcos concêntricos a partir de um canto)
@@ -5055,9 +5061,10 @@ export class Game {
     const uF = facePng("bau_frente"), uL = facePng("bau_lado");
     const uTF = facePng("bau_tampa_frente"), uTT = facePng("bau_tampa_topo");
     if (uF && uL && uTF && uTT) {
-      // material que começa branco e recebe o mapa quando o PNG carrega (sem tingir)
+      // material com emissivo quente baixo → o baú (madeira escura) NÃO fica preto
+      // em canto sem luz; lê bem mesmo na sombra.
       const mk = (url: string) => {
-        const m = new THREE.MeshLambertMaterial({ color: 0xffffff });
+        const m = new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: new THREE.Color(0x2b2118) });
         this.loadArt(url, (t) => { m.map = t; m.needsUpdate = true; });
         return m;
       };
