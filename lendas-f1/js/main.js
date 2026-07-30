@@ -81,6 +81,38 @@ const audio=new F1Audio();
 let audioOn=false, shakeX=0, shakeY=0;
 const halfW=track.half;
 
+/* ---------- MINIMAPA ---------- */
+const miniCvs=document.getElementById('mini');
+const mctx=miniCvs&&miniCvs.getContext('2d');
+let mapPts=[], mapFn=null;
+if(mctx){
+  const W=miniCvs.width, H=miniCvs.height, pad=12;
+  const sample=curve.getSpacedPoints(240).map(p=>[p.x,p.z]);
+  let minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+  for(const [x,z] of sample){ minX=Math.min(minX,x);maxX=Math.max(maxX,x);minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z); }
+  const sx=(W-2*pad)/(maxX-minX), sz=(H-2*pad)/(maxZ-minZ), s=Math.min(sx,sz);
+  const ox=(W-(maxX-minX)*s)/2, oz=(H-(maxZ-minZ)*s)/2;
+  mapFn=(x,z)=>[ox+(x-minX)*s, H-(oz+(z-minZ)*s)];   // z pra cima = norte
+  mapPts=sample.map(([x,z])=>mapFn(x,z));
+}
+function drawMini(){
+  if(!mctx) return;
+  const W=miniCvs.width,H=miniCvs.height;
+  mctx.clearRect(0,0,W,H);
+  // traçado
+  mctx.lineJoin='round'; mctx.lineCap='round';
+  mctx.strokeStyle='rgba(255,255,255,0.85)'; mctx.lineWidth=4;
+  mctx.beginPath(); mapPts.forEach((p,i)=> i?mctx.lineTo(p[0],p[1]):mctx.moveTo(p[0],p[1])); mctx.closePath(); mctx.stroke();
+  mctx.strokeStyle='rgba(60,64,72,0.9)'; mctx.lineWidth=1.6; mctx.stroke();
+  // largada/chegada
+  if(track.sf){ const [gx,gy]=mapFn(track.sf.x,track.sf.z);
+    mctx.fillStyle='#ffffff'; mctx.fillRect(gx-3,gy-3,6,6); }
+  // pontinho do carro
+  const [cx,cy]=mapFn(car.position.x,car.position.z);
+  mctx.beginPath(); mctx.arc(cx,cy,5,0,7); mctx.fillStyle='#f2c400'; mctx.fill();
+  mctx.lineWidth=2; mctx.strokeStyle='#1b1b1b'; mctx.stroke();
+}
+
 function frame(){
   const dt=Math.min(clock.getDelta(),0.05);
 
@@ -162,6 +194,7 @@ function frame(){
   if(hudGear) hudGear.textContent=gear;
   // linhas de velocidade (overlay)
   if(speedFX) speedFX.style.opacity = (spd01>0.45? (spd01-0.45)/0.55*0.9 : 0).toFixed(2);
+  drawMini();
 
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
@@ -180,7 +213,7 @@ function enableAudio(){ try{ audio.start(); audioOn=true; }catch(e){}
 if(startBtn) startBtn.addEventListener('click', enableAudio);
 addEventListener('pointerdown', enableAudio, {once:true});
 
-window.__f1={scene,camera,car,track,renderer};   // debug/verificação
+window.__f1={scene,camera,car,track,renderer}; window.__audio=audio;   // debug/verificação
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();

@@ -8,9 +8,12 @@ export class F1Audio {
   constructor(){ this.ready=false; }
 
   start(){
-    if(this.ready) { if(this.ctx.state==='suspended') this.ctx.resume(); return; }
+    if(this.ready) { if(this.ctx.state!=='running') this.ctx.resume(); return; }
     const Ctx = window.AudioContext||window.webkitAudioContext;
     const ctx = this.ctx = new Ctx();
+    // desbloqueio iOS/Safari: toca um buffer silencioso dentro do gesto
+    try{ const b=ctx.createBuffer(1,1,22050); const s=ctx.createBufferSource();
+      s.buffer=b; s.connect(ctx.destination); s.start(0); }catch(e){}
     const now = ctx.currentTime;
 
     // ---- master ----
@@ -72,11 +75,13 @@ export class F1Audio {
 
     this.ready=true;
     master.gain.setTargetAtTime(0.9, now, 0.4);
+    if(ctx.state!=='running') ctx.resume();     // garante o start dentro do gesto
   }
 
   // rpm: 4000..15000 | throttle: 0..1 | speed km/h | onKerb bool
   update(rpm, throttle, speed, onKerb, dt){
-    if(!this.ready||this.ctx.state!=='running') return;
+    if(!this.ready) return;
+    if(this.ctx.state!=='running'){ this.ctx.resume(); return; }
     const ctx=this.ctx, t=ctx.currentTime, T=0.03;
     // fundamental ~ rpm/60 * 3 firings (V6) -> 200..750 Hz
     const f0 = rpm/60*3;

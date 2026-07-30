@@ -32,6 +32,9 @@
   .flag{display:inline-block;width:11px;height:11px;border-radius:2px;background:
     linear-gradient(135deg,#009c3b 0 40%,#ffdf00 40% 60%,#002776 60% 100%);vertical-align:middle;margin-right:6px}
   #tag{position:fixed;top:14px;right:16px;color:#fff;font-size:11px;opacity:.65;text-shadow:0 1px 4px #000}
+  #mini{position:fixed;top:40px;right:14px;width:140px;height:150px;pointer-events:none;
+    background:rgba(10,12,16,.42);border:1px solid rgba(255,255,255,.18);border-radius:10px;
+    backdrop-filter:blur(3px)}
   #sound{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
     background:rgba(12,14,18,.82);color:#fff;border:1px solid rgba(255,255,255,.25);
     padding:16px 26px;border-radius:40px;font-size:17px;font-weight:700;cursor:pointer;
@@ -45,7 +48,8 @@
 <div id="speedfx"></div>
 <div id="vig"></div>
 <div id="title"><b><span class="flag"></span>LENDAS DA F1</b><span>Interlagos — pista real · 1 carro</span></div>
-<div id="tag">v0.2 · protótipo</div>
+<div id="tag">v0.3 · protótipo</div>
+<canvas id="mini" width="140" height="150"></canvas>
 <div id="hud">
   <div class="row"><span class="big" id="spd">0</span><span class="unit">km/h</span></div>
   <div class="g">força lateral <b id="gforce">0.0</b> G</div>
