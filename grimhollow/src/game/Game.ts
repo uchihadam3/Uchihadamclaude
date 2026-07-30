@@ -1426,15 +1426,18 @@ export class Game {
     this.stashCell = null; // só a casa da Hedda define o baú (em buildHome)
     this.ui.hideDialogue();
     if (loc === "village") {
-      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 2.6, CELL * 11);
+      // MEIO-TERMO atmosférico: névoa puxada pra trás o bastante p/ revelar os
+      // telhados, os postes, a montanha e o CÉU (contraste com a dungeon fechada),
+      // mas ainda com bruma no médio/longo alcance mantendo o mistério grim.
+      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 4, CELL * 21);
       this.scene.background = new THREE.Color(FOG_COLOR);
       this.addVillageLights();
       this.buildVillage();
     } else if (loc === "forest") {
-      // a MESMA neblina do vilarejo cobre a floresta — a névoa é um elemento
-      // constante do mundo (lore). Um pouco mais aberta que na vila, por ser
-      // externo, mas com a mesma cor/caráter.
-      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 3.5, CELL * 18);
+      // a MESMA neblina do mundo cobre a floresta, um pouco mais aberta por ser
+      // externa — dá pra ver as copas e o céu por entre as árvores, com bruma ao
+      // fundo. Mesma cor/caráter da vila.
+      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 4.5, CELL * 24);
       this.scene.background = new THREE.Color(FOG_COLOR);
       this.addForestLights();
       this.buildForest();
@@ -4442,23 +4445,33 @@ export class Game {
     cv.width = W; cv.height = H;
     const ctx = cv.getContext("2d")!;
     const img = ctx.createImageData(W, H);
-    // ardósia escura (zênite) → cor da névoa (horizonte)
-    const top = [0x24, 0x28, 0x31];        // #242831
-    const hor = [0x87, 0x90, 0xa0];        // FOG_COLOR 0x8790a0
+    // céu SOTURNO overcast: ardósia bem escura no zênite → clareia até a cor da
+    // névoa no horizonte, com bancos de nuvem em camadas (fbm) e uns rasgos mais
+    // claros pra dar profundidade. Bem mais rico/contrastado que o gradiente liso.
+    const top = [0x15, 0x18, 0x20];        // zênite escuro (#151820)
+    const mid = [0x3b, 0x42, 0x50];        // meio-céu ardósia
+    const hor = [0x87, 0x90, 0xa0];        // FOG_COLOR 0x8790a0 (horizonte = névoa)
     const mix = (a: number[], b: number[], t: number) =>
       a.map((v, i) => Math.round(v + (b[i] - v) * t));
     for (let y = 0; y < H; y++) {
       const v = y / (H - 1); // 0 = zênite (topo), 1 = horizonte (base)
-      // curva do gradiente: escurece devagar no alto, abre rápido perto do horizonte
-      const g = Math.pow(v, 0.72);
-      const base = mix(top, hor, g);
+      // dois trechos: zênite→meio (côncavo) e meio→horizonte (abre rápido no fim)
+      const base = v < 0.62
+        ? mix(top, mid, Math.pow(v / 0.62, 0.85))
+        : mix(mid, hor, Math.pow((v - 0.62) / 0.38, 1.35));
       for (let x = 0; x < W; x++) {
-        // nuvens macias na metade superior (somem perto do horizonte)
-        const n = this.fbm(x * 0.018, y * 0.05, 5.1);
-        const cloud = Math.min(1, Math.max(0, (n - 0.42) * 2.6)) * (1 - v) * 0.75;
-        // nuvem escurece (overcast) — tom levemente mais frio
-        const cCol = [base[0] * 0.62, base[1] * 0.64, base[2] * 0.7];
-        const px = mix(base, cCol, cloud);
+        // NUVENS em duas camadas de fbm (grande + detalhe), somem perto do horizonte
+        const big = this.fbm(x * 0.010, y * 0.030, 5.1);
+        const det = this.fbm(x * 0.032 + 40, y * 0.07 + 12, 2.3);
+        const cloudy = Math.max(0, (big * 0.7 + det * 0.3 - 0.44) * 2.7);
+        const fade = Math.pow(Math.max(0, 1 - v * 1.15), 0.9); // desaparece no horizonte
+        const cloud = Math.min(1, cloudy) * fade;
+        // rasgos claros (luz por trás das nuvens) onde o fbm grande é bem alto
+        const rift = Math.max(0, (big - 0.66) * 3.2) * fade * 0.5;
+        const dark = [base[0] * 0.5, base[1] * 0.54, base[2] * 0.62];   // nuvem sombria
+        const lite = mix(base, [0xb9, 0xc2, 0xcf], 0.6);                // rasgo claro
+        let px = mix(base, dark, cloud);
+        px = mix(px, lite, Math.min(0.7, rift));
         const i = (y * W + x) * 4;
         img.data[i] = px[0]; img.data[i + 1] = px[1]; img.data[i + 2] = px[2];
         img.data[i + 3] = 255;
@@ -4475,7 +4488,7 @@ export class Game {
 
   // cúpula de céu (esfera invertida) — sem fog (senão a névoa a apagaria) e sem
   // escrita de profundidade (fica sempre ATRÁS de tudo). Gira devagar no tick.
-  private addSkyDome() {
+  private addSkyDome(cx = WELL.c * CELL, cz = WELL.r * CELL) {
     const geo = new THREE.SphereGeometry(CELL * 24, 32, 20);
     const mat = new THREE.MeshBasicMaterial({
       map: this.villageSkyTexture(),
@@ -4485,8 +4498,8 @@ export class Game {
     });
     const dome = new THREE.Mesh(geo, mat);
     dome.renderOrder = -10; // desenha antes de tudo (fundo)
-    // centra na praça p/ o horizonte cair de forma coerente ao redor do jogador
-    dome.position.set(WELL.c * CELL, 0, WELL.r * CELL);
+    // centra na cena p/ o horizonte cair de forma coerente ao redor do jogador
+    dome.position.set(cx, 0, cz);
     this.world.add(dome);
     this.fogDome = dome;
   }
@@ -6305,6 +6318,9 @@ export class Game {
       }
     }
 
+    // céu soturno também na floresta (centrado no meio do mapa) — some o "vazio"
+    // chapado ao olhar p/ cima, igual à vila.
+    this.addSkyDome((FOREST_COLS / 2) * CELL, (FOREST_ROWS / 2) * CELL);
     this.buildForestBackdrop();
     this.buildForestVillageBackdrop();
     void MAP;
