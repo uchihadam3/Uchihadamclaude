@@ -133,17 +133,20 @@ const SKY_FRAG = `
     float el = dir.y;                                  // elevação (-1..1)
     float g = pow(clamp(el, 0.0, 1.0), 0.55);
     vec3 col = mix(uHor, uTop, g);
-    // leve calor extra na faixa baixa do céu perto do sol (glow atmosférico)
+    // ---- SOL ---- disco NÍTIDO e grande + brilho amplo + calor no céu perto dele
     float sd = max(dot(dir, normalize(uSunDir)), 0.0);
-    float horizonGlow = pow(clamp(1.0 - abs(el) * 3.0, 0.0, 1.0), 2.0) * pow(sd, 2.0);
-    col += uSun * horizonGlow * uSunI * 0.35;
-    // SOL: brilho amplo + disco
-    float sglow = pow(sd, 5.0) * 0.30 + pow(sd, 350.0) * 1.6;
-    col += uSun * sglow * uSunI;
-    // LUA: halo + disco frio
+    float sunGlow = pow(sd, 3.5) * 0.40 + pow(sd, 34.0) * 0.85; // aura
+    float sunDisc = smoothstep(0.9958, 0.9974, sd);             // disco (~5°)
+    col += uSun * sunGlow * uSunI;
+    col = mix(col, uSun * 1.25, sunDisc * uSunI);               // disco sólido por cima
+    // ---- LUA ---- disco frio grande + halo (com leve sombreado de "mares")
     float mo = max(dot(dir, normalize(uMoonDir)), 0.0);
-    float mglow = pow(mo, 90.0) * 0.35 + smoothstep(0.9988, 0.9994, mo) * 1.4;
-    col += vec3(0.80, 0.86, 1.0) * mglow * uMoonI;
+    float moonGlow = pow(mo, 24.0) * 0.45;
+    float moonDisc = smoothstep(0.9964, 0.9980, mo);            // disco (~5°)
+    vec3 moonCol = vec3(0.90, 0.94, 1.0);
+    float maria = 0.12 * hash(floor(dir * 700.0));              // manchas sutis
+    col += moonCol * moonGlow * uMoonI;
+    col = mix(col, moonCol * (1.0 - maria), moonDisc * uMoonI);
     // ESTRELAS: pontos por hash da direção, cintilando, só acima do horizonte
     if (uStarI > 0.01) {
       vec3 sp = floor(dir * 320.0);
@@ -1799,11 +1802,17 @@ export class Game {
       u.uStarI.value = ph.starI;
       u.uMoonI.value = ph.starI; // a lua acompanha as estrelas (noite)
       u.uTime.value = now * 0.001;
-      // arco do sol (leste→zênite→oeste) e a lua oposta
-      const ang = (t - 0.25) * Math.PI * 2;
-      const el = Math.sin(ang), hz = Math.cos(ang);
-      u.uSunDir.value.set(hz, el, 0.22).normalize();
-      u.uMoonDir.value.set(-hz, -el, -0.22).normalize();
+      // SOL e LUA percorrem o céu em ELEVAÇÃO BAIXA (~14°→30°) p/ ficarem sempre
+      // VISÍVEIS acima dos telhados (o jogo olha na horizontal). Giram no azimute
+      // ao longo do dia; a lua fica no lado oposto ao sol.
+      const ang = (t - 0.25) * Math.PI * 2; // 0 no amanhecer
+      const s = Math.sin(ang);
+      const Es = (14 + 16 * Math.max(0, s)) * (Math.PI / 180);  // elevação do sol
+      const Em = (14 + 16 * Math.max(0, -s)) * (Math.PI / 180); // elevação da lua
+      const ces = Math.cos(Es), ses = Math.sin(Es);
+      const cem = Math.cos(Em), sem = Math.sin(Em);
+      u.uSunDir.value.set(ces * Math.sin(ang), ses, ces * Math.cos(ang)).normalize();
+      u.uMoonDir.value.set(cem * Math.sin(ang + Math.PI), sem, cem * Math.cos(ang + Math.PI)).normalize();
     }
     // névoa + fundo acompanham a cor do HORIZONTE da etapa (costura com o céu)
     this._sky.setRGB(ph.hor[0], ph.hor[1], ph.hor[2], THREE.SRGBColorSpace);
