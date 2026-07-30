@@ -168,7 +168,24 @@ import icoMadeiraUrl from "../assets/item/madeira.png";
 import icoMinerioUrl from "../assets/item/minerio.png";
 import icoReforcoUrl from "../assets/item/reforco.png";
 import enemySkeletonUrl from "../assets/env/enemy_skeleton.png";
+import enemyRatoUrl from "../assets/env/enemy_rato.png";
+import enemyAranhaUrl from "../assets/env/enemy_aranha.png";
+import enemyArqueiroUrl from "../assets/env/enemy_arqueiro.png";
+import enemyCarnicalUrl from "../assets/env/enemy_carnical.png";
+import enemyCultistaUrl from "../assets/env/enemy_cultista.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
+// perfis dos inimigos (arte + stats FIXOS + tamanho + alcance de visão).
+// arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
+const ENEMY_TYPES: Record<string, {
+  art: string; hp: number; atk: number; xp: number; gold: number; vision: number; h: number;
+}> = {
+  rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7 },
+  aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0 },
+  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 10, xp: 22, gold: 6,  vision: 5, h: 2.6 },
+  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 8,  xp: 24, gold: 7,  vision: 6, h: 2.6 },
+  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8 },
+  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 6, h: 2.7 },
+};
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
 import decChestUrl from "../assets/env/dec_chest.png";
@@ -2224,10 +2241,11 @@ export class Game {
 
   // inimigo billboard no túnel da masmorra: guarda a escada, encara a câmera e
   // leva dano do golpe (3 acertos de perto e de frente e ele tomba).
-  private buildDungeonEnemy(c = 2, r = 4) {
-    // stats FIXOS (não escalam mais com o nível do herói) — dificuldade estável
-    const HP = 30, ATK = 10, XP = 22, GOLD = 6, VISION = 5;
-    const worldH = 2.6; // célula do inimigo (parametrizada por local)
+  private buildDungeonEnemy(c = 2, r = 4, typeId = "esqueleto") {
+    // perfil do tipo (arte + stats FIXOS + tamanho) — sem escalar com o herói
+    const T = ENEMY_TYPES[typeId] ?? ENEMY_TYPES.esqueleto;
+    const HP = T.hp, ATK = T.atk, XP = T.xp, GOLD = T.gold, VISION = T.vision;
+    const worldH = T.h; // altura do sprite (rato baixo, carniçal/cultista maiores)
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
       opacity: 0,
@@ -2269,7 +2287,7 @@ export class Game {
     //  de uniforms do shader no mobile → cena PRETA. A tocha do herói já ilumina.)
     // pré-carrega o sprite-sheet da explosão (pronto quando o inimigo morrer)
     if (!this.poofTex) this.loadArt(deathPoofUrl, (t) => (this.poofTex = this.fxFilter(t)));
-    this.loadArt(enemySkeletonUrl, (t) => {
+    this.loadArt(T.art, (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 0.47;
       mesh.geometry.dispose();
@@ -5425,7 +5443,12 @@ export class Game {
         if (picked.length >= 8) break; // teto de inimigos por andar
       }
     }
-    for (const p of picked) this.buildDungeonEnemy(p.col, p.row);
+    // variedade de tipos espalhados (mais fracos comuns, tanque/conjurador raros)
+    const pool = ["rato", "rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista"];
+    picked.forEach((p, i) => {
+      const t = pool[(i + Math.floor(Math.random() * pool.length)) % pool.length];
+      this.buildDungeonEnemy(p.col, p.row, t);
+    });
   }
 
   // ---- IA dos inimigos: visão (linha livre), perseguição e patrulha ----
