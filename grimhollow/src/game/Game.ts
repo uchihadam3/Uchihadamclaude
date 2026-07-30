@@ -76,7 +76,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -182,14 +182,16 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 const ENEMY_TYPES: Record<string, {
   art: string; hp: number; atk: number; xp: number; gold: number; vision: number; h: number;
   ranged?: boolean; melee?: boolean; range?: number; proj?: string; ai?: string; spd?: number;
+  tier?: "normal" | "mini" | "boss";
 }> = {
   rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7, ai: "flee_low", spd: 600 },
   aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0, ai: "chase", spd: 660 },
   esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 10, xp: 22, gold: 6,  vision: 5, h: 2.6, ai: "chase", spd: 780 },
   // arqueiro: SÓ à distância (flecha). cultista: distância (orbe) E melee (adaga). Ambos "kite".
-  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 9,  xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 720 },
-  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8, ai: "relentless", spd: 900 },
-  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, range: 6, proj: "orb", ai: "kite", spd: 760 },
+  // arqueiro anda BEM devagar (não fica correndo p/ manter distância) — spd alto.
+  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 9,  xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
+  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8, ai: "relentless", spd: 900, tier: "mini" },
+  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, range: 6, proj: "orb", ai: "kite", spd: 980 },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -1053,6 +1055,7 @@ interface EnemyEnt {
   range: number;               // alcance do ataque à distância (células)
   proj: string;                // tipo de projétil ("arrow" | "orb" | "")
   ai: string;                  // comportamento (chase/kite/flee_low/relentless)
+  tier: "normal" | "mini" | "boss"; // porte (afeta o tamanho da bolinha no minimapa)
   atkIsRanged: boolean;        // o ataque em curso é à distância?
   hitAt: number; dyingAt: number;
   atkAt: number; hitApplied: boolean; nextAtk: number;
@@ -1185,6 +1188,7 @@ export class Game {
   private storeStock: ItemInstance[] = [];                        // estoque rotativo da Rosa
   private storeStockPeriod = -1;                                  // meia-jornada da última rotação
   private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
+  private nextMiniRefresh = 0;                                    // throttle do redesenho do minimapa (bolinhas de inimigo)
   private dropGlowTex?: THREE.Texture;                            // textura do facho sutil (radial macia)
   private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
   private guideOn = true;                                         // guia/marcador (mapa+mundo) ligado?
@@ -1405,7 +1409,7 @@ export class Game {
     this.foliageFx = fx;
 
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.camera = new THREE.PerspectiveCamera(54, 1, 0.05, 400); // FOV mais fechado/centralizado (menos grande-angular), como a referência do Arcmaze
+    this.camera = new THREE.PerspectiveCamera(66, 1, 0.05, 400); // FOV um pouco mais aberto (combate menos "estreito", mais visão lateral)
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.world);
 
@@ -2305,7 +2309,7 @@ export class Game {
       hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
       homeC: c, homeR: r, aggro: false,
       ranged: T.ranged ?? false, melee: T.melee ?? true, range: T.range ?? 1, proj: T.proj ?? "",
-      ai: T.ai ?? "chase", approach: 0, chev,
+      ai: T.ai ?? "chase", tier: T.tier ?? "normal", approach: 0, chev,
       atkIsRanged: false, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0,
       stepAt: 0, stepDur: T.spd ?? 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
@@ -3742,6 +3746,12 @@ export class Game {
   // cima, então não polui o mapa (e evita conflito com a cor do Raro).
   private buildMiniDrops(): MiniDrop[] {
     return this.drops.filter((d) => d.kind === "item").map((d) => ({ c: d.c, r: d.r, color: d.color }));
+  }
+  // inimigos vivos p/ o minimapa (bolinha vermelha; tamanho pelo tier)
+  private buildMiniEnemies(): MiniEnemy[] {
+    return this.enemies
+      .filter((e) => !e.dyingAt)
+      .map((e) => ({ c: e.c, r: e.r, tier: e.tier }));
   }
 
   // pré-carrega as folhas de efeito (prontas quando a skill for usada)
@@ -5542,10 +5552,11 @@ export class Game {
   // KITE (arqueiro/cultista): muito perto → recua; longe/sem visão → aproxima;
   // na distância boa → segura posição e atira.
   private enemyKiteStep(e: EnemyEnt, now: number, dist: number) {
-    const keep = Math.max(2, e.range - 2); // distância confortável de tiro
-    if (dist < keep) this.enemyFleeStep(e, now);                        // recua p/ reabrir distância
-    else if (dist > e.range || !this.enemyCanSee(e)) this.enemyChaseStep(e, now); // aproxima p/ ter alcance/visão
-    else e.nextMove = now + 500;                                        // posição boa: segura e dispara
+    // recua SÓ quando o herói chega bem perto (2 células) — nada de ficar correndo o
+    // tempo todo p/ manter distância. Na maior parte segura a posição e atira.
+    if (dist <= 2) this.enemyFleeStep(e, now);                          // colado: dá um passo p/ trás
+    else if (dist > e.range || !this.enemyCanSee(e)) this.enemyChaseStep(e, now); // longe/sem visão: aproxima devagar
+    else e.nextMove = now + 900;                                        // posição boa: segura mais tempo e dispara
   }
   // patrulha: vagueia devagar perto do ponto de spawn (raio 2)
   private enemyPatrolStep(e: EnemyEnt, now: number) {
@@ -7079,6 +7090,7 @@ export class Game {
       pois: this.buildMiniPois(), locName: this.miniLocName(),
       waypoint: wp ? { c: wp.col, r: wp.row } : undefined,
       drops: this.buildMiniDrops(),
+      enemies: this.buildMiniEnemies(),
     });
     this.pushTracker(); // mantém o rastreador em sincronia com o estado da missão
   }
@@ -8711,6 +8723,11 @@ export class Game {
     this.updatePoofs(now);
     this.updateProjectiles(now);
     this.updateEnemyBolts(now);
+    // atualiza as bolinhas de inimigo no minimapa enquanto eles andam (throttle)
+    if (this.enemies.length && now >= this.nextMiniRefresh) {
+      this.pushMinimap();
+      this.nextMiniRefresh = now + 350;
+    }
     // ciclo dia/noite (cor da atmosfera, luzes e postes) — só em locais externos
     this.updateDayNight(now);
     // relógio do HUD (sol/lua orbitando) — anda mesmo em interiores

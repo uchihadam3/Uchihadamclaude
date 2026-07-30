@@ -392,9 +392,12 @@ export interface MinimapState {
   locName?: string; // nome do local atual (banner no topo do mapa)
   waypoint?: { c: number; r: number }; // destino da missão ativa (marcador-guia)
   drops?: MiniDrop[]; // itens caídos no chão (bolinha colorida por raridade)
+  enemies?: MiniEnemy[]; // inimigos vivos (bolinha vermelha; maior p/ mini/boss)
 }
 // item caído no chão marcado no minimapa — cor = raridade (agrupados por célula)
 export interface MiniDrop { c: number; r: number; color: string; }
+// inimigo no minimapa — bolinha vermelha; tamanho por "tier" (normal/mini/boss)
+export interface MiniEnemy { c: number; r: number; tier: "normal" | "mini" | "boss"; }
 
 // rastreador de missão (painel abaixo do minimapa): missão ativa + objetivo atual
 export interface TrackerData {
@@ -715,6 +718,25 @@ export function setupControls(
     ctx.fillText("!", 0, -s * 0.04);
     ctx.restore();
   };
+  // bolinha VERMELHA de inimigo — raio por tier (mini maior, boss bem maior)
+  const drawEnemyDot = (
+    ctx: CanvasRenderingContext2D, x: number, y: number, cell: number,
+    tier: "normal" | "mini" | "boss",
+  ) => {
+    const rad = cell * (tier === "boss" ? 0.46 : tier === "mini" ? 0.32 : 0.22);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fillStyle = tier === "boss" ? "#ff1f1f" : tier === "mini" ? "#ff4a24" : "#ff3b30";
+    ctx.shadowColor = "rgba(255,50,30,.9)"; ctx.shadowBlur = rad * (tier === "normal" ? 0.8 : 1.2);
+    ctx.fill(); ctx.shadowBlur = 0;
+    ctx.lineWidth = Math.max(1, rad * 0.26); ctx.strokeStyle = "rgba(60,6,4,.92)"; ctx.stroke();
+    // anel extra p/ o chefe destacar mais
+    if (tier === "boss") {
+      ctx.beginPath(); ctx.arc(x, y, rad * 1.35, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(1, rad * 0.16); ctx.strokeStyle = "rgba(255,90,60,.7)"; ctx.stroke();
+    }
+    ctx.restore();
+  };
   // pinta a "plaquinha" do rótulo (pílula escura + texto) centrada em (cx,cy)
   const drawLabelPill = (
     ctx: CanvasRenderingContext2D, cx: number, cy: number,
@@ -856,6 +878,14 @@ export function setupControls(
         drawDropDots(ctx, off + (dx + R) * cell + cell / 2, off + (dy + R) * cell + cell / 2, cell, colors);
       }
     }
+    // INIMIGOS: bolinha vermelha na célula (dentro da janela do minimapa)
+    if (s.enemies && s.enemies.length) {
+      for (const en of s.enemies) {
+        const dx = en.c - s.col, dy = en.r - s.row;
+        if (Math.abs(dx) > R || Math.abs(dy) > R) continue;
+        drawEnemyDot(ctx, off + (dx + R) * cell + cell / 2, off + (dy + R) * cell + cell / 2, cell, en.tier);
+      }
+    }
     // marcador-guia da missão (por cima dos ícones), se estiver na janela
     if (s.waypoint) {
       const dx = s.waypoint.c - s.col, dy = s.waypoint.r - s.row;
@@ -907,6 +937,10 @@ export function setupControls(
         drawDropDots(ctx, ox + c * cell + cell / 2, oy + r * cell + cell / 2, Math.max(10, cell), colors);
       }
     }
+    // INIMIGOS: bolinhas vermelhas (todas — o mapa grande mostra o andar inteiro)
+    if (s.enemies && s.enemies.length)
+      for (const en of s.enemies)
+        drawEnemyDot(ctx, ox + en.c * cell + cell / 2, oy + en.r * cell + cell / 2, Math.max(10, cell), en.tier);
     // marcador-guia da missão ativa, por cima de tudo
     if (s.waypoint)
       drawWaypoint(ctx, ox + s.waypoint.c * cell + cell / 2, oy + s.waypoint.r * cell + cell / 2, Math.max(18, cell * 1.35));
@@ -1866,6 +1900,15 @@ export function setupControls(
   };
   const slotAssign: (string | null)[] = loadSlots();
   const saveSlots = () => { try { localStorage.setItem(SLOT_KEY, JSON.stringify(slotAssign)); } catch { /* ignora */ } };
+  // habilidades que o jogador REMOVEU de propósito — o auto-preencher não as põe de
+  // volta (senão remover não teria efeito); re-equipar limpa esse status.
+  const REMOVED_KEY = "gh-hotbar-removed";
+  const loadRemoved = (): Set<string> => {
+    try { const a = JSON.parse(localStorage.getItem(REMOVED_KEY) || "[]"); return new Set(Array.isArray(a) ? a : []); }
+    catch { return new Set(); }
+  };
+  const removedSkills = loadRemoved();
+  const saveRemoved = () => { try { localStorage.setItem(REMOVED_KEY, JSON.stringify([...removedSkills])); } catch { /* ignora */ } };
   hbXpFill = hotbar.querySelector("#gh-hotbar-xp-fill") as HTMLElement;
   hbXpLv = hotbar.querySelector("#gh-hotbar-xp-lv") as HTMLElement;
 
@@ -2075,7 +2118,7 @@ export function setupControls(
     // auto-preenche slots VAZIOS com aprendidas ainda não colocadas (na ordem), p/ as
     // habilidades novas já aparecerem na barra; o jogador reordena com "Equipar".
     const placed = new Set(slotAssign.filter(Boolean) as string[]);
-    const free = availableSkills.filter((s) => !placed.has(s.id));
+    const free = availableSkills.filter((s) => !placed.has(s.id) && !removedSkills.has(s.id));
     for (let i = 0; i < HB_SKILLS && free.length; i++)
       if (!slotAssign[i]) { slotAssign[i] = free.shift()!.id; }
     let html = "";
@@ -2084,7 +2127,7 @@ export function setupControls(
       const s = slotAssign[i] ? availableSkills.find((k) => k.id === slotAssign[i]) : undefined;
       if (s) {
         html +=
-          `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}" ` +
+          `<button class="gh-sslot" data-skill="${s.id}" data-slot="${i}" title="${s.name}" ` +
           `style="left:${x}%;top:${HB_Y}%">` +
           (s.icon ? `<img src="${s.icon}" alt=""/>` : `<span class="gh-ss-x">✦</span>`) +
           `<span class="gh-ss-cool"></span>` +
@@ -2098,12 +2141,31 @@ export function setupControls(
     }
     actbar.innerHTML = html;
     actbar.style.display = "block"; // sempre visível
+    // TOQUE = usa a habilidade; SEGURAR (~500ms) = remove do slot (atalho). O uso
+    // dispara no soltar (toque curto) p/ o segurar não acionar a skill sem querer.
     actbar.querySelectorAll<HTMLButtonElement>(".gh-sslot[data-skill]").forEach((b) => {
+      let holdTimer: number | undefined;
+      let removed = false;
+      const clear = () => { if (holdTimer) { window.clearTimeout(holdTimer); holdTimer = undefined; } };
       b.addEventListener("pointerdown", (e) => {
         e.preventDefault();
-        const id = b.dataset.skill;
-        if (id) onSkill?.(id);
+        removed = false;
+        holdTimer = window.setTimeout(() => {
+          removed = true;
+          const slot = Number(b.dataset.slot);
+          const rid = b.dataset.skill;
+          slotAssign[slot] = null;
+          if (rid) { removedSkills.add(rid); saveRemoved(); } // não deixa o auto-preencher trazer de volta
+          saveSlots(); drawActionBar();
+          showToast("Habilidade removida do slot");
+        }, 500);
       });
+      b.addEventListener("pointerup", (e) => {
+        e.preventDefault(); clear();
+        if (!removed) { const id = b.dataset.skill; if (id) onSkill?.(id); }
+      });
+      b.addEventListener("pointerleave", clear);
+      b.addEventListener("pointercancel", clear);
       b.addEventListener("contextmenu", (e) => e.preventDefault());
     });
   };
@@ -2152,6 +2214,7 @@ export function setupControls(
         // se a skill já estava em outro slot, tira de lá (mover, não duplicar)
         for (let i = 0; i < HB_SKILLS; i++) if (slotAssign[i] === assignId) slotAssign[i] = null;
         slotAssign[slot] = assignId;
+        if (assignId) { removedSkills.delete(assignId); saveRemoved(); } // re-equipada: sai da lista de removidas
         saveSlots();
         drawActionBar();
         endAssign(true);
@@ -3057,6 +3120,7 @@ function injectStyle() {
     background:none;
     display:flex; align-items:center; justify-content:center; cursor:pointer;
     pointer-events:auto; -webkit-tap-highlight-color:transparent; overflow:hidden;
+    touch-action:none; user-select:none; -webkit-user-select:none; /* segurar p/ remover não seleciona/rola */
   }
   .gh-sslot:active { filter:brightness(1.2); }
   .gh-sslot img { width:90%; height:90%; object-fit:contain; pointer-events:none;
