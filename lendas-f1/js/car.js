@@ -20,6 +20,7 @@ export const TEAMS = {
   alpine:   {name:'Alpes Racing',  body:0x123f9e, bodyDark:0x0d2f77, accent:0xff2f8e, trim:0xffffff, band:0xf5c518, helmet:0xff2f8e, num:'10', sponsor:'MONTANHA'},
   haas:     {name:'Falcão GP',     body:0xe9ebee, bodyDark:0xb9bcc2, accent:0xd11f2a, trim:0x14161a, band:0xf5c518, helmet:0xd11f2a, num:'20', sponsor:'NIMBUS'},
   sauber:   {name:'Neon GP',       body:0x00e142, bodyDark:0x00a531, accent:0x101418, trim:0x101418, band:0xf5c518, helmet:0x00e142, num:'27', sponsor:'VOLTZ'},
+  jrtouro:  {name:'Touro Jr.',     body:0x14224e, bodyDark:0x0d1836, accent:0xf2f2f2, trim:0xda291c, band:0xf5c518, helmet:0xf2f2f2, num:'22', sponsor:'CASH'},
   brasil:   {name:'Brasil Lendas', body:0x0b7a3b, bodyDark:0x075027, accent:0xf5c518, trim:0x0b3fa3, band:0xf5c518, helmet:0xf5c518, num:'10', sponsor:'LENDAS'},
 };
 

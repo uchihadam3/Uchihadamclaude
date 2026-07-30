@@ -5,6 +5,7 @@
    ===================================================================== */
 import * as THREE from '../vendor/three.module.js';
 import { buildF1Car, TEAMS } from './car.js';
+import { carStats, tier, ranking } from './stats.js';
 import { buildTrack } from './track.js';
 import { F1Audio } from './audio.js';
 
@@ -287,8 +288,32 @@ const teamSel=document.getElementById('team');
 if(teamSel){
   for(const key in TEAMS){ const o=document.createElement('option'); o.value=key; o.textContent=TEAMS[key].name; teamSel.appendChild(o); }
   teamSel.value=currentTeam;
-  teamSel.addEventListener('change', ()=> setTeam(teamSel.value));
+  teamSel.addEventListener('change', ()=>{ setTeam(teamSel.value); if(!fichaPanel.classList.contains('hide')) renderFicha(); });
 }
+
+/* ---------- FICHA TÉCNICA (desempenho do carro) ---------- */
+const fichaBtn=document.getElementById('ficha');
+const fichaPanel=document.getElementById('fichaPanel');
+const fcard=document.getElementById('fcard');
+const barColor=v=> v>=88?'#22c55e' : v>=82?'#84cc16' : v>=77?'#eab308' : v>=73?'#f97316' : '#ef4444';
+function renderFicha(){
+  const s=carStats(currentTeam), tc=tier(s.geral), t=TEAMS[currentTeam];
+  const rows=[['Potência',s.potencia],['Eficiência',s.eficiencia],['Aerodinâmica',s.aero],
+              ['Chassi',s.chassi],['Pneus',s.pneus],['Confiabilidade',s.confiabilidade]];
+  const bars=rows.map(([lb,v])=>`<div class="srow"><span class="lb">${lb}</span>
+    <span class="bar"><i style="width:${v}%;background:${barColor(v)}"></i></span><span class="vl">${v}</span></div>`).join('');
+  const rk=ranking().map((r,i)=>{ const nm=TEAMS[r.key].name;
+    return `<div class="rk ${r.key===currentTeam?'me':''}"><span><span class="p">${i+1}º</span>${nm}</span><span class="g">${r.geral}</span></div>`;}).join('');
+  fcard.innerHTML=`<h2 style="color:#${(t.body>>>0).toString(16).padStart(6,'0')}">${t.name}</h2>
+    <div class="eng">Motor: ${s.engine} · Nº ${t.num} · patrocínio ${t.sponsor}</div>
+    <div class="ov"><span class="ovn">${s.geral}</span><span class="ovt" style="background:${tc.col}">${tc.txt}</span></div>
+    ${bars}
+    <h3>CLASSIFICAÇÃO DOS CARROS (2025)</h3>${rk}
+    <button class="fclose" id="fclose">Fechar</button>`;
+  document.getElementById('fclose').onclick=()=>fichaPanel.classList.add('hide');
+}
+if(fichaBtn){ fichaBtn.addEventListener('click', ()=>{ renderFicha(); fichaPanel.classList.remove('hide'); }); }
+fichaPanel.addEventListener('click', e=>{ if(e.target===fichaPanel) fichaPanel.classList.add('hide'); });
 
 window.__f1={scene,camera,get car(){return car;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();

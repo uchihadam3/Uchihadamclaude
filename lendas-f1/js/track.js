@@ -181,15 +181,24 @@ export function buildTrack(){
     new THREE.MeshStandardMaterial({map:chk,roughness:0.7}));
   chkM.rotation.x=-Math.PI/2; chkM.rotation.z=-rotY;
   chkM.position.set(sf.x+tanSF.x*2.0,0.045,sf.z+tanSF.z*2.0); G.add(chkM);
-  // caixas do grid escalonadas (onde cada carro larga)
-  const boxMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.5,transparent:true,opacity:0.9});
-  D.grid.forEach(g=>{
-    const b=new THREE.Mesh(new THREE.PlaneGeometry(2.4,0.12),boxMat);
-    b.rotation.x=-Math.PI/2; b.rotation.z=-rotY; b.position.set(g[0],0.045,g[1]); G.add(b);
-    const s1=new THREE.Mesh(new THREE.PlaneGeometry(0.12,4.0),boxMat);
-    s1.rotation.x=-Math.PI/2; s1.rotation.z=-rotY;
-    s1.position.set(g[0]-tanSF.x*2.0,0.045,g[1]-tanSF.z*2.0); G.add(s1);
-  });
+  // GRID de largada — alinhado à pista, espaçamento REAL (8 m, escalonado)
+  const boxMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.5,transparent:true,opacity:0.92});
+  const total=curve.getLength();
+  const NGRID=20, GAP=8.0, LAT=1.9;               // 8 m entre posições, alterna os lados
+  for(let i=0;i<NGRID;i++){
+    const d = 8 + i*GAP;                            // distância atrás da linha de largada
+    const uu = ((1 - d/total)%1 + 1)%1;
+    const p = curve.getPointAt(uu), t = curve.getTangentAt(uu).normalize(), l = leftOf(t);
+    const side = (i%2===0)? 1 : -1;                 // pole de um lado, alterna
+    const c = p.clone().addScaledVector(l, side*LAT);
+    const grp = new THREE.Group(); grp.position.set(c.x,0.045,c.z);
+    grp.rotation.y = Math.atan2(t.x,t.z); G.add(grp);   // ALINHA a caixa à direção da pista
+    const mk=(w,h,x,z)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),boxMat);
+      m.rotation.x=-Math.PI/2; m.position.set(x,0,z); grp.add(m); };
+    mk(2.2,0.14, 0, 1.7);        // linha frontal (onde alinha o bico)
+    mk(0.14,3.4, -1.05, 0.0);    // lateral esquerda
+    mk(0.14,3.4,  1.05, 0.0);    // lateral direita
+  }
   // pórtico de largada
   const gMat=new THREE.MeshStandardMaterial({color:0x14151a,metalness:0.5,roughness:0.5});
   for(const s of [1,-1]){ const p=sf.clone().addScaledVector(lSF, s*(HALF+1.2));
