@@ -87,10 +87,11 @@ export function buildField(scene, line){
     // mais velocidade final, mais curva (aero) ou mais freio (chassi)
     const cs=carStats(drv.team);
     const perf={
-      accel: 1+(cs.potencia-86)*0.010,
-      top:   101+(cs.potencia-86)*0.55,
-      corner:1+(cs.aero-84)*0.0045,
-      brake: 47+(cs.chassi-84)*0.12,
+      power:  880*(1+(cs.potencia-86)*0.012),   // potência/massa (~W/kg) -> aceleração e reta
+      traction: 11.5+(cs.chassi-84)*0.03,       // limite de tração na saída (0-100 ~2.5s real)
+      top:    95+(cs.potencia-86)*0.45,         // velocidade final (m/s) ~330-355 km/h
+      corner: 1+(cs.aero-84)*0.0045,            // aero -> velocidade de curva
+      brake0: 20+(cs.chassi-84)*0.10,           // freio base (baixa velocidade)
     };
     cars.push({ g, drv, style, perf, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
       pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9, gridOffset:side*LAT,
@@ -125,29 +126,41 @@ export function updateField(cars, line, dt, t, started){
 
     const f=idxOf(c), racingOff=at(line.offset,f,N);
     const skill=0.88+(c.pace-76)/17*0.10;
+    const cf=c.perf.corner*(1+0.012*c.style.cornerCarry);          // fator de curva carro+estilo
 
-    // ---- frenagem: perfil do carro + estilo do piloto ----
-    const brakeDecel = c.perf.brake + 6*c.style.brakeLate;         // ~46..57 m/s²
-    const margin = 1.22 - 0.20*c.style.brakeLate;
-    const brakeDist = c.speed*c.speed/(2*brakeDecel)*margin + 8;
-    let vCorner=99, minFi=f;
-    for(let s=1;s<=10;s++){ const dd=brakeDist*s/10; const fi=(((c.d+dd)/len)*N%N+N)%N;
-      const vv=at(line.vmax,fi,N); if(vv<vCorner){ vCorner=vv; minFi=fi; } }
-    // velocidade de curva: aero do carro + estilo do piloto
-    if(vCorner<80) vCorner *= c.perf.corner*(1+0.012*c.style.cornerCarry);
+    // ---- FRENAGEM REALISTA: o freio depende da velocidade (downforce) ----
+    // dec = b0 + kb·v² -> ~5.5g em alta velocidade, ~2.3g em baixa (como F1 real)
+    const b0=c.perf.brake0 + 2*c.style.brakeLate, kb=0.0042;
+    const marg=1.14 - 0.10*c.style.brakeLate;                      // late-brakers: menos margem
+    const vHere=at(line.vmax,f,N); const vNow=(vHere<80? vHere*cf : vHere);
+    let vAllow=99, minFi=f, apexDist=0;
+    for(let s=1;s<=20;s++){ const dd=10*s; const fi=(((c.d+dd)/len)*N%N+N)%N;
+      let vv=at(line.vmax,fi,N); if(vv<80) vv*=cf;
+      const dec=(b0+kb*(c.speed*c.speed+vv*vv)/2)/marg;            // desaceleração média até lá
+      const va=Math.sqrt(vv*vv+2*dec*dd);                          // vel. máxima AGORA pra conseguir frear
+      if(va<vAllow){ vAllow=va; minFi=fi; apexDist=dd; } }
+    let vApex=at(line.vmax,minFi,N); if(vApex<80) vApex*=cf;
     const insideSide = Math.sign(at(line.offset,minFi,N)) || 1;    // lado de DENTRO da curva à frente
-    const onStraight = vCorner>72;
-    const heavyBraking = c.speed - vCorner > 11;
+    const onStraight = vNow>72;
+    const bindingCorner = vApex<65;
+    const heavyBraking = bindingCorner && (c.speed - vApex > 10);
 
     // ---- forma oscilante (pneu/combustível/momento) ----
     c.form += (Math.random()-0.5)*0.004;
     c.form = THREE.MathUtils.clamp(c.form, -0.018, 0.018);
-    let targetV=Math.min(vCorner,99)*skill*(1+c.form)*(1-0.3*c.damage);
+    let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage);
 
     // ---- linha pessoal ----
     let tOff=racingOff*(0.96+0.05*c.style.cornerCarry)
            + c.style.lineBias
            + Math.sin(c.d*0.012 + c.style.phase)*0.3;
+
+    // ---- PREPARAÇÃO da curva: vai pro lado de FORA antes de virar ----
+    // (curva à direita -> abre pra esquerda primeiro, como na vida real)
+    if(heavyBraking){
+      const w=THREE.MathUtils.clamp((apexDist-12)/90, 0, 1);       // longe do apex = bem aberto
+      tOff += -insideSide*2.2*w;
+    }
 
     // ---- ERRO DE EXECUÇÃO da curva (realista: sai largo, faz a curva no meio) ----
     // decide UMA vez por curva, mais provável sob pressão do carro de trás
@@ -160,7 +173,7 @@ export function updateField(cars, line, dt, t, started){
     if(c.cornerErr) tOff += -insideSide*c.cornerErr;               // afasta do cantinho (abre a porta)
 
     // ---- DEFESA: sob ataque, bons defensores cobrem o lado de dentro ----
-    if(c.chaserGap<8 && (heavyBraking||vCorner<60) && !c.cornerErr){
+    if(c.chaserGap<8 && (heavyBraking||vNow<60) && !c.cornerErr){
       const def=THREE.MathUtils.clamp((c.drv.defesa-80)/20,0,1)*0.7;
       tOff=THREE.MathUtils.lerp(tOff, insideSide*3.2, def);
     }
@@ -188,12 +201,12 @@ export function updateField(cars, line, dt, t, started){
       const gap=gapAhead(ah,c);
       const sameLine=Math.abs(ah.offset-c.offset)<2.4;
       if(gap<45 && sameLine){
-        const safe=8 + c.speed*0.18;
+        const safe=(heavyBraking?11:8) + c.speed*(heavyBraking?0.22:0.18);   // mais espaço na freada
         if(gap<safe){
           const tt=THREE.MathUtils.clamp((gap-4)/(safe-4),0,1);
           targetV=Math.min(targetV, ah.speed*(0.88+0.11*tt));
         }
-        if(onStraight && gap<20 && gap>6) targetV=Math.min(targetV*1.02, vCorner*0.995);  // vácuo
+        if(onStraight && gap<20 && gap>6) targetV=Math.min(targetV*1.02, vNow*0.995);  // vácuo
         const paceAdv=(c.pace-ah.pace) + (ah.damage-c.damage)*8 + (c.form-ah.form)*300;
         const closing=c.speed-ah.speed;
         // porta aberta: defensor longe do lado de dentro na freada
@@ -224,11 +237,11 @@ export function updateField(cars, line, dt, t, started){
     // ---- desvio lateral SUAVIZADO (acaba com a tremedeira) ----
     let avoid=0;
     for(const o of cars){ if(o===c||o.out) continue;
-      const dd=dist(o,c); if(dd>8) continue;
+      const dd=dist(o,c); if(dd>9) continue;
       const od=c.offset-o.offset;
       if(Math.abs(od)<2.5){
         const s=Math.abs(od)>0.05 ? (od>0?1:-1) : (c.d>o.d?1:-1);
-        avoid += s*(2.5-Math.abs(od))*1.35;
+        avoid += s*(2.5-Math.abs(od))*1.5;
       } }
     c.avoidS += (avoid-c.avoidS)*Math.min(1,dt*4);
     tOff += c.avoidS;
@@ -236,14 +249,16 @@ export function updateField(cars, line, dt, t, started){
     // rodada em andamento (só vem de CONTATO forte — nunca sozinho)
     if(c.spin>0){ c.spin-=dt*0.7; targetV=Math.min(targetV,8); tOff=c.offset; }
 
-    // ---- FÍSICA: aceleração/veloc. final do CARRO, freio carro+piloto ----
+    // ---- FÍSICA REAL: aceleração limitada por potência (P/v - arrasto) ----
+    // baixa vel.: limitada por tração (~1.5g); média: cai com P/v; alta: arrasto domina
     if(targetV>c.speed){
-      const aMax=(17+(c.pace-76)*0.18)*c.perf.accel;
-      const a=aMax*Math.max(0.08, 1-(c.speed/c.perf.top)*(c.speed/c.perf.top));
+      const Pw=c.perf.power;
+      const a=Math.max(0.3, Math.min(c.perf.traction,
+        Pw/Math.max(c.speed,8) - Pw*c.speed*c.speed/(c.perf.top**3)));
       c.speed=Math.min(c.speed+a*dt, targetV);
     } else {
-      const extra=(c.passing&&c.passing.dive)?5:0;                 // mergulho: freia mais tarde/forte
-      c.speed=Math.max(c.speed-(brakeDecel+extra)*dt, targetV);
+      const dec=b0+kb*c.speed*c.speed + ((c.passing&&c.passing.dive)?4:0);
+      c.speed=Math.max(c.speed-dec*dt, targetV);
     }
     c.speed=Math.max(c.speed, c.spin>0?4:5);
 
