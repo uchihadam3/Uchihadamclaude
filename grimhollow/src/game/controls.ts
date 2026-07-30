@@ -1946,7 +1946,10 @@ export function setupControls(
 
   // MOVIMENTO — D-pad em CRUZ (arte única) no canto inferior ESQUERDO. A cruz é o
   // fundo; por cima ficam 4 ZONAS DE TOQUE invisíveis nos braços. cima=frente,
-  // baixo=trás, esquerda/direita=virar. O braço pressionado acende (brilho).
+  // baixo=trás, esquerda/direita = ANDAR DE LADO (strafe) SEM virar a câmera — o
+  // herói continua encarando pra frente, dá pra desviar de flechas/áreas. Girar a
+  // visão fica nos DOIS botões "de quina" (↺/↻) logo acima. O braço pressionado
+  // acende (brilho).
   const move = document.createElement("div");
   move.className = "gh-cluster gh-move";
   const mkTap = (action: Action, cls: string) => {
@@ -1957,8 +1960,26 @@ export function setupControls(
   };
   move.appendChild(mkTap("forward", "gh-dup"));
   move.appendChild(mkTap("back", "gh-ddown"));
-  move.appendChild(mkTap("turnLeft", "gh-dleft"));
-  move.appendChild(mkTap("turnRight", "gh-dright"));
+  move.appendChild(mkTap("strafeLeft", "gh-dleft"));
+  move.appendChild(mkTap("strafeRight", "gh-dright"));
+  // botões de GIRAR A VISÃO — nas QUINAS (cantos diagonais entre o braço de cima e
+  // os laterais), colados no D-pad. Mesma qualidade dos demais botões (base pintada
+  // + ícone). ↺ = girar à esquerda, ↻ = girar à direita.
+  const rotIcon = (flip: boolean) =>
+    `<svg class="gh-btn-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
+    `stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"` +
+    `${flip ? ' style="transform:scaleX(-1)"' : ""}>` +
+    `<path d="M9 5 L4.2 9 L9 12.6"/>` +
+    `<path d="M4.2 9 H12 A6 6 0 1 1 6.2 15.2"/></svg>`;
+  const mkRot = (action: Action, cls: string, flip: boolean) => {
+    const b = document.createElement("button");
+    b.className = "gh-btn gh-rot " + cls;
+    b.innerHTML = rotIcon(flip);
+    holdRepeat(b, action);
+    return b;
+  };
+  move.appendChild(mkRot("turnLeft", "gh-rotl", false));
+  move.appendChild(mkRot("turnRight", "gh-rotr", true));
   pad.appendChild(move);
 
   // botão de interação (não repete) — manopla
@@ -3820,6 +3841,18 @@ function injectStyle() {
   .gh-ddown  { left:30%; bottom:0; width:40%; height:44%; }
   .gh-dleft  { left:0;   top:30%;  width:44%; height:40%; }
   .gh-dright { right:0;  top:30%;  width:44%; height:40%; }
+  /* GIRAR — botões "de quina" grudados nos cantos superiores do D-pad (entre o
+     braço de cima e os laterais). Menores que os de ação, mas mesma arte/base. A
+     cor dourada os distingue do movimento; z acima das zonas de toque. */
+  .gh-rot {
+    position:absolute; width:44px; height:44px; z-index:2;
+    color:#f0d488;
+    filter:drop-shadow(0 0 7px rgba(240,200,90,0.35)) drop-shadow(0 3px 7px rgba(0,0,0,.55));
+  }
+  .gh-rot .gh-btn-ico { width:56%; height:56%; }
+  .gh-rotl { left:-9px;  top:-9px; }
+  .gh-rotr { right:-9px; top:-9px; }
+  .gh-rot:active { transform:scale(0.9); filter:drop-shadow(0 0 9px rgba(240,200,90,0.7)) brightness(1.2); }
   /* AÇÃO — canto inferior DIREITO (perto da arma/polegar): ataque em destaque
      embaixo, interagir logo acima. */
   .gh-atk {
@@ -3960,6 +3993,8 @@ function injectStyle() {
     #gh-journal-btn { left:calc(50% + 26px); }
     /* d-pad e ação recuados nos cantos de baixo, um pouco menores */
     .gh-move { left:10px; bottom:10px; width:108px; height:108px; }
+    .gh-rot { width:40px; height:40px; }
+    .gh-rotl { left:-8px; top:-8px; } .gh-rotr { right:-8px; top:-8px; }
     .gh-atk  { right:12px; bottom:12px; width:54px; height:54px; }
     .gh-act  { right:76px; bottom:14px; width:50px; height:50px; }
     /* bandeja de itens logo acima do d-pad */
