@@ -6,6 +6,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { buildF1Car, TEAMS } from './car.js';
 import { carStats, tier, ranking } from './stats.js';
+import { driversOf, overall, ATTRS, simulateRace } from './drivers.js';
 import { buildTrack } from './track.js';
 import { F1Audio } from './audio.js';
 
@@ -296,21 +297,40 @@ const fichaBtn=document.getElementById('ficha');
 const fichaPanel=document.getElementById('fichaPanel');
 const fcard=document.getElementById('fcard');
 const barColor=v=> v>=88?'#22c55e' : v>=82?'#84cc16' : v>=77?'#eab308' : v>=73?'#f97316' : '#ef4444';
+const teamColor=key=>'#'+((TEAMS[key].body)>>>0).toString(16).padStart(6,'0');
 function renderFicha(){
   const s=carStats(currentTeam), tc=tier(s.geral), t=TEAMS[currentTeam];
   const rows=[['Potência',s.potencia],['Eficiência',s.eficiencia],['Aerodinâmica',s.aero],
               ['Chassi',s.chassi],['Pneus',s.pneus],['Confiabilidade',s.confiabilidade]];
   const bars=rows.map(([lb,v])=>`<div class="srow"><span class="lb">${lb}</span>
     <span class="bar"><i style="width:${v}%;background:${barColor(v)}"></i></span><span class="vl">${v}</span></div>`).join('');
-  const rk=ranking().map((r,i)=>{ const nm=TEAMS[r.key].name;
-    return `<div class="rk ${r.key===currentTeam?'me':''}"><span><span class="p">${i+1}º</span>${nm}</span><span class="g">${r.geral}</span></div>`;}).join('');
-  fcard.innerHTML=`<h2 style="color:#${(t.body>>>0).toString(16).padStart(6,'0')}">${t.name}</h2>
+  const drv=driversOf(currentTeam).map(d=>{ const ov=overall(d);
+    const mini=ATTRS.map(([k,lb])=>`<div class="srow"><span class="lb">${lb}</span>
+      <span class="bar"><i style="width:${d[k]}%;background:${barColor(d[k])}"></i></span><span class="vl">${d[k]}</span></div>`).join('');
+    return `<div class="drv"><div class="drvh"><b>#${d.num} ${d.nome}</b><span class="ovt" style="background:${tier(ov).col}">${ov}</span></div>${mini}</div>`;
+  }).join('');
+  const rk=ranking().map((r,i)=>`<div class="rk ${r.key===currentTeam?'me':''}"><span><span class="p">${i+1}º</span><b style="color:${teamColor(r.key)}">■</b> ${TEAMS[r.key].name}</span><span class="g">${r.geral}</span></div>`).join('');
+  fcard.innerHTML=`<h2 style="color:${teamColor(currentTeam)}">${t.name}</h2>
     <div class="eng">Motor: ${s.engine} · Nº ${t.num} · patrocínio ${t.sponsor}</div>
     <div class="ov"><span class="ovn">${s.geral}</span><span class="ovt" style="background:${tc.col}">${tc.txt}</span></div>
     ${bars}
+    <h3>PILOTOS (2025)</h3>${drv}
+    <button class="fbtn" id="fsim">🏁 Simular corrida (com sorte)</button>
     <h3>CLASSIFICAÇÃO DOS CARROS (2025)</h3>${rk}
     <button class="fclose" id="fclose">Fechar</button>`;
   document.getElementById('fclose').onclick=()=>fichaPanel.classList.add('hide');
+  document.getElementById('fsim').onclick=renderRace;
+}
+function renderRace(){
+  const res=simulateRace(carStats, 3.0);
+  const rows=res.map(r=>`<div class="rk ${r.team===currentTeam?'me':''}"><span><span class="p">${r.pos}${r.pos==='AB'?'':'º'}</span><b style="color:${teamColor(r.team)}">■</b> ${r.nome}</span><span class="g">${r.dnf?'AB':r.ovr}</span></div>`).join('');
+  fcard.innerHTML=`<h2>🏁 Resultado da corrida</h2>
+    <div class="eng">Interlagos · 20 carros · desempenho = 62% carro + 38% piloto + sorte</div>
+    ${rows}
+    <button class="fbtn" id="fagain">🔁 Simular de novo</button>
+    <button class="fclose" id="fback">← Voltar</button>`;
+  document.getElementById('fagain').onclick=renderRace;
+  document.getElementById('fback').onclick=renderFicha;
 }
 if(fichaBtn){ fichaBtn.addEventListener('click', ()=>{ renderFicha(); fichaPanel.classList.remove('hide'); }); }
 fichaPanel.addEventListener('click', e=>{ if(e.target===fichaPanel) fichaPanel.classList.add('hide'); });
