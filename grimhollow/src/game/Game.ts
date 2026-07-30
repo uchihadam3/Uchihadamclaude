@@ -2265,10 +2265,8 @@ export class Game {
       bar, barFill,
     };
     this.enemies.push(e);
-    // luz fria azulada perto dele (atmosfera de cripta)
-    const glow = new THREE.PointLight(0x6aa0d0, 0.55, 5, 2);
-    glow.position.set(c * CELL, 1.7, r * CELL);
-    this.world.add(glow);
+    // (SEM luz por inimigo: com vários, o total de point lights estourava o limite
+    //  de uniforms do shader no mobile → cena PRETA. A tocha do herói já ilumina.)
     // pré-carrega o sprite-sheet da explosão (pronto quando o inimigo morrer)
     if (!this.poofTex) this.loadArt(deathPoofUrl, (t) => (this.poofTex = this.fxFilter(t)));
     this.loadArt(enemySkeletonUrl, (t) => {
@@ -4967,8 +4965,10 @@ export class Game {
             this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 1.2);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
-          // tocha esporádica em paredes de rocha (ilumina)
-          if (nk === "wall" && !secret && torches < 30 && hash(c, r, dc * 5 + dr) < 0.2) {
+          // tocha esporádica em paredes de rocha (ilumina). LIMITE BAIXO: muitas
+          // point lights estouram o shader no mobile (cena preta); a tocha do
+          // herói cobre o resto. Mantém só algumas poças de luz de ambiente.
+          if (nk === "wall" && !secret && torches < 12 && hash(c, r, dc * 5 + dr) < 0.2) {
             this.addWallDecal(c, r, dc, dr, torchMat, 0.85, 1.4, 2.1);
             this.glowLight(cx + dc * 0.3, 2.3, cz + dr * 0.3, 0xffa040, 4.4, 12);
             torches++;
@@ -8547,10 +8547,24 @@ export class Game {
     // cúpula de névoa gira devagar → as nuvens "andam" pelo céu
     // a cúpula do céu (shader) não gira — sol/lua se movem por uniform e as
     // estrelas cintilam via uTime (atualizado em updateDayNight)
-    // fogo (tochas, fornalha, caldeirão) tremeluz
-    for (const f of this.flames)
-      f.light.intensity =
-        f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
+    // fogo (tochas, fornalha, caldeirão) tremeluz — mas com CULLING por distância:
+    // só as N tochas MAIS PRÓXIMAS do herói ficam ativas (as demais ficam invisíveis,
+    // fora do shader). Muitas point lights simultâneas estouram o limite de uniforms
+    // no mobile e a cena fica PRETA — este orçamento fixo evita isso.
+    const FLAME_BUDGET = 7;
+    if (this.flames.length > FLAME_BUDGET) {
+      this.flames.sort((a, b) => {
+        const da = (a.light.position.x - cx) ** 2 + (a.light.position.z - cz) ** 2;
+        const db = (b.light.position.x - cx) ** 2 + (b.light.position.z - cz) ** 2;
+        return da - db;
+      });
+    }
+    for (let i = 0; i < this.flames.length; i++) {
+      const f = this.flames[i];
+      const on = i < FLAME_BUDGET; // mantém EXATAMENTE budget acesas → contagem estável (sem recompilar)
+      if (f.light.visible !== on) f.light.visible = on;
+      if (on) f.light.intensity = f.base + Math.sin(now * 0.011 + f.base) * 0.8 + Math.sin(now * 0.027) * 0.5;
+    }
     // línguas de chama da lareira: encaram a câmera + tremem (altura/opacidade)
     for (const fl of this.fireFlames) {
       fl.rotation.y = Math.atan2(cx - fl.position.x, cz - fl.position.z);
