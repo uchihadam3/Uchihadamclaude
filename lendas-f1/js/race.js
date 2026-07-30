@@ -223,8 +223,10 @@ export function updateField(cars, line, dt, t, started){
     if(onStraight) c.cornerErr=0;                                  // fim da curva: reseta
     if(c.cornerErr) tOff += -insideSide*c.cornerErr;               // afasta do cantinho (abre a porta)
 
-    // ---- DEFESA: sob ataque, bons defensores cobrem o lado de dentro ----
-    if(c.chaserGap<8 && (heavyBraking||vNow<60) && !c.cornerErr){
+    // companheiro de equipe logo atrás?
+    const chaserMate = c.chaser && !c.chaser.out && c.chaser.team===c.team;
+    // ---- DEFESA: sob ataque, bons defensores cobrem o lado de dentro (NÃO contra o companheiro) ----
+    if(c.chaserGap<8 && (heavyBraking||vNow<60) && !c.cornerErr && !chaserMate){
       const dlane=insideSide*3.2;
       // regra real: não pode fechar a porta com o rival já emparelhado na linha
       const laneLivre=!cars.some(o=>o!==c&&!o.out&&Math.abs(o.offset-dlane)<1.8&&dist(o,c)<7);
@@ -232,6 +234,12 @@ export function updateField(cars, line, dt, t, started){
         const def=THREE.MathUtils.clamp((c.drv.defesa-80)/20,0,1)*0.7;
         tOff=THREE.MathUtils.lerp(tOff, dlane, def);
       }
+    }
+    // ---- ORDEM DE EQUIPE: não segura o companheiro mais rápido — abre a linha e deixa passar ----
+    if(chaserMate && c.chaserGap<12 && !c.pitPhase && !c.passing){
+      const m=c.chaser;
+      const mateFaster = (m.pace>c.pace+0.4) || (m.wear<c.wear-0.15) || (c.damage>m.damage+0.15);
+      if(mateFaster){ tOff=(racingOff>=0?racingOff-2.8:racingOff+2.8); targetV*=0.99; }
     }
     // ---- CEDEU a curva: rival cravou por dentro — abre e perde a posição ----
     if(c.yieldT>0){ c.yieldT-=dt; tOff=c.yieldOff; targetV*=0.94; }
@@ -297,8 +305,16 @@ export function updateField(cars, line, dt, t, started){
         const clearLane=lane=>!cars.some(o=>{ if(o===c||o===ah||o.out) return false;
           if(Math.abs(o.offset-lane)>2.1) return false;
           const g2=sgap(o); return g2>-8 && g2<16; });
+        const mateAhead = ah.team===c.team;                             // companheiro de equipe à frente
         if(c.passCd<=0 && opp){
-          if(heavyBraking && gap<22){
+          if(mateAhead){
+            // COMPANHEIRO: nada de mergulho/roda-com-roda. Só passa LIMPO na reta, e só se
+            // for de fato mais rápido (o time deixa o carro melhor seguir na frente).
+            if(onStraight && gap<20 && apexDist>55 && closing>0.5){
+              const side = clearLane(insLane) ? insLane : (clearLane(outLane)? outLane : null);
+              if(side!==null && Math.random()<will*0.06) c.passing={lane:side, target:ah, t:0};
+            }
+          } else if(heavyBraking && gap<22){
             const inFree=clearLane(insLane), defInside=ah.offset*insideSide>1.0;
             if(inFree && !defInside && Math.random()<will*0.16){          // MERGULHO por dentro
               c.passing={lane:insLane, target:ah, t:0, dive:true};
@@ -325,14 +341,16 @@ export function updateField(cars, line, dt, t, started){
       if(g2>0 && g2<8 && Math.abs(o.offset-c.offset)<2.3)
         targetV=Math.min(targetV, Math.max(o.speed-(8-g2)*1.2, 0));
     }
-    // ---- desvio lateral SUAVIZADO (acaba com a tremedeira) ----
+    // ---- desvio lateral SUAVIZADO (acaba com a tremedeira; companheiro ganha MAIS margem) ----
     let avoid=0;
     for(const o of cars){ if(o===c||o.out) continue;
-      const dd=dist(o,c); if(dd>9) continue;
+      const mate=o.team===c.team;                                       // dá mais espaço ao companheiro
+      const reach=mate?12:9, band=mate?3.3:2.5, force=mate?1.9:1.5;
+      const dd=dist(o,c); if(dd>reach) continue;
       const od=c.offset-o.offset;
-      if(Math.abs(od)<2.5){
+      if(Math.abs(od)<band){
         const s=Math.abs(od)>0.05 ? (od>0?1:-1) : (c.d>o.d?1:-1);
-        avoid += s*(2.5-Math.abs(od))*1.5;
+        avoid += s*(band-Math.abs(od))*force;
       } }
     c.avoidS += (avoid-c.avoidS)*Math.min(1,dt*4);
     tOff += c.avoidS;
@@ -381,13 +399,15 @@ export function updateField(cars, line, dt, t, started){
       if(dist(a,b)<3.4 && Math.abs(a.offset-b.offset)<1.15){
         a.hitCd=0.9; b.hitCd=0.9;
         if(typeof window!=='undefined') window.__hits=(window.__hits||0)+1;
+        const mates=a.team===b.team;                                // toque entre companheiros: quase sem dano
         const rel=Math.abs(a.speed-b.speed);
         const push=(a.offset<=b.offset)?-1:1; a.offset+=push*0.9; b.offset-=push*0.9;
         const rear=a.d<b.d?a:b, front=a.d<b.d?b:a;
         rear.speed*=0.93; front.speed*=0.985;
-        front.damage=Math.min(1,front.damage+rel*0.006+0.006);
-        rear.damage=Math.min(1,rear.damage+rel*0.004+0.004);
-        if(rel>20 && Math.random()<0.25){                          // só contato FORTE roda (raro)
+        const dmgMul=mates?0.15:1;
+        front.damage=Math.min(1,front.damage+(rel*0.006+0.006)*dmgMul);
+        rear.damage=Math.min(1,rear.damage+(rel*0.004+0.004)*dmgMul);
+        if(!mates && rel>20 && Math.random()<0.25){                // só contato FORTE (entre rivais) roda
           const v=Math.random()<0.65?rear:front; v.spin=1; v.spinRate=(Math.random()<0.5?-1:1)*(5+Math.random()*3); v.speed*=0.45;
           if(rel>32 && Math.random()<0.3){ retire(v,0.28);
             if(Math.random()<0.25) retire(v===a?b:a,0.2); }
