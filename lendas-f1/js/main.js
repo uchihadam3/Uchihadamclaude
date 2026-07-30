@@ -6,6 +6,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { buildF1Car } from './car.js';
 import { buildTrack } from './track.js';
+import { F1Audio } from './audio.js';
 
 const cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas:cvs, antialias:true });
@@ -66,6 +67,20 @@ let camPos=new THREE.Vector3(0,8,-20);
 let prevSteer=0;
 const clock=new THREE.Clock();
 
+// ---- marchas / RPM (pra som e sensação) ----
+const FOV_BASE=54, FOV_MAX=82;
+const gearsKmh=[0,90,140,185,230,275,320,380];   // limites das 7 marchas
+function rpmFor(kmh){
+  let g=0; for(let i=0;i<gearsKmh.length-1;i++){ if(kmh>=gearsKmh[i]) g=i; }
+  g=Math.min(g,gearsKmh.length-2);
+  const a=gearsKmh[g], b=gearsKmh[g+1];
+  const frac=THREE.MathUtils.clamp((kmh-a)/(b-a),0,1);
+  return { rpm: 4000 + frac*11000, gear: g+1 };
+}
+const audio=new F1Audio();
+let audioOn=false, shakeX=0, shakeY=0;
+const halfW=track.half;
+
 function frame(){
   const dt=Math.min(clock.getDelta(),0.05);
 
@@ -79,8 +94,9 @@ function frame(){
   vCorner=Math.min(vCorner,95);                   // teto ~342 km/h
   vCorner=Math.max(vCorner,16);                   // piso nas curvas lentas
   // acelera/freia rumo ao alvo
-  if(vCorner>speed) speed+=Math.min((vCorner-speed), 14*dt);   // ~1.4g aceleração
-  else              speed-=Math.min((speed-vCorner), 42*dt);   // ~4.2g frenagem
+  let throttle;
+  if(vCorner>speed){ speed+=Math.min((vCorner-speed), 14*dt); throttle=1.0; }   // a fundo
+  else             { speed-=Math.min((speed-vCorner), 42*dt); throttle=0.0; }   // freando/coasting
 
   // ---- avança na pista ----
   u=(u + (speed*dt)/total)%1;
@@ -114,21 +130,38 @@ function frame(){
   }
   prevSteer=steer;
 
-  // ---- câmera de perseguição ----
-  const back=tan.clone().multiplyScalar(-9.5);
-  const desired=car.position.clone().add(back).add(new THREE.Vector3(0,3.4,0));
+  // ---- câmera de perseguição (mais baixa/perto = mais velocidade) ----
+  const spd01=THREE.MathUtils.clamp(speed/95,0,1);
+  const dist=8.5 - spd01*1.2;                 // aproxima um pouco a fundo
+  const back=tan.clone().multiplyScalar(-dist);
+  const desired=car.position.clone().add(back).add(new THREE.Vector3(0,2.5,0));
   camPos.lerp(desired, 1-Math.pow(0.0016,dt));
-  camera.position.copy(camPos);
+  // tremor da câmera: cresce com a velocidade, ainda mais na zebra
+  const kmh=speed*3.6;
+  const onKerb = latG>2.6;                     // pisando na zebra em curva forte
+  const shakeAmp=spd01*0.05 + (onKerb?0.09:0);
+  shakeX=(Math.random()*2-1)*shakeAmp; shakeY=(Math.random()*2-1)*shakeAmp;
+  camera.position.set(camPos.x+shakeX, camPos.y+shakeY, camPos.z);
   lookTmp.copy(car.position).addScaledVector(tan, 8).setY(1.1);
   camera.lookAt(lookTmp);
+  // FOV dinâmico: abre com a velocidade (túnel de velocidade)
+  const fov=FOV_BASE + spd01*(FOV_MAX-FOV_BASE);
+  if(Math.abs(camera.fov-fov)>0.1){ camera.fov=fov; camera.updateProjectionMatrix(); }
+
+  // ---- SOM do motor ----
+  const {rpm,gear}=rpmFor(kmh);
+  if(audioOn) audio.update(rpm, throttle, kmh, onKerb, dt);
 
   // sol acompanha a região do carro (sombra sempre próxima)
   sun.position.set(car.position.x+120, 300, car.position.z+90);
   sun.target.position.copy(car.position); sun.target.updateMatrixWorld();
 
   // HUD
-  hudSpeed.textContent=Math.round(speed*3.6);
+  hudSpeed.textContent=Math.round(kmh);
   hudG.textContent=latG.toFixed(1);
+  if(hudGear) hudGear.textContent=gear;
+  // linhas de velocidade (overlay)
+  if(speedFX) speedFX.style.opacity = (spd01>0.45? (spd01-0.45)/0.55*0.9 : 0).toFixed(2);
 
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
@@ -137,6 +170,15 @@ function frame(){
 /* ---------- HUD ---------- */
 const hudSpeed=document.getElementById('spd');
 const hudG=document.getElementById('gforce');
+const hudGear=document.getElementById('gear');
+const speedFX=document.getElementById('speedfx');
+
+/* ---------- botão de som (autoplay exige gesto) ---------- */
+const startBtn=document.getElementById('sound');
+function enableAudio(){ try{ audio.start(); audioOn=true; }catch(e){}
+  if(startBtn) startBtn.classList.add('hide'); }
+if(startBtn) startBtn.addEventListener('click', enableAudio);
+addEventListener('pointerdown', enableAudio, {once:true});
 
 window.__f1={scene,camera,car,track,renderer};   // debug/verificação
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();

@@ -14,8 +14,11 @@ export function buildTrack(){
   // centro da pista como curva fechada (centripetal evita "overshoot")
   const vec = D.pts.map(p=> new THREE.Vector3(p[0],0,p[1]));
   const curve = new THREE.CatmullRomCurve3(vec, true, 'centripetal', 0.5);
-  const HALF = 6.0;                     // meia-largura (~12 m)
+  const HALF = 7.5;                     // meia-largura (~15 m — largura real de F1)
   const N = 1400;
+  // centro geométrico do circuito (pra jogar arquibancadas SEMPRE pra fora)
+  const centroid=new THREE.Vector3(); D.pts.forEach(p=>{centroid.x+=p[0];centroid.z+=p[1];});
+  centroid.multiplyScalar(1/D.pts.length);
   const pts=[], tan=[];
   for(let i=0;i<=N;i++){ pts.push(curve.getPointAt(i/N)); tan.push(curve.getTangentAt(i/N).normalize()); }
   const up=new THREE.Vector3(0,1,0);
@@ -37,6 +40,23 @@ export function buildTrack(){
   aG.setIndex(idxA); aG.computeVertexNormals();
   const asphalt=new THREE.Mesh(aG,new THREE.MeshStandardMaterial({color:0x2b2d31,roughness:0.96}));
   asphalt.receiveShadow=true; G.add(asphalt);
+
+  /* ---------- JUNTAS/EMENDAS do asfalto (referência de velocidade) ---------- */
+  (function(){
+    const pos=[],idx=[]; let q=0;
+    for(let i=0;i<=N;i+=12){                       // a cada ~37 m
+      const c=pts[i], l=leftOf(tan[i]), t=tan[i];
+      const a=c.clone().addScaledVector(l, HALF).addScaledVector(t,-0.15);
+      const b=c.clone().addScaledVector(l,-HALF).addScaledVector(t,-0.15);
+      const a2=c.clone().addScaledVector(l, HALF).addScaledVector(t,0.15);
+      const b2=c.clone().addScaledVector(l,-HALF).addScaledVector(t,0.15);
+      pos.push(a.x,0.025,a.z, b.x,0.025,b.z, a2.x,0.025,a2.z, b2.x,0.025,b2.z);
+      idx.push(q,q+1,q+2, q+1,q+3,q+2); q+=4;
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+    G.add(new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x212327,roughness:0.9})));
+  })();
 
   /* ---------- RUN-OFF de brita (mais largo nas curvas) ---------- */
   (function(){
@@ -64,15 +84,16 @@ export function buildTrack(){
 
   /* ---------- ZEBRAS (só nas curvas) ---------- */
   (function(){
-    const pos=[],col=[],idx=[]; const c1=new THREE.Color(0xd21f2a),c2=new THREE.Color(0xf2f2f2);
+    const pos=[],col=[],idx=[]; const c1=new THREE.Color(0xe01f2a),c2=new THREE.Color(0xffffff);
     for(let i=0;i<=N;i++){
-      const on = curv[i]>0.016;
+      const on = curv[i]>0.010;                 // zebra em toda curva minimamente fechada
+      const W = on ? 1.4 : 0.0;                  // zebra larga e bem visível
       for(const s of [1,-1]){
         const c=pts[i], l=leftOf(tan[i]);
         const inner=c.clone().addScaledVector(l, s*HALF);
-        const outer=c.clone().addScaledVector(l, s*(HALF+ (on?0.9:0.0)));
-        const cc=(Math.floor(i/5)%2)?c1:c2;
-        pos.push(inner.x,0.03,inner.z, outer.x,0.05,outer.z);
+        const outer=c.clone().addScaledVector(l, s*(HALF+W));
+        const cc=(Math.floor(i/4)%2)?c1:c2;      // listras vermelho/branco mais curtas
+        pos.push(inner.x,0.04,inner.z, outer.x,0.11,outer.z);   // sobe mais (3D visível)
         col.push(cc.r,cc.g,cc.b, cc.r,cc.g,cc.b);
       }
     }
@@ -180,28 +201,38 @@ export function buildTrack(){
     lm.position.set(sf.x+(i-2)*0.9*Math.cos(rotY),6.7,sf.z-(i-2)*0.9*Math.sin(rotY));
     lm.rotation.y=rotY+Math.PI; G.add(lm); }
 
-  /* ---------- ARQUIBANCADAS recuadas (rampa + torcida + cobertura) ---------- */
+  /* ---------- ARQUIBANCADAS (sempre no lado de FORA, viradas pra pista) ---------- */
   function stand(uu,len){
     const p=curve.getPointAt(uu), t=curve.getTangentAt(uu).normalize(), l=leftOf(t);
-    const base=p.clone().addScaledVector(l, HALF+48);
-    const grp=new THREE.Group(); grp.position.copy(base); grp.rotation.y=Math.atan2(t.x,t.z);
-    // rampa inclinada (base da arquibancada)
-    const ramp=new THREE.Mesh(new THREE.BoxGeometry(len,3.2,7),
-      new THREE.MeshStandardMaterial({color:0x6a7075,roughness:0.95}));
-    ramp.position.set(0,1.6,-3.0); ramp.rotation.x=-0.42; ramp.castShadow=true; ramp.receiveShadow=true; grp.add(ramp);
-    // "torcida" — faixas de cor pra dar vida (verde/amarelo)
-    for(let r=0;r<4;r++){ const seat=new THREE.Mesh(new THREE.BoxGeometry(len,0.25,1.4),
-        new THREE.MeshStandardMaterial({color:[0x1f8a4c,0xf2c400,0x2a63c4,0xdddddd][r%4],roughness:0.9}));
-      seat.position.set(0,0.9+r*0.7,-1.4-r*1.35); grp.add(seat); }
-    // cobertura (teto) sobre postes
-    const roof=new THREE.Mesh(new THREE.BoxGeometry(len,0.2,6),
-      new THREE.MeshStandardMaterial({color:0xced4da,roughness:0.6,metalness:0.3}));
-    roof.position.set(0,4.6,-4.2); roof.rotation.x=-0.12; roof.castShadow=true; grp.add(roof);
-    for(const sx of [-len/2+2,0,len/2-2]){ const post=new THREE.Mesh(new THREE.BoxGeometry(0.3,4.6,0.3),
-        new THREE.MeshStandardMaterial({color:0x9aa0a6})); post.position.set(sx,2.3,-6.6); grp.add(post); }
+    // lado de fora = o que aponta pra longe do centro do circuito
+    const outward=new THREE.Vector3(p.x-centroid.x,0,p.z-centroid.z).normalize();
+    const side=Math.sign(l.dot(outward))||1;
+    const base=p.clone().addScaledVector(l, side*(HALF+18));
+    // vira o conjunto de frente pra pista (local +Z = em direção à pista)
+    const toTrack=p.clone().sub(base).setY(0).normalize();
+    const grp=new THREE.Group(); grp.position.copy(base); grp.rotation.y=Math.atan2(toTrack.x,toTrack.z);
+    // tiers: degraus subindo e recuando pra trás (longe da pista)
+    const tierMat=[0x1f8a4c,0xf2c400,0x2a63c4,0xe8e8e8];
+    // estrutura sólida em rampa (sem vãos = não parece flutuar)
+    for(let r=0;r<6;r++){
+      const h=1.0+r*0.9;                       // cada degrau vai até o chão (bloco sólido)
+      const step=new THREE.Mesh(new THREE.BoxGeometry(len,h,1.6),
+        new THREE.MeshStandardMaterial({color:0x83888f,roughness:0.95}));
+      step.position.set(0,h/2,-1.2-r*1.6); step.receiveShadow=true; step.castShadow=true; grp.add(step);
+      // "torcida" (faixa de cor sentada no degrau)
+      const crowd=new THREE.Mesh(new THREE.BoxGeometry(len-1,0.55,0.7),
+        new THREE.MeshStandardMaterial({color:tierMat[r%4],roughness:0.9}));
+      crowd.position.set(0,h+0.02,-1.35-r*1.6); grp.add(crowd);
+    }
+    // cobertura leve atrás/acima
+    const roof=new THREE.Mesh(new THREE.BoxGeometry(len,0.25,4),
+      new THREE.MeshStandardMaterial({color:0xd0d5db,roughness:0.6,metalness:0.3}));
+    roof.position.set(0,6.4,-8.5); roof.rotation.x=0.12; roof.castShadow=true; grp.add(roof);
+    for(const sx of [-len/2+2,0,len/2-2]){ const post=new THREE.Mesh(new THREE.BoxGeometry(0.3,6.4,0.3),
+        new THREE.MeshStandardMaterial({color:0x9aa0a6})); post.position.set(sx,3.2,-9.6); grp.add(post); }
     G.add(grp);
   }
-  stand(0.13,70); stand(0.34,55); stand(0.62,50);
+  stand(0.02,80); stand(0.34,55); stand(0.62,55); stand(0.80,45);
 
   return { group:G, curve, half:HALF, length:curve.getLength(), sf, sfHeading:hdg, grid:D.grid };
 }

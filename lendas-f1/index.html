@@ -8,27 +8,50 @@
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{width:100%;height:100%;overflow:hidden;background:#0b0d10;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
   #c{display:block;width:100%;height:100%}
+  /* linhas de velocidade (túnel) */
+  #speedfx{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .12s linear;
+    background:
+      radial-gradient(ellipse 60% 60% at 50% 50%, transparent 40%, rgba(0,0,0,0.0) 55%, rgba(0,0,0,0.35) 100%),
+      repeating-conic-gradient(from 0deg at 50% 50%,
+        rgba(255,255,255,0.0) 0deg 3deg, rgba(255,255,255,0.10) 3.4deg 3.8deg, rgba(255,255,255,0.0) 4.2deg 7deg);
+    mix-blend-mode:screen;}
+  /* vinheta sutil */
+  #vig{position:fixed;inset:0;pointer-events:none;
+    box-shadow:inset 0 0 220px 60px rgba(0,0,0,0.45);}
   #hud{position:fixed;left:16px;bottom:16px;color:#fff;text-shadow:0 2px 6px #000;pointer-events:none}
-  #hud .big{font-size:52px;font-weight:800;line-height:0.9;letter-spacing:-1px}
+  #hud .big{font-size:54px;font-weight:800;line-height:0.9;letter-spacing:-1px}
   #hud .unit{font-size:16px;font-weight:600;opacity:.85;margin-left:4px}
   #hud .row{display:flex;align-items:baseline;gap:6px}
   #hud .g{font-size:15px;font-weight:600;opacity:.9;margin-top:6px}
+  #gearbox{position:fixed;right:18px;bottom:16px;color:#fff;text-align:center;text-shadow:0 2px 6px #000;pointer-events:none}
+  #gearbox .num{font-size:56px;font-weight:800;line-height:1;color:#f2c400}
+  #gearbox .lbl{font-size:12px;font-weight:600;opacity:.8;letter-spacing:1px}
   #title{position:fixed;top:14px;left:16px;color:#fff;text-shadow:0 2px 6px #000}
   #title b{font-size:20px;font-weight:800;letter-spacing:.5px}
   #title span{display:block;font-size:12px;opacity:.8;margin-top:2px}
   .flag{display:inline-block;width:11px;height:11px;border-radius:2px;background:
     linear-gradient(135deg,#009c3b 0 40%,#ffdf00 40% 60%,#002776 60% 100%);vertical-align:middle;margin-right:6px}
   #tag{position:fixed;top:14px;right:16px;color:#fff;font-size:11px;opacity:.65;text-shadow:0 1px 4px #000}
+  #sound{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:rgba(12,14,18,.82);color:#fff;border:1px solid rgba(255,255,255,.25);
+    padding:16px 26px;border-radius:40px;font-size:17px;font-weight:700;cursor:pointer;
+    backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(0,0,0,.5);transition:opacity .3s}
+  #sound .s{display:block;font-size:12px;font-weight:500;opacity:.75;margin-top:3px}
+  #sound.hide{opacity:0;pointer-events:none}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="title"><b><span class="flag"></span>LENDAS DA F1</b><span>demo — pista em escala real · 1 carro</span></div>
-<div id="tag">v0.1 · protótipo</div>
+<div id="speedfx"></div>
+<div id="vig"></div>
+<div id="title"><b><span class="flag"></span>LENDAS DA F1</b><span>Interlagos — pista real · 1 carro</span></div>
+<div id="tag">v0.2 · protótipo</div>
 <div id="hud">
   <div class="row"><span class="big" id="spd">0</span><span class="unit">km/h</span></div>
   <div class="g">força lateral <b id="gforce">0.0</b> G</div>
 </div>
+<div id="gearbox"><div class="num" id="gear">1</div><div class="lbl">MARCHA</div></div>
+<button id="sound">🔊 Ligar som do motor<span class="s">toque pra ouvir o F1</span></button>
 <script type="module" src="./js/main.js"></script>
 </body>
 </html>
