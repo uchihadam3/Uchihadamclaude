@@ -18,22 +18,35 @@ import { carStats } from './stats.js';
 
 const UP = new THREE.Vector3(0,1,0);
 
-/* ---------- RACING LINE ---------- */
+/* ---------- RACING LINE (out-in-out de verdade) ----------
+   Elástico bem convergido (2500 iterações em arrays rápidos): a linha
+   ABRE pro lado de fora antes da curva, corta o apex por dentro e sai
+   abrindo — como piloto de verdade. Depois é acentuada até as bordas. */
 export function computeLine(curve, half){
   const N=1000;
   const center=[], left=[], ctan=[];
+  const cx=new Float32Array(N), cz=new Float32Array(N), lx=new Float32Array(N), lz=new Float32Array(N);
   for(let i=0;i<N;i++){ const u=i/N; const p=curve.getPointAt(u); const t=curve.getTangentAt(u).normalize();
-    center.push(p); ctan.push(t); left.push(new THREE.Vector3().crossVectors(UP,t).normalize()); }
-  const maxOff = Math.max(half-1.2, 0.5);
+    const l=new THREE.Vector3().crossVectors(UP,t).normalize();
+    center.push(p); ctan.push(t); left.push(l);
+    cx[i]=p.x; cz[i]=p.z; lx[i]=l.x; lz[i]=l.z; }
+  const maxOff = Math.max(half-1.0, 0.5);
   const o=new Float32Array(N);
-  for(let it=0; it<400; it++){
+  for(let it=0; it<2500; it++){
     for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N;
-      const pa=center[a].clone().addScaledVector(left[a],o[a]);
-      const pb=center[b].clone().addScaledVector(left[b],o[b]);
-      const mid=pa.add(pb).multiplyScalar(0.5);
-      const target=mid.sub(center[i]).dot(left[i]);
-      o[i]=THREE.MathUtils.clamp(o[i]+(target-o[i])*0.25, -maxOff, maxOff);
+      const pax=cx[a]+lx[a]*o[a], paz=cz[a]+lz[a]*o[a];
+      const pbx=cx[b]+lx[b]*o[b], pbz=cz[b]+lz[b]*o[b];
+      // (meio dos vizinhos - centro) projetado no vetor esquerdo
+      const tgt=((pax+pbx)/2-cx[i])*lx[i]+((paz+pbz)/2-cz[i])*lz[i];
+      let v=o[i]+(tgt-o[i])*0.3;
+      o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v);
     }
+  }
+  // acentua o out-in-out: empurra entradas mais pra fora e apex mais pra dentro
+  for(let i=0;i<N;i++){ const v=o[i]*1.3; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
+  // suaviza de leve pra não ter quina
+  for(let pass=0;pass<3;pass++){
+    for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N; o[i]=(o[a]+o[i]*2+o[b])/4; }
   }
   const vmax=new Float32Array(N);
   const pos=[]; for(let i=0;i<N;i++) pos.push(center[i].clone().addScaledVector(left[i],o[i]));
