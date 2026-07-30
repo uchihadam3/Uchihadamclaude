@@ -27,6 +27,29 @@ export function buildTrack(D=INTERLAGOS){
   const leftOf=t=> new THREE.Vector3().crossVectors(up,t).normalize();
   // curvatura por segmento (pra saber onde é curva -> zebra/barreira)
   const curv=[]; for(let i=0;i<=N;i++){ const a=tan[(i-2+N)%N], b=tan[(i+2)%N]; curv.push(a.angleTo(b)); }
+  // ---- ESPAÇO LIVRE lateral: quanto dá pra afastar do centro antes de chegar perto de
+  //      OUTRO trecho da pista. Impede cenário (brita/pneus) de cair EM CIMA da pista
+  //      em circuitos que dobram sobre si mesmos (Mônaco, Baku, etc.). ----
+  const idxWin = Math.max(20, Math.round(N*0.05));
+  const lim = (HALF+2)*(HALF+2);
+  const clearFor=(i,s)=>{
+    const c=pts[i], L=leftOf(tan[i]); const lx=L.x*s, lz=L.z*s;
+    for(let off=2; off<=24; off+=2){
+      const px=c.x+lx*off, pz=c.z+lz*off;
+      for(let j=0;j<=N;j+=2){
+        let dd=Math.abs(j-i); if(dd>N/2) dd=N-dd;
+        if(dd<idxWin) continue;
+        const ex=pts[j].x-px, ez=pts[j].z-pz;
+        if(ex*ex+ez*ez<lim) return off-2;
+      }
+    }
+    return 24;
+  };
+  const clearL=new Float32Array(N+1), clearR=new Float32Array(N+1);
+  for(let i=0;i<=N;i++){ clearL[i]=clearFor(i,1); clearR[i]=clearFor(i,-1); }
+  const clearAt=(i,s)=> s>0?clearL[i]:clearR[i];
+  const onTrack=(x,z)=>{ for(let j=0;j<=N;j+=2){ const ex=pts[j].x-x, ez=pts[j].z-z;
+      if(ex*ex+ez*ez<(HALF+3)*(HALF+3)) return true; } return false; };
 
   /* ---------- ASFALTO ---------- */
   const posA=[],uvA=[],idxA=[];
@@ -65,10 +88,12 @@ export function buildTrack(D=INTERLAGOS){
   (function(){
     const pos=[],uv=[],idx=[];
     for(let i=0;i<=N;i++){
-      const wide = curv[i]>0.015 ? 13 : 4.5;                    // escapatória larga na curva
+      const baseWide = curv[i]>0.015 ? 13 : 4.5;                // escapatória larga na curva
       const v=i/N*680;                                          // ~repetição a cada ~6 m
       const c=pts[i], l=leftOf(tan[i]);
       for(const s of [1,-1]){
+        // clipa a brita pela FOLGA lateral (não invade outro trecho da pista)
+        const wide=Math.max(0.4, Math.min(baseWide, clearAt(i,s)-HALF-0.4));
         const a=c.clone().addScaledVector(l, s*(HALF+0.15));    // colada na borda do asfalto
         const b=c.clone().addScaledVector(l, s*(HALF+0.15+wide));
         pos.push(a.x,0.014,a.z, b.x,0.012,b.z);
@@ -161,14 +186,19 @@ export function buildTrack(D=INTERLAGOS){
     };
     const placeRun=(run,side)=>{
       if(run.length<4) return;
-      // frames (ponto na 1ª fileira, lateral, tangente) ao longo do run...
-      const P=[],L=[],T=[];
+      // frames na BORDA DO ESPAÇO LIVRE (clipado) + flag de "tem espaço fora da pista"
+      const P=[],L=[],T=[],V=[];
       for(const i of run){ const l=leftOf(tan[i]);
-        P.push(pts[i].clone().addScaledVector(l, side*OFF)); L.push(l); T.push(tan[i].clone()); }
-      // ...e REAMOSTRA a cada `along` metros (os pts da pista ficam ~3 m -> tinha buraco)
+        const cl=clearAt(i,side);
+        const off=Math.min(OFF, cl-1.0);
+        P.push(pts[i].clone().addScaledVector(l, side*off)); L.push(l); T.push(tan[i].clone());
+        V.push(cl>=HALF+3);                        // false = pista dobra aqui -> NÃO põe pneu
+      }
+      // REAMOSTRA a cada `along` metros, mas só em trechos com espaço válido
       let dist=0, target=0;
       for(let k=0;k<P.length-1;k++){
-        const seg=P[k].distanceTo(P[k+1]); if(seg<1e-6) continue;
+        const seg=P[k].distanceTo(P[k+1]);
+        if(seg<1e-6 || !V[k] || !V[k+1]){ dist+=seg; if(target<dist) target=dist; continue; }
         while(target<=dist+seg){
           const f=(target-dist)/seg;
           const cbase=P[k].clone().lerp(P[k+1], f);
@@ -253,6 +283,7 @@ export function buildTrack(D=INTERLAGOS){
     const outward=new THREE.Vector3(p.x-centroid.x,0,p.z-centroid.z).normalize();
     const side=Math.sign(l.dot(outward))||1;
     const base=p.clone().addScaledVector(l, side*(HALF+18));
+    if(onTrack(base.x,base.z)) return;             // não põe arquibancada em cima de outro trecho
     // vira o conjunto de frente pra pista (local +Z = em direção à pista)
     const toTrack=p.clone().sub(base).setY(0).normalize();
     const grp=new THREE.Group(); grp.position.copy(base); grp.rotation.y=Math.atan2(toTrack.x,toTrack.z);
