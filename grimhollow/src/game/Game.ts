@@ -1014,6 +1014,27 @@ type Anim =
     }
   | { kind: "turn"; t0: number; fromY: number; toY: number };
 
+// inimigo billboard com IA (patrulha/visão/perseguição). Vários por mapa.
+interface EnemyEnt {
+  mesh: THREE.Mesh;
+  mat: THREE.MeshLambertMaterial;
+  c: number; r: number;        // célula lógica atual
+  bx: number; bz: number;      // posição VISUAL no mundo (interpolada no passo)
+  hp: number; maxHp: number;
+  atk: number;                 // dano do ataque
+  xp: number;                  // XP fixo dropado (sem escalar com o herói)
+  goldBase: number;            // ouro base dropado
+  visionR: number;             // alcance de visão (células)
+  homeC: number; homeR: number;// ponto de spawn (âncora da patrulha)
+  aggro: boolean;              // já viu/foi atingido → persegue
+  hitAt: number; dyingAt: number;
+  atkAt: number; hitApplied: boolean; nextAtk: number;
+  // passo em grade (interpolação suave entre células)
+  stepAt: number; stepDur: number; fx: number; fz: number; tx: number; tz: number;
+  nextMove: number;            // instante mínimo do próximo passo
+  bar: THREE.Group; barFill: THREE.Mesh;
+}
+
 export class Game {
   private renderer: THREE.WebGLRenderer;
   private composer?: EffectComposer; // pós-processamento (bloom + tone mapping)
@@ -1108,7 +1129,7 @@ export class Game {
   private hpRegenAcc = 0;   // acumula a fração de vida regenerada até completar 1 HP
   private lastNow = -1;     // timestamp do quadro anterior (p/ dt da regeneração)
   // atributos exibidos na janela de personagem (valores iniciais; mecânica depois)
-  private stats = { level: 1, xp: 0, xpMax: 100, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
+  private stats = { level: 1, xp: 0, xpMax: 140, atk: 8, def: 2, str: 5, dex: 5, int: 5, gold: 0 };
   // FERREIRO: nível de reforço (+N) por arma + materiais + item selecionado na janela
   private reinforce: Record<string, number> = {};
   private materials = { madeira: 8, minerio: 5, reforco: 3 };
@@ -1193,8 +1214,8 @@ export class Game {
   private passive: Partial<Record<StatKey, number>> = {};
   // ranks das habilidades (cópia local vinda do HUD) p/ acionar as ativas
   private skillRanks: Record<string, number> = {};
-  // alvo selecionado (o esqueleto, quando escolhido/na mira)
-  private target: Game["enemy"] = null;
+  // alvo selecionado (o inimigo escolhido/na mira)
+  private target: EnemyEnt | null = null;
   // recarga de cada habilidade: instante (ms) em que fica pronta de novo
   private cooldownUntil: Record<string, number> = {};
   private coolingSkills = new Set<string>(); // ids em recarga (tick atualiza a UI)
@@ -1218,25 +1239,8 @@ export class Game {
   private currentWeapon: Weapon | null = null; // arma equipada na mão principal
   private playerName = "Herói"; // nome escolhido na criação
   private classId = "guerreiro"; // classe escolhida na criação
-  // inimigo billboard (esqueleto da masmorra) — leva dano e revida
-  private enemy: {
-    mesh: THREE.Mesh;
-    mat: THREE.MeshLambertMaterial;
-    c: number;
-    r: number;
-    bx: number; // posição base no mundo (x)
-    bz: number; // posição base no mundo (z)
-    hp: number;
-    maxHp: number;
-    elevel: number; // nível do inimigo (escala XP/ouro dropado)
-    hitAt: number; // instante do último acerto (flash/recuo)
-    dyingAt: number; // instante em que começou a morrer (0 = vivo)
-    atkAt: number; // instante em que começou o ataque atual (0 = não atacando)
-    hitApplied: boolean; // já aplicou o dano deste ataque?
-    nextAtk: number; // instante mínimo do próximo ataque
-    bar: THREE.Group; // barra de vida flutuante
-    barFill: THREE.Mesh; // preenchimento da barra
-  } | null = null;
+  // inimigos billboard (com IA) — vários por mapa
+  private enemies: EnemyEnt[] = [];
   // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo
   private poofs: {
     mesh: THREE.Mesh;
@@ -1734,7 +1738,8 @@ export class Game {
     this.smoke = [];
     this.billboardProps = [];
     this.chests.clear();
-    this.enemy = null;
+    this.enemies = [];
+    this.target = null;
     this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
     this.clearTarget();
     this.projectiles = []; // as meshes já saíram no world.clear() acima
@@ -2217,12 +2222,8 @@ export class Game {
   // inimigo billboard no túnel da masmorra: guarda a escada, encara a câmera e
   // leva dano do golpe (3 acertos de perto e de frente e ele tomba).
   private buildDungeonEnemy(c = 2, r = 4) {
-    // nível do inimigo escala com o do herói (variação -1..+1, mínimo 1). Define
-    // a vida e, na morte, o XP e o ouro dropado.
-    const elevel = Math.max(1, this.stats.level + (Math.floor(Math.random() * 3) - 1));
-    // vida do inimigo sobe com o nível — dá pra sobreviver a alguns golpes agora
-    // que o Atq. Físico (dos atributos) entra no dano do ataque básico.
-    const emaxHp = 26 + (elevel - 1) * 8;
+    // stats FIXOS (não escalam mais com o nível do herói) — dificuldade estável
+    const HP = 30, ATK = 10, XP = 22, GOLD = 6, VISION = 5;
     const worldH = 2.6; // célula do inimigo (parametrizada por local)
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
@@ -2252,11 +2253,15 @@ export class Game {
     bar.position.set(c * CELL, worldH + 0.45, r * CELL);
     this.world.add(bar);
     this.billboardProps.push(bar); // encara a câmera
-    this.enemy = {
+    const e: EnemyEnt = {
       mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
-      hp: emaxHp, maxHp: emaxHp, elevel, hitAt: 0, dyingAt: 0,
-      atkAt: 0, hitApplied: false, nextAtk: 0, bar, barFill,
+      hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
+      homeC: c, homeR: r, aggro: false, hitAt: 0, dyingAt: 0,
+      atkAt: 0, hitApplied: false, nextAtk: 0,
+      stepAt: 0, stepDur: 520, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
+      bar, barFill,
     };
+    this.enemies.push(e);
     // luz fria azulada perto dele (atmosfera de cripta)
     const glow = new THREE.PointLight(0x6aa0d0, 0.55, 5, 2);
     glow.position.set(c * CELL, 1.7, r * CELL);
@@ -3221,10 +3226,10 @@ export class Game {
   }
 
   private tryHitEnemy() {
-    const e = this.enemy;
-    if (!e || e.dyingAt) return;
     const [dc, dr] = DIRS[this.facing];
-    if (this.col + dc !== e.c || this.row + dr !== e.r) return; // não está de frente
+    // acerta o inimigo (vivo) na célula à frente do jogador
+    const e = this.enemies.find((x) => !x.dyingAt && x.c === this.col + dc && x.r === this.row + dr);
+    if (!e) return;
     // dano do ataque básico = Atq. Físico + arma, com chance de crítico
     const base = this.sec.atkPhys + (this.currentWeapon?.dmg ?? 0);
     const r = this.rollDamage(base, false);
@@ -3234,7 +3239,7 @@ export class Game {
   // aplica dano a um inimigo, atualiza a barra, mostra o número flutuante e
   // cuida da morte (poof/recompensa). isCrit deixa o número maior e com "!".
   private dealDamageToEnemy(
-    e: NonNullable<Game["enemy"]>,
+    e: EnemyEnt,
     amount: number,
     isCrit = false,
   ) {
@@ -3242,6 +3247,7 @@ export class Game {
     const dmg = Math.max(1, Math.round(amount));
     e.hp -= dmg;
     e.hitAt = performance.now();
+    e.aggro = true; // ao ser atingido (mesmo à distância) ele parte pra cima do herói
     this.ui.playSfx("hit"); // estalo de dano no inimigo
     // ROUBO DE VIDA (talento): cura o herói por uma fração do dano causado
     const leech = this.passive.leech ?? 0;
@@ -3261,21 +3267,19 @@ export class Game {
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
       this.spawnPoof(e.bx, e.bz);
       if (this.target === e) this.clearTarget();
-      // recompensa escala com o nível do inimigo: ouro variável (base + faixa
-      // aleatória por nível) e XP proporcional.
-      const lv = e.elevel;
-      const gold = 4 + lv * 3 + Math.floor(Math.random() * (3 + lv * 2));
+      // recompensa FIXA (não escala com o herói): ouro base + pequena variação, XP fixo
+      const gold = e.goldBase + Math.floor(Math.random() * 5);
       // LOOT estilo WoW: a sacola de ouro + (às vezes) uma peça caem no CHÃO na
       // célula do inimigo; o jogador anda até lá p/ recolher (ouro auto, item por popup).
-      this.rollLoot(e.c, e.r, lv, gold);
-      this.gainXp(30 + lv * 15);
+      this.rollLoot(e.c, e.r, 1, gold);
+      this.gainXp(e.xp);
       this.questOnKill(); // progresso da missão "Ossos Inquietos"
       this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
     }
   }
 
   // distância em células (Chebyshev) entre o herói e um inimigo
-  private cellDist(e: NonNullable<Game["enemy"]>): number {
+  private cellDist(e: EnemyEnt): number {
     return Math.max(Math.abs(this.col - e.c), Math.abs(this.row - e.r));
   }
 
@@ -3314,9 +3318,11 @@ export class Game {
     }
     // alvo / alcance (habilidades ofensivas)
     if (cb.target === "enemy") {
-      // auto-mira: se não há alvo, mira o inimigo presente
-      if ((!this.target || this.target.dyingAt) && this.enemy && !this.enemy.dyingAt)
-        this.setTarget(this.enemy);
+      // auto-mira: se não há alvo, mira o inimigo VIVO mais próximo
+      if (!this.target || this.target.dyingAt) {
+        const near = this.nearestEnemy();
+        if (near) this.setTarget(near);
+      }
       const t = this.target;
       if (!t || t.dyingAt) {
         this.ui.toast("Sem alvo");
@@ -3352,7 +3358,7 @@ export class Game {
       const fxMs = fxDurationFor(id);
       const impactEnd = FX_IMPACT_END.has(id); // dano só no fim da animação
       const dealDmg = () => {
-        if (this.enemy === enemyRef && !enemyRef.dyingAt) {
+        if (this.enemies.includes(enemyRef) && !enemyRef.dyingAt) {
           const r = this.rollDamage(base, cb.magic);
           this.dealDamageToEnemy(enemyRef, r.dmg, r.crit);
         }
@@ -3393,7 +3399,7 @@ export class Game {
   }
 
   // ---- seleção de alvo ----
-  private setTarget(e: NonNullable<Game["enemy"]>) {
+  private setTarget(e: EnemyEnt) {
     this.target = e;
     this.ensureReticle();
     if (this.reticle) this.reticle.visible = true;
@@ -3401,6 +3407,16 @@ export class Game {
   private clearTarget() {
     this.target = null;
     if (this.reticle) this.reticle.visible = false;
+  }
+  // inimigo vivo mais próximo do herói (por distância em células)
+  private nearestEnemy(): EnemyEnt | null {
+    let best: EnemyEnt | null = null, bd = Infinity;
+    for (const e of this.enemies) {
+      if (e.dyingAt) continue;
+      const d = Math.abs(e.c - this.col) + Math.abs(e.r - this.row);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
   }
 
   // cria (uma vez) o marcador de mira: uma seta/chevron discreta que paira sobre
@@ -3447,16 +3463,18 @@ export class Game {
     this.billboardProps.push(mesh); // encara a câmera
   }
 
-  // clique na cena: raycast p/ selecionar o esqueleto como alvo
+  // clique na cena: raycast p/ selecionar um inimigo como alvo (o mais próximo da câmera)
   private onCanvasPointer(ev: PointerEvent) {
-    const e = this.enemy;
-    if (!e || e.dyingAt) return;
+    const live = this.enemies.filter((x) => !x.dyingAt);
+    if (!live.length) return;
     const rect = this.renderer.domElement.getBoundingClientRect();
     const nx = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
     const ny = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(new THREE.Vector2(nx, ny), this.camera);
-    const hit = this.raycaster.intersectObject(e.mesh, false);
-    if (hit.length) this.setTarget(e);
+    const hits = this.raycaster.intersectObjects(live.map((x) => x.mesh), false);
+    if (!hits.length) return;
+    const picked = live.find((x) => x.mesh === hits[0].object);
+    if (picked) this.setTarget(picked);
   }
 
   // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo. 10 quadros
@@ -3764,7 +3782,9 @@ export class Game {
   // atualiza a janela de personagem com os atributos + vida/mana atuais
   // XP necessário pra passar do nível atual (curva suave)
   private nextXpMax(level: number): number {
-    return Math.round(100 + (level - 1) * 60);
+    // curva multiplicativa: subir de nível fica progressivamente mais lento.
+    // nv1→2 = 140 XP (~6 mortes a 22 XP); nv2→3 ≈ 196; nv3→4 ≈ 274; …
+    return Math.round(140 * Math.pow(1.4, level - 1));
   }
   // ganha XP; sobe de nível (1 ponto de habilidade por nível) e recompensa.
   private gainXp(amount: number) {
@@ -5093,7 +5113,7 @@ export class Game {
     // cenografia: salas temáticas (cripta/caverna fúngica) + destroços
     this.buildDungeonDressing(CH);
 
-    this.spawnDungeonEnemy(); // um inimigo perto do jogador
+    this.spawnDungeonEnemies(); // vários inimigos espalhados (com IA de patrulha/visão)
   }
 
   // ESCADA DE VOLTA (U): NÃO é um bloco solto no corredor — é um vão em ARCO na parede
@@ -5380,15 +5400,88 @@ export class Game {
   }
 
   // nasce um inimigo no ponto 'E' mais próximo do jogador (não na célula dele)
-  private spawnDungeonEnemy() {
-    const es = dungeonAll("E").filter((e) => !(e.col === this.col && e.row === this.row));
-    if (!es.length) return;
-    let best = es[0], bd = Infinity;
+  // povoa a masmorra: escolhe pontos 'E' BEM ESPALHADOS (distância mínima entre si
+  // e longe do spawn do herói) p/ que os inimigos não se juntem todos de uma vez.
+  private spawnDungeonEnemies() {
+    let es = dungeonAll("E").filter(
+      (e) => Math.abs(e.col - this.col) + Math.abs(e.row - this.row) >= 4, // não em cima do herói
+    );
+    // seleção gulosa por espaçamento: cada escolhido fica ≥ MINGAP dos já escolhidos
+    const MINGAP = 5;
+    const picked: { col: number; row: number }[] = [];
+    // embaralha p/ variar a distribuição entre partidas
+    es = es.sort(() => Math.random() - 0.5);
     for (const e of es) {
-      const d = Math.abs(e.col - this.col) + Math.abs(e.row - this.row);
-      if (d < bd) { bd = d; best = e; }
+      if (picked.every((p) => Math.abs(p.col - e.col) + Math.abs(p.row - e.row) >= MINGAP)) {
+        picked.push(e);
+        if (picked.length >= 8) break; // teto de inimigos por andar
+      }
     }
-    this.buildDungeonEnemy(best.col, best.row);
+    for (const p of picked) this.buildDungeonEnemy(p.col, p.row);
+  }
+
+  // ---- IA dos inimigos: visão (linha livre), perseguição e patrulha ----
+  // linha de visão: caminha a reta até o herói; parede no meio bloqueia a visão
+  private enemyCanSee(e: EnemyEnt): boolean {
+    let x0 = e.c, y0 = e.r; const x1 = this.col, y1 = this.row;
+    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+    for (let guard = 0; guard < 64; guard++) {
+      if (!(x0 === e.c && y0 === e.r) && !(x0 === x1 && y0 === y1) && !this.canWalk(x0, y0)) return false;
+      if (x0 === x1 && y0 === y1) return true;
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; x0 += sx; }
+      if (e2 < dx) { err += dx; y0 += sy; }
+    }
+    return true;
+  }
+  // um passo em grade rumo à célula alvo (atualiza ocupação + inicia interpolação)
+  private enemyStepTo(e: EnemyEnt, nc: number, nr: number, now: number) {
+    this.blocked.delete(`${e.c},${e.r}`);
+    e.c = nc; e.r = nr;
+    this.blocked.add(`${nc},${nr}`);
+    e.fx = e.bx; e.fz = e.bz;
+    e.tx = nc * CELL; e.tz = nr * CELL;
+    e.stepAt = now;
+    e.nextMove = now + e.stepDur + 40;
+  }
+  private enemyCellFree(nc: number, nr: number): boolean {
+    return this.canWalk(nc, nr) && !this.blocked.has(`${nc},${nr}`) && !(nc === this.col && nr === this.row);
+  }
+  // perseguição gulosa: anda p/ o vizinho livre que mais aproxima do herói
+  private enemyChaseStep(e: EnemyEnt, now: number) {
+    const cur = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
+    let best: [number, number] | null = null, bd = cur;
+    for (const [dc, dr] of DIRS) {
+      const nc = e.c + dc, nr = e.r + dr;
+      if (!this.enemyCellFree(nc, nr)) continue;
+      const d = Math.abs(this.col - nc) + Math.abs(this.row - nr);
+      if (d < bd || (d === bd && Math.random() < 0.35)) { bd = d; best = [nc, nr]; }
+    }
+    if (best && bd < cur) this.enemyStepTo(e, best[0], best[1], now);
+    else e.nextMove = now + 260; // encurralado: espera um tico e tenta de novo
+  }
+  // patrulha: vagueia devagar perto do ponto de spawn (raio 2)
+  private enemyPatrolStep(e: EnemyEnt, now: number) {
+    if (Math.random() < 0.55) { e.nextMove = now + 900; return; } // fica parado boa parte do tempo
+    const opts = DIRS
+      .map(([dc, dr]) => [e.c + dc, e.r + dr] as [number, number])
+      .filter(([nc, nr]) => this.enemyCellFree(nc, nr) && Math.abs(nc - e.homeC) + Math.abs(nr - e.homeR) <= 2);
+    if (opts.length) {
+      const [nc, nr] = opts[Math.floor(Math.random() * opts.length)];
+      this.enemyStepTo(e, nc, nr, now);
+      e.nextMove = now + 1000;
+    } else e.nextMove = now + 800;
+  }
+  // ao remover um inimigo: na VILA repõe o "guarda" da entrada; na masmorra é
+  // finito (limpar o andar é o objetivo).
+  private onEnemyRemoved() {
+    if (this.location === "village") {
+      window.setTimeout(() => {
+        if (this.location === "village" && !this.enemies.length) this.buildDungeonEnemy();
+      }, 6000);
+    }
   }
 
   private addWall(
@@ -8330,71 +8423,71 @@ export class Game {
         }
       }
     }
-    // inimigo: ataca (investida), reage ao dano (brilho + recuo) e morre
-    const e = this.enemy;
-    if (e) {
+    // ---- INIMIGOS: IA (patrulha / visão / perseguição), ataque, dano, morte ----
+    for (let ei = this.enemies.length - 1; ei >= 0; ei--) {
+      const e = this.enemies[ei];
+      // interpola o passo em grade (movimento suave entre células)
+      if (e.stepAt) {
+        const st = Math.min(1, (now - e.stepAt) / e.stepDur);
+        e.bx = e.fx + (e.tx - e.fx) * st;
+        e.bz = e.fz + (e.tz - e.fz) * st;
+        if (st >= 1) { e.stepAt = 0; e.bx = e.tx; e.bz = e.tz; }
+      }
       const h = (e.mesh.geometry as THREE.PlaneGeometry).parameters.height;
-      // direção horizontal do inimigo p/ a câmera (usada na investida e no recuo)
       let dx = cx - e.bx, dz = cz - e.bz;
-      const L = Math.hypot(dx, dz) || 1;
-      dx /= L;
-      dz /= L;
-      let lunge = 0, scale = 1, tiltZ = 0;
-      let emisR = 0, emisG = 0, emisB = 0;
+      const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+      let lunge = 0, scale = 1, tiltZ = 0, emisR = 0, emisG = 0, emisB = 0;
       const sinceHit = now - e.hitAt;
       if (e.dyingAt) {
         const t = (now - e.dyingAt) / 650;
-        e.mat.opacity = Math.max(0, 1 - t * 3); // some rápido: a explosão o engole
-        e.mesh.rotation.z = -t * 1.6; // tomba
-        const sq = Math.max(0.12, 1 - t * 0.55); // esmaga verticalmente (desmorona)
+        e.mat.opacity = Math.max(0, 1 - t * 3);
+        e.mesh.rotation.z = -t * 1.6;
+        const sq = Math.max(0.12, 1 - t * 0.55);
         e.mesh.scale.set(1 + t * 0.35, sq, 1);
         e.mesh.position.y = h / 2 - t * 0.75;
         e.bar.visible = false;
-        // sem clarão no golpe fatal (o inimigo só tomba e some)
-
         if (t >= 1) {
           for (const o of [e.mesh, e.bar]) {
             this.world.remove(o);
             const idx = this.billboardProps.indexOf(o);
             if (idx >= 0) this.billboardProps.splice(idx, 1);
           }
-          e.mesh.geometry.dispose();
-          e.mat.dispose();
-          this.enemy = null;
-          // renasce depois de um tempo (pra continuar dando XP/loot enquanto testa)
-          window.setTimeout(() => {
-            if (this.enemy) return;
-            if (this.location === "village") this.buildDungeonEnemy();
-            else if (this.location === "dungeon") this.spawnDungeonEnemy();
-          }, 5000);
+          e.mesh.geometry.dispose(); e.mat.dispose();
+          this.enemies.splice(ei, 1);
+          this.onEnemyRemoved();
         }
-      } else {
-        // IA: ataca quando o jogador está numa célula adjacente
-        const adj = Math.abs(this.col - e.c) + Math.abs(this.row - e.r) === 1;
-        if (!e.atkAt && adj && now >= e.nextAtk) e.atkAt = now;
-        if (e.atkAt) {
-          const t = (now - e.atkAt) / 700;
-          if (t < 0.4) { const k = t / 0.4; lunge = -0.35 * k; scale = 1 - 0.05 * k; } // arma p/ trás
-          else if (t < 0.6) { const k = (t - 0.4) / 0.2; lunge = -0.35 + 1.25 * k; scale = 0.95 + 0.27 * k; } // investe
-          else { const k = (t - 0.6) / 0.4; lunge = 0.9 * (1 - k); scale = 1.22 - 0.22 * k; } // recolhe
-          if (!e.hitApplied && t > 0.52) { e.hitApplied = true; if (adj) this.damagePlayer(12); }
-          if (t >= 1) { e.atkAt = 0; e.hitApplied = false; e.nextAtk = now + 1100; }
-        }
-        // reação ao dano: brilho vermelho-branco + recuo elástico
-        if (sinceHit < 240) {
-          const k = sinceHit / 240;
-          const spring = Math.sin((1 - k) * Math.PI);
-          lunge -= spring * 0.6;
-          const g = 1 - k * 0.7;
-          emisR = g;
-          emisG = g * 0.2;
-          emisB = g * 0.16;
-          tiltZ = spring * 0.14;
-        }
-        e.mesh.position.set(e.bx + dx * lunge, h / 2, e.bz + dz * lunge);
-        e.mesh.scale.set(scale, scale, 1);
-        e.mesh.rotation.z = tiltZ;
+        continue;
       }
+      // ---- IA ----
+      const distCells = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
+      // VISÃO: fica aggro se o herói entra no alcance E há linha de visão livre
+      if (!e.aggro && distCells <= e.visionR && this.enemyCanSee(e)) e.aggro = true;
+      const adj = distCells === 1;
+      // MOVIMENTO: só quando não está atacando nem no meio de um passo
+      if (!e.atkAt && !e.stepAt && now >= e.nextMove) {
+        if (e.aggro && !adj) this.enemyChaseStep(e, now);
+        else if (!e.aggro) this.enemyPatrolStep(e, now);
+      }
+      // ATAQUE quando adjacente
+      if (!e.atkAt && adj && !e.stepAt && now >= e.nextAtk) e.atkAt = now;
+      if (e.atkAt) {
+        const t = (now - e.atkAt) / 700;
+        if (t < 0.4) { const k = t / 0.4; lunge = -0.35 * k; scale = 1 - 0.05 * k; }
+        else if (t < 0.6) { const k = (t - 0.4) / 0.2; lunge = -0.35 + 1.25 * k; scale = 0.95 + 0.27 * k; }
+        else { const k = (t - 0.6) / 0.4; lunge = 0.9 * (1 - k); scale = 1.22 - 0.22 * k; }
+        if (!e.hitApplied && t > 0.52) { e.hitApplied = true; if (adj) this.damagePlayer(e.atk); }
+        if (t >= 1) { e.atkAt = 0; e.hitApplied = false; e.nextAtk = now + 1100; }
+      }
+      // reação ao dano: brilho vermelho-branco + recuo elástico
+      if (sinceHit < 240) {
+        const k = sinceHit / 240; const spring = Math.sin((1 - k) * Math.PI);
+        lunge -= spring * 0.6; const g = 1 - k * 0.7;
+        emisR = g; emisG = g * 0.2; emisB = g * 0.16; tiltZ = spring * 0.14;
+      }
+      e.mesh.position.set(e.bx + dx * lunge, h / 2, e.bz + dz * lunge);
+      e.mesh.scale.set(scale, scale, 1);
+      e.mesh.rotation.z = tiltZ;
+      e.bar.position.set(e.bx, h + 0.45, e.bz); // a barra segue o inimigo
       e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
     this.updatePoofs(now);
