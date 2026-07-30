@@ -48,8 +48,8 @@ const car=buildF1Car({}); scene.add(car);
 const wheels=car.userData.wheels, rad=car.userData.radius;
 
 /* ---------- ESTADO DA CORRIDA ---------- */
-let u=0;                 // parâmetro [0,1) na volta
-let speed=40;            // m/s atual
+let u=0;                 // parâmetro [0,1) na volta — começa na largada
+let speed=12;            // m/s atual (largada)
 const total=track.length;
 const tmp=new THREE.Vector3(), tan=new THREE.Vector3(), lookTmp=new THREE.Vector3();
 const up=new THREE.Vector3(0,1,0);
@@ -138,6 +138,7 @@ function frame(){
 const hudSpeed=document.getElementById('spd');
 const hudG=document.getElementById('gforce');
 
+window.__f1={scene,camera,car,track,renderer};   // debug/verificação
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();
