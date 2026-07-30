@@ -137,42 +137,57 @@ export function buildTrack(){
   /* ---------- BARREIRAS de PNEUS 3D (como na F1 real: pneus DEITADOS, furo pra
      cima, empilhados em colunas e em VÁRIAS FILEIRAS de profundidade) ---------- */
   (function(){
-    const MAJ=0.33, TUBE=0.15;                     // raio do pneu e da "rosca"
+    const MAJ=0.34, TUBE=0.17;                     // raio do pneu e da "rosca"
     const OFF=HALF+13;                             // recuo da 1ª fileira
-    const stepH=TUBE*2*0.9;                        // altura de cada pneu deitado (leve sobreposição)
-    const nHigh=4, nDeep=3;                        // 4 de altura, 3 fileiras de profundidade
-    const dstep=(MAJ+TUBE)*1.7;                    // distância entre fileiras
-    const along=(MAJ+TUBE)*1.85;                   // espaçamento das colunas ao longo da barreira
+    const stepH=TUBE*2*0.86;                       // altura de cada pneu deitado (sobreposição)
+    const nHigh=4, nDeep=2;                        // 4 de altura, 2 fileiras (tijolo cobre as frestas)
+    const dstep=(MAJ+TUBE)*1.25;                   // fileiras bem juntas (sem vão)
+    const along=(MAJ+TUBE)*1.78;                   // colunas coladas (reamostrado -> sem buraco)
     const mats=[];
     // deita o torus: eixo passa de Z pra Y (fica como um pneu no chão, furo pra cima)
     const upQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2);
     const tmpP=new THREE.Vector3(), tmpS=new THREE.Vector3(1,1,1), m4=new THREE.Matrix4();
+    const placeColumn=(cbase,l,tg,side)=>{
+      for(let d=0; d<nDeep; d++){                                   // fileiras (profundidade)
+        const tShift=(d%2)?along*0.5:0;                            // TIJOLO ao longo: cobre a fresta da frente
+        const base=cbase.clone().addScaledVector(l, side*(d*dstep)).addScaledVector(tg, tShift);
+        const yBrick=(d%2)?stepH*0.5:0;
+        for(let h=0; h<nHigh; h++){
+          tmpP.set(base.x, stepH*0.5 + yBrick + h*stepH, base.z);
+          m4.compose(tmpP, upQ, tmpS); mats.push(m4.clone());
+        }
+      }
+    };
     const placeRun=(run,side)=>{
       if(run.length<4) return;
-      let acc=1e9, prev=null;
-      for(const i of run){
-        const c=pts[i], l=leftOf(tan[i]);
-        const p0=c.clone().addScaledVector(l, side*OFF);
-        if(prev) acc+=p0.distanceTo(prev); prev=p0;
-        if(acc<along) continue; acc=0;
-        for(let d=0; d<nDeep; d++){                                 // fileiras (profundidade)
-          const base=c.clone().addScaledVector(l, side*(OFF + d*dstep));
-          const yBrick=(d%2)?stepH*0.5:0;                           // encaixe tijolo
-          for(let h=0; h<nHigh; h++){                               // pilha (altura)
-            tmpP.set(base.x, stepH*0.5 + yBrick + h*stepH, base.z);
-            m4.compose(tmpP, upQ, tmpS); mats.push(m4.clone());
-          }
+      // frames (ponto na 1ª fileira, lateral, tangente) ao longo do run...
+      const P=[],L=[],T=[];
+      for(const i of run){ const l=leftOf(tan[i]);
+        P.push(pts[i].clone().addScaledVector(l, side*OFF)); L.push(l); T.push(tan[i].clone()); }
+      // ...e REAMOSTRA a cada `along` metros (os pts da pista ficam ~3 m -> tinha buraco)
+      let dist=0, target=0;
+      for(let k=0;k<P.length-1;k++){
+        const seg=P[k].distanceTo(P[k+1]); if(seg<1e-6) continue;
+        while(target<=dist+seg){
+          const f=(target-dist)/seg;
+          const cbase=P[k].clone().lerp(P[k+1], f);
+          const l=L[k].clone().lerp(L[k+1], f).normalize();
+          const tg=T[k].clone().lerp(T[k+1], f).normalize();
+          placeColumn(cbase,l,tg,side);
+          target+=along;
         }
+        dist+=seg;
       }
     };
     for(const side of [1,-1]){
       let run=[];
-      for(let i=0;i<=N;i++){ if(curv[i]>0.012) run.push(i); else { placeRun(run,side); run=[]; } }
+      for(let i=0;i<=N;i++){ if(curv[i]>0.019) run.push(i); else { placeRun(run,side); run=[]; } }
       placeRun(run,side);
     }
     if(mats.length){
-      const torus=new THREE.TorusGeometry(MAJ,TUBE,7,12);   // baixo poli (x19 mil pneus)
-      const tmat=new THREE.MeshStandardMaterial({map:tex(TEX.tread,{repeat:[6,1]}),color:0x242427,roughness:0.97});
+      const torus=new THREE.TorusGeometry(MAJ,TUBE,6,9);    // baixo poli (dezenas de milhares de pneus)
+      // cor clara + textura de borracha = a textura APARECE (não fica um borrão preto)
+      const tmat=new THREE.MeshStandardMaterial({map:tex(TEX.tread,{repeat:[5,2]}),color:0x9a9a9e,roughness:0.96});
       const inst=new THREE.InstancedMesh(torus,tmat,mats.length);
       mats.forEach((m,k)=>inst.setMatrixAt(k,m));
       inst.instanceMatrix.needsUpdate=true; inst.castShadow=true; inst.receiveShadow=true;
