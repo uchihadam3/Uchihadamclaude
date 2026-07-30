@@ -86,8 +86,10 @@ const vat=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floo
 
 /* ---------- GRID DE 20 CARROS ---------- */
 export function buildField(scene, line){
-  const grid = DRIVERS.map(d=>({ d, pace: carStats(d.team).geral*0.62 + overall(d)*0.38 }))
-                      .sort((a,b)=>b.pace-a.pace);
+  const grid = DRIVERS.map(d=>({ d, pace: carStats(d.team).geral*0.62 + overall(d)*0.38 }));
+  // "classificação" temporária: embaralha o grid (não fica mais equipe atrás de equipe)
+  grid.forEach(it=> it.qual = it.pace + (Math.random()-0.5)*7.5);
+  grid.sort((a,b)=>b.qual-a.qual);
   const cars=[];
   grid.forEach((it,slot)=>{
     const drv=it.d;
@@ -95,15 +97,20 @@ export function buildField(scene, line){
     g.traverse(o=>{ if(o.isMesh){ o.castShadow=false; } });
     scene.add(g);
     const side=(slot%2===0)?1:-1, LAT=2.8;
-    const reaction = 0.20 + (1-(it.pace-76)/17)*0.28 + Math.random()*0.12;
-    // ESTILO do piloto (determinístico)
-    const hsh=s=>{let x=0;for(const ch of s)x=(x*31+ch.charCodeAt(0))|0;return ((x>>>0)%1000)/1000;};
-    const r1=hsh(drv.nome), r2=hsh(drv.nome+'x');
+    const reaction = 0.18 + (1-(it.pace-76)/17)*0.26 + Math.random()*0.14;
+    // ===== ESTILO do piloto — bem DIFERENTE de um pro outro (até companheiros) =====
+    const hsh=s=>{let x=0;for(const ch of s)x=(x*131+ch.charCodeAt(0))|0;return ((x>>>0)%10000)/10000;};
+    const h1=hsh(drv.nome), h2=hsh(drv.nome+'#'), h3=hsh(drv.nome+'@');
+    const nrm=(v,mid,span)=>THREE.MathUtils.clamp((v-mid)/span,-1,1);
     const style={
-      brakeLate: THREE.MathUtils.clamp((drv.ultrapassagem-78)/30 + (r1-0.5)*0.4, 0, 1),
-      cornerCarry: THREE.MathUtils.clamp((drv.ritmo-84)/30 + (r2-0.5)*0.4, -1, 1),
-      lineBias: (r1-0.5)*0.8,
-      phase: r2*Math.PI*2,
+      brakeLate: THREE.MathUtils.clamp(0.5 + nrm(drv.ultrapassagem,84,15)*0.45 + (h1-0.5)*0.8, 0, 1), // freia tarde x cedo
+      cornerCarry: THREE.MathUtils.clamp(nrm(drv.ritmo,88,12)*0.6 + (h2-0.5)*0.9, -1, 1),               // carrega curva
+      lineBias: (h1-0.5)*1.7 + nrm(drv.ritmo,88,16)*0.4,                                                // linha PESSOAL
+      aggro: THREE.MathUtils.clamp(0.45 + nrm(drv.ultrapassagem,84,15)*0.5 + (h3-0.5)*0.55, 0.06, 1),   // agressividade
+      defense: THREE.MathUtils.clamp(0.5 + nrm(drv.defesa,84,13)*0.55, 0.05, 1),                        // firmeza defesa
+      errK: THREE.MathUtils.clamp(1.5 - nrm(drv.consistencia,84,16)*1.2, 0.25, 2.6),                    // tende a errar
+      smooth: THREE.MathUtils.clamp(0.5 + nrm(drv.consistencia,84,16)*0.5, 0.1, 1),                     // suavidade
+      phase: h2*Math.PI*2,
     };
     // PERFIL do carro (da ficha técnica): uns aceleram melhor, outros têm
     // mais velocidade final, mais curva (aero) ou mais freio (chassi)
@@ -155,12 +162,12 @@ export function updateField(cars, line, dt, t, started){
     const f=idxOf(c), racingOff=at(line.offset,f,N);
     // spread REAL de ritmo (~3% do 1º ao 20º, como na F1) — o pelotão não estica infinito
     const skill=0.955+(c.pace-76)/17*0.035;
-    const cf=c.perf.corner*(1+0.012*c.style.cornerCarry);          // fator de curva carro+estilo
+    const cf=c.perf.corner*(1+0.024*c.style.cornerCarry);          // fator de curva carro+estilo (diferença nítida)
 
     // ---- FRENAGEM REALISTA: o freio depende da velocidade (downforce) ----
     // dec = b0 + kb·v² -> ~5.5g em alta velocidade, ~2.3g em baixa (como F1 real)
-    const b0=c.perf.brake0 + 2*c.style.brakeLate, kb=0.0042;
-    const marg=1.14 - 0.10*c.style.brakeLate;                      // late-brakers: menos margem
+    const b0=c.perf.brake0 + 3.4*c.style.brakeLate, kb=0.0042;
+    const marg=1.20 - 0.17*c.style.brakeLate;                      // late-brakers: freiam bem mais tarde
     const vHere=at(line.vmax,f,N); const vNow=(vHere<80? vHere*cf : vHere);
     const decMul=(c.passing&&c.passing.dive)?1.28:1;               // MERGULHO: freia mais tarde
     let vAllow=99, minFi=f, apexDist=0;
@@ -176,8 +183,8 @@ export function updateField(cars, line, dt, t, started){
     const heavyBraking = bindingCorner && (c.speed - vApex > 10);
 
     // ---- forma oscilante (pneu/combustível/momento) ----
-    c.form += (Math.random()-0.5)*0.006;
-    c.form = THREE.MathUtils.clamp(c.form, -0.026, 0.026);
+    c.form += (Math.random()-0.5)*0.006*(1.7-c.style.smooth);      // menos suave = ritmo mais irregular
+    c.form = THREE.MathUtils.clamp(c.form, -0.032, 0.032);
     c.lapsDone=Math.max(0,Math.floor(c.d/len));
     // pneu: desgasta e perde ritmo; combustível: queima ao longo da corrida (carro fica leve/rápido)
     const tire=TIRES[c.tire];
@@ -188,7 +195,7 @@ export function updateField(cars, line, dt, t, started){
     let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage)*tireMul*fuelMul;
 
     // ---- LINHA: base = a racing line já traz o out-in-out suave embutido ----
-    let tOff = racingOff + c.style.lineBias*0.35;
+    let tOff = racingOff + c.style.lineBias*0.95;                   // linha pessoal bem visível
     // antecipação SUAVE: só em curva RÁPIDA com espaço (não na parte travada/lenta),
     // abre um pouquinho pra fora antes de entrar — depois a própria linha fecha no apex.
     const fastCorner = vApex>70 && vApex<150 && c.speed>vApex+8;
@@ -252,7 +259,7 @@ export function updateField(cars, line, dt, t, started){
     // decide UMA vez por curva, mais provável sob pressão do carro de trás
     if(heavyBraking && c.cornerErr===0){
       const pressured = c.chaserGap<9;
-      const pErr = ((100-c.drv.consistencia)/100)*0.35*(pressured?2.0:1.0);
+      const pErr = ((100-c.drv.consistencia)/100)*0.35*(pressured?2.0:1.0)*c.style.errK;
       if(Math.random()<pErr) c.cornerErr=(0.6+Math.random()*1.4)*(pressured?1.3:1.0);
     }
     if(onStraight) c.cornerErr=0;                                  // fim da curva: reseta
@@ -266,7 +273,7 @@ export function updateField(cars, line, dt, t, started){
       // regra real: não pode fechar a porta com o rival já emparelhado na linha
       const laneLivre=!cars.some(o=>o!==c&&!o.out&&Math.abs(o.offset-dlane)<1.8&&dist(o,c)<7);
       if(laneLivre){
-        const def=THREE.MathUtils.clamp((c.drv.defesa-80)/20,0,1)*0.7;
+        const def=c.style.defense*0.8;                              // firmeza da defesa = estilo do piloto
         tOff=THREE.MathUtils.lerp(tOff, dlane, def);
       }
     }
@@ -335,7 +342,7 @@ export function updateField(cars, line, dt, t, started){
         // pneu mais novo, ou DRS na reta). "Qualquer brecha, ele tenta."
         const opp = gap<28 && (paceAdv>-1.4 || closing>0.3 || ah.cornerErr>0
                     || ah.wear>c.wear+0.12 || drsF);
-        const will=Math.max((c.drv.ultrapassagem-68)/30, 0.18);
+        const will=Math.max(c.style.aggro, 0.12);                   // agressividade no ataque = estilo
         const insLane=insideSide*3.7, outLane=-insideSide*3.9;
         const clearLane=lane=>!cars.some(o=>{ if(o===c||o===ah||o.out) return false;
           if(Math.abs(o.offset-lane)>2.1) return false;
