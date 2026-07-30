@@ -63,6 +63,24 @@ let focusU=0, focusSpeed=0, focusVmax=99;
 let camPos=new THREE.Vector3(0,8,-20);
 const clock=new THREE.Clock();
 let raceTime=0;
+let started=false;
+
+/* ---------- LARGADA: semáforo (5 luzes vermelhas -> apaga = vai) ---------- */
+const lightsEl=document.getElementById('lights');
+function setLamp(i,on){ const el=lightsEl&&lightsEl.children[i]; if(el) el.className='lamp'+(on?' on':''); }
+function startLights(){
+  if(!lightsEl) { started=true; for(const c of cars) c.launchStart=raceTime; return; }
+  lightsEl.classList.remove('hide');
+  for(let i=0;i<5;i++) setTimeout(()=>setLamp(i,true), 1800 + i*1000);
+  const hold=7200 + Math.random()*2200;
+  setTimeout(()=>{                                   // luzes apagam = LARGADA!
+    for(let i=0;i<5;i++) setLamp(i,false);
+    lightsEl.classList.add('go');
+    started=true;
+    for(const c of cars) c.launchStart = raceTime + c.reaction;
+    setTimeout(()=> lightsEl.classList.add('hide'), 1200);
+  }, hold);
+}
 
 // ---- marchas / RPM (pra som e sensação) ----
 const FOV_BASE=54, FOV_MAX=82;
@@ -128,7 +146,9 @@ const otEl=document.getElementById('overtake');
 let lastPos={}, flash={}, towerCd=0, otCd=0;
 function updateTower(dt){
   towerCd-=dt; otCd-=dt;
-  const order=[...cars].sort((a,b)=>b.d-a.d);
+  const running=cars.filter(c=>!c.out).sort((a,b)=>b.d-a.d);
+  const outs=cars.filter(c=>c.out);
+  const order=[...running, ...outs];
   // detecta ultrapassagens (mudança de posição) — sempre, pra piscar/avisar
   order.forEach((c,i)=>{ const pos=i+1, key=c.drv.nome, prev=lastPos[key];
     if(prev && prev!==pos){ flash[key]={t:raceTime, dir: pos<prev?'up':'down'};
@@ -142,10 +162,11 @@ function updateTower(dt){
   if(towerCd>0 || !towerEl) return;
   towerCd=0.12;
   let html='';
-  order.forEach((c,i)=>{ const pos=i+1, fl=flash[c.drv.nome];
-    const cls=(c===focus?'me ':'')+(fl&&raceTime-fl.t<1.0?('fl '+fl.dir):'');
-    const dmg=c.damage>0.35?'<span class="dmg">⚠</span>':'';
-    html+=`<div class="trow ${cls}"><span class="tp">${pos}</span><b style="background:${teamHex(c.team)}"></b><span class="tc">${code3(c.drv.nome)}</span><span class="tn">${lastName(c.drv.nome)}</span>${dmg}</div>`;
+  order.forEach((c,i)=>{ const fl=flash[c.drv.nome];
+    const cls=(c===focus?'me ':'')+(c.out?'out ':'')+(!c.out&&fl&&raceTime-fl.t<1.0?('fl '+fl.dir):'');
+    const dmg=c.out?'':(c.damage>0.35?'<span class="dmg">⚠</span>':'');
+    const pos=c.out?'<span class="tp out">OUT</span>':`<span class="tp">${i+1}</span>`;
+    html+=`<div class="trow ${cls}">${pos}<b style="background:${teamHex(c.team)}"></b><span class="tc">${code3(c.drv.nome)}</span><span class="tn">${lastName(c.drv.nome)}</span>${dmg}</div>`;
   });
   towerEl.innerHTML=html;
 }
@@ -213,7 +234,7 @@ function frame(){
   raceTime+=dt;
 
   // ---- atualiza os 20 carros (racing line + IA + colisões) ----
-  updateField(cars, line, dt, raceTime);
+  updateField(cars, line, dt, raceTime, started);
 
   // ---- extrai o carro em foco (alimenta câmera/som/HUD) ----
   focus=findFocus();
@@ -320,4 +341,5 @@ window.__f1={scene,camera,get car(){return car;},track,renderer}; window.__audio
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();
+startLights();   // largada parada com semáforo
 frame();
