@@ -81,7 +81,8 @@ export function buildF1Car(opts={}){
   /* ==================== MONOCOQUE / CHASSI ==================== */
   const tub=new THREE.Group(); G.add(tub);
   add(new THREE.BoxGeometry(0.66,0.42,3.1), paint, 0,0.36,0.05,0,0,0,tub);
-  add(new THREE.CylinderGeometry(0.33,0.33,3.1,24,1,false,0,Math.PI), paint, 0,0.55,0.05, 0,0,Math.PI/2, tub);
+  // corpo/topo arredondado do monocoque — AO LONGO do carro (frente-trás)
+  add(new THREE.CylinderGeometry(0.3,0.3,3.0,24), paint, 0,0.5,0.05, Math.PI/2,0,0, tub);
   add(new THREE.CylinderGeometry(0.16,0.33,1.2,20), paint, 0,0.44,1.75, Math.PI/2,0,0, tub);
   for(const s of [-1,1]) add(new THREE.PlaneGeometry(2.2,0.6), liverySide, s*0.345,0.45,0.2, 0, s*Math.PI/2, 0);
 
@@ -139,27 +140,34 @@ export function buildF1Car(opts={}){
   const cover=add(new THREE.CylinderGeometry(0.06,0.28,2.3,20), paint, 0,0.64,-1.25, Math.PI/2,0,0); cover.scale.set(1,1,0.9);
   add(new THREE.BoxGeometry(0.06,0.1,2.0), accent, 0,0.82,-1.2, 0.06,0,0);   // faixa central da tampa
 
-  /* ==================== ASA TRASEIRA (tamanho real) + BEAM WING ==================== */
-  const rw=new THREE.Group(); rw.position.set(0,0,-2.5); G.add(rw);
-  const RWW=1.0;                                   // largura real da asa (~1 m)
-  // plano principal (mainplane) — corda grande, bem no alto
-  add(new THREE.BoxGeometry(RWW,0.08,0.34), wingMat, 0,1.06,0.0, 0.26,0,0, rw);
-  // flap superior (DRS)
-  add(new THREE.BoxGeometry(RWW,0.06,0.26), accent, 0,1.30,-0.16, 0.5,0,0, rw);
-  // endplates altos
+  /* ==================== TRASEIRA: engine cover afilando (coke-bottle) ==================== */
+  // estreitamento do corpo antes da asa (a "cintura" do F1)
+  add(new THREE.CylinderGeometry(0.2,0.07,1.0,16), paint, 0,0.5,-2.05, Math.PI/2,0,0);
+  // saída de ar quente atrás dos sidepods
+  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.14,0.16,0.2), satin, s*0.22,0.42,-1.85);
+
+  /* ==================== ASA TRASEIRA (tamanho real, limpa) + BEAM WING ==================== */
+  const rw=new THREE.Group(); rw.position.set(0,0,-2.55); G.add(rw);
+  const RWW=0.92;                                  // largura real (~0.9 m)
+  // endplates retangulares limpos (sem abas pra fora)
   for(const s of [-1,1]){
-    add(new THREE.BoxGeometry(0.05,0.78,0.62), carbon, s*(RWW/2),1.02,-0.02, 0,0,0, rw);
-    add(new THREE.BoxGeometry(0.05,0.18,0.34), accent, s*(RWW/2),1.42,-0.08, 0,0,s*0.45, rw); // ponta enrolada
+    add(new THREE.BoxGeometry(0.04,0.66,0.62), carbon, s*(RWW/2),1.02,0.0, 0,0,0, rw);
+    add(new THREE.BoxGeometry(0.05,0.62,0.05), accent, s*(RWW/2),1.02,0.30, 0,0,0, rw);   // faixa de cor no bordo
   }
-  // pilares swan-neck segurando o mainplane
-  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.05,0.5,0.14), carbon, s*0.16,0.82,0.08, 0.1,0,0, rw);
-  // beam wing (embaixo)
-  add(new THREE.BoxGeometry(0.86,0.05,0.24), wingMat, 0,0.66,0.05, 0.2,0,0, rw);
-  // luz de chuva vermelha (embaixo, no centro)
-  add(new THREE.BoxGeometry(0.1,0.09,0.06), new THREE.MeshStandardMaterial({color:0xff2222,emissive:0x550000,emissiveIntensity:1}), 0,0.72,0.1,0,0,0, rw);
-  // estrutura de impacto traseira + escape
-  add(new THREE.CylinderGeometry(0.06,0.09,0.5,12), carbon, 0,0.5,-2.75, Math.PI/2,0,0);
-  add(new THREE.CylinderGeometry(0.05,0.055,0.18,14), chrome, 0,0.52,-3.02, Math.PI/2,0,0);
+  // plano principal (mainplane) — corda grande, inclinado
+  add(new THREE.BoxGeometry(RWW-0.03,0.05,0.34), wingMat, 0,1.0,0.03, 0.22,0,0, rw);
+  // flap superior (DRS) com fenda acima e atrás
+  add(new THREE.BoxGeometry(RWW-0.03,0.045,0.24), wingMat, 0,1.22,-0.13, 0.5,0,0, rw);
+  add(new THREE.BoxGeometry(RWW-0.03,0.02,0.24), accent, 0,1.235,-0.13, 0.5,0,0, rw);      // aresta de cor
+  // swan-neck: dois pilares finos do corpo até o mainplane (por cima)
+  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.045,0.42,0.16), carbon, s*0.14,0.82,0.08, 0.14,0,0, rw);
+  // beam wing (embaixo, acima do difusor)
+  add(new THREE.BoxGeometry(0.8,0.05,0.22), wingMat, 0,0.66,0.06, 0.25,0,0, rw);
+  // luz de chuva vermelha (central, embaixo)
+  add(new THREE.BoxGeometry(0.09,0.12,0.05), new THREE.MeshStandardMaterial({color:0xff2222,emissive:0x550000,emissiveIntensity:1}), 0,0.72,0.14,0,0,0, rw);
+  // estrutura de impacto traseira + ponteira do escape
+  add(new THREE.CylinderGeometry(0.07,0.1,0.55,12), carbon, 0,0.5,-2.78, Math.PI/2,0,0);
+  add(new THREE.CylinderGeometry(0.05,0.055,0.2,14), chrome, 0,0.52,-3.08, Math.PI/2,0,0);
 
   /* ==================== RODAS ==================== */
   const wheels={};
