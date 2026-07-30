@@ -63,16 +63,23 @@ function gauss(sd){ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.rando
    Assim o melhor pacote costuma vencer, mas raramente rola zebra.
    Pequena chance de abandono (DNF), maior com carro menos confiável.
    carStatsFn(teamKey) -> {geral, confiabilidade}. Retorna grid ordenado. */
-export function simulateRace(carStatsFn, luck=3.0){
+// seasonForm (opcional): {nome: bônus} — "fase" do carro/piloto na temporada (evolução, embalo).
+export function simulateRace(carStatsFn, luck=6.0, seasonForm=null){
   const res = DRIVERS.map(d=>{
     const cs = carStatsFn(d.team);
-    const base = cs.geral*0.62 + overall(d)*0.38;
-    const pDNF = 0.02 + (100-cs.confiabilidade)/100*0.05;
+    const raw = cs.geral*0.60 + overall(d)*0.40;
+    const base = 85 + (raw-85)*0.62;                     // comprime a vantagem: todos mais perto
+    const pDNF = 0.03 + (100-cs.confiabilidade)/100*0.06;
     const dnf = Math.random() < pDNF;
-    const perf = dnf ? -999 : base + gauss(luck) + (d.consistencia-80)*0.04;
+    const sf = seasonForm ? (seasonForm[d.nome]||0) : 0;
+    const perf = dnf ? -999 : base + sf + gauss(luck) + (d.consistencia-80)*0.03;
     return {nome:d.nome, team:d.team, num:d.num, ovr:overall(d), perf, dnf};
   });
   res.sort((a,b)=>b.perf-a.perf);
   res.forEach((r,i)=> r.pos = r.dnf ? 'AB' : (i+1));
   return res;
+}
+// "fase" aleatória de cada piloto/carro para uma temporada (sd = amplitude do swing)
+export function seasonForm(sd=4.5){
+  const f={}; for(const d of DRIVERS) f[d.nome]=gauss(sd); return f;
 }
