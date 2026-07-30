@@ -1241,6 +1241,8 @@ export class Game {
   private classId = "guerreiro"; // classe escolhida na criação
   // inimigos billboard (com IA) — vários por mapa
   private enemies: EnemyEnt[] = [];
+  // tocha que acompanha o jogador (ilumina o entorno imediato na masmorra)
+  private playerTorch?: THREE.PointLight;
   // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo
   private poofs: {
     mesh: THREE.Mesh;
@@ -1508,11 +1510,11 @@ export class Game {
       this.addForestLights();
       this.buildForest();
     } else if (loc === "dungeon") {
-      // VISÃO LIMITADA ~4-5 QUADRADOS: a escuridão engole a distância bem de perto.
-      // Claro até ~3 células, some no breu por volta de 5-6 → o jogador só vê o
-      // entorno imediato (clima fechado, suspense de não ver o que vem).
-      this.scene.fog = new THREE.Fog(0x070809, CELL * 3, CELL * 5.6);
-      this.scene.background = new THREE.Color(0x060708);
+      // VISÃO LIMITADA porém JOGÁVEL: a tocha do herói ilumina o entorno e a
+      // escuridão engole o longe. Claro até ~4 células, some no breu por volta de
+      // 8-9 → clima fechado/corredor, mas dá pra ver os inimigos que se aproximam.
+      this.scene.fog = new THREE.Fog(0x0a0d11, CELL * 4, CELL * 9);
+      this.scene.background = new THREE.Color(0x080a0d);
       this.addDungeonLights();
       this.buildDungeon();
     } else if (loc === "showcase") {
@@ -1740,6 +1742,7 @@ export class Game {
     this.chests.clear();
     this.enemies = [];
     this.target = null;
+    this.playerTorch = undefined; // descartada pelo world.clear(); recriada por local
     this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
     this.clearTarget();
     this.projectiles = []; // as meshes já saíram no world.clear() acima
@@ -2258,7 +2261,7 @@ export class Game {
       hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
       homeC: c, homeR: r, aggro: false, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0,
-      stepAt: 0, stepDur: 520, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
+      stepAt: 0, stepDur: 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
       bar, barFill,
     };
     this.enemies.push(e);
@@ -4388,6 +4391,11 @@ export class Game {
     const key = new THREE.DirectionalLight(0xffd7a2, 0.6);
     key.position.set(7, 13, 5);
     this.world.add(key);
+    // TOCHA do herói: poça de luz quente que acompanha o jogador (o tick move ela)
+    // → o entorno imediato fica sempre visível, mantendo o breu ao longe.
+    this.playerTorch = new THREE.PointLight(0xffc07a, 2.6, 17, 2);
+    this.playerTorch.position.set(this.col * CELL, EYE_H, this.row * CELL);
+    this.world.add(this.playerTorch);
   }
 
   private addShowcaseLights() {
@@ -5444,7 +5452,7 @@ export class Game {
     e.fx = e.bx; e.fz = e.bz;
     e.tx = nc * CELL; e.tz = nr * CELL;
     e.stepAt = now;
-    e.nextMove = now + e.stepDur + 40;
+    e.nextMove = now + e.stepDur + 150; // pausa entre passos → ritmo de espreita, não corrida
   }
   private enemyCellFree(nc: number, nr: number): boolean {
     return this.canWalk(nc, nr) && !this.blocked.has(`${nc},${nr}`) && !(nc === this.col && nr === this.row);
@@ -8354,6 +8362,11 @@ export class Game {
     // aldeões sempre encaram a câmera (billboard no eixo Y) + "respiram"
     const cx = this.camera.position.x;
     const cz = this.camera.position.z;
+    // tocha do herói segue a câmera (leve tremeluzir p/ dar vida à chama)
+    if (this.playerTorch) {
+      this.playerTorch.position.set(cx, this.camera.position.y + 0.2, cz);
+      this.playerTorch.intensity = 2.4 + Math.sin(now * 0.009) * 0.18 + Math.sin(now * 0.021) * 0.1;
+    }
     for (const npc of this.npcs) {
       npc.rotation.y = Math.atan2(cx - npc.position.x, cz - npc.position.z);
       const u = npc.userData as { baseY?: number; h?: number; ph?: number };
@@ -8426,11 +8439,12 @@ export class Game {
     // ---- INIMIGOS: IA (patrulha / visão / perseguição), ataque, dano, morte ----
     for (let ei = this.enemies.length - 1; ei >= 0; ei--) {
       const e = this.enemies[ei];
-      // interpola o passo em grade (movimento suave entre células)
+      // interpola o passo em grade com EASING (acelera/desacelera) → deslize suave
       if (e.stepAt) {
         const st = Math.min(1, (now - e.stepAt) / e.stepDur);
-        e.bx = e.fx + (e.tx - e.fx) * st;
-        e.bz = e.fz + (e.tz - e.fz) * st;
+        const es = st * st * (3 - 2 * st); // smoothstep
+        e.bx = e.fx + (e.tx - e.fx) * es;
+        e.bz = e.fz + (e.tz - e.fz) * es;
         if (st >= 1) { e.stepAt = 0; e.bx = e.tx; e.bz = e.tz; }
       }
       const h = (e.mesh.geometry as THREE.PlaneGeometry).parameters.height;
