@@ -241,19 +241,38 @@ export function updateField(cars, line, dt, t, started){
   }
 
   // ---- render + rodas ----
+  const wrapA=a=>{ while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a; };
   for(const c of cars){
     const f=idxOf(c);
     const cpos=vat(line.center,f,N), l=vat(line.left,f,N), tv=vat(line.ctan,f,N).normalize();
-    c.g.position.set(cpos.x+l.x*c.offset, 0, cpos.z+l.z*c.offset);
-    let heading=Math.atan2(tv.x,tv.z);
+    const nx=cpos.x+l.x*c.offset, nz=cpos.z+l.z*c.offset;
+    // rumo REAL = direção do próprio movimento (racing line + manobras),
+    // não o tangente do centro da pista -> acaba o "andar de lado" nas curvas
+    if(!c.prev){ c.prev={x:nx,z:nz}; c.heading=Math.atan2(tv.x,tv.z); c.prevH=c.heading; }
+    const dx=nx-c.prev.x, dz=nz-c.prev.z;
+    if(dx*dx+dz*dz>1e-6){
+      const hNew=Math.atan2(dx,dz);
+      c.heading += wrapA(hNew-c.heading)*Math.min(1, dt*12);   // suavizado (sem tremer)
+    }
+    c.prev.x=nx; c.prev.z=nz;
+    c.g.position.set(nx,0,nz);
+    let heading=c.heading;
     if(c.spin>0) heading+=c.spinRate*(1-c.spin);
     c.g.rotation.set(0,heading,0);
-    if(c.tilt) c.g.rotation.z=c.tilt;
+    // leve rolagem de carroceria na curva; batida forte inclina de vez
+    const ds=Math.max(c.speed*dt,0.05);
+    const yawRate=wrapA(c.heading-c.prevH)/ds;                 // rad por metro
+    c.prevH=c.heading;
+    c.g.rotation.z = c.tilt ? c.tilt :
+      THREE.MathUtils.clamp(-yawRate*c.speed*c.speed*0.010, -0.05, 0.05);
+    // esterço de verdade (Ackermann pela taxa de curva do próprio carro)
+    const steer=THREE.MathUtils.clamp(yawRate*3.6*1.6, -0.5, 0.5);
     const R=c.rad.front;
     for(const key in c.wheels){ const w=c.wheels[key];
       w.spin.rotation.x += (c.speed*dt)/R;
-      if(w.steer) w.steerPivot.rotation.y=THREE.MathUtils.lerp(w.steerPivot.rotation.y,(c.tOffset-c.offset)*0.14,0.2);
+      if(w.steer) w.steerPivot.rotation.y=THREE.MathUtils.lerp(w.steerPivot.rotation.y, steer, 0.25);
     }
-    c.tan=tv;
+    if(!c.tanV) c.tanV=new THREE.Vector3();
+    c.tanV.set(Math.sin(c.heading),0,Math.cos(c.heading)); c.tan=c.tanV;
   }
 }
