@@ -78,13 +78,15 @@ const clock=new THREE.Clock();
 const FOV_BASE=54, FOV_MAX=82;
 let STEER_SIGN=1;      // sinal pra roda apontar pra dentro da curva
 const STEER_GAIN=2.0;  // ganho visual (mantém proporção Ackermann, deixa visível)
-const gearsKmh=[0,90,140,185,230,275,320,380];   // limites das 7 marchas
+const gearsKmh=[0,95,145,190,235,280,325,385];   // limites das 7 marchas
 function rpmFor(kmh){
   let g=0; for(let i=0;i<gearsKmh.length-1;i++){ if(kmh>=gearsKmh[i]) g=i; }
   g=Math.min(g,gearsKmh.length-2);
   const a=gearsKmh[g], b=gearsKmh[g+1];
   const frac=THREE.MathUtils.clamp((kmh-a)/(b-a),0,1);
-  return { rpm: 4000 + frac*11000, gear: g+1 };
+  // 1a: marcha lenta ao corte; demais marchas: fica na faixa alta e cai pouco na troca (F1 real)
+  const rpm = g===0 ? (3500 + frac*11500) : (10800 + frac*4200);
+  return { rpm, gear: g+1 };
 }
 const audio=new F1Audio();
 let audioOn=false, shakeX=0, shakeY=0;
