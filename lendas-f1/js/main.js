@@ -340,6 +340,8 @@ fichaPanel.addEventListener('click', e=>{ if(e.target===fichaPanel) fichaPanel.c
 window.__f1={scene,camera,get car(){return focus.g;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
 window.__cars=cars; window.__line=line;
 Object.defineProperty(window,'__rt',{get:()=>raceTime}); Object.defineProperty(window,'__started',{get:()=>started});
+window.__forceStart=()=>{ started=true; for(const c of cars) c.launchStart=raceTime+c.reaction; };
+window.__step=(n=600,fdt=1/60)=>{ for(let i=0;i<n;i++){ raceTime+=fdt; updateField(cars,line,fdt,raceTime,started); } };
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();

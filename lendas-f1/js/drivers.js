@@ -11,36 +11,36 @@ const A = (nome, team, num, r,co,u,d,ch,cs,e) => ({nome, team, num,
   ritmo:r, corrida:co, ultrapassagem:u, defesa:d, chuva:ch, consistencia:cs, experiencia:e});
 
 export const DRIVERS = [
-  // McLaren (Papaia)
-  A('Lando Norris',       'mclaren', 4,  93,91,89,88,90,87,86),
-  A('Oscar Piastri',      'mclaren', 81, 91,91,89,89,87,90,82),
-  // Ferrari (Rossa)
-  A('Charles Leclerc',    'ferrari', 16, 95,89,88,87,88,85,88),
-  A('Lewis Hamilton',     'ferrari', 44, 90,93,93,92,96,90,99),
-  // Red Bull (Touro)
-  A('Max Verstappen',     'redbull', 1,  97,96,95,95,97,93,93),
-  A('Yuki Tsunoda',       'redbull', 22, 85,82,83,82,82,78,82),
-  // Mercedes (Prata)
-  A('George Russell',     'mercedes',63, 92,89,87,87,88,88,86),
-  A('Kimi Antonelli',     'mercedes',12, 86,82,82,80,82,76,66),
-  // Aston Martin (Albion)
-  A('Fernando Alonso',    'aston',   14, 88,93,94,96,93,89,99),
-  A('Lance Stroll',       'aston',   18, 80,80,78,82,83,80,88),
-  // Williams (Grove)
-  A('Alex Albon',         'williams',23, 86,85,82,89,84,85,85),
-  A('Carlos Sainz',       'williams',55, 89,88,86,87,85,87,90),
+  // McLaren (Papaia) — a dupla título de 2025
+  A('Lando Norris',       'mclaren', 4,  94,92,89,88,90,88,87),
+  A('Oscar Piastri',      'mclaren', 81, 92,91,89,89,87,91,83),
+  // Ferrari (Rossa) — Leclerc rei da classificação; Hamilton forte em corrida/chuva
+  A('Charles Leclerc',    'ferrari', 16, 95,90,88,87,88,86,89),
+  A('Lewis Hamilton',     'ferrari', 44, 88,91,92,91,96,88,99),
+  // Red Bull (Touro) — Verstappen o mais completo; Tsunoda sofrendo no 2º carro
+  A('Max Verstappen',     'redbull', 1,  97,96,95,95,97,93,94),
+  A('Yuki Tsunoda',       'redbull', 22, 84,80,82,82,82,77,83),
+  // Mercedes (Prata) — Russell consistente; Antonelli rookie talentoso
+  A('George Russell',     'mercedes',63, 92,90,87,88,88,89,87),
+  A('Kimi Antonelli',     'mercedes',12, 86,83,82,80,83,75,67),
+  // Aston Martin (Albion) — Alonso mestre em corrida/defesa
+  A('Fernando Alonso',    'aston',   14, 87,92,93,96,93,89,99),
+  A('Lance Stroll',       'aston',   18, 79,79,77,81,83,79,89),
+  // Williams (Grove) — dupla forte do meio de grid
+  A('Alex Albon',         'williams',23, 86,85,83,88,84,86,86),
+  A('Carlos Sainz',       'williams',55, 88,88,86,87,85,87,91),
   // Alpine (Alpes)
-  A('Pierre Gasly',       'alpine',  10, 86,85,84,84,86,83,87),
-  A('Franco Colapinto',   'alpine',  43, 81,79,80,78,78,74,66),
-  // Racing Bulls (Touro Jr.)
-  A('Isack Hadjar',       'jrtouro', 6,  83,81,80,79,80,78,70),
-  A('Liam Lawson',        'jrtouro', 30, 81,79,79,79,79,76,72),
+  A('Pierre Gasly',       'alpine',  10, 86,84,84,84,86,84,88),
+  A('Franco Colapinto',   'alpine',  43, 80,78,79,78,78,74,67),
+  // Racing Bulls (Touro Jr.) — Hadjar rookie destaque de 2025
+  A('Isack Hadjar',       'jrtouro', 6,  85,82,81,80,81,80,71),
+  A('Liam Lawson',        'jrtouro', 30, 81,79,79,80,79,77,73),
   // Haas (Falcão)
-  A('Esteban Ocon',       'haas',    31, 84,83,82,84,83,82,86),
-  A('Oliver Bearman',     'haas',    87, 82,80,80,79,80,76,70),
-  // Sauber (Neon)
-  A('Nico Hülkenberg',    'sauber',  27, 85,85,83,85,88,84,92),
-  A('Gabriel Bortoleto',  'sauber',  5,  82,80,80,78,80,76,68),
+  A('Esteban Ocon',       'haas',    31, 84,83,82,85,83,83,87),
+  A('Oliver Bearman',     'haas',    87, 83,81,81,79,80,77,71),
+  // Sauber (Neon) — Hülkenberg com pódio em 2025; Bortoleto rookie brasileiro em ascensão
+  A('Nico Hülkenberg',    'sauber',  27, 85,86,83,85,88,85,93),
+  A('Gabriel Bortoleto',  'sauber',  5,  83,81,80,78,80,77,69),
 ];
 
 const W = {ritmo:0.24, corrida:0.24, ultrapassagem:0.14, defesa:0.12, chuva:0.10, consistencia:0.10, experiencia:0.06};

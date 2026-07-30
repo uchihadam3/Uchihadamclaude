@@ -64,7 +64,7 @@ export function buildField(scene, line){
     cars.push({ g, drv, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
       pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9, gridOffset:side*LAT,
       d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
-      speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0, passCd:0, mistakeCd:5, hitCd:0,
+      speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0, passCd:0, mistakeCd:5, hitCd:0, passing:null, form:0,
       tan:vat(line.ctan, ((-(8+slot*8)/line.len)*line.N%line.N+line.N)%line.N, line.N).clone() });
   });
   return cars;
@@ -93,43 +93,74 @@ export function updateField(cars, line, dt, t, started){
     let vCorner=99;
     for(let s=1;s<=10;s++){ const dd=brakeDist*s/10; const fi=(((c.d+dd)/len)*N%N+N)%N;
       vCorner=Math.min(vCorner, at(line.vmax,fi,N)); }
-    let targetV=Math.min(vCorner,99)*skill*(1-0.3*c.damage);
+    // forma oscilando durante a corrida (pneu/combustível/ritmo) — gera disputa real
+    c.form += (Math.random()-0.5)*0.004;
+    c.form = THREE.MathUtils.clamp(c.form, -0.018, 0.018);
+    let targetV=Math.min(vCorner,99)*skill*(1+c.form)*(1-0.3*c.damage);
     let tOff=racingOff;
     const onStraight=vCorner>72;
 
-    // ---- seguir / ultrapassar com segurança (colisão rara) ----
+    // gap ASSINADO ao longo da pista (+ = o está à frente de c)
+    const sgap=(o)=>{ let g=(o.d-c.d)%len; if(g>len/2)g-=len; if(g<-len/2)g+=len; return g; };
+
+    /* ---- ULTRAPASSAGEM COMPROMETIDA (só com brecha real; não fica batendo) ---- */
     const ah=c.ahead;
-    if(ah){
+    if(c.passing){
+      c.passing.t+=dt;
+      const tgt=c.passing.target;
+      const sg = tgt&&!tgt.out ? sgap(tgt)*-1 : 999;     // + = c está à frente do alvo
+      if(!tgt || tgt.out || sg>9 || c.passing.t>9){       // completou (ou desistiu por tempo)
+        c.passing=null; c.passCd=2.5;
+      } else {
+        tOff=c.passing.lane;                              // mantém a linha da manobra
+        // aborta se a faixa ficou bloqueada por um 3º carro
+        const blocked=cars.some(o=>{ if(o===c||o===tgt||o.out) return false;
+          if(Math.abs(o.offset-c.passing.lane)>2.0) return false;
+          const g2=sgap(o); return g2>-6 && g2<14; });
+        if(blocked){ c.passing=null; c.passCd=3; }
+      }
+    } else if(ah){
       const gap=gapAhead(ah,c);
-      const sameLine=Math.abs(ah.offset-c.offset)<2.2;
-      if(gap<22 && !sameLine) targetV=Math.min(targetV*1.02, vCorner*0.99);       // vácuo
-      if(gap<40 && sameLine){
-        const safe=9 + c.speed*0.16;                     // distância de segurança
-        const paceAdv=c.pace-ah.pace;
-        const side=racingOff>=0?-1:1, laneX=side*4.0;
-        const laneClear=!cars.some(o=> o!==c && !o.out && dist(o,c)<13 && Math.abs(o.offset-laneX)<2.2);
+      const sameLine=Math.abs(ah.offset-c.offset)<2.4;
+      if(gap<45 && sameLine){
+        // 1) SEGURANÇA PRIMEIRO: segue a distância segura, casando a velocidade
+        const safe=8 + c.speed*0.18;
         if(gap<safe){
-          if((paceAdv>0.8||onStraight) && c.passCd<=0 && laneClear){
-            tOff=laneX;
-            targetV = Math.abs(c.offset-laneX)<1.2 ? Math.min(vCorner*skill, ah.speed+5)
-                                                   : Math.min(targetV, ah.speed+1);
-          } else {                                        // segue atrás casando a velocidade
-            const tt=THREE.MathUtils.clamp((gap-3)/(safe-3),0,1);
-            targetV=Math.min(targetV, ah.speed*(0.9+0.09*tt));
-            c.passCd=1.0;
+          const tt=THREE.MathUtils.clamp((gap-4)/(safe-4),0,1);
+          targetV=Math.min(targetV, ah.speed*(0.88+0.11*tt));
+        }
+        // vácuo quando colado na reta (ganha um pouco sem encostar)
+        if(onStraight && gap<20 && gap>6) targetV=Math.min(targetV*1.02, vCorner*0.995);
+        // 2) DECISÃO de ultrapassar: rara, só quando é claramente mais rápido E tem brecha
+        const paceAdv=(c.pace-ah.pace) + (ah.damage-c.damage)*8 + (c.form-ah.form)*300;
+        const closing=c.speed-ah.speed;
+        if(c.passCd<=0 && gap<18 && (paceAdv>0.5 || closing>2.5) && onStraight){
+          const side=racingOff>=0?-1:1, lane=side*4.2;
+          const laneFree=!cars.some(o=>{ if(o===c||o===ah||o.out) return false;
+            if(Math.abs(o.offset-lane)>2.2) return false;
+            const g2=sgap(o); return g2>-8 && g2<18; });   // brecha real: 18m à frente, 8m atrás
+          const will=(c.drv.ultrapassagem-70)/30;          // habilidade regula a ousadia
+          if(laneFree && Math.random()<Math.max(will,0.15)*0.012){
+            c.passing={lane, target:ah, t:0};
           }
         }
       }
     }
     if(c.passCd>0) c.passCd-=dt;
 
-    // ---- desvio lateral pra não encostar (só direção, NÃO freia a fila) ----
+    // ---- anti-colisão dura: NUNCA cola em quem está logo à frente na mesma faixa ----
     for(const o of cars){ if(o===c||o.out) continue;
-      const dd=dist(o,c); if(dd>6.0) continue;
+      const g2=sgap(o);
+      if(g2>0 && g2<6.5 && Math.abs(o.offset-c.offset)<1.8)
+        targetV=Math.min(targetV, Math.max(o.speed-(6.5-g2)*0.9, 0));
+    }
+    // ---- desvio lateral (só direção, não freia a fila) ----
+    for(const o of cars){ if(o===c||o.out) continue;
+      const dd=dist(o,c); if(dd>7) continue;
       const od=c.offset-o.offset;
-      if(Math.abs(od)<2.2){
-        const s = Math.abs(od)>0.06 ? (od>0?1:-1) : (c.d>o.d?1:-1);   // separa pros lados opostos
-        tOff += s*(2.2-Math.abs(od))*1.0;
+      if(Math.abs(od)<2.4){
+        const s=Math.abs(od)>0.05 ? (od>0?1:-1) : (c.d>o.d?1:-1);
+        tOff += s*(2.4-Math.abs(od))*1.2;
       } }
 
     // ---- erro do piloto (RARO) ----
@@ -166,20 +197,21 @@ export function updateField(cars, line, dt, t, started){
       if(w) w.steerPivot.visible=false; } };   // batida forte: perde uma roda
   for(let i=0;i<cars.length;i++){ const a=cars[i]; if(a.out||a.hitCd>0) continue;
     for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.out||b.hitCd>0) continue;
-      if(dist(a,b)<3.6 && Math.abs(a.offset-b.offset)<1.5){
-        a.hitCd=0.5; b.hitCd=0.5;                    // evita re-colisão todo frame (fim do 'engarrafamento')
+      if(dist(a,b)<3.6 && Math.abs(a.offset-b.offset)<1.35){    // só sobreposição REAL
+        a.hitCd=0.6; b.hitCd=0.6;
+        if(typeof window!=='undefined') window.__hits=(window.__hits||0)+1;
         const rel=Math.abs(a.speed-b.speed);
-        const push=(a.offset<=b.offset)?-1:1; a.offset+=push*0.7; b.offset-=push*0.7;
+        const push=(a.offset<=b.offset)?-1:1; a.offset+=push*0.6; b.offset-=push*0.6;
         const rear=a.d<b.d?a:b, front=a.d<b.d?b:a;
-        rear.speed*=0.9; front.speed*=0.96;
-        front.damage=Math.min(1,front.damage+rel*0.008+0.01);
-        rear.damage=Math.min(1,rear.damage+rel*0.005+0.006);
-        if(rel>20){                                   // forte -> rodada
-          const v=Math.random()<0.6?rear:front; v.spin=1; v.spinRate=(Math.random()<0.5?-1:1)*(5+Math.random()*3); v.speed*=0.4;
-          if(rel>30 && Math.random()<0.55){ retire(v,0.28);           // muito forte -> quebra e sai
-            if(Math.random()<0.35) retire(v===a?b:a,0.2); }           // as vezes leva o outro junto
+        rear.speed*=0.93; front.speed*=0.985;                    // toque leve: quase nada
+        front.damage=Math.min(1,front.damage+rel*0.006+0.006);
+        rear.damage=Math.min(1,rear.damage+rel*0.004+0.004);
+        if(rel>18 && Math.random()<0.35){                        // forte -> rodada (nem sempre)
+          const v=Math.random()<0.65?rear:front; v.spin=1; v.spinRate=(Math.random()<0.5?-1:1)*(5+Math.random()*3); v.speed*=0.45;
+          if(rel>30 && Math.random()<0.35){ retire(v,0.28);      // muito forte -> quebra e sai
+            if(Math.random()<0.25) retire(v===a?b:a,0.2); }
         }
-        for(const car of [a,b]) if(Math.abs(car.offset)>6.0 && Math.random()<0.1) retire(car,0.15);  // sai da pista
+        for(const car of [a,b]) if(Math.abs(car.offset)>6.2 && Math.random()<0.05) retire(car,0.15);
       }
     }
   }
