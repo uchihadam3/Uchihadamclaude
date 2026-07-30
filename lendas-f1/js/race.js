@@ -16,35 +16,37 @@ import { buildF1Car, TEAMS } from './car.js';
 import { DRIVERS, overall } from './drivers.js';
 import { carStats } from './stats.js';
 
-/* Proxy LEVE do carro (1 draw call) pra distância: funde todos os meshes num só,
-   com cor por vértice (near-white/texturizado -> cor da equipe). Some o lag na câmera aérea. */
-function mergeCarProxy(group, teamBody){
-  const P=[],Nn=[],C=[];
+/* Versão de DISTÂNCIA do carro: funde as peças POR MATERIAL (mantém as mesmas cores,
+   texturas e materiais -> fica IDÊNTICO ao carro bonito), mas com poucos draw calls.
+   Sem articulação (rodas não giram de longe — imperceptível). Mata o lag na aérea. */
+function mergeCarByMaterial(group){
   group.updateWorldMatrix(true,true);
   const inv=new THREE.Matrix4().copy(group.matrixWorld).invert();
-  const v=new THREE.Vector3(), n=new THREE.Vector3(), col=new THREE.Color(), tc=new THREE.Color(teamBody);
+  const groups=new Map();                       // material -> {P,N,U}
+  const v=new THREE.Vector3(), n=new THREE.Vector3();
   group.traverse(o=>{ if(!o.isMesh||!o.geometry) return;
-    o.geometry.computeBoundingSphere();
-    if(o.geometry.boundingSphere && o.geometry.boundingSphere.radius<0.16) return;  // pula peças minúsculas
+    const mat=Array.isArray(o.material)?o.material[0]:o.material; if(!mat) return;
     let geo=o.geometry.index?o.geometry.toNonIndexed():o.geometry;
-    const pos=geo.attributes.position, nrm=geo.attributes.normal; if(!pos) return;
+    const pos=geo.attributes.position, nrm=geo.attributes.normal, uvA=geo.attributes.uv; if(!pos) return;
     const m=new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld);
     const nm=new THREE.Matrix3().getNormalMatrix(m);
-    const mat=Array.isArray(o.material)?o.material[0]:o.material;
-    col.copy(mat&&mat.color?mat.color:new THREE.Color(0x888888));
-    if((col.r+col.g+col.b)/3>0.82) col.copy(tc);        // peças brancas/texturizadas -> cor da equipe
+    let g=groups.get(mat); if(!g){ g={P:[],N:[],U:[]}; groups.set(mat,g); }
     for(let i=0;i<pos.count;i++){
-      v.fromBufferAttribute(pos,i).applyMatrix4(m); P.push(v.x,v.y,v.z);
-      if(nrm){ n.fromBufferAttribute(nrm,i).applyMatrix3(nm).normalize(); Nn.push(n.x,n.y,n.z); } else Nn.push(0,1,0);
-      C.push(col.r,col.g,col.b);
+      v.fromBufferAttribute(pos,i).applyMatrix4(m); g.P.push(v.x,v.y,v.z);
+      if(nrm){ n.fromBufferAttribute(nrm,i).applyMatrix3(nm).normalize(); g.N.push(n.x,n.y,n.z);} else g.N.push(0,1,0);
+      g.U.push(uvA?uvA.getX(i):0, uvA?uvA.getY(i):0);
     }
     if(geo!==o.geometry) geo.dispose();
   });
-  const g=new THREE.BufferGeometry();
-  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));
-  g.setAttribute('normal',new THREE.Float32BufferAttribute(Nn,3));
-  g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));
-  return new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.5,metalness:0.2}));
+  const out=new THREE.Group();
+  for(const [mat,g] of groups){
+    const bg=new THREE.BufferGeometry();
+    bg.setAttribute('position',new THREE.Float32BufferAttribute(g.P,3));
+    bg.setAttribute('normal',new THREE.Float32BufferAttribute(g.N,3));
+    bg.setAttribute('uv',new THREE.Float32BufferAttribute(g.U,2));
+    out.add(new THREE.Mesh(bg, mat));
+  }
+  return out;
 }
 
 const UP = new THREE.Vector3(0,1,0);
@@ -126,10 +128,11 @@ export function buildField(scene, line){
     const drv=it.d;
     const full=buildF1Car({team:drv.team, number:String(drv.num), simple:true});
     full.traverse(o=>{ if(o.isMesh){ o.castShadow=false; } });
-    // LOD: perto = modelo completo; longe = proxy leve (1 draw call) -> sem lag na aérea
-    const proxy=mergeCarProxy(full, (TEAMS[drv.team]||TEAMS.ferrari).body);
+    // LOD: perto = completo (rodas giram); longe = mesmo carro fundido por material
+    // (IDÊNTICO, bonito) com poucos draw calls -> sem lag na aérea
+    const merged=mergeCarByMaterial(full);
     const g=new THREE.LOD();
-    g.addLevel(full,0); g.addLevel(proxy,68);
+    g.addLevel(full,0); g.addLevel(merged,42);
     g.userData.body=full.userData.body; g.userData.wheels=full.userData.wheels; g.userData.radius=full.userData.radius;
     scene.add(g);
     const side=(slot%2===0)?1:-1, LAT=2.8;

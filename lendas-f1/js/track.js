@@ -232,6 +232,37 @@ export function buildTrack(D=INTERLAGOS){
     }
   })();
 
+  /* ---------- MURO DE RUA na borda dos trechos APERTADOS (Mônaco, Baku...) ----------
+     Onde a pista quase encosta em si mesma (pouco espaço), põe um muro fino na beira
+     pra SEPARAR os dois trechos (senão o asfalto se funde e some a divisória). ---------- */
+  (function(){
+    const H=0.9, EDGE=HALF+0.35;
+    const pos=[],uv=[],idx=[]; let vc=0;
+    for(const side of [1,-1]){
+      let on=false, u=0, prevP=null;
+      for(let i=0;i<=N;i++){
+        const tight = clearAt(i,side) < HALF+6;         // pouco espaço lateral -> precisa de muro
+        if(tight){
+          const c=pts[i], l=leftOf(tan[i]);
+          const p=c.clone().addScaledVector(l, side*EDGE);
+          if(prevP) u += p.distanceTo(prevP)/2.0;
+          pos.push(p.x,0.02,p.z, p.x,H,p.z); uv.push(u,0, u,1);
+          if(on){ const a=vc-2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
+          vc+=2; on=true; prevP=p;
+        } else { on=false; prevP=null; }
+      }
+    }
+    if(pos.length){
+      const g=new THREE.BufferGeometry();
+      g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+      g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({
+        map:tex(TEX.guardrail,{repeat:[2,1]}), color:0xe2e2e2, roughness:0.7, metalness:0.25, side:THREE.DoubleSide}));
+      m.receiveShadow=true; G.add(m);
+    }
+  })();
+
   /* ---------- LARGADA / CHEGADA + GRID ---------- */
   const sf=new THREE.Vector3(D.sf[0],0,D.sf[1]);
   const hdg=D.sfHeading;
