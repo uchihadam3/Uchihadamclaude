@@ -272,13 +272,18 @@ export function updateField(cars, line, dt, t, started){
         // DRS (asa móvel): a <1.1s do carro da frente — com DRS, cola MUITO mais perto
         const tGapS=gap/Math.max(c.speed,15);
         const drsF = onStraight && tGapS<1.1;
-        const safe=((heavyBraking?11:8) + c.speed*(heavyBraking?0.22:0.18))*(drsF?0.55:1);
+        // segue mais colado na reta pra ENTRAR NO VÁCUO (na freada mantém distância segura)
+        const safe=((heavyBraking?11:7) + c.speed*(heavyBraking?0.22:0.11))*(drsF?0.5:1);
         if(gap<safe){
           const tt=THREE.MathUtils.clamp((gap-4)/(safe-4),0,1);
-          targetV=Math.min(targetV, ah.speed*(0.88+0.11*tt));
+          targetV=Math.min(targetV, ah.speed*(0.90+0.10*tt));
         }
-        if(drsF) targetV=Math.min(targetV*1.045, vAllow);
-        else if(onStraight && gap<20 && gap>6) targetV=Math.min(targetV*1.02, vNow*0.995);  // vácuo
+        // VÁCUO: no ar do rival tem menos arrasto -> ganha ponta de reta. Mais colado = mais embalo,
+        // e pode SUPERAR a velocidade do rival pra ir fechando o buraco. (DRS soma mais.)
+        if(onStraight && gap<32){
+          const tow=THREE.MathUtils.clamp((32-gap)/28,0,1);           // 0..1 (colado=1)
+          targetV=Math.min(targetV*(1 + (drsF?0.055:0.03) + 0.055*tow), vAllow);
+        }
         const paceAdv=(c.pace-ah.pace) + (ah.damage-c.damage)*8 + (c.form-ah.form)*300;
         const closing=c.speed-ah.speed;
         // porta aberta: defensor longe do lado de dentro na freada
@@ -300,9 +305,11 @@ export function updateField(cars, line, dt, t, started){
             } else if(clearLane(outLane) && (closing>1.2||ah.wear>c.wear+0.15) && Math.random()<will*0.07){
               c.passing={lane:outLane, target:ah, t:0, dive:true, outside:true}; // por FORA (mais raro/difícil)
             }
-          } else if(drsF && gap<18 && apexDist>70){
-            if(clearLane(insLane) && Math.random()<will*0.09){            // reta com DRS
-              c.passing={lane:insLane, target:ah, t:0};
+          } else if(onStraight && gap<20 && apexDist>55){
+            // pegou o vácuo e vem com EMBALO -> sai de trás e ataca na reta (dentro ou fora)
+            const side = clearLane(insLane) ? insLane : (clearLane(outLane)? outLane : null);
+            if(side!==null && (closing>-0.4 || drsF) && Math.random()<will*(drsF?0.14:0.08)){
+              c.passing={lane:side, target:ah, t:0};
             }
           }
           if(c.passing && typeof window!=='undefined'){ window.__passes=(window.__passes||0)+1;
