@@ -1257,7 +1257,6 @@ export function setupControls(
   let skillPointsTotal = 0;
   const skillRanks: Record<string, number> = {};
   let skillSelected: string | null = null; // nó selecionado (aguardando confirmação)
-  let skillBranchTab = 0; // sub-aba (ramo/especialização) ativa no painel de habilidades
   const spentPoints = () =>
     Object.values(skillRanks).reduce((a, b) => a + b, 0);
   // localiza um skill pelo id + seu estado (destravado? no máximo? dá pra comprar?)
@@ -1286,44 +1285,36 @@ export function setupControls(
       return;
     }
     const avail = skillPointsTotal - spentPoints();
-    // SUB-ABAS: uma por ramo (especialização). Mostra só o ramo escolhido, ocupando
-    // a largura toda → ícones maiores e mais legíveis no celular.
-    const bi = Math.min(Math.max(0, skillBranchTab), tree.branches.length - 1);
-    const spentIn = (br: (typeof tree.branches)[number]) =>
-      br.skills.reduce((a, sk) => a + (skillRanks[sk.id] || 0), 0);
-    const subtabs = tree.branches
-      .map(
-        (br, idx) =>
-          `<button class="gh-sk-tab ${idx === bi ? "gh-sk-tab-on" : ""}" data-tab="${idx}" style="--bc:${br.color}">${br.name}<i>${spentIn(br)}</i></button>`,
-      )
-      .join("");
-    const b = tree.branches[bi];
-    const nodes = b.skills
-      .map((sk, i) => {
-        const rank = skillRanks[sk.id] || 0;
-        const prev = i > 0 ? b.skills[i - 1] : null;
-        const unlocked = !prev || (skillRanks[prev.id] || 0) >= 1;
-        const maxed = rank >= sk.maxRank;
-        const canBuy = unlocked && !maxed && avail > 0;
-        const kindCls = sk.kind === "active" ? "gh-sk-active" : "gh-sk-passive";
-        const state = [
-          rank > 0 ? "gh-sk-on" : "",
-          !unlocked ? "gh-sk-locked" : "",
-          canBuy ? "gh-sk-buy" : "",
-          sk.id === skillSelected ? "gh-sk-sel" : "",
-        ].join(" ");
-        const passIcon = sk.stat ? PASSIVE_ICON[sk.stat] : undefined;
-        const inner =
-          sk.kind === "active" && sk.icon
-            ? `<img src="${sk.icon}" alt=""/>`
-            : passIcon
-              ? `<img src="${passIcon}" alt=""/>`
-              : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
-        const line = i > 0 ? `<div class="gh-sk-line" style="background:${b.color}"></div>` : "";
-        return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
+    const cols = tree.branches
+      .map((b) => {
+        const nodes = b.skills
+          .map((sk, i) => {
+            const rank = skillRanks[sk.id] || 0;
+            const prev = i > 0 ? b.skills[i - 1] : null;
+            const unlocked = !prev || (skillRanks[prev.id] || 0) >= 1;
+            const maxed = rank >= sk.maxRank;
+            const canBuy = unlocked && !maxed && avail > 0;
+            const kindCls = sk.kind === "active" ? "gh-sk-active" : "gh-sk-passive";
+            const state = [
+              rank > 0 ? "gh-sk-on" : "",
+              !unlocked ? "gh-sk-locked" : "",
+              canBuy ? "gh-sk-buy" : "",
+              sk.id === skillSelected ? "gh-sk-sel" : "",
+            ].join(" ");
+            const passIcon = sk.stat ? PASSIVE_ICON[sk.stat] : undefined;
+            const inner =
+              sk.kind === "active" && sk.icon
+                ? `<img src="${sk.icon}" alt=""/>`
+                : passIcon
+                  ? `<img src="${passIcon}" alt=""/>`
+                  : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
+            const line = i > 0 ? `<div class="gh-sk-line" style="background:${b.color}"></div>` : "";
+            return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
+          })
+          .join("");
+        return `<div class="gh-sk-branch"><div class="gh-sk-bhead" style="color:${b.color}">${b.name}</div>${nodes}</div>`;
       })
       .join("");
-    const cols = `<div class="gh-sk-branch gh-sk-branch-solo" style="--bc:${b.color}"><div class="gh-sk-bhead" style="color:${b.color}">${b.name}</div><div class="gh-sk-path">${nodes}</div></div>`;
     // painel de detalhe/confirmação (embaixo)
     let tip =
       '<div class="gh-sk-thint">Toque num nó pra ver os detalhes; depois confirme para gastar o ponto.</div>';
@@ -1342,7 +1333,6 @@ export function setupControls(
     }
     skillsPane.innerHTML =
       `<div class="gh-sk-top">Pontos: <b class="${avail > 0 ? "gh-sk-pts" : ""}">${avail}</b></div>` +
-      `<div class="gh-sk-subtabs">${subtabs}</div>` +
       `<div class="gh-sk-cols">${cols}</div>` +
       `<div class="gh-sk-tip" id="gh-sk-tip">${tip}</div>`;
     // fundo (estilo PoE) pintado NO PRÓPRIO #gh-skills (não como filho absoluto —
@@ -1355,14 +1345,6 @@ export function setupControls(
     } else {
       skillsPane.style.backgroundImage = "";
     }
-    // trocar de SUB-ABA (ramo/especialização)
-    skillsPane.querySelectorAll<HTMLElement>(".gh-sk-tab").forEach((t) => {
-      t.addEventListener("click", () => {
-        skillBranchTab = Number(t.dataset.tab);
-        skillSelected = null;
-        renderSkills();
-      });
-    });
     // clicar num nó só SELECIONA (mostra detalhes) — não gasta ponto
     skillsPane.querySelectorAll<HTMLElement>(".gh-sk-node").forEach((n) => {
       n.addEventListener("click", () => {
@@ -3443,38 +3425,13 @@ function injectStyle() {
   .gh-sk-top { text-align:center; font-size:13px; color:#d7c79a; margin-bottom:8px; }
   .gh-sk-top b { font-family:"Cinzel",serif; font-size:16px; color:#8f8262; padding:0 3px; }
   .gh-sk-top b.gh-sk-pts { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.5); }
-  .gh-sk-cols { display:flex; gap:6px; justify-content:center; align-items:flex-start; }
+  .gh-sk-cols { display:flex; gap:6px; justify-content:space-between; align-items:flex-start; }
   .gh-sk-branch { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; }
   .gh-sk-bhead {
     font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.6vh,14px);
     margin-bottom:6px; text-shadow:0 1px 3px #000; text-align:center; letter-spacing:.5px;
   }
   .gh-sk-line { width:3px; height:11px; opacity:.5; border-radius:2px; }
-  /* ---- SUB-ABAS (ramos/especializações) ---- */
-  .gh-sk-subtabs { display:flex; gap:6px; justify-content:center; margin-bottom:12px; flex-wrap:wrap; }
-  .gh-sk-tab {
-    padding:6px 16px; border-radius:9px; cursor:pointer; font-family:"Cinzel",serif;
-    font-size:clamp(11px,1.5vh,13px); letter-spacing:.4px; color:#b6a877;
-    background:rgba(10,9,6,.55); border:1px solid #4a4433; transition:all .15s;
-  }
-  .gh-sk-tab i { font-style:normal; margin-left:7px; font-size:10px; color:#8a7f68;
-    background:rgba(0,0,0,.35); border-radius:8px; padding:0 5px; }
-  .gh-sk-tab-on {
-    color:#f2e8cf; border-color:var(--bc);
-    background:linear-gradient(rgba(255,255,255,.06), rgba(0,0,0,.22));
-    box-shadow:0 0 12px -3px var(--bc), inset 0 0 8px rgba(0,0,0,.4);
-  }
-  .gh-sk-tab-on i { color:var(--bc); }
-  /* ---- RAMO ÚNICO: caminho VERTICAL (retrato), ícones maiores ---- */
-  .gh-sk-branch-solo { width:100%; }
-  .gh-sk-path {
-    display:flex; flex-direction:column; align-items:center;
-    gap:4px; padding:2px 2px 6px;
-  }
-  /* conector vertical entre os nós (a linha base já é vertical: width 3, height 11) */
-  .gh-sk-branch-solo .gh-sk-active { width:clamp(46px,8vh,58px); height:clamp(46px,8vh,58px); }
-  .gh-sk-branch-solo .gh-sk-passive { width:clamp(36px,6vh,46px); height:clamp(36px,6vh,46px); }
-  /* nome do nó: aparece no painel de detalhe ao tocar (mantém a coluna limpa) */
   .gh-sk-node {
     position:relative; border-radius:50%; cursor:pointer; padding:0; flex:0 0 auto;
     background:rgba(10,9,6,.72); display:flex; align-items:center; justify-content:center;

@@ -1138,6 +1138,7 @@ export class Game {
   // buff temporário ativo (multiplicador de dano / redução de dano recebido)
   private buff: { atkMul: number; defReduc: number; until: number } | null = null;
   private hpRegenUntil = 0; // cerveja: regenera vida até este instante (ms)
+  private reviveUntil = 0; // SELO de Intervenção/Ressurreição: se cair antes disso, revive 1x
   // trilha de fundo do vilarejo (loop); toca na vila e nos interiores.
   // registrada no canal MÚSICA (volume controlado pelas Opções).
   private bgmVillage: HTMLAudioElement = audio.register((() => {
@@ -3316,6 +3317,12 @@ export class Game {
       this.recomputeDerived();
       this.ui.toast("Fortalecido!");
     }
+    // SELO DE REVIVER (Clérigo): em party revive um aliado; SOLO sela o próprio herói
+    // — se ele cair dentro da janela, revive uma vez com 1 de vida + escudo curto.
+    if (id === "c_intervencao" || id === "c_ressurreicao") {
+      this.reviveUntil = now + (id === "c_ressurreicao" ? 45000 : 30000);
+      this.ui.toast(id === "c_ressurreicao" ? "Selo de Ressurreição!" : "Selo de Intervenção!");
+    }
   }
 
   // ---- seleção de alvo ----
@@ -3760,6 +3767,20 @@ export class Game {
     // BLOQUEIO (talento): chance de aparar metade do golpe
     if (Math.random() < (this.passive.block ?? 0)) reduced *= 0.5;
     const taken = Math.max(1, Math.round(reduced));
+    // SELO DE REVIVER ativo e o golpe seria FATAL → burla a morte uma vez: fica com
+    // 1 de vida, ganha um escudo curto e consome o selo (Intervenção/Ressurreição).
+    if (this.playerHp - taken <= 0 && performance.now() < this.reviveUntil) {
+      this.reviveUntil = 0;
+      this.playerHp = 1;
+      this.buff = { atkMul: 1, defReduc: 0.7, until: performance.now() + 3000 }; // escudo curto
+      this.recomputeDerived();
+      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+      this.refreshStats();
+      this.ui.flashDamage();
+      this.ui.playSfx("cast");
+      this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.5, "Intervenção Divina!", "heal");
+      return;
+    }
     this.playerHp = Math.max(0, this.playerHp - taken);
     this.ui.setHealth(this.playerHp / this.playerMaxHp);
     this.refreshStats();
@@ -3768,6 +3789,7 @@ export class Game {
     // dano sofrido pelo jogador: número vermelho no centro-baixo da tela
     this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.58, `-${taken}`, "player");
     if (this.playerHp <= 0) {
+      this.reviveUntil = 0; // morreu de fato → o selo (se houver) já era
       // derrota: recompõe a vida e volta ao início da vila
       window.setTimeout(() => {
         this.playerHp = this.playerMaxHp;
