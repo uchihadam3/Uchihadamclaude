@@ -1235,9 +1235,6 @@ export function setupControls(
       eq.querySelectorAll(".gh-tabpane").forEach((p) =>
         p.classList.toggle("gh-pane-hidden", (p as HTMLElement).dataset.pane !== tab),
       );
-      // a aba HABILIDADES precisa de mais LARGURA (a árvore espalha num caminho só) →
-      // alarga a janela nessa aba; as demais mantêm o formato retrato.
-      (eq.querySelector("#gh-eq-win") as HTMLElement)?.classList.toggle("gh-eq-wide", tab === "skills");
     }),
   );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
@@ -1323,8 +1320,7 @@ export function setupControls(
               ? `<img src="${passIcon}" alt=""/>`
               : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
         const line = i > 0 ? `<div class="gh-sk-line" style="background:${b.color}"></div>` : "";
-        const label = `<span class="gh-sk-nm">${sk.name}</span>`;
-        return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span>${label}</button>`;
+        return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
       })
       .join("");
     const cols = `<div class="gh-sk-branch gh-sk-branch-solo" style="--bc:${b.color}"><div class="gh-sk-bhead" style="color:${b.color}">${b.name}</div><div class="gh-sk-path">${nodes}</div></div>`;
@@ -2900,11 +2896,6 @@ function injectStyle() {
     filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));
   }
   #gh-char-btn { }
-  /* aba HABILIDADES: janela mais LARGA (paisagem) p/ a árvore caber num caminho só,
-     ícones grandes e legíveis, sem rolagem. Só afeta essa aba (classe .gh-eq-wide). */
-  @media (orientation:landscape) {
-    #gh-eq-win.gh-eq-wide { width:min(94vw,900px); height:min(94vh,486px); }
-  }
   /* celular: inventário em TELA CHEIA (mais espaço, sem rolar) */
   @media (max-width:640px) {
     #gh-eq { padding:0; }
@@ -2912,7 +2903,6 @@ function injectStyle() {
       width:100vw; height:100vh; height:100dvh;
       border-width:clamp(15px,2.6vh,24px);
     }
-    #gh-eq-win.gh-eq-wide { width:100vw; height:100dvh; }
   }
   #gh-eq-close {
     position:absolute; right:6px; top:6px; z-index:2; width:34px; height:34px;
@@ -3475,21 +3465,16 @@ function injectStyle() {
     box-shadow:0 0 12px -3px var(--bc), inset 0 0 8px rgba(0,0,0,.4);
   }
   .gh-sk-tab-on i { color:var(--bc); }
-  /* ---- RAMO ÚNICO: caminho horizontal, ícones maiores ---- */
+  /* ---- RAMO ÚNICO: caminho VERTICAL (retrato), ícones maiores ---- */
   .gh-sk-branch-solo { width:100%; }
   .gh-sk-path {
-    display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center;
-    align-items:center; gap:5px 4px; row-gap:26px; padding:4px 2px;
+    display:flex; flex-direction:column; align-items:center;
+    gap:4px; padding:2px 2px 6px;
   }
-  .gh-sk-branch-solo .gh-sk-line { width:15px; height:3px; }
-  .gh-sk-branch-solo .gh-sk-active { width:clamp(52px,10vh,70px); height:clamp(52px,10vh,70px); }
-  .gh-sk-branch-solo .gh-sk-passive { width:clamp(40px,7.6vh,54px); height:clamp(40px,7.6vh,54px); }
-  .gh-sk-nm {
-    position:absolute; top:calc(100% + 2px); left:50%; transform:translateX(-50%);
-    font-size:9px; line-height:1.05; color:#c7bda3; white-space:nowrap; text-shadow:0 1px 2px #000;
-    pointer-events:none; max-width:84px; overflow:hidden; text-overflow:ellipsis;
-  }
-  .gh-sk-node.gh-sk-locked .gh-sk-nm { opacity:.5; }
+  /* conector vertical entre os nós (a linha base já é vertical: width 3, height 11) */
+  .gh-sk-branch-solo .gh-sk-active { width:clamp(46px,8vh,58px); height:clamp(46px,8vh,58px); }
+  .gh-sk-branch-solo .gh-sk-passive { width:clamp(36px,6vh,46px); height:clamp(36px,6vh,46px); }
+  /* nome do nó: aparece no painel de detalhe ao tocar (mantém a coluna limpa) */
   .gh-sk-node {
     position:relative; border-radius:50%; cursor:pointer; padding:0; flex:0 0 auto;
     background:rgba(10,9,6,.72); display:flex; align-items:center; justify-content:center;
