@@ -1362,8 +1362,8 @@ export class Game {
     this.giveArmor("chest", 1, "magico");
     this.pushEquipUI();
     this.ui.equipWeapon(startW);
-    this.ui.setHealth(this.playerHp / this.playerMaxHp);
-    this.ui.setMana(this.playerMp / this.playerMaxMp); // mana cheia por enquanto
+    this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
+    this.ui.setMana(this.playerMp / this.playerMaxMp, this.playerMp, this.playerMaxMp); // mana cheia por enquanto
     // árvore de habilidades: classe + pontos = nível (1 ponto por nível).
     this.ui.setSkillInfo(this.classId, skillPointsFor(this.stats.level));
     this.refreshStats();
@@ -2940,13 +2940,13 @@ export class Game {
       if (this.playerHp >= this.playerMaxHp) { this.ui.toast("Vida já está cheia."); return; }
       const amt = Math.round(this.playerMaxHp * 0.4);
       this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
-      this.ui.setHealth(this.playerHp / this.playerMaxHp); this.refreshStats();
+      this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp); this.refreshStats();
       this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${amt}`, "heal");
     } else if (id === "pot_mp") {
       if (this.playerMp >= this.playerMaxMp) { this.ui.toast("Mana já está cheia."); return; }
       const amt = Math.round(this.playerMaxMp * 0.4);
       this.playerMp = Math.min(this.playerMaxMp, this.playerMp + amt);
-      this.ui.setMana(this.playerMp / this.playerMaxMp);
+      this.ui.setMana(this.playerMp / this.playerMaxMp, this.playerMp, this.playerMaxMp);
       this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.52, `+${amt}`, "mana");
     } else if (id === "beer") {
       this.hpRegenUntil = performance.now() + 180000; // 3 min de regeneração
@@ -3034,8 +3034,8 @@ export class Game {
     const rlvl = this.currentWeapon ? (this.reinforce[this.currentWeapon.id] ?? 0) : 0;
     const wdmg = (this.currentWeapon?.dmg ?? 0) + rlvl; // reforço +N do ferreiro soma no dano
     this.stats.atk = Math.round(this.atkWithBonus(this.sec.atkPhys + wdmg) * this.buffAtkMul());
-    this.ui.setHealth(this.playerHp / this.playerMaxHp);
-    this.ui.setMana(this.playerMp / this.playerMaxMp);
+    this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
+    this.ui.setMana(this.playerMp / this.playerMaxMp, this.playerMp, this.playerMaxMp);
     this.refreshStats();
   }
 
@@ -3184,7 +3184,7 @@ export class Game {
     if (leech > 0 && this.playerHp < this.playerMaxHp) {
       const h = Math.max(1, Math.round(dmg * leech));
       this.playerHp = Math.min(this.playerMaxHp, this.playerHp + h);
-      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
     }
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
@@ -3267,7 +3267,7 @@ export class Game {
     }
     // paga o custo (número flutuante de mana perto do slot) e dispara a recarga
     this.playerMp = Math.max(0, this.playerMp - cb.mana);
-    this.ui.setMana(this.playerMp / this.playerMaxMp);
+    this.ui.setMana(this.playerMp / this.playerMaxMp, this.playerMp, this.playerMaxMp);
     this.ui.skillManaFloat(id, cb.mana);
     // REDUÇÃO DE RECARGA (talento): encurta a recarga (teto de 80%)
     const cdr = Math.min(0.8, this.passive.cdr ?? 0);
@@ -3306,7 +3306,7 @@ export class Game {
       const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)) + attrBonus(id, this.classId, this.prim));
       const before = this.playerHp;
       this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
-      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
       this.refreshStats();
       const healed = this.playerHp - before;
       this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${healed}`, "heal");
@@ -3719,8 +3719,8 @@ export class Game {
       this.playerHp = this.playerMaxHp;
       this.playerMp = this.playerMaxMp;
       this.unspent += gained * POINTS_PER_LEVEL;
-      this.ui.setHealth(1);
-      this.ui.setMana(1);
+      this.ui.setHealth(1, this.playerHp, this.playerMaxHp);
+      this.ui.setMana(1, this.playerMp, this.playerMaxMp);
       this.ui.setSkillInfo(this.classId, skillPointsFor(this.stats.level)); // total = nível
       this.ui.levelUp(this.stats.level); // efeito garrafal "LEVEL UP!" + animação
     }
@@ -3777,7 +3777,7 @@ export class Game {
       this.playerHp = 1;
       this.buff = { atkMul: 1, defReduc: 0.7, until: performance.now() + 3000 }; // escudo curto
       this.recomputeDerived();
-      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
       this.refreshStats();
       this.ui.flashDamage();
       this.ui.playSfx("cast");
@@ -3785,7 +3785,7 @@ export class Game {
       return;
     }
     this.playerHp = Math.max(0, this.playerHp - taken);
-    this.ui.setHealth(this.playerHp / this.playerMaxHp);
+    this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
     this.refreshStats();
     this.ui.flashDamage();
     this.ui.playSfx("hurt"); // baque de dano no jogador
@@ -3796,7 +3796,7 @@ export class Game {
       // derrota: recompõe a vida e volta ao início da vila
       window.setTimeout(() => {
         this.playerHp = this.playerMaxHp;
-        this.ui.setHealth(1);
+        this.ui.setHealth(1, this.playerHp, this.playerMaxHp);
         this.refreshStats();
         const s = findStart();
         this.enterLocation("village", s.col, s.row, 0);
@@ -8171,7 +8171,7 @@ export class Game {
         const heal = Math.floor(this.hpRegenAcc);
         this.hpRegenAcc -= heal;
         this.playerHp = Math.min(this.playerMaxHp, this.playerHp + heal);
-        this.ui.setHealth(this.playerHp / this.playerMaxHp);
+        this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
       }
     }
     const an = this.anim;
@@ -8244,12 +8244,12 @@ export class Game {
     this.lastTickMs = now;
     if (dt > 0 && this.playerMp < this.playerMaxMp) {
       this.playerMp = Math.min(this.playerMaxMp, this.playerMp + this.playerMaxMp * 0.03 * dt + 1.5 * dt);
-      this.ui.setMana(this.playerMp / this.playerMaxMp);
+      this.ui.setMana(this.playerMp / this.playerMaxMp, this.playerMp, this.playerMaxMp);
     }
     // CERVEJA: regenera vida gradualmente enquanto o efeito durar (~3 min)
     if (dt > 0 && now < this.hpRegenUntil && this.playerHp < this.playerMaxHp) {
       this.playerHp = Math.min(this.playerMaxHp, this.playerHp + this.playerMaxHp * 0.012 * dt + 2 * dt);
-      this.ui.setHealth(this.playerHp / this.playerMaxHp);
+      this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
     }
     const nowBuff = !!this.buff && now < this.buff.until;
     if (this.buffActive && !nowBuff) {

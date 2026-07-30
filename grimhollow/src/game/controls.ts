@@ -29,6 +29,14 @@ const attrSeal = (a: PrimAttr, size = 16): string => {
     ? `<img class="gh-attr-seal" src="${url}" alt="${m.label}" title="${m.label}" style="width:${size}px;height:${size}px"/>`
     : `<span class="gh-attr-seal gh-attr-glyph" title="${m.label}" style="width:${size}px;height:${size}px;color:${m.color}">${m.sym}</span>`;
 };
+// ícones do card de skill: mana (gema recortada da placa) e recarga (ampulheta
+// desenhada em SVG, tom dourado, combina com a moldura). ⤢ = alcance.
+const MANA_IC = `<img class="gh-ic-res" src="${manaIconUrl}" alt="mana" title="Mana"/>`;
+const CD_IC =
+  `<svg class="gh-ic-res" viewBox="0 0 24 24" fill="none" stroke="#e6c56a" stroke-width="2" ` +
+  `stroke-linecap="round" stroke-linejoin="round" title="Tempo de recarga">` +
+  `<path d="M6 3h12M6 21h12"/><path d="M7 3c0 4 2 6 5 9 3-3 5-5 5-9"/>` +
+  `<path d="M7 21c0-4 2-6 5-9 3 3 5 5 5 9"/></svg>`;
 import { CLASS_BY_ID } from "./classes";
 import type { Rarity } from "./items";
 
@@ -51,6 +59,7 @@ export interface BagEntry { kind: "weapon" | "armor"; id: string; icon: string; 
 export interface EquipSlotView { icon: string; rarity: Rarity; tip: ItemTip; }
 export interface EquipUIData { bag: BagEntry[]; armor: Partial<Record<string, EquipSlotView>>; }
 import hudPlateUrl from "../assets/ui/hud_plate.png";
+import manaIconUrl from "../assets/ui/icon_mana.png"; // gema de mana recortada da placa
 import eqFrameUrl from "../assets/ui/eq_frame.png";
 import eqSlotUrl from "../assets/ui/eq_slot.png";
 import eqContainerUrl from "../assets/ui/eq_container.png";
@@ -215,8 +224,8 @@ export interface HUD {
   // toca o golpe da arma equipada; retorna o instante (ms) do impacto p/ o dano
   // cair sincronizado, ou -1 se não golpeou (sem arma / em recarga).
   swingWeapon(): number;
-  setHealth(frac: number): void; // 0..1 — barra de vida do jogador
-  setMana(frac: number): void; // 0..1 — barra de mana do jogador
+  setHealth(frac: number, cur?: number, max?: number): void; // 0..1 + valores exatos p/ o overlay
+  setMana(frac: number, cur?: number, max?: number): void; // 0..1 + valores exatos p/ o overlay
   flashDamage(): void; // vinheta vermelha ao levar dano
   setStats(s: CharStats): void; // atualiza a janela de equipamentos/atributos
   setInventory(ids: string[]): void; // enche a mochila com esses itens
@@ -536,11 +545,16 @@ export function setupControls(
   const hudWrap = document.createElement("div");
   hudWrap.id = "gh-hud";
   hudWrap.innerHTML =
-    '<div class="gh-hud-bar gh-hud-hp"><div class="gh-hud-fill gh-hud-hp-fill"></div></div>' +
-    '<div class="gh-hud-bar gh-hud-mp"><div class="gh-hud-fill gh-hud-mp-fill"></div></div>';
+    '<div class="gh-hud-bar gh-hud-hp"><div class="gh-hud-fill gh-hud-hp-fill"></div><span class="gh-hud-num gh-hud-hp-num"></span></div>' +
+    '<div class="gh-hud-bar gh-hud-mp"><div class="gh-hud-fill gh-hud-mp-fill"></div><span class="gh-hud-num gh-hud-mp-num"></span></div>';
   root.appendChild(hudWrap);
   const hpFill = hudWrap.querySelector(".gh-hud-hp-fill") as HTMLElement;
   const mpFill = hudWrap.querySelector(".gh-hud-mp-fill") as HTMLElement;
+  const hpNum = hudWrap.querySelector(".gh-hud-hp-num") as HTMLElement;
+  const mpNum = hudWrap.querySelector(".gh-hud-mp-num") as HTMLElement;
+  // mostrar números exatos por cima das barras (alternável nas opções)
+  let showBarNums = localStorage.getItem("gh-barnums") !== "0"; // ligado por padrão
+  hudWrap.classList.toggle("gh-hud-nums-off", !showBarNums);
 
   // ---- BARRA DE XP: faixa BEM FINA na base da tela, de ponta a ponta, que enche
   // conforme o XP do nível atual. Um pequeno "Nv X" na ponta esquerda. ----
@@ -949,8 +963,22 @@ export function setupControls(
     sliderRow("music", "Música", audio.music) +
     '<div class="gh-opt-row gh-opt-rowmute"><label>Mudo</label>' +
     `<button class="gh-opt-toggle${audio.muted ? " gh-opt-on" : ""}" id="gh-opt-mute" aria-label="Mudo"><span class="gh-opt-knob"></span></button></div>` +
+    '</div>' +
+    // seção INTERFACE: números exatos nas barras de vida/mana
+    '<div class="gh-opt-sec">' +
+    '<div class="gh-opt-sh">INTERFACE</div>' +
+    '<div class="gh-opt-row"><label>Números nas barras</label>' +
+    `<button class="gh-opt-toggle${showBarNums ? " gh-opt-on" : ""}" id="gh-opt-barnums" aria-label="Números nas barras"><span class="gh-opt-knob"></span></button></div>` +
     '</div></div>';
   root.appendChild(opt);
+  const barNumsBtn = opt.querySelector("#gh-opt-barnums") as HTMLElement;
+  barNumsBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    showBarNums = !showBarNums;
+    barNumsBtn.classList.toggle("gh-opt-on", showBarNums);
+    hudWrap.classList.toggle("gh-hud-nums-off", !showBarNums);
+    localStorage.setItem("gh-barnums", showBarNums ? "1" : "0");
+  });
   const optAudioSec = opt.querySelector("#gh-opt-audio") as HTMLElement;
   const muteBtn = opt.querySelector("#gh-opt-mute") as HTMLElement;
   const syncMuteUI = () => {
@@ -1319,14 +1347,13 @@ export function setupControls(
         const word = cb.effect === "dmg" ? "Dano" : "Cura";
         const dispRank = rank >= 1 ? rank : 1;
         const cur = estimateAmount(id, skillClassId, dispRank, heroPrim);
-        let val = `<b>~${cur}</b>`;
+        // selo do atributo LOGO após o número (não mais empurrado p/ a direita)
+        let val = `<b>~${cur}</b>${seals ? `<span class="gh-skc-seals">${seals}</span>` : ""}`;
         if (rank >= 1 && !maxed) {
           const nxt = estimateAmount(id, skillClassId, rank + 1, heroPrim);
           val += ` <span class="gh-skc-arrow">→ ~${nxt}</span>`;
         }
-        body +=
-          `<div class="gh-skc-eff"><span class="gh-skc-k">${word}</span>${val}` +
-          (seals ? `<span class="gh-skc-seals">${seals}</span>` : "") + "</div>";
+        body += `<div class="gh-skc-eff"><span class="gh-skc-k">${word}</span>${val}</div>`;
       } else if (cb.effect === "buff") {
         const parts: string[] = [];
         if (cb.atkMul) parts.push(`+${Math.round((cb.atkMul - 1) * 100)}% de dano`);
@@ -1335,10 +1362,10 @@ export function setupControls(
         if (parts.length)
           body += `<div class="gh-skc-eff"><span class="gh-skc-k">Efeito</span><b>${parts.join(" · ")}</b></div>`;
       }
-      // recursos (mana / recarga / alcance)
+      // recursos (mana / recarga / alcance) — com ícones próprios
       const bits: string[] = [];
-      if (cb.mana) bits.push(`◆ ${cb.mana}`);
-      if (cb.cd) bits.push(`⏱ ${(cb.cd / 1000) % 1 ? (cb.cd / 1000).toFixed(1) : cb.cd / 1000}s`);
+      if (cb.mana) bits.push(`${MANA_IC}${cb.mana}`);
+      if (cb.cd) bits.push(`${CD_IC}${(cb.cd / 1000) % 1 ? (cb.cd / 1000).toFixed(1) : cb.cd / 1000}s`);
       if (cb.effect === "dmg") bits.push(cb.melee ? "corpo a corpo" : `⤢ ${cb.range} cél.`);
       if (bits.length) body += `<div class="gh-skc-res">${bits.map((b) => `<span>${b}</span>`).join("")}</div>`;
     } else if (sk.stat) {
@@ -2117,7 +2144,7 @@ export function setupControls(
       renderJournal(data);
       journal.classList.remove("gh-eq-hidden");
     },
-    setHealth(frac: number) {
+    setHealth(frac: number, cur?: number, max?: number) {
       const f = Math.max(0, Math.min(1, frac));
       hpFill.style.width = f * 100 + "%";
       // vermelho vivo cheio → alaranjado/escuro quando a vida cai
@@ -2127,10 +2154,12 @@ export function setupControls(
           : f > 0.25
             ? "linear-gradient(#e08a2c,#9a4a10)"
             : "linear-gradient(#c23a24,#7a1610)";
+      if (cur !== undefined && max !== undefined) hpNum.textContent = `${Math.round(cur)}/${Math.round(max)}`;
     },
-    setMana(frac: number) {
+    setMana(frac: number, cur?: number, max?: number) {
       const f = Math.max(0, Math.min(1, frac));
       mpFill.style.width = f * 100 + "%";
+      if (cur !== undefined && max !== undefined) mpNum.textContent = `${Math.round(cur)}/${Math.round(max)}`;
     },
     setStats(s: CharStats) {
       heroPrim.str = s.str; heroPrim.dex = s.dex; heroPrim.int = s.int;
@@ -2758,6 +2787,15 @@ function injectStyle() {
   }
   .gh-hud-hp { top:22.9%; height:17.6%; }
   .gh-hud-mp { top:56.9%; height:17.3%; }
+  /* números exatos por cima das barras */
+  .gh-hud-num {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:"Cinzel",serif; font-weight:700; letter-spacing:.3px;
+    font-size:clamp(9px,2.4vw,12px); color:#fff3d6;
+    text-shadow:0 1px 2px #000, 0 0 3px rgba(0,0,0,.9); font-variant-numeric:tabular-nums;
+    pointer-events:none; line-height:1;
+  }
+  #gh-hud.gh-hud-nums-off .gh-hud-num { display:none; }
   /* MAPA (canto superior direito): moldura 9-slice + canvas do minimapa no miolo */
   #gh-map {
     position:fixed; right:12px; top:10px; z-index:11; pointer-events:none;
@@ -3606,9 +3644,12 @@ function injectStyle() {
   .gh-skc-eff .gh-skc-k { color:#a99c78; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
   .gh-skc-eff b { color:#ffe089; font-size:15px; font-variant-numeric:tabular-nums; }
   .gh-skc-arrow { color:#8fce7a; font-size:12.5px; font-weight:700; }
-  .gh-skc-seals { margin-left:auto; display:inline-flex; align-items:center; gap:3px; }
-  .gh-skc-res { display:flex; flex-wrap:wrap; gap:5px 10px; font-size:11.5px; color:#b6a877; margin-bottom:9px; }
-  .gh-skc-res span { white-space:nowrap; }
+  /* selo do atributo LOGO após o número (colado, não empurrado p/ a borda) */
+  .gh-skc-seals { display:inline-flex; align-items:center; gap:3px; margin-left:5px; vertical-align:middle; }
+  .gh-skc-res { display:flex; flex-wrap:wrap; gap:5px 12px; font-size:12px; color:#c6b78a; margin-bottom:9px; }
+  .gh-skc-res span { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
+  /* ícone de recurso (mana/recarga) alinhado ao número */
+  .gh-ic-res { width:16px; height:16px; object-fit:contain; vertical-align:middle; flex:0 0 auto; }
   .gh-skc-foot { text-align:center; }
   .gh-skc-foot .gh-sk-cbtn { width:100%; box-sizing:border-box; }
   /* botão de CONFIRMAR a alocação do ponto */

@@ -1162,6 +1162,24 @@ Grim dark-medieval fantasy game UI emblem for the INTELLIGENCE attribute: a glow
 
 ---
 
+## 22 · Ícones do CARD de skill (mana / recarga) — 🟢 mana pronta, recarga opcional
+
+**Uso:** na linha de recursos do card da skill (mana, tempo de recarga, alcance).
+
+### ✅ 22.1 — `icon_mana` · NO JOGO (recortado da placa)
+> Recortei a **gema de mana** (o losango azul) direto da `hud_plate.png`, então já
+> combina 100% com a barra. Salvo em `src/assets/ui/icon_mana.png`. Nada a gerar.
+
+### 🟡 22.2 — `icon_recarga` (Tempo de Recarga — opcional) — SVG provisório no jogo
+> Hoje uso uma **ampulheta em SVG dourado** desenhada no código. Se quiser uma arte
+> pintada no mesmo estilo dos medalhões de atributo, gere isto e me mande como
+> `icon_recarga.png` (eu troco o SVG pela imagem):
+```
+Grim dark-medieval fantasy game UI icon for COOLDOWN / recharge time: a small ornate HOURGLASS with dark battle-worn iron frame and worn gold trim, pale sand inside catching a faint warm glow, set on the SAME small round dark stone-and-iron medallion style as the attribute emblems, a subtle amber/gold glow behind it. Hand-painted, engraved metal look, clearly reads as "time", readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
+```
+
+---
+
 # 📜 Catálogo de Itens (planejamento de design)
 
 > Esta parte **não tem prompts ainda** — é o **mapa dos itens** que a gente
