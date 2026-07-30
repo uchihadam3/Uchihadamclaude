@@ -1137,17 +1137,19 @@ escala) e (b) na **aba Atributos** do personagem, ao lado de cada atributo. São
 - **1024×1024**. Nomes → `attr_forca.png`, `attr_destreza.png`, `attr_int.png` em
   `grimhollow/src/assets/ui/`.
 
-### 🟡 21.1 — `attr_forca` (Força — vermelho)
+### ✅ 21.1 — `attr_forca` (Força — vermelho) · NO JOGO
 ```
 Grim dark-medieval fantasy game UI emblem for the STRENGTH attribute: a clenched armored gauntlet (mailed iron fist) facing the viewer, forged dark battle-worn iron with rivets, set on a small round dark stone-and-iron medallion, a deep CRIMSON/red arcane glow radiating behind the fist. Hand-painted, engraved metal look, dramatic but readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
 ```
 
-### 🟡 21.2 — `attr_destreza` (Destreza — verde)
+### 🟡 21.2 — `attr_destreza` (Destreza — verde) — REFEITO (símbolo abstrato)
+> A versão com espadas+flecha não combinou (Força é um punho, Inteligência é um
+> sigilo abstrato). Este é **um símbolo ABSTRATO único**, no mesmo estilo do de INT.
 ```
-Grim dark-medieval fantasy game UI emblem for the DEXTERITY attribute: two slender crossed daggers over a single feathered arrow, sleek polished steel with worn leather grips, set on a small round dark stone-and-iron medallion, a nimble EMERALD/green glow radiating behind the blades. Hand-painted, engraved metal look, sharp and agile feel, readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
+Grim dark-medieval fantasy game UI emblem for the DEXTERITY attribute: a single ABSTRACT engraved sigil suggesting speed, finesse and agility — sleek intertwined curved crescents / swirling wind-like glyph forming an elegant emblem (NO realistic weapons, no arrows), forged dark steel with fine detail, set on the SAME round dark stone-and-iron runic medallion as the other attribute emblems, a nimble EMERALD/green glow radiating behind the sigil, faint motion wisps. Hand-painted, engraved metal look, matches the arcane-sigil style but themed for agility, readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
 ```
 
-### 🟡 21.3 — `attr_int` (Inteligência — azul)
+### ✅ 21.3 — `attr_int` (Inteligência — azul) · NO JOGO
 ```
 Grim dark-medieval fantasy game UI emblem for the INTELLIGENCE attribute: a glowing arcane rune/sigil hovering over a small faceted crystal orb, wisps of magic, set on a small round dark stone-and-iron medallion, an azure/sapphire BLUE magical glow radiating behind it. Hand-painted, engraved metal look, mystical, readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
 ```
