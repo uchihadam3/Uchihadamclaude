@@ -1291,16 +1291,18 @@ export function setupControls(
       };
     }
   };
-  // troca de abas
+  // troca de abas (extraído p/ poder acionar por código — ex.: voltar p/ Habilidades)
+  const showTab = (tab: string) => {
+    eq.querySelectorAll(".gh-tab").forEach((b) =>
+      b.classList.toggle("gh-tab-on", (b as HTMLElement).dataset.tab === tab));
+    eq.querySelectorAll(".gh-tabpane").forEach((p) =>
+      p.classList.toggle("gh-pane-hidden", (p as HTMLElement).dataset.pane !== tab));
+    closeCard(); // troca de aba fecha o card de skill
+  };
   eq.querySelectorAll(".gh-tab").forEach((btn) =>
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-      const tab = (btn as HTMLElement).dataset.tab;
-      eq.querySelectorAll(".gh-tab").forEach((b) => b.classList.toggle("gh-tab-on", b === btn));
-      eq.querySelectorAll(".gh-tabpane").forEach((p) =>
-        p.classList.toggle("gh-pane-hidden", (p as HTMLElement).dataset.pane !== tab),
-      );
-      closeCard(); // troca de aba fecha o card de skill
+      showTab((btn as HTMLElement).dataset.tab || "equip");
     }),
   );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
@@ -1323,6 +1325,8 @@ export function setupControls(
   let skillPointsTotal = 0;
   const skillRanks: Record<string, number> = {};
   let skillSelected: string | null = null; // nó selecionado (aguardando confirmação)
+  // atribuída mais abaixo (quando a hotbar existe): entra no modo de escolher slot
+  let startAssign: (id: string) => void = () => {};
   // primários ATUAIS do herói (capturados em setStats) — usados p/ estimar o
   // dano/cura das skills no card (mesma conta que o combate usa em this.prim)
   const heroPrim = { str: 5, dex: 5, int: 5 };
@@ -1392,11 +1396,15 @@ export function setupControls(
     else if (!canBuy) btn = '<span class="gh-sk-cbtn gh-sk-cdim">Sem pontos</span>';
     else
       btn = `<button class="gh-sk-cbtn gh-sk-cbuy" id="gh-sk-confirm">${rank > 0 ? `Melhorar → ${rank + 1}/${sk.maxRank}` : "Aprender"} · 1 ponto</button>`;
+    // habilidade ATIVA já aprendida → pode ser posta na barra de atalho
+    const equipBtn = (sk.kind === "active" && rank >= 1)
+      ? `<button class="gh-sk-cbtn gh-sk-cequip" id="gh-sk-equip">⌗ Equipar na barra</button>`
+      : "";
     return (
       `<div class="gh-skc-head"><b>${sk.name}</b><i>${typeTxt} · ${rank}/${sk.maxRank}</i></div>` +
       `<div class="gh-skc-desc">${sk.desc}</div>` +
       body +
-      `<div class="gh-skc-foot">${btn}</div>`
+      `<div class="gh-skc-foot">${equipBtn}${btn}</div>`
     );
   };
   // posiciona o card ao lado do nó (flip p/ caber na tela) e conecta o confirmar
@@ -1425,6 +1433,13 @@ export function setupControls(
           const again = skillsPane.querySelector<HTMLElement>(`.gh-sk-node[data-sk="${id}"]`);
           if (again) { again.classList.add("gh-sk-sel"); openCard(id, again); } // reabre atualizado
         }
+      });
+    // "Equipar na barra": fecha a janela e entra no modo de escolher o slot
+    const equip = skCard.querySelector("#gh-sk-equip");
+    if (equip)
+      equip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        startAssign(id);
       });
   };
   // fecha o card ao tocar fora dele (toque em nó reabre pelo próprio handler)
@@ -1830,8 +1845,27 @@ export function setupControls(
   hotbar.id = "gh-hotbar";
   hotbar.innerHTML =
     '<div id="gh-hotbar-xp"><div id="gh-hotbar-xp-fill"></div>' +
-    '<span id="gh-hotbar-xp-lv">Nv 1</span></div>';
+    '<span id="gh-hotbar-xp-lv">Nv 1</span></div>' +
+    // camada do MODO EQUIPAR (slots que brilham) — só aparece durante a escolha
+    '<div id="gh-hb-assign"></div>';
   root.appendChild(hotbar);
+  const assignLayer = hotbar.querySelector("#gh-hb-assign") as HTMLElement;
+  // ---- estado dos slots de habilidade da hotbar (equipáveis pelo jogador) ----
+  let availableSkills: ActionSkill[] = []; // ativas aprendidas (vindas do jogo)
+  const SLOT_KEY = "gh-hotbar-slots";
+  const loadSlots = (): (string | null)[] => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(SLOT_KEY) || "[]");
+      if (Array.isArray(raw)) {
+        const a = raw.slice(0, HB_SKILLS).map((x) => (typeof x === "string" ? x : null));
+        while (a.length < HB_SKILLS) a.push(null);
+        return a;
+      }
+    } catch { /* ignora */ }
+    return Array(HB_SKILLS).fill(null);
+  };
+  const slotAssign: (string | null)[] = loadSlots();
+  const saveSlots = () => { try { localStorage.setItem(SLOT_KEY, JSON.stringify(slotAssign)); } catch { /* ignora */ } };
   hbXpFill = hotbar.querySelector("#gh-hotbar-xp-fill") as HTMLElement;
   hbXpLv = hotbar.querySelector("#gh-hotbar-xp-lv") as HTMLElement;
 
@@ -2031,12 +2065,23 @@ export function setupControls(
   const actbar = document.createElement("div");
   actbar.id = "gh-actbar";
   hotbar.appendChild(actbar);
-  const renderActionBar = (items: ActionSkill[]) => {
-    // 6 slots de habilidade (0..5): preenche com as aprendidas + vazios
+  // desenha os 6 slots a partir das ATRIBUIÇÕES do jogador (slotAssign). Slots sem
+  // atribuição ficam vazios (o socket pintado marca o lugar). Se o jogador ainda não
+  // mexeu em nada, auto-preenche na ordem das aprendidas p/ não começar vazio.
+  const drawActionBar = () => {
+    // remove atribuições de skills que não estão mais disponíveis (desaprendidas)
+    for (let i = 0; i < HB_SKILLS; i++)
+      if (slotAssign[i] && !availableSkills.some((s) => s.id === slotAssign[i])) slotAssign[i] = null;
+    // auto-preenche slots VAZIOS com aprendidas ainda não colocadas (na ordem), p/ as
+    // habilidades novas já aparecerem na barra; o jogador reordena com "Equipar".
+    const placed = new Set(slotAssign.filter(Boolean) as string[]);
+    const free = availableSkills.filter((s) => !placed.has(s.id));
+    for (let i = 0; i < HB_SKILLS && free.length; i++)
+      if (!slotAssign[i]) { slotAssign[i] = free.shift()!.id; }
     let html = "";
     for (let i = 0; i < HB_SKILLS; i++) {
       const x = HB_X[i];
-      const s = items[i];
+      const s = slotAssign[i] ? availableSkills.find((k) => k.id === slotAssign[i]) : undefined;
       if (s) {
         html +=
           `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}" ` +
@@ -2046,8 +2091,6 @@ export function setupControls(
           `<span class="gh-ss-cd"></span>` +
           `</button>`;
       } else {
-        // slot VAZIO — o socket pintado da arte já marca o lugar; deixamos só uma
-        // runinha bem discreta por cima.
         html +=
           `<span class="gh-sslot gh-ss-empty" style="left:${x}%;top:${HB_Y}%">` +
           `<span class="gh-ss-rune">◈</span></span>`;
@@ -2064,6 +2107,65 @@ export function setupControls(
       b.addEventListener("contextmenu", (e) => e.preventDefault());
     });
   };
+  const renderActionBar = (items: ActionSkill[]) => {
+    availableSkills = items;
+    drawActionBar();
+  };
+
+  // ---- MODO EQUIPAR (escolher em qual slot a skill vai) ----
+  // Fecha a janela de habilidades, faz os 6 slots brilharem e espera o jogador tocar
+  // um deles (ou cancelar). Depois volta p/ a aba de Habilidades.
+  let assignId: string | null = null;
+  const assignBanner = document.createElement("div");
+  assignBanner.id = "gh-hb-assign-bar";
+  assignBanner.style.display = "none";
+  assignBanner.innerHTML =
+    '<span class="gh-hbab-txt"></span><button class="gh-hbab-cancel">Cancelar</button>';
+  root.appendChild(assignBanner);
+  const assignBackdrop = document.createElement("div");
+  assignBackdrop.id = "gh-hb-assign-back";
+  assignBackdrop.style.display = "none";
+  root.appendChild(assignBackdrop);
+  const bannerTxt = assignBanner.querySelector(".gh-hbab-txt") as HTMLElement;
+  const endAssign = (reopen: boolean) => {
+    assignId = null;
+    hotbar.classList.remove("gh-hb-assigning");
+    assignLayer.innerHTML = "";
+    assignBanner.style.display = "none";
+    assignBackdrop.style.display = "none";
+    if (reopen) { openEq(); showTab("skills"); } // volta pra aba de Habilidades
+  };
+  startAssign = (id: string) => {
+    const sk = availableSkills.find((s) => s.id === id);
+    assignId = id;
+    closeCard();
+    eq.classList.add("gh-eq-hidden"); // sai da janela p/ ver a barra
+    // monta os 6 alvos que brilham sobre os slots de habilidade
+    let html = "";
+    for (let i = 0; i < HB_SKILLS; i++)
+      html += `<button class="gh-hb-target" data-slot="${i}" style="left:${HB_X[i]}%;top:${HB_Y}%"></button>`;
+    assignLayer.innerHTML = html;
+    assignLayer.querySelectorAll<HTMLButtonElement>(".gh-hb-target").forEach((b) => {
+      b.addEventListener("pointerdown", (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const slot = Number(b.dataset.slot);
+        // se a skill já estava em outro slot, tira de lá (mover, não duplicar)
+        for (let i = 0; i < HB_SKILLS; i++) if (slotAssign[i] === assignId) slotAssign[i] = null;
+        slotAssign[slot] = assignId;
+        saveSlots();
+        drawActionBar();
+        endAssign(true);
+      });
+    });
+    hotbar.classList.add("gh-hb-assigning");
+    bannerTxt.textContent = sk ? `Escolha um slot para “${sk.name}”` : "Escolha um slot";
+    assignBanner.style.display = "flex";
+    assignBackdrop.style.display = "block";
+  };
+  assignBanner.querySelector(".gh-hbab-cancel")!.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); e.stopPropagation(); endAssign(true);
+  });
+  assignBackdrop.addEventListener("pointerdown", (e) => { e.preventDefault(); endAssign(true); });
   renderActionBar([]);
 
   // dica contextual (acima do botão de ação)
@@ -3009,6 +3111,46 @@ function injectStyle() {
     font-family:"Cinzel",serif; font-weight:700; font-size:9px; letter-spacing:.4px;
     color:#f6e6b4; white-space:nowrap; text-shadow:0 1px 2px #000, 0 0 4px rgba(0,0,0,.9);
   }
+  /* ---- MODO EQUIPAR (escolher slot p/ a habilidade) ---- */
+  #gh-hb-assign { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  /* durante a escolha, a hotbar sobe acima do escurecedor de fundo */
+  #gh-hotbar.gh-hb-assigning { z-index:16; }
+  #gh-hb-assign-back {
+    position:fixed; inset:0; z-index:15; pointer-events:auto;
+    background:rgba(4,4,8,.5);
+  }
+  #gh-hb-assign-bar {
+    position:fixed; left:50%; bottom:calc(6px + min(105px,17.2vw) + 12px);
+    transform:translateX(-50%); z-index:17; pointer-events:auto;
+    display:flex; align-items:center; gap:12px;
+    background:linear-gradient(#2a2114,#160f08);
+    border:2px solid rgba(244,216,115,.6); border-radius:12px;
+    padding:8px 10px 8px 16px; box-shadow:0 6px 20px rgba(0,0,0,.6);
+    max-width:92vw;
+  }
+  .gh-hbab-txt { color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700; font-size:14px;
+    text-shadow:0 1px 2px #000; }
+  .gh-hbab-cancel {
+    flex:0 0 auto; cursor:pointer; font-family:"Cinzel",serif; font-weight:700; font-size:13px;
+    color:#e7d3a0; background:linear-gradient(#3a2c1a,#1c130a);
+    border:1.5px solid rgba(201,162,39,.55); border-radius:8px; padding:6px 12px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .gh-hbab-cancel:active { transform:translateY(1px); }
+  /* alvos que BRILHAM sobre os 6 slots de habilidade */
+  .gh-hb-target {
+    position:absolute; transform:translate(-50%,-50%);
+    height:44%; aspect-ratio:1; border-radius:12%;
+    background:rgba(255,226,140,.14); border:2px solid rgba(255,224,130,.95);
+    box-shadow:0 0 12px rgba(255,214,110,.75), inset 0 0 10px rgba(255,224,150,.5);
+    cursor:pointer; pointer-events:auto; padding:0;
+    animation:gh-hb-pulse 1s ease-in-out infinite; -webkit-tap-highlight-color:transparent;
+  }
+  .gh-hb-target:active { background:rgba(255,232,160,.34); }
+  @keyframes gh-hb-pulse {
+    0%,100% { box-shadow:0 0 8px rgba(255,214,110,.55), inset 0 0 8px rgba(255,224,150,.4); }
+    50% { box-shadow:0 0 18px rgba(255,224,130,.95), inset 0 0 12px rgba(255,236,170,.7); }
+  }
 
   /* botão de abrir a janela de personagem — no lado ESQUERDO, logo abaixo da placa
      de vida/mana (o canto superior direito fica livre p/ o mapa). */
@@ -3725,8 +3867,16 @@ function injectStyle() {
   .gh-skc-res span { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
   /* ícone de recurso (mana/recarga) alinhado ao número */
   .gh-ic-res { width:16px; height:16px; object-fit:contain; vertical-align:middle; flex:0 0 auto; }
-  .gh-skc-foot { text-align:center; }
+  .gh-skc-foot { display:flex; flex-direction:column; gap:6px; }
   .gh-skc-foot .gh-sk-cbtn { width:100%; box-sizing:border-box; }
+  /* botão "Equipar na barra" — âmbar escuro, distinto do dourado de aprender */
+  .gh-sk-cequip {
+    cursor:pointer; font-weight:700; color:#f0dca2;
+    background:linear-gradient(#3a2c1a,#1d130a);
+    border:1.5px solid rgba(201,162,39,.6); box-shadow:0 2px 6px rgba(0,0,0,.5);
+  }
+  .gh-sk-cequip:hover { background:linear-gradient(#4a3822,#241708); color:#ffe9a8; }
+  .gh-sk-cequip:active { transform:translateY(1px) scale(.98); }
   /* botão de CONFIRMAR a alocação do ponto */
   .gh-sk-cbtn {
     display:inline-block; font-family:"Cinzel",serif; font-size:13px; letter-spacing:.5px;
