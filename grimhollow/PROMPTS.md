@@ -1198,6 +1198,60 @@ acompanham a cor do horizonte da etapa. Ajustar clima = editar a tabela `SKY_PHA
 
 ---
 
+## 24 · INIMIGOS da dungeon (sprites 2D) + CHEFE do 3º andar — 🟡 arte pendente
+
+**Uso:** cada inimigo é um **billboard 2D** (igual ao `enemy_skeleton.png` que já
+existe) — encara a câmera. Molde: **1 criatura, DE FRENTE, CORPO INTEIRO, pés na
+BASE do quadro, fundo 100% TRANSPARENTE (alfa), recorte limpo**, pintura grim
+medieval coesa com o jogo. Nomes → `enemy_*.png` / `boss_*.png` em
+`grimhollow/src/assets/env/`.
+
+**Regra comum (vale pros 6):** `...single creature FACING THE VIEWER, full body,
+feet at the very bottom edge of the frame, hand-painted stylized-realism, grim dark
+medieval fantasy dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT
+background (alpha), crisp clean cutout edges, no ground, no base, no text, no
+watermark.`
+
+**Papéis no combate (pra variar):** rato = enxame rápido/fraco · aranha = veneno ·
+arqueiro = à distância · carniçal = tanque corpo-a-corpo · cultista = conjurador.
+
+### 🟡 24.1 — `enemy_rato` (Rato gigante — andar 1)
+```
+A giant diseased DUNGEON RAT the size of a large dog, on all fours with paws at the very bottom edge, mangy matted grey-brown fur, long naked scaly tail, sickly glowing eyes, bared chisel teeth and pink gums, hunched aggressive lunging pose facing the viewer. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Portrait ~1024x1024.
+```
+
+### 🟡 24.2 — `enemy_aranha` (Aranha das cavernas — andar 1–2)
+```
+A huge black CAVE SPIDER the size of a wolf, bulbous abdomen with faint venom-green markings, eight long bristled jointed legs planted with the front legs reaching the bottom edge, cluster of glossy dark eyes, dripping venom from curved fangs, menacing crouched pose facing the viewer. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1280.
+```
+
+### 🟡 24.3 — `enemy_arqueiro` (Esqueleto arqueiro — andar 2)
+```
+An undead SKELETON ARCHER, same yellowed weathered bones as a skeleton warrior, drawing a worn recurve bow with a nocked arrow AIMED at the viewer, tattered leather hood and a quiver of arrows on its back, glowing pale-blue eye sockets, wrapped rag bracers, standing with feet at the very bottom edge. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
+```
+
+### 🟡 24.4 — `enemy_carnical` (Carniçal / Ghoul — andar 2–3)
+```
+A rotting GHOUL, an undead cannibal with grey-green decaying flesh, broad hunched emaciated body, long filthy claws, exposed ribs and sinew, gaping maw full of jagged broken teeth, matted hair and sunken glowing eyes, lunging menacingly toward the viewer with feet at the very bottom edge. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
+```
+
+### 🟡 24.5 — `enemy_cultista` (Cultista sombrio / conjurador — andar 3)
+```
+A hooded DARK CULTIST necromancer, tattered black-and-crimson robes hung with small bone charms, face hidden in shadow under the deep hood with two faint glowing eyes, skeletal thin hands — one raised conjuring a swirling sphere of sickly VIOLET necrotic energy, the other clutching a bone dagger, gaunt and sinister, facing the viewer, robe hem at the very bottom edge. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
+```
+
+### 🟡 24.6 — `boss_andar3` (CHEFE — Cavaleiro da Morte colossal)
+> Precisa ser **GRANDE** (bem maior que os outros) e **claramente perigoso**.
+```
+A COLOSSAL undead DEATH KNIGHT boss, TWICE the height and bulk of a man, towering and imposing, clad in massive blackened rusted plate armor covered in cruel spikes and a horned skull-faced helm, molten green-fire glowing eyes deep inside the helm, wielding an ENORMOUS jagged cleaver-greatsword wreathed in ghostly green flame, a torn tattered cloak, a cursed necrotic aura of swirling embers and dark smoke around its body, a menacing wide battle stance radiating dread and danger, dominating the whole frame, feet at the very bottom edge. Hand-painted stylized-realism, grim dark medieval, extremely detailed and threatening, cinematic. FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no base, no text, no watermark. Tall portrait ~1280x1600.
+```
+
+> **Andar 3 = mudança de bioma** (arena do chefe). Quando formos construir, ele ganha
+> **tileset próprio** (paredes/chão/portão em PNG novos — não só recolorir) pra ficar
+> mesmo diferente dos andares 1–2. Prompts do tileset ficam pra quando chegarmos lá.
+
+---
+
 # 📜 Catálogo de Itens (planejamento de design)
 
 > Esta parte **não tem prompts ainda** — é o **mapa dos itens** que a gente

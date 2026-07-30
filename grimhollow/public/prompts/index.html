@@ -894,6 +894,46 @@ atmosférico), <strong>lua</strong> (disco + halo, à noite) e <strong>estrelas<
 cintilando). Emite cor linear; o bloom acende o sol/lua/estrelas. A névoa e o fundo
 acompanham a cor do horizonte da etapa. Ajustar clima = editar a tabela <code>SKY_PHASES</code>.</p>
 <hr />
+<h2 id="24--inimigos-da-dungeon-sprites-2d--chefe-do-3º-andar---arte-pendente">24 · INIMIGOS da dungeon (sprites 2D) + CHEFE do 3º andar — 🟡 arte pendente</h2>
+<p><strong>Uso:</strong> cada inimigo é um <strong>billboard 2D</strong> (igual ao <code>enemy_skeleton.png</code> que já
+existe) — encara a câmera. Molde: <strong>1 criatura, DE FRENTE, CORPO INTEIRO, pés na
+BASE do quadro, fundo 100% TRANSPARENTE (alfa), recorte limpo</strong>, pintura grim
+medieval coesa com o jogo. Nomes → <code>enemy_*.png</code> / <code>boss_*.png</code> em
+<code>grimhollow/src/assets/env/</code>.</p>
+<p><strong>Regra comum (vale pros 6):</strong> <code>...single creature FACING THE VIEWER, full body,
+feet at the very bottom edge of the frame, hand-painted stylized-realism, grim dark
+medieval fantasy dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT
+background (alpha), crisp clean cutout edges, no ground, no base, no text, no
+watermark.</code></p>
+<p><strong>Papéis no combate (pra variar):</strong> rato = enxame rápido/fraco · aranha = veneno ·
+arqueiro = à distância · carniçal = tanque corpo-a-corpo · cultista = conjurador.</p>
+<h3 id="-241--enemy_rato-rato-gigante--andar-1">🟡 24.1 — <code>enemy_rato</code> (Rato gigante — andar 1)</h3>
+<pre><code>A giant diseased DUNGEON RAT the size of a large dog, on all fours with paws at the very bottom edge, mangy matted grey-brown fur, long naked scaly tail, sickly glowing eyes, bared chisel teeth and pink gums, hunched aggressive lunging pose facing the viewer. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Portrait ~1024x1024.
+</code></pre>
+<h3 id="-242--enemy_aranha-aranha-das-cavernas--andar-12">🟡 24.2 — <code>enemy_aranha</code> (Aranha das cavernas — andar 1–2)</h3>
+<pre><code>A huge black CAVE SPIDER the size of a wolf, bulbous abdomen with faint venom-green markings, eight long bristled jointed legs planted with the front legs reaching the bottom edge, cluster of glossy dark eyes, dripping venom from curved fangs, menacing crouched pose facing the viewer. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1280.
+</code></pre>
+<h3 id="-243--enemy_arqueiro-esqueleto-arqueiro--andar-2">🟡 24.3 — <code>enemy_arqueiro</code> (Esqueleto arqueiro — andar 2)</h3>
+<pre><code>An undead SKELETON ARCHER, same yellowed weathered bones as a skeleton warrior, drawing a worn recurve bow with a nocked arrow AIMED at the viewer, tattered leather hood and a quiver of arrows on its back, glowing pale-blue eye sockets, wrapped rag bracers, standing with feet at the very bottom edge. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
+</code></pre>
+<h3 id="-244--enemy_carnical-carniçal--ghoul--andar-23">🟡 24.4 — <code>enemy_carnical</code> (Carniçal / Ghoul — andar 2–3)</h3>
+<pre><code>A rotting GHOUL, an undead cannibal with grey-green decaying flesh, broad hunched emaciated body, long filthy claws, exposed ribs and sinew, gaping maw full of jagged broken teeth, matted hair and sunken glowing eyes, lunging menacingly toward the viewer with feet at the very bottom edge. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
+</code></pre>
+<h3 id="-245--enemy_cultista-cultista-sombrio--conjurador--andar-3">🟡 24.5 — <code>enemy_cultista</code> (Cultista sombrio / conjurador — andar 3)</h3>
+<pre><code>A hooded DARK CULTIST necromancer, tattered black-and-crimson robes hung with small bone charms, face hidden in shadow under the deep hood with two faint glowing eyes, skeletal thin hands — one raised conjuring a swirling sphere of sickly VIOLET necrotic energy, the other clutching a bone dagger, gaunt and sinister, facing the viewer, robe hem at the very bottom edge. Hand-painted stylized-realism, grim dark medieval dungeon, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
+</code></pre>
+<h3 id="-246--boss_andar3-chefe--cavaleiro-da-morte-colossal">🟡 24.6 — <code>boss_andar3</code> (CHEFE — Cavaleiro da Morte colossal)</h3>
+<blockquote>
+<p>Precisa ser <strong>GRANDE</strong> (bem maior que os outros) e <strong>claramente perigoso</strong>.</p>
+</blockquote>
+<pre><code>A COLOSSAL undead DEATH KNIGHT boss, TWICE the height and bulk of a man, towering and imposing, clad in massive blackened rusted plate armor covered in cruel spikes and a horned skull-faced helm, molten green-fire glowing eyes deep inside the helm, wielding an ENORMOUS jagged cleaver-greatsword wreathed in ghostly green flame, a torn tattered cloak, a cursed necrotic aura of swirling embers and dark smoke around its body, a menacing wide battle stance radiating dread and danger, dominating the whole frame, feet at the very bottom edge. Hand-painted stylized-realism, grim dark medieval, extremely detailed and threatening, cinematic. FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no base, no text, no watermark. Tall portrait ~1280x1600.
+</code></pre>
+<blockquote>
+<p><strong>Andar 3 = mudança de bioma</strong> (arena do chefe). Quando formos construir, ele ganha
+<strong>tileset próprio</strong> (paredes/chão/portão em PNG novos — não só recolorir) pra ficar
+mesmo diferente dos andares 1–2. Prompts do tileset ficam pra quando chegarmos lá.</p>
+</blockquote>
+<hr />
 <h1 id="-catálogo-de-itens-planejamento-de-design">📜 Catálogo de Itens (planejamento de design)</h1>
 <blockquote>
 <p>Esta parte <strong>não tem prompts ainda</strong> — é o <strong>mapa dos itens</strong> que a gente
