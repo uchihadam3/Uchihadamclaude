@@ -36,8 +36,6 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
-| 🟡 | **Hotbar MMO** — barra de ação inferior (slots + XP acoplado) | [§11 Peça D](#11--botões-de-controle-hud) |
-| 🟡 | **D-pad v2** — direcionais + manoplas de girar numa peça só (upgrade) | [§11 Peça C·v2](#11--botões-de-controle-hud) |
 | 🟡 | **Skill Tree** — faltam 3 folhas de ativas (Ladino/Mago/Clérigo) + 1 de passivas + 4 fundos | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
@@ -510,7 +508,7 @@ Hand-painted stylized-realism game UI directional pad (D-pad), cohesive with a g
 *(Manda uma imagem só. Eu recorto a cruz e troco os 4 círculos por ela, com as
 zonas de toque nos braços e um brilho no braço pressionado.)*
 
-### 🟡 Peça C · v2 — D-pad com direcionais + **manoplas de girar embutidas** (upgrade)
+### ✅ Peça C · v2 — D-pad com direcionais + **manoplas de girar embutidas** (NO JOGO)
 
 Hoje no jogo está uma **versão composta por código** (a cruz + duas manoplas de
 girar coladas nas quinas). Funciona, mas dá pra ficar **muito melhor desenhada à
@@ -527,7 +525,7 @@ Hand-painted stylized-realism game UI directional pad (D-pad) with TWO integrate
 de toque (braços = mover, quinas = girar) já estão prontas no código, é só trocar a
 arte.)*
 
-### 🟡 Peça D — Barra de ação inferior (**hotbar estilo MMO**) com trilho de XP
+### ✅ Peça D — Barra de ação inferior (**hotbar estilo MMO**) com trilho de XP (NO JOGO)
 
 A ideia: no lugar do "leque" de habilidades solto, uma **barra inferior central
 desenhada à mão**, igual às HUDs de MMO — uma **bandeja ornamentada** com uma

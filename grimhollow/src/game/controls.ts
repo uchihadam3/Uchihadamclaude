@@ -65,6 +65,7 @@ import eqSlotUrl from "../assets/ui/eq_slot.png";
 import eqContainerUrl from "../assets/ui/eq_container.png";
 import btnBaseUrl from "../assets/ui/btn_base.png";
 import dpadUrl from "../assets/ui/dpad.png";
+import hotbarUrl from "../assets/ui/hotbar.png";
 import icoAttackUrl from "../assets/ui/ico_attack.png";
 import icoActionUrl from "../assets/ui/ico_action.png";
 import icoInventoryUrl from "../assets/ui/ico_inventory.png";
@@ -564,10 +565,18 @@ export function setupControls(
   root.appendChild(xpbar);
   const xpFill = xpbar.querySelector("#gh-xpbar-fill") as HTMLElement;
   const xpLv = xpbar.querySelector("#gh-xpbar-lv") as HTMLElement;
+  // a barra de XP "de verdade" agora fica ACOPLADA na calha da hotbar (embaixo dos
+  // slots). Estes refs são preenchidos quando a hotbar é montada; o xpbar antigo
+  // fica escondido (CSS) mas seguimos atualizando os dois sem custo.
+  let hbXpFill: HTMLElement | null = null;
+  let hbXpLv: HTMLElement | null = null;
   const setXp = (level: number, xp: number, xpMax: number) => {
     const frac = xpMax > 0 ? Math.max(0, Math.min(1, xp / xpMax)) : (level >= 100 ? 1 : 0);
-    xpFill.style.width = (frac * 100).toFixed(2) + "%";
+    const w = (frac * 100).toFixed(2) + "%";
+    xpFill.style.width = w;
     xpLv.textContent = "Nv " + level;
+    if (hbXpFill) hbXpFill.style.width = w;
+    if (hbXpLv) hbXpLv.textContent = "Nv " + level;
   };
 
   // ---- MAPA (canto superior direito): moldura + canvas do minimapa (zoom) ----
@@ -1810,18 +1819,37 @@ export function setupControls(
     });
   };
 
-  // ---- BANDEJA DE CONSUMÍVEIS (usar item) — canto inf. esquerdo, acima do dpad ----
+  // ---- HOTBAR (barra de ação estilo MMO) — a arte já traz 8 sockets + a calha da
+  // barra de XP. Aqui só criamos o contêiner e a calha do XP; as HABILIDADES (slots
+  // 0..5) e os CONSUMÍVEIS (slots 6..7) são posicionados por cima, por %, e o XP é
+  // preenchido na calha de baixo. Centros X medidos na arte:
+  const HB_X = [13.81, 24.15, 34.49, 44.83, 55.22, 65.51, 75.85, 86.19];
+  const HB_Y = 46.5; // centro vertical dos sockets (%)
+  const HB_SKILLS = 6; // slots 0..5 = habilidades
+  const hotbar = document.createElement("div");
+  hotbar.id = "gh-hotbar";
+  hotbar.innerHTML =
+    '<div id="gh-hotbar-xp"><div id="gh-hotbar-xp-fill"></div>' +
+    '<span id="gh-hotbar-xp-lv">Nv 1</span></div>';
+  root.appendChild(hotbar);
+  hbXpFill = hotbar.querySelector("#gh-hotbar-xp-fill") as HTMLElement;
+  hbXpLv = hotbar.querySelector("#gh-hotbar-xp-lv") as HTMLElement;
+
+  // ---- BANDEJA DE CONSUMÍVEIS (usar item) — agora nos slots 6..7 da hotbar ----
   const tray = document.createElement("div");
   tray.id = "gh-tray";
-  root.appendChild(tray);
+  hotbar.appendChild(tray);
   const renderTray = (items: ConsumSlot[]) => {
-    if (!items.length) { tray.innerHTML = ""; tray.style.display = "none"; return; }
-    tray.style.display = "flex";
-    tray.innerHTML = items.map((it) =>
-      `<button class="gh-tray-slot" data-id="${it.id}" title="${it.name}">` +
-      (it.iconUrl ? `<img class="gh-tray-img" src="${it.iconUrl}" alt=""/>` : `<span class="gh-tray-emo">${it.icon}</span>`) +
-      `<span class="gh-tray-cnt">${it.count}</span></button>`,
-    ).join("");
+    if (!items.length) { tray.innerHTML = ""; return; }
+    // ocupa os slots da direita (6,7): último item no 7, penúltimo no 6…
+    tray.innerHTML = items.slice(0, 2).map((it, i) => {
+      const slot = HB_SKILLS + i; // 6, 7
+      const x = HB_X[slot];
+      return `<button class="gh-tray-slot" data-id="${it.id}" title="${it.name}" ` +
+        `style="left:${x}%;top:${HB_Y}%">` +
+        (it.iconUrl ? `<img class="gh-tray-img" src="${it.iconUrl}" alt=""/>` : `<span class="gh-tray-emo">${it.icon}</span>`) +
+        `<span class="gh-tray-cnt">${it.count}</span></button>`;
+    }).join("");
     tray.querySelectorAll<HTMLButtonElement>(".gh-tray-slot").forEach((b) => {
       b.addEventListener("pointerdown", (e) => { e.preventDefault(); const id = b.dataset.id; if (id) onUseItem?.(id); });
       b.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -1996,58 +2024,32 @@ export function setupControls(
     pad.appendChild(atkBtn);
   }
 
-  // BARRA DE AÇÃO — habilidades ATIVAS aprendidas em MEIA-LUA ao redor do botão de
-  // ataque (mão direita = combate). Cada slot mostra o ícone, o custo de mana e uma
-  // "varredura" de recarga por cima quando acionado.
+  // BARRA DE AÇÃO — habilidades ATIVAS aprendidas nos slots 0..5 da HOTBAR (arte
+  // com sockets embutidos). Cada slot mostra o ícone, o custo de mana e uma
+  // "varredura" de recarga por cima quando acionado. Fica DENTRO da hotbar (posições
+  // por % sobre os sockets), então o socket pintado aparece por baixo.
   const actbar = document.createElement("div");
   actbar.id = "gh-actbar";
-  pad.appendChild(actbar);
-  // dispõe os slots num leque COMPACTO (dois arcos concêntricos de 3) ancorado no
-  // botão de ataque (canto inf. direito). Fechado o bastante p/ não subir demais.
-  const SLOT = 46; // px
-  const ATKx = 47, ATKy = 51; // centro do botão de ataque (dist. do canto)
-  const A0 = 116, A1 = 176; // faixa angular (graus) — fan fechado no quadrante sup-esq
-  // posições de `count` slots UNIFORMEMENTE distribuídos na faixa [a0,a1], raio R
-  const evenArc = (
-    count: number, R: number, a0 = A0, a1 = A1,
-  ): { right: number; bottom: number }[] => {
-    const pos: { right: number; bottom: number }[] = [];
-    for (let i = 0; i < count; i++) {
-      const a = count === 1 ? (a0 + a1) / 2 : a0 + ((a1 - a0) * i) / (count - 1);
-      const ar = (a * Math.PI) / 180;
-      const rp = ATKx + R * -Math.cos(ar);
-      const bp = ATKy + R * Math.sin(ar);
-      pos.push({ right: Math.round(rp - SLOT / 2), bottom: Math.round(bp - SLOT / 2) });
-    }
-    return pos;
-  };
-  const arcLayout = (n: number): { right: number; bottom: number }[] => {
-    if (n <= 3) return evenArc(n, 118);
-    // dois arcos concêntricos alinhados (colunas radiais) — compacto e uniforme
-    const inner = Math.ceil(n / 2);
-    return [...evenArc(inner, 98), ...evenArc(n - inner, 150)];
-  };
-  const BASE_SLOTS = 6; // SEMPRE 6 slots — o jogador escolhe quais habilidades usar
+  hotbar.appendChild(actbar);
   const renderActionBar = (items: ActionSkill[]) => {
-    // hotbar fixa de 6: preenche com as aprendidas (as 6 primeiras) + vazios
-    const total = BASE_SLOTS;
-    const pos = arcLayout(total);
+    // 6 slots de habilidade (0..5): preenche com as aprendidas + vazios
     let html = "";
-    for (let i = 0; i < total; i++) {
-      const p = pos[i] ?? { right: 47, bottom: 51 };
+    for (let i = 0; i < HB_SKILLS; i++) {
+      const x = HB_X[i];
       const s = items[i];
       if (s) {
         html +=
           `<button class="gh-sslot" data-skill="${s.id}" title="${s.name}" ` +
-          `style="right:${p.right}px;bottom:${p.bottom}px">` +
+          `style="left:${x}%;top:${HB_Y}%">` +
           (s.icon ? `<img src="${s.icon}" alt=""/>` : `<span class="gh-ss-x">✦</span>`) +
           `<span class="gh-ss-cool"></span>` +
           `<span class="gh-ss-cd"></span>` +
           `</button>`;
       } else {
-        // slot VAZIO (placeholder) — não clicável, marca o lugar da habilidade
+        // slot VAZIO — o socket pintado da arte já marca o lugar; deixamos só uma
+        // runinha bem discreta por cima.
         html +=
-          `<span class="gh-sslot gh-ss-empty" style="right:${p.right}px;bottom:${p.bottom}px">` +
+          `<span class="gh-sslot gh-ss-empty" style="left:${x}%;top:${HB_Y}%">` +
           `<span class="gh-ss-rune">◈</span></span>`;
       }
     }
@@ -2864,18 +2866,18 @@ function injectStyle() {
      e o prompt são filhos dele. Escondendo só os CONTROLES (d-pad/ação/barra), a
      fala da Hedda continua visível e clicável durante a abertura. */
   .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
-  .gh-preplay #gh-tracker, .gh-preplay #gh-actbar, .gh-preplay #gh-tray,
+  .gh-preplay #gh-tracker, .gh-preplay #gh-hotbar,
   .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
-  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk, .gh-preplay #gh-xpbar,
+  .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk,
   .gh-preplay .gh-move, .gh-preplay .gh-act, .gh-preplay .gh-atk {
     opacity:0 !important; pointer-events:none !important;
   }
   /* as zonas de toque do d-pad têm pointer-events próprio — desliga o subárvore */
   .gh-preplay .gh-move * { pointer-events:none !important; }
   .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
-  .gh-revealing #gh-tracker, .gh-revealing #gh-actbar, .gh-revealing #gh-tray,
+  .gh-revealing #gh-tracker, .gh-revealing #gh-hotbar,
   .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,
-  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk, .gh-revealing #gh-xpbar,
+  .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk,
   .gh-revealing .gh-move, .gh-revealing .gh-act, .gh-revealing .gh-atk {
     animation:gh-hud-in .55s ease both;
   }
@@ -2923,24 +2925,89 @@ function injectStyle() {
   }
   .gh-hud-hp-fill { background:linear-gradient(#e35d4c,#b3241a); }
   .gh-hud-mp-fill { background:linear-gradient(#57b0e8,#1c5fb3); }
-  /* BARRA DE XP: fininha, colada na base da tela, de ponta a ponta */
-  #gh-xpbar {
-    position:fixed; left:0; right:0; bottom:0; height:6px; z-index:13; pointer-events:none;
-    background:rgba(8,6,4,.7); border-top:1px solid rgba(201,162,39,.32);
-    box-shadow:0 -1px 4px rgba(0,0,0,.45);
+  /* BARRA DE XP antiga (faixa na base) — DESATIVADA: o XP agora fica acoplado na
+     calha da hotbar. Mantida escondida só p/ os refs de código não quebrarem. */
+  #gh-xpbar { display:none !important; }
+  #gh-xpbar-fill { width:0%; }
+  #gh-xpbar-lv { display:none; }
+
+  /* ===================== HOTBAR (barra de ação estilo MMO) ===================== */
+  /* Contêiner com a ARTE (sockets + calha do XP embutidos). Ancorado embaixo, ao
+     centro. Mantém a proporção da arte (1934x340). Os slots e o XP entram por cima. */
+  #gh-hotbar {
+    position:fixed; left:50%; transform:translateX(-50%); bottom:6px;
+    width:min(600px, 94vw); aspect-ratio:1934 / 340;
+    background:url(${hotbarUrl}) no-repeat center / 100% 100%;
+    z-index:11; pointer-events:none;
+    filter:drop-shadow(0 3px 10px rgba(0,0,0,0.55));
   }
-  #gh-xpbar-fill {
+  /* camadas internas (habilidades / consumíveis) cobrem a arte; os botões têm
+     pointer-events próprios. */
+  #gh-actbar, #gh-tray {
+    position:absolute; inset:0; display:block; pointer-events:none;
+    background:none; border:none; padding:0; margin:0;
+  }
+  /* SLOT de habilidade — posicionado por % sobre o socket pintado; SEM base própria
+     (a arte já tem o encaixe). Quadrado (~tamanho do socket). */
+  .gh-sslot {
+    position:absolute; transform:translate(-50%,-50%);
+    height:40%; aspect-ratio:1; border-radius:11%; padding:0; border:none;
+    background:none;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    pointer-events:auto; -webkit-tap-highlight-color:transparent; overflow:hidden;
+  }
+  .gh-sslot:active { filter:brightness(1.2); }
+  .gh-sslot img { width:90%; height:90%; object-fit:contain; pointer-events:none;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.85)); border-radius:9%; }
+  .gh-ss-empty { cursor:default; }
+  .gh-ss-empty:active { filter:none; }
+  .gh-ss-rune { font-size:0.9rem; color:rgba(220,200,150,.32); pointer-events:none;
+    text-shadow:0 1px 2px rgba(0,0,0,.8); }
+  .gh-ss-x { font-size:1.1rem; color:#e6d29a; }
+  /* recarga: setor escuro (conic) que ENCOLHE conforme --gh-cd cai */
+  .gh-ss-cool {
+    position:absolute; inset:0; border-radius:11%; pointer-events:none; opacity:0;
+    --gh-cd:0deg;
+    background:conic-gradient(rgba(6,6,10,.74) var(--gh-cd), transparent 0);
+  }
+  .gh-ss-cd {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    pointer-events:none; font-family:"Cinzel",serif; font-weight:700;
+    font-size:1rem; color:#fff2c8; text-shadow:0 1px 3px rgba(0,0,0,.95);
+  }
+  /* SLOT de consumível — mesmo esquema (por % sobre o socket) */
+  .gh-tray-slot {
+    position:absolute; transform:translate(-50%,-50%);
+    height:40%; aspect-ratio:1; border-radius:11%; padding:0; border:none;
+    background:none; cursor:pointer; pointer-events:auto;
+    display:flex; align-items:center; justify-content:center;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .gh-tray-slot:active { filter:brightness(1.3); }
+  .gh-tray-emo { font-size:1.3rem; line-height:1; filter:drop-shadow(0 1px 2px #000); }
+  .gh-tray-img { width:88%; height:88%; object-fit:contain; filter:drop-shadow(0 1px 2px #000);
+    pointer-events:none; border-radius:9%; }
+  .gh-tray-cnt {
+    position:absolute; right:4%; bottom:2%; min-width:15px; height:15px; padding:0 3px;
+    border-radius:8px; background:rgba(12,10,6,.9); border:1px solid rgba(201,162,39,.6);
+    color:#f2e2b4; font-size:10px; font-weight:700; line-height:15px; text-align:center;
+    pointer-events:none;
+  }
+  /* CALHA DA BARRA DE XP — acoplada na base da hotbar (medida na arte). */
+  #gh-hotbar-xp {
+    position:absolute; left:8.8%; width:82.4%; top:81%; height:7.5%;
+    pointer-events:none; overflow:hidden; border-radius:3px;
+  }
+  #gh-hotbar-xp-fill {
     height:100%; width:0%;
     background:linear-gradient(90deg,#a9741f,#f4d074 62%,#fff2cc);
-    box-shadow:0 0 8px rgba(244,208,116,.55);
+    box-shadow:0 0 7px rgba(244,208,116,.6);
     transition:width .35s ease;
   }
-  /* "Nv X" pequeno, centralizado logo acima da barra */
-  #gh-xpbar-lv {
-    position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
-    font-family:"Cinzel",serif; font-weight:700; font-size:11px; letter-spacing:.5px;
-    color:#f2d891; white-space:nowrap;
-    text-shadow:0 1px 3px #000, 0 0 7px rgba(0,0,0,.9);
+  #gh-hotbar-xp-lv {
+    position:absolute; left:6px; top:50%; transform:translateY(-50%);
+    font-family:"Cinzel",serif; font-weight:700; font-size:9px; letter-spacing:.4px;
+    color:#f6e6b4; white-space:nowrap; text-shadow:0 1px 2px #000, 0 0 4px rgba(0,0,0,.9);
   }
 
   /* botão de abrir a janela de personagem — no lado ESQUERDO, logo abaixo da placa
@@ -3812,7 +3879,7 @@ function injectStyle() {
   /* MOVIMENTO — D-pad em CRUZ (arte única). As 4 zonas de toque ficam por cima
      dos braços; a do braço pressionado acende. */
   .gh-move {
-    left:16px; bottom:20px; width:124px; height:124px;
+    left:16px; bottom:20px; width:132px; height:124px;
     background:url(${dpadUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 3px 9px rgba(0,0,0,0.55));
   }
@@ -3826,14 +3893,14 @@ function injectStyle() {
   }
   /* a arte do D-pad já traz as manoplas de girar embutidas nas quinas de cima; as
      zonas de toque cobrem cada parte. braços = mover; quinas = girar. */
-  .gh-dup    { left:33%; top:0;    width:34%; height:26%; }
-  .gh-ddown  { left:33%; bottom:0; width:34%; height:44%; }
-  .gh-dleft  { left:0;   top:44%;  width:40%; height:34%; }
-  .gh-dright { right:0;  top:44%;  width:40%; height:34%; }
-  /* GIRAR — manoplas "de quina" (embutidas na arte); zonas de toque nos cantos
-     superiores, acima das laterais/braço de cima. */
-  .gh-drotl { left:0;   top:4%; width:31%; height:40%; z-index:2; }
-  .gh-drotr { right:0;  top:4%; width:31%; height:40%; z-index:2; }
+  .gh-dup    { left:39%; top:0;    width:22%; height:37%; }
+  .gh-ddown  { left:39%; bottom:0; width:22%; height:37%; }
+  .gh-dleft  { left:0;   top:40%;  width:36%; height:20%; }
+  .gh-dright { right:0;  top:40%;  width:36%; height:20%; }
+  /* GIRAR — manoplas "de quina" (embutidas na arte); zonas de toque sobre cada
+     manopla nos cantos superiores. */
+  .gh-drotl { left:5%;  top:6%; width:31%; height:29%; z-index:2; }
+  .gh-drotr { right:5%; top:6%; width:31%; height:29%; z-index:2; }
   /* AÇÃO — canto inferior DIREITO (perto da arma/polegar): ataque em destaque
      embaixo, interagir logo acima. */
   .gh-atk {
@@ -3853,46 +3920,9 @@ function injectStyle() {
     filter:drop-shadow(0 0 12px rgba(240,192,64,0.85)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
   .gh-act:active { transform:scale(0.92); }
-  /* BARRA DE AÇÃO — habilidades ativas, faixa central inferior */
+  /* recarga das habilidades (varredura conic) — o restante do estilo da hotbar/slots
+     está definido mais acima (bloco HOTBAR). */
   @property --gh-cd { syntax:'<angle>'; inherits:false; initial-value:0deg; }
-  /* container passa-cliques; os slots são posicionados em ARCO (meia-lua)
-     ao redor do botão de ataque via right/bottom inline. */
-  #gh-actbar {
-    position:absolute; inset:0; display:none; pointer-events:none;
-  }
-  .gh-sslot {
-    position:absolute;
-    width:48px; height:48px; border-radius:50%; padding:0; border:none;
-    background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
-    display:flex; align-items:center; justify-content:center; cursor:pointer;
-    pointer-events:auto;
-    filter:drop-shadow(0 2px 7px rgba(0,0,0,.6));
-    -webkit-tap-highlight-color:transparent; overflow:hidden;
-  }
-  .gh-sslot:active { transform:scale(0.9); filter:brightness(1.2); }
-  .gh-sslot img { width:70%; height:70%; object-fit:contain; pointer-events:none;
-    filter:drop-shadow(0 1px 2px rgba(0,0,0,.85)); }
-  /* slot VAZIO: soquete apagado (marca o lugar da futura habilidade) */
-  .gh-ss-empty {
-    filter:grayscale(.6) brightness(.5); opacity:.62; cursor:default;
-    box-shadow:inset 0 0 8px rgba(0,0,0,.55);
-  }
-  .gh-ss-empty:active { transform:none; filter:grayscale(.6) brightness(.5); }
-  .gh-ss-rune { font-size:18px; color:rgba(220,200,150,.5); pointer-events:none;
-    text-shadow:0 1px 2px rgba(0,0,0,.8); }
-  .gh-ss-x { font-size:20px; color:#e6d29a; }
-  /* recarga: setor escuro (conic) que ENCOLHE conforme --gh-cd (frac×360) cai */
-  .gh-ss-cool {
-    position:absolute; inset:0; border-radius:50%; pointer-events:none; opacity:0;
-    --gh-cd:0deg;
-    background:conic-gradient(rgba(6,6,10,.74) var(--gh-cd), transparent 0);
-  }
-  /* segundos restantes no centro do ícone durante a recarga */
-  .gh-ss-cd {
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    pointer-events:none; font-family:"Cinzel",serif; font-weight:700;
-    font-size:18px; color:#fff2c8; text-shadow:0 1px 3px rgba(0,0,0,.95);
-  }
   #gh-prompt {
     pointer-events:none; position:absolute; left:50%; transform:translateX(-50%);
     bottom:104px; max-width:70%; text-align:center;
@@ -3973,29 +4003,31 @@ function injectStyle() {
     #gh-opt-btn     { left:calc(50% - 22px); }
     #gh-journal-btn { left:calc(50% + 26px); }
     /* d-pad e ação recuados nos cantos de baixo, um pouco menores */
-    .gh-move { left:10px; bottom:10px; width:108px; height:108px; }
+    .gh-move { left:10px; bottom:10px; width:116px; height:108px; }
     .gh-atk  { right:12px; bottom:12px; width:54px; height:54px; }
     .gh-act  { right:76px; bottom:14px; width:50px; height:50px; }
-    /* bandeja de itens logo acima do d-pad */
-    #gh-tray { left:10px; bottom:126px; }
-    /* caixa de diálogo e dica mais baixas p/ sobrar céu/cena */
-    #gh-dialogue { bottom:12px; width:min(620px,66%); }
-    #gh-prompt { bottom:92px; }
+    /* HOTBAR centrada no vão entre o d-pad (esq) e o ataque (dir) */
+    #gh-hotbar { width:min(560px, 58vw); bottom:8px; }
+    /* caixa de diálogo e dica ACIMA da hotbar */
+    #gh-dialogue { bottom:108px; width:min(560px,58%); }
+    #gh-prompt { bottom:110px; }
     .gh-dlg-portrait { width:52px; height:52px; }
     .gh-dlg-text { min-height:44px; font-size:14px; }
   }
 
-  /* ---- BANDEJA DE CONSUMÍVEIS (usar item) ---- */
-  #gh-tray { position:fixed; left:16px; bottom:154px; z-index:12; display:none; gap:7px; pointer-events:auto; }
-  .gh-tray-slot { position:relative; width:clamp(42px,7vh,50px); height:clamp(42px,7vh,50px); cursor:pointer;
-    border:clamp(8px,1.3vh,10px) solid transparent; border-image:url(${eqSlotUrl}) 89 fill; background:transparent;
-    display:flex; align-items:center; justify-content:center; padding:0; -webkit-tap-highlight-color:transparent; }
-  .gh-tray-slot:active { filter:brightness(1.3); }
-  .gh-tray-emo { font-size:clamp(20px,3.4vh,26px); line-height:1; filter:drop-shadow(0 1px 2px #000); }
-  .gh-tray-img { width:84%; height:84%; object-fit:contain; filter:drop-shadow(0 1px 2px #000); pointer-events:none; }
-  .gh-tray-cnt { position:absolute; right:-3px; bottom:-3px; min-width:16px; height:16px; padding:0 3px; border-radius:8px;
-    background:#1a130c; border:1.5px solid rgba(201,162,39,.7); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
-    font-size:11px; line-height:14px; text-align:center; box-shadow:0 1px 3px #000; }
+  /* RETRATO (celular em pé): a hotbar ocupa quase toda a largura embaixo e o d-pad
+     e o ataque sobem p/ ACIMA dela (senão a barra cobre os slots das pontas). A
+     altura da hotbar ≈ largura/5.688, então usamos min(105px, 17.2vw) como base. */
+  @media (orientation: portrait) {
+    #gh-hotbar { width:98vw; bottom:6px; }
+    .gh-move { bottom: calc(min(105px, 17.2vw) + 18px); }
+    .gh-atk  { bottom: calc(min(105px, 17.2vw) + 20px); }
+    .gh-act  { bottom: calc(min(105px, 17.2vw) + 22px); }
+    #gh-prompt   { bottom: calc(min(105px, 17.2vw) + 152px); }
+    #gh-dialogue { bottom: calc(min(105px, 17.2vw) + 150px); }
+  }
+
+  /* (bandeja de consumíveis agora vive nos slots 6..7 da hotbar — estilo no bloco HOTBAR) */
 
   /* ---- TAVERNA (bebidas + missões, tema âmbar) ---- */
   #gh-tv { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
