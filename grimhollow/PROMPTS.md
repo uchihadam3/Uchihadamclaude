@@ -1142,11 +1142,12 @@ escala) e (b) na **aba Atributos** do personagem, ao lado de cada atributo. São
 Grim dark-medieval fantasy game UI emblem for the STRENGTH attribute: a clenched armored gauntlet (mailed iron fist) facing the viewer, forged dark battle-worn iron with rivets, set on a small round dark stone-and-iron medallion, a deep CRIMSON/red arcane glow radiating behind the fist. Hand-painted, engraved metal look, dramatic but readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
 ```
 
-### 🟡 21.2 — `attr_destreza` (Destreza — verde) — REFEITO (símbolo abstrato)
-> A versão com espadas+flecha não combinou (Força é um punho, Inteligência é um
-> sigilo abstrato). Este é **um símbolo ABSTRATO único**, no mesmo estilo do de INT.
+### 🟡 21.2 — `attr_destreza` (Destreza — verde) — REFEITO (serpente enrolada)
+> A versão com espadas+flecha não combinou. Agora é um **objeto concreto** (uma
+> serpente enrolada pronta pro bote), no mesmo espírito do punho (Força) e do
+> cristal+runa (Inteligência) — símbolo de agilidade/velocidade, sem armas.
 ```
-Grim dark-medieval fantasy game UI emblem for the DEXTERITY attribute: a single ABSTRACT engraved sigil suggesting speed, finesse and agility — sleek intertwined curved crescents / swirling wind-like glyph forming an elegant emblem (NO realistic weapons, no arrows), forged dark steel with fine detail, set on the SAME round dark stone-and-iron runic medallion as the other attribute emblems, a nimble EMERALD/green glow radiating behind the sigil, faint motion wisps. Hand-painted, engraved metal look, matches the arcane-sigil style but themed for agility, readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
+Grim dark-medieval fantasy game UI emblem for the DEXTERITY attribute: a single sleek SERPENT / viper coiled into a tight spiral, head raised and poised to strike, forged from dark battle-worn steel with finely engraved scales, set on the SAME small round dark stone-and-iron runic medallion as the other attribute emblems, an EMERALD/green venomous glow radiating behind the coiled snake, faint motion wisps hinting at speed. Hand-painted, engraved metal look, symbol of agility and swift precision (NO weapons, no arrows, no daggers), dramatic but readable as a tiny icon, the coiled serpent fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
 ```
 
 ### ✅ 21.3 — `attr_int` (Inteligência — azul) · NO JOGO
