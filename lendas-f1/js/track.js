@@ -245,5 +245,45 @@ export function buildTrack(){
   }
   stand(0.02,80); stand(0.34,55); stand(0.62,55); stand(0.80,45);
 
+  /* ---------- PIT LANE (faixa ao lado da reta principal + muro + boxes) ---------- */
+  (function(){
+    const total=curve.getLength();
+    const span=260+130;
+    const steps=70;
+    const pos=[],idx=[];
+    for(let i=0;i<=steps;i++){
+      const dd=-260 + i*(span/steps);                       // -260m antes da linha até +130m depois
+      const uu=((dd/total)%1+1)%1;
+      const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
+      const a=p.clone().addScaledVector(l, HALF+0.7);
+      const b=p.clone().addScaledVector(l, HALF+5.2);
+      pos.push(a.x,0.012,a.z, b.x,0.012,b.z);
+    }
+    for(let i=0;i<steps;i++){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x41454c,roughness:0.95}));
+    m.receiveShadow=true; G.add(m);
+    // muro entre pista e pit lane
+    const wallMat=new THREE.MeshStandardMaterial({color:0x9aa0a6,roughness:0.85});
+    for(let i=0;i<26;i++){
+      const dd=-250+i*14; const uu=((dd/total)%1+1)%1;
+      const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
+      const w=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.9,13),wallMat);
+      const c2=p.clone().addScaledVector(l, HALF+0.35);
+      w.position.set(c2.x,0.45,c2.z); w.rotation.y=Math.atan2(tt.x,tt.z); w.castShadow=true; G.add(w);
+    }
+    // marcações dos boxes
+    const bm=new THREE.MeshStandardMaterial({color:0xf5c518,roughness:0.6});
+    for(let i=0;i<10;i++){
+      const dd=-70-i*4-  (0); const uu=((dd/total)%1+1)%1;
+      const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
+      const b2=new THREE.Mesh(new THREE.PlaneGeometry(0.1,3.2),bm);
+      b2.rotation.x=-Math.PI/2; b2.rotation.z=-Math.atan2(tt.x,tt.z);
+      const c3=p.clone().addScaledVector(l, HALF+2.9);
+      b2.position.set(c3.x,0.03,c3.z); G.add(b2);
+    }
+  })();
+
   return { group:G, curve, half:HALF, length:curve.getLength(), sf, sfHeading:hdg, grid:D.grid };
 }

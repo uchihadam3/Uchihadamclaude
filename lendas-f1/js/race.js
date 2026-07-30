@@ -18,6 +18,15 @@ import { carStats } from './stats.js';
 
 const UP = new THREE.Vector3(0,1,0);
 
+/* ---------- CORRIDA & PNEUS ---------- */
+export const RACE={ laps:12 };
+export const TIRES={
+  S:{nome:'Macio', grip:1.012, wear:1.5, col:'#ef4444'},
+  M:{nome:'Médio', grip:1.000, wear:1.0, col:'#eab308'},
+  H:{nome:'Duro',  grip:0.991, wear:0.65,col:'#e5e7eb'},
+};
+const PITOFF=10.1;               // faixa lateral do pit lane
+
 /* ---------- RACING LINE (out-in-out de verdade) ----------
    Elástico bem convergido (2500 iterações em arrays rápidos): a linha
    ABRE pro lado de fora antes da curva, corta o apex por dentro e sai
@@ -98,6 +107,9 @@ export function buildField(scene, line){
       d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
       speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0,
       passCd:12, hitCd:0, passing:null, form:0, avoidS:0, cornerErr:0, yieldT:0, yieldOff:0,
+      tire: slot<6?'S':(slot<14?'M':(Math.random()<0.5?'M':'H')), wear:0, pits:0,
+      pitLap: Math.max(3, Math.round(RACE.laps*(0.35+Math.random()*0.3))),
+      pitPhase:0, pitT:0, lapsDone:0, blueT:0, finished:false, outT:0,
       tan:vat(line.ctan, ((-(8+slot*8)/line.len)*line.N%line.N+line.N)%line.N, line.N).clone() });
   });
   return cars;
@@ -121,7 +133,9 @@ export function updateField(cars, line, dt, t, started){
 
   for(const c of cars){
     if(c.out){ c.speed=Math.max(c.speed-24*dt,0);
-      c.offset=THREE.MathUtils.lerp(c.offset,c.outSide*6.4,dt*1.2); c.d+=c.speed*dt; continue; }
+      c.offset=THREE.MathUtils.lerp(c.offset,c.outSide*6.4,dt*1.2); c.d+=c.speed*dt;
+      c.outT+=dt; if(c.outT>9) c.g.visible=false;        // fiscais tiram o carro
+      continue; }
     if(!started || t<c.launchStart){ c.speed=Math.max(c.speed-30*dt,0); continue; }
 
     const f=idxOf(c), racingOff=at(line.offset,f,N);
@@ -150,7 +164,13 @@ export function updateField(cars, line, dt, t, started){
     // ---- forma oscilante (pneu/combustível/momento) ----
     c.form += (Math.random()-0.5)*0.005;
     c.form = THREE.MathUtils.clamp(c.form, -0.022, 0.022);
-    let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage);
+    c.lapsDone=Math.max(0,Math.floor(c.d/len));
+    // pneu: desgasta e perde ritmo; combustível: carro fica mais leve/rápido
+    const tire=TIRES[c.tire];
+    c.wear=Math.min(1, c.wear + dt*0.0008*tire.wear);
+    const tireMul=tire.grip*(1-c.wear*0.05);
+    const fuelMul=0.99+0.01*Math.min(1,c.lapsDone/RACE.laps);
+    let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage)*tireMul*fuelMul;
 
     // ---- linha pessoal ----
     let tOff=racingOff*(0.96+0.05*c.style.cornerCarry)
@@ -163,6 +183,36 @@ export function updateField(cars, line, dt, t, started){
       const w=THREE.MathUtils.clamp((apexDist-12)/90, 0, 1);       // longe do apex = bem aberto
       tOff += -insideSide*2.2*w;
     }
+
+    // ---- PIT STOP (estratégia: 1 parada, troca de pneu) ----
+    const dPos=((c.d%len)+len)%len;
+    if(c.pitPhase===0 && c.pits<1 && c.lapsDone>=c.pitLap && !c.finished &&
+       dPos>len-620 && dPos<len-280) c.pitPhase=1;
+    if(c.pitPhase>0){
+      if(c.pitPhase===1){                                  // entrando no pit lane
+        if(dPos>len-320||dPos<150) tOff=PITOFF;
+        if(dPos>len-250||dPos<150) targetV=Math.min(targetV,23);   // limite 80 km/h
+        const boxD=len-70-(c.gridPos%10)*4;
+        if(dPos>boxD-2 && dPos<boxD+6) { c.pitPhase=2; c.pitT=2.4+Math.random()*1.4; }
+      } else if(c.pitPhase===2){                           // parado no box
+        tOff=PITOFF; targetV=0;
+        if(c.speed<0.6){ c.pitT-=dt;
+          if(c.pitT<=0){ c.tire=(RACE.laps-c.lapsDone>6)?'M':'S'; if(Math.random()<0.2)c.tire='H';
+            c.wear=0; c.pits++; c.pitPhase=3; } }
+      } else {                                             // saindo
+        tOff=PITOFF; targetV=Math.min(targetV,23);
+        if(dPos>150 && dPos<len/2) c.pitPhase=0;
+      }
+    }
+    // ---- BANDEIRA AZUL: retardatário abre pro carro que vem dar volta ----
+    if(c.ahead && c.lapsDone>c.ahead.lapsDone && gapAhead(c.ahead,c)<40) c.ahead.blueT=0.9;
+    if(c.blueT>0){ c.blueT-=dt;
+      if(!c.pitPhase){ tOff=(racingOff>=0?racingOff-3.2:racingOff+3.2); targetV*=0.985; } }
+    // ---- AR SUJO: difícil seguir colado nas curvas (a turbulência tira aero) ----
+    if(c.ahead && !c.passing && !c.pitPhase && vNow<72){
+      const gDirty=gapAhead(c.ahead,c); if(gDirty<14) targetV*=0.985; }
+    // ---- BANDEIRADA: terminou a corrida, desacelera ----
+    if(c.finished) targetV=Math.min(targetV,30);
 
     // ---- ERRO DE EXECUÇÃO da curva (realista: sai largo, faz a curva no meio) ----
     // decide UMA vez por curva, mais provável sob pressão do carro de trás
@@ -190,7 +240,8 @@ export function updateField(cars, line, dt, t, started){
     const sgap=(o)=>{ let g=(o.d-c.d)%len; if(g>len/2)g-=len; if(g<-len/2)g+=len; return g; };
 
     /* ---- ULTRAPASSAGEM (comprometida; POR DENTRO na curva) ---- */
-    const ah=c.ahead;
+    const ah=(c.pitPhase||c.finished)?null:c.ahead;
+    if(c.pitPhase&&c.passing) c.passing=null;
     if(c.passing){
       c.passing.t+=dt;
       const tgt=c.passing.target;
@@ -288,13 +339,14 @@ export function updateField(cars, line, dt, t, started){
       const dec=(b0+kb*c.speed*c.speed)*decMul;
       c.speed=Math.max(c.speed-dec*dt, targetV);
     }
-    c.speed=Math.max(c.speed, c.spin>0?4:5);
+    c.speed=Math.max(c.speed, c.spin>0?4:(c.pitPhase===2?0:5));
 
     // largada: sai da marca e mergulha pra linha aos poucos
     const mergeT=THREE.MathUtils.clamp((t-c.launchStart)/6, 0, 1);
     tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
-    c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-6,6), dt*(c.passing||c.yieldT>0?3.4:2.2));
+    const latLim=c.pitPhase?11:6;
+    c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-latLim,latLim), dt*(c.passing||c.yieldT>0?3.4:2.2));
     if(c.hitCd>0) c.hitCd-=dt;
     c.d+=c.speed*dt;
   }
@@ -304,7 +356,8 @@ export function updateField(cars, line, dt, t, started){
     v.tilt=tilt||0; if(tilt){ const ks=Object.keys(v.wheels); const w=v.wheels[ks[(Math.random()*ks.length)|0]];
       if(w) w.steerPivot.visible=false; } };
   for(let i=0;i<cars.length;i++){ const a=cars[i]; if(a.out||a.hitCd>0) continue;
-    for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.out||b.hitCd>0) continue;
+    if(a.pitPhase||a.finished) continue;
+    for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.out||b.hitCd>0||b.pitPhase||b.finished) continue;
       if(dist(a,b)<3.4 && Math.abs(a.offset-b.offset)<1.15){
         a.hitCd=0.6; b.hitCd=0.6;
         if(typeof window!=='undefined') window.__hits=(window.__hits||0)+1;

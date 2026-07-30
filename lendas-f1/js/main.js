@@ -7,7 +7,7 @@ import * as THREE from '../vendor/three.module.js';
 import { buildF1Car, TEAMS } from './car.js';
 import { carStats, tier, ranking } from './stats.js';
 import { driversOf, overall, ATTRS, simulateRace } from './drivers.js';
-import { computeLine, buildField, updateField } from './race.js';
+import { computeLine, buildField, updateField, RACE, TIRES } from './race.js';
 import { buildTrack } from './track.js';
 import { F1Audio } from './audio.js';
 
@@ -159,16 +159,42 @@ function updateTower(dt){
   });
   const fp=order.indexOf(focus)+1;
   if(hudDrv) hudDrv.textContent='P'+fp+' · '+focus.drv.nome;
+  // contador de voltas + bandeirada
+  const leader=running[0];
+  if(lapEl && leader) lapEl.textContent='VOLTA '+Math.min(leader.lapsDone+1,RACE.laps)+'/'+RACE.laps;
+  if(!raceOver && leader && leader.lapsDone>=RACE.laps){
+    raceOver=true; cars.forEach(c=>c.finished=true); showResults(); }
   if(towerCd>0 || !towerEl) return;
-  towerCd=0.12;
+  towerCd=0.15;
   let html='';
   order.forEach((c,i)=>{ const fl=flash[c.drv.nome];
     const cls=(c===focus?'me ':'')+(c.out?'out ':'')+(!c.out&&fl&&raceTime-fl.t<1.0?('fl '+fl.dir):'');
-    const dmg=c.out?'':(c.damage>0.35?'<span class="dmg">⚠</span>':'');
     const pos=c.out?'<span class="tp out">OUT</span>':`<span class="tp">${i+1}</span>`;
-    html+=`<div class="trow ${cls}">${pos}<b style="background:${teamHex(c.team)}"></b><span class="tc">${code3(c.drv.nome)}</span><span class="tn">${lastName(c.drv.nome)}</span>${dmg}</div>`;
+    const td=`<i class="tdot" style="background:${TIRES[c.tire].col}"></i>`;
+    let stat='';
+    if(!c.out){
+      if(c.pitPhase) stat='<span class="pit">PIT</span>';
+      else if(i>0 && !c.finished){ let g=running[i-1]? (running[i-1].d-c.d):0; if(g<0)g+=track.length;
+        const gs=g/Math.max(c.speed,20);
+        stat=`<span class="gapt">+${gs<99?gs.toFixed(1):'—'}</span>`; }
+    }
+    html+=`<div class="trow ${cls}">${pos}<b style="background:${teamHex(c.team)}"></b><span class="tc">${code3(c.drv.nome)}</span>${td}<span class="tn">${lastName(c.drv.nome)}</span>${stat}</div>`;
   });
   towerEl.innerHTML=html;
+}
+/* ---------- BANDEIRADA: resultado final com pontos ---------- */
+let raceOver=false;
+const lapEl=document.getElementById('lap');
+function showResults(){
+  const pts=[25,18,15,12,10,8,6,4,2,1];
+  const running2=cars.filter(c=>!c.out).sort((a,b)=>b.d-a.d);
+  const outs2=cars.filter(c=>c.out);
+  const rows=[...running2,...outs2].map((c,i)=>{ const p=c.out?0:(pts[i]||0);
+    return `<div class="rk ${c.team===currentTeam?'me':''}"><span><span class="p">${c.out?'AB':(i+1)+'º'}</span><b style="color:${teamColor(c.team)}">■</b> ${c.drv.nome}</span><span class="g">${p?p+' pts':''}</span></div>`;}).join('');
+  fcard.innerHTML=`<h2>🏁 Bandeirada!</h2><div class="eng">Interlagos · ${RACE.laps} voltas · resultado final</div>${rows}
+    <button class="fbtn" id="fnova">🔁 Nova corrida</button>`;
+  document.getElementById('fnova').onclick=()=>location.reload();
+  fichaPanel.classList.remove('hide');
 }
 function showOvertake(passer, passed){
   if(!otEl||!passed) return;
@@ -338,7 +364,7 @@ if(fichaBtn){ fichaBtn.addEventListener('click', ()=>{ renderFicha(); fichaPanel
 fichaPanel.addEventListener('click', e=>{ if(e.target===fichaPanel) fichaPanel.classList.add('hide'); });
 
 window.__f1={scene,camera,get car(){return focus.g;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
-window.__cars=cars; window.__line=line;
+window.__cars=cars; window.__line=line; window.__RACE=RACE;
 Object.defineProperty(window,'__rt',{get:()=>raceTime}); Object.defineProperty(window,'__started',{get:()=>started});
 window.__forceStart=()=>{ started=true; for(const c of cars) c.launchStart=raceTime+c.reaction; };
 window.__step=(n=600,fdt=1/60)=>{ for(let i=0;i<n;i++){ raceTime+=fdt; updateField(cars,line,fdt,raceTime,started); } };
