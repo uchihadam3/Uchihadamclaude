@@ -6,6 +6,7 @@
    ===================================================================== */
 import * as THREE from '../vendor/three.module.js';
 import { INTERLAGOS } from './interlagos-data.js';
+import { tex, TEX } from './textures.js';
 
 export function buildTrack(){
   const G = new THREE.Group();
@@ -38,7 +39,8 @@ export function buildTrack(){
   aG.setAttribute('position',new THREE.Float32BufferAttribute(posA,3));
   aG.setAttribute('uv',new THREE.Float32BufferAttribute(uvA,2));
   aG.setIndex(idxA); aG.computeVertexNormals();
-  const asphalt=new THREE.Mesh(aG,new THREE.MeshStandardMaterial({color:0x2b2d31,roughness:0.96}));
+  const asphalt=new THREE.Mesh(aG,new THREE.MeshStandardMaterial({
+    map:tex(TEX.asphalt,{repeat:[3,1]}), color:0xbfbfbf, roughness:0.97}));
   asphalt.receiveShadow=true; G.add(asphalt);
 
   /* ---------- JUNTAS/EMENDAS do asfalto (referência de velocidade) ---------- */
@@ -60,14 +62,16 @@ export function buildTrack(){
 
   /* ---------- RUN-OFF de brita (mais largo nas curvas) ---------- */
   (function(){
-    const pos=[],idx=[];
+    const pos=[],uv=[],idx=[];
     for(let i=0;i<=N;i++){
-      const wide = curv[i]>0.02 ? 10 : 2.5;
+      const wide = curv[i]>0.015 ? 13 : 4.5;                    // escapatória larga na curva
+      const v=i/N*680;                                          // ~repetição a cada ~6 m
       const c=pts[i], l=leftOf(tan[i]);
       for(const s of [1,-1]){
-        const a=c.clone().addScaledVector(l, s*(HALF+0.9));
-        const b=c.clone().addScaledVector(l, s*(HALF+0.9+wide));
-        pos.push(a.x,0.005,a.z, b.x,0.004,b.z);
+        const a=c.clone().addScaledVector(l, s*(HALF+0.15));    // colada na borda do asfalto
+        const b=c.clone().addScaledVector(l, s*(HALF+0.15+wide));
+        pos.push(a.x,0.014,a.z, b.x,0.012,b.z);
+        uv.push(0,v, wide/3.0,v);
       }
     }
     const stride=4;
@@ -77,8 +81,9 @@ export function buildTrack(){
     }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
     g.setIndex(idx); g.computeVertexNormals();
-    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x9a8f6f,roughness:1.0}));
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:tex(TEX.gravel),color:0xffffff,roughness:1.0,side:THREE.DoubleSide}));
     m.receiveShadow=true; G.add(m);
   })();
 
@@ -126,22 +131,23 @@ export function buildTrack(){
 
   /* ---------- GRAMA / CHÃO ---------- */
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),
-    new THREE.MeshStandardMaterial({color:0x315e34,roughness:1.0}));
+    new THREE.MeshStandardMaterial({map:tex(TEX.grass,{repeat:[360,360]}),color:0xd8d8d8,roughness:1.0}));
   ground.rotation.x=-Math.PI/2; ground.position.y=-0.03; ground.receiveShadow=true; G.add(ground);
 
-  /* ---------- BARREIRAS recuadas (só nas curvas) ---------- */
+  /* ---------- BARREIRAS de PNEUS recuadas (só nas curvas) ---------- */
   (function(){
-    const cr=new THREE.Color(0xcc2222),cw=new THREE.Color(0xeeeeee);
-    const pos=[],col=[],idx=[]; let vcount=0;
-    const OFF=HALF+15, H=1.1;
+    const pos=[],uv=[],idx=[]; let vcount=0;
+    const OFF=HALF+15, H=1.4;
     let run=[]; run.side=1;
     const flush=()=>{
       if(run.length<3){run.length=0;return;}
-      const base=vcount;
+      const base=vcount; let u=0, prev=null;
       for(const i of run){ const c=pts[i], l=leftOf(tan[i]);
         const p=c.clone().addScaledVector(l, run.side*OFF);
+        if(prev) u += p.distanceTo(prev)/1.4;                 // 1 volta de textura a cada ~1.4 m
+        prev=p;
         pos.push(p.x,0.0,p.z, p.x,H,p.z);
-        const cc=(Math.floor(i/3)%2)?cr:cw; col.push(cc.r,cc.g,cc.b,cc.r,cc.g,cc.b); vcount+=2; }
+        uv.push(u,0, u,1); vcount+=2; }
       for(let k=0;k<run.length-1;k++){ const a=base+k*2; idx.push(a,a+1,a+2,a+1,a+3,a+2); }
       run.length=0;
     };
@@ -156,9 +162,10 @@ export function buildTrack(){
     if(pos.length){
       const g=new THREE.BufferGeometry();
       g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-      g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+      g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
       g.setIndex(idx); g.computeVertexNormals();
-      const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.85,side:THREE.DoubleSide}));
+      const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({
+        map:tex(TEX.tyreWall), color:0xffffff, roughness:0.9, side:THREE.DoubleSide}));
       m.castShadow=true; G.add(m);
     }
   })();
@@ -225,15 +232,15 @@ export function buildTrack(){
     // tiers: degraus subindo e recuando pra trás (longe da pista)
     const tierMat=[0x1f8a4c,0xf2c400,0x2a63c4,0xe8e8e8];
     // estrutura sólida em rampa (sem vãos = não parece flutuar)
+    const concM=new THREE.MeshStandardMaterial({map:tex(TEX.concrete,{repeat:[Math.max(3,len/10),1]}),color:0xcfcfcf,roughness:0.95});
     for(let r=0;r<6;r++){
       const h=1.0+r*0.9;                       // cada degrau vai até o chão (bloco sólido)
-      const step=new THREE.Mesh(new THREE.BoxGeometry(len,h,1.6),
-        new THREE.MeshStandardMaterial({color:0x83888f,roughness:0.95}));
+      const step=new THREE.Mesh(new THREE.BoxGeometry(len,h,1.6),concM);
       step.position.set(0,h/2,-1.2-r*1.6); step.receiveShadow=true; step.castShadow=true; grp.add(step);
-      // "torcida" (faixa de cor sentada no degrau)
-      const crowd=new THREE.Mesh(new THREE.BoxGeometry(len-1,0.55,0.7),
-        new THREE.MeshStandardMaterial({color:tierMat[r%4],roughness:0.9}));
-      crowd.position.set(0,h+0.02,-1.35-r*1.6); grp.add(crowd);
+      // "torcida" — textura real de arquibancada lotada
+      const crowd=new THREE.Mesh(new THREE.BoxGeometry(len-1,0.85,0.7),
+        new THREE.MeshStandardMaterial({map:tex(TEX.crowd,{repeat:[Math.max(4,len/6),1]}),color:0xffffff,roughness:0.95}));
+      crowd.position.set(0,h+0.12,-1.35-r*1.6); grp.add(crowd);
     }
     // cobertura leve atrás/acima
     const roof=new THREE.Mesh(new THREE.BoxGeometry(len,0.25,4),
@@ -250,7 +257,7 @@ export function buildTrack(){
     const total=curve.getLength();
     const span=260+130;
     const steps=70;
-    const pos=[],idx=[];
+    const pos=[],uv=[],idx=[];
     for(let i=0;i<=steps;i++){
       const dd=-260 + i*(span/steps);                       // -260m antes da linha até +130m depois
       const uu=((dd/total)%1+1)%1;
@@ -258,14 +265,17 @@ export function buildTrack(){
       const a=p.clone().addScaledVector(l, HALF+0.7);
       const b=p.clone().addScaledVector(l, HALF+5.2);
       pos.push(a.x,0.012,a.z, b.x,0.012,b.z);
+      uv.push(0, i/steps*45, 1.6, i/steps*45);
     }
     for(let i=0;i<steps;i++){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
     const g=new THREE.BufferGeometry();
-    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setIndex(idx); g.computeVertexNormals();
-    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x41454c,roughness:0.95}));
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+    g.setIndex(idx); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:tex(TEX.slab),color:0xc8c8c8,roughness:0.95}));
     m.receiveShadow=true; G.add(m);
-    // muro entre pista e pit lane
-    const wallMat=new THREE.MeshStandardMaterial({color:0x9aa0a6,roughness:0.85});
+    // muro entre pista e pit lane (guard-rail metálico)
+    const wallMat=new THREE.MeshStandardMaterial({map:tex(TEX.guardrail,{repeat:[3,1]}),color:0xdddddd,roughness:0.8,metalness:0.3});
     for(let i=0;i<26;i++){
       const dd=-250+i*14; const uu=((dd/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
