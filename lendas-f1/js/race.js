@@ -61,7 +61,16 @@ export function buildField(scene, line){
     const LAT=2.8;
     // reação da largada: melhores pilotos saem um tico mais rápido
     const reaction = 0.20 + (1-(it.pace-76)/17)*0.28 + Math.random()*0.12;
-    cars.push({ g, drv, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
+    // ESTILO próprio de pilotagem (determinístico por piloto)
+    const hsh=s=>{let x=0;for(const ch of s)x=(x*31+ch.charCodeAt(0))|0;return ((x>>>0)%1000)/1000;};
+    const r1=hsh(drv.nome), r2=hsh(drv.nome+'x');
+    const style={
+      brakeLate: THREE.MathUtils.clamp((drv.ultrapassagem-78)/30 + (r1-0.5)*0.4, 0, 1),  // freia mais tarde
+      cornerCarry: THREE.MathUtils.clamp((drv.ritmo-84)/30 + (r2-0.5)*0.4, -1, 1),       // leva mais vel. de curva
+      lineBias: (r1-0.5)*0.9,                                                            // linha pessoal (±0.45 m)
+      phase: r2*Math.PI*2,                                                               // varia por trecho da pista
+    };
+    cars.push({ g, drv, style, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
       pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9, gridOffset:side*LAT,
       d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
       speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0, passCd:0, mistakeCd:5, hitCd:0, passing:null, form:0,
@@ -88,17 +97,25 @@ export function updateField(cars, line, dt, t, started){
 
     const f=idxOf(c), racingOff=at(line.offset,f,N);
     const skill=0.88+(c.pace-76)/17*0.10;
-    // ---- FRENAGEM ANTECIPADA: menor vel. de curva na janela de frear à frente ----
-    const brakeDist = c.speed*c.speed/(2*50) + 10;
-    let vCorner=99;
+    // ---- FRENAGEM com estilo: quem freia tarde usa janela menor e freia mais forte ----
+    const brakeDecel = 47 + 9*c.style.brakeLate;                 // 47..56 m/s²
+    const margin = 1.22 - 0.20*c.style.brakeLate;                // late-brakers = menos margem
+    const brakeDist = c.speed*c.speed/(2*brakeDecel)*margin + 8;
+    let vCorner=99, minFi=f;
     for(let s=1;s<=10;s++){ const dd=brakeDist*s/10; const fi=(((c.d+dd)/len)*N%N+N)%N;
-      vCorner=Math.min(vCorner, at(line.vmax,fi,N)); }
+      const vv=at(line.vmax,fi,N); if(vv<vCorner){ vCorner=vv; minFi=fi; } }
+    // velocidade de curva pessoal (±1.2%) — cada um faz a curva num ritmo próprio
+    if(vCorner<80) vCorner*=1+0.012*c.style.cornerCarry;
     // forma oscilando durante a corrida (pneu/combustível/ritmo) — gera disputa real
     c.form += (Math.random()-0.5)*0.004;
     c.form = THREE.MathUtils.clamp(c.form, -0.018, 0.018);
     let targetV=Math.min(vCorner,99)*skill*(1+c.form)*(1-0.3*c.damage);
-    let tOff=racingOff;
+    // LINHA PESSOAL: base na racing line, com viés próprio + variação por trecho da pista
+    let tOff=racingOff*(0.96+0.05*c.style.cornerCarry)
+           + c.style.lineBias
+           + Math.sin(c.d*0.012 + c.style.phase)*0.35;
     const onStraight=vCorner>72;
+    const heavyBraking = c.speed - vCorner > 11;                 // zona de freada forte à frente
 
     // gap ASSINADO ao longo da pista (+ = o está à frente de c)
     const sgap=(o)=>{ let g=(o.d-c.d)%len; if(g>len/2)g-=len; if(g<-len/2)g+=len; return g; };
@@ -134,14 +151,20 @@ export function updateField(cars, line, dt, t, started){
         // 2) DECISÃO de ultrapassar: rara, só quando é claramente mais rápido E tem brecha
         const paceAdv=(c.pace-ah.pace) + (ah.damage-c.damage)*8 + (c.form-ah.form)*300;
         const closing=c.speed-ah.speed;
-        if(c.passCd<=0 && gap<18 && (paceAdv>0.5 || closing>2.5) && onStraight){
-          const side=racingOff>=0?-1:1, lane=side*4.2;
+        // duas janelas de ataque: na RETA (vácuo) ou na FREADA da curva (mergulho por dentro)
+        const dive = heavyBraking && gap<24 && (paceAdv>-0.5 || closing>0.5);
+        if(c.passCd<=0 && ((gap<18 && (paceAdv>0.5||closing>2.5) && onStraight) || dive)){
+          // na freada, o lado é o interno da curva; na reta, o lado oposto à racing line
+          const insideSide = Math.sign(at(line.offset,minFi,N)) || (racingOff>=0?1:-1);
+          const lane = dive ? insideSide*3.8 : (racingOff>=0?-1:1)*4.2;
           const laneFree=!cars.some(o=>{ if(o===c||o===ah||o.out) return false;
             if(Math.abs(o.offset-lane)>2.2) return false;
             const g2=sgap(o); return g2>-8 && g2<18; });   // brecha real: 18m à frente, 8m atrás
           const will=(c.drv.ultrapassagem-70)/30;          // habilidade regula a ousadia
-          if(laneFree && Math.random()<Math.max(will,0.15)*0.012){
-            c.passing={lane, target:ah, t:0};
+          const gate = dive ? Math.max(will,0.15)*0.12 : Math.max(will,0.15)*0.012;
+          if(laneFree && Math.random()<gate){
+            c.passing={lane, target:ah, t:0, dive};
+            if(typeof window!=='undefined'){ window.__passes=(window.__passes||0)+1; if(dive) window.__dives=(window.__dives||0)+1; }
           }
         }
       }
@@ -173,13 +196,14 @@ export function updateField(cars, line, dt, t, started){
     }
     if(c.spin>0){ c.spin-=dt*0.7; targetV=Math.min(targetV,8); tOff=c.offset; }
 
-    // ---- FÍSICA realista de aceleração / frenagem ----
+    // ---- FÍSICA realista de aceleração / frenagem (por piloto) ----
     if(targetV>c.speed){
       const aMax=17+(c.pace-76)*0.22;                    // ~17-21 m/s² no arranque
       const a=aMax*Math.max(0.1, 1-(c.speed/104)*(c.speed/104));   // cai com a velocidade (arrasto)
       c.speed=Math.min(c.speed+a*dt, targetV);
     } else {
-      c.speed=Math.max(c.speed-52*dt, targetV);          // freada forte (~5.3g)
+      const extra=(c.passing&&c.passing.dive)?5:0;       // no mergulho, segura o freio até mais tarde
+      c.speed=Math.max(c.speed-(brakeDecel+extra)*dt, targetV);
     }
     c.speed=Math.max(c.speed, c.spin>0?4:5);
     // largada: sai da MARCA e mergulha pra linha aos poucos (sem teleporte pro meio)
