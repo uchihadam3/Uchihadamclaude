@@ -54,16 +54,17 @@ export function buildField(scene, line){
   const cars=[];
   grid.forEach((it,slot)=>{
     const drv=it.d;
-    const g=buildF1Car({team:drv.team, number:String(drv.num)});
+    const g=buildF1Car({team:drv.team, number:String(drv.num), simple:true});
     g.traverse(o=>{ if(o.isMesh){ o.castShadow=false; } });
     scene.add(g);
     const side=(slot%2===0)?1:-1;
+    const LAT=2.8;
     // reação da largada: melhores pilotos saem um tico mais rápido
     const reaction = 0.20 + (1-(it.pace-76)/17)*0.28 + Math.random()*0.12;
     cars.push({ g, drv, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
-      pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9,
-      d: -(8 + slot*8), offset: side*1.9, tOffset: side*1.9,
-      speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0, passCd:0, mistakeCd:5,
+      pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9, gridOffset:side*LAT,
+      d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
+      speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0, passCd:0, mistakeCd:5, hitCd:0,
       tan:vat(line.ctan, ((-(8+slot*8)/line.len)*line.N%line.N+line.N)%line.N, line.N).clone() });
   });
   return cars;
@@ -85,57 +86,77 @@ export function updateField(cars, line, dt, t, started){
       c.offset=THREE.MathUtils.lerp(c.offset,c.outSide*6.4,dt*1.2); c.d+=c.speed*dt; continue; }
     if(!started || t<c.launchStart){ c.speed=Math.max(c.speed-30*dt,0); continue; }
 
-    const f=idxOf(c), vmaxHere=at(line.vmax,f,N), racingOff=at(line.offset,f,N);
+    const f=idxOf(c), racingOff=at(line.offset,f,N);
     const skill=0.88+(c.pace-76)/17*0.10;
-    let targetV=Math.min(vmaxHere,99)*skill*(1-0.3*c.damage);
+    // ---- FRENAGEM ANTECIPADA: menor vel. de curva na janela de frear à frente ----
+    const brakeDist = c.speed*c.speed/(2*50) + 10;
+    let vCorner=99;
+    for(let s=1;s<=10;s++){ const dd=brakeDist*s/10; const fi=(((c.d+dd)/len)*N%N+N)%N;
+      vCorner=Math.min(vCorner, at(line.vmax,fi,N)); }
+    let targetV=Math.min(vCorner,99)*skill*(1-0.3*c.damage);
     let tOff=racingOff;
+    const onStraight=vCorner>72;
 
-    // ---- seguir / ultrapassar com segurança ----
+    // ---- seguir / ultrapassar com segurança (colisão rara) ----
     const ah=c.ahead;
     if(ah){
       const gap=gapAhead(ah,c);
-      if(gap<50){
-        const sameLine=Math.abs(ah.offset-c.offset)<2.0;
-        const safe=7 + c.speed*0.14;                       // distância mínima
-        if(gap<20 && !sameLine){ targetV=Math.min(targetV*1.015, vmaxHere*0.99); } // vácuo
-        if(gap<safe && sameLine){
-          const paceAdv=c.pace-ah.pace, onStraight=vmaxHere>72;
-          const side=racingOff>=0?-1:1, laneX=side*4.0;
-          const laneClear=!cars.some(o=> o!==c && !o.out && dist(o,c)<11 && Math.abs(o.offset-laneX)<2.0);
-          if((paceAdv>0.6||onStraight) && c.passCd<=0 && laneClear){
-            tOff=laneX;                                     // vai pro lado livre
-            if(Math.abs(c.offset-ah.offset)>2.0) targetV=Math.min(vmaxHere*skill, ah.speed+5); // ao lado -> passa
-            else targetV=Math.min(targetV, ah.speed);
-          } else {
-            targetV=Math.min(targetV, ah.speed*(gap<safe*0.55?0.9:0.985));   // segue atrás
-            if(Math.abs(tOff-laneX)<0.1){ c.passCd=1.2; }
+      const sameLine=Math.abs(ah.offset-c.offset)<2.2;
+      if(gap<22 && !sameLine) targetV=Math.min(targetV*1.02, vCorner*0.99);       // vácuo
+      if(gap<40 && sameLine){
+        const safe=9 + c.speed*0.16;                     // distância de segurança
+        const paceAdv=c.pace-ah.pace;
+        const side=racingOff>=0?-1:1, laneX=side*4.0;
+        const laneClear=!cars.some(o=> o!==c && !o.out && dist(o,c)<13 && Math.abs(o.offset-laneX)<2.2);
+        if(gap<safe){
+          if((paceAdv>0.8||onStraight) && c.passCd<=0 && laneClear){
+            tOff=laneX;
+            targetV = Math.abs(c.offset-laneX)<1.2 ? Math.min(vCorner*skill, ah.speed+5)
+                                                   : Math.min(targetV, ah.speed+1);
+          } else {                                        // segue atrás casando a velocidade
+            const tt=THREE.MathUtils.clamp((gap-3)/(safe-3),0,1);
+            targetV=Math.min(targetV, ah.speed*(0.9+0.09*tt));
+            c.passCd=1.0;
           }
         }
       }
     }
     if(c.passCd>0) c.passCd-=dt;
 
-    // ---- desvio lateral pra NÃO bater (chave pra colisão ser rara) ----
+    // ---- desvio lateral pra não encostar (só direção, NÃO freia a fila) ----
     for(const o of cars){ if(o===c||o.out) continue;
-      if(dist(o,c)<5.0){ const od=c.offset-o.offset;
-        if(Math.abs(od)<2.0) tOff += (od>=0?1:-1)*1.6; } }
+      const dd=dist(o,c); if(dd>6.0) continue;
+      const od=c.offset-o.offset;
+      if(Math.abs(od)<2.2){
+        const s = Math.abs(od)>0.06 ? (od>0?1:-1) : (c.d>o.d?1:-1);   // separa pros lados opostos
+        tOff += s*(2.2-Math.abs(od))*1.0;
+      } }
 
     // ---- erro do piloto (RARO) ----
     c.mistakeCd-=dt;
-    if(c.mistakeCd<=0 && vmaxHere<58 && c.speed>16){
-      if(Math.random() < (100-c.drv.consistencia)*0.00006){
-        c.mistakeCd=10; c.speed*=0.86; tOff+=(racingOff>=0?1:-1)*2.0;
-        if(Math.random()<0.1){ c.spin=1; c.spinRate=(Math.random()<0.5?-1:1)*4; c.speed*=0.5; }
+    if(c.mistakeCd<=0 && vCorner<56 && c.speed>16){
+      if(Math.random() < (100-c.drv.consistencia)*0.00005){
+        c.mistakeCd=12; c.speed*=0.88; tOff+=(racingOff>=0?1:-1)*2.0;
+        if(Math.random()<0.08){ c.spin=1; c.spinRate=(Math.random()<0.5?-1:1)*4; c.speed*=0.5; }
       }
     }
     if(c.spin>0){ c.spin-=dt*0.7; targetV=Math.min(targetV,8); tOff=c.offset; }
 
-    const accel=11+(c.pace-76)*0.4;
-    if(targetV>c.speed) c.speed=Math.min(c.speed+accel*dt, targetV+1);
-    else                c.speed=Math.max(c.speed-45*dt, Math.max(targetV,0));
-    c.speed=Math.max(c.speed, c.spin>0?4:6);
+    // ---- FÍSICA realista de aceleração / frenagem ----
+    if(targetV>c.speed){
+      const aMax=17+(c.pace-76)*0.22;                    // ~17-21 m/s² no arranque
+      const a=aMax*Math.max(0.1, 1-(c.speed/104)*(c.speed/104));   // cai com a velocidade (arrasto)
+      c.speed=Math.min(c.speed+a*dt, targetV);
+    } else {
+      c.speed=Math.max(c.speed-52*dt, targetV);          // freada forte (~5.3g)
+    }
+    c.speed=Math.max(c.speed, c.spin>0?4:5);
+    // largada: sai da MARCA e mergulha pra linha aos poucos (sem teleporte pro meio)
+    const mergeT=THREE.MathUtils.clamp((t-c.launchStart)/6, 0, 1);
+    tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
-    c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-6,6), dt*2.6);
+    c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-6,6), dt*1.3);   // merge suave
+    if(c.hitCd>0) c.hitCd-=dt;
     c.d+=c.speed*dt;
   }
 
@@ -143,9 +164,10 @@ export function updateField(cars, line, dt, t, started){
   const retire=(v,tilt)=>{ if(v.out)return; v.out=true; v.outSide=v.offset>=0?1:-1;
     v.tilt=tilt||0; if(tilt){ const ks=Object.keys(v.wheels); const w=v.wheels[ks[(Math.random()*ks.length)|0]];
       if(w) w.steerPivot.visible=false; } };   // batida forte: perde uma roda
-  for(let i=0;i<cars.length;i++){ const a=cars[i]; if(a.out) continue;
-    for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.out) continue;
-      if(dist(a,b)<4.3 && Math.abs(a.offset-b.offset)<1.7){
+  for(let i=0;i<cars.length;i++){ const a=cars[i]; if(a.out||a.hitCd>0) continue;
+    for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.out||b.hitCd>0) continue;
+      if(dist(a,b)<3.6 && Math.abs(a.offset-b.offset)<1.5){
+        a.hitCd=0.5; b.hitCd=0.5;                    // evita re-colisão todo frame (fim do 'engarrafamento')
         const rel=Math.abs(a.speed-b.speed);
         const push=(a.offset<=b.offset)?-1:1; a.offset+=push*0.7; b.offset-=push*0.7;
         const rear=a.d<b.d?a:b, front=a.d<b.d?b:a;

@@ -337,7 +337,9 @@ function renderRace(){
 if(fichaBtn){ fichaBtn.addEventListener('click', ()=>{ renderFicha(); fichaPanel.classList.remove('hide'); }); }
 fichaPanel.addEventListener('click', e=>{ if(e.target===fichaPanel) fichaPanel.classList.add('hide'); });
 
-window.__f1={scene,camera,get car(){return car;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
+window.__f1={scene,camera,get car(){return focus.g;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
+window.__cars=cars; window.__line=line;
+Object.defineProperty(window,'__rt',{get:()=>raceTime}); Object.defineProperty(window,'__started',{get:()=>started});
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();

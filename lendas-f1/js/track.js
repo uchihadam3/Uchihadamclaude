@@ -169,22 +169,24 @@ export function buildTrack(){
   const tanSF=new THREE.Vector3(Math.cos(hdg),0,Math.sin(hdg));
   const rotY=Math.atan2(tanSF.x,tanSF.z);
   const lSF=leftOf(tanSF);
-  // linha branca de largada
+  // grupo da largada ALINHADO à pista (mesmo método do grid = fica reto)
+  const sfGrp=new THREE.Group(); sfGrp.position.set(sf.x,0,sf.z);
+  sfGrp.rotation.y=Math.atan2(tanSF.x,tanSF.z); G.add(sfGrp);
+  // linha branca de largada (transversal à pista)
   const line=new THREE.Mesh(new THREE.PlaneGeometry(HALF*2-0.3,0.5),
     new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.5}));
-  line.rotation.x=-Math.PI/2; line.rotation.z=-rotY; line.position.set(sf.x,0.05,sf.z); G.add(line);
+  line.rotation.x=-Math.PI/2; line.position.set(0,0.05,0); sfGrp.add(line);
   // faixa xadrez logo à frente
   const cvs=document.createElement('canvas'); cvs.width=128; cvs.height=32; const cx=cvs.getContext('2d');
   for(let y=0;y<4;y++)for(let x=0;x<16;x++){cx.fillStyle=((x+y)%2)?'#0a0a0a':'#f2f2f2';cx.fillRect(x*8,y*8,8,8);}
   const chk=new THREE.CanvasTexture(cvs);
   const chkM=new THREE.Mesh(new THREE.PlaneGeometry(HALF*2-0.3,2.2),
     new THREE.MeshStandardMaterial({map:chk,roughness:0.7}));
-  chkM.rotation.x=-Math.PI/2; chkM.rotation.z=-rotY;
-  chkM.position.set(sf.x+tanSF.x*2.0,0.045,sf.z+tanSF.z*2.0); G.add(chkM);
+  chkM.rotation.x=-Math.PI/2; chkM.position.set(0,0.045,2.0); sfGrp.add(chkM);
   // GRID de largada — alinhado à pista, espaçamento REAL (8 m, escalonado)
   const boxMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.5,transparent:true,opacity:0.92});
   const total=curve.getLength();
-  const NGRID=20, GAP=8.0, LAT=1.9;               // 8 m entre posições, alterna os lados
+  const NGRID=20, GAP=8.0, LAT=2.8;               // 8 m entre posições, escalonadas mais pros lados
   for(let i=0;i<NGRID;i++){
     const d = 8 + i*GAP;                            // distância atrás da linha de largada
     const uu = ((1 - d/total)%1 + 1)%1;

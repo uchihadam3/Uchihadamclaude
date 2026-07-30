@@ -33,17 +33,20 @@ export function buildF1Car(opts={}){
 
   const G = new THREE.Group();
 
-  // ---------- materiais ----------
-  const paint = new THREE.MeshPhysicalMaterial({color:col.body, metalness:0.45, roughness:0.28, clearcoat:1.0, clearcoatRoughness:0.12});
-  const paintD= new THREE.MeshPhysicalMaterial({color:col.bodyDark, metalness:0.45, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.15});
-  const accent= new THREE.MeshPhysicalMaterial({color:col.accent, metalness:0.4, roughness:0.25, clearcoat:1.0, clearcoatRoughness:0.12});
+  // ---------- materiais (modo 'simple' = leve, sem verniz, pros 20 carros) ----------
+  const glossy=(c,m,r,cc)=> opts.simple
+    ? new THREE.MeshStandardMaterial({color:c, metalness:m*0.85, roughness:r+0.05})
+    : new THREE.MeshPhysicalMaterial({color:c, metalness:m, roughness:r, clearcoat:1.0, clearcoatRoughness:cc});
+  const paint = glossy(col.body, 0.45, 0.28, 0.12);
+  const paintD= glossy(col.bodyDark, 0.45, 0.3, 0.15);
+  const accent= glossy(col.accent, 0.4, 0.25, 0.12);
   const carbon= new THREE.MeshStandardMaterial({color:col.carbon, metalness:0.35, roughness:0.5});
   const satin = new THREE.MeshStandardMaterial({color:col.satin, metalness:0.2, roughness:0.6});
   const wingMat=new THREE.MeshStandardMaterial({color:0x0d0f13, metalness:0.25, roughness:0.45});
   const tireMat=new THREE.MeshStandardMaterial({color:col.tire, metalness:0.0, roughness:0.88});
   const bandMat=new THREE.MeshStandardMaterial({color:col.band, metalness:0.0, roughness:0.5});
   const rimMat =new THREE.MeshStandardMaterial({color:0x1a1d22, metalness:0.7, roughness:0.35});
-  const coverMat=new THREE.MeshPhysicalMaterial({color:col.body, metalness:0.5, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.15});
+  const coverMat=glossy(col.body, 0.5, 0.3, 0.15);
   const chrome= new THREE.MeshStandardMaterial({color:col.chrome, metalness:0.95, roughness:0.16});
   const titan = new THREE.MeshStandardMaterial({color:0x2a2d33, metalness:0.7, roughness:0.35});
   const glass = new THREE.MeshStandardMaterial({color:col.visor, metalness:0.5, roughness:0.1});
@@ -90,7 +93,9 @@ export function buildF1Car(opts={}){
   }
   function roundR(x,px,py,pw,ph,r){ x.beginPath(); x.moveTo(px+r,py); x.arcTo(px+pw,py,px+pw,py+ph,r);
     x.arcTo(px+pw,py+ph,px,py+ph,r); x.arcTo(px,py+ph,px,py,r); x.arcTo(px,py,px+pw,py,r); x.closePath(); x.fill(); }
-  const liverySide=new THREE.MeshPhysicalMaterial({map:liveryTexture(), metalness:0.4, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.14});
+  const liverySide= opts.simple
+    ? new THREE.MeshStandardMaterial({map:liveryTexture(), metalness:0.34, roughness:0.4})
+    : new THREE.MeshPhysicalMaterial({map:liveryTexture(), metalness:0.4, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.14});
 
   function numberTexture(n){
     const c=document.createElement('canvas'); c.width=c.height=256; const x=c.getContext('2d');
