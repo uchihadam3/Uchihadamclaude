@@ -134,30 +134,35 @@ export function buildTrack(){
     new THREE.MeshStandardMaterial({map:tex(TEX.grass,{repeat:[360,360]}),color:0xd8d8d8,roughness:1.0}));
   ground.rotation.x=-Math.PI/2; ground.position.y=-0.03; ground.receiveShadow=true; G.add(ground);
 
-  /* ---------- BARREIRAS de PNEUS 3D (pneus reais empilhados, não adesivo) ---------- */
+  /* ---------- BARREIRAS de PNEUS 3D (como na F1 real: pneus DEITADOS, furo pra
+     cima, empilhados em colunas e em VÁRIAS FILEIRAS de profundidade) ---------- */
   (function(){
-    const OFF=HALF+15;
-    const rows=[0.34,0.95,1.56];                  // 3 pneus de altura (~2 m)
-    const mats=[];                                // matriz de cada pneu (InstancedMesh)
-    const wallPos=[], wallIdx=[]; let wc=0;        // parede de apoio escura atrás
-    const zA=new THREE.Vector3(0,0,1), tmpQ=new THREE.Quaternion(), tmpP=new THREE.Vector3(),
-          tmpS=new THREE.Vector3(1,1,1), m4=new THREE.Matrix4();
+    const MAJ=0.33, TUBE=0.15;                     // raio do pneu e da "rosca"
+    const OFF=HALF+13;                             // recuo da 1ª fileira
+    const stepH=TUBE*2*0.9;                        // altura de cada pneu deitado (leve sobreposição)
+    const nHigh=4, nDeep=3;                        // 4 de altura, 3 fileiras de profundidade
+    const dstep=(MAJ+TUBE)*1.7;                    // distância entre fileiras
+    const along=(MAJ+TUBE)*1.85;                   // espaçamento das colunas ao longo da barreira
+    const mats=[];
+    // deita o torus: eixo passa de Z pra Y (fica como um pneu no chão, furo pra cima)
+    const upQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2);
+    const tmpP=new THREE.Vector3(), tmpS=new THREE.Vector3(1,1,1), m4=new THREE.Matrix4();
     const placeRun=(run,side)=>{
       if(run.length<4) return;
-      let acc=1e9, prev=null, pw=null;
+      let acc=1e9, prev=null;
       for(const i of run){
         const c=pts[i], l=leftOf(tan[i]);
-        const base=c.clone().addScaledVector(l, side*OFF);
-        if(prev) acc+=base.distanceTo(prev); prev=base;
-        // parede de apoio contínua logo atrás dos pneus
-        const back=c.clone().addScaledVector(l, side*(OFF+0.28));
-        wallPos.push(back.x,0.0,back.z, back.x,1.9,back.z);
-        if(pw!==null){ const a=wc; wallIdx.push(a,a+1,a+2,a+1,a+3,a+2); }
-        pw=back; wc+=2;
-        if(acc<0.82) continue; acc=0;             // 1 pilha de pneus a cada ~0.82 m
-        tmpQ.setFromUnitVectors(zA, new THREE.Vector3(l.x,0,l.z).normalize());
-        for(const y of rows){ tmpP.set(base.x,y,base.z);
-          m4.compose(tmpP,tmpQ,tmpS); mats.push(m4.clone()); }
+        const p0=c.clone().addScaledVector(l, side*OFF);
+        if(prev) acc+=p0.distanceTo(prev); prev=p0;
+        if(acc<along) continue; acc=0;
+        for(let d=0; d<nDeep; d++){                                 // fileiras (profundidade)
+          const base=c.clone().addScaledVector(l, side*(OFF + d*dstep));
+          const yBrick=(d%2)?stepH*0.5:0;                           // encaixe tijolo
+          for(let h=0; h<nHigh; h++){                               // pilha (altura)
+            tmpP.set(base.x, stepH*0.5 + yBrick + h*stepH, base.z);
+            m4.compose(tmpP, upQ, tmpS); mats.push(m4.clone());
+          }
+        }
       }
     };
     for(const side of [1,-1]){
@@ -165,22 +170,13 @@ export function buildTrack(){
       for(let i=0;i<=N;i++){ if(curv[i]>0.012) run.push(i); else { placeRun(run,side); run=[]; } }
       placeRun(run,side);
     }
-    // parede de apoio (escura)
-    if(wallPos.length){
-      const wg=new THREE.BufferGeometry();
-      wg.setAttribute('position',new THREE.Float32BufferAttribute(wallPos,3));
-      wg.setIndex(wallIdx); wg.computeVertexNormals();
-      const wm=new THREE.Mesh(wg,new THREE.MeshStandardMaterial({color:0x14161a,roughness:0.9,side:THREE.DoubleSide}));
-      wm.receiveShadow=true; G.add(wm);
-    }
-    // pneus (InstancedMesh — 1 draw call pra milhares de pneus)
     if(mats.length){
-      const torus=new THREE.TorusGeometry(0.30,0.16,10,20);
-      const tmat=new THREE.MeshStandardMaterial({map:tex(TEX.tread,{repeat:[3,1]}),color:0x2b2b2d,roughness:0.96});
+      const torus=new THREE.TorusGeometry(MAJ,TUBE,7,12);   // baixo poli (x19 mil pneus)
+      const tmat=new THREE.MeshStandardMaterial({map:tex(TEX.tread,{repeat:[6,1]}),color:0x242427,roughness:0.97});
       const inst=new THREE.InstancedMesh(torus,tmat,mats.length);
       mats.forEach((m,k)=>inst.setMatrixAt(k,m));
       inst.instanceMatrix.needsUpdate=true; inst.castShadow=true; inst.receiveShadow=true;
-      inst.frustumCulled=false;                    // instâncias espalhadas: não descartar pela origem
+      inst.frustumCulled=false;
       G.add(inst);
     }
   })();
