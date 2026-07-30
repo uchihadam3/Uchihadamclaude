@@ -8,6 +8,7 @@ import * as THREE from '../vendor/three.module.js';
 import { INTERLAGOS } from './interlagos-data.js';
 import { tex, TEX } from './textures.js';
 import { TEAMS } from './car.js';
+import { PIT, pitOffsetS } from './race.js';
 
 export function buildTrack(){
   const G = new THREE.Group();
@@ -282,42 +283,43 @@ export function buildTrack(){
   /* ---------- PIT LANE (faixa ao lado da reta principal + muro + boxes) ---------- */
   (function(){
     const total=curve.getLength();
-    const span=260+130;
-    const steps=70;
+    // === ASFALTO DA VIA DO PIT — segue pitOffsetS (diverge da pista, boxes, converge) ===
+    const A=-PIT.entry, D=PIT.exitAfter+PIT.taperOut, STEP=2.5;
+    const NP=Math.ceil((D-A)/STEP);
     const pos=[],uv=[],idx=[];
-    for(let i=0;i<=steps;i++){
-      const dd=-260 + i*(span/steps);                       // -260m antes da linha até +130m depois
-      const uu=((dd/total)%1+1)%1;
+    for(let i=0;i<=NP;i++){
+      const ss=A+i*STEP; const uu=((ss/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
-      const a=p.clone().addScaledVector(l, HALF+0.7);
-      const b=p.clone().addScaledVector(l, HALF+5.2);
-      pos.push(a.x,0.012,a.z, b.x,0.012,b.z);
-      uv.push(0, i/steps*45, 1.6, i/steps*45);
+      const lat=pitOffsetS(ss);
+      const a=p.clone().addScaledVector(l, lat-2.8);
+      const b=p.clone().addScaledVector(l, lat+2.8);
+      pos.push(a.x,0.028,a.z, b.x,0.028,b.z);                 // acima do asfalto (sem z-fight)
+      uv.push(0, i*STEP/6, 1.8, i*STEP/6);
     }
-    for(let i=0;i<steps;i++){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
+    for(let i=0;i<NP;i++){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
     g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
     g.setIndex(idx); g.computeVertexNormals();
-    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:tex(TEX.slab),color:0xc8c8c8,roughness:0.95}));
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:tex(TEX.slab),color:0xc8c8c8,roughness:0.95,side:THREE.DoubleSide}));
     m.receiveShadow=true; G.add(m);
-    // muro entre pista e pit lane (guard-rail metálico)
+    // muro guard-rail SÓ na reta dos boxes (deixa a entrada e a saída abertas)
     const wallMat=new THREE.MeshStandardMaterial({map:tex(TEX.guardrail,{repeat:[3,1]}),color:0xdddddd,roughness:0.8,metalness:0.3});
-    for(let i=0;i<26;i++){
-      const dd=-250+i*14; const uu=((dd/total)%1+1)%1;
+    for(let ss=A+PIT.taperIn+4; ss<=PIT.exitAfter-4; ss+=6){
+      const uu=((ss/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
-      const w=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.9,13),wallMat);
-      const c2=p.clone().addScaledVector(l, HALF+0.35);
+      const w=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.9,6.2),wallMat);
+      const c2=p.clone().addScaledVector(l, pitOffsetS(ss)-2.7);        // entre pista e via
       w.position.set(c2.x,0.45,c2.z); w.rotation.y=Math.atan2(tt.x,tt.z); w.castShadow=true; G.add(w);
     }
-    // marcações dos boxes
+    // marcações amarelas dos boxes
     const bm=new THREE.MeshStandardMaterial({color:0xf5c518,roughness:0.6});
     for(let i=0;i<10;i++){
-      const dd=-70-i*4-  (0); const uu=((dd/total)%1+1)%1;
+      const ss=PIT.boxS-i*PIT.boxGap; const uu=((ss/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
       const b2=new THREE.Mesh(new THREE.PlaneGeometry(0.1,3.2),bm);
       b2.rotation.x=-Math.PI/2; b2.rotation.z=-Math.atan2(tt.x,tt.z);
-      const c3=p.clone().addScaledVector(l, HALF+2.9);
+      const c3=p.clone().addScaledVector(l, PIT.off-1.8);
       b2.position.set(c3.x,0.03,c3.z); G.add(b2);
     }
     // ---- GARAGENS (prédio dos boxes: uma por equipe, frente aberta pro pit lane) ----
@@ -326,10 +328,10 @@ export function buildTrack(){
     const roofM=new THREE.MeshStandardMaterial({color:0x3c424b,roughness:0.7,metalness:0.2});
     const dark = new THREE.MeshStandardMaterial({color:0x0c0e12,roughness:0.95});
     for(let i=0;i<10;i++){
-      const dd=-58-i*9; const uu=((dd/total)%1+1)%1;
+      const dd=PIT.boxS-i*PIT.boxGap; const uu=((dd/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
       const grp=new THREE.Group();
-      const base=p.clone().addScaledVector(l, HALF+3.4);
+      const base=p.clone().addScaledVector(l, PIT.off+2.6);           // logo atrás da via dos boxes
       grp.position.set(base.x,0,base.z); grp.rotation.y=Math.atan2(tt.x,tt.z); G.add(grp);
       const mk=(w,h,d,x,y,z,mat)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
         m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; grp.add(m); return m; };

@@ -26,6 +26,19 @@ export const TIRES={
   H:{nome:'Duro',  grip:0.991, wear:0.65,col:'#e5e7eb'},
 };
 const PITOFF=10.1;               // faixa lateral do pit lane
+/* ---------- VIA DO PIT (rua separada: diverge da pista -> boxes -> volta) ----------
+   s = metros relativos à linha de largada (negativo = antes). A via ABRE numa rampa
+   antes da linha, corre paralela pelos boxes, e FECHA numa rampa depois da curva 1.
+   A pista usa a MESMA função pra desenhar a rua, então carro e asfalto batem. */
+export const PIT={ off:PITOFF, entry:340, taperIn:70, exitAfter:120, taperOut:75, boxS:-62, boxGap:9 };
+const smoothstep=t=>{ t=t<0?0:t>1?1:t; return t*t*(3-2*t); };
+export function pitOffsetS(s){
+  const A=-PIT.entry, B=A+PIT.taperIn, C=PIT.exitAfter, D=C+PIT.taperOut;
+  if(s<=A || s>=D) return 0;
+  if(s<B)  return PIT.off*smoothstep((s-A)/(B-A));   // rampa de ENTRADA (diverge)
+  if(s<=C) return PIT.off;                            // reta dos boxes
+  return PIT.off*smoothstep((D-s)/(D-C));             // rampa de SAÍDA (converge)
+}
 
 /* ---------- RACING LINE (out-in-out de verdade) ----------
    Elástico bem convergido (2500 iterações em arrays rápidos): a linha
@@ -185,39 +198,44 @@ export function updateField(cars, line, dt, t, started){
       tOff=THREE.MathUtils.lerp(tOff, outEdge, Math.pow(w,0.95)*0.5);
     }
 
-    // ---- PIT STOP (troca de pneu + reparo de dano; F1 real não reabastece) ----
+    // ---- PIT STOP: via SEPARADA (diverge -> boxes -> volta); pneu + reparo (F1 não reabastece) ----
     const dPos=((c.d%len)+len)%len;
+    const s = dPos>len/2 ? dPos-len : dPos;              // metros rel. à linha (neg = antes)
     const lapsLeft=RACE.laps-c.lapsDone;
-    if(c.pitPhase===0 && !c.finished && lapsLeft>1 && dPos>len-620 && dPos<len-300){
-      // MOTIVOS reais pra entrar: pneu gasto, dano que precisa de reparo, ou estratégia planejada
+    // decide entrar ANTES da rampa de entrada da via
+    if(c.pitPhase===0 && !c.finished && lapsLeft>1 && s>-620 && s<-PIT.entry){
       if(c.damage>0.5 && c.pits<3){ c.pitPhase=1; c.pitReason='reparo'; }
       else if(c.wear>0.72 && c.pits<2){ c.pitPhase=1; c.pitReason='pneu'; }
       else if(c.pits<1 && c.lapsDone>=c.pitLap){ c.pitPhase=1; c.pitReason='pneu'; }
     }
     if(c.pitPhase>0){
-      if(c.pitPhase===1){                                  // entrando no pit lane
-        if(dPos>len-320||dPos<150) tOff=PITOFF;
-        if(dPos>len-250||dPos<150) targetV=Math.min(targetV,23);   // limite de velocidade (~80 km/h)
-        const boxD=len-70-(c.gridPos%10)*4;
-        if(dPos>boxD-2 && dPos<boxD+6){
-          c.pitPhase=2;
-          const needFix = c.damage>0.35;                          // reparo de asa/peça?
-          c.pitT = (2.3+Math.random()*0.9) + (needFix ? 3.5+c.damage*9 : 0);  // pneu ~2.5s; +asa 4-12s
-          c.pitFix = needFix;
+      const po=pitOffsetS(s);                            // posição lateral na via de pit
+      const boxS = PIT.boxS - (c.gridPos%10)*PIT.boxGap;  // marca do box deste carro
+      if(po>0.06) tOff=po;                               // já está na via -> segue a rua
+      if(c.pitPhase===1){                                 // ENTRANDO: diverge e freia até o box
+        if(po>0.06){
+          targetV=Math.min(targetV,23);                  // limite do pit (~80 km/h)
+          const dToBox=boxS-s;                           // distância até o box (>0 antes)
+          if(dToBox<28) targetV=Math.min(targetV, Math.max(1.4, dToBox*0.9));   // freia pro box
+          if(dToBox<=0.8){
+            c.pitPhase=2;
+            const needFix=c.damage>0.35;
+            c.pitT=(2.3+Math.random()*0.9) + (needFix?3.5+c.damage*9:0);        // pneu ~2.5s; +asa 4-12s
+            c.pitFix=needFix;
+          }
         }
-      } else if(c.pitPhase===2){                           // parado no box (equipe trabalhando)
-        tOff=PITOFF; targetV=0;
+      } else if(c.pitPhase===2){                          // PARADO no box (equipe trabalha)
+        tOff=PIT.off; targetV=0;
         if(c.speed<0.6){ c.pitT-=dt;
           if(c.pitT<=0){
-            // troca de pneu: compõe pela estratégia (fim de prova = macio)
-            c.tire = lapsLeft<=6 ? 'S' : (Math.random()<0.55?'M':'H');
+            c.tire = lapsLeft<=6 ? 'S' : (Math.random()<0.55?'M':'H');          // troca de pneu
             c.wear=0;
-            if(c.pitFix){ c.damage=Math.min(c.damage,0.05); c.dmgWing=0; }  // reparo: asa/peça nova
+            if(c.pitFix){ c.damage=Math.min(c.damage,0.05); c.dmgWing=0; }      // reparo: asa/peça nova
             c.pits++; c.pitPhase=3;
           } }
-      } else {                                             // saindo do pit lane
-        tOff=PITOFF; targetV=Math.min(targetV,23);
-        if(dPos>150 && dPos<len/2){ c.pitPhase=0; c.pitReason=''; }
+      } else {                                            // SAINDO: acelera e converge pra pista
+        if(po>0.06) targetV=Math.min(targetV,25);
+        if(po<=0.06 && s>PIT.exitAfter){ c.pitPhase=0; c.pitReason=''; }        // já voltou à pista
       }
     }
     // ---- BANDEIRA AZUL: retardatário abre pro carro que vem dar volta ----
@@ -386,7 +404,7 @@ export function updateField(cars, line, dt, t, started){
       const dec=(b0+kb*c.speed*c.speed)*decMul;
       c.speed=Math.max(c.speed-dec*dt, targetV);
     }
-    c.speed=Math.max(c.speed, c.spin>0?4:(c.pitPhase===2?0:5));
+    c.speed=Math.max(c.speed, c.spin>0?4:(c.pitPhase>=2?0:(c.pitPhase===1?1.0:5)));
 
     // largada: sai da marca e mergulha pra linha aos poucos
     const mergeT=THREE.MathUtils.clamp((t-c.launchStart)/6, 0, 1);
