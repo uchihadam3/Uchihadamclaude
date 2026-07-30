@@ -7,6 +7,7 @@ import * as THREE from '../vendor/three.module.js';
 import { buildF1Car, TEAMS } from './car.js';
 import { carStats, tier, ranking } from './stats.js';
 import { driversOf, overall, ATTRS, simulateRace } from './drivers.js';
+import { computeLine, buildField, updateField } from './race.js';
 import { buildTrack } from './track.js';
 import { F1Audio } from './audio.js';
 
@@ -43,38 +44,25 @@ scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x3a5a30, 0.9));
   scene.environment=pmrem.fromEquirectangular(tex).texture;
 })();
 
-/* ---------- PISTA + CARRO ---------- */
+/* ---------- PISTA + CORRIDA (20 carros) ---------- */
 const track=buildTrack(); scene.add(track.group);
 const curve=track.curve;
+const total=track.length;
+const line=computeLine(curve, track.half);   // racing line (apex nas curvas)
+const cars=buildField(scene, line);           // 20 carros na grade
 
 let currentTeam='ferrari';
-let car=buildF1Car({team:currentTeam}); scene.add(car);
-let wheels=car.userData.wheels, rad=car.userData.radius;
-function setTeam(t){
-  currentTeam=t;
-  scene.remove(car); car.traverse(o=>{ if(o.geometry)o.geometry.dispose(); });
-  car=buildF1Car({team:t}); scene.add(car);
-  wheels=car.userData.wheels; rad=car.userData.radius;
-}
+const findFocus=()=> cars.find(c=>c.team===currentTeam) || cars[0];
+let focus=findFocus();
+function setTeam(t){ currentTeam=t; focus=findFocus(); }
 
-/* ---------- ESTADO DA CORRIDA ---------- */
-let u=0;                 // parâmetro [0,1) na volta — começa na largada
-let speed=12;            // m/s atual (largada)
-const total=track.length;
-const tmp=new THREE.Vector3(), tan=new THREE.Vector3(), lookTmp=new THREE.Vector3();
-const up=new THREE.Vector3(0,1,0);
-
-// curvatura aproximada num ponto (quanto maior, mais fechada a curva)
-function curvatureAt(uu){
-  const d=0.0016;
-  const a=curve.getTangentAt((uu-d+1)%1).normalize();
-  const b=curve.getTangentAt((uu+d)%1).normalize();
-  return a.angleTo(b)/(2*d*total); // rad por metro aprox
-}
+// estado do carro em foco (alimenta câmera/som/HUD)
+const focusPos=new THREE.Vector3(), focusTan=new THREE.Vector3(0,0,1), lookTmp=new THREE.Vector3();
+let focusU=0, focusSpeed=0, focusVmax=99;
 
 let camPos=new THREE.Vector3(0,8,-20);
-let prevSteer=0;
 const clock=new THREE.Clock();
+let raceTime=0;
 
 // ---- marchas / RPM (pra som e sensação) ----
 const FOV_BASE=54, FOV_MAX=82;
@@ -121,10 +109,51 @@ function drawMini(){
   // largada/chegada
   if(track.sf){ const [gx,gy]=mapFn(track.sf.x,track.sf.z);
     mctx.fillStyle='#ffffff'; mctx.fillRect(gx-3,gy-3,6,6); }
-  // pontinho do carro
-  const [cx,cy]=mapFn(car.position.x,car.position.z);
+  // pontinhos de TODOS os carros (foco maior, amarelo)
+  for(const c of cars){ if(c===focus) continue;
+    const [x,y]=mapFn(c.g.position.x,c.g.position.z);
+    mctx.beginPath(); mctx.arc(x,y,3,0,7); mctx.fillStyle=teamHex(c.team); mctx.fill();
+    mctx.lineWidth=1; mctx.strokeStyle='rgba(0,0,0,.6)'; mctx.stroke(); }
+  const [cx,cy]=mapFn(focus.g.position.x,focus.g.position.z);
   mctx.beginPath(); mctx.arc(cx,cy,5,0,7); mctx.fillStyle='#f2c400'; mctx.fill();
   mctx.lineWidth=2; mctx.strokeStyle='#1b1b1b'; mctx.stroke();
+}
+const teamHex=key=>'#'+((TEAMS[key].body)>>>0).toString(16).padStart(6,'0');
+const lastName=n=>n.split(' ').slice(-1)[0];
+const code3=n=>lastName(n).normalize('NFD').replace(/[̀-ͯ]/g,'').slice(0,3).toUpperCase();
+
+/* ---------- TABELA DE TEMPOS (posições ao vivo, tipo TV) ---------- */
+const towerEl=document.getElementById('tower');
+const otEl=document.getElementById('overtake');
+let lastPos={}, flash={}, towerCd=0, otCd=0;
+function updateTower(dt){
+  towerCd-=dt; otCd-=dt;
+  const order=[...cars].sort((a,b)=>b.d-a.d);
+  // detecta ultrapassagens (mudança de posição) — sempre, pra piscar/avisar
+  order.forEach((c,i)=>{ const pos=i+1, key=c.drv.nome, prev=lastPos[key];
+    if(prev && prev!==pos){ flash[key]={t:raceTime, dir: pos<prev?'up':'down'};
+      if(pos<prev && (c===focus || order[prev-1]===focus) && otCd<=0){
+        otCd=2.2; showOvertake(c, order[pos]); }   // aviso quando envolve o foco
+    }
+    lastPos[key]=pos;
+  });
+  const fp=order.indexOf(focus)+1;
+  if(hudDrv) hudDrv.textContent='P'+fp+' · '+focus.drv.nome;
+  if(towerCd>0 || !towerEl) return;
+  towerCd=0.12;
+  let html='';
+  order.forEach((c,i)=>{ const pos=i+1, fl=flash[c.drv.nome];
+    const cls=(c===focus?'me ':'')+(fl&&raceTime-fl.t<1.0?('fl '+fl.dir):'');
+    const dmg=c.damage>0.35?'<span class="dmg">⚠</span>':'';
+    html+=`<div class="trow ${cls}"><span class="tp">${pos}</span><b style="background:${teamHex(c.team)}"></b><span class="tc">${code3(c.drv.nome)}</span><span class="tn">${lastName(c.drv.nome)}</span>${dmg}</div>`;
+  });
+  towerEl.innerHTML=html;
+}
+function showOvertake(passer, passed){
+  if(!otEl||!passed) return;
+  otEl.innerHTML=`<b>ULTRAPASSAGEM!</b> ${lastName(passer.drv.nome)} passou ${lastName(passed.drv.nome)}`;
+  otEl.classList.remove('hide'); otEl.classList.add('show');
+  clearTimeout(otEl._t); otEl._t=setTimeout(()=>{ otEl.classList.remove('show'); otEl.classList.add('hide'); }, 2000);
 }
 
 /* ---------- SISTEMA DE CÂMERAS (vários ângulos, tipo transmissão) ---------- */
@@ -148,30 +177,30 @@ function updateCamera(dt, spd01, onKerb){
   let fov=FOV_BASE + spd01*(FOV_MAX-FOV_BASE);
   if(mode==='perseguicao'){
     const dist=8.5-spd01*1.2;
-    const desired=car.position.clone().addScaledVector(tan,-dist).add(new THREE.Vector3(0,2.5,0));
+    const desired=focusPos.clone().addScaledVector(focusTan,-dist).add(new THREE.Vector3(0,2.5,0));
     camPos.lerp(desired, 1-Math.pow(0.0016,dt));
     const sh=spd01*0.05+(onKerb?0.09:0);
     camera.up.set(0,1,0); camera.position.set(camPos.x+rnd(sh),camPos.y+rnd(sh),camPos.z);
-    lookTmp.copy(car.position).addScaledVector(tan,8).setY(1.1); camera.lookAt(lookTmp);
+    lookTmp.copy(focusPos).addScaledVector(focusTan,8).setY(1.1); camera.lookAt(lookTmp);
   } else if(mode==='cockpit'){
     fov=78+spd01*6;
-    const eye=car.position.clone().add(new THREE.Vector3(0,1.12,0)).addScaledVector(tan,-0.1);
+    const eye=focusPos.clone().add(new THREE.Vector3(0,1.12,0)).addScaledVector(focusTan,-0.1);
     camPos.copy(eye);
     const sh=spd01*0.035+(onKerb?0.06:0);
     camera.up.set(0,1,0); camera.position.set(eye.x+rnd(sh),eye.y+rnd(sh*0.6),eye.z+rnd(sh));
-    lookTmp.copy(car.position).addScaledVector(tan,14).setY(0.85); camera.lookAt(lookTmp);
+    lookTmp.copy(focusPos).addScaledVector(focusTan,14).setY(0.85); camera.lookAt(lookTmp);
   } else if(mode==='aerea'){
     fov=56;                                             // bem aberta, mostra a pista em volta
-    const desired=car.position.clone().addScaledVector(tan,-40).add(new THREE.Vector3(0,80,0));
+    const desired=focusPos.clone().addScaledVector(focusTan,-40).add(new THREE.Vector3(0,80,0));
     camPos.lerp(desired, 1-Math.pow(0.02,dt));          // segue suave (drone/helicóptero)
     camera.up.set(0,1,0); camera.position.copy(camPos);
-    lookTmp.copy(car.position).addScaledVector(tan,12).setY(0); camera.lookAt(lookTmp);
+    lookTmp.copy(focusPos).addScaledVector(focusTan,12).setY(0); camera.lookAt(lookTmp);
   } else { // TV — câmera fixa mais próxima, com "zoom" (teleobjetiva)
-    const cam=tvCams[Math.floor(u*NTV)%NTV];
+    const cam=tvCams[Math.floor(focusU*NTV)%NTV];
     camera.up.set(0,1,0); camera.position.copy(cam);
-    const dist=cam.distanceTo(car.position);
+    const dist=cam.distanceTo(focusPos);
     fov=THREE.MathUtils.clamp(1000/dist, 14, 38);   // longe = mais zoom
-    lookTmp.copy(car.position).setY(0.6); camera.lookAt(lookTmp);
+    lookTmp.copy(focusPos).setY(0.6); camera.lookAt(lookTmp);
   }
   if(Math.abs(camera.fov-fov)>0.1){ camera.fov=fov; camera.updateProjectionMatrix(); }
   return mode;
@@ -181,88 +210,40 @@ function cycleCam(){ camMode=(camMode+1)%CAM_MODES.length; if(camBtn) camBtn.tex
 function frame(){
   const dt=Math.min(clock.getDelta(),0.05);
 
-  // ---- velocidade alvo em função da curvatura à frente ----
-  const lookAhead=(u + (speed*0.9)/total)%1;     // olha adiante proporcional à velocidade
-  const kNow=curvatureAt(u), kAhead=curvatureAt(lookAhead);
-  const k=Math.max(kNow,kAhead*1.1);
-  // v = sqrt(a_lat / k) — modelo físico de aderência
-  const aLat=26;                                  // ~2.6g de aderência lateral
-  let vCorner = k>1e-4 ? Math.sqrt(aLat/k) : 95;
-  vCorner=Math.min(vCorner,95);                   // teto ~342 km/h
-  vCorner=Math.max(vCorner,16);                   // piso nas curvas lentas
-  // acelera/freia rumo ao alvo
-  let throttle;
-  if(vCorner>speed){ speed+=Math.min((vCorner-speed), 14*dt); throttle=1.0; }   // a fundo
-  else             { speed-=Math.min((speed-vCorner), 42*dt); throttle=0.0; }   // freando/coasting
+  raceTime+=dt;
 
-  // ---- avança na pista ----
-  u=(u + (speed*dt)/total)%1;
-  curve.getPointAt(u,tmp);
-  curve.getTangentAt(u,tan).normalize();
-  const heading=Math.atan2(tan.x,tan.z);
+  // ---- atualiza os 20 carros (racing line + IA + colisões) ----
+  updateField(cars, line, dt, raceTime);
 
-  // ---- curvatura ASSINADA (direção da curva) pela variação de rumo ----
-  const du=0.0018;
-  const hA=Math.atan2(tan.x,tan.z);
-  const tB=curve.getTangentAt((u+du)%1);
-  let dH=Math.atan2(tB.x,tB.z)-hA; while(dH>Math.PI)dH-=2*Math.PI; while(dH<-Math.PI)dH+=2*Math.PI;
-  const kSigned = dH/(du*total);                       // rad por metro, com sinal
-  const latG=(speed*speed*Math.abs(kSigned))/9.8;
-  const roll=THREE.MathUtils.clamp(kSigned*speed*speed*0.010, -0.05, 0.05);   // leve, pra fora
-  const Rturn = Math.abs(kSigned)>1e-5 ? 1/kSigned : 1e9;                     // raio (com sinal)
+  // ---- extrai o carro em foco (alimenta câmera/som/HUD) ----
+  focus=findFocus();
+  const prevSpeed=focusSpeed;
+  focusSpeed=focus.speed;
+  focusPos.copy(focus.g.position);
+  if(focus.tan) focusTan.copy(focus.tan).normalize();
+  focusU=((focus.d/total)%1+1)%1;
+  const throttle = focusSpeed>=prevSpeed-0.02 ? 1 : 0;
+  const kmh=focusSpeed*3.6;
+  const spd01=THREE.MathUtils.clamp(focusSpeed/95,0,1);
+  const onKerb=false;
 
-  // ---- posiciona o carro ----
-  car.position.set(tmp.x, 0, tmp.z);
-  car.rotation.set(0, heading, 0);
-  // pequena rolagem: aplicamos num pivô visual inclinando no eixo de avanço
-  car.rotation.z=THREE.MathUtils.lerp(car.rotation.z, roll, 0.15);
-  // squat na aceleração / mergulho na freada
-  const pitch=THREE.MathUtils.clamp((vCorner-speed)*0.004,-0.03,0.03);
-  car.rotation.x=THREE.MathUtils.lerp(car.rotation.x, pitch, 0.1);
-
-  // ---- rodas: giro real + deformação sob carga + esterço Ackermann ----
-  const WB=3.6, R0=rad.front;
-  const braking=(vCorner<speed);
-  for(const key in wheels){
-    const w=wheels[key];
-    w.spin.rotation.x += (speed*dt)/R0;                        // giro real do pneu
-    // deformação: achata na vertical sob carga (freada / curva / aceleração)
-    const isFront=key[0]==='f';
-    const brakeLoad = braking ? (isFront?0.030:0.012) : 0;
-    const accelLoad = (!braking && throttle>0.8) ? (isFront?0.006:0.022) : 0;
-    const sq = THREE.MathUtils.clamp(1 - 0.028 - Math.min(latG,3)*0.012 - brakeLoad - accelLoad, 0.9, 0.99);
-    w.steerPivot.scale.y = THREE.MathUtils.lerp(w.steerPivot.scale.y, sq, 0.25);
-    w.steerPivot.position.y = R0*w.steerPivot.scale.y;         // mantém o pneu plantado no chão
-    if(w.steer){
-      const xw=w.steerPivot.position.x;                        // posição lateral da roda
-      const delta=THREE.MathUtils.clamp(Math.atan(WB/(Rturn - xw))*STEER_SIGN*STEER_GAIN, -0.55, 0.55);
-      w.steerPivot.rotation.y=THREE.MathUtils.lerp(w.steerPivot.rotation.y, delta, 0.25);
-    }
-  }
-
-  // ---- métricas de velocidade ----
-  const spd01=THREE.MathUtils.clamp(speed/95,0,1);
-  const kmh=speed*3.6;
-  const onKerb = latG>2.6;                     // pisando na zebra em curva forte
-  // ---- câmera (vários ângulos: perseguição / cockpit / aérea / TV) ----
   const curMode=updateCamera(dt, spd01, onKerb);
 
-  // ---- SOM do motor ----
+  // ---- SOM do motor (carro em foco) ----
   const {rpm,gear}=rpmFor(kmh);
   if(audioOn) audio.update(rpm, throttle, kmh, onKerb, dt, gear);
 
-  // sol acompanha a região do carro (sombra sempre próxima)
-  sun.position.set(car.position.x+120, 300, car.position.z+90);
-  sun.target.position.copy(car.position); sun.target.updateMatrixWorld();
+  // sol acompanha o foco
+  sun.position.set(focusPos.x+120, 300, focusPos.z+90);
+  sun.target.position.copy(focusPos); sun.target.updateMatrixWorld();
 
   // HUD
   hudSpeed.textContent=Math.round(kmh);
-  hudG.textContent=latG.toFixed(1);
   if(hudGear) hudGear.textContent=gear;
-  // linhas de velocidade (só nas câmeras de dentro do carro)
   const showFX=(curMode==='perseguicao'||curMode==='cockpit');
   if(speedFX) speedFX.style.opacity = (showFX && spd01>0.45? (spd01-0.45)/0.55*0.9 : 0).toFixed(2);
   drawMini();
+  updateTower(dt);
 
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
@@ -270,7 +251,7 @@ function frame(){
 
 /* ---------- HUD ---------- */
 const hudSpeed=document.getElementById('spd');
-const hudG=document.getElementById('gforce');
+const hudDrv=document.getElementById('drvline');
 const hudGear=document.getElementById('gear');
 const speedFX=document.getElementById('speedfx');
 const camBtn=document.getElementById('cam');
