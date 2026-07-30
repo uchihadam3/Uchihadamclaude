@@ -92,7 +92,8 @@ if(mctx){
   for(const [x,z] of sample){ minX=Math.min(minX,x);maxX=Math.max(maxX,x);minZ=Math.min(minZ,z);maxZ=Math.max(maxZ,z); }
   const sx=(W-2*pad)/(maxX-minX), sz=(H-2*pad)/(maxZ-minZ), s=Math.min(sx,sz);
   const ox=(W-(maxX-minX)*s)/2, oz=(H-(maxZ-minZ)*s)/2;
-  mapFn=(x,z)=>[ox+(x-minX)*s, H-(oz+(z-minZ)*s)];   // z pra cima = norte
+  // eixo X invertido pra bater com a vista de cima do mundo 3D (não espelhado)
+  mapFn=(x,z)=>[ox+(maxX-x)*s, H-(oz+(z-minZ)*s)];
   mapPts=sample.map(([x,z])=>mapFn(x,z));
 }
 function drawMini(){
@@ -182,7 +183,7 @@ function frame(){
 
   // ---- SOM do motor ----
   const {rpm,gear}=rpmFor(kmh);
-  if(audioOn) audio.update(rpm, throttle, kmh, onKerb, dt);
+  if(audioOn) audio.update(rpm, throttle, kmh, onKerb, dt, gear);
 
   // sol acompanha a região do carro (sombra sempre próxima)
   sun.position.set(car.position.x+120, 300, car.position.z+90);
