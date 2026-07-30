@@ -1180,36 +1180,21 @@ Grim dark-medieval fantasy game UI icon for COOLDOWN / recharge time: a small or
 
 ---
 
-## 23 · CÉU (arte pintada, dia + noite) — 🟡 arte pendente
+## 23 · CÉU — ✅ PROCEDURAL (shader, sem arte)
 
-**Uso:** textura da **cúpula de céu** das áreas externas (vila/floresta). O jogo faz
-o **cross-fade** dia↔noite conforme o ciclo. Enquanto a arte não chega, uso um céu
-**procedural** de fallback (o cross-fade já funciona). Ao me mandar os arquivos,
-eu troco.
+As artes de céu foram **descartadas** (resolução ficava estranha na cúpula). O céu
+agora é **100% procedural via shader** (`SKY_FRAG` em `Game.ts`), dirigido por
+uniforms que mudam conforme o **ciclo do dia**. Nada a gerar aqui.
 
-**Regras dos 2 (mesmo conjunto):**
-- **PANORAMA 2:1 (equiretangular)**, ~**2048×1024**. **Topo = zênite**, **base =
-  horizonte**. As **bordas ESQUERDA e DIREITA devem casar** (sem emenda, tileável
-  na horizontal — o céu dá a volta na cúpula). Nada de chão/montanhas/objetos: só o
-  céu. Sem texto, sem marca d'água.
-- Estilo **pintado stylized-realism** (não pixel-art), grim medieval, coeso com o
-  jogo. A base (horizonte) puxa pro cinza-azulado da névoa (#8790a0) pra fundir com
-  a bruma do mundo.
-- Nomes → `sky_day.png` e `sky_night.png` em `grimhollow/src/assets/env/`.
+**Etapas do dia** (keyframes em `SKY_PHASES`): **amanhecer → manhã → tarde →
+entardecer → anoitecer → noite** (+ madrugada). Cada etapa define a cor do zênite,
+do horizonte e do sol, além da intensidade do sol e das estrelas — interpoladas
+suavemente ao longo do ciclo.
 
-### 🟡 23.1 — `sky_day` (dia nublado soturno)
-```
-A seamless 2:1 equirectangular SKY panorama for a grim dark-medieval fantasy game, hand-painted stylized-realism. An overcast daytime sky: layered heavy grey storm clouds in muted slate and cool tones, a faint pale sun barely glowing behind the thick cloud cover, subtle lighter rifts where weak daylight breaks through. Dark moody zenith at the TOP fading to a pale cold grey-blue haze (#8790a0) at the horizon at the BOTTOM. Brooding, oppressive, atmospheric, painterly brushwork. The LEFT and RIGHT edges must match seamlessly (horizontally tileable). No ground, no mountains, no birds, no text, no watermark. 2048x1024, top = zenith, bottom = horizon.
-```
-
-### 🟡 23.2 — `sky_night` (noite estrelada com lua)
-```
-A seamless 2:1 equirectangular SKY panorama for a grim dark-medieval fantasy game, hand-painted stylized-realism. A moody starry NIGHT sky: deep midnight blue at the TOP (zenith) scattered with countless stars of varied brightness and faint constellations, a large luminous full MOON glowing pale silver-blue with a soft halo set in the upper third, wispy dark drifting clouds partly veiling the moon and stars, a subtle cold aurora-like glow. The color eases from deep night blue at the top to a lighter cold grey-blue haze (#8790a0) at the horizon at the BOTTOM. Mysterious, cinematic, painterly brushwork. The LEFT and RIGHT edges must match seamlessly (horizontally tileable); keep the moon away from the far edges so it isn't cut. No ground, no mountains, no text, no watermark. 2048x1024, top = zenith, bottom = horizon.
-```
-
-> Ao soltar `sky_day.png` e `sky_night.png` em `grimhollow/src/assets/env/`, eu
-> ligo automático (substituem o fallback procedural) e o cross-fade dia/noite usa
-> as duas artes.
+O shader desenha, em GLSL: gradiente horizonte→zênite, **sol** (disco + brilho
+atmosférico), **lua** (disco + halo, à noite) e **estrelas** (por hash da direção,
+cintilando). Emite cor linear; o bloom acende o sol/lua/estrelas. A névoa e o fundo
+acompanham a cor do horizonte da etapa. Ajustar clima = editar a tabela `SKY_PHASES`.
 
 ---
 

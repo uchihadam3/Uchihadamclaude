@@ -120,11 +120,41 @@ import texCaveFloorUrl from "../assets/env/tex_cavefloor.jpg";
 import texCaveCeilUrl from "../assets/env/tex_caveceil.jpg";
 import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
-// ARTE do céu (opcional): sky_day.png / sky_night.png. Se não existirem, o jogo
-// cai no céu procedural. O glob é eager → resolve os URLs em build.
-const SKY_ART_URLS = import.meta.glob("../assets/env/sky_*.png", {
-  eager: true, query: "?url", import: "default",
-}) as Record<string, string>;
+// FRAGMENT SHADER do céu procedural: gradiente horizonte→zênite + SOL (disco e
+// brilho), LUA (disco e halo) e ESTRELAS (hash + cintilar). Cores vêm dos uniforms
+// (por etapa do dia). Emite cor linear — o OutputPass tonemapeia e o bloom acende.
+const SKY_FRAG = `
+  varying vec3 vDir;
+  uniform vec3 uTop, uHor, uSun, uSunDir, uMoonDir;
+  uniform float uSunI, uStarI, uMoonI, uTime;
+  float hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+  void main(){
+    vec3 dir = normalize(vDir);
+    float el = dir.y;                                  // elevação (-1..1)
+    float g = pow(clamp(el, 0.0, 1.0), 0.55);
+    vec3 col = mix(uHor, uTop, g);
+    // leve calor extra na faixa baixa do céu perto do sol (glow atmosférico)
+    float sd = max(dot(dir, normalize(uSunDir)), 0.0);
+    float horizonGlow = pow(clamp(1.0 - abs(el) * 3.0, 0.0, 1.0), 2.0) * pow(sd, 2.0);
+    col += uSun * horizonGlow * uSunI * 0.35;
+    // SOL: brilho amplo + disco
+    float sglow = pow(sd, 5.0) * 0.30 + pow(sd, 350.0) * 1.6;
+    col += uSun * sglow * uSunI;
+    // LUA: halo + disco frio
+    float mo = max(dot(dir, normalize(uMoonDir)), 0.0);
+    float mglow = pow(mo, 90.0) * 0.35 + smoothstep(0.9988, 0.9994, mo) * 1.4;
+    col += vec3(0.80, 0.86, 1.0) * mglow * uMoonI;
+    // ESTRELAS: pontos por hash da direção, cintilando, só acima do horizonte
+    if (uStarI > 0.01) {
+      vec3 sp = floor(dir * 320.0);
+      float h = hash(sp);
+      float st = smoothstep(0.9968, 1.0, h);
+      float tw = 0.55 + 0.45 * sin(uTime * 2.2 + h * 140.0);
+      col += vec3(st * uStarI * tw) * smoothstep(0.02, 0.22, el);
+    }
+    gl_FragColor = vec4(max(col, 0.0), 1.0);
+  }
+`;
 import bgmVilarejoUrl from "../assets/audio/bgm_vilarejo.mp3";
 // ícones dos itens (consumíveis + materiais + cerveja)
 import icoPotHpUrl from "../assets/item/pot_hp.png";
@@ -1015,8 +1045,33 @@ export class Game {
   private fogPuffs: { s: THREE.Sprite; bx: number; bz: number; by: number; ph: number; rad: number; baseOp: number; rotSp: number; rise: number }[] = [];
   private softPuffCache?: THREE.Texture;
   private cloudTexCache?: THREE.Texture;
-  private fogDome?: THREE.Mesh; // cúpula NOTURNA (gira devagar); base do cross-fade
-  private skyDayDome?: THREE.Mesh; // cúpula DIURNA por cima (opacity = luz do dia)
+  private fogDome?: THREE.Mesh; // cúpula do céu (shader procedural por etapa do dia)
+  // uniforms do shader do céu (cores/sol/lua/estrelas), atualizados no ciclo
+  private skyUniforms?: {
+    uTop: { value: THREE.Color }; uHor: { value: THREE.Color }; uSun: { value: THREE.Color };
+    uSunDir: { value: THREE.Vector3 }; uMoonDir: { value: THREE.Vector3 };
+    uSunI: { value: number }; uStarI: { value: number }; uMoonI: { value: number };
+    uTime: { value: number };
+  };
+  // ETAPAS DO DIA (keyframes por t, 0=meia-noite): cor do zênite/horizonte/sol +
+  // intensidade do sol e das estrelas. amanhecer→manhã→tarde→entardecer→anoitecer→noite.
+  private static readonly SKY_PHASES: {
+    t: number; name: string;
+    top: [number, number, number]; hor: [number, number, number]; sun: [number, number, number];
+    sunI: number; starI: number;
+  }[] = [
+    { t: 0.00, name: "noite",      top: [0.02, 0.03, 0.09], hor: [0.05, 0.07, 0.15], sun: [0.6, 0.7, 1.0], sunI: 0.0, starI: 1.0 },
+    { t: 0.20, name: "madrugada",  top: [0.03, 0.05, 0.13], hor: [0.08, 0.10, 0.20], sun: [0.9, 0.7, 0.6], sunI: 0.0, starI: 1.0 },
+    { t: 0.245, name: "amanhecer", top: [0.13, 0.14, 0.30], hor: [0.50, 0.30, 0.40], sun: [1.0, 0.50, 0.35], sunI: 0.5, starI: 0.35 },
+    { t: 0.29, name: "amanhecer",  top: [0.22, 0.30, 0.50], hor: [0.98, 0.58, 0.32], sun: [1.0, 0.66, 0.36], sunI: 1.0, starI: 0.02 },
+    { t: 0.36, name: "manhã",      top: [0.26, 0.42, 0.66], hor: [0.72, 0.74, 0.72], sun: [1.0, 0.94, 0.80], sunI: 0.65, starI: 0.0 },
+    { t: 0.50, name: "tarde",      top: [0.30, 0.48, 0.72], hor: [0.60, 0.70, 0.78], sun: [1.0, 0.98, 0.90], sunI: 0.5, starI: 0.0 },
+    { t: 0.64, name: "tarde",      top: [0.30, 0.44, 0.64], hor: [0.72, 0.66, 0.58], sun: [1.0, 0.88, 0.68], sunI: 0.6, starI: 0.0 },
+    { t: 0.71, name: "entardecer", top: [0.24, 0.24, 0.44], hor: [0.96, 0.48, 0.20], sun: [1.0, 0.46, 0.20], sunI: 1.15, starI: 0.02 },
+    { t: 0.77, name: "anoitecer",  top: [0.13, 0.13, 0.30], hor: [0.52, 0.26, 0.38], sun: [0.9, 0.40, 0.42], sunI: 0.5, starI: 0.4 },
+    { t: 0.84, name: "anoitecer",  top: [0.06, 0.08, 0.19], hor: [0.13, 0.14, 0.28], sun: [0.7, 0.6, 0.9], sunI: 0.0, starI: 0.9 },
+    { t: 1.00, name: "noite",      top: [0.02, 0.03, 0.09], hor: [0.05, 0.07, 0.15], sun: [0.6, 0.7, 1.0], sunI: 0.0, starI: 1.0 },
+  ];
   private smokeTexes: THREE.Texture[] = []; // texturas de fumaça (mechas por ruído)
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
@@ -1036,8 +1091,6 @@ export class Game {
   }[] = [];
   private outdoor = false; // local atual participa do ciclo dia/noite?
   private _sky = new THREE.Color(); // cor da atmosfera reaproveitada por quadro
-  private _cA = new THREE.Color();
-  private _cB = new THREE.Color();
   private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
   private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
   private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
@@ -1666,7 +1719,7 @@ export class Game {
     this.motes = [];
     this.fogPuffs = [];
     this.fogDome = undefined;
-    this.skyDayDome = undefined;
+    this.skyUniforms = undefined;
     this.npcs = [];
     this.flames = [];
     this.fireFlames = [];
@@ -1724,35 +1777,10 @@ export class Game {
     });
   }
 
-  // keyframes da cor da atmosfera (neblina + fundo) ao longo do ciclo [0,1)
-  private static readonly SKY_KEYS: [number, number][] = [
-    [0.0, 0x121a33], // meia-noite (azul noturno, não preto)
-    [0.2, 0x18223e], // madrugada
-    [0.25, 0x39395a], // primeira luz
-    [0.29, 0xcf8a58], // alvorada (quente)
-    [0.37, 0x9199a6], // manhã enevoada
-    [0.5, 0x8790a0], // meio-dia (neblina padrão)
-    [0.66, 0x949099], // tarde
-    [0.72, 0xcd7442], // poente (laranja)
-    [0.78, 0x4a3648], // crepúsculo
-    [0.85, 0x222c4c], // anoitecer
-    [1.0, 0x121a33], // volta à meia-noite
-  ];
-
   // luminosidade do dia [0,1]: 0 à noite, 1 ao meio-dia (elevação do sol)
   private daylight(t: number): number {
     const elev = Math.sin((t - 0.25) * Math.PI * 2); // +1 ao meio-dia, <0 à noite
     return Math.max(0, Math.min(1, elev * 1.15));
-  }
-
-  // cor da atmosfera no instante t (interpola entre os keyframes vizinhos)
-  private atmosColor(t: number, out: THREE.Color) {
-    const keys = Game.SKY_KEYS;
-    let a = keys[0], b = keys[keys.length - 1];
-    for (let i = 0; i < keys.length - 1; i++)
-      if (t >= keys[i][0] && t <= keys[i + 1][0]) { a = keys[i]; b = keys[i + 1]; break; }
-    const f = (t - a[0]) / (b[0] - a[0] || 1);
-    out.copy(this._cA.set(a[1])).lerp(this._cB.set(b[1]), f);
   }
 
   // avança o ciclo dia/noite e aplica cor/luz (só em locais externos)
@@ -1760,16 +1788,27 @@ export class Game {
     if (!this.outdoor) return;
     const t = (now / DAY_MS + DAY_START) % 1;
     const lum = this.daylight(t);
-    // atmosfera: neblina + fundo acompanham a hora do dia
-    this.atmosColor(t, this._sky);
+    // CÉU: cores/sol/lua/estrelas da ETAPA DO DIA vão pro shader da cúpula
+    const ph = this.sampleSky(t);
+    const u = this.skyUniforms;
+    if (u) {
+      u.uTop.value.setRGB(ph.top[0], ph.top[1], ph.top[2], THREE.SRGBColorSpace);
+      u.uHor.value.setRGB(ph.hor[0], ph.hor[1], ph.hor[2], THREE.SRGBColorSpace);
+      u.uSun.value.setRGB(ph.sun[0], ph.sun[1], ph.sun[2], THREE.SRGBColorSpace);
+      u.uSunI.value = ph.sunI;
+      u.uStarI.value = ph.starI;
+      u.uMoonI.value = ph.starI; // a lua acompanha as estrelas (noite)
+      u.uTime.value = now * 0.001;
+      // arco do sol (leste→zênite→oeste) e a lua oposta
+      const ang = (t - 0.25) * Math.PI * 2;
+      const el = Math.sin(ang), hz = Math.cos(ang);
+      u.uSunDir.value.set(hz, el, 0.22).normalize();
+      u.uMoonDir.value.set(-hz, -el, -0.22).normalize();
+    }
+    // névoa + fundo acompanham a cor do HORIZONTE da etapa (costura com o céu)
+    this._sky.setRGB(ph.hor[0], ph.hor[1], ph.hor[2], THREE.SRGBColorSpace);
     if (this.scene.fog) (this.scene.fog as THREE.Fog).color.copy(this._sky);
     (this.scene.background as THREE.Color).copy(this._sky);
-    // CROSS-FADE do céu: a cúpula diurna aparece com a luz do dia (suavizado),
-    // revelando a noturna (lua/estrelas) ao anoitecer.
-    if (this.skyDayDome) {
-      const w = lum * lum * (3 - 2 * lum); // smoothstep p/ transição macia
-      (this.skyDayDome.material as THREE.MeshBasicMaterial).opacity = w;
-    }
     // luzes principais: intensidade e cor de dia → noite
     for (const d of this.dayNightLights) {
       const mul = d.nightMul + (1 - d.nightMul) * lum;
@@ -4447,148 +4486,55 @@ export class Game {
     return t;
   }
 
-  // CÉU do vilarejo: textura COLORIDA (gradiente vertical soturno + nuvens densas)
-  // p/ a cúpula. Zênite = ardósia escura; horizonte = MESMA cor da névoa (costura
-  // perfeita com o fog). Nuvens carregadas (overcast) reforçam o clima "grim".
-  private skyDomeTex?: THREE.Texture;
-  private nightDomeTex?: THREE.Texture;
-  private villageSkyTexture(): THREE.Texture {
-    if (this.skyDomeTex) return this.skyDomeTex;
-    const W = 512, H = 256;
-    const cv = document.createElement("canvas");
-    cv.width = W; cv.height = H;
-    const ctx = cv.getContext("2d")!;
-    const img = ctx.createImageData(W, H);
-    // céu SOTURNO overcast: ardósia bem escura no zênite → clareia até a cor da
-    // névoa no horizonte, com bancos de nuvem em camadas (fbm) e uns rasgos mais
-    // claros pra dar profundidade. Bem mais rico/contrastado que o gradiente liso.
-    const top = [0x15, 0x18, 0x20];        // zênite escuro (#151820)
-    const mid = [0x3b, 0x42, 0x50];        // meio-céu ardósia
-    const hor = [0x87, 0x90, 0xa0];        // FOG_COLOR 0x8790a0 (horizonte = névoa)
-    const mix = (a: number[], b: number[], t: number) =>
-      a.map((v, i) => Math.round(v + (b[i] - v) * t));
-    for (let y = 0; y < H; y++) {
-      const v = y / (H - 1); // 0 = zênite (topo), 1 = horizonte (base)
-      // dois trechos: zênite→meio (côncavo) e meio→horizonte (abre rápido no fim)
-      const base = v < 0.62
-        ? mix(top, mid, Math.pow(v / 0.62, 0.85))
-        : mix(mid, hor, Math.pow((v - 0.62) / 0.38, 1.35));
-      for (let x = 0; x < W; x++) {
-        // NUVENS em duas camadas de fbm (grande + detalhe), somem perto do horizonte
-        const big = this.fbm(x * 0.010, y * 0.030, 5.1);
-        const det = this.fbm(x * 0.032 + 40, y * 0.07 + 12, 2.3);
-        const cloudy = Math.max(0, (big * 0.7 + det * 0.3 - 0.44) * 2.7);
-        const fade = Math.pow(Math.max(0, 1 - v * 1.15), 0.9); // desaparece no horizonte
-        const cloud = Math.min(1, cloudy) * fade;
-        // rasgos claros (luz por trás das nuvens) onde o fbm grande é bem alto
-        const rift = Math.max(0, (big - 0.66) * 3.2) * fade * 0.5;
-        const dark = [base[0] * 0.5, base[1] * 0.54, base[2] * 0.62];   // nuvem sombria
-        const lite = mix(base, [0xb9, 0xc2, 0xcf], 0.6);                // rasgo claro
-        let px = mix(base, dark, cloud);
-        px = mix(px, lite, Math.min(0.7, rift));
-        const i = (y * W + x) * 4;
-        img.data[i] = px[0]; img.data[i + 1] = px[1]; img.data[i + 2] = px[2];
-        img.data[i + 3] = 255;
-      }
-    }
-    ctx.putImageData(img, 0, 0);
-    const t = new THREE.CanvasTexture(cv);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.wrapS = THREE.RepeatWrapping;
-    t.flipY = false;
-    this.skyDomeTex = t;
-    return t;
-  }
-
-  // céu NOTURNO procedural (fallback até chegar sky_night.png): azul-noite →
-  // névoa no horizonte, estrelas, nuvens escuras e uma LUA com halo.
-  private nightSkyTexture(): THREE.Texture {
-    if (this.nightDomeTex) return this.nightDomeTex;
-    const W = 1024, H = 512;
-    const cv = document.createElement("canvas");
-    cv.width = W; cv.height = H;
-    const ctx = cv.getContext("2d")!;
-    const img = ctx.createImageData(W, H);
-    const top = [0x0b, 0x10, 0x24];   // zênite azul-noite
-    const mid = [0x1a, 0x22, 0x40];   // meio
-    const hor = [0x87, 0x90, 0xa0];   // horizonte = névoa
-    const mix = (a: number[], b: number[], t: number) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
-    // hash determinístico p/ estrelas (sem Math.random → build estável)
-    const starAt = (x: number, y: number) => {
-      const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-      return n - Math.floor(n);
-    };
-    for (let y = 0; y < H; y++) {
-      const v = y / (H - 1);
-      const base = v < 0.6 ? mix(top, mid, Math.pow(v / 0.6, 0.9)) : mix(mid, hor, Math.pow((v - 0.6) / 0.4, 1.5));
-      const fade = Math.pow(Math.max(0, 1 - v * 1.1), 0.9); // estrelas/nuvens somem no horizonte
-      for (let x = 0; x < W; x++) {
-        // nuvens escuras (fbm) — escurecem o céu, sem apagar o azul
-        const cl = Math.max(0, (this.fbm(x * 0.012, y * 0.03, 3.7) - 0.5) * 2.2) * fade;
-        let px = mix(base, [base[0] * 0.5, base[1] * 0.52, base[2] * 0.6], Math.min(0.8, cl));
-        // estrelas (pontos esparsos e brilhantes) na metade superior
-        const s = starAt(x, y);
-        if (s > 0.9975 && fade > 0.25 && cl < 0.35) {
-          const b = 150 + Math.floor((s - 0.9975) / 0.0025 * 105);
-          px = [Math.min(255, px[0] + b), Math.min(255, px[1] + b), Math.min(255, px[2] + b)];
-        }
-        const i = (y * W + x) * 4;
-        img.data[i] = px[0]; img.data[i + 1] = px[1]; img.data[i + 2] = px[2]; img.data[i + 3] = 255;
-      }
-    }
-    // LUA (disco + halo) no terço superior, afastada das bordas
-    const mx = W * 0.62, my = H * 0.24, mr = 42;
-    const halo = ctx.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 4);
-    ctx.putImageData(img, 0, 0);
-    halo.addColorStop(0, "rgba(200,214,235,0.5)");
-    halo.addColorStop(1, "rgba(200,214,235,0)");
-    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, Math.PI * 2); ctx.fill();
-    const disc = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, mr * 0.2, mx, my, mr);
-    disc.addColorStop(0, "#eef3fb"); disc.addColorStop(1, "#b9c6da");
-    ctx.fillStyle = disc; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
-    const t = new THREE.CanvasTexture(cv);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.wrapS = THREE.RepeatWrapping;
-    t.flipY = false;
-    this.nightDomeTex = t;
-    return t;
-  }
-
-  // cúpula de céu (esfera invertida) — sem fog (senão a névoa a apagaria) e sem
-  // escrita de profundidade (fica sempre ATRÁS de tudo). Gira devagar no tick.
+  // CÉU PROCEDURAL (shader): gradiente por ETAPA DO DIA + sol + lua + estrelas,
+  // tudo calculado em GLSL e dirigido por uniforms que mudam com o ciclo. Emite
+  // cor LINEAR (o OutputPass faz tonemap/sRGB e o bloom acende sol/lua/estrelas).
   private addSkyDome(cx = WELL.c * CELL, cz = WELL.r * CELL) {
-    const geo = new THREE.SphereGeometry(CELL * 24, 40, 24);
-    // DUAS cúpulas sobrepostas: a NOTURNA por baixo (sempre opaca) e a DIURNA por
-    // cima, com opacidade = luz do dia → cross-fade suave conforme o ciclo.
-    const nightMat = new THREE.MeshBasicMaterial({
-      map: this.skyTex("night"), side: THREE.BackSide, fog: false, depthWrite: false,
+    const geo = new THREE.SphereGeometry(CELL * 24, 48, 32);
+    const u = {
+      uTop: { value: new THREE.Color(0.05, 0.06, 0.14) },
+      uHor: { value: new THREE.Color(0.10, 0.12, 0.22) },
+      uSun: { value: new THREE.Color(1.0, 0.7, 0.4) },
+      uSunDir: { value: new THREE.Vector3(0, 0.3, -1).normalize() },
+      uMoonDir: { value: new THREE.Vector3(0, 0.6, 1).normalize() },
+      uSunI: { value: 0.0 },
+      uStarI: { value: 1.0 },
+      uMoonI: { value: 1.0 },
+      uTime: { value: 0.0 },
+    };
+    const mat = new THREE.ShaderMaterial({
+      uniforms: u,
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+      toneMapped: true,
+      vertexShader:
+        "varying vec3 vDir; void main(){ vDir = normalize(position);" +
+        " gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: SKY_FRAG,
     });
-    const dayMat = new THREE.MeshBasicMaterial({
-      map: this.skyTex("day"), side: THREE.BackSide, fog: false, depthWrite: false,
-      transparent: true, opacity: 1,
-    });
-    const night = new THREE.Mesh(geo, nightMat);
-    night.renderOrder = -11; night.position.set(cx, 0, cz);
-    const day = new THREE.Mesh(geo, dayMat);
-    day.renderOrder = -10; day.position.set(cx, 0, cz);
-    this.world.add(night);
-    this.world.add(day);
-    this.fogDome = night;      // gira devagar no tick
-    this.skyDayDome = day;     // opacidade ajustada em updateDayNight
+    const dome = new THREE.Mesh(geo, mat);
+    dome.renderOrder = -10; // fundo
+    dome.position.set(cx, 0, cz);
+    this.world.add(dome);
+    this.fogDome = dome;
+    this.skyUniforms = u;
   }
 
-  // textura do céu (dia/noite): usa a ARTE (sky_day/sky_night.png) se existir,
-  // senão o céu procedural de fallback — assim o cross-fade já funciona sem a arte.
-  private skyTex(kind: "day" | "night"): THREE.Texture {
-    const url = SKY_ART_URLS[Object.keys(SKY_ART_URLS).find((k) => k.endsWith(`sky_${kind}.png`)) ?? ""];
-    if (url) {
-      const t = new THREE.TextureLoader().load(url);
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.wrapS = THREE.RepeatWrapping;
-      t.flipY = false;
-      return t;
-    }
-    return kind === "night" ? this.nightSkyTexture() : this.villageSkyTexture();
+  // interpola os keyframes das ETAPAS DO DIA no instante t (0..1)
+  private sampleSky(t: number) {
+    const P = Game.SKY_PHASES;
+    let a = P[0], b = P[P.length - 1];
+    for (let i = 0; i < P.length - 1; i++)
+      if (t >= P[i].t && t <= P[i + 1].t) { a = P[i]; b = P[i + 1]; break; }
+    const f = (t - a.t) / ((b.t - a.t) || 1);
+    const L = (x: number[], y: number[]) =>
+      [x[0] + (y[0] - x[0]) * f, x[1] + (y[1] - x[1]) * f, x[2] + (y[2] - x[2]) * f] as [number, number, number];
+    return {
+      top: L(a.top, b.top), hor: L(a.hor, b.hor), sun: L(a.sun, b.sun),
+      sunI: a.sunI + (b.sunI - a.sunI) * f, starI: a.starI + (b.starI - a.starI) * f,
+      name: f < 0.5 ? a.name : b.name,
+    };
   }
 
   // textura de FUMAÇA real: mechas/tendões irregulares (ruído fbm) com borda macia —
@@ -8483,9 +8429,8 @@ export class Game {
       mat.opacity = f.baseOp * (0.6 + 0.4 * Math.sin(t * 2.0 + f.ph));
     }
     // cúpula de névoa gira devagar → as nuvens "andam" pelo céu
-    // as duas cúpulas (noite embaixo, dia em cima) giram JUNTAS bem devagar
-    if (this.fogDome) this.fogDome.rotation.y = now * 0.00002;
-    if (this.skyDayDome) this.skyDayDome.rotation.y = now * 0.00002;
+    // a cúpula do céu (shader) não gira — sol/lua se movem por uniform e as
+    // estrelas cintilam via uTime (atualizado em updateDayNight)
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
