@@ -1,6 +1,34 @@
 import { MOVE_MS } from "./config";
 import { STYLES, REST, type Weapon, type Pose } from "./weapons";
-import { SKILL_TREES, STAT_META, PASSIVE_ICON, type Skill } from "./skills";
+import {
+  SKILL_TREES, STAT_META, PASSIVE_ICON, PASSIVE_VALUE, combatFor, estimateAmount, scaleAttrs,
+  type Skill, type PrimAttr,
+} from "./skills";
+// ícones/selos dos atributos (rune-medalhões gerados). destreza pode ainda não
+// existir — o glob é opcional, então caímos no símbolo/cor do STAT_META.
+const ATTR_ICON_URLS = import.meta.glob("../assets/ui/attr_*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
+const ATTR_FILE: Record<PrimAttr, string> = { str: "attr_forca", dex: "attr_destreza", int: "attr_int" };
+// metadados dos PRIMÁRIOS (não estão em STAT_META, que é só de passivas)
+const ATTR_META: Record<PrimAttr, { sym: string; color: string; label: string }> = {
+  str: { sym: "⚔", color: "#e0623c", label: "Força" },
+  dex: { sym: "➹", color: "#5fbf6a", label: "Destreza" },
+  int: { sym: "✦", color: "#4f9be0", label: "Inteligência" },
+};
+const attrIconUrl = (a: PrimAttr): string | null => {
+  const file = ATTR_FILE[a];
+  const hit = Object.keys(ATTR_ICON_URLS).find((k) => k.endsWith(`${file}.png`));
+  return hit ? ATTR_ICON_URLS[hit] : null;
+};
+// selo (imagem própria se houver, senão o glifo colorido do atributo)
+const attrSeal = (a: PrimAttr, size = 16): string => {
+  const url = attrIconUrl(a);
+  const m = ATTR_META[a];
+  return url
+    ? `<img class="gh-attr-seal" src="${url}" alt="${m.label}" title="${m.label}" style="width:${size}px;height:${size}px"/>`
+    : `<span class="gh-attr-seal gh-attr-glyph" title="${m.label}" style="width:${size}px;height:${size}px;color:${m.color}">${m.sym}</span>`;
+};
 import { CLASS_BY_ID } from "./classes";
 import type { Rarity } from "./items";
 
@@ -1235,6 +1263,7 @@ export function setupControls(
       eq.querySelectorAll(".gh-tabpane").forEach((p) =>
         p.classList.toggle("gh-pane-hidden", (p as HTMLElement).dataset.pane !== tab),
       );
+      closeCard(); // troca de aba fecha o card de skill
     }),
   );
   const eqStats = eq.querySelector("#gh-eq-stats") as HTMLElement;
@@ -1257,6 +1286,119 @@ export function setupControls(
   let skillPointsTotal = 0;
   const skillRanks: Record<string, number> = {};
   let skillSelected: string | null = null; // nó selecionado (aguardando confirmação)
+  // primários ATUAIS do herói (capturados em setStats) — usados p/ estimar o
+  // dano/cura das skills no card (mesma conta que o combate usa em this.prim)
+  const heroPrim = { str: 5, dex: 5, int: 5 };
+
+  // ---- CARD FLUTUANTE da habilidade (ancorado ao nó tocado) ----
+  // substitui o antigo painel de detalhe no rodapé: some a rolagem no celular.
+  const skCard = document.createElement("div");
+  skCard.id = "gh-sk-card";
+  skCard.className = "gh-sk-card-hidden";
+  root.appendChild(skCard);
+  const closeCard = () => {
+    skCard.classList.add("gh-sk-card-hidden");
+    if (skillSelected) {
+      skillSelected = null;
+      skillsPane.querySelectorAll(".gh-sk-node.gh-sk-sel").forEach((n) => n.classList.remove("gh-sk-sel"));
+    }
+  };
+  // fmt de valor de passiva: fração → %, inteiro → plano
+  const pfmt = (v: number) => (v < 1 ? `${Math.round(v * 100)}%` : `${v}`);
+  // monta o corpo do card p/ uma skill
+  const cardBody = (id: string): string => {
+    const info = skillInfo(id);
+    if (!info) return "";
+    const { sk, unlocked, rank, maxed, canBuy } = info;
+    const typeTxt = sk.kind === "active" ? "Ativa" : "Passiva";
+    let body = "";
+    if (sk.kind === "active") {
+      const cb = combatFor(id);
+      const seals = scaleAttrs(id, skillClassId).map((a) => attrSeal(a, 17)).join("");
+      if (cb.effect === "dmg" || cb.effect === "heal") {
+        const word = cb.effect === "dmg" ? "Dano" : "Cura";
+        const dispRank = rank >= 1 ? rank : 1;
+        const cur = estimateAmount(id, skillClassId, dispRank, heroPrim);
+        let val = `<b>~${cur}</b>`;
+        if (rank >= 1 && !maxed) {
+          const nxt = estimateAmount(id, skillClassId, rank + 1, heroPrim);
+          val += ` <span class="gh-skc-arrow">→ ~${nxt}</span>`;
+        }
+        body +=
+          `<div class="gh-skc-eff"><span class="gh-skc-k">${word}</span>${val}` +
+          (seals ? `<span class="gh-skc-seals">${seals}</span>` : "") + "</div>";
+      } else if (cb.effect === "buff") {
+        const parts: string[] = [];
+        if (cb.atkMul) parts.push(`+${Math.round((cb.atkMul - 1) * 100)}% de dano`);
+        if (cb.defReduc) parts.push(`−${Math.round(cb.defReduc * 100)}% de dano recebido`);
+        if (cb.dur) parts.push(`por ${Math.round(cb.dur / 1000)}s`);
+        if (parts.length)
+          body += `<div class="gh-skc-eff"><span class="gh-skc-k">Efeito</span><b>${parts.join(" · ")}</b></div>`;
+      }
+      // recursos (mana / recarga / alcance)
+      const bits: string[] = [];
+      if (cb.mana) bits.push(`◆ ${cb.mana}`);
+      if (cb.cd) bits.push(`⏱ ${(cb.cd / 1000) % 1 ? (cb.cd / 1000).toFixed(1) : cb.cd / 1000}s`);
+      if (cb.effect === "dmg") bits.push(cb.melee ? "corpo a corpo" : `⤢ ${cb.range} cél.`);
+      if (bits.length) body += `<div class="gh-skc-res">${bits.map((b) => `<span>${b}</span>`).join("")}</div>`;
+    } else if (sk.stat) {
+      // passiva: ganho por nível + selo do atributo
+      const v = PASSIVE_VALUE[sk.stat];
+      const m = STAT_META[sk.stat];
+      body +=
+        `<div class="gh-skc-eff"><span class="gh-skc-k">Por nível</span>` +
+        `<b style="color:${m.color}">+${pfmt(v)} ${m.label}</b></div>`;
+    }
+    // botão de confirmação
+    let btn: string;
+    if (maxed) btn = '<span class="gh-sk-cbtn gh-sk-cdim">No máximo</span>';
+    else if (!unlocked) btn = '<span class="gh-sk-cbtn gh-sk-cdim">Requer o nó acima</span>';
+    else if (!canBuy) btn = '<span class="gh-sk-cbtn gh-sk-cdim">Sem pontos</span>';
+    else
+      btn = `<button class="gh-sk-cbtn gh-sk-cbuy" id="gh-sk-confirm">${rank > 0 ? `Melhorar → ${rank + 1}/${sk.maxRank}` : "Aprender"} · 1 ponto</button>`;
+    return (
+      `<div class="gh-skc-head"><b>${sk.name}</b><i>${typeTxt} · ${rank}/${sk.maxRank}</i></div>` +
+      `<div class="gh-skc-desc">${sk.desc}</div>` +
+      body +
+      `<div class="gh-skc-foot">${btn}</div>`
+    );
+  };
+  // posiciona o card ao lado do nó (flip p/ caber na tela) e conecta o confirmar
+  const openCard = (id: string, nodeEl: HTMLElement) => {
+    skCard.innerHTML = cardBody(id);
+    skCard.classList.remove("gh-sk-card-hidden");
+    const a = nodeEl.getBoundingClientRect();
+    const w = skCard.offsetWidth, h = skCard.offsetHeight;
+    let x = a.right + 10;
+    if (x + w > window.innerWidth - 6) x = a.left - w - 10; // sem espaço à direita → esquerda
+    if (x < 6) x = Math.max(6, Math.round((window.innerWidth - w) / 2));
+    let y = Math.round(a.top + a.height / 2 - h / 2); // centraliza vertical no nó
+    if (y + h > window.innerHeight - 6) y = window.innerHeight - h - 6;
+    if (y < 6) y = 6;
+    skCard.style.left = x + "px";
+    skCard.style.top = y + "px";
+    const confirm = skCard.querySelector("#gh-sk-confirm");
+    if (confirm)
+      confirm.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const inf = skillInfo(id);
+        if (inf && inf.canBuy) {
+          skillRanks[inf.sk.id] = inf.rank + 1;
+          onSkills?.(skillRanks); // avisa o jogo p/ reaplicar passivas
+          renderSkills(); // atualiza pontos/estados dos nós
+          const again = skillsPane.querySelector<HTMLElement>(`.gh-sk-node[data-sk="${id}"]`);
+          if (again) { again.classList.add("gh-sk-sel"); openCard(id, again); } // reabre atualizado
+        }
+      });
+  };
+  // fecha o card ao tocar fora dele (toque em nó reabre pelo próprio handler)
+  document.addEventListener("pointerdown", (e) => {
+    if (skCard.classList.contains("gh-sk-card-hidden")) return;
+    const t = e.target as HTMLElement;
+    if (skCard.contains(t)) return;
+    if (t.closest?.(".gh-sk-node")) return;
+    closeCard();
+  }, true);
   const spentPoints = () =>
     Object.values(skillRanks).reduce((a, b) => a + b, 0);
   // localiza um skill pelo id + seu estado (destravado? no máximo? dá pra comprar?)
@@ -1315,26 +1457,11 @@ export function setupControls(
         return `<div class="gh-sk-branch"><div class="gh-sk-bhead" style="color:${b.color}">${b.name}</div>${nodes}</div>`;
       })
       .join("");
-    // painel de detalhe/confirmação (embaixo)
-    let tip =
-      '<div class="gh-sk-thint">Toque num nó pra ver os detalhes; depois confirme para gastar o ponto.</div>';
-    const info = skillSelected ? skillInfo(skillSelected) : null;
-    if (info) {
-      const { sk, unlocked, rank, maxed, canBuy } = info;
-      let btn: string;
-      if (maxed) btn = '<span class="gh-sk-cbtn gh-sk-cdim">No máximo</span>';
-      else if (!unlocked) btn = '<span class="gh-sk-cbtn gh-sk-cdim">Requer o nó acima</span>';
-      else if (!canBuy) btn = '<span class="gh-sk-cbtn gh-sk-cdim">Sem pontos</span>';
-      else
-        btn = `<button class="gh-sk-cbtn gh-sk-cbuy" id="gh-sk-confirm">${rank > 0 ? `Melhorar → ${rank + 1}/${sk.maxRank}` : "Aprender"} · 1 ponto</button>`;
-      tip =
-        `<div class="gh-sk-tname"><b>${sk.name}</b> <i>${sk.kind === "active" ? "Ativa" : "Passiva"} · ${rank}/${sk.maxRank}</i></div>` +
-        `<div class="gh-sk-tdesc">${sk.desc}</div>${btn}`;
-    }
+    // o detalhe agora vive num CARD flutuante ancorado ao nó (não mais no rodapé)
     skillsPane.innerHTML =
-      `<div class="gh-sk-top">Pontos: <b class="${avail > 0 ? "gh-sk-pts" : ""}">${avail}</b></div>` +
-      `<div class="gh-sk-cols">${cols}</div>` +
-      `<div class="gh-sk-tip" id="gh-sk-tip">${tip}</div>`;
+      `<div class="gh-sk-top">Pontos: <b class="${avail > 0 ? "gh-sk-pts" : ""}">${avail}</b>` +
+      `<span class="gh-sk-hint">toque num nó pra ver os detalhes</span></div>` +
+      `<div class="gh-sk-cols">${cols}</div>`;
     // fundo (estilo PoE) pintado NO PRÓPRIO #gh-skills (não como filho absoluto —
     // senão ele escapa do scroll e cobre as abas). Escurecido pelos gradientes.
     if (tree.bg) {
@@ -1345,27 +1472,26 @@ export function setupControls(
     } else {
       skillsPane.style.backgroundImage = "";
     }
-    // clicar num nó só SELECIONA (mostra detalhes) — não gasta ponto
+    // clicar num nó abre o CARD flutuante ancorado nele (o botão confirmar
+    // dentro do card é quem gasta o ponto)
     skillsPane.querySelectorAll<HTMLElement>(".gh-sk-node").forEach((n) => {
       n.addEventListener("click", () => {
-        skillSelected = n.dataset.sk!;
-        renderSkills();
+        const id = n.dataset.sk!;
+        if (skillSelected === id) { closeCard(); return; } // re-toque fecha
+        skillsPane.querySelectorAll(".gh-sk-node.gh-sk-sel").forEach((o) => o.classList.remove("gh-sk-sel"));
+        n.classList.add("gh-sk-sel");
+        skillSelected = id;
+        openCard(id, n);
       });
     });
-    // o botão CONFIRMAR é quem gasta o ponto
-    const confirm = skillsPane.querySelector("#gh-sk-confirm");
-    if (confirm)
-      confirm.addEventListener("click", () => {
-        const inf = skillSelected ? skillInfo(skillSelected) : null;
-        if (inf && inf.canBuy) {
-          skillRanks[inf.sk.id] = inf.rank + 1;
-          renderSkills();
-          onSkills?.(skillRanks); // avisa o jogo p/ reaplicar passivas nos atributos
-        }
-      });
+    // se o card estava aberto (ex.: após comprar), reposiciona no nó atual
+    if (skillSelected && !skCard.classList.contains("gh-sk-card-hidden")) {
+      const cur = skillsPane.querySelector<HTMLElement>(`.gh-sk-node[data-sk="${skillSelected}"]`);
+      if (cur) cur.classList.add("gh-sk-sel");
+    }
   };
   const openEq = () => eq.classList.remove("gh-eq-hidden");
-  const closeEq = () => eq.classList.add("gh-eq-hidden");
+  const closeEq = () => { closeCard(); eq.classList.add("gh-eq-hidden"); };
   const toggleEq = () =>
     eq.classList.contains("gh-eq-hidden") ? openEq() : closeEq();
   charBtn.addEventListener("click", (e) => {
@@ -2007,6 +2133,7 @@ export function setupControls(
       mpFill.style.width = f * 100 + "%";
     },
     setStats(s: CharStats) {
+      heroPrim.str = s.str; heroPrim.dex = s.dex; heroPrim.int = s.int;
       if (goldVal) goldVal.textContent = `${s.gold}`;
       setXp(s.level, s.xp, s.xpMax); // barra de XP fina na base da tela
       const xpFrac = s.xpMax > 0 ? Math.max(0, Math.min(1, s.xp / s.xpMax)) : 0;
@@ -2014,7 +2141,8 @@ export function setupControls(
       const prim = (label: string, key: string, v: number, min: number) => {
         const minus = v <= min || s.points < 0 ? " disabled" : "";
         const plus = s.points <= 0 ? " disabled" : "";
-        return `<div class="gh-prow"><span>${label}</span><span class="gh-pstep">` +
+        const seal = attrSeal(key as PrimAttr, 20);
+        return `<div class="gh-prow"><span class="gh-plabel">${seal}${label}</span><span class="gh-pstep">` +
           `<button class="gh-pm" data-attr="${key}" data-d="-1"${minus}>−</button>` +
           `<b>${v}</b>` +
           `<button class="gh-pm" data-attr="${key}" data-d="1"${plus}>＋</button>` +
@@ -3452,14 +3580,37 @@ function injectStyle() {
     border:1px solid rgba(201,162,39,.6); border-radius:6px; padding:0 3px;
     font-size:10px; color:#f0dca2; line-height:1.35; font-variant-numeric:tabular-nums;
   }
-  .gh-sk-tip {
-    margin-top:10px; min-height:40px; padding:9px 12px; font-size:12.5px; line-height:1.4;
-    background:rgba(8,7,5,.72); border:1px solid rgba(201,162,39,.3); border-radius:8px; color:#d8cba0;
+  .gh-sk-hint { display:block; font-size:10.5px; font-style:italic; color:#8a7f63; margin-top:1px; }
+  /* selo de atributo (imagem própria ou glifo) */
+  .gh-attr-seal { display:inline-block; vertical-align:middle; object-fit:contain; }
+  .gh-attr-glyph { text-align:center; line-height:1; font-weight:700; }
+  .gh-plabel { display:inline-flex; align-items:center; gap:7px; }
+  /* --- CARD FLUTUANTE da habilidade --- */
+  #gh-sk-card {
+    position:fixed; z-index:31; width:min(260px,84vw); max-width:88vw;
+    padding:11px 13px 12px; border-radius:11px; color:#d8cba0; font-size:12.5px; line-height:1.42;
+    background:linear-gradient(180deg,rgba(26,22,15,.98),rgba(14,11,7,.98));
+    border:1px solid rgba(201,162,39,.5); box-shadow:0 10px 30px rgba(0,0,0,.6), inset 0 0 18px rgba(0,0,0,.5);
+    animation:gh-skc-in .13s ease-out;
   }
-  .gh-sk-thint { font-style:italic; color:#b6a877; }
-  .gh-sk-tname b { color:#f0e2bd; font-family:"Cinzel",serif; font-size:14px; }
-  .gh-sk-tname i { color:#c9a84f; font-style:italic; font-size:11.5px; margin-left:4px; }
-  .gh-sk-tdesc { margin:4px 0 8px; }
+  #gh-sk-card.gh-sk-card-hidden { display:none; }
+  @keyframes gh-skc-in { from{ opacity:0; transform:translateY(4px) scale(.97);} to{ opacity:1; transform:none;} }
+  .gh-skc-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:5px; }
+  .gh-skc-head b { color:#f4e6bf; font-family:"Cinzel",serif; font-size:15px; }
+  .gh-skc-head i { color:#c9a84f; font-style:italic; font-size:11px; white-space:nowrap; }
+  .gh-skc-desc { color:#c8bc98; margin-bottom:8px; }
+  .gh-skc-eff {
+    display:flex; align-items:center; gap:7px; padding:6px 9px; margin-bottom:6px;
+    background:rgba(8,7,5,.6); border:1px solid rgba(201,162,39,.25); border-radius:7px;
+  }
+  .gh-skc-eff .gh-skc-k { color:#a99c78; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  .gh-skc-eff b { color:#ffe089; font-size:15px; font-variant-numeric:tabular-nums; }
+  .gh-skc-arrow { color:#8fce7a; font-size:12.5px; font-weight:700; }
+  .gh-skc-seals { margin-left:auto; display:inline-flex; align-items:center; gap:3px; }
+  .gh-skc-res { display:flex; flex-wrap:wrap; gap:5px 10px; font-size:11.5px; color:#b6a877; margin-bottom:9px; }
+  .gh-skc-res span { white-space:nowrap; }
+  .gh-skc-foot { text-align:center; }
+  .gh-skc-foot .gh-sk-cbtn { width:100%; box-sizing:border-box; }
   /* botão de CONFIRMAR a alocação do ponto */
   .gh-sk-cbtn {
     display:inline-block; font-family:"Cinzel",serif; font-size:13px; letter-spacing:.5px;
