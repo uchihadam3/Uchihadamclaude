@@ -76,6 +76,8 @@ const clock=new THREE.Clock();
 
 // ---- marchas / RPM (pra som e sensação) ----
 const FOV_BASE=54, FOV_MAX=82;
+let STEER_SIGN=1;      // sinal pra roda apontar pra dentro da curva
+const STEER_GAIN=2.0;  // ganho visual (mantém proporção Ackermann, deixa visível)
 const gearsKmh=[0,90,140,185,230,275,320,380];   // limites das 7 marchas
 function rpmFor(kmh){
   let g=0; for(let i=0;i<gearsKmh.length-1;i++){ if(kmh>=gearsKmh[i]) g=i; }
@@ -155,11 +157,11 @@ function updateCamera(dt, spd01, onKerb){
     camera.up.set(0,1,0); camera.position.set(eye.x+rnd(sh),eye.y+rnd(sh*0.6),eye.z+rnd(sh));
     lookTmp.copy(car.position).addScaledVector(tan,14).setY(0.85); camera.lookAt(lookTmp);
   } else if(mode==='aerea'){
-    fov=40;
-    const desired=car.position.clone().addScaledVector(tan,-13).add(new THREE.Vector3(0,26,0));
-    camPos.lerp(desired, 1-Math.pow(0.003,dt));
+    fov=56;                                             // bem aberta, mostra a pista em volta
+    const desired=car.position.clone().addScaledVector(tan,-40).add(new THREE.Vector3(0,80,0));
+    camPos.lerp(desired, 1-Math.pow(0.02,dt));          // segue suave (drone/helicóptero)
     camera.up.set(0,1,0); camera.position.copy(camPos);
-    lookTmp.copy(car.position).addScaledVector(tan,3).setY(0.4); camera.lookAt(lookTmp);
+    lookTmp.copy(car.position).addScaledVector(tan,12).setY(0); camera.lookAt(lookTmp);
   } else { // TV — câmera fixa mais próxima, com "zoom" (teleobjetiva)
     const cam=tvCams[Math.floor(u*NTV)%NTV];
     camera.up.set(0,1,0); camera.position.copy(cam);
@@ -195,13 +197,15 @@ function frame(){
   curve.getTangentAt(u,tan).normalize();
   const heading=Math.atan2(tan.x,tan.z);
 
-  // ---- rolagem/steer em função da curvatura assinada ----
-  const dAng=Math.atan2(
-    tan.clone().cross(curve.getTangentAt((u+0.002)%1).normalize()).y, 1);
-  const signedK=curvatureAt(u)*Math.sign(-tan.clone().cross(curve.getTangentAt((u+0.003)%1).normalize()).y || 1);
-  const latG=(speed*speed*curvatureAt(u))/9.8;
-  const roll=THREE.MathUtils.clamp(-signedK*speed*speed*0.02, -0.09, 0.09);
-  const steer=THREE.MathUtils.clamp(signedK*260, -0.5, 0.5);
+  // ---- curvatura ASSINADA (direção da curva) pela variação de rumo ----
+  const du=0.0018;
+  const hA=Math.atan2(tan.x,tan.z);
+  const tB=curve.getTangentAt((u+du)%1);
+  let dH=Math.atan2(tB.x,tB.z)-hA; while(dH>Math.PI)dH-=2*Math.PI; while(dH<-Math.PI)dH+=2*Math.PI;
+  const kSigned = dH/(du*total);                       // rad por metro, com sinal
+  const latG=(speed*speed*Math.abs(kSigned))/9.8;
+  const roll=THREE.MathUtils.clamp(kSigned*speed*speed*0.010, -0.05, 0.05);   // leve, pra fora
+  const Rturn = Math.abs(kSigned)>1e-5 ? 1/kSigned : 1e9;                     // raio (com sinal)
 
   // ---- posiciona o carro ----
   car.position.set(tmp.x, 0, tmp.z);
@@ -212,14 +216,17 @@ function frame(){
   const pitch=THREE.MathUtils.clamp((vCorner-speed)*0.004,-0.03,0.03);
   car.rotation.x=THREE.MathUtils.lerp(car.rotation.x, pitch, 0.1);
 
-  // ---- rodas: giro + esterço ----
-  const spinInc=(speed*dt)/rad.front;
+  // ---- rodas: giro real + esterço Ackermann (roda interna vira mais) ----
+  const WB=3.6;
   for(const key in wheels){
     const w=wheels[key];
-    w.spin.rotation.x += (key[0]==='f'? (speed*dt)/rad.front : (speed*dt)/rad.rear);
-    if(w.steer) w.steerPivot.rotation.y = THREE.MathUtils.lerp(w.steerPivot.rotation.y, -steer, 0.2);
+    w.spin.rotation.x += (speed*dt)/rad.front;                 // mesmo Ø dianteiro/traseiro
+    if(w.steer){
+      const xw=w.steerPivot.position.x;                        // posição lateral da roda
+      const delta=THREE.MathUtils.clamp(Math.atan(WB/(Rturn - xw))*STEER_SIGN*STEER_GAIN, -0.55, 0.55);
+      w.steerPivot.rotation.y=THREE.MathUtils.lerp(w.steerPivot.rotation.y, delta, 0.25);
+    }
   }
-  prevSteer=steer;
 
   // ---- métricas de velocidade ----
   const spd01=THREE.MathUtils.clamp(speed/95,0,1);

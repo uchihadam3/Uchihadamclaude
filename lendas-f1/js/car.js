@@ -137,18 +137,27 @@ export function buildF1Car(opts={}){
   add(new THREE.BoxGeometry(0.05,0.05,0.12), carbon, 0,1.14,0.02);
   add(new THREE.SphereGeometry(0.03,10,8), satin, 0,1.17,0.08);
   const cover=add(new THREE.CylinderGeometry(0.06,0.28,2.3,20), paint, 0,0.64,-1.25, Math.PI/2,0,0); cover.scale.set(1,1,0.9);
-  add(new THREE.BoxGeometry(0.06,0.1,2.0), accent, 0,0.82,-1.2, 0.06,0,0);
-  add(new THREE.BoxGeometry(0.03,0.24,1.2), paintD, 0,0.6,-1.9);
+  add(new THREE.BoxGeometry(0.06,0.1,2.0), accent, 0,0.82,-1.2, 0.06,0,0);   // faixa central da tampa
 
-  /* ==================== ASA TRASEIRA + BEAM WING ==================== */
-  const rw=new THREE.Group(); rw.position.set(0,0,-2.55); G.add(rw);
-  add(new THREE.BoxGeometry(0.94,0.05,0.36), wingMat, 0,0.95,0, 0.3,0,0, rw);
-  add(new THREE.BoxGeometry(0.94,0.035,0.22), accent, 0,1.06,-0.15, 0.5,0,0, rw);
-  for(const s of [-1,1]){ add(new THREE.BoxGeometry(0.03,0.55,0.55), carbon, s*0.47,0.86,-0.03, 0,0,0, rw);
-    add(new THREE.BoxGeometry(0.03,0.14,0.3), accent, s*0.47,1.16,-0.05, 0,0,s*0.5, rw); }
-  add(new THREE.BoxGeometry(0.06,0.42,0.12), carbon, 0,0.74,0.05, 0,0,0, rw);
-  add(new THREE.BoxGeometry(0.8,0.04,0.2), wingMat, 0,0.6,0.05, 0.2,0,0, rw);
-  add(new THREE.BoxGeometry(0.1,0.09,0.06), new THREE.MeshStandardMaterial({color:0xff2222,emissive:0x550000,emissiveIntensity:1}), 0,0.52,-0.05,0,0,0, rw);
+  /* ==================== ASA TRASEIRA (tamanho real) + BEAM WING ==================== */
+  const rw=new THREE.Group(); rw.position.set(0,0,-2.5); G.add(rw);
+  const RWW=1.0;                                   // largura real da asa (~1 m)
+  // plano principal (mainplane) — corda grande, bem no alto
+  add(new THREE.BoxGeometry(RWW,0.08,0.34), wingMat, 0,1.06,0.0, 0.26,0,0, rw);
+  // flap superior (DRS)
+  add(new THREE.BoxGeometry(RWW,0.06,0.26), accent, 0,1.30,-0.16, 0.5,0,0, rw);
+  // endplates altos
+  for(const s of [-1,1]){
+    add(new THREE.BoxGeometry(0.05,0.78,0.62), carbon, s*(RWW/2),1.02,-0.02, 0,0,0, rw);
+    add(new THREE.BoxGeometry(0.05,0.18,0.34), accent, s*(RWW/2),1.42,-0.08, 0,0,s*0.45, rw); // ponta enrolada
+  }
+  // pilares swan-neck segurando o mainplane
+  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.05,0.5,0.14), carbon, s*0.16,0.82,0.08, 0.1,0,0, rw);
+  // beam wing (embaixo)
+  add(new THREE.BoxGeometry(0.86,0.05,0.24), wingMat, 0,0.66,0.05, 0.2,0,0, rw);
+  // luz de chuva vermelha (embaixo, no centro)
+  add(new THREE.BoxGeometry(0.1,0.09,0.06), new THREE.MeshStandardMaterial({color:0xff2222,emissive:0x550000,emissiveIntensity:1}), 0,0.72,0.1,0,0,0, rw);
+  // estrutura de impacto traseira + escape
   add(new THREE.CylinderGeometry(0.06,0.09,0.5,12), carbon, 0,0.5,-2.75, Math.PI/2,0,0);
   add(new THREE.CylinderGeometry(0.05,0.055,0.18,14), chrome, 0,0.52,-3.02, Math.PI/2,0,0);
 
