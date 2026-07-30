@@ -4,7 +4,7 @@
    curvas, acelera nas retas), rolagem de carroceria, rodas girando/esterçando.
    ===================================================================== */
 import * as THREE from '../vendor/three.module.js';
-import { buildF1Car } from './car.js';
+import { buildF1Car, TEAMS } from './car.js';
 import { buildTrack } from './track.js';
 import { F1Audio } from './audio.js';
 
@@ -45,8 +45,15 @@ scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x3a5a30, 0.9));
 const track=buildTrack(); scene.add(track.group);
 const curve=track.curve;
 
-const car=buildF1Car({}); scene.add(car);
-const wheels=car.userData.wheels, rad=car.userData.radius;
+let currentTeam='ferrari';
+let car=buildF1Car({team:currentTeam}); scene.add(car);
+let wheels=car.userData.wheels, rad=car.userData.radius;
+function setTeam(t){
+  currentTeam=t;
+  scene.remove(car); car.traverse(o=>{ if(o.geometry)o.geometry.dispose(); });
+  car=buildF1Car({team:t}); scene.add(car);
+  wheels=car.userData.wheels; rad=car.userData.radius;
+}
 
 /* ---------- ESTADO DA CORRIDA ---------- */
 let u=0;                 // parâmetro [0,1) na volta — começa na largada
@@ -214,7 +221,15 @@ function enableAudio(){ try{ audio.start(); audioOn=true; }catch(e){}
 if(startBtn) startBtn.addEventListener('click', enableAudio);
 addEventListener('pointerdown', enableAudio, {once:true});
 
-window.__f1={scene,camera,car,track,renderer}; window.__audio=audio;   // debug/verificação
+/* ---------- seletor de equipe (cores reais) ---------- */
+const teamSel=document.getElementById('team');
+if(teamSel){
+  for(const key in TEAMS){ const o=document.createElement('option'); o.value=key; o.textContent=TEAMS[key].name; teamSel.appendChild(o); }
+  teamSel.value=currentTeam;
+  teamSel.addEventListener('change', ()=> setTeam(teamSel.value));
+}
+
+window.__f1={scene,camera,get car(){return car;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
 function resize(){ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight); }
 addEventListener('resize',resize); resize();

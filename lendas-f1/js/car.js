@@ -1,160 +1,198 @@
 /* ========================================================================
-   LENDAS DA F1 — carro de Fórmula 1 procedural (Three.js)
-   Detalhado: nariz afilado, asa dianteira multielemento, monocoque, cockpit
-   com halo, airbox, sidepods, asa traseira, difusor, rodas abertas + suspensão.
-   Escala real (~5.5m comprimento, ~2.0m largura, entre-eixos ~3.3m).
+   LENDAS DA F1 — carro de Fórmula 1 procedural detalhado (Three.js)
+   Anatomia de um F1 moderno (regras efeito-solo 2022+), em escala real:
+   comprimento ~5.5 m, largura 2.0 m, entre-eixos ~3.6 m, pneus Ø720 mm
+   (dianteiro 305 / traseiro 405 mm), aros 18".
+   Pinturas nas CORES das equipes reais (Ferrari, McLaren, Mercedes...),
+   com decalques próprios/fictícios e número — sem copiar logos/marcas.
    ===================================================================== */
 import * as THREE from '../vendor/three.module.js';
 
+/* Paletas inspiradas nas cores reais das equipes (apenas cores; sem logos). */
+export const TEAMS = {
+  ferrari:      {name:'Vermelho (Scuderia)', body:0xd50000, bodyDark:0x8a0000, accent:0xf5e000, trim:0x111111, band:0xf5c518, helmet:0xf5e000},
+  mclaren:      {name:'Papaya',              body:0xff6a13, bodyDark:0xc44a00, accent:0x0a3350, trim:0x0a3350, band:0xf5c518, helmet:0xff6a13},
+  mercedes:     {name:'Preto/Petronas',      body:0x161a1f, bodyDark:0x0c0e11, accent:0x00d7c2, trim:0xb9bec7, band:0xf5c518, helmet:0x00d7c2},
+  redbull:      {name:'Azul-marinho',        body:0x0b1b45, bodyDark:0x081233, accent:0xda291c, trim:0xf5c518, band:0xf5c518, helmet:0xda291c},
+  aston:        {name:'Verde British',       body:0x00594f, bodyDark:0x003b34, accent:0xcedc00, trim:0xcedc00, band:0xf5c518, helmet:0xcedc00},
+  williams:     {name:'Azul Williams',       body:0x1a3fd0, bodyDark:0x122a8c, accent:0x37c6ff, trim:0xffffff, band:0xf5c518, helmet:0x37c6ff},
+  alpine:       {name:'Azul/Rosa',           body:0x1560d0, bodyDark:0x0f4499, accent:0xff2f8e, trim:0xffffff, band:0xf5c518, helmet:0xff2f8e},
+  haas:         {name:'Branco/Vermelho',     body:0xe9ebee, bodyDark:0xb9bcc2, accent:0xd11f2a, trim:0x14161a, band:0xf5c518, helmet:0xd11f2a},
+  sauber:       {name:'Verde-neon',          body:0x00e142, bodyDark:0x00a531, accent:0x101010, trim:0x101010, band:0xf5c518, helmet:0x00e142},
+  brasil:       {name:'Brasil (Lendas)',     body:0x0b7a3b, bodyDark:0x075027, accent:0xf5c518, trim:0x0b3fa3, band:0xf5c518, helmet:0xf5c518},
+};
+
 export function buildF1Car(opts={}){
+  const team = TEAMS[opts.team] || TEAMS.ferrari;
   const col = Object.assign({
-    body:0x0e5c34, bodyDark:0x0a3d24, accent:0xf2c400, trim:0x123a8a,
-    carbon:0x14171c, wing:0x0d0f13, rim:0x1b1e24, rimShine:0xc7ccd6,
-    tire:0x111317, tireBand:0xd21f2a, helmet:0xf2c400, visor:0x0a0a12, number:'10',
-  }, opts);
+    carbon:0x121417, satin:0x0a0b0d, chrome:0xc7ccd6, tire:0x0e0f12,
+    visor:0x10151f, number: opts.number||'16',
+  }, team, opts);
 
   const G = new THREE.Group();
-  const M = (c,m=0.35,r=0.4,extra={})=> new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:m,roughness:r},extra));
-  const paint   = M(col.body, 0.35, 0.28);
-  const paintD  = M(col.bodyDark, 0.35, 0.30);
-  const accent  = M(col.accent, 0.4, 0.25);
-  const trim    = M(col.trim, 0.4, 0.3);
-  const carbon  = M(col.carbon, 0.25, 0.5);
-  const wingMat = M(col.wing, 0.2, 0.45);
-  const tireMat = M(col.tire, 0.0, 0.85);
-  const bandMat = M(col.tireBand, 0.0, 0.6);
-  const rimMat  = M(col.rim, 0.7, 0.35);
-  const rimShine= M(col.rimShine, 0.9, 0.2);
-  const chrome  = M(0x9aa0aa, 0.95, 0.15);
-  const black   = M(0x0a0b0d, 0.3, 0.6);
+
+  // ---------- materiais ----------
+  const paint = new THREE.MeshPhysicalMaterial({color:col.body, metalness:0.45, roughness:0.28, clearcoat:1.0, clearcoatRoughness:0.12});
+  const paintD= new THREE.MeshPhysicalMaterial({color:col.bodyDark, metalness:0.45, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.15});
+  const accent= new THREE.MeshPhysicalMaterial({color:col.accent, metalness:0.4, roughness:0.25, clearcoat:1.0, clearcoatRoughness:0.12});
+  const carbon= new THREE.MeshStandardMaterial({color:col.carbon, metalness:0.35, roughness:0.5});
+  const satin = new THREE.MeshStandardMaterial({color:col.satin, metalness:0.2, roughness:0.6});
+  const wingMat=new THREE.MeshStandardMaterial({color:0x0d0f13, metalness:0.25, roughness:0.45});
+  const tireMat=new THREE.MeshStandardMaterial({color:col.tire, metalness:0.0, roughness:0.88});
+  const bandMat=new THREE.MeshStandardMaterial({color:col.band, metalness:0.0, roughness:0.5});
+  const rimMat =new THREE.MeshStandardMaterial({color:0x1a1d22, metalness:0.7, roughness:0.35});
+  const coverMat=new THREE.MeshPhysicalMaterial({color:col.body, metalness:0.5, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.15});
+  const chrome= new THREE.MeshStandardMaterial({color:col.chrome, metalness:0.95, roughness:0.16});
+  const titan = new THREE.MeshStandardMaterial({color:0x2a2d33, metalness:0.7, roughness:0.35});
+  const glass = new THREE.MeshStandardMaterial({color:col.visor, metalness:0.5, roughness:0.1});
 
   const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,parent=G)=>{ const m=new THREE.Mesh(geo,mat);
     m.position.set(x,y,z); m.rotation.set(rx,ry,rz); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; };
+  const hex=c=>'#'+('000000'+(c>>>0).toString(16)).slice(-6);
 
-  /* ---------- FLOOR / ASSOALHO ---------- */
-  add(new THREE.BoxGeometry(1.5,0.05,4.6), carbon, 0,0.09,-0.1);
-  // difusor (sobe atrás)
-  const diff=add(new THREE.BoxGeometry(1.35,0.35,0.7), carbon, 0,0.22,-2.35, -0.5,0,0);
-  for(let i=-2;i<=2;i++) add(new THREE.BoxGeometry(0.03,0.34,0.66), black, i*0.28,0.24,-2.34,-0.5,0,0);
+  // ---------- decalque de pintura (fictício) ----------
+  function liveryTexture(w=512,h=256){
+    const c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+    x.fillStyle=hex(col.body); x.fillRect(0,0,w,h);
+    x.fillStyle=hex(col.accent); x.beginPath(); x.moveTo(0,h*0.55); x.lineTo(w,h*0.30); x.lineTo(w,h*0.62); x.lineTo(0,h*0.82); x.closePath(); x.fill();
+    x.fillStyle=hex(col.trim); x.beginPath(); x.moveTo(0,h*0.82); x.lineTo(w,h*0.62); x.lineTo(w,h*0.70); x.lineTo(0,h*0.90); x.closePath(); x.fill();
+    // "patrocinadores" fictícios (sem marcas reais)
+    x.fillStyle='#ffffff'; x.font='bold 44px Arial'; x.textBaseline='middle'; x.fillText('LENDAS', 24, h*0.30);
+    x.fillStyle='#0b1a2e'; x.font='bold 28px Arial'; x.fillText('AVANTE', 300, h*0.44);
+    x.fillStyle='#ffffff'; x.font='bold 24px Arial'; x.fillText('TUPÃ', 40, h*0.70);
+    const t=new THREE.CanvasTexture(c); t.anisotropy=8; return t;
+  }
+  const liverySide=new THREE.MeshPhysicalMaterial({map:liveryTexture(), metalness:0.4, roughness:0.3, clearcoat:1.0, clearcoatRoughness:0.14});
 
-  /* ---------- MONOCOQUE / CHASSI ---------- */
-  // tub central (afilando)
+  function numberTexture(n){
+    const c=document.createElement('canvas'); c.width=c.height=256; const x=c.getContext('2d');
+    x.fillStyle='#ffffff'; x.beginPath(); x.arc(128,128,92,0,7); x.fill();
+    x.fillStyle=hex(col.body); x.font='bold 150px Arial'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(n,128,138);
+    const t=new THREE.CanvasTexture(c); t.anisotropy=8; return t;
+  }
+  const numMat=new THREE.MeshStandardMaterial({map:numberTexture(col.number), transparent:true, roughness:0.4});
+
+  /* ==================== ASSOALHO / EFEITO-SOLO ==================== */
+  add(new THREE.BoxGeometry(1.55,0.06,4.9), carbon, 0,0.07,-0.15);
+  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.06,0.12,4.2), carbon, s*0.8,0.12,-0.1, 0,0,s*0.2);
+  add(new THREE.BoxGeometry(1.45,0.42,0.85), carbon, 0,0.26,-2.5, -0.5,0,0);
+  for(let i=-3;i<=3;i++) add(new THREE.BoxGeometry(0.025,0.4,0.8), satin, i*0.2,0.28,-2.49,-0.5,0,0);
+
+  /* ==================== MONOCOQUE / CHASSI ==================== */
   const tub=new THREE.Group(); G.add(tub);
-  add(new THREE.BoxGeometry(0.62,0.36,3.0), paint, 0,0.34,0.05,0,0,0,tub);
-  // topo arredondado do tub
-  add(new THREE.CylinderGeometry(0.30,0.30,3.0,20,1,false,0,Math.PI), paint, 0,0.5,0.05, 0,0,Math.PI/2, tub).scale.set(1,1,1);
-  // faixa de cor (accent) na lateral
-  add(new THREE.BoxGeometry(0.64,0.1,2.6), accent, 0,0.42,0.1);
+  add(new THREE.BoxGeometry(0.66,0.42,3.1), paint, 0,0.36,0.05,0,0,0,tub);
+  add(new THREE.CylinderGeometry(0.33,0.33,3.1,24,1,false,0,Math.PI), paint, 0,0.55,0.05, 0,0,Math.PI/2, tub);
+  add(new THREE.CylinderGeometry(0.16,0.33,1.2,20), paint, 0,0.44,1.75, Math.PI/2,0,0, tub);
+  for(const s of [-1,1]) add(new THREE.PlaneGeometry(2.2,0.6), liverySide, s*0.345,0.45,0.2, 0, s*Math.PI/2, 0);
 
-  /* ---------- NARIZ ---------- */
-  // nariz longo afilando pra frente e pra baixo
+  /* ==================== NARIZ + ASA DIANTEIRA ==================== */
   const nose=new THREE.Group(); G.add(nose);
-  const noseGeo=new THREE.CylinderGeometry(0.05,0.24,2.0,18);
-  const noseM=add(noseGeo, paint, 0,0.32,2.35, Math.PI/2,0,0, nose); noseM.scale.set(1,1,0.8);
-  add(new THREE.ConeGeometry(0.06,0.2,16), accent, 0,0.30,3.32, Math.PI/2,0,0, nose); // ponta
-  // pilar central da asa
-  add(new THREE.BoxGeometry(0.08,0.28,0.5), carbon, 0,0.16,3.05);
+  const noseM=add(new THREE.CylinderGeometry(0.09,0.2,1.9,20), paint, 0,0.34,2.55, Math.PI/2,0,0, nose); noseM.scale.set(1,1,0.85);
+  add(new THREE.SphereGeometry(0.09,16,12), accent, 0,0.30,3.48, 0,0,0, nose);
+  add(new THREE.BoxGeometry(0.1,0.34,0.5), carbon, 0,0.14,3.15);
 
-  /* ---------- ASA DIANTEIRA (multielemento) ---------- */
-  const fw=new THREE.Group(); fw.position.set(0,0,3.15); G.add(fw);
-  // planos principais (levemente inclinados)
-  add(new THREE.BoxGeometry(1.9,0.03,0.34), wingMat, 0,0.10,0, -0.12,0,0, fw);
-  add(new THREE.BoxGeometry(1.9,0.03,0.26), wingMat, 0,0.17,-0.12, -0.30,0,0, fw);
-  add(new THREE.BoxGeometry(1.9,0.03,0.18), accent, 0,0.235,-0.22, -0.5,0,0, fw);
-  // endplates
-  for(const s of [-1,1]){ add(new THREE.BoxGeometry(0.03,0.26,0.5), carbon, s*0.94,0.16,-0.05,0,0,0, fw);
-    add(new THREE.BoxGeometry(0.03,0.1,0.5), accent, s*0.945,0.30,-0.05,0,0,0, fw); }
-
-  /* ---------- SIDEPODS ---------- */
+  const fw=new THREE.Group(); fw.position.set(0,0,3.28); G.add(fw);
+  const flap=(y,z,depth,rot,mat)=> add(new THREE.BoxGeometry(1.95,0.028,depth), mat, 0,y,z, rot,0,0, fw);
+  flap(0.08,0.10,0.34,-0.06,wingMat);
+  flap(0.135,-0.02,0.28,-0.22,wingMat);
+  flap(0.19,-0.14,0.22,-0.4,accent);
+  flap(0.245,-0.24,0.18,-0.6,wingMat);
   for(const s of [-1,1]){
-    const sp=new THREE.Group(); sp.position.set(s*0.5,0.36,-0.55); G.add(sp);
-    // corpo do sidepod (afilando pra trás)
-    const body=add(new THREE.BoxGeometry(0.5,0.44,1.9), paint, 0,0,0, 0,0,0, sp); body.scale.set(1,1,1);
-    // chanfro superior
-    add(new THREE.BoxGeometry(0.5,0.2,1.9), paintD, s*0.02,0.16,0, 0,0,s*0.18, sp);
-    // entrada de ar (radiador)
-    add(new THREE.BoxGeometry(0.12,0.34,0.16), black, s*-0.22,0.0,0.92, 0,0,0, sp);
-    add(new THREE.BoxGeometry(0.02,0.3,0.02), chrome, s*-0.29,0.0,0.92, 0,0,0, sp);
-    // faixa accent
-    add(new THREE.BoxGeometry(0.52,0.08,1.6), accent, 0,0.12,-0.05, 0,0,0, sp);
-    // número
+    add(new THREE.BoxGeometry(0.03,0.3,0.6), carbon, s*0.97,0.16,-0.05, 0,0,s*0.18, fw);
+    add(new THREE.BoxGeometry(0.03,0.12,0.5), accent, s*0.99,0.33,-0.05, 0,0,s*0.28, fw);
   }
 
-  /* ---------- COCKPIT + PILOTO + HALO ---------- */
-  // abertura do cockpit
-  add(new THREE.BoxGeometry(0.5,0.2,0.9), black, 0,0.52,0.5);
-  // capacete do piloto
-  const helmet=new THREE.Group(); helmet.position.set(0,0.66,0.45); G.add(helmet);
-  add(new THREE.SphereGeometry(0.17,20,16), M(col.helmet,0.3,0.3), 0,0,0,0,0,0,helmet);
-  add(new THREE.BoxGeometry(0.30,0.09,0.16), M(col.visor,0.5,0.15,{}), 0,0.0,0.13,0,0,0,helmet); // viseira
-  add(new THREE.TorusGeometry(0.17,0.02,10,24), accent, 0,0.02,0,Math.PI/2,0,0,helmet); // faixa
-  // encosto / proteção atrás da cabeça
-  add(new THREE.BoxGeometry(0.44,0.34,0.3), paintD, 0,0.62,0.15);
+  /* ==================== SIDEPODS + RADIADORES ==================== */
+  for(const s of [-1,1]){
+    const sp=new THREE.Group(); sp.position.set(s*0.52,0.36,-0.5); G.add(sp);
+    add(new THREE.BoxGeometry(0.52,0.5,2.0), paint, 0,0,0, 0,0,0, sp);
+    add(new THREE.BoxGeometry(0.52,0.26,2.0), paintD, s*0.02,0.2,-0.15, 0.12,0,s*0.16, sp);
+    add(new THREE.BoxGeometry(0.16,0.36,0.14), satin, s*-0.2,0.02,0.98, 0,0,0, sp);
+    add(new THREE.BoxGeometry(0.02,0.32,0.02), chrome, s*-0.28,0.02,0.99, 0,0,0, sp);
+    add(new THREE.BoxGeometry(0.2,0.12,0.1), satin, 0,0.16,-1.0, 0,0,0, sp);
+    add(new THREE.PlaneGeometry(1.5,0.42), liverySide, s*0.27,0.02,-0.05, 0, s*Math.PI/2, 0, sp);
+    add(new THREE.PlaneGeometry(0.4,0.4), numMat, s*0.271,0.12,0.55, 0, s*Math.PI/2, 0, sp);
+  }
 
-  // HALO (titânio) — arco central + laterais
-  const haloMat = M(0x1c1f26, 0.6, 0.35);
-  const pillar=add(new THREE.CylinderGeometry(0.035,0.045,0.42,10), haloMat, 0,0.66,0.95); pillar.rotation.x=0.1;
-  // arco frontal do halo
-  const haloArc=add(new THREE.TorusGeometry(0.42,0.035,12,28,Math.PI), haloMat, 0,0.62,0.35, 0,0,0);
-  haloArc.scale.set(1.02,1.0,1.0);
-  // barras laterais do halo indo até trás
-  for(const s of [-1,1]){ const bar=add(new THREE.CylinderGeometry(0.035,0.035,1.0,10), haloMat, s*0.42,0.66,0.02, Math.PI/2*1.0,0,0);
-    bar.rotation.x=Math.PI/2; }
+  /* ==================== COCKPIT + PILOTO + HALO ==================== */
+  add(new THREE.BoxGeometry(0.52,0.22,0.95), satin, 0,0.54,0.55);
+  const helmet=new THREE.Group(); helmet.position.set(0,0.68,0.5); G.add(helmet);
+  add(new THREE.SphereGeometry(0.16,22,18), new THREE.MeshStandardMaterial({color:col.helmet,metalness:0.35,roughness:0.3}), 0,0,0,0,0,0,helmet);
+  add(new THREE.BoxGeometry(0.28,0.085,0.14), glass, 0,0.0,0.12, 0,0,0, helmet);
+  add(new THREE.TorusGeometry(0.16,0.022,10,26), new THREE.MeshStandardMaterial({color:col.bodyDark}), 0,0.03,0, Math.PI/2,0,0, helmet);
+  add(new THREE.CylinderGeometry(0.03,0.03,0.1,8), satin, 0,-0.02,0.15, Math.PI/2,0,0, helmet);
+  add(new THREE.BoxGeometry(0.46,0.36,0.32), paintD, 0,0.64,0.2);
 
-  /* ---------- AIRBOX + ENGINE COVER ---------- */
-  // roll hoop / entrada de ar acima do piloto
-  add(new THREE.CylinderGeometry(0.14,0.2,0.5,16), paint, 0,0.86,-0.05, 0,0,0);
-  add(new THREE.CircleGeometry(0.12,16), black, 0,0.92,0.06, -0.3,0,0);
-  // engine cover afilando pra trás e pra baixo
-  const cover=new THREE.Group(); G.add(cover);
-  const cg=new THREE.CylinderGeometry(0.05,0.26,2.2,18);
-  const cm=add(cg, paint, 0,0.62,-1.2, Math.PI/2,0,0, cover); cm.scale.set(1,1,0.9);
-  add(new THREE.BoxGeometry(0.1,0.06,2.0), accent, 0,0.78,-1.15, 0.08,0,0); // shark fin base stripe
-  // shark fin
-  add(new THREE.BoxGeometry(0.03,0.28,1.4), paintD, 0,0.66,-1.7);
+  const haloArc=add(new THREE.TorusGeometry(0.42,0.038,14,30,Math.PI), titan, 0,0.6,0.4, 0,0,0);
+  add(new THREE.CylinderGeometry(0.04,0.05,0.4,12), titan, 0,0.62,1.0, 0.12,0,0);
+  for(const s of [-1,1]) add(new THREE.CylinderGeometry(0.038,0.038,1.05,12), titan, s*0.42,0.63,0.05, Math.PI/2,0,0);
 
-  /* ---------- ASA TRASEIRA ---------- */
-  const rw=new THREE.Group(); rw.position.set(0,0,-2.5); G.add(rw);
-  add(new THREE.BoxGeometry(1.0,0.04,0.34), wingMat, 0,0.92,0, 0.34,0,0, rw);   // plano principal
-  add(new THREE.BoxGeometry(1.0,0.03,0.2), accent, 0,1.02,-0.14, 0.5,0,0, rw);  // flap (DRS)
-  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.03,0.5,0.5), carbon, s*0.5,0.82,-0.02,0,0,0, rw); // endplates
-  // pilar/estrutura de sustentação
-  add(new THREE.BoxGeometry(0.08,0.5,0.1), carbon, 0,0.68,0.02, 0,0,0, rw);
-  // luz de chuva vermelha
-  add(new THREE.BoxGeometry(0.08,0.08,0.06), M(0xff2020,0,0.4,{emissive:0x660000}), 0,0.5,-0.02,0,0,0, rw);
+  for(const s of [-1,1]){ add(new THREE.CylinderGeometry(0.02,0.02,0.24,8), carbon, s*0.36,0.6,0.62, 0,0,Math.PI/2);
+    add(new THREE.BoxGeometry(0.13,0.07,0.04), satin, s*0.5,0.62,0.6, 0,-s*0.3,0);
+    add(new THREE.BoxGeometry(0.11,0.055,0.01), chrome, s*0.5,0.62,0.622, 0,-s*0.3,0); }
 
-  /* ---------- RODAS (abertas) + SUSPENSÃO ---------- */
+  /* ==================== AIRBOX + TAMPA DO MOTOR ==================== */
+  add(new THREE.CylinderGeometry(0.15,0.22,0.55,18), paint, 0,0.9,0.02, 0,0,0);
+  add(new THREE.CircleGeometry(0.13,18), satin, 0,0.98,0.12, -0.35,0,0);
+  add(new THREE.BoxGeometry(0.05,0.05,0.12), carbon, 0,1.14,0.02);
+  add(new THREE.SphereGeometry(0.03,10,8), satin, 0,1.17,0.08);
+  const cover=add(new THREE.CylinderGeometry(0.06,0.28,2.3,20), paint, 0,0.64,-1.25, Math.PI/2,0,0); cover.scale.set(1,1,0.9);
+  add(new THREE.BoxGeometry(0.06,0.1,2.0), accent, 0,0.82,-1.2, 0.06,0,0);
+  add(new THREE.BoxGeometry(0.03,0.24,1.2), paintD, 0,0.6,-1.9);
+
+  /* ==================== ASA TRASEIRA + BEAM WING ==================== */
+  const rw=new THREE.Group(); rw.position.set(0,0,-2.55); G.add(rw);
+  add(new THREE.BoxGeometry(0.94,0.05,0.36), wingMat, 0,0.95,0, 0.3,0,0, rw);
+  add(new THREE.BoxGeometry(0.94,0.035,0.22), accent, 0,1.06,-0.15, 0.5,0,0, rw);
+  for(const s of [-1,1]){ add(new THREE.BoxGeometry(0.03,0.55,0.55), carbon, s*0.47,0.86,-0.03, 0,0,0, rw);
+    add(new THREE.BoxGeometry(0.03,0.14,0.3), accent, s*0.47,1.16,-0.05, 0,0,s*0.5, rw); }
+  add(new THREE.BoxGeometry(0.06,0.42,0.12), carbon, 0,0.74,0.05, 0,0,0, rw);
+  add(new THREE.BoxGeometry(0.8,0.04,0.2), wingMat, 0,0.6,0.05, 0.2,0,0, rw);
+  add(new THREE.BoxGeometry(0.1,0.09,0.06), new THREE.MeshStandardMaterial({color:0xff2222,emissive:0x550000,emissiveIntensity:1}), 0,0.52,-0.05,0,0,0, rw);
+  add(new THREE.CylinderGeometry(0.06,0.09,0.5,12), carbon, 0,0.5,-2.75, Math.PI/2,0,0);
+  add(new THREE.CylinderGeometry(0.05,0.055,0.18,14), chrome, 0,0.52,-3.02, Math.PI/2,0,0);
+
+  /* ==================== RODAS ==================== */
   const wheels={};
-  function makeWheel(x,z,radius,width,steer){
-    const steerPivot=new THREE.Group(); steerPivot.position.set(x,radius,z); G.add(steerPivot);
+  function makeWheel(x,z,width,steer,front){
+    const R=0.36;
+    const steerPivot=new THREE.Group(); steerPivot.position.set(x,R,z); G.add(steerPivot);
     const spin=new THREE.Group(); steerPivot.add(spin);
-    // pneu
-    const tire=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,width,28), tireMat);
+    const tire=new THREE.Mesh(new THREE.CylinderGeometry(R,R,width,36), tireMat);
     tire.rotation.z=Math.PI/2; tire.castShadow=true; spin.add(tire);
-    // faixa colorida (Pirelli)
-    const band=new THREE.Mesh(new THREE.CylinderGeometry(radius*1.002,radius*1.002,width*0.18,28), bandMat);
-    band.rotation.z=Math.PI/2; spin.add(band);
-    // aro
-    const rim=new THREE.Mesh(new THREE.CylinderGeometry(radius*0.62,radius*0.62,width*0.9,24), rimMat);
+    for(const sy of [-1,1]){ const sh=new THREE.Mesh(new THREE.TorusGeometry(R*0.96,width*0.14,10,28), tireMat);
+      sh.rotation.y=Math.PI/2; sh.position.x=sy*width*0.42; spin.add(sh); }
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(R*1.004,R*1.004,width*0.14,36), bandMat);
+    band.rotation.z=Math.PI/2; band.position.x=width*0.2; spin.add(band);
+    const rim=new THREE.Mesh(new THREE.CylinderGeometry(R*0.63,R*0.63,width*0.86,28), rimMat);
     rim.rotation.z=Math.PI/2; spin.add(rim);
-    const hub=new THREE.Mesh(new THREE.CylinderGeometry(radius*0.18,radius*0.18,width*0.95,16), rimShine);
+    for(const sx of [-1,1]){ const cap=new THREE.Mesh(new THREE.CircleGeometry(R*0.62,28), coverMat);
+      cap.position.x=sx*width*0.44; cap.rotation.y=sx>0?Math.PI/2:-Math.PI/2; spin.add(cap);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(R*0.5,0.02,8,28), chrome);
+      ring.position.x=sx*width*0.45; ring.rotation.y=Math.PI/2; spin.add(ring); }
+    const hub=new THREE.Mesh(new THREE.CylinderGeometry(R*0.16,R*0.16,width*0.9,12), chrome);
     hub.rotation.z=Math.PI/2; spin.add(hub);
-    // raios
-    for(let i=0;i<6;i++){ const sp2=new THREE.Mesh(new THREE.BoxGeometry(radius*1.0,0.03,0.03), rimShine);
-      sp2.rotation.x=i*Math.PI/6; spin.add(sp2); }
-    // suspensão (wishbones) do corpo até a roda
-    const sgn=Math.sign(x)||1;
-    const arm=(y,zoff)=>{ const a=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,Math.abs(x)-0.28,8), carbon);
-      a.position.set(-sgn*(Math.abs(x)-0.28)/2,y,zoff); a.rotation.z=Math.PI/2; steerPivot.add(a); };
-    arm(0.02,0.18); arm(0.02,-0.18); arm(0.12,0.0);
+    const duct=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.34,0.34), satin);
+    duct.position.set(-Math.sign(x)*width*0.5,0,0); steerPivot.add(duct);
+    if(front){ const wl=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.03,0.5), wingMat);
+      wl.position.set(0,R*0.9,0); steerPivot.add(wl); }
+    const sgn=Math.sign(x)||1; const inner=Math.abs(x)-0.33;
+    const arm=(y,zoff,len)=>{ const a=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.018,len,8), carbon);
+      a.position.set(-sgn*len/2,y,zoff); a.rotation.z=Math.PI/2; steerPivot.add(a); };
+    arm(-0.12,0.22,inner); arm(-0.12,-0.22,inner);
+    arm(0.14,0.2,inner);   arm(0.14,-0.2,inner);
+    const pr=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,Math.hypot(inner,0.3),8), carbon);
+    pr.position.set(-sgn*inner/2,0.02,0); pr.rotation.z=Math.PI/2-sgn*0.6; steerPivot.add(pr);
+    arm(0.0,front?0.28:-0.28,inner);
     return {steerPivot,spin,steer};
   }
-  wheels.fl=makeWheel(-0.82,1.65,0.33,0.30,true);
-  wheels.fr=makeWheel( 0.82,1.65,0.33,0.30,true);
-  wheels.rl=makeWheel(-0.82,-1.6,0.37,0.42,false);
-  wheels.rr=makeWheel( 0.82,-1.6,0.37,0.42,false);
+  wheels.fl=makeWheel(-0.83, 1.8, 0.305, true,  true);
+  wheels.fr=makeWheel( 0.83, 1.8, 0.305, true,  true);
+  wheels.rl=makeWheel(-0.80,-1.8, 0.405, false, false);
+  wheels.rr=makeWheel( 0.80,-1.8, 0.405, false, false);
 
   G.userData.wheels=wheels;
-  G.userData.radius={front:0.33,rear:0.37};
+  G.userData.radius={front:0.36, rear:0.36};
+  G.userData.team=col.name;
   return G;
 }
