@@ -216,11 +216,19 @@ function frame(){
   const pitch=THREE.MathUtils.clamp((vCorner-speed)*0.004,-0.03,0.03);
   car.rotation.x=THREE.MathUtils.lerp(car.rotation.x, pitch, 0.1);
 
-  // ---- rodas: giro real + esterço Ackermann (roda interna vira mais) ----
-  const WB=3.6;
+  // ---- rodas: giro real + deformação sob carga + esterço Ackermann ----
+  const WB=3.6, R0=rad.front;
+  const braking=(vCorner<speed);
   for(const key in wheels){
     const w=wheels[key];
-    w.spin.rotation.x += (speed*dt)/rad.front;                 // mesmo Ø dianteiro/traseiro
+    w.spin.rotation.x += (speed*dt)/R0;                        // giro real do pneu
+    // deformação: achata na vertical sob carga (freada / curva / aceleração)
+    const isFront=key[0]==='f';
+    const brakeLoad = braking ? (isFront?0.030:0.012) : 0;
+    const accelLoad = (!braking && throttle>0.8) ? (isFront?0.006:0.022) : 0;
+    const sq = THREE.MathUtils.clamp(1 - 0.028 - Math.min(latG,3)*0.012 - brakeLoad - accelLoad, 0.9, 0.99);
+    w.steerPivot.scale.y = THREE.MathUtils.lerp(w.steerPivot.scale.y, sq, 0.25);
+    w.steerPivot.position.y = R0*w.steerPivot.scale.y;         // mantém o pneu plantado no chão
     if(w.steer){
       const xw=w.steerPivot.position.x;                        // posição lateral da roda
       const delta=THREE.MathUtils.clamp(Math.atan(WB/(Rturn - xw))*STEER_SIGN*STEER_GAIN, -0.55, 0.55);

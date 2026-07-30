@@ -183,10 +183,21 @@ export function buildF1Car(opts={}){
     band.rotation.z=Math.PI/2; band.position.x=width*0.2; spin.add(band);
     const rim=new THREE.Mesh(new THREE.CylinderGeometry(R*0.63,R*0.63,width*0.86,28), rimMat);
     rim.rotation.z=Math.PI/2; spin.add(rim);
-    for(const sx of [-1,1]){ const cap=new THREE.Mesh(new THREE.CircleGeometry(R*0.62,28), coverMat);
+    for(const sx of [-1,1]){
+      const cap=new THREE.Mesh(new THREE.CircleGeometry(R*0.62,28), coverMat);
       cap.position.x=sx*width*0.44; cap.rotation.y=sx>0?Math.PI/2:-Math.PI/2; spin.add(cap);
       const ring=new THREE.Mesh(new THREE.TorusGeometry(R*0.5,0.02,8,28), chrome);
-      ring.position.x=sx*width*0.45; ring.rotation.y=Math.PI/2; spin.add(ring); }
+      ring.position.x=sx*width*0.45; ring.rotation.y=Math.PI/2; spin.add(ring);
+      // desenho do aro (raios) — deixa a ROTAÇÃO bem visível
+      for(let k=0;k<5;k++){ const spoke=new THREE.Mesh(new THREE.BoxGeometry(0.025,R*1.02,0.02), chrome);
+        spoke.position.x=sx*width*0.465; spoke.rotation.x=k*Math.PI*2/5; spin.add(spoke); }
+      // marca de cor fora do centro (giro fica óbvio)
+      const mk=new THREE.Mesh(new THREE.BoxGeometry(0.035,R*0.32,0.035), accent);
+      mk.position.set(sx*width*0.47, R*0.3, 0); spin.add(mk);
+    }
+    // segmento colorido na banda de rodagem (marca do pneu que gira)
+    const seg=new THREE.Mesh(new THREE.BoxGeometry(width*0.6,0.03,0.06), bandMat);
+    seg.position.set(0,R*0.99,0); spin.add(seg);
     const hub=new THREE.Mesh(new THREE.CylinderGeometry(R*0.16,R*0.16,width*0.9,12), chrome);
     hub.rotation.z=Math.PI/2; spin.add(hub);
     const duct=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.34,0.34), satin);
