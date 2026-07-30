@@ -881,6 +881,32 @@ pintada no mesmo estilo dos medalhões de atributo, gere isto e me mande como
 <pre><code>Grim dark-medieval fantasy game UI icon for COOLDOWN / recharge time: a small ornate HOURGLASS with dark battle-worn iron frame and worn gold trim, pale sand inside catching a faint warm glow, set on the SAME small round dark stone-and-iron medallion style as the attribute emblems, a subtle amber/gold glow behind it. Hand-painted, engraved metal look, clearly reads as &quot;time&quot;, readable as a tiny icon, symbol fills the frame. FULLY TRANSPARENT background (alpha channel), crisp cut-out edges, no text, no watermark, no border. 1024x1024.
 </code></pre>
 <hr />
+<h2 id="23--céu-arte-pintada-dia--noite---arte-pendente">23 · CÉU (arte pintada, dia + noite) — 🟡 arte pendente</h2>
+<p><strong>Uso:</strong> textura da <strong>cúpula de céu</strong> das áreas externas (vila/floresta). O jogo faz
+o <strong>cross-fade</strong> dia↔noite conforme o ciclo. Enquanto a arte não chega, uso um céu
+<strong>procedural</strong> de fallback (o cross-fade já funciona). Ao me mandar os arquivos,
+eu troco.</p>
+<p><strong>Regras dos 2 (mesmo conjunto):</strong>
+- <strong>PANORAMA 2:1 (equiretangular)</strong>, ~<strong>2048×1024</strong>. <strong>Topo = zênite</strong>, <strong>base =
+  horizonte</strong>. As <strong>bordas ESQUERDA e DIREITA devem casar</strong> (sem emenda, tileável
+  na horizontal — o céu dá a volta na cúpula). Nada de chão/montanhas/objetos: só o
+  céu. Sem texto, sem marca d'água.
+- Estilo <strong>pintado stylized-realism</strong> (não pixel-art), grim medieval, coeso com o
+  jogo. A base (horizonte) puxa pro cinza-azulado da névoa (#8790a0) pra fundir com
+  a bruma do mundo.
+- Nomes → <code>sky_day.png</code> e <code>sky_night.png</code> em <code>grimhollow/src/assets/env/</code>.</p>
+<h3 id="-231--sky_day-dia-nublado-soturno">🟡 23.1 — <code>sky_day</code> (dia nublado soturno)</h3>
+<pre><code>A seamless 2:1 equirectangular SKY panorama for a grim dark-medieval fantasy game, hand-painted stylized-realism. An overcast daytime sky: layered heavy grey storm clouds in muted slate and cool tones, a faint pale sun barely glowing behind the thick cloud cover, subtle lighter rifts where weak daylight breaks through. Dark moody zenith at the TOP fading to a pale cold grey-blue haze (#8790a0) at the horizon at the BOTTOM. Brooding, oppressive, atmospheric, painterly brushwork. The LEFT and RIGHT edges must match seamlessly (horizontally tileable). No ground, no mountains, no birds, no text, no watermark. 2048x1024, top = zenith, bottom = horizon.
+</code></pre>
+<h3 id="-232--sky_night-noite-estrelada-com-lua">🟡 23.2 — <code>sky_night</code> (noite estrelada com lua)</h3>
+<pre><code>A seamless 2:1 equirectangular SKY panorama for a grim dark-medieval fantasy game, hand-painted stylized-realism. A moody starry NIGHT sky: deep midnight blue at the TOP (zenith) scattered with countless stars of varied brightness and faint constellations, a large luminous full MOON glowing pale silver-blue with a soft halo set in the upper third, wispy dark drifting clouds partly veiling the moon and stars, a subtle cold aurora-like glow. The color eases from deep night blue at the top to a lighter cold grey-blue haze (#8790a0) at the horizon at the BOTTOM. Mysterious, cinematic, painterly brushwork. The LEFT and RIGHT edges must match seamlessly (horizontally tileable); keep the moon away from the far edges so it isn't cut. No ground, no mountains, no text, no watermark. 2048x1024, top = zenith, bottom = horizon.
+</code></pre>
+<blockquote>
+<p>Ao soltar <code>sky_day.png</code> e <code>sky_night.png</code> em <code>grimhollow/src/assets/env/</code>, eu
+ligo automático (substituem o fallback procedural) e o cross-fade dia/noite usa
+as duas artes.</p>
+</blockquote>
+<hr />
 <h1 id="-catálogo-de-itens-planejamento-de-design">📜 Catálogo de Itens (planejamento de design)</h1>
 <blockquote>
 <p>Esta parte <strong>não tem prompts ainda</strong> — é o <strong>mapa dos itens</strong> que a gente

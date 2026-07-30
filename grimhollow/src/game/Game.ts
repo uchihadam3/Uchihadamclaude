@@ -120,6 +120,11 @@ import texCaveFloorUrl from "../assets/env/tex_cavefloor.jpg";
 import texCaveCeilUrl from "../assets/env/tex_caveceil.jpg";
 import propLampUrl from "../assets/env/prop_lamp.png";
 import propNoticeUrl from "../assets/env/prop_notice.png";
+// ARTE do céu (opcional): sky_day.png / sky_night.png. Se não existirem, o jogo
+// cai no céu procedural. O glob é eager → resolve os URLs em build.
+const SKY_ART_URLS = import.meta.glob("../assets/env/sky_*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
 import bgmVilarejoUrl from "../assets/audio/bgm_vilarejo.mp3";
 // ícones dos itens (consumíveis + materiais + cerveja)
 import icoPotHpUrl from "../assets/item/pot_hp.png";
@@ -1010,7 +1015,8 @@ export class Game {
   private fogPuffs: { s: THREE.Sprite; bx: number; bz: number; by: number; ph: number; rad: number; baseOp: number; rotSp: number; rise: number }[] = [];
   private softPuffCache?: THREE.Texture;
   private cloudTexCache?: THREE.Texture;
-  private fogDome?: THREE.Mesh; // cúpula de nuvens que gira devagar (céu de névoa)
+  private fogDome?: THREE.Mesh; // cúpula NOTURNA (gira devagar); base do cross-fade
+  private skyDayDome?: THREE.Mesh; // cúpula DIURNA por cima (opacity = luz do dia)
   private smokeTexes: THREE.Texture[] = []; // texturas de fumaça (mechas por ruído)
   private npcs: THREE.Object3D[] = []; // aldeões (billboards)
   private flames: { light: THREE.PointLight; base: number }[] = []; // luzes que tremem
@@ -1660,6 +1666,7 @@ export class Game {
     this.motes = [];
     this.fogPuffs = [];
     this.fogDome = undefined;
+    this.skyDayDome = undefined;
     this.npcs = [];
     this.flames = [];
     this.fireFlames = [];
@@ -1757,6 +1764,12 @@ export class Game {
     this.atmosColor(t, this._sky);
     if (this.scene.fog) (this.scene.fog as THREE.Fog).color.copy(this._sky);
     (this.scene.background as THREE.Color).copy(this._sky);
+    // CROSS-FADE do céu: a cúpula diurna aparece com a luz do dia (suavizado),
+    // revelando a noturna (lua/estrelas) ao anoitecer.
+    if (this.skyDayDome) {
+      const w = lum * lum * (3 - 2 * lum); // smoothstep p/ transição macia
+      (this.skyDayDome.material as THREE.MeshBasicMaterial).opacity = w;
+    }
     // luzes principais: intensidade e cor de dia → noite
     for (const d of this.dayNightLights) {
       const mul = d.nightMul + (1 - d.nightMul) * lum;
@@ -4438,6 +4451,7 @@ export class Game {
   // p/ a cúpula. Zênite = ardósia escura; horizonte = MESMA cor da névoa (costura
   // perfeita com o fog). Nuvens carregadas (overcast) reforçam o clima "grim".
   private skyDomeTex?: THREE.Texture;
+  private nightDomeTex?: THREE.Texture;
   private villageSkyTexture(): THREE.Texture {
     if (this.skyDomeTex) return this.skyDomeTex;
     const W = 512, H = 256;
@@ -4486,22 +4500,95 @@ export class Game {
     return t;
   }
 
+  // céu NOTURNO procedural (fallback até chegar sky_night.png): azul-noite →
+  // névoa no horizonte, estrelas, nuvens escuras e uma LUA com halo.
+  private nightSkyTexture(): THREE.Texture {
+    if (this.nightDomeTex) return this.nightDomeTex;
+    const W = 1024, H = 512;
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext("2d")!;
+    const img = ctx.createImageData(W, H);
+    const top = [0x0b, 0x10, 0x24];   // zênite azul-noite
+    const mid = [0x1a, 0x22, 0x40];   // meio
+    const hor = [0x87, 0x90, 0xa0];   // horizonte = névoa
+    const mix = (a: number[], b: number[], t: number) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    // hash determinístico p/ estrelas (sem Math.random → build estável)
+    const starAt = (x: number, y: number) => {
+      const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+      return n - Math.floor(n);
+    };
+    for (let y = 0; y < H; y++) {
+      const v = y / (H - 1);
+      const base = v < 0.6 ? mix(top, mid, Math.pow(v / 0.6, 0.9)) : mix(mid, hor, Math.pow((v - 0.6) / 0.4, 1.5));
+      const fade = Math.pow(Math.max(0, 1 - v * 1.1), 0.9); // estrelas/nuvens somem no horizonte
+      for (let x = 0; x < W; x++) {
+        // nuvens escuras (fbm) — escurecem o céu, sem apagar o azul
+        const cl = Math.max(0, (this.fbm(x * 0.012, y * 0.03, 3.7) - 0.5) * 2.2) * fade;
+        let px = mix(base, [base[0] * 0.5, base[1] * 0.52, base[2] * 0.6], Math.min(0.8, cl));
+        // estrelas (pontos esparsos e brilhantes) na metade superior
+        const s = starAt(x, y);
+        if (s > 0.9975 && fade > 0.25 && cl < 0.35) {
+          const b = 150 + Math.floor((s - 0.9975) / 0.0025 * 105);
+          px = [Math.min(255, px[0] + b), Math.min(255, px[1] + b), Math.min(255, px[2] + b)];
+        }
+        const i = (y * W + x) * 4;
+        img.data[i] = px[0]; img.data[i + 1] = px[1]; img.data[i + 2] = px[2]; img.data[i + 3] = 255;
+      }
+    }
+    // LUA (disco + halo) no terço superior, afastada das bordas
+    const mx = W * 0.62, my = H * 0.24, mr = 42;
+    const halo = ctx.createRadialGradient(mx, my, mr * 0.6, mx, my, mr * 4);
+    ctx.putImageData(img, 0, 0);
+    halo.addColorStop(0, "rgba(200,214,235,0.5)");
+    halo.addColorStop(1, "rgba(200,214,235,0)");
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, Math.PI * 2); ctx.fill();
+    const disc = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, mr * 0.2, mx, my, mr);
+    disc.addColorStop(0, "#eef3fb"); disc.addColorStop(1, "#b9c6da");
+    ctx.fillStyle = disc; ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = THREE.RepeatWrapping;
+    t.flipY = false;
+    this.nightDomeTex = t;
+    return t;
+  }
+
   // cúpula de céu (esfera invertida) — sem fog (senão a névoa a apagaria) e sem
   // escrita de profundidade (fica sempre ATRÁS de tudo). Gira devagar no tick.
   private addSkyDome(cx = WELL.c * CELL, cz = WELL.r * CELL) {
-    const geo = new THREE.SphereGeometry(CELL * 24, 32, 20);
-    const mat = new THREE.MeshBasicMaterial({
-      map: this.villageSkyTexture(),
-      side: THREE.BackSide,
-      fog: false,
-      depthWrite: false,
+    const geo = new THREE.SphereGeometry(CELL * 24, 40, 24);
+    // DUAS cúpulas sobrepostas: a NOTURNA por baixo (sempre opaca) e a DIURNA por
+    // cima, com opacidade = luz do dia → cross-fade suave conforme o ciclo.
+    const nightMat = new THREE.MeshBasicMaterial({
+      map: this.skyTex("night"), side: THREE.BackSide, fog: false, depthWrite: false,
     });
-    const dome = new THREE.Mesh(geo, mat);
-    dome.renderOrder = -10; // desenha antes de tudo (fundo)
-    // centra na cena p/ o horizonte cair de forma coerente ao redor do jogador
-    dome.position.set(cx, 0, cz);
-    this.world.add(dome);
-    this.fogDome = dome;
+    const dayMat = new THREE.MeshBasicMaterial({
+      map: this.skyTex("day"), side: THREE.BackSide, fog: false, depthWrite: false,
+      transparent: true, opacity: 1,
+    });
+    const night = new THREE.Mesh(geo, nightMat);
+    night.renderOrder = -11; night.position.set(cx, 0, cz);
+    const day = new THREE.Mesh(geo, dayMat);
+    day.renderOrder = -10; day.position.set(cx, 0, cz);
+    this.world.add(night);
+    this.world.add(day);
+    this.fogDome = night;      // gira devagar no tick
+    this.skyDayDome = day;     // opacidade ajustada em updateDayNight
+  }
+
+  // textura do céu (dia/noite): usa a ARTE (sky_day/sky_night.png) se existir,
+  // senão o céu procedural de fallback — assim o cross-fade já funciona sem a arte.
+  private skyTex(kind: "day" | "night"): THREE.Texture {
+    const url = SKY_ART_URLS[Object.keys(SKY_ART_URLS).find((k) => k.endsWith(`sky_${kind}.png`)) ?? ""];
+    if (url) {
+      const t = new THREE.TextureLoader().load(url);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.wrapS = THREE.RepeatWrapping;
+      t.flipY = false;
+      return t;
+    }
+    return kind === "night" ? this.nightSkyTexture() : this.villageSkyTexture();
   }
 
   // textura de FUMAÇA real: mechas/tendões irregulares (ruído fbm) com borda macia —
@@ -8396,7 +8483,9 @@ export class Game {
       mat.opacity = f.baseOp * (0.6 + 0.4 * Math.sin(t * 2.0 + f.ph));
     }
     // cúpula de névoa gira devagar → as nuvens "andam" pelo céu
+    // as duas cúpulas (noite embaixo, dia em cima) giram JUNTAS bem devagar
     if (this.fogDome) this.fogDome.rotation.y = now * 0.00002;
+    if (this.skyDayDome) this.skyDayDome.rotation.y = now * 0.00002;
     // fogo (tochas, fornalha, caldeirão) tremeluz
     for (const f of this.flames)
       f.light.intensity =
