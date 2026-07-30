@@ -351,9 +351,15 @@ export function updateField(cars, line, dt, t, started){
     tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
     const latLim=c.pitPhase?11:6.2;
-    // segue a linha de forma SUAVE (sem jogar o carro de um lado pro outro); disputa/pit à parte
-    const followRate = c.pitPhase?2.6 : (c.passing||c.yieldT>0?3.2:2.8);
-    c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-latLim,latLim), dt*followRate);
+    // SUAVE E CONTÍNUO: o carro desliza pro lado numa velocidade lateral LIMITADA e
+    // quase constante — nunca dá "arranco". Ease leve perto do alvo + teto rígido de m/s.
+    const targetOff=THREE.MathUtils.clamp(tOff,-latLim,latLim);
+    const maxLatV = c.pitPhase?9 : (c.passing||c.yieldT>0?3.6 : 2.0);   // m/s de deslocamento lateral
+    let dOff=targetOff-c.offset;
+    let move=dOff*Math.min(1, dt*2.6);                                  // ease suave
+    const cap=maxLatV*dt;                                               // teto de velocidade (sem tranco)
+    if(move>cap) move=cap; else if(move<-cap) move=-cap;
+    c.offset+=move;
     if(c.hitCd>0) c.hitCd-=dt;
     c.d+=c.speed*dt;
   }
