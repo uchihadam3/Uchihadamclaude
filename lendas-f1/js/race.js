@@ -25,7 +25,7 @@ export const TIRES={
   M:{nome:'Médio', grip:1.000, wear:1.0, col:'#eab308'},
   H:{nome:'Duro',  grip:0.991, wear:0.65,col:'#e5e7eb'},
 };
-const PITOFF=10.1;               // faixa lateral do pit lane
+const PITOFF=17;                 // afastamento da RUA do pit (separada da pista, com gap no meio)
 /* ---------- VIA DO PIT (rua separada: diverge da pista -> boxes -> volta) ----------
    s = metros relativos à linha de largada (negativo = antes). A via ABRE numa rampa
    antes da linha, corre paralela pelos boxes, e FECHA numa rampa depois da curva 1.
@@ -410,7 +410,7 @@ export function updateField(cars, line, dt, t, started){
     const mergeT=THREE.MathUtils.clamp((t-c.launchStart)/6, 0, 1);
     tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
-    const latLim=c.pitPhase?11:6.2;
+    const latLim=c.pitPhase?(PIT.off+3):6.2;
     // SUAVE E CONTÍNUO: o carro desliza pro lado numa velocidade lateral LIMITADA e
     // quase constante — nunca dá "arranco". Ease leve perto do alvo + teto rígido de m/s.
     const targetOff=THREE.MathUtils.clamp(tOff,-latLim,latLim);

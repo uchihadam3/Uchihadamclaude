@@ -283,44 +283,57 @@ export function buildTrack(){
   /* ---------- PIT LANE (faixa ao lado da reta principal + muro + boxes) ---------- */
   (function(){
     const total=curve.getLength();
-    // === ASFALTO DA VIA DO PIT — segue pitOffsetS (diverge da pista, boxes, converge) ===
-    const A=-PIT.entry, D=PIT.exitAfter+PIT.taperOut, STEP=2.5;
+    // === RUA DO PIT — uma pista SEPARADA de asfalto (10 m), com GAP e muro entre ela e a
+    //     pista de corrida. Ela nasce na borda da pista (rampa) e se afasta pros boxes. ===
+    const A=-PIT.entry, D=PIT.exitAfter+PIT.taperOut, STEP=2.5, HW=5.0;
     const NP=Math.ceil((D-A)/STEP);
     const pos=[],uv=[],idx=[];
     for(let i=0;i<=NP;i++){
       const ss=A+i*STEP; const uu=((ss/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
       const lat=pitOffsetS(ss);
-      const a=p.clone().addScaledVector(l, lat-2.8);
-      const b=p.clone().addScaledVector(l, lat+2.8);
-      pos.push(a.x,0.028,a.z, b.x,0.028,b.z);                 // acima do asfalto (sem z-fight)
-      uv.push(0, i*STEP/6, 1.8, i*STEP/6);
+      let inner=lat-HW; const outer=lat+HW;
+      if(inner<HALF+0.6) inner=Math.min(HALF+0.6, outer);      // nunca invade a pista (borda)
+      const a=p.clone().addScaledVector(l, inner);
+      const b=p.clone().addScaledVector(l, outer);
+      pos.push(a.x,0.03,a.z, b.x,0.03,b.z);
+      uv.push(0, i*STEP/7, 1, i*STEP/7);
     }
     for(let i=0;i<NP;i++){ const a=i*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
     g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
     g.setIndex(idx); g.computeVertexNormals();
-    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:tex(TEX.slab),color:0xc8c8c8,roughness:0.95,side:THREE.DoubleSide}));
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:tex(TEX.asphalt,{repeat:[2,1]}),color:0xa6a6a6,roughness:0.96,side:THREE.DoubleSide}));
     m.receiveShadow=true; G.add(m);
-    // muro guard-rail SÓ na reta dos boxes (deixa a entrada e a saída abertas)
+    // muro (guard-rail) entre a pista e a rua do pit — só na reta dos boxes
     const wallMat=new THREE.MeshStandardMaterial({map:tex(TEX.guardrail,{repeat:[3,1]}),color:0xdddddd,roughness:0.8,metalness:0.3});
-    for(let ss=A+PIT.taperIn+4; ss<=PIT.exitAfter-4; ss+=6){
+    for(let ss=A+PIT.taperIn+2; ss<=PIT.exitAfter-2; ss+=6){
       const uu=((ss/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
       const w=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.9,6.2),wallMat);
-      const c2=p.clone().addScaledVector(l, pitOffsetS(ss)-2.7);        // entre pista e via
+      const c2=p.clone().addScaledVector(l, pitOffsetS(ss)-HW-0.4);     // borda interna da rua do pit
       w.position.set(c2.x,0.45,c2.z); w.rotation.y=Math.atan2(tt.x,tt.z); w.castShadow=true; G.add(w);
     }
-    // marcações amarelas dos boxes
+    // linha branca de limite de velocidade na rua do pit
+    const wl=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.6});
+    for(let ss=A+PIT.taperIn; ss<=PIT.exitAfter; ss+=3){
+      const uu=((ss/total)%1+1)%1;
+      const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
+      const ln=new THREE.Mesh(new THREE.PlaneGeometry(0.12,2),wl);
+      ln.rotation.x=-Math.PI/2; ln.rotation.z=-Math.atan2(tt.x,tt.z);
+      const c4=p.clone().addScaledVector(l, pitOffsetS(ss)-HW+0.5);
+      ln.position.set(c4.x,0.032,c4.z); G.add(ln);
+    }
+    // marcações amarelas dos boxes (no lado das garagens da rua)
     const bm=new THREE.MeshStandardMaterial({color:0xf5c518,roughness:0.6});
     for(let i=0;i<10;i++){
       const ss=PIT.boxS-i*PIT.boxGap; const uu=((ss/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
       const b2=new THREE.Mesh(new THREE.PlaneGeometry(0.1,3.2),bm);
       b2.rotation.x=-Math.PI/2; b2.rotation.z=-Math.atan2(tt.x,tt.z);
-      const c3=p.clone().addScaledVector(l, PIT.off-1.8);
-      b2.position.set(c3.x,0.03,c3.z); G.add(b2);
+      const c3=p.clone().addScaledVector(l, PIT.off+HW-1.2);
+      b2.position.set(c3.x,0.033,c3.z); G.add(b2);
     }
     // ---- GARAGENS (prédio dos boxes: uma por equipe, frente aberta pro pit lane) ----
     const teams=Object.keys(TEAMS).filter(k=>k!=='brasil').slice(0,10);
@@ -331,7 +344,7 @@ export function buildTrack(){
       const dd=PIT.boxS-i*PIT.boxGap; const uu=((dd/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
       const grp=new THREE.Group();
-      const base=p.clone().addScaledVector(l, PIT.off+2.6);           // logo atrás da via dos boxes
+      const base=p.clone().addScaledVector(l, PIT.off+5.2);           // logo atrás da rua dos boxes
       grp.position.set(base.x,0,base.z); grp.rotation.y=Math.atan2(tt.x,tt.z); G.add(grp);
       const mk=(w,h,d,x,y,z,mat)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
         m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; grp.add(m); return m; };
