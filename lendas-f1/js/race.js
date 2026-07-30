@@ -12,9 +12,40 @@
    - SEM rodadas aleatórias: rodada/quebra só em contato forte (raro).
    ===================================================================== */
 import * as THREE from '../vendor/three.module.js';
-import { buildF1Car } from './car.js';
+import { buildF1Car, TEAMS } from './car.js';
 import { DRIVERS, overall } from './drivers.js';
 import { carStats } from './stats.js';
+
+/* Proxy LEVE do carro (1 draw call) pra distância: funde todos os meshes num só,
+   com cor por vértice (near-white/texturizado -> cor da equipe). Some o lag na câmera aérea. */
+function mergeCarProxy(group, teamBody){
+  const P=[],Nn=[],C=[];
+  group.updateWorldMatrix(true,true);
+  const inv=new THREE.Matrix4().copy(group.matrixWorld).invert();
+  const v=new THREE.Vector3(), n=new THREE.Vector3(), col=new THREE.Color(), tc=new THREE.Color(teamBody);
+  group.traverse(o=>{ if(!o.isMesh||!o.geometry) return;
+    o.geometry.computeBoundingSphere();
+    if(o.geometry.boundingSphere && o.geometry.boundingSphere.radius<0.16) return;  // pula peças minúsculas
+    let geo=o.geometry.index?o.geometry.toNonIndexed():o.geometry;
+    const pos=geo.attributes.position, nrm=geo.attributes.normal; if(!pos) return;
+    const m=new THREE.Matrix4().multiplyMatrices(inv,o.matrixWorld);
+    const nm=new THREE.Matrix3().getNormalMatrix(m);
+    const mat=Array.isArray(o.material)?o.material[0]:o.material;
+    col.copy(mat&&mat.color?mat.color:new THREE.Color(0x888888));
+    if((col.r+col.g+col.b)/3>0.82) col.copy(tc);        // peças brancas/texturizadas -> cor da equipe
+    for(let i=0;i<pos.count;i++){
+      v.fromBufferAttribute(pos,i).applyMatrix4(m); P.push(v.x,v.y,v.z);
+      if(nrm){ n.fromBufferAttribute(nrm,i).applyMatrix3(nm).normalize(); Nn.push(n.x,n.y,n.z); } else Nn.push(0,1,0);
+      C.push(col.r,col.g,col.b);
+    }
+    if(geo!==o.geometry) geo.dispose();
+  });
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));
+  g.setAttribute('normal',new THREE.Float32BufferAttribute(Nn,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));
+  return new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.5,metalness:0.2}));
+}
 
 const UP = new THREE.Vector3(0,1,0);
 
@@ -93,8 +124,13 @@ export function buildField(scene, line){
   const cars=[];
   grid.forEach((it,slot)=>{
     const drv=it.d;
-    const g=buildF1Car({team:drv.team, number:String(drv.num), simple:true});
-    g.traverse(o=>{ if(o.isMesh){ o.castShadow=false; } });
+    const full=buildF1Car({team:drv.team, number:String(drv.num), simple:true});
+    full.traverse(o=>{ if(o.isMesh){ o.castShadow=false; } });
+    // LOD: perto = modelo completo; longe = proxy leve (1 draw call) -> sem lag na aérea
+    const proxy=mergeCarProxy(full, (TEAMS[drv.team]||TEAMS.ferrari).body);
+    const g=new THREE.LOD();
+    g.addLevel(full,0); g.addLevel(proxy,68);
+    g.userData.body=full.userData.body; g.userData.wheels=full.userData.wheels; g.userData.radius=full.userData.radius;
     scene.add(g);
     const side=(slot%2===0)?1:-1, LAT=2.8;
     const reaction = 0.18 + (1-(it.pace-76)/17)*0.26 + Math.random()*0.14;

@@ -257,6 +257,7 @@ export function buildF1Car(opts={}){
   wheels.rr=makeWheel( 0.80,-1.8, 0.405, false, false);
 
   G.userData.wheels=wheels;
+  G.userData.body=body;
   G.userData.radius={front:0.36, rear:0.36};
   G.userData.team=col.name;
   return G;

@@ -20,7 +20,7 @@ RACE.laps = circuitInfo.laps || 12;
 
 const cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas:cvs, antialias:true });
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));   // fill-rate no celular
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
@@ -34,7 +34,7 @@ const camera=new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.5, 4000);
 /* ---------- LUZ ---------- */
 const sun=new THREE.DirectionalLight(0xfff4e6, 2.6);
 sun.position.set(180,300,120); sun.castShadow=true;
-sun.shadow.mapSize.set(2048,2048);
+sun.shadow.mapSize.set(1024,1024);
 const sc=sun.shadow.camera; sc.near=50; sc.far=900; sc.left=-140; sc.right=140; sc.top=140; sc.bottom=-140;
 sun.shadow.bias=-0.0004;
 scene.add(sun);
@@ -299,6 +299,8 @@ function frame(){
   drawMini();
   updateTower(dt);
   updateTelemetry(focus);
+
+  for(const c of cars){ if(c.g.isLOD) c.g.update(camera); }   // troca detalhe por distância
 
   renderer.render(scene,camera);
   requestAnimationFrame(frame);

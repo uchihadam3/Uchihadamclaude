@@ -30,17 +30,18 @@ export function buildTrack(D=INTERLAGOS){
   // ---- ESPAÇO LIVRE lateral: quanto dá pra afastar do centro antes de chegar perto de
   //      OUTRO trecho da pista. Impede cenário (brita/pneus) de cair EM CIMA da pista
   //      em circuitos que dobram sobre si mesmos (Mônaco, Baku, etc.). ----
-  const idxWin = Math.max(20, Math.round(N*0.05));
+  const spacing = curve.getLength()/N;
+  const idxWin = Math.max(4, Math.round(13/spacing));   // ~13 m de arco (detecta hairpin)
   const lim = (HALF+2)*(HALF+2);
   const clearFor=(i,s)=>{
     const c=pts[i], L=leftOf(tan[i]); const lx=L.x*s, lz=L.z*s;
-    for(let off=2; off<=24; off+=2){
+    for(let off=1.5; off<=24; off+=1.5){
       const px=c.x+lx*off, pz=c.z+lz*off;
-      for(let j=0;j<=N;j+=2){
+      for(let j=0;j<=N;j++){
         let dd=Math.abs(j-i); if(dd>N/2) dd=N-dd;
         if(dd<idxWin) continue;
         const ex=pts[j].x-px, ez=pts[j].z-pz;
-        if(ex*ex+ez*ez<lim) return off-2;
+        if(ex*ex+ez*ez<lim) return Math.max(0, off-1.5);
       }
     }
     return 24;
@@ -174,6 +175,10 @@ export function buildTrack(D=INTERLAGOS){
     const upQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), Math.PI/2);
     const tmpP=new THREE.Vector3(), tmpS=new THREE.Vector3(1,1,1), m4=new THREE.Matrix4();
     const placeColumn=(cbase,l,tg,side)=>{
+      // GARANTIA: se a coluna (ou sua fileira externa) cair perto de qualquer trecho da
+      // pista, não coloca (nunca um pneu sobre o asfalto).
+      const outer=cbase.clone().addScaledVector(l, side*((nDeep-1)*dstep));
+      if(onTrack(cbase.x,cbase.z) || onTrack(outer.x,outer.z)) return;
       for(let d=0; d<nDeep; d++){                                   // fileiras (profundidade)
         const tShift=(d%2)?along*0.5:0;                            // TIJOLO ao longo: cobre a fresta da frente
         const base=cbase.clone().addScaledVector(l, side*(d*dstep)).addScaledVector(tg, tShift);
@@ -221,7 +226,7 @@ export function buildTrack(D=INTERLAGOS){
       const tmat=new THREE.MeshStandardMaterial({map:tex(TEX.tread,{repeat:[5,2]}),color:0x9a9a9e,roughness:0.96});
       const inst=new THREE.InstancedMesh(torus,tmat,mats.length);
       mats.forEach((m,k)=>inst.setMatrixAt(k,m));
-      inst.instanceMatrix.needsUpdate=true; inst.castShadow=true; inst.receiveShadow=true;
+      inst.instanceMatrix.needsUpdate=true; inst.castShadow=false; inst.receiveShadow=true;
       inst.frustumCulled=false;
       G.add(inst);
     }
