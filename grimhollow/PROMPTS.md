@@ -36,6 +36,8 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
+| 🟡 | **Hotbar MMO** — barra de ação inferior (slots + XP acoplado) | [§11 Peça D](#11--botões-de-controle-hud) |
+| 🟡 | **D-pad v2** — direcionais + manoplas de girar numa peça só (upgrade) | [§11 Peça C·v2](#11--botões-de-controle-hud) |
 | 🟡 | **Skill Tree** — faltam 3 folhas de ativas (Ladino/Mago/Clérigo) + 1 de passivas + 4 fundos | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
@@ -507,6 +509,46 @@ Hand-painted stylized-realism game UI directional pad (D-pad), cohesive with a g
 
 *(Manda uma imagem só. Eu recorto a cruz e troco os 4 círculos por ela, com as
 zonas de toque nos braços e um brilho no braço pressionado.)*
+
+### 🟡 Peça C · v2 — D-pad com direcionais + **manoplas de girar embutidas** (upgrade)
+
+Hoje no jogo está uma **versão composta por código** (a cruz + duas manoplas de
+girar coladas nas quinas). Funciona, mas dá pra ficar **muito melhor desenhada à
+mão numa peça só**: a cruz de movimento **com as manoplas de girar (↺/↻) já
+forjadas nas quinas de cima**, parecendo um único bloco de ferro fundido — sem
+cara de "botão colado". As setas de direção ficam nos 4 braços e as duas setas
+circulares (girar) ficam nas manoplas dos cantos.
+
+```
+Hand-painted stylized-realism game UI directional pad (D-pad) with TWO integrated rotate knobs, cohesive with a grim medieval dark-fantasy game — SAME materials as the game's iron-and-gold round buttons and ornate frames: aged dark pitted wrought iron, worn tarnished gold/brass trim, small rivets. A single symmetric PLUS / CROSS shaped D-pad seen perfectly face-on, four equal short arms pointing up, down, left and right; each arm is a slightly recessed dark iron panel bearing one subtle embossed engraved directional ARROW (up arrow on the top arm, down on the bottom, left and right on the side arms). A raised worn gold rim runs around the whole cross outline with a few rivets, and a small domed iron boss/stud in the very center. FORGED INTO THE TWO UPPER CORNERS, nestled in the notches between the top arm and each side arm, sit TWO small ROUND rotate knobs of the very same iron-and-gold material, each seamlessly riveted to the cross body so the whole thing looks like ONE forged piece (not glued on), each knob bearing a subtle engraved CIRCULAR ROTATION ARROW — a COUNTER-CLOCKWISE curved arrow on the LEFT knob and a CLOCKWISE curved arrow on the RIGHT knob. Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, the whole assembly centered and filling the frame, crisp edges, nothing outside the metal shape, no text, no numbers, no watermark. Wide square canvas ~768x680.
+```
+
+*(Manda uma imagem só. Eu recorto e substituo a versão composta atual — as zonas
+de toque (braços = mover, quinas = girar) já estão prontas no código, é só trocar a
+arte.)*
+
+### 🟡 Peça D — Barra de ação inferior (**hotbar estilo MMO**) com trilho de XP
+
+A ideia: no lugar do "leque" de habilidades solto, uma **barra inferior central
+desenhada à mão**, igual às HUDs de MMO — uma **bandeja ornamentada** com uma
+**fileira de slots quadrados** (habilidades + itens) e, **acoplado na base**, o
+**trilho fininho da barra de XP** correndo de ponta a ponta. Assim o HUD de baixo
+vira **uma peça só**, coesa com o resto (ferro escuro + ouro gasto + rebites).
+
+**Como vai funcionar no jogo:** os slots vêm **VAZIOS** — eu encaixo por cima os
+ícones das skills equipadas e dos consumíveis, com o número de mana/quantidade e a
+"varredura" de recarga; o trilho de baixo eu preencho por código (barrinha
+dourada/âmbar que enche com o XP + "Nv X" na ponta). Então a arte precisa só da
+**moldura + sockets vazios + a calha vazia do XP**.
+
+```
+Hand-painted stylized-realism MMO action bar / hotbar, cohesive with a grim medieval dark-fantasy game — SAME materials as the game's iron-and-gold round buttons and ornate window frames: aged dark pitted wrought iron, worn tarnished gold/brass trim, small rivets, faint arcane engraving. A single long HORIZONTAL action bar seen perfectly face-on and symmetric, with ornate end-caps at the far left and right (small gothic scrollwork bosses). Along the bar sits ONE straight ROW of EIGHT identical EMPTY square ability slots, evenly spaced, each slot a deep recessed dark metal socket framed by a beveled worn-gold border with tiny corner rivets — the sockets are completely EMPTY inside (no icons, no symbols, no runes). Running the FULL WIDTH along the BOTTOM edge of the bar is a thin recessed horizontal CHANNEL / groove — an experience-bar track — empty and dark with a subtle inner bevel, ready to be filled later. Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, centered and filling the width, crisp edges, no icons, no numbers, no text, no watermark. Wide canvas ~1536x420.
+```
+
+*(Se preferir modular — que escala melhor em telas largas — em vez da barra inteira
+me manda **1 slot quadrado vazio** + **2 tampas de ponta** (esquerda/direita), que
+eu repito o slot em fileira e fecho com as pontas. Mas a **barra inteira** dá o
+visual MMO mais rico; começo por ela.)*
 
 ---
 
