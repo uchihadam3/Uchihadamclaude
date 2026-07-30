@@ -7,6 +7,7 @@
    com decalques próprios/fictícios e número — sem copiar logos/marcas.
    ===================================================================== */
 import * as THREE from '../vendor/three.module.js';
+import { tex, TEX } from './textures.js';
 
 /* Grid completo — CORES das equipes reais, com nomes PRÓPRIOS (evocam pela
    cor, sem copiar a marca) e patrocinadores 100% fictícios. Nada de logo real. */
@@ -40,10 +41,10 @@ export function buildF1Car(opts={}){
   const paint = glossy(col.body, 0.45, 0.28, 0.12);
   const paintD= glossy(col.bodyDark, 0.45, 0.3, 0.15);
   const accent= glossy(col.accent, 0.4, 0.25, 0.12);
-  const carbon= new THREE.MeshStandardMaterial({color:col.carbon, metalness:0.35, roughness:0.5});
+  const carbon= new THREE.MeshStandardMaterial({map:tex(TEX.carbon,{repeat:[3,3]}), color:0xffffff, metalness:0.35, roughness:0.5});
   const satin = new THREE.MeshStandardMaterial({color:col.satin, metalness:0.2, roughness:0.6});
-  const wingMat=new THREE.MeshStandardMaterial({color:0x0d0f13, metalness:0.25, roughness:0.45});
-  const tireMat=new THREE.MeshStandardMaterial({color:col.tire, metalness:0.0, roughness:0.88});
+  const wingMat=new THREE.MeshStandardMaterial({map:tex(TEX.carbon,{repeat:[2,1]}), color:0xf0f0f0, metalness:0.25, roughness:0.45});
+  const tireMat=new THREE.MeshStandardMaterial({map:tex(TEX.tread,{repeat:[8,1]}), color:0xffffff, metalness:0.0, roughness:0.9});
   const bandMat=new THREE.MeshStandardMaterial({color:col.band, metalness:0.0, roughness:0.5});
   const rimMat =new THREE.MeshStandardMaterial({color:0x1a1d22, metalness:0.7, roughness:0.35});
   const coverMat=glossy(col.body, 0.5, 0.3, 0.15);
