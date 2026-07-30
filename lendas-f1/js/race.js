@@ -1,13 +1,15 @@
 /* ========================================================================
-   LENDAS DA F1 — motor de corrida com 20 carros (v2, realista).
-   - Racing line (apex nas curvas).
-   - Largada PARADA: cada carro na sua marca do grid, sai no semáforo com
-     tempo de reação próprio.
-   - IA que EVITA contato: mantém distância segura, só ultrapassa quando o
-     lado está livre, desvia lateralmente. Colisão é RARA.
-   - Quando bate: física realista por severidade — toque leve (pouco efeito),
-     médio (dano/perda de tempo), forte (rodada), muito forte (quebra, pode
-     perder roda e ABANDONAR). Sair da pista também pode causar abandono.
+   LENDAS DA F1 — motor de corrida com 20 carros (v3, simulação realista).
+
+   Como os jogos de manager reais (Motorsport Manager / F1 Manager):
+   - Racing line com apex; cada piloto tem ESTILO próprio (freada, linha,
+     velocidade de curva) e comete erros conforme consistência/pressão.
+   - Cada CARRO tem perfil próprio (aceleração, velocidade final, curva,
+     freio) derivado da ficha técnica da equipe.
+   - Ultrapassagem: vácuo na reta e mergulho POR DENTRO na freada — só
+     quando há brecha real; defensores cobrem o lado de dentro; quem erra
+     a curva (sai largo) abre a porta.
+   - SEM rodadas aleatórias: rodada/quebra só em contato forte (raro).
    ===================================================================== */
 import * as THREE from '../vendor/three.module.js';
 import { buildF1Car } from './car.js';
@@ -47,7 +49,7 @@ const at=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floor
 const vat=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floor(f);
   return arr[i].clone().multiplyScalar(1-t).add(arr[j].clone().multiplyScalar(t)); };
 
-/* ---------- GRID DE 20 CARROS (parados na marca) ---------- */
+/* ---------- GRID DE 20 CARROS ---------- */
 export function buildField(scene, line){
   const grid = DRIVERS.map(d=>({ d, pace: carStats(d.team).geral*0.62 + overall(d)*0.38 }))
                       .sort((a,b)=>b.pace-a.pace);
@@ -57,23 +59,31 @@ export function buildField(scene, line){
     const g=buildF1Car({team:drv.team, number:String(drv.num), simple:true});
     g.traverse(o=>{ if(o.isMesh){ o.castShadow=false; } });
     scene.add(g);
-    const side=(slot%2===0)?1:-1;
-    const LAT=2.8;
-    // reação da largada: melhores pilotos saem um tico mais rápido
+    const side=(slot%2===0)?1:-1, LAT=2.8;
     const reaction = 0.20 + (1-(it.pace-76)/17)*0.28 + Math.random()*0.12;
-    // ESTILO próprio de pilotagem (determinístico por piloto)
+    // ESTILO do piloto (determinístico)
     const hsh=s=>{let x=0;for(const ch of s)x=(x*31+ch.charCodeAt(0))|0;return ((x>>>0)%1000)/1000;};
     const r1=hsh(drv.nome), r2=hsh(drv.nome+'x');
     const style={
-      brakeLate: THREE.MathUtils.clamp((drv.ultrapassagem-78)/30 + (r1-0.5)*0.4, 0, 1),  // freia mais tarde
-      cornerCarry: THREE.MathUtils.clamp((drv.ritmo-84)/30 + (r2-0.5)*0.4, -1, 1),       // leva mais vel. de curva
-      lineBias: (r1-0.5)*0.9,                                                            // linha pessoal (±0.45 m)
-      phase: r2*Math.PI*2,                                                               // varia por trecho da pista
+      brakeLate: THREE.MathUtils.clamp((drv.ultrapassagem-78)/30 + (r1-0.5)*0.4, 0, 1),
+      cornerCarry: THREE.MathUtils.clamp((drv.ritmo-84)/30 + (r2-0.5)*0.4, -1, 1),
+      lineBias: (r1-0.5)*0.8,
+      phase: r2*Math.PI*2,
     };
-    cars.push({ g, drv, style, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
+    // PERFIL do carro (da ficha técnica): uns aceleram melhor, outros têm
+    // mais velocidade final, mais curva (aero) ou mais freio (chassi)
+    const cs=carStats(drv.team);
+    const perf={
+      accel: 1+(cs.potencia-86)*0.010,
+      top:   101+(cs.potencia-86)*0.55,
+      corner:1+(cs.aero-84)*0.0045,
+      brake: 47+(cs.chassi-84)*0.12,
+    };
+    cars.push({ g, drv, style, perf, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
       pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9, gridOffset:side*LAT,
       d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
-      speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0, passCd:0, mistakeCd:5, hitCd:0, passing:null, form:0,
+      speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0,
+      passCd:0, hitCd:0, passing:null, form:0, avoidS:0, cornerErr:0,
       tan:vat(line.ctan, ((-(8+slot*8)/line.len)*line.N%line.N+line.N)%line.N, line.N).clone() });
   });
   return cars;
@@ -88,7 +98,12 @@ export function updateField(cars, line, dt, t, started){
 
   const live=cars.filter(c=>!c.out);
   const order=[...live].sort((a,b)=>b.d-a.d);
-  for(let k=0;k<order.length;k++){ order[k].ahead=order[k-1]||null; }
+  for(let k=0;k<order.length;k++){
+    order[k].ahead=order[k-1]||null;
+    const ch=order[k+1]||null;
+    order[k].chaser=ch;
+    order[k].chaserGap = ch ? gapAhead(order[k],ch) : 999;
+  }
 
   for(const c of cars){
     if(c.out){ c.speed=Math.max(c.speed-24*dt,0);
@@ -97,40 +112,60 @@ export function updateField(cars, line, dt, t, started){
 
     const f=idxOf(c), racingOff=at(line.offset,f,N);
     const skill=0.88+(c.pace-76)/17*0.10;
-    // ---- FRENAGEM com estilo: quem freia tarde usa janela menor e freia mais forte ----
-    const brakeDecel = 47 + 9*c.style.brakeLate;                 // 47..56 m/s²
-    const margin = 1.22 - 0.20*c.style.brakeLate;                // late-brakers = menos margem
+
+    // ---- frenagem: perfil do carro + estilo do piloto ----
+    const brakeDecel = c.perf.brake + 6*c.style.brakeLate;         // ~46..57 m/s²
+    const margin = 1.22 - 0.20*c.style.brakeLate;
     const brakeDist = c.speed*c.speed/(2*brakeDecel)*margin + 8;
     let vCorner=99, minFi=f;
     for(let s=1;s<=10;s++){ const dd=brakeDist*s/10; const fi=(((c.d+dd)/len)*N%N+N)%N;
       const vv=at(line.vmax,fi,N); if(vv<vCorner){ vCorner=vv; minFi=fi; } }
-    // velocidade de curva pessoal (±1.2%) — cada um faz a curva num ritmo próprio
-    if(vCorner<80) vCorner*=1+0.012*c.style.cornerCarry;
-    // forma oscilando durante a corrida (pneu/combustível/ritmo) — gera disputa real
+    // velocidade de curva: aero do carro + estilo do piloto
+    if(vCorner<80) vCorner *= c.perf.corner*(1+0.012*c.style.cornerCarry);
+    const insideSide = Math.sign(at(line.offset,minFi,N)) || 1;    // lado de DENTRO da curva à frente
+    const onStraight = vCorner>72;
+    const heavyBraking = c.speed - vCorner > 11;
+
+    // ---- forma oscilante (pneu/combustível/momento) ----
     c.form += (Math.random()-0.5)*0.004;
     c.form = THREE.MathUtils.clamp(c.form, -0.018, 0.018);
     let targetV=Math.min(vCorner,99)*skill*(1+c.form)*(1-0.3*c.damage);
-    // LINHA PESSOAL: base na racing line, com viés próprio + variação por trecho da pista
+
+    // ---- linha pessoal ----
     let tOff=racingOff*(0.96+0.05*c.style.cornerCarry)
            + c.style.lineBias
-           + Math.sin(c.d*0.012 + c.style.phase)*0.35;
-    const onStraight=vCorner>72;
-    const heavyBraking = c.speed - vCorner > 11;                 // zona de freada forte à frente
+           + Math.sin(c.d*0.012 + c.style.phase)*0.3;
 
-    // gap ASSINADO ao longo da pista (+ = o está à frente de c)
+    // ---- ERRO DE EXECUÇÃO da curva (realista: sai largo, faz a curva no meio) ----
+    // decide UMA vez por curva, mais provável sob pressão do carro de trás
+    if(heavyBraking && c.cornerErr===0){
+      const pressured = c.chaserGap<9;
+      const pErr = ((100-c.drv.consistencia)/100)*0.35*(pressured?2.0:1.0);
+      if(Math.random()<pErr) c.cornerErr=(0.6+Math.random()*1.4)*(pressured?1.3:1.0);
+    }
+    if(onStraight) c.cornerErr=0;                                  // fim da curva: reseta
+    if(c.cornerErr) tOff += -insideSide*c.cornerErr;               // afasta do cantinho (abre a porta)
+
+    // ---- DEFESA: sob ataque, bons defensores cobrem o lado de dentro ----
+    if(c.chaserGap<8 && (heavyBraking||vCorner<60) && !c.cornerErr){
+      const def=THREE.MathUtils.clamp((c.drv.defesa-80)/20,0,1)*0.7;
+      tOff=THREE.MathUtils.lerp(tOff, insideSide*3.2, def);
+    }
+
     const sgap=(o)=>{ let g=(o.d-c.d)%len; if(g>len/2)g-=len; if(g<-len/2)g+=len; return g; };
 
-    /* ---- ULTRAPASSAGEM COMPROMETIDA (só com brecha real; não fica batendo) ---- */
+    /* ---- ULTRAPASSAGEM (comprometida; POR DENTRO na curva) ---- */
     const ah=c.ahead;
     if(c.passing){
       c.passing.t+=dt;
       const tgt=c.passing.target;
-      const sg = tgt&&!tgt.out ? sgap(tgt)*-1 : 999;     // + = c está à frente do alvo
-      if(!tgt || tgt.out || sg>9 || c.passing.t>9){       // completou (ou desistiu por tempo)
-        c.passing=null; c.passCd=2.5;
+      const sg = tgt&&!tgt.out ? -sgap(tgt) : 999;                 // + = c já está à frente
+      if(!tgt || tgt.out || sg>9 || c.passing.t>6){ c.passing=null; c.passCd=2.5; }
+      else if(!c.passing.dive && heavyBraking && sg<-1.5){
+        c.passing=null; c.passCd=1.5;                              // reta acabou e não emparelhou: desiste
       } else {
-        tOff=c.passing.lane;                              // mantém a linha da manobra
-        // aborta se a faixa ficou bloqueada por um 3º carro
+        if(!c.passing.dive && heavyBraking) c.passing.lane=insideSide*3.4;  // emparelhado: briga POR DENTRO
+        tOff=c.passing.lane;
         const blocked=cars.some(o=>{ if(o===c||o===tgt||o.out) return false;
           if(Math.abs(o.offset-c.passing.lane)>2.0) return false;
           const g2=sgap(o); return g2>-6 && g2<14; });
@@ -140,28 +175,24 @@ export function updateField(cars, line, dt, t, started){
       const gap=gapAhead(ah,c);
       const sameLine=Math.abs(ah.offset-c.offset)<2.4;
       if(gap<45 && sameLine){
-        // 1) SEGURANÇA PRIMEIRO: segue a distância segura, casando a velocidade
         const safe=8 + c.speed*0.18;
         if(gap<safe){
           const tt=THREE.MathUtils.clamp((gap-4)/(safe-4),0,1);
           targetV=Math.min(targetV, ah.speed*(0.88+0.11*tt));
         }
-        // vácuo quando colado na reta (ganha um pouco sem encostar)
-        if(onStraight && gap<20 && gap>6) targetV=Math.min(targetV*1.02, vCorner*0.995);
-        // 2) DECISÃO de ultrapassar: rara, só quando é claramente mais rápido E tem brecha
+        if(onStraight && gap<20 && gap>6) targetV=Math.min(targetV*1.02, vCorner*0.995);  // vácuo
         const paceAdv=(c.pace-ah.pace) + (ah.damage-c.damage)*8 + (c.form-ah.form)*300;
         const closing=c.speed-ah.speed;
-        // duas janelas de ataque: na RETA (vácuo) ou na FREADA da curva (mergulho por dentro)
-        const dive = heavyBraking && gap<24 && (paceAdv>-0.5 || closing>0.5);
+        // porta aberta: defensor longe do lado de dentro na freada
+        const doorOpen = heavyBraking && (ah.offset*insideSide < 1.2);
+        const dive = heavyBraking && gap<24 && doorOpen && (paceAdv>-0.5 || closing>0.5);
         if(c.passCd<=0 && ((gap<18 && (paceAdv>0.5||closing>2.5) && onStraight) || dive)){
-          // na freada, o lado é o interno da curva; na reta, o lado oposto à racing line
-          const insideSide = Math.sign(at(line.offset,minFi,N)) || (racingOff>=0?1:-1);
-          const lane = dive ? insideSide*3.8 : (racingOff>=0?-1:1)*4.2;
+          const lane = dive ? insideSide*3.6 : (ah.offset>=0?-1:1)*4.2;   // curva: POR DENTRO
           const laneFree=!cars.some(o=>{ if(o===c||o===ah||o.out) return false;
             if(Math.abs(o.offset-lane)>2.2) return false;
-            const g2=sgap(o); return g2>-8 && g2<18; });   // brecha real: 18m à frente, 8m atrás
-          const will=(c.drv.ultrapassagem-70)/30;          // habilidade regula a ousadia
-          const gate = dive ? Math.max(will,0.15)*0.12 : Math.max(will,0.15)*0.012;
+            const g2=sgap(o); return g2>-8 && g2<18; });
+          const will=(c.drv.ultrapassagem-70)/30;
+          const gate = dive ? Math.max(will,0.15)*0.15 : Math.max(will,0.15)*0.012;
           if(laneFree && Math.random()<gate){
             c.passing={lane, target:ah, t:0, dive};
             if(typeof window!=='undefined'){ window.__passes=(window.__passes||0)+1; if(dive) window.__dives=(window.__dives||0)+1; }
@@ -171,68 +202,65 @@ export function updateField(cars, line, dt, t, started){
     }
     if(c.passCd>0) c.passCd-=dt;
 
-    // ---- anti-colisão dura: NUNCA cola em quem está logo à frente na mesma faixa ----
+    // ---- anti-colisão dura ----
     for(const o of cars){ if(o===c||o.out) continue;
       const g2=sgap(o);
-      if(g2>0 && g2<6.5 && Math.abs(o.offset-c.offset)<1.8)
-        targetV=Math.min(targetV, Math.max(o.speed-(6.5-g2)*0.9, 0));
+      if(g2>0 && g2<7.5 && Math.abs(o.offset-c.offset)<1.9)
+        targetV=Math.min(targetV, Math.max(o.speed-(7.5-g2)*1.1, 0));
     }
-    // ---- desvio lateral (só direção, não freia a fila) ----
+    // ---- desvio lateral SUAVIZADO (acaba com a tremedeira) ----
+    let avoid=0;
     for(const o of cars){ if(o===c||o.out) continue;
-      const dd=dist(o,c); if(dd>7) continue;
+      const dd=dist(o,c); if(dd>8) continue;
       const od=c.offset-o.offset;
-      if(Math.abs(od)<2.4){
+      if(Math.abs(od)<2.5){
         const s=Math.abs(od)>0.05 ? (od>0?1:-1) : (c.d>o.d?1:-1);
-        tOff += s*(2.4-Math.abs(od))*1.2;
+        avoid += s*(2.5-Math.abs(od))*1.35;
       } }
+    c.avoidS += (avoid-c.avoidS)*Math.min(1,dt*4);
+    tOff += c.avoidS;
 
-    // ---- erro do piloto (RARO) ----
-    c.mistakeCd-=dt;
-    if(c.mistakeCd<=0 && vCorner<56 && c.speed>16){
-      if(Math.random() < (100-c.drv.consistencia)*0.00005){
-        c.mistakeCd=12; c.speed*=0.88; tOff+=(racingOff>=0?1:-1)*2.0;
-        if(Math.random()<0.08){ c.spin=1; c.spinRate=(Math.random()<0.5?-1:1)*4; c.speed*=0.5; }
-      }
-    }
+    // rodada em andamento (só vem de CONTATO forte — nunca sozinho)
     if(c.spin>0){ c.spin-=dt*0.7; targetV=Math.min(targetV,8); tOff=c.offset; }
 
-    // ---- FÍSICA realista de aceleração / frenagem (por piloto) ----
+    // ---- FÍSICA: aceleração/veloc. final do CARRO, freio carro+piloto ----
     if(targetV>c.speed){
-      const aMax=17+(c.pace-76)*0.22;                    // ~17-21 m/s² no arranque
-      const a=aMax*Math.max(0.1, 1-(c.speed/104)*(c.speed/104));   // cai com a velocidade (arrasto)
+      const aMax=(17+(c.pace-76)*0.18)*c.perf.accel;
+      const a=aMax*Math.max(0.08, 1-(c.speed/c.perf.top)*(c.speed/c.perf.top));
       c.speed=Math.min(c.speed+a*dt, targetV);
     } else {
-      const extra=(c.passing&&c.passing.dive)?5:0;       // no mergulho, segura o freio até mais tarde
+      const extra=(c.passing&&c.passing.dive)?5:0;                 // mergulho: freia mais tarde/forte
       c.speed=Math.max(c.speed-(brakeDecel+extra)*dt, targetV);
     }
     c.speed=Math.max(c.speed, c.spin>0?4:5);
-    // largada: sai da MARCA e mergulha pra linha aos poucos (sem teleporte pro meio)
+
+    // largada: sai da marca e mergulha pra linha aos poucos
     const mergeT=THREE.MathUtils.clamp((t-c.launchStart)/6, 0, 1);
     tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
-    c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-6,6), dt*1.3);   // merge suave
+    c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-6,6), dt*2.2);
     if(c.hitCd>0) c.hitCd-=dt;
     c.d+=c.speed*dt;
   }
 
-  // ---- COLISÕES (raras) com física por severidade ----
+  // ---- COLISÕES (raras; consequência por severidade) ----
   const retire=(v,tilt)=>{ if(v.out)return; v.out=true; v.outSide=v.offset>=0?1:-1;
     v.tilt=tilt||0; if(tilt){ const ks=Object.keys(v.wheels); const w=v.wheels[ks[(Math.random()*ks.length)|0]];
-      if(w) w.steerPivot.visible=false; } };   // batida forte: perde uma roda
+      if(w) w.steerPivot.visible=false; } };
   for(let i=0;i<cars.length;i++){ const a=cars[i]; if(a.out||a.hitCd>0) continue;
     for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.out||b.hitCd>0) continue;
-      if(dist(a,b)<3.6 && Math.abs(a.offset-b.offset)<1.35){    // só sobreposição REAL
+      if(dist(a,b)<3.6 && Math.abs(a.offset-b.offset)<1.35){
         a.hitCd=0.6; b.hitCd=0.6;
         if(typeof window!=='undefined') window.__hits=(window.__hits||0)+1;
         const rel=Math.abs(a.speed-b.speed);
         const push=(a.offset<=b.offset)?-1:1; a.offset+=push*0.6; b.offset-=push*0.6;
         const rear=a.d<b.d?a:b, front=a.d<b.d?b:a;
-        rear.speed*=0.93; front.speed*=0.985;                    // toque leve: quase nada
+        rear.speed*=0.93; front.speed*=0.985;
         front.damage=Math.min(1,front.damage+rel*0.006+0.006);
         rear.damage=Math.min(1,rear.damage+rel*0.004+0.004);
-        if(rel>18 && Math.random()<0.35){                        // forte -> rodada (nem sempre)
+        if(rel>20 && Math.random()<0.25){                          // só contato FORTE roda (raro)
           const v=Math.random()<0.65?rear:front; v.spin=1; v.spinRate=(Math.random()<0.5?-1:1)*(5+Math.random()*3); v.speed*=0.45;
-          if(rel>30 && Math.random()<0.35){ retire(v,0.28);      // muito forte -> quebra e sai
+          if(rel>32 && Math.random()<0.3){ retire(v,0.28);
             if(Math.random()<0.25) retire(v===a?b:a,0.2); }
         }
         for(const car of [a,b]) if(Math.abs(car.offset)>6.2 && Math.random()<0.05) retire(car,0.15);
@@ -240,32 +268,28 @@ export function updateField(cars, line, dt, t, started){
     }
   }
 
-  // ---- render + rodas ----
-  const wrapA=a=>{ while(a>Math.PI)a-=2*Math.PI; while(a<-Math.PI)a+=2*Math.PI; return a; };
+  // ---- render + rodas (rumo = direção REAL do movimento) ----
+  const wrapA=x=>{ while(x>Math.PI)x-=2*Math.PI; while(x<-Math.PI)x+=2*Math.PI; return x; };
   for(const c of cars){
     const f=idxOf(c);
     const cpos=vat(line.center,f,N), l=vat(line.left,f,N), tv=vat(line.ctan,f,N).normalize();
     const nx=cpos.x+l.x*c.offset, nz=cpos.z+l.z*c.offset;
-    // rumo REAL = direção do próprio movimento (racing line + manobras),
-    // não o tangente do centro da pista -> acaba o "andar de lado" nas curvas
     if(!c.prev){ c.prev={x:nx,z:nz}; c.heading=Math.atan2(tv.x,tv.z); c.prevH=c.heading; }
     const dx=nx-c.prev.x, dz=nz-c.prev.z;
     if(dx*dx+dz*dz>1e-6){
       const hNew=Math.atan2(dx,dz);
-      c.heading += wrapA(hNew-c.heading)*Math.min(1, dt*12);   // suavizado (sem tremer)
+      c.heading += wrapA(hNew-c.heading)*Math.min(1, dt*12);
     }
     c.prev.x=nx; c.prev.z=nz;
     c.g.position.set(nx,0,nz);
     let heading=c.heading;
     if(c.spin>0) heading+=c.spinRate*(1-c.spin);
     c.g.rotation.set(0,heading,0);
-    // leve rolagem de carroceria na curva; batida forte inclina de vez
     const ds=Math.max(c.speed*dt,0.05);
-    const yawRate=wrapA(c.heading-c.prevH)/ds;                 // rad por metro
+    const yawRate=wrapA(c.heading-c.prevH)/ds;
     c.prevH=c.heading;
     c.g.rotation.z = c.tilt ? c.tilt :
       THREE.MathUtils.clamp(-yawRate*c.speed*c.speed*0.010, -0.05, 0.05);
-    // esterço de verdade (Ackermann pela taxa de curva do próprio carro)
     const steer=THREE.MathUtils.clamp(yawRate*3.6*1.6, -0.5, 0.5);
     const R=c.rad.front;
     for(const key in c.wheels){ const w=c.wheels[key];
