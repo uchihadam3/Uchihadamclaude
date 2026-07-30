@@ -178,13 +178,15 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 // arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
 const ENEMY_TYPES: Record<string, {
   art: string; hp: number; atk: number; xp: number; gold: number; vision: number; h: number;
+  ranged?: boolean; melee?: boolean; range?: number; proj?: string;
 }> = {
   rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7 },
   aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0 },
   esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 10, xp: 22, gold: 6,  vision: 5, h: 2.6 },
-  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 8,  xp: 24, gold: 7,  vision: 6, h: 2.6 },
+  // arqueiro: SÓ à distância (flecha espectral). cultista: distância (orbe) E melee (adaga).
+  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 9,  xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow" },
   carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8 },
-  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 6, h: 2.7 },
+  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, range: 6, proj: "orb" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -1044,6 +1046,10 @@ interface EnemyEnt {
   visionR: number;             // alcance de visão (células)
   homeC: number; homeR: number;// ponto de spawn (âncora da patrulha)
   aggro: boolean;              // já viu/foi atingido → persegue
+  ranged: boolean; melee: boolean; // como ataca
+  range: number;               // alcance do ataque à distância (células)
+  proj: string;                // tipo de projétil ("arrow" | "orb" | "")
+  atkIsRanged: boolean;        // o ataque em curso é à distância?
   hitAt: number; dyingAt: number;
   atkAt: number; hitApplied: boolean; nextAtk: number;
   // passo em grade (interpolação suave entre células)
@@ -1260,6 +1266,9 @@ export class Game {
   private enemies: EnemyEnt[] = [];
   // tocha que acompanha o jogador (ilumina o entorno imediato na masmorra)
   private playerTorch?: THREE.PointLight;
+  // projéteis dos inimigos (flecha do arqueiro / orbe do cultista) — voam e dão dano
+  private enemyBolts: { spr: THREE.Sprite; fx: number; fz: number; tx: number; tz: number; y: number; t0: number; dur: number; dmg: number }[] = [];
+  private boltTexCache?: THREE.Texture;
   // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo
   private poofs: {
     mesh: THREE.Mesh;
@@ -1763,6 +1772,7 @@ export class Game {
     this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
     this.clearTarget();
     this.projectiles = []; // as meshes já saíram no world.clear() acima
+    this.enemyBolts = [];
     this.poofs = [];
     this.waterGlint = undefined;
     this.doorMap.clear();
@@ -2277,7 +2287,9 @@ export class Game {
     const e: EnemyEnt = {
       mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
       hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
-      homeC: c, homeR: r, aggro: false, hitAt: 0, dyingAt: 0,
+      homeC: c, homeR: r, aggro: false,
+      ranged: T.ranged ?? false, melee: T.melee ?? true, range: T.range ?? 1, proj: T.proj ?? "",
+      atkIsRanged: false, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0,
       stepAt: 0, stepDur: 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
       bar, barFill,
@@ -5515,6 +5527,60 @@ export class Game {
     }
   }
 
+  // textura procedural do projétil: brilho radial (tingido por cor no material)
+  private boltTex(): THREE.Texture {
+    if (this.boltTexCache) return this.boltTexCache;
+    const S = 64; const cv = document.createElement("canvas"); cv.width = cv.height = S;
+    const g = cv.getContext("2d")!;
+    const rad = g.createRadialGradient(S / 2, S / 2, 1, S / 2, S / 2, S / 2);
+    rad.addColorStop(0, "rgba(255,255,255,1)");
+    rad.addColorStop(0.35, "rgba(255,255,255,0.85)");
+    rad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = rad; g.fillRect(0, 0, S, S);
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    this.boltTexCache = t; return t;
+  }
+  // o inimigo à distância dispara um projétil rumo à posição ATUAL do herói
+  // (mirando o instante do disparo → dá pra desviar andando).
+  private enemyFireProjectile(e: EnemyEnt) {
+    const col = e.proj === "orb" ? 0xb060ff : 0xdff0ff; // orbe roxo / flecha espectral
+    const mat = new THREE.SpriteMaterial({
+      map: this.boltTex(), color: new THREE.Color(col),
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const spr = new THREE.Sprite(mat);
+    const size = e.proj === "orb" ? 0.9 : 0.6;
+    spr.scale.set(size, size, 1);
+    const y = 1.4;
+    spr.position.set(e.bx, y, e.bz);
+    this.world.add(spr);
+    const tx = this.col * CELL, tz = this.row * CELL;
+    const dist = Math.hypot(tx - e.bx, tz - e.bz);
+    this.enemyBolts.push({
+      spr, fx: e.bx, fz: e.bz, tx, tz, y, t0: performance.now(),
+      dur: Math.max(180, dist / 14 * 1000), dmg: e.atk, // ~14 u/s
+    });
+    this.ui.playSfx("cast"); // som de conjuração/disparo
+  }
+  // atualiza os projéteis dos inimigos: voam até o alvo; ao chegar, se o herói
+  // ainda está por perto, causa dano (senão desviou). Some com um clarão.
+  private updateEnemyBolts(now: number) {
+    const cx = this.camera.position.x, cz = this.camera.position.z;
+    for (let i = this.enemyBolts.length - 1; i >= 0; i--) {
+      const p = this.enemyBolts[i];
+      const t = (now - p.t0) / p.dur;
+      if (t >= 1) {
+        // acerta se o herói ainda estiver perto do ponto de impacto (~1.3 célula)
+        if (Math.hypot(cx - p.tx, cz - p.tz) < CELL * 1.3) this.damagePlayer(p.dmg);
+        this.spawnPoof(p.tx, p.tz); // clarão de impacto (reaproveita o poof)
+        this.world.remove(p.spr); (p.spr.material as THREE.SpriteMaterial).dispose();
+        this.enemyBolts.splice(i, 1);
+        continue;
+      }
+      p.spr.position.set(p.fx + (p.tx - p.fx) * t, p.y - 0.3 * t * t, p.fz + (p.tz - p.fz) * t);
+    }
+  }
+
   private addWall(
     cx: number,
     cz: number,
@@ -8500,20 +8566,38 @@ export class Game {
       // VISÃO: fica aggro se o herói entra no alcance E há linha de visão livre
       if (!e.aggro && distCells <= e.visionR && this.enemyCanSee(e)) e.aggro = true;
       const adj = distCells === 1;
-      // MOVIMENTO: só quando não está atacando nem no meio de um passo
+      // alcance de tiro (à distância): dentro do alcance, ≥2 células e com linha livre
+      const inShotRange = e.ranged && distCells >= 2 && distCells <= e.range && this.enemyCanSee(e);
+      // MOVIMENTO: persegue até poder atacar. O atirador PARA ao entrar no alcance.
       if (!e.atkAt && !e.stepAt && now >= e.nextMove) {
-        if (e.aggro && !adj) this.enemyChaseStep(e, now);
+        if (e.aggro && !adj && !inShotRange) this.enemyChaseStep(e, now);
         else if (!e.aggro) this.enemyPatrolStep(e, now);
       }
-      // ATAQUE quando adjacente
-      if (!e.atkAt && adj && !e.stepAt && now >= e.nextAtk) e.atkAt = now;
+      // ATAQUE: melee (adjacente) OU à distância (no alcance). Adjacente + melee = melee.
+      const canMelee = e.melee && adj;
+      const canRanged = e.ranged && (inShotRange || (adj && !e.melee)); // arqueiro atira até colado
+      if (!e.atkAt && !e.stepAt && now >= e.nextAtk && (canMelee || canRanged)) {
+        e.atkAt = now;
+        e.atkIsRanged = !canMelee; // se não dá pra golpear agora, é um tiro
+      }
       if (e.atkAt) {
-        const t = (now - e.atkAt) / 700;
-        if (t < 0.4) { const k = t / 0.4; lunge = -0.35 * k; scale = 1 - 0.05 * k; }
-        else if (t < 0.6) { const k = (t - 0.4) / 0.2; lunge = -0.35 + 1.25 * k; scale = 0.95 + 0.27 * k; }
-        else { const k = (t - 0.6) / 0.4; lunge = 0.9 * (1 - k); scale = 1.22 - 0.22 * k; }
-        if (!e.hitApplied && t > 0.52) { e.hitApplied = true; if (adj) this.damagePlayer(e.atk); }
-        if (t >= 1) { e.atkAt = 0; e.hitApplied = false; e.nextAtk = now + 1100; }
+        const dur = e.atkIsRanged ? 620 : 700;
+        const t = (now - e.atkAt) / dur;
+        if (!e.atkIsRanged) {
+          if (t < 0.4) { const k = t / 0.4; lunge = -0.35 * k; scale = 1 - 0.05 * k; }
+          else if (t < 0.6) { const k = (t - 0.4) / 0.2; lunge = -0.35 + 1.25 * k; scale = 0.95 + 0.27 * k; }
+          else { const k = (t - 0.6) / 0.4; lunge = 0.9 * (1 - k); scale = 1.22 - 0.22 * k; }
+        } else {
+          // conjuração/mira: recua um tico e "carrega" (leve crescer)
+          const k = Math.sin(Math.min(1, t) * Math.PI);
+          lunge = -0.25 * k; scale = 1 + 0.08 * k;
+        }
+        if (!e.hitApplied && t > 0.5) {
+          e.hitApplied = true;
+          if (e.atkIsRanged) this.enemyFireProjectile(e);
+          else if (adj) this.damagePlayer(e.atk);
+        }
+        if (t >= 1) { e.atkAt = 0; e.hitApplied = false; e.nextAtk = now + (e.atkIsRanged ? 1500 : 1100); }
       }
       // reação ao dano: brilho vermelho-branco + recuo elástico
       if (sinceHit < 240) {
@@ -8529,6 +8613,7 @@ export class Game {
     }
     this.updatePoofs(now);
     this.updateProjectiles(now);
+    this.updateEnemyBolts(now);
     // ciclo dia/noite (cor da atmosfera, luzes e postes) — só em locais externos
     this.updateDayNight(now);
     // relógio do HUD (sol/lua orbitando) — anda mesmo em interiores
