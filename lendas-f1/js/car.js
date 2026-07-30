@@ -33,6 +33,9 @@ export function buildF1Car(opts={}){
   }, team, opts);
 
   const G = new THREE.Group();
+  // carroceria (massa suspensa): TUDO que rola na curva vai aqui; as RODAS ficam no G
+  // (presas ao chão), então a inclinação nunca enfia o pneu no asfalto.
+  const body = new THREE.Group(); G.add(body);
 
   // ---------- materiais (modo 'simple' = leve, sem verniz, pros 20 carros) ----------
   const glossy=(c,m,r,cc)=> opts.simple
@@ -52,7 +55,7 @@ export function buildF1Car(opts={}){
   const titan = new THREE.MeshStandardMaterial({color:0x2a2d33, metalness:0.7, roughness:0.35});
   const glass = new THREE.MeshStandardMaterial({color:col.visor, metalness:0.5, roughness:0.1});
 
-  const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,parent=G)=>{ const m=new THREE.Mesh(geo,mat);
+  const add=(geo,mat,x,y,z,rx=0,ry=0,rz=0,parent=body)=>{ const m=new THREE.Mesh(geo,mat);
     m.position.set(x,y,z); m.rotation.set(rx,ry,rz); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; };
   const hex=c=>'#'+('000000'+(c>>>0).toString(16)).slice(-6);
 
@@ -107,13 +110,13 @@ export function buildF1Car(opts={}){
   const numMat=new THREE.MeshStandardMaterial({map:numberTexture(col.number), transparent:true, roughness:0.4});
 
   /* ==================== ASSOALHO / EFEITO-SOLO ==================== */
-  add(new THREE.BoxGeometry(1.55,0.06,4.9), carbon, 0,0.07,-0.15);
-  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.06,0.12,4.2), carbon, s*0.8,0.12,-0.1, 0,0,s*0.2);
+  add(new THREE.BoxGeometry(1.12,0.06,4.9), carbon, 0,0.07,-0.15);            // assoalho estreito: livra as rodas
+  for(const s of [-1,1]) add(new THREE.BoxGeometry(0.06,0.12,4.2), carbon, s*0.53,0.12,-0.1, 0,0,s*0.2);
   add(new THREE.BoxGeometry(1.45,0.42,0.85), carbon, 0,0.26,-2.5, -0.5,0,0);
   for(let i=-3;i<=3;i++) add(new THREE.BoxGeometry(0.025,0.4,0.8), satin, i*0.2,0.28,-2.49,-0.5,0,0);
 
   /* ==================== MONOCOQUE / CHASSI ==================== */
-  const tub=new THREE.Group(); G.add(tub);
+  const tub=new THREE.Group(); body.add(tub);
   add(new THREE.BoxGeometry(0.66,0.42,3.1), paint, 0,0.36,0.05,0,0,0,tub);
   // corpo/topo arredondado do monocoque — AO LONGO do carro (frente-trás)
   add(new THREE.CylinderGeometry(0.3,0.3,3.0,24), paint, 0,0.5,0.05, Math.PI/2,0,0, tub);
@@ -121,12 +124,12 @@ export function buildF1Car(opts={}){
   for(const s of [-1,1]) add(new THREE.PlaneGeometry(2.2,0.6), liverySide, s*0.345,0.45,0.2, 0, s*Math.PI/2, 0);
 
   /* ==================== NARIZ + ASA DIANTEIRA ==================== */
-  const nose=new THREE.Group(); G.add(nose);
+  const nose=new THREE.Group(); body.add(nose);
   const noseM=add(new THREE.CylinderGeometry(0.09,0.2,1.9,20), paint, 0,0.34,2.55, Math.PI/2,0,0, nose); noseM.scale.set(1,1,0.85);
   add(new THREE.SphereGeometry(0.09,16,12), accent, 0,0.30,3.48, 0,0,0, nose);
   add(new THREE.BoxGeometry(0.1,0.34,0.5), carbon, 0,0.14,3.15);
 
-  const fw=new THREE.Group(); fw.position.set(0,0,3.28); G.add(fw);
+  const fw=new THREE.Group(); fw.position.set(0,0,3.28); body.add(fw);
   const flap=(y,z,depth,rot,mat)=> add(new THREE.BoxGeometry(1.95,0.028,depth), mat, 0,y,z, rot,0,0, fw);
   flap(0.08,0.10,0.34,-0.06,wingMat);
   flap(0.135,-0.02,0.28,-0.22,wingMat);
@@ -139,7 +142,7 @@ export function buildF1Car(opts={}){
 
   /* ==================== SIDEPODS + RADIADORES ==================== */
   for(const s of [-1,1]){
-    const sp=new THREE.Group(); sp.position.set(s*0.52,0.36,-0.5); G.add(sp);
+    const sp=new THREE.Group(); sp.position.set(s*0.52,0.36,-0.5); body.add(sp);
     add(new THREE.BoxGeometry(0.52,0.5,2.0), paint, 0,0,0, 0,0,0, sp);
     add(new THREE.BoxGeometry(0.52,0.26,2.0), paintD, s*0.02,0.2,-0.15, 0.12,0,s*0.16, sp);
     add(new THREE.BoxGeometry(0.16,0.36,0.14), satin, s*-0.2,0.02,0.98, 0,0,0, sp);
@@ -151,7 +154,7 @@ export function buildF1Car(opts={}){
 
   /* ==================== COCKPIT + PILOTO + HALO ==================== */
   add(new THREE.BoxGeometry(0.52,0.22,0.95), satin, 0,0.54,0.55);
-  const helmet=new THREE.Group(); helmet.position.set(0,0.68,0.5); G.add(helmet);
+  const helmet=new THREE.Group(); helmet.position.set(0,0.68,0.5); body.add(helmet);
   add(new THREE.SphereGeometry(0.16,22,18), new THREE.MeshStandardMaterial({color:col.helmet,metalness:0.35,roughness:0.3}), 0,0,0,0,0,0,helmet);
   add(new THREE.BoxGeometry(0.28,0.085,0.14), glass, 0,0.0,0.12, 0,0,0, helmet);
   add(new THREE.TorusGeometry(0.16,0.022,10,26), new THREE.MeshStandardMaterial({color:col.bodyDark}), 0,0.03,0, Math.PI/2,0,0, helmet);
@@ -181,7 +184,7 @@ export function buildF1Car(opts={}){
   for(const s of [-1,1]) add(new THREE.BoxGeometry(0.14,0.16,0.2), satin, s*0.22,0.42,-1.85);
 
   /* ==================== ASA TRASEIRA (largura real 1,23 m) + BEAM WING ==================== */
-  const rw=new THREE.Group(); rw.position.set(0,0,-2.5); G.add(rw);
+  const rw=new THREE.Group(); rw.position.set(0,0,-2.5); body.add(rw);
   const RWW=1.23;                                  // largura REAL da asa traseira (2022+)
   // endplates retangulares limpos (sem abas pra fora)
   for(const s of [-1,1]){

@@ -437,8 +437,14 @@ export function updateField(cars, line, dt, t, started){
     const ds=Math.max(c.speed*dt,0.05);
     const yawRate=wrapA(c.heading-c.prevH)/ds;
     c.prevH=c.heading;
-    c.g.rotation.z = c.tilt ? c.tilt :
-      THREE.MathUtils.clamp(-yawRate*c.speed*c.speed*0.010, -0.05, 0.05);
+    // ROLAGEM: na curva quem inclina é só a CARROCERIA (massa suspensa); as rodas
+    // ficam presas ao chão (nunca afundam). Em acidente o carro TODO tomba.
+    const cbody=c.g.userData.body;
+    if(c.tilt){ c.g.rotation.z=c.tilt; if(cbody) cbody.rotation.z=0; }
+    else {
+      const roll=THREE.MathUtils.clamp(-yawRate*c.speed*c.speed*0.010, -0.05, 0.05);
+      if(cbody) cbody.rotation.z=roll; else c.g.rotation.z=roll;
+    }
     const steer=THREE.MathUtils.clamp(yawRate*3.6*1.6, -0.5, 0.5);
     const R=c.rad.front;
     for(const key in c.wheels){ const w=c.wheels[key];

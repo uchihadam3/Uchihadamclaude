@@ -134,39 +134,54 @@ export function buildTrack(){
     new THREE.MeshStandardMaterial({map:tex(TEX.grass,{repeat:[360,360]}),color:0xd8d8d8,roughness:1.0}));
   ground.rotation.x=-Math.PI/2; ground.position.y=-0.03; ground.receiveShadow=true; G.add(ground);
 
-  /* ---------- BARREIRAS de PNEUS recuadas (só nas curvas) ---------- */
+  /* ---------- BARREIRAS de PNEUS 3D (pneus reais empilhados, não adesivo) ---------- */
   (function(){
-    const pos=[],uv=[],idx=[]; let vcount=0;
-    const OFF=HALF+15, H=1.4;
-    let run=[]; run.side=1;
-    const flush=()=>{
-      if(run.length<3){run.length=0;return;}
-      const base=vcount; let u=0, prev=null;
-      for(const i of run){ const c=pts[i], l=leftOf(tan[i]);
-        const p=c.clone().addScaledVector(l, run.side*OFF);
-        if(prev) u += p.distanceTo(prev)/1.4;                 // 1 volta de textura a cada ~1.4 m
-        prev=p;
-        pos.push(p.x,0.0,p.z, p.x,H,p.z);
-        uv.push(u,0, u,1); vcount+=2; }
-      for(let k=0;k<run.length-1;k++){ const a=base+k*2; idx.push(a,a+1,a+2,a+1,a+3,a+2); }
-      run.length=0;
+    const OFF=HALF+15;
+    const rows=[0.34,0.95,1.56];                  // 3 pneus de altura (~2 m)
+    const mats=[];                                // matriz de cada pneu (InstancedMesh)
+    const wallPos=[], wallIdx=[]; let wc=0;        // parede de apoio escura atrás
+    const zA=new THREE.Vector3(0,0,1), tmpQ=new THREE.Quaternion(), tmpP=new THREE.Vector3(),
+          tmpS=new THREE.Vector3(1,1,1), m4=new THREE.Matrix4();
+    const placeRun=(run,side)=>{
+      if(run.length<4) return;
+      let acc=1e9, prev=null, pw=null;
+      for(const i of run){
+        const c=pts[i], l=leftOf(tan[i]);
+        const base=c.clone().addScaledVector(l, side*OFF);
+        if(prev) acc+=base.distanceTo(prev); prev=base;
+        // parede de apoio contínua logo atrás dos pneus
+        const back=c.clone().addScaledVector(l, side*(OFF+0.28));
+        wallPos.push(back.x,0.0,back.z, back.x,1.9,back.z);
+        if(pw!==null){ const a=wc; wallIdx.push(a,a+1,a+2,a+1,a+3,a+2); }
+        pw=back; wc+=2;
+        if(acc<0.82) continue; acc=0;             // 1 pilha de pneus a cada ~0.82 m
+        tmpQ.setFromUnitVectors(zA, new THREE.Vector3(l.x,0,l.z).normalize());
+        for(const y of rows){ tmpP.set(base.x,y,base.z);
+          m4.compose(tmpP,tmpQ,tmpS); mats.push(m4.clone()); }
+      }
     };
     for(const side of [1,-1]){
-      run.side=side;
-      for(let i=0;i<=N;i++){
-        if(curv[i]>0.012){ run.push(i); }
-        else flush();
-      }
-      flush();
+      let run=[];
+      for(let i=0;i<=N;i++){ if(curv[i]>0.012) run.push(i); else { placeRun(run,side); run=[]; } }
+      placeRun(run,side);
     }
-    if(pos.length){
-      const g=new THREE.BufferGeometry();
-      g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-      g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
-      g.setIndex(idx); g.computeVertexNormals();
-      const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({
-        map:tex(TEX.tyreWall), color:0xffffff, roughness:0.9, side:THREE.DoubleSide}));
-      m.castShadow=true; G.add(m);
+    // parede de apoio (escura)
+    if(wallPos.length){
+      const wg=new THREE.BufferGeometry();
+      wg.setAttribute('position',new THREE.Float32BufferAttribute(wallPos,3));
+      wg.setIndex(wallIdx); wg.computeVertexNormals();
+      const wm=new THREE.Mesh(wg,new THREE.MeshStandardMaterial({color:0x14161a,roughness:0.9,side:THREE.DoubleSide}));
+      wm.receiveShadow=true; G.add(wm);
+    }
+    // pneus (InstancedMesh — 1 draw call pra milhares de pneus)
+    if(mats.length){
+      const torus=new THREE.TorusGeometry(0.30,0.16,10,20);
+      const tmat=new THREE.MeshStandardMaterial({map:tex(TEX.tread,{repeat:[3,1]}),color:0x2b2b2d,roughness:0.96});
+      const inst=new THREE.InstancedMesh(torus,tmat,mats.length);
+      mats.forEach((m,k)=>inst.setMatrixAt(k,m));
+      inst.instanceMatrix.needsUpdate=true; inst.castShadow=true; inst.receiveShadow=true;
+      inst.frustumCulled=false;                    // instâncias espalhadas: não descartar pela origem
+      G.add(inst);
     }
   })();
 
