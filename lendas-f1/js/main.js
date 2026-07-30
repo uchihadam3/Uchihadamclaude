@@ -9,7 +9,14 @@ import { carStats, tier, ranking } from './stats.js';
 import { driversOf, overall, ATTRS, simulateRace } from './drivers.js';
 import { computeLine, buildField, updateField, RACE, TIRES } from './race.js';
 import { buildTrack } from './track.js';
+import { CIRCUITS, CIRCUIT_LIST } from './circuits-data.js';
 import { F1Audio } from './audio.js';
+
+/* ---------- CIRCUITO selecionado (via ?track=) ---------- */
+const trackKey = new URLSearchParams(location.search).get('track') || 'interlagos';
+const circuit = CIRCUITS[trackKey] ? trackKey : 'interlagos';
+const circuitInfo = CIRCUIT_LIST.find(c=>c.key===circuit) || CIRCUIT_LIST[0];
+RACE.laps = circuitInfo.laps || 12;
 
 const cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas:cvs, antialias:true });
@@ -45,7 +52,7 @@ scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x3a5a30, 0.9));
 })();
 
 /* ---------- PISTA + CORRIDA (20 carros) ---------- */
-const track=buildTrack(); scene.add(track.group);
+const track=buildTrack(CIRCUITS[circuit]); scene.add(track.group);
 const curve=track.curve;
 const total=track.length;
 const line=computeLine(curve, track.half);   // racing line (apex nas curvas)
@@ -191,7 +198,7 @@ function showResults(){
   const outs2=cars.filter(c=>c.out);
   const rows=[...running2,...outs2].map((c,i)=>{ const p=c.out?0:(pts[i]||0);
     return `<div class="rk ${c.team===currentTeam?'me':''}"><span><span class="p">${c.out?'AB':(i+1)+'º'}</span><b style="color:${teamColor(c.team)}">■</b> ${c.drv.nome}</span><span class="g">${p?p+' pts':''}</span></div>`;}).join('');
-  fcard.innerHTML=`<h2>🏁 Bandeirada!</h2><div class="eng">Interlagos · ${RACE.laps} voltas · resultado final</div>${rows}
+  fcard.innerHTML=`<h2>🏁 Bandeirada!</h2><div class="eng">${circuitInfo.nome} · ${RACE.laps} voltas · resultado final</div>${rows}
     <button class="fbtn" id="fnova">🔁 Nova corrida</button>`;
   document.getElementById('fnova').onclick=()=>location.reload();
   fichaPanel.classList.remove('hide');
@@ -338,6 +345,18 @@ if(teamSel){
   teamSel.value=currentTeam;
   teamSel.addEventListener('change', ()=>{ setTeam(teamSel.value); if(!fichaPanel.classList.contains('hide')) renderFicha(); });
 }
+/* ---------- SELETOR DE CIRCUITO (troca recarrega com ?track=) ---------- */
+const circuitSel=document.getElementById('circuit');
+if(circuitSel){
+  for(const c of CIRCUIT_LIST){ const o=document.createElement('option'); o.value=c.key;
+    o.textContent=`${c.flag} ${c.nome} · ${c.km}km`; circuitSel.appendChild(o); }
+  circuitSel.value=circuit;
+  circuitSel.addEventListener('change', ()=>{ const u=new URL(location.href);
+    u.searchParams.set('track', circuitSel.value); location.href=u.toString(); });
+}
+// título com o nome do circuito
+(function(){ const t=document.querySelector('#title span');
+  if(t) t.textContent=`${circuitInfo.flag} ${circuitInfo.nome} — ${circuitInfo.km} km · ${RACE.laps} voltas`; })();
 
 /* ---------- FICHA TÉCNICA (desempenho do carro) ---------- */
 const fichaBtn=document.getElementById('ficha');

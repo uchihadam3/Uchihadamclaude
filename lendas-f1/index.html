@@ -120,8 +120,12 @@
   .fbtn{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#1f7a45;color:#fff;font-weight:800;font-size:15px;cursor:pointer}
   .fbtn:active{transform:scale(.98)}
   .fclose{margin-top:10px;width:100%;padding:11px;border:0;border-radius:10px;background:#2a3240;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
-  #teamlbl{position:fixed;top:64px;left:18px;color:#fff;font-size:10px;opacity:.65;text-shadow:0 1px 3px #000;letter-spacing:.5px}
-  #team{position:fixed;top:78px;left:16px;background:rgba(12,14,18,.72);color:#fff;
+  #circuitlbl{position:fixed;top:64px;left:18px;color:#fff;font-size:10px;opacity:.65;text-shadow:0 1px 3px #000;letter-spacing:.5px}
+  #circuit{position:fixed;top:78px;left:16px;background:rgba(12,14,18,.72);color:#fff;
+    border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;
+    max-width:200px;-webkit-appearance:none;appearance:none}
+  #teamlbl{position:fixed;top:110px;left:18px;color:#fff;font-size:10px;opacity:.65;text-shadow:0 1px 3px #000;letter-spacing:.5px}
+  #team{position:fixed;top:124px;left:16px;background:rgba(12,14,18,.72);color:#fff;
     border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;
     -webkit-appearance:none;appearance:none}
 </style>
@@ -137,6 +141,8 @@
 <div id="lap">VOLTA 1/12</div>
 <div id="overtake" class="hide"></div>
 <div id="lights" class="hide"><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></div>
+<div id="circuitlbl">CIRCUITO</div>
+<select id="circuit" aria-label="Circuito"></select>
 <div id="teamlbl">EQUIPE (cores)</div>
 <select id="team" aria-label="Equipe"></select>
 <div id="telem">

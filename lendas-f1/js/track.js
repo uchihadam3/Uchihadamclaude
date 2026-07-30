@@ -10,9 +10,8 @@ import { tex, TEX } from './textures.js';
 import { TEAMS } from './car.js';
 import { PIT, pitOffsetS } from './race.js';
 
-export function buildTrack(){
+export function buildTrack(D=INTERLAGOS){
   const G = new THREE.Group();
-  const D = INTERLAGOS;
 
   // centro da pista como curva fechada (centripetal evita "overshoot")
   const vec = D.pts.map(p=> new THREE.Vector3(p[0],0,p[1]));
