@@ -176,17 +176,20 @@ import enemyCultistaUrl from "../assets/env/enemy_cultista.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 // perfis dos inimigos (arte + stats FIXOS + tamanho + alcance de visão).
 // arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
+// ai: comportamento ao aggro — "chase" (persegue), "kite" (mantém distância e
+// atira), "flee_low" (foge com pouca vida), "relentless" (persegue sem fugir).
+// spd: ms por passo (rato ágil, carniçal lento). ranged/proj = ataque à distância.
 const ENEMY_TYPES: Record<string, {
   art: string; hp: number; atk: number; xp: number; gold: number; vision: number; h: number;
-  ranged?: boolean; melee?: boolean; range?: number; proj?: string;
+  ranged?: boolean; melee?: boolean; range?: number; proj?: string; ai?: string; spd?: number;
 }> = {
-  rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7 },
-  aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0 },
-  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 10, xp: 22, gold: 6,  vision: 5, h: 2.6 },
-  // arqueiro: SÓ à distância (flecha espectral). cultista: distância (orbe) E melee (adaga).
-  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 9,  xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow" },
-  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8 },
-  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, range: 6, proj: "orb" },
+  rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7, ai: "flee_low", spd: 600 },
+  aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0, ai: "chase", spd: 660 },
+  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 10, xp: 22, gold: 6,  vision: 5, h: 2.6, ai: "chase", spd: 780 },
+  // arqueiro: SÓ à distância (flecha). cultista: distância (orbe) E melee (adaga). Ambos "kite".
+  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 9,  xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 720 },
+  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8, ai: "relentless", spd: 900 },
+  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, range: 6, proj: "orb", ai: "kite", spd: 760 },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -1049,12 +1052,15 @@ interface EnemyEnt {
   ranged: boolean; melee: boolean; // como ataca
   range: number;               // alcance do ataque à distância (células)
   proj: string;                // tipo de projétil ("arrow" | "orb" | "")
+  ai: string;                  // comportamento (chase/kite/flee_low/relentless)
   atkIsRanged: boolean;        // o ataque em curso é à distância?
   hitAt: number; dyingAt: number;
   atkAt: number; hitApplied: boolean; nextAtk: number;
   // passo em grade (interpolação suave entre células)
   stepAt: number; stepDur: number; fx: number; fz: number; tx: number; tz: number;
   nextMove: number;            // instante mínimo do próximo passo
+  approach: number;            // +1 se o último passo aproximou do herói, -1 afastou, 0 parado
+  chev: THREE.Sprite;          // seta acima do inimigo (vem ▼ / recua ▲) — some quando parado
   bar: THREE.Group; barFill: THREE.Mesh;
 }
 
@@ -1267,8 +1273,10 @@ export class Game {
   // tocha que acompanha o jogador (ilumina o entorno imediato na masmorra)
   private playerTorch?: THREE.PointLight;
   // projéteis dos inimigos (flecha do arqueiro / orbe do cultista) — voam e dão dano
-  private enemyBolts: { spr: THREE.Sprite; fx: number; fz: number; tx: number; tz: number; y: number; t0: number; dur: number; dmg: number }[] = [];
+  private enemyBolts: { spr: THREE.Sprite; kind: string; fx: number; fz: number; tx: number; tz: number; y: number; t0: number; dur: number; dmg: number }[] = [];
   private boltTexCache?: THREE.Texture;
+  private arrowTexCache?: THREE.Texture;
+  private chevTexCache?: THREE.Texture;
   // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo
   private poofs: {
     mesh: THREE.Mesh;
@@ -2284,14 +2292,23 @@ export class Game {
     bar.position.set(c * CELL, worldH + 0.45, r * CELL);
     this.world.add(bar);
     this.billboardProps.push(bar); // encara a câmera
+    // SETA de intenção acima do inimigo (sprite auto-billboard): ▼ vermelho quando
+    // se aproxima, ▲ ciano quando recua — some quando parado.
+    const chev = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this.chevTex(), transparent: true, depthWrite: false, opacity: 0,
+    }));
+    chev.scale.set(0.5, 0.5, 1);
+    chev.position.set(c * CELL, worldH + 0.95, r * CELL);
+    this.world.add(chev);
     const e: EnemyEnt = {
       mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
       hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
       homeC: c, homeR: r, aggro: false,
       ranged: T.ranged ?? false, melee: T.melee ?? true, range: T.range ?? 1, proj: T.proj ?? "",
+      ai: T.ai ?? "chase", approach: 0, chev,
       atkIsRanged: false, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0,
-      stepAt: 0, stepDur: 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
+      stepAt: 0, stepDur: T.spd ?? 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
       bar, barFill,
     };
     this.enemies.push(e);
@@ -5481,6 +5498,10 @@ export class Game {
   }
   // um passo em grade rumo à célula alvo (atualiza ocupação + inicia interpolação)
   private enemyStepTo(e: EnemyEnt, nc: number, nr: number, now: number) {
+    // aproxima ou afasta do herói? (p/ a seta de intenção)
+    const before = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
+    const after = Math.abs(this.col - nc) + Math.abs(this.row - nr);
+    e.approach = after < before ? 1 : after > before ? -1 : 0;
     this.blocked.delete(`${e.c},${e.r}`);
     e.c = nc; e.r = nr;
     this.blocked.add(`${nc},${nr}`);
@@ -5505,6 +5526,27 @@ export class Game {
     if (best && bd < cur) this.enemyStepTo(e, best[0], best[1], now);
     else e.nextMove = now + 260; // encurralado: espera um tico e tenta de novo
   }
+  // FUGA: anda p/ o vizinho livre que mais AFASTA do herói (rato acuado)
+  private enemyFleeStep(e: EnemyEnt, now: number) {
+    const cur = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
+    let best: [number, number] | null = null, bd = cur;
+    for (const [dc, dr] of DIRS) {
+      const nc = e.c + dc, nr = e.r + dr;
+      if (!this.enemyCellFree(nc, nr)) continue;
+      const d = Math.abs(this.col - nc) + Math.abs(this.row - nr);
+      if (d > bd || (d === bd && Math.random() < 0.35)) { bd = d; best = [nc, nr]; }
+    }
+    if (best && bd > cur) this.enemyStepTo(e, best[0], best[1], now);
+    else e.nextMove = now + 300; // sem saída: hesita
+  }
+  // KITE (arqueiro/cultista): muito perto → recua; longe/sem visão → aproxima;
+  // na distância boa → segura posição e atira.
+  private enemyKiteStep(e: EnemyEnt, now: number, dist: number) {
+    const keep = Math.max(2, e.range - 2); // distância confortável de tiro
+    if (dist < keep) this.enemyFleeStep(e, now);                        // recua p/ reabrir distância
+    else if (dist > e.range || !this.enemyCanSee(e)) this.enemyChaseStep(e, now); // aproxima p/ ter alcance/visão
+    else e.nextMove = now + 500;                                        // posição boa: segura e dispara
+  }
   // patrulha: vagueia devagar perto do ponto de spawn (raio 2)
   private enemyPatrolStep(e: EnemyEnt, now: number) {
     if (Math.random() < 0.55) { e.nextMove = now + 900; return; } // fica parado boa parte do tempo
@@ -5527,7 +5569,7 @@ export class Game {
     }
   }
 
-  // textura procedural do projétil: brilho radial (tingido por cor no material)
+  // textura procedural do ORBE (cultista): brilho radial (tingido pela cor)
   private boltTex(): THREE.Texture {
     if (this.boltTexCache) return this.boltTexCache;
     const S = 64; const cv = document.createElement("canvas"); cv.width = cv.height = S;
@@ -5540,37 +5582,68 @@ export class Game {
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     this.boltTexCache = t; return t;
   }
+  // textura procedural da FLECHA (arqueiro): aponta p/ CIMA — o tick a gira no
+  // sentido do voo. Haste de madeira + ponta de metal + penas.
+  private arrowTex(): THREE.Texture {
+    if (this.arrowTexCache) return this.arrowTexCache;
+    const W = 40, H = 128; const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const g = cv.getContext("2d")!; const x = W / 2;
+    g.lineCap = "round";
+    g.strokeStyle = "#7c5a30"; g.lineWidth = 5; // haste
+    g.beginPath(); g.moveTo(x, 22); g.lineTo(x, H - 20); g.stroke();
+    g.fillStyle = "#e2e6ec"; // ponta de metal (topo)
+    g.beginPath(); g.moveTo(x, 3); g.lineTo(x - 11, 27); g.lineTo(x + 11, 27); g.closePath(); g.fill();
+    g.strokeStyle = "#9aa1aa"; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = "#c23a2c"; // penas (base)
+    g.beginPath(); g.moveTo(x, H - 34); g.lineTo(x - 12, H - 4); g.lineTo(x - 2, H - 12); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(x, H - 34); g.lineTo(x + 12, H - 4); g.lineTo(x + 2, H - 12); g.closePath(); g.fill();
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    this.arrowTexCache = t; return t;
+  }
+  // seta/chevron (aponta p/ CIMA): o material vira p/ baixo (scale.y<0) quando o
+  // inimigo se aproxima. Branca (tingida pela cor do material), com contorno escuro.
+  private chevTex(): THREE.Texture {
+    if (this.chevTexCache) return this.chevTexCache;
+    const S = 64; const cv = document.createElement("canvas"); cv.width = cv.height = S;
+    const g = cv.getContext("2d")!;
+    const tri = (o: number) => { g.beginPath(); g.moveTo(32, 8 + o); g.lineTo(56, 40 + o); g.lineTo(44, 40 + o); g.lineTo(44, 56); g.lineTo(20, 56); g.lineTo(20, 40 + o); g.lineTo(8, 40 + o); g.closePath(); };
+    g.fillStyle = "rgba(0,0,0,0.55)"; tri(2); g.fill();     // sombra/contorno
+    g.fillStyle = "#ffffff"; tri(0); g.fill();               // corpo (tingido no material)
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+    this.chevTexCache = t; return t;
+  }
   // o inimigo à distância dispara um projétil rumo à posição ATUAL do herói
   // (mirando o instante do disparo → dá pra desviar andando).
   private enemyFireProjectile(e: EnemyEnt) {
-    const col = e.proj === "orb" ? 0xb060ff : 0xdff0ff; // orbe roxo / flecha espectral
+    const isArrow = e.proj === "arrow";
     const mat = new THREE.SpriteMaterial({
-      map: this.boltTex(), color: new THREE.Color(col),
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      map: isArrow ? this.arrowTex() : this.boltTex(),
+      color: new THREE.Color(isArrow ? 0xffffff : 0xb060ff),
+      transparent: true, depthWrite: false,
+      blending: isArrow ? THREE.NormalBlending : THREE.AdditiveBlending,
     });
     const spr = new THREE.Sprite(mat);
-    const size = e.proj === "orb" ? 0.9 : 0.6;
-    spr.scale.set(size, size, 1);
+    if (isArrow) spr.scale.set(0.42, 1.35, 1); else spr.scale.set(0.9, 0.9, 1); // flecha alongada
     const y = 1.4;
     spr.position.set(e.bx, y, e.bz);
     this.world.add(spr);
     const tx = this.col * CELL, tz = this.row * CELL;
     const dist = Math.hypot(tx - e.bx, tz - e.bz);
     this.enemyBolts.push({
-      spr, fx: e.bx, fz: e.bz, tx, tz, y, t0: performance.now(),
-      dur: Math.max(180, dist / 14 * 1000), dmg: e.atk, // ~14 u/s
+      spr, kind: e.proj, fx: e.bx, fz: e.bz, tx, tz, y, t0: performance.now(),
+      dur: Math.max(180, dist / (isArrow ? 20 : 14) * 1000), dmg: e.atk, // flecha mais veloz
     });
-    this.ui.playSfx("cast"); // som de conjuração/disparo
+    this.ui.playSfx(isArrow ? "swing" : "cast"); // "whoosh" da flecha / som de conjuração
   }
   // atualiza os projéteis dos inimigos: voam até o alvo; ao chegar, se o herói
-  // ainda está por perto, causa dano (senão desviou). Some com um clarão.
+  // ainda está por perto, causa dano (senão desviou). Some com um clarão. A flecha
+  // gira p/ apontar no sentido do voo (em espaço de tela).
   private updateEnemyBolts(now: number) {
     const cx = this.camera.position.x, cz = this.camera.position.z;
     for (let i = this.enemyBolts.length - 1; i >= 0; i--) {
       const p = this.enemyBolts[i];
       const t = (now - p.t0) / p.dur;
       if (t >= 1) {
-        // acerta se o herói ainda estiver perto do ponto de impacto (~1.3 célula)
         if (Math.hypot(cx - p.tx, cz - p.tz) < CELL * 1.3) this.damagePlayer(p.dmg);
         this.spawnPoof(p.tx, p.tz); // clarão de impacto (reaproveita o poof)
         this.world.remove(p.spr); (p.spr.material as THREE.SpriteMaterial).dispose();
@@ -5578,6 +5651,12 @@ export class Game {
         continue;
       }
       p.spr.position.set(p.fx + (p.tx - p.fx) * t, p.y - 0.3 * t * t, p.fz + (p.tz - p.fz) * t);
+      if (p.kind === "arrow") {
+        // gira a flecha p/ apontar rumo ao alvo (na tela) — 0 = apontando p/ cima
+        const a = this.projectToScreen(p.spr.position.x, p.spr.position.y, p.spr.position.z);
+        const b = this.projectToScreen(p.tx, p.y - 0.35, p.tz);
+        (p.spr.material as THREE.SpriteMaterial).rotation = Math.atan2(b.x - a.x, -(b.y - a.y));
+      }
     }
   }
 
@@ -8550,7 +8629,7 @@ export class Game {
         e.mesh.position.y = h / 2 - t * 0.75;
         e.bar.visible = false;
         if (t >= 1) {
-          for (const o of [e.mesh, e.bar]) {
+          for (const o of [e.mesh, e.bar, e.chev]) {
             this.world.remove(o);
             const idx = this.billboardProps.indexOf(o);
             if (idx >= 0) this.billboardProps.splice(idx, 1);
@@ -8568,10 +8647,17 @@ export class Game {
       const adj = distCells === 1;
       // alcance de tiro (à distância): dentro do alcance, ≥2 células e com linha livre
       const inShotRange = e.ranged && distCells >= 2 && distCells <= e.range && this.enemyCanSee(e);
-      // MOVIMENTO: persegue até poder atacar. O atirador PARA ao entrar no alcance.
+      // MOVIMENTO: comportamento POR TIPO ao aggro (fugir/atirar de longe/perseguir).
       if (!e.atkAt && !e.stepAt && now >= e.nextMove) {
-        if (e.aggro && !adj && !inShotRange) this.enemyChaseStep(e, now);
-        else if (!e.aggro) this.enemyPatrolStep(e, now);
+        if (!e.aggro) {
+          this.enemyPatrolStep(e, now);
+        } else if (e.ai === "flee_low" && e.hp <= e.maxHp * 0.35) {
+          this.enemyFleeStep(e, now);              // rato acuado foge
+        } else if (e.ai === "kite" && e.ranged) {
+          this.enemyKiteStep(e, now, distCells);   // arqueiro/cultista: mantém distância
+        } else if (!adj) {
+          this.enemyChaseStep(e, now);             // perseguidores (esqueleto/aranha/carniçal)
+        }
       }
       // ATAQUE: melee (adjacente) OU à distância (no alcance). Adjacente + melee = melee.
       const canMelee = e.melee && adj;
@@ -8609,6 +8695,17 @@ export class Game {
       e.mesh.scale.set(scale, scale, 1);
       e.mesh.rotation.z = tiltZ;
       e.bar.position.set(e.bx, h + 0.45, e.bz); // a barra segue o inimigo
+      // SETA de intenção: ▼ vermelho aproximando, ▲ ciano recuando; some parado.
+      const cm = e.chev.material as THREE.SpriteMaterial;
+      const moving = !!e.stepAt; // só sinaliza enquanto dá o passo
+      const target = moving && e.approach !== 0 ? 0.95 : 0;
+      cm.opacity += (target - cm.opacity) * 0.2; // fade suave
+      e.chev.position.set(e.bx, h + 0.95, e.bz);
+      if (target > 0) {
+        const coming = e.approach > 0;
+        cm.color.setHex(coming ? 0xff5a44 : 0x63d8ff); // vermelho vem / ciano recua
+        e.chev.scale.set(0.5, coming ? -0.5 : 0.5, 1); // vira o chevron p/ baixo se vem
+      }
       e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
     this.updatePoofs(now);
