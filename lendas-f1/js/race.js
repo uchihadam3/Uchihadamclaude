@@ -53,11 +53,30 @@ const UP = new THREE.Vector3(0,1,0);
 
 /* ---------- CORRIDA & PNEUS ---------- */
 export const RACE={ laps:12 };
+/* cada pneu tem grip no SECO e na CHUVA. Slicks (S/M/H) mandam no seco e afundam na
+   água; Intermediário e Chuva são ruins no seco e mandam no molhado. */
 export const TIRES={
-  S:{nome:'Macio', grip:1.012, wear:1.5, col:'#ef4444'},
-  M:{nome:'Médio', grip:1.000, wear:1.0, col:'#eab308'},
-  H:{nome:'Duro',  grip:0.991, wear:0.65,col:'#e5e7eb'},
+  S:{nome:'Macio', dry:1.012, wet:0.55, wear:1.6, col:'#ef4444'},
+  M:{nome:'Médio', dry:1.000, wet:0.54, wear:1.0, col:'#eab308'},
+  H:{nome:'Duro',  dry:0.990, wet:0.52, wear:0.62,col:'#e5e7eb'},
+  I:{nome:'Inter', dry:0.905, wet:0.86, wear:1.15,col:'#22c55e'},
+  W:{nome:'Chuva', dry:0.780, wet:0.905,wear:0.95,col:'#38bdf8'},
 };
+/* ---------- CLIMA ---------- */
+export const WEATHERS={
+  sol:       {nome:'Sol',        wet:0.00, sky:0x8fc0f0, fog:[520,1700], amb:1.00, icon:'☀️'},
+  nublado:   {nome:'Nublado',    wet:0.06, sky:0xa4b4c2, fog:[460,1500], amb:0.86, icon:'⛅'},
+  garoa:     {nome:'Garoa',      wet:0.42, sky:0x7f8d99, fog:[360,1150], amb:0.72, icon:'🌦️'},
+  chuva:     {nome:'Chuva',      wet:0.80, sky:0x5c6772, fog:[260,900],  amb:0.56, icon:'🌧️'},
+  tempestade:{nome:'Tempestade', wet:1.00, sky:0x424b54, fog:[190,680],  amb:0.44, icon:'⛈️'},
+};
+let CURW=WEATHERS.sol, CURWET=0;
+export function setWeather(key){ CURW=WEATHERS[key]||WEATHERS.sol; CURWET=CURW.wet; return CURW; }
+export function weather(){ return {...CURW, key:Object.keys(WEATHERS).find(k=>WEATHERS[k]===CURW)}; }
+const tireGrip=t=> t.dry*(1-CURWET) + t.wet*CURWET;      // grip efetivo conforme o clima
+// pneu ideal pra condição atual
+const idealTire=(lapsLeft)=> CURWET>0.62 ? 'W' : CURWET>0.28 ? 'I' : (lapsLeft<=6?'S':(Math.random()<0.55?'M':'H'));
+const strHash=s=>{let x=0;for(const ch of s)x=(x*131+ch.charCodeAt(0))|0;return ((x>>>0)%10000)/10000;};
 const PITOFF=17;                 // afastamento da RUA do pit (separada da pista, com gap no meio)
 /* ---------- VIA DO PIT (rua separada: diverge da pista -> boxes -> volta) ----------
    s = metros relativos à linha de largada (negativo = antes). A via ABRE numa rampa
@@ -118,7 +137,7 @@ const vat=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floo
   return arr[i].clone().multiplyScalar(1-t).add(arr[j].clone().multiplyScalar(t)); };
 
 /* ---------- GRID DE 20 CARROS ---------- */
-export function buildField(scene, line){
+export function buildField(scene, line, trackKey='interlagos'){
   const grid = DRIVERS.map(d=>({ d, pace: carStats(d.team).geral*0.62 + overall(d)*0.38 }));
   // "classificação" temporária: embaralha o grid (não fica mais equipe atrás de equipe)
   grid.forEach(it=> it.qual = it.pace + (Math.random()-0.5)*7.5);
@@ -151,6 +170,10 @@ export function buildField(scene, line){
       smooth: THREE.MathUtils.clamp(0.5 + nrm(drv.consistencia,84,16)*0.5, 0.1, 1),                     // suavidade
       phase: h2*Math.PI*2,
     };
+    // FORÇA por PISTA: em cada circuito um piloto vai um pouco melhor que o outro
+    const trackMod=(strHash(drv.nome+'|'+trackKey)-0.5)*0.02;      // ±1% de ritmo, específico da pista
+    // pneu inicial conforme o clima da corrida
+    const startTire = CURWET>0.62?'W' : CURWET>0.28?'I' : (slot<6?'S':(slot<14?'M':(Math.random()<0.5?'M':'H')));
     // PERFIL do carro (da ficha técnica): uns aceleram melhor, outros têm
     // mais velocidade final, mais curva (aero) ou mais freio (chassi)
     const cs=carStats(drv.team);
@@ -166,7 +189,8 @@ export function buildField(scene, line){
       d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
       speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0,
       passCd:4, hitCd:0, passing:null, form:0, avoidS:0, cornerErr:0, yieldT:0, yieldOff:0,
-      tire: slot<6?'S':(slot<14?'M':(Math.random()<0.5?'M':'H')), wear:0, pits:0,
+      tire: startTire, wear:0, pits:0, trackMod,
+      _lap:-1, lapPace:0, lapBrake:0, lapLine:0, pushMood:1, straightSeen:false,  // variação volta-a-volta
       pitLap: Math.max(3, Math.round(RACE.laps*(0.35+Math.random()*0.3))),
       pitPhase:0, pitT:0, pitReason:'', lapsDone:0, blueT:0, finished:false, outT:0,
       fuel:1, dmgWing:0,                                   // combustível 100% + dano na asa dianteira
@@ -199,14 +223,23 @@ export function updateField(cars, line, dt, t, started){
     if(!started || t<c.launchStart){ c.speed=Math.max(c.speed-30*dt,0); continue; }
 
     const f=idxOf(c), racingOff=at(line.offset,f,N);
-    // spread REAL de ritmo (~3% do 1º ao 20º, como na F1) — o pelotão não estica infinito
-    const skill=0.955+(c.pace-76)/17*0.035;
+    // ---- VARIAÇÃO VOLTA-A-VOLTA: cada volta o piloto faz um pouquinho diferente ----
+    if(c.lapsDone!==c._lap){ c._lap=c.lapsDone;
+      c.lapPace  = (Math.random()-0.5)*0.016;      // ±0.8% de ritmo nessa volta
+      c.lapBrake = (Math.random()-0.5)*0.30;       // freia um tico antes/depois
+      c.lapLine  = (Math.random()-0.5)*0.55;       // linha ligeiramente diferente
+    }
+    // CLIMA: bom de chuva rende mais no molhado
+    const wetSkill = CURWET>0 ? (1 + (c.drv.chuva-84)/16*0.05*CURWET) : 1;
+    // ritmo = carro/piloto + força NA PISTA + humor da volta + clima (spread real ~3%)
+    const skill=(0.955+(c.pace-76)/17*0.035) * (1 + c.lapPace + c.trackMod) * wetSkill;
     const cf=c.perf.corner*(1+0.024*c.style.cornerCarry);          // fator de curva carro+estilo (diferença nítida)
 
     // ---- FRENAGEM REALISTA: o freio depende da velocidade (downforce) ----
     // dec = b0 + kb·v² -> ~5.5g em alta velocidade, ~2.3g em baixa (como F1 real)
-    const b0=c.perf.brake0 + 3.4*c.style.brakeLate, kb=0.0042;
-    const marg=1.20 - 0.17*c.style.brakeLate;                      // late-brakers: freiam bem mais tarde
+    const bl=THREE.MathUtils.clamp(c.style.brakeLate + c.lapBrake*0.4, 0, 1);
+    const b0=c.perf.brake0 + 3.4*bl, kb=0.0042;
+    const marg=1.20 - 0.17*bl;                                     // late-brakers: freiam bem mais tarde
     const vHere=at(line.vmax,f,N); const vNow=(vHere<80? vHere*cf : vHere);
     const decMul=(c.passing&&c.passing.dive)?1.28:1;               // MERGULHO: freia mais tarde
     let vAllow=99, minFi=f, apexDist=0;
@@ -227,14 +260,20 @@ export function updateField(cars, line, dt, t, started){
     c.lapsDone=Math.max(0,Math.floor(c.d/len));
     // pneu: desgasta e perde ritmo; combustível: queima ao longo da corrida (carro fica leve/rápido)
     const tire=TIRES[c.tire];
-    c.wear=Math.min(1, c.wear + dt*0.0016*tire.wear);
-    const tireMul=tire.grip*(1-c.wear*0.10);
+    const slick=tire.dry>tire.wet;                                // S/M/H são slicks
+    const wrongTire = slick ? CURWET : (1-CURWET);                // 0=certo pro clima, 1=totalmente errado
+    c.wear=Math.min(1, c.wear + dt*0.0016*tire.wear*(1 + wrongTire*0.7));  // pneu errado gasta mais
+    const tireMul=tireGrip(tire)*(1-c.wear*0.10);                 // grip conforme o CLIMA
     c.fuel=Math.max(0.03, 1 - c.d/(RACE.laps*len));               // 100% -> ~3% no fim
     const fuelMul=0.984 + 0.016*(1-c.fuel);                       // tanque cheio = mais pesado/lento
-    let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage)*tireMul*fuelMul;
+    // variação de RETA: às vezes empurra mais, às vezes menos (renova ao entrar na reta)
+    if(onStraight){ if(!c.straightSeen){ c.straightSeen=true; c.pushMood=1+(Math.random()-0.5)*0.03; } }
+    else c.straightSeen=false;
+    const push = onStraight ? c.pushMood : 1;
+    let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage)*tireMul*fuelMul*push;
 
     // ---- LINHA: base = a racing line já traz o out-in-out suave embutido ----
-    let tOff = racingOff + c.style.lineBias*0.95;                   // linha pessoal bem visível
+    let tOff = racingOff + c.style.lineBias*0.95 + c.lapLine*0.4;   // linha pessoal + variação da volta
     // antecipação SUAVE: só em curva RÁPIDA com espaço (não na parte travada/lenta),
     // abre um pouquinho pra fora antes de entrar — depois a própria linha fecha no apex.
     const fastCorner = vApex>70 && vApex<150 && c.speed>vApex+8;
@@ -274,7 +313,7 @@ export function updateField(cars, line, dt, t, started){
         tOff=PIT.off; targetV=0;
         if(c.speed<0.6){ c.pitT-=dt;
           if(c.pitT<=0){
-            c.tire = lapsLeft<=6 ? 'S' : (Math.random()<0.55?'M':'H');          // troca de pneu
+            c.tire = idealTire(lapsLeft);                                       // pneu ideal pro clima
             c.wear=0;
             if(c.pitFix){ c.damage=Math.min(c.damage,0.05); c.dmgWing=0; }      // reparo: asa/peça nova
             c.pits++; c.pitPhase=3;
@@ -298,7 +337,7 @@ export function updateField(cars, line, dt, t, started){
     // decide UMA vez por curva, mais provável sob pressão do carro de trás
     if(heavyBraking && c.cornerErr===0){
       const pressured = c.chaserGap<9;
-      const pErr = ((100-c.drv.consistencia)/100)*0.35*(pressured?2.0:1.0)*c.style.errK;
+      const pErr = ((100-c.drv.consistencia)/100)*0.35*(pressured?2.0:1.0)*c.style.errK*(1+CURWET*1.3);
       if(Math.random()<pErr) c.cornerErr=(0.6+Math.random()*1.4)*(pressured?1.3:1.0);
     }
     if(onStraight) c.cornerErr=0;                                  // fim da curva: reseta

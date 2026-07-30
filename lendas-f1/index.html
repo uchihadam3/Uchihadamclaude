@@ -15,6 +15,14 @@
       repeating-conic-gradient(from 0deg at 50% 50%,
         rgba(255,255,255,0.0) 0deg 3deg, rgba(255,255,255,0.10) 3.4deg 3.8deg, rgba(255,255,255,0.0) 4.2deg 7deg);
     mix-blend-mode:screen;}
+  /* chuva (camada animada) */
+  #rain{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .8s;z-index:6;
+    background-image:repeating-linear-gradient(103deg, rgba(200,220,255,0) 0 4px, rgba(205,222,255,.20) 4px 5px, rgba(200,220,255,0) 5px 9px);
+    background-size:auto 24px;animation:raindrop .55s linear infinite}
+  #rain.on{opacity:.7}
+  #rain.heavy{opacity:1;animation-duration:.38s;
+    background-image:repeating-linear-gradient(103deg, rgba(210,225,255,0) 0 3px, rgba(215,230,255,.30) 3px 4px, rgba(210,225,255,0) 4px 7px)}
+  @keyframes raindrop{from{background-position:0 0}to{background-position:-42px 240px}}
   /* vinheta sutil */
   #vig{position:fixed;inset:0;pointer-events:none;
     box-shadow:inset 0 0 220px 60px rgba(0,0,0,0.45);}
@@ -95,8 +103,22 @@
     border-radius:30px;padding:11px 20px;font-size:15px;font-weight:700;cursor:pointer;
     backdrop-filter:blur(5px);box-shadow:0 6px 22px rgba(0,0,0,.45)}
   #cam:active{transform:translateX(-50%) scale(.96)}
-  #ficha{position:fixed;top:162px;left:16px;background:rgba(12,14,18,.5);color:#fff;
-    border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(6px)}
+  #ficha{position:fixed;top:112px;left:16px;background:rgba(12,14,18,.5);color:#fff;
+    border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(6px)}
+  /* ===== responsivo (celular) ===== */
+  @media (max-width:640px){
+    #title b{font-size:15px} #title > span{font-size:9px}
+    #circuit,#team{font-size:11px;padding:5px 9px;max-width:158px;top:auto}
+    #circuit{top:42px} #team{top:74px} #ficha{top:106px;font-size:11px}
+    #mini{width:80px;height:84px;top:34px}
+    #tower{top:126px;width:90px;font-size:8px}
+    #telem{width:130px;bottom:92px;padding:6px 9px}
+    #telem .lab{width:22px} #telem .val{width:24px} #telem .st{width:50px}
+    #hud .big{font-size:40px} #hud .unit{font-size:12px} #hud .g{font-size:11px}
+    #gearbox .num{font-size:40px}
+    #cam{bottom:76px;padding:9px 16px;font-size:13px}
+    #lap{font-size:10px;padding:4px 11px}
+  }
   #fichaPanel{position:fixed;inset:0;z-index:30;background:rgba(6,8,12,.85);backdrop-filter:blur(5px);
     display:flex;align-items:center;justify-content:center;padding:14px}
   #fichaPanel.hide{display:none}
@@ -123,19 +145,19 @@
   .fbtn{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#1f7a45;color:#fff;font-weight:800;font-size:15px;cursor:pointer}
   .fbtn:active{transform:scale(.98)}
   .fclose{margin-top:10px;width:100%;padding:11px;border:0;border-radius:10px;background:#2a3240;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
-  #circuitlbl{position:fixed;top:64px;left:18px;color:#fff;font-size:10px;opacity:.65;text-shadow:0 1px 3px #000;letter-spacing:.5px}
-  #circuit{position:fixed;top:78px;left:16px;background:rgba(12,14,18,.72);color:#fff;
-    border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;
-    max-width:200px;-webkit-appearance:none;appearance:none}
-  #teamlbl{position:fixed;top:110px;left:18px;color:#fff;font-size:10px;opacity:.65;text-shadow:0 1px 3px #000;letter-spacing:.5px}
-  #team{position:fixed;top:124px;left:16px;background:rgba(12,14,18,.72);color:#fff;
-    border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;
-    -webkit-appearance:none;appearance:none}
+  #circuitlbl,#teamlbl{display:none}                       /* clean: dropdowns já se explicam */
+  #circuit{position:fixed;top:44px;left:16px;background:rgba(12,14,18,.5);color:#fff;
+    border:1px solid rgba(255,255,255,.13);border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;
+    max-width:180px;backdrop-filter:blur(6px);-webkit-appearance:none;appearance:none}
+  #team{position:fixed;top:78px;left:16px;background:rgba(12,14,18,.5);color:#fff;
+    border:1px solid rgba(255,255,255,.13);border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;
+    max-width:180px;backdrop-filter:blur(6px);-webkit-appearance:none;appearance:none}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="speedfx"></div>
+<div id="rain"></div>
 <div id="vig"></div>
 <div id="title"><b><span class="flag"></span>LENDAS DA F1</b><span>Interlagos — 20 carros · grid completo</span></div>
 <div id="tag">v0.4 · protótipo</div>

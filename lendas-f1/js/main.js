@@ -7,7 +7,7 @@ import * as THREE from '../vendor/three.module.js';
 import { buildF1Car, TEAMS } from './car.js';
 import { carStats, tier, ranking } from './stats.js';
 import { driversOf, overall, ATTRS, simulateRace } from './drivers.js';
-import { computeLine, buildField, updateField, RACE, TIRES } from './race.js';
+import { computeLine, buildField, updateField, RACE, TIRES, setWeather, WEATHERS } from './race.js';
 import { buildTrack } from './track.js';
 import { CIRCUITS, CIRCUIT_LIST } from './circuits-data.js';
 import { F1Audio } from './audio.js';
@@ -18,6 +18,12 @@ const circuit = CIRCUITS[trackKey] ? trackKey : 'interlagos';
 const circuitInfo = CIRCUIT_LIST.find(c=>c.key===circuit) || CIRCUIT_LIST[0];
 RACE.laps = circuitInfo.laps || 12;
 
+/* ---------- CLIMA da corrida (via ?weather= ou sorteado) ---------- */
+const wq = new URLSearchParams(location.search).get('weather');
+const weatherKey = WEATHERS[wq] ? wq : (()=>{ const r=Math.random();
+  return r<0.55?'sol' : r<0.72?'nublado' : r<0.85?'garoa' : r<0.95?'chuva' : 'tempestade'; })();
+const WX = setWeather(weatherKey);
+
 const cvs = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas:cvs, antialias:true });
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));   // fill-rate no celular
@@ -26,19 +32,19 @@ renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
 
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x8fb8e6);
-scene.fog=new THREE.Fog(0x8fb8e6, 400, 1400);
+scene.background=new THREE.Color(WX.sky);
+scene.fog=new THREE.Fog(WX.sky, WX.fog[0], WX.fog[1]);
 
 const camera=new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.5, 4000);
 
-/* ---------- LUZ ---------- */
-const sun=new THREE.DirectionalLight(0xfff4e6, 2.6);
-sun.position.set(180,300,120); sun.castShadow=true;
+/* ---------- LUZ (atenuada conforme o clima) ---------- */
+const sun=new THREE.DirectionalLight(0xfff4e6, 2.6*WX.amb);
+sun.position.set(180,300,120); sun.castShadow = WX.amb>0.7;   // sem sombra dura em dia nublado/chuva
 sun.shadow.mapSize.set(1024,1024);
 const sc=sun.shadow.camera; sc.near=50; sc.far=900; sc.left=-140; sc.right=140; sc.top=140; sc.bottom=-140;
 sun.shadow.bias=-0.0004;
 scene.add(sun);
-scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x3a5a30, 0.9));
+scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x3a5a30, 0.9*WX.amb));
 
 /* ---------- ENVIRONMENT (para brilho da lataria) ---------- */
 (function(){
@@ -56,7 +62,7 @@ const track=buildTrack(CIRCUITS[circuit]); scene.add(track.group);
 const curve=track.curve;
 const total=track.length;
 const line=computeLine(curve, track.half);   // racing line (apex nas curvas)
-const cars=buildField(scene, line);           // 20 carros na grade
+const cars=buildField(scene, line, circuit);  // 20 carros na grade (força por pista)
 
 let currentTeam='ferrari';
 const findFocus=()=> cars.find(c=>c.team===currentTeam) || cars[0];
@@ -168,7 +174,7 @@ function updateTower(dt){
   if(hudDrv) hudDrv.textContent='P'+fp+' · '+focus.drv.nome;
   // contador de voltas + bandeirada
   const leader=running[0];
-  if(lapEl && leader) lapEl.textContent='VOLTA '+Math.min(leader.lapsDone+1,RACE.laps)+'/'+RACE.laps;
+  if(lapEl && leader) lapEl.textContent=WX.icon+' VOLTA '+Math.min(leader.lapsDone+1,RACE.laps)+'/'+RACE.laps;
   if(!raceOver && leader && leader.lapsDone>=RACE.laps){
     raceOver=true; cars.forEach(c=>c.finished=true); showResults(); }
   if(towerCd>0 || !towerEl) return;
@@ -357,8 +363,12 @@ if(circuitSel){
     u.searchParams.set('track', circuitSel.value); location.href=u.toString(); });
 }
 // título com o nome do circuito
-(function(){ const t=document.querySelector('#title span');
-  if(t) t.textContent=`${circuitInfo.flag} ${circuitInfo.nome} — ${circuitInfo.km} km · ${RACE.laps} voltas`; })();
+(function(){ const t=document.querySelector('#title > span');
+  if(t) t.textContent=`${circuitInfo.flag} ${circuitInfo.nome} · ${circuitInfo.km}km · ${WX.icon} ${WX.nome}`;
+  // camada de chuva conforme o clima
+  const rain=document.getElementById('rain');
+  if(rain){ if(WX.wet>=0.7) rain.className='heavy'; else if(WX.wet>=0.35) rain.className='on'; }
+})();
 
 /* ---------- FICHA TÉCNICA (desempenho do carro) ---------- */
 const fichaBtn=document.getElementById('ficha');
