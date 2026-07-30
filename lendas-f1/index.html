@@ -41,6 +41,11 @@
     backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(0,0,0,.5);transition:opacity .3s}
   #sound .s{display:block;font-size:12px;font-weight:500;opacity:.75;margin-top:3px}
   #sound.hide{opacity:0;pointer-events:none}
+  #cam{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:rgba(12,14,18,.74);color:#fff;border:1px solid rgba(255,255,255,.22);
+    border-radius:30px;padding:11px 20px;font-size:15px;font-weight:700;cursor:pointer;
+    backdrop-filter:blur(5px);box-shadow:0 6px 22px rgba(0,0,0,.45)}
+  #cam:active{transform:translateX(-50%) scale(.96)}
   #teamlbl{position:fixed;top:64px;left:18px;color:#fff;font-size:10px;opacity:.65;text-shadow:0 1px 3px #000;letter-spacing:.5px}
   #team{position:fixed;top:78px;left:16px;background:rgba(12,14,18,.72);color:#fff;
     border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:7px 10px;font-size:13px;font-weight:600;
@@ -62,6 +67,7 @@
 </div>
 <div id="gearbox"><div class="num" id="gear">1</div><div class="lbl">MARCHA</div></div>
 <button id="sound">🔊 Ligar som do motor<span class="s">toque pra ouvir o F1</span></button>
+<button id="cam">📹 Perseguição</button>
 <script type="module" src="./js/main.js"></script>
 </body>
 </html>

@@ -121,6 +121,57 @@ function drawMini(){
   mctx.lineWidth=2; mctx.strokeStyle='#1b1b1b'; mctx.stroke();
 }
 
+/* ---------- SISTEMA DE CÂMERAS (vários ângulos, tipo transmissão) ---------- */
+let camMode=0;
+const CAM_MODES=[
+  {key:'perseguicao', name:'Perseguição'},
+  {key:'cockpit',     name:'Cockpit'},
+  {key:'aerea',       name:'Aérea'},
+  {key:'tv',          name:'TV (beira de pista)'},
+];
+// câmeras fixas de beira de pista (handoff conforme o carro passa)
+const camCentroid=new THREE.Vector3();
+{ const sp=curve.getSpacedPoints(240); sp.forEach(p=>camCentroid.add(p)); camCentroid.multiplyScalar(1/sp.length); }
+const NTV=12, tvCams=[];
+for(let i=0;i<NTV;i++){ const uc=(i+0.5)/NTV; const p=curve.getPointAt(uc);
+  const out=p.clone().sub(camCentroid).setY(0).normalize();
+  tvCams.push(p.clone().addScaledVector(out, 30).setY(8+(i%3)*6)); }
+const rnd=a=>(Math.random()*2-1)*a;
+function updateCamera(dt, spd01, onKerb){
+  const mode=CAM_MODES[camMode].key;
+  let fov=FOV_BASE + spd01*(FOV_MAX-FOV_BASE);
+  if(mode==='perseguicao'){
+    const dist=8.5-spd01*1.2;
+    const desired=car.position.clone().addScaledVector(tan,-dist).add(new THREE.Vector3(0,2.5,0));
+    camPos.lerp(desired, 1-Math.pow(0.0016,dt));
+    const sh=spd01*0.05+(onKerb?0.09:0);
+    camera.up.set(0,1,0); camera.position.set(camPos.x+rnd(sh),camPos.y+rnd(sh),camPos.z);
+    lookTmp.copy(car.position).addScaledVector(tan,8).setY(1.1); camera.lookAt(lookTmp);
+  } else if(mode==='cockpit'){
+    fov=78+spd01*6;
+    const eye=car.position.clone().add(new THREE.Vector3(0,1.12,0)).addScaledVector(tan,-0.1);
+    camPos.copy(eye);
+    const sh=spd01*0.035+(onKerb?0.06:0);
+    camera.up.set(0,1,0); camera.position.set(eye.x+rnd(sh),eye.y+rnd(sh*0.6),eye.z+rnd(sh));
+    lookTmp.copy(car.position).addScaledVector(tan,14).setY(0.85); camera.lookAt(lookTmp);
+  } else if(mode==='aerea'){
+    fov=40;
+    const desired=car.position.clone().addScaledVector(tan,-13).add(new THREE.Vector3(0,26,0));
+    camPos.lerp(desired, 1-Math.pow(0.003,dt));
+    camera.up.set(0,1,0); camera.position.copy(camPos);
+    lookTmp.copy(car.position).addScaledVector(tan,3).setY(0.4); camera.lookAt(lookTmp);
+  } else { // TV — câmera fixa mais próxima, com "zoom" (teleobjetiva)
+    const cam=tvCams[Math.floor(u*NTV)%NTV];
+    camera.up.set(0,1,0); camera.position.copy(cam);
+    const dist=cam.distanceTo(car.position);
+    fov=THREE.MathUtils.clamp(1000/dist, 14, 38);   // longe = mais zoom
+    lookTmp.copy(car.position).setY(0.6); camera.lookAt(lookTmp);
+  }
+  if(Math.abs(camera.fov-fov)>0.1){ camera.fov=fov; camera.updateProjectionMatrix(); }
+  return mode;
+}
+function cycleCam(){ camMode=(camMode+1)%CAM_MODES.length; if(camBtn) camBtn.textContent='📹 '+CAM_MODES[camMode].name; }
+
 function frame(){
   const dt=Math.min(clock.getDelta(),0.05);
 
@@ -170,23 +221,12 @@ function frame(){
   }
   prevSteer=steer;
 
-  // ---- câmera de perseguição (mais baixa/perto = mais velocidade) ----
+  // ---- métricas de velocidade ----
   const spd01=THREE.MathUtils.clamp(speed/95,0,1);
-  const dist=8.5 - spd01*1.2;                 // aproxima um pouco a fundo
-  const back=tan.clone().multiplyScalar(-dist);
-  const desired=car.position.clone().add(back).add(new THREE.Vector3(0,2.5,0));
-  camPos.lerp(desired, 1-Math.pow(0.0016,dt));
-  // tremor da câmera: cresce com a velocidade, ainda mais na zebra
   const kmh=speed*3.6;
   const onKerb = latG>2.6;                     // pisando na zebra em curva forte
-  const shakeAmp=spd01*0.05 + (onKerb?0.09:0);
-  shakeX=(Math.random()*2-1)*shakeAmp; shakeY=(Math.random()*2-1)*shakeAmp;
-  camera.position.set(camPos.x+shakeX, camPos.y+shakeY, camPos.z);
-  lookTmp.copy(car.position).addScaledVector(tan, 8).setY(1.1);
-  camera.lookAt(lookTmp);
-  // FOV dinâmico: abre com a velocidade (túnel de velocidade)
-  const fov=FOV_BASE + spd01*(FOV_MAX-FOV_BASE);
-  if(Math.abs(camera.fov-fov)>0.1){ camera.fov=fov; camera.updateProjectionMatrix(); }
+  // ---- câmera (vários ângulos: perseguição / cockpit / aérea / TV) ----
+  const curMode=updateCamera(dt, spd01, onKerb);
 
   // ---- SOM do motor ----
   const {rpm,gear}=rpmFor(kmh);
@@ -200,8 +240,9 @@ function frame(){
   hudSpeed.textContent=Math.round(kmh);
   hudG.textContent=latG.toFixed(1);
   if(hudGear) hudGear.textContent=gear;
-  // linhas de velocidade (overlay)
-  if(speedFX) speedFX.style.opacity = (spd01>0.45? (spd01-0.45)/0.55*0.9 : 0).toFixed(2);
+  // linhas de velocidade (só nas câmeras de dentro do carro)
+  const showFX=(curMode==='perseguicao'||curMode==='cockpit');
+  if(speedFX) speedFX.style.opacity = (showFX && spd01>0.45? (spd01-0.45)/0.55*0.9 : 0).toFixed(2);
   drawMini();
 
   renderer.render(scene,camera);
@@ -213,6 +254,9 @@ const hudSpeed=document.getElementById('spd');
 const hudG=document.getElementById('gforce');
 const hudGear=document.getElementById('gear');
 const speedFX=document.getElementById('speedfx');
+const camBtn=document.getElementById('cam');
+if(camBtn){ camBtn.textContent='📹 '+CAM_MODES[camMode].name; camBtn.addEventListener('click', cycleCam); }
+addEventListener('keydown', e=>{ if(e.key==='c'||e.key==='C') cycleCam(); });
 
 /* ---------- botão de som (autoplay exige gesto) ---------- */
 const startBtn=document.getElementById('sound');
