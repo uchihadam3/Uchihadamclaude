@@ -109,7 +109,8 @@ export function buildField(scene, line){
       passCd:4, hitCd:0, passing:null, form:0, avoidS:0, cornerErr:0, yieldT:0, yieldOff:0,
       tire: slot<6?'S':(slot<14?'M':(Math.random()<0.5?'M':'H')), wear:0, pits:0,
       pitLap: Math.max(3, Math.round(RACE.laps*(0.35+Math.random()*0.3))),
-      pitPhase:0, pitT:0, lapsDone:0, blueT:0, finished:false, outT:0,
+      pitPhase:0, pitT:0, pitReason:'', lapsDone:0, blueT:0, finished:false, outT:0,
+      fuel:1, dmgWing:0,                                   // combustível 100% + dano na asa dianteira
       tan:vat(line.ctan, ((-(8+slot*8)/line.len)*line.N%line.N+line.N)%line.N, line.N).clone() });
   });
   return cars;
@@ -165,11 +166,12 @@ export function updateField(cars, line, dt, t, started){
     c.form += (Math.random()-0.5)*0.006;
     c.form = THREE.MathUtils.clamp(c.form, -0.026, 0.026);
     c.lapsDone=Math.max(0,Math.floor(c.d/len));
-    // pneu: desgasta e perde ritmo; combustível: carro fica mais leve/rápido
+    // pneu: desgasta e perde ritmo; combustível: queima ao longo da corrida (carro fica leve/rápido)
     const tire=TIRES[c.tire];
     c.wear=Math.min(1, c.wear + dt*0.0016*tire.wear);
     const tireMul=tire.grip*(1-c.wear*0.10);
-    const fuelMul=0.99+0.01*Math.min(1,c.lapsDone/RACE.laps);
+    c.fuel=Math.max(0.03, 1 - c.d/(RACE.laps*len));               // 100% -> ~3% no fim
+    const fuelMul=0.984 + 0.016*(1-c.fuel);                       // tanque cheio = mais pesado/lento
     let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage)*tireMul*fuelMul;
 
     // ---- LINHA: base = a racing line já traz o out-in-out suave embutido ----
@@ -183,24 +185,39 @@ export function updateField(cars, line, dt, t, started){
       tOff=THREE.MathUtils.lerp(tOff, outEdge, Math.pow(w,0.95)*0.5);
     }
 
-    // ---- PIT STOP (estratégia: 1 parada, troca de pneu) ----
+    // ---- PIT STOP (troca de pneu + reparo de dano; F1 real não reabastece) ----
     const dPos=((c.d%len)+len)%len;
-    if(c.pitPhase===0 && c.pits<1 && c.lapsDone>=c.pitLap && !c.finished &&
-       dPos>len-620 && dPos<len-280) c.pitPhase=1;
+    const lapsLeft=RACE.laps-c.lapsDone;
+    if(c.pitPhase===0 && !c.finished && lapsLeft>1 && dPos>len-620 && dPos<len-300){
+      // MOTIVOS reais pra entrar: pneu gasto, dano que precisa de reparo, ou estratégia planejada
+      if(c.damage>0.5 && c.pits<3){ c.pitPhase=1; c.pitReason='reparo'; }
+      else if(c.wear>0.72 && c.pits<2){ c.pitPhase=1; c.pitReason='pneu'; }
+      else if(c.pits<1 && c.lapsDone>=c.pitLap){ c.pitPhase=1; c.pitReason='pneu'; }
+    }
     if(c.pitPhase>0){
       if(c.pitPhase===1){                                  // entrando no pit lane
         if(dPos>len-320||dPos<150) tOff=PITOFF;
-        if(dPos>len-250||dPos<150) targetV=Math.min(targetV,23);   // limite 80 km/h
+        if(dPos>len-250||dPos<150) targetV=Math.min(targetV,23);   // limite de velocidade (~80 km/h)
         const boxD=len-70-(c.gridPos%10)*4;
-        if(dPos>boxD-2 && dPos<boxD+6) { c.pitPhase=2; c.pitT=2.4+Math.random()*1.4; }
-      } else if(c.pitPhase===2){                           // parado no box
+        if(dPos>boxD-2 && dPos<boxD+6){
+          c.pitPhase=2;
+          const needFix = c.damage>0.35;                          // reparo de asa/peça?
+          c.pitT = (2.3+Math.random()*0.9) + (needFix ? 3.5+c.damage*9 : 0);  // pneu ~2.5s; +asa 4-12s
+          c.pitFix = needFix;
+        }
+      } else if(c.pitPhase===2){                           // parado no box (equipe trabalhando)
         tOff=PITOFF; targetV=0;
         if(c.speed<0.6){ c.pitT-=dt;
-          if(c.pitT<=0){ c.tire=(RACE.laps-c.lapsDone>6)?'M':'S'; if(Math.random()<0.2)c.tire='H';
-            c.wear=0; c.pits++; c.pitPhase=3; } }
-      } else {                                             // saindo
+          if(c.pitT<=0){
+            // troca de pneu: compõe pela estratégia (fim de prova = macio)
+            c.tire = lapsLeft<=6 ? 'S' : (Math.random()<0.55?'M':'H');
+            c.wear=0;
+            if(c.pitFix){ c.damage=Math.min(c.damage,0.05); c.dmgWing=0; }  // reparo: asa/peça nova
+            c.pits++; c.pitPhase=3;
+          } }
+      } else {                                             // saindo do pit lane
         tOff=PITOFF; targetV=Math.min(targetV,23);
-        if(dPos>150 && dPos<len/2) c.pitPhase=0;
+        if(dPos>150 && dPos<len/2){ c.pitPhase=0; c.pitReason=''; }
       }
     }
     // ---- BANDEIRA AZUL: retardatário abre pro carro que vem dar volta ----

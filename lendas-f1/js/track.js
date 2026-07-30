@@ -7,6 +7,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { INTERLAGOS } from './interlagos-data.js';
 import { tex, TEX } from './textures.js';
+import { TEAMS } from './car.js';
 
 export function buildTrack(){
   const G = new THREE.Group();
@@ -318,6 +319,28 @@ export function buildTrack(){
       b2.rotation.x=-Math.PI/2; b2.rotation.z=-Math.atan2(tt.x,tt.z);
       const c3=p.clone().addScaledVector(l, HALF+2.9);
       b2.position.set(c3.x,0.03,c3.z); G.add(b2);
+    }
+    // ---- GARAGENS (prédio dos boxes: uma por equipe, frente aberta pro pit lane) ----
+    const teams=Object.keys(TEAMS).filter(k=>k!=='brasil').slice(0,10);
+    const wall2=new THREE.MeshStandardMaterial({color:0x2b2f36,roughness:0.9});
+    const roofM=new THREE.MeshStandardMaterial({color:0x3c424b,roughness:0.7,metalness:0.2});
+    const dark = new THREE.MeshStandardMaterial({color:0x0c0e12,roughness:0.95});
+    for(let i=0;i<10;i++){
+      const dd=-58-i*9; const uu=((dd/total)%1+1)%1;
+      const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
+      const grp=new THREE.Group();
+      const base=p.clone().addScaledVector(l, HALF+3.4);
+      grp.position.set(base.x,0,base.z); grp.rotation.y=Math.atan2(tt.x,tt.z); G.add(grp);
+      const mk=(w,h,d,x,y,z,mat)=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+        m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; grp.add(m); return m; };
+      // x = profundidade (pra fora), z = largura ao longo do pit lane
+      mk(0.3,3.6,8.4, 5.0,1.8,0, wall2);                       // fundo
+      mk(5.2,3.6,0.3, 2.4,1.8, 4.05, wall2);                   // lateral
+      mk(5.2,3.6,0.3, 2.4,1.8,-4.05, wall2);                   // lateral
+      mk(5.6,0.3,8.5, 2.4,3.6,0, roofM);                       // teto
+      mk(0.35,1.2,8.4, 0.15,4.2,0, dark);                      // testeira (frente escura)
+      // faixa de cor da equipe na testeira
+      mk(0.4,0.7,7.9, 0.05,3.9,0, new THREE.MeshStandardMaterial({color:TEAMS[teams[i]].body,roughness:0.5,metalness:0.2}));
     }
   })();
 

@@ -291,6 +291,7 @@ function frame(){
   if(speedFX) speedFX.style.opacity = (showFX && spd01>0.45? (spd01-0.45)/0.55*0.9 : 0).toFixed(2);
   drawMini();
   updateTower(dt);
+  updateTelemetry(focus);
 
   renderer.render(scene,camera);
   requestAnimationFrame(frame);
@@ -301,6 +302,24 @@ const hudSpeed=document.getElementById('spd');
 const hudDrv=document.getElementById('drvline');
 const hudGear=document.getElementById('gear');
 const speedFX=document.getElementById('speedfx');
+
+/* ---------- TELEMETRIA (combustível / pneu / dano do carro em foco) ---------- */
+const telFuel=document.getElementById('tFuel'), telFuelV=document.getElementById('tFuelV');
+const telComp=document.getElementById('tComp'), telWear=document.getElementById('tWear'), telWearV=document.getElementById('tWearV');
+const telDmg=document.getElementById('tDmg'), telDmgV=document.getElementById('tDmgV'), telH=document.getElementById('telemH');
+const gyr=t=>`hsl(${Math.round((1-Math.max(0,Math.min(1,t)))*120)},78%,47%)`;   // verde(0)->vermelho(1)
+function updateTelemetry(c){
+  if(!telFuel||!c) return;
+  const f=Math.max(0,Math.min(1,c.fuel??1));
+  telFuel.style.width=(f*100).toFixed(0)+'%'; telFuel.style.background=gyr(1-f); telFuelV.textContent=Math.round(f*100)+'%';
+  const T=TIRES[c.tire]; if(T){ telComp.textContent=c.tire; telComp.style.background=T.col; }
+  const w=Math.max(0,Math.min(1,c.wear));
+  telWear.style.width=((1-w)*100).toFixed(0)+'%'; telWear.style.background=gyr(w); telWearV.textContent=Math.round((1-w)*100)+'%';
+  const d=Math.max(0,Math.min(1,c.damage));
+  telDmg.style.width=((1-d)*100).toFixed(0)+'%'; telDmg.style.background=gyr(d);
+  telDmgV.textContent = d<0.06?'Íntegro' : d<0.3?'Leve' : d<0.5?'Asa batida' : 'Precisa reparo';
+  if(telH) telH.textContent = c.pitPhase>0 ? ('NO PIT · '+(c.pitReason||'serviço').toUpperCase()) : 'TELEMETRIA';
+}
 const camBtn=document.getElementById('cam');
 if(camBtn){ camBtn.textContent='📹 '+CAM_MODES[camMode].name; camBtn.addEventListener('click', cycleCam); }
 addEventListener('keydown', e=>{ if(e.key==='c'||e.key==='C') cycleCam(); });

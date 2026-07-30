@@ -23,6 +23,18 @@
   #hud .unit{font-size:16px;font-weight:600;opacity:.85;margin-left:4px}
   #hud .row{display:flex;align-items:baseline;gap:6px}
   #hud .g{font-size:15px;font-weight:600;opacity:.9;margin-top:6px}
+  #telem{position:fixed;left:16px;bottom:118px;width:186px;color:#fff;pointer-events:none;
+    background:rgba(10,12,16,.5);border:1px solid rgba(255,255,255,.14);border-radius:9px;
+    padding:8px 11px 9px;backdrop-filter:blur(4px);text-shadow:0 1px 2px #000}
+  #telem h4{font-size:9px;font-weight:800;letter-spacing:1.4px;opacity:.55;margin-bottom:4px}
+  #telem .tl{display:flex;align-items:center;gap:7px;margin:5px 0}
+  #telem .lab{font-size:9.5px;font-weight:800;opacity:.8;width:32px;letter-spacing:.3px}
+  #telem .bar{flex:1;height:7px;background:#20262f;border-radius:4px;overflow:hidden}
+  #telem .bar>i{display:block;height:100%;width:100%;border-radius:4px;transition:width .3s,background .3s}
+  #telem .val{font-size:10px;font-weight:800;width:32px;text-align:right}
+  #telem .comp{width:16px;height:16px;border-radius:50%;font-size:9px;font-weight:900;flex:none;
+    display:flex;align-items:center;justify-content:center;color:#0a0a0a}
+  #telem .st{font-size:9.5px;font-weight:800;opacity:.95;width:64px;text-align:right}
   #gearbox{position:fixed;right:18px;bottom:16px;color:#fff;text-align:center;text-shadow:0 2px 6px #000;pointer-events:none}
   #gearbox .num{font-size:56px;font-weight:800;line-height:1;color:#f2c400}
   #gearbox .lbl{font-size:12px;font-weight:600;opacity:.8;letter-spacing:1px}
@@ -127,6 +139,12 @@
 <div id="lights" class="hide"><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></div>
 <div id="teamlbl">EQUIPE (cores)</div>
 <select id="team" aria-label="Equipe"></select>
+<div id="telem">
+  <h4 id="telemH">TELEMETRIA</h4>
+  <div class="tl"><span class="lab">COMB.</span><span class="bar"><i id="tFuel"></i></span><span class="val" id="tFuelV">100%</span></div>
+  <div class="tl"><span class="lab">PNEU</span><span class="comp" id="tComp">M</span><span class="bar"><i id="tWear"></i></span><span class="val" id="tWearV">0%</span></div>
+  <div class="tl"><span class="lab">DANO</span><span class="bar"><i id="tDmg"></i></span><span class="st" id="tDmgV">Íntegro</span></div>
+</div>
 <div id="hud">
   <div class="row"><span class="big" id="spd">0</span><span class="unit">km/h</span></div>
   <div class="g" id="drvline">—</div>
