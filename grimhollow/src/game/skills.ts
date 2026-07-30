@@ -420,6 +420,50 @@ export function combatFor(id: string): SkillCombat {
   return SKILL_COMBAT[id] ?? mDmg(12, 8, 4000);
 }
 
+// ----- ESCALONAMENTO POR ATRIBUTO -----
+// dano/cura de uma skill = base(rank) + Σ(atributo × coeficiente). Cada classe escala
+// com seu atributo primário (o Mago escala MAIS forte); alguns casos são híbridos.
+export type PrimAttr = "str" | "dex" | "int";
+export const CLASS_PRIMARY: Record<string, PrimAttr> = {
+  guerreiro: "str", ladino: "dex", mago: "int", clerigo: "int",
+};
+// coeficiente base do atributo primário por classe (Mago escala mais)
+export const CLASS_COEF: Record<string, number> = {
+  guerreiro: 0.6, ladino: 0.7, mago: 1.0, clerigo: 0.7,
+};
+// overrides (HÍBRIDOS / casos especiais): coeficiente por atributo
+export const SKILL_SCALE: Record<string, Partial<Record<PrimAttr, number>>> = {
+  // Clérigo — sagradas CONTUNDENTES: metade Força, metade Inteligência
+  c_martelo_sagrado: { str: 0.4, int: 0.4 },
+  c_punicao: { str: 0.4, int: 0.4 },
+  c_condenacao: { str: 0.45, int: 0.45 },
+};
+// coeficientes finais de uma skill (override do híbrido, senão o padrão da classe)
+export function scaleOf(id: string, classId: string): Record<PrimAttr, number> {
+  const ov = SKILL_SCALE[id];
+  if (ov) return { str: ov.str ?? 0, dex: ov.dex ?? 0, int: ov.int ?? 0 };
+  const p = CLASS_PRIMARY[classId] ?? "str";
+  const c = CLASS_COEF[classId] ?? 0.6;
+  return { str: p === "str" ? c : 0, dex: p === "dex" ? c : 0, int: p === "int" ? c : 0 };
+}
+// atributos com que a skill escala (p/ mostrar os selos no card), do maior p/ o menor coef
+export function scaleAttrs(id: string, classId: string): PrimAttr[] {
+  const s = scaleOf(id, classId);
+  return (["str", "dex", "int"] as PrimAttr[]).filter((k) => s[k] > 0).sort((a, b) => s[b] - s[a]);
+}
+// bônus de atributo dado os primários do herói
+export function attrBonus(id: string, classId: string, prim: { str: number; dex: number; int: number }): number {
+  const s = scaleOf(id, classId);
+  return prim.str * s.str + prim.dex * s.dex + prim.int * s.int;
+}
+// dano/cura ESTIMADO (base do rank + atributos), sem crítico/buffs — p/ exibir no card
+export function estimateAmount(id: string, classId: string, rank: number, prim: { str: number; dex: number; int: number }): number {
+  const cb = combatFor(id);
+  if (cb.effect !== "dmg" && cb.effect !== "heal") return 0;
+  const base = cb.power * (1 + 0.25 * (Math.max(1, rank) - 1));
+  return Math.round(base + attrBonus(id, classId, prim));
+}
+
 // nome legível de uma habilidade (para a barra de conjuração, tooltips, etc.)
 export function skillName(id: string): string {
   for (const key in SKILL_TREES) {

@@ -178,6 +178,7 @@ import {
   activeSkillsFor,
   combatFor,
   skillName,
+  attrBonus,
   type StatKey,
 } from "./skills";
 // Só o sprite ESTÁTICO da espada. O motor faz a animação de golpe (gira a
@@ -3279,7 +3280,8 @@ export class Game {
       // guarda alvo/posição ANTES do dano (a morte limpa this.target)
       const tx = this.target.bx, tz = this.target.bz;
       const enemyRef = this.target;
-      const base = cb.power * (1 + 0.25 * (rank - 1));
+      // dano = base do rank + ESCALONAMENTO por atributo (FOR/DES/INT da classe)
+      const base = cb.power * (1 + 0.25 * (rank - 1)) + attrBonus(id, this.classId, this.prim);
       // magias (mago/clérigo) têm um pequeno TEMPO DE CONJURAÇÃO; melee é instantâneo
       const castMs = !cb.melee && cb.magic ? 360 : 0;
       if (castMs > 0) this.ui.castBar(skillName(id), castMs); // barra "conjurando…"
@@ -3300,7 +3302,8 @@ export class Game {
       else resolve();
       if (cb.melee) this.ui.swingWeapon();
     } else if (cb.effect === "heal") {
-      const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)));
+      // cura também escala com o atributo (INT do clérigo)
+      const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)) + attrBonus(id, this.classId, this.prim));
       const before = this.playerHp;
       this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
       this.ui.setHealth(this.playerHp / this.playerMaxHp);
