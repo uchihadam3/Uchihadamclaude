@@ -78,6 +78,15 @@
   #lap{position:fixed;top:12px;left:50%;transform:translateX(-50%);color:#fff;
     background:rgba(12,14,18,.5);border:1px solid rgba(255,255,255,.12);border-radius:20px;
     padding:5px 14px;font-size:11px;font-weight:800;letter-spacing:1px;text-shadow:0 1px 3px #000;backdrop-filter:blur(6px)}
+  /* cronômetro de volta (estilo transmissão) */
+  #laptimer{position:fixed;top:40px;left:50%;transform:translateX(-50%);display:flex;gap:7px;pointer-events:none;z-index:8}
+  .ltbox{background:rgba(12,14,18,.5);border:1px solid rgba(255,255,255,.1);border-radius:9px;
+    padding:3px 11px 4px;backdrop-filter:blur(6px);text-align:center;color:#fff;min-width:74px}
+  .ltbox .k{font-size:7px;font-weight:800;letter-spacing:1.6px;opacity:.5;display:block;margin-bottom:1px}
+  .ltbox .v{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 1px 3px #000}
+  .ltbox.best .v{color:#c07cff}                 /* melhor volta: roxo estilo F1 */
+  .ltbox.best.flash{animation:ltflash 1s ease}
+  @keyframes ltflash{0%{background:rgba(192,124,255,.55)}100%{background:rgba(12,14,18,.5)}}
   /* semáforo da largada */
   #lights{position:fixed;top:56px;left:50%;transform:translateX(-50%);display:flex;gap:8px;
     padding:10px 14px;background:rgba(8,10,14,.72);border-radius:12px;z-index:15;transition:opacity .5s}
@@ -118,6 +127,7 @@
     #gearbox .num{font-size:40px}
     #cam{bottom:76px;padding:9px 16px;font-size:13px}
     #lap{font-size:10px;padding:4px 11px}
+    #laptimer{top:36px;gap:5px} .ltbox{padding:2px 8px 3px;min-width:60px} .ltbox .v{font-size:13px}
   }
   #fichaPanel{position:fixed;inset:0;z-index:30;background:rgba(6,8,12,.85);backdrop-filter:blur(5px);
     display:flex;align-items:center;justify-content:center;padding:14px}
@@ -164,6 +174,10 @@
 <canvas id="mini" width="140" height="150"></canvas>
 <div id="tower"></div>
 <div id="lap">VOLTA 1/12</div>
+<div id="laptimer">
+  <div class="ltbox"><span class="k">VOLTA</span><span class="v" id="tCur">–:––.–</span></div>
+  <div class="ltbox best"><span class="k">MELHOR</span><span class="v" id="tBest">–:––.–</span></div>
+</div>
 <div id="overtake" class="hide"></div>
 <div id="lights" class="hide"><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></div>
 <div id="circuitlbl">CIRCUITO</div>

@@ -305,6 +305,7 @@ function frame(){
   drawMini();
   updateTower(dt);
   updateTelemetry(focus);
+  updateLapTimer(focus);
 
   for(const c of cars){ if(c.g.isLOD) c.g.update(camera); }   // troca detalhe por distância
 
@@ -334,6 +335,18 @@ function updateTelemetry(c){
   telDmg.style.width=((1-d)*100).toFixed(0)+'%'; telDmg.style.background=gyr(d);
   telDmgV.textContent = d<0.06?'Íntegro' : d<0.3?'Leve' : d<0.5?'Asa batida' : 'Precisa reparo';
   if(telH) telH.textContent = c.pitPhase>0 ? ('NO PIT · '+(c.pitReason||'serviço').toUpperCase()) : 'TELEMETRIA';
+}
+
+/* ---------- CRONÔMETRO (volta atual + melhor volta do carro em foco) ---------- */
+const tCur=document.getElementById('tCur'), tBest=document.getElementById('tBest');
+const tBestBox=tBest&&tBest.parentElement;
+const fmtLap=s=>{ if(!s||s<1) return '–:––.–'; const m=Math.floor(s/60); const sec=s-m*60;
+  return m+':'+sec.toFixed(1).padStart(4,'0'); };
+function updateLapTimer(c){ if(!tCur||!c) return;
+  tCur.textContent=fmtLap(c.curLap);
+  tBest.textContent=fmtLap(c.bestLap);
+  if(tBestBox){ if(c.bestFlash && raceTime-c.bestFlash<1) tBestBox.classList.add('flash');
+    else tBestBox.classList.remove('flash'); }
 }
 const camBtn=document.getElementById('cam');
 if(camBtn){ camBtn.textContent='📹 '+CAM_MODES[camMode].name; camBtn.addEventListener('click', cycleCam); }

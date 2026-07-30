@@ -191,6 +191,7 @@ export function buildField(scene, line, trackKey='interlagos'){
       passCd:4, hitCd:0, passing:null, form:0, avoidS:0, cornerErr:0, yieldT:0, yieldOff:0,
       tire: startTire, wear:0, pits:0, trackMod,
       _lap:-1, lapPace:0, lapBrake:0, lapLine:0, pushMood:1, straightSeen:false,  // variação volta-a-volta
+      lastLap:0, bestLap:0, curLap:0, bestFlash:0,                                 // cronômetro de volta
       pitLap: Math.max(3, Math.round(RACE.laps*(0.35+Math.random()*0.3))),
       pitPhase:0, pitT:0, pitReason:'', lapsDone:0, blueT:0, finished:false, outT:0,
       fuel:1, dmgWing:0,                                   // combustível 100% + dano na asa dianteira
@@ -223,12 +224,16 @@ export function updateField(cars, line, dt, t, started){
     if(!started || t<c.launchStart){ c.speed=Math.max(c.speed-30*dt,0); continue; }
 
     const f=idxOf(c), racingOff=at(line.offset,f,N);
-    // ---- VARIAÇÃO VOLTA-A-VOLTA: cada volta o piloto faz um pouquinho diferente ----
-    if(c.lapsDone!==c._lap){ c._lap=c.lapsDone;
+    // ---- VOLTA NOVA: cronômetro (tempo da volta + melhor volta) e variação de pilotagem ----
+    if(c.lapsDone!==c._lap){
+      if(c.lapStart!==undefined){ const lt=t-c.lapStart;      // fecha a volta que terminou
+        if(lt>8){ c.lastLap=lt; if(!c.bestLap||lt<c.bestLap){ c.bestLap=lt; c.bestFlash=t; } } }
+      c.lapStart=t; c._lap=c.lapsDone;
       c.lapPace  = (Math.random()-0.5)*0.016;      // ±0.8% de ritmo nessa volta
       c.lapBrake = (Math.random()-0.5)*0.30;       // freia um tico antes/depois
       c.lapLine  = (Math.random()-0.5)*0.55;       // linha ligeiramente diferente
     }
+    c.curLap = c.lapStart!==undefined ? (t-c.lapStart) : 0;   // tempo da volta atual (correndo)
     // CLIMA: bom de chuva rende mais no molhado
     const wetSkill = CURWET>0 ? (1 + (c.drv.chuva-84)/16*0.05*CURWET) : 1;
     // ritmo = carro/piloto + força NA PISTA + humor da volta + clima (spread real ~3%)
