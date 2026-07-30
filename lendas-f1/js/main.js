@@ -226,14 +226,14 @@ function updateCamera(dt, spd01, onKerb){
     const dist=8.5-spd01*1.2;
     const desired=focusPos.clone().addScaledVector(focusTan,-dist).add(new THREE.Vector3(0,2.5,0));
     camPos.lerp(desired, 1-Math.pow(0.0016,dt));
-    const sh=spd01*0.018+(onKerb?0.05:0);
+    const sh=spd01*0.006+(onKerb?0.02:0);
     camera.up.set(0,1,0); camera.position.set(camPos.x+rnd(sh),camPos.y+rnd(sh),camPos.z);
     lookTmp.copy(focusPos).addScaledVector(focusTan,8).setY(1.1); camera.lookAt(lookTmp);
   } else if(mode==='cockpit'){
     fov=78+spd01*6;
     const eye=focusPos.clone().add(new THREE.Vector3(0,1.12,0)).addScaledVector(focusTan,-0.1);
     camPos.copy(eye);
-    const sh=spd01*0.014+(onKerb?0.04:0);
+    const sh=spd01*0.005+(onKerb?0.016:0);
     camera.up.set(0,1,0); camera.position.set(eye.x+rnd(sh),eye.y+rnd(sh*0.6),eye.z+rnd(sh));
     lookTmp.copy(focusPos).addScaledVector(focusTan,14).setY(0.85); camera.lookAt(lookTmp);
   } else if(mode==='aerea'){

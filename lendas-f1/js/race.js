@@ -51,10 +51,10 @@ export function computeLine(curve, half){
       o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v);
     }
   }
-  // acentua o out-in-out: usa a largura TODA (entra na borda de fora, apex no cantinho)
-  for(let i=0;i<N;i++){ const v=o[i]*1.55; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
-  // suaviza de leve pra não ter quina
-  for(let pass=0;pass<2;pass++){
+  // acentua o out-in-out de forma MODERADA (linha suave, sem ziguezague)
+  for(let i=0;i<N;i++){ const v=o[i]*1.4; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
+  // suaviza bastante: na parte travada (curva atrás de curva) a linha fica calma
+  for(let pass=0;pass<7;pass++){
     for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N; o[i]=(o[a]+o[i]*2+o[b])/4; }
   }
   const vmax=new Float32Array(N);
@@ -172,14 +172,15 @@ export function updateField(cars, line, dt, t, started){
     const fuelMul=0.99+0.01*Math.min(1,c.lapsDone/RACE.laps);
     let targetV=Math.min(vNow, vAllow, 99)*skill*(1+c.form)*(1-0.3*c.damage)*tireMul*fuelMul;
 
-    // ---- LINHA: base = racing line; ENTRADA de curva = abre pra borda de FORA (apex tardio) ----
-    let tOff = racingOff + c.style.lineBias*0.4;
-    // "olha à frente" pra curva: se vem curva forte, JÁ começa a ir pro lado de fora
-    if(bindingCorner){
-      const w=THREE.MathUtils.clamp((apexDist-6)/70, 0, 1);        // 1 = longe do apex (bem aberto)
-      const outEdge=-insideSide*5.9;                               // borda de FORA da curva
-      // apex tardio: segura na borda de fora mais tempo (curva de exponente)
-      tOff=THREE.MathUtils.lerp(racingOff, outEdge, Math.pow(w,0.7)*0.92);
+    // ---- LINHA: base = a racing line já traz o out-in-out suave embutido ----
+    let tOff = racingOff + c.style.lineBias*0.35;
+    // antecipação SUAVE: só em curva RÁPIDA com espaço (não na parte travada/lenta),
+    // abre um pouquinho pra fora antes de entrar — depois a própria linha fecha no apex.
+    const fastCorner = vApex>70 && vApex<150 && c.speed>vApex+8;
+    if(fastCorner){
+      const w=THREE.MathUtils.clamp((apexDist-12)/85, 0, 1);       // 1 = ainda longe do apex
+      const outEdge=-insideSide*4.2;                               // abertura moderada pra fora
+      tOff=THREE.MathUtils.lerp(tOff, outEdge, Math.pow(w,0.95)*0.5);
     }
 
     // ---- PIT STOP (estratégia: 1 parada, troca de pneu) ----
@@ -350,8 +351,8 @@ export function updateField(cars, line, dt, t, started){
     tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
     const latLim=c.pitPhase?11:6.2;
-    // segue a linha FIRME (sem atraso que achata a curva); em disputa é um pouco mais macio
-    const followRate = c.pitPhase?2.6 : (c.passing||c.yieldT>0?4.2:5.2);
+    // segue a linha de forma SUAVE (sem jogar o carro de um lado pro outro); disputa/pit à parte
+    const followRate = c.pitPhase?2.6 : (c.passing||c.yieldT>0?3.2:2.8);
     c.offset=THREE.MathUtils.lerp(c.offset, THREE.MathUtils.clamp(tOff,-latLim,latLim), dt*followRate);
     if(c.hitCd>0) c.hitCd-=dt;
     c.d+=c.speed*dt;
