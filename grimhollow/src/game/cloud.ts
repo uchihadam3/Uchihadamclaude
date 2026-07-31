@@ -7,18 +7,22 @@
 //
 //   ---- SQL p/ criar a tabela no Supabase (SQL Editor) ----------------------
 //   create table if not exists public.characters (
-//     user_id    uuid    not null references auth.users on delete cascade default auth.uid(),
-//     slot       int     not null check (slot between 0 and 2),
-//     name       text    not null,
-//     class_id   text    not null,
-//     level      int     not null default 1,
-//     data       jsonb   not null,
+//     user_id    uuid        not null references auth.users (id) on delete cascade,
+//     slot       smallint    not null,
+//     name       text        not null,
+//     class_id   text        not null,
+//     level      integer     not null default 1,
+//     data       jsonb       not null,
 //     updated_at timestamptz not null default now(),
-//     primary key (user_id, slot)
+//     constraint characters_pkey primary key (user_id, slot),
+//     constraint characters_slot_range check (slot >= 0 and slot <= 2)
 //   );
 //   alter table public.characters enable row level security;
-//   create policy "own characters" on public.characters
-//     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+//   drop policy if exists "own_characters" on public.characters;
+//   create policy "own_characters" on public.characters
+//     for all to authenticated
+//     using (auth.uid() = user_id) with check (auth.uid() = user_id);
+//   (o user_id é enviado pelo jogo no upsert — por isso a coluna não precisa de default)
 //   -------------------------------------------------------------------------
 // ============================================================================
 import { SUPABASE_URL, SUPABASE_ANON_KEY, isSupabaseConfigured, type OAuthProvider } from "./supabaseConfig";
