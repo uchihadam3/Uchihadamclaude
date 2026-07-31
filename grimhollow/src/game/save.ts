@@ -88,5 +88,8 @@ class LocalBackend implements SaveBackend {
   }
 }
 
-// backend ATIVO. Trocar aqui por SupabaseBackend quando o login estiver pronto.
-export const backend: SaveBackend = new LocalBackend();
+// backend LOCAL (localStorage) — usado pelo Convidado e como reserva.
+export const localBackend: SaveBackend = new LocalBackend();
+// backend ATIVO (live binding): o login troca p/ o SupabaseBackend na nuvem.
+export let backend: SaveBackend = localBackend;
+export function setActiveBackend(b: SaveBackend): void { backend = b; }

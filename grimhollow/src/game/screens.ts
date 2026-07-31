@@ -4,7 +4,9 @@ import { CLASSES, CLASS_BY_ID, type GameClass, type Character } from "./classes"
 import { WEAPON_BY_ID } from "./weapons";
 import { derive, START_POINTS, type Primaries } from "./stats";
 import { audio } from "./audio";
-import { backend as saveBackend, MAX_SLOTS, type SaveMeta } from "./save";
+import { backend as saveBackend, localBackend, setActiveBackend, MAX_SLOTS, type SaveMeta } from "./save";
+import { restoreCloudSession, loginWithProvider } from "./cloud";
+import { isSupabaseConfigured, type OAuthProvider } from "./supabaseConfig";
 
 // resultado da abertura: um herói NOVO (com o slot de destino) ou CONTINUAR um save.
 export type IntroResult =
@@ -94,10 +96,15 @@ export function runIntro(root: HTMLElement): Promise<IntroResult> {
       onBack: () => openMenu(true),
     });
 
-    // BOOT: pré-carrega tudo → "toque para começar" → menu do título.
+    // BOOT: pré-carrega tudo → "toque para começar" → LOGIN → menu do título.
     let frac = 0;
     const all = preloadUrls(allAssetUrls(), (f) => (frac = f));
-    showLoading(overlay, () => frac, all, 900, () => { startMusic(); openMenu(false); });
+    showLoading(overlay, () => frac, all, 900, async () => {
+      startMusic();
+      const user = await restoreCloudSession(); // já logado? (voltou do OAuth / lembrou)
+      if (user) { openMenu(false); return; }    // pula o login
+      showLogin(overlay, () => openMenu(false)); // Convidado ou social → menu do título
+    });
   });
 }
 
@@ -199,6 +206,47 @@ function showOpening(
     skip.addEventListener("click", (e) => { e.stopPropagation(); settle(); });
     timer = window.setTimeout(settle, 30000);       // trava de segurança
   }
+}
+
+// -------------------------------------------------------------- LOGIN / CONTA
+// Google + Discord (Supabase OAuth) + Convidado. O Convidado usa o save LOCAL
+// (neste aparelho) — jogar já, sem conta. O social só "liga" com o Supabase
+// configurado; enquanto isso, mostra um aviso amigável.
+const G_LOGO = '<svg viewBox="0 0 48 48" width="20" height="20"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6.1C12.2 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.3-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16z"/><path fill="#FBBC05" d="M10.4 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.1 0 11.3-2 15.1-5.5l-7.1-5.5c-2 1.3-4.5 2.1-8 2.1-6.4 0-11.8-3.7-13.6-9.1l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
+const D_LOGO = '<svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.24.5a18 18 0 0 1 4.3 1.4A17.9 17.9 0 0 0 12 4.6a17.9 17.9 0 0 0-7.46 1.3A18 18 0 0 1 8.84 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.6 9 .1 13.4.3 17.8a19.9 19.9 0 0 0 6 3l.8-1.2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1l.8 1.2a19.9 19.9 0 0 0 6-3c.3-5.1-.5-9.5-3.1-13.4zM8.7 15.3c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4zm6.6 0c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4z"/></svg>';
+function showLogin(overlay: HTMLElement, onGuest: () => void) {
+  const configured = isSupabaseConfigured();
+  const note = configured
+    ? "Seu progresso fica salvo na sua conta, em qualquer aparelho."
+    : "Login social entra em breve. Por ora, jogue como Convidado (salva neste aparelho).";
+  overlay.innerHTML = `
+    <div class="gh-screen gh-login" style="background-image:url(${createBgUrl})">
+      <div class="gh-cs-veil"></div>
+      <div class="gh-login-wrap">
+        <img class="gh-login-logo" src="${logoPlateArt}" alt="Nethergloam" />
+        <div class="gh-login-btns">
+          <button class="gh-login-btn gh-lg-google" data-prov="google">${G_LOGO}<span>Entrar com Google</span></button>
+          <button class="gh-login-btn gh-lg-discord" data-prov="discord">${D_LOGO}<span>Entrar com Discord</span></button>
+          <div class="gh-login-or"><span>ou</span></div>
+          <button class="gh-login-btn gh-lg-guest" id="gh-lg-guest">Entrar como Convidado</button>
+        </div>
+        <p class="gh-login-note" id="gh-login-note">${note}</p>
+      </div>
+    </div>`;
+  (overlay.querySelector("#gh-lg-guest") as HTMLElement).addEventListener("click", () => {
+    setActiveBackend(localBackend); onGuest();
+  });
+  const noteEl = overlay.querySelector("#gh-login-note") as HTMLElement;
+  overlay.querySelectorAll("[data-prov]").forEach((el) => el.addEventListener("click", async () => {
+    if (!configured) {
+      noteEl.textContent = "Login social ainda não configurado — use o Convidado por enquanto. 😉";
+      noteEl.classList.add("gh-login-warn");
+      return;
+    }
+    (el as HTMLElement).classList.add("gh-lg-busy");
+    try { await loginWithProvider(el.getAttribute("data-prov") as OAuthProvider); }
+    catch { noteEl.textContent = "Não foi possível abrir o login. Tente de novo."; (el as HTMLElement).classList.remove("gh-lg-busy"); }
+  }));
 }
 
 // ---------------------------------------- SELEÇÃO DE PERSONAGEM (janelas/slots)
@@ -997,6 +1045,30 @@ function injectStyle() {
   #gh-intro .gh-cs-cfyes { border-color:rgba(200,60,40,.7); background:rgba(120,32,24,.7); color:#ffd9cf; }
   #gh-intro .gh-cs-cfyes:hover { background:rgba(160,44,32,.9); }
   #gh-intro .gh-cs-cfno:hover { border-color:rgba(240,208,116,.8); color:#fff; }
+  /* ---------------- LOGIN / CONTA ---------------- */
+  #gh-intro .gh-login { background-size:cover; background-position:center; }
+  #gh-intro .gh-login-wrap { position:relative; z-index:1; width:min(92vw,380px); display:flex;
+    flex-direction:column; align-items:center; gap:22px; animation:gh-fadein .5s ease both; }
+  #gh-intro .gh-login-logo { width:min(70vw,300px); height:auto; filter:drop-shadow(0 4px 18px rgba(0,0,0,.7)); }
+  #gh-intro .gh-login-btns { width:100%; display:flex; flex-direction:column; gap:12px; }
+  #gh-intro .gh-login-btn { display:flex; align-items:center; justify-content:center; gap:11px;
+    width:100%; padding:13px 16px; border-radius:10px; cursor:pointer; font-family:"Cinzel",serif;
+    font-size:15px; font-weight:600; letter-spacing:.3px; border:1px solid rgba(0,0,0,.25);
+    transition:transform .14s ease, filter .14s ease, box-shadow .14s ease; box-shadow:0 4px 14px rgba(0,0,0,.4); }
+  #gh-intro .gh-login-btn:hover { transform:translateY(-2px); filter:brightness(1.06); }
+  #gh-intro .gh-login-btn:active { transform:translateY(0) scale(.99); }
+  #gh-intro .gh-login-btn.gh-lg-busy { opacity:.6; pointer-events:none; }
+  #gh-intro .gh-lg-google { background:#fff; color:#3c4043; }
+  #gh-intro .gh-lg-discord { background:#5865F2; color:#fff; }
+  #gh-intro .gh-lg-guest { background:rgba(20,17,13,.72); color:#e4d7ba; border:1px solid rgba(201,162,74,.45);
+    font-weight:500; }
+  #gh-intro .gh-lg-guest:hover { border-color:rgba(240,208,116,.85); color:#fff; box-shadow:0 0 16px rgba(240,192,64,.32); }
+  #gh-intro .gh-login-or { display:flex; align-items:center; gap:10px; margin:2px 0;
+    color:#9a8f78; font-size:11px; letter-spacing:2px; text-transform:uppercase; }
+  #gh-intro .gh-login-or::before, #gh-intro .gh-login-or::after { content:""; flex:1; height:1px; background:rgba(201,162,74,.28); }
+  #gh-intro .gh-login-note { text-align:center; font-size:12px; line-height:1.5; color:#b7ab90;
+    max-width:320px; margin:0; text-shadow:0 1px 3px #000; }
+  #gh-intro .gh-login-note.gh-login-warn { color:#e8c06a; }
   @keyframes gh-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
   @media (max-width:560px) {
     #gh-intro .gh-cs-grid { gap:10px; }
