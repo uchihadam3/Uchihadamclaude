@@ -6,6 +6,7 @@
    ===================================================================== */
 import { DRIVERS, overall } from './drivers.js';
 import { CIRCUIT_LIST } from './circuits-data.js';
+import { carStats } from './stats.js';
 
 /* pilotos INICIAIS (os mais fracos do grid — você começa por baixo) */
 export const START_DRIVERS = ['Franco Colapinto','Gabriel Bortoleto','Oliver Bearman','Liam Lawson','Lance Stroll'];
@@ -50,7 +51,8 @@ export function newCareer(driverName, slot){
   const car={motor:1+g,aero:1+g,chassi:1+g,pneus:1+g};
   const drvBonus={ritmo:tal*2,corrida:tal*2,ultrapassagem:tal*2,defesa:tal*2,chuva:tal*2,consistencia:tal*2};
   return { slot, name:driverName, driver:driverName, team:base.team, money:180,
-    car, drvBonus, round:0, standings:{}, history:[], created:Date.now() };
+    car, drvBonus, round:0, standings:{}, history:[], created:Date.now(),
+    qualiDone:false, grid:null, startPos:null, playerQ:null, qualiTimes:null };
 }
 
 /* ---------- upgrades ---------- */
@@ -88,3 +90,46 @@ export function reward(pos){
 }
 /* pontos de LENDA ao fim da temporada, pela posição final no campeonato */
 export function legacyReward(champPos){ return Math.max(1, 12 - (champPos-1)*1.2)|0; }
+
+/* ======================= CLASSIFICAÇÃO (QUALIFYING) =======================
+   Você faz uma volta rápida sozinho na pista; os outros pilotos já têm o
+   tempo deles marcado. Junta tudo, ordena por tempo -> grid de largada. */
+const QK=0.085;                                        // segundos por ponto de ritmo (spread do grid)
+const paceOfDriver = d => carStats(d.team).geral*0.62 + overall(d)*0.38;
+export function playerPace(career){
+  const lo=loadout(career); let ov=0; for(const k in DW) ov+=(lo.attrs[k]||78)*DW[k];
+  return lo.perf.geral*0.62 + ov*0.38;
+}
+function qBase(trackKey){ const ci=circuitInfo(trackKey); return (ci.km/205)*3600; }  // ~volta de referência (s)
+function seedN(str){ let x=0; for(const c of str) x=(x*131+c.charCodeAt(0))|0; return (((x>>>0)%10000)/10000-0.5)*2; }
+
+/* campo de classificação ordenado. Se `playerLap` vier, ancora os tempos na
+   volta REAL que o jogador fez (pra bater com o cronômetro da pista). */
+export function qualiField(career, trackKey, playerLap){
+  const round=career.round||0, P_p=playerPace(career);
+  const list=DRIVERS.map(d=>{
+    const isP=d.nome===career.driver;
+    const pace=isP?P_p:paceOfDriver(d);
+    const noise=seedN(d.nome+'|'+trackKey+'|'+round)*0.55;   // ±0.55s de variação por sessão
+    return { name:d.nome, team:d.team, num:d.num, pace, isP, noise };
+  });
+  const POLE=Math.max(...list.map(x=>x.pace));
+  list.forEach(x=> x.rel=(POLE-x.pace)*QK + x.noise );
+  let anchor;
+  if(playerLap){ const p=list.find(x=>x.isP); anchor=playerLap - p.rel; }
+  else { anchor=qBase(trackKey) - Math.min(...list.map(x=>x.rel)); }
+  list.forEach(x=> x.time=Math.max(1,anchor+x.rel));
+  list.sort((a,b)=>a.time-b.time);
+  return list;
+}
+export function finalizeQuali(career, playerLap){
+  const list=qualiField(career, SEASON[career.round], playerLap);
+  career.grid=list.map(x=>x.name);
+  career.startPos=list.findIndex(x=>x.isP)+1;
+  career.playerQ=playerLap;
+  career.qualiTimes=list.map(x=>({name:x.name,team:x.team,time:x.time,isP:x.isP}));
+  career.qualiDone=true;
+  return { list, startPos:career.startPos };
+}
+export function resetQuali(career){ career.qualiDone=false; career.grid=null; career.startPos=null; career.playerQ=null; career.qualiTimes=null; }
+export const fmtT = s=>{ if(!s||s<1) return '—'; const m=Math.floor(s/60), sec=s-m*60; return m+':'+sec.toFixed(3).padStart(6,'0'); };

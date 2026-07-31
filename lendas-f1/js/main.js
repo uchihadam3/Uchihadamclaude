@@ -66,8 +66,12 @@ scene.add(new THREE.HemisphereLight(0xbcd8ff, 0x3a5a30, 0.9*WX.amb));
 const track=buildTrack(CIRCUITS[circuit]); scene.add(track.group);
 const curve=track.curve;
 const total=track.length;
+const QUALI = CAREER && CAREER.mode==='quali';           // sessão de classificação (só o jogador)
 const line=computeLine(curve, track.half);   // racing line (apex nas curvas)
-const cars=buildField(scene, line, circuit, PLAYER);  // 20 carros (carro do jogador boostado)
+const cars=buildField(scene, line, circuit, PLAYER, {
+  mode: CAREER?CAREER.mode:'race',
+  gridOrder: (CAREER && CAREER.grid) || null,
+});
 
 let currentTeam = PLAYER ? PLAYER.team : 'ferrari';
 const findFocus=()=> (PLAYER && cars.find(c=>c.isPlayer)) || cars.find(c=>c.team===currentTeam) || cars[0];
@@ -87,6 +91,7 @@ let started=false;
 const lightsEl=document.getElementById('lights');
 function setLamp(i,on){ const el=lightsEl&&lightsEl.children[i]; if(el) el.className='lamp'+(on?' on':''); }
 function startLights(){
+  if(QUALI){ started=true; for(const c of cars) c.launchStart=raceTime; if(lightsEl) lightsEl.classList.add('hide'); return; }
   if(!lightsEl) { started=true; for(const c of cars) c.launchStart=raceTime; return; }
   lightsEl.classList.remove('hide');
   for(let i=0;i<5;i++) setTimeout(()=>setLamp(i,true), 1800 + i*1000);
@@ -179,6 +184,12 @@ function updateTower(dt){
   if(hudDrv) hudDrv.textContent='P'+fp+' · '+focus.drv.nome;
   // contador de voltas + bandeirada
   const leader=running[0];
+  if(QUALI){
+    if(lapEl && focus) lapEl.textContent='🏁 CLASSIFICAÇÃO · VOLTA '+Math.min(focus.lapsDone+1,RACE.laps)+'/'+RACE.laps;
+    if(!raceOver && focus && ((focus.bestLap>0 && focus.lapsDone>=2) || focus.lapsDone>=RACE.laps)){
+      raceOver=true; showQualiResult(); }
+    return;
+  }
   if(lapEl && leader) lapEl.textContent=WX.icon+' VOLTA '+Math.min(leader.lapsDone+1,RACE.laps)+'/'+RACE.laps;
   if(!raceOver && leader && leader.lapsDone>=RACE.laps){
     raceOver=true; cars.forEach(c=>c.finished=true); showResults(); }
@@ -233,6 +244,20 @@ function showResults(){
   fichaPanel.classList.remove('hide');
 }
 const esc0=s=>(s||'').replace(/</g,'&lt;');
+const fmtQ=s=>{ if(!s||s<1) return '—:--.---'; const m=Math.floor(s/60), sec=s-m*60; return m+':'+sec.toFixed(3).padStart(6,'0'); };
+function showQualiResult(){
+  const best=focus.bestLap||focus.lastLap||focus.curLap;
+  const result={ slot:CAREER.slot, round:CAREER.round, track:circuit, time:best };
+  try{ sessionStorage.setItem('lf1_quali', JSON.stringify(result)); }catch(e){}
+  sessionStorage.removeItem('lf1_race');
+  fcard.innerHTML=`<h2>🏁 Volta de classificação</h2>
+    <div class="eng">${circuitInfo.flag} ${circuitInfo.nome}</div>
+    <div class="ov"><span class="ovn">${fmtQ(best)}</span></div>
+    <div style="opacity:.7;font-size:13px;margin:2px 0 4px">Sua melhor volta — volte pra ver em que posição você larga.</div>
+    <button class="fbtn" id="fmenu">➜ Ver o grid de largada</button>`;
+  document.getElementById('fmenu').onclick=()=>location.href='index.html';
+  fichaPanel.classList.remove('hide');
+}
 function showOvertake(passer, passed){
   if(!otEl||!passed) return;
   otEl.innerHTML=`<b>ULTRAPASSAGEM!</b> ${lastName(passer.drv.nome)} passou ${lastName(passed.drv.nome)}`;
@@ -406,7 +431,7 @@ if(circuitSel){
     // na carreira a pista e a equipe são fixas — esconde os seletores
     const cs=document.getElementById('circuit'), ts=document.getElementById('team');
     if(cs) cs.style.display='none'; if(ts) ts.style.display='none';
-    const tag=document.getElementById('tag'); if(tag) tag.textContent='Carreira · GP '+((CAREER.round||0)+1); }
+    const tag=document.getElementById('tag'); if(tag) tag.textContent=(QUALI?'Classificação':'Carreira')+' · GP '+((CAREER.round||0)+1); }
   // camada de chuva conforme o clima
   const rain=document.getElementById('rain');
   if(rain){ if(WX.wet>=0.7) rain.className='heavy'; else if(WX.wet>=0.35) rain.className='on'; }

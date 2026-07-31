@@ -140,18 +140,27 @@ const vat=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floo
 const DW_={ritmo:0.24,corrida:0.24,ultrapassagem:0.14,defesa:0.12,chuva:0.10,consistencia:0.10,experiencia:0.06};
 const ovAttrs=a=>{ let s=0; for(const k in DW_) s+=(a[k]||78)*DW_[k]; return s; };
 
-export function buildField(scene, line, trackKey='interlagos', playerOverride=null){
+export function buildField(scene, line, trackKey='interlagos', playerOverride=null, opts={}){
   const PN = playerOverride && playerOverride.driverName;
-  const grid = DRIVERS.map(d=>{
+  const quali = opts.mode==='quali';
+  let src = DRIVERS;
+  if(quali && PN) src = DRIVERS.filter(d=>d.nome===PN);   // classificação: só o jogador na pista
+  const grid = src.map(d=>{
     if(PN && d.nome===PN){
       const po=playerOverride;
       return { d, pace: po.perf.geral*0.62 + ovAttrs(po.attrs)*0.38, player:po };
     }
     return { d, pace: carStats(d.team).geral*0.62 + overall(d)*0.38 };
   });
-  // "classificação" temporária: embaralha o grid (não fica mais equipe atrás de equipe)
-  grid.forEach(it=> it.qual = it.pace + (Math.random()-0.5)*7.5);
-  grid.sort((a,b)=>b.qual-a.qual);
+  if(opts.gridOrder && opts.gridOrder.length){
+    // grid vem da CLASSIFICAÇÃO (pole na frente)
+    const idx=n=>{ const i=opts.gridOrder.indexOf(n); return i<0?999:i; };
+    grid.sort((a,b)=> idx(a.d.nome)-idx(b.d.nome));
+  } else {
+    // "classificação" temporária: embaralha o grid (não fica mais equipe atrás de equipe)
+    grid.forEach(it=> it.qual = it.pace + (Math.random()-0.5)*7.5);
+    grid.sort((a,b)=>b.qual-a.qual);
+  }
   const cars=[];
   grid.forEach((it,slot)=>{
     const drv=it.d;
