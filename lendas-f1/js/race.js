@@ -294,7 +294,7 @@ export function updateField(cars, line, dt, t, started){
     // dec = b0 + kb·v² -> ~5.5g em alta velocidade, ~2.3g em baixa (como F1 real)
     const bl=THREE.MathUtils.clamp(c.style.brakeLate + c.lapBrake*0.4, 0, 1);
     const b0=c.perf.brake0 + 3.4*bl, kb=0.0042;
-    const marg=1.20 - 0.17*bl;                                     // late-brakers: freiam bem mais tarde
+    const marg=1.13 - 0.07*bl;                                     // freia tarde (como F1) mas com margem segura
     const vHere=at(line.vmax,f,N); const vNow=(vHere<80? vHere*cf : vHere);
     const decMul=(c.passing&&c.passing.dive)?1.28:1;               // MERGULHO: freia mais tarde
     let vAllow=99, minFi=f, apexDist=0;
@@ -537,10 +537,11 @@ export function updateField(cars, line, dt, t, started){
     if(c.spin>0){ c.spin-=dt*0.7; targetV=Math.min(targetV,8); tOff=c.offset; }
 
     // ---- FÍSICA REAL: aceleração limitada por potência (P/v - arrasto) ----
-    // baixa vel.: limitada por tração (~1.5g); média: cai com P/v; alta: arrasto domina
+    // saída de curva PUNCHY (como F1): põe força cedo e forte -> ~1.6g na tração,
+    // caindo com a velocidade. Isso mata a sensação de "curva devagar".
     if(targetV>c.speed){
-      const Pw=c.perf.power;
-      const a=Math.max(0.3, Math.min(c.perf.traction,
+      const Pw=c.perf.power*1.12;
+      const a=Math.max(0.3, Math.min(c.perf.traction*1.4,
         Pw/Math.max(c.speed,8) - Pw*c.speed*c.speed/(c.perf.top**3)));
       c.speed=Math.min(c.speed+a*dt, targetV);
     } else {
