@@ -186,25 +186,26 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 // spd: ms por passo (rato ágil, carniçal lento). ranged/proj = ataque à distância.
 const ENEMY_TYPES: Record<string, {
   art: string; hp: number; atk: number; xp: number; gold: number; vision: number; h: number;
+  lvl?: number; // "nível" do inimigo → o XP recebido diminui se o herói o supera muito
   ranged?: boolean; melee?: boolean; range?: number; proj?: string; ai?: string; spd?: number;
   tier?: "normal" | "mini" | "boss";
 }> = {
   // BALANCE (Difícil): atk calibrado p/ a mitigação por Defesa/Res.Mág. — o tanque
   // amortece bem, os frágeis precisam esquivar/kitar. rato/aranha são a introdução leve.
-  rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7, ai: "flee_low", spd: 600 },
-  aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0, ai: "chase", spd: 660 },
-  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 11, xp: 22, gold: 6,  vision: 5, h: 2.6, ai: "chase", spd: 780 },
+  rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7, lvl: 1, ai: "flee_low", spd: 600 },
+  aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0, lvl: 1, ai: "chase", spd: 660 },
+  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 11, xp: 22, gold: 6,  vision: 5, h: 2.6, lvl: 2, ai: "chase", spd: 780 },
   // arqueiro: SÓ à distância (flecha). cultista: distância (orbe) E melee (adaga). Ambos "kite".
   // arqueiro anda BEM devagar (não fica correndo p/ manter distância) — spd alto.
-  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 10, xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
-  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 16, xp: 32, gold: 9,  vision: 4, h: 2.8, ai: "relentless", spd: 900, tier: "mini" },
+  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 10, xp: 24, gold: 7,  vision: 7, h: 2.6, lvl: 2, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
+  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 16, xp: 32, gold: 9,  vision: 4, h: 2.8, lvl: 3, ai: "relentless", spd: 900, tier: "mini" },
   // cultista: conjura de longe, mas COLA no herói p/ usar a adaga quando ele chega
   // perto (ai "caster"). Velocidade parecida com a do arqueiro.
-  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 14, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
+  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 14, xp: 34, gold: 11, vision: 7, h: 2.7, lvl: 3, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
   // CHEFE do 3º andar: grandão, muito HP/dano, IMPLACÁVEL. Visão LONGA (enxerga o
   // herói de dentro do breu) e AVANÇA rápido (charge agressivo). Recompensa gorda.
   // HP alto p/ uma luta longa e "aprende o padrão"; dano punitivo (Difícil).
-  boss:      { art: enemyBossUrl,     hp: 320, atk: 30, xp: 340, gold: 150, vision: 13, h: 4.4, ai: "relentless", spd: 700, tier: "boss" },
+  boss:      { art: enemyBossUrl,     hp: 320, atk: 30, xp: 340, gold: 150, vision: 13, h: 4.4, lvl: 6, ai: "relentless", spd: 700, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -1064,7 +1065,8 @@ interface EnemyEnt {
   bx: number; bz: number;      // posição VISUAL no mundo (interpolada no passo)
   hp: number; maxHp: number;
   atk: number;                 // dano do ataque
-  xp: number;                  // XP fixo dropado (sem escalar com o herói)
+  xp: number;                  // XP base dropado (escalado pelo nível relativo do herói)
+  lvl: number;                 // "nível" do inimigo (p/ a escala de XP anti-farm)
   goldBase: number;            // ouro base dropado
   visionR: number;             // alcance de visão (células)
   homeC: number; homeR: number;// ponto de spawn (âncora da patrulha)
@@ -2298,6 +2300,9 @@ export class Game {
     // perfil do tipo (arte + stats FIXOS + tamanho) — sem escalar com o herói
     const T = ENEMY_TYPES[typeId] ?? ENEMY_TYPES.esqueleto;
     const HP = T.hp, ATK = T.atk, XP = T.xp, GOLD = T.gold, VISION = T.vision;
+    // nível do inimigo = base do tipo + andar da masmorra (fica valendo XP por mais
+    // tempo nos andares fundos); fora da masmorra usa a base do tipo.
+    const LVL = (T.lvl ?? 1) + (this.location === "dungeon" ? this.dungeonFloor : 0);
     const worldH = T.h; // altura do sprite (rato baixo, carniçal/cultista maiores)
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
@@ -2344,7 +2349,7 @@ export class Game {
     this.world.add(faceArrow);
     const e: EnemyEnt = {
       mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
-      hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
+      hp: HP, maxHp: HP, atk: ATK, xp: XP, lvl: LVL, goldBase: GOLD, visionR: VISION,
       homeC: c, homeR: r, aggro: false,
       ranged: T.ranged ?? false, melee: T.melee ?? true, range: T.range ?? 1, proj: T.proj ?? "",
       ai: T.ai ?? "chase", tier: T.tier ?? "normal", typeId, approach: 0, hdc: 0, hdr: 1, faceArrow,
@@ -3371,12 +3376,14 @@ export class Game {
       this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
       this.spawnPoof(e.bx, e.bz);
       if (this.target === e) this.clearTarget();
-      // recompensa FIXA (não escala com o herói): ouro base + pequena variação, XP fixo
+      // recompensa: ouro base + pequena variação. LOOT estilo WoW cai no CHÃO na célula
+      // do inimigo (ouro auto ao pisar; item por popup). A quantidade/qualidade escala
+      // com o PORTE (normal < mini < CHEFE).
       const gold = e.goldBase + Math.floor(Math.random() * 5);
-      // LOOT estilo WoW: a sacola de ouro + (às vezes) uma peça caem no CHÃO na
-      // célula do inimigo; o jogador anda até lá p/ recolher (ouro auto, item por popup).
-      this.rollLoot(e.c, e.r, 1, gold);
-      this.gainXp(e.xp);
+      this.rollLoot(e.c, e.r, gold, e.tier);
+      // XP com "rating" pelo nível relativo: se o herói supera muito o inimigo, rende
+      // menos (evita farmar trivial no respawn); perto/acima do nível dele, rende cheio.
+      this.gainXp(this.scaledXp(e.xp, e.lvl));
       this.questOnKill(); // progresso da missão "Ossos Inquietos"
       this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
     }
@@ -3724,18 +3731,80 @@ export class Game {
   }
 
   // sorteia loot ao matar um inimigo de nível `lv`: ouro (sacola) + chance de item.
-  private rollLoot(c: number, r: number, lv: number, gold: number) {
-    this.spawnGoldDrop(c, r, gold);
-    // ~38% de chance de cair uma peça de equipamento
-    if (Math.random() < 0.38) {
-      const slot = ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)];
-      // tier acompanha o nível do jogador (com leve variação), teto no nível do inimigo
-      const base = Math.min(3, 1 + Math.floor((this.stats.level - 1) / 3));
-      const tier = Math.max(1, Math.min(3, base + (Math.random() < 0.2 ? 1 : 0)));
-      // raridade sorteada pelos pesos (INCLUI Lendário — só cai em drop, nunca na loja)
-      const item = generateArmor(slot, tier);
-      this.spawnItemDrop(c, r, item);
+  // XP "com rating": rende cheio perto/abaixo do nível do herói; cai conforme ele
+  // supera o inimigo (freia o farm de trivial no respawn). Nunca zera (mínimo 1).
+  private scaledXp(baseXp: number, enemyLvl: number): number {
+    const diff = this.stats.level - enemyLvl;
+    let mul = 1;
+    if (diff >= 6) mul = 0.15;         // muito acima → migalha
+    else if (diff >= 2) mul = 1 - (diff - 1) * 0.17; // 2→0.83 … 5→0.32
+    return Math.max(1, Math.round(baseXp * mul));
+  }
+
+  // raridade de DROP com "sorte" (0 = padrão do chão; ↑ favorece raridades altas).
+  // Só cai em drop/baú — nunca na loja (a loja tem seu próprio sorteio, sem Lendário).
+  private rollDropRarity(lucky = 0): Rarity {
+    const r = Math.random();
+    if (r < 0.015 + lucky * 0.05) return "lendario";
+    if (r < 0.10 + lucky * 0.16) return "raro";
+    if (r < 0.42 + lucky * 0.20) return "magico";
+    return "comum";
+  }
+
+  // tier do item acompanha o nível do herói (1→3), com leve chance de subir um.
+  private dropTier(bonus = 0): number {
+    const base = Math.min(3, 1 + Math.floor((this.stats.level - 1) / 3) + bonus);
+    return Math.max(1, Math.min(3, base + (Math.random() < 0.2 ? 1 : 0)));
+  }
+
+  // até `n` células ANDÁVEIS e livres perto de (c,r) (inclui ela mesma) — p/ espalhar
+  // o tesouro do chefe sem empilhar tudo no mesmo ponto.
+  private freeNearCells(c: number, r: number, n: number): { c: number; r: number }[] {
+    const out: { c: number; r: number }[] = [];
+    const seen = new Set<string>();
+    const ring: [number, number][] = [
+      [0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1],
+      [2, 0], [-2, 0], [0, 2], [0, -2],
+    ];
+    for (const [dc, dr] of ring) {
+      const nc = c + dc, nr = r + dr, k = `${nc},${nr}`;
+      if (seen.has(k)) continue;
+      const walk = this.location === "dungeon" ? dungeonWalkable(nc, nr) : this.canWalk(nc, nr);
+      if (walk && !this.blocked.has(k)) { out.push({ c: nc, r: nr }); seen.add(k); }
+      if (out.length >= n) break;
     }
+    if (!out.length) out.push({ c, r });
+    return out;
+  }
+
+  // gera uma peça de armadura de slot aleatório, com tier/raridade dados.
+  private dropArmorPiece(c: number, r: number, tier: number, lucky: number) {
+    const slot = ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)];
+    this.spawnItemDrop(c, r, generateArmor(slot, tier, { rarity: this.rollDropRarity(lucky) }));
+  }
+
+  // LOOT ao matar: ouro + peças de equipamento, ESCALADO pelo PORTE do inimigo.
+  //   normal → 34% de 1 peça (raridade do chão).
+  //   mini   → 70% de 1 peça (+15% de uma 2ª), raridade melhor.
+  //   CHEFE  → tesouro: 3–5 peças de raridade ALTA + ouro extra (recompensa da run).
+  private rollLoot(c: number, r: number, gold: number, tier: "normal" | "mini" | "boss") {
+    if (tier === "boss") {
+      this.spawnGoldDrop(c, r, gold + 60 + Math.floor(Math.random() * 60));
+      const n = 3 + Math.floor(Math.random() * 3); // 3–5 peças
+      const cells = this.freeNearCells(c, r, n);   // espalha p/ não empilhar tudo numa célula
+      for (let i = 0; i < n; i++) {
+        const cell = cells[i % cells.length];
+        this.dropArmorPiece(cell.c, cell.r, this.dropTier(1), 2);
+      }
+      return;
+    }
+    this.spawnGoldDrop(c, r, gold);
+    if (tier === "mini") {
+      if (Math.random() < 0.70) this.dropArmorPiece(c, r, this.dropTier(), 1);
+      if (Math.random() < 0.15) this.dropArmorPiece(c, r, this.dropTier(), 1);
+      return;
+    }
+    if (Math.random() < 0.34) this.dropArmorPiece(c, r, this.dropTier(), 0);
   }
 
   // anima os drops (flutuar + facho pulsando) e faz o recolhimento automático do OURO
@@ -5615,6 +5684,17 @@ export class Game {
       rec.light.distance = 8.5; rec.light.position.y = 1.15;
     }
     this.ui.playSfx("chestOpen");
+    // TESOURO: baú rende MAIS que um inimigo comum — ouro + 1–2 peças de raridade
+    // elevada, espalhadas nas células livres ao redor (a célula do baú é bloqueada).
+    const cc = Math.round(rec.cx / CELL), rr = Math.round(rec.cz / CELL);
+    const cells = this.freeNearCells(cc, rr, 3);
+    this.spawnGoldDrop(cells[0].c, cells[0].r, 25 + Math.floor(Math.random() * 45));
+    const pieces = 1 + (Math.random() < 0.45 ? 1 : 0);
+    for (let i = 0; i < pieces; i++) {
+      const cell = cells[(i + 1) % cells.length];
+      this.dropArmorPiece(cell.c, cell.r, this.dropTier(), 1.5);
+    }
+    this.ui.toast("Tesouro!");
   }
 
   // nasce um inimigo no ponto 'E' mais próximo do jogador (não na célula dele)
