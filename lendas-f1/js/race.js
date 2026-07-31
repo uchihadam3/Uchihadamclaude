@@ -100,10 +100,25 @@ export function computeLine(curve, half){
   const N=1000;
   const center=[], left=[], ctan=[];
   const cx=new Float32Array(N), cz=new Float32Array(N), lx=new Float32Array(N), lz=new Float32Array(N);
-  for(let i=0;i<N;i++){ const u=i/N; const p=curve.getPointAt(u); const t=curve.getTangentAt(u).normalize();
+  for(let i=0;i<N;i++){ const u=i/N; const p=curve.getPointAt(u); cx[i]=p.x; cz[i]=p.z; }
+  // A pista real tem POUCOS pontos nas curvas -> a curvatura fica irregular
+  // (o carro virava "de pouco em pouco", em trancos). Suaviza a linha central
+  // pra CURVATURA UNIFORME: a curva vira contínua, do início ao fim, como na F1.
+  for(let pass=0; pass<4; pass++){
+    const nx=new Float32Array(N), nz=new Float32Array(N);
+    for(let i=0;i<N;i++){ const a=(i-1+N)%N,b=(i+1)%N;
+      nx[i]=cx[a]*0.25+cx[i]*0.5+cx[b]*0.25; nz[i]=cz[a]*0.25+cz[i]*0.5+cz[b]*0.25; }
+    cx.set(nx); cz.set(nz);
+  }
+  // TANGENTE por diferença finita numa JANELA (não instantânea): gira de forma
+  // gradual e uniforme -> o rumo do carro acompanha a curva inteira, sem passinhos.
+  const Wt=5;
+  for(let i=0;i<N;i++){ const a=(i-Wt+N)%N, b=(i+Wt)%N;
+    let tx=cx[b]-cx[a], tz=cz[b]-cz[a]; const m=Math.hypot(tx,tz)||1; tx/=m; tz/=m;
+    const t=new THREE.Vector3(tx,0,tz);
     const l=new THREE.Vector3().crossVectors(UP,t).normalize();
-    center.push(p); ctan.push(t); left.push(l);
-    cx[i]=p.x; cz[i]=p.z; lx[i]=l.x; lz[i]=l.z; }
+    center.push(new THREE.Vector3(cx[i],0,cz[i])); ctan.push(t); left.push(l);
+    lx[i]=l.x; lz[i]=l.z; }
   const maxOff = Math.max(half-0.2, 0.5);       // apex chega na zebra (o carro pisa o kerb)
   const o=new Float32Array(N);
   for(let it=0; it<2500; it++){
