@@ -12,14 +12,19 @@ import { buildTrack } from './track.js';
 import { CIRCUITS, CIRCUIT_LIST } from './circuits-data.js';
 import { F1Audio } from './audio.js';
 
-/* ---------- CIRCUITO selecionado (via ?track=) ---------- */
-const trackKey = new URLSearchParams(location.search).get('track') || 'interlagos';
+/* ---------- MODO CARREIRA (config vinda do menu via sessionStorage) ---------- */
+let CAREER=null;
+try{ const raw=sessionStorage.getItem('lf1_race'); if(raw) CAREER=JSON.parse(raw); }catch(e){}
+const PLAYER = CAREER && CAREER.player || null;   // loadout do jogador (ou null = corrida rápida)
+
+/* ---------- CIRCUITO selecionado (carreira > ?track= > interlagos) ---------- */
+const trackKey = (CAREER&&CAREER.track) || new URLSearchParams(location.search).get('track') || 'interlagos';
 const circuit = CIRCUITS[trackKey] ? trackKey : 'interlagos';
 const circuitInfo = CIRCUIT_LIST.find(c=>c.key===circuit) || CIRCUIT_LIST[0];
-RACE.laps = circuitInfo.laps || 12;
+RACE.laps = (CAREER&&CAREER.laps) || circuitInfo.laps || 12;
 
-/* ---------- CLIMA da corrida (via ?weather= ou sorteado) ---------- */
-const wq = new URLSearchParams(location.search).get('weather');
+/* ---------- CLIMA da corrida (carreira > ?weather= > sorteado) ---------- */
+const wq = (CAREER&&CAREER.weather) || new URLSearchParams(location.search).get('weather');
 const weatherKey = WEATHERS[wq] ? wq : (()=>{ const r=Math.random();
   return r<0.55?'sol' : r<0.72?'nublado' : r<0.85?'garoa' : r<0.95?'chuva' : 'tempestade'; })();
 const WX = setWeather(weatherKey);
@@ -62,10 +67,10 @@ const track=buildTrack(CIRCUITS[circuit]); scene.add(track.group);
 const curve=track.curve;
 const total=track.length;
 const line=computeLine(curve, track.half);   // racing line (apex nas curvas)
-const cars=buildField(scene, line, circuit);  // 20 carros na grade (força por pista)
+const cars=buildField(scene, line, circuit, PLAYER);  // 20 carros (carro do jogador boostado)
 
-let currentTeam='ferrari';
-const findFocus=()=> cars.find(c=>c.team===currentTeam) || cars[0];
+let currentTeam = PLAYER ? PLAYER.team : 'ferrari';
+const findFocus=()=> (PLAYER && cars.find(c=>c.isPlayer)) || cars.find(c=>c.team===currentTeam) || cars[0];
 let focus=findFocus();
 function setTeam(t){ currentTeam=t; focus=findFocus(); }
 
@@ -202,13 +207,32 @@ function showResults(){
   const pts=[25,18,15,12,10,8,6,4,2,1];
   const running2=cars.filter(c=>!c.out).sort((a,b)=>b.d-a.d);
   const outs2=cars.filter(c=>c.out);
-  const rows=[...running2,...outs2].map((c,i)=>{ const p=c.out?0:(pts[i]||0);
-    return `<div class="rk ${c.team===currentTeam?'me':''}"><span><span class="p">${c.out?'AB':(i+1)+'º'}</span><b style="color:${teamColor(c.team)}">■</b> ${c.drv.nome}</span><span class="g">${p?p+' pts':''}</span></div>`;}).join('');
+  const final=[...running2,...outs2];
+  const rows=final.map((c,i)=>{ const p=c.out?0:(pts[i]||0);
+    return `<div class="rk ${c===focus?'me':''}"><span><span class="p">${c.out?'AB':(i+1)+'º'}</span><b style="color:${teamColor(c.team)}">■</b> ${c.drv.nome}</span><span class="g">${p?p+' pts':''}</span></div>`;}).join('');
+  if(CAREER){
+    // devolve o resultado pro menu (carreira) e volta pro hub
+    const result={ slot:CAREER.slot, round:CAREER.round, track:circuit, weather:weatherKey,
+      order: final.map(c=>c.drv.nome) };
+    try{ sessionStorage.setItem('lf1_result', JSON.stringify(result)); }catch(e){}
+    sessionStorage.removeItem('lf1_race');
+    const myPos=final.indexOf(focus)+1;
+    fcard.innerHTML=`<h2>🏁 Bandeirada!</h2><div class="eng">${circuitInfo.flag} ${circuitInfo.nome} · ${RACE.laps} voltas</div>
+      <div class="ov"><span class="ovn">${focus.out?'AB':myPos+'º'}</span><span class="ovt" style="background:${teamColor(currentTeam)}">${esc0(focus.drv.nome)}</span></div>
+      ${rows}
+      <button class="fbtn" id="fmenu">➜ Voltar à carreira</button>`;
+    document.getElementById('fmenu').onclick=()=>location.href='index.html';
+    fichaPanel.classList.remove('hide');
+    return;
+  }
   fcard.innerHTML=`<h2>🏁 Bandeirada!</h2><div class="eng">${circuitInfo.nome} · ${RACE.laps} voltas · resultado final</div>${rows}
-    <button class="fbtn" id="fnova">🔁 Nova corrida</button>`;
+    <button class="fbtn" id="fnova">🔁 Nova corrida</button>
+    <button class="fclose" id="fmenu2">➜ Menu principal</button>`;
   document.getElementById('fnova').onclick=()=>location.reload();
+  document.getElementById('fmenu2').onclick=()=>location.href='index.html';
   fichaPanel.classList.remove('hide');
 }
+const esc0=s=>(s||'').replace(/</g,'&lt;');
 function showOvertake(passer, passed){
   if(!otEl||!passed) return;
   otEl.innerHTML=`<b>ULTRAPASSAGEM!</b> ${lastName(passer.drv.nome)} passou ${lastName(passed.drv.nome)}`;
@@ -378,6 +402,11 @@ if(circuitSel){
 // título com o nome do circuito
 (function(){ const t=document.querySelector('#title > span');
   if(t) t.textContent=`${circuitInfo.flag} ${circuitInfo.nome} · ${circuitInfo.km}km · ${WX.icon} ${WX.nome}`;
+  if(CAREER){ const b=document.querySelector('#title b'); if(b) b.innerHTML=`<span class="flag"></span>${esc0(PLAYER.driverName)}`;
+    // na carreira a pista e a equipe são fixas — esconde os seletores
+    const cs=document.getElementById('circuit'), ts=document.getElementById('team');
+    if(cs) cs.style.display='none'; if(ts) ts.style.display='none';
+    const tag=document.getElementById('tag'); if(tag) tag.textContent='Carreira · GP '+((CAREER.round||0)+1); }
   // camada de chuva conforme o clima
   const rain=document.getElementById('rain');
   if(rain){ if(WX.wet>=0.7) rain.className='heavy'; else if(WX.wet>=0.35) rain.className='on'; }

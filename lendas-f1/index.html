@@ -3,202 +3,170 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Lendas da F1 — Demo</title>
+<title>Lendas da F1</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:100%;height:100%;overflow:hidden;background:#0b0d10;font-family:-apple-system,Segoe UI,Roboto,sans-serif}
-  #c{display:block;width:100%;height:100%}
-  /* linhas de velocidade (túnel) */
-  #speedfx{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .12s linear;
-    background:
-      radial-gradient(ellipse 60% 60% at 50% 50%, transparent 40%, rgba(0,0,0,0.0) 55%, rgba(0,0,0,0.35) 100%),
-      repeating-conic-gradient(from 0deg at 50% 50%,
-        rgba(255,255,255,0.0) 0deg 3deg, rgba(255,255,255,0.10) 3.4deg 3.8deg, rgba(255,255,255,0.0) 4.2deg 7deg);
-    mix-blend-mode:screen;}
-  /* chuva (camada animada) */
-  #rain{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .8s;z-index:6;
-    background-image:repeating-linear-gradient(103deg, rgba(200,220,255,0) 0 4px, rgba(205,222,255,.20) 4px 5px, rgba(200,220,255,0) 5px 9px);
-    background-size:auto 24px;animation:raindrop .55s linear infinite}
-  #rain.on{opacity:.7}
-  #rain.heavy{opacity:1;animation-duration:.38s;
-    background-image:repeating-linear-gradient(103deg, rgba(210,225,255,0) 0 3px, rgba(215,230,255,.30) 3px 4px, rgba(210,225,255,0) 4px 7px)}
-  @keyframes raindrop{from{background-position:0 0}to{background-position:-42px 240px}}
-  /* vinheta sutil */
-  #vig{position:fixed;inset:0;pointer-events:none;
-    box-shadow:inset 0 0 220px 60px rgba(0,0,0,0.45);}
-  /* ===== HUD clean estilo transmissão de F1 ===== */
-  #hud{position:fixed;left:16px;bottom:14px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.55);pointer-events:none}
-  #hud .big{font-size:52px;font-weight:800;line-height:.84;letter-spacing:-2px;font-variant-numeric:tabular-nums}
-  #hud .unit{font-size:14px;font-weight:700;opacity:.65;margin-left:3px}
-  #hud .row{display:flex;align-items:baseline;gap:5px}
-  #hud .g{font-size:12px;font-weight:600;opacity:.72;margin-top:5px;letter-spacing:.2px}
-  #telem{position:fixed;left:14px;bottom:100px;width:156px;color:#fff;pointer-events:none;
-    background:rgba(12,14,18,.42);border:1px solid rgba(255,255,255,.09);border-radius:11px;
-    padding:7px 10px 8px;backdrop-filter:blur(7px)}
-  #telem h4{font-size:8px;font-weight:700;letter-spacing:1.8px;opacity:.45;margin-bottom:5px}
-  #telem .tl{display:flex;align-items:center;gap:6px;margin:4.5px 0}
-  #telem .lab{font-size:8px;font-weight:700;opacity:.6;width:26px;letter-spacing:.3px}
-  #telem .bar{flex:1;height:5px;background:rgba(255,255,255,.11);border-radius:3px;overflow:hidden}
-  #telem .bar>i{display:block;height:100%;width:100%;border-radius:3px;transition:width .3s,background .3s}
-  #telem .val{font-size:9px;font-weight:700;width:26px;text-align:right;opacity:.9;font-variant-numeric:tabular-nums}
-  #telem .comp{width:14px;height:14px;border-radius:50%;font-size:8px;font-weight:900;flex:none;
-    display:flex;align-items:center;justify-content:center;color:#0a0a0a}
-  #telem .st{font-size:8px;font-weight:700;opacity:.85;width:56px;text-align:right}
-  #gearbox{position:fixed;right:16px;bottom:14px;color:#fff;text-align:center;text-shadow:0 2px 10px rgba(0,0,0,.55);pointer-events:none}
-  #gearbox .num{font-size:50px;font-weight:800;line-height:1}
-  #gearbox .lbl{font-size:9px;font-weight:700;opacity:.5;letter-spacing:2px}
-  #title{position:fixed;top:13px;left:16px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.5)}
-  #title b{font-size:17px;font-weight:800;letter-spacing:.4px}
-  #title span{display:block;font-size:10.5px;opacity:.62;margin-top:1px;font-weight:600}
-  .flag{display:inline-block;width:10px;height:10px;border-radius:2px;background:
-    linear-gradient(135deg,#009c3b 0 40%,#ffdf00 40% 60%,#002776 60% 100%);vertical-align:middle;margin-right:5px}
-  #tag{position:fixed;top:14px;right:16px;color:#fff;font-size:10px;opacity:.5;text-shadow:0 1px 4px #000}
-  #mini{position:fixed;top:36px;right:12px;width:92px;height:96px;pointer-events:none;
-    background:rgba(12,14,18,.38);border:1px solid rgba(255,255,255,.10);border-radius:10px;
-    backdrop-filter:blur(6px)}
-  /* torre de posições — compacta, só POS · cor · CÓDIGO · pneu · gap (como no timing da F1) */
-  #tower{position:fixed;top:140px;right:12px;width:98px;pointer-events:none;
-    background:rgba(12,14,18,.44);border:1px solid rgba(255,255,255,.08);border-radius:9px;
-    padding:3px;backdrop-filter:blur(7px);font-size:8.5px;color:#fff;line-height:1}
-  .trow{display:flex;align-items:center;gap:4px;padding:1.5px 4px;border-radius:5px;transition:background .3s}
-  .trow.me{background:rgba(242,197,0,.20)}
-  .trow.me .tc{color:#ffd21e}
-  .trow.out{opacity:.32}
-  .trow.fl.up{background:rgba(34,197,94,.5)}
-  .trow.fl.down{background:rgba(239,68,68,.42)}
-  .trow .tp{width:11px;text-align:center;opacity:.5;font-weight:700;font-variant-numeric:tabular-nums}
-  .trow .tp.out{color:#ff6060;font-size:7px}
-  .trow b{width:3px;height:12px;border-radius:2px;display:inline-block;flex:none}
-  .trow .tc{font-weight:800;width:23px;letter-spacing:.3px}
-  .trow .tn{display:none}
-  .trow .dmg{color:#ffb020}
-  .trow .tdot{width:5px;height:5px;border-radius:50%;display:inline-block;flex:none;margin-left:1px}
-  .trow .gapt{opacity:.5;font-size:7.5px;margin-left:auto;font-variant-numeric:tabular-nums}
-  .trow .pit{color:#f5c518;font-weight:800;font-size:7px;margin-left:auto;letter-spacing:.5px}
-  #lap{position:fixed;top:12px;left:50%;transform:translateX(-50%);color:#fff;
-    background:rgba(12,14,18,.5);border:1px solid rgba(255,255,255,.12);border-radius:20px;
-    padding:5px 14px;font-size:11px;font-weight:800;letter-spacing:1px;text-shadow:0 1px 3px #000;backdrop-filter:blur(6px)}
-  /* cronômetro de volta (estilo transmissão) */
-  #laptimer{position:fixed;top:40px;left:50%;transform:translateX(-50%);display:flex;gap:7px;pointer-events:none;z-index:8}
-  .ltbox{background:rgba(12,14,18,.5);border:1px solid rgba(255,255,255,.1);border-radius:9px;
-    padding:3px 11px 4px;backdrop-filter:blur(6px);text-align:center;color:#fff;min-width:74px}
-  .ltbox .k{font-size:7px;font-weight:800;letter-spacing:1.6px;opacity:.5;display:block;margin-bottom:1px}
-  .ltbox .v{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 1px 3px #000}
-  .ltbox.best .v{color:#c07cff}                 /* melhor volta: roxo estilo F1 */
-  .ltbox.best.flash{animation:ltflash 1s ease}
-  @keyframes ltflash{0%{background:rgba(192,124,255,.55)}100%{background:rgba(12,14,18,.5)}}
-  /* semáforo da largada */
-  #lights{position:fixed;top:56px;left:50%;transform:translateX(-50%);display:flex;gap:8px;
-    padding:10px 14px;background:rgba(8,10,14,.72);border-radius:12px;z-index:15;transition:opacity .5s}
-  #lights.hide{opacity:0;pointer-events:none}
-  #lights .lamp{width:26px;height:26px;border-radius:50%;background:#3a0d0d;border:2px solid #000;
-    box-shadow:inset 0 -2px 4px rgba(0,0,0,.6)}
-  #lights .lamp.on{background:radial-gradient(circle at 40% 35%,#ff6a6a,#e00000);box-shadow:0 0 14px #ff2a2a}
-  #lights.go .lamp{background:radial-gradient(circle at 40% 35%,#7dff9e,#12b93f);box-shadow:0 0 14px #22e04f}
-  #overtake{position:fixed;top:22%;left:50%;transform:translateX(-50%) translateY(-8px) scale(.96);
-    background:linear-gradient(90deg,#0b7a3b,#1f9e57);color:#fff;padding:12px 22px;border-radius:12px;
-    font-size:17px;box-shadow:0 8px 30px rgba(0,0,0,.5);opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
-  #overtake.show{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
-  #overtake.hide{opacity:0}
-  #overtake b{color:#ffe27a}
-  #sound{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-    background:rgba(12,14,18,.82);color:#fff;border:1px solid rgba(255,255,255,.25);
-    padding:16px 26px;border-radius:40px;font-size:17px;font-weight:700;cursor:pointer;
-    backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(0,0,0,.5);transition:opacity .3s}
-  #sound .s{display:block;font-size:12px;font-weight:500;opacity:.75;margin-top:3px}
-  #sound.hide{opacity:0;pointer-events:none}
-  #cam{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-    background:rgba(12,14,18,.74);color:#fff;border:1px solid rgba(255,255,255,.22);
-    border-radius:30px;padding:11px 20px;font-size:15px;font-weight:700;cursor:pointer;
-    backdrop-filter:blur(5px);box-shadow:0 6px 22px rgba(0,0,0,.45)}
-  #cam:active{transform:translateX(-50%) scale(.96)}
-  #ficha{position:fixed;top:112px;left:16px;background:rgba(12,14,18,.5);color:#fff;
-    border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;backdrop-filter:blur(6px)}
-  /* ===== responsivo (celular) ===== */
-  @media (max-width:640px){
-    #title b{font-size:15px} #title > span{font-size:9px}
-    #circuit,#team{font-size:11px;padding:5px 9px;max-width:158px;top:auto}
-    #circuit{top:42px} #team{top:74px} #ficha{top:106px;font-size:11px}
-    #mini{width:80px;height:84px;top:34px}
-    #tower{top:126px;width:90px;font-size:8px}
-    #telem{width:130px;bottom:92px;padding:6px 9px}
-    #telem .lab{width:22px} #telem .val{width:24px} #telem .st{width:50px}
-    #hud .big{font-size:40px} #hud .unit{font-size:12px} #hud .g{font-size:11px}
-    #gearbox .num{font-size:40px}
-    #cam{bottom:76px;padding:9px 16px;font-size:13px}
-    #lap{font-size:10px;padding:4px 11px}
-    #laptimer{top:36px;gap:5px} .ltbox{padding:2px 8px 3px;min-width:60px} .ltbox .v{font-size:13px}
+  :root{
+    --red:#e10600; --red2:#ff2d20; --gold:#f2c400; --purple:#c07cff;
+    --bg:#0a0c10; --card:#12161d; --card2:#161b23; --line:rgba(255,255,255,.08);
+    --tx:#f2f4f7; --tx2:#9aa3ad; --green:#22c55e;
+    --ff:-apple-system,'Segoe UI',Roboto,system-ui,sans-serif;
   }
-  #fichaPanel{position:fixed;inset:0;z-index:30;background:rgba(6,8,12,.85);backdrop-filter:blur(5px);
-    display:flex;align-items:center;justify-content:center;padding:14px}
-  #fichaPanel.hide{display:none}
-  .fcard{background:#12161d;border:1px solid rgba(255,255,255,.12);border-radius:16px;max-width:440px;width:100%;
-    max-height:90vh;overflow:auto;padding:18px 18px 22px;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,.6)}
-  .fcard h2{font-size:22px;font-weight:800;margin-bottom:2px}
-  .fcard .eng{font-size:12px;opacity:.7;margin-bottom:12px}
-  .fcard .ov{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-  .fcard .ovn{font-size:46px;font-weight:800;line-height:1}
-  .fcard .ovt{font-size:12px;font-weight:800;padding:4px 8px;border-radius:6px;color:#0a0a0a}
-  .srow{display:flex;align-items:center;gap:8px;margin:7px 0}
-  .srow .lb{width:104px;font-size:12px;font-weight:600;opacity:.9}
-  .srow .bar{flex:1;height:11px;background:#242a33;border-radius:6px;overflow:hidden}
-  .srow .bar>i{display:block;height:100%;border-radius:6px}
-  .srow .vl{width:26px;text-align:right;font-size:12px;font-weight:800}
-  .fcard h3{font-size:13px;font-weight:800;opacity:.85;margin:16px 0 6px}
-  .rk{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 8px;border-radius:6px}
-  .rk.me{background:rgba(255,255,255,.10);font-weight:800}
-  .rk .p{opacity:.6;width:22px}
-  .rk .g{font-weight:800}
-  .drv{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin:8px 0}
-  .drvh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .drvh b{font-size:15px}
-  .fbtn{margin-top:12px;width:100%;padding:12px;border:0;border-radius:10px;background:#1f7a45;color:#fff;font-weight:800;font-size:15px;cursor:pointer}
-  .fbtn:active{transform:scale(.98)}
-  .fclose{margin-top:10px;width:100%;padding:11px;border:0;border-radius:10px;background:#2a3240;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
-  #circuitlbl,#teamlbl{display:none}                       /* clean: dropdowns já se explicam */
-  #circuit{position:fixed;top:44px;left:16px;background:rgba(12,14,18,.5);color:#fff;
-    border:1px solid rgba(255,255,255,.13);border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;
-    max-width:180px;backdrop-filter:blur(6px);-webkit-appearance:none;appearance:none}
-  #team{position:fixed;top:78px;left:16px;background:rgba(12,14,18,.5);color:#fff;
-    border:1px solid rgba(255,255,255,.13);border-radius:9px;padding:6px 10px;font-size:12px;font-weight:600;
-    max-width:180px;backdrop-filter:blur(6px);-webkit-appearance:none;appearance:none}
+  html,body{height:100%}
+  body{background:
+      radial-gradient(1200px 700px at 50% -10%, #1a2230 0%, transparent 55%),
+      radial-gradient(900px 600px at 100% 110%, #24101a 0%, transparent 55%),
+      var(--bg);
+    color:var(--tx);font-family:var(--ff);overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;min-height:100%}
+  #app{min-height:100vh;display:flex;justify-content:center}
+  .scr{width:100%;max-width:520px;padding:26px 18px 40px;display:flex;flex-direction:column;gap:16px;animation:in .35s ease}
+  .scr.center{justify-content:center;align-items:center;text-align:center;min-height:100vh;padding-top:8vh}
+  @keyframes in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* ---------- MENU PRINCIPAL ---------- */
+  .logo{font-size:clamp(38px,11vw,60px);font-weight:900;letter-spacing:-1.5px;line-height:.95;
+    display:flex;align-items:center;gap:14px;justify-content:center;
+    background:linear-gradient(90deg,#fff 20%,#ffd9d6 55%,var(--red2) 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 4px 24px rgba(225,6,0,.35))}
+  .logo .fl{width:12px;height:52px;border-radius:3px;flex:none;-webkit-text-fill-color:initial;
+    background:linear-gradient(180deg,var(--red2),var(--red));box-shadow:0 0 20px rgba(225,6,0,.6)}
+  .tagline{color:var(--tx2);font-size:14px;font-weight:600;margin:-2px 0 20px;letter-spacing:.3px}
+  .mbtns{display:flex;flex-direction:column;gap:11px;width:100%;max-width:340px}
+  .mbtn{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;padding:16px 18px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(180deg,var(--card2),#0e1218);color:var(--tx);
+    font-family:var(--ff);font-size:16px;font-weight:800;letter-spacing:.3px;cursor:pointer;
+    transition:transform .12s,border-color .2s,box-shadow .2s;text-align:center}
+  .mbtn:active{transform:scale(.975)}
+  .mbtn:hover{border-color:rgba(255,255,255,.22)}
+  .mbtn.big{background:linear-gradient(180deg,var(--red2),var(--red));border-color:transparent;
+    box-shadow:0 8px 26px rgba(225,6,0,.38);font-size:18px}
+  .mbtn.go{background:linear-gradient(180deg,#25d366,#12a150);box-shadow:0 8px 26px rgba(18,161,80,.4);border-color:transparent}
+  .mbtn.ghost{background:transparent;color:var(--tx2);font-weight:700;font-size:14px;padding:12px}
+  .mbtn.off{opacity:.4;pointer-events:none}
+  .pill{background:var(--gold);color:#151515;font-size:12px;font-weight:900;
+    padding:2px 9px;border-radius:20px;margin-left:4px}
+  .foot{color:var(--tx2);opacity:.5;font-size:11px;margin-top:22px}
+
+  /* ---------- CABEÇALHO ---------- */
+  .hd{display:flex;align-items:center;gap:12px;margin-bottom:2px}
+  .hd h1{font-size:22px;font-weight:900;letter-spacing:-.5px;flex:1}
+  .back{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);
+    background:var(--card2);color:var(--tx);font-size:22px;font-weight:800;cursor:pointer;flex:none;line-height:1}
+  .back:active{transform:scale(.94)}
+  .cashsm,.cash{font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
+  .cashsm{font-size:15px}
+  .sub{color:var(--tx2);font-size:13px;line-height:1.5;margin:-6px 0 4px}
+  .sub b{color:var(--tx)}
+
+  /* ---------- SLOTS ---------- */
+  .slots{display:flex;flex-direction:column;gap:12px}
+  .slot{text-align:left;border:1px solid var(--line);border-radius:15px;padding:16px 17px;cursor:pointer;
+    background:linear-gradient(120deg,var(--card),#0e1319);color:var(--tx);font-family:var(--ff);
+    transition:transform .12s,border-color .2s;position:relative;overflow:hidden}
+  .slot::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--red)}
+  .slot.empty::before{background:#39414d}
+  .slot:active{transform:scale(.99)}
+  .slot:hover{border-color:rgba(255,255,255,.2)}
+  .sn{font-size:11px;font-weight:800;letter-spacing:2px;color:var(--tx2)}
+  .se{font-size:18px;font-weight:800;opacity:.4;margin-top:6px}
+  .sd{font-size:22px;font-weight:900;margin-top:3px;letter-spacing:-.4px}
+  .sstats{font-size:13px;color:var(--tx2);margin-top:5px;font-weight:600}
+  .sstats b{color:var(--tx);font-weight:900}
+  .sr{font-size:12px;color:var(--tx2);margin-top:3px;opacity:.8}
+  .sa{position:absolute;right:14px;bottom:14px;font-size:12px;font-weight:800;color:var(--green)}
+  .sa.warn{color:var(--gold)} .sa.off{color:var(--tx2);opacity:.5}
+
+  /* ---------- ESCOLHA DE PILOTO ---------- */
+  .drvlist{display:flex;flex-direction:column;gap:10px}
+  .drvpick{text-align:left;border:1px solid var(--line);border-radius:13px;padding:13px 15px;cursor:pointer;
+    background:var(--card);color:var(--tx);font-family:var(--ff);transition:transform .12s,border-color .2s}
+  .drvpick:active{transform:scale(.99)} .drvpick:hover{border-color:var(--red)}
+  .dph{display:flex;align-items:center;justify-content:space-between}
+  .dph b{font-size:17px;font-weight:800}
+  .ov{background:#1c2230;border:1px solid var(--line);border-radius:8px;padding:3px 10px;font-size:15px;font-weight:900;color:var(--gold)}
+  .dpr{font-size:12px;color:var(--tx2);margin-top:5px;font-weight:600}
+
+  /* ---------- HUB (garagem) ---------- */
+  .hubtop{display:flex;align-items:center;justify-content:space-between;
+    background:linear-gradient(120deg,#1a1f2a,#121620);border:1px solid var(--line);
+    border-radius:16px;padding:16px 18px}
+  .hubname{font-size:24px;font-weight:900;letter-spacing:-.5px}
+  .hubteam{font-size:13px;color:var(--tx2);font-weight:700;margin-top:2px}
+  .cash{font-size:19px}
+  .cards{display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:15px 16px}
+  .ct{font-size:12px;font-weight:900;letter-spacing:1.5px;color:var(--tx2);margin-bottom:12px}
+  .strow{display:flex;align-items:center;gap:10px;margin:9px 0}
+  .sic{font-size:17px;width:22px;text-align:center;flex:none}
+  .snm{font-size:13px;font-weight:700;width:96px;flex:none}
+  .slv{font-size:14px;font-weight:900;width:26px;text-align:right;color:var(--gold);font-variant-numeric:tabular-nums}
+  .seasonrow{font-size:15px;font-weight:700} .seasonrow b{color:var(--gold);font-size:18px}
+  .nextgp{margin:10px 0;font-size:15px;font-weight:700;background:#0f141c;border:1px solid var(--line);border-radius:10px;padding:11px 13px}
+  .nextgp b{font-weight:900}
+  .champbtn{margin:10px 0;color:var(--tx2);font-weight:700}
+  .mini{margin-top:8px;background:none;border:0;color:var(--purple);font-size:13px;font-weight:800;cursor:pointer;font-family:var(--ff);padding:0}
+  .hubbtns{display:flex;flex-direction:column;gap:11px;margin-top:2px}
+
+  /* ---------- BARRAS ---------- */
+  .pbar{flex:1;height:8px;background:#0c1016;border-radius:5px;overflow:hidden;border:1px solid rgba(0,0,0,.4)}
+  .pbar>i{display:block;height:100%;border-radius:5px;transition:width .4s}
+
+  /* ---------- LOJA ---------- */
+  .shopgrp{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:6px 14px 12px}
+  .sgt{font-size:13px;font-weight:900;letter-spacing:.5px;padding:12px 2px 8px;border-bottom:1px solid var(--line);margin-bottom:6px}
+  .shopitem{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 2px}
+  .shopitem+.shopitem{border-top:1px solid rgba(255,255,255,.05)}
+  .siL{display:flex;align-items:center;gap:11px}
+  .siL b{font-size:15px;font-weight:800}
+  .sidesc{font-size:11.5px;color:var(--tx2);margin-top:1px;font-weight:600}
+  .buy{border:0;border-radius:10px;padding:9px 13px;font-family:var(--ff);cursor:pointer;flex:none;
+    background:linear-gradient(180deg,#2ad06b,#12a150);color:#062012;font-weight:900;font-size:13px;
+    display:flex;flex-direction:column;align-items:center;line-height:1.1;min-width:74px}
+  .buy span{font-size:11px;font-weight:800;opacity:.85;margin-top:2px}
+  .buy:active{transform:scale(.95)}
+  .buy.off{background:#1b212b;color:var(--tx2);opacity:.55;pointer-events:none;box-shadow:none}
+
+  /* ---------- CAMPEONATO ---------- */
+  .standtbl{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px;overflow:hidden}
+  .strow2{display:flex;align-items:center;padding:9px 12px;border-radius:9px;font-size:14px}
+  .strow2.hdr{font-size:11px;font-weight:900;letter-spacing:1px;color:var(--tx2);padding:8px 12px}
+  .strow2.me{background:rgba(242,197,0,.14)} .strow2.me .nm{color:var(--gold);font-weight:900}
+  .strow2 .p{width:30px;font-weight:900;color:var(--tx2);font-variant-numeric:tabular-nums}
+  .strow2 .nm{flex:1;font-weight:700}
+  .strow2 .pt{font-weight:900;font-variant-numeric:tabular-nums}
+
+  /* ---------- ÁRVORE DE LENDAS ---------- */
+  .legrid{display:flex;flex-direction:column;gap:11px}
+  .legnode{background:linear-gradient(120deg,#1a1626,#141019);border:1px solid rgba(192,124,255,.22);
+    border-radius:14px;padding:14px 15px}
+  .lnh{display:flex;align-items:center;gap:10px}
+  .lic{font-size:20px} .lnh b{font-size:16px;font-weight:800;flex:1}
+  .lvl{font-size:12px;font-weight:900;color:var(--purple);font-variant-numeric:tabular-nums}
+  .ldesc{font-size:12.5px;color:var(--tx2);margin:7px 0 11px;font-weight:600}
+  .legnode .buy{width:100%;background:linear-gradient(180deg,#b47cff,#8a45d6);color:#150826}
+  .legnode .buy.off{background:#1b212b;color:var(--tx2)}
+
+  /* ---------- RESULTADO ---------- */
+  .reshd{font-size:20px;font-weight:800;color:var(--tx2);letter-spacing:.3px}
+  .respos{font-size:74px;font-weight:900;letter-spacing:-3px;line-height:1;margin:6px 0;
+    display:flex;align-items:center;gap:12px;justify-content:center}
+  .respos span{background:linear-gradient(180deg,#fff,var(--gold));-webkit-background-clip:text;
+    background-clip:text;-webkit-text-fill-color:transparent}
+  .resline{font-size:16px;font-weight:700;color:var(--tx2)} .resline b{color:var(--tx)}
+  .resmoney{font-size:18px;font-weight:900;color:var(--green);margin:4px 0 20px}
+  .scr.center .mbtns{margin-top:6px}
+
+  @media (max-width:420px){
+    .scr{padding:20px 14px 34px}
+    .snm{width:78px} .respos{font-size:60px}
+  }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="speedfx"></div>
-<div id="rain"></div>
-<div id="vig"></div>
-<div id="title"><b><span class="flag"></span>LENDAS DA F1</b><span>Interlagos — 20 carros · grid completo</span></div>
-<div id="tag">v0.4 · protótipo</div>
-<canvas id="mini" width="140" height="150"></canvas>
-<div id="tower"></div>
-<div id="lap">VOLTA 1/12</div>
-<div id="laptimer">
-  <div class="ltbox"><span class="k">VOLTA</span><span class="v" id="tCur">–:––.–</span></div>
-  <div class="ltbox best"><span class="k">MELHOR</span><span class="v" id="tBest">–:––.–</span></div>
-</div>
-<div id="overtake" class="hide"></div>
-<div id="lights" class="hide"><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></div>
-<div id="circuitlbl">CIRCUITO</div>
-<select id="circuit" aria-label="Circuito"></select>
-<div id="teamlbl">EQUIPE (cores)</div>
-<select id="team" aria-label="Equipe"></select>
-<div id="telem">
-  <h4 id="telemH">TELEMETRIA</h4>
-  <div class="tl"><span class="lab">COMB.</span><span class="bar"><i id="tFuel"></i></span><span class="val" id="tFuelV">100%</span></div>
-  <div class="tl"><span class="lab">PNEU</span><span class="comp" id="tComp">M</span><span class="bar"><i id="tWear"></i></span><span class="val" id="tWearV">0%</span></div>
-  <div class="tl"><span class="lab">DANO</span><span class="bar"><i id="tDmg"></i></span><span class="st" id="tDmgV">Íntegro</span></div>
-</div>
-<div id="hud">
-  <div class="row"><span class="big" id="spd">0</span><span class="unit">km/h</span></div>
-  <div class="g" id="drvline">—</div>
-</div>
-<div id="gearbox"><div class="num" id="gear">1</div><div class="lbl">MARCHA</div></div>
-<button id="sound">🔊 Ligar som do motor<span class="s">toque pra ouvir o F1</span></button>
-<button id="cam">📹 Perseguição</button>
-<button id="ficha">📊 Ficha técnica</button>
-<div id="fichaPanel" class="hide"><div class="fcard" id="fcard"></div></div>
-<script type="module" src="./js/main.js"></script>
+<div id="app"></div>
+<script type="module" src="./js/menu.js"></script>
 </body>
 </html>

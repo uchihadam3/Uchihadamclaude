@@ -137,14 +137,26 @@ const vat=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floo
   return arr[i].clone().multiplyScalar(1-t).add(arr[j].clone().multiplyScalar(t)); };
 
 /* ---------- GRID DE 20 CARROS ---------- */
-export function buildField(scene, line, trackKey='interlagos'){
-  const grid = DRIVERS.map(d=>({ d, pace: carStats(d.team).geral*0.62 + overall(d)*0.38 }));
+const DW_={ritmo:0.24,corrida:0.24,ultrapassagem:0.14,defesa:0.12,chuva:0.10,consistencia:0.10,experiencia:0.06};
+const ovAttrs=a=>{ let s=0; for(const k in DW_) s+=(a[k]||78)*DW_[k]; return s; };
+
+export function buildField(scene, line, trackKey='interlagos', playerOverride=null){
+  const PN = playerOverride && playerOverride.driverName;
+  const grid = DRIVERS.map(d=>{
+    if(PN && d.nome===PN){
+      const po=playerOverride;
+      return { d, pace: po.perf.geral*0.62 + ovAttrs(po.attrs)*0.38, player:po };
+    }
+    return { d, pace: carStats(d.team).geral*0.62 + overall(d)*0.38 };
+  });
   // "classificação" temporária: embaralha o grid (não fica mais equipe atrás de equipe)
   grid.forEach(it=> it.qual = it.pace + (Math.random()-0.5)*7.5);
   grid.sort((a,b)=>b.qual-a.qual);
   const cars=[];
   grid.forEach((it,slot)=>{
     const drv=it.d;
+    const po=it.player;                          // loadout do JOGADOR (se este carro é o dele)
+    const drvA = po ? Object.assign({}, drv, po.attrs) : drv;   // atributos (boostados) p/ estilo
     const full=buildF1Car({team:drv.team, number:String(drv.num), simple:true});
     full.traverse(o=>{ if(o.isMesh){ o.castShadow=false; } });
     // LOD: perto = completo (rodas giram); longe = mesmo carro fundido por material
@@ -161,13 +173,13 @@ export function buildField(scene, line, trackKey='interlagos'){
     const h1=hsh(drv.nome), h2=hsh(drv.nome+'#'), h3=hsh(drv.nome+'@');
     const nrm=(v,mid,span)=>THREE.MathUtils.clamp((v-mid)/span,-1,1);
     const style={
-      brakeLate: THREE.MathUtils.clamp(0.5 + nrm(drv.ultrapassagem,84,15)*0.45 + (h1-0.5)*0.8, 0, 1), // freia tarde x cedo
-      cornerCarry: THREE.MathUtils.clamp(nrm(drv.ritmo,88,12)*0.6 + (h2-0.5)*0.9, -1, 1),               // carrega curva
-      lineBias: (h1-0.5)*1.7 + nrm(drv.ritmo,88,16)*0.4,                                                // linha PESSOAL
-      aggro: THREE.MathUtils.clamp(0.45 + nrm(drv.ultrapassagem,84,15)*0.5 + (h3-0.5)*0.55, 0.06, 1),   // agressividade
-      defense: THREE.MathUtils.clamp(0.5 + nrm(drv.defesa,84,13)*0.55, 0.05, 1),                        // firmeza defesa
-      errK: THREE.MathUtils.clamp(1.5 - nrm(drv.consistencia,84,16)*1.2, 0.25, 2.6),                    // tende a errar
-      smooth: THREE.MathUtils.clamp(0.5 + nrm(drv.consistencia,84,16)*0.5, 0.1, 1),                     // suavidade
+      brakeLate: THREE.MathUtils.clamp(0.5 + nrm(drvA.ultrapassagem,84,15)*0.45 + (h1-0.5)*0.8, 0, 1), // freia tarde x cedo
+      cornerCarry: THREE.MathUtils.clamp(nrm(drvA.ritmo,88,12)*0.6 + (h2-0.5)*0.9, -1, 1),               // carrega curva
+      lineBias: (h1-0.5)*1.7 + nrm(drvA.ritmo,88,16)*0.4,                                                // linha PESSOAL
+      aggro: THREE.MathUtils.clamp(0.45 + nrm(drvA.ultrapassagem,84,15)*0.5 + (h3-0.5)*0.55, 0.06, 1),   // agressividade
+      defense: THREE.MathUtils.clamp(0.5 + nrm(drvA.defesa,84,13)*0.55, 0.05, 1),                        // firmeza defesa
+      errK: THREE.MathUtils.clamp(1.5 - nrm(drvA.consistencia,84,16)*1.2, 0.25, 2.6),                    // tende a errar
+      smooth: THREE.MathUtils.clamp(0.5 + nrm(drvA.consistencia,84,16)*0.5, 0.1, 1),                     // suavidade
       phase: h2*Math.PI*2,
     };
     // FORÇA por PISTA: em cada circuito um piloto vai um pouco melhor que o outro
@@ -177,14 +189,26 @@ export function buildField(scene, line, trackKey='interlagos'){
     // PERFIL do carro (da ficha técnica): uns aceleram melhor, outros têm
     // mais velocidade final, mais curva (aero) ou mais freio (chassi)
     const cs=carStats(drv.team);
-    const perf={
+    let perf={
       power:  880*(1+(cs.potencia-86)*0.012),   // potência/massa (~W/kg) -> aceleração e reta
       traction: 11.5+(cs.chassi-84)*0.03,       // limite de tração na saída (0-100 ~2.5s real)
       top:    95+(cs.potencia-86)*0.45,         // velocidade final (m/s) ~330-355 km/h
       corner: 1+(cs.aero-84)*0.0045,            // aero -> velocidade de curva
       brake0: 20+(cs.chassi-84)*0.10,           // freio base (baixa velocidade)
     };
-    cars.push({ g, drv, style, perf, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
+    let wearMul=1;
+    if(po){                                     // carro do JOGADOR: usa o desempenho da carreira
+      const gN=(po.perf.geral-72)/80;           // 0(fraco)..1(top) — mapeia p/ a escala da corrida
+      perf={
+        power:  835 + gN*115,                   // ~835..950
+        traction: 10.7 + gN*1.6,
+        top:     92 + gN*8,
+        corner:  0.982 + gN*0.030,
+        brake0:  19 + gN*3.2,
+      };
+      wearMul = po.perf.wear || 1;              // pneus (nível) -> desgaste
+    }
+    cars.push({ g, drv, style, perf, wearMul, isPlayer:!!po, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
       pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9, gridOffset:side*LAT,
       d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
       speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0,
@@ -267,7 +291,7 @@ export function updateField(cars, line, dt, t, started){
     const tire=TIRES[c.tire];
     const slick=tire.dry>tire.wet;                                // S/M/H são slicks
     const wrongTire = slick ? CURWET : (1-CURWET);                // 0=certo pro clima, 1=totalmente errado
-    c.wear=Math.min(1, c.wear + dt*0.0016*tire.wear*(1 + wrongTire*0.7));  // pneu errado gasta mais
+    c.wear=Math.min(1, c.wear + dt*0.0016*tire.wear*(c.wearMul||1)*(1 + wrongTire*0.7));  // pneu errado/carro fraco gasta mais
     const tireMul=tireGrip(tire)*(1-c.wear*0.10);                 // grip conforme o CLIMA
     c.fuel=Math.max(0.03, 1 - c.d/(RACE.laps*len));               // 100% -> ~3% no fim
     const fuelMul=0.984 + 0.016*(1-c.fuel);                       // tanque cheio = mais pesado/lento
