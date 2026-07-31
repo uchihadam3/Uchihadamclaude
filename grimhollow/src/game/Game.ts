@@ -191,7 +191,9 @@ const ENEMY_TYPES: Record<string, {
   // arqueiro anda BEM devagar (não fica correndo p/ manter distância) — spd alto.
   arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 9,  xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
   carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8, ai: "relentless", spd: 900, tier: "mini" },
-  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, range: 6, proj: "orb", ai: "kite", spd: 980 },
+  // cultista: conjura de longe, mas COLA no herói p/ usar a adaga quando ele chega
+  // perto (ai "caster"). Velocidade parecida com a do arqueiro.
+  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -1063,7 +1065,8 @@ interface EnemyEnt {
   stepAt: number; stepDur: number; fx: number; fz: number; tx: number; tz: number;
   nextMove: number;            // instante mínimo do próximo passo
   approach: number;            // +1 se o último passo aproximou do herói, -1 afastou, 0 parado
-  chev: THREE.Sprite;          // seta acima do inimigo (vem ▼ / recua ▲) — some quando parado
+  hdc: number; hdr: number;    // direção p/ onde o inimigo está "virado" (último passo/rumo)
+  faceArrow: THREE.Mesh;       // seta NO CHÃO sob o inimigo, apontando p/ onde ele encara
   bar: THREE.Group; barFill: THREE.Mesh;
 }
 
@@ -1409,7 +1412,7 @@ export class Game {
     this.foliageFx = fx;
 
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.camera = new THREE.PerspectiveCamera(66, 1, 0.05, 400); // FOV um pouco mais aberto (combate menos "estreito", mais visão lateral)
+    this.camera = new THREE.PerspectiveCamera(76, 1, 0.05, 400); // FOV bem mais aberto (dá p/ acompanhar inimigo que foge de lado; menos "túnel")
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.world);
 
@@ -2296,20 +2299,27 @@ export class Game {
     bar.position.set(c * CELL, worldH + 0.45, r * CELL);
     this.world.add(bar);
     this.billboardProps.push(bar); // encara a câmera
-    // SETA de intenção acima do inimigo (sprite auto-billboard): ▼ vermelho quando
-    // se aproxima, ▲ ciano quando recua — some quando parado.
-    const chev = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: this.chevTex(), transparent: true, depthWrite: false, opacity: 0,
-    }));
-    chev.scale.set(0.5, 0.5, 1);
-    chev.position.set(c * CELL, worldH + 0.95, r * CELL);
-    this.world.add(chev);
+    // SETA DE ORIENTAÇÃO no CHÃO sob o inimigo: um plano deitado com uma seta que
+    // aponta p/ o lado que ele encara (o último rumo do passo). Como os inimigos são
+    // billboards, é assim que dá p/ saber p/ onde ele está virado/indo.
+    const faceArrow = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.0, 2.0),
+      new THREE.MeshBasicMaterial({
+        map: this.groundArrowTex(), transparent: true, depthWrite: false,
+        opacity: 0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      }),
+    );
+    faceArrow.rotation.order = "YXZ";
+    faceArrow.rotation.x = -Math.PI / 2; // deita no chão
+    faceArrow.position.set(c * CELL, 0.06, r * CELL);
+    faceArrow.renderOrder = 2;
+    this.world.add(faceArrow);
     const e: EnemyEnt = {
       mesh, mat, c, r, bx: c * CELL, bz: r * CELL,
       hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
       homeC: c, homeR: r, aggro: false,
       ranged: T.ranged ?? false, melee: T.melee ?? true, range: T.range ?? 1, proj: T.proj ?? "",
-      ai: T.ai ?? "chase", tier: T.tier ?? "normal", approach: 0, chev,
+      ai: T.ai ?? "chase", tier: T.tier ?? "normal", approach: 0, hdc: 0, hdr: 1, faceArrow,
       atkIsRanged: false, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0,
       stepAt: 0, stepDur: T.spd ?? 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
@@ -5508,10 +5518,12 @@ export class Game {
   }
   // um passo em grade rumo à célula alvo (atualiza ocupação + inicia interpolação)
   private enemyStepTo(e: EnemyEnt, nc: number, nr: number, now: number) {
-    // aproxima ou afasta do herói? (p/ a seta de intenção)
+    // aproxima ou afasta do herói? (p/ tingir a seta de orientação)
     const before = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
     const after = Math.abs(this.col - nc) + Math.abs(this.row - nr);
     e.approach = after < before ? 1 : after > before ? -1 : 0;
+    // rumo do passo = p/ onde o inimigo está "virado" (usado pela seta no chão)
+    e.hdc = nc - e.c; e.hdr = nr - e.r;
     this.blocked.delete(`${e.c},${e.r}`);
     e.c = nc; e.r = nr;
     this.blocked.add(`${nc},${nr}`);
@@ -5557,6 +5569,18 @@ export class Game {
     if (dist <= 2) this.enemyFleeStep(e, now);                          // colado: dá um passo p/ trás
     else if (dist > e.range || !this.enemyCanSee(e)) this.enemyChaseStep(e, now); // longe/sem visão: aproxima devagar
     else e.nextMove = now + 900;                                        // posição boa: segura mais tempo e dispara
+  }
+  // CASTER (cultista): magia de longe, mas quando o herói CHEGA PERTO ele tende a
+  // colar p/ usar a adaga (melee). Nunca foge — troca o orbe pela lâmina de perto.
+  private enemyCasterStep(e: EnemyEnt, now: number, dist: number) {
+    if (dist > e.range || !this.enemyCanSee(e)) { this.enemyChaseStep(e, now); return; } // longe/sem visão: aproxima
+    if (dist <= 2) {
+      // perto: boa chance de COLAR p/ golpear com a adaga (senão segura e conjura)
+      if (dist === 2 && Math.random() < 0.6) { this.enemyChaseStep(e, now); return; }
+      e.nextMove = now + 700; // segura: adjacente = adaga; a 2 células = orbe
+      return;
+    }
+    e.nextMove = now + 900; // distância confortável: segura e conjura
   }
   // patrulha: vagueia devagar perto do ponto de spawn (raio 2)
   private enemyPatrolStep(e: EnemyEnt, now: number) {
@@ -5611,15 +5635,24 @@ export class Game {
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     this.arrowTexCache = t; return t;
   }
-  // seta/chevron (aponta p/ CIMA): o material vira p/ baixo (scale.y<0) quando o
-  // inimigo se aproxima. Branca (tingida pela cor do material), com contorno escuro.
-  private chevTex(): THREE.Texture {
+  // seta de ORIENTAÇÃO no chão: aponta p/ CIMA na textura (topo). Um anel + uma
+  // ponta destacada na "frente" — no chão (plano deitado) vira o rumo do inimigo.
+  // Tingida pela cor do material (âmbar patrulha / vermelho aggro).
+  private groundArrowTex(): THREE.Texture {
     if (this.chevTexCache) return this.chevTexCache;
-    const S = 64; const cv = document.createElement("canvas"); cv.width = cv.height = S;
-    const g = cv.getContext("2d")!;
-    const tri = (o: number) => { g.beginPath(); g.moveTo(32, 8 + o); g.lineTo(56, 40 + o); g.lineTo(44, 40 + o); g.lineTo(44, 56); g.lineTo(20, 56); g.lineTo(20, 40 + o); g.lineTo(8, 40 + o); g.closePath(); };
-    g.fillStyle = "rgba(0,0,0,0.55)"; tri(2); g.fill();     // sombra/contorno
-    g.fillStyle = "#ffffff"; tri(0); g.fill();               // corpo (tingido no material)
+    const S = 128; const cv = document.createElement("canvas"); cv.width = cv.height = S;
+    const g = cv.getContext("2d")!; const c = S / 2;
+    // anel de base (leve) — marca a "pegada" do inimigo
+    g.lineWidth = 5; g.strokeStyle = "rgba(255,255,255,0.55)";
+    g.beginPath(); g.arc(c, c, 40, 0, Math.PI * 2); g.stroke();
+    // ponta grande apontando p/ CIMA (frente = topo da textura, y pequeno)
+    g.fillStyle = "#ffffff";
+    g.beginPath();
+    g.moveTo(c, 6);            // ponta
+    g.lineTo(c + 30, 52);      // base direita
+    g.lineTo(c, 40);           // entalhe
+    g.lineTo(c - 30, 52);      // base esquerda
+    g.closePath(); g.fill();
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     this.chevTexCache = t; return t;
   }
@@ -8641,7 +8674,7 @@ export class Game {
         e.mesh.position.y = h / 2 - t * 0.75;
         e.bar.visible = false;
         if (t >= 1) {
-          for (const o of [e.mesh, e.bar, e.chev]) {
+          for (const o of [e.mesh, e.bar, e.faceArrow]) {
             this.world.remove(o);
             const idx = this.billboardProps.indexOf(o);
             if (idx >= 0) this.billboardProps.splice(idx, 1);
@@ -8666,7 +8699,9 @@ export class Game {
         } else if (e.ai === "flee_low" && e.hp <= e.maxHp * 0.35) {
           this.enemyFleeStep(e, now);              // rato acuado foge
         } else if (e.ai === "kite" && e.ranged) {
-          this.enemyKiteStep(e, now, distCells);   // arqueiro/cultista: mantém distância
+          this.enemyKiteStep(e, now, distCells);   // arqueiro: mantém distância p/ atirar
+        } else if (e.ai === "caster" && e.ranged) {
+          this.enemyCasterStep(e, now, distCells); // cultista: conjura de longe, adaga de perto
         } else if (!adj) {
           this.enemyChaseStep(e, now);             // perseguidores (esqueleto/aranha/carniçal)
         }
@@ -8707,17 +8742,15 @@ export class Game {
       e.mesh.scale.set(scale, scale, 1);
       e.mesh.rotation.z = tiltZ;
       e.bar.position.set(e.bx, h + 0.45, e.bz); // a barra segue o inimigo
-      // SETA de intenção: ▼ vermelho aproximando, ▲ ciano recuando; some parado.
-      const cm = e.chev.material as THREE.SpriteMaterial;
-      const moving = !!e.stepAt; // só sinaliza enquanto dá o passo
-      const target = moving && e.approach !== 0 ? 0.95 : 0;
-      cm.opacity += (target - cm.opacity) * 0.2; // fade suave
-      e.chev.position.set(e.bx, h + 0.95, e.bz);
-      if (target > 0) {
-        const coming = e.approach > 0;
-        cm.color.setHex(coming ? 0xff5a44 : 0x63d8ff); // vermelho vem / ciano recua
-        e.chev.scale.set(0.5, coming ? -0.5 : 0.5, 1); // vira o chevron p/ baixo se vem
-      }
+      // SETA de ORIENTAÇÃO no chão: aponta p/ o rumo do inimigo (hdc,hdr) — como são
+      // billboards, é assim que dá p/ saber p/ que lado ele encara/vai. Mais forte
+      // e vermelha quando ele está aggro (te caçando); âmbar suave na patrulha.
+      const fm = e.faceArrow.material as THREE.MeshBasicMaterial;
+      const target = e.aggro ? 0.9 : (e.stepAt ? 0.55 : 0.32);
+      fm.opacity += (target - fm.opacity) * 0.15;
+      e.faceArrow.position.set(e.bx, 0.06, e.bz);
+      e.faceArrow.rotation.y = Math.atan2(-e.hdc, -e.hdr); // rumo no plano do chão
+      fm.color.setHex(e.aggro && e.approach > 0 ? 0xff4530 : e.aggro ? 0xff8a3c : 0xf0b45a);
       e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
     this.updatePoofs(now);
