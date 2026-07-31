@@ -115,6 +115,36 @@
   .dpt{font-size:12px;color:var(--tx2);font-weight:700;margin-top:2px}
   .dpr{font-size:12px;color:var(--tx2);margin-top:6px;font-weight:600}
 
+  /* ---------- ESCOLHA DE ESCUDERIA ---------- */
+  .teamlist{display:flex;flex-direction:column;gap:11px}
+  .teamcard{display:flex;align-items:center;text-align:left;border:1px solid var(--line);border-radius:15px;cursor:pointer;overflow:hidden;
+    background:linear-gradient(120deg,var(--card),#0d1219);color:var(--tx);font-family:var(--ff);transition:transform .12s,border-color .2s}
+  .teamcard:active{transform:scale(.99)} .teamcard:hover{border-color:var(--tc)}
+  .tcbar{width:6px;align-self:stretch;background:var(--tc);flex:none;box-shadow:0 0 16px var(--tc)}
+  .tcbody{flex:1;padding:13px 14px}
+  .tch{display:flex;align-items:center;justify-content:space-between}
+  .tch b{font-size:18px;font-weight:900}
+  .carov{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+  .tctier{font-size:11px;font-weight:800;letter-spacing:.5px;margin-top:1px}
+  .tmdrvs{display:flex;gap:14px;margin-top:8px}
+  .tmdrv{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--tx2)}
+  .tmdrv i{font-style:normal;color:#0a0a0a;font-weight:900;font-size:11px;border-radius:6px;padding:2px 6px;min-width:24px;text-align:center}
+  .tcgo{font-size:26px;color:var(--tx2);padding:0 14px;flex:none}
+  /* preview 3D do carro */
+  .carprev{position:relative;height:184px;border-radius:16px;overflow:hidden;border:1px solid var(--line);
+    background:radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--tc) 22%, #0e1319) 0%, #0a0e14 70%)}
+  .carprev #carcanvas{width:100%;height:100%;display:block}
+  .cptag{position:absolute;left:12px;bottom:10px;font-size:11px;font-weight:900;letter-spacing:1px;
+    background:rgba(0,0,0,.45);color:#fff;padding:4px 10px;border-radius:20px;border:1px solid var(--line)}
+  .cpnote{font-size:11.5px;color:var(--tx2);margin-top:10px;font-weight:600;line-height:1.5}
+  .drvcard{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px 15px;position:relative;overflow:hidden}
+  .drvcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--tc);box-shadow:0 0 16px var(--tc)}
+  .dch{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .dch b{font-size:18px;font-weight:900}
+  .dcstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 10px;margin-bottom:13px}
+  .dcstats span{font-size:12px;color:var(--tx2);font-weight:600}
+  .dcstats b{color:var(--tx);font-weight:900}
+
   /* ---------- HUB (garagem) ---------- */
   .hubtop{display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;
     background:linear-gradient(120deg,#1b2130,#12161f);border:1px solid var(--line);

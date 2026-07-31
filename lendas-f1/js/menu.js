@@ -4,9 +4,11 @@
    (você faz a volta e vê o grid), campeonato, árvore de lendas, resultado.
    Lança a corrida/classificação em race.html. Com efeitos sonoros.
    ===================================================================== */
+import * as THREE from '../vendor/three.module.js';
 import * as C from './career.js';
-import { DRIVERS, overall } from './drivers.js';
-import { TEAMS } from './car.js';
+import { DRIVERS, overall, driversOf } from './drivers.js';
+import { TEAMS, buildF1Car } from './car.js';
+import { carStats, tier } from './stats.js';
 import * as SFX from './menu-audio.js';
 
 const app = document.getElementById('app');
@@ -26,8 +28,42 @@ function bar(val, max=99, color){
 function grad(v,max){ const t=v/max; const h=Math.round(t*120); return `hsl(${h},70%,48%)`; }
 
 /* helper de transição + som */
-function show(html, sound='nav'){ if(SFX[sound]) SFX[sound](); app.innerHTML=html;
+function show(html, sound='nav'){ stopPreview(); if(SFX[sound]) SFX[sound](); app.innerHTML=html;
   const s=app.firstElementChild; if(s){ s.classList.remove('anim'); void s.offsetWidth; s.classList.add('anim'); } }
+
+/* ---------- preview 3D do carro (uma cena WebGL leve, gira o carro) ---------- */
+let preview=null;
+function stopPreview(){ if(!preview) return; cancelAnimationFrame(preview.raf);
+  try{ preview.renderer.dispose(); preview.renderer.forceContextLoss(); }catch(e){} preview=null; }
+function mountCarPreview(canvas, teamKey){
+  stopPreview();
+  const w=canvas.clientWidth||canvas.parentElement.clientWidth||320, h=canvas.clientHeight||180;
+  const renderer=new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(w,h,false);
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.1;
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(36, w/h, 0.1, 100);
+  scene.add(new THREE.HemisphereLight(0xdff0ff, 0x20242c, 1.15));
+  const dl=new THREE.DirectionalLight(0xffffff,2.0); dl.position.set(5,7,4); scene.add(dl);
+  const rim=new THREE.DirectionalLight(0xff5a4a,0.7); rim.position.set(-5,3,-4); scene.add(rim);
+  // ambiente pra dar brilho na lataria
+  try{ const cv=document.createElement('canvas'); cv.width=cv.height=128; const g=cv.getContext('2d');
+    const gr=g.createLinearGradient(0,0,0,128); gr.addColorStop(0,'#e8f3ff'); gr.addColorStop(.55,'#9fbfe0'); gr.addColorStop(.55,'#3a4048'); gr.addColorStop(1,'#12151a');
+    g.fillStyle=gr; g.fillRect(0,0,128,128); const tx=new THREE.CanvasTexture(cv); tx.mapping=THREE.EquirectangularReflectionMapping;
+    const pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromEquirectangular(tx).texture;
+  }catch(e){}
+  const car=buildF1Car({team:teamKey});
+  const box=new THREE.Box3().setFromObject(car); const c=box.getCenter(new THREE.Vector3());
+  car.position.sub(c);                                  // centraliza na origem
+  const grp=new THREE.Group(); grp.add(car); scene.add(grp);
+  const sph=box.getBoundingSphere(new THREE.Sphere()); const r=sph.radius;
+  const dist=r/Math.sin((cam.fov*Math.PI/180)/2)*0.82;
+  cam.position.set(dist*0.6, dist*0.38, dist*0.74); cam.lookAt(0,-0.15,0);
+  let t=0.6; preview={renderer,raf:0,scene};
+  (function loop(){ t+=0.012; grp.rotation.y=t; renderer.render(scene,cam); preview.raf=requestAnimationFrame(loop); })();
+}
+addEventListener('pagehide', stopPreview);
 
 /* ================= TELAS ================= */
 function screenMain(){
@@ -72,27 +108,58 @@ function screenSlots(mode){
   bind({ back:screenMain });
   app.querySelectorAll('.slot').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.slot; const s=C.loadSlot(i);
-    if(mode==='new'){ if(s && !confirm('Sobrescrever o Slot '+(i+1)+'?')){ SFX.error(); return; } screenNew(i); }
+    if(mode==='new'){ if(s && !confirm('Sobrescrever o Slot '+(i+1)+'?')){ SFX.error(); return; } screenTeams(i); }
     else if(s){ SFX.select(); cur={slot:i, career:s}; screenHub(); }
   });
 }
 
-function screenNew(slot){
-  const opts=C.START_DRIVERS.map(name=>{ const d=DRIVERS.find(x=>x.nome===name); const ov=overall(d);
-    return `<button class="drvpick" data-name="${esc(name)}" style="--tc:${teamHex(d.team)}">
-       <span class="dpbar"></span>
-       <div class="dpbody">
-         <div class="dph"><b>${esc(name)}</b><span class="ov" style="background:${ovColor(ov)}">${ov}</span></div>
-         <div class="dpt">${TEAMS[d.team]?TEAMS[d.team].name:''}</div>
-         <div class="dpr">Ritmo ${d.ritmo} · Corrida ${d.corrida} · Chuva ${d.chuva}</div>
-       </div></button>`; }).join('');
+/* lista de escudarias reais (2 pilotos cada), ordenadas pela nota do carro */
+const REAL_TEAMS = ()=> Object.keys(TEAMS).filter(k=>driversOf(k).length>=2)
+  .sort((a,b)=>carStats(b).geral-carStats(a).geral);
+
+function screenTeams(slot){
+  const cards=REAL_TEAMS().map(k=>{ const t=TEAMS[k], cs=carStats(k), tc=tier(cs.geral);
+    const drv=driversOf(k).map(d=>`<span class="tmdrv"><i style="background:${ovColor(overall(d))}">${overall(d)}</i>${esc(last(d.nome))}</span>`).join('');
+    return `<button class="teamcard" data-k="${k}" style="--tc:${teamHex(k)}">
+       <span class="tcbar"></span>
+       <div class="tcbody">
+         <div class="tch"><b>${esc(t.name)}</b><span class="carov" style="color:${tc.col}">${cs.geral}</span></div>
+         <div class="tctier" style="color:${tc.col}">${tc.txt}</div>
+         <div class="tmdrvs">${drv}</div>
+       </div>
+       <span class="tcgo">›</span></button>`; }).join('');
   show(`<div class="scr">
-     <div class="hd"><button class="back" data-a="back">‹</button><h1>Escolha seu piloto</h1></div>
-     <p class="sub">Comece com um piloto de base — evolua ele e o carro corrida a corrida até virar uma <b>lenda</b>.</p>
-     <div class="drvlist">${opts}</div></div>`);
+     <div class="hd"><button class="back" data-a="back">‹</button><h1>Escolha a escudería</h1></div>
+     <p class="sub">Cada escudería tem <b>dois pilotos</b> e um carro. Abra pra ver o carro e os pilotos — depois escolha com quem você quer começar sua jornada de <b>lenda</b>.</p>
+     <div class="teamlist">${cards}</div></div>`);
   bind({ back:()=>screenSlots('new') });
-  app.querySelectorAll('.drvpick').forEach(b=>b.onclick=()=>{
-    SFX.confirm();
+  app.querySelectorAll('.teamcard').forEach(b=>b.onclick=()=>{ SFX.select(); screenTeamDetail(slot, b.dataset.k); });
+}
+
+function screenTeamDetail(slot, k){
+  const t=TEAMS[k], cs=carStats(k), tc=tier(cs.geral);
+  const carRows=[['Potência',cs.potencia],['Aerodinâmica',cs.aero],['Chassi',cs.chassi],['Pneus',cs.pneus]]
+    .map(([lb,v])=>`<div class="strow"><span class="snm">${lb}</span>${bar(v,100,`linear-gradient(90deg,${teamHex(k)},#fff6)`)}<span class="slv" style="color:${ovColor(v)}">${v}</span></div>`).join('');
+  const drv=driversOf(k).map(d=>{ const ov=overall(d);
+    return `<div class="drvcard" style="--tc:${teamHex(k)}">
+       <div class="dch"><b>${esc(d.nome)}</b><span class="ov" style="background:${ovColor(ov)}">${ov}</span></div>
+       <div class="dcstats">
+         <span>Ritmo <b>${d.ritmo}</b></span><span>Corrida <b>${d.corrida}</b></span><span>Ultrap. <b>${d.ultrapassagem}</b></span>
+         <span>Defesa <b>${d.defesa}</b></span><span>Chuva <b>${d.chuva}</b></span><span>Exp. <b>${d.experiencia}</b></span>
+       </div>
+       <button class="mbtn red pickdrv" data-name="${esc(d.nome)}">▶ Jogar com ${esc(last(d.nome))}</button>
+     </div>`; }).join('');
+  show(`<div class="scr">
+     <div class="hd"><button class="back" data-a="back">‹</button><h1>${esc(t.name)}</h1><div class="cashsm" style="color:${tc.col}">CARRO ${cs.geral}</div></div>
+     <div class="carprev" style="--tc:${teamHex(k)}"><canvas id="carcanvas"></canvas><span class="cptag">${tc.txt}</span></div>
+     <div class="card"><div class="ct">🏎️ CARRO DA EQUIPE</div>${carRows}
+       <div class="cpnote">No começo você corre com o carro no nível 1 e evolui ele entre as corridas.</div></div>
+     <div class="ct" style="margin:2px 2px 0">👥 PILOTOS</div>
+     ${drv}</div>`);
+  bind({ back:()=>screenTeams(slot) });
+  const cv=document.getElementById('carcanvas'); if(cv) requestAnimationFrame(()=>mountCarPreview(cv, k));
+  app.querySelectorAll('.pickdrv').forEach(b=>b.onclick=()=>{
+    SFX.confirm(); stopPreview();
     const career=C.newCareer(b.dataset.name, slot); C.saveSlot(slot,career);
     cur={slot, career}; screenHub();
   });
