@@ -30,13 +30,20 @@ export class F1Audio {
     tame.connect(conv); conv.connect(wet); wet.connect(comp);
 
     // ---- filtro do motor (abre com acelerador/rpm) ----
-    const lp = this.lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1500; lp.Q.value=0.7;
+    const lp = this.lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1500; lp.Q.value=0.9;
+    // SATURAÇÃO (waveshaper) — dá o "grão"/ronco áspero de motor de verdade
+    const shaper = ctx.createWaveShaper();
+    const dc=new Float32Array(1024); for(let i=0;i<1024;i++){ const x=i/511.5-1; dc[i]=Math.tanh(x*2.6); }
+    shaper.curve=dc; shaper.oversample='4x';
     const drive = this.drive = ctx.createGain(); drive.gain.value=1.0;
-    lp.connect(drive); drive.connect(master);
-    // formante (grito) suave
-    const formant = this.formant = ctx.createBiquadFilter(); formant.type='bandpass'; formant.frequency.value=2200; formant.Q.value=3.2;
+    lp.connect(shaper); shaper.connect(drive); drive.connect(master);
+    // formantes (grito/timbre do motor) — dois picos ressonantes
+    const formant = this.formant = ctx.createBiquadFilter(); formant.type='bandpass'; formant.frequency.value=2200; formant.Q.value=4.0;
     const formantGain = this.formantGain = ctx.createGain(); formantGain.gain.value=0.4;
     formant.connect(formantGain); formantGain.connect(master);
+    const formant2 = this.formant2 = ctx.createBiquadFilter(); formant2.type='bandpass'; formant2.frequency.value=3600; formant2.Q.value=6.0;
+    const formant2Gain = this.formant2Gain = ctx.createGain(); formant2Gain.gain.value=0.16;
+    formant2.connect(formant2Gain); formant2Gain.connect(master);
 
     // ---- dois bancos harmônicos (corpo + coro) — timbre quente ----
     const partials=[
@@ -51,14 +58,14 @@ export class F1Audio {
     const bank=(detune,scale)=>{ for(const p of partials){
       const o=ctx.createOscillator(); o.type=p.type; o.detune.value=detune;
       const g=ctx.createGain(); g.gain.value=p.g*scale;
-      o.connect(g); g.connect(lp); if(p.mul>=1) g.connect(formant); o.start(now);
+      o.connect(g); g.connect(lp); if(p.mul>=1){ g.connect(formant); g.connect(formant2); } o.start(now);
       o._mul=p.mul; this.oscs.push(o);
     }};
     bank(0,1.0); bank(8,0.6);   // segundo banco levemente desafinado (coro)
 
     // ---- LFO de "firing" suave (textura, sem buzz) ----
     const lfo=ctx.createOscillator(); lfo.type='triangle';
-    const lfoGain=ctx.createGain(); lfoGain.gain.value=0.2;
+    const lfoGain=ctx.createGain(); lfoGain.gain.value=0.32;   // textura de explosão mais presente
     lfo.connect(lfoGain); lfoGain.connect(drive.gain); lfo.start(now); this.lfo=lfo;
 
     // ---- ruídos: admissão + vento ----
@@ -98,11 +105,13 @@ export class F1Audio {
     const f0 = rpm/60*3;                                       // fundamental (V6)
     for(const o of this.oscs) o.frequency.setTargetAtTime(f0*o._mul, t, T);
     this.lfo.frequency.setTargetAtTime(f0, t, T);
-    // timbre: abre com acelerador+rpm, mas com teto (sem estridência)
-    this.lp.frequency.setTargetAtTime(650 + throttle*3400 + (rpm/15000)*2400, t, T);
-    // grito controlado
+    // timbre: abre com acelerador+rpm (mais aberto = mais áspero/agressivo)
+    this.lp.frequency.setTargetAtTime(700 + throttle*4200 + (rpm/15000)*3000, t, T);
+    // dois formantes = grito/timbre encorpado do motor
     this.formant.frequency.setTargetAtTime(1400 + (rpm/15000)*2600, t, T);
-    this.formantGain.gain.setTargetAtTime(0.22 + throttle*0.26 + (rpm/15000)*0.18, t, T);
+    this.formantGain.gain.setTargetAtTime(0.20 + throttle*0.26 + (rpm/15000)*0.20, t, T);
+    this.formant2.frequency.setTargetAtTime(2800 + (rpm/15000)*3800, t, T);
+    this.formant2Gain.gain.setTargetAtTime((0.06 + throttle*0.20)*(0.3+rpm/15000), t, T);
     // admissão + vento
     this.noiseGain.gain.setTargetAtTime(0.04 + throttle*0.09*(rpm/15000), t, T);
     this.nbp.frequency.setTargetAtTime(700 + rpm*0.11, t, T);
