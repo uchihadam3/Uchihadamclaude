@@ -66,9 +66,9 @@ export const TIRES={
 export const WEATHERS={
   sol:       {nome:'Sol',        wet:0.00, sky:0x8fc0f0, fog:[520,1700], amb:1.00, icon:'☀️'},
   nublado:   {nome:'Nublado',    wet:0.06, sky:0xa4b4c2, fog:[460,1500], amb:0.86, icon:'⛅'},
-  garoa:     {nome:'Garoa',      wet:0.42, sky:0x7f8d99, fog:[360,1150], amb:0.72, icon:'🌦️'},
-  chuva:     {nome:'Chuva',      wet:0.80, sky:0x5c6772, fog:[260,900],  amb:0.56, icon:'🌧️'},
-  tempestade:{nome:'Tempestade', wet:1.00, sky:0x424b54, fog:[190,680],  amb:0.44, icon:'⛈️'},
+  garoa:     {nome:'Garoa',      wet:0.42, sky:0x93a1ad, fog:[520,1500], amb:0.80, icon:'🌦️'},
+  chuva:     {nome:'Chuva',      wet:0.72, sky:0x77828d, fog:[430,1250], amb:0.70, icon:'🌧️'},
+  tempestade:{nome:'Tempestade', wet:0.92, sky:0x646f79, fog:[320,1000], amb:0.60, icon:'⛈️'},
 };
 let CURW=WEATHERS.sol, CURWET=0;
 export function setWeather(key){ CURW=WEATHERS[key]||WEATHERS.sol; CURWET=CURW.wet; return CURW; }
@@ -123,10 +123,9 @@ export function computeLine(curve, half){
       o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v);
     }
   }
-  // acentuação LEVE: a banda elástica já é a linha de MENOR curvatura (mais rápida)
-  // e já usa as zebras nas curvas fechadas. Acentuar demais FECHA o apex e deixa
-  // a curva lenta — então quase não mexe (só um tico de out-in-out).
-  for(let i=0;i<N;i++){ const v=o[i]*1.12; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
+  // out-in-out: a banda elástica (min curvatura) usa a largura toda = raio GRANDE
+  // (rápido) e abre nas curvas. Acentua leve + pouca suavização (não centraliza).
+  for(let i=0;i<N;i++){ const v=o[i]*1.18; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
   for(let pass=0;pass<5;pass++){
     for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N; o[i]=(o[a]+o[i]*2+o[b])/4; }
   }
@@ -398,7 +397,7 @@ export function updateField(cars, line, dt, t, started){
     if(heavyBraking && c.cornerErr===0){
       const pressured = c.chaserGap<9;
       const pErr = ((100-c.drv.consistencia)/100)*0.28*(pressured?1.8:1.0)*c.style.errK*(1+CURWET*0.6);
-      if(Math.random()<pErr) c.cornerErr=(0.6+Math.random()*1.4)*(pressured?1.3:1.0);
+      if(Math.random()<pErr) c.cornerErr=(0.4+Math.random()*0.9)*(pressured?1.25:1.0);   // erro menor (sem "dardo")
     }
     if(onStraight) c.cornerErr=0;                                  // fim da curva: reseta
     if(c.cornerErr) tOff += -insideSide*c.cornerErr;               // afasta do cantinho (abre a porta)
