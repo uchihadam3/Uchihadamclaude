@@ -4,6 +4,18 @@ import { CLASSES, CLASS_BY_ID, type GameClass, type Character } from "./classes"
 import { WEAPON_BY_ID } from "./weapons";
 import { derive, START_POINTS, type Primaries } from "./stats";
 import { audio } from "./audio";
+import { backend as saveBackend, MAX_SLOTS, type SaveMeta } from "./save";
+
+// resultado da abertura: um herói NOVO (com o slot de destino) ou CONTINUAR um save.
+export type IntroResult =
+  | { kind: "new"; character: Character; slot: number }
+  | { kind: "load"; slot: number };
+
+const escHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
+const firstFreeSlot = (metas: SaveMeta[]): number | null => {
+  for (let s = 0; s < MAX_SLOTS; s++) if (!metas.some((m) => m.slot === s)) return s;
+  return null;
+};
 import eqContainerUrl from "../assets/ui/eq_container.png";
 // TRILHA DO PRÓLOGO — placeholder silencioso; troque o arquivo por sua música
 // (mesmo nome) que ela toca sozinha na abertura. Canal "música" (volume/mudo).
@@ -28,7 +40,7 @@ const CLASS_ICON: Record<string, string> = {
   clerigo: iconClerigo,
 };
 
-export function runIntro(root: HTMLElement): Promise<Character> {
+export function runIntro(root: HTMLElement): Promise<IntroResult> {
   injectStyle();
   return new Promise((resolve) => {
     const overlay = document.createElement("div");
@@ -51,24 +63,41 @@ export function runIntro(root: HTMLElement): Promise<Character> {
       openBgm = null;
     };
 
-    const finish = (char: Character) => {
-      stopMusic();
-      overlay.remove();
-      resolve(char);
+    let targetSlot = 0; // slot de destino do personagem NOVO (definido antes de criar)
+    const finishNew = (char: Character) => {
+      stopMusic(); overlay.remove(); resolve({ kind: "new", character: char, slot: targetSlot });
+    };
+    const finishLoad = (slot: number) => {
+      stopMusic(); overlay.remove(); resolve({ kind: "load", slot });
     };
     const toAlloc = (cls: GameClass, name: string) =>
-      showAllocate(overlay, cls, name, finish, () =>
+      showAllocate(overlay, cls, name, finishNew, () =>
         showCreate(overlay, toAlloc, cls.id, name),
       );
+    const startCreate = (slot: number) => { targetSlot = slot; stopMusic(); showCreate(overlay, toAlloc); };
 
-    // BOOT (pré-carrega tudo; ao fim, "toque para começar" NA MESMA tela, sobre a
-    // espada forjada — o gesto libera a música) → ABERTURA (crawl → título) → Criação.
+    // TÍTULO ⇄ SELEÇÃO DE PERSONAGEM (estilo Dark Souls): "Novo Jogo" → criação;
+    // "Continuar" → janelas dos personagens salvos → clica → carrega.
+    const openMenu = (skipCrawl: boolean) => {
+      void saveBackend.list().then((metas) => {
+        showOpening(overlay, {
+          skipCrawl,
+          hasSaves: metas.length > 0,
+          onNew: () => { const free = firstFreeSlot(metas); if (free == null) openSelect(); else startCreate(free); },
+          onContinue: openSelect,
+        });
+      });
+    };
+    const openSelect = () => showCharacterSelect(overlay, {
+      onPlay: (slot) => showQuickLoad(overlay, () => finishLoad(slot)), // loading → carrega
+      onCreate: (slot) => startCreate(slot),
+      onBack: () => openMenu(true),
+    });
+
+    // BOOT: pré-carrega tudo → "toque para começar" → menu do título.
     let frac = 0;
     const all = preloadUrls(allAssetUrls(), (f) => (frac = f));
-    showLoading(overlay, () => frac, all, 900, () => {
-      startMusic();
-      showOpening(overlay, () => { stopMusic(); showCreate(overlay, toAlloc); });
-    });
+    showLoading(overlay, () => frac, all, 900, () => { startMusic(); openMenu(false); });
   });
 }
 
@@ -76,7 +105,11 @@ export function runIntro(root: HTMLElement): Promise<Character> {
 // Uma arte vertical alta sobe devagar; a narração sobe junto por cima (com a
 // música). Ao chegar ao topo, o texto some e o TÍTULO surge (logo + Começar),
 // tudo sobre o mesmo fundo — contínuo, estilo Symphony of the Night.
-function showOpening(overlay: HTMLElement, onNew: () => void) {
+function showOpening(
+  overlay: HTMLElement,
+  opts: { onNew: () => void; onContinue: () => void; hasSaves: boolean; skipCrawl: boolean },
+) {
+  const { onNew, onContinue, hasSaves, skipCrawl } = opts;
   const paras = [
     "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de vozes e mercadores.",
     "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas entranhas da montanha, aquilo que nenhuma boca ousa nomear.",
@@ -97,8 +130,10 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
             <div class="gh-flourish">${flourish}</div>
             <p class="gh-tagline">Desça ao Nethergloam. As trevas aguardam.</p>
             <div class="gh-menu">
-              <button class="gh-menu-btn" id="gh-btn-new">Começar</button>
-              <button class="gh-menu-btn gh-disabled" disabled title="Em breve">Continuar</button>
+              <button class="gh-menu-btn" id="gh-btn-new">Novo Jogo</button>
+              ${hasSaves
+                ? `<button class="gh-menu-btn" id="gh-btn-cont">Continuar</button>`
+                : `<button class="gh-menu-btn gh-disabled" disabled title="Nenhum personagem salvo">Continuar</button>`}
             </div>
           </div>
         </div>
@@ -152,11 +187,104 @@ function showOpening(overlay: HTMLElement, onNew: () => void) {
     window.setTimeout(() => {
       titleblock.classList.add("ready");         // logo → flourish → tagline → menu (escalonado)
       (overlay.querySelector("#gh-btn-new") as HTMLElement).addEventListener("click", onNew);
-    }, 950);
+      const cont = overlay.querySelector("#gh-btn-cont") as HTMLElement | null;
+      if (cont) cont.addEventListener("click", onContinue);
+    }, skipCrawl ? 40 : 950);
   };
-  world.addEventListener("animationend", settle); // fim da subida da câmera
-  skip.addEventListener("click", (e) => { e.stopPropagation(); settle(); });
-  timer = window.setTimeout(settle, 30000);       // trava de segurança
+  if (skipCrawl) {
+    // reentrada (voltar da seleção): sem replay do crawl — vai direto pro menu
+    settle();
+  } else {
+    world.addEventListener("animationend", settle); // fim da subida da câmera
+    skip.addEventListener("click", (e) => { e.stopPropagation(); settle(); });
+    timer = window.setTimeout(settle, 30000);       // trava de segurança
+  }
+}
+
+// ---------------------------------------- SELEÇÃO DE PERSONAGEM (janelas/slots)
+// Estilo Dark Souls: "Continuar" abre esta tela com os personagens salvos em
+// cartões. Clicar num cartão → loading → carrega. Cada cartão tem um ✕ (apagar,
+// com confirmação inline). Slots vazios viram "+ Criar personagem".
+function showCharacterSelect(
+  overlay: HTMLElement,
+  cbs: { onPlay: (slot: number) => void; onCreate: (slot: number) => void; onBack: () => void },
+) {
+  let confirmDel = -1; // slot em confirmação de exclusão (-1 = nenhum)
+  const render = (metas: SaveMeta[]) => {
+    const bySlot = new Map(metas.map((m) => [m.slot, m] as const));
+    const card = (slot: number) => {
+      const m = bySlot.get(slot);
+      if (!m) {
+        return `<button class="gh-cs-card gh-cs-empty" data-create="${slot}">
+            <div class="gh-cs-plus">+</div><div class="gh-cs-emptytxt">Criar personagem</div></button>`;
+      }
+      const cls = CLASS_BY_ID[m.classId];
+      const port = cls?.portrait ?? "";
+      const ico = CLASS_ICON[m.classId] ?? "";
+      if (slot === confirmDel) {
+        return `<div class="gh-cs-card gh-cs-filled gh-cs-confirm">
+            <div class="gh-cs-cfxt">Apagar <b>${escHtml(m.name)}</b>?<br><span>Não dá para desfazer.</span></div>
+            <div class="gh-cs-cfrow">
+              <button class="gh-cs-cfbtn gh-cs-cfno" data-cancel="1">Não</button>
+              <button class="gh-cs-cfbtn gh-cs-cfyes" data-confirm="${slot}">Apagar</button>
+            </div></div>`;
+      }
+      return `<div class="gh-cs-card gh-cs-filled" data-play="${slot}">
+          <div class="gh-cs-portrait" style="background-image:url(${port})"></div>
+          <button class="gh-cs-del" data-del="${slot}" title="Apagar personagem">✕</button>
+          <div class="gh-cs-info">
+            <div class="gh-cs-name">${ico ? `<img class="gh-cs-ico" src="${ico}" alt=""/>` : ""}${escHtml(m.name)}</div>
+            <div class="gh-cs-sub">Nível ${m.level} · ${cls?.name ?? m.classId}</div>
+          </div></div>`;
+    };
+    overlay.innerHTML = `
+      <div class="gh-screen gh-charsel" style="background-image:url(${createBgUrl})">
+        <div class="gh-cs-veil"></div>
+        <div class="gh-cs-wrap">
+          <h2 class="gh-cs-title">Escolha seu Herói</h2>
+          <div class="gh-cs-grid">${[0, 1, 2].map(card).join("")}</div>
+          <button class="gh-menu-btn gh-menu-btn-sec" id="gh-cs-back">◂ Voltar</button>
+        </div>
+      </div>`;
+    const q = (sel: string) => overlay.querySelectorAll(sel);
+    (overlay.querySelector("#gh-cs-back") as HTMLElement).addEventListener("click", cbs.onBack);
+    q("[data-play]").forEach((el) => el.addEventListener("click", () => cbs.onPlay(Number(el.getAttribute("data-play")))));
+    q("[data-create]").forEach((el) => el.addEventListener("click", () => cbs.onCreate(Number(el.getAttribute("data-create")))));
+    q("[data-del]").forEach((el) => el.addEventListener("click", (e) => { e.stopPropagation(); confirmDel = Number(el.getAttribute("data-del")); reload(); }));
+    q("[data-cancel]").forEach((el) => el.addEventListener("click", (e) => { e.stopPropagation(); confirmDel = -1; reload(); }));
+    q("[data-confirm]").forEach((el) => el.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await saveBackend.remove(Number(el.getAttribute("data-confirm")));
+      confirmDel = -1; reload();
+    }));
+  };
+  const reload = () => { void saveBackend.list().then(render); };
+  reload();
+}
+
+// LOADING breve (espada forjando) que AUTO-avança — sem "toque para começar".
+// Usado ao escolher um personagem salvo (dá o "peso" de carregar antes de entrar).
+function showQuickLoad(overlay: HTMLElement, onDone: () => void) {
+  overlay.innerHTML = `
+    <div class="gh-screen gh-boot">
+      <div class="gh-boot-corner">
+        <div class="gh-boot-sword" id="gh-ql-sword" style="--p:0%">
+          <img class="gh-bs-base" src="${loadSwordUrl}" alt="" />
+          <div class="gh-bs-fill"><div class="gh-bs-lava"></div></div>
+        </div>
+        <div class="gh-boot-txt">Carregando…</div>
+      </div>
+    </div>`;
+  const sword = overlay.querySelector("#gh-ql-sword") as HTMLElement;
+  const t0 = performance.now();
+  const dur = 700;
+  const tick = () => {
+    const p = Math.min(1, (performance.now() - t0) / dur);
+    sword.style.setProperty("--p", Math.round(p * 100) + "%");
+    if (p < 1) requestAnimationFrame(tick);
+    else window.setTimeout(onDone, 140);
+  };
+  tick();
 }
 
 // ------------------------------------------------------ CRIAÇÃO DE PERSONAGEM
@@ -825,6 +953,54 @@ function injectStyle() {
   #gh-intro .gh-boot-txt {
     font-family:"Cinzel",serif; letter-spacing:1px; font-size:12px;
     color:#cbb98a; text-shadow:0 1px 3px #000;
+  }
+  /* ---------------- SELEÇÃO DE PERSONAGEM ---------------- */
+  #gh-intro .gh-charsel { background-size:cover; background-position:center; }
+  #gh-intro .gh-cs-veil { position:absolute; inset:0;
+    background:radial-gradient(ellipse at center, rgba(6,5,9,.55) 20%, rgba(4,3,6,.86) 100%); }
+  #gh-intro .gh-cs-wrap { position:relative; z-index:1; width:min(94vw,860px); display:flex;
+    flex-direction:column; align-items:center; gap:22px; animation:gh-fadein .5s ease both; }
+  #gh-intro .gh-cs-title { font-family:"Cinzel",serif; font-weight:700; letter-spacing:3px;
+    font-size:clamp(20px,3.4vw,30px); color:#e9dcc0; text-shadow:0 2px 10px #000, 0 0 24px rgba(201,162,74,.28); margin:0; }
+  #gh-intro .gh-cs-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; width:100%; }
+  #gh-intro .gh-cs-card { position:relative; aspect-ratio:3/4; border-radius:12px; overflow:hidden;
+    border:1px solid rgba(201,162,74,.34); background:rgba(14,12,10,.66);
+    box-shadow:inset 0 2px 18px rgba(0,0,0,.6), 0 6px 20px rgba(0,0,0,.45);
+    cursor:pointer; transition:transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding:0;
+    font-family:"Cinzel",serif; color:#e9dcc0; }
+  #gh-intro .gh-cs-card:hover { transform:translateY(-4px); border-color:rgba(240,208,116,.85);
+    box-shadow:inset 0 2px 18px rgba(0,0,0,.6), 0 0 22px rgba(240,192,64,.4); }
+  #gh-intro .gh-cs-portrait { position:absolute; inset:0; background-size:cover; background-position:center top;
+    -webkit-mask:linear-gradient(#000 55%, transparent 96%); mask:linear-gradient(#000 55%, transparent 96%); }
+  #gh-intro .gh-cs-info { position:relative; z-index:1; width:100%; padding:10px 8px 12px;
+    background:linear-gradient(transparent, rgba(6,5,4,.9) 55%); text-align:center; }
+  #gh-intro .gh-cs-name { display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:clamp(13px,1.9vw,17px); font-weight:700; text-shadow:0 2px 6px #000; }
+  #gh-intro .gh-cs-ico { width:18px; height:18px; object-fit:contain; filter:drop-shadow(0 1px 2px #000); }
+  #gh-intro .gh-cs-sub { margin-top:3px; font-size:clamp(10px,1.4vw,12px); color:#c9a24a; letter-spacing:.5px; }
+  #gh-intro .gh-cs-del { position:absolute; top:6px; right:6px; z-index:2; width:26px; height:26px;
+    border-radius:50%; border:1px solid rgba(230,120,90,.5); background:rgba(20,10,10,.7); color:#e88a6a;
+    font-size:13px; line-height:1; cursor:pointer; opacity:0; transition:opacity .15s ease, background .15s ease; }
+  #gh-intro .gh-cs-card:hover .gh-cs-del { opacity:1; }
+  #gh-intro .gh-cs-del:hover { background:rgba(150,40,30,.85); color:#fff; }
+  #gh-intro .gh-cs-empty { justify-content:center; gap:10px; border-style:dashed; color:#9a8f78; }
+  #gh-intro .gh-cs-empty:hover { color:#e9dcc0; }
+  #gh-intro .gh-cs-plus { font-size:44px; font-weight:300; line-height:1; color:#c9a24a; text-shadow:0 0 16px rgba(201,162,74,.4); }
+  #gh-intro .gh-cs-emptytxt { font-size:clamp(11px,1.6vw,13px); letter-spacing:1px; }
+  #gh-intro .gh-cs-confirm { justify-content:center; gap:14px; cursor:default; background:rgba(24,10,10,.82); border-color:rgba(230,120,90,.5); }
+  #gh-intro .gh-cs-cfxt { text-align:center; font-size:clamp(12px,1.7vw,15px); line-height:1.4; padding:0 10px; }
+  #gh-intro .gh-cs-cfxt span { font-size:.82em; color:#b8a48a; }
+  #gh-intro .gh-cs-cfrow { display:flex; gap:10px; }
+  #gh-intro .gh-cs-cfbtn { font-family:"Cinzel",serif; padding:8px 16px; border-radius:7px; cursor:pointer; font-size:13px;
+    border:1px solid rgba(201,162,74,.4); background:rgba(20,16,12,.8); color:#e9dcc0; }
+  #gh-intro .gh-cs-cfyes { border-color:rgba(200,60,40,.7); background:rgba(120,32,24,.7); color:#ffd9cf; }
+  #gh-intro .gh-cs-cfyes:hover { background:rgba(160,44,32,.9); }
+  #gh-intro .gh-cs-cfno:hover { border-color:rgba(240,208,116,.8); color:#fff; }
+  @keyframes gh-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @media (max-width:560px) {
+    #gh-intro .gh-cs-grid { gap:10px; }
+    #gh-intro .gh-cs-title { letter-spacing:2px; }
   }
   `;
   document.head.appendChild(s);
