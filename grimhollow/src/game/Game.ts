@@ -190,8 +190,8 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 // concentrado em CHEFES e BAÚS ESCONDIDOS — o "chase" do jogo.
 type LootProfile = { rar: [number, number, number, number]; tierB: number; slots?: number[]; min?: number; max?: number };
 const LOOT_PROFILES: Record<string, LootProfile> = {
-  normal: { rar: [82, 16, 2, 0],  tierB: 0, slots: [0.62, 0.24] }, // volume alto, quase tudo Comum
-  mini:   { rar: [44, 42, 13, 1], tierB: 0, slots: [0.85, 0.35] }, // elite: mix melhor
+  normal: { rar: [82, 16, 2, 0],  tierB: 0, slots: [0.40] },       // 1 peça ~40% — nada de entulho
+  mini:   { rar: [44, 42, 13, 1], tierB: 0, slots: [0.60, 0.15] }, // elite: ~0.75 peça, mix melhor
   boss:   { rar: [0, 36, 49, 15], tierB: 1, min: 3, max: 5 },      // fonte-CHAVE de topo
   chest:  { rar: [24, 46, 24, 6], tierB: 0, slots: [1, 0.45] },    // baú comum: bom
   hidden: { rar: [0, 22, 50, 28], tierB: 1, min: 2, max: 3 },      // BAÚ ESCONDIDO: o melhor loot
@@ -1599,8 +1599,12 @@ export class Game {
       // BIOMA muda no 3º andar (cripta do chefe): névoa/fundo mais quentes e
       // avermelhados, ar mais pesado (névoa um tico mais curta) — clima de perigo.
       const boss = this.dungeonFloor >= 2;
-      this.scene.fog = new THREE.Fog(boss ? 0x180a0c : 0x0a0d11, CELL * 4, CELL * (boss ? 8 : 9));
-      this.scene.background = new THREE.Color(boss ? 0x100608 : 0x080a0d);
+      // NÉVOA EXPONENCIAL (FogExp2): a escuridão cresce a cada quadrado — perto nítido
+      // (a tocha do herói ilumina), e vai fechando gradualmente até o BREU total lá na
+      // frente (~7-8 células). Sem corte seco. O chefe tem o ar um tico mais denso.
+      // Densidade ~0.052: 2 cél ≈ 16% escuro · 4 cél ≈ 53% · 6 cél ≈ 79% · 8 cél ≈ 94%.
+      this.scene.fog = new THREE.FogExp2(boss ? 0x120609 : 0x090c10, boss ? 0.058 : 0.052);
+      this.scene.background = new THREE.Color(boss ? 0x0c0406 : 0x05070a);
       this.addDungeonLights(boss);
       this.buildDungeon();
     } else if (loc === "showcase") {
@@ -3820,16 +3824,28 @@ export class Game {
   private updateDrops(now: number) {
     if (!this.drops.length) return;
     const cx = this.camera.position.x, cz = this.camera.position.z;
+    const NEAR = CELL * 2, HIDE = CELL * 8.5; // cheio até 2 células; some além de ~8.5
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const d = this.drops[i];
+      // LOD por DISTÂNCIA: o item FICA no chão, mas o ícone ENCOLHE conforme o herói
+      // se afasta e SOME de vez ao longe (acompanha a névoa que fecha) — reaparece ao
+      // voltar. Sem isso, um ícone brilhante flutuava visível dentro do breu.
+      const dist = Math.hypot(cx - d.group.position.x, cz - d.group.position.z);
+      if (dist > HIDE) { d.group.visible = false; continue; }
+      d.group.visible = true;
+      const k = dist <= NEAR ? 0 : (dist - NEAR) / (HIDE - NEAR); // 0 perto → 1 no limite
+      d.group.scale.setScalar(1 - k * 0.72);        // encolhe até ~0.28
+      const fade = Math.max(0, 1 - k);              // some suave
       // billboard: o ícone encara a câmera
       d.icon.rotation.y = Math.atan2(cx - d.group.position.x, cz - d.group.position.z);
       // flutuar suave
       const bob = Math.sin(now * 0.003 + d.ph) * 0.06;
       d.icon.position.y = d.baseY + bob;
-      // facho pulsando de leve (sutil)
+      if (d.icon.material) (d.icon.material as THREE.MeshBasicMaterial).opacity =
+        ((d.icon.material as THREE.MeshBasicMaterial).map ? 1 : 0) * fade;
+      // facho pulsando de leve (sutil), também esmaecendo com a distância
       const gm = d.glow.material as THREE.SpriteMaterial;
-      gm.opacity = 0.2 + (Math.sin(now * 0.0026 + d.ph) + 1) * 0.05;
+      gm.opacity = (0.2 + (Math.sin(now * 0.0026 + d.ph) + 1) * 0.05) * fade;
       d.glow.position.y = d.baseY - 0.04 + bob * 0.5;
       // OURO: recolhe automático ao pisar na célula
       if (d.kind === "gold" && this.col === d.c && this.row === d.r && !this.anim) {
