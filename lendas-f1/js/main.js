@@ -104,8 +104,16 @@ function resetSolo(c){ c.d=-8; c.speed=0; c.offset=c.gridOffset; c.tOffset=c.gri
   if(c.g.rotation) c.g.rotation.z=0;
   const body=c.g.userData && c.g.userData.body; if(body) body.rotation.z=0;
   for(const k in c.wheels){ const w=c.wheels[k]; if(w&&w.steerPivot) w.steerPivot.visible=true; } }
+function announceQualiDriver(c, idx, total){
+  const el=document.getElementById('overtake'); if(!el) return;
+  const isP=c.isPlayer;
+  el.innerHTML=`🏁 CLASSIFICAÇÃO · PILOTO ${idx+1}/${total}<br><b>${isP?'VOCÊ':'COMPANHEIRO'} — ${c.drv.nome}</b>`;
+  el.classList.remove('hide'); el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>{ el.classList.remove('show'); el.classList.add('hide'); }, 4000);
+}
 function placeSoloCar(c){ c.done=false; c.g.visible=true; resetSolo(c);
-  c.launchStart=1e9; qActiveCar=c; focus=c; camSnapped=false; }  // recola a câmera no carro (sem "voo")
+  c.launchStart=1e9; qActiveCar=c; focus=c; camSnapped=false;    // recola a câmera no carro (sem "voo")
+  announceQualiDriver(c, qIdx, qTeam.length); }                  // avisa QUAL piloto está na pista
 /* semáforo reutilizável: acende 5 luzes e chama onGo() quando apaga */
 function runLights(onGo){
   if(!lightsEl){ onGo(); return; }
@@ -347,7 +355,7 @@ function updateCamera(dt, spd01, onKerb){
   let fov=FOV_BASE + spd01*(FOV_MAX-FOV_BASE);
   if(mode==='perseguicao'){
     const dist=8.5-spd01*1.2;
-    const desired=focusPos.clone().addScaledVector(focusTan,-dist).add(new THREE.Vector3(0,2.5,0));
+    const desired=focusPos.clone().addScaledVector(focusTan,-dist).add(new THREE.Vector3(0,2.6,0));
     camPos.lerp(desired, 1-Math.pow(0.0016,dt));
     const sh=spd01*0.006+(onKerb?0.02:0);
     camera.up.set(0,1,0); camera.position.set(camPos.x+rnd(sh),camPos.y+rnd(sh),camPos.z);
