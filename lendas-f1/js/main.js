@@ -84,6 +84,7 @@ const focusPos=new THREE.Vector3(), focusTan=new THREE.Vector3(0,0,1), lookTmp=n
 let focusU=0, focusSpeed=0, focusVmax=99;
 
 let camPos=new THREE.Vector3(0,8,-20);
+let camSnapped=false;       // 1º frame: cola a câmera no carro (sem "voo"/teleporte do início)
 const clock=new THREE.Clock();
 let raceTime=0;
 let started=false;
@@ -97,10 +98,19 @@ let qTeam=[], qIdx=0;
 function resetSolo(c){ c.d=-8; c.speed=0; c.offset=c.gridOffset; c.tOffset=c.gridOffset;
   c.bestLap=0; c.lastLap=0; c.curLap=0; c.timedLaps=0; c.lapStart=undefined; c._lap=-1;
   c.fuel=1; c.wear=0; c.form=0; c.spin=0; c.pushMood=1; c.straightSeen=false; }
-function startSoloCar(c){ c.done=false; c.g.visible=true; resetSolo(c);
-  c.launchStart=raceTime+0.4; qActiveCar=c; focus=c; }
+function placeSoloCar(c){ c.done=false; c.g.visible=true; resetSolo(c);
+  c.launchStart=1e9; qActiveCar=c; focus=c; }         // fica parado no grid até o semáforo apagar
+/* semáforo reutilizável: acende 5 luzes e chama onGo() quando apaga */
+function runLights(onGo){
+  if(!lightsEl){ onGo(); return; }
+  lightsEl.classList.remove('hide','go');
+  for(let i=0;i<5;i++) setLamp(i,false);
+  for(let i=0;i<5;i++) setTimeout(()=>setLamp(i,true), 900 + i*750);
+  const hold=5200 + Math.random()*1600;
+  setTimeout(()=>{ for(let i=0;i<5;i++) setLamp(i,false); lightsEl.classList.add('go'); onGo();
+    setTimeout(()=> lightsEl.classList.add('hide'), 1200); }, hold);
+}
 function qualiRun(){
-  if(lightsEl) lightsEl.classList.add('hide');
   const teamCars=cars.filter(c=>c.team===currentTeam);
   teamCars.sort((a,b)=>(b.isPlayer?1:0)-(a.isPlayer?1:0));   // seu piloto primeiro, depois o companheiro
   const rivals=cars.filter(c=>c.team!==currentTeam);
@@ -114,27 +124,19 @@ function qualiRun(){
   // 2) seus carros vão pra pista SOZINHOS, um de cada vez
   for(const c of teamCars){ c.done=true; c.g.visible=false; c.qTime=null; }
   qTeam=teamCars; qIdx=0; raceTime=0;
-  startSoloCar(qTeam[0]);
+  placeSoloCar(qTeam[0]);
+  runLights(()=>{ if(qActiveCar) qActiveCar.launchStart=raceTime; });   // SEMÁFORO na classificação
 }
 function advanceSolo(){
   const c=qActiveCar; if(c){ c.qTime=(c.bestLap||c.lastLap||1e9); c.done=true; }   // fixa o tempo do seu carro
   qIdx++;
-  if(qIdx<qTeam.length){ startSoloCar(qTeam[qIdx]); }        // próximo carro do time
+  if(qIdx<qTeam.length){ placeSoloCar(qTeam[qIdx]); runLights(()=>{ if(qActiveCar) qActiveCar.launchStart=raceTime; }); }
   else { qActiveCar=null; showQualiResult(); }               // acabou -> resultado
 }
 function startLights(){
   if(QUALI){ qualiRun(); return; }
   if(!lightsEl) { started=true; for(const c of cars) c.launchStart=raceTime; return; }
-  lightsEl.classList.remove('hide');
-  for(let i=0;i<5;i++) setTimeout(()=>setLamp(i,true), 1800 + i*1000);
-  const hold=7200 + Math.random()*2200;
-  setTimeout(()=>{                                   // luzes apagam = LARGADA!
-    for(let i=0;i<5;i++) setLamp(i,false);
-    lightsEl.classList.add('go');
-    started=true;
-    for(const c of cars) c.launchStart = raceTime + c.reaction;
-    setTimeout(()=> lightsEl.classList.add('hide'), 1200);
-  }, hold);
+  runLights(()=>{ started=true; for(const c of cars) c.launchStart = raceTime + c.reaction; });
 }
 
 // ---- marchas / RPM (pra som e sensação) ----
@@ -389,6 +391,8 @@ function frame(){
   const spd01=THREE.MathUtils.clamp(focusSpeed/95,0,1);
   const onKerb=false;
 
+  if(!camSnapped && focusPos.lengthSq()>0){   // cola a câmera atrás do carro no 1º frame (sem voo)
+    camPos.copy(focusPos).addScaledVector(focusTan,-9); camPos.y+=3; camSnapped=true; }
   const curMode=updateCamera(dt, spd01, onKerb);
 
   // ---- SOM do motor (carro em foco) — síntese (como era antes) ----

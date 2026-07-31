@@ -111,7 +111,7 @@ export function computeLine(curve, half){
     const l=new THREE.Vector3().crossVectors(UP,t).normalize();
     center.push(new THREE.Vector3(cx[i],0,cz[i])); ctan.push(t); left.push(l);
     lx[i]=l.x; lz[i]=l.z; }
-  const maxOff = Math.max(half-0.2, 0.5);       // apex chega na zebra (o carro pisa o kerb)
+  const maxOff = Math.max(half-0.1, 0.5);       // apex/entrada chegam NA ZEBRA (pisa o kerb dos dois lados)
   const o=new Float32Array(N);
   for(let it=0; it<2500; it++){
     for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N;
@@ -123,10 +123,10 @@ export function computeLine(curve, half){
       o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v);
     }
   }
-  // acentua o out-in-out de forma MODERADA (linha suave, sem ziguezague)
-  for(let i=0;i<N;i++){ const v=o[i]*1.4; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
-  // suaviza bastante: na parte travada (curva atrás de curva) a linha fica calma
-  for(let pass=0;pass<7;pass++){
+  // acentua o out-in-out: ABRE na entrada (zebra de fora) e FECHA no apex (zebra de dentro)
+  for(let i=0;i<N;i++){ const v=o[i]*1.6; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
+  // suaviza pra ficar contínuo (mas sem tirar o out-in-out)
+  for(let pass=0;pass<5;pass++){
     for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N; o[i]=(o[a]+o[i]*2+o[b])/4; }
   }
   const vmax=new Float32Array(N);
@@ -395,7 +395,7 @@ export function updateField(cars, line, dt, t, started){
     // decide UMA vez por curva, mais provável sob pressão do carro de trás
     if(heavyBraking && c.cornerErr===0){
       const pressured = c.chaserGap<9;
-      const pErr = ((100-c.drv.consistencia)/100)*0.35*(pressured?2.0:1.0)*c.style.errK*(1+CURWET*1.3);
+      const pErr = ((100-c.drv.consistencia)/100)*0.28*(pressured?1.8:1.0)*c.style.errK*(1+CURWET*0.6);
       if(Math.random()<pErr) c.cornerErr=(0.6+Math.random()*1.4)*(pressured?1.3:1.0);
     }
     if(onStraight) c.cornerErr=0;                                  // fim da curva: reseta
@@ -558,7 +558,9 @@ export function updateField(cars, line, dt, t, started){
     // SUAVE E CONTÍNUO: o carro desliza pro lado numa velocidade lateral LIMITADA e
     // quase constante — nunca dá "arranco". Ease leve perto do alvo + teto rígido de m/s.
     const targetOff=THREE.MathUtils.clamp(tOff,-latLim,latLim);
-    const maxLatV = c.pitPhase?9 : (c.passing||c.yieldT>0?3.6 : 2.0);   // m/s de deslocamento lateral
+    // sweep lateral proporcional à velocidade: rápido o bastante pra ABRIR e ir
+    // ao APEX na zebra em tempo, mas suave (eased) — sem tranco.
+    const maxLatV = c.pitPhase?9 : (c.passing||c.yieldT>0?4.8 : Math.min(5.5, 2.2 + c.speed*0.05));
     let dOff=targetOff-c.offset;
     let move=dOff*Math.min(1, dt*2.6);                                  // ease suave
     const cap=maxLatV*dt;                                               // teto de velocidade (sem tranco)
@@ -586,10 +588,10 @@ export function updateField(cars, line, dt, t, started){
         const dmgMul=mates?0.15:1;
         front.damage=Math.min(1,front.damage+(rel*0.006+0.006)*dmgMul);
         rear.damage=Math.min(1,rear.damage+(rel*0.004+0.004)*dmgMul);
-        if(!mates && rel>20 && Math.random()<0.25){                // só contato FORTE (entre rivais) roda
-          const v=Math.random()<0.65?rear:front; v.spin=1; v.spinRate=(Math.random()<0.5?-1:1)*(5+Math.random()*3); v.speed*=0.45;
-          if(rel>32 && Math.random()<0.3){ retire(v,0.28);
-            if(Math.random()<0.25) retire(v===a?b:a,0.2); }
+        if(!mates && rel>24 && Math.random()<0.14){                // contato FORTE: perde a traseira (escorrega e segura)
+          const v=Math.random()<0.65?rear:front; v.spin=1; v.spinRate=(Math.random()<0.5?-1:1)*(1.3+Math.random()*1.2); v.speed*=0.5;
+          if(rel>34 && Math.random()<0.28){ retire(v,0.28);        // só batida MUITO forte roda de vez (sai)
+            if(Math.random()<0.22) retire(v===a?b:a,0.2); }
         }
         for(const car of [a,b]) if(Math.abs(car.offset)>6.2 && Math.random()<0.05) retire(car,0.15);
       }
@@ -616,7 +618,7 @@ export function updateField(cars, line, dt, t, started){
     const k=1-Math.exp(-dt/0.10);                                 // suavização contínua (~0.1s), independe do FPS
     c.heading += wrapA(target-c.heading)*k;
     let heading=c.heading;
-    if(c.spin>0) heading+=c.spinRate*(1-c.spin);
+    if(c.spin>0) heading+=c.spinRate*Math.sin((1-c.spin)*Math.PI);   // escorrega e SEGURA (volta a apontar em frente)
     c.g.rotation.set(0,heading,0);
     const ds=Math.max(c.speed*dt,0.05);
     const yawRate=wrapA(c.heading-c.prevH)/ds;
