@@ -549,26 +549,27 @@ me manda **1 slot quadrado vazio** + **2 tampas de ponta** (esquerda/direita), q
 eu repito o slot em fileira e fecho com as pontas. Mas a **barra inteira** dá o
 visual MMO mais rico; começo por ela.)*
 
-### 🟡 Peça E — Hotbar MOBILE em ARCO (canto inf. direito) + trilho de XP
+### 🟡 Peça E — Hotbar MOBILE em DUAS meia-luas (canto inf. direito) + trilho de XP
 
-Versão da barra pro **celular** (no PC fica a barra reta, Peça D): no mobile os slots
-viram um **arco ÚNICO e alinhado** no canto inferior DIREITO (estilo Titan Quest
-mobile), ao alcance do polegar — **6 encaixes redondos igualmente espaçados** sobre
-uma **trilha curva** de ferro+ouro que sobe do canto (perto do ataque) até o alto-
-esquerda. Um **trilho fino de XP** corre pela **base da tela** e se junta à trilha do
-arco, tudo numa **peça estilizada só**. O botão de ataque NÃO vem na arte (é
-separado, redondo, e fica no canto); a arte é a **trilha/moldura com os encaixes
-vazios + a calha do XP**.
+Versão da barra pro **celular** (no PC fica a barra reta de 8 slots, Peça D): no
+mobile os 6 slots de habilidade viram **DUAS meia-luas concêntricas** e **compactas**
+no canto inferior DIREITO, ao redor do botão de ataque — uma fileira **de baixo** (3
+encaixes, colada no ataque) e uma **de cima** (3 encaixes, logo acima). É **fechado e
+baixo** (ocupa pouca tela, começa lá embaixo), **sem anéis/trilhas douradas soltas** —
+os encaixes ficam numa **placa ornamentada sólida**. Junto vai o **trilho fino de XP**
+correndo pela **base da tela**. Some **8 encaixes no total** contando os 2 de itens
+que ficam à esquerda (perto do D-pad), pra empatar com os 8 do desktop. O botão de
+ataque NÃO vem na arte (é separado, redondo, no canto), e o **botão de ação fica à
+ESQUERDA do ataque** — deixe esse cantinho livre.
 
 ```
-Hand-painted stylized-realism MOBILE game HUD piece for the BOTTOM-RIGHT corner of the screen, cohesive with a grim medieval dark-fantasy game — SAME materials as the game's iron-and-gold action bar and round buttons: aged dark pitted wrought iron, worn tarnished gold/brass trim, small rivets, faint arcane engraving. A single smooth ORNATE CURVED RAIL shaped like a QUARTER-CIRCLE arc that hugs the bottom-right corner and sweeps up-and-to-the-left. Mounted ON the rail are SIX identical EMPTY round sockets, EVENLY SPACED along the arc at equal intervals, perfectly aligned on one clean curve — each socket a deep recessed dark metal cup framed by a beveled worn-gold rim with tiny rivets, completely EMPTY inside (no icons, no symbols, no runes). From the lower end of the arc, a slim ornate rail with a thin recessed CHANNEL (an experience-bar track) runs LEFT along the very BOTTOM edge of the frame — empty and dark with a subtle inner bevel — connected to the arc so it reads as ONE forged piece with gothic scrollwork. Leave the very bottom-right corner open/empty (a separate round attack button sits there). Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, crisp edges, no icons, no numbers, no text, no watermark. Wide landscape canvas ~1536x760, the arc of sockets in the lower-RIGHT and the thin XP rail along the bottom.
+Hand-painted stylized-realism MOBILE game HUD piece for the BOTTOM-RIGHT corner of the screen, cohesive with a grim medieval dark-fantasy game — SAME materials as the game's iron-and-gold action bar and round buttons: aged dark pitted wrought iron, worn tarnished gold/brass trim, small rivets, faint arcane engraving. A COMPACT ornate corner plate hugging the bottom-right corner, holding SIX identical EMPTY round sockets arranged in TWO short concentric CRESCENT rows fanning across the upper-left quadrant: an INNER crescent of 3 sockets close to the corner, and an OUTER crescent of 3 sockets just above it, the two rows clearly separated and radially aligned. Each socket is a deep recessed dark metal cup framed by a beveled worn-gold rim with tiny rivets, completely EMPTY inside (no icons, no symbols, no runes). NO large decorative gold rings or floating rails — the sockets sit flush in a solid ornate iron plate with subtle gothic filigree. Along the very BOTTOM edge, a thin recessed horizontal CHANNEL (an experience-bar track) runs to the left — empty and dark with a subtle inner bevel — connected to the corner plate so it reads as one forged piece. Keep it LOW and tight to the corner. Leave the very bottom-right corner and the space just left of it OPEN/EMPTY (separate round attack and action buttons sit there). Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, crisp edges, no icons, no numbers, no text, no watermark. Wide landscape canvas ~1536x760, the two crescents of sockets tight in the lower-RIGHT and the thin XP rail along the bottom.
 ```
 
-*(Manda a imagem; eu recorto, **meço os 6 encaixes** do arco e a calha do XP, e ligo
-isso como o **layout mobile** — o PC segue com a barra reta da Peça D sem mudar nada.
-Como o arco é uniforme (mesmos raios/ângulos), o alinhamento fica perfeito; se a arte
-vier com os encaixes fora do lugar, uso a trilha como moldura e encaixo os medalhões
-redondos por cima, por código.)*
+*(Manda a imagem; eu recorto, **meço os 6 encaixes** (as duas meia-luas) e a calha do
+XP, e ligo como o **layout mobile** — o PC segue com a barra reta da Peça D sem mudar
+nada. Se a arte vier com os encaixes fora de lugar, uso a placa como moldura e encaixo
+os medalhões redondos por cima, por código, nas duas meia-luas.)*
 
 ---
 
