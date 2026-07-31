@@ -85,6 +85,7 @@ let focusU=0, focusSpeed=0, focusVmax=99;
 
 let camPos=new THREE.Vector3(0,8,-20);
 let camSnapped=false;       // 1º frame: cola a câmera no carro (sem "voo"/teleporte do início)
+let prevCamDist=0;          // pra calcular a velocidade radial (efeito Doppler na câmera de TV)
 const clock=new THREE.Clock();
 let raceTime=0;
 let started=false;
@@ -154,7 +155,7 @@ function startLights(){
 }
 
 // ---- marchas / RPM (pra som e sensação) ----
-const FOV_BASE=54, FOV_MAX=82;
+const FOV_BASE=52, FOV_MAX=92;   // FOV abre mais na velocidade = sensação forte de rapidez
 let STEER_SIGN=1;      // sinal pra roda apontar pra dentro da curva
 const STEER_GAIN=2.0;  // ganho visual (mantém proporção Ackermann, deixa visível)
 const gearsKmh=[0,95,145,190,235,280,325,385];   // limites das 7 marchas
@@ -354,10 +355,10 @@ function updateCamera(dt, spd01, onKerb){
   const mode=CAM_MODES[camMode].key;
   let fov=FOV_BASE + spd01*(FOV_MAX-FOV_BASE);
   if(mode==='perseguicao'){
-    const dist=8.5-spd01*1.2;
-    const desired=focusPos.clone().addScaledVector(focusTan,-dist).add(new THREE.Vector3(0,2.6,0));
+    const dist=8.6-spd01*2.0;                                    // MUITO mais perto na velocidade
+    const desired=focusPos.clone().addScaledVector(focusTan,-dist).add(new THREE.Vector3(0,2.7-spd01*0.9,0)); // e mais BAIXO = rasante
     camPos.lerp(desired, 1-Math.pow(0.0016,dt));
-    const sh=spd01*0.006+(onKerb?0.02:0);
+    const sh=spd01*spd01*0.02+(onKerb?0.02:0);                   // treme mais forte no talo
     camera.up.set(0,1,0); camera.position.set(camPos.x+rnd(sh),camPos.y+rnd(sh),camPos.z);
     lookTmp.copy(focusPos).addScaledVector(focusTan,8).setY(1.1); camera.lookAt(lookTmp);
   } else if(mode==='cockpit'){
@@ -409,9 +410,16 @@ function frame(){
     camPos.copy(focusPos).addScaledVector(focusTan,-9); camPos.y+=3; camSnapped=true; }
   const curMode=updateCamera(dt, spd01, onKerb);
 
-  // ---- SOM do motor (carro em foco) — síntese (como era antes) ----
+  // ---- SOM do motor (carro em foco) — cada CÂMERA soa diferente ----
   const {rpm,gear}=rpmFor(kmh);
-  if(audioOn) audio.update(rpm, throttle, kmh, onKerb, dt, gear);
+  if(audioOn){
+    const camDist=camera.position.distanceTo(focusPos);
+    let radial=(camDist-(prevCamDist||camDist))/Math.max(dt,1e-3);   // aproxima(<0)/afasta(>0)
+    if(Math.abs(radial)>170) radial=0;   // troca de câmera (handoff) não conta como Doppler
+    prevCamDist=camDist;
+    audio.setView(curMode, camDist, radial, focusSpeed);
+    audio.update(rpm, throttle, kmh, onKerb, dt, gear);
+  }
 
   // sol acompanha o foco
   sun.position.set(focusPos.x+120, 300, focusPos.z+90);
@@ -421,7 +429,7 @@ function frame(){
   hudSpeed.textContent=Math.round(kmh);
   if(hudGear) hudGear.textContent=gear;
   const showFX=(curMode==='perseguicao'||curMode==='cockpit');
-  if(speedFX) speedFX.style.opacity = (showFX && spd01>0.45? (spd01-0.45)/0.55*0.9 : 0).toFixed(2);
+  if(speedFX) speedFX.style.opacity = (showFX && spd01>0.30? Math.min((spd01-0.30)/0.70,1)*1.0 : 0).toFixed(2);
   drawMini();
   updateTower(dt);
   updateTelemetry(focus);

@@ -6,7 +6,10 @@
    update(rpm, throttle, speedKmh, onKerb, dt, gear).
    ===================================================================== */
 export class F1Audio {
-  constructor(){ this.ready=false; this.lastGear=1; }
+  constructor(){ this.ready=false; this.lastGear=1; this.view={mode:'perseguicao',dist:8,radial:0,spd:0}; }
+
+  /* PERSPECTIVA da câmera: cada visão soa diferente (como na TV/onboard) */
+  setView(mode, dist, radial, spd){ this.view={mode:mode||'perseguicao', dist:dist||8, radial:radial||0, spd:spd||0}; }
 
   start(){
     if(this.ready){ if(this.ctx.state!=='running') this.ctx.resume(); return; }
@@ -18,7 +21,7 @@ export class F1Audio {
     // ---- saída: highpass (tira lama) -> lowpass (tira fizz) -> compressor ----
     const master = this.master = ctx.createGain(); master.gain.value=0.0;
     const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=70;
-    const tame = ctx.createBiquadFilter(); tame.type='lowpass'; tame.frequency.value=7200; tame.Q.value=0.4;
+    const tame = this.tame = ctx.createBiquadFilter(); tame.type='lowpass'; tame.frequency.value=7200; tame.Q.value=0.4;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value=-12; comp.ratio.value=4; comp.attack.value=0.004; comp.release.value=0.25;
     master.connect(hp); hp.connect(tame); tame.connect(comp); comp.connect(ctx.destination);
@@ -102,9 +105,23 @@ export class F1Audio {
     if(!this.ready) return;
     if(this.ctx.state!=='running'){ this.ctx.resume(); return; }
     const ctx=this.ctx, t=ctx.currentTime, T=0.06;             // suavização maior = glide de rpm
-    const f0 = rpm/60*3;                                       // fundamental (V6)
+    // ---- PERSPECTIVA da câmera (cada visão soa diferente, como na vida real) ----
+    const V=this.view||{mode:'perseguicao',dist:8,radial:0};
+    const cl=(x,a,b)=>x<a?a:x>b?b:x;
+    let dopp=1, muffle=0, distGain=1, windK=1;
+    if(V.mode==='tv'){            // beira de pista: DOPPLER (agudo chegando, grave passando) + longe = abafado
+      dopp = 340/(340 + cl(V.radial,-140,140));
+      const near = cl(1-(V.dist-14)/70, 0.12, 1.15);          // alto quando passa perto
+      distGain = near; muffle = cl((V.dist-16)/70, 0, 0.72); windK = 1.6;
+    } else if(V.mode==='aerea'){  // helicóptero: distante e abafado, mais vento
+      distGain = 0.5; muffle = 0.55; windK = 2.0;
+    } else if(V.mode==='cockpit'){// dentro: cru, brilhante, mais vento
+      distGain = 1.12; muffle = -0.15; windK = 1.8;
+    }                             // perseguição = referência (sem mudança)
+    const f0 = (rpm/60*3) * dopp;                               // fundamental (V6) com Doppler
     for(const o of this.oscs) o.frequency.setTargetAtTime(f0*o._mul, t, T);
     this.lfo.frequency.setTargetAtTime(f0, t, T);
+    this.tame.frequency.setTargetAtTime(cl(7200*(1-muffle*0.82), 900, 9000), t, 0.08);   // abafa conforme a distância
     // timbre: abre com acelerador+rpm (mais aberto = mais áspero/agressivo)
     this.lp.frequency.setTargetAtTime(700 + throttle*4200 + (rpm/15000)*3000, t, T);
     // dois formantes = grito/timbre encorpado do motor
@@ -115,9 +132,9 @@ export class F1Audio {
     // admissão + vento
     this.noiseGain.gain.setTargetAtTime(0.04 + throttle*0.09*(rpm/15000), t, T);
     this.nbp.frequency.setTargetAtTime(700 + rpm*0.11, t, T);
-    this.windGain.gain.setTargetAtTime(Math.min(speed/330,1)*0.11, t, T);
-    // volume
-    const vol = 0.62 + throttle*0.38;
+    this.windGain.gain.setTargetAtTime(Math.min(speed/330,1)*0.11*windK, t, T);
+    // volume (com o ganho da perspectiva: perto/cockpit alto, aéreo/longe baixo)
+    const vol = (0.62 + throttle*0.38) * distGain;
     this.master.gain.setTargetAtTime(1.0*vol*(onKerb?1.03:1.0), t, 0.06);
 
     // troca de marcha: corte suave da embreagem (subida)
