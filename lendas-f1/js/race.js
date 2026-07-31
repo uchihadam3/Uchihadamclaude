@@ -575,9 +575,9 @@ export function updateField(cars, line, dt, t, started){
   const retire=(v,tilt)=>{ if(v.out)return; v.out=true; v.outSide=v.offset>=0?1:-1;
     v.tilt=tilt||0; if(tilt){ const ks=Object.keys(v.wheels); const w=v.wheels[ks[(Math.random()*ks.length)|0]];
       if(w) w.steerPivot.visible=false; } };
-  for(let i=0;i<cars.length;i++){ const a=cars[i]; if(a.out||a.hitCd>0) continue;
+  for(let i=0;i<cars.length;i++){ const a=cars[i]; if(a.done||a.out||a.hitCd>0||a.noPit) continue;  // noPit = classificação: sem colisão (volta limpa)
     if(a.pitPhase||a.finished) continue;
-    for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.out||b.hitCd>0||b.pitPhase||b.finished) continue;
+    for(let j=i+1;j<cars.length;j++){ const b=cars[j]; if(b.done||b.out||b.hitCd>0||b.pitPhase||b.finished) continue;
       if(dist(a,b)<3.4 && Math.abs(a.offset-b.offset)<1.15){
         a.hitCd=0.9; b.hitCd=0.9;
         if(typeof window!=='undefined') window.__hits=(window.__hits||0)+1;
@@ -629,7 +629,7 @@ export function updateField(cars, line, dt, t, started){
     const cbody=c.g.userData.body;
     if(c.tilt){ c.g.rotation.z=c.tilt; if(cbody) cbody.rotation.z=0; }
     else {
-      const roll=THREE.MathUtils.clamp(-yawRate*c.speed*c.speed*0.010, -0.05, 0.05);
+      const roll=THREE.MathUtils.clamp(-yawRate*c.speed*c.speed*0.007, -0.032, 0.032);  // rolagem sutil (F1 é rígido/plantado)
       if(cbody) cbody.rotation.z=roll; else c.g.rotation.z=roll;
     }
     const steer=THREE.MathUtils.clamp(yawRate*3.6*1.6, -0.5, 0.5);
