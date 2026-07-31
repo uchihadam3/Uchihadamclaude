@@ -5565,8 +5565,8 @@ export class Game {
     );
     // seleção gulosa por espaçamento: cada escolhido fica ≥ MINGAP dos já escolhidos.
     // MMO: mais inimigos por área (espaçamento menor + teto maior).
-    const MINGAP = 4;
-    const CAP = 14;
+    const MINGAP = 3;
+    const CAP = 16;
     const picked: { col: number; row: number }[] = [];
     // embaralha p/ variar a distribuição entre partidas
     es = es.sort(() => Math.random() - 0.5);
