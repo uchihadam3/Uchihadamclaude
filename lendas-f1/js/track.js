@@ -15,7 +15,20 @@ export function buildTrack(D=INTERLAGOS){
 
   // centro da pista como curva fechada (centripetal evita "overshoot")
   const vec = D.pts.map(p=> new THREE.Vector3(p[0],0,p[1]));
-  const curve = new THREE.CatmullRomCurve3(vec, true, 'centripetal', 0.5);
+  let curve = new THREE.CatmullRomCurve3(vec, true, 'centripetal', 0.5);
+  // A pista real vem com POUCOS pontos: aparecem vértices/kinks e curvas
+  // "acentuadas" demais. Reamostra denso e SUAVIZA -> curvas realistas e
+  // contínuas. O asfalto E a linha de corrida saem desta MESMA curva suave,
+  // então batem certinho (o carro não "flutua" fora da pista).
+  {
+    const M=700, raw=[]; for(let i=0;i<M;i++) raw.push(curve.getPointAt(i/M));
+    for(let pass=0; pass<4; pass++){ const nn=[];
+      for(let i=0;i<M;i++){ const a=raw[(i-1+M)%M], b=raw[i], c=raw[(i+1)%M];
+        nn.push(new THREE.Vector3((a.x+2*b.x+c.x)/4, 0, (a.z+2*b.z+c.z)/4)); }
+      for(let i=0;i<M;i++) raw[i].copy(nn[i]);
+    }
+    curve = new THREE.CatmullRomCurve3(raw, true, 'centripetal', 0.5);
+  }
   const HALF = 7.5;                     // meia-largura (~15 m — largura real de F1)
   const N = 1400;
   // centro geométrico do circuito (pra jogar arquibancadas SEMPRE pra fora)

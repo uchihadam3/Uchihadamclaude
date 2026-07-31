@@ -101,18 +101,10 @@ export function computeLine(curve, half){
   const center=[], left=[], ctan=[];
   const cx=new Float32Array(N), cz=new Float32Array(N), lx=new Float32Array(N), lz=new Float32Array(N);
   for(let i=0;i<N;i++){ const u=i/N; const p=curve.getPointAt(u); cx[i]=p.x; cz[i]=p.z; }
-  // A pista real tem POUCOS pontos nas curvas -> a curvatura fica irregular
-  // (o carro virava "de pouco em pouco", em trancos). Suaviza a linha central
-  // pra CURVATURA UNIFORME: a curva vira contínua, do início ao fim, como na F1.
-  for(let pass=0; pass<4; pass++){
-    const nx=new Float32Array(N), nz=new Float32Array(N);
-    for(let i=0;i<N;i++){ const a=(i-1+N)%N,b=(i+1)%N;
-      nx[i]=cx[a]*0.25+cx[i]*0.5+cx[b]*0.25; nz[i]=cz[a]*0.25+cz[i]*0.5+cz[b]*0.25; }
-    cx.set(nx); cz.set(nz);
-  }
-  // TANGENTE por diferença finita numa JANELA (não instantânea): gira de forma
-  // gradual e uniforme -> o rumo do carro acompanha a curva inteira, sem passinhos.
-  const Wt=5;
+  // A curva JÁ vem suavizada (na track.js), então o asfalto e a linha batem.
+  // A tangente por JANELA (diferença finita, não instantânea) dá o giro contínuo
+  // e uniforme -> o rumo do carro acompanha a curva inteira, sem passinhos.
+  const Wt=4;
   for(let i=0;i<N;i++){ const a=(i-Wt+N)%N, b=(i+Wt)%N;
     let tx=cx[b]-cx[a], tz=cz[b]-cz[a]; const m=Math.hypot(tx,tz)||1; tx/=m; tz/=m;
     const t=new THREE.Vector3(tx,0,tz);
@@ -274,6 +266,7 @@ export function updateField(cars, line, dt, t, started){
   }
 
   for(const c of cars){
+    if(c.done) continue;                                 // classificação: carro já fez o tempo (congelado)
     if(c.out){ c.speed=Math.max(c.speed-24*dt,0);
       c.offset=THREE.MathUtils.lerp(c.offset,c.outSide*6.4,dt*1.2); c.d+=c.speed*dt;
       c.outT+=dt; if(c.outT>9) c.g.visible=false;        // fiscais tiram o carro
@@ -605,6 +598,7 @@ export function updateField(cars, line, dt, t, started){
   // ---- render + rodas ----
   const wrapA=x=>{ while(x>Math.PI)x-=2*Math.PI; while(x<-Math.PI)x+=2*Math.PI; return x; };
   for(const c of cars){
+    if(c.done) continue;                                 // congelado (classificação)
     const f=idxOf(c);
     const cpos=vat(line.center,f,N), l=vat(line.left,f,N), tv=vat(line.ctan,f,N).normalize();
     const nx=cpos.x+l.x*c.offset, nz=cpos.z+l.z*c.offset;

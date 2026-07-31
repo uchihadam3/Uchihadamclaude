@@ -11,7 +11,6 @@ import { computeLine, buildField, updateField, RACE, TIRES, setWeather, WEATHERS
 import { buildTrack } from './track.js';
 import { CIRCUITS, CIRCUIT_LIST } from './circuits-data.js';
 import { F1Audio } from './audio.js';
-import { SampleEngine } from './audio-sample.js';
 
 /* ---------- MODO CARREIRA (config vinda do menu via sessionStorage) ---------- */
 let CAREER=null;
@@ -75,7 +74,8 @@ const cars=buildField(scene, line, circuit, PLAYER, {
 });
 
 let currentTeam = PLAYER ? PLAYER.team : 'ferrari';
-const findFocus=()=> (PLAYER && cars.find(c=>c.isPlayer)) || cars.find(c=>c.team===currentTeam) || cars[0];
+let qActiveCar=null;   // classificação: carro do time que está fazendo a volta AO VIVO
+const findFocus=()=> qActiveCar || (PLAYER && cars.find(c=>c.isPlayer)) || cars.find(c=>c.team===currentTeam) || cars[0];
 let focus=findFocus();
 function setTeam(t){ currentTeam=t; focus=findFocus(); }
 
@@ -91,8 +91,39 @@ let started=false;
 /* ---------- LARGADA: semáforo (5 luzes vermelhas -> apaga = vai) ---------- */
 const lightsEl=document.getElementById('lights');
 function setLamp(i,on){ const el=lightsEl&&lightsEl.children[i]; if(el) el.className='lamp'+(on?' on':''); }
+/* ---------- CLASSIFICAÇÃO: rivais já correram (física real, sem assistir);
+   só o(s) SEU(S) carro(s) vão pra pista, um de cada vez, e você acompanha ---------- */
+let qTeam=[], qIdx=0;
+function resetSolo(c){ c.d=-8; c.speed=0; c.offset=c.gridOffset; c.tOffset=c.gridOffset;
+  c.bestLap=0; c.lastLap=0; c.curLap=0; c.timedLaps=0; c.lapStart=undefined; c._lap=-1;
+  c.fuel=1; c.wear=0; c.form=0; c.spin=0; c.pushMood=1; c.straightSeen=false; }
+function startSoloCar(c){ c.done=false; c.g.visible=true; resetSolo(c);
+  c.launchStart=raceTime+0.4; qActiveCar=c; focus=c; }
+function qualiRun(){
+  if(lightsEl) lightsEl.classList.add('hide');
+  const teamCars=cars.filter(c=>c.team===currentTeam);
+  teamCars.sort((a,b)=>(b.isPlayer?1:0)-(a.isPlayer?1:0));   // seu piloto primeiro, depois o companheiro
+  const rivals=cars.filter(c=>c.team!==currentTeam);
+  // 1) RIVAIS correm de verdade (headless) — todas as variações do jogo valem aqui
+  for(const c of teamCars) c.done=true;                       // segura os seus carros
+  for(const c of cars) c.launchStart=0;
+  started=true; let guard=0; const hdt=0.033;
+  // out-lap + 1 volta rápida (mesma regra do seu carro -> tempos comparáveis)
+  while(guard++<30000 && rivals.some(c=>(c.timedLaps||0)<2)){ raceTime+=hdt; updateField(cars,line,hdt,raceTime,true); }
+  for(const c of rivals){ c.qTime=(c.bestLap||c.lastLap||1e9); c.done=true; c.g.visible=false; }
+  // 2) seus carros vão pra pista SOZINHOS, um de cada vez
+  for(const c of teamCars){ c.done=true; c.g.visible=false; c.qTime=null; }
+  qTeam=teamCars; qIdx=0; raceTime=0;
+  startSoloCar(qTeam[0]);
+}
+function advanceSolo(){
+  const c=qActiveCar; if(c){ c.qTime=(c.bestLap||c.lastLap||1e9); c.done=true; }   // fixa o tempo do seu carro
+  qIdx++;
+  if(qIdx<qTeam.length){ startSoloCar(qTeam[qIdx]); }        // próximo carro do time
+  else { qActiveCar=null; showQualiResult(); }               // acabou -> resultado
+}
 function startLights(){
-  if(QUALI){ started=true; for(const c of cars) c.launchStart=raceTime; if(lightsEl) lightsEl.classList.add('hide'); return; }
+  if(QUALI){ qualiRun(); return; }
   if(!lightsEl) { started=true; for(const c of cars) c.launchStart=raceTime; return; }
   lightsEl.classList.remove('hide');
   for(let i=0;i<5;i++) setTimeout(()=>setLamp(i,true), 1800 + i*1000);
@@ -120,9 +151,7 @@ function rpmFor(kmh){
   const rpm = g===0 ? (3500 + frac*11500) : (10800 + frac*4200);
   return { rpm, gear: g+1 };
 }
-const audio=new F1Audio();                 // síntese (instantâneo, fallback)
-const engine=new SampleEngine();           // SAMPLE REAL (gravação de F1) — assume quando carrega
-let synthMuted=false;
+const audio=new F1Audio();                 // som do motor sintetizado (como antes)
 let audioOn=false, shakeX=0, shakeY=0;
 const halfW=track.half;
 
@@ -188,10 +217,11 @@ function updateTower(dt){
   // contador de voltas + bandeirada
   const leader=running[0];
   if(QUALI){
-    if(lapEl && focus) lapEl.textContent='🏁 CLASSIFICAÇÃO · VOLTA '+Math.min((focus.timedLaps||0)+1,3)+'/3';
+    const who = qActiveCar ? code3(qActiveCar.drv.nome) : '';
+    if(lapEl && qActiveCar) lapEl.textContent='🏁 CLASSIFICAÇÃO · '+who+' · VOLTA '+Math.min((qActiveCar.timedLaps||0)+1,2)+'/2';
     updateQualiTower();
-    // fim: o carro em foco fechou 3 voltas cronometradas (out-lap + 2 rápidas)
-    if(!raceOver && focus && (focus.timedLaps||0)>=3){ raceOver=true; showQualiResult(); }
+    // seu carro fechou o out-lap + 1 volta rápida (sozinho = limpo) -> próximo do time
+    if(!raceOver && qActiveCar && (qActiveCar.timedLaps||0)>=2){ advanceSolo(); }
     return;
   }
   if(lapEl && leader) lapEl.textContent=WX.icon+' VOLTA '+Math.min(leader.lapsDone+1,RACE.laps)+'/'+RACE.laps;
@@ -249,8 +279,8 @@ function showResults(){
 }
 const esc0=s=>(s||'').replace(/</g,'&lt;');
 const fmtQ=s=>{ if(!s||s<1) return '—:--.---'; const m=Math.floor(s/60), sec=s-m*60; return m+':'+sec.toFixed(3).padStart(6,'0'); };
-/* torre de tempos AO VIVO na classificação (todos correndo de verdade) */
-function qBestOf(c){ return c.bestLap>0 ? c.bestLap : (c.lastLap>0?c.lastLap:1e9); }
+/* torre de tempos AO VIVO na classificação (rivais já feitos + seu carro na pista) */
+function qBestOf(c){ if(c.qTime!=null) return c.qTime; return c.bestLap>0 ? c.bestLap : (c.lastLap>0?c.lastLap:1e9); }
 function updateQualiTower(){
   if(!towerEl) return; towerCd-=1/60; if(towerCd>0) return; towerCd=0.2;
   const ord=[...cars].sort((a,b)=>qBestOf(a)-qBestOf(b));
@@ -261,16 +291,18 @@ function updateQualiTower(){
   }).join('');
 }
 function showQualiResult(){
-  // ordem REAL pela melhor volta de cada carro (com todas as variações do jogo)
+  raceOver=true;
+  // ordem pela melhor volta de cada carro (rivais: física real headless; seu carro: volta ao vivo)
   const ord=[...cars].sort((a,b)=>qBestOf(a)-qBestOf(b));
   const order=ord.map(c=>c.drv.nome);
   const times=ord.map(c=>{ const b=qBestOf(c); return b<1e9?b:null; });
-  const playerTime=focus.bestLap||focus.lastLap||focus.curLap;
+  const playerCar=cars.find(c=>c.isPlayer)||focus;
+  const playerTime=qBestOf(playerCar);
   const result={ slot:CAREER.slot, round:CAREER.round, track:circuit, weather:weatherKey,
     order, times, playerTime };
   try{ sessionStorage.setItem('lf1_quali', JSON.stringify(result)); }catch(e){}
   sessionStorage.removeItem('lf1_race');
-  const myPos=order.indexOf(focus.drv.nome)+1;
+  const myPos=order.indexOf(playerCar.drv.nome)+1;
   fcard.innerHTML=`<h2>🏁 Classificação encerrada</h2>
     <div class="eng">${circuitInfo.flag} ${circuitInfo.nome} · ${WX.icon} ${WX.nome}</div>
     <div class="ov"><span class="ovn">${myPos}º</span></div>
@@ -359,16 +391,9 @@ function frame(){
 
   const curMode=updateCamera(dt, spd01, onKerb);
 
-  // ---- SOM do motor (carro em foco) — sample real assume quando pronto ----
+  // ---- SOM do motor (carro em foco) — síntese (como era antes) ----
   const {rpm,gear}=rpmFor(kmh);
-  if(audioOn){
-    if(engine.ready){
-      if(!synthMuted){ try{ audio.master.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.25); }catch(e){} synthMuted=true; }
-      engine.update(rpm, throttle, kmh, onKerb, dt, gear);
-    } else {
-      audio.update(rpm, throttle, kmh, onKerb, dt, gear);
-    }
-  }
+  if(audioOn) audio.update(rpm, throttle, kmh, onKerb, dt, gear);
 
   // sol acompanha o foco
   sun.position.set(focusPos.x+120, 300, focusPos.z+90);
@@ -432,8 +457,6 @@ addEventListener('keydown', e=>{ if(e.key==='c'||e.key==='C') cycleCam(); });
 /* ---------- botão de som (autoplay exige gesto) ---------- */
 const startBtn=document.getElementById('sound');
 function enableAudio(){ try{ audio.start(); audioOn=true; }catch(e){}
-  // sample real usa o MESMO AudioContext da síntese (essencial no celular)
-  try{ engine.start(audio.ctx).catch(()=>{}); }catch(e){}
   if(startBtn) startBtn.classList.add('hide'); }
 if(startBtn) startBtn.addEventListener('click', enableAudio);
 addEventListener('pointerdown', enableAudio, {once:true});
@@ -510,7 +533,7 @@ function renderRace(){
 if(fichaBtn){ fichaBtn.addEventListener('click', ()=>{ renderFicha(); fichaPanel.classList.remove('hide'); }); }
 fichaPanel.addEventListener('click', e=>{ if(e.target===fichaPanel) fichaPanel.classList.add('hide'); });
 
-window.__f1={scene,camera,get car(){return focus.g;},track,renderer}; window.__audio=audio; window.__engine=engine; window.__setTeam=setTeam;
+window.__f1={scene,camera,get car(){return focus.g;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
 window.__cars=cars; window.__line=line; window.__RACE=RACE;
 Object.defineProperty(window,'__rt',{get:()=>raceTime}); Object.defineProperty(window,'__started',{get:()=>started});
 window.__forceStart=()=>{ started=true; for(const c of cars) c.launchStart=raceTime+c.reaction; };
