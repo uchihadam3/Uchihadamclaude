@@ -36,7 +36,7 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
-| 🟡 | **Hotbar MOBILE em leque** (dois arcos no canto + XP) | [§11 Peça E](#11--botões-de-controle-hud) |
+| 🟡 | **Moldura MOBILE** (2 colunas + ataque + ação + XP) | [§11 Peça E](#11--botões-de-controle-hud) |
 | 🟡 | **Skill Tree** — faltam 3 folhas de ativas (Ladino/Mago/Clérigo) + 1 de passivas + 4 fundos | [§14](#14--skill-tree-habilidades--aprovado) |
 | 🟡 | Aglomerado de mata **3** (muralha de árvores) | [§02](#02--aglomerados-de-mata) |
 | 🟡 | Pano de fundo — **vilarejo visto de fora** | [§05](#05--panos-de-fundo-backdrops) |
@@ -549,27 +549,30 @@ me manda **1 slot quadrado vazio** + **2 tampas de ponta** (esquerda/direita), q
 eu repito o slot em fileira e fecho com as pontas. Mas a **barra inteira** dá o
 visual MMO mais rico; começo por ela.)*
 
-### 🟡 Peça E — Hotbar MOBILE em DUAS meia-luas (canto inf. direito) + trilho de XP
+### 🟡 Peça E — Moldura MOBILE (2 colunas + ataque + ação + XP)
 
 Versão da barra pro **celular** (no PC fica a barra reta de 8 slots, Peça D): no
-mobile os 6 slots de habilidade viram **DUAS meia-luas concêntricas** e **compactas**
-no canto inferior DIREITO, ao redor do botão de ataque — uma fileira **de baixo** (3
-encaixes, colada no ataque) e uma **de cima** (3 encaixes, logo acima). É **fechado e
-baixo** (ocupa pouca tela, começa lá embaixo), **sem anéis/trilhas douradas soltas** —
-os encaixes ficam numa **placa ornamentada sólida**. Junto vai o **trilho fino de XP**
-correndo pela **base da tela**. Some **8 encaixes no total** contando os 2 de itens
-que ficam à esquerda (perto do D-pad), pra empatar com os 8 do desktop. O botão de
-ataque NÃO vem na arte (é separado, redondo, no canto), e o **botão de ação fica à
-ESQUERDA do ataque** — deixe esse cantinho livre.
+mobile é uma **moldura ornamentada no canto inferior DIREITO**, compacta e grudada na
+borda, com **TUDO junto numa peça só**:
+
+- **6 encaixes de habilidade** numa **grade 2×3** (duas colunas de 3, empilhadas)
+  logo **acima** do ataque;
+- **1 encaixe GRANDE** do **botão de ataque**, no canto de baixo;
+- **1 encaixe médio** do **botão de ação**, à **ESQUERDA** do ataque;
+- **calha fina da barra de XP** correndo pela **base** da tela.
+
+Os encaixes vêm **vazios** (eu ponho os ícones por cima: skills, espadas-cruzadas no
+ataque, manopla na ação, e preencho a mana/recarga/XP por código). Os **2 itens**
+consumíveis ficam à esquerda, perto do D-pad → **8 no total**, igual ao desktop.
 
 ```
-Hand-painted stylized-realism MOBILE game HUD piece for the BOTTOM-RIGHT corner of the screen, cohesive with a grim medieval dark-fantasy game — SAME materials as the game's iron-and-gold action bar and round buttons: aged dark pitted wrought iron, worn tarnished gold/brass trim, small rivets, faint arcane engraving. A COMPACT ornate corner plate hugging the bottom-right corner, holding SIX identical EMPTY round sockets arranged in TWO short concentric CRESCENT rows fanning across the upper-left quadrant: an INNER crescent of 3 sockets close to the corner, and an OUTER crescent of 3 sockets just above it, the two rows clearly separated and radially aligned. Each socket is a deep recessed dark metal cup framed by a beveled worn-gold rim with tiny rivets, completely EMPTY inside (no icons, no symbols, no runes). NO large decorative gold rings or floating rails — the sockets sit flush in a solid ornate iron plate with subtle gothic filigree. Along the very BOTTOM edge, a thin recessed horizontal CHANNEL (an experience-bar track) runs to the left — empty and dark with a subtle inner bevel — connected to the corner plate so it reads as one forged piece. Keep it LOW and tight to the corner. Leave the very bottom-right corner and the space just left of it OPEN/EMPTY (separate round attack and action buttons sit there). Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, crisp edges, no icons, no numbers, no text, no watermark. Wide landscape canvas ~1536x760, the two crescents of sockets tight in the lower-RIGHT and the thin XP rail along the bottom.
+Hand-painted stylized-realism MOBILE game HUD frame for the BOTTOM-RIGHT corner of the screen, cohesive with a grim medieval dark-fantasy game — SAME materials as the game's iron-and-gold action bar and round buttons: aged dark pitted wrought iron, worn tarnished gold/brass trim, small rivets, faint arcane engraving. A single COMPACT ornate corner bracket/plate hugging the bottom-right corner and the bottom edge, that HOLDS, as ONE forged piece: (1) a 2x3 GRID of SIX identical EMPTY round ability sockets — two vertical columns of three stacked sockets — tight against the right edge in the upper part of the plate; (2) directly BELOW the grid, in the very bottom-right corner, ONE LARGER empty round socket (the attack button); (3) just to the LEFT of that large socket, ONE medium empty round socket (the action button); (4) along the very BOTTOM edge, running to the left from the corner, a thin recessed horizontal CHANNEL — an experience-bar track — empty and dark with a subtle inner bevel. Every socket is a deep recessed dark metal cup framed by a beveled worn-gold rim with tiny rivets, completely EMPTY inside (no icons, no symbols, no runes). Gothic scrollwork / filigree ties the grid, the two round buttons and the bottom XP rail together. Keep it compact and tight to the corner. Subtle worn metallic highlights, soft even diffuse lighting, no cast shadow, flat front orthographic view, no perspective. Clean cutout on a fully transparent background, crisp edges, no icons, no numbers, no text, no watermark. Wide landscape canvas ~1536x820, everything clustered in the lower-RIGHT with the thin XP rail along the bottom edge.
 ```
 
-*(Manda a imagem; eu recorto, **meço os 6 encaixes** (as duas meia-luas) e a calha do
-XP, e ligo como o **layout mobile** — o PC segue com a barra reta da Peça D sem mudar
-nada. Se a arte vier com os encaixes fora de lugar, uso a placa como moldura e encaixo
-os medalhões redondos por cima, por código, nas duas meia-luas.)*
+*(Manda a imagem; eu recorto, **meço os 6 encaixes** da grade + o do ataque + o da
+ação + a calha do XP, e ligo como o **layout mobile** — o PC segue com a barra reta da
+Peça D sem mudar nada. Se algum encaixe vier fora do lugar, uso a placa como moldura e
+encaixo os medalhões redondos por cima, por código.)*
 
 ---
 
