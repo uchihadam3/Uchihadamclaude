@@ -302,20 +302,23 @@ export function updateField(cars, line, dt, t, started){
       const po=pitOffsetS(s);                            // posição lateral na via de pit
       const boxS = PIT.boxS - (c.gridPos%10)*PIT.boxGap;  // marca do box deste carro
       if(po>0.06) tOff=po;                               // já está na via -> segue a rua
-      if(c.pitPhase===1){                                 // ENTRANDO: diverge e freia até o box
+      const boxOff = PIT.off+3.5;                          // vaga: em FRENTE da garagem (lado externo)
+      if(c.pitPhase===1){                                 // ENTRANDO: freia e ESTACIONA paralelo na vaga
         if(po>0.06){
           targetV=Math.min(targetV,23);                  // limite do pit (~80 km/h)
           const dToBox=boxS-s;                           // distância até o box (>0 antes)
-          if(dToBox<28) targetV=Math.min(targetV, Math.max(1.4, dToBox*0.9));   // freia pro box
-          if(dToBox<=0.8){
+          if(dToBox<45) targetV=Math.min(targetV, Math.max(1.0, dToBox*0.55));  // freia com folga (não passa)
+          if(dToBox<16){ const w=THREE.MathUtils.clamp(1-dToBox/16,0,1);        // puxa pra frente do box
+            tOff=THREE.MathUtils.lerp(po, boxOff, w); }
+          if(dToBox<=0.5){
             c.pitPhase=2;
             const needFix=c.damage>0.35;
             c.pitT=(2.3+Math.random()*0.9) + (needFix?3.5+c.damage*9:0);        // pneu ~2.5s; +asa 4-12s
             c.pitFix=needFix;
           }
         }
-      } else if(c.pitPhase===2){                          // PARADO no box (equipe trabalha)
-        tOff=PIT.off; targetV=0;
+      } else if(c.pitPhase===2){                          // PARADO na vaga, paralelo (equipe trabalha)
+        tOff=boxOff; targetV=0;
         if(c.speed<0.6){ c.pitT-=dt;
           if(c.pitT<=0){
             c.tire = idealTire(lapsLeft);                                       // pneu ideal pro clima
@@ -500,7 +503,7 @@ export function updateField(cars, line, dt, t, started){
     const mergeT=THREE.MathUtils.clamp((t-c.launchStart)/6, 0, 1);
     tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
-    const latLim=c.pitPhase?(PIT.off+3):7.0;      // pode pisar a zebra na borda (apex/saída)
+    const latLim=c.pitPhase?(PIT.off+5):7.0;      // pit: chega até a vaga da garagem; pista: pisa a zebra
     // SUAVE E CONTÍNUO: o carro desliza pro lado numa velocidade lateral LIMITADA e
     // quase constante — nunca dá "arranco". Ease leve perto do alvo + teto rígido de m/s.
     const targetOff=THREE.MathUtils.clamp(tOff,-latLim,latLim);

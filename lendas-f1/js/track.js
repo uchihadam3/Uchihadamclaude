@@ -399,15 +399,18 @@ export function buildTrack(D=INTERLAGOS){
       const c4=p.clone().addScaledVector(l, pitOffsetS(ss)-HW+0.5);
       ln.position.set(c4.x,0.032,c4.z); G.add(ln);
     }
-    // marcações amarelas dos boxes (no lado das garagens da rua)
+    // VAGAS dos boxes: caixa amarela PARALELA à via, em frente a cada garagem
     const bm=new THREE.MeshStandardMaterial({color:0xf5c518,roughness:0.6});
     for(let i=0;i<10;i++){
       const ss=PIT.boxS-i*PIT.boxGap; const uu=((ss/total)%1+1)%1;
       const p=curve.getPointAt(uu), tt=curve.getTangentAt(uu).normalize(), l=leftOf(tt);
-      const b2=new THREE.Mesh(new THREE.PlaneGeometry(0.1,3.2),bm);
-      b2.rotation.x=-Math.PI/2; b2.rotation.z=-Math.atan2(tt.x,tt.z);
-      const c3=p.clone().addScaledVector(l, PIT.off+HW-1.2);
-      b2.position.set(c3.x,0.033,c3.z); G.add(b2);
+      const c3=p.clone().addScaledVector(l, PIT.off+3.5);              // centro da vaga (bate com o carro)
+      const grp=new THREE.Group(); grp.position.set(c3.x,0.034,c3.z); grp.rotation.y=Math.atan2(tt.x,tt.z); G.add(grp);
+      const mk=(w,h,x,z)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),bm);
+        m.rotation.x=-Math.PI/2; m.position.set(x,0,z); grp.add(m); };
+      // x = lateral (largura ~2 m), z = comprimento ao longo da via (~5 m) -> vaga paralela
+      mk(0.12,5.0,-1.05,0); mk(0.12,5.0,1.05,0);                       // laterais
+      mk(2.1,0.12,0,2.45);                                             // linha da frente
     }
     // ---- GARAGENS (prédio dos boxes: uma por equipe, frente aberta pro pit lane) ----
     const teams=Object.keys(TEAMS).filter(k=>k!=='brasil').slice(0,10);
