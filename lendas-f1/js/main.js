@@ -99,7 +99,7 @@ function resetSolo(c){ c.d=-8; c.speed=0; c.offset=c.gridOffset; c.tOffset=c.gri
   c.bestLap=0; c.lastLap=0; c.curLap=0; c.timedLaps=0; c.lapStart=undefined; c._lap=-1;
   c.fuel=1; c.wear=0; c.form=0; c.spin=0; c.pushMood=1; c.straightSeen=false; }
 function placeSoloCar(c){ c.done=false; c.g.visible=true; resetSolo(c);
-  c.launchStart=1e9; qActiveCar=c; focus=c; }         // fica parado no grid até o semáforo apagar
+  c.launchStart=1e9; qActiveCar=c; focus=c; camSnapped=false; }  // recola a câmera no carro (sem "voo")
 /* semáforo reutilizável: acende 5 luzes e chama onGo() quando apaga */
 function runLights(onGo){
   if(!lightsEl){ onGo(); return; }

@@ -123,9 +123,10 @@ export function computeLine(curve, half){
       o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v);
     }
   }
-  // acentua o out-in-out: ABRE na entrada (zebra de fora) e FECHA no apex (zebra de dentro)
-  for(let i=0;i<N;i++){ const v=o[i]*1.6; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
-  // suaviza pra ficar contínuo (mas sem tirar o out-in-out)
+  // acentuação LEVE: a banda elástica já é a linha de MENOR curvatura (mais rápida)
+  // e já usa as zebras nas curvas fechadas. Acentuar demais FECHA o apex e deixa
+  // a curva lenta — então quase não mexe (só um tico de out-in-out).
+  for(let i=0;i<N;i++){ const v=o[i]*1.12; o[i]=v>maxOff?maxOff:(v<-maxOff?-maxOff:v); }
   for(let pass=0;pass<5;pass++){
     for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N; o[i]=(o[a]+o[i]*2+o[b])/4; }
   }
@@ -135,7 +136,8 @@ export function computeLine(curve, half){
     const t1=pos[i].clone().sub(pos[a]), t2=pos[b].clone().sub(pos[i]);
     const ds=(t1.length()+t2.length())/2, ang=t1.angleTo(t2);
     const k=ang/Math.max(ds,0.01);
-    let v=k>1e-4?Math.sqrt(29/k):100; vmax[i]=Math.min(Math.max(v,15),99);
+    // grip lateral ~3.6g (F1 com downforce). Curvas mais rápidas em geral.
+    let v=k>1e-4?Math.sqrt(35/k):100; vmax[i]=Math.min(Math.max(v,16.5),99);
   }
   return { N, center, left, ctan, offset:o, vmax, len:curve.getLength() };
 }
