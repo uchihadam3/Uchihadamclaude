@@ -585,20 +585,24 @@ export function updateField(cars, line, dt, t, started){
     }
   }
 
-  // ---- render + rodas (rumo = direção REAL do movimento) ----
+  // ---- render + rodas ----
   const wrapA=x=>{ while(x>Math.PI)x-=2*Math.PI; while(x<-Math.PI)x+=2*Math.PI; return x; };
   for(const c of cars){
     const f=idxOf(c);
     const cpos=vat(line.center,f,N), l=vat(line.left,f,N), tv=vat(line.ctan,f,N).normalize();
     const nx=cpos.x+l.x*c.offset, nz=cpos.z+l.z*c.offset;
-    if(!c.prev){ c.prev={x:nx,z:nz}; c.heading=Math.atan2(tv.x,tv.z); c.prevH=c.heading; }
-    const dx=nx-c.prev.x, dz=nz-c.prev.z;
-    if(dx*dx+dz*dz>1e-6){
-      const hNew=Math.atan2(dx,dz);
-      c.heading += wrapA(hNew-c.heading)*Math.min(1, dt*12);
-    }
-    c.prev.x=nx; c.prev.z=nz;
     c.g.position.set(nx,0,nz);
+    // DIREÇÃO: rumo = tangente da pista (suave e contínua, Catmull-Rom) + leve ângulo
+    // de deriva pela velocidade lateral. NÃO usa o delta de posição (que treme) —
+    // por isso o carro vira de forma fluida e constante, sem "toquinhos".
+    const latV=(c.offset-(c._lastOff!==undefined?c._lastOff:c.offset))/Math.max(dt,1e-3);
+    c._lastOff=c.offset;
+    const sp=Math.max(c.speed,0.001);
+    const vx=tv.x*sp + l.x*latV*0.6, vz=tv.z*sp + l.z*latV*0.6;   // direção real do movimento (suave)
+    const target=Math.atan2(vx,vz);
+    if(c.heading===undefined){ c.heading=target; c.prevH=target; }
+    const k=1-Math.exp(-dt/0.10);                                 // suavização contínua (~0.1s), independe do FPS
+    c.heading += wrapA(target-c.heading)*k;
     let heading=c.heading;
     if(c.spin>0) heading+=c.spinRate*(1-c.spin);
     c.g.rotation.set(0,heading,0);
