@@ -149,10 +149,8 @@ const ovAttrs=a=>{ let s=0; for(const k in DW_) s+=(a[k]||78)*DW_[k]; return s; 
 
 export function buildField(scene, line, trackKey='interlagos', playerOverride=null, opts={}){
   const PN = playerOverride && playerOverride.driverName;
-  const quali = opts.mode==='quali';
-  let src = DRIVERS;
-  if(quali && PN) src = DRIVERS.filter(d=>d.nome===PN);   // classificação: só o jogador na pista
-  const grid = src.map(d=>{
+  const quali = opts.mode==='quali';   // classificação: TODOS correm de verdade (tempo real)
+  const grid = DRIVERS.map(d=>{
     if(PN && d.nome===PN){
       const po=playerOverride;
       return { d, pace: po.perf.geral*0.62 + ovAttrs(po.attrs)*0.38, player:po };
@@ -224,9 +222,13 @@ export function buildField(scene, line, trackKey='interlagos', playerOverride=nu
       };
       wearMul = po.perf.wear || 1;              // pneus (nível) -> desgaste
     }
+    // classificação: espalha os carros pela pista (cada um faz volta LIMPA, sem trem).
+    // Os tempos por volta continuam corretos (medidos por intervalo de 1 volta);
+    // o fim da sessão usa timedLaps (voltas cronometradas), não o d absoluto.
+    const startD = quali ? -(slot*(line.len/DRIVERS.length)) : -(8 + slot*8);
     cars.push({ g, drv, style, perf, wearMul, isPlayer:!!po, team:drv.team, wheels:g.userData.wheels, rad:g.userData.radius,
       pace:it.pace, gridPos:slot+1, reaction, launchStart:1e9, gridOffset:side*LAT,
-      d: -(8 + slot*8), offset: side*LAT, tOffset: side*LAT,
+      d: startD, offset: side*LAT, tOffset: side*LAT, noPit:quali, timedLaps:0,
       speed:0, spin:0, spinRate:0, damage:0, out:false, outSide:side, tilt:0,
       passCd:4, hitCd:0, passing:null, form:0, avoidS:0, cornerErr:0, yieldT:0, yieldOff:0,
       tire: startTire, wear:0, pits:0, trackMod,
@@ -235,7 +237,7 @@ export function buildField(scene, line, trackKey='interlagos', playerOverride=nu
       pitLap: Math.max(3, Math.round(RACE.laps*(0.35+Math.random()*0.3))),
       pitPhase:0, pitT:0, pitReason:'', lapsDone:0, blueT:0, finished:false, outT:0,
       fuel:1, dmgWing:0,                                   // combustível 100% + dano na asa dianteira
-      tan:vat(line.ctan, ((-(8+slot*8)/line.len)*line.N%line.N+line.N)%line.N, line.N).clone() });
+      tan:vat(line.ctan, ((startD/line.len)*line.N%line.N+line.N)%line.N, line.N).clone() });
   });
   return cars;
 }
@@ -268,7 +270,7 @@ export function updateField(cars, line, dt, t, started){
     if(c.lapsDone!==c._lap){
       if(c.lapStart!==undefined){ const lt=t-c.lapStart;      // fecha a volta que terminou
         if(lt>8){ c.lastLap=lt; if(!c.bestLap||lt<c.bestLap){ c.bestLap=lt; c.bestFlash=t; } } }
-      c.lapStart=t; c._lap=c.lapsDone;
+      c.lapStart=t; c._lap=c.lapsDone; c.timedLaps=(c.timedLaps||0)+1;   // voltas cronometradas (p/ classificação)
       c.lapPace  = (Math.random()-0.5)*0.016;      // ±0.8% de ritmo nessa volta
       c.lapBrake = (Math.random()-0.5)*0.30;       // freia um tico antes/depois
       c.lapLine  = (Math.random()-0.5)*0.55;       // linha ligeiramente diferente
@@ -333,7 +335,7 @@ export function updateField(cars, line, dt, t, started){
     const s = dPos>len/2 ? dPos-len : dPos;              // metros rel. à linha (neg = antes)
     const lapsLeft=RACE.laps-c.lapsDone;
     // decide entrar ANTES da rampa de entrada da via
-    if(c.pitPhase===0 && !c.finished && lapsLeft>1 && s>-620 && s<-PIT.entry){
+    if(!c.noPit && c.pitPhase===0 && !c.finished && lapsLeft>1 && s>-620 && s<-PIT.entry){
       if(c.damage>0.5 && c.pits<3){ c.pitPhase=1; c.pitReason='reparo'; }
       else if(c.wear>0.72 && c.pits<2){ c.pitPhase=1; c.pitReason='pneu'; }
       else if(c.pits<1 && c.lapsDone>=c.pitLap){ c.pitPhase=1; c.pitReason='pneu'; }

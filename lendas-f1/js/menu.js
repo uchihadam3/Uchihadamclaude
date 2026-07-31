@@ -234,17 +234,13 @@ function screenShop(){
 /* ======================= CLASSIFICAÇÃO ======================= */
 function screenQuali(){
   const s=cur.career; const k=C.SEASON[s.round]; const ni=C.circuitInfo(k);
-  const field=C.qualiField(s, k, null);                 // tempos provisórios dos rivais
-  const rows=field.map((x,i)=>`<div class="qrow ${x.isP?'me':''}">
-      <span class="qp">${i+1}</span><b style="background:${teamHex(x.team)}"></b>
-      <span class="qn">${esc(last(x.name))}</span>
-      <span class="qt">${x.isP?'— a fazer —':C.fmtT(x.time)}</span></div>`).join('');
   show(`<div class="scr">
      <div class="hd"><button class="back" data-a="back">‹</button><h1>Classificação</h1></div>
-     <div class="qphead" style="--tc:${teamHex(s.team)}"><span class="ngflag">${ni.flag}</span><div><b>${ni.nome}</b><span>Volta única · define o grid de largada</span></div></div>
-     <p class="sub">Os outros pilotos já marcaram o tempo deles. Vá pra pista, faça a sua <b>volta rápida</b> e veja em que posição você larga.</p>
-     <div class="qtbl">${rows}</div>
-     <button class="mbtn big go" data-a="run">🏁 FAZER MINHA VOLTA</button></div>`);
+     <div class="qphead" style="--tc:${teamHex(s.team)}"><span class="ngflag">${ni.flag}</span><div><b>${ni.nome}</b><span>Sessão de classificação · define o grid</span></div></div>
+     <p class="sub">Todos os 20 pilotos vão pra pista e marcam o tempo <b>de verdade</b> — com o clima do dia, a força de cada um na pista, o carro e as variações da volta. Você acompanha a sua e vê em que posição larga.</p>
+     <div class="card"><div class="ct">📋 COMO FUNCIONA</div>
+       <div class="cpnote">• Cada piloto faz voltas rápidas na pista.<br>• O <b>grid</b> é a ordem dos melhores tempos.<br>• A pole larga na frente; você larga na sua posição real.</div></div>
+     <button class="mbtn big go" data-a="run">🏁 ENTRAR NA CLASSIFICAÇÃO</button></div>`);
   bind({ back:screenHub });
   app.querySelector('[data-a="run"]').onclick=()=>{
     SFX.go();
@@ -255,11 +251,11 @@ function screenQuali(){
   };
 }
 
-/* volta do jogador voltou da pista -> finaliza o grid */
+/* sessão terminou -> finaliza o grid com os tempos REAIS de todos */
 function processQuali(q){
   const s=C.loadSlot(q.slot); if(!s){ screenMain(); return; }
   cur={slot:q.slot, career:s};
-  const { list, startPos }=C.finalizeQuali(s, q.time);
+  const { list, startPos }=C.finalizeQuali(s, q);
   C.saveSlot(q.slot, s);
   const rows=list.map((x,i)=>`<div class="qrow ${x.isP?'me':''}">
       <span class="qp">${i+1}</span><b style="background:${teamHex(x.team)}"></b>
@@ -269,7 +265,7 @@ function processQuali(q){
   show(`<div class="scr">
      <div class="reshd">RESULTADO DA CLASSIFICAÇÃO</div>
      <div class="respos"><span>${startPos}º</span></div>
-     <div class="resline">${pole?'🏆 POLE POSITION!':'você larga em '+startPos+'º'} · sua volta <b>${C.fmtT(q.time)}</b></div>
+     <div class="resline">${pole?'🏆 POLE POSITION!':'você larga em '+startPos+'º'} · sua volta <b>${C.fmtT(q.playerTime)}</b></div>
      <div class="qtbl scroll">${rows}</div>
      <div class="mbtns"><button class="mbtn big red" data-a="hub">➜ Ir pro grid de largada</button></div>
    </div>`, pole?'win':'confirm');
@@ -310,7 +306,7 @@ function startRace(){
   SFX.go();
   const s=cur.career; const k=C.SEASON[s.round]; const ni=C.circuitInfo(k);
   const cfg={ slot:cur.slot, round:s.round, track:k, laps:ni.laps, mode:'race',
-    weather:null, grid:s.grid, startPos:s.startPos, player:C.loadout(s) };
+    weather:s.weather||null, grid:s.grid, startPos:s.startPos, player:C.loadout(s) };
   sessionStorage.setItem('lf1_race', JSON.stringify(cfg));
   location.href='race.html';
 }

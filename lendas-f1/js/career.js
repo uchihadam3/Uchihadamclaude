@@ -123,12 +123,15 @@ export function qualiField(career, trackKey, playerLap){
   list.sort((a,b)=>a.time-b.time);
   return list;
 }
-export function finalizeQuali(career, playerLap){
-  const list=qualiField(career, SEASON[career.round], playerLap);
-  career.grid=list.map(x=>x.name);
-  career.startPos=list.findIndex(x=>x.isP)+1;
-  career.playerQ=playerLap;
-  career.qualiTimes=list.map(x=>({name:x.name,team:x.team,time:x.time,isP:x.isP}));
+/* recebe o resultado REAL da sessão (todos correram): q={order,times,playerTime,weather} */
+export function finalizeQuali(career, q){
+  const list=q.order.map((name,i)=>{ const d=DRIVERS.find(x=>x.nome===name);
+    return { name, team:d?d.team:'', time:q.times[i], isP:name===career.driver }; });
+  career.grid=q.order;
+  career.startPos=q.order.indexOf(career.driver)+1;
+  career.playerQ=q.playerTime;
+  career.qualiTimes=list;
+  career.weather=q.weather||null;
   career.qualiDone=true;
   return { list, startPos:career.startPos };
 }

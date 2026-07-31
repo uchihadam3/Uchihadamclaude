@@ -188,9 +188,10 @@ function updateTower(dt){
   // contador de voltas + bandeirada
   const leader=running[0];
   if(QUALI){
-    if(lapEl && focus) lapEl.textContent='🏁 CLASSIFICAÇÃO · VOLTA '+Math.min(focus.lapsDone+1,RACE.laps)+'/'+RACE.laps;
-    if(!raceOver && focus && ((focus.bestLap>0 && focus.lapsDone>=2) || focus.lapsDone>=RACE.laps)){
-      raceOver=true; showQualiResult(); }
+    if(lapEl && focus) lapEl.textContent='🏁 CLASSIFICAÇÃO · VOLTA '+Math.min((focus.timedLaps||0)+1,3)+'/3';
+    updateQualiTower();
+    // fim: o carro em foco fechou 3 voltas cronometradas (out-lap + 2 rápidas)
+    if(!raceOver && focus && (focus.timedLaps||0)>=3){ raceOver=true; showQualiResult(); }
     return;
   }
   if(lapEl && leader) lapEl.textContent=WX.icon+' VOLTA '+Math.min(leader.lapsDone+1,RACE.laps)+'/'+RACE.laps;
@@ -248,15 +249,32 @@ function showResults(){
 }
 const esc0=s=>(s||'').replace(/</g,'&lt;');
 const fmtQ=s=>{ if(!s||s<1) return '—:--.---'; const m=Math.floor(s/60), sec=s-m*60; return m+':'+sec.toFixed(3).padStart(6,'0'); };
+/* torre de tempos AO VIVO na classificação (todos correndo de verdade) */
+function qBestOf(c){ return c.bestLap>0 ? c.bestLap : (c.lastLap>0?c.lastLap:1e9); }
+function updateQualiTower(){
+  if(!towerEl) return; towerCd-=1/60; if(towerCd>0) return; towerCd=0.2;
+  const ord=[...cars].sort((a,b)=>qBestOf(a)-qBestOf(b));
+  const leadT=qBestOf(ord[0]);
+  towerEl.innerHTML=ord.map((c,i)=>{ const bt=qBestOf(c), has=bt<1e9;
+    const gap = i===0?(has?fmtLap(bt):'—') : (has?('+'+(bt-leadT).toFixed(1)):'—');
+    return `<div class="trow ${c===focus?'me':''}"><span class="tp">${i+1}</span><b style="background:${teamHex(c.team)}"></b><span class="tc">${code3(c.drv.nome)}</span><span class="gapt">${gap}</span></div>`;
+  }).join('');
+}
 function showQualiResult(){
-  const best=focus.bestLap||focus.lastLap||focus.curLap;
-  const result={ slot:CAREER.slot, round:CAREER.round, track:circuit, time:best };
+  // ordem REAL pela melhor volta de cada carro (com todas as variações do jogo)
+  const ord=[...cars].sort((a,b)=>qBestOf(a)-qBestOf(b));
+  const order=ord.map(c=>c.drv.nome);
+  const times=ord.map(c=>{ const b=qBestOf(c); return b<1e9?b:null; });
+  const playerTime=focus.bestLap||focus.lastLap||focus.curLap;
+  const result={ slot:CAREER.slot, round:CAREER.round, track:circuit, weather:weatherKey,
+    order, times, playerTime };
   try{ sessionStorage.setItem('lf1_quali', JSON.stringify(result)); }catch(e){}
   sessionStorage.removeItem('lf1_race');
-  fcard.innerHTML=`<h2>🏁 Volta de classificação</h2>
-    <div class="eng">${circuitInfo.flag} ${circuitInfo.nome}</div>
-    <div class="ov"><span class="ovn">${fmtQ(best)}</span></div>
-    <div style="opacity:.7;font-size:13px;margin:2px 0 4px">Sua melhor volta — volte pra ver em que posição você larga.</div>
+  const myPos=order.indexOf(focus.drv.nome)+1;
+  fcard.innerHTML=`<h2>🏁 Classificação encerrada</h2>
+    <div class="eng">${circuitInfo.flag} ${circuitInfo.nome} · ${WX.icon} ${WX.nome}</div>
+    <div class="ov"><span class="ovn">${myPos}º</span></div>
+    <div style="opacity:.8;font-size:13px;margin:2px 0 4px">Sua melhor volta: <b>${fmtQ(playerTime)}</b> · pole ${fmtQ(times[0])}</div>
     <button class="fbtn" id="fmenu">➜ Ver o grid de largada</button>`;
   document.getElementById('fmenu').onclick=()=>location.href='index.html';
   fichaPanel.classList.remove('hide');
