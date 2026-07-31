@@ -113,45 +113,56 @@ function screenSlots(mode){
   });
 }
 
-/* lista de escudarias reais (2 pilotos cada), ordenadas pela nota do carro */
+/* lista de escudarias reais (2 pilotos cada), ordenadas pela nota do carro (forte->fraca) */
 const REAL_TEAMS = ()=> Object.keys(TEAMS).filter(k=>driversOf(k).length>=2)
   .sort((a,b)=>carStats(b).geral-carStats(a).geral);
+/* TRAVA: no começo só dá pra pegar as 5 mais fracas; as melhores destravam com FAMA */
+function teamLock(k){
+  const order=REAL_TEAMS();                    // forte -> fraca
+  const rankWeak=(order.length-1)-order.indexOf(k);   // 0 = mais fraca
+  const req = rankWeak<5 ? 0 : (rankWeak-4)*8;        // 0,0,0,0,0, 8,16,24,32,40
+  const fame=C.loadMeta().fame||0;
+  return { req, unlocked: fame>=req, fame };
+}
 
 function screenTeams(slot){
-  const cards=REAL_TEAMS().map(k=>{ const t=TEAMS[k], cs=carStats(k), tc=tier(cs.geral);
+  const fame=C.loadMeta().fame||0;
+  const cards=REAL_TEAMS().map(k=>{ const t=TEAMS[k], cs=carStats(k), tc=tier(cs.geral), lk=teamLock(k);
     const drv=driversOf(k).map(d=>`<span class="tmdrv"><i style="background:${ovColor(overall(d))}">${overall(d)}</i>${esc(last(d.nome))}</span>`).join('');
-    return `<button class="teamcard" data-k="${k}" style="--tc:${teamHex(k)}">
+    return `<button class="teamcard ${lk.unlocked?'':'locked'}" data-k="${k}" style="--tc:${teamHex(k)}">
        <span class="tcbar"></span>
        <div class="tcbody">
-         <div class="tch"><b>${esc(t.name)}</b><span class="carov" style="color:${tc.col}">${cs.geral}</span></div>
-         <div class="tctier" style="color:${tc.col}">${tc.txt}</div>
+         <div class="tch"><b>${esc(t.name)}</b>${lk.unlocked?`<span class="carov" style="color:${tc.col}">${cs.geral}</span>`:`<span class="lockb">🔒 ${lk.req} 🏅</span>`}</div>
+         <div class="tctier" style="color:${lk.unlocked?tc.col:'var(--tx2)'}">${lk.unlocked?tc.txt:'bloqueada · precisa de fama'}</div>
          <div class="tmdrvs">${drv}</div>
        </div>
        <span class="tcgo">›</span></button>`; }).join('');
   show(`<div class="scr">
-     <div class="hd"><button class="back" data-a="back">‹</button><h1>Escolha a escudería</h1></div>
-     <p class="sub">Cada escudería tem <b>dois pilotos</b> e um carro. Abra pra ver o carro e os pilotos — depois escolha com quem você quer começar sua jornada de <b>lenda</b>.</p>
+     <div class="hd"><button class="back" data-a="back">‹</button><h1>Escolha a escudería</h1><div class="cashsm">${fame} 🏅</div></div>
+     <p class="sub">Você começa por baixo: só as equipes mais <b>fracas</b> estão liberadas. Ganhe <b>Fama</b> 🏅 terminando temporadas (mais ainda se for campeão) pra atrair as grandes. Toque pra ver o carro e os pilotos.</p>
      <div class="teamlist">${cards}</div></div>`);
   bind({ back:()=>screenSlots('new') });
   app.querySelectorAll('.teamcard').forEach(b=>b.onclick=()=>{ SFX.select(); screenTeamDetail(slot, b.dataset.k); });
 }
 
 function screenTeamDetail(slot, k){
-  const t=TEAMS[k], cs=carStats(k), tc=tier(cs.geral);
+  const t=TEAMS[k], cs=carStats(k), tc=tier(cs.geral), lk=teamLock(k);
   const carRows=[['Potência',cs.potencia],['Aerodinâmica',cs.aero],['Chassi',cs.chassi],['Pneus',cs.pneus]]
     .map(([lb,v])=>`<div class="strow"><span class="snm">${lb}</span>${bar(v,100,`linear-gradient(90deg,${teamHex(k)},#fff6)`)}<span class="slv" style="color:${ovColor(v)}">${v}</span></div>`).join('');
   const drv=driversOf(k).map(d=>{ const ov=overall(d);
-    return `<div class="drvcard" style="--tc:${teamHex(k)}">
+    return `<div class="drvcard ${lk.unlocked?'':'locked'}" style="--tc:${teamHex(k)}">
        <div class="dch"><b>${esc(d.nome)}</b><span class="ov" style="background:${ovColor(ov)}">${ov}</span></div>
        <div class="dcstats">
          <span>Ritmo <b>${d.ritmo}</b></span><span>Corrida <b>${d.corrida}</b></span><span>Ultrap. <b>${d.ultrapassagem}</b></span>
          <span>Defesa <b>${d.defesa}</b></span><span>Chuva <b>${d.chuva}</b></span><span>Exp. <b>${d.experiencia}</b></span>
        </div>
-       <button class="mbtn red pickdrv" data-name="${esc(d.nome)}">▶ Jogar com ${esc(last(d.nome))}</button>
+       ${lk.unlocked?`<button class="mbtn red pickdrv" data-name="${esc(d.nome)}">▶ Jogar com ${esc(last(d.nome))}</button>`:''}
      </div>`; }).join('');
+  const lockBanner = lk.unlocked?'':`<div class="lockbanner">🔒 <b>Equipe bloqueada</b><span>Precisa de ${lk.req} 🏅 de Fama · você tem ${lk.fame}. Ganhe Fama terminando temporadas — comece por uma equipe mais fraca.</span></div>`;
   show(`<div class="scr">
-     <div class="hd"><button class="back" data-a="back">‹</button><h1>${esc(t.name)}</h1><div class="cashsm" style="color:${tc.col}">CARRO ${cs.geral}</div></div>
-     <div class="carprev" style="--tc:${teamHex(k)}"><canvas id="carcanvas"></canvas><span class="cptag">${tc.txt}</span></div>
+     <div class="hd"><button class="back" data-a="back">‹</button><h1>${esc(t.name)}</h1><div class="cashsm" style="color:${lk.unlocked?tc.col:'var(--tx2)'}">CARRO ${cs.geral}</div></div>
+     <div class="carprev ${lk.unlocked?'':'lockprev'}" style="--tc:${teamHex(k)}"><canvas id="carcanvas"></canvas><span class="cptag">${lk.unlocked?tc.txt:'🔒 bloqueada'}</span></div>
+     ${lockBanner}
      <div class="card"><div class="ct">🏎️ CARRO DA EQUIPE</div>${carRows}
        <div class="cpnote">No começo você corre com o carro no nível 1 e evolui ele entre as corridas.</div></div>
      <div class="ct" style="margin:2px 2px 0">👥 PILOTOS</div>
@@ -341,7 +352,8 @@ function endSeason(){
   const champPos=(rows.findIndex(r=>r[0]===s.driver)+1)||20;
   const champ=rows[0]?rows[0][0]:'—';
   const lp=C.legacyReward(champPos);
-  const meta=C.loadMeta(); meta.legacyPts=(meta.legacyPts||0)+lp; C.saveMeta(meta);
+  const fameGain=lp+(champPos===1?6:champPos<=3?3:0);   // fama = reputação (destrava equipes melhores)
+  const meta=C.loadMeta(); meta.legacyPts=(meta.legacyPts||0)+lp; meta.fame=(meta.fame||0)+fameGain; C.saveMeta(meta);
   s.round=0; s.standings={}; C.resetQuali(s); C.saveSlot(cur.slot,s);
   const won=champPos===1;
   show(`<div class="scr center">

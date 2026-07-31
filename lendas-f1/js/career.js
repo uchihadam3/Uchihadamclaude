@@ -37,7 +37,8 @@ export const LEGACY = [
 
 /* ---------- persistência ---------- */
 const KMETA='lf1_meta', KSLOT=i=>'lf1_slot'+i;
-export function loadMeta(){ try{ return JSON.parse(localStorage.getItem(KMETA))||{legacyPts:0,tree:{}}; }catch(e){ return {legacyPts:0,tree:{}}; } }
+export function loadMeta(){ let m; try{ m=JSON.parse(localStorage.getItem(KMETA)); }catch(e){}
+  m=m||{}; if(m.legacyPts==null)m.legacyPts=0; if(!m.tree)m.tree={}; if(m.fame==null)m.fame=0; return m; }
 export function saveMeta(m){ try{ localStorage.setItem(KMETA, JSON.stringify(m)); }catch(e){} }
 export function loadSlot(i){ try{ return JSON.parse(localStorage.getItem(KSLOT(i)))||null; }catch(e){ return null; } }
 export function saveSlot(i,d){ try{ localStorage.setItem(KSLOT(i), JSON.stringify(d)); }catch(e){} }

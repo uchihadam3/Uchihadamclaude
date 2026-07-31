@@ -130,6 +130,15 @@
   .tmdrv{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--tx2)}
   .tmdrv i{font-style:normal;color:#0a0a0a;font-weight:900;font-size:11px;border-radius:6px;padding:2px 6px;min-width:24px;text-align:center}
   .tcgo{font-size:26px;color:var(--tx2);padding:0 14px;flex:none}
+  .teamcard.locked{opacity:.6}
+  .teamcard.locked .tcbar{background:#3a4049;box-shadow:none;filter:grayscale(1)}
+  .teamcard.locked .tmdrv i{filter:grayscale(.7)}
+  .lockb{font-size:13px;font-weight:900;color:var(--gold);white-space:nowrap}
+  .lockbanner{display:flex;flex-direction:column;gap:2px;background:linear-gradient(120deg,#2a2010,#1a1408);
+    border:1px solid rgba(255,204,34,.28);border-radius:13px;padding:12px 14px;font-size:13px}
+  .lockbanner b{color:var(--gold);font-size:15px} .lockbanner span{color:var(--tx2);font-size:12px;font-weight:600;line-height:1.5}
+  .carprev.lockprev #carcanvas{filter:grayscale(.85) brightness(.7)}
+  .drvcard.locked{opacity:.72}
   /* preview 3D do carro */
   .carprev{position:relative;height:184px;border-radius:16px;overflow:hidden;border:1px solid var(--line);
     background:radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--tc) 22%, #0e1319) 0%, #0a0e14 70%)}
