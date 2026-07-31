@@ -11,6 +11,7 @@ import { computeLine, buildField, updateField, RACE, TIRES, setWeather, WEATHERS
 import { buildTrack } from './track.js';
 import { CIRCUITS, CIRCUIT_LIST } from './circuits-data.js';
 import { F1Audio } from './audio.js';
+import { SampleEngine } from './audio-sample.js';
 
 /* ---------- MODO CARREIRA (config vinda do menu via sessionStorage) ---------- */
 let CAREER=null;
@@ -119,7 +120,9 @@ function rpmFor(kmh){
   const rpm = g===0 ? (3500 + frac*11500) : (10800 + frac*4200);
   return { rpm, gear: g+1 };
 }
-const audio=new F1Audio();
+const audio=new F1Audio();                 // síntese (instantâneo, fallback)
+const engine=new SampleEngine();           // SAMPLE REAL (gravação de F1) — assume quando carrega
+let synthMuted=false;
 let audioOn=false, shakeX=0, shakeY=0;
 const halfW=track.half;
 
@@ -338,9 +341,16 @@ function frame(){
 
   const curMode=updateCamera(dt, spd01, onKerb);
 
-  // ---- SOM do motor (carro em foco) ----
+  // ---- SOM do motor (carro em foco) — sample real assume quando pronto ----
   const {rpm,gear}=rpmFor(kmh);
-  if(audioOn) audio.update(rpm, throttle, kmh, onKerb, dt, gear);
+  if(audioOn){
+    if(engine.ready){
+      if(!synthMuted){ try{ audio.master.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.25); }catch(e){} synthMuted=true; }
+      engine.update(rpm, throttle, kmh, onKerb, dt, gear);
+    } else {
+      audio.update(rpm, throttle, kmh, onKerb, dt, gear);
+    }
+  }
 
   // sol acompanha o foco
   sun.position.set(focusPos.x+120, 300, focusPos.z+90);
@@ -404,6 +414,7 @@ addEventListener('keydown', e=>{ if(e.key==='c'||e.key==='C') cycleCam(); });
 /* ---------- botão de som (autoplay exige gesto) ---------- */
 const startBtn=document.getElementById('sound');
 function enableAudio(){ try{ audio.start(); audioOn=true; }catch(e){}
+  engine.start().catch(()=>{});   // carrega o sample real; assume quando pronto
   if(startBtn) startBtn.classList.add('hide'); }
 if(startBtn) startBtn.addEventListener('click', enableAudio);
 addEventListener('pointerdown', enableAudio, {once:true});
@@ -480,7 +491,7 @@ function renderRace(){
 if(fichaBtn){ fichaBtn.addEventListener('click', ()=>{ renderFicha(); fichaPanel.classList.remove('hide'); }); }
 fichaPanel.addEventListener('click', e=>{ if(e.target===fichaPanel) fichaPanel.classList.add('hide'); });
 
-window.__f1={scene,camera,get car(){return focus.g;},track,renderer}; window.__audio=audio; window.__setTeam=setTeam;
+window.__f1={scene,camera,get car(){return focus.g;},track,renderer}; window.__audio=audio; window.__engine=engine; window.__setTeam=setTeam;
 window.__cars=cars; window.__line=line; window.__RACE=RACE;
 Object.defineProperty(window,'__rt',{get:()=>raceTime}); Object.defineProperty(window,'__started',{get:()=>started});
 window.__forceStart=()=>{ started=true; for(const c of cars) c.launchStart=raceTime+c.reaction; };
