@@ -5054,14 +5054,17 @@ export class Game {
         if (k !== "down")
           this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 3, 3, 0.12, floorMat, 1, 1);
         // TETO BAIXO quase liso (masmorra fechada) — relevo suave p/ não descer na
-        // cara do jogador com o pé-direito reduzido.
-        this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 0.5, ceilMat, 1, 1);
+        // cara do jogador com o pé-direito reduzido. A escada de DESCIDA ('down') faz o
+        // SEU próprio teto em rampa (o vão que desce), então aqui não desenha.
+        if (k !== "down")
+          this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 0.5, ceilMat, 1, 1);
         // paredes de ROCHA com relevo
         for (const [dc, dr] of DIRS) {
           const nk = dungeonCell(c + dc, r + dr);
-          // a face NORTE da escada de volta (U) é da buildReturnStairs (arco + degraus
-          // recuados na parede) — não renderiza parede/tocha comum aqui.
+          // a face NORTE das escadas (U de volta E D de descida) é feita pela escada
+          // embutida (arco + degraus na parede) — não renderiza parede/tocha comum aqui.
           if (k === "stairs" && dc === 0 && dr === -1) continue;
+          if (k === "down" && dc === 0 && dr === -1) continue;
           const isRock = nk === "wall";
           const illus = secret && nk !== "secret" && isCorr(c + dc, r + dr);
           if (isRock || illus) {
@@ -5094,8 +5097,10 @@ export class Game {
         } else if (k === "chest") {
           this.buildChestBillboard(cx, cz, c, r); this.blocked.add(`${c},${r}`);
         } else if (k === "down") {
-          this.buildDownStairs(cx, cz, rockMat);
-          this.blocked.add(`${c},${r}`); // não pisa no poço; interage de frente
+          // a escadaria de descida (embutida na parede NORTE) é montada fora do laço,
+          // via buildDescentStairs(dungeonFind("D")). Aqui só barra a célula: o jogador
+          // encara a boca da escada de frente (pelo sul) e desce.
+          this.blocked.add(`${c},${r}`);
         }
       }
 
@@ -5123,6 +5128,7 @@ export class Game {
         for (const [dc, dr] of DIRS) {
           if (dungeonCell(c + dc, r + dr) !== "wall") continue;   // só onde há FACE de parede
           if (k === "stairs" && dc === 0 && dr === -1) continue;  // face do arco da escada U
+          if (k === "down" && dc === 0 && dr === -1) continue;    // face da boca da escada D
           const fx = cx + dc * HALF, fz = cz + dr * HALF;         // plano da face
           // recuo pra encostar na parede (projeta OUT pra dentro do corredor)
           const rx = fx - dc * (DEPTH / 2 - OUT), rz = fz - dr * (DEPTH / 2 - OUT);
@@ -5229,6 +5235,12 @@ export class Game {
     // — deixa claro que dali se volta ao vilarejo.
     this.buildReturnStairs(dungeonFind("U"), rockMat, CH);
 
+    // ESCADARIA DE DESCIDA (D): escada de pedra DESCENDO, embutida na parede NORTE
+    // (igual à entrada da masmorra no vilarejo) — tochas na boca + treva fria lá no
+    // fundo. Leva ao próximo andar. Pode não existir (o andar do chefe não tem).
+    for (const d of dungeonAll("D"))
+      this.buildDescentStairs(d, rockMat, ceilMat, CH);
+
     // cenografia: salas temáticas (cripta/caverna fúngica) + destroços
     this.buildDungeonDressing(CH);
 
@@ -5246,42 +5258,79 @@ export class Game {
     });
   }
 
-  // ESCADA DE DESCIDA ('D'): um POÇO quadrado no chão da sala, com degraus descendo
-  // pro escuro (rumo ao próximo andar) e um brilho FRIO subindo. Fica no meio da sala
-  // (não é embutida na parede como a de subida). O jogador pisa/encara e desce.
-  private buildDownStairs(cx: number, cz: number, rockMat: THREE.Material) {
-    const HALF = CELL / 2, DEPTH = 2.8;
-    const pitMat = new THREE.MeshLambertMaterial({ color: 0x0b0d11 });
-    // 4 paredes do poço (descem no breu)
-    for (const [dc, dr] of DIRS) {
-      const wall = new THREE.Mesh(new THREE.PlaneGeometry(CELL, DEPTH), pitMat);
-      wall.position.set(cx + dc * HALF, -DEPTH / 2, cz + dr * HALF);
-      if (dc === 1) wall.rotation.y = -Math.PI / 2;
-      else if (dc === -1) wall.rotation.y = Math.PI / 2;
-      else if (dr === 1) wall.rotation.y = Math.PI;
-      this.world.add(wall);
+  // ESCADARIA DE DESCIDA ('D'): degraus de PEDRA descendo, EMBUTIDOS na parede NORTE
+  // (mesma leitura da entrada da masmorra no vilarejo) — teto/paredes em rampa que
+  // descem, tochas quentes flanqueando a boca e treva FRIA lá no fundo (o próximo
+  // andar). O jogador encara a boca pelo sul e desce.
+  private buildDescentStairs(
+    cell: { col: number; row: number },
+    rockMat: THREE.Material, ceilMat: THREE.Material, CH: number,
+  ) {
+    const c = cell.col, r = cell.row, cx = c * CELL, cz = r * CELL;
+    const N = 6, stepH = 0.55, stepD = CELL / N, HW = CELL / 2;
+    const zSouth = cz + HW;          // BOCA (sul), onde o jogador encara
+    const zEnd = zSouth - CELL;      // fundo (norte), dentro da parede
+    const H = CH, bottomY = -N * stepH;
+    const stoneMap = (rockMat as THREE.MeshStandardMaterial).map ?? undefined;
+    const ceilMap = (ceilMat as THREE.MeshStandardMaterial).map ?? undefined;
+    const rock = (map: THREE.Texture | undefined) =>
+      new THREE.MeshLambertMaterial({ map, side: THREE.DoubleSide, emissive: new THREE.Color(0x14130f) });
+    const S = 2.6;
+    const quad = (a: number[], b: number[], c2: number[], d: number[], mat: THREE.Material, uv: number[][]) => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute([...a, ...b, ...c2, ...a, ...c2, ...d], 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute([...uv[0], ...uv[1], ...uv[2], ...uv[0], ...uv[2], ...uv[3]], 2));
+      g.computeVertexNormals();
+      this.world.add(new THREE.Mesh(g, mat));
+    };
+    // TETO em rampa reta descendo (H na boca → mais baixo no fundo)
+    const yCeil = (z: number) => H + bottomY * ((zSouth - z) / CELL);
+    quad(
+      [cx - HW, H, zSouth], [cx + HW, H, zSouth],
+      [cx + HW, yCeil(zEnd), zEnd], [cx - HW, yCeil(zEnd), zEnd], rock(ceilMap),
+      [[0, 0], [CELL / S, 0], [CELL / S, CELL / S], [0, CELL / S]],
+    );
+    // PAREDES laterais (topo acompanha o teto; base no fundo) — "a parede descendo"
+    for (const s of [-1, 1]) {
+      const x = cx + s * HW;
+      quad(
+        [x, H, zSouth], [x, yCeil(zEnd), zEnd], [x, bottomY, zEnd], [x, bottomY, zSouth], rock(stoneMap),
+        [[0, (H - bottomY) / S], [CELL / S, (yCeil(zEnd) - bottomY) / S], [CELL / S, 0], [0, 0]],
+      );
     }
-    // fundo bem escuro
-    const bottom = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), new THREE.MeshBasicMaterial({ color: 0x05070a }));
-    bottom.rotation.x = -Math.PI / 2; bottom.position.set(cx, -DEPTH + 0.02, cz); this.world.add(bottom);
-    // DEGRAUS descendo do lado NORTE p/ o centro (piso + espelho), sumindo no escuro
-    const N = 6, stepH = 0.32, stepD = 0.42, wStep = CELL * 0.66;
+    // preenchimento escuro sob a escadaria (não vaza o fundo em ângulos rasos)
+    const fill = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.04, 0.4, CELL), new THREE.MeshBasicMaterial({ color: 0x060505 }));
+    fill.position.set(cx, bottomY - 0.2, (zSouth + zEnd) / 2); this.world.add(fill);
+    // DEGRAUS só no chão, cascateando pro escuro (emissivo esfria descendo)
+    const noseMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0c });
     for (let i = 0; i < N; i++) {
-      const y = -(i + 1) * stepH;
-      const z = cz - HALF + 0.35 + i * stepD;
-      const tread = new THREE.Mesh(new THREE.BoxGeometry(wStep, 0.1, stepD), rockMat);
-      tread.position.set(cx, y, z); this.world.add(tread);
-      const riser = new THREE.Mesh(new THREE.BoxGeometry(wStep, stepH, 0.08), rockMat);
-      riser.position.set(cx, y + stepH / 2, z - stepD / 2); this.world.add(riser);
+      const yTop = -i * stepH, zc = zSouth - (i + 0.5) * stepD, t = 1 - i / N;
+      const em = new THREE.Color(0x0b0908).lerp(new THREE.Color(0x5f7482), Math.pow(t, 0.5));
+      const step = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.04, stepH + 0.02, stepD + 0.02), new THREE.MeshLambertMaterial({ map: stoneMap, emissive: em }));
+      step.position.set(cx, yTop - stepH / 2, zc); this.world.add(step);
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(CELL - 0.02, 0.06, 0.07), noseMat);
+      nose.position.set(cx, yTop, zc + stepD / 2); this.world.add(nose);
     }
-    // borda de pedra (lábio do poço) nas 4 quinas — moldura discreta
-    const lip = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.16, CELL), rockMat);
-    lip.position.set(cx, 0.08, cz); this.world.add(lip);
-    // "buraco" por cima do lábio (some o topo do lábio pra ver o poço)
-    const hole = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 0.82, CELL * 0.82), new THREE.MeshBasicMaterial({ color: 0x05070a }));
-    hole.rotation.x = -Math.PI / 2; hole.position.set(cx, 0.17, cz); this.world.add(hole);
-    // brilho FRIO subindo do poço (≠ do calor da escada de subida)
-    this.glowLight(cx, -0.4, cz, 0x5fb4e6, 2.6, 8);
+    // PAREDE do fundo, na treva total
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(CELL, H), new THREE.MeshBasicMaterial({ color: 0x04060a }));
+    back.position.set(cx, bottomY + H / 2, zEnd + 0.03); this.world.add(back);
+    // TOCHAS quentes flanqueando a boca (poste + chama + luz tremeluzente)
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffb24a });
+    const postMat = new THREE.MeshLambertMaterial({ color: 0x2a1c10 });
+    for (const s of [-1, 1]) {
+      const px = cx + s * (HW - 0.28), pz = zSouth - 0.25;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 8), postMat);
+      post.position.set(px, 1.9, pz); this.world.add(post);
+      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 10), flameMat);
+      flame.position.set(px, 2.5, pz); this.world.add(flame);
+      const light = new THREE.PointLight(0xffb055, 4.2, 10, 2);
+      light.position.set(px, 2.3, pz); this.world.add(light);
+      this.flames.push({ light, base: 4.2 });
+    }
+    // luz baixa raspando os primeiros degraus + brilho FRIO subindo do próximo andar
+    const g2 = new THREE.PointLight(0xffb060, 3.6, 7, 2);
+    g2.position.set(cx, -0.5, zSouth - 1.6); this.world.add(g2);
+    this.glowLight(cx, bottomY + 0.6, zEnd + 0.6, 0x5fb4e6, 2.6, 8);
   }
 
   // ESCADARIA embutida na PAREDE (mesma construção da escada de volta): um vão em ARCO
@@ -7305,10 +7354,11 @@ export class Game {
       this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
       this.enterLocation("dungeon", p.col, p.row, p.facing);
     } else if (t.kind === "ascend") {
-      // escada 'U' num andar 2/3 → sobe um andar; surge à frente da escada de DESCIDA (D)
+      // escada 'U' num andar 2/3 → sobe um andar; surge À FRENTE (ao SUL) da escada de
+      // DESCIDA (D), que agora fica embutida na parede norte — encarando a boca dela.
       this.dungeonFloor = Math.max(0, this.dungeonFloor - 1);
       setDungeonFloor(this.dungeonFloor);
-      const p = this.dungeonEntryAt("D", [0, -1]);
+      const p = this.dungeonEntryAt("D", [0, 1]);
       this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
       this.enterLocation("dungeon", p.col, p.row, p.facing);
     } else if (t.kind === "gate") {
