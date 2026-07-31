@@ -1,5 +1,6 @@
 import { Game } from "./game/Game";
 import { runIntro } from "./game/screens";
+import { backend as saveBackend } from "./game/save";
 
 // build tag: efeito colateral real (não é removido pelo tree-shaking) p/ gerar
 // um nome de bundle NOVO e furar o cache do CDN/navegador.
@@ -17,7 +18,19 @@ if (qs.has("show")) {
   // BYPASS de teste: entra direto como Mago, sem a intro
   new Game(app, { name: "Test", classId: "mago" });
 } else {
-  runIntro(app).then((character) => {
-    new Game(app, character);
+  // BOOT normal: se existe um save no último slot jogado, CONTINUA (sem intro);
+  // senão, roda a criação de personagem e liga o novo herói ao slot 0.
+  // (a tela de SELEÇÃO de personagem com os 3 slots vem no próximo passo)
+  const slot = saveBackend.lastSlot() ?? 0;
+  saveBackend.load(slot).then((save) => {
+    if (save) {
+      const g = new Game(app, { name: save.name, classId: save.classId, attr: save.baseAttr }, "load");
+      g.loadSave(save);
+    } else {
+      runIntro(app).then((character) => {
+        const g = new Game(app, character);
+        g.startNewCharacter(0);
+      });
+    }
   });
 }

@@ -155,6 +155,11 @@ export interface ItemInstance {
 
 let UID = 0;
 export function resetItemUid() { UID = 0; }
+// ao CARREGAR um save: empurra o contador p/ além dos uids já existentes, senão itens
+// novos colidiriam com os salvos ("it7" duplicado). Aceita uids no formato "it<N>".
+export function reserveItemUid(uids: string[]): void {
+  for (const u of uids) { const n = Number(String(u).replace(/^it/, "")); if (Number.isFinite(n) && n > UID) UID = n; }
+}
 
 function randInt(lo: number, hi: number, rng: () => number) { return lo + Math.floor(rng() * (hi - lo + 1)); }
 function weightedRarity(rng: () => number): Rarity {

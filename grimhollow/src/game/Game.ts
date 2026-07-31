@@ -254,7 +254,8 @@ import fxLNuvemUrl from "../assets/ui/fx/fx_l_nuvem.png";
 import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
 import { WEAPONS, WEAPON_BY_ID, type Weapon } from "./weapons";
-import { generateArmor, sumBonuses, itemTotal, RARITY_BY_KEY, AFFIXES, ARMOR_SLOTS, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus, type AffixKey } from "./items";
+import { generateArmor, sumBonuses, itemTotal, RARITY_BY_KEY, AFFIXES, ARMOR_SLOTS, reserveItemUid, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus, type AffixKey } from "./items";
+import { backend as saveBackend, type CharacterSave } from "./save";
 import coinDropUrl from "../assets/ui/coin.png";
 import { CLASS_BY_ID, type Character } from "./classes";
 import {
@@ -1311,6 +1312,12 @@ export class Game {
   private currentWeapon: Weapon | null = null; // arma equipada na mão principal
   private playerName = "Herói"; // nome escolhido na criação
   private classId = "guerreiro"; // classe escolhida na criação
+  // ---- SAVE (persistência) ----
+  private saveSlot = 0;                 // slot de personagem ativo (0..2)
+  private saveCreatedAt = 0;            // quando o personagem foi criado
+  private saveTimer = 0;                // debounce do auto-save
+  private saveReady = false;            // só grava depois que o personagem foi ligado ao slot
+  private lastSaveAt = 0;               // p/ garantir gravação periódica em sessão longa
   // inimigos billboard (com IA) — vários por mapa
   private enemies: EnemyEnt[] = [];
   // tocha que acompanha o jogador (ilumina o entorno imediato na masmorra)
@@ -1522,6 +1529,13 @@ export class Game {
       // acesso direto à sala-vitrine (?show=1); "sair" volta ao vilarejo
       this.returnTo = { col: start.col, row: start.row, facing: 0 };
       this.enterLocation("showcase", 0, 0, 0);
+    } else if (this.startAt === "load") {
+      // PERSONAGEM CARREGADO (save): sem a intro de despertar — cai direto na praça,
+      // com o HUD já visível. O caller chama loadSave() logo após construir.
+      const hd = HOME_DOORS.find((h) => h.id === "hedda")!;
+      this.returnTo = { col: hd.c + hd.dc, row: hd.r + hd.dr, facing: 1 };
+      this.enterLocation("village", start.col, start.row, 0);
+      this.ui.hudReveal();
     } else {
       // ABERTURA: o forasteiro DESPERTA na casa da matriarca Hedda, que o acolheu
       // da névoa. Ao sair, cai na praça, em frente à casa dela.
@@ -1568,6 +1582,7 @@ export class Game {
     facing: number,
   ) {
     this.clearWorld();
+    this.scheduleSave(); // troca de cenário é um bom checkpoint p/ o auto-save
     // fora da masmorra o "andar atual" volta ao 1º (a lógica de missão lê células
     // 'L'/'A' do 1º andar a partir do vilarejo — não pode ficar num andar antigo).
     if (loc !== "dungeon") { this.dungeonFloor = 0; setDungeonFloor(0); }
@@ -3327,6 +3342,77 @@ export class Game {
       if (it) armor[s] = { icon: it.fitIcon, rarity: it.rarity, tip: this.armorTip(it, "unequip") };
     }
     this.ui.setEquip({ bag, armor });
+    this.scheduleSave(); // inventário/equipamento mudou → agenda auto-save
+  }
+
+  // ===================== SAVE / PERSISTÊNCIA =====================
+  // captura TODO o estado do personagem num blob JSON (o backend serializa).
+  private serialize(): CharacterSave {
+    return {
+      v: 1, slot: this.saveSlot,
+      name: this.playerName, classId: this.classId,
+      createdAt: this.saveCreatedAt, savedAt: Date.now(),
+      level: this.stats.level, xp: this.stats.xp, xpMax: this.stats.xpMax, gold: this.stats.gold,
+      prim: { ...this.prim }, baseAttr: { ...this.baseAttr }, unspent: this.unspent,
+      hp: Math.round(this.playerHp), mp: Math.round(this.playerMp),
+      armorInv: this.armorInv, equippedArmor: this.equippedArmor,
+      ownedWeapons: [...this.ownedWeapons], currentWeapon: this.currentWeapon?.id ?? null,
+      reinforce: { ...this.reinforce }, consumables: { ...this.consumables }, materials: { ...this.materials },
+      skillRanks: { ...this.skillRanks },
+      mainQuests: this.mainQuests, quests: this.quests, stash: this.stash,
+    };
+  }
+
+  // restaura o personagem a partir de um save (chamado logo após construir com "load").
+  public loadSave(s: CharacterSave): void {
+    this.saveSlot = s.slot; this.saveCreatedAt = s.createdAt || Date.now();
+    this.playerName = s.name; this.classId = s.classId;
+    const cls = CLASS_BY_ID[s.classId] ?? CLASS_BY_ID.guerreiro;
+    this.clsHp = cls.hp; this.clsMp = cls.mp;
+    this.prim = { ...s.prim }; this.baseAttr = { ...s.baseAttr }; this.unspent = s.unspent ?? 0;
+    this.stats.level = s.level; this.stats.xp = s.xp; this.stats.xpMax = s.xpMax; this.stats.gold = s.gold;
+    this.armorInv = s.armorInv ?? []; this.equippedArmor = s.equippedArmor ?? {};
+    this.ownedWeapons = s.ownedWeapons ?? []; this.reinforce = s.reinforce ?? {};
+    this.consumables = s.consumables ?? {};
+    this.materials = { ...this.materials, ...(s.materials ?? {}) } as typeof this.materials;
+    this.skillRanks = s.skillRanks ?? {};
+    if (s.mainQuests) this.mainQuests = s.mainQuests as typeof this.mainQuests;
+    if (s.quests) this.quests = s.quests as typeof this.quests;
+    if (s.stash) this.stash = s.stash;
+    this.currentWeapon = s.currentWeapon ? (WEAPON_BY_ID[s.currentWeapon] ?? null) : null;
+    // empurra o contador de uid dos itens p/ não colidir com os salvos
+    reserveItemUid([...this.armorInv, ...Object.values(this.equippedArmor)]
+      .filter(Boolean).map((it) => (it as ItemInstance).uid));
+    // recalcula passivas + derivados (usa prim/skills/equipamento restaurados)
+    this.applyPassives(this.skillRanks);
+    this.recomputeDerived();
+    this.playerHp = Math.max(1, Math.min(this.playerMaxHp, s.hp || this.playerMaxHp));
+    this.playerMp = Math.max(0, Math.min(this.playerMaxMp, s.mp ?? this.playerMaxMp));
+    this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
+    this.ui.setMana(this.playerMp / this.playerMaxMp, this.playerMp, this.playerMaxMp);
+    this.refreshStats(); this.pushEquipUI();
+    this.ui.setSkillInfo(this.classId, skillPointsFor(this.stats.level));
+    this.saveReady = true; // a partir daqui o auto-save pode gravar
+  }
+
+  // liga um personagem NOVO (recém-criado) a um slot e grava o estado inicial.
+  public startNewCharacter(slot: number): void {
+    this.saveSlot = slot; this.saveCreatedAt = Date.now(); this.saveReady = true;
+    void this.saveNow();
+  }
+
+  private scheduleSave(): void {
+    if (!this.saveReady) return; // não grava durante criação/carregamento nem em ?test
+    // em combate o refreshStats dispara sem parar; o debounce só grava quando assenta,
+    // mas um teto de 20s garante que sessão longa não fique sem salvar.
+    if (Date.now() - this.lastSaveAt > 20000) { void this.saveNow(); return; }
+    if (this.saveTimer) window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => { this.saveTimer = 0; void this.saveNow(); }, 1200);
+  }
+  private async saveNow(): Promise<void> {
+    if (!this.saveReady) return;
+    this.lastSaveAt = Date.now();
+    try { await saveBackend.save(this.serialize()); } catch { /* cota/rede: ignora */ }
   }
 
   // rola o dano de um golpe: base × passivas(%) × buff, com chance de CRÍTICO
@@ -4053,6 +4139,7 @@ export class Game {
       regen: this.sec.regen,
       classId: this.classId,
     });
+    this.scheduleSave(); // nível/xp/ouro/atributos mudaram → agenda auto-save
   }
 
   // aplica dano ao jogador (o esqueleto revidou). kind: "phys" (golpe/flecha) mitiga
