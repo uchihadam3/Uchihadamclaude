@@ -5852,11 +5852,18 @@ export class Game {
   // KITE (arqueiro/cultista): muito perto → recua; longe/sem visão → aproxima;
   // na distância boa → segura posição e atira.
   private enemyKiteStep(e: EnemyEnt, now: number, dist: number) {
-    // recua SÓ quando o herói chega bem perto (2 células) — nada de ficar correndo o
-    // tempo todo p/ manter distância. Na maior parte segura a posição e atira.
-    if (dist <= 2) this.enemyFleeStep(e, now);                          // colado: dá um passo p/ trás
-    else if (dist > e.range || !this.enemyCanSee(e)) this.enemyChaseStep(e, now); // longe/sem visão: aproxima devagar
-    else e.nextMove = now + 900;                                        // posição boa: segura mais tempo e dispara
+    // ATIRADOR PLANTADO: fica parado atirando e reposiciona POUCO. Só dá um passo p/
+    // trás quando o herói COLA (adjacente), e mesmo assim raramente — a chance de errar
+    // já vem da EVASÃO/PRECISÃO. Antes ele fugia a 2 células toda hora e o herói nunca
+    // conseguia encostar (pior no celular).
+    if (dist <= 1) {
+      if (Math.random() < 0.32) this.enemyFleeStep(e, now); // colado: recua de vez em quando
+      else e.nextMove = now + 800;                          // senão segura e dispara de perto
+    } else if (dist > e.range || !this.enemyCanSee(e)) {
+      this.enemyChaseStep(e, now);                          // longe/sem visão: aproxima devagar
+    } else {
+      e.nextMove = now + 1400;                              // boa distância: segura BEM (atira ~2× antes de mover)
+    }
   }
   // CASTER (cultista): magia de longe, mas quando o herói CHEGA PERTO ele tende a
   // colar p/ usar a adaga (melee). Nunca foge — troca o orbe pela lâmina de perto.
@@ -5865,10 +5872,10 @@ export class Game {
     if (dist <= 2) {
       // perto: boa chance de COLAR p/ golpear com a adaga (senão segura e conjura)
       if (dist === 2 && Math.random() < 0.6) { this.enemyChaseStep(e, now); return; }
-      e.nextMove = now + 700; // segura: adjacente = adaga; a 2 células = orbe
+      e.nextMove = now + 850; // segura: adjacente = adaga; a 2 células = orbe
       return;
     }
-    e.nextMove = now + 900; // distância confortável: segura e conjura
+    e.nextMove = now + 1150; // distância confortável: segura mais tempo e conjura (menos jitter)
   }
   // patrulha: vagueia devagar perto do ponto de spawn (raio 2)
   private enemyPatrolStep(e: EnemyEnt, now: number) {
@@ -9040,7 +9047,10 @@ export class Game {
         if (!e.aggro) {
           this.enemyPatrolStep(e, now);
         } else if (e.ai === "flee_low" && e.hp <= e.maxHp * 0.35) {
-          this.enemyFleeStep(e, now);              // rato acuado foge
+          // rato acuado: só um ESPASMO de fuga de vez em quando; senão VOLTA pra cima
+          // do herói (antes ele fugia sem parar e não dava p/ alcançar).
+          if (Math.random() < 0.35) this.enemyFleeStep(e, now);
+          else this.enemyChaseStep(e, now);
         } else if (e.ai === "kite" && e.ranged) {
           this.enemyKiteStep(e, now, distCells);   // arqueiro: mantém distância p/ atirar
         } else if (e.ai === "caster" && e.ranged) {
