@@ -189,19 +189,22 @@ const ENEMY_TYPES: Record<string, {
   ranged?: boolean; melee?: boolean; range?: number; proj?: string; ai?: string; spd?: number;
   tier?: "normal" | "mini" | "boss";
 }> = {
+  // BALANCE (Difícil): atk calibrado p/ a mitigação por Defesa/Res.Mág. — o tanque
+  // amortece bem, os frágeis precisam esquivar/kitar. rato/aranha são a introdução leve.
   rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7, ai: "flee_low", spd: 600 },
   aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0, ai: "chase", spd: 660 },
-  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 10, xp: 22, gold: 6,  vision: 5, h: 2.6, ai: "chase", spd: 780 },
+  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 11, xp: 22, gold: 6,  vision: 5, h: 2.6, ai: "chase", spd: 780 },
   // arqueiro: SÓ à distância (flecha). cultista: distância (orbe) E melee (adaga). Ambos "kite".
   // arqueiro anda BEM devagar (não fica correndo p/ manter distância) — spd alto.
-  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 9,  xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
-  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 14, xp: 32, gold: 9,  vision: 4, h: 2.8, ai: "relentless", spd: 900, tier: "mini" },
+  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 10, xp: 24, gold: 7,  vision: 7, h: 2.6, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
+  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 16, xp: 32, gold: 9,  vision: 4, h: 2.8, ai: "relentless", spd: 900, tier: "mini" },
   // cultista: conjura de longe, mas COLA no herói p/ usar a adaga quando ele chega
   // perto (ai "caster"). Velocidade parecida com a do arqueiro.
-  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
+  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 14, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
   // CHEFE do 3º andar: grandão, muito HP/dano, IMPLACÁVEL. Visão LONGA (enxerga o
   // herói de dentro do breu) e AVANÇA rápido (charge agressivo). Recompensa gorda.
-  boss:      { art: enemyBossUrl,     hp: 260, atk: 26, xp: 320, gold: 150, vision: 13, h: 4.4, ai: "relentless", spd: 700, tier: "boss" },
+  // HP alto p/ uma luta longa e "aprende o padrão"; dano punitivo (Difícil).
+  boss:      { art: enemyBossUrl,     hp: 320, atk: 30, xp: 340, gold: 150, vision: 13, h: 4.4, ai: "relentless", spd: 700, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -3949,16 +3952,21 @@ export class Game {
     });
   }
 
-  // aplica dano ao jogador (o esqueleto revidou)
-  private damagePlayer(n: number) {
+  // aplica dano ao jogador (o esqueleto revidou). kind: "phys" (golpe/flecha) mitiga
+  // pela DEFESA; "mag" (orbe/magia) mitiga pela RESISTÊNCIA MÁGICA.
+  private damagePlayer(n: number, kind: "phys" | "mag" = "phys") {
     if (this.playerHp <= 0) return;
     // EVASÃO (talento/atributo): chance de ESQUIVAR o golpe por completo
     if (this.sec.evasion > 0 && Math.random() * 100 < this.sec.evasion) {
       this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.54, "Esquiva!", "heal");
       return;
     }
-    // buffs defensivos reduzem o dano recebido; a defesa amortece um pouco
-    let reduced = n * (1 - this.buffDefReduc());
+    // MITIGAÇÃO por armadura: Defesa (físico) ou Resistência Mágica (mágico), com
+    // retornos DECRESCENTES (armor/(armor+30), teto 72%) — recompensa equipamento e
+    // builds resistentes sem nunca zerar o dano. Some com os buffs defensivos temporários.
+    const armor = kind === "mag" ? this.sec.magRes : this.sec.def;
+    const mitigation = Math.min(0.72, armor / (armor + 30));
+    let reduced = n * (1 - mitigation) * (1 - this.buffDefReduc());
     // BLOQUEIO (talento): chance de aparar metade do golpe
     if (Math.random() < (this.passive.block ?? 0)) reduced *= 0.5;
     const taken = Math.max(1, Math.round(reduced));
@@ -5845,7 +5853,9 @@ export class Game {
       const p = this.enemyBolts[i];
       const t = (now - p.t0) / p.dur;
       if (t >= 1) {
-        if (Math.hypot(cx - p.tx, cz - p.tz) < CELL * 1.3) this.damagePlayer(p.dmg);
+        // flecha = dano FÍSICO (Defesa); orbe/magia = dano MÁGICO (Resistência Mágica)
+        if (Math.hypot(cx - p.tx, cz - p.tz) < CELL * 1.3)
+          this.damagePlayer(p.dmg, p.kind === "orb" ? "mag" : "phys");
         this.spawnPoof(p.tx, p.tz); // clarão de impacto (reaproveita o poof)
         this.world.remove(p.spr); (p.spr.material as THREE.SpriteMaterial).dispose();
         this.enemyBolts.splice(i, 1);
