@@ -1875,6 +1875,16 @@ export function setupControls(
   const HB_X = [13.81, 24.15, 34.49, 44.83, 55.22, 65.51, 75.85, 86.19];
   const HB_Y = 46.5; // centro vertical dos sockets (%)
   const HB_SKILLS = 6; // slots 0..5 = habilidades
+  // MOBILE (toque): a hotbar vira uma GRADE 2×3 de medalhões no canto inf. direito,
+  // acima do ataque, em vez da barra reta do PC. slotPos devolve o centro (%) do
+  // slot i no layout atual. GRID_X = 2 colunas, GRID_Y = 3 linhas (% da caixa mobile).
+  const coarse = window.matchMedia("(pointer: coarse)");
+  const hbMobile = () => coarse.matches;
+  const GRID_X = [28, 72];
+  const GRID_Y = [17, 50, 83];
+  const slotPos = (i: number) => hbMobile()
+    ? { x: GRID_X[i % 2], y: GRID_Y[Math.floor(i / 2)] }
+    : { x: HB_X[i], y: HB_Y };
   const hotbar = document.createElement("div");
   hotbar.id = "gh-hotbar";
   hotbar.innerHTML =
@@ -1916,14 +1926,18 @@ export function setupControls(
   const tray = document.createElement("div");
   tray.id = "gh-tray";
   hotbar.appendChild(tray);
+  let lastConsum: ConsumSlot[] = [];
   const renderTray = (items: ConsumSlot[]) => {
+    lastConsum = items;
     if (!items.length) { tray.innerHTML = ""; return; }
-    // ocupa os slots da direita (6,7): último item no 7, penúltimo no 6…
+    const mobile = hbMobile();
+    // DESKTOP: itens ocupam os slots 6,7 da barra (por % sobre os sockets).
+    // MOBILE: itens ficam FIXOS no canto inf. ESQUERDO (acima do D-pad).
     tray.innerHTML = items.slice(0, 2).map((it, i) => {
-      const slot = HB_SKILLS + i; // 6, 7
-      const x = HB_X[slot];
-      return `<button class="gh-tray-slot" data-id="${it.id}" title="${it.name}" ` +
-        `style="left:${x}%;top:${HB_Y}%">` +
+      const style = mobile
+        ? `style="left:${18 + i * 52}px;bottom:150px;top:auto"`
+        : `style="left:${HB_X[HB_SKILLS + i]}%;top:${HB_Y}%"`;
+      return `<button class="gh-tray-slot" data-id="${it.id}" title="${it.name}" ${style}>` +
         (it.iconUrl ? `<img class="gh-tray-img" src="${it.iconUrl}" alt=""/>` : `<span class="gh-tray-emo">${it.icon}</span>`) +
         `<span class="gh-tray-cnt">${it.count}</span></button>`;
     }).join("");
@@ -1933,6 +1947,9 @@ export function setupControls(
     });
   };
   renderTray([]);
+  // re-desenha a hotbar quando o tipo de ponteiro muda (ex.: DevTools alterna
+  // "touch"), pra trocar entre barra reta (PC) e grade 2×3 (mobile) na hora.
+  coarse.addEventListener("change", () => { drawActionBar(); renderTray(lastConsum); });
 
   // ---- TAVERNA: janela de descanso + bebidas + missões ----
   const tv = document.createElement("div");
@@ -2123,19 +2140,19 @@ export function setupControls(
       if (!slotAssign[i]) { slotAssign[i] = free.shift()!.id; }
     let html = "";
     for (let i = 0; i < HB_SKILLS; i++) {
-      const x = HB_X[i];
+      const p = slotPos(i);
       const s = slotAssign[i] ? availableSkills.find((k) => k.id === slotAssign[i]) : undefined;
       if (s) {
         html +=
           `<button class="gh-sslot" data-skill="${s.id}" data-slot="${i}" title="${s.name}" ` +
-          `style="left:${x}%;top:${HB_Y}%">` +
+          `style="left:${p.x}%;top:${p.y}%">` +
           (s.icon ? `<img src="${s.icon}" alt=""/>` : `<span class="gh-ss-x">✦</span>`) +
           `<span class="gh-ss-cool"></span>` +
           `<span class="gh-ss-cd"></span>` +
           `</button>`;
       } else {
         html +=
-          `<span class="gh-sslot gh-ss-empty" style="left:${x}%;top:${HB_Y}%">` +
+          `<span class="gh-sslot gh-ss-empty" style="left:${p.x}%;top:${p.y}%">` +
           `<span class="gh-ss-rune">◈</span></span>`;
       }
     }
@@ -2202,10 +2219,12 @@ export function setupControls(
     assignId = id;
     closeCard();
     eq.classList.add("gh-eq-hidden"); // sai da janela p/ ver a barra
-    // monta os 6 alvos que brilham sobre os slots de habilidade
+    // monta os 6 alvos que brilham sobre os slots de habilidade (na posição do layout)
     let html = "";
-    for (let i = 0; i < HB_SKILLS; i++)
-      html += `<button class="gh-hb-target" data-slot="${i}" style="left:${HB_X[i]}%;top:${HB_Y}%"></button>`;
+    for (let i = 0; i < HB_SKILLS; i++) {
+      const p = slotPos(i);
+      html += `<button class="gh-hb-target" data-slot="${i}" style="left:${p.x}%;top:${p.y}%"></button>`;
+    }
     assignLayer.innerHTML = html;
     assignLayer.querySelectorAll<HTMLButtonElement>(".gh-hb-target").forEach((b) => {
       b.addEventListener("pointerdown", (e) => {
@@ -4239,6 +4258,44 @@ function injectStyle() {
     .gh-act  { bottom: calc(min(105px, 17.2vw) + 22px); }
     #gh-prompt   { bottom: calc(min(105px, 17.2vw) + 152px); }
     #gh-dialogue { bottom: calc(min(105px, 17.2vw) + 150px); }
+  }
+
+  /* ================= MOBILE (toque): hotbar em GRADE 2×3 no canto =============
+     Em telas de TOQUE a barra reta vira uma grade 2×3 de medalhões redondos no
+     canto inferior DIREITO, logo acima do ataque (o PC — ponteiro fino — mantém a
+     barra reta). Vem DEPOIS dos blocos portrait/landscape p/ vencer os conflitos. */
+  @media (pointer: coarse) {
+    /* caixa da grade: canto inf. direito, acima do ataque, SEM a arte da barra */
+    #gh-hotbar {
+      left:auto !important; right:8px; transform:none !important;
+      bottom:82px; width:116px; height:176px; aspect-ratio:auto;
+      background:none !important; filter:none;
+    }
+    /* cada slot vira um MEDALHÃO redondo (btn_base), tamanho fixo */
+    .gh-sslot {
+      width:46px; height:46px; aspect-ratio:auto; border-radius:50%;
+      background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+      filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
+    }
+    .gh-sslot img { width:64%; height:64%; }
+    .gh-ss-cool { border-radius:50%; }
+    .gh-ss-empty { filter:grayscale(.55) brightness(.55); opacity:.7; }
+    /* XP: some a calha da barra; mostra a faixa fina de ponta a ponta na base */
+    #gh-hotbar-xp { display:none; }
+    #gh-xpbar { display:block !important; }
+    /* consumíveis: medalhões FIXOS no canto inf. esquerdo (acima do D-pad) */
+    .gh-tray-slot {
+      position:fixed; transform:none; width:44px; height:44px; aspect-ratio:auto;
+      border-radius:50%; background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+    }
+    /* controles nos cantos normais (desfaz a subida do layout portrait) */
+    .gh-move { bottom:12px; }
+    .gh-atk  { bottom:14px; }
+    .gh-act  { bottom:18px; }
+    #gh-prompt   { bottom:150px; }
+    #gh-dialogue { bottom:150px; }
+    /* banner do modo equipar acima da grade */
+    #gh-hb-assign-bar { bottom:270px; }
   }
 
   /* (bandeja de consumíveis agora vive nos slots 6..7 da hotbar — estilo no bloco HOTBAR) */
