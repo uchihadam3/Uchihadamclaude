@@ -199,9 +199,9 @@ const ENEMY_TYPES: Record<string, {
   // cultista: conjura de longe, mas COLA no herói p/ usar a adaga quando ele chega
   // perto (ai "caster"). Velocidade parecida com a do arqueiro.
   cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
-  // CHEFE do 3º andar: grandão, muito HP/dano, implacável (nunca foge). tier "boss"
-  // (bolinha enorme no minimapa). Recompensa gorda ao cair.
-  boss:      { art: enemyBossUrl,     hp: 260, atk: 26, xp: 320, gold: 150, vision: 9, h: 4.2, ai: "relentless", spd: 900, tier: "boss" },
+  // CHEFE do 3º andar: grandão, muito HP/dano, IMPLACÁVEL. Visão LONGA (enxerga o
+  // herói de dentro do breu) e AVANÇA rápido (charge agressivo). Recompensa gorda.
+  boss:      { art: enemyBossUrl,     hp: 260, atk: 26, xp: 320, gold: 150, vision: 13, h: 4.4, ai: "relentless", spd: 700, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -1068,6 +1068,7 @@ interface EnemyEnt {
   proj: string;                // tipo de projétil ("arrow" | "orb" | "")
   ai: string;                  // comportamento (chase/kite/flee_low/relentless)
   tier: "normal" | "mini" | "boss"; // porte (afeta o tamanho da bolinha no minimapa)
+  typeId: string;              // id do tipo (p/ o respawn recriar o mesmo inimigo)
   atkIsRanged: boolean;        // o ataque em curso é à distância?
   hitAt: number; dyingAt: number;
   atkAt: number; hitApplied: boolean; nextAtk: number;
@@ -1203,6 +1204,7 @@ export class Game {
   private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
   private nextMiniRefresh = 0;                                    // throttle do redesenho do minimapa (bolinhas de inimigo)
   private dungeonFloor = 0;                                       // andar atual da masmorra (0..2)
+  private dungeonSession = 0;                                     // muda a cada (re)build → invalida respawns pendentes
   private dropGlowTex?: THREE.Texture;                            // textura do facho sutil (radial macia)
   private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
   private guideOn = true;                                         // guia/marcador (mapa+mundo) ligado?
@@ -1426,7 +1428,7 @@ export class Game {
     this.foliageFx = fx;
 
     this.scene.background = new THREE.Color(FOG_COLOR);
-    this.camera = new THREE.PerspectiveCamera(76, 1, 0.05, 400); // FOV bem mais aberto (dá p/ acompanhar inimigo que foge de lado; menos "túnel")
+    this.camera = new THREE.PerspectiveCamera(84, 1, 0.05, 400); // FOV bem aberto (mais campo de visão lateral; o breu/névoa mantém o suspense ao longe)
     this.camera.rotation.order = "YXZ";
     this.scene.add(this.world);
 
@@ -2339,7 +2341,7 @@ export class Game {
       hp: HP, maxHp: HP, atk: ATK, xp: XP, goldBase: GOLD, visionR: VISION,
       homeC: c, homeR: r, aggro: false,
       ranged: T.ranged ?? false, melee: T.melee ?? true, range: T.range ?? 1, proj: T.proj ?? "",
-      ai: T.ai ?? "chase", tier: T.tier ?? "normal", approach: 0, hdc: 0, hdr: 1, faceArrow,
+      ai: T.ai ?? "chase", tier: T.tier ?? "normal", typeId, approach: 0, hdc: 0, hdr: 1, faceArrow,
       atkIsRanged: false, hitAt: 0, dyingAt: 0,
       atkAt: 0, hitApplied: false, nextAtk: 0,
       stepAt: 0, stepDur: T.spd ?? 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
@@ -2962,6 +2964,20 @@ export class Game {
       return { icon: def.icon, title: def.title, summary: def.desc, status, objective };
     });
     return { main, side };
+  }
+
+  // ponto de chegada num andar: o bloco LOGO À FRENTE da escada (não distante),
+  // encarando "pra dentro" do andar. backDir = direção pra dentro a partir da escada.
+  private dungeonEntryAt(stairChar: string, backDir: [number, number]): { col: number; row: number; facing: number } {
+    const s = dungeonFind(stairChar);
+    const dirIx = (dc: number, dr: number) => (dc === 1 ? 1 : dc === -1 ? 3 : dr === 1 ? 2 : 0);
+    const [dc, dr] = backDir;
+    if (dungeonWalkable(s.col + dc, s.row + dr))
+      return { col: s.col + dc, row: s.row + dr, facing: dirIx(dc, dr) };
+    for (const [ddc, ddr] of DIRS)
+      if (dungeonWalkable(s.col + ddc, s.row + ddr))
+        return { col: s.col + ddc, row: s.row + ddr, facing: dirIx(ddc, ddr) };
+    return { col: s.col, row: s.row, facing: 2 };
   }
 
   // ===================== GUIA / WAYPOINT DE MISSÃO =====================
@@ -4992,6 +5008,7 @@ export class Game {
   // constrói a MASMORRA a partir da grade fixa (dungeon.ts): piso/teto/paredes,
   // tochas, props e a parede ilusória do segredo.
   private buildDungeon() {
+    this.dungeonSession++; // nova "sessão" do andar → cancela respawns pendentes do anterior
     const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = 4.6; // teto BAIXO — masmorra fechada (estilo Arcmaze), não caverna aberta
     const HALF = CELL / 2;
     const hash = (a: number, b: number, s = 0) =>
@@ -5546,15 +5563,17 @@ export class Game {
     let es = dungeonAll("E").filter(
       (e) => Math.abs(e.col - this.col) + Math.abs(e.row - this.row) >= 4, // não em cima do herói
     );
-    // seleção gulosa por espaçamento: cada escolhido fica ≥ MINGAP dos já escolhidos
-    const MINGAP = 5;
+    // seleção gulosa por espaçamento: cada escolhido fica ≥ MINGAP dos já escolhidos.
+    // MMO: mais inimigos por área (espaçamento menor + teto maior).
+    const MINGAP = 4;
+    const CAP = 14;
     const picked: { col: number; row: number }[] = [];
     // embaralha p/ variar a distribuição entre partidas
     es = es.sort(() => Math.random() - 0.5);
     for (const e of es) {
       if (picked.every((p) => Math.abs(p.col - e.col) + Math.abs(p.row - e.row) >= MINGAP)) {
         picked.push(e);
-        if (picked.length >= 8) break; // teto de inimigos por andar
+        if (picked.length >= CAP) break; // teto de inimigos por andar
       }
     }
     // variedade de tipos espalhados (mais fracos comuns, tanque/conjurador raros).
@@ -7275,24 +7294,23 @@ export class Game {
       };
       this.dungeonFloor = 0;
       setDungeonFloor(0);
-      const p = dungeonFind("S");
-      // spawn olhando p/ DENTRO da masmorra (sul); a escada de volta (U) fica ATRÁS,
-      // ao norte → o jogador chega "de costas" pra saída, como se tivesse descido.
-      this.enterLocation("dungeon", p.col, p.row, 2);
+      // surge LOGO À FRENTE da escada de subida (U) — encarando p/ dentro da masmorra
+      const p = this.dungeonEntryAt("U", [0, 1]);
+      this.enterLocation("dungeon", p.col, p.row, p.facing);
     } else if (t.kind === "descend") {
-      // escada 'D' → desce um andar; aparece na escada de SUBIDA (U) do novo andar
+      // escada 'D' → desce um andar; surge à frente da escada de SUBIDA (U) do novo andar
       this.dungeonFloor = Math.min(DUNGEON_FLOOR_COUNT - 1, this.dungeonFloor + 1);
       setDungeonFloor(this.dungeonFloor);
-      const p = dungeonFind("S");
+      const p = this.dungeonEntryAt("U", [0, 1]);
       this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
-      this.enterLocation("dungeon", p.col, p.row, 2);
+      this.enterLocation("dungeon", p.col, p.row, p.facing);
     } else if (t.kind === "ascend") {
-      // escada 'U' num andar 2/3 → sobe um andar; aparece na escada de DESCIDA (D)
+      // escada 'U' num andar 2/3 → sobe um andar; surge à frente da escada de DESCIDA (D)
       this.dungeonFloor = Math.max(0, this.dungeonFloor - 1);
       setDungeonFloor(this.dungeonFloor);
-      const p = dungeonFind("D");
+      const p = this.dungeonEntryAt("D", [0, -1]);
       this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
-      this.enterLocation("dungeon", p.col, p.row, 2);
+      this.enterLocation("dungeon", p.col, p.row, p.facing);
     } else if (t.kind === "gate") {
       this.openGate(t.key);
     } else if (t.kind === "lockgate") {
@@ -8777,8 +8795,25 @@ export class Game {
             if (idx >= 0) this.billboardProps.splice(idx, 1);
           }
           e.mesh.geometry.dispose(); e.mat.dispose();
+          this.blocked.delete(`${e.c},${e.r}`); // libera a célula que o corpo ocupava
           this.enemies.splice(ei, 1);
           this.onEnemyRemoved();
+          // MMO: inimigo comum RENASCE ~10s depois (chefe NUNCA renasce sozinho).
+          // Só na masmorra e na MESMA sessão de andar em que morreu.
+          if (this.location === "dungeon" && e.tier !== "boss") {
+            const hc = e.homeC, hr = e.homeR, tp = e.typeId, sess = this.dungeonSession;
+            window.setTimeout(() => {
+              if (
+                this.location === "dungeon" &&
+                this.dungeonSession === sess &&
+                !(this.col === hc && this.row === hr) &&
+                !this.blocked.has(`${hc},${hr}`) &&
+                !this.enemies.some((o) => o.homeC === hc && o.homeR === hr) &&
+                this.enemies.length < 22
+              )
+                this.buildDungeonEnemy(hc, hr, tp);
+            }, 10000);
+          }
         }
         continue;
       }
