@@ -1123,7 +1123,7 @@ export function setupControls(
     `<div class="gh-slot${s.acc ? " gh-slot-acc" : ""}" data-slot="${s.key}" title="${s.label}" style="grid-column:${s.gc};grid-row:${s.gr}"></div>`;
   // mochila (grade simples estilo WoW): 20 slots quadrados, reutilizando a MESMA
   // arte do slot (9-slice). Cada slot guarda 1 item; consumíveis empilham (badge).
-  const BAG_SLOTS = 20;
+  const BAG_SLOTS = 25; // capacidade da mochila (5×5) — DEVE bater com Game.INV_CAP
   const bagHtml = Array.from(
     { length: BAG_SLOTS },
     (_, i) => `<div class="gh-bag-slot" data-bag="${i}"></div>`,

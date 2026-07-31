@@ -190,7 +190,7 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 // concentrado em CHEFES e BAÚS ESCONDIDOS — o "chase" do jogo.
 type LootProfile = { rar: [number, number, number, number]; tierB: number; slots?: number[]; min?: number; max?: number };
 const LOOT_PROFILES: Record<string, LootProfile> = {
-  normal: { rar: [82, 16, 2, 0],  tierB: 0, slots: [0.40] },       // 1 peça ~40% — nada de entulho
+  normal: { rar: [82, 16, 2, 0],  tierB: 0, slots: [0.22] },       // raro cair item — comum dá é OURO
   mini:   { rar: [44, 42, 13, 1], tierB: 0, slots: [0.60, 0.15] }, // elite: ~0.75 peça, mix melhor
   boss:   { rar: [0, 36, 49, 15], tierB: 1, min: 3, max: 5 },      // fonte-CHAVE de topo
   chest:  { rar: [24, 46, 24, 6], tierB: 0, slots: [1, 0.45] },    // baú comum: bom
@@ -2612,6 +2612,8 @@ export class Game {
   private static readonly STASH_STACK = ["pot_hp", "pot_mp", "beer", "scroll_return", "madeira", "minerio", "reforco"];
   private static readonly STASH_SLOTS = 40;   // capacidade do baú (grade de slots)
   private static readonly STASH_CAP = 99;     // teto de itens por pilha no baú
+  // capacidade da MOCHILA (armas + armaduras) — DEVE bater com BAG_SLOTS na UI (controls.ts)
+  private static readonly INV_CAP = 25;
   private buildStashData(): StashData {
     const dep = this.stashMode === "deposit";
     const goods: StoreGood[] = [];
@@ -3882,6 +3884,13 @@ export class Game {
   private takeDrop(d: GroundDrop) {
     if (d.kind !== "item" || !d.item) return;
     if (!this.drops.includes(d)) return; // já pego
+    // TRAVA DE CAPACIDADE: a mochila (armas + armaduras) não é infinita — se estiver
+    // cheia, o item FICA no chão (reabre o popup depois de liberar espaço).
+    if (this.ownedWeapons.length + this.armorInv.length >= Game.INV_CAP) {
+      this.ui.toast("Inventário cheio! Venda ou guarde algo no baú.");
+      d.opened = false;
+      return;
+    }
     this.armorInv.push(d.item);
     this.ui.toast(`Pegou: ${d.item.name}`);
     this.removeDrop(d);
