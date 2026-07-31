@@ -1284,6 +1284,9 @@ export class Game {
   private boltTexCache?: THREE.Texture;
   private arrowTexCache?: THREE.Texture;
   private chevTexCache?: THREE.Texture;
+  // temporários reutilizados p/ orientar a flecha (sem alocar por quadro)
+  private _boltDir = new THREE.Vector3();
+  private _boltInvQ = new THREE.Quaternion();
   // explosão de fumaça (sprite-sheet do GIF) na morte do inimigo
   private poofs: {
     mesh: THREE.Mesh;
@@ -5684,6 +5687,8 @@ export class Game {
   // gira p/ apontar no sentido do voo (em espaço de tela).
   private updateEnemyBolts(now: number) {
     const cx = this.camera.position.x, cz = this.camera.position.z;
+    // inverso da rotação da câmera (mundo→visão) — calculado 1x por quadro p/ a flecha
+    const invCam = this._boltInvQ.copy(this.camera.quaternion).invert();
     for (let i = this.enemyBolts.length - 1; i >= 0; i--) {
       const p = this.enemyBolts[i];
       const t = (now - p.t0) / p.dur;
@@ -5696,10 +5701,14 @@ export class Game {
       }
       p.spr.position.set(p.fx + (p.tx - p.fx) * t, p.y - 0.3 * t * t, p.fz + (p.tz - p.fz) * t);
       if (p.kind === "arrow") {
-        // gira a flecha p/ apontar rumo ao alvo (na tela) — 0 = apontando p/ cima
-        const a = this.projectToScreen(p.spr.position.x, p.spr.position.y, p.spr.position.z);
-        const b = this.projectToScreen(p.tx, p.y - 0.35, p.tz);
-        (p.spr.material as THREE.SpriteMaterial).rotation = Math.atan2(b.x - a.x, -(b.y - a.y));
+        // gira a flecha p/ apontar SEMPRE no sentido do VOO (ponta p/ o jogador).
+        // Usa a DIREÇÃO FIXA do disparo (origem→alvo) levada p/ o espaço da câmera —
+        // estável do começo ao fim (o método antigo, posição-atual→alvo, degenerava
+        // quando a flecha vinha quase de frente e ela "deitava"). O −0.5 no Y dá o
+        // arco (a flecha desce um tico), o que também resolve o caso de frente.
+        const d = this._boltDir.set(p.tx - p.fx, -0.5, p.tz - p.fz).applyQuaternion(invCam);
+        // espaço da câmera: x p/ a direita, y p/ cima; ponta (rotação 0) aponta p/ cima
+        (p.spr.material as THREE.SpriteMaterial).rotation = Math.atan2(d.x, d.y);
       }
     }
   }
