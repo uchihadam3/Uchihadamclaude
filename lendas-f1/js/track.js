@@ -114,19 +114,19 @@ export function buildTrack(D=INTERLAGOS){
     m.receiveShadow=true; G.add(m);
   })();
 
-  /* ---------- ZEBRAS (só nas curvas) ---------- */
+  /* ---------- ZEBRAS nas curvas (com a TEXTURA de zebra tex_05) ---------- */
   (function(){
-    const pos=[],col=[],idx=[]; const c1=new THREE.Color(0xe01f2a),c2=new THREE.Color(0xffffff);
+    const pos=[],uv=[],idx=[];
     for(let i=0;i<=N;i++){
       const on = curv[i]>0.010;                 // zebra em toda curva minimamente fechada
       const W = on ? 1.4 : 0.0;                  // zebra larga e bem visível
+      const u = i*spacing/0.8;                   // listras repetem a cada ~0.8 m (escala real)
       for(const s of [1,-1]){
         const c=pts[i], l=leftOf(tan[i]);
         const inner=c.clone().addScaledVector(l, s*HALF);
         const outer=c.clone().addScaledVector(l, s*(HALF+W));
-        const cc=(Math.floor(i/4)%2)?c1:c2;      // listras vermelho/branco mais curtas
-        pos.push(inner.x,0.04,inner.z, outer.x,0.11,outer.z);   // sobe mais (3D visível)
-        col.push(cc.r,cc.g,cc.b, cc.r,cc.g,cc.b);
+        pos.push(inner.x,0.045,inner.z, outer.x,0.12,outer.z);  // sobe (3D visível)
+        uv.push(u,0, u,1);
       }
     }
     const stride=4;
@@ -136,9 +136,10 @@ export function buildTrack(D=INTERLAGOS){
     }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
-    g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+    g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
     g.setIndex(idx); g.computeVertexNormals();
-    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.7}));
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({
+      map:tex(TEX.kerb,{repeat:[1,1]}), color:0xffffff, roughness:0.65, side:THREE.DoubleSide}));
     m.receiveShadow=true; G.add(m);
   })();
 
