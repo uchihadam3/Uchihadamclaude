@@ -114,18 +114,25 @@ export function buildTrack(D=INTERLAGOS){
     m.receiveShadow=true; G.add(m);
   })();
 
-  /* ---------- ZEBRAS nas curvas (com a TEXTURA de zebra tex_05) ---------- */
+  /* ---------- ZEBRAS nas curvas (kerb vermelho/branco FORTE, onde o carro pisa) ---------- */
   (function(){
+    // textura de kerb gerada: vermelho/branco vivo, listras nítidas (NearestFilter)
+    const cv=document.createElement('canvas'); cv.width=64; cv.height=8; const cx=cv.getContext('2d');
+    cx.fillStyle='#e51d24'; cx.fillRect(0,0,32,8);          // vermelho vivo
+    cx.fillStyle='#f4f4f4'; cx.fillRect(32,0,32,8);         // branco
+    const ktex=new THREE.CanvasTexture(cv); ktex.wrapS=ktex.wrapT=THREE.RepeatWrapping;
+    ktex.colorSpace=THREE.SRGBColorSpace; ktex.magFilter=THREE.NearestFilter; ktex.anisotropy=8;
+    const IN=HALF-0.35, W=1.75;                             // começa DENTRO da borda (o carro pisa)
     const pos=[],uv=[],idx=[];
     for(let i=0;i<=N;i++){
-      const on = curv[i]>0.010;                 // zebra em toda curva minimamente fechada
-      const W = on ? 1.4 : 0.0;                  // zebra larga e bem visível
-      const u = i*spacing/0.8;                   // listras repetem a cada ~0.8 m (escala real)
+      const on = curv[i]>0.009;
+      const W2 = on ? W : 0.0;
+      const u = i*spacing/0.5;                              // listra vermelho+branco a cada ~1 m
       for(const s of [1,-1]){
         const c=pts[i], l=leftOf(tan[i]);
-        const inner=c.clone().addScaledVector(l, s*HALF);
-        const outer=c.clone().addScaledVector(l, s*(HALF+W));
-        pos.push(inner.x,0.045,inner.z, outer.x,0.12,outer.z);  // sobe (3D visível)
+        const inner=c.clone().addScaledVector(l, s*IN);
+        const outer=c.clone().addScaledVector(l, s*(IN+W2));
+        pos.push(inner.x,0.05,inner.z, outer.x,0.15,outer.z);  // rampa 3D bem visível
         uv.push(u,0, u,1);
       }
     }
@@ -139,7 +146,7 @@ export function buildTrack(D=INTERLAGOS){
     g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
     g.setIndex(idx); g.computeVertexNormals();
     const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({
-      map:tex(TEX.kerb,{repeat:[1,1]}), color:0xffffff, roughness:0.65, side:THREE.DoubleSide}));
+      map:ktex, color:0xffffff, roughness:0.55, side:THREE.DoubleSide}));
     m.receiveShadow=true; G.add(m);
   })();
 

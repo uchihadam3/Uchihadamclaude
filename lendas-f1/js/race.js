@@ -104,7 +104,7 @@ export function computeLine(curve, half){
     const l=new THREE.Vector3().crossVectors(UP,t).normalize();
     center.push(p); ctan.push(t); left.push(l);
     cx[i]=p.x; cz[i]=p.z; lx[i]=l.x; lz[i]=l.z; }
-  const maxOff = Math.max(half-1.0, 0.5);
+  const maxOff = Math.max(half-0.2, 0.5);       // apex chega na zebra (o carro pisa o kerb)
   const o=new Float32Array(N);
   for(let it=0; it<2500; it++){
     for(let i=0;i<N;i++){ const a=(i-1+N)%N, b=(i+1)%N;
@@ -500,7 +500,7 @@ export function updateField(cars, line, dt, t, started){
     const mergeT=THREE.MathUtils.clamp((t-c.launchStart)/6, 0, 1);
     tOff=THREE.MathUtils.lerp(c.gridOffset, tOff, mergeT);
     c.tOffset=tOff;
-    const latLim=c.pitPhase?(PIT.off+3):6.2;
+    const latLim=c.pitPhase?(PIT.off+3):7.0;      // pode pisar a zebra na borda (apex/saída)
     // SUAVE E CONTÍNUO: o carro desliza pro lado numa velocidade lateral LIMITADA e
     // quase constante — nunca dá "arranco". Ease leve perto do alvo + teto rígido de m/s.
     const targetOff=THREE.MathUtils.clamp(tOff,-latLim,latLim);
