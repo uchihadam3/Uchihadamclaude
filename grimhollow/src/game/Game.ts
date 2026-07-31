@@ -48,6 +48,10 @@ import {
   dungeonSolidLook,
   dungeonFind,
   dungeonAll,
+  setDungeonFloor,
+  getDungeonFloor,
+  DUNGEON_FLOOR_COUNT,
+  DUNGEON_FLOOR_NAMES,
 } from "./dungeon";
 import {
   STATIONS,
@@ -173,6 +177,7 @@ import enemyAranhaUrl from "../assets/env/enemy_aranha.png";
 import enemyArqueiroUrl from "../assets/env/enemy_arqueiro.png";
 import enemyCarnicalUrl from "../assets/env/enemy_carnical.png";
 import enemyCultistaUrl from "../assets/env/enemy_cultista.png";
+import enemyBossUrl from "../assets/env/boss_andar3.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 // perfis dos inimigos (arte + stats FIXOS + tamanho + alcance de visão).
 // arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
@@ -194,6 +199,9 @@ const ENEMY_TYPES: Record<string, {
   // cultista: conjura de longe, mas COLA no herói p/ usar a adaga quando ele chega
   // perto (ai "caster"). Velocidade parecida com a do arqueiro.
   cultista:  { art: enemyCultistaUrl, hp: 34, atk: 12, xp: 34, gold: 11, vision: 7, h: 2.7, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
+  // CHEFE do 3º andar: grandão, muito HP/dano, implacável (nunca foge). tier "boss"
+  // (bolinha enorme no minimapa). Recompensa gorda ao cair.
+  boss:      { art: enemyBossUrl,     hp: 260, atk: 26, xp: 320, gold: 150, vision: 9, h: 4.2, ai: "relentless", spd: 900, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -967,6 +975,8 @@ type Target =
   | { kind: "exit" }
   | { kind: "talk"; name: string; lines: string[]; key: string }
   | { kind: "dungeon" }
+  | { kind: "descend" } // escada 'D' → desce um andar da masmorra
+  | { kind: "ascend" } // escada 'U' (andar 2/3) → sobe um andar
   | { kind: "gate"; key: string }
   | { kind: "lockgate" } // portão selado do santuário (não abre)
   | { kind: "sanctuary" } // entrada do santuário (leva à sala-vitrine)
@@ -1192,6 +1202,7 @@ export class Game {
   private storeStockPeriod = -1;                                  // meia-jornada da última rotação
   private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
   private nextMiniRefresh = 0;                                    // throttle do redesenho do minimapa (bolinhas de inimigo)
+  private dungeonFloor = 0;                                       // andar atual da masmorra (0..2)
   private dropGlowTex?: THREE.Texture;                            // textura do facho sutil (radial macia)
   private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
   private guideOn = true;                                         // guia/marcador (mapa+mundo) ligado?
@@ -1532,6 +1543,9 @@ export class Game {
     facing: number,
   ) {
     this.clearWorld();
+    // fora da masmorra o "andar atual" volta ao 1º (a lógica de missão lê células
+    // 'L'/'A' do 1º andar a partir do vilarejo — não pode ficar num andar antigo).
+    if (loc !== "dungeon") { this.dungeonFloor = 0; setDungeonFloor(0); }
     this.location = loc;
     this.outdoor = loc === "village" || loc === "forest";
     this.dialogue = null;
@@ -1557,9 +1571,12 @@ export class Game {
       // VISÃO LIMITADA porém JOGÁVEL: a tocha do herói ilumina o entorno e a
       // escuridão engole o longe. Claro até ~4 células, some no breu por volta de
       // 8-9 → clima fechado/corredor, mas dá pra ver os inimigos que se aproximam.
-      this.scene.fog = new THREE.Fog(0x0a0d11, CELL * 4, CELL * 9);
-      this.scene.background = new THREE.Color(0x080a0d);
-      this.addDungeonLights();
+      // BIOMA muda no 3º andar (cripta do chefe): névoa/fundo mais quentes e
+      // avermelhados, ar mais pesado (névoa um tico mais curta) — clima de perigo.
+      const boss = this.dungeonFloor >= 2;
+      this.scene.fog = new THREE.Fog(boss ? 0x180a0c : 0x0a0d11, CELL * 4, CELL * (boss ? 8 : 9));
+      this.scene.background = new THREE.Color(boss ? 0x100608 : 0x080a0d);
+      this.addDungeonLights(boss);
       this.buildDungeon();
     } else if (loc === "showcase") {
       // mini-santuário: NÉVOA volumétrica densa (exponencial) — moody, não "céu".
@@ -4443,7 +4460,7 @@ export class Game {
   }
 
   // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
-  private addDungeonLights() {
+  private addDungeonLights(boss = false) {
     // masmorra-labirinto é grande e as tochas (limitadas) se espalham → sobe a luz
     // ambiente base p/ os corredores sem tocha não ficarem pretos (visível como o
     // Arcmaze), mantendo a paleta fria/pedra.
@@ -4454,9 +4471,11 @@ export class Game {
     // near BEM iluminado (o fog escuro é que engole o longe → visão limitada). Ambiente
     // e hemisfério mais altos, sem matar o relevo (o normal map ainda pega o hemisfério
     // e as tochas). Luz-chave quente p/ realces.
-    this.world.add(new THREE.AmbientLight(0x8f98a6, 1.0));
-    this.world.add(new THREE.HemisphereLight(0xc4ccd8, 0x52402a, 1.45));
-    const key = new THREE.DirectionalLight(0xffd7a2, 0.6);
+    // 3º andar (cripta do chefe): ambiente/hemisfério puxados p/ o VERMELHO-SANGUE,
+    // dando o clima de bioma diferente (perigo) sem trocar as texturas.
+    this.world.add(new THREE.AmbientLight(boss ? 0xa6707a : 0x8f98a6, boss ? 0.95 : 1.0));
+    this.world.add(new THREE.HemisphereLight(boss ? 0xd89090 : 0xc4ccd8, boss ? 0x4a2016 : 0x52402a, 1.45));
+    const key = new THREE.DirectionalLight(boss ? 0xff9a72 : 0xffd7a2, 0.6);
     key.position.set(7, 13, 5);
     this.world.add(key);
     // TOCHA do herói: poça de luz quente que acompanha o jogador (o tick move ela)
@@ -5013,8 +5032,10 @@ export class Game {
         if (k === "wall") continue;
         const cx = c * CELL, cz = r * CELL;
         const secret = k === "secret";
-        // PISO quase liso (chão "clean", só um leve relevo p/ não ficar chapado)
-        this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 3, 3, 0.12, floorMat, 1, 1);
+        // PISO quase liso (chão "clean", só um leve relevo p/ não ficar chapado).
+        // A escada de DESCIDA ('down') abre um poço no chão — não desenha piso ali.
+        if (k !== "down")
+          this.caveMesh([cx - HALF, 0, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, 1, 0], 3, 3, 0.12, floorMat, 1, 1);
         // TETO BAIXO quase liso (masmorra fechada) — relevo suave p/ não descer na
         // cara do jogador com o pé-direito reduzido.
         this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 0.5, ceilMat, 1, 1);
@@ -5055,6 +5076,9 @@ export class Game {
           b.rotation.x = -Math.PI / 2; b.position.set(cx, 0.05, cz); this.world.add(b);
         } else if (k === "chest") {
           this.buildChestBillboard(cx, cz, c, r); this.blocked.add(`${c},${r}`);
+        } else if (k === "down") {
+          this.buildDownStairs(cx, cz, rockMat);
+          this.blocked.add(`${c},${r}`); // não pisa no poço; interage de frente
         }
       }
 
@@ -5203,6 +5227,44 @@ export class Game {
     this.buildEmbeddedStairs(up, 0, -1, rockMat, CH, {
       arch: true, shaft: true, shaftColor: 0xffe2b0, light: 0xffe0a8, lightLow: 0xffcf8a,
     });
+  }
+
+  // ESCADA DE DESCIDA ('D'): um POÇO quadrado no chão da sala, com degraus descendo
+  // pro escuro (rumo ao próximo andar) e um brilho FRIO subindo. Fica no meio da sala
+  // (não é embutida na parede como a de subida). O jogador pisa/encara e desce.
+  private buildDownStairs(cx: number, cz: number, rockMat: THREE.Material) {
+    const HALF = CELL / 2, DEPTH = 2.8;
+    const pitMat = new THREE.MeshLambertMaterial({ color: 0x0b0d11 });
+    // 4 paredes do poço (descem no breu)
+    for (const [dc, dr] of DIRS) {
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(CELL, DEPTH), pitMat);
+      wall.position.set(cx + dc * HALF, -DEPTH / 2, cz + dr * HALF);
+      if (dc === 1) wall.rotation.y = -Math.PI / 2;
+      else if (dc === -1) wall.rotation.y = Math.PI / 2;
+      else if (dr === 1) wall.rotation.y = Math.PI;
+      this.world.add(wall);
+    }
+    // fundo bem escuro
+    const bottom = new THREE.Mesh(new THREE.PlaneGeometry(CELL, CELL), new THREE.MeshBasicMaterial({ color: 0x05070a }));
+    bottom.rotation.x = -Math.PI / 2; bottom.position.set(cx, -DEPTH + 0.02, cz); this.world.add(bottom);
+    // DEGRAUS descendo do lado NORTE p/ o centro (piso + espelho), sumindo no escuro
+    const N = 6, stepH = 0.32, stepD = 0.42, wStep = CELL * 0.66;
+    for (let i = 0; i < N; i++) {
+      const y = -(i + 1) * stepH;
+      const z = cz - HALF + 0.35 + i * stepD;
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(wStep, 0.1, stepD), rockMat);
+      tread.position.set(cx, y, z); this.world.add(tread);
+      const riser = new THREE.Mesh(new THREE.BoxGeometry(wStep, stepH, 0.08), rockMat);
+      riser.position.set(cx, y + stepH / 2, z - stepD / 2); this.world.add(riser);
+    }
+    // borda de pedra (lábio do poço) nas 4 quinas — moldura discreta
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.16, CELL), rockMat);
+    lip.position.set(cx, 0.08, cz); this.world.add(lip);
+    // "buraco" por cima do lábio (some o topo do lábio pra ver o poço)
+    const hole = new THREE.Mesh(new THREE.PlaneGeometry(CELL * 0.82, CELL * 0.82), new THREE.MeshBasicMaterial({ color: 0x05070a }));
+    hole.rotation.x = -Math.PI / 2; hole.position.set(cx, 0.17, cz); this.world.add(hole);
+    // brilho FRIO subindo do poço (≠ do calor da escada de subida)
+    this.glowLight(cx, -0.4, cz, 0x5fb4e6, 2.6, 8);
   }
 
   // ESCADARIA embutida na PAREDE (mesma construção da escada de volta): um vão em ARCO
@@ -5495,12 +5557,19 @@ export class Game {
         if (picked.length >= 8) break; // teto de inimigos por andar
       }
     }
-    // variedade de tipos espalhados (mais fracos comuns, tanque/conjurador raros)
-    const pool = ["rato", "rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista"];
+    // variedade de tipos espalhados (mais fracos comuns, tanque/conjurador raros).
+    // andares mais fundos → pool mais perigoso (menos ratos, mais tanque/conjurador).
+    const pool = this.dungeonFloor >= 2
+      ? ["esqueleto", "aranha", "cultista", "carnical", "esqueleto", "cultista", "carnical", "arqueiro"]
+      : this.dungeonFloor === 1
+        ? ["rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista", "aranha"]
+        : ["rato", "rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista"];
     picked.forEach((p, i) => {
       const t = pool[(i + Math.floor(Math.random() * pool.length)) % pool.length];
       this.buildDungeonEnemy(p.col, p.row, t);
     });
+    // CHEFE: nasce nas células 'Z' (só existe no 3º andar)
+    for (const z of dungeonAll("Z")) this.buildDungeonEnemy(z.col, z.row, "boss");
   }
 
   // ---- IA dos inimigos: visão (linha livre), perseguição e patrulha ----
@@ -7057,7 +7126,7 @@ export class Game {
     switch (this.location) {
       case "village": return "Vilarejo";
       case "forest": return "Floresta Sussurrante";
-      case "dungeon": return "Masmorra";
+      case "dungeon": return DUNGEON_FLOOR_NAMES[this.dungeonFloor] ?? "Masmorra";
       case "showcase": return "Santuário";
       case "tavern": return "Taverna";
       case "store": return "Mercador";
@@ -7102,8 +7171,11 @@ export class Game {
           else if (k === "sign") pois.push({ c, r, kind: "sign", label: "Placa" });
         }
     } else if (this.location === "dungeon") {
-      // marca a ESCADA DE VOLTA (U) como saída (é por onde se sobe ao vilarejo)
-      for (const s of dungeonAll("U")) pois.push({ c: s.col, r: s.row, kind: "stair", label: "Subir ao Vilarejo" });
+      // escada de SUBIDA (U): 1º andar volta ao vilarejo; 2/3 sobem um andar
+      const upLbl = this.dungeonFloor > 0 ? "Subir um andar" : "Subir ao Vilarejo";
+      for (const s of dungeonAll("U")) pois.push({ c: s.col, r: s.row, kind: "stair", label: upLbl });
+      // escada de DESCIDA (D): desce pro próximo andar
+      for (const s of dungeonAll("D")) pois.push({ c: s.col, r: s.row, kind: "dungeon", label: "Descer" });
       for (const s of dungeonAll("A")) pois.push({ c: s.col, r: s.row, kind: "sanctuary", label: "Escadaria" });
       for (const s of dungeonAll("L")) pois.push({ c: s.col, r: s.row, kind: "gate", label: "Portão Selado" });
       for (const key of this.gates.keys()) {
@@ -7195,15 +7267,31 @@ export class Game {
       // CONVERSA estilo WoW: saudação + menu (missões/conversar/sair)
       this.talkNpc(t.name, portrait, undefined, t.lines);
     } else if (t.kind === "dungeon") {
-      // desce à masmorra; guarda o ponto de volta ao vilarejo (usado pela escada U)
+      // desce à masmorra (SEMPRE no 1º andar); guarda o ponto de volta ao vilarejo
       this.returnTo = {
         col: this.col,
         row: this.row,
         facing: (this.facing + 2) % 4,
       };
+      this.dungeonFloor = 0;
+      setDungeonFloor(0);
       const p = dungeonFind("S");
       // spawn olhando p/ DENTRO da masmorra (sul); a escada de volta (U) fica ATRÁS,
       // ao norte → o jogador chega "de costas" pra saída, como se tivesse descido.
+      this.enterLocation("dungeon", p.col, p.row, 2);
+    } else if (t.kind === "descend") {
+      // escada 'D' → desce um andar; aparece na escada de SUBIDA (U) do novo andar
+      this.dungeonFloor = Math.min(DUNGEON_FLOOR_COUNT - 1, this.dungeonFloor + 1);
+      setDungeonFloor(this.dungeonFloor);
+      const p = dungeonFind("S");
+      this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
+      this.enterLocation("dungeon", p.col, p.row, 2);
+    } else if (t.kind === "ascend") {
+      // escada 'U' num andar 2/3 → sobe um andar; aparece na escada de DESCIDA (D)
+      this.dungeonFloor = Math.max(0, this.dungeonFloor - 1);
+      setDungeonFloor(this.dungeonFloor);
+      const p = dungeonFind("D");
+      this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
       this.enterLocation("dungeon", p.col, p.row, 2);
     } else if (t.kind === "gate") {
       this.openGate(t.key);
@@ -8878,6 +8966,8 @@ export class Game {
       else if (t.kind === "exit") text = this.location === "dungeon" ? "Subir ao Vilarejo" : "Sair";
       else if (t.kind === "talk") text = `Falar com ${t.name}`;
       else if (t.kind === "dungeon") text = "Descer à masmorra";
+      else if (t.kind === "descend") text = "Descer ao próximo andar";
+      else if (t.kind === "ascend") text = "Subir um andar";
       else if (t.kind === "toforest") text = "Ir para a Floresta";
       else if (t.kind === "tovillage") text = "Voltar ao Vilarejo";
       else if (t.kind === "sign") text = "Ler a placa";
@@ -8945,9 +9035,13 @@ export class Game {
         return { kind: "tovillage" };
       if (k === "sign") return { kind: "sign", lines: forestSignText(fc, fr) };
     } else if (this.location === "dungeon") {
-      // escada de volta ao vilarejo (de frente ou em cima dela) → usa returnTo
+      // escada de SUBIDA 'U' (de frente ou em cima): 1º andar volta ao vilarejo;
+      // andares 2/3 sobem um andar.
       if (dungeonCell(fc, fr) === "stairs" || dungeonCell(this.col, this.row) === "stairs")
-        return { kind: "exit" };
+        return this.dungeonFloor > 0 ? { kind: "ascend" } : { kind: "exit" };
+      // escada de DESCIDA 'D' → desce um andar
+      if (dungeonCell(fc, fr) === "down" || dungeonCell(this.col, this.row) === "down")
+        return { kind: "descend" };
       // portão de grade fechado logo à frente → interagir p/ abrir
       const gk = `${fc},${fr}`;
       if (this.gates.has(gk)) return { kind: "gate", key: gk };
