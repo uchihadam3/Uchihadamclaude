@@ -132,9 +132,16 @@ export function computeLine(curve, half){
   }
   return { N, center, left, ctan, offset:o, vmax, len:curve.getLength() };
 }
-const at=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floor(f); return arr[i]*(1-t)+arr[j]*t; };
-const vat=(arr,f,N)=>{ const i=((Math.floor(f)%N)+N)%N, j=(i+1)%N, t=f-Math.floor(f);
-  return arr[i].clone().multiplyScalar(1-t).add(arr[j].clone().multiplyScalar(t)); };
+/* Catmull-Rom (curva SUAVE pelos pontos) — a linha era interpolada em segmentos
+   retos (N=1000), o que facetava as curvas e dava "toquinhos". Assim o caminho
+   fica contínuo (C1): o carro vira de forma fluida e constante. */
+const CR=(a0,a1,a2,a3,t)=>{ const t2=t*t, t3=t2*t;
+  return 0.5*((2*a1) + (-a0+a2)*t + (2*a0-5*a1+4*a2-a3)*t2 + (-a0+3*a1-3*a2+a3)*t3); };
+const idx4=(f,N)=>{ const fl=Math.floor(f), i1=((fl%N)+N)%N;
+  return [ (i1-1+N)%N, i1, (i1+1)%N, (i1+2)%N, f-fl ]; };
+const at=(arr,f,N)=>{ const [i0,i1,i2,i3,t]=idx4(f,N); return CR(arr[i0],arr[i1],arr[i2],arr[i3],t); };
+const vat=(arr,f,N)=>{ const [i0,i1,i2,i3,t]=idx4(f,N); const a0=arr[i0],a1=arr[i1],a2=arr[i2],a3=arr[i3];
+  return new THREE.Vector3(CR(a0.x,a1.x,a2.x,a3.x,t), CR(a0.y,a1.y,a2.y,a3.y,t), CR(a0.z,a1.z,a2.z,a3.z,t)); };
 
 /* ---------- GRID DE 20 CARROS ---------- */
 const DW_={ritmo:0.24,corrida:0.24,ultrapassagem:0.14,defesa:0.12,chuva:0.10,consistencia:0.10,experiencia:0.06};
