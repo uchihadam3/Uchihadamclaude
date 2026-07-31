@@ -432,7 +432,8 @@ addEventListener('keydown', e=>{ if(e.key==='c'||e.key==='C') cycleCam(); });
 /* ---------- botão de som (autoplay exige gesto) ---------- */
 const startBtn=document.getElementById('sound');
 function enableAudio(){ try{ audio.start(); audioOn=true; }catch(e){}
-  engine.start().catch(()=>{});   // carrega o sample real; assume quando pronto
+  // sample real usa o MESMO AudioContext da síntese (essencial no celular)
+  try{ engine.start(audio.ctx).catch(()=>{}); }catch(e){}
   if(startBtn) startBtn.classList.add('hide'); }
 if(startBtn) startBtn.addEventListener('click', enableAudio);
 addEventListener('pointerdown', enableAudio, {once:true});
