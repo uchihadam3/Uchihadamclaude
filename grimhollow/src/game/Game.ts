@@ -331,6 +331,9 @@ const FX_L_DANCA = { url: fxLDancaUrl, frames: 20 };
 const FX_L_ARREMESSO = { url: fxLArremessoUrl, frames: 14 };
 const FX_L_NUVEM = { url: fxLNuvemUrl, frames: 7 };
 const FX_L_TOXINA = { url: fxLToxinaUrl, frames: 19 };
+// magias de FOGO do mago → tocam o som de fogo (as demais magias tocam "cast")
+const FIRE_SKILLS = new Set(["m_bola_fogo", "m_explosao_fogo", "m_meteoro", "m_muralha_fogo"]);
+
 const SKILL_FX: Record<string, { url: string; frames: number }> = {
   // ---- Mago: Fogo
   m_bola_fogo: FX_FIRE,
@@ -3441,8 +3444,9 @@ export class Game {
     const cdr = Math.min(0.8, this.passive.cdr ?? 0);
     this.cooldownUntil[id] = now + cb.cd * (1 - cdr);
     this.coolingSkills.add(id); // o tick atualiza o overlay + contagem regressiva
-    // som: skills corpo-a-corpo já tocam o "swing"; as demais (magia/buff/cura) tocam "cast"
-    if (!cb.melee) this.ui.playSfx("cast");
+    // som: skills corpo-a-corpo já tocam o "swing"; magias de FOGO tocam o som de fogo;
+    // as demais (magia/buff/cura) tocam "cast"
+    if (!cb.melee) this.ui.playSfx(FIRE_SKILLS.has(id) ? "fireMagic" : "cast");
     // efeito
     if (cb.effect === "dmg" && this.target) {
       // guarda alvo/posição ANTES do dano (a morte limpa this.target)
@@ -5796,6 +5800,16 @@ export class Game {
     const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
     this.chevTexCache = t; return t;
   }
+  // som do ATAQUE corpo-a-corpo do inimigo, por espécie: aranha tem o "bote", os
+  // esqueletos (e o chefe morto-vivo) o golpe ósseo. Demais (rato/carniçal/cultista
+  // na adaga) seguem sem som próprio de ataque — só o "hurt" do herói ao levar dano.
+  private enemyMeleeSfx(e: EnemyEnt) {
+    const id = e.typeId;
+    if (id.includes("aranha")) this.ui.playSfx("spiderAtk");
+    else if (id.includes("esqueleto") || id.includes("arqueiro") || id === "boss")
+      this.ui.playSfx("skelMelee");
+  }
+
   // o inimigo à distância dispara um projétil rumo à posição ATUAL do herói
   // (mirando o instante do disparo → dá pra desviar andando).
   private enemyFireProjectile(e: EnemyEnt) {
@@ -5817,7 +5831,8 @@ export class Game {
       spr, kind: e.proj, fx: e.bx, fz: e.bz, tx, tz, y, t0: performance.now(),
       dur: Math.max(180, dist / (isArrow ? 20 : 14) * 1000), dmg: e.atk, // flecha mais veloz
     });
-    this.ui.playSfx(isArrow ? "swing" : "cast"); // "whoosh" da flecha / som de conjuração
+    // flecha do arqueiro OU magia do cultista/conjuradores (som próprio enviado pelo jogador)
+    this.ui.playSfx(isArrow ? "arrowShot" : "enemyMagic");
   }
   // atualiza os projéteis dos inimigos: voam até o alvo; ao chegar, se o herói
   // ainda está por perto, causa dano (senão desviou). Some com um clarão. A flecha
@@ -8894,6 +8909,7 @@ export class Game {
       if (!e.atkAt && !e.stepAt && now >= e.nextAtk && (canMelee || canRanged)) {
         e.atkAt = now;
         e.atkIsRanged = !canMelee; // se não dá pra golpear agora, é um tiro
+        if (!e.atkIsRanged) this.enemyMeleeSfx(e); // grunhido/bote na hora do golpe corpo-a-corpo
       }
       if (e.atkAt) {
         const dur = e.atkIsRanged ? 620 : 700;

@@ -89,6 +89,12 @@ import sfxHurtUrl from "../assets/audio/sfx_hurt.wav";
 import sfxCastUrl from "../assets/audio/sfx_cast.wav";
 import sfxCoinUrl from "../assets/audio/sfx_coin.mp3";     // moedas: comprar/vender/coletar
 import sfxLevelUpUrl from "../assets/audio/sfx_levelup.mp3"; // fanfarra de subir de nível
+// SONS DE COMBATE dos INIMIGOS + magia de fogo do herói (enviados pelo jogador)
+import sfxArrowUrl from "../assets/audio/sfx_arrow.mp3";        // flecha do esqueleto arqueiro
+import sfxSkelMeleeUrl from "../assets/audio/sfx_skel_melee.mp3"; // golpe do esqueleto (corpo-a-corpo)
+import sfxEnemyMagicUrl from "../assets/audio/sfx_enemy_magic.mp3"; // magia do cultista/conjuradores
+import sfxSpiderUrl from "../assets/audio/sfx_spider.mp3";      // bote da aranha
+import sfxFireUrl from "../assets/audio/sfx_fire.mp3";          // magias de fogo do mago
 import { audio } from "./audio";
 // medalhões do minimapa (arte própria recortada da folha)
 import mmSmith from "../assets/ui/minimap/mm_smith.png";
@@ -128,7 +134,14 @@ const hurtSnd = audio.register(new Audio(sfxHurtUrl), "sfx", 0.7);
 const castSnd = audio.register(new Audio(sfxCastUrl), "sfx", 0.6);
 const coinSnd = audio.register(new Audio(sfxCoinUrl), "sfx", 0.75);     // comprar/vender/coletar ouro
 const levelupSnd = audio.register(new Audio(sfxLevelUpUrl), "sfx", 0.85); // fanfarra de nível
-[swingSnd, hitSnd, hurtSnd, castSnd, coinSnd, levelupSnd].forEach((a) => { a.preload = "auto"; });
+// sons de ataque dos inimigos + magia de fogo do herói
+const arrowSnd = audio.register(new Audio(sfxArrowUrl), "sfx", 0.7);      // flecha do arqueiro
+const skelMeleeSnd = audio.register(new Audio(sfxSkelMeleeUrl), "sfx", 0.7); // golpe do esqueleto
+const enemyMagicSnd = audio.register(new Audio(sfxEnemyMagicUrl), "sfx", 0.7); // magia inimiga
+const spiderSnd = audio.register(new Audio(sfxSpiderUrl), "sfx", 0.7);    // bote da aranha
+const fireSnd = audio.register(new Audio(sfxFireUrl), "sfx", 0.75);       // fogo do mago
+[swingSnd, hitSnd, hurtSnd, castSnd, coinSnd, levelupSnd,
+  arrowSnd, skelMeleeSnd, enemyMagicSnd, spiderSnd, fireSnd].forEach((a) => { a.preload = "auto"; });
 function playClone(a: HTMLAudioElement) {
   try { const c = a.cloneNode(true) as HTMLAudioElement; c.volume = a.volume; c.play().catch(() => {}); } catch { /* ignora */ }
 }
@@ -138,6 +151,8 @@ const SFX: Record<string, HTMLAudioElement> = {
   swing: swingSnd, hit: hitSnd, hurt: hurtSnd, cast: castSnd, coin: coinSnd,
   chestRattle: hitSnd,   // chocalho = batidinha metálica (placeholder)
   chestOpen: castSnd,    // abertura = "whoosh" (placeholder)
+  arrowShot: arrowSnd, skelMelee: skelMeleeSnd, enemyMagic: enemyMagicSnd,
+  spiderAtk: spiderSnd, fireMagic: fireSnd,
 };
 
 // ---- FORJA: animação de encher a espada (lava), ~6s, bem incandescente ------
@@ -264,7 +279,8 @@ export interface HUD {
   openStore(data: StoreData): void;
   closeStore(): void;
   // toca um efeito sonoro de combate (canal Efeitos)
-  playSfx(name: "swing" | "hit" | "hurt" | "cast" | "coin" | "chestRattle" | "chestOpen"): void;
+  playSfx(name: "swing" | "hit" | "hurt" | "cast" | "coin" | "chestRattle" | "chestOpen"
+    | "arrowShot" | "skelMelee" | "enemyMagic" | "spiderAtk" | "fireMagic"): void;
   // transição de porta: escurece a tela (a promise resolve no preto total) / clareia
   fadeOut(ms: number): Promise<void>;
   fadeIn(ms: number): void;
