@@ -183,6 +183,20 @@ import deathPoofUrl from "../assets/env/death_poof.png";
 // arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
 // ai: comportamento ao aggro — "chase" (persegue), "kite" (mantém distância e
 // atira), "flee_low" (foge com pouca vida), "relentless" (persegue sem fugir).
+// PIRÂMIDE DE LOOT (estilo MMO): a QUANTIDADE e a RARIDADE dependem da FONTE.
+//   rar = pesos [Comum, Mágico, Raro, Lendário].  tierB = bônus no tier do item.
+//   slots = chances independentes de cada peça (mobs);  min/max = nº fixo (chefe/baús).
+// Mobs comuns DESPEJAM muito item, quase tudo Comum; o TOPO (Raro/Lendário) vem
+// concentrado em CHEFES e BAÚS ESCONDIDOS — o "chase" do jogo.
+type LootProfile = { rar: [number, number, number, number]; tierB: number; slots?: number[]; min?: number; max?: number };
+const LOOT_PROFILES: Record<string, LootProfile> = {
+  normal: { rar: [82, 16, 2, 0],  tierB: 0, slots: [0.62, 0.24] }, // volume alto, quase tudo Comum
+  mini:   { rar: [44, 42, 13, 1], tierB: 0, slots: [0.85, 0.35] }, // elite: mix melhor
+  boss:   { rar: [0, 36, 49, 15], tierB: 1, min: 3, max: 5 },      // fonte-CHAVE de topo
+  chest:  { rar: [24, 46, 24, 6], tierB: 0, slots: [1, 0.45] },    // baú comum: bom
+  hidden: { rar: [0, 22, 50, 28], tierB: 1, min: 2, max: 3 },      // BAÚ ESCONDIDO: o melhor loot
+};
+
 // spd: ms por passo (rato ágil, carniçal lento). ranged/proj = ataque à distância.
 const ENEMY_TYPES: Record<string, {
   art: string; hp: number; atk: number; xp: number; gold: number; vision: number; h: number;
@@ -1010,6 +1024,7 @@ type ChestRec = {
   t0: number;
   knocks: number;
   light?: THREE.PointLight;
+  hidden?: boolean; // baú ESCONDIDO (atrás de parede secreta/portão) → melhor loot
 };
 
 // entrada de diálogo de um aldeão (guardada no npcMap por célula). Os walkers
@@ -3741,13 +3756,11 @@ export class Game {
     return Math.max(1, Math.round(baseXp * mul));
   }
 
-  // raridade de DROP com "sorte" (0 = padrão do chão; ↑ favorece raridades altas).
-  // Só cai em drop/baú — nunca na loja (a loja tem seu próprio sorteio, sem Lendário).
-  private rollDropRarity(lucky = 0): Rarity {
-    const r = Math.random();
-    if (r < 0.015 + lucky * 0.05) return "lendario";
-    if (r < 0.10 + lucky * 0.16) return "raro";
-    if (r < 0.42 + lucky * 0.20) return "magico";
+  // raridade sorteada pelos PESOS de um perfil [Comum, Mágico, Raro, Lendário].
+  private rollRarity(w: [number, number, number, number]): Rarity {
+    const keys: Rarity[] = ["comum", "magico", "raro", "lendario"];
+    let x = Math.random() * (w[0] + w[1] + w[2] + w[3]);
+    for (let i = 0; i < 4; i++) { if (x < w[i]) return keys[i]; x -= w[i]; }
     return "comum";
   }
 
@@ -3777,34 +3790,30 @@ export class Game {
     return out;
   }
 
-  // gera uma peça de armadura de slot aleatório, com tier/raridade dados.
-  private dropArmorPiece(c: number, r: number, tier: number, lucky: number) {
+  // gera 1 peça de armadura (slot aleatório) seguindo um perfil de loot.
+  private dropPiece(c: number, r: number, prof: LootProfile) {
     const slot = ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)];
-    this.spawnItemDrop(c, r, generateArmor(slot, tier, { rarity: this.rollDropRarity(lucky) }));
+    this.spawnItemDrop(c, r, generateArmor(slot, this.dropTier(prof.tierB), { rarity: this.rollRarity(prof.rar) }));
   }
 
-  // LOOT ao matar: ouro + peças de equipamento, ESCALADO pelo PORTE do inimigo.
-  //   normal → 34% de 1 peça (raridade do chão).
-  //   mini   → 70% de 1 peça (+15% de uma 2ª), raridade melhor.
-  //   CHEFE  → tesouro: 3–5 peças de raridade ALTA + ouro extra (recompensa da run).
+  // despeja as peças de um perfil, ESPALHADAS pelas células livres em volta de (c,r).
+  //   slots → chances independentes (mobs);  min/max → nº fixo (chefe/baús).
+  private spawnLootPieces(c: number, r: number, prof: LootProfile) {
+    const count = prof.min != null
+      ? prof.min + Math.floor(Math.random() * ((prof.max ?? prof.min) - prof.min + 1))
+      : (prof.slots ?? []).filter((p) => Math.random() < p).length;
+    if (count <= 0) return;
+    const cells = this.freeNearCells(c, r, count);
+    for (let i = 0; i < count; i++) { const cell = cells[i % cells.length]; this.dropPiece(cell.c, cell.r, prof); }
+  }
+
+  // LOOT ao matar: ouro + peças conforme o PERFIL do PORTE (pirâmide MMO).
+  //   normal → muito item porém quase tudo Comum.  mini → mix melhor.
+  //   CHEFE  → 3–5 peças de raridade ALTA + ouro extra (fonte-chave do topo).
   private rollLoot(c: number, r: number, gold: number, tier: "normal" | "mini" | "boss") {
-    if (tier === "boss") {
-      this.spawnGoldDrop(c, r, gold + 60 + Math.floor(Math.random() * 60));
-      const n = 3 + Math.floor(Math.random() * 3); // 3–5 peças
-      const cells = this.freeNearCells(c, r, n);   // espalha p/ não empilhar tudo numa célula
-      for (let i = 0; i < n; i++) {
-        const cell = cells[i % cells.length];
-        this.dropArmorPiece(cell.c, cell.r, this.dropTier(1), 2);
-      }
-      return;
-    }
-    this.spawnGoldDrop(c, r, gold);
-    if (tier === "mini") {
-      if (Math.random() < 0.70) this.dropArmorPiece(c, r, this.dropTier(), 1);
-      if (Math.random() < 0.15) this.dropArmorPiece(c, r, this.dropTier(), 1);
-      return;
-    }
-    if (Math.random() < 0.34) this.dropArmorPiece(c, r, this.dropTier(), 0);
+    const prof = LOOT_PROFILES[tier];
+    this.spawnGoldDrop(c, r, tier === "boss" ? gold + 60 + Math.floor(Math.random() * 60) : gold);
+    this.spawnLootPieces(c, r, prof);
   }
 
   // anima os drops (flutuar + facho pulsando) e faz o recolhimento automático do OURO
@@ -5619,6 +5628,28 @@ export class Game {
   // FECHADO (dec_chest). Ao interagir, chocalha e troca p/ o frame ABERTO (dec_chest_open)
   // + luz quente. Os 2 frames têm a MESMA largura → a base fica no chão e o corpo não
   // "pula" ao abrir (só a tampa sobe).
+  // um baú é ESCONDIDO se, partindo do spawn 'S', só se chega até ele CRUZANDO uma
+  // parede ilusória ('X'), portão ('G') ou selo ('L') — i.e., fora da rota livre.
+  // Esses guardam o MELHOR loot (o "chase" do jogador).
+  private dungeonChestHidden(c: number, r: number): boolean {
+    const s = dungeonFind("S");
+    const open = (cc: number, rr: number) => {
+      const k = dungeonCell(cc, rr);
+      return k !== "wall" && k !== "secret" && k !== "gate" && k !== "lockgate";
+    };
+    const seen = new Set<string>([`${s.col},${s.row}`]);
+    const dq: [number, number][] = [[s.col, s.row]];
+    while (dq.length) {
+      const [cc, rr] = dq.shift()!;
+      for (const [dc, dr] of DIRS) {
+        const nc = cc + dc, nr = rr + dr, k = `${nc},${nr}`;
+        if (seen.has(k) || !open(nc, nr)) continue;
+        seen.add(k); dq.push([nc, nr]);
+      }
+    }
+    return !seen.has(`${c},${r}`);
+  }
+
   private buildChestBillboard(cx: number, cz: number, c: number, r: number) {
     const W = Game.CHEST_W;
     const mat = new THREE.MeshLambertMaterial({
@@ -5629,7 +5660,9 @@ export class Game {
     mesh.position.set(cx, W / 2, cz);
     this.world.add(mesh);
     this.billboardProps.push(mesh); // encara a câmera (billboard no eixo Y)
-    const rec: ChestRec = { mesh, mat, cx, cz, state: "closed", t0: 0, knocks: 0 };
+    // ESCONDIDO se, na masmorra, a célula só é alcançável cruzando parede secreta/portão
+    const hidden = this.location === "dungeon" && this.dungeonChestHidden(c, r);
+    const rec: ChestRec = { mesh, mat, cx, cz, state: "closed", t0: 0, knocks: 0, hidden };
     // luz quente sutil no baú FECHADO — chama a atenção (e é visível pela grade do tesouro)
     const light = new THREE.PointLight(0xffc367, 1.2, 6.5, 2);
     light.position.set(cx, 0.9, cz); this.world.add(light); rec.light = light;
@@ -5684,17 +5717,15 @@ export class Game {
       rec.light.distance = 8.5; rec.light.position.y = 1.15;
     }
     this.ui.playSfx("chestOpen");
-    // TESOURO: baú rende MAIS que um inimigo comum — ouro + 1–2 peças de raridade
-    // elevada, espalhadas nas células livres ao redor (a célula do baú é bloqueada).
+    // TESOURO: a célula do baú é bloqueada → loot cai nas células LIVRES ao redor.
+    // Baú ESCONDIDO (atrás de segredo/portão) rende o melhor loot; baú comum, bom.
     const cc = Math.round(rec.cx / CELL), rr = Math.round(rec.cz / CELL);
-    const cells = this.freeNearCells(cc, rr, 3);
-    this.spawnGoldDrop(cells[0].c, cells[0].r, 25 + Math.floor(Math.random() * 45));
-    const pieces = 1 + (Math.random() < 0.45 ? 1 : 0);
-    for (let i = 0; i < pieces; i++) {
-      const cell = cells[(i + 1) % cells.length];
-      this.dropArmorPiece(cell.c, cell.r, this.dropTier(), 1.5);
-    }
-    this.ui.toast("Tesouro!");
+    const prof = LOOT_PROFILES[rec.hidden ? "hidden" : "chest"];
+    const goldCell = this.freeNearCells(cc, rr, 1)[0];
+    this.spawnGoldDrop(goldCell.c, goldCell.r,
+      rec.hidden ? 60 + Math.floor(Math.random() * 90) : 25 + Math.floor(Math.random() * 45));
+    this.spawnLootPieces(cc, rr, prof);
+    this.ui.toast(rec.hidden ? "Tesouro escondido!" : "Tesouro!");
   }
 
   // nasce um inimigo no ponto 'E' mais próximo do jogador (não na célula dele)
