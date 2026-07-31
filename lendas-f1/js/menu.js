@@ -257,15 +257,25 @@ function processQuali(q){
   cur={slot:q.slot, career:s};
   const { list, startPos }=C.finalizeQuali(s, q);
   C.saveSlot(q.slot, s);
-  const rows=list.map((x,i)=>`<div class="qrow ${x.isP?'me':''}">
+  // identifica os DOIS pilotos da sua escudería (você + companheiro)
+  const teamNames=driversOf(s.team).map(d=>d.nome);
+  const mateName=teamNames.find(n=>n!==s.driver);
+  const matePos=(list.findIndex(x=>x.name===mateName)+1)||null;
+  const mateT=(list.find(x=>x.name===mateName)||{}).time;
+  const rows=list.map((x,i)=>{ const isMate=x.name===mateName;
+    return `<div class="qrow ${x.isP?'me':''} ${isMate?'mate':''}">
       <span class="qp">${i+1}</span><b style="background:${teamHex(x.team)}"></b>
-      <span class="qn">${esc(last(x.name))}</span>
-      <span class="qt ${x.isP?'p':''}">${C.fmtT(x.time)}</span></div>`).join('');
+      <span class="qn">${esc(last(x.name))}${x.isP?' (você)':isMate?' (comp.)':''}</span>
+      <span class="qt ${x.isP?'p':''}">${C.fmtT(x.time)}</span></div>`; }).join('');
   const pole=startPos===1;
   show(`<div class="scr">
-     <div class="reshd">RESULTADO DA CLASSIFICAÇÃO</div>
+     <div class="reshd">CLASSIFICAÇÃO · SUA ESCUDERÍA</div>
      <div class="respos"><span>${startPos}º</span></div>
-     <div class="resline">${pole?'🏆 POLE POSITION!':'você larga em '+startPos+'º'} · sua volta <b>${C.fmtT(q.playerTime)}</b></div>
+     <div class="resline">${pole?'🏆 POLE POSITION!':'você larga em <b>'+startPos+'º</b>'} · volta ${C.fmtT(q.playerTime)}</div>
+     <div class="twogrid">
+       <div class="drvpos me"><i>VOCÊ · ${esc(last(s.driver))}</i><b>${startPos}º</b><span>${C.fmtT(q.playerTime)}</span></div>
+       ${matePos?`<div class="drvpos"><i>COMPANHEIRO · ${esc(last(mateName))}</i><b>${matePos}º</b><span>${C.fmtT(mateT)}</span></div>`:''}
+     </div>
      <div class="qtbl scroll">${rows}</div>
      <div class="mbtns"><button class="mbtn big red" data-a="hub">➜ Ir pro grid de largada</button></div>
    </div>`, pole?'win':'confirm');
