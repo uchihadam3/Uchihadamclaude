@@ -5,7 +5,7 @@ import { WEAPON_BY_ID } from "./weapons";
 import { derive, START_POINTS, type Primaries } from "./stats";
 import { audio } from "./audio";
 import { backend as saveBackend, localBackend, setActiveBackend, MAX_SLOTS, type SaveMeta } from "./save";
-import { restoreCloudSession, loginWithProvider, signInWithEmail, signUpWithEmail } from "./cloud";
+import { restoreCloudSession, loginWithProvider, signInWithEmail, signUpWithEmail, signOutCloud } from "./cloud";
 import { isSupabaseConfigured } from "./supabaseConfig";
 
 // resultado da abertura: um herói NOVO (com o slot de destino) ou CONTINUAR um save.
@@ -101,9 +101,11 @@ export function runIntro(root: HTMLElement): Promise<IntroResult> {
     const all = preloadUrls(allAssetUrls(), (f) => (frac = f));
     showLoading(overlay, () => frac, all, 900, async () => {
       startMusic();
-      const user = await restoreCloudSession(); // já logado? (voltou do OAuth / lembrou)
-      if (user) { openMenu(false); return; }    // pula o login
-      showLogin(overlay, () => openMenu(false)); // Convidado ou social → menu do título
+      // A tela de login aparece SEMPRE. Se houver sessão lembrada (OAuth/e-mail),
+      // ela vira um botão "Continuar como …" no topo — o jogador ainda vê o login,
+      // mas não precisa reautenticar; pode trocar de conta em "Sair".
+      const user = await restoreCloudSession();
+      showLogin(overlay, () => openMenu(false), user);
     });
   });
 }
@@ -214,14 +216,18 @@ function showOpening(
 // configurado; enquanto isso, mostra um aviso amigável.
 const D_LOGO = '<svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.24.5a18 18 0 0 1 4.3 1.4A17.9 17.9 0 0 0 12 4.6a17.9 17.9 0 0 0-7.46 1.3A18 18 0 0 1 8.84 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.6 9 .1 13.4.3 17.8a19.9 19.9 0 0 0 6 3l.8-1.2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1l.8 1.2a19.9 19.9 0 0 0 6-3c.3-5.1-.5-9.5-3.1-13.4zM8.7 15.3c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4zm6.6 0c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4z"/></svg>';
 // LOGIN: Discord (OAuth) + Email/senha (nativo do Supabase) + Convidado (save local).
-function showLogin(overlay: HTMLElement, onLoggedIn: () => void) {
+function showLogin(overlay: HTMLElement, onLoggedIn: () => void, user?: { email?: string; name?: string } | null) {
   const cloud = isSupabaseConfigured();
+  const who = user ? (user.name || user.email || "sua conta") : null;
   overlay.innerHTML = `
     <div class="gh-screen gh-login" style="background-image:url(${createBgUrl})">
       <div class="gh-cs-veil"></div>
       <div class="gh-login-wrap">
         <img class="gh-login-logo" src="${logoPlateArt}" alt="Nethergloam" />
         <div class="gh-login-btns">
+          ${who ? `<button class="gh-login-btn gh-lg-resume" id="gh-lg-resume">Continuar como <b>${who}</b></button>
+          <button class="gh-login-linkbtn" id="gh-lg-switch">Entrar com outra conta</button>
+          <div class="gh-login-or"><span>ou</span></div>` : ""}
           <button class="gh-login-btn gh-lg-discord" ${cloud ? "" : "disabled"} data-prov="discord">${D_LOGO}<span>Entrar com Discord</span></button>
           <div class="gh-login-or"><span>e-mail</span></div>
           <input class="gh-login-inp" id="gh-lg-email" type="email" placeholder="Seu e-mail" autocomplete="email" ${cloud ? "" : "disabled"} />
@@ -243,6 +249,13 @@ function showLogin(overlay: HTMLElement, onLoggedIn: () => void) {
   const passEl = overlay.querySelector("#gh-lg-pass") as HTMLInputElement | null;
   const say = (msg: string, warn = true) => { noteEl.textContent = msg; noteEl.classList.toggle("gh-login-warn", warn); };
   const busy = (on: boolean) => overlay.querySelectorAll<HTMLButtonElement>(".gh-login-btn").forEach((b) => (b.disabled = on));
+
+  // sessão lembrada: "Continuar como …" entra direto (backend de nuvem já ativo).
+  overlay.querySelector("#gh-lg-resume")?.addEventListener("click", () => onLoggedIn());
+  // "Entrar com outra conta": desloga e reabre o login limpo (sem o atalho).
+  overlay.querySelector("#gh-lg-switch")?.addEventListener("click", () => {
+    void signOutCloud().finally(() => showLogin(overlay, onLoggedIn, null));
+  });
 
   (overlay.querySelector("#gh-lg-guest") as HTMLElement).addEventListener("click", () => {
     setActiveBackend(localBackend); onLoggedIn();
@@ -1083,6 +1096,14 @@ function injectStyle() {
   #gh-intro .gh-login-btn.gh-lg-busy { opacity:.6; pointer-events:none; }
   #gh-intro .gh-lg-google { background:#fff; color:#3c4043; }
   #gh-intro .gh-lg-discord { background:#5865F2; color:#fff; }
+  #gh-intro .gh-lg-resume { background:linear-gradient(180deg,#c9a24a,#9c7a2e); color:#1a1408;
+    font-weight:700; border:1px solid rgba(240,208,116,.7); box-shadow:0 0 18px rgba(240,192,64,.3); }
+  #gh-intro .gh-lg-resume b { font-weight:800; }
+  #gh-intro .gh-lg-resume:hover { box-shadow:0 0 24px rgba(240,192,64,.5); }
+  #gh-intro .gh-login-linkbtn { background:none; border:none; color:#b7ab90; font-size:12px;
+    cursor:pointer; text-decoration:underline; text-underline-offset:3px; padding:2px; align-self:center;
+    transition:color .14s ease; }
+  #gh-intro .gh-login-linkbtn:hover { color:#f0d074; }
   #gh-intro .gh-lg-guest { background:rgba(20,17,13,.72); color:#e4d7ba; border:1px solid rgba(201,162,74,.45);
     font-weight:500; }
   #gh-intro .gh-lg-guest:hover { border-color:rgba(240,208,116,.85); color:#fff; box-shadow:0 0 16px rgba(240,192,64,.32); }
