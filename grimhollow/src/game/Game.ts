@@ -253,7 +253,7 @@ import fxLArremessoUrl from "../assets/ui/fx/fx_l_arremesso.png";
 import fxLNuvemUrl from "../assets/ui/fx/fx_l_nuvem.png";
 import fxLToxinaUrl from "../assets/ui/fx/fx_l_toxina.png";
 import swordUrl from "../assets/env/sword.png";
-import { WEAPONS, WEAPON_BY_ID, type Weapon } from "./weapons";
+import { WEAPONS, WEAPON_BY_ID, generateWeapon, type Weapon, type WeaponInstance } from "./weapons";
 import { generateArmor, sumBonuses, itemTotal, RARITY_BY_KEY, AFFIXES, ARMOR_SLOTS, reserveItemUid, type ItemInstance, type ArmorSlot, type Rarity, type StatBonus, type AffixKey } from "./items";
 import { backend as saveBackend, type CharacterSave } from "./save";
 import coinDropUrl from "../assets/ui/coin.png";
@@ -1044,7 +1044,8 @@ interface NpcEntry {
 interface GroundDrop {
   c: number; r: number;
   kind: "item" | "gold";
-  item?: ItemInstance;   // se kind === "item"
+  item?: ItemInstance;   // se kind === "item" (armadura)
+  weapon?: WeaponInstance; // se kind === "item" E é uma ARMA dropada
   gold?: number;         // se kind === "gold"
   color: string;         // cor da raridade (facho + bolinha no minimapa)
   group: THREE.Group;    // container no mundo (ícone + facho)
@@ -1223,6 +1224,8 @@ export class Game {
   // ---- EQUIPAMENTO (armaduras) ----
   private armorInv: ItemInstance[] = [];                          // armaduras na mochila (não equipadas)
   private equippedArmor: Partial<Record<ArmorSlot, ItemInstance>> = {}; // por slot
+  private weaponInv: WeaponInstance[] = [];                       // armas DROPADAS na mochila
+  private equippedWeaponUid: string | null = null;               // arma-instância equipada (null = arma-base)
   private storeStock: ItemInstance[] = [];                        // estoque rotativo da Rosa
   private storeStockPeriod = -1;                                  // meia-jornada da última rotação
   private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
@@ -1483,7 +1486,7 @@ export class Game {
       swordUrl,
       SWORD_ATK_ART ?? undefined,
       WEAPONS,
-      (w) => this.onEquip(w),
+      (w, uid) => this.onEquip(w, uid),
       (ranks) => this.applyPassives(ranks),
       (id) => this.useSkill(id),
       (key, delta) => this.allocAttr(key, delta),
@@ -2411,9 +2414,27 @@ export class Game {
 
   // aplica um golpe no inimigo se ele estiver na célula à frente do jogador
   // arma equipada trocou (via inventário): guarda o perfil e reflete no ataque
-  private onEquip(w: Weapon) {
+  // equipou uma arma pela mochila: w = arma-base (visual/estilo); uid = instância
+  // DROPADA (ou undefined = arma-base do inventário). Define ambos e recalcula.
+  private onEquip(w: Weapon, uid?: string) {
     this.currentWeapon = w;
+    this.equippedWeaponUid = uid ?? null;
     this.recomputeDerived();
+    this.pushEquipUI();
+  }
+  // tooltip de uma ARMA-instância dropada: dano + afixos + comparação com a atual
+  private weaponInstTip(wi: WeaponInstance): ItemTip {
+    const bonus: StatBonus = {};
+    for (const a of wi.affixes) bonus[a.key] = (bonus[a.key] ?? 0) + a.value;
+    const tip: ItemTip = {
+      name: wi.name, icon: wi.icon, rarity: wi.rarity,
+      sub: `${RARITY_BY_KEY[wi.rarity].label} · Arma`,
+      lines: [{ label: "Dano", value: String(wi.dmg) }, ...this.statLines(bonus)],
+      action: "equip",
+    };
+    tip.compareName = this.currentWeapon?.name ?? "atual";
+    tip.deltas = [{ label: "Dano", delta: wi.dmg - this.weaponDmg() }];
+    return tip;
   }
 
   // ---- FERREIRO (aprimoramento por reforço +N) ----
@@ -3202,9 +3223,23 @@ export class Game {
   // recalcula TODOS os secundários a partir dos primários + base da classe, e
   // aplica as passivas por cima (vida/mana/defesa/ataque). Preserva a fração de
   // vida/mana ao mudar os tetos. É a fonte única de verdade dos atributos.
-  // bônus total das armaduras equipadas (base + afixos rolados)
+  // bônus total das armaduras equipadas (base + afixos) + afixos da ARMA equipada
   private equipBonus(): StatBonus {
-    return sumBonuses(ARMOR_SLOTS.map((s) => this.equippedArmor[s]));
+    const b = sumBonuses(ARMOR_SLOTS.map((s) => this.equippedArmor[s]));
+    const w = this.equippedWeaponInst();
+    if (w) for (const a of w.affixes) b[a.key] = (b[a.key] ?? 0) + a.value;
+    return b;
+  }
+  // instância de arma equipada (null = usando a arma-base do inventário id)
+  private equippedWeaponInst(): WeaponInstance | null {
+    return this.equippedWeaponUid ? (this.weaponInv.find((w) => w.uid === this.equippedWeaponUid) ?? null) : null;
+  }
+  // dano da ARMA no ataque: instância dropada tem o seu próprio dano; senão base + reforço
+  private weaponDmg(): number {
+    const w = this.equippedWeaponInst();
+    if (w) return w.dmg;
+    const rlvl = this.currentWeapon ? (this.reinforce[this.currentWeapon.id] ?? 0) : 0;
+    return (this.currentWeapon?.dmg ?? 0) + rlvl;
   }
   private recomputeDerived() {
     const eq = this.equipBonus();
@@ -3245,8 +3280,7 @@ export class Game {
     this.stats.int = this.prim.int;
     this.stats.def =
       this.sec.def + Math.round((this.passive.def ?? 0) + (this.passive.mres ?? 0));
-    const rlvl = this.currentWeapon ? (this.reinforce[this.currentWeapon.id] ?? 0) : 0;
-    const wdmg = (this.currentWeapon?.dmg ?? 0) + rlvl; // reforço +N do ferreiro soma no dano
+    const wdmg = this.weaponDmg(); // arma-instância dropada OU base + reforço
     this.stats.atk = Math.round(this.atkWithBonus(this.sec.atkPhys + wdmg) * this.buffAtkMul());
     this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
     this.ui.setMana(this.playerMp / this.playerMaxMp, this.playerMp, this.playerMaxMp);
@@ -3331,6 +3365,9 @@ export class Game {
       const w = WEAPON_BY_ID[id]; if (!w) continue;
       bag.push({ kind: "weapon", id, icon: w.url, name: w.name, rarity: "comum", tip: this.weaponTip(w, "equip") });
     }
+    // ARMAS DROPADAS (instâncias) — id = arma-base (visual), uid = a instância
+    for (const wi of this.weaponInv)
+      bag.push({ kind: "weapon", id: wi.base, uid: wi.uid, icon: wi.icon, name: wi.name, rarity: wi.rarity, tip: this.weaponInstTip(wi) });
     for (const it of this.armorInv)
       // MOCHILA usa a arte ORIGINAL (já ficava boa aqui)
       bag.push({ kind: "armor", id: it.uid, icon: it.icon, name: it.name, rarity: it.rarity, tip: this.armorTip(it, "equip") });
@@ -3357,6 +3394,7 @@ export class Game {
       hp: Math.round(this.playerHp), mp: Math.round(this.playerMp),
       armorInv: this.armorInv, equippedArmor: this.equippedArmor,
       ownedWeapons: [...this.ownedWeapons], currentWeapon: this.currentWeapon?.id ?? null,
+      weaponInv: this.weaponInv, equippedWeaponUid: this.equippedWeaponUid,
       reinforce: { ...this.reinforce }, consumables: { ...this.consumables }, materials: { ...this.materials },
       skillRanks: { ...this.skillRanks },
       mainQuests: this.mainQuests, quests: this.quests, stash: this.stash,
@@ -3373,6 +3411,7 @@ export class Game {
     this.stats.level = s.level; this.stats.xp = s.xp; this.stats.xpMax = s.xpMax; this.stats.gold = s.gold;
     this.armorInv = s.armorInv ?? []; this.equippedArmor = s.equippedArmor ?? {};
     this.ownedWeapons = s.ownedWeapons ?? []; this.reinforce = s.reinforce ?? {};
+    this.weaponInv = s.weaponInv ?? []; this.equippedWeaponUid = s.equippedWeaponUid ?? null;
     this.consumables = s.consumables ?? {};
     this.materials = { ...this.materials, ...(s.materials ?? {}) } as typeof this.materials;
     this.skillRanks = s.skillRanks ?? {};
@@ -3381,8 +3420,11 @@ export class Game {
     if (s.stash) this.stash = s.stash;
     this.currentWeapon = s.currentWeapon ? (WEAPON_BY_ID[s.currentWeapon] ?? null) : null;
     // empurra o contador de uid dos itens p/ não colidir com os salvos
-    reserveItemUid([...this.armorInv, ...Object.values(this.equippedArmor)]
-      .filter(Boolean).map((it) => (it as ItemInstance).uid));
+    reserveItemUid([
+      ...this.armorInv.map((it) => it.uid),
+      ...Object.values(this.equippedArmor).filter(Boolean).map((it) => (it as ItemInstance).uid),
+      ...this.weaponInv.map((w) => w.uid),
+    ]);
     // recalcula passivas + derivados (usa prim/skills/equipamento restaurados)
     this.applyPassives(this.skillRanks);
     this.recomputeDerived();
@@ -3446,8 +3488,8 @@ export class Game {
     // acerta o inimigo (vivo) na célula à frente do jogador
     const e = this.enemies.find((x) => !x.dyingAt && x.c === this.col + dc && x.r === this.row + dr);
     if (!e) return;
-    // dano do ataque básico = Atq. Físico + arma, com chance de crítico
-    const base = this.sec.atkPhys + (this.currentWeapon?.dmg ?? 0);
+    // dano do ataque básico = Atq. Físico + arma (instância/base), com chance de crítico
+    const base = this.sec.atkPhys + this.weaponDmg();
     const r = this.rollDamage(base, false);
     this.dealDamageToEnemy(e, r.dmg, r.crit);
   }
@@ -3805,7 +3847,7 @@ export class Game {
     const d: GroundDrop = {
       c, r, color, group: grp, icon, glow, baseY,
       ph: idx * 1.3, opened: false, bornAt: this.now, dx, dz,
-      kind: part.kind ?? "item", item: part.item, gold: part.gold,
+      kind: part.kind ?? "item", item: part.item, weapon: part.weapon, gold: part.gold,
     };
     this.drops.push(d);
     this.pushMinimap(); // bolinha aparece no minimapa
@@ -3882,10 +3924,21 @@ export class Game {
     return out;
   }
 
-  // gera 1 peça de armadura (slot aleatório) seguindo um perfil de loot.
+  // gera 1 peça de equipamento (arma OU armadura) seguindo um perfil de loot.
+  // ~35% das peças são ARMAS (instâncias com dano/afixos), o resto armadura.
   private dropPiece(c: number, r: number, prof: LootProfile) {
-    const slot = ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)];
-    this.spawnItemDrop(c, r, generateArmor(slot, this.dropTier(prof.tierB), { rarity: this.rollRarity(prof.rar) }));
+    const rarity = this.rollRarity(prof.rar);
+    const tier = this.dropTier(prof.tierB);
+    if (Math.random() < 0.35) {
+      this.spawnWeaponDrop(c, r, generateWeapon(this.classId, tier, { rarity }));
+    } else {
+      const slot = ARMOR_SLOTS[Math.floor(Math.random() * ARMOR_SLOTS.length)];
+      this.spawnItemDrop(c, r, generateArmor(slot, Math.min(3, tier), { rarity }));
+    }
+  }
+  // arma dropada no chão (mesmo pipeline visual dos itens; facho pela raridade)
+  private spawnWeaponDrop(c: number, r: number, wi: WeaponInstance) {
+    this.makeDrop(c, r, Game.DROP_COLOR[wi.rarity], wi.icon, { kind: "item", weapon: wi });
   }
 
   // despeja as peças de um perfil, ESPALHADAS pelas células livres em volta de (c,r).
@@ -3960,25 +4013,26 @@ export class Game {
     for (const o of this.drops) if (!(o.c === this.col && o.r === this.row)) o.opened = false;
   }
 
-  // abre o popup "Pegar" de um drop de item
+  // abre o popup "Pegar" de um drop de item (armadura OU arma)
   private openDropPopup(d: GroundDrop) {
-    if (d.kind !== "item" || !d.item) return;
-    this.ui.showPickup(this.armorTip(d.item, "pickup"), () => this.takeDrop(d));
+    if (d.kind !== "item") return;
+    if (d.weapon) this.ui.showPickup(this.weaponInstTip(d.weapon), () => this.takeDrop(d));
+    else if (d.item) this.ui.showPickup(this.armorTip(d.item, "pickup"), () => this.takeDrop(d));
   }
 
   // recolhe o item do chão → mochila (com som + toast)
   private takeDrop(d: GroundDrop) {
-    if (d.kind !== "item" || !d.item) return;
+    if (d.kind !== "item" || (!d.item && !d.weapon)) return;
     if (!this.drops.includes(d)) return; // já pego
-    // TRAVA DE CAPACIDADE: a mochila (armas + armaduras) não é infinita — se estiver
-    // cheia, o item FICA no chão (reabre o popup depois de liberar espaço).
-    if (this.ownedWeapons.length + this.armorInv.length >= Game.INV_CAP) {
+    // TRAVA DE CAPACIDADE: a mochila (armas-base + armaduras + armas dropadas) não é
+    // infinita — se estiver cheia, o item FICA no chão (reabre o popup ao liberar espaço).
+    if (this.ownedWeapons.length + this.armorInv.length + this.weaponInv.length >= Game.INV_CAP) {
       this.ui.toast("Inventário cheio! Venda ou guarde algo no baú.");
       d.opened = false;
       return;
     }
-    this.armorInv.push(d.item);
-    this.ui.toast(`Pegou: ${d.item.name}`);
+    if (d.weapon) { this.weaponInv.push(d.weapon); this.ui.toast(`Pegou: ${d.weapon.name}`); }
+    else if (d.item) { this.armorInv.push(d.item); this.ui.toast(`Pegou: ${d.item.name}`); }
     this.removeDrop(d);
     this.refreshStats();
     this.pushEquipUI();
@@ -7666,7 +7720,7 @@ export class Game {
       this.ui.showDialogue("Placa", pages[0], null);
     } else if (t.kind === "pickup") {
       // item caído: abre o popup "Pegar" (do item à frente ou sob os pés)
-      const d = this.drops.find((x) => x.item?.uid === t.uid);
+      const d = this.drops.find((x) => x.item?.uid === t.uid || x.weapon?.uid === t.uid);
       if (d) this.openDropPopup(d);
     } else if (t.kind === "chest") {
       this.openChestStart(t.key); // chocalha e abre
@@ -9338,7 +9392,8 @@ export class Game {
     const fr = this.row + dr;
     // ITEM caído logo à frente (ou na própria célula) → "Pegar"
     const drop = this.itemDropAt(fc, fr) ?? this.itemDropAt(this.col, this.row);
-    if (drop && drop.item) return { kind: "pickup", uid: drop.item.uid, name: drop.item.name };
+    const dropIt = drop?.weapon ?? drop?.item; // pode ser arma OU armadura
+    if (drop && dropIt) return { kind: "pickup", uid: dropIt.uid, name: dropIt.name };
     // BAÚ da Hedda logo à frente (célula do baú, dentro da casa dela)
     if (this.stashCell && fc === this.stashCell.col && fr === this.stashCell.row)
       return { kind: "stash" };

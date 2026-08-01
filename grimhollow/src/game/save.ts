@@ -6,6 +6,7 @@
 //     é só implementar a MESMA interface e trocar `backend`.
 // ============================================================================
 import type { ItemInstance, ArmorSlot } from "./items";
+import type { WeaponInstance } from "./weapons";
 import type { Primaries } from "./stats";
 
 export const SAVE_VERSION = 1;
@@ -27,6 +28,8 @@ export interface CharacterSave {
   equippedArmor: Partial<Record<ArmorSlot, ItemInstance>>;
   ownedWeapons: string[];
   currentWeapon: string | null;
+  weaponInv: WeaponInstance[];        // armas dropadas na mochila
+  equippedWeaponUid: string | null;   // arma-instância equipada (null = base)
   reinforce: Record<string, number>;
   consumables: Record<string, number>;
   materials: Record<string, number>;

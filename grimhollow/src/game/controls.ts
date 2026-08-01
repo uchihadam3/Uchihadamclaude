@@ -55,7 +55,7 @@ export interface ItemTip {
   price?: number;              // preço (ação "buy")
 }
 // item da mochila (arma ou armadura) e peça equipada no boneco
-export interface BagEntry { kind: "weapon" | "armor"; id: string; icon: string; name: string; rarity?: Rarity; tip: ItemTip; }
+export interface BagEntry { kind: "weapon" | "armor"; id: string; uid?: string; icon: string; name: string; rarity?: Rarity; tip: ItemTip; }
 export interface EquipSlotView { icon: string; rarity: Rarity; tip: ItemTip; }
 export interface EquipUIData { bag: BagEntry[]; armor: Partial<Record<string, EquipSlotView>>; }
 import hudPlateUrl from "../assets/ui/hud_plate.png";
@@ -249,7 +249,7 @@ export interface HUD {
   setEquip(data: EquipUIData): void;
   // DROP no chão: abre o popup do item (centralizado) com o botão "Pegar"
   showPickup(tip: ItemTip, onTake: () => void): void;
-  equipWeapon(id: string): void; // equipa (troca a arma na mão) e realça o slot
+  equipWeapon(id: string, uid?: string): void; // equipa (troca a arma na mão) e realça o slot
   // minimapa (canto sup. direito): grade da célula atual + posição/direção do herói
   updateMinimap(s: MinimapState): void;
   // relógio dia/noite: fase [0,1) e luz do dia [0,1] (sol acende/lua apaga e vice-versa)
@@ -452,7 +452,7 @@ export function setupControls(
   weaponUrl?: string,
   weaponAtkUrl?: string, // 2º sprite (pose de golpe); opcional
   weapons?: Weapon[], // catálogo p/ inventário + perfis de golpe
-  onEquip?: (w: Weapon) => void, // avisa o jogo (dano/cadência/atributos)
+  onEquip?: (w: Weapon, uid?: string) => void, // avisa o jogo (dano/cadência/atributos; uid = arma dropada)
   onSkills?: (ranks: Record<string, number>) => void, // ranks das habilidades mudaram
   onSkill?: (id: string) => void, // jogador acionou uma habilidade da barra
   onAttr?: (key: "str" | "dex" | "int", delta: number) => void, // distribuiu atributo
@@ -2618,7 +2618,7 @@ export function setupControls(
         slot.innerHTML = `<img class="gh-item-ico" src="${e.icon}" alt=""/>`;
         if (e.kind === "weapon") slot.dataset.wid = e.id; else slot.dataset.uid = e.id;
         slot.onclick = () => showItemTip(e.tip, slot.getBoundingClientRect(), () => {
-          if (e.kind === "weapon") this.equipWeapon(e.id); else onEquipArmor?.(e.id);
+          if (e.kind === "weapon") this.equipWeapon(e.id, e.uid); else onEquipArmor?.(e.id);
         });
       });
       // BONECO: peças equipadas — clicar abre o popup (botão: Desequipar)
@@ -2638,7 +2638,7 @@ export function setupControls(
       }
     },
     showPickup(tip: ItemTip, onTake: () => void) { showPickup(tip, onTake); },
-    equipWeapon(id: string) {
+    equipWeapon(id: string, uid?: string) {
       const w = catalog[id];
       if (!w) return;
       const putIcon = (slotKey: string) => {
@@ -2678,7 +2678,7 @@ export function setupControls(
           if (off) { off.innerHTML = ""; off.classList.remove("gh-slot-2h"); }
           twoHandEquipped = false;
         }
-        onEquip?.(w);
+        onEquip?.(w, uid);
       }
       // realça (pulsa) o slot da mochila do item selecionado
       bagSlots.forEach((s) => s.classList.remove("gh-slot-pulse"));

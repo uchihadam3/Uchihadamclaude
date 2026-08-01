@@ -120,6 +120,9 @@ const ARMOR_BASE: Record<ArmorSlot, StatBonus[]> = {
 };
 const PIECE_NAME: Record<ArmorSlot, string> = { head: "Elmo", chest: "Peitoral", hands: "Luvas", feet: "Botas", belt: "Cinto" };
 const MATERIAL: Record<number, string> = { 1: "Couro", 2: "Cobre", 3: "Bronze" };
+// materiais das ARMAS (nomes próprios) — tiers 1..5 (as armas escalam mais que a armadura)
+export const WEAPON_MATERIAL: Record<number, string> = { 1: "Ferro", 2: "Aço", 3: "Prata", 4: "Rúnica", 5: "Abissal" };
+export function nextItemUid(): string { return "it" + (++UID); }
 const ICON: Record<ArmorSlot, string[]> = {
   head:  [t1_head, t2_head, t3_head],
   chest: [t1_chest, t2_chest, t3_chest],
@@ -169,7 +172,7 @@ function weightedRarity(rng: () => number): Rarity {
   return "comum";
 }
 // rola N afixos DISTINTOS do pool do slot (respeitando rareOnly)
-function rollAffixes(pool: AffixKey[], tier: number, count: number, rarity: Rarity, rng: () => number): RolledAffix[] {
+export function rollAffixes(pool: AffixKey[], tier: number, count: number, rarity: Rarity, rng: () => number): RolledAffix[] {
   const legendary = rarity === "lendario";
   const rareUp = rarity === "raro" || rarity === "lendario";
   const avail = pool.filter((k) => !AFFIXES[k].rareOnly || rareUp);

@@ -167,3 +167,57 @@ export const WEAPONS: Weapon[] = [
 export const WEAPON_BY_ID: Record<string, Weapon> = Object.fromEntries(
   WEAPONS.map((w) => [w.id, w]),
 );
+
+// ============================ ARMAS DROPÁVEIS (instâncias) ============================
+// Uma arma achada = uma INSTÂNCIA de uma arma-base com raridade, tier e afixos.
+// A base define visual/animação/estilo; a instância dá o DANO rolado + os afixos.
+import {
+  rollAffixes, WEAPON_MATERIAL, nextItemUid, RARITY_BY_KEY,
+  WEAPON_AFFIX_POOL_MELEE, WEAPON_AFFIX_POOL_CASTER,
+  type Rarity, type RolledAffix,
+} from "./items";
+
+export interface WeaponInstance {
+  uid: string;
+  kind: "weapon";
+  base: string;     // id da arma-base (sword, staff, …) — visual/animação/estilo
+  tier: number;     // 1..5 (armas escalam mais que armadura)
+  rarity: Rarity;
+  name: string;     // ex.: "Espada Rúnica"
+  icon: string;     // arte da base (mochila/popup)
+  dmg: number;      // dano da arma (entra no ataque no lugar do base.dmg)
+  caster: boolean;  // arma de conjurador (cajado) → afixos mágicos
+  affixes: RolledAffix[];
+}
+
+// armas-base de MÃO PRINCIPAL por classe (as que podem cair)
+const CLASS_MAIN_WEAPONS: Record<string, string[]> = {
+  guerreiro: ["sword", "greatsword", "axe"],
+  ladino: ["dagger", "rapier"],
+  mago: ["staff"],
+  clerigo: ["mace", "maul", "staff"],
+};
+// faixa de DANO por tier (soma no ataque; bem acima do dmg de sabor das bases)
+const WPN_DMG_RANGE: Record<number, [number, number]> = {
+  1: [3, 6], 2: [7, 11], 3: [12, 18], 4: [19, 27], 5: [28, 40],
+};
+
+function randInt(lo: number, hi: number, rng: () => number) { return lo + Math.floor(rng() * (hi - lo + 1)); }
+
+// gera uma arma dropada apropriada à classe do herói.
+export function generateWeapon(classId: string, tier: number, opts?: { rarity?: Rarity; rng?: () => number }): WeaponInstance {
+  const rng = opts?.rng ?? Math.random;
+  tier = Math.max(1, Math.min(5, tier));
+  const rarity = opts?.rarity ?? "comum";
+  const pool = CLASS_MAIN_WEAPONS[classId] ?? CLASS_MAIN_WEAPONS.guerreiro;
+  const baseId = pool[Math.floor(rng() * pool.length)];
+  const base = WEAPON_BY_ID[baseId] ?? WEAPONS[0];
+  const caster = base.tint === "arcane" || base.id === "staff" || base.id === "orb";
+  const [lo, hi] = WPN_DMG_RANGE[tier];
+  const dmg = rarity === "lendario" ? randInt(Math.ceil((lo + hi) / 2), hi, rng) : randInt(lo, hi, rng);
+  const affixes = rollAffixes(caster ? WEAPON_AFFIX_POOL_CASTER : WEAPON_AFFIX_POOL_MELEE, Math.min(tier, 3), RARITY_BY_KEY[rarity].affixes, rarity, rng);
+  return {
+    uid: nextItemUid(), kind: "weapon", base: base.id, tier, rarity,
+    name: `${base.name} ${WEAPON_MATERIAL[tier]}`, icon: base.url, dmg, caster, affixes,
+  };
+}
