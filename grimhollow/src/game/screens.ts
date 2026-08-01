@@ -5,8 +5,8 @@ import { WEAPON_BY_ID } from "./weapons";
 import { derive, START_POINTS, type Primaries } from "./stats";
 import { audio } from "./audio";
 import { backend as saveBackend, localBackend, setActiveBackend, MAX_SLOTS, type SaveMeta } from "./save";
-import { restoreCloudSession, loginWithProvider } from "./cloud";
-import { isSupabaseConfigured, type OAuthProvider } from "./supabaseConfig";
+import { restoreCloudSession, loginWithProvider, signInWithEmail, signUpWithEmail } from "./cloud";
+import { isSupabaseConfigured } from "./supabaseConfig";
 
 // resultado da abertura: um herói NOVO (com o slot de destino) ou CONTINUAR um save.
 export type IntroResult =
@@ -212,41 +212,64 @@ function showOpening(
 // Google + Discord (Supabase OAuth) + Convidado. O Convidado usa o save LOCAL
 // (neste aparelho) — jogar já, sem conta. O social só "liga" com o Supabase
 // configurado; enquanto isso, mostra um aviso amigável.
-const G_LOGO = '<svg viewBox="0 0 48 48" width="20" height="20"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.1 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.8 6.1C12.2 13.2 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.1-.4-4.6H24v9.1h12.4c-.5 2.9-2.1 5.3-4.6 7l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16z"/><path fill="#FBBC05" d="M10.4 28.6c-.5-1.5-.8-3-.8-4.6s.3-3.1.8-4.6l-7.8-6.1C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.1 0 11.3-2 15.1-5.5l-7.1-5.5c-2 1.3-4.5 2.1-8 2.1-6.4 0-11.8-3.7-13.6-9.1l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 const D_LOGO = '<svg viewBox="0 0 24 24" width="21" height="21" fill="#fff"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.24.5a18 18 0 0 1 4.3 1.4A17.9 17.9 0 0 0 12 4.6a17.9 17.9 0 0 0-7.46 1.3A18 18 0 0 1 8.84 3.5L8.6 3a19.8 19.8 0 0 0-4.9 1.4C.6 9 .1 13.4.3 17.8a19.9 19.9 0 0 0 6 3l.8-1.2a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a13 13 0 0 1-2 1l.8 1.2a19.9 19.9 0 0 0 6-3c.3-5.1-.5-9.5-3.1-13.4zM8.7 15.3c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4zm6.6 0c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.1 1.1 2.1 2.4-.9 2.4-2.1 2.4z"/></svg>';
-function showLogin(overlay: HTMLElement, onGuest: () => void) {
-  const configured = isSupabaseConfigured();
-  const note = configured
-    ? "Seu progresso fica salvo na sua conta, em qualquer aparelho."
-    : "Login social entra em breve. Por ora, jogue como Convidado (salva neste aparelho).";
+// LOGIN: Discord (OAuth) + Email/senha (nativo do Supabase) + Convidado (save local).
+function showLogin(overlay: HTMLElement, onLoggedIn: () => void) {
+  const cloud = isSupabaseConfigured();
   overlay.innerHTML = `
     <div class="gh-screen gh-login" style="background-image:url(${createBgUrl})">
       <div class="gh-cs-veil"></div>
       <div class="gh-login-wrap">
         <img class="gh-login-logo" src="${logoPlateArt}" alt="Nethergloam" />
         <div class="gh-login-btns">
-          <button class="gh-login-btn gh-lg-google" data-prov="google">${G_LOGO}<span>Entrar com Google</span></button>
-          <button class="gh-login-btn gh-lg-discord" data-prov="discord">${D_LOGO}<span>Entrar com Discord</span></button>
+          <button class="gh-login-btn gh-lg-discord" ${cloud ? "" : "disabled"} data-prov="discord">${D_LOGO}<span>Entrar com Discord</span></button>
+          <div class="gh-login-or"><span>e-mail</span></div>
+          <input class="gh-login-inp" id="gh-lg-email" type="email" placeholder="Seu e-mail" autocomplete="email" ${cloud ? "" : "disabled"} />
+          <input class="gh-login-inp" id="gh-lg-pass" type="password" placeholder="Senha" autocomplete="current-password" ${cloud ? "" : "disabled"} />
+          <div class="gh-login-row">
+            <button class="gh-login-btn gh-lg-mail" id="gh-lg-signin" ${cloud ? "" : "disabled"}>Entrar</button>
+            <button class="gh-login-btn gh-lg-mail gh-lg-alt" id="gh-lg-signup" ${cloud ? "" : "disabled"}>Criar conta</button>
+          </div>
           <div class="gh-login-or"><span>ou</span></div>
           <button class="gh-login-btn gh-lg-guest" id="gh-lg-guest">Entrar como Convidado</button>
         </div>
-        <p class="gh-login-note" id="gh-login-note">${note}</p>
+        <p class="gh-login-note" id="gh-login-note">${cloud
+          ? "Seu progresso fica salvo na sua conta, em qualquer aparelho. Convidado salva só neste aparelho."
+          : "Login em nuvem indisponível — jogue como Convidado (salva neste aparelho)."}</p>
       </div>
     </div>`;
-  (overlay.querySelector("#gh-lg-guest") as HTMLElement).addEventListener("click", () => {
-    setActiveBackend(localBackend); onGuest();
-  });
   const noteEl = overlay.querySelector("#gh-login-note") as HTMLElement;
-  overlay.querySelectorAll("[data-prov]").forEach((el) => el.addEventListener("click", async () => {
-    if (!configured) {
-      noteEl.textContent = "Login social ainda não configurado — use o Convidado por enquanto. 😉";
-      noteEl.classList.add("gh-login-warn");
-      return;
-    }
-    (el as HTMLElement).classList.add("gh-lg-busy");
-    try { await loginWithProvider(el.getAttribute("data-prov") as OAuthProvider); }
-    catch { noteEl.textContent = "Não foi possível abrir o login. Tente de novo."; (el as HTMLElement).classList.remove("gh-lg-busy"); }
-  }));
+  const emailEl = overlay.querySelector("#gh-lg-email") as HTMLInputElement | null;
+  const passEl = overlay.querySelector("#gh-lg-pass") as HTMLInputElement | null;
+  const say = (msg: string, warn = true) => { noteEl.textContent = msg; noteEl.classList.toggle("gh-login-warn", warn); };
+  const busy = (on: boolean) => overlay.querySelectorAll<HTMLButtonElement>(".gh-login-btn").forEach((b) => (b.disabled = on));
+
+  (overlay.querySelector("#gh-lg-guest") as HTMLElement).addEventListener("click", () => {
+    setActiveBackend(localBackend); onLoggedIn();
+  });
+  const disc = overlay.querySelector("[data-prov]") as HTMLElement | null;
+  disc?.addEventListener("click", async () => {
+    disc.classList.add("gh-lg-busy");
+    try { await loginWithProvider("discord"); }
+    catch { say("Não foi possível abrir o Discord. Tente de novo."); disc.classList.remove("gh-lg-busy"); }
+  });
+  const emailFlow = async (mode: "in" | "up") => {
+    const email = (emailEl?.value || "").trim(), pass = passEl?.value || "";
+    if (!email || !pass) { say("Preencha e-mail e senha."); return; }
+    if (mode === "up" && pass.length < 6) { say("A senha precisa de pelo menos 6 caracteres."); return; }
+    busy(true); say("Aguarde…", false);
+    try {
+      if (mode === "in") { await signInWithEmail(email, pass); onLoggedIn(); }
+      else {
+        const r = await signUpWithEmail(email, pass);
+        if (r.needsConfirm) { say("Conta criada! Confirme pelo link no seu e-mail e depois entre.", false); busy(false); }
+        else onLoggedIn();
+      }
+    } catch (e) { say((e as Error).message || "Falha. Tente de novo."); busy(false); }
+  };
+  overlay.querySelector("#gh-lg-signin")?.addEventListener("click", () => void emailFlow("in"));
+  overlay.querySelector("#gh-lg-signup")?.addEventListener("click", () => void emailFlow("up"));
+  passEl?.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") void emailFlow("in"); });
 }
 
 // ---------------------------------------- SELEÇÃO DE PERSONAGEM (janelas/slots)
@@ -1069,6 +1092,17 @@ function injectStyle() {
   #gh-intro .gh-login-note { text-align:center; font-size:12px; line-height:1.5; color:#b7ab90;
     max-width:320px; margin:0; text-shadow:0 1px 3px #000; }
   #gh-intro .gh-login-note.gh-login-warn { color:#e8c06a; }
+  #gh-intro .gh-login-inp { width:100%; padding:12px 14px; border-radius:9px; font-family:"Georgia",serif;
+    font-size:14px; color:#efe6cf; background:rgba(10,9,7,.72); border:1px solid rgba(201,162,74,.34);
+    outline:none; transition:border-color .14s ease, box-shadow .14s ease; }
+  #gh-intro .gh-login-inp::placeholder { color:#8c8168; }
+  #gh-intro .gh-login-inp:focus { border-color:rgba(240,208,116,.8); box-shadow:0 0 12px rgba(240,192,64,.25); }
+  #gh-intro .gh-login-inp:disabled { opacity:.45; }
+  #gh-intro .gh-login-row { display:flex; gap:10px; }
+  #gh-intro .gh-lg-mail { flex:1; background:rgba(28,22,15,.85); color:#e9dcc0; border:1px solid rgba(201,162,74,.5); }
+  #gh-intro .gh-lg-mail:hover:not(:disabled) { border-color:rgba(240,208,116,.9); color:#fff; box-shadow:0 0 14px rgba(240,192,64,.3); }
+  #gh-intro .gh-lg-alt { background:rgba(16,14,11,.6); color:#c9bfa4; font-weight:500; }
+  #gh-intro .gh-login-btn:disabled { opacity:.5; cursor:default; box-shadow:none; }
   @keyframes gh-fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
   @media (max-width:560px) {
     #gh-intro .gh-cs-grid { gap:10px; }

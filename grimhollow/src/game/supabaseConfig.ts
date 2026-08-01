@@ -13,7 +13,7 @@ export const SUPABASE_URL = "https://xldrgwrrbeoninfqctys.supabase.co";
 export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsZHJnd3JyYmVvbmluZnFjdHlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MzgzNTEsImV4cCI6MjEwMTExNDM1MX0.wTXbso583WJsD_bYRERZzKS3nJ3Vfri2W0XED3UHrao";
 
 // provedores de login social habilitados na tela (precisam estar ativados no Supabase)
-export const OAUTH_PROVIDERS = ["google", "discord"] as const;
+export const OAUTH_PROVIDERS = ["discord"] as const;
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
 
 export const isSupabaseConfigured = (): boolean => !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
