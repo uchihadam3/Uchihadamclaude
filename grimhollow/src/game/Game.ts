@@ -4149,9 +4149,16 @@ export class Game {
   // atualiza a janela de personagem com os atributos + vida/mana atuais
   // XP necessário pra passar do nível atual (curva suave)
   private nextXpMax(level: number): number {
-    // curva multiplicativa: subir de nível fica progressivamente mais lento.
-    // nv1→2 = 140 XP (~6 mortes a 22 XP); nv2→3 ≈ 196; nv3→4 ≈ 274; …
-    return Math.round(140 * Math.pow(1.4, level - 1));
+    // curva por FAIXAS (cada nível aplica um fator sobre o custo anterior):
+    //   nv1-5  → 1.40  (ritmo original; nv1→2 = 140, nv4→5 ≈ 384)
+    //   nv6-10 → 1.20  (mais suave: o começo flui até o nv10)
+    //   nv11-49→ 1.30  (progressão normal do meio-jogo)
+    //   nv50+  → 1.45  (endgame endurece de verdade)
+    const growth = (l: number): number =>
+      l <= 5 ? 1.4 : l <= 10 ? 1.2 : l < 50 ? 1.3 : 1.45;
+    let xp = 140; // custo de nv1→2
+    for (let l = 2; l <= level; l++) xp *= growth(l);
+    return Math.round(xp);
   }
   // ganha XP; sobe de nível (1 ponto de habilidade por nível) e recompensa.
   private gainXp(amount: number) {
