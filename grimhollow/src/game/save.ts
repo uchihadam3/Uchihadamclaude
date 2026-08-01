@@ -38,6 +38,7 @@ export interface CharacterSave {
   mainQuests: Record<string, { status: string; step: number; progress: number }>;
   quests: Record<string, { status: string; progress: number }>;
   stash: { goods: Record<string, number>; weapons: string[]; reinforce: Record<string, number>; gold: number };
+  dungeonMaxFloor: number; // checkpoint: andar mais fundo já alcançado
 }
 
 // resumo p/ a tela de seleção de personagem (sem carregar o blob inteiro)

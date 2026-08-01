@@ -1231,6 +1231,7 @@ export class Game {
   private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
   private nextMiniRefresh = 0;                                    // throttle do redesenho do minimapa (bolinhas de inimigo)
   private dungeonFloor = 0;                                       // andar atual da masmorra (0..2)
+  private dungeonMaxFloor = 0;                                    // andar MAIS FUNDO já alcançado (checkpoint p/ "continuar")
   private dungeonSession = 0;                                     // muda a cada (re)build → invalida respawns pendentes
   private dropGlowTex?: THREE.Texture;                            // textura do facho sutil (radial macia)
   private beacon: THREE.Group | null = null;                     // marcador-guia da missão (mundo 3D)
@@ -3186,6 +3187,16 @@ export class Game {
     } else if (id === "beer") {
       this.hpRegenUntil = performance.now() + 180000; // 3 min de regeneração
       this.ui.toast("Você bebe a cerveja — vida se regenera por 3 min!");
+    } else if (id === "scroll_return") {
+      // PORTAL DE RETORNO (estilo Diablo): abre a fenda e volta ao vilarejo. Só na
+      // masmorra (o checkpoint deixa você CONTINUAR do andar mais fundo depois).
+      if (this.location !== "dungeon") { this.ui.toast("O pergaminho só se abre nas profundezas."); return; }
+      this.goodAdd(id, -1);
+      this.refreshConsumables();
+      const { col, row, facing } = this.returnTo;
+      this.ui.toast("Uma fenda se abre — de volta ao vilarejo!");
+      void this.doorTransition(() => this.enterLocation("village", col, row, facing));
+      return;
     } else return;
     this.goodAdd(id, -1);
     this.refreshConsumables();
@@ -3398,6 +3409,7 @@ export class Game {
       reinforce: { ...this.reinforce }, consumables: { ...this.consumables }, materials: { ...this.materials },
       skillRanks: { ...this.skillRanks },
       mainQuests: this.mainQuests, quests: this.quests, stash: this.stash,
+      dungeonMaxFloor: this.dungeonMaxFloor,
     };
   }
 
@@ -3418,6 +3430,7 @@ export class Game {
     if (s.mainQuests) this.mainQuests = s.mainQuests as typeof this.mainQuests;
     if (s.quests) this.quests = s.quests as typeof this.quests;
     if (s.stash) this.stash = s.stash;
+    this.dungeonMaxFloor = s.dungeonMaxFloor ?? 0;
     this.currentWeapon = s.currentWeapon ? (WEAPON_BY_ID[s.currentWeapon] ?? null) : null;
     // empurra o contador de uid dos itens p/ não colidir com os salvos
     reserveItemUid([
@@ -7644,20 +7657,27 @@ export class Game {
       // CONVERSA estilo WoW: saudação + menu (missões/conversar/sair)
       this.talkNpc(t.name, portrait, undefined, t.lines);
     } else if (t.kind === "dungeon") {
-      // desce à masmorra (SEMPRE no 1º andar); guarda o ponto de volta ao vilarejo
-      this.returnTo = {
-        col: this.col,
-        row: this.row,
-        facing: (this.facing + 2) % 4,
-      };
-      this.dungeonFloor = 0;
-      setDungeonFloor(0);
-      // surge LOGO À FRENTE da escada de subida (U) — encarando p/ dentro da masmorra
-      const p = this.dungeonEntryAt("U", [0, 1]);
-      this.enterLocation("dungeon", p.col, p.row, p.facing);
+      // CHECKPOINT: se já desceu além do 1º andar, oferece CONTINUAR do mais fundo
+      // (não refazer tudo) ou RECOMEÇAR do 1º. Senão, entra direto no 1º.
+      if (this.dungeonMaxFloor > 0) {
+        const deep = this.dungeonMaxFloor;
+        this.openDialogue("Boca da Masmorra", [
+          `A escadaria some no breu. Você já alcançou ${DUNGEON_FLOOR_NAMES[deep]}.`,
+          "Deseja continuar de onde parou ou recomeçar do topo?",
+        ], null, {
+          choices: [
+            { id: "cont", label: `Continuar — ${DUNGEON_FLOOR_NAMES[deep]}`, primary: true },
+            { id: "restart", label: "Recomeçar do 1º andar" },
+          ],
+          onChoice: (id) => { this.closeDialogue(); this.enterDungeonFloor(id === "cont" ? deep : 0); },
+        });
+      } else {
+        this.enterDungeonFloor(0);
+      }
     } else if (t.kind === "descend") {
       // escada 'D' → desce um andar; surge à frente da escada de SUBIDA (U) do novo andar
       this.dungeonFloor = Math.min(DUNGEON_FLOOR_COUNT - 1, this.dungeonFloor + 1);
+      this.dungeonMaxFloor = Math.max(this.dungeonMaxFloor, this.dungeonFloor); // checkpoint
       setDungeonFloor(this.dungeonFloor);
       const p = this.dungeonEntryAt("U", [0, 1]);
       this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
@@ -7743,6 +7763,18 @@ export class Game {
 
   // abre um diálogo (com falas paginadas). opts: botões de escolha na última
   // página, resposta a um botão e/ou callback ao fechar (encadeia ofertas etc.)
+  // entra na masmorra num ANDAR específico (0 = 1º). Usado pela boca da masmorra
+  // (novo/continuar) — guarda o ponto de volta ao vilarejo e surge à frente da escada.
+  private enterDungeonFloor(floor: number): void {
+    this.returnTo = { col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
+    this.dungeonFloor = Math.max(0, Math.min(DUNGEON_FLOOR_COUNT - 1, floor));
+    this.dungeonMaxFloor = Math.max(this.dungeonMaxFloor, this.dungeonFloor);
+    setDungeonFloor(this.dungeonFloor);
+    const p = this.dungeonEntryAt("U", [0, 1]); // surge à frente da escada de subida
+    if (this.dungeonFloor > 0) this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
+    this.enterLocation("dungeon", p.col, p.row, p.facing);
+  }
+
   private openDialogue(
     name: string, rawLines: string[], portrait: string | null,
     opts?: { choices?: DialogueChoice[]; onChoice?: (id: string) => void; onClose?: () => void },
