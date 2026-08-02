@@ -1025,6 +1025,13 @@ const A2WALL_GLOB = import.meta.glob("../assets/env/tex_a2wall_*.png", {
   eager: true, query: "?url", import: "default",
 }) as Record<string, string>;
 const A2WALL_PNG: string[] = Object.keys(A2WALL_GLOB).sort().map((k) => A2WALL_GLOB[k]);
+// texturas OPCIONAIS do Ato II (só ativam quando o usuário soltar o PNG):
+//  • tex_a2wall_clean.png → parede CINZA sem musgo (vira o padrão; a com musgo
+//    passa a aparecer só às vezes).  • tex_a2ceil_2.png → teto cinza novo.
+const A2OPT_GLOB = import.meta.glob("../assets/env/tex_a2{wall_clean,ceil_2}.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
+const a2OptUrl = (name: string): string | undefined => A2OPT_GLOB[`../assets/env/${name}.png`];
 
 const DLG_MAX = 96;
 function paginate(lines: string[], max = DLG_MAX): string[] {
@@ -5419,19 +5426,36 @@ export class Game {
     // PAREDE/CHÃO/TETO da masmorra em PBR (MeshStandard) COM NORMAL MAP gerado em
     // runtime → a luz esculpe o relevo das pedras (o "detalhe" tipo Arcmaze). Alvenaria
     // das casas (tex_stonewall) nas paredes/arcos/escadas.
-    void texCobbleUrl; void texA2FloorUrl; void texA2CeilUrl;
-    // TILESET POR ATO: o Ato II usa APENAS a parede CINZA (tex_a2wall_1) — nada de
-    // mistura de tons — e reaproveita o CHÃO/TETO de pedra da 1ª dungeon (cinza,
-    // coeso). Fica um cinza limpo, sem o verde-água que estava pesado/misturado.
+    void texA2FloorUrl; void texA2CeilUrl; void texCobbleUrl;
     const a2 = this.dungeonAct() === 2;
-    const a2GreyUrl = A2WALL_PNG[0] ?? texA2WallUrl; // tex_a2wall_1 (cinza)
+    // ATO II — PAREDE: cinza LIMPA por padrão (tex_a2wall_clean) e a versão MUSGOSA
+    // (tex_a2wall_1) só ÀS VEZES. Enquanto a limpa não existir, usa a musgosa em tudo.
+    const a2CleanUrl = a2OptUrl("tex_a2wall_clean");
+    const a2MossyUrl = A2WALL_PNG[0] ?? texA2WallUrl; // tex_a2wall_1 (com musgo)
     const rockMat = a2
-      ? this.pbrStone(a2GreyUrl, "a2wall1", { rough: 0.86, normal: 1.5 })
+      ? this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2clean", { rough: 0.86, normal: 1.5 })
       : this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
-    // CHÃO: mesma lajota de caverna do Ato I (cinza) nos dois atos.
-    const floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
-    // TETO: mesma alvenaria de pedra do Ato I (cinza) nos dois atos.
-    const ceilMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
+    const rockMatMossy = a2 ? this.pbrStone(a2MossyUrl, "a2mossy", { rough: 0.86, normal: 1.5 }) : rockMat;
+    // só mistura a musgosa quando a limpa existe (senão tudo musgoso, como antes)
+    const useMossy = (c: number, r: number): boolean => a2 && !!a2CleanUrl && hash(c, r, 4) < 0.18;
+    // CHÃO do Ato II: MESMA calçada de pedra da PRAÇA da cidade (cobblestone
+    // procedural), com normal map gerado p/ o relevo. Ato I mantém a lajota de caverna.
+    let floorMat: THREE.Material;
+    if (a2) {
+      const cob = tex.cobblestone(7); cob.wrapS = cob.wrapT = THREE.RepeatWrapping;
+      const fm = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, map: cob, roughness: 0.92, metalness: 0 });
+      const ci = cob.image as HTMLCanvasElement | undefined;
+      if (ci) { const nrm = this.normalFromImage(ci, ci.width, ci.height, "a2cobfloor"); if (nrm) { fm.normalMap = nrm; fm.normalScale.set(1.0, 1.0); } }
+      floorMat = fm;
+    } else {
+      floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
+    }
+    // TETO do Ato II: usa o teto cinza novo (tex_a2ceil_2) quando existir; senão cai
+    // na alvenaria de pedra do Ato I (cinza). Ato I mantém a alvenaria.
+    const a2CeilUrl = a2OptUrl("tex_a2ceil_2");
+    const ceilMat = a2 && a2CeilUrl
+      ? this.pbrStone(a2CeilUrl, "a2ceil2", { rough: 0.92, normal: 1.3 })
+      : this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
@@ -5482,8 +5506,9 @@ export class Game {
             const ox = cx + dc * HALF, oz = cz + dr * HALF;
             const tang: [number, number, number] = dc !== 0 ? [0, 0, CELL] : [CELL, 0, 0];
             const org: [number, number, number] = dc !== 0 ? [ox, 0, oz - HALF] : [ox - HALF, 0, oz];
-            // parede: uma alvenaria única por ato (Ato II = cinza tex_a2wall_1).
-            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 1.2);
+            // parede: Ato II = cinza limpa por padrão, musgosa só às vezes.
+            const wallMat = useMossy(c + dc, r + dr) ? rockMatMossy : rockMat;
+            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, wallMat, 1, 1.2);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
           // tocha esporádica em paredes de rocha (ilumina). LIMITE BAIXO: muitas
