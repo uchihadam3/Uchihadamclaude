@@ -1018,6 +1018,14 @@ const DWALL_PNG = import.meta.glob("../assets/env/tex_dwall_*.png", {
 const dwallUrl = (i: number): string | undefined =>
   DWALL_PNG[`../assets/env/tex_dwall_${i}.png`];
 
+// VARIANTES de parede do ATO II (tex_a2wall_1..N). Se o usuário soltar essas artes
+// em assets/env/, o Ato II passa a distribuí-las pelos painéis (mais variedade);
+// enquanto não houver, usa só a tex_a2wall base (tingida por tons no pool).
+const A2WALL_GLOB = import.meta.glob("../assets/env/tex_a2wall_*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
+const A2WALL_PNG: string[] = Object.keys(A2WALL_GLOB).sort().map((k) => A2WALL_GLOB[k]);
+
 const DLG_MAX = 96;
 function paginate(lines: string[], max = DLG_MAX): string[] {
   const pages: string[] = [];
@@ -5418,11 +5426,27 @@ export class Game {
     const rockMat = a2
       ? this.pbrStone(texA2WallUrl, "a2wall", { rough: 0.86, normal: 1.5 })
       : this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
+    // ATO II: POOL de tons de parede p/ QUEBRAR o monocromático verde-água. Cada
+    // painel sorteia um tom (pedra fria, areia úmida, azulado, musgo escuro…), então
+    // os corredores deixam de parecer "tudo a mesma cor". Suporta variantes de
+    // textura (tex_a2wall_1..N.png) quando existirem; senão tinge a base.
+    const a2WallVariants = A2WALL_PNG.length ? A2WALL_PNG : [texA2WallUrl];
+    // tons com CONTRASTE de valor (claro↔escuro) além de matiz — a variação de
+    // brilho quebra a repetição mesmo mantendo a mesma textura base.
+    const a2WallTints = [0xffffff, 0xd8dde0, 0x8b9498, 0xd9c8a8, 0x74838a, 0xb0a894, 0xa9b7bf];
+    const a2WallPool: THREE.MeshStandardMaterial[] = a2
+      ? a2WallVariants.flatMap((url, vi) =>
+          a2WallTints.map((tint, ti) => this.pbrStone(url, `a2wall${vi}_${ti}`, { rough: 0.86, normal: 1.5, tint })))
+      : [];
+    const pickWall = (c: number, r: number): THREE.MeshStandardMaterial =>
+      a2WallPool.length ? a2WallPool[Math.floor(hash(c, r, 3) * a2WallPool.length) % a2WallPool.length] : rockMat;
     const floorMat = a2
-      ? this.pbrStone(texA2FloorUrl, "a2floor", { rough: 0.6, normal: 1.0 }) // laje molhada = mais lisa/brilhante
+      ? this.pbrStone(texA2FloorUrl, "a2floor", { rough: 0.6, normal: 1.0, tint: 0xc2c8c2 }) // laje molhada, tom neutro
       : this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
+    // TETO do Ato II: bem mais ESCURO e frio que as paredes → separa nitidamente teto
+    // e parede (antes ambos no mesmo teal). No Ato I mantém a alvenaria clara.
     const ceilMat = a2
-      ? this.pbrStone(texA2CeilUrl, "a2ceil", { rough: 0.9, normal: 1.3 })
+      ? this.pbrStone(texA2CeilUrl, "a2ceil", { rough: 0.92, normal: 1.35, tint: 0x5f7076 })
       : this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
@@ -5474,8 +5498,10 @@ export class Game {
             const ox = cx + dc * HALF, oz = cz + dr * HALF;
             const tang: [number, number, number] = dc !== 0 ? [0, 0, CELL] : [CELL, 0, 0];
             const org: [number, number, number] = dc !== 0 ? [ox, 0, oz - HALF] : [ox - HALF, 0, oz];
-            // toda parede = alvenaria (rockMat). Repetição ~1 painel por face.
-            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 1.2);
+            // parede: Ato II sorteia um tom/variação por painel (quebra o monocromático);
+            // Ato I usa a alvenaria única. Repetição ~1 painel por face.
+            const wallMat = a2 ? pickWall(c + dc, r + dr) : rockMat;
+            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, wallMat, 1, 1.2);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
           // tocha esporádica em paredes de rocha (ilumina). LIMITE BAIXO: muitas
@@ -6858,10 +6884,10 @@ export class Game {
   private pbrStone(
     url: string,
     key: string,
-    opts: { rough?: number; normal?: number; repeat?: [number, number] } = {},
+    opts: { rough?: number; normal?: number; repeat?: [number, number]; tint?: number } = {},
   ): THREE.MeshStandardMaterial {
     const m = new THREE.MeshStandardMaterial({
-      side: THREE.DoubleSide, color: 0xffffff,
+      side: THREE.DoubleSide, color: opts.tint ?? 0xffffff,
       roughness: opts.rough ?? 0.95, metalness: 0.0,
     });
     const rep = opts.repeat;

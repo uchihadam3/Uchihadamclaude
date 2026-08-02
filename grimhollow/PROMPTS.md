@@ -1333,9 +1333,27 @@ da pedra quente do Ato I. Chega depois de derrotar o chefe do Ato I.
 **Tileset (drop-in, mesmos moldes das texturas do Ato I):** seamless, 1024×1024,
 top-down, luz chapada, sem sombra/vinheta, borda perfeita. Nomes → `src/assets/env/`.
 
-### ✅ 25.1 — `tex_a2wall` (parede — pedra úmida + fungo, ATO II)
+> **⚠️ Revisão (variedade):** a 1ª leva de parede/teto ficou monocromática demais
+> (tudo verde-água) e parede/teto muito parecidos. Estas versões novas pedem
+> **3 VARIANTES de parede** com **paletas mistas** (pedra cinza/marrom + o teal só
+> em MANCHAS, não cobrindo tudo) e um **teto claramente diferente** (rocha escura,
+> quase sem verde). Salve as 3 paredes como `tex_a2wall_1.png`, `tex_a2wall_2.png`,
+> `tex_a2wall_3.png` → a engine já distribui as variantes pelos corredores. O teto
+> continua `tex_a2ceil.png`. (A `tex_a2wall.png` antiga continua servindo de reserva.)
+
+### ✅ 25.1a — `tex_a2wall_1` (parede — alvenaria de pedra CINZA, fungo só em cantos)
 ```
-Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Wall of a FLOODED SUNKEN CATACOMB turned fungal cavern — dark wet stone-block masonry half-eaten by the cave: cracked mossy ashlar blocks streaked with water stains and mineral drip, patches of slimy dark-green and teal algae, clusters of small pale bioluminescent mushrooms and glowing lichen nestled in the mortar joints, thin pale roots creeping across the stone. COOL DAMP PALETTE — dark slate grey-blue and petrol green with faint cyan glow from the fungi, wet sheen, grim and clammy — NOT warm, NOT brown, NOT bright. High micro-detail so a normal map derived from it pops. no text, no watermark, no border.
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Wall of a sunken flooded catacomb — mostly BARE cracked grey ashlar stone masonry, cool neutral grey and slate with subtle brown mineral staining, water streaks and damp patches; bioluminescent teal fungus and green algae appear ONLY in a FEW small clusters tucked into corners and mortar joints (roughly 15% of the surface, NOT covering the whole wall). Predominantly desaturated grey stone, teal used sparingly as an accent. Wet sheen. High micro-detail so a normal map pops. no text, no watermark, no border.
+```
+
+### ✅ 25.1b — `tex_a2wall_2` (parede — pedra MARROM/ocre com veios minerais)
+```
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Wall of a sunken flooded catacomb — rough dark stone with warm BROWN and ochre earthy tones, rusty iron-oxide mineral veins and orange-brown staining running through cracked masonry, some grey stone blocks; only a couple of small patches of cool teal-green algae and a few faint glowing spores as sparse accents. A brown/rust-dominant variant to CONTRAST the grey and teal walls. Damp but earthy. High micro-detail for normal-map relief. no text, no watermark, no border.
+```
+
+### ✅ 25.1c — `tex_a2wall_3` (parede — rocha escura MUSGOSA, mais fungo)
+```
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Wall of a sunken flooded catacomb — dark slate stone heavily overgrown with deep green moss and creeping roots, veined with teal bioluminescent lichen and clusters of small glowing mushrooms; darker and mossier than the other walls but still with visible bare stone between the growth. Deep green + dark slate, faint cyan glow. The "overgrown" variant. High micro-detail so a normal map pops. no text, no watermark, no border.
 ```
 
 ### ✅ 25.2 — `tex_a2floor` (piso — laje alagada, ATO II)
@@ -1343,9 +1361,9 @@ Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even l
 Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Floor of a flooded sunken crypt — old cracked flagstone slabs under a thin film of dark still water, slick wet stone, pooling in the low seams, dark green algae and slime spreading between tiles, silt and pale mushroom sprouts in the cracks, faint cyan reflections from unseen bioluminescence. COOL wet palette — dark grey-blue and teal, glossy damp reflective sheen, grim and waterlogged — NOT warm, NOT dry, NOT bright golden. High micro-detail for normal-map relief. no text, no watermark, no border.
 ```
 
-### ✅ 25.3 — `tex_a2ceil` (teto — rocha gotejante + raízes, ATO II)
+### ✅ 25.3 — `tex_a2ceil` (teto — rocha ESCURA gotejante, bem diferente da parede)
 ```
-Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ceiling of a fungal flooded cavern — rough natural dark rock dripping with moisture, hanging pale roots and thin stalactites, scattered clumps of faintly glowing cyan-green bioluminescent fungus and lichen, damp mineral streaks. COOL dark palette — near-black slate blue with teal fungal glow, wet and oppressive. High micro-detail for normal-map relief. no text, no watermark, no border.
+Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ceiling of a flooded cavern — rough NATURAL dark rock (NOT masonry blocks — clearly different from the brick walls), near-black charcoal grey stone with brown mineral streaks, dripping moisture, hanging pale roots and thin stalactites; only a FEW faint teal glowing spores scattered sparsely. Very dark, oppressive, almost no green — the ceiling should read as a dark rocky void, distinct from the lighter patterned walls. High micro-detail for normal-map relief. no text, no watermark, no border.
 ```
 
 ### ✅ 25.4 — `dec_mushroom` (prop — tufo de cogumelos bioluminescentes)
