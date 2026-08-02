@@ -5431,9 +5431,12 @@ export class Game {
     // os corredores deixam de parecer "tudo a mesma cor". Suporta variantes de
     // textura (tex_a2wall_1..N.png) quando existirem; senão tinge a base.
     const a2WallVariants = A2WALL_PNG.length ? A2WALL_PNG : [texA2WallUrl];
-    // tons com CONTRASTE de valor (claro↔escuro) além de matiz — a variação de
-    // brilho quebra a repetição mesmo mantendo a mesma textura base.
-    const a2WallTints = [0xffffff, 0xd8dde0, 0x8b9498, 0xd9c8a8, 0x74838a, 0xb0a894, 0xa9b7bf];
+    // Com 3 texturas de parede JÁ variadas (cinza/marrom/musgo), os tons ficam
+    // SUAVES e quase neutros — só uma leve variação de brilho p/ dar profundidade,
+    // sem descaracterizar a cor real de cada textura. (Sem variantes, ainda ajuda.)
+    const a2WallTints = A2WALL_PNG.length
+      ? [0xffffff, 0xe6eaea, 0xc6cac8, 0xb4b8b6]
+      : [0xffffff, 0xd8dde0, 0x8b9498, 0xd9c8a8, 0x74838a, 0xb0a894];
     const a2WallPool: THREE.MeshStandardMaterial[] = a2
       ? a2WallVariants.flatMap((url, vi) =>
           a2WallTints.map((tint, ti) => this.pbrStone(url, `a2wall${vi}_${ti}`, { rough: 0.86, normal: 1.5, tint })))
