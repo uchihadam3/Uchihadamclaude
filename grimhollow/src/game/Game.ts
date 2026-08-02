@@ -1694,12 +1694,13 @@ export class Game {
       // NÉVOA EXPONENCIAL (FogExp2): a escuridão cresce a cada quadrado — perto nítido
       // (a tocha do herói ilumina), e vai fechando gradualmente até o BREU total lá na
       // frente (~7-8 células). Sem corte seco. O chefe tem o ar um tico mais denso.
-      // O ATO II troca a paleta quente/avermelhada por FRIO TEAL (bioma afogado).
-      const fogCol2 = a2 ? (boss ? 0x08201c : 0x061613) : (boss ? 0x120609 : 0x090c10);
-      const bgCol2 = a2 ? (boss ? 0x05100e : 0x040d0b) : (boss ? 0x0c0406 : 0x05070a);
+      // O ATO II agora é CINZA/neutro (o teal saiu) — só um azul-frio bem sutil pra
+      // não ficar idêntico ao Ato I; os cogumelos dão o acento ciano localmente.
+      const fogCol2 = a2 ? (boss ? 0x0c1114 : 0x0a0e10) : (boss ? 0x120609 : 0x090c10);
+      const bgCol2 = a2 ? (boss ? 0x070b0d : 0x05080a) : (boss ? 0x0c0406 : 0x05070a);
       this.scene.fog = new THREE.FogExp2(fogCol2, boss ? 0.058 : 0.052);
       this.scene.background = new THREE.Color(bgCol2);
-      this.addDungeonLights(boss, a2);
+      this.addDungeonLights(boss); // iluminação NEUTRA (cinza) nos dois atos
       this.buildDungeon();
     } else if (loc === "showcase") {
       // mini-santuário: NÉVOA volumétrica densa (exponencial) — moody, não "céu".
@@ -5418,39 +5419,19 @@ export class Game {
     // PAREDE/CHÃO/TETO da masmorra em PBR (MeshStandard) COM NORMAL MAP gerado em
     // runtime → a luz esculpe o relevo das pedras (o "detalhe" tipo Arcmaze). Alvenaria
     // das casas (tex_stonewall) nas paredes/arcos/escadas.
-    void texCobbleUrl;
-    // TILESET POR ATO: o Ato II ("Catacumbas Afogadas") troca parede/chão/teto pelo
-    // bioma fúngico afogado (tex_a2*), paleta fria/teal — bem diferente da pedra
-    // quente do Ato I. Mesma engine de relevo (PBR + normal map gerado).
+    void texCobbleUrl; void texA2FloorUrl; void texA2CeilUrl;
+    // TILESET POR ATO: o Ato II usa APENAS a parede CINZA (tex_a2wall_1) — nada de
+    // mistura de tons — e reaproveita o CHÃO/TETO de pedra da 1ª dungeon (cinza,
+    // coeso). Fica um cinza limpo, sem o verde-água que estava pesado/misturado.
     const a2 = this.dungeonAct() === 2;
+    const a2GreyUrl = A2WALL_PNG[0] ?? texA2WallUrl; // tex_a2wall_1 (cinza)
     const rockMat = a2
-      ? this.pbrStone(texA2WallUrl, "a2wall", { rough: 0.86, normal: 1.5 })
+      ? this.pbrStone(a2GreyUrl, "a2wall1", { rough: 0.86, normal: 1.5 })
       : this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
-    // ATO II: POOL de tons de parede p/ QUEBRAR o monocromático verde-água. Cada
-    // painel sorteia um tom (pedra fria, areia úmida, azulado, musgo escuro…), então
-    // os corredores deixam de parecer "tudo a mesma cor". Suporta variantes de
-    // textura (tex_a2wall_1..N.png) quando existirem; senão tinge a base.
-    const a2WallVariants = A2WALL_PNG.length ? A2WALL_PNG : [texA2WallUrl];
-    // Com 3 texturas de parede JÁ variadas (cinza/marrom/musgo), os tons ficam
-    // SUAVES e quase neutros — só uma leve variação de brilho p/ dar profundidade,
-    // sem descaracterizar a cor real de cada textura. (Sem variantes, ainda ajuda.)
-    const a2WallTints = A2WALL_PNG.length
-      ? [0xffffff, 0xe6eaea, 0xc6cac8, 0xb4b8b6]
-      : [0xffffff, 0xd8dde0, 0x8b9498, 0xd9c8a8, 0x74838a, 0xb0a894];
-    const a2WallPool: THREE.MeshStandardMaterial[] = a2
-      ? a2WallVariants.flatMap((url, vi) =>
-          a2WallTints.map((tint, ti) => this.pbrStone(url, `a2wall${vi}_${ti}`, { rough: 0.86, normal: 1.5, tint })))
-      : [];
-    const pickWall = (c: number, r: number): THREE.MeshStandardMaterial =>
-      a2WallPool.length ? a2WallPool[Math.floor(hash(c, r, 3) * a2WallPool.length) % a2WallPool.length] : rockMat;
-    const floorMat = a2
-      ? this.pbrStone(texA2FloorUrl, "a2floor", { rough: 0.6, normal: 1.0, tint: 0xc2c8c2 }) // laje molhada, tom neutro
-      : this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
-    // TETO do Ato II: bem mais ESCURO e frio que as paredes → separa nitidamente teto
-    // e parede (antes ambos no mesmo teal). No Ato I mantém a alvenaria clara.
-    const ceilMat = a2
-      ? this.pbrStone(texA2CeilUrl, "a2ceil", { rough: 0.92, normal: 1.35, tint: 0x5f7076 })
-      : this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
+    // CHÃO: mesma lajota de caverna do Ato I (cinza) nos dois atos.
+    const floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
+    // TETO: mesma alvenaria de pedra do Ato I (cinza) nos dois atos.
+    const ceilMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
@@ -5501,10 +5482,8 @@ export class Game {
             const ox = cx + dc * HALF, oz = cz + dr * HALF;
             const tang: [number, number, number] = dc !== 0 ? [0, 0, CELL] : [CELL, 0, 0];
             const org: [number, number, number] = dc !== 0 ? [ox, 0, oz - HALF] : [ox - HALF, 0, oz];
-            // parede: Ato II sorteia um tom/variação por painel (quebra o monocromático);
-            // Ato I usa a alvenaria única. Repetição ~1 painel por face.
-            const wallMat = a2 ? pickWall(c + dc, r + dr) : rockMat;
-            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, wallMat, 1, 1.2);
+            // parede: uma alvenaria única por ato (Ato II = cinza tex_a2wall_1).
+            this.caveMesh(org, tang, [0, CH, 0], [dc, 0, dr], 4, 6, 0.9, rockMat, 1, 1.2);
             if (illus) this.addWallDecal(c, r, dc, dr, crackMat, 1.9, 1.8, 1.7);
           }
           // tocha esporádica em paredes de rocha (ilumina). LIMITE BAIXO: muitas
