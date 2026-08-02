@@ -2857,10 +2857,12 @@ export class Game {
       const unit = def.unit ?? "inimigos";
       if (q.progress >= goal) {
         q.status = "ready";
-        this.ui.toast(`${def.title} concluída! Volte ao Bruno para a recompensa.`);
+        this.ui.questPopup(def.title, "Concluída! Volte ao Bruno.", true);
       } else {
-        this.ui.toast(`${def.title}: ${q.progress}/${goal} ${unit}`);
+        // POPUP estilo WoW a cada abate que conta pra missão
+        this.ui.questPopup(def.title, `${q.progress}/${goal} ${unit}`);
       }
+      this.pushTracker(); // atualiza a contagem no rastreador na hora
     }
   }
   // ENTREGA: se algum recado ativo é p/ este NPC, conclui e devolve a fala de
@@ -3050,8 +3052,9 @@ export class Game {
     if (!step || step.kind !== "kill" || this.location !== "dungeon") return;
     st.progress++;
     const goal = step.goal ?? 1;
-    if (st.progress >= goal) { this.ui.toast(`◈ ${act.title}: objetivo cumprido!`); this.mqAdvance(act); }
-    else this.ui.toast(`◈ ${act.title}: ${st.progress}/${goal}`);
+    if (st.progress >= goal) { this.ui.questPopup(act.title, "Objetivo cumprido!", true); this.mqAdvance(act); }
+    else this.ui.questPopup(act.title, `${st.progress}/${goal}`);
+    this.pushTracker();
   }
   // entrou num local: fecha a etapa "enter" do capítulo ativo (ex.: Santuário)
   private mainQuestOnEnter(loc: string) {
@@ -3143,7 +3146,7 @@ export class Game {
     return null;
   }
   // ZONA do objetivo atual (main tem prioridade; senão 1ª secundária ativa)
-  private objectiveTarget(): { zone: "village" | "dungeon" | "hedda"; npc?: string; shop?: string; cell?: [number, number] } | null {
+  private objectiveTarget(): { zone: "village" | "dungeon" | "hedda"; npc?: string; shop?: string; cell?: [number, number]; kill?: boolean; killTypes?: string[] } | null {
     const act = this.mqActive();
     if (act) {
       const step = act.steps[this.mainQuests[act.id].step];
@@ -3151,18 +3154,30 @@ export class Game {
         if (step.kind === "visit" && step.shop) return { zone: "village", shop: step.shop };
         if ((step.kind === "talk" || step.kind === "deliver") && step.target)
           return step.target.includes("Hedda") ? { zone: "hedda" } : { zone: "village", npc: step.target };
-        if (step.kind === "kill") return { zone: "dungeon" };
+        if (step.kind === "kill") return { zone: "dungeon", kill: true }; // qualquer inimigo
         if (step.kind === "seal") { const l = dungeonAll("L")[0]; return { zone: "dungeon", cell: l ? [l.col, l.row] : undefined }; }
         if (step.kind === "enter" && step.location === "showcase") { const a = dungeonAll("A")[0]; return { zone: "dungeon", cell: a ? [a.col, a.row] : undefined }; }
       }
     }
     for (const def of QUEST_DEFS) {
       if (this.quests[def.id]?.status !== "active") continue;
-      if (def.kind === "kill") return { zone: "dungeon" };
+      if (def.kind === "kill") return { zone: "dungeon", kill: true, killTypes: def.enemyTypes };
       if (def.kind === "delivery" && def.target)
         return def.target.includes("Hedda") ? { zone: "hedda" } : { zone: "village", npc: def.target };
     }
     return null;
+  }
+  // célula do inimigo VIVO mais próximo que casa com `types` (vazio = qualquer) —
+  // usado p/ o marcador de objetivo apontar pros alvos das missões de abate.
+  private nearestEnemyCell(types?: string[]): { col: number; row: number } | null {
+    let best: { col: number; row: number } | null = null, bd = Infinity;
+    for (const e of this.enemies) {
+      if (e.hp <= 0) continue;
+      if (types && types.length && !types.includes(e.typeId)) continue;
+      const d = Math.abs(e.c - this.col) + Math.abs(e.r - this.row);
+      if (d < bd) { bd = d; best = { col: e.c, row: e.r }; }
+    }
+    return best;
   }
   // célula-guia DENTRO do local atual: o destino, ou a transição que leva a ele
   private guideCell(): { col: number; row: number } | null {
@@ -3182,7 +3197,11 @@ export class Game {
         return null;
       }
       if (t.zone === "hedda") return { col: 3, row: 2 };      // Hedda dentro da casa dela
-      if (t.zone === "dungeon") return t.cell ? { col: t.cell[0], row: t.cell[1] } : null; // kill: sem célula
+      if (t.zone === "dungeon") {
+        // missão de ABATE → aponta pro inimigo VIVO mais próximo do tipo certo
+        if (t.kill) return this.nearestEnemyCell(t.killTypes);
+        return t.cell ? { col: t.cell[0], row: t.cell[1] } : null;
+      }
       return null;
     };
     const sameZone = (t.zone === "village" && L === "village") || (t.zone === "hedda" && L === "hedda") || (t.zone === "dungeon" && L === "dungeon");
@@ -7736,7 +7755,9 @@ export class Game {
       const q = this.quests[def.id];
       if (q?.status === "active" || q?.status === "ready") {
         let objective = "";
-        if (def.kind === "kill") objective = `${Math.min(q.progress, def.goal ?? 0)}/${def.goal} esqueletos`;
+        if (def.kind === "kill") objective = q.status === "ready"
+          ? `Concluída (${def.goal}/${def.goal} ${def.unit ?? "inimigos"})`
+          : `${Math.min(q.progress, def.goal ?? 0)}/${def.goal} ${def.unit ?? "inimigos"}`;
         else if (def.kind === "delivery") objective = q.status === "ready" ? "Entregue no mural do Bruno" : `Entregar a ${def.target}`;
         return { title: def.title, objective, guideOn: this.guideOn };
       }

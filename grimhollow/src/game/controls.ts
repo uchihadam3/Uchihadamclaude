@@ -267,6 +267,8 @@ export interface HUD {
   floatText(x: number, y: number, text: string, kind: "hit" | "crit" | "player" | "heal" | "mana"): void;
   // mensagem flutuante breve (ex.: "Nível 3!")
   toast(msg: string): void;
+  // POPUP de progresso de missão estilo WoW (texto dourado no alto: "3/8 …")
+  questPopup(title: string, detail: string, done?: boolean): void;
   // efeito de SUBIR DE NÍVEL: animação (GIF) + "LEVEL UP!" em letras garrafais
   levelUp(level: number): void;
   // barra de conjuração: mostra `name` e enche em `ms`. cancelCast() esconde antes.
@@ -1668,6 +1670,19 @@ export function setupControls(
     toastEl.style.animation = "gh-toast 1.8s ease-out";
   };
 
+  // ---- POPUP de progresso de missão (estilo WoW: aviso dourado no alto) ----
+  const questPopEl = document.createElement("div");
+  questPopEl.id = "gh-questpop";
+  root.appendChild(questPopEl);
+  const showQuestPopup = (title: string, detail: string, done = false) => {
+    questPopEl.innerHTML =
+      `<div class="gh-qp-title ${done ? "gh-qp-done" : ""}">${title}</div>` +
+      `<div class="gh-qp-detail">${detail}</div>`;
+    questPopEl.style.animation = "none";
+    void questPopEl.offsetWidth;
+    questPopEl.style.animation = `gh-questpop ${done ? "2.6s" : "2.0s"} ease-out`;
+  };
+
   // ---- SUBIR DE NÍVEL: animação (GIF: seta subindo) + "LEVEL UP!" garrafal ----
   const levelupEl = document.createElement("div");
   levelupEl.id = "gh-levelup";
@@ -2793,6 +2808,7 @@ export function setupControls(
       void toastEl.offsetWidth;
       toastEl.style.animation = "gh-toast 1.8s ease-out";
     },
+    questPopup(title: string, detail: string, done = false) { showQuestPopup(title, detail, done); },
     levelUp(level: number) { showLevelUp(level); },
     castBar(name: string, ms: number) {
       if (castTimer) window.clearTimeout(castTimer);
@@ -3987,6 +4003,29 @@ function injectStyle() {
     30% { transform:translate(-50%,0) scale(1); }
     78% { opacity:1; }
     100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
+  }
+  /* --- POPUP de progresso de missão (estilo WoW) --- */
+  #gh-questpop {
+    position:fixed; top:15%; left:50%; transform:translateX(-50%); z-index:15;
+    pointer-events:none; opacity:0; text-align:center; white-space:nowrap;
+    text-shadow:0 2px 8px #000, 0 0 16px rgba(0,0,0,.7);
+  }
+  #gh-questpop .gh-qp-title {
+    font-family:"Cinzel",serif; font-weight:700; letter-spacing:1px;
+    font-size:clamp(15px,2.6vw,20px); color:#ffe089;
+    -webkit-text-stroke:0.5px rgba(60,40,10,.55);
+  }
+  #gh-questpop .gh-qp-title.gh-qp-done { color:#8fe89a; }
+  #gh-questpop .gh-qp-detail {
+    font-family:"Cinzel",serif; font-weight:600; margin-top:2px;
+    font-size:clamp(13px,2.1vw,17px); color:#f2ead2;
+  }
+  @keyframes gh-questpop {
+    0% { opacity:0; transform:translate(-50%,-10px) scale(.9); }
+    12% { opacity:1; transform:translate(-50%,0) scale(1.04); }
+    24% { transform:translate(-50%,0) scale(1); }
+    80% { opacity:1; }
+    100% { opacity:0; transform:translate(-50%,-8px); }
   }
   /* --- SUBIR DE NÍVEL: GIF (seta subindo) + "LEVEL UP!" garrafal dourado --- */
   #gh-levelup {
