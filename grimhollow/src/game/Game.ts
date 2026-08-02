@@ -4704,20 +4704,22 @@ export class Game {
     document.body.appendChild(img); // anexado (oculto) p/ o navegador animar o GIF
     const t = new THREE.Texture(img);
     t.colorSpace = THREE.SRGBColorSpace;
-    // O GIF tem MUITA margem preta em volta do vórtice — recorta pro miolo (UV) p/
-    // o brilho preencher o plano de borda a borda (assim enche o vão do arco).
-    t.offset.set(0.22, 0.15);
-    t.repeat.set(0.56, 0.70);
+    // GIF 500x375 com fundo TRANSPARENTE: a elipse do portal ocupa ~toda a altura
+    // e ~60% da largura (margem transparente só nas laterais). Recorta pra bbox da
+    // elipse (UV) p/ ela preencher o plano de borda a borda.
+    t.offset.set(0.26, 0.02);
+    t.repeat.set(0.48, 0.96);
     img.onload = () => { t.needsUpdate = true; };
     this.portalImg = img; this.portalTex = t;
     return t;
   }
   // plano do vórtice do portal (billboard chapado, vertical), registrado p/ animar.
+  // fundo transparente → blending NORMAL (alpha), não aditivo.
   private portalPlane(w = 2.4, h = 3.0): THREE.Mesh {
     const m = new THREE.Mesh(
       new THREE.PlaneGeometry(w, h),
       new THREE.MeshBasicMaterial({
-        map: this.portalTexture(), transparent: true, blending: THREE.AdditiveBlending,
+        map: this.portalTexture(), transparent: true, alphaTest: 0.02,
         depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
       }),
     );
@@ -4746,11 +4748,13 @@ export class Game {
     // plataforma, dupla face — o vão fica livre p/ o vórtice preencher.
     const arch = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.1), this.decalMat(decGateFrameUrl, 0.5));
     arch.position.set(0, 0.53 + 4.1 / 2, 0); grp.add(arch);
-    // VÓRTICE do portal preenchendo o vão do arco (de borda a borda), só quando ativo.
+    // VÓRTICE do portal preenchendo o VÃO do arco: base quase no chão da plataforma,
+    // topo na curva do arco, laterais nas bordas internas de pedra.
     if (this.cityPortalActive) {
-      const vortex = this.portalPlane(3.25, 3.95);
-      vortex.position.set(0, 0.53 + 3.95 / 2, 0.02); grp.add(vortex);
-      this.glowLight(wx, 2.2, wz, 0x9b5cff, 2.6, 9); // brilho roxo do portal
+      const PW = 2.9, PH = 3.5, PB = 0.5; // largura, altura, base (y do pé do portal)
+      const vortex = this.portalPlane(PW, PH);
+      vortex.position.set(0, PB + PH / 2, 0.04); grp.add(vortex);
+      this.glowLight(wx, 2.0, wz, 0x3fa8ff, 2.6, 9); // brilho AZUL do portal
     }
     grp.position.set(wx, 0, wz);
     this.world.add(grp);
@@ -4765,11 +4769,11 @@ export class Game {
     const spot = cand.find(([c, r]) => this.canWalk(c, r) && !this.blocked.has(`${c},${r}`)) ?? [WELL.c, WELL.r + 1];
     const [pc, pr] = spot;
     const grp = new THREE.Group();
-    const vortex = this.portalPlane(1.9, 2.5);
-    vortex.position.y = 0.05 + 2.5 / 2; grp.add(vortex);
+    const vortex = this.portalPlane(2.1, 2.9);
+    vortex.position.y = 0.1 + 2.9 / 2; grp.add(vortex);
     grp.position.set(pc * CELL, 0, pr * CELL);
     this.world.add(grp);
-    this.glowLight(pc * CELL, 1.6, pr * CELL, 0x9b5cff, 2.0, 7);
+    this.glowLight(pc * CELL, 1.6, pr * CELL, 0x3fa8ff, 2.0, 7);
     this.tempPortal = grp;
     this.tempPortalCell = { c: pc, r: pr };
   }
