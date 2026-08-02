@@ -188,6 +188,7 @@ import texA2WallUrl from "../assets/env/tex_a2wall.png";
 import texA2FloorUrl from "../assets/env/tex_a2floor.png";
 import texA2CeilUrl from "../assets/env/tex_a2ceil.png";
 import decMushroomUrl from "../assets/env/dec_mushroom.png";
+import portalGifUrl from "../assets/ui/fx/portal.gif";
 import deathPoofUrl from "../assets/env/death_poof.png";
 // perfis dos inimigos (arte + stats FIXOS + tamanho + alcance de visão).
 // arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
@@ -1062,6 +1063,8 @@ type Target =
   | { kind: "sign"; lines: string[] }
   | { kind: "pickup"; uid: string; name: string } // item caído no chão à frente
   | { kind: "chest"; key: string } // baú da masmorra (chocalha e abre ao interagir)
+  | { kind: "waypoint" } // portal FIXO da cidade (arco de pedra) → viaja p/ masmorra
+  | { kind: "portalback" } // portal TEMPORÁRIO de retorno → volta ao ponto da masmorra
   | null;
 
 // baú 2D (billboard) da masmorra: estado + refs p/ animar o chocalho e a abertura
@@ -1236,7 +1239,18 @@ export class Game {
   }[] = [];
   private outdoor = false; // local atual participa do ciclo dia/noite?
   private _sky = new THREE.Color(); // cor da atmosfera reaproveitada por quadro
-  private waterGlint?: THREE.Mesh; // reflexo da água do poço (cintila)
+  private waterGlint?: THREE.Mesh; // (legado) reflexo da água — poço removido
+  // ---- PORTAL / WAYPOINT (estilo PoE/Diablo) ----
+  // portal FIXO da cidade (arco de pedra em plataforma elevada). Preenchido pelo GIF
+  // quando ATIVO (destrava ao vencer o 1º chefe). Ativo desde já p/ TESTE.
+  private cityPortalActive = true;
+  private portalTex?: THREE.Texture;        // textura animada do GIF (compartilhada)
+  private portalImg?: HTMLImageElement;      // <img> do GIF (anima os frames)
+  private portalPlanes: THREE.Mesh[] = [];   // planos do GIF (precisam needsUpdate/tick)
+  // portal TEMPORÁRIO de retorno na cidade (aberto por Pergaminho na masmorra; uso único)
+  private tempPortal?: THREE.Object3D;
+  private tempPortalCell?: { c: number; r: number };
+  private dungeonReturn?: { floor: number; col: number; row: number }; // destino do retorno
   private smoke: THREE.Mesh[] = []; // baforadas de fumaça das chaminés
   private billboardProps: THREE.Object3D[] = []; // props 2D (PNG) que encaram a câmera
   // baús 2D (billboard) da masmorra: chocalham ao interagir e depois abrem (troca de
@@ -1911,6 +1925,7 @@ export class Game {
     this.enemyBolts = [];
     this.poofs = [];
     this.waterGlint = undefined;
+    this.portalPlanes = []; // meshes descartadas pelo world.clear(); zera as refs
     this.doorMap.clear();
     this.homeDoorMap.clear();
     this.npcMap.clear();
@@ -2123,7 +2138,9 @@ export class Game {
     this.buildDungeonEnemy();
 
     // pontos de interesse
-    this.buildWell();
+    this.buildWaypoint(); // arco de pedra + plataforma elevada (substitui o poço)
+    this.tempPortal = undefined; // mesh foi descartada pelo world.clear()
+    if (this.dungeonReturn) this.openTempCityPortal(); // retorno pendente → recria o portal
     // BAÚ de teste na praça, ao lado do poço (WELL em 7,10) → fácil de achar p/ testar
     // o chocalho/abertura do baú sem precisar descer à masmorra.
     this.buildChestBillboard(9 * CELL, 10 * CELL, 9, 10);
@@ -3252,13 +3269,16 @@ export class Game {
       this.hpRegenUntil = performance.now() + 180000; // 3 min de regeneração
       this.ui.toast("Você bebe a cerveja — vida se regenera por 3 min!");
     } else if (id === "scroll_return") {
-      // PORTAL DE RETORNO (estilo Diablo): abre a fenda e volta ao vilarejo. Só na
-      // masmorra (o checkpoint deixa você CONTINUAR do andar mais fundo depois).
+      // PORTAL DE RETORNO (estilo PoE): abre um portal, volta ao vilarejo E deixa
+      // lá um portal TEMPORÁRIO de uso único que traz de volta a ESTE ponto da
+      // masmorra (dungeon→cidade→dungeon e fecha). Só funciona na masmorra.
       if (this.location !== "dungeon") { this.ui.toast("O pergaminho só se abre nas profundezas."); return; }
       this.goodAdd(id, -1);
       this.refreshConsumables();
+      // guarda o ponto exato de retorno (andar + célula atual do herói)
+      this.dungeonReturn = { floor: this.dungeonFloor, col: this.col, row: this.row };
       const { col, row, facing } = this.returnTo;
-      this.ui.toast("Uma fenda se abre — de volta ao vilarejo!");
+      this.ui.toast("Um portal se abre — de volta ao vilarejo! (o par o traz de volta)");
       void this.doorTransition(() => this.enterLocation("village", col, row, facing));
       return;
     } else return;
@@ -4652,96 +4672,88 @@ export class Game {
       }
   }
 
-  // poço de pedra no centro da praça
-  private buildWell() {
-    const wx = WELL.c * CELL;
-    const wz = WELL.r * CELL;
-    this.blocked.add(`${WELL.c},${WELL.r}`);
-    const stoneMat = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
-    const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
-    const thatchMat = new THREE.MeshLambertMaterial({
-      map: tex.thatch(3),
-      side: THREE.DoubleSide,
-    });
-    const grp = new THREE.Group();
-    // mureta de pedra OCA (parede externa aberta em cima) — deixa ver a água
-    const outer = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.15, 1.25, 1.05, 24, 1, true),
-      stoneMat,
-    );
-    outer.position.y = 0.52;
-    grp.add(outer);
-    // parede interna escura (o fundo do poço)
-    const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.98, 0.98, 1.05, 24, 1, true),
-      new THREE.MeshLambertMaterial({ color: 0x171310, side: THREE.BackSide }),
-    );
-    shaft.position.y = 0.52;
-    grp.add(shaft);
-    // borda superior (anel de pedra ligando parede externa e interna)
-    const rim = new THREE.Mesh(
-      new THREE.RingGeometry(0.98, 1.16, 24),
-      new THREE.MeshLambertMaterial({ color: 0x8d8377, side: THREE.DoubleSide }),
-    );
-    rim.rotation.x = -Math.PI / 2;
-    rim.position.y = 1.045;
-    grp.add(rim);
-    // água azul dentro do poço (visível pela abertura)
-    const water = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.97, 0.97, 0.05, 28),
-      new THREE.MeshPhongMaterial({
-        color: 0x2f7288,
-        specular: 0xbfeeff,
-        shininess: 100,
-        transparent: true,
-        opacity: 0.95,
-      }),
-    );
-    water.position.y = 0.86;
-    grp.add(water);
-    // reflexo claro sobre a água (cintila no tick)
-    const glint = new THREE.Mesh(
-      new THREE.CircleGeometry(0.6, 24),
+  // textura ANIMADA do GIF do portal (compartilhada por todos os planos de portal).
+  // O <img> do GIF anima os frames em memória; cada tick fazemos needsUpdate → o
+  // THREE re-sobe o frame atual. Mistura ADITIVA → o fundo preto do GIF some e só
+  // o vórtice roxo brilha.
+  private portalTexture(): THREE.Texture {
+    if (this.portalTex) return this.portalTex;
+    const img = document.createElement("img");
+    img.src = portalGifUrl;
+    img.decoding = "async";
+    img.style.cssText = "position:fixed;left:-20px;top:-20px;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:-1";
+    document.body.appendChild(img); // anexado (oculto) p/ o navegador animar o GIF
+    const t = new THREE.Texture(img);
+    t.colorSpace = THREE.SRGBColorSpace;
+    img.onload = () => { t.needsUpdate = true; };
+    this.portalImg = img; this.portalTex = t;
+    return t;
+  }
+  // plano do vórtice do portal (billboard chapado, vertical), registrado p/ animar.
+  private portalPlane(w = 2.4, h = 3.0): THREE.Mesh {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
       new THREE.MeshBasicMaterial({
-        color: 0xbfeaf5,
-        transparent: true,
-        opacity: 0.25,
+        map: this.portalTexture(), transparent: true, blending: THREE.AdditiveBlending,
+        depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
       }),
     );
-    glint.rotation.x = -Math.PI / 2;
-    glint.position.set(-0.12, 0.87, -0.08);
-    grp.add(glint);
-    this.waterGlint = glint;
-    // dois postes
-    const postGeo = new THREE.BoxGeometry(0.16, 2.0, 0.16);
-    for (const s of [-1, 1]) {
-      const post = new THREE.Mesh(postGeo, woodMat);
-      post.position.set(s * 0.95, 1.55, 0);
-      grp.add(post);
+    this.portalPlanes.push(m);
+    return m;
+  }
+
+  // WAYPOINT da cidade (estilo PoE/Diablo): plataforma de pedra ELEVADA + ARCO de
+  // pedra (o mesmo PNG dos portões da masmorra). Quando ATIVO, o vão do arco é
+  // preenchido pelo vórtice do portal. Ocupa a antiga célula do poço.
+  private buildWaypoint() {
+    const wx = WELL.c * CELL, wz = WELL.r * CELL;
+    this.blocked.add(`${WELL.c},${WELL.r}`);
+    const grp = new THREE.Group();
+    const stoneMat = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const stoneDk = new THREE.MeshLambertMaterial({ map: tex.stone(31), color: new THREE.Color(0x9a9384) });
+    // PLATAFORMA elevada em 2 degraus (dais) — o "chão erguido" do waypoint.
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(2.15, 2.35, 0.28, 32), stoneDk);
+    base.position.y = 0.14; grp.add(base);
+    const tier = new THREE.Mesh(new THREE.CylinderGeometry(1.65, 1.85, 0.26, 32), stoneMat);
+    tier.position.y = 0.40; grp.add(tier);
+    const rim = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.72, 32),
+      new THREE.MeshLambertMaterial({ color: 0x8d8377, side: THREE.DoubleSide }));
+    rim.rotation.x = -Math.PI / 2; rim.position.y = 0.54; grp.add(rim);
+    // ARCO de pedra SEM as grades (só a moldura dos portões) em pé sobre a
+    // plataforma, dupla face — o vão fica livre p/ o vórtice preencher.
+    const arch = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.1), this.decalMat(decGateFrameUrl, 0.5));
+    arch.position.set(0, 0.53 + 4.1 / 2, 0); grp.add(arch);
+    // VÓRTICE do portal preenchendo o vão do arco (só quando ativo).
+    if (this.cityPortalActive) {
+      const vortex = this.portalPlane(2.5, 3.3);
+      vortex.position.set(0, 0.53 + 3.3 / 2, 0.02); grp.add(vortex);
+      this.glowLight(wx, 2.2, wz, 0x9b5cff, 2.4, 8.5); // brilho roxo do portal
     }
-    // travessa + balde + corda
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 0.14), woodMat);
-    bar.position.y = 2.5;
-    grp.add(bar);
-    const rope = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.025, 0.72, 6),
-      new THREE.MeshLambertMaterial({ color: 0x6b5636 }),
-    );
-    rope.position.set(0.2, 2.08, 0);
-    grp.add(rope);
-    const bucket = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.24, 0.2, 0.34, 12),
-      woodMat,
-    );
-    bucket.position.set(0.2, 1.7, 0);
-    grp.add(bucket);
-    // telhadinho de palha (pirâmide)
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.7, 0.95, 4), thatchMat);
-    roof.position.y = 3.05;
-    roof.rotation.y = Math.PI / 4;
-    grp.add(roof);
     grp.position.set(wx, 0, wz);
     this.world.add(grp);
+  }
+
+  // abre um PORTAL TEMPORÁRIO de retorno na cidade (uso único), perto do waypoint —
+  // o par do Pergaminho usado na masmorra. Interagir com ele volta à masmorra.
+  private openTempCityPortal() {
+    if (this.tempPortal) return;
+    // célula livre adjacente ao waypoint (à frente, no eixo sul da praça)
+    const cand: [number, number][] = [[WELL.c, WELL.r + 1], [WELL.c - 1, WELL.r], [WELL.c + 1, WELL.r], [WELL.c, WELL.r - 1]];
+    const spot = cand.find(([c, r]) => this.canWalk(c, r) && !this.blocked.has(`${c},${r}`)) ?? [WELL.c, WELL.r + 1];
+    const [pc, pr] = spot;
+    const grp = new THREE.Group();
+    const vortex = this.portalPlane(1.9, 2.5);
+    vortex.position.y = 0.05 + 2.5 / 2; grp.add(vortex);
+    grp.position.set(pc * CELL, 0, pr * CELL);
+    this.world.add(grp);
+    this.glowLight(pc * CELL, 1.6, pr * CELL, 0x9b5cff, 2.0, 7);
+    this.tempPortal = grp;
+    this.tempPortalCell = { c: pc, r: pr };
+  }
+  // fecha e descarta o portal temporário de retorno.
+  private closeTempCityPortal() {
+    if (this.tempPortal) { this.world.remove(this.tempPortal); this.tempPortal = undefined; }
+    this.tempPortalCell = undefined;
   }
 
   // túnel da masmorra: chão/paredes/teto — MESMAS texturas de CAVERNA da dungeon
@@ -7656,6 +7668,9 @@ export class Game {
           if (k === "stairs") pois.push({ c, r, kind: "dungeon", label: "Masmorra" });
           else if (k === "forestgate") pois.push({ c, r, kind: "forest", label: "Floresta" });
         }
+      // WAYPOINT (portal fixo) + portal temporário de retorno
+      if (this.cityPortalActive) pois.push({ c: WELL.c, r: WELL.r, kind: "portal", label: "Portal" });
+      if (this.tempPortalCell) pois.push({ c: this.tempPortalCell.c, r: this.tempPortalCell.r, kind: "portal", label: "Retorno" });
       // NPCs (posição atual — acompanham a rotina dia/noite)
       for (const [key, npc] of this.npcMap) {
         const [c, r] = key.split(",").map(Number);
@@ -7764,7 +7779,15 @@ export class Game {
       const portrait = this.portraitFor(t.key); // gera o retrato só ao conversar
       // CONVERSA estilo WoW: saudação + menu (missões/conversar/sair)
       this.talkNpc(t.name, portrait, undefined, t.lines);
-    } else if (t.kind === "dungeon") {
+    } else if (t.kind === "portalback") {
+      // portal TEMPORÁRIO: volta ao ponto exato da masmorra e FECHA (uso único).
+      const ret = this.dungeonReturn;
+      this.dungeonReturn = undefined;
+      this.closeTempCityPortal();
+      this.ui.toast("Você atravessa o portal de volta às profundezas.");
+      if (ret) void this.doorTransition(() => this.enterDungeonFloor(ret.floor, ret.col, ret.row));
+      else void this.doorTransition(() => this.enterDungeonFloor(this.dungeonMaxFloor));
+    } else if (t.kind === "dungeon" || t.kind === "waypoint") {
       // CHECKPOINT: se já desceu além do 1º andar, oferece CONTINUAR do mais fundo
       // (não refazer tudo) ou RECOMEÇAR do 1º. Senão, entra direto no 1º.
       if (this.dungeonMaxFloor > 0) {
@@ -7873,12 +7896,15 @@ export class Game {
   // página, resposta a um botão e/ou callback ao fechar (encadeia ofertas etc.)
   // entra na masmorra num ANDAR específico (0 = 1º). Usado pela boca da masmorra
   // (novo/continuar) — guarda o ponto de volta ao vilarejo e surge à frente da escada.
-  private enterDungeonFloor(floor: number): void {
+  private enterDungeonFloor(floor: number, atCol?: number, atRow?: number): void {
     this.returnTo = { col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
     this.dungeonFloor = Math.max(0, Math.min(DUNGEON_FLOOR_COUNT - 1, floor));
     this.dungeonMaxFloor = Math.max(this.dungeonMaxFloor, this.dungeonFloor);
     setDungeonFloor(this.dungeonFloor);
-    const p = this.dungeonEntryAt("U", [0, 1]); // surge à frente da escada de subida
+    // portal de retorno cai no ponto EXATO guardado; senão, à frente da escada 'U'.
+    const p = (atCol != null && atRow != null)
+      ? { col: atCol, row: atRow, facing: this.facing }
+      : this.dungeonEntryAt("U", [0, 1]);
     if (this.dungeonFloor > 0) this.ui.toast(DUNGEON_FLOOR_NAMES[this.dungeonFloor]);
     this.enterLocation("dungeon", p.col, p.row, p.facing);
   }
@@ -9482,12 +9508,11 @@ export class Game {
       (s.material as THREE.MeshBasicMaterial).opacity = Math.sin(t * Math.PI) * 0.42;
       s.rotation.y = Math.atan2(cx - s.position.x, cz - s.position.z);
     }
-    // água do poço cintila suavemente
-    if (this.waterGlint) {
-      const m = this.waterGlint.material as THREE.MeshBasicMaterial;
-      m.opacity = 0.18 + (Math.sin(now * 0.0016) + 1) * 0.11;
-      const sc = 1 + Math.sin(now * 0.0013 + 1) * 0.08;
-      this.waterGlint.scale.set(sc, sc, sc);
+    // PORTAL: re-sobe o frame atual do GIF (vórtice animado) e faz o plano pulsar.
+    if (this.portalPlanes.length) {
+      if (this.portalTex) this.portalTex.needsUpdate = true;
+      const pulse = 1 + Math.sin(now * 0.004) * 0.05;
+      for (const pl of this.portalPlanes) pl.scale.set(pulse, pulse, 1);
     }
     // atualiza a dica de interação só quando o jogador não está animando
     if (!this.anim) this.updatePrompt();
@@ -9517,6 +9542,8 @@ export class Game {
       else if (t.kind === "tavernshop") text = "Taverna — Bruno, o Taverneiro";
       else if (t.kind === "stash") text = "Abrir o baú";
       else if (t.kind === "chest") text = "Abrir o baú";
+      else if (t.kind === "waypoint") text = "Portal — Viajar";
+      else if (t.kind === "portalback") text = "Portal — Voltar à masmorra";
       else if (t.kind === "pickup") text = `Pegar — ${t.name}`;
     }
     if (text !== this.lastPrompt) {
@@ -9564,6 +9591,12 @@ export class Game {
       const home = this.homeDoorMap.get(`${fc},${fr},${-dc},${-dr}`);
       if (home) return { kind: "enterhome", id: home };
       if (cellAt(fc, fr) === "stairs") return { kind: "dungeon" };
+      // portal TEMPORÁRIO de retorno (à frente ou em cima) → volta à masmorra
+      if (this.tempPortalCell && ((fc === this.tempPortalCell.c && fr === this.tempPortalCell.r) ||
+        (this.col === this.tempPortalCell.c && this.row === this.tempPortalCell.r)))
+        return { kind: "portalback" };
+      // portal FIXO do waypoint (a célula do arco) quando ativo
+      if (this.cityPortalActive && fc === WELL.c && fr === WELL.r) return { kind: "waypoint" };
       // trilha da floresta: valendo de frente ou já em cima dela
       if (cellAt(fc, fr) === "forestgate" || cellAt(this.col, this.row) === "forestgate")
         return { kind: "toforest" };
