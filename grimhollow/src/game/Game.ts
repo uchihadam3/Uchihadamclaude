@@ -4704,6 +4704,10 @@ export class Game {
     document.body.appendChild(img); // anexado (oculto) p/ o navegador animar o GIF
     const t = new THREE.Texture(img);
     t.colorSpace = THREE.SRGBColorSpace;
+    // O GIF tem MUITA margem preta em volta do vórtice — recorta pro miolo (UV) p/
+    // o brilho preencher o plano de borda a borda (assim enche o vão do arco).
+    t.offset.set(0.22, 0.15);
+    t.repeat.set(0.56, 0.70);
     img.onload = () => { t.needsUpdate = true; };
     this.portalImg = img; this.portalTex = t;
     return t;
@@ -4742,11 +4746,11 @@ export class Game {
     // plataforma, dupla face — o vão fica livre p/ o vórtice preencher.
     const arch = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 4.1), this.decalMat(decGateFrameUrl, 0.5));
     arch.position.set(0, 0.53 + 4.1 / 2, 0); grp.add(arch);
-    // VÓRTICE do portal preenchendo o vão do arco (só quando ativo).
+    // VÓRTICE do portal preenchendo o vão do arco (de borda a borda), só quando ativo.
     if (this.cityPortalActive) {
-      const vortex = this.portalPlane(2.5, 3.3);
-      vortex.position.set(0, 0.53 + 3.3 / 2, 0.02); grp.add(vortex);
-      this.glowLight(wx, 2.2, wz, 0x9b5cff, 2.4, 8.5); // brilho roxo do portal
+      const vortex = this.portalPlane(3.25, 3.95);
+      vortex.position.set(0, 0.53 + 3.95 / 2, 0.02); grp.add(vortex);
+      this.glowLight(wx, 2.2, wz, 0x9b5cff, 2.6, 9); // brilho roxo do portal
     }
     grp.position.set(wx, 0, wz);
     this.world.add(grp);
