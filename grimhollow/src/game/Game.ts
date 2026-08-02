@@ -178,6 +178,16 @@ import enemyArqueiroUrl from "../assets/env/enemy_arqueiro.png";
 import enemyCarnicalUrl from "../assets/env/enemy_carnical.png";
 import enemyCultistaUrl from "../assets/env/enemy_cultista.png";
 import enemyBossUrl from "../assets/env/boss_andar3.png";
+// ATO II — "As Catacumbas Afogadas" (bioma fúngico afogado, paleta fria)
+import enemyAfogadoUrl from "../assets/env/enemy_afogado.png";
+import enemyAberracaoUrl from "../assets/env/enemy_aberracao.png";
+import enemyLimoUrl from "../assets/env/enemy_limo.png";
+import enemyNajaUrl from "../assets/env/enemy_naja.png";
+import enemyBossA2Url from "../assets/env/boss_a2.png";
+import texA2WallUrl from "../assets/env/tex_a2wall.png";
+import texA2FloorUrl from "../assets/env/tex_a2floor.png";
+import texA2CeilUrl from "../assets/env/tex_a2ceil.png";
+import decMushroomUrl from "../assets/env/dec_mushroom.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 // perfis dos inimigos (arte + stats FIXOS + tamanho + alcance de visão).
 // arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
@@ -220,6 +230,17 @@ const ENEMY_TYPES: Record<string, {
   // herói de dentro do breu) e AVANÇA rápido (charge agressivo). Recompensa gorda.
   // HP alto p/ uma luta longa e "aprende o padrão"; dano punitivo (Difícil).
   boss:      { art: enemyBossUrl,     hp: 320, atk: 30, xp: 340, gold: 150, vision: 13, h: 4.4, lvl: 6, ai: "relentless", spd: 700, tier: "boss" },
+  // ===== ATO II — roster afogado/fúngico (andares 4-6; herói ~nv6-10) =====
+  // afogado: o "esqueleto" do Ato II — morto-vivo encharcado, avança direto.
+  afogado:   { art: enemyAfogadoUrl,  hp: 56, atk: 18, xp: 42, gold: 11, vision: 5, h: 2.8, lvl: 4, ai: "chase", spd: 820 },
+  // limo: gosma cáustica — lenta, encalha o herói (tanque leve corpo-a-corpo).
+  limo:      { art: enemyLimoUrl,     hp: 68, atk: 15, xp: 40, gold: 9,  vision: 4, h: 1.9, lvl: 4, ai: "chase", spd: 1050 },
+  // naja: serpente das profundezas — cospe veneno à distância (kite).
+  naja:      { art: enemyNajaUrl,     hp: 46, atk: 17, xp: 50, gold: 13, vision: 7, h: 2.7, lvl: 5, ranged: true, melee: true, range: 6, proj: "orb", ai: "kite", spd: 1120 },
+  // aberração: tanque fúngico — muito HP, IMPLACÁVEL (mini-elite do Ato II).
+  aberracao: { art: enemyAberracaoUrl, hp: 105, atk: 25, xp: 66, gold: 18, vision: 5, h: 3.1, lvl: 5, ai: "relentless", spd: 880, tier: "mini" },
+  // CHEFE do Ato II — o Leviatã Afogado. Maior e mais duro que o do Ato I.
+  boss_a2:   { art: enemyBossA2Url,   hp: 520, atk: 40, xp: 640, gold: 280, vision: 13, h: 4.8, lvl: 9, ai: "relentless", spd: 680, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -1256,7 +1277,9 @@ export class Game {
   private storeStockPeriod = -1;                                  // meia-jornada da última rotação
   private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
   private nextMiniRefresh = 0;                                    // throttle do redesenho do minimapa (bolinhas de inimigo)
-  private dungeonFloor = 0;                                       // andar atual da masmorra (0..2)
+  private dungeonFloor = 0;                                       // andar atual da masmorra (0..5)
+  // ATO do andar atual: 1 = Ato I (andares 0-2), 2 = Ato II afogado (andares 3-5).
+  private dungeonAct(): 1 | 2 { return this.dungeonFloor >= 3 ? 2 : 1; }
   private dungeonMaxFloor = 0;                                    // andar MAIS FUNDO já alcançado (checkpoint p/ "continuar")
   private dungeonSession = 0;                                     // muda a cada (re)build → invalida respawns pendentes
   private dropGlowTex?: THREE.Texture;                            // textura do facho sutil (radial macia)
@@ -1643,14 +1666,18 @@ export class Game {
       // 8-9 → clima fechado/corredor, mas dá pra ver os inimigos que se aproximam.
       // BIOMA muda no 3º andar (cripta do chefe): névoa/fundo mais quentes e
       // avermelhados, ar mais pesado (névoa um tico mais curta) — clima de perigo.
-      const boss = this.dungeonFloor >= 2;
+      // andar de CHEFE: 3º do Ato I (floor 2) e 6º do Ato II (floor 5).
+      const boss = this.dungeonFloor === 2 || this.dungeonFloor === 5;
+      const a2 = this.dungeonAct() === 2;
       // NÉVOA EXPONENCIAL (FogExp2): a escuridão cresce a cada quadrado — perto nítido
       // (a tocha do herói ilumina), e vai fechando gradualmente até o BREU total lá na
       // frente (~7-8 células). Sem corte seco. O chefe tem o ar um tico mais denso.
-      // Densidade ~0.052: 2 cél ≈ 16% escuro · 4 cél ≈ 53% · 6 cél ≈ 79% · 8 cél ≈ 94%.
-      this.scene.fog = new THREE.FogExp2(boss ? 0x120609 : 0x090c10, boss ? 0.058 : 0.052);
-      this.scene.background = new THREE.Color(boss ? 0x0c0406 : 0x05070a);
-      this.addDungeonLights(boss);
+      // O ATO II troca a paleta quente/avermelhada por FRIO TEAL (bioma afogado).
+      const fogCol2 = a2 ? (boss ? 0x08201c : 0x061613) : (boss ? 0x120609 : 0x090c10);
+      const bgCol2 = a2 ? (boss ? 0x05100e : 0x040d0b) : (boss ? 0x0c0406 : 0x05070a);
+      this.scene.fog = new THREE.FogExp2(fogCol2, boss ? 0.058 : 0.052);
+      this.scene.background = new THREE.Color(bgCol2);
+      this.addDungeonLights(boss, a2);
       this.buildDungeon();
     } else if (loc === "showcase") {
       // mini-santuário: NÉVOA volumétrica densa (exponencial) — moody, não "céu".
@@ -4796,7 +4823,7 @@ export class Game {
   }
 
   // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
-  private addDungeonLights(boss = false) {
+  private addDungeonLights(boss = false, a2 = false) {
     // masmorra-labirinto é grande e as tochas (limitadas) se espalham → sobe a luz
     // ambiente base p/ os corredores sem tocha não ficarem pretos (visível como o
     // Arcmaze), mantendo a paleta fria/pedra.
@@ -4809,9 +4836,15 @@ export class Game {
     // e as tochas). Luz-chave quente p/ realces.
     // 3º andar (cripta do chefe): ambiente/hemisfério puxados p/ o VERMELHO-SANGUE,
     // dando o clima de bioma diferente (perigo) sem trocar as texturas.
-    this.world.add(new THREE.AmbientLight(boss ? 0xa6707a : 0x8f98a6, boss ? 0.95 : 1.0));
-    this.world.add(new THREE.HemisphereLight(boss ? 0xd89090 : 0xc4ccd8, boss ? 0x4a2016 : 0x52402a, 1.45));
-    const key = new THREE.DirectionalLight(boss ? 0xff9a72 : 0xffd7a2, 0.6);
+    // ATO II: ambiente/hemisfério puxados p/ o CIANO-FRIO (bioma fúngico afogado),
+    // luz-chave esverdeada — clima de caverna submersa em vez da pedra quente.
+    this.world.add(new THREE.AmbientLight(
+      a2 ? (boss ? 0x5f9aa0 : 0x6fa6ad) : (boss ? 0xa6707a : 0x8f98a6), boss ? 0.95 : 1.0));
+    this.world.add(new THREE.HemisphereLight(
+      a2 ? 0x7fd4d0 : (boss ? 0xd89090 : 0xc4ccd8),
+      a2 ? 0x14322e : (boss ? 0x4a2016 : 0x52402a), 1.45));
+    const key = new THREE.DirectionalLight(
+      a2 ? 0x9fe6dc : (boss ? 0xff9a72 : 0xffd7a2), 0.6);
     key.position.set(7, 13, 5);
     this.world.add(key);
     // TOCHA do herói: poça de luz quente que acompanha o jogador (o tick move ela)
@@ -5338,18 +5371,28 @@ export class Game {
     // PAREDE/CHÃO/TETO da masmorra em PBR (MeshStandard) COM NORMAL MAP gerado em
     // runtime → a luz esculpe o relevo das pedras (o "detalhe" tipo Arcmaze). Alvenaria
     // das casas (tex_stonewall) nas paredes/arcos/escadas.
-    const rockMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
-    // CHÃO: lajota QUENTE (tex_cavefloor rico, gerado) — mesma família da parede.
     void texCobbleUrl;
-    const floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
-    // COESÃO (estilo Arcmaze): o TETO usa a MESMA alvenaria das paredes (não mais a
-    // rocha escura diferente) — parede+teto+moldura+pilares na mesma pedra.
-    const ceilMat = this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
+    // TILESET POR ATO: o Ato II ("Catacumbas Afogadas") troca parede/chão/teto pelo
+    // bioma fúngico afogado (tex_a2*), paleta fria/teal — bem diferente da pedra
+    // quente do Ato I. Mesma engine de relevo (PBR + normal map gerado).
+    const a2 = this.dungeonAct() === 2;
+    const rockMat = a2
+      ? this.pbrStone(texA2WallUrl, "a2wall", { rough: 0.86, normal: 1.5 })
+      : this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
+    const floorMat = a2
+      ? this.pbrStone(texA2FloorUrl, "a2floor", { rough: 0.6, normal: 1.0 }) // laje molhada = mais lisa/brilhante
+      : this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
+    const ceilMat = a2
+      ? this.pbrStone(texA2CeilUrl, "a2ceil", { rough: 0.9, normal: 1.3 })
+      : this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
     const boneMat = new THREE.MeshLambertMaterial({
       map: tex.skullPile(69), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide,
     });
+    // ATO II: tufo de cogumelos bioluminescentes (billboard) — pontua os corredores
+    // com o brilho frio no lugar das ossadas do Ato I.
+    const mushMat = a2 ? this.decalMat(decMushroomUrl, 0.4) : null;
     const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const ironMat = new THREE.MeshLambertMaterial({ color: 0x27231d });
 
@@ -5412,8 +5455,16 @@ export class Game {
         // piso livre. As ossadas ('bones') seguem, pois são decalques rentes ao chão
         // (atmosfera) e não bloqueiam.
         if (k === "bones") {
-          const b = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.3), boneMat);
-          b.rotation.x = -Math.PI / 2; b.position.set(cx, 0.05, cz); this.world.add(b);
+          if (mushMat) {
+            // cogumelo bioluminescente em pé (billboard) + brilho ciano frio
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.1), mushMat);
+            m.position.set(cx, 1.02, cz); this.world.add(m);
+            this.billboardProps.push(m);
+            this.glowLight(cx, 1.0, cz, 0x4fd8c8, 1.6, 6.2);
+          } else {
+            const b = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.3), boneMat);
+            b.rotation.x = -Math.PI / 2; b.position.set(cx, 0.05, cz); this.world.add(b);
+          }
         } else if (k === "chest") {
           this.buildChestBillboard(cx, cz, c, r); this.blocked.add(`${c},${r}`);
         } else if (k === "down") {
@@ -5979,18 +6030,24 @@ export class Game {
       }
     }
     // variedade de tipos espalhados (mais fracos comuns, tanque/conjurador raros).
-    // andares mais fundos → pool mais perigoso (menos ratos, mais tanque/conjurador).
-    const pool = this.dungeonFloor >= 2
-      ? ["esqueleto", "aranha", "cultista", "carnical", "esqueleto", "cultista", "carnical", "arqueiro"]
-      : this.dungeonFloor === 1
-        ? ["rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista", "aranha"]
-        : ["rato", "rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista"];
+    // andares mais fundos → pool mais perigoso. O ATO II (andares 4-6) troca o
+    // roster inteiro pelo bioma afogado/fúngico.
+    const pool = this.dungeonAct() === 2
+      ? (this.dungeonFloor >= 4
+          ? ["afogado", "limo", "naja", "aberracao", "afogado", "naja", "aberracao", "limo"]
+          : ["afogado", "afogado", "limo", "naja", "afogado", "aberracao", "naja", "limo"])
+      : this.dungeonFloor >= 2
+        ? ["esqueleto", "aranha", "cultista", "carnical", "esqueleto", "cultista", "carnical", "arqueiro"]
+        : this.dungeonFloor === 1
+          ? ["rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista", "aranha"]
+          : ["rato", "rato", "aranha", "esqueleto", "esqueleto", "arqueiro", "carnical", "cultista"];
     picked.forEach((p, i) => {
       const t = pool[(i + Math.floor(Math.random() * pool.length)) % pool.length];
       this.buildDungeonEnemy(p.col, p.row, t);
     });
-    // CHEFE: nasce nas células 'Z' (só existe no 3º andar)
-    for (const z of dungeonAll("Z")) this.buildDungeonEnemy(z.col, z.row, "boss");
+    // CHEFE: nasce nas células 'Z' — Ato I usa o "boss"; Ato II, o Leviatã (boss_a2).
+    const bossType = this.dungeonAct() === 2 ? "boss_a2" : "boss";
+    for (const z of dungeonAll("Z")) this.buildDungeonEnemy(z.col, z.row, bossType);
   }
 
   // ---- IA dos inimigos: visão (linha livre), perseguição e patrulha ----

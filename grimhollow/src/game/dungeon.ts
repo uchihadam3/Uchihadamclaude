@@ -135,16 +135,31 @@ const FLOOR3: string[] = [
   "##################.......###################",
   "##################..C.C..###################",
   "##################...C...###################",
-  "##################.......###################",
+  "##################...D...###################",
   "############################################",
   "############################################",
   "############################################",
 ];
 
-// os 3 andares, do topo (1) ao fundo (3). Todos com a MESMA dimensão.
-export const DUNGEON_FLOORS: string[][] = [FLOOR1, FLOOR2, FLOOR3];
+// ============================ ATO II — "As Catacumbas Afogadas" (andares 4–6) ==
+// MESMA engine de corredor do Ato I (o usuário pediu: mesma ESTRUTURA, TEMÁTICA
+// diferente). A troca de bioma vem do tileset (tex_a2*) + roster (afogado/limo/
+// naja/aberração) + cogumelos bioluminescentes — ligados por ATO no Game.
+// FLOOR4 reaproveita a planta do 2º andar; FLOOR5 é ela ESPELHADA (variação
+// grátis, conectividade preservada); FLOOR6 é a arena do chefe (Leviatã Afogado).
+const mirrorMap = (m: string[]): string[] => m.map((row) => row.split("").reverse().join(""));
+const FLOOR4: string[] = FLOOR2.slice();
+const FLOOR5: string[] = mirrorMap(FLOOR2);
+// FLOOR6 = arena do chefe do Ato I SEM a escada de descida (é o fundo por ora).
+const FLOOR6: string[] = FLOOR3.map((row) => row.replace("D", "."));
+
+// os 6 andares, do topo (1) ao fundo (6). Todos com a MESMA dimensão.
+export const DUNGEON_FLOORS: string[][] = [FLOOR1, FLOOR2, FLOOR3, FLOOR4, FLOOR5, FLOOR6];
 export const DUNGEON_FLOOR_COUNT = DUNGEON_FLOORS.length;
-export const DUNGEON_FLOOR_NAMES = ["Masmorra — 1º Andar", "Catacumbas — 2º Andar", "Cripta do Chefe — 3º Andar"];
+export const DUNGEON_FLOOR_NAMES = [
+  "Masmorra — 1º Andar", "Catacumbas — 2º Andar", "Cripta do Chefe — 3º Andar",
+  "Catacumbas Afogadas — 4º Andar", "Gruta Fúngica — 5º Andar", "Covil do Leviatã — 6º Andar",
+];
 
 // andar atual (0..2). O Game troca com setDungeonFloor antes de montar/mover.
 let curFloor = 0;
