@@ -435,9 +435,12 @@ for (const m of GOODS) GOODS_BY_ID[m.id] = m;
 interface QuestDef {
   id: string; icon: string; title: string; desc: string;
   reward: TavernReward[];
-  grant: { gold?: number; items?: [string, number][] };
+  grant: { gold?: number; xp?: number; items?: [string, number][] };
   kind: "kill" | "delivery";
   goal?: number;                          // kill
+  enemyTypes?: string[];                   // kill: typeIds que contam (vazio = qualquer não-chefe)
+  unit?: string;                           // kill: substantivo no progresso ("esqueletos")
+  repeatable?: boolean;                    // bounty: reabre ao entregar (loop de farm)
   target?: string; targetHint?: string;   // delivery
 }
 const QUEST_DEFS: QuestDef[] = [
@@ -445,7 +448,7 @@ const QUEST_DEFS: QuestDef[] = [
     id: "ossos", icon: "💀", title: "Ossos Inquietos",
     desc: "Os mortos não descansam na masmorra. Elimine 8 esqueletos.",
     reward: [{ gold: true, label: "120" }, { iconUrl: icoBeerUrl, label: "×2" }],
-    grant: { gold: 120, items: [["beer", 2]] }, kind: "kill", goal: 8,
+    grant: { gold: 120, items: [["beer", 2]] }, kind: "kill", goal: 8, enemyTypes: ["esqueleto"], unit: "esqueletos",
   },
   {
     id: "entrega_hedda", icon: "📦", title: "Encomenda da Rosa",
@@ -458,6 +461,32 @@ const QUEST_DEFS: QuestDef[] = [
     desc: "Leve as preces do bardo Lyle ao Frei Anselmo, que vigia a boca da masmorra.",
     reward: [{ gold: true, label: "35" }, { iconUrl: icoPotHpUrl, label: "×1" }],
     grant: { gold: 35, items: [["pot_hp", 1]] }, kind: "delivery", target: "Anselmo", targetHint: "perto da masmorra (noroeste)",
+  },
+  // ===== BOUNTIES REPETÍVEIS — o loop de farm da taverna. Resetam ao entregar,
+  // dão OURO + XP (e às vezes poções) e contam abates por tipo na masmorra. =====
+  {
+    id: "b_vermes", icon: "🐀", title: "Contrato: Praga dos Túneis", repeatable: true,
+    desc: "A masmorra fervilha. Abata 10 criaturas quaisquer lá embaixo.",
+    reward: [{ gold: true, label: "90" }, { label: "+70 XP" }],
+    grant: { gold: 90, xp: 70 }, kind: "kill", goal: 10, unit: "inimigos",
+  },
+  {
+    id: "b_ossos", icon: "☠️", title: "Contrato: Faxina de Ossos", repeatable: true,
+    desc: "Os esqueletos sempre voltam. Reduza 8 deles a pó.",
+    reward: [{ gold: true, label: "140" }, { iconUrl: icoPotHpUrl, label: "×1" }, { label: "+110 XP" }],
+    grant: { gold: 140, xp: 110, items: [["pot_hp", 1]] }, kind: "kill", goal: 8, enemyTypes: ["esqueleto"], unit: "esqueletos",
+  },
+  {
+    id: "b_teias", icon: "🕷️", title: "Contrato: Ninho de Teias", repeatable: true,
+    desc: "As aranhas se multiplicam no breu. Elimine 6 aranhas.",
+    reward: [{ gold: true, label: "110" }, { label: "+85 XP" }],
+    grant: { gold: 110, xp: 85 }, kind: "kill", goal: 6, enemyTypes: ["aranha"], unit: "aranhas",
+  },
+  {
+    id: "b_hereges", icon: "🔥", title: "Contrato: Caça aos Hereges", repeatable: true,
+    desc: "Cultistas e arqueiros espalham a névoa. Silencie 5 deles.",
+    reward: [{ gold: true, label: "200" }, { iconUrl: icoPotMpUrl, label: "×1" }, { label: "+160 XP" }],
+    grant: { gold: 200, xp: 160, items: [["pot_mp", 1]] }, kind: "kill", goal: 5, enemyTypes: ["cultista", "arqueiro"], unit: "hereges",
   },
 ];
 
@@ -1210,11 +1239,8 @@ export class Game {
   private consumables: Record<string, number> = {};
   private ownedWeapons: string[] = [];
   // TAVERNA: estado das missões (ver QUEST_DEFS). status por id + progresso (kill)
-  private quests: Record<string, { status: "available" | "active" | "ready" | "done"; progress: number }> = {
-    ossos: { status: "available", progress: 0 },
-    entrega_hedda: { status: "available", progress: 0 },
-    entrega_anselmo: { status: "available", progress: 0 },
-  };
+  private quests: Record<string, { status: "available" | "active" | "ready" | "done"; progress: number }> =
+    Object.fromEntries(QUEST_DEFS.map((d) => [d.id, { status: "available" as const, progress: 0 }]));
   // MAIN QUEST ("A Névoa Devoradora"): estado por capítulo + marcas narrativas.
   // cap.1 começa disponível; os demais destravam quando o anterior conclui.
   private mainQuests: Record<string, { status: "locked" | "available" | "active" | "done"; step: number; progress: number }> = {};
@@ -2731,21 +2757,23 @@ export class Game {
       const q = this.quests[def.id];
       let progress: string | undefined;
       if (def.kind === "kill" && (q.status === "active" || q.status === "ready"))
-        progress = `${Math.min(q.progress, def.goal ?? 0)} / ${def.goal} esqueletos`;
+        progress = `${Math.min(q.progress, def.goal ?? 0)} / ${def.goal} ${def.unit ?? "inimigos"}`;
       else if (def.kind === "delivery" && q.status === "active")
         progress = `Entregar a ${def.target} — ${def.targetHint}`;
-      return { id: def.id, icon: def.icon, title: def.title, desc: def.desc, reward: def.reward, status: q.status, progress };
+      return { id: def.id, icon: def.icon, title: def.title, desc: def.desc, reward: def.reward, status: q.status, progress, repeatable: def.repeatable };
     });
   }
-  // dá a recompensa de uma missão (ouro + itens) e avisa
+  // dá a recompensa de uma missão (ouro + XP + itens) e avisa
   private grantQuest(def: QuestDef) {
     if (def.grant.gold) this.stats.gold += def.grant.gold;
     for (const [gid, n] of def.grant.items ?? []) this.goodAdd(gid, n);
     this.refreshStats(); this.refreshConsumables();
     const parts: string[] = [];
     if (def.grant.gold) parts.push(`${def.grant.gold} ouro`);
+    if (def.grant.xp) parts.push(`${def.grant.xp} XP`);
     for (const [gid, n] of def.grant.items ?? []) parts.push(`${n}× ${GOODS_BY_ID[gid]?.name ?? gid}`);
     this.ui.toast(`Recompensa: ${parts.join(" e ")}.`);
+    if (def.grant.xp) this.gainXp(def.grant.xp); // XP por último (pode disparar level-up)
   }
   private tavernBuyDrink(id: string): TavernData {
     const m = GOODS_BY_ID[id];
@@ -2763,23 +2791,32 @@ export class Game {
         q.status = "active";
         this.ui.toast(`Missão aceita: ${def.title}.`);
       } else if (action === "turnin" && q.status === "ready") { // só as "kill" chegam a ready
-        q.status = "done";
         this.grantQuest(def);
+        // bounty: reabre p/ ser pega de novo (loop de farm); missão normal: encerra.
+        if (def.repeatable) { q.status = "available"; q.progress = 0; }
+        else q.status = "done";
       }
     }
     return this.buildTavernData();
   }
-  // conta um esqueleto abatido na masmorra p/ a missão "ossos" ativa
-  private questOnKill() {
-    const q = this.quests.ossos;
-    if (!q || q.status !== "active" || this.location !== "dungeon") return;
-    const goal = QUEST_DEFS.find((d) => d.id === "ossos")?.goal ?? 8;
-    q.progress++;
-    if (q.progress >= goal) {
-      q.status = "ready";
-      this.ui.toast("Ossos Inquietos concluída! Volte ao Bruno para a recompensa.");
-    } else {
-      this.ui.toast(`Ossos Inquietos: ${q.progress}/${goal} esqueletos`);
+  // conta um abate na masmorra p/ TODA missão/bounty "kill" ativa cujo alvo casa
+  // com o tipo do inimigo (enemyTypes vazio = qualquer não-chefe).
+  private questOnKill(e: EnemyEnt) {
+    if (this.location !== "dungeon" || e.tier === "boss") return;
+    for (const def of QUEST_DEFS) {
+      if (def.kind !== "kill") continue;
+      const q = this.quests[def.id];
+      if (!q || q.status !== "active") continue;
+      if (def.enemyTypes && def.enemyTypes.length && !def.enemyTypes.includes(e.typeId)) continue;
+      const goal = def.goal ?? 1;
+      q.progress++;
+      const unit = def.unit ?? "inimigos";
+      if (q.progress >= goal) {
+        q.status = "ready";
+        this.ui.toast(`${def.title} concluída! Volte ao Bruno para a recompensa.`);
+      } else {
+        this.ui.toast(`${def.title}: ${q.progress}/${goal} ${unit}`);
+      }
     }
   }
   // ENTREGA: se algum recado ativo é p/ este NPC, conclui e devolve a fala de
@@ -3428,7 +3465,8 @@ export class Game {
     this.materials = { ...this.materials, ...(s.materials ?? {}) } as typeof this.materials;
     this.skillRanks = s.skillRanks ?? {};
     if (s.mainQuests) this.mainQuests = s.mainQuests as typeof this.mainQuests;
-    if (s.quests) this.quests = s.quests as typeof this.quests;
+    // mescla: mantém os defaults (bounties novas aparecem em saves antigos)
+    if (s.quests) this.quests = { ...this.quests, ...(s.quests as typeof this.quests) };
     if (s.stash) this.stash = s.stash;
     this.dungeonMaxFloor = s.dungeonMaxFloor ?? 0;
     this.currentWeapon = s.currentWeapon ? (WEAPON_BY_ID[s.currentWeapon] ?? null) : null;
@@ -3546,7 +3584,7 @@ export class Game {
       // XP com "rating" pelo nível relativo: se o herói supera muito o inimigo, rende
       // menos (evita farmar trivial no respawn); perto/acima do nível dele, rende cheio.
       this.gainXp(this.scaledXp(e.xp, e.lvl));
-      this.questOnKill(); // progresso da missão "Ossos Inquietos"
+      this.questOnKill(e); // progresso das missões/bounties de abate
       this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
     }
   }

@@ -369,6 +369,7 @@ export interface TavernQuest {
   reward: TavernReward[]; // recompensas em "chips" (moeda + itens)
   status: "available" | "active" | "ready" | "done";
   progress?: string; // ex.: "3 / 8 esqueletos" (quando ativa)
+  repeatable?: boolean; // bounty: reabre ao entregar (mostra selo "REPETÍVEL")
 }
 export interface TavernData {
   gold: number;
@@ -1984,7 +1985,8 @@ export function setupControls(
       `<div class="gh-tv-quest ${questAccent(q)}"><div class="gh-tv-accent"></div>` +
       `<div class="gh-tv-qic">${q.icon}</div>` +
       `<div class="gh-tv-qbody">` +
-      `<div class="gh-tv-qtop"><span class="gh-tv-qtitle">${q.title}</span>${questRibbon(q)}</div>` +
+      `<div class="gh-tv-qtop"><span class="gh-tv-qtitle">${q.title}</span>` +
+        (q.repeatable ? `<span class="gh-tv-rib gh-tv-rib-rep">↻ REPETÍVEL</span>` : "") + `${questRibbon(q)}</div>` +
       `<div class="gh-tv-qdesc">${q.desc}</div>` +
       (q.progress ? `<div class="gh-tv-qprog">Progresso: ${q.progress}</div>` : "") +
       `<div class="gh-tv-rewards">${q.reward.map(rewardChip).join("")}</div>` +
@@ -4329,6 +4331,7 @@ function injectStyle() {
   .gh-tv-rib-ready { background:#5a4415; color:#ffd98a; box-shadow:inset 0 0 0 1px rgba(240,200,120,.4); }
   .gh-tv-rib-active { background:#4a3a18; color:#f0d477; box-shadow:inset 0 0 0 1px rgba(201,162,39,.35); }
   .gh-tv-rib-done { background:#3a4a2f; color:#bfe89a; box-shadow:inset 0 0 0 1px rgba(150,200,120,.35); }
+  .gh-tv-rib-rep { background:#1f3a4a; color:#8fd0e8; box-shadow:inset 0 0 0 1px rgba(120,190,220,.4); margin-right:5px; }
   .gh-tv-qdesc { font-size:clamp(10px,1.55vh,11.5px); color:#b6a883; margin-top:3px; line-height:1.3; }
   .gh-tv-qprog { font-size:clamp(10px,1.5vh,11px); color:#9fb98a; margin-top:4px; font-family:"Cinzel",serif; }
   .gh-tv-rewards { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
