@@ -3911,10 +3911,16 @@ export class Game {
     return "comum";
   }
 
-  // tier do item acompanha o nível do herói (1→3), com leve chance de subir um.
+  // tier do item (1→5) acompanha o NÍVEL do herói e a PROFUNDIDADE da dungeon:
+  //   nível → +1 a cada 3 níveis (nv10 ≈ tier 4, nv13+ ≈ tier 5);
+  //   andar → +1 a cada 2 andares descidos (loot fundo é melhor);
+  //   +bônus do perfil (chefe/baú escondido) e 20% de chance de subir 1.
+  // Armas usam o tier cheio (1-5); a armadura é limitada a 3 em dropPiece.
   private dropTier(bonus = 0): number {
-    const base = Math.min(3, 1 + Math.floor((this.stats.level - 1) / 3) + bonus);
-    return Math.max(1, Math.min(3, base + (Math.random() < 0.2 ? 1 : 0)));
+    const byLevel = Math.floor((this.stats.level - 1) / 3);
+    const byDepth = this.location === "dungeon" ? Math.floor(getDungeonFloor() / 2) : 0;
+    const base = 1 + byLevel + byDepth + bonus;
+    return Math.max(1, Math.min(5, base + (Math.random() < 0.2 ? 1 : 0)));
   }
 
   // até `n` células ANDÁVEIS e livres perto de (c,r) (inclui ela mesma) — p/ espalhar
