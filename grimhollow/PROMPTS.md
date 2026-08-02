@@ -1322,7 +1322,7 @@ A COLOSSAL undead DEATH KNIGHT boss, TWICE the height and bulk of a man, towerin
 
 ---
 
-## 25 · ATO II — "As Catacumbas Afogadas" (andares 4–6) — 🟡 arte pendente
+## 25 · ATO II — "As Catacumbas Afogadas" (andares 4–6) — ✅ integrado
 
 O **Ato II** é um **bioma totalmente novo** (não é recolor do Ato I): uma cripta que
 **afundou** e virou **caverna fúngica submersa** — pedra úmida e escura, poças e
@@ -1333,22 +1333,22 @@ da pedra quente do Ato I. Chega depois de derrotar o chefe do Ato I.
 **Tileset (drop-in, mesmos moldes das texturas do Ato I):** seamless, 1024×1024,
 top-down, luz chapada, sem sombra/vinheta, borda perfeita. Nomes → `src/assets/env/`.
 
-### 🟡 25.1 — `tex_a2wall` (parede — pedra úmida + fungo, ATO II)
+### ✅ 25.1 — `tex_a2wall` (parede — pedra úmida + fungo, ATO II)
 ```
 Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Wall of a FLOODED SUNKEN CATACOMB turned fungal cavern — dark wet stone-block masonry half-eaten by the cave: cracked mossy ashlar blocks streaked with water stains and mineral drip, patches of slimy dark-green and teal algae, clusters of small pale bioluminescent mushrooms and glowing lichen nestled in the mortar joints, thin pale roots creeping across the stone. COOL DAMP PALETTE — dark slate grey-blue and petrol green with faint cyan glow from the fungi, wet sheen, grim and clammy — NOT warm, NOT brown, NOT bright. High micro-detail so a normal map derived from it pops. no text, no watermark, no border.
 ```
 
-### 🟡 25.2 — `tex_a2floor` (piso — laje alagada, ATO II)
+### ✅ 25.2 — `tex_a2floor` (piso — laje alagada, ATO II)
 ```
 Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Floor of a flooded sunken crypt — old cracked flagstone slabs under a thin film of dark still water, slick wet stone, pooling in the low seams, dark green algae and slime spreading between tiles, silt and pale mushroom sprouts in the cracks, faint cyan reflections from unseen bioluminescence. COOL wet palette — dark grey-blue and teal, glossy damp reflective sheen, grim and waterlogged — NOT warm, NOT dry, NOT bright golden. High micro-detail for normal-map relief. no text, no watermark, no border.
 ```
 
-### 🟡 25.3 — `tex_a2ceil` (teto — rocha gotejante + raízes, ATO II)
+### ✅ 25.3 — `tex_a2ceil` (teto — rocha gotejante + raízes, ATO II)
 ```
 Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ceiling of a fungal flooded cavern — rough natural dark rock dripping with moisture, hanging pale roots and thin stalactites, scattered clumps of faintly glowing cyan-green bioluminescent fungus and lichen, damp mineral streaks. COOL dark palette — near-black slate blue with teal fungal glow, wet and oppressive. High micro-detail for normal-map relief. no text, no watermark, no border.
 ```
 
-### 🟡 25.4 — `dec_mushroom` (prop — tufo de cogumelos bioluminescentes)
+### ✅ 25.4 — `dec_mushroom` (prop — tufo de cogumelos bioluminescentes)
 > Billboard 2D no chão (como as ossadas), pra pontuar os corredores com o brilho frio.
 ```
 A cluster of tall BIOLUMINESCENT CAVE MUSHROOMS, several slender fungi with domed caps glowing soft cyan and teal, pale glowing gills underneath, thinner glowing sprouts and lichen at the base, damp and eerie, single clump viewed from a low front angle with the base at the very bottom edge. Hand-painted stylized-realism, grim dark fantasy, the mushrooms are the only light source, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. ~1024x1024.
@@ -1360,27 +1360,27 @@ stylized-realism, grim dark fantasy, dramatic even lighting, no cast shadow, FUL
 TRANSPARENT background (alpha), crisp cutout edges, no ground, no text, no
 watermark.` Paleta fria/afogada pra casar com o bioma.
 
-### 🟡 25.5 — `enemy_afogado` (Afogado — morto-vivo encharcado)
+### ✅ 25.5 — `enemy_afogado` (Afogado — morto-vivo encharcado)
 ```
 A DROWNED UNDEAD, a bloated waterlogged corpse risen from the flooded crypt, greenish grey swollen flesh, water streaming off tattered rotten clothes, strands of algae and small barnacles clinging to its body, empty pale-glowing eye sockets, jaw hanging open, shambling menacingly toward the viewer with arms reaching, feet at the very bottom edge. Cool teal-green palette, wet sheen. Hand-painted stylized-realism, grim dark fantasy, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
 ```
 
-### 🟡 25.6 — `enemy_aberracao` (Aberração fúngica — tanque/corpo-a-corpo)
+### ✅ 25.6 — `enemy_aberracao` (Aberração fúngica — tanque/corpo-a-corpo)
 ```
 A hulking FUNGAL ABERRATION, a broad lumbering humanoid mass overgrown with pale mushrooms and glowing cyan spore-pods bursting from its shoulders and back, mottled grey-green rubbery flesh, no visible face — only a cluster of glowing fungal eyes, thick clawed arms, spores drifting from its body, looming aggressively toward the viewer, feet at the very bottom edge. Cool bioluminescent palette. Hand-painted stylized-realism, grim dark fantasy, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1536.
 ```
 
-### 🟡 25.7 — `enemy_limo` (Limo cáustico — gosma que se arrasta)
+### ✅ 25.7 — `enemy_limo` (Limo cáustico — gosma que se arrasta)
 ```
 A translucent CAUSTIC OOZE, a gelatinous blob-creature the size of a large dog, glistening dark teal-green semi-transparent body with bubbles and half-dissolved bones suspended inside, a faint inner cyan glow, dripping acidic slime, oozing forward with a pseudopod reaching the bottom edge. Hand-painted stylized-realism, grim dark fantasy, wet glossy translucency, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. ~1024x1024.
 ```
 
-### 🟡 25.8 — `enemy_naja` (Naja das profundezas — serpente venenosa à distância)
+### ✅ 25.8 — `enemy_naja` (Naja das profundezas — serpente venenosa à distância)
 ```
 A giant pale CAVE SERPENT, an eyeless albino snake as thick as a man's thigh reared up to strike, translucent bluish scales with faint bioluminescent markings along its body, hood flared like a cobra, dripping venom from long fangs, mouth open hissing toward the viewer, coiled base at the very bottom edge. Cool teal palette. Hand-painted stylized-realism, grim dark fantasy, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp cutout edges, no ground, no text, no watermark. Tall portrait ~1024x1400.
 ```
 
-### 🟡 25.9 — `boss_a2` (CHEFE do Ato II — o Leviatã Afogado)
+### ✅ 25.9 — `boss_a2` (CHEFE do Ato II — o Leviatã Afogado)
 > Como o chefe do Ato I: **GRANDE**, dominando o quadro, claramente perigoso — mas do
 > bioma fúngico/afogado (o "boss room" do Ato II).
 ```
