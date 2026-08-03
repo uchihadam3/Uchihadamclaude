@@ -3772,8 +3772,10 @@ function injectStyle() {
     position:fixed; z-index:30; pointer-events:auto; width:min(292px,86vw);
     box-sizing:border-box; padding:0; text-align:center;
     /* MOLDURA do jogo (mesma das outras janelas), SEM 'fill' → a arte faz a borda e
-       o interior fica escuro, no estilo PoE. background-clip evita pintar sob a arte. */
-    border:24px solid transparent; border-image:url(${eqFrameUrl}) 92;
+       o interior fica escuro, no estilo PoE. background-clip evita pintar sob a arte.
+       SLICE 65 = espessura REAL da borda na arte (medida no PNG). Com 92 a tira da
+       beirada levava junto ~27px do interior e, esticada, aparecia uma emenda dobrada. */
+    border:22px solid transparent; border-image:url(${eqFrameUrl}) 65;
     background:rgba(6,5,6,.95); background-clip:padding-box;
     filter:drop-shadow(0 12px 30px rgba(0,0,0,.75));
     color:#c9c9c9; font-family:"Cinzel",Georgia,serif;
@@ -4097,9 +4099,11 @@ function injectStyle() {
   #gh-plist.gh-plist-hidden { display:none; }
   #gh-plist .gh-pl-win {
     pointer-events:auto; min-width:min(310px,82vw); max-width:min(370px,88vw);
-    box-sizing:border-box; color:#e8dcc0;
-    /* MESMA moldura das outras janelas (sem 'fill') + interior escuro */
-    border:20px solid transparent; border-image:url(${eqFrameUrl}) 92;
+    max-height:94vh; box-sizing:border-box; color:#e8dcc0; /* nunca estoura a tela */
+    display:flex; flex-direction:column;
+    /* MESMA moldura das outras janelas (sem 'fill') + interior escuro.
+       SLICE 65 = espessura real da borda na arte (ver comentário no #gh-itip). */
+    border:20px solid transparent; border-image:url(${eqFrameUrl}) 65;
     background:rgba(6,5,6,.95); background-clip:padding-box;
     filter:drop-shadow(0 10px 30px rgba(0,0,0,.7));
   }
@@ -4107,7 +4111,10 @@ function injectStyle() {
     font-family:"Cinzel",serif; font-weight:700; text-align:center; color:#f0d074;
     font-size:clamp(13px,2vh,15px); letter-spacing:1px; padding:2px 0 7px;
   }
-  #gh-plist .gh-pl-rows { display:flex; flex-direction:column; gap:5px; max-height:46vh; overflow-y:auto; }
+  #gh-plist .gh-pl-rows {
+    display:flex; flex-direction:column; gap:5px;
+    min-height:0; flex:1 1 auto; overflow-y:auto; /* rola dentro da moldura */
+  }
   #gh-plist .gh-pl-row {
     display:flex; align-items:center; gap:9px; width:100%; text-align:left; cursor:pointer;
     background:rgba(0,0,0,.34); border:1px solid rgba(201,162,74,.3); border-radius:7px;
