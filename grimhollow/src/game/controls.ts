@@ -3786,7 +3786,8 @@ function injectStyle() {
      sobra vão em canto nenhum. z-index:-1 → a arte da moldura pinta por cima dele. */
   #gh-itip::before {
     content:""; position:absolute; inset:-12px; z-index:-1;
-    background:rgba(6,5,6,.96); border-radius:16px;
+    background:rgba(6,5,7,.78); border-radius:16px; /* translúcido, estilo PoE */
+    backdrop-filter:blur(2px);
   }
   /* cabeçalho: faixa tingida pela raridade, nome CENTRALIZADO + tipo-base */
   .gh-itip-hdr {
@@ -4117,7 +4118,8 @@ function injectStyle() {
   /* painel escuro arredondado, avançando por baixo da moldura (ver #gh-itip::before) */
   #gh-plist .gh-pl-win::before {
     content:""; position:absolute; inset:-11px; z-index:-1;
-    background:rgba(6,5,6,.96); border-radius:15px;
+    background:rgba(6,5,7,.80); border-radius:15px; /* translúcido, estilo PoE */
+    backdrop-filter:blur(2px);
   }
   #gh-plist .gh-pl-hd {
     font-family:"Cinzel",serif; font-weight:700; text-align:center; color:#f0d074;
