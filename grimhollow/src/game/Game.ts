@@ -5450,11 +5450,15 @@ export class Game {
     } else {
       floorMat = this.pbrStone(texCaveFloorUrl, "dfloor", { rough: 0.9, normal: 1.1 });
     }
-    // TETO do Ato II: usa o teto cinza novo (tex_a2ceil_2) quando existir; senão cai
-    // na alvenaria de pedra do Ato I (cinza). Ato I mantém a alvenaria.
+    // TETO do Ato II: por padrão REAPROVEITA a própria parede cinza (mesmo tom,
+    // coeso), porém ESCURECIDA e com escala diferente → lê como teto, sem precisar
+    // de uma textura à parte (o prompt de teto saía idêntico à parede). Um
+    // tex_a2ceil_2.png dedicado, se existir, tem prioridade. Ato I mantém a alvenaria.
     const a2CeilUrl = a2OptUrl("tex_a2ceil_2");
-    const ceilMat = a2 && a2CeilUrl
-      ? this.pbrStone(a2CeilUrl, "a2ceil2", { rough: 0.92, normal: 1.3 })
+    const ceilMat = a2
+      ? (a2CeilUrl
+          ? this.pbrStone(a2CeilUrl, "a2ceil2", { rough: 0.92, normal: 1.3 })
+          : this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2ceilw", { rough: 0.94, normal: 1.25, tint: 0x8b9094, repeat: [1.6, 1.6] }))
       : this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);

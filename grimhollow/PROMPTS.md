@@ -1370,7 +1370,7 @@ Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even l
 > cinza como padrão e reaproveitar o chão da PRAÇA (calçada de pedra). Faltam
 > duas peças novas ↓ — salve com os nomes exatos que a engine já reconhece.
 
-### 🟡 25.1d — `tex_a2wall_clean` (MESMO bloco cinza da parede, SEM musgo)
+### ✅ 25.1d — `tex_a2wall_clean` (MESMO bloco cinza da parede, SEM musgo)
 > Mesma alvenaria de `tex_a2wall_1`, mas **limpa**. Vira a parede PADRÃO do Ato II;
 > a versão com musgo (`tex_a2wall_1`) passa a aparecer só **às vezes** (~18%).
 > Salve como `tex_a2wall_clean.png` em `src/assets/env/`.
@@ -1378,12 +1378,11 @@ Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even l
 Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Wall of a sunken flooded catacomb — CLEAN cracked grey ashlar stone masonry, cool neutral grey and slate blocks with subtle brown mineral staining, water streaks, damp patches and hairline cracks, worn mortar joints. Bare weathered stone ONLY — absolutely NO moss, NO algae, NO mushrooms, NO fungus, NO glowing spores, NO green. Same stone blocks and layout style as the mossy version but completely clean. Predominantly desaturated grey, damp sheen. High micro-detail so a normal map pops. no text, no watermark, no border.
 ```
 
-### 🟡 25.3b — `tex_a2ceil_2` (teto novo — pedra CINZA no tom das paredes)
-> Teto melhor pro Ato II, no MESMO cinza da parede (não mais o teto escuro de raízes).
-> Salve como `tex_a2ceil_2.png` em `src/assets/env/`.
-```
-Seamless tileable PBR albedo/diffuse texture, top-down orthographic, flat even lighting, no baked shadows, no vignette, 1024x1024, tiles perfectly on all edges. Ceiling of a dungeon corridor — grey ashlar stone masonry MATCHING the grey stone walls, cool neutral grey blocks with mortar joints, cracks, water stains and damp patches, a few small hanging cracks and mineral drips. Same grey stone family as the walls (cohesive), just seen overhead. NO moss, NO fungus, NO green, NO roots. Predominantly desaturated grey, damp sheen. High micro-detail for normal-map relief. no text, no watermark, no border.
-```
+### ✅ 25.3b — Teto do Ato II (resolvido SEM textura nova)
+> O prompt de teto saía **idêntico** à parede. Solução: a engine agora REAPROVEITA
+> a própria `tex_a2wall_clean` no teto, **escurecida e com escala diferente** — mesmo
+> cinza (coeso), mas lê como teto. **Não precisa gerar teto.** Se um dia quiser um
+> teto próprio, é só soltar `tex_a2ceil_2.png` que ele tem prioridade.
 
 ### ✅ 25.4 — `dec_mushroom` (prop — tufo de cogumelos bioluminescentes)
 > Billboard 2D no chão (como as ossadas), pra pontuar os corredores com o brilho frio.
