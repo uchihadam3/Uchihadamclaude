@@ -205,6 +205,17 @@
  .pill.perigo.letal{background:#a01020;border-color:#ff6a5a;color:#fff;animation:matap .7s infinite}
  .h.pre{border-color:#ffd24a;box-shadow:0 0 16px #ffd24a55;transform:translateY(-3px)}
  .h .hp2{font-size:11px;font-weight:900;color:#ffd24a;margin-top:3px}
+ /* ===== etiqueta do valor sobre cada dado ===== */
+ #lbls{position:fixed;inset:0;pointer-events:none;z-index:7}
+ .lbl{position:absolute;left:0;top:0;min-width:26px;height:26px;padding:0 6px;border-radius:8px;
+   background:rgba(10,13,17,.86);border:1.5px solid rgba(255,255,255,.28);color:#fff;
+   font:900 15px Georgia,serif;display:flex;align-items:center;justify-content:center;
+   text-shadow:0 1px 3px #000;transition:opacity .2s;box-shadow:0 3px 10px rgba(0,0,0,.5)}
+ .lbl.sel{border-color:#ffd24a;color:#ffd24a;box-shadow:0 0 14px #ffd24a88}
+ .lbl.pre{border-color:#ffd24a;background:#3a2c00;color:#ffe9a0;transform-origin:center;
+   box-shadow:0 0 18px #ffd24a}
+ .lbl.simb{font-size:16px;border-color:#c07cff;color:#e0c4ff}
+ .lbl.usado{opacity:.3}
  /* ============ EFEITOS DE HABILIDADE ============ */
  .fx{position:absolute;inset:-10px;pointer-events:none;z-index:9;overflow:visible}
  .fx-flash{position:absolute;inset:0;background:radial-gradient(circle,#fff,transparent 70%);

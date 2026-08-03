@@ -8,7 +8,7 @@ import { MATERIAIS } from '../data/dice.js';
 import { FACE_KINDS } from '../data/faces.js';
 
 /* --- textura das faces: um atlas com N nichos, cada um com o símbolo --- */
-function atlasFaces(faces, corBase, corTinta, layouts){
+function atlasFaces(faces, corBase, corTinta, layouts, vencedor){
   const n = faces.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
   const S = 256, cv = document.createElement('canvas');
   cv.width = cols*S; cv.height = rows*S;
@@ -22,10 +22,17 @@ function atlasFaces(faces, corBase, corTinta, layouts){
     grd.addColorStop(0,'rgba(255,255,255,0.10)'); grd.addColorStop(1,'rgba(0,0,0,0.16)');
     g.fillStyle=grd; g.fillRect(cx,cy,S,S);
     g.textAlign='center'; g.textBaseline='middle';
-    const marcar=(txt, kind, px, py, esc)=>{
+    const marcar=(txt, kind, px, py, esc, destaque)=>{
       const K2 = FACE_KINDS[kind] || FACE_KINDS.num;
-      const fs = (kind==='num' ? (txt.length>1?S*0.5:S*0.62) : S*0.55) * esc;
+      const fs = (kind==='num' ? (txt.length>1?S*0.5:S*0.62) : S*0.55) * esc * (destaque?1.5:1);
       g.font = `900 ${fs}px Georgia, serif`;
+      if(destaque){                      // o RESULTADO fica em ouro, com halo
+        g.shadowColor='#ffb02b'; g.shadowBlur=S*0.22;
+        g.fillStyle='#ffcf4a'; g.fillText(txt, px, py);
+        g.shadowBlur=0; g.fillStyle='#5a3a00'; g.font=`900 ${fs*0.98}px Georgia, serif`;
+        g.fillText(txt, px, py); g.fillStyle='#ffe9a0'; g.font=`900 ${fs*0.86}px Georgia, serif`;
+        g.fillText(txt, px, py); return;
+      }
       g.fillStyle='rgba(255,255,255,0.16)'; g.fillText(txt, px, py + S*0.016*esc);
       g.fillStyle = kind==='num' ? corTinta : K2.cor;
       g.fillText(txt, px, py);
@@ -33,11 +40,11 @@ function atlasFaces(faces, corBase, corTinta, layouts){
     };
     const lay = layouts && layouts[i];
     if(lay){                       // d4: um número em CADA CANTO (como o dado real)
-      for(const it of lay) marcar(it.txt, it.k, cx+it.u*S, cy+it.v*S, 0.40);
+      for(const it of lay) marcar(it.txt, it.k, cx+it.u*S, cy+it.v*S, 0.40, vencedor!=null && it.vi===vencedor);
     } else {
       const K = FACE_KINDS[f.k] || FACE_KINDS.num;
       const txt = f.k==='num' ? String(f.v) : (K.glifo || '?');
-      marcar(txt, f.k, cx+S/2, cy+S/2, 1);
+      marcar(txt, f.k, cx+S/2, cy+S/2, 1, false);
     }
   });
   const tex = new THREE.CanvasTexture(cv);
@@ -83,7 +90,7 @@ function geometriaDado(tipo, faces, raio, outLayouts){
         const uv=uvDe(pts[k]);
         const fu=(uv[0]-u0)/du, fv=(uv[1]-v0)/dv;          // 0..1 dentro do nicho
         const face = faces[vi] || {k:'num', v:vi+1};
-        return { txt: face.k==='num'?String(face.v):(FACE_KINDS[face.k]?.glifo||'?'),
+        return { vi, txt: face.k==='num'?String(face.v):(FACE_KINDS[face.k]?.glifo||'?'),
                  k: face.k, u: 0.5+(fu-0.5)*0.52, v: 1-(0.5+(fv-0.5)*0.52) };
       });
     }
@@ -100,6 +107,15 @@ function geometriaDado(tipo, faces, raio, outLayouts){
   return geo;
 }
 
+export function destacarResultado(mesh, vencedor){
+  const die=mesh.userData.die, lay=mesh.userData.layouts;
+  if(!lay) return;                                   // só o d4 usa cantos
+  const M=MATERIAIS[die.material]||MATERIAIS.osso;
+  const hex='#'+M.cor.toString(16).padStart(6,'0');
+  const tinta = die.material==='osso'?'#2b2418':'#d8d2c4';
+  const {tex}=atlasFaces(die.faces,hex,tinta,lay,vencedor);
+  mesh.material.map?.dispose(); mesh.material.map=tex; mesh.material.needsUpdate=true;
+}
 export function criarMalhaDado(die, raio=0.5){
   const M = MATERIAIS[die.material] || MATERIAIS.osso;
   const hex = '#'+M.cor.toString(16).padStart(6,'0');
@@ -117,7 +133,7 @@ export function criarMalhaDado(die, raio=0.5){
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = true; mesh.receiveShadow = true;
-  mesh.userData.die = die;
+  mesh.userData.die = die; mesh.userData.layouts = layouts;
   return mesh;
 }
 

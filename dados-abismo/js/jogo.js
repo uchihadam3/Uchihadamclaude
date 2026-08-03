@@ -12,7 +12,7 @@ import { satisfies, reqLabel, findSubset } from './engine/requirements.js';
 import { gerarOpcoes, aplicar, recalcRelics } from './engine/rewards.js';
 import { RELIQUIAS } from './data/relics.js';
 const RELIQ_COMUNS=RELIQUIAS.filter(r=>r.r==='comum');
-import { criarMalhaDado, criarMesa, luzes } from './dice3d/render.js';
+import { criarMalhaDado, criarMesa, luzes, destacarResultado } from './dice3d/render.js';
 import { rolarPara } from './dice3d/roll.js';
 import { raioDe } from './dice3d/geometry.js';
 import { ESCALADA } from './data/dungeons.js';
@@ -44,6 +44,27 @@ const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 /* ---------- estado ---------- */
 let C=null, P=null, cb=null, malhas=[], trilhas=[], anima=false;
 let sel=new Set(), alvo=0, andar=1, masmorra=1;
+const LBL=document.createElement('div'); LBL.id='lbls'; document.body.appendChild(LBL);
+const badges=new Map();
+function badgeDe(id){ let b=badges.get(id);
+  if(!b){ b=document.createElement('div'); b.className='lbl'; LBL.appendChild(b); badges.set(id,b); } return b; }
+function atualizarBadges(){
+  if(!cb || anima){ for(const b of badges.values()) b.style.opacity=0; return; }
+  const v=new THREE.Vector3();
+  for(const m of malhas){
+    const id=m.userData.die.id, b=badgeDe(id);
+    const e=cb.roll.find(x=>x.dieId===id);
+    if(!e || m.userData.naBandeja || !m.visible){ b.style.opacity=0; continue; }
+    v.copy(m.position); v.y+=0.55; v.project(camera);
+    const x=(v.x*0.5+0.5)*innerWidth, y=(-v.y*0.5+0.5)*innerHeight;
+    const f=e.face, txt = f.k==='num'? f.v : (FACE_KINDS[f.k]?.glifo||'?');
+    b.textContent=txt;
+    b.className='lbl'+(cb.used.has(id)?' usado':'')+(sel.has(id)?' sel':'')
+      +(previa&&previa.ids.includes(id)?' pre':'')+(f.k!=='num'?' simb':'');
+    b.style.transform=`translate(-50%,-50%) translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
+    b.style.opacity = cb.used.has(id)?0.35:1;
+  }
+}
 const BANDEJA=[];                      // dados gastos, encostados no canto da mesa
 function praBandeja(dieId){
   const m=malhas.find(x=>x.userData.die.id===dieId); if(!m || m.userData.naBandeja) return;
@@ -207,7 +228,11 @@ function rolarVisual(){
       const s=x.tr[f]; x.mesh.position.set(s.p[0],s.p[1],s.p[2]);
       x.mesh.quaternion.set(s.q[0],s.q[1],s.q[2],s.q[3]);
       if(s.imp) for(const im of s.imp) SFX.dado(im.vel); }
-    if(vivo) requestAnimationFrame(passo); else { anima=false; pintar(); } };
+    if(vivo) requestAnimationFrame(passo); else { anima=false;
+      // marca o RESULTADO no próprio dado (d4: número do vértice de cima em ouro)
+      for(let i=0;i<trilhas.length;i++){ const e=cb.roll[i];
+        if(e && trilhas[i].mesh) destacarResultado(trilhas[i].mesh, e.faceIdx); }
+      pintar(); } };
   passo();
 }
 /* ---------- HUD ---------- */
@@ -419,6 +444,7 @@ addEventListener('resize',resize); resize();
     camera.position.x=(Math.random()*2-1)*a*9; camera.position.z+= (Math.random()*2-1)*a*3;
     document.body.style.setProperty('--sk', ((Math.random()*2-1)*shakeT*0.5).toFixed(2)+'px');
   } else if(shakeT){ shakeT=0; camera.position.x=0; resize(); document.body.style.setProperty('--sk','0px'); }
+  atualizarBadges();
   renderer.render(scene,camera); requestAnimationFrame(loop); })();
 telaTitulo();
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
