@@ -2512,11 +2512,12 @@ export class Game {
           // soco de pedra na base, cinta de enxaimel na divisa dos pavimentos e
           // montantes de madeira subindo dela. Vale p/ toda face de rua, inclusive
           // as de porta (a porta em si é desenhada em buildEstablishments).
-          // O RODAPÉ NÃO VAI NA FACE DA PORTA: ele tem 0,7 de altura e cobria os
-          // 70cm de baixo da porta, como se a soleira tivesse sido emparedada.
+          // sem enxaimel de código: a pedra lavrada já traz a cimalha pintada.
+          // Na face da PORTA o rodapé não some: ele corre até o batente dos DOIS
+          // lados e para no vão — é assim numa parede de verdade. Pular a face
+          // inteira deixava um trecho de parede pelado sem motivo.
+          this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash, false, porta);
           if (porta) continue;
-          // sem enxaimel de código: a pedra lavrada já traz a cimalha pintada
-          this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash, false);
           // adorno da face: janela (comum) + tocha/bandeira/hera/rachadura sorteados
           // → cada casa fica diferente e a cidade ganha vida.
           const roll = Math.abs(hash(c, r, dc * 7 + dr * 3)) % 1;
@@ -2701,6 +2702,8 @@ export class Game {
     timber: THREE.Material, plinth: THREE.Material,
     hash: (a: number, b: number, s?: number) => number,
     comEnxaimel: boolean,
+    // face com PORTA: o rodapé vira dois trechos, um de cada lado do vão
+    comPorta = false,
   ) {
     const x = c * CELL + dc * (CELL / 2 + 0.05);
     const z = r * CELL + dr * (CELL / 2 + 0.05);
@@ -2708,8 +2711,25 @@ export class Game {
     const larg = (w: number, esp: number): [number, number] =>
       aoLongo ? [w, esp] : [esp, w];
     // soco
-    const [sx, sz] = larg(CELL, 0.16);
-    this.box(x + dc * 0.05, 0.35, z + dr * 0.05, sx, 0.7, sz, plinth);
+    if (comPorta) {
+      // dois trechos flanqueando o vão da porta (com uma folga p/ o batente de
+      // pedra, que é mais largo que a folha)
+      const vao = DOOR_W + 0.5;
+      const seg = (CELL - vao) / 2;
+      if (seg > 0.05) {
+        for (const s of [-1, 1]) {
+          const off = s * (vao + seg) / 2;
+          const [px, pz] = larg(seg, 0.16);
+          this.box(
+            x + dc * 0.05 + (aoLongo ? off : 0), 0.35,
+            z + dr * 0.05 + (aoLongo ? 0 : off), px, 0.7, pz, plinth,
+          );
+        }
+      }
+    } else {
+      const [sx, sz] = larg(CELL, 0.16);
+      this.box(x + dc * 0.05, 0.35, z + dr * 0.05, sx, 0.7, sz, plinth);
+    }
     if (!comEnxaimel) return; // taipa e pedra já trazem a madeira/cimalha pintadas
     // cinta de enxaimel na divisa dos andares
     const [bx, bz] = larg(CELL, 0.14);
