@@ -1,5 +1,13 @@
 // Estabelecimentos do vilarejo e seus interiores.
-export type Estab = "tavern" | "store" | "smith" | "alchemist";
+//
+// A ARMARIA ocupa um prédio de DOIS ANDARES e conta como dois estabelecimentos:
+// "armory" é o térreo (proteção do corpo) e "armoryUp" é o andar de cima (armas).
+// Só o térreo tem porta na rua; o de cima se alcança pela escada lá dentro, e a
+// "saída" de cima é justamente a descida. Cada andar tem o seu atendente, senão
+// o de cima pareceria um depósito.
+export type Estab =
+  | "tavern" | "store" | "smith" | "alchemist"
+  | "armory" | "armoryUp" | "temple";
 
 // Sala padrão dos interiores (grid).
 //  '#' parede   '.' chão   'X' saída (volta p/ a vila)
@@ -60,7 +68,39 @@ export const ESTAB: Record<Estab, EstabInfo> = {
       "Elixires e poções logo estarão à venda na minha bancada.",
     ],
   },
+  armory: {
+    name: "ARMARIA",
+    npc: "Odile, a Armeira",
+    seed: 43,
+    lines: [
+      "Couro, malha e placa — aqui embaixo é o que veste o corpo. Odile.",
+      "Lâmina você acha lá em cima, com o meu irmão. Cuidado com a escada.",
+    ],
+  },
+  armoryUp: {
+    name: "SALA DAS ARMAS",
+    npc: "Gervais, o Armeiro",
+    seed: 47,
+    lines: [
+      "Subiu bem. Aqui em cima só tem gume. Sou Gervais.",
+      "Pegue com as duas mãos antes de decidir. Arma se escolhe pelo peso.",
+    ],
+  },
+  temple: {
+    name: "TEMPLO", // a placa da rua é curta; o nome inteiro fica no diálogo
+    npc: "Madre Corvina",
+    seed: 53,
+    lines: [
+      "A Chama ainda arde, forasteiro, ainda que pálida. Sou a Madre Corvina.",
+      "Traga suas feridas até o altar. A Chama cobra pouco e cura o bastante.",
+    ],
+  },
 };
+
+// A ARMARIA é o único prédio de dois andares: a escada fica DENTRO da sala, a
+// poucos passos da porta (escada longe vira pedágio entre o jogador e a loja).
+// No térreo ela SOBE; lá em cima, a "saída" da sala é a própria descida.
+export const ARMORY_STAIR = { col: 1, row: 2 };
 
 // posições especiais dentro da ROOM
 export function roomFind(ch: string): { col: number; row: number } {

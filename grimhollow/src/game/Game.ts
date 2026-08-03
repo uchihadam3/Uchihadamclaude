@@ -90,6 +90,7 @@ const netDiag = () => netDiagObj;
 import { audio } from "./audio";
 import {
   ROOM,
+  ARMORY_STAIR,
   ROOM_COLS,
   ROOM_ROWS,
   ESTAB,
@@ -334,6 +335,8 @@ const CLUSTER_ART: { url: string; aspect: number }[] = [
 const VILLAGE_BACKDROP_ART: string | null = null;
 
 // artes 2D enviadas para atendentes (URL por estabelecimento)
+// Arte 2D do atendente de cada loja. Quem ainda não tem (Armaria e Templo, que
+// são novos) cai no sprite procedural — basta importar o PNG e mapear aqui.
 const NPC_ART: Partial<Record<Estab, string>> = {
   tavern: taverneiroUrl,
   store: mercadoraUrl,
@@ -361,7 +364,7 @@ const DIRS: [number, number][] = [
 ];
 
 // pontos de interesse do vilarejo
-const WELL = { c: 7, r: 10 }; // poço no centro da praça
+const WELL = { c: 7, r: 12 }; // arco do Portal, no meio da Praça do Portal
 const POOF_FRAMES = 10; // quadros do sprite-sheet da explosão de morte
 
 // efeitos de habilidade por TIPO/elemento: um sprite-sheet horizontal (N quadros
@@ -745,19 +748,34 @@ const MAIN_QUESTS: MainQuestDef[] = [
   },
 ];
 
-// Papéis das lojas:
-//  MERCADOR — equipamento (ARMAS) + o Pergaminho de Retorno. Não vende poção nem
-//    material de forja (isso é da alquimista).
-//  ALQUIMISTA (Isolde) — POÇÕES (vida/mana/futuras) + os MATERIAIS BÁSICOS de forja.
-//  FERREIRO — não vende nada; apenas aprimora.
+// Papéis das lojas (cada uma vende UMA coisa — assim o jogador sabe onde ir):
+//  ARMAZÉM (Rosa) — suprimentos e o Pergaminho de Retorno.
+//  ALQUIMISTA (Isolde) — POÇÕES + os MATERIAIS BÁSICOS de forja.
+//  ARMARIA térreo (Odile) — ARMADURAS (o que veste o corpo).
+//  ARMARIA superior (Gervais) — ARMAS.
+//  FERREIRO (Brandt) — não vende nada; apenas aprimora.
+//  TEMPLO (Madre Corvina) — não vende nada; cura por ouro.
+// lojas que abrem uma JANELA de compra/venda (o vendedor atual fica em shopVendor)
+type ShopId = "store" | "alchemist" | "armory" | "armoryUp";
+// tudo que um atendente pode oferecer no menu de conversa
+type ShopKind = ShopId | "tavern" | "smith" | "temple";
+
+// locais que são um estabelecimento com atendente (usado p/ reconhecer o balcão)
+const SHOP_LOCS: ShopKind[] = ["store", "alchemist", "armory", "armoryUp", "tavern", "smith", "temple"];
+
 const STORE_GOODS = ["scroll_return"];
 const ALCH_GOODS = ["pot_hp", "pot_mp", "madeira", "minerio", "reforco"];
 
+// Portas das lojas na planta nova (ver scripts/gen_village.py, que valida por BFS
+// que dá p/ chegar na frente de cada uma). Quase todas ficam no fim de um BECO:
+// é o que faz a cidade ler como corredor — você dobra a esquina e a porta está lá.
 const ESTAB_DOORS: EstabDoor[] = [
-  { c: 5, r: 5, dc: 0, dr: 1, kind: "tavern" }, // parede norte
-  { c: 9, r: 5, dc: 0, dr: 1, kind: "store" }, // parede norte
-  { c: 1, r: 9, dc: 1, dr: 0, kind: "smith" }, // parede oeste
-  { c: 13, r: 9, dc: -1, dr: 0, kind: "alchemist" }, // parede leste
+  { c: 14, r: 21, dc: -1, dr: 0, kind: "tavern" },    // fim do beco do Largo do Portão
+  { c: 8, r: 21, dc: 1, dr: 0, kind: "store" },       // no próprio Largo do Portão
+  { c: 3, r: 12, dc: 1, dr: 0, kind: "armory" },      // fim do beco oeste (2 andares)
+  { c: 6, r: 10, dc: 0, dr: 1, kind: "alchemist" },   // dá na Praça do Portal
+  { c: 8, r: 4, dc: 0, dr: 1, kind: "smith" },        // Rua Alta, no pé da montanha
+  { c: 12, r: 4, dc: 0, dr: 1, kind: "temple" },      // Rua Alta
 ];
 
 // casas de aldeões (lares, não lojas). Cada uma tem uma porta na parede voltada
@@ -771,9 +789,9 @@ interface HomeDoor {
   id: HomeId;
 }
 const HOME_DOORS: HomeDoor[] = [
-  { c: 7, r: 5, dc: 0, dr: 1, id: "irmaos" }, // parede norte (entre taverna e loja)
-  { c: 1, r: 7, dc: 1, dr: 0, id: "hedda" }, // parede oeste
-  { c: 13, r: 11, dc: -1, dr: 0, id: "elspethhome" }, // parede leste
+  { c: 9, r: 19, dc: 0, dr: 1, id: "hedda" },        // dá no Largo do Portão
+  { c: 11, r: 19, dc: 0, dr: 1, id: "irmaos" },      // do outro lado do mesmo Largo
+  { c: 19, r: 12, dc: -1, dr: 0, id: "elspethhome" },// fim do beco leste
 ];
 
 // aldeões da vila espalhados pela praça.
@@ -790,95 +808,32 @@ interface VillageNPC {
   scale?: number; // altura relativa (ex.: crianças ~0.7)
   roam?: number; // raio de perambulação DIURNA (células a partir do posto). 0 = fica parado.
 }
-// Cada aldeão tem um LUGAR DE DIA (ancorado a um ponto que faz sentido: poço,
-// loja, casa) e um DESTINO DE NOITE. Ao anoitecer eles CAMINHAM até o destino
-// (a maioria se recolhe na taverna ou em casa; o vigia sai em ronda) e ao
-// amanhecer voltam ao posto de dia. Praça: colunas 2–12, linhas 6–12; poço em
-// (7,10). Taverna à frente em (5,6); casas em (7,6)/(2,7)/(12,11).
-// Posições SEMPRE encostadas numa parede/prédio (ninguém fica parado no meio
-// do nada). A função wallLean() empurra o billboard p/ a parede vizinha.
+// POSTO FIXO, e não rotina. Numa cidade de rua estreita, aldeão que caminha vira
+// engarrafamento — você dobra a esquina e dá de cara com alguém atravessando o
+// beco. Cada um agora fica onde faz sentido ele estar: o vigia no portão, o
+// bardo no beco da taverna, o mendigo no largo por onde todo mundo chega, os
+// vendedores no Mercado, a costureira na porta do próprio ateliê.
+// Todos ficam nos LARGOS e BECOS, nunca no meio da rua principal, e o wallLean()
+// ainda os encosta na parede vizinha (ninguém parado no meio do nada).
 const VILLAGE_NPCS: VillageNPC[] = [
   {
-    id: "elspeth",
-    c: 8, // de dia: encostada na parede norte, perto da loja
-    r: 6,
-    night: [12, 11], // à noite: recolhe-se em casa (canto sudeste)
-    seed: 1,
-    name: "Elspeth, a Camponesa",
-    lines: [
-      "Bom dia! Colhi legumes fresquinhos hoje cedo.",
-      "O poço da praça nunca seca, pode beber à vontade.",
-    ],
-  },
-  {
-    id: "corvin",
-    c: 10, // de dia: parede norte, ao lado da loja (vende lenha)
-    r: 6,
-    night: [5, 6], // à noite: entra na taverna (porta em (5,6))
-    seed: 2,
-    name: "Corvin, o Lenhador",
-    lines: [
-      "Cortar lenha é honesto, mas o bosque anda estranho ultimamente.",
-      "Dizem que há algo à espreita naquela montanha ao norte...",
-    ],
-  },
-  {
-    id: "wren",
-    c: 12, // de dia: encostada na parede leste (ateliê)
-    r: 10,
-    night: [2, 7], // à noite: recolhe-se em casa (parede oeste)
-    seed: 3,
-    name: "Wren, a Costureira",
-    lines: [
-      "Precisa remendar essa capa? Faço um preço justo.",
-      "Roupa boa aquece o corpo — e o frio lá embaixo é de rachar.",
-    ],
-  },
-  {
-    id: "alard",
-    c: 2, // de dia: encostado na parede oeste (perto da ferraria)
-    r: 11,
-    night: [5, 6], // à noite: entra na taverna (porta em (5,6))
-    seed: 5,
-    name: "Alard, o Velho Fazendeiro",
-    lines: [
-      "Cuidado, jovem. A escada sob a montanha leva às profundezas.",
-      "Equipe-se bem antes de descer. Já vi muitos partirem e nenhum voltar.",
-    ],
-  },
-  {
     id: "gunther",
-    c: 8, // de dia: GUARDA a entrada sul, encostado na parede do portão
-    r: 13,
-    night: [11, 7], // à noite: RONDA — cruza a praça e vigia do canto nordeste
+    c: 10, // GUARDA o portão da mata, a última célula antes de sair da cidade
+    r: 25,
+    night: [10, 25],
     seed: 9,
-    roam: 1, // de dia patrulha um trecho curto guardando a entrada
     name: "Gunther, o Vigia",
     lines: [
       "Mantenha a paz por aqui, forasteiro.",
-      "Enquanto eu montar guarda, o vilarejo dorme tranquilo.",
-    ],
-  },
-  {
-    id: "anselmo",
-    c: 3, // de dia: encostado na montanha, na boca da masmorra (noroeste)
-    r: 6,
-    night: [2, 6], // à noite: vigília de oração na boca do túnel (parede oeste)
-    seed: 7,
-    roam: 1, // de dia reza perto da boca da masmorra, sem se afastar muito
-    name: "Frei Anselmo",
-    lines: [
-      "Que a luz o acompanhe nas trevas, viajante.",
-      "Reze antes de descer àquela masmorra. Vai precisar.",
+      "Enquanto eu montar guarda, este portão não se abre para o que não deve entrar.",
     ],
   },
   {
     id: "tam",
-    c: 9, // de dia: encostado na parede sul, perto da entrada (pede esmola)
-    r: 12,
-    night: [7, 6], // à noite: recolhe-se na casa dos irmãos (porta em (7,6))
+    c: 9, // mendiga no Largo do Portão, onde todo mundo que chega passa
+    r: 22,
+    night: [9, 22],
     seed: 10,
-    roam: 1, // de dia mendiga perto da entrada, sem perambular muito
     name: "Velho Tam",
     lines: [
       "Uma moedinha para um pobre velho?",
@@ -887,18 +842,78 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "lyle",
-    c: 2, // de dia: encostado na parede oeste, tocando
-    r: 8,
-    night: [5, 6], // à noite: toca na taverna (parede norte)
+    c: 12, // toca no beco da taverna — a música vaza pela porta
+    r: 21,
+    night: [12, 21],
     seed: 12,
-    roam: 0, // fica no posto tocando (não perambula)
     name: "Lyle, o Bardo",
     lines: [
       "Ei! Quer ouvir a balada do herói que desceu à masmorra?",
       "Faça feitos grandiosos e eu comporei uma canção sobre você!",
     ],
   },
+  {
+    id: "alard",
+    c: 9, // encostado na parede da Praça do Portal, de olho no arco
+    r: 13,
+    night: [9, 13],
+    seed: 5,
+    name: "Alard, o Velho Fazendeiro",
+    lines: [
+      "Aquele arco de pedra é mais velho que o vilarejo. Ninguém sabe quem o ergueu.",
+      "Equipe-se bem antes de descer. Já vi muitos partirem e nenhum voltar.",
+    ],
+  },
+  {
+    id: "anselmo",
+    c: 12, // na porta do Templo da Chama Pálida, na Rua Alta
+    r: 5,
+    night: [12, 5],
+    seed: 7,
+    name: "Frei Anselmo",
+    lines: [
+      "Que a luz o acompanhe nas trevas, viajante.",
+      "A Madre atende lá dentro. Entre antes de descer à montanha — vai precisar.",
+    ],
+  },
+  {
+    id: "corvin",
+    c: 13, // vende lenha no Mercado
+    r: 8,
+    night: [13, 8],
+    seed: 2,
+    name: "Corvin, o Lenhador",
+    lines: [
+      "Cortar lenha é honesto, mas o bosque anda estranho ultimamente.",
+      "Dizem que há algo à espreita naquela montanha ao norte...",
+    ],
+  },
+  {
+    id: "elspeth",
+    c: 16, // banca de legumes no Mercado
+    r: 8,
+    night: [16, 8],
+    seed: 1,
+    name: "Elspeth, a Camponesa",
+    lines: [
+      "Bom dia! Colhi legumes fresquinhos hoje cedo.",
+      "Leve algo para a estrada. Lá fora não se acha comida honesta.",
+    ],
+  },
+  {
+    id: "wren",
+    c: 18, // na porta do próprio ateliê, no fim do beco leste
+    r: 12,
+    night: [18, 12],
+    seed: 3,
+    name: "Wren, a Costureira",
+    lines: [
+      "Precisa remendar essa capa? Faço um preço justo.",
+      "Roupa boa aquece o corpo — e o frio lá embaixo é de rachar.",
+    ],
+  },
 ];
+
 
 // falas AMBIENTE soltas (balão curto acima da cabeça, de vez em quando)
 const NPC_CHATTER: string[] = [
@@ -1094,6 +1109,7 @@ type Target =
   | { kind: "enter"; estab: Estab }
   | { kind: "enterhome"; id: HomeId }
   | { kind: "exit" }
+  | { kind: "armorystair" } // escada da Armaria: térreo → Sala das Armas
   | { kind: "talk"; name: string; lines: string[]; key: string }
   | { kind: "dungeon" }
   | { kind: "descend" } // escada 'D' → desce um andar da masmorra
@@ -1101,10 +1117,9 @@ type Target =
   | { kind: "gate"; key: string }
   | { kind: "lockgate" } // portão selado do santuário (não abre)
   | { kind: "sanctuary" } // entrada do santuário (leva à sala-vitrine)
-  | { kind: "smithshop" } // ferreiro (abre a janela de aprimoramento)
-  | { kind: "storeshop" } // mercador (abre a janela de comprar/vender)
-  | { kind: "alchshop" } // alquimista (loja de poções + materiais de forja)
-  | { kind: "tavernshop" } // taverna (descanso + bebidas + missões)
+  // falar com o atendente de QUALQUER estabelecimento (a loja certa abre sozinha
+  // pelo `shop`) — um alvo só, em vez de um por loja
+  | { kind: "estabshop"; shop: ShopKind }
   | { kind: "stash" } // baú da Hedda (guardar/retirar)
   | { kind: "toforest" }
   | { kind: "tovillage" }
@@ -1410,7 +1425,7 @@ export class Game {
   private static readonly LIE_Y = 0.48;                          // altura da câmera "deitado" (no colchão)
   private static readonly LIE_PITCH = 0.82;                      // + = olha p/ CIMA (teto) ao acordar
   private storeMode: "buy" | "sell" = "buy";
-  private shopVendor: "store" | "alchemist" = "store"; // qual loja está aberta
+  private shopVendor: ShopId = "store"; // qual loja está aberta
   // BAÚ da Hedda: pertences guardados (bens empilháveis, armas c/ reforço, ouro)
   private stash: { goods: Record<string, number>; weapons: string[]; reinforce: Record<string, number>; gold: number } =
     { goods: {}, weapons: [], reinforce: {}, gold: 0 };
@@ -2490,7 +2505,7 @@ export class Game {
     if (this.dungeonReturn) this.openTempCityPortal(); // retorno pendente → recria o portal
     // BAÚ de teste na praça, ao lado do poço (WELL em 7,10) → fácil de achar p/ testar
     // o chocalho/abertura do baú sem precisar descer à masmorra.
-    this.buildChestBillboard(9 * CELL, 10 * CELL, 9, 10);
+    this.buildChestBillboard(13 * CELL, 7 * CELL, 13, 7);
     this.buildEstablishments(doorMat, bannerMat);
     this.buildHomes(doorMat);
     this.buildVillageForestGate();
@@ -2505,22 +2520,29 @@ export class Game {
   // adereços da praça — apenas os props em PNG (poste + mural). Os objetos 3D
   // procedurais (lenha, caixotes, floreiras, sacos) foram removidos.
   private buildVillageProps() {
-    // POSTES de rua: nas quinas da praça, mas AFASTADOS das paredes p/ o topo
-    // (a lanterna) não ficar escondido dentro do beiral do telhado das casas.
-    // Formam um retângulo em volta do poço. Sem colisão (dá p/ passar por eles).
-    this.addLampPost(4, 7); // NO
-    this.addLampPost(10, 7); // NE
-    this.addLampPost(4, 11); // SO
-    this.addLampPost(10, 11); // SE
-    // lampiões extras — AFASTADOS das portas (nunca na célula em frente a uma porta):
-    // as portas do norte ficam em (5,6)(7,6)(9,6); a do ferreiro em (2,9); a do
-    // alquimista em (12,9). Recuamos um passo p/ dentro da praça p/ não obstruir.
-    this.addLampPost(7, 8); // norte-centro, recuado da fileira de portas (era 7,6)
-    this.addLampPost(3, 8); // oeste, ao lado da porta do ferreiro (era 2,9)
-    this.addLampPost(11, 8); // leste, ao lado da porta do alquimista (era 12,9)
-    this.addLampPost(7, 12); // sul (perto do portão)
-    // prop FIXO colado na parede, virado p/ a praça: só o mural (parede oeste)
-    this.addWallProp(2, 10, propNoticeUrl, 2.7, "W");
+    // LAMPIÕES: agora que a cidade é corredor, eles são a espinha da leitura
+    // noturna — a fileira de luzes recuando rua adentro é o que dá profundidade.
+    // Nunca na célula EM FRENTE a uma porta (senão a lanterna tapa a entrada) e
+    // nunca em cima do posto de um aldeão.
+    // Rua do Portão e Largo
+    this.addLampPost(10, 23);
+    this.addLampPost(10, 20);
+    // rua estreita que sobe p/ a Praça do Portal
+    this.addLampPost(7, 17);
+    // Praça do Portal (o arco fica em WELL)
+    this.addLampPost(9, 12);
+    this.addLampPost(6, 13);
+    // Rua do Mercado e Mercado
+    this.addLampPost(11, 9);
+    this.addLampPost(15, 9);
+    this.addLampPost(14, 6); // passagem estreita entre o Mercado e a Rua Alta
+    // beco leste (ateliê da Wren)
+    this.addLampPost(17, 11);
+    // Rua Alta, no pé da montanha
+    this.addLampPost(6, 5);
+    this.addLampPost(10, 5);
+    // mural de avisos na parede oeste da Praça do Portal
+    this.addWallProp(6, 13, propNoticeUrl, 2.7, "W");
   }
 
   // PROPS de "praça viva": barracas de feira, caixotes, feno e sacos espalhados
@@ -2631,14 +2653,15 @@ export class Game {
       this.world.add(g);
       this.blocked.add(`${c},${r}`);
     };
-    // células escolhidas p/ NÃO ter poste de rua bem à frente (senão a lanterna
-    // corta a barraca no meio). Postes ficam em (4,7)(10,7)(4,11)(10,11)(7,8)…
-    place(6, 6, 0, 1, buildStall());     // barraca na borda norte (abre p/ a praça)
-    place(8, 12, 0, -1, buildStall());   // barraca na borda sul
-    place(12, 7, -1, 0, buildCrates());  // caixotes na parede leste
-    place(2, 12, 1, 0, buildHay());      // feno no canto sudoeste
-    place(5, 12, 0, -1, buildSacks());   // sacos na borda sul
-    place(11, 12, 0, -1, buildCrates()); // caixotes na borda sul-leste
+    // ATENÇÃO: cada um destes BLOQUEIA a célula, então todos vão em canto de
+    // LARGO — nunca numa rua de uma célula, senão a cidade se parte em duas.
+    // (o gen_village.py valida a planta; estes props são validados pelo teste de
+    //  alcance que roda com o canWalk de verdade)
+    place(15, 7, 0, 1, buildStall());     // barraca no Mercado, abre p/ o sul
+    place(16, 7, 0, 1, buildStall());     // segunda barraca ao lado
+    place(11, 22, -1, 0, buildCrates());  // caixotes no canto do Largo do Portão
+    place(6, 14, 1, 0, buildHay());       // feno no canto sudoeste da Praça
+    place(9, 14, -1, 0, buildSacks());    // sacos no canto sudeste da Praça
   }
 
   // textura radial (branco→transparente) p/ o halo luminoso da lanterna (cache)
@@ -2949,17 +2972,20 @@ export class Game {
   }
   private buildStoreData(): StoreData {
     const goods: StoreGood[] = [];
-    const alch = this.shopVendor === "alchemist";
-    const goodIds = alch ? ALCH_GOODS : STORE_GOODS; // bens empilháveis dessa loja
-    const tradesWeapons = !alch; // só o mercador negocia armas/equipamento
+    const v = this.shopVendor;
+    // CADA LOJA VENDE UMA COISA — é o que faz o jogador saber onde ir. A Armaria
+    // ocupa dois andares: embaixo o que veste o corpo, em cima o que corta.
+    const goodIds = v === "alchemist" ? ALCH_GOODS : v === "store" ? STORE_GOODS : [];
+    const tradesWeapons = v === "armoryUp";  // Sala das Armas (andar de cima)
+    const tradesArmor = v === "armory";      // Armaria (térreo)
     if (this.storeMode === "buy") {
-      // MERCADOR: armas ainda NÃO possuídas (equipamento à venda)
+      // SALA DAS ARMAS: armas ainda NÃO possuídas
       if (tradesWeapons) for (const w of WEAPONS) {
         if (this.ownedWeapons.includes(w.id)) continue; // já tem essa arma
         goods.push({ id: "w:" + w.id, name: w.name, iconUrl: w.url, price: this.weaponBuy(w.id), desc: this.weaponDesc(w), have: 0, single: true });
       }
-      // EQUIPAMENTO ROTATIVO (só o mercador): armaduras com raridade que giram pelo relógio
-      if (tradesWeapons) {
+      // EQUIPAMENTO ROTATIVO (só a Armaria térrea): armaduras com raridade que giram pelo relógio
+      if (tradesArmor) {
         this.refreshStoreStock();
         for (const it of this.storeStock) {
           const price = this.armorPrice(it);
@@ -2977,7 +3003,7 @@ export class Game {
         const have = this.goodHave(id);
         if (have > 0) goods.push({ id: m.id, name: m.name, icon: m.icon, iconUrl: m.iconUrl, price: Math.max(1, Math.round(m.price * Game.SELL_RATE)), desc: m.desc, have });
       }
-      // ...e, no mercador, as armas possuídas (menos a equipada)
+      // ...e, na Sala das Armas, as armas possuídas (menos a equipada)
       if (tradesWeapons) for (const id of this.ownedWeapons) {
         if (this.currentWeapon?.id === id) continue; // não vende a arma equipada
         const w = WEAPON_BY_ID[id];
@@ -2986,8 +3012,11 @@ export class Game {
         goods.push({ id: "w:" + id, name: w.name + (lvl ? ` +${lvl}` : ""), iconUrl: w.url, price: this.weaponSell(id), desc: "arma", have: 1, single: true });
       }
     }
-    const ident = alch
-      ? { title: "Alquimista", subtitle: "O Laboratório de Isolde", portraitUrl: alquimistaUrl }
+    // cabeçalho da janela por vendedor (a arte do atendente entra quando existir)
+    const ident =
+      v === "alchemist" ? { title: "Alquimista", subtitle: "O Laboratório de Isolde", portraitUrl: alquimistaUrl }
+      : v === "armory" ? { title: "Armaria", subtitle: "Couro, malha e placa — Odile" }
+      : v === "armoryUp" ? { title: "Sala das Armas", subtitle: "O andar de cima — Gervais" }
       : {};
     return { gold: this.stats.gold, mode: this.storeMode, goods, ...ident };
   }
@@ -3296,17 +3325,57 @@ export class Game {
     if (name.includes("Bruno")) return "Volte sempre — e traga histórias!";
     return "Até logo, viajante.";
   }
-  private shopVerb(shop: "store" | "tavern" | "smith" | "alchemist"): string {
+  private shopVerb(shop: ShopKind): string {
     return shop === "store" ? "Ver a mercadoria"
       : shop === "alchemist" ? "Ver poções e materiais"
-        : shop === "smith" ? "Abrir a forja (aprimorar)"
-          : "Beber e ver o mural";
+        : shop === "armory" ? "Ver as armaduras"
+          : shop === "armoryUp" ? "Ver as armas"
+            : shop === "temple" ? "Pedir a bênção da Chama"
+              : shop === "smith" ? "Abrir a forja (aprimorar)"
+                : "Beber e ver o mural";
   }
-  private openShopWindow(shop: "store" | "tavern" | "smith" | "alchemist") {
+  /**
+   * TEMPLO DA CHAMA PÁLIDA — serviço, não loja: a Madre restaura vida e mana por
+   * ouro. O preço é pelo que FALTA curar (quem chega inteiro não paga nada), com
+   * um piso pequeno p/ não virar botão grátis.
+   */
+  private templeHeal() {
+    const faltaHp = this.playerMaxHp - this.playerHp;
+    const faltaMp = this.playerMaxMp - this.playerMp;
+    if (faltaHp <= 0 && faltaMp <= 0) {
+      this.openDialogue(ESTAB.temple.npc, [
+        "A Chama olha para você e nada encontra para queimar.",
+        "Vá em paz — e volte quando estiver quebrado.",
+      ], null);
+      return;
+    }
+    const custo = Math.max(8, Math.round((faltaHp * 0.9 + faltaMp * 1.4) * (1 + this.stats.level * 0.05)));
+    if (this.stats.gold < custo) {
+      this.openDialogue(ESTAB.temple.npc, [
+        `A Chama pede ${custo} de ouro por este trato, e você não os tem.`,
+        "Ela é pálida, mas não é tola. Traga o ouro e volte.",
+      ], null);
+      return;
+    }
+    this.stats.gold -= custo;
+    this.playerHp = this.playerMaxHp;
+    this.playerMp = this.playerMaxMp;
+    this.ui.setHealth(1, this.playerHp, this.playerMaxHp);
+    this.ui.setMana(1, this.playerMp, this.playerMaxMp);
+    this.refreshStats();
+    this.ui.playSfx("coin");
+    this.scheduleSave();
+    this.openDialogue(ESTAB.temple.npc, [
+      "A Madre encosta a palma na sua testa. Arde — e passa.",
+      `Feridas fechadas e alma reacesa por ${custo} de ouro.`,
+    ], null);
+  }
+
+  private openShopWindow(shop: ShopKind) {
     if (shop === "smith") this.ui.openSmith(this.buildSmithData());
-    else if (shop === "store") { this.shopVendor = "store"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); }
-    else if (shop === "alchemist") { this.shopVendor = "alchemist"; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); }
-    else this.ui.openTavern(this.buildTavernData());
+    else if (shop === "tavern") this.ui.openTavern(this.buildTavernData());
+    else if (shop === "temple") this.templeHeal();
+    else { this.shopVendor = shop; this.storeMode = "buy"; this.ui.openStore(this.buildStoreData()); }
   }
   // abre um "nó" de conversa: fala do NPC + menu de opções (na última página)
   private openConvNode(name: string, portrait: string | null, lines: string[], opts: ConvOption[]) {
@@ -3317,7 +3386,7 @@ export class Game {
   }
   // ENTRA na conversa com um NPC: monta a saudação + o menu conforme o estado das
   // missões e se ele é atendente de loja. É o coração do sistema robusto.
-  private talkNpc(name: string, portrait: string | null, shop?: "store" | "tavern" | "smith" | "alchemist", gossip?: string[]) {
+  private talkNpc(name: string, portrait: string | null, shop?: ShopKind, gossip?: string[]) {
     // saudação SEMPRE genérica; a etapa do TOUR só é cumprida quando o jogador
     // ESCOLHE "Falar sobre a missão" no menu (nunca automaticamente ao chegar).
     const greet = [this.greetingFor(name)];
@@ -7407,14 +7476,16 @@ export class Game {
 
   // aldeões da vila (espalhados pela praça)
   private buildNPCs() {
-    // fase atual (dia/noite) p/ nascerem já no lugar certo — se o jogador entra
-    // na vila à noite, os aldeões já estão na taverna/casa, sem precisar andar.
     const t = (performance.now() / DAY_MS + DAY_START) % 1;
     this.npcNight = this.daylight(t) < 0.3;
     for (const v of VILLAGE_NPCS) {
       const anim = VILLAGER_ANIM[v.id];
       const url = anim ? anim.url : VILLAGER_ART[v.id];
       const [sc, sr] = this.npcNight ? v.night : [v.c, v.r]; // célula de nascença
+      // POSTO FIXO: quem tem dia e noite no mesmo lugar não vira "walker" nenhum
+      // (é o caso de todos hoje — ver o comentário em VILLAGE_NPCS). A rotina de
+      // caminhada continua no código, pronta p/ quando algum aldeão precisar dela.
+      const fixo = v.night[0] === v.c && v.night[1] === v.r;
       this.addNPC(
         sc,
         sr,
@@ -7424,7 +7495,7 @@ export class Game {
         url,
         v.scale ?? 1,
         anim ? { frames: anim.frames, fps: anim.fps } : undefined,
-        { day: [v.c, v.r], night: v.night, roam: v.roam ?? 2 },
+        fixo ? { day: [v.c, v.r], night: v.night, roam: 0 } : { day: [v.c, v.r], night: v.night, roam: v.roam ?? 2 },
       );
     }
   }
@@ -8566,6 +8637,15 @@ export class Game {
       };
       const p = roomFind("P");
       void this.doorTransition(() => this.enterLocation(t.id, p.col, p.row, 0));
+    } else if (t.kind === "armorystair") {
+      // sobe p/ a Sala das Armas. NÃO mexe em returnTo: ele guarda a rua lá fora,
+      // p/ a saída do térreo continuar funcionando na volta.
+      const p = roomFind("P");
+      void this.doorTransition(() => this.enterLocation("armoryUp", p.col, p.row, 0));
+    } else if (t.kind === "exit" && this.location === "armoryUp") {
+      // "sair" do andar de cima é DESCER — a rua fica um andar abaixo
+      const s = ARMORY_STAIR;
+      void this.doorTransition(() => this.enterLocation("armory", s.col, s.row + 1, 0));
     } else if (t.kind === "exit") {
       const { col, row, facing } = this.returnTo;
       void this.doorTransition(() => this.enterLocation("village", col, row, facing));
@@ -8660,18 +8740,9 @@ export class Game {
       // entra no SANTUÁRIO (sala-vitrine); guarda o retorno p/ a masmorra
       this.showcaseReturn = { loc: "dungeon", col: this.col, row: this.row, facing: (this.facing + 2) % 4 };
       this.enterLocation("showcase", 0, 0, 0);
-    } else if (t.kind === "smithshop") {
-      // FERREIRO: conversa (menu) — "Abrir a forja" + tópicos de missão + Sair
-      this.talkNpc(ESTAB.smith.npc, ferreiroUrl, "smith");
-    } else if (t.kind === "storeshop") {
-      // MERCADOR: conversa (menu) — "Ver a mercadoria" + tópicos + Sair
-      this.talkNpc(ESTAB.store.npc, mercadoraUrl, "store");
-    } else if (t.kind === "alchshop") {
-      // ALQUIMISTA: conversa (menu)
-      this.talkNpc(ESTAB.alchemist.npc, alquimistaUrl, "alchemist");
-    } else if (t.kind === "tavernshop") {
-      // TAVERNA: conversa (menu) — beber/mural + tópicos + Sair
-      this.talkNpc(ESTAB.tavern.npc, taverneiroUrl, "tavern");
+    } else if (t.kind === "estabshop") {
+      // ATENDENTE de loja: conversa (menu) — a ação da loja + tópicos de missão + Sair
+      this.talkNpc(ESTAB[t.shop].npc, NPC_ART[t.shop] ?? null, t.shop);
     } else if (t.kind === "stash") {
       // BAÚ DE HEDDA: guarda/retira itens, materiais, armas e ouro
       this.stashMode = "deposit";
@@ -8799,7 +8870,15 @@ export class Game {
 
   // casca comum de qualquer interior (chão, teto, paredes, porta de saída).
   // floorSeed/wallSeed/ceilColor deixam a casa parecer diferente da loja.
-  private buildRoomShell(floorSeed = 9, _wallSeed = 2, ceilColor = 0x4a3826) {
+  private buildRoomShell(
+    floorSeed = 9,
+    _wallSeed = 2,
+    ceilColor = 0x4a3826,
+    // ANDAR DE CIMA (Sala das Armas): não há rua aqui, então a "saída" da sala é
+    // a escada DE VOLTA p/ o térreo. Reaproveita toda a lógica de saída (o alvo,
+    // o minimapa, a seta do guia) só trocando o que ela desenha e p/ onde leva.
+    saida: { rotulo: string; escada: boolean } = { rotulo: "SAÍDA", escada: false },
+  ) {
     const CEIL = 3.0;
     // chão de madeira (aconchegante) + PAREDES DE PEDRA com tom quente (parede
     // rebocada) — bem melhor que a madeira repetitiva de antes.
@@ -8831,14 +8910,17 @@ export class Game {
 
     // porta de saída na parede sul da célula X (voltada p/ o interior)
     const x = roomFind("X");
-    const exit = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, DOOR_H), doorMat);
-    exit.position.set(x.col * CELL, DOOR_H / 2, x.row * CELL + CELL / 2 - 0.06);
-    exit.rotation.y = Math.PI;
-    this.world.add(exit);
+    if (saida.escada) this.buildStairFlight(x.col * CELL, x.row * CELL, 0, 1, -1);
+    else {
+      const exit = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, DOOR_H), doorMat);
+      exit.position.set(x.col * CELL, DOOR_H / 2, x.row * CELL + CELL / 2 - 0.06);
+      exit.rotation.y = Math.PI;
+      this.world.add(exit);
+    }
     const exitSign = new THREE.Mesh(
       new THREE.PlaneGeometry(1.7, 0.6),
       new THREE.MeshLambertMaterial({
-        map: tex.signText("SAÍDA"),
+        map: tex.signText(saida.rotulo),
         transparent: true,
         side: THREE.DoubleSide,
       }),
@@ -8928,7 +9010,24 @@ export class Game {
   private buildInterior(kind: Estab) {
     const CEIL = 3.0;
     const woodDark = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
-    this.buildRoomShell(9, 2, 0x4a3826);
+    const emCima = kind === "armoryUp";
+    this.buildRoomShell(9, 2, 0x4a3826,
+      emCima ? { rotulo: "DESCER", escada: true } : { rotulo: "SAÍDA", escada: false });
+    // ARMARIA (térreo): a escada p/ a Sala das Armas fica logo à esquerda de quem
+    // entra — perto o bastante p/ não virar pedágio, longe o bastante p/ o balcão
+    // continuar sendo a primeira coisa que você vê.
+    if (kind === "armory") {
+      const s = ARMORY_STAIR;
+      this.blocked.add(`${s.col},${s.row}`);
+      this.buildStairFlight(s.col * CELL, s.row * CELL, 1, 0, 1);
+      const placa = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.7, 0.6),
+        new THREE.MeshLambertMaterial({ map: tex.signText("ARMAS ↑"), transparent: true, side: THREE.DoubleSide }),
+      );
+      placa.position.set(s.col * CELL + CELL / 2 - 0.1, 2.35, s.row * CELL);
+      placa.rotation.y = Math.PI / 2;
+      this.world.add(placa);
+    }
 
     // balcão do atendente + atendente
     const n = roomFind("N");
@@ -8960,7 +9059,91 @@ export class Game {
     if (kind === "tavern") this.propsTavern();
     else if (kind === "store") this.propsStore();
     else if (kind === "smith") this.propsSmith();
-    else this.propsAlchemist();
+    else if (kind === "alchemist") this.propsAlchemist();
+    else if (kind === "armory" || kind === "armoryUp") this.propsArmory(kind === "armoryUp");
+    else if (kind === "temple") this.propsTemple();
+  }
+
+  /**
+   * Lance de escada de madeira dentro de uma sala: 6 degraus subindo (`sinal`=+1)
+   * ou descendo (-1) na direção (dc,dr), com corrimão do lado de fora. É só cenário
+   * — a troca de andar é pela interação, como toda passagem do jogo.
+   */
+  private buildStairFlight(x: number, z: number, dc: number, dr: number, sinal: number) {
+    const mad = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const madEsc = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
+    const N = 6, passo = CELL / (N + 1), alt = 0.26;
+    for (let i = 0; i < N; i++) {
+      const d = -CELL / 2 + passo * (i + 1);
+      const y = sinal > 0 ? alt * (i + 0.5) : 0.05 + alt * (N - i - 0.5);
+      const h = sinal > 0 ? alt * (i + 1) : alt * (N - i);
+      this.box(x + dc * d, y, z + dr * d, dc ? passo : 1.9, h, dr ? passo : 1.9, i % 2 ? mad : madEsc);
+    }
+    // corrimão simples acompanhando o lance
+    const px = dr ? 0.95 : 0, pz = dc ? 0.95 : 0;
+    for (const s of [1, -1])
+      this.box(x + px * s, 1.35, z + pz * s, dc ? CELL * 0.9 : 0.1, 0.1, dr ? CELL * 0.9 : 0.1, madEsc);
+  }
+
+  // ARMARIA — térreo: manequins de armadura e arcas; superior: suportes de armas.
+  private propsArmory(emCima: boolean) {
+    const mad = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
+    const ferro = new THREE.MeshLambertMaterial({ color: 0x39332c });
+    const couro = new THREE.MeshLambertMaterial({ color: 0x6b4a2c });
+    if (!emCima) {
+      // manequins encostados nas paredes leste e oeste
+      for (const [c, r, dc, dr] of [[5, 2, 1, 0], [5, 4, 1, 0], [1, 4, -1, 0]] as [number, number, number, number][])
+        this.wallCell(c, r, [dc, dr], (x, z) => {
+          this.box(x, 0.35, z, 0.5, 0.7, 0.5, mad);           // pedestal
+          this.box(x, 1.25, z, 0.75, 1.05, 0.45, ferro);      // torso encouraçado
+          this.box(x, 1.95, z, 0.34, 0.36, 0.34, couro);      // elmo
+        });
+      // arcas de couro no canto
+      this.wallCell(1, 5, [-1, 0], (x, z) => {
+        this.box(x, 0.28, z, 0.7, 0.56, 1.0, couro);
+        this.box(x, 0.6, z, 0.76, 0.12, 1.06, mad);
+      });
+    } else {
+      // suportes de armas nas paredes (as lâminas em si são sugeridas por barras)
+      for (const [c, r, dc, dr] of [[1, 2, -1, 0], [1, 4, -1, 0], [5, 2, 1, 0], [5, 4, 1, 0]] as [number, number, number, number][])
+        this.wallCell(c, r, [dc, dr], (x, z) => {
+          this.box(x, 1.6, z, 0.14, 0.1, 2.0, mad);           // travessa
+          for (let i = -1; i <= 1; i++)
+            this.box(x, 1.05, z + i * 0.6, 0.09, 1.0, 0.09, ferro); // hastes
+        });
+      // mó de amolar no meio
+      this.blocked.add("3,4");
+      const roda = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.16, 18), ferro);
+      roda.rotation.z = Math.PI / 2;
+      roda.position.set(3 * CELL, 0.8, 4 * CELL);
+      this.world.add(roda);
+      this.box(3 * CELL, 0.4, 4 * CELL, 0.7, 0.8, 0.5, mad);
+    }
+  }
+
+  // TEMPLO DA CHAMA PÁLIDA — altar com fogo baixo, bancos e velas.
+  private propsTemple() {
+    const pedra = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const mad = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
+    // altar sob o balcão (parede norte) com a chama
+    this.wallCell(3, 1, [0, -1], (x, z) => {
+      this.box(x, 0.55, z, 2.0, 1.1, 0.7, pedra);
+      this.glowLight(x, 1.7, z + 0.4, 0xbfd8ff, 4.2, 12); // chama PÁLIDA (fria)
+    });
+    // dois bancos compridos voltados p/ o altar
+    for (const r of [3, 4])
+      for (const c of [1, 5])
+        this.wallCell(c, r, [c === 1 ? -1 : 1, 0], (x, z) => {
+          this.box(x, 0.42, z, 0.6, 0.14, 1.9, mad);
+          this.box(x, 0.2, z, 0.16, 0.4, 1.7, mad);
+        });
+    // velas no chão do corredor central
+    for (const [c, r] of [[2, 2], [4, 2], [2, 5], [4, 5]] as [number, number][]) {
+      const v = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.4, 8), new THREE.MeshLambertMaterial({ color: 0xe6dcc0 }));
+      v.position.set(c * CELL, 0.2, r * CELL);
+      this.world.add(v);
+      this.glowLight(c * CELL, 0.55, r * CELL, 0xa8c4ff, 0.9, 5);
+    }
   }
 
   private glowLight(x: number, y: number, z: number, color: number, base: number, range: number) {
@@ -10381,7 +10564,9 @@ export class Game {
     if (t) {
       if (t.kind === "enter") text = `Entrar — ${ESTAB[t.estab].name}`;
       else if (t.kind === "enterhome") text = "Entrar na casa";
-      else if (t.kind === "exit") text = this.location === "dungeon" ? "Subir ao Vilarejo" : "Sair";
+      else if (t.kind === "armorystair") text = "Subir — Sala das Armas";
+      else if (t.kind === "exit") text = this.location === "dungeon" ? "Subir ao Vilarejo"
+        : this.location === "armoryUp" ? "Descer — Armaria" : "Sair";
       else if (t.kind === "talk") text = `Falar com ${t.name}`;
       else if (t.kind === "dungeon") text = "Descer à masmorra";
       else if (t.kind === "descend") text = "Descer ao próximo andar";
@@ -10393,10 +10578,7 @@ export class Game {
       else if (t.kind === "sign") text = "Ler a placa";
       else if (t.kind === "lockgate") text = "Portão selado";
       else if (t.kind === "sanctuary") text = "Subir a escadaria";
-      else if (t.kind === "smithshop") text = "Ferreiro — Aprimorar";
-      else if (t.kind === "storeshop") text = "Mercador — Comprar / Vender";
-      else if (t.kind === "alchshop") text = "Alquimista — Poções & Materiais";
-      else if (t.kind === "tavernshop") text = "Taverna — Bruno, o Taverneiro";
+      else if (t.kind === "estabshop") text = `Falar com ${ESTAB[t.shop].npc.split(/[ ,]/)[0]}`;
       else if (t.kind === "stash") text = "Abrir o baú";
       else if (t.kind === "chest") text = "Abrir o baú";
       else if (t.kind === "waypoint") text = this.cityPortalActive ? "Portal — Viajar" : "Arco de Pedra (apagado)";
@@ -10426,14 +10608,9 @@ export class Game {
     if (chestT && chestT.state !== "open") return { kind: "chest", key: `${fc},${fr}` };
     // NPC logo à frente
     const npc = this.npcMap.get(`${fc},${fr}`);
-    // no interior do FERREIRO, falar com o atendente abre a janela de aprimoramento
-    if (npc && this.location === "smith") return { kind: "smithshop" };
-    // no MERCADOR, falar com a atendente abre a janela de comprar/vender
-    if (npc && this.location === "store") return { kind: "storeshop" };
-    // na ALQUIMISTA, falar com a Isolde abre a loja de poções + materiais
-    if (npc && this.location === "alchemist") return { kind: "alchshop" };
-    // na TAVERNA, falar com o Bruno abre descanso + bebidas + missões
-    if (npc && this.location === "tavern") return { kind: "tavernshop" };
+    // dentro de um ESTABELECIMENTO, falar com o atendente abre a loja/serviço dele
+    if (npc && SHOP_LOCS.includes(this.location as ShopKind))
+      return { kind: "estabshop", shop: this.location as ShopKind };
     if (npc)
       return {
         kind: "talk",
@@ -10498,6 +10675,9 @@ export class Game {
       // na base da hélice, interagir sai da sala-vitrine (volta de onde veio)
       if (this.showIdx === 0) return { kind: "exit" };
     } else {
+      // ARMARIA: a escada p/ o andar de cima (só existe no térreo)
+      if (this.location === "armory" && fc === ARMORY_STAIR.col && fr === ARMORY_STAIR.row)
+        return { kind: "armorystair" };
       // saída: valendo tanto de frente para a porta quanto encostado nela
       // (em cima da própria célula de saída, onde a célula à frente já é a
       // parede externa e o teste de "célula à frente" falharia).
