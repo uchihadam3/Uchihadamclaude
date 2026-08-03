@@ -1636,14 +1636,27 @@ automaticamente quando eles existem.
 borda de baixo, proporção retrato **~848×1264**, fundo **100% transparente**,
 recorte limpo, sem sombra projetada, sem chão, sem texto.
 
-### 🟡 26.1 — `avatar_guerreiro`
+> **Uma arte, dois usos.** O MESMO recorte serve para o avatar no jogo E para o
+> retrato da tela de criação de personagem: eu componho o personagem recortado
+> sobre o fundo da árvore de habilidades da classe (`ui/skills/bg_<classe>.jpg` —
+> a forja para o guerreiro, etc.). Assim o herói que você escolhe na criação é
+> literalmente o mesmo que seus amigos veem na praça, em vez de duas artes
+> diferentes. **Você só precisa gerar o recorte transparente**; a composição é
+> feita aqui.
+
+> **⚠️ Revisão (guerreiro × ladino):** a 1ª leva saiu com os dois parecidos demais
+> — ambos escuros e de silhueta parecida. Num billboard pequeno o que separa as
+> classes é **silhueta + claro/escuro**, então as versões abaixo forçam o contraste:
+> o guerreiro fica **LARGO e de metal CLARO**, o ladino **ESBELTO, ESCURO e de capuz**.
+
+### 🟡 26.1 — `avatar_guerreiro` (refazer — mais armadura, metal claro)
 ```
-A full-body HUMAN WARRIOR adventurer standing at ease and FACING THE VIEWER, worn steel plate over chainmail, tattered dark cloak, a longsword sheathed at the hip and a round wooden shield on the back, scarred weathered face, feet flat at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
+A full-body HUMAN WARRIOR standing squarely and FACING THE VIEWER, clad in HEAVY FULL PLATE ARMOR — large pauldrons, breastplate, gauntlets and greaves in POLISHED LIGHT STEEL that catches the light, bright silver-grey metal. A big broad-bladed sword held point-down in front of him and a LARGE metal shield on the other arm. BULKY, WIDE, imposing silhouette; bare scarred head, short beard. Mostly BRIGHT METAL — deliberately NOT a dark or cloth-heavy figure, NO hood, NO long cloak covering the armor. Feet flat at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
 ```
 
-### 🟡 26.2 — `avatar_ladino`
+### 🟡 26.2 — `avatar_ladino` (refazer — esbelto, escuro, encapuzado)
 ```
-A full-body HUMAN ROGUE adventurer standing alert and FACING THE VIEWER, dark leather armor with hood down, twin daggers at the belt, travel straps and pouches, lean and watchful, feet flat at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
+A full-body HUMAN ROGUE standing in a low, poised crouch and FACING THE VIEWER, wearing LIGHT DARK LEATHER only — soft hood PULLED UP shadowing the eyes, fitted jerkin, wrapped forearms, belts and pouches, a short cloak. Twin curved daggers held reversed in both hands. LEAN, NARROW, agile silhouette — deliberately SLIM and SMALL next to an armored knight. NO plate armor, NO metal pauldrons, NO shield, NO large sword. Dark charcoal and muted brown tones. Feet at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
 ```
 
 ### 🟡 26.3 — `avatar_mago`
