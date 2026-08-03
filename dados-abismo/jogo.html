@@ -53,6 +53,43 @@
  .cbtn b{font-size:16px} .cbtn span{display:block;font-size:11.5px;opacity:.7;margin-top:3px}
  #topo{position:fixed;top:calc(6px + env(safe-area-inset-top));right:10px;font-size:11px;opacity:.65;text-align:right;pointer-events:none}
  #log{position:fixed;left:10px;bottom:150px;font-size:11px;opacity:.75;max-width:44vw;pointer-events:none;line-height:1.5}
+ /* ===== sprite do inimigo ===== */
+ .en .spr{height:72px;display:flex;align-items:flex-end;justify-content:center;margin:-2px 0 2px}
+ .en .spr img{height:72px;image-rendering:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));
+   animation:resp 2.6s ease-in-out infinite}
+ .en:nth-child(2n) .spr img{animation-duration:3.1s;animation-delay:-.7s}
+ .en:nth-child(3n) .spr img{animation-duration:2.2s;animation-delay:-1.3s}
+ @keyframes resp{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.03)}}
+ .en.alvo .spr img{filter:drop-shadow(0 0 10px #ffd24a) drop-shadow(0 4px 6px rgba(0,0,0,.6))}
+ .en.morto .spr img{animation:none;transform:rotate(14deg) translateY(8px);opacity:.5}
+ /* impacto */
+ .en{position:relative;transition:transform .08s}
+ .en.bat{animation:bat .34s cubic-bezier(.2,.8,.3,1)}
+ @keyframes bat{0%{transform:translateX(0)}18%{transform:translateX(-7px) scale(1.05)}
+   40%{transform:translateX(5px)}70%{transform:translateX(-2px)}100%{transform:translateX(0)}}
+ .en.bat .spr img{filter:brightness(3.2) drop-shadow(0 0 14px #fff);animation:none}
+ .en.morrendo{animation:morrer .5s forwards}
+ @keyframes morrer{to{opacity:.25;transform:scale(.9) rotate(6deg);filter:grayscale(1)}}
+ .dmg{position:absolute;left:50%;top:16px;transform:translateX(-50%);font-size:22px;font-weight:900;
+   color:#fff;text-shadow:0 2px 0 #8a1010,0 0 12px #ff5a3c;pointer-events:none;
+   animation:sobe .9s cubic-bezier(.1,.9,.3,1) forwards;z-index:5}
+ .dmg.big{font-size:32px;color:#ffe27a;text-shadow:0 2px 0 #7a2a00,0 0 20px #ff9d2b}
+ @keyframes sobe{0%{opacity:0;transform:translateX(-50%) translateY(10px) scale(.6)}
+   22%{opacity:1;transform:translateX(-50%) translateY(-6px) scale(1.25)}
+   40%{transform:translateX(-50%) translateY(-12px) scale(1)}
+   100%{opacity:0;transform:translateX(-50%) translateY(-46px) scale(.95)}}
+ .dmgme{position:absolute;left:50%;top:-16px;transform:translateX(-50%);font-size:20px;font-weight:900;
+   color:#ff8a7a;text-shadow:0 2px 8px #000;animation:sobe .9s forwards;pointer-events:none}
+ #voce{position:relative}
+ /* dano no jogador: borda vermelha pulsando */
+ #ferida{position:fixed;inset:0;pointer-events:none;z-index:15;
+   box-shadow:inset 0 0 90px 20px rgba(190,20,20,.75);animation:ferir .42s ease-out forwards}
+ @keyframes ferir{to{opacity:0}}
+ /* tremor global da HUD */
+ #ini,#baixo{transform:translateX(var(--sk,0px))}
+ /* habilidade pronta pulsa */
+ .h.ok{animation:pulsa 1.5s ease-in-out infinite}
+ @keyframes pulsa{0%,100%{box-shadow:0 0 10px #4ad98a44}50%{box-shadow:0 0 20px #4ad98a99}}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="ini" class="lay"></div>

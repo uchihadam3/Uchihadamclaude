@@ -14,6 +14,8 @@ import { criarMalhaDado, criarMesa, luzes } from './dice3d/render.js';
 import { rolarPara } from './dice3d/roll.js';
 import { raioDe } from './dice3d/geometry.js';
 import { ESCALADA } from './data/dungeons.js';
+import { spriteDe } from './sprites.js';
+import * as SFX from './sfx.js';
 
 const MESA={x:3.4,z:2.0};
 const $=id=>document.getElementById(id);
@@ -91,7 +93,8 @@ function rolarVisual(){
       x.mesh.visible=true;
       const f=Math.min(q,x.tr.length-1); if(q<x.tr.length) vivo=true;
       const s=x.tr[f]; x.mesh.position.set(s.p[0],s.p[1],s.p[2]);
-      x.mesh.quaternion.set(s.q[0],s.q[1],s.q[2],s.q[3]); }
+      x.mesh.quaternion.set(s.q[0],s.q[1],s.q[2],s.q[3]);
+      if(s.imp) for(const im of s.imp) SFX.dado(im.vel); }
     if(vivo) requestAnimationFrame(passo); else { anima=false; pintar(); } };
   passo();
 }
@@ -104,7 +107,8 @@ function pintar(){
       : it.t==='block'?`🛡 ${it.v}` : it.t==='heal'?`✚ ${it.v}` : it.t==='buff'?'▲ fúria'
       : it.t==='curse'?'☠ maldição' : it.t==='debuff'?`▼ ${it.st}`:'—';
     const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${k} ${v}`).join(' ');
-    return `<div class="en ${e.hp<=0?'morto':''} ${i===alvo?'alvo':''}" data-i="${i}">
+    return `<div class="en ${e.hp<=0?'morto':''} ${i===alvo?'alvo':''}" data-i="${i}" data-uid="${e.uid}">
+      <div class="spr"><img src="${spriteDe(e.id)}" alt=""></div>
       <div class="nm">${e.nome}</div>${e.elite?'<div class="el">ELITE</div>':''}
       <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i></div>
       <div class="hp">${e.hp}/${e.maxHp}${e.block?' 🛡'+e.block:''}${e.armadura?' ⛊'+e.armadura:''}</div>
@@ -126,6 +130,7 @@ function pintar(){
   $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10<br><span style="opacity:.7">${ESCALADA[masmorra-1].nome}</span>`;
   $('log').innerHTML=cb.logLines.slice(-4).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
+  SFX.tensao(P.hp < P.maxHp*0.35);
   // dados usados ficam apagados
   for(const m of malhas){ const id=m.userData.die.id;
     const usado=cb.used.has(id); const selec=sel.has(id);
@@ -134,6 +139,32 @@ function pintar(){
     m.material.opacity = usado?0.25:1; m.material.transparent = usado; }
 }
 /* ---------- ações ---------- */
+function snapHP(){ return cb.enemies.map(e=>e.hp); }
+function juice(antes, hpAntes){
+  cb.enemies.forEach((e,i)=>{
+    const d=antes[i]-e.hp;
+    if(d>0){ flash(e.uid, d, e.hp<=0); }
+  });
+  const dp=hpAntes-P.hp;
+  if(dp>0){ SFX.dano(); tremor(Math.min(14,4+dp*0.5)); flashJog(dp); }
+}
+function flash(uid,d,morreu){
+  const el=document.querySelector(`.en[data-uid="${uid}"]`); if(!el) return;
+  el.classList.remove('bat'); void el.offsetWidth; el.classList.add('bat');
+  const n=document.createElement('div'); n.className='dmg'+(d>=18?' big':'');
+  n.textContent='-'+d; el.appendChild(n);
+  setTimeout(()=>n.remove(),900);
+  SFX.golpe(d); tremor(Math.min(11,3+d*0.35));
+  if(morreu){ SFX.morte(); el.classList.add('morrendo'); }
+}
+function flashJog(d){
+  const f=document.createElement('div'); f.id='ferida'; document.body.appendChild(f);
+  setTimeout(()=>f.remove(),420);
+  const n=document.createElement('div'); n.className='dmgme'; n.textContent='-'+d;
+  document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),900);
+}
+let shakeT=0;
+function tremor(v){ shakeT=Math.max(shakeT,v); }
 function usar(s){
   if(anima) return;
   const ids=[...sel];
@@ -143,17 +174,20 @@ function usar(s){
     if(poss){ sel=new Set(poss.map(i=>cb.pool()[i].dieId)); pintar(); }   // sugere o encaixe
     return;
   }
+  const antes=snapHP(), hpA=P.hp;
   cb.use(s, ids, alvo); sel.clear();
-  if(cb.over) return fim();
-  pintar();
+  pintar(); juice(antes,hpA);                 // pinta primeiro, depois os efeitos
+  if(cb.over){ setTimeout(fim,760); return; }
 }
 $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
   const ids = sel.size? [...sel] : cb.pool().map(e=>e.dieId);
   cb.reroll(ids); sel.clear(); rolarVisual(); pintar(); };
 $('bfim').onclick=()=>{ if(anima) return;
-  sel.clear(); const r=cb.endTurn();
-  if(r) return fim();
-  rolarVisual(); pintar(); };
+  sel.clear(); const antes=snapHP(), hpA=P.hp;
+  const r=cb.endTurn();
+  pintar(); juice(antes,hpA);                 // pinta primeiro, depois os efeitos
+  if(r){ setTimeout(fim,760); return; }
+  setTimeout(()=>{ rolarVisual(); pintar(); }, 340); };
 addEventListener('pointerdown', ev=>{
   if(anima) return;
   const r=renderer.domElement.getBoundingClientRect();
@@ -163,18 +197,19 @@ addEventListener('pointerdown', ev=>{
   if(!hit) return;
   const id=hit.object.userData.die.id;
   if(cb.used.has(id)) return;
-  sel.has(id)? sel.delete(id) : sel.add(id);
+  if(sel.has(id)){ sel.delete(id); SFX.soltar(); } else { sel.add(id); SFX.pegar(); }
   pintar();
 });
 /* ---------- fim de combate ---------- */
 function fim(){
   const m=$('msg'); m.classList.remove('off');
-  if(cb.over==='lose'){
+  if(cb.over==='lose'){ SFX.derrota();
     m.innerHTML=`<h1>O ABISMO FICOU COM VOCÊ</h1>
       <p>Masmorra ${masmorra}, andar ${andar}. Você limpou ${(masmorra-1)*10+andar-1} andares.</p>
       <div class="cls"><button class="cbtn" id="rec"><b>▶ Descer de novo</b></button></div>`;
     $('rec').onclick=telaClasses; return;
   }
+  SFX.vitoria();
   const opts=gerarOpcoes(rng,P,3);
   m.innerHTML=`<h1>ANDAR LIMPO</h1><p>Escolha sua recompensa.</p>
     <div class="cls">${opts.map((o,i)=>`<button class="cbtn" data-i="${i}"><b>${o.nome}</b><span>${o.desc}</span></button>`).join('')}</div>`;
@@ -192,7 +227,13 @@ function resize(){ const w=innerWidth,h=innerHeight;
   const d=need/Math.tan((camera.fov*Math.PI/180)/2);
   camera.position.set(0,d*0.92,d*0.44); camera.lookAt(0,0.1,0); }
 addEventListener('resize',resize); resize();
-(function loop(){ renderer.render(scene,camera); requestAnimationFrame(loop); })();
+(function loop(){
+  if(shakeT>0.2){ shakeT*=0.86;
+    const a=shakeT*0.006;
+    camera.position.x=(Math.random()*2-1)*a*9; camera.position.z+= (Math.random()*2-1)*a*3;
+    document.body.style.setProperty('--sk', ((Math.random()*2-1)*shakeT*0.5).toFixed(2)+'px');
+  } else if(shakeT){ shakeT=0; camera.position.x=0; resize(); document.body.style.setProperty('--sk','0px'); }
+  renderer.render(scene,camera); requestAnimationFrame(loop); })();
 telaClasses();
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
-  sel, get malhas(){return malhas;} };
+  get sel(){return sel;}, get malhas(){return malhas;} };
