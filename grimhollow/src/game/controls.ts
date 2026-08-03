@@ -43,6 +43,14 @@ import type { Rarity } from "./items";
 // linha de atributo do item e delta de comparação (verde/vermelho) ao trocar
 export interface TipLine { label: string; value: string; }
 export interface TipDelta { label: string; delta: number; pct?: boolean; }
+// uma linha da LISTA de saque (vários itens caídos na mesma célula)
+export interface PickupEntry {
+  uid: string;
+  name: string;
+  icon: string;
+  rarity: Rarity;
+  sub: string; // "Arma" / "Mágico · Peitoral"
+}
 export interface ItemTip {
   name: string;
   icon: string;                // ícone do item (mostrado no cabeçalho do popup)
@@ -249,6 +257,10 @@ export interface HUD {
   setEquip(data: EquipUIData): void;
   // DROP no chão: abre o popup do item (centralizado) com o botão "Pegar"
   showPickup(tip: ItemTip, onTake: () => void): void;
+  // LISTA de itens na MESMA célula (estilo saque de baú): o jogador escolhe o que
+  // pegar, um a um, ou pega tudo. Fecha sozinha quando a lista esvazia.
+  showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void): void;
+  hidePickupList(): void;
   equipWeapon(id: string, uid?: string): void; // equipa (troca a arma na mão) e realça o slot
   // minimapa (canto sup. direito): grade da célula atual + posição/direção do herói
   updateMinimap(s: MinimapState): void;
@@ -1219,6 +1231,40 @@ export function setupControls(
   const showPickup = (tip: ItemTip, onTake: () => void) => {
     const r = new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0);
     showItemTip(tip, r, onTake, true);
+  };
+
+  // ---- LISTA DE SAQUE: vários itens na MESMA célula (baú/chefe) ----
+  const plist = document.createElement("div");
+  plist.id = "gh-plist";
+  plist.className = "gh-plist-hidden";
+  root.appendChild(plist);
+  const hidePlist = () => plist.classList.add("gh-plist-hidden");
+  const showPickupList = (
+    entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void,
+  ) => {
+    if (!entries.length) { hidePlist(); return; }
+    plist.innerHTML =
+      '<div class="gh-pl-win">' +
+        '<div class="gh-pl-hd">Saque</div>' +
+        '<div class="gh-pl-rows">' +
+        entries.map((e) =>
+          `<button class="gh-pl-row gh-rname-${e.rarity}" data-uid="${e.uid}">` +
+            `<span class="gh-pl-ic"><img src="${e.icon}" alt=""/></span>` +
+            `<span class="gh-pl-txt"><span class="gh-pl-name">${e.name}</span>` +
+            `<span class="gh-pl-sub">${e.sub}</span></span>` +
+          "</button>").join("") +
+        "</div>" +
+        '<div class="gh-pl-foot">' +
+          '<button class="gh-pl-all">Pegar tudo</button>' +
+          '<button class="gh-pl-close">Fechar</button>' +
+        "</div>" +
+      "</div>";
+    plist.classList.remove("gh-plist-hidden");
+    plist.querySelectorAll<HTMLElement>(".gh-pl-row").forEach((b) => {
+      b.onclick = (e) => { e.stopPropagation(); onTake(b.dataset.uid ?? ""); };
+    });
+    (plist.querySelector(".gh-pl-all") as HTMLElement).onclick = (e) => { e.stopPropagation(); onTakeAll(); };
+    (plist.querySelector(".gh-pl-close") as HTMLElement).onclick = (e) => { e.stopPropagation(); hidePlist(); };
   };
   // fecha ao tocar fora do popup (mas o toque no slot reabre)
   document.addEventListener("pointerdown", (e) => {
@@ -2655,6 +2701,10 @@ export function setupControls(
       }
     },
     showPickup(tip: ItemTip, onTake: () => void) { showPickup(tip, onTake); },
+    showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void) {
+      showPickupList(entries, onTake, onTakeAll);
+    },
+    hidePickupList() { hidePlist(); },
     equipWeapon(id: string, uid?: string) {
       const w = catalog[id];
       if (!w) return;
@@ -4004,6 +4054,49 @@ function injectStyle() {
     78% { opacity:1; }
     100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
   }
+  /* --- LISTA DE SAQUE: vários itens caídos na mesma célula --- */
+  #gh-plist {
+    position:fixed; inset:0; z-index:19; display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  #gh-plist.gh-plist-hidden { display:none; }
+  #gh-plist .gh-pl-win {
+    pointer-events:auto; min-width:min(300px,80vw); max-width:min(360px,88vw);
+    background:linear-gradient(180deg,rgba(24,20,15,.97),rgba(14,12,9,.97));
+    border:1px solid rgba(201,162,74,.55); border-radius:10px;
+    box-shadow:0 10px 34px rgba(0,0,0,.7); padding:8px; color:#e8dcc0;
+  }
+  #gh-plist .gh-pl-hd {
+    font-family:"Cinzel",serif; font-weight:700; text-align:center; color:#f0d074;
+    font-size:clamp(13px,2vh,15px); letter-spacing:1px; padding:2px 0 7px;
+  }
+  #gh-plist .gh-pl-rows { display:flex; flex-direction:column; gap:5px; max-height:46vh; overflow-y:auto; }
+  #gh-plist .gh-pl-row {
+    display:flex; align-items:center; gap:9px; width:100%; text-align:left; cursor:pointer;
+    background:rgba(0,0,0,.34); border:1px solid rgba(201,162,74,.3); border-radius:7px;
+    padding:6px 8px; color:inherit; font:inherit; transition:border-color .12s, background .12s;
+  }
+  #gh-plist .gh-pl-row:hover { border-color:rgba(240,208,116,.85); background:rgba(60,48,26,.5); }
+  #gh-plist .gh-pl-ic {
+    width:34px; height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.45); border:1px solid rgba(201,162,74,.28); border-radius:5px;
+  }
+  #gh-plist .gh-pl-ic img { max-width:100%; max-height:100%; }
+  #gh-plist .gh-pl-txt { display:flex; flex-direction:column; min-width:0; }
+  #gh-plist .gh-pl-name {
+    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.9vh,14px);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  #gh-plist .gh-pl-sub { font-size:clamp(10px,1.5vh,11.5px); color:#b6a883; }
+  #gh-plist .gh-pl-foot { display:flex; gap:7px; margin-top:8px; }
+  #gh-plist .gh-pl-foot button {
+    flex:1; cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(11px,1.7vh,13px); padding:7px 6px; border-radius:7px;
+    background:rgba(28,22,15,.9); color:#e9dcc0; border:1px solid rgba(201,162,74,.5);
+    transition:border-color .12s, color .12s;
+  }
+  #gh-plist .gh-pl-foot button:hover { border-color:rgba(240,208,116,.9); color:#fff; }
+  #gh-plist .gh-pl-all { color:#f0d074 !important; }
   /* --- POPUP de progresso de missão (estilo WoW) --- */
   #gh-questpop {
     position:fixed; top:15%; left:50%; transform:translateX(-50%); z-index:15;

@@ -80,7 +80,7 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta } from "./controls";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -230,7 +230,10 @@ const ENEMY_TYPES: Record<string, {
   // CHEFE do 3º andar: grandão, muito HP/dano, IMPLACÁVEL. Visão LONGA (enxerga o
   // herói de dentro do breu) e AVANÇA rápido (charge agressivo). Recompensa gorda.
   // HP alto p/ uma luta longa e "aprende o padrão"; dano punitivo (Difícil).
-  boss:      { art: enemyBossUrl,     hp: 320, atk: 30, xp: 340, gold: 150, vision: 13, h: 4.4, lvl: 6, ai: "relentless", spd: 700, tier: "boss" },
+  // HP TRIPLICADO: com 320 o chefe caía rápido demais (dava p/ kitar e derreter com
+  // magia, sem equipar nada). ~950 exige uma luta de verdade — o dano dele por golpe
+  // (~27 mitigado) já era ameaçador, então subiu só um pouco.
+  boss:      { art: enemyBossUrl,     hp: 950, atk: 36, xp: 520, gold: 220, vision: 13, h: 4.4, lvl: 6, ai: "relentless", spd: 700, tier: "boss" },
   // ===== ATO II — roster afogado/fúngico (andares 4-6; herói ~nv6-10) =====
   // afogado: o "esqueleto" do Ato II — morto-vivo encharcado, avança direto.
   afogado:   { art: enemyAfogadoUrl,  hp: 56, atk: 18, xp: 42, gold: 11, vision: 5, h: 2.8, lvl: 4, ai: "chase", spd: 820 },
@@ -241,7 +244,7 @@ const ENEMY_TYPES: Record<string, {
   // aberração: tanque fúngico — muito HP, IMPLACÁVEL (mini-elite do Ato II).
   aberracao: { art: enemyAberracaoUrl, hp: 105, atk: 25, xp: 66, gold: 18, vision: 5, h: 3.1, lvl: 5, ai: "relentless", spd: 880, tier: "mini" },
   // CHEFE do Ato II — o Leviatã Afogado. Maior e mais duro que o do Ato I.
-  boss_a2:   { art: enemyBossA2Url,   hp: 520, atk: 40, xp: 640, gold: 280, vision: 13, h: 4.8, lvl: 9, ai: "relentless", spd: 680, tier: "boss" },
+  boss_a2:   { art: enemyBossA2Url,   hp: 1450, atk: 48, xp: 900, gold: 380, vision: 13, h: 4.8, lvl: 9, ai: "relentless", spd: 680, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 import decDoorUrl from "../assets/env/dec_door.png";
@@ -2510,14 +2513,17 @@ export class Game {
     this.pushEquipUI();
   }
   // tooltip de uma ARMA-instância dropada: dano + afixos + comparação com a atual
-  private weaponInstTip(wi: WeaponInstance): ItemTip {
+  // `action` decide o BOTÃO do popup: no chão é "pickup" (vai p/ a mochila);
+  // na mochila é "equip". Antes vinha fixo em "equip" e a arma caída mostrava
+  // "Equipar" mesmo só pegando — confundia.
+  private weaponInstTip(wi: WeaponInstance, action: "equip" | "pickup" = "equip"): ItemTip {
     const bonus: StatBonus = {};
     for (const a of wi.affixes) bonus[a.key] = (bonus[a.key] ?? 0) + a.value;
     const tip: ItemTip = {
       name: wi.name, icon: wi.icon, rarity: wi.rarity,
       sub: `${RARITY_BY_KEY[wi.rarity].label} · Arma`,
       lines: [{ label: "Dano", value: String(wi.dmg) }, ...this.statLines(bonus)],
-      action: "equip",
+      action,
     };
     tip.compareName = this.currentWeapon?.name ?? "atual";
     tip.deltas = [{ label: "Dano", delta: wi.dmg - this.weaponDmg() }];
@@ -4082,13 +4088,27 @@ export class Game {
 
   // despeja as peças de um perfil, ESPALHADAS pelas células livres em volta de (c,r).
   //   slots → chances independentes (mobs);  min/max → nº fixo (chefe/baús).
-  private spawnLootPieces(c: number, r: number, prof: LootProfile) {
+  // `at` = despeja TUDO numa célula só (baú/chefe: o loot fica ali na frente, não
+  // espalhado pelo corredor). Sem `at`, espalha pelas células livres em volta.
+  private spawnLootPieces(c: number, r: number, prof: LootProfile, at?: { c: number; r: number }) {
     const count = prof.min != null
       ? prof.min + Math.floor(Math.random() * ((prof.max ?? prof.min) - prof.min + 1))
       : (prof.slots ?? []).filter((p) => Math.random() < p).length;
     if (count <= 0) return;
+    if (at) { for (let i = 0; i < count; i++) this.dropPiece(at.c, at.r, prof); return; }
     const cells = this.freeNearCells(c, r, count);
     for (let i = 0; i < count; i++) { const cell = cells[i % cells.length]; this.dropPiece(cell.c, cell.r, prof); }
+  }
+  // célula livre em volta de (c,r) MAIS PRÓXIMA do herói — o saque do baú cai à
+  // frente dele (o baú em si é bloqueado, então não dá p/ cair "dentro").
+  private dropCellNearPlayer(c: number, r: number): { c: number; r: number } {
+    const cells = this.freeNearCells(c, r, 9);
+    let best = cells[0], bd = Infinity;
+    for (const cell of cells) {
+      const d = Math.abs(cell.c - this.col) + Math.abs(cell.r - this.row);
+      if (d < bd) { bd = d; best = cell; }
+    }
+    return best;
   }
 
   // LOOT ao matar: ouro + peças conforme o PERFIL do PORTE (pirâmide MMO).
@@ -4097,7 +4117,18 @@ export class Game {
   private rollLoot(c: number, r: number, gold: number, tier: "normal" | "mini" | "boss") {
     const prof = LOOT_PROFILES[tier];
     this.spawnGoldDrop(c, r, tier === "boss" ? gold + 60 + Math.floor(Math.random() * 60) : gold);
-    this.spawnLootPieces(c, r, prof);
+    // CHEFE: o tesouro fica JUNTO (uma célula, à frente do herói) e abre a lista de
+    // saque; além disso ele SEMPRE larga um Pergaminho de Retorno, p/ o jogador
+    // conseguir voltar à cidade de onde estiver.
+    if (tier === "boss") {
+      const spot = this.dropCellNearPlayer(c, r);
+      this.spawnLootPieces(c, r, prof, spot);
+      this.goodAdd("scroll_return", 1);
+      this.refreshConsumables();
+      this.ui.toast("O chefe larga um Pergaminho de Retorno!");
+    } else {
+      this.spawnLootPieces(c, r, prof);
+    }
   }
 
   // anima os drops (flutuar + facho pulsando) e faz o recolhimento automático do OURO
@@ -4146,6 +4177,7 @@ export class Game {
 
   // ao chegar numa célula (fim do passo): abre 1× o popup de item caído aqui.
   private onArriveCell() {
+    this.ui.hidePickupList(); // saiu da célula anterior → fecha a lista de saque
     const d = this.itemDropAt(this.col, this.row);
     if (d && !d.opened) { d.opened = true; this.openDropPopup(d); }
     // se saiu da célula, reseta o "opened" dos itens de outras células
@@ -4153,10 +4185,45 @@ export class Game {
   }
 
   // abre o popup "Pegar" de um drop de item (armadura OU arma)
+  // todos os itens caídos numa célula (o baú despeja tudo junto)
+  private itemDropsAt(c: number, r: number): GroundDrop[] {
+    return this.drops.filter((d) => d.kind === "item" && d.c === c && d.r === r && (d.item || d.weapon));
+  }
   private openDropPopup(d: GroundDrop) {
     if (d.kind !== "item") return;
-    if (d.weapon) this.ui.showPickup(this.weaponInstTip(d.weapon), () => this.takeDrop(d));
+    // VÁRIOS itens na mesma célula → LISTA de saque (o jogador escolhe o que pegar).
+    const here = this.itemDropsAt(d.c, d.r);
+    if (here.length > 1) { this.openPickupList(d.c, d.r); return; }
+    // um só → popup normal. No chão a ação é PEGAR (vai p/ a mochila), não equipar.
+    if (d.weapon) this.ui.showPickup(this.weaponInstTip(d.weapon, "pickup"), () => this.takeDrop(d));
     else if (d.item) this.ui.showPickup(this.armorTip(d.item, "pickup"), () => this.takeDrop(d));
+  }
+  // abre/atualiza a LISTA de saque da célula; fecha sozinha quando esvazia.
+  private openPickupList(c: number, r: number) {
+    const here = this.itemDropsAt(c, r);
+    if (!here.length) { this.ui.hidePickupList(); return; }
+    if (here.length === 1) { this.ui.hidePickupList(); this.openDropPopup(here[0]); return; }
+    const entries: PickupEntry[] = here.map((d) => {
+      const w = d.weapon, it = d.item;
+      return w
+        ? { uid: w.uid, name: w.name, icon: w.icon, rarity: w.rarity, sub: `${RARITY_BY_KEY[w.rarity].label} · Arma` }
+        : { uid: it!.uid, name: it!.name, icon: it!.icon, rarity: it!.rarity,
+            sub: `${RARITY_BY_KEY[it!.rarity].label} · ${Game.ARMOR_SLOT_PT[it!.slot]}` };
+    });
+    this.ui.showPickupList(entries,
+      (uid) => { // pegou um item da lista → tira e reabre com o que sobrou
+        const d = this.itemDropsAt(c, r).find((x) => (x.weapon?.uid ?? x.item?.uid) === uid);
+        if (d) this.takeDrop(d);
+        this.openPickupList(c, r);
+      },
+      () => { // pegar tudo (para se a mochila encher)
+        for (const d of this.itemDropsAt(c, r)) {
+          const before = this.drops.length;
+          this.takeDrop(d);
+          if (this.drops.length === before) break; // não coube: para aqui
+        }
+        this.openPickupList(c, r);
+      });
   }
 
   // recolhe o item do chão → mochila (com som + toast)
@@ -6079,10 +6146,12 @@ export class Game {
     // Baú ESCONDIDO (atrás de segredo/portão) rende o melhor loot; baú comum, bom.
     const cc = Math.round(rec.cx / CELL), rr = Math.round(rec.cz / CELL);
     const prof = LOOT_PROFILES[rec.hidden ? "hidden" : "chest"];
-    const goldCell = this.freeNearCells(cc, rr, 1)[0];
-    this.spawnGoldDrop(goldCell.c, goldCell.r,
+    // TUDO numa célula só, a mais perto do herói (à frente do baú) — nada de loot
+    // arremessado longe. Vários itens juntos abrem a LISTA de saque.
+    const spot = this.dropCellNearPlayer(cc, rr);
+    this.spawnGoldDrop(spot.c, spot.r,
       rec.hidden ? 60 + Math.floor(Math.random() * 90) : 25 + Math.floor(Math.random() * 45));
-    this.spawnLootPieces(cc, rr, prof);
+    this.spawnLootPieces(cc, rr, prof, spot);
     this.ui.toast(rec.hidden ? "Tesouro escondido!" : "Tesouro!");
   }
 
