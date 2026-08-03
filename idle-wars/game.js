@@ -30,6 +30,21 @@ const TROOPS = [
   { key:"cav", ico:"🐎", name:"Cavalaria",  g:30, pop:2, beats:"🗡️" },
 ];
 
+// Layout da vila isométrica: sprite (estrutura) e célula (gx,gy) de cada edifício.
+// Grid 5x5 (0..4). Borda = muralha; anel interno = edifícios; centro = fortaleza.
+const ISO = {
+  grid:5, TW:72, TH:44,
+  build:{
+    mine:      { sprite:"⛏️",  gx:1, gy:1 },
+    sawmill:   { sprite:"🪵",  gx:2, gy:1 },
+    farm:      { sprite:"🌾",  gx:3, gy:1 },
+    barracks:  { sprite:"⚔️",  gx:1, gy:3 },
+    warehouse: { sprite:"📦",  gx:2, gy:3 },
+    wall:      { sprite:"🗼",  gx:3, gy:3 },
+  },
+  keep:{ sprite:"🏰", gx:2, gy:2 },              // fortaleza (centro, decorativa)
+};
+
 // fórmulas (iguais ao schema.sql)
 function gps(l){ return 1.0 * Math.pow(1.15, l-1); }
 function wps(l){ return 0.8 * Math.pow(1.15, l-1); }
@@ -273,11 +288,13 @@ function enterGame(){
   el("screen-login").classList.remove("active");
   el("screen-game").classList.add("active");
   syncFromServer(ME);
-  renderBuildings(); renderTroops();
+  renderIsoBase(); renderTroops();
   wireTabs();
   // loop de predição suave (60fps) + re-sync periódico com o servidor
   requestAnimationFrame(tick);
   setInterval(refreshState, 20000);   // corrige drift e mostra ataques recebidos
+  setInterval(spawnFloat, 2200);      // efeito de recursos flutuando na vila
+  let rz; window.addEventListener("resize", ()=>{ clearTimeout(rz); rz=setTimeout(renderIsoBase, 150); });
 }
 
 // =========================================================================
@@ -294,7 +311,7 @@ function syncFromServer(p){
 async function refreshState(){
   if(!sb && !DEMO) return;
   const { data } = await callRpc("get_state");
-  if(data){ syncFromServer(data); renderBuildings(); renderTroops(); }
+  if(data){ syncFromServer(data); renderIsoBase(); renderTroops(); }
 }
 
 function predicted(){
@@ -339,36 +356,122 @@ function wireTabs(){
 // =========================================================================
 // BASE
 // =========================================================================
-function renderBuildings(){
+// Projeção isométrica: célula (gx,gy) -> pixel na cena.
+function isoPos(gx, gy, sceneW){
+  const ox = sceneW/2, oy = 34;
+  return { x: ox + (gx - gy) * ISO.TW/2, y: oy + (gx + gy) * ISO.TH/2, z: gx + gy };
+}
+
+function renderIsoBase(){
   if(!ME) return;
-  const wrap = el("buildings"); wrap.innerHTML = "";
+  const scene = el("iso"); if(!scene) return;
+  const W = scene.clientWidth || 380;
+  scene.innerHTML = "";
   const r = predicted();
+  const frag = document.createDocumentFragment();
+
+  // 1) chão (todas as células do grid)
+  for(let gy=0; gy<ISO.grid; gy++) for(let gx=0; gx<ISO.grid; gx++){
+    const p = isoPos(gx, gy, W);
+    const tile = document.createElement("div");
+    tile.className = "iso-tile " + ((gx+gy)%2 ? "a":"b");
+    tile.style.width = ISO.TW+"px"; tile.style.height = ISO.TH+"px";
+    tile.style.left = (p.x - ISO.TW/2)+"px"; tile.style.top = p.y+"px";
+    tile.style.zIndex = p.z;
+    frag.appendChild(tile);
+  }
+
+  // helper pra criar um objeto na cena
+  const obj = (gx, gy, cls, sprite, extra) => {
+    const p = isoPos(gx, gy, W);
+    const o = document.createElement("div");
+    o.className = "iso-obj " + cls;
+    o.style.left = p.x+"px"; o.style.top = (p.y + ISO.TH/2)+"px";
+    o.style.zIndex = 50 + p.z;
+    o.innerHTML = `<div class="shadow"></div><div class="sprite">${sprite}</div>${extra||""}`;
+    frag.appendChild(o);
+    return o;
+  };
+
+  // 2) muralha na borda
+  for(let gy=0; gy<ISO.grid; gy++) for(let gx=0; gx<ISO.grid; gx++){
+    if(gx===0||gy===0||gx===ISO.grid-1||gy===ISO.grid-1) obj(gx, gy, "wall-block", "🧱");
+  }
+
+  // 3) fortaleza central (decorativa)
+  obj(ISO.keep.gx, ISO.keep.gy, "keep", ISO.keep.sprite);
+
+  // 4) edifícios (clicáveis)
   BUILDINGS.forEach(b=>{
-    const lvl = ME[b.key+"_lvl"];
+    const cfg = ISO.build[b.key]; const lvl = ME[b.key+"_lvl"];
     const c = costOf(b, lvl);
     const canPay = r.gold>=c.g && r.wood>=c.w;
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `
-      <div class="row">
-        <div class="ico">${b.ico}</div>
-        <div><h3>${b.name}</h3><span class="lvl">Nível ${lvl}</span></div>
-      </div>
-      <div class="desc">${b.desc(lvl)}</div>
-      <div class="cost ${canPay?"ok":"no"}">🪙 ${c.g.toLocaleString("pt-BR")} · 🪵 ${c.w.toLocaleString("pt-BR")}</div>
-      <div class="actions"><button class="btn btn-primary btn-sm" ${canPay?"":"disabled"}>Melhorar</button></div>`;
-    card.querySelector("button").addEventListener("click", ()=>upgrade(b.key));
-    wrap.appendChild(card);
+    const scale = (1 + Math.min(lvl-1,8)*0.04).toFixed(2);
+    const o = obj(cfg.gx, cfg.gy, "build", `<span style="display:inline-block;transform:scale(${scale})">${cfg.sprite}</span>`,
+      `<div class="lvl-badge">Lv ${lvl}</div>${canPay?'<div class="up-dot"></div>':''}`);
+    o.dataset.key = b.key;
+    o.addEventListener("click", ()=>openBuildingModal(b.key));
   });
+
+  scene.appendChild(frag);
+
+  // 5) faixa do exército (rodapé)
+  const army = [ ["🗡️",ME.inf], ["🏹",ME.arc], ["🐎",ME.cav] ];
+  const strip = document.createElement("div");
+  strip.className = "army-strip";
+  const has = army.some(a=>a[1]>0);
+  strip.innerHTML = has
+    ? army.map(a=>`<span class="mini-chip">${a[0]} ${a[1]}</span>`).join("")
+    : `<span class="mini-chip empty">Sem tropas — treine no 🛡️ Exército</span>`;
+  scene.appendChild(strip);
+}
+
+// Painel de melhoria de um edifício (abre ao tocar na vila).
+function openBuildingModal(key){
+  const b = BUILDINGS.find(x=>x.key===key); const lvl = ME[key+"_lvl"];
+  const c = costOf(b, lvl);
+  const r = predicted();
+  const canPay = r.gold>=c.g && r.wood>=c.w;
+  const body = el("modal-body");
+  body.innerHTML = `
+    <h2>${ISO.build[key].sprite} ${b.name}</h2>
+    <p class="sub">Nível ${lvl}</p>
+    <div class="result-line"><span>Agora → próximo</span><b style="text-align:right">${b.desc(lvl)}</b></div>
+    <div class="result-line"><span>Custo da melhoria</span>
+      <b class="${canPay?'':'no'}" style="color:${canPay?'var(--text)':'var(--red)'}">🪙 ${c.g.toLocaleString("pt-BR")} · 🪵 ${c.w.toLocaleString("pt-BR")}</b></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="m-cancel">Fechar</button>
+      <button class="btn btn-primary" id="m-up" ${canPay?'':'disabled'}>Melhorar</button>
+    </div>`;
+  el("modal").classList.add("open");
+  el("m-cancel").addEventListener("click", closeModal);
+  const up = el("m-up");
+  if(up && canPay) up.addEventListener("click", async ()=>{ await upgrade(key); closeModal(); });
 }
 
 async function upgrade(key){
   try{
     const { data, error } = await callRpc("upgrade_building", { p_key:key });
     if(error) throw error;
-    syncFromServer(data); renderBuildings(); renderTroops();
+    syncFromServer(data); renderIsoBase(); renderTroops();
     toast("Edifício melhorado!", "ok");
   }catch(err){ toast(friendly(err), "err"); }
+}
+
+// Efeito: +ouro/+madeira flutuando de um edifício produtor.
+function spawnFloat(){
+  const scene = el("iso");
+  if(!scene || !el("tab-base").classList.contains("active") || !ME) return;
+  const W = scene.clientWidth || 380;
+  const pick = Math.random()<0.5
+    ? { cell:ISO.build.mine, cls:"g", txt:"+🪙" }
+    : { cell:ISO.build.sawmill, cls:"w", txt:"+🪵" };
+  const p = isoPos(pick.cell.gx, pick.cell.gy, W);
+  const f = document.createElement("div");
+  f.className = "float-res " + pick.cls; f.textContent = pick.txt;
+  f.style.left = p.x+"px"; f.style.top = (p.y - 10)+"px";
+  scene.appendChild(f);
+  setTimeout(()=> f.remove(), 1800);
 }
 
 // =========================================================================
@@ -401,7 +504,7 @@ async function train(type, qty){
   try{
     const { data, error } = await callRpc("train_troops", { p_type:type, p_qty:qty });
     if(error) throw error;
-    syncFromServer(data); renderTroops(); renderBuildings();
+    syncFromServer(data); renderTroops(); renderIsoBase();
     toast("Tropas treinadas!", "ok");
   }catch(err){ toast(friendly(err), "err"); }
 }
@@ -468,22 +571,54 @@ async function doAttack(target){
     const { data, error } = await callRpc("attack",
       { p_target: target.id, p_inf: vals.inf, p_arc: vals.arc, p_cav: vals.cav });
     if(error) throw error;
-    showResult(data, target);
+    await showBattle(vals, data, target);
     await refreshState();
   }catch(err){ toast(friendly(err), "err"); closeModal(); }
 }
 
-function showResult(res, target){
+const sleep = ms => new Promise(r=>setTimeout(r, ms));
+
+// Cena de batalha animada + relatório.
+async function showBattle(sent, res, target){
   const won = res.winner === "attacker";
+  const defArmy = target.army || 0;
+  const defLost = res.def_losses.inf + res.def_losses.arc + res.def_losses.cav;
+  const chip = (cls, arr) => arr.filter(a=>a[1]>0).map(a=>`<span class="chip ${cls}">${a[0]} ×${a[1]}</span>`).join("") || `<span class="chip ${cls}">—</span>`;
+  const attStart = [["🗡️",sent.inf],["🏹",sent.arc],["🐎",sent.cav]];
+  const attEnd   = [["🗡️",sent.inf-res.att_losses.inf],["🏹",sent.arc-res.att_losses.arc],["🐎",sent.cav-res.att_losses.cav]];
+
   const body = el("modal-body");
-  const domName = d => ({inf:"🗡️ Infantaria",arc:"🏹 Arqueiros",cav:"🐎 Cavalaria"}[d]||d);
   body.innerHTML = `
-    <div class="big-verdict ${won?"win":"lose"}">${won?"VITÓRIA! 🏆":"DERROTA… 💀"}</div>
-    <p class="sub" style="text-align:center">Contra <b>${escapeHtml(target.nickname)}</b></p>
+    <div class="big-verdict ${won?"win":"lose"}" id="verdict" style="opacity:0;transition:opacity .3s;margin:0 0 8px">⚔️</div>
+    <div class="arena" id="arena">
+      <div class="spark">💥</div>
+      <div class="side att" id="ar-att">${chip("att", attStart)}</div>
+      <div class="side def" id="ar-def"><span class="chip def">🛡️ ×${defArmy}</span></div>
+      <div class="ground"></div>
+    </div>
+    <div id="report"></div>`;
+
+  const arena = el("arena");
+  await sleep(300);
+  arena.classList.add("clash", "shake");           // avança + choque
+  await sleep(500);
+  arena.classList.remove("shake");
+  // sobreviventes
+  el("ar-att").innerHTML = chip("att", attEnd);
+  el("ar-def").innerHTML = `<span class="chip def">🛡️ ×${Math.max(0, defArmy-defLost)}</span>`;
+  const verdict = el("verdict");
+  verdict.textContent = won ? "VITÓRIA! 🏆" : "DERROTA… 💀";
+  verdict.style.opacity = "1";
+  await sleep(650);
+
+  // relatório numérico
+  const domName = d => ({inf:"🗡️ Infantaria",arc:"🏹 Arqueiros",cav:"🐎 Cavalaria"}[d]||d);
+  el("report").innerHTML = `
+    <p class="sub" style="text-align:center;margin-top:4px">Contra <b>${escapeHtml(target.nickname)}</b></p>
     <div class="result-line"><span>Seu poder de ataque</span><b>${res.att_power}</b></div>
     <div class="result-line"><span>Defesa do alvo</span><b>${res.def_power}</b></div>
     <div class="result-line"><span>Confronto de tropas</span><b>${domName(res.att_dom)} vs ${domName(res.def_dom)}</b></div>
-    <hr style="border-color:var(--line);margin:12px 0">
+    <hr style="border-color:var(--line);margin:10px 0">
     <div class="result-line"><span>💰 Saque</span><b>🪙 ${res.loot_gold} · 🪵 ${res.loot_wood}</b></div>
     <div class="result-line"><span>Suas perdas</span><b>🗡️${res.att_losses.inf} 🏹${res.att_losses.arc} 🐎${res.att_losses.cav}</b></div>
     <div class="result-line"><span>Perdas do inimigo</span><b>🗡️${res.def_losses.inf} 🏹${res.def_losses.arc} 🐎${res.def_losses.cav}</b></div>
