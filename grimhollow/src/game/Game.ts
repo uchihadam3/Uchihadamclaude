@@ -2441,14 +2441,21 @@ export class Game {
     // ~4:1 e a peça tem 4 de largura por 0,7 de altura, então repete 1,4× em X
     // p/ a pedra não sair esticada.
     const plinthMat = this.wallArtMat(socoPedraUrl, [1.4, 1]);
-    // FACHADAS: três tipos, um painel por face. A taipa já traz o enxaimel
-    // PINTADO e a pedra já traz a cimalha, então só o reboco recebe as madeiras
-    // de código — sem isso a moldura dobrava em cima da que já está na arte.
-    const facadeMats: Record<FacadeKind, THREE.Material> = {
-      taipa: this.wallArtMat(facadeTaipaUrl),
-      reboco: this.wallArtMat(facadeRebocoUrl),
-      pedra: this.wallArtMat(facadePedraUrl),
-    };
+    // FACHADA ÚNICA p/ a cidade inteira: a pedra lavrada.
+    //
+    // Antes eu sorteava três fachadas diferentes por casa e ficou POLUÍDO. Faz
+    // sentido: numa rua de uma célula você vê duas fachadas por vez, então
+    // coerência lê como ARQUITETURA e variedade lê como bagunça. Cidade de
+    // verdade também é assim — sai tudo da mesma pedreira. A variedade agora vem
+    // do que está SOBRE a parede (tabuleta, lanterna, janela, hera, tralha), não
+    // da parede em si.
+    //
+    // Só p/ uma rua comprida não parecer copiar e colar, cada casa sorteia um
+    // dos três tons — a diferença é sutil de propósito, é sujeira e idade, não
+    // material diferente.
+    const facadeMats = [0xffffff, 0xe8e2d8, 0xd8d4cc].map((cor) =>
+      this.wallArtMat(facadePedraUrl, [1, 1], cor));
+    void facadeTaipaUrl; void facadeRebocoUrl; // agora só valem por DENTRO das casas
 
     const hash = (a: number, b: number, s = 0) =>
       (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
@@ -2490,13 +2497,7 @@ export class Game {
         const box = new THREE.Mesh(boxGeo, wm);
         box.position.set(c * CELL, WALL_H / 2, r * CELL);
         this.world.add(box);
-        // TIPO DA CASA: as lojas são de pedra lavrada (é quem tem dinheiro na
-        // vila); o resto sorteia entre taipa e reboco. O sorteio é por CÉLULA,
-        // então um mesmo quarteirão mistura os três e a rua deixa de ser
-        // repetitiva.
-        const ehLoja = ESTAB_DOORS.some((e) => e.c === c && e.r === r);
-        const tipo: FacadeKind = ehLoja ? "pedra"
-          : Math.abs(hash(c, r, 61)) % 1 < 0.55 ? "taipa" : "reboco";
+        const facadeMat = facadeMats[Math.floor(Math.abs(hash(c, r, 61)) * 997) % facadeMats.length];
 
         for (const [dc, dr] of streetDirs) {
           const porta = estabFaces.has(`${c},${r},${dc},${dr}`);
@@ -2506,8 +2507,9 @@ export class Game {
           // montantes de madeira subindo dela. Vale p/ toda face de rua, inclusive
           // as de porta (a porta em si é desenhada em buildEstablishments).
           // painel de fachada colado na face (um por face, sem ladrilhar)
-          this.addWallDecal(c, r, dc, dr, facadeMats[tipo], CELL, WALL_H, WALL_H / 2);
-          this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash, tipo === "reboco");
+          this.addWallDecal(c, r, dc, dr, facadeMat, CELL, WALL_H, WALL_H / 2);
+          // sem enxaimel de código: a pedra lavrada já traz a cimalha pintada
+          this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash, false);
           if (porta) continue;
           // adorno da face: janela (comum) + tocha/bandeira/hera/rachadura sorteados
           // → cada casa fica diferente e a cidade ganha vida.
@@ -2516,18 +2518,18 @@ export class Game {
           const fz = r * CELL + dr * (CELL / 2 + 0.05);
           // Paredes são todas de pedra natural → a diferença vem das plantas e
           // fissuras (mais frequentes). Bandeira é exclusiva das lojas.
-          if (roll < 0.4) {
+          if (roll < 0.34) {
             this.addWallDecal(c, r, dc, dr, winMat, 1.9, 1.9, 1.75);
-          } else if (roll < 0.5) {
+          } else if (roll < 0.56) {
             // LANTERNA DE PAREDE (arte): o braço de ferro sai da parede e a
             // luminária pende dele. A arte é vista DE LADO, então o plano fica
             // perpendicular à fachada, como as tabuletas das lojas.
             this.addLanternaParede(c, r, dc, dr, lanternMat);
             this.glowLight(fx + dc * 0.55, 2.45, fz + dr * 0.55, 0xffb45a, 3.4, 11);
             void torchMat;
-          } else if (roll < 0.71) {
+          } else if (roll < 0.74) {
             this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
-          } else if (roll < 0.87) {
+          } else if (roll < 0.88) {
             this.addWallDecal(c, r, dc, dr, cracksMat, 1.8, 1.6, 1.6);
           }
           // ANDAR DE CIMA: a casa agora tem dois pavimentos, então a parte alta
@@ -2574,8 +2576,8 @@ export class Game {
    * mapa esticado UMA vez sobre a face. Fica invisível até a textura chegar, p/
    * não piscar um retângulo branco no carregamento.
    */
-  private wallArtMat(url: string, repeat: [number, number] = [1, 1]): THREE.MeshLambertMaterial {
-    const m = new THREE.MeshLambertMaterial({ side: THREE.FrontSide });
+  private wallArtMat(url: string, repeat: [number, number] = [1, 1], cor = 0xffffff): THREE.MeshLambertMaterial {
+    const m = new THREE.MeshLambertMaterial({ side: THREE.FrontSide, color: new THREE.Color(cor) });
     m.colorWrite = false;
     this.loadArt(url, (tx) => {
       tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
@@ -2594,20 +2596,20 @@ export class Game {
    * Espelha metade delas p/ o braço sair p/ o lado certo em cada face.
    */
   private addLanternaParede(c: number, r: number, dc: number, dr: number, mat: THREE.Material) {
-    const L = 1.5;   // largura do plano (braço + luminária)
-    const H = 1.5;
+    // A arte é uma vista LATERAL: a chapa de fixação fica na BORDA ESQUERDA, o
+    // braço avança p/ a direita e a luminária pende na ponta. Então o plano
+    // precisa (a) ter a normal AO LONGO da fachada — não apontando p/ ela — e
+    // (b) começar encostado na parede e crescer p/ a rua. Na versão anterior eu
+    // errei os dois e o braço ficava enterrado na pedra.
+    const L = 1.8;              // avanço sobre a rua
+    const H = 1.8;
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(L, H), mat);
-    // encosta na parede e projeta metade da largura sobre a rua
-    pl.position.set(
-      c * CELL + dc * (CELL / 2 + 0.02) + (dc ? 0 : L / 2 - 0.25) * 0,
-      2.55,
-      r * CELL + dr * (CELL / 2 + 0.02),
-    );
-    // normal ao longo da fachada (gira 90° em relação a um decalque de parede)
-    pl.rotation.y = dc ? 0 : Math.PI / 2;
-    // desloca o conjunto p/ fora, ao longo da normal da parede
-    pl.position.x += dc * (L / 2 - 0.3);
-    pl.position.z += dr * (L / 2 - 0.3);
+    // com rotação θ, o +X local vira (cos θ, 0, −sen θ). Quero +X = normal da
+    // parede (dc,0,dr), p/ a borda esquerda do desenho encostar nela.
+    pl.rotation.y = Math.atan2(-dr, dc);
+    const fx = c * CELL + dc * (CELL / 2 + 0.04);
+    const fz = r * CELL + dr * (CELL / 2 + 0.04);
+    pl.position.set(fx + dc * (L / 2), 2.75, fz + dr * (L / 2));
     pl.renderOrder = 4;
     this.world.add(pl);
   }
@@ -2717,27 +2719,10 @@ export class Game {
   // adereços da praça — apenas os props em PNG (poste + mural). Os objetos 3D
   // procedurais (lenha, caixotes, floreiras, sacos) foram removidos.
   private buildVillageProps() {
-    // LAMPIÕES: agora que a cidade é corredor, eles são a espinha da leitura
-    // noturna — a fileira de luzes recuando rua adentro é o que dá profundidade.
-    // Nunca na célula EM FRENTE a uma porta (senão a lanterna tapa a entrada) e
-    // nunca em cima do posto de um aldeão.
-    // Rua do Portão e Largo
-    this.addLampPost(10, 23);
-    this.addLampPost(10, 20);
-    // rua estreita que sobe p/ a Praça do Portal
-    this.addLampPost(7, 17);
-    // Praça do Portal (o arco fica em WELL)
-    this.addLampPost(9, 12);
-    this.addLampPost(6, 13);
-    // Rua do Mercado e Mercado
-    this.addLampPost(11, 9);
-    this.addLampPost(15, 9);
-    this.addLampPost(14, 6); // passagem estreita entre o Mercado e a Rua Alta
-    // beco leste (ateliê da Wren)
-    this.addLampPost(17, 11);
-    // Rua Alta, no pé da montanha
-    this.addLampPost(6, 5);
-    this.addLampPost(10, 5);
+    // POSTES DE RUA REMOVIDOS. Numa rua de uma célula o poste fica plantado no
+    // meio do caminho e come a tela inteira — e a cidade já tem as LANTERNAS DE
+    // PAREDE, que iluminam melhor e não atrapalham. Elas ficaram mais frequentes
+    // p/ compensar (ver o sorteio de adorno das fachadas).
     // mural de avisos na parede oeste da Praça do Portal
     this.addWallProp(6, 13, propNoticeUrl, 2.7, "W");
   }
@@ -9069,12 +9054,14 @@ export class Game {
   // floorSeed/wallSeed/ceilColor deixam a casa parecer diferente da loja.
   private buildRoomShell(
     floorSeed = 9,
-    _wallSeed = 2,
+    parede: THREE.Material | null = null,
     ceilColor = 0x4a3826,
     // ANDAR DE CIMA (Sala das Armas): não há rua aqui, então a "saída" da sala é
     // a escada DE VOLTA p/ o térreo. Reaproveita toda a lógica de saída (o alvo,
     // o minimapa, a seta do guia) só trocando o que ela desenha e p/ onde leva.
     saida: { rotulo: string; escada: boolean } = { rotulo: "SAÍDA", escada: false },
+    // célula que NÃO recebe piso/teto: é onde o lance de escada abre o vão
+    vazado: { col: number; row: number; teto: boolean } | null = null,
   ) {
     const CEIL = 3.0;
     // chão de madeira (aconchegante) + PAREDES DE PEDRA com tom quente (parede
@@ -9083,7 +9070,7 @@ export class Game {
     // PAREDES INTERNAS = MESMA alvenaria (tex_stonewall) e MESMA ESCALA da masmorra e
     // das fachadas → a casa é a mesma construção por dentro e por fora. Face 4×3.0 →
     // repeat (1, 0.75) mantém o mesmo tamanho de bloco (~0.25 telha/unidade).
-    const wallMat = this.pbrStone(texStoneUrl, "introom", { rough: 0.92, normal: 1.3, repeat: [1, 0.75] });
+    const wallMat = parede ?? this.pbrStone(texStoneUrl, "introom", { rough: 0.92, normal: 1.3, repeat: [1, 0.75] });
     const ceilMat = new THREE.MeshLambertMaterial({ color: ceilColor, side: THREE.DoubleSide });
     // porta de saída = MESMO PNG das portas externas (dec_door.png)
     const doorMat = this.decalMat(decDoorUrl, 0.4);
@@ -9092,14 +9079,19 @@ export class Game {
     for (let r = 0; r < ROOM_ROWS; r++)
       for (let c = 0; c < ROOM_COLS; c++) {
         if (!roomWalkable(c, r)) continue;
-        const fl = new THREE.Mesh(tileGeo, floorMat);
-        fl.rotation.x = -Math.PI / 2;
-        fl.position.set(c * CELL, 0, r * CELL);
-        this.world.add(fl);
-        const ce = new THREE.Mesh(tileGeo, ceilMat);
-        ce.rotation.x = Math.PI / 2;
-        ce.position.set(c * CELL, CEIL, r * CELL);
-        this.world.add(ce);
+        const buraco = !!vazado && vazado.col === c && vazado.row === r;
+        if (!(buraco && !vazado!.teto)) {
+          const fl = new THREE.Mesh(tileGeo, floorMat);
+          fl.rotation.x = -Math.PI / 2;
+          fl.position.set(c * CELL, 0, r * CELL);
+          this.world.add(fl);
+        }
+        if (!(buraco && vazado!.teto)) {
+          const ce = new THREE.Mesh(tileGeo, ceilMat);
+          ce.rotation.x = Math.PI / 2;
+          ce.position.set(c * CELL, CEIL, r * CELL);
+          this.world.add(ce);
+        }
         for (const [dc, dr] of DIRS)
           if (roomChar(c + dc, r + dr) === "#")
             this.addWall(c * CELL, r * CELL, dc, dr, 0, CEIL, wallMat);
@@ -9107,7 +9099,7 @@ export class Game {
 
     // porta de saída na parede sul da célula X (voltada p/ o interior)
     const x = roomFind("X");
-    if (saida.escada) this.buildStairFlight(x.col * CELL, x.row * CELL, 0, 1, -1);
+    if (saida.escada) this.buildStairFlight(x.col, x.row, 0, 1, false);
     else {
       const exit = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, DOOR_H), doorMat);
       exit.position.set(x.col * CELL, DOOR_H / 2, x.row * CELL + CELL / 2 - 0.06);
@@ -9130,7 +9122,10 @@ export class Game {
   // interior de uma casa de aldeão: casca + mobília aconchegante + moradores
   private buildHome(id: HomeId) {
     const CEIL = 3.0;
-    this.buildRoomShell(9, 6, 0x3c2c1a);
+    // CASA POBRE POR DENTRO: taipa — reboco descascado sobre a trama de varas.
+    // Essa arte saiu da rua (a cidade toda é de pedra lavrada agora) e é aqui que
+    // ela faz sentido: por fora a vila é sólida, por dentro é pobre.
+    this.buildRoomShell(9, this.wallArtMat(facadeTaipaUrl), 0x3c2c1a);
     const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const woodDk = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
     const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
@@ -9208,15 +9203,24 @@ export class Game {
     const CEIL = 3.0;
     const woodDark = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const emCima = kind === "armoryUp";
-    this.buildRoomShell(9, 2, 0x4a3826,
-      emCima ? { rotulo: "DESCER", escada: true } : { rotulo: "SAÍDA", escada: false });
+    // LOJA POR DENTRO: reboco caiado — nem a pedra lavrada da rua, nem a taipa
+    // das casas. Assim dá p/ saber onde se está só de olhar a parede.
+    const x0 = roomFind("X");
+    this.buildRoomShell(9, this.wallArtMat(facadeRebocoUrl), 0x4a3826,
+      emCima ? { rotulo: "DESCER", escada: true } : { rotulo: "SAÍDA", escada: false },
+      emCima ? { col: x0.col, row: x0.row, teto: false }
+        : kind === "armory" ? { col: ARMORY_STAIR.col, row: ARMORY_STAIR.row, teto: true }
+          : null);
     // ARMARIA (térreo): a escada p/ a Sala das Armas fica logo à esquerda de quem
     // entra — perto o bastante p/ não virar pedágio, longe o bastante p/ o balcão
     // continuar sendo a primeira coisa que você vê.
     if (kind === "armory") {
       const s = ARMORY_STAIR;
       this.blocked.add(`${s.col},${s.row}`);
-      this.buildStairFlight(s.col * CELL, s.row * CELL, 1, 0, 1);
+      // sobe p/ OESTE (a parede da sala): o jogador chega pelo lado leste, então
+      // os degraus têm de subir SE AFASTANDO dele. Ao contrário, ele vê só as
+      // costas do lance — um paredão de madeira.
+      this.buildStairFlight(s.col, s.row, -1, 0, true);
       const placa = new THREE.Mesh(
         new THREE.PlaneGeometry(1.7, 0.6),
         new THREE.MeshLambertMaterial({ map: tex.signText("ARMAS ↑"), transparent: true, side: THREE.DoubleSide }),
@@ -9266,20 +9270,84 @@ export class Game {
    * ou descendo (-1) na direção (dc,dr), com corrimão do lado de fora. É só cenário
    * — a troca de andar é pela interação, como toda passagem do jogo.
    */
-  private buildStairFlight(x: number, z: number, dc: number, dr: number, sinal: number) {
+  private buildStairFlight(col: number, row: number, dc: number, dr: number, sobe: boolean) {
+    // Escada de verdade dentro da sala. Duas versões anteriores não liam:
+    //  1ª — pranchas soltas em alturas erradas, não parecia escada nenhuma;
+    //  2ª — a descida era a subida espelhada, então de dentro da sala você via as
+    //       COSTAS do degrau mais alto, um paredão de madeira tapando tudo.
+    //
+    // O que resolve é tratar os dois casos como o que são: SUBINDO, cada degrau é
+    // um bloco maciço do piso até o seu tampo, e eles cascateiam p/ longe de quem
+    // olha. DESCENDO, os tampos ficam ABAIXO do piso e o bloco desce do tampo até
+    // o fundo do poço — de dentro da sala você vê o buraco e os tampos afundando.
+    // Nos dois casos o lance morre num VÃO ESCURO (no teto ou no chão): é o
+    // buraco que conta que o andar continua.
+    const N = 7;
+    const passo = CELL / N;
+    const total = 2.4;                      // desnível vencido pelo lance
+    const alt = total / N;
+    const larg = 2.6;
     const mad = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const madEsc = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
-    const N = 6, passo = CELL / (N + 1), alt = 0.26;
+    const escuro = new THREE.MeshBasicMaterial({ color: 0x08070a });
+    const x0 = col * CELL, z0 = row * CELL;
+    const fundo = -total - 0.6;             // piso do poço (só na descida)
+
     for (let i = 0; i < N; i++) {
-      const d = -CELL / 2 + passo * (i + 1);
-      const y = sinal > 0 ? alt * (i + 0.5) : 0.05 + alt * (N - i - 0.5);
-      const h = sinal > 0 ? alt * (i + 1) : alt * (N - i);
-      this.box(x + dc * d, y, z + dr * d, dc ? passo : 1.9, h, dr ? passo : 1.9, i % 2 ? mad : madEsc);
+      // i=0 é o degrau mais PRÓXIMO de quem entra na célula
+      const d = -CELL / 2 + passo * (i + 0.5);
+      const x = x0 + dc * d, z = z0 + dr * d;
+      const tampo = sobe ? alt * (i + 1) : -alt * (i + 1);
+      const base = sobe ? 0 : fundo;
+      const h = Math.abs(tampo - base);
+      this.box(x, (tampo + base) / 2, z, dc ? passo : larg, h, dr ? passo : larg,
+        i % 2 ? mad : madEsc);
     }
-    // corrimão simples acompanhando o lance
-    const px = dr ? 0.95 : 0, pz = dc ? 0.95 : 0;
-    for (const s of [1, -1])
-      this.box(x + px * s, 1.35, z + pz * s, dc ? CELL * 0.9 : 0.1, 0.1, dr ? CELL * 0.9 : 0.1, madEsc);
+    // corrimão dos dois lados, inclinado no mesmo ângulo do lance
+    const ang = Math.atan2(total, CELL) * (sobe ? 1 : -1) * (dc + dr > 0 ? 1 : -1);
+    for (const s of [1, -1]) {
+      const px = dr ? (larg / 2 + 0.12) * s : 0;
+      const pz = dc ? (larg / 2 + 0.12) * s : 0;
+      const trilho = this.box(x0 + px, (sobe ? total / 2 : -total / 2) + 0.6, z0 + pz,
+        dc ? CELL : 0.09, 0.09, dr ? CELL : 0.09, madEsc);
+      trilho.rotation.y = dc ? 0 : Math.PI / 2;
+      trilho.rotation.z = ang;
+    }
+    // o VÃO: no teto (subindo) ou no chão (descendo)
+    const vao = new THREE.Mesh(new THREE.PlaneGeometry(CELL - 0.1, CELL - 0.1), escuro);
+    vao.rotation.x = sobe ? Math.PI / 2 : -Math.PI / 2;
+    vao.position.set(x0, sobe ? 2.98 : fundo - 0.02, z0);
+    this.world.add(vao);
+    // LUZ NA BOCA DO LANCE, vinda do outro andar. Sem ela o vão fica no breu e o
+    // jogador vê só um retângulo preto. Na DESCIDA ela precisa ser bem mais forte:
+    // a câmera do jogo tem altura fixa e não olha p/ baixo, então do poço só se vê
+    // uma nesga — e o pouco que aparece tem de estar bem iluminado.
+    this.glowLight(x0, sobe ? 2.6 : -0.5, z0, 0xffcf8a, sobe ? 3.2 : 9.0, sobe ? 9 : 7);
+    if (!sobe) {
+      // BORDA E GUARDA-CORPO em volta do buraco. É o que anuncia a escada de
+      // longe: sem eles o vão lê como uma mancha preta no assoalho.
+      const mold = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
+      for (const [ddc, ddr] of DIRS) {
+        // não fecha o lado por onde se entra (o oposto ao sentido da descida)
+        if (ddc === -dc && ddr === -dr) continue;
+        const bx = x0 + ddc * (CELL / 2 - 0.16), bz = z0 + ddr * (CELL / 2 - 0.16);
+        this.box(bx, 0.09, bz, ddc ? 0.32 : CELL, 0.18, ddr ? 0.32 : CELL, mold); // soleira
+        if (ddc === dc && ddr === dr) continue; // o fundo fica livre p/ ver os degraus
+        this.box(bx, 0.62, bz, ddc ? 0.1 : CELL, 0.1, ddr ? 0.1 : CELL, mold);    // corrimão
+        for (const s of [-1, 1]) {
+          const px = ddc ? 0 : s * (CELL / 2 - 0.2), pz = ddc ? s * (CELL / 2 - 0.2) : 0;
+          this.box(bx + px, 0.35, bz + pz, 0.1, 0.7, 0.1, mold);                  // balaústre
+        }
+      }
+    }
+    if (sobe) {
+      // caixa escura acima do vão p/ não vazar o cenário em ângulo raso
+      this.box(x0, 3.5, z0, CELL - 0.1, 1.0, CELL - 0.1, escuro);
+    } else {
+      // paredes do poço, senão dá p/ ver o "nada" por baixo do piso
+      for (const [ddc, ddr] of DIRS)
+        this.addWall(x0, z0, ddc, ddr, fundo, 0.02, escuro);
+    }
   }
 
   // ARMARIA — térreo: manequins de armadura e arcas; superior: suportes de armas.

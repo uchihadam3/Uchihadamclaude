@@ -1727,11 +1727,18 @@ textura. Os painéis abaixo resolvem isso.
 
 Salve em `src/assets/env/` com os nomes exatos.
 
-> **28.1 a 28.6 já estão no jogo.** As três fachadas entram como UM PAINEL POR
-> FACE de rua (não ladrilhadas — cada uma tem base e topo definidos). A escolha é
-> por célula: loja sempre de pedra lavrada, o resto sorteia taipa ou reboco. Como
-> a taipa já traz o enxaimel PINTADO e a pedra já traz a cimalha, só a casa de
-> reboco recebe as madeiras feitas em código — senão a moldura dobrava.
+> **28.1 a 28.6 já estão no jogo — mas não como eu tinha feito primeiro.**
+> Sortear três fachadas diferentes por casa deixou a rua POLUÍDA. Faz sentido:
+> numa rua de uma célula você vê duas fachadas por vez, então coerência lê como
+> ARQUITETURA e variedade lê como bagunça — e cidade de verdade também tira tudo
+> da mesma pedreira. Hoje a rua inteira é a **pedra lavrada** (28.3), em três
+> tons quase iguais só p/ uma rua comprida não parecer copiar e colar. A
+> variedade vem do que está SOBRE a parede: tabuleta, lanterna, janela, hera,
+> tralha.
+>
+> A **taipa** (28.1) e o **reboco** (28.2) mudaram de lugar e agora valem POR
+> DENTRO: taipa nas casas de aldeão, reboco nas lojas. Por fora a vila é sólida,
+> por dentro é pobre — e dá p/ saber onde se está só de olhar a parede.
 >
 > As duas artes de prop vieram com o "fundo transparente" DESENHADO (xadrez
 > pintado, alfa opaco). O `scripts/prep_city_art.py` desfaz isso pela AMPLITUDE
