@@ -3769,24 +3769,27 @@ function injectStyle() {
   .gh-rname-raro     { --rc:#f4f472; --rcb:rgba(222,205,95,.5);   --rch:rgba(190,170,50,.18); }
   .gh-rname-lendario { --rc:#e08a3c; --rcb:rgba(205,120,48,.55);  --rch:rgba(170,85,25,.22); }
   #gh-itip {
-    position:fixed; z-index:30; pointer-events:auto; width:min(252px,84vw);
+    position:fixed; z-index:30; pointer-events:auto; width:min(292px,86vw);
     box-sizing:border-box; padding:0; text-align:center;
-    background:rgba(4,4,5,.94);
-    border:1px solid var(--rcb, rgba(190,190,190,.42));
-    box-shadow:0 12px 34px rgba(0,0,0,.82), inset 0 0 30px rgba(0,0,0,.85);
+    /* MOLDURA do jogo (mesma das outras janelas), SEM 'fill' → a arte faz a borda e
+       o interior fica escuro, no estilo PoE. background-clip evita pintar sob a arte. */
+    border:24px solid transparent; border-image:url(${eqFrameUrl}) 92;
+    background:rgba(6,5,6,.95); background-clip:padding-box;
+    filter:drop-shadow(0 12px 30px rgba(0,0,0,.75));
     color:#c9c9c9; font-family:"Cinzel",Georgia,serif;
   }
   #gh-itip.gh-itip-hidden { display:none; }
   /* cabeçalho: faixa tingida pela raridade, nome CENTRALIZADO + tipo-base */
   .gh-itip-hdr {
-    padding:8px 10px 7px; position:relative;
+    padding:7px 8px 7px; position:relative;
     background:linear-gradient(180deg, var(--rch, rgba(200,200,200,.1)), rgba(0,0,0,0));
     border-bottom:1px solid var(--rcb, rgba(190,190,190,.42));
   }
+  /* ícone no SLOT do jogo (mesmo da mochila/equipamento) */
   .gh-itip-ic {
-    display:flex; width:40px; height:40px; margin:0 auto 5px;
+    display:flex; width:46px; height:46px; margin:0 auto 5px; box-sizing:border-box;
     align-items:center; justify-content:center;
-    background:rgba(0,0,0,.5); border:1px solid var(--rcb, rgba(190,190,190,.42));
+    border:8px solid transparent; border-image:url(${eqSlotUrl}) 89 fill;
   }
   .gh-itip-ic img { width:88%; height:88%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
   .gh-itip-name {
@@ -4086,10 +4089,12 @@ function injectStyle() {
   }
   #gh-plist.gh-plist-hidden { display:none; }
   #gh-plist .gh-pl-win {
-    pointer-events:auto; min-width:min(300px,80vw); max-width:min(360px,88vw);
-    background:linear-gradient(180deg,rgba(24,20,15,.97),rgba(14,12,9,.97));
-    border:1px solid rgba(201,162,74,.55); border-radius:10px;
-    box-shadow:0 10px 34px rgba(0,0,0,.7); padding:8px; color:#e8dcc0;
+    pointer-events:auto; min-width:min(310px,82vw); max-width:min(370px,88vw);
+    box-sizing:border-box; color:#e8dcc0;
+    /* MESMA moldura das outras janelas (sem 'fill') + interior escuro */
+    border:20px solid transparent; border-image:url(${eqFrameUrl}) 92;
+    background:rgba(6,5,6,.95); background-clip:padding-box;
+    filter:drop-shadow(0 10px 30px rgba(0,0,0,.7));
   }
   #gh-plist .gh-pl-hd {
     font-family:"Cinzel",serif; font-weight:700; text-align:center; color:#f0d074;
@@ -4103,8 +4108,9 @@ function injectStyle() {
   }
   #gh-plist .gh-pl-row:hover { border-color:rgba(240,208,116,.85); background:rgba(60,48,26,.5); }
   #gh-plist .gh-pl-ic {
-    width:34px; height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:center;
-    background:rgba(0,0,0,.45); border:1px solid rgba(201,162,74,.28); border-radius:5px;
+    width:40px; height:40px; flex:0 0 40px; box-sizing:border-box;
+    display:flex; align-items:center; justify-content:center;
+    border:7px solid transparent; border-image:url(${eqSlotUrl}) 89 fill; /* slot do jogo */
   }
   #gh-plist .gh-pl-ic img { max-width:100%; max-height:100%; }
   #gh-plist .gh-pl-txt { display:flex; flex-direction:column; min-width:0; }
