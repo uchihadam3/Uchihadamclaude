@@ -49,6 +49,10 @@ interface SbClient {
 }
 
 let clientPromise: Promise<SbClient> | null = null;
+// O co-op (net.ts) precisa do MESMO cliente — criar um segundo deixaria o
+// Realtime sem a sessão do login e abriria duas conexões à toa.
+export async function getSupabaseClient(): Promise<unknown> { return getClient(); }
+
 async function getClient(): Promise<SbClient> {
   if (!clientPromise) {
     clientPromise = (async () => {

@@ -4,7 +4,9 @@ import { backend as saveBackend, localBackend } from "./game/save";
 
 // CO-OP: só liga p/ quem entrou com CONTA (o Convidado usa o backend local e
 // joga sozinho) — assim ninguém aparece na praça sem ter feito login.
-const coopOn = () => saveBackend !== localBackend;
+// `?coop` força ligado mesmo como Convidado, p/ conseguir testar em duas abas.
+const coopOn = () =>
+  new URLSearchParams(location.search).has("coop") || saveBackend !== localBackend;
 
 // build tag: efeito colateral real (não é removido pelo tree-shaking) p/ gerar
 // um nome de bundle NOVO e furar o cache do CDN/navegador.
@@ -19,8 +21,10 @@ if (qs.has("show")) {
   // acesso direto à SALA-VITRINE (escadas + clareira + partículas)
   new Game(app, { name: "Test", classId: "mago" }, "showcase");
 } else if (qs.has("test")) {
-  // BYPASS de teste: entra direto como Mago, sem a intro
-  new Game(app, { name: "Test", classId: "mago" });
+  // BYPASS de teste: entra direto como Mago, sem a intro. Com ?coop, já entra
+  // publicando a posição (dá p/ abrir duas abas e ver uma à outra).
+  const g = new Game(app, { name: qs.get("nome") || "Test", classId: qs.get("classe") || "mago" });
+  if (qs.has("coop")) g.setCoop(true);
 } else {
   // BOOT normal: Título → (Novo Jogo → criação) ou (Continuar → seleção de personagem).
   // A abertura resolve com um herói NOVO (+ slot de destino) ou CARREGAR um slot.

@@ -81,7 +81,8 @@ import {
 } from "./showcase";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
-import { net, type PeerState } from "./net";
+import { net, diag as netDiagObj, SESSION_TAG, type PeerState } from "./net";
+const netDiag = () => netDiagObj;
 import { audio } from "./audio";
 import {
   ROOM,
@@ -1823,8 +1824,20 @@ export class Game {
   // nuvem, passa a publicar a própria posição e a ver quem está na mesma zona.
   public setCoop(on: boolean): void {
     net.enable(on);
-    if (on) this.netEnterZone();
-    else { void net.leave(); this.clearPeers(); this.pushMinimap(); }
+    if (on) {
+      this.netEnterZone();
+      // aviso curto na tela dizendo se o co-op subiu — sem isso não dá p/ saber
+      // se o problema é login, rede ou zona. O estado completo fica em __coop().
+      window.setTimeout(() => {
+        const d = netDiag();
+        this.ui.toast(d.status === "SUBSCRIBED"
+          ? `Co-op ligado — ${d.zone}`
+          : `Co-op: ${d.erro || d.status}`);
+      }, 2500);
+    } else {
+      void net.leave(); this.clearPeers(); this.pushMinimap();
+      this.ui.toast("Co-op desligado (Convidado joga sozinho)");
+    }
   }
 
   // ================= CO-OP · FASE 1 — "ver os amigos" ==================
@@ -1835,7 +1848,7 @@ export class Game {
   }
   private netSelf(): PeerState {
     return {
-      id: `${this.saveSlot}:${this.playerName || "heroi"}`,
+      id: `${this.saveSlot}:${this.playerName || "heroi"}:${SESSION_TAG}`,
       name: this.playerName || "Viajante",
       classId: this.classId,
       level: this.stats.level,
