@@ -217,16 +217,20 @@ const ENEMY_TYPES: Record<string, {
 }> = {
   // BALANCE (Difícil): atk calibrado p/ a mitigação por Defesa/Res.Mág. — o tanque
   // amortece bem, os frágeis precisam esquivar/kitar. rato/aranha são a introdução leve.
-  rato:      { art: enemyRatoUrl,     hp: 16, atk: 5,  xp: 12, gold: 4,  vision: 5, h: 1.7, lvl: 1, ai: "flee_low", spd: 600 },
-  aranha:    { art: enemyAranhaUrl,   hp: 22, atk: 8,  xp: 16, gold: 5,  vision: 4, h: 2.0, lvl: 1, ai: "chase", spd: 660 },
-  esqueleto: { art: enemySkeletonUrl, hp: 30, atk: 11, xp: 22, gold: 6,  vision: 5, h: 2.6, lvl: 2, ai: "chase", spd: 780 },
+  // BALANCE (medido): a vida/ataque eram FIXOS o jogo todo, mas o dano do herói mais
+  // que dobra do nv1 ao nv10 — no nv5 o guerreiro já matava a maioria em 1 golpe.
+  // Os números abaixo são calibrados p/ o 1º andar do ato (comum ≈ 3-4 golpes,
+  // elite ≈ 5-6) e a função enemyScale() endurece conforme a profundidade.
+  rato:      { art: enemyRatoUrl,     hp: 42, atk: 7,  xp: 18, gold: 6,  vision: 5, h: 1.7, lvl: 1, ai: "flee_low", spd: 600 },
+  aranha:    { art: enemyAranhaUrl,   hp: 58, atk: 11, xp: 24, gold: 8,  vision: 4, h: 2.0, lvl: 1, ai: "chase", spd: 660 },
+  esqueleto: { art: enemySkeletonUrl, hp: 76, atk: 15, xp: 33, gold: 9,  vision: 5, h: 2.6, lvl: 2, ai: "chase", spd: 780 },
   // arqueiro: SÓ à distância (flecha). cultista: distância (orbe) E melee (adaga). Ambos "kite".
   // arqueiro anda BEM devagar (não fica correndo p/ manter distância) — spd alto.
-  arqueiro:  { art: enemyArqueiroUrl, hp: 26, atk: 10, xp: 24, gold: 7,  vision: 7, h: 2.6, lvl: 2, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
-  carnical:  { art: enemyCarnicalUrl, hp: 48, atk: 16, xp: 32, gold: 9,  vision: 4, h: 2.8, lvl: 3, ai: "relentless", spd: 900, tier: "mini" },
+  arqueiro:  { art: enemyArqueiroUrl, hp: 68, atk: 14, xp: 36, gold: 11, vision: 7, h: 2.6, lvl: 2, melee: false, ranged: true, range: 6, proj: "arrow", ai: "kite", spd: 1180 },
+  carnical:  { art: enemyCarnicalUrl, hp: 125, atk: 21, xp: 52, gold: 15, vision: 4, h: 2.8, lvl: 3, ai: "relentless", spd: 900, tier: "mini" },
   // cultista: conjura de longe, mas COLA no herói p/ usar a adaga quando ele chega
   // perto (ai "caster"). Velocidade parecida com a do arqueiro.
-  cultista:  { art: enemyCultistaUrl, hp: 34, atk: 14, xp: 34, gold: 11, vision: 7, h: 2.7, lvl: 3, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
+  cultista:  { art: enemyCultistaUrl, hp: 80, atk: 17, xp: 48, gold: 15, vision: 7, h: 2.7, lvl: 3, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1150 },
   // CHEFE do 3º andar: grandão, muito HP/dano, IMPLACÁVEL. Visão LONGA (enxerga o
   // herói de dentro do breu) e AVANÇA rápido (charge agressivo). Recompensa gorda.
   // HP alto p/ uma luta longa e "aprende o padrão"; dano punitivo (Difícil).
@@ -236,13 +240,13 @@ const ENEMY_TYPES: Record<string, {
   boss:      { art: enemyBossUrl,     hp: 950, atk: 36, xp: 520, gold: 220, vision: 13, h: 4.4, lvl: 6, ai: "relentless", spd: 700, tier: "boss" },
   // ===== ATO II — roster afogado/fúngico (andares 4-6; herói ~nv6-10) =====
   // afogado: o "esqueleto" do Ato II — morto-vivo encharcado, avança direto.
-  afogado:   { art: enemyAfogadoUrl,  hp: 56, atk: 18, xp: 42, gold: 11, vision: 5, h: 2.8, lvl: 4, ai: "chase", spd: 820 },
+  afogado:   { art: enemyAfogadoUrl,  hp: 150, atk: 24, xp: 70, gold: 18, vision: 5, h: 2.8, lvl: 4, ai: "chase", spd: 820 },
   // limo: gosma cáustica — lenta, encalha o herói (tanque leve corpo-a-corpo).
-  limo:      { art: enemyLimoUrl,     hp: 68, atk: 15, xp: 40, gold: 9,  vision: 4, h: 1.9, lvl: 4, ai: "chase", spd: 1050 },
+  limo:      { art: enemyLimoUrl,     hp: 185, atk: 21, xp: 66, gold: 15, vision: 4, h: 1.9, lvl: 4, ai: "chase", spd: 1050 },
   // naja: serpente das profundezas — cospe veneno à distância (kite).
-  naja:      { art: enemyNajaUrl,     hp: 46, atk: 17, xp: 50, gold: 13, vision: 7, h: 2.7, lvl: 5, ranged: true, melee: true, range: 6, proj: "orb", ai: "kite", spd: 1120 },
+  naja:      { art: enemyNajaUrl,     hp: 140, atk: 23, xp: 80, gold: 21, vision: 7, h: 2.7, lvl: 5, ranged: true, melee: true, range: 6, proj: "orb", ai: "kite", spd: 1120 },
   // aberração: tanque fúngico — muito HP, IMPLACÁVEL (mini-elite do Ato II).
-  aberracao: { art: enemyAberracaoUrl, hp: 105, atk: 25, xp: 66, gold: 18, vision: 5, h: 3.1, lvl: 5, ai: "relentless", spd: 880, tier: "mini" },
+  aberracao: { art: enemyAberracaoUrl, hp: 275, atk: 32, xp: 110, gold: 30, vision: 5, h: 3.1, lvl: 5, ai: "relentless", spd: 880, tier: "mini" },
   // CHEFE do Ato II — o Leviatã Afogado. Maior e mais duro que o do Ato I.
   boss_a2:   { art: enemyBossA2Url,   hp: 1450, atk: 48, xp: 900, gold: 380, vision: 13, h: 4.8, lvl: 9, ai: "relentless", spd: 680, tier: "boss" },
 };
@@ -1313,6 +1317,20 @@ export class Game {
   private drops: GroundDrop[] = [];                               // itens/ouro caídos no chão (estilo WoW)
   private nextMiniRefresh = 0;                                    // throttle do redesenho do minimapa (bolinhas de inimigo)
   private dungeonFloor = 0;                                       // andar atual da masmorra (0..5)
+  // TAMANHO DO GRUPO (co-op). Hoje sempre 1 — quando o multiplayer entrar, basta
+  // este número subir que os inimigos ganham vida/dano proporcionais (ver enemyScale).
+  private partySize = 1;
+  // multiplicador de vida/ataque do inimigo: PROFUNDIDADE dentro do ato (o 3º andar
+  // é ~40% mais duro que o 1º) × TAMANHO DO GRUPO. Os números-base de ENEMY_TYPES
+  // valem para o 1º andar do ato, jogando sozinho.
+  private enemyScale(): { hp: number; atk: number } {
+    const depth = this.location === "dungeon" ? this.dungeonFloor % 3 : 0;
+    const n = Math.max(1, this.partySize);
+    return {
+      hp: (1 + 0.20 * depth) * (1 + 0.60 * (n - 1)),
+      atk: (1 + 0.10 * depth) * (1 + 0.10 * (n - 1)),
+    };
+  }
   // ATO do andar atual: 1 = Ato I (andares 0-2), 2 = Ato II afogado (andares 3-5).
   private dungeonAct(): 1 | 2 { return this.dungeonFloor >= 3 ? 2 : 1; }
   private dungeonMaxFloor = 0;                                    // andar MAIS FUNDO já alcançado (checkpoint p/ "continuar")
@@ -2429,7 +2447,10 @@ export class Game {
   private buildDungeonEnemy(c = 2, r = 4, typeId = "esqueleto") {
     // perfil do tipo (arte + stats FIXOS + tamanho) — sem escalar com o herói
     const T = ENEMY_TYPES[typeId] ?? ENEMY_TYPES.esqueleto;
-    const HP = T.hp, ATK = T.atk, XP = T.xp, GOLD = T.gold, VISION = T.vision;
+    // escala por PROFUNDIDADE do andar (e, no futuro, por tamanho do grupo)
+    const sc = this.enemyScale();
+    const HP = Math.round(T.hp * sc.hp), ATK = Math.round(T.atk * sc.atk);
+    const XP = T.xp, GOLD = T.gold, VISION = T.vision;
     // nível do inimigo = base do tipo + andar da masmorra (fica valendo XP por mais
     // tempo nos andares fundos); fora da masmorra usa a base do tipo.
     const LVL = (T.lvl ?? 1) + (this.location === "dungeon" ? this.dungeonFloor : 0);
