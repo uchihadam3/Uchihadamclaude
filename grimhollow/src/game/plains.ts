@@ -1,11 +1,14 @@
 // ============================================================================
 // PLANÍCIE DE ARDEN — a primeira área externa fora do vilarejo/floresta.
 //
-// Ao contrário da floresta (grande e aberta), esta é um CORREDOR LINEAR: uma
-// estrada de terra serpenteando para o NORTE entre campos abertos, apertada por
-// escarpas nas laterais. A leitura é sempre "seguir a estrada", e o que dá a
+// REGRA DE DUNGEON CRAWLER: aqui fora também só existe CORREDOR. Esta é uma
+// estrada de UMA CÉLULA DE LARGURA serpenteando para o NORTE dentro de um
+// desfiladeiro — as laterais são escarpas de pedra e paredões de árvore, todos
+// com colisão. Alguns BOLSOS sem saída se abrem na beira da estrada, com
+// inimigos e ossadas. A leitura é sempre "seguir a estrada", e o que dá a
 // sensação de mundo grande são as CAMADAS DE HORIZONTE (as montanhas ao fundo,
-// que se aproximam devagar conforme você anda — ver buildHorizon no Game).
+// que aparecem por cima das escarpas e se aproximam devagar conforme você anda
+// — ver buildHorizon no Game).
 //
 // Ao sul, o portão volta p/ a floresta. Ao norte, o marco 'M' é a boca da
 // trilha da MONTANHA (próxima área).
@@ -17,54 +20,54 @@
 //  'V' portão de volta à floresta      'M' marco da trilha da Montanha
 //  '#' escarpa da borda (bloqueia)
 //
-// O mapa foi GERADO por script com validação de conectividade: a estrada nunca
-// tem "pulo" na diagonal (quando muda de coluna, a linha ganha '==' ligando as
-// duas) e o marco da montanha é comprovadamente alcançável a partir da entrada.
+// Gerado por `scripts/gen_outdoor.py` (semente fixa) com validação por BFS: a
+// estrada nunca tem "pulo" na diagonal, nenhuma célula livre fica ilhada e o
+// marco da montanha é comprovadamente alcançável a partir da entrada.
 export const PLAINS: string[] = [
-  "########.########",
-  "########.########",
-  "########M########",
-  "#####...=...#####",
-  "#####...=.b.#####",
-  "###r....=....r###",
-  "###.r.b.=...Tk###",
-  "##..b...=......##",
-  "##r.r..==..f...##",
-  "##.b..==...T..b##",
-  "##.Tk.==...E...##",
-  "##..b..==....r.##",
-  "##......=....k.##",
-  "##T...r.=...rEr##",
-  "##.f.f..==.rr..##",
-  "##.f.....=...T.##",
-  "##f.rrrb.=...kr##",
-  "##.......=...r.##",
-  "##..b....==....##",
-  "##f.......=....##",
-  "##.bE.....=....##",
-  "##.ErE....==.bk##",
-  "##fr.......=.rT##",
-  "##........==...##",
-  "##...bT...=..T.##",
-  "##....T.b.=..f.##",
-  "##........=...b##",
-  "##....frf.=.b.r##",
-  "##.f...T..=..E.##",
-  "##k.......=..r.##",
-  "##..Tfr..==..kf##",
-  "##k..T...==..b.##",
-  "##rr......=....##",
-  "##.ETkb...=....##",
-  "##b.TbT.T.=.b..##",
-  "##..k...r.=...f##",
-  "##.T.T.T..=....##",
-  "##b..b...==.T..##",
-  "###br.k.==....###",
-  "###..b..=...bb###",
-  "#####k..=...#####",
-  "#####...S...#####",
-  "########V########",
-  "########.########",
+  "#####rrrTbT######",
+  "#####TTrTrb######",
+  "#####rr=MTT######",
+  "#####TrrfTr######",
+  "#####brT=br######",
+  "#####rT==rrrrr###",
+  "#####rT=rrTrrT###",
+  "#####rr====ETr###",
+  "#####Trrrrr=TT###",
+  "#TrrrTr===E=Tr###",
+  "#rTrTrrErrrTTb###",
+  "#rT==f=ETrrrrT###",
+  "#Tr=rbrrrr#######",
+  "#TrfTTrrrr#######",
+  "#TT==EbrTT#######",
+  "#rr==f==rr#######",
+  "#TrTrTb=rr#######",
+  "rrrTrTrfrr#######",
+  "TTTTrrT=Tr#######",
+  "rTE==f==rb#######",
+  "TrT=rTrrbr#######",
+  "rrTETTrrTr#######",
+  "#Tr=TTT##########",
+  "#rT=TrT##########",
+  "#bT=Erb##########",
+  "#Tr=brr##########",
+  "#rr=TrT##########",
+  "#bT=rT###########",
+  "#rr=rT###########",
+  "#rrfrr###########",
+  "#TbkTT###########",
+  "#TT=rrrTrb#######",
+  "#Tr=rrrrbT#######",
+  "#rbEE=f=Tr#######",
+  "#bTrTrr=bT#######",
+  "#rTrrbr=rr#######",
+  "###rb==krbr######",
+  "###Tr=bTTTr######",
+  "###br=f==rT######",
+  "###bTbrT=Tr######",
+  "###rrrbT=Tr######",
+  "######rTSTb######",
+  "######TTVrr######",
+  "######Trrrr######",
 ];
 
 export const PLAINS_ROWS = PLAINS.length;

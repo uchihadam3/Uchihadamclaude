@@ -1769,10 +1769,11 @@ export class Game {
       this.addVillageLights();
       this.buildVillage();
     } else if (loc === "forest") {
-      // a MESMA neblina do mundo cobre a floresta, um pouco mais aberta por ser
-      // externa — dá pra ver as copas e o céu por entre as árvores, com bruma ao
-      // fundo. Mesma cor/caráter da vila.
-      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 4.5, CELL * 24);
+      // a MESMA neblina do mundo cobre a floresta. Agora que a mata é um
+      // LABIRINTO, ela fecha um pouco mais que antes: o corredor some na bruma
+      // umas 15 células à frente, então dá p/ ver as copas e o céu mas não o
+      // mapa inteiro de uma vez.
+      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 3.5, CELL * 18);
       this.scene.background = new THREE.Color(FOG_COLOR);
       this.addForestLights();
       this.buildForest();
@@ -7400,9 +7401,96 @@ export class Game {
     this.registerDayLight(sun, 0x6675ad, 0.14); // luar frio à noite
   }
 
+  // ============ LOTES INSTANCIADOS (vegetação das áreas externas) ============
+  // Depois que a mata virou LABIRINTO, são ~1000 células de parede, cada uma com
+  // árvore + mato: como malhas soltas isso vira milhares de draw calls e derruba
+  // o celular. Aqui cada MATERIAL vira UM InstancedMesh — a placa de vídeo
+  // desenha o bosque inteiro de uma vez.
+  private lotesCruz = new Map<THREE.Material, { x: number; z: number; w: number; h: number; flip: boolean }[]>();
+  private lotesChao = new Map<THREE.Material, { x: number; z: number; w: number; h: number; rot: number }[]>();
+  private lotesRocha = new Map<THREE.Material, { x: number; z: number; s: number; sy: number; rx: number; ry: number; rz: number }[]>();
+
+  /** Planos CRUZADOS (dois quads perpendiculares em pé) — árvores, moitas. */
+  private porCruz(mat: THREE.Material, x: number, z: number, w: number, h: number, flip = false): void {
+    let a = this.lotesCruz.get(mat);
+    if (!a) this.lotesCruz.set(mat, (a = []));
+    a.push({ x, z, w, h, flip });
+  }
+  /** Plano DEITADO no chão — samambaias, ossadas. */
+  private porChao(mat: THREE.Material, x: number, z: number, w: number, h: number, rot = 0): void {
+    let a = this.lotesChao.get(mat);
+    if (!a) this.lotesChao.set(mat, (a = []));
+    a.push({ x, z, w, h, rot });
+  }
+  /** Bloco de pedra (dodecaedro) — pedregulhos e escarpas. */
+  private porRocha(mat: THREE.Material, x: number, z: number, s: number, sy: number, rx: number, ry: number, rz: number): void {
+    let a = this.lotesRocha.get(mat);
+    if (!a) this.lotesRocha.set(mat, (a = []));
+    a.push({ x, z, s, sy, rx, ry, rz });
+  }
+
+  /** Fecha os lotes: gera os InstancedMesh e esvazia os baldes. */
+  private fecharLotes(): void {
+    const m4 = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    const pos = new THREE.Vector3();
+    const esc = new THREE.Vector3();
+    const eixoY = new THREE.Vector3(0, 1, 0);
+    const plano = new THREE.PlaneGeometry(1, 1);
+
+    for (const [mat, itens] of this.lotesCruz) {
+      const im = new THREE.InstancedMesh(plano, mat, itens.length * 2);
+      let i = 0;
+      for (const it of itens)
+        for (const rot of [0, Math.PI / 2]) {
+          q.setFromAxisAngle(eixoY, rot);
+          pos.set(it.x, it.h / 2, it.z);
+          esc.set(it.flip ? -it.w : it.w, it.h, 1);
+          im.setMatrixAt(i++, m4.compose(pos, q, esc));
+        }
+      im.instanceMatrix.needsUpdate = true;
+      im.frustumCulled = false; // um objeto só cobrindo o mapa inteiro
+      this.world.add(im);
+    }
+    for (const [mat, itens] of this.lotesChao) {
+      const im = new THREE.InstancedMesh(plano, mat, itens.length);
+      let i = 0;
+      for (const it of itens) {
+        q.setFromEuler(e.set(-Math.PI / 2, 0, it.rot));
+        pos.set(it.x, 0.05, it.z);
+        esc.set(it.w, it.h, 1);
+        im.setMatrixAt(i++, m4.compose(pos, q, esc));
+      }
+      im.instanceMatrix.needsUpdate = true;
+      im.frustumCulled = false;
+      this.world.add(im);
+    }
+    const dodeca = new THREE.DodecahedronGeometry(1, 0);
+    for (const [mat, itens] of this.lotesRocha) {
+      const im = new THREE.InstancedMesh(dodeca, mat, itens.length);
+      let i = 0;
+      for (const it of itens) {
+        q.setFromEuler(e.set(it.rx, it.ry, it.rz));
+        pos.set(it.x, it.s * it.sy * 0.42, it.z);
+        esc.set(it.s, it.s * it.sy, it.s);
+        im.setMatrixAt(i++, m4.compose(pos, q, esc));
+      }
+      im.instanceMatrix.needsUpdate = true;
+      im.frustumCulled = false;
+      this.world.add(im);
+    }
+    this.lotesCruz.clear();
+    this.lotesChao.clear();
+    this.lotesRocha.clear();
+  }
+
   // ================= PLANÍCIE (área externa linear) =================
-  // Estrada de terra serpenteando ao norte entre campos, apertada por escarpas.
-  // O que dá a sensação de mundo grande são as CAMADAS DE HORIZONTE (buildHorizon).
+  // REGRA DE DUNGEON CRAWLER: só CORREDOR. A estrada é um desfiladeiro de uma
+  // célula de largura serpenteando ao norte, com paredes de ESCARPA e árvore (as
+  // duas com colisão) e alguns bolsos sem saída guardando inimigos.
+  // O que dá a sensação de mundo grande são as CAMADAS DE HORIZONTE
+  // (buildHorizon), que aparecem por cima das escarpas.
   private buildPlains() {
     const W = PLAINS_COLS, H = PLAINS_ROWS;
     const hash = (a: number, b: number, s = 0) => {
@@ -7438,41 +7526,49 @@ export class Game {
       this.loadArt(url, (t) => { m.map = t; m.needsUpdate = true; });
       return m;
     });
-    const bushMat = new THREE.MeshLambertMaterial({ map: tex.bush(31), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    // matagal escuro (mesmo motivo da floresta: virou parede, então o verde
+    // berrante da textura chamava atenção demais)
+    const bushMat = new THREE.MeshLambertMaterial({ map: tex.bush(31), color: new THREE.Color(0x93a383), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
     const rockMat = new THREE.MeshLambertMaterial({ map: tex.stone(37), color: new THREE.Color(0x9a958a) });
     const fernMat = new THREE.MeshLambertMaterial({ map: tex.fern(41), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
     const boneMat = new THREE.MeshLambertMaterial({ map: tex.skullPile(43), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
-    const cruzado = (mat: THREE.Material, x: number, z: number, w: number, h: number) => {
-      for (const rot of [0, Math.PI / 2]) {
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-        m.position.set(x, h / 2, z); m.rotation.y = rot; this.world.add(m);
-      }
-    };
+    // toda parede do desfiladeiro ganha um MATÃO na base: é aí (na altura dos
+    // olhos, ~1,6m) que apareciam as frestas entre um bloco e outro.
+    const rente = (c: number, r: number) =>
+      plainsWalkable(c - 1, r) || plainsWalkable(c + 1, r) ||
+      plainsWalkable(c, r - 1) || plainsWalkable(c, r + 1);
+
     for (let r = 0; r < H; r++)
       for (let c = 0; c < W; c++) {
         const k = plainsCell(c, r);
         const x = c * CELL, z = r * CELL;
         if (k === "tree" && arvMats.length) {
           const m = arvMats[Math.floor(hash(c, r, 7) * arvMats.length) % arvMats.length];
-          const h = 5.4 + hash(c, r, 11) * 2.2;
-          cruzado(m, x, z, h * TREE_ASPECT, h);
+          // grande o bastante p/ a copa cobrir a célula inteira (CELL=4): sem isso
+          // dava p/ ver a planície entre os troncos e o corredor se perdia
+          const h = 7.6 + hash(c, r, 11) * 2.4;
+          this.porCruz(m, x, z, h * TREE_ASPECT, h, hash(c, r, 27) > 0.5);
+          if (rente(c, r)) this.porCruz(bushMat, x, z, 4.2, 2.6);
           this.blocked.add(`${c},${r}`);
         } else if (k === "bush") {
-          cruzado(bushMat, x, z, 2.1, 1.7); this.blocked.add(`${c},${r}`);
+          // moitão fechado (também é parede do corredor)
+          this.porCruz(bushMat, x, z, 4.4, 3.2);
+          this.blocked.add(`${c},${r}`);
         } else if (k === "rock") {
-          const s = 0.9 + hash(c, r, 13) * 0.7;
-          const p = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockMat);
-          p.position.set(x, s * 0.55, z);
-          p.rotation.set(hash(c, r, 17) * 3, hash(c, r, 19) * 3, hash(c, r, 23) * 3);
-          this.world.add(p); this.blocked.add(`${c},${r}`);
+          // ESCARPA, não pedregulho: é a "parede" do corredor da planície, então
+          // precisa ser alta o bastante p/ vedar a vista e larga o bastante p/
+          // fechar a célula inteira, sem fresta com a vizinha.
+          const s = 3.2 + hash(c, r, 13) * 0.8;
+          this.porRocha(rockMat, x, z, s, 1.25 + hash(c, r, 29) * 0.55,
+            (hash(c, r, 17) - 0.5) * 0.5, hash(c, r, 19) * 3, (hash(c, r, 23) - 0.5) * 0.5);
+          this.blocked.add(`${c},${r}`);
         } else if (k === "foliage") {
-          const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.1), fernMat);
-          m.rotation.x = -Math.PI / 2; m.position.set(x, 0.05, z); this.world.add(m);
+          this.porChao(fernMat, x, z, 1.7, 1.1, hash(c, r, 31) * 6.28);
         } else if (k === "bones") {
-          const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), boneMat);
-          m.rotation.x = -Math.PI / 2; m.position.set(x, 0.05, z); this.world.add(m);
+          this.porChao(boneMat, x, z, 1.6, 1.2, hash(c, r, 33) * 6.28);
         }
       }
+    this.fecharLotes();
 
     this.addSkyDome((W / 2) * CELL, (H / 2) * CELL);
     this.buildHorizon();          // as montanhas ao fundo
@@ -7625,10 +7721,13 @@ export class Game {
       });
       return mat;
     });
+    // MATAGAL: agora ele é parede (célula inteira), então o verde berrante da
+    // textura gritava na tela. O tom escuro/dessaturado casa com o resto da mata.
     const bushMats = [67, 73].map(
       (s) =>
         new THREE.MeshLambertMaterial({
           map: tex.bush(s),
+          color: new THREE.Color(0x93a383),
           transparent: true,
           alphaTest: 0.4,
           side: THREE.DoubleSide,
@@ -7653,7 +7752,9 @@ export class Game {
     const woodMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const barkMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
 
-    // planos cruzados (dois quads perpendiculares) — dão volume sem billboard
+    // planos cruzados (dois quads perpendiculares) — dão volume sem billboard.
+    // Vão todos p/ um LOTE INSTANCIADO (ver fecharLotes): o labirinto tem ~1000
+    // células de parede e desenhar árvore por árvore travaria o celular.
     const addCross = (
       x: number,
       z: number,
@@ -7661,19 +7762,7 @@ export class Game {
       h: number,
       mat: THREE.Material,
       flip = false,
-    ) => {
-      const g = new THREE.PlaneGeometry(w, h);
-      const sx = flip ? -1 : 1;
-      const p1 = new THREE.Mesh(g, mat);
-      p1.position.set(x, h / 2, z);
-      p1.scale.x = sx;
-      const p2 = new THREE.Mesh(g, mat);
-      p2.position.set(x, h / 2, z);
-      p2.rotation.y = Math.PI / 2;
-      p2.scale.x = sx;
-      this.world.add(p1);
-      this.world.add(p2);
-    };
+    ) => this.porCruz(mat, x, z, w, h, flip);
     const pineAspect = useArt ? TREE_ASPECT : 0.44;
     const addPine = (x: number, z: number, th: number, c: number, r: number) => {
       // ~12% das árvores são mortas (clima sombrio), o resto são pinheiros vivos
@@ -7691,29 +7780,36 @@ export class Game {
         const z = r * CELL;
         if (k === "tree" || k === "edge") {
           const edge = k === "edge";
-          const th = (edge ? 8.0 : 5.4) + hash(c, r, 1) * 2.2;
-          const jx = (hash(c, r, 2) - 0.5) * CELL * 0.45;
-          const jz = (hash(c, r, 3) - 0.5) * CELL * 0.45;
+          // PAREDE: a copa precisa cobrir a célula inteira (CELL=4). Com as
+          // árvores baixas de antes dava p/ enxergar a mata entre os troncos e o
+          // corredor sumia. Jitter curto, pelo mesmo motivo.
+          const th = (edge ? 9.5 : 7.6) + hash(c, r, 1) * 2.4;
+          const jx = (hash(c, r, 2) - 0.5) * CELL * 0.2;
+          const jz = (hash(c, r, 3) - 0.5) * CELL * 0.2;
           addPine(x + jx, z + jz, th, c, r);
-          // moita de folhagem na base do pinheiro (esconde o "corte" no chão)
-          if (hash(c, r, 12) > 0.5)
+          // MATO RENTE ao tronco: é na altura dos olhos que apareciam as frestas
+          // entre uma árvore e outra. Só nas paredes que dão de frente p/ um
+          // corredor — o miolo do bosque ninguém vê.
+          if (!edge && this.forestBeiraTrilha(c, r))
+            addCross(x, z, 4.0, 2.4, bushMats[Math.floor(hash(c, r, 21) * bushMats.length) % bushMats.length]);
+          else if (hash(c, r, 12) > 0.5)
             addCross(x + jx, z + jz, 2.0, 1.1, fernMats[Math.floor(hash(c, r, 13) * fernMats.length) % fernMats.length]);
-          // SÓ a borda (paredão da mata) bloqueia; as árvores do interior são
-          // atravessáveis — o jogador serpenteia entre elas (colisão só "no tronco").
-          if (edge) this.blocked.add(`${c},${r}`);
+          // TODA árvore bloqueia: elas são a PAREDE do labirinto da mata (regra
+          // de dungeon crawler — aqui fora também só existe corredor).
+          this.blocked.add(`${c},${r}`);
         } else if (k === "bush") {
-          const bw = 2.4 + hash(c, r, 5) * 0.8;
-          const bh = 1.4 + hash(c, r, 6) * 0.5;
+          // moitão fechado: também é parede, então fecha a célula toda
+          const bw = 4.0 + hash(c, r, 5) * 0.6;
+          const bh = 2.6 + hash(c, r, 6) * 0.6;
           const mat = bushMats[Math.floor(hash(c, r, 7) * bushMats.length) % bushMats.length];
           addCross(x, z, bw, bh, mat);
           this.blocked.add(`${c},${r}`);
         } else if (k === "rock") {
-          const s = 1.1 + hash(c, r, 8) * 0.8;
-          const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(s), rockMat);
-          rk.position.set(x, s * 0.55, z);
-          rk.rotation.set(hash(c, r, 9) * 3, hash(c, r, 10) * 3, 0.2);
-          rk.scale.y = 0.7;
-          this.world.add(rk);
+          // lajedo: parede baixa, mas encostada nas árvores vizinhas — larga o
+          // bastante p/ tapar a célula sem virar um pedregulho gigante
+          const s = 1.9 + hash(c, r, 8) * 0.4;
+          this.porRocha(rockMat, x, z, s, 0.5 + hash(c, r, 30) * 0.25,
+            (hash(c, r, 9) - 0.5) * 0.5, hash(c, r, 10) * 3, (hash(c, r, 11) - 0.5) * 0.4);
           this.blocked.add(`${c},${r}`);
         } else if (k === "foliage") {
           // samambaia (andável, decoração no chão)
@@ -7784,7 +7880,16 @@ export class Game {
     this.addSkyDome((FOREST_COLS / 2) * CELL, (FOREST_ROWS / 2) * CELL);
     this.buildForestBackdrop();
     this.buildForestVillageBackdrop();
+    this.fecharLotes(); // toda a vegetação vira InstancedMesh de uma vez
     void MAP;
+  }
+
+  /** Uma célula de PAREDE que dá de frente p/ um corredor (é o que o herói vê). */
+  private forestBeiraTrilha(c: number, r: number): boolean {
+    return (
+      forestWalkable(c - 1, r) || forestWalkable(c + 1, r) ||
+      forestWalkable(c, r - 1) || forestWalkable(c, r + 1)
+    );
   }
 
   // Vilarejo visto ao LONGE pela saída da floresta: grama em volta, um caminho
@@ -9212,8 +9317,11 @@ export class Game {
     this.col = nc;
     this.row = nr;
     this.pushMinimap();
-    // ao entrar numa célula com árvore, "roça" a folhagem (vinheta esverdeada)
-    if (this.location === "forest" && forestCell(nc, nr) === "tree")
+    // ao pisar numa moita de samambaia, "roça" a folhagem (vinheta esverdeada).
+    // Antes valia p/ as árvores; agora elas são parede, então quem roça é o mato.
+    if (this.location === "forest" && forestCell(nc, nr) === "foliage")
+      this.brushFoliage();
+    else if (this.location === "plains" && plainsCell(nc, nr) === "foliage")
       this.brushFoliage();
   }
 

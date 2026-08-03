@@ -8,63 +8,68 @@
 //  '#' mata densa da borda (bloqueia)
 //  'P' início do jogador (olhando p/ o norte)   'V' portão de volta ao vilarejo
 //
-// Mata GRANDE e aberta (35x50): muralha DUPLA de árvores ('#') veda toda a
-// borda, e o interior é arejado — mais grama e clareiras que árvores, com
-// bosques em manchas. A entrada ao sul sobe por uma TRILHA SINUOSA até uma
-// ENCRUZILHADA central, de onde partem caminhos tortuosos p/ o norte
-// (Montanhas), leste (Charco) e oeste (Ruínas) — cada ponta termina num marco
-// de local futuro. Como as árvores são andáveis, as trilhas são guias; a
-// neblina do jogo cobre a distância. Espaço reservado p/ coleta futura
-// (cortar árvore, quebrar pedra, pescar, colher ervas).
+// REGRA DE DUNGEON CRAWLER: aqui fora também só existe CORREDOR. A mata (35x50)
+// é um LABIRINTO de trilhas de uma célula de largura, e as "paredes" são
+// PAREDÕES DE ÁRVORE de duas células de espessura — com colisão de verdade, como
+// a parede de pedra da masmorra. Nada de campo aberto: você anda entre troncos,
+// vira a esquina e não sabe o que vem.
+//
+// O labirinto é TRANÇADO (a maioria dos becos sem saída virou atalho), então há
+// vários caminhos e explorar não vira sofrimento. A TRILHA DE TERRA ('=') é o fio
+// condutor: sai da entrada ao sul, passa pela ENCRUZILHADA e segue até os três
+// marcos — norte (Planície de Arden), leste (Charco) e oeste (Ruínas).
+//
+// Gerado por `scripts/gen_outdoor.py` (semente fixa), que valida por BFS que a
+// entrada, o portão, a encruzilhada e os três marcos continuam alcançáveis.
 export const FOREST: string[] = [
   "###################################",
-  "###################################",
-  "##T...f...TrTTbT.NTTTTTT.T...bf.T##",
-  "##T...TTTf.TTf..T===TTfT..Tr.TTTf##",
-  "##Tb.f.TTTT.......T==.TTTrTT...T.##",
-  "##f....T..T..TrT.bT==.b.TTTTT.T.T##",
-  "##.b..T..T..r.T.T.T=.T....TTTTTTT##",
-  "##......TT....T.rk.=TT..TfTb..T..##",
-  "##frT..TTT.T...T.rT===.bT..T.TT.T##",
-  "##.f.kT.TT.rT..rT.==r.TTfT.fTr..T##",
-  "##TT.TTTTrTTTTTT.==...TT..T.TTT.T##",
-  "##T..TTTbTT.bT....=.Tff..TbTf.TT.##",
-  "##T..Tfb..b.k.T..======.TTTT....f##",
-  "##.TTT.T....rTT..=..Tk..TT..T.T..##",
-  "##...TT......bkT.=.kT.f...r.T.TT.##",
-  "##...TfT...T.T.r==..TTTbT..k..TT.##",
-  "##.TTTT.T..r.bbT=T.T...r....TTb.T##",
-  "##.f.T..T..TTf..===.T.TT.....TrbT##",
-  "##..TTTbTT.bT.T===TTTT.bT.......T##",
-  "##.fk.T.T....TTT.=.....T...rT.TTT##",
-  "##...T..T.b.TTkT==.TT.TfTf...TT..##",
-  "##.rTT..TTT.Tr.=====rT....T..TT=E##",
-  "##r.TT.T..TT..T===TbTTbTT...T.r.=##",
-  "##.TT.TfT....TT.T=rf.rTT.T...T===##",
-  "##T....rf.T..bT..==..TfT..Tk=====##",
-  "##T..Tff.TrTTTT...==.TT..T..=Tk.T##",
-  "##T.TTb==========j===========..Tf##",
-  "##..TT==.TfTT.T.==...r.TTTTrTT.bb##",
-  "##T.b==TT.rr.Tr..==.TT.TTT.TT..Tb##",
-  "##T======.TTr..T.==T.T...k.f.T...##",
-  "##===.brb.....bTT=.TT.T..r.T.T..T##",
-  "##W==TT.T.r.rTr===....rf.ffb.TTTT##",
-  "##..T.T.....k..===.Tk.Tr.Tf.f..TT##",
-  "##TT..TTT.T.TT==TTTrTTk.r..T.T.r.##",
-  "##T......r..TT=T.TTT.TTT.rf...T.T##",
-  "##.r....T.T.TT=TTT..TTkr.T.T..bbT##",
-  "##rk....fT.T.T==.rrb..T..r.T..Tr.##",
-  "##TTTb..Tf....=TbTrT..T..TTrT..f.##",
-  "##...T.b....TT====fT..T.T..T.T...##",
-  "##T..........T...=..Tf.T.T..T..fk##",
-  "##r.T..Tf........=T.....T...TTb.T##",
-  "##TTT.TTbT.bTT...===.T.......TbT.##",
-  "##.T.T....TTTbT..==T.T......TTTTT##",
-  "##.T..T...TTTf.T====..k..T.b..krT##",
-  "##bT.TTT.kTr.....==.TT.T.TTb.T.r.##",
-  "##TT.TbrT....T..r==T...bb.f..T...##",
-  "##..b.TTTrT.rf=s.===TTf..T.TTT.rr##",
-  "##..rTT.TTTTTr.r.P...TTT..T..T.b.##",
+  "#################N#################",
+  "##........f.f..bT=======TT.f...f.##",
+  "##.brTrTbTT.Tb.TT.TTTTT=TT.TTTTT.##",
+  "##.rTTTTTTT.TT.Tb.TTTbT=TT.TTbTT.##",
+  "##fTT.TT....TT....bT====TT....rT.##",
+  "##kTT.TT.TTbTTTTTTTb=TTTTTbTT.Tb.##",
+  "##.TT.TT.TTbTbTTTTTb=TTTTrTTT.TT.##",
+  "##.k..br.........k===TT....TTf...##",
+  "##TrT.TTTTT.TTTTT==TTTT.TT.rTTTT.##",
+  "##TTT.TbTTTfrTTTT=TTTTT.TT.bTbTr.##",
+  "##.TT.f..TTf..kbT=.......rf......##",
+  "##.TTTTT.bTTTT.rT=TbTrT..TTTTTTT.##",
+  "##.rTTTb.TTrTT.bT=TrTTTbTrbTTTTT.##",
+  "##f......TT....TT=TT====TT....TT.##",
+  "##.TTbTT.TT.TTrTT=TT=TT=TT.TT.TT.##",
+  "##.TTTbT.TT.bTTTT=TT=Tr=bT.TT.TT.##",
+  "##....TT.TT.TT====TT=TT=.b.bT.bT=E#",
+  "##.TT.Tr.TT.TT=TTTTb=Tb=.T.TT.TT=##",
+  "##.TT.bT.TT.TT=TTTrT=Tb=TT.bT.TT=##",
+  "##.TT.f..TT.TT=======Tb=TT....TT=##",
+  "##.TTTbTTTT.bT.TTTbTTTT=Tb.TTTTb=##",
+  "##.TTbTTTbT.TT.TbTrbTTT=TT.TTbTT=##",
+  "##..f.......TT.bb=jT====TT=======##",
+  "##.rTTbTrTTTTT.TT=TT=TbrbT=TTTTTT##",
+  "##.TbTTbTTTTTT.bT=TT=TTrTT=TTTTTT##",
+  "##...........f.TT=TT=======TT....##",
+  "##.TT.fTTrTTTTTTT=TT=rTTrT.TT.TT.##",
+  "##.TTTbTTTTTTTTbr=Tb=TTTTT.bT.TT.##",
+  "#W=======Tb=======.T====TT.bT.TT.##",
+  "##rTTTTT=bb=TTTTT..TTTT=TT.TT.rT.##",
+  "##TTrTTT=rT=bTTTTTTTTTb=TT.Tr.TT.##",
+  "##====bT====TT=======TT=TT.bT....##",
+  "##=TT=TbTTT=TT=TbTTT=TT=Tb.TTTTT.##",
+  "##=Tb=TTTTT=TT=TTTTb=TT=TT.TTTTT.##",
+  "##=TT=======Tr====TT====.T....TT.##",
+  "##=TTTTTTTTTTTTTb=bTbTT..bTTT.TT.##",
+  "##=TTTTTbTTTTTTTT=TTTbb.TTTTT.TT.##",
+  "##=======TT====TT====TT.TT...fTT.##",
+  "##TTT..b=TT=TT=TTTTT=TT.TT.fT.TT.##",
+  "##TTT.TT=TT=TT=bTTbT=TT.TT.TTfTT.##",
+  "##....TT=Tb=rT====.T=TT....TT...f##",
+  "##.TTTTT=Tb=bTTTT=.T=rT.TTTTTTbT.##",
+  "##.TTrTT=Tb=TTTTb=TT=bT.rTTTbTbT.##",
+  "##.TT====.T=TT...=rT=TTf....f.k..##",
+  "##.TT=TT..T=Tb.TT=sT=TrTTTTTTTTT.##",
+  "##.Tr=TTrTT=rT.TT=TT=bTTTTTTTTTT.##",
+  "##...=======TT...P===TT.....f.f.f##",
   "#################=#################",
   "#################V#################",
 ];
@@ -119,13 +124,12 @@ export function forestCell(col: number, row: number): ForestCell {
 
 export function forestWalkable(col: number, row: number): boolean {
   const k = forestCell(col, row);
-  // "tree" é andável: o jogador passa entre/por dentro das árvores do interior
-  // (o paredão da borda é "edge", que continua bloqueando). Arbustos, rochas e
-  // placas continuam sólidos.
+  // ÁRVORE BLOQUEIA. Ela é a "parede" desta área: o mapa é um labirinto de
+  // corredores, e atravessar troncos acabaria com a leitura de corredor.
+  // Arbusto, rocha, placa e a mata da borda também são sólidos.
   return (
     k === "grass" ||
     k === "path" ||
-    k === "tree" ||
     k === "foliage" ||
     k === "skull" ||
     k === "gate" ||
