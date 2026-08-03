@@ -2550,6 +2550,7 @@ export class Game {
     this.addSkyDome(); // céu soturno (gradiente + nuvens) por trás da névoa
     this.buildMountain();
     this.buildTunnel();
+    this.buildDungeonPortal();
     this.buildDungeonEnemy();
 
     // pontos de interesse
@@ -2562,9 +2563,11 @@ export class Game {
     this.buildEstablishments(doorMat, bannerMat);
     this.buildHomes(doorMat);
     this.buildVillageForestGate();
-    this.streetClutter(hash);  // barril/caixote/lenha encostados nas fachadas
+    // TRALHA DE RUA E BARRACAS REMOVIDAS. Eram caixas, cilindros e esferas feitos
+    // em código, e no meio da arte nova elas gritavam de "placeholder" — melhor
+    // rua limpa do que rua com adereço improvisado. (streetClutter/buildPlazaProps
+    // seguem no arquivo, prontas para quando houver arte de verdade.)
     this.buildVillageProps();
-    this.buildPlazaProps(); // barracas/caixotes/feno (bloqueiam a célula)
     this.buildChimneySmoke();
     this.buildNPCs();
 
@@ -5253,9 +5256,67 @@ export class Game {
   }
 
   // ---------------------------------------------- montanha (canto noroeste)
+  /**
+   * PORTAL DA MASMORRA — o pórtico de pedra na boca do túnel.
+   *
+   * Antes a entrada era um buraco retangular cavado na rocha, sem nada em volta:
+   * do fim da rua você via um vão preto num paredão e não havia como saber que
+   * aquilo é A masmorra, o lugar mais importante do jogo. Um pórtico lavrado
+   * (ombreiras, verga, fecho e dois archotes) resolve de longe: a cidade
+   * CONSTRUIU uma entrada ali, e o fogo marca o ponto no fim da rua.
+   */
+  private buildDungeonPortal() {
+    // acha a célula de rua que dá na boca do túnel e a direção de entrada
+    let boca: { c: number; r: number; dc: number; dr: number } | null = null;
+    for (let r = 0; r < ROWS && !boca; r++)
+      for (let c = 0; c < COLS && !boca; c++) {
+        if (cellAt(c, r) !== "street") continue;
+        for (const [dc, dr] of DIRS)
+          if (cellAt(c + dc, r + dr) === "tunnel") { boca = { c, r, dc, dr }; break; }
+      }
+    if (!boca) return;
+    const { c, r, dc, dr } = boca;
+    // o pórtico fica NA CÉLULA DE RUA, não na divisa com o túnel: encostado na
+    // divisa ele nasce rente à rocha, se confunde com ela e some. Plantado um
+    // passo à frente, ele é uma construção que você atravessa.
+    const x = c * CELL, z = r * CELL;
+    // pedra CLARA de propósito: o pórtico tem de destacar da rocha escura em volta,
+    // senão vira mais um vulto no paredão e a entrada some no fim da rua.
+    const pedra = new THREE.MeshLambertMaterial({
+      map: tex.stone(23), color: new THREE.Color(0xd6cebc), emissive: new THREE.Color(0x2a2620),
+    });
+    const ao = (w: number, e: number): [number, number] => (dc ? [e, w] : [w, e]);
+    const VAO = 2.5;                 // largura livre da passagem
+    const OMB = (CELL - VAO) / 2;    // espessura de cada ombreira
+    const ALT = TUNNEL_H + 0.35;
+    // ombreiras (as duas laterais do vão)
+    for (const s of [-1, 1]) {
+      const off = s * (VAO + OMB) / 2;
+      const [w1, e1] = ao(OMB, 0.9);
+      this.box(x + (dc ? 0 : off), ALT / 2, z + (dc ? off : 0), w1, ALT, e1, pedra);
+    }
+    // verga por cima do vão + fecho saliente no meio
+    const [w2, e2] = ao(CELL, 0.9);
+    this.box(x, ALT + 0.3, z, w2, 0.6, e2, pedra);
+    const [w3, e3] = ao(0.85, 1.05);
+    this.box(x, ALT + 0.42, z, w3, 0.9, e3, pedra);
+    // archotes acesos nas ombreiras, virados p/ a rua
+    for (const s of [-1, 1]) {
+      const off = s * (VAO + OMB) / 2;
+      const tx = x + (dc ? -dc * 0.5 : off), tz = z + (dc ? off : -dr * 0.5);
+      this.box(tx, 2.1, tz, 0.16, 0.9, 0.16, new THREE.MeshLambertMaterial({ color: 0x2a241d }));
+      this.glowLight(tx, 2.75, tz, 0xffa040, 7.5, 16);
+    }
+    // brasa no vão: marca a boca da masmorra do outro lado da rua
+    this.glowLight(x - dc * 1.2, 1.9, z - dr * 1.2, 0xff8a3a, 4.0, 14);
+  }
+
   private buildMountain() {
-    // material de ardósia FRIA (tinte azul-acinzentado). Textura tileada p/ mais
-    // detalhe nas faces grandes. 3 tons (claro/médio/escuro) p/ quebrar a monotonia.
+    // ROCHA QUENTE, não ardósia azul. O maciço fecha a Rua Alta, então ele aparece
+    // no fim da rua o tempo todo — e no tom frio de antes destoava violentamente
+    // da pedra lavrada da cidade: parecia gelo colado no fim do quarteirão.
+    // Agora é a mesma família de cinza-terroso das fachadas, e o morro passa a
+    // parecer a pedreira de onde a vila saiu.
     const rockTex = tex.rock(41);
     rockTex.wrapS = rockTex.wrapT = THREE.RepeatWrapping;
     const mkRock = (hex: number) => {
@@ -5263,9 +5324,9 @@ export class Game {
       t.needsUpdate = true;
       t.repeat.set(1.6, 2.2); // tila as bandas de estrato ao longo da face
       // emissivo BAIXO: nunca esmaga p/ preto na sombra (mantém o detalhe de ardósia)
-      return new THREE.MeshLambertMaterial({ map: t, color: new THREE.Color(hex), emissive: new THREE.Color(0x1a1e25) });
+      return new THREE.MeshLambertMaterial({ map: t, color: new THREE.Color(hex), emissive: new THREE.Color(0x191512) });
     };
-    const rockMats = [mkRock(0xc2cad8), mkRock(0xa6aebd), mkRock(0x8b93a2)];
+    const rockMats = [mkRock(0xc4b9a3), mkRock(0xab9f8b), mkRock(0x8f8474)];
     const rockOf = (c: number, r: number) => rockMats[Math.floor(this.mHash(c, r, 9) * rockMats.length) % rockMats.length];
     // canto da montanha (mais alto lá) p/ dar silhueta de morro
     let cornerC = COLS;
