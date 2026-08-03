@@ -2507,7 +2507,7 @@ export class Game {
           // montantes de madeira subindo dela. Vale p/ toda face de rua, inclusive
           // as de porta (a porta em si é desenhada em buildEstablishments).
           // painel de fachada colado na face (um por face, sem ladrilhar)
-          this.addWallDecal(c, r, dc, dr, facadeMat, CELL, WALL_H, WALL_H / 2);
+          this.addWallDecal(c, r, dc, dr, facadeMat, CELL, WALL_H, WALL_H / 2, 0.02);
           // sem enxaimel de código: a pedra lavrada já traz a cimalha pintada
           this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash, false);
           if (porta) continue;
@@ -2525,7 +2525,7 @@ export class Game {
             // luminária pende dele. A arte é vista DE LADO, então o plano fica
             // perpendicular à fachada, como as tabuletas das lojas.
             this.addLanternaParede(c, r, dc, dr, lanternMat);
-            this.glowLight(fx + dc * 0.55, 2.45, fz + dr * 0.55, 0xffb45a, 3.4, 11);
+            this.glowLight(fx + dc * 1.05, 2.85, fz + dr * 1.05, 0xffb45a, 3.4, 11);
             void torchMat;
           } else if (roll < 0.74) {
             this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
@@ -2604,15 +2604,17 @@ export class Game {
     // precisa (a) ter a normal AO LONGO da fachada — não apontando p/ ela — e
     // (b) começar encostado na parede e crescer p/ a rua. Na versão anterior eu
     // errei os dois e o braço ficava enterrado na pedra.
-    const L = 1.8;              // avanço sobre a rua
-    const H = 1.8;
+    // menor e mais alta que na 1ª versão: a lanterna ficava do tamanho de uma
+    // porta, plantada no meio da parede
+    const L = 1.35;             // avanço sobre a rua
+    const H = 1.35;
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(L, H), mat);
     // com rotação θ, o +X local vira (cos θ, 0, −sen θ). Quero +X = normal da
     // parede (dc,0,dr), p/ a borda esquerda do desenho encostar nela.
     pl.rotation.y = Math.atan2(-dr, dc);
     const fx = c * CELL + dc * (CELL / 2 + 0.04);
     const fz = r * CELL + dr * (CELL / 2 + 0.04);
-    pl.position.set(fx + dc * (L / 2), 2.75, fz + dr * (L / 2));
+    pl.position.set(fx + dc * (L / 2), 3.15, fz + dr * (L / 2));
     pl.renderOrder = 4;
     this.world.add(pl);
   }
@@ -5360,8 +5362,10 @@ export class Game {
         const box = new THREE.Mesh(new THREE.BoxGeometry(CELL, bh, CELL), mat);
         box.position.set(c * CELL, y0 + bh / 2, r * CELL);
         this.world.add(box);
-        // blocos menores no topo p/ contorno irregular (pico)
-        if (!dungeon && this.mHash(c, r, 2) > 0.35) {
+        // blocos menores no topo p/ contorno irregular (pico). Só BEM NO ALTO:
+        // antes eles brotavam também na altura do olho e o maciço avançava por
+        // cima da rua, como se a montanha estivesse desabando na cidade.
+        if (!dungeon && !bordersStreet(c, r) && this.mHash(c, r, 2) > 0.35) {
           const s = 1.6 + this.mHash(c, r, 3) * 1.8;
           const chunk = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), rockOf(c, r));
           chunk.position.set(
@@ -9855,12 +9859,18 @@ export class Game {
     w: number,
     h: number,
     y: number,
+    // AFASTAMENTO da parede. O PAINEL DE FACHADA é uma parede, não um adorno:
+    // ele tem de ficar rente (0,02). Os decalques de verdade — janela, porta,
+    // hera, tabuleta — ficam à frente dele (0,05+). Quando os dois estavam no
+    // MESMO recuo, brigavam pelo mesmo pixel de profundidade: as janelas piscavam
+    // e as PORTAS DAS LOJAS sumiam atrás do painel.
+    recuo = 0.05,
   ) {
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     plane.position.set(
-      c * CELL + dc * (CELL / 2 + 0.05),
+      c * CELL + dc * (CELL / 2 + recuo),
       y,
-      r * CELL + dr * (CELL / 2 + 0.05),
+      r * CELL + dr * (CELL / 2 + recuo),
     );
     plane.rotation.y =
       dc === 1 ? Math.PI / 2 : dc === -1 ? -Math.PI / 2 : dr === 1 ? 0 : Math.PI;

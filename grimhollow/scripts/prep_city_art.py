@@ -68,7 +68,7 @@ def inunda_da_borda(mask: np.ndarray) -> np.ndarray:
     return fora
 
 
-def recorta_xadrez(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def recorta_xadrez(rgb: np.ndarray, vidro_direita: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """
     Transforma o xadrez PINTADO em transparência de verdade.
 
@@ -92,6 +92,7 @@ def recorta_xadrez(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     inflariam o desvio e ficariam meio transparentes.
     """
     v = rgb.astype(np.float32).mean(2)
+    vao = None
     b_claro = float(np.median(v[v > 235]))
     b_escuro = float(np.median(v[(v > 165) & (v < 225)]))
     amp = (b_claro - b_escuro) / 2
@@ -122,13 +123,32 @@ def recorta_xadrez(rgb: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     alpha[alpha < 0.16] = 0.0
     alpha[alpha > 0.90] = 1.0
 
-    # (não fecho os vãos internos: o triângulo entre o braço e a mão-francesa da
-    #  lanterna é vazado de verdade e tem de continuar vazado. O vidro fica com um
-    #  pouco de translucidez, que é o que ele é mesmo.)
+    # VIDRO OPACO — mas só na METADE DIREITA. O xadrez aparece através do vidro no
+    # original, e de perto, no jogo, ele lê como um quadriculado dentro da
+    # lanterna. Fechar TODO vão interno resolveria o vidro e estragaria o
+    # triângulo vazado entre o braço e a mão-francesa, que fica na metade
+    # esquerda — daí a divisão. (Só vale p/ arte que tem corpo à direita; sem
+    # `--vidro` nada disso roda.)
+    if vidro_direita:
+        H2, W2 = alpha.shape
+        dir_ = np.zeros((H2, W2), bool)
+        dir_[:, int(W2 * 0.45):] = True
+        # limiar ALTO: o que interessa é tudo que não é ferro maciço, porque o
+        # xadrez marcou tanto o alfa quanto a COR — os quadrados claros tinham
+        # ficado opacos e continuavam desenhando o quadriculado no vidro.
+        quase = alpha < 0.985
+        vao = dir_ & quase & ~inunda_da_borda(quase)
+        if vao.any():
+            print(f"    vidro fechado: {int(vao.sum())} px")
+            alpha[vao] = 1.0
     a3 = alpha[..., None]
     base = np.where(a3 > 0.02, (lo[..., None] - (1 - a3) * b_med) / np.maximum(a3, 0.02), 0.0)
     # onde é sólido, a cor é a do próprio pixel (a média local borraria o desenho)
     C = np.where(a3 > 0.93, rgb.astype(np.float32), base)
+    # no vidro a cor vem da MÉDIA local, que já é lisa: é ela que apaga a
+    # ondulação do xadrez que sobrava desenhada nos quadrados claros
+    if vidro_direita and vao is not None and vao.any():
+        C = np.where(vao[..., None], lo[..., None] * 0.86, C)
     return np.clip(C, 0, 255).astype(np.uint8), (alpha * 255).astype(np.uint8)
 
 
@@ -208,7 +228,7 @@ def main() -> None:
     rgb, alpha = a[..., :3], a[..., 3]
 
     if "--prop" in sys.argv:
-        rgb, alpha = recorta_xadrez(rgb)
+        rgb, alpha = recorta_xadrez(rgb, "--vidro" in sys.argv)
         op = (alpha > 250).mean() * 100
         meio = ((alpha > 20) & (alpha < 235)).mean() * 100
         print(f"    recorte: {(alpha == 0).mean() * 100:.1f}% transparente, "
