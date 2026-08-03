@@ -81,6 +81,7 @@ import {
 } from "./showcase";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
+import { net, type PeerState } from "./net";
 import { audio } from "./audio";
 import {
   ROOM,
@@ -189,6 +190,12 @@ import texA2FloorUrl from "../assets/env/tex_a2floor.png";
 import texA2CeilUrl from "../assets/env/tex_a2ceil.png";
 import decMushroomUrl from "../assets/env/dec_mushroom.png";
 import portalGifUrl from "../assets/ui/fx/portal.gif";
+// avatares dos OUTROS jogadores (co-op). Placeholders com fundo transparente até
+// existirem artes próprias — `avatar_<classe>.png` em assets/npc/ tem prioridade.
+import avGuerreiroUrl from "../assets/npc/gunther.png";
+import avLadinoUrl from "../assets/npc/lyle.png";
+import avMagoUrl from "../assets/npc/alquimista.png";
+import avClerigoUrl from "../assets/npc/anselmo.png";
 import deathPoofUrl from "../assets/env/death_poof.png";
 // perfis dos inimigos (arte + stats FIXOS + tamanho + alcance de visão).
 // arqueiro/cultista ainda atacam corpo-a-corpo (à distância fica p/ depois).
@@ -1040,6 +1047,17 @@ const A2OPT_GLOB = import.meta.glob("../assets/env/tex_a2{wall_clean,ceil_2}.png
 }) as Record<string, string>;
 const a2OptUrl = (name: string): string | undefined => A2OPT_GLOB[`../assets/env/${name}.png`];
 
+// CO-OP: arte do avatar dos outros jogadores, por classe. Se existir
+// `avatar_<classe>.png` em assets/npc/ ela vence; senão usa o placeholder.
+const AVATAR_GLOB = import.meta.glob("../assets/npc/avatar_*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
+const AVATAR_FALLBACK: Record<string, string> = {
+  guerreiro: avGuerreiroUrl, ladino: avLadinoUrl, mago: avMagoUrl, clerigo: avClerigoUrl,
+};
+const avatarArt = (classId: string): string =>
+  AVATAR_GLOB[`../assets/npc/avatar_${classId}.png`] ?? AVATAR_FALLBACK[classId] ?? avGuerreiroUrl;
+
 const DLG_MAX = 96;
 function paginate(lines: string[], max = DLG_MAX): string[] {
   const pages: string[] = [];
@@ -1088,6 +1106,20 @@ type Target =
   | { kind: "waypoint" } // portal FIXO da cidade (arco de pedra) → viaja p/ masmorra
   | { kind: "portalback" } // portal TEMPORÁRIO de retorno → volta ao ponto da masmorra
   | null;
+
+// CO-OP: avatar de outro jogador (billboard + sombra + plaquinha), com a posição
+// VISUAL interpolada até a célula que ele publicou.
+interface PeerRig {
+  group: THREE.Group;
+  mesh: THREE.Mesh;
+  tag: THREE.Sprite;
+  name: string;
+  classId: string;
+  c: number; r: number;       // célula-alvo (a última publicada)
+  bx: number; bz: number;     // posição visual atual (interpolada)
+  h: number;                  // altura do billboard
+  seenAt: number;             // última atualização (p/ sumir se travar)
+}
 
 // baú 2D (billboard) da masmorra: estado + refs p/ animar o chocalho e a abertura
 type ChestRec = {
@@ -1262,6 +1294,11 @@ export class Game {
   private outdoor = false; // local atual participa do ciclo dia/noite?
   private _sky = new THREE.Color(); // cor da atmosfera reaproveitada por quadro
   private waterGlint?: THREE.Mesh; // (legado) reflexo da água — poço removido
+  // ---- CO-OP · FASE 1: avatares dos outros jogadores na mesma zona ----
+  // Cada amigo vira um billboard + plaquinha de nome que desliza suavemente até a
+  // célula publicada por ele (a rede manda célula, não posição contínua).
+  private peers = new Map<string, PeerRig>();
+  private peerZone = ""; // zona em que estamos publicando (vila / dungeon:N / …)
   // ---- PORTAL / WAYPOINT (estilo PoE/Diablo) ----
   // portal FIXO da cidade (arco de pedra em plataforma elevada). O vão só é preenchido
   // pelo GIF quando ATIVO — e ele DESTRAVA ao derrotar o 1º chefe. Enquanto isso o
@@ -1609,6 +1646,9 @@ export class Game {
       (slot) => this.unequipArmor(slot as ArmorSlot), // clicou no boneco → desequipa
     );
     this.initMainQuests(); // "A Névoa Devoradora": cap.1 disponível, resto trancado
+    // CO-OP · FASE 1: recebe a lista de quem está na mesma zona. Só liga de fato se
+    // houver conta na nuvem (o Convidado joga sozinho) — ver setCoop().
+    net.onPeers((list) => this.onPeers(list));
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
       this.onCanvasPointer(e),
@@ -1776,6 +1816,105 @@ export class Game {
     this.updateMusic(); // trilha do vilarejo toca na vila e nos interiores
     this.mainQuestOnEnter(loc as string); // etapa "enter" (ex.: Santuário) do capítulo ativo
     this.maybeShowIntro(); // narração de abertura na 1ª vez que a vila carrega
+    this.netEnterZone(); // CO-OP: publica a nova zona e recarrega os avatares
+  }
+
+  // Liga/desliga o co-op. Quem entra como CONVIDADO joga sozinho; com conta na
+  // nuvem, passa a publicar a própria posição e a ver quem está na mesma zona.
+  public setCoop(on: boolean): void {
+    net.enable(on);
+    if (on) this.netEnterZone();
+    else { void net.leave(); this.clearPeers(); this.pushMinimap(); }
+  }
+
+  // ================= CO-OP · FASE 1 — "ver os amigos" ==================
+  // Zona = o "canal" em que estamos. Andares da masmorra são zonas separadas;
+  // interiores também (quem entra na taverna some da praça, como esperado).
+  private netZoneKey(): string {
+    return this.location === "dungeon" ? `dungeon:${this.dungeonFloor}` : String(this.location);
+  }
+  private netSelf(): PeerState {
+    return {
+      id: `${this.saveSlot}:${this.playerName || "heroi"}`,
+      name: this.playerName || "Viajante",
+      classId: this.classId,
+      level: this.stats.level,
+      col: this.col, row: this.row, facing: this.facing,
+    };
+  }
+  // troca de zona: descarta os avatares da anterior e entra no canal da nova
+  private netEnterZone(): void {
+    const zone = this.netZoneKey();
+    this.clearPeers();
+    this.peerZone = zone;
+    void net.join(zone, this.netSelf());
+  }
+  // publica a nossa célula/direção (chamado no fim de cada passo/giro)
+  private netMove(): void {
+    if (this.peerZone) net.move(this.col, this.row, this.facing);
+  }
+  private clearPeers(): void {
+    for (const rig of this.peers.values()) this.scene.remove(rig.group);
+    this.peers.clear();
+  }
+  // recebe a lista de quem está na zona e cria/atualiza/remove os avatares
+  private onPeers(list: PeerState[]): void {
+    const vistos = new Set<string>();
+    for (const p of list) {
+      vistos.add(p.id);
+      let rig = this.peers.get(p.id);
+      if (!rig) { rig = this.makePeerRig(p); this.peers.set(p.id, rig); }
+      rig.c = p.col; rig.r = p.row; rig.seenAt = this.now;
+    }
+    for (const [id, rig] of [...this.peers]) {
+      if (!vistos.has(id)) { this.scene.remove(rig.group); this.peers.delete(id); }
+    }
+    this.pushMinimap(); // os amigos aparecem no minimapa
+  }
+  // cria o billboard + sombra + plaquinha de um amigo
+  private makePeerRig(p: PeerState): PeerRig {
+    const group = new THREE.Group();
+    const h = 2.4, w = h * 0.671; // mesmo enquadramento dos aldeões (arte 848x1264)
+    const mat = new THREE.MeshLambertMaterial({
+      transparent: true, opacity: 0, alphaTest: 0.4, side: THREE.DoubleSide,
+    });
+    this.loadArt(avatarArt(p.classId), (t) => { mat.map = t; mat.opacity = 1; mat.needsUpdate = true; });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    mesh.position.y = h / 2 - h * 0.015 + 0.06;
+    group.add(mesh);
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(w * 0.95, w * 0.55),
+      new THREE.MeshBasicMaterial({ map: this.shadowTex(), transparent: true, depthWrite: false, opacity: 0.5 }),
+    );
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; group.add(shadow);
+    const tag = this.makeNameTag(p.name);
+    tag.position.y = h + 0.22; group.add(tag);
+    // fica na CENA (não em `world`), senão o world.clear() da troca de local o apaga
+    group.position.set(p.col * CELL, 0, p.row * CELL);
+    this.scene.add(group);
+    return {
+      group, mesh, tag, name: p.name, classId: p.classId,
+      c: p.col, r: p.row, bx: p.col * CELL, bz: p.row * CELL, h, seenAt: this.now,
+    };
+  }
+  // desliza cada avatar até a célula publicada e o faz encarar a câmera
+  private updatePeers(now: number): void {
+    if (!this.peers.size) return;
+    const cx = this.camera.position.x, cz = this.camera.position.z;
+    for (const rig of this.peers.values()) {
+      const tx = rig.c * CELL, tz = rig.r * CELL;
+      // interpolação simples: aproxima ~18% do restante por quadro (suave e estável
+      // mesmo se um pacote atrasar). Se estiver MUITO longe, teleporta.
+      const far = Math.abs(tx - rig.bx) + Math.abs(tz - rig.bz) > CELL * 6;
+      if (far) { rig.bx = tx; rig.bz = tz; }
+      else { rig.bx += (tx - rig.bx) * 0.18; rig.bz += (tz - rig.bz) * 0.18; }
+      rig.group.position.set(rig.bx, 0, rig.bz);
+      // billboard: encara a câmera no eixo Y
+      const ang = Math.atan2(cx - rig.bx, cz - rig.bz);
+      rig.mesh.rotation.y = ang;
+      // leve "respiração" p/ não parecer um decalque parado
+      rig.mesh.position.y = (rig.h / 2 - rig.h * 0.015 + 0.06) + Math.sin(now * 0.0022) * 0.02;
+    }
   }
   // (a narração de abertura agora acontece na sequência de ACORDAR, não na vila)
   private maybeShowIntro() { /* substituído por startWake/startWakeDialogue */ }
@@ -4222,6 +4361,7 @@ export class Game {
 
   // ao chegar numa célula (fim do passo): abre 1× o popup de item caído aqui.
   private onArriveCell() {
+    this.netMove(); // CO-OP: avisa os amigos da nossa nova célula
     this.ui.hidePickupList(); // saiu da célula anterior → fecha a lista de saque
     const d = this.itemDropAt(this.col, this.row);
     if (d && !d.opened) { d.opened = true; this.openDropPopup(d); }
@@ -7884,6 +8024,9 @@ export class Game {
       // o baú da Hedda aparece no mapa do interior dela
       if (this.stashCell) pois.push({ c: this.stashCell.col, r: this.stashCell.row, kind: "chest", label: "Baú" });
     }
+    // CO-OP: os amigos que estão na mesma zona aparecem no minimapa, pelo nome
+    for (const rig of this.peers.values())
+      pois.push({ c: rig.c, r: rig.r, kind: "npc", label: rig.name });
     return pois;
   }
   private pushMinimap() {
@@ -8818,6 +8961,7 @@ export class Game {
     if (a === "turnLeft" || a === "turnRight") {
       const d = a === "turnLeft" ? 1 : -1;
       this.facing = (this.facing + (d === 1 ? 3 : 1)) % 4;
+      this.netMove(); // CO-OP: publica a nova direção
       this.pushMinimap();
       this.anim = {
         kind: "turn",
@@ -9450,6 +9594,7 @@ export class Game {
     this.updateChests(now); // baús: chocalho + abertura (roda depois do billboard)
     this.updateWakeWalk(now); // caminhada roteirizada da Hedda ao acordar
     this.updateBeacon(now); // facho-guia da missão sobre a célula de destino
+    this.updatePeers(now);  // CO-OP: desliza os avatares dos amigos
     this.updateDrops(now); // itens/ouro caídos: flutuar + facho + recolher ouro auto
     // retículo de mira segue o alvo selecionado (levemente à frente do sprite,
     // na direção da câmera, p/ não brigar em profundidade com o inimigo)

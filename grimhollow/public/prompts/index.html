@@ -1414,6 +1414,30 @@ subsistema. A </em><em>comida</em><em> vira consumível </em><em>comprado pronto
 <li>Produção <strong>incremental</strong>: começa pelos tiers 1–3 (cobre o começo do jogo) e
   cresce conforme o conteúdo alcança os níveis maiores.</li>
 </ul>
+<hr />
+<h2 id="26--co-op--avatares-dos-outros-jogadores---arte-pendente">26 · CO-OP — avatares dos outros jogadores — 🟡 arte pendente</h2>
+<p>Na <strong>Fase 1 do co-op</strong> ("ver os amigos"), cada jogador aparece para os outros como
+um <strong>billboard 2D</strong> com plaquinha de nome, igual aos aldeões. Hoje isso usa <strong>arte
+de NPC emprestada</strong> como provisório (o Gunther faz de guerreiro, etc.).</p>
+<p>Estas quatro peças substituem os provisórios. Salve como
+<code>avatar_guerreiro.png</code>, <code>avatar_ladino.png</code>, <code>avatar_mago.png</code> e
+<code>avatar_clerigo.png</code> em <code>src/assets/npc/</code> — a engine já prefere esses arquivos
+automaticamente quando eles existem.</p>
+<p><strong>Regra comum (igual à dos aldeões):</strong> corpo INTEIRO, <strong>de frente</strong>, pés na
+borda de baixo, proporção retrato <strong>~848×1264</strong>, fundo <strong>100% transparente</strong>,
+recorte limpo, sem sombra projetada, sem chão, sem texto.</p>
+<h3 id="-261--avatar_guerreiro">🟡 26.1 — <code>avatar_guerreiro</code></h3>
+<pre><code>A full-body HUMAN WARRIOR adventurer standing at ease and FACING THE VIEWER, worn steel plate over chainmail, tattered dark cloak, a longsword sheathed at the hip and a round wooden shield on the back, scarred weathered face, feet flat at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
+</code></pre>
+<h3 id="-262--avatar_ladino">🟡 26.2 — <code>avatar_ladino</code></h3>
+<pre><code>A full-body HUMAN ROGUE adventurer standing alert and FACING THE VIEWER, dark leather armor with hood down, twin daggers at the belt, travel straps and pouches, lean and watchful, feet flat at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
+</code></pre>
+<h3 id="-263--avatar_mago">🟡 26.3 — <code>avatar_mago</code></h3>
+<pre><code>A full-body HUMAN MAGE adventurer standing calmly and FACING THE VIEWER, deep blue and grey robes with worn hems, a gnarled wooden staff topped with a dim crystal, satchel of scrolls at the side, feet at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
+</code></pre>
+<h3 id="-264--avatar_clerigo">🟡 26.4 — <code>avatar_clerigo</code></h3>
+<pre><code>A full-body HUMAN CLERIC adventurer standing solemnly and FACING THE VIEWER, pale robes over light mail, a heavy mace in one hand and a lantern or holy symbol in the other, hood back, devout weary expression, feet at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
+</code></pre>
 <div class="foot">Nethergloam — referência de arte gerada a partir de PROMPTS.md · atualiza sozinho a cada deploy do jogo</div>
 </div>
 <script>

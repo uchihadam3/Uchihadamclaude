@@ -1,6 +1,10 @@
 import { Game } from "./game/Game";
 import { runIntro } from "./game/screens";
-import { backend as saveBackend } from "./game/save";
+import { backend as saveBackend, localBackend } from "./game/save";
+
+// CO-OP: só liga p/ quem entrou com CONTA (o Convidado usa o backend local e
+// joga sozinho) — assim ninguém aparece na praça sem ter feito login.
+const coopOn = () => saveBackend !== localBackend;
 
 // build tag: efeito colateral real (não é removido pelo tree-shaking) p/ gerar
 // um nome de bundle NOVO e furar o cache do CDN/navegador.
@@ -26,10 +30,12 @@ if (qs.has("show")) {
         if (!save) { location.reload(); return; } // save sumiu → recomeça o fluxo
         const g = new Game(app, { name: save.name, classId: save.classId, attr: save.baseAttr }, "load");
         g.loadSave(save);
+        g.setCoop(coopOn());
       });
     } else {
       const g = new Game(app, res.character);
       g.startNewCharacter(res.slot);
+      g.setCoop(coopOn());
     }
   });
 }
