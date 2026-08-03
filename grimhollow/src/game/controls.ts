@@ -3772,15 +3772,22 @@ function injectStyle() {
     position:fixed; z-index:30; pointer-events:auto; width:min(292px,86vw);
     box-sizing:border-box; padding:0; text-align:center;
     /* MOLDURA do jogo (mesma das outras janelas), SEM 'fill' → a arte faz a borda e
-       o interior fica escuro, no estilo PoE. background-clip evita pintar sob a arte.
-       SLICE 65 = espessura REAL da borda na arte (medida no PNG). Com 92 a tira da
-       beirada levava junto ~27px do interior e, esticada, aparecia uma emenda dobrada. */
+       o interior fica escuro, no estilo PoE. SLICE 65 = espessura REAL da borda na
+       arte (medida no PNG); com 92 a tira da beirada levava ~27px do interior junto. */
     border:22px solid transparent; border-image:url(${eqFrameUrl}) 65;
-    background:rgba(6,5,6,.95); background-clip:padding-box;
+    background:none; /* o painel escuro é o ::before (ver abaixo) */
     filter:drop-shadow(0 12px 30px rgba(0,0,0,.75));
     color:#c9c9c9; font-family:"Cinzel",Georgia,serif;
   }
   #gh-itip.gh-itip-hidden { display:none; }
+  /* PAINEL ESCURO: a abertura do PNG é ARREDONDADA, então uma caixa quadrada parando
+     no limite interno deixa um vão nas quinas (aparecia o cenário). Este painel tem
+     quinas arredondadas e AVANÇA por baixo da moldura (inset negativo), então não
+     sobra vão em canto nenhum. z-index:-1 → a arte da moldura pinta por cima dele. */
+  #gh-itip::before {
+    content:""; position:absolute; inset:-12px; z-index:-1;
+    background:rgba(6,5,6,.96); border-radius:16px;
+  }
   /* cabeçalho: faixa tingida pela raridade, nome CENTRALIZADO + tipo-base */
   .gh-itip-hdr {
     padding:10px 10px 9px; position:relative;
@@ -4100,12 +4107,17 @@ function injectStyle() {
   #gh-plist .gh-pl-win {
     pointer-events:auto; min-width:min(310px,82vw); max-width:min(370px,88vw);
     max-height:94vh; box-sizing:border-box; color:#e8dcc0; /* nunca estoura a tela */
-    display:flex; flex-direction:column;
+    display:flex; flex-direction:column; position:relative; /* âncora do ::before */
     /* MESMA moldura das outras janelas (sem 'fill') + interior escuro.
        SLICE 65 = espessura real da borda na arte (ver comentário no #gh-itip). */
     border:20px solid transparent; border-image:url(${eqFrameUrl}) 65;
-    background:rgba(6,5,6,.95); background-clip:padding-box;
+    background:none; /* o painel escuro é o ::before */
     filter:drop-shadow(0 10px 30px rgba(0,0,0,.7));
+  }
+  /* painel escuro arredondado, avançando por baixo da moldura (ver #gh-itip::before) */
+  #gh-plist .gh-pl-win::before {
+    content:""; position:absolute; inset:-11px; z-index:-1;
+    background:rgba(6,5,6,.96); border-radius:15px;
   }
   #gh-plist .gh-pl-hd {
     font-family:"Cinzel",serif; font-weight:700; text-align:center; color:#f0d074;
