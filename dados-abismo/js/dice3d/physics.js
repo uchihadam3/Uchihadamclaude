@@ -50,7 +50,7 @@ export class Dado {
     this.q = [ s1*Math.sin(u2), s1*Math.cos(u2), s2*Math.sin(u3), s2*Math.cos(u3) ];
     this.dormindo=false; this._quietos=0; this.impactos.length=0;
   }
-  passo(dt, mesa){
+  passo(dt, mesa, obstaculos){
     if(this.dormindo) return;
     this.v[1] += G*dt;
     this.p[0]+=this.v[0]*dt; this.p[1]+=this.v[1]*dt; this.p[2]+=this.v[2]*dt;
@@ -97,6 +97,24 @@ export class Dado {
         }
         tocou=true;
         if(-vn > 0.9) this.impactos.push({ vel:-vn, pos:wp.slice() });   // som/partícula
+      }
+    }
+    // ---- colisão contra dados JÁ ASSENTADOS (§11.1) ----
+    if(obstaculos && obstaculos.length){
+      for(const o of obstaculos){
+        const dx=this.p[0]-o.p[0], dy=this.p[1]-o.p[1], dz=this.p[2]-o.p[2];
+        const dist=Math.hypot(dx,dy,dz), min=(this.r+o.r)*0.90;
+        if(dist>=min || dist<1e-6) continue;
+        const n=[dx/dist,dy/dist,dz/dist], pen=min-dist;
+        this.p[0]+=n[0]*pen; this.p[1]+=n[1]*pen; this.p[2]+=n[2]*pen;
+        const vn=this.v[0]*n[0]+this.v[1]*n[1]+this.v[2]*n[2];
+        if(vn<0){
+          const j=-(1+0.30)*vn;
+          this.v[0]+=n[0]*j; this.v[1]+=n[1]*j; this.v[2]+=n[2]*j;
+          this.w[0]+=(n[2]*j)*0.9; this.w[2]-=(n[0]*j)*0.9;   // bate e RODA
+          tocou=true; this._quietos=0;
+          if(-vn>0.8) this.impactos.push({vel:-vn,pos:this.p.slice(),dado:true});
+        }
       }
     }
     const ka = tocou ? AMORT_CONTATO : AMORT_ANG;
@@ -149,13 +167,13 @@ export function simularBolsa(dados, rng, mesa, maxPassos=900, dt=1/120){
   return trilhas;
 }
 
-export function simular(dado, rng, mesa, maxPassos=900, dt=1/120, alvo=null){
+export function simular(dado, rng, mesa, maxPassos=900, dt=1/120, alvo=null, obstaculos=null){
   const ax = alvo ? alvo[0] : (mesa? (rng()*2-1)*mesa.x*0.45 : 0);
   const az = alvo ? alvo[1] : (mesa? (rng()*2-1)*mesa.z*0.45 : 0);
   dado.lancar(rng, ax, az, mesa);
   const trilha=[];
   for(let i=0;i<maxPassos;i++){
-    dado.passo(dt, mesa);
+    dado.passo(dt, mesa, obstaculos);
     trilha.push({ p:dado.p.slice(), q:dado.q.slice(), imp:dado.impactos.splice(0) });
     if(dado.dormindo) break;
   }

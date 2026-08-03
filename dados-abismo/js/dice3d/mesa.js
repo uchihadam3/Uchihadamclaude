@@ -2,7 +2,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { criarMalhaDado, criarMesa, luzes } from './render.js';
 import { rolarPara } from './roll.js';
-import { poliedro } from './geometry.js';
+import { poliedro, raioDe } from './geometry.js';
 import { makeDie, MATERIAIS, resetDieIds } from '../data/dice.js';
 import { FACE_KINDS } from '../data/faces.js';
 import { makeRNG } from '../rng.js';
@@ -35,7 +35,7 @@ function montar(){
   malhas=[]; resetDieIds();
   for(let i=0;i<nDados;i++){
     const d = makeDie(tipo, material);
-    const m = criarMalhaDado(d, 0.5);
+    const m = criarMalhaDado(d, raioDe(d.tipo));
     m.position.set((i-(nDados-1)/2)*1.25, 0.5, 0);
     scene.add(m); malhas.push(m);
   }
@@ -59,13 +59,16 @@ function rolar(){
   if(rolando) return; rolando=true;
   const t0=performance.now();
   trilhas=[];
-  const zonas = zonasDeQueda(malhas.length);     // cada dado tem seu lugar: nunca empilham
+  const zonas = zonasDeQueda(malhas.length);
+  const obst=[];                                  // dados já assentados = obstáculos sólidos
   for(let i=0;i<malhas.length;i++){
     const die = malhas[i].userData.die;
     const nF = poliedro(die.tipo).faces.length;
-    const alvo = rng.int(nF);                    // ← o "motor de regras" sorteia AQUI
-    const r = rolarPara(die.tipo, alvo, rng.int(1e9), MESA, 180, zonas[i]);
-    trilhas.push({ tr:r.trilha, alvo, exato:r.exato, tent:r.tentativas });
+    const alvo = rng.int(nF);                     // ← o "motor de regras" sorteia AQUI
+    const raio = raioDe(die.tipo);
+    const r = rolarPara(die.tipo, alvo, rng.int(1e9), MESA, 180, zonas[i], obst.slice(), raio);
+    trilhas.push({ tr:r.trilha, alvo, exato:r.exato, tent:r.tentativas, atraso:i*0.085 });
+    if(r.fim) obst.push({ p:r.fim, r:raio });     // entra como obstáculo do próximo
   }
   const busca=(performance.now()-t0).toFixed(0);
   document.getElementById('perf').textContent = `busca ${busca}ms · ${trilhas.reduce((a,b)=>a+b.tent,0)} tentativas`;
@@ -79,8 +82,11 @@ function rolar(){
     quadro = Math.floor(tempo/DT);
     let vivos=false;
     trilhas.forEach((t,i)=>{
-      const f = Math.min(quadro, t.tr.length-1);
-      if(quadro < t.tr.length) vivos=true;
+      const q = quadro - Math.round(t.atraso/DT);      // atraso: os dados não caem todos juntos
+      if(q < 0){ malhas[i].visible = false; vivos = true; return; }
+      malhas[i].visible = true;
+      const f = Math.min(q, t.tr.length-1);
+      if(q < t.tr.length) vivos=true;
       const s = t.tr[f];
       malhas[i].position.set(s.p[0]+t.offX, s.p[1], s.p[2]+t.offZ);
       malhas[i].quaternion.set(s.q[0],s.q[1],s.q[2],s.q[3]);

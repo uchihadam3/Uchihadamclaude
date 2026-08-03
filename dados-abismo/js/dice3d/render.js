@@ -50,7 +50,15 @@ function geometriaDado(tipo, faces, raio){
     const u0=(fi%cols)/cols, v0=1-(Math.floor(fi/cols)+1)/rows;
     const du=1/cols, dv=1/rows;
     // raio REAL da face (não do dado) — sem isso o UV estilhaça em d10/d12
-    const Rface = Math.max(...pts.map(p=>Math.hypot(p[0]-c[0],p[1]-c[1],p[2]-c[2]))) * 1.06;
+    // raio ÚTIL da face = distância do centro às ARESTAS (incírculo).
+    // Usar a distância aos vértices estourava o número em faces triangulares.
+    let Rin = Infinity;
+    for(let k=0;k<pts.length;k++){
+      const a=pts[k], b=pts[(k+1)%pts.length];
+      const mx=(a[0]+b[0])/2-c[0], my=(a[1]+b[1])/2-c[1], mz=(a[2]+b[2])/2-c[2];
+      Rin=Math.min(Rin, Math.hypot(mx,my,mz));
+    }
+    const Rface = Rin * 1.34;   // o glifo ocupa ~75% do incírculo
     // base ortonormal ESTÁVEL do plano da face
     let ax0 = [pts[0][0]-c[0], pts[0][1]-c[1], pts[0][2]-c[2]];
     const m0 = Math.hypot(...ax0)||1; ax0 = ax0.map(x=>x/m0);

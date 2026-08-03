@@ -92,6 +92,14 @@ function build(V,F){
   });
   return { verts:V, faces };
 }
+/* RAIO por tipo: iguala a ALTURA DE REPOUSO (inraio) para todos os dados
+   ficarem do mesmo porte na mesa — como num conjunto de dados de verdade. */
+const INRAIO={d4:0.333,d6:0.577,d8:0.577,d10:0.612,d12:0.795};
+export function raioDe(tipo, alvo=0.335){
+  const ir=INRAIO[tipo]||0.577;
+  // mesma ALTURA DE REPOUSO p/ todos = mesmo porte na mesa; teto p/ o d4 não virar torre
+  return Math.min(alvo/ir, 0.78);
+}
 const CACHE={};
 export function poliedro(tipo){
   if(CACHE[tipo]) return CACHE[tipo];
