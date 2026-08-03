@@ -58,16 +58,178 @@ function toast(msg, kind){
 }
 
 // =========================================================================
+// MODO DEMO (sem Supabase) — roda tudo no navegador, com bots pra atacar.
+// Replica exatamente as fórmulas do schema.sql. Persiste em localStorage.
+// Só serve pra testar sozinho: nada aqui é seguro/anti-trapaça (é o servidor
+// quem faz isso quando o Supabase está configurado).
+// =========================================================================
+let DEMO = false;
+const DEMO_KEY = "idlewars_demo_v1";
+
+const Demo = {
+  db: null,
+  load(){
+    if(this.db) return this.db;
+    const raw = localStorage.getItem(DEMO_KEY);
+    this.db = raw ? JSON.parse(raw) : { me:null, bots:[], battles:[] };
+    return this.db;
+  },
+  save(){ localStorage.setItem(DEMO_KEY, JSON.stringify(this.db)); },
+
+  newPlayer(id, nick, over){
+    return Object.assign({
+      id, nickname:nick, gold:50, wood:50,
+      mine_lvl:1, sawmill_lvl:1, farm_lvl:1, barracks_lvl:1, warehouse_lvl:1, wall_lvl:1,
+      inf:0, arc:0, cav:0,
+      last_tick:Date.now(), shield_until:Date.now()+30*60000,
+      attack_cooldown_until:0, created_at:Date.now(),
+      _base:{inf:0,arc:0,cav:0}   // baseline pra bots regenerarem tropas
+    }, over||{});
+  },
+  seedBots(){
+    const B = (id,nick,o)=> this.newPlayer(id,nick,Object.assign(
+      { shield_until:0, gold:600, wood:600 }, o,
+      { _base:{ inf:o.inf||0, arc:o.arc||0, cav:o.cav||0 } }));
+    this.db.bots = [
+      B("bot-1","Konoha_Genin",  { mine_lvl:2, sawmill_lvl:2, farm_lvl:2, wall_lvl:1, inf:8,  arc:4,  cav:0 }),
+      B("bot-2","Akatsuki_Ronin",{ mine_lvl:3, sawmill_lvl:3, farm_lvl:3, wall_lvl:2, barracks_lvl:2, inf:12, arc:10, cav:4 }),
+      B("bot-3","Sannin_Orochi", { mine_lvl:4, sawmill_lvl:3, farm_lvl:4, wall_lvl:3, barracks_lvl:3, inf:20, arc:14, cav:10 }),
+      B("bot-4","Aldeia_Areia",  { mine_lvl:2, sawmill_lvl:2, farm_lvl:2, wall_lvl:1, inf:5,  arc:2,  cav:1 }),
+    ];
+  },
+
+  _syncRes(p){
+    const elapsed = Math.max(0, (Date.now() - p.last_tick)/1000);
+    const g = gps(p.mine_lvl), w = wps(p.sawmill_lvl), c = cap(p.warehouse_lvl);
+    p.gold = p.gold >= c ? p.gold : Math.min(c, p.gold + g*elapsed);
+    p.wood = p.wood >= c ? p.wood : Math.min(c, p.wood + w*elapsed);
+    // bots regeneram tropas devagar rumo ao baseline (~1 tropa a cada 25s)
+    if(p._base){
+      const regen = Math.floor(elapsed/25);
+      if(regen>0){
+        for(const k of ["inf","arc","cav"]) p[k] = Math.min(p._base[k], p[k]+regen);
+      }
+    }
+    p.last_tick = Date.now();
+  },
+
+  // --- API espelhando as RPCs do servidor. Retorna {data,error} como o supabase. ---
+  ok(d){ return { data:d, error:null }; },
+  fail(msg){ return { data:null, error:{ message:msg } }; },
+
+  join_game({ p_nick }){
+    this.load();
+    if(!this.db.me){
+      this.db.me = this.newPlayer("me", p_nick);
+      this.seedBots();
+      this.save();
+    }
+    return this.ok(this.db.me);
+  },
+  get_state(){
+    this.load();
+    if(!this.db.me) return this.fail("Sem jogador");
+    this._syncRes(this.db.me); this.save();
+    return this.ok(this.db.me);
+  },
+  list_targets(){
+    this.load();
+    this.db.bots.forEach(b=>this._syncRes(b)); this.save();
+    return this.ok(this.db.bots.map(b=>({
+      id:b.id, nickname:b.nickname, power:powerOf(b),
+      shielded: b.shield_until > Date.now(), army: b.inf+b.arc+b.cav
+    })));
+  },
+  upgrade_building({ p_key }){
+    const p = this.db.me; this._syncRes(p);
+    const b = BUILDINGS.find(x=>x.key===p_key); if(!b) return this.fail("Edifício inválido");
+    const c = costOf(b, p[p_key+"_lvl"]);
+    if(p.gold < c.g || p.wood < c.w) return this.fail(`Recursos insuficientes (precisa ${c.g} ouro, ${c.w} madeira)`);
+    p.gold -= c.g; p.wood -= c.w; p[p_key+"_lvl"]++; this.save();
+    return this.ok(p);
+  },
+  train_troops({ p_type, p_qty }){
+    const p = this.db.me; this._syncRes(p);
+    const t = TROOPS.find(x=>x.key===p_type); if(!t) return this.fail("Tropa inválida");
+    const popCap = 20*p.farm_lvl, popUsed = p.inf+p.arc+p.cav*2;
+    if(popUsed + t.pop*p_qty > popCap) return this.fail(`População insuficiente (usa ${popUsed}/${popCap}). Melhore a Fazenda.`);
+    if(p.gold < t.g*p_qty) return this.fail(`Ouro insuficiente (precisa ${t.g*p_qty})`);
+    p.gold -= t.g*p_qty; p[p_type] += p_qty; this.save();
+    return this.ok(p);
+  },
+  attack({ p_target, p_inf, p_arc, p_cav }){
+    const a = this.db.me, d = this.db.bots.find(x=>x.id===p_target);
+    if(!d) return this.fail("Alvo inexistente");
+    this._syncRes(a); this._syncRes(d);
+    if(a.attack_cooldown_until > Date.now()) return this.fail("Ataque em recarga. Aguarde antes de atacar de novo.");
+    if(d.shield_until > Date.now()) return this.fail("O alvo está protegido por um escudo.");
+    if(p_inf>a.inf||p_arc>a.arc||p_cav>a.cav) return this.fail("Você não tem tropas suficientes para esse ataque.");
+
+    let att = (p_inf*5 + p_arc*7 + p_cav*10) * (1 + 0.10*(a.barracks_lvl-1));
+    const def = (d.inf*5 + d.arc*4 + d.cav*6 + 10) * (1 + 0.05*(d.wall_lvl-1));
+    const dom = (i,r,c)=> c>=i&&c>=r ? "cav" : (r>=i?"arc":"inf");
+    const aDom = dom(p_inf,p_arc,p_cav), dDom = dom(d.inf,d.arc,d.cav);
+    let comp = 1.0;
+    if((aDom==="inf"&&dDom==="arc")||(aDom==="arc"&&dDom==="cav")||(aDom==="cav"&&dDom==="inf")) comp=1.25;
+    else if((aDom==="arc"&&dDom==="inf")||(aDom==="cav"&&dDom==="arc")||(aDom==="inf"&&dDom==="cav")) comp=0.80;
+    att *= comp;
+
+    const total = att+def; let winner, aFrac, dFrac;
+    if(att>def){ winner="attacker"; aFrac=Math.min(0.90, def/att*0.5); dFrac=Math.min(0.95, Math.max(0.5, 0.5+0.4*(att/total))); }
+    else { winner="defender"; aFrac=Math.min(0.98, Math.max(0.6, 0.6+0.4*(def/total))); dFrac=Math.min(0.85, att/def*0.4); }
+
+    const aL={inf:Math.floor(p_inf*aFrac),arc:Math.floor(p_arc*aFrac),cav:Math.floor(p_cav*aFrac)};
+    const dL={inf:Math.floor(d.inf*dFrac),arc:Math.floor(d.arc*dFrac),cav:Math.floor(d.cav*dFrac)};
+    let lootG=0, lootW=0;
+    if(winner==="attacker"){
+      const vlt=vault(d.warehouse_lvl), ratio=powerOf(d)/Math.max(1,powerOf(a));
+      const fair = ratio<0.5?0.10 : ratio<0.75?0.50 : 1.0;
+      lootG=Math.floor(Math.max(0,d.gold-vlt)*0.20*fair);
+      lootW=Math.floor(Math.max(0,d.wood-vlt)*0.20*fair);
+    }
+    d.inf-=dL.inf; d.arc-=dL.arc; d.cav-=dL.cav; d.gold-=lootG; d.wood-=lootW;
+    d.shield_until = Date.now()+8*3600000;
+    a.inf-=aL.inf; a.arc-=aL.arc; a.cav-=aL.cav; a.gold+=lootG; a.wood+=lootW;
+    a.attack_cooldown_until = Date.now()+10*60000;
+
+    this.db.battles.unshift({
+      id:"b"+Date.now(), attacker_id:a.id, defender_id:d.id,
+      attacker_name:a.nickname, defender_name:d.nickname, winner,
+      loot_gold:lootG, loot_wood:lootW, att_losses:aL, def_losses:dL,
+      created_at:new Date().toISOString()
+    });
+    this.db.battles = this.db.battles.slice(0,30);
+    this.save();
+    return this.ok({ winner, loot_gold:lootG, loot_wood:lootW,
+      att_power:Math.round(att), def_power:Math.round(def),
+      att_dom:aDom, def_dom:dDom, att_losses:aL, def_losses:dL });
+  },
+  get_battles(){ this.load(); return this.ok(this.db.battles); },
+};
+
+// Wrapper: decide entre Supabase (real) e Demo (local).
+async function callRpc(name, args){
+  if(DEMO) return Demo[name](args||{});
+  return sb.rpc(name, args);
+}
+
+// =========================================================================
 // BOOT
 // =========================================================================
 window.addEventListener("DOMContentLoaded", init);
 
 async function init(){
+  el("btn-join").addEventListener("click", join);
+  el("nick").addEventListener("keydown", e=>{ if(e.key==="Enter") join(); });
+
   if(!hasConfig){
+    // Sem Supabase → Modo Demo (local, só você, com bots pra atacar).
+    DEMO = true;
     el("login-status").innerHTML =
-      "⚠️ <b>Falta configurar o Supabase.</b><br>Copie <code>config.example.js</code> para " +
-      "<code>config.js</code> e preencha suas chaves. Veja o <code>README.md</code>.";
-    el("btn-join").disabled = true;
+      "🎮 <b>Modo Demo</b> — roda local no navegador, só pra você testar (com bots). " +
+      "Pra jogar com amigos de verdade, configure o Supabase (veja o <code>README.md</code>).";
+    Demo.load();
+    if(Demo.db.me){ ME = Demo.db.me; enterGame(); }   // retoma sessão local direto
     return;
   }
   sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
@@ -78,8 +240,6 @@ async function init(){
     const { data } = await sb.rpc("get_state");
     if(data){ ME = data; enterGame(); return; }
   }
-  el("btn-join").addEventListener("click", join);
-  el("nick").addEventListener("keydown", e=>{ if(e.key==="Enter") join(); });
 }
 
 async function join(){
@@ -89,13 +249,18 @@ async function join(){
   el("btn-join").disabled = true;
 
   try{
+    if(DEMO){
+      const { data, error } = await callRpc("join_game", { p_nick: nick });
+      if(error) throw error;
+      ME = data; enterGame(); return;
+    }
     // login anônimo (habilite em Authentication -> Providers -> Anonymous)
     let { data:{ session } } = await sb.auth.getSession();
     if(!session){
       const { error } = await sb.auth.signInAnonymously();
       if(error) throw error;
     }
-    const { data, error } = await sb.rpc("join_game", { p_nick: nick });
+    const { data, error } = await callRpc("join_game", { p_nick: nick });
     if(error) throw error;
     ME = data; enterGame();
   }catch(err){
@@ -127,8 +292,8 @@ function syncFromServer(p){
 }
 
 async function refreshState(){
-  if(!sb) return;
-  const { data } = await sb.rpc("get_state");
+  if(!sb && !DEMO) return;
+  const { data } = await callRpc("get_state");
   if(data){ syncFromServer(data); renderBuildings(); renderTroops(); }
 }
 
@@ -199,7 +364,7 @@ function renderBuildings(){
 
 async function upgrade(key){
   try{
-    const { data, error } = await sb.rpc("upgrade_building", { p_key:key });
+    const { data, error } = await callRpc("upgrade_building", { p_key:key });
     if(error) throw error;
     syncFromServer(data); renderBuildings(); renderTroops();
     toast("Edifício melhorado!", "ok");
@@ -234,7 +399,7 @@ function renderTroops(){
 
 async function train(type, qty){
   try{
-    const { data, error } = await sb.rpc("train_troops", { p_type:type, p_qty:qty });
+    const { data, error } = await callRpc("train_troops", { p_type:type, p_qty:qty });
     if(error) throw error;
     syncFromServer(data); renderTroops(); renderBuildings();
     toast("Tropas treinadas!", "ok");
@@ -247,7 +412,7 @@ async function train(type, qty){
 async function loadTargets(){
   const wrap = el("targets"); wrap.innerHTML = `<p class="muted">Carregando…</p>`;
   try{
-    const { data, error } = await sb.rpc("list_targets");
+    const { data, error } = await callRpc("list_targets");
     if(error) throw error;
     targetsCache = data || [];
     const myPower = Math.max(1, powerOf(ME));
@@ -300,7 +465,7 @@ async function doAttack(target){
   if((vals.inf+vals.arc+vals.cav)<=0){ toast("Envie ao menos 1 tropa.", "err"); return; }
   el("m-go").disabled = true;
   try{
-    const { data, error } = await sb.rpc("attack",
+    const { data, error } = await callRpc("attack",
       { p_target: target.id, p_inf: vals.inf, p_arc: vals.arc, p_cav: vals.cav });
     if(error) throw error;
     showResult(data, target);
@@ -334,7 +499,7 @@ function closeModal(){ el("modal").classList.remove("open"); }
 async function loadBattles(){
   const wrap = el("battle-log"); wrap.innerHTML = `<p class="muted">Carregando…</p>`;
   try{
-    const { data, error } = await sb.rpc("get_battles");
+    const { data, error } = await callRpc("get_battles");
     if(error) throw error;
     if(!data || data.length===0){ wrap.innerHTML = `<p class="muted">Nenhuma batalha ainda.</p>`; return; }
     wrap.innerHTML = "";

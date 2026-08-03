@@ -29,7 +29,24 @@ Mundo único: todo mundo que entra cai na mesma lista de jogadores. Sem código 
 
 ---
 
-## Setup (10 minutos)
+## 🎮 Modo Demo (testar sem Supabase)
+
+Quer só **ver como fica** antes de configurar o backend? Abra o jogo **sem** um `config.js`
+e ele entra automaticamente no **Modo Demo**: roda 100% no navegador (localStorage), com
+alguns **bots** pra você atacar. Serve pra sentir o loop (upar base, treinar tropas, atacar,
+ver o relatório).
+
+```bash
+cd idle-wars && python3 -m http.server 8080   # abra http://localhost:8080
+```
+
+> ⚠️ O Modo Demo é só pra **você, local**. Não tem multiplayer real nem anti-trapaça —
+> isso só existe com o Supabase configurado (abaixo). Para zerar o progresso do demo,
+> limpe o `localStorage` do site (ou a chave `idlewars_demo_v1`).
+
+---
+
+## Setup completo (jogar com amigos — 10 minutos)
 
 ### 1. Crie um projeto Supabase (grátis)
 1. Vá em [supabase.com](https://supabase.com) → **New project**.
