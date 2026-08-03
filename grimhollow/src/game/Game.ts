@@ -2493,11 +2493,17 @@ export class Game {
         });
         if (streetDirs.length === 0) continue;
 
-        const wm = wallMats[Math.floor(Math.abs(hash(c, r)) * 997) % wallMats.length];
-        const box = new THREE.Mesh(boxGeo, wm);
+        // A CAIXA DA CASA usa a ARTE DA FACHADA direto. Antes eu deixava a
+        // alvenaria antiga na caixa e colava o painel novo por cima: nos cantos e
+        // nas quinas a textura velha aparecia por baixo, e o painel ainda brigava
+        // com os decalques pelo mesmo pixel de profundidade. A BoxGeometry mapeia
+        // a textura 0..1 em CADA face, que é exatamente um painel por face — então
+        // o painel avulso deixou de ser necessário e saiu.
+        const facadeMat = facadeMats[Math.floor(Math.abs(hash(c, r, 61)) * 997) % facadeMats.length];
+        void wallMats;
+        const box = new THREE.Mesh(boxGeo, facadeMat);
         box.position.set(c * CELL, WALL_H / 2, r * CELL);
         this.world.add(box);
-        const facadeMat = facadeMats[Math.floor(Math.abs(hash(c, r, 61)) * 997) % facadeMats.length];
 
         for (const [dc, dr] of streetDirs) {
           const porta = estabFaces.has(`${c},${r},${dc},${dr}`);
@@ -2506,11 +2512,11 @@ export class Game {
           // soco de pedra na base, cinta de enxaimel na divisa dos pavimentos e
           // montantes de madeira subindo dela. Vale p/ toda face de rua, inclusive
           // as de porta (a porta em si é desenhada em buildEstablishments).
-          // painel de fachada colado na face (um por face, sem ladrilhar)
-          this.addWallDecal(c, r, dc, dr, facadeMat, CELL, WALL_H, WALL_H / 2, 0.02);
+          // O RODAPÉ NÃO VAI NA FACE DA PORTA: ele tem 0,7 de altura e cobria os
+          // 70cm de baixo da porta, como se a soleira tivesse sido emparedada.
+          if (porta) continue;
           // sem enxaimel de código: a pedra lavrada já traz a cimalha pintada
           this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash, false);
-          if (porta) continue;
           // adorno da face: janela (comum) + tocha/bandeira/hera/rachadura sorteados
           // → cada casa fica diferente e a cidade ganha vida.
           const roll = Math.abs(hash(c, r, dc * 7 + dr * 3)) % 1;
@@ -2525,7 +2531,10 @@ export class Game {
             // luminária pende dele. A arte é vista DE LADO, então o plano fica
             // perpendicular à fachada, como as tabuletas das lojas.
             this.addLanternaParede(c, r, dc, dr, lanternMat);
-            this.glowLight(fx + dc * 1.05, 2.85, fz + dr * 1.05, 0xffb45a, 3.4, 11);
+            // luz EXATAMENTE sob a luminária e de alcance curto. Antes ela ficava
+            // junto da parede e alcançava 11 — acendia paredes a meio quarteirão
+            // de distância, e via-se a poça de luz sem a lanterna que a produz.
+            this.glowLight(fx + dc * 1.15, 2.7, fz + dr * 1.15, 0xffb45a, 3.0, 7);
             void torchMat;
           } else if (roll < 0.74) {
             this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
