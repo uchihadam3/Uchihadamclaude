@@ -60,7 +60,35 @@ O simulador não é enfeite — cada número abaixo veio dele e mudou o design:
    - Meta-progressão / O Cofre (§4.3), Selos do Abismo (§4.4)
    - Áudio (§13), tutorial, acessibilidade (§12)
 
+## Fase 2 — Camada de dados 3D (§11) — PARCIAL
+
+✅ **Física de corpo rígido real** (§11.1), headless: massa, inércia, restituição, atrito,
+   colisão genérica dos vértices do poliedro contra chão e paredes, colisão dado-contra-dado,
+   repouso por limiar de velocidade angular, correção posicional por empurrão (nunca teleporte).
+   Medido: **100% dos dados repousam** em ~125 passos (~1,04 s de física).
+
+✅ **Resultado predeterminado por BUSCA DE SEMENTE** (§11.2, método A — o "100% natural").
+   O motor sorteia a face; simulamos headless com sementes diferentes e reproduzimos a
+   primeira queda física que pousa nela. Medido: **99-100% de acerto**, 3-19 ms por dado
+   (uma bolsa de 7 dados custa ~66 ms). **Nada de "girar e trocar a textura no fim".**
+
+✅ **Justiça do dado** — a rotação inicial usava amostragem enviesada; corrigido com o método
+   de Shoemake. d4/d6/d8/d10 ficaram estatisticamente justos (min/max < 2,2× em 600 lançamentos).
+
+✅ Render PBR: materiais por tipo (osso, obsidiana, âmbar, metal, cristal), faces com sulco de
+   tinta e realce (sensação de gravado), mesa de feltro com vinheta, luz de 3 pontos + vela
+   quente, sombra de contato. Zonas de queda distribuídas: **nenhum dado empilha**.
+
+⚠️ **d12 com defeito conhecido:** a construção das faces pentagonais (escolha dos 5 vértices por
+   direção de normal) gera malha furada/estrelada, e o dado continua enviesado. d4/d6/d8/d10
+   estão corretos. Correção pendente: montar as faces por adjacência de arestas em vez de por
+   proximidade de normal.
+
+❌ Ainda falta em §11: partículas de impacto, áudio por material com pitch por velocidade,
+   háptica no celular, shader próprio das faces raras, LOD de qualidade, "Rolagem rápida".
+
 ## Próximo passo recomendado
-Seguir a ordem do §16: com o motor validado, o passo 2 é a **camada de dados 3D isolada**
-(física real + resultado predeterminado por busca de semente), porque é o ponto de contato
-tátil de que todo o resto depende.
+1. Fechar o d12 (malha por adjacência de arestas).
+2. Completar o §11.4: áudio de colisão por material, partículas e háptica.
+3. Só então seguir para o passo 3 do §16 (combate 2D com uma classe + Masmorra 1),
+   como o documento manda: "não avance enquanto os dados não estiverem perfeitos".

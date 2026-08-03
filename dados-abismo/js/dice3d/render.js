@@ -1,0 +1,125 @@
+/* ========================================================================
+   RENDER DOS DADOS 3D (§11.3) — three.js, PBR, faces gravadas, sombra
+   de contato. Reproduz a TRILHA da física real (nada de tween falso).
+   ===================================================================== */
+import * as THREE from '../../vendor/three.module.js';
+import { poliedro } from './geometry.js';
+import { MATERIAIS } from '../data/dice.js';
+import { FACE_KINDS } from '../data/faces.js';
+
+/* --- textura das faces: um atlas com N nichos, cada um com o símbolo --- */
+function atlasFaces(faces, corBase, corTinta){
+  const n = faces.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
+  const S = 256, cv = document.createElement('canvas');
+  cv.width = cols*S; cv.height = rows*S;
+  const g = cv.getContext('2d');
+  g.fillStyle = corBase; g.fillRect(0,0,cv.width,cv.height);
+  faces.forEach((f,i)=>{
+    const cx=(i%cols)*S, cy=Math.floor(i/cols)*S;
+    // leve variação de tom por face (osso não é uniforme)
+    g.fillStyle = corBase; g.fillRect(cx,cy,S,S);
+    const grd=g.createRadialGradient(cx+S/2,cy+S/2,S*0.1,cx+S/2,cy+S/2,S*0.7);
+    grd.addColorStop(0,'rgba(255,255,255,0.10)'); grd.addColorStop(1,'rgba(0,0,0,0.16)');
+    g.fillStyle=grd; g.fillRect(cx,cy,S,S);
+    const K = FACE_KINDS[f.k] || FACE_KINDS.num;
+    const txt = f.k==='num' ? String(f.v)
+              : (K.glifo || '?') + (f.k==='blade'||f.k==='shield' ? '' : '');
+    // sulco (tinta escura) + realce = sensação de GRAVADO, não decalque
+    g.textAlign='center'; g.textBaseline='middle';
+    const fs = f.k==='num' ? (String(f.v).length>1?S*0.5:S*0.62) : S*0.55;
+    g.font = `900 ${fs}px Georgia, serif`;
+    g.fillStyle='rgba(255,255,255,0.16)'; g.fillText(txt, cx+S/2, cy+S/2 + S*0.018);
+    g.fillStyle = f.k==='num' ? corTinta : K.cor;
+    g.fillText(txt, cx+S/2, cy+S/2);
+    if(f.k!=='num'){ g.shadowColor=K.cor; g.shadowBlur=S*0.09; g.fillText(txt, cx+S/2, cy+S/2); g.shadowBlur=0; }
+  });
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  return { tex, cols, rows };
+}
+
+/* --- geometria: triangula cada face em leque e mapeia o nicho do atlas --- */
+function geometriaDado(tipo, faces, raio){
+  const g = poliedro(tipo);
+  const n = g.faces.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
+  const P=[], N=[], U=[];
+  g.faces.forEach((f, fi)=>{
+    const pts = f.idx.map(k=> g.verts[k].map(x=>x*raio));
+    const c = f.centro.map(x=>x*raio);
+    const nrm = f.normal;
+    const u0=(fi%cols)/cols, v0=1-(Math.floor(fi/cols)+1)/rows;
+    const du=1/cols, dv=1/rows;
+    // raio REAL da face (não do dado) — sem isso o UV estilhaça em d10/d12
+    const Rface = Math.max(...pts.map(p=>Math.hypot(p[0]-c[0],p[1]-c[1],p[2]-c[2]))) * 1.06;
+    // base ortonormal ESTÁVEL do plano da face
+    let ax0 = [pts[0][0]-c[0], pts[0][1]-c[1], pts[0][2]-c[2]];
+    const m0 = Math.hypot(...ax0)||1; ax0 = ax0.map(x=>x/m0);
+    const ay0 = [ nrm[1]*ax0[2]-nrm[2]*ax0[1], nrm[2]*ax0[0]-nrm[0]*ax0[2], nrm[0]*ax0[1]-nrm[1]*ax0[0] ];
+    // UV radial: centro do nicho no centro da face
+    const uvDe = p => {
+      const d=[p[0]-c[0],p[1]-c[1],p[2]-c[2]];
+      const x=(d[0]*ax0[0]+d[1]*ax0[1]+d[2]*ax0[2])/Rface;
+      const y=(d[0]*ay0[0]+d[1]*ay0[1]+d[2]*ay0[2])/Rface;
+      return [ u0+du*(0.5+x*0.5), v0+dv*(0.5+y*0.5) ];
+    };
+    for(let i=0;i<pts.length;i++){
+      const a=pts[i], b=pts[(i+1)%pts.length];
+      for(const p of [c,a,b]){ P.push(p[0],p[1],p[2]); N.push(nrm[0],nrm[1],nrm[2]);
+        const uv=uvDe(p); U.push(uv[0],uv[1]); }
+    }
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P,3));
+  geo.setAttribute('normal',   new THREE.Float32BufferAttribute(N,3));
+  geo.setAttribute('uv',       new THREE.Float32BufferAttribute(U,2));
+  return geo;
+}
+
+export function criarMalhaDado(die, raio=0.5){
+  const M = MATERIAIS[die.material] || MATERIAIS.osso;
+  const hex = '#'+M.cor.toString(16).padStart(6,'0');
+  const tinta = die.material==='osso' ? '#2b2418'
+              : die.material==='obsidiana' ? '#d8d2c4'
+              : die.material==='metal' ? '#12161a'
+              : die.material==='ambar' ? '#3a1f05' : '#f0e6ff';
+  const { tex } = atlasFaces(die.faces, hex, tinta);
+  const mat = new THREE.MeshStandardMaterial({
+    map: tex, color: 0xffffff,
+    roughness: M.rough, metalness: M.metal,
+    emissive: M.emissive||0x000000, emissiveIntensity: M.emissive?0.5:0,
+  });
+  const mesh = new THREE.Mesh(geometriaDado(die.tipo, die.faces, raio), mat);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  mesh.userData.die = die;
+  return mesh;
+}
+
+/* --- cena da mesa (feltro escuro) --- */
+export function criarMesa(scene, mesa){
+  const g = new THREE.PlaneGeometry(mesa.x*3.2, mesa.z*3.6);
+  const cv=document.createElement('canvas'); cv.width=cv.height=512;
+  const c=cv.getContext('2d');
+  c.fillStyle='#0e3222'; c.fillRect(0,0,512,512);
+  for(let i=0;i<26000;i++){ c.fillStyle=`rgba(${30+Math.random()*50},${80+Math.random()*70},${55+Math.random()*45},0.22)`;
+    c.fillRect(Math.random()*512, Math.random()*512, 1.6, 1.6); }
+  const vg=c.createRadialGradient(256,256,60,256,256,300);
+  vg.addColorStop(0,'rgba(255,255,255,0.10)'); vg.addColorStop(1,'rgba(0,0,0,0.42)');
+  c.fillStyle=vg; c.fillRect(0,0,512,512);
+  const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(2,2);
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map:t, roughness:0.94, metalness:0 }));
+  m.rotation.x=-Math.PI/2; m.receiveShadow=true;
+  scene.add(m); return m;
+}
+export function luzes(scene){
+  scene.add(new THREE.HemisphereLight(0xbfd4e8, 0x16281f, 1.05));
+  const key=new THREE.DirectionalLight(0xfff2e0, 3.2); key.position.set(3.5,7,3);
+  key.castShadow=true; key.shadow.mapSize.set(1024,1024);
+  const s=key.shadow.camera; s.left=-6;s.right=6;s.top=6;s.bottom=-6;s.near=0.5;s.far=22;
+  key.shadow.bias=-0.0012; scene.add(key);
+  const fill=new THREE.DirectionalLight(0x9ab8ff, 0.85); fill.position.set(-4,3.5,-2); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffc46b, 1.0); rim.position.set(0,2.5,-6); scene.add(rim);
+  // vela quente rasante — dá o clima de cripta e realça o relevo das faces
+  const vela=new THREE.PointLight(0xffb45e, 22, 14, 2); vela.position.set(-2.2,1.5,2.4); scene.add(vela);
+  return key;
+}
