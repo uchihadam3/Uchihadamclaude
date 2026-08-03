@@ -29,10 +29,20 @@ export function gerarOpcoes(rng, estado, n=3){
 export function aplicar(opt, estado, rng){
   if(opt.t==='dado'){ estado.bag.push(makeDie(opt.tipo, opt.mat)); }
   else if(opt.t==='grav'){
-    const d = estado.bag[rng.int(estado.bag.length)];
     const g = GRAVACOES.find(x=>x.id===opt.g);
+    // grava num dado que AINDA aguenta perder uma face numérica: um dado sem
+    // números quebra classes de sequência/soma. Nunca deixa < metade numérica.
+    const numericas = d => d.faces.filter(f=>f.k==='num'||f.k==='blade'||f.k==='shield').length;
+    const cands = estado.bag.filter(d=> g.up ? true : numericas(d) > Math.ceil(d.faces.length/2));
+    const d = (cands.length?cands:estado.bag)[rng.int((cands.length?cands:estado.bag).length)];
     if(g.up){ const up=upgradeTipo(d); estado.bag[estado.bag.indexOf(d)]=up; }
-    else { const c=cloneDie(d); g.ap(c, rng.int(c.faces.length)); estado.bag[estado.bag.indexOf(d)]=c; }
+    else {
+      const c=cloneDie(d);
+      // troca de preferência uma face BAIXA (menos perda de alcance)
+      const idxs=c.faces.map((f,i)=>({f,i})).filter(x=>x.f.k==='num').sort((a,b)=>a.f.v-b.f.v);
+      const alvoI = idxs.length? idxs[0].i : rng.int(c.faces.length);
+      g.ap(c, alvoI); estado.bag[estado.bag.indexOf(d)]=c;
+    }
   }
   else if(opt.t==='reliquia'){ estado.relics.push(opt.rel); recalcRelics(estado); }
   else if(opt.t==='cura'){ estado.hp = Math.min(estado.maxHp, estado.hp + Math.round(estado.maxHp*0.25)); }

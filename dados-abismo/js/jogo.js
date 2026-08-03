@@ -40,6 +40,17 @@ const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 /* ---------- estado ---------- */
 let C=null, P=null, cb=null, malhas=[], trilhas=[], anima=false;
 let sel=new Set(), alvo=0, andar=1, masmorra=1;
+let previa=null;                 // {skill, ids, pv} — telegrafia (§12)
+const ICO={veneno:'☠',sangramento:'🩸',queimadura:'🔥',congelado:'❄',fratura:'✖',marca:'🎯',
+           maldicao:'☠',frenesi:'▲',espinhos:'✦',armadura:'⛊'};
+function calcPrevia(s){
+  const ents=cb.roll.filter(e=>sel.has(e.dieId));
+  let ids = (ents.length && satisfies(s.req,ents)) ? [...sel] : null;
+  if(!ids){ const idx=findSubset(s.req, cb.pool()); if(!idx) return null;
+    ids = idx.map(i=>cb.pool()[i].dieId); }
+  const pv=cb.prever(s, ids, alvo); if(!pv) return null;
+  return { skill:s, ids, pv };
+}
 
 /* ================= TELAS ================= */
 function telaClasses(){
@@ -102,20 +113,34 @@ function rolarVisual(){
 const nomeFace=f=> f.k==='num'? f.v : (FACE_KINDS[f.k].glifo);
 function pintar(){
   const es=cb.enemies;
+  const pi=cb.previsaoInimigo();
+  const mapaPrev={}; if(previa) for(const a of previa.pv.alvos) mapaPrev[a.uid]=a;
   $('ini').innerHTML=es.map((e,i)=>{
     const it=e.intent; const txt = !it?'—' : it.t==='atk'?`⚔ ${it.v}` : it.t==='atk_multi'?`⚔ ${it.v}×${it.n}`
       : it.t==='block'?`🛡 ${it.v}` : it.t==='heal'?`✚ ${it.v}` : it.t==='buff'?'▲ fúria'
       : it.t==='curse'?'☠ maldição' : it.t==='debuff'?`▼ ${it.st}`:'—';
-    const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${k} ${v}`).join(' ');
-    return `<div class="en ${e.hp<=0?'morto':''} ${i===alvo?'alvo':''}" data-i="${i}" data-uid="${e.uid}">
+    const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${ICO[k]||''}${v}`).join(' ');
+    const li=pi.linhas.find(l=>l.uid===e.uid);
+    const pr=mapaPrev[e.uid];
+    const prevHTML = pr ? `<div class="prev ${pr.morre?'mata':''}">
+        ${pr.dano?`<span class="pd">-${pr.dano}</span>`:''}
+        ${pr.estados.map(x=>`<span class="pe">${ICO[x.st]||'•'}${x.n}</span>`).join('')}
+        ${pr.morre?'<span class="pk">☠</span>':''}</div>` : '';
+    const barraPrev = pr&&pr.dano ? `<i class="perda" style="width:${Math.min(100,100*pr.dano/e.maxHp)}%;
+        right:${Math.max(0,100-100*e.hp/e.maxHp)}%"></i>` : '';
+    return `<div class="en ${e.hp<=0?'morto':''} ${i===alvo?'alvo':''} ${pr?'napre':''}" data-i="${i}" data-uid="${e.uid}">
+      ${prevHTML}
       <div class="spr"><img src="${spriteDe(e.id)}" alt=""></div>
       <div class="nm">${e.nome}</div>${e.elite?'<div class="el">ELITE</div>':''}
-      <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i></div>
+      <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i>${barraPrev}</div>
       <div class="hp">${e.hp}/${e.maxHp}${e.block?' 🛡'+e.block:''}${e.armadura?' ⛊'+e.armadura:''}</div>
-      <div class="it">${e.hp>0?txt:'—'}</div>${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');
-  $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i; pintar(); });
+      <div class="it ${li&&li.passa>0?'doi':''}">${e.hp>0?txt:'—'}${li&&li.bruto>0?`<span class="passa">→ ${li.passa} no HP</span>`:''}</div>
+      ${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');
+  $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
+    if(previa) previa=calcPrevia(previa.skill); SFX.pegar(); pintar(); });
   const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${k} ${v}`).join(' · ');
-  $('voce').innerHTML=`<span class="pill">❤ <b>${P.hp}</b>/${P.maxHp}</span>
+  $('voce').innerHTML=`<span class="pill perigo ${pi.letal?'letal':''}">☠ ${pi.total}</span>
+    <span class="pill">❤ <b>${P.hp}</b>/${P.maxHp}</span>
     <span class="pill">🛡 ${P.block}</span><span class="pill">⟳ ${cb.rerolls}</span>
     ${P.essence?`<span class="pill">✦ ${P.essence}</span>`:''}${stp?`<span class="pill">${stp}</span>`:''}`;
   const pool=cb.pool(), selEnts=cb.roll.filter(e=>sel.has(e.dieId));
@@ -123,9 +148,18 @@ function pintar(){
   $('hab').innerHTML=skills.map((s,i)=>{
     const ok=selEnts.length&&satisfies(s.req,selEnts);
     const poss=findSubset(s.req,pool);
-    return `<div class="h ${ok?'ok':(poss?'':'off')}" data-i="${i}">
-      <div class="hn">${s.nome}</div><div class="hr">${reqLabel(s.req)}</div></div>`;}).join('');
-  $('hab').querySelectorAll('.h').forEach(d=>d.onclick=()=>usar(skills[+d.dataset.i]));
+    const p2 = previa && previa.skill.id===s.id ? previa.pv : null;
+    const resumo = p2 ? `<div class="hp2">${p2.alvos.filter(a=>a.dano).map(a=>'-'+a.dano).join(' ')||''}${
+      p2.bloqueio?` 🛡+${p2.bloqueio}`:''}${p2.curaHP?` ✚${p2.curaHP}`:''}${p2.custoHP?` ❤-${p2.custoHP}`:''}</div>`:'';
+    return `<div class="h ${ok?'ok':(poss?'':'off')} ${p2?'pre':''}" data-i="${i}">
+      <div class="hn">${s.nome}</div><div class="hr">${reqLabel(s.req)}</div>${resumo}</div>`;}).join('');
+  $('hab').querySelectorAll('.h').forEach(d=>{
+    const sk=skills[+d.dataset.i];
+    d.onclick=()=>usar(sk);
+    d.onpointerenter=()=>{ if(anima) return; const pv=calcPrevia(sk);
+      if(pv){ previa=pv; pintar(); } };
+    d.onpointerleave=()=>{ if(previa && previa.skill.id===sk.id){ previa=null; pintar(); } };
+  });
   $('sel').textContent = selEnts.length? 'selecionado: '+selEnts.map(e=>nomeFace(e.face)).join(' , ') : 'toque nos dados para escolher';
   $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10<br><span style="opacity:.7">${ESCALADA[masmorra-1].nome}</span>`;
   $('log').innerHTML=cb.logLines.slice(-4).join('<br>');
@@ -133,10 +167,12 @@ function pintar(){
   SFX.tensao(P.hp < P.maxHp*0.35);
   // dados usados ficam apagados
   for(const m of malhas){ const id=m.userData.die.id;
-    const usado=cb.used.has(id); const selec=sel.has(id);
-    m.material.emissive?.setHex(selec?0x554400:0x000000);
-    m.material.emissiveIntensity = selec?0.8:0;
-    m.material.opacity = usado?0.25:1; m.material.transparent = usado; }
+    const usado=cb.used.has(id), selec=sel.has(id);
+    const napre = previa && previa.ids.includes(id);
+    m.material.emissive?.setHex(napre?0x8a6a00 : selec?0x554400 : 0x000000);
+    m.material.emissiveIntensity = napre?1.5 : selec?0.8 : 0;
+    m.scale.setScalar(napre?1.16:1);
+    m.material.opacity = usado?0.22:1; m.material.transparent = usado; }
 }
 /* ---------- ações ---------- */
 function snapHP(){ return cb.enemies.map(e=>e.hp); }
@@ -170,12 +206,12 @@ function usar(s){
   const ids=[...sel];
   const ents=cb.roll.filter(e=>sel.has(e.dieId));
   if(!ents.length || !satisfies(s.req,ents)){
-    const poss=findSubset(s.req,cb.pool());
-    if(poss){ sel=new Set(poss.map(i=>cb.pool()[i].dieId)); pintar(); }   // sugere o encaixe
+    const pv=calcPrevia(s);                       // 1º toque: SELECIONA e mostra a prévia
+    if(pv){ sel=new Set(pv.ids); previa=pv; SFX.pegar(); pintar(); }
     return;
   }
   const antes=snapHP(), hpA=P.hp;
-  cb.use(s, ids, alvo); sel.clear();
+  cb.use(s, ids, alvo); sel.clear(); previa=null;
   pintar(); juice(antes,hpA);                 // pinta primeiro, depois os efeitos
   if(cb.over){ setTimeout(fim,760); return; }
 }
@@ -183,7 +219,7 @@ $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
   const ids = sel.size? [...sel] : cb.pool().map(e=>e.dieId);
   cb.reroll(ids); sel.clear(); rolarVisual(); pintar(); };
 $('bfim').onclick=()=>{ if(anima) return;
-  sel.clear(); const antes=snapHP(), hpA=P.hp;
+  sel.clear(); previa=null; const antes=snapHP(), hpA=P.hp;
   const r=cb.endTurn();
   pintar(); juice(antes,hpA);                 // pinta primeiro, depois os efeitos
   if(r){ setTimeout(fim,760); return; }
@@ -236,4 +272,5 @@ addEventListener('resize',resize); resize();
   renderer.render(scene,camera); requestAnimationFrame(loop); })();
 telaClasses();
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
-  get sel(){return sel;}, get malhas(){return malhas;} };
+  get sel(){return sel;}, get malhas(){return malhas;},
+  get anima(){return anima;}, get previa(){return previa;}, calcPrevia };

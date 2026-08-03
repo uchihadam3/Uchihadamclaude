@@ -3,11 +3,11 @@
    Cada masmorra: 8 comuns, 3 elites, 1 subchefe, 1 chefe — EXCLUSIVOS.
    ===================================================================== */
 export const ESCALADA = [
-  { n:1,  nome:'A Cripta de Giz',        hp:1.00, dano:1.00, fardo:null,                 fardoTxt:'—' },
-  { n:2,  nome:'O Pântano de Sal',       hp:1.35, dano:1.15, fardo:'armadura_passiva',   fardoTxt:'Inimigos ganham 1 de armadura passiva' },
-  { n:3,  nome:'A Forja Afundada',       hp:1.75, dano:1.30, fardo:'dado_enferrujado',   fardoTxt:'Você começa cada combate com 1 dado Enferrujado' },
-  { n:4,  nome:'A Biblioteca Fraturada', hp:2.20, dano:1.50, fardo:'acao_dupla',         fardoTxt:'Inimigos agem 2× a cada 3 turnos' },
-  { n:5,  nome:'A Colmeia de Quitina',   hp:2.80, dano:1.70, fardo:'reroll_custa_vida',  fardoTxt:'Re-rolagens custam vida' },
+  { n:1,  nome:'A Cripta de Giz',        hp:1.04, dano:1.08, fardo:null,                 fardoTxt:'—' },
+  { n:2,  nome:'O Pântano de Sal',       hp:1.42, dano:1.26, fardo:'armadura_passiva',   fardoTxt:'Inimigos ganham 1 de armadura passiva' },
+  { n:3,  nome:'A Forja Afundada',       hp:1.85, dano:1.46, fardo:'dado_enferrujado',   fardoTxt:'Você começa cada combate com 1 dado Enferrujado' },
+  { n:4,  nome:'A Biblioteca Fraturada', hp:2.32, dano:1.68, fardo:'acao_dupla',         fardoTxt:'Inimigos agem 2× a cada 3 turnos' },
+  { n:5,  nome:'A Colmeia de Quitina',   hp:2.92, dano:1.90, fardo:'reroll_custa_vida',  fardoTxt:'Re-rolagens custam vida' },
   { n:6,  nome:'A Cidadela de Vidro',    hp:3.50, dano:1.95, fardo:'um_trava',           fardoTxt:'Dados que rolarem 1 ficam Travados por um turno' },
   { n:7,  nome:'O Mercado das Almas',    hp:4.40, dano:2.20, fardo:'rouba_dado',         fardoTxt:'Inimigos roubam 1 dado seu por combate' },
   { n:8,  nome:'O Jardim de Carne',      hp:5.50, dano:2.50, fardo:'cura_reduzida',      fardoTxt:'Cura reduzida em 50%' },

@@ -87,6 +87,28 @@
  @keyframes ferir{to{opacity:0}}
  /* tremor global da HUD */
  #ini,#baixo{transform:translateX(var(--sk,0px))}
+ /* ===== TELEGRAFIA (§12) ===== */
+ .en.napre{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a66,0 0 22px #ffd24a33}
+ .en .prev{position:absolute;top:-13px;left:50%;transform:translateX(-50%);display:flex;gap:4px;
+   align-items:center;z-index:6;white-space:nowrap;animation:pin .18s ease-out}
+ @keyframes pin{from{opacity:0;transform:translateX(-50%) translateY(6px) scale(.8)}}
+ .en .prev .pd{background:#7a1420;border:1px solid #ff6a5a;color:#fff;font-size:14px;font-weight:900;
+   border-radius:7px;padding:1px 7px;text-shadow:0 1px 3px #000}
+ .en .prev .pe{background:#16324a;border:1px solid #4aa3d8;color:#bfe4ff;font-size:11px;font-weight:800;
+   border-radius:7px;padding:2px 6px}
+ .en .prev .pk{font-size:16px;filter:drop-shadow(0 0 6px #ff3b3b)}
+ .en .prev.mata .pd{background:#a01020;border-color:#ff9a5a;animation:matap .7s infinite}
+ @keyframes matap{0%,100%{box-shadow:0 0 0 #ff3b3b}50%{box-shadow:0 0 14px #ff3b3b}}
+ .hpb{position:relative}
+ .hpb .perda{position:absolute;top:0;height:100%;background:repeating-linear-gradient(45deg,
+   #ff5a4a,#ff5a4a 4px,#ffb0a0 4px,#ffb0a0 8px);opacity:.92;animation:pisc .6s infinite}
+ @keyframes pisc{0%,100%{opacity:.9}50%{opacity:.45}}
+ .en .it .passa{color:#ff8a7a;font-weight:900;margin-left:5px}
+ .en .it.doi{color:#ff6a5a}
+ .pill.perigo{background:rgba(120,20,20,.5);border-color:#a33;color:#ffb0a0;font-weight:800}
+ .pill.perigo.letal{background:#a01020;border-color:#ff6a5a;color:#fff;animation:matap .7s infinite}
+ .h.pre{border-color:#ffd24a;box-shadow:0 0 16px #ffd24a55;transform:translateY(-3px)}
+ .h .hp2{font-size:11px;font-weight:900;color:#ffd24a;margin-top:3px}
  /* habilidade pronta pulsa */
  .h.ok{animation:pulsa 1.5s ease-in-out infinite}
  @keyframes pulsa{0%,100%{box-shadow:0 0 10px #4ad98a44}50%{box-shadow:0 0 20px #4ad98a99}}

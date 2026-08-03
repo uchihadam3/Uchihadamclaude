@@ -15,9 +15,9 @@ export function buildWave(masmorra, andar, rng){
   const addE = n => { for(let i=0;i<n;i++) out.push(inst(rng.pick(M.elites), esc, rng, true)); };
   if(andar===5){ out.push(inst(M.subchefe, esc, rng)); addC(rng.range(1,2)); }
   else if(andar===10){ out.push(inst(M.chefe, esc, rng)); addC(rng.range(0,3)); }
-  else if(andar<=2) addC(2);
+  else if(andar<=2){ addC(2); if(masmorra>=2 && rng.chance(0.5)) addC(1); }
   else if(andar<=4){ addC(2); if(rng.chance(0.6)) addE(1); else addC(1); }
-  else if(andar<=7){ addE(rng.range(1,2)); addC(rng.range(2,3)); }
+  else if(andar<=7){ addE(1); addC(rng.range(2,3)); }
   else { addE(rng.range(1,2)); addC(2); }
   // Fardo M9: toda onda tem >=1 elite, elites vêm em pares
   if(esc.fardo==='elites_em_par' && andar!==10){

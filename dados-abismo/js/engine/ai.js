@@ -53,7 +53,9 @@ export function playTurn(combat, skills){
     const limiar = custaVida ? 5 : 10;
     if(best.sc < limiar && podeRerolar && guard<4){
       // mão INÚTIL (nada bom encaixa): re-rola tudo. Mão morna: só os dados fracos.
-      const alvos = best.sc <= 0
+      // "mão inútil" = a melhor jogada mal vale a pena (Respirar pontua ~-2, então
+      // testar <=0 nunca disparava e o Arcanista desperdiçava o turno inteiro).
+      const alvos = best.sc < 4
         ? pool.map(e=>e.dieId)
         : pool.filter(e=>(entryValue(e)||0) <= 2).map(e=>e.dieId);
       if(alvos.length){ combat.reroll(alvos); continue; }

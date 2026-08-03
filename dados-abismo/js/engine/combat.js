@@ -166,6 +166,69 @@ export class Combat {
     return { ok:true, ctx };
   }
 
+  /* ---------- PREVISÃO EXATA (§12/§15: zero informação oculta) ----------
+     Roda os MESMOS efeitos num sandbox clonado e devolve o relatório.
+     Nada de estimativa: é a resolução de verdade, só que descartada. */
+  prever(skill, dieIds, targetIdx=0){
+    const ents = this.roll.filter(e=>dieIds.includes(e.dieId) && !this.used.has(e.dieId));
+    if(!ents.length || !satisfies(skill.req, ents)) return null;
+    const vals = resolvedValues(skill.req, ents);
+    const ctx = { sum:vals.reduce((a,b)=>a+b,0), max:Math.max(...vals,0), min:Math.min(...vals,0),
+      count:vals.length, val:vals[0]||0,
+      blades:ents.filter(e=>e.face.k==='blade').length, ess:this.p.essence, hp:this.p.hp };
+    // snapshot
+    const eOrig=this.enemies, pOrig=this.p, logOrig=this.doLog;
+    const antesE=eOrig.map(e=>({hp:e.hp, block:e.block, st:{...e.statuses}}));
+    const antesP={hp:pOrig.hp, block:pOrig.block, ess:pOrig.essence, st:{...pOrig.statuses}};
+    this.enemies = eOrig.map(e=>({...e, statuses:{...e.statuses}}));
+    this.p = {...pOrig, statuses:{...pOrig.statuses}};
+    this.doLog=false;
+    try{
+      const echoes=ents.filter(e=>e.face.k==='echo').length;
+      for(let i=0;i<1+(echoes>0?1:0);i++) this.applyEffects(skill.eff, ctx, targetIdx);
+    }catch(err){}
+    const depoisE=this.enemies, depoisP=this.p;
+    this.enemies=eOrig; this.p=pOrig; this.doLog=logOrig;
+    // diff
+    const alvos = depoisE.map((e,i)=>{
+      const a=antesE[i];
+      const dano = Math.max(0, (a.hp - e.hp));
+      const novos=[]; for(const k in e.statuses){
+        const d=(e.statuses[k]||0)-(a.st[k]||0); if(d>0) novos.push({st:k, n:d}); }
+      return { uid:e.uid, i, dano, morre: a.hp>0 && e.hp<=0, estados:novos, hpDepois:e.hp };
+    }).filter(x=> x.dano>0 || x.estados.length || x.morre);
+    return {
+      alvos,
+      bloqueio: Math.max(0, depoisP.block - antesP.block),
+      custoHP:  Math.max(0, antesP.hp - depoisP.hp),
+      curaHP:   Math.max(0, depoisP.hp - antesP.hp),
+      essencia: Math.max(0, (depoisP.essence||0) - (antesP.ess||0)),
+      dadosUsados: dieIds.slice(), valores: vals,
+    };
+  }
+
+  /* quanto de um ataque inimigo REALMENTE passa pro seu HP (telegrafia §6) */
+  previsaoInimigo(){
+    let bloco=this.p.block, total=0, letal=false;
+    const linhas=[];
+    for(const en of this.aliveEnemies()){
+      const it=en.intent; if(!it) continue;
+      const vezes=(this.burdens.has('acao_dupla') && (this.turn+1)%3===0)?2:1;
+      let bruto=0;
+      if(it.t==='atk') bruto=it.v*vezes;
+      else if(it.t==='atk_multi') bruto=it.v*it.n*vezes;
+      if(bruto>0){
+        const abs=Math.min(bloco,bruto); bloco-=abs;
+        const passa=bruto-abs; total+=passa;
+        linhas.push({uid:en.uid, bruto, passa});
+      } else linhas.push({uid:en.uid, bruto:0, passa:0});
+    }
+    if(this.p.statuses.veneno) total+=this.p.statuses.veneno;
+    if(this.p.statuses.sangramento) total+=this.p.statuses.sangramento;
+    letal = total >= this.p.hp;
+    return { linhas, total, letal };
+  }
+
   /* ---------- interpretador de efeitos ---------- */
   applyEffects(effs, ctx, targetIdx){
     for(const e of effs||[]){
