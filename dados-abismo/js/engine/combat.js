@@ -80,16 +80,16 @@ export class Combat {
     const entries = [];
     for(const d of bag){
       const congelado = d._congelado;
-      let f;
+      let f, fidx=0;
       if(congelado){ f = d._congeladoFace; }
       else {
-        let idx = this.rng.int(d.faces.length);
+        let idx = this.rng.int(d.faces.length); fidx=idx;
         f = d.faces[idx];
         // Fardo M6: dados que rolarem 1 ficam Travados por um turno
         if(this.burdens.has('um_trava') && f.k==='num' && f.v===1){ d._travadoProx = true; }
         // Fardo M3: dado Enferrujado tem face inútil (já vem na bolsa)
       }
-      entries.push({ dieId:d.id, tipo:d.tipo, n:d.n, material:d.material, face:{...f}, die:d });
+      entries.push({ dieId:d.id, tipo:d.tipo, n:d.n, material:d.material, face:{...f}, faceIdx:fidx, die:d });
     }
     // Círculo do Arcanista entra junto (banking §7.3)
     for(const e of this.circle) entries.push({...e, banked:true});
@@ -112,7 +112,8 @@ export class Combat {
     for(const e of this.roll){
       if(!dieIds.includes(e.dieId) || this.used.has(e.dieId)) continue;
       if(e.die?._congelado) continue;
-      e.face = {...e.die.faces[this.rng.int(e.die.faces.length)]};
+      const ix=this.rng.int(e.die.faces.length);
+      e.face = {...e.die.faces[ix]}; e.faceIdx=ix;
     }
     return true;
   }

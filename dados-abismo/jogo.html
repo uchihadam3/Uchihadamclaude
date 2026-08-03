@@ -1,0 +1,72 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Dados do Abismo</title>
+<style>
+ *{margin:0;padding:0;box-sizing:border-box}
+ body{background:#07090b;color:#e8e2d0;font-family:Georgia,serif;overflow:hidden;height:100vh;
+   -webkit-tap-highlight-color:transparent;user-select:none}
+ #c{position:fixed;inset:0;width:100vw;height:100vh}
+ .lay{position:fixed;left:0;right:0;pointer-events:none}
+ /* topo: inimigos */
+ #ini{top:0;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap}
+ .en{pointer-events:auto;background:rgba(10,13,17,.82);border:1px solid rgba(255,255,255,.13);
+   border-radius:11px;padding:7px 9px;min-width:104px;max-width:150px;cursor:pointer;backdrop-filter:blur(6px)}
+ .en.alvo{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a55}
+ .en.morto{opacity:.28;filter:grayscale(1)}
+ .en .nm{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .en .el{color:#ff7a5c;font-size:9px;letter-spacing:1px}
+ .en .hpb{height:6px;background:#2a1518;border-radius:3px;overflow:hidden;margin:4px 0 3px}
+ .en .hpb>i{display:block;height:100%;background:linear-gradient(90deg,#c0392b,#e8604a)}
+ .en .hp{font-size:9.5px;opacity:.75;font-variant-numeric:tabular-nums}
+ .en .it{font-size:11px;font-weight:700;color:#ffb45e;margin-top:3px}
+ .en .st{font-size:9px;color:#7fd98a}
+ /* rodapé: você + habilidades */
+ #baixo{bottom:0;padding:6px 10px calc(10px + env(safe-area-inset-bottom));
+   background:linear-gradient(180deg,transparent,rgba(4,6,8,.94) 30%)}
+ #voce{display:flex;align-items:center;gap:9px;justify-content:center;font-size:12.5px;margin-bottom:6px}
+ #voce b{font-size:16px}
+ .pill{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:20px;padding:3px 10px}
+ #hab{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;pointer-events:auto}
+ .h{background:linear-gradient(180deg,#1e242c,#141920);border:1px solid rgba(255,255,255,.15);
+   border-radius:11px;padding:8px 11px;cursor:pointer;min-width:88px;text-align:center;transition:.12s}
+ .h .hn{font-size:12.5px;font-weight:700}
+ .h .hr{font-size:10.5px;color:#8fb0d8;margin-top:2px;font-variant-numeric:tabular-nums}
+ .h.ok{border-color:#4ad98a;box-shadow:0 0 12px #4ad98a44}
+ .h.off{opacity:.42}
+ .h:active{transform:scale(.95)}
+ #acoes{display:flex;gap:6px;justify-content:center;margin-top:7px;pointer-events:auto}
+ .b{background:linear-gradient(180deg,#2a323d,#181d24);border:1px solid rgba(255,255,255,.16);
+   border-radius:10px;padding:8px 14px;font-family:Georgia,serif;color:#e8e2d0;font-size:13px;font-weight:700;cursor:pointer}
+ .b.pri{background:linear-gradient(180deg,#7a1f2b,#4d1119);border-color:#a33}
+ .b:disabled{opacity:.4}
+ /* seleção de dados */
+ #sel{position:fixed;left:0;right:0;bottom:150px;text-align:center;font-size:12px;color:#ffd24a;pointer-events:none}
+ /* faixa/telas */
+ #msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;
+   gap:14px;background:rgba(4,6,9,.88);z-index:20;padding:20px;text-align:center}
+ #msg.off{display:none}
+ #msg h1{font-size:26px;font-weight:900;letter-spacing:.5px}
+ #msg p{font-size:14px;opacity:.8;max-width:420px;line-height:1.6}
+ .cls{display:flex;flex-direction:column;gap:8px;width:100%;max-width:330px}
+ .cbtn{background:linear-gradient(180deg,#1e242c,#141920);border:1px solid rgba(255,255,255,.15);
+   border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;color:#e8e2d0;font-family:Georgia,serif}
+ .cbtn b{font-size:16px} .cbtn span{display:block;font-size:11.5px;opacity:.7;margin-top:3px}
+ #topo{position:fixed;top:calc(6px + env(safe-area-inset-top));right:10px;font-size:11px;opacity:.65;text-align:right;pointer-events:none}
+ #log{position:fixed;left:10px;bottom:150px;font-size:11px;opacity:.75;max-width:44vw;pointer-events:none;line-height:1.5}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="ini" class="lay"></div>
+<div id="topo"></div>
+<div id="log"></div>
+<div id="sel"></div>
+<div id="baixo" class="lay">
+  <div id="voce"></div>
+  <div id="hab"></div>
+  <div id="acoes">
+    <button class="b" id="brer">Re-rolar</button>
+    <button class="b pri" id="bfim">Terminar turno</button>
+  </div>
+</div>
+<div id="msg"></div>
+<script type="module" src="./js/jogo.js"></script>
+</body></html>
