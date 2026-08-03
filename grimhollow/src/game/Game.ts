@@ -1259,9 +1259,12 @@ export class Game {
   private _sky = new THREE.Color(); // cor da atmosfera reaproveitada por quadro
   private waterGlint?: THREE.Mesh; // (legado) reflexo da água — poço removido
   // ---- PORTAL / WAYPOINT (estilo PoE/Diablo) ----
-  // portal FIXO da cidade (arco de pedra em plataforma elevada). Preenchido pelo GIF
-  // quando ATIVO (destrava ao vencer o 1º chefe). Ativo desde já p/ TESTE.
-  private cityPortalActive = true;
+  // portal FIXO da cidade (arco de pedra em plataforma elevada). O vão só é preenchido
+  // pelo GIF quando ATIVO — e ele DESTRAVA ao derrotar o 1º chefe. Enquanto isso o
+  // arco fica lá, apagado, como promessa.
+  private cityPortalActive = false;
+  // até que ATO o portal pode levar: 1 = só o Ato I; 2 = Catacumbas Afogadas liberadas.
+  private actsUnlocked = 1;
   private portalTex?: THREE.Texture;        // textura animada do GIF (compartilhada)
   private portalImg?: HTMLImageElement;      // <img> do GIF (anima os frames)
   private portalPlanes: THREE.Mesh[] = [];   // planos do GIF (precisam needsUpdate/tick)
@@ -3535,6 +3538,8 @@ export class Game {
       skillRanks: { ...this.skillRanks },
       mainQuests: this.mainQuests, quests: this.quests, stash: this.stash,
       dungeonMaxFloor: this.dungeonMaxFloor,
+      portalUnlocked: this.cityPortalActive,
+      actsUnlocked: this.actsUnlocked,
     };
   }
 
@@ -3557,6 +3562,10 @@ export class Game {
     if (s.quests) this.quests = { ...this.quests, ...(s.quests as typeof this.quests) };
     if (s.stash) this.stash = s.stash;
     this.dungeonMaxFloor = s.dungeonMaxFloor ?? 0;
+    // saves antigos não têm estes campos: se o herói já alcançou o Ato II, o portal
+    // e a passagem obviamente já estavam abertos — deduz em vez de trancar de novo.
+    this.cityPortalActive = s.portalUnlocked ?? this.dungeonMaxFloor >= 3;
+    this.actsUnlocked = s.actsUnlocked ?? (this.dungeonMaxFloor >= 3 ? 2 : 1);
     this.currentWeapon = s.currentWeapon ? (WEAPON_BY_ID[s.currentWeapon] ?? null) : null;
     // empurra o contador de uid dos itens p/ não colidir com os salvos
     reserveItemUid([
@@ -3674,7 +3683,22 @@ export class Game {
       this.gainXp(this.scaledXp(e.xp, e.lvl));
       this.questOnKill(e); // progresso das missões/bounties de abate
       this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
+      if (e.tier === "boss") this.onBossDefeated(); // destrava portal / próximo ato
     }
+  }
+
+  // CHEFE derrotado: acende o Portal da cidade (na 1ª vez) e abre o ato seguinte.
+  private onBossDefeated() {
+    const act = this.dungeonAct();
+    if (!this.cityPortalActive) {
+      this.cityPortalActive = true;
+      this.ui.questPopup("O Portal desperta", "O arco na praça de Grimhollow se acende", true);
+    }
+    if (act === 1 && this.actsUnlocked < 2) {
+      this.actsUnlocked = 2;
+      this.ui.questPopup("Passagem aberta", "As Catacumbas Afogadas agora são alcançáveis pelo Portal", true);
+    }
+    this.scheduleSave();
   }
 
   // distância em células (Chebyshev) entre o herói e um inimigo
@@ -7803,7 +7827,7 @@ export class Game {
           else if (k === "forestgate") pois.push({ c, r, kind: "forest", label: "Floresta" });
         }
       // WAYPOINT (portal fixo) + portal temporário de retorno
-      if (this.cityPortalActive) pois.push({ c: WELL.c, r: WELL.r, kind: "portal", label: "Portal" });
+      pois.push({ c: WELL.c, r: WELL.r, kind: "portal", label: this.cityPortalActive ? "Portal" : "Arco" });
       if (this.tempPortalCell) pois.push({ c: this.tempPortalCell.c, r: this.tempPortalCell.r, kind: "portal", label: "Retorno" });
       // NPCs (posição atual — acompanham a rotina dia/noite)
       for (const [key, npc] of this.npcMap) {
@@ -7923,7 +7947,38 @@ export class Game {
       this.ui.toast("Você atravessa o portal de volta às profundezas.");
       if (ret) void this.doorTransition(() => this.enterDungeonFloor(ret.floor, ret.col, ret.row));
       else void this.doorTransition(() => this.enterDungeonFloor(this.dungeonMaxFloor));
-    } else if (t.kind === "dungeon" || t.kind === "waypoint") {
+    } else if (t.kind === "waypoint") {
+      // APAGADO: conta o que falta p/ acendê-lo, em vez de não responder nada.
+      if (!this.cityPortalActive) {
+        this.openDialogue("Arco de Pedra", [
+          "O arco é antigo, anterior ao Selo. Não há luz nenhuma sob ele — só pedra fria.",
+          "Dizem que o portal só desperta quando o que guarda as profundezas é abatido.",
+        ], null);
+        return;
+      }
+      // PORTAL DA CIDADE: menu de DESTINOS (não repete a boca da masmorra). O Ato II
+      // só aparece depois de vencer o chefe do Ato I; o checkpoint entra como atalho
+      // quando é um andar diferente das entradas dos atos.
+      const deep = this.dungeonMaxFloor;
+      const choices: DialogueChoice[] = [
+        { id: "f0", label: `${DUNGEON_FLOOR_NAMES[0]}`, primary: true, note: "Ato I" },
+      ];
+      if (this.actsUnlocked >= 2) choices.push({ id: "f3", label: `${DUNGEON_FLOOR_NAMES[3]}`, note: "Ato II" });
+      if (deep > 0 && deep !== 3) choices.push({ id: "deep", label: `${DUNGEON_FLOOR_NAMES[deep]}`, note: "mais fundo" });
+      choices.push({ id: "close", kind: "exit", label: "Fechar o portal" });
+      this.openDialogue("Portal de Grimhollow", [
+        "O vórtice gira, e o ar cheira a pedra molhada e coisas antigas.",
+        "Para onde deseja atravessar?",
+      ], null, {
+        choices,
+        onChoice: (id) => {
+          this.closeDialogue();
+          if (id === "close") return;
+          const floor = id === "f0" ? 0 : id === "f3" ? 3 : deep;
+          void this.doorTransition(() => this.enterDungeonFloor(floor));
+        },
+      });
+    } else if (t.kind === "dungeon") {
       // CHECKPOINT: se já desceu além do 1º andar, oferece CONTINUAR do mais fundo
       // (não refazer tudo) ou RECOMEÇAR do 1º. Senão, entra direto no 1º.
       if (this.dungeonMaxFloor > 0) {
@@ -9678,7 +9733,7 @@ export class Game {
       else if (t.kind === "tavernshop") text = "Taverna — Bruno, o Taverneiro";
       else if (t.kind === "stash") text = "Abrir o baú";
       else if (t.kind === "chest") text = "Abrir o baú";
-      else if (t.kind === "waypoint") text = "Portal — Viajar";
+      else if (t.kind === "waypoint") text = this.cityPortalActive ? "Portal — Viajar" : "Arco de Pedra (apagado)";
       else if (t.kind === "portalback") text = "Portal — Voltar à masmorra";
       else if (t.kind === "pickup") text = `Pegar — ${t.name}`;
     }
@@ -9731,8 +9786,9 @@ export class Game {
       if (this.tempPortalCell && ((fc === this.tempPortalCell.c && fr === this.tempPortalCell.r) ||
         (this.col === this.tempPortalCell.c && this.row === this.tempPortalCell.r)))
         return { kind: "portalback" };
-      // portal FIXO do waypoint (a célula do arco) quando ativo
-      if (this.cityPortalActive && fc === WELL.c && fr === WELL.r) return { kind: "waypoint" };
+      // portal FIXO do waypoint (a célula do arco) — mesmo APAGADO ele responde,
+      // com uma pista do que falta p/ acendê-lo (senão o arco fica mudo).
+      if (fc === WELL.c && fr === WELL.r) return { kind: "waypoint" };
       // trilha da floresta: valendo de frente ou já em cima dela
       if (cellAt(fc, fr) === "forestgate" || cellAt(this.col, this.row) === "forestgate")
         return { kind: "toforest" };

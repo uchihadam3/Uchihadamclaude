@@ -39,6 +39,8 @@ export interface CharacterSave {
   quests: Record<string, { status: string; progress: number }>;
   stash: { goods: Record<string, number>; weapons: string[]; reinforce: Record<string, number>; gold: number };
   dungeonMaxFloor: number; // checkpoint: andar mais fundo já alcançado
+  portalUnlocked?: boolean; // Portal da cidade aceso (destrava ao vencer o 1º chefe)
+  actsUnlocked?: number;    // até que ATO o portal leva (1 = só Ato I, 2 = Ato II)
 }
 
 // resumo p/ a tela de seleção de personagem (sem carregar o blob inteiro)
