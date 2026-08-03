@@ -3781,15 +3781,22 @@ function injectStyle() {
   #gh-itip.gh-itip-hidden { display:none; }
   /* cabeçalho: faixa tingida pela raridade, nome CENTRALIZADO + tipo-base */
   .gh-itip-hdr {
-    padding:7px 8px 7px; position:relative;
+    padding:10px 10px 9px; position:relative;
     background:linear-gradient(180deg, var(--rch, rgba(200,200,200,.1)), rgba(0,0,0,0));
-    border-bottom:1px solid var(--rcb, rgba(190,190,190,.42));
   }
-  /* ícone no SLOT do jogo (mesmo da mochila/equipamento) */
+  /* régua da raridade sob o cabeçalho — recuada, não encosta na moldura */
+  .gh-itip-hdr::after {
+    content:""; position:absolute; left:8%; right:8%; bottom:0; height:1px;
+    background:linear-gradient(90deg, transparent, var(--rcb, rgba(190,190,190,.42)), transparent);
+  }
+  /* ÍCONE: sem moldura de arte — só uma caixa discreta tingida pela RARIDADE
+     (é ela que deixa dar p/ ler a raridade batendo o olho no ícone). */
   .gh-itip-ic {
-    display:flex; width:46px; height:46px; margin:0 auto 5px; box-sizing:border-box;
-    align-items:center; justify-content:center;
-    border:8px solid transparent; border-image:url(${eqSlotUrl}) 89 fill;
+    display:flex; width:54px; height:54px; margin:0 auto 7px; box-sizing:border-box;
+    align-items:center; justify-content:center; border-radius:4px;
+    border:1px solid var(--rcb, rgba(190,190,190,.42));
+    background:radial-gradient(ellipse at 50% 45%, var(--rch, rgba(200,200,200,.1)), rgba(0,0,0,.4) 72%);
+    box-shadow:inset 0 0 12px rgba(0,0,0,.6);
   }
   .gh-itip-ic img { width:88%; height:88%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
   .gh-itip-name {
@@ -3799,7 +3806,7 @@ function injectStyle() {
   .gh-itip-sub {
     font-size:11px; color:var(--rc,#d6d6d6); opacity:.78; margin-top:2px; letter-spacing:.4px;
   }
-  .gh-itip-body { padding:9px 11px 11px; }
+  .gh-itip-body { padding:10px 13px 8px; }
   /* linhas de atributo — rótulo cinza, valor no AZUL de modificador (PoE) */
   .gh-itip-lines, .gh-itip-cmp { display:flex; flex-direction:column; gap:3px; }
   .gh-itip-k { font-size:12.5px; color:#7f7f7f; letter-spacing:.2px; }
@@ -4107,10 +4114,13 @@ function injectStyle() {
     padding:6px 8px; color:inherit; font:inherit; transition:border-color .12s, background .12s;
   }
   #gh-plist .gh-pl-row:hover { border-color:rgba(240,208,116,.85); background:rgba(60,48,26,.5); }
+  /* ícone SEM moldura de arte — caixa discreta na cor da raridade (igual ao popup) */
   #gh-plist .gh-pl-ic {
-    width:40px; height:40px; flex:0 0 40px; box-sizing:border-box;
+    width:38px; height:38px; flex:0 0 38px; box-sizing:border-box; border-radius:4px;
     display:flex; align-items:center; justify-content:center;
-    border:7px solid transparent; border-image:url(${eqSlotUrl}) 89 fill; /* slot do jogo */
+    border:1px solid var(--rcb, rgba(190,190,190,.42));
+    background:radial-gradient(ellipse at 50% 45%, var(--rch, rgba(200,200,200,.1)), rgba(0,0,0,.4) 72%);
+    box-shadow:inset 0 0 10px rgba(0,0,0,.55);
   }
   #gh-plist .gh-pl-ic img { max-width:100%; max-height:100%; }
   #gh-plist .gh-pl-txt { display:flex; flex-direction:column; min-width:0; }
