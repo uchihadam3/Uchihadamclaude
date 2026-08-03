@@ -9,17 +9,18 @@ import { FACE_KINDS } from './data/faces.js';
 import { Combat } from './engine/combat.js';
 import { buildWave, burdensFor } from './engine/encounter.js';
 import { satisfies, reqLabel, findSubset } from './engine/requirements.js';
-import { gerarOpcoes, aplicar, recalcRelics } from './engine/rewards.js';
+import { gerarOpcoes, aplicar, recalcRelics, simularGravacao } from './engine/rewards.js';
+import { MATERIAIS, TIPOS as TIPOS_N } from './data/dice.js';
 import { RELIQUIAS } from './data/relics.js';
 const RELIQ_COMUNS=RELIQUIAS.filter(r=>r.r==='comum');
 import { criarMalhaDado, criarMesa, luzes, destacarResultado } from './dice3d/render.js';
 import { rolarPara } from './dice3d/roll.js';
-import { raioDe } from './dice3d/geometry.js';
-import { ESCALADA } from './data/dungeons.js';
+import { raioDe, pontoDeCima } from './dice3d/geometry.js';
+import { ESCALADA, MASMORRAS } from './data/dungeons.js';
 import * as META from './meta.js';
 import { spriteDe } from './sprites.js';
 import * as SFX from './sfx.js';
-import { tocarEfeito } from './efeitos.js';
+import { tocarEfeito, tocarEfeitoInimigo } from './efeitos.js';
 
 const MESA={x:3.4,z:2.0};
 const $=id=>document.getElementById(id);
@@ -55,7 +56,11 @@ function atualizarBadges(){
     const id=m.userData.die.id, b=badgeDe(id);
     const e=cb.roll.find(x=>x.dieId===id);
     if(!e || m.userData.naBandeja || !m.visible){ b.style.opacity=0; continue; }
-    v.copy(m.position); v.y+=0.55; v.project(camera);
+    // âncora EXATA: ponta de cima do d4 / centro da face de cima nos outros
+    const tp=m.userData.die.tipo;
+    const q=[m.quaternion.x,m.quaternion.y,m.quaternion.z,m.quaternion.w];
+    const o=pontoDeCima(tp, q, raioDe(tp));
+    v.set(m.position.x+o[0], m.position.y+o[1]+0.15, m.position.z+o[2]); v.project(camera);
     const x=(v.x*0.5+0.5)*innerWidth, y=(-v.y*0.5+0.5)*innerHeight;
     const f=e.face, txt = f.k==='num'? f.v : (FACE_KINDS[f.k]?.glifo||'?');
     b.textContent=txt;
@@ -188,8 +193,52 @@ function iniciar(cid){
   recalcRelics(P);
   andar=1; masmorra=BON.portal>1?BON.portal:1;
   stats={andares:0, elites:0, chefes:0};
-  $('msg').classList.add('off');
-  novoCombate();
+  telaMapa(false);
+}
+/* ---------- MAPA DA MASMORRA (§3.1) ---------- */
+const TIPO_ANDAR = a => a===10?'chefe' : a===5?'subchefe' : (a===3||a===4||a>=6)?'elite':'comum';
+const ICO_ANDAR = { comum:'⚔', elite:'☠', subchefe:'👹', chefe:'💀' };
+function previaOnda(m,a){
+  const M = (a===10) ? [MASM(m).chefe] : (a===5) ? [MASM(m).subchefe] : null;
+  if(M) return M.map(x=>x.nome);
+  return null;
+}
+const MASM = m => (MASMORRAS[m]||MASMORRAS[1]);
+function telaMapa(entrando){
+  const msg=$('msg'); msg.classList.remove('off'); msg.className='';
+  const esc=ESCALADA[masmorra-1];
+  const nos=Array.from({length:10},(_,i)=>{
+    const a=i+1, t=TIPO_ANDAR(a), feito=a<andar, atual=a===andar;
+    const nome=previaOnda(masmorra,a);
+    return `<div class="mno ${t} ${feito?'feito':''} ${atual?'atual':''}" data-a="${a}">
+      <div class="mic">${feito?'✓':ICO_ANDAR[t]}</div>
+      <div class="mnum">${a}</div>
+      ${nome?`<div class="mnome">${nome[0]}</div>`:''}
+      ${(a===5||a===10)?'<div class="msant">santuário</div>':''}
+    </div>`;}).join('<div class="mlig"></div>');
+  msg.innerHTML=`<div class="mapwrap">
+    <div class="maphd"><div class="mapm">MASMORRA ${masmorra}</div>
+      <h2>${esc.nome}</h2>
+      ${esc.fardoTxt&&esc.fardoTxt!=='—'?`<div class="mfardo">⚠ ${esc.fardoTxt}</div>`:''}</div>
+    <div class="mtrilha">${nos}</div>
+    <div class="mpe"><span class="mmarc" id="marc">◈</span></div>
+    <button class="mb pri" data-a="entrar">▶ ENTRAR NO ANDAR ${andar}</button>
+  </div>`;
+  bindA(msg,{ entrar:()=>{ msg.classList.add('off'); novoCombate(); } });
+  // marcador anda até o andar atual
+  requestAnimationFrame(()=>{
+    const alvoEl=msg.querySelector('.mno.atual'), trilha=msg.querySelector('.mtrilha');
+    const marc=$('marc'); if(!alvoEl||!marc) return;
+    const r=alvoEl.getBoundingClientRect(), rt=trilha.getBoundingClientRect();
+    const de=entrando? (msg.querySelector(`.mno[data-a="${Math.max(1,andar-1)}"]`)?.getBoundingClientRect()||r) : r;
+    marc.style.transition='none';
+    marc.style.left=(de.left-rt.left+de.width/2)+'px';
+    marc.style.top=(de.top-rt.top+de.height/2)+'px';
+    requestAnimationFrame(()=>{ marc.style.transition='left .55s cubic-bezier(.3,.9,.3,1),top .55s';
+      marc.style.left=(r.left-rt.left+r.width/2)+'px';
+      marc.style.top=(r.top-rt.top+r.height/2)+'px';
+      if(entrando) SFX.pegar(); });
+  });
 }
 function novoCombate(){
   const inim=buildWave(masmorra,andar,rng);
@@ -270,7 +319,7 @@ function pintar(){
     <span class="pill">🛡 ${P.block}</span><span class="pill">⟳ ${cb.rerolls}</span>
     ${P.essence?`<span class="pill">✦ ${P.essence}</span>`:''}${stp?`<span class="pill">${stp}</span>`:''}`;
   const pool=cb.pool(), selEnts=cb.roll.filter(e=>sel.has(e.dieId));
-  const skills=[...C.skills.filter(s=>!s.unlock), RESPIRAR];
+  const skills=habilidadesAtuais();
   $('hab').innerHTML=skills.map((s,i)=>{
     const ok=selEnts.length&&satisfies(s.req,selEnts);
     const poss=findSubset(s.req,pool);
@@ -322,13 +371,55 @@ function efeitoHabilidade(skill, pv){
       if(el) tocarEfeito(skill.id, el, pv.alvos.find(a=>a.uid===uid)?.dano||5); } }
   else { const el=document.getElementById('voce'); if(el) tocarEfeito(skill.id, el); }
 }
+/* ===== O TURNO DO INIMIGO ACONTECE NA TELA, um de cada vez ===== */
+const PROJ=document.createElement('div'); PROJ.id='proj'; document.body.appendChild(PROJ);
+const RGT={ atk:'⚔', atk_multi:'⚔', curse:'☠', debuff:'▼', heal:'✚', block:'🛡', buff:'▲', summon:'✦' };
+function centro(el){ const r=el.getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2]; }
+function projetil(de, para, cor, glifo){
+  const p=document.createElement('div'); p.className='pj'+(cor?' '+cor:''); p.textContent=glifo||'';
+  p.style.transform=`translate(${de[0]}px,${de[1]}px) scale(.6)`; PROJ.appendChild(p);
+  requestAnimationFrame(()=>{ p.style.transform=`translate(${para[0]}px,${para[1]}px) scale(1.5)`; });
+  setTimeout(()=>{ p.style.opacity=0; }, 300);
+  setTimeout(()=>p.remove(), 460);
+}
+function animarInimigos(acoes){
+  if(!acoes || !acoes.length) return 0;
+  acoes.forEach((a,i)=> setTimeout(()=>{
+    const el=document.querySelector(`.en[data-uid="${a.uid}"]`);
+    if(el){ el.classList.remove('atacando'); void el.offsetWidth; el.classList.add('atacando');
+            tocarEfeitoInimigo(a.t, el, a.n); }
+    const alvoEl = a.t==='heal' ? document.querySelector(`.en[data-uid="${a.curado}"]`) : $('voce');
+    if(el && alvoEl){
+      const cor = a.t==='heal'?'verde' : (a.t==='curse'||a.t==='debuff')?'roxo':'';
+      const tiros = a.t==='atk_multi' ? Math.min(4, a.n||2) : (a.t==='block'||a.t==='buff') ? 0 : 1;
+      for(let k=0;k<tiros;k++) setTimeout(()=>projetil(centro(el), centro(alvoEl), cor, RGT[a.t]||'⚔'), k*90);
+    }
+    // som + reação de quem levou
+    if(a.t==='atk'||a.t==='atk_multi'){ SFX.golpe(a.v||6); }
+    else if(a.t==='heal') SFX.pegar(); else if(a.t==='curse'||a.t==='debuff') SFX.morte();
+    else SFX.soltar();
+    setTimeout(()=>{
+      if(a.dano>0){ SFX.dano(); tremor(Math.min(14,4+a.dano*0.5)); flashJog(a.dano); }
+      else if(a.aparado>0) etiquetaEu('🛡 '+a.aparado+' aparado');
+      else if(a.t==='curse') etiquetaEu('☠ dado amaldiçoado');
+      else if(a.t==='debuff') etiquetaEu('▼ '+(a.st||'')+' +'+(a.v||1));
+    }, 300);
+  }, i*420));
+  return acoes.length*420 + 380;
+}
+function etiquetaEu(txt){
+  const n=document.createElement('div'); n.className='dmgme av'; n.textContent=txt;
+  $('voce').appendChild(n); setTimeout(()=>n.remove(),1000);
+}
 function snapHP(){ return cb.enemies.map(e=>e.hp); }
-function juice(antes, hpAntes){
+function juice(antes, hpAntes, acoes){
   cb.enemies.forEach((e,i)=>{
     const d=antes[i]-e.hp;
     if(d>0){ flash(e.uid, d, e.hp<=0); }
   });
-  const dp=hpAntes-P.hp;
+  // o que os inimigos tiraram já aparece na animação deles — aqui só o resto (veneno etc.)
+  const daInvestida = acoes ? acoes.reduce((a,x)=>a+(x.dano||0),0) : 0;
+  const dp = (hpAntes-P.hp) - daInvestida;
   if(dp>0){ SFX.dano(); tremor(Math.min(14,4+dp*0.5)); flashJog(dp); }
 }
 function flash(uid,d,morreu){
@@ -372,9 +463,13 @@ $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
 $('bfim').onclick=()=>{ if(anima) return;
   sel.clear(); previa=null; const antes=snapHP(), hpA=P.hp;
   const r=cb.endTurn();
-  pintar(); juice(antes,hpA);                 // pinta primeiro, depois os efeitos
-  if(r){ setTimeout(fim,760); return; }
-  setTimeout(()=>{ rolarVisual(); pintar(); }, 340); };
+  const acoes=cb.acoesInimigo||[];
+  pintar();                                   // pinta primeiro, depois os efeitos
+  anima=true;                                 // trava enquanto o inimigo age
+  const espera=animarInimigos(acoes);
+  juice(antes,hpA,acoes);
+  if(r){ setTimeout(fim, espera+520); return; }
+  setTimeout(()=>{ anima=false; rolarVisual(); pintar(); }, Math.max(340, espera)); };
 addEventListener('pointerdown', ev=>{
   if(anima) return;
   const r=renderer.domElement.getBoundingClientRect();
@@ -387,6 +482,79 @@ addEventListener('pointerdown', ev=>{
   if(sel.has(id)){ sel.delete(id); SFX.soltar(); } else { sel.add(id); SFX.pegar(); }
   pintar();
 });
+/* habilidades que você REALMENTE tem agora (a 4ª só com o nó do Cofre) */
+function habilidadesAtuais(){
+  const lib = new Set(P&&P.unlocked ? P.unlocked : []);
+  return [...(C.skills||[]).filter(s=>!s.unlock || lib.has(s.unlock)), RESPIRAR];
+}
+/* ===== ANTES → DEPOIS: a recompensa mostra exatamente o que muda ===== */
+function faceHTML(f, marca){
+  const g = f.k==='num' ? f.v : (FACE_KINDS[f.k]?.glifo||'?');
+  const t = f.k==='num' ? '' : (f.v? f.v : '');
+  return `<i class="fc ${f.k}${marca?' '+marca:''}">${g}${t&&f.k!=='num'?`<sub>${t}</sub>`:''}</i>`;
+}
+function dadoHTML(d, marcaIdx, marca, rot){
+  return `<span class="dd"><u>${rot||d.tipo}</u><span class="dfs">${
+    d.faces.map((f,i)=>faceHTML(f, i===marcaIdx?marca:'')).join('')}</span></span>`;
+}
+const resumoDado = d => ({
+  soma: d.faces.reduce((a,f)=>a+(faceValorNum(f)||0),0),
+  num:  d.faces.filter(f=>f.k==='num').length,
+  blade:d.faces.filter(f=>f.k==='blade').length,
+  shield:d.faces.filter(f=>f.k==='shield').length,
+  simb: d.faces.filter(f=>f.k!=='num').length,
+});
+const faceValorNum = f => (f.k==='num'||f.k==='blade'||f.k==='shield'||f.k==='echo') ? f.v : 0;
+function linhaDif(rot, a, b, maiorMelhor=true){
+  if(a===b) return `<i>${rot} ${a}</i>`;
+  const sobe = b>a, bom = sobe===maiorMelhor;
+  return `<i class="${bom?'up':'dn'}">${rot} ${a} → ${b}</i>`;
+}
+function antesDepois(o){
+  if(o.t==='dado'){
+    const d = { tipo:o.tipo, faces:Array.from({length:TIPOS_N[o.tipo]},(_,i)=>({k:'num',v:i+1})) };
+    return `<div class="dparte">${dadoHTML(d,-1,'','ENTRA '+o.tipo)}</div>
+      <div class="difl">${linhaDif('bolsa', P.bag.length, P.bag.length+1)}
+      <i>${MATERIAIS[o.mat]?.nome||o.mat}: ${MATERIAIS[o.mat]?.desc||''}</i></div>`;
+  }
+  if(o.t==='grav'){
+    const s = simularGravacao(o, P);
+    if(!s) return '<div class="difl"><i>sem dado elegível</i></div>';
+    const A=resumoDado(s.antes), B=resumoDado(s.depois);
+    return `<div class="dparte">${dadoHTML(s.antes, s.i, 'velho', 'ERA '+s.antes.tipo)}
+        <span class="dseta">↓ VIRA</span>
+        ${dadoHTML(s.depois, s.subiu? s.depois.faces.length-1 : s.i, 'novo', 'FICA '+s.depois.tipo)}</div>
+      <div class="difl">${linhaDif('soma', A.soma, B.soma)}
+        ${A.num!==B.num?linhaDif('números', A.num, B.num):''}
+        ${A.blade!==B.blade?linhaDif('⚔', A.blade, B.blade):''}
+        ${A.shield!==B.shield?linhaDif('🛡', A.shield, B.shield):''}
+        ${s.subiu?`<i class="up">${s.antes.tipo} → ${s.depois.tipo}</i>`:''}</div>`;
+  }
+  if(o.t==='reliquia'){
+    const md=o.rel.mods||{}, L=[];
+    if(md.hpBonus) L.push(linhaDif('HP máx', P.maxHp, P.maxHp+md.hpBonus));
+    if(md.hpMult)  L.push(linhaDif('HP máx', P.maxHp, Math.round(P.maxHp*md.hpMult)));
+    if(md.rerollBonus) L.push(linhaDif('re-rolagens', P.rerolls|0, (P.rerolls|0)+md.rerollBonus));
+    if(md.dmgFlat) L.push(`<i class="up">dano +${md.dmgFlat} por golpe</i>`);
+    if(md.dmgMult&&md.dmgMult!==1) L.push(`<i class="${md.dmgMult>1?'up':'dn'}">dano ×${md.dmgMult}</i>`);
+    if(md.blockBonus) L.push(`<i class="up">bloqueio +${md.blockBonus}</i>`);
+    if(md.pierce) L.push(`<i class="up">perfura ${md.pierce}</i>`);
+    if(o.rel.extraDie) L.push(`<i class="up">+${o.rel.extraDie.n||1} dado ${o.rel.extraDie.tipo}</i>`);
+    if(o.rel.flag) L.push(`<i>regra nova: ${o.rel.flag}</i>`);
+    if(o.rel.onKill) L.push(`<i class="up">ao matar: dispara</i>`);
+    if(o.rel.start) L.push(`<i class="up">começa o combate com efeito</i>`);
+    if(!L.length) L.push(`<i>passiva permanente da run</i>`);
+    return `<div class="difl">${L.join('')}<i>${o.rel.r}</i></div>`;
+  }
+  const cura = Math.round(P.maxHp*0.25);
+  return `<div class="difl">${linhaDif('HP', P.hp, Math.min(P.maxHp, P.hp+cura))}<i>de ${P.maxHp} máx</i></div>`;
+}
+function painelHabilidades(){
+  const hab=habilidadesAtuais();
+  return `<div class="recskills"><h4>SUAS HABILIDADES — O QUE FAZEM</h4>
+    ${hab.map(s=>`<div class="rsk"><b>${s.nome}</b><u>${reqLabel(s.req)}</u>
+      <span>${s.desc}</span></div>`).join('')}</div>`;
+}
 /* ---------- fim de combate ---------- */
 function fim(){
   const m=$('msg'); m.classList.remove('off'); m.className='';
@@ -420,15 +588,19 @@ function fim(){
   if(andar===10) stats.chefes++;
   const opts=gerarOpcoes(rng,P,3+BON.opcoes);
   m.innerHTML=`<div class="recwrap"><div class="rect">ANDAR ${andar} LIMPO</div>
-    <p class="recp">Escolha o que levar para o próximo.</p>
+    <p class="recp">Escolha o que levar para o próximo. Veja o que muda.</p>
     <div class="recs2">${opts.map((o,i)=>`<button class="rec ${o.t}" data-i="${i}">
-      <div class="ric">${o.t==='dado'?'🎲':o.t==='grav'?'⚒':o.t==='reliquia'?'🕯️':'✚'}</div>
-      <b>${o.nome}</b><span>${o.desc}</span></button>`).join('')}</div></div>`;
+      <div class="rectopo">
+        <div class="ric">${o.t==='dado'?'🎲':o.t==='grav'?'⚒':o.t==='reliquia'?'🕯️':'✚'}</div>
+        <div><b>${o.nome}</b><span>${o.desc}</span></div>
+      </div>
+      <div class="recdif">${antesDepois(o)}</div></button>`).join('')}</div>
+    ${painelHabilidades()}</div>`;
   m.querySelectorAll('.rec').forEach(b=>b.onclick=()=>{
     SFX.pegar(); aplicar(opts[+b.dataset.i],P,rng);
     if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.30));
     andar++; if(andar>10){ andar=1; masmorra++; }
-    $('msg').classList.add('off'); novoCombate();
+    telaMapa(true);
   });
 }
 /* ---------- loop ---------- */

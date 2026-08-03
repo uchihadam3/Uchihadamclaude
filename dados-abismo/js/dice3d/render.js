@@ -162,6 +162,10 @@ export function luzes(scene){
   key.shadow.bias=-0.0012; scene.add(key);
   const fill=new THREE.DirectionalLight(0x9ab8ff, 0.85); fill.position.set(-4,3.5,-2); scene.add(fill);
   const rim=new THREE.DirectionalLight(0xffc46b, 1.0); rim.position.set(0,2.5,-6); scene.add(rim);
+  // FRONTAL, do lado da câmera: dado assentado tem faces íngremes (o d4 sobretudo)
+  // e sem esta luz os números da lateral ficam na sombra e não dá pra ler.
+  const frente=new THREE.DirectionalLight(0xfff0dc, 1.9); frente.position.set(0.8,3.4,7.5); scene.add(frente);
+  const lado=new THREE.DirectionalLight(0xdfe9ff, 0.9); lado.position.set(-6,2.6,4); scene.add(lado);
   // vela quente rasante — dá o clima de cripta e realça o relevo das faces
   const vela=new THREE.PointLight(0xffb45e, 22, 14, 2); vela.position.set(-2.2,1.5,2.4); scene.add(vela);
   return key;

@@ -325,6 +325,7 @@ export class Combat {
   }
 
   enemyTurn(){
+    this.acoesInimigo = [];      // o que CADA inimigo fez de fato (pra animar §10)
     for(const en of this.aliveEnemies()){
       const it = en.intent;
       if(!it) continue;
@@ -332,6 +333,7 @@ export class Combat {
       const vezes = (this.burdens.has('acao_dupla') && this.turn%3===0) ? 2 : 1;
       for(let k=0;k<vezes;k++){
         if(en.hp<=0) break;
+        const hp0=this.p.hp, bl0=this.p.block, reg={uid:en.uid, nome:en.nome, t:it.t, v:it.v, n:it.n, st:it.st};
         switch(it.t){
           case 'atk': { this.lastEnemyAttack = it.v;
             this.dmgPlayer(it.v, 'ataque');
@@ -341,12 +343,16 @@ export class Combat {
           case 'block': en.block += it.v; break;
           case 'buff': for(const o of this.aliveEnemies()) o.statuses.frenesi=1; break;
           case 'heal': { const alvo=this.aliveEnemies().sort((a,b)=>a.hp-b.hp)[0];
-            if(alvo) alvo.hp=Math.min(alvo.maxHp, alvo.hp+it.v); break; }
+            if(alvo){ alvo.hp=Math.min(alvo.maxHp, alvo.hp+it.v); reg.curado=alvo.uid; } break; }
           case 'debuff': this.p.statuses[it.st]=(this.p.statuses[it.st]||0)+it.v; break;
           case 'curse': { const d=this.p.bag[this.rng.int(this.p.bag.length)];
-            if(d){ d.faces[this.rng.int(d.faces.length)]=face('void',0); this.L(`${en.nome} amaldiçoou um dado!`);} break; }
+            if(d){ d.faces[this.rng.int(d.faces.length)]=face('void',0); reg.dado=d.id;
+                   this.L(`${en.nome} amaldiçoou um dado!`);} break; }
           case 'summon': break;   // resolvido pelo encontro
         }
+        reg.dano = hp0 - this.p.hp;                 // o que passou de verdade
+        reg.aparado = Math.max(0, bl0 - this.p.block);
+        this.acoesInimigo.push(reg);
       }
       this.chooseIntent(en);
     }

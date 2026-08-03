@@ -11,12 +11,33 @@ const GRAVACOES = [
   { id:'g_echo',   nome:'Gravar ⟳ Eco',     ap:(d,i)=>{ d.faces[i]=face('echo', d.faces[i].v||1); } },
   { id:'g_up',     nome:'Subir o dado (d+)',up:true },
 ];
+/* ESCOLHE JÁ o dado/face que a gravação vai mexer — assim a tela consegue
+   mostrar "como era → como ficou" antes de você aceitar. */
+const numericas = d => d.faces.filter(f=>f.k==='num'||f.k==='blade'||f.k==='shield').length;
+export function alvoDaGravacao(g, estado, rng){
+  const cands = estado.bag.filter(d=> g.up ? true : numericas(d) > Math.ceil(d.faces.length/2));
+  const lista = cands.length? cands : estado.bag;
+  const d = lista[rng.int(lista.length)];
+  if(!d) return null;
+  if(g.up) return { id:d.id, i:-1 };
+  const idxs = d.faces.map((f,i)=>({f,i})).filter(x=>x.f.k==='num').sort((a,b)=>a.f.v-b.f.v);
+  return { id:d.id, i: idxs.length? idxs[0].i : rng.int(d.faces.length) };
+}
+/* como o dado FICA depois da gravação (sem tocar no dado de verdade) */
+export function simularGravacao(opt, estado){
+  const g = GRAVACOES.find(x=>x.id===opt.g); if(!g || !opt.alvo) return null;
+  const d = estado.bag.find(x=>x.id===opt.alvo.id); if(!d) return null;
+  if(g.up){ const up=upgradeTipo(cloneDie(d)); return { antes:d, depois:up, i:-1, subiu:true }; }
+  const c = cloneDie(d); g.ap(c, opt.alvo.i);
+  return { antes:d, depois:c, i:opt.alvo.i, subiu:false };
+}
 export function gerarOpcoes(rng, estado, n=3){
   const pool=[];
   pool.push({ t:'dado', nome:'Dado Novo', desc:'Entra na Bolsa (mais opções, mais diluição).',
               tipo: rng.pick(['d4','d6','d6','d8','d8','d10']), mat: rng.pick(Object.keys(MATERIAIS)) });
   const g = rng.pick(GRAVACOES);
-  pool.push({ t:'grav', nome:g.nome, desc:'Altera uma face de um dado seu (forja, §5.3).', g:g.id });
+  pool.push({ t:'grav', nome:g.nome, desc:'Altera uma face de um dado seu (forja, §5.3).', g:g.id,
+              alvo: alvoDaGravacao(g, estado, rng) });
   const tidas = new Set(estado.relics.map(r=>r.id));
   const disp = RELIQUIAS.filter(r=>!tidas.has(r.id));
   if(disp.length){
@@ -30,19 +51,12 @@ export function aplicar(opt, estado, rng){
   if(opt.t==='dado'){ estado.bag.push(makeDie(opt.tipo, opt.mat)); }
   else if(opt.t==='grav'){
     const g = GRAVACOES.find(x=>x.id===opt.g);
-    // grava num dado que AINDA aguenta perder uma face numérica: um dado sem
-    // números quebra classes de sequência/soma. Nunca deixa < metade numérica.
-    const numericas = d => d.faces.filter(f=>f.k==='num'||f.k==='blade'||f.k==='shield').length;
-    const cands = estado.bag.filter(d=> g.up ? true : numericas(d) > Math.ceil(d.faces.length/2));
-    const d = (cands.length?cands:estado.bag)[rng.int((cands.length?cands:estado.bag).length)];
+    // o alvo já foi escolhido na geração (é o que a tela mostrou); só reconfirma
+    const alvo = opt.alvo || alvoDaGravacao(g, estado, rng);
+    const d = alvo && estado.bag.find(x=>x.id===alvo.id);
+    if(!d) return estado;
     if(g.up){ const up=upgradeTipo(d); estado.bag[estado.bag.indexOf(d)]=up; }
-    else {
-      const c=cloneDie(d);
-      // troca de preferência uma face BAIXA (menos perda de alcance)
-      const idxs=c.faces.map((f,i)=>({f,i})).filter(x=>x.f.k==='num').sort((a,b)=>a.f.v-b.f.v);
-      const alvoI = idxs.length? idxs[0].i : rng.int(c.faces.length);
-      g.ap(c, alvoI); estado.bag[estado.bag.indexOf(d)]=c;
-    }
+    else { const c=cloneDie(d); g.ap(c, alvo.i); estado.bag[estado.bag.indexOf(d)]=c; }
   }
   else if(opt.t==='reliquia'){ estado.relics.push(opt.rel); recalcRelics(estado); }
   else if(opt.t==='cura'){ estado.hp = Math.min(estado.maxHp, estado.hp + Math.round(estado.maxHp*0.25)); }

@@ -54,6 +54,33 @@ export const EFEITOS = {
   /* universal */
   respirar(el){ const d=camada(el); d.innerHTML=`<div class="fx-anel calmo"></div>`; },
 };
+/* ======================= O QUE OS INIMIGOS FAZEM =======================
+   Cada intenção tem sua própria assinatura, desenhada no card de quem age. */
+export const EFEITOS_INIMIGO = {
+  atk(el){ const d=camada(el);
+    d.innerHTML=`<div class="fx-garra"></div><div class="fx-flash vermelho"></div>`; },
+  atk_multi(el,n=2){ const d=camada(el);
+    d.innerHTML=Array.from({length:Math.min(6,n||2)},(_,i)=>
+      `<i class="fx-garrinha" style="--i:${i*.14}s;--y:${rnd(15,80)}%"></i>`).join('')
+      +`<div class="fx-flash vermelho"></div>`; },
+  block(el){ const d=camada(el);
+    d.innerHTML=`<div class="fx-guarda">🛡</div><div class="fx-anel"></div>`; },
+  buff(el){ const d=camada(el);
+    d.innerHTML=`<div class="fx-aura"></div>`+
+      Array.from({length:6},()=>`<i class="fx-chama" style="--x:${rnd(10,90)}%;--t:${rnd(0,.4)}s"></i>`).join(''); },
+  heal(el){ const d=camada(el);
+    d.innerHTML=`<div class="fx-cura">✚</div>`+
+      Array.from({length:7},()=>`<i class="fx-mote" style="--x:${rnd(10,90)}%;--t:${rnd(0,.45)}s"></i>`).join(''); },
+  curse(el){ const d=camada(el);
+    d.innerHTML=`<div class="fx-praga">☠</div><div class="fx-onda roxa"></div>`; },
+  debuff(el){ const d=camada(el);
+    d.innerHTML=`<div class="fx-mancha"></div><div class="fx-onda roxa"></div>`; },
+  summon(el){ const d=camada(el); d.innerHTML=`<div class="fx-fumaca"></div><div class="fx-anel roxa"></div>`; },
+};
+export function tocarEfeitoInimigo(t, el, n){
+  const f = EFEITOS_INIMIGO[t] || EFEITOS_INIMIGO.atk;
+  try{ f(el, n); }catch(e){}
+}
 export function tocarEfeito(id, el, n){
   const f = EFEITOS[id] || EFEITOS.decapitar;
   try{ f(el, n); }catch(e){}

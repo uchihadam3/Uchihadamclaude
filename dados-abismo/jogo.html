@@ -141,14 +141,39 @@
  .rec.reliquia{border-color:#8a6ad8}.rec.dado{border-color:#4a9ad8}
  .rec.grav{border-color:#d8a04a}.rec.cura{border-color:#4ad88a}
  .rec .ric{font-size:26px;flex:none;width:36px;text-align:center}
- .rec b{font-size:15px;display:block} .rec span{font-size:11px;color:#8d8672;display:block;margin-top:2px}
+ .rec b{font-size:15px;display:block} .rectopo span{font-size:11px;color:#8d8672;display:block;margin-top:2px}
+ /* ===== ANTES → DEPOIS da recompensa (o que muda de verdade) ===== */
+ .rec{flex-direction:column;align-items:stretch}
+ .rectopo{display:flex;align-items:center;gap:11px}
+ .recdif{margin-top:9px;padding-top:9px;border-top:1px dashed #2f2a22}
+ .dparte{display:flex;flex-direction:column;gap:4px;width:100%}
+ .dseta{font-size:11px;letter-spacing:2px;color:#d8a04a;padding-left:2px}
+ .dd{display:flex;align-items:center;gap:7px;width:100%}
+ .dd>u{font-size:9.5px;letter-spacing:1px;color:#6d6656;text-decoration:none;min-width:44px;flex:none}
+ .dfs{display:flex;gap:3px;flex-wrap:wrap;flex:1;min-width:0}
+ .fc{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;font-size:11px;font-weight:800;
+   background:#181510;border:1px solid #332d24;color:#e8e2d0}
+ .fc.blade{color:#e06060;border-color:#5a2e2e} .fc.shield{color:#6fa8dc;border-color:#2b4258}
+ .fc.essence{color:#c07cff;border-color:#432a5e} .fc.void{color:#5a5a66;border-color:#33333c}
+ .fc.wild{color:#ffd24a;border-color:#5c4718} .fc.echo{color:#4ad9c0;border-color:#1f5049}
+ .fc.novo{border-color:#ffd24a;box-shadow:0 0 10px #ffd24a88;animation:pisc 1s infinite}
+ .fc.velho{opacity:.55}
+ .difl{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:10.5px;color:#8d8672}
+ .difl i{font-style:normal;background:#181510;border:1px solid #2f2a22;border-radius:5px;padding:2px 6px}
+ .difl i.up{color:#8fd8a0;border-color:#2e5a3a} .difl i.dn{color:#e08a7a;border-color:#5a2e2e}
+ .recskills{width:100%;margin-top:14px;border-top:1px solid #2a251d;padding-top:10px}
+ .recskills h4{font-size:10px;letter-spacing:3px;color:#6d6656;margin:0 0 7px;font-weight:700}
+ .rsk{display:flex;gap:8px;align-items:baseline;font-size:11px;padding:4px 0;border-bottom:1px solid #1c1811}
+ .rsk b{font-size:12px;color:#e8e2d0;flex:none} .rsk u{text-decoration:none;color:#8fd8ff;flex:none;font-size:10px}
+ .rsk span{color:#8d8672}
  #msg p{font-size:14px;opacity:.8;max-width:420px;line-height:1.6}
  .cls{display:flex;flex-direction:column;gap:8px;width:100%;max-width:330px}
  .cbtn{background:linear-gradient(180deg,#1e242c,#141920);border:1px solid rgba(255,255,255,.15);
    border-radius:12px;padding:12px 14px;cursor:pointer;text-align:left;color:#e8e2d0;font-family:Georgia,serif}
  .cbtn b{font-size:16px} .cbtn span{display:block;font-size:11.5px;opacity:.7;margin-top:3px}
  #topo{position:fixed;top:calc(6px + env(safe-area-inset-top));right:10px;font-size:11px;opacity:.65;text-align:right;pointer-events:none}
- #log{position:fixed;left:10px;bottom:150px;font-size:11px;opacity:.75;max-width:44vw;pointer-events:none;line-height:1.5}
+ #log{position:fixed;left:10px;bottom:178px;font-size:11px;opacity:.72;max-width:52vw;pointer-events:none;line-height:1.5;
+   text-shadow:0 1px 3px #000}
  /* ===== sprite do inimigo ===== */
  .en .spr{height:72px;display:flex;align-items:flex-end;justify-content:center;margin:-2px 0 2px}
  .en .spr img{height:72px;image-rendering:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));
@@ -176,6 +201,7 @@
    100%{opacity:0;transform:translateX(-50%) translateY(-46px) scale(.95)}}
  .dmgme{position:absolute;left:50%;top:-16px;transform:translateX(-50%);font-size:20px;font-weight:900;
    color:#ff8a7a;text-shadow:0 2px 8px #000;animation:sobe .9s forwards;pointer-events:none}
+ .dmgme.av{font-size:13px;font-weight:800;color:#cfe3ff;white-space:nowrap}
  #voce{position:relative}
  /* dano no jogador: borda vermelha pulsando */
  #ferida{position:fixed;inset:0;pointer-events:none;z-index:15;
@@ -205,6 +231,37 @@
  .pill.perigo.letal{background:#a01020;border-color:#ff6a5a;color:#fff;animation:matap .7s infinite}
  .h.pre{border-color:#ffd24a;box-shadow:0 0 16px #ffd24a55;transform:translateY(-3px)}
  .h .hp2{font-size:11px;font-weight:900;color:#ffd24a;margin-top:3px}
+ /* ============ MAPA DA MASMORRA ============ */
+ .mapwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+   gap:16px;padding:26px 16px;width:100%;max-width:440px;margin:0 auto}
+ .maphd{text-align:center}
+ .mapm{font-size:11px;letter-spacing:5px;color:#6b6250}
+ .maphd h2{font-size:25px;font-weight:900;letter-spacing:-.4px;
+   background:linear-gradient(180deg,#fff,#c9a86a);-webkit-background-clip:text;background-clip:text;
+   -webkit-text-fill-color:transparent;margin-top:3px}
+ .mfardo{margin-top:8px;font-size:11.5px;color:#ffb45e;background:rgba(120,70,10,.25);
+   border:1px solid rgba(255,180,90,.3);border-radius:20px;padding:5px 12px;display:inline-block}
+ .mtrilha{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:6px 4px;width:100%;
+   padding:8px 4px}
+ .mlig{display:none}
+ .mno{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
+   background:linear-gradient(180deg,#141920,#0c1015);border:1px solid rgba(255,255,255,.10);
+   border-radius:11px;padding:9px 4px 7px;transition:.2s}
+ .mno .mic{font-size:19px;line-height:1;filter:grayscale(.5);opacity:.75}
+ .mno .mnum{font-size:9.5px;color:#5f5949;letter-spacing:1px}
+ .mno .mnome{font-size:8.5px;color:#8a7a50;text-align:center;line-height:1.2;margin-top:1px}
+ .mno .msant{font-size:8px;color:#4ad88a;letter-spacing:.5px}
+ .mno.elite{border-color:rgba(255,120,90,.3)} .mno.elite .mic{filter:none;opacity:1}
+ .mno.subchefe{border-color:rgba(255,180,60,.45)} .mno.subchefe .mic{filter:none;opacity:1}
+ .mno.chefe{border-color:rgba(255,60,60,.6);background:linear-gradient(180deg,#2a1216,#140a0c)}
+ .mno.chefe .mic{filter:none;opacity:1;animation:matap 1.4s infinite}
+ .mno.feito{opacity:.35}.mno.feito .mic{color:#4ad88a;filter:none}
+ .mno.atual{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a55,0 0 20px #ffd24a33;transform:scale(1.06)}
+ .mno.atual .mic{opacity:1;filter:none}
+ .mpe{position:relative;height:0;width:100%}
+ .mmarc{position:absolute;font-size:20px;color:#ffd24a;text-shadow:0 0 14px #ffd24a;
+   transform:translate(-50%,-50%);pointer-events:none;z-index:3;animation:marcp 1s ease-in-out infinite}
+ @keyframes marcp{0%,100%{opacity:1}50%{opacity:.5}}
  /* ===== etiqueta do valor sobre cada dado ===== */
  #lbls{position:fixed;inset:0;pointer-events:none;z-index:7}
  .lbl{position:absolute;left:0;top:0;min-width:26px;height:26px;padding:0 6px;border-radius:8px;
@@ -293,6 +350,47 @@
    animation:fxflash .5s forwards}
  .fx-fioc{position:absolute;left:50%;top:50%;width:2px;height:60px;margin:-30px 0 0 -1px;background:#ffd24a;
    transform:rotate(var(--a));animation:fxflash .7s forwards}
+ /* ===== O QUE O INIMIGO FAZ (efeito de verdade, no card de quem age) ===== */
+ .fx-flash.vermelho{background:radial-gradient(circle,#ff5a4a,transparent 70%)}
+ .fx-garra{position:absolute;left:50%;top:50%;width:96px;height:70px;margin:-35px 0 0 -48px;
+   background:
+     linear-gradient(255deg,transparent 44%,#ff6a55 47%,#ffd9cf 50%,#ff6a55 53%,transparent 56%),
+     linear-gradient(255deg,transparent 44%,#ff6a55 47%,#ffd9cf 50%,#ff6a55 53%,transparent 56%),
+     linear-gradient(255deg,transparent 44%,#ff6a55 47%,#ffd9cf 50%,#ff6a55 53%,transparent 56%);
+   background-size:100% 100%;background-position:-18px 0,0 0,18px 0;background-repeat:no-repeat;
+   filter:drop-shadow(0 0 6px #ff3b2b);transform:scale(.3) rotate(-14deg);opacity:0;
+   animation:fxgarra .5s cubic-bezier(.2,.9,.3,1) forwards}
+ @keyframes fxgarra{35%{transform:scale(1.1) rotate(-14deg);opacity:1}100%{transform:scale(1.25) rotate(-14deg);opacity:0}}
+ .fx-garrinha{position:absolute;left:8%;top:var(--y);width:0;height:3px;border-radius:2px;
+   background:linear-gradient(90deg,transparent,#ffb3a5,#ff4a33);box-shadow:0 0 8px #ff3b2b;
+   animation:fxgarrinha .34s ease-out var(--i) forwards;opacity:0}
+ @keyframes fxgarrinha{10%{opacity:1;width:0}70%{opacity:1;width:84%}100%{opacity:0;width:88%}}
+ .fx-guarda{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%) scale(.4);font-size:34px;
+   filter:drop-shadow(0 0 10px #7fd2ff);animation:fxesc .7s forwards}
+ .fx-aura{position:absolute;inset:-4px;border-radius:12px;
+   background:radial-gradient(ellipse at 50% 100%,rgba(255,80,50,.55),transparent 68%);
+   animation:fxflash .8s forwards}
+ .fx-chama{position:absolute;left:var(--x);bottom:2px;width:7px;height:14px;border-radius:50% 50% 40% 40%;
+   background:linear-gradient(#ffd76a,#ff5a2b);animation:fxbol .8s ease-out var(--t) forwards;opacity:0}
+ .fx-cura{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) scale(.4);font-size:32px;
+   color:#7ef2a8;text-shadow:0 0 16px #4ad98a;animation:fxesc .8s forwards}
+ .fx-mote{position:absolute;left:var(--x);bottom:4px;width:6px;height:6px;border-radius:50%;
+   background:#8ff7b6;box-shadow:0 0 8px #4ad98a;animation:fxbol .9s ease-out var(--t) forwards;opacity:0}
+ .fx-praga{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%) scale(.4);font-size:34px;
+   color:#c07cff;text-shadow:0 0 18px #8a3bff;animation:fxesc .8s forwards}
+ .fx-mancha{position:absolute;inset:0;border-radius:12px;
+   background:radial-gradient(circle,rgba(150,80,220,.6),transparent 70%);animation:fxflash .7s forwards}
+ .en.atacando{animation:invest .45s ease-out}
+ @keyframes invest{0%{transform:translateY(0)}30%{transform:translateY(-8px) scale(1.06)}
+   55%{transform:translateY(11px) scale(1.02)}100%{transform:translateY(0)}}
+ /* golpe voando do inimigo até você */
+ #proj{position:fixed;inset:0;pointer-events:none;z-index:60}
+ .pj{position:absolute;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+   display:grid;place-items:center;font-size:17px;
+   background:radial-gradient(circle,rgba(255,90,70,.9),transparent 68%);
+   filter:drop-shadow(0 0 8px #ff3b2b);transition:transform .3s cubic-bezier(.4,0,.9,.5),opacity .12s}
+ .pj.roxo{background:radial-gradient(circle,rgba(180,110,255,.9),transparent 68%);filter:drop-shadow(0 0 8px #8a3bff)}
+ .pj.verde{background:radial-gradient(circle,rgba(110,240,160,.9),transparent 68%);filter:drop-shadow(0 0 8px #4ad98a)}
  /* habilidade pronta pulsa */
  .h.ok{animation:pulsa 1.5s ease-in-out infinite}
  @keyframes pulsa{0%,100%{box-shadow:0 0 10px #4ad98a44}50%{box-shadow:0 0 20px #4ad98a99}}

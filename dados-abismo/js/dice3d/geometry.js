@@ -131,6 +131,41 @@ export function faceParaCima(tipo, quat){
 /* quantos "resultados" o sólido tem (d4 = vértices; resto = faces) */
 export const nResultados = tipo => { const g=poliedro(tipo);
   return g.porVertice ? g.verts.length : g.faces.length; };
+const qmulg=(a,b)=>[
+  a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
+  a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
+  a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
+  a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
+
+/* ASSENTA o dado: gira o MÍNIMO necessário pra face de apoio ficar exatamente
+   deitada na mesa. Sem isso ele dorme torto e a ponta do d4 não aponta pra cima.
+   Devolve { q, y } — quaternion assentado e altura de repouso exata. */
+export function assentar(tipo, q, raio=1){
+  const g = poliedro(tipo);
+  let fi=0, pior=Infinity;                       // face de apoio = normal mais pra BAIXO
+  for(let i=0;i<g.faces.length;i++){ const n=rot(q,g.faces[i].normal);
+    if(n[1]<pior){ pior=n[1]; fi=i; } }
+  const n = rot(q, g.faces[fi].normal);          // leva n -> (0,-1,0) pelo caminho curto
+  const eixo=[ n[2], 0, -n[0] ];                 // n × (0,-1,0)
+  const s = Math.hypot(eixo[0],eixo[1],eixo[2]), c = -n[1];
+  let dq;
+  if(s < 1e-9) dq = c>0 ? [0,0,0,1] : [1,0,0,0];
+  else { const h = Math.atan2(s,c)/2, k = Math.sin(h)/s;
+         dq = [eixo[0]*k, eixo[1]*k, eixo[2]*k, Math.cos(h)]; }
+  const q2 = qmulg(dq, q);                       // rotação aplicada no espaço do mundo
+  const m = Math.hypot(q2[0],q2[1],q2[2],q2[3])||1;
+  const qn = [q2[0]/m,q2[1]/m,q2[2]/m,q2[3]/m];
+  let minY=Infinity;
+  for(const v of g.verts){ const w=rot(qn,v); if(w[1]<minY) minY=w[1]; }
+  return { q:qn, y: -minY*raio };
+}
+/* onde está a PONTA (d4) ou o centro da face de cima — pra ancorar a etiqueta */
+export function pontoDeCima(tipo, q, raio=1){
+  const g = poliedro(tipo), i = faceParaCima(tipo, q);
+  const p = g.porVertice ? g.verts[i] : g.faces[i].centro;
+  const w = rot(q, p);
+  return [w[0]*raio, w[1]*raio, w[2]*raio];
+}
 export function rot(q, v){            // rotaciona vetor por quaternion [x,y,z,w]
   const [x,y,z,w]=q, [vx,vy,vz]=v;
   const tx=2*(y*vz-z*vy), ty=2*(z*vx-x*vz), tz=2*(x*vy-y*vx);
