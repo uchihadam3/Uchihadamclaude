@@ -1,0 +1,151 @@
+/* =========================================================================
+   IDLE WARS — estilos. Tema: estratégia medieval, escuro, dourado.
+   ========================================================================= */
+:root{
+  --bg-0:#0e0b06; --bg-1:#1a140b; --panel:#221a10; --panel-2:#2c2113;
+  --line:#4a3818; --gold:#e8b64c; --gold-dim:#a37c2a;
+  --text:#f3e9d4; --text-dim:#b6a586; --green:#5fbf6a; --red:#e0574b;
+  --blue:#5aa9e6; --shadow:0 8px 30px rgba(0,0,0,.55);
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; padding:0; min-height:100%; }
+body{
+  font-family:'Inter',system-ui,sans-serif; color:var(--text);
+  background:
+    radial-gradient(900px 600px at 15% -10%, rgba(232,182,76,.10), transparent 60%),
+    radial-gradient(800px 700px at 110% 10%, rgba(90,169,230,.08), transparent 55%),
+    linear-gradient(160deg,var(--bg-0),var(--bg-1) 80%);
+  background-attachment:fixed; min-height:100vh;
+}
+h1,h2,h3,.logo,.brand{ font-family:'Cinzel',serif; }
+
+.screen{ display:none; }
+.screen.active{ display:block; }
+
+/* ---------- LOGIN ---------- */
+#screen-login.active{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+.login-box{
+  width:100%; max-width:400px; background:var(--panel); border:1px solid var(--line);
+  border-radius:18px; padding:32px 26px; text-align:center; box-shadow:var(--shadow);
+}
+.logo{ font-size:2.2rem; margin:0 0 6px; color:var(--gold); letter-spacing:2px; }
+.tagline{ color:var(--text-dim); margin:0 0 26px; font-size:.95rem; }
+.login-box label{ display:block; text-align:left; font-size:.85rem; color:var(--text-dim); margin-bottom:6px; }
+input[type=text],input[type=number]{
+  width:100%; padding:13px 14px; background:var(--bg-0); border:1px solid var(--line);
+  border-radius:10px; color:var(--text); font-size:1rem; outline:none;
+}
+input:focus{ border-color:var(--gold-dim); }
+
+.btn{
+  cursor:pointer; border:none; border-radius:10px; font-weight:700; font-size:.95rem;
+  padding:12px 16px; transition:transform .05s, filter .15s; font-family:inherit;
+}
+.btn:active{ transform:translateY(1px); }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+.btn-primary{ background:linear-gradient(180deg,var(--gold),var(--gold-dim)); color:#241a08; width:100%; margin-top:16px; }
+.btn-sm{ padding:8px 12px; font-size:.85rem; }
+.btn-ghost{ background:var(--panel-2); color:var(--text); border:1px solid var(--line); }
+.btn-danger{ background:linear-gradient(180deg,#e0574b,#a13a30); color:#fff; }
+
+.error{ color:var(--red); font-size:.85rem; min-height:1.2em; margin:10px 0 0; }
+.muted{ color:var(--text-dim); font-size:.8rem; }
+
+/* ---------- TOPBAR ---------- */
+.topbar{
+  position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:12px;
+  padding:10px 14px; background:rgba(20,15,8,.92); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line); flex-wrap:wrap;
+}
+.brand{ color:var(--gold); font-size:1.1rem; font-weight:800; }
+.resources{ display:flex; gap:14px; flex:1; justify-content:center; flex-wrap:wrap; }
+.res{ font-size:.95rem; white-space:nowrap; }
+.res b{ font-variant-numeric:tabular-nums; }
+.rate{ color:var(--green); font-size:.72rem; margin-left:3px; font-style:normal; }
+.who{ font-size:.85rem; color:var(--text-dim); }
+.power{ color:var(--gold); font-weight:700; }
+
+/* ---------- TABS ---------- */
+.tabs{ display:flex; gap:4px; padding:8px 10px 0; overflow-x:auto; }
+.tab{
+  flex:1; min-width:84px; background:transparent; border:none; color:var(--text-dim);
+  font-family:inherit; font-size:.9rem; font-weight:600; padding:10px 8px; cursor:pointer;
+  border-bottom:2px solid transparent; white-space:nowrap;
+}
+.tab.active{ color:var(--gold); border-bottom-color:var(--gold); }
+
+.content{ padding:14px; max-width:760px; margin:0 auto; }
+.hint{ color:var(--text-dim); font-size:.85rem; margin:4px 0 16px; line-height:1.5; }
+.tabpane{ display:none; }
+.tabpane.active{ display:block; }
+
+/* ---------- CARDS (edifícios / tropas) ---------- */
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:480px){ .grid{ grid-template-columns:1fr; } }
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px;
+}
+.card .row{ display:flex; align-items:center; gap:10px; }
+.card .ico{ font-size:1.8rem; }
+.card h3{ margin:0; font-size:1rem; }
+.card .lvl{ color:var(--gold); font-size:.8rem; font-weight:700; }
+.card .desc{ color:var(--text-dim); font-size:.8rem; margin:8px 0 10px; line-height:1.4; min-height:2.4em; }
+.card .cost{ font-size:.82rem; margin-bottom:10px; }
+.card .cost.ok{ color:var(--text); } .card .cost.no{ color:var(--red); }
+.card .actions{ display:flex; gap:8px; align-items:center; }
+.card input[type=number]{ width:70px; padding:8px; }
+
+/* ---------- LISTA DE ALVOS ---------- */
+.target-list,.log-list{ display:flex; flex-direction:column; gap:10px; }
+.target{
+  display:flex; align-items:center; gap:12px; background:var(--panel);
+  border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+}
+.target.infair{ opacity:.6; }
+.target .t-info{ flex:1; }
+.target .t-name{ font-weight:700; }
+.target .t-meta{ font-size:.78rem; color:var(--text-dim); }
+.badge{ font-size:.68rem; padding:2px 7px; border-radius:20px; font-weight:700; }
+.badge.fair{ background:rgba(95,191,106,.18); color:var(--green); }
+.badge.weak{ background:rgba(182,165,134,.18); color:var(--text-dim); }
+.badge.strong{ background:rgba(224,87,75,.18); color:var(--red); }
+.badge.shield{ background:rgba(90,169,230,.18); color:var(--blue); }
+
+/* ---------- LOG ---------- */
+.log{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:.88rem; }
+.log.win{ border-left:3px solid var(--green); }
+.log.lose{ border-left:3px solid var(--red); }
+.log .l-top{ display:flex; justify-content:space-between; gap:8px; }
+.log .l-when{ color:var(--text-dim); font-size:.75rem; }
+.log .l-detail{ color:var(--text-dim); font-size:.8rem; margin-top:6px; }
+
+/* ---------- MODAL ---------- */
+.modal-backdrop{
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:50;
+  align-items:center; justify-content:center; padding:16px;
+}
+.modal-backdrop.open{ display:flex; }
+.modal{
+  width:100%; max-width:440px; background:var(--panel); border:1px solid var(--line);
+  border-radius:16px; padding:20px; box-shadow:var(--shadow); max-height:90vh; overflow:auto;
+}
+.modal h2{ margin:0 0 4px; color:var(--gold); }
+.modal .sub{ color:var(--text-dim); font-size:.85rem; margin:0 0 16px; }
+.troop-pick{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+.troop-pick .avail{ color:var(--text-dim); font-size:.78rem; }
+.modal-actions{ display:flex; gap:10px; margin-top:18px; }
+.modal-actions .btn{ flex:1; }
+.result-line{ display:flex; justify-content:space-between; padding:5px 0; font-size:.9rem; }
+.big-verdict{ text-align:center; font-family:'Cinzel',serif; font-size:1.5rem; margin:6px 0 14px; }
+.big-verdict.win{ color:var(--green); } .big-verdict.lose{ color:var(--red); }
+
+/* ---------- TOAST ---------- */
+.toast{
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+  background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+  padding:12px 18px; border-radius:12px; font-size:.9rem; opacity:0; pointer-events:none;
+  transition:opacity .25s, transform .25s; z-index:100; max-width:90vw; text-align:center;
+}
+.toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+.toast.err{ border-color:var(--red); }
+.toast.ok{ border-color:var(--green); }

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>⚔️ Idle Wars — Construa. Domine. Saqueie.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ===================== TELA DE LOGIN ===================== -->
+<section id="screen-login" class="screen active">
+  <div class="login-box">
+    <h1 class="logo">⚔️ IDLE&nbsp;WARS</h1>
+    <p class="tagline">Construa sua base. Junte exércitos. Saqueie seus amigos.</p>
+    <label for="nick">Escolha seu nome de comandante</label>
+    <input id="nick" type="text" maxlength="16" placeholder="Ex: Uchiha" autocomplete="off" />
+    <button id="btn-join" class="btn btn-primary">Entrar na guerra</button>
+    <p id="login-error" class="error"></p>
+    <p id="login-status" class="muted"></p>
+  </div>
+</section>
+
+<!-- ===================== JOGO ===================== -->
+<section id="screen-game" class="screen">
+  <!-- Barra de recursos -->
+  <header class="topbar">
+    <div class="brand">⚔️ Idle Wars</div>
+    <div class="resources">
+      <span class="res" title="Ouro">🪙 <b id="r-gold">0</b><i id="r-gold-rate" class="rate"></i></span>
+      <span class="res" title="Madeira">🪵 <b id="r-wood">0</b><i id="r-wood-rate" class="rate"></i></span>
+      <span class="res" title="População">🍖 <b id="r-pop">0/0</b></span>
+    </div>
+    <div class="who"><span id="me-name">—</span> · <span id="me-power" class="power">0⚡</span></div>
+  </header>
+
+  <!-- Abas -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="base">🏰 Base</button>
+    <button class="tab" data-tab="army">🛡️ Exército</button>
+    <button class="tab" data-tab="attack">⚔️ Atacar</button>
+    <button class="tab" data-tab="log">📜 Batalhas</button>
+  </nav>
+
+  <main class="content">
+    <!-- ---- BASE ---- -->
+    <div id="tab-base" class="tabpane active">
+      <p class="hint">Melhore seus edifícios. O custo sobe rápido — escolha bem onde investir.</p>
+      <div id="buildings" class="grid"></div>
+    </div>
+
+    <!-- ---- EXÉRCITO ---- -->
+    <div id="tab-army" class="tabpane">
+      <p class="hint">Pedra-papel-tesoura: 🗡️ vence 🏹 · 🏹 vence 🐎 · 🐎 vence 🗡️ (+25% de dano). Tropas custam ouro e população.</p>
+      <div id="troops" class="grid"></div>
+    </div>
+
+    <!-- ---- ATACAR ---- -->
+    <div id="tab-attack" class="tabpane">
+      <p class="hint">Alvos na sua faixa de poder rendem saque cheio. Bater em quem é muito mais fraco quase não dá loot.</p>
+      <div id="targets" class="target-list"></div>
+    </div>
+
+    <!-- ---- BATALHAS ---- -->
+    <div id="tab-log" class="tabpane">
+      <p class="hint">Seus últimos combates (como atacante ou defensor).</p>
+      <div id="battle-log" class="log-list"></div>
+    </div>
+  </main>
+</section>
+
+<!-- ===================== MODAL DE ATAQUE ===================== -->
+<div id="modal" class="modal-backdrop">
+  <div class="modal" id="modal-body"><!-- preenchido via JS --></div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Supabase JS (CDN) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- Config do jogador (crie a partir de config.example.js) -->
+<script src="config.js" onerror="window.__noConfig=true"></script>
+<script src="game.js"></script>
+</body>
+</html>
