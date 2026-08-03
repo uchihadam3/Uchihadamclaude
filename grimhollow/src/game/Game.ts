@@ -1650,6 +1650,16 @@ export class Game {
     // CO-OP · FASE 1: recebe a lista de quem está na mesma zona. Só liga de fato se
     // houver conta na nuvem (o Convidado joga sozinho) — ver setCoop().
     net.onPeers((list) => this.onPeers(list));
+    net.onChat((name, text, mine) => this.ui.chatMessage(name, text, mine));
+    this.ui.setChat((t) => void net.chat(t));
+    // indicador AO VIVO (o aviso de antes era um retrato de um instante só):
+    // zona · quantos por perto · mensagens enviadas/recebidas.
+    window.setInterval(() => {
+      const d = netDiag();
+      this.ui.coopStatus(!d.enabled ? "co-op desligado"
+        : d.status !== "SUBSCRIBED" ? `co-op: ${d.erro || d.status}`
+        : `${d.zone} · ${d.peers} por perto · ↑${d.enviadas} ↓${d.recebidas}`);
+    }, 1000);
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
       this.onCanvasPointer(e),
@@ -1828,12 +1838,7 @@ export class Game {
       this.netEnterZone();
       // aviso curto na tela dizendo se o co-op subiu — sem isso não dá p/ saber
       // se o problema é login, rede ou zona. O estado completo fica em __coop().
-      window.setTimeout(() => {
-        const d = netDiag();
-        this.ui.toast(d.status === "SUBSCRIBED"
-          ? `Co-op: ${d.zone} · ${d.peers} por perto (env ${d.enviadas}/rec ${d.recebidas})`
-          : `Co-op: ${d.erro || d.status}`);
-      }, 5000);
+      // (o estado fica visível o tempo todo no indicador do bate-papo)
     } else {
       void net.leave(); this.clearPeers(); this.pushMinimap();
       this.ui.toast("Co-op desligado (Convidado joga sozinho)");

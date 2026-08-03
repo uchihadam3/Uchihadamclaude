@@ -32,6 +32,7 @@ export interface PeerState {
 }
 
 type PeersCb = (peers: PeerState[]) => void;
+export type ChatCb = (name: string, text: string, mine: boolean) => void;
 
 // intervalo mínimo entre publicações (o passo dura ~250ms; isso evita rajadas
 // quando o jogador segura o botão de andar)
@@ -86,6 +87,7 @@ class NetSession {
   private zone = "";
   private self: PeerState | null = null;
   private cb: PeersCb | null = null;
+  private chatCb: ChatCb | null = null;
   private lastPublish = 0;
   private pending: ReturnType<typeof setTimeout> | null = null;
   private enabled = false;
@@ -103,6 +105,17 @@ class NetSession {
 
   /** Callback chamado sempre que a lista de jogadores da zona muda. */
   onPeers(cb: PeersCb | null): void { this.cb = cb; }
+  /** Callback das mensagens de bate-papo (as suas incluídas, com mine=true). */
+  onChat(cb: ChatCb | null): void { this.chatCb = cb; }
+
+  /** Manda uma mensagem no bate-papo da zona. */
+  async chat(text: string): Promise<void> {
+    const t = text.trim().slice(0, 140);
+    if (!t || !this.self) return;
+    this.chatCb?.(this.self.name, t, true);      // aparece na hora p/ quem escreveu
+    if (!this.isEnabled() || !this.channel) return;
+    await this.send("chat", { id: this.self.id, name: this.self.name, text: t });
+  }
 
   /** Entra no canal da zona (sai do anterior). `self` é o nosso estado inicial. */
   async join(zone: string, self: PeerState): Promise<void> {
@@ -150,6 +163,14 @@ class NetSession {
     // alguém acabou de chegar e pediu "quem está aí?" → respondemos na hora, p/ o
     // recém-chegado não ficar até o próximo heartbeat sem ver ninguém.
     ch.on("broadcast", { event: "oi" }, () => { void this.publish(true); });
+    // BATE-PAPO da zona (também serve de teste: se a mensagem chega, o transporte
+    // está bom e um eventual problema de avatares é da minha lógica, não da rede).
+    ch.on("broadcast", { event: "chat" }, (msg: unknown) => {
+      diag.recebidas++;
+      const p = (msg as { payload?: { id?: string; name?: string; text?: string } })?.payload;
+      if (!p?.text || p.id === this.self?.id) return;
+      this.chatCb?.(p.name || "Viajante", p.text, false);
+    });
 
     // ---- PRESENCE fica como reforço: serve p/ sumir na hora quem fecha a aba ----
     ch.on("presence", { event: "leave" }, (e: unknown) => {

@@ -257,6 +257,10 @@ export interface HUD {
   setEquip(data: EquipUIData): void;
   // DROP no chão: abre o popup do item (centralizado) com o botão "Pegar"
   showPickup(tip: ItemTip, onTake: () => void): void;
+  // BATE-PAPO do co-op: registra quem envia, mostra mensagens e o estado da conexão
+  setChat(onSend: (text: string) => void): void;
+  chatMessage(name: string, text: string, mine: boolean): void;
+  coopStatus(txt: string): void;
   // LISTA de itens na MESMA célula (estilo saque de baú): o jogador escolhe o que
   // pegar, um a um, ou pega tudo. Fecha sozinha quando a lista esvazia.
   showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void): void;
@@ -1236,6 +1240,54 @@ export function setupControls(
   const showPickup = (tip: ItemTip, onTake: () => void) => {
     const r = new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0);
     showItemTip(tip, r, onTake, true);
+  };
+
+  // ---- BATE-PAPO do co-op + indicador de estado AO VIVO ----
+  const chat = document.createElement("div");
+  chat.id = "gh-chat";
+  chat.innerHTML =
+    '<div id="gh-chat-status" title="zona · vizinhos · mensagens enviadas/recebidas"></div>' +
+    '<div id="gh-chat-log"></div>' +
+    '<div id="gh-chat-bar">' +
+      '<input id="gh-chat-inp" type="text" maxlength="140" placeholder="Falar com quem está por perto…" />' +
+      '<button id="gh-chat-send">Enviar</button>' +
+    "</div>" +
+    '<button id="gh-chat-toggle" title="Bate-papo">💬</button>';
+  root.appendChild(chat);
+  const chatLog = chat.querySelector("#gh-chat-log") as HTMLElement;
+  const chatInp = chat.querySelector("#gh-chat-inp") as HTMLInputElement;
+  const chatBar = chat.querySelector("#gh-chat-bar") as HTMLElement;
+  const chatStatus = chat.querySelector("#gh-chat-status") as HTMLElement;
+  let chatSend: ((t: string) => void) | null = null;
+  const chatOpen = (on: boolean) => {
+    chatBar.classList.toggle("gh-chat-on", on);
+    if (on) chatInp.focus(); else chatInp.blur();
+  };
+  (chat.querySelector("#gh-chat-toggle") as HTMLElement).addEventListener("click", (e) => {
+    e.preventDefault(); chatOpen(!chatBar.classList.contains("gh-chat-on"));
+  });
+  const enviar = () => {
+    const t = chatInp.value.trim();
+    chatInp.value = "";
+    if (t) chatSend?.(t);
+  };
+  (chat.querySelector("#gh-chat-send") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); enviar(); });
+  // o teclado não pode mover o herói enquanto digita
+  chatInp.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") { enviar(); }
+    if (e.key === "Escape") chatOpen(false);
+  });
+  const pushChat = (name: string, text: string, mine: boolean) => {
+    const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
+    const row = document.createElement("div");
+    row.className = "gh-chat-row" + (mine ? " gh-chat-mine" : "");
+    row.innerHTML = `<b>${esc(name)}:</b> ${esc(text)}`;
+    chatLog.appendChild(row);
+    while (chatLog.childElementCount > 6) chatLog.removeChild(chatLog.firstChild!);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    // some sozinho depois de um tempo (não atrapalha o jogo)
+    window.setTimeout(() => { row.classList.add("gh-chat-fade"); }, 12000);
   };
 
   // ---- LISTA DE SAQUE: vários itens na MESMA célula (baú/chefe) ----
@@ -2706,6 +2758,9 @@ export function setupControls(
       }
     },
     showPickup(tip: ItemTip, onTake: () => void) { showPickup(tip, onTake); },
+    setChat(onSend: (text: string) => void) { chatSend = onSend; },
+    chatMessage(name: string, text: string, mine: boolean) { pushChat(name, text, mine); },
+    coopStatus(txt: string) { chatStatus.textContent = txt; },
     showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void) {
       showPickupList(entries, onTake, onTakeAll);
     },
@@ -4098,6 +4153,40 @@ function injectStyle() {
     30% { transform:translate(-50%,0) scale(1); }
     78% { opacity:1; }
     100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
+  }
+  /* --- BATE-PAPO do co-op (canto superior esquerdo, discreto) --- */
+  #gh-chat { position:fixed; left:8px; top:32%; z-index:16; width:min(300px,62vw);
+    display:flex; flex-direction:column; gap:4px; pointer-events:none; }
+  #gh-chat-status {
+    font-family:"Cinzel",serif; font-size:10.5px; color:#9fb98a; letter-spacing:.3px;
+    text-shadow:0 1px 3px #000; opacity:.85;
+  }
+  #gh-chat-log { display:flex; flex-direction:column; gap:2px; max-height:22vh; overflow:hidden; }
+  .gh-chat-row {
+    font-size:12px; line-height:1.3; color:#e8dcc0; text-shadow:0 1px 3px #000,0 0 6px #000;
+    background:rgba(6,5,6,.55); border-left:2px solid rgba(201,162,74,.6);
+    padding:2px 6px; border-radius:0 4px 4px 0; transition:opacity .8s ease;
+    word-break:break-word;
+  }
+  .gh-chat-row b { color:#f0d074; }
+  .gh-chat-mine b { color:#8fd0e8; }
+  .gh-chat-row.gh-chat-fade { opacity:.28; }
+  #gh-chat-bar { display:none; gap:5px; pointer-events:auto; }
+  #gh-chat-bar.gh-chat-on { display:flex; }
+  #gh-chat-inp {
+    flex:1; min-width:0; padding:7px 9px; border-radius:5px; font-size:13px;
+    font-family:"Georgia",serif; color:#efe6cf; background:rgba(8,7,6,.92);
+    border:1px solid rgba(201,162,74,.5); outline:none;
+  }
+  #gh-chat-send {
+    padding:7px 10px; border-radius:5px; cursor:pointer; font-family:"Cinzel",serif;
+    font-weight:700; font-size:12px; color:#e9dcc0;
+    background:rgba(28,22,15,.95); border:1px solid rgba(201,162,74,.5);
+  }
+  #gh-chat-toggle {
+    align-self:flex-start; pointer-events:auto; cursor:pointer; margin-top:2px;
+    width:34px; height:34px; border-radius:50%; font-size:16px; line-height:1;
+    background:rgba(16,13,10,.8); border:1px solid rgba(201,162,74,.55); color:#e8dcc0;
   }
   /* --- LISTA DE SAQUE: vários itens caídos na mesma célula --- */
   #gh-plist {
