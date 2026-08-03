@@ -34,6 +34,29 @@ export interface PeerState {
 type PeersCb = (peers: PeerState[]) => void;
 export type ChatCb = (name: string, text: string, mine: boolean) => void;
 
+// ---------------------------------------------------------------------------
+// CO-OP · FASE 2 — combate compartilhado.
+//
+// Um dos jogadores da zona é o HOSPEDEIRO (eleição determinística: o menor id
+// entre os presentes — ver coopHostId no Game). Só ele roda a IA dos inimigos e
+// decide vida/morte; os demais recebem um RETRATO da zona e reproduzem.
+//
+// Retrato (evento "mob"): a lista COMPLETA dos inimigos vivos + os que morreram
+// há pouco. Mandar a lista inteira ~4×/s custa quase nada (uma dúzia de bichos
+// numa grade) e resolve sozinho pacote perdido, quem chega no meio da luta e o
+// renascimento — quem recebe um inimigo que não tem, cria; quem tem um que não
+// veio, remove.
+// ---------------------------------------------------------------------------
+/** [id, coluna, linha, vida, vidaMax, tipo, perseguindo] */
+export type MobTupla = [string, number, number, number, number, string, number];
+export interface MobRetrato {
+  m: MobTupla[];   // inimigos vivos
+  d: string[];     // ids dos que morreram nos últimos segundos
+}
+export type MobsCb = (r: MobRetrato) => void;
+/** Golpe de um jogador comum reportado ao hospedeiro. */
+export type GolpeCb = (eid: string, dano: number, autor: string) => void;
+
 // intervalo mínimo entre publicações (o passo dura ~250ms; isso evita rajadas
 // quando o jogador segura o botão de andar)
 const PUBLISH_MS = 120;
@@ -88,6 +111,8 @@ class NetSession {
   private self: PeerState | null = null;
   private cb: PeersCb | null = null;
   private chatCb: ChatCb | null = null;
+  private mobsCb: MobsCb | null = null;
+  private golpeCb: GolpeCb | null = null;
   private lastPublish = 0;
   private pending: ReturnType<typeof setTimeout> | null = null;
   private enabled = false;
@@ -107,6 +132,21 @@ class NetSession {
   onPeers(cb: PeersCb | null): void { this.cb = cb; }
   /** Callback das mensagens de bate-papo (as suas incluídas, com mine=true). */
   onChat(cb: ChatCb | null): void { this.chatCb = cb; }
+  /** FASE 2 · quem NÃO é hospedeiro recebe aqui o retrato dos inimigos. */
+  onMobs(cb: MobsCb | null): void { this.mobsCb = cb; }
+  /** FASE 2 · o hospedeiro recebe aqui os golpes dos outros jogadores. */
+  onGolpe(cb: GolpeCb | null): void { this.golpeCb = cb; }
+
+  /** (hospedeiro) publica o retrato dos inimigos da zona. */
+  async mobs(r: MobRetrato): Promise<void> {
+    if (!this.isEnabled() || !this.channel) return;
+    await this.send("mob", r);
+  }
+  /** (jogador comum) reporta ao hospedeiro o dano que causou. */
+  async golpe(eid: string, dano: number): Promise<void> {
+    if (!this.isEnabled() || !this.channel || !this.self) return;
+    await this.send("golpe", { eid, dano, autor: this.self.id });
+  }
 
   /** Manda uma mensagem no bate-papo da zona. */
   async chat(text: string): Promise<void> {
@@ -170,6 +210,19 @@ class NetSession {
       const p = (msg as { payload?: { id?: string; name?: string; text?: string } })?.payload;
       if (!p?.text || p.id === this.self?.id) return;
       this.chatCb?.(p.name || "Viajante", p.text, false);
+    });
+
+    // ---- FASE 2: retrato dos inimigos (do hospedeiro p/ todo mundo) ----
+    ch.on("broadcast", { event: "mob" }, (msg: unknown) => {
+      diag.recebidas++;
+      const p = (msg as { payload?: MobRetrato })?.payload;
+      if (p && Array.isArray(p.m)) this.mobsCb?.({ m: p.m, d: Array.isArray(p.d) ? p.d : [] });
+    });
+    // ---- FASE 2: golpe reportado ao hospedeiro (só ele age) ----
+    ch.on("broadcast", { event: "golpe" }, (msg: unknown) => {
+      diag.recebidas++;
+      const p = (msg as { payload?: { eid?: string; dano?: number; autor?: string } })?.payload;
+      if (p?.eid && p.dano) this.golpeCb?.(p.eid, p.dano, p.autor ?? "");
     });
 
     // ---- PRESENCE fica como reforço: serve p/ sumir na hora quem fecha a aba ----

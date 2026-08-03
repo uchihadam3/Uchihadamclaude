@@ -82,7 +82,7 @@ import {
 } from "./showcase";
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
-import { net, diag as netDiagObj, SESSION_TAG, type PeerState } from "./net";
+import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato } from "./net";
 import {
   PLAINS_COLS, PLAINS_ROWS, plainsCell, plainsWalkable, plainsFind, plainsAll,
 } from "./plains";
@@ -1309,6 +1309,18 @@ export class Game {
   // célula publicada por ele (a rede manda célula, não posição contínua).
   private peers = new Map<string, PeerRig>();
   private peerZone = ""; // zona em que estamos publicando (vila / dungeon:N / …)
+  // ---- CO-OP · FASE 2: combate compartilhado ----
+  // Um jogador da zona é o HOSPEDEIRO (o de menor id entre os presentes — eleição
+  // determinística, sem negociação: todos chegam à mesma conclusão sozinhos e a
+  // troca é automática quando ele sai). Só ele roda a IA e decide vida/morte dos
+  // inimigos; os outros reproduzem o retrato que ele publica.
+  private mortesRecentes: { eid: string; t: number }[] = []; // p/ repetir no retrato
+  private mortesAplicadas = new Set<string>();               // mortes já processadas aqui
+  private proxRetrato = 0;                                   // instante do próximo envio
+  // alvo que a IA está perseguindo (o jogador MAIS PERTO, não necessariamente eu):
+  // sem isso, num grupo o bicho só correria atrás do hospedeiro.
+  private mobAlvoC = 0;
+  private mobAlvoR = 0;
   // ---- PORTAL / WAYPOINT (estilo PoE/Diablo) ----
   // portal FIXO da cidade (arco de pedra em plataforma elevada). O vão só é preenchido
   // pelo GIF quando ATIVO — e ele DESTRAVA ao derrotar o 1º chefe. Enquanto isso o
@@ -1660,17 +1672,24 @@ export class Game {
     // houver conta na nuvem (o Convidado joga sozinho) — ver setCoop().
     net.onPeers((list) => this.onPeers(list));
     net.onChat((name, text, mine) => this.ui.chatMessage(name, text, mine));
+    // CO-OP · FASE 2: retrato dos inimigos (recebo se NÃO sou o hospedeiro) e
+    // golpes dos amigos (recebo se sou).
+    net.onMobs((r) => this.aplicarRetratoMobs(r));
+    net.onGolpe((eid, dano) => this.receberGolpe(eid, dano));
     this.ui.setChat((t) => void net.chat(t));
     // indicador AO VIVO de quem está por perto. Jogando sozinho ele some; os
     // contadores de rede ficam só no __coop(), p/ não poluir a tela do jogador.
     window.setInterval(() => {
       const d = netDiag();
+      // com gente por perto, mostra também QUEM comanda os inimigos: é a
+      // informação que explica "por que o bicho anda na tela dele e não na minha".
+      const papel = d.peers > 0 ? (this.mandaNosMobs() ? " · anfitrião" : " · convidado") : "";
       this.ui.coopStatus(
         !d.enabled ? ""
           : d.status !== "SUBSCRIBED" ? `co-op: ${d.erro || d.status}`
           : d.peers === 0 ? "ninguém por perto"
-          : d.peers === 1 ? "1 jogador por perto"
-          : `${d.peers} jogadores por perto`);
+          : d.peers === 1 ? `1 jogador por perto${papel}`
+          : `${d.peers} jogadores por perto${papel}`);
     }, 1000);
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
@@ -1885,6 +1904,10 @@ export class Game {
     const zone = this.netZoneKey();
     this.clearPeers();
     this.peerZone = zone;
+    // FASE 2: a contabilidade de mortes é POR ZONA (os ids são células, e a mesma
+    // célula existe em outro andar) — zerar aqui evita "morte fantasma" ao chegar.
+    this.mortesRecentes = [];
+    this.mortesAplicadas.clear();
     void net.join(zone, this.netSelf());
   }
   // publica a nossa célula/direção (chamado no fim de cada passo/giro)
@@ -1895,6 +1918,112 @@ export class Game {
     for (const rig of this.peers.values()) this.scene.remove(rig.group);
     this.peers.clear();
   }
+  // ============= CO-OP · FASE 2 — combate compartilhado =================
+  // Identidade do inimigo entre as máquinas: a CÉLULA DE NASCIMENTO. Os mapas são
+  // idênticos e determinísticos dos dois lados, e o respawn reusa a mesma célula,
+  // então isso identifica o mesmo bicho em todo mundo sem trocar id nenhum.
+  private mobId(e: EnemyEnt): string { return `${e.homeC},${e.homeR}`; }
+
+  /** Meu id de rede (o mesmo publicado no netSelf). */
+  private netId(): string {
+    return `${this.saveSlot}:${this.playerName || "heroi"}:${SESSION_TAG}`;
+  }
+  /**
+   * HOSPEDEIRO da zona: o menor id entre os presentes. Ninguém negocia nada —
+   * cada um ordena a mesma lista e chega ao mesmo resultado; quando o hospedeiro
+   * sai, o próximo assume no quadro seguinte.
+   */
+  private coopHostId(): string {
+    let menor = this.netId();
+    for (const id of this.peers.keys()) if (id < menor) menor = id;
+    return menor;
+  }
+  /** Sozinho ou hospedeiro → eu mando nos inimigos. */
+  private mandaNosMobs(): boolean {
+    return !net.isEnabled() || !this.peers.size || this.coopHostId() === this.netId();
+  }
+
+  /** (hospedeiro) publica o retrato dos inimigos da zona, ~4×/s. */
+  private enviarRetratoMobs(now: number): void {
+    if (now < this.proxRetrato) return;
+    this.proxRetrato = now + 250;
+    // só vale a pena com alguém por perto e num lugar com inimigos
+    if (!net.isEnabled() || !this.peers.size || !this.mandaNosMobs()) return;
+    const corte = Date.now() - 6000;
+    this.mortesRecentes = this.mortesRecentes.filter((x) => x.t > corte);
+    const m: MobTupla[] = [];
+    for (const e of this.enemies) {
+      if (e.dyingAt) continue;
+      m.push([this.mobId(e), e.c, e.r, Math.round(e.hp), e.maxHp, e.typeId, e.aggro ? 1 : 0]);
+    }
+    if (!m.length && !this.mortesRecentes.length) return;
+    void net.mobs({ m, d: this.mortesRecentes.map((x) => x.eid) });
+  }
+
+  /** (jogador comum) aplica o retrato do hospedeiro. */
+  private aplicarRetratoMobs(r: MobRetrato): void {
+    if (this.mandaNosMobs()) return; // eu é que mando; o retrato é meu eco
+    const now = performance.now();
+    const vistos = new Set<string>();
+    for (const t of r.m) {
+      const [eid, c, rr, hp, maxHp, tipo, ag] = t;
+      vistos.add(eid);
+      let e = this.enemies.find((x) => this.mobId(x) === eid && !x.dyingAt);
+      if (!e) {
+        // inimigo que eu não tenho (entrei no meio da luta, ou ele renasceu lá):
+        // nasce aqui na mesma célula, do mesmo tipo
+        if (this.mortesAplicadas.has(eid)) this.mortesAplicadas.delete(eid);
+        const [hc, hr] = eid.split(",").map(Number);
+        this.buildDungeonEnemy(hc, hr, tipo);
+        e = this.enemies.find((x) => this.mobId(x) === eid && !x.dyingAt);
+        if (!e) continue;
+      }
+      if (hp < e.hp) e.hitAt = now; // levou pancada de outro jogador → pisca aqui também
+      e.maxHp = Math.max(1, maxHp);
+      e.hp = Math.min(e.maxHp, Math.max(1, hp));
+      e.aggro = ag === 1;
+      const frac = Math.max(0.0001, e.hp / e.maxHp);
+      e.barFill.scale.x = frac;
+      e.barFill.position.x = (-(1 - frac) * 1.3) / 2;
+      if ((e.c !== c || e.r !== rr) && !e.stepAt) this.enemyStepTo(e, c, rr, now);
+    }
+    // mortes anunciadas: cada um roda a própria morte (com recompensa)
+    for (const eid of r.d) {
+      if (this.mortesAplicadas.has(eid)) continue;
+      this.mortesAplicadas.add(eid);
+      const e = this.enemies.find((x) => this.mobId(x) === eid && !x.dyingAt);
+      if (e) this.matarInimigo(e, true);
+    }
+    // sobrou aqui algum bicho que o hospedeiro não tem (e não morreu): tira de
+    // cena calado — sem recompensa e sem explosão. Isso é o que acerta os
+    // sorteios diferentes de cada máquina ao entrar num andar novo.
+    for (const e of this.enemies)
+      if (!e.dyingAt && !vistos.has(this.mobId(e)) && !r.d.includes(this.mobId(e)))
+        this.matarInimigo(e, false, true);
+  }
+
+  /** (hospedeiro) golpe reportado por outro jogador. */
+  private receberGolpe(eid: string, dano: number): void {
+    if (!this.mandaNosMobs()) return;
+    const e = this.enemies.find((x) => this.mobId(x) === eid && !x.dyingAt);
+    if (e) this.dealDamageToEnemy(e, dano, false, true);
+  }
+
+  /**
+   * Célula do jogador MAIS PERTO deste inimigo (eu ou um amigo). É o que a IA
+   * persegue: sem isso o bicho ignoraria quem não é o hospedeiro.
+   */
+  private alvoMaisPerto(e: EnemyEnt): void {
+    this.mobAlvoC = this.col;
+    this.mobAlvoR = this.row;
+    if (!this.peers.size) return;
+    let melhor = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
+    for (const rig of this.peers.values()) {
+      const d = Math.abs(rig.c - e.c) + Math.abs(rig.r - e.r);
+      if (d < melhor) { melhor = d; this.mobAlvoC = rig.c; this.mobAlvoR = rig.r; }
+    }
+  }
+
   // recebe a lista de quem está na zona e cria/atualiza/remove os avatares
   private onPeers(list: PeerState[]): void {
     const vistos = new Set<string>();
@@ -3843,47 +3972,74 @@ export class Game {
 
   // aplica dano a um inimigo, atualiza a barra, mostra o número flutuante e
   // cuida da morte (poof/recompensa). isCrit deixa o número maior e com "!".
+  // CO-OP: quem NÃO é o hospedeiro só mostra o efeito e REPORTA o golpe — a vida
+  // e a morte de verdade vêm do retrato dele. `deAmigo` marca o dano que chegou
+  // pela rede (não gera roubo de vida nem novo relato).
   private dealDamageToEnemy(
     e: EnemyEnt,
     amount: number,
     isCrit = false,
+    deAmigo = false,
   ) {
     if (e.dyingAt) return;
     const dmg = Math.max(1, Math.round(amount));
+    const convidado = !deAmigo && !this.mandaNosMobs();
+    if (convidado) void net.golpe(this.mobId(e), dmg); // quem decide é o hospedeiro
     e.hp -= dmg;
     e.hitAt = performance.now();
     e.aggro = true; // ao ser atingido (mesmo à distância) ele parte pra cima do herói
     this.ui.playSfx("hit"); // estalo de dano no inimigo
     // ROUBO DE VIDA (talento): cura o herói por uma fração do dano causado
-    const leech = this.passive.leech ?? 0;
+    const leech = deAmigo ? 0 : this.passive.leech ?? 0;
     if (leech > 0 && this.playerHp < this.playerMaxHp) {
       const h = Math.max(1, Math.round(dmg * leech));
       this.playerHp = Math.min(this.playerMaxHp, this.playerHp + h);
       this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
     }
+    if (convidado) e.hp = Math.max(1, e.hp); // a morte é do hospedeiro, não minha
     const frac = Math.max(0.0001, e.hp / e.maxHp);
     e.barFill.scale.x = frac; // encolhe a barra (ancorada à esquerda)
     e.barFill.position.x = -(1 - frac) * 1.3 / 2;
     // número de dano flutuante sobre o inimigo (crítico = maior + "!")
     const sp = this.projectToScreen(e.bx, 1.8, e.bz);
     this.ui.floatText(sp.x, sp.y, isCrit ? `${dmg}!` : `${dmg}`, isCrit ? "crit" : "hit");
-    if (e.hp <= 0) {
-      e.dyingAt = e.hitAt; // começa a tombar/sumir
-      this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
-      this.spawnPoof(e.bx, e.bz);
-      if (this.target === e) this.clearTarget();
-      // recompensa: ouro base + pequena variação. LOOT estilo WoW cai no CHÃO na célula
-      // do inimigo (ouro auto ao pisar; item por popup). A quantidade/qualidade escala
-      // com o PORTE (normal < mini < CHEFE).
-      const gold = e.goldBase + Math.floor(Math.random() * 5);
-      this.rollLoot(e.c, e.r, gold, e.tier);
-      // XP com "rating" pelo nível relativo: se o herói supera muito o inimigo, rende
-      // menos (evita farmar trivial no respawn); perto/acima do nível dele, rende cheio.
-      this.gainXp(this.scaledXp(e.xp, e.lvl));
-      this.questOnKill(e); // progresso das missões/bounties de abate
-      this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
-      if (e.tier === "boss") this.onBossDefeated(); // destrava portal / próximo ato
+    if (e.hp <= 0) this.matarInimigo(e, true);
+  }
+
+  /**
+   * Mata um inimigo: tomba, libera a célula e (se `recompensa`) paga o loot/XP.
+   * CO-OP: cada jogador rola o PRÓPRIO loot e ganha o PRÓPRIO XP — ninguém rouba
+   * o drop de ninguém (loot instanciado, como nos MMOs modernos). Só a morte em
+   * si é decidida pelo hospedeiro.
+   */
+  private matarInimigo(e: EnemyEnt, recompensa: boolean, silencioso = false): void {
+    if (e.dyingAt) return;
+    // `silencioso` = sumir sem espalhafato. Serve p/ o acerto de contas do co-op:
+    // ao chegar numa zona, o sorteio de inimigos de cada máquina é diferente, e o
+    // retrato do hospedeiro manda. Sem isso o jogador veria uma dúzia de bichos
+    // explodindo à toa no primeiro segundo.
+    e.dyingAt = performance.now() - (silencioso ? 700 : 0);
+    this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
+    if (!silencioso) this.spawnPoof(e.bx, e.bz);
+    if (this.target === e) this.clearTarget();
+    if (this.mandaNosMobs()) {
+      // anuncio a morte no retrato por alguns segundos (aguenta pacote perdido)
+      const eid = this.mobId(e);
+      this.mortesAplicadas.add(eid);
+      this.mortesRecentes.push({ eid, t: Date.now() });
     }
+    if (!recompensa) return;
+    // recompensa: ouro base + pequena variação. LOOT estilo WoW cai no CHÃO na célula
+    // do inimigo (ouro auto ao pisar; item por popup). A quantidade/qualidade escala
+    // com o PORTE (normal < mini < CHEFE).
+    const gold = e.goldBase + Math.floor(Math.random() * 5);
+    this.rollLoot(e.c, e.r, gold, e.tier);
+    // XP com "rating" pelo nível relativo: se o herói supera muito o inimigo, rende
+    // menos (evita farmar trivial no respawn); perto/acima do nível dele, rende cheio.
+    this.gainXp(this.scaledXp(e.xp, e.lvl));
+    this.questOnKill(e); // progresso das missões/bounties de abate
+    this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
+    if (e.tier === "boss") this.onBossDefeated(); // destrava portal / próximo ato
   }
 
   // CHEFE derrotado: acende o Portal da cidade (na 1ª vez) e abre o ato seguinte.
@@ -6423,7 +6579,7 @@ export class Game {
   // ---- IA dos inimigos: visão (linha livre), perseguição e patrulha ----
   // linha de visão: caminha a reta até o herói; parede no meio bloqueia a visão
   private enemyCanSee(e: EnemyEnt): boolean {
-    let x0 = e.c, y0 = e.r; const x1 = this.col, y1 = this.row;
+    let x0 = e.c, y0 = e.r; const x1 = this.mobAlvoC, y1 = this.mobAlvoR;
     const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
     const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
     let err = dx - dy;
@@ -6439,8 +6595,8 @@ export class Game {
   // um passo em grade rumo à célula alvo (atualiza ocupação + inicia interpolação)
   private enemyStepTo(e: EnemyEnt, nc: number, nr: number, now: number) {
     // aproxima ou afasta do herói? (p/ tingir a seta de orientação)
-    const before = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
-    const after = Math.abs(this.col - nc) + Math.abs(this.row - nr);
+    const before = Math.abs(this.mobAlvoC - e.c) + Math.abs(this.mobAlvoR - e.r);
+    const after = Math.abs(this.mobAlvoC - nc) + Math.abs(this.mobAlvoR - nr);
     e.approach = after < before ? 1 : after > before ? -1 : 0;
     // rumo do passo = p/ onde o inimigo está "virado" (usado pela seta no chão)
     e.hdc = nc - e.c; e.hdr = nr - e.r;
@@ -6453,16 +6609,21 @@ export class Game {
     e.nextMove = now + e.stepDur + 150; // pausa entre passos → ritmo de espreita, não corrida
   }
   private enemyCellFree(nc: number, nr: number): boolean {
-    return this.canWalk(nc, nr) && !this.blocked.has(`${nc},${nr}`) && !(nc === this.col && nr === this.row);
+    if (!this.canWalk(nc, nr) || this.blocked.has(`${nc},${nr}`)) return false;
+    if (nc === this.col && nr === this.row) return false;
+    // CO-OP: os amigos também ocupam célula — o bicho para na frente deles em vez
+    // de atravessá-los (na masmorra em corredor isso é o que "segura" a linha).
+    for (const rig of this.peers.values()) if (rig.c === nc && rig.r === nr) return false;
+    return true;
   }
   // perseguição gulosa: anda p/ o vizinho livre que mais aproxima do herói
   private enemyChaseStep(e: EnemyEnt, now: number) {
-    const cur = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
+    const cur = Math.abs(this.mobAlvoC - e.c) + Math.abs(this.mobAlvoR - e.r);
     let best: [number, number] | null = null, bd = cur;
     for (const [dc, dr] of DIRS) {
       const nc = e.c + dc, nr = e.r + dr;
       if (!this.enemyCellFree(nc, nr)) continue;
-      const d = Math.abs(this.col - nc) + Math.abs(this.row - nr);
+      const d = Math.abs(this.mobAlvoC - nc) + Math.abs(this.mobAlvoR - nr);
       if (d < bd || (d === bd && Math.random() < 0.35)) { bd = d; best = [nc, nr]; }
     }
     if (best && bd < cur) this.enemyStepTo(e, best[0], best[1], now);
@@ -6470,12 +6631,12 @@ export class Game {
   }
   // FUGA: anda p/ o vizinho livre que mais AFASTA do herói (rato acuado)
   private enemyFleeStep(e: EnemyEnt, now: number) {
-    const cur = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
+    const cur = Math.abs(this.mobAlvoC - e.c) + Math.abs(this.mobAlvoR - e.r);
     let best: [number, number] | null = null, bd = cur;
     for (const [dc, dr] of DIRS) {
       const nc = e.c + dc, nr = e.r + dr;
       if (!this.enemyCellFree(nc, nr)) continue;
-      const d = Math.abs(this.col - nc) + Math.abs(this.row - nr);
+      const d = Math.abs(this.mobAlvoC - nc) + Math.abs(this.mobAlvoR - nr);
       if (d > bd || (d === bd && Math.random() < 0.35)) { bd = d; best = [nc, nr]; }
     }
     if (best && bd > cur) this.enemyStepTo(e, best[0], best[1], now);
@@ -6524,6 +6685,7 @@ export class Game {
   // ao remover um inimigo: na VILA repõe o "guarda" da entrada; na masmorra é
   // finito (limpar o andar é o objetivo).
   private onEnemyRemoved() {
+    if (!this.mandaNosMobs()) return; // co-op: só o hospedeiro repõe
     if (this.location === "village") {
       window.setTimeout(() => {
         if (this.location === "village" && !this.enemies.length) this.buildDungeonEnemy();
@@ -9914,6 +10076,7 @@ export class Game {
     this.updateWakeWalk(now); // caminhada roteirizada da Hedda ao acordar
     this.updateBeacon(now); // facho-guia da missão sobre a célula de destino
     this.updatePeers(now);  // CO-OP: desliza os avatares dos amigos
+    this.enviarRetratoMobs(now); // CO-OP · FASE 2: (se eu hospedo) publica os inimigos
     this.updateHorizon();   // camadas de horizonte acompanham o jogador
     // o céu é fundo: segue a câmera p/ nunca dar p/ "sair" da cúpula
     if (this.fogDome) this.fogDome.position.set(this.camera.position.x, 0, this.camera.position.z);
@@ -10003,8 +10166,10 @@ export class Game {
           this.enemies.splice(ei, 1);
           this.onEnemyRemoved();
           // MMO: inimigo comum RENASCE ~10s depois (chefe NUNCA renasce sozinho).
-          // Só na masmorra e na MESMA sessão de andar em que morreu.
-          if (this.location === "dungeon" && e.tier !== "boss") {
+          // Só na masmorra e na MESMA sessão de andar em que morreu. CO-OP: quem
+          // não hospeda não repõe nada por conta própria — o retrato do
+          // hospedeiro é que traz o bicho de volta.
+          if (this.location === "dungeon" && e.tier !== "boss" && this.mandaNosMobs()) {
             const hc = e.homeC, hr = e.homeR, tp = e.typeId, sess = this.dungeonSession;
             window.setTimeout(() => {
               if (
@@ -10022,14 +10187,20 @@ export class Game {
         continue;
       }
       // ---- IA ----
+      // CO-OP · FASE 2: só o HOSPEDEIRO decide visão/movimento dos inimigos; os
+      // outros recebem o retrato dele. O ataque continua local em todo mundo —
+      // quem está adjacente é que apanha, e isso cada um sabe sozinho.
+      const mando = this.mandaNosMobs();
+      this.alvoMaisPerto(e); // a IA persegue o jogador MAIS PERTO, não só a mim
+      const distAlvo = Math.abs(this.mobAlvoC - e.c) + Math.abs(this.mobAlvoR - e.r);
+      // distância até MIM: é ela que decide se o bicho me acerta
       const distCells = Math.abs(this.col - e.c) + Math.abs(this.row - e.r);
-      // VISÃO: fica aggro se o herói entra no alcance E há linha de visão livre
-      if (!e.aggro && distCells <= e.visionR && this.enemyCanSee(e)) e.aggro = true;
+      // VISÃO: fica aggro se algum herói entra no alcance E há linha de visão livre
+      if (mando && !e.aggro && distAlvo <= e.visionR && this.enemyCanSee(e)) e.aggro = true;
       const adj = distCells === 1;
-      // alcance de tiro (à distância): dentro do alcance, ≥2 células e com linha livre
-      const inShotRange = e.ranged && distCells >= 2 && distCells <= e.range && this.enemyCanSee(e);
       // MOVIMENTO: comportamento POR TIPO ao aggro (fugir/atirar de longe/perseguir).
-      if (!e.atkAt && !e.stepAt && now >= e.nextMove) {
+      // Tudo aqui olha p/ o alvo perseguido (mobAlvo), que pode ser um amigo.
+      if (mando && !e.atkAt && !e.stepAt && now >= e.nextMove) {
         if (!e.aggro) {
           this.enemyPatrolStep(e, now);
         } else if (e.ai === "flee_low" && e.hp <= e.maxHp * 0.35) {
@@ -10038,13 +10209,18 @@ export class Game {
           if (Math.random() < 0.35) this.enemyFleeStep(e, now);
           else this.enemyChaseStep(e, now);
         } else if (e.ai === "kite" && e.ranged) {
-          this.enemyKiteStep(e, now, distCells);   // arqueiro: mantém distância p/ atirar
+          this.enemyKiteStep(e, now, distAlvo);   // arqueiro: mantém distância p/ atirar
         } else if (e.ai === "caster" && e.ranged) {
-          this.enemyCasterStep(e, now, distCells); // cultista: conjura de longe, adaga de perto
-        } else if (!adj) {
-          this.enemyChaseStep(e, now);             // perseguidores (esqueleto/aranha/carniçal)
+          this.enemyCasterStep(e, now, distAlvo); // cultista: conjura de longe, adaga de perto
+        } else if (distAlvo !== 1) {
+          this.enemyChaseStep(e, now);            // perseguidores (esqueleto/aranha/carniçal)
         }
       }
+      // Daqui p/ baixo é o ATAQUE, e ele é sempre contra MIM: só apanha quem está
+      // ao alcance. Por isso a linha de visão volta a ser medida até a minha célula.
+      this.mobAlvoC = this.col; this.mobAlvoR = this.row;
+      // alcance de tiro (à distância): dentro do alcance, ≥2 células e com linha livre
+      const inShotRange = e.ranged && distCells >= 2 && distCells <= e.range && this.enemyCanSee(e);
       // ATAQUE: melee (adjacente) OU à distância (no alcance). Adjacente + melee = melee.
       const canMelee = e.melee && adj;
       const canRanged = e.ranged && (inShotRange || (adj && !e.melee)); // arqueiro atira até colado
