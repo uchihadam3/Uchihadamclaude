@@ -106,3 +106,50 @@ O simulador não é enfeite — cada número abaixo veio dele e mudou o design:
 2. Completar o §11.4: áudio de colisão por material, partículas e háptica.
 3. Só então seguir para o passo 3 do §16 (combate 2D com uma classe + Masmorra 1),
    como o documento manda: "não avance enquanto os dados não estiverem perfeitos".
+
+---
+
+# PRÓXIMA SESSÃO — PLANO DE EXECUÇÃO (leitura obrigatória)
+
+O jogo funciona (jogo.html), mas está **fácil demais e pouco legível**. Ordem de ataque:
+
+## 1. TELEGRAFIA TOTAL — é critério de aceite (§12/§15), não enfeite
+"Zero informação oculta: todo dano é previsível antes de confirmar."
+
+- **`prever(skill, dice, alvoIdx)`** em `engine/combat.js`: roda os efeitos numa cópia do estado
+  e devolve `{porInimigo:[{uid,dano,morre,estados[]}], bloqueio, custoHP, essencia}`.
+  Reaproveitar `applyEffects` com um flag `dryRun` (não mutar, acumular num relatório).
+- **Ao passar/segurar numa habilidade:**
+  - acender os **dados que ela vai usar** (usar `findSubset`) com contorno dourado na mesa 3D;
+  - desenhar uma **linha/seta** da habilidade até o(s) inimigo(s) alvo;
+  - mostrar em cada inimigo afetado: **`-X` fantasma**, ícone do estado que vai receber
+    (☠ veneno, 🔥 queimadura, ❄ congelado, 🎯 marca) e um **crânio** se o golpe MATA;
+  - se a habilidade dá bloqueio/cura, prévia no card do jogador.
+- **Intenção inimiga expandida:** hoje mostra `⚔ 12`. Passar a mostrar
+  **quanto vai passar do seu bloqueio** (`⚔ 12 → 4 no HP`) e destacar em vermelho se **te mata**.
+
+## 2. IMPACTO DE VERDADE (§10)
+- **Hit-stop de 60–120ms** no golpe pesado (congelar o rAF do render).
+- **Partículas**: lascas de osso no acerto, poeira no pouso do dado, faísca no bloqueio.
+- **Animação de ataque**: hoje o sprite só pisca. Fazer o sprite **avançar e recuar**
+  (anticipação + follow-through) e o alvo **recuar** no impacto.
+- **Faces raras** (Curinga/Lâmina/Vazio) com **pulso de aura** ao pousar + som próprio (§11.4).
+
+## 3. DIFICULDADE — o simulador já provou que está fácil
+Dados atuais (test/sim.mjs 250 10): Lâmina **100%**, Carrasco ~73%, OráculA ~3%, Arcanista ~0%.
+Alvo saudável de roguelite: **25–45%** para uma classe bem jogada.
+- Subir o dano inimigo da Masmorra 1–3 (a curva só morde a partir da 5).
+- Ondas maiores mais cedo e **elites já na 2**.
+- Nerfar o combo que quebra a Lâmina (multi-hit + relíquias de multiplicador).
+- Rodar `node test/sim.mjs 250 10` a cada ajuste — é para isso que ele existe.
+
+## 4. GAMIFICAÇÃO (tela inicial → batalha)
+- Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
+  **sprite do piloto**, overall e fantasia; som ao focar.
+- Transições entre andares (fade + nome do andar em cartela).
+- **Barra de combo/energia**, contador de andar estilizado, tooltips em tudo (§12).
+- O **personagem do jogador** na tela (hoje só existe como HP).
+
+## 5. Conteúdo que ainda falta (o grosso)
+Masmorras 2–10 (72 comuns, 27 elites, 9 subchefes, 9 chefes), 64 relíquias
+restantes (para ≥90), meta-progressão "O Cofre" (§4.3), Selos do Abismo (§4.4).
