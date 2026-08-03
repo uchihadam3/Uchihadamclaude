@@ -1652,13 +1652,16 @@ export class Game {
     net.onPeers((list) => this.onPeers(list));
     net.onChat((name, text, mine) => this.ui.chatMessage(name, text, mine));
     this.ui.setChat((t) => void net.chat(t));
-    // indicador AO VIVO (o aviso de antes era um retrato de um instante só):
-    // zona · quantos por perto · mensagens enviadas/recebidas.
+    // indicador AO VIVO de quem está por perto. Jogando sozinho ele some; os
+    // contadores de rede ficam só no __coop(), p/ não poluir a tela do jogador.
     window.setInterval(() => {
       const d = netDiag();
-      this.ui.coopStatus(!d.enabled ? "co-op desligado"
-        : d.status !== "SUBSCRIBED" ? `co-op: ${d.erro || d.status}`
-        : `${d.zone} · ${d.peers} por perto · ↑${d.enviadas} ↓${d.recebidas}`);
+      this.ui.coopStatus(
+        !d.enabled ? ""
+          : d.status !== "SUBSCRIBED" ? `co-op: ${d.erro || d.status}`
+          : d.peers === 0 ? "ninguém por perto"
+          : d.peers === 1 ? "1 jogador por perto"
+          : `${d.peers} jogadores por perto`);
     }, 1000);
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
