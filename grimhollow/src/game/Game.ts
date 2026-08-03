@@ -1707,7 +1707,7 @@ export class Game {
       const bgCol2 = a2 ? (boss ? 0x070b0d : 0x05080a) : (boss ? 0x0c0406 : 0x05070a);
       this.scene.fog = new THREE.FogExp2(fogCol2, boss ? 0.058 : 0.052);
       this.scene.background = new THREE.Color(bgCol2);
-      this.addDungeonLights(boss); // iluminação NEUTRA (cinza) nos dois atos
+      this.addDungeonLights(boss, a2); // Ato II: cinza neutro, com o teto mais claro
       this.buildDungeon();
     } else if (loc === "showcase") {
       // mini-santuário: NÉVOA volumétrica densa (exponencial) — moody, não "céu".
@@ -4891,15 +4891,16 @@ export class Game {
     // e as tochas). Luz-chave quente p/ realces.
     // 3º andar (cripta do chefe): ambiente/hemisfério puxados p/ o VERMELHO-SANGUE,
     // dando o clima de bioma diferente (perigo) sem trocar as texturas.
-    // ATO II: ambiente/hemisfério puxados p/ o CIANO-FRIO (bioma fúngico afogado),
-    // luz-chave esverdeada — clima de caverna submersa em vez da pedra quente.
+    // ATO II: mesma pedra CINZA das paredes, iluminação NEUTRA (sem o teal antigo).
+    // A cor de BAIXO do hemisfério é bem mais clara aqui porque é ela que ilumina as
+    // faces voltadas p/ o chão — ou seja, o TETO (que antes ficava quase preto).
     this.world.add(new THREE.AmbientLight(
-      a2 ? (boss ? 0x5f9aa0 : 0x6fa6ad) : (boss ? 0xa6707a : 0x8f98a6), boss ? 0.95 : 1.0));
+      a2 ? 0x9aa2ac : (boss ? 0xa6707a : 0x8f98a6), boss ? 0.95 : 1.0));
     this.world.add(new THREE.HemisphereLight(
-      a2 ? 0x7fd4d0 : (boss ? 0xd89090 : 0xc4ccd8),
-      a2 ? 0x14322e : (boss ? 0x4a2016 : 0x52402a), 1.45));
+      a2 ? 0xc8d0d8 : (boss ? 0xd89090 : 0xc4ccd8),
+      a2 ? 0x9096a0 : (boss ? 0x4a2016 : 0x52402a), 1.45));
     const key = new THREE.DirectionalLight(
-      a2 ? 0x9fe6dc : (boss ? 0xff9a72 : 0xffd7a2), 0.6);
+      a2 ? 0xe6ecf2 : (boss ? 0xff9a72 : 0xffd7a2), 0.6);
     key.position.set(7, 13, 5);
     this.world.add(key);
     // TOCHA do herói: poça de luz quente que acompanha o jogador (o tick move ela)
@@ -5458,7 +5459,7 @@ export class Game {
     const ceilMat = a2
       ? (a2CeilUrl
           ? this.pbrStone(a2CeilUrl, "a2ceil2", { rough: 0.92, normal: 1.3 })
-          : this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2ceilw", { rough: 0.94, normal: 1.25, tint: 0x8b9094, repeat: [1.6, 1.6] }))
+          : this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2ceilw", { rough: 0.9, normal: 1.15, tint: 0xdcdfe2, repeat: [1.6, 1.6] }))
       : this.pbrStone(texStoneUrl, "dwall", { rough: 0.95, normal: 1.2 });
     const torchMat = this.decalMat(decTorchUrl, 0.1);
     const crackMat = this.decalMat(decCracksUrl, 0.08);
