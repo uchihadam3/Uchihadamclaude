@@ -10,10 +10,13 @@ import { Combat } from './engine/combat.js';
 import { buildWave, burdensFor } from './engine/encounter.js';
 import { satisfies, reqLabel, findSubset } from './engine/requirements.js';
 import { gerarOpcoes, aplicar, recalcRelics } from './engine/rewards.js';
+import { RELIQUIAS } from './data/relics.js';
+const RELIQ_COMUNS=RELIQUIAS.filter(r=>r.r==='comum');
 import { criarMalhaDado, criarMesa, luzes } from './dice3d/render.js';
 import { rolarPara } from './dice3d/roll.js';
 import { raioDe } from './dice3d/geometry.js';
 import { ESCALADA } from './data/dungeons.js';
+import * as META from './meta.js';
 import { spriteDe } from './sprites.js';
 import * as SFX from './sfx.js';
 
@@ -40,6 +43,8 @@ const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 /* ---------- estado ---------- */
 let C=null, P=null, cb=null, malhas=[], trilhas=[], anima=false;
 let sel=new Set(), alvo=0, andar=1, masmorra=1;
+let cofre=META.carregar(), BON=META.bonus(cofre);
+let stats={andares:0, elites:0, chefes:0};
 let previa=null;                 // {skill, ids, pv} — telegrafia (§12)
 const ICO={veneno:'☠',sangramento:'🩸',queimadura:'🔥',congelado:'❄',fratura:'✖',marca:'🎯',
            maldicao:'☠',frenesi:'▲',espinhos:'✦',armadura:'⛊'};
@@ -53,21 +58,93 @@ function calcPrevia(s){
 }
 
 /* ================= TELAS ================= */
+function telaTitulo(){
+  cofre=META.carregar(); BON=META.bonus(cofre);
+  const m=$('msg'); m.classList.remove('off'); m.className='';
+  const rec=cofre.recordes||{andar:0,masmorra:1};
+  m.innerHTML=`<div class="titwrap">
+    <div class="tit">
+      <div class="tit1">DADOS</div><div class="tit2">DO ABISMO</div>
+      <div class="titsub">a sorte é matéria-prima</div>
+    </div>
+    <div class="ecos"><span class="eic">◈</span><b>${cofre.ecos}</b><i>ecos</i></div>
+    <div class="mbtns">
+      <button class="mb pri" data-a="jogar">▶ DESCER</button>
+      <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${Object.keys(cofre.comprados||{}).length}/${META.NOS.length}</em></button>
+    </div>
+    <div class="recs">
+      <span>runs <b>${cofre.runs||0}</b></span>
+      <span>recorde <b>M${rec.masmorra}·A${rec.andar}</b></span>
+      <span>vitórias <b>${cofre.vitorias||0}</b></span>
+    </div></div>`;
+  bindA(m,{ jogar:telaClasses, cofre:telaCofre });
+}
+function bindA(root,map){ root.querySelectorAll('[data-a]').forEach(b=>{
+  b.onclick=()=>{ SFX.pegar(); map[b.dataset.a](); }; }); }
+
+function telaCofre(){
+  const m=$('msg'); m.className='';
+  const ramos=Object.entries(META.RAMOS).map(([k,r])=>{
+    const nos=META.NOS.filter(n=>n.ramo===k).map(no=>{
+      const nv=META.nivelDe(cofre,no.id), max=nv>=no.max;
+      const disp=META.disponivel(cofre,no), c=META.custoDe(no,nv);
+      const pode=disp && cofre.ecos>=c;
+      const trav=(no.req||[]).some(q=>META.nivelDe(cofre,q)<1);
+      return `<button class="no ${max?'max':''} ${pode?'pode':''} ${trav?'trav':''}" data-no="${no.id}">
+        <div class="noh"><b>${no.nome}</b><span class="pips">${
+          Array.from({length:no.max},(_,i)=>`<i class="${i<nv?'on':''}"></i>`).join('')}</span></div>
+        <div class="notxt">${no.txt(Math.max(1,nv+(max?0:1)))}</div>
+        <div class="nofoot">${trav?`🔒 requer ${(no.req||[]).map(q=>META.NOS.find(x=>x.id===q).nome).join(', ')}`
+          : max?'MÁXIMO':`<span class="cst ${pode?'ok':''}">◈ ${c}</span>`}</div></button>`;}).join('');
+    return `<div class="ramo" style="--rc:${r.cor}">
+      <div class="rh"><span class="ri">${r.icone}</span><b>${r.nome}</b><i>${r.sub}</i></div>
+      <div class="nos">${nos}</div></div>`;}).join('');
+  m.innerHTML=`<div class="cofwrap">
+    <div class="cofhd"><button class="volta" data-a="voltar">‹</button>
+      <h2>O COFRE</h2><div class="ecos sm"><span class="eic">◈</span><b>${cofre.ecos}</b></div></div>
+    <p class="cofp">Melhorias <b>permanentes</b>. Elas ficam entre as runs — cada descida te deixa mais forte.</p>
+    <div class="ramos">${ramos}</div>
+    <button class="mb pri" data-a="voltar2">▶ DESCER AGORA</button></div>`;
+  bindA(m,{ voltar:telaTitulo, voltar2:telaClasses });
+  m.querySelectorAll('.no').forEach(b=>b.onclick=()=>{
+    const no=META.NOS.find(x=>x.id===b.dataset.no);
+    if(META.comprar(cofre,no)){ SFX.buy?SFX.buy():SFX.vitoria(); BON=META.bonus(cofre); telaCofre(); }
+    else SFX.soltar();
+  });
+}
 function telaClasses(){
-  const m=$('msg'); m.classList.remove('off');
-  m.innerHTML=`<h1>DADOS DO ABISMO</h1>
-    <p>Sua alma virou um punhado de dados. Desça o Abismo. A sorte é matéria-prima — o que você faz com ela é que decide.</p>
-    <div class="cls">${Object.values(CLASSES).map(c=>`
-      <button class="cbtn" data-c="${c.id}"><b>${c.glifo} ${c.nome}</b>
-        <span>${c.mat} · ${c.bag().length} dados · ${c.hp} HP</span>
-        <span style="opacity:.55;font-style:italic">${c.fantasia}</span></button>`).join('')}</div>`;
-  m.querySelectorAll('.cbtn').forEach(b=>b.onclick=()=>iniciar(b.dataset.c));
+  const m=$('msg'); m.classList.remove('off'); m.className='';
+  m.innerHTML=`<div class="clswrap">
+    <div class="cofhd"><button class="volta" data-a="voltar">‹</button><h2>ESCOLHA SUA ALMA</h2></div>
+    <div class="cls">${Object.values(CLASSES).map(c=>{
+      const b=c.bag();
+      return `<button class="cbtn" data-c="${c.id}" style="--cc:${c.cor}">
+        <div class="cglifo">${c.glifo}</div>
+        <div class="cinfo"><b>${c.nome}</b>
+          <span class="cmat">${c.mat}</span>
+          <div class="cstats"><i>❤ ${c.hp+BON.hpBonus}</i><i>🎲 ${b.length+BON.dadosExtra}</i><i>⟳ ${c.rerolls+BON.rerolls}</i></div>
+          <span class="cfan">${c.fantasia}</span></div></button>`;}).join('')}</div></div>`;
+  bindA(m,{ voltar:telaTitulo });
+  m.querySelectorAll('.cbtn').forEach(b=>b.onclick=()=>{ SFX.vitoria(); iniciar(b.dataset.c); });
 }
 function iniciar(cid){
   C=CLASSES[cid];
-  P={ classe:cid, hp:C.hp, maxHp:C.hp, baseMaxHp:C.hp, block:0, bag:C.bag(),
-      statuses:{}, essence:0, rerollsBase:C.rerolls, relics:[], unlocked:[] };
-  recalcRelics(P); andar=1; masmorra=1;
+  const bag=C.bag();
+  for(let i=0;i<BON.dadosExtra;i++) bag.push(bag[i%bag.length] ? {...bag[0], id:'X'+i, faces:bag[0].faces.map(f=>({...f}))} : null);
+  P={ classe:cid, hp:C.hp+BON.hpBonus, maxHp:C.hp+BON.hpBonus, baseMaxHp:C.hp+BON.hpBonus, block:0,
+      bag:bag.filter(Boolean), statuses:{}, essence:0,
+      rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:BON.quarta?['coroa_'+cid]:[] };
+  // gravações iniciais do Cofre (Lâmina / Curinga / Eco)
+  const grav=(k,q)=>{ for(let i=0;i<q;i++){ const d=P.bag[i%P.bag.length];
+    const j=d.faces.findIndex(f=>f.k==='num'); if(j>=0) d.faces[j]={k, v:d.faces[j].v}; } };
+  grav('blade',BON.lamina); grav('wild',BON.curinga); grav('echo',BON.eco);
+  if(BON.dmgFlat||BON.blockStart){ P.relics.push({id:'_cofre',nome:'Cofre',r:'comum',txt:'',
+    mods:{dmgFlat:BON.dmgFlat}, start:{block:BON.blockStart}}); }
+  for(let i=0;i<BON.reliquias;i++){ const pool=RELIQ_COMUNS.filter(r=>!P.relics.some(x=>x.id===r.id));
+    if(pool.length) P.relics.push(pool[rng.int(pool.length)]); }
+  recalcRelics(P);
+  andar=1; masmorra=BON.portal>1?BON.portal:1;
+  stats={andares:0, elites:0, chefes:0};
   $('msg').classList.add('off');
   novoCombate();
 }
@@ -238,19 +315,43 @@ addEventListener('pointerdown', ev=>{
 });
 /* ---------- fim de combate ---------- */
 function fim(){
-  const m=$('msg'); m.classList.remove('off');
+  const m=$('msg'); m.classList.remove('off'); m.className='';
   if(cb.over==='lose'){ SFX.derrota();
-    m.innerHTML=`<h1>O ABISMO FICOU COM VOCÊ</h1>
-      <p>Masmorra ${masmorra}, andar ${andar}. Você limpou ${(masmorra-1)*10+andar-1} andares.</p>
-      <div class="cls"><button class="cbtn" id="rec"><b>▶ Descer de novo</b></button></div>`;
-    $('rec').onclick=telaClasses; return;
+    const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
+      masmorra, venceu:false}, BON.ecoMult);
+    cofre.ecos+=ganho; cofre.runs=(cofre.runs||0)+1;
+    const prof=(masmorra-1)*10+andar;
+    const rp=(cofre.recordes.masmorra-1)*10+cofre.recordes.andar;
+    const novoRec = prof>rp;
+    if(novoRec) cofre.recordes={andar, masmorra};
+    META.salvar(cofre);
+    m.innerHTML=`<div class="fimwrap">
+      <div class="fimt">O ABISMO FICOU COM VOCÊ</div>
+      <div class="fimprof">M${masmorra} · ANDAR ${andar}</div>
+      ${novoRec?'<div class="fimrec">✦ NOVO RECORDE ✦</div>':''}
+      <div class="fimlin"><span>andares limpos</span><b>${stats.andares}</b></div>
+      <div class="fimlin"><span>elites derrotados</span><b>${stats.elites}</b></div>
+      ${stats.chefes?`<div class="fimlin"><span>chefes</span><b>${stats.chefes}</b></div>`:''}
+      <div class="fimeco"><span class="eic">◈</span> +${ganho} <i>ecos</i></div>
+      <div class="mbtns">
+        <button class="mb cof" data-a="cofre">🗝 GASTAR NO COFRE</button>
+        <button class="mb pri" data-a="denovo">▶ DESCER DE NOVO</button>
+      </div></div>`;
+    bindA(m,{ cofre:telaCofre, denovo:telaClasses });
+    return;
   }
   SFX.vitoria();
-  const opts=gerarOpcoes(rng,P,3);
-  m.innerHTML=`<h1>ANDAR LIMPO</h1><p>Escolha sua recompensa.</p>
-    <div class="cls">${opts.map((o,i)=>`<button class="cbtn" data-i="${i}"><b>${o.nome}</b><span>${o.desc}</span></button>`).join('')}</div>`;
-  m.querySelectorAll('.cbtn').forEach(b=>b.onclick=()=>{
-    aplicar(opts[+b.dataset.i],P,rng);
+  stats.andares++;
+  stats.elites += cb.enemies.filter(e=>e.elite).length;
+  if(andar===10) stats.chefes++;
+  const opts=gerarOpcoes(rng,P,3+BON.opcoes);
+  m.innerHTML=`<div class="recwrap"><div class="rect">ANDAR ${andar} LIMPO</div>
+    <p class="recp">Escolha o que levar para o próximo.</p>
+    <div class="recs2">${opts.map((o,i)=>`<button class="rec ${o.t}" data-i="${i}">
+      <div class="ric">${o.t==='dado'?'🎲':o.t==='grav'?'⚒':o.t==='reliquia'?'🕯️':'✚'}</div>
+      <b>${o.nome}</b><span>${o.desc}</span></button>`).join('')}</div></div>`;
+  m.querySelectorAll('.rec').forEach(b=>b.onclick=()=>{
+    SFX.pegar(); aplicar(opts[+b.dataset.i],P,rng);
     if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.30));
     andar++; if(andar>10){ andar=1; masmorra++; }
     $('msg').classList.add('off'); novoCombate();
@@ -270,7 +371,7 @@ addEventListener('resize',resize); resize();
     document.body.style.setProperty('--sk', ((Math.random()*2-1)*shakeT*0.5).toFixed(2)+'px');
   } else if(shakeT){ shakeT=0; camera.position.x=0; resize(); document.body.style.setProperty('--sk','0px'); }
   renderer.render(scene,camera); requestAnimationFrame(loop); })();
-telaClasses();
+telaTitulo();
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
   get sel(){return sel;}, get malhas(){return malhas;},
   get anima(){return anima;}, get previa(){return previa;}, calcPrevia };
