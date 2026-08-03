@@ -8,7 +8,7 @@ import { MATERIAIS } from '../data/dice.js';
 import { FACE_KINDS } from '../data/faces.js';
 
 /* --- textura das faces: um atlas com N nichos, cada um com o símbolo --- */
-function atlasFaces(faces, corBase, corTinta){
+function atlasFaces(faces, corBase, corTinta, layouts){
   const n = faces.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
   const S = 256, cv = document.createElement('canvas');
   cv.width = cols*S; cv.height = rows*S;
@@ -21,17 +21,24 @@ function atlasFaces(faces, corBase, corTinta){
     const grd=g.createRadialGradient(cx+S/2,cy+S/2,S*0.1,cx+S/2,cy+S/2,S*0.7);
     grd.addColorStop(0,'rgba(255,255,255,0.10)'); grd.addColorStop(1,'rgba(0,0,0,0.16)');
     g.fillStyle=grd; g.fillRect(cx,cy,S,S);
-    const K = FACE_KINDS[f.k] || FACE_KINDS.num;
-    const txt = f.k==='num' ? String(f.v)
-              : (K.glifo || '?') + (f.k==='blade'||f.k==='shield' ? '' : '');
-    // sulco (tinta escura) + realce = sensação de GRAVADO, não decalque
     g.textAlign='center'; g.textBaseline='middle';
-    const fs = f.k==='num' ? (String(f.v).length>1?S*0.5:S*0.62) : S*0.55;
-    g.font = `900 ${fs}px Georgia, serif`;
-    g.fillStyle='rgba(255,255,255,0.16)'; g.fillText(txt, cx+S/2, cy+S/2 + S*0.018);
-    g.fillStyle = f.k==='num' ? corTinta : K.cor;
-    g.fillText(txt, cx+S/2, cy+S/2);
-    if(f.k!=='num'){ g.shadowColor=K.cor; g.shadowBlur=S*0.09; g.fillText(txt, cx+S/2, cy+S/2); g.shadowBlur=0; }
+    const marcar=(txt, kind, px, py, esc)=>{
+      const K2 = FACE_KINDS[kind] || FACE_KINDS.num;
+      const fs = (kind==='num' ? (txt.length>1?S*0.5:S*0.62) : S*0.55) * esc;
+      g.font = `900 ${fs}px Georgia, serif`;
+      g.fillStyle='rgba(255,255,255,0.16)'; g.fillText(txt, px, py + S*0.016*esc);
+      g.fillStyle = kind==='num' ? corTinta : K2.cor;
+      g.fillText(txt, px, py);
+      if(kind!=='num'){ g.shadowColor=K2.cor; g.shadowBlur=S*0.09; g.fillText(txt, px, py); g.shadowBlur=0; }
+    };
+    const lay = layouts && layouts[i];
+    if(lay){                       // d4: um número em CADA CANTO (como o dado real)
+      for(const it of lay) marcar(it.txt, it.k, cx+it.u*S, cy+it.v*S, 0.40);
+    } else {
+      const K = FACE_KINDS[f.k] || FACE_KINDS.num;
+      const txt = f.k==='num' ? String(f.v) : (K.glifo || '?');
+      marcar(txt, f.k, cx+S/2, cy+S/2, 1);
+    }
   });
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
@@ -39,7 +46,7 @@ function atlasFaces(faces, corBase, corTinta){
 }
 
 /* --- geometria: triangula cada face em leque e mapeia o nicho do atlas --- */
-function geometriaDado(tipo, faces, raio){
+function geometriaDado(tipo, faces, raio, outLayouts){
   const g = poliedro(tipo);
   const n = g.faces.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
   const P=[], N=[], U=[];
@@ -70,6 +77,16 @@ function geometriaDado(tipo, faces, raio){
       const y=(d[0]*ay0[0]+d[1]*ay0[1]+d[2]*ay0[2])/Rface;
       return [ u0+du*(0.5+x*0.5), v0+dv*(0.5+y*0.5) ];
     };
+    if(outLayouts && g.porVertice){
+      // o número de cada VÉRTICE fica no canto correspondente, puxado pro centro
+      outLayouts[fi] = f.idx.map((vi,k)=>{
+        const uv=uvDe(pts[k]);
+        const fu=(uv[0]-u0)/du, fv=(uv[1]-v0)/dv;          // 0..1 dentro do nicho
+        const face = faces[vi] || {k:'num', v:vi+1};
+        return { txt: face.k==='num'?String(face.v):(FACE_KINDS[face.k]?.glifo||'?'),
+                 k: face.k, u: 0.5+(fu-0.5)*0.52, v: 1-(0.5+(fv-0.5)*0.52) };
+      });
+    }
     for(let i=0;i<pts.length;i++){
       const a=pts[i], b=pts[(i+1)%pts.length];
       for(const p of [c,a,b]){ P.push(p[0],p[1],p[2]); N.push(nrm[0],nrm[1],nrm[2]);
@@ -90,13 +107,15 @@ export function criarMalhaDado(die, raio=0.5){
               : die.material==='obsidiana' ? '#d8d2c4'
               : die.material==='metal' ? '#12161a'
               : die.material==='ambar' ? '#3a1f05' : '#f0e6ff';
-  const { tex } = atlasFaces(die.faces, hex, tinta);
+  const layouts = poliedro(die.tipo).porVertice ? [] : null;
+  const geo = geometriaDado(die.tipo, die.faces, raio, layouts);
+  const { tex } = atlasFaces(die.faces, hex, tinta, layouts);
   const mat = new THREE.MeshStandardMaterial({
     map: tex, color: 0xffffff,
     roughness: M.rough, metalness: M.metal,
     emissive: M.emissive||0x000000, emissiveIntensity: M.emissive?0.5:0,
   });
-  const mesh = new THREE.Mesh(geometriaDado(die.tipo, die.faces, raio), mat);
+  const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = true; mesh.receiveShadow = true;
   mesh.userData.die = die;
   return mesh;

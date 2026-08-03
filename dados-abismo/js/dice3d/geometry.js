@@ -105,22 +105,32 @@ const CACHE={};
 export function poliedro(tipo){
   if(CACHE[tipo]) return CACHE[tipo];
   const g = tipo==='d4'?tetra() : tipo==='d8'?octa() : tipo==='d10'?d10() : tipo==='d12'?dodeca() : cubo();
-  // d4 lê a face de BAIXO (como dado real de 4 faces: o valor fica no topo do vértice)
-  g.lerDeBaixo = (tipo==='d4');
+  // d4 REAL: o valor não está no centro da face — está nos CANTOS. Cada vértice
+  // carrega um número, repetido nas 3 faces que o tocam, e você lê o vértice de CIMA.
+  g.porVertice = (tipo==='d4');
   CACHE[tipo]=g; return g;
 }
 /* qual face está para CIMA (§11.1) — genérico via normais */
 export function faceParaCima(tipo, quat){
   const g = poliedro(tipo);
-  const alvo = g.lerDeBaixo ? [0,-1,0] : [0,1,0];
+  if(g.porVertice){                       // d4: lê o VÉRTICE que aponta pra cima
+    let melhor=0, best=-Infinity;
+    for(let i=0;i<g.verts.length;i++){
+      const v = rot(quat, g.verts[i]);
+      if(v[1] > best){ best=v[1]; melhor=i; }
+    }
+    return melhor;
+  }
   let melhor=0, best=-Infinity;
   for(let i=0;i<g.faces.length;i++){
     const n = rot(quat, g.faces[i].normal);
-    const d = n[0]*alvo[0]+n[1]*alvo[1]+n[2]*alvo[2];
-    if(d>best){ best=d; melhor=i; }
+    if(n[1] > best){ best=n[1]; melhor=i; }
   }
   return melhor;
 }
+/* quantos "resultados" o sólido tem (d4 = vértices; resto = faces) */
+export const nResultados = tipo => { const g=poliedro(tipo);
+  return g.porVertice ? g.verts.length : g.faces.length; };
 export function rot(q, v){            // rotaciona vetor por quaternion [x,y,z,w]
   const [x,y,z,w]=q, [vx,vy,vz]=v;
   const tx=2*(y*vz-z*vy), ty=2*(z*vx-x*vz), tz=2*(x*vy-y*vx);

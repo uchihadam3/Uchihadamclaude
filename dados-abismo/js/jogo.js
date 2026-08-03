@@ -19,6 +19,7 @@ import { ESCALADA } from './data/dungeons.js';
 import * as META from './meta.js';
 import { spriteDe } from './sprites.js';
 import * as SFX from './sfx.js';
+import { tocarEfeito } from './efeitos.js';
 
 const MESA={x:3.4,z:2.0};
 const $=id=>document.getElementById(id);
@@ -43,6 +44,27 @@ const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 /* ---------- estado ---------- */
 let C=null, P=null, cb=null, malhas=[], trilhas=[], anima=false;
 let sel=new Set(), alvo=0, andar=1, masmorra=1;
+const BANDEJA=[];                      // dados gastos, encostados no canto da mesa
+function praBandeja(dieId){
+  const m=malhas.find(x=>x.userData.die.id===dieId); if(!m || m.userData.naBandeja) return;
+  m.userData.naBandeja=true;
+  const k=BANDEJA.length; BANDEJA.push(m);
+  // fileira na BORDA DA FRENTE da mesa (dentro do enquadramento), como um monte de gastos
+  const porFila=6, col=k%porFila, fila=Math.floor(k/porFila);
+  const destino=new THREE.Vector3(-MESA.x*0.80 + col*(MESA.x*1.6/(porFila-1)),
+                                  0.14, MESA.z*0.84 - fila*0.46);
+  const q0=m.quaternion.clone(), p0=m.position.clone();
+  const q1=new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI/2,0,(k%2?0.2:-0.2)));
+  const t0=performance.now(), dur=380;
+  const voar=()=>{ const t=Math.min(1,(performance.now()-t0)/dur);
+    const e=1-Math.pow(1-t,3);
+    m.position.lerpVectors(p0,destino,e); m.position.y = p0.y+(0.16-p0.y)*e + Math.sin(e*Math.PI)*0.75;
+    m.quaternion.slerpQuaternions(q0,q1,e);
+    m.scale.setScalar(1-0.28*e);
+    if(t<1) requestAnimationFrame(voar); };
+  voar(); SFX.soltar();
+}
+function limparBandeja(){ BANDEJA.length=0; for(const m of malhas){ m.userData.naBandeja=false; m.scale.setScalar(1);} }
 let cofre=META.carregar(), BON=META.bonus(cofre);
 let stats={andares:0, elites:0, chefes:0};
 let previa=null;                 // {skill, ids, pv} — telegrafia (§12)
@@ -151,7 +173,7 @@ function iniciar(cid){
 function novoCombate(){
   const inim=buildWave(masmorra,andar,rng);
   cb=new Combat({rng,player:P,enemies:inim,burdens:burdensFor(masmorra),log:true});
-  montarDados(); cb.startTurn(); alvo=0; sel.clear();
+  montarDados(); limparBandeja(); cb.startTurn(); alvo=0; sel.clear();
   rolarVisual(); pintar();
 }
 /* ---------- dados 3D ---------- */
@@ -173,10 +195,12 @@ function rolarVisual(){
     trilhas.push({ tr:r?r.trilha:[{p:[z[i][0],raio,z[i][1]],q:[0,0,0,1]}], mesh, atraso:i*0.08 });
     if(r&&r.fim) obst.push({p:r.fim,r:raio});
   }
+  limparBandeja();
   anima=true; const DT=1/120, VEL=1.5; let t=0, last=performance.now();
   const passo=()=>{ const now=performance.now(); t+=Math.min(0.05,(now-last)/1000)*VEL; last=now;
     let vivo=false;
-    for(const x of trilhas){ const q=Math.floor((t-x.atraso)/DT);
+    for(const x of trilhas){ if(x.mesh.userData.naBandeja) continue;
+      const q=Math.floor((t-x.atraso)/DT);
       if(q<0){ x.mesh.visible=false; vivo=true; continue; }
       x.mesh.visible=true;
       const f=Math.min(q,x.tr.length-1); if(q<x.tr.length) vivo=true;
@@ -244,6 +268,8 @@ function pintar(){
   SFX.tensao(P.hp < P.maxHp*0.35);
   // dados usados ficam apagados
   for(const m of malhas){ const id=m.userData.die.id;
+    if(m.userData.naBandeja){ m.material.opacity=0.55; m.material.transparent=true;
+      m.material.emissiveIntensity=0; continue; }
     const usado=cb.used.has(id), selec=sel.has(id);
     const napre = previa && previa.ids.includes(id);
     m.material.emissive?.setHex(napre?0x8a6a00 : selec?0x554400 : 0x000000);
@@ -252,6 +278,25 @@ function pintar(){
     m.material.opacity = usado?0.22:1; m.material.transparent = usado; }
 }
 /* ---------- ações ---------- */
+/* som próprio por habilidade */
+const SOM={ decapitar:()=>SFX.golpe(30), carniceiro:()=>SFX.golpe(34),
+  muralha:()=>SFX.bloqueio(), respirar:()=>SFX.bloqueio(),
+  furia:()=>{SFX.golpe(24);setTimeout(()=>SFX.golpe(18),90);},
+  milcortes:()=>{for(let i=0;i<5;i++) setTimeout(()=>SFX.golpe(8),i*70);},
+  enxame:()=>{for(let i=0;i<8;i++) setTimeout(()=>SFX.golpe(7),i*55);},
+  veneno:()=>SFX.morte(), sumir:()=>SFX.pegar(),
+  raio:()=>{SFX.golpe(20);SFX.pegar();}, nova:()=>{SFX.bloqueio();setTimeout(()=>SFX.golpe(16),80);},
+  colapso:()=>{SFX.vitoria();SFX.golpe(40);}, prisma:()=>SFX.vitoria(),
+  tecer:()=>SFX.pegar(), julgamento:()=>{SFX.golpe(38);setTimeout(()=>SFX.vitoria(),120);},
+  fio:()=>SFX.bloqueio(), tapecaria:()=>SFX.vitoria() };
+function efeitoHabilidade(skill, pv){
+  (SOM[skill.id]||(()=>SFX.golpe(14)))();
+  const cards=[...document.querySelectorAll('.en')];
+  const alvos = pv && pv.alvos.length ? pv.alvos.map(a=>a.uid) : null;
+  if(alvos){ for(const uid of alvos){ const el=cards.find(c=>c.dataset.uid===uid);
+      if(el) tocarEfeito(skill.id, el, pv.alvos.find(a=>a.uid===uid)?.dano||5); } }
+  else { const el=document.getElementById('voce'); if(el) tocarEfeito(skill.id, el); }
+}
 function snapHP(){ return cb.enemies.map(e=>e.hp); }
 function juice(antes, hpAntes){
   cb.enemies.forEach((e,i)=>{
@@ -288,8 +333,12 @@ function usar(s){
     return;
   }
   const antes=snapHP(), hpA=P.hp;
+  const alvosPrev = cb.prever(s, ids, alvo);
   cb.use(s, ids, alvo); sel.clear(); previa=null;
-  pintar(); juice(antes,hpA);                 // pinta primeiro, depois os efeitos
+  for(const id of ids) praBandeja(id);            // os dados gastos vão pro canto
+  pintar();                                       // repinta ANTES (senão apaga os efeitos)
+  efeitoHabilidade(s, alvosPrev);                 // efeito próprio da habilidade
+  juice(antes,hpA);                 // pinta primeiro, depois os efeitos
   if(cb.over){ setTimeout(fim,760); return; }
 }
 $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
