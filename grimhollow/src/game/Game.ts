@@ -1831,9 +1831,9 @@ export class Game {
       window.setTimeout(() => {
         const d = netDiag();
         this.ui.toast(d.status === "SUBSCRIBED"
-          ? `Co-op ligado — ${d.zone}`
+          ? `Co-op: ${d.zone} · ${d.peers} por perto (env ${d.enviadas}/rec ${d.recebidas})`
           : `Co-op: ${d.erro || d.status}`);
-      }, 2500);
+      }, 5000);
     } else {
       void net.leave(); this.clearPeers(); this.pushMinimap();
       this.ui.toast("Co-op desligado (Convidado joga sozinho)");

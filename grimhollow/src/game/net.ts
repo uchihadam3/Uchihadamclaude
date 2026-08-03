@@ -48,6 +48,7 @@ export const SESSION_TAG = Math.random().toString(36).slice(2, 8);
 interface RTChannel {
   on(type: string, filter: unknown, cb: (p: unknown) => void): RTChannel;
   subscribe(cb?: (status: string) => void): RTChannel;
+  send(msg: { type: string; event: string; payload: unknown }): Promise<unknown>;
   track(state: unknown): Promise<unknown>;
   untrack(): Promise<unknown>;
   presenceState(): Record<string, unknown[]>;
@@ -60,6 +61,9 @@ interface RTClient {
 // diagnóstico: dá p/ ler no console (window.__coop) quando algo não conecta
 export const diag = {
   enabled: false, zone: "", status: "parado", peers: 0, erro: "",
+  // decisivos p/ achar a falha: se enviadas>0 e recebidas=0 dos DOIS lados, o
+  // broadcast não está sendo entregue; se enviadas=0, o envio é que falha.
+  enviadas: 0, recebidas: 0, canal: "",
 };
 const log = (...a: unknown[]) => console.info("[co-op]", ...a);
 
@@ -86,6 +90,8 @@ class NetSession {
   private pending: ReturnType<typeof setTimeout> | null = null;
   private enabled = false;
   private decidido = false; // setCoop() já foi chamado? (antes disso, fica quieto)
+  private vistos = new Map<string, { st: PeerState; t: number }>(); // vizinhos + quando falaram
+  private beat: ReturnType<typeof setInterval> | null = null;       // heartbeat
 
   /** Liga o co-op. Sem isso (ex.: Convidado) nada é publicado nem recebido. */
   enable(on: boolean): void {
@@ -116,44 +122,87 @@ class NetSession {
     const c = await getClient();
     if (!c) { diag.status = "sem cliente"; log("sem cliente:", diag.erro); return; }
     this.zone = zone; diag.zone = zone; diag.status = "conectando";
+    diag.canal = `gh-zone:${zone}`; diag.enviadas = 0; diag.recebidas = 0;
     log(`entrando na zona "${zone}" como ${self.name} (id ${self.id})`);
-    const ch = c.channel(`gh-zone:${zone}`, { config: { presence: { key: self.id } } });
+    const ch = c.channel(`gh-zone:${zone}`, {
+      config: { presence: { key: self.id }, broadcast: { self: false } },
+    });
     this.channel = ch; // ANTES do subscribe: o callback de SUBSCRIBED já usa isto
-    // presence sync/join/leave → recalcula a lista de vizinhos
-    const emit = () => {
-      if (!this.cb || !this.channel) return;
-      const raw = this.channel.presenceState();
-      const out: PeerState[] = [];
-      for (const key of Object.keys(raw)) {
-        const metas = raw[key];
-        const m = metas && metas.length ? metas[metas.length - 1] : null; // o mais recente
-        if (!m) continue;
-        const s = m as Partial<PeerState>;
-        if (!s.id || s.id === this.self?.id) continue; // nós mesmos não contamos
-        out.push({
-          id: s.id, name: s.name ?? "Viajante", classId: s.classId ?? "guerreiro",
-          level: s.level ?? 1, col: s.col ?? 0, row: s.row ?? 0, facing: s.facing ?? 0,
-        });
-      }
-      diag.peers = out.length;
-      log(`presence: ${out.length} vizinho(s) na zona`, out.map((x) => x.name));
-      this.cb(out);
-    };
-    ch.on("presence", { event: "sync" }, emit);
-    ch.on("presence", { event: "join" }, emit);
-    ch.on("presence", { event: "leave" }, emit);
+
+    // ---- BROADCAST é o transporte principal ----
+    // O presence dependia de o projeto tê-lo funcionando; o canal conectava
+    // (SUBSCRIBED) mas os vizinhos nunca chegavam. O broadcast é o mecanismo mais
+    // básico do Realtime, então a posição vai por ele e cada um mantém sua própria
+    // lista com HEARTBEAT + tempo-limite (some sozinho quem parou de falar).
+    ch.on("broadcast", { event: "pos" }, (msg: unknown) => {
+      diag.recebidas++;
+      const p = (msg as { payload?: Partial<PeerState> })?.payload;
+      if (!p || !p.id || p.id === this.self?.id) return;
+      this.vistos.set(p.id, {
+        st: {
+          id: p.id, name: p.name ?? "Viajante", classId: p.classId ?? "guerreiro",
+          level: p.level ?? 1, col: p.col ?? 0, row: p.row ?? 0, facing: p.facing ?? 0,
+        },
+        t: Date.now(),
+      });
+      this.emitPeers();
+    });
+    // alguém acabou de chegar e pediu "quem está aí?" → respondemos na hora, p/ o
+    // recém-chegado não ficar até o próximo heartbeat sem ver ninguém.
+    ch.on("broadcast", { event: "oi" }, () => { void this.publish(true); });
+
+    // ---- PRESENCE fica como reforço: serve p/ sumir na hora quem fecha a aba ----
+    ch.on("presence", { event: "leave" }, (e: unknown) => {
+      const k = (e as { key?: string })?.key;
+      if (k && this.vistos.delete(k)) this.emitPeers();
+    });
+
     ch.subscribe((status: string) => {
       diag.status = status;
       log("canal:", status);
-      if (status === "SUBSCRIBED") void this.publish(true);
-      else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
-        diag.erro = `canal falhou: ${status} (Realtime desligado no projeto?)`;
+      if (status === "SUBSCRIBED") {
+        void this.publish(true);
+        void this.send("oi", { id: self.id });     // avisa que chegou
+        try { void ch.track({ id: self.id }); } catch { /* presence é opcional */ }
+        // heartbeat: republica de tempos em tempos p/ quem entrar depois nos ver
+        if (this.beat) clearInterval(this.beat);
+        this.beat = setInterval(() => { void this.publish(true); this.podar(); }, 2000);
+      } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        diag.erro = `canal falhou: ${status}`;
+      }
     });
+  }
+
+  /** Remove quem não fala há um tempo (fechou o jogo, caiu a rede). */
+  private podar(): void {
+    const lim = Date.now() - 7000;
+    let mudou = false;
+    for (const [id, v] of this.vistos) if (v.t < lim) { this.vistos.delete(id); mudou = true; }
+    if (mudou) this.emitPeers();
+  }
+  private emitPeers(): void {
+    const out = [...this.vistos.values()].map((v) => v.st);
+    diag.peers = out.length;
+    this.cb?.(out);
+  }
+  /** Envia um evento de broadcast, registrando o resultado no diagnóstico. */
+  private async send(event: string, payload: unknown): Promise<void> {
+    if (!this.channel) return;
+    try {
+      const r = await this.channel.send({ type: "broadcast", event, payload });
+      if (r === "ok") diag.enviadas++;
+      else { diag.erro = `envio "${event}": ${String(r)}`; log("envio devolveu", r); }
+    } catch (e) {
+      diag.erro = `envio "${event}" falhou: ${(e as Error).message}`;
+      log("falha ao enviar", event, e);
+    }
   }
 
   /** Sai do canal atual e limpa a lista. */
   async leave(): Promise<void> {
     if (this.pending) { clearTimeout(this.pending); this.pending = null; }
+    if (this.beat) { clearInterval(this.beat); this.beat = null; }
+    this.vistos.clear();
     const ch = this.channel;
     this.channel = null; this.zone = "";
     if (ch) {
@@ -183,12 +232,7 @@ class NetSession {
       return;
     }
     this.lastPublish = t;
-    try {
-      await this.channel.track({ ...this.self });
-    } catch (e) {
-      diag.erro = `track falhou: ${(e as Error).message}`;
-      log("track falhou:", e);
-    }
+    await this.send("pos", { ...this.self });
   }
 }
 
