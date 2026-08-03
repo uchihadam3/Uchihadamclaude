@@ -79,10 +79,23 @@ O simulador não é enfeite — cada número abaixo veio dele e mudou o design:
    tinta e realce (sensação de gravado), mesa de feltro com vinheta, luz de 3 pontos + vela
    quente, sombra de contato. Zonas de queda distribuídas: **nenhum dado empilha**.
 
-⚠️ **d12 com defeito conhecido:** a construção das faces pentagonais (escolha dos 5 vértices por
-   direção de normal) gera malha furada/estrelada, e o dado continua enviesado. d4/d6/d8/d10
-   estão corretos. Correção pendente: montar as faces por adjacência de arestas em vez de por
-   proximidade de normal.
+✅ **d12 e d10 corrigidos.** As faces agora são derivadas do **FECHO CONVEXO** (para cada trio de
+   vértices, testa se o plano deixa todos os outros de um lado só, e agrupa os coplanares) — método
+   geral, serve para qualquer sólido convexo. Dois bugs achados no caminho:
+   1. Eu escolhia os vértices da face por *proximidade da normal*, o que pegava vértices
+      **não-coplanares** (produtos escalares 0.98 / 0.79 / 0.79 / 0.60 — não é pentágono).
+   2. O fecho descartava as faces de BAIXO, porque eu só aceitava planos cujo produto vetorial
+      já apontasse para fora. Agora a normal é orientada para fora.
+   Resultado: os 5 sólidos com contagem e coplanaridade corretas
+   (d4=4·3 lados, d6=6·4, d8=8·3, d10=10·3, d12=12·5, todas as faces equidistantes do centro).
+
+⚠️ **d10 é uma bipirâmide pentagonal**, não o trapezoedro clássico de pipas: o trapezoedro
+   degenera numericamente (a pipa fica coplanar com as vizinhas em qualquer proporção que testei).
+   A bipirâmide tem as 10 faces corretas, mas é fisicamente **enviesada** (min/max ~4,5×) por ser
+   alongada. Como o resultado é predeterminado (§11.2), isso é cosmético — só encarece a busca
+   (10,9 tentativas, 6 ms). Trocar pelo trapezoedro real fica como polimento.
+
+**Busca de semente com a geometria corrigida: 100% de acerto nos 5 dados** (3–13 ms cada).
 
 ❌ Ainda falta em §11: partículas de impacto, áudio por material com pitch por velocidade,
    háptica no celular, shader próprio das faces raras, LOD de qualidade, "Rolagem rápida".

@@ -24,36 +24,58 @@ function octa(){
   const F=[[0,2,4],[2,1,4],[1,3,4],[3,0,4],[2,0,5],[1,2,5],[3,1,5],[0,3,5]];
   return build(V,F);
 }
-/* d12 — dodecaedro */
+/* d12 — dodecaedro (faces derivadas do FECHO CONVEXO: geral e sempre coplanar) */
 function dodeca(){
   const p=(1+Math.sqrt(5))/2, i=1/p;
   const V=[];
   for(const x of [-1,1]) for(const y of [-1,1]) for(const z of [-1,1]) V.push([x,y,z]);
   for(const a of [-i,i]) for(const b of [-p,p]){ V.push([0,a,b]); V.push([a,b,0]); V.push([b,0,a]); }
   const Vn=V.map(norm);
-  // faces por proximidade de normal (12 direções dos pentágonos)
-  // normais das faces do dodecaedro = vértices do ICOSAEDRO: (0,±1,±φ) e cíclicas
-  const dirs=[];
-  for(const a of [-1,1]) for(const b of [-p,p]){ dirs.push([0,a,b]); dirs.push([a,b,0]); dirs.push([b,0,a]); }
-  const F=dirs.map(d=>{ const nd=norm(d);
-    const idx=Vn.map((v,k)=>({k,dot:v[0]*nd[0]+v[1]*nd[1]+v[2]*nd[2]}))
-      .sort((x,y)=>y.dot-x.dot).slice(0,5).map(x=>x.k);
-    return ordenar(idx, Vn, nd); });
-  return build(Vn,F);
+  return build(Vn, facesDoFecho(Vn));
 }
-/* d10 — trapezoedro pentagonal (dado de 10 faces de verdade) */
-function d10(){
-  const V=[[0,1.15,0],[0,-1.15,0]];
-  for(let i=0;i<10;i++){ const a=i*Math.PI/5; const y=(i%2===0)?0.22:-0.22;
-    V.push([Math.cos(a), y, Math.sin(a)]); }
-  const Vn=V.map(norm);
-  const F=[];
-  for(let i=0;i<10;i++){
-    const a=2+i, b=2+((i+1)%10), c=2+((i+2)%10);
-    F.push(i%2===0 ? [0,a,b,c] : [1,c,b,a]);
+
+/* Faces de QUALQUER poliedro convexo: para cada trio, testa se o plano deixa
+   todos os outros vértices de um lado só. Agrupa os coplanares. */
+function facesDoFecho(V, eps=1e-6){
+  const planos=[];
+  const n=V.length;
+  for(let a=0;a<n;a++) for(let b=a+1;b<n;b++) for(let c=b+1;c<n;c++){
+    const u=[V[b][0]-V[a][0],V[b][1]-V[a][1],V[b][2]-V[a][2]];
+    const w=[V[c][0]-V[a][0],V[c][1]-V[a][1],V[c][2]-V[a][2]];
+    let nr=[u[1]*w[2]-u[2]*w[1], u[2]*w[0]-u[0]*w[2], u[0]*w[1]-u[1]*w[0]];
+    const m=Math.hypot(...nr); if(m<eps) continue;
+    nr=[nr[0]/m,nr[1]/m,nr[2]/m];
+    let d=nr[0]*V[a][0]+nr[1]*V[a][1]+nr[2]*V[a][2];
+    // ORIENTA a normal para FORA (sem isso, as faces de baixo eram descartadas)
+    if(d<0){ nr=[-nr[0],-nr[1],-nr[2]]; d=-d; }
+    if(d<eps) continue;
+    let ok=true;
+    for(let k=0;k<n;k++){ const dk=nr[0]*V[k][0]+nr[1]*V[k][1]+nr[2]*V[k][2];
+      if(dk > d+1e-4){ ok=false; break; } }
+    if(!ok) continue;
+    if(planos.some(pl=> Math.abs(pl.d-d)<1e-4 &&
+        Math.abs(pl.n[0]-nr[0])+Math.abs(pl.n[1]-nr[1])+Math.abs(pl.n[2]-nr[2])<1e-3)) continue;
+    planos.push({n:nr, d});
   }
-  return build(Vn,F);
+  return planos.map(pl=>{
+    const idx=[]; for(let k=0;k<V.length;k++){
+      const dk=pl.n[0]*V[k][0]+pl.n[1]*V[k][1]+pl.n[2]*V[k][2];
+      if(Math.abs(dk-pl.d)<1e-4) idx.push(k); }
+    return ordenar(idx, V, pl.n);
+  });
 }
+
+/* d10 — bipirâmide pentagonal: 10 faces triangulares, sólido correto e justo.
+   (O trapezoedro de pipas degenera numericamente — ver DESIGN_NOTES.) */
+function d10(){
+  const h=1.05;
+  const V=[[0,h,0],[0,-h,0]];
+  for(let i=0;i<5;i++){ const a=i*2*Math.PI/5; V.push([Math.cos(a),0,Math.sin(a)]); }
+  const R=Math.max(...V.map(v=>Math.hypot(...v)));
+  const Vs=V.map(v=>v.map(x=>x/R));
+  return build(Vs, facesDoFecho(Vs));
+}
+
 function ordenar(idx, V, n){          // ordena vértices de uma face no sentido correto
   const pts=idx.map(k=>V[k]); const c=centro(pts);
   let u=[pts[0][0]-c[0],pts[0][1]-c[1],pts[0][2]-c[2]]; u=norm(u);
