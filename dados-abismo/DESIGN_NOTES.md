@@ -89,11 +89,12 @@ O simulador não é enfeite — cada número abaixo veio dele e mudou o design:
    Resultado: os 5 sólidos com contagem e coplanaridade corretas
    (d4=4·3 lados, d6=6·4, d8=8·3, d10=10·3, d12=12·5, todas as faces equidistantes do centro).
 
-⚠️ **d10 é uma bipirâmide pentagonal**, não o trapezoedro clássico de pipas: o trapezoedro
-   degenera numericamente (a pipa fica coplanar com as vizinhas em qualquer proporção que testei).
-   A bipirâmide tem as 10 faces corretas, mas é fisicamente **enviesada** (min/max ~4,5×) por ser
-   alongada. Como o resultado é predeterminado (§11.2), isso é cosmético — só encarece a busca
-   (10,9 tentativas, 6 ms). Trocar pelo trapezoedro real fica como polimento.
+✅ **d10 é o TRAPEZOEDRO PENTAGONAL de verdade** (10 faces-pipa). Eu o tinha abandonado achando
+   que degenerava, mas a causa real era o bug da normal do fecho (que só corrigi depois, por causa
+   do d12): com o fecho correto ele monta perfeito. Isso importa porque **só o trapezoedro tem
+   face oposta paralela a cada face** — é o que faz o número de cima ficar legível quando o dado
+   pousa (numa bipirâmide fica uma ARESTA para cima, e não se lê nada).
+   Bônus: virou o dado mais justo do conjunto (viés 4,5× → 1,8×).
 
 **Busca de semente com a geometria corrigida: 100% de acerto nos 5 dados** (3–13 ms cada).
 

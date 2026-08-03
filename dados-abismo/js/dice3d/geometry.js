@@ -65,12 +65,13 @@ function facesDoFecho(V, eps=1e-6){
   });
 }
 
-/* d10 — bipirâmide pentagonal: 10 faces triangulares, sólido correto e justo.
-   (O trapezoedro de pipas degenera numericamente — ver DESIGN_NOTES.) */
+/* d10 — TRAPEZOEDRO PENTAGONAL de verdade: 10 faces-pipa, cada uma com a face
+   OPOSTA paralela. É isso que faz o número de cima ser legível ao pousar. */
 function d10(){
-  const h=1.05;
+  const c=0.15, h=1.42079;      // h resolvido p/ as 4 pontas da pipa serem coplanares
   const V=[[0,h,0],[0,-h,0]];
-  for(let i=0;i<5;i++){ const a=i*2*Math.PI/5; V.push([Math.cos(a),0,Math.sin(a)]); }
+  for(let i=0;i<10;i++){ const a=i*Math.PI/5;
+    V.push([Math.cos(a), (i%2===0?c:-c), Math.sin(a)]); }
   const R=Math.max(...V.map(v=>Math.hypot(...v)));
   const Vs=V.map(v=>v.map(x=>x/R));
   return build(Vs, facesDoFecho(Vs));
@@ -94,7 +95,7 @@ function build(V,F){
 }
 /* RAIO por tipo: iguala a ALTURA DE REPOUSO (inraio) para todos os dados
    ficarem do mesmo porte na mesa — como num conjunto de dados de verdade. */
-const INRAIO={d4:0.333,d6:0.577,d8:0.577,d10:0.612,d12:0.795};
+const INRAIO={d4:0.333,d6:0.577,d8:0.577,d10:0.537,d12:0.795};
 export function raioDe(tipo, alvo=0.335){
   const ir=INRAIO[tipo]||0.577;
   // mesma ALTURA DE REPOUSO p/ todos = mesmo porte na mesa; teto p/ o d4 não virar torre
