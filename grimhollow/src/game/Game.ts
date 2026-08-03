@@ -39,6 +39,7 @@ import {
   forestWalkable,
   forestFind,
   forestSignText,
+  FOREST,
 } from "./forest";
 import {
   DUNGEON_COLS,
@@ -82,6 +83,9 @@ import {
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
 import { net, diag as netDiagObj, SESSION_TAG, type PeerState } from "./net";
+import {
+  PLAINS_COLS, PLAINS_ROWS, plainsCell, plainsWalkable, plainsFind, plainsAll,
+} from "./plains";
 const netDiag = () => netDiagObj;
 import { audio } from "./audio";
 import {
@@ -1050,6 +1054,9 @@ const a2OptUrl = (name: string): string | undefined => A2OPT_GLOB[`../assets/env
 
 // CO-OP: arte do avatar dos outros jogadores, por classe. Se existir
 // `avatar_<classe>.png` em assets/npc/ ela vence; senão usa o placeholder.
+const HORIZON_GLOB = import.meta.glob("../assets/env/bg_horizon_*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
 const AVATAR_GLOB = import.meta.glob("../assets/npc/avatar_*.png", {
   eager: true, query: "?url", import: "default",
 }) as Record<string, string>;
@@ -1101,6 +1108,8 @@ type Target =
   | { kind: "stash" } // baú da Hedda (guardar/retirar)
   | { kind: "toforest" }
   | { kind: "tovillage" }
+  | { kind: "toplains" }   // marco N da floresta → Planície de Arden
+  | { kind: "plainstoforest" } // portão sul da planície → floresta
   | { kind: "sign"; lines: string[] }
   | { kind: "pickup"; uid: string; name: string } // item caído no chão à frente
   | { kind: "chest"; key: string } // baú da masmorra (chocalha e abre ao interagir)
@@ -1496,7 +1505,7 @@ export class Game {
   private _smokeTex?: THREE.Texture;
   private ui!: HUD;
 
-  private location: "village" | "forest" | "dungeon" | "showcase" | Estab | HomeId = "village";
+  private location: "village" | "forest" | "plains" | "dungeon" | "showcase" | Estab | HomeId = "village";
   private doorMap = new Map<string, Estab>(); // "c,r,dc,dr" -> estabelecimento
   private homeDoorMap = new Map<string, HomeId>(); // "c,r,dc,dr" -> casa de aldeão
   // "c,r" -> NPC (guarda a textura p/ recortar o retrato do diálogo)
@@ -1736,7 +1745,7 @@ export class Game {
 
   // ---------------------------------------------- troca de local (vila/interior)
   private enterLocation(
-    loc: "village" | "forest" | "dungeon" | "showcase" | Estab | HomeId,
+    loc: "village" | "forest" | "plains" | "dungeon" | "showcase" | Estab | HomeId,
     col: number,
     row: number,
     facing: number,
@@ -1747,7 +1756,7 @@ export class Game {
     // 'L'/'A' do 1º andar a partir do vilarejo — não pode ficar num andar antigo).
     if (loc !== "dungeon") { this.dungeonFloor = 0; setDungeonFloor(0); }
     this.location = loc;
-    this.outdoor = loc === "village" || loc === "forest";
+    this.outdoor = loc === "village" || loc === "forest" || loc === "plains";
     this.dialogue = null;
     this.stashCell = null; // só a casa da Hedda define o baú (em buildHome)
     this.ui.hideDialogue();
@@ -1767,6 +1776,13 @@ export class Game {
       this.scene.background = new THREE.Color(FOG_COLOR);
       this.addForestLights();
       this.buildForest();
+    } else if (loc === "plains") {
+      // PLANÍCIE: campo aberto, então a névoa abre bem mais que na floresta — é ela
+      // que deixa as CAMADAS DE HORIZONTE aparecerem lá no fundo.
+      this.scene.fog = new THREE.Fog(FOG_COLOR, CELL * 10, CELL * 46);
+      this.scene.background = new THREE.Color(FOG_COLOR);
+      this.addForestLights();
+      this.buildPlains();
     } else if (loc === "dungeon") {
       // VISÃO LIMITADA porém JOGÁVEL: a tocha do herói ilumina o entorno e a
       // escuridão engole o longe. Claro até ~4 células, some no breu por volta de
@@ -2126,6 +2142,7 @@ export class Game {
     this.poofs = [];
     this.waterGlint = undefined;
     this.portalPlanes = []; // meshes descartadas pelo world.clear(); zera as refs
+    this.horizonLayers = [];
     this.doorMap.clear();
     this.homeDoorMap.clear();
     this.npcMap.clear();
@@ -3390,7 +3407,7 @@ export class Game {
     const t = this.objectiveTarget();
     if (!t) return null;
     const L = this.location;
-    const interior = L !== "village" && L !== "dungeon" && L !== "forest" && L !== "showcase";
+    const interior = L !== "village" && L !== "dungeon" && L !== "forest" && L !== "plains" && L !== "showcase";
     // objetivo é uma LOJA e o jogador JÁ ESTÁ dentro dela → aponta pro atendente
     // (senão o facho ficava preso na porta/saída). roomFind("N") = balcão.
     if (t.zone === "village" && t.shop && L === t.shop) {
@@ -7383,6 +7400,167 @@ export class Game {
     this.registerDayLight(sun, 0x6675ad, 0.14); // luar frio à noite
   }
 
+  // ================= PLANÍCIE (área externa linear) =================
+  // Estrada de terra serpenteando ao norte entre campos, apertada por escarpas.
+  // O que dá a sensação de mundo grande são as CAMADAS DE HORIZONTE (buildHorizon).
+  private buildPlains() {
+    const W = PLAINS_COLS, H = PLAINS_ROWS;
+    const hash = (a: number, b: number, s = 0) => {
+      const v = Math.sin(a * 41.3 + b * 17.7 + s * 7.13) * 4213.1;
+      return v - Math.floor(v);
+    };
+    // campo base cobrindo tudo (com margem, p/ a borda não aparecer cortada)
+    const grassMat = new THREE.MeshLambertMaterial({ map: tex.grass(23) });
+    (grassMat.map as THREE.Texture).repeat.set(W + 14, H + 14);
+    const chao = new THREE.Mesh(new THREE.PlaneGeometry((W + 14) * CELL, (H + 14) * CELL), grassMat);
+    chao.rotation.x = -Math.PI / 2;
+    chao.position.set((W / 2 - 0.5) * CELL, 0, (H / 2 - 0.5) * CELL);
+    this.world.add(chao);
+
+    // estrada de terra por cima do campo
+    const dirtMat = new THREE.MeshLambertMaterial({ map: tex.dirtPath(29) });
+    const tile = new THREE.PlaneGeometry(CELL, CELL);
+    for (let r = 0; r < H; r++)
+      for (let c = 0; c < W; c++) {
+        const k = plainsCell(c, r);
+        if (k === "road" || k === "spawn" || k === "gate" || k === "mountain") {
+          const t = new THREE.Mesh(tile, dirtMat);
+          t.rotation.x = -Math.PI / 2;
+          t.rotation.z = (Math.floor(hash(c, r, 5) * 4) * Math.PI) / 2;
+          t.position.set(c * CELL, 0.02, r * CELL);
+          this.world.add(t);
+        }
+      }
+
+    // vegetação/pedras — billboards de plano cruzado, como na floresta
+    const arvMats = (TREE_ART.length ? TREE_ART : []).map((url) => {
+      const m = new THREE.MeshLambertMaterial({ transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+      this.loadArt(url, (t) => { m.map = t; m.needsUpdate = true; });
+      return m;
+    });
+    const bushMat = new THREE.MeshLambertMaterial({ map: tex.bush(31), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    const rockMat = new THREE.MeshLambertMaterial({ map: tex.stone(37), color: new THREE.Color(0x9a958a) });
+    const fernMat = new THREE.MeshLambertMaterial({ map: tex.fern(41), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    const boneMat = new THREE.MeshLambertMaterial({ map: tex.skullPile(43), transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+    const cruzado = (mat: THREE.Material, x: number, z: number, w: number, h: number) => {
+      for (const rot of [0, Math.PI / 2]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+        m.position.set(x, h / 2, z); m.rotation.y = rot; this.world.add(m);
+      }
+    };
+    for (let r = 0; r < H; r++)
+      for (let c = 0; c < W; c++) {
+        const k = plainsCell(c, r);
+        const x = c * CELL, z = r * CELL;
+        if (k === "tree" && arvMats.length) {
+          const m = arvMats[Math.floor(hash(c, r, 7) * arvMats.length) % arvMats.length];
+          const h = 5.4 + hash(c, r, 11) * 2.2;
+          cruzado(m, x, z, h * TREE_ASPECT, h);
+          this.blocked.add(`${c},${r}`);
+        } else if (k === "bush") {
+          cruzado(bushMat, x, z, 2.1, 1.7); this.blocked.add(`${c},${r}`);
+        } else if (k === "rock") {
+          const s = 0.9 + hash(c, r, 13) * 0.7;
+          const p = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockMat);
+          p.position.set(x, s * 0.55, z);
+          p.rotation.set(hash(c, r, 17) * 3, hash(c, r, 19) * 3, hash(c, r, 23) * 3);
+          this.world.add(p); this.blocked.add(`${c},${r}`);
+        } else if (k === "foliage") {
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.1), fernMat);
+          m.rotation.x = -Math.PI / 2; m.position.set(x, 0.05, z); this.world.add(m);
+        } else if (k === "bones") {
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), boneMat);
+          m.rotation.x = -Math.PI / 2; m.position.set(x, 0.05, z); this.world.add(m);
+        }
+      }
+
+    this.addSkyDome((W / 2) * CELL, (H / 2) * CELL);
+    this.buildHorizon();          // as montanhas ao fundo
+    // a planície é perigosa: alguns inimigos ao longo da estrada
+    const pool = ["rato", "aranha", "esqueleto", "arqueiro"];
+    plainsAll("E").forEach((p, i) => this.buildDungeonEnemy(p.col, p.row, pool[i % pool.length]));
+  }
+
+  // ---- CAMADAS DE HORIZONTE (o "mundo grande" ao fundo) ----
+  // Cilindros concêntricos em volta do jogador, cada um com uma silhueta
+  // transparente. O truque do PARALLAX: a camada fica centrada em `câmera × f`.
+  // Com f=1 ela acompanha você por completo e NUNCA se aproxima (montanhas no
+  // horizonte); com f<1 ela desliza um pouco, dando a sensação de profundidade.
+  // Como f é alto, a câmera jamais sai de dentro do cilindro.
+  private horizonLayers: { mesh: THREE.Mesh; f: number }[] = [];
+  private buildHorizon() {
+    this.horizonLayers = [];
+    const camadas: { raio: number; alt: number; y: number; f: number; kind: "montanha" | "colina" | "arvoredo"; op: number }[] = [
+      { raio: 78, alt: 30, y: 6, f: 1.00, kind: "montanha", op: 0.95 },
+      { raio: 62, alt: 20, y: 3, f: 0.94, kind: "colina", op: 0.9 },
+      { raio: 48, alt: 13, y: 1, f: 0.88, kind: "arvoredo", op: 0.85 },
+    ];
+    for (const cm of camadas) {
+      const mat = new THREE.MeshBasicMaterial({
+        map: this.horizonTex(cm.kind), transparent: true, opacity: cm.op,
+        side: THREE.BackSide, depthWrite: false, fog: true,
+      });
+      const g = new THREE.CylinderGeometry(cm.raio, cm.raio, cm.alt, 48, 1, true);
+      const m = new THREE.Mesh(g, mat);
+      m.position.y = cm.y + cm.alt / 2 - cm.alt * 0.5;
+      m.renderOrder = -9 + this.horizonLayers.length; // atrás do mundo, à frente do céu
+      this.world.add(m);
+      this.horizonLayers.push({ mesh: m, f: cm.f });
+    }
+  }
+  // move as camadas com a câmera (ver buildHorizon) — chamado no tick
+  private updateHorizon(): void {
+    if (!this.horizonLayers.length) return;
+    const cx = this.camera.position.x, cz = this.camera.position.z;
+    for (const l of this.horizonLayers) l.mesh.position.set(cx * l.f, l.mesh.position.y, cz * l.f);
+  }
+  // silhueta procedural (montanhas/colinas/arvoredo) — substituída pela arte
+  // `bg_horizon_<tipo>.png` assim que ela existir em assets/env/.
+  private horizonTex(kind: "montanha" | "colina" | "arvoredo"): THREE.Texture {
+    const arte = HORIZON_GLOB[`../assets/env/bg_horizon_${kind}.png`];
+    if (arte) {
+      const t = new THREE.Texture();
+      this.loadArt(arte, (l) => { t.image = l.image; t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.x = 3; t.needsUpdate = true; });
+      return t;
+    }
+    const W = 2048, H = 256;
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const g = cv.getContext("2d")!;
+    const perfil = { montanha: { n: 9, alt: 0.86, cor: "#4a5568", pico: "#8f9aa8" },
+                     colina:   { n: 14, alt: 0.5, cor: "#3f4a44", pico: "#3f4a44" },
+                     arvoredo: { n: 40, alt: 0.3, cor: "#232c26", pico: "#232c26" } }[kind];
+    g.clearRect(0, 0, W, H);
+    g.fillStyle = perfil.cor;
+    g.beginPath(); g.moveTo(0, H);
+    for (let i = 0; i <= perfil.n; i++) {
+      const x = (i / perfil.n) * W;
+      const s = Math.sin(i * 12.9 + 4.2) * 43758.5;
+      const rnd = s - Math.floor(s);
+      const alt = H * perfil.alt * (0.45 + rnd * 0.55);
+      g.lineTo(x - W / perfil.n / 2, H - alt * 0.55);
+      g.lineTo(x, H - alt);
+    }
+    g.lineTo(W, H); g.closePath(); g.fill();
+    // neve/luz nos picos, só nas montanhas
+    if (kind === "montanha") {
+      g.globalAlpha = 0.35; g.fillStyle = perfil.pico;
+      g.beginPath(); g.moveTo(0, H);
+      for (let i = 0; i <= perfil.n; i++) {
+        const x = (i / perfil.n) * W;
+        const s = Math.sin(i * 12.9 + 4.2) * 43758.5;
+        const rnd = s - Math.floor(s);
+        const alt = H * perfil.alt * (0.45 + rnd * 0.55);
+        g.lineTo(x - W / perfil.n / 2, H - alt * 0.55);
+        g.lineTo(x, H - alt * 0.94);
+      }
+      g.lineTo(W, H); g.closePath(); g.fill(); g.globalAlpha = 1;
+    }
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = THREE.RepeatWrapping; t.repeat.x = 3;
+    return t;
+  }
+
   private buildForest() {
     const W = FOREST_COLS;
     const H = FOREST_ROWS;
@@ -7848,6 +8026,8 @@ export class Game {
         ? isWalkable(c, r)
         : this.location === "forest"
           ? forestWalkable(c, r)
+          : this.location === "plains"
+            ? plainsWalkable(c, r)
           : this.location === "dungeon"
             ? dungeonWalkable(c, r)
             : this.location === "showcase"
@@ -7963,6 +8143,7 @@ export class Game {
     let cols: number, rows: number, walk: (c: number, r: number) => boolean;
     if (this.location === "village") { cols = COLS; rows = ROWS; walk = isWalkable; }
     else if (this.location === "forest") { cols = FOREST_COLS; rows = FOREST_ROWS; walk = forestWalkable; }
+    else if (this.location === "plains") { cols = PLAINS_COLS; rows = PLAINS_ROWS; walk = plainsWalkable; }
     else if (this.location === "dungeon") { cols = DUNGEON_COLS; rows = DUNGEON_ROWS; walk = dungeonWalkable; }
     else if (this.location === "showcase") { cols = 6; rows = 10; walk = terraceWalkable; }
     else { cols = ROOM_COLS; rows = ROOM_ROWS; walk = roomWalkable; }
@@ -7976,6 +8157,7 @@ export class Game {
     switch (this.location) {
       case "village": return "Vilarejo";
       case "forest": return "Floresta Sussurrante";
+      case "plains": return "Planície de Arden";
       case "dungeon": return DUNGEON_FLOOR_NAMES[this.dungeonFloor] ?? "Masmorra";
       case "showcase": return "Santuário";
       case "tavern": return "Taverna";
@@ -8241,6 +8423,14 @@ export class Game {
       // com o portão às costas (evita reentrar sem querer na floresta)
       const g = findForestGate();
       this.enterLocation("village", g.col, g.row - 1, 0);
+    } else if (t.kind === "toplains") {
+      // marco NORTE da floresta → Planície de Arden (entra pelo sul, olhando p/ o norte)
+      const p = plainsFind("S");
+      void this.doorTransition(() => this.enterLocation("plains", p.col, p.row, 0));
+    } else if (t.kind === "plainstoforest") {
+      // portão sul da planície → volta ao marco NORTE da floresta, de costas p/ ele
+      const n = forestFind("N");
+      void this.doorTransition(() => this.enterLocation("forest", n.col, n.row + 1, 2));
     } else if (t.kind === "sign") {
       const pages = paginate(t.lines);
       this.dialogue = { name: "Placa", lines: pages, idx: 0, portrait: null };
@@ -9616,6 +9806,9 @@ export class Game {
     this.updateWakeWalk(now); // caminhada roteirizada da Hedda ao acordar
     this.updateBeacon(now); // facho-guia da missão sobre a célula de destino
     this.updatePeers(now);  // CO-OP: desliza os avatares dos amigos
+    this.updateHorizon();   // camadas de horizonte acompanham o jogador
+    // o céu é fundo: segue a câmera p/ nunca dar p/ "sair" da cúpula
+    if (this.fogDome) this.fogDome.position.set(this.camera.position.x, 0, this.camera.position.z);
     this.updateDrops(now); // itens/ouro caídos: flutuar + facho + recolher ouro auto
     // retículo de mira segue o alvo selecionado (levemente à frente do sprite,
     // na direção da câmera, p/ não brigar em profundidade com o inimigo)
@@ -9911,6 +10104,8 @@ export class Game {
       else if (t.kind === "ascend") text = "Subir um andar";
       else if (t.kind === "toforest") text = "Ir para a Floresta";
       else if (t.kind === "tovillage") text = "Voltar ao Vilarejo";
+      else if (t.kind === "toplains") text = "Seguir para a Planície";
+      else if (t.kind === "plainstoforest") text = "Voltar à Floresta";
       else if (t.kind === "sign") text = "Ler a placa";
       else if (t.kind === "lockgate") text = "Portão selado";
       else if (t.kind === "sanctuary") text = "Subir a escadaria";
@@ -9984,7 +10179,21 @@ export class Game {
       // portão de volta ao vilarejo (de frente ou em cima dele)
       if (k === "gate" || forestCell(this.col, this.row) === "gate")
         return { kind: "tovillage" };
+      // marco NORTE ('N'): deixou de ser só placa — agora abre a Planície de Arden
+      const aqui = FOREST[this.row]?.[this.col], frente = FOREST[fr]?.[fc];
+      if (frente === "N" || aqui === "N") return { kind: "toplains" };
       if (k === "sign") return { kind: "sign", lines: forestSignText(fc, fr) };
+    } else if (this.location === "plains") {
+      const k = plainsCell(fc, fr);
+      // portão ao sul → volta à floresta
+      if (k === "gate" || plainsCell(this.col, this.row) === "gate")
+        return { kind: "plainstoforest" };
+      // marco da montanha ao norte — a área ainda não existe
+      if (k === "mountain" || plainsCell(this.col, this.row) === "mountain")
+        return { kind: "sign", lines: [
+          "A estrada morre no sopé da serra. Um marco de pedra, lascado pelo vento, aponta para cima.",
+          "As Montanhas Cinzentas erguem-se além — mas a trilha ainda não foi aberta.",
+        ] };
     } else if (this.location === "dungeon") {
       // escada de SUBIDA 'U' (de frente ou em cima): 1º andar volta ao vilarejo;
       // andares 2/3 sobem um andar.

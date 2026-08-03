@@ -1668,3 +1668,45 @@ A full-body HUMAN MAGE adventurer standing calmly and FACING THE VIEWER, deep bl
 ```
 A full-body HUMAN CLERIC adventurer standing solemnly and FACING THE VIEWER, pale robes over light mail, a heavy mace in one hand and a lantern or holy symbol in the other, hood back, devout weary expression, feet at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
 ```
+
+---
+
+## 27 · PLANÍCIE DE ARDEN — camadas de horizonte — 🟡 arte pendente
+
+A primeira área externa fora do vilarejo/floresta é um **corredor linear**: uma
+estrada de terra serpenteando ao norte entre campos, apertada por escarpas. Ela
+já está no jogo, alcançável pelo **marco NORTE da floresta**.
+
+O que dá a sensação de mundo grande são as **CAMADAS DE HORIZONTE**: três faixas
+concêntricas em volta do jogador que se movem em velocidades diferentes
+(parallax). Hoje elas usam silhuetas **procedurais** de reserva — funcionam, mas
+parecem triângulos. Estas três peças as substituem.
+
+Salve em `src/assets/env/` com os nomes exatos — a engine prefere a arte
+automaticamente assim que os arquivos existirem:
+`bg_horizon_montanha.png`, `bg_horizon_colina.png`, `bg_horizon_arvoredo.png`.
+
+**Regra comum:** faixa **PANORÂMICA e repetível na horizontal** (a borda
+esquerda tem que casar com a direita, porque a imagem dá a volta em torno do
+jogador), **fundo 100% transparente** acima da silhueta, sem céu pintado, sem
+chão, sem texto. Proporção larga, ~2048×256. Só a SILHUETA, achatada e sem
+detalhe fino — é cenário distante.
+
+### 🟡 27.1 — `bg_horizon_montanha` (a mais distante, quase não se move)
+```
+A seamless horizontally-tileable PANORAMIC SILHOUETTE BAND of a distant mountain range, wide strip ~2048x256. Jagged snow-capped peaks of varying heights receding into haze, layered ridges, cool desaturated blue-grey, atmospheric perspective making them pale and flat like a far backdrop. The mountains occupy only the LOWER portion of the strip; everything above the ridgeline is FULLY TRANSPARENT (alpha) — no sky painted, no clouds, no ground, no foreground detail. The left and right edges must match seamlessly so the strip can wrap around. Grim dark fantasy, hand-painted, no text, no watermark.
+```
+
+### 🟡 27.2 — `bg_horizon_colina` (intermediária, desliza um pouco)
+```
+A seamless horizontally-tileable PANORAMIC SILHOUETTE BAND of distant rolling hills and low ridges, wide strip ~2048x256. Softer rounded shapes than mountains, with a few crags and the odd ruined tower silhouette, muted grey-green, slightly darker and more defined than a far mountain range but still hazy. Shapes occupy only the LOWER portion; everything above is FULLY TRANSPARENT (alpha) — no sky, no ground, no foreground. Left and right edges must match seamlessly for wrapping. Grim dark fantasy, hand-painted, no text, no watermark.
+```
+
+### 🟡 27.3 — `bg_horizon_arvoredo` (a mais próxima, desliza mais)
+```
+A seamless horizontally-tileable PANORAMIC SILHOUETTE BAND of a distant treeline, wide strip ~2048x256. A dense ragged line of dark conifers of varying heights with a few bare dead trunks, nearly black-green, more contrast and sharper edges than the hills since it is the closest layer. The treeline occupies only the LOWER portion; everything above the canopy is FULLY TRANSPARENT (alpha) — no sky, no ground. Left and right edges must match seamlessly for wrapping. Grim dark fantasy, hand-painted, no text, no watermark.
+```
+
+> **Próximo passo depois destas:** o marco ao NORTE da planície já existe e
+> anuncia as **Montanhas Cinzentas** — a área seguinte, que reaproveita esta
+> mesma engine de corredor externo com outro tileset e outro horizonte.
