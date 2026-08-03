@@ -6,6 +6,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import {
   CELL,
   WALL_H,
+  ANDAR_H,
   ROOF_H,
   ROOF_OVER,
   ROOF_DEPTH,
@@ -2420,6 +2421,10 @@ export class Game {
     const bannerMat = this.decalMat(decBannerUrl, 0.4);
     const ivyMat = this.decalMat(decIvyUrl, 0.4);
     const cracksMat = this.decalMat(decCracksUrl, 0.08); // fissuras finas
+    // madeira aparente do enxaimel e pedra escura do soco (as duas camadas que
+    // transformam a caixa de textura única numa fachada)
+    const timberMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7), color: new THREE.Color(0xb08a52) });
+    const plinthMat = new THREE.MeshLambertMaterial({ map: tex.stone(23), color: new THREE.Color(0xc4bcac) });
 
     const hash = (a: number, b: number, s = 0) =>
       (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
@@ -2463,10 +2468,14 @@ export class Game {
         this.world.add(box);
 
         for (const [dc, dr] of streetDirs) {
-          if (estabFaces.has(`${c},${r},${dc},${dr}`)) {
-            doorFaces.add(`${c},${r},${dc},${dr}`);
-            continue; // porta tratada em buildEstablishments
-          }
+          const porta = estabFaces.has(`${c},${r},${dc},${dr}`);
+          if (porta) doorFaces.add(`${c},${r},${dc},${dr}`);
+          // FACHADA EM CAMADAS — é isso que separa "caixa com textura" de "prédio":
+          // soco de pedra na base, cinta de enxaimel na divisa dos pavimentos e
+          // montantes de madeira subindo dela. Vale p/ toda face de rua, inclusive
+          // as de porta (a porta em si é desenhada em buildEstablishments).
+          this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash);
+          if (porta) continue;
           // adorno da face: janela (comum) + tocha/bandeira/hera/rachadura sorteados
           // → cada casa fica diferente e a cidade ganha vida.
           const roll = Math.abs(hash(c, r, dc * 7 + dr * 3)) % 1;
@@ -2484,6 +2493,11 @@ export class Game {
           } else if (roll < 0.87) {
             this.addWallDecal(c, r, dc, dr, cracksMat, 1.8, 1.6, 1.6);
           }
+          // ANDAR DE CIMA: a casa agora tem dois pavimentos, então a parte alta
+          // também precisa de janela — sem isso o segundo andar fica um paredão
+          // cego e a altura nova não convence.
+          if (Math.abs(hash(c, r, dc * 11 + dr * 5)) % 1 < 0.62)
+            this.addWallDecal(c, r, dc, dr, winMat, 1.7, 1.7, ANDAR_H + 1.35);
         }
       }
     }
@@ -2509,12 +2523,113 @@ export class Game {
     this.buildEstablishments(doorMat, bannerMat);
     this.buildHomes(doorMat);
     this.buildVillageForestGate();
+    this.streetClutter(hash);  // barril/caixote/lenha encostados nas fachadas
     this.buildVillageProps();
     this.buildPlazaProps(); // barracas/caixotes/feno (bloqueiam a célula)
     this.buildChimneySmoke();
     this.buildNPCs();
 
     void MAP;
+  }
+
+  /**
+   * TRALHA DE RUA encostada nas fachadas: barril, pilha de caixotes, lenha
+   * empilhada, saco. É o que mais faz a cidade parecer habitada — e é na altura
+   * dos olhos que se olha ao andar. SEM COLISÃO e encostado na parede: numa rua
+   * de uma célula, qualquer coisa que bloqueie parte a cidade em duas.
+   */
+  private streetClutter(hash: (a: number, b: number, s?: number) => number) {
+    const mad = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const madEsc = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7), color: new THREE.Color(0x8a7048) });
+    const pano = new THREE.MeshLambertMaterial({ color: 0xa89878 });
+    // faces reservadas: nada de tralha tapando uma porta
+    const portas = new Set([
+      ...ESTAB_DOORS.map((e) => `${e.c},${e.r},${e.dc},${e.dr}`),
+      ...HOME_DOORS.map((e) => `${e.c},${e.r},${e.dc},${e.dr}`),
+    ]);
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        if (cellAt(c, r) !== "building") continue;
+        for (const [dc, dr] of DIRS) {
+          const k = cellAt(c + dc, r + dr);
+          if (k !== "street" && k !== "barrel") continue;
+          if (portas.has(`${c},${r},${dc},${dr}`)) continue;
+          const roll = Math.abs(hash(c, r, dc * 23 + dr * 17)) % 1;
+          if (roll > 0.42) continue; // só uma parte das fachadas, senão vira bagunça
+          // encostado na parede e deslocado p/ um lado, fora da linha de caminhada
+          const lado = (Math.abs(hash(c, r, dc * 5 + dr * 31)) % 1 - 0.5) * (CELL - 1.6);
+          const px = (c + dc) * CELL - dc * 1.35 + (dc ? 0 : lado);
+          const pz = (r + dr) * CELL - dr * 1.35 + (dr ? 0 : lado);
+          const giro = (Math.abs(hash(c, r, 41)) % 1) * Math.PI;
+          if (roll < 0.13) {
+            // barril de pé
+            const b = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.34, 1.05, 12), mad);
+            b.position.set(px, 0.53, pz); b.rotation.y = giro; this.world.add(b);
+          } else if (roll < 0.24) {
+            // dois caixotes empilhados
+            this.box(px, 0.3, pz, 0.72, 0.6, 0.72, mad);
+            this.box(px + 0.12, 0.82, pz - 0.08, 0.58, 0.46, 0.58, madEsc);
+          } else if (roll < 0.34) {
+            // lenha empilhada rente à parede (toras deitadas)
+            for (let i = 0; i < 5; i++) {
+              const tora = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 1.5, 8), madEsc);
+              tora.rotation.set(0, dc ? Math.PI / 2 : 0, Math.PI / 2);
+              tora.position.set(px + (dc ? 0 : (i % 3) * 0.28 - 0.28), 0.15 + Math.floor(i / 3) * 0.27, pz + (dc ? (i % 3) * 0.28 - 0.28 : 0));
+              this.world.add(tora);
+            }
+          } else {
+            // sacos de grão
+            for (const [ox, oy, s] of [[-0.28, 0.42, 0.36], [0.22, 0.38, 0.32], [0, 0.95, 0.28]] as [number, number, number][]) {
+              const sk = new THREE.Mesh(new THREE.SphereGeometry(s, 9, 7), pano);
+              sk.scale.set(1, 1.25, 1);
+              sk.position.set(px + (dc ? 0 : ox), oy, pz + (dc ? ox : 0));
+              this.world.add(sk);
+            }
+          }
+        }
+      }
+  }
+
+  /**
+   * FACHADA EM CAMADAS numa face de rua. Três peças, todas rasas (saem 6-9cm da
+   * parede), que é o suficiente p/ a luz pegar de raspão e a parede deixar de ser
+   * um plano chapado:
+   *   · SOCO de pedra na base — a casa "assenta" no calçamento em vez de brotar;
+   *   · CINTA de madeira na divisa dos pavimentos — dá a leitura de dois andares;
+   *   · MONTANTES subindo da cinta — o enxaimel.
+   * O sorteio por célula muda o número de montantes, então duas casas vizinhas
+   * nunca ficam idênticas.
+   */
+  private facadeTrim(
+    c: number, r: number, dc: number, dr: number,
+    timber: THREE.Material, plinth: THREE.Material,
+    hash: (a: number, b: number, s?: number) => number,
+  ) {
+    const x = c * CELL + dc * (CELL / 2 + 0.05);
+    const z = r * CELL + dr * (CELL / 2 + 0.05);
+    const aoLongo = dc ? 0 : 1; // 1 = a peça se estende em X, 0 = em Z
+    const larg = (w: number, esp: number): [number, number] =>
+      aoLongo ? [w, esp] : [esp, w];
+    // soco
+    const [sx, sz] = larg(CELL, 0.16);
+    this.box(x + dc * 0.05, 0.35, z + dr * 0.05, sx, 0.7, sz, plinth);
+    // cinta de enxaimel na divisa dos andares
+    const [bx, bz] = larg(CELL, 0.14);
+    this.box(x + dc * 0.04, ANDAR_H, z + dr * 0.04, bx, 0.26, bz, timber);
+    // montantes do andar de cima (2 ou 3, conforme o sorteio da célula)
+    const n = Math.abs(hash(c, r, dc * 3 + dr * 9)) % 1 < 0.5 ? 2 : 3;
+    const altura = WALL_H - ANDAR_H - 0.45;
+    for (let i = 0; i < n; i++) {
+      const t = (i + 1) / (n + 1) - 0.5;
+      const off = t * (CELL - 0.5);
+      const [px, pz] = larg(0.18, 0.12);
+      this.box(
+        x + dc * 0.03 + (aoLongo ? off : 0),
+        ANDAR_H + 0.13 + altura / 2,
+        z + dr * 0.03 + (aoLongo ? 0 : off),
+        px, altura, pz, timber,
+      );
+    }
   }
 
   // adereços da praça — apenas os props em PNG (poste + mural). Os objetos 3D

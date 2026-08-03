@@ -1710,3 +1710,78 @@ A seamless horizontally-tileable PANORAMIC SILHOUETTE BAND of a distant treeline
 > **Próximo passo depois destas:** o marco ao NORTE da planície já existe e
 > anuncia as **Montanhas Cinzentas** — a área seguinte, que reaproveita esta
 > mesma engine de corredor externo com outro tileset e outro horizonte.
+
+---
+
+## 28 · CIDADE DE CORREDOR — fachadas e tralha de rua — 🟡 arte pendente
+
+Grimhollow virou uma cidade de **ruas de uma célula** ligando três largos: você
+só vê uma fatia por vez — duas fachadas colando dos lados, uma faixa de
+calçamento e uma fresta de céu. As casas ganharam **dois pavimentos**, soco de
+pedra na base, cinta de enxaimel na divisa dos andares e montantes de madeira
+subindo dela.
+
+Falta a arte. Hoje a fachada usa a **mesma alvenaria da masmorra** repetida em
+todas as casas — funciona, mas é o que ainda entrega que é uma caixa com
+textura. Os painéis abaixo resolvem isso.
+
+Salve em `src/assets/env/` com os nomes exatos.
+
+**Regra comum:** textura de PAINEL DE PAREDE **repetível na horizontal** (borda
+esquerda casa com a direita), vista **de frente e sem perspectiva** (ortográfica,
+como um decalque), iluminação neutra e chapada — quem faz sombra é o jogo.
+Quadrada, ~1024×1024. Sem texto, sem moldura, sem fundo transparente.
+
+### 🟡 28.1 — `tw_facade_taipa` (a casa pobre, a mais comum)
+```
+A seamless tileable FLAT-ON wall texture panel of a poor medieval half-timbered house facade, 1024x1024, orthographic front view with no perspective. Cream-grey lime plaster infill between dark weathered oak timber framing, the plaster cracked and water-stained near the bottom, patches where it has fallen away exposing wattle and daub underneath. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
+```
+
+### 🟡 28.2 — `tw_facade_reboco` (a casa remediada)
+```
+A seamless tileable FLAT-ON wall texture panel of a modest medieval townhouse facade, 1024x1024, orthographic front view with no perspective. Smooth ochre lime-washed plaster over stone, worn and patchy with damp rising from the base, a few hairline cracks and old repair patches in a slightly different tone. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
+```
+
+### 🟡 28.3 — `tw_facade_pedra` (a casa rica / as lojas)
+```
+A seamless tileable FLAT-ON wall texture panel of a wealthy medieval merchant house facade, 1024x1024, orthographic front view with no perspective. Well-cut dressed ashlar stone blocks in warm grey with fine mortar joints, a carved string course band, subtle soot staining and lichen in the joints. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
+```
+
+### 🟡 28.4 — `tw_soco_pedra` (o soco / a base da parede)
+```
+A seamless HORIZONTALLY tileable FLAT-ON texture strip of a medieval building plinth course, wide strip ~1024x256, orthographic front view. Large rough grey foundation stones, splashed with mud at the very bottom, moss and damp in the joints, a worn chamfered top edge. Neutral flat lighting, no cast shadows, no border. Grim dark fantasy, hand-painted, no text, no watermark.
+```
+
+### 🟡 28.5 — `prop_janela_postigo` (janela com postigos — decalque)
+```
+A single medieval window with wooden shutters, centered, on a FULLY TRANSPARENT background (PNG alpha), ~512x512. Small leaded glass panes in a dark oak frame, one shutter half-open showing warm candlelight inside, iron hinges, a narrow sill with a clay pot. Orthographic front view, no wall around it, no perspective, no cast shadow, nothing but the window itself. Grim dark fantasy, hand-painted, no text, no watermark.
+```
+
+### 🟡 28.6 — `prop_lanterna_parede` (lanterna de parede em braçadeira)
+```
+A single medieval wrought-iron wall lantern on a bracket arm, on a FULLY TRANSPARENT background (PNG alpha), ~512x512. Black twisted iron arm projecting to the LEFT from where it would meet the wall, a four-sided glass lantern hanging from it with a lit candle inside casting warm amber light on the glass, soot on the top vent. Seen from the side, orthographic, no wall, no cast shadow on anything. Grim dark fantasy, hand-painted, no text, no watermark.
+```
+
+### 🟡 28.7 — folha de TRALHA DE RUA (`prop_rua_*`)
+Hoje esses objetos são caixinhas e cilindros feitos em código. São o que mais
+faz a cidade parecer habitada, então valem arte de verdade — cada um num PNG
+separado, **fundo transparente**, vista de frente, ~512×512:
+`prop_rua_barril`, `prop_rua_caixotes`, `prop_rua_lenha`, `prop_rua_sacos`,
+`prop_rua_carroca`, `prop_rua_varal`.
+```
+A single medieval street prop, isolated on a FULLY TRANSPARENT background (PNG alpha), ~512x512, orthographic front view, no ground shadow, no scenery. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark. THE PROP: {a weathered oak barrel bound with rusted iron hoops, lid slightly ajar}
+```
+Troque o trecho entre chaves por cada um:
+- **caixotes** — `a stack of three rough wooden crates of different sizes, boards warped, straw poking out of the top one`
+- **lenha** — `a neat stack of split firewood logs against nothing, bark still on, a rusty axe leaning on it`
+- **sacos** — `three bulging burlap grain sacks stacked, one tied with frayed rope, dusty and patched`
+- **carroça** — `a small wooden handcart with two spoked wheels, tipped slightly, empty, mud on the rims`
+- **varal** — `a sagging clothesline strung with grey linen rags and a patched tunic, wooden pegs`
+
+### 🟡 28.8 — atendentes novos (retratos de corpo inteiro, mesmo padrão dos aldeões)
+A Armaria e o Templo são novos e os atendentes ainda usam sprite procedural.
+Mesmo enquadramento dos outros NPCs (848×1264, corpo inteiro, fundo transparente,
+pés rentes à base).
+- `npc_odile` — `a stern middle-aged woman armorer in a leather apron over a wool dress, hair tied back, holding a mail hauberk over one arm, burn scars on her hands`
+- `npc_gervais` — `a lean older man weaponsmith with a close-cropped grey beard, sleeves rolled, resting a longsword point-down on the floor, one eye clouded`
+- `npc_corvina` — `a gaunt elderly priestess in pale grey robes with a faded flame embroidered on the chest, holding a small guttering lantern, hollow-eyed and calm`

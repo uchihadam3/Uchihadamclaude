@@ -1,7 +1,12 @@
 // Constantes do mundo do vilarejo.
 // Escala aproximada: 1 unidade ≈ 1 metro. Uma pessoa tem ~1.7m de olhos.
 export const CELL = 4; // largura de uma célula do grid (rua) em unidades
-export const WALL_H = 3.2; // altura das paredes (casa de um pavimento)
+// Altura das casas da cidade. DOIS PAVIMENTOS: numa cidade de rua estreita é a
+// altura que fecha o enquadramento — os telhados convergem e o céu vira uma
+// fresta, que é o que faz a rua parecer corredor e não um pátio comprido.
+export const WALL_H = 5.6;
+// divisa entre o térreo e o andar de cima (onde passa a cinta de enxaimel)
+export const ANDAR_H = 2.9;
 export const ROOF_H = 2.0; // altura do telhado (do beiral até a cumeeira)
 export const EYE_H = 1.7; // altura dos olhos do jogador
 export const ROOF_OVER = 0.6; // beiral do telhado sobre a rua
