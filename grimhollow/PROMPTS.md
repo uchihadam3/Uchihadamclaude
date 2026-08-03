@@ -1621,7 +1621,7 @@ subsistema. A **comida** vira consumível **comprado pronto** no mercador.)*
 
 ---
 
-## 26 · CO-OP — avatares dos outros jogadores — 🟡 arte pendente
+## 26 · CO-OP — avatares dos outros jogadores — ✅ integrado
 
 Na **Fase 1 do co-op** ("ver os amigos"), cada jogador aparece para os outros como
 um **billboard 2D** com plaquinha de nome, igual aos aldeões. Hoje isso usa **arte
@@ -1649,22 +1649,22 @@ recorte limpo, sem sombra projetada, sem chão, sem texto.
 > classes é **silhueta + claro/escuro**, então as versões abaixo forçam o contraste:
 > o guerreiro fica **LARGO e de metal CLARO**, o ladino **ESBELTO, ESCURO e de capuz**.
 
-### 🟡 26.1 — `avatar_guerreiro` (refazer — mais armadura, metal claro)
+### ✅ 26.1 — `avatar_guerreiro` (refazer — mais armadura, metal claro)
 ```
 A full-body HUMAN WARRIOR standing squarely and FACING THE VIEWER, clad in HEAVY FULL PLATE ARMOR — large pauldrons, breastplate, gauntlets and greaves in POLISHED LIGHT STEEL that catches the light, bright silver-grey metal. A big broad-bladed sword held point-down in front of him and a LARGE metal shield on the other arm. BULKY, WIDE, imposing silhouette; bare scarred head, short beard. Mostly BRIGHT METAL — deliberately NOT a dark or cloth-heavy figure, NO hood, NO long cloak covering the armor. Feet flat at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
 ```
 
-### 🟡 26.2 — `avatar_ladino` (refazer — esbelto, escuro, encapuzado)
+### ✅ 26.2 — `avatar_ladino` (refazer — esbelto, escuro, encapuzado)
 ```
 A full-body HUMAN ROGUE standing in a low, poised crouch and FACING THE VIEWER, wearing LIGHT DARK LEATHER only — soft hood PULLED UP shadowing the eyes, fitted jerkin, wrapped forearms, belts and pouches, a short cloak. Twin curved daggers held reversed in both hands. LEAN, NARROW, agile silhouette — deliberately SLIM and SMALL next to an armored knight. NO plate armor, NO metal pauldrons, NO shield, NO large sword. Dark charcoal and muted brown tones. Feet at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
 ```
 
-### 🟡 26.3 — `avatar_mago`
+### ✅ 26.3 — `avatar_mago`
 ```
 A full-body HUMAN MAGE adventurer standing calmly and FACING THE VIEWER, deep blue and grey robes with worn hems, a gnarled wooden staff topped with a dim crystal, satchel of scrolls at the side, feet at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
 ```
 
-### 🟡 26.4 — `avatar_clerigo`
+### ✅ 26.4 — `avatar_clerigo`
 ```
 A full-body HUMAN CLERIC adventurer standing solemnly and FACING THE VIEWER, pale robes over light mail, a heavy mace in one hand and a lantern or holy symbol in the other, hood back, devout weary expression, feet at the very bottom edge. Grim dark fantasy, hand-painted stylized-realism, dramatic even lighting, no cast shadow, FULLY TRANSPARENT background (alpha channel), crisp clean cutout edges, no ground, no text, no watermark. Tall portrait ~848x1264.
 ```
