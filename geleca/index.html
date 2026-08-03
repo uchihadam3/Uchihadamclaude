@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>🟩 GELECA — sacrifique-se para subir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="wrap">
+    <div id="hud">
+      <div class="hud-left">
+        <span id="level-name">Fase 1</span>
+        <span id="mass-pips" class="pips"></span>
+      </div>
+      <div class="hud-right">
+        <button id="btn-reset" title="Reiniciar fase (R)">↺ Reiniciar</button>
+      </div>
+    </div>
+
+    <div id="stage">
+      <canvas id="game"></canvas>
+      <div id="overlay" class="overlay hidden"></div>
+    </div>
+
+    <div id="controls">
+      <span><b>← →</b> mover</span>
+      <span><b>↑ / Espaço</b> pular (gasta massa)</span>
+      <span><b>E</b> reabsorver pedaço</span>
+      <span><b>R</b> reiniciar</span>
+    </div>
+
+    <!-- Controles touch (mobile) -->
+    <div id="touch">
+      <div class="pad">
+        <button data-k="left">◀</button>
+        <button data-k="up">▲</button>
+        <button data-k="right">▶</button>
+      </div>
+      <div class="pad">
+        <button data-k="down">▼</button>
+        <button data-k="grab">E</button>
+        <button data-k="jump">SALTO</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

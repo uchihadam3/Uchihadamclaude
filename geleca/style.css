@@ -1,0 +1,67 @@
+/* =========================================================================
+   GELECA — estilos. Vibe: puzzle-platformer fofo, verde-gosma, escuro.
+   ========================================================================= */
+:root{
+  --bg-0:#0c1418; --bg-1:#0f1c1f; --panel:#12222a; --line:#1e3b3f;
+  --slime:#7ee06b; --slime-d:#4bb84a; --ink:#0a1a12;
+  --text:#e6f5ea; --text-dim:#8fb3a6; --gold:#ffd45e; --danger:#ff5a5a;
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; height:100%; }
+body{
+  font-family:'Fredoka',system-ui,sans-serif; color:var(--text);
+  background:
+    radial-gradient(900px 500px at 50% -10%, rgba(126,224,107,.10), transparent 60%),
+    linear-gradient(180deg,var(--bg-0),var(--bg-1));
+  min-height:100%; display:flex; justify-content:center; padding:12px;
+}
+#wrap{ width:100%; max-width:720px; display:flex; flex-direction:column; gap:10px; }
+
+#hud{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.hud-left{ display:flex; align-items:center; gap:12px; }
+#level-name{ font-weight:700; font-size:1.05rem; color:var(--slime); }
+.pips{ display:flex; gap:4px; align-items:center; }
+.pip{ width:14px; height:14px; border-radius:50%; background:var(--slime);
+  box-shadow:0 0 6px rgba(126,224,107,.6); }
+.pip.empty{ background:transparent; border:2px solid var(--line); box-shadow:none; }
+#btn-reset{
+  font-family:inherit; font-weight:600; font-size:.85rem; color:var(--text);
+  background:var(--panel); border:1px solid var(--line); border-radius:9px;
+  padding:7px 12px; cursor:pointer;
+}
+#btn-reset:active{ transform:translateY(1px); }
+
+#stage{ position:relative; width:100%; border-radius:14px; overflow:hidden;
+  border:1px solid var(--line); background:#0a1216; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+canvas{ display:block; width:100%; height:auto; image-rendering:auto; }
+
+.overlay{
+  position:absolute; inset:0; display:flex; flex-direction:column; gap:10px;
+  align-items:center; justify-content:center; text-align:center;
+  background:rgba(6,14,12,.82); backdrop-filter:blur(3px); padding:20px;
+}
+.overlay.hidden{ display:none; }
+.overlay h2{ margin:0; font-size:1.8rem; color:var(--slime); }
+.overlay p{ margin:0; color:var(--text-dim); max-width:340px; line-height:1.5; }
+.overlay button{
+  margin-top:6px; font-family:inherit; font-weight:700; font-size:1rem; color:var(--ink);
+  background:linear-gradient(180deg,var(--slime),var(--slime-d)); border:none;
+  border-radius:10px; padding:11px 22px; cursor:pointer;
+}
+.overlay button:active{ transform:translateY(1px); }
+
+#controls{ display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:center;
+  color:var(--text-dim); font-size:.82rem; }
+#controls b{ color:var(--text); }
+
+/* ---- touch ---- */
+#touch{ display:none; justify-content:space-between; gap:10px; margin-top:2px; }
+#touch .pad{ display:flex; gap:8px; }
+#touch button{
+  font-family:inherit; font-weight:700; font-size:1rem; color:var(--text);
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  width:58px; height:52px; cursor:pointer; user-select:none; touch-action:none;
+}
+#touch button[data-k="jump"]{ width:auto; padding:0 18px; color:var(--slime); }
+#touch button:active{ background:var(--line); }
+@media (hover:none) and (pointer:coarse){ #touch{ display:flex; } #controls{ display:none; } }
