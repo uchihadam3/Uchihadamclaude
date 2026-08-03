@@ -265,6 +265,15 @@ const ENEMY_TYPES: Record<string, {
   boss_a2:   { art: enemyBossA2Url,   hp: 1450, atk: 48, xp: 900, gold: 380, vision: 13, h: 4.8, lvl: 9, ai: "relentless", spd: 680, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
+// ---- ARTE DA CIDADE (§28): fachadas, soco e props de rua ----
+// Painéis de parede: UM por face de rua (não ladrilhado), porque cada um tem
+// base e topo definidos — a umidade sobe do soco, o reboco descasca no alto.
+import facadeTaipaUrl from "../assets/env/tw_facade_taipa.png";
+import facadeRebocoUrl from "../assets/env/tw_facade_reboco.png";
+import facadePedraUrl from "../assets/env/tw_facade_pedra.png";
+import socoPedraUrl from "../assets/env/tw_soco_pedra.png";
+import janelaPostigoUrl from "../assets/env/prop_janela_postigo.png";
+import lanternaParedeUrl from "../assets/env/prop_lanterna_parede.png";
 import decDoorUrl from "../assets/env/dec_door.png";
 import decChestUrl from "../assets/env/dec_chest.png";
 import decChestOpenUrl from "../assets/env/dec_chest_open.png";
@@ -763,6 +772,9 @@ type ShopKind = ShopId | "tavern" | "smith" | "temple";
 
 // locais que são um estabelecimento com atendente (usado p/ reconhecer o balcão)
 const SHOP_LOCS: ShopKind[] = ["store", "alchemist", "armory", "armoryUp", "tavern", "smith", "temple"];
+
+// tipos de fachada da cidade (ver §28 do PROMPTS.md)
+type FacadeKind = "taipa" | "reboco" | "pedra";
 
 const STORE_GOODS = ["scroll_return"];
 const ALCH_GOODS = ["pot_hp", "pot_mp", "madeira", "minerio", "reforco"];
@@ -2416,15 +2428,27 @@ export class Game {
     roofMats.forEach((m) => (m.side = THREE.DoubleSide));
     // portas/janelas e adornos: DECALQUES em PNG (arte) colados na parede.
     const doorMat = this.decalMat(decDoorUrl, 0.4);
-    const winMat = this.decalMat(decWindowUrl, 0.4);
+    const winMat = this.decalMat(janelaPostigoUrl, 0.4);
+    const lanternMat = this.decalMat(lanternaParedeUrl, 0.25);
+    void decWindowUrl; // (decalque antigo, substituído pela janela com postigos)
     const torchMat = this.decalMat(decTorchUrl, 0.1); // chama suave
     const bannerMat = this.decalMat(decBannerUrl, 0.4);
     const ivyMat = this.decalMat(decIvyUrl, 0.4);
     const cracksMat = this.decalMat(decCracksUrl, 0.08); // fissuras finas
-    // madeira aparente do enxaimel e pedra escura do soco (as duas camadas que
-    // transformam a caixa de textura única numa fachada)
+    // madeira aparente do enxaimel (só nas casas de REBOCO — ver facadeKind)
     const timberMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7), color: new THREE.Color(0xb08a52) });
-    const plinthMat = new THREE.MeshLambertMaterial({ map: tex.stone(23), color: new THREE.Color(0xc4bcac) });
+    // SOCO: agora é arte (faixa de pedra grande com barro na base). A tira é
+    // ~4:1 e a peça tem 4 de largura por 0,7 de altura, então repete 1,4× em X
+    // p/ a pedra não sair esticada.
+    const plinthMat = this.wallArtMat(socoPedraUrl, [1.4, 1]);
+    // FACHADAS: três tipos, um painel por face. A taipa já traz o enxaimel
+    // PINTADO e a pedra já traz a cimalha, então só o reboco recebe as madeiras
+    // de código — sem isso a moldura dobrava em cima da que já está na arte.
+    const facadeMats: Record<FacadeKind, THREE.Material> = {
+      taipa: this.wallArtMat(facadeTaipaUrl),
+      reboco: this.wallArtMat(facadeRebocoUrl),
+      pedra: this.wallArtMat(facadePedraUrl),
+    };
 
     const hash = (a: number, b: number, s = 0) =>
       (Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1;
@@ -2466,6 +2490,13 @@ export class Game {
         const box = new THREE.Mesh(boxGeo, wm);
         box.position.set(c * CELL, WALL_H / 2, r * CELL);
         this.world.add(box);
+        // TIPO DA CASA: as lojas são de pedra lavrada (é quem tem dinheiro na
+        // vila); o resto sorteia entre taipa e reboco. O sorteio é por CÉLULA,
+        // então um mesmo quarteirão mistura os três e a rua deixa de ser
+        // repetitiva.
+        const ehLoja = ESTAB_DOORS.some((e) => e.c === c && e.r === r);
+        const tipo: FacadeKind = ehLoja ? "pedra"
+          : Math.abs(hash(c, r, 61)) % 1 < 0.55 ? "taipa" : "reboco";
 
         for (const [dc, dr] of streetDirs) {
           const porta = estabFaces.has(`${c},${r},${dc},${dr}`);
@@ -2474,7 +2505,9 @@ export class Game {
           // soco de pedra na base, cinta de enxaimel na divisa dos pavimentos e
           // montantes de madeira subindo dela. Vale p/ toda face de rua, inclusive
           // as de porta (a porta em si é desenhada em buildEstablishments).
-          this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash);
+          // painel de fachada colado na face (um por face, sem ladrilhar)
+          this.addWallDecal(c, r, dc, dr, facadeMats[tipo], CELL, WALL_H, WALL_H / 2);
+          this.facadeTrim(c, r, dc, dr, timberMat, plinthMat, hash, tipo === "reboco");
           if (porta) continue;
           // adorno da face: janela (comum) + tocha/bandeira/hera/rachadura sorteados
           // → cada casa fica diferente e a cidade ganha vida.
@@ -2486,8 +2519,12 @@ export class Game {
           if (roll < 0.4) {
             this.addWallDecal(c, r, dc, dr, winMat, 1.9, 1.9, 1.75);
           } else if (roll < 0.5) {
-            this.addWallDecal(c, r, dc, dr, torchMat, 0.95, 1.55, 2.15);
-            this.glowLight(fx + dc * 0.25, 2.35, fz + dr * 0.25, 0xffa040, 3.0, 9);
+            // LANTERNA DE PAREDE (arte): o braço de ferro sai da parede e a
+            // luminária pende dele. A arte é vista DE LADO, então o plano fica
+            // perpendicular à fachada, como as tabuletas das lojas.
+            this.addLanternaParede(c, r, dc, dr, lanternMat);
+            this.glowLight(fx + dc * 0.55, 2.45, fz + dr * 0.55, 0xffb45a, 3.4, 11);
+            void torchMat;
           } else if (roll < 0.71) {
             this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
           } else if (roll < 0.87) {
@@ -2530,6 +2567,49 @@ export class Game {
     this.buildNPCs();
 
     void MAP;
+  }
+
+  /**
+   * Material de PAINEL DE PAREDE a partir de arte: opaco (não é decalque), com o
+   * mapa esticado UMA vez sobre a face. Fica invisível até a textura chegar, p/
+   * não piscar um retângulo branco no carregamento.
+   */
+  private wallArtMat(url: string, repeat: [number, number] = [1, 1]): THREE.MeshLambertMaterial {
+    const m = new THREE.MeshLambertMaterial({ side: THREE.FrontSide });
+    m.colorWrite = false;
+    this.loadArt(url, (tx) => {
+      tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+      tx.repeat.set(repeat[0], repeat[1]);
+      m.map = tx;
+      m.colorWrite = true;
+      m.needsUpdate = true;
+    });
+    return m;
+  }
+
+  /**
+   * LANTERNA DE PAREDE. A arte é uma vista LATERAL (braço de ferro saindo da
+   * parede + luminária pendurada), então o plano tem de ficar PERPENDICULAR à
+   * fachada — como as tabuletas das lojas —, com o braço nascendo na parede.
+   * Espelha metade delas p/ o braço sair p/ o lado certo em cada face.
+   */
+  private addLanternaParede(c: number, r: number, dc: number, dr: number, mat: THREE.Material) {
+    const L = 1.5;   // largura do plano (braço + luminária)
+    const H = 1.5;
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(L, H), mat);
+    // encosta na parede e projeta metade da largura sobre a rua
+    pl.position.set(
+      c * CELL + dc * (CELL / 2 + 0.02) + (dc ? 0 : L / 2 - 0.25) * 0,
+      2.55,
+      r * CELL + dr * (CELL / 2 + 0.02),
+    );
+    // normal ao longo da fachada (gira 90° em relação a um decalque de parede)
+    pl.rotation.y = dc ? 0 : Math.PI / 2;
+    // desloca o conjunto p/ fora, ao longo da normal da parede
+    pl.position.x += dc * (L / 2 - 0.3);
+    pl.position.z += dr * (L / 2 - 0.3);
+    pl.renderOrder = 4;
+    this.world.add(pl);
   }
 
   /**
@@ -2604,6 +2684,7 @@ export class Game {
     c: number, r: number, dc: number, dr: number,
     timber: THREE.Material, plinth: THREE.Material,
     hash: (a: number, b: number, s?: number) => number,
+    comEnxaimel: boolean,
   ) {
     const x = c * CELL + dc * (CELL / 2 + 0.05);
     const z = r * CELL + dr * (CELL / 2 + 0.05);
@@ -2613,6 +2694,7 @@ export class Game {
     // soco
     const [sx, sz] = larg(CELL, 0.16);
     this.box(x + dc * 0.05, 0.35, z + dr * 0.05, sx, 0.7, sz, plinth);
+    if (!comEnxaimel) return; // taipa e pedra já trazem a madeira/cimalha pintadas
     // cinta de enxaimel na divisa dos andares
     const [bx, bz] = larg(CELL, 0.14);
     this.box(x + dc * 0.04, ANDAR_H, z + dr * 0.04, bx, 0.26, bz, timber);

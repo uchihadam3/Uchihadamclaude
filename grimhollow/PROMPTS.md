@@ -1713,7 +1713,7 @@ A seamless horizontally-tileable PANORAMIC SILHOUETTE BAND of a distant treeline
 
 ---
 
-## 28 · CIDADE DE CORREDOR — fachadas e tralha de rua — 🟡 arte pendente
+## 28 · CIDADE DE CORREDOR — fachadas e tralha de rua — 🟡 parcial
 
 Grimhollow virou uma cidade de **ruas de uma célula** ligando três largos: você
 só vê uma fatia por vez — duas fachadas colando dos lados, uma faixa de
@@ -1727,37 +1727,50 @@ textura. Os painéis abaixo resolvem isso.
 
 Salve em `src/assets/env/` com os nomes exatos.
 
+> **28.1 a 28.6 já estão no jogo.** As três fachadas entram como UM PAINEL POR
+> FACE de rua (não ladrilhadas — cada uma tem base e topo definidos). A escolha é
+> por célula: loja sempre de pedra lavrada, o resto sorteia taipa ou reboco. Como
+> a taipa já traz o enxaimel PINTADO e a pedra já traz a cimalha, só a casa de
+> reboco recebe as madeiras feitas em código — senão a moldura dobrava.
+>
+> As duas artes de prop vieram com o "fundo transparente" DESENHADO (xadrez
+> pintado, alfa opaco). O `scripts/prep_city_art.py` desfaz isso pela AMPLITUDE
+> do xadrez, não pela cor: onde o padrão aparece com força total é fundo, onde
+> some é objeto sólido, e no meio-termo é o vidro — que assim continua vidro em
+> vez de virar buraco. Se você conseguir gerar com alfa DE VERDADE, melhor: o
+> vidro ainda fica com um leve mosqueado.
+
 **Regra comum:** textura de PAINEL DE PAREDE **repetível na horizontal** (borda
 esquerda casa com a direita), vista **de frente e sem perspectiva** (ortográfica,
 como um decalque), iluminação neutra e chapada — quem faz sombra é o jogo.
 Quadrada, ~1024×1024. Sem texto, sem moldura, sem fundo transparente.
 
-### 🟡 28.1 — `tw_facade_taipa` (a casa pobre, a mais comum)
+### ✅ 28.1 — `tw_facade_taipa` (a casa pobre, a mais comum)
 ```
 A seamless tileable FLAT-ON wall texture panel of a poor medieval half-timbered house facade, 1024x1024, orthographic front view with no perspective. Cream-grey lime plaster infill between dark weathered oak timber framing, the plaster cracked and water-stained near the bottom, patches where it has fallen away exposing wattle and daub underneath. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
 ```
 
-### 🟡 28.2 — `tw_facade_reboco` (a casa remediada)
+### ✅ 28.2 — `tw_facade_reboco` (a casa remediada)
 ```
 A seamless tileable FLAT-ON wall texture panel of a modest medieval townhouse facade, 1024x1024, orthographic front view with no perspective. Smooth ochre lime-washed plaster over stone, worn and patchy with damp rising from the base, a few hairline cracks and old repair patches in a slightly different tone. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
 ```
 
-### 🟡 28.3 — `tw_facade_pedra` (a casa rica / as lojas)
+### ✅ 28.3 — `tw_facade_pedra` (a casa rica / as lojas)
 ```
 A seamless tileable FLAT-ON wall texture panel of a wealthy medieval merchant house facade, 1024x1024, orthographic front view with no perspective. Well-cut dressed ashlar stone blocks in warm grey with fine mortar joints, a carved string course band, subtle soot staining and lichen in the joints. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
 ```
 
-### 🟡 28.4 — `tw_soco_pedra` (o soco / a base da parede)
+### ✅ 28.4 — `tw_soco_pedra` (o soco / a base da parede)
 ```
 A seamless HORIZONTALLY tileable FLAT-ON texture strip of a medieval building plinth course, wide strip ~1024x256, orthographic front view. Large rough grey foundation stones, splashed with mud at the very bottom, moss and damp in the joints, a worn chamfered top edge. Neutral flat lighting, no cast shadows, no border. Grim dark fantasy, hand-painted, no text, no watermark.
 ```
 
-### 🟡 28.5 — `prop_janela_postigo` (janela com postigos — decalque)
+### ✅ 28.5 — `prop_janela_postigo` (janela com postigos — decalque)
 ```
 A single medieval window with wooden shutters, centered, on a FULLY TRANSPARENT background (PNG alpha), ~512x512. Small leaded glass panes in a dark oak frame, one shutter half-open showing warm candlelight inside, iron hinges, a narrow sill with a clay pot. Orthographic front view, no wall around it, no perspective, no cast shadow, nothing but the window itself. Grim dark fantasy, hand-painted, no text, no watermark.
 ```
 
-### 🟡 28.6 — `prop_lanterna_parede` (lanterna de parede em braçadeira)
+### ✅ 28.6 — `prop_lanterna_parede` (lanterna de parede em braçadeira)
 ```
 A single medieval wrought-iron wall lantern on a bracket arm, on a FULLY TRANSPARENT background (PNG alpha), ~512x512. Black twisted iron arm projecting to the LEFT from where it would meet the wall, a four-sided glass lantern hanging from it with a lit candle inside casting warm amber light on the glass, soot on the top vent. Seen from the side, orthographic, no wall, no cast shadow on anything. Grim dark fantasy, hand-painted, no text, no watermark.
 ```
