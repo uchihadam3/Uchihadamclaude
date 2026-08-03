@@ -1191,21 +1191,26 @@ export function setupControls(
       const sign = d.delta > 0 ? "+" : "";
       return `<div class="gh-itip-d gh-itip-${s}"><span class="gh-itip-k">${d.label}</span><b>${sign}${d.delta}${d.pct ? "%" : ""}</b></div>`;
     };
-    const line = (l: TipLine) => `<div class="gh-itip-l"><span class="gh-itip-k">${l.label}</span><b>${l.value}</b></div>`;
+    const line = (l: TipLine) => `<div class="gh-itip-l"><span class="gh-itip-k">${l.label}</span> <b>${l.value}</b></div>`;
+    // LAYOUT estilo Path of Exile: faixa de cabeçalho tingida pela raridade com o
+    // nome CENTRALIZADO + tipo-base embaixo, corpo quase preto, divisória fina com
+    // uma gema no meio e os valores em azul de "modificador".
     itip.className = "gh-itip gh-rname-" + tip.rarity;
     itip.innerHTML =
-      '<div class="gh-itip-top">' +
+      '<div class="gh-itip-hdr">' +
         `<span class="gh-itip-ic"><img src="${tip.icon}" alt=""/></span>` +
-        `<span class="gh-itip-hd"><span class="gh-itip-name">${tip.name}</span><span class="gh-itip-sub">${tip.sub}</span></span>` +
+        `<div class="gh-itip-name">${tip.name}</div>` +
+        `<div class="gh-itip-sub">${tip.sub}</div>` +
       "</div>" +
-      '<div class="gh-itip-rule"></div>' +
-      (tip.lines.length ? `<div class="gh-itip-lines">${tip.lines.map(line).join("")}</div>` : "") +
-      (tip.deltas && tip.deltas.length
-        ? '<div class="gh-itip-rule"></div><div class="gh-itip-cmp">' +
-          `<div class="gh-itip-cmph">Ao trocar${tip.compareName ? ` · ${tip.compareName}` : ""}</div>` +
-          tip.deltas.map(dRow).join("") + "</div>"
-        : "") +
-      `<button class="gh-itip-act">${actLabel(tip)}</button>`;
+      '<div class="gh-itip-body">' +
+        (tip.lines.length ? `<div class="gh-itip-lines">${tip.lines.map(line).join("")}</div>` : "") +
+        (tip.deltas && tip.deltas.length
+          ? '<div class="gh-itip-sep"></div><div class="gh-itip-cmp">' +
+            `<div class="gh-itip-cmph">Ao trocar${tip.compareName ? ` · ${tip.compareName}` : ""}</div>` +
+            tip.deltas.map(dRow).join("") + "</div>"
+          : "") +
+        `<button class="gh-itip-act">${actLabel(tip)}</button>` +
+      "</div>";
     itip.classList.remove("gh-itip-hidden");
     const w = itip.offsetWidth, h = itip.offsetHeight;
     let x: number, y: number;
@@ -3756,51 +3761,71 @@ function injectStyle() {
   .gh-bag-slot[data-wid], .gh-bag-slot[data-uid], .gh-slot-eq { cursor:pointer; }
   .gh-bag-slot[data-uid]:hover, .gh-slot-eq:hover { filter:brightness(1.15); }
   /* ===== POPUP DE ITEM — moldura de arte (eq_frame), ícone + stats grandes ===== */
+  /* ============ POPUP DE ITEM — estilo Path of Exile ============
+     Corpo quase preto, borda fina na cor da RARIDADE, cabeçalho tingido com o
+     nome centralizado, divisória com gema e valores no azul de "modificador". */
+  .gh-rname-comum    { --rc:#d6d6d6; --rcb:rgba(190,190,190,.42); --rch:rgba(200,200,200,.10); }
+  .gh-rname-magico   { --rc:#8f8fff; --rcb:rgba(125,125,255,.5);  --rch:rgba(80,80,210,.20); }
+  .gh-rname-raro     { --rc:#f4f472; --rcb:rgba(222,205,95,.5);   --rch:rgba(190,170,50,.18); }
+  .gh-rname-lendario { --rc:#e08a3c; --rcb:rgba(205,120,48,.55);  --rch:rgba(170,85,25,.22); }
   #gh-itip {
-    position:fixed; z-index:30; pointer-events:auto; width:min(272px,82vw);
-    box-sizing:border-box;
-    border:19px solid transparent; border-image:url(${eqFrameUrl}) 92 fill;
-    filter:drop-shadow(0 12px 30px rgba(0,0,0,.72));
-    color:#e8dcc0; font-family:"Trebuchet MS",sans-serif;
+    position:fixed; z-index:30; pointer-events:auto; width:min(252px,84vw);
+    box-sizing:border-box; padding:0; text-align:center;
+    background:rgba(4,4,5,.94);
+    border:1px solid var(--rcb, rgba(190,190,190,.42));
+    box-shadow:0 12px 34px rgba(0,0,0,.82), inset 0 0 30px rgba(0,0,0,.85);
+    color:#c9c9c9; font-family:"Cinzel",Georgia,serif;
   }
   #gh-itip.gh-itip-hidden { display:none; }
-  /* cabeçalho: ícone emoldurado + nome/subtítulo */
-  .gh-itip-top { display:flex; gap:10px; align-items:center; }
+  /* cabeçalho: faixa tingida pela raridade, nome CENTRALIZADO + tipo-base */
+  .gh-itip-hdr {
+    padding:8px 10px 7px; position:relative;
+    background:linear-gradient(180deg, var(--rch, rgba(200,200,200,.1)), rgba(0,0,0,0));
+    border-bottom:1px solid var(--rcb, rgba(190,190,190,.42));
+  }
   .gh-itip-ic {
-    flex:0 0 auto; width:48px; height:48px; border-radius:8px; overflow:hidden;
-    border:2px solid rgba(201,162,39,.62); background:rgba(6,5,3,.55);
-    box-shadow:inset 0 0 8px rgba(0,0,0,.6);
-    display:flex; align-items:center; justify-content:center;
+    display:flex; width:40px; height:40px; margin:0 auto 5px;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,.5); border:1px solid var(--rcb, rgba(190,190,190,.42));
   }
-  .gh-itip-ic img { width:90%; height:90%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.75)); }
-  .gh-itip-hd { min-width:0; display:flex; flex-direction:column; }
-  .gh-itip-name { font-family:"Cinzel",serif; font-weight:800; font-size:18px; line-height:1.14; text-shadow:0 1px 3px #000; }
-  .gh-rname-comum    .gh-itip-name { color:#efe4c8; }
-  .gh-rname-magico   .gh-itip-name { color:#7cbaff; text-shadow:0 0 9px rgba(90,150,240,.4), 0 1px 3px #000; }
-  .gh-rname-raro     .gh-itip-name { color:#f6d374; text-shadow:0 0 9px rgba(240,200,90,.4), 0 1px 3px #000; }
-  .gh-rname-lendario .gh-itip-name { color:#ff9a4a; text-shadow:0 0 11px rgba(255,138,46,.6), 0 1px 3px #000; }
-  .gh-itip-sub { font-size:12px; color:#b09c72; font-style:italic; margin-top:2px; }
-  /* divisória dourada */
-  .gh-itip-rule { height:0; border-top:1px solid rgba(201,162,39,.42); margin:9px 0 8px;
-    box-shadow:0 1px 0 rgba(0,0,0,.4); }
-  /* linhas de atributo — GRANDES e à mostra */
-  .gh-itip-lines, .gh-itip-cmp { display:flex; flex-direction:column; gap:5px; }
-  .gh-itip-l, .gh-itip-d { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
-  .gh-itip-k { font-size:14.5px; color:#dcc99a; letter-spacing:.2px; }
-  .gh-itip-k::before { content:"◆"; color:#9a7c2e; font-size:8px; margin-right:6px; vertical-align:middle; }
-  .gh-itip-l b { font-size:15.5px; color:#ffe9b0; font-weight:700; font-variant-numeric:tabular-nums; text-shadow:0 1px 2px #000; }
-  .gh-itip-cmph { font-size:11.5px; color:#b6a877; font-style:italic; margin-bottom:1px; }
-  .gh-itip-d b { font-size:15.5px; font-weight:800; font-variant-numeric:tabular-nums; text-shadow:0 1px 2px #000; }
-  .gh-itip-up b { color:#77e982; } .gh-itip-up b::after { content:" ▲"; font-size:10px; }
-  .gh-itip-down b { color:#f2766c; } .gh-itip-down b::after { content:" ▼"; font-size:10px; }
-  .gh-itip-same b { color:#a89873; }
+  .gh-itip-ic img { width:88%; height:88%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+  .gh-itip-name {
+    font-family:"Cinzel",serif; font-weight:700; font-size:15px; line-height:1.2;
+    color:var(--rc,#d6d6d6); letter-spacing:.7px; text-shadow:0 1px 3px #000;
+  }
+  .gh-itip-sub {
+    font-size:11px; color:var(--rc,#d6d6d6); opacity:.78; margin-top:2px; letter-spacing:.4px;
+  }
+  .gh-itip-body { padding:9px 11px 11px; }
+  /* linhas de atributo — rótulo cinza, valor no AZUL de modificador (PoE) */
+  .gh-itip-lines, .gh-itip-cmp { display:flex; flex-direction:column; gap:3px; }
+  .gh-itip-k { font-size:12.5px; color:#7f7f7f; letter-spacing:.2px; }
+  .gh-itip-l { font-size:12.5px; line-height:1.35; }
+  .gh-itip-l b { color:#8f8fff; font-weight:700; font-variant-numeric:tabular-nums; }
+  /* divisória fina com uma gema no meio */
+  .gh-itip-sep {
+    position:relative; height:1px; margin:9px 2px;
+    background:linear-gradient(90deg, transparent, var(--rcb, rgba(190,190,190,.42)), transparent);
+  }
+  .gh-itip-sep::after {
+    content:"◆"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    font-size:6px; color:var(--rc,#d6d6d6); background:#040405; padding:0 6px; opacity:.85;
+  }
+  .gh-itip-cmph { font-size:10.5px; color:#6f6f6f; font-style:italic; margin-bottom:2px; }
+  .gh-itip-d { font-size:12.5px; line-height:1.35; }
+  .gh-itip-d b { font-weight:700; font-variant-numeric:tabular-nums; margin-left:4px; }
+  .gh-itip-up b { color:#6fdc78; } .gh-itip-up b::after { content:" ▲"; font-size:9px; }
+  .gh-itip-down b { color:#e8695f; } .gh-itip-down b::after { content:" ▼"; font-size:9px; }
+  .gh-itip-same b { color:#8a8a8a; }
   .gh-itip-act {
-    display:block; width:100%; margin-top:12px; cursor:pointer;
-    font-family:"Cinzel",serif; font-weight:700; font-size:14px; letter-spacing:.8px;
-    color:#12100a; padding:9px 10px; border:none; border-radius:8px;
-    background:linear-gradient(#f4d074,#c9922a); box-shadow:0 2px 7px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.4);
+    display:block; width:100%; margin-top:11px; cursor:pointer;
+    font-family:"Cinzel",serif; font-weight:700; font-size:12px; letter-spacing:1.1px;
+    text-transform:uppercase; color:#ded6c2; padding:8px 10px; border-radius:3px;
+    background:linear-gradient(180deg,rgba(42,38,30,.95),rgba(16,15,12,.95));
+    border:1px solid var(--rcb, rgba(190,190,190,.42));
+    transition:border-color .12s, color .12s;
   }
-  .gh-itip-act:hover { filter:brightness(1.06); }
+  .gh-itip-act:hover { border-color:var(--rc,#d6d6d6); color:#fff; }
   .gh-itip-act:active { transform:translateY(1px); }
   /* ícone do item dentro de um slot (equipado ou na mochila) */
   .gh-item-ico {
@@ -4086,7 +4111,9 @@ function injectStyle() {
   #gh-plist .gh-pl-name {
     font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.9vh,14px);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:var(--rc,#e8dcc0); /* cor da RARIDADE (mesmas vars do popup) */
   }
+  #gh-plist .gh-pl-row { border-color:var(--rcb,rgba(201,162,74,.3)); }
   #gh-plist .gh-pl-sub { font-size:clamp(10px,1.5vh,11.5px); color:#b6a883; }
   #gh-plist .gh-pl-foot { display:flex; gap:7px; margin-top:8px; }
   #gh-plist .gh-pl-foot button {
