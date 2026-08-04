@@ -15,19 +15,21 @@ const cam={ x:0, y:0 };
 let zoom=2, camViewW=640, camViewH=384, camSafeBottom=0;   // camViewW/H = px do MUNDO visíveis; camSafeBottom = faixa reservada p/ controles
 
 // temas de cor por "mundo": fundo (parallax) + tiles
+// amb = ambiente (partículas): 'spore'(sobe) 'ember'(sobe/fogo) 'snow'(desce) 'spark'(flutua) 'dust'(desce)
+// deco = silhueta característica: 'hill' 'peak' 'crystal' 'berg' 'stalac' 'chunk'
 const THEMES={
   cave:  { sky0:"#123033", sky1:"#0c2024", mote:"126,224,107", tile:"#274036", tilehi:"#365a48",
-           top:"#4a9a5a", top2:"#63c878", far:"#183a34", mid:"#20503f", cloud:"170,220,180" },
+           top:"#4a9a5a", top2:"#63c878", far:"#183a34", mid:"#20503f", cloud:"170,220,180", amb:"spore", deco:"stalac", glow:null },
   deep:  { sky0:"#101a34", sky1:"#0a1020", mote:"120,170,255", tile:"#20304f", tilehi:"#2e4470",
-           top:"#3a6aa0", top2:"#4f8fd0", far:"#161f3e", mid:"#1e2f5a", cloud:"140,170,230" },
+           top:"#3a6aa0", top2:"#4f8fd0", far:"#161f3e", mid:"#1e2f5a", cloud:"140,170,230", amb:"spark", deco:"crystal", glow:null },
   forge: { sky0:"#3a1c10", sky1:"#1e0f08", mote:"255,160,80",  tile:"#3a271b", tilehi:"#5a3d28",
-           top:"#a05a3a", top2:"#d07a4a", far:"#2a160c", mid:"#41210f", cloud:"230,150,110" },
+           top:"#a05a3a", top2:"#d07a4a", far:"#2a160c", mid:"#41210f", cloud:"230,150,110", amb:"ember", deco:"peak", glow:"255,90,20" },
   ice:   { sky0:"#173846", sky1:"#0e222e", mote:"170,230,255", tile:"#254048", tilehi:"#356470",
-           top:"#3f8fa8", top2:"#5fc0d8", far:"#12303c", mid:"#1c4653", cloud:"200,235,255" },
+           top:"#3f8fa8", top2:"#5fc0d8", far:"#12303c", mid:"#1c4653", cloud:"200,235,255", amb:"snow", deco:"peak", glow:null },
   void:  { sky0:"#1a1030", sky1:"#0a0518", mote:"200,150,255", tile:"#2a1c44", tilehi:"#3d2a63",
-           top:"#7a4fd0", top2:"#a06ff0", far:"#160c2c", mid:"#241542", cloud:"180,140,240" },
+           top:"#7a4fd0", top2:"#a06ff0", far:"#160c2c", mid:"#241542", cloud:"180,140,240", amb:"spark", deco:"chunk", glow:"150,90,240" },
   glacier:{ sky0:"#20455c", sky1:"#0f2838", mote:"210,245,255", tile:"#3a5566", tilehi:"#547a90",
-           top:"#8fd8ee", top2:"#c0f0ff", far:"#173845", mid:"#245266", cloud:"225,245,255" },
+           top:"#8fd8ee", top2:"#c0f0ff", far:"#173845", mid:"#245266", cloud:"225,245,255", amb:"snow", deco:"berg", glow:"150,225,255" },
 };
 
 // -------------------------------------------------------------------------- FASES
@@ -943,10 +945,21 @@ function render(){
   const W=canvas.width,H=canvas.height, th=theme||THEMES.cave;
   ctx.setTransform(1,0,0,1,0,0);
   drawParallax(th);
-  // motes ambiente (espaço de tela)
-  ctx.fillStyle=`rgba(${th.mote},.10)`;
-  for(const m of motes){ const y=(m.y - T*m.s)%H, yy=y<0?y+H:y;
-    ctx.beginPath(); ctx.arc(m.x+Math.sin(T+m.ph)*6, yy, m.r,0,7); ctx.fill(); }
+  // partículas de AMBIENTE por mundo: fagulhas sobem (forge), neve desce (ice/glacier),
+  // esporos sobem (cave), brilhos flutuam (deep/void). Dá identidade a cada tema.
+  const amb=th.amb||"spore", down = (amb==="snow"||amb==="dust"), sc0=canvas.width/640;
+  for(const m of motes){
+    let yy = down ? (m.y + T*m.s)%H : (m.y - T*m.s)%H; if(yy<0)yy+=H;
+    const drift = (amb==="snow") ? Math.sin(T*0.8+m.ph)*14 : Math.sin(T+m.ph)*6;
+    const xx = m.x + drift;
+    if(amb==="ember"){ const life=(yy/H); ctx.fillStyle=`rgba(255,${120+Math.floor(life*100)},40,${(1-life)*0.5})`;
+      ctx.beginPath(); ctx.arc(xx,yy,m.r*0.9,0,7); ctx.fill(); }
+    else if(amb==="snow"){ ctx.fillStyle=`rgba(${th.mote},${0.16+m.r*0.05})`;
+      ctx.beginPath(); ctx.arc(xx,yy,m.r*0.9,0,7); ctx.fill(); }
+    else if(amb==="spark"){ const tw=0.3+0.7*Math.abs(Math.sin(T*2+m.ph)); ctx.fillStyle=`rgba(${th.mote},${0.14*tw})`;
+      ctx.fillRect(xx-m.r*0.6,yy-m.r*0.6,m.r*1.2,m.r*1.2); }
+    else { ctx.fillStyle=`rgba(${th.mote},.10)`; ctx.beginPath(); ctx.arc(xx,yy,m.r,0,7); ctx.fill(); }
+  }
 
   // ---- MUNDO: câmera + ZOOM ----
   const sx=shake>0?(Math.random()*2-1)*shake:0, sy=shake>0?(Math.random()*2-1)*shake:0;
@@ -1112,11 +1125,26 @@ function render(){
   for(const tp of tramp){ const c=tp.sq*7;
     ctx.strokeStyle="rgba(139,233,255,.85)"; ctx.lineWidth=3;
     ctx.beginPath(); ctx.moveTo(tp.x+4,tp.y+2+c); ctx.quadraticCurveTo(tp.x+tp.w/2,tp.y-6+c*2,tp.x+tp.w-4,tp.y+2+c); ctx.stroke(); }
-  // pedaços (gelecas soltas). Sólidas piscam MUITO de leve (dica sutil de que dá pra tocar/empilhar)
-  for(const g of globs){ const a=g.solid?0.94:0.42;
-    const col = g.tramp ? "139,233,255" : "120,210,105";
-    ctx.fillStyle=`rgba(${col},${a})`; slime(g.x+g.w/2,g.y+g.h/2,g.w/2,g.h/2,0.05,g.x); ctx.fill();
-    ctx.strokeStyle= g.tramp ? "rgba(139,233,255,.85)" : "rgba(60,140,60,.7)"; ctx.lineWidth=2; ctx.stroke(); }
+  // pedaços (gelecas soltas) — mini cubinhos de geleia VIVOS: têm mini-olhos (dica leve
+  // de que estão vivos e dá pra interagir/tocar). Trampolins ficam azul.
+  for(const g of globs){ const a=g.solid?0.95:0.45, gcx=g.x+g.w/2, gcy=g.y+g.h/2;
+    const topc = g.tramp ? "#b6f2ff" : "#cdf5ab", botc = g.tramp ? "#3fb6d8" : "#4fb043";
+    const gg=ctx.createLinearGradient(0,g.y,0,g.y+g.h); gg.addColorStop(0,topc); gg.addColorStop(1,botc);
+    ctx.globalAlpha=a; ctx.fillStyle=gg; slime(gcx,gcy,g.w/2,g.h/2,0.05,g.x); ctx.fill();
+    ctx.globalAlpha=1; ctx.strokeStyle= g.tramp ? "rgba(139,233,255,.9)" : "rgba(70,150,60,.8)"; ctx.lineWidth=1.5; ctx.stroke();
+    // brilho de topo
+    ctx.fillStyle="rgba(255,255,255,.35)"; ctx.beginPath(); ctx.ellipse(gcx-2,g.y+5,g.w*0.24,3,0,0,7); ctx.fill();
+    // MINI-OLHOS (só nas sólidas — as recém-soltas ainda estão "se formando")
+    if(g.solid){
+      const seed=(g.x*0.7+g.y*0.3), blink=Math.sin(T*1.3+seed)>0.93;   // pisca de vez em quando
+      const look = blob ? Math.sign((blob.x+blob.w/2)-gcx)*0.8 : 0;      // olha levemente pro jogador
+      const ox=g.w*0.16, oy=gcy-1, orr=Math.max(1.6,g.w*0.09);
+      if(!blink){ ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(gcx-ox,oy,orr,0,7); ctx.arc(gcx+ox,oy,orr,0,7); ctx.fill();
+        ctx.fillStyle="#0a2012"; ctx.beginPath(); ctx.arc(gcx-ox+look,oy,orr*0.55,0,7); ctx.arc(gcx+ox+look,oy,orr*0.55,0,7); ctx.fill(); }
+      else { ctx.strokeStyle="#0a2012"; ctx.lineWidth=1.4; ctx.beginPath();
+        ctx.moveTo(gcx-ox-orr,oy); ctx.lineTo(gcx-ox+orr,oy); ctx.moveTo(gcx+ox-orr,oy); ctx.lineTo(gcx+ox+orr,oy); ctx.stroke(); }
+    }
+  }
 
   // halo de luz do blob (atmosfera)
   if(blob){ const cx=blob.x+blob.w/2, cy=blob.y+blob.h/2;
@@ -1160,18 +1188,42 @@ function peakLayer(color, factor, baseY, spacing, height){   // montanhas pontud
   for(let x=off-spacing; x<W+spacing; x+=spacing){ ctx.lineTo(x+spacing*0.5, by-height); ctx.lineTo(x+spacing, by); }
   ctx.lineTo(W+spacing, H+2); ctx.closePath(); ctx.fill();
 }
+// SILHUETA característica de cada mundo (crystal/berg/stalac/chunk/peak)
+function decoLayer(th){ const kind=th.deco, W=canvas.width,H=canvas.height,sc=W/640;
+  ctx.fillStyle=th.far;
+  if(kind==="stalac"){ const sp=150*sc, off=-((cam.x*zoom*0.12)%sp);   // estalactites do teto (caverna)
+    ctx.beginPath(); ctx.moveTo(-sp,-2);
+    for(let x=off-sp;x<W+sp;x+=sp){ const hh=(55+(Math.abs(x)*7%50))*sc; ctx.lineTo(x+sp*0.5,hh); ctx.lineTo(x+sp,-2); }
+    ctx.lineTo(W+sp,-2); ctx.closePath(); ctx.fill();
+    peakLayer(th.far,0.10,H*0.66,240*sc,170*sc);
+  } else if(kind==="crystal"){ const sp=118*sc, off=-((cam.x*zoom*0.12)%sp), by=H*0.72-cam.y*zoom*0.05;  // cristais (profundezas)
+    ctx.beginPath(); ctx.moveTo(-sp,H+2);
+    for(let x=off-sp;x<W+sp;x+=sp){ const hh=(170+(Math.abs(x)*13%140))*sc; ctx.lineTo(x+sp*0.42,by-hh); ctx.lineTo(x+sp,by); }
+    ctx.lineTo(W+sp,H+2); ctx.closePath(); ctx.fill();
+  } else if(kind==="chunk"){ const sp=200*sc, off=-((cam.x*zoom*0.10)%sp);   // pedras flutuantes (vazio)
+    for(let x=off-sp;x<W+sp;x+=sp){ const y=(H*0.28+(Math.abs(x)*17%Math.floor(H*0.38)))-cam.y*zoom*0.04, s=(22+(Math.abs(x)*7%20))*sc;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+s,y-s*0.4); ctx.lineTo(x+s*1.4,y+s*0.3); ctx.lineTo(x+s*0.6,y+s*0.7); ctx.closePath(); ctx.fill(); }
+    peakLayer(th.far,0.10,H*0.70,260*sc,120*sc);
+  } else if(kind==="berg"){ peakLayer(th.far,0.10,H*0.70,300*sc,140*sc); }  // icebergs largos
+  else { peakLayer(th.far,0.10,H*0.66,240*sc,220*sc); }                       // 'peak' padrão
+}
 function drawParallax(th){
   const W=canvas.width, H=canvas.height, sc=W/640;
   const sky=ctx.createLinearGradient(0,0,0,H);
   sky.addColorStop(0,th.sky0); sky.addColorStop(1,th.sky1);
   ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  // brilho característico no horizonte (lava na forja, aura no gelo/vazio)
+  if(th.glow){ const gy=H*0.74 - cam.y*zoom*0.05;
+    const gg=ctx.createLinearGradient(0,gy-H*0.24,0,gy+H*0.12);
+    gg.addColorStop(0,`rgba(${th.glow},0)`); gg.addColorStop(1,`rgba(${th.glow},.30)`);
+    ctx.fillStyle=gg; ctx.fillRect(0,gy-H*0.24,W,H*0.36); }
   // estrelas / brilhos no céu (twinkle)
   for(let i=0;i<46;i++){ let sx=((i*137*sc - cam.x*zoom*0.06)%(W+30)); if(sx<-15)sx+=W+30;
     const y=((i*71)%Math.floor(H*0.66)), tw=0.3+0.7*Math.abs(Math.sin(T*1.6+i*1.3));
     ctx.globalAlpha=tw*0.5; ctx.fillStyle=`rgb(${th.cloud})`; const s=(i%7===0?2:1.2)*sc; ctx.fillRect(sx,y,s,s); }
   ctx.globalAlpha=1;
-  // montanhas pontudas bem ao fundo
-  peakLayer(th.far, 0.10, H*0.66, 240*sc, 220*sc);
+  // silhueta característica do mundo bem ao fundo
+  decoLayer(th);
   // morros arredondados distantes
   hillLayer(th.far, 0.18, H*0.70, 300*sc, 150*sc);
   // nuvens
@@ -1208,37 +1260,57 @@ function drawBlob(){
   const b=blob;
   const sq=Math.max(-0.18,Math.min(0.18,b.vy/4000)), jig=Math.sin(T*6)*0.02;
   const w=b.w*(1-sq*0.5+jig), h=b.h*(1+sq-jig);
-  const x=b.x+(b.w-w)/2, y=b.y+(b.h-h), cx=x+w/2, r=Math.min(w,h)*0.22;
+  const x=b.x+(b.w-w)/2, y=b.y+(b.h-h), cx=x+w/2, r=Math.min(w,h)*0.26;
   const flashing=b.flash>0&&Math.floor(b.flash*20)%2===0;
-  let a,bl;
-  if(flashing){a="#ffc7c7";bl="#ff6a6a";}
-  else if(b.melting){a="#ffd99a";bl="#d97a2a";}
-  else if(b.cling){a="#bdf6ea";bl="#33b0a0";}
-  else {a="#d6ffb4";bl="#59c948";}
+  let a,bl,ed;                                   // a=topo, bl=base, ed=cor da aresta
+  if(flashing){a="#ffd0d0";bl="#ff6a6a";ed="#c83030";}
+  else if(b.melting){a="#ffe0a8";bl="#e0842a";ed="#b45a10";}
+  else if(b.cling){a="#cffaf0";bl="#33b0a0";ed="#1e7e72";}
+  else {a="#e6ffc8";bl="#5ec84a";ed="#2f8f30";}
 
-  // sombra de contato
-  ctx.fillStyle="rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(cx,b.y+b.h+2,w*0.42,5,0,0,7); ctx.fill();
-  // corpo translúcido
-  ctx.save(); ctx.shadowColor=b.melting?"rgba(255,150,70,.55)":"rgba(126,224,107,.5)"; ctx.shadowBlur=12;
-  const gr=ctx.createLinearGradient(0,y,0,y+h); gr.addColorStop(0,a); gr.addColorStop(1,bl);
-  ctx.globalAlpha=0.92; ctx.fillStyle=gr; roundRect(x,y,w,h,r); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
-  ctx.strokeStyle="rgba(255,255,255,.28)"; ctx.lineWidth=2; roundRect(x+1,y+1,w-2,h-2,r-1); ctx.stroke();
-  // face-topo (dá o 3D de cubo)
-  ctx.fillStyle="rgba(255,255,255,.20)"; roundRect(x+w*0.12,y+h*0.06,w*0.76,h*0.22,r*0.6); ctx.fill();
-  // núcleo interno (volume de geleia)
-  ctx.fillStyle="rgba(0,40,10,.10)"; roundRect(x+w*0.24,y+h*0.42,w*0.52,h*0.42,r*0.5); ctx.fill();
-  // bolhas internas
-  ctx.fillStyle="rgba(255,255,255,.32)";
-  for(let i=0;i<3;i++){ const bx=x+w*(0.32+0.18*i)+Math.sin(T*1.5+i*2)*2, by=y+h*(0.5+0.13*i)+Math.cos(T*1.3+i)*2;
-    ctx.beginPath(); ctx.arc(bx,by,1.5+i*0.6,0,7); ctx.fill(); }
-  // specular
-  ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.ellipse(x+w*0.3,y+h*0.24,w*0.15,h*0.09,-0.5,0,7); ctx.fill();
-  // olhos
-  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=w*0.2, ey=y+h*0.48, er=Math.max(2.6,w*0.1);
+  // sombra de contato (elíptica)
+  ctx.fillStyle="rgba(0,0,0,.30)"; ctx.beginPath(); ctx.ellipse(cx,b.y+b.h+2,w*0.44,5,0,0,7); ctx.fill();
+
+  // ---- CORPO: cubo de geleia translúcido ----
+  ctx.save(); ctx.shadowColor=b.melting?"rgba(255,150,70,.55)":(b.cling?"rgba(120,240,220,.5)":"rgba(126,224,107,.5)"); ctx.shadowBlur=14;
+  const gr=ctx.createLinearGradient(0,y,0,y+h);
+  gr.addColorStop(0,a); gr.addColorStop(0.5,bl); gr.addColorStop(1,ed);
+  ctx.globalAlpha=0.9; ctx.fillStyle=gr; roundRect(x,y,w,h,r); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
+
+  // sombreamento das FACES do cubo (lado direito e base mais escuros = volume 3D)
+  ctx.save(); roundRect(x,y,w,h,r); ctx.clip();
+  const side=ctx.createLinearGradient(x,0,x+w,0); side.addColorStop(0,"rgba(255,255,255,.10)"); side.addColorStop(0.5,"rgba(0,0,0,0)"); side.addColorStop(1,"rgba(0,30,10,.22)");
+  ctx.fillStyle=side; ctx.fillRect(x,y,w,h);
+  // núcleo interno (volume de geleia, mais escuro no centro-baixo)
+  ctx.fillStyle="rgba(0,40,12,.14)"; roundRect(x+w*0.22,y+h*0.40,w*0.56,h*0.46,r*0.5); ctx.fill();
+  // refração/cáustica: faixa curva clara atravessando
+  ctx.strokeStyle="rgba(255,255,255,.14)"; ctx.lineWidth=Math.max(2,w*0.06);
+  ctx.beginPath(); ctx.moveTo(x+w*0.15,y+h*0.62); ctx.quadraticCurveTo(x+w*0.5,y+h*0.5,x+w*0.9,y+h*0.66); ctx.stroke();
+  ctx.restore();
+
+  // FACE-TOPO do cubo (lid brilhante = leitura de cubo 3D)
+  ctx.fillStyle="rgba(255,255,255,.26)"; roundRect(x+w*0.14,y+h*0.05,w*0.72,h*0.20,r*0.55); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.14)"; roundRect(x+w*0.14,y+h*0.05,w*0.72,h*0.34,r*0.55); ctx.fill();
+
+  // bolhas internas (mais e com brilho)
+  for(let i=0;i<4;i++){ const bx=x+w*(0.28+0.16*i)+Math.sin(T*1.5+i*2)*2, by=y+h*(0.46+0.11*i)+Math.cos(T*1.3+i)*2, br=1.3+((i*7)%3)*0.7;
+    ctx.fillStyle="rgba(255,255,255,.34)"; ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(bx-br*0.4,by-br*0.4,br*0.4,0,7); ctx.fill(); }
+
+  // rim light (aresta superior-esquerda acesa)
+  ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(x+r+2,y+r+2,r-1,Math.PI,Math.PI*1.5); ctx.stroke();
+  // contorno geral sutil
+  ctx.strokeStyle="rgba(255,255,255,.22)"; ctx.lineWidth=1.5; roundRect(x+1,y+1,w-2,h-2,r-1); ctx.stroke();
+  // specular (brilho principal)
+  ctx.fillStyle="rgba(255,255,255,.7)"; ctx.beginPath(); ctx.ellipse(x+w*0.3,y+h*0.2,w*0.14,h*0.08,-0.5,0,7); ctx.fill();
+
+  // ---- OLHOS ----
+  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=w*0.2, ey=y+h*0.5, er=Math.max(2.8,w*0.11);
   const blink=b.blink<0.12;
   if(!blink){ ctx.fillStyle="#fff"; eye(cx-ex,ey,er); eye(cx+ex,ey,er);
     ctx.fillStyle="#0a2012"; pupil(cx-ex+dir*2,ey,er); pupil(cx+ex+dir*2,ey,er);
-    ctx.fillStyle="rgba(255,255,255,.9)"; ctx.beginPath(); ctx.arc(cx-ex+dir*2-1,ey-1,er*0.22,0,7); ctx.arc(cx+ex+dir*2-1,ey-1,er*0.22,0,7); ctx.fill(); }
+    ctx.fillStyle="rgba(255,255,255,.95)"; ctx.beginPath(); ctx.arc(cx-ex+dir*2-1,ey-1,er*0.24,0,7); ctx.arc(cx+ex+dir*2-1,ey-1,er*0.24,0,7); ctx.fill(); }
   else { ctx.strokeStyle="#0a2012"; ctx.lineWidth=2;
     ctx.beginPath();ctx.moveTo(cx-ex-er,ey);ctx.lineTo(cx-ex+er,ey);ctx.moveTo(cx+ex-er,ey);ctx.lineTo(cx+ex+er,ey);ctx.stroke(); }
   function eye(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.fill(); }
