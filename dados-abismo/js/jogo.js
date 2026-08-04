@@ -18,6 +18,7 @@ import { rolarPara } from './dice3d/roll.js';
 import { raioDe, pontoDeCima } from './dice3d/geometry.js';
 import { ESCALADA, MASMORRAS } from './data/dungeons.js';
 import { travaTxt } from './data/travas.js';
+import * as GRIM from './grimorio.js';
 import * as META from './meta.js';
 import { spriteDe } from './sprites.js';
 import * as SFX from './sfx.js';
@@ -120,6 +121,7 @@ function telaTitulo(){
     <div class="ecos"><span class="eic">◈</span><b>${cofre.ecos}</b><i>ecos</i></div>
     <div class="mbtns">
       <button class="mb pri" data-a="jogar">▶ DESCER</button>
+      <button class="mb" data-a="grim">📖 GRIMÓRIO <em>como se joga</em></button>
       <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${Object.keys(cofre.comprados||{}).length}/${META.NOS.length}</em></button>
     </div>
     <div class="recs">
@@ -127,7 +129,7 @@ function telaTitulo(){
       <span>recorde <b>M${rec.masmorra}·A${rec.andar}</b></span>
       <span>vitórias <b>${cofre.vitorias||0}</b></span>
     </div></div>`;
-  bindA(m,{ jogar:telaClasses, cofre:telaCofre });
+  bindA(m,{ jogar:telaClasses, cofre:telaCofre, grim:()=>telaGrimorio(null, telaTitulo) });
 }
 function bindA(root,map){ root.querySelectorAll('[data-a]').forEach(b=>{
   b.onclick=()=>{ SFX.pegar(); map[b.dataset.a](); }; }); }
@@ -198,6 +200,26 @@ function iniciar(cid){
   andar=1; masmorra=BON.portal>1?BON.portal:1;
   stats={andares:0, elites:0, chefes:0};
   telaMapa(false);
+}
+/* ---------- O GRIMÓRIO: o que cada coisa faz (§12) ---------- */
+let voltarDoGrim=null;
+function telaGrimorio(foco, voltar){
+  voltarDoGrim = voltar || voltarDoGrim;
+  const m=$('msg'); m.classList.remove('off'); m.className='';
+  m.innerHTML=`<div class="grimwrap">
+    <div class="cofhd"><button class="volta" data-a="voltar">‹</button><h2>GRIMÓRIO</h2></div>
+    <p class="cofp">Nada aqui é segredo. Se você não entendeu por que um golpe deu
+      <b>zero</b>, a resposta está em <b>Fechaduras</b>.</p>
+    <div class="gnav">${GRIM.SECOES.map(x=>`<button class="gtab" data-g="${x.id}">${x.ico} ${x.nome.split('—')[0].trim()}</button>`).join('')}</div>
+    ${GRIM.html(foco)}
+    <button class="mb pri" data-a="voltar">◀ VOLTAR</button>
+  </div>`;
+  bindA(m,{ voltar:()=>{ const v=voltarDoGrim; voltarDoGrim=null;
+    if(v==='combate'){ m.classList.add('off'); pintar(); } else if(typeof v==='function'){ v(); } else telaTitulo(); } });
+  m.querySelectorAll('.gtab').forEach(b=>b.onclick=()=>{ SFX.pegar();
+    m.querySelector(`.gsec[data-s="${b.dataset.g}"]`)?.scrollIntoView({behavior:'smooth',block:'start'}); });
+  if(foco) requestAnimationFrame(()=>
+    m.querySelector('.gitem.foco')?.scrollIntoView({behavior:'smooth',block:'center'}));
 }
 /* ---------- MAPA DA MASMORRA (§3.1) ---------- */
 const TIPO_ANDAR = a => a===10?'chefe' : a===5?'subchefe' : (a===3||a===4||a>=6)?'elite':'comum';
@@ -316,9 +338,10 @@ function pintar(){
     const tr=cb.travaDe(e), td=travaTxt(tr);
     const aberta = !tr || e._arrombada || e.travaOff>0 || (alocSel && cb.abre(e, alocSel));
     const travaHTML = td ? `<div class="trava ${e._arrombada||e.travaOff>0?'off':(alocSel? (aberta?'abre':'fecha') : '')}"
-        title="${td.txt}"><span class="tico">${td.ico}</span><span class="ttx">${
+        data-tr="${tr?tr.t:''}" title="${td.txt} — toque para entender"><span class="tico">${td.ico}</span><span class="ttx">${
         e._arrombada?'ARROMBADA' : e.travaOff>0?`DISSOLVIDA (${e.travaOff})` : td.curto}</span>${
-        alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓ ABRE':'✕ TRAVA'}</span>`:''}</div>` : '';
+        alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓ ABRE':'✕ TRAVA'}</span>`
+          : '<span class="tq">?</span>'}</div>` : '';
     const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${ICO[k]||''}${v}`).join(' ');
     const li=pi.linhas.find(l=>l.uid===e.uid);
     const pr=mapaPrev[e.uid];
@@ -403,6 +426,9 @@ function pintar(){
   $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10 <span style="opacity:.6">— ${ESCALADA[masmorra-1].nome}</span>`;
   $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
+  // tocar na fechadura abre o Grimório JÁ na explicação daquela regra
+  $('ini').querySelectorAll('.trava').forEach(el=>el.onclick=ev=>{ ev.stopPropagation();
+    SFX.pegar(); telaGrimorio(el.dataset.tr||null, 'combate'); });
   SFX.tensao(P.hp < P.maxHp*0.35);
   // dados usados ficam apagados
   for(const m of malhas){ const id=m.userData.die.id;

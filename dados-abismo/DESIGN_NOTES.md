@@ -186,6 +186,15 @@ chave 9 → exatamente 2 dados).
 - **Lapidar** (⚔) abre o Selo ⚔; **Fio Solto** (◈) assume o valor que a
   fechadura pedir.
 
+### 3.4b O GRIMÓRIO (`js/grimorio.js`)
+"maior ≥ 4" dizia a regra e escondia a consequência. Duas correções:
+1. O rótulo na carta passou a dizer o efeito: **"só dói com dado 4 ou mais"**.
+   Fechadura não é armadura — golpe errado dá **zero**, não "menos".
+2. Tela do Grimório com 6 seções (turno · fechaduras · como cada classe abre ·
+   faces · estados · ferramentas), cada fechadura com **exemplo numérico do que
+   passa e do que dá zero**. Abre pelo título e, no combate, **tocando na
+   própria fechadura** — ela já abre rolada no verbete daquela regra.
+
 ### 3.5 As PASSIVAS de classe agora têm botão
 Estavam no motor desde sempre e nunca tinham sido ligadas na tela — e são
 justamente os verbos de fechadura grátis de cada classe:
