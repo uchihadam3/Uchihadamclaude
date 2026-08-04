@@ -26,10 +26,12 @@ const THEMES={
            top:"#3f8fa8", top2:"#5fc0d8", far:"#12303c", mid:"#1c4653", cloud:"200,235,255" },
   void:  { sky0:"#1a1030", sky1:"#0a0518", mote:"200,150,255", tile:"#2a1c44", tilehi:"#3d2a63",
            top:"#7a4fd0", top2:"#a06ff0", far:"#160c2c", mid:"#241542", cloud:"180,140,240" },
+  glacier:{ sky0:"#20455c", sky1:"#0f2838", mote:"210,245,255", tile:"#3a5566", tilehi:"#547a90",
+           top:"#8fd8ee", top2:"#c0f0ff", far:"#173845", mid:"#245266", cloud:"225,245,255" },
 };
 
 // -------------------------------------------------------------------------- FASES
-// #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor
+// #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor I=GELO(escorrega)
 // *=estrela VISÍVEL (coletável)
 // S=parede FANTASMA (parece sólida, atravessa)  g=fantasma COM gema secreta dentro (Fez: invisível até entrar)
 // G=gema solta invisível  C=desmorona  T=mola
@@ -103,9 +105,9 @@ const LEVELS = [
     "#                      o                                     #",
     "#                     ####                                   #",
     "#                                                            #",
-    "#                                            ###             #",
-    "#                                            ###  o          #",
-    "# @                                          ###          E  #",
+    "#                                                   ###      #",
+    "#                                                 o ###      #",
+    "# @                                                 ###   E  #",
     "################   ###########    ############   #############",
     "################   ###########    ############   #############",
     "################^^^###########^^^^############^^^#############",
@@ -137,9 +139,9 @@ const LEVELS = [
     "#                #           #",
     "#                #           #",
     "#                #           #",
-    "#    ###         #    SSS    #",
-    "#    ###  o      #    SgS    #",
-    "# @  ###         #    SSS    #",
+    "#                #    SSS### #",
+    "#         o      #    SgS### #",
+    "# @              #    SSS### #",
     "##############################",
     "##############################"],
     enemies:[{"x":6,"y":25,"dist":6,"speed":0.85,"axis":"x","type":"patrol"}]},
@@ -181,12 +183,12 @@ const LEVELS = [
     "#                                                              #",
     "#                                                              #",
     "#                  *                                           #",
-    "#              SSS####                                         #",
-    "#              SgS                                             #",
-    "#              SSS        o               o                    #",
-    "#           D                           CCCCC     ###          #",
-    "#           D                                     ###          #",
-    "# @         D         HHHHHHHHHH             T    ###       E  #",
+    "#              SSS####      ###                                #",
+    "#              SgS          ###                                #",
+    "#              SSS        o ###           o                    #",
+    "#           D                           CCCCC                  #",
+    "#           D                                                  #",
+    "# @         D         HHHHHHHHHH             T              E  #",
     "#######P############################   #########################",
     "####################################   #########################",
     "####################################^^^#########################",
@@ -209,9 +211,9 @@ const LEVELS = [
     "#                                                                #",
     "#                              *                                 #",
     "#                           CCCCCCC                              #",
-    "#       ###                                  SSS                 #",
-    "#       ###                                  SgS                 #",
-    "# @     ###                                  SSS              E  #",
+    "#       ###                                           SSS        #",
+    "#       ###                                           SgS        #",
+    "# @     ###                                           SSS     E  #",
     "############T###########   #############T#########################",
     "########################   #######################################",
     "########################^^^#######################################",
@@ -219,7 +221,7 @@ const LEVELS = [
     enemies:[{"x":18,"y":16,"dist":9,"speed":0.9,"axis":"x","type":"patrol"},{"x":44,"y":16,"dist":8,"speed":1.1,"axis":"x","type":"patrol"},{"x":33,"y":16,"speed":1.15,"type":"chaser","range":9}]},
 
   { name:"8 · O Ápice", mass:9, max:9, theme:"ice",
-    hint:"O grande final. Tudo que você aprendeu, junto. Boa gosma!", rows:[
+    hint:"O grande final do 1º mundo. Tudo que você aprendeu, junto. Boa gosma!", rows:[
     "######################################################################################",
     "#                                                                                    #",
     "#                                                                                    #",
@@ -234,12 +236,12 @@ const LEVELS = [
     "#                                                                                    #",
     "#                                                                                    #",
     "#                                                                                    #",
-    "#                                                       *                            #",
-    "#                                                     CCCCC                          #",
-    "#                                                                                    #",
-    "#                   ###                      o              ###               SSS    #",
-    "#                   ###                                     ###       o       SgS    #",
-    "# @                 ###                     HHHHHH          ###               SSS E  #",
+    "#       ###                                             *               ###          #",
+    "#       ###                                           CCCCC             ###          #",
+    "#       ###                                                             ###          #",
+    "#                                            o                                SSS    #",
+    "#                                                                     o       SgS    #",
+    "# @                                         HHHHHH                            SSS E  #",
     "##############   #######T#               #########   #########T#             #########",
     "##############   #########               #########   ###########             #########",
     "##############^^^#########^^^^^^^^^^^^^^^#########^^^###########^^^^^^^^^^^^^#########",
@@ -247,8 +249,82 @@ const LEVELS = [
     movers:[{"x":27,"y":20,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":65,"y":20,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
     enemies:[{"x":45,"y":19,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":70,"y":19,"dist":5,"speed":1,"axis":"x","type":"patrol"},{"x":20,"y":19,"speed":1.1,"type":"chaser","range":8},{"x":60,"y":19,"speed":1.2,"type":"chaser","range":9}]},
 
-  { name:"9 · A Gosma-Mãe", mass:12, max:12, theme:"void",
-    hint:"A GOSMA-MÃE acordou. Ela te caça sem parar — CORRA pra direita e não pare. Chegue à saída!", secret:true, rows:[
+  { name:"9 · Geleira", mass:9, max:9, theme:"glacier",
+    hint:"GELO escorrega! Você desliza — pouca aderência. Freie com antecedência e cuidado com os buracos.", rows:[
+    "##########################################################",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                  *                                     #",
+    "#                 IIII                                   #",
+    "#                               SSS           ###        #",
+    "#           o                   SgS         o ###        #",
+    "# @                             SSS           ###     E  #",
+    "#IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII#",
+    "##########################   #############################",
+    "##########################^^^#############################",
+    "##########################   #############################"],
+    enemies:[{"x":6,"y":15,"dist":6,"speed":0.9,"axis":"x","type":"patrol"}]},
+
+  { name:"10 · Deslize", mass:6, max:6, theme:"glacier",
+    hint:"Plataformas de gelo te lançam pros abismos se você deslizar demais — controle o embalo e use as molas!", rows:[
+    "####################################################################",
+    "#                                                                  #",
+    "#                                                                  #",
+    "#                                                                  #",
+    "#                                                                  #",
+    "#                                                                  #",
+    "#                                                                  #",
+    "#                                                                  #",
+    "#                                                                  #",
+    "#                                   *                              #",
+    "#                         ###      ####                            #",
+    "#                         ###                                      #",
+    "#                         ###                                      #",
+    "#   SSS                                                            #",
+    "#   SgS                   o                   o                    #",
+    "# @ SSS                                                         E  #",
+    "#IIIIIIIII             IITIIII               IIIITII         IIIIII#",
+    "##########             #######               #######         #######",
+    "##########^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^#######^^^^^^^^^#######",
+    "##########             #######               #######         #######"],
+    movers:[{"x":11,"y":16,"w":3,"axis":"x","dist":10,"speed":0.6,"phase":0},{"x":31,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":0.8}],
+    enemies:[{"x":24,"y":15,"speed":1,"type":"chaser","range":8}]},
+
+  { name:"11 · Congelado", mass:8, max:8, theme:"glacier",
+    hint:"Gelo, fogo e pontes frágeis juntos. Frio e calor não perdoam a gosma — vá com calma.", rows:[
+    "########################################################################",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                         *                                            #",
+    "#                       CCCCC                                          #",
+    "#       ###                                                 SSS        #",
+    "#       ###   o                                       o     SgS        #",
+    "# @     ###                     HHHHHH                      SSS     E  #",
+    "#IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIITIIIIIIIIIIIIIIIIIIIIIIIIIIIIII#",
+    "####################   #######################   #######################",
+    "####################^^^#######################^^^#######################",
+    "####################   #######################   #######################"],
+    enemies:[{"x":12,"y":16,"dist":6,"speed":0.95,"axis":"x","type":"patrol"},{"x":52,"y":16,"speed":1.1,"type":"chaser","range":9}]},
+
+  { name:"12 · A Gosma-Mãe", mass:12, max:12, theme:"void", secret:true,
+    hint:"A GOSMA-MÃE acordou. Ela te caça sem parar — CORRA pra direita e não pare. Chegue à saída!", rows:[
     "############################################################################################",
     "#                                                                                          #",
     "#                                                                                          #",
@@ -286,7 +362,7 @@ function starsFor(idx, massLeft){
 // -------------------------------------------------------------------------- ESTADO
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
-let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,exitRect,startPos,theme;
+let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,iceTiles,exitRect,startPos,theme;
 let blob, globs, particles=[], motes=[], levelIndex=0, state="menu"; // menu|play|complete|dead
 let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 
@@ -377,10 +453,11 @@ function loadLevel(idx){
 // (re)constrói TODAS as entidades a partir do grid — chamado no load E no reinício,
 // então coletáveis (gosma extra, estrelas), desmoronáveis, molas e inimigos SEMPRE voltam ao morrer/reiniciar.
 function buildEntities(){
-  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];stars=[];fakes=[];crumbles=[];
+  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];stars=[];fakes=[];crumbles=[];iceTiles=[];
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
     const ch=level.rows[y][x], r={x:x*TILE,y:y*TILE,w:TILE,h:TILE};
     if(ch==="#")solidTiles.push(r);
+    else if(ch==="I"){solidTiles.push(r);iceTiles.push(r);}                                 // GELO: sólido porém ESCORREGADIO
     else if(ch==="^")spikes.push(r);
     else if(ch==="o")pickups.push({x:x*TILE+16,y:y*TILE+16,r:9});
     else if(ch==="P"){solidTiles.push(r);plates.push(r);}
@@ -464,17 +541,28 @@ function enemyBlocked(e,nx){
   }
   return false;
 }
+// o RETÂNGULO todo do inimigo na posição nx encostaria numa parede? (usado pela patrulha senoidal)
+function enemyRectHitsWall(e,nx){
+  const rx=nx+3, rw=e.w-6, ry=e.y+3, rh=e.h-6;
+  for(const s of solidTiles){
+    if(rx<s.x+s.w && rx+rw>s.x && ry<s.y+s.h && ry+rh>s.y) return true;
+  }
+  return false;
+}
+// o blob está pisando num tile de GELO agora? (checa o piso logo abaixo dos pés)
+function onIceUnder(){ if(!iceTiles||!iceTiles.length)return false; const fy=blob.y+blob.h;
+  for(const t of iceTiles){ if(blob.x+blob.w>t.x+2 && blob.x<t.x+t.w-2 && Math.abs(fy-t.y)<4) return true; }
+  return false; }
 function updateEnemies(dt){
   const bx=blob?blob.x+blob.w/2:0, by=blob?blob.y+blob.h/2:0;
   for(const e of enemies){
     e.px=e.x;
     if(e.type==="patrol"){
-      // PATRULHA: velocidade ORIGINAL (rápida, vai e volta) — 2·dist·speed reproduz a cadência antiga.
-      // Mantém a correção: vira ao bater na parede ou no limite (não atravessa mais).
-      const v=Math.max(120, 2*e.dist*e.speed);           // px/s (piso p/ não ficar parado)
-      let nx=e.x+e.dir*v*dt;
-      if(nx<e.x0 || nx>e.x0+e.dist || enemyBlocked(e,nx)){ e.dir*=-1; nx=e.x+e.dir*v*dt; }
-      if(!enemyBlocked(e,nx) && nx>=e.x0 && nx<=e.x0+e.dist) e.x=nx;
+      // PATRULHA: movimento SENOIDAL vai-e-vem (igual v8). Trava só se a posição-alvo bater
+      // numa parede sólida (não atravessa mais); em chão aberto é o balanço original.
+      const off=Math.sin(levelTime*e.speed*Math.PI*2)*(e.dist*0.5) + e.dist*0.5;
+      const nx=e.x0+off;
+      if(!enemyRectHitsWall(e,nx)) e.x=nx;   // em chão aberto isto é sempre verdade → movimento v8 puro
       e.y=e.y0;
     } else {
       // PERSEGUIDOR / CHEFE: caça o blob, mas é BARRADO por paredes.
@@ -537,8 +625,13 @@ function update(dt){
   if(!onG && wall!==0 && blob.clingLock<=0){ if((wall>0&&right)||(wall<0&&left)) cling=true; }
   blob.cling=cling;
 
+  const onIce=blob.onIcePrev;                          // pisando no GELO no frame anterior?
   const ctrl=onG?1:AIR;
   if(cling) blob.vx=0;
+  else if(onIce){                                      // GELO: pouca aderência — acelera devagar e DESLIZA
+    if(Math.abs(mx)>0.25) blob.vx += (mx*MOVE - blob.vx)*0.05;
+    else blob.vx *= 0.99;
+  }
   else if(Math.abs(mx)>0.25) blob.vx=mx*MOVE*ctrl;
   else blob.vx*= onG?0.6:0.92;
 
@@ -559,6 +652,7 @@ function update(dt){
   moveAxis(blob.vx*dt, blob.vy*dt);
   if(blob.onGround&&!preG&&preVy>260){ burst(blob.x+blob.w/2,blob.y+blob.h,5,"#5fbf6a",95); shake=Math.min(6,preVy/120); }
   blob.onGroundPrev=blob.onGround; blob.wallPrev=blob.wall;
+  blob.onIcePrev = blob.onGround && onIceUnder();      // ficou em cima de gelo?
 
   // qual mover está pisando (pra carona no próximo frame)
   blob.rideMover=null;
@@ -715,6 +809,13 @@ function render(){
     ctx.fillStyle="rgba(255,255,255,.03)"; ctx.fillRect(s.x+3,s.y+8,2,2); ctx.fillRect(s.x+s.w-8,s.y+13,2,2);
   }
   for(const s of solidTiles) if(vis(s)) drawTile(s);
+  // GELO por cima: brilho gélido azul-claro (avisa visualmente que escorrega)
+  for(const t of iceTiles){ if(!vis(t))continue;
+    const gg=ctx.createLinearGradient(0,t.y,0,t.y+t.h); gg.addColorStop(0,"rgba(200,240,255,.72)"); gg.addColorStop(1,"rgba(120,190,225,.34)");
+    ctx.fillStyle=gg; ctx.fillRect(t.x,t.y,t.w,t.h);
+    ctx.fillStyle="rgba(255,255,255,.85)"; ctx.fillRect(t.x,t.y,t.w,2);
+    ctx.strokeStyle="rgba(255,255,255,.35)"; ctx.lineWidth=1;          // rachaduras de gelo
+    ctx.beginPath(); ctx.moveTo(t.x+7,t.y+4); ctx.lineTo(t.x+12,t.y+15); ctx.moveTo(t.x+22,t.y+6); ctx.lineTo(t.x+18,t.y+20); ctx.stroke(); }
   // paredes FANTASMA: renderizam IDÊNTICAS a um bloco sólido; só somem quando você entra
   for(const s of fakes){ if(!vis(s)||s.rev>=1)continue;
     if(s.rev>0){ ctx.globalAlpha=1-s.rev; drawTile(s); ctx.globalAlpha=1; }
@@ -1119,5 +1220,6 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get music(){ return !!mus; }, get muted(){ return !musicOn; }, muteToggle(){ toggleMute(); },
   enX(i){ return enemies&&enemies[i]?Math.round(enemies[i].x):null; },
   enType(i){ return enemies&&enemies[i]?enemies[i].type:null; },
+  get onIce(){ return !!(blob&&blob.onIcePrev); }, get iceCount(){ return iceTiles?iceTiles.length:0; },
   _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
