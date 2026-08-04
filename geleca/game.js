@@ -32,8 +32,26 @@ const THEMES={
            top:"#8fd8ee", top2:"#c0f0ff", far:"#173845", mid:"#245266", cloud:"225,245,255", amb:"snow", deco:"berg", glow:"150,225,255" },
   // MUNDO 1 — Vale Verdejante (tema coeso das 15 primeiras fases)
   grove: { sky0:"#1c3d2a", sky1:"#0a1c14", mote:"150,240,150", tile:"#294a34", tilehi:"#3f6c49",
-           top:"#5ec457", top2:"#8bec7c", far:"#153020", mid:"#1e4a32", cloud:"180,235,185", amb:"fireflies", deco:"grove", glow:"90,210,120" },
+           top:"#5ec457", top2:"#8bec7c", far:"#153020", mid:"#1e4a32", cloud:"180,235,185", amb:"fireflies", deco:"grove", glow:"90,210,120", art:"vale" },
 };
+// ARTE de parallax por IA (Mundo 1 · Vale) — 4 camadas. As camadas transparentes vieram com
+// o xadrez de transparência CHAPADO (sem canal alfa), então recortamos o xadrez (cinza claro) ao carregar.
+const BG={};
+function keyCheckerboard(img){
+  const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight;
+  const x=c.getContext("2d"); x.drawImage(img,0,0);
+  try{ const d=x.getImageData(0,0,c.width,c.height), a=d.data;
+    for(let i=0;i<a.length;i+=4){ const r=a[i],g=a[i+1],b=a[i+2];
+      const gray=Math.abs(r-g)<22&&Math.abs(g-b)<22&&Math.abs(r-b)<22, light=(r+g+b)>430;
+      if(gray&&light) a[i+3]=0;                       // xadrez → transparente
+    } x.putImageData(d,0,0);
+  }catch(e){}
+  return c;
+}
+["ceu","montanhas","floresta","folhagem"].forEach(n=>{ try{ const im=new Image();
+  im.onload=()=>{ BG[n+"_c"] = (n==="ceu") ? im : keyCheckerboard(im); };
+  im.src=n+".png"; BG[n]=im; }catch(e){} });
+function groveArtReady(){ return BG.ceu_c && BG.montanhas_c && BG.floresta_c && BG.folhagem_c; }
 
 // -------------------------------------------------------------------------- FASES
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor I=GELO(escorrega)
@@ -1303,8 +1321,29 @@ function decoLayer(th){ const kind=th.deco, W=canvas.width,H=canvas.height,sc=W/
   }
   else { peakLayer(th.far,0.10,H*0.66,240*sc,220*sc); }                       // 'peak' padrão
 }
+// ---- PARALLAX com ARTE (imagens de IA) — Mundo 1 · Vale ----
+function bandLayer(src, factor, baseYf, hf){
+  if(!src) return; const iw=src.naturalWidth||src.width, ih=src.naturalHeight||src.height; if(!iw) return;
+  const W=canvas.width, H=canvas.height;
+  const sw=Math.floor(iw*0.955), sh=ih;               // recorta ~4.5% da direita (marca d'água ✦)
+  const dh=H*hf, dw=dh*(sw/sh), y=H*baseYf-dh - cam.y*zoom*0.04;
+  let off=-((cam.x*zoom*factor)%dw); if(off>0)off-=dw;
+  for(let x=off; x<W; x+=dw) ctx.drawImage(src, 0,0,sw,sh, x,y,dw,dh);
+}
+function drawValeArt(){
+  const W=canvas.width, H=canvas.height, sky=BG.ceu_c, iw=sky.naturalWidth||sky.width, ih=sky.naturalHeight||sky.height;
+  const sw=Math.floor(iw*0.955);
+  // CÉU (cobre a tela; parallax leve, sem repetir)
+  const s=Math.max(W/sw, H/ih)*1.04, dw=sw*s, dh=ih*s;
+  const sx=-((cam.x*zoom*0.05)%dw), sy=(H-dh)*0.5 - cam.y*zoom*0.02;
+  for(let x=sx-dw; x<W; x+=dw) ctx.drawImage(sky, 0,0,sw,ih, x,sy,dw,dh);
+  bandLayer(BG.montanhas_c, 0.12, 0.60, 0.40);        // montanhas distantes (no horizonte)
+  bandLayer(BG.floresta_c,  0.28, 0.69, 0.38);        // floresta média
+  bandLayer(BG.folhagem_c,  0.52, 0.77, 0.34);        // folhagem (fundo próximo)
+}
 function drawParallax(th){
   const W=canvas.width, H=canvas.height, sc=W/640;
+  if(th.art==="vale" && groveArtReady()){ drawValeArt(); return; }   // Mundo 1 usa a arte de IA
   const sky=ctx.createLinearGradient(0,0,0,H);
   sky.addColorStop(0,th.sky0); sky.addColorStop(1,th.sky1);
   ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
