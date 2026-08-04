@@ -915,9 +915,9 @@ const VILLAGE_NPCS: VillageNPC[] = [
   },
   {
     id: "wren",
-    c: 18, // na porta do próprio ateliê, no fim do beco leste
-    r: 12,
-    night: [18, 12],
+    c: 17, // no beco do ateliê, mas UM PASSO ao lado: em (18,12) ela ficava
+    r: 12, // plantada na frente da própria porta e atrapalhava quem ia entrar
+    night: [17, 12],
     seed: 3,
     name: "Wren, a Costureira",
     lines: [
@@ -2535,7 +2535,10 @@ export class Game {
             // luz EXATAMENTE sob a luminária e de alcance curto. Antes ela ficava
             // junto da parede e alcançava 11 — acendia paredes a meio quarteirão
             // de distância, e via-se a poça de luz sem a lanterna que a produz.
-            this.glowLight(fx + dc * 1.15, 2.7, fz + dr * 1.15, 0xffb45a, 3.0, 7);
+            // LUZ NA VELA, no ponto exato: na arte a chama fica a ~72% da largura
+            // do plano (a partir da parede) e a ~42% da altura. Antes eu punha a
+            // luz "por perto" e via-se o brilho fora da lanterna.
+            this.glowLight(fx + dc * 0.97, 3.04, fz + dr * 0.97, 0xffb45a, 3.0, 7);
             void torchMat;
           } else if (roll < 0.74) {
             this.addWallDecal(c, r, dc, dr, ivyMat, 2.3, 1.5, 1.05);
@@ -2619,6 +2622,12 @@ export class Game {
     const L = 1.35;             // avanço sobre a rua
     const H = 1.35;
     const pl = new THREE.Mesh(new THREE.PlaneGeometry(L, H), mat);
+    // segundo quad perpendicular: de perfil um plano único some, e ficava só a
+    // poça de luz no ar. Com a cruz sempre sobra "um papel" p/ ver.
+    const perfil = new THREE.Mesh(new THREE.PlaneGeometry(L * 0.5, H), mat);
+    perfil.rotation.y = Math.PI / 2;
+    perfil.position.x = L * 0.25;
+    pl.add(perfil);
     // com rotação θ, o +X local vira (cos θ, 0, −sen θ). Quero +X = normal da
     // parede (dc,0,dr), p/ a borda esquerda do desenho encostar nela.
     pl.rotation.y = Math.atan2(-dr, dc);
@@ -5536,15 +5545,21 @@ export class Game {
   // plano do vórtice do portal (billboard chapado, vertical), registrado p/ animar.
   // fundo transparente → blending NORMAL (alpha), não aditivo.
   private portalPlane(w = 2.4, h = 3.0): THREE.Mesh {
-    const m = new THREE.Mesh(
-      new THREE.PlaneGeometry(w, h),
-      new THREE.MeshBasicMaterial({
-        map: this.portalTexture(), transparent: true, alphaTest: 0.02,
-        depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
-      }),
-    );
-    this.portalPlanes.push(m);
-    return m;
+    const mat = new THREE.MeshBasicMaterial({
+      map: this.portalTexture(), transparent: true, alphaTest: 0.02,
+      depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    });
+    // PLANO EM CRUZ: um quad só desaparece quando visto de perfil — vira uma
+    // linha de espessura zero e o portal some da tela. Com o segundo quad
+    // perpendicular sempre sobra alguma coisa p/ ver de qualquer ângulo.
+    const grp = new THREE.Group() as unknown as THREE.Mesh;
+    for (const rot of [0, Math.PI / 2]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+      m.rotation.y = rot;
+      grp.add(m);
+      this.portalPlanes.push(m);
+    }
+    return grp;
   }
 
   // WAYPOINT da cidade (estilo PoE/Diablo): plataforma de pedra ELEVADA + ARCO de
@@ -9231,7 +9246,7 @@ export class Game {
     // CASA POBRE POR DENTRO: taipa — reboco descascado sobre a trama de varas.
     // Essa arte saiu da rua (a cidade toda é de pedra lavrada agora) e é aqui que
     // ela faz sentido: por fora a vila é sólida, por dentro é pobre.
-    this.buildRoomShell(9, this.wallArtMat(facadeTaipaUrl), 0x3c2c1a);
+    this.buildRoomShell(9, this.wallArtMat(facadeTaipaUrl), 0x7a6448); // teto claro: o 0x3c2c1a lia como preto
     const wood = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const woodDk = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
     const stone = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
@@ -9240,20 +9255,11 @@ export class Game {
 
     // lareira acesa (parede oeste, célula 1,3) — coração da casa
     this.wallCell(1, 3, [-1, 0], (x, z) => this.buildHearth(x, z));
-    // mesa central + dois bancos (a célula fica com colisão)
-    const tcx = 3 * CELL;
-    const tcz = 3 * CELL;
-    this.blocked.add("3,3");
-    this.box(tcx, 0.95, tcz, 1.7, 0.12, 1.1, wood); // tampo
-    for (const [ox, oz] of [[-0.7, 0], [0.7, 0], [0, -0.5], [0, 0.5]] as [number, number][])
-      this.box(tcx + ox * 0.9, 0.42, tcz + oz, 0.16, 0.84, 0.16, woodDk); // pernas
-    this.box(tcx, 0.45, tcz - 0.95, 1.4, 0.12, 0.4, woodDk); // banco
-    this.box(tcx, 0.45, tcz + 0.95, 1.4, 0.12, 0.4, woodDk); // banco
-    // louça na mesa
-    this.box(tcx - 0.4, 1.06, tcz, 0.22, 0.1, 0.22, linen);
-    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.22, 12), woodDk);
-    pot.position.set(tcx + 0.35, 1.11, tcz);
-    this.world.add(pot);
+    // MÓVEIS DO MEIO DA SALA REMOVIDOS. A mesa ocupava a célula central e, num
+    // cômodo de 5x5, isso transformava andar dentro de casa num quebra-cabeça:
+    // você entrava e já batia nela. Sobra só o que fica ENCOSTADO NA PAREDE
+    // (lareira, camas, prateleira) e não tira célula de ninguém.
+    void woodDk; void linen; void cloth; void stone;
     // camas (parede leste)
     const beds = HOMES[id].residents.length >= 2 ? [[5, 2], [5, 4]] : [[5, 3]];
     for (const [bc, br] of beds as [number, number][]) {
@@ -9272,18 +9278,12 @@ export class Game {
         this.world.add(j);
       }
     });
-    // tapete no centro
-    const rug = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.2, 1.6),
-      new THREE.MeshLambertMaterial({ color: 0x7a3b2a }),
-    );
-    rug.rotation.x = -Math.PI / 2;
-    rug.position.set(3 * CELL, 0.02, 3 * CELL + 0.2);
-    this.world.add(rug);
-
     // luz central suave
-    const lamp = new THREE.PointLight(0xffe0a8, 5.5, 30, 2);
+    // INTERIOR MAIS CLARO: estava escuro demais p/ se movimentar. Luz central
+    // mais forte e de alcance maior, e um preenchimento suave nos cantos.
+    const lamp = new THREE.PointLight(0xffe0a8, 16, 48, 2);
     lamp.position.set(3 * CELL, CEIL - 0.4, 3 * CELL);
+    this.world.add(new THREE.HemisphereLight(0xffe3b8, 0x40342a, 1.15));
     this.world.add(lamp);
 
     // BAÚ da Hedda: só na casa dela (parede leste, célula 5,5). Guarda pertences.
@@ -9312,7 +9312,7 @@ export class Game {
     // LOJA POR DENTRO: reboco caiado — nem a pedra lavrada da rua, nem a taipa
     // das casas. Assim dá p/ saber onde se está só de olhar a parede.
     const x0 = roomFind("X");
-    this.buildRoomShell(9, this.wallArtMat(facadeRebocoUrl), 0x4a3826,
+    this.buildRoomShell(9, this.wallArtMat(facadeRebocoUrl), 0x8a7355,
       emCima ? { rotulo: "DESCER", escada: true } : { rotulo: "SAÍDA", escada: false },
       emCima ? { col: x0.col, row: x0.row, teto: false }
         : kind === "armory" ? { col: ARMORY_STAIR.col, row: ARMORY_STAIR.row, teto: true }
@@ -9350,8 +9350,9 @@ export class Game {
     this.world.add(clight);
 
     // luz central (lampião)
-    const lamp = new THREE.PointLight(0xffe0a8, 8, 34, 2);
+    const lamp = new THREE.PointLight(0xffe0a8, 18, 50, 2);
     lamp.position.set(3 * CELL, CEIL - 0.3, 3 * CELL);
+    this.world.add(new THREE.HemisphereLight(0xffe3b8, 0x40342a, 1.05));
     this.world.add(lamp);
     this.box(
       3 * CELL,
