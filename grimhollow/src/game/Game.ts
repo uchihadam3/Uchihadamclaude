@@ -5405,14 +5405,25 @@ export class Game {
           chunk.rotation.set(this.mHash(c, r, 7) * 0.5, this.mHash(c, r, 6) * Math.PI, this.mHash(c, r, 8) * 0.4);
           this.world.add(chunk);
         }
-        // LASCAS protuberantes na FACE voltada p/ a praça — quebram o "slab" chapado.
-        // Só nas células de borda (fazem fronteira com a rua).
+        // LASCAS protuberantes na FACE voltada p/ a rua — quebram o "slab" chapado.
+        //
+        // Elas nasciam NO CHÃO e projetavam-se p/ dentro da rua, giradas ao acaso.
+        // Nas duas células que ladeiam a boca do túnel isso comia um pedaço da
+        // ENTRADA DA MASMORRA: a rocha atravessava o vão e parava no meio dele.
+        // Agora (a) as células vizinhas da boca não soltam lasca nenhuma e (b) as
+        // demais só começam ACIMA da altura da passagem — viram saliência lá em
+        // cima, onde dão silhueta sem nunca invadir o caminho de ninguém.
         if (!dungeon && bordersStreet(c, r)) {
+          const ladeiaABoca = DIRS.some(([dc, dr]) =>
+            cellAt(c + dc, r + dr) === "street" &&
+            DIRS.some(([ec, er]) => isDungeon(c + dc + ec, r + dr + er)));
           for (const [dc, dr] of DIRS) {
+            if (ladeiaABoca) break;
             if (cellAt(c + dc, r + dr) !== "street") continue;
             const nSlabs = 2 + Math.floor(this.mHash(c, r, dc * 3 + dr) * 2);
             for (let i = 0; i < nSlabs; i++) {
-              const h1 = 2 + this.mHash(c, r, i + 20) * (bh * 0.55);
+              const yBase = TUNNEL_H + 0.6;   // nunca abaixo da altura da passagem
+              const h1 = 1.6 + this.mHash(c, r, i + 20) * (bh * 0.45);
               const w1 = 1 + this.mHash(c, r, i + 30) * 1.4;
               const d1 = 0.7 + this.mHash(c, r, i + 40) * 0.9;
               const slab = new THREE.Mesh(new THREE.BoxGeometry(w1, h1, d1), rockOf(c + i, r));
@@ -5420,11 +5431,12 @@ export class Game {
               const along = (this.mHash(c, r, i + 50) - 0.5) * (CELL * 0.7);
               const px = c * CELL + dc * (CELL / 2 + d1 * 0.25) + (dc === 0 ? along : 0);
               const pz = r * CELL + dr * (CELL / 2 + d1 * 0.25) + (dr === 0 ? along : 0);
-              slab.position.set(px, h1 / 2, pz);
+              slab.position.set(px, yBase + h1 / 2, pz);
               slab.rotation.set((this.mHash(c, r, i + 60) - 0.5) * 0.4, this.mHash(c, r, i + 70) * Math.PI, (this.mHash(c, r, i + 80) - 0.5) * 0.5);
               this.world.add(slab);
             }
-            // ENTULHO no pé: pedregulhos soltos na beira da praça
+            // ENTULHO no pé: pedregulhos soltos na beira da rua (baixos, não
+            // atrapalham — e ancoram o maciço no chão agora que as lascas subiram)
             const nRub = 1 + Math.floor(this.mHash(c, r, 90 + dc + dr) * 3);
             for (let i = 0; i < nRub; i++) {
               const rs = 0.32 + this.mHash(c, r, i + 100) * 0.5;
