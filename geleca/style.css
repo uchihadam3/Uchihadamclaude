@@ -175,11 +175,36 @@ canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
 .act{ font-family:inherit; font-weight:800; color:var(--text); background:var(--panel);
   border:1px solid var(--line); border-radius:50%; width:66px; height:66px; cursor:pointer;
   touch-action:none; user-select:none; display:flex; align-items:center; justify-content:center;
-  font-size:1.2rem; box-shadow:0 4px 0 rgba(0,0,0,.4); }
+  box-shadow:0 4px 0 rgba(0,0,0,.4); -webkit-tap-highlight-color:transparent; }
 .act:active{ transform:translateY(3px); box-shadow:0 1px 0 rgba(0,0,0,.4); }
-.act-grab{ color:var(--gold); width:58px; height:58px; font-size:1.1rem; }
-.act-jump{ width:86px; height:86px; font-size:1.6rem; color:var(--ink);
-  background:radial-gradient(circle at 45% 35%, var(--slime-l), var(--slime-d)); border:none; }
+.act .ic{ width:64%; height:64%; display:block; pointer-events:none; overflow:visible; }
+
+/* --- COLETAR MASSA: gotas convergindo pra geleca central (dourado) --- */
+.act-grab{ width:60px; height:60px;
+  background:radial-gradient(circle at 45% 35%, #24402f, var(--panel)); border:1px solid rgba(244,199,82,.45); }
+.ic-grab .grab-bits circle{ fill:var(--gold); }
+.ic-grab .grab-arrows{ stroke:var(--gold); }
+.ic-grab .grab-core{ fill:#2a2008; stroke:var(--gold); stroke-width:1.6; }
+.ic-grab .grab-eye{ fill:#ffe9a8; }
+.act-grab:active .grab-bits{ opacity:.25; }              /* ao tocar: gotas "sugadas" */
+.ic-grab .grab-arrows{ animation:grabPulse 1.7s ease-in-out infinite; }
+@keyframes grabPulse{ 0%,100%{ opacity:.55; } 50%{ opacity:1; } }
+
+/* --- PULAR: botão-geleca com a geleca saltando (verde) --- */
+.act-jump{ width:88px; height:88px; border:none;
+  background:radial-gradient(circle at 45% 32%, var(--slime-l), var(--slime-d));
+  box-shadow:0 5px 0 rgba(20,70,20,.65), inset 0 3px 8px rgba(255,255,255,.35);
+  animation:jumpIdle 2.2s ease-in-out infinite; }
+.act-jump:active{ transform:translateY(4px) scale(.97); box-shadow:0 1px 0 rgba(20,70,20,.65), inset 0 3px 8px rgba(255,255,255,.35); animation:none; }
+.ic-jump .jump-arc{ stroke:rgba(10,40,18,.55); }
+.ic-jump .jump-chevron{ stroke:#0a2c14; }
+.ic-jump .jump-blob{ fill:#0c3016; }
+.ic-jump .jump-eye{ fill:#eaffd2; }
+.ic-jump .jump-pupil{ fill:#0a2c14; }
+.act-jump:active .ic-jump{ animation:jumpBoing .28s ease; }
+@keyframes jumpIdle{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-4px); } }
+@keyframes jumpBoing{ 0%{ transform:scaleY(.8) scaleX(1.12); } 55%{ transform:scaleY(1.12) scaleX(.9); } 100%{ transform:scale(1); } }
+@media (prefers-reduced-motion:reduce){ .act-jump,.ic-grab .grab-arrows{ animation:none; } }
 
 @media (hover:none) and (pointer:coarse){ #touch{ display:flex; } #controls{ display:none; } }
 @media (max-width:640px){ #touch{ display:flex; } #controls{ display:none; } }
