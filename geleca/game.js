@@ -10,89 +10,160 @@
 const TILE=32, GRAVITY=1700, MOVE=200, AIR=0.78, JUMP_V=600, CLIMB=150,
       GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000;
 
-// temas de cor por "mundo" (tinta do fundo + motes)
+// viewport (câmera) — a fase pode ser MUITO maior que isso e a câmera segue o blob
+const VIEW_W=20, VIEW_H=12, VPX=VIEW_W*TILE, VPY=VIEW_H*TILE;
+const cam={ x:0, y:0 };
+
+// temas de cor por "mundo": fundo (parallax) + tiles
 const THEMES={
-  cave:  { bg0:"#0b171a", bg1:"#0a2320", mote:"126,224,107", tile:"#1b2f34", top:"#2f5a46", top2:"#3f7a5a" },
-  deep:  { bg0:"#0a1220", bg1:"#0c1830", mote:"110,170,255", tile:"#1a2740", top:"#2a3f6a", top2:"#3a55a0" },
-  forge: { bg0:"#1a0f0a", bg1:"#241408", mote:"255,150,70",  tile:"#332018", top:"#6a3f2a", top2:"#a05a3a" },
-  ice:   { bg0:"#0a1a20", bg1:"#0e2632", mote:"150,220,255", tile:"#1c333d", top:"#2f5f6a", top2:"#4aa0b8" },
+  cave:  { sky0:"#123033", sky1:"#0c2024", mote:"126,224,107", tile:"#274036", tilehi:"#365a48",
+           top:"#4a9a5a", top2:"#63c878", far:"#183a34", mid:"#20503f", cloud:"170,220,180" },
+  deep:  { sky0:"#101a34", sky1:"#0a1020", mote:"120,170,255", tile:"#20304f", tilehi:"#2e4470",
+           top:"#3a6aa0", top2:"#4f8fd0", far:"#161f3e", mid:"#1e2f5a", cloud:"140,170,230" },
+  forge: { sky0:"#3a1c10", sky1:"#1e0f08", mote:"255,160,80",  tile:"#3a271b", tilehi:"#5a3d28",
+           top:"#a05a3a", top2:"#d07a4a", far:"#2a160c", mid:"#41210f", cloud:"230,150,110" },
+  ice:   { sky0:"#173846", sky1:"#0e222e", mote:"170,230,255", tile:"#254048", tilehi:"#356470",
+           top:"#3f8fa8", top2:"#5fc0d8", far:"#12303c", mid:"#1c4653", cloud:"200,235,255" },
 };
 
 // -------------------------------------------------------------------------- FASES
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor
 // movers: plataformas móveis [{x,y,w,axis:'x'|'y',dist,speed,phase}] (em tiles)
 const LEVELS = [
-  { name:"1 · O Custo", mass:4, max:4,
-    hint:"Cada pulo gasta 1 de massa (as bolinhas ⬤). Atravesse o buraco até a ★.", rows:[
-    "####################","#                  #","#                  #",
-    "#         o        #","#                  #","# @           E    #",
-    "######   ###########","######   ###########","######^^^###########",
-    "######^^^###########","####################"]},
+  { name:"1 · Vale", mass:6, max:6, theme:"cave",
+    hint:"Ande pra direita ➜ e pule os buracos (cada pulo gasta massa). Pegue a gema 💎!", rows:[
+    "########################################",
+    "#                                      #",
+    "#                                      #",
+    "#                                      #",
+    "#                                      #",
+    "#                                      #",
+    "#                                      #",
+    "#             o         G              #",
+    "# @                                 E  #",
+    "#########   ######   #######  ##########",
+    "#########^^^######^^^#######^^##########",
+    "#########   ######   #######  ##########"]},
 
-  { name:"2 · A Torre", mass:5, max:5,
-    hint:"Pule PARADO no mesmo lugar pra empilhar pedaços e formar degraus.", rows:[
-    "####################","#                  #","#                  #",
-    "#             E    #","#          ######  #","#                  #",
-    "#                  #","# @                #","####################"]},
+  { name:"2 · Colinas", mass:7, max:7, theme:"cave",
+    hint:"Suba pelos degraus. Pra pegar a gema lá em cima, empilhe pedaços (pule parado) e monte uma torre.", rows:[
+    "##############################################",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                       G                    #",
+    "#                                            #",
+    "#            ###        o                    #",
+    "#         ###         #####                  #",
+    "#      ###                                   #",
+    "# @                                        E #",
+    "##############   #############   #############",
+    "##############^^^#############^^^#############",
+    "##############   #############   #############"]},
 
-  { name:"3 · Reabsorver", mass:5, max:5,
-    hint:"Suba com uma torre. Aperte E em cima dos pedaços pra comê-los e recuperar massa.", rows:[
-    "###########","#         #","#    E    #","#   ###   #",
-    "#         #","#   o     #","#         #","# @       #","###########"]},
+  { name:"3 · Cavernas", mass:6, max:6, theme:"deep",
+    hint:"Torres gastam massa — depois coma os pedaços (E) pra reabastecer e continuar até a ★.", rows:[
+    "############################################",
+    "#                                          #",
+    "#                                          #",
+    "#                                          #",
+    "#                                          #",
+    "#                             G            #",
+    "#                  o                       #",
+    "#                 ###        ###           #",
+    "#                                          #",
+    "# @                                      E #",
+    "############   #########   #######   #######",
+    "############^^^#########^^^#######^^^#######",
+    "############   #########   #######   #######"]},
 
-  { name:"4 · Escalada", mass:4, max:4,
-    hint:"No ar, encoste numa parede e SEGURE a direção contra ela pra grudar e escalar.", rows:[
-    "####################","#                  #","#                  #",
-    "#                 E#","#                  #","#                  #",
-    "#                  #","# @      ^^^       #","####################"]},
+  { name:"4 · Paredão", mass:5, max:5, theme:"deep",
+    hint:"Pule perto da parede, SEGURE a direção contra ela pra grudar, e escale até a ★.", rows:[
+    "##########################",
+    "#                        #",
+    "#                        #",
+    "#                        #",
+    "#               #        #",
+    "#              E#        #",
+    "#               #        #",
+    "#               #        #",
+    "#               #        #",
+    "#               #        #",
+    "#               #        #",
+    "#               #        #",
+    "#               #        #",
+    "#               #        #",
+    "#        o  G   #        #",
+    "# @             #        #",
+    "##########################",
+    "##########################"]},
 
-  { name:"5 · Placa & Porta", mass:3, max:3,
-    hint:"Fique em cima da placa (▬) e pule pra deixar um pedaço nela — a porta abre.", rows:[
-    "####################","#                  #","#        D         #",
-    "# @      D    E    #","####P###############"]},
+  { name:"5 · A Ponte", mass:4, max:4, theme:"ice",
+    hint:"Pegue carona nas plataformas móveis. A mola (⇑) te lança sem gastar massa — mire a gema!", rows:[
+    "################################################",
+    "#                                              #",
+    "#                                              #",
+    "#                                              #",
+    "#                                              #",
+    "#                                              #",
+    "#                      G                       #",
+    "#                                              #",
+    "#                                              #",
+    "# @                                          E #",
+    "########           ####T###            #########",
+    "########^^^^^^^^^^^########^^^^^^^^^^^^#########",
+    "########           ########            #########"],
+    movers:[{"x":9,"y":10,"w":3,"axis":"x","dist":8,"speed":0.7,"phase":0},{"x":28,"y":10,"w":3,"axis":"x","dist":9,"speed":0.8,"phase":1.2}]},
 
-  { name:"6 · Calor", mass:5, max:5,
-    hint:"🔥 O calor DERRETE sua massa! Atravesse rápido antes de sumir.", rows:[
-    "####################","#                  #","#              o   #",
-    "# @ HHHHHHHH  E    #","####################"]},
+  { name:"6 · Forja", mass:6, max:6, theme:"forge",
+    hint:"Deixe um pedaço na placa (▬) pra abrir a porta, depois cruze o 🔥 calor rápido!", rows:[
+    "############################################",
+    "#                                          #",
+    "#                                          #",
+    "#                                          #",
+    "#                                          #",
+    "#                                          #",
+    "#         D                                #",
+    "#         D                     o   G      #",
+    "# @       D         HHHHHHHH             E #",
+    "######P#####################################",
+    "############################################",
+    "############################################"]},
 
-  { name:"7 · Plataforma", mass:4, max:4,
-    hint:"Espere a plataforma móvel e pegue carona por cima do fosso de espinhos.", rows:[
-    "####################","#                  #","#                  #",
-    "# @             E  #","####            ####","####            ####",
-    "####^^^^^^^^^^^^####","####################"],
-    movers:[{x:4,y:4,w:3,axis:'x',dist:9,speed:0.9,phase:0}]},
+  { name:"7 · Guarida", mass:5, max:5, theme:"forge",
+    hint:"Guardiões 👾 patrulham! Use as molas pra saltar por cima deles e siga até a ★.", rows:[
+    "##############################################",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                       G                    #",
+    "# @                                        E #",
+    "###########T#####   ##########T###############",
+    "#################^^^##########################",
+    "#################   ##########################"],
+    enemies:[{"x":20,"y":8,"dist":8,"speed":0.9,"axis":"x"},{"x":33,"y":8,"dist":6,"speed":1.1,"axis":"x"}]},
 
-  { name:"8 · Elevador", mass:6, max:6,
-    hint:"Construa uma torre pra alcançar o elevador; suba nele e salte até a ★.", rows:[
-    "####################","#          E       #","#         #####    #",
-    "#                  #","#                  #","#                  #",
-    "#                  #","# @                #","####################"],
-    movers:[{x:5,y:3,w:3,axis:'y',dist:4,speed:0.7,phase:1.57}]},
+  { name:"8 · O Ápice", mass:6, max:6, theme:"ice",
+    hint:"Final: mola + plataforma móvel sobre o abismo, depois o calor e um guardião. Vai, gosminha! 💎", rows:[
+    "######################################################",
+    "#                                                    #",
+    "#                                                    #",
+    "#                                                    #",
+    "#                                                    #",
+    "#                                                    #",
+    "#                                                    #",
+    "#                   o                                #",
+    "#                                              G     #",
+    "# @                                 HHHHH          E #",
+    "#############   ######T#          ########   #########",
+    "#############^^^########^^^^^^^^^^########^^^#########",
+    "#############   ########          ########   #########"],
+    movers:[{"x":25,"y":10,"w":4,"axis":"x","dist":6,"speed":0.8,"phase":0}],
+    enemies:[{"x":37,"y":9,"dist":3,"speed":1,"axis":"x"}]},
 
-  { name:"9 · Fornalha", mass:5, max:5,
-    hint:"Abra a porta com um pedaço na placa, depois cruze o calor rápido. Massa é preciosa!", rows:[
-    "####################","#                  #","#     D            #",
-    "# @   D  HHHHHH E  #","###P################"]},
-
-  { name:"10 · Mola", mass:3, max:3, theme:"ice",
-    hint:"A mola (⇑) te lança pro alto SEM gastar massa. Pegue a gema 💎 na subida!", rows:[
-    "####################","#             E    #","#          ######  #",
-    "#                  #","#         G        #","#                  #",
-    "#                  #","# @                #","##########T#########"]},
-
-  { name:"11 · Guardião", mass:3, max:3, theme:"deep",
-    hint:"O guardião patrulha o corredor — passe quando ele estiver longe, ou pule por cima.", rows:[
-    "####################","#                  #","#         G        #",
-    "# @            E   #","####################"],
-    enemies:[{x:5,y:3,dist:9,speed:0.7,axis:"x"}]},
-
-  { name:"12 · O Ápice", mass:4, max:4, theme:"forge",
-    hint:"Use a mola pra subir na plataforma e desvie do guardião até a ★. A gema é opcional!", rows:[
-    "####################","#    G      E      #","#   ############   #",
-    "#                  #","#                  #","#                  #",
-    "#                  #","# @      T         #","####################"],
-    enemies:[{x:5,y:1,dist:8,speed:0.9,axis:"x"}]},
 ];
 
 // -------------------------------------------------------------------------- PROGRESSO
@@ -170,7 +241,7 @@ function startGame(i){
 // ==========================================================================
 function loadLevel(idx){
   level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
-  canvas.width=COLS*TILE; canvas.height=ROWS*TILE;
+  canvas.width=VPX; canvas.height=VPY;   // câmera segue o blob numa fase maior
   solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gem=null;
   theme=THEMES[level.theme] || [THEMES.cave,THEMES.cave,THEMES.cave,THEMES.deep,THEMES.deep,THEMES.deep,THEMES.forge,THEMES.forge,THEMES.forge][idx] || THEMES.cave;
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
@@ -204,6 +275,7 @@ function resetLevel(){
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
+  camFollow(true);
   state="play"; hideOverlay(); renderHud();
 }
 function sizeBlob(){ const s=16+blob.mass*4, cx=blob.x+blob.w/2, bt=blob.y+blob.h;
@@ -250,6 +322,13 @@ function updateEnemies(){
     e.y = e.axis==="y"? e.y0+off+3 : e.y0+3;
     e.dir = e.x>=e.px?1:-1;
   }
+}
+function camFollow(snap){
+  const worldW=COLS*TILE, worldH=ROWS*TILE;
+  let tx=blob.x+blob.w/2 - VPX/2, ty=blob.y+blob.h/2 - VPY*0.55;
+  tx=Math.max(0,Math.min(tx, Math.max(0,worldW-VPX)));
+  ty=Math.max(0,Math.min(ty, Math.max(0,worldH-VPY)));
+  if(snap){ cam.x=tx; cam.y=ty; } else { cam.x+=(tx-cam.x)*0.11; cam.y+=(ty-cam.y)*0.11; }
 }
 
 function update(dt){
@@ -307,6 +386,8 @@ function update(dt){
     }
   }
   for(const sp of springs) if(sp.sq>0) sp.sq=Math.max(0,sp.sq-dt*4);
+
+  camFollow(false);   // câmera segue o blob
 
   // inimigos: contato = morte
   for(const e of enemies) if(overlaps(blob,{x:e.x+2,y:e.y+2,w:e.w-4,h:e.h-4})){ die(); return; }
@@ -371,23 +452,22 @@ function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exit
 // RENDER
 // ==========================================================================
 function render(){
-  const W=canvas.width,H=canvas.height;
+  const W=canvas.width,H=canvas.height, th=theme||THEMES.cave;
   ctx.setTransform(1,0,0,1,0,0);
-  // fundo (tema)
-  const th=theme||THEMES.cave;
-  const bg=ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,th.bg0); bg.addColorStop(1,th.bg1);
-  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
-  // motes ambiente
-  ctx.fillStyle=`rgba(${th.mote},.12)`;
+  drawParallax(th);
+  // motes ambiente (espaço de tela)
+  ctx.fillStyle=`rgba(${th.mote},.10)`;
   for(const m of motes){ const y=(m.y - T*m.s)%H, yy=y<0?y+H:y;
     ctx.beginPath(); ctx.arc(m.x+Math.sin(T+m.ph)*6, yy, m.r,0,7); ctx.fill(); }
 
+  // ---- MUNDO: tudo daqui pra baixo é desenhado com a câmera ----
   const sx=shake>0?(Math.random()*2-1)*shake:0, sy=shake>0?(Math.random()*2-1)*shake:0;
-  ctx.setTransform(1,0,0,1,sx,sy);
+  ctx.setTransform(1,0,0,1, -cam.x+sx, -cam.y+sy);
+  const minX=cam.x-TILE, maxX=cam.x+VPX, minY=cam.y-TILE, maxY=cam.y+VPY;
+  const vis = r => r.x<=maxX && r.x+r.w>=minX && r.y<=maxY && r.y+r.h>=minY;
 
   // calor (atrás)
-  for(const h of heatZones){
+  for(const h of heatZones){ if(!vis(h))continue;
     const g=ctx.createLinearGradient(0,h.y,0,h.y+h.h);
     g.addColorStop(0,"rgba(255,120,40,.08)"); g.addColorStop(1,"rgba(255,70,25,.36)");
     ctx.fillStyle=g; ctx.fillRect(h.x,h.y,h.w,h.h);
@@ -397,14 +477,15 @@ function render(){
       ctx.beginPath(); ctx.moveTo(fx,h.y+h.h-3); ctx.quadraticCurveTo(fx+3,h.y+h.h-8-fl,fx+5,h.y+h.h-3); ctx.fill(); } }
 
   // tiles com relevo + topo de grama-gosma (tema)
-  for(const s of solidTiles){
+  for(const s of solidTiles){ if(!vis(s))continue;
     ctx.fillStyle=th.tile; ctx.fillRect(s.x,s.y,s.w,s.h);
-    ctx.fillStyle="rgba(0,0,0,.18)"; ctx.fillRect(s.x,s.y+s.h-4,s.w,4);
+    ctx.fillStyle=th.tilehi; ctx.fillRect(s.x,s.y,s.w,3);
+    ctx.fillStyle="rgba(0,0,0,.22)"; ctx.fillRect(s.x,s.y+s.h-4,s.w,4);
     const above=isSolidAt(s.x+16,s.y-16);
-    if(!above){ ctx.fillStyle=th.top; ctx.fillRect(s.x,s.y,s.w,5);
+    if(!above){ ctx.fillStyle=th.top; ctx.fillRect(s.x,s.y,s.w,6);
       ctx.fillStyle=th.top2; for(let i=0;i<2;i++){ const dx=s.x+8+i*14; ctx.beginPath();
-        ctx.arc(dx,s.y+5,3+ (i?1:0),0,Math.PI); ctx.fill(); } }
-    ctx.fillStyle="rgba(255,255,255,.03)"; ctx.fillRect(s.x+3,s.y+7,2,2); ctx.fillRect(s.x+s.w-8,s.y+12,2,2);
+        ctx.arc(dx,s.y+6,3+(i?1:0),0,Math.PI); ctx.fill(); } }
+    ctx.fillStyle="rgba(255,255,255,.03)"; ctx.fillRect(s.x+3,s.y+8,2,2); ctx.fillRect(s.x+s.w-8,s.y+13,2,2);
   }
   // molas (trampolim)
   for(const sp of springs){ const c=sp.sq*6;
@@ -492,6 +573,31 @@ function render(){
 }
 function isSolidAt(px,py){ for(const s of solidTiles) if(px>=s.x&&px<s.x+s.w&&py>=s.y&&py<s.y+s.h) return true; return false; }
 
+// ---- fundo em parallax (estilo plataforma) ----
+function hillLayer(color, factor, baseY, spacing, height){
+  ctx.fillStyle=color;
+  const off=-((cam.x*factor)%spacing);
+  const by=baseY - cam.y*0.08;
+  ctx.beginPath(); ctx.moveTo(-spacing, VPY+2);
+  for(let x=off-spacing; x<VPX+spacing; x+=spacing)
+    ctx.quadraticCurveTo(x+spacing*0.5, by-height, x+spacing, by);
+  ctx.lineTo(VPX+spacing, VPY+2); ctx.closePath(); ctx.fill();
+}
+function cloudShape(x,y,r){ ctx.beginPath();
+  ctx.arc(x,y,r,0,7); ctx.arc(x+r*0.9,y+4,r*0.7,0,7); ctx.arc(x-r*0.9,y+5,r*0.66,0,7); ctx.arc(x+r*0.25,y-r*0.5,r*0.58,0,7); ctx.fill(); }
+function drawParallax(th){
+  const sky=ctx.createLinearGradient(0,0,0,VPY);
+  sky.addColorStop(0,th.sky0); sky.addColorStop(1,th.sky1);
+  ctx.fillStyle=sky; ctx.fillRect(0,0,VPX,VPY);
+  // montanhas distantes
+  hillLayer(th.far, 0.15, VPY*0.60, 260, 150);
+  // nuvens
+  ctx.fillStyle=`rgba(${th.cloud},.16)`;
+  for(let i=0;i<5;i++){ let x=((i*250 - (cam.x*0.28 + T*9)) % (VPX+320)); if(x<-160)x+=VPX+320;
+    cloudShape(x, 34 + (i*41)%110 - cam.y*0.05, 24+(i%3)*9); }
+  // morros médios
+  hillLayer(th.mid, 0.38, VPY*0.80, 200, 110);
+}
 function drawPortal(cx,cy){
   ctx.save();
   for(let i=0;i<3;i++){ const r=10+i*5+Math.sin(T*2+i)*2, a=0.5-i*0.14;
@@ -512,30 +618,46 @@ function slime(cx,cy,rx,ry,amp,seed){
     const x=cx+Math.cos(a)*rx*w, y=cy+Math.sin(a)*ry*w; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
   ctx.closePath();
 }
+// personagem: CUBO GELATINOSO estilo RPG (translúcido, face-topo 3D, bolhas, olhos)
 function drawBlob(){
-  const b=blob, sq=Math.max(-0.16,Math.min(0.16,b.vy/4200));
-  const rx=b.w/2*(1-sq*0.6), ry=b.h/2*(1+sq), cx=b.x+b.w/2, cy=b.y+b.h-ry;
+  const b=blob;
+  const sq=Math.max(-0.18,Math.min(0.18,b.vy/4000)), jig=Math.sin(T*6)*0.02;
+  const w=b.w*(1-sq*0.5+jig), h=b.h*(1+sq-jig);
+  const x=b.x+(b.w-w)/2, y=b.y+(b.h-h), cx=x+w/2, r=Math.min(w,h)*0.22;
   const flashing=b.flash>0&&Math.floor(b.flash*20)%2===0;
-  ctx.save(); ctx.shadowColor=b.melting?"rgba(255,150,70,.7)":"rgba(126,224,107,.6)"; ctx.shadowBlur=12;
-  const gr=ctx.createLinearGradient(cx,cy-ry,cx,cy+ry);
-  if(flashing){gr.addColorStop(0,"#ffb0b0");gr.addColorStop(1,"#ff7a7a");}
-  else if(b.melting){gr.addColorStop(0,"#ffcf8a");gr.addColorStop(1,"#e08a3a");}
-  else if(b.cling){gr.addColorStop(0,"#a8f0e0");gr.addColorStop(1,"#3fbfae");}
-  else {gr.addColorStop(0,"#b6f6a4");gr.addColorStop(1,"#5cc84a");}
-  ctx.fillStyle=gr; slime(cx,cy,rx,ry,0.06,b.x*0.1); ctx.fill(); ctx.restore();
-  // brilho
-  ctx.fillStyle="rgba(255,255,255,.4)"; ctx.beginPath(); ctx.ellipse(cx-rx*0.3,cy-ry*0.4,rx*0.28,ry*0.18,0,0,7); ctx.fill();
+  let a,bl;
+  if(flashing){a="#ffc7c7";bl="#ff6a6a";}
+  else if(b.melting){a="#ffd99a";bl="#d97a2a";}
+  else if(b.cling){a="#bdf6ea";bl="#33b0a0";}
+  else {a="#d6ffb4";bl="#59c948";}
+
+  // sombra de contato
+  ctx.fillStyle="rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(cx,b.y+b.h+2,w*0.42,5,0,0,7); ctx.fill();
+  // corpo translúcido
+  ctx.save(); ctx.shadowColor=b.melting?"rgba(255,150,70,.55)":"rgba(126,224,107,.5)"; ctx.shadowBlur=12;
+  const gr=ctx.createLinearGradient(0,y,0,y+h); gr.addColorStop(0,a); gr.addColorStop(1,bl);
+  ctx.globalAlpha=0.92; ctx.fillStyle=gr; roundRect(x,y,w,h,r); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
+  ctx.strokeStyle="rgba(255,255,255,.28)"; ctx.lineWidth=2; roundRect(x+1,y+1,w-2,h-2,r-1); ctx.stroke();
+  // face-topo (dá o 3D de cubo)
+  ctx.fillStyle="rgba(255,255,255,.20)"; roundRect(x+w*0.12,y+h*0.06,w*0.76,h*0.22,r*0.6); ctx.fill();
+  // núcleo interno (volume de geleia)
+  ctx.fillStyle="rgba(0,40,10,.10)"; roundRect(x+w*0.24,y+h*0.42,w*0.52,h*0.42,r*0.5); ctx.fill();
+  // bolhas internas
+  ctx.fillStyle="rgba(255,255,255,.32)";
+  for(let i=0;i<3;i++){ const bx=x+w*(0.32+0.18*i)+Math.sin(T*1.5+i*2)*2, by=y+h*(0.5+0.13*i)+Math.cos(T*1.3+i)*2;
+    ctx.beginPath(); ctx.arc(bx,by,1.5+i*0.6,0,7); ctx.fill(); }
+  // specular
+  ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.ellipse(x+w*0.3,y+h*0.24,w*0.15,h*0.09,-0.5,0,7); ctx.fill();
   // olhos
-  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=rx*0.34, ey=cy-ry*0.05, er=Math.max(2.6,rx*0.16);
+  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=w*0.2, ey=y+h*0.48, er=Math.max(2.6,w*0.1);
   const blink=b.blink<0.12;
-  ctx.fillStyle="#fff";
-  if(!blink){ eye(cx-ex,ey,er); eye(cx+ex,ey,er);
-    ctx.fillStyle="#07160e"; pupil(cx-ex+dir*2,ey,er); pupil(cx+ex+dir*2,ey,er); }
-  else { ctx.strokeStyle="#07160e"; ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(cx-ex-er,ey);ctx.lineTo(cx-ex+er,ey);
-    ctx.moveTo(cx+ex-er,ey);ctx.lineTo(cx+ex+er,ey);ctx.stroke(); }
-  function eye(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); }
-  function pupil(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r*0.55,0,7); ctx.fill(); }
+  if(!blink){ ctx.fillStyle="#fff"; eye(cx-ex,ey,er); eye(cx+ex,ey,er);
+    ctx.fillStyle="#0a2012"; pupil(cx-ex+dir*2,ey,er); pupil(cx+ex+dir*2,ey,er);
+    ctx.fillStyle="rgba(255,255,255,.9)"; ctx.beginPath(); ctx.arc(cx-ex+dir*2-1,ey-1,er*0.22,0,7); ctx.arc(cx+ex+dir*2-1,ey-1,er*0.22,0,7); ctx.fill(); }
+  else { ctx.strokeStyle="#0a2012"; ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx-ex-er,ey);ctx.lineTo(cx-ex+er,ey);ctx.moveTo(cx+ex-er,ey);ctx.lineTo(cx+ex+er,ey);ctx.stroke(); }
+  function eye(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.fill(); }
+  function pupil(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr*0.52,0,7); ctx.fill(); }
 }
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
