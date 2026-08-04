@@ -31,8 +31,8 @@ const THEMES={
   glacier:{ sky0:"#20455c", sky1:"#0f2838", mote:"210,245,255", tile:"#3a5566", tilehi:"#547a90",
            top:"#8fd8ee", top2:"#c0f0ff", far:"#173845", mid:"#245266", cloud:"225,245,255", amb:"snow", deco:"berg", glow:"150,225,255" },
   // MUNDO 1 — Vale Verdejante (tema coeso das 15 primeiras fases)
-  grove: { sky0:"#1c3d2a", sky1:"#0a1c14", mote:"150,240,150", tile:"#294a34", tilehi:"#3f6c49",
-           top:"#5ec457", top2:"#8bec7c", far:"#153020", mid:"#1e4a32", cloud:"180,235,185", amb:"fireflies", deco:"grove", glow:"90,210,120", art:"vale" },
+  grove: { sky0:"#1c3d2a", sky1:"#0a1c14", mote:"170,225,160", tile:"#4a3a26", tilehi:"#6b5334",
+           top:"#5ec457", top2:"#8bec7c", far:"#153020", mid:"#1e4a32", cloud:"180,235,185", amb:"fireflies", deco:"grove", glow:"120,190,110", art:"vale" },
 };
 // ARTE de parallax por IA (Mundo 1 · Vale) — 3 camadas PNG (já com alfa de verdade, transparência
 // assada no arquivo). Sem getImageData/runtime — funciona em qualquer host.
@@ -1324,8 +1324,13 @@ function drawValeArt(){
   const s=Math.max(W/sw, H/ih)*1.04, dw=sw*s, dh=ih*s;
   const sx=-((cam.x*zoom*0.05)%dw), sy=(H-dh)*0.5 - cam.y*zoom*0.02;
   for(let x=sx-dw; x<W; x+=dw) ctx.drawImage(sky, 0,0,sw,ih, x,sy,dw,dh);
+  // NÉVOA DO VALE: preenche do horizonte pra baixo com verde escuro (evita o "vazio" de céu
+  // abaixo das copas — a base da floresta nunca fica flutuando sobre o nada).
+  const hy=H*0.46 - cam.y*zoom*0.03, hz=ctx.createLinearGradient(0,hy,0,H);
+  hz.addColorStop(0,"rgba(20,46,30,0)"); hz.addColorStop(0.4,"#183a25"); hz.addColorStop(1,"#0b2013");
+  ctx.fillStyle=hz; ctx.fillRect(0,hy,W,H-hy+2);
   bandLayer(BG.montanhas, 0.12, 0.62, 0.42);          // montanhas distantes (no horizonte)
-  bandLayer(BG.floresta,  0.30, 0.74, 0.40);          // floresta média (fundo)
+  bandLayer(BG.floresta,  0.30, 0.78, 0.42);          // floresta média (fundo)
 }
 function drawParallax(th){
   const W=canvas.width, H=canvas.height, sc=W/640;
