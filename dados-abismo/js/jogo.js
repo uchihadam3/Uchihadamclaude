@@ -208,6 +208,7 @@ function previaOnda(m,a){
 }
 const MASM = m => (MASMORRAS[m]||MASMORRAS[1]);
 function telaMapa(entrando){
+  SFX.trilha('batalha');
   const msg=$('msg'); msg.classList.remove('off'); msg.className='';
   const esc=ESCALADA[masmorra-1];
   const nos=Array.from({length:10},(_,i)=>{
@@ -246,6 +247,7 @@ function telaMapa(entrando){
   });
 }
 function novoCombate(){
+  SFX.trilha(andar===5||andar===10 ? 'chefe' : 'batalha');
   const inim=buildWave(masmorra,andar,rng);
   cb=new Combat({rng,player:P,enemies:inim,burdens:burdensFor(masmorra),log:true});
   montarDados(); limparBandeja(); cb.startTurn(); alvo=0; sel.clear();
@@ -378,7 +380,7 @@ function pintar(){
     const f={carrasco:()=>cb.sobrecarga(id), lamina:()=>cb.trapaca(id),
              arcanista:()=>cb.guardar(id),  oracula:()=>cb.travar(id)}[C.id];
     if(f&&f()){ SFX.pegar(); if(C.id==='arcanista') sel.delete(id); pintar(); } else SFX.soltar(); };
-  $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10<br><span style="opacity:.7">${ESCALADA[masmorra-1].nome}</span>`;
+  $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10 <span style="opacity:.6">— ${ESCALADA[masmorra-1].nome}</span>`;
   $('log').innerHTML=cb.logLines.slice(-4).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
   SFX.tensao(P.hp < P.maxHp*0.35);
@@ -674,4 +676,4 @@ addEventListener('resize',resize); resize();
 telaTitulo();
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
   get sel(){return sel;}, get malhas(){return malhas;},
-  get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar };
+  get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar, SFX };

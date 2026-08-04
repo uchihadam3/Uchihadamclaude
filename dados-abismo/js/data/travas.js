@@ -11,7 +11,8 @@
    `ok(alocacao, v)` recebe o que você gastou no golpe:
      { sum, max, min, count, vals, simbolos }
    ===================================================================== */
-const GLIFO = { blade:'⚔', shield:'🛡', essence:'✦', wild:'◈', echo:'⟳' };
+/* nome POR EXTENSO: a 9px o glifo sozinho vira um risquinho ilegível */
+const GLIFO = { blade:'⚔ Lâmina', shield:'🛡 Escudo', essence:'✦ Essência', wild:'◈ Curinga', echo:'⟳ Eco' };
 
 export const TRAVAS = {
   impar:   { ico:'◑', nome:'Ímpar',
