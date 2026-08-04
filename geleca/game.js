@@ -804,8 +804,9 @@ function update(dt){
     if(!preG&&preVy>260){ const fx=blob.x+blob.w/2, fy=blob.y+blob.h;
       const fallDist=(blob.apexY!=null)? (blob.y-blob.apexY) : 0;   // altura real da descida (do ápice até aqui)
       blob._lastFall=Math.round(fallDist); blob._lastVy=Math.round(preVy);
-      // QUEDA ALTA (alto mesmo): baque forte + perde 1 geleca (fica um pedaço no chão)
-      if(fallDist>250 && preVy>560 && blob.mass>1){
+      // QUEDA ALTA (alto mesmo): baque forte + perde 1 geleca (fica um pedaço no chão).
+      // EXCEÇÃO: quedas após mola/trampolim (boosted) ou pouso em superfície elástica NÃO punem.
+      if(fallDist>250 && preVy>560 && blob.mass>1 && !blob.boosted && !feetOnBouncy()){
         dropGlob(0); blob.mass-=1; sizeBlob();
         splat(fx,fy,16,240); burst(fx,fy,6,"#5fbf6a",120);
         ring(fx,fy,blob.w*2.4,"120,220,120",4.5,0.5); ring(fx,fy,blob.w*1.5,"210,255,190",3,0.4);  // baque forte
@@ -814,7 +815,7 @@ function update(dt){
         if(preVy>360) ring(fx,fy,blob.w*1.15,"126,224,107",2.5,0.3);   // poeira do pouso
         if(preVy>420)sfx("land"); }
     }
-    blob.apexY=blob.y;                                     // no chão: zera a referência de ápice
+    blob.apexY=blob.y; blob.boosted=false;                 // no chão: zera ápice e o impulso
   } else {
     blob.apexY = (blob.apexY==null)? blob.y : Math.min(blob.apexY, blob.y);   // no ar: guarda o ponto mais alto
   }
@@ -829,7 +830,7 @@ function update(dt){
   // mola: impulso pra cima sem gastar massa
   if(blob.onGround && blob.vy>=0) for(const sp of springs){
     if(blob.x+blob.w>sp.x+3 && blob.x<sp.x+sp.w-3 && Math.abs((blob.y+blob.h)-sp.y)<5){
-      blob.vy=-BOUNCE; blob.onGround=false; blob.onGroundPrev=false; sp.sq=1;
+      blob.vy=-BOUNCE; blob.onGround=false; blob.onGroundPrev=false; sp.sq=1; blob.boosted=true; // impulso: sem punição de queda
       burst(sp.x+sp.w/2,sp.y,8,"#9fe8ff",160); ring(sp.x+sp.w/2,sp.y,sp.w*1.3,"159,232,255",3.5,0.4); sfx("spring"); break;
     }
   }
@@ -839,7 +840,7 @@ function update(dt){
   detectTrampolines();
   if(blob.onGround && blob.vy>=0) for(const tp of tramp){
     if(blob.x+blob.w>tp.x+4 && blob.x<tp.x+tp.w-4 && Math.abs((blob.y+blob.h)-tp.y)<6){
-      blob.vy=-BOUNCE*1.12; blob.onGround=false; blob.onGroundPrev=false; tp.sq=1;
+      blob.vy=-BOUNCE*1.12; blob.onGround=false; blob.onGroundPrev=false; tp.sq=1; blob.boosted=true; // trampolim: sem punição de queda
       burst(tp.x+tp.w/2,tp.y,12,"#8be9ff",180); sfx("spring"); break;
     }
   }
@@ -909,6 +910,13 @@ function update(dt){
   if(overlaps(blob,exitRect)) win();
 }
 
+// pés sobre uma superfície elástica (mola ou trampolim)? — usado pra não punir queda nelas
+function feetOnBouncy(){
+  const feet=blob.y+blob.h;
+  for(const sp of springs){ if(blob.x+blob.w>sp.x+3 && blob.x<sp.x+sp.w-3 && Math.abs(feet-sp.y)<6) return true; }
+  for(const tp of tramp){ if(blob.x+blob.w>tp.x+4 && blob.x<tp.x+tp.w-4 && Math.abs(feet-tp.y)<8) return true; }
+  return false;
+}
 function dropGlob(wallSide){
   const now=performance.now();
   const g={x:blob.x+blob.w/2-GLOB/2,y:blob.y+blob.h-GLOB,w:GLOB,h:GLOB,solid:false,solidAt:now+160,born:now,wall:wallSide,tramp:false};
