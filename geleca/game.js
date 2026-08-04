@@ -34,24 +34,11 @@ const THEMES={
   grove: { sky0:"#1c3d2a", sky1:"#0a1c14", mote:"150,240,150", tile:"#294a34", tilehi:"#3f6c49",
            top:"#5ec457", top2:"#8bec7c", far:"#153020", mid:"#1e4a32", cloud:"180,235,185", amb:"fireflies", deco:"grove", glow:"90,210,120", art:"vale" },
 };
-// ARTE de parallax por IA (Mundo 1 · Vale) — 4 camadas. As camadas transparentes vieram com
-// o xadrez de transparência CHAPADO (sem canal alfa), então recortamos o xadrez (cinza claro) ao carregar.
-const BG={};
-function keyCheckerboard(img){
-  const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight;
-  const x=c.getContext("2d"); x.drawImage(img,0,0);
-  try{ const d=x.getImageData(0,0,c.width,c.height), a=d.data;
-    for(let i=0;i<a.length;i+=4){ const r=a[i],g=a[i+1],b=a[i+2];
-      const gray=Math.abs(r-g)<22&&Math.abs(g-b)<22&&Math.abs(r-b)<22, light=(r+g+b)>430;
-      if(gray&&light) a[i+3]=0;                       // xadrez → transparente
-    } x.putImageData(d,0,0);
-  }catch(e){}
-  return c;
-}
-["ceu","montanhas","floresta"].forEach(n=>{ try{ const im=new Image();
-  im.onload=()=>{ BG[n+"_c"] = (n==="ceu") ? im : keyCheckerboard(im); };
-  im.src=n+".png"; BG[n]=im; }catch(e){} });
-function groveArtReady(){ return BG.ceu_c && BG.montanhas_c && BG.floresta_c; }
+// ARTE de parallax por IA (Mundo 1 · Vale) — 3 camadas PNG (já com alfa de verdade, transparência
+// assada no arquivo). Sem getImageData/runtime — funciona em qualquer host.
+const BG={}; ["ceu","montanhas","floresta"].forEach(n=>{ try{ const im=new Image(); im.src=n+".png"; BG[n]=im; }catch(e){} });
+function imgOk(im){ return im && im.complete && im.naturalWidth>0; }
+function groveArtReady(){ return imgOk(BG.ceu) && imgOk(BG.montanhas) && imgOk(BG.floresta); }
 
 // -------------------------------------------------------------------------- FASES
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor I=GELO(escorrega)
@@ -1331,14 +1318,14 @@ function bandLayer(src, factor, baseYf, hf){
   for(let x=off; x<W; x+=dw) ctx.drawImage(src, 0,0,sw,sh, x,y,dw,dh);
 }
 function drawValeArt(){
-  const W=canvas.width, H=canvas.height, sky=BG.ceu_c, iw=sky.naturalWidth||sky.width, ih=sky.naturalHeight||sky.height;
+  const W=canvas.width, H=canvas.height, sky=BG.ceu, iw=sky.naturalWidth, ih=sky.naturalHeight;
   const sw=Math.floor(iw*0.955);
   // CÉU (cobre a tela; parallax leve, sem repetir)
   const s=Math.max(W/sw, H/ih)*1.04, dw=sw*s, dh=ih*s;
   const sx=-((cam.x*zoom*0.05)%dw), sy=(H-dh)*0.5 - cam.y*zoom*0.02;
   for(let x=sx-dw; x<W; x+=dw) ctx.drawImage(sky, 0,0,sw,ih, x,sy,dw,dh);
-  bandLayer(BG.montanhas_c, 0.12, 0.62, 0.42);        // montanhas distantes (no horizonte)
-  bandLayer(BG.floresta_c,  0.30, 0.74, 0.40);        // floresta média (fundo)
+  bandLayer(BG.montanhas, 0.12, 0.62, 0.42);          // montanhas distantes (no horizonte)
+  bandLayer(BG.floresta,  0.30, 0.74, 0.40);          // floresta média (fundo)
 }
 function drawParallax(th){
   const W=canvas.width, H=canvas.height, sc=W/640;
