@@ -496,44 +496,55 @@ function showMenu(){
   el("screen-menu").classList.add("active");
   buildLevelGrid();
 }
+const LV_ICONS=["🌱","⛰️","🕳️","🧗","🌉","🔥","👾","🏔️","❄️","🧊","🥶","🌌","🌋","💠","🏁"];
+const ratingHtml=st=>{ let h=""; for(let k=0;k<3;k++) h+=`<i class="${k<st?"on":""}">★</i>`; return h; };
 function buildLevelGrid(){
   const grid=el("level-grid"); grid.innerHTML="";
-  // ⭐ estrelas VISÍVEIS (coletável, contagem aberta com total)
-  const coinsIn=i=>(LEVELS[i].rows.join("").match(/\*/g)||[]).length;
+  const coinsIn=i=>(LEVELS[i].rows.join("").match(/\*/g)||[]).length;      // ⭐ estrelas VISÍVEIS
   const coinGot=i=>Math.min(coinsIn(i), save.coins[i]||0);
-  // 💎 SEGREDOS: só o que você já achou — o jogo nunca revela quantos há
-  const secretGot=i=>save.gems[i]||0;
-  let totalCoins=0, gotCoins=0, foundSecrets=0;
-  LEVELS.forEach((_,i)=>{ totalCoins+=coinsIn(i); gotCoins+=coinGot(i); foundSecrets+=secretGot(i); });
-  const NORMAL=LEVELS.filter(L=>!L.secret).length, totalSecrets=NORMAL;
-  const allSecrets = foundSecrets>=totalSecrets;   // achou TODAS as gemas ocultas → destrava a fase secreta
+  const secretGot=i=>save.gems[i]||0;                                      // 💎 segredos (só o que achou)
+  let totalCoins=0, gotCoins=0, foundSecrets=0, ratingSum=0, done=0;
+  const NORMAL=LEVELS.filter(L=>!L.secret).length;
+  LEVELS.forEach((L,i)=>{ if(L.secret)return; totalCoins+=coinsIn(i); gotCoins+=coinGot(i); foundSecrets+=secretGot(i);
+    ratingSum+=(save.stars[i]||0); if((save.stars[i]||0)>0) done++; });
+  const totalSecrets=NORMAL, allSecrets=foundSecrets>=totalSecrets;
+  // progresso do MUNDO
+  const pct=Math.round(done/NORMAL*100);
+  const bar=el("world-bar"); if(bar) bar.style.width=pct+"%";
+  const pctEl=el("world-pct"); if(pctEl) pctEl.textContent=pct+"%";
   const stats=el("menu-stats");
-  if(stats) stats.innerHTML=`⭐ ${gotCoins}/${totalCoins}`
-    + (foundSecrets>0 ? ` &nbsp;·&nbsp; <span style="color:#c9a6ff">💎 ${foundSecrets}</span>` : "");
+  if(stats) stats.innerHTML=
+    `<span class="chip">✅ ${done}/${NORMAL}</span>`
+    + `<span class="chip" style="color:var(--gold)">⭐ ${gotCoins}/${totalCoins}</span>`
+    + `<span class="chip" style="color:var(--gold)">★ ${ratingSum}/${NORMAL*3}</span>`
+    + (foundSecrets>0 ? `<span class="chip" style="color:var(--purple)">💎 ${foundSecrets}</span>` : "");
+  // qual é a "próxima" fase a jogar (primeira desbloqueada e ainda não concluída)
+  let nextIdx=-1; for(let i=0;i<NORMAL;i++){ if(i<=save.unlocked && !(save.stars[i]>0)){ nextIdx=i; break; } }
+
   LEVELS.forEach((L,i)=>{
-    const st=save.stars[i]||0, c=document.createElement("div");
+    const st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim(), c=document.createElement("div");
     if(L.secret){
-      // FASE SECRETA: cartão-mistério; só abre quando TODOS os segredos foram achados.
       const open=allSecrets;
       c.className="lv-card lv-secret "+(open?"unlocked":"locked");
       c.innerHTML = open
-        ? `<div class="lv-num" style="color:#c9a6ff">✦</div><div class="lv-name" style="color:#c9a6ff">${L.name.split("·")[1].trim()}</div>
-           <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"} <span style="color:#c9a6ff">✨</span></div>`
-        : `<div class="lv-lock">❓</div><div class="lv-name" style="color:#6a5a80">???</div>`;
+        ? `<span class="lv-chip">★</span><span class="lv-ico">👑</span><span class="lv-name" style="color:var(--purple)">${nm}</span><span class="lv-rating">${ratingHtml(st)}</span>`
+        : `<span class="lv-chip">?</span><span class="lv-lock">❓</span><span class="lv-name" style="color:#6a5a80">???</span>`;
       if(open) c.addEventListener("click", ()=>{ audio(); startGame(i); });
       grid.appendChild(c); return;
     }
     const locked=i>save.unlocked;
     const cTot=coinsIn(i), cGot=coinGot(i), sGot=secretGot(i);
-    c.className="lv-card "+(locked?"locked":"unlocked");
-    c.innerHTML = locked
-      ? `<div class="lv-lock">🔒</div><div class="lv-name">${(L.name.split("·")[1]||"").trim()}</div>`
-      : `<div class="lv-num">${i+1}</div><div class="lv-name">${L.name.split("·")[1].trim()}</div>
-         <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"}`
-         + (cTot?` <span style="color:${cGot===cTot?'#ffd24a':'#8a7a4a'}">⭐${cGot}/${cTot}</span>`:"")
-         + (sGot>0?` <span style="color:#c9a6ff">💎${sGot}</span>`:"")
-         + `</div>`;
-    if(!locked) c.addEventListener("click", ()=>{ audio(); startGame(i); });
+    c.className="lv-card "+(locked?"locked":"unlocked")+(st>0?" done":"")+(i===nextIdx?" next":"");
+    if(locked){
+      c.innerHTML=`<span class="lv-chip">${i+1}</span><span class="lv-lock">🔒</span><span class="lv-name">${nm}</span>`;
+    } else {
+      const badges = (cTot?`<span class="b-coin${cGot===cTot?" full":""}">⭐${cGot}/${cTot}</span>`:"")
+        + (sGot>0?`<span class="b-sec">💎${sGot}</span>`:"");
+      c.innerHTML=`<span class="lv-chip">${i+1}</span><span class="lv-ico">${LV_ICONS[i]||"🌿"}</span>`
+        + `<span class="lv-name">${nm}</span><span class="lv-rating">${ratingHtml(st)}</span>`
+        + (badges?`<span class="lv-badges">${badges}</span>`:"");
+      c.addEventListener("click", ()=>{ audio(); startGame(i); });
+    }
     grid.appendChild(c);
   });
 }
@@ -1604,4 +1615,5 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   _stompBoss(){ const e=enemies&&enemies.find(x=>x.type==="boss"); if(e&&blob){ blob.x=e.x+e.w/2-blob.w/2; blob.y=e.y-blob.h+3; blob.vy=260; blob.hurtT=0; e.hitT=0; } },
   get parts(){ return particles?particles.length:0; },
   _setCoins(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.coins[i]=1; persist(); },
+  _demo(){ save.unlocked=6; [3,3,2,3,1].forEach((s,i)=>save.stars[i]=s); save.coins[0]=1;save.coins[1]=1;save.coins[3]=2; save.gems[0]=1;save.gems[2]=1; persist(); showMenu(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
