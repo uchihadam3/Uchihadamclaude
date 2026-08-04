@@ -40,22 +40,60 @@
  #voce{display:flex;align-items:center;gap:9px;justify-content:center;font-size:12.5px;margin-bottom:6px}
  #voce b{font-size:16px}
  .pill{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);border-radius:20px;padding:3px 10px}
- #hab{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;pointer-events:auto}
- .h{background:linear-gradient(180deg,#1e242c,#141920);border:1px solid rgba(255,255,255,.15);
-   border-radius:11px;padding:8px 11px;cursor:pointer;min-width:88px;text-align:center;transition:.12s}
- .h .hn{font-size:12.5px;font-weight:700}
- .h .hr{font-size:10.5px;color:#8fb0d8;margin-top:2px;font-variant-numeric:tabular-nums}
- .h.ok{border-color:#4ad98a;box-shadow:0 0 12px #4ad98a44}
- .h.off{opacity:.42}
+ #hab{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;pointer-events:auto;align-items:stretch}
+ /* ===== CARTA DE HABILIDADE ===== */
+ .h{position:relative;overflow:hidden;cursor:pointer;transition:.13s;
+   font-family:Georgia,serif;color:#e8e2d0;text-align:center;
+   background:linear-gradient(180deg,#1e242c,#0f141a);border:1px solid rgba(255,255,255,.14);
+   border-left:3px solid color-mix(in srgb,var(--hc,#888) 70%,transparent);
+   border-radius:12px;padding:7px 9px 6px;min-width:96px;max-width:132px;
+   display:flex;flex-direction:column;align-items:center;gap:3px}
+ .h .htopo{display:flex;align-items:center;gap:5px}
+ .h .hico{width:17px;height:17px;flex:none;color:var(--hc,#cfd8e3);
+   filter:drop-shadow(0 0 5px color-mix(in srgb,var(--hc,#888) 55%,transparent))}
+ .h .hn{font-size:12.5px;font-weight:700;letter-spacing:.2px;white-space:nowrap}
+ /* requisito desenhado como DADOS */
+ .h .hreq{display:flex;align-items:center;gap:2px;flex-wrap:wrap;justify-content:center}
+ .h .hreq .op{font-size:10px;color:#8fb0d8;font-weight:900}
+ .h .hreq .grp{display:flex;align-items:center;gap:1px}
+ .dchip{display:grid;place-items:center;min-width:15px;height:15px;padding:0 2px;
+   border-radius:4px;background:#0b1016;border:1px solid #33404d;color:#cfe0f2;
+   font-size:9.5px;font-weight:800;font-style:normal;line-height:1}
+ .dchip.ig{color:#ffd24a;border-color:#5c4718} .dchip.sq{color:#7ef2c8;border-color:#1f5049}
+ .dchip.so{color:#ffb45e;border-color:#6a4a1e} .dchip.pr{color:#c9a6ff;border-color:#4a3a6a;font-size:8.5px}
+ .dchip.sb{color:#ffd24a;border-color:#5c4718} .dchip.qq{color:#7d8894;border-color:#333c46}
+ /* selo do que a jogada FAZ */
+ .h .hsel{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:1px}
+ .h .hsel b{font-size:11px;font-weight:900;line-height:1;padding:1px 4px;border-radius:5px;
+   background:rgba(0,0,0,.4)}
+ .h .hd{color:#ff8a7a} .h .hb{color:#8fd8ff} .h .hc{color:#7ef2a8}
+ .h .hx{color:#e0a0a0} .h .hk{color:#ffd24a}
+ .h .hest{font-size:8px;letter-spacing:1.4px;color:#5f6874;text-transform:uppercase}
+ /* estados */
+ .h.pode{border-color:rgba(255,255,255,.22)}
+ .h.ok{border-color:#4ad98a;box-shadow:0 0 14px #4ad98a3a,inset 0 0 18px #4ad98a14}
+ .h.ok .hest{color:#7ef2a8;font-weight:900}
+ .h.off{opacity:.38;filter:saturate(.3)}
+ .h.pre{border-color:#ffd24a;box-shadow:0 0 18px #ffd24a55;transform:translateY(-2px)}
  .h:active{transform:scale(.95)}
+ /* varredura de brilho quando está pronta */
+ .h .hbrilho{position:absolute;inset:0;pointer-events:none;opacity:0;
+   background:linear-gradient(105deg,transparent 38%,rgba(255,255,255,.16) 50%,transparent 62%)}
+ .h.ok .hbrilho{opacity:1;animation:varre 2.6s linear infinite}
+ @keyframes varre{0%{transform:translateX(-120%)}55%,100%{transform:translateX(120%)}}
+ /* onda ao usar */
+ .h.usou::after{content:'';position:absolute;left:50%;top:50%;width:8px;height:8px;
+   margin:-4px 0 0 -4px;border-radius:50%;border:2px solid var(--hc,#fff);
+   animation:hond .45s ease-out forwards}
+ @keyframes hond{to{width:180px;height:180px;margin:-90px 0 0 -90px;opacity:0}}
  #acoes{display:flex;gap:6px;justify-content:center;margin-top:7px;pointer-events:auto}
  .b{background:linear-gradient(180deg,#2a323d,#181d24);border:1px solid rgba(255,255,255,.16);
    border-radius:10px;padding:8px 14px;font-family:Georgia,serif;color:#e8e2d0;font-size:13px;font-weight:700;cursor:pointer}
  .b.pri{background:linear-gradient(180deg,#7a1f2b,#4d1119);border-color:#a33}
  .b:disabled{opacity:.4}
  /* seleção de dados */
- #sel{position:fixed;left:0;right:0;bottom:150px;text-align:center;font-size:12px;color:#ffd24a;
-   pointer-events:none;display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;z-index:11}
+ #sel{position:static;text-align:center;font-size:12px;color:#ffd24a;margin-bottom:5px;
+   pointer-events:none;display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap}
  #sel .selt{text-shadow:0 1px 4px #000}
  /* ferramentas de fechadura vindas do Cofre */
  .fer{pointer-events:auto;font-family:Georgia,serif;font-size:12px;font-weight:800;cursor:pointer;
@@ -202,8 +240,8 @@
  #topo{position:fixed;top:0;left:0;right:0;z-index:12;font-size:10.5px;opacity:.82;text-align:center;
    padding:calc(4px + env(safe-area-inset-top)) 8px 4px;pointer-events:none;line-height:1.3;
    background:linear-gradient(180deg,rgba(4,6,9,.94) 60%,transparent)}
-  #log{position:fixed;left:10px;bottom:178px;z-index:8;font-size:11px;opacity:.72;max-width:52vw;pointer-events:none;line-height:1.5;
-   text-shadow:0 1px 3px #000}
+ #log{position:static;font-size:10.5px;opacity:.66;pointer-events:none;line-height:1.45;
+   text-align:center;margin-bottom:4px;max-height:44px;overflow:hidden;text-shadow:0 1px 3px #000}
  /* ===== sprite do inimigo ===== */
  .en .spr{height:72px;display:flex;align-items:flex-end;justify-content:center;margin:-2px 0 2px}
  .en .spr img{height:72px;image-rendering:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));
@@ -260,7 +298,7 @@
  .pill.perigo{background:rgba(120,20,20,.5);border-color:#a33;color:#ffb0a0;font-weight:800}
  .pill.perigo.letal{background:#a01020;border-color:#ff6a5a;color:#fff;animation:matap .7s infinite}
  .h.pre{border-color:#ffd24a;box-shadow:0 0 16px #ffd24a55;transform:translateY(-3px)}
- .h .hp2{font-size:11px;font-weight:900;color:#ffd24a;margin-top:3px}
+
  /* ============ MAPA DA MASMORRA ============ */
  .mapwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
    gap:16px;padding:26px 16px;width:100%;max-width:440px;margin:0 auto}
@@ -424,15 +462,14 @@
  .pj.roxo{background:radial-gradient(circle,rgba(180,110,255,.9),transparent 68%);filter:drop-shadow(0 0 8px #8a3bff)}
  .pj.verde{background:radial-gradient(circle,rgba(110,240,160,.9),transparent 68%);filter:drop-shadow(0 0 8px #4ad98a)}
  /* habilidade pronta pulsa */
- .h.ok{animation:pulsa 1.5s ease-in-out infinite}
- @keyframes pulsa{0%,100%{box-shadow:0 0 10px #4ad98a44}50%{box-shadow:0 0 20px #4ad98a99}}
+ @keyframes pulsa{0%,100%{box-shadow:0 0 12px #4ad98a44}50%{box-shadow:0 0 22px #4ad98a99}}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="ini" class="lay"></div>
 <div id="topo"></div>
-<div id="log"></div>
-<div id="sel"></div>
 <div id="baixo" class="lay">
+  <div id="log"></div>
+  <div id="sel"></div>
   <div id="voce"></div>
   <div id="hab"></div>
   <div id="acoes">

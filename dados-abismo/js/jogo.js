@@ -22,6 +22,7 @@ import * as META from './meta.js';
 import { spriteDe } from './sprites.js';
 import * as SFX from './sfx.js';
 import { tocarEfeito, tocarEfeitoInimigo } from './efeitos.js';
+import { iconeDe, reqChips } from './icones.js';
 
 const MESA={x:3.4,z:2.0};
 const $=id=>document.getElementById(id);
@@ -348,11 +349,30 @@ function pintar(){
   $('hab').innerHTML=skills.map((s,i)=>{
     const ok=selEnts.length&&satisfies(s.req,selEnts);
     const poss=findSubset(s.req,pool);
-    const p2 = previa && previa.skill.id===s.id ? previa.pv : null;
-    const resumo = p2 ? `<div class="hp2">${p2.alvos.filter(a=>a.dano).map(a=>'-'+a.dano).join(' ')||''}${
-      p2.bloqueio?` 🛡+${p2.bloqueio}`:''}${p2.curaHP?` ✚${p2.curaHP}`:''}${p2.custoHP?` ❤-${p2.custoHP}`:''}</div>`:'';
-    return `<div class="h ${ok?'ok':(poss?'':'off')} ${p2?'pre':''}" data-i="${i}">
-      <div class="hn">${s.nome}</div><div class="hr">${reqLabel(s.req)}</div>${resumo}</div>`;}).join('');
+    // prévia SEMPRE que houver encaixe: a da seleção, ou a do melhor possível.
+    // Sem isso você tinha que adivinhar quais dados a habilidade quer (§12).
+    const idsPre = ok ? [...sel] : (poss ? poss.map(k=>pool[k].dieId) : null);
+    const p2 = previa && previa.skill.id===s.id ? previa.pv
+             : (idsPre ? cb.prever(s, idsPre, alvo) : null);
+    const usaria = (!ok && poss) ? poss.map(k=>nomeFace(pool[k].face)).join('+') : '';
+    const mortes = p2 ? p2.alvos.filter(a=>a.morre).length : 0;
+    const dano = p2 ? p2.alvos.reduce((a,x)=>a+x.dano,0) : 0;
+    const selo = p2 ? `<div class="hsel">
+        ${dano?`<b class="hd">-${dano}</b>`:''}
+        ${p2.bloqueio?`<b class="hb">🛡${p2.bloqueio}</b>`:''}
+        ${p2.curaHP?`<b class="hc">✚${p2.curaHP}</b>`:''}
+        ${p2.custoHP?`<b class="hx">❤-${p2.custoHP}</b>`:''}
+        ${mortes?`<b class="hk">☠${mortes>1?mortes:''}</b>`:''}</div>` : '';
+    const estado = ok ? 'PRONTA' : poss ? 'usa '+usaria : 'sem encaixe';
+    const ativa = previa && previa.skill.id===s.id;
+    return `<button class="h ${ok?'ok':(poss?'pode':'off')} ${ativa?'pre':''}" data-i="${i}"
+        style="--hc:${C.cor}" title="${s.desc.replace(/"/g,'&quot;')}">
+      <span class="hbrilho"></span>
+      <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span></span>
+      <span class="hreq">${reqChips(s.req)}</span>
+      ${selo}
+      <span class="hest">${estado}</span>
+    </button>`;}).join('');
   $('hab').querySelectorAll('.h').forEach(d=>{
     const sk=skills[+d.dataset.i];
     d.onclick=()=>usar(sk);
@@ -381,7 +401,7 @@ function pintar(){
              arcanista:()=>cb.guardar(id),  oracula:()=>cb.travar(id)}[C.id];
     if(f&&f()){ SFX.pegar(); if(C.id==='arcanista') sel.delete(id); pintar(); } else SFX.soltar(); };
   $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10 <span style="opacity:.6">— ${ESCALADA[masmorra-1].nome}</span>`;
-  $('log').innerHTML=cb.logLines.slice(-4).join('<br>');
+  $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
   SFX.tensao(P.hp < P.maxHp*0.35);
   // dados usados ficam apagados
@@ -505,6 +525,9 @@ function usar(s){
   }
   const antes=snapHP(), hpA=P.hp;
   const alvosPrev = cb.prever(s, ids, alvo);
+  const cardEl=[...document.querySelectorAll('#hab .h')]
+    .find(x=>habilidadesAtuais()[+x.dataset.i]?.id===s.id);
+  if(cardEl){ cardEl.classList.remove('usou'); void cardEl.offsetWidth; cardEl.classList.add('usou'); }
   cb.use(s, ids, alvo); sel.clear(); previa=null;
   for(const id of ids) praBandeja(id);            // os dados gastos vão pro canto
   pintar();                                       // repinta ANTES (senão apaga os efeitos)
