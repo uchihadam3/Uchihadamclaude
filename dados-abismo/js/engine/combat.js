@@ -27,7 +27,7 @@ export const STATUS = {
   maldicao:   { nome:'Maldição',   tick:'none', desc:'Um dado ☠ Vazio entra na Bolsa.' },
   frenesi:    { nome:'Frenesi',    tick:'none', desc:'+50% de dano causado.' },
   espinhos:   { nome:'Espinhos',   tick:'none', desc:'Devolve dano a quem te acerta.' },
-  invisivel:  { nome:'Invisível',  tick:'none', desc:'Inimigos erram você.' },
+  invisivel:  { nome:'Invisível',  tick:'none', desc:'Sofre 65% menos dano de ataques.' },
   armadura:   { nome:'Armadura',   tick:'none', desc:'Reduz cada golpe recebido.' },
 };
 
@@ -286,7 +286,11 @@ export class Combat {
   }
   dmgPlayer(amt, motivo){
     if(amt<=0) return;
-    if(this.p.statuses.invisivel && motivo==='ataque'){ this.L('  (invisível: errou)'); return; }
+    // Invisível NÃO anula mais o turno inimigo: some 65% do golpe. Anular tudo
+    // por 1 dado fazia a Lâmina-Sombra ignorar a dificuldade inteira.
+    if(this.p.statuses.invisivel && motivo==='ataque'){
+      const antes=amt; amt = Math.max(1, Math.round(amt*0.35));
+      this.L(`  (invisível: ${antes} → ${amt})`); }
     let d = amt;
     const abs = Math.min(this.p.block, d); this.p.block-=abs; d-=abs;
     this.p.hp = Math.max(0, this.p.hp - d);

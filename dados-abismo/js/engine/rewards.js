@@ -44,7 +44,7 @@ export function gerarOpcoes(rng, estado, n=3){
     const rel = rng.pickWeighted(disp, r=> r.r==='comum'?6 : r.r==='rara'?3 : 1.2);
     pool.push({ t:'reliquia', nome:rel.nome, desc:rel.txt, r:rel.r, rel });
   }
-  pool.push({ t:'cura', nome:'Cura', desc:'Recupera 25% do HP máximo.' });
+  pool.push({ t:'cura', nome:'Cura', desc:'Recupera 18% do HP máximo.' });
   return rng.shuffle(pool).slice(0, n);
 }
 export function aplicar(opt, estado, rng){
@@ -59,7 +59,7 @@ export function aplicar(opt, estado, rng){
     else { const c=cloneDie(d); g.ap(c, alvo.i); estado.bag[estado.bag.indexOf(d)]=c; }
   }
   else if(opt.t==='reliquia'){ estado.relics.push(opt.rel); recalcRelics(estado); }
-  else if(opt.t==='cura'){ estado.hp = Math.min(estado.maxHp, estado.hp + Math.round(estado.maxHp*0.25)); }
+  else if(opt.t==='cura'){ estado.hp = Math.min(estado.maxHp, estado.hp + Math.round(estado.maxHp*0.18)); }
   return estado;
 }
 /* consolida os modificadores numéricos das relíquias */

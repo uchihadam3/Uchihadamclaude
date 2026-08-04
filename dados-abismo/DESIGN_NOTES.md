@@ -135,13 +135,53 @@ O jogo funciona (jogo.html), mas está **fácil demais e pouco legível**. Ordem
   (anticipação + follow-through) e o alvo **recuar** no impacto.
 - **Faces raras** (Curinga/Lâmina/Vazio) com **pulso de aura** ao pousar + som próprio (§11.4).
 
-## 3. DIFICULDADE — o simulador já provou que está fácil
-Dados atuais (test/sim.mjs 250 10): Lâmina **100%**, Carrasco ~73%, OráculA ~3%, Arcanista ~0%.
-Alvo saudável de roguelite: **25–45%** para uma classe bem jogada.
-- Subir o dano inimigo da Masmorra 1–3 (a curva só morde a partir da 5).
-- Ondas maiores mais cedo e **elites já na 2**.
-- Nerfar o combo que quebra a Lâmina (multi-hit + relíquias de multiplicador).
-- Rodar `node test/sim.mjs 250 10` a cada ajuste — é para isso que ele existe.
+## 3. DIFICULDADE — reapertada (o jogo estava fácil demais)
+
+### 3.1 A régua estava quebrada antes do jogo
+A IA do simulador pontuava habilidade por **tipo de efeito** (`dmg` valia
+`sum*2+6` fosse `sum*3` ou `sum*7`). Ela não enxergava que Colapso vale 3× um
+Raio, e por isso jogava mal justamente as classes de sequência — que *pareciam*
+fracas. Agora `ai.js` chama `combat.prever()`: roda a jogada no sandbox do motor
+e mede dano útil (sem overkill), mortes, estados, bloqueio útil e custo de HP.
+Só essa troca levou o Arcanista de **0% → 33%** sem mexer em uma linha de
+balanceamento. Também testa 2 alvos (o mais ferido e o que mais bate).
+
+### 3.2 O que mudou no jogo
+- **Menos dados de início**: Carrasco 6→4, Lâmina 8→5, Arcanista 5→4, OráculA 5→4.
+- **Menos re-rolagens**: Carrasco 2→1, resto 3→2. Menos HP em todas.
+- **Escalada DENTRO da masmorra**: antes o andar 9 era estatisticamente igual ao
+  andar 1 — só a troca de masmorra apertava. Agora cada andar soma +7% de HP e
+  +5,5% de dano.
+- **Escalada entre masmorras** muito mais forte (M1 1.04/1.08 → 1.30/1.35).
+- **Ondas maiores** e elite 2.2× → 2.6×.
+- **Cura cortada**: santuário 30%→15%, recompensa de cura 25%→18%.
+- **Invisível não anula mais o turno inimigo** (65% de redução). Anular tudo por
+  1 dado fazia a Lâmina-Sombra ignorar a dificuldade inteira — era ela sozinha em
+  100% de vitória enquanto as outras morriam.
+- **Arcanista com 4 dados**: SEQ 5 virava inalcançável sem o Círculo, então
+  Colapso caiu para SEQ 4 (dano `sum*7`→`sum*5`) e o Prisma (4ª habilidade) subiu
+  para SEQ 5 — o prêmio de quem sabe bancar.
+- **Escolta de chefe reduzida**: chefe + 0-2 comuns. Chefe + elite + 3 comuns
+  não era difícil, era muro cego.
+
+### 3.3 Onde ficou (test/sim.mjs 30 10 <cofre>)
+| | Cofre 0% (1ª run) | Cofre 100% |
+|---|---|---|
+| Carrasco | 8,1 andares | 21,0 |
+| Lâmina-Sombra | 4,4 | 29,4 · **6,7% zera** |
+| Arcanista | 6,8 | — |
+| OráculA | 6,2 | — |
+
+Run virgem morre na **Masmorra 1**, entre os andares 4 e 8, nas quatro classes
+(razão máx/mín 1,9× — dentro do critério §15). Com a árvore cheia o jogo é
+**zerável** — é isso que sustenta o laço de "várias runs até conseguir".
+O simulador é uma IA gulosa de 1 nível; humano que planeja (banca o Círculo,
+guarda Muralha para o golpe telegrafado) rende bem mais que esses números.
+
+### 3.4 O simulador agora mede o Cofre
+`node test/sim.mjs <runs> <masmorras> <cofre 0|0.5|1>`. `Portal` é forçado a 1
+na medição: ele é atalho, não poder — com ele ligado a run começava na Masmorra 2
+e o número medido virava outra coisa.
 
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com

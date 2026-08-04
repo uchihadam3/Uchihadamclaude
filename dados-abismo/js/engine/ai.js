@@ -2,24 +2,25 @@
 import { findSubset, satisfies, entryValue } from './requirements.js';
 import { RESPIRAR } from '../data/classes.js';
 
-/* pontua uma habilidade pelo impacto estimado */
-function score(skill, ents, cb){
-  const vals = ents.map(e=>entryValue(e)||0);
-  const sum = vals.reduce((a,b)=>a+b,0);
+/* PONTUAÇÃO REAL: em vez de adivinhar pelo tipo de efeito, roda a jogada no
+   sandbox do motor (prever) e mede o que ela faz de fato. Sem isso a IA não
+   enxergava que Colapso (sum*7) vale 3× um Raio (sum*3) e jogava mal as
+   classes de sequência — que eram justamente as que "pareciam" fracas. */
+function avaliar(combat, sk, ids, alvo, perigo){
+  let pv; try{ pv = combat.prever(sk, ids, alvo); }catch(e){ return null; }
+  if(!pv) return null;
+  const hp = combat.p.hp;
   let s = 0;
-  for(const e of skill.eff||[]){
-    if(e.op==='dmg')   s += sum*2 + 6;
-    if(e.op==='hits')  s += sum*3;
-    if(e.op==='status')s += sum*1.5;
-    if(e.op==='block'){
-      // intenção é VISÍVEL (§6): um bom jogador se defende do golpe telegrafado.
-      const letal = cb.perigo >= cb.hp*0.85;         // pode MATAR neste turno
-      const grave = cb.perigo >= cb.hp*0.45;
-      s += sum * (letal ? 2.8 : grave ? 1.4 : 0.4);
-    }
-    if(e.op==='exec')  s += 8;
+  for(const a of pv.alvos){
+    const e = combat.enemies[a.i]; if(!e) continue;
+    s += Math.min(a.dano, e.hp);                      // dano útil (overkill não conta)
+    if(a.morre) s += 14;                              // matar remove um atacante
+    s += a.estados.reduce((x,st)=>x + st.n*2, 0);
   }
-  return s / Math.max(1, ents.length);   // eficiência por dado
+  const util = Math.min(pv.bloqueio, perigo);         // bloqueio só vale até o golpe que vem
+  s += util * (perigo >= hp*0.85 ? 3.0 : perigo >= hp*0.45 ? 1.6 : 0.55);
+  s += pv.curaHP*1.2 - pv.custoHP*(hp<30 ? 3 : 1.4) + pv.essencia*1.5;
+  return s / Math.max(1, ids.length);                 // eficiência POR DADO gasto
 }
 export function playTurn(combat, skills){
   let guard = 0, respiros = 0;
@@ -29,18 +30,29 @@ export function playTurn(combat, skills){
     if(!pool.length) break;
     const perigo = combat.aliveEnemies().reduce((a,e)=>a+((e.intent?.v||0)*(e.intent?.n||1)),0);
     const cb = { hp:combat.p.hp, perigo };
+    // alvos que valem a pena testar: o mais ferido (finalizar) e o que mais bate
+    const vivos = combat.aliveEnemies();
+    const idxMenorHP = combat.enemies.indexOf(vivos.reduce((a,b)=>a.hp<=b.hp?a:b, vivos[0]));
+    const idxMaiorDano = combat.enemies.indexOf(vivos.reduce((a,b)=>
+      ((a.intent?.v||0)*(a.intent?.n||1)) >= ((b.intent?.v||0)*(b.intent?.n||1)) ? a:b, vivos[0]));
+    const alvosTeste = [...new Set([idxMenorHP, idxMaiorDano].filter(i=>i>=0))];
     let best=null;
     for(const sk of [...skills, RESPIRAR]){
       if(sk.unlock && !combat.p.unlocked?.includes(sk.unlock)) continue;
       const idxs = findSubset(sk.req, pool);
       if(!idxs) continue;
       const ents = idxs.map(i=>pool[i]);
-      let sc = score(sk, ents, cb) + (sk.id==='respirar' ? -4 : 0);
-      // com risco de morte, Respirar (bloqueio garantido) vira jogada válida
-      if(sk.id==='respirar' && cb.perigo >= cb.hp*0.9) sc = Math.max(sc, 7);
-      // Arcanista: guardar no Círculo vale mais que gastar à toa (§7.3 Canalização)
-      if(sk.id==='respirar' && combat.p.classe==='arcanista' && cb.perigo < cb.hp*0.4) sc = -2;
-      if(!best || sc>best.sc) best={ sk, ids:ents.map(e=>e.dieId), sc };
+      const ids = ents.map(e=>e.dieId);
+      for(const alv of alvosTeste){
+        let sc = avaliar(combat, sk, ids, alv, perigo);
+        if(sc===null) continue;
+        if(sk.id==='respirar') sc -= 4;
+        // com risco de morte, Respirar (bloqueio garantido) vira jogada válida
+        if(sk.id==='respirar' && cb.perigo >= cb.hp*0.9) sc = Math.max(sc, 7);
+        // Arcanista: guardar no Círculo vale mais que gastar à toa (§7.3 Canalização)
+        if(sk.id==='respirar' && combat.p.classe==='arcanista' && cb.perigo < cb.hp*0.4) sc = -2;
+        if(!best || sc>best.sc) best={ sk, ids, sc, alvo:alv };
+      }
     }
     // re-rolar pode CUSTAR VIDA (Fardo M5) — só vale a pena se necessário
     const custaVida = combat.burdens.has('reroll_custa_vida');
@@ -60,9 +72,8 @@ export function playTurn(combat, skills){
         : pool.filter(e=>(entryValue(e)||0) <= 2).map(e=>e.dieId);
       if(alvos.length){ combat.reroll(alvos); continue; }
     }
-    const alvo = combat.aliveEnemies().reduce((bi,e,i,arr)=> arr[bi].hp<=e.hp?bi:i, 0);
     if(best.sk.id==='respirar'){ if(respiros>=2) break; respiros++; }
-    const r = combat.use(best.sk, best.ids, alvo);
+    const r = combat.use(best.sk, best.ids, best.alvo);
     if(!r.ok) break;
     if(combat.over) return;
   }

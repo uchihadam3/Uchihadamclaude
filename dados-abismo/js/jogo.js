@@ -219,6 +219,8 @@ function telaMapa(entrando){
   msg.innerHTML=`<div class="mapwrap">
     <div class="maphd"><div class="mapm">MASMORRA ${masmorra}</div>
       <h2>${esc.nome}</h2>
+      <div class="mesc">inimigos deste andar: <b>❤ ×${(esc.hp*(1+(andar-1)*0.070)).toFixed(1)}</b>
+        <b>⚔ ×${(esc.dano*(1+(andar-1)*0.055)).toFixed(1)}</b></div>
       ${esc.fardoTxt&&esc.fardoTxt!=='—'?`<div class="mfardo">⚠ ${esc.fardoTxt}</div>`:''}</div>
     <div class="mtrilha">${nos}</div>
     <div class="mpe"><span class="mmarc" id="marc">◈</span></div>
@@ -546,7 +548,7 @@ function antesDepois(o){
     if(!L.length) L.push(`<i>passiva permanente da run</i>`);
     return `<div class="difl">${L.join('')}<i>${o.rel.r}</i></div>`;
   }
-  const cura = Math.round(P.maxHp*0.25);
+  const cura = Math.round(P.maxHp*0.18);
   return `<div class="difl">${linhaDif('HP', P.hp, Math.min(P.maxHp, P.hp+cura))}<i>de ${P.maxHp} máx</i></div>`;
 }
 function painelHabilidades(){
@@ -598,7 +600,7 @@ function fim(){
     ${painelHabilidades()}</div>`;
   m.querySelectorAll('.rec').forEach(b=>b.onclick=()=>{
     SFX.pegar(); aplicar(opts[+b.dataset.i],P,rng);
-    if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.30));
+    if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.15));
     andar++; if(andar>10){ andar=1; masmorra++; }
     telaMapa(true);
   });
