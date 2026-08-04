@@ -322,8 +322,14 @@ export const SKILL_TREES: Record<string, ClassTree | undefined> = {
 // Cada ativa tem um perfil de combate: quem recebe, alcance, efeito e custo.
 //  - melee  → só ativa "colado" no alvo (distância 1 célula)
 //  - ranged → ativa dentro do alcance (em células)
-//  - heal/buff → sempre no PRÓPRIO herói (self)
-export type SkillEffect = "dmg" | "heal" | "buff";
+//  - heal/buff → no PRÓPRIO herói (self) ou, se `aliado`, num COMPANHEIRO de grupo
+//  - revive → levanta um companheiro CAÍDO (sem grupo, vira o selo de si mesmo)
+//
+// `aliado: true` é o que transforma o grupo de informação em jogo: sem isso o
+// clérigo vê a vida do amigo cair e não pode fazer nada. Quem alcança o
+// companheiro é a MAGIA DE APOIO — cura, bênção, escudo e ressurreição —, nunca
+// dano nem os buffs de fôlego próprio (Frenesi, Fúria e afins continuam self).
+export type SkillEffect = "dmg" | "heal" | "buff" | "revive";
 export interface SkillCombat {
   target: "enemy" | "self";
   melee: boolean;
@@ -336,17 +342,24 @@ export interface SkillCombat {
   atkMul?: number; // buff: multiplicador de dano temporário
   defReduc?: number; // buff: redução do dano recebido (0..1) temporária
   dur?: number; // buff: duração (ms)
+  aliado?: boolean; // pode ser lançada num COMPANHEIRO de grupo (mesma zona)
 }
 // construtores compactos
 const mDmg = (power: number, mana: number, cd: number): SkillCombat =>
   ({ target: "enemy", melee: true, range: 1, effect: "dmg", magic: false, power, mana, cd });
 const rDmg = (power: number, range: number, mana: number, cd: number, magic = true): SkillCombat =>
   ({ target: "enemy", melee: false, range, effect: "dmg", magic, power, mana, cd });
-const heal = (power: number, mana: number, cd: number): SkillCombat =>
-  ({ target: "self", melee: false, range: 0, effect: "heal", magic: true, power, mana, cd });
-const buff = (o: { atkMul?: number; defReduc?: number; dur: number; mana: number; cd: number }): SkillCombat =>
+// CURA sempre alcança o companheiro: uma cura que só serve p/ si mesmo não é cura
+// de grupo. Sem grupo (ou sem alvo escolhido) ela cai em você, como sempre foi.
+const heal = (power: number, mana: number, cd: number, aliado = true): SkillCombat =>
+  ({ target: "self", melee: false, range: 0, effect: "heal", magic: true, power, mana, cd, aliado });
+const buff = (o: { atkMul?: number; defReduc?: number; dur: number; mana: number; cd: number; aliado?: boolean }): SkillCombat =>
   ({ target: "self", melee: false, range: 0, effect: "buff", magic: false, power: 0,
-     mana: o.mana, cd: o.cd, atkMul: o.atkMul, defReduc: o.defReduc, dur: o.dur });
+     mana: o.mana, cd: o.cd, atkMul: o.atkMul, defReduc: o.defReduc, dur: o.dur, aliado: o.aliado });
+// RESSURREIÇÃO: com um companheiro caído por perto, levanta ele com `power` de
+// vida. Sozinho continua sendo o selo de sempre (ver Game.useSkill).
+const revive = (power: number, mana: number, cd: number): SkillCombat =>
+  ({ target: "self", melee: false, range: 0, effect: "revive", magic: true, power, mana, cd, aliado: true });
 
 export const SKILL_COMBAT: Record<string, SkillCombat> = {
   // ---- Guerreiro (físico corpo-a-corpo; alguns buffs/cura) ----
@@ -359,7 +372,7 @@ export const SKILL_COMBAT: Record<string, SkillCombat> = {
   g_muro_escudo: buff({ defReduc: 0.5, dur: 6000, mana: 14, cd: 14000 }),
   g_reflexao: buff({ defReduc: 0.3, dur: 6000, mana: 12, cd: 12000 }),
   g_aco_absoluto: buff({ defReduc: 0.9, dur: 3000, mana: 20, cd: 20000 }),
-  g_ultimo_suspiro: heal(90, 20, 16000),
+  g_ultimo_suspiro: heal(90, 20, 16000, false), // fôlego PRÓPRIO: não vai no amigo
   g_grito_guerra: buff({ atkMul: 1.5, dur: 8000, mana: 14, cd: 14000 }),
   g_frenesi: buff({ atkMul: 1.35, dur: 8000, mana: 12, cd: 12000 }),
   g_investida_brutal: mDmg(18, 14, 8000),
@@ -400,18 +413,18 @@ export const SKILL_COMBAT: Record<string, SkillCombat> = {
   // ---- Clérigo (Luz: cura/buff · Julgamento: dano sagrado à distância · Fé: buff/cura) ----
   c_cura: heal(50, 12, 6000),
   c_cura_area: heal(70, 18, 9000),
-  c_bencao: buff({ atkMul: 1.4, dur: 10000, mana: 14, cd: 14000 }),
-  c_aura_protecao: buff({ defReduc: 0.4, dur: 8000, mana: 14, cd: 12000 }),
+  c_bencao: buff({ atkMul: 1.4, dur: 10000, mana: 14, cd: 14000, aliado: true }),
+  c_aura_protecao: buff({ defReduc: 0.4, dur: 8000, mana: 14, cd: 12000, aliado: true }),
   c_renovacao: heal(60, 16, 11000),
   c_martelo_sagrado: rDmg(18, 4, 12, 4000),
   c_punicao: rDmg(16, 4, 12, 6000),
   c_luz_radiante: rDmg(18, 3, 14, 6000),
   c_selo_sagrado: rDmg(24, 4, 18, 9000),
   c_condenacao: rDmg(38, 5, 28, 15000),
-  c_escudo_divino: buff({ defReduc: 0.9, dur: 3000, mana: 20, cd: 20000 }),
+  c_escudo_divino: buff({ defReduc: 0.9, dur: 3000, mana: 20, cd: 20000, aliado: true }),
   c_repreensao: rDmg(12, 3, 12, 9000),
   c_intervencao: heal(90, 22, 14000),
-  c_ressurreicao: heal(150, 30, 60000),
+  c_ressurreicao: revive(150, 30, 60000),
   c_aura_fe: buff({ atkMul: 1.3, dur: 10000, mana: 14, cd: 12000 }),
 };
 

@@ -30,6 +30,7 @@ export interface Membro {
   maxHp: number;
   zone: string;      // em que zona ele está (p/ o HUD dizer "noutro lugar")
   lider: boolean;
+  caido?: boolean;   // tombou e espera alguém levantar (só acontece em grupo)
 }
 /** Convite recebido de alguém da mesma zona. */
 export interface Convite {
@@ -38,10 +39,31 @@ export interface Convite {
   deId: string;
 }
 
+/**
+ * EFEITO DE UM JOGADOR NOUTRO — cura, bênção, escudo, ressurreição.
+ *
+ * Quem lança calcula o VALOR (é ele quem tem os atributos e o rank) e manda; quem
+ * recebe é que aplica na própria vida. Ninguém escreve na vida alheia: cada
+ * máquina continua dona do seu herói, que é o mesmo princípio do resto do co-op.
+ */
+export type TipoEfeito = "cura" | "bencao" | "escudo" | "reviver";
+export interface Efeito {
+  para: string;      // id de quem recebe (só ele reage)
+  deId: string;
+  de: string;        // nome de quem lançou (p/ o aviso na tela)
+  tipo: TipoEfeito;
+  valor: number;     // cura/vida devolvida
+  dur?: number;      // buffs: duração (ms)
+  atkMul?: number;
+  defReduc?: number;
+  skill?: string;    // id da habilidade (p/ o nome no aviso)
+}
+
 type MembrosCb = (m: Membro[]) => void;
 type ConviteCb = (c: Convite) => void;
 type AbateCb = (typeId: string) => void;
 type AvisoCb = (texto: string) => void;
+type EfeitoCb = (e: Efeito) => void;
 
 interface RTChannel {
   on(type: string, filter: unknown, cb: (p: unknown) => void): RTChannel;
@@ -77,11 +99,20 @@ class PartySession {
   private cbConvite: ConviteCb | null = null;
   private cbAbate: AbateCb | null = null;
   private cbAviso: AvisoCb | null = null;
+  private cbEfeito: EfeitoCb | null = null;
 
   onMembros(cb: MembrosCb | null): void { this.cbMembros = cb; }
   onConvite(cb: ConviteCb | null): void { this.cbConvite = cb; }
   onAbate(cb: AbateCb | null): void { this.cbAbate = cb; }
   onAviso(cb: AvisoCb | null): void { this.cbAviso = cb; }
+  onEfeito(cb: EfeitoCb | null): void { this.cbEfeito = cb; }
+
+  /** Um membro pelo id (o HUD usa p/ saber se o alvo escolhido ainda existe). */
+  membro(id: string): Membro | undefined {
+    return this.membros().find((m) => m.id === id);
+  }
+  /** Meu id dentro do grupo (vazio se estou sozinho). */
+  meuId(): string { return this.eu?.id ?? ""; }
 
   emGrupo(): boolean { return !!this.id; }
   partyId(): string { return this.id; }
@@ -152,6 +183,13 @@ class PartySession {
       const p = (msg as { payload?: { typeId?: string; id?: string } })?.payload;
       if (p?.typeId && p.id !== this.eu?.id) this.cbAbate?.(p.typeId);
     });
+    // EFEITO nominal (cura/bênção/escudo/ressurreição): igual ao convite, só o
+    // destinatário reage — o canal é de todos, mas a mensagem tem dono.
+    ch.on("broadcast", { event: "efeito" }, (msg: unknown) => {
+      const p = (msg as { payload?: Efeito })?.payload;
+      if (!p?.para || p.para !== this.eu?.id) return;
+      this.cbEfeito?.(p);
+    });
     ch.subscribe((st: string) => {
       if (st !== "SUBSCRIBED") return;
       void this.pulsar();
@@ -182,6 +220,12 @@ class PartySession {
   async abateu(typeId: string): Promise<void> {
     if (!this.id || !this.eu) return;
     await this.env("abate", { typeId, id: this.eu.id });
+  }
+
+  /** Lança um efeito de apoio num companheiro (ele é quem aplica em si). */
+  async mandarEfeito(e: Omit<Efeito, "de" | "deId">): Promise<void> {
+    if (!this.id || !this.eu) return;
+    await this.env("efeito", { ...e, de: this.eu.name, deId: this.eu.id });
   }
 
   private async pulsar(): Promise<void> {

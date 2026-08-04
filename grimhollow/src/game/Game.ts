@@ -84,7 +84,13 @@ import {
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
 import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato } from "./net";
-import { party, type Membro, type Convite } from "./party";
+import { party, type Membro, type Convite, type Efeito } from "./party";
+// TOMBADO: quanto tempo o herói fica caído esperando um companheiro (em grupo).
+// Longo o bastante p/ alguém do outro lado da sala chegar, curto o bastante p/ não
+// virar castigo quando o grupo inteiro cai.
+const TOMBADO_MS = 30000;
+// Erguer alguém leva esse tempo PARADO — resgatar no meio da briga tem de custar.
+const LEVANTAR_MS = 2600;
 import {
   PLAINS_COLS, PLAINS_ROWS, plainsCell, plainsWalkable, plainsFind, plainsAll,
 } from "./plains";
@@ -1339,6 +1345,15 @@ export class Game {
   // célula publicada por ele (a rede manda célula, não posição contínua).
   private peers = new Map<string, PeerRig>();
   private grupo: Membro[] = [];      // roster do grupo (inclui você), p/ o HUD
+  // ALVO AMIGO: o companheiro escolhido no painel do grupo. É nele que a cura, a
+  // bênção e o escudo caem — sem escolha (ou escolhendo a si mesmo), caem em você.
+  private alvoAmigo = "";
+  // TOMBADO: em grupo, a morte não manda de volta na hora — dá uma janela p/ um
+  // companheiro na mesma área levantar você. Sozinho isso nunca acontece.
+  private caido = false;
+  private caidoAte = 0;              // instante (performance.now) em que a janela fecha
+  private caidoTimer = 0;            // id do setInterval que pinta a contagem
+  private levantando = false;        // estou erguendo alguém (não pode acumular)
   private peerZone = ""; // zona em que estamos publicando (vila / dungeon:N / …)
   // ---- CO-OP · FASE 2: combate compartilhado ----
   // Um jogador da zona é o HOSPEDEIRO (o de menor id entre os presentes — eleição
@@ -1712,8 +1727,12 @@ export class Game {
     net.onConvite((c) => this.receberConvite(c));
     // painel social (botão ao lado do minimapa): convidar com um toque
     this.ui.onSocial((id) => this.convidarParaGrupo(id), () => this.sairDoGrupo());
-    party.onMembros((m) => { this.grupo = m; this.ui.setParty(m); });
+    party.onMembros((m) => { this.grupo = m; this.pintarGrupo(); });
     party.onAviso((txt) => this.ui.toast(txt));
+    // toque numa linha do grupo escolhe o ALVO AMIGO; o botão levanta um caído
+    this.ui.onParty((id) => this.escolherAlvoAmigo(id), (id) => this.levantarCompanheiro(id));
+    // apoio recebido de um companheiro (cura/bênção/escudo/ressurreição)
+    party.onEfeito((e) => this.receberEfeito(e));
     // ABATE DE UM COMPANHEIRO conta p/ a minha missão também: é o que faz caçar
     // junto valer a pena em vez de atrapalhar.
     party.onAbate((typeId) => this.creditarAbateDoGrupo(typeId));
@@ -1722,7 +1741,7 @@ export class Game {
       if (!party.emGrupo()) return;
       party.meuEstado({
         hp: Math.round(this.playerHp), maxHp: Math.round(this.playerMaxHp),
-        level: this.stats.level, zone: this.netZoneKey(),
+        level: this.stats.level, zone: this.netZoneKey(), caido: this.caido,
       });
     }, 700);
     // O bate-papo também é o lugar do GRUPO: "/convidar <nome>" chama quem está
@@ -1819,6 +1838,8 @@ export class Game {
       });
     }
     (window as unknown as { __game?: Game }).__game = this; // DEBUG: acesso p/ teste
+    // o GRUPO também: sem isso não dá p/ exercitar apoio/ressurreição fora da rede
+    (window as unknown as { __party?: typeof party }).__party = party;
   }
 
   // TRANSIÇÃO DE PORTA: fade preto rápido → constrói o novo cenário no escuro
@@ -2137,6 +2158,168 @@ export class Game {
     const falso = { typeId } as unknown as EnemyEnt;
     this.questOnKill(falso);
     this.mainQuestOnKill();
+  }
+
+  // ============ APOIO ENTRE COMPANHEIROS (cura, bênção, ressurreição) ==========
+  // O grupo só deixa de ser uma lista bonita quando um jogador consegue MEXER na
+  // situação do outro. Daqui p/ baixo é isso: escolher em quem a magia cai, mandar
+  // o efeito pela rede e levantar quem tombou.
+
+  /** Repinta o painel do grupo (roster + quem está na mira do apoio). */
+  private pintarGrupo(): void {
+    // o alvo escolhido pode ter saído do grupo ou fechado o jogo
+    if (this.alvoAmigo && !this.grupo.some((m) => m.id === this.alvoAmigo)) this.alvoAmigo = "";
+    this.ui.setParty(this.grupo, this.alvoAmigo);
+  }
+
+  /** Toque numa linha do grupo: mira nele (de novo, ou em si mesmo, desfaz). */
+  private escolherAlvoAmigo(id: string): void {
+    if (!id || id === party.meuId() || id === this.alvoAmigo) {
+      this.alvoAmigo = "";
+      this.pintarGrupo();
+      this.ui.toast("Apoio voltou para você.");
+      return;
+    }
+    this.alvoAmigo = id;
+    this.pintarGrupo();
+    const m = party.membro(id);
+    this.ui.toast(`Apoiando ${m ? m.name.split(/[ ,]/)[0] : "companheiro"}.`);
+  }
+
+  /**
+   * O companheiro mirado, SE o apoio puder chegar nele: mesmo grupo, mesma zona e
+   * de pé. Fora isso a magia cai em você — mais útil do que sumir com a mana.
+   */
+  private alvoAmigoAtivo(): Membro | null {
+    if (!this.alvoAmigo) return null;
+    const m = party.membro(this.alvoAmigo);
+    if (!m || m.id === party.meuId()) return null;
+    if (m.zone !== this.netZoneKey() || m.caido) return null;
+    return m;
+  }
+
+  /** Recebe apoio de um companheiro e aplica em MIM (cada um é dono da sua vida). */
+  private receberEfeito(e: Efeito): void {
+    const quem = e.de.split(/[ ,]/)[0];
+    if (e.tipo === "reviver") {
+      if (!this.caido) return; // chegou tarde: alguém já levantou
+      this.levantarDoTombo(Math.max(1, Math.round(e.valor)), quem);
+      return;
+    }
+    if (this.caido) return; // caído não recebe cura, recebe ressurreição
+    if (e.tipo === "cura") {
+      const antes = this.playerHp;
+      this.playerHp = Math.min(this.playerMaxHp, this.playerHp + Math.max(1, Math.round(e.valor)));
+      this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
+      this.refreshStats();
+      const curou = Math.round(this.playerHp - antes);
+      this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${curou}`, "heal");
+      this.ui.toast(`${quem} curou você em ${curou}.`);
+      this.ui.playSfx("cast");
+      return;
+    }
+    // bênção / escudo: o buff temporário que o companheiro lançou
+    this.buff = {
+      atkMul: e.atkMul ?? 1,
+      defReduc: e.defReduc ?? 0,
+      until: performance.now() + (e.dur ?? 6000),
+    };
+    this.recomputeDerived();
+    this.ui.playSfx("cast");
+    this.ui.toast(`${quem} ${e.tipo === "escudo" ? "protegeu" : "abençoou"} você.`);
+  }
+
+  // ---------------------------- TOMBAR e LEVANTAR ----------------------------
+  /** Há companheiro de pé na minha área p/ me levantar? (senão, morte normal) */
+  private temQuemMeLevante(): boolean {
+    const zona = this.netZoneKey();
+    return this.grupo.some(
+      (m) => m.id !== party.meuId() && !m.caido && m.zone === zona,
+    );
+  }
+
+  /** Tombei: fico imóvel por um tempo esperando alguém do grupo chegar. */
+  private tombar(): void {
+    this.caido = true;
+    this.caidoAte = performance.now() + TOMBADO_MS;
+    party.meuEstado({ hp: 0, caido: true });
+    this.clearTarget();
+    this.ui.playSfx("hurt");
+    if (this.caidoTimer) window.clearInterval(this.caidoTimer);
+    const pinta = () => {
+      const falta = (this.caidoAte - performance.now()) / 1000;
+      if (!this.caido) return;
+      if (falta <= 0) { this.fimDoTombo(); return; }
+      this.ui.setFallen({
+        secs: falta,
+        texto: "Um companheiro na sua área pode levantá-lo.",
+      });
+    };
+    pinta();
+    this.caidoTimer = window.setInterval(pinta, 250);
+  }
+
+  /** Alguém chegou a tempo: de pé com um fio de vida (ou com o que a magia deu). */
+  private levantarDoTombo(hp: number, quem: string): void {
+    this.caido = false;
+    if (this.caidoTimer) { window.clearInterval(this.caidoTimer); this.caidoTimer = 0; }
+    this.ui.setFallen(null);
+    this.playerHp = Math.max(1, Math.min(this.playerMaxHp, hp));
+    // um respiro p/ não morrer de novo no golpe seguinte
+    this.buff = { atkMul: 1, defReduc: 0.6, until: performance.now() + 4000 };
+    this.recomputeDerived();
+    this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
+    this.refreshStats();
+    party.meuEstado({ hp: Math.round(this.playerHp), caido: false });
+    this.ui.playSfx("cast");
+    this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, "De pé!", "heal");
+    this.ui.toast(`${quem} levantou você.`);
+  }
+
+  /** Ninguém chegou: aí sim a viagem de volta (a morte de sempre). */
+  private fimDoTombo(): void {
+    this.caido = false;
+    if (this.caidoTimer) { window.clearInterval(this.caidoTimer); this.caidoTimer = 0; }
+    this.ui.setFallen(null);
+    party.meuEstado({ caido: false });
+    this.voltarDaMorte();
+  }
+
+  /** A derrota de sempre: recompõe a vida e volta ao início da vila. */
+  private voltarDaMorte(): void {
+    this.playerHp = this.playerMaxHp;
+    this.ui.setHealth(1, this.playerHp, this.playerMaxHp);
+    this.refreshStats();
+    party.meuEstado({ hp: Math.round(this.playerHp), caido: false });
+    const s = findStart();
+    this.enterLocation("village", s.col, s.row, 0);
+  }
+
+  /**
+   * LEVANTAR um companheiro caído (botão do painel). Não custa mana e qualquer
+   * classe faz — mas leva um tempo PARADO: é o preço de resgatar alguém no meio
+   * da briga. Andar, girar ou golpear cancela.
+   */
+  private levantarCompanheiro(id: string): void {
+    const m = party.membro(id);
+    if (!m || !m.caido) { this.ui.toast("Ele já está de pé."); return; }
+    if (m.zone !== this.netZoneKey()) { this.ui.toast("Ele caiu noutro lugar."); return; }
+    if (this.caido) { this.ui.toast("Você também está caído."); return; }
+    if (this.levantando) { this.ui.toast("Já está erguendo alguém."); return; }
+    const nome = m.name.split(/[ ,]/)[0];
+    const c0 = this.col, r0 = this.row;
+    this.levantando = true;
+    this.ui.castBar(`Erguendo ${nome}…`, LEVANTAR_MS);
+    window.setTimeout(() => {
+      this.levantando = false;
+      if (this.col !== c0 || this.row !== r0) { this.ui.toast("Você se moveu — resgate interrompido."); return; }
+      const alvo = party.membro(id);
+      if (!alvo?.caido) { this.ui.toast(`${nome} já está de pé.`); return; }
+      // 35% da vida dele: levanta, mas ainda em maus lençóis
+      void party.mandarEfeito({ para: id, tipo: "reviver", valor: Math.round(alvo.maxHp * 0.35) });
+      this.ui.toast(`Você ergueu ${nome}.`);
+      this.ui.playSfx("cast");
+    }, LEVANTAR_MS);
   }
 
   // recebe a lista de quem está na zona e cria/atualiza/remove os avatares
@@ -4471,6 +4654,7 @@ export class Game {
   private useSkill(id: string) {
     const rank = this.skillRanks[id] || 0;
     if (rank <= 0) return;
+    if (this.caido) { this.ui.toast("Você está caído."); return; }
     const cb = combatFor(id);
     const now = performance.now();
     // recarga
@@ -4483,6 +4667,13 @@ export class Game {
       this.ui.toast("Mana insuficiente");
       return;
     }
+    // APOIO NO COMPANHEIRO: quem manda é o alvo escolhido no painel do grupo. Se
+    // ninguém está mirado (ou o mirado saiu/mudou de área), a magia cai em você,
+    // exatamente como antes — o sistema só ACRESCENTA destino, nunca tira.
+    const amigo = cb.aliado ? this.alvoAmigoAtivo() : null;
+    // RESSURREIÇÃO com companheiro caído por perto: é a hora dela. Sem ninguém
+    // caído continua sendo o selo de si mesmo (o comportamento de quem joga só).
+    const caidoPerto = cb.effect === "revive" ? this.caidoNaMinhaArea() : null;
     // alvo / alcance (habilidades ofensivas)
     if (cb.target === "enemy") {
       // auto-mira: se não há alvo, mira o inimigo VIVO mais próximo
@@ -4539,31 +4730,65 @@ export class Game {
       if (castMs > 0) window.setTimeout(resolve, castMs);
       else resolve();
       if (cb.melee) this.ui.swingWeapon();
-    } else if (cb.effect === "heal") {
+    } else if (cb.effect === "heal" || cb.effect === "revive") {
       // cura também escala com o atributo (INT do clérigo)
       const amt = Math.round(cb.power * (1 + 0.25 * (rank - 1)) + attrBonus(id, this.classId, this.prim));
-      const before = this.playerHp;
-      this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
-      this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
-      this.refreshStats();
-      const healed = this.playerHp - before;
-      this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${healed}`, "heal");
-      this.ui.toast(`+${amt} vida`);
+      if (cb.effect === "revive" && caidoPerto) {
+        // RESSURREIÇÃO de verdade: levanta o companheiro na hora, com vida cheia
+        // o bastante p/ ele voltar à briga em vez de tombar de novo em dois golpes.
+        void party.mandarEfeito({ para: caidoPerto.id, tipo: "reviver", valor: amt, skill: id });
+        const nome = caidoPerto.name.split(/[ ,]/)[0];
+        this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, "Ressurreição!", "heal");
+        this.ui.toast(`Você ressuscitou ${nome}.`);
+      } else if (amigo) {
+        // cura no COMPANHEIRO: ele é quem aplica na própria vida
+        void party.mandarEfeito({ para: amigo.id, tipo: "cura", valor: amt, skill: id });
+        const nome = amigo.name.split(/[ ,]/)[0];
+        this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${amt}`, "heal");
+        this.ui.toast(`+${amt} de vida em ${nome}.`);
+      } else {
+        const before = this.playerHp;
+        this.playerHp = Math.min(this.playerMaxHp, this.playerHp + amt);
+        this.ui.setHealth(this.playerHp / this.playerMaxHp, this.playerHp, this.playerMaxHp);
+        this.refreshStats();
+        const healed = this.playerHp - before;
+        this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.46, `+${healed}`, "heal");
+        this.ui.toast(`+${amt} vida`);
+      }
     } else if (cb.effect === "buff") {
-      this.buff = {
-        atkMul: cb.atkMul ?? 1,
-        defReduc: cb.defReduc ?? 0,
-        until: now + (cb.dur ?? 6000),
-      };
-      this.recomputeDerived();
-      this.ui.toast("Fortalecido!");
+      if (amigo) {
+        // bênção/escudo no COMPANHEIRO: vai o mesmo buff que cairia em mim
+        void party.mandarEfeito({
+          para: amigo.id, tipo: (cb.defReduc ?? 0) > 0 ? "escudo" : "bencao",
+          valor: 0, dur: cb.dur ?? 6000, atkMul: cb.atkMul, defReduc: cb.defReduc, skill: id,
+        });
+        this.ui.toast(`${skillName(id)} em ${amigo.name.split(/[ ,]/)[0]}.`);
+      } else {
+        this.buff = {
+          atkMul: cb.atkMul ?? 1,
+          defReduc: cb.defReduc ?? 0,
+          until: now + (cb.dur ?? 6000),
+        };
+        this.recomputeDerived();
+        this.ui.toast("Fortalecido!");
+      }
     }
-    // SELO DE REVIVER (Clérigo): em party revive um aliado; SOLO sela o próprio herói
-    // — se ele cair dentro da janela, revive uma vez com 1 de vida + escudo curto.
-    if (id === "c_intervencao" || id === "c_ressurreicao") {
+    // SELO DE REVIVER (Clérigo): sela o PRÓPRIO herói — se ele cair dentro da
+    // janela, revive uma vez com 1 de vida + escudo curto. Só vale quando a magia
+    // ficou em você: lançada num companheiro, o proveito já foi dele.
+    if ((id === "c_intervencao" || id === "c_ressurreicao") && !amigo && !caidoPerto) {
       this.reviveUntil = now + (id === "c_ressurreicao" ? 45000 : 30000);
       this.ui.toast(id === "c_ressurreicao" ? "Selo de Ressurreição!" : "Selo de Intervenção!");
     }
+  }
+
+  /** Companheiro CAÍDO na minha área (o mirado tem preferência). */
+  private caidoNaMinhaArea(): Membro | null {
+    const zona = this.netZoneKey();
+    const serve = (m: Membro) => m.caido && m.id !== party.meuId() && m.zone === zona;
+    const mirado = this.alvoAmigo ? party.membro(this.alvoAmigo) : undefined;
+    if (mirado && serve(mirado)) return mirado;
+    return this.grupo.find(serve) ?? null;
   }
 
   // ---- seleção de alvo ----
@@ -5219,14 +5444,11 @@ export class Game {
     this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.58, `-${taken}`, "player");
     if (this.playerHp <= 0) {
       this.reviveUntil = 0; // morreu de fato → o selo (se houver) já era
-      // derrota: recompõe a vida e volta ao início da vila
-      window.setTimeout(() => {
-        this.playerHp = this.playerMaxHp;
-        this.ui.setHealth(1, this.playerHp, this.playerMaxHp);
-        this.refreshStats();
-        const s = findStart();
-        this.enterLocation("village", s.col, s.row, 0);
-      }, 800);
+      // EM GRUPO, com alguém de pé na mesma área, a morte vira uma CHANCE: fico
+      // caído e o companheiro tem um tempo p/ me erguer. Sem grupo (ou sozinho na
+      // área) é a derrota de sempre — quem joga só não sente diferença nenhuma.
+      if (party.emGrupo() && this.temQuemMeLevante()) { this.tombar(); return; }
+      window.setTimeout(() => this.voltarDaMorte(), 800);
     }
   }
 
@@ -10050,6 +10272,7 @@ export class Game {
   // ------------------------------------------------------------- input
   private onAction(a: Action) {
     if (this.waking || this.introWalk) return; // travado durante o acordar / a Hedda chegar
+    if (this.caido) return; // tombado: quem levanta é o companheiro, não o botão
     // diálogo aberto: interagir avança/fecha; o resto é ignorado
     if (this.dialogue) {
       if (a === "interact") this.advanceDialogue();

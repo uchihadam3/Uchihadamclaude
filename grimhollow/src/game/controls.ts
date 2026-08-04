@@ -265,8 +265,13 @@ export interface HUD {
   setNearby(list: { id: string; name: string; classId: string; level: number }[]): void;
   /** SOCIAL: liga os botões do painel (convidar alguém / sair do grupo). */
   onSocial(convidar: (id: string) => void, sair: () => void): void;
-  /** GRUPO: lista de membros com vida (vazia = sem grupo, painel some). */
-  setParty(m: { id: string; name: string; classId: string; level: number; hp: number; maxHp: number; zone: string; lider: boolean }[]): void;
+  /** GRUPO: lista de membros com vida (vazia = sem grupo, painel some).
+   *  `alvo` é o companheiro escolhido — é nele que caem cura/bênção/escudo. */
+  setParty(m: { id: string; name: string; classId: string; level: number; hp: number; maxHp: number; zone: string; lider: boolean; caido?: boolean }[], alvo?: string): void;
+  /** GRUPO: toque numa linha escolhe o alvo amigo; o botão levanta um caído. */
+  onParty(escolher: (id: string) => void, levantar: (id: string) => void): void;
+  /** CAÍDO: véu de tombado com a contagem. `null` fecha (levantou ou já era). */
+  setFallen(info: { secs: number; texto: string } | null): void;
   // LISTA de itens na MESMA célula (estilo saque de baú): o jogador escolhe o que
   // pegar, um a um, ou pega tudo. Fecha sozinha quando a lista esvazia.
   showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void): void;
@@ -1271,6 +1276,8 @@ export function setupControls(
   partyBox.id = "gh-party";
   partyBox.style.display = "none";
   root.appendChild(partyBox);
+  let cbEscolher: (id: string) => void = () => {};
+  let cbLevantar: (id: string) => void = () => {};
   // cor de cada classe — usada no retrato do grupo e na lista de "por perto".
   // Mesma família de tons do resto da interface (nada saturado demais).
   const CLASSE_COR: Record<string, string> = {
@@ -1283,10 +1290,27 @@ export function setupControls(
        painel pertencer ao jogo em vez de parecer um HUD colado por cima. */
     #gh-party{position:absolute;left:10px;top:126px;z-index:26;display:flex;
       flex-direction:column;gap:6px;pointer-events:none;font-family:"Trebuchet MS",sans-serif;}
+    /* a linha é CLICÁVEL: é assim que se escolhe em quem a cura vai cair */
     .gh-pt-row{position:relative;width:198px;box-sizing:border-box;
       border:16px solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
-      filter:drop-shadow(0 3px 9px rgba(0,0,0,.6));
+      filter:drop-shadow(0 3px 9px rgba(0,0,0,.6));pointer-events:auto;cursor:pointer;
       padding:1px 2px 2px;display:flex;align-items:center;gap:7px;}
+    .gh-pt-row:hover .gh-pt-nome{color:#fff;}
+    /* ALVO AMIGO escolhido: brasão dourado à esquerda + realce discreto */
+    .gh-pt-row.gh-pt-alvo{filter:drop-shadow(0 0 7px rgba(244,200,71,.5)) drop-shadow(0 3px 9px rgba(0,0,0,.6));}
+    .gh-pt-row.gh-pt-alvo .gh-pt-face{border-color:#f4c847;
+      box-shadow:inset 0 -3px 6px rgba(0,0,0,.35),0 0 8px rgba(244,200,71,.75);}
+    /* CAÍDO: a linha esmorece e o retrato vira uma caveira — dá p/ ver de longe */
+    .gh-pt-row.gh-pt-caido .gh-pt-face{background:#3b322a !important;color:#c9bda6;}
+    .gh-pt-row.gh-pt-caido .gh-pt-nome{color:#a08e78;}
+    .gh-pt-lev{flex:none;cursor:pointer;font-family:"Cinzel",serif;font-size:10px;
+      letter-spacing:.04em;color:#f0dca2;padding:4px 7px;border-radius:5px;
+      background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.6);
+      box-shadow:0 1px 3px rgba(0,0,0,.5);animation:ghLevPulso 1.6s ease-in-out infinite;}
+    .gh-pt-lev:hover{color:#fff;border-color:#f4c847;}
+    .gh-pt-lev:active{transform:scale(.94);}
+    @keyframes ghLevPulso{0%,100%{box-shadow:0 1px 3px rgba(0,0,0,.5);}
+      50%{box-shadow:0 1px 3px rgba(0,0,0,.5),0 0 9px rgba(244,200,71,.6);}}
     /* RETRATO: disco com a inicial, tingido pela CLASSE — dá p/ bater o olho e
        saber quem é quem sem ler o nome. */
     .gh-pt-face{flex:none;width:30px;height:30px;border-radius:50%;
@@ -1306,12 +1330,39 @@ export function setupControls(
     .gh-pt-hp{position:absolute;inset:0;display:flex;align-items:center;
       justify-content:center;font-size:8px;color:#f2e6c8;font-weight:400;
       text-shadow:0 1px 2px #000;letter-spacing:.03em;}
-    /* quem está noutra zona fica esmaecido — é informação, não decoração */
+    /* quem está noutra zona fica esmaecido — é informação, não decoração.
+       O "noutro lugar" entra no LUGAR do nível (era uma etiqueta solta no canto e
+       ela batia no nível, deixando as duas ilegíveis). */
     .gh-pt-row.gh-pt-longe{opacity:.55;}
-    .gh-pt-longe-tag{position:absolute;right:14px;top:3px;font-size:8px;
-      color:#9c8c6e;letter-spacing:.06em;}
   `;
   root.appendChild(partyCss);
+
+  // ---- VÉU DE TOMBADO ----
+  // Em grupo, morrer deixa de ser "volta pro começo" e vira uma CHANCE: você fica
+  // caído, sem se mexer, e um companheiro na mesma área pode te levantar. Se
+  // ninguém chegar a tempo, aí sim a viagem de volta. Sozinho nada disso aparece.
+  const fallen = document.createElement("div");
+  fallen.id = "gh-fallen";
+  fallen.style.display = "none";
+  root.appendChild(fallen);
+  const fallenCss = document.createElement("style");
+  fallenCss.textContent = `
+    #gh-fallen{position:fixed;inset:0;z-index:60;pointer-events:none;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:10px;text-align:center;font-family:"Cinzel",serif;
+      background:radial-gradient(ellipse at center,rgba(24,8,8,.30),rgba(6,3,3,.86));
+      backdrop-filter:saturate(.25) contrast(.85);
+      -webkit-backdrop-filter:saturate(.25) contrast(.85);
+      animation:ghCaiuEntra .5s ease-out;}
+    @keyframes ghCaiuEntra{from{opacity:0;}to{opacity:1;}}
+    #gh-fallen .gh-fa-tit{font-size:clamp(26px,6vw,46px);letter-spacing:.16em;
+      color:#c14a3c;text-shadow:0 2px 10px #000,0 0 26px rgba(193,74,60,.45);}
+    #gh-fallen .gh-fa-sub{font-family:"Trebuchet MS",sans-serif;font-size:13px;
+      color:#c8b391;letter-spacing:.04em;text-shadow:0 1px 3px #000;max-width:74vw;}
+    #gh-fallen .gh-fa-rel{font-size:clamp(30px,8vw,54px);color:#e7d3a4;
+      text-shadow:0 2px 8px #000;letter-spacing:.06em;}
+  `;
+  root.appendChild(fallenCss);
 
   // ---- PAINEL SOCIAL: botão ao lado do minimapa + janela "quem está por perto"
   // No celular, digitar "/convidar Fulano" é penoso: abre teclado, cobre a tela e
@@ -2918,7 +2969,15 @@ export function setupControls(
       if (socialBox.style.display !== "none") pintaSocial();
     },
     onSocial(convidar, sair) { cbConvidar = convidar; cbSair = sair; },
-    setParty(m) {
+    onParty(escolher, levantar) { cbEscolher = escolher; cbLevantar = levantar; },
+    setFallen(info) {
+      if (!info) { fallen.style.display = "none"; return; }
+      fallen.style.display = "flex";
+      fallen.innerHTML = `<div class="gh-fa-tit">VOCÊ TOMBOU</div>
+        <div class="gh-fa-rel">${Math.max(0, Math.ceil(info.secs))}</div>
+        <div class="gh-fa-sub">${info.texto}</div>`;
+    },
+    setParty(m, alvo) {
       // painel do GRUPO: retrato, nome, nível e barra de vida COM NÚMEROS. Some
       // sozinho quando não há grupo — jogando só, nada muda na tela.
       if (!m.length) { partyBox.style.display = "none"; partyBox.innerHTML = ""; return; }
@@ -2932,17 +2991,32 @@ export function setupControls(
               : "linear-gradient(#d4664c,#9c3d2a)";
           const longe = x.zone !== minhaZona;
           const nome = x.name.split(/[ ,]/)[0];
-          return `<div class="gh-pt-row${longe ? " gh-pt-longe" : ""}">
-            <div class="gh-pt-face" style="background:${CLASSE_COR[x.classId] ?? "#9a8f7e"}">${nome[0] ?? "?"}</div>
+          // levantar s\u00f3 faz sentido em quem est\u00e1 CA\u00cdDO, na MINHA \u00e1rea, e que n\u00e3o
+          // seja eu (quem caiu n\u00e3o se levanta sozinho \u2014 \u00e9 essa a gra\u00e7a).
+          const podeLevantar = !!x.caido && !longe && x.id !== m[0]?.id;
+          const cls = [longe ? "gh-pt-longe" : "", x.caido ? "gh-pt-caido" : "",
+            alvo && alvo === x.id ? "gh-pt-alvo" : ""].filter(Boolean).join(" ");
+          return `<div class="gh-pt-row${cls ? " " + cls : ""}" data-id="${x.id}">
+            <div class="gh-pt-face" style="background:${CLASSE_COR[x.classId] ?? "#9a8f7e"}">${x.caido ? "\u2620" : (nome[0] ?? "?")}</div>
             <div class="gh-pt-dados">
-              <div class="gh-pt-nome">${x.lider ? "\u2605 " : ""}${nome}<span>nv ${x.level}</span></div>
+              <div class="gh-pt-nome">${x.lider ? "\u2605 " : ""}${nome}<span>${
+                x.caido ? "ca\u00eddo" : longe ? "noutro lugar" : `nv ${x.level}`}</span></div>
               <div class="gh-pt-bar"><i style="width:${(frac * 100).toFixed(0)}%;background:${cor}"></i>
                 <b class="gh-pt-hp">${Math.max(0, Math.round(x.hp))} / ${Math.round(x.maxHp)}</b></div>
             </div>
-            ${longe ? '<span class="gh-pt-longe-tag">noutro lugar</span>' : ""}
+            ${podeLevantar ? `<button class="gh-pt-lev" data-lev="${x.id}">Levantar</button>` : ""}
           </div>`;
         })
         .join("");
+      // toque na LINHA escolhe o alvo amigo; o bot\u00e3o "Levantar" n\u00e3o conta como
+      // mira (sen\u00e3o levantar algu\u00e9m trocaria o alvo sem querer).
+      partyBox.querySelectorAll<HTMLElement>(".gh-pt-row").forEach((row) =>
+        row.addEventListener("click", () => cbEscolher(row.dataset.id || "")));
+      partyBox.querySelectorAll<HTMLButtonElement>(".gh-pt-lev").forEach((b2) =>
+        b2.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          cbLevantar(b2.dataset.lev || "");
+        }));
     },
     showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void) {
       showPickupList(entries, onTake, onTakeAll);
