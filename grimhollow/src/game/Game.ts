@@ -1747,7 +1747,7 @@ export class Game {
     // O bate-papo também é o lugar do GRUPO: "/convidar <nome>" chama quem está
     // por perto e "/sair" deixa o grupo. Comando de texto porque é o gesto que já
     // existe — não exige um menu novo e funciona igual no celular.
-    this.ui.setChat((t) => {
+    this.ui.setChat((t, canal) => {
       const cmd = t.trim().toLowerCase();
       if (cmd === "/sair" || cmd === "/grupo sair") { this.sairDoGrupo(); return; }
       if (cmd.startsWith("/convidar")) {
@@ -1759,8 +1759,16 @@ export class Game {
         this.convidarParaGrupo(achado[0]);
         return;
       }
+      // CANAL DO GRUPO: a fala vai só p/ quem está no grupo, e chega mesmo se um
+      // deles já desceu p/ outro andar — o canal do grupo não é o da zona.
+      if (canal === "grupo") {
+        if (!party.emGrupo()) { this.ui.toast("Você não está num grupo."); return; }
+        void party.falar(t);
+        return;
+      }
       void net.chat(t);
     });
+    party.onFala((de, txt, meu) => this.ui.chatMessage(de, txt, meu, "grupo"));
     // indicador AO VIVO de quem está por perto. Jogando sozinho ele some; os
     // contadores de rede ficam só no __coop(), p/ não poluir a tela do jogador.
     window.setInterval(() => {

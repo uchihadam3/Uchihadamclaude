@@ -64,6 +64,8 @@ type ConviteCb = (c: Convite) => void;
 type AbateCb = (typeId: string) => void;
 type AvisoCb = (texto: string) => void;
 type EfeitoCb = (e: Efeito) => void;
+/** Fala no bate-papo DO GRUPO. `meu` = eco local de quem escreveu. */
+type FalaCb = (de: string, texto: string, meu: boolean) => void;
 
 interface RTChannel {
   on(type: string, filter: unknown, cb: (p: unknown) => void): RTChannel;
@@ -100,12 +102,14 @@ class PartySession {
   private cbAbate: AbateCb | null = null;
   private cbAviso: AvisoCb | null = null;
   private cbEfeito: EfeitoCb | null = null;
+  private cbFala: FalaCb | null = null;
 
   onMembros(cb: MembrosCb | null): void { this.cbMembros = cb; }
   onConvite(cb: ConviteCb | null): void { this.cbConvite = cb; }
   onAbate(cb: AbateCb | null): void { this.cbAbate = cb; }
   onAviso(cb: AvisoCb | null): void { this.cbAviso = cb; }
   onEfeito(cb: EfeitoCb | null): void { this.cbEfeito = cb; }
+  onFala(cb: FalaCb | null): void { this.cbFala = cb; }
 
   /** Um membro pelo id (o HUD usa p/ saber se o alvo escolhido ainda existe). */
   membro(id: string): Membro | undefined {
@@ -190,6 +194,13 @@ class PartySession {
       if (!p?.para || p.para !== this.eu?.id) return;
       this.cbEfeito?.(p);
     });
+    // BATE-PAPO DO GRUPO: chega em todo mundo do canal, e só neles — é o que o
+    // separa do bate-papo da zona, que qualquer um por perto lê.
+    ch.on("broadcast", { event: "fala" }, (msg: unknown) => {
+      const p = (msg as { payload?: { de?: string; texto?: string; id?: string } })?.payload;
+      if (!p?.texto || p.id === this.eu?.id) return;
+      this.cbFala?.(p.de || "Viajante", p.texto, false);
+    });
     ch.subscribe((st: string) => {
       if (st !== "SUBSCRIBED") return;
       void this.pulsar();
@@ -220,6 +231,15 @@ class PartySession {
   async abateu(typeId: string): Promise<void> {
     if (!this.id || !this.eu) return;
     await this.env("abate", { typeId, id: this.eu.id });
+  }
+
+  /** Fala no canal do grupo (aparece na hora p/ quem escreveu, como no da zona). */
+  async falar(texto: string): Promise<boolean> {
+    const t = texto.trim().slice(0, 140);
+    if (!t || !this.id || !this.eu) return false;
+    this.cbFala?.(this.eu.name, t, true);
+    await this.env("fala", { id: this.eu.id, de: this.eu.name, texto: t });
+    return true;
   }
 
   /** Lança um efeito de apoio num companheiro (ele é quem aplica em si). */

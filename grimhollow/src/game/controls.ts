@@ -240,6 +240,9 @@ export interface DialogueChoice {
   kind?: "quest" | "shop" | "exit" | "back";  // estilo do botão
 }
 
+/** Para quem a fala vai: todos na ÁREA, ou só o GRUPO. */
+export type ChatCanal = "zona" | "grupo";
+
 export interface HUD {
   setPrompt(text: string | null): void;
   showDialogue(name: string, text: string, portrait?: string | null, choices?: DialogueChoice[]): void;
@@ -257,9 +260,10 @@ export interface HUD {
   setEquip(data: EquipUIData): void;
   // DROP no chão: abre o popup do item (centralizado) com o botão "Pegar"
   showPickup(tip: ItemTip, onTake: () => void): void;
-  // BATE-PAPO do co-op: registra quem envia, mostra mensagens e o estado da conexão
-  setChat(onSend: (text: string) => void): void;
-  chatMessage(name: string, text: string, mine: boolean): void;
+  // BATE-PAPO do co-op: registra quem envia, mostra mensagens e o estado da conexão.
+  // `canal` diz se a fala é da ÁREA (todos por perto) ou só do GRUPO.
+  setChat(onSend: (text: string, canal: ChatCanal) => void): void;
+  chatMessage(name: string, text: string, mine: boolean, canal?: ChatCanal): void;
   coopStatus(txt: string): void;
   /** SOCIAL: quem está na área agora (alimenta o painel de procurar grupo). */
   setNearby(list: { id: string; name: string; classId: string; level: number }[]): void;
@@ -1260,6 +1264,9 @@ export function setupControls(
     '<div id="gh-chat-status" title="zona · vizinhos · mensagens enviadas/recebidas"></div>' +
     '<div id="gh-chat-log"></div>' +
     '<div id="gh-chat-bar">' +
+      // seletor de canal: um toque troca entre "Área" e "Grupo". Só aparece quando
+      // há grupo — sozinho não faz sentido escolher p/ quem falar.
+      '<button id="gh-chat-canal" title="Trocar canal">Área</button>' +
       '<input id="gh-chat-inp" type="text" maxlength="140" placeholder="Falar com quem está por perto…" />' +
       '<button id="gh-chat-send">Enviar</button>' +
     "</div>" +
@@ -1269,6 +1276,8 @@ export function setupControls(
   const chatInp = chat.querySelector("#gh-chat-inp") as HTMLInputElement;
   const chatBar = chat.querySelector("#gh-chat-bar") as HTMLElement;
   const chatStatus = chat.querySelector("#gh-chat-status") as HTMLElement;
+  const chatCanal = chat.querySelector("#gh-chat-canal") as HTMLButtonElement;
+  chatCanal.style.display = "none"; // sem grupo, não há o que escolher
 
   // ---- PAINEL DO GRUPO (party) — canto esquerdo, sob a barra de vida ----
   // Só aparece quando há grupo: quem joga sozinho não perde um pixel de tela.
@@ -1278,6 +1287,15 @@ export function setupControls(
   root.appendChild(partyBox);
   let cbEscolher: (id: string) => void = () => {};
   let cbLevantar: (id: string) => void = () => {};
+  // O painel do grupo cresce p/ baixo e ia parar em cima do bate-papo (que mora
+  // logo abaixo). Em vez de chutar uma altura fixa — o painel tem 1 a 5 linhas —,
+  // mede o que foi desenhado e empurra o bate-papo p/ debaixo dele.
+  const empurraChat = () => {
+    requestAnimationFrame(() => {
+      const r = partyBox.getBoundingClientRect();
+      chat.style.top = `${Math.round(r.bottom) + 10}px`;
+    });
+  };
   // cor de cada classe — usada no retrato do grupo e na lista de "por perto".
   // Mesma família de tons do resto da interface (nada saturado demais).
   const CLASSE_COR: Record<string, string> = {
@@ -1458,7 +1476,23 @@ export function setupControls(
     .gh-so-vazio small{color:#7d7057;font-size:10px;}
   `;
   root.appendChild(socialCss);
-  let chatSend: ((t: string) => void) | null = null;
+  let chatSend: ((t: string, canal: ChatCanal) => void) | null = null;
+  // canal em que estou escrevendo. "grupo" só existe enquanto há grupo — ao sair
+  // dele o seletor some e a fala volta p/ a área (senão dá p/ escrever no vazio).
+  let canal: ChatCanal = "zona";
+  const pintaCanal = () => {
+    chatCanal.textContent = canal === "grupo" ? "Grupo" : "Área";
+    chatCanal.classList.toggle("gh-chat-cgrupo", canal === "grupo");
+    chatInp.placeholder = canal === "grupo"
+      ? "Falar só com o grupo…" : "Falar com quem está por perto…";
+  };
+  chatCanal.addEventListener("click", (e) => {
+    e.preventDefault();
+    canal = canal === "grupo" ? "zona" : "grupo";
+    pintaCanal();
+    chatInp.focus();
+  });
+  pintaCanal();
   const chatOpen = (on: boolean) => {
     chatBar.classList.toggle("gh-chat-on", on);
     if (on) chatInp.focus(); else chatInp.blur();
@@ -1469,7 +1503,10 @@ export function setupControls(
   const enviar = () => {
     const t = chatInp.value.trim();
     chatInp.value = "";
-    if (t) chatSend?.(t);
+    if (!t) return;
+    // "/g mensagem" fala com o grupo sem trocar de canal — atalho de quem digita
+    if (/^\/g\s+/i.test(t)) { chatSend?.(t.replace(/^\/g\s+/i, ""), "grupo"); return; }
+    chatSend?.(t, canal);
   };
   (chat.querySelector("#gh-chat-send") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); enviar(); });
   // o teclado não pode mover o herói enquanto digita
@@ -1478,11 +1515,14 @@ export function setupControls(
     if (e.key === "Enter") { enviar(); }
     if (e.key === "Escape") chatOpen(false);
   });
-  const pushChat = (name: string, text: string, mine: boolean) => {
+  const pushChat = (name: string, text: string, mine: boolean, cn: ChatCanal = "zona") => {
     const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
     const row = document.createElement("div");
-    row.className = "gh-chat-row" + (mine ? " gh-chat-mine" : "");
-    row.innerHTML = `<b>${esc(name)}:</b> ${esc(text)}`;
+    row.className = "gh-chat-row" + (mine ? " gh-chat-mine" : "")
+      + (cn === "grupo" ? " gh-chat-grupo" : "");
+    // a fala do grupo vem marcada: no meio do falatório da área, é o que faz saber
+    // de cara que aquilo era só p/ vocês.
+    row.innerHTML = `${cn === "grupo" ? '<i class="gh-chat-tag">[grupo]</i> ' : ""}<b>${esc(name)}:</b> ${esc(text)}`;
     chatLog.appendChild(row);
     while (chatLog.childElementCount > 6) chatLog.removeChild(chatLog.firstChild!);
     chatLog.scrollTop = chatLog.scrollHeight;
@@ -2958,8 +2998,8 @@ export function setupControls(
       }
     },
     showPickup(tip: ItemTip, onTake: () => void) { showPickup(tip, onTake); },
-    setChat(onSend: (text: string) => void) { chatSend = onSend; },
-    chatMessage(name: string, text: string, mine: boolean) { pushChat(name, text, mine); },
+    setChat(onSend: (text: string, cn: ChatCanal) => void) { chatSend = onSend; },
+    chatMessage(name: string, text: string, mine: boolean, cn: ChatCanal = "zona") { pushChat(name, text, mine, cn); },
     coopStatus(txt: string) { chatStatus.textContent = txt; },
     setNearby(list) {
       nearby = list;
@@ -2980,7 +3020,15 @@ export function setupControls(
     setParty(m, alvo) {
       // painel do GRUPO: retrato, nome, nível e barra de vida COM NÚMEROS. Some
       // sozinho quando não há grupo — jogando só, nada muda na tela.
-      if (!m.length) { partyBox.style.display = "none"; partyBox.innerHTML = ""; return; }
+      // O seletor de canal do bate-papo acompanha: sem grupo ele some e a fala
+      // volta p/ a área, p/ ninguém ficar escrevendo p/ um grupo que não existe.
+      chatCanal.style.display = m.length ? "" : "none";
+      if (!m.length && canal === "grupo") { canal = "zona"; pintaCanal(); }
+      if (!m.length) {
+        partyBox.style.display = "none"; partyBox.innerHTML = "";
+        chat.style.top = ""; // sem grupo o bate-papo volta p/ o lugar de sempre
+        return;
+      }
       partyBox.style.display = "flex";
       const minhaZona = m[0]?.zone;
       partyBox.innerHTML = m
@@ -3017,6 +3065,7 @@ export function setupControls(
           ev.stopPropagation();
           cbLevantar(b2.dataset.lev || "");
         }));
+      empurraChat();
     },
     showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void) {
       showPickupList(entries, onTake, onTakeAll);
@@ -4428,6 +4477,16 @@ function injectStyle() {
   .gh-chat-row b { color:#f0d074; }
   .gh-chat-mine b { color:#8fd0e8; }
   .gh-chat-row.gh-chat-fade { opacity:.28; }
+  /* FALA DO GRUPO: filete verde e etiqueta — distingue do falatório da área sem
+     precisar de uma segunda janela na tela. */
+  .gh-chat-row.gh-chat-grupo { border-left-color:#7fbf72; }
+  .gh-chat-tag { color:#8fcf82; font-style:normal; font-size:10.5px; letter-spacing:.03em; }
+  #gh-chat-canal {
+    flex:none; padding:7px 8px; border-radius:5px; cursor:pointer; font-size:11.5px;
+    font-family:"Cinzel",serif; color:#e9dcc0; letter-spacing:.03em;
+    background:rgba(28,22,15,.95); border:1px solid rgba(201,162,74,.5);
+  }
+  #gh-chat-canal.gh-chat-cgrupo { color:#bfe6b4; border-color:rgba(127,191,114,.7); }
   #gh-chat-bar { display:none; gap:5px; pointer-events:auto; }
   #gh-chat-bar.gh-chat-on { display:flex; }
   #gh-chat-inp {
