@@ -913,7 +913,9 @@ function update(dt){
   // rastro: só quando corre no chão ou voa rápido (não parado)
   if(!blob.gone && (Math.abs(blob.vx)>170 || (!blob.onGround && Math.abs(blob.vy)>360))) pushTrail();
   if(shake>0) shake=Math.max(0,shake-dt*24);
-  const now=performance.now(); for(const g of globs)if(!g.solid&&now>=g.solidAt)g.solid=true;
+  // um pedaço só vira SÓLIDO quando não está sobreposto ao jogador — senão a colisão
+  // "ejetaria" o blob pra cima (teletransporte de ~1 geleca). Espera o blob sair de cima.
+  const now=performance.now(); for(const g of globs)if(!g.solid&&now>=g.solidAt&&!overlaps(blob,g))g.solid=true;
 
   for(let i=pickups.length-1;i>=0;i--){ const p=pickups[i];
     if(overlaps(blob,{x:p.x-p.r,y:p.y-p.r,w:p.r*2,h:p.r*2})){
@@ -1820,6 +1822,8 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get onIce(){ return !!(blob&&blob.onIcePrev); }, get iceCount(){ return iceTiles?iceTiles.length:0; },
   get tramps(){ return tramp?tramp.length:0; }, get trampGlobs(){ return globs?globs.filter(g=>g.tramp).length:0; },
   addGlob(wx,wy){ globs.push({x:wx,y:wy,w:GLOB,h:GLOB,solid:true,solidAt:0,wall:0,tramp:false}); },
+  addFormingGlob(wx,wy){ globs.push({x:wx,y:wy,w:GLOB,h:GLOB,solid:false,solidAt:performance.now()+120,born:performance.now(),wall:0,tramp:false}); },
+  get solidGlobs(){ return globs?globs.filter(g=>g.solid).length:0; },
   blobPos(){ return blob?{x:Math.round(blob.x),y:Math.round(blob.y)}:null; },
   spikePos(){ const s=spikes&&spikes[0]; return s?{x:s.x,y:s.y}:null; },
   warp(wx,wy){ if(blob){ blob.x=wx; blob.y=wy; blob.vx=0; blob.vy=0; camFollow(true); } },
