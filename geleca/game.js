@@ -1623,7 +1623,10 @@ function confetti(x,y,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28, s=14
 function updateParticles(dt){ for(let i=particles.length-1;i>=0;i--){ const p=particles[i];
   p.vy+=620*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt; if(p.life<=0)particles.splice(i,1); } }
 
-let actx=null;
+let actx=null, master=null;
+// barramento MESTRE: TODO o áudio (música + efeitos) passa por aqui, então o mudo silencia tudo
+function ensureMaster(a){ if(!master && a){ master=a.createGain(); master.gain.value = musicOn?1:0; master.connect(a.destination); } return master; }
+function busOut(a){ return master || a.destination; }
 // ---- amostras de áudio (arquivos .mp3): pulo e impacto de slime ----
 const SFXBUF={}, SFXSRC={jump:"sfx-jump.mp3", impact:"sfx-impact.mp3"};
 let sfxLoaded=false;
@@ -1633,13 +1636,13 @@ function loadSamples(a){ if(sfxLoaded||!a)return; sfxLoaded=true;
     .then(dec=>{ SFXBUF[k]=dec; }).catch(e=>{}); } }
 function sample(name, vol){ const a=actx; if(!a||!SFXBUF[name])return false;
   try{ const s=a.createBufferSource(); s.buffer=SFXBUF[name];
-    const g=a.createGain(); g.gain.value=vol==null?0.7:vol; s.connect(g); g.connect(a.destination); s.start();
+    const g=a.createGain(); g.gain.value=vol==null?0.7:vol; s.connect(g); g.connect(busOut(a)); s.start();
     return true; }catch(e){ return false; } }
 function audio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
-  if(actx&&actx.state==="suspended")actx.resume(); if(actx)loadSamples(actx); return actx; }
-function beep(a,f,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(a.destination);
+  if(actx){ if(actx.state==="suspended")actx.resume(); ensureMaster(actx); loadSamples(actx); } return actx; }
+function beep(a,f,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(busOut(a));
   o.type=ty||"triangle"; o.frequency.setValueAtTime(f,t); g.gain.setValueAtTime(v||0.06,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t);o.stop(t+d+0.02); }
-function slideT(a,f0,f1,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(a.destination);
+function slideT(a,f0,f1,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(busOut(a));
   o.type=ty||"square"; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+d);
   g.gain.setValueAtTime(v||0.06,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t);o.stop(t+d+0.02); }
 function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
@@ -1647,14 +1650,14 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
   if(type==="jump"){ if(sample("jump",0.55))return; }
   if(type==="impact"){ if(sample("impact",0.8))return; slideT(a,180,50,t,0.5,"sawtooth",0.07); return; }
   switch(type){ case"jump":slideT(a,520,300,t,0.12,"square",0.05);break;
-    case"absorb":slideT(a,300,640,t,0.14,"sine",0.06);break;
-    case"pickup":slideT(a,680,940,t,0.12,"triangle",0.06);break;
+    case"absorb":slideT(a,300,660,t,0.16,"sine",0.06); beep(a,1180,t+0.09,0.08,"sine",0.03);break;   // sugada gosmenta + brilho
+    case"pickup":beep(a,720,t,0.09,"sine",0.06); beep(a,1040,t+0.05,0.10,"sine",0.05);break;          // "blup" macio de bolha
     case"melt":slideT(a,220,150,t,0.10,"sawtooth",0.035);break;
-    case"nope":slideT(a,170,120,t,0.10,"square",0.04);break;
+    case"nope":slideT(a,190,120,t,0.11,"triangle",0.045);break;                                       // recusa mais suave
     case"die":slideT(a,220,60,t,0.40,"sawtooth",0.06);break;
-    case"spring":slideT(a,300,900,t,0.16,"sine",0.06);break;
+    case"spring":slideT(a,320,1000,t,0.18,"sine",0.06); beep(a,1320,t+0.11,0.08,"sine",0.03);break;    // boing + ping
     case"gem":[880,1180,1560].forEach((f,i)=>beep(a,f,t+i*0.06,0.09,"sine",0.05));break;
-    case"star":[988,1319].forEach((f,i)=>beep(a,f,t+i*0.05,0.09,"triangle",0.055));break;
+    case"star":[988,1319,1760].forEach((f,i)=>beep(a,f,t+i*0.05,0.10,"triangle",0.05));break;          // faísca de 3 notas
     case"secret":[523,659,880,1319].forEach((f,i)=>beep(a,f,t+i*0.10,0.16,"sine",0.055));break;   // acorde misterioso
     case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break;
     case"boss":[110,98,82].forEach((f,i)=>slideT(a,f,f*0.6,t+i*0.13,0.5,"sawtooth",0.05));break;   // rugido grave
@@ -1677,12 +1680,12 @@ const MUSIC={
 function startMusic(themeName){
   const a=audio(); if(!a) return; stopMusic();
   const cfg=MUSIC[themeName]||MUSIC.grove;
-  const g=a.createGain(); g.gain.value = musicOn?0.06:0.0;
-  const lp=a.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1700; lp.Q.value=0.6;  // calor
-  g.connect(lp); lp.connect(a.destination);
+  const g=a.createGain(); g.gain.value = 0.06;                 // mudo é controlado pelo barramento MESTRE
+  const lp=a.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1750; lp.Q.value=0.6;  // calor
+  g.connect(lp); lp.connect(busOut(a));
   const oscs=[];
-  // PAD: acorde suave (tônica + quinta + oitava)
-  [[1,0.30,"sine"],[1.5,0.16,"sine"],[2,0.10,"triangle"]].forEach(([mul,vol,ty])=>{
+  // PAD: sub-oitava quente + tônica + quinta + oitava + brilho leve
+  [[0.5,0.12,"sine"],[1,0.28,"sine"],[1.5,0.15,"sine"],[2,0.10,"triangle"],[3,0.045,"sine"]].forEach(([mul,vol,ty])=>{
     const o=a.createOscillator(), pg=a.createGain(); o.type=ty; o.frequency.value=cfg.root*mul; pg.gain.value=vol;
     o.connect(pg); pg.connect(g); o.start(); oscs.push(o); });
   const scale=cfg.scale, pat=cfg.pat||[0,2,4,2], barMs=cfg.tempo*4/1000;
@@ -1699,7 +1702,15 @@ function startMusic(themeName){
     const f=cfg.root*oct*Math.pow(2,semi/12);
     const o=actx.createOscillator(), ng=actx.createGain(); o.type=cfg.wave; o.frequency.value=f;
     ng.gain.setValueAtTime(0.0001,t); ng.gain.exponentialRampToValueAtTime(0.16,t+0.04); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
-    o.connect(ng); ng.connect(g); o.start(t); o.stop(t+0.55); step++;
+    o.connect(ng); ng.connect(g); o.start(t); o.stop(t+0.55);
+    if(step%2===1){                                                    // FAÍSCA: brilho alto e suave nas contratempos
+      const ssemi=scale[pat[(step+2)%pat.length]%scale.length];
+      const sf=cfg.root*4*Math.pow(2,ssemi/12);
+      const so=actx.createOscillator(), sg=actx.createGain(); so.type="sine"; so.frequency.value=sf;
+      sg.gain.setValueAtTime(0.0001,t); sg.gain.exponentialRampToValueAtTime(0.04,t+0.02); sg.gain.exponentialRampToValueAtTime(0.0001,t+0.28);
+      so.connect(sg); sg.connect(g); so.start(t); so.stop(t+0.3);
+    }
+    step++;
   }, cfg.tempo);
   mus={g, lp, oscs, timer};
 }
@@ -1707,7 +1718,8 @@ function stopMusic(){ if(!mus)return; clearInterval(mus.timer);
   mus.oscs.forEach(o=>{ try{o.stop();}catch(e){} }); try{mus.g.disconnect();}catch(e){} try{mus.lp&&mus.lp.disconnect();}catch(e){}
   mus=null; }
 function toggleMute(){ musicOn=!musicOn; try{localStorage.setItem("geleca_music",musicOn?"1":"0");}catch(e){}
-  if(mus) mus.g.gain.value = musicOn?0.05:0.0;
+  // o MESTRE silencia TUDO (música + efeitos), com fade curtinho pra não estalar
+  if(master && actx){ const t=actx.currentTime; master.gain.cancelScheduledValues(t); master.gain.setTargetAtTime(musicOn?1:0, t, 0.02); }
   const btn=el("btn-mute"); if(btn) btn.textContent=musicOn?"🔊":"🔇";
   if(musicOn && !mus && state==="play" && level) startMusic(level.theme); }
 
@@ -1809,6 +1821,7 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   warp(wx,wy){ if(blob){ blob.x=wx; blob.y=wy; blob.vx=0; blob.vy=0; camFollow(true); } },
   get sfxReady(){ return Object.keys(SFXBUF).length; }, kick(){ audio(); },
   get hitStop(){ return Math.round(hitStop*1000); }, get camLook(){ return Math.round(cam.look); },
+  get masterGain(){ return master?Math.round(master.gain.value*100):-1; }, get padVoices(){ return mus?mus.oscs.length:0; },
   lastFall(){ return blob?{d:blob._lastFall,vy:blob._lastVy,apex:Math.round(blob.apexY),y:Math.round(blob.y)}:null; },
   possessAt(cx,cy){ return tryPossess(cx,cy); }, _possess(wx,wy){ return possessWorld(wx,wy); },
   get camSafe(){ return Math.round(camSafeBottom); }, blobScreenBottom(){ return blob?Math.round((blob.y+blob.h-cam.y)*zoom):0; },
