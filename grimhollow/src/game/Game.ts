@@ -9253,31 +9253,10 @@ export class Game {
     const cloth = new THREE.MeshLambertMaterial({ color: 0x6d4530 });
     const linen = new THREE.MeshLambertMaterial({ color: 0xcbb489 });
 
-    // lareira acesa (parede oeste, célula 1,3) — coração da casa
-    this.wallCell(1, 3, [-1, 0], (x, z) => this.buildHearth(x, z));
-    // MÓVEIS DO MEIO DA SALA REMOVIDOS. A mesa ocupava a célula central e, num
-    // cômodo de 5x5, isso transformava andar dentro de casa num quebra-cabeça:
-    // você entrava e já batia nela. Sobra só o que fica ENCOSTADO NA PAREDE
-    // (lareira, camas, prateleira) e não tira célula de ninguém.
-    void woodDk; void linen; void cloth; void stone;
-    // camas (parede leste)
-    const beds = HOMES[id].residents.length >= 2 ? [[5, 2], [5, 4]] : [[5, 3]];
-    for (const [bc, br] of beds as [number, number][]) {
-      this.wallCell(bc, br, [1, 0], (x, z) => {
-        this.box(x, 0.35, z, 0.9, 0.5, 1.9, woodDk); // estrado
-        this.box(x, 0.66, z, 0.86, 0.16, 1.8, linen); // colchão
-        this.box(x, 0.78, z - 0.7, 0.7, 0.18, 0.4, cloth); // travesseiro
-      });
-    }
-    // prateleira com potes (parede norte)
-    this.wallCell(2, 1, [0, -1], (x, z) => {
-      this.box(x, 1.7, z, 1.6, 0.1, 0.4, wood);
-      for (let i = -1; i <= 1; i++) {
-        const j = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.28, 10), i === 0 ? woodDk : linen);
-        j.position.set(x + i * 0.45, 1.9, z);
-        this.world.add(j);
-      }
-    });
+    // CASA VAZIA de propósito: lareira, camas e prateleira saíram junto com a
+    // mesa. Sobra só o BAÚ DA HEDDA, que não é enfeite — é o depósito do jogador.
+    void wood; void woodDk; void stone; void cloth; void linen;
+
     // luz central suave
     // INTERIOR MAIS CLARO: estava escuro demais p/ se movimentar. Luz central
     // mais forte e de alcance maior, e um preenchimento suave nos cantos.
@@ -9364,12 +9343,12 @@ export class Game {
       new THREE.MeshBasicMaterial({ color: 0xffb85a }),
     );
 
-    if (kind === "tavern") this.propsTavern();
-    else if (kind === "store") this.propsStore();
-    else if (kind === "smith") this.propsSmith();
-    else if (kind === "alchemist") this.propsAlchemist();
-    else if (kind === "armory" || kind === "armoryUp") this.propsArmory(kind === "armoryUp");
-    else if (kind === "temple") this.propsTemple();
+    // SÓ O BALCÃO. Todo o resto da mobília saiu: num cômodo de 5x5 cada móvel
+    // come uma célula, e andar lá dentro virava um quebra-cabeça de esbarrões.
+    // As funções de props continuam no arquivo — quando voltarem, será sem
+    // colisão ou encostadas na parede.
+    void this.propsTavern; void this.propsStore; void this.propsSmith;
+    void this.propsAlchemist; void this.propsArmory; void this.propsTemple;
   }
 
   /**
