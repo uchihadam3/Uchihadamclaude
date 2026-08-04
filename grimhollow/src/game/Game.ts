@@ -1268,6 +1268,9 @@ interface EnemyEnt {
   ai: string;                  // comportamento (chase/kite/flee_low/relentless)
   tier: "normal" | "mini" | "boss"; // porte (afeta o tamanho da bolinha no minimapa)
   typeId: string;              // id do tipo (p/ o respawn recriar o mesmo inimigo)
+  // QUEM BATEU POR ÚLTIMO (id de rede). É por ele que se decide quem leva o XP e o
+  // loot: a recompensa é de quem lutou e do GRUPO dele, não de quem passava perto.
+  autor?: string;
   atkIsRanged: boolean;        // o ataque em curso é à distância?
   hitAt: number; dyingAt: number;
   atkAt: number; hitApplied: boolean; nextAtk: number;
@@ -1381,7 +1384,9 @@ export class Game {
   // determinística, sem negociação: todos chegam à mesma conclusão sozinhos e a
   // troca é automática quando ele sai). Só ele roda a IA e decide vida/morte dos
   // inimigos; os outros reproduzem o retrato que ele publica.
-  private mortesRecentes: { eid: string; t: number }[] = []; // p/ repetir no retrato
+  // mortes p/ repetir no retrato. `autor` viaja junto: é ele que diz de QUEM (e de
+  // que grupo) é a recompensa do outro lado da rede.
+  private mortesRecentes: { eid: string; autor: string; t: number }[] = [];
   private mortesAplicadas = new Set<string>();               // mortes já processadas aqui
   private proxRetrato = 0;                                   // instante do próximo envio
   // alvo que a IA está perseguindo (o jogador MAIS PERTO, não necessariamente eu):
@@ -1743,7 +1748,7 @@ export class Game {
     // CO-OP · FASE 2: retrato dos inimigos (recebo se NÃO sou o hospedeiro) e
     // golpes dos amigos (recebo se sou).
     net.onMobs((r) => this.aplicarRetratoMobs(r));
-    net.onGolpe((eid, dano) => this.receberGolpe(eid, dano));
+    net.onGolpe((eid, dano, autor) => this.receberGolpe(eid, dano, autor));
     // ---- GRUPO ----
     net.onConvite((c) => this.receberConvite(c));
     // painel social (botão ao lado do minimapa): convidar com um toque
@@ -1756,7 +1761,7 @@ export class Game {
     party.onEfeito((e) => this.receberEfeito(e));
     // ABATE DE UM COMPANHEIRO conta p/ a minha missão também: é o que faz caçar
     // junto valer a pena em vez de atrapalhar.
-    party.onAbate((typeId) => this.creditarAbateDoGrupo(typeId));
+    party.onAbate((typeId, eid) => this.creditarAbateDoGrupo(typeId, eid));
     // publica o meu estado p/ o grupo (vida e zona) — é o que alimenta o HUD deles
     window.setInterval(() => {
       if (!party.emGrupo()) return;
@@ -2094,7 +2099,9 @@ export class Game {
       m.push([this.mobId(e), e.c, e.r, Math.round(e.hp), e.maxHp, e.typeId, e.aggro ? 1 : 0]);
     }
     if (!m.length && !this.mortesRecentes.length) return;
-    void net.mobs({ m, d: this.mortesRecentes.map((x) => x.eid) });
+    // "célula|autor" — o autor vai colado no id p/ o retrato continuar sendo uma
+    // lista de textos (nada de mexer no formato por causa de um campo).
+    void net.mobs({ m, d: this.mortesRecentes.map((x) => `${x.eid}|${x.autor}`) });
   }
 
   /** (jogador comum) aplica o retrato do hospedeiro. */
@@ -2124,12 +2131,19 @@ export class Game {
       e.barFill.position.x = (-(1 - frac) * 1.3) / 2;
       if ((e.c !== c || e.r !== rr) && !e.stepAt) this.enemyStepTo(e, c, rr, now);
     }
-    // mortes anunciadas: cada um roda a própria morte (com recompensa)
-    for (const eid of r.d) {
+    // MORTES ANUNCIADAS. Cada um roda a própria morte — mas a recompensa só sai
+    // p/ quem lutou e p/ o grupo dele. Todo mundo VÊ o bicho cair (a cena tem de
+    // ser a mesma em todas as telas); nem todo mundo ganha.
+    for (const marca of r.d) {
+      const corte = marca.indexOf("|");
+      const eid = corte < 0 ? marca : marca.slice(0, corte);
+      const autor = corte < 0 ? "" : marca.slice(corte + 1);
       if (this.mortesAplicadas.has(eid)) continue;
-      this.mortesAplicadas.add(eid);
       const e = this.enemies.find((x) => this.mobId(x) === eid && !x.dyingAt);
-      if (e) this.matarInimigo(e, true);
+      // quem marca o eid é o matarInimigo (ele precisa saber se já contou antes);
+      // se o bicho nem existe aqui, marca na mão p/ não reprocessar o anúncio.
+      if (e) this.matarInimigo(e, !!autor && this.recompensaMinha(autor));
+      else this.mortesAplicadas.add(eid);
     }
     // sobrou aqui algum bicho que o hospedeiro não tem (e não morreu): tira de
     // cena calado — sem recompensa e sem explosão. Isso é o que acerta os
@@ -2140,10 +2154,10 @@ export class Game {
   }
 
   /** (hospedeiro) golpe reportado por outro jogador. */
-  private receberGolpe(eid: string, dano: number): void {
+  private receberGolpe(eid: string, dano: number, autor = ""): void {
     if (!this.mandaNosMobs()) return;
     const e = this.enemies.find((x) => this.mobId(x) === eid && !x.dyingAt);
-    if (e) this.dealDamageToEnemy(e, dano, false, true);
+    if (e) this.dealDamageToEnemy(e, dano, false, true, autor);
   }
 
   /**
@@ -2200,8 +2214,18 @@ export class Game {
     void party.sair();
     this.ui.toast("Você saiu do grupo.");
   }
-  /** Abate de um companheiro: conta nas MINHAS missões de caça. */
-  private creditarAbateDoGrupo(typeId: string): void {
+  /**
+   * Abate de um companheiro: conta nas MINHAS missões de caça — inclusive quando
+   * ele está noutro andar, que é o ponto do canal do grupo.
+   *
+   * A mesma marca do retrato serve de trava: se eu já contei este bicho aqui (eu
+   * estava na sala e vi cair), o aviso do grupo não conta de novo.
+   */
+  private creditarAbateDoGrupo(typeId: string, eid = ""): void {
+    if (eid) {
+      if (this.mortesAplicadas.has(eid)) return;
+      this.mortesAplicadas.add(eid);
+    }
     const falso = { typeId } as unknown as EnemyEnt;
     this.questOnKill(falso);
     this.mainQuestOnKill();
@@ -4603,9 +4627,13 @@ export class Game {
     amount: number,
     isCrit = false,
     deAmigo = false,
+    autor = "",
   ) {
     if (e.dyingAt) return;
     const dmg = Math.max(1, Math.round(amount));
+    // marca de quem é o golpe: sem isso o hospedeiro levaria a recompensa dos
+    // abates que os outros fizeram (era ele quem rodava a morte).
+    e.autor = deAmigo ? (autor || e.autor) : this.netId();
     const convidado = !deAmigo && !this.mandaNosMobs();
     if (convidado) void net.golpe(this.mobId(e), dmg); // quem decide é o hospedeiro
     e.hp -= dmg;
@@ -4626,7 +4654,23 @@ export class Game {
     // número de dano flutuante sobre o inimigo (crítico = maior + "!")
     const sp = this.projectToScreen(e.bx, 1.8, e.bz);
     this.ui.floatText(sp.x, sp.y, isCrit ? `${dmg}!` : `${dmg}`, isCrit ? "crit" : "hit");
-    if (e.hp <= 0) this.matarInimigo(e, true);
+    if (e.hp <= 0) this.matarInimigo(e, this.recompensaMinha(e.autor));
+  }
+
+  /**
+   * A RECOMPENSA É DE QUEM LUTOU — e do grupo dele.
+   *
+   * Antes valia por ZONA: o hospedeiro anunciava a morte e TODO MUNDO no andar
+   * rodava o abate com recompensa. Com duas pessoas isso passava por generosidade;
+   * com trinta na masmorra vira absurdo — quem só atravessa o corredor leva o
+   * mesmo XP e o mesmo loot de quem apanhou pelo bicho.
+   *
+   * Agora é simples: ou o golpe foi meu, ou foi de alguém do MEU grupo. Fora
+   * disso eu vejo o bicho cair (a cena continua igual p/ todos) e não ganho nada.
+   */
+  private recompensaMinha(autor?: string): boolean {
+    if (!autor || autor === this.netId()) return true; // fui eu (ou jogo solo)
+    return party.emGrupo() && this.grupo.some((m) => m.id === autor);
   }
 
   /**
@@ -4637,6 +4681,13 @@ export class Game {
    */
   private matarInimigo(e: EnemyEnt, recompensa: boolean, silencioso = false): void {
     if (e.dyingAt) return;
+    const eid = this.mobId(e);
+    // Este abate JÁ CONTOU p/ a missão? O aviso do grupo (canal do grupo) e o
+    // retrato do hospedeiro (canal da zona) correm em paralelo, e nada garante
+    // qual chega antes — sem esta marca, o mesmo esqueleto contaria duas vezes
+    // p/ quem está em grupo E na mesma sala.
+    const jaContado = !silencioso && this.mortesAplicadas.has(eid);
+    if (!silencioso) this.mortesAplicadas.add(eid);
     // `silencioso` = sumir sem espalhafato. Serve p/ o acerto de contas do co-op:
     // ao chegar numa zona, o sorteio de inimigos de cada máquina é diferente, e o
     // retrato do hospedeiro manda. Sem isso o jogador veria uma dúzia de bichos
@@ -4645,12 +4696,9 @@ export class Game {
     this.blocked.delete(`${e.c},${e.r}`); // libera a passagem
     if (!silencioso) this.spawnPoof(e.bx, e.bz);
     if (this.target === e) this.clearTarget();
-    if (this.mandaNosMobs()) {
-      // anuncio a morte no retrato por alguns segundos (aguenta pacote perdido)
-      const eid = this.mobId(e);
-      this.mortesAplicadas.add(eid);
-      this.mortesRecentes.push({ eid, t: Date.now() });
-    }
+    // anuncio a morte no retrato por alguns segundos (aguenta pacote perdido)
+    if (this.mandaNosMobs())
+      this.mortesRecentes.push({ eid, autor: e.autor ?? this.netId(), t: Date.now() });
     if (!recompensa) return;
     // recompensa: ouro base + pequena variação. LOOT estilo WoW cai no CHÃO na célula
     // do inimigo (ouro auto ao pisar; item por popup). A quantidade/qualidade escala
@@ -4660,9 +4708,13 @@ export class Game {
     // XP com "rating" pelo nível relativo: se o herói supera muito o inimigo, rende
     // menos (evita farmar trivial no respawn); perto/acima do nível dele, rende cheio.
     this.gainXp(this.scaledXp(e.xp, e.lvl));
-    this.questOnKill(e); // progresso das missões/bounties de abate
-    this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
-    void party.abateu(e.typeId); // e o abate conta p/ o grupo inteiro
+    if (!jaContado) {
+      this.questOnKill(e); // progresso das missões/bounties de abate
+      this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
+    }
+    // SÓ QUEM DEU O GOLPE avisa o grupo. Antes cada um que via o bicho cair
+    // reanunciava o mesmo abate, e o canal do grupo virava eco.
+    if (!e.autor || e.autor === this.netId()) void party.abateu(e.typeId, eid);
     if (e.tier === "boss") this.onBossDefeated(); // destrava portal / próximo ato
   }
 

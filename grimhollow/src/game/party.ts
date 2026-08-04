@@ -61,7 +61,9 @@ export interface Efeito {
 
 type MembrosCb = (m: Membro[]) => void;
 type ConviteCb = (c: Convite) => void;
-type AbateCb = (typeId: string) => void;
+/** Abate de um membro. `eid` identifica o bicho — serve de trava contra contar
+ *  o mesmo abate duas vezes (o retrato da zona e o aviso do grupo correm juntos). */
+type AbateCb = (typeId: string, eid: string) => void;
 type AvisoCb = (texto: string) => void;
 type EfeitoCb = (e: Efeito) => void;
 /** Fala no bate-papo DO GRUPO. `meu` = eco local de quem escreveu. */
@@ -184,8 +186,8 @@ class PartySession {
     });
     // ABATE de um membro: conta p/ a missão de todo mundo do grupo
     ch.on("broadcast", { event: "abate" }, (msg: unknown) => {
-      const p = (msg as { payload?: { typeId?: string; id?: string } })?.payload;
-      if (p?.typeId && p.id !== this.eu?.id) this.cbAbate?.(p.typeId);
+      const p = (msg as { payload?: { typeId?: string; id?: string; eid?: string } })?.payload;
+      if (p?.typeId && p.id !== this.eu?.id) this.cbAbate?.(p.typeId, p.eid ?? "");
     });
     // EFEITO nominal (cura/bênção/escudo/ressurreição): igual ao convite, só o
     // destinatário reage — o canal é de todos, mas a mensagem tem dono.
@@ -228,9 +230,9 @@ class PartySession {
   }
 
   /** Avisa o grupo de um abate (para o progresso de missão conjunto). */
-  async abateu(typeId: string): Promise<void> {
+  async abateu(typeId: string, eid = ""): Promise<void> {
     if (!this.id || !this.eu) return;
-    await this.env("abate", { typeId, id: this.eu.id });
+    await this.env("abate", { typeId, eid, id: this.eu.id });
   }
 
   /** Fala no canal do grupo (aparece na hora p/ quem escreveu, como no da zona). */
