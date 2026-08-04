@@ -30,139 +30,210 @@ const THEMES={
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor
 // movers: plataformas móveis [{x,y,w,axis:'x'|'y',dist,speed,phase}] (em tiles)
 const LEVELS = [
-  { name:"1 · Vale", mass:6, max:6, theme:"cave",
-    hint:"Ande pra direita ➜ e pule os buracos (cada pulo gasta massa). Pegue a gema 💎!", rows:[
-    "########################################",
-    "#                                      #",
-    "#                                      #",
-    "#                                      #",
-    "#                                      #",
-    "#                                      #",
-    "#                                      #",
-    "#             o         G              #",
-    "# @                                 E  #",
-    "#########   ######   #######  ##########",
-    "#########^^^######^^^#######^^##########",
-    "#########   ######   #######  ##########"]},
+  { name:"1 · Vale", mass:9, max:9, theme:"cave",
+    hint:"Ande pra direita ➜ e pule os buracos. Suba nas plataformas pra pegar a gema 💎!", rows:[
+    "##########################################################",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#        o                                               #",
+    "#       ####                                             #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                       G                #",
+    "#                  o                  #####              #",
+    "#                 ####                                   #",
+    "#        ###                                             #",
+    "#     ###                   o                     o      #",
+    "# @                                                   E  #",
+    "############   #######   ########   ########  ############",
+    "############   #######   ########   ########  ############",
+    "############^^^#######^^^########^^^########^^############",
+    "############   #######   ########   ########  ############"]},
 
-  { name:"2 · Colinas", mass:7, max:7, theme:"cave",
-    hint:"Suba pelos degraus. Pra pegar a gema lá em cima, empilhe pedaços (pule parado) e monte uma torre.", rows:[
-    "##############################################",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                       G                    #",
-    "#                                            #",
-    "#            ###        o                    #",
-    "#         ###         #####                  #",
-    "#      ###                                   #",
-    "# @                                        E #",
-    "##############   #############   #############",
-    "##############^^^#############^^^#############",
-    "##############   #############   #############"]},
+  { name:"2 · Colinas", mass:11, max:11, theme:"cave",
+    hint:"Suba pelos degraus e monte torres (pule parado) pra alcançar a ★ lá no alto.", rows:[
+    "##############################################################",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                            #",
+    "#           o                                                #",
+    "#         #####                                              #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                     oE     #",
+    "#                                                   #######  #",
+    "#            ###      G                                      #",
+    "#                   #####                                    #",
+    "#         ###                         o                      #",
+    "#                                   #####                    #",
+    "#      ###                                                   #",
+    "#                                                            #",
+    "# @                                                          #",
+    "################   ###########    ############   #############",
+    "################   ###########    ############   #############",
+    "################^^^###########^^^^############^^^#############",
+    "################   ###########    ############   #############"]},
 
-  { name:"3 · Cavernas", mass:6, max:6, theme:"deep",
-    hint:"Torres gastam massa — depois coma os pedaços (E) pra reabastecer e continuar até a ★.", rows:[
-    "############################################",
-    "#                                          #",
-    "#                                          #",
-    "#                                          #",
-    "#                                          #",
-    "#                             G            #",
-    "#                  o                       #",
-    "#                 ###        ###           #",
-    "#                                          #",
-    "# @                                      E #",
-    "############   #########   #######   #######",
-    "############^^^#########^^^#######^^^#######",
-    "############   #########   #######   #######"]},
+  { name:"3 · Cavernas", mass:10, max:10, theme:"deep",
+    hint:"Torres gastam massa — coma os pedaços (E) pra reabastecer. Explore pra cima!", rows:[
+    "############################################################",
+    "#                                                          #",
+    "#                                                          #",
+    "#                                                          #",
+    "#                           o                              #",
+    "#                         #####                            #",
+    "#                                                          #",
+    "#       #####                                              #",
+    "#                                                          #",
+    "#                                                          #",
+    "#                                 G                        #",
+    "#                                                          #",
+    "#                                ####                      #",
+    "#                    o                                     #",
+    "#                   ###                       o            #",
+    "#                                            ###           #",
+    "#                                                          #",
+    "# @                                                     E  #",
+    "##############   #########    ##########   #######  ########",
+    "##############   #########    ##########   #######  ########",
+    "##############^^^#########^^^^##########^^^#######^^########",
+    "##############   #########    ##########   #######  ########"]},
 
-  { name:"4 · Paredão", mass:5, max:5, theme:"deep",
-    hint:"Pule perto da parede, SEGURE a direção contra ela pra grudar, e escale até a ★.", rows:[
-    "##########################",
-    "#                        #",
-    "#                        #",
-    "#                        #",
-    "#               #        #",
-    "#              E#        #",
-    "#               #        #",
-    "#               #        #",
-    "#               #        #",
-    "#               #        #",
-    "#               #        #",
-    "#               #        #",
-    "#               #        #",
-    "#               #        #",
-    "#        o  G   #        #",
-    "# @             #        #",
-    "##########################",
-    "##########################"]},
+  { name:"4 · Paredão", mass:6, max:6, theme:"deep",
+    hint:"Suba! Pule perto da parede e SEGURE a direção contra ela pra grudar e escalar até a ★.", rows:[
+    "##############################",
+    "#                            #",
+    "#                            #",
+    "#                            #",
+    "#                            #",
+    "#                #           #",
+    "#                #           #",
+    "#               E#           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#               G#           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#               o#           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#         o      #           #",
+    "# @              #           #",
+    "##############################",
+    "##############################"]},
 
-  { name:"5 · A Ponte", mass:4, max:4, theme:"ice",
-    hint:"Pegue carona nas plataformas móveis. A mola (⇑) te lança sem gastar massa — mire a gema!", rows:[
-    "################################################",
-    "#                                              #",
-    "#                                              #",
-    "#                                              #",
-    "#                                              #",
-    "#                                              #",
-    "#                      G                       #",
-    "#                                              #",
-    "#                                              #",
-    "# @                                          E #",
-    "########           ####T###            #########",
-    "########^^^^^^^^^^^########^^^^^^^^^^^^#########",
-    "########           ########            #########"],
-    movers:[{"x":9,"y":10,"w":3,"axis":"x","dist":8,"speed":0.7,"phase":0},{"x":28,"y":10,"w":3,"axis":"x","dist":9,"speed":0.8,"phase":1.2}]},
+  { name:"5 · A Ponte", mass:5, max:5, theme:"ice",
+    hint:"Pegue carona nas plataformas móveis e use as molas (⇑) pra cruzar os abismos!", rows:[
+    "########################################################################",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#              o                                                       #",
+    "#             ###                                                      #",
+    "#                        G                                             #",
+    "#                                               o                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "# @                                                                 E  #",
+    "########             ####T##                 ####T##             #######",
+    "########             #######                 #######             #######",
+    "########^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^^^#######^^^^^^^^^^^^^#######",
+    "########             #######                 #######             #######"],
+    movers:[{"x":9,"y":16,"w":3,"axis":"x","dist":9,"speed":0.7,"phase":0},{"x":30,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":1},{"x":53,"y":16,"w":3,"axis":"x","dist":9,"speed":0.75,"phase":0.4}]},
 
-  { name:"6 · Forja", mass:6, max:6, theme:"forge",
-    hint:"Deixe um pedaço na placa (▬) pra abrir a porta, depois cruze o 🔥 calor rápido!", rows:[
-    "############################################",
-    "#                                          #",
-    "#                                          #",
-    "#                                          #",
-    "#                                          #",
-    "#                                          #",
-    "#         D                                #",
-    "#         D                     o   G      #",
-    "# @       D         HHHHHHHH             E #",
-    "######P#####################################",
-    "############################################",
-    "############################################"]},
+  { name:"6 · Forja", mass:8, max:8, theme:"forge",
+    hint:"Deixe um pedaço na placa (▬) pra abrir a porta, cruze o 🔥 calor e use a mola no buraco!", rows:[
+    "################################################################",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                  o                                           #",
+    "#                 ####                                         #",
+    "#                                                              #",
+    "#                         o                                    #",
+    "#           D                                                  #",
+    "#           D                                       G          #",
+    "# @         D         HHHHHHHHHH             T              E  #",
+    "#######P############################   #########################",
+    "####################################   #########################",
+    "####################################^^^#########################",
+    "####################################   #########################"]},
 
-  { name:"7 · Guarida", mass:5, max:5, theme:"forge",
-    hint:"Guardiões 👾 patrulham! Use as molas pra saltar por cima deles e siga até a ★.", rows:[
-    "##############################################",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                       G                    #",
-    "# @                                        E #",
-    "###########T#####   ##########T###############",
-    "#################^^^##########################",
-    "#################   ##########################"],
-    enemies:[{"x":20,"y":8,"dist":8,"speed":0.9,"axis":"x"},{"x":33,"y":8,"dist":6,"speed":1.1,"axis":"x"}]},
+  { name:"7 · Guarida", mass:7, max:7, theme:"forge",
+    hint:"Guardiões 👾 patrulham! Use as molas pra saltar por cima e siga até a ★.", rows:[
+    "##################################################################",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                                                                #",
+    "#                               G                                #",
+    "#                             #####                 o            #",
+    "#                                                 #####          #",
+    "#                                                                #",
+    "#                                                                #",
+    "# @                                                           E  #",
+    "############T###########   #############T#########################",
+    "########################   #######################################",
+    "########################^^^#######################################",
+    "########################   #######################################"],
+    enemies:[{"x":18,"y":16,"dist":9,"speed":0.9,"axis":"x"},{"x":44,"y":16,"dist":8,"speed":1.1,"axis":"x"},{"x":30,"y":11,"dist":3,"speed":1.3,"axis":"x"}]},
 
-  { name:"8 · O Ápice", mass:6, max:6, theme:"ice",
-    hint:"Final: mola + plataforma móvel sobre o abismo, depois o calor e um guardião. Vai, gosminha! 💎", rows:[
-    "######################################################",
-    "#                                                    #",
-    "#                                                    #",
-    "#                                                    #",
-    "#                                                    #",
-    "#                                                    #",
-    "#                                                    #",
-    "#                   o                                #",
-    "#                                              G     #",
-    "# @                                 HHHHH          E #",
-    "#############   ######T#          ########   #########",
-    "#############^^^########^^^^^^^^^^########^^^#########",
-    "#############   ########          ########   #########"],
-    movers:[{"x":25,"y":10,"w":4,"axis":"x","dist":6,"speed":0.8,"phase":0}],
-    enemies:[{"x":37,"y":9,"dist":3,"speed":1,"axis":"x"}]},
+  { name:"8 · O Ápice", mass:9, max:9, theme:"ice",
+    hint:"O grande final: molas, plataformas móveis, calor e guardiões. Vai, gosminha! 💎", rows:[
+    "####################################################################################",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                               o                                                  #",
+    "#                             #####                                                #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#          o                                                                       #",
+    "#         ####                                          G                          #",
+    "#                                                     #####                        #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "#                                                                                  #",
+    "# @                                         HHHHHH                              E  #",
+    "##############   #######T#               #########   #######T#             #########",
+    "##############   #########               #########   #########             #########",
+    "##############^^^#########^^^^^^^^^^^^^^^#########^^^#########^^^^^^^^^^^^^#########",
+    "##############   #########               #########   #########             #########"],
+    movers:[{"x":27,"y":20,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":63,"y":20,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
+    enemies:[{"x":45,"y":19,"dist":4,"speed":1,"axis":"x"}]},
 
 ];
 
@@ -490,7 +561,7 @@ function render(){
     ctx.fillStyle=th.tile; ctx.fillRect(s.x,s.y,s.w,s.h);
     ctx.fillStyle=th.tilehi; ctx.fillRect(s.x,s.y,s.w,3);
     ctx.fillStyle="rgba(0,0,0,.22)"; ctx.fillRect(s.x,s.y+s.h-4,s.w,4);
-    const above=isSolidAt(s.x+16,s.y-16);
+    const above=isSolidAt(s.x+16,s.y-16) || s.y<TILE;   // sem grama no teto/borda-topo
     if(!above){ ctx.fillStyle=th.top; ctx.fillRect(s.x,s.y,s.w,6);
       ctx.fillStyle=th.top2; for(let i=0;i<2;i++){ const dx=s.x+8+i*14; ctx.beginPath();
         ctx.arc(dx,s.y+6,3+(i?1:0),0,Math.PI); ctx.fill(); } }
@@ -594,16 +665,35 @@ function hillLayer(color, factor, baseY, spacing, height){
 }
 function cloudShape(x,y,r){ ctx.beginPath();
   ctx.arc(x,y,r,0,7); ctx.arc(x+r*0.9,y+4,r*0.7,0,7); ctx.arc(x-r*0.9,y+5,r*0.66,0,7); ctx.arc(x+r*0.25,y-r*0.5,r*0.58,0,7); ctx.fill(); }
+function peakLayer(color, factor, baseY, spacing, height){   // montanhas pontudas (silhueta)
+  const W=canvas.width, H=canvas.height;
+  ctx.fillStyle=color; const off=-((cam.x*zoom*factor)%spacing), by=baseY - cam.y*zoom*0.05;
+  ctx.beginPath(); ctx.moveTo(-spacing, H+2);
+  for(let x=off-spacing; x<W+spacing; x+=spacing){ ctx.lineTo(x+spacing*0.5, by-height); ctx.lineTo(x+spacing, by); }
+  ctx.lineTo(W+spacing, H+2); ctx.closePath(); ctx.fill();
+}
 function drawParallax(th){
-  const W=canvas.width, H=canvas.height, sc=canvas.width/640;   // escala p/ densidade
+  const W=canvas.width, H=canvas.height, sc=W/640;
   const sky=ctx.createLinearGradient(0,0,0,H);
   sky.addColorStop(0,th.sky0); sky.addColorStop(1,th.sky1);
   ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
-  hillLayer(th.far, 0.15, H*0.62, 280*sc, 180*sc);             // montanhas distantes
-  ctx.fillStyle=`rgba(${th.cloud},.16)`;                        // nuvens
-  for(let i=0;i<6;i++){ let x=((i*280*sc - (cam.x*zoom*0.28 + T*10*sc)) % (W+340)); if(x<-170)x+=W+340;
-    cloudShape(x, (34+(i*47)%120)*sc - cam.y*zoom*0.04, (24+(i%3)*10)*sc); }
-  hillLayer(th.mid, 0.40, H*0.82, 220*sc, 130*sc);             // morros médios
+  // estrelas / brilhos no céu (twinkle)
+  for(let i=0;i<46;i++){ let sx=((i*137*sc - cam.x*zoom*0.06)%(W+30)); if(sx<-15)sx+=W+30;
+    const y=((i*71)%Math.floor(H*0.66)), tw=0.3+0.7*Math.abs(Math.sin(T*1.6+i*1.3));
+    ctx.globalAlpha=tw*0.5; ctx.fillStyle=`rgb(${th.cloud})`; const s=(i%7===0?2:1.2)*sc; ctx.fillRect(sx,y,s,s); }
+  ctx.globalAlpha=1;
+  // montanhas pontudas bem ao fundo
+  peakLayer(th.far, 0.10, H*0.66, 240*sc, 220*sc);
+  // morros arredondados distantes
+  hillLayer(th.far, 0.18, H*0.70, 300*sc, 150*sc);
+  // nuvens
+  ctx.fillStyle=`rgba(${th.cloud},.15)`;
+  for(let i=0;i<7;i++){ let x=((i*250*sc - (cam.x*zoom*0.26 + T*9*sc))%(W+340)); if(x<-170)x+=W+340;
+    cloudShape(x, (30+(i*53)%130)*sc - cam.y*zoom*0.03, (22+(i%3)*12)*sc); }
+  // morros médios
+  hillLayer(th.mid, 0.38, H*0.84, 230*sc, 130*sc);
+  // morros da frente (mais escuros e rápidos — profundidade)
+  hillLayer(th.sky1, 0.62, H*0.98, 180*sc, 90*sc);
 }
 function drawPortal(cx,cy){
   ctx.save();
