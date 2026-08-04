@@ -48,10 +48,10 @@ function keyCheckerboard(img){
   }catch(e){}
   return c;
 }
-["ceu","montanhas","floresta","folhagem"].forEach(n=>{ try{ const im=new Image();
+["ceu","montanhas","floresta"].forEach(n=>{ try{ const im=new Image();
   im.onload=()=>{ BG[n+"_c"] = (n==="ceu") ? im : keyCheckerboard(im); };
   im.src=n+".png"; BG[n]=im; }catch(e){} });
-function groveArtReady(){ return BG.ceu_c && BG.montanhas_c && BG.floresta_c && BG.folhagem_c; }
+function groveArtReady(){ return BG.ceu_c && BG.montanhas_c && BG.floresta_c; }
 
 // -------------------------------------------------------------------------- FASES
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor I=GELO(escorrega)
@@ -1337,9 +1337,8 @@ function drawValeArt(){
   const s=Math.max(W/sw, H/ih)*1.04, dw=sw*s, dh=ih*s;
   const sx=-((cam.x*zoom*0.05)%dw), sy=(H-dh)*0.5 - cam.y*zoom*0.02;
   for(let x=sx-dw; x<W; x+=dw) ctx.drawImage(sky, 0,0,sw,ih, x,sy,dw,dh);
-  bandLayer(BG.montanhas_c, 0.12, 0.60, 0.40);        // montanhas distantes (no horizonte)
-  bandLayer(BG.floresta_c,  0.28, 0.69, 0.38);        // floresta média
-  bandLayer(BG.folhagem_c,  0.52, 0.77, 0.34);        // folhagem (fundo próximo)
+  bandLayer(BG.montanhas_c, 0.12, 0.62, 0.42);        // montanhas distantes (no horizonte)
+  bandLayer(BG.floresta_c,  0.30, 0.74, 0.40);        // floresta média (fundo)
 }
 function drawParallax(th){
   const W=canvas.width, H=canvas.height, sc=W/640;
