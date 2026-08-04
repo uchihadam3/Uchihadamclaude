@@ -294,6 +294,10 @@ export interface HUD {
   onParty(escolher: (id: string) => void, levantar: (id: string) => void): void;
   /** CAÍDO: véu de tombado com a contagem. `null` fecha (levantou ou já era). */
   setFallen(info: { secs: number; texto: string } | null): void;
+  /** CONVITE DE GRUPO: aviso na tela com Aceitar/Recusar e tempo p/ responder. */
+  showInvite(c: { de: string; classId?: string; segundos: number },
+    aceitar: () => void, recusar: () => void): void;
+  hideInvite(): void;
   // LISTA de itens na MESMA célula (estilo saque de baú): o jogador escolhe o que
   // pegar, um a um, ou pega tudo. Fecha sozinha quando a lista esvazia.
   showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void): void;
@@ -1399,6 +1403,60 @@ export function setupControls(
       text-shadow:0 2px 8px #000;letter-spacing:.06em;}
   `;
   root.appendChild(fallenCss);
+
+  // ---- CONVITE DE GRUPO ----
+  // O convite chegava como um DIÁLOGO comum, do mesmo jeito que uma conversa com
+  // aldeão — e passava batido: some no meio da luta, some se você já estava
+  // falando com alguém, e não faz barulho nenhum. Agora é um aviso PRÓPRIO: entra
+  // por cima de tudo, toca um som, tem os dois botões grandes e uma barra
+  // mostrando quanto tempo resta p/ responder.
+  const invite = document.createElement("div");
+  invite.id = "gh-invite";
+  invite.style.display = "none";
+  root.appendChild(invite);
+  let inviteTimer = 0;
+  const fechaConvite = () => {
+    if (inviteTimer) { window.clearInterval(inviteTimer); inviteTimer = 0; }
+    invite.style.display = "none";
+    invite.innerHTML = "";
+  };
+  const inviteCss = document.createElement("style");
+  inviteCss.textContent = `
+    #gh-invite{position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:64;
+      pointer-events:auto;width:min(320px,84vw);box-sizing:border-box;
+      border:22px solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
+      filter:drop-shadow(0 8px 24px rgba(0,0,0,.7));padding:2px 6px 8px;
+      color:#e9dcbe;font-family:"Trebuchet MS",sans-serif;text-align:center;
+      animation:ghCvEntra .35s cubic-bezier(.2,1.4,.5,1);}
+    @keyframes ghCvEntra{from{opacity:0;transform:translateX(-50%) translateY(-14px) scale(.94);}
+      to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
+    #gh-invite .gh-cv-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:12.5px;
+      letter-spacing:.1em;text-shadow:0 1px 2px #000;margin:2px 0 8px;
+      border-bottom:1px solid rgba(201,162,39,.3);padding-bottom:6px;}
+    #gh-invite .gh-cv-quem{display:flex;align-items:center;gap:9px;text-align:left;
+      margin:0 0 8px;}
+    #gh-invite .gh-cv-face{flex:none;width:34px;height:34px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;font-family:"Cinzel",serif;
+      font-size:15px;color:#160f08;border:2px solid rgba(0,0,0,.45);
+      box-shadow:inset 0 -3px 6px rgba(0,0,0,.35),0 0 10px rgba(244,200,71,.5);}
+    #gh-invite .gh-cv-txt{flex:1;min-width:0;font-size:12px;line-height:1.45;color:#d8c8a6;}
+    #gh-invite .gh-cv-txt b{font-family:"Cinzel",serif;color:#f0e2c0;font-size:13px;}
+    #gh-invite .gh-cv-btns{display:flex;gap:8px;}
+    #gh-invite button{flex:1;cursor:pointer;font-family:"Cinzel",serif;font-size:12px;
+      letter-spacing:.05em;color:#f0dca2;padding:9px 6px;border-radius:6px;
+      background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.6);
+      box-shadow:0 2px 5px rgba(0,0,0,.55);}
+    #gh-invite button:hover{color:#fff;border-color:#f4c847;}
+    #gh-invite button:active{transform:scale(.95);}
+    #gh-invite .gh-cv-nao{color:#dcb2a0;border-color:rgba(170,95,72,.55);
+      background:linear-gradient(#3a2018,#1e100a);}
+    /* barra do tempo: o convite não fica pendurado p/ sempre na tela */
+    #gh-invite .gh-cv-rel{height:4px;margin:8px 2px 0;background:#1a140d;
+      border:1px solid #5b4a2e;border-radius:2px;overflow:hidden;}
+    #gh-invite .gh-cv-rel i{display:block;height:100%;background:linear-gradient(#e2c46a,#b2913c);
+      transition:width 1s linear;}
+  `;
+  root.appendChild(inviteCss);
 
   // ---- PAINEL SOCIAL: botão ao lado do minimapa + janela "quem está por perto"
   // No celular, digitar "/convidar Fulano" é penoso: abre teclado, cobre a tela e
@@ -3107,6 +3165,37 @@ export function setupControls(
     },
     onFriends(add, del, convidar) { cbAmigoAdd = add; cbAmigoDel = del; cbAmigoInv = convidar; },
     onParty(escolher, levantar) { cbEscolher = escolher; cbLevantar = levantar; },
+    showInvite(c, aceitar, recusar) {
+      fechaConvite();
+      const nome = c.de.split(/[ ,]/)[0];
+      const total = Math.max(5, c.segundos);
+      let resta = total;
+      invite.style.display = "block";
+      invite.innerHTML = `<div class="gh-cv-tit">CONVITE DE GRUPO</div>
+        <div class="gh-cv-quem">
+          <div class="gh-cv-face" style="background:${CLASSE_COR[c.classId ?? ""] ?? "#c9a94e"}">${nome[0] ?? "?"}</div>
+          <div class="gh-cv-txt"><b>${nome}</b> quer formar um grupo com você.<br>
+            Juntos vocês veem a vida um do outro, curam-se e dividem o progresso das missões.</div>
+        </div>
+        <div class="gh-cv-btns">
+          <button class="gh-cv-nao">Recusar</button>
+          <button class="gh-cv-sim">Aceitar</button>
+        </div>
+        <div class="gh-cv-rel"><i style="width:100%"></i></div>`;
+      const barra = invite.querySelector(".gh-cv-rel i") as HTMLElement;
+      (invite.querySelector(".gh-cv-sim") as HTMLButtonElement)
+        .addEventListener("click", () => { fechaConvite(); aceitar(); });
+      (invite.querySelector(".gh-cv-nao") as HTMLButtonElement)
+        .addEventListener("click", () => { fechaConvite(); recusar(); });
+      playClone(castSnd); // toque de atenção: convite que não faz som passa batido
+      inviteTimer = window.setInterval(() => {
+        resta -= 1;
+        barra.style.width = `${Math.max(0, (resta / total) * 100)}%`;
+        // sem resposta é uma resposta: fecha sozinho em vez de ficar na tela
+        if (resta <= 0) { fechaConvite(); recusar(); }
+      }, 1000);
+    },
+    hideInvite() { fechaConvite(); },
     setFallen(info) {
       if (!info) { fallen.style.display = "none"; return; }
       fallen.style.display = "flex";

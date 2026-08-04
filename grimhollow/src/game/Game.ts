@@ -2176,24 +2176,24 @@ export class Game {
     void party.convidar(net.canalDaZona(), peerId, this.euNoGrupo());
     this.ui.toast(`Convite enviado${rig ? ` para ${rig.name.split(/[ ,]/)[0]}` : ""}.`);
   }
-  /** Chegou um convite: pergunta antes de entrar (ninguém entra em grupo à força). */
+  /**
+   * Chegou um convite: pergunta antes de entrar (ninguém entra em grupo à força).
+   *
+   * Isto era um DIÁLOGO comum, igual ao de um aldeão — e passava batido: sumia se
+   * você já estava conversando, não fazia barulho e ficava perdido no meio da
+   * luta. Agora é um aviso próprio, por cima de tudo, com som e tempo p/ responder.
+   */
   private receberConvite(c: Convite): void {
     if (party.emGrupo()) return; // já estou num grupo — ignora em silêncio
-    this.openDialogue(c.de, [
-      `${c.de} convidou você para um grupo.`,
-      "Juntos vocês veem a vida um do outro, e o que um abate conta para a missão do outro.",
-    ], null, {
-      choices: [
-        { id: "sim", label: "Entrar no grupo", primary: true, kind: "quest" },
-        { id: "nao", label: "Recusar", kind: "exit" },
-      ],
-      onChoice: (id) => {
-        this.closeDialogue();
-        if (id !== "sim") return;
+    const quem = [...this.peers.values()].find((r) => r.name === c.de);
+    this.ui.showInvite(
+      { de: c.de, classId: quem?.classId, segundos: 45 },
+      () => {
         void party.aceitar(c, this.euNoGrupo());
-        this.ui.toast(`Você entrou no grupo de ${c.de}.`);
+        this.ui.toast(`Você entrou no grupo de ${c.de.split(/[ ,]/)[0]}.`);
       },
-    });
+      () => { /* recusou ou deixou expirar: nada acontece, sem alarde */ },
+    );
   }
   /** Sai do grupo. */
   public sairDoGrupo(): void {

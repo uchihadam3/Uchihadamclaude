@@ -338,7 +338,12 @@ function showCharacterSelect(
     q("[data-cancel]").forEach((el) => el.addEventListener("click", (e) => { e.stopPropagation(); confirmDel = -1; reload(); }));
     q("[data-confirm]").forEach((el) => el.addEventListener("click", async (e) => {
       e.stopPropagation();
-      await saveBackend.remove(Number(el.getAttribute("data-confirm")));
+      const slot = Number(el.getAttribute("data-confirm"));
+      await saveBackend.remove(slot);
+      // some também a IDENTIDADE do herói apagado. Sem isso, o próximo personagem
+      // criado nesse slot herdaria o uid do morto — e apareceria na lista de
+      // amigos dos outros com o nome de quem já não existe.
+      try { localStorage.removeItem(`gh-hero-uid:${slot}`); } catch { /* ignora */ }
       confirmDel = -1; reload();
     }));
   };
@@ -1063,9 +1068,13 @@ function injectStyle() {
     font-size:clamp(13px,1.9vw,17px); font-weight:700; text-shadow:0 2px 6px #000; }
   #gh-intro .gh-cs-ico { width:18px; height:18px; object-fit:contain; filter:drop-shadow(0 1px 2px #000); }
   #gh-intro .gh-cs-sub { margin-top:3px; font-size:clamp(10px,1.4vw,12px); color:#c9a24a; letter-spacing:.5px; }
-  #gh-intro .gh-cs-del { position:absolute; top:6px; right:6px; z-index:2; width:26px; height:26px;
-    border-radius:50%; border:1px solid rgba(230,120,90,.5); background:rgba(20,10,10,.7); color:#e88a6a;
-    font-size:13px; line-height:1; cursor:pointer; opacity:0; transition:opacity .15s ease, background .15s ease; }
+  /* APAGAR: ficava com opacity:0 e só aparecia no :hover — ou seja, no celular
+     não existia, e mesmo no computador era um botão que ninguém achava. Agora
+     está sempre à vista (discreto), com alvo de toque de 32px. */
+  #gh-intro .gh-cs-del { position:absolute; top:6px; right:6px; z-index:2; width:32px; height:32px;
+    border-radius:50%; border:1px solid rgba(230,120,90,.55); background:rgba(20,10,10,.78); color:#e88a6a;
+    font-size:15px; line-height:1; cursor:pointer; opacity:.8; box-shadow:0 2px 6px rgba(0,0,0,.5);
+    transition:opacity .15s ease, background .15s ease; }
   #gh-intro .gh-cs-card:hover .gh-cs-del { opacity:1; }
   #gh-intro .gh-cs-del:hover { background:rgba(150,40,30,.85); color:#fff; }
   #gh-intro .gh-cs-empty { justify-content:center; gap:10px; border-style:dashed; color:#9a8f78; }
