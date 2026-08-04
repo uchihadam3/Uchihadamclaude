@@ -85,12 +85,32 @@ import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
 import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato } from "./net";
 import { party, type Membro, type Convite, type Efeito } from "./party";
+import { friends, heroId, type Amigo } from "./friends";
 // TOMBADO: quanto tempo o herói fica caído esperando um companheiro (em grupo).
 // Longo o bastante p/ alguém do outro lado da sala chegar, curto o bastante p/ não
 // virar castigo quando o grupo inteiro cai.
 const TOMBADO_MS = 30000;
 // Erguer alguém leva esse tempo PARADO — resgatar no meio da briga tem de custar.
 const LEVANTAR_MS = 2600;
+
+/**
+ * Nome legível de uma CHAVE DE ZONA ("village", "dungeon:2", "tavern"…).
+ * O painel de amigos recebe a chave crua pela rede — quem está do outro lado não
+ * é o Game daqui, então não dá p/ reusar o miniLocName, que lê o estado local.
+ */
+function nomeDaZona(z: string): string {
+  if (!z) return "";
+  if (z.startsWith("dungeon:")) {
+    const n = Number(z.slice(8));
+    return DUNGEON_FLOOR_NAMES[n] ?? "Masmorra";
+  }
+  const nomes: Record<string, string> = {
+    village: "Vilarejo", forest: "Floresta Sussurrante", plains: "Planície de Arden",
+    showcase: "Santuário", tavern: "Taverna", store: "Mercador", smith: "Ferreiro",
+    alchemist: "Alquimista", temple: "Templo", armory: "Armaria", armoryUp: "Sala das Armas",
+  };
+  return nomes[z] ?? "Vilarejo";
+}
 import {
   PLAINS_COLS, PLAINS_ROWS, plainsCell, plainsWalkable, plainsFind, plainsAll,
 } from "./plains";
@@ -1161,6 +1181,7 @@ interface PeerRig {
   tag: THREE.Sprite;
   name: string;
   classId: string;
+  uid?: string;               // identidade estável dele (p/ virar amigo)
   c: number; r: number;       // célula-alvo (a última publicada)
   bx: number; bz: number;     // posição visual atual (interpolada)
   h: number;                  // altura do billboard
@@ -1769,6 +1790,22 @@ export class Game {
       void net.chat(t);
     });
     party.onFala((de, txt, meu) => this.ui.chatMessage(de, txt, meu, "grupo"));
+    // ---- AMIGOS ----
+    // Entra no canal global e carrega a lista guardada. Convite de amigo chega
+    // pelo mesmo caminho do convite de vizinho — muda só o transporte.
+    friends.onLista((l) => this.ui.setFriends(l.map((a) => ({
+      uid: a.uid, name: a.name, classId: a.classId,
+      online: a.online, level: a.level, onde: a.online ? nomeDaZona(a.zone) : "",
+    }))));
+    friends.onConvite((c) => this.receberConvite({ party: c.party, de: c.de, deId: c.deId }));
+    this.ui.onFriends(
+      (uid) => this.adicionarAmigo(uid),
+      (uid) => this.removerAmigo(uid),
+      (uid) => this.convidarAmigo(uid),
+    );
+    void friends.entrar(this.euNosAmigos());
+    // o que publico de mim no canal global (nível e onde estou)
+    window.setInterval(() => friends.meuEstado(this.euNosAmigos()), 4000);
     // indicador AO VIVO de quem está por perto. Jogando sozinho ele some; os
     // contadores de rede ficam só no __coop(), p/ não poluir a tela do jogador.
     window.setInterval(() => {
@@ -1848,6 +1885,7 @@ export class Game {
     (window as unknown as { __game?: Game }).__game = this; // DEBUG: acesso p/ teste
     // o GRUPO também: sem isso não dá p/ exercitar apoio/ressurreição fora da rede
     (window as unknown as { __party?: typeof party }).__party = party;
+    (window as unknown as { __friends?: typeof friends }).__friends = friends;
   }
 
   // TRANSIÇÃO DE PORTA: fade preto rápido → constrói o novo cenário no escuro
@@ -1991,6 +2029,7 @@ export class Game {
   private netSelf(): PeerState {
     return {
       id: `${this.saveSlot}:${this.playerName || "heroi"}:${SESSION_TAG}`,
+      uid: heroId(this.saveSlot),
       name: this.playerName || "Viajante",
       classId: this.classId,
       level: this.stats.level,
@@ -2338,13 +2377,18 @@ export class Game {
       let rig = this.peers.get(p.id);
       if (!rig) { rig = this.makePeerRig(p); this.peers.set(p.id, rig); }
       rig.c = p.col; rig.r = p.row; rig.seenAt = this.now; rig.level = p.level;
+      rig.uid = p.uid;
     }
     for (const [id, rig] of [...this.peers]) {
       if (!vistos.has(id)) { this.scene.remove(rig.group); this.peers.delete(id); }
     }
     this.pushMinimap(); // os amigos aparecem no minimapa
-    // alimenta o painel social com quem está na área
-    this.ui.setNearby(list.map((p) => ({ id: p.id, name: p.name, classId: p.classId, level: p.level })));
+    // alimenta o painel social com quem está na área. `amigo` some o botão "+"
+    // de quem já está na lista — botão que não faz nada só confunde.
+    this.ui.setNearby(list.map((p) => ({
+      id: p.id, uid: p.uid, name: p.name, classId: p.classId, level: p.level,
+      amigo: !!p.uid && friends.ehAmigo(p.uid),
+    })));
   }
   // cria o billboard + sombra + plaquinha de um amigo
   private makePeerRig(p: PeerState): PeerRig {
@@ -4788,6 +4832,48 @@ export class Game {
       this.reviveUntil = now + (id === "c_ressurreicao" ? 45000 : 30000);
       this.ui.toast(id === "c_ressurreicao" ? "Selo de Ressurreição!" : "Selo de Intervenção!");
     }
+  }
+
+  // ============================= AMIGOS =============================
+  /** Como eu apareço no canal global de amigos. */
+  private euNosAmigos() {
+    return {
+      uid: heroId(this.saveSlot), name: this.playerName || "Viajante",
+      classId: this.classId, level: this.stats.level, zone: this.netZoneKey(),
+    };
+  }
+  /** Guarda um vizinho na lista de amigos (o "+" da aba "Por perto"). */
+  private adicionarAmigo(uid: string): void {
+    const p = [...this.peers.values()].find((r) => r.uid === uid);
+    const a: Amigo = {
+      uid, name: p?.name ?? "Viajante", classId: p?.classId ?? "",
+    };
+    void friends.adicionar(a).then((entrou) => {
+      this.ui.toast(entrou
+        ? `${a.name.split(/[ ,]/)[0]} entrou na sua lista de amigos.`
+        : "Ele já está na sua lista.");
+      // repinta o "Por perto" p/ o "+" sumir de quem virou amigo
+      this.ui.setNearby([...this.peers.entries()].map(([id, r]) => ({
+        id, uid: r.uid, name: r.name, classId: r.classId, level: r.level ?? 1,
+        amigo: !!r.uid && friends.ehAmigo(r.uid),
+      })));
+    });
+  }
+  private removerAmigo(uid: string): void {
+    void friends.remover(uid);
+    this.ui.toast("Removido da lista de amigos.");
+  }
+  /**
+   * Convida um AMIGO p/ o grupo. É o que ele tem de diferente do vizinho: o
+   * convite não vai pelo canal da zona, então alcança quem já está noutra área.
+   */
+  private convidarAmigo(uid: string): void {
+    void (async () => {
+      if (!party.emGrupo()) await party.criar(this.euNoGrupo());
+      if (!party.emGrupo()) { this.ui.toast("Sem conexão para formar grupo."); return; }
+      await friends.convidar(uid, party.partyId(), this.playerName || "Viajante", this.netId());
+      this.ui.toast("Convite enviado ao seu amigo.");
+    })();
   }
 
   /** Companheiro CAÍDO na minha área (o mirado tem preferência). */

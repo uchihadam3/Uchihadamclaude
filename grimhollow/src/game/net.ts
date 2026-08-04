@@ -22,7 +22,10 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, isSupabaseConfigured } from "./supabas
 
 // estado que cada jogador publica sobre si
 export interface PeerState {
-  id: string;        // id do jogador (uid da conta + slot do personagem)
+  id: string;        // id da SESSÃO (muda a cada aba aberta)
+  // identidade ESTÁVEL do personagem (friends.heroId). É por ela que se guarda
+  // uma amizade: `id` não serve, porque amanhã ele volta com outro.
+  uid?: string;
   name: string;      // nome do personagem
   classId: string;   // classe (define a arte do avatar)
   level: number;

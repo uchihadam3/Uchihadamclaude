@@ -243,6 +243,20 @@ export interface DialogueChoice {
 /** Para quem a fala vai: todos na ÁREA, ou só o GRUPO. */
 export type ChatCanal = "zona" | "grupo";
 
+/** Um jogador na mesma área (aba "Por perto" do painel social). */
+export interface NearbyEntry {
+  id: string;        // id de sessão — é por ele que se convida p/ o grupo
+  uid?: string;      // identidade estável — é por ela que se guarda a amizade
+  name: string; classId: string; level: number;
+  amigo?: boolean;   // já está na minha lista (some o botão de adicionar)
+}
+/** Um amigo guardado, com o que se sabe dele agora (aba "Amigos"). */
+export interface FriendEntry {
+  uid: string; name: string; classId: string;
+  online: boolean; level: number;
+  onde?: string;     // nome legível da área em que ele está
+}
+
 export interface HUD {
   setPrompt(text: string | null): void;
   showDialogue(name: string, text: string, portrait?: string | null, choices?: DialogueChoice[]): void;
@@ -266,9 +280,13 @@ export interface HUD {
   chatMessage(name: string, text: string, mine: boolean, canal?: ChatCanal): void;
   coopStatus(txt: string): void;
   /** SOCIAL: quem está na área agora (alimenta o painel de procurar grupo). */
-  setNearby(list: { id: string; name: string; classId: string; level: number }[]): void;
+  setNearby(list: NearbyEntry[]): void;
   /** SOCIAL: liga os botões do painel (convidar alguém / sair do grupo). */
   onSocial(convidar: (id: string) => void, sair: () => void): void;
+  /** AMIGOS: a lista guardada, com quem está online e onde. */
+  setFriends(list: FriendEntry[]): void;
+  /** AMIGOS: liga os botões (adicionar / remover / convidar p/ o grupo). */
+  onFriends(add: (uid: string) => void, del: (uid: string) => void, convidar: (uid: string) => void): void;
   /** GRUPO: lista de membros com vida (vazia = sem grupo, painel some).
    *  `alvo` é o companheiro escolhido — é nele que caem cura/bênção/escudo. */
   setParty(m: { id: string; name: string; classId: string; level: number; hp: number; maxHp: number; zone: string; lider: boolean; caido?: boolean }[], alvo?: string): void;
@@ -1394,27 +1412,83 @@ export function setupControls(
   socialBox.id = "gh-socialbox";
   socialBox.style.display = "none";
   root.appendChild(socialBox);
-  let nearby: { id: string; name: string; classId: string; level: number }[] = [];
+  let nearby: NearbyEntry[] = [];
+  let amigos: FriendEntry[] = [];
+  let aba: "perto" | "amigos" = "perto";
   let cbConvidar: (id: string) => void = () => {};
   let cbSair: () => void = () => {};
+  let cbAmigoAdd: (uid: string) => void = () => {};
+  let cbAmigoDel: (uid: string) => void = () => {};
+  let cbAmigoInv: (uid: string) => void = () => {};
+  const inicial = (s: string) => s.split(/[ ,]/)[0][0] ?? "?";
+  const retrato = (classId: string, letra: string, apagado = false) =>
+    `<div class="gh-so-face${apagado ? " gh-so-off" : ""}" style="background:${
+      CLASSE_COR[classId] ?? "#9a8f7e"}">${letra}</div>`;
+
+  const pintaPerto = () => (nearby.length
+    ? nearby.map((n) => {
+        const nome = n.name.split(/[ ,]/)[0];
+        // "+" adiciona à lista de amigos; some p/ quem já é amigo (nada de
+        // botão que não faz nada). Precisa do uid: sem ele não dá p/ reencontrar.
+        const podeAdd = !!n.uid && !n.amigo;
+        return `<div class="gh-so-row">
+          ${retrato(n.classId, inicial(n.name))}
+          <div class="gh-so-nome">${nome}<span>nível ${n.level} · ${n.classId}${n.amigo ? " · amigo" : ""}</span></div>
+          ${podeAdd ? `<button class="gh-so-add" data-uid="${n.uid}" title="Adicionar aos amigos">+</button>` : ""}
+          <button class="gh-so-inv" data-id="${n.id}">Convidar</button>
+        </div>`;
+      }).join("")
+    : `<div class="gh-so-vazio">Ninguém por perto.<br>
+         <small>Quem estiver na mesma área aparece aqui.</small></div>`);
+
+  const pintaAmigos = () => (amigos.length
+    ? amigos.map((a) => {
+        const nome = a.name.split(/[ ,]/)[0];
+        // O que o amigo tem de diferente do vizinho: dá p/ chamar p/ o grupo mesmo
+        // que ele esteja noutra área. Offline, sobra só tirar da lista.
+        return `<div class="gh-so-row${a.online ? "" : " gh-so-fora"}">
+          ${retrato(a.classId, inicial(a.name), !a.online)}
+          <div class="gh-so-nome">${nome}<span>${
+            a.online ? `nível ${a.level} · ${a.onde || "em algum lugar"}` : "fora do jogo"}</span></div>
+          ${a.online ? `<button class="gh-so-inv" data-amigo="${a.uid}">Convidar</button>` : ""}
+          <button class="gh-so-del" data-uid="${a.uid}" title="Remover dos amigos">×</button>
+        </div>`;
+      }).join("")
+    : `<div class="gh-so-vazio">Sua lista está vazia.<br>
+         <small>Toque no <b>+</b> ao lado de quem estiver por perto.</small></div>`);
+
   const pintaSocial = () => {
-    const linhas = nearby.length
-      ? nearby.map((n) => {
-          const nome = n.name.split(/[ ,]/)[0];
-          return `<div class="gh-so-row">
-            <div class="gh-so-face" style="background:${CLASSE_COR[n.classId] ?? "#9a8f7e"}">${nome[0] ?? "?"}</div>
-            <div class="gh-so-nome">${nome}<span>nível ${n.level} · ${n.classId}</span></div>
-            <button class="gh-so-inv" data-id="${n.id}">Convidar</button>
-          </div>`;
-        }).join("")
-      : `<div class="gh-so-vazio">Ninguém por perto.<br>
-           <small>Quem estiver na mesma área aparece aqui.</small></div>`;
-    socialBox.innerHTML = `<div class="gh-so-tit">Por perto</div>${linhas}
+    const n = amigos.filter((a) => a.online).length;
+    socialBox.innerHTML = `<div class="gh-so-abas">
+        <button class="gh-so-aba${aba === "perto" ? " gh-so-ativa" : ""}" data-aba="perto">Por perto</button>
+        <button class="gh-so-aba${aba === "amigos" ? " gh-so-ativa" : ""}" data-aba="amigos">Amigos${
+          n ? ` <i>${n}</i>` : ""}</button>
+      </div>${aba === "perto" ? pintaPerto() : pintaAmigos()}
       <button class="gh-so-sair">Sair do grupo</button>`;
+    socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-aba").forEach((b2) =>
+      b2.addEventListener("click", () => {
+        aba = (b2.dataset.aba as "perto" | "amigos") || "perto";
+        pintaSocial();
+      }));
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-inv").forEach((b2) =>
-      b2.addEventListener("click", () => { cbConvidar(b2.dataset.id || ""); socialBox.style.display = "none"; }));
+      b2.addEventListener("click", () => {
+        if (b2.dataset.amigo) cbAmigoInv(b2.dataset.amigo);
+        else cbConvidar(b2.dataset.id || "");
+        socialBox.style.display = "none";
+      }));
+    socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-add").forEach((b2) =>
+      b2.addEventListener("click", () => cbAmigoAdd(b2.dataset.uid || "")));
+    socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-del").forEach((b2) =>
+      b2.addEventListener("click", () => cbAmigoDel(b2.dataset.uid || "")));
     (socialBox.querySelector(".gh-so-sair") as HTMLButtonElement)
       ?.addEventListener("click", () => { cbSair(); socialBox.style.display = "none"; });
+  };
+  // o contador no próprio botão: vizinhos + amigos online, p/ dar p/ ver que tem
+  // gente sem abrir nada. É o número que decide se o botão pulsa.
+  const pintaBotaoSocial = () => {
+    const n = nearby.length + amigos.filter((a) => a.online).length;
+    socialBtn.innerHTML = `\u{1F465}${n ? `<small>${n}</small>` : ""}`;
+    socialBtn.classList.toggle("gh-so-tem", n > 0);
   };
   socialBtn.addEventListener("click", () => {
     const abrir = socialBox.style.display === "none";
@@ -1451,6 +1525,21 @@ export function setupControls(
       letter-spacing:.08em;text-align:center;margin:0 0 8px;
       border-bottom:1px solid rgba(201,162,39,.3);padding-bottom:6px;
       text-shadow:0 1px 2px #000;}
+    /* ABAS: "Por perto" é o agora, "Amigos" é o que fica. Duas listas com o mesmo
+       formato de linha — muda o conteúdo, não a leitura. */
+    .gh-so-abas{display:flex;gap:4px;margin:0 0 8px;
+      border-bottom:1px solid rgba(201,162,39,.3);padding-bottom:6px;}
+    .gh-so-aba{flex:1;cursor:pointer;font-family:"Cinzel",serif;font-size:12px;
+      letter-spacing:.05em;color:#a3906b;padding:5px 4px;border-radius:5px;
+      background:transparent;border:1px solid transparent;text-shadow:0 1px 2px #000;}
+    .gh-so-aba:hover{color:#f0dca2;}
+    .gh-so-aba.gh-so-ativa{color:#f0dca2;border-color:rgba(201,162,39,.5);
+      background:linear-gradient(rgba(58,44,28,.85),rgba(28,19,10,.85));}
+    /* contador de amigos online, colado no rótulo da aba */
+    .gh-so-aba i{font-style:normal;font-size:10px;color:#8fcf82;}
+    /* amigo fora do jogo: presente na lista, apagado na tela */
+    .gh-so-row.gh-so-fora{opacity:.5;}
+    .gh-so-face.gh-so-off{filter:grayscale(1) brightness(.7);}
     .gh-so-row{display:flex;align-items:center;gap:7px;padding:4px 2px;
       border-bottom:1px solid rgba(201,162,39,.14);}
     .gh-so-row:last-of-type{border-bottom:0;}
@@ -1462,13 +1551,17 @@ export function setupControls(
       color:#f0e2c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .gh-so-nome span{display:block;color:#a3906b;font-size:9.5px;
       font-family:"Trebuchet MS",sans-serif;letter-spacing:.03em;}
-    .gh-so-inv,.gh-so-sair{cursor:pointer;color:#f0dca2;font-size:11px;
+    .gh-so-inv,.gh-so-sair,.gh-so-add,.gh-so-del{cursor:pointer;color:#f0dca2;font-size:11px;
       font-family:"Cinzel",serif;letter-spacing:.04em;
       background:linear-gradient(#3a2c1c,#1c130a);
       border:1px solid rgba(201,162,39,.55);border-radius:5px;padding:5px 9px;
       box-shadow:0 1px 3px rgba(0,0,0,.5);}
-    .gh-so-inv:hover,.gh-so-sair:hover{color:#fff;border-color:#f4c847;}
-    .gh-so-inv:active,.gh-so-sair:active{transform:scale(.94);}
+    .gh-so-inv:hover,.gh-so-sair:hover,.gh-so-add:hover,.gh-so-del:hover{color:#fff;border-color:#f4c847;}
+    .gh-so-inv:active,.gh-so-sair:active,.gh-so-add:active,.gh-so-del:active{transform:scale(.94);}
+    /* "+" e "×": alvos pequenos mas com área de toque decente p/ o celular */
+    .gh-so-add,.gh-so-del{flex:none;padding:4px 8px;font-size:14px;line-height:1;}
+    .gh-so-del{color:#dcb2a0;border-color:rgba(170,95,72,.5);
+      background:linear-gradient(#3a2018,#1e100a);}
     .gh-so-sair{width:100%;margin-top:9px;color:#dcb2a0;
       border-color:rgba(170,95,72,.55);background:linear-gradient(#3a2018,#1e100a);}
     .gh-so-vazio{color:#9c8c6e;font-size:11.5px;line-height:1.5;
@@ -3003,12 +3096,16 @@ export function setupControls(
     coopStatus(txt: string) { chatStatus.textContent = txt; },
     setNearby(list) {
       nearby = list;
-      // o contador no próprio botão: dá p/ ver que tem gente sem abrir nada
-      socialBtn.innerHTML = `\u{1F465}${list.length ? `<small>${list.length}</small>` : ""}`;
-      socialBtn.classList.toggle("gh-so-tem", list.length > 0);
+      pintaBotaoSocial();
       if (socialBox.style.display !== "none") pintaSocial();
     },
     onSocial(convidar, sair) { cbConvidar = convidar; cbSair = sair; },
+    setFriends(list) {
+      amigos = list;
+      pintaBotaoSocial();
+      if (socialBox.style.display !== "none") pintaSocial();
+    },
+    onFriends(add, del, convidar) { cbAmigoAdd = add; cbAmigoDel = del; cbAmigoInv = convidar; },
     onParty(escolher, levantar) { cbEscolher = escolher; cbLevantar = levantar; },
     setFallen(info) {
       if (!info) { fallen.style.display = "none"; return; }
