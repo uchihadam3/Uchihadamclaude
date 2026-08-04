@@ -31,135 +31,30 @@ const THEMES={
 // movers: plataformas móveis [{x,y,w,axis:'x'|'y',dist,speed,phase}] (em tiles)
 const LEVELS = [
   { name:"1 · Vale", mass:9, max:9, theme:"cave",
-    hint:"Ande pra direita ➜ e pule os buracos. Suba nas plataformas pra pegar a gema 💎!", rows:[
-    "##########################################################",
-    "#                                                        #",
-    "#                                                        #",
-    "#                                                        #",
-    "#                                                        #",
-    "#        o                                               #",
-    "#       ####                                             #",
-    "#                                                        #",
-    "#                                                        #",
-    "#                                                        #",
-    "#                                       G                #",
-    "#                  o                  #####              #",
-    "#                 ####                                   #",
-    "#        ###                                             #",
-    "#     ###                   o                     o      #",
-    "# @                                                   E  #",
-    "############   #######   ########   ########  ############",
-    "############   #######   ########   ########  ############",
-    "############^^^#######^^^########^^^########^^############",
-    "############   #######   ########   ########  ############"]},
-
-  { name:"2 · Colinas", mass:11, max:11, theme:"cave",
-    hint:"Suba pelos degraus e monte torres (pule parado) pra alcançar a ★ lá no alto.", rows:[
-    "##############################################################",
-    "#                                                            #",
-    "#                                                            #",
-    "#                                                            #",
-    "#                                                            #",
-    "#           o                                                #",
-    "#         #####                                              #",
-    "#                                                            #",
-    "#                                                            #",
-    "#                                                     oE     #",
-    "#                                                   #######  #",
-    "#            ###      G                                      #",
-    "#                   #####                                    #",
-    "#         ###                         o                      #",
-    "#                                   #####                    #",
-    "#      ###                                                   #",
-    "#                                                            #",
-    "# @                                                          #",
-    "################   ###########    ############   #############",
-    "################   ###########    ############   #############",
-    "################^^^###########^^^^############^^^#############",
-    "################   ###########    ############   #############"]},
-
-  { name:"3 · Cavernas", mass:10, max:10, theme:"deep",
-    hint:"Torres gastam massa — coma os pedaços (E) pra reabastecer. Explore pra cima!", rows:[
+    hint:"Ande e pule ➜. Há SEGREDOS escondidos — explore o alto… e encoste nas paredes 👀💎", rows:[
     "############################################################",
     "#                                                          #",
     "#                                                          #",
     "#                                                          #",
-    "#                           o                              #",
-    "#                         #####                            #",
-    "#                                                          #",
-    "#       #####                                              #",
     "#                                                          #",
     "#                                                          #",
-    "#                                 G                        #",
     "#                                                          #",
-    "#                                ####                      #",
-    "#                    o                                     #",
-    "#                   ###                       o            #",
-    "#                                            ###           #",
     "#                                                          #",
+    "#                                                          #",
+    "#                                  G                       #",
+    "#       ####                     #####                     #",
+    "#       #G #        o                                      #",
+    "#       #  S       ####                                    #",
+    "#       ####                                               #",
+    "#     ###                     o              o             #",
     "# @                                                     E  #",
-    "##############   #########    ##########   #######  ########",
-    "##############   #########    ##########   #######  ########",
-    "##############^^^#########^^^^##########^^^#######^^########",
-    "##############   #########    ##########   #######  ########"]},
+    "#############   ########   ###########   #########  ########",
+    "#############   ########   ###########   #########  ########",
+    "#############^^^########^^^###########^^^#########^^########",
+    "#############   ########   ###########   #########  ########"]},
 
-  { name:"4 · Paredão", mass:6, max:6, theme:"deep",
-    hint:"Suba! Pule perto da parede e SEGURE a direção contra ela pra grudar e escalar até a ★.", rows:[
-    "##############################",
-    "#                            #",
-    "#                            #",
-    "#                            #",
-    "#                            #",
-    "#                #           #",
-    "#                #           #",
-    "#               E#           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#               G#           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#               o#           #",
-    "#                #           #",
-    "#                #           #",
-    "#                #           #",
-    "#         o      #           #",
-    "# @              #           #",
-    "##############################",
-    "##############################"]},
-
-  { name:"5 · A Ponte", mass:5, max:5, theme:"ice",
-    hint:"Pegue carona nas plataformas móveis e use as molas (⇑) pra cruzar os abismos!", rows:[
-    "########################################################################",
-    "#                                                                      #",
-    "#                                                                      #",
-    "#                                                                      #",
-    "#                                                                      #",
-    "#                                                                      #",
-    "#                                                                      #",
-    "#                                                                      #",
-    "#                                                                      #",
-    "#              o                                                       #",
-    "#             ###                                                      #",
-    "#                        G                                             #",
-    "#                                               o                      #",
-    "#                                                                      #",
-    "#                                                                      #",
-    "# @                                                                 E  #",
-    "########             ####T##                 ####T##             #######",
-    "########             #######                 #######             #######",
-    "########^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^^^#######^^^^^^^^^^^^^#######",
-    "########             #######                 #######             #######"],
-    movers:[{"x":9,"y":16,"w":3,"axis":"x","dist":9,"speed":0.7,"phase":0},{"x":30,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":1},{"x":53,"y":16,"w":3,"axis":"x","dist":9,"speed":0.75,"phase":0.4}]},
-
-  { name:"6 · Forja", mass:8, max:8, theme:"forge",
-    hint:"Deixe um pedaço na placa (▬) pra abrir a porta, cruze o 🔥 calor e use a mola no buraco!", rows:[
+  { name:"2 · Colinas", mass:9, max:9, theme:"cave",
+    hint:"Dois caminhos: o alto tem ponte que DESMORONA (corra!) e um segredo. O baixo é seguro.", rows:[
     "################################################################",
     "#                                                              #",
     "#                                                              #",
@@ -169,12 +64,117 @@ const LEVELS = [
     "#                                                              #",
     "#                                                              #",
     "#                                                              #",
-    "#                  o                                           #",
-    "#                 ####                                         #",
     "#                                                              #",
-    "#                         o                                    #",
+    "#                                 G                            #",
+    "#           ###     #####CCCCCCC#####                          #",
+    "#                                                     ####     #",
+    "#        ###                                          #G #     #",
+    "#                                                     S  #     #",
+    "#     ###                                             ####     #",
+    "#                         o                 o                  #",
+    "# @                                                         E  #",
+    "##################   #############    ############   ###########",
+    "##################   #############    ############   ###########",
+    "##################^^^#############^^^^############^^^###########",
+    "##################   #############    ############   ###########"]},
+
+  { name:"3 · Cavernas", mass:10, max:10, theme:"deep",
+    hint:"Torres gastam massa — coma pedaços (E) pra reabastecer. 2 segredos: um no alto, um oculto.", rows:[
+    "##############################################################",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                     G                      #",
+    "#                                   #####                    #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                                                            #",
+    "#                      o                                     #",
+    "#         ####        ####                                   #",
+    "#         #G #                                               #",
+    "#         #  S                                               #",
+    "#         ####                                    o          #",
+    "# @                                                       E  #",
+    "################   ###########    ############   #############",
+    "################   ###########    ############   #############",
+    "################^^^###########^^^^############^^^#############",
+    "################   ###########    ############   #############"]},
+
+  { name:"4 · Paredão", mass:7, max:7, theme:"deep",
+    hint:"Escale a parede até a ★. Mas há uma passagem FALSA lá no alto à direita… 💎", rows:[
+    "##############################",
+    "#                            #",
+    "#                            #",
+    "#                            #",
+    "#                            #",
+    "#                #           #",
+    "#                #  #####    #",
+    "#               E#  #   #    #",
+    "#                #  S G #    #",
+    "#                #  #   #    #",
+    "#                #  #####    #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#               o#           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
+    "#         o      #           #",
+    "# @              #           #",
+    "##############################",
+    "##############################"]},
+
+  { name:"5 · A Ponte", mass:5, max:5, theme:"ice",
+    hint:"Movers e molas cruzam os abismos. A ponte frágil no alto (💎) DESMORONA — seja rápido!", rows:[
+    "########################################################################",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#             G                                                        #",
+    "#         CCCCCCCCC                           ####                     #",
+    "#                                             #G #                     #",
+    "#                                             #  S                     #",
+    "#                                             ####                     #",
+    "#                                                                      #",
+    "# @                                                                 E  #",
+    "########             ####T##                 ####T##             #######",
+    "########             #######                 #######             #######",
+    "########^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^^^#######^^^^^^^^^^^^^#######",
+    "########             #######                 #######             #######"],
+    movers:[{"x":9,"y":16,"w":3,"axis":"x","dist":9,"speed":0.7,"phase":0},{"x":30,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":1},{"x":53,"y":16,"w":3,"axis":"x","dist":9,"speed":0.75,"phase":0.4}]},
+
+  { name:"6 · Forja", mass:8, max:8, theme:"forge",
+    hint:"Abra a porta com um pedaço na placa, cruze o 🔥 calor. 2 segredos: no alto e oculto.", rows:[
+    "################################################################",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                                                              #",
+    "#                  G                                           #",
+    "#                 ####                              ####       #",
+    "#                                                   #G #       #",
+    "#                         o               o         S  #       #",
+    "#           D                           CCCCC       ####       #",
     "#           D                                                  #",
-    "#           D                                       G          #",
     "# @         D         HHHHHHHHHH             T              E  #",
     "#######P############################   #########################",
     "####################################   #########################",
@@ -182,7 +182,7 @@ const LEVELS = [
     "####################################   #########################"]},
 
   { name:"7 · Guarida", mass:7, max:7, theme:"forge",
-    hint:"Guardiões 👾 patrulham! Use as molas pra saltar por cima e siga até a ★.", rows:[
+    hint:"Guardiões 👾 patrulham! Molas pra saltar, e uma ponte frágil (💎) por cima do perigo.", rows:[
     "##################################################################",
     "#                                                                #",
     "#                                                                #",
@@ -194,45 +194,45 @@ const LEVELS = [
     "#                                                                #",
     "#                                                                #",
     "#                                                                #",
-    "#                               G                                #",
-    "#                             #####                 o            #",
-    "#                                                 #####          #",
-    "#                                                                #",
+    "#                                                 ####           #",
+    "#                              G                  #G #           #",
+    "#                           CCCCCCC               #  S           #",
+    "#                                                 ####           #",
     "#                                                                #",
     "# @                                                           E  #",
     "############T###########   #############T#########################",
     "########################   #######################################",
     "########################^^^#######################################",
     "########################   #######################################"],
-    enemies:[{"x":18,"y":16,"dist":9,"speed":0.9,"axis":"x"},{"x":44,"y":16,"dist":8,"speed":1.1,"axis":"x"},{"x":30,"y":11,"dist":3,"speed":1.3,"axis":"x"}]},
+    enemies:[{"x":18,"y":16,"dist":9,"speed":0.9,"axis":"x"},{"x":44,"y":16,"dist":8,"speed":1.1,"axis":"x"},{"x":30,"y":12,"dist":3,"speed":1.3,"axis":"x"}]},
 
   { name:"8 · O Ápice", mass:9, max:9, theme:"ice",
-    hint:"O grande final: molas, plataformas móveis, calor e guardiões. Vai, gosminha! 💎", rows:[
-    "####################################################################################",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                               o                                                  #",
-    "#                             #####                                                #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#          o                                                                       #",
-    "#         ####                                          G                          #",
-    "#                                                     #####                        #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "#                                                                                  #",
-    "# @                                         HHHHHH                              E  #",
-    "##############   #######T#               #########   #######T#             #########",
-    "##############   #########               #########   #########             #########",
-    "##############^^^#########^^^^^^^^^^^^^^^#########^^^#########^^^^^^^^^^^^^#########",
-    "##############   #########               #########   #########             #########"],
-    movers:[{"x":27,"y":20,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":63,"y":20,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
+    hint:"O grande final. TRÊS segredos escondidos 💎💎💎 — poucos vão achar todos. Boa sorte!", rows:[
+    "######################################################################################",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                               G                                                    #",
+    "#                             #####                                                  #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#                                                                                    #",
+    "#         ####                                          G                            #",
+    "#         #G #                                        CCCCC                          #",
+    "#         #  S                                                                       #",
+    "#         ####                               o                                       #",
+    "#                                                                     o              #",
+    "# @                                         HHHHHH                                E  #",
+    "##############   #######T#               #########   #########T#             #########",
+    "##############   #########               #########   ###########             #########",
+    "##############^^^#########^^^^^^^^^^^^^^^#########^^^###########^^^^^^^^^^^^^#########",
+    "##############   #########               #########   ###########             #########"],
+    movers:[{"x":27,"y":20,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":65,"y":20,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
     enemies:[{"x":45,"y":19,"dist":4,"speed":1,"axis":"x"}]},
 
 ];
@@ -252,7 +252,7 @@ function starsFor(idx, massLeft){
 // -------------------------------------------------------------------------- ESTADO
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
-let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gem,exitRect,startPos,theme;
+let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,fakes,crumbles,exitRect,startPos,theme;
 let blob, globs, particles=[], motes=[], levelIndex=0, state="menu"; // menu|play|complete|dead
 let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 
@@ -281,21 +281,23 @@ function showMenu(){
 function levelHasGem(i){ return LEVELS[i].rows.join("").includes("G"); }
 function buildLevelGrid(){
   const grid=el("level-grid"); grid.innerHTML="";
+  const secretsIn=i=>(LEVELS[i].rows.join("").match(/G/g)||[]).length;
+  const foundIn=i=>Math.min(secretsIn(i), save.gems[i]||0);
   // totais
   const totalStars=Object.values(save.stars).reduce((a,b)=>a+(b||0),0);
-  const gemLevels=LEVELS.filter((_,i)=>levelHasGem(i)).length;
-  const totalGems=Object.keys(save.gems).filter(k=>save.gems[k]).length;
+  let totalSecrets=0, totalFound=0;
+  LEVELS.forEach((_,i)=>{ totalSecrets+=secretsIn(i); totalFound+=foundIn(i); });
   const stats=el("menu-stats");
-  if(stats) stats.innerHTML=`⭐ ${totalStars}/${LEVELS.length*3} &nbsp;·&nbsp; 💎 ${totalGems}/${gemLevels}`;
+  if(stats) stats.innerHTML=`⭐ ${totalStars}/${LEVELS.length*3} &nbsp;·&nbsp; 💎 ${totalFound}/${totalSecrets} segredos`;
   LEVELS.forEach((L,i)=>{
     const locked=i>save.unlocked, st=save.stars[i]||0;
-    const gemHere=levelHasGem(i), gotGem=!!save.gems[i];
+    const sTot=secretsIn(i), sGot=foundIn(i);
     const c=document.createElement("div");
     c.className="lv-card "+(locked?"locked":"unlocked");
     c.innerHTML = locked
       ? `<div class="lv-lock">🔒</div><div class="lv-name">${(L.name.split("·")[1]||"").trim()}</div>`
       : `<div class="lv-num">${i+1}</div><div class="lv-name">${L.name.split("·")[1].trim()}</div>
-         <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"}${gemHere?(gotGem?" 💎":" ◇"):""}</div>`;
+         <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"}${sTot?` <span style="color:${sGot===sTot?'#8be9ff':'#5a7a80'}">💎${sGot}/${sTot}</span>`:""}</div>`;
     if(!locked) c.addEventListener("click", ()=>{ audio(); startGame(i); });
     grid.appendChild(c);
   });
@@ -313,7 +315,7 @@ function startGame(i){
 function loadLevel(idx){
   level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
   fitCanvas();                            // dimensiona o canvas à tela e calcula o zoom
-  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gem=null;
+  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];fakes=[];crumbles=[];
   theme=THEMES[level.theme] || [THEMES.cave,THEMES.cave,THEMES.cave,THEMES.deep,THEMES.deep,THEMES.deep,THEMES.forge,THEMES.forge,THEMES.forge][idx] || THEMES.cave;
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
     const ch=level.rows[y][x], r={x:x*TILE,y:y*TILE,w:TILE,h:TILE};
@@ -324,7 +326,9 @@ function loadLevel(idx){
     else if(ch==="D")doors.push(r);
     else if(ch==="H")heatZones.push(r);
     else if(ch==="T"){solidTiles.push(r);springs.push({x:r.x,y:r.y,w:TILE,h:TILE,sq:0});}  // mola
-    else if(ch==="G")gem={x:x*TILE+16,y:y*TILE+16,r:8,got:false};                          // gema secreta
+    else if(ch==="G")gems.push({x:x*TILE+16,y:y*TILE+16,r:8,got:false});                   // gema/segredo
+    else if(ch==="S")fakes.push(r);                                                        // parede FALSA (passa através)
+    else if(ch==="C")crumbles.push({x:r.x,y:r.y,w:TILE,h:TILE,solid:true,t:0,resp:0});     // plataforma que desmorona
     else if(ch==="E")exitRect={x:x*TILE+4,y:y*TILE+2,w:TILE-8,h:TILE-4};
     else if(ch==="@")startPos={x:x*TILE,y:y*TILE};
   }
@@ -363,6 +367,7 @@ function plateOn(){ if(!plates.length)return false;
 function solidsList(){ const l=solidTiles.slice();
   for(const g of globs)if(g.solid)l.push(g);
   for(const m of movers)l.push({x:m.x,y:m.y,w:m.w,h:m.h});
+  for(const c of crumbles)if(c.solid)l.push(c);
   if(doors.length&&!plateOn())for(const d of doors)l.push(d);
   return l; }
 function moveAxis(dx,dy){ const list=solidsList();
@@ -467,13 +472,22 @@ function update(dt){
   }
   for(const sp of springs) if(sp.sq>0) sp.sq=Math.max(0,sp.sq-dt*4);
 
+  // plataformas que DESMORONAM: pisou → treme e cai; depois respawna
+  for(const c of crumbles){
+    if(c.solid){
+      const on = blob.onGround && blob.x+blob.w>c.x+2 && blob.x<c.x+c.w-2 && Math.abs((blob.y+blob.h)-c.y)<3;
+      if(on){ c.t+=dt; if(c.t>=0.55){ c.solid=false; c.resp=2.6; burst(c.x+c.w/2,c.y+c.h/2,8,"#b98a5a",80); sfx("nope"); } }
+      else if(c.t>0) c.t=Math.max(0,c.t-dt*2);
+    } else { c.resp-=dt; if(c.resp<=0){ c.solid=true; c.t=0; } }
+  }
+
   camFollow(false);   // câmera segue o blob
 
   // inimigos: contato = morte
   for(const e of enemies) if(overlaps(blob,{x:e.x+2,y:e.y+2,w:e.w-4,h:e.h-4})){ die(); return; }
-  // gema secreta
-  if(gem && !gem.got && overlaps(blob,{x:gem.x-gem.r,y:gem.y-gem.r,w:gem.r*2,h:gem.r*2})){
-    gem.got=true; burst(gem.x,gem.y,14,"#8be9ff",150); sfx("gem");
+  // gemas / SEGREDOS (várias por fase)
+  for(const gm of gems) if(!gm.got && overlaps(blob,{x:gm.x-gm.r,y:gm.y-gm.r,w:gm.r*2,h:gm.r*2})){
+    gm.got=true; burst(gm.x,gm.y,16,"#8be9ff",160); sfx("gem"); shake=Math.max(shake,3);
   }
 
   // calor
@@ -519,12 +533,15 @@ function die(){ deaths++; burst(blob.x+blob.w/2,blob.y+blob.h/2,18,"#ff7a6a",210
 function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exitRect.y+exitRect.h/2,22,"#7ee06b",190);
   const st=starsFor(levelIndex,blob.mass);
   save.stars[levelIndex]=Math.max(save.stars[levelIndex]||0, st);
-  if(gem&&gem.got) save.gems[levelIndex]=true;
+  const found=gems.filter(g=>g.got).length, total=gems.length;
+  if(total) save.gems[levelIndex]=Math.max(save.gems[levelIndex]||0, found);
   if(levelIndex+1<LEVELS.length && save.unlocked<levelIndex+1) save.unlocked=levelIndex+1;
   persist();
   const isLast=levelIndex>=LEVELS.length-1;
-  const gemTxt = gem ? (gem.got?"  💎":"  <span style='opacity:.35'>💎</span>") : "";
-  overlay(isLast?"🏆 Você zerou!":"✅ Fase completa!", "★".repeat(st)+"☆".repeat(3-st)+gemTxt,
+  let sub="★".repeat(st)+"☆".repeat(3-st);
+  if(total){ sub += `<div style="font-size:.8rem;color:#8be9ff;margin-top:6px">💎 Segredos: ${found}/${total}`
+    + (found<total?` <span style="color:#8fb3a6">— tem mais escondido por aí…</span>`:` ✨`) + `</div>`; }
+  overlay(isLast?"🏆 Você zerou!":"✅ Fase completa!", sub,
     isLast? [{t:"Menu",cb:showMenu}] :
           [{t:"Próxima ▶",cb:()=>startGame(levelIndex+1)},{t:"Menu",ghost:true,cb:showMenu}], true); }
 
@@ -557,7 +574,7 @@ function render(){
       ctx.beginPath(); ctx.moveTo(fx,h.y+h.h-3); ctx.quadraticCurveTo(fx+3,h.y+h.h-8-fl,fx+5,h.y+h.h-3); ctx.fill(); } }
 
   // tiles com relevo + topo de grama-gosma (tema)
-  for(const s of solidTiles){ if(!vis(s))continue;
+  function drawTile(s){
     ctx.fillStyle=th.tile; ctx.fillRect(s.x,s.y,s.w,s.h);
     ctx.fillStyle=th.tilehi; ctx.fillRect(s.x,s.y,s.w,3);
     ctx.fillStyle="rgba(0,0,0,.22)"; ctx.fillRect(s.x,s.y+s.h-4,s.w,4);
@@ -566,6 +583,19 @@ function render(){
       ctx.fillStyle=th.top2; for(let i=0;i<2;i++){ const dx=s.x+8+i*14; ctx.beginPath();
         ctx.arc(dx,s.y+6,3+(i?1:0),0,Math.PI); ctx.fill(); } }
     ctx.fillStyle="rgba(255,255,255,.03)"; ctx.fillRect(s.x+3,s.y+8,2,2); ctx.fillRect(s.x+s.w-8,s.y+13,2,2);
+  }
+  for(const s of solidTiles) if(vis(s)) drawTile(s);
+  for(const s of fakes) if(vis(s)) drawTile(s);          // paredes FALSAS: idênticas (segredo!)
+  // plataformas que DESMORONAM (rachadas; tremem antes de cair)
+  for(const c of crumbles){ if(!vis(c))continue;
+    if(c.solid){ const jit=c.t>0?(Math.random()*2-1)*c.t*3:0;
+      ctx.save(); ctx.translate(jit,0);
+      ctx.fillStyle="#6a5238"; ctx.fillRect(c.x,c.y,c.w,c.h);
+      ctx.fillStyle="#8a6a48"; ctx.fillRect(c.x,c.y,c.w,3);
+      ctx.strokeStyle="rgba(0,0,0,.4)"; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(c.x+10,c.y); ctx.lineTo(c.x+14,c.y+13); ctx.lineTo(c.x+9,c.y+c.h);
+      ctx.moveTo(c.x+22,c.y+4); ctx.lineTo(c.x+18,c.y+18); ctx.stroke(); ctx.restore();
+    } else { ctx.globalAlpha=0.16; ctx.fillStyle="#6a5238"; ctx.fillRect(c.x,c.y,c.w,c.h); ctx.globalAlpha=1; }
   }
   // molas (trampolim)
   for(const sp of springs){ const c=sp.sq*6;
@@ -602,9 +632,10 @@ function render(){
     ctx.fillStyle="#a6f08a"; ctx.beginPath(); ctx.arc(p.x,by,p.r,0,7); ctx.fill(); ctx.restore();
     ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(p.x-3,by-3,2.4,0,7); ctx.fill(); }
 
-  // gema secreta (diamante girando)
-  if(gem && !gem.got){ const gy=gem.y+Math.sin(T*2.5)*3, r=gem.r;
-    ctx.save(); ctx.translate(gem.x,gy); ctx.rotate(Math.sin(T*1.5)*0.25);
+  // gemas / SEGREDOS (diamante girando)
+  for(const gm of gems){ if(gm.got||!vis({x:gm.x-16,y:gm.y-16,w:32,h:32}))continue;
+    const gy=gm.y+Math.sin(T*2.5+gm.x)*3, r=gm.r;
+    ctx.save(); ctx.translate(gm.x,gy); ctx.rotate(Math.sin(T*1.5+gm.x)*0.25);
     ctx.shadowColor="#8be9ff"; ctx.shadowBlur=16;
     const gg=ctx.createLinearGradient(0,-r,0,r); gg.addColorStop(0,"#d6f7ff"); gg.addColorStop(1,"#3fb0e0");
     ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r*0.8,0); ctx.lineTo(0,r); ctx.lineTo(-r*0.8,0); ctx.closePath(); ctx.fill();
@@ -853,4 +884,7 @@ requestAnimationFrame(loop);
 // exposto p/ testes
 window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get globs(){return globs?globs.length:0;},
   get level(){return levelIndex;}, get blob(){return blob;}, get melting(){return !!(blob&&blob.melting);},
-  get doorOpen(){return plateOn();}, start:startGame, menu:showMenu };
+  get doorOpen(){return plateOn();}, start:startGame, menu:showMenu,
+  get gems(){return gems?gems.length:0;}, get gemsGot(){return gems?gems.filter(g=>g.got).length:0;},
+  get fakes(){return fakes?fakes.length:0;}, get crumbles(){return crumbles?crumbles.length:0;},
+  collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
