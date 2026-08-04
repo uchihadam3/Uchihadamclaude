@@ -50,8 +50,15 @@ export type ChatCb = (name: string, text: string, mine: boolean) => void;
 // renascimento — quem recebe um inimigo que não tem, cria; quem tem um que não
 // veio, remove.
 // ---------------------------------------------------------------------------
-/** [id, coluna, linha, vida, vidaMax, tipo, perseguindo] */
-export type MobTupla = [string, number, number, number, number, string, number];
+/**
+ * [id, coluna, linha, vida, vidaMax, tipo, perseguindo, golpeDeArea, msRestantes]
+ *
+ * Os dois últimos só interessam ao CHEFE: qual golpe de área ele está
+ * canalizando (0 = nenhum) e quanto falta p/ o estouro. Com isso — mais a
+ * posição, que já vinha —, cada máquina desenha o mesmo chão vermelho sozinha;
+ * a lista de casas nunca precisa viajar.
+ */
+export type MobTupla = [string, number, number, number, number, string, number, number?, number?];
 export interface MobRetrato {
   m: MobTupla[];   // inimigos vivos
   d: string[];     // ids dos que morreram nos últimos segundos

@@ -294,6 +294,9 @@ export interface HUD {
   onParty(escolher: (id: string) => void, levantar: (id: string) => void): void;
   /** CAÍDO: véu de tombado com a contagem. `null` fecha (levantou ou já era). */
   setFallen(info: { secs: number; texto: string } | null): void;
+  /** CHEFE canalizando um golpe de área: nome, como escapar e a barra enchendo.
+   *  `null` apaga (o golpe estourou ou o chefe caiu). */
+  bossCast(c: { nome: string; dica: string; frac: number } | null): void;
   /** CONVITE DE GRUPO: aviso na tela com Aceitar/Recusar e tempo p/ responder. */
   showInvite(c: { de: string; classId?: string; segundos: number },
     aceitar: () => void, recusar: () => void): void;
@@ -1457,6 +1460,38 @@ export function setupControls(
       transition:width 1s linear;}
   `;
   root.appendChild(inviteCss);
+
+  // ---- AVISO DO GOLPE DE ÁREA DO CHEFE ----
+  // O chão vermelho diz ONDE; isto diz O QUE e QUANTO FALTA. As três coisas
+  // juntas — nome, dica de fuga e barra — é o que transforma "levei um dano
+  // enorme do nada" em "eu não saí da linha a tempo".
+  const bcast = document.createElement("div");
+  bcast.id = "gh-bcast";
+  bcast.style.display = "none";
+  bcast.innerHTML = '<div class="gh-bc-nome"></div><div class="gh-bc-dica"></div>'
+    + '<div class="gh-bc-bar"><i></i></div>';
+  root.appendChild(bcast);
+  const bcNome = bcast.querySelector(".gh-bc-nome") as HTMLElement;
+  const bcDica = bcast.querySelector(".gh-bc-dica") as HTMLElement;
+  const bcBar = bcast.querySelector(".gh-bc-bar i") as HTMLElement;
+  const bcastCss = document.createElement("style");
+  bcastCss.textContent = `
+    #gh-bcast{position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:22;
+      pointer-events:none;width:min(340px,80vw);text-align:center;
+      font-family:"Cinzel",serif;}
+    #gh-bcast .gh-bc-nome{font-size:clamp(15px,3.4vw,21px);letter-spacing:.1em;
+      color:#ff7a52;text-shadow:0 2px 6px #000,0 0 18px rgba(255,90,60,.55);
+      animation:ghBcPulso .7s ease-in-out infinite alternate;}
+    @keyframes ghBcPulso{from{opacity:.82;}to{opacity:1;}}
+    #gh-bcast .gh-bc-dica{margin-top:2px;font-family:"Trebuchet MS",sans-serif;
+      font-size:11.5px;letter-spacing:.06em;color:#e6c9a8;text-shadow:0 1px 3px #000;}
+    #gh-bcast .gh-bc-bar{margin:6px auto 0;height:7px;width:78%;background:rgba(10,6,5,.8);
+      border:1px solid rgba(255,120,80,.55);border-radius:3px;overflow:hidden;
+      box-shadow:0 2px 6px rgba(0,0,0,.6);}
+    #gh-bcast .gh-bc-bar i{display:block;height:100%;width:0%;
+      background:linear-gradient(#ffb05a,#e0562e);}
+  `;
+  root.appendChild(bcastCss);
 
   // ---- PAINEL SOCIAL: botão ao lado do minimapa + janela "quem está por perto"
   // No celular, digitar "/convidar Fulano" é penoso: abre teclado, cobre a tela e
@@ -3165,6 +3200,12 @@ export function setupControls(
     },
     onFriends(add, del, convidar) { cbAmigoAdd = add; cbAmigoDel = del; cbAmigoInv = convidar; },
     onParty(escolher, levantar) { cbEscolher = escolher; cbLevantar = levantar; },
+    bossCast(c) {
+      if (!c) { bcast.style.display = "none"; return; }
+      if (bcast.style.display === "none") bcast.style.display = "block";
+      if (bcNome.textContent !== c.nome) { bcNome.textContent = c.nome; bcDica.textContent = c.dica; }
+      bcBar.style.width = `${Math.round(Math.max(0, Math.min(1, c.frac)) * 100)}%`;
+    },
     showInvite(c, aceitar, recusar) {
       fechaConvite();
       const nome = c.de.split(/[ ,]/)[0];

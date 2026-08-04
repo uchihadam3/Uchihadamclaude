@@ -1281,7 +1281,80 @@ interface EnemyEnt {
   hdc: number; hdr: number;    // direção p/ onde o inimigo está "virado" (último passo/rumo)
   faceArrow: THREE.Mesh;       // seta NO CHÃO sob o inimigo, apontando p/ onde ele encara
   bar: THREE.Group; barFill: THREE.Mesh;
+  // ---- CHEFE: golpe de ÁREA telegrafado ----
+  // Ele para, fica vermelho, uma barra enche sob a vida dele e o chão acende nas
+  // células que vão ser atingidas. Quem continuar em cima quando a barra encher
+  // leva um dano que dói de verdade; quem saiu não leva nada.
+  castKind: number;   // 0 = nada; 1..N = padrão de área (ver AOE_CHEFE)
+  castAt: number;     // instante em que começou a canalizar
+  castDur: number;    // quanto dura o canal (ms)
+  castHit: boolean;   // já resolveu o impacto?
+  nextCast: number;   // instante mínimo do próximo golpe de área
+  castBar?: THREE.Group; castFill?: THREE.Mesh;
 }
+
+// ============================================================================
+// GOLPES DE ÁREA DO CHEFE
+//
+// Todo padrão é uma FUNÇÃO PURA da célula do chefe. Isso não é elegância: é o
+// que faz o co-op funcionar sem mandar a lista de células pela rede. O retrato
+// já leva a posição do chefe e qual padrão ele está canalizando; com esses dois
+// dados, cada máquina desenha exatamente o mesmo chão vermelho e cada jogador
+// resolve na própria vida se estava dentro ou fora. Nada de "o hospedeiro
+// decide quem apanhou".
+//
+// Por isso também o chefe NÃO ANDA enquanto canaliza: se ele se mexesse, as
+// células mudariam de lugar entre um retrato e outro e o aviso viraria mentira.
+// ============================================================================
+export interface AoeChefe {
+  nome: string;
+  canal: number;      // quanto tempo o jogador tem p/ sair (ms)
+  dano: number;       // multiplicador sobre o ataque do chefe
+  dica: string;       // como escapar (aparece sob o nome)
+  cells(c: number, r: number): [number, number][];
+}
+export const AOE_CHEFE: AoeChefe[] = [
+  {
+    // CRUZ: a fileira e a coluna dele. Escapar é sair da linha — um passo na
+    // diagonal basta, e é a lição que ensina o jogador a ler o tabuleiro.
+    nome: "Fenda Sísmica", canal: 2500, dano: 2.4, dica: "Saia da linha",
+    cells: (c, r) => {
+      const out: [number, number][] = [];
+      for (let d = -5; d <= 5; d++) {
+        if (d !== 0) out.push([c + d, r], [c, r + d]);
+      }
+      out.push([c, r]);
+      return out;
+    },
+  },
+  {
+    // ANEL: a casca a duas células de distância. Escapar é COLAR nele ou correr
+    // p/ longe — o oposto do instinto de "recuar um pouco".
+    nome: "Anel de Cinzas", canal: 2300, dano: 2.2, dica: "Cole nele ou corra",
+    cells: (c, r) => {
+      const out: [number, number][] = [];
+      for (let dc = -2; dc <= 2; dc++)
+        for (let dr = -2; dr <= 2; dr++)
+          if (Math.max(Math.abs(dc), Math.abs(dr)) === 2) out.push([c + dc, r + dr]);
+      return out;
+    },
+  },
+  {
+    // TABULEIRO: metade das casas em volta, alternadas. Escapar é pisar na casa
+    // vizinha — é o padrão mais fácil de ler e o que ocupa mais chão.
+    nome: "Dízimo do Abismo", canal: 2900, dano: 2.0, dica: "Pise na casa vizinha",
+    cells: (c, r) => {
+      const out: [number, number][] = [];
+      const par = (c + r) % 2;
+      for (let dc = -3; dc <= 3; dc++)
+        for (let dr = -3; dr <= 3; dr++) {
+          const cc = c + dc, rr = r + dr;
+          if ((((cc + rr) % 2) + 2) % 2 === par) out.push([cc, rr]);
+        }
+      return out;
+    },
+  },
+];
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
@@ -1393,6 +1466,11 @@ export class Game {
   // sem isso, num grupo o bicho só correria atrás do hospedeiro.
   private mobAlvoC = 0;
   private mobAlvoR = 0;
+  // ---- golpe de área do chefe: as casas acesas no chão ----
+  private aoeMarks: THREE.Mesh[] = [];   // as que estão em cena agora
+  private aoePool: THREE.Mesh[] = [];    // as guardadas p/ reusar (nada de criar/jogar fora por quadro)
+  private aoeDono: EnemyEnt | null = null;
+  private aoeTexCache?: THREE.Texture;
   // ---- PORTAL / WAYPOINT (estilo PoE/Diablo) ----
   // portal FIXO da cidade (arco de pedra em plataforma elevada). O vão só é preenchido
   // pelo GIF quando ATIVO — e ele DESTRAVA ao derrotar o 1º chefe. Enquanto isso o
@@ -1891,6 +1969,7 @@ export class Game {
     // o GRUPO também: sem isso não dá p/ exercitar apoio/ressurreição fora da rede
     (window as unknown as { __party?: typeof party }).__party = party;
     (window as unknown as { __friends?: typeof friends }).__friends = friends;
+    (window as unknown as { __AOE?: typeof AOE_CHEFE }).__AOE = AOE_CHEFE;
   }
 
   // TRANSIÇÃO DE PORTA: fade preto rápido → constrói o novo cenário no escuro
@@ -2096,7 +2175,11 @@ export class Game {
     const m: MobTupla[] = [];
     for (const e of this.enemies) {
       if (e.dyingAt) continue;
-      m.push([this.mobId(e), e.c, e.r, Math.round(e.hp), e.maxHp, e.typeId, e.aggro ? 1 : 0]);
+      // o canal do chefe vai junto: é o que deixa o aviso aparecer na tela de
+      // quem NÃO roda a IA (senão só o hospedeiro veria o chão acender)
+      const falta = e.castKind ? Math.max(0, Math.round(e.castAt + e.castDur - performance.now())) : 0;
+      m.push([this.mobId(e), e.c, e.r, Math.round(e.hp), e.maxHp, e.typeId, e.aggro ? 1 : 0,
+        e.castKind, falta]);
     }
     if (!m.length && !this.mortesRecentes.length) return;
     // "célula|autor" — o autor vai colado no id p/ o retrato continuar sendo uma
@@ -2110,7 +2193,7 @@ export class Game {
     const now = performance.now();
     const vistos = new Set<string>();
     for (const t of r.m) {
-      const [eid, c, rr, hp, maxHp, tipo, ag] = t;
+      const [eid, c, rr, hp, maxHp, tipo, ag, ck, falta] = t;
       vistos.add(eid);
       let e = this.enemies.find((x) => this.mobId(x) === eid && !x.dyingAt);
       if (!e) {
@@ -2130,6 +2213,19 @@ export class Game {
       e.barFill.scale.x = frac;
       e.barFill.position.x = (-(1 - frac) * 1.3) / 2;
       if ((e.c !== c || e.r !== rr) && !e.stepAt) this.enemyStepTo(e, c, rr, now);
+      // CHEFE canalizando: reconstrói o relógio do canal a partir do que falta.
+      // Não mando as casas — elas saem da posição dele, que acabou de chegar.
+      if (e.tier === "boss") {
+        const kind = ck ?? 0;
+        if (kind && !e.castKind) {
+          e.castKind = kind;
+          e.castDur = AOE_CHEFE[kind - 1]?.canal ?? 2500;
+          e.castAt = now - Math.max(0, e.castDur - (falta ?? 0));
+          e.castHit = false;
+        } else if (!kind && e.castKind && e.castHit) {
+          this.encerrarAoe(e, now); // o hospedeiro já encerrou lá
+        }
+      }
     }
     // MORTES ANUNCIADAS. Cada um roda a própria morte — mas a recompensa só sai
     // p/ quem lutou e p/ o grupo dele. Todo mundo VÊ o bicho cair (a cena tem de
@@ -2640,6 +2736,12 @@ export class Game {
     this.billboardProps = [];
     this.chests.clear();
     this.enemies = [];
+    // as casas acesas do chefe foram embora com o world.clear(); zera as listas
+    // (senão o bolso de reaproveitamento devolveria meshes que não estão mais na cena)
+    this.aoeMarks.length = 0;
+    this.aoePool.length = 0;
+    this.aoeDono = null;
+    this.ui.bossCast(null);
     this.target = null;
     this.playerTorch = undefined; // descartada pelo world.clear(); recriada por local
     this.reticle = null; // foi descartado pelo world.clear(); recria sob demanda
@@ -3416,7 +3518,31 @@ export class Game {
       atkAt: 0, hitApplied: false, nextAtk: 0,
       stepAt: 0, stepDur: T.spd ?? 780, fx: c * CELL, fz: r * CELL, tx: c * CELL, tz: r * CELL, nextMove: 0,
       bar, barFill,
+      castKind: 0, castAt: 0, castDur: 0, castHit: false,
+      // o primeiro golpe de área não sai de cara: dá tempo de o jogador entrar na
+      // sala e entender contra o que está lutando
+      nextCast: performance.now() + 6000,
     };
+    // BARRA DE CANAL do chefe — logo abaixo da vida dele, como você pediu. Só o
+    // chefe tem; nasce escondida e só aparece enquanto ele canaliza.
+    if (e.tier === "boss") {
+      const cbg = new THREE.Mesh(
+        new THREE.PlaneGeometry(barW + 0.12, 0.18),
+        new THREE.MeshBasicMaterial({ color: 0x1a0a08, transparent: true, opacity: 0.9 }),
+      );
+      const cfill = new THREE.Mesh(
+        new THREE.PlaneGeometry(barW, 0.11),
+        new THREE.MeshBasicMaterial({ color: 0xff8a3c }),
+      );
+      cfill.position.z = 0.01;
+      const cg = new THREE.Group();
+      cg.add(cbg); cg.add(cfill);
+      cg.position.set(c * CELL, worldH + 0.2, r * CELL);
+      cg.visible = false;
+      this.world.add(cg);
+      this.billboardProps.push(cg);
+      e.castBar = cg; e.castFill = cfill;
+    }
     this.enemies.push(e);
     // (SEM luz por inimigo: com vários, o total de point lights estourava o limite
     //  de uniforms do shader no mobile → cena PRETA. A tocha do herói já ilumina.)
@@ -4935,6 +5061,136 @@ export class Game {
     const mirado = this.alvoAmigo ? party.membro(this.alvoAmigo) : undefined;
     if (mirado && serve(mirado)) return mirado;
     return this.grupo.find(serve) ?? null;
+  }
+
+  // ==================== GOLPE DE ÁREA DO CHEFE ====================
+  /** Textura da casa marcada: quadrado vazado com borda grossa (lê-se de longe). */
+  private aoeTex(): THREE.Texture {
+    if (this.aoeTexCache) return this.aoeTexCache;
+    const S = 128;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = S;
+    const g = cv.getContext("2d")!;
+    // miolo fraco + borda forte: preenchido inteiro vira uma mancha e o jogador
+    // perde a noção de onde uma casa acaba e a outra começa.
+    g.fillStyle = "rgba(255,70,50,0.20)";
+    g.fillRect(6, 6, S - 12, S - 12);
+    g.lineWidth = 9;
+    g.strokeStyle = "rgba(255,110,70,0.95)";
+    g.strokeRect(9, 9, S - 18, S - 18);
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.aoeTexCache = t;
+    return t;
+  }
+
+  /** Uma casa marcada, tirada do bolso de reaproveitamento (ou criada). */
+  private pegaMarca(): THREE.Mesh {
+    const m = this.aoePool.pop();
+    if (m) { m.visible = true; return m; }
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(CELL * 0.94, CELL * 0.94),
+      new THREE.MeshBasicMaterial({
+        map: this.aoeTex(), transparent: true, depthWrite: false,
+        blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0,
+      }),
+    );
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.renderOrder = 3;
+    this.world.add(mesh);
+    return mesh;
+  }
+  private soltaMarcas(): void {
+    for (const m of this.aoeMarks) { m.visible = false; this.aoePool.push(m); }
+    this.aoeMarks.length = 0;
+  }
+
+  /** O chão vale como alvo? (parede não acende — confundiria a leitura) */
+  private aoeChaoLivre(c: number, r: number): boolean {
+    if (this.location !== "dungeon") return false;
+    return dungeonWalkable(c, r);
+  }
+
+  /** As casas que o golpe em curso vai atingir (mesma conta em todas as telas). */
+  private aoeCelulas(e: EnemyEnt): [number, number][] {
+    const p = AOE_CHEFE[e.castKind - 1];
+    if (!p) return [];
+    return p.cells(e.c, e.r).filter(([c, r]) => this.aoeChaoLivre(c, r));
+  }
+
+  /** Começa a canalizar um golpe de área (só quem roda a IA decide isto). */
+  private iniciarAoe(e: EnemyEnt, now: number): void {
+    // sorteia um padrão diferente do último — repetir o mesmo três vezes seguidas
+    // é o que faz uma mecânica boa parecer preguiçosa
+    let k = 1 + Math.floor(Math.random() * AOE_CHEFE.length);
+    if (k === e.castKind && AOE_CHEFE.length > 1) k = (k % AOE_CHEFE.length) + 1;
+    e.castKind = k;
+    e.castAt = now;
+    e.castDur = AOE_CHEFE[k - 1].canal;
+    e.castHit = false;
+  }
+
+  /**
+   * Desenha e resolve o golpe em curso. Roda em TODAS as máquinas — inclusive nas
+   * que só recebem o retrato —, porque as casas saem da posição do chefe e do
+   * número do padrão, e esses dois viajam.
+   */
+  private tickAoe(e: EnemyEnt, now: number): void {
+    if (!e.castKind) return;
+    const p = AOE_CHEFE[e.castKind - 1];
+    const t = Math.min(1, (now - e.castAt) / Math.max(1, e.castDur));
+    // barra de canal sob a vida
+    if (e.castBar && e.castFill) {
+      e.castBar.visible = true;
+      e.castFill.scale.x = Math.max(0.0001, t);
+      e.castFill.position.x = -(1 - t) * 1.3 / 2;
+    }
+    // as casas do chão: acendem devagar e piscam mais rápido perto do fim
+    if (this.aoeDono !== e || this.aoeMarks.length === 0) {
+      this.soltaMarcas();
+      this.aoeDono = e;
+      for (const [c, r] of this.aoeCelulas(e)) {
+        const m = this.pegaMarca();
+        m.position.set(c * CELL, this.floorYAt(c, r) + 0.07, r * CELL);
+        this.aoeMarks.push(m);
+      }
+    }
+    const pulso = 0.55 + 0.45 * Math.abs(Math.sin(now * (0.004 + t * 0.012)));
+    for (const m of this.aoeMarks)
+      (m.material as THREE.MeshBasicMaterial).opacity = (0.25 + 0.75 * t) * pulso;
+    // AVISO NA TELA: nome do golpe + como escapar + a mesma barra enchendo
+    this.ui.bossCast({ nome: p.nome, dica: p.dica, frac: t });
+    if (t < 1) return;
+    // ---- IMPACTO ----
+    // Cada um resolve na PRÓPRIA vida: eu sei em que casa estou, e as casas
+    // marcadas são as mesmas em todas as telas. Ninguém precisa de árbitro.
+    if (!e.castHit) {
+      e.castHit = true;
+      const pego = this.aoeCelulas(e).some(([c, r]) => c === this.col && r === this.row);
+      this.ui.playSfx(pego ? "hurt" : "cast");
+      for (const m of this.aoeMarks) {
+        (m.material as THREE.MeshBasicMaterial).opacity = 1;
+        m.scale.set(1.12, 1.12, 1);
+      }
+      if (pego) {
+        this.ui.flashDamage();
+        this.damagePlayer(Math.round(e.atk * p.dano), "mag");
+      } else {
+        this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.42, "Desviou!", "heal");
+      }
+    }
+    // um respiro p/ o clarão do impacto ser visto antes de o chão apagar
+    if (now - e.castAt < e.castDur + 260) return;
+    this.encerrarAoe(e, now);
+  }
+
+  /** Fim do golpe: apaga o chão, some a barra e agenda o próximo. */
+  private encerrarAoe(e: EnemyEnt, now: number): void {
+    e.castKind = 0; e.castAt = 0; e.castHit = false;
+    e.nextCast = now + 9000 + Math.random() * 4000;
+    if (e.castBar) e.castBar.visible = false;
+    if (this.aoeDono === e) { this.soltaMarcas(); this.aoeDono = null; }
+    this.ui.bossCast(null);
   }
 
   // ---- seleção de alvo ----
@@ -11152,6 +11408,9 @@ export class Game {
       let lunge = 0, scale = 1, tiltZ = 0, emisR = 0, emisG = 0, emisB = 0;
       const sinceHit = now - e.hitAt;
       if (e.dyingAt) {
+        // chefe abatido no meio do canal: apaga o chão e o aviso na hora — nada
+        // de casa vermelha piscando sobre um cadáver.
+        if (e.castKind) this.encerrarAoe(e, now);
         const t = (now - e.dyingAt) / 650;
         e.mat.opacity = Math.max(0, 1 - t * 3);
         e.mesh.rotation.z = -t * 1.6;
@@ -11160,7 +11419,7 @@ export class Game {
         e.mesh.position.y = h / 2 - t * 0.75;
         e.bar.visible = false;
         if (t >= 1) {
-          for (const o of [e.mesh, e.bar, e.faceArrow]) {
+          for (const o of [e.mesh, e.bar, e.faceArrow, ...(e.castBar ? [e.castBar] : [])]) {
             this.world.remove(o);
             const idx = this.billboardProps.indexOf(o);
             if (idx >= 0) this.billboardProps.splice(idx, 1);
@@ -11195,6 +11454,32 @@ export class Game {
       // outros recebem o retrato dele. O ataque continua local em todo mundo —
       // quem está adjacente é que apanha, e isso cada um sabe sozinho.
       const mando = this.mandaNosMobs();
+      // ---- CHEFE: golpe de ÁREA ----
+      // Quem roda a IA decide QUANDO começa; o desenho e o impacto rodam em todo
+      // mundo (as casas saem da posição do chefe, que o retrato já traz).
+      if (e.tier === "boss") {
+        if (mando && !e.castKind && e.aggro && now >= e.nextCast && !e.stepAt)
+          this.iniciarAoe(e, now);
+        if (e.castKind) {
+          this.tickAoe(e, now);
+          // canalizando ele não anda nem golpeia: se o chefe se mexesse, as casas
+          // marcadas mudariam de lugar no meio do aviso — e um aviso que mente é
+          // pior do que aviso nenhum.
+          if (e.castKind) {
+            e.mesh.position.set(e.bx, h / 2, e.bz);
+            // "carregando": o sprite avermelha e incha um tico até o estouro
+            const kk = Math.min(1, (now - e.castAt) / Math.max(1, e.castDur));
+            const g2 = 0.35 + 0.65 * kk;
+            e.mat.emissive.setRGB(g2, g2 * 0.12, g2 * 0.06);
+            const sc2 = 1 + 0.10 * kk;
+            e.mesh.scale.set(sc2, sc2, 1);
+            e.bar.position.set(e.bx, h + 0.45, e.bz);
+            e.castBar?.position.set(e.bx, h + 0.2, e.bz);
+            e.faceArrow.position.set(e.bx, 0.06, e.bz);
+            continue;
+          }
+        }
+      }
       this.alvoMaisPerto(e); // a IA persegue o jogador MAIS PERTO, não só a mim
       const distAlvo = Math.abs(this.mobAlvoC - e.c) + Math.abs(this.mobAlvoR - e.r);
       // distância até MIM: é ela que decide se o bicho me acerta
