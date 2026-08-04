@@ -8,10 +8,13 @@
 
 // -------------------------------------------------------------------------- FÍSICA
 const TILE=32, GRAVITY=1700, MOVE=200, AIR=0.78, JUMP_V=600, CLIMB=150,
-      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000, GEM_REVEAL=26, CLIMB_MELT=1.3;
+      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000, GEM_REVEAL=26, CLIMB_MELT=1.3,
+      COYOTE=0.10, JUMPBUF=0.12, LOOKAHEAD=64;   // game-feel: coyote time, buffer de pulo, câmera look-ahead
+let hitStop=0;                                    // micro-pausa nos impactos (hit-stop)
+function hitstop(t){ if(t>hitStop)hitStop=t; }
 
 // câmera responsiva com ZOOM: o canvas preenche a tela e mostra ~N tiles (zoom in).
-const cam={ x:0, y:0 };
+const cam={ x:0, y:0, look:0 };
 let zoom=2, camViewW=640, camViewH=384, camSafeBottom=0;   // camViewW/H = px do MUNDO visíveis; camSafeBottom = faixa reservada p/ controles
 
 // temas de cor por "mundo": fundo (parallax) + tiles
@@ -625,7 +628,7 @@ function buildEntities(){
 }
 function resetLevel(){
   buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
-  globs=[]; particles=[]; rings=[]; trail=[]; tramp=[]; winTimer=0; winThen=null;
+  globs=[]; particles=[]; rings=[]; trail=[]; tramp=[]; winTimer=0; winThen=null; hitStop=0; cam.look=0;
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, climbAcc:0, hurtT:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
@@ -747,16 +750,21 @@ function fitCanvas(){
 function camFollow(snap){
   const worldW=COLS*TILE, worldH=ROWS*TILE;
   const usableH = camViewH - camSafeBottom;      // altura útil ACIMA dos controles
-  let tx = worldW<=camViewW ? (worldW-camViewW)/2 : Math.max(0,Math.min(blob.x+blob.w/2 - camViewW/2, worldW-camViewW));
+  // LOOK-AHEAD: a câmera antecipa na direção do movimento (revela o que vem à frente)
+  const dir = blob.vx>40?1:(blob.vx<-40?-1:0);
+  const lookTarget = dir*LOOKAHEAD*Math.min(1,Math.abs(blob.vx)/MOVE);
+  cam.look = snap ? lookTarget : cam.look + (lookTarget-cam.look)*0.05;
+  let tx = worldW<=camViewW ? (worldW-camViewW)/2 : Math.max(0,Math.min(blob.x+blob.w/2 + cam.look - camViewW/2, worldW-camViewW));
   // centraliza o blob na área útil; permite "overscroll" p/ baixo (até camSafeBottom) pra erguer o chão acima dos controles
   const maxTy = worldH - camViewH + camSafeBottom;
   let ty = worldH<=usableH ? (worldH-usableH)/2 : Math.max(0, Math.min(blob.y+blob.h/2 - usableH*0.52, maxTy));
-  if(snap){ cam.x=tx; cam.y=ty; } else { cam.x+=(tx-cam.x)*0.12; cam.y+=(ty-cam.y)*0.12; }
+  if(snap){ cam.x=tx; cam.y=ty; } else { cam.x+=(tx-cam.x)*0.14; cam.y+=(ty-cam.y)*0.11; }
 }
 
 function update(dt){
   T+=dt;
   if(state!=="play"){ jumpEdge=grabEdge=false; return; }
+  if(hitStop>0){ hitStop-=dt; return; }              // HIT-STOP: congela o mundo por instantes no impacto
   levelTime+=dt;
   if(blob.flash>0)blob.flash-=dt; if(blob.clingLock>0)blob.clingLock-=dt; if(blob.hurtT>0)blob.hurtT-=dt;
   blob.blink-=dt; if(blob.blink<-0.15)blob.blink=1.6+Math.random()*2.5;
@@ -786,13 +794,18 @@ function update(dt){
   if(cling) blob.vy = down?CLIMB:-CLIMB;
   else { blob.vy+=GRAVITY*dt; if(blob.vy>MAX_FALL)blob.vy=MAX_FALL; }
 
-  if(jumpEdge){ hideHint();
-    if((onG||cling)&&blob.mass>1){ dropGlob(cling?wall:0); blob.mass-=1; sizeBlob();
-      blob.vy=-JUMP_V; if(cling){blob.vx=-wall*MOVE*0.9;blob.clingLock=0.18;}
-      burst(blob.x+blob.w/2,blob.y+blob.h,7,"#7ee06b",130);
-      ring(blob.x+blob.w/2,blob.y+blob.h,blob.w*0.95,cling?"120,230,220":"126,224,107",3,0.34);  // impulso do salto
-      sfx("jump"); renderHud(); }
-    else if(blob.mass<=1){ blob.flash=0.2; sfx("nope"); } }
+  // JUMP BUFFER: registra a intenção de pulo por uma janelinha (perdoa apertar cedo demais)
+  if(jumpEdge){ hideHint(); blob.jumpBuf=JUMPBUF; }
+  // COYOTE TIME: dá pra pular por um instante mesmo após sair da borda
+  const canJump = onG || cling || (blob.coyote||0)>0;
+  if((blob.jumpBuf||0)>0 && canJump && blob.mass>1){
+    dropGlob(cling?wall:0); blob.mass-=1; sizeBlob();
+    blob.vy=-JUMP_V; if(cling){blob.vx=-wall*MOVE*0.9;blob.clingLock=0.18;}
+    burst(blob.x+blob.w/2,blob.y+blob.h,7,"#7ee06b",130);
+    ring(blob.x+blob.w/2,blob.y+blob.h,blob.w*0.95,cling?"120,230,220":"126,224,107",3,0.34);  // impulso do salto
+    sfx("jump"); renderHud(); blob.jumpBuf=0; blob.coyote=0;
+  } else if(jumpEdge && canJump && blob.mass<=1){ blob.flash=0.2; sfx("nope"); blob.jumpBuf=0; }
+  if((blob.jumpBuf||0)>0) blob.jumpBuf=Math.max(0,blob.jumpBuf-dt);
   jumpEdge=false;
   if(grabEdge){ reabsorb(); grabEdge=false; }
   if(Math.abs(mx)>0.3) hideHint();
@@ -810,7 +823,7 @@ function update(dt){
         dropGlob(0); blob.mass-=1; sizeBlob();
         splat(fx,fy,16,240); burst(fx,fy,6,"#5fbf6a",120);
         ring(fx,fy,blob.w*2.4,"120,220,120",4.5,0.5); ring(fx,fy,blob.w*1.5,"210,255,190",3,0.4);  // baque forte
-        shake=10; sfx("impact"); renderHud();
+        shake=10; hitstop(0.06); sfx("impact"); renderHud();
       } else { burst(fx,fy,5,"#5fbf6a",95); shake=Math.min(6,preVy/120);
         if(preVy>360) ring(fx,fy,blob.w*1.15,"126,224,107",2.5,0.3);   // poeira do pouso
         if(preVy>420)sfx("land"); }
@@ -819,6 +832,8 @@ function update(dt){
   } else {
     blob.apexY = (blob.apexY==null)? blob.y : Math.min(blob.apexY, blob.y);   // no ar: guarda o ponto mais alto
   }
+  // coyote time: recarrega no chão, escoa no ar
+  if(blob.onGround) blob.coyote=COYOTE; else if((blob.coyote||0)>0) blob.coyote=Math.max(0,blob.coyote-dt);
   blob.onGroundPrev=blob.onGround; blob.wallPrev=blob.wall;
   blob.onIcePrev = blob.onGround && onIceUnder();      // ficou em cima de gelo?
 
@@ -994,7 +1009,7 @@ function handleBoss(e,dt){
   if(blob.vy>40 && feet < headLine){                    // PULO NA CABEÇA = dano
     e.hp--; e.hitT=1.0;
     blob.vy=-BOUNCE*0.7; blob.onGround=false; blob.onGroundPrev=false;   // quica pra cima
-    burst(e.x+e.w/2, e.y, 20, "#ff8fae", 220); ring(e.x+e.w/2, e.y, e.w*1.4, "255,143,174", 4, 0.45); shake=9; sfx("bosshit");
+    burst(e.x+e.w/2, e.y, 20, "#ff8fae", 220); ring(e.x+e.w/2, e.y, e.w*1.4, "255,143,174", 4, 0.45); shake=9; hitstop(0.09); sfx("bosshit");
     if(e.hp<=0) bossDefeated(e);
     return;
   }
@@ -1793,6 +1808,7 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   spikePos(){ const s=spikes&&spikes[0]; return s?{x:s.x,y:s.y}:null; },
   warp(wx,wy){ if(blob){ blob.x=wx; blob.y=wy; blob.vx=0; blob.vy=0; camFollow(true); } },
   get sfxReady(){ return Object.keys(SFXBUF).length; }, kick(){ audio(); },
+  get hitStop(){ return Math.round(hitStop*1000); }, get camLook(){ return Math.round(cam.look); },
   lastFall(){ return blob?{d:blob._lastFall,vy:blob._lastVy,apex:Math.round(blob.apexY),y:Math.round(blob.y)}:null; },
   possessAt(cx,cy){ return tryPossess(cx,cy); }, _possess(wx,wy){ return possessWorld(wx,wy); },
   get camSafe(){ return Math.round(camSafeBottom); }, blobScreenBottom(){ return blob?Math.round((blob.y+blob.h-cam.y)*zoom):0; },
