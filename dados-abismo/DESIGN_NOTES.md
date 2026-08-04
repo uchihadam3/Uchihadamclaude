@@ -195,6 +195,14 @@ chave 9 → exatamente 2 dados).
    passa e do que dá zero**. Abre pelo título e, no combate, **tocando na
    própria fechadura** — ela já abre rolada no verbete daquela regra.
 
+### 3.4c A fileira de inimigos não desce mais pra mesa
+`#ini` quebrava linha e a partir de 3 inimigos a carta seguinte descia por cima
+do feltro, tapando os dados. Agora a fileira é **uma linha só** com rolagem
+lateral (`flex-wrap:nowrap` + `overflow-x:auto`), carta de largura fixa (112px),
+sprite menor e máscara esfumada nas bordas. Medido com 3, 5 e 7 inimigos: sempre
+**1 linha**, base fixa em 180px (20% da tela), rolagem lateral entrando a partir
+de 5. O topo avisa "**N inimigos · arraste ↔**".
+
 ### 3.5 As PASSIVAS de classe agora têm botão
 Estavam no motor desde sempre e nunca tinham sido ligadas na tela — e são
 justamente os verbos de fechadura grátis de cada classe:

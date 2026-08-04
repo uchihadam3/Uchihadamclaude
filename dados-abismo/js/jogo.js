@@ -423,7 +423,9 @@ function pintar(){
     const f={carrasco:()=>cb.sobrecarga(id), lamina:()=>cb.trapaca(id),
              arcanista:()=>cb.guardar(id),  oracula:()=>cb.travar(id)}[C.id];
     if(f&&f()){ SFX.pegar(); if(C.id==='arcanista') sel.delete(id); pintar(); } else SFX.soltar(); };
-  $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10 <span style="opacity:.6">— ${ESCALADA[masmorra-1].nome}</span>`;
+  const vivos=cb.aliveEnemies().length;
+  $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10 <span style="opacity:.6">— ${ESCALADA[masmorra-1].nome}</span>`
+    + (vivos>3?` <span class="tinim">${vivos} inimigos · arraste ↔</span>`:'');
   $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
   // tocar na fechadura abre o Grimório JÁ na explicação daquela regra

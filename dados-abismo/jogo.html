@@ -8,10 +8,19 @@
  #c{position:fixed;inset:0;width:100vw;height:100vh}
  .lay{position:fixed;left:0;right:0;pointer-events:none}
  /* topo: inimigos */
- #ini{top:0;padding:calc(28px + env(safe-area-inset-top)) 10px 8px;display:flex;gap:7px;justify-content:center;flex-wrap:wrap;
-   z-index:10}
+ /* A FILEIRA DE INIMIGOS FICA NO TOPO E PONTO. Antes ela quebrava linha e a
+    3ª carta descia por cima do feltro; agora não quebra — rola de lado. */
+ #ini{top:0;padding:calc(28px + env(safe-area-inset-top)) 8px 8px;display:flex;gap:6px;
+   justify-content:safe center;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+   z-index:10;pointer-events:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+   max-height:calc(44vh + env(safe-area-inset-top))}
+ #ini::-webkit-scrollbar{display:none}
+ /* borda esfumada avisa que tem mais inimigo pro lado */
+ #ini{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
+      mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
  .en{pointer-events:auto;background:rgba(8,11,15,.96);border:1px solid rgba(255,255,255,.13);
-   border-radius:11px;padding:7px 9px;min-width:104px;max-width:150px;cursor:pointer;backdrop-filter:blur(6px)}
+   border-radius:11px;padding:6px 7px;cursor:pointer;backdrop-filter:blur(6px);
+   flex:0 0 auto;width:112px;scroll-snap-align:center}
  .en.alvo{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a55}
  .en.morto{opacity:.28;filter:grayscale(1)}
  .en .nm{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -265,11 +274,12 @@
  #topo{position:fixed;top:0;left:0;right:0;z-index:12;font-size:10.5px;opacity:.82;text-align:center;
    padding:calc(4px + env(safe-area-inset-top)) 8px 4px;pointer-events:none;line-height:1.3;
    background:linear-gradient(180deg,rgba(4,6,9,.94) 60%,transparent)}
+ #topo .tinim{color:#ffb45e;font-weight:700}
  #log{position:static;font-size:10.5px;opacity:.66;pointer-events:none;line-height:1.45;
    text-align:center;margin-bottom:4px;max-height:44px;overflow:hidden;text-shadow:0 1px 3px #000}
  /* ===== sprite do inimigo ===== */
- .en .spr{height:72px;display:flex;align-items:flex-end;justify-content:center;margin:-2px 0 2px}
- .en .spr img{height:72px;image-rendering:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));
+ .en .spr{height:52px;display:flex;align-items:flex-end;justify-content:center;margin:-2px 0 2px}
+  .en .spr img{height:52px;image-rendering:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));
    animation:resp 2.6s ease-in-out infinite}
  .en:nth-child(2n) .spr img{animation-duration:3.1s;animation-delay:-.7s}
  .en:nth-child(3n) .spr img{animation-duration:2.2s;animation-delay:-1.3s}
