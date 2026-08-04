@@ -8,7 +8,7 @@
 
 // -------------------------------------------------------------------------- FÍSICA
 const TILE=32, GRAVITY=1700, MOVE=200, AIR=0.78, JUMP_V=600, CLIMB=150,
-      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000;
+      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000, GEM_REVEAL=26;
 
 // câmera responsiva com ZOOM: o canvas preenche a tela e mostra ~N tiles (zoom in).
 const cam={ x:0, y:0 };
@@ -28,8 +28,9 @@ const THEMES={
 
 // -------------------------------------------------------------------------- FASES
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor
-// *=estrela VISÍVEL (coletável)  G=gema = SEGREDO oculto (nunca anunciado)
-// S=parede falsa  C=desmorona  T=mola
+// *=estrela VISÍVEL (coletável)
+// S=parede FANTASMA (parece sólida, atravessa)  g=fantasma COM gema secreta dentro (Fez: invisível até entrar)
+// G=gema solta invisível  C=desmorona  T=mola
 // movers: plataformas móveis [{x,y,w,axis,dist,speed,phase}] (tiles)
 // enemies: [{x,y,type:'patrol'|'chaser',dist,speed,axis,range}] — chaser te caça se chegar perto
 const LEVELS = [
@@ -45,10 +46,10 @@ const LEVELS = [
     "#                                                          #",
     "#                                                          #",
     "#                                  *                       #",
-    "#       ####                     #####                     #",
-    "#       #G #        o                                      #",
-    "#       #  S       ####                                    #",
-    "#       ####                                               #",
+    "#                             SSS#####   ###               #",
+    "#                   o         SgS        ###               #",
+    "#                  ####       SSS        ###               #",
+    "#        ###                                               #",
     "#     ###                     o              o             #",
     "# @                                                     E  #",
     "#############   ########   ###########   #########  ########",
@@ -68,13 +69,13 @@ const LEVELS = [
     "#                                                              #",
     "#                                                              #",
     "#                                                              #",
-    "#                                 *                            #",
-    "#           ###     #####CCCCCCC#####                          #",
-    "#                                                     ####     #",
-    "#        ###                                          #G #     #",
-    "#                                                     S  #     #",
-    "#     ###                                             ####     #",
-    "#                         o                 o                  #",
+    "#                                 *  SSS                       #",
+    "#           ###     #####CCCCCCC#####SgS                       #",
+    "#                                    SSS                       #",
+    "#        ###                                                   #",
+    "#           ###                                                #",
+    "#     ###   ###                                                #",
+    "#           ###           o                 o                  #",
     "# @                                                         E  #",
     "##################   #############    ############   ###########",
     "##################   #############    ############   ###########",
@@ -91,17 +92,17 @@ const LEVELS = [
     "#                                                            #",
     "#                                                            #",
     "#                                     *                      #",
-    "#                                   #####                    #",
-    "#                                                            #",
-    "#                                                            #",
+    "#                                SSS#####                    #",
+    "#                                SgS                         #",
+    "#                                SSS                         #",
     "#                                                            #",
     "#                                                            #",
     "#                      o                                     #",
-    "#         ####        ####                                   #",
-    "#         #G #                                               #",
-    "#         #  S                                               #",
-    "#         ####                                    o          #",
-    "# @                                                       E  #",
+    "#                     ####                                   #",
+    "#                                                            #",
+    "#                                            ###             #",
+    "#                                            ###  o          #",
+    "# @                                          ###          E  #",
     "################   ###########    ############   #############",
     "################   ###########    ############   #############",
     "################^^^###########^^^^############^^^#############",
@@ -116,11 +117,11 @@ const LEVELS = [
     "#                            #",
     "#                            #",
     "#                #           #",
-    "#                #  #####    #",
-    "#               E#  #   #    #",
-    "#                #  S G #    #",
-    "#                #  #   #    #",
-    "#                #  #####    #",
+    "#                #           #",
+    "#               E#           #",
+    "#                #           #",
+    "#                #           #",
+    "#                #           #",
     "#                #           #",
     "#                #           #",
     "#                #           #",
@@ -133,9 +134,9 @@ const LEVELS = [
     "#                #           #",
     "#                #           #",
     "#                #           #",
-    "#                #           #",
-    "#         o      #           #",
-    "# @              #           #",
+    "#    ###         #    SSS    #",
+    "#    ###  o      #    SgS    #",
+    "# @  ###         #    SSS    #",
     "##############################",
     "##############################"],
     enemies:[{"x":6,"y":25,"dist":6,"speed":0.85,"axis":"x","type":"patrol"}]},
@@ -152,12 +153,12 @@ const LEVELS = [
     "#                                                                      #",
     "#                                                                      #",
     "#             *                                                        #",
-    "#         CCCCCCCCC                           ####                     #",
-    "#                                             #G #                     #",
-    "#                                             #  S                     #",
-    "#                                             ####                     #",
+    "#         CCCCCCCCC                                                    #",
     "#                                                                      #",
-    "# @                                                                 E  #",
+    "#                                               o                      #",
+    "#                             ###       SSS                            #",
+    "#                             ###       SgS                            #",
+    "# @                           ###       SSS                         E  #",
     "########             ####T##                 ####T##             #######",
     "########             #######                 #######             #######",
     "########^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^^^#######^^^^^^^^^^^^^#######",
@@ -177,12 +178,12 @@ const LEVELS = [
     "#                                                              #",
     "#                                                              #",
     "#                  *                                           #",
-    "#                 ####                              ####       #",
-    "#                                                   #G #       #",
-    "#                         o               o         S  #       #",
-    "#           D                           CCCCC       ####       #",
-    "#           D                                                  #",
-    "# @         D         HHHHHHHHHH             T              E  #",
+    "#              SSS####                                         #",
+    "#              SgS                                             #",
+    "#              SSS        o               o                    #",
+    "#           D                           CCCCC     ###          #",
+    "#           D                                     ###          #",
+    "# @         D         HHHHHHHHHH             T    ###       E  #",
     "#######P############################   #########################",
     "####################################   #########################",
     "####################################^^^#########################",
@@ -202,12 +203,12 @@ const LEVELS = [
     "#                                                                #",
     "#                                                                #",
     "#                                                                #",
-    "#                                                 ####           #",
-    "#                              *                  #G #           #",
-    "#                           CCCCCCC               #  S           #",
-    "#                                                 ####           #",
     "#                                                                #",
-    "# @                                                           E  #",
+    "#                              *                                 #",
+    "#                           CCCCCCC                              #",
+    "#       ###                                  SSS                 #",
+    "#       ###                                  SgS                 #",
+    "# @     ###                                  SSS              E  #",
     "############T###########   #############T#########################",
     "########################   #######################################",
     "########################^^^#######################################",
@@ -230,12 +231,12 @@ const LEVELS = [
     "#                                                                                    #",
     "#                                                                                    #",
     "#                                                                                    #",
-    "#         ####                                          *                            #",
-    "#         #G #                                        CCCCC                          #",
-    "#         #  S                                                                       #",
-    "#         ####                               o                                       #",
-    "#                                                                     o              #",
-    "# @                                         HHHHHH                                E  #",
+    "#                                                       *                            #",
+    "#                                                     CCCCC                          #",
+    "#                                                                                    #",
+    "#                   ###                      o              ###               SSS    #",
+    "#                   ###                                     ###       o       SgS    #",
+    "# @                 ###                     HHHHHH          ###               SSS E  #",
     "##############   #######T#               #########   #########T#             #########",
     "##############   #########               #########   ###########             #########",
     "##############^^^#########^^^^^^^^^^^^^^^#########^^^###########^^^^^^^^^^^^^#########",
@@ -338,9 +339,11 @@ function loadLevel(idx){
     else if(ch==="D")doors.push(r);
     else if(ch==="H")heatZones.push(r);
     else if(ch==="T"){solidTiles.push(r);springs.push({x:r.x,y:r.y,w:TILE,h:TILE,sq:0});}  // mola
-    else if(ch==="G")gems.push({x:x*TILE+16,y:y*TILE+16,r:8,got:false});                   // gema = SEGREDO oculto (nunca anunciado)
+    else if(ch==="G")gems.push({x:x*TILE+16,y:y*TILE+16,r:8,got:false,rev:0});               // gema = SEGREDO oculto: INVISÍVEL até você entrar no esconderijo
+    else if(ch==="g"){ fakes.push({x:r.x,y:r.y,w:TILE,h:TILE,rev:0});                        // 'g' = parede FANTASMA com gema DENTRO: bloco parece 100% sólido,
+      gems.push({x:x*TILE+16,y:y*TILE+16,r:8,got:false,rev:0}); }                             //       a gema só materializa quando você atravessa e entra
     else if(ch==="*")stars.push({x:x*TILE+16,y:y*TILE+16,r:9,got:false});                   // estrela = coletável VISÍVEL
-    else if(ch==="S")fakes.push(r);                                                        // parede FALSA (passa através)
+    else if(ch==="S")fakes.push({x:r.x,y:r.y,w:TILE,h:TILE,rev:0});                         // parede FANTASMA: parece sólida, mas você atravessa (some ao entrar)
     else if(ch==="C")crumbles.push({x:r.x,y:r.y,w:TILE,h:TILE,solid:true,t:0,resp:0});     // plataforma que desmorona
     else if(ch==="E")exitRect={x:x*TILE+4,y:y*TILE+2,w:TILE-8,h:TILE-4};
     else if(ch==="@")startPos={x:x*TILE,y:y*TILE};
@@ -514,6 +517,13 @@ function update(dt){
 
   // inimigos: contato = morte
   for(const e of enemies) if(overlaps(blob,{x:e.x+2,y:e.y+2,w:e.w-4,h:e.h-4})){ die(); return; }
+  // paredes FANTASMA: parecem sólidas até você ENTRAR nelas — aí somem (revelam o esconderijo)
+  for(const fk of fakes){ if(fk.rev<1 && overlaps(blob,fk)) fk.rev=Math.min(1,fk.rev+dt*5); }
+  // gemas INVISÍVEIS (estilo Fez): só materializam quando você já está bem em cima do esconderijo
+  const bcx=blob.x+blob.w/2, bcy=blob.y+blob.h/2;
+  for(const gm of gems){ if(gm.got)continue;
+    if(Math.hypot(bcx-gm.x,bcy-gm.y)<GEM_REVEAL+blob.w*0.4) gm.rev=Math.min(1,gm.rev+dt*5); }
+
   // estrelas VISÍVEIS (coletável comum)
   for(const st of stars) if(!st.got && overlaps(blob,{x:st.x-st.r,y:st.y-st.r,w:st.r*2,h:st.r*2})){
     st.got=true; burst(st.x,st.y,14,"#ffd24a",150); sfx("star"); shake=Math.max(shake,2);
@@ -624,7 +634,10 @@ function render(){
     ctx.fillStyle="rgba(255,255,255,.03)"; ctx.fillRect(s.x+3,s.y+8,2,2); ctx.fillRect(s.x+s.w-8,s.y+13,2,2);
   }
   for(const s of solidTiles) if(vis(s)) drawTile(s);
-  for(const s of fakes) if(vis(s)) drawTile(s);          // paredes FALSAS: idênticas (segredo!)
+  // paredes FANTASMA: renderizam IDÊNTICAS a um bloco sólido; só somem quando você entra
+  for(const s of fakes){ if(!vis(s)||s.rev>=1)continue;
+    if(s.rev>0){ ctx.globalAlpha=1-s.rev; drawTile(s); ctx.globalAlpha=1; }
+    else drawTile(s); }
   // plataformas que DESMORONAM (rachadas; tremem antes de cair)
   for(const c of crumbles){ if(!vis(c))continue;
     if(c.solid){ const jit=c.t>0?(Math.random()*2-1)*c.t*3:0;
@@ -683,10 +696,11 @@ function render(){
     ctx.fillStyle="rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(-st.r*0.22,-st.r*0.22,st.r*0.24,0,7); ctx.fill();
     ctx.restore(); }
 
-  // gemas = SEGREDOS ocultos (diamante roxo; só quem os acha por conta própria vê isto)
-  for(const gm of gems){ if(gm.got||!vis({x:gm.x-16,y:gm.y-16,w:32,h:32}))continue;
+  // gemas = SEGREDOS ocultos: INVISÍVEIS até serem reveladas (gm.rev>0). Estilo Fez —
+  // você pode zerar o jogo sem NUNCA ver uma. Só materializa quando você entra no esconderijo.
+  for(const gm of gems){ if(gm.got||gm.rev<=0||!vis({x:gm.x-16,y:gm.y-16,w:32,h:32}))continue;
     const gy=gm.y+Math.sin(T*2.5+gm.x)*3, r=gm.r;
-    ctx.save(); ctx.translate(gm.x,gy); ctx.rotate(Math.sin(T*1.5+gm.x)*0.25);
+    ctx.save(); ctx.globalAlpha=gm.rev; ctx.translate(gm.x,gy); ctx.rotate(Math.sin(T*1.5+gm.x)*0.25);
     ctx.shadowColor="#c9a6ff"; ctx.shadowBlur=16;
     const gg=ctx.createLinearGradient(0,-r,0,r); gg.addColorStop(0,"#efe0ff"); gg.addColorStop(1,"#8a5fd0");
     ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r*0.8,0); ctx.lineTo(0,r); ctx.lineTo(-r*0.8,0); ctx.closePath(); ctx.fill();
@@ -948,4 +962,6 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get stars(){return stars?stars.length:0;}, get starsGot(){return stars?stars.filter(s=>s.got).length:0;},
   get enemies(){return enemies?enemies.length:0;}, get chasers(){return enemies?enemies.filter(e=>e.type==="chaser").length:0;},
   get fakes(){return fakes?fakes.length:0;}, get crumbles(){return crumbles?crumbles.length:0;},
+  gemPos(){ const gm=gems&&gems.find(g=>!g.got); return gm?{x:gm.x,y:gm.y,rev:gm.rev}:null; },
+  gemRev(){ const gm=gems&&gems.find(g=>!g.got); return gm?gm.rev:-1; },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
