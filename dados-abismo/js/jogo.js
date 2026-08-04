@@ -201,6 +201,32 @@ function iniciar(cid){
   stats={andares:0, elites:0, chefes:0};
   telaMapa(false);
 }
+/* ---------- CARTÃO DE EXPLICAÇÃO: um efeito de cada vez ----------
+   No meio da luta você quer saber UMA coisa, não ler o manual. Toque no
+   efeito (fechadura, intenção, estado) e ele se explica ali mesmo. */
+const POP=document.createElement('div'); POP.id='pop'; POP.className='off';
+document.body.appendChild(POP);
+POP.onclick=e=>{ if(e.target===POP||e.target.dataset.fecha!==undefined) fecharPop(); };
+function fecharPop(){ POP.className='off'; POP.innerHTML=''; }
+function explicar(tipo, chave, v){
+  const x = GRIM.verbete(tipo, chave, v); if(!x) return;
+  SFX.pegar();
+  POP.innerHTML=`<div class="popcard">
+    <div class="pophd"><span class="popico">${x.ico}</span>
+      <div><b>${x.nome}</b>${x.sub?`<i>${x.sub}</i>`:''}</div></div>
+    <p class="popd">${x.d}</p>
+    ${x.ex?`<div class="gex">
+       <div class="gok">✓ causa dano: ${x.ex.bom}</div>
+       <div class="gno">✕ causa ZERO: ${x.ex.ruim}</div></div>`:''}
+    ${x.rodape?`<p class="poprod">${x.rodape}</p>`:''}
+    <div class="popbts">
+      <button class="popb" data-fecha>ENTENDI</button>
+      <button class="popb ver" data-mais>ver tudo no Grimório</button>
+    </div></div>`;
+  POP.className='';
+  POP.querySelector('[data-mais]').onclick=ev=>{ ev.stopPropagation(); fecharPop();
+    telaGrimorio(tipo==='trava'?chave:null, 'combate'); };
+}
 /* ---------- O GRIMÓRIO: o que cada coisa faz (§12) ---------- */
 let voltarDoGrim=null;
 function telaGrimorio(foco, voltar){
@@ -342,7 +368,8 @@ function pintar(){
         e._arrombada?'ARROMBADA' : e.travaOff>0?`DISSOLVIDA (${e.travaOff})` : td.curto}</span>${
         alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓ ABRE':'✕ TRAVA'}</span>`
           : '<span class="tq">?</span>'}</div>` : '';
-    const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${ICO[k]||''}${v}`).join(' ');
+    const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0)
+      .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''}${v}</b>`).join(' ');
     const li=pi.linhas.find(l=>l.uid===e.uid);
     const pr=mapaPrev[e.uid];
     const prevHTML = pr ? `<div class="prev ${pr.morre?'mata':''}">
@@ -358,11 +385,12 @@ function pintar(){
       <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i>${barraPrev}</div>
       <div class="hp">${e.hp}/${e.maxHp}${e.block?' 🛡'+e.block:''}${e.armadura?' ⛊'+e.armadura:''}</div>
       ${travaHTML}
-      <div class="it ${li&&li.passa>0?'doi':''}">${e.hp>0?txt:'—'}${li&&li.bruto>0?`<span class="passa">→ ${li.passa} no HP</span>`:''}</div>
+      <div class="it clic ${li&&li.passa>0?'doi':''}" ${it?`data-int="${it.t}"`:''}>${e.hp>0?txt:'—'}${li&&li.bruto>0?`<span class="passa">→ ${li.passa} no HP</span>`:''}</div>
       ${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
     if(previa) previa=calcPrevia(previa.skill); SFX.pegar(); pintar(); });
-  const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${k} ${v}`).join(' · ');
+  const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0)
+    .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
   $('voce').innerHTML=`<span class="pill perigo ${pi.letal?'letal':''}">☠ ${pi.total}</span>
     <span class="pill">❤ <b>${P.hp}</b>/${P.maxHp}</span>
     <span class="pill">🛡 ${P.block}</span><span class="pill">⟳ ${cb.rerolls}</span>
@@ -428,9 +456,13 @@ function pintar(){
     + (vivos>3?` <span class="tinim">${vivos} inimigos · arraste ↔</span>`:'');
   $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
-  // tocar na fechadura abre o Grimório JÁ na explicação daquela regra
+  // tocar num efeito do inimigo explica AQUELE efeito, sem sair do combate
   $('ini').querySelectorAll('.trava').forEach(el=>el.onclick=ev=>{ ev.stopPropagation();
-    SFX.pegar(); telaGrimorio(el.dataset.tr||null, 'combate'); });
+    explicar('trava', el.dataset.tr); });
+  $('ini').querySelectorAll('.it[data-int]').forEach(el=>el.onclick=ev=>{ ev.stopPropagation();
+    explicar('intencao', el.dataset.int); });
+  document.querySelectorAll('[data-est]').forEach(el=>el.onclick=ev=>{ ev.stopPropagation();
+    explicar('estado', el.dataset.est, el.dataset.estn); });
   SFX.tensao(P.hp < P.maxHp*0.35);
   // dados usados ficam apagados
   for(const m of malhas){ const id=m.userData.die.id;

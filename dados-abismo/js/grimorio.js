@@ -2,7 +2,7 @@
    O GRIMÓRIO — a tela que explica o jogo.
 
    Regra da casa (§12/§15): nada de informação escondida. Se o inimigo diz
-   "só dói com dado 4 ou mais", tem que existir um lugar que mostre, com
+   "só sofre dano com dado 4+", tem que existir um lugar que mostre, com
    exemplo numérico, o que passa e o que não passa. É aqui.
    ===================================================================== */
 
@@ -22,34 +22,34 @@ export const SECOES = [
     id:'travas', ico:'🗝', nome:'FECHADURAS — POR QUE MEU GOLPE DEU ZERO',
     intro:'A fechadura NÃO é armadura. Se o golpe não a abre, o dano é ZERO — não é reduzido, é zero. Ela olha os dados que você gastou naquele golpe: a soma, o maior deles, quantos foram e quais símbolos tinham.',
     itens:[
-      { id:'forte', t:'▲ Couraça — "só dói com dado 4 ou mais"',
-        d:'Olha o MAIOR dado do golpe. Se o maior for menor que 4, não fere.',
+      { id:'forte', t:'▲ Couraça — "só sofre dano com dado 4+"',
+        d:'Olha o MAIOR dado do golpe. Se o maior for menor que 4, o dano é zero.',
         ex: ex('5 sozinho passa · 5+1 passa (o maior é 5)', '2+3 dá zero (o maior é 3) · 1+1+1 dá zero') },
-      { id:'fraco', t:'▼ Casca Fina — "só dói com dado até 3"',
+      { id:'fraco', t:'▼ Casca Fina — "só sofre dano com dado até 3"',
         d:'O contrário: golpe grande estilhaça sem ferir. O maior dado precisa ser pequeno.',
         ex: ex('2+3 passa · 1 sozinho passa', '6 dá zero · 2+5 dá zero (o 5 estraga)') },
-      { id:'impar', t:'◑ Ímpar — "só dói com soma ÍMPAR"',
+      { id:'impar', t:'◑ Ímpar — "só sofre dano com soma ÍMPAR"',
         d:'Some os dados que você gastou nesse golpe. O total precisa ser ímpar.',
         ex: ex('3+4 = 7 passa · 5 sozinho passa', '3+3 = 6 dá zero · 2+4 = 6 dá zero') },
-      { id:'par', t:'◐ Par — "só dói com soma PAR"',
+      { id:'par', t:'◐ Par — "só sofre dano com soma PAR"',
         d:'Mesma coisa, ao contrário.',
         ex: ex('2+4 = 6 passa · 4 sozinho passa', '3+4 = 7 dá zero') },
-      { id:'chave', t:'🗝 Chave — "só dói com soma exata 7"',
+      { id:'chave', t:'🗝 Chave — "só sofre dano com soma exata 7"',
         d:'Não é mínimo nem máximo: é EXATO. Aqui o Polegar Torto (±1) e a Sobrecarga do Carrasco valem ouro.',
         ex: ex('3+4 = 7 passa · 5+2 = 7 passa', '6+2 = 8 dá zero · 3+3 = 6 dá zero') },
-      { id:'multiplo', t:'✳ Múltiplo — "só dói se a soma for múltiplo de 3"',
+      { id:'multiplo', t:'✳ Múltiplo — "só sofre dano com soma múltipla de 3"',
         d:'A soma tem que ser 3, 6, 9, 12…',
         ex: ex('4+5 = 9 passa · 6 sozinho passa', '4+6 = 10 dá zero') },
-      { id:'enxuto', t:'① Enxuto — "só dói gastando 1 dado"',
+      { id:'enxuto', t:'① Enxuto — "só sofre dano gastando 1 dado"',
         d:'Conta QUANTOS dados o golpe usou, não o valor. Habilidade que come 3 dados nunca fere este aqui.',
         ex: ex('Decapitar com um 6 só passa', 'Fúria Cega (3 dados) dá zero') },
-      { id:'farto', t:'⁙ Farto — "só dói gastando 3+ dados"',
+      { id:'farto', t:'⁙ Farto — "só sofre dano gastando 3+ dados"',
         d:'O oposto: golpe pequeno não arranha. Precisa de um golpe largo.',
         ex: ex('Fúria Cega com 4+4+3 passa', 'um 6 sozinho dá zero') },
-      { id:'simbolo', t:'✦ Selo — "só dói com ⚔ Lâmina no golpe"',
+      { id:'simbolo', t:'✦ Selo — "só sofre dano com ⚔ Lâmina no golpe"',
         d:'Um dos dados gastos precisa ter aquela FACE. Grave faces novas nas recompensas, ou pegue Lapidar no Cofre.',
         ex: ex('4 + face ⚔ passa', 'quatro números comuns dão zero') },
-      { id:'casal', t:'∞ Gêmeo — "mate o gêmeo antes"',
+      { id:'casal', t:'∞ Gêmeo — "imune enquanto o gêmeo viver"',
         d:'Invulnerável enquanto o par dele estiver vivo. Escolha a ordem.', ex:null },
       { id:'espelho', t:'⇄ Espelho — "devolve 45%"',
         d:'Este fere normalmente, mas devolve parte do dano em você. Golpe pequeno e veneno saem mais barato.', ex:null },
@@ -121,4 +121,53 @@ export function html(foco){
              <div class="gno">✕ zero: ${i.ex.ruim}</div></div>`:''}
         </div>`).join('')}
     </section>`).join('');
+}
+
+/* ========================================================================
+   VERBETE AVULSO — o cartãozinho que abre ao tocar num efeito do inimigo.
+   O Grimório inteiro é pra quem quer estudar; no meio da luta você quer
+   saber UMA coisa só, sem sair do combate.
+   ===================================================================== */
+export const INTENCOES = {
+  atk:        { ico:'⚔', nome:'Ataque',        d:'Ele bate em você no fim do turno. O número é o dano bruto — o que passar do seu bloqueio vira HP perdido.' },
+  atk_multi:  { ico:'⚔', nome:'Ataque múltiplo',d:'Vários golpes menores. Cada um é abatido pelo seu bloqueio separadamente, então bloqueio pequeno rende menos aqui.' },
+  block:      { ico:'🛡', nome:'Defesa',        d:'Ele ganha bloqueio: o seu próximo dano é absorvido antes de tocar no HP dele. Some no fim do turno.' },
+  heal:       { ico:'✚', nome:'Cura',          d:'Cura o aliado mais ferido. Matar o curandeiro primeiro costuma ser a jogada.' },
+  buff:       { ico:'▲', nome:'Fúria',         d:'Enfurece o grupo: todos passam a causar +50% de dano.' },
+  curse:      { ico:'☠', nome:'Maldição',      d:'Transforma uma face de um dado seu em ☠ Vazio — PARA SEMPRE nesta run. Aquela face deixa de valer.' },
+  debuff:     { ico:'▼', nome:'Praga',         d:'Aplica um estado ruim em você. Toque no estado no seu rodapé pra ver o que ele faz.' },
+  congelar:   { ico:'❄', nome:'Congelar dado', d:'Trava um dado seu na face em que ele caiu: no próximo turno ele NÃO rola, vem com o mesmo número.' },
+  roubar:     { ico:'✋', nome:'Roubar dado',   d:'Tira o seu MAIOR dado deste turno. Ele some da mesa e você joga com um a menos.' },
+  fraturar:   { ico:'✖', nome:'Fraturar dado', d:'O valor máximo de um dado seu cai 1 — PARA SEMPRE nesta run. Um d6 vira um dado que nunca mais tira 6.' },
+  inverter:   { ico:'⇅', nome:'Inverter dado', d:'Vira o seu melhor dado pra face oposta (num d6, 6 vira 1). Costuma quebrar a fechadura que você ia abrir.' },
+  contar:     { ico:'🕳', nome:'A Conta',       d:'Ele conta os turnos. Quando a conta fecha, desce um golpe enorme. Mate antes, ou tenha bloqueio pronto.' },
+  summon:     { ico:'✦', nome:'Invocar',       d:'Chama reforço pro campo.' },
+};
+export const ESTADOS = {
+  veneno:     { ico:'☠', nome:'Veneno',      d:'Dano no fim do turno, IGNORANDO fechadura e bloqueio. Empilha e cai 1 por turno.' },
+  sangramento:{ ico:'🩸',nome:'Sangramento', d:'Igual ao veneno, mas some mais rápido.' },
+  queimadura: { ico:'🔥',nome:'Queimadura',  d:'Dano na hora de rolar os dados.' },
+  congelado:  { ico:'❄', nome:'Congelado',   d:'O dado fica preso na face em que caiu e não rola no próximo turno.' },
+  fratura:    { ico:'✖', nome:'Fratura',     d:'O dado perdeu 1 do valor máximo, para o resto da run.' },
+  marca:      { ico:'🎯',nome:'Marca',       d:'O próximo golpe neste alvo causa +50%.' },
+  maldicao:   { ico:'☠', nome:'Maldição',    d:'Uma face virou ☠ Vazio: não vale número nem símbolo.' },
+  frenesi:    { ico:'▲', nome:'Frenesi',     d:'+50% de dano causado.' },
+  espinhos:   { ico:'✦', nome:'Espinhos',    d:'Devolve dano a quem te acertar.' },
+  invisivel:  { ico:'🌫',nome:'Invisível',   d:'Você sofre 65% menos dano de ataques neste turno.' },
+  armadura:   { ico:'⛊', nome:'Armadura',    d:'REDUZ cada golpe recebido em X. Diferente de fechadura: aqui o dano diminui, não zera.' },
+};
+/* devolve {ico, nome, d, ex} pra qualquer coisa clicável da carta do inimigo */
+export function verbete(tipo, chave, v){
+  if(tipo==='trava'){
+    const sec = SECOES.find(s=>s.id==='travas');
+    const it  = sec.itens.find(i=>i.id===chave);
+    if(!it) return null;
+    const [cab, ...resto] = it.t.split('—');
+    return { ico:cab.trim().split(' ')[0], nome:cab.trim().split(' ').slice(1).join(' '),
+             sub:resto.join('—').trim().replace(/"/g,''), d:it.d, ex:it.ex,
+             rodape:'Fechadura não é armadura: o golpe errado causa ZERO, não "menos".' };
+  }
+  if(tipo==='intencao'){ const x=INTENCOES[chave]; return x?{...x}:null; }
+  if(tipo==='estado'){   const x=ESTADOS[chave];   return x?{...x, nome:x.nome+(v?' '+v:'')}:null; }
+  return null;
 }

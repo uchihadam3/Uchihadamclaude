@@ -190,10 +190,13 @@ chave 9 → exatamente 2 dados).
 "maior ≥ 4" dizia a regra e escondia a consequência. Duas correções:
 1. O rótulo na carta passou a dizer o efeito: **"só dói com dado 4 ou mais"**.
    Fechadura não é armadura — golpe errado dá **zero**, não "menos".
-2. Tela do Grimório com 6 seções (turno · fechaduras · como cada classe abre ·
-   faces · estados · ferramentas), cada fechadura com **exemplo numérico do que
-   passa e do que dá zero**. Abre pelo título e, no combate, **tocando na
-   própria fechadura** — ela já abre rolada no verbete daquela regra.
+2. **Cartão de explicação** no combate: tocar num efeito do inimigo (fechadura,
+   intenção ou estado) abre um cartãozinho com AQUELE efeito e nada mais —
+   descrição + exemplo do que causa dano e do que causa zero. O Grimório inteiro
+   (6 seções) ficou como opção secundária: botão no título e "ver tudo no
+   Grimório" dentro do cartão. Manual grande no meio da luta não se lê.
+3. "só dói" virou **"só sofre dano"** — o texto passa a nomear o que está em
+   jogo (dano), não a sensação.
 
 ### 3.4c A fileira de inimigos não desce mais pra mesa
 `#ini` quebrava linha e a partir de 3 inimigos a carta seguinte descia por cima
