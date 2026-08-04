@@ -940,19 +940,23 @@ function dropGlob(wallSide){
   slimeSplit(g.x+g.w/2, g.y+g.h*0.35);           // gosma esguicha: um PEDAÇO se desprendeu
 }
 
-// SEGREDO — TRAMPOLIM 2x2: acha 4 gelecas sólidas formando um quadrado (encostadas) e marca a superfície.
+// SEGREDO — TRAMPOLIM 2x2: 4 gelecas sólidas formando um quadrado FIRME (encostadas e alinhadas).
+// Exige espaçamento real de ~GLOB com tolerância apertada, pra NÃO formar trampolim por acidente
+// quando pedaços soltos se amontoam (senão o jogador "dá um pulo gigante" sem querer ao coletar).
 function detectTrampolines(){
   tramp=[];
   const solid=[]; for(const g of globs){ g.tramp=false; if(g.solid) solid.push(g); }
   if(solid.length<4) return;
-  const cell=new Map(), key=(cx,cy)=>cx+","+cy;
-  for(const g of solid){ cell.set(key(Math.round(g.x/GLOB),Math.round(g.y/GLOB)), g); }
-  const seen=new Set();
-  for(const g of solid){ const cx=Math.round(g.x/GLOB), cy=Math.round(g.y/GLOB);
-    const q=[cell.get(key(cx,cy)),cell.get(key(cx+1,cy)),cell.get(key(cx,cy+1)),cell.get(key(cx+1,cy+1))];
-    if(q.every(Boolean) && !seen.has(key(cx,cy))){
-      seen.add(key(cx,cy)); q.forEach(x=>x.tramp=true);
-      const left=Math.min(q[0].x,q[2].x), right=Math.max(q[1].x,q[3].x)+GLOB, topY=Math.min(q[0].y,q[1].y);
+  const TOL=8;                                   // alinhamento firme: acidente não vira trampolim
+  const near=(v,t)=>Math.abs(v-t)<TOL;
+  for(const a of solid){
+    if(a.tramp) continue;                        // canto superior-esquerdo
+    const b=solid.find(g=>!g.tramp && g!==a && near(g.x,a.x+GLOB) && near(g.y,a.y));         // direita
+    const c=solid.find(g=>!g.tramp && g!==a && near(g.x,a.x)      && near(g.y,a.y+GLOB));    // abaixo
+    const d=(b&&c)?solid.find(g=>!g.tramp && g!==a&&g!==b&&g!==c && near(g.x,a.x+GLOB) && near(g.y,a.y+GLOB)):null; // diagonal
+    if(b&&c&&d){
+      a.tramp=b.tramp=c.tramp=d.tramp=true;
+      const left=Math.min(a.x,c.x), right=Math.max(b.x,d.x)+GLOB, topY=Math.min(a.y,b.y);
       tramp.push({x:left, y:topY, w:right-left, sq:0});
     }
   }
