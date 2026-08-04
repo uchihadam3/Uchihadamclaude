@@ -491,7 +491,7 @@ let toastT; function toast(m,k){ /* reservado */ }
 // MENU / SELEÇÃO DE FASES
 // ==========================================================================
 function showMenu(){
-  state="menu"; stopMusic();
+  state="menu"; stopMusic(); winTimer=0; winThen=null;
   el("screen-game").classList.remove("active");
   el("screen-menu").classList.add("active");
   buildLevelGrid();
@@ -596,7 +596,7 @@ function buildEntities(){
 }
 function resetLevel(){
   buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
-  globs=[]; particles=[]; tramp=[];
+  globs=[]; particles=[]; tramp=[]; winTimer=0; winThen=null;
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
@@ -927,19 +927,39 @@ function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exit
 
   // === FASE SECRETA: final especial (você derrotou a Gosma-Mãe E descobriu tudo) ===
   if(level.secret){
-    overlay("🏆✨ O VERDADEIRO FIM",
+    confetti(exitRect.x+exitRect.w/2, exitRect.y, 70);
+    deferWin(()=>overlay("🏆✨ O VERDADEIRO FIM",
       `<div style="font-size:.9rem;color:#c9a6ff;line-height:1.5">Você escapou da Gosma-Mãe…<br>e descobriu <b>TUDO</b> que o jogo escondia.<br><span style="color:#8fb3a6">Pouquíssimos chegam até aqui. 💎</span></div>`,
-      [{t:"Menu",cb:showMenu}], true);
+      [{t:"Menu",cb:showMenu}], true), 0.9);
     return;
   }
-  const isLast=levelIndex>=NORMAL-1;   // última fase NORMAL
+  const isLast=levelIndex>=NORMAL-1;   // última fase NORMAL → conclui o MUNDO
+
+  // === TELA DE CONCLUSÃO DO MUNDO (após a última fase normal) ===
+  if(isLast){
+    confetti(exitRect.x+exitRect.w/2, exitRect.y, 60);
+    let tCoins=0,gCoins=0,fSec=0;
+    LEVELS.forEach((L,i)=>{ if(L.secret)return; const c=(L.rows.join("").match(/\*/g)||[]).length;
+      tCoins+=c; gCoins+=Math.min(c, save.coins[i]||0); fSec+=save.gems[i]||0; });
+    const allSec = fSec>=NORMAL;
+    let body=`<div style="font-size:.95rem;line-height:1.7">`
+      + `<span style="color:#ffd24a;font-weight:700">⭐ ${gCoins}/${tCoins} estrelas</span>`;
+    if(fSec>0) body += `<br><span style="color:#c9a6ff;font-weight:700">💎 ${fSec} segredo${fSec>1?'s':''}</span>`;
+    body += `</div>`;
+    body += allSec
+      ? `<div style="font-size:.82rem;color:#c9a6ff;margin-top:10px">✨ Você desvendou o Vale por inteiro… algo despertou no mapa.</div>`
+      : `<div style="font-size:.82rem;color:#8fb3a6;margin-top:10px">Que jornada! 🌿 O Vale ainda guarda mistérios pra quem voltar.</div>`;
+    deferWin(()=>overlay("🎉 Mundo 1 Completo!", body, [{t:"Menu",cb:showMenu}], true), 0.9);
+    return;
+  }
+
+  confetti(exitRect.x+exitRect.w/2, exitRect.y, 24);
   let sub="★".repeat(st)+"☆".repeat(3-st);
   if(coinTot){ sub += `<div style="font-size:.8rem;color:#ffd24a;margin-top:6px">⭐ ${coinGot}/${coinTot}</div>`; }
   // segredo: só reconhece SE você achou algum — e jamais diz o total nem que faltam
   if(secretGot){ sub += `<div style="font-size:.8rem;color:#c9a6ff;margin-top:4px">✨ Você encontrou um segredo…</div>`; }
-  overlay(isLast?"🏆 Você zerou!":"✅ Fase completa!", sub,
-    isLast? [{t:"Menu",cb:showMenu}] :
-          [{t:"Próxima ▶",cb:()=>startGame(levelIndex+1)},{t:"Menu",ghost:true,cb:showMenu}], true); }
+  deferWin(()=>overlay("✅ Fase completa!", sub,
+    [{t:"Próxima ▶",cb:()=>startGame(levelIndex+1)},{t:"Menu",ghost:true,cb:showMenu}], true), 0.45); }
 
 // ==========================================================================
 // RENDER
@@ -1353,7 +1373,12 @@ function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w
 // ==========================================================================
 function burst(x,y,n,color,speed){ for(let i=0;i<n;i++){ const a=Math.random()*6.28,s=speed*(0.4+Math.random()*0.7);
   particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-speed*0.4,life:0.5+Math.random()*0.35,max:0.85,r:2+Math.random()*2.4,color}); }
-  if(particles.length>260)particles.splice(0,particles.length-260); }
+  if(particles.length>320)particles.splice(0,particles.length-320); }
+// CONFETE de comemoração (vitória): partículas coloridas subindo e caindo
+const CONFCOL=["#7ee06b","#ffd24a","#8be9ff","#ff8fae","#c9a6ff","#a6f08a"];
+function confetti(x,y,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28, s=140+Math.random()*220;
+  particles.push({x:x+(Math.random()*2-1)*30,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-260,life:1.1+Math.random()*0.9,max:2.0,r:2+Math.random()*3,color:CONFCOL[i%CONFCOL.length]}); }
+  if(particles.length>360)particles.splice(0,particles.length-360); }
 function updateParticles(dt){ for(let i=particles.length-1;i>=0;i--){ const p=particles[i];
   p.vy+=620*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt; if(p.life<=0)particles.splice(i,1); } }
 
@@ -1446,7 +1471,12 @@ function hideHint(){ const e=el("hint"); if(e)e.classList.remove("show"); clearT
 // LOOP
 // ==========================================================================
 function loop(ts){ const dt=Math.min(0.033,(ts-last)/1000||0); last=ts; update(dt);
+  // durante a comemoração/morte o jogo pausa, mas partículas e o tremor continuam vivos
+  if(state==="complete"||state==="dead"){ updateParticles(dt); T+=dt; if(shake>0)shake=Math.max(0,shake-dt*24);
+    if(winTimer>0){ winTimer-=dt; if(winTimer<=0&&winThen){ const f=winThen; winThen=null; f(); } } }
   if(state!=="menu") render(); requestAnimationFrame(loop); }
+let winTimer=0, winThen=null;
+function deferWin(fn,delay){ winThen=fn; winTimer=delay; }
 
 // ==========================================================================
 // ENTRADA (teclado + joystick + botões)
@@ -1521,4 +1551,7 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get camSafe(){ return Math.round(camSafeBottom); }, blobScreenBottom(){ return blob?Math.round((blob.y+blob.h-cam.y)*zoom):0; },
   get canvasH(){ return canvas.height; },
   _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
+  gotoExit(){ if(blob&&exitRect){ blob.x=exitRect.x; blob.y=exitRect.y; blob.vy=0; } },
+  get parts(){ return particles?particles.length:0; },
+  _setCoins(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.coins[i]=1; persist(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };

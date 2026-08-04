@@ -80,6 +80,10 @@ canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
   align-items:center; justify-content:center; text-align:center;
   background:rgba(5,12,10,.86); backdrop-filter:blur(4px); padding:22px; z-index:6; }
 .overlay.hidden{ display:none; }
+.overlay:not(.hidden){ animation:ovIn .3s ease both; }
+.overlay:not(.hidden) h2{ animation:ovPop .42s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes ovIn{ from{ opacity:0 } to{ opacity:1 } }
+@keyframes ovPop{ from{ opacity:0; transform:scale(.6) translateY(8px) } to{ opacity:1; transform:none } }
 .overlay h2{ margin:0; font-size:1.9rem; color:var(--slime); }
 .overlay p{ margin:0; color:var(--text-dim); max-width:340px; line-height:1.5; }
 .overlay .stars{ font-size:2.2rem; letter-spacing:6px; color:var(--gold); min-height:1.2em; }
