@@ -28,10 +28,13 @@ const THEMES={
 
 // -------------------------------------------------------------------------- FASES
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor
-// movers: plataformas móveis [{x,y,w,axis:'x'|'y',dist,speed,phase}] (em tiles)
+// *=estrela VISÍVEL (coletável)  G=gema = SEGREDO oculto (nunca anunciado)
+// S=parede falsa  C=desmorona  T=mola
+// movers: plataformas móveis [{x,y,w,axis,dist,speed,phase}] (tiles)
+// enemies: [{x,y,type:'patrol'|'chaser',dist,speed,axis,range}] — chaser te caça se chegar perto
 const LEVELS = [
   { name:"1 · Vale", mass:9, max:9, theme:"cave",
-    hint:"Ande e pule ➜. Há SEGREDOS escondidos — explore o alto… e encoste nas paredes 👀💎", rows:[
+    hint:"Vá pra direita ➜ e pule. Cada pulo solta um pedaço de você que vira bloco sólido.", rows:[
     "############################################################",
     "#                                                          #",
     "#                                                          #",
@@ -41,7 +44,7 @@ const LEVELS = [
     "#                                                          #",
     "#                                                          #",
     "#                                                          #",
-    "#                                  G                       #",
+    "#                                  *                       #",
     "#       ####                     #####                     #",
     "#       #G #        o                                      #",
     "#       #  S       ####                                    #",
@@ -54,7 +57,7 @@ const LEVELS = [
     "#############   ########   ###########   #########  ########"]},
 
   { name:"2 · Colinas", mass:9, max:9, theme:"cave",
-    hint:"Dois caminhos: o alto tem ponte que DESMORONA (corra!) e um segredo. O baixo é seguro.", rows:[
+    hint:"Pontes rachadas DESMORONAM quando você pisa — atravesse correndo!", rows:[
     "################################################################",
     "#                                                              #",
     "#                                                              #",
@@ -65,7 +68,7 @@ const LEVELS = [
     "#                                                              #",
     "#                                                              #",
     "#                                                              #",
-    "#                                 G                            #",
+    "#                                 *                            #",
     "#           ###     #####CCCCCCC#####                          #",
     "#                                                     ####     #",
     "#        ###                                          #G #     #",
@@ -76,17 +79,18 @@ const LEVELS = [
     "##################   #############    ############   ###########",
     "##################   #############    ############   ###########",
     "##################^^^#############^^^^############^^^###########",
-    "##################   #############    ############   ###########"]},
+    "##################   #############    ############   ###########"],
+    enemies:[{"x":40,"y":17,"dist":7,"speed":0.9,"axis":"x","type":"patrol"}]},
 
   { name:"3 · Cavernas", mass:10, max:10, theme:"deep",
-    hint:"Torres gastam massa — coma pedaços (E) pra reabastecer. 2 segredos: um no alto, um oculto.", rows:[
+    hint:"Empilhar gasta massa. Encoste num pedaço e aperte PEGAR pra reabsorver e reabastecer.", rows:[
     "##############################################################",
     "#                                                            #",
     "#                                                            #",
     "#                                                            #",
     "#                                                            #",
     "#                                                            #",
-    "#                                     G                      #",
+    "#                                     *                      #",
     "#                                   #####                    #",
     "#                                                            #",
     "#                                                            #",
@@ -101,10 +105,11 @@ const LEVELS = [
     "################   ###########    ############   #############",
     "################   ###########    ############   #############",
     "################^^^###########^^^^############^^^#############",
-    "################   ###########    ############   #############"]},
+    "################   ###########    ############   #############"],
+    enemies:[{"x":44,"y":17,"dist":6,"speed":1,"axis":"x","type":"patrol"}]},
 
   { name:"4 · Paredão", mass:7, max:7, theme:"deep",
-    hint:"Escale a parede até a ★. Mas há uma passagem FALSA lá no alto à direita… 💎", rows:[
+    hint:"Pule perto da parede e SEGURE a direção contra ela pra grudar e escalar.", rows:[
     "##############################",
     "#                            #",
     "#                            #",
@@ -121,7 +126,7 @@ const LEVELS = [
     "#                #           #",
     "#                #           #",
     "#                #           #",
-    "#               o#           #",
+    "#               *#           #",
     "#                #           #",
     "#                #           #",
     "#                #           #",
@@ -132,10 +137,11 @@ const LEVELS = [
     "#         o      #           #",
     "# @              #           #",
     "##############################",
-    "##############################"]},
+    "##############################"],
+    enemies:[{"x":6,"y":25,"dist":6,"speed":0.85,"axis":"x","type":"patrol"}]},
 
   { name:"5 · A Ponte", mass:5, max:5, theme:"ice",
-    hint:"Movers e molas cruzam os abismos. A ponte frágil no alto (💎) DESMORONA — seja rápido!", rows:[
+    hint:"Molas (⇑) te lançam alto e plataformas móveis cruzam os abismos.", rows:[
     "########################################################################",
     "#                                                                      #",
     "#                                                                      #",
@@ -145,7 +151,7 @@ const LEVELS = [
     "#                                                                      #",
     "#                                                                      #",
     "#                                                                      #",
-    "#             G                                                        #",
+    "#             *                                                        #",
     "#         CCCCCCCCC                           ####                     #",
     "#                                             #G #                     #",
     "#                                             #  S                     #",
@@ -156,10 +162,11 @@ const LEVELS = [
     "########             #######                 #######             #######",
     "########^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^^^#######^^^^^^^^^^^^^#######",
     "########             #######                 #######             #######"],
-    movers:[{"x":9,"y":16,"w":3,"axis":"x","dist":9,"speed":0.7,"phase":0},{"x":30,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":1},{"x":53,"y":16,"w":3,"axis":"x","dist":9,"speed":0.75,"phase":0.4}]},
+    movers:[{"x":9,"y":16,"w":3,"axis":"x","dist":9,"speed":0.7,"phase":0},{"x":30,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":1},{"x":53,"y":16,"w":3,"axis":"x","dist":9,"speed":0.75,"phase":0.4}],
+    enemies:[{"x":36,"y":15,"speed":1,"type":"chaser","range":8}]},
 
   { name:"6 · Forja", mass:8, max:8, theme:"forge",
-    hint:"Abra a porta com um pedaço na placa, cruze o 🔥 calor. 2 segredos: no alto e oculto.", rows:[
+    hint:"Deixe um pedaço na placa pra abrir a porta. O 🔥 calor derrete sua massa — passe rápido.", rows:[
     "################################################################",
     "#                                                              #",
     "#                                                              #",
@@ -169,7 +176,7 @@ const LEVELS = [
     "#                                                              #",
     "#                                                              #",
     "#                                                              #",
-    "#                  G                                           #",
+    "#                  *                                           #",
     "#                 ####                              ####       #",
     "#                                                   #G #       #",
     "#                         o               o         S  #       #",
@@ -179,10 +186,11 @@ const LEVELS = [
     "#######P############################   #########################",
     "####################################   #########################",
     "####################################^^^#########################",
-    "####################################   #########################"]},
+    "####################################   #########################"],
+    enemies:[{"x":34,"y":15,"speed":1.05,"type":"chaser","range":7},{"x":50,"y":15,"dist":6,"speed":0.9,"axis":"x","type":"patrol"}]},
 
   { name:"7 · Guarida", mass:7, max:7, theme:"forge",
-    hint:"Guardiões 👾 patrulham! Molas pra saltar, e uma ponte frágil (💎) por cima do perigo.", rows:[
+    hint:"Guardiões patrulham — e alguns ACORDAM e te CAÇAM se você chegar perto. Fuja pra longe pra despistá-los.", rows:[
     "##################################################################",
     "#                                                                #",
     "#                                                                #",
@@ -195,7 +203,7 @@ const LEVELS = [
     "#                                                                #",
     "#                                                                #",
     "#                                                 ####           #",
-    "#                              G                  #G #           #",
+    "#                              *                  #G #           #",
     "#                           CCCCCCC               #  S           #",
     "#                                                 ####           #",
     "#                                                                #",
@@ -204,17 +212,17 @@ const LEVELS = [
     "########################   #######################################",
     "########################^^^#######################################",
     "########################   #######################################"],
-    enemies:[{"x":18,"y":16,"dist":9,"speed":0.9,"axis":"x"},{"x":44,"y":16,"dist":8,"speed":1.1,"axis":"x"},{"x":30,"y":12,"dist":3,"speed":1.3,"axis":"x"}]},
+    enemies:[{"x":18,"y":16,"dist":9,"speed":0.9,"axis":"x","type":"patrol"},{"x":44,"y":16,"dist":8,"speed":1.1,"axis":"x","type":"patrol"},{"x":33,"y":16,"speed":1.15,"type":"chaser","range":9}]},
 
   { name:"8 · O Ápice", mass:9, max:9, theme:"ice",
-    hint:"O grande final. TRÊS segredos escondidos 💎💎💎 — poucos vão achar todos. Boa sorte!", rows:[
+    hint:"O grande final. Tudo que você aprendeu, junto. Boa gosma!", rows:[
     "######################################################################################",
     "#                                                                                    #",
     "#                                                                                    #",
     "#                                                                                    #",
     "#                                                                                    #",
     "#                                                                                    #",
-    "#                               G                                                    #",
+    "#                               *                                                    #",
     "#                             #####                                                  #",
     "#                                                                                    #",
     "#                                                                                    #",
@@ -222,7 +230,7 @@ const LEVELS = [
     "#                                                                                    #",
     "#                                                                                    #",
     "#                                                                                    #",
-    "#         ####                                          G                            #",
+    "#         ####                                          *                            #",
     "#         #G #                                        CCCCC                          #",
     "#         #  S                                                                       #",
     "#         ####                               o                                       #",
@@ -233,13 +241,13 @@ const LEVELS = [
     "##############^^^#########^^^^^^^^^^^^^^^#########^^^###########^^^^^^^^^^^^^#########",
     "##############   #########               #########   ###########             #########"],
     movers:[{"x":27,"y":20,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":65,"y":20,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
-    enemies:[{"x":45,"y":19,"dist":4,"speed":1,"axis":"x"}]},
+    enemies:[{"x":45,"y":19,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":70,"y":19,"dist":5,"speed":1,"axis":"x","type":"patrol"},{"x":20,"y":19,"speed":1.1,"type":"chaser","range":8},{"x":60,"y":19,"speed":1.2,"type":"chaser","range":9}]},
 
 ];
 
 // -------------------------------------------------------------------------- PROGRESSO
 const SAVE_KEY="geleca_save_v2";
-function loadSave(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY))||{}; return {unlocked:s.unlocked||0, stars:s.stars||{}, gems:s.gems||{}}; }catch(e){ return {unlocked:0,stars:{},gems:{}}; } }
+function loadSave(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY))||{}; return {unlocked:s.unlocked||0, stars:s.stars||{}, coins:s.coins||{}, gems:s.gems||{}}; }catch(e){ return {unlocked:0,stars:{},coins:{},gems:{}}; } }
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
 let save = loadSave();
 function starsFor(idx, massLeft){
@@ -252,7 +260,7 @@ function starsFor(idx, massLeft){
 // -------------------------------------------------------------------------- ESTADO
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
-let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,fakes,crumbles,exitRect,startPos,theme;
+let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,exitRect,startPos,theme;
 let blob, globs, particles=[], motes=[], levelIndex=0, state="menu"; // menu|play|complete|dead
 let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 
@@ -278,26 +286,30 @@ function showMenu(){
   el("screen-menu").classList.add("active");
   buildLevelGrid();
 }
-function levelHasGem(i){ return LEVELS[i].rows.join("").includes("G"); }
 function buildLevelGrid(){
   const grid=el("level-grid"); grid.innerHTML="";
-  const secretsIn=i=>(LEVELS[i].rows.join("").match(/G/g)||[]).length;
-  const foundIn=i=>Math.min(secretsIn(i), save.gems[i]||0);
-  // totais
-  const totalStars=Object.values(save.stars).reduce((a,b)=>a+(b||0),0);
-  let totalSecrets=0, totalFound=0;
-  LEVELS.forEach((_,i)=>{ totalSecrets+=secretsIn(i); totalFound+=foundIn(i); });
+  // ⭐ estrelas VISÍVEIS (coletável, contagem aberta com total)
+  const coinsIn=i=>(LEVELS[i].rows.join("").match(/\*/g)||[]).length;
+  const coinGot=i=>Math.min(coinsIn(i), save.coins[i]||0);
+  // 💎 SEGREDOS: só o que você já achou — o jogo nunca revela quantos há
+  const secretGot=i=>save.gems[i]||0;
+  let totalCoins=0, gotCoins=0, foundSecrets=0;
+  LEVELS.forEach((_,i)=>{ totalCoins+=coinsIn(i); gotCoins+=coinGot(i); foundSecrets+=secretGot(i); });
   const stats=el("menu-stats");
-  if(stats) stats.innerHTML=`⭐ ${totalStars}/${LEVELS.length*3} &nbsp;·&nbsp; 💎 ${totalFound}/${totalSecrets} segredos`;
+  if(stats) stats.innerHTML=`⭐ ${gotCoins}/${totalCoins}`
+    + (foundSecrets>0 ? ` &nbsp;·&nbsp; <span style="color:#c9a6ff">💎 ${foundSecrets}</span>` : "");
   LEVELS.forEach((L,i)=>{
     const locked=i>save.unlocked, st=save.stars[i]||0;
-    const sTot=secretsIn(i), sGot=foundIn(i);
+    const cTot=coinsIn(i), cGot=coinGot(i), sGot=secretGot(i);
     const c=document.createElement("div");
     c.className="lv-card "+(locked?"locked":"unlocked");
     c.innerHTML = locked
       ? `<div class="lv-lock">🔒</div><div class="lv-name">${(L.name.split("·")[1]||"").trim()}</div>`
       : `<div class="lv-num">${i+1}</div><div class="lv-name">${L.name.split("·")[1].trim()}</div>
-         <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"}${sTot?` <span style="color:${sGot===sTot?'#8be9ff':'#5a7a80'}">💎${sGot}/${sTot}</span>`:""}</div>`;
+         <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"}`
+         + (cTot?` <span style="color:${cGot===cTot?'#ffd24a':'#8a7a4a'}">⭐${cGot}/${cTot}</span>`:"")
+         + (sGot>0?` <span style="color:#c9a6ff">💎${sGot}</span>`:"")
+         + `</div>`;
     if(!locked) c.addEventListener("click", ()=>{ audio(); startGame(i); });
     grid.appendChild(c);
   });
@@ -315,7 +327,7 @@ function startGame(i){
 function loadLevel(idx){
   level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
   fitCanvas();                            // dimensiona o canvas à tela e calcula o zoom
-  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];fakes=[];crumbles=[];
+  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];stars=[];fakes=[];crumbles=[];
   theme=THEMES[level.theme] || [THEMES.cave,THEMES.cave,THEMES.cave,THEMES.deep,THEMES.deep,THEMES.deep,THEMES.forge,THEMES.forge,THEMES.forge][idx] || THEMES.cave;
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
     const ch=level.rows[y][x], r={x:x*TILE,y:y*TILE,w:TILE,h:TILE};
@@ -326,7 +338,8 @@ function loadLevel(idx){
     else if(ch==="D")doors.push(r);
     else if(ch==="H")heatZones.push(r);
     else if(ch==="T"){solidTiles.push(r);springs.push({x:r.x,y:r.y,w:TILE,h:TILE,sq:0});}  // mola
-    else if(ch==="G")gems.push({x:x*TILE+16,y:y*TILE+16,r:8,got:false});                   // gema/segredo
+    else if(ch==="G")gems.push({x:x*TILE+16,y:y*TILE+16,r:8,got:false});                   // gema = SEGREDO oculto (nunca anunciado)
+    else if(ch==="*")stars.push({x:x*TILE+16,y:y*TILE+16,r:9,got:false});                   // estrela = coletável VISÍVEL
     else if(ch==="S")fakes.push(r);                                                        // parede FALSA (passa através)
     else if(ch==="C")crumbles.push({x:r.x,y:r.y,w:TILE,h:TILE,solid:true,t:0,resp:0});     // plataforma que desmorona
     else if(ch==="E")exitRect={x:x*TILE+4,y:y*TILE+2,w:TILE-8,h:TILE-4};
@@ -337,7 +350,8 @@ function loadLevel(idx){
     dist:m.dist*TILE, speed:m.speed, phase:m.phase||0,
     x:m.x*TILE, y:m.y*TILE, dx:0, dy:0 }));
   (level.enemies||[]).forEach(e=>enemies.push({
-    x0:e.x*TILE, y0:e.y*TILE, dist:e.dist*TILE, speed:e.speed, axis:e.axis||"x",
+    x0:e.x*TILE, y0:e.y*TILE, dist:(e.dist||0)*TILE, speed:e.speed, axis:e.axis||"x",
+    type:e.type||"patrol", range:(e.range||7)*TILE, mad:0, alert:0,
     x:e.x*TILE, y:e.y*TILE, w:TILE-6, h:TILE-6 }));
   // motes de fundo
   motes=[]; for(let i=0;i<26;i++) motes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height,
@@ -390,13 +404,28 @@ function updateMovers(dt){
     m.dx=nx-m.x; m.dy=ny-m.y; m.x=nx; m.y=ny;
   }
 }
-function updateEnemies(){
+function updateEnemies(dt){
+  const bx=blob?blob.x+blob.w/2:0, by=blob?blob.y+blob.h/2:0;
   for(const e of enemies){
-    const off=Math.sin(levelTime*e.speed*Math.PI*2)*(e.dist*0.5) + e.dist*0.5;
     e.px=e.x;
-    e.x = e.axis==="x"? e.x0+off+3 : e.x0+3;
-    e.y = e.axis==="y"? e.y0+off+3 : e.y0+3;
-    e.dir = e.x>=e.px?1:-1;
+    if(e.type==="chaser"){
+      // PERSEGUIDOR: dorme parado; quando você chega perto, acorda e te CAÇA.
+      const dx=bx-(e.x+e.w/2), d=Math.hypot(dx, by-(e.y+e.h/2));
+      if(d<e.range){
+        e.x += Math.sign(dx)*e.speed*135*dt;       // avança na sua direção
+        e.mad=Math.min(1,e.mad+dt*3); e.alert=1;
+      } else {
+        const hx=e.x0-e.x;                           // volta pro ninho quando escapa
+        if(Math.abs(hx)>1) e.x += Math.sign(hx)*Math.min(Math.abs(hx), e.speed*70*dt);
+        e.mad=Math.max(0,e.mad-dt*1.6); e.alert=Math.max(0,e.alert-dt);
+      }
+      e.y = e.y0 + Math.sin(levelTime*(4+e.mad*4))*(2+e.mad*2);
+    } else {
+      const off=Math.sin(levelTime*e.speed*Math.PI*2)*(e.dist*0.5) + e.dist*0.5;
+      e.x = e.axis==="x"? e.x0+off+3 : e.x0+3;
+      e.y = e.axis==="y"? e.y0+off+3 : e.y0+3;
+    }
+    e.dir = e.x>=e.px?1:(e.x<e.px?-1:(e.dir||1));
   }
 }
 function fitCanvas(){
@@ -424,7 +453,7 @@ function update(dt){
   blob.blink-=dt; if(blob.blink<-0.15)blob.blink=1.6+Math.random()*2.5;
 
   if(transition>0) transition=Math.max(0,transition-dt*2.6);
-  updateMovers(dt); updateEnemies();
+  updateMovers(dt); updateEnemies(dt);
   // carona: se estava sobre um mover, acompanha o deslocamento dele
   if(blob.onGroundPrev && blob.rideMover){ blob.x+=blob.rideMover.dx; blob.y+=blob.rideMover.dy; }
 
@@ -485,9 +514,14 @@ function update(dt){
 
   // inimigos: contato = morte
   for(const e of enemies) if(overlaps(blob,{x:e.x+2,y:e.y+2,w:e.w-4,h:e.h-4})){ die(); return; }
-  // gemas / SEGREDOS (várias por fase)
+  // estrelas VISÍVEIS (coletável comum)
+  for(const st of stars) if(!st.got && overlaps(blob,{x:st.x-st.r,y:st.y-st.r,w:st.r*2,h:st.r*2})){
+    st.got=true; burst(st.x,st.y,14,"#ffd24a",150); sfx("star"); shake=Math.max(shake,2);
+  }
+  // gemas = SEGREDOS ocultos (nunca anunciados; o jogo NÃO avisa que existem)
   for(const gm of gems) if(!gm.got && overlaps(blob,{x:gm.x-gm.r,y:gm.y-gm.r,w:gm.r*2,h:gm.r*2})){
-    gm.got=true; burst(gm.x,gm.y,16,"#8be9ff",160); sfx("gem"); shake=Math.max(shake,3);
+    gm.got=true; burst(gm.x,gm.y,20,"#c9a6ff",180); sfx("secret"); shake=Math.max(shake,4);
+    showHint("✨ segredo…");
   }
 
   // calor
@@ -533,14 +567,19 @@ function die(){ deaths++; burst(blob.x+blob.w/2,blob.y+blob.h/2,18,"#ff7a6a",210
 function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exitRect.y+exitRect.h/2,22,"#7ee06b",190);
   const st=starsFor(levelIndex,blob.mass);
   save.stars[levelIndex]=Math.max(save.stars[levelIndex]||0, st);
-  const found=gems.filter(g=>g.got).length, total=gems.length;
-  if(total) save.gems[levelIndex]=Math.max(save.gems[levelIndex]||0, found);
+  // ⭐ estrelas VISÍVEIS: contadas abertamente
+  const coinGot=stars.filter(s=>s.got).length, coinTot=stars.length;
+  if(coinTot) save.coins[levelIndex]=Math.max(save.coins[levelIndex]||0, coinGot);
+  // 💎 SEGREDOS ocultos: guardamos, mas NUNCA revelamos quantos existem
+  const secretGot=gems.filter(g=>g.got).length;
+  if(secretGot) save.gems[levelIndex]=Math.max(save.gems[levelIndex]||0, secretGot);
   if(levelIndex+1<LEVELS.length && save.unlocked<levelIndex+1) save.unlocked=levelIndex+1;
   persist();
   const isLast=levelIndex>=LEVELS.length-1;
   let sub="★".repeat(st)+"☆".repeat(3-st);
-  if(total){ sub += `<div style="font-size:.8rem;color:#8be9ff;margin-top:6px">💎 Segredos: ${found}/${total}`
-    + (found<total?` <span style="color:#8fb3a6">— tem mais escondido por aí…</span>`:` ✨`) + `</div>`; }
+  if(coinTot){ sub += `<div style="font-size:.8rem;color:#ffd24a;margin-top:6px">⭐ ${coinGot}/${coinTot}</div>`; }
+  // segredo: só reconhece SE você achou algum — e jamais diz o total nem que faltam
+  if(secretGot){ sub += `<div style="font-size:.8rem;color:#c9a6ff;margin-top:4px">✨ Você encontrou um segredo…</div>`; }
   overlay(isLast?"🏆 Você zerou!":"✅ Fase completa!", sub,
     isLast? [{t:"Menu",cb:showMenu}] :
           [{t:"Próxima ▶",cb:()=>startGame(levelIndex+1)},{t:"Menu",ghost:true,cb:showMenu}], true); }
@@ -632,26 +671,44 @@ function render(){
     ctx.fillStyle="#a6f08a"; ctx.beginPath(); ctx.arc(p.x,by,p.r,0,7); ctx.fill(); ctx.restore();
     ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(p.x-3,by-3,2.4,0,7); ctx.fill(); }
 
-  // gemas / SEGREDOS (diamante girando)
+  // estrelas VISÍVEIS (coletável dourado — o jogador SABE que estão lá)
+  for(const st of stars){ if(st.got||!vis({x:st.x-16,y:st.y-16,w:32,h:32}))continue;
+    const sy=st.y+Math.sin(T*2.5+st.x)*3;
+    ctx.save(); ctx.translate(st.x,sy); ctx.rotate(Math.sin(T*1.2+st.x)*0.18);
+    ctx.shadowColor="#ffd24a"; ctx.shadowBlur=16;
+    const sg=ctx.createLinearGradient(0,-st.r,0,st.r); sg.addColorStop(0,"#fff0a8"); sg.addColorStop(1,"#f0a83a");
+    ctx.fillStyle=sg; ctx.beginPath();
+    for(let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?st.r*0.44:st.r*1.08;
+      const x=Math.cos(a)*rr, y=Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(-st.r*0.22,-st.r*0.22,st.r*0.24,0,7); ctx.fill();
+    ctx.restore(); }
+
+  // gemas = SEGREDOS ocultos (diamante roxo; só quem os acha por conta própria vê isto)
   for(const gm of gems){ if(gm.got||!vis({x:gm.x-16,y:gm.y-16,w:32,h:32}))continue;
     const gy=gm.y+Math.sin(T*2.5+gm.x)*3, r=gm.r;
     ctx.save(); ctx.translate(gm.x,gy); ctx.rotate(Math.sin(T*1.5+gm.x)*0.25);
-    ctx.shadowColor="#8be9ff"; ctx.shadowBlur=16;
-    const gg=ctx.createLinearGradient(0,-r,0,r); gg.addColorStop(0,"#d6f7ff"); gg.addColorStop(1,"#3fb0e0");
+    ctx.shadowColor="#c9a6ff"; ctx.shadowBlur=16;
+    const gg=ctx.createLinearGradient(0,-r,0,r); gg.addColorStop(0,"#efe0ff"); gg.addColorStop(1,"#8a5fd0");
     ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r*0.8,0); ctx.lineTo(0,r); ctx.lineTo(-r*0.8,0); ctx.closePath(); ctx.fill();
     ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-r*0.8,0); ctx.lineTo(r*0.8,0); ctx.stroke();
     ctx.restore(); }
 
-  // inimigos (guardião — gosma espinhosa)
+  // inimigos: guardião (patrulha) e PERSEGUIDOR (fica vermelho e vibra quando te caça)
   for(const e of enemies){ const cx=e.x+e.w/2, cy=e.y+e.h/2, r=e.w/2;
-    ctx.save(); ctx.shadowColor="rgba(255,90,60,.6)"; ctx.shadowBlur=10;
-    ctx.fillStyle="#e0574b";
-    ctx.beginPath(); for(let i=0;i<10;i++){ const a=i/10*6.283, rr=r*(i%2?0.72:1.05+Math.sin(T*8+i)*0.06);
-      const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
+    const mad=e.mad||0, spd=8+mad*10;
+    ctx.save(); ctx.shadowColor=mad>0.1?`rgba(255,60,40,${0.5+mad*0.4})`:"rgba(255,90,60,.5)"; ctx.shadowBlur=10+mad*10;
+    ctx.fillStyle = e.type==="chaser" ? (mad>0.1?"#ff3b2e":"#b0463c") : "#e0574b";
+    ctx.beginPath(); for(let i=0;i<10;i++){ const rr=r*(i%2?0.72-mad*0.06:1.05+Math.sin(T*spd+i)*(0.06+mad*0.1));
+      const a=i/10*6.283, x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
     ctx.restore();
     ctx.fillStyle="#fff"; const ed=(e.dir||1);
     ctx.beginPath(); ctx.arc(cx-4+ed*2,cy-2,2.6,0,7); ctx.arc(cx+5+ed*2,cy-2,2.6,0,7); ctx.fill();
-    ctx.fillStyle="#3a0a0a"; ctx.beginPath(); ctx.arc(cx-4+ed*3,cy-2,1.3,0,7); ctx.arc(cx+5+ed*3,cy-2,1.3,0,7); ctx.fill(); }
+    ctx.fillStyle=mad>0.4?"#5a0000":"#3a0a0a"; const pp=1.3+mad*0.5;
+    ctx.beginPath(); ctx.arc(cx-4+ed*3,cy-2,pp,0,7); ctx.arc(cx+5+ed*3,cy-2,pp,0,7); ctx.fill();
+    if(e.type==="chaser"&&mad>0.15){ ctx.strokeStyle=`rgba(255,80,60,${mad})`; ctx.lineWidth=1.4;   // sobrancelhas de bravo
+      ctx.beginPath(); ctx.moveTo(cx-7,cy-6); ctx.lineTo(cx-1,cy-4); ctx.moveTo(cx+7,cy-6); ctx.lineTo(cx+1,cy-4); ctx.stroke(); }
+    if(e.type==="chaser"&&(e.alert||0)>0.05&&mad<0.3){ ctx.fillStyle=`rgba(255,220,120,${e.alert})`;  // "!" ao acordar
+      ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText("!",cx,cy-r-6); } }
 
   // portal de saída (anéis pulsantes + estrela)
   drawPortal(exitRect.x+exitRect.w/2, exitRect.y+exitRect.h/2);
@@ -815,6 +872,8 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"die":slideT(a,220,60,t,0.40,"sawtooth",0.06);break;
     case"spring":slideT(a,300,900,t,0.16,"sine",0.06);break;
     case"gem":[880,1180,1560].forEach((f,i)=>beep(a,f,t+i*0.06,0.09,"sine",0.05));break;
+    case"star":[988,1319].forEach((f,i)=>beep(a,f,t+i*0.05,0.09,"triangle",0.055));break;
+    case"secret":[523,659,880,1319].forEach((f,i)=>beep(a,f,t+i*0.10,0.16,"sine",0.055));break;   // acorde misterioso
     case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break; } }
 
 function renderHud(){ el("level-name").textContent=level.name;
@@ -886,5 +945,7 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get level(){return levelIndex;}, get blob(){return blob;}, get melting(){return !!(blob&&blob.melting);},
   get doorOpen(){return plateOn();}, start:startGame, menu:showMenu,
   get gems(){return gems?gems.length:0;}, get gemsGot(){return gems?gems.filter(g=>g.got).length:0;},
+  get stars(){return stars?stars.length:0;}, get starsGot(){return stars?stars.filter(s=>s.got).length:0;},
+  get enemies(){return enemies?enemies.length:0;}, get chasers(){return enemies?enemies.filter(e=>e.type==="chaser").length:0;},
   get fakes(){return fakes?fakes.length:0;}, get crumbles(){return crumbles?crumbles.length:0;},
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
