@@ -307,7 +307,7 @@ let toastT; function toast(m,k){ /* reservado */ }
 // MENU / SELEÇÃO DE FASES
 // ==========================================================================
 function showMenu(){
-  state="menu";
+  state="menu"; stopMusic();
   el("screen-game").classList.remove("active");
   el("screen-menu").classList.add("active");
   buildLevelGrid();
@@ -367,6 +367,7 @@ function loadLevel(idx){
   level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
   fitCanvas();                            // dimensiona o canvas à tela e calcula o zoom
   theme=THEMES[level.theme] || THEMES.cave;
+  if(musicOn) startMusic(level.theme);    // trilha ambiente do mundo
   // motes de fundo
   motes=[]; for(let i=0;i<26;i++) motes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height,
     r:1+Math.random()*2.5, s:6+Math.random()*14, ph:Math.random()*6.28 });
@@ -468,10 +469,11 @@ function updateEnemies(dt){
   for(const e of enemies){
     e.px=e.x;
     if(e.type==="patrol"){
-      // PATRULHA por velocidade: vira ao bater numa parede OU no limite da rota (não atravessa mais).
-      const step=e.speed*68*dt;
-      let nx=e.x+e.dir*step;
-      if(nx<e.x0 || nx>e.x0+e.dist || enemyBlocked(e,nx)){ e.dir*=-1; nx=e.x+e.dir*step; }
+      // PATRULHA: velocidade ORIGINAL (rápida, vai e volta) — 2·dist·speed reproduz a cadência antiga.
+      // Mantém a correção: vira ao bater na parede ou no limite (não atravessa mais).
+      const v=Math.max(120, 2*e.dist*e.speed);           // px/s (piso p/ não ficar parado)
+      let nx=e.x+e.dir*v*dt;
+      if(nx<e.x0 || nx>e.x0+e.dist || enemyBlocked(e,nx)){ e.dir*=-1; nx=e.x+e.dir*v*dt; }
       if(!enemyBlocked(e,nx) && nx>=e.x0 && nx<=e.x0+e.dist) e.x=nx;
       e.y=e.y0;
     } else {
@@ -480,6 +482,7 @@ function updateEnemies(dt){
       if(boss && levelTime<e.delay){                     // CHEFE acordando: te dá um respiro pra começar a correr
         e.y=e.y0+Math.sin(levelTime*7)*3; e.mad=0; e.alert=Math.min(1,levelTime/e.delay); e.dir=1; continue;
       }
+      if(boss && !e.woke){ e.woke=true; sfx("boss"); shake=Math.max(shake,7); }   // RUGIDO ao acordar
       const dx=bx-(e.x+e.w/2), d=Math.hypot(dx, by-(e.y+e.h/2));
       const range=boss?1e9:e.range;
       if(d<range){
@@ -785,27 +788,50 @@ function render(){
     ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-r*0.8,0); ctx.lineTo(r*0.8,0); ctx.stroke();
     ctx.restore(); }
 
-  // inimigos: guardião (patrulha), PERSEGUIDOR (vermelho, te caça) e CHEFE (gigante roxo)
-  for(const e of enemies){ const cx=e.x+e.w/2, cy=e.y+e.h/2, r=e.w/2;
-    const mad=e.mad||0, spd=8+mad*10, boss=e.type==="boss", s=r/13;   // s = escala p/ olhos
+  // inimigos: GUARDIÃO (patrulha = estrela espinhosa) vs PERSEGUIDOR/CHEFE (assombração = fantasma de 1 olho)
+  for(const e of enemies){ const cx=e.x+e.w/2, cy=e.y+e.h/2, r=e.w/2, mad=e.mad||0, ed=(e.dir||1);
+    if(e.type==="patrol"){
+      // GUARDIÃO: estrela espinhosa vermelha (visual ORIGINAL, simples)
+      ctx.save(); ctx.shadowColor="rgba(255,90,60,.5)"; ctx.shadowBlur=10; ctx.fillStyle="#e0574b";
+      ctx.beginPath(); for(let i=0;i<10;i++){ const rr=r*(i%2?0.72:1.05+Math.sin(T*8+i)*0.06);
+        const a=i/10*6.283, x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(cx-4+ed*2,cy-2,2.6,0,7); ctx.arc(cx+5+ed*2,cy-2,2.6,0,7); ctx.fill();
+      ctx.fillStyle="#3a0a0a"; ctx.beginPath(); ctx.arc(cx-4+ed*3,cy-2,1.3,0,7); ctx.arc(cx+5+ed*3,cy-2,1.3,0,7); ctx.fill();
+      continue;
+    }
+    // ASSOMBRAÇÃO (perseguidor / chefe): fantasma escuro, translúcido, com UM olho que te segue.
+    const boss=e.type==="boss";
+    const bodyDark = boss ? (mad>0.1?"#7a1e5e":"#4a1440") : (mad>0.1?"#8a1830":"#5a1428");
+    const bodyLite = boss ? (mad>0.1?"#c0246e":"#7a2860") : (mad>0.1?"#d0304a":"#8a2842");
     ctx.save();
-    if(boss){ ctx.shadowColor=`rgba(200,50,140,${0.6+mad*0.3})`; ctx.shadowBlur=22;
-      ctx.fillStyle=mad>0.1?"#c0246e":"#8a2050"; }
-    else { ctx.shadowColor=mad>0.1?`rgba(255,60,40,${0.5+mad*0.4})`:"rgba(255,90,60,.5)"; ctx.shadowBlur=10+mad*10;
-      ctx.fillStyle = e.type==="chaser" ? (mad>0.1?"#ff3b2e":"#b0463c") : "#e0574b"; }
-    const spikes=boss?14:10;
-    ctx.beginPath(); for(let i=0;i<spikes;i++){ const rr=r*(i%2?0.72-mad*0.06:1.05+Math.sin(T*spd+i)*(0.06+mad*0.1));
-      const a=i/spikes*6.283, x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
-    if(boss){ ctx.fillStyle="rgba(0,0,0,.18)"; ctx.beginPath(); ctx.arc(cx,cy+r*0.15,r*0.55,0,7); ctx.fill(); }  // núcleo escuro
+    ctx.shadowColor = mad>0.1? `rgba(255,60,90,${0.45+mad*0.4})` : "rgba(120,40,90,.45)";
+    ctx.shadowBlur = (boss?18:11) + mad*12;
+    ctx.globalAlpha = 0.9;
+    const grd=ctx.createLinearGradient(0,cy-r,0,cy+r*1.2); grd.addColorStop(0,bodyLite); grd.addColorStop(1,bodyDark);
+    ctx.fillStyle=grd;
+    // corpo: cúpula em cima + base ondulada (cauda de fantasma), balançando
+    const baseY=cy+r*1.02;
+    ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,0); ctx.lineTo(cx+r,baseY);
+    const humps=boss?5:4;
+    for(let i=0;i<humps;i++){ const x2=cx+r-(2*r)*((i+1)/humps), wob=Math.sin(T*6+i*1.3+e.x0)*(r*0.12);
+      ctx.quadraticCurveTo(cx+r-(2*r)*((i+0.5)/humps), baseY-r*0.34+wob, x2, baseY-Math.abs(wob)*0.4); }
+    ctx.closePath(); ctx.fill();
+    // wisps subindo (aura)
+    ctx.globalAlpha=0.5*(0.5+mad*0.5);
+    for(let i=0;i<3;i++){ const wx=cx+Math.sin(T*2+i*2)*r*0.5, wy=cy-r-6-((T*30+i*22)%26);
+      ctx.beginPath(); ctx.arc(wx,wy,2.2-i*0.4,0,7); ctx.fill(); }
     ctx.restore();
-    ctx.fillStyle="#fff"; const ed=(e.dir||1);
-    ctx.beginPath(); ctx.arc(cx-4*s+ed*2*s,cy-2*s,2.6*s,0,7); ctx.arc(cx+5*s+ed*2*s,cy-2*s,2.6*s,0,7); ctx.fill();
-    ctx.fillStyle=mad>0.4?(boss?"#3a0020":"#5a0000"):"#3a0a0a"; const pp=(1.3+mad*0.5)*s;
-    ctx.beginPath(); ctx.arc(cx-4*s+ed*3*s,cy-2*s,pp,0,7); ctx.arc(cx+5*s+ed*3*s,cy-2*s,pp,0,7); ctx.fill();
-    if((e.type==="chaser"||boss)&&(mad>0.15||boss)){ ctx.strokeStyle=boss?`rgba(255,120,200,.9)`:`rgba(255,80,60,${mad})`; ctx.lineWidth=1.4*s;
-      ctx.beginPath(); ctx.moveTo(cx-7*s,cy-6*s); ctx.lineTo(cx-1*s,cy-4*s); ctx.moveTo(cx+7*s,cy-6*s); ctx.lineTo(cx+1*s,cy-4*s); ctx.stroke(); }
-    if(e.type==="chaser"&&(e.alert||0)>0.05&&mad<0.3){ ctx.fillStyle=`rgba(255,220,120,${e.alert})`;  // "!" ao acordar
-      ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText("!",cx,cy-r-6); } }
+    // UM olho grande que segue o jogador (mira no blob)
+    const er=r*(boss?0.5:0.56), lx=(blob?blob.x+blob.w/2:cx)-cx, ly=(blob?blob.y+blob.h/2:cy)-cy;
+    const ll=Math.hypot(lx,ly)||1, pdx=(lx/ll)*er*0.42, pdy=(ly/ll)*er*0.42;
+    ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(cx,cy-r*0.05,er,0,7); ctx.fill();
+    ctx.fillStyle = mad>0.35? "#c00018" : "#2a0812";
+    ctx.beginPath(); ctx.arc(cx+pdx,cy-r*0.05+pdy,er*0.52,0,7); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(cx+pdx-er*0.16,cy-r*0.05+pdy-er*0.16,er*0.18,0,7); ctx.fill();
+    // "!" ao acordar (só perseguidor)
+    if(e.type==="chaser"&&(e.alert||0)>0.05&&mad<0.3){ ctx.fillStyle=`rgba(255,220,120,${e.alert})`;
+      ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("!",cx,cy-r-8); } }
 
   // portal de saída (anéis pulsantes + estrela)
   drawPortal(exitRect.x+exitRect.w/2, exitRect.y+exitRect.h/2);
@@ -971,7 +997,45 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"gem":[880,1180,1560].forEach((f,i)=>beep(a,f,t+i*0.06,0.09,"sine",0.05));break;
     case"star":[988,1319].forEach((f,i)=>beep(a,f,t+i*0.05,0.09,"triangle",0.055));break;
     case"secret":[523,659,880,1319].forEach((f,i)=>beep(a,f,t+i*0.10,0.16,"sine",0.055));break;   // acorde misterioso
-    case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break; } }
+    case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break;
+    case"boss":[110,98,82].forEach((f,i)=>slideT(a,f,f*0.6,t+i*0.13,0.5,"sawtooth",0.05));break; } } // rugido grave
+
+// ---------------------------------------------------------------- MÚSICA AMBIENTE (por mundo, sem arquivos)
+let musicOn = true; try{ musicOn = localStorage.getItem("geleca_music")!=="0"; }catch(e){}
+let mus=null;
+const MUSIC={
+  cave:  { root:130.81, wave:"triangle", scale:[0,3,5,7,10], tempo:660 },  // dó menor, calmo
+  deep:  { root:98.00,  wave:"sine",     scale:[0,2,3,7,8],  tempo:780 },  // sol grave, sombrio
+  forge: { root:110.00, wave:"sawtooth", scale:[0,3,5,6,7],  tempo:520 },  // lá, tenso
+  ice:   { root:146.83, wave:"triangle", scale:[0,2,4,7,9],  tempo:700 },  // ré, cristalino
+  void:  { root:73.42,  wave:"sine",     scale:[0,1,5,6,8],  tempo:900 },  // ré grave, inquietante
+};
+function startMusic(themeName){
+  const a=audio(); if(!a) return; stopMusic();
+  const cfg=MUSIC[themeName]||MUSIC.cave;
+  const g=a.createGain(); g.gain.value = musicOn?0.05:0.0; g.connect(a.destination);
+  const oscs=[];
+  [1,1.5].forEach((mul,k)=>{ const o=a.createOscillator(), pg=a.createGain();  // pad: tônica + quinta
+    o.type="sine"; o.frequency.value=cfg.root*mul; pg.gain.value=k?0.22:0.36;
+    o.connect(pg); pg.connect(g); o.start(); oscs.push(o); });
+  let step=0;
+  const timer=setInterval(()=>{ if(!actx||actx.state!=="running"||!musicOn)return;   // arpejo suave
+    const t=actx.currentTime, oct=(step%8<4)?1:2, semi=cfg.scale[(step*3)%cfg.scale.length];
+    const f=cfg.root*oct*Math.pow(2,semi/12);
+    const o=actx.createOscillator(), ng=actx.createGain(); o.type=cfg.wave; o.frequency.value=f;
+    ng.gain.setValueAtTime(0.0001,t); ng.gain.exponentialRampToValueAtTime(0.2,t+0.04);
+    ng.gain.exponentialRampToValueAtTime(0.0001,t+0.55);
+    o.connect(ng); ng.connect(g); o.start(t); o.stop(t+0.6); step++;
+  }, cfg.tempo);
+  mus={g, oscs, timer};
+}
+function stopMusic(){ if(!mus)return; clearInterval(mus.timer);
+  mus.oscs.forEach(o=>{ try{o.stop();}catch(e){} }); try{mus.g.disconnect();}catch(e){}
+  mus=null; }
+function toggleMute(){ musicOn=!musicOn; try{localStorage.setItem("geleca_music",musicOn?"1":"0");}catch(e){}
+  if(mus) mus.g.gain.value = musicOn?0.05:0.0;
+  const btn=el("btn-mute"); if(btn) btn.textContent=musicOn?"🔊":"🔇";
+  if(musicOn && !mus && state==="play" && level) startMusic(level.theme); }
 
 function renderHud(){ el("level-name").textContent=level.name;
   const p=el("mass-pips"); p.innerHTML="";
@@ -1002,6 +1066,7 @@ window.addEventListener("keydown",e=>{ if(e.repeat)return; audio();
   if(JUMPK[e.code]){e.preventDefault();jumpEdge=true;return;}
   if(e.code==="KeyE"){grabEdge=true;return;}
   if(e.code==="KeyR"){ if(state==="play"||state==="dead")resetLevel(); return; }
+  if(e.code==="KeyM"){ toggleMute(); return; }
   if(e.code==="Escape"){ if(state!=="menu")showMenu(); return; }
   const k=KEYMAP[e.code]; if(k){e.preventDefault();IN.kb[k]=true;} });
 window.addEventListener("keyup",e=>{ const k=KEYMAP[e.code]; if(k)IN.kb[k]=false; });
@@ -1030,6 +1095,8 @@ bindAct("btn-jump",()=>{ jumpEdge=true; });
 bindAct("btn-grab",()=>{ grabEdge=true; });
 el("btn-reset").addEventListener("click",()=>{ if(state==="play"||state==="dead")resetLevel(); });
 el("btn-menu").addEventListener("click",showMenu);
+el("btn-mute").addEventListener("click",()=>{ audio(); toggleMute(); });
+{ const mb=el("btn-mute"); if(mb) mb.textContent = musicOn?"🔊":"🔇"; }   // reflete estado salvo
 
 // ==========================================================================
 // BOOT
@@ -1049,5 +1116,8 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   gemPos(){ const gm=gems&&gems.find(g=>!g.got); return gm?{x:gm.x,y:gm.y,rev:gm.rev}:null; },
   gemRev(){ const gm=gems&&gems.find(g=>!g.got); return gm?gm.rev:-1; },
   reset(){ resetLevel(); },
+  get music(){ return !!mus; }, get muted(){ return !musicOn; }, muteToggle(){ toggleMute(); },
+  enX(i){ return enemies&&enemies[i]?Math.round(enemies[i].x):null; },
+  enType(i){ return enemies&&enemies[i]?enemies[i].type:null; },
   _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
