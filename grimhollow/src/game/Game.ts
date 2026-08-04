@@ -1148,6 +1148,7 @@ type Target =
 // CO-OP: avatar de outro jogador (billboard + sombra + plaquinha), com a posição
 // VISUAL interpolada até a célula que ele publicou.
 interface PeerRig {
+  level?: number; // nível do amigo (mostrado na lista do grupo)
   group: THREE.Group;
   mesh: THREE.Mesh;
   tag: THREE.Sprite;
@@ -1709,15 +1710,19 @@ export class Game {
     // contadores de rede ficam só no __coop(), p/ não poluir a tela do jogador.
     window.setInterval(() => {
       const d = netDiag();
-      // com gente por perto, mostra também QUEM comanda os inimigos: é a
-      // informação que explica "por que o bicho anda na tela dele e não na minha".
-      const papel = d.peers > 0 ? (this.mandaNosMobs() ? " · anfitrião" : " · convidado") : "";
+      // LISTA DO GRUPO: com gente na zona, o indicador deixa de ser um contador e
+      // passa a nomear quem está junto, com nível — dá p/ saber com quem se está
+      // caçando sem abrir nada. O papel (anfitrião/convidado) continua ali porque
+      // é ele que explica "por que o bicho anda na tela dele e não na minha".
+      const grupo = [...this.peers.values()]
+        .map((r) => `${r.name.split(/[ ,]/)[0]}${r.level ? ` nv${r.level}` : ""}`)
+        .join(" · ");
+      const papel = d.peers > 0 ? (this.mandaNosMobs() ? " — anfitrião" : " — convidado") : "";
       this.ui.coopStatus(
         !d.enabled ? ""
           : d.status !== "SUBSCRIBED" ? `co-op: ${d.erro || d.status}`
           : d.peers === 0 ? "ninguém por perto"
-          : d.peers === 1 ? `1 jogador por perto${papel}`
-          : `${d.peers} jogadores por perto${papel}`);
+          : `Grupo: ${grupo}${papel}`);
     }, 1000);
     // seleção de alvo: clicar no esqueleto o coloca na mira (raycast na cena)
     this.renderer.domElement.addEventListener("pointerdown", (e) =>
@@ -2059,7 +2064,7 @@ export class Game {
       vistos.add(p.id);
       let rig = this.peers.get(p.id);
       if (!rig) { rig = this.makePeerRig(p); this.peers.set(p.id, rig); }
-      rig.c = p.col; rig.r = p.row; rig.seenAt = this.now;
+      rig.c = p.col; rig.r = p.row; rig.seenAt = this.now; rig.level = p.level;
     }
     for (const [id, rig] of [...this.peers]) {
       if (!vistos.has(id)) { this.scene.remove(rig.group); this.peers.delete(id); }
@@ -2090,6 +2095,7 @@ export class Game {
     return {
       group, mesh, tag, name: p.name, classId: p.classId,
       c: p.col, r: p.row, bx: p.col * CELL, bz: p.row * CELL, h, seenAt: this.now,
+      level: p.level,
     };
   }
   // desliza cada avatar até a célula publicada e o faz encarar a câmera
@@ -2999,7 +3005,11 @@ export class Game {
 
   // inimigo billboard no túnel da masmorra: guarda a escada, encara a câmera e
   // leva dano do golpe (3 acertos de perto e de frente e ele tomba).
-  private buildDungeonEnemy(c = 2, r = 4, typeId = "esqueleto") {
+  // O padrão (2,4) era a boca da masmorra no mapa ANTIGO. Na planta nova aquela
+  // célula é rocha, e o guarda da entrada nascia preso fora da cidade, num lugar
+  // sem acesso. (6,5) é a Rua Alta, a dois passos do pórtico da masmorra — fácil
+  // de achar p/ testar combate.
+  private buildDungeonEnemy(c = 6, r = 5, typeId = "esqueleto") {
     // perfil do tipo (arte + stats FIXOS + tamanho) — sem escalar com o herói
     const T = ENEMY_TYPES[typeId] ?? ENEMY_TYPES.esqueleto;
     // escala por PROFUNDIDADE do andar (e, no futuro, por tamanho do grupo)
