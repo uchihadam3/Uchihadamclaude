@@ -9,15 +9,28 @@
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="wrap">
+<div id="app">
+
+  <!-- ===================== MENU / SELEÇÃO DE FASES ===================== -->
+  <section id="screen-menu" class="screen active">
+    <div class="menu-inner">
+      <div class="logo-blob" id="logo-blob"></div>
+      <h1 class="title">GELECA</h1>
+      <p class="subtitle">sacrifique-se para subir</p>
+      <div id="level-grid" class="level-grid"></div>
+      <p class="menu-hint">Cada pulo custa massa. Empilhe pedaços, reabsorva, escale paredes.</p>
+    </div>
+  </section>
+
+  <!-- ===================== JOGO ===================== -->
+  <section id="screen-game" class="screen">
     <div id="hud">
-      <div class="hud-left">
+      <button id="btn-menu" class="hud-btn" title="Menu">☰</button>
+      <div class="hud-mid">
         <span id="level-name">Fase 1</span>
         <span id="mass-pips" class="pips"></span>
       </div>
-      <div class="hud-right">
-        <button id="btn-reset" title="Reiniciar fase (R)">↺ Reiniciar</button>
-      </div>
+      <button id="btn-reset" class="hud-btn" title="Reiniciar (R)">↺</button>
     </div>
 
     <div id="stage">
@@ -26,27 +39,22 @@
       <div id="overlay" class="overlay hidden"></div>
     </div>
 
-    <div id="controls">
-      <span><b>← →</b> mover</span>
-      <span><b>↑ / Espaço</b> pular (gasta massa)</span>
-      <span><b>E</b> reabsorver pedaço</span>
-      <span><b>R</b> reiniciar</span>
-    </div>
-
-    <!-- Controles touch (mobile) — polegar esquerdo move, direito age -->
+    <!-- controles mobile: joystick à esquerda, ações à direita -->
     <div id="touch">
-      <div class="pad dpad">
-        <button data-k="left" aria-label="Esquerda">◀</button>
-        <button data-k="down" aria-label="Descer">▼</button>
-        <button data-k="right" aria-label="Direita">▶</button>
-      </div>
-      <div class="pad actions">
-        <button data-k="grab" class="act-grab" aria-label="Reabsorver">E</button>
-        <button data-k="jump" class="act-jump" aria-label="Pular">PULAR ▲</button>
+      <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
+      <div id="actions">
+        <button id="btn-grab" class="act act-grab" aria-label="Reabsorver">E</button>
+        <button id="btn-jump" class="act act-jump" aria-label="Pular">▲</button>
       </div>
     </div>
-  </div>
 
-  <script src="game.js"></script>
+    <div id="controls">
+      <span><b>← →</b> mover</span><span><b>↑ / Espaço</b> pular</span>
+      <span><b>E</b> reabsorver</span><span><b>R</b> reiniciar</span>
+    </div>
+  </section>
+
+</div>
+<script src="game.js"></script>
 </body>
 </html>
