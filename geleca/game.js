@@ -12,7 +12,7 @@ const TILE=32, GRAVITY=1700, MOVE=200, AIR=0.78, JUMP_V=600, CLIMB=150,
 
 // câmera responsiva com ZOOM: o canvas preenche a tela e mostra ~N tiles (zoom in).
 const cam={ x:0, y:0 };
-let zoom=2, camViewW=640, camViewH=384;   // camViewW/H = px do MUNDO visíveis
+let zoom=2, camViewW=640, camViewH=384, camSafeBottom=0;   // camViewW/H = px do MUNDO visíveis; camSafeBottom = faixa reservada p/ controles
 
 // temas de cor por "mundo": fundo (parallax) + tiles
 const THEMES={
@@ -364,6 +364,7 @@ const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
 let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,iceTiles,exitRect,startPos,theme;
 let blob, globs, particles=[], motes=[], levelIndex=0, state="menu"; // menu|play|complete|dead
+let tramp=[];   // SEGREDO: trampolins formados por 4 gelecas em 2x2
 let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 
 // entrada
@@ -488,7 +489,7 @@ function buildEntities(){
 }
 function resetLevel(){
   buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
-  globs=[]; particles=[];
+  globs=[]; particles=[]; tramp=[];
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
@@ -574,7 +575,7 @@ function updateEnemies(dt){
       const dx=bx-(e.x+e.w/2), d=Math.hypot(dx, by-(e.y+e.h/2));
       const range=boss?1e9:e.range;
       if(d<range){
-        const step=Math.sign(dx)*e.speed*(boss?150:135)*dt;
+        const step=Math.sign(dx)*e.speed*(boss?128:98)*dt;   // perseguidor mais LENTO (era 135) — dá pra fugir; chefe suavizado (era 150)
         const nx=e.x+step; if(!enemyBlocked(e,nx)) e.x=nx;
         e.mad=Math.min(1,e.mad+dt*3); e.alert=1;
         if(boss && Math.random()<0.5) burst(e.x+e.w*(dx>0?0:1),e.y+e.h*0.6,1,"#c04a8a",40);   // rastro
@@ -595,14 +596,20 @@ function fitCanvas(){
   const dpr=Math.min(2, window.devicePixelRatio||1);
   canvas.width=Math.max(1,Math.round(cw*dpr));
   canvas.height=Math.max(1,Math.round(ch*dpr));
-  const targetTiles = cw<560 ? 12 : 17;          // celular: ~12 tiles (zoom in, personagem grande)
+  const portrait = cw<560;
+  const targetTiles = portrait ? 12 : 17;        // celular: ~12 tiles (zoom in, personagem grande)
   zoom = canvas.width/(targetTiles*TILE);
   camViewW = canvas.width/zoom; camViewH = canvas.height/zoom;
+  // faixa inferior reservada aos controles (pra o personagem NUNCA ficar atrás deles)
+  camSafeBottom = (canvas.height * (portrait?0.26:0.10)) / zoom;
 }
 function camFollow(snap){
   const worldW=COLS*TILE, worldH=ROWS*TILE;
+  const usableH = camViewH - camSafeBottom;      // altura útil ACIMA dos controles
   let tx = worldW<=camViewW ? (worldW-camViewW)/2 : Math.max(0,Math.min(blob.x+blob.w/2 - camViewW/2, worldW-camViewW));
-  let ty = worldH<=camViewH ? (worldH-camViewH)/2 : Math.max(0,Math.min(blob.y+blob.h/2 - camViewH*0.58, worldH-camViewH));
+  // centraliza o blob na área útil; permite "overscroll" p/ baixo (até camSafeBottom) pra erguer o chão acima dos controles
+  const maxTy = worldH - camViewH + camSafeBottom;
+  let ty = worldH<=usableH ? (worldH-usableH)/2 : Math.max(0, Math.min(blob.y+blob.h/2 - usableH*0.52, maxTy));
   if(snap){ cam.x=tx; cam.y=ty; } else { cam.x+=(tx-cam.x)*0.12; cam.y+=(ty-cam.y)*0.12; }
 }
 
@@ -668,6 +675,16 @@ function update(dt){
   }
   for(const sp of springs) if(sp.sq>0) sp.sq=Math.max(0,sp.sq-dt*4);
 
+  // SEGREDO 2x2: 4 gelecas encostadas formam TRAMPOLIM — quica ao pisar em cima (sem gastar massa)
+  detectTrampolines();
+  if(blob.onGround && blob.vy>=0) for(const tp of tramp){
+    if(blob.x+blob.w>tp.x+4 && blob.x<tp.x+tp.w-4 && Math.abs((blob.y+blob.h)-tp.y)<6){
+      blob.vy=-BOUNCE*1.12; blob.onGround=false; blob.onGroundPrev=false; tp.sq=1;
+      burst(tp.x+tp.w/2,tp.y,12,"#8be9ff",180); sfx("spring"); break;
+    }
+  }
+  for(const tp of tramp) if(tp.sq>0) tp.sq=Math.max(0,tp.sq-dt*4);
+
   // plataformas que DESMORONAM: pisou → treme e cai; depois respawna
   for(const c of crumbles){
     if(c.solid){
@@ -722,9 +739,57 @@ function update(dt){
 }
 
 function dropGlob(wallSide){
-  const g={x:blob.x+blob.w/2-GLOB/2,y:blob.y+blob.h-GLOB,w:GLOB,h:GLOB,solid:false,solidAt:performance.now()+120,wall:wallSide};
+  const g={x:blob.x+blob.w/2-GLOB/2,y:blob.y+blob.h-GLOB,w:GLOB,h:GLOB,solid:false,solidAt:performance.now()+120,wall:wallSide,tramp:false};
   if(wallSide>0)g.x=blob.x+blob.w-GLOB; else if(wallSide<0)g.x=blob.x;
   globs.push(g);
+}
+
+// SEGREDO — TRAMPOLIM 2x2: acha 4 gelecas sólidas formando um quadrado (encostadas) e marca a superfície.
+function detectTrampolines(){
+  tramp=[];
+  const solid=[]; for(const g of globs){ g.tramp=false; if(g.solid) solid.push(g); }
+  if(solid.length<4) return;
+  const cell=new Map(), key=(cx,cy)=>cx+","+cy;
+  for(const g of solid){ cell.set(key(Math.round(g.x/GLOB),Math.round(g.y/GLOB)), g); }
+  const seen=new Set();
+  for(const g of solid){ const cx=Math.round(g.x/GLOB), cy=Math.round(g.y/GLOB);
+    const q=[cell.get(key(cx,cy)),cell.get(key(cx+1,cy)),cell.get(key(cx,cy+1)),cell.get(key(cx+1,cy+1))];
+    if(q.every(Boolean) && !seen.has(key(cx,cy))){
+      seen.add(key(cx,cy)); q.forEach(x=>x.tramp=true);
+      const left=Math.min(q[0].x,q[2].x), right=Math.max(q[1].x,q[3].x)+GLOB, topY=Math.min(q[0].y,q[1].y);
+      tramp.push({x:left, y:topY, w:right-left, sq:0});
+    }
+  }
+}
+
+// SEGREDO — TROCAR DE CORPO: toque numa geleca solta e ela vira VOCÊ; onde você estava fica uma geleca.
+function tryPossess(clientX,clientY){
+  if(state!=="play"||!blob) return false;
+  const rect=canvas.getBoundingClientRect();
+  const cx=(clientX-rect.left)*(canvas.width/rect.width), cy=(clientY-rect.top)*(canvas.height/rect.height);
+  return possessWorld(cx/zoom+cam.x, cy/zoom+cam.y);
+}
+function possessWorld(wx,wy){
+  if(state!=="play"||!blob) return false;
+  const pad=10;
+  let hit=-1;
+  for(let i=0;i<globs.length;i++){ const g=globs[i]; if(!g.solid)continue;
+    if(wx>=g.x-pad && wx<=g.x+g.w+pad && wy>=g.y-pad && wy<=g.y+g.h+pad){ hit=i; break; } }
+  if(hit<0) return false;
+  const g=globs[hit];
+  const oldGlob={x:blob.x+blob.w/2-GLOB/2, y:blob.y+blob.h-GLOB, w:GLOB,h:GLOB, solid:true, solidAt:0, wall:0, tramp:false};
+  burst(blob.x+blob.w/2,blob.y+blob.h/2,10,"#8be9ff",120);
+  blob.x=g.x+g.w/2-blob.w/2; blob.y=g.y+g.h-blob.h; blob.vx=0; blob.vy=0;
+  blob.onGround=false; blob.onGroundPrev=false; blob.cling=false;
+  globs.splice(hit,1); globs.push(oldGlob);
+  resolvePlace();
+  burst(blob.x+blob.w/2,blob.y+blob.h/2,16,"#8be9ff",170); sfx("swap");
+  return true;
+}
+function resolvePlace(){ const list=solidsList();
+  for(let it=0; it<20; it++){ let ov=0, s2=null;
+    for(const s of list){ if(overlaps(blob,s)){ const o=(blob.y+blob.h)-s.y; if(o>ov){ov=o;s2=s;} } }
+    if(!s2) break; blob.y=s2.y-blob.h-0.5; }
 }
 function reabsorb(){ if(blob.mass>=level.max)return;
   let best=-1,bd=1e9; const foot={x:blob.x-REABSORB_R,y:blob.y-REABSORB_R,w:blob.w+REABSORB_R*2,h:blob.h+REABSORB_R*2};
@@ -786,6 +851,10 @@ function render(){
   ctx.setTransform(zoom,0,0,zoom, -cam.x*zoom+sx, -cam.y*zoom+sy);
   const minX=cam.x-TILE, maxX=cam.x+camViewW, minY=cam.y-TILE, maxY=cam.y+camViewH;
   const vis = r => r.x<=maxX && r.x+r.w>=minX && r.y<=maxY && r.y+r.h>=minY;
+  // preenche ABAIXO do mundo (quando a câmera sobe o chão p/ liberar espaço aos controles) — evita "fase flutuando"
+  const worldBottom=ROWS*TILE;
+  if(maxY>worldBottom){ ctx.fillStyle=th.tile; ctx.fillRect(minX, worldBottom, (maxX-minX)+TILE, (maxY-worldBottom)+TILE);
+    ctx.fillStyle="rgba(0,0,0,.25)"; ctx.fillRect(minX, worldBottom, (maxX-minX)+TILE, 6); }
 
   // calor (atrás)
   for(const h of heatZones){ if(!vis(h))continue;
@@ -937,10 +1006,15 @@ function render(){
   // portal de saída (anéis pulsantes + estrela)
   drawPortal(exitRect.x+exitRect.w/2, exitRect.y+exitRect.h/2);
 
-  // pedaços
+  // trampolins 2x2 (superfície elástica — brilho sutil no topo)
+  for(const tp of tramp){ const c=tp.sq*7;
+    ctx.strokeStyle="rgba(139,233,255,.85)"; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(tp.x+4,tp.y+2+c); ctx.quadraticCurveTo(tp.x+tp.w/2,tp.y-6+c*2,tp.x+tp.w-4,tp.y+2+c); ctx.stroke(); }
+  // pedaços (gelecas soltas). Sólidas piscam MUITO de leve (dica sutil de que dá pra tocar/empilhar)
   for(const g of globs){ const a=g.solid?0.94:0.42;
-    ctx.fillStyle=`rgba(120,210,105,${a})`; slime(g.x+g.w/2,g.y+g.h/2,g.w/2,g.h/2,0.05,g.x); ctx.fill();
-    ctx.strokeStyle="rgba(60,140,60,.7)"; ctx.lineWidth=2; ctx.stroke(); }
+    const col = g.tramp ? "139,233,255" : "120,210,105";
+    ctx.fillStyle=`rgba(${col},${a})`; slime(g.x+g.w/2,g.y+g.h/2,g.w/2,g.h/2,0.05,g.x); ctx.fill();
+    ctx.strokeStyle= g.tramp ? "rgba(139,233,255,.85)" : "rgba(60,140,60,.7)"; ctx.lineWidth=2; ctx.stroke(); }
 
   // halo de luz do blob (atmosfera)
   if(blob){ const cx=blob.x+blob.w/2, cy=blob.y+blob.h/2;
@@ -1099,7 +1173,8 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"star":[988,1319].forEach((f,i)=>beep(a,f,t+i*0.05,0.09,"triangle",0.055));break;
     case"secret":[523,659,880,1319].forEach((f,i)=>beep(a,f,t+i*0.10,0.16,"sine",0.055));break;   // acorde misterioso
     case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break;
-    case"boss":[110,98,82].forEach((f,i)=>slideT(a,f,f*0.6,t+i*0.13,0.5,"sawtooth",0.05));break; } } // rugido grave
+    case"boss":[110,98,82].forEach((f,i)=>slideT(a,f,f*0.6,t+i*0.13,0.5,"sawtooth",0.05));break;   // rugido grave
+    case"swap":[660,990,1320].forEach((f,i)=>beep(a,f,t+i*0.04,0.08,"sine",0.05));break; } }        // troca de corpo (whoosh)
 
 // ---------------------------------------------------------------- MÚSICA AMBIENTE (por mundo, sem arquivos)
 let musicOn = true; try{ musicOn = localStorage.getItem("geleca_music")!=="0"; }catch(e){}
@@ -1199,6 +1274,9 @@ el("btn-menu").addEventListener("click",showMenu);
 el("btn-mute").addEventListener("click",()=>{ audio(); toggleMute(); });
 { const mb=el("btn-mute"); if(mb) mb.textContent = musicOn?"🔊":"🔇"; }   // reflete estado salvo
 
+// SEGREDO: tocar/clicar numa geleca solta (área do jogo, fora do joystick/botões) TROCA de corpo.
+canvas.addEventListener("pointerdown",e=>{ if(state!=="play")return; audio(); tryPossess(e.clientX,e.clientY); });
+
 // ==========================================================================
 // BOOT
 // ==========================================================================
@@ -1221,5 +1299,11 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   enX(i){ return enemies&&enemies[i]?Math.round(enemies[i].x):null; },
   enType(i){ return enemies&&enemies[i]?enemies[i].type:null; },
   get onIce(){ return !!(blob&&blob.onIcePrev); }, get iceCount(){ return iceTiles?iceTiles.length:0; },
+  get tramps(){ return tramp?tramp.length:0; }, get trampGlobs(){ return globs?globs.filter(g=>g.tramp).length:0; },
+  addGlob(wx,wy){ globs.push({x:wx,y:wy,w:GLOB,h:GLOB,solid:true,solidAt:0,wall:0,tramp:false}); },
+  blobPos(){ return blob?{x:Math.round(blob.x),y:Math.round(blob.y)}:null; },
+  possessAt(cx,cy){ return tryPossess(cx,cy); }, _possess(wx,wy){ return possessWorld(wx,wy); },
+  get camSafe(){ return Math.round(camSafeBottom); }, blobScreenBottom(){ return blob?Math.round((blob.y+blob.h-cam.y)*zoom):0; },
+  get canvasH(){ return canvas.height; },
   _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
