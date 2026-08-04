@@ -785,7 +785,21 @@ function update(dt){
   const preVy=blob.vy, preG=blob.onGroundPrev;
   blob.onGround=false; blob.wall=0;
   moveAxis(blob.vx*dt, blob.vy*dt);
-  if(blob.onGround&&!preG&&preVy>260){ burst(blob.x+blob.w/2,blob.y+blob.h,5,"#5fbf6a",95); shake=Math.min(6,preVy/120); if(preVy>420)sfx("land"); }
+  if(blob.onGround){
+    if(!preG&&preVy>260){ const fx=blob.x+blob.w/2, fy=blob.y+blob.h;
+      const fallDist=(blob.apexY!=null)? (blob.y-blob.apexY) : 0;   // altura real da descida (do ápice até aqui)
+      blob._lastFall=Math.round(fallDist); blob._lastVy=Math.round(preVy);
+      // QUEDA ALTA (alto mesmo): baque forte + perde 1 geleca (fica um pedaço no chão)
+      if(fallDist>250 && preVy>560 && blob.mass>1){
+        dropGlob(0); blob.mass-=1; sizeBlob();
+        splat(fx,fy,16,240); burst(fx,fy,6,"#5fbf6a",120);
+        shake=10; sfx("impact"); renderHud();
+      } else { burst(fx,fy,5,"#5fbf6a",95); shake=Math.min(6,preVy/120); if(preVy>420)sfx("land"); }
+    }
+    blob.apexY=blob.y;                                     // no chão: zera a referência de ápice
+  } else {
+    blob.apexY = (blob.apexY==null)? blob.y : Math.min(blob.apexY, blob.y);   // no ar: guarda o ponto mais alto
+  }
   blob.onGroundPrev=blob.onGround; blob.wallPrev=blob.wall;
   blob.onIcePrev = blob.onGround && onIceUnder();      // ficou em cima de gelo?
 
@@ -876,9 +890,11 @@ function update(dt){
 }
 
 function dropGlob(wallSide){
-  const g={x:blob.x+blob.w/2-GLOB/2,y:blob.y+blob.h-GLOB,w:GLOB,h:GLOB,solid:false,solidAt:performance.now()+120,wall:wallSide,tramp:false};
+  const now=performance.now();
+  const g={x:blob.x+blob.w/2-GLOB/2,y:blob.y+blob.h-GLOB,w:GLOB,h:GLOB,solid:false,solidAt:now+160,born:now,wall:wallSide,tramp:false};
   if(wallSide>0)g.x=blob.x+blob.w-GLOB; else if(wallSide<0)g.x=blob.x;
   globs.push(g);
+  slimeSplit(g.x+g.w/2, g.y+g.h*0.35);           // gosma esguicha: um PEDAÇO se desprendeu
 }
 
 // SEGREDO — TRAMPOLIM 2x2: acha 4 gelecas sólidas formando um quadrado (encostadas) e marca a superfície.
@@ -963,11 +979,16 @@ function bossDefeated(e){
   shake=14; sfx("win"); win();                          // dispara o final especial da fase secreta
 }
 
-function die(){ deaths++; burst(blob.x+blob.w/2,blob.y+blob.h/2,18,"#ff7a6a",210); sfx("die"); shake=8;
+function die(){ if(state==="dead")return; deaths++;
+  const cx=blob.x+blob.w/2, cy=blob.y+blob.h/2;
+  splat(cx,cy,30,320); burst(cx,cy,10,"#ff7a6a",200);           // slime se ESPATIFA
+  blob.gone=true;                                                // a geleca some (virou respingo)
+  sfx("impact"); sfx("die"); shake=12;
   state="dead";
-  overlay("💥 Ai!","Espinho, queda ou derreteu.",[
+  // deixa o espatifo aparecer antes de mostrar a tela de morte
+  deferWin(()=>overlay("💥 Ai!","Espinho, queda ou derreteu.",[
     {t:"Tentar de novo",cb:resetLevel},
-    {t:"Menu",ghost:true,cb:showMenu}]); }
+    {t:"Menu",ghost:true,cb:showMenu}]), 0.5); }
 
 function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exitRect.y+exitRect.h/2,22,"#7ee06b",190);
   const st=starsFor(levelIndex,blob.mass);
@@ -1225,6 +1246,12 @@ function render(){
   for(const g of globs){ const solid=g.solid, a=solid?1:0.5, gcx=g.x+g.w/2, gcy=g.y+g.h/2;
     const gx=g.x, gy=g.y, gw=g.w, gh=g.h, rr=Math.min(gw,gh)*0.28;
     const top = g.tramp?"#d2f6ff":"#eaffd2", mid=g.tramp?"#62c8e6":"#7fd06a", ed=g.tramp?"#2f8fb0":"#3d9636";
+    // PLOP de nascimento: o pedaço recém-desprendido se "molda" com uma quicada elástica
+    ctx.save();
+    const gage = g.born ? (performance.now()-g.born)/240 : 2;
+    if(gage<1){ const k=1-gage, wob=Math.cos(gage*8);
+      const sx=1+0.34*k*wob, sy=1-0.30*k*wob;
+      ctx.translate(gcx, gy+gh); ctx.scale(sx,sy); ctx.translate(-gcx, -(gy+gh)); }
     // sombra de contato (só quando já é bloco sólido)
     if(solid){ ctx.fillStyle="rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(gcx,gy+gh+1.5,gw*0.42,3,0,0,7); ctx.fill(); }
     // corpo: mini-cubo de geleia translúcido (mesmo estilo do herói)
@@ -1259,6 +1286,7 @@ function render(){
       else { ctx.strokeStyle="#0a2012"; ctx.lineWidth=1.4; ctx.beginPath();
         ctx.moveTo(gcx-ox-orr,oy); ctx.lineTo(gcx-ox+orr,oy); ctx.moveTo(gcx+ox-orr,oy); ctx.lineTo(gcx+ox+orr,oy); ctx.stroke(); }
     }
+    ctx.restore();                                        // fecha o PLOP de nascimento
   }
 
   drawBlob();
@@ -1436,7 +1464,7 @@ function slime(cx,cy,rx,ry,amp,seed){
 }
 // personagem: CUBO GELATINOSO estilo RPG (translúcido, face-topo 3D, bolhas, olhos)
 function drawBlob(){
-  const b=blob;
+  const b=blob; if(b.gone) return;                 // morreu: virou espatifo, não desenha o corpo
   const sq=Math.max(-0.18,Math.min(0.18,b.vy/4000)), jig=Math.sin(T*6)*0.02;
   const w=b.w*(1-sq*0.5+jig), h=b.h*(1+sq-jig);
   const x=b.x+(b.w-w)/2, y=b.y+(b.h-h), cx=x+w/2, r=Math.min(w,h)*0.26;
@@ -1504,6 +1532,18 @@ function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w
 function burst(x,y,n,color,speed){ for(let i=0;i<n;i++){ const a=Math.random()*6.28,s=speed*(0.4+Math.random()*0.7);
   particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-speed*0.4,life:0.5+Math.random()*0.35,max:0.85,r:2+Math.random()*2.4,color}); }
   if(particles.length>320)particles.splice(0,particles.length-320); }
+// ESPATIFO: gotas grandes e gosmentas voando pra fora (usado na morte / queda dura)
+const SLIMECOL=["#8bec7c","#5ec84a","#3f9636","#cdf5ab","#2f8f30"];
+function splat(x,y,n,power){ for(let i=0;i<n;i++){ const a=Math.random()*6.28, s=power*(0.25+Math.random()*0.95);
+  particles.push({x:x+(Math.random()*2-1)*6, y:y+(Math.random()*2-1)*4,
+    vx:Math.cos(a)*s, vy:Math.sin(a)*s - power*0.55,
+    life:0.5+Math.random()*0.6, max:1.1, r:3+Math.random()*5, color:SLIMECOL[(Math.random()*SLIMECOL.length)|0] }); }
+  if(particles.length>380)particles.splice(0,particles.length-380); }
+// SEPARAÇÃO: gotas de gosma esguichando pra CIMA quando um pedaço se desprende do jogador
+function slimeSplit(x,y){ for(let i=0;i<9;i++){ const a=-Math.PI/2 + (Math.random()*2-1)*1.05, s=90+Math.random()*130;
+  particles.push({x:x+(Math.random()*2-1)*7, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+    life:0.32+Math.random()*0.3, max:0.62, r:1.6+Math.random()*2.6, color:SLIMECOL[(Math.random()*3)|0] }); }
+  if(particles.length>380)particles.splice(0,particles.length-380); }
 // CONFETE de comemoração (vitória): partículas coloridas subindo e caindo
 const CONFCOL=["#7ee06b","#ffd24a","#8be9ff","#ff8fae","#c9a6ff","#a6f08a"];
 function confetti(x,y,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28, s=140+Math.random()*220;
@@ -1513,13 +1553,28 @@ function updateParticles(dt){ for(let i=particles.length-1;i>=0;i--){ const p=pa
   p.vy+=620*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt; if(p.life<=0)particles.splice(i,1); } }
 
 let actx=null;
-function audio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(actx&&actx.state==="suspended")actx.resume(); return actx; }
+// ---- amostras de áudio (arquivos .mp3): pulo e impacto de slime ----
+const SFXBUF={}, SFXSRC={jump:"sfx-jump.mp3", impact:"sfx-impact.mp3"};
+let sfxLoaded=false;
+function loadSamples(a){ if(sfxLoaded||!a)return; sfxLoaded=true;
+  for(const k in SFXSRC){ fetch(SFXSRC[k]).then(r=>r.arrayBuffer())
+    .then(buf=>new Promise((res,rej)=>a.decodeAudioData(buf,res,rej)))
+    .then(dec=>{ SFXBUF[k]=dec; }).catch(e=>{}); } }
+function sample(name, vol){ const a=actx; if(!a||!SFXBUF[name])return false;
+  try{ const s=a.createBufferSource(); s.buffer=SFXBUF[name];
+    const g=a.createGain(); g.gain.value=vol==null?0.7:vol; s.connect(g); g.connect(a.destination); s.start();
+    return true; }catch(e){ return false; } }
+function audio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
+  if(actx&&actx.state==="suspended")actx.resume(); if(actx)loadSamples(actx); return actx; }
 function beep(a,f,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(a.destination);
   o.type=ty||"triangle"; o.frequency.setValueAtTime(f,t); g.gain.setValueAtTime(v||0.06,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t);o.stop(t+d+0.02); }
 function slideT(a,f0,f1,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(a.destination);
   o.type=ty||"square"; o.frequency.setValueAtTime(f0,t); o.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+d);
   g.gain.setValueAtTime(v||0.06,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t);o.stop(t+d+0.02); }
 function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
+  // amostras reais têm prioridade (com fallback sintetizado)
+  if(type==="jump"){ if(sample("jump",0.55))return; }
+  if(type==="impact"){ if(sample("impact",0.8))return; slideT(a,180,50,t,0.5,"sawtooth",0.07); return; }
   switch(type){ case"jump":slideT(a,520,300,t,0.12,"square",0.05);break;
     case"absorb":slideT(a,300,640,t,0.14,"sine",0.06);break;
     case"pickup":slideT(a,680,940,t,0.12,"triangle",0.06);break;
@@ -1681,6 +1736,8 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   blobPos(){ return blob?{x:Math.round(blob.x),y:Math.round(blob.y)}:null; },
   spikePos(){ const s=spikes&&spikes[0]; return s?{x:s.x,y:s.y}:null; },
   warp(wx,wy){ if(blob){ blob.x=wx; blob.y=wy; blob.vx=0; blob.vy=0; camFollow(true); } },
+  get sfxReady(){ return Object.keys(SFXBUF).length; }, kick(){ audio(); },
+  lastFall(){ return blob?{d:blob._lastFall,vy:blob._lastVy,apex:Math.round(blob.apexY),y:Math.round(blob.y)}:null; },
   possessAt(cx,cy){ return tryPossess(cx,cy); }, _possess(wx,wy){ return possessWorld(wx,wy); },
   get camSafe(){ return Math.round(camSafeBottom); }, blobScreenBottom(){ return blob?Math.round((blob.y+blob.h-cam.y)*zoom):0; },
   get canvasH(){ return canvas.height; },
