@@ -1126,11 +1126,16 @@ function render(){
     ctx.fillStyle="#2f8f86"; for(let i=0;i<3;i++){ const dx=m.x+8+i*(m.w-16)/2;
       ctx.beginPath(); ctx.arc(dx,m.y+m.h,3+Math.sin(T*4+i)*1.2,0,Math.PI); ctx.fill(); } }
 
-  // espinhos
-  for(const s of spikes){ for(let i=0;i<4;i++){ const bx=s.x+i*8;
-    const g=ctx.createLinearGradient(bx,s.y+8,bx,s.y+TILE); g.addColorStop(0,"#ff8f8f"); g.addColorStop(1,"#a03030");
-    ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(bx,s.y+TILE); ctx.lineTo(bx+4,s.y+8); ctx.lineTo(bx+8,s.y+TILE); ctx.fill();
-    ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(bx+4,s.y+11,1,0,7); ctx.fill(); } }
+  // espinhos — lâminas afiadas (cristal/osso) sobre base rochosa, com volume 3D e brilho
+  for(const s of spikes){ const bot=s.y+TILE;
+    // base rochosa escura de onde nascem os espinhos
+    const bg=ctx.createLinearGradient(0,bot-8,0,bot); bg.addColorStop(0,"#432619"); bg.addColorStop(1,"#170b06");
+    ctx.fillStyle=bg; roundRect(s.x, bot-7, TILE, 7, 2.5); ctx.fill();
+    ctx.fillStyle="rgba(255,255,255,.07)"; ctx.fillRect(s.x+1,bot-7,TILE-2,1.4);
+    // 3 lâminas (a central mais alta) — desenhadas de trás pra frente
+    spikeBlade(s.x+6,  bot-3, s.y+9,  5);
+    spikeBlade(s.x+26, bot-3, s.y+9,  5);
+    spikeBlade(s.x+16, bot-3, s.y+2,  5.6); }
 
   // gosmas (bobbing)
   for(const p of pickups){ const by=p.y+Math.sin(T*3+p.x)*3;
@@ -1217,15 +1222,35 @@ function render(){
     ctx.beginPath(); ctx.moveTo(tp.x+4,tp.y+2+c); ctx.quadraticCurveTo(tp.x+tp.w/2,tp.y-6+c*2,tp.x+tp.w-4,tp.y+2+c); ctx.stroke(); }
   // pedaços (gelecas soltas) — mini cubinhos de geleia VIVOS: têm mini-olhos (dica leve
   // de que estão vivos e dá pra interagir/tocar). Trampolins ficam azul.
-  for(const g of globs){ const a=g.solid?0.95:0.45, gcx=g.x+g.w/2, gcy=g.y+g.h/2;
-    const topc = g.tramp ? "#b6f2ff" : "#cdf5ab", botc = g.tramp ? "#3fb6d8" : "#4fb043";
-    const gg=ctx.createLinearGradient(0,g.y,0,g.y+g.h); gg.addColorStop(0,topc); gg.addColorStop(1,botc);
-    ctx.globalAlpha=a; ctx.fillStyle=gg; slime(gcx,gcy,g.w/2,g.h/2,0.05,g.x); ctx.fill();
-    ctx.globalAlpha=1; ctx.strokeStyle= g.tramp ? "rgba(139,233,255,.9)" : "rgba(70,150,60,.8)"; ctx.lineWidth=1.5; ctx.stroke();
-    // brilho de topo
-    ctx.fillStyle="rgba(255,255,255,.35)"; ctx.beginPath(); ctx.ellipse(gcx-2,g.y+5,g.w*0.24,3,0,0,7); ctx.fill();
+  for(const g of globs){ const solid=g.solid, a=solid?1:0.5, gcx=g.x+g.w/2, gcy=g.y+g.h/2;
+    const gx=g.x, gy=g.y, gw=g.w, gh=g.h, rr=Math.min(gw,gh)*0.28;
+    const top = g.tramp?"#d2f6ff":"#eaffd2", mid=g.tramp?"#62c8e6":"#7fd06a", ed=g.tramp?"#2f8fb0":"#3d9636";
+    // sombra de contato (só quando já é bloco sólido)
+    if(solid){ ctx.fillStyle="rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(gcx,gy+gh+1.5,gw*0.42,3,0,0,7); ctx.fill(); }
+    // corpo: mini-cubo de geleia translúcido (mesmo estilo do herói)
+    ctx.save(); ctx.globalAlpha=a;
+    ctx.shadowColor=g.tramp?"rgba(120,230,255,.5)":"rgba(126,224,107,.42)"; ctx.shadowBlur=solid?8:4;
+    const gg=ctx.createLinearGradient(0,gy,0,gy+gh); gg.addColorStop(0,top); gg.addColorStop(0.55,mid); gg.addColorStop(1,ed);
+    ctx.fillStyle=gg; roundRect(gx,gy,gw,gh,rr); ctx.fill(); ctx.restore();
+    ctx.globalAlpha=a;
+    // sombreamento lateral 3D + núcleo interno
+    ctx.save(); roundRect(gx,gy,gw,gh,rr); ctx.clip();
+    const side=ctx.createLinearGradient(gx,0,gx+gw,0); side.addColorStop(0,"rgba(255,255,255,.10)"); side.addColorStop(0.5,"rgba(0,0,0,0)"); side.addColorStop(1,"rgba(0,30,10,.20)");
+    ctx.fillStyle=side; ctx.fillRect(gx,gy,gw,gh);
+    ctx.fillStyle="rgba(0,40,12,.12)"; roundRect(gx+gw*0.24,gy+gh*0.44,gw*0.52,gh*0.42,rr*0.5); ctx.fill();
+    ctx.restore();
+    // face-topo (lid brilhante = leitura de cubo)
+    ctx.fillStyle="rgba(255,255,255,.28)"; roundRect(gx+gw*0.16,gy+gh*0.07,gw*0.68,gh*0.22,rr*0.6); ctx.fill();
+    // bolhas internas
+    ctx.fillStyle="rgba(255,255,255,.34)"; ctx.beginPath();
+    ctx.arc(gcx-gw*0.13,gcy+gh*0.10,1.5,0,7); ctx.arc(gcx+gw*0.16,gcy-gh*0.02,1,0,7); ctx.fill();
+    // contorno + rim light
+    ctx.strokeStyle= g.tramp ? "rgba(150,235,255,.85)" : "rgba(80,170,70,.72)"; ctx.lineWidth=1.4; roundRect(gx+0.7,gy+0.7,gw-1.4,gh-1.4,rr-1); ctx.stroke();
+    ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.arc(gx+rr+1.5,gy+rr+1.5,rr-1,Math.PI,Math.PI*1.5); ctx.stroke();
+    ctx.globalAlpha=1;
     // MINI-OLHOS (só nas sólidas — as recém-soltas ainda estão "se formando")
-    if(g.solid){
+    if(solid){
       const seed=(g.x*0.7+g.y*0.3), blink=Math.sin(T*1.3+seed)>0.93;   // pisca de vez em quando
       const look = blob ? Math.sign((blob.x+blob.w/2)-gcx)*0.8 : 0;      // olha levemente pro jogador
       const ox=g.w*0.16, oy=gcy-1, orr=Math.max(1.6,g.w*0.09);
@@ -1385,6 +1410,24 @@ function drawPortal(cx,cy){
 }
 
 // caminho de gosma (blob ondulado)
+// uma lâmina de espinho afiada com volume 3D, espinha especular e ponta brilhante
+function spikeBlade(cx, baseY, topY, hw){
+  // sombra projetada (leve deslocamento pra direita)
+  ctx.fillStyle="rgba(0,0,0,.30)";
+  ctx.beginPath(); ctx.moveTo(cx-hw+2,baseY); ctx.lineTo(cx+2,topY+3); ctx.lineTo(cx+hw+2,baseY); ctx.closePath(); ctx.fill();
+  // corpo com gradiente lateral (quente na esquerda → escuro na direita)
+  const g=ctx.createLinearGradient(cx-hw,0,cx+hw,0);
+  g.addColorStop(0,"#ffb0b0"); g.addColorStop(0.42,"#e34a3f"); g.addColorStop(1,"#7c1414");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(cx-hw,baseY); ctx.lineTo(cx,topY); ctx.lineTo(cx+hw,baseY); ctx.closePath(); ctx.fill();
+  // face esquerda iluminada (leitura de 3D)
+  ctx.fillStyle="rgba(255,255,255,.20)"; ctx.beginPath();
+  ctx.moveTo(cx-hw,baseY); ctx.lineTo(cx,topY); ctx.lineTo(cx-hw*0.3,baseY); ctx.closePath(); ctx.fill();
+  // espinha especular ao longo da aresta
+  ctx.strokeStyle="rgba(255,255,255,.55)"; ctx.lineWidth=1.1;
+  ctx.beginPath(); ctx.moveTo(cx-hw*0.18,baseY-2); ctx.lineTo(cx,topY+1.5); ctx.stroke();
+  // ponta afiada brilhante
+  ctx.fillStyle="rgba(255,240,240,.92)"; ctx.beginPath(); ctx.arc(cx,topY+1.4,1.05,0,7); ctx.fill();
+}
 function slime(cx,cy,rx,ry,amp,seed){
   const N=18; ctx.beginPath();
   for(let i=0;i<=N;i++){ const a=(i/N)*Math.PI*2, w=1+amp*Math.sin(a*3+T*3+seed);
@@ -1636,6 +1679,8 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get tramps(){ return tramp?tramp.length:0; }, get trampGlobs(){ return globs?globs.filter(g=>g.tramp).length:0; },
   addGlob(wx,wy){ globs.push({x:wx,y:wy,w:GLOB,h:GLOB,solid:true,solidAt:0,wall:0,tramp:false}); },
   blobPos(){ return blob?{x:Math.round(blob.x),y:Math.round(blob.y)}:null; },
+  spikePos(){ const s=spikes&&spikes[0]; return s?{x:s.x,y:s.y}:null; },
+  warp(wx,wy){ if(blob){ blob.x=wx; blob.y=wy; blob.vx=0; blob.vy=0; camFollow(true); } },
   possessAt(cx,cy){ return tryPossess(cx,cy); }, _possess(wx,wy){ return possessWorld(wx,wy); },
   get camSafe(){ return Math.round(camSafeBottom); }, blobScreenBottom(){ return blob?Math.round((blob.y+blob.h-cam.y)*zoom):0; },
   get canvasH(){ return canvas.height; },
