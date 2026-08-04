@@ -13,11 +13,13 @@ body{
   background:
     radial-gradient(900px 500px at 50% -10%, rgba(126,224,107,.10), transparent 60%),
     linear-gradient(180deg,var(--bg-0),var(--bg-1));
-  min-height:100%; display:flex; justify-content:center; padding:12px;
+  height:100dvh; overflow:hidden; display:flex; justify-content:center;
+  padding:10px; touch-action:none; overscroll-behavior:none;
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));
 }
-#wrap{ width:100%; max-width:720px; display:flex; flex-direction:column; gap:10px; }
+#wrap{ width:100%; max-width:720px; height:100%; display:flex; flex-direction:column; gap:8px; }
 
-#hud{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+#hud{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex:0 0 auto; }
 .hud-left{ display:flex; align-items:center; gap:12px; }
 #level-name{ font-weight:700; font-size:1.05rem; color:var(--slime); }
 .pips{ display:flex; gap:4px; align-items:center; }
@@ -31,9 +33,13 @@ body{
 }
 #btn-reset:active{ transform:translateY(1px); }
 
-#stage{ position:relative; width:100%; border-radius:14px; overflow:hidden;
-  border:1px solid var(--line); background:#0a1216; box-shadow:0 12px 40px rgba(0,0,0,.5); }
-canvas{ display:block; width:100%; height:auto; image-rendering:auto; }
+/* área de jogo: ocupa o espaço vertical disponível e centraliza o canvas */
+#stage{ position:relative; flex:1 1 auto; min-height:0; width:100%; border-radius:14px;
+  overflow:hidden; border:1px solid var(--line); background:#0a1216;
+  box-shadow:0 12px 40px rgba(0,0,0,.5);
+  display:flex; align-items:center; justify-content:center; }
+canvas{ display:block; width:100%; height:auto; max-height:100%;
+  object-fit:contain; image-rendering:auto; }
 
 .overlay{
   position:absolute; inset:0; display:flex; flex-direction:column; gap:10px;
@@ -60,17 +66,28 @@ canvas{ display:block; width:100%; height:auto; image-rendering:auto; }
 .overlay button:active{ transform:translateY(1px); }
 
 #controls{ display:flex; flex-wrap:wrap; gap:6px 16px; justify-content:center;
-  color:var(--text-dim); font-size:.82rem; }
+  color:var(--text-dim); font-size:.82rem; flex:0 0 auto; }
 #controls b{ color:var(--text); }
 
-/* ---- touch ---- */
-#touch{ display:none; justify-content:space-between; gap:10px; margin-top:2px; }
-#touch .pad{ display:flex; gap:8px; }
-#touch button{
-  font-family:inherit; font-weight:700; font-size:1rem; color:var(--text);
-  background:var(--panel); border:1px solid var(--line); border-radius:12px;
-  width:58px; height:52px; cursor:pointer; user-select:none; touch-action:none;
+/* ---- controles touch (mobile) ---- */
+#touch{
+  display:none; justify-content:space-between; align-items:flex-end; gap:10px;
+  flex:0 0 auto; padding-top:4px;
 }
-#touch button[data-k="jump"]{ width:auto; padding:0 18px; color:var(--slime); }
-#touch button:active{ background:var(--line); }
+#touch .pad{ display:flex; gap:10px; align-items:flex-end; }
+#touch button{
+  font-family:inherit; font-weight:800; font-size:1.35rem; color:var(--text);
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  width:64px; height:64px; cursor:pointer; user-select:none; touch-action:none;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 3px 0 rgba(0,0,0,.35);
+}
+#touch button:active{ background:var(--line); transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.35); }
+#touch .act-grab{ color:var(--gold); }
+#touch .act-jump{
+  width:auto; min-width:118px; height:64px; padding:0 20px; font-size:1.05rem;
+  color:var(--ink); background:linear-gradient(180deg,var(--slime),var(--slime-d)); border:none;
+}
+/* mostra o touch em qualquer aparelho de toque OU tela estreita (retrato) */
 @media (hover:none) and (pointer:coarse){ #touch{ display:flex; } #controls{ display:none; } }
+@media (max-width:640px){ #touch{ display:flex; } #controls{ display:none; } }

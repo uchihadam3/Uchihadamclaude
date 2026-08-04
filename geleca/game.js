@@ -594,15 +594,21 @@ window.addEventListener("keyup", e=>{
   const k = KEYMAP[e.code]; if(k) release(k);
 });
 
-// touch (▲ = pular)
+// touch (PULAR = pular, ◀▼▶ movem, E reabsorve)
 document.querySelectorAll("#touch button").forEach(btn=>{
   const k = btn.dataset.k;
-  const down = e=>{ e.preventDefault(); if(k==="up"||k==="jump")press("jump"); else if(k==="grab")press("grab"); else press(k); };
-  const up = e=>{ e.preventDefault(); if(k==="down"||k==="left"||k==="right") release(k); };
+  const hold = (k==="left"||k==="right"||k==="down");
+  const down = e=>{ e.preventDefault(); audio();
+    if(k==="jump"||k==="up") press("jump");
+    else if(k==="grab") press("grab");
+    else press(k); };
+  const up = e=>{ e.preventDefault(); if(hold) release(k); };
   btn.addEventListener("touchstart", down, {passive:false});
   btn.addEventListener("touchend", up, {passive:false});
+  btn.addEventListener("touchcancel", up, {passive:false});
   btn.addEventListener("mousedown", down);
   btn.addEventListener("mouseup", up);
+  btn.addEventListener("mouseleave", e=>{ if(hold) release(k); });
 });
 
 document.getElementById("btn-reset").addEventListener("click", resetLevel);
