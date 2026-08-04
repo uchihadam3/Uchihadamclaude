@@ -37,16 +37,15 @@
     <div id="stage">
       <canvas id="game"></canvas>
       <div id="hint" class="hint-banner"></div>
-      <div id="overlay" class="overlay hidden"></div>
-    </div>
-
-    <!-- controles mobile: joystick à esquerda, ações à direita -->
-    <div id="touch">
-      <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
-      <div id="actions">
-        <button id="btn-grab" class="act act-grab" aria-label="Reabsorver">E</button>
-        <button id="btn-jump" class="act act-jump" aria-label="Pular">▲</button>
+      <!-- controles sobrepostos (mais área de jogo): joystick esq., ações dir. -->
+      <div id="touch">
+        <div id="stick" class="stick"><div id="knob" class="knob"></div></div>
+        <div id="actions">
+          <button id="btn-grab" class="act act-grab" aria-label="Reabsorver">E</button>
+          <button id="btn-jump" class="act act-jump" aria-label="Pular">▲</button>
+        </div>
       </div>
+      <div id="overlay" class="overlay hidden"></div>
     </div>
 
     <div id="controls">

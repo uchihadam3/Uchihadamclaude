@@ -10,9 +10,9 @@
 const TILE=32, GRAVITY=1700, MOVE=200, AIR=0.78, JUMP_V=600, CLIMB=150,
       GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000;
 
-// viewport (câmera) — a fase pode ser MUITO maior que isso e a câmera segue o blob
-const VIEW_W=20, VIEW_H=12, VPX=VIEW_W*TILE, VPY=VIEW_H*TILE;
+// câmera responsiva com ZOOM: o canvas preenche a tela e mostra ~N tiles (zoom in).
 const cam={ x:0, y:0 };
+let zoom=2, camViewW=640, camViewH=384;   // camViewW/H = px do MUNDO visíveis
 
 // temas de cor por "mundo": fundo (parallax) + tiles
 const THEMES={
@@ -241,7 +241,7 @@ function startGame(i){
 // ==========================================================================
 function loadLevel(idx){
   level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
-  canvas.width=VPX; canvas.height=VPY;   // câmera segue o blob numa fase maior
+  fitCanvas();                            // dimensiona o canvas à tela e calcula o zoom
   solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gem=null;
   theme=THEMES[level.theme] || [THEMES.cave,THEMES.cave,THEMES.cave,THEMES.deep,THEMES.deep,THEMES.deep,THEMES.forge,THEMES.forge,THEMES.forge][idx] || THEMES.cave;
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
@@ -323,12 +323,21 @@ function updateEnemies(){
     e.dir = e.x>=e.px?1:-1;
   }
 }
+function fitCanvas(){
+  const stage=el("stage"); if(!stage) return;
+  const cw=stage.clientWidth||640, ch=stage.clientHeight||384;
+  const dpr=Math.min(2, window.devicePixelRatio||1);
+  canvas.width=Math.max(1,Math.round(cw*dpr));
+  canvas.height=Math.max(1,Math.round(ch*dpr));
+  const targetTiles = cw<560 ? 12 : 17;          // celular: ~12 tiles (zoom in, personagem grande)
+  zoom = canvas.width/(targetTiles*TILE);
+  camViewW = canvas.width/zoom; camViewH = canvas.height/zoom;
+}
 function camFollow(snap){
   const worldW=COLS*TILE, worldH=ROWS*TILE;
-  let tx=blob.x+blob.w/2 - VPX/2, ty=blob.y+blob.h/2 - VPY*0.55;
-  tx=Math.max(0,Math.min(tx, Math.max(0,worldW-VPX)));
-  ty=Math.max(0,Math.min(ty, Math.max(0,worldH-VPY)));
-  if(snap){ cam.x=tx; cam.y=ty; } else { cam.x+=(tx-cam.x)*0.11; cam.y+=(ty-cam.y)*0.11; }
+  let tx = worldW<=camViewW ? (worldW-camViewW)/2 : Math.max(0,Math.min(blob.x+blob.w/2 - camViewW/2, worldW-camViewW));
+  let ty = worldH<=camViewH ? (worldH-camViewH)/2 : Math.max(0,Math.min(blob.y+blob.h/2 - camViewH*0.58, worldH-camViewH));
+  if(snap){ cam.x=tx; cam.y=ty; } else { cam.x+=(tx-cam.x)*0.12; cam.y+=(ty-cam.y)*0.12; }
 }
 
 function update(dt){
@@ -460,10 +469,10 @@ function render(){
   for(const m of motes){ const y=(m.y - T*m.s)%H, yy=y<0?y+H:y;
     ctx.beginPath(); ctx.arc(m.x+Math.sin(T+m.ph)*6, yy, m.r,0,7); ctx.fill(); }
 
-  // ---- MUNDO: tudo daqui pra baixo é desenhado com a câmera ----
+  // ---- MUNDO: câmera + ZOOM ----
   const sx=shake>0?(Math.random()*2-1)*shake:0, sy=shake>0?(Math.random()*2-1)*shake:0;
-  ctx.setTransform(1,0,0,1, -cam.x+sx, -cam.y+sy);
-  const minX=cam.x-TILE, maxX=cam.x+VPX, minY=cam.y-TILE, maxY=cam.y+VPY;
+  ctx.setTransform(zoom,0,0,zoom, -cam.x*zoom+sx, -cam.y*zoom+sy);
+  const minX=cam.x-TILE, maxX=cam.x+camViewW, minY=cam.y-TILE, maxY=cam.y+camViewH;
   const vis = r => r.x<=maxX && r.x+r.w>=minX && r.y<=maxY && r.y+r.h>=minY;
 
   // calor (atrás)
@@ -575,28 +584,26 @@ function isSolidAt(px,py){ for(const s of solidTiles) if(px>=s.x&&px<s.x+s.w&&py
 
 // ---- fundo em parallax (estilo plataforma) ----
 function hillLayer(color, factor, baseY, spacing, height){
+  const W=canvas.width, H=canvas.height;
   ctx.fillStyle=color;
-  const off=-((cam.x*factor)%spacing);
-  const by=baseY - cam.y*0.08;
-  ctx.beginPath(); ctx.moveTo(-spacing, VPY+2);
-  for(let x=off-spacing; x<VPX+spacing; x+=spacing)
+  const off=-((cam.x*zoom*factor)%spacing), by=baseY - cam.y*zoom*0.06;
+  ctx.beginPath(); ctx.moveTo(-spacing, H+2);
+  for(let x=off-spacing; x<W+spacing; x+=spacing)
     ctx.quadraticCurveTo(x+spacing*0.5, by-height, x+spacing, by);
-  ctx.lineTo(VPX+spacing, VPY+2); ctx.closePath(); ctx.fill();
+  ctx.lineTo(W+spacing, H+2); ctx.closePath(); ctx.fill();
 }
 function cloudShape(x,y,r){ ctx.beginPath();
   ctx.arc(x,y,r,0,7); ctx.arc(x+r*0.9,y+4,r*0.7,0,7); ctx.arc(x-r*0.9,y+5,r*0.66,0,7); ctx.arc(x+r*0.25,y-r*0.5,r*0.58,0,7); ctx.fill(); }
 function drawParallax(th){
-  const sky=ctx.createLinearGradient(0,0,0,VPY);
+  const W=canvas.width, H=canvas.height, sc=canvas.width/640;   // escala p/ densidade
+  const sky=ctx.createLinearGradient(0,0,0,H);
   sky.addColorStop(0,th.sky0); sky.addColorStop(1,th.sky1);
-  ctx.fillStyle=sky; ctx.fillRect(0,0,VPX,VPY);
-  // montanhas distantes
-  hillLayer(th.far, 0.15, VPY*0.60, 260, 150);
-  // nuvens
-  ctx.fillStyle=`rgba(${th.cloud},.16)`;
-  for(let i=0;i<5;i++){ let x=((i*250 - (cam.x*0.28 + T*9)) % (VPX+320)); if(x<-160)x+=VPX+320;
-    cloudShape(x, 34 + (i*41)%110 - cam.y*0.05, 24+(i%3)*9); }
-  // morros médios
-  hillLayer(th.mid, 0.38, VPY*0.80, 200, 110);
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  hillLayer(th.far, 0.15, H*0.62, 280*sc, 180*sc);             // montanhas distantes
+  ctx.fillStyle=`rgba(${th.cloud},.16)`;                        // nuvens
+  for(let i=0;i<6;i++){ let x=((i*280*sc - (cam.x*zoom*0.28 + T*10*sc)) % (W+340)); if(x<-170)x+=W+340;
+    cloudShape(x, (34+(i*47)%120)*sc - cam.y*zoom*0.04, (24+(i%3)*10)*sc); }
+  hillLayer(th.mid, 0.40, H*0.82, 220*sc, 130*sc);             // morros médios
 }
 function drawPortal(cx,cy){
   ctx.save();
@@ -721,6 +728,7 @@ window.addEventListener("keydown",e=>{ if(e.repeat)return; audio();
   if(e.code==="Escape"){ if(state!=="menu")showMenu(); return; }
   const k=KEYMAP[e.code]; if(k){e.preventDefault();IN.kb[k]=true;} });
 window.addEventListener("keyup",e=>{ const k=KEYMAP[e.code]; if(k)IN.kb[k]=false; });
+let rzT; window.addEventListener("resize",()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{ if(state!=="menu"){ fitCanvas(); camFollow(true); } },120); });
 
 // joystick
 const stick=el("stick"), knob=el("knob"); let stickId=null,scx=0,scy=0; const SR=48;
