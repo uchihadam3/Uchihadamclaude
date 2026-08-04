@@ -41,6 +41,15 @@ canvas{ display:block; width:100%; height:auto; image-rendering:auto; }
   background:rgba(6,14,12,.82); backdrop-filter:blur(3px); padding:20px;
 }
 .overlay.hidden{ display:none; }
+
+/* dica por fase */
+.hint-banner{
+  position:absolute; left:50%; top:12px; transform:translateX(-50%) translateY(-8px);
+  background:rgba(10,20,16,.9); border:1px solid var(--line); color:var(--text);
+  padding:9px 16px; border-radius:20px; font-size:.85rem; max-width:88%; text-align:center;
+  opacity:0; transition:opacity .35s, transform .35s; pointer-events:none;
+}
+.hint-banner.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 .overlay h2{ margin:0; font-size:1.8rem; color:var(--slime); }
 .overlay p{ margin:0; color:var(--text-dim); max-width:340px; line-height:1.5; }
 .overlay button{
