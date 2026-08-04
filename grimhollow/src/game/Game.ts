@@ -1710,6 +1710,8 @@ export class Game {
     net.onGolpe((eid, dano) => this.receberGolpe(eid, dano));
     // ---- GRUPO ----
     net.onConvite((c) => this.receberConvite(c));
+    // painel social (botão ao lado do minimapa): convidar com um toque
+    this.ui.onSocial((id) => this.convidarParaGrupo(id), () => this.sairDoGrupo());
     party.onMembros((m) => { this.grupo = m; this.ui.setParty(m); });
     party.onAviso((txt) => this.ui.toast(txt));
     // ABATE DE UM COMPANHEIRO conta p/ a minha missão também: é o que faz caçar
@@ -2150,6 +2152,8 @@ export class Game {
       if (!vistos.has(id)) { this.scene.remove(rig.group); this.peers.delete(id); }
     }
     this.pushMinimap(); // os amigos aparecem no minimapa
+    // alimenta o painel social com quem está na área
+    this.ui.setNearby(list.map((p) => ({ id: p.id, name: p.name, classId: p.classId, level: p.level })));
   }
   // cria o billboard + sombra + plaquinha de um amigo
   private makePeerRig(p: PeerState): PeerRig {

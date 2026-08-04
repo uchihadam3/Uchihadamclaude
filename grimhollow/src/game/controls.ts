@@ -261,6 +261,10 @@ export interface HUD {
   setChat(onSend: (text: string) => void): void;
   chatMessage(name: string, text: string, mine: boolean): void;
   coopStatus(txt: string): void;
+  /** SOCIAL: quem está na área agora (alimenta o painel de procurar grupo). */
+  setNearby(list: { id: string; name: string; classId: string; level: number }[]): void;
+  /** SOCIAL: liga os botões do painel (convidar alguém / sair do grupo). */
+  onSocial(convidar: (id: string) => void, sair: () => void): void;
   /** GRUPO: lista de membros com vida (vazia = sem grupo, painel some). */
   setParty(m: { id: string; name: string; classId: string; level: number; hp: number; maxHp: number; zone: string; lider: boolean }[]): void;
   // LISTA de itens na MESMA célula (estilo saque de baú): o jogador escolhe o que
@@ -1280,6 +1284,71 @@ export function setupControls(
     .gh-pt-bar i{display:block;height:100%;transition:width .25s ease-out;}
   `;
   root.appendChild(partyCss);
+
+  // ---- PAINEL SOCIAL: botão ao lado do minimapa + janela "quem está por perto"
+  // No celular, digitar "/convidar Fulano" é penoso: abre teclado, cobre a tela e
+  // ainda exige acertar o nome. Aqui é um toque p/ abrir e um toque p/ convidar.
+  const socialBtn = document.createElement("button");
+  socialBtn.id = "gh-social";
+  socialBtn.innerHTML = "&#128101;";      // silhuetas de duas pessoas
+  socialBtn.title = "Jogadores por perto";
+  root.appendChild(socialBtn);
+  const socialBox = document.createElement("div");
+  socialBox.id = "gh-socialbox";
+  socialBox.style.display = "none";
+  root.appendChild(socialBox);
+  let nearby: { id: string; name: string; classId: string; level: number }[] = [];
+  let cbConvidar: (id: string) => void = () => {};
+  let cbSair: () => void = () => {};
+  const pintaSocial = () => {
+    const linhas = nearby.length
+      ? nearby.map((n) => `<div class="gh-so-row">
+           <div class="gh-so-nome">${n.name.split(/[ ,]/)[0]}<span>nv${n.level} · ${n.classId}</span></div>
+           <button class="gh-so-inv" data-id="${n.id}">Convidar</button>
+         </div>`).join("")
+      : `<div class="gh-so-vazio">Ninguém por perto.<br><small>Quem estiver na mesma área aparece aqui.</small></div>`;
+    socialBox.innerHTML = `<div class="gh-so-tit">Por perto</div>${linhas}
+      <button class="gh-so-sair">Sair do grupo</button>`;
+    socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-inv").forEach((b2) =>
+      b2.addEventListener("click", () => { cbConvidar(b2.dataset.id || ""); socialBox.style.display = "none"; }));
+    (socialBox.querySelector(".gh-so-sair") as HTMLButtonElement)
+      ?.addEventListener("click", () => { cbSair(); socialBox.style.display = "none"; });
+  };
+  socialBtn.addEventListener("click", () => {
+    const abrir = socialBox.style.display === "none";
+    socialBox.style.display = abrir ? "block" : "none";
+    if (abrir) pintaSocial();
+  });
+  const socialCss = document.createElement("style");
+  socialCss.textContent = `
+    #gh-social{position:fixed;z-index:12;pointer-events:auto;cursor:pointer;
+      right:calc(12px + min(118px,27vw) + 8px);top:12px;width:34px;height:34px;
+      border-radius:8px;padding:0;font-size:16px;line-height:1;
+      color:#f0dca2;background:linear-gradient(#2b2218,#160f08);
+      border:1.5px solid rgba(201,162,39,.6);box-shadow:0 2px 6px rgba(0,0,0,.6);}
+    #gh-social:hover{color:#fff;border-color:#f4c847;}
+    #gh-social:active{transform:scale(.92);}
+    #gh-socialbox{position:fixed;z-index:30;pointer-events:auto;
+      right:calc(12px + min(118px,27vw) + 8px);top:52px;width:min(232px,62vw);
+      padding:9px 10px 10px;border-radius:8px;
+      background:linear-gradient(180deg,rgba(14,12,9,.95),rgba(10,9,7,.92));
+      border:1px solid rgba(201,162,39,.45);
+      box-shadow:0 4px 14px rgba(0,0,0,.6);color:#e9dcbe;
+      font-family:"Trebuchet MS",sans-serif;}
+    .gh-so-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:13px;
+      letter-spacing:.05em;margin-bottom:7px;border-bottom:1px solid rgba(201,162,39,.28);
+      padding-bottom:5px;}
+    .gh-so-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
+    .gh-so-nome{flex:1;font-size:12px;line-height:1.25;}
+    .gh-so-nome span{display:block;color:#a3906b;font-size:10px;}
+    .gh-so-inv,.gh-so-sair{cursor:pointer;color:#f0dca2;font-size:11px;
+      background:linear-gradient(#31261a,#1a120a);border:1px solid rgba(201,162,39,.5);
+      border-radius:5px;padding:4px 8px;font-family:"Trebuchet MS",sans-serif;}
+    .gh-so-inv:active,.gh-so-sair:active{transform:scale(.94);}
+    .gh-so-sair{width:100%;margin-top:7px;color:#d8b39a;border-color:rgba(160,90,70,.5);}
+    .gh-so-vazio{color:#9c8c6e;font-size:11.5px;line-height:1.4;padding:4px 0 2px;}
+  `;
+  root.appendChild(socialCss);
   let chatSend: ((t: string) => void) | null = null;
   const chatOpen = (on: boolean) => {
     chatBar.classList.toggle("gh-chat-on", on);
@@ -2783,6 +2852,14 @@ export function setupControls(
     setChat(onSend: (text: string) => void) { chatSend = onSend; },
     chatMessage(name: string, text: string, mine: boolean) { pushChat(name, text, mine); },
     coopStatus(txt: string) { chatStatus.textContent = txt; },
+    setNearby(list) {
+      nearby = list;
+      // o contador no próprio botão: dá p/ ver que tem gente sem abrir nada
+      socialBtn.textContent = list.length ? `\u{1F465}${list.length}` : "\u{1F465}";
+      socialBtn.style.borderColor = list.length ? "#f4c847" : "rgba(201,162,39,.6)";
+      if (socialBox.style.display !== "none") pintaSocial();
+    },
+    onSocial(convidar, sair) { cbConvidar = convidar; cbSair = sair; },
     setParty(m) {
       // painel do GRUPO, estilo MMO: retrato-menor, nome, nível e barra de vida.
       // Some sozinho quando não há grupo — jogando só, nada muda na tela.
