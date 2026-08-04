@@ -24,6 +24,8 @@ const THEMES={
            top:"#a05a3a", top2:"#d07a4a", far:"#2a160c", mid:"#41210f", cloud:"230,150,110" },
   ice:   { sky0:"#173846", sky1:"#0e222e", mote:"170,230,255", tile:"#254048", tilehi:"#356470",
            top:"#3f8fa8", top2:"#5fc0d8", far:"#12303c", mid:"#1c4653", cloud:"200,235,255" },
+  void:  { sky0:"#1a1030", sky1:"#0a0518", mote:"200,150,255", tile:"#2a1c44", tilehi:"#3d2a63",
+           top:"#7a4fd0", top2:"#a06ff0", far:"#160c2c", mid:"#241542", cloud:"180,140,240" },
 };
 
 // -------------------------------------------------------------------------- FASES
@@ -32,7 +34,8 @@ const THEMES={
 // S=parede FANTASMA (parece sólida, atravessa)  g=fantasma COM gema secreta dentro (Fez: invisível até entrar)
 // G=gema solta invisível  C=desmorona  T=mola
 // movers: plataformas móveis [{x,y,w,axis,dist,speed,phase}] (tiles)
-// enemies: [{x,y,type:'patrol'|'chaser',dist,speed,axis,range}] — chaser te caça se chegar perto
+// enemies: [{x,y,type:'patrol'|'chaser'|'boss',dist,speed,axis,range,delay}] — chaser/boss caçam; todos barrados por paredes
+// LEVELS com secret:true = fase oculta (só destrava achando TODOS os segredos)
 const LEVELS = [
   { name:"1 · Vale", mass:9, max:9, theme:"cave",
     hint:"Vá pra direita ➜ e pule. Cada pulo solta um pedaço de você que vira bloco sólido.", rows:[
@@ -244,6 +247,28 @@ const LEVELS = [
     movers:[{"x":27,"y":20,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":65,"y":20,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
     enemies:[{"x":45,"y":19,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":70,"y":19,"dist":5,"speed":1,"axis":"x","type":"patrol"},{"x":20,"y":19,"speed":1.1,"type":"chaser","range":8},{"x":60,"y":19,"speed":1.2,"type":"chaser","range":9}]},
 
+  { name:"9 · A Gosma-Mãe", mass:12, max:12, theme:"void",
+    hint:"A GOSMA-MÃE acordou. Ela te caça sem parar — CORRA pra direita e não pare. Chegue à saída!", secret:true, rows:[
+    "############################################################################################",
+    "#                                                                                          #",
+    "#                                                                                          #",
+    "#                                                                                          #",
+    "#                                                                                          #",
+    "#                                                                                          #",
+    "#                                                                                          #",
+    "#                                                                                          #",
+    "#                                                                                          #",
+    "#                                                     o                                    #",
+    "#                                   CCCCCCCCC                                              #",
+    "#                                                                                          #",
+    "#                       o                                             o                    #",
+    "#       @                                         CCCCCCCCC                             E  #",
+    "################   #########T#    ############    ##########T#   #########T#   #############",
+    "################   ###########    ############    ############   ###########   #############",
+    "################^^^###########^^^^############^^^^############^^^###########^^^#############",
+    "################   ###########    ############    ############   ###########   #############"],
+    enemies:[{"x":2,"y":13,"speed":1.18,"type":"boss"}]},
+
 ];
 
 // -------------------------------------------------------------------------- PROGRESSO
@@ -296,13 +321,26 @@ function buildLevelGrid(){
   const secretGot=i=>save.gems[i]||0;
   let totalCoins=0, gotCoins=0, foundSecrets=0;
   LEVELS.forEach((_,i)=>{ totalCoins+=coinsIn(i); gotCoins+=coinGot(i); foundSecrets+=secretGot(i); });
+  const NORMAL=LEVELS.filter(L=>!L.secret).length, totalSecrets=NORMAL;
+  const allSecrets = foundSecrets>=totalSecrets;   // achou TODAS as gemas ocultas → destrava a fase secreta
   const stats=el("menu-stats");
   if(stats) stats.innerHTML=`⭐ ${gotCoins}/${totalCoins}`
     + (foundSecrets>0 ? ` &nbsp;·&nbsp; <span style="color:#c9a6ff">💎 ${foundSecrets}</span>` : "");
   LEVELS.forEach((L,i)=>{
-    const locked=i>save.unlocked, st=save.stars[i]||0;
+    const st=save.stars[i]||0, c=document.createElement("div");
+    if(L.secret){
+      // FASE SECRETA: cartão-mistério; só abre quando TODOS os segredos foram achados.
+      const open=allSecrets;
+      c.className="lv-card lv-secret "+(open?"unlocked":"locked");
+      c.innerHTML = open
+        ? `<div class="lv-num" style="color:#c9a6ff">✦</div><div class="lv-name" style="color:#c9a6ff">${L.name.split("·")[1].trim()}</div>
+           <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"} <span style="color:#c9a6ff">✨</span></div>`
+        : `<div class="lv-lock">❓</div><div class="lv-name" style="color:#6a5a80">???</div>`;
+      if(open) c.addEventListener("click", ()=>{ audio(); startGame(i); });
+      grid.appendChild(c); return;
+    }
+    const locked=i>save.unlocked;
     const cTot=coinsIn(i), cGot=coinGot(i), sGot=secretGot(i);
-    const c=document.createElement("div");
     c.className="lv-card "+(locked?"locked":"unlocked");
     c.innerHTML = locked
       ? `<div class="lv-lock">🔒</div><div class="lv-name">${(L.name.split("·")[1]||"").trim()}</div>`
@@ -328,8 +366,17 @@ function startGame(i){
 function loadLevel(idx){
   level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
   fitCanvas();                            // dimensiona o canvas à tela e calcula o zoom
+  theme=THEMES[level.theme] || THEMES.cave;
+  // motes de fundo
+  motes=[]; for(let i=0;i<26;i++) motes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height,
+    r:1+Math.random()*2.5, s:6+Math.random()*14, ph:Math.random()*6.28 });
+  showHint(level.hint);
+  levelTime=0; transition=1; resetLevel();
+}
+// (re)constrói TODAS as entidades a partir do grid — chamado no load E no reinício,
+// então coletáveis (gosma extra, estrelas), desmoronáveis, molas e inimigos SEMPRE voltam ao morrer/reiniciar.
+function buildEntities(){
   solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];stars=[];fakes=[];crumbles=[];
-  theme=THEMES[level.theme] || [THEMES.cave,THEMES.cave,THEMES.cave,THEMES.deep,THEMES.deep,THEMES.deep,THEMES.forge,THEMES.forge,THEMES.forge][idx] || THEMES.cave;
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
     const ch=level.rows[y][x], r={x:x*TILE,y:y*TILE,w:TILE,h:TILE};
     if(ch==="#")solidTiles.push(r);
@@ -352,17 +399,17 @@ function loadLevel(idx){
     x0:m.x*TILE, y0:m.y*TILE, w:m.w*TILE, h:GLOB, axis:m.axis,
     dist:m.dist*TILE, speed:m.speed, phase:m.phase||0,
     x:m.x*TILE, y:m.y*TILE, dx:0, dy:0 }));
-  (level.enemies||[]).forEach(e=>enemies.push({
-    x0:e.x*TILE, y0:e.y*TILE, dist:(e.dist||0)*TILE, speed:e.speed, axis:e.axis||"x",
-    type:e.type||"patrol", range:(e.range||7)*TILE, mad:0, alert:0,
-    x:e.x*TILE, y:e.y*TILE, w:TILE-6, h:TILE-6 }));
-  // motes de fundo
-  motes=[]; for(let i=0;i<26;i++) motes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height,
-    r:1+Math.random()*2.5, s:6+Math.random()*14, ph:Math.random()*6.28 });
-  showHint(level.hint);
-  levelTime=0; transition=1; resetLevel();
+  (level.enemies||[]).forEach(e=>{
+    const boss=e.type==="boss", ew=boss?58:TILE-6, eh=boss?58:TILE-6;
+    const ex=e.x*TILE+3, ey=e.y*TILE+3-(eh-(TILE-6));   // alinha a base do inimigo à linha do chão
+    enemies.push({ x0:ex, y0:ey, x:ex, y:ey, w:ew, h:eh,
+      dist:(e.dist||0)*TILE, speed:e.speed, axis:e.axis||"x",
+      type:e.type||"patrol", range:(e.range||7)*TILE, delay:e.delay!==undefined?e.delay:(boss?1.4:0),
+      mad:0, alert:0, dir:1 });
+  });
 }
 function resetLevel(){
+  buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
   globs=[]; particles=[];
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, melting:false, blink:0, rideMover:null };
@@ -407,28 +454,48 @@ function updateMovers(dt){
     m.dx=nx-m.x; m.dy=ny-m.y; m.x=nx; m.y=ny;
   }
 }
+// bloqueio por PAREDE: impede o inimigo de atravessar tiles sólidos (bug corrigido).
+function enemyBlocked(e,nx){
+  const edge = nx>e.x ? nx+e.w : nx;                 // borda de ataque na direção do movimento
+  const top=e.y+3, bot=e.y+e.h-3;
+  for(const s of solidTiles){
+    if(edge>s.x && edge<s.x+s.w && bot>s.y+2 && top<s.y+s.h-2) return true;
+  }
+  return false;
+}
 function updateEnemies(dt){
   const bx=blob?blob.x+blob.w/2:0, by=blob?blob.y+blob.h/2:0;
   for(const e of enemies){
     e.px=e.x;
-    if(e.type==="chaser"){
-      // PERSEGUIDOR: dorme parado; quando você chega perto, acorda e te CAÇA.
+    if(e.type==="patrol"){
+      // PATRULHA por velocidade: vira ao bater numa parede OU no limite da rota (não atravessa mais).
+      const step=e.speed*68*dt;
+      let nx=e.x+e.dir*step;
+      if(nx<e.x0 || nx>e.x0+e.dist || enemyBlocked(e,nx)){ e.dir*=-1; nx=e.x+e.dir*step; }
+      if(!enemyBlocked(e,nx) && nx>=e.x0 && nx<=e.x0+e.dist) e.x=nx;
+      e.y=e.y0;
+    } else {
+      // PERSEGUIDOR / CHEFE: caça o blob, mas é BARRADO por paredes.
+      const boss=e.type==="boss";
+      if(boss && levelTime<e.delay){                     // CHEFE acordando: te dá um respiro pra começar a correr
+        e.y=e.y0+Math.sin(levelTime*7)*3; e.mad=0; e.alert=Math.min(1,levelTime/e.delay); e.dir=1; continue;
+      }
       const dx=bx-(e.x+e.w/2), d=Math.hypot(dx, by-(e.y+e.h/2));
-      if(d<e.range){
-        e.x += Math.sign(dx)*e.speed*135*dt;       // avança na sua direção
+      const range=boss?1e9:e.range;
+      if(d<range){
+        const step=Math.sign(dx)*e.speed*(boss?150:135)*dt;
+        const nx=e.x+step; if(!enemyBlocked(e,nx)) e.x=nx;
         e.mad=Math.min(1,e.mad+dt*3); e.alert=1;
+        if(boss && Math.random()<0.5) burst(e.x+e.w*(dx>0?0:1),e.y+e.h*0.6,1,"#c04a8a",40);   // rastro
       } else {
-        const hx=e.x0-e.x;                           // volta pro ninho quando escapa
-        if(Math.abs(hx)>1) e.x += Math.sign(hx)*Math.min(Math.abs(hx), e.speed*70*dt);
+        const hx=e.x0-e.x;
+        if(Math.abs(hx)>1){ const nx=e.x+Math.sign(hx)*Math.min(Math.abs(hx),e.speed*70*dt); if(!enemyBlocked(e,nx)) e.x=nx; }
         e.mad=Math.max(0,e.mad-dt*1.6); e.alert=Math.max(0,e.alert-dt);
       }
-      e.y = e.y0 + Math.sin(levelTime*(4+e.mad*4))*(2+e.mad*2);
-    } else {
-      const off=Math.sin(levelTime*e.speed*Math.PI*2)*(e.dist*0.5) + e.dist*0.5;
-      e.x = e.axis==="x"? e.x0+off+3 : e.x0+3;
-      e.y = e.axis==="y"? e.y0+off+3 : e.y0+3;
+      e.y = e.y0 + Math.sin(levelTime*(4+e.mad*4))*(2+e.mad*2)*(boss?1.6:1);
+      if(boss) shake=Math.max(shake, Math.max(0, (1-d/360))*3);   // treme quando o chefe se aproxima
     }
-    e.dir = e.x>=e.px?1:(e.x<e.px?-1:(e.dir||1));
+    e.dir = e.x>e.px?1:(e.x<e.px?-1:(e.dir||1));
   }
 }
 function fitCanvas(){
@@ -516,7 +583,8 @@ function update(dt){
   camFollow(false);   // câmera segue o blob
 
   // inimigos: contato = morte
-  for(const e of enemies) if(overlaps(blob,{x:e.x+2,y:e.y+2,w:e.w-4,h:e.h-4})){ die(); return; }
+  for(const e of enemies){ const ix=e.w*0.16, iy=e.h*0.16;
+    if(overlaps(blob,{x:e.x+ix,y:e.y+iy,w:e.w-ix*2,h:e.h-iy*2})){ die(); return; } }
   // paredes FANTASMA: parecem sólidas até você ENTRAR nelas — aí somem (revelam o esconderijo)
   for(const fk of fakes){ if(fk.rev<1 && overlaps(blob,fk)) fk.rev=Math.min(1,fk.rev+dt*5); }
   // gemas INVISÍVEIS (estilo Fez): só materializam quando você já está bem em cima do esconderijo
@@ -583,9 +651,19 @@ function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exit
   // 💎 SEGREDOS ocultos: guardamos, mas NUNCA revelamos quantos existem
   const secretGot=gems.filter(g=>g.got).length;
   if(secretGot) save.gems[levelIndex]=Math.max(save.gems[levelIndex]||0, secretGot);
-  if(levelIndex+1<LEVELS.length && save.unlocked<levelIndex+1) save.unlocked=levelIndex+1;
+  const NORMAL=LEVELS.filter(L=>!L.secret).length;
+  // só avança o desbloqueio entre fases NORMAIS — a secreta é destravada por segredos, não por progressão
+  if(!level.secret && levelIndex+1<NORMAL && save.unlocked<levelIndex+1) save.unlocked=levelIndex+1;
   persist();
-  const isLast=levelIndex>=LEVELS.length-1;
+
+  // === FASE SECRETA: final especial (você derrotou a Gosma-Mãe E descobriu tudo) ===
+  if(level.secret){
+    overlay("🏆✨ O VERDADEIRO FIM",
+      `<div style="font-size:.9rem;color:#c9a6ff;line-height:1.5">Você escapou da Gosma-Mãe…<br>e descobriu <b>TUDO</b> que o jogo escondia.<br><span style="color:#8fb3a6">Pouquíssimos chegam até aqui. 💎</span></div>`,
+      [{t:"Menu",cb:showMenu}], true);
+    return;
+  }
+  const isLast=levelIndex>=NORMAL-1;   // última fase NORMAL
   let sub="★".repeat(st)+"☆".repeat(3-st);
   if(coinTot){ sub += `<div style="font-size:.8rem;color:#ffd24a;margin-top:6px">⭐ ${coinGot}/${coinTot}</div>`; }
   // segredo: só reconhece SE você achou algum — e jamais diz o total nem que faltam
@@ -707,20 +785,25 @@ function render(){
     ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-r*0.8,0); ctx.lineTo(r*0.8,0); ctx.stroke();
     ctx.restore(); }
 
-  // inimigos: guardião (patrulha) e PERSEGUIDOR (fica vermelho e vibra quando te caça)
+  // inimigos: guardião (patrulha), PERSEGUIDOR (vermelho, te caça) e CHEFE (gigante roxo)
   for(const e of enemies){ const cx=e.x+e.w/2, cy=e.y+e.h/2, r=e.w/2;
-    const mad=e.mad||0, spd=8+mad*10;
-    ctx.save(); ctx.shadowColor=mad>0.1?`rgba(255,60,40,${0.5+mad*0.4})`:"rgba(255,90,60,.5)"; ctx.shadowBlur=10+mad*10;
-    ctx.fillStyle = e.type==="chaser" ? (mad>0.1?"#ff3b2e":"#b0463c") : "#e0574b";
-    ctx.beginPath(); for(let i=0;i<10;i++){ const rr=r*(i%2?0.72-mad*0.06:1.05+Math.sin(T*spd+i)*(0.06+mad*0.1));
-      const a=i/10*6.283, x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
+    const mad=e.mad||0, spd=8+mad*10, boss=e.type==="boss", s=r/13;   // s = escala p/ olhos
+    ctx.save();
+    if(boss){ ctx.shadowColor=`rgba(200,50,140,${0.6+mad*0.3})`; ctx.shadowBlur=22;
+      ctx.fillStyle=mad>0.1?"#c0246e":"#8a2050"; }
+    else { ctx.shadowColor=mad>0.1?`rgba(255,60,40,${0.5+mad*0.4})`:"rgba(255,90,60,.5)"; ctx.shadowBlur=10+mad*10;
+      ctx.fillStyle = e.type==="chaser" ? (mad>0.1?"#ff3b2e":"#b0463c") : "#e0574b"; }
+    const spikes=boss?14:10;
+    ctx.beginPath(); for(let i=0;i<spikes;i++){ const rr=r*(i%2?0.72-mad*0.06:1.05+Math.sin(T*spd+i)*(0.06+mad*0.1));
+      const a=i/spikes*6.283, x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
+    if(boss){ ctx.fillStyle="rgba(0,0,0,.18)"; ctx.beginPath(); ctx.arc(cx,cy+r*0.15,r*0.55,0,7); ctx.fill(); }  // núcleo escuro
     ctx.restore();
     ctx.fillStyle="#fff"; const ed=(e.dir||1);
-    ctx.beginPath(); ctx.arc(cx-4+ed*2,cy-2,2.6,0,7); ctx.arc(cx+5+ed*2,cy-2,2.6,0,7); ctx.fill();
-    ctx.fillStyle=mad>0.4?"#5a0000":"#3a0a0a"; const pp=1.3+mad*0.5;
-    ctx.beginPath(); ctx.arc(cx-4+ed*3,cy-2,pp,0,7); ctx.arc(cx+5+ed*3,cy-2,pp,0,7); ctx.fill();
-    if(e.type==="chaser"&&mad>0.15){ ctx.strokeStyle=`rgba(255,80,60,${mad})`; ctx.lineWidth=1.4;   // sobrancelhas de bravo
-      ctx.beginPath(); ctx.moveTo(cx-7,cy-6); ctx.lineTo(cx-1,cy-4); ctx.moveTo(cx+7,cy-6); ctx.lineTo(cx+1,cy-4); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(cx-4*s+ed*2*s,cy-2*s,2.6*s,0,7); ctx.arc(cx+5*s+ed*2*s,cy-2*s,2.6*s,0,7); ctx.fill();
+    ctx.fillStyle=mad>0.4?(boss?"#3a0020":"#5a0000"):"#3a0a0a"; const pp=(1.3+mad*0.5)*s;
+    ctx.beginPath(); ctx.arc(cx-4*s+ed*3*s,cy-2*s,pp,0,7); ctx.arc(cx+5*s+ed*3*s,cy-2*s,pp,0,7); ctx.fill();
+    if((e.type==="chaser"||boss)&&(mad>0.15||boss)){ ctx.strokeStyle=boss?`rgba(255,120,200,.9)`:`rgba(255,80,60,${mad})`; ctx.lineWidth=1.4*s;
+      ctx.beginPath(); ctx.moveTo(cx-7*s,cy-6*s); ctx.lineTo(cx-1*s,cy-4*s); ctx.moveTo(cx+7*s,cy-6*s); ctx.lineTo(cx+1*s,cy-4*s); ctx.stroke(); }
     if(e.type==="chaser"&&(e.alert||0)>0.05&&mad<0.3){ ctx.fillStyle=`rgba(255,220,120,${e.alert})`;  // "!" ao acordar
       ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText("!",cx,cy-r-6); } }
 
@@ -962,6 +1045,9 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get stars(){return stars?stars.length:0;}, get starsGot(){return stars?stars.filter(s=>s.got).length:0;},
   get enemies(){return enemies?enemies.length:0;}, get chasers(){return enemies?enemies.filter(e=>e.type==="chaser").length:0;},
   get fakes(){return fakes?fakes.length:0;}, get crumbles(){return crumbles?crumbles.length:0;},
+  get pickups(){return pickups?pickups.length:0;}, get boss(){return enemies?enemies.filter(e=>e.type==="boss").length:0;},
   gemPos(){ const gm=gems&&gems.find(g=>!g.got); return gm?{x:gm.x,y:gm.y,rev:gm.rev}:null; },
   gemRev(){ const gm=gems&&gems.find(g=>!g.got); return gm?gm.rev:-1; },
+  reset(){ resetLevel(); },
+  _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };

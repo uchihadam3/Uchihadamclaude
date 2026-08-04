@@ -46,6 +46,10 @@ body{
 .lv-name{ font-size:.6rem; color:var(--text-dim); padding:0 4px; line-height:1.1; }
 .lv-stars{ font-size:.72rem; letter-spacing:1px; height:1em; color:var(--gold); }
 .lv-lock{ font-size:1.4rem; }
+/* fase SECRETA: cartão-mistério roxo */
+.lv-card.lv-secret{ background:linear-gradient(180deg,#241542,#0e0820); border-color:#3d2a63; }
+.lv-card.lv-secret.unlocked{ border-color:#8a5fd0; box-shadow:0 0 18px rgba(160,110,240,.35); }
+.lv-card.lv-secret.unlocked .lv-num{ color:#c9a6ff; text-shadow:0 0 12px rgba(160,110,240,.7); }
 .menu-hint{ color:var(--text-dim); font-size:.82rem; margin-top:22px; }
 
 /* ---------------- HUD ---------------- */
