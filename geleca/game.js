@@ -130,7 +130,7 @@ const LEVELS = [
     "#            #     SSS   #",
     "#            #     SgS   #",
     "#            #     SSS   #",
-    "#            #           #",
+    "#   o        #           #",
     "#            #           #",
     "#            #           #",
     "#            #           #",
@@ -151,6 +151,7 @@ const LEVELS = [
     "# @            ^^^^^^^^^ #",
     "##########################",
     "##########################"],
+    movers:[{"x":15,"y":8,"w":3,"axis":"x","dist":4,"speed":0.45,"phase":0}],
     enemies:[{"x":3,"y":13,"dist":4,"speed":0.85,"axis":"x","type":"patrol"}]},
 
   { name:"5 · A Ponte", mass:5, max:5, theme:"grove",
@@ -431,26 +432,25 @@ const LEVELS = [
     enemies:[{"x":44,"y":17,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":78,"y":17,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":20,"y":17,"speed":1.1,"type":"chaser","range":8},{"x":64,"y":17,"speed":1.15,"type":"chaser","range":9}]},
 
   { name:"16 · A Gosma-Mãe", mass:12, max:12, theme:"void", secret:true,
-    hint:"A GOSMA-MÃE acordou. Ela te caça sem parar — CORRA pra direita e não pare. Chegue à saída!", rows:[
-    "############################################################################################",
-    "#                                                                                          #",
-    "#                                                                                          #",
-    "#                                                                                          #",
-    "#                                                                                          #",
-    "#                                                                                          #",
-    "#                                                                                          #",
-    "#                                                                                          #",
-    "#                                                                                          #",
-    "#                                                     o                                    #",
-    "#                                   CCCCCCCCC                                              #",
-    "#                                                                                          #",
-    "#                       o                                             o                    #",
-    "#       @                                         CCCCCCCCC                             E  #",
-    "################   #########T#    ############    ##########T#   #########T#   #############",
-    "################   ###########    ############    ############   ###########   #############",
-    "################^^^###########^^^^############^^^^############^^^###########^^^#############",
-    "################   ###########    ############    ############   ###########   #############"],
-    enemies:[{"x":2,"y":13,"speed":1.18,"type":"boss"}]},
+    hint:"A GOSMA-MÃE! NÃO encoste de lado (tira massa). PULE NA CABEÇA dela pra dar dano — 3 acertos e ela cai. Use as plataformas pra ganhar altura; ela fica mais brava a cada golpe.", rows:[
+    "##############################################",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                                            #",
+    "#                     o                      #",
+    "#                  #######                   #",
+    "#                                            #",
+    "#        #####                  #####        #",
+    "#                                            #",
+    "#                                            #",
+    "#     o                                o     #",
+    "#  @                                      E  #",
+    "##############################################",
+    "##############################################",
+    "##############################################"],
+    enemies:[{"x":22,"y":13,"speed":0.85,"type":"boss","hp":3}]},
 
 ];
 
@@ -591,14 +591,14 @@ function buildEntities(){
     enemies.push({ x0:ex, y0:ey, x:ex, y:ey, w:ew, h:eh,
       dist:(e.dist||0)*TILE, speed:e.speed, axis:e.axis||"x",
       type:e.type||"patrol", range:(e.range||7)*TILE, delay:e.delay!==undefined?e.delay:(boss?1.4:0),
-      mad:0, alert:0, dir:1 });
+      hp:boss?(e.hp||3):0, hitT:0, mad:0, alert:0, dir:1 });
   });
 }
 function resetLevel(){
   buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
   globs=[]; particles=[]; tramp=[]; winTimer=0; winThen=null;
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
-         mass:level.mass, flash:0, clingLock:0, meltAcc:0, melting:false, blink:0, rideMover:null };
+         mass:level.mass, flash:0, clingLock:0, meltAcc:0, climbAcc:0, hurtT:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
   camFollow(true);
   state="play"; hideOverlay(); renderHud();
@@ -679,10 +679,15 @@ function updateEnemies(dt){
         e.y=e.y0+Math.sin(levelTime*7)*3; e.mad=0; e.alert=Math.min(1,levelTime/e.delay); e.dir=1; continue;
       }
       if(boss && !e.woke){ e.woke=true; sfx("boss"); shake=Math.max(shake,7); }   // RUGIDO ao acordar
+      if(boss && e.hitT>0){                              // ATORDOADO após levar pulo na cabeça: recua e pisca
+        e.hitT-=dt; const away=Math.sign((e.x+e.w/2)-bx)||1; const nx=e.x+away*150*dt; if(!enemyBlocked(e,nx))e.x=nx;
+        e.y=e.y0+Math.sin(levelTime*22)*4; e.dir=away>0?1:-1; e.px=e.x; continue;
+      }
       const dx=bx-(e.x+e.w/2), d=Math.hypot(dx, by-(e.y+e.h/2));
       const range=boss?1e9:e.range;
+      const phase = boss ? (1+(3-(e.hp||3))*0.3) : 1;    // FASE: mais rápido a cada dano (HP 3→2→1)
       if(d<range){
-        const step=Math.sign(dx)*e.speed*(boss?128:98)*dt;   // perseguidor mais LENTO (era 135) — dá pra fugir; chefe suavizado (era 150)
+        const step=Math.sign(dx)*e.speed*(boss?120*phase:98)*dt;
         const nx=e.x+step; if(!enemyBlocked(e,nx)) e.x=nx;
         e.mad=Math.min(1,e.mad+dt*3); e.alert=1;
         if(boss && Math.random()<0.5) burst(e.x+e.w*(dx>0?0:1),e.y+e.h*0.6,1,"#c04a8a",40);   // rastro
@@ -692,7 +697,7 @@ function updateEnemies(dt){
         e.mad=Math.max(0,e.mad-dt*1.6); e.alert=Math.max(0,e.alert-dt);
       }
       e.y = e.y0 + Math.sin(levelTime*(4+e.mad*4))*(2+e.mad*2)*(boss?1.6:1);
-      if(boss) shake=Math.max(shake, Math.max(0, (1-d/360))*3);   // treme quando o chefe se aproxima
+      if(boss) shake=Math.max(shake, Math.max(0, (1-d/360))*3*phase);   // treme quando o chefe se aproxima
     }
     e.dir = e.x>e.px?1:(e.x<e.px?-1:(e.dir||1));
   }
@@ -724,7 +729,7 @@ function update(dt){
   T+=dt;
   if(state!=="play"){ jumpEdge=grabEdge=false; return; }
   levelTime+=dt;
-  if(blob.flash>0)blob.flash-=dt; if(blob.clingLock>0)blob.clingLock-=dt;
+  if(blob.flash>0)blob.flash-=dt; if(blob.clingLock>0)blob.clingLock-=dt; if(blob.hurtT>0)blob.hurtT-=dt;
   blob.blink-=dt; if(blob.blink<-0.15)blob.blink=1.6+Math.random()*2.5;
 
   if(transition>0) transition=Math.max(0,transition-dt*2.6);
@@ -803,8 +808,10 @@ function update(dt){
 
   camFollow(false);   // câmera segue o blob
 
-  // inimigos: contato = morte
-  for(const e of enemies){ const ix=e.w*0.16, iy=e.h*0.16;
+  // inimigos: contato = morte (exceto o CHEFE, que se combate PULANDO na cabeça)
+  for(const e of enemies){
+    if(e.type==="boss"){ handleBoss(e,dt); if(state!=="play")return; continue; }
+    const ix=e.w*0.16, iy=e.h*0.16;
     if(overlaps(blob,{x:e.x+ix,y:e.y+iy,w:e.w-ix*2,h:e.h-iy*2})){ die(); return; } }
   // paredes FANTASMA: parecem sólidas até você ENTRAR nelas — aí somem (revelam o esconderijo)
   for(const fk of fakes){ if(fk.rev<1 && overlaps(blob,fk)) fk.rev=Math.min(1,fk.rev+dt*5); }
@@ -911,6 +918,34 @@ function reabsorb(){ if(blob.mass>=level.max)return;
     if(overlaps(foot,g)){ const dx=(g.x+g.w/2)-(blob.x+blob.w/2),dy=g.y-(blob.y+blob.h),d=dx*dx+dy*dy; if(d<bd){bd=d;best=i;} } }
   if(best>=0){ const g=globs[best]; burst(g.x+g.w/2,g.y+g.h/2,9,"#a6f08a",120); sfx("absorb");
     globs.splice(best,1); blob.mass++; sizeBlob(); blob.flash=0.12; renderHud(); } }
+
+// LUTA DO CHEFE: pular na CABEÇA dá dano; encostar de lado tira massa (não mata na hora).
+function handleBoss(e,dt){
+  if(e.hp===undefined) e.hp=3;
+  if(e.hitT>0) return;                                  // i-frames do chefe (recuando)
+  const box={x:e.x+e.w*0.12,y:e.y+e.h*0.08,w:e.w*0.76,h:e.h*0.84};
+  if(!overlaps(blob,box)) return;
+  const feet=blob.y+blob.h, headLine=e.y+e.h*0.5;
+  if(blob.vy>40 && feet < headLine){                    // PULO NA CABEÇA = dano
+    e.hp--; e.hitT=1.0;
+    blob.vy=-BOUNCE*0.7; blob.onGround=false; blob.onGroundPrev=false;   // quica pra cima
+    burst(e.x+e.w/2, e.y, 20, "#ff8fae", 220); shake=9; sfx("bosshit");
+    if(e.hp<=0) bossDefeated(e);
+    return;
+  }
+  // senão: DANO no jogador — perde massa + empurrão + piscada de invencibilidade
+  if(blob.hurtT>0) return;
+  blob.hurtT=1.2; const kb=(blob.x+blob.w/2 < e.x+e.w/2)?-1:1;
+  blob.vx=kb*340; blob.vy=-280; blob.onGround=false; blob.onGroundPrev=false; blob.flash=0.5;
+  blob.mass=Math.max(0, blob.mass-2); sizeBlob(); renderHud();
+  burst(blob.x+blob.w/2,blob.y+blob.h/2,12,"#ff6a6a",190); shake=8; sfx("hurt");
+  if(blob.mass<1){ die(); }
+}
+function bossDefeated(e){
+  for(let i=0;i<48;i++) burst(e.x+e.w/2,e.y+e.h/2,1,CONFCOL[i%CONFCOL.length],260);
+  const idx=enemies.indexOf(e); if(idx>=0) enemies.splice(idx,1);
+  shake=14; sfx("win"); win();                          // dispara o final especial da fase secreta
+}
 
 function die(){ deaths++; burst(blob.x+blob.w/2,blob.y+blob.h/2,18,"#ff7a6a",210); sfx("die"); shake=8;
   state="dead";
@@ -1124,8 +1159,10 @@ function render(){
     }
     // ASSOMBRAÇÃO (perseguidor / chefe): fantasma escuro, translúcido, com UM olho que te segue.
     const boss=e.type==="boss";
-    const bodyDark = boss ? (mad>0.1?"#7a1e5e":"#4a1440") : (mad>0.1?"#8a1830":"#5a1428");
-    const bodyLite = boss ? (mad>0.1?"#c0246e":"#7a2860") : (mad>0.1?"#d0304a":"#8a2842");
+    const hitFlash = boss && e.hitT>0 && Math.floor(e.hitT*18)%2===0;   // pisca branco ao levar dano
+    let bodyDark = boss ? (mad>0.1?"#7a1e5e":"#4a1440") : (mad>0.1?"#8a1830":"#5a1428");
+    let bodyLite = boss ? (mad>0.1?"#c0246e":"#7a2860") : (mad>0.1?"#d0304a":"#8a2842");
+    if(hitFlash){ bodyDark="#ffd0e0"; bodyLite="#ffffff"; }
     ctx.save();
     ctx.shadowColor = mad>0.1? `rgba(255,60,90,${0.45+mad*0.4})` : "rgba(120,40,90,.45)";
     ctx.shadowBlur = (boss?18:11) + mad*12;
@@ -1194,6 +1231,15 @@ function render(){
   const vg=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.75);
   vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,.42)");
   ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  // BARRA DE VIDA DO CHEFE (topo da tela) — durante a luta
+  const bossE=enemies&&enemies.find(e=>e.type==="boss");
+  if(bossE){ const bw=W*0.6, bh=16*(W/640), bx=(W-bw)/2, byy=18*(W/640), maxHp=3;
+    ctx.fillStyle="rgba(0,0,0,.45)"; roundRect(bx-4,byy-4,bw+8,bh+8,8); ctx.fill();
+    for(let i=0;i<maxHp;i++){ const seg=bw/maxHp, sx=bx+i*seg;
+      ctx.fillStyle = i< (bossE.hp||0) ? (bossE.hitT>0?"#ffffff":"#ff4d7e") : "rgba(255,255,255,.12)";
+      roundRect(sx+3,byy,seg-6,bh,5); ctx.fill(); }
+    ctx.fillStyle="#ffd0e0"; ctx.font=`bold ${Math.round(12*(W/640))}px sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText("A GOSMA-MÃE", W/2, byy+bh/2); }
   // transição de entrada da fase (fade)
   if(transition>0){ ctx.fillStyle=`rgba(0,0,0,${transition})`; ctx.fillRect(0,0,W,H); }
 }
@@ -1403,7 +1449,9 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break;
     case"boss":[110,98,82].forEach((f,i)=>slideT(a,f,f*0.6,t+i*0.13,0.5,"sawtooth",0.05));break;   // rugido grave
     case"swap":[660,990,1320].forEach((f,i)=>beep(a,f,t+i*0.04,0.08,"sine",0.05));break;              // troca de corpo (whoosh)
-    case"land":slideT(a,200,90,t,0.09,"sine",0.045);break; } }                                        // baque ao pousar
+    case"land":slideT(a,200,90,t,0.09,"sine",0.045);break;                                            // baque ao pousar
+    case"bosshit":[200,300,140].forEach((f,i)=>slideT(a,f*2,f,t+i*0.05,0.14,"square",0.06));break;     // acerto no chefe
+    case"hurt":slideT(a,320,120,t,0.18,"sawtooth",0.05);break; } }                                     // levou dano
 
 // ---------------------------------------------------------------- MÚSICA AMBIENTE (por mundo, sem arquivos)
 let musicOn = true; try{ musicOn = localStorage.getItem("geleca_music")!=="0"; }catch(e){}
@@ -1552,6 +1600,8 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get canvasH(){ return canvas.height; },
   _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
   gotoExit(){ if(blob&&exitRect){ blob.x=exitRect.x; blob.y=exitRect.y; blob.vy=0; } },
+  bossHp(){ const e=enemies&&enemies.find(x=>x.type==="boss"); return e?e.hp:-1; },
+  _stompBoss(){ const e=enemies&&enemies.find(x=>x.type==="boss"); if(e&&blob){ blob.x=e.x+e.w/2-blob.w/2; blob.y=e.y-blob.h+3; blob.vy=260; blob.hurtT=0; e.hitT=0; } },
   get parts(){ return particles?particles.length:0; },
   _setCoins(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.coins[i]=1; persist(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
