@@ -84,6 +84,7 @@ import {
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
 import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato } from "./net";
+import { party, type Membro, type Convite } from "./party";
 import {
   PLAINS_COLS, PLAINS_ROWS, plainsCell, plainsWalkable, plainsFind, plainsAll,
 } from "./plains";
@@ -1337,6 +1338,7 @@ export class Game {
   // Cada amigo vira um billboard + plaquinha de nome que desliza suavemente até a
   // célula publicada por ele (a rede manda célula, não posição contínua).
   private peers = new Map<string, PeerRig>();
+  private grupo: Membro[] = [];      // roster do grupo (inclui você), p/ o HUD
   private peerZone = ""; // zona em que estamos publicando (vila / dungeon:N / …)
   // ---- CO-OP · FASE 2: combate compartilhado ----
   // Um jogador da zona é o HOSPEDEIRO (o de menor id entre os presentes — eleição
@@ -1413,7 +1415,8 @@ export class Game {
   // valem para o 1º andar do ato, jogando sozinho.
   private enemyScale(): { hp: number; atk: number } {
     const depth = this.location === "dungeon" ? this.dungeonFloor % 3 : 0;
-    const n = Math.max(1, this.partySize);
+    // o grupo de verdade manda: com 4 na sala o bicho tem de aguentar mais
+    const n = Math.max(1, party.emGrupo() ? party.tamanho() : this.partySize);
     return {
       hp: (1 + 0.20 * depth) * (1 + 0.60 * (n - 1)),
       atk: (1 + 0.10 * depth) * (1 + 0.10 * (n - 1)),
@@ -1705,7 +1708,38 @@ export class Game {
     // golpes dos amigos (recebo se sou).
     net.onMobs((r) => this.aplicarRetratoMobs(r));
     net.onGolpe((eid, dano) => this.receberGolpe(eid, dano));
-    this.ui.setChat((t) => void net.chat(t));
+    // ---- GRUPO ----
+    net.onConvite((c) => this.receberConvite(c));
+    party.onMembros((m) => { this.grupo = m; this.ui.setParty(m); });
+    party.onAviso((txt) => this.ui.toast(txt));
+    // ABATE DE UM COMPANHEIRO conta p/ a minha missão também: é o que faz caçar
+    // junto valer a pena em vez de atrapalhar.
+    party.onAbate((typeId) => this.creditarAbateDoGrupo(typeId));
+    // publica o meu estado p/ o grupo (vida e zona) — é o que alimenta o HUD deles
+    window.setInterval(() => {
+      if (!party.emGrupo()) return;
+      party.meuEstado({
+        hp: Math.round(this.playerHp), maxHp: Math.round(this.playerMaxHp),
+        level: this.stats.level, zone: this.netZoneKey(),
+      });
+    }, 700);
+    // O bate-papo também é o lugar do GRUPO: "/convidar <nome>" chama quem está
+    // por perto e "/sair" deixa o grupo. Comando de texto porque é o gesto que já
+    // existe — não exige um menu novo e funciona igual no celular.
+    this.ui.setChat((t) => {
+      const cmd = t.trim().toLowerCase();
+      if (cmd === "/sair" || cmd === "/grupo sair") { this.sairDoGrupo(); return; }
+      if (cmd.startsWith("/convidar")) {
+        const alvo = t.trim().slice(9).trim().toLowerCase();
+        if (!alvo) { this.ui.toast("Use: /convidar <nome de quem está por perto>"); return; }
+        const achado = [...this.peers.entries()]
+          .find(([, r]) => r.name.toLowerCase().startsWith(alvo));
+        if (!achado) { this.ui.toast(`Ninguém por perto chamado "${alvo}".`); return; }
+        this.convidarParaGrupo(achado[0]);
+        return;
+      }
+      void net.chat(t);
+    });
     // indicador AO VIVO de quem está por perto. Jogando sozinho ele some; os
     // contadores de rede ficam só no __coop(), p/ não poluir a tela do jogador.
     window.setInterval(() => {
@@ -2055,6 +2089,52 @@ export class Game {
       const d = Math.abs(rig.c - e.c) + Math.abs(rig.r - e.r);
       if (d < melhor) { melhor = d; this.mobAlvoC = rig.c; this.mobAlvoR = rig.r; }
     }
+  }
+
+  // ==================== GRUPO (party) ====================
+  /** Como eu me apresento ao grupo. */
+  private euNoGrupo() {
+    return {
+      id: this.netId(), name: this.playerName || "Viajante", classId: this.classId,
+      level: this.stats.level, hp: Math.round(this.playerHp),
+      maxHp: Math.round(this.playerMaxHp), zone: this.netZoneKey(),
+    };
+  }
+  /** Convida quem está por perto (o alvo é escolhido na lista de vizinhos). */
+  public convidarParaGrupo(peerId: string): void {
+    const rig = this.peers.get(peerId);
+    void party.convidar(net.canalDaZona(), peerId, this.euNoGrupo());
+    this.ui.toast(`Convite enviado${rig ? ` para ${rig.name.split(/[ ,]/)[0]}` : ""}.`);
+  }
+  /** Chegou um convite: pergunta antes de entrar (ninguém entra em grupo à força). */
+  private receberConvite(c: Convite): void {
+    if (party.emGrupo()) return; // já estou num grupo — ignora em silêncio
+    this.openDialogue(c.de, [
+      `${c.de} convidou você para um grupo.`,
+      "Juntos vocês veem a vida um do outro, e o que um abate conta para a missão do outro.",
+    ], null, {
+      choices: [
+        { id: "sim", label: "Entrar no grupo", primary: true, kind: "quest" },
+        { id: "nao", label: "Recusar", kind: "exit" },
+      ],
+      onChoice: (id) => {
+        this.closeDialogue();
+        if (id !== "sim") return;
+        void party.aceitar(c, this.euNoGrupo());
+        this.ui.toast(`Você entrou no grupo de ${c.de}.`);
+      },
+    });
+  }
+  /** Sai do grupo. */
+  public sairDoGrupo(): void {
+    void party.sair();
+    this.ui.toast("Você saiu do grupo.");
+  }
+  /** Abate de um companheiro: conta nas MINHAS missões de caça. */
+  private creditarAbateDoGrupo(typeId: string): void {
+    const falso = { typeId } as unknown as EnemyEnt;
+    this.questOnKill(falso);
+    this.mainQuestOnKill();
   }
 
   // recebe a lista de quem está na zona e cria/atualiza/remove os avatares
@@ -4343,6 +4423,7 @@ export class Game {
     this.gainXp(this.scaledXp(e.xp, e.lvl));
     this.questOnKill(e); // progresso das missões/bounties de abate
     this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
+    void party.abateu(e.typeId); // e o abate conta p/ o grupo inteiro
     if (e.tier === "boss") this.onBossDefeated(); // destrava portal / próximo ato
   }
 

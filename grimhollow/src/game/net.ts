@@ -113,6 +113,7 @@ class NetSession {
   private chatCb: ChatCb | null = null;
   private mobsCb: MobsCb | null = null;
   private golpeCb: GolpeCb | null = null;
+  private conviteCb: ((p: { party: string; de: string; deId: string; para: string }) => void) | null = null;
   private lastPublish = 0;
   private pending: ReturnType<typeof setTimeout> | null = null;
   private enabled = false;
@@ -136,6 +137,14 @@ class NetSession {
   onMobs(cb: MobsCb | null): void { this.mobsCb = cb; }
   /** FASE 2 · o hospedeiro recebe aqui os golpes dos outros jogadores. */
   onGolpe(cb: GolpeCb | null): void { this.golpeCb = cb; }
+  /** GRUPO · convite recebido de alguém da mesma zona (só o destinatário reage). */
+  onConvite(cb: ((p: { party: string; de: string; deId: string; para: string }) => void) | null): void {
+    this.conviteCb = cb;
+  }
+  /** O canal da zona, p/ o módulo do grupo mandar o convite por ele. */
+  canalDaZona(): { send(m: { type: string; event: string; payload: unknown }): Promise<unknown> } | null {
+    return this.channel;
+  }
 
   /** (hospedeiro) publica o retrato dos inimigos da zona. */
   async mobs(r: MobRetrato): Promise<void> {
@@ -223,6 +232,14 @@ class NetSession {
       diag.recebidas++;
       const p = (msg as { payload?: { eid?: string; dano?: number; autor?: string } })?.payload;
       if (p?.eid && p.dano) this.golpeCb?.(p.eid, p.dano, p.autor ?? "");
+    });
+
+    // ---- GRUPO: convite viajando pelo canal da zona (é preciso estar perto) ----
+    ch.on("broadcast", { event: "convite" }, (msg: unknown) => {
+      diag.recebidas++;
+      const p = (msg as { payload?: { party?: string; de?: string; deId?: string; para?: string } })?.payload;
+      if (!p?.party || p.para !== this.self?.id) return; // convite é nominal
+      this.conviteCb?.({ party: p.party, de: p.de ?? "Alguém", deId: p.deId ?? "", para: p.para ?? "" });
     });
 
     // ---- PRESENCE fica como reforço: serve p/ sumir na hora quem fecha a aba ----

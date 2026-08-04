@@ -261,6 +261,8 @@ export interface HUD {
   setChat(onSend: (text: string) => void): void;
   chatMessage(name: string, text: string, mine: boolean): void;
   coopStatus(txt: string): void;
+  /** GRUPO: lista de membros com vida (vazia = sem grupo, painel some). */
+  setParty(m: { id: string; name: string; classId: string; level: number; hp: number; maxHp: number; zone: string; lider: boolean }[]): void;
   // LISTA de itens na MESMA célula (estilo saque de baú): o jogador escolhe o que
   // pegar, um a um, ou pega tudo. Fecha sozinha quando a lista esvazia.
   showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void): void;
@@ -1258,6 +1260,26 @@ export function setupControls(
   const chatInp = chat.querySelector("#gh-chat-inp") as HTMLInputElement;
   const chatBar = chat.querySelector("#gh-chat-bar") as HTMLElement;
   const chatStatus = chat.querySelector("#gh-chat-status") as HTMLElement;
+
+  // ---- PAINEL DO GRUPO (party) — canto esquerdo, sob a barra de vida ----
+  // Só aparece quando há grupo: quem joga sozinho não perde um pixel de tela.
+  const partyBox = document.createElement("div");
+  partyBox.id = "gh-party";
+  partyBox.style.display = "none";
+  root.appendChild(partyBox);
+  const partyCss = document.createElement("style");
+  partyCss.textContent = `
+    #gh-party{position:absolute;left:14px;top:132px;z-index:26;display:flex;
+      flex-direction:column;gap:5px;pointer-events:none;font-family:"Cinzel",serif;}
+    .gh-pt-row{width:184px;background:rgba(14,12,10,.62);border:1px solid #6b5836;
+      border-radius:4px;padding:4px 7px 5px;box-shadow:0 2px 6px rgba(0,0,0,.5);}
+    .gh-pt-nome{display:flex;justify-content:space-between;align-items:baseline;
+      color:#e8d9b5;font-size:12px;letter-spacing:.02em;margin-bottom:3px;}
+    .gh-pt-nome span{color:#a3906b;font-size:10px;}
+    .gh-pt-bar{height:7px;background:#231d16;border:1px solid #4a3d28;border-radius:3px;overflow:hidden;}
+    .gh-pt-bar i{display:block;height:100%;transition:width .25s ease-out;}
+  `;
+  root.appendChild(partyCss);
   let chatSend: ((t: string) => void) | null = null;
   const chatOpen = (on: boolean) => {
     chatBar.classList.toggle("gh-chat-on", on);
@@ -2761,6 +2783,22 @@ export function setupControls(
     setChat(onSend: (text: string) => void) { chatSend = onSend; },
     chatMessage(name: string, text: string, mine: boolean) { pushChat(name, text, mine); },
     coopStatus(txt: string) { chatStatus.textContent = txt; },
+    setParty(m) {
+      // painel do GRUPO, estilo MMO: retrato-menor, nome, nível e barra de vida.
+      // Some sozinho quando não há grupo — jogando só, nada muda na tela.
+      if (!m.length) { partyBox.style.display = "none"; partyBox.innerHTML = ""; return; }
+      partyBox.style.display = "flex";
+      partyBox.innerHTML = m
+        .map((x) => {
+          const frac = Math.max(0, Math.min(1, x.maxHp ? x.hp / x.maxHp : 0));
+          const cor = frac > 0.55 ? "#8fbf6a" : frac > 0.25 ? "#d6b45a" : "#c4553f";
+          return `<div class="gh-pt-row">
+            <div class="gh-pt-nome">${x.lider ? "★ " : ""}${x.name.split(/[ ,]/)[0]}<span>nv${x.level}</span></div>
+            <div class="gh-pt-bar"><i style="width:${(frac * 100).toFixed(0)}%;background:${cor}"></i></div>
+          </div>`;
+        })
+        .join("");
+    },
     showPickupList(entries: PickupEntry[], onTake: (uid: string) => void, onTakeAll: () => void) {
       showPickupList(entries, onTake, onTakeAll);
     },
