@@ -48,6 +48,7 @@ const raycaster=new THREE.Raycaster(), mouse=new THREE.Vector2();
 /* ---------- estado ---------- */
 let C=null, P=null, cb=null, malhas=[], trilhas=[], anima=false;
 let sel=new Set(), alvo=0, andar=1, masmorra=1;
+let faixa={top:0,h:0};                 // banda livre onde a mesa 3D cabe
 const LBL=document.createElement('div'); LBL.id='lbls'; document.body.appendChild(LBL);
 const badges=new Map();
 function badgeDe(id){ let b=badges.get(id);
@@ -64,7 +65,8 @@ function atualizarBadges(){
     const q=[m.quaternion.x,m.quaternion.y,m.quaternion.z,m.quaternion.w];
     const o=pontoDeCima(tp, q, raioDe(tp));
     v.set(m.position.x+o[0], m.position.y+o[1]+0.15, m.position.z+o[2]); v.project(camera);
-    const x=(v.x*0.5+0.5)*innerWidth, y=(-v.y*0.5+0.5)*innerHeight;
+    const cw=renderer.domElement.clientWidth, ch=renderer.domElement.clientHeight;
+    const x=(v.x*0.5+0.5)*cw, y=faixa.top+(-v.y*0.5+0.5)*ch;
     const f=e.face, txt = f.k==='num'? f.v : (FACE_KINDS[f.k]?.glifo||'?');
     b.textContent=txt;
     b.className='lbl'+(cb.used.has(id)?' usado':'')+(sel.has(id)?' sel':'')
@@ -742,12 +744,28 @@ function fim(){
   });
 }
 /* ---------- loop ---------- */
-function resize(){ const w=innerWidth,h=innerHeight;
-  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();
+/* A MESA CABE NA FAIXA LIVRE. Antes o canvas ocupava a tela inteira por baixo
+   de tudo, então a fileira de inimigos e as habilidades ficavam por cima do
+   feltro. Agora ele começa embaixo da fileira e termina em cima do rodapé. */
+function resize(){
+  const topo  = $('ini')?.offsetHeight || 0;
+  const baixo = $('baixo')?.offsetHeight || 0;
+  const w = innerWidth;
+  const h = Math.max(170, innerHeight - topo - baixo);
+  faixa = { top:topo, h };
+  const el = renderer.domElement;
+  el.style.top = topo+'px'; el.style.left='0'; el.style.width = w+'px'; el.style.height = h+'px';
+  renderer.setSize(w, h, false);
+  camera.aspect = w/h; camera.updateProjectionMatrix();
   const need=Math.max(MESA.x/Math.max(camera.aspect,0.4), MESA.z*1.15)*1.12;
   const d=need/Math.tan((camera.fov*Math.PI/180)/2);
   camera.position.set(0,d*0.92,d*0.44); camera.lookAt(0,0.1,0); }
 addEventListener('resize',resize); resize();
+/* a fileira cresce/encolhe conforme os inimigos; o rodapé conforme as cartas */
+if(window.ResizeObserver){
+  const ro=new ResizeObserver(()=>resize());
+  ro.observe($('ini')); ro.observe($('baixo'));
+}
 (function loop(){
   if(shakeT>0.2){ shakeT*=0.86;
     const a=shakeT*0.006;

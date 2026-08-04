@@ -256,6 +256,18 @@ Duas armadilhas que o script resolve:
 `js/sprites.js` usa o PNG quando o id está na lista ARTE e cai no desenho em
 canvas para o resto, então masmorra sem arte ainda funciona.
 
+## 3.9 A mesa cabe na faixa livre
+O canvas 3D ocupava a tela inteira POR BAIXO de tudo, então a fileira de
+inimigos e a barra de habilidades ficavam sobre o feltro. Agora `resize()` mede
+`#ini` e `#baixo` e posiciona/dimensiona o canvas só na banda entre os dois; um
+`ResizeObserver` refaz a conta quando a fileira cresce (mais inimigos) ou o
+rodapé muda (cartas com selo). A projeção das etiquetas dos dados passou a usar
+o retângulo do canvas em vez da janela.
+
+Medido a 412×900 com 3 e com 6 inimigos: fileira 0–224, mesa 224–623, rodapé
+623–900. `sobrepoeTopo:false`, `sobrepoeBaixo:false`, nenhuma etiqueta fora da
+mesa.
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.
