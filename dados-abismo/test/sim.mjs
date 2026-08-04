@@ -26,7 +26,8 @@ export function runOnce(classeId, seed, maxMasmorra=1, BON=bonusDoCofre(0)){
   for(let i=0;i<BON.dadosExtra;i++) bag.push({ ...bag[0], id:'X'+i, faces:bag[0].faces.map(f=>({...f})) });
   const p = { classe:classeId, hp:C.hp+BON.hpBonus, maxHp:C.hp+BON.hpBonus, baseMaxHp:C.hp+BON.hpBonus,
               block:0, bag, statuses:{}, essence:0, rerollsBase:C.rerolls+BON.rerolls,
-              relics:[], unlocked:BON.quarta?['coroa_'+classeId]:[] };
+              relics:[], unlocked:BON.quarta?['coroa_'+classeId]:[],
+              polegar:BON.polegar, gazua:BON.gazua };
   const grav=(k,q)=>{ for(let i=0;i<q;i++){ const d=p.bag[i%p.bag.length];
     const j=d.faces.findIndex(f=>f.k==='num'); if(j>=0) d.faces[j]={k, v:d.faces[j].v}; } };
   grav('blade',BON.lamina); grav('wild',BON.curinga); grav('echo',BON.eco);

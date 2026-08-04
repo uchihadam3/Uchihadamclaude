@@ -36,9 +36,12 @@ export const NOS = [
   {id:'oferta',     ramo:'veu', nome:'Oferta Ampla',  max:2, custo:[9,20],
    txt:n=>`${3+n} opções de recompensa por andar`, ef:(r,n)=>{ r.opcoes+=n; }},
   {id:'lapidar',    ramo:'veu', nome:'Lapidar',       max:3, custo:[8,17,30],
-   txt:n=>`Começa com ${n} face${n>1?'s':''} ⚔ Lâmina gravada`, ef:(r,n)=>{ r.lamina+=n; }},
+   txt:n=>`Começa com ${n} face${n>1?'s':''} ⚔ Lâmina (abre o Selo ⚔ dos inimigos)`, ef:(r,n)=>{ r.lamina+=n; }},
   {id:'curinga',    ramo:'veu', nome:'Fio Solto',     max:2, custo:[16,38], req:['lapidar'],
-   txt:n=>`Começa com ${n} face${n>1?'s':''} ◈ Curinga`, ef:(r,n)=>{ r.curinga+=n; }},
+   txt:n=>`Começa com ${n} ◈ Curinga (assume o valor que a fechadura pedir)`, ef:(r,n)=>{ r.curinga+=n; }},
+  {id:'polegar',    ramo:'veu', nome:'Polegar Torto', max:2, custo:[11,26],
+   txt:n=>`${n}×/turno: empurra um dado em ±1 (abre fechadura de soma/paridade)`,
+   ef:(r,n)=>{ r.polegar+=n; }},
   {id:'relicario',  ramo:'veu', nome:'Relicário',     max:3, custo:[7,16,29],
    txt:n=>`Começa a run com ${n} relíquia${n>1?'s':''} comum`, ef:(r,n)=>{ r.reliquias+=n; }},
   {id:'ecoante',    ramo:'veu', nome:'Ecoante',       max:2, custo:[18,40], req:['forja'],
@@ -54,6 +57,8 @@ export const NOS = [
    txt:n=>`Vê a intenção de ${n} turno${n>1?'s':''} à frente`, ef:(r,n)=>{ r.presagio+=n; }},
   {id:'ganancia',   ramo:'coroa', nome:'Ganância',     max:3, custo:[6,14,25],
    txt:n=>`+${n*25}% de Ecos ganhos`, ef:(r,n)=>{ r.ecoMult+=n*0.25; }},
+  {id:'gazua',      ramo:'coroa', nome:'Gazua',        max:2, custo:[15,32],
+   txt:n=>`${n}×/combate: ARROMBA a fechadura de um inimigo`, ef:(r,n)=>{ r.gazua+=n; }},
   {id:'ultimo',     ramo:'coroa', nome:'Último Lance', max:1, custo:[40], req:['presagio','sorte'],
    txt:()=>`1×/combate: re-rola TODOS os dados de graça`, ef:(r)=>{ r.ultimoLance=true; }},
 ];
@@ -75,7 +80,8 @@ export function comprar(m,no){
 export function bonus(m){
   const r={ hpBonus:0, dmgFlat:0, blockStart:0, dadosExtra:0, rerolls:0, revive:0,
             gravExtra:0, opcoes:0, lamina:0, curinga:0, reliquias:0, eco:0,
-            quarta:false, portal:1, pity:0, presagio:0, ecoMult:1, ultimoLance:false };
+            quarta:false, portal:1, pity:0, presagio:0, ecoMult:1, ultimoLance:false,
+            polegar:0, gazua:0 };
   for(const no of NOS){ const n=nivelDe(m,no.id); if(n>0) no.ef(r,n); }
   return r;
 }

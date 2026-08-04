@@ -5,6 +5,7 @@
 import { satisfies, resolvedValues, findSubset, entryValue } from './requirements.js';
 import { face } from '../data/faces.js';
 import { RESPIRAR } from '../data/classes.js';
+import { travaAberta, travaReflete } from '../data/travas.js';
 
 /* ---------- expressões dos efeitos (DSL de dados, §0.2) ---------- */
 const EXPR_CACHE = new Map();
@@ -47,6 +48,8 @@ export class Combat {
     this.over = null;                      // 'win' | 'lose'
     this.lastEnemyAttack = 0;
     this.trapacaUsada = false;
+    this._gazua = this.p.gazua||0;      // ferramentas de fechadura vindas do Cofre
+    this._polegar = 0;
     this.p.block = 0;
     this.p.statuses = this.p.statuses || {};
     this.p.essence = this.p.essence || 0;
@@ -65,7 +68,10 @@ export class Combat {
     this.used.clear();
     this.p.block = 0;
     this.trapacaUsada = false;
+    this._guardou = false; this._travou = false;
     this.rerolls = Math.max(0, this.p.rerollsBase + (this.M.rerollBonus||0));
+    for(const en of this.enemies) en._arrombada = false;   // arrombamento dura 1 turno
+    this._polegar = this.p.polegar||0;                     // Polegar Torto recarrega
     // queimadura dispara ao rolar
     const q = this.p.statuses.queimadura|0;
     if(q){ this.dmgPlayer(q, 'queimadura'); }
@@ -127,6 +133,24 @@ export class Combat {
     e.face = {...e.face, v: e.face.v+1};
     return true;
   }
+  /* Canalização do Arcanista: guarda um dado no Círculo AGORA (volta no próximo turno) */
+  guardar(dieId){
+    if(this._guardou) return false;
+    const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
+    if(!e) return false;
+    this.circle.push({...e}); this.used.add(dieId); this._guardou=true;
+    this.L(`Círculo: guardou ${entryValue(e)??e.face.k}`);
+    return true;
+  }
+  /* Prever da OráculA: este dado mantém ESTA face no próximo turno */
+  travar(dieId){
+    if(this._travou) return false;
+    const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
+    if(!e || !e.die) return false;
+    e.die._travadoProx = true; e.die._guardaFace = {...e.face}; this._travou=true;
+    this.L(`Fio: dado travado em ${entryValue(e)??e.face.k} para o próximo turno`);
+    return true;
+  }
   /* Trapaça da Lâmina: face oposta, 1x/turno */
   trapaca(dieId){
     if(this.trapacaUsada) return false;
@@ -138,6 +162,55 @@ export class Combat {
   }
 
   pool(){ return this.roll.filter(e=>!this.used.has(e.dieId)); }
+
+  /* ---- FERRAMENTAS DE FECHADURA (O Cofre §4.3) ----
+     Não são "+dano": são verbos que mudam o quebra-cabeça. */
+  polegar(dieId, delta){                 // empurra um dado em ±1
+    if(this._polegar<=0) return false;
+    const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
+    if(!e || entryValue(e)===null) return false;
+    const v = entryValue(e) + delta;
+    if(v<1 || v>e.n) return false;
+    e.face = {...e.face, v}; this._polegar--;
+    this.L(`polegar: dado ${v-delta} → ${v}`);
+    return true;
+  }
+  gazua(idx){                            // arromba a fechadura de um inimigo
+    if(this._gazua<=0) return false;
+    const en = this.aliveEnemies()[Math.min(idx, this.aliveEnemies().length-1)];
+    if(!en || !this.travaDe(en) || en._arrombada) return false;
+    en._arrombada = true; this._gazua--;
+    this.L(`🗝 Gazua: ${en.nome} ARROMBADO`);
+    return true;
+  }
+
+  /* ---------- A ALOCAÇÃO (o que as FECHADURAS leem) ----------
+     Um golpe não é só "quanto". É COM QUE dados. Soma, maior dado, quantos e
+     quais símbolos — é sobre isso que cada inimigo impõe a sua regra. */
+  alocar(ents, vals){
+    const v = vals.filter(x=>x!==null && x!==undefined);
+    this._aloc = {
+      sum: v.reduce((a,b)=>a+b,0),
+      max: v.length?Math.max(...v):0, min: v.length?Math.min(...v):0,
+      count: ents.length, vals: v.slice(),
+      simbolos: ents.map(e=>e.face.k).filter(k=>k!=='num'),
+    };
+    return this._aloc;
+  }
+  get aloc(){ return this._aloc || { sum:0,max:0,min:0,count:0,vals:[],simbolos:[] }; }
+  /* a fechadura deste inimigo está aberta pela alocação atual? */
+  abre(en, aloc=this.aloc){
+    const t = this.travaDe(en);
+    if(!t) return true;
+    if(en._arrombada) return true;                  // Arrombar (Carrasco)
+    if(en.travaOff>0) return true;                  // Nova Gélida dissolveu
+    return travaAberta(t, aloc, this, en);
+  }
+  travaDe(en){
+    if(en.travaCiclo && en.travaCiclo.length)       // chefe: a regra gira a cada turno
+      return en.travaCiclo[(this.turn-1+ (en._giro||0)) % en.travaCiclo.length];
+    return en.trava || null;
+  }
 
   /* ---------- ALOCAR uma habilidade (§5.2.3) ---------- */
   canUse(skill, dieIds){
@@ -156,6 +229,7 @@ export class Combat {
       blades: ents.filter(e=>e.face.k==='blade').length,
       ess: this.p.essence, hp: this.p.hp,
     };
+    this.alocar(ents, vals);              // é isto que as fechaduras leem
     // Eco (⟳): duplica o efeito do próximo (aqui: deste) uso
     const echoes = ents.filter(e=>e.face.k==='echo').length;
     for(const id of dieIds) this.used.add(id);
@@ -253,8 +327,55 @@ export class Combat {
         case 'copyLast': this.dealDamage(e.tgt||'chosen', Math.round(this.lastEnemyAttack*1.2), targetIdx, false); break;
         case 'stealDie': { const en=this.aliveEnemies()[0]; if(en&&en.dice){ en.dice=Math.max(0,en.dice-1); } break; }
         case 'freeze': this.forTargets(e.tgt, targetIdx, en=>{ en.statuses.congelado=(en.statuses.congelado||0)+evalExpr(e.n,ctx); }); break;
+
+        /* ===== VERBOS DE QUEBRA-CABEÇA (§6) — cada classe abre a fechadura
+           de um jeito diferente. É isto que faz a escolha de classe importar. */
+        case 'arrombar':                         // CARRASCO: força bruta, só neste turno
+          this.forTargets(e.tgt, targetIdx, en=>{ en._arrombada=true;
+            this.L(`  ⚒ ${en.nome}: fechadura ARROMBADA`); }); break;
+        case 'dissolver':                        // ARCANISTA: apaga a regra por N turnos
+          this.forTargets(e.tgt, targetIdx, en=>{ en.travaOff=(en.travaOff||0)+evalExpr(e.n,ctx);
+            this.L(`  ✦ ${en.nome}: fechadura DISSOLVIDA`); }); break;
+        case 'ajustar': {                        // ORÁCULA: empurra dados na mão ±passo
+          const passo=evalExpr(e.passo,ctx)||1, quantos=evalExpr(e.n,ctx)||1;
+          const alvoEn=this.aliveEnemies()[Math.min(targetIdx,this.aliveEnemies().length-1)];
+          let feitos=0;
+          for(const p of this.pool()){
+            if(feitos>=quantos) break;
+            const v=entryValue(p); if(v===null) continue;
+            const novo=this.melhorAjuste(p, v, passo, alvoEn);
+            if(novo!==v){ p.face={...p.face, v:novo}; feitos++;
+              this.L(`  ◈ dado ${v} → ${novo}`); }
+          }
+          break; }
+        case 'definir': {                        // ORÁCULA (4ª): crava o valor que abre
+          const quantos=evalExpr(e.n,ctx)||1;
+          const alvoEn=this.aliveEnemies()[Math.min(targetIdx,this.aliveEnemies().length-1)];
+          let feitos=0;
+          for(const p of this.pool()){
+            if(feitos>=quantos) break;
+            const v=entryValue(p); if(v===null) continue;
+            const novo=this.melhorAjuste(p, v, p.n, alvoEn);   // alcance total do dado
+            p.face={...p.face, v:novo}; feitos++;
+            this.L(`  ◈ dado cravado em ${novo}`);
+          }
+          break; }
+        case 'marcar': this.forTargets(e.tgt, targetIdx, en=>{ en.statuses.marca=1; }); break;
       }
     }
+  }
+  /* pra onde empurrar um dado: o valor, dentro do alcance, que mais ajuda a
+     abrir a fechadura do alvo (e, sem fechadura, o maior possível). */
+  melhorAjuste(entry, v, passo, en){
+    const lo=Math.max(1, v-passo), hi=Math.min(entry.n, v+passo);
+    const t = en && this.travaDe(en);
+    if(!t || en._arrombada || en.travaOff>0) return hi;
+    const testa = x => travaAberta(t, { sum:x, max:x, min:x, count:1, vals:[x],
+                                        simbolos:[] }, this, en);
+    for(let d=0; d<=passo; d++){                 // o mais perto primeiro
+      for(const x of [v+d, v-d]){ if(x<lo||x>hi) continue; if(testa(x)) return x; }
+    }
+    return hi;
   }
   aliveEnemies(){ return this.enemies.filter(e=>e.hp>0); }
   forTargets(tgt, idx, fn){
@@ -272,6 +393,19 @@ export class Combat {
       const vivo = en.hp>0;
       let d = Math.round((amt + (M.dmgFlat||0)*flatK) * frenesi * (M.dmgMult||1));
       if(en.statuses.marca){ d = Math.round(d*1.5); en.statuses.marca=0; }
+      // ===== FECHADURA (§6): o golpe errado simplesmente não fere =====
+      if(!pierce){
+        const t = this.travaDe(en);
+        if(t && !this.abre(en)){
+          this.L(`  ✖ ${en.nome}: TRAVADO (${t.t}${t.v!==undefined?' '+t.v:''})`);
+          return;
+        }
+        if(t && travaReflete(t) && d>0){
+          const volta = Math.max(1, Math.round(d*(t.v||30)/100));
+          this.L(`  ⇄ ${en.nome} devolve ${volta}`);
+          this.dmgPlayer(volta, 'espelho');
+        }
+      }
       if(!pierce){
         const arm = Math.max(0, (en.statuses.armadura||0) + (en.armadura||0) - (M.pierce||0));
         d = Math.max(1, d - arm);
@@ -321,7 +455,9 @@ export class Combat {
     // status de fim de turno
     this.tickStatuses();
     // dados travados liberam
-    for(const d of this.p.bag){ if(d._travadoProx){ d._congelado=true; d._congeladoFace=face('void',0); d._travadoProx=false; }
+    for(const d of this.p.bag){ if(d._travadoProx){ d._congelado=true;
+                                  d._congeladoFace = d._guardaFace || face('void',0);
+                                  d._travadoProx=false; d._guardaFace=null; }
                                 else if(d._congelado){ d._congelado=false; } }
     this.checkEnd();
     if(!this.over) this.startTurn();
@@ -353,6 +489,35 @@ export class Combat {
             if(d){ d.faces[this.rng.int(d.faces.length)]=face('void',0); reg.dado=d.id;
                    this.L(`${en.nome} amaldiçoou um dado!`);} break; }
           case 'summon': break;   // resolvido pelo encontro
+
+          /* ===== ELES MEXEM NOS SEUS DADOS — é aqui que o puzzle aperta ===== */
+          case 'congelar': {      // trava um dado na face em que caiu
+            const alv=this.pool()[0] || this.roll[0];
+            if(alv?.die){ alv.die._congelado=true; alv.die._congeladoFace={...alv.face};
+              reg.dado=alv.dieId; this.L(`${en.nome} CONGELOU um dado em ${alv.face.v??'?'}`); }
+            break; }
+          case 'roubar': {        // tira um dado do seu turno
+            const alv=this.pool().slice().sort((a,b)=>(entryValue(b)||0)-(entryValue(a)||0))[0];
+            if(alv){ this.used.add(alv.dieId); reg.dado=alv.dieId;
+              this.L(`${en.nome} ROUBOU o seu ${entryValue(alv)}`); }
+            break; }
+          case 'fraturar': {      // o dado perde 1 do seu máximo, pra sempre
+            const d=this.p.bag[this.rng.int(this.p.bag.length)];
+            const j=d&&d.faces.findIndex(f=>f.k==='num'&&f.v===Math.max(...d.faces.filter(x=>x.k==='num').map(x=>x.v)));
+            if(d&&j>=0){ d.faces[j]={...d.faces[j], v:Math.max(1,d.faces[j].v-1)}; reg.dado=d.id;
+              this.L(`${en.nome} FRATUROU um dado (máximo -1)`); }
+            break; }
+          case 'inverter': {      // vira um dado seu pra face oposta
+            const alv=this.pool().slice().sort((a,b)=>(entryValue(b)||0)-(entryValue(a)||0))[0];
+            if(alv && entryValue(alv)!==null){ const v=entryValue(alv);
+              alv.face={...alv.face, v:(alv.n+1)-v}; reg.dado=alv.dieId;
+              this.L(`${en.nome} INVERTEU o seu ${v} → ${alv.face.v}`); }
+            break; }
+          case 'contar': {        // conta até N e então a pá desce
+            en._conta=(en._conta||0)+1; reg.conta=en._conta;
+            this.L(`${en.nome} conta ${en._conta}/${it.ate}`);
+            if(en._conta>=it.ate){ en._conta=0; this.dmgPlayer(Math.round(it.v*(en.mult||1)),'A CONTA'); }
+            break; }
         }
         reg.dano = hp0 - this.p.hp;                 // o que passou de verdade
         reg.aparado = Math.max(0, bl0 - this.p.block);
@@ -372,6 +537,7 @@ export class Combat {
     for(const en of this.aliveEnemies()){
       if(en.statuses.veneno){ en.hp=Math.max(0,en.hp-en.statuses.veneno); en.statuses.veneno--; }
       if(en.statuses.sangramento){ en.hp=Math.max(0,en.hp-en.statuses.sangramento); en.statuses.sangramento--; }
+      if(en.travaOff>0) en.travaOff--;
       en.block = 0;
     }
     for(const k of ['veneno','sangramento']){ if(this.p.statuses[k]){ this.dmgPlayer(this.p.statuses[k], k); this.p.statuses[k]--; } }

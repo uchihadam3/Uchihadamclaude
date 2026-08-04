@@ -17,6 +17,7 @@ import { criarMalhaDado, criarMesa, luzes, destacarResultado } from './dice3d/re
 import { rolarPara } from './dice3d/roll.js';
 import { raioDe, pontoDeCima } from './dice3d/geometry.js';
 import { ESCALADA, MASMORRAS } from './data/dungeons.js';
+import { travaTxt } from './data/travas.js';
 import * as META from './meta.js';
 import { spriteDe } from './sprites.js';
 import * as SFX from './sfx.js';
@@ -170,6 +171,7 @@ function telaClasses(){
         <div class="cglifo">${c.glifo}</div>
         <div class="cinfo"><b>${c.nome}</b>
           <span class="cmat">${c.mat}</span>
+          <div class="cchave">🗝 ${c.chave}</div>
           <div class="cstats"><i>❤ ${c.hp+BON.hpBonus}</i><i>🎲 ${b.length+BON.dadosExtra}</i><i>⟳ ${c.rerolls+BON.rerolls}</i></div>
           <span class="cfan">${c.fantasia}</span></div></button>`;}).join('')}</div></div>`;
   bindA(m,{ voltar:telaTitulo });
@@ -181,7 +183,8 @@ function iniciar(cid){
   for(let i=0;i<BON.dadosExtra;i++) bag.push(bag[i%bag.length] ? {...bag[0], id:'X'+i, faces:bag[0].faces.map(f=>({...f}))} : null);
   P={ classe:cid, hp:C.hp+BON.hpBonus, maxHp:C.hp+BON.hpBonus, baseMaxHp:C.hp+BON.hpBonus, block:0,
       bag:bag.filter(Boolean), statuses:{}, essence:0,
-      rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:BON.quarta?['coroa_'+cid]:[] };
+      rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:BON.quarta?['coroa_'+cid]:[],
+      polegar:BON.polegar, gazua:BON.gazua };
   // gravações iniciais do Cofre (Lâmina / Curinga / Eco)
   const grav=(k,q)=>{ for(let i=0;i<q;i++){ const d=P.bag[i%P.bag.length];
     const j=d.faces.findIndex(f=>f.k==='num'); if(j>=0) d.faces[j]={k, v:d.faces[j].v}; } };
@@ -292,10 +295,27 @@ function pintar(){
   const es=cb.enemies;
   const pi=cb.previsaoInimigo();
   const mapaPrev={}; if(previa) for(const a of previa.pv.alvos) mapaPrev[a.uid]=a;
+  // o que a sua seleção atual vale para as fechaduras
+  const selAgora=cb.roll.filter(x=>sel.has(x.dieId));
+  const alocSel = selAgora.length ? (()=>{ const v=selAgora.map(x=>{
+      const q=x.face.k==='wild'?null:(x.face.v??null); return q; }).filter(q=>q!==null);
+    return { sum:v.reduce((a,b)=>a+b,0), max:v.length?Math.max(...v):0, min:v.length?Math.min(...v):0,
+             count:selAgora.length, vals:v, simbolos:selAgora.map(x=>x.face.k).filter(k=>k!=='num') }; })() : null;
   $('ini').innerHTML=es.map((e,i)=>{
     const it=e.intent; const txt = !it?'—' : it.t==='atk'?`⚔ ${it.v}` : it.t==='atk_multi'?`⚔ ${it.v}×${it.n}`
       : it.t==='block'?`🛡 ${it.v}` : it.t==='heal'?`✚ ${it.v}` : it.t==='buff'?'▲ fúria'
-      : it.t==='curse'?'☠ maldição' : it.t==='debuff'?`▼ ${it.st}`:'—';
+      : it.t==='curse'?'☠ maldição' : it.t==='debuff'?`▼ ${it.st}`
+      : it.t==='congelar'?'❄ congela 1 dado' : it.t==='roubar'?'✋ rouba 1 dado'
+      : it.t==='fraturar'?'✖ fratura 1 dado' : it.t==='inverter'?'⇅ inverte 1 dado'
+      : it.t==='contar'?`🕳 conta ${(e._conta||0)+1}/${it.ate}${(e._conta||0)+1>=it.ate?` — A CONTA ⚔ ${Math.round(it.v*(e.mult||1))}`:''}`
+      :'—';
+    /* ===== FECHADURA (§6): a regra do inimigo, e se a sua mão a abre AGORA ===== */
+    const tr=cb.travaDe(e), td=travaTxt(tr);
+    const aberta = !tr || e._arrombada || e.travaOff>0 || (alocSel && cb.abre(e, alocSel));
+    const travaHTML = td ? `<div class="trava ${e._arrombada||e.travaOff>0?'off':(alocSel? (aberta?'abre':'fecha') : '')}"
+        title="${td.txt}"><span class="tico">${td.ico}</span><span class="ttx">${
+        e._arrombada?'ARROMBADA' : e.travaOff>0?`DISSOLVIDA (${e.travaOff})` : td.curto}</span>${
+        alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓ ABRE':'✕ TRAVA'}</span>`:''}</div>` : '';
     const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0).map(([k,v])=>`${ICO[k]||''}${v}`).join(' ');
     const li=pi.linhas.find(l=>l.uid===e.uid);
     const pr=mapaPrev[e.uid];
@@ -311,6 +331,7 @@ function pintar(){
       <div class="nm">${e.nome}</div>${e.elite?'<div class="el">ELITE</div>':''}
       <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i>${barraPrev}</div>
       <div class="hp">${e.hp}/${e.maxHp}${e.block?' 🛡'+e.block:''}${e.armadura?' ⛊'+e.armadura:''}</div>
+      ${travaHTML}
       <div class="it ${li&&li.passa>0?'doi':''}">${e.hp>0?txt:'—'}${li&&li.bruto>0?`<span class="passa">→ ${li.passa} no HP</span>`:''}</div>
       ${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
@@ -337,7 +358,26 @@ function pintar(){
       if(pv){ previa=pv; pintar(); } };
     d.onpointerleave=()=>{ if(previa && previa.skill.id===sk.id){ previa=null; pintar(); } };
   });
-  $('sel').textContent = selEnts.length? 'selecionado: '+selEnts.map(e=>nomeFace(e.face)).join(' , ') : 'toque nos dados para escolher';
+  const podePol = cb._polegar>0 && selEnts.length===1 && selEnts[0].face.k!=='wild' && selEnts[0].face.v!=null;
+  const alvoEn = cb.aliveEnemies()[Math.min(alvo,Math.max(0,cb.aliveEnemies().length-1))];
+  const podeGaz = cb._gazua>0 && alvoEn && cb.travaDe(alvoEn) && !alvoEn._arrombada;
+  $('sel').innerHTML = `<span class="selt">${selEnts.length
+      ? 'selecionado: '+selEnts.map(e=>nomeFace(e.face)).join(' , ')
+      : 'toque nos dados para escolher'}</span>`
+    + (podePol?`<button class="fer" id="pmenos">−1</button><button class="fer" id="pmais">+1</button>
+        <span class="fern">polegar ${cb._polegar}</span>`:'')
+    + (podeGaz?`<button class="fer gaz" id="bgaz">🗝 GAZUA ${cb._gazua}</button>`:'')
+    + (passivaBtn(selEnts)||'');
+  if(podePol){ const id=selEnts[0].dieId;
+    $('pmenos').onclick=e=>{ e.stopPropagation(); if(cb.polegar(id,-1)){ SFX.pegar(); pintar(); } };
+    $('pmais').onclick =e=>{ e.stopPropagation(); if(cb.polegar(id, 1)){ SFX.pegar(); pintar(); } }; }
+  if(podeGaz) $('bgaz').onclick=e=>{ e.stopPropagation();
+    if(cb.gazua(alvo)){ SFX.vitoria(); pintar(); } };
+  const bp=$('bpass');
+  if(bp) bp.onclick=e=>{ e.stopPropagation(); const id=selEnts[0].dieId;
+    const f={carrasco:()=>cb.sobrecarga(id), lamina:()=>cb.trapaca(id),
+             arcanista:()=>cb.guardar(id),  oracula:()=>cb.travar(id)}[C.id];
+    if(f&&f()){ SFX.pegar(); if(C.id==='arcanista') sel.delete(id); pintar(); } else SFX.soltar(); };
   $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10<br><span style="opacity:.7">${ESCALADA[masmorra-1].nome}</span>`;
   $('log').innerHTML=cb.logLines.slice(-4).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
@@ -352,6 +392,17 @@ function pintar(){
     m.material.emissiveIntensity = napre?1.5 : selec?0.8 : 0;
     m.scale.setScalar(napre?1.16:1);
     m.material.opacity = usado?0.22:1; m.material.transparent = usado; }
+}
+/* a PASSIVA da classe é o verbo de fechadura grátis de cada uma (§7) */
+function passivaBtn(selEnts){
+  if(selEnts.length!==1 || !cb) return '';
+  const e=selEnts[0], num = e.face.k!=='wild' && e.face.v!=null;
+  const P_={ carrasco:{t:`⚒ +1 (−2 ❤)`, ok:num && P.hp>2},
+             lamina:  {t:`🗡 virar (${e.n+1-(e.face.v||0)})`, ok:num && !cb.trapacaUsada},
+             arcanista:{t:`✦ guardar no Círculo`, ok:!cb._guardou},
+             oracula: {t:`◈ travar p/ o próximo`, ok:!cb._travou} }[C.id];
+  if(!P_ || !P_.ok) return '';
+  return `<button class="fer pas" id="bpass">${P_.t}</button>`;
 }
 /* ---------- ações ---------- */
 /* som próprio por habilidade */
@@ -623,4 +674,4 @@ addEventListener('resize',resize); resize();
 telaTitulo();
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
   get sel(){return sel;}, get malhas(){return malhas;},
-  get anima(){return anima;}, get previa(){return previa;}, calcPrevia };
+  get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar };

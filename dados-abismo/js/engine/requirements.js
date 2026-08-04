@@ -91,6 +91,27 @@ export function reqLabel(req){
 
 /* ---- BUSCA: menor subconjunto do pool que satisfaz o requisito ----
    usado pela IA do simulador e pelas dicas da UI (§12 pré-visualização). */
+/* TODOS os encaixes possíveis (até um teto). Com fechaduras, "um subconjunto
+   qualquer que satisfaz o requisito" não basta: o requisito diz se a habilidade
+   PODE ser usada, a fechadura diz se ela FERE. Quem escolhe precisa ver as
+   opções — é isso que transforma a jogada em quebra-cabeça. */
+export function findSubsets(req, pool, teto=24){
+  const out=[];
+  const maxK = (req.t==='sum'||req.t==='sumExact') ? Math.min(5,pool.length)
+             : (req.t==='set'||req.t==='seq'||req.t==='each') ? req.size : (req.count||1);
+  const minK = (req.t==='sum'||req.t==='sumExact') ? 1 : maxK;
+  for(let k=minK; k<=maxK && out.length<teto; k++){
+    const cur=[];
+    const comb=(start)=>{
+      if(out.length>=teto) return;
+      if(cur.length===k){ const ents=cur.map(i=>pool[i]);
+        if(satisfies(req, ents)) out.push(cur.slice()); return; }
+      for(let i=start;i<pool.length;i++){ cur.push(i); comb(i+1); cur.pop(); if(out.length>=teto) return; }
+    };
+    comb(0);
+  }
+  return out;
+}
 export function findSubset(req, pool){
   const idx = pool.map((_,i)=>i);
   const maxK = (req.t==='sum'||req.t==='sumExact') ? pool.length : (req.t==='set'||req.t==='seq'||req.t==='each') ? req.size : (req.count||1);

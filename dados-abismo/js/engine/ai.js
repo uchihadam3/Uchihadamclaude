@@ -1,5 +1,5 @@
 /* IA gulosa para o SIMULADOR headless (§14) — joga "razoavelmente bem". */
-import { findSubset, satisfies, entryValue } from './requirements.js';
+import { findSubset, findSubsets, satisfies, entryValue } from './requirements.js';
 import { RESPIRAR } from '../data/classes.js';
 
 /* PONTUAÇÃO REAL: em vez de adivinhar pelo tipo de efeito, roda a jogada no
@@ -23,8 +23,14 @@ function avaliar(combat, sk, ids, alvo, perigo){
   return s / Math.max(1, ids.length);                 // eficiência POR DADO gasto
 }
 export function playTurn(combat, skills){
-  let guard = 0, respiros = 0;
-  while(guard++ < 12){
+  let guard = 0, respiros = 0, sobre = 0;
+  // GAZUA: gasta no bicho grosso e travado — é o que ela existe pra resolver
+  if(combat._gazua>0){
+    const presos = combat.aliveEnemies().filter(e=>combat.travaDe(e) && !e._arrombada && e.hp>40);
+    if(presos.length){ const alv=presos.reduce((a,b)=>a.hp>=b.hp?a:b);
+      combat.gazua(combat.aliveEnemies().indexOf(alv)); }
+  }
+  while(guard++ < 16){
     // re-rola se a mão está fraca e ainda há re-rolagens
     const pool = combat.pool();
     if(!pool.length) break;
@@ -39,8 +45,11 @@ export function playTurn(combat, skills){
     let best=null;
     for(const sk of [...skills, RESPIRAR]){
       if(sk.unlock && !combat.p.unlocked?.includes(sk.unlock)) continue;
-      const idxs = findSubset(sk.req, pool);
-      if(!idxs) continue;
+      // com FECHADURA, não basta um encaixe: o requisito diz se PODE, a
+      // fechadura diz se FERE. Testa vários encaixes e fica com o que abre.
+      const conjuntos = findSubsets(sk.req, pool, 14);
+      if(!conjuntos.length) continue;
+      for(const idxs of conjuntos){
       const ents = idxs.map(i=>pool[i]);
       const ids = ents.map(e=>e.dieId);
       for(const alv of alvosTeste){
@@ -53,6 +62,7 @@ export function playTurn(combat, skills){
         if(sk.id==='respirar' && combat.p.classe==='arcanista' && cb.perigo < cb.hp*0.4) sc = -2;
         if(!best || sc>best.sc) best={ sk, ids, sc, alvo:alv };
       }
+      }
     }
     // re-rolar pode CUSTAR VIDA (Fardo M5) — só vale a pena se necessário
     const custaVida = combat.burdens.has('reroll_custa_vida');
@@ -63,6 +73,29 @@ export function playTurn(combat, skills){
     }
     // com mão fraca e re-rolagem sobrando, tenta melhorar antes de gastar
     const limiar = custaVida ? 5 : 10;
+    // PASSIVA DE CLASSE: Sobrecarga (+1 por 2 HP) e Trapaça (face oposta) são
+    // ferramentas de fechadura de graça — a IA precisa saber usá-las.
+    // Sobrecarga custa 2 HP: só vale se o +1 REALMENTE destrava alguém.
+    if(best.sc < 8){
+      const cid = combat.p.classe;
+      const alto = combat.pool().slice().sort((a,b)=>(entryValue(b)||0)-(entryValue(a)||0))[0];
+      const v = alto ? entryValue(alto) : null;
+      const um = x => ({ sum:x, max:x, min:x, count:1, vals:[x], simbolos:[] });
+      const presos = combat.aliveEnemies().filter(e=>combat.travaDe(e) && !e._arrombada && !(e.travaOff>0));
+      const destrava = x => presos.some(en=>combat.abre(en, um(x)));
+      if(v!==null && presos.length && !destrava(v)){
+        if(cid==='lamina' && !combat.trapacaUsada && destrava(alto.n+1-v)
+           && combat.trapaca(alto.dieId)) continue;
+        if(cid==='carrasco' && sobre<2 && combat.p.hp>combat.p.maxHp*0.5 && destrava(v+1)
+           && combat.sobrecarga(alto.dieId)){ sobre++; continue; }
+      }
+    }
+    // POLEGAR TORTO: mão travada e a ferramenta na mão — empurra um dado e reavalia
+    if(best.sc < 8 && combat._polegar>0){
+      const cand = combat.pool().slice().sort((a,b)=>(entryValue(b)||0)-(entryValue(a)||0))[0];
+      const v = cand ? entryValue(cand) : null;
+      if(v!==null && combat.polegar(cand.dieId, v<cand.n?1:-1)) continue;
+    }
     if(best.sc < limiar && podeRerolar && guard<4){
       // mão INÚTIL (nada bom encaixa): re-rola tudo. Mão morna: só os dados fracos.
       // "mão inútil" = a melhor jogada mal vale a pena (Respirar pontua ~-2, então

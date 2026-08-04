@@ -20,6 +20,19 @@
  .en .hp{font-size:9.5px;opacity:.75;font-variant-numeric:tabular-nums}
  .en .it{font-size:11px;font-weight:700;color:#ffb45e;margin-top:3px}
  .en .st{font-size:9px;color:#7fd98a}
+ /* ===== FECHADURA: a regra do inimigo, sempre visível (§12) ===== */
+ .en .trava{display:flex;align-items:center;gap:4px;margin-top:4px;padding:3px 5px;border-radius:6px;
+   background:rgba(150,120,40,.14);border:1px solid rgba(220,180,80,.35);font-size:9px;line-height:1.25;
+   color:#e8d9a8}
+ .en .trava .tico{font-size:12px;flex:none}
+ .en .trava .ttx{flex:1;min-width:0}
+ .en .trava .tst{flex:none;font-weight:900;font-size:8.5px;letter-spacing:.5px}
+ .en .trava.abre{background:rgba(40,150,80,.20);border-color:#4ad98a;color:#bff2d0;
+   box-shadow:0 0 10px #4ad98a44}
+ .en .trava.abre .tst{color:#7ef2a8}
+ .en .trava.fecha{background:rgba(150,40,40,.20);border-color:#e0604a;color:#f2c4bb}
+ .en .trava.fecha .tst{color:#ff8a7a}
+ .en .trava.off{background:rgba(120,90,200,.20);border-color:#a07cff;color:#ddc8ff}
  /* rodapé: você + habilidades */
  #baixo{bottom:0;padding:6px 10px calc(10px + env(safe-area-inset-bottom));
    background:linear-gradient(180deg,transparent,rgba(4,6,8,.94) 30%)}
@@ -40,7 +53,18 @@
  .b.pri{background:linear-gradient(180deg,#7a1f2b,#4d1119);border-color:#a33}
  .b:disabled{opacity:.4}
  /* seleção de dados */
- #sel{position:fixed;left:0;right:0;bottom:150px;text-align:center;font-size:12px;color:#ffd24a;pointer-events:none}
+ #sel{position:fixed;left:0;right:0;bottom:150px;text-align:center;font-size:12px;color:#ffd24a;
+   pointer-events:none;display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap}
+ #sel .selt{text-shadow:0 1px 4px #000}
+ /* ferramentas de fechadura vindas do Cofre */
+ .fer{pointer-events:auto;font-family:Georgia,serif;font-size:12px;font-weight:800;cursor:pointer;
+   background:linear-gradient(180deg,#2a2418,#15120c);border:1px solid #6a5a2a;color:#ffd9a0;
+   border-radius:9px;padding:4px 10px}
+ .fer:active{transform:scale(.94)}
+ .fer.gaz{background:linear-gradient(180deg,#3a2a10,#1a1206);border-color:#c9a13a;color:#ffe9b0;
+   box-shadow:0 0 12px rgba(255,200,90,.25)}
+ #sel .fern{font-size:10px;color:#8a7a50}
+ .fer.pas{background:linear-gradient(180deg,#1d2a33,#0e1720);border-color:#3f6a8a;color:#bfe4ff}
  /* faixa/telas */
  #msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;
    gap:14px;background:rgba(4,6,9,.88);z-index:20;padding:20px;text-align:center}
@@ -109,6 +133,8 @@
    border-left:4px solid var(--cc,#666);border-radius:13px;padding:12px;cursor:pointer;
    color:#e8e2d0;font-family:Georgia,serif;transition:.14s}
  .cbtn:active{transform:scale(.98)} .cbtn:hover{border-color:var(--cc)}
+ .cchave{font-size:10.5px;color:#e8d9a8;background:rgba(150,120,40,.16);
+   border:1px solid rgba(220,180,80,.3);border-radius:7px;padding:3px 6px;margin:5px 0;line-height:1.35}
  .cglifo{font-size:34px;filter:drop-shadow(0 0 10px var(--cc));flex:none;width:44px;text-align:center}
  .cinfo b{font-size:17px;display:block}
  .cmat{font-size:11px;color:#8d8672;display:block;margin-top:1px}

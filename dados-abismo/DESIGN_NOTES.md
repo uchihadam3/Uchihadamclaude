@@ -135,53 +135,86 @@ O jogo funciona (jogo.html), mas está **fácil demais e pouco legível**. Ordem
   (anticipação + follow-through) e o alvo **recuar** no impacto.
 - **Faces raras** (Curinga/Lâmina/Vazio) com **pulso de aura** ao pousar + som próprio (§11.4).
 
-## 3. DIFICULDADE — reapertada (o jogo estava fácil demais)
+## 3. DIFICULDADE É QUEBRA-CABEÇA, NÃO NÚMERO MAIOR
 
-### 3.1 A régua estava quebrada antes do jogo
-A IA do simulador pontuava habilidade por **tipo de efeito** (`dmg` valia
-`sum*2+6` fosse `sum*3` ou `sum*7`). Ela não enxergava que Colapso vale 3× um
-Raio, e por isso jogava mal justamente as classes de sequência — que *pareciam*
-fracas. Agora `ai.js` chama `combat.prever()`: roda a jogada no sandbox do motor
-e mede dano útil (sem overkill), mortes, estados, bloqueio útil e custo de HP.
-Só essa troca levou o Arcanista de **0% → 33%** sem mexer em uma linha de
-balanceamento. Também testa 2 alvos (o mais ferido e o que mais bate).
+### 3.1 As FECHADURAS (`js/data/travas.js`)
+Um inimigo deixou de ser "um saco de HP". Ele é uma **regra sobre como você pode
+feri-lo**, lida a partir da ALOCAÇÃO do golpe — `{sum, max, min, count, vals,
+simbolos}`, ou seja *com que dados* você bateu, não só quanto:
 
-### 3.2 O que mudou no jogo
-- **Menos dados de início**: Carrasco 6→4, Lâmina 8→5, Arcanista 5→4, OráculA 5→4.
-- **Menos re-rolagens**: Carrasco 2→1, resto 3→2. Menos HP em todas.
-- **Escalada DENTRO da masmorra**: antes o andar 9 era estatisticamente igual ao
-  andar 1 — só a troca de masmorra apertava. Agora cada andar soma +7% de HP e
-  +5,5% de dano.
-- **Escalada entre masmorras** muito mais forte (M1 1.04/1.08 → 1.30/1.35).
-- **Ondas maiores** e elite 2.2× → 2.6×.
-- **Cura cortada**: santuário 30%→15%, recompensa de cura 25%→18%.
-- **Invisível não anula mais o turno inimigo** (65% de redução). Anular tudo por
-  1 dado fazia a Lâmina-Sombra ignorar a dificuldade inteira — era ela sozinha em
-  100% de vitória enquanto as outras morriam.
-- **Arcanista com 4 dados**: SEQ 5 virava inalcançável sem o Círculo, então
-  Colapso caiu para SEQ 4 (dano `sum*7`→`sum*5`) e o Prisma (4ª habilidade) subiu
-  para SEQ 5 — o prêmio de quem sabe bancar.
-- **Escolta de chefe reduzida**: chefe + 0-2 comuns. Chefe + elite + 3 comuns
-  não era difícil, era muro cego.
+| | fechadura | abre com |
+|---|---|---|
+| ◑ ◐ | Ímpar / Par | soma da alocação com aquela paridade |
+| ▲ | Couraça `v` | maior dado ≥ v |
+| ▼ | Casca Fina `v` | maior dado ≤ v (golpe grande estilhaça) |
+| 🗝 | Chave `v` | soma EXATA de v |
+| ✳ | Múltiplo `v` | soma múltipla de v |
+| ① | Enxuto `v` | exatamente v dados no golpe |
+| ✦ | Selo `k` | o golpe precisa conter aquele símbolo |
+| ∞ | Gêmeo | invulnerável enquanto o par viver |
+| ⇄ | Espelho `%` | fere, mas devolve % em você |
 
-### 3.3 Onde ficou (test/sim.mjs 30 10 <cofre>)
+A onda vira quebra-cabeça porque **as fechaduras brigam pelos mesmos dados**:
+um 5 abre a Couraça e trava a Casca Fina no mesmo turno. Tudo é público — a
+carta mostra a regra e ela acende **✓ ABRE** / **✕ TRAVA** conforme você
+seleciona (§12/§15, zero informação oculta).
+
+### 3.2 Cada classe abre a fechadura de um jeito
+Não é sabor, é a razão de escolher a classe:
+- **⚒ Carrasco — ARROMBA.** `Arrombar [soma ≥ 10]` quebra a regra do alvo neste
+  turno. Força bruta, e cara: come vários dados. `Açougueiro` arromba e triplica.
+- **🗡 Lâmina-Sombra — CONTORNA.** Veneno e sangramento não passam pela
+  fechadura: corroem o inimigo travado. `Veneno Sutil [TRINCA]`, `Sumir` deixa
+  sangramento, `Enxame` envenena todos.
+- **✦ Arcanista — DISSOLVE.** `Nova Gélida [SEQ 3]` apaga a fechadura de TODOS
+  por 2 turnos. `Colapso [SEQ 4]` perfura tudo. `Prisma` dissolve por 3.
+- **◈ OráculA — REESCREVE o dado.** `Tecer` vira um dado em ◈ e AJUSTA outro em
+  ±2 *na direção que abre a fechadura do alvo*. `Tapeçaria` CRAVA dois dados no
+  valor exato que abre. `Julgamento [soma = 7]` perfura.
+
+### 3.3 Os inimigos mexem nos SEUS dados
+Novas intenções: ❄ congelar (trava o dado na face que caiu), ✋ roubar (tira o
+seu maior dado do turno), ✖ fraturar (o máximo do dado cai 1, para sempre),
+⇅ inverter, 🕳 contar (conta até 3 e a pá desce). O Coveiro **alterna par/ímpar**
+a cada turno; o OSSÁRIO gira quatro fechaduras em ciclo (Couraça 5 → ímpar →
+chave 9 → exatamente 2 dados).
+
+### 3.4 O Cofre agora dá FERRAMENTAS, não só números
+- **Polegar Torto** (VÉU): n×/turno, empurra um dado em ±1 — é o que resolve
+  paridade e chave.
+- **Gazua** (COROA): n×/combate, ARROMBA a fechadura de um inimigo.
+- **Lapidar** (⚔) abre o Selo ⚔; **Fio Solto** (◈) assume o valor que a
+  fechadura pedir.
+
+### 3.5 As PASSIVAS de classe agora têm botão
+Estavam no motor desde sempre e nunca tinham sido ligadas na tela — e são
+justamente os verbos de fechadura grátis de cada classe:
+**⚒ Sobrecarga** (+1 no dado, custa 2 HP) · **🗡 Trapaça** (face oposta, 1×/turno)
+· **✦ Canalização** (guarda o dado no Círculo agora) · **◈ Prever** (o dado
+mantém esta face no próximo turno).
+
+### 3.6 A régua (o simulador)
+A IA pontuava habilidade pelo TIPO de efeito (`dmg` valia o mesmo fosse `sum*3`
+ou `sum*7`) — jogava mal justo as classes de sequência. Agora ela chama
+`combat.prever()` e mede o resultado real. Com fechadura, um encaixe não basta:
+o **requisito** diz se PODE, a **fechadura** diz se FERE — então ela testa até
+14 encaixes por habilidade (`findSubsets`) × 2 alvos, e usa Gazua/Polegar.
+
+`node test/sim.mjs <runs> <masmorras> <cofre 0|0.5|1>`. `Portal` fica desligado
+na medição: é atalho, não poder.
+
+### 3.7 Onde ficou (30 runs/classe)
 | | Cofre 0% (1ª run) | Cofre 100% |
 |---|---|---|
-| Carrasco | 8,1 andares | 21,0 |
-| Lâmina-Sombra | 4,4 | 29,4 · **6,7% zera** |
-| Arcanista | 6,8 | — |
-| OráculA | 6,2 | — |
+| ⚒ Carrasco | 8,9 andares | 14,6 |
+| 🗡 Lâmina-Sombra | 14,2 | 32,0 |
+| ✦ Arcanista | 9,0 | 27,9 |
+| ◈ OráculA | 20,6 | 44,4 |
 
-Run virgem morre na **Masmorra 1**, entre os andares 4 e 8, nas quatro classes
-(razão máx/mín 1,9× — dentro do critério §15). Com a árvore cheia o jogo é
-**zerável** — é isso que sustenta o laço de "várias runs até conseguir".
-O simulador é uma IA gulosa de 1 nível; humano que planeja (banca o Círculo,
-guarda Muralha para o golpe telegrafado) rende bem mais que esses números.
-
-### 3.4 O simulador agora mede o Cofre
-`node test/sim.mjs <runs> <masmorras> <cofre 0|0.5|1>`. `Portal` é forçado a 1
-na medição: ele é atalho, não poder — com ele ligado a run começava na Masmorra 2
-e o número medido virava outra coisa.
+Run virgem morre na Masmorra 1–2. Com a árvore cheia a IA gulosa chega até a
+Masmorra 5. Ela é uma IA de 1 nível que não planeja entre turnos — é piso, não
+teto. O Carrasco é o mais castigado pelas fechaduras (todo o dano dele passa por
+elas) e é o próximo a ajustar.
 
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
