@@ -1271,17 +1271,45 @@ export function setupControls(
   partyBox.id = "gh-party";
   partyBox.style.display = "none";
   root.appendChild(partyBox);
+  // cor de cada classe — usada no retrato do grupo e na lista de "por perto".
+  // Mesma família de tons do resto da interface (nada saturado demais).
+  const CLASSE_COR: Record<string, string> = {
+    guerreiro: "#b7563f", mago: "#5c7fb8", ladino: "#7a9457",
+    clerigo: "#c9a94e", cacador: "#6d8f7a",
+  };
   const partyCss = document.createElement("style");
   partyCss.textContent = `
-    #gh-party{position:absolute;left:14px;top:132px;z-index:26;display:flex;
-      flex-direction:column;gap:5px;pointer-events:none;font-family:"Cinzel",serif;}
-    .gh-pt-row{width:184px;background:rgba(14,12,10,.62);border:1px solid #6b5836;
-      border-radius:4px;padding:4px 7px 5px;box-shadow:0 2px 6px rgba(0,0,0,.5);}
+    /* GRUPO: mesma MOLDURA DE ARTE das outras janelas (eq_frame 9-slice), p/ o
+       painel pertencer ao jogo em vez de parecer um HUD colado por cima. */
+    #gh-party{position:absolute;left:10px;top:126px;z-index:26;display:flex;
+      flex-direction:column;gap:6px;pointer-events:none;font-family:"Trebuchet MS",sans-serif;}
+    .gh-pt-row{position:relative;width:198px;box-sizing:border-box;
+      border:16px solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
+      filter:drop-shadow(0 3px 9px rgba(0,0,0,.6));
+      padding:1px 2px 2px;display:flex;align-items:center;gap:7px;}
+    /* RETRATO: disco com a inicial, tingido pela CLASSE — dá p/ bater o olho e
+       saber quem é quem sem ler o nome. */
+    .gh-pt-face{flex:none;width:30px;height:30px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-family:"Cinzel",serif;font-size:14px;color:#160f08;
+      border:2px solid rgba(0,0,0,.45);box-shadow:inset 0 -3px 6px rgba(0,0,0,.35);}
+    .gh-pt-dados{flex:1;min-width:0;}
     .gh-pt-nome{display:flex;justify-content:space-between;align-items:baseline;
-      color:#e8d9b5;font-size:12px;letter-spacing:.02em;margin-bottom:3px;}
-    .gh-pt-nome span{color:#a3906b;font-size:10px;}
-    .gh-pt-bar{height:7px;background:#231d16;border:1px solid #4a3d28;border-radius:3px;overflow:hidden;}
-    .gh-pt-bar i{display:block;height:100%;transition:width .25s ease-out;}
+      color:#f0e2c0;font-family:"Cinzel",serif;font-size:12px;letter-spacing:.02em;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
+    .gh-pt-nome span{flex:none;color:#a3906b;font-size:9.5px;
+      font-family:"Trebuchet MS",sans-serif;margin-left:6px;}
+    .gh-pt-bar{position:relative;height:10px;background:#1a140d;
+      border:1px solid #5b4a2e;border-radius:2px;overflow:hidden;}
+    .gh-pt-bar i{display:block;height:100%;transition:width .25s ease-out;
+      box-shadow:inset 0 -3px 5px rgba(0,0,0,.35);}
+    .gh-pt-hp{position:absolute;inset:0;display:flex;align-items:center;
+      justify-content:center;font-size:8px;color:#f2e6c8;font-weight:400;
+      text-shadow:0 1px 2px #000;letter-spacing:.03em;}
+    /* quem está noutra zona fica esmaecido — é informação, não decoração */
+    .gh-pt-row.gh-pt-longe{opacity:.55;}
+    .gh-pt-longe-tag{position:absolute;right:14px;top:3px;font-size:8px;
+      color:#9c8c6e;letter-spacing:.06em;}
   `;
   root.appendChild(partyCss);
 
@@ -1290,7 +1318,7 @@ export function setupControls(
   // ainda exige acertar o nome. Aqui é um toque p/ abrir e um toque p/ convidar.
   const socialBtn = document.createElement("button");
   socialBtn.id = "gh-social";
-  socialBtn.innerHTML = "&#128101;";      // silhuetas de duas pessoas
+  socialBtn.innerHTML = "\u{1F465}"; // silhuetas de duas pessoas
   socialBtn.title = "Jogadores por perto";
   root.appendChild(socialBtn);
   const socialBox = document.createElement("div");
@@ -1302,11 +1330,16 @@ export function setupControls(
   let cbSair: () => void = () => {};
   const pintaSocial = () => {
     const linhas = nearby.length
-      ? nearby.map((n) => `<div class="gh-so-row">
-           <div class="gh-so-nome">${n.name.split(/[ ,]/)[0]}<span>nv${n.level} · ${n.classId}</span></div>
-           <button class="gh-so-inv" data-id="${n.id}">Convidar</button>
-         </div>`).join("")
-      : `<div class="gh-so-vazio">Ninguém por perto.<br><small>Quem estiver na mesma área aparece aqui.</small></div>`;
+      ? nearby.map((n) => {
+          const nome = n.name.split(/[ ,]/)[0];
+          return `<div class="gh-so-row">
+            <div class="gh-so-face" style="background:${CLASSE_COR[n.classId] ?? "#9a8f7e"}">${nome[0] ?? "?"}</div>
+            <div class="gh-so-nome">${nome}<span>nível ${n.level} · ${n.classId}</span></div>
+            <button class="gh-so-inv" data-id="${n.id}">Convidar</button>
+          </div>`;
+        }).join("")
+      : `<div class="gh-so-vazio">Ninguém por perto.<br>
+           <small>Quem estiver na mesma área aparece aqui.</small></div>`;
     socialBox.innerHTML = `<div class="gh-so-tit">Por perto</div>${linhas}
       <button class="gh-so-sair">Sair do grupo</button>`;
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-inv").forEach((b2) =>
@@ -1321,32 +1354,57 @@ export function setupControls(
   });
   const socialCss = document.createElement("style");
   socialCss.textContent = `
+    /* botão: mesma linguagem do botão de expandir o mapa, ao lado dele */
     #gh-social{position:fixed;z-index:12;pointer-events:auto;cursor:pointer;
-      right:calc(12px + min(118px,27vw) + 8px);top:12px;width:34px;height:34px;
-      border-radius:8px;padding:0;font-size:16px;line-height:1;
-      color:#f0dca2;background:linear-gradient(#2b2218,#160f08);
+      right:calc(12px + min(118px,27vw) + 8px);top:12px;width:36px;height:36px;
+      border-radius:9px;padding:0;display:flex;align-items:center;
+      justify-content:center;gap:1px;font-size:13px;line-height:1;
+      font-family:"Cinzel",serif;color:#f0dca2;
+      background:linear-gradient(#2b2218,#160f08);
       border:1.5px solid rgba(201,162,39,.6);box-shadow:0 2px 6px rgba(0,0,0,.6);}
+    #gh-social small{font-size:10px;color:#c9a227;}
     #gh-social:hover{color:#fff;border-color:#f4c847;}
     #gh-social:active{transform:scale(.92);}
+    /* quando há gente por perto o botão PULSA de leve — chama sem gritar */
+    #gh-social.gh-so-tem{border-color:#f4c847;
+      animation:ghSoPulso 2.4s ease-in-out infinite;}
+    @keyframes ghSoPulso{0%,100%{box-shadow:0 2px 6px rgba(0,0,0,.6);}
+      50%{box-shadow:0 2px 6px rgba(0,0,0,.6),0 0 10px rgba(244,200,71,.55);}}
+
+    /* JANELA: a MOLDURA DE ARTE das outras janelas do jogo (eq_frame 9-slice) */
     #gh-socialbox{position:fixed;z-index:30;pointer-events:auto;
-      right:calc(12px + min(118px,27vw) + 8px);top:52px;width:min(232px,62vw);
-      padding:9px 10px 10px;border-radius:8px;
-      background:linear-gradient(180deg,rgba(14,12,9,.95),rgba(10,9,7,.92));
-      border:1px solid rgba(201,162,39,.45);
-      box-shadow:0 4px 14px rgba(0,0,0,.6);color:#e9dcbe;
-      font-family:"Trebuchet MS",sans-serif;}
-    .gh-so-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:13px;
-      letter-spacing:.05em;margin-bottom:7px;border-bottom:1px solid rgba(201,162,39,.28);
-      padding-bottom:5px;}
-    .gh-so-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
-    .gh-so-nome{flex:1;font-size:12px;line-height:1.25;}
-    .gh-so-nome span{display:block;color:#a3906b;font-size:10px;}
+      right:calc(12px + min(118px,27vw) + 8px);top:56px;width:min(250px,66vw);
+      box-sizing:border-box;border:22px solid transparent;
+      border-image:url(${eqFrameUrl}) 90 fill;
+      filter:drop-shadow(0 6px 18px rgba(0,0,0,.65));
+      padding:2px 4px 6px;color:#e9dcbe;font-family:"Trebuchet MS",sans-serif;}
+    .gh-so-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:13.5px;
+      letter-spacing:.08em;text-align:center;margin:0 0 8px;
+      border-bottom:1px solid rgba(201,162,39,.3);padding-bottom:6px;
+      text-shadow:0 1px 2px #000;}
+    .gh-so-row{display:flex;align-items:center;gap:7px;padding:4px 2px;
+      border-bottom:1px solid rgba(201,162,39,.14);}
+    .gh-so-row:last-of-type{border-bottom:0;}
+    .gh-so-face{flex:none;width:26px;height:26px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-family:"Cinzel",serif;font-size:12px;color:#160f08;
+      border:2px solid rgba(0,0,0,.45);box-shadow:inset 0 -3px 6px rgba(0,0,0,.35);}
+    .gh-so-nome{flex:1;min-width:0;font-family:"Cinzel",serif;font-size:12px;
+      color:#f0e2c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .gh-so-nome span{display:block;color:#a3906b;font-size:9.5px;
+      font-family:"Trebuchet MS",sans-serif;letter-spacing:.03em;}
     .gh-so-inv,.gh-so-sair{cursor:pointer;color:#f0dca2;font-size:11px;
-      background:linear-gradient(#31261a,#1a120a);border:1px solid rgba(201,162,39,.5);
-      border-radius:5px;padding:4px 8px;font-family:"Trebuchet MS",sans-serif;}
+      font-family:"Cinzel",serif;letter-spacing:.04em;
+      background:linear-gradient(#3a2c1c,#1c130a);
+      border:1px solid rgba(201,162,39,.55);border-radius:5px;padding:5px 9px;
+      box-shadow:0 1px 3px rgba(0,0,0,.5);}
+    .gh-so-inv:hover,.gh-so-sair:hover{color:#fff;border-color:#f4c847;}
     .gh-so-inv:active,.gh-so-sair:active{transform:scale(.94);}
-    .gh-so-sair{width:100%;margin-top:7px;color:#d8b39a;border-color:rgba(160,90,70,.5);}
-    .gh-so-vazio{color:#9c8c6e;font-size:11.5px;line-height:1.4;padding:4px 0 2px;}
+    .gh-so-sair{width:100%;margin-top:9px;color:#dcb2a0;
+      border-color:rgba(170,95,72,.55);background:linear-gradient(#3a2018,#1e100a);}
+    .gh-so-vazio{color:#9c8c6e;font-size:11.5px;line-height:1.5;
+      text-align:center;padding:8px 4px 6px;}
+    .gh-so-vazio small{color:#7d7057;font-size:10px;}
   `;
   root.appendChild(socialCss);
   let chatSend: ((t: string) => void) | null = null;
@@ -2855,23 +2913,33 @@ export function setupControls(
     setNearby(list) {
       nearby = list;
       // o contador no próprio botão: dá p/ ver que tem gente sem abrir nada
-      socialBtn.textContent = list.length ? `\u{1F465}${list.length}` : "\u{1F465}";
-      socialBtn.style.borderColor = list.length ? "#f4c847" : "rgba(201,162,39,.6)";
+      socialBtn.innerHTML = `\u{1F465}${list.length ? `<small>${list.length}</small>` : ""}`;
+      socialBtn.classList.toggle("gh-so-tem", list.length > 0);
       if (socialBox.style.display !== "none") pintaSocial();
     },
     onSocial(convidar, sair) { cbConvidar = convidar; cbSair = sair; },
     setParty(m) {
-      // painel do GRUPO, estilo MMO: retrato-menor, nome, nível e barra de vida.
-      // Some sozinho quando não há grupo — jogando só, nada muda na tela.
+      // painel do GRUPO: retrato, nome, nível e barra de vida COM NÚMEROS. Some
+      // sozinho quando não há grupo — jogando só, nada muda na tela.
       if (!m.length) { partyBox.style.display = "none"; partyBox.innerHTML = ""; return; }
       partyBox.style.display = "flex";
+      const minhaZona = m[0]?.zone;
       partyBox.innerHTML = m
         .map((x) => {
           const frac = Math.max(0, Math.min(1, x.maxHp ? x.hp / x.maxHp : 0));
-          const cor = frac > 0.55 ? "#8fbf6a" : frac > 0.25 ? "#d6b45a" : "#c4553f";
-          return `<div class="gh-pt-row">
-            <div class="gh-pt-nome">${x.lider ? "★ " : ""}${x.name.split(/[ ,]/)[0]}<span>nv${x.level}</span></div>
-            <div class="gh-pt-bar"><i style="width:${(frac * 100).toFixed(0)}%;background:${cor}"></i></div>
+          const cor = frac > 0.55 ? "linear-gradient(#9ccf75,#6f9e4c)"
+            : frac > 0.25 ? "linear-gradient(#e2c46a,#b2913c)"
+              : "linear-gradient(#d4664c,#9c3d2a)";
+          const longe = x.zone !== minhaZona;
+          const nome = x.name.split(/[ ,]/)[0];
+          return `<div class="gh-pt-row${longe ? " gh-pt-longe" : ""}">
+            <div class="gh-pt-face" style="background:${CLASSE_COR[x.classId] ?? "#9a8f7e"}">${nome[0] ?? "?"}</div>
+            <div class="gh-pt-dados">
+              <div class="gh-pt-nome">${x.lider ? "\u2605 " : ""}${nome}<span>nv ${x.level}</span></div>
+              <div class="gh-pt-bar"><i style="width:${(frac * 100).toFixed(0)}%;background:${cor}"></i>
+                <b class="gh-pt-hp">${Math.max(0, Math.round(x.hp))} / ${Math.round(x.maxHp)}</b></div>
+            </div>
+            ${longe ? '<span class="gh-pt-longe-tag">noutro lugar</span>' : ""}
           </div>`;
         })
         .join("");
