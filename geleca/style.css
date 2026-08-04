@@ -25,7 +25,16 @@ body{
 /* ===================== MENU ===================== */
 #screen-menu{ flex-direction:column; align-items:center; justify-content:flex-start; overflow-y:auto; overflow-x:hidden; }
 #screen-menu::-webkit-scrollbar{ width:0; }
-.menu-inner{ width:100%; max-width:540px; text-align:center; padding:8px 14px 26px; margin:auto; }
+.menu-inner{ width:100%; max-width:540px; text-align:center; padding:8px 14px 26px; margin:auto; position:relative; z-index:1; }
+
+/* vaga-lumes flutuando ao fundo do menu */
+.fireflies{ position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.fireflies i{ position:absolute; border-radius:50%; background:radial-gradient(circle,#dcffb0,#7ee06b 60%,transparent 72%);
+  box-shadow:0 0 8px 2px rgba(126,224,107,.55); opacity:.0; animation:firefly ease-in-out infinite; }
+@keyframes firefly{ 0%{ opacity:0; transform:translate(0,0) scale(.6) }
+  25%{ opacity:.9 } 50%{ opacity:.55; transform:translate(var(--dx),var(--dy)) scale(1) }
+  75%{ opacity:.9 } 100%{ opacity:0; transform:translate(0,0) scale(.6) } }
+@media (prefers-reduced-motion:reduce){ .fireflies i{ animation:none; opacity:.4; } }
 
 .menu-head{ padding:14px 0 6px; }
 /* mascote: cubo de geleia fofo */
@@ -69,14 +78,21 @@ body{
   background:linear-gradient(180deg,#1a3327,#0f2018); border:1.5px solid var(--line);
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:6px;
   box-shadow:0 5px 0 rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.05);
-  transition:transform .1s, box-shadow .1s, border-color .2s; }
+  transition:transform .1s, box-shadow .1s, border-color .2s;
+  animation:cardIn .44s both cubic-bezier(.2,.85,.3,1.25); }
+@keyframes cardIn{ 0%{ opacity:0; transform:translateY(14px) scale(.9) } 100%{ opacity:1; transform:translateY(0) scale(1) } }
+.lv-card.unlocked:hover{ transform:translateY(-2px); border-color:var(--slime);
+  box-shadow:0 7px 0 rgba(0,0,0,.32), 0 0 20px rgba(126,224,107,.3); }
 .lv-card.unlocked:active{ transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,.32); }
 .lv-card.unlocked{ border-color:var(--slime-d); }
 .lv-card.locked{ cursor:not-allowed; filter:saturate(.4) brightness(.72); }
 .lv-card .lv-chip{ position:absolute; top:6px; left:7px; font-size:.72rem; font-weight:800;
   min-width:19px; height:19px; padding:0 4px; border-radius:7px; display:flex; align-items:center; justify-content:center;
   background:rgba(0,0,0,.4); color:var(--slime-l); }
-.lv-ico{ font-size:1.55rem; line-height:1; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.lv-ico{ font-size:1.55rem; line-height:1; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));
+  animation:icoFloat 3.2s ease-in-out infinite; }
+@keyframes icoFloat{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
+@media (prefers-reduced-motion:reduce){ .lv-card,.lv-ico{ animation:none; } }
 .lv-name{ font-size:.62rem; font-weight:600; color:var(--text); padding:0 2px; line-height:1.05; }
 .lv-rating{ display:flex; gap:1px; height:.95em; font-size:.82rem; line-height:1; }
 .lv-rating i{ color:rgba(255,212,94,.22); font-style:normal; }
@@ -103,6 +119,19 @@ body{
 .lv-card.lv-secret .lv-lock{ color:var(--danger); }
 .menu-hint{ color:var(--text-dim); font-size:.8rem; margin:22px auto 0; max-width:420px; line-height:1.5; opacity:.85; }
 @keyframes pulse{ 0%,100%{ opacity:.5; transform:scale(.9) } 50%{ opacity:1; transform:scale(1.15) } }
+
+/* brilho varrendo os cartões concluídos (done nunca é 'next', então ::before está livre) */
+.lv-card.done::before{ content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
+  background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.16) 50%,transparent 58%);
+  background-size:250% 100%; animation:cardShine 4s ease-in-out infinite; }
+@keyframes cardShine{ 0%{ background-position:150% 0 } 55%,100%{ background-position:-60% 0 } }
+/* reflexo correndo na barra de progresso do mundo */
+.world-bar i{ position:relative; }
+.world-bar i::after{ content:""; position:absolute; inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);
+  transform:translateX(-100%); animation:barSheen 2.8s ease-in-out infinite; }
+@keyframes barSheen{ 0%{ transform:translateX(-100%) } 55%,100%{ transform:translateX(230%) } }
+@media (prefers-reduced-motion:reduce){ .lv-card.done::before,.world-bar i::after{ animation:none; } }
 
 /* ===================== HUD ===================== */
 #screen-game{ flex-direction:column; gap:8px; }

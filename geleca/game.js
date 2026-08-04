@@ -475,7 +475,7 @@ function starsFor(idx, massLeft){
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
 let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,iceTiles,exitRect,startPos,theme;
-let blob, globs, particles=[], motes=[], levelIndex=0, state="menu"; // menu|play|complete|dead
+let blob, globs, particles=[], motes=[], rings=[], trail=[], levelIndex=0, state="menu"; // menu|play|complete|dead
 let tramp=[];   // SEGREDO: trampolins formados por 4 gelecas em 2x2
 let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 
@@ -499,7 +499,19 @@ function showMenu(){
   state="menu"; stopMusic(); winTimer=0; winThen=null;
   el("screen-game").classList.remove("active");
   el("screen-menu").classList.add("active");
+  buildFireflies();
   buildLevelGrid();
+}
+// vaga-lumes flutuando ao fundo do menu (clima do Vale Verdejante)
+function buildFireflies(){
+  const box=el("menu-fireflies"); if(!box || box.childElementCount) return;
+  let html="";
+  for(let i=0;i<16;i++){ const x=Math.round(Math.random()*100), y=Math.round(Math.random()*100),
+    d=(3.5+Math.random()*4).toFixed(1), delay=(-Math.random()*6).toFixed(1),
+    s=(2+Math.random()*3).toFixed(1), dx=(Math.random()*40-20).toFixed(0), dy=(Math.random()*40-20).toFixed(0);
+    html+=`<i style="left:${x}%;top:${y}%;width:${s}px;height:${s}px;`
+      +`--dx:${dx}px;--dy:${dy}px;animation-duration:${d}s;animation-delay:${delay}s"></i>`; }
+  box.innerHTML=html;
 }
 const LV_ICONS=["🌱","⛰️","🕳️","🧗","🌉","🔥","👾","🏔️","❄️","🧊","🥶","🌌","🌋","💠","🏁"];
 const ratingHtml=st=>{ let h=""; for(let k=0;k<3;k++) h+=`<i class="${k<st?"on":""}">★</i>`; return h; };
@@ -528,6 +540,7 @@ function buildLevelGrid(){
 
   LEVELS.forEach((L,i)=>{
     const st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim(), c=document.createElement("div");
+    c.style.animationDelay=(i*0.035).toFixed(3)+"s";      // entrada escalonada dos cartões
     if(L.secret){
       const open=allSecrets;
       c.className="lv-card lv-secret "+(open?"unlocked":"locked");
@@ -612,7 +625,7 @@ function buildEntities(){
 }
 function resetLevel(){
   buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
-  globs=[]; particles=[]; tramp=[]; winTimer=0; winThen=null;
+  globs=[]; particles=[]; rings=[]; trail=[]; tramp=[]; winTimer=0; winThen=null;
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, climbAcc:0, hurtT:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
@@ -776,7 +789,9 @@ function update(dt){
   if(jumpEdge){ hideHint();
     if((onG||cling)&&blob.mass>1){ dropGlob(cling?wall:0); blob.mass-=1; sizeBlob();
       blob.vy=-JUMP_V; if(cling){blob.vx=-wall*MOVE*0.9;blob.clingLock=0.18;}
-      burst(blob.x+blob.w/2,blob.y+blob.h,7,"#7ee06b",130); sfx("jump"); renderHud(); }
+      burst(blob.x+blob.w/2,blob.y+blob.h,7,"#7ee06b",130);
+      ring(blob.x+blob.w/2,blob.y+blob.h,blob.w*0.95,cling?"120,230,220":"126,224,107",3,0.34);  // impulso do salto
+      sfx("jump"); renderHud(); }
     else if(blob.mass<=1){ blob.flash=0.2; sfx("nope"); } }
   jumpEdge=false;
   if(grabEdge){ reabsorb(); grabEdge=false; }
@@ -793,8 +808,11 @@ function update(dt){
       if(fallDist>250 && preVy>560 && blob.mass>1){
         dropGlob(0); blob.mass-=1; sizeBlob();
         splat(fx,fy,16,240); burst(fx,fy,6,"#5fbf6a",120);
+        ring(fx,fy,blob.w*2.4,"120,220,120",4.5,0.5); ring(fx,fy,blob.w*1.5,"210,255,190",3,0.4);  // baque forte
         shake=10; sfx("impact"); renderHud();
-      } else { burst(fx,fy,5,"#5fbf6a",95); shake=Math.min(6,preVy/120); if(preVy>420)sfx("land"); }
+      } else { burst(fx,fy,5,"#5fbf6a",95); shake=Math.min(6,preVy/120);
+        if(preVy>360) ring(fx,fy,blob.w*1.15,"126,224,107",2.5,0.3);   // poeira do pouso
+        if(preVy>420)sfx("land"); }
     }
     blob.apexY=blob.y;                                     // no chão: zera a referência de ápice
   } else {
@@ -812,7 +830,7 @@ function update(dt){
   if(blob.onGround && blob.vy>=0) for(const sp of springs){
     if(blob.x+blob.w>sp.x+3 && blob.x<sp.x+sp.w-3 && Math.abs((blob.y+blob.h)-sp.y)<5){
       blob.vy=-BOUNCE; blob.onGround=false; blob.onGroundPrev=false; sp.sq=1;
-      burst(sp.x+sp.w/2,sp.y,8,"#9fe8ff",160); sfx("spring"); break;
+      burst(sp.x+sp.w/2,sp.y,8,"#9fe8ff",160); ring(sp.x+sp.w/2,sp.y,sp.w*1.3,"159,232,255",3.5,0.4); sfx("spring"); break;
     }
   }
   for(const sp of springs) if(sp.sq>0) sp.sq=Math.max(0,sp.sq-dt*4);
@@ -875,7 +893,9 @@ function update(dt){
       if(blob.mass>1){ blob.mass--; sizeBlob(); renderHud(); sfx("melt"); } else { die(); return; } } }
   else if(blob.climbAcc>0) blob.climbAcc=Math.max(0,blob.climbAcc-dt*0.6);
 
-  updateParticles(dt);
+  updateParticles(dt); updateRings(dt); updateTrail(dt);
+  // rastro: só quando corre no chão ou voa rápido (não parado)
+  if(!blob.gone && (Math.abs(blob.vx)>170 || (!blob.onGround && Math.abs(blob.vy)>360))) pushTrail();
   if(shake>0) shake=Math.max(0,shake-dt*24);
   const now=performance.now(); for(const g of globs)if(!g.solid&&now>=g.solidAt)g.solid=true;
 
@@ -948,7 +968,12 @@ function reabsorb(){ if(blob.mass>=level.max)return;
   let best=-1,bd=1e9; const foot={x:blob.x-REABSORB_R,y:blob.y-REABSORB_R,w:blob.w+REABSORB_R*2,h:blob.h+REABSORB_R*2};
   for(let i=0;i<globs.length;i++){ const g=globs[i]; if(!g.solid)continue;
     if(overlaps(foot,g)){ const dx=(g.x+g.w/2)-(blob.x+blob.w/2),dy=g.y-(blob.y+blob.h),d=dx*dx+dy*dy; if(d<bd){bd=d;best=i;} } }
-  if(best>=0){ const g=globs[best]; burst(g.x+g.w/2,g.y+g.h/2,9,"#a6f08a",120); sfx("absorb");
+  if(best>=0){ const g=globs[best]; const gx=g.x+g.w/2, gy=g.y+g.h/2, bx=blob.x+blob.w/2, by=blob.y+blob.h/2;
+    // partículas SENDO PUXADAS do pedaço PRA DENTRO do jogador (convergem)
+    for(let k=0;k<10;k++){ const t=Math.random(), px=gx+(Math.random()*2-1)*8, py=gy+(Math.random()*2-1)*8;
+      particles.push({x:px,y:py,vx:(bx-px)*3.2,vy:(by-py)*3.2,life:0.2+Math.random()*0.12,max:0.34,r:1.6+Math.random()*2,color:"#a6f08a"}); }
+    ring(gx,gy,g.w*1.5,"166,240,138",3,0.34,true);        // anel colapsando = absorção
+    sfx("absorb");
     globs.splice(best,1); blob.mass++; sizeBlob(); blob.flash=0.12; renderHud(); } }
 
 // LUTA DO CHEFE: pular na CABEÇA dá dano; encostar de lado tira massa (não mata na hora).
@@ -961,7 +986,7 @@ function handleBoss(e,dt){
   if(blob.vy>40 && feet < headLine){                    // PULO NA CABEÇA = dano
     e.hp--; e.hitT=1.0;
     blob.vy=-BOUNCE*0.7; blob.onGround=false; blob.onGroundPrev=false;   // quica pra cima
-    burst(e.x+e.w/2, e.y, 20, "#ff8fae", 220); shake=9; sfx("bosshit");
+    burst(e.x+e.w/2, e.y, 20, "#ff8fae", 220); ring(e.x+e.w/2, e.y, e.w*1.4, "255,143,174", 4, 0.45); shake=9; sfx("bosshit");
     if(e.hp<=0) bossDefeated(e);
     return;
   }
@@ -982,6 +1007,7 @@ function bossDefeated(e){
 function die(){ if(state==="dead")return; deaths++;
   const cx=blob.x+blob.w/2, cy=blob.y+blob.h/2;
   splat(cx,cy,30,320); burst(cx,cy,10,"#ff7a6a",200);           // slime se ESPATIFA
+  ring(cx,cy,blob.w*2.6,"255,140,120",4,0.5); ring(cx,cy,blob.w*1.6,"255,220,200",2.5,0.4);
   blob.gone=true;                                                // a geleca some (virou respingo)
   sfx("impact"); sfx("die"); shake=12;
   state="dead";
@@ -1241,6 +1267,11 @@ function render(){
   for(const tp of tramp){ const c=tp.sq*7;
     ctx.strokeStyle="rgba(139,233,255,.85)"; ctx.lineWidth=3;
     ctx.beginPath(); ctx.moveTo(tp.x+4,tp.y+2+c); ctx.quadraticCurveTo(tp.x+tp.w/2,tp.y-6+c*2,tp.x+tp.w-4,tp.y+2+c); ctx.stroke(); }
+  // ONDAS de choque (pulo/pouso/impacto/mola/reabsorção)
+  for(const r of rings){ const al=Math.max(0,r.life/r.max);
+    ctx.globalAlpha=al*0.8; ctx.strokeStyle=`rgba(${r.color},1)`; ctx.lineWidth=r.width*(0.4+al*0.6);
+    ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,7); ctx.stroke(); }
+  ctx.globalAlpha=1;
   // pedaços (gelecas soltas) — mini cubinhos de geleia VIVOS: têm mini-olhos (dica leve
   // de que estão vivos e dá pra interagir/tocar). Trampolins ficam azul.
   for(const g of globs){ const solid=g.solid, a=solid?1:0.5, gcx=g.x+g.w/2, gcy=g.y+g.h/2;
@@ -1288,6 +1319,12 @@ function render(){
     }
     ctx.restore();                                        // fecha o PLOP de nascimento
   }
+
+  // RASTRO do blob (afterimages translúcidas) — desenhado ATRÁS do corpo
+  for(const gh of trail){ const al=(gh.life/gh.max)*0.28;
+    ctx.globalAlpha=al; ctx.fillStyle=gh.cling?"#7fe0d0":(gh.melt?"#ffbe6a":"#8bec7c");
+    roundRect(gh.x, gh.y, gh.w, gh.h, Math.min(gh.w,gh.h)*0.26); ctx.fill(); }
+  ctx.globalAlpha=1;
 
   drawBlob();
 
@@ -1544,6 +1581,17 @@ function slimeSplit(x,y){ for(let i=0;i<9;i++){ const a=-Math.PI/2 + (Math.rando
   particles.push({x:x+(Math.random()*2-1)*7, y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
     life:0.32+Math.random()*0.3, max:0.62, r:1.6+Math.random()*2.6, color:SLIMECOL[(Math.random()*3)|0] }); }
   if(particles.length>380)particles.splice(0,particles.length-380); }
+// ONDA de choque anelar (pulo, pouso, impacto, mola). inward=true → colapsa pra dentro (reabsorção)
+function ring(x,y,maxR,color,width,dur,inward){
+  rings.push({x,y,r:inward?maxR:2,maxR,color:color||"126,224,107",width:width||3,life:dur||0.42,max:dur||0.42,inward:!!inward});
+  if(rings.length>60)rings.shift(); }
+function updateRings(dt){ for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.life-=dt;
+  if(r.life<=0){rings.splice(i,1);continue;} const t=1-r.life/r.max;
+  r.r = r.inward ? Math.max(0,r.maxR*(1-t)) : r.maxR*(1-(1-t)*(1-t)); } }   // easeOut na expansão
+// RASTRO do blob (afterimages) quando se move rápido / voa
+function pushTrail(){ trail.push({x:blob.x,y:blob.y,w:blob.w,h:blob.h,life:0.17,max:0.17,
+  cling:blob.cling,melt:blob.melting}); if(trail.length>16)trail.shift(); }
+function updateTrail(dt){ for(let i=trail.length-1;i>=0;i--){ trail[i].life-=dt; if(trail[i].life<=0)trail.splice(i,1); } }
 // CONFETE de comemoração (vitória): partículas coloridas subindo e caindo
 const CONFCOL=["#7ee06b","#ffd24a","#8be9ff","#ff8fae","#c9a6ff","#a6f08a"];
 function confetti(x,y,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28, s=140+Math.random()*220;
@@ -1659,7 +1707,7 @@ function hideHint(){ const e=el("hint"); if(e)e.classList.remove("show"); clearT
 // ==========================================================================
 function loop(ts){ const dt=Math.min(0.033,(ts-last)/1000||0); last=ts; update(dt);
   // durante a comemoração/morte o jogo pausa, mas partículas e o tremor continuam vivos
-  if(state==="complete"||state==="dead"){ updateParticles(dt); T+=dt; if(shake>0)shake=Math.max(0,shake-dt*24);
+  if(state==="complete"||state==="dead"){ updateParticles(dt); updateRings(dt); updateTrail(dt); T+=dt; if(shake>0)shake=Math.max(0,shake-dt*24);
     if(winTimer>0){ winTimer-=dt; if(winTimer<=0&&winThen){ const f=winThen; winThen=null; f(); } } }
   if(state!=="menu") render(); requestAnimationFrame(loop); }
 let winTimer=0, winThen=null;
