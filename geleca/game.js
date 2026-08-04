@@ -30,6 +30,9 @@ const THEMES={
            top:"#7a4fd0", top2:"#a06ff0", far:"#160c2c", mid:"#241542", cloud:"180,140,240", amb:"spark", deco:"chunk", glow:"150,90,240" },
   glacier:{ sky0:"#20455c", sky1:"#0f2838", mote:"210,245,255", tile:"#3a5566", tilehi:"#547a90",
            top:"#8fd8ee", top2:"#c0f0ff", far:"#173845", mid:"#245266", cloud:"225,245,255", amb:"snow", deco:"berg", glow:"150,225,255" },
+  // MUNDO 1 — Vale Verdejante (tema coeso das 15 primeiras fases)
+  grove: { sky0:"#1c3d2a", sky1:"#0a1c14", mote:"150,240,150", tile:"#294a34", tilehi:"#3f6c49",
+           top:"#5ec457", top2:"#8bec7c", far:"#153020", mid:"#1e4a32", cloud:"180,235,185", amb:"fireflies", deco:"grove", glow:"90,210,120" },
 };
 
 // -------------------------------------------------------------------------- FASES
@@ -41,7 +44,7 @@ const THEMES={
 // enemies: [{x,y,type:'patrol'|'chaser'|'boss',dist,speed,axis,range,delay}] — chaser/boss caçam; todos barrados por paredes
 // LEVELS com secret:true = fase oculta (só destrava achando TODOS os segredos)
 const LEVELS = [
-  { name:"1 · Vale", mass:9, max:9, theme:"cave",
+  { name:"1 · Vale", mass:9, max:9, theme:"grove",
     hint:"Vá pra direita ➜ e pule. Cada pulo solta um pedaço de você que vira bloco sólido.", rows:[
     "############################################################",
     "#                                                          #",
@@ -64,7 +67,7 @@ const LEVELS = [
     "#############^^^########^^^###########^^^#########^^########",
     "#############   ########   ###########   #########  ########"]},
 
-  { name:"2 · Colinas", mass:9, max:9, theme:"cave",
+  { name:"2 · Colinas", mass:9, max:9, theme:"grove",
     hint:"Pontes rachadas DESMORONAM quando você pisa — atravesse correndo!", rows:[
     "################################################################",
     "#                                                              #",
@@ -90,7 +93,7 @@ const LEVELS = [
     "##################   #############    ############   ###########"],
     enemies:[{"x":40,"y":17,"dist":7,"speed":0.9,"axis":"x","type":"patrol"}]},
 
-  { name:"3 · Cavernas", mass:10, max:10, theme:"deep",
+  { name:"3 · Cavernas", mass:10, max:10, theme:"grove",
     hint:"Empilhar gasta massa. Encoste num pedaço e aperte PEGAR pra reabsorver e reabastecer.", rows:[
     "##############################################################",
     "#                                                            #",
@@ -116,7 +119,7 @@ const LEVELS = [
     "################   ###########    ############   #############"],
     enemies:[{"x":44,"y":17,"dist":6,"speed":1,"axis":"x","type":"patrol"}]},
 
-  { name:"4 · Paredão", mass:9, max:9, theme:"deep",
+  { name:"4 · Paredão", mass:9, max:9, theme:"grove",
     hint:"SUBA! Pule de plataforma em plataforma. Perto de uma parede, segure a direção contra ela pra grudar e escalar.", rows:[
     "##############################",
     "#                            #",
@@ -150,7 +153,7 @@ const LEVELS = [
     "##############################"],
     enemies:[{"x":13,"y":15,"dist":5,"speed":0.9,"axis":"x","type":"patrol"}]},
 
-  { name:"5 · A Ponte", mass:5, max:5, theme:"ice",
+  { name:"5 · A Ponte", mass:5, max:5, theme:"grove",
     hint:"Molas (⇑) te lançam alto e plataformas móveis cruzam os abismos.", rows:[
     "########################################################################",
     "#                                                                      #",
@@ -175,7 +178,7 @@ const LEVELS = [
     movers:[{"x":9,"y":16,"w":3,"axis":"x","dist":9,"speed":0.7,"phase":0},{"x":30,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":1},{"x":53,"y":16,"w":3,"axis":"x","dist":9,"speed":0.75,"phase":0.4}],
     enemies:[{"x":36,"y":15,"speed":1,"type":"chaser","range":8}]},
 
-  { name:"6 · Forja", mass:8, max:8, theme:"forge",
+  { name:"6 · Forja", mass:8, max:8, theme:"grove",
     hint:"Deixe um pedaço na placa pra abrir a porta. O 🔥 calor derrete sua massa — passe rápido.", rows:[
     "################################################################",
     "#                                                              #",
@@ -199,7 +202,7 @@ const LEVELS = [
     "####################################   #########################"],
     enemies:[{"x":34,"y":15,"speed":1.05,"type":"chaser","range":7},{"x":50,"y":15,"dist":6,"speed":0.9,"axis":"x","type":"patrol"}]},
 
-  { name:"7 · Guarida", mass:7, max:7, theme:"forge",
+  { name:"7 · Guarida", mass:7, max:7, theme:"grove",
     hint:"Guardiões patrulham — e alguns ACORDAM e te CAÇAM se você chegar perto. Fuja pra longe pra despistá-los.", rows:[
     "##################################################################",
     "#                                                                #",
@@ -224,7 +227,7 @@ const LEVELS = [
     "########################   #######################################"],
     enemies:[{"x":18,"y":16,"dist":9,"speed":0.9,"axis":"x","type":"patrol"},{"x":44,"y":16,"dist":8,"speed":1.1,"axis":"x","type":"patrol"},{"x":33,"y":16,"speed":1.15,"type":"chaser","range":9}]},
 
-  { name:"8 · O Ápice", mass:9, max:9, theme:"ice",
+  { name:"8 · O Ápice", mass:9, max:9, theme:"grove",
     hint:"Metade do caminho! Tudo que você aprendeu, junto.", rows:[
     "######################################################################################",
     "#                                                                                    #",
@@ -253,7 +256,7 @@ const LEVELS = [
     movers:[{"x":27,"y":20,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":65,"y":20,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
     enemies:[{"x":45,"y":19,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":70,"y":19,"dist":5,"speed":1,"axis":"x","type":"patrol"},{"x":20,"y":19,"speed":1.1,"type":"chaser","range":8},{"x":60,"y":19,"speed":1.2,"type":"chaser","range":9}]},
 
-  { name:"9 · Geleira", mass:9, max:9, theme:"glacier",
+  { name:"9 · Geleira", mass:9, max:9, theme:"grove",
     hint:"GELO escorrega! Você desliza — pouca aderência. Freie com antecedência e cuidado com os buracos.", rows:[
     "##########################################################",
     "#                                                        #",
@@ -277,7 +280,7 @@ const LEVELS = [
     "##########################   #############################"],
     enemies:[{"x":6,"y":15,"dist":6,"speed":0.9,"axis":"x","type":"patrol"}]},
 
-  { name:"10 · Deslize", mass:6, max:6, theme:"glacier",
+  { name:"10 · Deslize", mass:6, max:6, theme:"grove",
     hint:"Plataformas de gelo te lançam pros abismos se você deslizar demais — controle o embalo e use as molas!", rows:[
     "####################################################################",
     "#                                                                  #",
@@ -302,7 +305,7 @@ const LEVELS = [
     movers:[{"x":11,"y":16,"w":3,"axis":"x","dist":10,"speed":0.6,"phase":0},{"x":31,"y":16,"w":3,"axis":"x","dist":12,"speed":0.55,"phase":0.8}],
     enemies:[{"x":24,"y":15,"speed":1,"type":"chaser","range":8}]},
 
-  { name:"11 · Congelado", mass:8, max:8, theme:"glacier",
+  { name:"11 · Congelado", mass:8, max:8, theme:"grove",
     hint:"Gelo, fogo e pontes frágeis juntos. Frio e calor não perdoam a gosma — vá com calma.", rows:[
     "########################################################################",
     "#                                                                      #",
@@ -327,7 +330,7 @@ const LEVELS = [
     "####################   #######################   #######################"],
     enemies:[{"x":12,"y":16,"dist":6,"speed":0.95,"axis":"x","type":"patrol"},{"x":52,"y":16,"speed":1.1,"type":"chaser","range":9}]},
 
-  { name:"12 · Abismo", mass:7, max:7, theme:"deep",
+  { name:"12 · Abismo", mass:7, max:7, theme:"grove",
     hint:"Abismos enormes. Pegue carona nas plataformas móveis e mire bem os saltos.", rows:[
     "##############################################################################",
     "#                                                                            #",
@@ -352,7 +355,7 @@ const LEVELS = [
     movers:[{"x":11,"y":16,"w":4,"axis":"x","dist":11,"speed":0.55,"phase":0},{"x":33,"y":16,"w":4,"axis":"x","dist":12,"speed":0.6,"phase":0.7},{"x":55,"y":16,"w":4,"axis":"x","dist":10,"speed":0.65,"phase":0.3}],
     enemies:[{"x":26,"y":15,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":48,"y":15,"speed":1.05,"type":"chaser","range":8}]},
 
-  { name:"13 · Caldeira", mass:9, max:9, theme:"forge",
+  { name:"13 · Caldeira", mass:9, max:9, theme:"grove",
     hint:"Dois mares de 🔥 calor. Abra a porta, use as molas e não demore no fogo.", rows:[
     "####################################################################",
     "#                                                                  #",
@@ -376,7 +379,7 @@ const LEVELS = [
     "##############################   ###################################"],
     enemies:[{"x":44,"y":15,"speed":1.05,"type":"chaser","range":7},{"x":8,"y":15,"dist":4,"speed":0.9,"axis":"x","type":"patrol"}]},
 
-  { name:"14 · Vidro", mass:7, max:7, theme:"glacier",
+  { name:"14 · Vidro", mass:7, max:7, theme:"grove",
     hint:"Gelo escorregadio sobre abismos, e pontes que desmoronam. Precisão total.", rows:[
     "########################################################################",
     "#                                                                      #",
@@ -400,7 +403,7 @@ const LEVELS = [
     "################     ###################     ###########################"],
     enemies:[{"x":36,"y":15,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":56,"y":15,"speed":1.1,"type":"chaser","range":8}]},
 
-  { name:"15 · O Precipício", mass:9, max:9, theme:"ice",
+  { name:"15 · O Precipício", mass:9, max:9, theme:"grove",
     hint:"O GRANDE FINAL do mundo 1. Gelo, calor, molas, plataformas móveis e guardiões. Prove que domina a gosma!", rows:[
     "############################################################################################",
     "#                                                                                          #",
@@ -761,7 +764,7 @@ function update(dt){
   const preVy=blob.vy, preG=blob.onGroundPrev;
   blob.onGround=false; blob.wall=0;
   moveAxis(blob.vx*dt, blob.vy*dt);
-  if(blob.onGround&&!preG&&preVy>260){ burst(blob.x+blob.w/2,blob.y+blob.h,5,"#5fbf6a",95); shake=Math.min(6,preVy/120); }
+  if(blob.onGround&&!preG&&preVy>260){ burst(blob.x+blob.w/2,blob.y+blob.h,5,"#5fbf6a",95); shake=Math.min(6,preVy/120); if(preVy>420)sfx("land"); }
   blob.onGroundPrev=blob.onGround; blob.wallPrev=blob.wall;
   blob.onIcePrev = blob.onGround && onIceUnder();      // ficou em cima de gelo?
 
@@ -947,8 +950,15 @@ function render(){
   drawParallax(th);
   // partículas de AMBIENTE por mundo: fagulhas sobem (forge), neve desce (ice/glacier),
   // esporos sobem (cave), brilhos flutuam (deep/void). Dá identidade a cada tema.
-  const amb=th.amb||"spore", down = (amb==="snow"||amb==="dust"), sc0=canvas.width/640;
+  const amb=th.amb||"spore", down = (amb==="snow"||amb==="dust");
   for(const m of motes){
+    if(amb==="fireflies"){                              // vaga-lumes: flutuam e pulsam (Mundo 1)
+      const xx=m.x+Math.cos(T*0.4+m.ph)*22, yy=(m.y+Math.sin(T*0.5+m.ph)*18)%H, y2=yy<0?yy+H:yy;
+      const tw=0.35+0.65*Math.abs(Math.sin(T*2.4+m.ph));
+      ctx.save(); ctx.shadowColor=`rgba(${th.mote},.9)`; ctx.shadowBlur=7;
+      ctx.fillStyle=`rgba(${th.mote},${0.55*tw})`; ctx.beginPath(); ctx.arc(xx,y2,m.r*0.75,0,7); ctx.fill(); ctx.restore();
+      continue;
+    }
     let yy = down ? (m.y + T*m.s)%H : (m.y - T*m.s)%H; if(yy<0)yy+=H;
     const drift = (amb==="snow") ? Math.sin(T*0.8+m.ph)*14 : Math.sin(T+m.ph)*6;
     const xx = m.x + drift;
@@ -1205,6 +1215,15 @@ function decoLayer(th){ const kind=th.deco, W=canvas.width,H=canvas.height,sc=W/
       ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+s,y-s*0.4); ctx.lineTo(x+s*1.4,y+s*0.3); ctx.lineTo(x+s*0.6,y+s*0.7); ctx.closePath(); ctx.fill(); }
     peakLayer(th.far,0.10,H*0.70,260*sc,120*sc);
   } else if(kind==="berg"){ peakLayer(th.far,0.10,H*0.70,300*sc,140*sc); }  // icebergs largos
+  else if(kind==="grove"){                                                    // FLORESTA (Mundo 1)
+    const by=H*0.74-cam.y*zoom*0.05;
+    // fileira distante de árvores (silhueta)
+    const sp=112*sc, off=-((cam.x*zoom*0.13)%sp);
+    for(let x=off-sp;x<W+sp;x+=sp){ const tx=x+sp*0.5, r=(32+(Math.abs(Math.round(x))*7%20))*sc, ty=by-r*1.5;
+      ctx.fillRect(tx-3*sc,ty,6*sc,(by-ty)+2);
+      ctx.beginPath(); ctx.arc(tx,ty,r,0,7); ctx.arc(tx-r*0.62,ty+r*0.32,r*0.66,0,7); ctx.arc(tx+r*0.62,ty+r*0.32,r*0.66,0,7); ctx.arc(tx,ty-r*0.5,r*0.6,0,7); ctx.fill(); }
+    hillLayer(th.far,0.10,H*0.78,320*sc,120*sc);
+  }
   else { peakLayer(th.far,0.10,H*0.66,240*sc,220*sc); }                       // 'peak' padrão
 }
 function drawParallax(th){
@@ -1222,6 +1241,12 @@ function drawParallax(th){
     const y=((i*71)%Math.floor(H*0.66)), tw=0.3+0.7*Math.abs(Math.sin(T*1.6+i*1.3));
     ctx.globalAlpha=tw*0.5; ctx.fillStyle=`rgb(${th.cloud})`; const s=(i%7===0?2:1.2)*sc; ctx.fillRect(sx,y,s,s); }
   ctx.globalAlpha=1;
+  // raios de luz suaves descendo (god-rays) — dão vida e volume ao céu
+  if(th.glow){ ctx.save(); ctx.globalCompositeOperation="lighter";
+    for(let i=0;i<4;i++){ const bx=((i*197*sc + W*0.2 - cam.x*zoom*0.05)%(W+200))-100, sw=(50+i*20)*sc;
+      const rg=ctx.createLinearGradient(bx,0,bx+sw,H*0.6); rg.addColorStop(0,`rgba(${th.glow},0)`); rg.addColorStop(0.5,`rgba(${th.glow},.05)`); rg.addColorStop(1,`rgba(${th.glow},0)`);
+      ctx.fillStyle=rg; ctx.beginPath(); ctx.moveTo(bx,0); ctx.lineTo(bx+sw,0); ctx.lineTo(bx+sw*2.2,H*0.62); ctx.lineTo(bx+sw*1.1,H*0.62); ctx.closePath(); ctx.fill(); }
+    ctx.restore(); }
   // silhueta característica do mundo bem ao fundo
   decoLayer(th);
   // morros arredondados distantes
@@ -1234,6 +1259,10 @@ function drawParallax(th){
   hillLayer(th.mid, 0.38, H*0.84, 230*sc, 130*sc);
   // morros da frente (mais escuros e rápidos — profundidade)
   hillLayer(th.sky1, 0.62, H*0.98, 180*sc, 90*sc);
+  // folhagem de PRIMEIRO PLANO (arbustos escuros na base — enquadra a cena, dá profundidade)
+  if(th.deco==="grove"){ ctx.fillStyle=th.sky1; const sp=70*sc, off=-((cam.x*zoom*0.8)%sp), by=H+4;
+    for(let x=off-sp;x<W+sp;x+=sp){ const r=(26+(Math.abs(Math.round(x))*5%16))*sc;
+      ctx.beginPath(); ctx.arc(x,by,r,Math.PI,0); ctx.arc(x+sp*0.5,by,r*0.8,Math.PI,0); ctx.fill(); } }
 }
 function drawPortal(cx,cy){
   ctx.save();
@@ -1348,39 +1377,51 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"secret":[523,659,880,1319].forEach((f,i)=>beep(a,f,t+i*0.10,0.16,"sine",0.055));break;   // acorde misterioso
     case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break;
     case"boss":[110,98,82].forEach((f,i)=>slideT(a,f,f*0.6,t+i*0.13,0.5,"sawtooth",0.05));break;   // rugido grave
-    case"swap":[660,990,1320].forEach((f,i)=>beep(a,f,t+i*0.04,0.08,"sine",0.05));break; } }        // troca de corpo (whoosh)
+    case"swap":[660,990,1320].forEach((f,i)=>beep(a,f,t+i*0.04,0.08,"sine",0.05));break;              // troca de corpo (whoosh)
+    case"land":slideT(a,200,90,t,0.09,"sine",0.045);break; } }                                        // baque ao pousar
 
 // ---------------------------------------------------------------- MÚSICA AMBIENTE (por mundo, sem arquivos)
 let musicOn = true; try{ musicOn = localStorage.getItem("geleca_music")!=="0"; }catch(e){}
 let mus=null;
 const MUSIC={
-  cave:  { root:130.81, wave:"triangle", scale:[0,3,5,7,10], tempo:660 },  // dó menor, calmo
-  deep:  { root:98.00,  wave:"sine",     scale:[0,2,3,7,8],  tempo:780 },  // sol grave, sombrio
-  forge: { root:110.00, wave:"sawtooth", scale:[0,3,5,6,7],  tempo:520 },  // lá, tenso
-  ice:   { root:146.83, wave:"triangle", scale:[0,2,4,7,9],  tempo:700 },  // ré, cristalino
-  void:  { root:73.42,  wave:"sine",     scale:[0,1,5,6,8],  tempo:900 },  // ré grave, inquietante
+  grove: { root:130.81, wave:"triangle", scale:[0,2,4,7,9],  tempo:600, pat:[0,2,4,2,4,3,2,0] }, // MUNDO 1: dó maior, acolhedor
+  cave:  { root:130.81, wave:"triangle", scale:[0,3,5,7,10], tempo:660, pat:[0,2,3,2,4,3,2,1] },
+  deep:  { root:98.00,  wave:"sine",     scale:[0,2,3,7,8],  tempo:780, pat:[0,1,2,3,2,1,0,2] },
+  forge: { root:110.00, wave:"sawtooth", scale:[0,3,5,6,7],  tempo:520, pat:[0,2,4,3,2,4,1,0] },
+  ice:   { root:146.83, wave:"triangle", scale:[0,2,4,7,9],  tempo:700, pat:[4,2,0,2,4,3,2,0] },
+  void:  { root:73.42,  wave:"sine",     scale:[0,1,5,6,8],  tempo:900, pat:[0,2,1,3,2,4,1,0] },
 };
 function startMusic(themeName){
   const a=audio(); if(!a) return; stopMusic();
-  const cfg=MUSIC[themeName]||MUSIC.cave;
-  const g=a.createGain(); g.gain.value = musicOn?0.05:0.0; g.connect(a.destination);
+  const cfg=MUSIC[themeName]||MUSIC.grove;
+  const g=a.createGain(); g.gain.value = musicOn?0.06:0.0;
+  const lp=a.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1700; lp.Q.value=0.6;  // calor
+  g.connect(lp); lp.connect(a.destination);
   const oscs=[];
-  [1,1.5].forEach((mul,k)=>{ const o=a.createOscillator(), pg=a.createGain();  // pad: tônica + quinta
-    o.type="sine"; o.frequency.value=cfg.root*mul; pg.gain.value=k?0.22:0.36;
+  // PAD: acorde suave (tônica + quinta + oitava)
+  [[1,0.30,"sine"],[1.5,0.16,"sine"],[2,0.10,"triangle"]].forEach(([mul,vol,ty])=>{
+    const o=a.createOscillator(), pg=a.createGain(); o.type=ty; o.frequency.value=cfg.root*mul; pg.gain.value=vol;
     o.connect(pg); pg.connect(g); o.start(); oscs.push(o); });
+  const scale=cfg.scale, pat=cfg.pat||[0,2,4,2], barMs=cfg.tempo*4/1000;
   let step=0;
-  const timer=setInterval(()=>{ if(!actx||actx.state!=="running"||!musicOn)return;   // arpejo suave
-    const t=actx.currentTime, oct=(step%8<4)?1:2, semi=cfg.scale[(step*3)%cfg.scale.length];
+  const timer=setInterval(()=>{ if(!actx||actx.state!=="running"||!musicOn)return;
+    const t=actx.currentTime;
+    if(step%4===0){                                                    // BAIXO (a cada compasso)
+      const bf=cfg.root*0.5*Math.pow(2, scale[(step/4)%scale.length]/12);
+      const bo=actx.createOscillator(), bg=actx.createGain(); bo.type="sine"; bo.frequency.value=bf;
+      bg.gain.setValueAtTime(0.0001,t); bg.gain.exponentialRampToValueAtTime(0.28,t+0.05); bg.gain.exponentialRampToValueAtTime(0.0001,t+barMs);
+      bo.connect(bg); bg.connect(g); bo.start(t); bo.stop(t+barMs+0.05);
+    }
+    const semi=scale[pat[step%pat.length]%scale.length], oct=(step%16<8)?1:2;   // MELODIA (padrão musical)
     const f=cfg.root*oct*Math.pow(2,semi/12);
     const o=actx.createOscillator(), ng=actx.createGain(); o.type=cfg.wave; o.frequency.value=f;
-    ng.gain.setValueAtTime(0.0001,t); ng.gain.exponentialRampToValueAtTime(0.2,t+0.04);
-    ng.gain.exponentialRampToValueAtTime(0.0001,t+0.55);
-    o.connect(ng); ng.connect(g); o.start(t); o.stop(t+0.6); step++;
+    ng.gain.setValueAtTime(0.0001,t); ng.gain.exponentialRampToValueAtTime(0.16,t+0.04); ng.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+    o.connect(ng); ng.connect(g); o.start(t); o.stop(t+0.55); step++;
   }, cfg.tempo);
-  mus={g, oscs, timer};
+  mus={g, lp, oscs, timer};
 }
 function stopMusic(){ if(!mus)return; clearInterval(mus.timer);
-  mus.oscs.forEach(o=>{ try{o.stop();}catch(e){} }); try{mus.g.disconnect();}catch(e){}
+  mus.oscs.forEach(o=>{ try{o.stop();}catch(e){} }); try{mus.g.disconnect();}catch(e){} try{mus.lp&&mus.lp.disconnect();}catch(e){}
   mus=null; }
 function toggleMute(){ musicOn=!musicOn; try{localStorage.setItem("geleca_music",musicOn?"1":"0");}catch(e){}
   if(mus) mus.g.gain.value = musicOn?0.05:0.0;
