@@ -8,7 +8,15 @@
 
 // -------------------------------------------------------------------------- FÍSICA
 const TILE=32, GRAVITY=1700, MOVE=200, AIR=0.78, JUMP_V=600, CLIMB=150,
-      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9;
+      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000;
+
+// temas de cor por "mundo" (tinta do fundo + motes)
+const THEMES={
+  cave:  { bg0:"#0b171a", bg1:"#0a2320", mote:"126,224,107", tile:"#1b2f34", top:"#2f5a46", top2:"#3f7a5a" },
+  deep:  { bg0:"#0a1220", bg1:"#0c1830", mote:"110,170,255", tile:"#1a2740", top:"#2a3f6a", top2:"#3a55a0" },
+  forge: { bg0:"#1a0f0a", bg1:"#241408", mote:"255,150,70",  tile:"#332018", top:"#6a3f2a", top2:"#a05a3a" },
+  ice:   { bg0:"#0a1a20", bg1:"#0e2632", mote:"150,220,255", tile:"#1c333d", top:"#2f5f6a", top2:"#4aa0b8" },
+};
 
 // -------------------------------------------------------------------------- FASES
 // #=sólido @=início E=saída ^=espinho o=gosma P=placa D=porta H=calor
@@ -66,11 +74,30 @@ const LEVELS = [
     hint:"Abra a porta com um pedaço na placa, depois cruze o calor rápido. Massa é preciosa!", rows:[
     "####################","#                  #","#     D            #",
     "# @   D  HHHHHH E  #","###P################"]},
+
+  { name:"10 · Mola", mass:3, max:3, theme:"ice",
+    hint:"A mola (⇑) te lança pro alto SEM gastar massa. Pegue a gema 💎 na subida!", rows:[
+    "####################","#             E    #","#          ######  #",
+    "#                  #","#         G        #","#                  #",
+    "#                  #","# @                #","##########T#########"]},
+
+  { name:"11 · Guardião", mass:3, max:3, theme:"deep",
+    hint:"O guardião patrulha o corredor — passe quando ele estiver longe, ou pule por cima.", rows:[
+    "####################","#                  #","#         G        #",
+    "# @            E   #","####################"],
+    enemies:[{x:5,y:3,dist:9,speed:0.7,axis:"x"}]},
+
+  { name:"12 · O Ápice", mass:4, max:4, theme:"forge",
+    hint:"Use a mola pra subir na plataforma e desvie do guardião até a ★. A gema é opcional!", rows:[
+    "####################","#    G      E      #","#   ############   #",
+    "#                  #","#                  #","#                  #",
+    "#                  #","# @      T         #","####################"],
+    enemies:[{x:5,y:1,dist:8,speed:0.9,axis:"x"}]},
 ];
 
 // -------------------------------------------------------------------------- PROGRESSO
 const SAVE_KEY="geleca_save_v2";
-function loadSave(){ try{ return JSON.parse(localStorage.getItem(SAVE_KEY))||{unlocked:0,stars:{}}; }catch(e){ return {unlocked:0,stars:{}}; } }
+function loadSave(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY))||{}; return {unlocked:s.unlocked||0, stars:s.stars||{}, gems:s.gems||{}}; }catch(e){ return {unlocked:0,stars:{},gems:{}}; } }
 function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
 let save = loadSave();
 function starsFor(idx, massLeft){
@@ -83,9 +110,9 @@ function starsFor(idx, massLeft){
 // -------------------------------------------------------------------------- ESTADO
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
-let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,exitRect,startPos;
+let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gem,exitRect,startPos,theme;
 let blob, globs, particles=[], motes=[], levelIndex=0, state="menu"; // menu|play|complete|dead
-let levelTime=0, T=0, shake=0, last=0, deaths=0;
+let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 
 // entrada
 const IN={ kb:{left:false,right:false,down:false}, joyX:0, joyY:0 };
@@ -109,17 +136,24 @@ function showMenu(){
   el("screen-menu").classList.add("active");
   buildLevelGrid();
 }
+function levelHasGem(i){ return LEVELS[i].rows.join("").includes("G"); }
 function buildLevelGrid(){
   const grid=el("level-grid"); grid.innerHTML="";
+  // totais
+  const totalStars=Object.values(save.stars).reduce((a,b)=>a+(b||0),0);
+  const gemLevels=LEVELS.filter((_,i)=>levelHasGem(i)).length;
+  const totalGems=Object.keys(save.gems).filter(k=>save.gems[k]).length;
+  const stats=el("menu-stats");
+  if(stats) stats.innerHTML=`⭐ ${totalStars}/${LEVELS.length*3} &nbsp;·&nbsp; 💎 ${totalGems}/${gemLevels}`;
   LEVELS.forEach((L,i)=>{
-    const locked = i>save.unlocked;
-    const st = save.stars[i]||0;
+    const locked=i>save.unlocked, st=save.stars[i]||0;
+    const gemHere=levelHasGem(i), gotGem=!!save.gems[i];
     const c=document.createElement("div");
     c.className="lv-card "+(locked?"locked":"unlocked");
     c.innerHTML = locked
-      ? `<div class="lv-lock">🔒</div><div class="lv-name">${L.name.split("·")[1]||""}</div>`
+      ? `<div class="lv-lock">🔒</div><div class="lv-name">${(L.name.split("·")[1]||"").trim()}</div>`
       : `<div class="lv-num">${i+1}</div><div class="lv-name">${L.name.split("·")[1].trim()}</div>
-         <div class="lv-stars">${st? "★".repeat(st)+"☆".repeat(3-st) : ""}</div>`;
+         <div class="lv-stars">${st?"★".repeat(st)+"☆".repeat(3-st):"···"}${gemHere?(gotGem?" 💎":" ◇"):""}</div>`;
     if(!locked) c.addEventListener("click", ()=>{ audio(); startGame(i); });
     grid.appendChild(c);
   });
@@ -137,7 +171,8 @@ function startGame(i){
 function loadLevel(idx){
   level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
   canvas.width=COLS*TILE; canvas.height=ROWS*TILE;
-  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];
+  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gem=null;
+  theme=THEMES[level.theme] || [THEMES.cave,THEMES.cave,THEMES.cave,THEMES.deep,THEMES.deep,THEMES.deep,THEMES.forge,THEMES.forge,THEMES.forge][idx] || THEMES.cave;
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
     const ch=level.rows[y][x], r={x:x*TILE,y:y*TILE,w:TILE,h:TILE};
     if(ch==="#")solidTiles.push(r);
@@ -146,6 +181,8 @@ function loadLevel(idx){
     else if(ch==="P"){solidTiles.push(r);plates.push(r);}
     else if(ch==="D")doors.push(r);
     else if(ch==="H")heatZones.push(r);
+    else if(ch==="T"){solidTiles.push(r);springs.push({x:r.x,y:r.y,w:TILE,h:TILE,sq:0});}  // mola
+    else if(ch==="G")gem={x:x*TILE+16,y:y*TILE+16,r:8,got:false};                          // gema secreta
     else if(ch==="E")exitRect={x:x*TILE+4,y:y*TILE+2,w:TILE-8,h:TILE-4};
     else if(ch==="@")startPos={x:x*TILE,y:y*TILE};
   }
@@ -153,11 +190,14 @@ function loadLevel(idx){
     x0:m.x*TILE, y0:m.y*TILE, w:m.w*TILE, h:GLOB, axis:m.axis,
     dist:m.dist*TILE, speed:m.speed, phase:m.phase||0,
     x:m.x*TILE, y:m.y*TILE, dx:0, dy:0 }));
+  (level.enemies||[]).forEach(e=>enemies.push({
+    x0:e.x*TILE, y0:e.y*TILE, dist:e.dist*TILE, speed:e.speed, axis:e.axis||"x",
+    x:e.x*TILE, y:e.y*TILE, w:TILE-6, h:TILE-6 }));
   // motes de fundo
   motes=[]; for(let i=0;i<26;i++) motes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height,
     r:1+Math.random()*2.5, s:6+Math.random()*14, ph:Math.random()*6.28 });
   showHint(level.hint);
-  levelTime=0; resetLevel();
+  levelTime=0; transition=1; resetLevel();
 }
 function resetLevel(){
   globs=[]; particles=[];
@@ -202,6 +242,15 @@ function updateMovers(dt){
     m.dx=nx-m.x; m.dy=ny-m.y; m.x=nx; m.y=ny;
   }
 }
+function updateEnemies(){
+  for(const e of enemies){
+    const off=Math.sin(levelTime*e.speed*Math.PI*2)*(e.dist*0.5) + e.dist*0.5;
+    e.px=e.x;
+    e.x = e.axis==="x"? e.x0+off+3 : e.x0+3;
+    e.y = e.axis==="y"? e.y0+off+3 : e.y0+3;
+    e.dir = e.x>=e.px?1:-1;
+  }
+}
 
 function update(dt){
   T+=dt;
@@ -210,7 +259,8 @@ function update(dt){
   if(blob.flash>0)blob.flash-=dt; if(blob.clingLock>0)blob.clingLock-=dt;
   blob.blink-=dt; if(blob.blink<-0.15)blob.blink=1.6+Math.random()*2.5;
 
-  updateMovers(dt);
+  if(transition>0) transition=Math.max(0,transition-dt*2.6);
+  updateMovers(dt); updateEnemies();
   // carona: se estava sobre um mover, acompanha o deslocamento dele
   if(blob.onGroundPrev && blob.rideMover){ blob.x+=blob.rideMover.dx; blob.y+=blob.rideMover.dy; }
 
@@ -248,6 +298,21 @@ function update(dt){
   blob.rideMover=null;
   if(blob.onGround) for(const m of movers){
     if(blob.x+blob.w>m.x+2 && blob.x<m.x+m.w-2 && Math.abs((blob.y+blob.h)-m.y)<3){ blob.rideMover=m; break; }
+  }
+  // mola: impulso pra cima sem gastar massa
+  if(blob.onGround && blob.vy>=0) for(const sp of springs){
+    if(blob.x+blob.w>sp.x+3 && blob.x<sp.x+sp.w-3 && Math.abs((blob.y+blob.h)-sp.y)<5){
+      blob.vy=-BOUNCE; blob.onGround=false; blob.onGroundPrev=false; sp.sq=1;
+      burst(sp.x+sp.w/2,sp.y,8,"#9fe8ff",160); sfx("spring"); break;
+    }
+  }
+  for(const sp of springs) if(sp.sq>0) sp.sq=Math.max(0,sp.sq-dt*4);
+
+  // inimigos: contato = morte
+  for(const e of enemies) if(overlaps(blob,{x:e.x+2,y:e.y+2,w:e.w-4,h:e.h-4})){ die(); return; }
+  // gema secreta
+  if(gem && !gem.got && overlaps(blob,{x:gem.x-gem.r,y:gem.y-gem.r,w:gem.r*2,h:gem.r*2})){
+    gem.got=true; burst(gem.x,gem.y,14,"#8be9ff",150); sfx("gem");
   }
 
   // calor
@@ -293,10 +358,12 @@ function die(){ deaths++; burst(blob.x+blob.w/2,blob.y+blob.h/2,18,"#ff7a6a",210
 function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exitRect.y+exitRect.h/2,22,"#7ee06b",190);
   const st=starsFor(levelIndex,blob.mass);
   save.stars[levelIndex]=Math.max(save.stars[levelIndex]||0, st);
+  if(gem&&gem.got) save.gems[levelIndex]=true;
   if(levelIndex+1<LEVELS.length && save.unlocked<levelIndex+1) save.unlocked=levelIndex+1;
   persist();
   const isLast=levelIndex>=LEVELS.length-1;
-  overlay(isLast?"🏆 Você zerou!":"✅ Fase completa!", "★".repeat(st)+"☆".repeat(3-st),
+  const gemTxt = gem ? (gem.got?"  💎":"  <span style='opacity:.35'>💎</span>") : "";
+  overlay(isLast?"🏆 Você zerou!":"✅ Fase completa!", "★".repeat(st)+"☆".repeat(3-st)+gemTxt,
     isLast? [{t:"Menu",cb:showMenu}] :
           [{t:"Próxima ▶",cb:()=>startGame(levelIndex+1)},{t:"Menu",ghost:true,cb:showMenu}], true); }
 
@@ -306,12 +373,13 @@ function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exit
 function render(){
   const W=canvas.width,H=canvas.height;
   ctx.setTransform(1,0,0,1,0,0);
-  // fundo
+  // fundo (tema)
+  const th=theme||THEMES.cave;
   const bg=ctx.createLinearGradient(0,0,0,H);
-  bg.addColorStop(0,"#0b171a"); bg.addColorStop(1,"#0a2320");
+  bg.addColorStop(0,th.bg0); bg.addColorStop(1,th.bg1);
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   // motes ambiente
-  ctx.fillStyle="rgba(126,224,107,.12)";
+  ctx.fillStyle=`rgba(${th.mote},.12)`;
   for(const m of motes){ const y=(m.y - T*m.s)%H, yy=y<0?y+H:y;
     ctx.beginPath(); ctx.arc(m.x+Math.sin(T+m.ph)*6, yy, m.r,0,7); ctx.fill(); }
 
@@ -328,16 +396,22 @@ function render(){
     for(let i=0;i<3;i++){ const fx=h.x+7+i*10, fl=5+Math.sin(T*9+i+h.x)*3;
       ctx.beginPath(); ctx.moveTo(fx,h.y+h.h-3); ctx.quadraticCurveTo(fx+3,h.y+h.h-8-fl,fx+5,h.y+h.h-3); ctx.fill(); } }
 
-  // tiles com relevo + topo de grama-gosma
+  // tiles com relevo + topo de grama-gosma (tema)
   for(const s of solidTiles){
-    ctx.fillStyle="#1b2f34"; ctx.fillRect(s.x,s.y,s.w,s.h);
+    ctx.fillStyle=th.tile; ctx.fillRect(s.x,s.y,s.w,s.h);
     ctx.fillStyle="rgba(0,0,0,.18)"; ctx.fillRect(s.x,s.y+s.h-4,s.w,4);
     const above=isSolidAt(s.x+16,s.y-16);
-    if(!above){ ctx.fillStyle="#2f5a46"; ctx.fillRect(s.x,s.y,s.w,5);
-      ctx.fillStyle="#3f7a5a"; for(let i=0;i<2;i++){ const dx=s.x+8+i*14; ctx.beginPath();
+    if(!above){ ctx.fillStyle=th.top; ctx.fillRect(s.x,s.y,s.w,5);
+      ctx.fillStyle=th.top2; for(let i=0;i<2;i++){ const dx=s.x+8+i*14; ctx.beginPath();
         ctx.arc(dx,s.y+5,3+ (i?1:0),0,Math.PI); ctx.fill(); } }
     ctx.fillStyle="rgba(255,255,255,.03)"; ctx.fillRect(s.x+3,s.y+7,2,2); ctx.fillRect(s.x+s.w-8,s.y+12,2,2);
   }
+  // molas (trampolim)
+  for(const sp of springs){ const c=sp.sq*6;
+    ctx.fillStyle="#2a5a6a"; roundRect(sp.x+3,sp.y+8+c,sp.w-6,sp.h-10-c,5); ctx.fill();
+    ctx.fillStyle="#9fe8ff"; roundRect(sp.x+2,sp.y+4+c,sp.w-4,7,4); ctx.fill();
+    ctx.strokeStyle="rgba(159,232,255,.5)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(sp.x+7,sp.y+22); ctx.lineTo(sp.x+16,sp.y+13+c); ctx.lineTo(sp.x+25,sp.y+22); ctx.stroke(); }
   // portas / placas
   if(doors.length){ const open=plateOn();
     for(const d of doors){ ctx.fillStyle=open?"rgba(126,224,107,.12)":"#3a2b3a"; ctx.fillRect(d.x,d.y,d.w,d.h);
@@ -367,6 +441,26 @@ function render(){
     ctx.fillStyle="#a6f08a"; ctx.beginPath(); ctx.arc(p.x,by,p.r,0,7); ctx.fill(); ctx.restore();
     ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(p.x-3,by-3,2.4,0,7); ctx.fill(); }
 
+  // gema secreta (diamante girando)
+  if(gem && !gem.got){ const gy=gem.y+Math.sin(T*2.5)*3, r=gem.r;
+    ctx.save(); ctx.translate(gem.x,gy); ctx.rotate(Math.sin(T*1.5)*0.25);
+    ctx.shadowColor="#8be9ff"; ctx.shadowBlur=16;
+    const gg=ctx.createLinearGradient(0,-r,0,r); gg.addColorStop(0,"#d6f7ff"); gg.addColorStop(1,"#3fb0e0");
+    ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r*0.8,0); ctx.lineTo(0,r); ctx.lineTo(-r*0.8,0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-r*0.8,0); ctx.lineTo(r*0.8,0); ctx.stroke();
+    ctx.restore(); }
+
+  // inimigos (guardião — gosma espinhosa)
+  for(const e of enemies){ const cx=e.x+e.w/2, cy=e.y+e.h/2, r=e.w/2;
+    ctx.save(); ctx.shadowColor="rgba(255,90,60,.6)"; ctx.shadowBlur=10;
+    ctx.fillStyle="#e0574b";
+    ctx.beginPath(); for(let i=0;i<10;i++){ const a=i/10*6.283, rr=r*(i%2?0.72:1.05+Math.sin(T*8+i)*0.06);
+      const x=cx+Math.cos(a)*rr, y=cy+Math.sin(a)*rr; i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle="#fff"; const ed=(e.dir||1);
+    ctx.beginPath(); ctx.arc(cx-4+ed*2,cy-2,2.6,0,7); ctx.arc(cx+5+ed*2,cy-2,2.6,0,7); ctx.fill();
+    ctx.fillStyle="#3a0a0a"; ctx.beginPath(); ctx.arc(cx-4+ed*3,cy-2,1.3,0,7); ctx.arc(cx+5+ed*3,cy-2,1.3,0,7); ctx.fill(); }
+
   // portal de saída (anéis pulsantes + estrela)
   drawPortal(exitRect.x+exitRect.w/2, exitRect.y+exitRect.h/2);
 
@@ -374,6 +468,13 @@ function render(){
   for(const g of globs){ const a=g.solid?0.94:0.42;
     ctx.fillStyle=`rgba(120,210,105,${a})`; slime(g.x+g.w/2,g.y+g.h/2,g.w/2,g.h/2,0.05,g.x); ctx.fill();
     ctx.strokeStyle="rgba(60,140,60,.7)"; ctx.lineWidth=2; ctx.stroke(); }
+
+  // halo de luz do blob (atmosfera)
+  if(blob){ const cx=blob.x+blob.w/2, cy=blob.y+blob.h/2;
+    ctx.save(); ctx.globalCompositeOperation="lighter";
+    const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,95);
+    lg.addColorStop(0,"rgba(126,224,107,.15)"); lg.addColorStop(1,"rgba(126,224,107,0)");
+    ctx.fillStyle=lg; ctx.fillRect(cx-95,cy-95,190,190); ctx.restore(); }
 
   drawBlob();
 
@@ -386,6 +487,8 @@ function render(){
   const vg=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.75);
   vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,.42)");
   ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  // transição de entrada da fase (fade)
+  if(transition>0){ ctx.fillStyle=`rgba(0,0,0,${transition})`; ctx.fillRect(0,0,W,H); }
 }
 function isSolidAt(px,py){ for(const s of solidTiles) if(px>=s.x&&px<s.x+s.w&&py>=s.y&&py<s.y+s.h) return true; return false; }
 
@@ -460,6 +563,8 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"melt":slideT(a,220,150,t,0.10,"sawtooth",0.035);break;
     case"nope":slideT(a,170,120,t,0.10,"square",0.04);break;
     case"die":slideT(a,220,60,t,0.40,"sawtooth",0.06);break;
+    case"spring":slideT(a,300,900,t,0.16,"sine",0.06);break;
+    case"gem":[880,1180,1560].forEach((f,i)=>beep(a,f,t+i*0.06,0.09,"sine",0.05));break;
     case"win":[523,659,784,1046].forEach((f,i)=>beep(a,f,t+i*0.09,0.10,"triangle",0.06));break; } }
 
 function renderHud(){ el("level-name").textContent=level.name;

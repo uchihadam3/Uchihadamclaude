@@ -28,7 +28,8 @@ body{
 .logo-blob{ width:84px; height:74px; margin:0 auto 6px; position:relative; }
 .title{ font-size:3rem; letter-spacing:6px; margin:0; color:var(--slime);
   text-shadow:0 0 24px rgba(126,224,107,.5), 0 3px 0 var(--slime-d); font-weight:800; }
-.subtitle{ margin:2px 0 22px; color:var(--text-dim); font-size:.95rem; letter-spacing:1px; }
+.subtitle{ margin:2px 0 12px; color:var(--text-dim); font-size:.95rem; letter-spacing:1px; }
+.menu-stats{ margin:0 0 18px; color:var(--text); font-size:.95rem; font-weight:700; }
 .level-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 auto; }
 @media (min-width:520px){ .level-grid{ grid-template-columns:repeat(4,1fr); } }
 .lv-card{
