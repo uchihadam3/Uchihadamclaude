@@ -2450,11 +2450,12 @@ export class Game {
     // do que está SOBRE a parede (tabuleta, lanterna, janela, hera, tralha), não
     // da parede em si.
     //
-    // Só p/ uma rua comprida não parecer copiar e colar, cada casa sorteia um
-    // dos três tons — a diferença é sutil de propósito, é sujeira e idade, não
-    // material diferente.
-    const facadeMats = [0xffffff, 0xe8e2d8, 0xd8d4cc].map((cor) =>
-      this.wallArtMat(facadePedraUrl, [1, 1], cor));
+    // UM TOM SÓ. Cheguei a sortear três tons quase iguais p/ uma rua comprida não
+    // parecer copiar e colar, mas o sorteio é por CÉLULA e um prédio ocupa várias:
+    // a mesma casa saía com um bloco de parede claro e o bloco vizinho escuro,
+    // como se fossem paredes remendadas. Numa cidade de pedra lavrada a parede é
+    // contínua — quem quebra a monotonia é a luz, a tabuleta e a lanterna.
+    const facadeMat0 = this.wallArtMat(facadePedraUrl);
     void facadeTaipaUrl; void facadeRebocoUrl; // agora só valem por DENTRO das casas
 
     const hash = (a: number, b: number, s = 0) =>
@@ -2499,9 +2500,8 @@ export class Game {
         // com os decalques pelo mesmo pixel de profundidade. A BoxGeometry mapeia
         // a textura 0..1 em CADA face, que é exatamente um painel por face — então
         // o painel avulso deixou de ser necessário e saiu.
-        const facadeMat = facadeMats[Math.floor(Math.abs(hash(c, r, 61)) * 997) % facadeMats.length];
         void wallMats;
-        const box = new THREE.Mesh(boxGeo, facadeMat);
+        const box = new THREE.Mesh(boxGeo, facadeMat0);
         box.position.set(c * CELL, WALL_H / 2, r * CELL);
         this.world.add(box);
 
