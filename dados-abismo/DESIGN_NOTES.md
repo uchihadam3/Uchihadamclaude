@@ -268,6 +268,27 @@ Medido a 412×900 com 3 e com 6 inimigos: fileira 0–224, mesa 224–623, rodap
 623–900. `sobrepoeTopo:false`, `sobrepoeBaixo:false`, nenhuma etiqueta fora da
 mesa.
 
+## 3.10 O turno do inimigo virou uma frase de quatro tempos
+Antes cada ação inimiga acontecia em 420ms e o dano aparecia junto: não dava pra
+ver o que tinha acontecido. Agora cada ação tem quatro batidas:
+
+| tempo | o que acontece |
+|---|---|
+| 0 ms | **ARMA** — o card recua, cresce e acende na cor da ação |
+| 280 ms | **BATE** — investida com antecipação e retorno + efeito próprio da intenção |
+| 360 ms | **VIAJA** — o golpe atravessa a tela girando, com rastro de 3 cópias defasadas |
+| 760 ms | **CHEGA** — anel de choque + 9 estilhaços no alvo, tremor e o número do dano |
+
+O intervalo entre ações é 880ms (até 2 inimigos), 780ms (3-4) e 640ms (5+) — com
+onda cheia ainda dá pra acompanhar sem virar novela. Ação que mexe no seu dado
+agora diz o que fez: "❄ dado congelado", "✋ dado roubado", "✖ dado fraturado".
+
+**Verificação**: sob SwiftShader o main thread trava por segundos renderizando,
+então cronometrar quadro a quadro não funciona aqui. O que dá pra afirmar é a
+ORDEM e a existência, medidas por MutationObserver: ARMA → BATE → efeito →
+projétil → impacto → dano, com 3 cópias de rastro por tiro e 9 estilhaços por
+impacto. O espaçamento em milissegundos é o do agendamento no código.
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.

@@ -509,17 +509,34 @@
    color:#c07cff;text-shadow:0 0 18px #8a3bff;animation:fxesc .8s forwards}
  .fx-mancha{position:absolute;inset:0;border-radius:12px;
    background:radial-gradient(circle,rgba(150,80,220,.6),transparent 70%);animation:fxflash .7s forwards}
- .en.atacando{animation:invest .45s ease-out}
- @keyframes invest{0%{transform:translateY(0)}30%{transform:translateY(-8px) scale(1.06)}
-   55%{transform:translateY(11px) scale(1.02)}100%{transform:translateY(0)}}
+ /* ARMA: recua e acende — dá pra ver de quem vem o golpe antes de vir */
+ .en.preparando{animation:prep .28s cubic-bezier(.3,.9,.4,1) forwards;position:relative;z-index:3}
+ @keyframes prep{to{transform:translateY(-7px) scale(1.05)}}
+ .en.preparando::before{content:'';position:absolute;inset:-3px;border-radius:14px;pointer-events:none;
+   box-shadow:0 0 0 2px var(--pc,#ff6a55),0 0 24px var(--pc,#ff6a55);animation:prepbr .28s ease-out}
+ @keyframes prepbr{from{opacity:0}to{opacity:.95}}
+ /* BATE: investida com peso — antecipação, golpe, retorno */
+ .en.atacando{animation:invest .52s cubic-bezier(.25,.9,.35,1);position:relative;z-index:3}
+ @keyframes invest{0%{transform:translateY(-7px) scale(1.05)}
+   22%{transform:translateY(-11px) scale(1.08)}
+   46%{transform:translateY(16px) scale(1.03)}
+   70%{transform:translateY(-3px) scale(.99)}100%{transform:translateY(0) scale(1)}}
  /* golpe voando do inimigo até você */
  #proj{position:fixed;inset:0;pointer-events:none;z-index:60}
- .pj{position:absolute;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
-   display:grid;place-items:center;font-size:17px;
+ .pj{position:absolute;left:0;top:0;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
+   display:grid;place-items:center;font-size:18px;
    background:radial-gradient(circle,rgba(255,90,70,.9),transparent 68%);
-   filter:drop-shadow(0 0 8px #ff3b2b);transition:transform .3s cubic-bezier(.4,0,.9,.5),opacity .12s}
+   filter:drop-shadow(0 0 8px #ff3b2b);transition:transform .34s cubic-bezier(.35,0,.85,.6),opacity .14s}
  .pj.roxo{background:radial-gradient(circle,rgba(180,110,255,.9),transparent 68%);filter:drop-shadow(0 0 8px #8a3bff)}
  .pj.verde{background:radial-gradient(circle,rgba(110,240,160,.9),transparent 68%);filter:drop-shadow(0 0 8px #4ad98a)}
+ .pj.fant{opacity:.42;filter:blur(2px)}        /* rastro: cópias defasadas atrás */
+ /* IMPACTO: anel de choque + estilhaços em quem levou */
+ .impacto{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;
+   border:3px solid #ff6a55;pointer-events:none;animation:imp .40s cubic-bezier(.2,.8,.3,1) forwards}
+ @keyframes imp{to{width:150px;height:150px;margin:-75px 0 0 -75px;opacity:0;border-width:1px}}
+ .estilhaco{position:absolute;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:2px;
+   pointer-events:none;animation:est .48s ease-out forwards}
+ @keyframes est{to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
  /* habilidade pronta pulsa */
  @keyframes pulsa{0%,100%{box-shadow:0 0 12px #4ad98a44}50%{box-shadow:0 0 22px #4ad98a99}}
 </style></head><body>

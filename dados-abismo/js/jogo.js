@@ -512,37 +512,89 @@ function efeitoHabilidade(skill, pv){
 const PROJ=document.createElement('div'); PROJ.id='proj'; document.body.appendChild(PROJ);
 const RGT={ atk:'⚔', atk_multi:'⚔', curse:'☠', debuff:'▼', heal:'✚', block:'🛡', buff:'▲', summon:'✦' };
 function centro(el){ const r=el.getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2]; }
-function projetil(de, para, cor, glifo){
+function projetil(de, para, cor, glifo, giro=1){
   const p=document.createElement('div'); p.className='pj'+(cor?' '+cor:''); p.textContent=glifo||'';
-  p.style.transform=`translate(${de[0]}px,${de[1]}px) scale(.6)`; PROJ.appendChild(p);
-  requestAnimationFrame(()=>{ p.style.transform=`translate(${para[0]}px,${para[1]}px) scale(1.5)`; });
-  setTimeout(()=>{ p.style.opacity=0; }, 300);
-  setTimeout(()=>p.remove(), 460);
+  p.style.transform=`translate(${de[0]}px,${de[1]}px) scale(.5) rotate(0deg)`;
+  PROJ.appendChild(p);
+  requestAnimationFrame(()=>{
+    p.style.transform=`translate(${para[0]}px,${para[1]}px) scale(1.35) rotate(${giro*300}deg)`; });
+  setTimeout(()=>{ p.style.opacity=0; }, 330);
+  setTimeout(()=>p.remove(), 520);
 }
+/* O turno do inimigo tem TEMPO DE LEITURA. Cada ação é uma frase de quatro
+   tempos: ele arma → golpeia → o golpe viaja → o golpe chega. Antes tudo
+   acontecia em 420ms e você não via nada acontecer. */
+function projetilRastro(de, para, cor, glifo, giro){
+  for(let k=0;k<3;k++)
+    setTimeout(()=>projetil(de, para, cor+(k?' fant':''), k?'':glifo, giro), k*55);
+}
+function impacto(x, y, cor='#ff6a55'){
+  const anel=document.createElement('div'); anel.className='impacto';
+  anel.style.cssText=`left:${x}px;top:${y}px;border-color:${cor}`;
+  PROJ.appendChild(anel); setTimeout(()=>anel.remove(),420);
+  for(let k=0;k<9;k++){
+    const a=(k/9)*Math.PI*2 + Math.random(), d=26+Math.random()*34;
+    const e=document.createElement('i'); e.className='estilhaco';
+    e.style.cssText=`left:${x}px;top:${y}px;background:${cor};`+
+      `--dx:${(Math.cos(a)*d).toFixed(1)}px;--dy:${(Math.sin(a)*d).toFixed(1)}px;`+
+      `animation-delay:${(Math.random()*60)|0}ms`;
+    PROJ.appendChild(e); setTimeout(()=>e.remove(),560);
+  }
+}
+const COR_ACAO = { heal:'#7ef2a8', curse:'#c07cff', debuff:'#c07cff',
+                   congelar:'#8fd8ff', roubar:'#ffd24a', fraturar:'#ff8a7a',
+                   inverter:'#8fd8ff', contar:'#ff5a4a' };
 function animarInimigos(acoes){
   if(!acoes || !acoes.length) return 0;
-  acoes.forEach((a,i)=> setTimeout(()=>{
-    const el=document.querySelector(`.en[data-uid="${a.uid}"]`);
-    if(el){ el.classList.remove('atacando'); void el.offsetWidth; el.classList.add('atacando');
-            tocarEfeitoInimigo(a.t, el, a.n); }
-    const alvoEl = a.t==='heal' ? document.querySelector(`.en[data-uid="${a.curado}"]`) : $('voce');
-    if(el && alvoEl){
-      const cor = a.t==='heal'?'verde' : (a.t==='curse'||a.t==='debuff')?'roxo':'';
+  // muitos inimigos: encurta um pouco pra não virar novela, mas sem correr
+  const PASSO = acoes.length>4 ? 640 : acoes.length>2 ? 780 : 880;
+  const ARMA=0, BATE=280, VIAJA=360, CHEGA=760;   // os quatro tempos
+  acoes.forEach((a,i)=>{
+    const t0=i*PASSO;
+    const achaEl=()=>document.querySelector(`.en[data-uid="${a.uid}"]`);
+    const cor = COR_ACAO[a.t] || '#ff6a55';
+    /* 1 · ARMA — o card recua e acende: dá pra ver de quem vem o golpe */
+    setTimeout(()=>{ const el=achaEl(); if(!el) return;
+      el.style.setProperty('--pc', cor);
+      el.classList.remove('preparando'); void el.offsetWidth; el.classList.add('preparando');
+      SFX.soltar();
+    }, t0+ARMA);
+    /* 2 · BATE — investida + o efeito próprio da intenção */
+    setTimeout(()=>{ const el=achaEl(); if(!el) return;
+      el.classList.remove('preparando');
+      el.classList.remove('atacando'); void el.offsetWidth; el.classList.add('atacando');
+      tocarEfeitoInimigo(a.t, el, a.n);
+      if(a.t==='atk'||a.t==='atk_multi') SFX.golpe(a.v||6);
+      else if(a.t==='heal') SFX.pegar();
+      else if(a.t==='curse'||a.t==='debuff'||a.t==='fraturar') SFX.morte();
+      else SFX.bloqueio();
+    }, t0+BATE);
+    /* 3 · VIAJA — o golpe atravessa a tela com rastro */
+    setTimeout(()=>{ const el=achaEl(); if(!el) return;
+      const alvoEl = a.t==='heal' ? document.querySelector(`.en[data-uid="${a.curado}"]`) : $('voce');
+      if(!alvoEl) return;
+      const classe = a.t==='heal'?'verde' : (a.t==='curse'||a.t==='debuff'||a.t==='congelar'||a.t==='inverter')?'roxo':'';
       const tiros = a.t==='atk_multi' ? Math.min(4, a.n||2) : (a.t==='block'||a.t==='buff') ? 0 : 1;
-      for(let k=0;k<tiros;k++) setTimeout(()=>projetil(centro(el), centro(alvoEl), cor, RGT[a.t]||'⚔'), k*90);
-    }
-    // som + reação de quem levou
-    if(a.t==='atk'||a.t==='atk_multi'){ SFX.golpe(a.v||6); }
-    else if(a.t==='heal') SFX.pegar(); else if(a.t==='curse'||a.t==='debuff') SFX.morte();
-    else SFX.soltar();
+      const de=centro(el), para=centro(alvoEl);
+      for(let k=0;k<tiros;k++) setTimeout(()=>{
+        projetilRastro(de, para, classe, RGT[a.t]||'⚔', k%2?-1:1);
+        setTimeout(()=>impacto(para[0], para[1], cor), 300);
+      }, k*160);
+    }, t0+VIAJA);
+    /* 4 · CHEGA — o estrago aparece em você */
     setTimeout(()=>{
-      if(a.dano>0){ SFX.dano(); tremor(Math.min(14,4+a.dano*0.5)); flashJog(a.dano); }
+      if(a.dano>0){ SFX.dano(); tremor(Math.min(16,5+a.dano*0.6)); flashJog(a.dano); }
       else if(a.aparado>0) etiquetaEu('🛡 '+a.aparado+' aparado');
       else if(a.t==='curse') etiquetaEu('☠ dado amaldiçoado');
+      else if(a.t==='congelar') etiquetaEu('❄ dado congelado');
+      else if(a.t==='roubar') etiquetaEu('✋ dado roubado');
+      else if(a.t==='fraturar') etiquetaEu('✖ dado fraturado');
+      else if(a.t==='inverter') etiquetaEu('⇅ dado invertido');
       else if(a.t==='debuff') etiquetaEu('▼ '+(a.st||'')+' +'+(a.v||1));
-    }, 300);
-  }, i*420));
-  return acoes.length*420 + 380;
+      else if(a.t==='contar') etiquetaEu('🕳 conta '+(a.conta||1));
+    }, t0+CHEGA);
+  });
+  return (acoes.length-1)*PASSO + CHEGA + 420;
 }
 function etiquetaEu(txt){
   const n=document.createElement('div'); n.className='dmgme av'; n.textContent=txt;
