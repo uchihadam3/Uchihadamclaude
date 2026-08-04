@@ -8,7 +8,7 @@
 
 // -------------------------------------------------------------------------- FÍSICA
 const TILE=32, GRAVITY=1700, MOVE=200, AIR=0.78, JUMP_V=600, CLIMB=150,
-      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000, GEM_REVEAL=26;
+      GLOB=26, REABSORB_R=10, MAX_FALL=900, MELT_TIME=0.9, BOUNCE=1000, GEM_REVEAL=26, CLIMB_MELT=1.3;
 
 // câmera responsiva com ZOOM: o canvas preenche a tela e mostra ~N tiles (zoom in).
 const cam={ x:0, y:0 };
@@ -119,8 +119,8 @@ const LEVELS = [
     "################   ###########    ############   #############"],
     enemies:[{"x":44,"y":17,"dist":6,"speed":1,"axis":"x","type":"patrol"}]},
 
-  { name:"4 · Paredão", mass:8, max:8, theme:"grove",
-    hint:"O PAREDÃO. Pule perto da parede e SEGURE a direção contra ela pra GRUDAR e escalar — subir NÃO gasta massa. Salte pras beiradas pra pegar a ★ (cuidado com a patrulha e os espinhos à direita).", rows:[
+  { name:"4 · Paredão", mass:11, max:11, theme:"grove",
+    hint:"O PAREDÃO. Pule perto da parede e SEGURE a direção contra ela pra GRUDAR e escalar. Atenção: ESCALAR gasta massa aos poucos — reabasteça (gosmas) e não durma na parede! Salte pras beiradas pra pegar a ★.", rows:[
     "##########################",
     "#                        #",
     "#                        #",
@@ -603,7 +603,7 @@ function resetLevel(){
   camFollow(true);
   state="play"; hideOverlay(); renderHud();
 }
-function sizeBlob(){ const s=16+blob.mass*4, cx=blob.x+blob.w/2, bt=blob.y+blob.h;
+function sizeBlob(){ const s=14+blob.mass*3.0, cx=blob.x+blob.w/2, bt=blob.y+blob.h;
   blob.w=s;blob.h=s; blob.x=cx-s/2; blob.y=bt-s; }
 
 // ==========================================================================
@@ -830,6 +830,13 @@ function update(dt){
       burst(blob.x+blob.w/2,blob.y,4,"#ff9a4a",60);
       if(blob.mass>1){ blob.mass--; sizeBlob(); renderHud(); sfx("melt"); } else { die(); return; } } }
   else if(blob.meltAcc>0) blob.meltAcc=Math.max(0,blob.meltAcc-dt*0.5);
+
+  // ESCALAR PAREDE também gasta massa (custo, tipo o calor) — grudar/subir não é mais de graça
+  if(blob.cling){ blob.climbAcc=(blob.climbAcc||0)+dt;
+    if(blob.climbAcc>=CLIMB_MELT){ blob.climbAcc-=CLIMB_MELT;
+      burst(blob.x+blob.w/2,blob.y+blob.h,4,"#9fe0d0",70);
+      if(blob.mass>1){ blob.mass--; sizeBlob(); renderHud(); sfx("melt"); } else { die(); return; } } }
+  else if(blob.climbAcc>0) blob.climbAcc=Math.max(0,blob.climbAcc-dt*0.6);
 
   updateParticles(dt);
   if(shake>0) shake=Math.max(0,shake-dt*24);
@@ -1175,13 +1182,6 @@ function render(){
         ctx.moveTo(gcx-ox-orr,oy); ctx.lineTo(gcx-ox+orr,oy); ctx.moveTo(gcx+ox-orr,oy); ctx.lineTo(gcx+ox+orr,oy); ctx.stroke(); }
     }
   }
-
-  // halo de luz do blob (atmosfera)
-  if(blob){ const cx=blob.x+blob.w/2, cy=blob.y+blob.h/2;
-    ctx.save(); ctx.globalCompositeOperation="lighter";
-    const lg=ctx.createRadialGradient(cx,cy,0,cx,cy,95);
-    lg.addColorStop(0,"rgba(126,224,107,.15)"); lg.addColorStop(1,"rgba(126,224,107,0)");
-    ctx.fillStyle=lg; ctx.fillRect(cx-95,cy-95,190,190); ctx.restore(); }
 
   drawBlob();
 
