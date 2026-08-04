@@ -95,7 +95,16 @@ const D={
     g.strokeStyle='#e0503a'; g.lineWidth=2.5;
     g.beginPath(); g.arc(64,32,34,3.4,6.0); g.stroke(); },
 };
+/* ARTE PINTADA — se existir o PNG em arte/inimigos/<id>.png, ele manda.
+   O desenho em canvas continua como reserva: enquanto uma arte não chega,
+   aquele inimigo não fica sem cara. */
+const ARTE = new Set([
+  'osso_solto','cranio_rolante','vela_fatua','escriba_giz',
+  'mao_sem_dono','coro_mudo','ossada_curvada','lasca_femur',
+  'sacristao','guardiao','carrilhao','coveiro','ossario',
+]);
 export function spriteDe(id){
+  if(ARTE.has(id)) return `./arte/inimigos/${id}.png`;
   if(cache.has(id)) return cache.get(id);
   const [c,g]=novo();
   const f=D[id];

@@ -236,6 +236,26 @@ Masmorra 5. Ela é uma IA de 1 nível que não planeja entre turnos — é piso,
 teto. O Carrasco é o mais castigado pelas fechaduras (todo o dano dele passa por
 elas) e é o próximo a ajustar.
 
+## 3.8 ARTE DOS INIMIGOS (`arte/inimigos/`, `tools/fatiar.py`)
+Os 13 inimigos da Cripta de Giz deixaram de ser desenho procedural em canvas e
+passaram a ter ilustração pintada. O recorte é feito por `tools/fatiar.py`, que
+**não assume grade**: acha cada criatura por componente conectado do que não é
+magenta. Isso importou porque o gerador não respeitou a grade pedida — o OSSÁRIO
+saiu ocupando duas colunas e o Coveiro desalinhado.
+
+Duas armadilhas que o script resolve:
+- **Detalhe solto vira componente separado** (fumaça do turíbulo, ondas do
+  Carrilhão, riscos do Crânio). Só componente PEQUENO (< 18% da área mediana)
+  é absorvido, e sempre pelo grande mais próximo — assim duas criaturas
+  vizinhas nunca se fundem. Na primeira tentativa, sem essa regra, a fileira
+  inteira virou um blob só.
+- **Peso**: 320px por sprite dava 1,9 MB. Baixando pra 180px (a carta mostra 76)
+  e quantizando em 128 cores — a arte já é de paleta restrita — ficou **184 KB**
+  no total, com transparência preservada.
+
+`js/sprites.js` usa o PNG quando o id está na lista ARTE e cai no desenho em
+canvas para o resto, então masmorra sem arte ainda funciona.
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.

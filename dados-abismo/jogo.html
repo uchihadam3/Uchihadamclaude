@@ -20,7 +20,7 @@
       mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
  .en{pointer-events:auto;background:rgba(8,11,15,.96);border:1px solid rgba(255,255,255,.13);
    border-radius:11px;padding:6px 7px;cursor:pointer;backdrop-filter:blur(6px);
-   flex:0 0 auto;width:112px;scroll-snap-align:center}
+   flex:0 0 auto;width:120px;scroll-snap-align:center}
  .en.alvo{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a55}
  .en.morto{opacity:.28;filter:grayscale(1)}
  .en .nm{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -301,8 +301,9 @@
  #log{position:static;font-size:10.5px;opacity:.66;pointer-events:none;line-height:1.45;
    text-align:center;margin-bottom:4px;max-height:44px;overflow:hidden;text-shadow:0 1px 3px #000}
  /* ===== sprite do inimigo ===== */
- .en .spr{height:52px;display:flex;align-items:flex-end;justify-content:center;margin:-2px 0 2px}
-  .en .spr img{height:52px;image-rendering:auto;filter:drop-shadow(0 4px 6px rgba(0,0,0,.6));
+ .en .spr{height:76px;display:flex;align-items:flex-end;justify-content:center;margin:-1px 0 3px}
+  .en .spr img{height:76px;max-width:100%;object-fit:contain;image-rendering:auto;
+   filter:drop-shadow(0 4px 7px rgba(0,0,0,.65));
    animation:resp 2.6s ease-in-out infinite}
  .en:nth-child(2n) .spr img{animation-duration:3.1s;animation-delay:-.7s}
  .en:nth-child(3n) .spr img{animation-duration:2.2s;animation-delay:-1.3s}
