@@ -747,6 +747,17 @@ const resumoDado = d => ({
   simb: d.faces.filter(f=>f.k!=='num').length,
 });
 const faceValorNum = f => (f.k==='num'||f.k==='blade'||f.k==='shield'||f.k==='echo') ? f.v : 0;
+/* as relíquias guardam a regra numa FLAG (nome de variável). A carta tem que
+   dizer o que a regra faz, não como ela se chama no código. */
+const FLAG_TXT = {
+  prever:          'vê 1 dado antes de rolar',
+  turno_duplo:     'joga 2× no 1º turno',
+  veneno_eterno:   'veneno não decai',
+  dobro_recompensa:'recompensa dobrada · inimigos +35% HP',
+  sangra_turno:    'você perde 4 de HP por turno',
+  sem_cura:        'você NÃO se cura mais',
+};
+const FLAG_RUIM = new Set(['sangra_turno','sem_cura']);
 function linhaDif(rot, a, b, maiorMelhor=true){
   if(a===b) return `<i>${rot} ${a}</i>`;
   const sobe = b>a, bom = sobe===maiorMelhor;
@@ -782,20 +793,40 @@ function antesDepois(o){
     if(md.blockBonus) L.push(`<i class="up">bloqueio +${md.blockBonus}</i>`);
     if(md.pierce) L.push(`<i class="up">perfura ${md.pierce}</i>`);
     if(o.rel.extraDie) L.push(`<i class="up">+${o.rel.extraDie.n||1} dado ${o.rel.extraDie.tipo}</i>`);
-    if(o.rel.flag) L.push(`<i>regra nova: ${o.rel.flag}</i>`);
+    // o nome da flag é variável de código: o jogador precisa da REGRA
+    if(o.rel.flag) L.push(`<i class="${FLAG_RUIM.has(o.rel.flag)?'dn':'up'}">${FLAG_TXT[o.rel.flag]||o.rel.flag}</i>`);
     if(o.rel.onKill) L.push(`<i class="up">ao matar: dispara</i>`);
     if(o.rel.start) L.push(`<i class="up">começa o combate com efeito</i>`);
     if(!L.length) L.push(`<i>passiva permanente da run</i>`);
-    return `<div class="difl">${L.join('')}<i>${o.rel.r}</i></div>`;
+    return `<div class="difl">${L.join('')}</div>`;   // a raridade já está na fita
   }
   const cura = Math.round(P.maxHp*0.18);
-  return `<div class="difl">${linhaDif('HP', P.hp, Math.min(P.maxHp, P.hp+cura))}<i>de ${P.maxHp} máx</i></div>`;
+  // carta que não avisa que não faz nada é carta que mente
+  if(P.hp >= P.maxHp)
+    return `<div class="difl"><i class="dn">HP já está cheio — esta não cura nada</i></div>`;
+  const fica = Math.min(P.maxHp, P.hp+cura);
+  return `<div class="difl">${linhaDif('HP', P.hp, fica)}<i class="up">+${fica-P.hp}</i><i>de ${P.maxHp} máx</i></div>`;
 }
 function painelHabilidades(){
   const hab=habilidadesAtuais();
-  return `<div class="recskills"><h4>SUAS HABILIDADES — O QUE FAZEM</h4>
+  return `<details class="recskills"><summary>▾ VER MINHAS ${hab.length} HABILIDADES</summary>
     ${hab.map(s=>`<div class="rsk"><b>${s.nome}</b><u>${reqLabel(s.req)}</u>
-      <span>${s.desc}</span></div>`).join('')}</div>`;
+      <span>${s.desc}</span></div>`).join('')}</details>`;
+}
+/* ===== O PÓDIO DO ANDAR =====
+   O selo muda com o que você acabou de fazer: andar comum, subchefe (5) e
+   chefe (10) não podem ser o mesmo momento. */
+function seloDoAndar(){
+  if(andar===10) return { cor:'#ffd24a', n:'★',  l:'CHEFE CAÍDO',   sub:'A MASMORRA '+masmorra+' É SUA' };
+  if(andar===5)  return { cor:'#c07cff', n:'✦',  l:'SUBCHEFE CAÍDO',sub:'SANTUÁRIO — VOCÊ SE CURA' };
+  return           { cor:'#8fd8a0', n:String(andar), l:'ANDAR LIMPO', sub:'MASMORRA '+masmorra+' · FALTAM '+(10-andar) };
+}
+/* raridade visível: é o que dá peso à escolha sem precisar ler nada */
+function rotuloRaridade(o){
+  if(o.t==='reliquia') return { cls:'r-'+o.r, txt:o.r==='amaldicoada'?'AMALDIÇOADA':o.r.toUpperCase() };
+  if(o.t==='dado')  return { cls:'', txt:o.tipo.toUpperCase() };
+  if(o.t==='grav')  return { cls:'', txt:'FORJA' };
+  return              { cls:'', txt:'DESCANSO' };
 }
 /* ---------- fim de combate ---------- */
 function fim(){
@@ -829,25 +860,55 @@ function fim(){
   stats.elites += cb.enemies.filter(e=>e.elite).length;
   if(andar===10) stats.chefes++;
   const opts=gerarOpcoes(rng,P,3+BON.opcoes);
-  m.innerHTML=`<div class="recwrap"><div class="rect">ANDAR ${andar} LIMPO</div>
-    <p class="recp">Escolha o que levar para o próximo. Veja o que muda.</p>
-    <div class="recs2">${opts.map((o,i)=>`<button class="rec ${o.t}" data-i="${i}">
+  const S = seloDoAndar();
+  const mortos = cb.enemies.length, elites = cb.enemies.filter(e=>e.elite).length;
+  m.innerHTML=`<div class="recwrap">
+    <div class="vitsel" style="--sc:${S.cor}">
+      <div class="vitanel"></div><div class="vitanel b"></div>
+      <div class="vitn">${S.n}</div>
+    </div>
+    <div class="vitl" style="--sc:${S.cor}">${S.l}</div>
+    <div class="vitsub">${S.sub}</div>
+    <div class="vittrilha">${Array.from({length:10},(_,i)=>{
+      const n=i+1, cls = n<=andar?'on':'' , marco = n===5||n===10?' m':'';
+      return `<span class="${cls}${marco}"${n<=andar?` style="--sc:${S.cor}"`:''}></span>`;
+    }).join('')}</div>
+    <div class="vitstats">
+      <i><b>${mortos}</b>derrubados</i>
+      ${elites?`<i><b>${elites}</b>elite${elites>1?'s':''}</i>`:''}
+      <i><b>${cb.turn}</b>turno${cb.turn>1?'s':''}</i>
+      <i><b>${P.hp}</b>/${P.maxHp} HP</i>
+    </div>
+    <div class="recp">ESCOLHA O QUE LEVAR</div>
+    <div class="recs2">${opts.map((o,i)=>{
+      const R = rotuloRaridade(o);
+      return `<button class="rec ${o.t} ${R.cls}" data-i="${i}" style="--d:${i}">
+      <div class="rrar">${R.txt}</div>
       <div class="rectopo">
         <div class="ric">${o.t==='dado'?'🎲':o.t==='grav'?'⚒':o.t==='reliquia'?'🕯️':'✚'}</div>
         <div><b>${o.nome}</b><span>${o.desc}</span></div>
       </div>
-      <div class="recdif">${antesDepois(o)}</div></button>`).join('')}</div>
+      <div class="recdif">${antesDepois(o)}</div>
+      <div class="recpeg">LEVAR ESTA</div></button>`;}).join('')}</div>
     ${painelHabilidades()}</div>`;
+  const grade = m.querySelector('.recs2');
   m.querySelectorAll('.rec').forEach(b=>b.onclick=()=>{
-    SFX.pegar(); aplicar(opts[+b.dataset.i],P,rng);
+    if(grade.classList.contains('escolhido')) return;   // uma escolha só
+    SFX.pegar();
+    grade.classList.add('escolhido'); b.classList.add('levada');
+    aplicar(opts[+b.dataset.i],P,rng);
     // Língua de Prata: leva uma segunda recompensa junto
     if(P.relicFlags?.has('dobro_recompensa')){
       const outra = opts.filter((_,i)=>i!==+b.dataset.i)[0];
-      if(outra) aplicar(outra,P,rng);
+      if(outra){ aplicar(outra,P,rng);
+        const eb = m.querySelector(`.rec[data-i="${opts.indexOf(outra)}"]`);
+        if(eb) eb.classList.add('levada'); }
     }
     if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.15));
     andar++; if(andar>10){ andar=1; masmorra++; }
-    telaMapa(true);
+    // deixa a carta acender antes de trocar de tela — a escolha precisa
+    // ter um instante de confirmação, senão não parece que aconteceu nada
+    setTimeout(()=>telaMapa(true), 560);
   });
 }
 /* ---------- loop ---------- */
@@ -885,4 +946,4 @@ telaTitulo();
 window.__semArte=(img,id)=>{ img.onerror=null; img.src=spriteCanvas(id); };
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
   get sel(){return sel;}, get malhas(){return malhas;},
-  get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar, SFX };
+  get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar, SFX, fim };

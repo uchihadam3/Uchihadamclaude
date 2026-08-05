@@ -195,6 +195,13 @@
    gap:14px;background:rgba(4,6,9,.975);z-index:20;padding:20px;text-align:center}
  #msg.off{display:none}
  #msg{overflow-y:auto;justify-content:flex-start;padding:0}
+ /* CENTRALIZAR CORTA O TOPO: num telefone baixo (360x640) o conteúdo maior que
+    a tela ficava com o começo acima do zero do scroll, inalcançável — o selo
+    da recompensa sumia. Com margin auto nas pontas o espaço que sobra se
+    divide (centraliza), e quando não sobra a margem é zero (não corta). */
+ .titwrap,.fimwrap,.recwrap,.mapwrap{justify-content:flex-start !important}
+ .titwrap>*:first-child,.fimwrap>*:first-child,.recwrap>*:first-child,.mapwrap>*:first-child{margin-top:auto}
+ .titwrap>*:last-child,.fimwrap>*:last-child,.recwrap>*:last-child,.mapwrap>*:last-child{margin-bottom:auto}
  #msg h1{font-size:26px;font-weight:900;letter-spacing:.5px}
  /* ============ TELA INICIAL ============ */
  .titwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -280,23 +287,99 @@
  .fimeco{display:flex;align-items:center;gap:8px;font-size:26px;font-weight:900;color:#ffe9b0;margin:12px 0 6px}
  .fimeco i{font-size:11px;color:#7a6d50;letter-spacing:2px;font-style:normal}
  /* ============ RECOMPENSA ============ */
- .recwrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
-   gap:10px;padding:26px 16px;width:100%;max-width:440px;margin:0 auto}
- .rect{font-size:20px;letter-spacing:5px;color:#8fd8a0}
- .recp{font-size:12px;color:#7a7260}
- .recs2{display:flex;flex-direction:column;gap:9px;width:100%}
- .rec{display:flex;align-items:center;gap:11px;text-align:left;padding:12px;cursor:pointer;
-   background:linear-gradient(110deg,#171c23,#0e1116);border:1px solid rgba(255,255,255,.12);
-   border-radius:12px;color:#e8e2d0;font-family:Georgia,serif;transition:.14s}
- .rec:active{transform:scale(.98)}
- .rec.reliquia{border-color:#8a6ad8}.rec.dado{border-color:#4a9ad8}
- .rec.grav{border-color:#d8a04a}.rec.cura{border-color:#4ad88a}
- .rec .ric{font-size:26px;flex:none;width:36px;text-align:center}
- .rec b{font-size:15px;display:block} .rectopo span{font-size:11px;color:#8d8672;display:block;margin-top:2px}
- /* ===== ANTES → DEPOIS da recompensa (o que muda de verdade) ===== */
- .rec{flex-direction:column;align-items:stretch}
- .rectopo{display:flex;align-items:center;gap:11px}
- .recdif{margin-top:9px;padding-top:9px;border-top:1px dashed #2f2a22}
+ /* Era uma lista de três caixas iguais: informava, mas não era um MOMENTO.
+    Agora é o pódio do andar — selo, raridade com peso e cartas que entram
+    em cascata e se acendem quando você escolhe. */
+ .recwrap{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;
+   justify-content:center;gap:10px;padding:22px 16px 30px;width:100%;max-width:440px;margin:0 auto}
+ /* o combate ficava aparecendo por trás e embolava a leitura das cartas */
+ .recwrap::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+   background:radial-gradient(120% 70% at 50% 12%,#12161d 0%,#07090c 55%,#04060a 100%)}
+ /* quem pediu menos movimento perde a cascata e os brilhos — mas NÃO o retorno
+    de qual carta foi levada, que é informação, não enfeite */
+ @media (prefers-reduced-motion: reduce){
+   .rec,.rec::after,.vitsel,.vitsel::before,.vitanel{animation:none !important}
+   .recs2:not(.escolhido) .rec{opacity:1 !important;transform:none !important}
+   .recs2.escolhido .rec.levada{opacity:1 !important}
+ }
+
+ /* ---- selo do andar ---- */
+ .vitsel{position:relative;width:104px;height:104px;display:grid;place-items:center;margin-bottom:2px;
+   animation:selopop .55s cubic-bezier(.2,1.5,.4,1) both}
+ .vitsel::before{content:'';position:absolute;inset:-14px;border-radius:50%;
+   background:radial-gradient(circle,var(--sc,#8fd8a0)33,transparent 68%);animation:pulsar 2.6s ease-in-out infinite}
+ .vitanel{position:absolute;inset:0;border-radius:50%;border:2px dashed var(--sc,#8fd8a0);opacity:.5;
+   animation:girar 14s linear infinite}
+ .vitanel.b{inset:9px;border-style:solid;border-width:1px;opacity:.28;animation-direction:reverse;animation-duration:9s}
+ .vitn{font-size:38px;font-weight:900;color:var(--sc,#8fd8a0);line-height:1;
+   text-shadow:0 0 18px var(--sc,#8fd8a0)77}
+ .vitl{font-size:11px;letter-spacing:5px;color:var(--sc,#8fd8a0);margin-top:-2px}
+ .vitsub{font-size:10px;letter-spacing:3px;color:#6d6656;margin-top:5px}
+ /* trilha dos 10 andares: dá para ver o quanto falta sem ler nada */
+ .vittrilha{display:flex;gap:5px;align-items:center;margin:8px 0 2px}
+ .vittrilha span{width:13px;height:5px;border-radius:3px;background:#252017;border:1px solid #322b20;
+   transition:.2s}
+ .vittrilha span.m{width:19px;height:7px;border-radius:4px}
+ .vittrilha span.on{background:var(--sc,#8fd8a0);border-color:var(--sc,#8fd8a0);
+   box-shadow:0 0 8px -1px var(--sc,#8fd8a0)}
+ .vitstats{display:flex;gap:7px;margin:4px 0 2px}
+ .vitstats i{font-style:normal;font-size:10px;letter-spacing:1px;color:#8d8672;
+   background:#141109;border:1px solid #2a251d;border-radius:20px;padding:4px 11px}
+ .vitstats i b{color:#e8e2d0;font-size:12px;margin-right:3px}
+ @keyframes selopop{from{transform:scale(.4) rotate(-25deg);opacity:0}to{transform:none;opacity:1}}
+ @keyframes girar{to{transform:rotate(360deg)}}
+ @keyframes pulsar{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:1;transform:scale(1.09)}}
+
+ .recp{font-size:10px;letter-spacing:4px;color:#6d6656;margin-top:4px}
+ .recs2{display:flex;flex-direction:column;gap:11px;width:100%;perspective:900px}
+
+ /* ---- a carta ---- */
+ .rec{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:0;
+   text-align:left;padding:13px 13px 0;cursor:pointer;overflow:hidden;
+   background:linear-gradient(150deg,#1b2029 0%,#12151b 45%,#0d0f14 100%);
+   border:1px solid var(--c,#5a5348);border-radius:14px;color:#e8e2d0;font-family:Georgia,serif;
+   box-shadow:0 6px 20px #0009, inset 0 1px 0 #ffffff12, 0 0 0 0 var(--c,#5a5348);
+   transition:transform .16s cubic-bezier(.2,1,.4,1), box-shadow .16s;
+   animation:cartaentra .5s cubic-bezier(.2,1,.35,1) both; animation-delay:calc(var(--d,0)*110ms)}
+ @keyframes cartaentra{from{opacity:0;transform:translateY(26px) rotateX(-16deg) scale(.94)}
+                       to{opacity:1;transform:none}}
+ /* faixa de luz que corre pela carta */
+ .rec::after{content:'';position:absolute;top:0;left:-60%;width:45%;height:100%;pointer-events:none;
+   background:linear-gradient(100deg,transparent,#ffffff14,transparent);
+   animation:brilho 4.5s ease-in-out infinite;animation-delay:calc(var(--d,0)*260ms + 700ms)}
+ @keyframes brilho{0%,72%{left:-60%}88%,100%{left:115%}}
+ .rec:hover{transform:translateY(-3px) scale(1.012);box-shadow:0 12px 30px #000b, inset 0 1px 0 #ffffff18, 0 0 22px -4px var(--c)}
+ .rec:active{transform:scale(.985)}
+ .rec.dado{--c:#4a9ad8} .rec.grav{--c:#d8a04a} .rec.cura{--c:#4ad88a} .rec.reliquia{--c:#8a6ad8}
+ .rec.r-comum{--c:#9aa3ad} .rec.r-rara{--c:#ffd24a} .rec.r-amaldicoada{--c:#d84a7a}
+ /* a rara e a amaldiçoada respiram — dá para sentir a raridade sem ler */
+ .rec.r-rara{box-shadow:0 6px 20px #0009, inset 0 1px 0 #ffffff12, 0 0 20px -6px #ffd24a;
+   animation:cartaentra .5s cubic-bezier(.2,1,.35,1) both, raro 2.8s ease-in-out infinite 1s}
+ @keyframes raro{0%,100%{box-shadow:0 6px 20px #0009, inset 0 1px 0 #ffffff12, 0 0 16px -8px #ffd24a}
+                 50%{box-shadow:0 6px 26px #0009, inset 0 1px 0 #ffffff12, 0 0 30px -3px #ffd24a}}
+ .rec.r-amaldicoada{animation:cartaentra .5s cubic-bezier(.2,1,.35,1) both, maldito 3.4s ease-in-out infinite 1s}
+ @keyframes maldito{0%,100%{box-shadow:0 6px 20px #0009, inset 0 1px 0 #ffffff12, 0 0 16px -8px #d84a7a}
+                    50%{box-shadow:0 6px 26px #000b, inset 0 1px 0 #ffffff12, 0 0 32px -2px #d84a7a}}
+ /* fita de raridade */
+ .rrar{position:absolute;top:0;right:0;font-size:8.5px;letter-spacing:2.5px;font-weight:700;
+   color:#0d0f14;background:var(--c,#9aa3ad);padding:3px 11px 3px 14px;
+   border-radius:0 14px 0 12px}
+ .rec .ric{font-size:26px;flex:none;width:44px;height:44px;display:grid;place-items:center;
+   border-radius:11px;background:#00000055;border:1px solid var(--c,#5a5348)55;
+   box-shadow:inset 0 0 14px -4px var(--c,#5a5348)}
+ .rec b{font-size:15.5px;display:block;color:#f0ead8}
+ .rectopo span{font-size:11px;color:#8d8672;display:block;margin-top:2px;line-height:1.45}
+ .rectopo{display:flex;align-items:center;gap:11px;padding-right:58px}
+ .recdif{margin-top:10px;padding-top:9px;border-top:1px dashed #2f2a22}
+ /* rodapé de ação: transforma "clicar num painel" em "levar a carta" */
+ .recpeg{margin:9px -13px 0;padding:8px;text-align:center;font-size:9.5px;letter-spacing:3.5px;
+   color:var(--c,#9aa3ad);background:linear-gradient(#ffffff08,#0000);border-top:1px solid #ffffff10}
+ .rec:hover .recpeg{background:linear-gradient(#ffffff14,#0000);color:#f0ead8}
+ /* escolha: a levada acende, as outras se apagam */
+ .recs2.escolhido .rec{opacity:.22;transform:scale(.96);filter:saturate(.2)}
+ .recs2.escolhido .rec.levada{opacity:1;transform:scale(1.03);filter:none;
+   box-shadow:0 0 0 2px var(--c), 0 0 42px -4px var(--c); animation:levar .45s ease both}
+ @keyframes levar{0%{transform:scale(1)}45%{transform:scale(1.07)}100%{transform:scale(1.03)}}
  .dparte{display:flex;flex-direction:column;gap:4px;width:100%}
  .dseta{font-size:11px;letter-spacing:2px;color:#d8a04a;padding-left:2px}
  .dd{display:flex;align-items:center;gap:7px;width:100%}
@@ -312,7 +395,12 @@
  .difl{display:flex;gap:10px;flex-wrap:wrap;margin-top:7px;font-size:10.5px;color:#8d8672}
  .difl i{font-style:normal;background:#181510;border:1px solid #2f2a22;border-radius:5px;padding:2px 6px}
  .difl i.up{color:#8fd8a0;border-color:#2e5a3a} .difl i.dn{color:#e08a7a;border-color:#5a2e2e}
- .recskills{width:100%;margin-top:14px;border-top:1px solid #2a251d;padding-top:10px}
+ /* as habilidades viram consulta recolhida: estavam competindo com a escolha */
+ .recskills{width:100%;margin-top:12px;border-top:1px solid #2a251d;padding-top:4px}
+ .recskills>summary{font-size:9.5px;letter-spacing:3px;color:#6d6656;padding:8px 0;cursor:pointer;
+   list-style:none;text-align:center}
+ .recskills>summary::-webkit-details-marker{display:none}
+ .recskills>summary:hover{color:#b9ab88}
  .recskills h4{font-size:10px;letter-spacing:3px;color:#6d6656;margin:0 0 7px;font-weight:700}
  .rsk{display:flex;gap:8px;align-items:baseline;font-size:11px;padding:4px 0;border-bottom:1px solid #1c1811}
  .rsk b{font-size:12px;color:#e8e2d0;flex:none} .rsk u{text-decoration:none;color:#8fd8ff;flex:none;font-size:10px}
