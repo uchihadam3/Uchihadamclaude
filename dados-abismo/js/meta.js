@@ -3,6 +3,8 @@
    Você morre, leva ECOS, compra melhorias que mudam REGRAS (não "+5% dano").
    ===================================================================== */
 const KEY='abismo_cofre_v1';
+/* quantas masmorras a descida tem. Passar da última é VENCER o jogo. */
+export const MASMORRAS_TOTAL = 10;
 export function carregar(){
   try{ const d=JSON.parse(localStorage.getItem(KEY)); if(d&&d.n) return d; }catch(e){}
   return { n:1, ecos:0, comprados:{}, recordes:{andar:0,masmorra:1}, runs:0, vitorias:0 };

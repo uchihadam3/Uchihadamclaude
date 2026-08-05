@@ -115,21 +115,42 @@ function telaTitulo(){
   cofre=META.carregar(); BON=META.bonus(cofre);
   const m=$('msg'); m.classList.remove('off'); m.className='';
   const rec=cofre.recordes||{andar:0,masmorra:1};
-  m.innerHTML=`<div class="titwrap">
+  const fundo = Math.min(100, (rec.masmorra-1)*10 + rec.andar);   // 100 andares no total
+  const nos = Object.keys(cofre.comprados||{}).length;
+  /* Números caindo no fundo. DÍGITOS, não glifos de dado: ◈/⚄ viram
+     quadradinho em Georgia no Android — o mesmo tropeço dos ícones da
+     barra de habilidades. Dígito é temático e sempre existe. */
+  const chuva = [[7,38,19,0,'6'],[22,26,23,3,'1'],[38,52,15,7,'4'],[54,30,21,1.5,'3'],
+                 [69,44,18,5,'2'],[81,24,25,9,'5'],[92,34,16,2.5,'6'],[15,20,27,12,'1']]
+    .map(([x,s,t,d,n])=>`<i style="--x:${x}%;--s:${s}px;--t:${t}s;--dl:${d}s">${n}</i>`).join('');
+  // emblema: os 4 glifos das classes orbitando o dado. Diz o que é o jogo
+  // (4 almas, 1 dado) antes de qualquer texto.
+  const orbita = Object.values(CLASSES).map((c,i)=>
+    `<i style="--a:${i*90}deg;--gc:${c.cor}" title="${c.nome}">${c.glifo}</i>`).join('');
+  m.innerHTML=`<div class="titdados">${chuva}</div>
+    <div class="titwrap">
+    <div class="titemb">
+      <div class="titorb">${orbita}</div>
+      <div class="titnucleo"><b>6</b></div>
+    </div>
     <div class="tit">
       <div class="tit1">DADOS</div><div class="tit2">DO ABISMO</div>
       <div class="titsub">a sorte é matéria-prima</div>
     </div>
     <div class="ecos"><span class="eic">◈</span><b>${cofre.ecos}</b><i>ecos</i></div>
+    <div class="titprog">
+      <u><span>FUNDO ALCANÇADO</span><b>${fundo}/100 ANDARES</b></u>
+      <div class="titbar"><span style="--p:${fundo}%"></span></div>
+    </div>
     <div class="mbtns">
       <button class="mb pri" data-a="jogar">▶ DESCER</button>
       <button class="mb" data-a="grim">📖 GRIMÓRIO <em>como se joga</em></button>
-      <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${Object.keys(cofre.comprados||{}).length}/${META.NOS.length}</em></button>
+      <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${nos}/${META.NOS.length}</em></button>
     </div>
     <div class="recs">
-      <span>runs <b>${cofre.runs||0}</b></span>
-      <span>recorde <b>M${rec.masmorra}·A${rec.andar}</b></span>
-      <span>vitórias <b>${cofre.vitorias||0}</b></span>
+      <span><u>DESCIDAS</u><b>${cofre.runs||0}</b></span>
+      <span><u>RECORDE</u><b>M${rec.masmorra}·A${rec.andar}</b></span>
+      <span><u>VITÓRIAS</u><b>${cofre.vitorias||0}</b></span>
     </div></div>`;
   bindA(m,{ jogar:telaClasses, cofre:telaCofre, grim:()=>telaGrimorio(null, telaTitulo) });
 }
@@ -172,13 +193,38 @@ function telaClasses(){
     <div class="cofhd"><button class="volta" data-a="voltar">‹</button><h2>ESCOLHA SUA ALMA</h2></div>
     <div class="cls">${Object.values(CLASSES).map(c=>{
       const b=c.bag();
+      const hp=c.hp+BON.hpBonus, nd=b.length+BON.dadosExtra, rr=c.rerolls+BON.rerolls;
+      // a bolsa inicial é a decisão mais concreta da classe e não aparecia:
+      // 5 dados de 4 faces joga muito diferente de 4 dados até d10
+      const bolsa = b.map(d=>`<span class="cdado d${d.n}">${d.tipo}</span>`).join('');
+      // barras comparativas: dá pra sentir o perfil sem ler os números
+      const barra=(rot,v,max,cor)=>`<div class="cbar"><u>${rot}</u>
+        <div><span style="width:${Math.round(100*v/max)}%;background:${cor}"></span></div><b>${v}</b></div>`;
+      /* as HABILIDADES são o motivo real de escolher uma classe e não estavam
+         na tela: o jogador escolhia por HP e vibe. As de coroa ficam com
+         cadeado — mostram o que o Cofre ainda tem pra dar. */
+      const habs = c.skills.map(s=>{
+        const preso = s.unlock && !BON.quarta;
+        return `<span class="chab${preso?' preso':''}">${preso?'🔒 ':''}${s.nome}
+          <u>${reqLabel(s.req)}</u></span>`;}).join('');
       return `<button class="cbtn" data-c="${c.id}" style="--cc:${c.cor}">
-        <div class="cglifo">${c.glifo}</div>
+        <div class="cmarca">${c.glifo}</div>
+        <div class="cretrato">
+          ${HEROIS_COM_ARTE.has(c.id)?`<img src="arte/herois/${c.id}.png" alt="">`:''}
+          <span class="cglifo">${c.glifo}</span>
+        </div>
         <div class="cinfo"><b>${c.nome}</b>
           <span class="cmat">${c.mat}</span>
           <div class="cchave">🗝 ${c.chave}</div>
-          <div class="cstats"><i>❤ ${c.hp+BON.hpBonus}</i><i>🎲 ${b.length+BON.dadosExtra}</i><i>⟳ ${c.rerolls+BON.rerolls}</i></div>
-          <span class="cfan">${c.fantasia}</span></div></button>`;}).join('')}</div></div>`;
+          <div class="cbolsa"><u>COMEÇA COM</u>${bolsa}</div>
+          <div class="cbars">
+            ${barra('VIDA',hp,80,'#e05a5a')}
+            ${barra('DADOS',nd,6,'#e8d9a8')}
+            ${barra('RE-ROLAGENS',rr,4,'#6fa8dc')}
+          </div>
+          <div class="chabs"><u>HABILIDADES</u>${habs}</div>
+          <span class="cfan">${c.fantasia}</span>
+          <span class="cpeg">ESCOLHER ESTA ALMA</span></div></button>`;}).join('')}</div></div>`;
   bindA(m,{ voltar:telaTitulo });
   m.querySelectorAll('.cbtn').forEach(b=>b.onclick=()=>{ SFX.vitoria(); iniciar(b.dataset.c); });
 }
@@ -251,6 +297,10 @@ function telaGrimorio(foco, voltar){
     m.querySelector('.gitem.foco')?.scrollIntoView({behavior:'smooth',block:'center'}));
 }
 /* ---------- MAPA DA MASMORRA (§3.1) ---------- */
+/* heróis que já têm arte em arte/herois/. Tentar carregar e cair no onerror
+   custava um 404 por classe no console — melhor declarar o que existe.
+   Ao adicionar a arte, acrescente o id aqui. */
+const HEROIS_COM_ARTE = new Set([]);
 const TIPO_ANDAR = a => a===10?'chefe' : a===5?'subchefe' : (a===3||a===4||a>=6)?'elite':'comum';
 const ICO_ANDAR = { comum:'⚔', elite:'☠', subchefe:'👹', chefe:'💀' };
 function previaOnda(m,a){
@@ -272,15 +322,31 @@ function telaMapa(entrando){
       ${nome?`<div class="mnome">${nome[0]}</div>`:''}
       ${(a===5||a===10)?'<div class="msant">santuário</div>':''}
     </div>`;}).join('<div class="mlig"></div>');
+  /* Antes de entrar, o jogador decide com o que tem. Isso não estava na tela:
+     ele via a masmorra e não a própria situação. */
+  const relq = (P.relics||[]).filter(r=>r.id!=='_cofre').length;
+  const pct = Math.round(100*P.hp/P.maxHp);
   msg.innerHTML=`<div class="mapwrap">
-    <div class="maphd"><div class="mapm">MASMORRA ${masmorra}</div>
+    <div class="maphd"><div class="mapm">MASMORRA ${masmorra} <i>de 10</i></div>
       <h2>${esc.nome}</h2>
       <div class="mesc">inimigos deste andar: <b>❤ ×${(esc.hp*(1+(andar-1)*0.070)).toFixed(1)}</b>
         <b>⚔ ×${(esc.dano*(1+(andar-1)*0.055)).toFixed(1)}</b></div>
       ${esc.fardoTxt&&esc.fardoTxt!=='—'?`<div class="mfardo">⚠ ${esc.fardoTxt}</div>`:''}</div>
-    <div class="mtrilha">${nos}</div>
-    <div class="mpe"><span class="mmarc" id="marc">◈</span></div>
-    <button class="mb pri" data-a="entrar">▶ ENTRAR NO ANDAR ${andar}</button>
+    <div class="mapvoce">
+      <div class="mvhp"><u>VIDA</u>
+        <div class="mvbar"><span style="width:${pct}%" class="${pct<35?'baixo':''}"></span></div>
+        <b>${P.hp}<i>/${P.maxHp}</i></b></div>
+      <div class="mvpast">
+        <span><b>${P.bag.length}</b>dados</span>
+        <span><b>${(P.rerollsBase||0)+(P.relicMods?.rerollBonus||0)}</b>re-rolagens</span>
+        ${relq?`<span><b>${relq}</b>relíquia${relq>1?'s':''}</span>`:''}
+      </div>
+    </div>
+    <!-- o marcador vive DENTRO da trilha: estava num .mpe abaixo dela e o JS
+         posicionava com coordenadas da trilha, então ele parava no canto -->
+    <div class="mtrilha">${nos}<span class="mmarc" id="marc">◈</span></div>
+    <button class="mb pri" data-a="entrar">▶ ENTRAR NO ANDAR ${andar}
+      <em>${andar===10?'CHEFE':andar===5?'SUBCHEFE':TIPO_ANDAR(andar)==='elite'?'com elite':'inimigos comuns'}</em></button>
   </div>`;
   bindA(msg,{ entrar:()=>{ msg.classList.add('off'); novoCombate(); } });
   // marcador anda até o andar atual
@@ -828,6 +894,38 @@ function rotuloRaridade(o){
   if(o.t==='grav')  return { cls:'', txt:'FORJA' };
   return              { cls:'', txt:'DESCANSO' };
 }
+/* ===== VITÓRIA: passar da última masmorra =====
+   Não existia. Quem limpasse a Masmorra 10 caía num mapa da masmorra 11, que
+   não existe, e a tela estourava — e `vitorias` nunca saía de zero. */
+function telaVitoria(){
+  SFX.vitoria(); SFX.trilha('chefe');
+  const m=$('msg'); m.classList.remove('off'); m.className='';
+  const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
+    masmorra:META.MASMORRAS_TOTAL, venceu:true}, BON.ecoMult);
+  cofre.ecos+=ganho; cofre.runs=(cofre.runs||0)+1; cofre.vitorias=(cofre.vitorias||0)+1;
+  cofre.recordes={ andar:10, masmorra:META.MASMORRAS_TOTAL };
+  META.salvar(cofre);
+  const C=CLASSES[P.classe];
+  m.innerHTML=`<div class="fimwrap venceu">
+    <div class="fimselo ganhou"><div class="fimanel"></div><span>★</span></div>
+    <div class="fimt vit">VOCÊ CHEGOU AO FUNDO</div>
+    <div class="fimprof">100 ANDARES</div>
+    <div class="fimvitsub">${C.glifo} ${C.nome} atravessou as ${META.MASMORRAS_TOTAL} masmorras
+      e o Abismo não ficou com nada.</div>
+    <div class="fimgrid">
+      <div class="fimcard"><b>${stats.andares}</b><u>ANDARES</u></div>
+      <div class="fimcard"><b>${stats.elites}</b><u>ELITES</u></div>
+      <div class="fimcard"><b>${stats.chefes}</b><u>CHEFES</u></div>
+      <div class="fimcard"><b>${P.hp}</b><u>HP RESTANTE</u></div>
+    </div>
+    <div class="fimeco"><span class="eic">◈</span> +${ganho} <i>ecos</i></div>
+    <div class="mbtns">
+      <button class="mb pri" data-a="denovo">▶ DESCER DE NOVO</button>
+      <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${cofre.ecos} guardados</em></button>
+      <button class="mb" data-a="titulo">◂ TELA INICIAL</button>
+    </div></div>`;
+  bindA(m,{ denovo:telaClasses, cofre:telaCofre, titulo:telaTitulo });
+}
 /* ---------- fim de combate ---------- */
 function fim(){
   const m=$('msg'); m.classList.remove('off'); m.className='';
@@ -840,16 +938,26 @@ function fim(){
     const novoRec = prof>rp;
     if(novoRec) cofre.recordes={andar, masmorra};
     META.salvar(cofre);
+    // a profundidade contra o recorde: é o placar que o jogador persegue
+    const pctP = Math.round(100*prof/100), pctR = Math.round(100*Math.max(rp,prof)/100);
     m.innerHTML=`<div class="fimwrap">
+      <div class="fimselo perdeu"><div class="fimanel"></div><span>${prof}</span></div>
       <div class="fimt">O ABISMO FICOU COM VOCÊ</div>
       <div class="fimprof">M${masmorra} · ANDAR ${andar}</div>
       ${novoRec?'<div class="fimrec">✦ NOVO RECORDE ✦</div>':''}
-      <div class="fimlin"><span>andares limpos</span><b>${stats.andares}</b></div>
-      <div class="fimlin"><span>elites derrotados</span><b>${stats.elites}</b></div>
-      ${stats.chefes?`<div class="fimlin"><span>chefes</span><b>${stats.chefes}</b></div>`:''}
+      <div class="fimprog">
+        <u><span>PROFUNDIDADE</span><b>${prof}/100</b></u>
+        <div class="fimbar"><i style="width:${pctR}%"></i><span style="width:${pctP}%"></span></div>
+        <em>${novoRec?'seu ponto mais fundo até hoje':'recorde: '+Math.max(rp,prof)+' andares'}</em>
+      </div>
+      <div class="fimgrid">
+        <div class="fimcard"><b>${stats.andares}</b><u>ANDARES</u></div>
+        <div class="fimcard"><b>${stats.elites}</b><u>ELITES</u></div>
+        <div class="fimcard"><b>${stats.chefes}</b><u>CHEFES</u></div>
+      </div>
       <div class="fimeco"><span class="eic">◈</span> +${ganho} <i>ecos</i></div>
       <div class="mbtns">
-        <button class="mb cof" data-a="cofre">🗝 GASTAR NO COFRE</button>
+        <button class="mb cof" data-a="cofre">🗝 GASTAR NO COFRE <em>${cofre.ecos} guardados</em></button>
         <button class="mb pri" data-a="denovo">▶ DESCER DE NOVO</button>
       </div></div>`;
     bindA(m,{ cofre:telaCofre, denovo:telaClasses });
@@ -906,6 +1014,10 @@ function fim(){
     }
     if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.15));
     andar++; if(andar>10){ andar=1; masmorra++; }
+    // FIM DO JOGO: passar da Masmorra 10 caía em ESCALADA[10] === undefined e
+    // a tela do mapa estourava. Não existia vitória — o contador de vitórias
+    // aparecia no título e nunca podia sair de zero.
+    if(masmorra > META.MASMORRAS_TOTAL){ setTimeout(telaVitoria, 560); return; }
     // deixa a carta acender antes de trocar de tela — a escolha precisa
     // ter um instante de confirmação, senão não parece que aconteceu nada
     setTimeout(()=>telaMapa(true), 560);
