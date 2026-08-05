@@ -386,7 +386,9 @@ function pintar(){
            onerror="__semArte(this,'${e.id}')"></div>
       <div class="nm">${e.nome}</div>${e.elite?'<div class="el">ELITE</div>':''}
       <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i>${barraPrev}</div>
-      <div class="hp">${e.hp}/${e.maxHp}${e.block?' 🛡'+e.block:''}${e.armadura?' ⛊'+e.armadura:''}</div>
+      <div class="hp">${e.hp}/${e.maxHp}
+        ${e.block?`<b class="bloq" data-est="bloqueio" data-estn="${e.block}">🛡 ${e.block}</b>`:''}
+        ${e.armadura?`<b class="armad" data-est="armadura" data-estn="${e.armadura}">⛊ ${e.armadura}</b>`:''}</div>
       ${travaHTML}
       <div class="it clic ${li&&li.passa>0?'doi':''}" ${it?`data-int="${it.t}"`:''}>${e.hp>0?txt:'—'}${li&&li.bruto>0?`<span class="passa">→ ${li.passa} no HP</span>`:''}</div>
       ${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');

@@ -277,9 +277,23 @@ function turnoInimigo(intent, prep) {
   check(p.hp <= antes.hp - 10, 'atk_multi', 'tira HP dos 3 golpes', `${antes.hp} → ${p.hp}`);
 }
 {
-  const { cb, antes } = turnoInimigo({ t:'block', v:8 });
-  check(cb.enemies[0].block > antes.bloco || cb.enemies[0].block === 0,
-        'block', 'ganha bloqueio no turno (zera no fim)');
+  /* O bloqueio DELE tem que sobreviver ao seu turno inteiro — senão não serve
+     pra nada. Aqui: ele bloqueia, você bate, e o bloqueio apara o golpe. */
+  const { cb, p } = turnoInimigo({ t:'block', v:20 });
+  check(cb.enemies[0].block === 20, 'block', 'o bloqueio SOBREVIVE ao fim do turno dele',
+        'ficou ' + cb.enemies[0].block);
+  const hp0 = cb.enemies[0].hp;
+  forcarRolagem(cb, [5, 5, 5]);
+  const golpe = { id:'t', nome:'t', req:{t:'any',count:1}, eff:[{op:'dmg',tgt:'chosen',amt:'8'}] };
+  cb.use(golpe, [cb.roll[0].dieId], 0);
+  check(cb.enemies[0].hp === hp0 && cb.enemies[0].block === 12,
+        'block', 'ele APARA o seu golpe (8 de 20)',
+        `HP ${hp0}→${cb.enemies[0].hp}, bloqueio 20→${cb.enemies[0].block}`);
+  /* ele bloqueia todo turno: o de ontem tem que EXPIRAR, não empilhar */
+  cb.enemies[0].block = 20;                 // desfaz o que o golpe aparou
+  cb.endTurn();
+  check(cb.enemies[0].block === 20, 'block', 'expira quando ele volta a agir (não empilha)',
+        'ficou ' + cb.enemies[0].block + ', empilhado daria 40');
 }
 {
   const { cb, antes } = turnoInimigo({ t:'heal', v:15 });

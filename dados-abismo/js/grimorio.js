@@ -143,7 +143,7 @@ export function html(foco){
 export const INTENCOES = {
   atk:        { ico:'⚔', nome:'Ataque',        d:'Ele bate em você no fim do turno. O número é o dano bruto — o que passar do seu bloqueio vira HP perdido.' },
   atk_multi:  { ico:'⚔', nome:'Ataque múltiplo',d:'Vários golpes menores. Cada um é abatido pelo seu bloqueio separadamente, então bloqueio pequeno rende menos aqui.' },
-  block:      { ico:'🛡', nome:'Defesa',        d:'Ele ganha bloqueio: o seu próximo dano é absorvido antes de tocar no HP dele. Some no fim do turno.' },
+  block:      { ico:'🛡', nome:'Defesa',        d:'Ele levanta uma barreira que absorve dano antes do HP. Ela DURA o seu turno inteiro e só expira quando ele volta a agir — quebre a barreira antes de tentar matar.' },
   heal:       { ico:'✚', nome:'Cura',          d:'Cura o aliado mais ferido. Matar o curandeiro primeiro costuma ser a jogada.' },
   buff:       { ico:'▲', nome:'Fúria',         d:'Enfurece o grupo: todos passam a causar +50% de dano.' },
   curse:      { ico:'☠', nome:'Maldição',      d:'Transforma uma face de um dado seu em ☠ Vazio — PARA SEMPRE nesta run. Aquela face deixa de valer.' },
@@ -167,6 +167,7 @@ export const ESTADOS = {
   espinhos:   { ico:'✦', nome:'Espinhos',    d:'Devolve dano a quem te acertar.' },
   invisivel:  { ico:'🌫',nome:'Invisível',   d:'Você sofre 65% menos dano de ataques neste turno.' },
   armadura:   { ico:'⛊', nome:'Armadura',    d:'REDUZ cada golpe recebido em X. Diferente de fechadura: aqui o dano diminui, não zera.' },
+  bloqueio:   { ico:'🛡', nome:'Bloqueio',    d:'Absorve dano antes de tocar no HP. O bloqueio que ele ganhou dura o SEU turno inteiro e só expira quando ele volta a agir — então quebre a barreira antes de tentar matar.' },
 };
 /* devolve {ico, nome, d, ex} pra qualquer coisa clicável da carta do inimigo */
 export function verbete(tipo, chave, v){

@@ -471,6 +471,9 @@ export class Combat {
 
   enemyTurn(){
     this.acoesInimigo = [];      // o que CADA inimigo fez de fato (pra animar §10)
+    // o bloqueio ganho no turno passado protegeu o SEU turno e expira agora,
+    // logo antes deles agirem de novo
+    for(const en of this.enemies) en.block = 0;
     for(const en of this.aliveEnemies()){
       const it = en.intent;
       if(!it) continue;
@@ -545,7 +548,6 @@ export class Combat {
       if(en.statuses.veneno){ en.hp=Math.max(0,en.hp-en.statuses.veneno); en.statuses.veneno--; }
       if(en.statuses.sangramento){ en.hp=Math.max(0,en.hp-en.statuses.sangramento); en.statuses.sangramento--; }
       if(en.travaOff>0) en.travaOff--;
-      en.block = 0;
     }
     for(const k of ['veneno','sangramento']){ if(this.p.statuses[k]){ this.dmgPlayer(this.p.statuses[k], k); this.p.statuses[k]--; } }
     if(this.p.statuses.invisivel) this.p.statuses.invisivel--;

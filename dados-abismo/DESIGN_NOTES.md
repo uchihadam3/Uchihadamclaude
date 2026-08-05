@@ -364,6 +364,20 @@ das 10 masmorras: 8+3 de estrutura, ids únicos, toda fechadura de um tipo que
 existe, todo inimigo com padrão, as ondas dos 10 andares montando, e nenhum
 inimigo invencível.
 
+## 3.14 O bloqueio do inimigo não durava nada
+Reportado: "o inimigo usou escudo e sumiu assim que o turno dele acabou".
+Era exatamente isso. `tickStatuses()` zerava `en.block`, e ela roda **no mesmo
+`endTurn()`** em que o inimigo acabou de ganhar o bloqueio — nascia e morria sem
+nunca aparar um golpe. A intenção 🛡 Defesa era decorativa.
+
+O bloqueio agora expira no **começo do turno DELE** (primeira linha de
+`enemyTurn()`), então protege o seu turno inteiro, que é a única hora em que
+serve pra alguma coisa. Testado: ele bloqueia 20, você bate 8, o HP não mexe e
+sobram 12 de barreira; no turno seguinte não empilha (volta a 20, não 40).
+
+Como agora ele importa, o bloqueio ganhou chip próprio na carta (🛡 25, azul) em
+vez de um número miúdo colado no HP — e é clicável, com verbete no Grimório.
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.
