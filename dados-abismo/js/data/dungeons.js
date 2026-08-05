@@ -103,4 +103,113 @@ export const M1 = {
     desc:'Colosso de ossos. A fechadura gira a cada turno: couraça, ímpar, chave 9, um par de dados. Reergue os lacaios.' },
 };
 
-export const MASMORRAS = { 1:M1 };
+/* ---------------- MASMORRA 2 — O PÂNTANO DE SAL ----------------
+   Fardo: todo inimigo tem +1 de armadura passiva — o que castiga golpe
+   picadinho. Tema de fechadura: TAMANHO do dado (couraça x casca fina) e
+   QUANTIDADE (enxuto x farto) brigando na mesma onda. */
+export const M2 = {
+  comuns:[
+    { id:'cria_salmoura', nome:'Cria de Salmoura', hp:18, padrao:[A(6),M(3,2)],
+      desc:'Sem fechadura. Ensina que aqui todo mundo tem casca (+1 de armadura).' },
+    { id:'sanguessuga',   nome:'Sanguessuga Cristalina', hp:15, trava:T('fraco',3),
+      padrao:[A(5),H(7)],
+      desc:'Só golpe pequeno a fere — e ela cura o aliado mais ferido.' },
+    { id:'peregrino',     nome:'Peregrino Afogado', hp:22, trava:T('par'),
+      padrao:[M(4,2),A(7)],
+      desc:'Anda em fila de dois. Soma PAR ou nada.' },
+    { id:'estatua_sal',   nome:'Estátua de Sal', hp:30, trava:T('forte',5),
+      padrao:[B(12),A(6)],
+      desc:'Bloco maciço: dado pequeno se desfaz nela.' },
+    { id:'bolha_mare',    nome:'Bolha de Maré', hp:11, trava:T('enxuto',1), explode:9,
+      padrao:[A(12)],
+      desc:'Estoura com um toque só — dois dados a espalham. Explode ao morrer.' },
+    { id:'coral_cantante',nome:'Coral Cantante', hp:19, trava:T('simbolo','shield'),
+      padrao:[BF(),A(5)],
+      desc:'Só cede ao 🛡 Escudo no golpe. Enfurece o pântano.' },
+    { id:'mao_limo',      nome:'Mão de Limo', hp:17,
+      padrao:[ROUB(),A(6)],
+      desc:'Sem fechadura, mas leva um dado seu embora.' },
+    { id:'escama_salgada',nome:'Escama Salgada', hp:24, trava:T('farto',3),
+      padrao:[B(9),A(8)],
+      desc:'Casca em camadas: golpe estreito não passa. Precisa de 3 dados.' },
+  ],
+  elites:[
+    { id:'salineiro',   nome:'O Salineiro', hp:48, trava:T('chave',9),
+      padrao:[A(11),FRAT(),A(10)],
+      aura:{ id:'cura_salgada', txt:'Cura recebida reduzida à metade.' },
+      desc:'Mede tudo: soma exata 9. E fratura os seus dados.' },
+    { id:'afogadora',   nome:'A Afogadora', hp:52, trava:T('multiplo',4),
+      padrao:[M(6,2),CONG(),A(12)],
+      desc:'Puxa pro fundo: soma múltipla de 4. Congela um dado por vez.' },
+    { id:'colosso_cristal',nome:'Colosso de Cristal', hp:58, trava:T('forte',6),
+      padrao:[B(14),A(14),INV()],
+      aura:{ id:'armadura_campo', txt:'Todos os inimigos ganham +2 de armadura.' },
+      desc:'Só dado enorme racha o cristal. E ele inverte o seu melhor.' },
+  ],
+  subchefe:{ id:'maregrande', nome:'A MARÉ-GRANDE', hp:105,
+    travaCiclo:[T('par'), T('farto',3)],
+    padrao:[M(5,3), A(14), CONT(28,3)],
+    invoca:['cria_salmoura','bolha_mare'],
+    desc:'Sobe e desce: um turno pede soma PAR, o outro pede 3 dados. E conta até três.' },
+  chefe:{ id:'rainha_sal', nome:'A RAINHA DE SAL', hp:190,
+    travaCiclo:[T('forte',5), T('chave',11), T('enxuto',2), T('fraco',4)],
+    padrao:[A(16), M(7,3), C(), A(24), CONG()],
+    reergue:true,
+    desc:'Trono de cristal. Quatro regras em ciclo: couraça, chave 11, dois dados, casca fina.' },
+};
+
+/* ---------------- MASMORRA 3 — A FORJA AFUNDADA ----------------
+   Fardo: você começa cada combate com um dado Enferrujado. Tema de fechadura:
+   ARITMÉTICA (múltiplo e chave alta) — a masmorra onde o Polegar Torto e a
+   Sobrecarga deixam de ser luxo. */
+export const M3 = {
+  comuns:[
+    { id:'brasa_afogada', nome:'Brasa Afogada', hp:20, padrao:[A(7),A(8)],
+      desc:'Sem fechadura. Bate e queima, só isso.' },
+    { id:'bigorna_viva',  nome:'Bigorna Viva', hp:34, trava:T('forte',6),
+      padrao:[B(14),A(7)],
+      desc:'Ferro maciço: só o dado máximo marca.' },
+    { id:'fole_partido',  nome:'Fole Partido', hp:18, trava:T('impar'),
+      padrao:[BF(),A(6)],
+      desc:'Sopra em compasso quebrado: soma ÍMPAR. Atiça os outros.' },
+    { id:'escoria',       nome:'Escória', hp:16, trava:T('fraco',3), explode:10,
+      padrao:[M(3,3)],
+      desc:'Crosta quebradiça: golpe grande espalha sem ferir. Explode forte.' },
+    { id:'martelo_orfao', nome:'Martelo Órfão', hp:24, trava:T('multiplo',3),
+      padrao:[A(12),INV()],
+      desc:'Bate em três tempos: soma múltipla de 3. E inverte o seu dado.' },
+    { id:'ferreiro_cego', nome:'Ferreiro Cego', hp:26, trava:T('simbolo','blade'),
+      padrao:[FRAT(),A(9)],
+      desc:'Só reconhece aço: precisa de ⚔ no golpe. Fratura os seus dados.' },
+    { id:'verruma',       nome:'Verruma', hp:21, trava:T('enxuto',2),
+      padrao:[M(5,2),A(7)],
+      desc:'Fura em par: exatamente dois dados, nem um a mais.' },
+    { id:'lingote_vivo',  nome:'Lingote Vivo', hp:28, trava:T('farto',3),
+      padrao:[B(11),A(10)],
+      desc:'Massa densa: precisa de golpe largo, 3 dados ou mais.' },
+  ],
+  elites:[
+    { id:'mestre_tempera',nome:'Mestre da Têmpera', hp:60, trava:T('chave',12),
+      padrao:[A(14),CONG(),A(12)],
+      aura:{ id:'armadura_campo', txt:'Todos os inimigos ganham +2 de armadura.' },
+      desc:'Mede o calor na régua: soma exata 12. Congela o que você guardou.' },
+    { id:'tromba_dagua', nome:"Tromba d'Água", hp:55, trava:T('par'),
+      padrao:[M(6,3),ROUB()],
+      desc:'Inunda em ondas pares. Rouba um dado por combate.' },
+    { id:'nucleo_fundido',nome:'Núcleo Fundido', hp:62, trava:T('espelho',50),
+      padrao:[A(16),D('queimadura',4)],
+      desc:'Devolve metade do que sofre. Veneno e sangramento saem mais barato.' },
+  ],
+  subchefe:{ id:'capataz', nome:'O CAPATAZ DE FERRO', hp:120,
+    travaCiclo:[T('multiplo',3), T('forte',6)],
+    padrao:[CONT(34,3), A(13), FRAT()],
+    invoca:['brasa_afogada','escoria'],
+    desc:'Conta as marteladas até três. A regra alterna entre múltiplo de 3 e couraça 6.' },
+  chefe:{ id:'bigorna_mae', nome:'A BIGORNA-MÃE', hp:220,
+    travaCiclo:[T('forte',6), T('chave',12), T('impar'), T('farto',3)],
+    padrao:[A(18), M(8,3), CONG(), A(28), INV()],
+    reergue:true,
+    desc:'A forja inteira é o corpo dela. Quatro regras girando: couraça 6, chave 12, ímpar, 3 dados.' },
+};
+
+export const MASMORRAS = { 1:M1, 2:M2, 3:M3 };
