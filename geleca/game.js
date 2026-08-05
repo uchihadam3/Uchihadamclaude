@@ -76,7 +76,7 @@ const LEVELS = [
     enemies:[{"x":29,"y":15,"dist":5,"speed":1,"axis":"x","type":"patrol"}],
     fakes:[[0,0],[57,0],[0,1],[57,1],[0,2],[57,2],[0,3],[57,3],[0,4],[0,5]]},
 
-  { name:"2 · Primeiro Broto", mass:6, max:6, theme:"grove",
+  { name:"2 · Colinas Mansas", mass:6, max:6, theme:"grove",
     hint:"", rows:[
     "##########################################################",
     "#                                                        #",
