@@ -158,8 +158,8 @@ export const ESTAB: Record<Estab, EstabInfo> = {
     npc: "Bruno, o Taverneiro",
     seed: 11,
     lines: [
-      "Bem-vindo à Taverna do Javali! Eu sou o Bruno.",
-      "Sente-se e descanse — logo você poderá pagar por um quarto e recuperar as forças.",
+      "Taverna do Javali. Bruno. Sente onde quiser, menos naquela mesa do canto — é do Tam, e o Tam não paga, mas a mesa é dele.",
+      "Aqui a gente sabe de tudo e não fala de nada. Se quiser trabalho, o mural é ali. Se quiser conversa, custa uma caneca."
     ],
   },
   store: {
@@ -167,8 +167,8 @@ export const ESTAB: Record<Estab, EstabInfo> = {
     npc: "Rosa, a Mercadora",
     seed: 2,
     lines: [
-      "Tenho de tudo um pouco, aventureiro. Sou a Rosa.",
-      "Em breve abriremos o comércio: poções, cordas, tochas e mais.",
+      "Rosa. Vendo o que serve e não vendo o que enfeita — em Grimhollow ninguém compra enfeite.",
+      "Repare no que anda saindo mais: corda, óleo e vela. Três coisas que só se gastam em lugar fundo. Eu não pergunto, mas eu reparo."
     ],
   },
   smith: {
@@ -176,8 +176,8 @@ export const ESTAB: Record<Estab, EstabInfo> = {
     npc: "Brandt, o Ferreiro",
     seed: 23,
     lines: [
-      "O fogo está quente e a bigorna, pronta. Brandt, ao seu dispor.",
-      "Traga minério e ouro que eu aprimoro suas armas e armaduras.",
+      "Brandt. Traga minério e ouro que eu melhoro o seu ferro — e melhoro de verdade, não dou martelada p/ inglês ver.",
+      "Uma coisa: o minério daqui derrete diferente do de fora. Mais escuro, mais duro, e cheira a moeda. Meu pai dizia p/ não pensar muito nisso enquanto se trabalha."
     ],
   },
   alchemist: {
@@ -185,8 +185,8 @@ export const ESTAB: Record<Estab, EstabInfo> = {
     npc: "Isolde, a Alquimista",
     seed: 31,
     lines: [
-      "Cuidado com o que respira aqui dentro... sou Isolde.",
-      "Elixires e poções logo estarão à venda na minha bancada.",
+      "Respire pela boca nos primeiros minutos. Isolde. Não é veneno, é só honesto demais.",
+      "Metade dos meus reagentes vem da encosta. A outra metade vem de baixo, e essa metade eu compro de quem desce e não pergunto o preço da coragem."
     ],
   },
   armory: {
@@ -194,8 +194,8 @@ export const ESTAB: Record<Estab, EstabInfo> = {
     npc: "Odile, a Armeira",
     seed: 43,
     lines: [
-      "Couro, malha e placa — aqui embaixo é o que veste o corpo. Odile.",
-      "Lâmina você acha lá em cima, com o meu irmão. Cuidado com a escada.",
+      "Odile. Aqui embaixo é o que veste o corpo: couro, malha e placa. Lâmina é lá em cima, com o meu irmão.",
+      "E antes que pergunte: não, a gente não se fala. Divide o prédio, não divide a conversa. Você escolhe a armadura, ele escolhe a arma, e ninguém precisa saber do outro."
     ],
   },
   armoryUp: {
@@ -203,8 +203,8 @@ export const ESTAB: Record<Estab, EstabInfo> = {
     npc: "Gervais, o Armeiro",
     seed: 47,
     lines: [
-      "Subiu bem. Aqui em cima só tem gume. Sou Gervais.",
-      "Pegue com as duas mãos antes de decidir. Arma se escolhe pelo peso.",
+      "Gervais. Pegue com as duas mãos antes de decidir — arma se escolhe pelo peso, não pelo brilho.",
+      "A Odile te disse que a gente não se fala? Disse. É verdade. Ela é que ficou com o térreo, e o térreo tem a porta da rua. Faz vinte anos que eu subo essa escada."
     ],
   },
   temple: {
@@ -212,8 +212,8 @@ export const ESTAB: Record<Estab, EstabInfo> = {
     npc: "Madre Corvina",
     seed: 53,
     lines: [
-      "A Chama ainda arde, forasteiro, ainda que pálida. Sou a Madre Corvina.",
-      "Traga suas feridas até o altar. A Chama cobra pouco e cura o bastante.",
+      "A Chama arde pálida, e pálida basta. Madre Corvina. Traga as feridas ao altar: cobro pouco e curo o bastante.",
+      "Não me chame de santa. Eu mantenho uma luz acesa num lugar que não gosta de luz. É serviço de zeladoria, e alguém tem de fazer."
     ],
   },
 };

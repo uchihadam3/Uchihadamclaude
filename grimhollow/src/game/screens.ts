@@ -120,11 +120,12 @@ function showOpening(
 ) {
   const { onNew, onContinue, hasSaves, skipCrawl } = opts;
   const paras = [
-    "Dizem os anciãos que Grimhollow nem sempre viveu sob a bruma. Houve um tempo em que o sol tocava os telhados e a estrada da montanha fervilhava de vozes e mercadores.",
-    "Mas isso foi antes do Selo — antes que os fundadores enterrassem, nas entranhas da montanha, aquilo que nenhuma boca ousa nomear.",
-    "O que jaz lá embaixo não é morte; é fome. Chamam-na de Nethergloam — a névoa que devora. Ela rouba o calor, apaga os nomes e não deixa os mortos dormirem.",
-    "Enquanto o Selo resistir, a bruma apenas ronda os muros, paciente e faminta. Mas o ferro envelhece, e a cada lua ela conquista mais um palmo de mundo.",
-    "Então, pela estrada que ninguém ousa cruzar, chega um forasteiro. Sobreviveu à névoa inteira — mas deixou nela, em algum ponto, pedaços da própria memória.",
+    "Grimhollow não foi fundada. Foi cavada. Primeiro veio o poço, depois vieram as casas — e por isso, até hoje, as ruas desta cidade são estreitas demais para o tamanho dela.",
+    "Ninguém aqui sabe mais dizer o porquê. Sabem apenas os costumes: a porta que tranca por dentro, o lampião que não pode apagar, e a regra de nunca perguntar o que a montanha guarda.",
+    "Porque no quarto nível, há trezentos anos, as picaretas pararam de bater em rocha bruta e começaram a bater em pedra CORTADA — degraus, umbrais, selos. Trabalho de outra mão, muito mais antiga que a nossa.",
+    "Doze homens desceram para fechar o que haviam aberto. As avós cantam que os doze subiram. Subiram onze, e o nome do décimo segundo foi riscado dos livros com tanta força que rasgou o papel.",
+    "O que jaz sob a cidade não tem nome que se diga em voz alta. Nas margens dos mapas, os cartógrafos escreveram apenas: Nethergloam — o escuro de baixo.",
+    "Os selos estão cedendo. E pela estrada que ninguém ousa cruzar chega um forasteiro, com a cabeça aberta e metade das lembranças perdidas em algum ponto do caminho.",
   ];
   // arte do crawl — PLACEHOLDER (chave de título) até chegar a peça vertical alta (pro_crawl.png)
   const crawlImg = titleArtUrl;

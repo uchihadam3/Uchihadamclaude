@@ -590,7 +590,7 @@ const QUEST_DEFS: QuestDef[] = [
   },
   {
     id: "b_hereges", icon: "🔥", title: "Contrato: Caça aos Hereges", repeatable: true,
-    desc: "Cultistas e arqueiros espalham a névoa. Silencie 5 deles.",
+    desc: "Os cultistas rezam de olho no fundo do poço. Silencie 5 deles.",
     reward: [{ gold: true, label: "200" }, { iconUrl: icoPotMpUrl, label: "×1" }, { label: "+160 XP" }],
     grant: { gold: 200, xp: 160, items: [["pot_mp", 1]] }, kind: "kill", goal: 5, enemyTypes: ["cultista", "arqueiro"], unit: "hereges",
   },
@@ -613,6 +613,9 @@ interface MQStep {
   atLines?: string[];                // fala do alvo ao cumprir a etapa (talk/deliver)
   visitToast?: string;               // aviso curto ao cumprir uma etapa "visit"
   goal?: number;                     // kill: quantos inimigos
+  // kill: SÓ estes tipos contam. Sem isto, "derrote o Cavaleiro" fechava matando
+  // um rato no primeiro andar — o passo contava qualquer abate na masmorra.
+  typeIds?: string[];
   items?: [string, number][];        // deliver: itens exigidos
   location?: string;                 // enter: id do local (ex.: "showcase")
 }
@@ -642,54 +645,81 @@ interface MainQuestDef {
   done: string[];                    // fala ao concluir (giver ou narrador)
   flag?: string;                     // marca narrativa ("lantern")
 }
+// ============================================================================
+// A MISSÃO PRINCIPAL — "As Portas de Baixo"
+//
+// A premissa VELHA era uma névoa que rondava os muros. Ela não vale mais: a
+// cidade de hoje tem céu limpo, pedra lavrada e lampião em cada parede. Uma
+// história que fala de bruma sobre uma cidade que não tem bruma é uma história
+// que o jogador desmente com os próprios olhos no primeiro minuto.
+//
+// A PREMISSA NOVA sai do que se VÊ. Grimhollow é estranha de um jeito específico:
+// ruas estreitas demais p/ o tamanho do vilarejo, casas de dois andares coladas
+// umas nas outras, lampião em cada parede, portas que trancam por dentro. Isso
+// não é pobreza nem estilo — é uma cidade construída p/ segurar o que vem de
+// BAIXO. Grimhollow era uma mina. Cavaram fundo demais e encontraram, lá no
+// fundo, pedra já cortada por outra mão. Os fundadores selaram a mina e
+// levantaram a cidade em cima da boca dela.
+//
+// Três gerações depois ninguém lembra do porquê. Virou "é assim que Grimhollow
+// é". E os selos estão cedendo.
+//
+// NETHERGLOAM não é a névoa: é o nome do que existe lá embaixo. E a mina de
+// Grimhollow é UMA porta — o arco fecha justamente revelando que há outras, em
+// outros lugares. Este é o arco de abertura do jogo, não o fim dele.
+// ============================================================================
 const MAIN_QUESTS: MainQuestDef[] = [
   {
-    // CAP.1 — introdução: conhecer o vilarejo e seus moradores (auto-inicia).
-    // Ensina onde fica cada NPC/loja e conduz o jogador pela praça.
+    // CAP.1 — a cidade. Ensina onde fica cada loja e, de quebra, planta a
+    // pergunta que sustenta o arco inteiro: por que as ruas são assim?
     id: "mq1", order: 1, icon: "🧭",
     title: "Forasteiro em Grimhollow",
-    summary: "Você acaba de chegar pela estrada da névoa. Conheça os moradores do vilarejo antes de qualquer coisa.",
+    summary: "Hedda te tirou da estrada com a cabeça aberta. Antes de qualquer coisa, conheça quem mora aqui — e repare no formato desta cidade.",
     offer: [],
     steps: [
       {
         kind: "visit", shop: "store",
         objective: "Visite Rosa, a mercadora",
         atLines: [
-          "Ah — você é o forasteiro que a Hedda tirou da névoa, não é? Rosa, a mercadora, ao seu dispor.",
-          "Armas, suprimentos, o que a estrada exigir. Passe aqui quando tiver com que pagar — e boa sorte lá embaixo.",
+          "Então é você. A cidade inteira já sabe: o homem que a Hedda achou na estrada sem nome e sem metade da memória.",
+          "Rosa. Vendo o que serve. E vou te poupar tempo: corda, óleo e vela é o que sai daqui. Sempre foi. Meu avô já vendia os mesmos três.",
+          "Numa cidade de agricultores, isso devia ser estranho. Aqui ninguém acha estranho, e é isso que é estranho.",
         ],
       },
       {
         kind: "visit", shop: "alchemist",
         objective: "Visite Isolde, a alquimista",
         atLines: [
-          "Então a bruma cuspiu mais um sobrevivente. Isolde, alquimista — cuido das poções e dos reagentes das antigas artes.",
-          "Tudo aqui tem seu preço e seu uso. Vai precisar de mim mais cedo do que imagina, viajante.",
+          "Respire pela boca. Vai passar. Isolde.",
+          "Você tem cara de quem levou pancada na cabeça e ficou com metade das lembranças. Não é vergonha: é uma sorte, dependendo do que estava na metade que foi.",
+          "Quando quiser saber por que este vale adoece de baixo p/ cima, volte aqui. Eu já sei. Só não digo de graça.",
         ],
       },
       {
         kind: "visit", shop: "smith",
         objective: "Visite Brandt, o ferreiro",
         atLines: [
-          "Hm. Mãos que ainda não calejaram no aço. Brandt, ferreiro de Grimhollow.",
-          "Traga-me materiais e a sua arma, e eu a deixo digna do que espreita nas profundezas.",
+          "Brandt. Mãos limpas ainda, as suas.",
+          "Traga minério e ouro que eu deixo o seu ferro digno. E olhe uma coisa: o minério que sai desta montanha derrete escuro e cheira a moeda velha.",
+          "Meu pai mandava não pensar nisso enquanto se martela. Eu obedeço. É mais fácil obedecer que perguntar.",
         ],
       },
       {
         kind: "visit", shop: "tavern",
         objective: "Visite Bruno, o taverneiro",
         atLines: [
-          "Sente-se, viajante! Bruno, taverneiro e guardião de toda fofoca de Grimhollow.",
-          "Uma caneca para espantar o frio da névoa? E dê uma olhada no mural — sempre há trabalho para quem tem coragem.",
+          "Senta. Não nessa, essa é do Tam — ele não paga, mas a mesa é dele há trinta anos.",
+          "Bruno. Sei de tudo e não falo de nada, que é como se administra uma taverna e se morre velho.",
+          "Vou abrir uma exceção porque você é forasteiro: repare que ninguém aqui pergunta o que tem na montanha. Não é falta de curiosidade. É acordo.",
         ],
       },
       {
         kind: "talk", target: "Hedda",
-        objective: "Volte a Hedda, a matriarca, na casa dela (oeste da praça)",
+        objective: "Volte a Hedda, na casa dela (oeste da praça)",
         atLines: [
-          "De volta, e inteiro. Então já conhece a Rosa, a Isolde, o ferreiro e o Bruno — a nossa pequena Grimhollow.",
-          "Bom. Um forasteiro que sabe onde pisar dura mais por estas bandas.",
-          "Agora sente-se. Chegou a hora daquela conversa que eu adiei.",
+          "Voltou inteiro e voltou pensando. Vi na sua cara: você reparou nas ruas.",
+          "Todo forasteiro repara. Nenhum daqui repara mais — a gente nasce dentro e acha que o mundo é estreito assim.",
+          "Sente. Chegou a hora de eu te contar por que Grimhollow é feita de becos.",
         ],
       },
     ],
@@ -698,114 +728,250 @@ const MAIN_QUESTS: MainQuestDef[] = [
     done: [],
   },
   {
-    // CAP.2 — a névoa se revela; Hedda envia o herói ao Frei Anselmo.
-    id: "mq2", order: 2, giver: "Hedda", icon: "🕯️",
-    title: "Sussurros na Névoa",
-    summary: "Hedda confia a você o segredo da bruma. Procure Frei Anselmo, na boca da masmorra.",
+    // CAP.2 — a revelação da cidade: ela não foi construída p/ morar, foi
+    // construída p/ conter. Hedda manda o herói ao arquivista.
+    id: "mq2", order: 2, giver: "Hedda", icon: "🏘️",
+    title: "A Cidade Foi Feita Assim",
+    summary: "Grimhollow era uma mina, e a cidade foi construída sobre a boca dela. Frei Anselmo, o arquivista, guarda os livros de turno.",
     offer: [
-      "Agora que conhece o vilarejo, ouça o que ninguém repete em voz alta: a névoa está mudando. Mais espessa a cada lua. Mais faminta.",
-      "Os velhos acordam chamando por nomes que já não lembram. A bruma não devora apenas o corpo, viajante — devora a memória.",
-      "Se veio para ajudar, procure o Frei Anselmo, na boca da masmorra. Ele guarda o que restou das antigas verdades. Fará isso por Grimhollow?",
+      "Ninguém funda uma cidade num vale sem rio. A gente não escolheu este lugar: a gente já estava aqui, cavando.",
+      "Grimhollow era mina. E as ruas são estreitas porque numa rua estreita coisa grande não corre. O lampião em toda parede não é enfeite, é cerca. A porta que tranca por dentro não é contra ladrão.",
+      "Os Doze desceram p/ selar o que acharam lá no fundo. As avós cantam que todos subiram. Subiram onze.",
+      "Eu já estou velha p/ descer e teimosa demais p/ deixar isso morrer comigo. Procure o Frei Anselmo, na Rua Alta. Ele tem os livros. Diga que fui eu que mandei — ele vai fingir surpresa.",
     ],
-    active: ["Procure o Frei Anselmo, criança. Ele mantém vigília na boca da masmorra, a noroeste da praça."],
+    active: ["O Anselmo está na porta do Templo. Ele SEMPRE está na porta do Templo."],
     steps: [
       {
         kind: "talk", target: "Anselmo",
-        objective: "Fale com Frei Anselmo, na boca da masmorra (noroeste)",
+        objective: "Fale com Frei Anselmo, na porta do Templo (Rua Alta)",
         atLines: [
-          "A Hedda o enviou? Então ela também sentiu. A névoa não é clima, viajante — é fome.",
-          "Há gerações selamos algo lá embaixo, atrás do Portão. Enquanto o selo resistir, a bruma apenas ronda. Mas o selo enfraquece… e os mortos já não dormem.",
-          "Se quer compreender o mal, precisa encará-lo. Desça e silencie os mortos-vivos inquietos. Volte quando tiver provas de que enfrentou o que sobe das profundezas.",
+          "A Hedda mandou. Claro que mandou. Ela me avisa mandando gente, nunca vindo.",
+          "Sou arquivista, não padre. Cuido de papel, que mente menos que gente e muito menos que reza.",
+          "Os livros de turno da mina vão até o quarto nível e param. Não terminam: param. A última linha está no meio de uma palavra, e a pena rasgou o papel na descida do traço.",
+          "Quem fecha um livro assim não pretendia fechá-lo. Se você vai mesmo descer, comece pelo começo — e o começo é o que ainda anda lá embaixo.",
         ],
       },
     ],
-    grant: { gold: 60, items: [["pot_hp", 1]] },
-    reward: [{ gold: true, label: "60" }, { iconUrl: icoPotHpUrl, label: "×1" }],
+    grant: { gold: 60 },
+    reward: [{ gold: true, label: "60" }],
     done: [],
   },
   {
-    // CAP.3 — provar-se contra os mortos-vivos e voltar a Anselmo.
+    // CAP.3 — primeiro contato. O que anda lá embaixo não é gente de Grimhollow.
     id: "mq3", order: 3, giver: "Anselmo", icon: "💀",
-    title: "Ossos que Não Dormem",
-    summary: "Silencie os mortos-vivos que sobem das profundezas e traga provas a Frei Anselmo.",
+    title: "Os Que Ficaram de Turno",
+    summary: "Desça à mina e enfrente o que se move nos primeiros níveis. Anselmo quer saber o que eles vestem.",
     offer: [
-      "A cada lua que míngua, mais deles sobem. O selo range como madeira velha sob a tempestade.",
-      "Desça à masmorra e ponha oito destes mortos de volta ao repouso. Que a luz os alcance onde a minha prece não chega.",
-      "Aceita o fardo, viajante?",
+      "Antes de teoria, evidência. Desça e olhe bem no que vier p/ cima de você.",
+      "Não me traga cabeça nem osso — me traga a resposta de uma pergunta: eles usam o quê?",
+      "Se estiverem de trapo e ferramenta, são os nossos mineiros e a história é triste, só isso. Se estiverem com outra coisa... aí a história é bem maior.",
     ],
-    active: ["Os mortos ainda caminham lá embaixo. Oito deles, de volta ao repouso — e retorne a mim."],
+    active: ["Desça, olhe, e volte. E olhe MESMO, não olhe com o canto do olho como todo mundo aqui faz."],
     steps: [
       {
         kind: "kill", goal: 8,
-        objective: "Silencie 8 mortos-vivos na masmorra",
+        objective: "Enfrente 8 criaturas nos primeiros níveis da mina",
       },
       {
         kind: "talk", target: "Anselmo",
-        objective: "Volte a Frei Anselmo com as provas",
+        objective: "Relate a Frei Anselmo o que você encontrou",
         atLines: [
-          "Eu vi a luz da tua lâmina lá de baixo. Então é verdade — eles cedem, mas voltam. Silenciá-los não basta.",
-          "A raiz está além do Portão Selado, no Santuário que enterramos. Somente uma luz forjada pelas antigas artes pode partir aquele selo sem libertar o que ele contém.",
-          "Volte à Hedda: ela guarda o rito da Lanterna da Bruma. Reúna com Isolde, a alquimista, os reagentes que a matriarca pedir — e leve-os a Hedda.",
+          "Malha. Você disse malha. Malha de anel duplo, ombro reforçado.",
+          "Mineiro não desce de cota de malha, meu caro. Ninguém carrega quinze quilos de ferro p/ picaretar pedra.",
+          "Aquilo não era o turno da mina. Aquilo era GUARDA. Alguém pôs guarda lá embaixo — e guarda se põe contra o quê?",
+          "Preciso de mais luz nisso. Literalmente: a Hedda sabe fazer uma lanterna que aquele escuro não come. Vá até ela.",
         ],
       },
     ],
-    grant: { gold: 120, items: [["pot_hp", 2]] },
-    reward: [{ gold: true, label: "120" }, { iconUrl: icoPotHpUrl, label: "×2" }],
+    grant: { gold: 70, items: [["pot_hp", 1]] },
+    reward: [{ gold: true, label: "70" }, { iconUrl: icoPotHpUrl, label: "×1" }],
     done: [],
   },
   {
-    // CAP.4 — forjar a Lanterna da Bruma com Hedda (reagentes de Isolde).
+    // CAP.4 — a lanterna. Mantém o mesmo deliver de antes (minério + madeira),
+    // com o significado trocado: o lampião das paredes é cerca, e você precisa
+    // de um pedaço portátil dessa cerca.
     id: "mq4", order: 4, giver: "Hedda", icon: "🏮",
-    title: "A Oferenda à Bruma",
+    title: "Um Pedaço da Cerca",
     summary: "Traga a Hedda 6 Minério e 5 Madeira (compre com Isolde) para forjar a Lanterna da Bruma.",
     offer: [
-      "Então o Anselmo o mandou de volta. A Lanterna da Bruma… sim, ainda me lembro do rito. Minha avó o cumpria quando a névoa vinha buscar os berços.",
-      "Preciso de bastante metal que jamais viu o sol e de lenha vinda do coração da mata. Isolde, a alquimista, guarda esses reagentes — seis de Minério e cinco de Madeira.",
-      "Traga-os a mim e forjaremos a luz que a bruma teme. Você o fará?",
+      "Os lampiões das nossas paredes não são p/ enxergar. São cerca. O que mora lá embaixo não atravessa luz firme — atravessa luz que treme.",
+      "Uma tocha treme. Uma lanterna de espelho e óleo, não. Os Doze desceram com doze delas.",
+      "Traga 6 de minério e 5 de madeira. A Isolde vende os dois e vai cobrar caro, porque ela sabe p/ que é.",
     ],
-    active: ["Traga-me seis de Minério e cinco de Madeira, criança. Isolde os vende no laboratório dela."],
+    active: ["6 de minério, 5 de madeira. A Isolde tem. Pechinche, que ela gosta."],
     steps: [
       {
         kind: "deliver", target: "Hedda", items: [["minerio", 6], ["madeira", 5]],
         objective: "Leve 6 Minério e 5 Madeira a Hedda",
         atLines: [
-          "Isto servirá. Afaste-se do fogo, viajante, e não encare a chama enquanto eu recito.",
-          "…Está feito. A Lanterna da Bruma arde com uma luz que não projeta sombra. Enquanto ela queimar, a névoa se abrirá diante de você.",
-          "Desça uma última vez. Leve a Lanterna ao Portão Selado — e que os antigos tenham piedade do que houver atrás dele.",
+          "Boa madeira. E esse minério... esse minério é daqui, dá p/ ver pelo escuro dele.",
+          "Minha avó montou uma destas. A mão lembra o que a cabeça esqueceu — repare que eu não olho o que estou fazendo.",
+          "Pronto. Não deixe apagar, não aponte p/ trás e não confie nela mais do que confia em você. Ela é cerca, não é escudo.",
         ],
       },
     ],
     grant: { gold: 90, items: [["pot_mp", 1]] },
     reward: [{ gold: true, label: "90" }, { iconUrl: icoPotMpUrl, label: "×1" }],
-    done: [], flag: "lantern",
+    done: [],
+    flag: "lantern",
   },
   {
-    // CAP.5 — clímax: romper o Portão Selado e alcançar o Santuário (auto-inicia).
-    id: "mq5", order: 5, icon: "🌫️",
-    title: "O Coração da Névoa",
-    summary: "Com a Lanterna da Bruma, rompa o Portão Selado na masmorra e alcance o Santuário.",
+    // CAP.5 — o Portão Selado e o Santuário. (era o FIM da história antiga; agora
+    // é o meio do arco, e o Santuário deixa de ser prêmio p/ virar pergunta.)
+    id: "mq5", order: 5, icon: "🚪",
+    title: "O Primeiro Selo",
+    summary: "Com a Lanterna, rompa o Portão Selado da mina e veja o que os fundadores construíram do outro lado.",
     offer: [],
     steps: [
       {
         kind: "seal",
-        objective: "Rompa o Portão Selado com a Lanterna da Bruma (masmorra)",
-        atLines: [
-          "Você ergue a Lanterna da Bruma. A chama sem sombra lambe os selos de ferro…",
-          "Um a um, os símbolos se apagam. Uma golfada de ar frio sobe das profundezas — e o Portão cede, rangendo, revelando a escadaria enterrada.",
-        ],
+        objective: "Rompa o Portão Selado com a Lanterna da Bruma (mina)",
       },
       {
         kind: "enter", location: "showcase",
-        objective: "Suba ao Santuário, além do Portão",
-        atLines: [
-          "O Santuário se abre diante de você. Lá no alto, onde a névoa sempre nasceu, a bruma redemoinha em torno de um vazio faminto — o Coração da Névoa.",
-          "Você ergue a Lanterna. A luz sem sombra toca o vazio, e a fome cessa. A névoa recua, fiapo a fiapo, e — pela primeira vez em gerações — um raio de céu limpo desce sobre Grimhollow.",
-          "O vilarejo lembrará o seu nome, viajante. A bruma foi domada… por ora.",
-        ],
+        objective: "Alcance o Santuário, além do Portão",
       },
     ],
     grant: { gold: 250, items: [["pot_hp", 2], ["scroll_return", 1]] },
-    reward: [{ gold: true, label: "250" }, { iconUrl: icoPotHpUrl, label: "×2" }, { iconUrl: icoScrollUrl, label: "×1" }],
+    reward: [{ gold: true, label: "250" }, { iconUrl: icoPotHpUrl, label: "×2" }],
+    done: [
+      "Escadaria em espiral, lavrada, com corrimão. Ninguém constrói corrimão numa mina.",
+      "Isto não foi cavado por Grimhollow. Isto já estava aqui — e os Doze não selaram uma caverna. Selaram uma ENTRADA.",
+    ],
+  },
+  {
+    // CAP.6 — o Cavaleiro do 3º andar ganha razão de existir: ele é o décimo
+    // segundo fundador, o nome riscado, ainda no posto. Não sabe que acabou.
+    id: "mq6", order: 6, giver: "Anselmo", icon: "⚔️",
+    title: "O Nome Riscado",
+    summary: "Onze fundadores têm lápide no adro. O décimo segundo foi riscado dos livros — e continua lá embaixo.",
+    offer: [
+      "Encontrei os Doze. Onze estão no adro, com lápide e data.",
+      "O décimo segundo está riscado. Riscado com força, três vezes, o papel rasgou. Riscar um nome não apaga o homem — apaga quem ia lembrar dele.",
+      "E eu acho, meu caro, que ele não subiu porque não terminou. Desça até o fundo desta mina e veja com os seus olhos o que ficou de guarda.",
+    ],
+    active: ["Ele está no fundo, no terceiro nível. Leve a lanterna e leve paciência: ele não vai te reconhecer."],
+    steps: [
+      {
+        kind: "kill", goal: 1, typeIds: ["boss"],
+        objective: "Enfrente o que guarda o fundo da mina (3º nível)",
+      },
+      {
+        kind: "talk", target: "Anselmo",
+        objective: "Conte a Frei Anselmo quem estava lá embaixo",
+        atLines: [
+          "Armadura de fundador. Sobre o peito, o brasão de Grimhollow — o de ANTES, o de quando ainda éramos mina.",
+          "Ele não te atacou por maldade. Ele estava de guarda. Trezentos anos de guarda, sem ninguém p/ render o turno.",
+          "Os onze subiram e riscaram o nome dele p/ não ter de contar às viúvas que deixaram um homem trancado do lado de dentro.",
+          "Agora escute o que me tira o sono: se puseram guarda, é porque a coisa selada NÃO ESTAVA MORTA. E a água do quarto nível subiu este ano.",
+        ],
+      },
+    ],
+    grant: { gold: 220, items: [["pot_hp", 2]] },
+    reward: [{ gold: true, label: "220" }, { iconUrl: icoPotHpUrl, label: "×2" }],
+    done: [],
+  },
+  {
+    // CAP.7 — a passagem p/ o Ato II. A água subiu; o que está nela não se afogou.
+    id: "mq7", order: 7, giver: "Isolde", icon: "🌊",
+    title: "A Água Subiu",
+    summary: "As galerias abaixo do terceiro nível alagaram. Isolde quer uma amostra dessa água — e do que vive nela.",
+    offer: [
+      "Você chegou até o fundo, então já deve ter visto: da escada p/ baixo é tudo água.",
+      "Metade do que eu destilo vem de baixo, e de uns meses p/ cá as minhas amostras vêm ERRADAS. A água daqui é dura, de mineral. Essa é salobra.",
+      "Estamos a cem léguas do mar, meu caro. Desça, atravesse, e traga a resposta: quem se afogou ali, e quem está simplesmente em casa?",
+    ],
+    active: ["Desça além do terceiro nível. E não beba nada, nem por engano."],
+    steps: [
+      {
+        kind: "kill", goal: 10, typeIds: ["afogado", "limo", "naja", "aberracao"],
+        objective: "Atravesse as Catacumbas Afogadas (10 criaturas)",
+      },
+      {
+        kind: "talk", target: "Isolde",
+        objective: "Leve a Isolde o que você viu na água",
+        atLines: [
+          "Salobra. Eu sabia. E você diz que eles não boiam — que eles ANDAM lá dentro, como quem anda em sala.",
+          "Então não é ruína alagada. É o contrário: a água não invadiu, a água voltou. Aquilo lá embaixo é o lugar deles, e a nossa mina é que entrou por cima.",
+          "Cavamos trezentos anos dentro da casa de alguém. E agora o dono está subindo a escada.",
+        ],
+      },
+    ],
+    grant: { gold: 260, items: [["pot_mp", 2]] },
+    reward: [{ gold: true, label: "260" }, { iconUrl: icoPotMpUrl, label: "×2" }],
+    done: [],
+  },
+  {
+    // CAP.8 — o Leviatã fecha o Ato II.
+    id: "mq8", order: 8, giver: "Hedda", icon: "🐋",
+    title: "O Dono da Água",
+    summary: "Algo grande se move no fundo alagado. Hedda quer que acabe antes que ele chegue à escada.",
+    offer: [
+      "A Isolde me contou. Passei a noite acordada, e não é por medo: é porque encaixou.",
+      "A minha avó dizia que a lanterna tinha de ficar acesa a noite inteira 'p/ o de baixo não achar a escada'. Eu achava conversa de velha.",
+      "Ele achou a escada, filho. Desça e termine, enquanto ainda dá p/ terminar embaixo e não aqui em cima.",
+    ],
+    active: ["No fundo alagado, no sexto nível. Vá acompanhado se puder — e se não puder, vá com a lanterna cheia."],
+    steps: [
+      {
+        kind: "kill", goal: 1, typeIds: ["boss_a2"],
+        objective: "Derrote o que domina o fundo alagado (6º nível)",
+      },
+      {
+        kind: "talk", target: "Hedda",
+        objective: "Volte a Hedda",
+        atLines: [
+          "Sente. Não fale ainda. Deixa eu olhar p/ você um minuto e ver que voltou inteiro.",
+          "Pronto. Agora fale.",
+          "...E ainda tem uma porta lá embaixo? Depois de tudo isso, ainda tem porta?",
+          "Então vá ao Anselmo. Se tem porta, tem papel. Sempre tem papel.",
+        ],
+      },
+    ],
+    grant: { gold: 400, items: [["pot_hp", 3], ["scroll_return", 1]] },
+    reward: [{ gold: true, label: "400" }, { iconUrl: icoPotHpUrl, label: "×3" }],
+    done: [],
+  },
+  {
+    // CAP.9 — a Câmara Selada. É o capítulo que CONTA que ela existe e que uma
+    // pessoa sozinha não abre aquela porta: sem isto, o conteúdo cooperativo que
+    // construímos fica lá embaixo sem que ninguém saiba.
+    //
+    // E é o capítulo que ABRE o jogo em vez de fechar: a mina de Grimhollow é a
+    // primeira porta, não a última.
+    id: "mq9", order: 9, giver: "Anselmo", icon: "🔑",
+    title: "A Porta de Duas Fechaduras",
+    summary: "No fundo alagado há uma porta com duas placas, longe uma da outra. Não foi feita p/ ser aberta sozinho.",
+    offer: [
+      "Duas placas de pressão, você disse. Nas pontas da sala, longe uma da outra.",
+      "Isso não é armadilha, meu caro — armadilha se faz p/ pegar. Isso é FECHADURA, e é uma fechadura que exige duas pessoas ao mesmo tempo.",
+      "Quem constrói assim não está com medo de invasor. Está com medo de si mesmo: é o desenho de quem quer garantir que ninguém abra aquilo sozinho, num momento de fraqueza.",
+      "Leve alguém. Não é conselho de amigo, é a condição da porta. E veja o que os Doze acharam que precisava de duas chaves.",
+    ],
+    active: [
+      "Duas placas, duas pessoas, ao mesmo tempo. Uma pessoa só pode ficar ali pisando o dia inteiro que aquilo não cede.",
+    ],
+    steps: [
+      {
+        kind: "kill", goal: 1, typeIds: ["guardiao"],
+        objective: "Abra a Câmara Selada (duas placas) e enfrente o Guardião",
+      },
+      {
+        kind: "talk", target: "Anselmo",
+        objective: "Leve a Frei Anselmo o que estava na câmara",
+        atLines: [
+          "Deixe eu copiar. Não fale, deixe eu copiar primeiro — a mão treme e eu não quero errar isto.",
+          "...Pronto. Copiei três vezes. Na terceira já não tremia.",
+          "Estas marcas, meu caro, eu já vi. Não aqui. Num inventário de porto, a duzentas léguas, descrevendo o que estava gravado numa pedra que pescadores tiraram da rede.",
+          "Você entende o que isso significa? A nossa montanha não é amaldiçoada. A nossa montanha é UMA PORTA.",
+          "Os Doze não selaram um monstro. Selaram uma entrada — e há outras, e elas não são nossas, e alguém teve de selar aquelas também.",
+          "Grimhollow está resolvida. Descanse, coma, remende a capa com a Wren. Depois disso... depois disso tem estrada, e a estrada é longa.",
+        ],
+      },
+    ],
+    grant: { gold: 600, items: [["pot_hp", 3], ["pot_mp", 3], ["scroll_return", 2]] },
+    reward: [{ gold: true, label: "600" }, { iconUrl: icoPotHpUrl, label: "×3" }, { iconUrl: icoPotMpUrl, label: "×3" }],
     done: [],
   },
 ];
@@ -862,6 +1028,24 @@ const HOME_DOORS: HomeDoor[] = [
 // aldeões da vila espalhados pela praça.
 // id  -> chave da arte 2D (ver VILLAGER_ART); col/row = célula; seed = sprite
 // procedural provisório enquanto a arte não chega; name/lines = diálogo.
+/**
+ * FALAS QUE MUDAM COM A HISTÓRIA.
+ *
+ * Um aldeão que repete a mesma frase do começo ao fim do jogo é uma placa, não
+ * uma pessoa. Cada um tem aqui vários jogos de fala, marcados pelo CAPÍTULO a
+ * partir do qual valem: `[0, ...]` é o que ele diz quando você chega, `[6, ...]`
+ * é o que ele passa a dizer depois que o Cavaleiro cai.
+ *
+ * A escolha é feita na hora de montar a cidade — e a cidade é remontada a cada
+ * entrada —, então basta voltar do subsolo p/ a rua ter mudado de assunto.
+ */
+export type FalaFase = [number, string[]];
+export function falasDaFase(sets: FalaFase[], cap: number): string[] {
+  let escolhida = sets[0]?.[1] ?? [];
+  for (const [desde, linhas] of sets) if (cap >= desde) escolhida = linhas;
+  return escolhida;
+}
+
 interface VillageNPC {
   id: string;
   c: number; // posição/pose de DIA (col) — perto de algo que faz sentido p/ ele
@@ -869,7 +1053,7 @@ interface VillageNPC {
   night: [number, number]; // destino NOTURNO (taverna/casa/ronda) — caminha até lá
   seed: number;
   name: string;
-  lines: string[];
+  lines: FalaFase[];
   scale?: number; // altura relativa (ex.: crianças ~0.7)
   roam?: number; // raio de perambulação DIURNA (células a partir do posto). 0 = fica parado.
 }
@@ -889,8 +1073,22 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 9,
     name: "Gunther, o Vigia",
     lines: [
-      "Mantenha a paz por aqui, forasteiro.",
-      "Enquanto eu montar guarda, este portão não se abre para o que não deve entrar.",
+      [0, [
+        "Portão da mata. Eu abro de manhã e fecho ao escurecer, e é só isso que eu faço.",
+        "Repare uma coisa, forasteiro: eu vigio virado PARA DENTRO. Sempre foi assim. Nunca perguntei por quê.",
+      ]],
+      [3, [
+        "Ontem tive de trancar três vezes. O ferrolho volta sozinho — e o ferrolho não tem mão.",
+        "Não conte isso ao Bruno. A taverna já bebe demais com o que inventa sozinha.",
+      ]],
+      [6, [
+        "Fui conferir a fechadura à noite. Estava aberta, e a poeira do chão não tinha pegada nenhuma.",
+        "O que quer que use este portão, não usa os pés.",
+      ]],
+      [9, [
+        "Dizem que você desceu até onde ninguém desce e voltou com o rosto inteiro.",
+        "Então escute o vigia: se um dia sair pela estrada, não vá procurar outra montanha. Elas é que acham a gente.",
+      ]],
     ],
   },
   {
@@ -901,8 +1099,22 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 10,
     name: "Velho Tam",
     lines: [
-      "Uma moedinha para um pobre velho?",
-      "Já fui aventureiro como você... até a montanha levar tudo de mim.",
+      [0, [
+        "Uma moedinha, moço? Não é p/ bebida. É p/ vela.",
+        "Durmo aqui no largo porque aqui tem lampião em toda parede. Quem dorme no escuro em Grimhollow acorda devendo.",
+      ]],
+      [3, [
+        "Eu descia a mina, sabia? Antes de fecharem. Meu turno era o terceiro nível.",
+        "No terceiro nível a picareta batia em pedra bruta. No quarto ela batia em pedra CORTADA. Foi quando eu subi e não desci mais.",
+      ]],
+      [6, [
+        "Você viu o de armadura, não viu? O grandalhão parado feito estátua.",
+        "Ele já estava lá quando eu era menino e meu avô era menino. A gente achava que era estátua também. Não é.",
+      ]],
+      [9, [
+        "Guarde o troco, moço. Hoje quem tem menos é você: eu só tenho a rua, você tem o resto do caminho.",
+        "E o caminho é comprido. Esta montanha aqui é a primeira porta. Não é a única.",
+      ]],
     ],
   },
   {
@@ -913,8 +1125,22 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 12,
     name: "Lyle, o Bardo",
     lines: [
-      "Ei! Quer ouvir a balada do herói que desceu à masmorra?",
-      "Faça feitos grandiosos e eu comporei uma canção sobre você!",
+      [0, [
+        "Toco no beco de propósito: som que bate em parede estreita volta dobrado. Grimhollow é boa p/ música e ruim p/ tudo o mais.",
+        "Sabe a canção que ninguém aqui deixa eu terminar? A dos Doze Fundadores. Peça uma cerveja ao Bruno e veja o salão emudecer.",
+      ]],
+      [3, [
+        "A canção diz que os Doze desceram e onze subiram. As avós cantam assim p/ as crianças, trocando o número: 'e todos subiram'.",
+        "Rima pior. Mas ninguém quer explicar a diferença na hora de dormir.",
+      ]],
+      [6, [
+        "Fiz uma estrofe nova sobre você. O Bruno mandou eu calar antes do segundo verso.",
+        "Ele disse: 'canta o que já acabou, rapaz. O que ainda anda a gente não canta.'",
+      ]],
+      [9, [
+        "Agora eu tenho a canção inteira e ninguém em Grimhollow quer ouvir. Vou levá-la p/ a estrada.",
+        "Se eu encontrar outra cidade com as ruas estreitas assim e lampião em cada parede, eu volto e te conto. Porque isso, meu caro, não é estilo de construção. É medo virado pedra.",
+      ]],
     ],
   },
   {
@@ -925,8 +1151,22 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 5,
     name: "Alard, o Velho Fazendeiro",
     lines: [
-      "Aquele arco de pedra é mais velho que o vilarejo. Ninguém sabe quem o ergueu.",
-      "Equipe-se bem antes de descer. Já vi muitos partirem e nenhum voltar.",
+      [0, [
+        "Fico aqui olhando o arco. Não é vadiagem: alguém tem de olhar, e eu já não sirvo p/ carregar saco.",
+        "Repare no assentamento da pedra. Aquilo não foi feito p/ enfeitar praça. Foi feito p/ SEGURAR.",
+      ]],
+      [3, [
+        "Minha terra fica na encosta. Nos últimos meses a raiz cresce torta e a água do poço tem gosto de moeda velha.",
+        "A terra sabe antes da gente. Sempre soube.",
+      ]],
+      [6, [
+        "Meu bisavô ajudou a levantar a rua da Ferraria. Deixou dito na família: 'estreita, sempre estreita'.",
+        "Eu achava que era mesquinharia de quem não tinha pedra. Hoje entendo: numa rua estreita, coisa grande não corre.",
+      ]],
+      [9, [
+        "Então era isso que estava embaixo da minha plantação esse tempo todo.",
+        "Vou morrer aqui mesmo, moço. Mas vou morrer sabendo o nome — e isso é mais do que meu pai teve.",
+      ]],
     ],
   },
   {
@@ -937,8 +1177,22 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 7,
     name: "Frei Anselmo",
     lines: [
-      "Que a luz o acompanhe nas trevas, viajante.",
-      "A Madre atende lá dentro. Entre antes de descer à montanha — vai precisar.",
+      [0, [
+        "Não sou padre, sou arquivista. A Madre cuida das almas; eu cuido dos papéis, que mentem menos.",
+        "Se um dia quiser saber por que esta cidade é feita de becos, pergunte a mim e não à Chama.",
+      ]],
+      [3, [
+        "Os livros de turno da mina vão até o quarto nível e param. Não terminam: PARAM. A última linha está no meio de uma palavra.",
+        "Quem fecha um livro assim não pretendia fechá-lo.",
+      ]],
+      [6, [
+        "Encontrei os nomes dos Doze. Onze estão nas lápides do adro. O décimo segundo está riscado — riscado com força, o papel rasgou.",
+        "Riscar um nome não apaga o homem. Só apaga quem ia lembrar dele.",
+      ]],
+      [9, [
+        "Copiei o que você me trouxe. Copiei três vezes, porque na terceira minha mão já não tremia.",
+        "As marcas da câmara aparecem em documentos de fora do vale. Se estão lá também, então não é a nossa montanha que é amaldiçoada. É o mundo que tem porão.",
+      ]],
     ],
   },
   {
@@ -949,8 +1203,22 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 2,
     name: "Corvin, o Lenhador",
     lines: [
-      "Cortar lenha é honesto, mas o bosque anda estranho ultimamente.",
-      "Dizem que há algo à espreita naquela montanha ao norte...",
+      [0, [
+        "Lenha seca, preço justo. E olhe que em Grimhollow lenha não é conforto — é o que mantém o lampião aceso a noite inteira.",
+        "Ninguém aqui deixa a luz apagar. Ninguém sabe dizer por quê, mas ninguém deixa.",
+      ]],
+      [3, [
+        "Corto na encosta oeste. De uns tempos p/ cá, as árvores de lá adoecem do PÉ p/ cima — a copa ainda verde e a raiz podre.",
+        "Doença de árvore vem de cima, moço. De cima. Essa vem de baixo.",
+      ]],
+      [6, [
+        "Achei um poço de mina na mata, tapado com pedra e mato por cima. Não está no mapa de ninguém.",
+        "Contei ao Gunther. Ele mandou eu esquecer e me deu uma moeda. Foi a primeira vez que o Gunther me deu alguma coisa.",
+      ]],
+      [9, [
+        "Vou tapar aquele poço direito, com pedra e cal, e vou dormir melhor.",
+        "Mas o senhor e eu sabemos: tapar buraco não fecha caverna.",
+      ]],
     ],
   },
   {
@@ -961,8 +1229,22 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 1,
     name: "Elspeth, a Camponesa",
     lines: [
-      "Bom dia! Colhi legumes fresquinhos hoje cedo.",
-      "Leve algo para a estrada. Lá fora não se acha comida honesta.",
+      [0, [
+        "Nabo, cebola e couve. Nada de romântico, mas enche.",
+        "Come antes de descer. Fome faz o sujeito errar o passo, e aqui embaixo errar o passo custa caro.",
+      ]],
+      [3, [
+        "Meu marido desceu com a terceira turma. Voltou. Voltou calado, e ficou calado onze anos até morrer.",
+        "Não me pergunte o que ele viu. Se ele não me contou a mim, não vai contar a você por meu intermédio.",
+      ]],
+      [6, [
+        "Leve dois nabos a mais e não discuta. Você está com a cara de quem dorme pouco.",
+        "Eu já vi essa cara antes, no meu marido. Depois dela vem a cara de quem parou de dormir.",
+      ]],
+      [9, [
+        "Pronto. Agora eu sei o que ele viu, e não foi tão terrível quanto eu inventei em onze anos.",
+        "Obrigada, moço. Inventar é pior. Inventar não acaba nunca.",
+      ]],
     ],
   },
   {
@@ -973,39 +1255,55 @@ const VILLAGE_NPCS: VillageNPC[] = [
     seed: 3,
     name: "Wren, a Costureira",
     lines: [
-      "Precisa remendar essa capa? Faço um preço justo.",
-      "Roupa boa aquece o corpo — e o frio lá embaixo é de rachar.",
+      [0, [
+        "Remendo, forro e cerzido. Traga a capa antes de descer, não depois — depois costuma vir sem dono.",
+        "E não é frio o que mata lá embaixo. É umidade. Frio a gente veste; umidade entra pela costura.",
+      ]],
+      [3, [
+        "Cerzi a capa de quatro homens neste ano. Devolvi quatro capas. Recebi de volta duas.",
+        "Não estou reclamando do movimento. Estou reclamando da conta.",
+      ]],
+      [6, [
+        "Vou forrar a sua por dentro com lã crua. Fica pesada, avisando: pesada e seca é melhor que leve e encharcada.",
+        "Quem inventou moda em Grimhollow não descia nunca.",
+      ]],
+      [9, [
+        "Trouxe a capa inteira. Em onze anos você é o segundo.",
+        "Vou remendar de graça, e não é bondade: é que eu quero ver até onde essa capa vai.",
+      ]],
     ],
   },
 ];
 
-
-// falas AMBIENTE soltas (balão curto acima da cabeça, de vez em quando)
+// FALAS AMBIENTE soltas (balão curto acima da cabeça, de vez em quando).
+// Nenhuma menciona névoa: a cidade não vive sob bruma, vive sobre um buraco — e
+// o que ela repete no dia a dia são os hábitos que herdou sem saber de onde vêm.
 const NPC_CHATTER: string[] = [
-  "Que frio de rachar...",
-  "A névoa nunca levanta.",
-  "Ouvi barulhos na montanha.",
-  "Que os deuses nos guardem.",
-  "Mais um dia cinzento.",
-  "Preciso de lenha pro fogo.",
-  "Algo desperta lá embaixo...",
-  "Hoje tranco bem a porta.",
-  "O poço anda com gosto estranho.",
-  "Reze pelos que desceram.",
-  "Dias difíceis, estes.",
-  "Sinto cheiro de chuva.",
+  "Não deixa a luz apagar.",
+  "Tranca por dentro, sempre.",
+  "Rua estreita é rua segura.",
+  "O poço tá com gosto de moeda.",
+  "Dormi mal. De novo.",
+  "Lenha antes do escuro.",
+  "Meu avô dizia p/ não perguntar.",
+  "Contaram onze. Eram doze.",
+  "A pedra tá suando outra vez.",
+  "Reza curta é a que vale.",
+  "Ninguém anda sozinho.",
+  "Faz três noites que o cão late p/ o chão.",
 ];
 // CONVERSAS em par: falas alternadas (A, B, A, B...) — uma troca rápida e coerente
 const NPC_TALKS: string[][] = [
   ["Viu que o forasteiro acordou?", "Vi. Que dure mais que os outros."],
-  ["O bosque anda estranho.", "Não é o bosque... é a montanha.", "Melhor calar."],
+  ["Meu cão late p/ o chão da despensa.", "O meu também.", "Então não é o cão."],
   ["Rosa recebeu mercadoria nova.", "Com esses preços? Prefiro passar fome."],
-  ["Dormiu bem?", "Sonhei com a névoa de novo.", "Todos sonhamos com ela."],
-  ["Ouviu os tambores à noite?", "Ouvi. Rezei até calarem."],
-  ["Falta pão outra vez.", "A colheita foi fraca. A terra adoeceu."],
+  ["Você já reparou que aqui não tem praça grande?", "Reparei.", "E nunca perguntou?", "Nunca perguntei."],
+  ["O lampião da esquina apagou de madrugada.", "E quem reacendeu?", "É isso que eu queria saber."],
+  ["Falta pão outra vez.", "A colheita foi fraca. A terra adoeceu.", "A terra, ou o que tá debaixo dela?"],
   ["A cerveja do Bruno tava aguada.", "Aguada é melhor que nenhuma."],
-  ["Cuidado ao anoitecer.", "Sempre. Ninguém anda sozinho aqui."],
-  ["Mais um que desceu à masmorra.", "Que a luz o acompanhe. Vai precisar."],
+  ["Por que a gente tranca por dentro se o portão já é trancado?", "Porque sim.", "Boa resposta."],
+  ["Mais um que desceu à mina.", "Que a luz o acompanhe. Vai precisar."],
+  ["O Frei anda mexendo nos livros velhos.", "Deixa o homem. Papel não morde.", "Papel não. O que tá escrito nele, sei lá."],
 ];
 
 // artes 2D dos aldeões (id -> URL importada). Vazio por enquanto: cada aldeão
@@ -1054,8 +1352,8 @@ const HOMES: Record<HomeId, HomeInfo> = {
         name: "Pip",
         art: pipUrl,
         lines: [
-          "Essa é a nossa casa! Eu e a Wilma somos irmãos.",
-          "Um dia vou ser aventureiro igual você — a Wilma que fica de babá!",
+          "Eu conto os lampiões da rua toda! São quarenta e um. Contei três vezes.",
+          "A Wilma diz que é besteira. Mas se um dia for quarenta, eu vou saber qual apagou.",
         ],
       },
       {
@@ -1066,8 +1364,8 @@ const HOMES: Record<HomeId, HomeInfo> = {
         name: "Wilma",
         art: wilmaUrl,
         lines: [
-          "O Pip vive fugindo pra praça. Alguém tem que cuidar dele!",
-          "À noite dá pra ouvir barulhos vindo da montanha... eu tranco a porta.",
+          "Não repita p/ o Pip, mas os lampiões dele estão certos. Eu também conto. Desde que a mãe se foi.",
+          "Ela dizia: 'enquanto der p/ contar, tá tudo bem'. Eu não sei o que acontece quando não der.",
         ],
       },
     ],
@@ -1082,8 +1380,9 @@ const HOMES: Record<HomeId, HomeInfo> = {
         name: "Hedda, a Matriarca",
         art: heddaUrl,
         lines: [
-          "Entre, entre. Minha casa é modesta, mas aquecida.",
-          "Já vi muitos invernos passarem por Grimhollow. Sente-se, tome um chá.",
+          "Entre e feche. Não é frieza: é costume, e costume aqui costuma ter motivo.",
+          "Eu te achei na estrada com a cabeça aberta e o nome perdido. Perguntei ao vilarejo o que fazer e o vilarejo olhou p/ o outro lado.",
+          "Então eu decidi sozinha, como decido tudo há quarenta anos. Sente-se.",
         ],
       },
     ],
@@ -1565,7 +1864,7 @@ export class Game {
   // TAVERNA: estado das missões (ver QUEST_DEFS). status por id + progresso (kill)
   private quests: Record<string, { status: "available" | "active" | "ready" | "done"; progress: number }> =
     Object.fromEntries(QUEST_DEFS.map((d) => [d.id, { status: "available" as const, progress: 0 }]));
-  // MAIN QUEST ("A Névoa Devoradora"): estado por capítulo + marcas narrativas.
+  // MAIN QUEST ("As Portas de Baixo"): estado por capítulo + marcas narrativas.
   // cap.1 começa disponível; os demais destravam quando o anterior conclui.
   private mainQuests: Record<string, { status: "locked" | "available" | "active" | "done"; step: number; progress: number }> = {};
   private mainFlags: Record<string, boolean> = {}; // ex.: lantern = tem a Lanterna da Bruma
@@ -1873,7 +2172,7 @@ export class Game {
       (uid) => this.equipArmor(uid), // clicou numa armadura da mochila → equipa
       (slot) => this.unequipArmor(slot as ArmorSlot), // clicou no boneco → desequipa
     );
-    this.initMainQuests(); // "A Névoa Devoradora": cap.1 disponível, resto trancado
+    this.initMainQuests(); // "As Portas de Baixo": cap.1 disponível, resto trancado
     // CO-OP · FASE 1: recebe a lista de quem está na mesma zona. Só liga de fato se
     // houver conta na nuvem (o Convidado joga sozinho) — ver setCoop().
     net.onPeers((list) => this.onPeers(list));
@@ -2031,6 +2330,12 @@ export class Game {
       dungeon: dungeonCell, village: cellAt, forest: forestCell,
       plains: plainsCell, interiores: roomChar,
     };
+    (window as unknown as { __MQ?: unknown; __FALAS?: unknown; __falasDaFase?: unknown })
+      .__MQ = MAIN_QUESTS;
+    (window as unknown as { __FALAS?: unknown }).__FALAS = VILLAGE_NPCS;
+    (window as unknown as { __ESTAB?: unknown }).__ESTAB = ESTAB;
+    (window as unknown as { __HOMES?: unknown }).__HOMES = Object.values(HOMES);
+    (window as unknown as { __falasDaFase?: unknown }).__falasDaFase = falasDaFase;
     (window as unknown as { __SALAS?: unknown }).__SALAS = {
       roomFind, roomCols, roomRows, roomProps, roomWalkable,
     };
@@ -2394,7 +2699,7 @@ export class Game {
     }
     const falso = { typeId } as unknown as EnemyEnt;
     this.questOnKill(falso);
-    this.mainQuestOnKill();
+    this.mainQuestOnKill(typeId);
   }
 
   // ============ APOIO ENTRE COMPANHEIROS (cura, bênção, ressurreição) ==========
@@ -2731,12 +3036,12 @@ export class Game {
   // arma. Ao fechar, o HUD (e a arma na mão) surge com um fade rápido.
   private wakeHeddaDialogue() {
     this.openDialogue("Hedda, a Matriarca", [
-      "Ah… os seus olhos voltaram a enxergar. Louvado seja o que ainda vela por este vilarejo.",
-      "Fique quieto mais um instante. Encontrei você caído na boca da névoa, roxo de frio, e o arrastei para dentro antes que a bruma fechasse o cerco sobre você. Dormiu dois dias inteiros.",
-      "Diga-me: lembra do seu nome? …De como veio parar na estrada? Não. Eu imaginava.",
-      "Não se martirize por isso. A névoa cobra esse preço de todos que a atravessam — leva primeiro as lembranças, depois o nome, e por fim a pessoa inteira. Você teve sorte de parar aqui.",
-      "Falava enquanto dormia. Nomes, uma estrada longa, um sino tocando ao longe. Guardei cada palavra, para o caso de um dia voltarem a lhe pertencer.",
-      "Chega de conversa deitado. Isto aqui estava amarrado às suas costas quando o encontrei — a única coisa que a bruma não lhe tomou. É sua. Segure-a firme: vai precisar dela por estas bandas.",
+      "Ah… os seus olhos voltaram a enxergar. Fique quieto mais um instante, que eu não te carreguei estrada acima p/ você abrir a cabeça de novo na minha soleira.",
+      "Encontrei você a meia légua daqui, caído de bruços, com um talho no couro cabeludo do tamanho do meu dedo. Dormiu dois dias inteiros.",
+      "Diga-me: lembra do seu nome? …De como veio parar na estrada? Não. Eu imaginava. Pancada na cabeça faz isso, e às vezes faz por bem.",
+      "Não se aflija. Aqui em Grimhollow a gente convive com falta de memória — a cidade inteira esqueceu coisa muito maior que um nome, e vive muito bem sem lembrar.",
+      "Falava enquanto dormia. Nomes, uma estrada longa, um sino tocando ao longe. Guardei cada palavra, p/ o caso de um dia voltarem a lhe pertencer.",
+      "Chega de conversa deitado. Isto estava amarrado às suas costas quando eu te achei — quem quer que você fosse, andava armado. É sua. Segure firme: por estas bandas vai precisar.",
     ], heddaUrl, { onClose: () => this.finishWakeIntro() });
   }
   // ENTREGA da arma: revela o HUD (arma + botões surgem juntos, fade rápido) e só
@@ -4051,6 +4356,19 @@ export class Game {
       this.mainQuests[def.id] = { status: def.order === 1 ? "active" : "locked", step: 0, progress: 0 };
   }
   private mqDef(id: string) { return MAIN_QUESTS.find((d) => d.id === id); }
+  /**
+   * Em que ponto da história estamos — o capítulo ATIVO, ou o último concluído.
+   * É ele que decide o que os aldeões andam falando (ver FalaFase).
+   */
+  private capituloAtual(): number {
+    let cap = 1;
+    for (const def of MAIN_QUESTS) {
+      const st = this.mainQuests[def.id]?.status;
+      if (st === "active" || st === "available") cap = Math.max(cap, def.order);
+      if (st === "done") cap = Math.max(cap, def.order + 1);
+    }
+    return cap;
+  }
   private mqActive(): MainQuestDef | null {
     for (const def of MAIN_QUESTS) if (this.mainQuests[def.id]?.status === "active") return def;
     return null;
@@ -4247,12 +4565,14 @@ export class Game {
     this.openDialogue(name, step.atLines ?? ["…"], portrait, { onClose: () => { this.mqAdvance(def); root(); } });
   }
   // um inimigo abatido: alimenta a etapa "kill" do capítulo ativo
-  private mainQuestOnKill() {
+  private mainQuestOnKill(typeId = "") {
     const act = this.mqActive();
     if (!act) return;
     const st = this.mainQuests[act.id];
     const step = act.steps[st.step];
     if (!step || step.kind !== "kill" || this.location !== "dungeon") return;
+    // capítulo que pede um alvo NOMEADO só conta esse alvo
+    if (step.typeIds && step.typeIds.length && !step.typeIds.includes(typeId)) return;
     st.progress++;
     const goal = step.goal ?? 1;
     if (st.progress >= goal) { this.ui.questPopup(act.title, "Objetivo cumprido!", true); this.mqAdvance(act); }
@@ -4913,7 +5233,7 @@ export class Game {
     this.gainXp(this.scaledXp(e.xp, e.lvl));
     if (!jaContado) {
       this.questOnKill(e); // progresso das missões/bounties de abate
-      this.mainQuestOnKill(); // progresso do capítulo ativo da main quest
+      this.mainQuestOnKill(e.typeId); // progresso do capítulo ativo da main quest
     }
     // SÓ QUEM DEU O GOLPE avisa o grupo. Antes cada um que via o bicho cair
     // reanunciava o mesmo abate, e o canal do grupo virava eco.
@@ -8726,7 +9046,7 @@ export class Game {
         sr,
         v.seed,
         v.name,
-        v.lines,
+        falasDaFase(v.lines, this.capituloAtual()),
         url,
         v.scale ?? 1,
         anim ? { frames: anim.frames, fps: anim.fps } : undefined,
