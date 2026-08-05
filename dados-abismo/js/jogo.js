@@ -457,7 +457,19 @@ function pintar(){
       const q=x.face.k==='wild'?null:(x.face.v??null); return q; }).filter(q=>q!==null);
     return { sum:v.reduce((a,b)=>a+b,0), max:v.length?Math.max(...v):0, min:v.length?Math.min(...v):0,
              count:selAgora.length, vals:v, simbolos:selAgora.map(x=>x.face.k).filter(k=>k!=='num') }; })() : null;
-  $('ini').innerHTML=es.map((e,i)=>{
+  /* A FILEIRA NÃO É UM CEMITÉRIO. Os mortos continuam no array de propósito
+     — o chefe precisa deles para REERGUER —, mas a tela desenhava todos.
+     Numa luta longa contra o Coveiro, que invoca reforço, a fileira chegava
+     a 20 cartas de cadáver e comia a mesa inteira (medido: máximo de 6 vivos
+     ao mesmo tempo, contra 20 cards). O corpo fica à vista o tempo da
+     animação de morte e depois sai. */
+  const AGORA = performance.now();
+  for(const e of es) if(e.hp<=0 && !e._morteEm) e._morteEm = AGORA;
+  const naFila = es.map((e,i)=>({e,i}))
+    .filter(({e}) => e.hp>0 || (AGORA - (e._morteEm||0)) < 1400);
+  // enquanto houver corpo esfriando, repinta pra ele sair sozinho
+  if(naFila.some(({e})=>e.hp<=0)) setTimeout(()=>{ if(!anima) pintar(); }, 500);
+  $('ini').innerHTML=naFila.map(({e,i})=>{
     const it=e.intent; const txt = !it?'—' : it.t==='atk'?`⚔ ${it.v}` : it.t==='atk_multi'?`⚔ ${it.v}×${it.n}`
       : it.t==='block'?`🛡 ${it.v}` : it.t==='heal'?`✚ ${it.v}` : it.t==='buff'?'▲ fúria'
       : it.t==='curse'?'☠ maldição' : it.t==='debuff'?`▼ ${it.st}`
@@ -517,7 +529,7 @@ function pintar(){
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
     if(previa) previa=calcPrevia(previa.skill); SFX.pegar(); pintar(); });
   // onda cheia aperta as cartas para sobrar mesa (ver #ini.cheia no CSS)
-  $('ini').classList.toggle('cheia', es.filter(e=>e.hp>0).length >= 5);
+  $('ini').classList.toggle('cheia', naFila.length >= 5);   // conta o que está À VISTA
   const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0)
     .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
   $('voce').innerHTML=`<span class="pill perigo ${pi.letal?'letal':''}">☠ ${pi.total}</span>
