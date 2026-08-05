@@ -186,6 +186,12 @@ body{
   background:rgba(0,0,0,.3); color:var(--text); border:1px solid var(--line); }
 .cl-act button.play{ background:linear-gradient(180deg,#c6ff9e,#6fc94f); color:var(--ink); border-color:#3a9838; }
 .cl-empty{ color:var(--text-dim); text-align:center; padding:26px 10px; font-size:.9rem; }
+.cl-section{ font-size:.78rem; font-weight:800; color:var(--slime-l); margin:6px 2px 2px; text-align:left; }
+.cl-officials{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:4px; }
+.cl-off{ width:38px; height:38px; border-radius:10px; cursor:pointer; font-weight:900; font-size:.9rem;
+  color:var(--ink); background:linear-gradient(180deg,#ffe6a0,#ffc94a); border:1px solid #e0972a;
+  box-shadow:0 3px 0 #a8701a; }
+.cl-off:active{ transform:translateY(2px); box-shadow:0 1px 0 #a8701a; }
 
 /* editor */
 #screen-editor{ flex-direction:column; gap:8px; padding:6px; }

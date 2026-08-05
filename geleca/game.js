@@ -706,6 +706,9 @@ function buildEntities(){
       type:e.type||"patrol", range:(e.range||7)*TILE, delay:e.delay!==undefined?e.delay:(boss?1.4:0),
       hp:boss?(e.hp||3):0, hitT:0, mad:0, alert:0, dir:1 });
   });
+  // CAMADA de paredes FANTASMA (overlay): cobre a célula com "rocha" SEM apagar o que há
+  // atrás (gema/estrela/gosma). Usado pelo editor pra esconder recompensas.
+  (level.fakes||[]).forEach(f=>{ fakes.push({x:f[0]*TILE,y:f[1]*TILE,w:TILE,h:TILE,rev:0}); });
 }
 function resetLevel(){
   buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
@@ -1500,6 +1503,11 @@ function render(){
     ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-r*0.8,0); ctx.lineTo(r*0.8,0); ctx.stroke();
     ctx.restore(); }
 
+  // 2ª passada das PAREDES FANTASMA: re-desenha por CIMA das recompensas, escondendo
+  // gema/estrela/gosma que estejam atrás (a rocha só some onde a geleca encosta).
+  for(const s of fakes){ if(!vis(s)||s.rev>=1)continue;
+    if(s.rev>0){ ctx.globalAlpha=1-s.rev; drawTile(s); ctx.globalAlpha=1; } else drawTile(s); }
+
   // inimigos: GUARDIÃO (patrulha = estrela espinhosa) vs PERSEGUIDOR/CHEFE (assombração = fantasma de 1 olho)
   for(const e of enemies){ const cx=e.x+e.w/2, cy=e.y+e.h/2, r=e.w/2, mad=e.mad||0, ed=(e.dir||1);
     if(e.type==="patrol"){
@@ -2123,8 +2131,8 @@ const PALETTE=[
   {b:'H',      ic:'🔥', lbl:'Calor',   col:'#b0431f'},
   {b:'P',      ic:'🔘', lbl:'Placa',   col:'#35507f'},
   {b:'D',      ic:'🟪', lbl:'Porta',   col:'#5a3a8a'},
-  {b:'S',      ic:'🧱', lbl:'Falsa',   col:'#4a5550'},
-  {b:'g',      ic:'💎', lbl:'Segredo', col:'#4a5550'},
+  {b:'G',      ic:'💎', lbl:'Gema',    col:'#8a5fd0'},
+  {b:'falsa',  ic:'🧱', lbl:'Falsa',   col:'#4a5550'},
   {b:'patrol', ic:'🛡️', lbl:'Guardião',col:'#8a1830'},
   {b:'chaser', ic:'👻', lbl:'Caçador', col:'#5a1440'},
   {b:'mover',  ic:'↔️', lbl:'Móvel',   col:'#2f6f7f'},
@@ -2136,34 +2144,46 @@ const PMAP={}; for(const it of PALETTE) PMAP[it.b]=it;
 const ed={ W:48, H:18, grid:[], ents:[], brush:'#', cam:0, tile:24, editingSlot:null, pendingSlot:1, painting:false };
 const edCanvas=el("ed-canvas"), edCtx=edCanvas?edCanvas.getContext("2d"):null;
 
+function edBlankFake(){ ed.fake=[]; for(let y=0;y<ed.H;y++) ed.fake.push(new Array(ed.W).fill(false)); }
 function edNew(){
+  ed.W=48; ed.H=18;
   ed.grid=[]; for(let y=0;y<ed.H;y++){ const r=[]; for(let x=0;x<ed.W;x++) r.push((x===0||x===ed.W-1||y===0)?'#':' '); ed.grid.push(r); }
   for(let x=1;x<ed.W-1;x++){ ed.grid[ed.H-1][x]='#'; ed.grid[ed.H-2][x]='#'; }   // chão inicial
   ed.grid[ed.H-3][2]='@'; ed.grid[ed.H-3][ed.W-3]='E';
+  edBlankFake();
   ed.ents=[]; ed.cam=0; ed.editingSlot=null;
   const c=loadCustom(); let s=1; while(c[s]) s++; ed.pendingSlot=s;
   if(el("ed-name")) el("ed-name").value=""; if(el("ed-mass")) el("ed-mass").value="8";
 }
 function edLoadObj(obj, slot){
   const r=obj.rows; ed.H=r.length; ed.W=r[0].length; ed.grid=r.map(l=>l.split(''));
+  edBlankFake();
+  // traduz paredes fantasma LEGADAS ('S' e 'g') pra CAMADA (overlay): 'S'→rocha vazia, 'g'→gema+rocha
+  for(let y=0;y<ed.H;y++)for(let x=0;x<ed.W;x++){ const c=ed.grid[y][x];
+    if(c==='S'){ ed.grid[y][x]=' '; ed.fake[y][x]=true; }
+    else if(c==='g'){ ed.grid[y][x]='G'; ed.fake[y][x]=true; } }
+  for(const f of (obj.fakes||[])){ if(ed.fake[f[1]]) ed.fake[f[1]][f[0]]=true; }
   ed.ents=[];
-  for(const e of (obj.enemies||[])) ed.ents.push({x:e.x,y:e.y,kind:e.type==='chaser'?'chaser':'patrol'});
-  for(const m of (obj.movers||[])) ed.ents.push({x:m.x,y:m.y,kind:'mover'});
-  ed.cam=0; ed.editingSlot=slot; ed.pendingSlot=slot;
+  for(const e of (obj.enemies||[])) ed.ents.push({x:e.x,y:e.y,kind:e.type==='chaser'?'chaser':'patrol',src:Object.assign({},e)});
+  for(const m of (obj.movers||[])) ed.ents.push({x:m.x,y:m.y,kind:'mover',src:Object.assign({},m)});
+  ed.cam=0;
+  if(slot==null){ ed.editingSlot=null; const c=loadCustom(); let s=1; while(c[s]) s++; ed.pendingSlot=s; }
+  else { ed.editingSlot=slot; ed.pendingSlot=slot; }
   el("ed-name").value=(obj.name||"").replace(/^\d+\s*·\s*/,''); el("ed-mass").value=obj.mass;
 }
 function edBuild(){
   const rows=ed.grid.map(r=>r.join('')); const enemies=[], movers=[];
   for(const e of ed.ents){
-    if(e.kind==='patrol') enemies.push({x:e.x,y:e.y,dist:4,speed:1.0,axis:'x',type:'patrol'});
-    else if(e.kind==='chaser') enemies.push({x:e.x,y:e.y,speed:1.15,type:'chaser',range:8});
-    else if(e.kind==='mover') movers.push({x:e.x,y:e.y,w:3,dist:6,axis:'x',speed:0.6,phase:0});
+    if(e.kind==='patrol') enemies.push(e.src?Object.assign({},e.src,{x:e.x,y:e.y,type:'patrol'}):{x:e.x,y:e.y,dist:4,speed:1.0,axis:'x',type:'patrol'});
+    else if(e.kind==='chaser') enemies.push(e.src?Object.assign({},e.src,{x:e.x,y:e.y,type:'chaser'}):{x:e.x,y:e.y,speed:1.15,type:'chaser',range:8});
+    else if(e.kind==='mover') movers.push(e.src?Object.assign({},e.src,{x:e.x,y:e.y}):{x:e.x,y:e.y,w:3,dist:6,axis:'x',speed:0.6,phase:0});
   }
+  const fakes=[]; for(let y=0;y<ed.H;y++)for(let x=0;x<ed.W;x++) if(ed.fake[y]&&ed.fake[y][x]) fakes.push([x,y]);
   const mass=Math.max(1,Math.min(20, parseInt(el("ed-mass").value)||8));
   const nm=(el("ed-name").value||"Sem nome").trim();
   const slot=parseInt(el("ed-slot").value)||1;
   const obj={ name:slot+" · "+nm, mass, max:mass, theme:"grove", hint:"", rows };
-  if(enemies.length) obj.enemies=enemies; if(movers.length) obj.movers=movers;
+  if(enemies.length) obj.enemies=enemies; if(movers.length) obj.movers=movers; if(fakes.length) obj.fakes=fakes;
   return {obj, slot};
 }
 function edValidate(rows){ const flat=rows.join('');
@@ -2204,6 +2224,11 @@ function edRender(){ if(!edCtx) return; const t=ed.tile, cw=edCanvas.width, ch=e
     for(let gy=0; gy<ed.H; gy++){ const px=sx*t, py=gy*t;
       edCtx.strokeStyle="rgba(255,255,255,.05)"; edCtx.strokeRect(px,py,t,t);
       const c=ed.grid[gy][gx]; if(c && c!==' ') edDrawCell(px,py,t,c);
+      if(ed.fake[gy]&&ed.fake[gy][gx]){                                  // CAMADA parede falsa (translúcida no editor)
+        edCtx.fillStyle="rgba(74,85,80,.6)"; edCtx.fillRect(px+1,py+1,t-2,t-2);
+        edCtx.strokeStyle="rgba(210,210,220,.55)"; edCtx.setLineDash([4,3]); edCtx.strokeRect(px+2.5,py+2.5,t-5,t-5); edCtx.setLineDash([]);
+        edCtx.font=Math.floor(t*0.34)+"px sans-serif"; edCtx.textAlign="right"; edCtx.textBaseline="top"; edCtx.fillText('🧱',px+t-2,py+1);
+      }
     } }
   for(const e of ed.ents){ if(e.x<ed.cam) continue; const sx=e.x-ed.cam; if(sx>viewCols) continue; edDrawEnt(sx*t,e.y*t,t,e.kind); }
 }
@@ -2211,7 +2236,8 @@ function edCell(ev){ const r=edCanvas.getBoundingClientRect();
   const sx=(ev.clientX-r.left)/r.width*edCanvas.width, sy=(ev.clientY-r.top)/r.height*edCanvas.height;
   return { gx:ed.cam+Math.floor(sx/ed.tile), gy:Math.floor(sy/ed.tile) }; }
 function edApply(gx,gy){ if(gx<0||gx>=ed.W||gy<0||gy>=ed.H) return; const b=ed.brush;
-  if(b==='erase'){ ed.grid[gy][gx]=' '; ed.ents=ed.ents.filter(e=>!(e.x===gx&&e.y===gy)); }
+  if(b==='erase'){ ed.grid[gy][gx]=' '; if(ed.fake[gy])ed.fake[gy][gx]=false; ed.ents=ed.ents.filter(e=>!(e.x===gx&&e.y===gy)); }
+  else if(b==='falsa'){ if(ed.fake[gy]) ed.fake[gy][gx]=true; }                 // CAMADA: cobre a célula SEM apagar o que há atrás
   else if(b==='patrol'||b==='chaser'||b==='mover'){ ed.ents=ed.ents.filter(e=>!(e.x===gx&&e.y===gy)); ed.ents.push({x:gx,y:gy,kind:b}); }
   else if(b==='@'||b==='E'){ for(let y=0;y<ed.H;y++)for(let x=0;x<ed.W;x++) if(ed.grid[y][x]===b) ed.grid[y][x]=' '; ed.grid[gy][gx]=b; }
   else { ed.grid[gy][gx]=b; }
@@ -2236,10 +2262,23 @@ function showCustom(){ state="menu"; customCtx=null;
   ["screen-menu","screen-editor","screen-game"].forEach(id=>el(id).classList.remove("active"));
   el("screen-custom").classList.add("active"); buildCustomList();
 }
-function buildCustomList(){ const box=el("custom-list"); if(!box) return; const c=loadCustom();
-  const slots=Object.keys(c).map(Number).sort((a,b)=>a-b);
-  if(!slots.length){ box.innerHTML=`<div class="cl-empty">Nenhuma fase criada ainda.<br>Toque em ➕ Nova pra começar!</div>`; return; }
-  box.innerHTML="";
+function buildCustomList(){ const box=el("custom-list"); if(!box) return; box.innerHTML="";
+  // ── SEÇÃO: editar uma FASE OFICIAL como base ──
+  const NORMAL=LEVELS.filter(L=>!L.secret).length;
+  const oh=document.createElement("div"); oh.className="cl-section"; oh.textContent="✏️ Editar uma fase oficial (vira base pra alterar)";
+  box.appendChild(oh);
+  const orow=document.createElement("div"); orow.className="cl-officials";
+  for(let i=0;i<NORMAL;i++){ const btn=document.createElement("button"); btn.className="cl-off"; btn.textContent=(i+1);
+    btn.title=LEVELS[i].name;
+    btn.addEventListener("click",()=>{ audio(); edLoadObj(LEVELS[i], null); showEditor(false); });
+    orow.appendChild(btn); }
+  box.appendChild(orow);
+  // ── SEÇÃO: minhas fases ──
+  const mh=document.createElement("div"); mh.className="cl-section"; mh.textContent="🛠️ Minhas fases";
+  box.appendChild(mh);
+  const c=loadCustom(); const slots=Object.keys(c).map(Number).sort((a,b)=>a-b);
+  if(!slots.length){ const e=document.createElement("div"); e.className="cl-empty";
+    e.innerHTML="Nenhuma fase criada ainda.<br>Toque em ➕ Nova, ou edite uma oficial acima."; box.appendChild(e); return; }
   for(const s of slots){ const o=c[s], nm=(o.name||"").replace(/^\d+\s*·\s*/,'')||"Sem nome";
     const card=document.createElement("div"); card.className="cl-card";
     card.innerHTML=`<div class="cl-num">${s}</div><div class="cl-info"><div class="cl-name">${nm}</div><div class="cl-sub">massa ${o.mass} · ${o.rows[0].length}×${o.rows.length}</div></div>`;
@@ -2322,4 +2361,6 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   bot(on){ toggleBot(on); return botOn; }, get botOn(){ return botOn; },
   botDbg(){ return {mx:bot.mx,down:bot.down,jump:bot.jump,grab:bot.grab,
     cling:!!(blob&&blob.cling),wall:blob?blob.wallPrev:0,onG:blob?blob.onGroundPrev:0,
-    bx:blob?Math.round(blob.x):0,by:blob?Math.round(blob.y):0,ex:exitRect?Math.round(exitRect.x):0,ey:exitRect?Math.round(exitRect.y):0}; } };
+    bx:blob?Math.round(blob.x):0,by:blob?Math.round(blob.y):0,ex:exitRect?Math.round(exitRect.x):0,ey:exitRect?Math.round(exitRect.y):0}; },
+  edDbg(){ let f=0,c=0; for(let y=0;y<ed.H;y++)for(let x=0;x<ed.W;x++){ if(ed.fake[y]&&ed.fake[y][x])f++; if(ed.grid[y]&&ed.grid[y][x]&&ed.grid[y][x]!==' ')c++; } return {fake:f,cells:c,ents:ed.ents.length,W:ed.W,H:ed.H,slot:ed.editingSlot,pend:ed.pendingSlot}; },
+  edBrush(b){ ed.brush=b; }, edPaintCell(x,y){ edApply(x,y); } };
