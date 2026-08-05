@@ -603,15 +603,18 @@ function buildLevelGrid(){
   svg.appendChild(base); svg.appendChild(dash); map.appendChild(svg);
 
   // --- 15 NÓS de fase (o segredo NÃO entra aqui) ---
+  const customLv=loadCustom();
   for(let i=0;i<NORMAL;i++){
-    const L=LEVELS[i], p=MAP_SPOTS[i], st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim();
+    const custom=customLv[i+1];                                          // fase editada por você substitui a oficial
+    const L=custom||LEVELS[i], p=MAP_SPOTS[i], st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim();
     const locked=!UNLOCK_ALL && i>save.unlocked, sGot=secretGot(i);
     const node=document.createElement("button");
     node.style.left=p.x+"%"; node.style.top=p.y+"%"; node.style.animationDelay=(i*0.04).toFixed(2)+"s";
     node.className="map-node"+(locked?" locked":"")+(st>0?" done":"")+(i===nextIdx?" next":"");
-    node.title=nm;
+    node.title=nm+(custom?" (sua versão)":"");
     node.innerHTML = `<b class="mn-num">${i+1}</b>`
       + (locked ? "" : starRow(st)+(sGot>0?`<span class="mn-gem">💎</span>`:""))
+      + (custom?`<span class="mn-edit">✎</span>`:"")
       + `<span class="mn-name">${nm}</span>`;
     if(!locked) node.addEventListener("click",()=>{ audio(); startGame(i); });
     map.appendChild(node);
@@ -658,7 +661,8 @@ function playLevelObj(obj, ctx){
 // ==========================================================================
 // CARREGAR / RESETAR
 // ==========================================================================
-function loadLevel(idx){ loadLevelObj(LEVELS[idx]); }
+// se existir uma fase CUSTOM salva no slot correspondente (Fase idx+1), ela SUBSTITUI a oficial no mapa
+function loadLevel(idx){ const c=loadCustom(); loadLevelObj(c[idx+1]||LEVELS[idx]); }
 function loadLevelObj(obj){
   level=obj; ROWS=obj.rows.length; COLS=obj.rows[0].length;
   fitCanvas();                            // dimensiona o canvas à tela e calcula o zoom
@@ -2197,7 +2201,9 @@ function edSave(){ const {obj,slot}=edBuild(); const err=edValidate(obj.rows);
   const c=loadCustom();
   if(ed.editingSlot!=null && ed.editingSlot!==slot) delete c[ed.editingSlot];
   c[slot]=obj; saveCustom(c); ed.editingSlot=slot;
-  el("ed-hint").textContent="💾 Salvo como Fase "+slot+"!"; return true; }
+  const NORMAL=LEVELS.filter(L=>!L.secret).length;
+  el("ed-hint").textContent = slot<=NORMAL ? ("💾 Salvo! A Fase "+slot+" no mapa agora é a SUA versão.") : ("💾 Salvo como Fase "+slot+"!");
+  return true; }
 function edTest(){ const {obj}=edBuild(); const err=edValidate(obj.rows);
   if(err){ el("ed-hint").textContent="⚠ "+err; return; }
   playLevelObj(obj,'edit'); }
@@ -2270,7 +2276,8 @@ function buildCustomList(){ const box=el("custom-list"); if(!box) return; box.in
   const orow=document.createElement("div"); orow.className="cl-officials";
   for(let i=0;i<NORMAL;i++){ const btn=document.createElement("button"); btn.className="cl-off"; btn.textContent=(i+1);
     btn.title=LEVELS[i].name;
-    btn.addEventListener("click",()=>{ audio(); edLoadObj(LEVELS[i], null); showEditor(false); });
+    // edita a oficial i: o slot JÁ vem como Fase i+1, então salvar SUBSTITUI aquela fase no mapa
+    btn.addEventListener("click",()=>{ audio(); const c=loadCustom(); edLoadObj(c[i+1]||LEVELS[i], null); ed.pendingSlot=i+1; ed.editingSlot=(c[i+1]?i+1:null); showEditor(false); });
     orow.appendChild(btn); }
   box.appendChild(orow);
   // ── SEÇÃO: minhas fases ──
