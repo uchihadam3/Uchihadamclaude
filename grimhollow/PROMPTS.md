@@ -1805,3 +1805,29 @@ pés rentes à base).
 - `npc_odile` — `a stern middle-aged woman armorer in a leather apron over a wool dress, hair tied back, holding a mail hauberk over one arm, burn scars on her hands`
 - `npc_gervais` — `a lean older man weaponsmith with a close-cropped grey beard, sleeves rolled, resting a longsword point-down on the floor, one eye clouded`
 - `npc_corvina` — `a gaunt elderly priestess in pale grey robes with a faded flame embroidered on the chest, holding a small guttering lantern, hollow-eyed and calm`
+
+---
+
+## 29 · CÂMARA SELADA — o Guardião do Selo — 🟡 arte pendente
+
+A ala nova no fundo da masmorra (6º andar). A porta só cede com **duas placas
+pisadas ao mesmo tempo**, a oito casas uma da outra: é o único conteúdo do jogo
+que não dá para fazer sozinho. Atrás dela está o chefe mais duro que existe.
+
+**Enquanto a arte não vem**, ele usa a folha do Leviatã tingida de pálido/dourado
+— dá para jogar, mas os dois ainda são o mesmo desenho.
+
+### 🟡 29.1 — `boss_guardiao` (o GUARDIÃO DO SELO)
+Mesmo enquadramento dos outros chefes (**848×1264, corpo inteiro, fundo
+transparente de verdade, pés rentes à base**). Ele não é um morto-vivo nem uma
+aberração: é uma coisa **antiga e cerimonial**, que foi posta ali para guardar e
+nunca saiu. Pedra, ouro velho e corrente — nada de carne.
+
+```
+A colossal ancient sealed guardian, full body, standing facing the viewer, isolated on a FULLY TRANSPARENT background (PNG alpha), feet flush with the bottom edge, 848x1264 vertical. A towering armored construct of cracked pale stone and tarnished gold, roughly humanoid but too broad and too still, faceless helm with a single carved sigil where the face should be, heavy chains bolted through its shoulders and wrists as if it were the thing being imprisoned, dim amber light bleeding out from the cracks between its stone plates, a long ceremonial greatsword held point-down into the ground with both hands. Grim dark fantasy, painterly digital art, muted palette of bone-grey and old gold with faint amber glow, weathered and monumental, absolutely no background, no ground shadow, no text, no watermark
+```
+
+### ⚪ 29.2 — `dec_placa_selo` (a placa de pressão no chão) — opcional
+Hoje é um anel de runas desenhado em código, e funciona. Se um dia render arte:
+disco de pedra circular visto **de cima**, ~512×512, fundo transparente,
+runas gravadas e um sulco em volta (para o disco parecer que afunda).

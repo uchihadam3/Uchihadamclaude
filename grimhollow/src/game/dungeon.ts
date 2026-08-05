@@ -150,8 +150,57 @@ const FLOOR3: string[] = [
 const mirrorMap = (m: string[]): string[] => m.map((row) => row.split("").reverse().join(""));
 const FLOOR4: string[] = FLOOR2.slice();
 const FLOOR5: string[] = mirrorMap(FLOOR2);
-// FLOOR6 = arena do chefe do Ato I SEM a escada de descida (é o fundo por ora).
-const FLOOR6: string[] = FLOOR3.map((row) => row.replace("D", "."));
+// ---- ANDAR 6 · Covil do Leviatã + a CÂMARA SELADA ----
+// A planta do 3º andar (é o fundo, então sem escada de descida) com uma ala nova
+// carvada na parede LESTE: a Câmara Selada.
+//
+//   'P' PLACA DE PRESSÃO   'V' porta selada   'Y' o Guardião do Selo
+//
+// As duas placas ficam a OITO casas uma da outra, nas pontas da arena. Isso não é
+// decoração: é a regra. Ninguém alcança as duas sozinho, e é essa impossibilidade
+// que faz a câmara existir — o resto do jogo inteiro dá p/ terminar só.
+const FLOOR6: string[] = [
+  "############################################",
+  "############################################",
+  "############################################",
+  "###################......###################",
+  "###################..U...###################",
+  "###################......###################",
+  "###################..S...###################",
+  "#####################.######################",
+  "#####################.######################",
+  "#####################E######################",
+  "#################...E.....##################",
+  "#################.E....E..##################",
+  "#################.......E.##################",
+  "#################..E......##################",
+  "#####################G######################",
+  "########............................########",
+  "########............................########",
+  "########.............K............P.########",
+  "########............................##.....#",
+  "########.....##..............##.....##.C.C.#",
+  "########.....##..............##.....##.....#",
+  "########............................V...Y..#",
+  "########....K.......................##.....#",
+  "########............................##.....#",
+  "########.......................K....##.....#",
+  "########..........................P.########",
+  "########.....##..............##.....########",
+  "########.....##......Z.......##.....########",
+  "########............................########",
+  "########............................########",
+  "########............................########",
+  "########............................########",
+  "#####################.######################",
+  "##################.......###################",
+  "##################.C.C.C.###################",
+  "##################..###..###################",
+  "##################..#.#..###################",
+  "##################.......###################",
+  "############################################",
+  "############################################",
+];
 
 // os 6 andares, do topo (1) ao fundo (6). Todos com a MESMA dimensão.
 export const DUNGEON_FLOORS: string[][] = [FLOOR1, FLOOR2, FLOOR3, FLOOR4, FLOOR5, FLOOR6];
@@ -191,6 +240,9 @@ export type DungeonCell =
   | "gate" // portão de grade: sela um corredor (bloqueia até ser aberto)
   | "lockgate" // portão SELADO (não abre) — esconde a entrada do santuário
   | "sanctuary" // portal/entrada do SANTUÁRIO (leva à sala-vitrine)
+  | "plate" // PLACA DE PRESSÃO: as duas juntas quebram o selo da câmara
+  | "sealdoor" // porta da CÂMARA SELADA (só cede com as duas placas pisadas)
+  | "guardian" // o CHEFE da câmara selada
   | "secret"; // parede ilusória: renderiza como rocha, mas é andável
 
 export function dungeonChar(col: number, row: number): string {
@@ -212,6 +264,12 @@ export function dungeonCell(col: number, row: number): DungeonCell {
       return "enemy";
     case "Z":
       return "boss";
+    case "P":
+      return "plate";
+    case "V":
+      return "sealdoor";
+    case "Y":
+      return "guardian";
     case "C":
       return "chest";
     case "K":
@@ -233,6 +291,9 @@ export function dungeonCell(col: number, row: number): DungeonCell {
 
 // tudo é andável menos a rocha sólida ('#'/borda). O 'X' (parede ilusória) É andável.
 export function dungeonWalkable(col: number, row: number): boolean {
+  // A porta da câmara é "chão" aqui de propósito: quem sela a passagem é o Game
+  // (ele bloqueia a célula até as placas cederem). Assim quebrar o selo é só
+  // liberar a célula, sem mexer no mapa.
   return dungeonCell(col, row) !== "wall";
 }
 

@@ -290,6 +290,14 @@ const ENEMY_TYPES: Record<string, {
   aberracao: { art: enemyAberracaoUrl, hp: 275, atk: 32, xp: 110, gold: 30, vision: 5, h: 3.1, lvl: 5, ai: "relentless", spd: 880, tier: "mini" },
   // CHEFE do Ato II — o Leviatã Afogado. Maior e mais duro que o do Ato I.
   boss_a2:   { art: enemyBossA2Url,   hp: 1450, atk: 48, xp: 900, gold: 380, vision: 13, h: 4.8, lvl: 9, ai: "relentless", spd: 680, tier: "boss" },
+  // GUARDIÃO DO SELO — o chefe da Câmara Selada. Só se chega até ele em DUPLA
+  // (duas placas, oito casas de distância), então ele é o único inimigo do jogo
+  // balanceado sem a pergunta "e se estiver sozinho?": muita vida, golpe pesado e
+  // uma cadência de área bem mais curta que a dos outros chefes. Sozinho, mesmo
+  // que se chegasse lá, ele não é uma luta — é uma parede.
+  // ARTE PENDENTE (§29 do PROMPTS.md): por ora usa a folha do Leviatã tingida de
+  // pálido/dourado, p/ não parecer o mesmo bicho.
+  guardiao:  { art: enemyBossA2Url,   hp: 2900, atk: 62, xp: 1800, gold: 760, vision: 14, h: 5.2, lvl: 12, ai: "relentless", spd: 720, tier: "boss" },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 // ---- ARTE DA CIDADE (§28): fachadas, soco e props de rua ----
@@ -1354,7 +1362,26 @@ export const AOE_CHEFE: AoeChefe[] = [
       return out;
     },
   },
+  {
+    // COLAPSO: tudo em volta MENOS o que está colado nele. É o oposto do Anel, e
+    // o único jeito de escapar é correr PARA o chefe — a mecânica que ensina o
+    // grupo a se juntar em vez de se espalhar. Exclusiva do Guardião do Selo.
+    nome: "Colapso do Selo", canal: 3200, dano: 2.6, dica: "Corra para ele",
+    cells: (c, r) => {
+      const out: [number, number][] = [];
+      for (let dc = -6; dc <= 6; dc++)
+        for (let dr = -6; dr <= 6; dr++)
+          if (Math.max(Math.abs(dc), Math.abs(dr)) > 1) out.push([c + dc, r + dr]);
+      return out;
+    },
+  },
 ];
+// Quais padrões cada chefe usa. O Guardião é o único com o Colapso — e é o único
+// que exige duas pessoas p/ ser alcançado, então pode cobrar mais.
+const AOE_POR_CHEFE: Record<string, number[]> = {
+  guardiao: [1, 2, 3, 4],
+};
+const AOE_PADRAO = [1, 2, 3];
 
 export class Game {
   private renderer: THREE.WebGLRenderer;
@@ -1380,6 +1407,16 @@ export class Game {
   // portões da masmorra FECHADOS: "c,r" → as duas meias-portas (dobradiças).
   // Ao abrir, elas GIRAM (não somem). O portão aberto sai deste mapa.
   private gates = new Map<string, { pivotL: THREE.Object3D; pivotR: THREE.Object3D }>();
+  // ---- CÂMARA SELADA: duas placas, uma porta, um Guardião ----
+  // O jogo inteiro dá p/ terminar sozinho. Esta é a única porta que não: as duas
+  // placas ficam a oito casas uma da outra, e ninguém pisa nas duas ao mesmo tempo.
+  private selo = {
+    placas: [] as { c: number; r: number; luz?: THREE.Mesh }[],
+    porta: "",                    // "c,r" da porta (vazio = este andar não tem câmara)
+    camara: new Set<string>(),    // as casas do outro lado (p/ saber que alguém já entrou)
+    quebrado: false,
+    avisou: false,
+  };
   // animações de abertura de portão em curso
   private gateAnims: { pivotL: THREE.Object3D; pivotR: THREE.Object3D; t0: number; dur: number; to: number }[] = [];
   private now = 0; // timestamp do frame atual (p/ animações disparadas fora do tick)
@@ -1471,6 +1508,7 @@ export class Game {
   private aoePool: THREE.Mesh[] = [];    // as guardadas p/ reusar (nada de criar/jogar fora por quadro)
   private aoeDono: EnemyEnt | null = null;
   private aoeTexCache?: THREE.Texture;
+  private plateTexCache?: THREE.Texture;
   // ---- PORTAL / WAYPOINT (estilo PoE/Diablo) ----
   // portal FIXO da cidade (arco de pedra em plataforma elevada). O vão só é preenchido
   // pelo GIF quando ATIVO — e ele DESTRAVA ao derrotar o 1º chefe. Enquanto isso o
@@ -3470,6 +3508,11 @@ export class Game {
       opacity: 0,
       alphaTest: 0.4,
       side: THREE.DoubleSide,
+      // O GUARDIÃO ainda usa a folha do Leviatã (arte própria pendente, §29 do
+      // PROMPTS.md). Sem tratamento de cor os dois seriam o mesmo bicho na tela;
+      // tingido de pálido/dourado ele já lê como outra coisa — como algo que foi
+      // SELADO, não como algo que se afogou.
+      ...(typeId === "guardiao" ? { color: new THREE.Color(0xe8d9a8) } : {}),
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH * 0.47, worldH), mat);
     mesh.position.set(c * CELL, worldH / 2, r * CELL);
@@ -5063,6 +5106,88 @@ export class Game {
     return this.grupo.find(serve) ?? null;
   }
 
+  // ==================== CÂMARA SELADA ====================
+  /** Textura da placa: um anel de runas no chão (acende ao ser pisado). */
+  private plateTex(): THREE.Texture {
+    if (this.plateTexCache) return this.plateTexCache;
+    const S = 128;
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = S;
+    const g = cv.getContext("2d")!;
+    const c = S / 2;
+    g.strokeStyle = "rgba(140,190,255,0.95)";
+    g.lineWidth = 7;
+    g.beginPath(); g.arc(c, c, 46, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 4;
+    g.beginPath(); g.arc(c, c, 28, 0, Math.PI * 2); g.stroke();
+    // quatro tracinhos nos pontos cardeais — lê como mecanismo, não como mancha
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      g.beginPath();
+      g.moveTo(c + Math.cos(a) * 30, c + Math.sin(a) * 30);
+      g.lineTo(c + Math.cos(a) * 44, c + Math.sin(a) * 44);
+      g.stroke();
+    }
+    const tx = new THREE.CanvasTexture(cv);
+    tx.colorSpace = THREE.SRGBColorSpace;
+    this.plateTexCache = tx;
+    return tx;
+  }
+
+  /** Alguém (eu ou um amigo da zona) está nesta casa? */
+  private alguemEm(c: number, r: number): boolean {
+    if (this.col === c && this.row === r) return true;
+    for (const p of this.peers.values()) if (p.c === c && p.r === r) return true;
+    return false;
+  }
+
+  /**
+   * O SELO. Roda a cada quadro e é barato: são duas casas p/ conferir.
+   *
+   * Repare que não há mensagem de rede nenhuma aqui. A posição de cada jogador já
+   * viaja pelo canal da zona desde a Fase 1 — então os dois lados chegam à mesma
+   * conclusão sozinhos, no mesmo instante, olhando p/ os mesmos dados. É o mesmo
+   * princípio do chão vermelho do chefe: quando dá p/ DERIVAR, não se transmite.
+   */
+  private tickSelo(): void {
+    const s = this.selo;
+    if (!s.porta || s.quebrado || s.placas.length < 2) return;
+    let pisadas = 0;
+    for (const pl of s.placas) {
+      const on = this.alguemEm(pl.c, pl.r);
+      if (on) pisadas++;
+      if (pl.luz) {
+        const m = pl.luz.material as THREE.MeshBasicMaterial;
+        const alvo = on ? 1 : 0.5;
+        m.opacity += (alvo - m.opacity) * 0.2;
+      }
+    }
+    // um lembrete UMA vez, quando o jogador pisa na primeira placa sozinho: sem
+    // isso ele fica girando na sala sem entender que faltam duas pessoas.
+    if (pisadas === 1 && !s.avisou) {
+      s.avisou = true;
+      this.ui.toast("A placa cede — mas a porta não. Falta peso na outra.");
+    }
+    // ALGUÉM JÁ ESTÁ LÁ DENTRO: o selo obviamente cedeu. Isso cobre quem chega
+    // depois de o grupo ter aberto (senão ele ficaria trancado do lado de fora
+    // vendo os amigos lutarem).
+    const dentro = [...this.peers.values()].some((p) => s.camara.has(`${p.c},${p.r}`));
+    if (pisadas >= s.placas.length || dentro) this.quebrarSelo();
+  }
+
+  /** As duas placas cederam: a grade abre e não fecha mais neste andar. */
+  private quebrarSelo(): void {
+    const s = this.selo;
+    if (s.quebrado || !s.porta) return;
+    s.quebrado = true;
+    this.openGate(s.porta);       // as folhas giram nas dobradiças
+    for (const pl of s.placas)
+      if (pl.luz) (pl.luz.material as THREE.MeshBasicMaterial).opacity = 1;
+    this.ui.playSfx("cast");
+    this.ui.toast("O selo cede. A câmara está aberta.");
+    this.ui.floatText(window.innerWidth / 2, window.innerHeight * 0.4, "O SELO CEDE", "heal");
+  }
+
   // ==================== GOLPE DE ÁREA DO CHEFE ====================
   /** Textura da casa marcada: quadrado vazado com borda grossa (lê-se de longe). */
   private aoeTex(): THREE.Texture {
@@ -5122,8 +5247,9 @@ export class Game {
   private iniciarAoe(e: EnemyEnt, now: number): void {
     // sorteia um padrão diferente do último — repetir o mesmo três vezes seguidas
     // é o que faz uma mecânica boa parecer preguiçosa
-    let k = 1 + Math.floor(Math.random() * AOE_CHEFE.length);
-    if (k === e.castKind && AOE_CHEFE.length > 1) k = (k % AOE_CHEFE.length) + 1;
+    const set = AOE_POR_CHEFE[e.typeId] ?? AOE_PADRAO;
+    let k = set[Math.floor(Math.random() * set.length)];
+    if (k === e.castKind && set.length > 1) k = set[(set.indexOf(k) + 1) % set.length];
     e.castKind = k;
     e.castAt = now;
     e.castDur = AOE_CHEFE[k - 1].canal;
@@ -5187,7 +5313,10 @@ export class Game {
   /** Fim do golpe: apaga o chão, some a barra e agenda o próximo. */
   private encerrarAoe(e: EnemyEnt, now: number): void {
     e.castKind = 0; e.castAt = 0; e.castHit = false;
-    e.nextCast = now + 9000 + Math.random() * 4000;
+    // o Guardião respira menos entre um golpe e outro: é luta de dois, e dois
+    // conseguem revezar cura e reposicionamento no meio da pressão.
+    const folga = e.typeId === "guardiao" ? 5500 : 9000;
+    e.nextCast = now + folga + Math.random() * 4000;
     if (e.castBar) e.castBar.visible = false;
     if (this.aoeDono === e) { this.soltaMarcas(); this.aoeDono = null; }
     this.ui.bossCast(null);
@@ -7109,7 +7238,7 @@ export class Game {
       for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
         const k = dungeonCell(c, r);
         if (k === "wall" || k === "secret") continue;            // célula sólida: sem nervura
-        if (k === "gate" || k === "lockgate" || k === "sanctuary") continue; // já têm enquadramento
+        if (k === "gate" || k === "lockgate" || k === "sealdoor" || k === "sanctuary") continue; // já têm enquadramento
         const cx = c * CELL, cz = r * CELL;
         for (const [dc, dr] of DIRS) {
           if (dungeonCell(c + dc, r + dr) !== "wall") continue;   // só onde há FACE de parede
@@ -7186,6 +7315,53 @@ export class Game {
       this.glowLight((gc - gdc) * CELL, 1.8, (gr - gdr) * CELL, 0xffbf72, 2.2, 9);
       this.blocked.add(`${gc},${gr}`); // bloqueia a passagem até abrir
       this.gates.set(`${gc},${gr}`, { pivotL, pivotR });
+    }
+
+    // ======================= CÂMARA SELADA =======================
+    // A porta usa a MESMA grade de duas folhas dos outros portões (o jogador já
+    // sabe ler isso como "passagem fechada"), mas com a moldura acesa em azul —
+    // é sinal de que ela não abre por interação, e sim por peso nas placas.
+    this.selo = { placas: [], porta: "", camara: new Set(), quebrado: false, avisou: false };
+    const pv = dungeonAll("V")[0];
+    if (pv) {
+      const vdc = -1, vdr = 0; // chega-se pelo oeste (a arena)
+      this.addArchWall(pv.col, pv.row, vdc, vdr, rockMat, HOLE_HW, HOLE_BASE, CH);
+      gatePilasters(pv.col, pv.row, vdc, vdr);
+      this.addWallDecal(pv.col, pv.row, vdc, vdr, frameMat, CELL, GATE_H, GATE_H / 2);
+      const { pivotL, pivotR } = this.buildSwingGate(pv.col, pv.row, vdc, vdr, barsMat, CELL, GATE_H);
+      this.glowLight(pv.col * CELL + vdc * 0.4, 2.4, pv.row * CELL, 0x6fa8ff, 3.0, 9);
+      const chave = `${pv.col},${pv.row}`;
+      this.blocked.add(chave);
+      this.gates.set(chave, { pivotL, pivotR });
+      this.selo.porta = chave;
+      // AS CASAS DO OUTRO LADO. Descobertas por alagamento a partir da célula
+      // logo atrás da porta, sem atravessá-la — assim vale p/ qualquer planta que
+      // eu venha a desenhar depois, sem número mágico nenhum.
+      const fila: [number, number][] = [[pv.col - vdc, pv.row - vdr]];
+      while (fila.length) {
+        const [c, r] = fila.shift()!;
+        const k = `${c},${r}`;
+        if (this.selo.camara.has(k) || k === chave) continue;
+        if (!dungeonWalkable(c, r)) continue;
+        this.selo.camara.add(k);
+        for (const [dc, dr] of DIRS) fila.push([c + dc, r + dr]);
+      }
+      // AS PLACAS: disco de pedra no chão com um anel que ACENDE ao ser pisado.
+      for (const pl of dungeonAll("P")) {
+        const luz = new THREE.Mesh(
+          new THREE.PlaneGeometry(CELL * 0.88, CELL * 0.88),
+          new THREE.MeshBasicMaterial({
+            map: this.plateTex(), transparent: true, depthWrite: false,
+            blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0.5,
+          }),
+        );
+        luz.rotation.x = -Math.PI / 2;
+        luz.position.set(pl.col * CELL, this.floorYAt(pl.col, pl.row) + 0.05, pl.row * CELL);
+        luz.renderOrder = 2;
+        this.world.add(luz);
+        this.selo.placas.push({ c: pl.col, r: pl.row, luz });
+        this.glowLight(pl.col * CELL, 0.7, pl.row * CELL, 0x5a8fd8, 1.2, 5);
+      }
     }
 
     // PORTÃO SELADO (não abre) — esconde a ENTRADA DO SANTUÁRIO. O jogador vê o
@@ -7665,6 +7841,9 @@ export class Game {
     // CHEFE: nasce nas células 'Z' — Ato I usa o "boss"; Ato II, o Leviatã (boss_a2).
     const bossType = this.dungeonAct() === 2 ? "boss_a2" : "boss";
     for (const z of dungeonAll("Z")) this.buildDungeonEnemy(z.col, z.row, bossType);
+    // GUARDIÃO DO SELO ('Y'): nasce trancado na câmara. Não persegue ninguém
+    // através da porta — a linha de visão dele bate na parede.
+    for (const y of dungeonAll("Y")) this.buildDungeonEnemy(y.col, y.row, "guardiao");
   }
 
   // ---- IA dos inimigos: visão (linha livre), perseguição e patrulha ----
@@ -9575,8 +9754,13 @@ export class Game {
       for (const s of dungeonAll("L")) pois.push({ c: s.col, r: s.row, kind: "gate", label: "Portão Selado" });
       for (const key of this.gates.keys()) {
         const [c, r] = key.split(",").map(Number);
-        pois.push({ c, r, kind: "gate", label: "Grade" });
+        pois.push({ c, r, kind: "gate", label: key === this.selo.porta ? "Câmara Selada" : "Grade" });
       }
+      // AS PLACAS no minimapa: sem isso a dupla fica varrendo a arena atrás delas.
+      // Somem quando o selo já cedeu (deixam de ser informação útil).
+      if (!this.selo.quebrado)
+        for (const pl of this.selo.placas)
+          pois.push({ c: pl.c, r: pl.r, kind: "gate", label: "Placa" });
     } else if (this.location !== "showcase") {
       // interiores (loja/casa): atendente + saída
       const n = roomFind("N"), x = roomFind("X");
@@ -11559,6 +11743,7 @@ export class Game {
       e.mat.emissive.setRGB(emisR, emisG, emisB);
     }
     this.updatePoofs(now);
+    this.tickSelo(); // as placas da Câmara Selada (barato: duas casas p/ conferir)
     this.updateProjectiles(now);
     this.updateEnemyBolts(now);
     // atualiza as bolinhas de inimigo no minimapa enquanto eles andam (throttle)
