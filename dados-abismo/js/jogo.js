@@ -8,7 +8,7 @@ import { CLASSES, RESPIRAR } from './data/classes.js';
 import { FACE_KINDS } from './data/faces.js';
 import { Combat } from './engine/combat.js';
 import { buildWave, burdensFor } from './engine/encounter.js';
-import { satisfies, reqLabel, findSubset } from './engine/requirements.js';
+import { satisfies, reqLabel, findSubset, resolvedValues } from './engine/requirements.js';
 import { gerarOpcoes, aplicar, recalcRelics, simularGravacao } from './engine/rewards.js';
 import { MATERIAIS, TIPOS as TIPOS_N } from './data/dice.js';
 import { RELIQUIAS } from './data/relics.js';
@@ -407,7 +407,8 @@ function pintar(){
     const idsPre = ok ? [...sel] : (poss ? poss.map(k=>pool[k].dieId) : null);
     const p2 = previa && previa.skill.id===s.id ? previa.pv
              : (idsPre ? cb.prever(s, idsPre, alvo) : null);
-    const usaria = (!ok && poss) ? poss.map(k=>nomeFace(pool[k].face)).join('+') : '';
+    const entsPre = idsPre ? cb.roll.filter(e=>idsPre.includes(e.dieId)) : null;
+    const cPre = conta(entsPre, s.req);
     const mortes = p2 ? p2.alvos.filter(a=>a.morre).length : 0;
     const dano = p2 ? p2.alvos.reduce((a,x)=>a+x.dano,0) : 0;
     const selo = p2 ? `<div class="hsel">
@@ -416,7 +417,7 @@ function pintar(){
         ${p2.curaHP?`<b class="hc">✚${p2.curaHP}</b>`:''}
         ${p2.custoHP?`<b class="hx">❤-${p2.custoHP}</b>`:''}
         ${mortes?`<b class="hk">☠${mortes>1?mortes:''}</b>`:''}</div>` : '';
-    const estado = ok ? 'PRONTA' : poss ? 'usa '+usaria : 'sem encaixe';
+    const estado = ok ? 'PRONTA' : poss ? '' : 'sem encaixe';
     const ativa = previa && previa.skill.id===s.id;
     return `<button class="h ${ok?'ok':(poss?'pode':'off')} ${ativa?'pre':''}" data-i="${i}"
         style="--hc:${C.cor}" title="${s.desc.replace(/"/g,'&quot;')}">
@@ -424,7 +425,8 @@ function pintar(){
       <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span></span>
       <span class="hreq">${reqChips(s.req)}</span>
       ${selo}
-      <span class="hest">${estado}</span>
+      ${cPre ? contaHTML(cPre) : ''}
+      ${estado?`<span class="hest">${estado}</span>`:''}
     </button>`;}).join('');
   $('hab').querySelectorAll('.h').forEach(d=>{
     const sk=skills[+d.dataset.i];
@@ -436,9 +438,9 @@ function pintar(){
   const podePol = cb._polegar>0 && selEnts.length===1 && selEnts[0].face.k!=='wild' && selEnts[0].face.v!=null;
   const alvoEn = cb.aliveEnemies()[Math.min(alvo,Math.max(0,cb.aliveEnemies().length-1))];
   const podeGaz = cb._gazua>0 && alvoEn && cb.travaDe(alvoEn) && !alvoEn._arrombada;
-  $('sel').innerHTML = `<span class="selt">${selEnts.length
-      ? 'selecionado: '+selEnts.map(e=>nomeFace(e.face)).join(' , ')
-      : 'toque nos dados para escolher'}</span>`
+  const cSel = conta(selEnts, null);
+  $('sel').innerHTML = (cSel ? contaHTML(cSel,'grande')
+      : `<span class="selt">toque nos dados para escolher</span>`)
     + (podePol?`<button class="fer" id="pmenos">−1</button><button class="fer" id="pmais">+1</button>
         <span class="fern">polegar ${cb._polegar}</span>`:'')
     + (podeGaz?`<button class="fer gaz" id="bgaz">🗝 GAZUA ${cb._gazua}</button>`:'')
@@ -674,6 +676,28 @@ addEventListener('pointerdown', ev=>{
   if(sel.has(id)){ sel.delete(id); SFX.soltar(); } else { sel.add(id); SFX.pegar(); }
   pintar();
 });
+/* A CONTA DO GOLPE — quantos dados, quanto soma e se é par ou ímpar.
+   Sem isso você tinha que somar de cabeça pra saber se abria a fechadura. */
+function conta(ents, req){
+  if(!ents || !ents.length) return null;
+  const curingas = ents.filter(e=>e.face.k==='wild').length;
+  const vals = req ? resolvedValues(req, ents)
+                   : ents.map(e=> e.face.k==='wild' ? null : (e.face.v ?? 0));
+  const nums = vals.filter(v=>v!==null && v!==undefined);
+  const soma = nums.reduce((a,b)=>a+b,0);
+  return { n:ents.length, vals, soma, curingas,
+           par: soma%2===0, maior: nums.length?Math.max(...nums):0 };
+}
+function contaHTML(c, cls=''){
+  if(!c) return '';
+  const pIco = c.par?'◐':'◑', pTxt = c.par?'PAR':'ÍMPAR';
+  return `<span class="conta ${cls}">
+    <span class="cdd">${c.vals.map(v=>`<i class="dv">${v??'◈'}</i>`).join('<b class="mais">+</b>')}</span>
+    <span class="cqt">${c.n} dado${c.n>1?'s':''}</span>
+    <span class="csoma">Σ ${c.soma}${c.curingas?'+◈':''}</span>
+    <span class="cpar ${c.par?'p':'i'}">${pIco} ${c.curingas?'depende do ◈':pTxt}</span>
+  </span>`;
+}
 /* habilidades que você REALMENTE tem agora (a 4ª só com o nó do Cofre) */
 function habilidadesAtuais(){
   const lib = new Set(P&&P.unlocked ? P.unlocked : []);

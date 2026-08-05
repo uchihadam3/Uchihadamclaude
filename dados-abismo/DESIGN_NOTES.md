@@ -289,6 +289,23 @@ ORDEM e a existência, medidas por MutationObserver: ARMA → BATE → efeito �
 projétil → impacto → dano, com 3 cópias de rastro por tiro e 9 estilhaços por
 impacto. O espaçamento em milissegundos é o do agendamento no código.
 
+## 3.11 A CONTA DO GOLPE na tela
+A carta dizia "USA 5+6" e você tinha que somar de cabeça pra saber se abria uma
+fechadura de paridade ou de soma. Agora a conta aparece pronta, em dois lugares:
+
+- **Barra de seleção**: `[1] + [3]  ·  2 dados  ·  Σ 4  ·  ◐ PAR`
+- **Cada carta de habilidade**, com o encaixe que ela usaria:
+  `[1]+[3]+[1]+[6]  ·  4 dados  ·  Σ 11  ·  ◑ ÍMPAR`
+
+Os ícones de paridade são os MESMOS da fechadura (◐ par, ◑ ímpar), então dá pra
+casar visualmente: o Crânio Rolante pede ◑ ÍMPAR e a carta que fecha a conta em
+ímpar mostra ◑ ÍMPAR na mesma cor.
+
+Os valores saem de `resolvedValues(req, ents)` — o mesmo que o motor usa —, então
+o ◈ Curinga aparece resolvido no valor que a habilidade vai realmente usar. Na
+barra de seleção, onde ainda não há habilidade escolhida, o curinga fica como
+`Σ 7+◈` e a paridade diz "depende do ◈", em vez de mentir um número.
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.
