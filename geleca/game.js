@@ -536,6 +536,18 @@ const LV_ICONS=["🌱","⛰️","🕳️","🧗","🌉","🔥","👾","🏔️",
 // TEMPORÁRIO (modo teste): destrava TODAS as fases, inclusive o chefe/secreta, pra testar tudo.
 // Voltar pra false pra restaurar a progressão normal.
 const UNLOCK_ALL=true;
+// Posições dos 15 nós em % da ARTE do mapa (mapa.png) — a mão, encaixados nas
+// clareiras abertas do vale, subindo de baixo (fase 1) pro alto (fase 15).
+const MAP_SPOTS=[
+  {x:30,y:90}, {x:56,y:91}, {x:80,y:82},   // 1-3  base do vale
+  {x:78,y:67}, {x:53,y:65}, {x:28,y:69},   // 4-6  cruza o riacho
+  {x:22,y:52}, {x:47,y:49}, {x:72,y:51},   // 7-9  campina central
+  {x:76,y:36}, {x:51,y:33}, {x:27,y:36},   // 10-12
+  {x:31,y:21}, {x:53,y:17}, {x:73,y:20},   // 13-15 alto do vale
+];
+// A fase SECRETA (16 · Gosma-Mãe) NÃO aparece como nó: fica só um brilho discreto
+// escondido no canto, uma "dica" de que há algo ali pra quem reparar.
+const SECRET_SPOT={x:76,y:93};
 // mini-estrelas (rating) coladas embaixo do nó do mapa
 function starRow(st){ let h='<span class="mn-stars">'; for(let k=0;k<3;k++) h+=`<i class="${k<st?"on":""}">★</i>`; return h+"</span>"; }
 // SELEÇÃO DE FASE estilo Mario World: um MAPA com caminho serpenteante e nós.
@@ -560,48 +572,29 @@ function buildLevelGrid(){
     + `<span class="chip" style="color:var(--gold)">★ ${ratingSum}/${NORMAL*3}</span>`
     + (foundSecrets>0 ? `<span class="chip" style="color:var(--purple)">💎 ${foundSecrets}</span>` : "");
 
-  // "próxima" fase (primeira desbloqueada e ainda não concluída) — onde a geleca-peão fica
+  // "próxima" fase NORMAL (primeira desbloqueada e ainda não concluída) — onde a geleca-peão fica
   let nextIdx=-1; for(let i=0;i<NORMAL;i++){ if(i<=save.unlocked && !(save.stars[i]>0)){ nextIdx=i; break; } }
-  if(nextIdx<0) nextIdx = (allSecrets||UNLOCK_ALL) ? LEVELS.length-1 : NORMAL-1;
+  if(nextIdx<0) nextIdx = NORMAL-1;                                // tudo feito → peão fica no topo
 
-  // --- LAYOUT SERPENTINA (boustrophedon): linhas alternando esq→dir / dir→esq ---
-  const N=LEVELS.length, perRow=3, rows=Math.ceil(N/perRow), ROWH=118;
-  map.style.height=(rows*ROWH)+"px";
-  const W=map.clientWidth||420, Hpx=rows*ROWH;
-  const pos=[];
-  for(let i=0;i<N;i++){
-    const row=Math.floor(i/perRow), col=i%perRow;
-    const dir = row%2===0 ? col : (perRow-1-col);                // vai e volta
-    let xp = perRow>1 ? 16 + dir*(68/(perRow-1)) : 50;           // 16% / 50% / 84%
-    const yp = (row+0.5)/rows*100 + Math.sin(i*1.9)*1.8;         // leve balanço orgânico
-    pos.push({xp, yp, px:xp/100*W, py:yp/100*Hpx});
-  }
-  if(N%perRow===1){ pos[N-1].xp=50; pos[N-1].px=0.5*W; }          // último nó sozinho: centraliza
+  // --- geometria da arte (mapa.png) ---
+  const W=map.clientWidth||420, H=map.clientHeight||Math.round(W/0.5581);
 
-  // --- TRILHA (SVG): pontinhos tipo Mario sobre uma faixa escura ---
+  // --- TRILHA (SVG): pontinhos tipo Mario ligando os 15 nós, subindo o vale ---
   const NS="http://www.w3.org/2000/svg";
   const svg=document.createElementNS(NS,"svg"); svg.setAttribute("class","map-trail");
-  svg.setAttribute("viewBox","0 0 "+W+" "+Hpx); svg.setAttribute("preserveAspectRatio","none");
-  let d="M "+pos[0].px.toFixed(1)+" "+pos[0].py.toFixed(1);
-  for(let k=1;k<N;k++) d+=" L "+pos[k].px.toFixed(1)+" "+pos[k].py.toFixed(1);
+  svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("preserveAspectRatio","none");
+  let d="M "+(MAP_SPOTS[0].x/100*W).toFixed(1)+" "+(MAP_SPOTS[0].y/100*H).toFixed(1);
+  for(let k=1;k<NORMAL;k++) d+=" L "+(MAP_SPOTS[k].x/100*W).toFixed(1)+" "+(MAP_SPOTS[k].y/100*H).toFixed(1);
   const base=document.createElementNS(NS,"path"); base.setAttribute("d",d); base.setAttribute("class","trail-base");
   const dash=document.createElementNS(NS,"path"); dash.setAttribute("d",d); dash.setAttribute("class","trail-dash");
   svg.appendChild(base); svg.appendChild(dash); map.appendChild(svg);
 
-  // --- NÓS ---
-  LEVELS.forEach((L,i)=>{
-    const p=pos[i], st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim();
-    const node=document.createElement("button");
-    node.style.left=p.xp+"%"; node.style.top=p.yp+"%"; node.style.animationDelay=(i*0.04).toFixed(2)+"s";
-    if(L.secret){
-      const open=allSecrets||UNLOCK_ALL;
-      node.className="map-node secret"+(open?"":" locked")+(i===nextIdx?" next":"");
-      node.title=open?nm:"???";
-      node.innerHTML = open ? `<span class="mn-ico">🏰</span>`+starRow(st) : `<span class="mn-ico">❓</span>`;
-      if(open) node.addEventListener("click",()=>{ audio(); startGame(i); });
-      map.appendChild(node); return;
-    }
+  // --- 15 NÓS de fase (o segredo NÃO entra aqui) ---
+  for(let i=0;i<NORMAL;i++){
+    const L=LEVELS[i], p=MAP_SPOTS[i], st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim();
     const locked=!UNLOCK_ALL && i>save.unlocked, sGot=secretGot(i);
+    const node=document.createElement("button");
+    node.style.left=p.x+"%"; node.style.top=p.y+"%"; node.style.animationDelay=(i*0.04).toFixed(2)+"s";
     node.className="map-node"+(locked?" locked":"")+(st>0?" done":"")+(i===nextIdx?" next":"");
     node.title=nm;
     node.innerHTML = `<b class="mn-num">${i+1}</b>`
@@ -610,12 +603,28 @@ function buildLevelGrid(){
       + (sGot>0?`<span class="mn-gem">💎</span>`:"");
     if(!locked) node.addEventListener("click",()=>{ audio(); startGame(i); });
     map.appendChild(node);
-  });
+  }
+
+  // --- DICA da fase SECRETA: só um brilho discreto no cantinho (nunca um nó rotulado) ---
+  const si=LEVELS.findIndex(L=>L.secret);
+  if(si>=0){
+    const open=allSecrets||UNLOCK_ALL;   // achou TODOS os segredos?
+    const hint=document.createElement("button");
+    hint.className="map-secret"+(open?" open":"");
+    hint.style.left=SECRET_SPOT.x+"%"; hint.style.top=SECRET_SPOT.y+"%";
+    hint.title=open?"…?":"";
+    hint.setAttribute("aria-label", open?"???":"");
+    hint.innerHTML=`<i class="sp sp1">✦</i><i class="sp sp2">✦</i><i class="sp sp3">✧</i>`;
+    // clicável só quando desbloqueada (achou tudo) — senão é puro detalhe de cenário
+    if(open) hint.addEventListener("click",()=>{ audio(); startGame(si); });
+    else hint.disabled=true;
+    map.appendChild(hint);
+  }
 
   // --- GELECA-PEÃO no nó atual (quicando) ---
-  const pp=pos[nextIdx]||pos[0];
+  const pp=MAP_SPOTS[nextIdx]||MAP_SPOTS[0];
   const pawn=document.createElement("div"); pawn.className="map-pawn";
-  pawn.style.left=pp.xp+"%"; pawn.style.top=pp.yp+"%";
+  pawn.style.left=pp.x+"%"; pawn.style.top=pp.y+"%";
   pawn.innerHTML=`<span class="mp-body"><i></i><i></i></span>`;
   map.appendChild(pawn);
 }
