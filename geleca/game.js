@@ -536,9 +536,11 @@ const LV_ICONS=["🌱","⛰️","🕳️","🧗","🌉","🔥","👾","🏔️",
 // TEMPORÁRIO (modo teste): destrava TODAS as fases, inclusive o chefe/secreta, pra testar tudo.
 // Voltar pra false pra restaurar a progressão normal.
 const UNLOCK_ALL=true;
-const ratingHtml=st=>{ let h=""; for(let k=0;k<3;k++) h+=`<i class="${k<st?"on":""}">★</i>`; return h; };
+// mini-estrelas (rating) coladas embaixo do nó do mapa
+function starRow(st){ let h='<span class="mn-stars">'; for(let k=0;k<3;k++) h+=`<i class="${k<st?"on":""}">★</i>`; return h+"</span>"; }
+// SELEÇÃO DE FASE estilo Mario World: um MAPA com caminho serpenteante e nós.
 function buildLevelGrid(){
-  const grid=el("level-grid"); grid.innerHTML="";
+  const map=el("level-grid"); map.innerHTML="";
   const coinsIn=i=>(LEVELS[i].rows.join("").match(/\*/g)||[]).length;      // ⭐ estrelas VISÍVEIS
   const coinGot=i=>Math.min(coinsIn(i), save.coins[i]||0);
   const secretGot=i=>save.gems[i]||0;                                      // 💎 segredos (só o que achou)
@@ -557,36 +559,65 @@ function buildLevelGrid(){
     + `<span class="chip" style="color:var(--gold)">⭐ ${gotCoins}/${totalCoins}</span>`
     + `<span class="chip" style="color:var(--gold)">★ ${ratingSum}/${NORMAL*3}</span>`
     + (foundSecrets>0 ? `<span class="chip" style="color:var(--purple)">💎 ${foundSecrets}</span>` : "");
-  // qual é a "próxima" fase a jogar (primeira desbloqueada e ainda não concluída)
-  let nextIdx=-1; for(let i=0;i<NORMAL;i++){ if(i<=save.unlocked && !(save.stars[i]>0)){ nextIdx=i; break; } }
 
+  // "próxima" fase (primeira desbloqueada e ainda não concluída) — onde a geleca-peão fica
+  let nextIdx=-1; for(let i=0;i<NORMAL;i++){ if(i<=save.unlocked && !(save.stars[i]>0)){ nextIdx=i; break; } }
+  if(nextIdx<0) nextIdx = (allSecrets||UNLOCK_ALL) ? LEVELS.length-1 : NORMAL-1;
+
+  // --- LAYOUT SERPENTINA (boustrophedon): linhas alternando esq→dir / dir→esq ---
+  const N=LEVELS.length, perRow=3, rows=Math.ceil(N/perRow), ROWH=118;
+  map.style.height=(rows*ROWH)+"px";
+  const W=map.clientWidth||420, Hpx=rows*ROWH;
+  const pos=[];
+  for(let i=0;i<N;i++){
+    const row=Math.floor(i/perRow), col=i%perRow;
+    const dir = row%2===0 ? col : (perRow-1-col);                // vai e volta
+    let xp = perRow>1 ? 16 + dir*(68/(perRow-1)) : 50;           // 16% / 50% / 84%
+    const yp = (row+0.5)/rows*100 + Math.sin(i*1.9)*1.8;         // leve balanço orgânico
+    pos.push({xp, yp, px:xp/100*W, py:yp/100*Hpx});
+  }
+  if(N%perRow===1){ pos[N-1].xp=50; pos[N-1].px=0.5*W; }          // último nó sozinho: centraliza
+
+  // --- TRILHA (SVG): pontinhos tipo Mario sobre uma faixa escura ---
+  const NS="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(NS,"svg"); svg.setAttribute("class","map-trail");
+  svg.setAttribute("viewBox","0 0 "+W+" "+Hpx); svg.setAttribute("preserveAspectRatio","none");
+  let d="M "+pos[0].px.toFixed(1)+" "+pos[0].py.toFixed(1);
+  for(let k=1;k<N;k++) d+=" L "+pos[k].px.toFixed(1)+" "+pos[k].py.toFixed(1);
+  const base=document.createElementNS(NS,"path"); base.setAttribute("d",d); base.setAttribute("class","trail-base");
+  const dash=document.createElementNS(NS,"path"); dash.setAttribute("d",d); dash.setAttribute("class","trail-dash");
+  svg.appendChild(base); svg.appendChild(dash); map.appendChild(svg);
+
+  // --- NÓS ---
   LEVELS.forEach((L,i)=>{
-    const st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim(), c=document.createElement("div");
-    c.style.animationDelay=(i*0.035).toFixed(3)+"s";      // entrada escalonada dos cartões
+    const p=pos[i], st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim();
+    const node=document.createElement("button");
+    node.style.left=p.xp+"%"; node.style.top=p.yp+"%"; node.style.animationDelay=(i*0.04).toFixed(2)+"s";
     if(L.secret){
       const open=allSecrets||UNLOCK_ALL;
-      c.className="lv-card lv-secret "+(open?"unlocked":"locked");
-      c.innerHTML = open
-        ? `<span class="lv-chip">★</span><span class="lv-ico">👑</span><span class="lv-name" style="color:var(--purple)">${nm}</span><span class="lv-rating">${ratingHtml(st)}</span>`
-        : `<span class="lv-chip">?</span><span class="lv-lock">❓</span><span class="lv-name" style="color:#6a5a80">???</span>`;
-      if(open) c.addEventListener("click", ()=>{ audio(); startGame(i); });
-      grid.appendChild(c); return;
+      node.className="map-node secret"+(open?"":" locked")+(i===nextIdx?" next":"");
+      node.title=open?nm:"???";
+      node.innerHTML = open ? `<span class="mn-ico">🏰</span>`+starRow(st) : `<span class="mn-ico">❓</span>`;
+      if(open) node.addEventListener("click",()=>{ audio(); startGame(i); });
+      map.appendChild(node); return;
     }
-    const locked=!UNLOCK_ALL && i>save.unlocked;
-    const cTot=coinsIn(i), cGot=coinGot(i), sGot=secretGot(i);
-    c.className="lv-card "+(locked?"locked":"unlocked")+(st>0?" done":"")+(i===nextIdx?" next":"");
-    if(locked){
-      c.innerHTML=`<span class="lv-chip">${i+1}</span><span class="lv-lock">🔒</span><span class="lv-name">${nm}</span>`;
-    } else {
-      const badges = (cTot?`<span class="b-coin${cGot===cTot?" full":""}">⭐${cGot}/${cTot}</span>`:"")
-        + (sGot>0?`<span class="b-sec">💎${sGot}</span>`:"");
-      c.innerHTML=`<span class="lv-chip">${i+1}</span><span class="lv-ico">${LV_ICONS[i]||"🌿"}</span>`
-        + `<span class="lv-name">${nm}</span><span class="lv-rating">${ratingHtml(st)}</span>`
-        + (badges?`<span class="lv-badges">${badges}</span>`:"");
-      c.addEventListener("click", ()=>{ audio(); startGame(i); });
-    }
-    grid.appendChild(c);
+    const locked=!UNLOCK_ALL && i>save.unlocked, sGot=secretGot(i);
+    node.className="map-node"+(locked?" locked":"")+(st>0?" done":"")+(i===nextIdx?" next":"");
+    node.title=nm;
+    node.innerHTML = `<b class="mn-num">${i+1}</b>`
+      + (locked ? `<span class="mn-ico">🔒</span>`
+                : `<span class="mn-ico">${LV_ICONS[i]||"🌿"}</span>`+starRow(st))
+      + (sGot>0?`<span class="mn-gem">💎</span>`:"");
+    if(!locked) node.addEventListener("click",()=>{ audio(); startGame(i); });
+    map.appendChild(node);
   });
+
+  // --- GELECA-PEÃO no nó atual (quicando) ---
+  const pp=pos[nextIdx]||pos[0];
+  const pawn=document.createElement("div"); pawn.className="map-pawn";
+  pawn.style.left=pp.xp+"%"; pawn.style.top=pp.yp+"%";
+  pawn.innerHTML=`<span class="mp-body"><i></i><i></i></span>`;
+  map.appendChild(pawn);
 }
 function startGame(i){
   levelIndex=i;

@@ -70,68 +70,89 @@ body{
 .menu-stats .chip{ font-size:.82rem; font-weight:700; padding:4px 11px; border-radius:20px;
   background:rgba(0,0,0,.28); border:1px solid var(--line); }
 
-/* grade de fases */
-.level-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:11px; margin:0 auto; max-width:460px; }
-@media (min-width:520px){ .level-grid{ grid-template-columns:repeat(4,1fr); } }
-.lv-card{
-  position:relative; aspect-ratio:1/1; border-radius:17px; cursor:pointer; overflow:hidden;
-  background:linear-gradient(180deg,#1a3327,#0f2018); border:1.5px solid var(--line);
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:6px;
-  box-shadow:0 5px 0 rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.05);
-  transition:transform .1s, box-shadow .1s, border-color .2s;
-  animation:cardIn .44s both cubic-bezier(.2,.85,.3,1.25); }
-@keyframes cardIn{ 0%{ opacity:0; transform:translateY(14px) scale(.9) } 100%{ opacity:1; transform:translateY(0) scale(1) } }
-.lv-card.unlocked:hover{ transform:translateY(-2px); border-color:var(--slime);
-  box-shadow:0 7px 0 rgba(0,0,0,.32), 0 0 20px rgba(126,224,107,.3); }
-.lv-card.unlocked:active{ transform:translateY(4px); box-shadow:0 1px 0 rgba(0,0,0,.32); }
-.lv-card.unlocked{ border-color:var(--slime-d); }
-.lv-card.locked{ cursor:not-allowed; filter:saturate(.4) brightness(.72); }
-.lv-card .lv-chip{ position:absolute; top:6px; left:7px; font-size:.72rem; font-weight:800;
-  min-width:19px; height:19px; padding:0 4px; border-radius:7px; display:flex; align-items:center; justify-content:center;
-  background:rgba(0,0,0,.4); color:var(--slime-l); }
-.lv-ico{ font-size:1.55rem; line-height:1; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));
-  animation:icoFloat 3.2s ease-in-out infinite; }
-@keyframes icoFloat{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-3px) } }
-@media (prefers-reduced-motion:reduce){ .lv-card,.lv-ico{ animation:none; } }
-.lv-name{ font-size:.62rem; font-weight:600; color:var(--text); padding:0 2px; line-height:1.05; }
-.lv-rating{ display:flex; gap:1px; height:.95em; font-size:.82rem; line-height:1; }
-.lv-rating i{ color:rgba(255,212,94,.22); font-style:normal; }
-.lv-rating i.on{ color:var(--gold); text-shadow:0 0 6px rgba(255,212,94,.7); }
-.lv-badges{ display:flex; gap:5px; font-size:.6rem; font-weight:700; color:var(--text-dim); height:.9em; }
-.lv-badges .b-coin{ color:var(--gold); } .lv-badges .b-coin.full{ color:#ffe89a; }
-.lv-badges .b-sec{ color:var(--purple); }
-.lv-lock{ font-size:1.5rem; }
-/* estados */
-.lv-card.done{ border-color:var(--slime); box-shadow:0 5px 0 rgba(0,0,0,.32), 0 0 16px rgba(126,224,107,.28), inset 0 1px 0 rgba(255,255,255,.06); }
-.lv-card.done::after{ content:"✓"; position:absolute; top:5px; right:7px; font-size:.8rem; font-weight:900;
-  color:var(--ink); background:var(--slime); width:17px; height:17px; border-radius:50%;
-  display:flex; align-items:center; justify-content:center; }
-.lv-card.next{ animation:nextPulse 1.6s ease-in-out infinite; }
-.lv-card.next::before{ content:"JOGAR"; position:absolute; bottom:0; left:0; right:0; font-size:.52rem; font-weight:800;
-  letter-spacing:1px; color:var(--ink); background:linear-gradient(180deg,var(--slime),var(--slime-d)); padding:2px 0; }
-@keyframes nextPulse{ 0%,100%{ box-shadow:0 5px 0 rgba(0,0,0,.32), 0 0 0 rgba(126,224,107,.5) }
-  50%{ box-shadow:0 5px 0 rgba(0,0,0,.32), 0 0 22px rgba(126,224,107,.6) } }
-/* fase SECRETA: cartão-mistério roxo */
-.lv-card.lv-secret{ background:linear-gradient(180deg,#2a1a48,#120a24); border-color:#3d2a63; }
-.lv-card.lv-secret .lv-ico{ font-size:1.6rem; }
-.lv-card.lv-secret.unlocked{ border-color:#9a6fe0; box-shadow:0 5px 0 rgba(0,0,0,.32), 0 0 22px rgba(160,110,240,.45); }
-.lv-card.lv-secret .lv-chip{ color:var(--purple); }
-.lv-card.lv-secret .lv-lock{ color:var(--danger); }
-.menu-hint{ color:var(--text-dim); font-size:.8rem; margin:22px auto 0; max-width:420px; line-height:1.5; opacity:.85; }
-@keyframes pulse{ 0%,100%{ opacity:.5; transform:scale(.9) } 50%{ opacity:1; transform:scale(1.15) } }
+/* ===================== MAPA DE FASES (estilo Mario World) ===================== */
+.level-map{ position:relative; width:100%; max-width:440px; margin:8px auto 0;
+  border-radius:22px; overflow:hidden;
+  background:
+    radial-gradient(140px 70px at 22% 6%, rgba(255,255,255,.12), transparent 70%),
+    radial-gradient(180px 90px at 84% 26%, rgba(255,255,255,.08), transparent 72%),
+    linear-gradient(180deg,#38875a 0%,#2c7249 42%,#1f5c39 100%);
+  border:2px solid #163e28;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.14), inset 0 -26px 46px rgba(0,40,15,.42), 0 12px 30px rgba(0,0,0,.42); }
+/* colinas suaves atrás do caminho */
+.level-map::before{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.55; z-index:0;
+  background:
+    radial-gradient(88px 88px at 12% 20%, #3f9b62 0 42%, transparent 44%),
+    radial-gradient(120px 120px at 80% 46%, #2f7f4d 0 42%, transparent 44%),
+    radial-gradient(78px 78px at 26% 74%, #3f9b62 0 42%, transparent 44%),
+    radial-gradient(110px 110px at 86% 88%, #2f7f4d 0 42%, transparent 44%); }
 
-/* brilho varrendo os cartões concluídos (done nunca é 'next', então ::before está livre) */
-.lv-card.done::before{ content:""; position:absolute; inset:0; pointer-events:none; border-radius:inherit;
-  background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.16) 50%,transparent 58%);
-  background-size:250% 100%; animation:cardShine 4s ease-in-out infinite; }
-@keyframes cardShine{ 0%{ background-position:150% 0 } 55%,100%{ background-position:-60% 0 } }
+.map-trail{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+.trail-base{ fill:none; stroke:rgba(18,46,28,.6); stroke-width:12; stroke-linecap:round; stroke-linejoin:round; }
+.trail-dash{ fill:none; stroke:#ffe9a8; stroke-width:5.5; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:0.1 15; }   /* pontinhos tipo Mario */
+
+.map-node{ position:absolute; z-index:2; width:56px; height:56px; transform:translate(-50%,-50%);
+  border:0; padding:0; cursor:pointer; border-radius:50%;
+  background:radial-gradient(circle at 38% 30%, #c6ff9e, #6fc94f 55%, #3a9838);
+  box-shadow:0 4px 0 #256b26, 0 6px 12px rgba(0,0,0,.4), inset 0 2px 4px rgba(255,255,255,.5);
+  display:flex; align-items:center; justify-content:center; color:#0a2a12; line-height:1;
+  transition:transform .12s, box-shadow .12s; animation:nodePop .4s both cubic-bezier(.2,.85,.3,1.35); }
+@keyframes nodePop{ 0%{ opacity:0; transform:translate(-50%,-50%) scale(.4) } 100%{ opacity:1; transform:translate(-50%,-50%) scale(1) } }
+.map-node:not(.locked):hover{ transform:translate(-50%,-54%) scale(1.07);
+  box-shadow:0 7px 0 #256b26, 0 10px 16px rgba(0,0,0,.45), 0 0 20px rgba(126,224,107,.55); }
+.map-node:not(.locked):active{ transform:translate(-50%,-47%) scale(.95); box-shadow:0 2px 0 #256b26; }
+.map-node .mn-ico{ font-size:1.5rem; filter:drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.map-node .mn-num{ position:absolute; top:-7px; left:-7px; width:22px; height:22px; border-radius:50%;
+  background:#10261a; color:#ffe9a8; font-size:.72rem; font-weight:900;
+  display:flex; align-items:center; justify-content:center; border:2px solid #ffe9a8; box-shadow:0 2px 4px rgba(0,0,0,.4); }
+.map-node .mn-stars{ position:absolute; bottom:-10px; left:50%; transform:translateX(-50%);
+  display:flex; gap:0; font-size:.66rem; line-height:1; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.55); }
+.map-node .mn-stars i{ color:rgba(0,0,0,.3); font-style:normal; }
+.map-node .mn-stars i.on{ color:var(--gold); }
+.map-node .mn-gem{ position:absolute; top:-9px; right:-9px; font-size:.82rem; filter:drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+@media (prefers-reduced-motion:reduce){ .map-node,.map-pawn{ animation:none; } }
+
+/* estados */
+.map-node.done{ background:radial-gradient(circle at 38% 30%,#ffe6a0,#ffc94a 55%,#e0972a);
+  box-shadow:0 4px 0 #a8701a, 0 6px 12px rgba(0,0,0,.4), 0 0 16px rgba(255,201,74,.5), inset 0 2px 4px rgba(255,255,255,.6); }
+.map-node.done::after{ content:"✓"; position:absolute; bottom:-6px; right:-4px; font-size:.68rem; font-weight:900;
+  color:var(--ink); background:var(--slime); width:16px; height:16px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+.map-node.locked{ background:radial-gradient(circle at 38% 30%,#728379,#46554d 55%,#2c382f);
+  box-shadow:0 4px 0 #1c241e, 0 6px 10px rgba(0,0,0,.4); cursor:not-allowed; color:#9fb0a4; }
+.map-node.locked .mn-num{ background:#1a1f1b; color:#9fb0a4; border-color:#5a6b60; }
+.map-node.next{ animation:nodePulse 1.4s ease-in-out infinite; z-index:2; }
+@keyframes nodePulse{ 0%,100%{ box-shadow:0 4px 0 #256b26, 0 6px 12px rgba(0,0,0,.4), 0 0 0 rgba(126,224,107,.6) }
+  50%{ box-shadow:0 4px 0 #256b26, 0 6px 12px rgba(0,0,0,.4), 0 0 24px 5px rgba(126,224,107,.75) } }
+/* fase SECRETA: nó-castelo roxo */
+.map-node.secret{ width:64px; height:64px; color:#fff;
+  background:radial-gradient(circle at 38% 30%,#d8bcff,#8a5fd0 55%,#5a3a9a);
+  box-shadow:0 4px 0 #3a2568, 0 6px 14px rgba(0,0,0,.5), 0 0 20px rgba(160,110,240,.5), inset 0 2px 4px rgba(255,255,255,.35); }
+.map-node.secret.locked{ background:radial-gradient(circle at 38% 30%,#4a3a63,#2a2040 55%,#181228);
+  box-shadow:0 4px 0 #140f22, 0 6px 10px rgba(0,0,0,.5); color:#6a5a80; }
+.map-node.secret .mn-ico{ font-size:1.7rem; }
+
+/* geleca-peão marcando a fase atual */
+.map-pawn{ position:absolute; z-index:3; width:30px; height:26px; transform:translate(-50%,-128%); pointer-events:none;
+  animation:pawnHop 1.15s ease-in-out infinite; }
+.map-pawn .mp-body{ display:block; width:30px; height:26px; border-radius:9px; position:relative;
+  background:linear-gradient(160deg,#dcffb8,#6ad24a 55%,#2f8f30);
+  box-shadow:inset 0 -4px 6px rgba(0,60,20,.35), inset 0 3px 5px rgba(255,255,255,.4), 0 4px 8px rgba(0,0,0,.35); }
+.map-pawn .mp-body i{ position:absolute; top:9px; width:6px; height:7px; border-radius:50%; background:#fff; }
+.map-pawn .mp-body i:nth-child(1){ left:7px } .map-pawn .mp-body i:nth-child(2){ right:7px }
+.map-pawn .mp-body i::after{ content:""; position:absolute; left:1.5px; top:2px; width:3px; height:3px; border-radius:50%; background:#0a2012; }
+@keyframes pawnHop{ 0%,100%{ transform:translate(-50%,-128%) } 50%{ transform:translate(-50%,-148%) } }
+
+.menu-hint{ color:var(--text-dim); font-size:.8rem; margin:20px auto 0; max-width:420px; line-height:1.5; opacity:.85; }
+@keyframes pulse{ 0%,100%{ opacity:.5; transform:scale(.9) } 50%{ opacity:1; transform:scale(1.15) } }
 /* reflexo correndo na barra de progresso do mundo */
 .world-bar i{ position:relative; }
 .world-bar i::after{ content:""; position:absolute; inset:0;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);
   transform:translateX(-100%); animation:barSheen 2.8s ease-in-out infinite; }
 @keyframes barSheen{ 0%{ transform:translateX(-100%) } 55%,100%{ transform:translateX(230%) } }
-@media (prefers-reduced-motion:reduce){ .lv-card.done::before,.world-bar i::after{ animation:none; } }
+@media (prefers-reduced-motion:reduce){ .world-bar i::after,.map-node.next{ animation:none; } }
 
 /* ===================== HUD ===================== */
 #screen-game{ flex-direction:column; gap:8px; }
