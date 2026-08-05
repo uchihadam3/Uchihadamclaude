@@ -503,7 +503,7 @@ const IN={ kb:{left:false,right:false,down:false}, joyX:0, joyY:0 };
 let jumpEdge=false, grabEdge=false;
 // AUTOPILOT (bot que resolve as fases sozinho, pra assistir)
 let botOn=false, botWait=0;
-const bot={mx:0,down:false,jump:false,grab:false,jumpCD:0,lastX:0,antiStuck:0};
+const bot={mx:0,down:false,jump:false,grab:false,jumpCD:0,lastX:0,antiStuck:0,progT:0,bestD:null};
 
 // -------------------------------------------------------------------------- VALIDAÇÃO
 (function(){ LEVELS.forEach((L,i)=>{ const w=L.rows[0].length;
@@ -659,6 +659,7 @@ function loadLevel(idx){
     r:1+Math.random()*2.5, s:6+Math.random()*14, ph:Math.random()*6.28 });
   showHint(level.hint);
   levelTime=0; transition=1; resetLevel();
+  bot.progT=0; bot.bestD=null; botWait=0;        // zera o watchdog do autopilot a cada fase
 }
 // (re)constrói TODAS as entidades a partir do grid — chamado no load E no reinício,
 // então coletáveis (gosma extra, estrelas), desmoronáveis, molas e inimigos SEMPRE voltam ao morrer/reiniciar.
@@ -969,7 +970,9 @@ function update(dt){
   // carona: se estava sobre um mover, acompanha o deslocamento dele
   if(blob.onGroundPrev && blob.rideMover){ blob.x+=blob.rideMover.dx; blob.y+=blob.rideMover.dy; }
 
-  if(botOn){ botThink(dt); if(bot.jump) jumpEdge=true; if(bot.grab) grabEdge=true; }   // AUTOPILOT dirige
+  if(botOn){ botThink(dt); if(bot.jump) jumpEdge=true; if(bot.grab) grabEdge=true;   // AUTOPILOT dirige
+    const d=exitRect?Math.hypot(exitRect.x-blob.x, exitRect.y-blob.y):0;             // mede progresso rumo à saída
+    if(bot.bestD==null || d<bot.bestD-3){ bot.bestD=d; bot.progT=0; } else bot.progT+=dt; }
   const {mx,left,right,down}=inputState();
   const onG=blob.onGroundPrev, wall=blob.wallPrev||0;
 
@@ -2026,6 +2029,9 @@ function hideHint(){ const e=el("hint"); if(e)e.classList.remove("show"); clearT
 // LOOP
 // ==========================================================================
 function loop(ts){ const dt=Math.min(0.033,(ts-last)/1000||0); last=ts; update(dt);
+  // AUTOPILOT: se empacou (sem progresso rumo à saída por ~9s), pula pra próxima fase
+  if(botOn && state==="play" && bot.progT>9){ bot.progT=0; bot.bestD=null;
+    const N=LEVELS.filter(L=>!L.secret).length; startGame(levelIndex+1<N?levelIndex+1:0); }
   // durante a comemoração/morte o jogo pausa, mas partículas e o tremor continuam vivos
   if(state==="complete"||state==="dead"){ updateParticles(dt); updateRings(dt); updateTrail(dt); T+=dt; if(shake>0)shake=Math.max(0,shake-dt*24);
     if(winTimer>0){ winTimer-=dt; if(winTimer<=0&&winThen){ const f=winThen; winThen=null; f(); } }
