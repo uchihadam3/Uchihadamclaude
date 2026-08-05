@@ -142,33 +142,34 @@ const LEVELS = [
     "#                        #",
     "#                        #",
     "#                        #",
-    "#       E                #",
+    "#                        #",
     "#  ########              #",
     "#                        #",
-    "#            #           #",
-    "#            #     o     #",
-    "#            #  #######  #",
-    "#            ####        #",
-    "#            SSgS#       #",
-    "#     *      SSSS#       #",
-    "#     o      ####        #",
-    "#  ########  #           #",
+    "#                        #",
+    "#                        #",
+    "#            ##########  #",
     "#            #           #",
     "#            #           #",
     "#            #           #",
-    "#  ^^^^^^^   #     o     #",
-    "#            #  #######  #",
+    "#            #     *     #",
+    "###########  #           #",
     "#            #           #",
     "#            #           #",
-    "#     o      #           #",
-    "#  #######   #           #",
     "#            #           #",
-    "# @          #           #",
-    "#            #^^^^^^^^^  #",
-    "##########################",
+    "# E     ^^   #           #",
+    "##############  ##########",
+    "#            #           #",
+    "#            ##          #",
+    "#                        #",
+    "#               #######  #",
+    "#                        #",
+    "#                        #",
+    "# @              ^^^^^^  #",
+    "####################### G#",
     "##########################"],
     movers:[{"x":15,"y":8,"w":3,"axis":"x","dist":4,"speed":0.6,"phase":0}],
-    enemies:[{"x":4,"y":23,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":18,"y":19,"speed":1.2,"type":"chaser","range":8}]},
+    enemies:[{"x":7,"y":27,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":20,"y":19,"dist":4,"speed":1,"axis":"x","type":"patrol"}],
+    fakes:[[23,28],[24,28]]},
 
   { name:"5 · Salto do Cipó", mass:6, max:6, theme:"grove",
     hint:"", rows:[
@@ -629,14 +630,16 @@ function buildLevelGrid(){
   // --- DICA da fase SECRETA: só um brilho discreto no cantinho (nunca um nó rotulado) ---
   const si=LEVELS.findIndex(L=>L.secret);
   if(si>=0){
-    const open=allSecrets||UNLOCK_ALL;   // achou TODOS os segredos?
+    const open=allSecrets||UNLOCK_ALL;   // achou TODOS os segredos? (ou modo teste)
     const hint=document.createElement("button");
     hint.className="map-secret"+(open?" open":"");
     hint.style.left=SECRET_SPOT.x+"%"; hint.style.top=SECRET_SPOT.y+"%";
-    hint.title=open?"…?":"";
-    hint.setAttribute("aria-label", open?"???":"");
-    hint.innerHTML=`<i class="sp sp1">✦</i><i class="sp sp2">✦</i><i class="sp sp3">✧</i>`;
-    // clicável só quando desbloqueada (achou tudo) — senão é puro detalhe de cenário
+    hint.title=open?"A Gosma-Mãe":"";
+    hint.setAttribute("aria-label", open?"Fase secreta — A Gosma-Mãe":"");
+    // desbloqueada → nó VISÍVEL e clicável (o chefe revelado); senão → só um brilho discreto
+    hint.innerHTML = open
+      ? `<span class="ms-boss">👾</span><span class="mn-name">Gosma-Mãe</span>`
+      : `<i class="sp sp1">✦</i><i class="sp sp2">✦</i><i class="sp sp3">✧</i>`;
     if(open) hint.addEventListener("click",()=>{ audio(); startGame(si); });
     else hint.disabled=true;
     map.appendChild(hint);
