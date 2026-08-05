@@ -1121,25 +1121,23 @@ function fim(){
 /* A MESA CABE NA FAIXA LIVRE. Antes o canvas ocupava a tela inteira por baixo
    de tudo, então a fileira de inimigos e as habilidades ficavam por cima do
    feltro. Agora ele começa embaixo da fileira e termina em cima do rodapé. */
+/* O canvas é a faixa do meio do grid: em vez de CALCULAR a altura dele
+   subtraindo as outras duas — conta que ficava velha assim que o rodapé
+   crescia, e aí a HUD tapava os dados —, ele apenas OBEDECE ao tamanho que o
+   navegador já lhe deu. */
 function resize(){
-  const topo  = $('ini')?.offsetHeight || 0;
-  const baixo = $('baixo')?.offsetHeight || 0;
-  const w = innerWidth;
-  const h = Math.max(170, innerHeight - topo - baixo);
-  faixa = { top:topo, h };
   const el = renderer.domElement;
-  el.style.top = topo+'px'; el.style.left='0'; el.style.width = w+'px'; el.style.height = h+'px';
+  const r  = el.getBoundingClientRect();
+  const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+  faixa = { top:r.top, h };
   renderer.setSize(w, h, false);
   camera.aspect = w/h; camera.updateProjectionMatrix();
   const need=Math.max(MESA.x/Math.max(camera.aspect,0.4), MESA.z*1.15)*1.12;
   const d=need/Math.tan((camera.fov*Math.PI/180)/2);
   camera.position.set(0,d*0.92,d*0.44); camera.lookAt(0,0.1,0); }
 addEventListener('resize',resize); resize();
-/* a fileira cresce/encolhe conforme os inimigos; o rodapé conforme as cartas */
-if(window.ResizeObserver){
-  const ro=new ResizeObserver(()=>resize());
-  ro.observe($('ini')); ro.observe($('baixo'));
-}
+/* o próprio canvas avisa quando o grid o redimensiona */
+if(window.ResizeObserver) new ResizeObserver(()=>resize()).observe(renderer.domElement);
 (function loop(){
   if(shakeT>0.2){ shakeT*=0.86;
     const a=shakeT*0.006;
