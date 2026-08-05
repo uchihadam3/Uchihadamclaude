@@ -2459,6 +2459,15 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get shotCount(){ return shots?shots.length:0; },
   _stompBoss(){ const e=enemies&&enemies.find(x=>x.type==="boss"); if(e&&blob){ blob.x=e.x+e.w/2-blob.w/2; blob.y=e.y-blob.h+3; blob.vy=260; blob.hurtT=0; e.hitT=0; } },
   get parts(){ return particles?particles.length:0; },
+  // TRAÇO DETERMINÍSTICO (pra validar o simulador do solver): roda N frames com dt fixo e
+  // inputs por frame, devolve a trajetória do blob. frames=[{mx:-1|0|1, jump, grab, down}]
+  simTrace(frames){ if(state!=="play")return null; const FD=1/60, out=[]; const wasBot=botOn; botOn=false;
+    for(const f of frames){ IN.kb.left=f.mx<0; IN.kb.right=f.mx>0; IN.kb.down=!!f.down; IN.joyX=0; IN.joyY=0;
+      if(f.jump) jumpEdge=true; if(f.grab) grabEdge=true;
+      update(FD);
+      out.push({x:Math.round(blob.x*1000)/1000, y:Math.round(blob.y*1000)/1000, vx:Math.round(blob.vx*100)/100, vy:Math.round(blob.vy*100)/100, m:blob.mass, g:blob.onGroundPrev?1:0, w:blob.wallPrev||0}); }
+    botOn=wasBot; return out; },
+  simLevel(){ return level?{rows:level.rows.slice(), mass:level.mass, max:level.max, startPos:{x:startPos.x,y:startPos.y}}:null; },
   _setCoins(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.coins[i]=1; persist(); },
   _demo(){ save.unlocked=6; [3,3,2,3,1].forEach((s,i)=>save.stars[i]=s); save.coins[0]=1;save.coins[1]=1;save.coins[3]=2; save.gems[0]=1;save.gems[2]=1; persist(); showMenu(); },
   collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } },
