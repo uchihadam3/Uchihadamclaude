@@ -42,6 +42,10 @@
         <h2 class="custom-title">🛠️ Minhas Fases</h2>
         <button id="btn-new-level" class="menu-btn small">➕ Nova</button>
       </div>
+      <div class="io-row">
+        <button id="btn-export-all" class="ed-btn">📤 Exportar tudo</button>
+        <button id="btn-import" class="ed-btn">📥 Importar</button>
+      </div>
       <div id="custom-list" class="custom-list"></div>
       <p class="menu-hint">Crie suas fases e defina o número (Fase 1, 2, 3…). Ficam salvas neste aparelho.</p>
     </div>
@@ -56,6 +60,7 @@
       <label class="ed-field">Massa <input id="ed-mass" type="number" min="1" max="20" value="8" /></label>
       <button id="ed-test" class="ed-btn">▶ Testar</button>
       <button id="ed-save" class="ed-btn primary">💾 Salvar</button>
+      <button id="ed-export" class="ed-btn" title="Exportar código pra tornar permanente">📤</button>
     </div>
     <div id="ed-stage">
       <canvas id="ed-canvas"></canvas>
@@ -115,6 +120,20 @@
       <span><b>E</b> reabsorver</span><span><b>R</b> reiniciar</span>
     </div>
   </section>
+
+  <!-- ===================== MODAL EXPORTAR / IMPORTAR ===================== -->
+  <div id="io-modal" class="io-modal hidden">
+    <div class="io-box">
+      <h3 id="io-title">Exportar</h3>
+      <p id="io-note" class="io-note"></p>
+      <textarea id="io-text" spellcheck="false"></textarea>
+      <div class="io-actions">
+        <button id="io-copy" class="ed-btn primary">📋 Copiar</button>
+        <button id="io-do" class="ed-btn">Importar</button>
+        <button id="io-close" class="ed-btn">Fechar</button>
+      </div>
+    </div>
+  </div>
 
 </div>
 <script src="game.js"></script>

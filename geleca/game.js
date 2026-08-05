@@ -2315,6 +2315,42 @@ if(edCanvas){
 }
 window.addEventListener("resize",()=>{ if(state==="editor"){ edFit(); edRender(); } });
 
+// ── EXPORTAR / IMPORTAR — pra tornar fases PERMANENTES: exporte o código e me mande no chat ──
+function showIO(mode, code){
+  const m=el("io-modal");
+  el("io-title").textContent = mode==='export'?"📤 Exportar fase(s)":"📥 Importar fase(s)";
+  el("io-note").textContent = mode==='export'
+    ? "Copie este código e cole no chat — eu gravo PERMANENTE nos arquivos do jogo. (Serve também de backup / passar de aparelho.)"
+    : "Cole aqui um código de fase(s) e toque em Importar.";
+  const ta=el("io-text"); ta.value=code||""; ta.readOnly=(mode==='export');
+  el("io-copy").style.display = mode==='export'?"":"none";
+  el("io-do").style.display   = mode==='import'?"":"none";
+  m.classList.remove("hidden"); if(mode==='import') ta.focus();
+}
+function hideIO(){ el("io-modal").classList.add("hidden"); }
+function exportCurrent(){ const {obj,slot}=edBuild(); const err=edValidate(obj.rows);
+  if(err){ el("ed-hint").textContent="⚠ "+err; return; }
+  showIO('export', JSON.stringify({[slot]:obj})); }
+function exportAll(){ const c=loadCustom();
+  showIO('export', Object.keys(c).length?JSON.stringify(c):"(nenhuma fase criada ainda)"); }
+function doImport(){ const t=el("io-text").value.trim(); let data=null;
+  try{ data=JSON.parse(t); }catch(e){ el("io-note").textContent="⚠ Código inválido (não é JSON)."; return; }
+  const c=loadCustom(); let n=0;
+  if(data && data.rows){ const mn=(data.name||"").match(/^(\d+)/); let s=mn?parseInt(mn[1]):1; while(!mn&&c[s])s++; c[s]=data; n=1; }
+  else if(data && typeof data==='object'){ for(const k of Object.keys(data)){ if(data[k]&&data[k].rows){ c[k]=data[k]; n++; } } }
+  if(!n){ el("io-note").textContent="⚠ Nenhuma fase encontrada no código."; return; }
+  saveCustom(c); hideIO(); buildCustomList(); }
+function copyIO(){ const ta=el("io-text"); ta.select(); ta.setSelectionRange(0,999999);
+  const done=()=>{ el("io-copy").textContent="✓ Copiado"; setTimeout(()=>el("io-copy").textContent="📋 Copiar",1500); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(ta.value).then(done).catch(()=>{ try{document.execCommand('copy');done();}catch(e){} }); }
+  else { try{document.execCommand('copy');done();}catch(e){} } }
+if(el("ed-export")) el("ed-export").addEventListener("click",()=>{ audio(); exportCurrent(); });
+if(el("btn-export-all")) el("btn-export-all").addEventListener("click",()=>{ audio(); exportAll(); });
+if(el("btn-import")) el("btn-import").addEventListener("click",()=>{ audio(); showIO('import',''); });
+if(el("io-copy")) el("io-copy").addEventListener("click",copyIO);
+if(el("io-do")) el("io-do").addEventListener("click",doImport);
+if(el("io-close")) el("io-close").addEventListener("click",hideIO);
+
 // ==========================================================================
 // BOOT
 // ==========================================================================
