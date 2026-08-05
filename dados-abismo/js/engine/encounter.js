@@ -13,7 +13,15 @@ const porAndar = (esc, andar) => ({
   hp:   esc.hp   * (1 + (andar-1)*0.050),
   dano: esc.dano * (1 + (andar-1)*0.055),
 });
-export function buildWave(masmorra, andar, rng){
+/* cria UM inimigo pelo id — é o que o subchefe usa pra invocar reforço */
+export function criarInimigo(masmorra, andar, id, rng){
+  const M = MASMORRAS[masmorra] || MASMORRAS[1];
+  const base = [...M.comuns, ...M.elites].find(e=>e.id===id);
+  if(!base) return null;
+  const esc = { ...ESCALADA[masmorra-1], ...porAndar(ESCALADA[masmorra-1], andar) };
+  return inst(base, esc, rng, M.elites.includes(base));
+}
+export function buildWave(masmorra, andar, rng, flags=null){
   const M = MASMORRAS[masmorra] || MASMORRAS[1];
   const base = ESCALADA[masmorra-1];
   const esc = { ...base, ...porAndar(base, andar) };
@@ -31,6 +39,9 @@ export function buildWave(masmorra, andar, rng){
   if(esc.fardo==='elites_em_par' && andar!==10){
     const nE = out.filter(e=>e.elite).length; if(nE===0) addE(2); else if(nE%2===1) addE(1);
   }
+  // Língua de Prata: recompensa dobrada em troca de inimigos mais gordos
+  if(flags && flags.has('dobro_recompensa')) out.forEach(e=>{
+    e.hp = Math.round(e.hp*1.35); e.maxHp = e.hp; });
   // Fardo M2: armadura passiva
   if(esc.fardo==='armadura_passiva') out.forEach(e=> e.armadura=(e.armadura||0)+1);
   // aura de elite afeta o campo todo

@@ -378,6 +378,34 @@ sobram 12 de barreira; no turno seguinte não empilha (volta a 20, não 40).
 Como agora ele importa, o bloqueio ganhou chip próprio na carta (🛡 25, azul) em
 vez de um número miúdo colado no HP — e é clicável, com verbete no Grimório.
 
+## 3.15 AUDITORIA GERAL — 21 promessas que o motor não cumpria
+Pedido: "verifique o jogo todo e corrija". O método foi comparar o que os DADOS
+declaram com o que o MOTOR lê. Resultado: **21 mecânicas estavam escritas na
+carta e nunca aconteciam**. Carta que mente é pior que carta fraca.
+
+**Inimigos (8):** `explode` (7 inimigos diziam "explode ao morrer"), `invoca`
+(10 subchefes), `reergue` (10 chefes) e 5 auras de elite — `cura_salgada`,
+`cura_colmeia`, `preco_alto`, `sem_sobra`, `um_amaldicoa`. Só `armadura_campo`
+funcionava.
+
+**Cofre (5):** Segundo Fôlego (`revive`), Forja Antiga (`gravExtra`), Presságio,
+Último Lance e Sorte Roubada (o limiar da Pena de Sorte era 3 fixo).
+
+**Fardos (2):** M3 dado Enferrujado e M7 roubam-um-dado.
+
+**Relíquias (6):** Moeda Torta e Dente de Leite (`onRoll`), Linha de Prata
+(`onTurn`), Ampulheta Rachada (`turno_duplo`), Olho de Vidro (`prever`), Raiz
+Amarga (`veneno_eterno`) e Língua de Prata (`dobro_recompensa`).
+
+Todas implementadas. O Olho de Vidro teve o texto ajustado pro que dá pra fazer
+sem uma tela de escolha ("um dado vem no melhor valor").
+
+`test/habilidades.mjs` foi de 222 pra **251 verificações**, com duas seções
+novas: *Promessas da carta* (cada mecânica declarada tem que mudar o estado) e
+*Relíquias* (as 26, com os hooks e os mods). E `da25` percorre o fluxo inteiro
+no navegador — título · Grimório · Cofre · classe · mapa · combate · habilidade ·
+turno inimigo · recompensa · morte · ecos — com 0 erros.
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.

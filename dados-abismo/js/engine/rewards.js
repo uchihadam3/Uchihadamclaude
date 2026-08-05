@@ -56,7 +56,19 @@ export function aplicar(opt, estado, rng){
     const d = alvo && estado.bag.find(x=>x.id===alvo.id);
     if(!d) return estado;
     if(g.up){ const up=upgradeTipo(d); estado.bag[estado.bag.indexOf(d)]=up; }
-    else { const c=cloneDie(d); g.ap(c, alvo.i); estado.bag[estado.bag.indexOf(d)]=c; }
+    else {
+      const c=cloneDie(d); g.ap(c, alvo.i);
+      // nó Forja Antiga: a mesma gravação pega N faces a mais (sem apagar
+      // números demais — dado sem número quebra classe de sequência/soma)
+      const extra = estado.gravExtra||0;
+      if(extra>0){
+        const podeAinda = () => c.faces.filter(f=>f.k==='num').length > Math.ceil(c.faces.length/3);
+        const outras = c.faces.map((f,i)=>({f,i})).filter(x=>x.f.k==='num' && x.i!==alvo.i)
+                        .sort((a,b)=>a.f.v-b.f.v);
+        for(let k=0;k<extra && k<outras.length;k++){ if(!podeAinda()) break; g.ap(c, outras[k].i); }
+      }
+      estado.bag[estado.bag.indexOf(d)]=c;
+    }
   }
   else if(opt.t==='reliquia'){ estado.relics.push(opt.rel); recalcRelics(estado); }
   else if(opt.t==='cura'){ estado.hp = Math.min(estado.maxHp, estado.hp + Math.round(estado.maxHp*0.18)); }
@@ -65,12 +77,14 @@ export function aplicar(opt, estado, rng){
 /* consolida os modificadores numéricos das relíquias */
 export function recalcRelics(estado){
   const m = { rerollBonus:0, blockBonus:0, dmgFlat:0, dmgMult:1, pierce:0, hpBonus:0, hpMult:1 };
-  const flags = new Set(); const starts=[]; const kills=[];
+  const flags = new Set(); const starts=[]; const kills=[]; const rolls=[]; const turns=[];
   for(const r of estado.relics){
     for(const k in (r.mods||{})){ if(k==='dmgMult'||k==='hpMult') m[k]*=r.mods[k]; else m[k]+=r.mods[k]; }
     if(r.flag) flags.add(r.flag);
     if(r.start) starts.push(r.start);
     if(r.onKill) kills.push(r.onKill);
+    if(r.onRoll) rolls.push(r.onRoll);
+    if(r.onTurn) turns.push(r.onTurn);
     if(r.extraDie && !r._aplicado){ r._aplicado=true;
       for(let i=0;i<(r.extraDie.n||1);i++){ const d=makeDie(r.extraDie.tipo, r.extraDie.mat);
         if(r.extraDie.cursed) d.faces[0]=face('void',0); estado.bag.push(d); } }
@@ -79,6 +93,7 @@ export function recalcRelics(estado){
   estado.baseMaxHp = baseMax;
   estado.maxHp = Math.max(1, Math.round((baseMax + m.hpBonus) * m.hpMult));
   estado.hp = Math.min(estado.hp, estado.maxHp);
-  estado.relicMods = m; estado.relicFlags = flags; estado.relicStarts = starts; estado.relicKills = kills;
+  estado.relicMods = m; estado.relicFlags = flags; estado.relicStarts = starts;
+  estado.relicKills = kills; estado.relicRolls = rolls; estado.relicTurns = turns;
   return estado;
 }

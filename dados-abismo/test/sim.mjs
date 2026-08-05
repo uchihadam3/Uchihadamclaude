@@ -2,7 +2,7 @@
 import { makeRNG } from '../js/rng.js';
 import { CLASSES } from '../js/data/classes.js';
 import { Combat } from '../js/engine/combat.js';
-import { buildWave, burdensFor } from '../js/engine/encounter.js';
+import { buildWave, burdensFor, criarInimigo } from '../js/engine/encounter.js';
 import { autoCombat } from '../js/engine/ai.js';
 import { resetDieIds } from '../js/data/dice.js';
 import { gerarOpcoes, aplicar, recalcRelics } from '../js/engine/rewards.js';
@@ -27,7 +27,8 @@ export function runOnce(classeId, seed, maxMasmorra=1, BON=bonusDoCofre(0)){
   const p = { classe:classeId, hp:C.hp+BON.hpBonus, maxHp:C.hp+BON.hpBonus, baseMaxHp:C.hp+BON.hpBonus,
               block:0, bag, statuses:{}, essence:0, rerollsBase:C.rerolls+BON.rerolls,
               relics:[], unlocked:BON.quarta?['coroa_'+classeId]:[],
-              polegar:BON.polegar, gazua:BON.gazua };
+              polegar:BON.polegar, gazua:BON.gazua, revive:BON.revive, pity:BON.pity,
+              ultimoLance:BON.ultimoLance, gravExtra:BON.gravExtra };
   const grav=(k,q)=>{ for(let i=0;i<q;i++){ const d=p.bag[i%p.bag.length];
     const j=d.faces.findIndex(f=>f.k==='num'); if(j>=0) d.faces[j]={k, v:d.faces[j].v}; } };
   grav('blade',BON.lamina); grav('wild',BON.curinga); grav('echo',BON.eco);
@@ -49,8 +50,9 @@ export function runOnce(classeId, seed, maxMasmorra=1, BON=bonusDoCofre(0)){
   for(let m=(BON.portal>1?BON.portal:1); m<=maxMasmorra; m++){
     const burdens = burdensFor(m);
     for(let a=1; a<=10; a++){
-      const inimigos = buildWave(m, a, rng);
+      const inimigos = buildWave(m, a, rng, p.relicFlags);
       const cb = new Combat({ rng, player:p, enemies:inimigos, burdens, log:false });
+      cb.onInvocar = id => criarInimigo(m, a, id, rng);
       const r = autoCombat(cb, C.skills);
       if(r!=='win') return { ok:false, masmorra:m, andar:a, andaresLimpos, hp:p.hp };
       andaresLimpos++;

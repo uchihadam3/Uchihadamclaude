@@ -41,7 +41,8 @@ function inimigo(o={}) {
   const hp = o.hp ?? 100;
   return { id:o.id||'alvo', uid:o.uid||('alvo#'+Math.random().toString(36).slice(2)),
            nome:o.nome||'Alvo', hp, maxHp:hp, block:o.block||0, statuses:{}, mult:1,
-           trava:o.trava||null, travaCiclo:o.travaCiclo||null,
+           trava:o.trava||null, travaCiclo:o.travaCiclo||null, aura:o.aura||null,
+           explode:o.explode||0, invoca:o.invoca||null, reergue:!!o.reergue,
            padrao:o.padrao||[{t:'atk',v:5}], _ip:-1, intent:o.intent||{t:'atk',v:5} };
 }
 /* substitui a rolagem por valores escolhidos a dedo */
@@ -426,6 +427,235 @@ console.log('=== AS 10 MASMORRAS ===');
     check(feriveis, 'M'+k, 'nenhum inimigo é invencível com 5 d6', culpado);
   }
   check(vistos.size === 130, 'Conteúdo', '130 inimigos com id único', vistos.size + ' encontrados');
+}
+
+/* =====================================================================
+   7. PROMESSAS DA CARTA — o que está escrito TEM que acontecer
+   Nasceu de uma auditoria que achou 15 mecânicas declaradas nos dados e
+   nunca lidas pelo motor: explode, invoca, reergue, 5 auras, 4 nós do
+   Cofre e 2 fardos. Carta que mente é pior que carta fraca.
+   ===================================================================== */
+console.log('=== PROMESSAS DA CARTA ===');
+{
+  const { criarInimigo } = await import('../js/engine/encounter.js');
+  /* EXPLODE */
+  {
+    const { cb, p } = cenario({ faces:[6,1,1,1],
+      inimigos:[inimigo({ hp:5, nome:'Bomba' })] });
+    cb.enemies[0].explode = 20;
+    const hp0 = p.hp;
+    cb.use({ id:'t',nome:'t',req:{t:'any',count:1},eff:[{op:'dmg',tgt:'chosen',amt:'99'}] },
+           [cb.roll[0].dieId], 0);
+    check(p.hp < hp0, 'explode', 'inimigo explode ao morrer', `${hp0} → ${p.hp}`);
+  }
+  /* INVOCA */
+  {
+    const { cb } = cenario({ faces:[1,1,1],
+      inimigos:[inimigo({ hp:200, nome:'Chefe', intent:{t:'atk',v:1}, padrao:[{t:'atk',v:1}] })] });
+    cb.enemies[0].invoca = ['osso_solto'];
+    cb.onInvocar = id => criarInimigo(1, 1, id, makeRNG('inv'));
+    const n0 = cb.enemies.length;
+    cb.endTurn();
+    check(cb.enemies.length > n0, 'invoca', 'o subchefe chama reforço',
+          `${n0} → ${cb.enemies.length}`);
+  }
+  /* REERGUE */
+  {
+    const { cb } = cenario({ faces:[1,1,1],
+      inimigos:[inimigo({ hp:200, nome:'Chefe', intent:{t:'atk',v:1}, padrao:[{t:'atk',v:1}] }),
+                inimigo({ hp:0, nome:'Lacaio' })] });
+    cb.enemies[0].reergue = true;
+    cb.enemies[1].maxHp = 40;
+    cb.endTurn();
+    check(cb.enemies[1].hp > 0, 'reergue', 'o chefe levanta o lacaio caído',
+          'HP do lacaio: ' + cb.enemies[1].hp);
+  }
+  /* AURAS */
+  {
+    const { cb, p } = cenario({ faces:[1,1,1],
+      inimigos:[inimigo({ hp:200, aura:{id:'cura_colmeia'}, intent:{t:'block',v:1}, padrao:[{t:'block',v:1}] })] });
+    cb.enemies[0].hp = 100;
+    cb.endTurn();
+    check(cb.enemies[0].hp > 100, 'aura cura_colmeia', 'inimigos se curam por turno',
+          '100 → ' + cb.enemies[0].hp);
+  }
+  {
+    const { cb, p } = cenario({ faces:[1,1,1],
+      inimigos:[inimigo({ hp:200, aura:{id:'cura_salgada'} })] });
+    p.hp = 50;
+    const c = cb.curarJogador(20);
+    check(c === 10, 'aura cura_salgada', 'cura recebida cai pela metade', 'curou ' + c);
+  }
+  {
+    const { cb, p } = cenario({ faces:[3,3,3],
+      inimigos:[inimigo({ hp:200, aura:{id:'preco_alto'} })] });
+    const hp0 = p.hp;
+    cb.use({ id:'t',nome:'t',req:{t:'any',count:1},eff:[{op:'block',amt:'1'}] }, [cb.roll[0].dieId], 0);
+    check(p.hp === hp0-1, 'aura preco_alto', 'toda habilidade custa 1 HP a mais', `${hp0} → ${p.hp}`);
+  }
+  {
+    const { cb, p } = cenario({ faces:[3],
+      bag:[makeDie('d6','osso')],
+      inimigos:[inimigo({ hp:200, aura:{id:'sem_sobra'}, intent:{t:'block',v:1}, padrao:[{t:'block',v:1}] })] });
+    cb.use({ id:'t',nome:'t',req:{t:'any',count:1},eff:[{op:'block',amt:'1'}] }, [cb.roll[0].dieId], 0);
+    const hp0 = p.hp;
+    cb.endTurn();
+    check(p.hp < hp0, 'aura sem_sobra', 'terminar sem sobra dói', `${hp0} → ${p.hp}`);
+  }
+  {
+    const d = makeDie('d6','osso');
+    d.faces = d.faces.map(()=>face('num',1));            // rola 1 na certa
+    const { cb, p } = cenario({ bag:[d],
+      inimigos:[inimigo({ hp:200, aura:{id:'um_amaldicoa'} })] });
+    cb.startTurn();
+    check(p.bag[0].faces.some(f=>f.k==='void'), 'aura um_amaldicoa',
+          'rolar 1 amaldiçoa a face');
+  }
+  /* NÓS DO COFRE */
+  {
+    const { cb, p } = cenario({ faces:[1,1,1] });
+    p.revive = 0.5;
+    p.hp = 3;
+    cb.dmgPlayer(50, 'teste'); cb.checkEnd();
+    check(cb.over !== 'lose' && p.hp > 0, 'Cofre · Segundo Fôlego',
+          'revive uma vez em vez de morrer', 'HP ' + p.hp);
+    p.hp = 1; cb.dmgPlayer(50, 'teste'); cb.checkEnd();
+    check(cb.over === 'lose', 'Cofre · Segundo Fôlego', 'e só funciona UMA vez');
+  }
+  {
+    const { cb, p } = cenario({ faces:[1,1,1] });
+    p.ultimoLance = true;
+    check(cb.ultimoLance() === true, 'Cofre · Último Lance', 'rola a mesa inteira de graça');
+    check(cb.ultimoLance() === false, 'Cofre · Último Lance', 'e só 1× por combate');
+    check(cb.rerolls === Math.max(0, p.rerollsBase), 'Cofre · Último Lance',
+          'sem gastar re-rolagem');
+  }
+  {
+    const estado = { bag:[makeDie('d6','osso')], relics:[], hp:50, maxHp:50, gravExtra:2 };
+    recalcRelics(estado);
+    const { gerarOpcoes, aplicar } = await import('../js/engine/rewards.js');
+    const antes = estado.bag[0].faces.filter(f=>f.k==='num').length;
+    aplicar({ t:'grav', g:'g_blade', alvo:{ id:estado.bag[0].id, i:0 } }, estado, makeRNG('g'));
+    const dep = estado.bag[0].faces.filter(f=>f.k==='blade').length;
+    check(dep >= 2, 'Cofre · Forja Antiga', 'a gravação pega faces extras',
+          dep + ' faces ⚔ gravadas');
+  }
+  /* FARDOS */
+  {
+    const { cb } = cenario({ faces:[1,1,1] });
+    const cb2 = new Combat({ rng:makeRNG('f'), player:cb.p, enemies:[inimigo({})],
+                             burdens:['dado_enferrujado'], log:false });
+    cb2.startTurn();
+    check(cb2.roll.some(e=>e.ferrugem), 'Fardo M3', 'um dado Enferrujado entra na rolagem');
+  }
+  {
+    const bag = [makeDie('d6','osso'), makeDie('d6','osso'), makeDie('d6','osso')];
+    const p2 = { classe:'carrasco', hp:100, maxHp:100, baseMaxHp:100, block:0, bag,
+                 statuses:{}, essence:0, rerollsBase:1, relics:[], unlocked:[] };
+    recalcRelics(p2);
+    const cb3 = new Combat({ rng:makeRNG('r'), player:p2, enemies:[inimigo({})],
+                             burdens:['rouba_dado'], log:false });
+    cb3.startTurn();
+    check(cb3.roll.length === bag.length-1, 'Fardo M7', 'eles tomam um dado seu no combate',
+          `${bag.length} → ${cb3.roll.length}`);
+  }
+}
+
+/* =====================================================================
+   8. RELÍQUIAS — os 26 efeitos precisam existir de verdade
+   ===================================================================== */
+console.log('=== RELÍQUIAS ===');
+{
+  const { RELIQUIAS } = await import('../js/data/relics.js');
+  check(RELIQUIAS.length === 26, 'Relíquias', '26 no catálogo', RELIQUIAS.length + '');
+  const comRel = (rel, extra={}) => {
+    const bag = extra.bag || [makeDie('d6','osso'),makeDie('d6','osso'),makeDie('d6','osso')];
+    const p = { classe:'carrasco', hp:100, maxHp:100, baseMaxHp:100, block:0, bag,
+                statuses:{}, essence:0, rerollsBase:1, relics:[rel], unlocked:[] };
+    recalcRelics(p);
+    const cb = new Combat({ rng:makeRNG('rel'), player:p,
+      enemies:[inimigo({ hp:400, intent:{t:'atk',v:1}, padrao:[{t:'atk',v:1}] })], log:false });
+    cb.startTurn();
+    return { cb, p };
+  };
+  const acha = id => RELIQUIAS.find(r=>r.id===id);
+  /* onRoll · Moeda Torta */
+  {
+    const d = makeDie('d6','osso'); d.faces = d.faces.map(()=>face('num',1));
+    const { cb } = comRel(acha('moeda_torta'), { bag:[d] });
+    check(cb.roll[0].face.v === 2, 'Moeda Torta', 'dado que rola 1 vale 2', 'veio ' + cb.roll[0].face.v);
+  }
+  /* onRoll · Dente de Leite */
+  {
+    const d = makeDie('d6','osso'); d.faces = d.faces.map(()=>face('blade',3));
+    const { cb } = comRel(acha('dente_leite'), { bag:[d,makeDie('d6','osso')] });
+    check(cb._laminasRoladas > 0, 'Dente de Leite', 'conta as ⚔ roladas',
+          cb._laminasRoladas + ' lâminas');
+  }
+  /* onTurn · Linha de Prata — o bloqueio protege DURANTE o turno inimigo,
+     então o que se mede é o dano que deixou de passar. */
+  {
+    const golpe = { t:'atk', v:10 };
+    const medir = (rel)=>{
+      const bag=[makeDie('d6','osso'),makeDie('d6','osso'),makeDie('d6','osso')];
+      const p={ classe:'carrasco', hp:100, maxHp:100, baseMaxHp:100, block:0, bag,
+                statuses:{}, essence:0, rerollsBase:1, relics:rel?[rel]:[], unlocked:[] };
+      recalcRelics(p);
+      const cb=new Combat({ rng:makeRNG('lp'), player:p,
+        enemies:[inimigo({ hp:400, intent:golpe, padrao:[golpe] })], log:false });
+      cb.startTurn(); cb.endTurn();
+      return 100 - p.hp;
+    };
+    const com = medir(acha('linha_prata')), sem = medir(null);
+    check(com < sem, 'Linha de Prata', 'dado não usado vira bloqueio e apara o golpe',
+          `sofreu ${sem} sem a relíquia, ${com} com ela`);
+  }
+  /* flag · Olho de Vidro */
+  {
+    const { cb } = comRel(acha('olho_vidro'));
+    check(cb.roll.some(e=>e.face.v === 6), 'Olho de Vidro', 'um dado vem no melhor valor',
+          cb.roll.map(e=>e.face.v).join(','));
+  }
+  /* flag · Raiz Amarga */
+  {
+    const { cb } = comRel(acha('raiz_amarga'));
+    cb.enemies[0].statuses.veneno = 5;
+    cb.tickStatuses();
+    check(cb.enemies[0].statuses.veneno === 5, 'Raiz Amarga', 'o veneno NÃO decai',
+          'ficou ' + cb.enemies[0].statuses.veneno);
+  }
+  /* flag · Ampulheta Rachada */
+  {
+    const { cb, p } = comRel(acha('ampulheta'));
+    const hp0 = p.hp;
+    cb.endTurn();
+    check(p.hp === hp0, 'Ampulheta Rachada', 'no 1º turno eles NÃO agem (você joga de novo)',
+          `${hp0} → ${p.hp}`);
+    cb.endTurn();
+    check(p.hp < hp0, 'Ampulheta Rachada', 'e no turno seguinte eles agem normalmente');
+  }
+  /* flag · Língua de Prata */
+  {
+    const { buildWave } = await import('../js/engine/encounter.js');
+    const semFlag = buildWave(1, 1, makeRNG('lp'), null);
+    const comFlag = buildWave(1, 1, makeRNG('lp'), new Set(['dobro_recompensa']));
+    const a = semFlag.reduce((x,e)=>x+e.hp,0), b = comFlag.reduce((x,e)=>x+e.hp,0);
+    check(b > a, 'Língua de Prata', 'inimigos ficam +35% mais gordos', `${a} → ${b}`);
+  }
+  /* mods numéricos: todos chegam no motor */
+  for(const [mod, teste] of [
+    ['hpBonus',    r=>r.p.maxHp > 100],
+    ['rerollBonus',r=>r.cb.rerolls > 1],
+    ['blockBonus', r=>{ r.cb.use({id:'t',nome:'t',req:{t:'any',count:1},eff:[{op:'block',amt:'1'}]},
+                        [r.cb.roll[0].dieId],0); return r.p.block > 1; }],
+    ['dmgFlat',    r=>{ const h=r.cb.enemies[0].hp;
+                        r.cb.use({id:'t',nome:'t',req:{t:'any',count:1},eff:[{op:'dmg',tgt:'chosen',amt:'1'}]},
+                        [r.cb.roll[0].dieId],0); return h - r.cb.enemies[0].hp > 1; }],
+  ]){
+    const rel = RELIQUIAS.find(r=>r.mods && r.mods[mod]);
+    if(!rel){ check(false,'Relíquia','existe uma com '+mod); continue; }
+    check(teste(comRel(rel)), 'Relíquia · '+rel.nome, `o mod ${mod} chega no motor`);
+  }
 }
 
 /* ---------------------------------------------------------------- */

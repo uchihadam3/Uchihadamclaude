@@ -55,6 +55,22 @@ export class Combat {
     this.p.essence = this.p.essence || 0;
     this.M = this.p.relicMods || {};            // modificadores de relíquia (§9)
     this.flags = this.p.relicFlags || new Set();
+    // AURAS dos elites: estavam escritas na carta e não faziam nada
+    this.auras = new Set();
+    for(const en of enemies) if(en.aura?.id) this.auras.add(en.aura.id);
+    this.onInvocar = null;                 // quem sabe criar inimigo é quem tem a masmorra
+    this._ultimoUsado = false;
+    // Fardo M3: você entra em cada combate com um dado Enferrujado (face ☠)
+    if(this.burdens.has('dado_enferrujado')){
+      this.enferrujado = { id:'FERRUGEM', tipo:'d6', n:6, material:'osso',
+        faces:[face('void',0), face('num',1), face('num',2),
+               face('num',2), face('num',3), face('num',3)] };
+    }
+    // Fardo M7: eles tomam um dado seu logo de cara, por combate
+    if(this.burdens.has('rouba_dado') && this.p.bag.length>1){
+      const alv = this.p.bag[this.rng.int(this.p.bag.length)];
+      alv._roubado = 1;
+    }
     for(const st of (this.p.relicStarts||[])){   // relíquias de início de combate
       if(st.block) this.p.block += st.block;
       if(st.essence) this.p.essence += st.essence;
@@ -94,18 +110,41 @@ export class Combat {
         f = d.faces[idx];
         // Fardo M6: dados que rolarem 1 ficam Travados por um turno
         if(this.burdens.has('um_trava') && f.k==='num' && f.v===1){ d._travadoProx = true; }
+        // aura do Sacristão: rolou 1, a face vira ☠ Vazio pra sempre
+        if(this.auras.has('um_amaldicoa') && f.k==='num' && f.v===1){
+          d.faces[idx] = face('void',0); f = d.faces[idx];
+          this.L('a maldição comeu uma face do seu dado'); }
         // Fardo M3: dado Enferrujado tem face inútil (já vem na bolsa)
       }
       entries.push({ dieId:d.id, tipo:d.tipo, n:d.n, material:d.material, face:{...f}, faceIdx:fidx, die:d });
     }
+    if(this.enferrujado) entries.push({ dieId:this.enferrujado.id, tipo:'d6', n:6,
+      material:'osso', face:{...this.enferrujado.faces[this.rng.int(6)]},
+      faceIdx:0, die:this.enferrujado, ferrugem:true });
     // Círculo do Arcanista entra junto (banking §7.3)
     for(const e of this.circle) entries.push({...e, banked:true});
     this.circle = [];
+    /* RELÍQUIAS onRoll — estavam declaradas e nunca eram lidas */
+    const gRolls = this.p.relicRolls || [];
+    if(gRolls.includes('um_vira_dois'))
+      for(const e of entries) if(e.face.k==='num' && e.face.v===1) e.face = {...e.face, v:2};
+    this._laminasRoladas = gRolls.includes('lamina_bonus')
+      ? entries.filter(e=>e.face.k==='blade').length : 0;
+    /* Olho de Vidro: o melhor dado da mão vem no valor máximo */
+    if(this.flags.has('prever') && entries.length){
+      const alvo = entries.slice().sort((a,b)=>(entryValue(a)||0)-(entryValue(b)||0))[0];
+      if(alvo && alvo.die){
+        const melhor = alvo.die.faces.reduce((m,f)=> (f.v||0)>(m.v||0)?f:m, alvo.die.faces[0]);
+        alvo.face = {...melhor};
+        this.L('Olho de Vidro: um dado veio no melhor valor');
+      }
+    }
     this.roll = entries;
     // Pena de Sorte: rolagem terrível 3x seguidas -> re-rolagem grátis (invisível)
     const soma = entries.reduce((a,e)=>a+(entryValue(e)||0),0);
     const teto = entries.reduce((a,e)=>a+e.n,0);
-    if(soma < teto*0.30){ this.pity++; if(this.pity>=3){ this.rerolls++; this.pity=0; this.L('(pena de sorte: +1 re-rolagem)'); } }
+    const limPity = Math.max(1, 3 - (this.p.pity||0));   // nó Sorte Roubada
+    if(soma < teto*0.30){ this.pity++; if(this.pity>=limPity){ this.rerolls++; this.pity=0; this.L('(pena de sorte: +1 re-rolagem)'); } }
     else this.pity = 0;
     return entries;
   }
@@ -164,6 +203,17 @@ export class Combat {
 
   pool(){ return this.roll.filter(e=>!this.used.has(e.dieId)); }
 
+  /* toda cura do jogador passa por aqui — é o que a aura Cura Salgada corta */
+  curarJogador(n){
+    if(n<=0) return 0;
+    let c = n;
+    if(this.auras.has('cura_salgada') || this.burdens.has('cura_reduzida')) c = Math.floor(c/2);
+    if(this.flags.has('sem_cura')) c = 0;
+    const antes = this.p.hp;
+    this.p.hp = Math.min(this.p.maxHp, this.p.hp + c);
+    return this.p.hp - antes;
+  }
+
   /* ---- FERRAMENTAS DE FECHADURA (O Cofre §4.3) ----
      Não são "+dano": são verbos que mudam o quebra-cabeça. */
   polegar(dieId, delta){                 // empurra um dado em ±1
@@ -174,6 +224,19 @@ export class Combat {
     if(v<1 || v>e.n) return false;
     e.face = {...e.face, v}; this._polegar--;
     this.L(`polegar: dado ${v-delta} → ${v}`);
+    return true;
+  }
+  /* Último Lance (Cofre): 1×/combate, re-rola TODOS os dados sem gastar
+     re-rolagem e sem cobrar vida. Também estava só no bônus. */
+  ultimoLance(){
+    if(!this.p.ultimoLance || this._ultimoUsado) return false;
+    this._ultimoUsado = true;
+    for(const e of this.roll){
+      if(this.used.has(e.dieId) || e.die?._congelado) continue;
+      const ix = this.rng.int(e.die.faces.length);
+      e.face = {...e.die.faces[ix]}; e.faceIdx = ix;
+    }
+    this.L('ÚLTIMO LANCE: a mesa inteira rolou de novo');
     return true;
   }
   gazua(idx){                            // arromba a fechadura de um inimigo
@@ -230,6 +293,7 @@ export class Combat {
       blades: ents.filter(e=>e.face.k==='blade').length,
       ess: this.p.essence, hp: this.p.hp,
     };
+    if(this.auras.has('preco_alto')) this.dmgPlayer(1, 'Preço Alto');
     this.alocar(ents, vals);              // é isto que as fechaduras leem
     this._gastos = ents;                  // 'bank' devolve destes, não da sobra
     // Eco (⟳): duplica o efeito do próximo (aqui: deste) uso
@@ -396,7 +460,8 @@ export class Combat {
     const M = this.M||{};
     this.forTargets(tgt, idx, en=>{
       const vivo = en.hp>0;
-      let d = Math.round((amt + (M.dmgFlat||0)*flatK) * frenesi * (M.dmgMult||1));
+      let d = Math.round((amt + ((M.dmgFlat||0) + (this._laminasRoladas||0))*flatK)
+                         * frenesi * (M.dmgMult||1));
       if(en.statuses.marca){ d = Math.round(d*1.5); en.statuses.marca=0; }
       // ===== FECHADURA (§6): o golpe errado simplesmente não fere =====
       if(!pierce){
@@ -418,6 +483,11 @@ export class Combat {
       }
       en.hp = Math.max(0, en.hp - d);
       if(d>0) this.L(`  → ${en.nome} sofre ${d} (HP ${en.hp}/${en.maxHp})`);
+      if(vivo && en.hp<=0 && en.explode){          // "Explode ao morrer" agora explode
+        const dano = Math.round(en.explode * (en.mult||1));
+        this.L(`  💥 ${en.nome} EXPLODE (${dano})`);
+        this.dmgPlayer(dano, 'explosão');
+      }
       if(vivo && en.hp<=0){ for(const k of (this.p.relicKills||[])){
         if(k.block) this.p.block += k.block;
         if(k.heal && !this.flags.has('sem_cura')) this.p.hp=Math.min(this.p.maxHp, this.p.hp+k.heal); } }
@@ -455,7 +525,21 @@ export class Combat {
     if(this.abyssReroll && this.roll.length){ const e=this.rng.pick(this.roll);
       e.face={...e.die.faces[this.rng.int(e.die.faces.length)]}; this.L('O Abismo re-rolou um dado seu.'); }
 
+    /* Ampulheta Rachada: no 1º turno você joga de novo antes deles agirem */
+    if(this.flags.has('turno_duplo') && this.turn===1 && !this._turnoExtraUsado){
+      this._turnoExtraUsado = true;
+      this.L('Ampulheta Rachada: você age de novo');
+      this.startTurn(); this.turn--;      // mesma rodada, mão nova
+      return this.over;
+    }
     if(this.flags.has('sangra_turno')) this.dmgPlayer(4, 'Relógio Parado');
+    // Linha de Prata: cada dado não usado vira 1 de bloqueio pro próximo turno
+    if((this.p.relicTurns||[]).includes('sobra_bloqueio') && sobra.length){
+      this.p.block += sobra.length;
+      this.L(`Linha de Prata: +${sobra.length} de bloqueio`);
+    }
+    // aura Sem Sobra: terminar o turno com a mão vazia dói
+    if(this.auras.has('sem_sobra') && !sobra.length) this.dmgPlayer(4, 'Sem Sobra');
     this.enemyTurn();
     // status de fim de turno
     this.tickStatuses();
@@ -529,6 +613,20 @@ export class Combat {
             if(en._conta>=it.ate){ en._conta=0; this.dmgPlayer(Math.round(it.v*(en.mult||1)),'A CONTA'); }
             break; }
         }
+        /* INVOCA: o subchefe chama reforço quando o campo esvazia */
+        if(en.invoca && this.onInvocar && this.aliveEnemies().length < 3){
+          const novo = this.onInvocar(en.invoca[this.rng.int(en.invoca.length)]);
+          if(novo){ this.enemies.push(novo); reg.invocou = novo.nome;
+            this.L(`${en.nome} INVOCA ${novo.nome}`); }
+        }
+        /* REERGUE: o chefe levanta um lacaio caído com metade da vida */
+        if(en.reergue){
+          const morto = this.enemies.find(o=>o.hp<=0 && o!==en);
+          if(morto){ morto.hp = Math.max(1, Math.ceil(morto.maxHp*0.5));
+            morto.statuses={}; morto.block=0; morto._arrombada=false;
+            reg.reergueu = morto.nome;
+            this.L(`${en.nome} REERGUE ${morto.nome} (${morto.hp} HP)`); }
+        }
         reg.dano = hp0 - this.p.hp;                 // o que passou de verdade
         reg.aparado = Math.max(0, bl0 - this.p.block);
         this.acoesInimigo.push(reg);
@@ -544,8 +642,11 @@ export class Combat {
     en.intent = nx;
   }
   tickStatuses(){
+    if(this.auras.has('cura_colmeia'))            // "Inimigos se curam 3 por turno"
+      for(const en of this.aliveEnemies()) en.hp = Math.min(en.maxHp, en.hp+3);
     for(const en of this.aliveEnemies()){
-      if(en.statuses.veneno){ en.hp=Math.max(0,en.hp-en.statuses.veneno); en.statuses.veneno--; }
+      if(en.statuses.veneno){ en.hp=Math.max(0,en.hp-en.statuses.veneno);
+        if(!this.flags.has('veneno_eterno')) en.statuses.veneno--; }
       if(en.statuses.sangramento){ en.hp=Math.max(0,en.hp-en.statuses.sangramento); en.statuses.sangramento--; }
       if(en.travaOff>0) en.travaOff--;
     }
@@ -555,6 +656,13 @@ export class Combat {
   }
   checkEnd(){
     if(this.over) return this.over;
+    // Segundo Fôlego (Cofre): estava no bônus e nunca era lido
+    if(this.p.hp<=0 && (this.p.revive>0) && !this.p._reviveuNaRun){
+      this.p._reviveuNaRun = true;
+      this.p.hp = Math.max(1, Math.round(this.p.maxHp * this.p.revive));
+      this.L(`SEGUNDO FÔLEGO: você volta com ${this.p.hp} de HP`);
+      return this.over;
+    }
     if(this.p.hp<=0) this.over='lose';
     else if(!this.aliveEnemies().length) this.over='win';
     return this.over;

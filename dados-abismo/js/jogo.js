@@ -7,7 +7,7 @@ import { makeRNG } from './rng.js';
 import { CLASSES, RESPIRAR } from './data/classes.js';
 import { FACE_KINDS } from './data/faces.js';
 import { Combat } from './engine/combat.js';
-import { buildWave, burdensFor } from './engine/encounter.js';
+import { buildWave, burdensFor, criarInimigo } from './engine/encounter.js';
 import { satisfies, reqLabel, findSubset, resolvedValues } from './engine/requirements.js';
 import { gerarOpcoes, aplicar, recalcRelics, simularGravacao } from './engine/rewards.js';
 import { MATERIAIS, TIPOS as TIPOS_N } from './data/dice.js';
@@ -189,7 +189,8 @@ function iniciar(cid){
   P={ classe:cid, hp:C.hp+BON.hpBonus, maxHp:C.hp+BON.hpBonus, baseMaxHp:C.hp+BON.hpBonus, block:0,
       bag:bag.filter(Boolean), statuses:{}, essence:0,
       rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:BON.quarta?['coroa_'+cid]:[],
-      polegar:BON.polegar, gazua:BON.gazua };
+      polegar:BON.polegar, gazua:BON.gazua, revive:BON.revive, pity:BON.pity,
+      ultimoLance:BON.ultimoLance, gravExtra:BON.gravExtra, presagio:BON.presagio };
   // gravações iniciais do Cofre (Lâmina / Curinga / Eco)
   const grav=(k,q)=>{ for(let i=0;i<q;i++){ const d=P.bag[i%P.bag.length];
     const j=d.faces.findIndex(f=>f.k==='num'); if(j>=0) d.faces[j]={k, v:d.faces[j].v}; } };
@@ -299,8 +300,9 @@ function telaMapa(entrando){
 }
 function novoCombate(){
   SFX.trilha(andar===5||andar===10 ? 'chefe' : 'batalha');
-  const inim=buildWave(masmorra,andar,rng);
+  const inim=buildWave(masmorra,andar,rng,P.relicFlags);
   cb=new Combat({rng,player:P,enemies:inim,burdens:burdensFor(masmorra),log:true});
+  cb.onInvocar = id => criarInimigo(masmorra, andar, id, rng);   // subchefe chama reforço
   montarDados(); limparBandeja(); cb.startTurn(); alvo=0; sel.clear();
   rolarVisual(); pintar();
 }
@@ -362,6 +364,14 @@ function pintar(){
       : it.t==='fraturar'?'✖ fratura 1 dado' : it.t==='inverter'?'⇅ inverte 1 dado'
       : it.t==='contar'?`🕳 conta ${(e._conta||0)+1}/${it.ate}${(e._conta||0)+1>=it.ate?` — A CONTA ⚔ ${Math.round(it.v*(e.mult||1))}`:''}`
       :'—';
+    /* nó Presságio: você vê a intenção dos próximos turnos, não só a deste */
+    const adiante = [];
+    if(BON.presagio>0 && e.padrao && e.hp>0){
+      for(let k=1;k<=BON.presagio;k++){
+        const nx = e.padrao[(((e._ip|0)+k) % e.padrao.length)];
+        if(nx) adiante.push(rotuloIntent(nx, e));
+      }
+    }
     /* ===== FECHADURA (§6): a regra do inimigo, e se a sua mão a abre AGORA ===== */
     const tr=cb.travaDe(e), td=travaTxt(tr);
     const aberta = !tr || e._arrombada || e.travaOff>0 || (alocSel && cb.abre(e, alocSel));
@@ -390,6 +400,7 @@ function pintar(){
         ${e.block?`<b class="bloq" data-est="bloqueio" data-estn="${e.block}">🛡 ${e.block}</b>`:''}
         ${e.armadura?`<b class="armad" data-est="armadura" data-estn="${e.armadura}">⛊ ${e.armadura}</b>`:''}</div>
       ${travaHTML}
+      ${adiante.length?`<div class="pres">↷ depois: ${adiante.join(' · ')}</div>`:''}
       <div class="it clic ${li&&li.passa>0?'doi':''}" ${it?`data-int="${it.t}"`:''}>${e.hp>0?txt:'—'}${li&&li.bruto>0?`<span class="passa">→ ${li.passa} no HP</span>`:''}</div>
       ${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
@@ -447,12 +458,16 @@ function pintar(){
     + (podePol?`<button class="fer" id="pmenos">−1</button><button class="fer" id="pmais">+1</button>
         <span class="fern">polegar ${cb._polegar}</span>`:'')
     + (podeGaz?`<button class="fer gaz" id="bgaz">🗝 GAZUA ${cb._gazua}</button>`:'')
-    + (passivaBtn(selEnts)||'');
+    + (passivaBtn(selEnts)||'')
+    + ((cb.p.ultimoLance && !cb._ultimoUsado)
+        ? `<button class="fer ult" id="bult">🎲 ÚLTIMO LANCE</button>` : '');
   if(podePol){ const id=selEnts[0].dieId;
     $('pmenos').onclick=e=>{ e.stopPropagation(); if(cb.polegar(id,-1)){ SFX.pegar(); pintar(); } };
     $('pmais').onclick =e=>{ e.stopPropagation(); if(cb.polegar(id, 1)){ SFX.pegar(); pintar(); } }; }
   if(podeGaz) $('bgaz').onclick=e=>{ e.stopPropagation();
     if(cb.gazua(alvo)){ SFX.vitoria(); pintar(); } };
+  const bu=$('bult');
+  if(bu) bu.onclick=e=>{ e.stopPropagation(); if(cb.ultimoLance()){ SFX.vitoria(); rolarVisual(); pintar(); } };
   const bp=$('bpass');
   if(bp) bp.onclick=e=>{ e.stopPropagation(); const id=selEnts[0].dieId;
     const f={carrasco:()=>cb.sobrecarga(id), lamina:()=>cb.trapaca(id),
@@ -481,6 +496,14 @@ function pintar(){
     m.material.emissiveIntensity = napre?1.5 : selec?0.8 : 0;
     m.scale.setScalar(napre?1.16:1);
     m.material.opacity = usado?0.22:1; m.material.transparent = usado; }
+}
+/* rótulo curto de uma intenção (usado pelo Presságio) */
+function rotuloIntent(it, e){
+  return !it?'—' : it.t==='atk'?`⚔${it.v}` : it.t==='atk_multi'?`⚔${it.v}×${it.n}`
+    : it.t==='block'?`🛡${it.v}` : it.t==='heal'?`✚${it.v}` : it.t==='buff'?'▲'
+    : it.t==='curse'?'☠' : it.t==='debuff'?`▼${it.st||''}` : it.t==='congelar'?'❄'
+    : it.t==='roubar'?'✋' : it.t==='fraturar'?'✖' : it.t==='inverter'?'⇅'
+    : it.t==='contar'?'🕳' : '—';
 }
 /* a PASSIVA da classe é o verbo de fechadura grátis de cada uma (§7) */
 function passivaBtn(selEnts){
@@ -817,6 +840,11 @@ function fim(){
     ${painelHabilidades()}</div>`;
   m.querySelectorAll('.rec').forEach(b=>b.onclick=()=>{
     SFX.pegar(); aplicar(opts[+b.dataset.i],P,rng);
+    // Língua de Prata: leva uma segunda recompensa junto
+    if(P.relicFlags?.has('dobro_recompensa')){
+      const outra = opts.filter((_,i)=>i!==+b.dataset.i)[0];
+      if(outra) aplicar(outra,P,rng);
+    }
     if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.15));
     andar++; if(andar>10){ andar=1; masmorra++; }
     telaMapa(true);
