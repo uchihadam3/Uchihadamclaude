@@ -127,15 +127,19 @@ import {
 const netDiag = () => netDiagObj;
 import { audio } from "./audio";
 import {
-  ROOM,
   ARMORY_STAIR,
-  ROOM_COLS,
-  ROOM_ROWS,
   ESTAB,
+  roomCols,
+  roomRows,
   roomFind,
   roomChar,
+  roomSolid,
+  roomFloored,
   roomWalkable,
+  roomProps,
+  setRoom,
   type Estab,
+  type SalaId,
 } from "./interiors";
 import taverneiroUrl from "../assets/npc/taverneiro.png";
 import mercadoraUrl from "../assets/npc/mercadora.png";
@@ -2027,6 +2031,9 @@ export class Game {
       dungeon: dungeonCell, village: cellAt, forest: forestCell,
       plains: plainsCell, interiores: roomChar,
     };
+    (window as unknown as { __SALAS?: unknown }).__SALAS = {
+      roomFind, roomCols, roomRows, roomProps, roomWalkable,
+    };
   }
 
   // TRANSIÇÃO DE PORTA: fade preto rápido → constrói o novo cenário no escuro
@@ -2051,6 +2058,12 @@ export class Game {
     // fora da masmorra o "andar atual" volta ao 1º (a lógica de missão lê células
     // 'L'/'A' do 1º andar a partir do vilarejo — não pode ficar num andar antigo).
     if (loc !== "dungeon") { this.dungeonFloor = 0; setDungeonFloor(0); }
+    // SALA ATIVA. Cada estabelecimento tem a sua planta agora, e tudo que lê o
+    // interior (colisão, minimapa, mobília) precisa saber de qual. Casa de
+    // aldeão é sempre a mesma sala simples, então cai em "home".
+    if (loc !== "village" && loc !== "forest" && loc !== "plains"
+        && loc !== "dungeon" && loc !== "showcase")
+      setRoom((ESTAB as Record<string, unknown>)[loc] ? (loc as SalaId) : "home");
     this.location = loc;
     this.outdoor = loc === "village" || loc === "forest" || loc === "plains";
     this.dialogue = null;
@@ -9706,7 +9719,7 @@ export class Game {
     else if (this.location === "plains") { cols = PLAINS_COLS; rows = PLAINS_ROWS; walk = plainsWalkable; }
     else if (this.location === "dungeon") { cols = DUNGEON_COLS; rows = DUNGEON_ROWS; walk = dungeonWalkable; }
     else if (this.location === "showcase") { cols = 6; rows = 10; walk = terraceWalkable; }
-    else { cols = ROOM_COLS; rows = ROOM_ROWS; walk = roomWalkable; }
+    else { cols = roomCols(); rows = roomRows(); walk = roomWalkable; }
     const cells = new Uint8Array(cols * rows);
     for (let r = 0; r < rows; r++)
       for (let c = 0; c < cols; c++) cells[r * cols + c] = walk(c, r) ? 1 : 0;
@@ -9854,7 +9867,9 @@ export class Game {
         row: this.row,
         facing: (this.facing + 2) % 4,
       };
-      const p = roomFind("P");
+      // o 'P' é da planta DAQUELE estabelecimento (cada um tem a sua agora), e
+      // é lido antes de entrar — por isso o id vai explícito.
+      const p = roomFind("P", t.estab);
       void this.doorTransition(() => this.enterLocation(t.estab, p.col, p.row, 0));
     } else if (t.kind === "enterhome") {
       this.returnTo = {
@@ -9862,12 +9877,12 @@ export class Game {
         row: this.row,
         facing: (this.facing + 2) % 4,
       };
-      const p = roomFind("P");
+      const p = roomFind("P", "home");
       void this.doorTransition(() => this.enterLocation(t.id, p.col, p.row, 0));
     } else if (t.kind === "armorystair") {
       // sobe p/ a Sala das Armas. NÃO mexe em returnTo: ele guarda a rua lá fora,
       // p/ a saída do térreo continuar funcionando na volta.
-      const p = roomFind("P");
+      const p = roomFind("P", "armoryUp");
       void this.doorTransition(() => this.enterLocation("armoryUp", p.col, p.row, 0));
     } else if (t.kind === "exit" && this.location === "armoryUp") {
       // "sair" do andar de cima é DESCER — a rua fica um andar abaixo
@@ -10107,11 +10122,15 @@ export class Game {
     saida: { rotulo: string; escada: boolean } = { rotulo: "SAÍDA", escada: false },
     // célula que NÃO recebe piso/teto: é onde o lance de escada abre o vão
     vazado: { col: number; row: number; teto: boolean } | null = null,
+    // piso de LAJE em vez de tábua: a Ferraria, a Armaria e o Templo não são
+    // lugares de assoalho — e o chão é metade da sensação de um cômodo.
+    pisoDePedra = false,
   ) {
     const CEIL = 3.0;
     // chão de madeira (aconchegante) + PAREDES DE PEDRA com tom quente (parede
     // rebocada) — bem melhor que a madeira repetitiva de antes.
-    const floorMat = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(floorSeed) });
+    const floorMat = new THREE.MeshLambertMaterial(
+      pisoDePedra ? { map: tex.stone(floorSeed) } : { map: tex.woodPlanks(floorSeed) });
     // PAREDES INTERNAS = MESMA alvenaria (tex_stonewall) e MESMA ESCALA da masmorra e
     // das fachadas → a casa é a mesma construção por dentro e por fora. Face 4×3.0 →
     // repeat (1, 0.75) mantém o mesmo tamanho de bloco (~0.25 telha/unidade).
@@ -10121,9 +10140,12 @@ export class Game {
     const doorMat = this.decalMat(decDoorUrl, 0.4);
     const tileGeo = new THREE.PlaneGeometry(CELL, CELL);
 
-    for (let r = 0; r < ROOM_ROWS; r++)
-      for (let c = 0; c < ROOM_COLS; c++) {
-        if (!roomWalkable(c, r)) continue;
+    // PISO E TETO cobrem tudo que não é parede — inclusive as casas de mobília.
+    // Se fossem só as andáveis, cada mesa e cada estante abriria um buraco no
+    // chão e no forro em volta de si.
+    for (let r = 0; r < roomRows(); r++)
+      for (let c = 0; c < roomCols(); c++) {
+        if (!roomFloored(c, r)) continue;
         const buraco = !!vazado && vazado.col === c && vazado.row === r;
         if (!(buraco && !vazado!.teto)) {
           const fl = new THREE.Mesh(tileGeo, floorMat);
@@ -10138,7 +10160,7 @@ export class Game {
           this.world.add(ce);
         }
         for (const [dc, dr] of DIRS)
-          if (roomChar(c + dc, r + dr) === "#")
+          if (roomSolid(c + dc, r + dr))
             this.addWall(c * CELL, r * CELL, dc, dr, 0, CEIL, wallMat);
       }
 
@@ -10208,18 +10230,49 @@ export class Game {
       this.addNPC(m.col, m.row, m.seed, m.name, m.lines, m.art, m.scale ?? 1);
   }
 
+  // ---------------------------------------------------------------------------
+  // IDENTIDADE DE CADA LOJA
+  //
+  // Formato (a planta, em interiors.ts) é o que se percebe primeiro; isto aqui é
+  // o segundo golpe: chão, luz e ar. A Ferraria é escura com uma fornalha
+  // laranja no canto; o Templo é pálido e frio; a Alquimista é esverdeada. Você
+  // sabe onde está antes de ler a placa.
+  // ---------------------------------------------------------------------------
+  private static readonly LOJA_ESTILO: Record<Estab, {
+    chao: "madeira" | "pedra";      // taverna e loja: tábua; ferraria e templo: laje
+    piso: number;                   // semente da textura
+    teto: number;                   // cor do forro
+    luz: number;                    // cor do lampião central
+    forca: number;                  // intensidade do lampião
+    ceu: [number, number, number];  // hemisférica: [céu, chão, força]
+  }> = {
+    // A COR é o que dá identidade; a FORÇA fica alta em todas. Você já reclamou de
+    // interior escuro uma vez, e "ambiente" não pode custar enxergar onde se
+    // pisa — a Ferraria é laranja e o Templo é frio, mas nenhuma das duas é
+    // penumbra.
+    tavern:    { chao: "madeira", piso: 9,  teto: 0x6a4f33, luz: 0xffc878, forca: 22, ceu: [0xffdca8, 0x4a3c30, 1.25] },
+    store:     { chao: "madeira", piso: 5,  teto: 0x8a7355, luz: 0xffe0a8, forca: 19, ceu: [0xffe3b8, 0x4a3c30, 1.2] },
+    smith:     { chao: "pedra",   piso: 31, teto: 0x3a2f27, luz: 0xffa864, forca: 19, ceu: [0xffc49a, 0x3a2c22, 1.05] },
+    alchemist: { chao: "madeira", piso: 7,  teto: 0x4a5240, luz: 0xb6e8bc, forca: 18, ceu: [0xcdeed2, 0x36423a, 1.15] },
+    armory:    { chao: "pedra",   piso: 23, teto: 0x5a5348, luz: 0xffe0b0, forca: 19, ceu: [0xf0e2c8, 0x443f36, 1.2] },
+    armoryUp:  { chao: "madeira", piso: 11, teto: 0x5a4a38, luz: 0xffdca0, forca: 19, ceu: [0xf0e2c8, 0x443f36, 1.2] },
+    temple:    { chao: "pedra",   piso: 17, teto: 0x6b6a72, luz: 0xe4ecff, forca: 19, ceu: [0xdfe3f4, 0x44444f, 1.35] },
+  };
+
   private buildInterior(kind: Estab) {
     const CEIL = 3.0;
+    const est = Game.LOJA_ESTILO[kind];
     const woodDark = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
     const emCima = kind === "armoryUp";
     // LOJA POR DENTRO: reboco caiado — nem a pedra lavrada da rua, nem a taipa
     // das casas. Assim dá p/ saber onde se está só de olhar a parede.
     const x0 = roomFind("X");
-    this.buildRoomShell(9, this.wallArtMat(facadeRebocoUrl), 0x8a7355,
+    this.buildRoomShell(est.piso, this.wallArtMat(facadeRebocoUrl), est.teto,
       emCima ? { rotulo: "DESCER", escada: true } : { rotulo: "SAÍDA", escada: false },
       emCima ? { col: x0.col, row: x0.row, teto: false }
         : kind === "armory" ? { col: ARMORY_STAIR.col, row: ARMORY_STAIR.row, teto: true }
-          : null);
+          : null,
+      est.chao === "pedra");
     // ARMARIA (térreo): a escada p/ a Sala das Armas fica logo à esquerda de quem
     // entra — perto o bastante p/ não virar pedágio, longe o bastante p/ o balcão
     // continuar sendo a primeira coisa que você vê.
@@ -10252,27 +10305,129 @@ export class Game {
     clight.position.set(cxN, 2.5, n.row * CELL + 1.6);
     this.world.add(clight);
 
-    // luz central (lampião)
-    const lamp = new THREE.PointLight(0xffe0a8, 18, 50, 2);
-    lamp.position.set(3 * CELL, CEIL - 0.3, 3 * CELL);
-    this.world.add(new THREE.HemisphereLight(0xffe3b8, 0x40342a, 1.05));
-    this.world.add(lamp);
-    this.box(
-      3 * CELL,
-      CEIL - 0.25,
-      3 * CELL,
-      0.4,
-      0.3,
-      0.4,
-      new THREE.MeshBasicMaterial({ color: 0xffb85a }),
-    );
+    // MOBÍLIA. Cada peça mora numa célula que a planta marcou como não-andável,
+    // então nada disto pode entrar no caminho de ninguém — é a regra que evita
+    // repetir o entulho que travava a passagem na versão anterior.
+    for (const pr of roomProps()) this.buildRoomProp(pr.ch, pr.col, pr.row);
 
-    // SÓ O BALCÃO. Todo o resto da mobília saiu: num cômodo de 5x5 cada móvel
-    // come uma célula, e andar lá dentro virava um quebra-cabeça de esbarrões.
-    // As funções de props continuam no arquivo — quando voltarem, será sem
-    // colisão ou encostadas na parede.
+    // LAMPIÃO. Um no meio das salas normais; DOIS nas grandes — com uma luz só, um
+    // salão de 9×9 apaga nos cantos e volta a parecer porão.
+    this.world.add(new THREE.HemisphereLight(est.ceu[0], est.ceu[1], est.ceu[2]));
+    const meioC = (roomCols() - 1) / 2, meioR = (roomRows() - 1) / 2;
+    const grande = roomCols() * roomRows() > 60;
+    const pontos: [number, number][] = grande
+      ? [[meioC, meioR - 1.6], [meioC, meioR + 1.6]]
+      : [[meioC, meioR]];
+    for (const [pc, pr] of pontos) {
+      const lamp = new THREE.PointLight(est.luz, est.forca, 50, 2);
+      lamp.position.set(pc * CELL, CEIL - 0.3, pr * CELL);
+      this.world.add(lamp);
+      this.box(pc * CELL, CEIL - 0.25, pr * CELL, 0.4, 0.3, 0.4,
+        new THREE.MeshBasicMaterial({ color: est.luz }));
+    }
+
+    // (as antigas funções de props por loja ficaram sem uso: a mobília agora vem
+    //  da planta, que é o que garante que ela nunca bloqueia o caminho)
     void this.propsTavern; void this.propsStore; void this.propsSmith;
     void this.propsAlchemist; void this.propsArmory; void this.propsTemple;
+  }
+
+  /**
+   * Uma peça de mobília dentro da sua CÉLULA (não-andável, por construção).
+   *
+   * Tudo é desenhado com folga dentro da casa da grade: 4×4 metros por célula dá
+   * espaço de sobra para um móvel, e ficar contido é o que garante que ele nunca
+   * invade o corredor por onde o jogador anda.
+   */
+  private buildRoomProp(ch: string, col: number, row: number) {
+    const x = col * CELL, z = row * CELL;
+    this.blocked.add(`${col},${row}`);
+    const mad = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(5) });
+    const madEsc = new THREE.MeshLambertMaterial({ map: tex.woodPlanks(7) });
+    const pedra = new THREE.MeshLambertMaterial({ map: tex.stone(31) });
+    const ferro = new THREE.MeshLambertMaterial({ color: 0x3a3a40 });
+    if (ch === "T") {
+      // MESA redonda com dois bancos — a marca da taverna
+      const tampo = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.14, 16), mad);
+      tampo.position.set(x, 0.95, z);
+      this.world.add(tampo);
+      this.box(x, 0.45, z, 0.34, 0.9, 0.34, madEsc);            // pé central
+      this.box(x - 1.5, 0.28, z, 0.5, 0.55, 1.4, madEsc);       // banco oeste
+      this.box(x + 1.5, 0.28, z, 0.5, 0.55, 1.4, madEsc);       // banco leste
+      // uma caneca esquecida em cima (o detalhe que conta que alguém esteve ali)
+      this.box(x + 0.4, 1.12, z - 0.3, 0.2, 0.24, 0.2,
+        new THREE.MeshLambertMaterial({ color: 0x9a7b52 }));
+    } else if (ch === "B") {
+      // BARRIS empilhados
+      for (const [dx, dz, h, r] of [[-0.7, -0.5, 1.15, 0.55], [0.75, -0.35, 1.0, 0.5], [0.1, 0.8, 1.15, 0.55]]) {
+        const b = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.9, h, 14), madEsc);
+        b.position.set(x + dx, h / 2, z + dz);
+        this.world.add(b);
+        const aro = new THREE.Mesh(new THREE.TorusGeometry(r * 1.02, 0.045, 6, 16), ferro);
+        aro.rotation.x = Math.PI / 2;
+        aro.position.set(x + dx, h * 0.62, z + dz);
+        this.world.add(aro);
+      }
+    } else if (ch === "E") {
+      // ESTANTE encostada: montantes + quatro prateleiras + tralha em cima
+      this.box(x, 1.2, z, 3.2, 0.12, 1.2, mad);
+      for (let i = 0; i < 4; i++) this.box(x, 0.42 + i * 0.62, z, 3.2, 0.1, 1.2, mad);
+      this.box(x - 1.6, 1.2, z, 0.16, 2.4, 1.2, madEsc);
+      this.box(x + 1.6, 1.2, z, 0.16, 2.4, 1.2, madEsc);
+      // potes e volumes nas prateleiras: é o que faz a estante parecer estoque
+      const potes = [0xa8663c, 0x6e8f5a, 0x8a7bb0, 0xc0a464];
+      for (let i = 0; i < 7; i++) {
+        const alt = 0.42 + (i % 3) * 0.62;
+        this.box(x - 1.1 + (i % 4) * 0.72, alt + 0.24, z, 0.3, 0.38, 0.3,
+          new THREE.MeshLambertMaterial({ color: potes[i % potes.length] }));
+      }
+    } else if (ch === "F") {
+      // FORJA: bloco de pedra, boca de brasa e a luz que define a sala
+      this.box(x, 0.8, z, 2.8, 1.6, 2.4, pedra);
+      this.box(x, 2.35, z, 1.2, 1.5, 1.2, pedra);               // chaminé
+      const brasa = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.5, 0.9),
+        new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0.95, side: THREE.DoubleSide }),
+      );
+      brasa.position.set(x, 1.05, z + 1.21);
+      this.world.add(brasa);
+      const fogo = new THREE.PointLight(0xff7a30, 14, 22, 2);
+      fogo.position.set(x, 1.4, z + 1.6);
+      this.world.add(fogo);
+      this.flames.push({ light: fogo, base: 14 }); // treme como as outras chamas
+      // bigorna na frente
+      this.box(x + 0.1, 0.35, z + 1.9, 0.5, 0.7, 1.1, ferro);
+    } else if (ch === "A") {
+      // ALTAR: degrau, mesa de pedra e a Chama pálida
+      this.box(x, 0.12, z, 3.4, 0.24, 2.6, pedra);
+      this.box(x, 0.7, z, 2.4, 1.0, 1.5, pedra);
+      const chama = new THREE.PointLight(0xdfe6ff, 7, 18, 2);
+      chama.position.set(x, 1.75, z);
+      this.world.add(chama);
+      this.flames.push({ light: chama, base: 7 });
+      const taca = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.2, 0.5, 12),
+        new THREE.MeshLambertMaterial({ color: 0xb9a05c }));
+      taca.position.set(x, 1.45, z);
+      this.world.add(taca);
+    } else if (ch === "C") {
+      // COLUNA do chão ao teto — é ela que faz a nave do Templo ler como nave
+      const col2 = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 3.0, 12), pedra);
+      col2.position.set(x, 1.5, z);
+      this.world.add(col2);
+      this.box(x, 0.16, z, 2.0, 0.32, 2.0, pedra);   // base
+      this.box(x, 2.86, z, 2.0, 0.28, 2.0, pedra);   // capitel
+    } else if (ch === "R") {
+      // EXPOSITOR de armas: cavalete com lâminas apoiadas
+      this.box(x, 0.9, z, 3.0, 0.14, 0.9, madEsc);
+      this.box(x - 1.4, 0.45, z, 0.16, 0.9, 0.9, madEsc);
+      this.box(x + 1.4, 0.45, z, 0.16, 0.9, 0.9, madEsc);
+      for (let i = -1; i <= 1; i++) {
+        const lam = this.box(x + i * 0.85, 1.5, z - 0.1, 0.1, 1.3, 0.26,
+          new THREE.MeshLambertMaterial({ color: 0xc8ccd4 }));
+        lam.rotation.z = i * 0.14;
+        this.box(x + i * 0.85, 0.86, z - 0.1, 0.16, 0.34, 0.16, madEsc); // cabo
+      }
+    }
   }
 
   /**
