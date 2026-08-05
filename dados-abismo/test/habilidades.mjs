@@ -15,6 +15,8 @@ import { makeDie, resetDieIds } from '../js/data/dice.js';
 import { face } from '../js/data/faces.js';
 import { recalcRelics } from '../js/engine/rewards.js';
 import { satisfies } from '../js/engine/requirements.js';
+import { travaAberta, travaTxt, ALTERNATIVAS, mesmaTrava, seAnulam } from '../js/data/travas.js';
+import { buildWave } from '../js/engine/encounter.js';
 
 let ok = 0, falhas = [];
 const check = (cond, quem, oque, detalhe='') => {
@@ -797,6 +799,81 @@ console.log('=== ESCUDO PARCIAL ===');
     check(en.hp === 200 && en.block === 20, 'Escudo',
       'inimigo: escudo de sobra segura o golpe todo e guarda o resto',
       `HP ${en.hp}, escudo ${en.block}`);
+  }
+}
+
+/* =====================================================================
+   11. FECHADURA DINÂMICA — o mesmo inimigo não pode ter sempre a mesma
+   resposta certa. Duas chaves no comum, regra que gira no elite, e a
+   escolha muda de combate para combate.
+   ===================================================================== */
+console.log('=== FECHADURA DINÂMICA ===');
+{
+  const aloc = vals => ({ sum:vals.reduce((a,b)=>a+b,0), max:Math.max(...vals),
+    min:Math.min(...vals), count:vals.length, vals, simbolos:[] });
+
+  // (a) 'ou' abre por qualquer um dos lados, e fecha quando nenhum serve
+  {
+    const t = { t:'ou', alts:[{t:'par'}, {t:'enxuto',v:1}] };
+    check(travaAberta(t, aloc([2,4])), 'Duas Chaves', 'abre pelo lado PAR');
+    check(travaAberta(t, aloc([3])),   'Duas Chaves', 'abre pelo lado ENXUTO 1');
+    check(!travaAberta(t, aloc([3,4])),'Duas Chaves', 'fecha quando nenhum dos dois serve',
+      'soma 7 ímpar com 2 dados deveria dar zero');
+  }
+  // (b) o rótulo mostra as DUAS regras: carta que esconde meia regra mente
+  {
+    const d = travaTxt({ t:'ou', alts:[{t:'par'}, {t:'forte',v:4}] });
+    check(!!d && /OU/.test(d.curto), 'Duas Chaves', 'o rótulo curto mostra as duas saídas', d?.curto);
+    check(!!d && d.alts?.length===2, 'Duas Chaves', 'o rótulo expõe as alternativas separadas');
+  }
+  // (c) a alternativa sorteada nunca repete nem anula a regra do bicho
+  {
+    let repetida=0, anulada=0, impossivel=0;
+    for(const a of ALTERNATIVAS){
+      for(const base of [{t:'par'},{t:'impar'},{t:'forte',v:5},{t:'fraco',v:3}]){
+        if(mesmaTrava(a,base)) repetida++;
+        if(seAnulam(a,base))   anulada++;
+      }
+      // toda alternativa do pool precisa ser abrível com dados pequenos
+      const maos = [[1],[2],[3],[4],[1,2],[2,2],[1,3],[2,3],[3,4],[1,2,3],[2,2,2],[1,1,2]];
+      if(!maos.some(m=>travaAberta(a, aloc(m)))) impossivel++;
+    }
+    check(impossivel===0, 'Duas Chaves',
+      'toda alternativa do pool é abrível com dados pequenos',
+      impossivel+' impossíveis');
+    check(repetida>0 || anulada>0, 'Duas Chaves',
+      'o filtro de repetida/anulada tem o que filtrar');
+  }
+  // (d) o sorteio de fato varia entre combates
+  {
+    const vistas = new Set();
+    for(let i=0;i<40;i++){
+      const onda = buildWave(1, 3, makeRNG('din-'+i));
+      for(const e of onda){
+        const t = e.travaCiclo ? {t:'ciclo',alts:e.travaCiclo} : e.trava;
+        if(t) vistas.add(JSON.stringify(t));
+      }
+    }
+    check(vistas.size >= 8, 'Fechadura dinâmica',
+      'a mesma masmorra produz fechaduras diferentes entre combates',
+      vistas.size+' combinações distintas em 40 ondas');
+  }
+  // (e) o chefe conserva o ciclo próprio da ficha
+  {
+    const onda = buildWave(1, 10, makeRNG('chefe-din'));
+    const chefe = onda[0];
+    check(Array.isArray(chefe.travaCiclo) && chefe.travaCiclo.length>=2,
+      'Fechadura dinâmica', 'o chefe mantém o ciclo escrito na ficha',
+      JSON.stringify(chefe.travaCiclo));
+  }
+  // (f) elite que gira: a regra do turno 1 não é a mesma do turno 2
+  {
+    const en = inimigo({ hp:100, travaCiclo:[{t:'par'},{t:'impar'}] });
+    const { cb } = cenario({ classe:'carrasco', inimigos:[en] });
+    const t1 = cb.travaDe(en); cb.turn++;
+    const t2 = cb.travaDe(en);
+    check(t1.t !== t2.t, 'Fechadura dinâmica',
+      'no elite que gira, a regra muda de um turno para o outro', `${t1.t} → ${t2.t}`);
   }
 }
 

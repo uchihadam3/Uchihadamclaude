@@ -73,25 +73,77 @@ export const TRAVAS = {
              ok:()=> true, reflete:true, umaVezPorTurno:true },
 };
 
-/* rótulo curto pra HUD */
+/* ===================================================================
+   FECHADURA DE DUAS CHAVES — {t:'ou', alts:[trava, trava]}
+
+   Uma fechadura fixa por inimigo fazia cada bicho ter UMA resposta certa:
+   você decorava e o puzzle acabava. Com alternativas o mesmo inimigo aceita
+   caminhos diferentes no mesmo golpe, e quais são muda de combate para
+   combate (o sorteio está em encounter.js).
+   =================================================================== */
 export function travaTxt(t){
   if(!t) return null;
+  if(t.t==='ou'){
+    const p = (t.alts||[]).map(travaTxt).filter(Boolean);
+    if(!p.length) return null;
+    if(p.length===1) return p[0];
+    /* "só sofre dano com X OU só sofre dano com Y" é ilegível na carta.
+       O prefixo sai de todas e volta uma vez só na frente. */
+    const semPrefixo = s => s.replace(/^(só sofre dano|Só sofre dano se|Só sofre dano)\s*/i,'');
+    return { ico:'⇔', nome:'Duas Chaves', alts:p,
+             txt:  'Só sofre dano ' + p.map(x=>semPrefixo(x.txt)).join(' — OU — '),
+             curto:'só sofre dano ' + p.map(x=>semPrefixo(x.curto)).join(' OU ') };
+  }
   const d = TRAVAS[t.t]; if(!d) return null;
   return { ico:d.ico, nome:d.nome, txt:d.txt(t.v), curto:(d.curto||d.txt)(t.v) };
 }
 /* a alocação abre a fechadura? (cb e en só para 'casal') */
 export function travaAberta(t, aloc, cb, en){
   if(!t) return true;
+  if(t.t==='ou') return (t.alts||[]).some(a=>travaAberta(a, aloc, cb, en));
   const d = TRAVAS[t.t]; if(!d) return true;
   return !!d.ok(aloc, t.v, cb, en);
 }
-export const travaReflete = t => !!(t && TRAVAS[t.t]?.reflete);
+export const travaReflete = t => !!(t && (TRAVAS[t.t]?.reflete
+  || (t.t==='ou' && (t.alts||[]).some(travaReflete))));
 /* o reflexo dispara agora? (en carrega o controle de "uma vez por turno") */
 export function travaRefleteAgora(t, aloc, en){
   if(!travaReflete(t)) return false;
-  if(TRAVAS[t.t].umaVezPorTurno && en){
+  const d = t.t==='ou' ? TRAVAS[(t.alts||[]).find(travaReflete)?.t] : TRAVAS[t.t];
+  if(d?.umaVezPorTurno && en){
     if(en._refletiu) return false;
     en._refletiu = true;
   }
   return true;
 }
+/* quanto o espelho devolve, mesmo enterrado dentro de um 'ou' */
+export function valorReflexo(t){
+  if(!t) return 0;
+  if(t.t==='ou') return Math.max(0, ...(t.alts||[]).map(valorReflexo));
+  return TRAVAS[t.t]?.reflete ? (t.v||30) : 0;
+}
+
+/* ===================================================================
+   ALTERNATIVAS SORTEÁVEIS — a segunda chave que cada inimigo ganha por
+   combate. Só entram regras que QUALQUER bolsa consegue abrir: uma
+   alternativa impossível é pior que alternativa nenhuma (já tivemos dois
+   inimigos invencíveis por pedirem "dado 7+" de quem só tinha d6).
+   Nada de soma exata, faixa fechada ou símbolo — esses dependem de
+   gravação e de tamanho de dado que o jogador pode não ter.
+   =================================================================== */
+export const ALTERNATIVAS = [
+  { t:'par' },      { t:'impar' },
+  { t:'enxuto', v:1 }, { t:'enxuto', v:2 },
+  { t:'farto',  v:2 }, { t:'farto',  v:3 },
+  { t:'fraco',  v:3 }, { t:'forte',  v:4 },
+  { t:'multiplo', v:2 }, { t:'multiplo', v:3 },
+  { t:'distintos' },   { t:'primo' },
+];
+/* duas travas são a mesma regra? (não adianta "par OU par") */
+export const mesmaTrava = (a,b) =>
+  !!a && !!b && a.t===b.t && JSON.stringify(a.v??null)===JSON.stringify(b.v??null);
+/* par/ímpar juntos aceitam qualquer soma: viraria "sem fechadura" */
+export const seAnulam = (a,b) => {
+  const s = new Set([a?.t, b?.t]);
+  return s.has('par') && s.has('impar');
+};

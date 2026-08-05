@@ -1,11 +1,34 @@
 /* ONDAS (§3.2) + escalada por masmorra (§3.3) */
 import { ESCALADA, MASMORRAS } from '../data/dungeons.js';
+import { ALTERNATIVAS, mesmaTrava, seAnulam } from '../data/travas.js';
 
+/* FECHADURA DINÂMICA (§6): o mesmo bicho não pode ter sempre a mesma
+   resposta certa, senão o puzzle vira decoreba. A trava escrita na ficha
+   continua sendo a identidade dele; por cima dela, cada COMBATE sorteia:
+
+   - comum  → uma SEGUNDA CHAVE: o golpe abre pela regra dele OU pela nova;
+   - elite  → a regra GIRA durante a luta, alternando a cada turno.
+
+   O chefe já tem travaCiclo próprio na ficha e não é tocado. */
+function fechaduraDoCombate(base, rng, isElite){
+  if(base.travaCiclo && base.travaCiclo.length) return {};   // chefe: já gira
+  const t = base.trava;
+  if(!t) return {};                                          // sem trava continua sem
+  const opcoes = ALTERNATIVAS.filter(a => !mesmaTrava(a,t) && !seAnulam(a,t));
+  if(!opcoes.length) return {};
+  const alt = rng.pick(opcoes);
+  if(isElite){
+    // gira entre as duas: o que abriu neste turno fecha no próximo
+    return rng.chance(0.62) ? { travaCiclo:[t, alt], _giro:rng.int(2) } : {};
+  }
+  return rng.chance(0.58) ? { trava:{ t:'ou', alts:[t, alt] } } : {};
+}
 function inst(base, mult, rng, isElite=false){
   const hp = Math.round(base.hp * mult.hp * (isElite?1.9:1));
   return { ...base, uid: base.id+'#'+rng.int(1e6),
     hp, maxHp:hp, block:0, statuses:{}, mult:mult.dano, elite:isElite,
-    padrao: base.padrao, _ip:-1, intent:null };
+    padrao: base.padrao, _ip:-1, intent:null,
+    ...fechaduraDoCombate(base, rng, isElite) };
 }
 /* ESCALADA DENTRO DA MASMORRA: o andar 9 não pode ser igual ao andar 1.
    Cada andar sobe HP e dano — a descida aperta o tempo todo, não só na troca. */

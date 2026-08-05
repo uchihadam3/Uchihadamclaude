@@ -461,9 +461,16 @@ function pintar(){
     /* ===== FECHADURA (§6): a regra do inimigo, e se a sua mão a abre AGORA ===== */
     const tr=cb.travaDe(e), td=travaTxt(tr);
     const aberta = !tr || e._arrombada || e.travaOff>0 || (alocSel && cb.abre(e, alocSel));
+    /* a regra deste inimigo GIRA: sem avisar, o jogador acha que a carta
+       mentiu quando a fechadura muda sozinha no turno seguinte */
+    const gira = !!(e.travaCiclo && e.travaCiclo.length>1);
+    const proxT = gira ? travaTxt(e.travaCiclo[(cb.turn + (e._giro||0)) % e.travaCiclo.length]) : null;
+    // sem o prefixo: "muda para: só sofre dano com dado 4+" fica redundante
+    const prox = proxT ? { curto: proxT.curto.replace(/^só sofre dano\s*/i,'') } : null;
     const travaHTML = td ? `<div class="trava ${e._arrombada||e.travaOff>0?'off':(alocSel? (aberta?'abre':'fecha') : '')}"
-        data-tr="${tr?tr.t:''}" title="${td.txt} — toque para entender"><span class="tico">${td.ico}</span><span class="ttx">${
-        e._arrombada?'ARROMBADA' : e.travaOff>0?`DISSOLVIDA (${e.travaOff})` : td.curto}</span>${
+        data-tr="${tr?tr.t:''}" title="${td.txt}${prox?` — no próximo turno vira: ${prox.curto}`:''} — toque para entender"><span class="tico">${td.ico}</span><span class="ttx">${
+        e._arrombada?'ARROMBADA' : e.travaOff>0?`DISSOLVIDA (${e.travaOff})` : td.curto}${
+        gira&&!e._arrombada&&!(e.travaOff>0) ? `<i class="tgira">⟳ muda no próximo turno${prox?': '+prox.curto:''}</i>` : ''}</span>${
         alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓ ABRE':'✕ TRAVA'}</span>`
           : '<span class="tq">?</span>'}</div>` : '';
     const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0)
