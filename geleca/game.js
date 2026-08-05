@@ -537,17 +537,19 @@ const LV_ICONS=["🌱","⛰️","🕳️","🧗","🌉","🔥","👾","🏔️",
 // Voltar pra false pra restaurar a progressão normal.
 const UNLOCK_ALL=true;
 // Posições dos 15 nós em % da ARTE do mapa (mapa.png) — a mão, encaixados nas
-// clareiras abertas do vale, subindo de baixo (fase 1) pro alto (fase 15).
+// clareiras SECAS do vale (Mundo 1 não tem água): todas as fases ficam ACIMA do
+// rio. A fase 15 para logo antes do riacho — o rio abaixo é a prévia do Mundo 2.
 const MAP_SPOTS=[
-  {x:30,y:90}, {x:56,y:91}, {x:80,y:82},   // 1-3  base do vale
-  {x:78,y:67}, {x:53,y:65}, {x:28,y:69},   // 4-6  cruza o riacho
-  {x:22,y:52}, {x:47,y:49}, {x:72,y:51},   // 7-9  campina central
-  {x:76,y:36}, {x:51,y:33}, {x:27,y:36},   // 10-12
-  {x:31,y:21}, {x:53,y:17}, {x:73,y:20},   // 13-15 alto do vale
+  {x:31,y:14}, {x:51,y:12}, {x:70,y:15},   // 1-3  alto do vale
+  {x:71,y:25}, {x:50,y:24}, {x:29,y:26},   // 4-6
+  {x:25,y:36}, {x:48,y:35}, {x:70,y:37},   // 7-9  campina central
+  {x:71,y:47}, {x:49,y:46}, {x:27,y:47},   // 10-12
+  {x:31,y:57}, {x:51,y:58}, {x:68,y:55},   // 13-15 borda seca, logo antes do rio
 ];
 // A fase SECRETA (16 · Gosma-Mãe) NÃO aparece como nó: fica só um brilho discreto
-// escondido no canto, uma "dica" de que há algo ali pra quem reparar.
-const SECRET_SPOT={x:76,y:93};
+// escondido lá embaixo (na região do rio = território do Mundo 2), uma "dica"
+// de que há algo ali pra quem reparar — nunca um nó exposto.
+const SECRET_SPOT={x:77,y:92};
 // mini-estrelas (rating) coladas embaixo do nó do mapa
 function starRow(st){ let h='<span class="mn-stars">'; for(let k=0;k<3;k++) h+=`<i class="${k<st?"on":""}">★</i>`; return h+"</span>"; }
 // SELEÇÃO DE FASE estilo Mario World: um MAPA com caminho serpenteante e nós.
