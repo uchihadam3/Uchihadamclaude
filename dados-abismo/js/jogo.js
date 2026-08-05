@@ -516,6 +516,8 @@ function pintar(){
       ${st?`<div class="st">${st}</div>`:''}</div>`;}).join('');
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
     if(previa) previa=calcPrevia(previa.skill); SFX.pegar(); pintar(); });
+  // onda cheia aperta as cartas para sobrar mesa (ver #ini.cheia no CSS)
+  $('ini').classList.toggle('cheia', es.filter(e=>e.hp>0).length >= 5);
   const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0)
     .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
   $('voce').innerHTML=`<span class="pill perigo ${pi.letal?'letal':''}">☠ ${pi.total}</span>
@@ -601,7 +603,9 @@ function pintar(){
     if(f&&f()){ SFX.pegar(); if(C.id==='arcanista') sel.delete(id); pintar(); } else SFX.soltar(); };
   const vivos=cb.aliveEnemies().length;
   $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10 <span style="opacity:.6">— ${ESCALADA[masmorra-1].nome}</span>`
-    + (vivos>3?` <span class="tinim">${vivos} inimigos · arraste ↔</span>`:'');
+    // a dica "arraste" existia porque a fileira rolava de lado e escondia os
+    // inimigos a partir do 4º; agora todos cabem, então só conto quantos são
+    + (vivos>3?` <span class="tinim">${vivos} inimigos</span>`:'');
   $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
   // tocar num efeito do inimigo explica AQUELE efeito, sem sair do combate

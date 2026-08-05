@@ -15,19 +15,29 @@
  #c{display:block;width:100%;height:100%;min-height:0}
  .lay{position:relative;left:auto;right:auto;pointer-events:none;min-height:0}
  /* topo: inimigos */
- /* A FILEIRA DE INIMIGOS FICA NO TOPO E PONTO. Antes ela quebrava linha e a
-    3ª carta descia por cima do feltro; agora não quebra — rola de lado. */
- #ini{padding:calc(28px + env(safe-area-inset-top)) 8px 8px;display:flex;gap:6px;
-   justify-content:safe center;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
-   z-index:10;pointer-events:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
-   max-height:calc(44vh + env(safe-area-inset-top))}
+ /* A FILEIRA DE INIMIGOS: TODO MUNDO TEM QUE CABER NA TELA.
+    Ela rolava de lado com as cartas em 120px fixos, e a partir do 4º inimigo
+    o resto ficava escondido fora da borda direita — no celular ninguém
+    descobre que precisa arrastar, e um inimigo que você não vê é um inimigo
+    cuja fechadura e cuja intenção você não pode ler.
+    Agora as cartas encolhem para caber e, se ainda não couberem, quebram em
+    duas linhas. Isso voltou a ser seguro: com o corpo em grid, a fileira que
+    cresce faz a MESA encolher, em vez de descer por cima do feltro. */
+ #ini{padding:calc(28px + env(safe-area-inset-top)) 6px 8px;display:flex;gap:5px;
+   justify-content:center;align-items:flex-start;flex-wrap:wrap;
+   z-index:10;pointer-events:auto;max-height:calc(52vh + env(safe-area-inset-top));
+   overflow-y:auto;scrollbar-width:none}
  #ini::-webkit-scrollbar{display:none}
- /* borda esfumada avisa que tem mais inimigo pro lado */
- #ini{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
-      mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
  .en{pointer-events:auto;background:rgba(8,11,15,.96);border:1px solid rgba(255,255,255,.13);
    border-radius:11px;padding:6px 7px;cursor:pointer;backdrop-filter:blur(6px);
-   flex:0 0 auto;width:120px;scroll-snap-align:center}
+   flex:1 1 96px;min-width:84px;max-width:132px}
+ /* onda cheia: a carta aperta pra sobrar mesa. Sem isto, com 6 inimigos em
+    duas linhas a fileira comia quase todo o feltro. */
+ #ini.cheia .en{padding:5px 6px}
+ #ini.cheia .en .spr{height:54px} #ini.cheia .en .spr img{height:54px}
+ #ini.cheia .en .nm{font-size:10.5px}
+ #ini.cheia .en .trava{font-size:8.5px;padding:2px 4px}
+ #ini.cheia .en .hp{font-size:9.5px}
  .en.alvo{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a55}
  .en.morto{opacity:.28;filter:grayscale(1)}
  .en .nm{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -41,7 +51,11 @@
    background:rgba(60,120,180,.24);border:1px solid #2b4258;border-radius:5px;padding:1px 5px}
  .en .armad{opacity:1;font-size:10px;font-weight:800;color:#cfd8e3;cursor:help;
    background:rgba(120,130,145,.18);border:1px solid #3d4a58;border-radius:5px;padding:1px 4px}
- .en .it{font-size:11px;font-weight:700;color:#ffb45e;margin-top:3px}
+ .en .it{font-size:11px;font-weight:700;color:#ffb45e;margin-top:3px;
+   display:flex;flex-wrap:wrap;align-items:baseline;gap:0 4px;line-height:1.3}
+ /* "→ 12 no HP" não pode partir deixando o "HP" órfão na linha de baixo */
+ .en .it .passa{white-space:nowrap}
+ #ini.cheia .en .it{font-size:9.5px}
  .en .st{font-size:9px;color:#7fd98a}
  .en .pres{font-size:8.5px;color:#9a8fd8;margin-top:2px;letter-spacing:.3px}
  .fer.ult{background:linear-gradient(180deg,#3a2a10,#1a1206);border-color:#c9a13a;color:#ffe9b0;
