@@ -51,13 +51,20 @@ export function buildWave(masmorra, andar, rng, flags=null){
   const out=[];
   const addC = n => { for(let i=0;i<n;i++) out.push(inst(rng.pick(M.comuns), esc, rng)); };
   const addE = n => { for(let i=0;i<n;i++) out.push(inst(rng.pick(M.elites), esc, rng, true)); };
+  /* A ONDA CRESCE COM A DESCIDA. Antes o tamanho era o mesmo do começo ao
+     fim (medido: máximo de 6, e só na M9 por causa do fardo), então as
+     masmorras da frente eram as mesmas lutas com números maiores. Da M6 em
+     diante a mesa enche de verdade: mais alvos competindo pelos MESMOS
+     dados é o que obriga a escolher quem fica vivo mais um turno. */
+  const fundo = masmorra >= 6 ? 1 : 0;        // +1 corpo por onda
+  const abismo = masmorra >= 8 ? 1 : 0;       // e mais um lá embaixo
   // chefe/subchefe já são a parede do andar — escolta grande virava muro cego
-  if(andar===5){ out.push(inst(M.subchefe, esc, rng)); addC(rng.range(1,2)); }
-  else if(andar===10){ out.push(inst(M.chefe, esc, rng)); addC(rng.range(0,2)); }
-  else if(andar<=2){ addC(rng.range(2,3)); if(masmorra>=2) addC(1); }
-  else if(andar<=4){ addC(2); addE(1); if(rng.chance(0.5)) addC(1); }
-  else if(andar<=7){ addE(1); addC(rng.range(3,4)); }
-  else { addE(rng.range(1,2)); addC(rng.range(2,3)); }
+  if(andar===5){ out.push(inst(M.subchefe, esc, rng)); addC(rng.range(1,2)+fundo); }
+  else if(andar===10){ out.push(inst(M.chefe, esc, rng)); addC(rng.range(0,2)+fundo); }
+  else if(andar<=2){ addC(rng.range(2,3)); if(masmorra>=2) addC(1); addC(fundo); }
+  else if(andar<=4){ addC(2); addE(1); if(rng.chance(0.5)) addC(1); addC(fundo+abismo); }
+  else if(andar<=7){ addE(1); addC(rng.range(3,4)+fundo+abismo); }
+  else { addE(rng.range(1,2)+abismo); addC(rng.range(2,3)+fundo); }
   // Fardo M9: toda onda tem >=1 elite, elites vêm em pares
   if(esc.fardo==='elites_em_par' && andar!==10){
     const nE = out.filter(e=>e.elite).length; if(nE===0) addE(2); else if(nE%2===1) addE(1);

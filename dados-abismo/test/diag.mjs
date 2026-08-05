@@ -53,6 +53,7 @@ function run(classeId, seed, maxM, BON){
       const tag = m+'-'+a;
       const inimigos = buildWave(m,a,rng,p.relicFlags);
       const cb = new Combat({ rng, player:p, enemies:inimigos, burdens, log:false });
+      cb.skillsDoJogador = C.skills;
       cb._tagAndar = tag;
       cb.onInvocar = id => criarInimigo(m,a,id,rng);
       const t0 = cb.turn||0;

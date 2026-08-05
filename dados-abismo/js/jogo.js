@@ -388,6 +388,7 @@ function novoCombate(){
   SFX.trilha(andar===5||andar===10 ? 'chefe' : 'batalha');
   const inim=buildWave(masmorra,andar,rng,P.relicFlags);
   cb=new Combat({rng,player:P,enemies:inim,burdens:burdensFor(masmorra),log:true});
+  cb.skillsDoJogador = habilidadesAtuais();   // 'selar' precisa saber o que trancar
   cb.onInvocar = id => criarInimigo(masmorra, andar, id, rng);   // subchefe chama reforço
   montarDados(); limparBandeja(); cb.startTurn(); alvo=0; sel.clear();
   rolarVisual(); pintar();
@@ -476,6 +477,14 @@ function pintar(){
       : it.t==='congelar'?'❄ congela 1 dado' : it.t==='roubar'?'✋ rouba 1 dado'
       : it.t==='fraturar'?'✖ fratura 1 dado' : it.t==='inverter'?'⇅ inverte 1 dado'
       : it.t==='contar'?`🕳 conta ${(e._conta||0)+1}/${it.ate}${(e._conta||0)+1>=it.ate?` — A CONTA ⚔ ${Math.round(it.v*(e.mult||1))}`:''}`
+      /* FUNDO DO ABISMO (M5+): mexem no puzzle, então a carta precisa dizer
+         exatamente o que vai ser tirado de você */
+      : it.t==='selar'?'🔒 tranca 1 habilidade'
+      : it.t==='taxa'?`💰 ${it.v} de HP por dado gasto`
+      : it.t==='drenar'?'🩸 rouba o seu bloqueio'
+      : it.t==='enterrar'?'⛏ enterra 1 dado (2 turnos)'
+      : it.t==='exigir'?'❗ fira-o ou TODOS enfurecem'
+      : it.t==='crescer'?`🌱 +${Math.round((it.v||6)*(e.mult||1))} de HP máximo`
       :'—';
     /* nó Presságio: você vê a intenção dos próximos turnos, não só a deste */
     const adiante = [];
@@ -680,7 +689,8 @@ function efeitoHabilidade(skill, pv){
 }
 /* ===== O TURNO DO INIMIGO ACONTECE NA TELA, um de cada vez ===== */
 const PROJ=document.createElement('div'); PROJ.id='proj'; document.body.appendChild(PROJ);
-const RGT={ atk:'⚔', atk_multi:'⚔', curse:'☠', debuff:'▼', heal:'✚', block:'🛡', buff:'▲', summon:'✦' };
+const RGT={ atk:'⚔', atk_multi:'⚔', curse:'☠', debuff:'▼', heal:'✚', block:'🛡', buff:'▲', summon:'✦',
+  selar:'🔒', taxa:'💰', drenar:'🩸', enterrar:'⛏', exigir:'❗', crescer:'🌱' };
 function centro(el){ const r=el.getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2]; }
 function projetil(de, para, cor, glifo, giro=1){
   const p=document.createElement('div'); p.className='pj'+(cor?' '+cor:''); p.textContent=glifo||'';
@@ -713,7 +723,9 @@ function impacto(x, y, cor='#ff6a55'){
 }
 const COR_ACAO = { heal:'#7ef2a8', curse:'#c07cff', debuff:'#c07cff',
                    congelar:'#8fd8ff', roubar:'#ffd24a', fraturar:'#ff8a7a',
-                   inverter:'#8fd8ff', contar:'#ff5a4a' };
+                   inverter:'#8fd8ff', contar:'#ff5a4a',
+                   selar:'#c9a6ff', taxa:'#ffd24a', drenar:'#ff6a8a',
+                   enterrar:'#a98a5e', exigir:'#ff9d2b', crescer:'#7ef2a8' };
 function animarInimigos(acoes){
   if(!acoes || !acoes.length) return 0;
   // muitos inimigos: encurta um pouco pra não virar novela, mas sem correr

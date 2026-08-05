@@ -156,6 +156,21 @@ export const INTENCOES = {
   inverter:   { ico:'⇅', nome:'Inverter dado', d:'Vira o seu melhor dado pra face oposta (num d6, 6 vira 1). Costuma quebrar a fechadura que você ia abrir.' },
   contar:     { ico:'🕳', nome:'A Conta',       d:'Ele conta os turnos. Quando a conta fecha, desce um golpe enorme. Mate antes, ou tenha bloqueio pronto.' },
   summon:     { ico:'✦', nome:'Invocar',       d:'Chama reforço pro campo.' },
+  /* ===== FUNDO DO ABISMO — só da Masmorra 5 em diante =====
+     As de cima tiram o seu HP; estas tiram as suas OPÇÕES, que é o que
+     realmente dói num jogo de montar jogada. */
+  selar:      { ico:'🔒', nome:'Selar habilidade',
+                d:'Tranca UMA das suas habilidades pelo próximo turno. A carta continua na tela, mas não pode ser jogada — e costuma ser justamente a que abriria a fechadura.' },
+  taxa:       { ico:'💰', nome:'Pedágio',
+                d:'No próximo turno, CADA dado que você gastar custa HP. Jogadas de muitos dados ficam caras: às vezes vale gastar um só, mesmo rendendo menos.' },
+  drenar:     { ico:'🩸', nome:'Drenar bloqueio',
+                d:'Toma o bloqueio que você acumulou e veste como escudo dele. Guardar defesa contra quem drena é entregar armadura ao inimigo.' },
+  enterrar:   { ico:'⛏', nome:'Enterrar dado',
+                d:'Um dado seu some da Bolsa por DOIS turnos — não é uma face travada, é o dado inteiro fora da mesa. Você joga com menos peças.' },
+  exigir:     { ico:'❗', nome:'Exigência',
+                d:'Um ultimato: se você NÃO o ferir neste turno, o campo inteiro entra em fúria (+50% de dano em todos). Ele obriga você a gastar dados nele, e não em quem você queria matar.' },
+  crescer:    { ico:'🌱', nome:'Crescer',
+                d:'Sobe o próprio HP MÁXIMO e se cura junto. Deixar vivo custa caro: cada turno que passa ele fica mais difícil de derrubar do que era.' },
 };
 export const ESTADOS = {
   veneno:     { ico:'☠', nome:'Veneno',      d:'Dano no fim do turno, IGNORANDO fechadura e bloqueio. Empilha e cai 1 por turno.' },

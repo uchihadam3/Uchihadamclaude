@@ -42,6 +42,9 @@ export class Combat {
     this.roll = [];                        // entradas roladas
     this.used = new Set();                 // dieIds já alocados
     this.circle = [];                      // Círculo do Arcanista (banking)
+    this.selada = null; this.seladaPor = 0;   // habilidade trancada (M5+)
+    this.taxaDado = 0;                        // pedágio por dado gasto (M5+)
+    this.skillsDoJogador = [];                // quem 'selar' escolhe trancar
     this.rerolls = 0;
     this.pity = 0;                         // Pena de Sorte (§5.4)
     this.logLines = []; this.doLog = log;
@@ -88,6 +91,11 @@ export class Combat {
     this.rerolls = Math.max(0, this.p.rerollsBase + (this.M.rerollBonus||0));
     for(const en of this.enemies){ en._arrombada = false;  // arrombamento dura 1 turno
       en._refletiu = false; }                              // o espelho recarrega
+    // o selo e o pedágio valem UM turno seu, e caem no começo do próximo
+    if(this.seladaPor>0){ this.seladaPor--; if(this.seladaPor<=0) this.selada=null; }
+    else this.selada = null;
+    if(this._taxaUsada){ this.taxaDado = 0; this._taxaUsada = false; }
+    else if(this.taxaDado>0) this._taxaUsada = true;
     this._polegar = this.p.polegar||0;                     // Polegar Torto recarrega
     /* CANALIZAÇÃO: o Círculo era só armazém — o Arcanista era a única classe
        cuja sobra não devolvia nada imediato (Carrasco vira dano, Lâmina vira
@@ -313,6 +321,8 @@ export class Combat {
     };
   }
   use(skill, dieIds, targetIdx=0){
+    // SELADA (M5+): a carta existe, mas não pode ser jogada neste turno
+    if(this.selada && skill.id===this.selada) return { ok:false, err:'habilidade selada' };
     if(!this.canUse(skill, dieIds)) return { ok:false, err:'requisito não satisfeito' };
     const ents = this.roll.filter(e=>dieIds.includes(e.dieId));
     const vals = resolvedValues(skill.req, ents, this.preferenciaCuringa(targetIdx));
@@ -324,6 +334,8 @@ export class Combat {
       ess: this.p.essence, hp: this.p.hp,
     };
     if(this.auras.has('preco_alto')) this.dmgPlayer(1, 'Preço Alto');
+    // PEDÁGIO (M5+): este turno cobra HP por dado que sair da mão
+    if(this.taxaDado>0) this.dmgPlayer(this.taxaDado * dieIds.length, 'pedágio');
     this.alocar(ents, vals);              // é isto que as fechaduras leem
     this._gastos = ents;                  // 'bank' devolve destes, não da sobra
     // Eco (⟳): duplica o efeito do próximo (aqui: deste) uso
@@ -688,6 +700,45 @@ export class Combat {
             en._conta=(en._conta||0)+1; reg.conta=en._conta;
             this.L(`${en.nome} conta ${en._conta}/${it.ate}`);
             if(en._conta>=it.ate){ en._conta=0; this.dmgPlayer(Math.round(it.v*(en.mult||1)),'A CONTA'); }
+            break; }
+
+          /* ===== FUNDO DO ABISMO (M5+) — atacam o PUZZLE, não o HP ===== */
+          case 'selar': {         // tranca uma habilidade sua no próximo turno
+            const livres = (this.skillsDoJogador||[]).filter(s=>!this.selada || this.selada!==s.id);
+            const alvo = livres.length ? livres[this.rng.int(livres.length)] : null;
+            if(alvo){ this.selada = alvo.id; this.seladaPor = 1; reg.selou = alvo.nome;
+              this.L(`${en.nome} SELOU ${alvo.nome} por um turno`); }
+            break; }
+          case 'taxa': {          // no próximo turno, cada dado gasto custa HP
+            this.taxaDado = Math.max(this.taxaDado||0, it.v||1);
+            reg.taxa = this.taxaDado;
+            this.L(`${en.nome} cobra PEDÁGIO: ${this.taxaDado} de HP por dado gasto`);
+            break; }
+          case 'drenar': {        // veste o SEU bloqueio como escudo dele
+            const v = this.p.block;
+            if(v>0){ this.p.block = 0; en.block += v; reg.drenou = v;
+              this.L(`${en.nome} DRENOU ${v} do seu bloqueio`); }
+            else this.L(`${en.nome} tentou drenar, mas você não tinha bloqueio`);
+            break; }
+          case 'enterrar': {      // um dado seu some da mesa por 2 turnos
+            const cand = this.p.bag.filter(d=>!d._roubado);
+            const alv = cand.length ? cand[this.rng.int(cand.length)] : null;
+            if(alv){ alv._roubado = 2; reg.dado = alv.id;
+              this.L(`${en.nome} ENTERROU um dado seu por 2 turnos`); }
+            break; }
+          case 'exigir': {        // ultimato: se não sangrou neste turno, todos enfurecem
+            const feriu = (en._danoTurno||0) > 0;
+            en._danoTurno = 0;
+            if(feriu){ reg.exigiuOk = true; this.L(`${en.nome}: a exigência foi paga`); }
+            else { for(const o of this.aliveEnemies()) o.statuses.frenesi = 1;
+              reg.exigiu = it.v||1;
+              this.L(`${en.nome}: você não o feriu — TODOS entram em fúria`); }
+            break; }
+          case 'crescer': {       // engorda de verdade: sobe o teto e cura
+            const g = Math.round((it.v||6) * (en.mult||1));
+            en.maxHp += g; en.hp = Math.min(en.maxHp, en.hp + g);
+            reg.cresceu = g;
+            this.L(`${en.nome} CRESCE (+${g} de HP máximo)`);
             break; }
         }
         /* INVOCA: o subchefe chama reforço quando o campo esvazia */

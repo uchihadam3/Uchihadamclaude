@@ -17,6 +17,7 @@ import { recalcRelics } from '../js/engine/rewards.js';
 import { satisfies } from '../js/engine/requirements.js';
 import { travaAberta, travaTxt, ALTERNATIVAS, mesmaTrava, seAnulam } from '../js/data/travas.js';
 import { buildWave } from '../js/engine/encounter.js';
+import { MASMORRAS } from '../js/data/dungeons.js';
 
 let ok = 0, falhas = [];
 const check = (cond, quem, oque, detalhe='') => {
@@ -1019,6 +1020,104 @@ console.log('=== CONTA DO GOLPE ===');
     check(a && a.travado === true, 'Conta do golpe',
       'o alvo barrado pela FECHADURA é marcado como travado, não como defendido',
       JSON.stringify(a && {dano:a.dano, defesa:a.defesa, travado:a.travado}));
+  }
+}
+
+/* =====================================================================
+   15. FUNDO DO ABISMO — as intenções que só existem da Masmorra 5 em
+   diante. Uma auditoria mostrou que o jogo tinha 12 tipos de intenção e
+   que quase todos apareciam nas 10 masmorras: a M9 usava as ferramentas
+   da M1 com números maiores. Estas atacam o PUZZLE, não o HP.
+   ===================================================================== */
+console.log('=== FUNDO DO ABISMO (M5+) ===');
+{
+  const comIntencao = (intent, extra={}) => {
+    const { cb, p } = cenario({ classe:'carrasco', faces:[6,6,5,5],
+      inimigos:[ inimigo({ hp:300, intent, padrao:[intent] }) ] });
+    cb.skillsDoJogador = CLASSES.carrasco.skills;
+    Object.assign(cb.enemies[0], extra);
+    return { cb, p, en:cb.enemies[0] };
+  };
+  // SELAR: a carta existe mas não pode ser jogada
+  {
+    const { cb } = comIntencao({t:'selar'});
+    cb.enemyTurn();
+    check(!!cb.selada, 'Selar', 'tranca uma habilidade sua', 'selada: '+cb.selada);
+    const sk = CLASSES.carrasco.skills.find(s=>s.id===cb.selada);
+    if(sk){
+      const r = cb.use(sk, [cb.roll[0].dieId], 0);
+      check(r.ok===false, 'Selar', 'a habilidade selada é recusada', r.err);
+    }
+    cb.startTurn();
+    check(!cb.selada, 'Selar', 'o selo cai no turno seguinte');
+  }
+  // TAXA: cada dado gasto custa HP
+  {
+    const { cb, p } = comIntencao({t:'taxa', v:2});
+    cb.enemyTurn();
+    check(cb.taxaDado === 2, 'Pedágio', 'passa a cobrar por dado gasto');
+    const hp0 = p.hp;
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='muralha');   // usa 2 dados
+    const ids = cb.roll.slice(0,2).map(e=>e.dieId);
+    cb.use(sk, ids, 0);
+    check(p.hp === hp0 - 4, 'Pedágio', '2 de pedágio × 2 dados = 4 de HP',
+      `${hp0} → ${p.hp}`);
+  }
+  // DRENAR: rouba o seu bloqueio e veste como escudo
+  {
+    const { cb, p, en } = comIntencao({t:'drenar'});
+    p.block = 9; en.block = 0;
+    cb.enemyTurn();
+    check(p.block === 0 && en.block >= 9, 'Drenar',
+      'tira o seu bloqueio e o veste', `você ${p.block}, ele ${en.block}`);
+  }
+  // ENTERRAR: um dado seu some por 2 turnos
+  {
+    const { cb, p } = comIntencao({t:'enterrar'});
+    const n0 = p.bag.length;
+    cb.enemyTurn();
+    check(p.bag.some(d=>d._roubado===2), 'Enterrar', 'marca um dado por 2 turnos');
+    cb.startTurn();
+    check(cb.roll.length === n0-1, 'Enterrar', 'o dado enterrado não rola',
+      `${n0} dados, rolaram ${cb.roll.length}`);
+  }
+  // EXIGIR: não o feriu? todos enfurecem
+  {
+    const { cb, en } = comIntencao({t:'exigir', v:1});
+    en._danoTurno = 0;
+    cb.enemyTurn();
+    check(cb.enemies.every(o=>o.statuses.frenesi), 'Exigir',
+      'sem ser ferido, ele enfurece o campo');
+  }
+  {
+    const { cb, en } = comIntencao({t:'exigir', v:1});
+    en._danoTurno = 50;                       // você o feriu neste turno
+    cb.enemyTurn();
+    check(!cb.enemies.some(o=>o.statuses.frenesi), 'Exigir',
+      'ferido a tempo, a exigência é paga e ninguém enfurece');
+  }
+  // CRESCER: sobe o teto de HP de verdade
+  {
+    const { cb, en } = comIntencao({t:'crescer', v:10});
+    en.hp = 100; en.maxHp = 300;
+    const max0 = en.maxHp, hp0 = en.hp;
+    cb.enemyTurn();
+    check(en.maxHp > max0 && en.hp > hp0, 'Crescer',
+      'sobe o HP máximo e cura junto', `${hp0}/${max0} → ${en.hp}/${en.maxHp}`);
+  }
+  // e o vocabulário novo só aparece da M5 em diante
+  {
+    const NOVAS = new Set(['selar','taxa','drenar','enterrar','exigir','crescer']);
+    let cedo = 0, tarde = 0;
+    for(let m=1;m<=10;m++){
+      const M = MASMORRAS[m];
+      for(const e of [...M.comuns,...M.elites,M.subchefe,M.chefe].filter(Boolean))
+        for(const p of (e.padrao||[])) if(NOVAS.has(p.t)){ (m<=4?cedo:tarde); if(m<=4) cedo++; else tarde++; }
+    }
+    check(cedo === 0, 'Fundo do Abismo',
+      'nenhuma intenção nova vaza para as masmorras 1-4', cedo+' encontradas');
+    check(tarde >= 10, 'Fundo do Abismo',
+      'e elas povoam as masmorras da frente', tarde+' usos de M5 em diante');
   }
 }
 

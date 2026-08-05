@@ -52,6 +52,7 @@ export function runOnce(classeId, seed, maxMasmorra=1, BON=bonusDoCofre(0)){
     for(let a=1; a<=10; a++){
       const inimigos = buildWave(m, a, rng, p.relicFlags);
       const cb = new Combat({ rng, player:p, enemies:inimigos, burdens, log:false });
+      cb.skillsDoJogador = C.skills;
       cb.onInvocar = id => criarInimigo(m, a, id, rng);
       const r = autoCombat(cb, C.skills);
       if(r!=='win') return { ok:false, masmorra:m, andar:a, andaresLimpos, hp:p.hp };
