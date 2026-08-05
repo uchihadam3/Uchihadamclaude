@@ -517,6 +517,9 @@ function buildFireflies(){
   box.innerHTML=html;
 }
 const LV_ICONS=["🌱","⛰️","🕳️","🧗","🌉","🔥","👾","🏔️","❄️","🧊","🥶","🌌","🌋","💠","🏁"];
+// TEMPORÁRIO (modo teste): destrava TODAS as fases, inclusive o chefe/secreta, pra testar tudo.
+// Voltar pra false pra restaurar a progressão normal.
+const UNLOCK_ALL=true;
 const ratingHtml=st=>{ let h=""; for(let k=0;k<3;k++) h+=`<i class="${k<st?"on":""}">★</i>`; return h; };
 function buildLevelGrid(){
   const grid=el("level-grid"); grid.innerHTML="";
@@ -545,7 +548,7 @@ function buildLevelGrid(){
     const st=save.stars[i]||0, nm=(L.name.split("·")[1]||"").trim(), c=document.createElement("div");
     c.style.animationDelay=(i*0.035).toFixed(3)+"s";      // entrada escalonada dos cartões
     if(L.secret){
-      const open=allSecrets;
+      const open=allSecrets||UNLOCK_ALL;
       c.className="lv-card lv-secret "+(open?"unlocked":"locked");
       c.innerHTML = open
         ? `<span class="lv-chip">★</span><span class="lv-ico">👑</span><span class="lv-name" style="color:var(--purple)">${nm}</span><span class="lv-rating">${ratingHtml(st)}</span>`
@@ -553,7 +556,7 @@ function buildLevelGrid(){
       if(open) c.addEventListener("click", ()=>{ audio(); startGame(i); });
       grid.appendChild(c); return;
     }
-    const locked=i>save.unlocked;
+    const locked=!UNLOCK_ALL && i>save.unlocked;
     const cTot=coinsIn(i), cGot=coinGot(i), sGot=secretGot(i);
     c.className="lv-card "+(locked?"locked":"unlocked")+(st>0?" done":"")+(i===nextIdx?" next":"");
     if(locked){
