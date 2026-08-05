@@ -144,7 +144,10 @@ function telaTitulo(){
       <div class="titbar"><span style="--p:${fundo}%"></span></div>
     </div>
     <div class="mbtns">
-      <button class="mb pri" data-a="jogar">▶ DESCER</button>
+      ${META.carregarRun()?`<button class="mb cont" data-a="continuar">↺ CONTINUAR
+        <em>${(()=>{const r=META.carregarRun();
+          return `${CLASSES[r.classe]?.nome||''} · Masmorra ${r.masmorra}, andar ${r.andar}`;})()}</em></button>`:''}
+      <button class="mb pri" data-a="jogar">▶ ${META.carregarRun()?'NOVA DESCIDA':'DESCER'}</button>
       <button class="mb" data-a="grim">📖 GRIMÓRIO <em>como se joga</em></button>
       <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${nos}/${META.NOS.length}</em></button>
     </div>
@@ -153,7 +156,8 @@ function telaTitulo(){
       <span><u>RECORDE</u><b>M${rec.masmorra}·A${rec.andar}</b></span>
       <span><u>VITÓRIAS</u><b>${cofre.vitorias||0}</b></span>
     </div></div>`;
-  bindA(m,{ jogar:telaClasses, cofre:telaCofre, grim:()=>telaGrimorio(null, telaTitulo) });
+  bindA(m,{ jogar:telaPortais, cofre:telaCofre, grim:()=>telaGrimorio(null, telaTitulo),
+            continuar:()=>{ if(!retomarRun()) telaPortais(); } });
 }
 function bindA(root,map){ root.querySelectorAll('[data-a]').forEach(b=>{
   b.onclick=()=>{ SFX.pegar(); map[b.dataset.a](); }; }); }
@@ -204,6 +208,37 @@ function telaCofre(){
     else SFX.soltar();
   });
 }
+/* ===================================================================
+   OS PORTAIS — de onde você começa a descida.
+   Fechar a Masmorra N abre a N+1 como ponto de partida. Quem começa mais
+   fundo recebe o ENXOVAL do caminho pulado (uma recompensa por andar), e
+   é isso que mantém a luta justa: sem ele, entrar na Masmorra 5 com a
+   bolsa de estreia seria só morrer no primeiro andar.
+   =================================================================== */
+let masmorraEscolhida = 1;
+function telaPortais(){
+  SFX.trilha('menu');
+  cofre = META.carregar(); BON = META.bonus(cofre);
+  const abertas = META.masmorrasAbertas(cofre);
+  if(abertas <= 1){ masmorraEscolhida = 1; return telaClasses(); }   // nada a escolher ainda
+  const m=$('msg'); m.classList.remove('off'); m.className='';
+  m.innerHTML=`<div class="clswrap">
+    <div class="cofhd"><button class="volta" data-a="voltar">‹</button><h2>ONDE COMEÇAR</h2></div>
+    <p class="cofp">Você abriu <b>${abertas}</b> ${abertas>1?'portais':'portal'}. Descer mais fundo
+      te dá o <b>enxoval</b> do caminho pulado — mas lá embaixo eles não perdoam.</p>
+    <div class="portais">${Array.from({length:META.MASMORRAS_TOTAL},(_,i)=>{
+      const n=i+1, esc=ESCALADA[i], livre = n<=abertas;
+      return `<button class="portal ${livre?'':'preso'}" ${livre?`data-p="${n}"`:''}>
+        <div class="pnum">${n}</div>
+        <div class="pinfo"><b>${esc.nome}</b>
+          <span>${livre? (n===1?'o começo de tudo':`enxoval de ${(n-1)*10} andares`) : '🔒 feche a masmorra anterior'}</span>
+          <i>inimigos ❤ ×${esc.hp.toFixed(1)} · ⚔ ×${esc.dano.toFixed(1)}</i>
+          ${esc.fardoTxt&&esc.fardoTxt!=='—'?`<u>⚠ ${esc.fardoTxt}</u>`:''}</div></button>`;
+    }).join('')}</div></div>`;
+  bindA(m,{ voltar:telaTitulo });
+  m.querySelectorAll('.portal[data-p]').forEach(b=>b.onclick=()=>{
+    masmorraEscolhida = +b.dataset.p; SFX.pegar(); telaClasses(); });
+}
 function telaClasses(){
   SFX.trilha('menu');
   const m=$('msg'); m.classList.remove('off'); m.className='';
@@ -243,10 +278,59 @@ function telaClasses(){
           <div class="chabs"><u>HABILIDADES</u>${habs}</div>
           <span class="cfan">${c.fantasia}</span>
           <span class="cpeg">ESCOLHER ESTA ALMA</span></div></button>`;}).join('')}</div></div>`;
-  bindA(m,{ voltar:telaTitulo });
-  m.querySelectorAll('.cbtn').forEach(b=>b.onclick=()=>{ SFX.vitoria(); iniciar(b.dataset.c); });
+  bindA(m,{ voltar:()=> META.masmorrasAbertas(cofre)>1 ? telaPortais() : telaTitulo() });
+  m.querySelectorAll('.cbtn').forEach(b=>b.onclick=()=>{ SFX.vitoria(); iniciar(b.dataset.c, masmorraEscolhida); });
 }
-function iniciar(cid){
+/* ===================================================================
+   SAVE DA DESCIDA — grava no MAPA, entre um andar e outro.
+   Gravar no meio do combate exigiria congelar a rolagem, os dados na mesa
+   e o estado do RNG; um save meio-turno que volta errado é pior que save
+   nenhum. Entre andares o estado é pequeno e exato.
+   =================================================================== */
+function gravarRun(){
+  if(!P || !C) return;
+  META.salvarRun({
+    v: 1, classe: P.classe, masmorra, andar, stats: {...stats},
+    hp: P.hp, maxHp: P.maxHp, baseMaxHp: P.baseMaxHp,
+    essence: P.essence||0, rerollsBase: P.rerollsBase,
+    unlocked: [...(P.unlocked||[])],
+    // os dados vão inteiros: material e faces gravadas fazem parte da run
+    bag: P.bag.map(d=>({ id:d.id, tipo:d.tipo, n:d.n, material:d.material,
+                         faces: d.faces.map(f=>({...f})) })),
+    // relíquia é sempre a mesma do catálogo: guardo o id e remonto na volta
+    relics: P.relics.map(r=>r.id),
+    // o que o Cofre concedeu no começo desta descida
+    cofre: { polegar:P.polegar, gazua:P.gazua, revive:P.revive, pity:P.pity,
+             ultimoLance:P.ultimoLance, gravExtra:P.gravExtra, presagio:P.presagio,
+             dmgFlat: BON.dmgFlat, blockStart: BON.blockStart },
+  });
+}
+export function temRunSalva(){ return !!META.carregarRun(); }
+function retomarRun(){
+  const s = META.carregarRun(); if(!s) return false;
+  const cl = CLASSES[s.classe]; if(!cl) { META.limparRun(); return false; }
+  C = cl;
+  P = { classe:s.classe, hp:s.hp, maxHp:s.maxHp, baseMaxHp:s.baseMaxHp, block:0,
+        bag:s.bag.map(d=>({ ...d, faces:d.faces.map(f=>({...f})) })),
+        statuses:{}, essence:s.essence, rerollsBase:s.rerollsBase,
+        relics:[], unlocked:[...(s.unlocked||[])],
+        polegar:s.cofre?.polegar, gazua:s.cofre?.gazua, revive:s.cofre?.revive,
+        pity:s.cofre?.pity, ultimoLance:s.cofre?.ultimoLance,
+        gravExtra:s.cofre?.gravExtra, presagio:s.cofre?.presagio };
+  for(const id of (s.relics||[])){
+    if(id==='_cofre'){ P.relics.push({ id:'_cofre', nome:'Cofre', r:'comum', txt:'',
+      mods:{dmgFlat:s.cofre?.dmgFlat||0}, start:{block:s.cofre?.blockStart||0} }); continue; }
+    const r = RELIQUIAS.find(x=>x.id===id);
+    // já aplicada quando foi pega: não pode conceder o dado extra de novo
+    if(r) P.relics.push(r.extraDie ? { ...r, _aplicado:true } : r);
+  }
+  recalcRelics(P);
+  P.hp = Math.min(P.hp, P.maxHp);
+  masmorra = s.masmorra; andar = s.andar; stats = { ...s.stats };
+  telaMapa(false);
+  return true;
+}
+function iniciar(cid, deMasmorra=1){
   C=CLASSES[cid];
   const bag=C.bag();
   for(let i=0;i<BON.dadosExtra;i++) bag.push(bag[i%bag.length] ? {...bag[0], id:'X'+i, faces:bag[0].faces.map(f=>({...f}))} : null);
@@ -264,7 +348,25 @@ function iniciar(cid){
   for(let i=0;i<BON.reliquias;i++){ const pool=RELIQ_COMUNS.filter(r=>!P.relics.some(x=>x.id===r.id));
     if(pool.length) P.relics.push(pool[rng.int(pool.length)]); }
   recalcRelics(P);
-  andar=1; masmorra=BON.portal>1?BON.portal:1;
+  andar=1;
+  masmorra = Math.max(deMasmorra, BON.portal>1?BON.portal:1);
+  /* ENXOVAL: começar na Masmorra N com a bolsa de estreia seria suicídio —
+     os inimigos de lá esperam quem limpou (N-1)x10 andares e escolheu uma
+     recompensa em cada um. Então é exatamente isso que entra: uma
+     recompensa por andar pulado. */
+  P._enxoval = [];
+  const pular = (masmorra-1)*10;
+  for(let i=0;i<pular;i++){
+    const opts = gerarOpcoes(rng, P, 3);
+    // mesma régua da IA do simulador: prefere poder, cura só se estiver ferido
+    const val = o => o.t==='reliquia' ? (o.r==='amaldicoada'?2 : o.r==='rara'?9 : 6)
+              : o.t==='dado' ? 5 : o.t==='grav' ? 5.5
+              : (P.hp < P.maxHp*0.55 ? 8 : 1);
+    const esc = opts.reduce((a,b)=> val(b)>val(a)?b:a);
+    aplicar(esc, P, rng);
+    P._enxoval.push(esc.nome);
+  }
+  P.hp = P.maxHp;
   stats={andares:0, elites:0, chefes:0};
   telaMapa(false);
 }
@@ -330,6 +432,7 @@ function previaOnda(m,a){
 }
 const MASM = m => (MASMORRAS[m]||MASMORRAS[1]);
 function telaMapa(entrando){
+  gravarRun();               // ponto de gravação: entre um andar e outro
   SFX.trilha('batalha');
   const msg=$('msg'); msg.classList.remove('off'); msg.className='';
   const esc=ESCALADA[masmorra-1];
@@ -1036,6 +1139,7 @@ function rotuloRaridade(o){
    não existe, e a tela estourava — e `vitorias` nunca saía de zero. */
 function telaVitoria(){
   // a vitória é epílogo, não combate: a de chefe soaria como ameaça
+  META.limparRun();            // a descida terminou
   SFX.vitoria(); SFX.trilha('menu');
   const m=$('msg'); m.classList.remove('off'); m.className='';
   const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
@@ -1070,6 +1174,7 @@ function telaVitoria(){
 function fim(){
   const m=$('msg'); m.classList.remove('off'); m.className='';
   if(cb.over==='lose'){ SFX.derrota(); SFX.trilha('menu');
+    META.limparRun();          // morreu: só se recomeça do zero
     const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
       masmorra, venceu:false}, BON.ecoMult);
     cofre.ecos+=ganho; cofre.runs=(cofre.runs||0)+1;
@@ -1153,6 +1258,9 @@ function fim(){
         if(eb) eb.classList.add('levada'); }
     }
     if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.15));
+    // fechou a masmorra: a próxima passa a ser um começo possível
+    if(andar===10){ cofre=META.carregar();
+      if(META.abrirMasmorra(cofre, masmorra+1)) BON=META.bonus(cofre); }
     andar++; if(andar>10){ andar=1; masmorra++; }
     // FIM DO JOGO: passar da Masmorra 10 caía em ESCALADA[10] === undefined e
     // a tela do mapa estourava. Não existia vitória — o contador de vitórias

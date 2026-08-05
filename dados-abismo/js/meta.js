@@ -11,6 +11,38 @@ export function carregar(){
 }
 export function salvar(m){ try{ localStorage.setItem(KEY, JSON.stringify(m)); }catch(e){} }
 
+/* ===================================================================
+   SAVE DA DESCIDA — você fecha o jogo no meio da masmorra e volta no
+   mesmo lugar. Só se perde o progresso morrendo.
+
+   O ponto de gravação é o MAPA, entre um andar e outro: gravar no meio
+   de um combate exigiria congelar a rolagem, os dados na mesa e o estado
+   do RNG, e um save meio-turno que volta errado é pior que save nenhum.
+   =================================================================== */
+const KEY_RUN = 'abismo_run_v1';
+
+export function salvarRun(estado){
+  try{ localStorage.setItem(KEY_RUN, JSON.stringify(estado)); }catch(e){}
+}
+export function carregarRun(){
+  try{ const d = JSON.parse(localStorage.getItem(KEY_RUN));
+       if(d && d.classe && d.masmorra) return d; }catch(e){}
+  return null;
+}
+export function limparRun(){ try{ localStorage.removeItem(KEY_RUN); }catch(e){} }
+
+/* ===================================================================
+   MASMORRAS ABERTAS — fechar a Masmorra N libera começar direto na N+1.
+   =================================================================== */
+export function masmorrasAbertas(m){
+  return Math.max(1, Math.min(MASMORRAS_TOTAL, m.abertas || 1));
+}
+export function abrirMasmorra(m, n){
+  const nova = Math.max(1, Math.min(MASMORRAS_TOTAL, n));
+  if(nova > (m.abertas||1)){ m.abertas = nova; salvar(m); return true; }
+  return false;
+}
+
 /* ---------------- A ÁRVORE ---------------- */
 /* custo cresce por nível; req = nós que precisam estar comprados; max = níveis */
 export const RAMOS = {
