@@ -53,26 +53,26 @@ function groveArtReady(){ return imgOk(BG.ceu) && imgOk(BG.montanhas) && imgOk(B
 // LEVELS com secret:true = fase oculta (só destrava achando TODOS os segredos)
 const LEVELS = [
   { name:"1 · Vale", mass:9, max:9, theme:"grove",
-    hint:"Vá pra direita ➜ e pule: cada pulo solta um pedaço seu que vira bloco. E a parede às suas costas… será que esconde algo lá em cima?", rows:[
+    hint:"", rows:[
     "##########################################################",
     "#                                                        #",
     "#                                                        #",
     "#                                                        #",
-    "#####                                                    #",
-    "#####                                                    #",
-    "#####                                                    #",
-    "#####                                                    #",
-    "#####                                                    #",
-    "#####                                                    #",
-    "#####                          *                         #",
-    "##SSS          ####          #####                       #",
-    "##GSS                                                    #",
-    "#####     ####                                           #",
-    "#####               o                         o          #",
-    "#####@                                                E  #",
-    "#######################   #############   ################",
-    "#######################   #############   ################",
-    "#######################^^^#############^^^################"]},
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "#                                                        #",
+    "# ####                                                   #",
+    "##SgSS                          *                        #",
+    "##SSSS                        #####                      #",
+    "# ####                                                   #",
+    "#            ####                                        #",
+    "#                   o                         o          #",
+    "#@                                                    E  #",
+    "########################   #############   ###############",
+    "########################   #############   ###############",
+    "########################^^^#############^^^###############"]},
 
   { name:"2 · Colinas", mass:9, max:9, theme:"grove",
     hint:"Suba os morros e cruze a ponte rachada CORRENDO — ela desmorona. O cume do morro talvez tenha uma passagem pra cima.", rows:[
@@ -83,7 +83,7 @@ const LEVELS = [
     "#                                                              #",
     "#                                                              #",
     "#                   ###                                        #",
-    "#                  #SGS#                                       #",
+    "#                  #SgS#                                       #",
     "#                  #SSS#                                       #",
     "#                   SSS                                        #",
     "#                                                              #",
@@ -117,7 +117,7 @@ const LEVELS = [
     "#                                #",
     "#                                #",
     "#                     SSS*       #",
-    "#                   ##SGS####    #",
+    "#                   ##SgS####    #",
     "#                    #SSS#       #",
     "#                     ###        #",
     "#                                #",
@@ -146,7 +146,7 @@ const LEVELS = [
     "#            #     o     #",
     "#            #  #######  #",
     "#            ####        #",
-    "#            SSGS#       #",
+    "#            SSgS#       #",
     "#     *      SSSS#       #",
     "#     o      ####        #",
     "#  ########  #           #",
@@ -182,7 +182,7 @@ const LEVELS = [
     "#              CCCCC             *                                     #",
     "#                                                                      #",
     "#                                                      SSS             #",
-    "#                                                     #SGS###          #",
+    "#                                                     #SgS###          #",
     "#                        o                   o        #SSS#            #",
     "# @                                                    ###           E #",
     "#       T                 # T                 # T                      #",
@@ -207,7 +207,7 @@ const LEVELS = [
     "#  ######  D                            *                    #",
     "#          D                          #####                  #",
     "#          D                                 ###             #",
-    "#          D                                #SGS#            #",
+    "#          D                                #SgS#            #",
     "# @        D      o                  o       SSS  o        E #",
     "#          D         HHHHHHHHHHHHH                           #",
     "######P#####################################   ###############",
@@ -227,7 +227,7 @@ const LEVELS = [
     "#                                                                #",
     "#                                                                #",
     "#                             *              ###                 #",
-    "#                         #########         #SGS#                #",
+    "#                         #########         #SgS#                #",
     "#                                            SSS                 #",
     "#             o                               o                  #",
     "#         #########                       #########              #",
@@ -248,7 +248,7 @@ const LEVELS = [
     "#                                                                                  #",
     "#                                                                                  #",
     "#                                                     ###                          #",
-    "#                                                    #SGS#                         #",
+    "#                                                    #SgS#                         #",
     "#                                                     SSS                          #",
     "#                                                      *                           #",
     "#                                                   #######                        #",
@@ -278,7 +278,7 @@ const LEVELS = [
     "#                                  *                                 #",
     "#                                #####                               #",
     "#                                 ###                                #",
-    "#     o #                        #SGS#                       #o      #",
+    "#     o #                        #SgS#                       #o      #",
     "#    ######                       SSS                      ######    #",
     "#       #                                                    #       #",
     "#       #                                                    #       #",
@@ -299,7 +299,7 @@ const LEVELS = [
     "#                                                  #",
     "#                                                  #",
     "#                                     SSS   E      #",
-    "#                                    #SGS######    #",
+    "#                                    #SgS######    #",
     "#                            o       #SSS#         #",
     "#                         ########    ###          #",
     "#                                                  #",
@@ -334,7 +334,7 @@ const LEVELS = [
     "#        #                       #",
     "#        #                       #",
     "#     ####  o                    #",
-    "#    #SGSS######                 #",
+    "#    #SgSS######                 #",
     "#    #SSSS                       #",
     "#     ####                       #",
     "#        #                       #",
@@ -368,7 +368,7 @@ const LEVELS = [
     "#                                                                            #",
     "#                                                                            #",
     "#     ##                                    CCCCCCC                          #",
-    "#    #GS#                                                                    #",
+    "#    #gS#                                                                    #",
     "#     SS                                                                     #",
     "# @       o                                               o                E #",
     "#                                                                            #",
@@ -387,7 +387,7 @@ const LEVELS = [
     "#                                                                #",
     "#                                                                #",
     "#   ###                                                          #",
-    "#  #SGS#                                                         #",
+    "#  #SgS#                                                         #",
     "#   SSS                                                          #",
     "#                               *                                #",
     "#  ######                                                        #",
@@ -417,7 +417,7 @@ const LEVELS = [
     "#                                                                    #",
     "#                                                                    #",
     "#                                                              ##    #",
-    "#           CCCCCCC           CCCCCCCCC         CCCCCCCCCCC   #GS#   #",
+    "#           CCCCCCC           CCCCCCCCC         CCCCCCCCCCC   #gS#   #",
     "#                                                              SS    #",
     "# @                     o                  o                   o   E #",
     "#                        #                  #                        #",
@@ -438,7 +438,7 @@ const LEVELS = [
     "#                                                                                          #",
     "#                                                     *                                    #",
     "#      ###                                        #########                                #",
-    "#     #SGS#                                                                                #",
+    "#     #SgS#                                                                                #",
     "#      SSS                                                                                 #",
     "#         *                                                                                #",
     "#     #####                                                                           ######",
@@ -1180,14 +1180,17 @@ function render(){
 
   // tiles com relevo + topo de grama-gosma (tema)
   function drawTile(s){
-    ctx.fillStyle=th.tile; ctx.fillRect(s.x,s.y,s.w,s.h);
-    ctx.fillStyle=th.tilehi; ctx.fillRect(s.x,s.y,s.w,3);
-    ctx.fillStyle="rgba(0,0,0,.22)"; ctx.fillRect(s.x,s.y+s.h-4,s.w,4);
-    const above=isSolidAt(s.x+16,s.y-16) || s.y<TILE;   // sem grama no teto/borda-topo
-    if(!above){ ctx.fillStyle=th.top; ctx.fillRect(s.x,s.y,s.w,6);
+    const above=blockedAt(s.x+16,s.y-16) || s.y<TILE;      // tem bloco/rocha ACIMA? (fantasma conta)
+    const below=blockedAt(s.x+16,s.y+s.h+16);              // tem bloco ABAIXO?
+    // base com leve sobreposição pra NÃO deixar fresta/linha entre blocos vizinhos
+    ctx.fillStyle=th.tile; ctx.fillRect(s.x-0.6,s.y-0.6,s.w+1.2,s.h+1.2);
+    // grama só no TOPO exposto (superfície)
+    if(!above){ ctx.fillStyle=th.top; ctx.fillRect(s.x-0.6,s.y,s.w+1.2,6);
       ctx.fillStyle=th.top2; for(let i=0;i<2;i++){ const dx=s.x+8+i*14; ctx.beginPath();
-        ctx.arc(dx,s.y+6,3+(i?1:0),0,Math.PI); ctx.fill(); } }
-    ctx.fillStyle="rgba(255,255,255,.03)"; ctx.fillRect(s.x+3,s.y+8,2,2); ctx.fillRect(s.x+s.w-8,s.y+13,2,2);
+        ctx.arc(dx,s.y+6,3+(i?1:0),0,Math.PI); ctx.fill(); }
+      ctx.fillStyle="rgba(255,255,255,.05)"; ctx.fillRect(s.x+4,s.y+9,2,2); }   // textura só na superfície
+    // sombra suave só na BASE exposta — dá volume SEM criar linhas no interior do bloco
+    if(!below){ ctx.fillStyle="rgba(0,0,0,.18)"; ctx.fillRect(s.x-0.6,s.y+s.h-3,s.w+1.2,3); }
   }
   for(const s of solidTiles) if(vis(s)) drawTile(s);
   // GELO por cima: brilho gélido azul-claro (avisa visualmente que escorrega)
@@ -1416,6 +1419,10 @@ function render(){
   if(transition>0){ ctx.fillStyle=`rgba(0,0,0,${transition})`; ctx.fillRect(0,0,W,H); }
 }
 function isSolidAt(px,py){ for(const s of solidTiles) if(px>=s.x&&px<s.x+s.w&&py>=s.y&&py<s.y+s.h) return true; return false; }
+// parede FANTASMA ainda "cheia" (não atravessada) conta como sólido pra decidir grama/sombra —
+// assim o piso de um segredo NÃO ganha grama e não denuncia o esconderijo.
+function isFakeAt(px,py){ for(const f of fakes) if(f.rev<1 && px>=f.x&&px<f.x+f.w&&py>=f.y&&py<f.y+f.h) return true; return false; }
+function blockedAt(px,py){ return isSolidAt(px,py)||isFakeAt(px,py); }
 
 // ---- fundo em parallax (estilo plataforma) ----
 function hillLayer(color, factor, baseY, spacing, height){
