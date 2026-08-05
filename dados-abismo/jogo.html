@@ -144,7 +144,15 @@
  .h .hsel b{font-size:10.5px;font-weight:900;line-height:1;padding:1px 4px;border-radius:5px;
    background:rgba(0,0,0,.4)}
  .h .hd{color:#ff8a7a} .h .hb{color:#8fd8ff} .h .hc{color:#7ef2a8}
- .h .hx{color:#e0a0a0} .h .hk{color:#ffd24a}
+ .h .hx{color:#e0a0a0} .h .hk{color:#ffd24a} .h .ht{color:#9aa3ad}
+ /* A CONTA DO GOLPE contra a defesa: golpe cheio, o que a defesa come, e o
+    que sobra. Mostrar só o resto fazia 11 de dano contra 11 de defesa
+    parecer que a habilidade não fazia nada. */
+ .h .hd.conta2{display:inline-flex;align-items:center;gap:3px;color:#ff8a7a}
+ .h .hd.conta2 i{font-style:normal;font-weight:800}
+ .h .hd.conta2 .hbr{color:#e8e2d0;opacity:.85}
+ .h .hd.conta2 .hdf{color:#8fd8ff;font-size:9.5px}
+ .h .hd.conta2 .hig{color:#6d7681;font-size:9px}
  .h .hest{font-size:8px;letter-spacing:1.4px;color:#5f6874;text-transform:uppercase}
  /* ===== A CONTA DO GOLPE: quantos dados, soma e paridade ===== */
  .conta{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:center;
@@ -658,6 +666,11 @@
  .en .prev .pe{background:#16324a;border:1px solid #4aa3d8;color:#bfe4ff;font-size:11px;font-weight:800;
    border-radius:7px;padding:2px 6px}
  .en .prev .pk{font-size:16px;filter:drop-shadow(0 0 6px #ff3b3b)}
+ /* a mesma conta sobre o inimigo */
+ .en .prev .pd.pconta{display:inline-flex;align-items:center;gap:4px;font-size:13px}
+ .en .prev .pd.pconta i{font-style:normal;font-weight:800}
+ .en .prev .pd.pconta .pbr{color:#ffd9d0;opacity:.9;font-size:11.5px}
+ .en .prev .pd.pconta .pdf{color:#9fd6ff;font-size:10.5px}
  .en .prev.mata .pd{background:#a01020;border-color:#ff9a5a;animation:matap .7s infinite}
  @keyframes matap{0%,100%{box-shadow:0 0 0 #ff3b3b}50%{box-shadow:0 0 14px #ff3b3b}}
  .hpb{position:relative}

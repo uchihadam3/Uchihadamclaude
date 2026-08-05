@@ -972,6 +972,56 @@ console.log('=== RE-ROLAGEM ===');
   }
 }
 
+/* =====================================================================
+   14. CONTA DO GOLPE — a prévia mostra o golpe cheio, o que a defesa come
+   e o que entra. Mostrar só o resto fazia 11 de dano contra 11 de defesa
+   parecer que a habilidade não fazia nada.
+   ===================================================================== */
+console.log('=== CONTA DO GOLPE ===');
+{
+  const golpear = (block, armadura=0) => {
+    const bag = Array.from({length:4},()=>makeDie('d6','osso'));
+    const { cb } = cenario({ classe:'carrasco', bag, faces:[6,1,1,1],
+      inimigos:[ inimigo({ hp:500, block }) ] });
+    cb.enemies[0].armadura = armadura;
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='decapitar');
+    return cb.prever(sk, [cb.roll[0].dieId], 0)?.alvos[0];
+  };
+  {
+    const a = golpear(11);
+    check(a && a.bruto > 0, 'Conta do golpe', 'a prévia informa o golpe CHEIO', 'bruto '+a?.bruto);
+    check(a && a.defesa === 11, 'Conta do golpe', 'informa o quanto a defesa comeu', 'defesa '+a?.defesa);
+    check(a && a.dano === a.bruto - a.defesa, 'Conta do golpe',
+      'cheio − defesa = o que entra', `${a?.bruto} − ${a?.defesa} = ${a?.dano}`);
+  }
+  {
+    // o caso que enganava: defesa maior que o golpe
+    const a = golpear(999);
+    check(a && a.bruto > 0 && a.dano === 0, 'Conta do golpe',
+      'com a defesa segurando tudo, o golpe cheio continua visível',
+      `bruto ${a?.bruto}, entra ${a?.dano}`);
+  }
+  {
+    // armadura e bloqueio entram os dois na conta da defesa
+    const a = golpear(5, 3);
+    check(a && a.armadura === 3 && a.bloqueio === 5 && a.defesa === 8, 'Conta do golpe',
+      'armadura e bloqueio somam na defesa',
+      `arm ${a?.armadura} + bloq ${a?.bloqueio} = ${a?.defesa}`);
+  }
+  {
+    // alvo travado pela fechadura: não é a defesa que barrou
+    const bag = Array.from({length:4},()=>makeDie('d6','osso'));
+    const { cb } = cenario({ classe:'carrasco', bag, faces:[6,6,1,1],
+      inimigos:[ inimigo({ hp:500, trava:{t:'fraco',v:2} }) ] });
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='furia');   // AoE, não arromba
+    const pv = cb.prever(sk, cb.roll.slice(0,2).map(e=>e.dieId), 0);
+    const a = pv?.alvos[0];
+    check(a && a.travado === true, 'Conta do golpe',
+      'o alvo barrado pela FECHADURA é marcado como travado, não como defendido',
+      JSON.stringify(a && {dano:a.dano, defesa:a.defesa, travado:a.travado}));
+  }
+}
+
 /* ---------------------------------------------------------------- */
 console.log('\n' + '─'.repeat(60));
 if (falhas.length) {

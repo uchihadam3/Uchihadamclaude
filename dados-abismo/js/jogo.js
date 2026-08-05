@@ -492,8 +492,11 @@ function pintar(){
       .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''}${v}</b>`).join(' ');
     const li=pi.linhas.find(l=>l.uid===e.uid);
     const pr=mapaPrev[e.uid];
+    // sobre o inimigo, a mesma conta: golpe cheio − defesa dele = o que entra
     const prevHTML = pr ? `<div class="prev ${pr.morre?'mata':''}">
-        ${pr.dano?`<span class="pd">-${pr.dano}</span>`:''}
+        ${pr.defesa>0
+          ? `<span class="pd pconta"><i class="pbr">${pr.bruto}</i><i class="pdf">−${pr.defesa}🛡</i>${pr.dano}</span>`
+          : (pr.dano?`<span class="pd">-${pr.dano}</span>`:'')}
         ${pr.estados.map(x=>`<span class="pe">${ICO[x.st]||'•'}${x.n}</span>`).join('')}
         ${pr.morre?'<span class="pk">☠</span>':''}</div>` : '';
     const barraPrev = pr&&pr.dano ? `<i class="perda" style="width:${Math.min(100,100*pr.dano/e.maxHp)}%;
@@ -533,8 +536,23 @@ function pintar(){
     const cPre = conta(entsPre, s.req);
     const mortes = p2 ? p2.alvos.filter(a=>a.morre).length : 0;
     const dano = p2 ? p2.alvos.reduce((a,x)=>a+x.dano,0) : 0;
+    /* A CONTA DO GOLPE: mostrar só o que sobra no HP era enganoso — 11 de
+       dano contra 11 de defesa aparecia como nada, e 15 contra 11 aparecia
+       como um "4" solto que não explicava de onde veio. Agora: 15 −11🛡 = 4 */
+    const feridos = p2 ? p2.alvos.filter(a=>(a.bruto||0)>0) : [];
+    const bruto  = feridos.reduce((a,x)=>a+(x.bruto||0),0);
+    const defesa = feridos.reduce((a,x)=>a+(x.defesa||0),0);
+    const travados = feridos.filter(a=>a.travado).length;
+    /* Com UM alvo a conta fecha e é honesta. Com vários, somar tudo mentiria:
+       um alvo pode ter sido barrado pela FECHADURA e não pela defesa, e o
+       "24 −11🛡 = 1" faria parecer que o escudo comeu 23. */
+    const contaDano = !p2 ? '' : (feridos.length===1 && defesa>0)
+      ? `<b class="hd conta2"><i class="hbr">${bruto}</i><i class="hdf">−${defesa}🛡</i><i class="hig">=</i>${dano}</b>`
+      : `${dano?`<b class="hd">-${dano}</b>`:''}${
+          defesa>0?`<b class="hb">🛡${defesa}</b>`:''}${
+          travados?`<b class="ht">✖${travados>1?travados:''}</b>`:''}`;
     const selo = p2 ? `<div class="hsel">
-        ${dano?`<b class="hd">-${dano}</b>`:''}
+        ${contaDano}
         ${p2.bloqueio?`<b class="hb">🛡${p2.bloqueio}</b>`:''}
         ${p2.curaHP?`<b class="hc">✚${p2.curaHP}</b>`:''}
         ${p2.custoHP?`<b class="hx">❤-${p2.custoHP}</b>`:''}

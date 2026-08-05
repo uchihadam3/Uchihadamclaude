@@ -351,6 +351,9 @@ export class Combat {
        onde daria zero, e mostrar zero onde abriria. */
     const alocOrig = this._aloc;
     this.alocar(ents, vals);
+    // liga a contabilidade: a prévia precisa do golpe cheio, não só do resto
+    this._contab = new Map(this.enemies.map(e=>[e.uid,
+      { bruto:0, armadura:0, bloqueio:0, travado:false }]));
     // snapshot
     const eOrig=this.enemies, pOrig=this.p, logOrig=this.doLog, overOrig=this.over;
     const antesE=eOrig.map(e=>({hp:e.hp, block:e.block, st:{...e.statuses}}));
@@ -369,13 +372,17 @@ export class Combat {
     this.enemies=eOrig; this.p=pOrig; this.doLog=logOrig;
     this._sandbox=false; this.over=overOrig; this._aloc=alocOrig;
     // diff
+    const contab = this._contab; this._contab = null;
     const alvos = depoisE.map((e,i)=>{
       const a=antesE[i];
       const dano = Math.max(0, (a.hp - e.hp));
       const novos=[]; for(const k in e.statuses){
         const d=(e.statuses[k]||0)-(a.st[k]||0); if(d>0) novos.push({st:k, n:d}); }
-      return { uid:e.uid, i, dano, morre: a.hp>0 && e.hp<=0, estados:novos, hpDepois:e.hp };
-    }).filter(x=> x.dano>0 || x.estados.length || x.morre);
+      const c = contab?.get(e.uid) || { bruto:0, armadura:0, bloqueio:0, travado:false };
+      return { uid:e.uid, i, dano, morre: a.hp>0 && e.hp<=0, estados:novos, hpDepois:e.hp,
+               bruto:c.bruto, defesa:c.armadura + c.bloqueio,
+               armadura:c.armadura, bloqueio:c.bloqueio, travado:c.travado };
+    }).filter(x=> x.dano>0 || x.estados.length || x.morre || x.bruto>0);
     return {
       alvos,
       bloqueio: Math.max(0, depoisP.block - antesP.block),
@@ -502,17 +509,27 @@ export class Combat {
       let d = Math.round((amt + ((M.dmgFlat||0) + (this._laminasRoladas||0))*flatK)
                          * frenesi * (M.dmgMult||1));
       if(en.statuses.marca){ d = Math.round(d*1.5); en.statuses.marca=0; }
+      /* CONTABILIDADE do golpe (§12): a prévia mostrava só o que sobra no HP,
+         então 11 de dano contra 11 de defesa aparecia como "0" e parecia que
+         a habilidade não fazia nada. Aqui fica registrado o golpe cheio, o
+         quanto a defesa comeu e o que entrou. */
+      const ct = this._contab && this._contab.get(en.uid);
+      if(ct) ct.bruto += d;
       // ===== FECHADURA (§6): o golpe errado simplesmente não fere =====
       let refletir = null;
       if(!pierce){
         const t = this.travaDe(en);
         if(t && !this.abre(en)){
           this.L(`  ✖ ${en.nome}: TRAVADO (${t.t}${t.v!==undefined?' '+t.v:''})`);
+          if(ct) ct.travado = true;
           return;
         }
         const arm = Math.max(0, (en.statuses.armadura||0) + (en.armadura||0) - (M.pierce||0));
+        const antesArm = d;
         d = Math.max(1, d - arm);
-        if(en.block>0){ const abs=Math.min(en.block,d); en.block-=abs; d-=abs; }
+        if(ct) ct.armadura += (antesArm - d);
+        if(en.block>0){ const abs=Math.min(en.block,d); en.block-=abs; d-=abs;
+          if(ct) ct.bloqueio += abs; }
         // o espelho devolve o que ENTROU, não o que foi arremessado: refletir o
         // bruto cobrava pela armadura do próprio inimigo duas vezes
         refletir = t;
