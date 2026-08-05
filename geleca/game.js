@@ -181,15 +181,15 @@ const LEVELS = [
     "#                                                                      #",
     "#                                                                      #",
     "#                                                                      #",
-    "#                                                                      #",
+    "#                                                                 G    #",
     "#                                                                      #",
     "#              CCCCC             *                                     #",
     "#                                                                      #",
-    "#                                                      SSS             #",
-    "#                                                     #SgS###          #",
-    "#                        o                   o        #SSS#            #",
-    "# @                                                    ###           E #",
-    "#       T                 # T                 # T                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                                                                      #",
+    "#                         o                   o                        #",
+    "#       T                 # T                 # T                @   E #",
     "##########               #####               #####             #########",
     "##########               #####               #####             #########",
     "##########^^^^^^^^^^^^^^^#####^^^^^^^^^^^^^^^#####^^^^^^^^^^^^^#########"],
@@ -1531,11 +1531,12 @@ function render(){
     ctx.fillStyle="rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(-st.r*0.22,-st.r*0.22,st.r*0.24,0,7); ctx.fill();
     ctx.restore(); }
 
-  // gemas = SEGREDOS ocultos: INVISÍVEIS até serem reveladas (gm.rev>0). Estilo Fez —
-  // você pode zerar o jogo sem NUNCA ver uma. Só materializa quando você entra no esconderijo.
-  for(const gm of gems){ if(gm.got||gm.rev<=0||!vis({x:gm.x-16,y:gm.y-16,w:32,h:32}))continue;
+  // gemas = SEMPRE VISÍVEIS (recompensa maior do jogo). A ÚNICA forma de escondê-las é
+  // colocá-las atrás de uma PAREDE FALSA — a 2ª passada das paredes fantasma (abaixo) cobre
+  // por cima; ao encostar na parede, ela some e revela a gema.
+  for(const gm of gems){ if(gm.got||!vis({x:gm.x-16,y:gm.y-16,w:32,h:32}))continue;
     const gy=gm.y+Math.sin(T*2.5+gm.x)*3, r=gm.r;
-    ctx.save(); ctx.globalAlpha=gm.rev; ctx.translate(gm.x,gy); ctx.rotate(Math.sin(T*1.5+gm.x)*0.25);
+    ctx.save(); ctx.translate(gm.x,gy); ctx.rotate(Math.sin(T*1.5+gm.x)*0.25);
     ctx.shadowColor="#c9a6ff"; ctx.shadowBlur=16;
     const gg=ctx.createLinearGradient(0,-r,0,r); gg.addColorStop(0,"#efe0ff"); gg.addColorStop(1,"#8a5fd0");
     ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(r*0.8,0); ctx.lineTo(0,r); ctx.lineTo(-r*0.8,0); ctx.closePath(); ctx.fill();
