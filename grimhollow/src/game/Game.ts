@@ -93,6 +93,16 @@ const TOMBADO_MS = 30000;
 // Erguer alguém leva esse tempo PARADO — resgatar no meio da briga tem de custar.
 const LEVANTAR_MS = 2600;
 
+// PÉ-DIREITO da masmorra: teto BAIXO (estilo Arcmaze), não caverna aberta. Era um
+// literal solto dentro do construtor do andar — virou constante porque agora o
+// tamanho dos inimigos depende dele.
+const DUNGEON_CH = 4.6;
+// NENHUM BICHO PODE SER MAIS ALTO QUE O TETO. Parece óbvio, mas o Leviatã (4,8) e
+// o Guardião (5,2) foram declarados acima do pé-direito e ATRAVESSAVAM a laje: de
+// dentro da sala dava p/ ver a cabeça sumindo no teto. Chefe imponente se resolve
+// na LARGURA (ver `wide`), que não tem laje p/ furar.
+const ALTURA_MAX_MOB = DUNGEON_CH - 0.25;
+
 /**
  * Nome legível de uma CHAVE DE ZONA ("village", "dungeon:2", "tavern"…).
  * O painel de amigos recebe a chave crua pela rede — quem está do outro lado não
@@ -255,6 +265,9 @@ const ENEMY_TYPES: Record<string, {
   lvl?: number; // "nível" do inimigo → o XP recebido diminui se o herói o supera muito
   ranged?: boolean; melee?: boolean; range?: number; proj?: string; ai?: string; spd?: number;
   tier?: "normal" | "mini" | "boss";
+  // largura extra do billboard (1 = proporção natural da arte). É assim que um
+  // chefe fica IMPONENTE sem esbarrar no teto: ocupa mais chão, não mais altura.
+  wide?: number;
 }> = {
   // BALANCE (Difícil): atk calibrado p/ a mitigação por Defesa/Res.Mág. — o tanque
   // amortece bem, os frágeis precisam esquivar/kitar. rato/aranha são a introdução leve.
@@ -289,7 +302,7 @@ const ENEMY_TYPES: Record<string, {
   // aberração: tanque fúngico — muito HP, IMPLACÁVEL (mini-elite do Ato II).
   aberracao: { art: enemyAberracaoUrl, hp: 275, atk: 32, xp: 110, gold: 30, vision: 5, h: 3.1, lvl: 5, ai: "relentless", spd: 880, tier: "mini" },
   // CHEFE do Ato II — o Leviatã Afogado. Maior e mais duro que o do Ato I.
-  boss_a2:   { art: enemyBossA2Url,   hp: 1450, atk: 48, xp: 900, gold: 380, vision: 13, h: 4.8, lvl: 9, ai: "relentless", spd: 680, tier: "boss" },
+  boss_a2:   { art: enemyBossA2Url,   hp: 1450, atk: 48, xp: 900, gold: 380, vision: 13, h: 4.3, lvl: 9, ai: "relentless", spd: 680, tier: "boss", wide: 1.15 },
   // GUARDIÃO DO SELO — o chefe da Câmara Selada. Só se chega até ele em DUPLA
   // (duas placas, oito casas de distância), então ele é o único inimigo do jogo
   // balanceado sem a pergunta "e se estiver sozinho?": muita vida, golpe pesado e
@@ -297,7 +310,7 @@ const ENEMY_TYPES: Record<string, {
   // que se chegasse lá, ele não é uma luta — é uma parede.
   // ARTE PENDENTE (§29 do PROMPTS.md): por ora usa a folha do Leviatã tingida de
   // pálido/dourado, p/ não parecer o mesmo bicho.
-  guardiao:  { art: enemyBossA2Url,   hp: 2900, atk: 62, xp: 1800, gold: 760, vision: 14, h: 5.2, lvl: 12, ai: "relentless", spd: 720, tier: "boss" },
+  guardiao:  { art: enemyBossA2Url,   hp: 2900, atk: 62, xp: 1800, gold: 760, vision: 14, h: 4.35, lvl: 12, ai: "relentless", spd: 720, tier: "boss", wide: 1.3 },
 };
 import decWindowUrl from "../assets/env/dec_window.png";
 // ---- ARTE DA CIDADE (§28): fachadas, soco e props de rua ----
@@ -3502,7 +3515,9 @@ export class Game {
     // nível do inimigo = base do tipo + andar da masmorra (fica valendo XP por mais
     // tempo nos andares fundos); fora da masmorra usa a base do tipo.
     const LVL = (T.lvl ?? 1) + (this.location === "dungeon" ? this.dungeonFloor : 0);
-    const worldH = T.h; // altura do sprite (rato baixo, carniçal/cultista maiores)
+    // altura do sprite (rato baixo, carniçal/cultista maiores), NUNCA acima do teto
+    const worldH = this.location === "dungeon" ? Math.min(T.h, ALTURA_MAX_MOB) : T.h;
+    const larg = T.wide ?? 1;
     const mat = new THREE.MeshLambertMaterial({
       transparent: true,
       opacity: 0,
@@ -3514,7 +3529,7 @@ export class Game {
       // SELADO, não como algo que se afogou.
       ...(typeId === "guardiao" ? { color: new THREE.Color(0xe8d9a8) } : {}),
     });
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH * 0.47, worldH), mat);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH * 0.47 * larg, worldH), mat);
     mesh.position.set(c * CELL, worldH / 2, r * CELL);
     this.world.add(mesh);
     this.billboardProps.push(mesh); // encara a câmera como os aldeões
@@ -3595,7 +3610,7 @@ export class Game {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 0.47;
       mesh.geometry.dispose();
-      mesh.geometry = new THREE.PlaneGeometry(worldH * asp, worldH);
+      mesh.geometry = new THREE.PlaneGeometry(worldH * asp * larg, worldH);
       mesh.position.y = worldH / 2;
       mat.map = t;
       mat.opacity = 1;
@@ -7085,7 +7100,7 @@ export class Game {
   // tochas, props e a parede ilusória do segredo.
   private buildDungeon() {
     this.dungeonSession++; // nova "sessão" do andar → cancela respawns pendentes do anterior
-    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = 4.6; // teto BAIXO — masmorra fechada (estilo Arcmaze), não caverna aberta
+    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = DUNGEON_CH;
     const HALF = CELL / 2;
     const hash = (a: number, b: number, s = 0) =>
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
