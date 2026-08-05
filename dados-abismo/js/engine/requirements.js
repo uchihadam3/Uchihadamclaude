@@ -11,12 +11,26 @@ export const isWild     = e => e.face.k==='wild';
 export const isSymbol   = (e,s) => e.face.k===s;
 
 /* todas as combinações de valores possíveis para os curingas do conjunto */
+/* TETO DE BUSCA: cada ◈ Curinga multiplica as combinações pelo número de
+   faces do dado. Enquanto a busca parava no primeiro encaixe isso não
+   pesava; quando passou a varrer TUDO para escolher o melhor valor, três
+   curingas num d6 viraram 216 combinações — dentro de cada avaliação da
+   IA, para cada habilidade e cada alvo. O jogo travava.
+   Acima do teto, os curingas extras assumem o maior valor do próprio dado
+   (o palpite certo na esmagadora maioria dos casos) e só os primeiros são
+   realmente pesquisados. */
+const TETO_CURINGA = 4096;
 function wildAssignments(entries, cb){
   const wilds = entries.map((e,i)=>({e,i})).filter(x=>isWild(x.e));
   if(!wilds.length) return cb(entries.map(entryValue));
   const base = entries.map(entryValue);
+  // quantos curingas cabem no teto de combinações
+  let livres = 0, custo = 1;
+  for(const w of wilds){ custo *= Math.max(1, w.e.n); if(custo > TETO_CURINGA) break; livres++; }
+  livres = Math.max(1, livres);
+  for(let k=livres; k<wilds.length; k++) base[wilds[k].i] = wilds[k].e.n;   // fixos no máximo
   const rec=(k)=>{
-    if(k===wilds.length){ if(cb(base.slice())) return true; return false; }
+    if(k===livres){ if(cb(base.slice())) return true; return false; }
     const w = wilds[k];
     for(let v=1; v<=w.e.n; v++){ base[w.i]=v; if(rec(k+1)) return true; }
     base[w.i]=null; return false;

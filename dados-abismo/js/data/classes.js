@@ -38,6 +38,21 @@ export const CLASSES = {
       { id:'carniceiro', nome:'Açougueiro', req:{t:'set',size:2}, unlock:'coroa_carrasco',
         desc:'Arromba e dilacera: dano triplo no alvo. Você sangra 4.',
         eff:[{op:'arrombar',tgt:'chosen'},{op:'dmg',tgt:'chosen',amt:'sum*3'},{op:'selfdmg',amt:'4'}] },
+      /* ===== A TRILHA: liberadas fechando masmorras (§4.4) =====
+         Cada uma leva a CHAVE da classe um degrau adiante. Não é "o mesmo
+         golpe com número maior": o Carrasco passa de arrombar UM a arrombar
+         TODOS, e por fim a arrombar antes mesmo de bater. */
+      { id:'quebra_ossos', nome:'Quebra-Ossos', req:{t:'min',v:4}, unlock:'m1',
+        desc:'ARROMBA a fechadura de TODOS por este turno. Dano moderado no alvo.',
+        eff:[{op:'arrombar',tgt:'all'},{op:'dmg',tgt:'chosen',amt:'val*2+4'}] },
+      { id:'guilhotina', nome:'Guilhotina', req:{t:'sum',min:14}, unlock:'m3',
+        desc:'Arromba e desce inteira: dano pesado que IGNORA armadura e bloqueio.',
+        eff:[{op:'arrombar',tgt:'chosen'},{op:'dmg',tgt:'chosen',amt:'sum*4',pierce:true},
+             {op:'selfdmg',amt:'6'}] },
+      { id:'cadafalso', nome:'Cadafalso', req:{t:'each',size:3,of:{t:'min',v:4}}, unlock:'m5',
+        desc:'O machado cai sobre o campo inteiro, arrombando tudo. Espinhos e bloqueio pra segurar o troco.',
+        eff:[{op:'arrombar',tgt:'all'},{op:'dmg',tgt:'all',amt:'sum*2'},
+             {op:'block',amt:'sum'},{op:'selfStatus',st:'espinhos',n:'4'}] },
     ],
   },
 
@@ -65,6 +80,19 @@ export const CLASSES = {
       { id:'enxame', nome:'Enxame de Lâminas', req:{t:'set',size:4}, unlock:'coroa_lamina',
         desc:'Golpeia TODOS várias vezes e envenena TODOS.',
         eff:[{op:'hits',tgt:'all',times:'val',amt:'2+blades'},{op:'status',tgt:'all',st:'veneno',n:'3'}] },
+      /* A TRILHA: o veneno já ignora fechadura — o que cresce é a ESCALA
+         e a sobrevivência de quem precisa de tempo para o veneno agir. */
+      { id:'garganta', nome:'Garganta Aberta', req:{t:'set',size:2}, unlock:'m1',
+        desc:'Sangramento pesado no alvo — e ele NÃO decai enquanto você estiver invisível.',
+        eff:[{op:'status',tgt:'chosen',st:'sangramento',n:'val*2+2'},
+             {op:'selfStatus',st:'invisivel',n:'1'}] },
+      { id:'nevoa', nome:'Névoa de Bílis', req:{t:'any',count:3}, unlock:'m3',
+        desc:'Envenena TODOS pesado e some: você sofre 65% menos dano no turno deles.',
+        eff:[{op:'status',tgt:'all',st:'veneno',n:'count*3'},
+             {op:'selfStatus',st:'invisivel',n:'1'},{op:'block',amt:'sum'}] },
+      { id:'ceifa', nome:'Ceifa Silenciosa', req:{t:'set',size:3}, unlock:'m5',
+        desc:'Converte o veneno em morte: cada inimigo envenenado sofre AGORA o dobro do veneno acumulado.',
+        eff:[{op:'ceifar',tgt:'all',amt:'2'},{op:'status',tgt:'all',st:'veneno',n:'val'}] },
     ],
   },
 
@@ -91,6 +119,20 @@ export const CLASSES = {
       { id:'colapso', nome:'Colapso', req:{t:'seq',size:4},
         desc:'CATACLISMA. Dano devastador em todos, ignorando fechadura e armadura.',
         eff:[{op:'dmg',tgt:'all',amt:'sum*5',pierce:true},{op:'block',amt:'sum'}] },
+      /* A TRILHA: dissolver a regra por mais tempo, e com sequência menor —
+         a classe sofre por depender de sequência, então o que cresce é a
+         chance de montar uma. */
+      { id:'fenda', nome:'Fenda', req:{t:'seq',size:2}, unlock:'m1',
+        desc:'DISSOLVE a fechadura do alvo por 2 turnos e guarda 1 dado no Círculo.',
+        eff:[{op:'dissolver',tgt:'chosen',n:'2'},{op:'dmg',tgt:'chosen',amt:'sum*2'},
+             {op:'bank',n:'1'},{op:'essence',n:'1'}] },
+      { id:'entropia', nome:'Entropia', req:{t:'seq',size:3}, unlock:'m3',
+        desc:'Apaga a regra de TODOS por 3 turnos. Enquanto durar, qualquer dado fere qualquer um.',
+        eff:[{op:'dissolver',tgt:'all',n:'3'},{op:'dmg',tgt:'all',amt:'sum*2'},
+             {op:'block',amt:'sum'}] },
+      { id:'singularidade', nome:'Singularidade', req:{t:'seq',size:4}, unlock:'m5',
+        desc:'O Colapso levado ao fim: dano imenso em todos, perfurando tudo, e o Círculo guarda 3 dados.',
+        eff:[{op:'dmg',tgt:'all',amt:'sum*6',pierce:true},{op:'bank',n:'3'}] },
       { id:'prisma', nome:'Prisma', req:{t:'seq',size:5}, unlock:'coroa_arcanista',
         desc:'Dissolve tudo, fere todos e devolve 2 dados ao Círculo.',
         eff:[{op:'dissolver',tgt:'all',n:'3'},{op:'dmg',tgt:'all',amt:'sum*3'},{op:'bank',n:'2'}] },
@@ -124,6 +166,16 @@ export const CLASSES = {
         desc:'Devolve o último ataque inimigo, estala em TODOS, MARCA o alvo e ajusta 2 dados da mão.',
         eff:[{op:'copyLast',tgt:'chosen'},{op:'dmg',tgt:'all',amt:'11'},{op:'marcar',tgt:'chosen'},
              {op:'ajustar',n:'2',passo:'1'}] },
+      /* A TRILHA: reescrever mais dados, e por fim escolher o número. */
+      { id:'urdidura', nome:'Urdidura', req:{t:'any',count:2}, unlock:'m1',
+        desc:'CRAVA um dado da mão no valor que abre a fechadura do alvo, e bloqueia.',
+        eff:[{op:'definir',n:'1'},{op:'block',amt:'sum'},{op:'essence',n:'1'}] },
+      { id:'sentenca', nome:'Sentença', req:{t:'sumExact',v:11}, unlock:'m3',
+        desc:'Como o Julgamento, mais fundo: dano enorme que perfura tudo e MARCA o alvo.',
+        eff:[{op:'dmg',tgt:'chosen',amt:'34+sum*4',pierce:true},{op:'marcar',tgt:'chosen'}] },
+      { id:'novelo', nome:'Novelo do Mundo', req:{t:'each',size:3,of:{t:'parity',p:'even'}}, unlock:'m5',
+        desc:'Reescreve a mesa: CRAVA três dados no valor que você precisa e fere todos.',
+        eff:[{op:'definir',n:'3'},{op:'dmg',tgt:'all',amt:'sum*2'},{op:'block',amt:'sum'}] },
       { id:'tapecaria', nome:'Tapeçaria', req:{t:'each',size:3,of:{t:'parity',p:'odd'}}, unlock:'coroa_oracula',
         desc:'CRAVA dois dados da mão no valor exato que abre a fechadura do alvo. Dano em todos.',
         eff:[{op:'definir',n:'2'},{op:'dmg',tgt:'all',amt:'sum*2'}] },

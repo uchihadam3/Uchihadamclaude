@@ -208,6 +208,16 @@ function telaCofre(){
     else SFX.soltar();
   });
 }
+/* AS CHAVES DA TRILHA: fechar a Masmorra N libera a habilidade marcada
+   'mN'. É por isso que dá para descer mais fundo — não por ficar melhor
+   de mira, mas por ter ferramenta nova na mão. */
+function chavesAbertas(cid){
+  const fechadas = META.masmorrasAbertas(cofre) - 1;   // abriu a N+1 => fechou a N
+  const ks = [];
+  for(let i=1;i<=fechadas;i++) ks.push('m'+i);
+  if(BON.quarta) ks.push('coroa_'+cid);
+  return ks;
+}
 /* ===================================================================
    OS PORTAIS — de onde você começa a descida.
    Fechar a Masmorra N abre a N+1 como ponto de partida. Quem começa mais
@@ -256,10 +266,14 @@ function telaClasses(){
       /* as HABILIDADES são o motivo real de escolher uma classe e não estavam
          na tela: o jogador escolhia por HP e vibe. As de coroa ficam com
          cadeado — mostram o que o Cofre ainda tem pra dar. */
+      const chaves = chavesAbertas(c.id);
       const habs = c.skills.map(s=>{
-        const preso = s.unlock && !BON.quarta;
-        return `<span class="chab${preso?' preso':''}">${preso?'🔒 ':''}${s.nome}
-          <u>${reqLabel(s.req)}</u></span>`;}).join('');
+        const preso = s.unlock && !chaves.includes(s.unlock);
+        // o cadeado diz COMO abrir: fechar a masmorra N, ou o Cofre
+        const como = !preso ? '' : /^m\d+$/.test(s.unlock)
+          ? ` — feche a Masmorra ${s.unlock.slice(1)}` : ' — Cofre';
+        return `<span class="chab${preso?' preso':''}" title="${s.desc.replace(/"/g,'&quot;')}">${preso?'🔒 ':''}${s.nome}
+          <u>${reqLabel(s.req)}</u>${preso?`<i class="ccomo">${como}</i>`:''}</span>`;}).join('');
       return `<button class="cbtn" data-c="${c.id}" style="--cc:${c.cor}">
         <div class="cmarca">${c.glifo}</div>
         <div class="cretrato">
@@ -336,7 +350,7 @@ function iniciar(cid, deMasmorra=1){
   for(let i=0;i<BON.dadosExtra;i++) bag.push(bag[i%bag.length] ? {...bag[0], id:'X'+i, faces:bag[0].faces.map(f=>({...f}))} : null);
   P={ classe:cid, hp:C.hp+BON.hpBonus, maxHp:C.hp+BON.hpBonus, baseMaxHp:C.hp+BON.hpBonus, block:0,
       bag:bag.filter(Boolean), statuses:{}, essence:0,
-      rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:BON.quarta?['coroa_'+cid]:[],
+      rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:chavesAbertas(cid),
       polegar:BON.polegar, gazua:BON.gazua, revive:BON.revive, pity:BON.pity,
       ultimoLance:BON.ultimoLance, gravExtra:BON.gravExtra, presagio:BON.presagio };
   // gravações iniciais do Cofre (Lâmina / Curinga / Eco)

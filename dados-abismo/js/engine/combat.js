@@ -445,6 +445,17 @@ export class Combat {
         case 'exec': this.forTargets(e.tgt, targetIdx, en=>{
                        if(en.hp>0 && en.hp <= en.maxHp*e.pct){ en.hp=0; this.L(`EXECUÇÃO: ${en.nome}`); } }); break;
         case 'essence': this.p.essence += evalExpr(e.n,ctx); break;
+        /* CEIFA (Lâmina, M5): converte o veneno acumulado em dano AGORA.
+           A classe monta veneno por turnos; sem isto, contra inimigo que
+           cura ou cresce, o acúmulo nunca virava morte. */
+        case 'ceifar': this.forTargets(e.tgt, targetIdx, en=>{
+          const v = en.statuses.veneno|0; if(v<=0) return;
+          const d = Math.round(v * (evalExpr(e.amt||'2', ctx)||2));
+          en.hp = Math.max(0, en.hp - d);
+          en._danoTurno = (en._danoTurno||0) + d;
+          en.statuses.veneno = 0;
+          this.L(`  ☠ ceifa: ${en.nome} sofre ${d} do próprio veneno`);
+        }); break;
         case 'bank': {          // devolve ao Círculo os dados que a habilidade GASTOU
           const n = evalExpr(e.n,ctx);
           const fonte = (this._gastos && this._gastos.length) ? this._gastos : this.pool();

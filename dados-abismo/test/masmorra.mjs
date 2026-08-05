@@ -38,9 +38,14 @@ function enxovalar(p, masmorra, rng){
 function correr(classeId, masmorra, seed){
   const rng = makeRNG(seed); resetDieIds();
   const C = CLASSES[classeId];
+  /* AS CHAVES DA TRILHA: quem chega na Masmorra N fechou as N-1 anteriores,
+     e portanto tem as habilidades marcadas m1..m(N-1) na mão. Medir a M5
+     com o kit de estreia é medir um jogador que não existe. */
+  const chaves = [];
+  for(let i=1;i<masmorra;i++) chaves.push('m'+i);
   const p = { classe:classeId, hp:C.hp, maxHp:C.hp, baseMaxHp:C.hp, block:0,
               bag:C.bag(), statuses:{}, essence:0, rerollsBase:C.rerolls,
-              relics:[], unlocked:[] };
+              relics:[], unlocked:chaves };
   recalcRelics(p);
   enxovalar(p, masmorra, rng);
 
@@ -48,10 +53,11 @@ function correr(classeId, masmorra, seed){
   let turnos = 0, lutas = 0;
   for(let a=1; a<=10; a++){
     const inimigos = buildWave(masmorra, a, rng, p.relicFlags);
+    const liberadas = C.skills.filter(s=>!s.unlock || chaves.includes(s.unlock));
     const cb = new Combat({ rng, player:p, enemies:inimigos, burdens, log:false });
-    cb.skillsDoJogador = C.skills;
+    cb.skillsDoJogador = liberadas;
     cb.onInvocar = id => criarInimigo(masmorra, a, id, rng);
-    const r = autoCombat(cb, C.skills);
+    const r = autoCombat(cb, liberadas);
     turnos += cb.turn; lutas++;
     if(r !== 'win') return { ok:false, andar:a, turnos, lutas, hp:p.hp };
     p.hp = Math.min(p.maxHp, p.hp + ((a===5||a===10)? Math.round(p.maxHp*0.15) : 2));

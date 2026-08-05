@@ -87,6 +87,19 @@ const ENCAIXES = {
   julgamento: [3, 4, 1, 1],
   fio       : [face('essence',0), 2, 3, 4],
   tapecaria : [1, 3, 5, 2],
+  /* ===== A TRILHA (liberadas fechando masmorras) ===== */
+  quebra_ossos : [4, 1, 1, 1],
+  guilhotina   : [6, 5, 4, 1],
+  cadafalso    : [4, 5, 6, 1],
+  garganta     : [3, 3, 1, 2],
+  nevoa        : [2, 3, 4, 1],
+  ceifa        : [4, 4, 4, 1],
+  fenda        : [3, 4, 1, 6],
+  entropia     : [2, 3, 4, 6],
+  singularidade: [2, 3, 4, 5],
+  urdidura     : [2, 5, 1, 1],
+  sentenca     : [6, 5, 1, 1],
+  novelo       : [2, 4, 6, 1],
   /* universal */
   respirar  : [2, 1, 1, 1],
 };
