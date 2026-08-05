@@ -52,7 +52,7 @@ function groveArtReady(){ return imgOk(BG.ceu) && imgOk(BG.montanhas) && imgOk(B
 // enemies: [{x,y,type:'patrol'|'chaser'|'boss',dist,speed,axis,range,delay}] — chaser/boss caçam; todos barrados por paredes
 // LEVELS com secret:true = fase oculta (só destrava achando TODOS os segredos)
 const LEVELS = [
-  { name:"1 · Primeiro Broto", mass:9, max:9, theme:"grove",
+  { name:"1 · Primeiro Broto", mass:8, max:8, theme:"grove",
     hint:"", rows:[
     "##########################################################",
     "#                                                        #",
@@ -64,18 +64,19 @@ const LEVELS = [
     "#                                                        #",
     "#                                                        #",
     "# ####                                                   #",
-    "##SgSS                          *                        #",
-    "##SSSS                        #####                      #",
+    "##SgSS                         *                         #",
+    "##SSSS                       #####                       #",
     "# ####                                                   #",
     "#            ####                                        #",
-    "#                   o                         o          #",
+    "#                  o                        o            #",
     "#@                                                    E  #",
-    "########################   #############   ###############",
-    "########################   #############   ###############",
-    "########################^^^#############^^^###############"]},
+    "######################    #########    #########    ######",
+    "######################    #########    #########    ######",
+    "######################^^^^#########^^^^#########^^^^######"],
+    enemies:[{"x":29,"y":15,"dist":5,"speed":1,"axis":"x","type":"patrol"}]},
 
-  { name:"2 · Colinas Mansas", mass:9, max:9, theme:"grove",
-    hint:"Suba os morros e cruze a ponte rachada CORRENDO — ela desmorona. O cume do morro talvez tenha uma passagem pra cima.", rows:[
+  { name:"2 · Colinas Mansas", mass:7, max:7, theme:"grove",
+    hint:"", rows:[
     "################################################################",
     "#                                                              #",
     "#                                                              #",
@@ -91,15 +92,15 @@ const LEVELS = [
     "#               #############                                  #",
     "#             ##             ##                                #",
     "#           ##                 ##                           E  #",
-    "# @       ##        o            ##           CCCCCCCCC        #",
+    "# @       ##        o            ##           CCCCCCCCCCC      #",
     "#       ##                         ##                          #",
-    "#########################################    ###################",
-    "#########################################    ###################",
-    "#########################################^^^^###################"],
-    enemies:[{"x":50,"y":16,"dist":4,"speed":0.9,"axis":"x","type":"patrol"}]},
+    "########################################      ##################",
+    "########################################      ##################",
+    "########################################^^^^^^##################"],
+    enemies:[{"x":50,"y":16,"dist":5,"speed":1.05,"axis":"x","type":"patrol"},{"x":14,"y":11,"dist":3,"speed":1,"axis":"x","type":"patrol"}]},
 
-  { name:"3 · Clareira Musgosa", mass:10, max:10, theme:"grove",
-    hint:"Desça o poço com calma: pule perto da parede e SEGURE contra ela pra grudar e frear. Reabsorva pedaços (PEGAR) pra reabastecer.", rows:[
+  { name:"3 · Clareira Musgosa", mass:8, max:8, theme:"grove",
+    hint:"", rows:[
     "##################################",
     "#                                #",
     "#                                #",
@@ -120,20 +121,20 @@ const LEVELS = [
     "#                   ##SgS####    #",
     "#                    #SSS#       #",
     "#                     ###        #",
-    "#                                #",
+    "#                     ^^^^^^     #",
     "#     ########                   #",
     "#                                #",
     "#                                #",
     "#                                #",
     "#                                #",
     "#                            E   #",
-    "###############     ##############",
-    "###############     ##############",
-    "###############^^^^^##############"],
-    enemies:[{"x":23,"y":26,"dist":5,"speed":0.9,"axis":"x","type":"patrol"}]},
+    "##############       #############",
+    "##############       #############",
+    "##############^^^^^^^#############"],
+    enemies:[{"x":23,"y":26,"dist":6,"speed":1,"axis":"x","type":"patrol"},{"x":8,"y":12,"dist":5,"speed":1,"axis":"x","type":"patrol"}]},
 
-  { name:"4 · Encosta Íngreme", mass:11, max:11, theme:"grove",
-    hint:"O PAREDÃO: grude e ESCALE (gasta massa aos poucos — reabasteça e não durma na parede). Dica secreta: 4 gelecas num quadrado 2x2 viram um TRAMPOLIM.", rows:[
+  { name:"4 · Encosta Íngreme", mass:8, max:8, theme:"grove",
+    hint:"", rows:[
     "##########################",
     "#                        #",
     "#                        #",
@@ -153,7 +154,7 @@ const LEVELS = [
     "#            #           #",
     "#            #           #",
     "#            #           #",
-    "#            #     o     #",
+    "#  ^^^^^^^   #     o     #",
     "#            #  #######  #",
     "#            #           #",
     "#            #           #",
@@ -164,11 +165,11 @@ const LEVELS = [
     "#            #^^^^^^^^^  #",
     "##########################",
     "##########################"],
-    movers:[{"x":15,"y":8,"w":3,"axis":"x","dist":4,"speed":0.45,"phase":0}],
-    enemies:[{"x":4,"y":23,"dist":4,"speed":0.85,"axis":"x","type":"patrol"}]},
+    movers:[{"x":15,"y":8,"w":3,"axis":"x","dist":4,"speed":0.6,"phase":0}],
+    enemies:[{"x":4,"y":23,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":18,"y":19,"speed":1.2,"type":"chaser","range":8}]},
 
   { name:"5 · Salto do Cipó", mass:6, max:6, theme:"grove",
-    hint:"Molas (⇑) te lançam por cima dos abismos e plataformas móveis fazem a travessia. Mire bem os saltos — e olho no que há SOB as plataformas.", rows:[
+    hint:"", rows:[
     "########################################################################",
     "#                                                                      #",
     "#                                                                      #",
@@ -189,11 +190,11 @@ const LEVELS = [
     "##########               #####               #####             #########",
     "##########               #####               #####             #########",
     "##########^^^^^^^^^^^^^^^#####^^^^^^^^^^^^^^^#####^^^^^^^^^^^^^#########"],
-    movers:[{"x":11,"y":14,"w":3,"axis":"x","dist":11,"speed":0.6,"phase":0},{"x":31,"y":14,"w":3,"axis":"x","dist":11,"speed":0.55,"phase":1},{"x":51,"y":13,"w":3,"axis":"x","dist":9,"speed":0.7,"phase":0.4}],
-    enemies:[{"x":36,"y":16,"speed":1,"type":"chaser","range":8}]},
+    movers:[{"x":11,"y":14,"w":3,"axis":"x","dist":11,"speed":0.78,"phase":0},{"x":31,"y":14,"w":3,"axis":"x","dist":11,"speed":0.72,"phase":1},{"x":51,"y":13,"w":3,"axis":"x","dist":9,"speed":0.9,"phase":0.4}],
+    enemies:[{"x":36,"y":16,"speed":1.25,"type":"chaser","range":11}]},
 
-  { name:"6 · Toca Morna", mass:8, max:8, theme:"grove",
-    hint:"Deixe um pedaço na PLACA pra abrir a PORTA. O 🔥 calor derrete sua massa — atravesse rápido e reabasteça nas gosmas.", rows:[
+  { name:"6 · Toca Morna", mass:7, max:7, theme:"grove",
+    hint:"", rows:[
     "##############################################################",
     "#                                                            #",
     "#                                                            #",
@@ -205,18 +206,18 @@ const LEVELS = [
     "#                                                            #",
     "#                                                            #",
     "#  ######  D                            *                    #",
-    "#          D                          #####                  #",
-    "#          D                                 ###             #",
+    "#          D                          #####  ###             #",
     "#          D                                #SgS#            #",
-    "# @        D      o                  o       SSS  o        E #",
-    "#          D         HHHHHHHHHHHHH                           #",
-    "######P#####################################   ###############",
-    "############################################   ###############",
-    "############################################^^^###############"],
-    enemies:[{"x":40,"y":15,"dist":4,"speed":0.9,"axis":"x","type":"patrol"}]},
+    "#          D                                 SSS             #",
+    "# @        D      o                    o          o        E #",
+    "#          D        HHHHHHHHHHHHHHH                          #",
+    "######P#####################################    ##############",
+    "############################################    ##############",
+    "############################################^^^^##############"],
+    enemies:[{"x":41,"y":15,"dist":5,"speed":1,"axis":"x","type":"patrol"},{"x":52,"y":15,"speed":1.2,"type":"chaser","range":8}]},
 
-  { name:"7 · Bosque Fundo", mass:7, max:7, theme:"grove",
-    hint:"Guardiões patrulham; alguns ACORDAM e te CAÇAM — fuja pra longe pra despistar. Dica secreta: toque numa geleca solta pra TROCAR de corpo com ela e alcançar lugares altos.", rows:[
+  { name:"7 · Bosque Fundo", mass:6, max:6, theme:"grove",
+    hint:"", rows:[
     "##################################################################",
     "#                                                                #",
     "#                                                                #",
@@ -237,10 +238,10 @@ const LEVELS = [
     "####################    ##############################    ########",
     "####################    ##############################    ########",
     "####################^^^^##############################^^^^########"],
-    enemies:[{"x":14,"y":12,"dist":6,"speed":0.9,"axis":"x","type":"patrol"},{"x":46,"y":12,"dist":6,"speed":1,"axis":"x","type":"patrol"},{"x":33,"y":16,"speed":1.15,"type":"chaser","range":9}]},
+    enemies:[{"x":14,"y":12,"dist":6,"speed":1,"axis":"x","type":"patrol"},{"x":46,"y":12,"dist":6,"speed":1.1,"axis":"x","type":"patrol"},{"x":33,"y":16,"speed":1.3,"type":"chaser","range":11},{"x":58,"y":16,"speed":1.25,"type":"chaser","range":10}]},
 
-  { name:"8 · Pedra Solta", mass:9, max:9, theme:"grove",
-    hint:"Metade do caminho! Molas, calor, ponte frágil e guardiões — tudo junto. Talvez haja um mezanino escondido no teto.", rows:[
+  { name:"8 · Pedra Solta", mass:7, max:7, theme:"grove",
+    hint:"", rows:[
     "####################################################################################",
     "#                                                                                  #",
     "#                                                                                  #",
@@ -259,15 +260,15 @@ const LEVELS = [
     "#                                                   CCCCCCC                        #",
     "#                                                                                  #",
     "#                         o                                                        #",
-    "# @                 T       HHHHHHHHH        T                    T              E #",
+    "# @                 T      HHHHHHHHHHHH      T                    T              E #",
     "################         ###############          ############         #############",
     "################         ###############          ############         #############",
     "################^^^^^^^^^###############^^^^^^^^^^############^^^^^^^^^#############"],
-    movers:[{"x":16,"y":17,"w":4,"axis":"x","dist":7,"speed":0.6,"phase":0},{"x":40,"y":17,"w":4,"axis":"x","dist":8,"speed":0.65,"phase":0.5},{"x":62,"y":17,"w":4,"axis":"x","dist":7,"speed":0.7,"phase":0.3}],
-    enemies:[{"x":55,"y":9,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":30,"y":18,"speed":1.1,"type":"chaser","range":8}]},
+    movers:[{"x":16,"y":17,"w":4,"axis":"x","dist":7,"speed":0.78,"phase":0},{"x":40,"y":17,"w":4,"axis":"x","dist":8,"speed":0.82,"phase":0.5},{"x":62,"y":17,"w":4,"axis":"x","dist":7,"speed":0.88,"phase":0.3}],
+    enemies:[{"x":55,"y":9,"dist":3,"speed":1.1,"axis":"x","type":"patrol"},{"x":30,"y":18,"speed":1.25,"type":"chaser","range":10},{"x":74,"y":18,"speed":1.2,"type":"chaser","range":9}]},
 
-  { name:"9 · Campo Sereno", mass:9, max:9, theme:"grove",
-    hint:"Uma clareira aberta cortada por um abismo. Pegue CARONA nas plataformas móveis (uma sobe e desce) pra atravessar — pule no tempo certo.", rows:[
+  { name:"9 · Campo Sereno", mass:7, max:7, theme:"grove",
+    hint:"", rows:[
     "######################################################################",
     "#                                                                    #",
     "#                                                                    #",
@@ -288,11 +289,11 @@ const LEVELS = [
     "##############                                           #############",
     "##############                                           #############",
     "##############^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^#############"],
-    movers:[{"x":14,"y":13,"w":4,"axis":"x","dist":12,"speed":0.55,"phase":0},{"x":40,"y":13,"w":4,"axis":"x","dist":13,"speed":0.6,"phase":0.6},{"x":30,"y":9,"w":3,"axis":"y","dist":5,"speed":0.5,"phase":0}],
-    enemies:[{"x":35,"y":16,"speed":1.05,"type":"chaser","range":9}]},
+    movers:[{"x":14,"y":13,"w":4,"axis":"x","dist":12,"speed":0.72,"phase":0},{"x":40,"y":13,"w":4,"axis":"x","dist":13,"speed":0.78,"phase":0.6},{"x":30,"y":9,"w":3,"axis":"y","dist":5,"speed":0.7,"phase":0}],
+    enemies:[{"x":35,"y":16,"speed":1.25,"type":"chaser","range":11},{"x":20,"y":16,"speed":1.15,"type":"chaser","range":9}]},
 
-  { name:"10 · Ramagem Alta", mass:7, max:7, theme:"grove",
-    hint:"Suba pela COPA quicando nas molas (⇑). Encadeie os saltos e mire as plataformas — a saída fica lá no alto.", rows:[
+  { name:"10 · Ramagem Alta", mass:6, max:6, theme:"grove",
+    hint:"", rows:[
     "####################################################",
     "#                                                  #",
     "#                                                  #",
@@ -316,13 +317,13 @@ const LEVELS = [
     "#                                                  #",
     "# @                                                #",
     "#       T                                          #",
-    "########################     #######################",
+    "########################     #####^^^^##############",
     "########################     #######################",
     "########################^^^^^#######################"],
-    enemies:[{"x":27,"y":7,"dist":4,"speed":0.9,"axis":"x","type":"patrol"}]},
+    enemies:[{"x":27,"y":7,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":40,"y":5,"speed":1.2,"type":"chaser","range":9}]},
 
-  { name:"11 · Cipoal Denso", mass:8, max:8, theme:"grove",
-    hint:"Cipós! Vá até a parede, GRUDE (segure contra ela) e ESCALE — use as saliências pra descansar e reabastecer. A saída fica no topo, e a parede pode ter uma fresta secreta.", rows:[
+  { name:"11 · Cipoal Denso", mass:6, max:6, theme:"grove",
+    hint:"", rows:[
     "##################################",
     "#                                #",
     "#                                #",
@@ -351,10 +352,10 @@ const LEVELS = [
     "##################################",
     "##################################",
     "##################################"],
-    enemies:[{"x":24,"y":24,"dist":4,"speed":0.9,"axis":"x","type":"patrol"}]},
+    enemies:[{"x":24,"y":24,"dist":5,"speed":1,"axis":"x","type":"patrol"},{"x":11,"y":10,"dist":3,"speed":1,"axis":"x","type":"patrol"}]},
 
-  { name:"12 · A Fenda", mass:7, max:7, theme:"grove",
-    hint:"Abismos enormes. Pegue carona nas plataformas móveis e mire cada salto — sem pressa.", rows:[
+  { name:"12 · A Fenda", mass:6, max:6, theme:"grove",
+    hint:"", rows:[
     "##############################################################################",
     "#                                                                            #",
     "#                                                                            #",
@@ -375,11 +376,11 @@ const LEVELS = [
     "############                   #####                   #####             #####",
     "############                   #####                   #####             #####",
     "############^^^^^^^^^^^^^^^^^^^#####^^^^^^^^^^^^^^^^^^^#####^^^^^^^^^^^^^#####"],
-    movers:[{"x":13,"y":14,"w":4,"axis":"x","dist":16,"speed":0.55,"phase":0},{"x":37,"y":14,"w":4,"axis":"x","dist":16,"speed":0.6,"phase":0.7},{"x":61,"y":14,"w":4,"axis":"x","dist":10,"speed":0.65,"phase":0.3}],
-    enemies:[{"x":34,"y":8,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":48,"y":16,"speed":1.05,"type":"chaser","range":8}]},
+    movers:[{"x":13,"y":14,"w":4,"axis":"x","dist":16,"speed":0.72,"phase":0},{"x":37,"y":14,"w":4,"axis":"x","dist":16,"speed":0.78,"phase":0.7},{"x":61,"y":14,"w":4,"axis":"x","dist":10,"speed":0.85,"phase":0.3}],
+    enemies:[{"x":34,"y":8,"dist":3,"speed":1.1,"axis":"x","type":"patrol"},{"x":48,"y":16,"speed":1.25,"type":"chaser","range":10}]},
 
-  { name:"13 · Raízes Antigas", mass:9, max:9, theme:"grove",
-    hint:"Dois mares de 🔥 calor. Abra a porta na PLACA, use as molas e NÃO demore no fogo.", rows:[
+  { name:"13 · Raízes Antigas", mass:8, max:8, theme:"grove",
+    hint:"", rows:[
     "##################################################################",
     "#                                                                #",
     "#                                                                #",
@@ -396,14 +397,14 @@ const LEVELS = [
     "#          D                                                     #",
     "#          D          o                     o          o         #",
     "# @        D                                                  E  #",
-    "#          D    HHHHHHHHHHH  T        HHHHHHHHHHHHH  T           #",
+    "#          D   HHHHHHHHHHHHHHT       HHHHHHHHHHHHHHH T           #",
     "######P###########################################################",
     "##################################################################",
     "##################################################################"],
-    enemies:[{"x":44,"y":15,"speed":1.05,"type":"chaser","range":7},{"x":8,"y":15,"dist":4,"speed":0.9,"axis":"x","type":"patrol"}]},
+    enemies:[{"x":44,"y":15,"speed":1.25,"type":"chaser","range":9},{"x":8,"y":15,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":34,"y":9,"dist":2,"speed":1,"axis":"x","type":"patrol"}]},
 
-  { name:"14 · Espinhal Verde", mass:8, max:8, theme:"grove",
-    hint:"Um mar de espinhos. As pontes frágeis desmoronam — atravesse com PRECISÃO e deixe blocos pra cobrir os espinhos.", rows:[
+  { name:"14 · Espinhal Verde", mass:6, max:6, theme:"grove",
+    hint:"", rows:[
     "######################################################################",
     "#                                                                    #",
     "#                                                                    #",
@@ -424,10 +425,10 @@ const LEVELS = [
     "##########             #####             #####               #########",
     "##########             #####             #####               #########",
     "##########^^^^^^^^^^^^^#####^^^^^^^^^^^^^#####^^^^^^^^^^^^^^^#########"],
-    enemies:[{"x":34,"y":8,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":52,"y":16,"speed":1.1,"type":"chaser","range":8}]},
+    enemies:[{"x":34,"y":8,"dist":3,"speed":1.1,"axis":"x","type":"patrol"},{"x":52,"y":16,"speed":1.3,"type":"chaser","range":10},{"x":20,"y":16,"speed":1.2,"type":"chaser","range":9}]},
 
-  { name:"15 · Cume do Vale", mass:10, max:10, theme:"grove",
-    hint:"O GRANDE FINAL do Mundo 1: molas, calor, plataformas móveis e guardiões num só desafio. Prove que domina a gosma!", rows:[
+  { name:"15 · Cume do Vale", mass:8, max:8, theme:"grove",
+    hint:"", rows:[
     "############################################################################################",
     "#                                                                                          #",
     "#                                                                                          #",
@@ -448,12 +449,12 @@ const LEVELS = [
     "#                                                                                          #",
     "#                             o                                 o               o          #",
     "#                         o                                                                #",
-    "# @         T                   T HHHHHHHHHHHHHHH     T                 T                E #",
+    "# @         T                   THHHHHHHHHHHHHHHHH    T                 T                E #",
     "##############             #######               #######             #####           #######",
     "##############             #######               #######             #####           #######",
     "##############^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^#######^^^^^^^^^^^^^#####^^^^^^^^^^^#######"],
-    movers:[{"x":15,"y":17,"w":4,"axis":"x","dist":10,"speed":0.6,"phase":0},{"x":34,"y":17,"w":4,"axis":"x","dist":12,"speed":0.62,"phase":0.3},{"x":57,"y":17,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0.5},{"x":75,"y":17,"w":4,"axis":"x","dist":9,"speed":0.65,"phase":0.2}],
-    enemies:[{"x":54,"y":8,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":30,"y":20,"speed":1.1,"type":"chaser","range":8},{"x":70,"y":20,"speed":1.15,"type":"chaser","range":9}]},
+    movers:[{"x":15,"y":17,"w":4,"axis":"x","dist":10,"speed":0.78,"phase":0},{"x":34,"y":17,"w":4,"axis":"x","dist":12,"speed":0.82,"phase":0.3},{"x":57,"y":17,"w":4,"axis":"x","dist":11,"speed":0.8,"phase":0.5},{"x":75,"y":17,"w":4,"axis":"x","dist":9,"speed":0.88,"phase":0.2}],
+    enemies:[{"x":54,"y":8,"dist":3,"speed":1.1,"axis":"x","type":"patrol"},{"x":30,"y":20,"speed":1.3,"type":"chaser","range":10},{"x":70,"y":20,"speed":1.35,"type":"chaser","range":11}]},
 
   { name:"16 · A Gosma-Mãe", mass:12, max:12, theme:"void", secret:true,
     hint:"A GOSMA-MÃE! NÃO encoste de lado (tira massa). PULE NA CABEÇA dela pra dar dano — 3 acertos e ela cai. Use as plataformas pra ganhar altura; ela fica mais brava a cada golpe.", rows:[
