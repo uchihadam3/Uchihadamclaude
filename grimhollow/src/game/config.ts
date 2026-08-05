@@ -36,3 +36,21 @@ export const FOG_COLOR = 0x8790a0;
 // durar o bastante p/ ser percebida com naturalidade (transição gradual).
 export const DAY_MS = 600000; // duração de um ciclo completo dia→noite (10 min)
 export const DAY_START = 0.34; // fase inicial do dia [0,1): 0.34 ≈ meio da manhã
+
+/**
+ * A célula (col,row) existe numa grade de `cols`×`rows`?
+ *
+ * Os mapas todos tinham este guarda escrito à mão, e todos com o mesmo furo:
+ * `NaN < 0` é falso e `NaN >= rows` também, então uma coordenada não-finita
+ * passava pelos quatro testes e ia parar no `MAPA[NaN][NaN]` — que estoura com
+ * "Cannot read properties of undefined". Como isso acontece DENTRO do laço de
+ * quadro, o efeito é o pior possível: o jogo continua desenhando e para de
+ * pensar.
+ *
+ * `Number.isInteger` fecha os três casos de uma vez — NaN, infinito e fração —,
+ * e é exatamente a regra que uma coordenada de grade tem de obedecer.
+ */
+export function dentroDaGrade(col: number, row: number, cols: number, rows: number): boolean {
+  return Number.isInteger(col) && Number.isInteger(row)
+    && col >= 0 && col < cols && row >= 0 && row < rows;
+}

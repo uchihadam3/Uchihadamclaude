@@ -23,6 +23,8 @@
 // Gerado por `scripts/gen_outdoor.py` (semente fixa) com validação por BFS: a
 // estrada nunca tem "pulo" na diagonal, nenhuma célula livre fica ilhada e o
 // marco da montanha é comprovadamente alcançável a partir da entrada.
+import { dentroDaGrade } from "./config";
+
 export const PLAINS: string[] = [
   "#####rrrTbT######",
   "#####TTrTrb######",
@@ -78,7 +80,7 @@ export type PlainsCell =
   | "enemy" | "spawn" | "gate" | "mountain" | "edge";
 
 export function plainsCell(col: number, row: number): PlainsCell {
-  if (row < 0 || row >= PLAINS_ROWS || col < 0 || col >= PLAINS_COLS) return "edge";
+  if (!dentroDaGrade(col, row, PLAINS_COLS, PLAINS_ROWS)) return "edge";
   switch (PLAINS[row][col]) {
     case ".": return "grass";
     case "=": return "road";

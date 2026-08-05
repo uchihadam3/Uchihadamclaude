@@ -5,6 +5,8 @@
 // Só o térreo tem porta na rua; o de cima se alcança pela escada lá dentro, e a
 // "saída" de cima é justamente a descida. Cada andar tem o seu atendente, senão
 // o de cima pareceria um depósito.
+import { dentroDaGrade } from "./config";
+
 export type Estab =
   | "tavern" | "store" | "smith" | "alchemist"
   | "armory" | "armoryUp" | "temple";
@@ -111,7 +113,7 @@ export function roomFind(ch: string): { col: number; row: number } {
   return { col: 1, row: 1 };
 }
 export function roomChar(col: number, row: number): string {
-  if (row < 0 || row >= ROOM_ROWS || col < 0 || col >= ROOM_COLS) return "#";
+  if (!dentroDaGrade(col, row, ROOM_COLS, ROOM_ROWS)) return "#";
   return ROOM[row][col];
 }
 export function roomWalkable(col: number, row: number): boolean {

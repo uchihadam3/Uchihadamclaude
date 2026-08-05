@@ -21,6 +21,8 @@
 //
 // Gerado por `scripts/gen_outdoor.py` (semente fixa), que valida por BFS que a
 // entrada, o portão, a encruzilhada e os três marcos continuam alcançáveis.
+import { dentroDaGrade } from "./config";
+
 export const FOREST: string[] = [
   "###################################",
   "#################N#################",
@@ -91,7 +93,7 @@ export type ForestCell =
   | "spawn";
 
 export function forestCell(col: number, row: number): ForestCell {
-  if (row < 0 || row >= FOREST_ROWS || col < 0 || col >= FOREST_COLS) return "edge";
+  if (!dentroDaGrade(col, row, FOREST_COLS, FOREST_ROWS)) return "edge";
   switch (FOREST[row][col]) {
     case ".":
       return "grass";

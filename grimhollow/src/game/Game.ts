@@ -2021,6 +2021,12 @@ export class Game {
     (window as unknown as { __party?: typeof party }).__party = party;
     (window as unknown as { __friends?: typeof friends }).__friends = friends;
     (window as unknown as { __AOE?: typeof AOE_CHEFE }).__AOE = AOE_CHEFE;
+    // as leituras de mapa dos cinco mapas, p/ o teste castigar cada uma com
+    // coordenada podre sem precisar navegar até lá
+    (window as unknown as { __MAPAS?: Record<string, (c: number, r: number) => unknown> }).__MAPAS = {
+      dungeon: dungeonCell, village: cellAt, forest: forestCell,
+      plains: plainsCell, interiores: roomChar,
+    };
   }
 
   // TRANSIÇÃO DE PORTA: fade preto rápido → constrói o novo cenário no escuro

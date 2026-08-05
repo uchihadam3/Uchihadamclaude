@@ -9,6 +9,8 @@
 // e uma MONTANHA no canto noroeste com um túnel de 3 tiles até a escada.
 // Praça aberta central com poço, lojas nas bordas e a montanha/masmorra a NO.
 // Ao sul do início há a trilha 'F' que sai do vilarejo rumo à floresta.
+import { dentroDaGrade } from "./config";
+
 export const MAP: string[] = [
   "#####################",
   "#MMMSMM##############",
@@ -52,7 +54,7 @@ export type CellKind =
   | "forestgate";
 
 export function cellAt(col: number, row: number): CellKind {
-  if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return "building";
+  if (!dentroDaGrade(col, row, COLS, ROWS)) return "building";
   const ch = MAP[row][col];
   if (ch === "#") return "building";
   if (ch === "o") return "barrel";

@@ -8,6 +8,8 @@
 //   'E' ponto de inimigo    'C' baú (tesouro)   'K' ossada    'B' barril
 //   'X' parede ILUSÓRIA (parece sólida, mas dá passagem ao segredo)
 //   'G' PORTÃO de grade — sela um corredor 1-largura que dá p/ tesouro (abre ao interagir)
+import { dentroDaGrade } from "./config";
+
 const FLOOR1: string[] = [
   "############################################",
   "############################################",
@@ -246,7 +248,7 @@ export type DungeonCell =
   | "secret"; // parede ilusória: renderiza como rocha, mas é andável
 
 export function dungeonChar(col: number, row: number): string {
-  if (row < 0 || row >= DUNGEON_ROWS || col < 0 || col >= DUNGEON_COLS) return "#";
+  if (!dentroDaGrade(col, row, DUNGEON_COLS, DUNGEON_ROWS)) return "#";
   return curMap()[row][col];
 }
 
