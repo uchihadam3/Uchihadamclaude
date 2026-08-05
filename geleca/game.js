@@ -458,27 +458,31 @@ const LEVELS = [
     movers:[{"x":15,"y":17,"w":4,"axis":"x","dist":10,"speed":0.78,"phase":0},{"x":34,"y":17,"w":4,"axis":"x","dist":12,"speed":0.82,"phase":0.3},{"x":57,"y":17,"w":4,"axis":"x","dist":11,"speed":0.8,"phase":0.5},{"x":75,"y":17,"w":4,"axis":"x","dist":9,"speed":0.88,"phase":0.2}],
     enemies:[{"x":54,"y":8,"dist":3,"speed":1.1,"axis":"x","type":"patrol"},{"x":30,"y":20,"speed":1.3,"type":"chaser","range":10},{"x":70,"y":20,"speed":1.35,"type":"chaser","range":11}]},
 
-  { name:"16 · A Gosma-Mãe", mass:12, max:12, theme:"void", secret:true,
-    hint:"A GOSMA-MÃE! NÃO encoste de lado (tira massa). PULE NA CABEÇA dela pra dar dano — 3 acertos e ela cai. Use as plataformas pra ganhar altura; ela fica mais brava a cada golpe.", rows:[
-    "##############################################",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                                            #",
-    "#                     o                      #",
-    "#                  #######                   #",
-    "#                                            #",
-    "#        #####                  #####        #",
-    "#                                            #",
-    "#                                            #",
-    "#     o                                o     #",
-    "#  @                                      E  #",
-    "##############################################",
-    "##############################################",
-    "##############################################"],
-    enemies:[{"x":22,"y":13,"speed":0.85,"type":"boss","hp":3}]}
-
+  { name:"16 · A Gosma-Mãe", mass:11, max:11, theme:"void", secret:true,
+    hint:"", rows:[
+    "################################################################################",
+    "#                                                                              #",
+    "#                                                                              #",
+    "#                                                                              #",
+    "#                                                                              #",
+    "#                                                       #                      #",
+    "#                                                       #                   E  #",
+    "#                                                       #             ##########",
+    "#                                    #####              #                      #",
+    "#                                                    ####                      #",
+    "#                                o                      #                      #",
+    "#                              ####                     #                      #",
+    "#                                                    ####    ####              #",
+    "#        #####                                          #                      #",
+    "#                        ####                           #                      #",
+    "#    @     o                                          o # T       o            #",
+    "###############T################################################################",
+    "#################      ####################          ######         ############",
+    "#################      ####################          ######         ############",
+    "#################^^^^^^####################^^^^^^^^^^######^^^^^^^^^############"],
+    movers:[{"x":44,"y":14,"w":4,"axis":"x","dist":8,"speed":0.7,"phase":0}],
+    enemies:[{"x":11,"y":12,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":38,"y":16,"speed":1.2,"type":"chaser","range":9},{"x":63,"y":11,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":70,"y":16,"speed":1.25,"type":"chaser","range":9}],
+    devourer:{"x0":-4,"speed":72,"accel":1.8}}
 ];
 
 // -------------------------------------------------------------------------- PROGRESSO
@@ -731,9 +735,13 @@ function resetLevel(){
     const outR=(hit.x+hit.w)-blob.x, outL=(blob.x+blob.w)-hit.x;
     blob.x = (outR<=outL) ? hit.x+hit.w : hit.x-blob.w;
   }
+  // MURALHA DEVORADORA (boss tipo "come a tela"): começa à esquerda e avança pra direita
+  if(level.devourer){ devourEdge=(level.devourer.x0!=null?level.devourer.x0:-5)*TILE; devourSpeed=level.devourer.speed||34; devourWarn=0; }
+  else { devourEdge=null; devourSpeed=0; devourWarn=0; }
   camFollow(true);
   state="play"; hideOverlay(); renderHud();
 }
+let devourEdge=null, devourSpeed=0, devourWarn=0;
 function sizeBlob(){ const s=14+blob.mass*3.0, cx=blob.x+blob.w/2, bt=blob.y+blob.h;
   blob.w=s;blob.h=s; blob.x=cx-s/2; blob.y=bt-s; }
 
@@ -1143,6 +1151,15 @@ function update(dt){
 
   for(const s of spikes)if(overlaps(blob,{x:s.x+4,y:s.y+7,w:s.w-8,h:s.h-7})){ die(); return; }
   if(blob.y>ROWS*TILE+80){ die(); return; }
+  // MURALHA DEVORADORA: avança pra direita; se te alcançar, você é ENGOLIDO
+  if(devourEdge!=null){
+    devourSpeed += (level.devourer.accel||0)*dt;
+    devourEdge += devourSpeed*dt;
+    const gap=(blob.x+blob.w*0.45)-devourEdge;                       // folga entre você e a boca da muralha
+    devourWarn = gap<TILE*3 ? 1 : Math.max(0,devourWarn-dt*2);       // pisca de perigo quando ela chega perto
+    if(devourWarn>0) shake=Math.max(shake, (1-gap/(TILE*3))*4);      // treme quando ela cola em você
+    if(gap<0){ devoured(); return; }                                 // engolido
+  }
   if(overlaps(blob,exitRect)) win();
 }
 
@@ -1302,6 +1319,19 @@ function die(){ if(state==="dead")return; deaths++;
                 : customCtx==='list' ? {t:"Minhas Fases",ghost:true,cb:showCustom}
                 : {t:"Menu",ghost:true,cb:showMenu};
   deferWin(()=>overlay("💥 Ai!","Espinho, queda ou derreteu.",[
+    {t:"Tentar de novo",cb:resetLevel}, backBtn]), 0.5); }
+
+// morte por ser ENGOLIDO pela muralha devoradora — a geleca é sugada pra dentro da gosma
+function devoured(){ if(state==="dead")return; deaths++;
+  const cx=blob.x+blob.w/2, cy=blob.y+blob.h/2;
+  for(let i=0;i<26;i++) particles.push({x:cx+(Math.random()*2-1)*blob.w,y:cy+(Math.random()*2-1)*blob.h,
+    vx:-160-Math.random()*160, vy:(Math.random()*2-1)*90, life:0.3+Math.random()*0.25,max:0.55,r:2+Math.random()*3,color:"#c46ad0"});
+  ring(cx,cy,blob.w*2.4,"180,90,220",4,0.5); blob.gone=true;
+  sfx("die"); shake=13; state="dead";
+  const backBtn = customCtx==='edit' ? {t:"Editor",ghost:true,cb:()=>showEditor(false)}
+                : customCtx==='list' ? {t:"Minhas Fases",ghost:true,cb:showCustom}
+                : {t:"Menu",ghost:true,cb:showMenu};
+  deferWin(()=>overlay("🫠 Devorado!","A Gosma-Mãe te engoliu. Não pare de subir!",[
     {t:"Tentar de novo",cb:resetLevel}, backBtn]), 0.5); }
 
 function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exitRect.y+exitRect.h/2,22,"#7ee06b",190);
@@ -1638,6 +1668,31 @@ function render(){
     ctx.globalAlpha=al*0.5; ctx.fillStyle="rgba(255,255,255,.5)";           // brilho úmido no topo
     roundRect(x+w*0.2, y+h*0.12, w*0.6, h*0.28, h*0.2); ctx.fill(); }
   ctx.globalAlpha=1;
+
+  // MURALHA DEVORADORA — mar de gosma da Gosma-Mãe avançando pela esquerda (come a tela)
+  if(devourEdge!=null){
+    const x1=devourEdge, y0=cam.y-80, hh=camViewH+160, x0=cam.x-100, step=20;
+    ctx.save();
+    const gd=ctx.createLinearGradient(x0,0,x1,0); gd.addColorStop(0,"#160820"); gd.addColorStop(.65,"#3a1055"); gd.addColorStop(1,"#8a24a0");
+    ctx.fillStyle=gd;
+    ctx.beginPath(); ctx.moveTo(x0,y0-1);
+    ctx.lineTo(x1,y0-1);
+    for(let y=y0; y<=y0+hh; y+=step){ const wob=Math.sin(y*0.06+T*4)*11 + Math.sin(y*0.14-T*7)*6; ctx.lineTo(x1+wob, y); }
+    ctx.lineTo(x0,y0+hh+1); ctx.closePath(); ctx.fill();
+    // crista brilhante (a "boca")
+    ctx.strokeStyle="rgba(210,130,245,.85)"; ctx.lineWidth=3; ctx.beginPath();
+    for(let y=y0; y<=y0+hh; y+=step){ const wob=Math.sin(y*0.06+T*4)*11 + Math.sin(y*0.14-T*7)*6; if(y===y0)ctx.moveTo(x1+wob,y); else ctx.lineTo(x1+wob,y); } ctx.stroke();
+    // bolhas subindo dentro da gosma
+    for(let i=0;i<6;i++){ const bx=x1-24-((T*30+i*40)%140), by=y0+((i*97+T*22)% (hh));
+      ctx.fillStyle="rgba(180,110,220,.4)"; ctx.beginPath(); ctx.arc(bx,by,3+ (i%3),0,7); ctx.fill(); }
+    // olhos famintos na altura do jogador
+    const ey=Math.max(y0+50, Math.min(y0+hh-50, blob.y+blob.h*0.4));
+    for(let i=0;i<2;i++){ const ox=x1-26-i*24, oy=ey+i*20-6;
+      ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(ox,oy,7,0,7); ctx.fill();
+      const lx=Math.max(-2,Math.min(2,(blob.x-ox)*0.02));
+      ctx.fillStyle="#c0006a"; ctx.beginPath(); ctx.arc(ox+3+lx,oy,3.6,0,7); ctx.fill(); }
+    ctx.restore();
+  }
 
   drawBlob();
 
@@ -2408,4 +2463,5 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
     cling:!!(blob&&blob.cling),wall:blob?blob.wallPrev:0,onG:blob?blob.onGroundPrev:0,
     bx:blob?Math.round(blob.x):0,by:blob?Math.round(blob.y):0,ex:exitRect?Math.round(exitRect.x):0,ey:exitRect?Math.round(exitRect.y):0}; },
   edDbg(){ let f=0,c=0; for(let y=0;y<ed.H;y++)for(let x=0;x<ed.W;x++){ if(ed.fake[y]&&ed.fake[y][x])f++; if(ed.grid[y]&&ed.grid[y][x]&&ed.grid[y][x]!==' ')c++; } return {fake:f,cells:c,ents:ed.ents.length,W:ed.W,H:ed.H,slot:ed.editingSlot,pend:ed.pendingSlot}; },
-  edBrush(b){ ed.brush=b; }, edPaintCell(x,y){ edApply(x,y); } };
+  edBrush(b){ ed.brush=b; }, edPaintCell(x,y){ edApply(x,y); },
+  get devourEdge(){ return devourEdge==null?null:Math.round(devourEdge); }, get devourWarn(){ return Math.round(devourWarn*100)/100; } };
