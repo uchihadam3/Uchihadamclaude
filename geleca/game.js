@@ -501,6 +501,9 @@ let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 // entrada
 const IN={ kb:{left:false,right:false,down:false}, joyX:0, joyY:0 };
 let jumpEdge=false, grabEdge=false;
+// AUTOPILOT (bot que resolve as fases sozinho, pra assistir)
+let botOn=false, botWait=0;
+const bot={mx:0,down:false,jump:false,grab:false,jumpCD:0,lastX:0,antiStuck:0};
 
 // -------------------------------------------------------------------------- VALIDAÇÃO
 (function(){ LEVELS.forEach((L,i)=>{ const w=L.rows[0].length;
@@ -699,6 +702,15 @@ function resetLevel(){
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, climbAcc:0, hurtT:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
+  // DES-ENCRAVA: se o blob (que é mais largo que 1 tile) nasce sobreposto a uma
+  // parede, empurra-o pra fora pelo lado de menor sobreposição. Sem isso, o
+  // primeiro movimento ejeta o blob pra dentro do vão e ele "escala" pra fora do mapa.
+  for(let it=0; it<8; it++){ let hit=null;
+    for(const s of solidTiles){ if(overlaps(blob,s)){ hit=s; break; } }
+    if(!hit) break;
+    const outR=(hit.x+hit.w)-blob.x, outL=(blob.x+blob.w)-hit.x;
+    blob.x = (outR<=outL) ? hit.x+hit.w : hit.x-blob.w;
+  }
   camFollow(true);
   state="play"; hideOverlay(); renderHud();
 }
@@ -737,12 +749,91 @@ function moveAxis(dx,dy){ const list=solidsList();
   } }
 
 function inputState(){
+  if(botOn) return { mx:bot.mx, left:bot.mx<-0.25, right:bot.mx>0.25, down:bot.down };
   let mx=0;
   if(IN.kb.left&&!IN.kb.right)mx=-1; else if(IN.kb.right&&!IN.kb.left)mx=1;
   else if(Math.abs(IN.joyX)>0.25)mx=IN.joyX;
   const down=IN.kb.down||IN.joyY>0.5;
   return { mx, left:mx<-0.25, right:mx>0.25, down };
 }
+
+// ===================== AUTOPILOT =====================
+// Bot reativo: anda até a saída, pula abismos/espinhos, escala paredes,
+// usa molas/carona, reabsorve massa e pressiona placas. Não é um solver
+// perfeito de puzzle, mas resolve a travessia das fases pra você assistir.
+function botSolidAt(px,py){
+  for(const s of solidTiles) if(px>=s.x&&px<s.x+s.w&&py>=s.y&&py<s.y+s.h) return true;
+  for(const g of globs) if(g.solid&&px>=g.x&&px<g.x+g.w&&py>=g.y&&py<g.y+g.h) return true;
+  for(const c of crumbles) if(c.solid&&px>=c.x&&px<c.x+c.w&&py>=c.y&&py<c.y+c.h) return true;
+  for(const m of movers) if(px>=m.x&&px<m.x+m.w&&py>=m.y&&py<m.y+m.h) return true;
+  if(doors.length&&!plateOn()) for(const d of doors) if(px>=d.x&&px<d.x+d.w&&py>=d.y&&py<d.y+d.h) return true;
+  return false;
+}
+function botSpikeAt(px,py){ for(const s of spikes) if(px>=s.x&&px<s.x+s.w&&py>=s.y-3&&py<s.y+s.h) return true; return false; }
+// há chão (sem cair num espinho) até maxTiles abaixo da coluna px?
+function botGroundBelow(px,fromY,maxTiles){
+  for(let k=1;k<=maxTiles;k++){ const y=fromY+k*TILE;
+    if(botSpikeAt(px,y)) return false; if(botSolidAt(px,y)) return true; }
+  return false;
+}
+function botThink(dt){
+  bot.jumpCD=Math.max(0,bot.jumpCD-dt);
+  bot.mx=0; bot.down=false; bot.jump=false; bot.grab=false;
+  const b=blob; if(!b||b.gone||!exitRect) return;
+  const cx=b.x+b.w/2, cy=b.y+b.h/2, feet=b.y+b.h;
+  const onG=b.onGroundPrev, wall=b.wallPrev||0, cling=b.cling;
+
+  // --- ALVO: saída; mas antes, se há porta fechada, pressiona a placa ---
+  let tx=exitRect.x+exitRect.w/2, ty=exitRect.y+exitRect.h/2, pressing=false, refuel=null;
+  if(doors.length && plates.length && !plateOn()){
+    let bp=null,bd=1e9; for(const p of plates){ const px=p.x+p.w/2, d=Math.abs(px-cx); if(d<bd){bd=d;bp=p;} }
+    if(bp){ tx=bp.x+bp.w/2; ty=bp.y; pressing=true; }
+  }
+  // reabastece se a massa está baixa e há um pedaço perto
+  if(b.mass<=2){
+    let bg=null,bd=1e9; for(const g of globs){ if(!g.solid)continue; const gx=g.x+g.w/2,gy=g.y+g.h/2, d=Math.hypot(gx-cx,gy-cy); if(d<bd){bd=d;bg=g;} }
+    if(bg && bd<TILE*5){ refuel=bg; tx=bg.x+bg.w/2; ty=bg.y; pressing=false; }
+  }
+
+  const dx=tx-cx;
+  let mx = dx>8?1:(dx<-8?-1:0);
+  const dir = mx || (b.dir||1);
+
+  // reabsorve ao chegar em cima do pedaço-alvo
+  if(refuel && Math.abs((refuel.x+refuel.w/2)-cx)<TILE*0.9 && Math.abs(feet-(refuel.y+refuel.h))<TILE*1.4) bot.grab=true;
+  // pressiona a placa: parado em cima dela, solta um pedaço (pulo) que fica sobre a placa
+  if(pressing && Math.abs(tx-cx)<TILE*0.6 && onG && b.mass>1 && bot.jumpCD<=0){ bot.jump=true; bot.jumpCD=0.6; }
+
+  // --- SENSORES à frente ---
+  const aheadX = cx + dir*(b.w/2+10);
+  const spikeAhead = botSpikeAt(aheadX,feet+2) || botSpikeAt(cx,feet+3);
+  const gapAhead = onG && mx!==0 && !botGroundBelow(aheadX,feet-2,2);
+  const wallAhead = botSolidAt(aheadX,cy) && !botSolidAt(aheadX,b.y-4);   // muro no corpo, teto livre → dá pra montar/escalar
+  const targetAbove = ty < feet - TILE*1.2;
+
+  if(onG){
+    if(spikeAhead) bot.jump=true;
+    else if(gapAhead) bot.jump=true;
+    else if(wallAhead) bot.jump=true;
+    else if(targetAbove && !pressing){
+      if(botSolidAt(cx,b.y-TILE*1.3) || botSolidAt(aheadX,b.y-TILE*0.4)) bot.jump=true;
+    }
+    if(bot.jump && (b.mass<=1 || bot.jumpCD>0)) bot.jump=false;
+    else if(bot.jump) bot.jumpCD=0.4;
+  }
+  // ESCALAR: só quando está de fato grudado numa parede E o alvo está acima
+  // (senão nunca dirige contra parede — evita subir/voar pra fora do mapa)
+  if(cling && wall!==0 && targetAbove){ mx = wall>0?1:-1; bot.down=false; }
+
+  // anti-travamento: parado demais no chão → pula pra tentar destravar
+  if(onG){ if(Math.abs(cx-bot.lastX)<2) bot.antiStuck+=dt; else bot.antiStuck=0; bot.lastX=cx;
+    if(bot.antiStuck>0.8 && bot.jumpCD<=0 && b.mass>1){ bot.jump=true; bot.jumpCD=0.5; bot.antiStuck=0; } }
+
+  bot.mx=mx;
+}
+function toggleBot(on){ botOn = (on===undefined)?!botOn:!!on; botWait=0; bot.antiStuck=0;
+  const bd=el("bot-badge"); if(bd) bd.classList.toggle("show",botOn);
+  const bb=el("btn-bot"); if(bb) bb.classList.toggle("on",botOn); }
 
 function updateMovers(dt){
   for(const m of movers){
@@ -873,6 +964,7 @@ function update(dt){
   // carona: se estava sobre um mover, acompanha o deslocamento dele
   if(blob.onGroundPrev && blob.rideMover){ blob.x+=blob.rideMover.dx; blob.y+=blob.rideMover.dy; }
 
+  if(botOn){ botThink(dt); if(bot.jump) jumpEdge=true; if(bot.grab) grabEdge=true; }   // AUTOPILOT dirige
   const {mx,left,right,down}=inputState();
   const onG=blob.onGroundPrev, wall=blob.wallPrev||0;
 
@@ -1931,7 +2023,11 @@ function hideHint(){ const e=el("hint"); if(e)e.classList.remove("show"); clearT
 function loop(ts){ const dt=Math.min(0.033,(ts-last)/1000||0); last=ts; update(dt);
   // durante a comemoração/morte o jogo pausa, mas partículas e o tremor continuam vivos
   if(state==="complete"||state==="dead"){ updateParticles(dt); updateRings(dt); updateTrail(dt); T+=dt; if(shake>0)shake=Math.max(0,shake-dt*24);
-    if(winTimer>0){ winTimer-=dt; if(winTimer<=0&&winThen){ const f=winThen; winThen=null; f(); } } }
+    if(winTimer>0){ winTimer-=dt; if(winTimer<=0&&winThen){ const f=winThen; winThen=null; f(); } }
+    // AUTOPILOT: encadeia a demonstração — avança na vitória, repete na morte
+    if(botOn){ botWait+=dt; if(botWait>1.3){ botWait=0;
+      if(state==="complete"){ const NORMAL=LEVELS.filter(L=>!L.secret).length; startGame(levelIndex+1<NORMAL?levelIndex+1:0); }
+      else resetLevel(); } } }
   if(state!=="menu") render(); requestAnimationFrame(loop); }
 let winTimer=0, winThen=null;
 function deferWin(fn,delay){ winThen=fn; winTimer=delay; }
@@ -1946,6 +2042,7 @@ window.addEventListener("keydown",e=>{ if(e.repeat)return; audio();
   if(e.code==="KeyE"){grabEdge=true;return;}
   if(e.code==="KeyR"){ if(state==="play"||state==="dead")resetLevel(); return; }
   if(e.code==="KeyM"){ toggleMute(); return; }
+  if(e.code==="KeyB"){ toggleBot(); return; }             // liga/desliga o AUTOPILOT
   if(e.code==="Escape"){ if(state!=="menu")showMenu(); return; }
   const k=KEYMAP[e.code]; if(k){e.preventDefault();IN.kb[k]=true;} });
 window.addEventListener("keyup",e=>{ const k=KEYMAP[e.code]; if(k)IN.kb[k]=false; });
@@ -1975,6 +2072,7 @@ bindAct("btn-grab",()=>{ grabEdge=true; });
 el("btn-reset").addEventListener("click",()=>{ if(state==="play"||state==="dead")resetLevel(); });
 el("btn-menu").addEventListener("click",showMenu);
 el("btn-mute").addEventListener("click",()=>{ audio(); toggleMute(); });
+el("btn-bot").addEventListener("click",()=>{ audio(); toggleBot(); });
 { const mb=el("btn-mute"); if(mb) mb.textContent = musicOn?"🔊":"🔇"; }   // reflete estado salvo
 
 // SEGREDO: tocar/clicar numa geleca solta (área do jogo, fora do joystick/botões) TROCA de corpo.
@@ -2028,4 +2126,8 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   get parts(){ return particles?particles.length:0; },
   _setCoins(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.coins[i]=1; persist(); },
   _demo(){ save.unlocked=6; [3,3,2,3,1].forEach((s,i)=>save.stars[i]=s); save.coins[0]=1;save.coins[1]=1;save.coins[3]=2; save.gems[0]=1;save.gems[2]=1; persist(); showMenu(); },
-  collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } } };
+  collectAt(gx,gy){ if(blob){ blob.x=gx-8; blob.y=gy-8; } },
+  bot(on){ toggleBot(on); return botOn; }, get botOn(){ return botOn; },
+  botDbg(){ return {mx:bot.mx,down:bot.down,jump:bot.jump,grab:bot.grab,
+    cling:!!(blob&&blob.cling),wall:blob?blob.wallPrev:0,onG:blob?blob.onGroundPrev:0,
+    bx:blob?Math.round(blob.x):0,by:blob?Math.round(blob.y):0,ex:exitRect?Math.round(exitRect.x):0,ey:exitRect?Math.round(exitRect.y):0}; } };

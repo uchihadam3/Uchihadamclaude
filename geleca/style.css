@@ -147,6 +147,17 @@ body{
 .map-pawn .mp-body i::after{ content:""; position:absolute; left:1px; top:1.5px; width:2px; height:2px; border-radius:50%; background:#0a2012; }
 @keyframes pawnHop{ 0%,100%{ transform:translate(-50%,-136%) } 50%{ transform:translate(-50%,-154%) } }
 
+/* selo do AUTOPILOT (bot) */
+.bot-badge{ position:absolute; top:8px; left:50%; transform:translateX(-50%); z-index:6; display:none;
+  font-size:.72rem; font-weight:800; letter-spacing:1px; color:#0a2a12; padding:4px 12px; border-radius:20px;
+  background:linear-gradient(180deg,#c6ff9e,#6fc94f); border:1px solid #3a9838;
+  box-shadow:0 3px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.5); pointer-events:none;
+  animation:botPulse 1.3s ease-in-out infinite; }
+.bot-badge.show{ display:block; }
+@keyframes botPulse{ 0%,100%{ box-shadow:0 3px 10px rgba(0,0,0,.4), 0 0 0 rgba(126,224,107,.6) }
+  50%{ box-shadow:0 3px 10px rgba(0,0,0,.4), 0 0 16px rgba(126,224,107,.7) } }
+#btn-bot.on{ background:linear-gradient(180deg,#c6ff9e,#6fc94f); border-color:#3a9838; }
+
 .menu-hint{ color:var(--text-dim); font-size:.8rem; margin:20px auto 0; max-width:420px; line-height:1.5; opacity:.85; }
 @keyframes pulse{ 0%,100%{ opacity:.5; transform:scale(.9) } 50%{ opacity:1; transform:scale(1.15) } }
 /* reflexo correndo na barra de progresso do mundo */
