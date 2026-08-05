@@ -219,6 +219,10 @@ const CASOS = [
   { t:{t:'enxuto',v:1},      abre:[5],       fecha:[3,4]    },
   { t:{t:'farto',v:2},       abre:[3,4],     fecha:[5]      },
   { t:{t:'simbolo',v:'blade'},abre:[face('blade',5)], fecha:[5] },
+  { t:{t:'distintos'},       abre:[2,3,5],   fecha:[3,3]    },
+  { t:{t:'iguais',v:2},      abre:[4,4],     fecha:[4,5]    },
+  { t:{t:'faixa',v:[8,12]},  abre:[4,6],     fecha:[2,3]    },
+  { t:{t:'primo'},           abre:[3,4],     fecha:[3,5]    },
 ];
 const REQ_N = n => ({ t:'any', count:n });
 for (const c of CASOS) {
@@ -346,6 +350,68 @@ console.log('=== CICLO DO CHEFE ===');
   for (let i = 0; i < 4; i++) { vistas.push(cb.travaDe(cb.enemies[0]).t); cb.endTurn(); }
   check(vistas.join(',') === 'forte,impar,chave,forte', 'OSSÁRIO',
         'a fechadura gira a cada turno', vistas.join(' → '));
+}
+
+/* =====================================================================
+   6. AS 10 MASMORRAS — toda onda tem que ser montável e vencível
+   ===================================================================== */
+console.log('=== AS 10 MASMORRAS ===');
+{
+  const { MASMORRAS } = await import('../js/data/dungeons.js');
+  const { buildWave, burdensFor } = await import('../js/engine/encounter.js');
+  const { travaTxt } = await import('../js/data/travas.js');
+  check(Object.keys(MASMORRAS).length === 10, 'Conteúdo', 'as 10 masmorras existem',
+        Object.keys(MASMORRAS).length + ' definidas');
+  const vistos = new Set();
+  for (const k of Object.keys(MASMORRAS)) {
+    const M = MASMORRAS[k];
+    const todos = [...M.comuns, ...M.elites, M.subchefe, M.chefe];
+    check(M.comuns.length === 8 && M.elites.length === 3, 'M'+k, '8 comuns + 3 elites',
+          `${M.comuns.length}+${M.elites.length}`);
+    let idsOk = true, travaOk = true, padraoOk = true;
+    for (const e of todos) {
+      if (!e.id || !e.nome || !e.hp || vistos.has(e.id)) idsOk = false;
+      vistos.add(e.id);
+      if (e.trava && !travaTxt(e.trava)) travaOk = false;
+      for (const t of (e.travaCiclo||[])) if (!travaTxt(t)) travaOk = false;
+      if (!e.padrao || !e.padrao.length) padraoOk = false;
+    }
+    check(idsOk,    'M'+k, 'ids únicos, com nome e HP');
+    check(travaOk,  'M'+k, 'toda fechadura é de um tipo que existe');
+    check(padraoOk, 'M'+k, 'todo inimigo tem padrão de intenção');
+    /* a onda monta em todos os 10 andares? */
+    let ondaOk = true;
+    for (let a = 1; a <= 10; a++) {
+      const w = buildWave(+k, a, makeRNG('w'+k+'-'+a));
+      if (!w.length || w.some(e=>!e.hp || !e.nome)) ondaOk = false;
+    }
+    check(ondaOk, 'M'+k, 'as ondas dos 10 andares montam');
+    /* existe algum golpe capaz de ferir CADA inimigo? (nada invencível) */
+    let feriveis = true, culpado = '';
+    for (const e of todos) {
+      const t = e.trava || (e.travaCiclo && e.travaCiclo[0]);
+      if (!t) continue;
+      const alvo = { ...e, uid:'x', maxHp:e.hp, block:0, statuses:{}, mult:1 };
+      const bag = [makeDie('d6','osso'),makeDie('d6','osso'),makeDie('d6','osso'),
+                   makeDie('d6','osso'),makeDie('d6','osso')];
+      let achou = false;
+      /* varre mãos de até 4 dados. Inclui faces de SÍMBOLO porque o jogador
+         grava ⚔/🛡/✦ nas recompensas — sem isso nenhum Selo abriria. */
+      const VAL = [1,2,3,4,5,6, face('blade',4), face('shield',4), face('essence',0)];
+      for (let a1=0;a1<VAL.length && !achou;a1++) for (let b1=-1;b1<VAL.length && !achou;b1++)
+      for (let c1=-1;c1<VAL.length && !achou;c1++) for (let d1=-1;d1<VAL.length && !achou;d1++) {
+        const mao=[a1,b1,c1,d1].filter(x=>x>=0).map(i=>VAL[i]);
+        const { cb } = cenario({ bag, faces:mao.concat([1]), inimigos:[{...alvo, hp:999, maxHp:999}] });
+        const golpe = { id:'t', nome:'t', req:{t:'any',count:mao.length},
+                        eff:[{op:'dmg',tgt:'chosen',amt:'sum+5'}] };
+        cb.use(golpe, cb.roll.slice(0,mao.length).map(x=>x.dieId), 0);
+        if (cb.enemies[0].hp < 999) achou = true;
+      }
+      if (!achou && t.t !== 'casal') { feriveis = false; culpado = e.nome + ' (' + t.t + ')'; }
+    }
+    check(feriveis, 'M'+k, 'nenhum inimigo é invencível com 5 d6', culpado);
+  }
+  check(vistos.size === 130, 'Conteúdo', '130 inimigos com id único', vistos.size + ' encontrados');
 }
 
 /* ---------------------------------------------------------------- */

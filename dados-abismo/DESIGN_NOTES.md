@@ -329,6 +329,41 @@ passivas de classe, as 2 ferramentas do Cofre, as 9 fechaduras (o golpe certo
 fere / o errado dá zero), as 11 intenções inimigas e o ciclo do OSSÁRIO.
 **150 verificações.**
 
+## 3.13 O JOGO INTEIRO — as 10 masmorras, 130 inimigos
+Cada masmorra tem um **tema de fechadura próprio**, senão a regra vira ruído:
+
+| | masmorra | pergunta que o puzzle faz |
+|---|---|---|
+| M1 | A Cripta de Giz | ensina todas as regras básicas |
+| M2 | O Pântano de Sal | TAMANHO do dado × QUANTIDADE de dados |
+| M3 | A Forja Afundada | ARITMÉTICA — múltiplo e chave |
+| M4 | A Biblioteca Fraturada | CONJUNTOS — ⁘ todos diferentes × ⁚ todos iguais |
+| M5 | A Colmeia de Quitina | ◇ JANELA de soma, com re-rolagem custando vida |
+| M6 | A Cidadela de Vidro | FRAGILIDADE — casca fina e espelho por toda parte |
+| M7 | O Mercado das Almas | PREÇO — soma exata e selo de símbolo |
+| M8 | O Jardim de Carne | ✧ PRIMO × múltiplo |
+| M9 | A Torre Invertida | tudo ao contrário do que você aprendeu |
+| M10 | O Cassino do Vazio | cada comum traz a fechadura de uma masmorra; o chefe gira SEIS |
+
+Quatro fechaduras novas entraram pra sustentar isso: **⁘ Avesso** (dados todos
+diferentes), **⁚ Uníssono** (todos iguais), **◇ Janela** (soma numa faixa) e
+**✧ Indivisível** (soma prima). Total: 15 tipos.
+
+### Dois inimigos eram INVENCÍVEIS
+A auditoria varre cada inimigo com todas as mãos de até 4 dados e pergunta:
+existe algum golpe que o fere? Dois responderam não — Sentinela de Quitina e
+Tendão Enrolado pediam `forte 7`, e **a bolsa base é de d6/d4**: nunca sai um 7.
+Corrigidos para `forte 6`. As `chave 14/17` também caíram para 13/15, porque
+a Lâmina-Sombra joga com d4 e a soma dela não alcançava.
+
+A regra que ficou: **dificuldade vem de combinar regras, nunca de exigir um dado
+que o jogador talvez nunca receba.**
+
+`test/habilidades.mjs` agora faz **220 verificações**, incluindo, para cada uma
+das 10 masmorras: 8+3 de estrutura, ids únicos, toda fechadura de um tipo que
+existe, todo inimigo com padrão, as ondas dos 10 andares montando, e nenhum
+inimigo invencível.
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.

@@ -30,13 +30,7 @@ export const PALETAS = {
 };
 
 /* helper de padrão de intenção */
-const A=(v)=>({t:'atk',v}), B=(v)=>({t:'block',v}), M=(v,n)=>({t:'atk_multi',v,n});
-const D=(st,v)=>({t:'debuff',st,v}), H=(v)=>({t:'heal',v}), BF=()=>({t:'buff'}), C=()=>({t:'curse'});
-/* intenções que mexem nos SEUS dados — a parte de quebra-cabeça */
-const CONG=()=>({t:'congelar'}), ROUB=()=>({t:'roubar'}), FRAT=()=>({t:'fraturar'});
-const INV=()=>({t:'inverter'}), CONT=(v,ate)=>({t:'contar',v,ate});
-/* fechaduras */
-const T=(t,v)=>({t,v});
+import { A, B, M, D, H, BF, C, CONG, ROUB, FRAT, INV, CONT, T } from './vocab.js';
 
 /* ---------------- MASMORRA 1 — A CRIPTA DE GIZ ----------------
    Tema: aritmética básica virada em fechadura. Cada comum ensina UMA regra;
@@ -212,4 +206,6 @@ export const M3 = {
     desc:'A forja inteira é o corpo dela. Quatro regras girando: couraça 6, chave 12, ímpar, 3 dados.' },
 };
 
-export const MASMORRAS = { 1:M1, 2:M2, 3:M3 };
+import { M4, M5, M6, M7, M8, M9, M10 } from './dungeons2.js';
+export { M4, M5, M6, M7, M8, M9, M10 };
+export const MASMORRAS = { 1:M1, 2:M2, 3:M3, 4:M4, 5:M5, 6:M6, 7:M7, 8:M8, 9:M9, 10:M10 };

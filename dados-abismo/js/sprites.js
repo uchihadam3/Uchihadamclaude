@@ -99,10 +99,26 @@ const D={
    O desenho em canvas continua como reserva: enquanto uma arte não chega,
    aquele inimigo não fica sem cara. */
 const ARTE = new Set([
-  'osso_solto','cranio_rolante','vela_fatua','escriba_giz',
-  'mao_sem_dono','coro_mudo','ossada_curvada','lasca_femur',
-  'sacristao','guardiao','carrilhao','coveiro','ossario',
+  'afogadora', 'bigorna_mae', 'bigorna_viva', 'bolha_mare',
+  'brasa_afogada', 'capataz', 'carrilhao', 'colosso_cristal',
+  'coral_cantante', 'coro_mudo', 'coveiro', 'cranio_rolante',
+  'cria_salmoura', 'escama_salgada', 'escoria', 'escriba_giz',
+  'estatua_sal', 'ferreiro_cego', 'fole_partido', 'guardiao',
+  'lasca_femur', 'lingote_vivo', 'mao_limo', 'mao_sem_dono',
+  'maregrande', 'martelo_orfao', 'mestre_tempera', 'nucleo_fundido',
+  'ossada_curvada', 'ossario', 'osso_solto', 'peregrino',
+  'rainha_sal', 'sacristao', 'salineiro', 'sanguessuga',
+  'tromba_dagua', 'vela_fatua', 'verruma',
 ]);
+export const temArte = id => ARTE.has(id);
+/* desenho procedural — reserva pra quem ainda não tem ilustração */
+export function spriteCanvas(id){
+  if(cache.has(id)) return cache.get(id);
+  const [c,g]=novo();
+  const f=D[id];
+  if(f){ g.save(); f(g); g.restore(); } else { cranio(g,64,60,30); }
+  const url=c.toDataURL('image/png'); cache.set(id,url); return url;
+}
 export function spriteDe(id){
   if(ARTE.has(id)) return `./arte/inimigos/${id}.png`;
   if(cache.has(id)) return cache.get(id);

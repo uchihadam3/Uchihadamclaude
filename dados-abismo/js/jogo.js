@@ -20,7 +20,7 @@ import { ESCALADA, MASMORRAS } from './data/dungeons.js';
 import { travaTxt } from './data/travas.js';
 import * as GRIM from './grimorio.js';
 import * as META from './meta.js';
-import { spriteDe } from './sprites.js';
+import { spriteDe, spriteCanvas } from './sprites.js';
 import * as SFX from './sfx.js';
 import { tocarEfeito, tocarEfeitoInimigo } from './efeitos.js';
 import { iconeDe, reqChips } from './icones.js';
@@ -382,7 +382,8 @@ function pintar(){
         right:${Math.max(0,100-100*e.hp/e.maxHp)}%"></i>` : '';
     return `<div class="en ${e.hp<=0?'morto':''} ${i===alvo?'alvo':''} ${pr?'napre':''}" data-i="${i}" data-uid="${e.uid}">
       ${prevHTML}
-      <div class="spr"><img src="${spriteDe(e.id)}" alt=""></div>
+      <div class="spr"><img src="${spriteDe(e.id)}" alt=""
+           onerror="__semArte(this,'${e.id}')"></div>
       <div class="nm">${e.nome}</div>${e.elite?'<div class="el">ELITE</div>':''}
       <div class="hpb"><i style="width:${Math.max(0,100*e.hp/e.maxHp)}%"></i>${barraPrev}</div>
       <div class="hp">${e.hp}/${e.maxHp}${e.block?' 🛡'+e.block:''}${e.armadura?' ⛊'+e.armadura:''}</div>
@@ -851,6 +852,7 @@ if(window.ResizeObserver){
   atualizarBadges();
   renderer.render(scene,camera); requestAnimationFrame(loop); })();
 telaTitulo();
+window.__semArte=(img,id)=>{ img.onerror=null; img.src=spriteCanvas(id); };
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
   get sel(){return sel;}, get malhas(){return malhas;},
   get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar, SFX };
