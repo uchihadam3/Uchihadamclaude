@@ -23,7 +23,11 @@ export function iniciar(){
   rev.connect(revG); revG.connect(musGain);
   ligado=true;
 }
-addEventListener('pointerdown',()=>{ iniciar(); if(!atual) trilha('batalha'); },{passive:true});
+/* O navegador só libera áudio depois do primeiro toque. Este gancho existe
+   para destravar — mas ele forçava trilha('batalha'), então tocar em QUALQUER
+   lugar (inclusive no menu) começava a música de combate. Agora ele retoma a
+   faixa que a tela em que você está já tinha pedido. */
+addEventListener('pointerdown',()=>{ iniciar(); if(!atual) trilha(pedida || 'menu'); },{passive:true});
 const t=()=>ctx.currentTime;
 
 function tom(f,dur,{tipo='sine',vol=.3,to=null,dly=0,dest=null}={}){
@@ -51,6 +55,17 @@ export const soltar = () => { tom(420,.05,{tipo:'triangle',vol:.16,to:320}); };
 export const golpe  = f => { ruido(.10,{vol:.34,f:260,q:.7}); tom(120,.16,{tipo:'sawtooth',vol:.30,to:52});
                              if(f>16){ tom(240,.22,{tipo:'square',vol:.20,to:80,dly:.03}); ruido(.16,{vol:.20,f:2400,dly:.02}); } };
 export const bloqueio=() => { tom(300,.14,{tipo:'sine',vol:.24,to:520}); ruido(.07,{vol:.12,f:3200}); };
+/* GOLPE QUE MORRE NO ESCUDO. Tem que ser inconfundível contra `golpe`, que é
+   um baque grave e surdo — antes um ataque todo aparado não fazia som nenhum
+   e dava pra bater três turnos no bloqueio sem perceber. Aqui é o oposto:
+   estalo metálico agudo, curto, sem corpo grave. */
+export const aparado = (v=1) => {
+  const f = Math.min(1, v/10);
+  ruido(.055,{vol:.16+.10*f, f:5400, q:2.4});              // faísca do metal
+  tom(1240,.10,{tipo:'square',  vol:.13+.05*f, to:760});   // o "clang"
+  tom(2480,.06,{tipo:'triangle',vol:.07, to:1840, dly:.015});
+  tom(880, .13,{tipo:'sine',    vol:.06, to:640,  dly:.03}); // cauda do sino
+};
 export const morte  = () => { tom(200,.5,{tipo:'sawtooth',vol:.3,to:40}); ruido(.4,{vol:.2,f:500,q:.5}); };
 export const dano   = () => { tom(160,.24,{tipo:'square',vol:.26,to:70}); ruido(.14,{vol:.22,f:420,q:.8}); };
 export const vitoria= () => [0,.10,.21,.34].forEach((d,i)=>tom([392,523,659,784][i],.42,{tipo:'triangle',vol:.26,dly:d}));
@@ -126,6 +141,11 @@ const AC = {
   Gm:[31,62,67,70], A :[33,61,64,69],
   Dd:[38,62,66,69],            // ré frígio dominante — o acorde do medo
   Ebm:[39,63,66,70], Bbm:[34,58,61,65],
+  /* sétimas para o MENU: o mesmo ré menor das outras faixas, mas com a
+     sétima e a nona abertas — soa parado e melancólico em vez de tenso.
+     É a diferença entre "algo vem aí" e "você ainda não desceu". */
+  Dm9 :[38,60,65,69,72], BbM7:[34,62,65,69], Gm7:[31,58,62,65],
+  Am7 :[33,60,64,67],    FM7 :[29,57,60,64], Csus:[36,60,65,67],
 };
 
 /* ---------- BATALHA: "A Cripta Respira" — 96 BPM, 56 compassos ---------- */
@@ -229,15 +249,77 @@ const CHEFE = (()=>{
   };
 })();
 
-const FAIXAS = { batalha:BATALHA, chefe:CHEFE };
+/* ---------- MENU: "Antes de Descer" — 72 BPM, 48 compassos (160s) ----------
+   A trilha de batalha tocava no menu porque o primeiro toque na tela chamava
+   trilha('batalha') sem olhar onde o jogador estava. Menu não é combate: sem
+   caixa, sem marcha, sem lead estridente. Só a sala respirando, um sino
+   distante e um tambor que aparece uma vez, quando a porta se abre. */
+const MENU = (()=>{
+  const secoes = [
+    { nome:'vazio',   ac:['Dm9','Dm9','BbM7','BbM7','FM7','FM7','Am7','Am7'],   cam:{pad:1,resp:1} },
+    { nome:'sino',    ac:['Dm9','Dm9','BbM7','BbM7','Gm7','Gm7','Csus','Csus'], cam:{pad:1,sino:1,resp:1} },
+    { nome:'tema',    ac:['Dm9','BbM7','FM7','Csus','Dm9','Gm7','Am7','Am7'],   cam:{pad:1,sino:1,lead:1,grave:1} },
+    { nome:'memoria', ac:['FM7','FM7','Csus','Csus','BbM7','BbM7','Am7','Am7'], cam:{pad:1,harpa:1,lead:1} },
+    { nome:'espera',  ac:['Dm9','Dm9','Gm7','Gm7','BbM7','BbM7','Am7','Am7'],   cam:{pad:1,sino:1,resp:1} },
+    { nome:'porta',   ac:['Dm9','BbM7','Gm7','Csus','Dm9','FM7','Am7','Dm9'],   cam:{pad:1,sino:1,lead:1,grave:1,tambor:1} },
+  ];
+  // notas longas, muito espaçadas: o menu não tem pressa
+  const mel = {
+    tema:   {0:69,12:72,24:70,32:69,44:65,56:67,60:69},
+    memoria:{0:72,10:74,16:72,24:69,32:70,40:69,48:67,56:65},
+    porta:  {0:62,8:65,16:69,24:72,32:74,40:72,48:69,56:65,62:62},
+  };
+  return {
+    nome:'Antes de Descer', bpm:72, porCompasso:8, compassos:secoes.length*8,
+    passo(i, T){
+      const compasso = Math.floor(i/8), b = i%8;
+      const si = Math.floor(compasso/8), s = secoes[si]; if(!s) return;
+      const dentro = i - si*64;
+      const acorde = AC[s.ac[compasso%8]];
+      const c = s.cam, semi = 60/72/2;
+
+      // colchão: dois compassos inteiros de acorde, entrada bem lenta
+      if(c.pad && b===0 && compasso%2===0)
+        pad(T, acorde.slice(1), semi*15.6, {vol:.05,corte:760});
+      // a sala respirando: fundamental grave e rara
+      if(c.resp && b===0 && compasso%4===0)
+        voz(T, acorde[0]-12, semi*15, {tipo:'sine',vol:.11,corte:260,ataque:1.2,wet:.6});
+      if(c.grave && b===0)
+        voz(T, acorde[0], semi*7.4, {tipo:'triangle',vol:.075,corte:420,ataque:.35,wet:.45});
+      // sino distante: só nos tempos 0 e 5, nota alta, cauda longa
+      if(c.sino && (b===0 || b===5) && compasso%2===0)
+        voz(T, acorde[b===0?1:2]+12, semi*6.5,
+            {tipo:'triangle',vol:.055,corte:3400,ataque:.004,wet:.75});
+      // harpa: arpejo descendente, uma nota por tempo
+      if(c.harpa){
+        const grau = [4,3,2,1,2,3,4,3][b] % acorde.length;
+        voz(T, acorde[Math.max(1,grau)]+12, semi*2.2,
+            {tipo:'triangle',vol:.045,corte:2800,ataque:.005,wet:.6});
+      }
+      if(c.lead){
+        const m = (mel[s.nome]||{})[dentro];
+        if(m!==undefined) voz(T, m, semi*5.2,
+          {tipo:'sine',vol:.085,corte:1900,ataque:.09,wet:.65,vib:4});
+      }
+      // um único tambor por compasso na última seção: a porta se abrindo
+      if(c.tambor && b===0 && compasso%2===1) percu(T,{tipo:'taiko',vol:.16});
+    },
+  };
+})();
+
+const FAIXAS = { menu:MENU, batalha:BATALHA, chefe:CHEFE };
 
 /* ==================== AGENDADOR (lookahead) ====================
    setTimeout erra dezenas de ms e a música "engasga". Aqui o setInterval só
    ENFILEIRA: quem toca no tempo certo é o relógio do próprio áudio. */
 let atual=null, timer=null, passo=0, proximo=0, alvoVol=0.30;
+let pedida=null;         // última faixa que a TELA pediu, mesmo sem áudio liberado
 const OLHAR = 0.35;      // segundos de antecipação
 
 export function trilha(nome){
+  // registra antes de qualquer desistência: se o áudio ainda estiver travado,
+  // é esta faixa que o primeiro toque deve começar — não a de batalha
+  if(FAIXAS[nome]) pedida = nome;
   iniciar(); if(!ligado) return;
   if(atual && atual.id===nome) return;
   const f = FAIXAS[nome]; if(!f) return;

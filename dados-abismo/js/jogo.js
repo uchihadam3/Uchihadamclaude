@@ -112,6 +112,7 @@ function calcPrevia(s){
 
 /* ================= TELAS ================= */
 function telaTitulo(){
+  SFX.trilha('menu');
   cofre=META.carregar(); BON=META.bonus(cofre);
   const m=$('msg'); m.classList.remove('off'); m.className='';
   const rec=cofre.recordes||{andar:0,masmorra:1};
@@ -158,6 +159,7 @@ function bindA(root,map){ root.querySelectorAll('[data-a]').forEach(b=>{
   b.onclick=()=>{ SFX.pegar(); map[b.dataset.a](); }; }); }
 
 function telaCofre(){
+  SFX.trilha('menu');
   const m=$('msg'); m.className='';
   const ramos=Object.entries(META.RAMOS).map(([k,r])=>{
     const nos=META.NOS.filter(n=>n.ramo===k).map(no=>{
@@ -203,6 +205,7 @@ function telaCofre(){
   });
 }
 function telaClasses(){
+  SFX.trilha('menu');
   const m=$('msg'); m.classList.remove('off'); m.className='';
   m.innerHTML=`<div class="clswrap">
     <div class="cofhd"><button class="volta" data-a="voltar">‹</button><h2>ESCOLHA SUA ALMA</h2></div>
@@ -294,6 +297,8 @@ function explicar(tipo, chave, v){
 /* ---------- O GRIMÓRIO: o que cada coisa faz (§12) ---------- */
 let voltarDoGrim=null;
 function telaGrimorio(foco, voltar){
+  // o Grimório abre no meio do combate também: aí a batalha continua tocando
+  if(!cb || cb.over) SFX.trilha('menu');
   voltarDoGrim = voltar || voltarDoGrim;
   const m=$('msg'); m.classList.remove('off'); m.className='';
   m.innerHTML=`<div class="grimwrap">
@@ -692,8 +697,11 @@ function animarInimigos(acoes){
     }, t0+VIAJA);
     /* 4 · CHEGA — o estrago aparece em você */
     setTimeout(()=>{
-      if(a.dano>0){ SFX.dano(); tremor(Math.min(16,5+a.dano*0.6)); flashJog(a.dano); }
-      else if(a.aparado>0) etiquetaEu('🛡 '+a.aparado+' aparado');
+      // aparado tinha só uma etiqueta silenciosa: não dava pra saber, no meio
+      // da animação, se o golpe entrou ou morreu no seu bloqueio
+      if(a.dano>0){ SFX.dano(); tremor(Math.min(16,5+a.dano*0.6)); flashJog(a.dano);
+        if(a.aparado>0) etiquetaEu('🛡 '+a.aparado+' aparado'); }
+      else if(a.aparado>0) flashJogEscudo(a.aparado);
       else if(a.t==='curse') etiquetaEu('☠ dado amaldiçoado');
       else if(a.t==='congelar') etiquetaEu('❄ dado congelado');
       else if(a.t==='roubar') etiquetaEu('✋ dado roubado');
@@ -709,31 +717,61 @@ function etiquetaEu(txt){
   const n=document.createElement('div'); n.className='dmgme av'; n.textContent=txt;
   $('voce').appendChild(n); setTimeout(()=>n.remove(),1000);
 }
-function snapHP(){ return cb.enemies.map(e=>e.hp); }
+/* O escudo era INVISÍVEL: a tela media só o HP, então um golpe inteiramente
+   aparado não fazia som nem número — dava para bater três turnos no bloqueio
+   sem perceber. Agora o instantâneo guarda o bloqueio junto. */
+function snapHP(){ return cb.enemies.map(e=>({ hp:e.hp, bl:e.block||0 })); }
 function juice(antes, hpAntes, acoes){
   cb.enemies.forEach((e,i)=>{
-    const d=antes[i]-e.hp;
-    if(d>0){ flash(e.uid, d, e.hp<=0); }
+    const a = antes[i]; if(!a) return;
+    const d = a.hp - e.hp;                       // o que entrou no couro
+    const ap = Math.max(0, a.bl - (e.block||0)); // o que o escudo comeu
+    if(d>0)      flash(e.uid, d, e.hp<=0, ap);   // passou (com ou sem raspão no escudo)
+    else if(ap>0) flashEscudo(e.uid, ap);        // morreu todo no escudo
   });
   // o que os inimigos tiraram já aparece na animação deles — aqui só o resto (veneno etc.)
   const daInvestida = acoes ? acoes.reduce((a,x)=>a+(x.dano||0),0) : 0;
   const dp = (hpAntes-P.hp) - daInvestida;
   if(dp>0){ SFX.dano(); tremor(Math.min(14,4+dp*0.5)); flashJog(dp); }
 }
-function flash(uid,d,morreu){
+function flash(uid,d,morreu,aparado=0){
   const el=document.querySelector(`.en[data-uid="${uid}"]`); if(!el) return;
   el.classList.remove('bat'); void el.offsetWidth; el.classList.add('bat');
+  // parte no escudo, parte na carne: os dois números, cada um na sua cor
+  if(aparado>0){
+    const s=document.createElement('div'); s.className='dmg esc raspao';
+    s.textContent='⛊'+aparado; el.appendChild(s); setTimeout(()=>s.remove(),900);
+    SFX.aparado(aparado);
+  }
   const n=document.createElement('div'); n.className='dmg'+(d>=18?' big':'');
   n.textContent='-'+d; el.appendChild(n);
   setTimeout(()=>n.remove(),900);
   SFX.golpe(d); tremor(Math.min(11,3+d*0.35));
   if(morreu){ SFX.morte(); el.classList.add('morrendo'); }
 }
+/* golpe que morreu inteiro no escudo: som metálico, faísca azul, zero tremor */
+function flashEscudo(uid, v){
+  const el=document.querySelector(`.en[data-uid="${uid}"]`); if(!el) return;
+  el.classList.remove('apara'); void el.offsetWidth; el.classList.add('apara');
+  const n=document.createElement('div'); n.className='dmg esc';
+  n.textContent='⛊'+v; el.appendChild(n);
+  const c=document.createElement('div'); c.className='clang'; el.appendChild(c);
+  setTimeout(()=>{ n.remove(); c.remove(); },900);
+  SFX.aparado(v);
+}
 function flashJog(d){
   const f=document.createElement('div'); f.id='ferida'; document.body.appendChild(f);
   setTimeout(()=>f.remove(),420);
   const n=document.createElement('div'); n.className='dmgme'; n.textContent='-'+d;
   document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),900);
+}
+/* o MESMO retorno quando é você que apara: sem ferida vermelha na tela */
+function flashJogEscudo(v){
+  const f=document.createElement('div'); f.id='ferida'; f.className='azul';
+  document.body.appendChild(f); setTimeout(()=>f.remove(),380);
+  const n=document.createElement('div'); n.className='dmgme esc'; n.textContent='⛊'+v;
+  document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),900);
+  SFX.aparado(v);
 }
 let shakeT=0;
 function tremor(v){ shakeT=Math.max(shakeT,v); }
@@ -913,7 +951,8 @@ function rotuloRaridade(o){
    Não existia. Quem limpasse a Masmorra 10 caía num mapa da masmorra 11, que
    não existe, e a tela estourava — e `vitorias` nunca saía de zero. */
 function telaVitoria(){
-  SFX.vitoria(); SFX.trilha('chefe');
+  // a vitória é epílogo, não combate: a de chefe soaria como ameaça
+  SFX.vitoria(); SFX.trilha('menu');
   const m=$('msg'); m.classList.remove('off'); m.className='';
   const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
     masmorra:META.MASMORRAS_TOTAL, venceu:true}, BON.ecoMult);
@@ -946,7 +985,7 @@ function telaVitoria(){
 /* ---------- fim de combate ---------- */
 function fim(){
   const m=$('msg'); m.classList.remove('off'); m.className='';
-  if(cb.over==='lose'){ SFX.derrota();
+  if(cb.over==='lose'){ SFX.derrota(); SFX.trilha('menu');
     const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
       masmorra, venceu:false}, BON.ecoMult);
     cofre.ecos+=ganho; cofre.runs=(cofre.runs||0)+1;

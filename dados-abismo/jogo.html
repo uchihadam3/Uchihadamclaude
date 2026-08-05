@@ -583,6 +583,28 @@
  #ferida{position:fixed;inset:0;pointer-events:none;z-index:15;
    box-shadow:inset 0 0 90px 20px rgba(190,20,20,.75);animation:ferir .42s ease-out forwards}
  @keyframes ferir{to{opacity:0}}
+ /* ===== APARADO: o golpe morreu no escudo =====
+    Tudo em azul-metal e sem tremor, para não se confundir com o vermelho do
+    dano. O escudo era invisível: um ataque totalmente bloqueado não fazia som
+    nem número, e dava para bater turnos no bloqueio sem perceber. */
+ #ferida.azul{box-shadow:inset 0 0 70px 14px rgba(90,150,230,.55);animation-duration:.34s}
+ .dmg.esc{color:#dceaff;text-shadow:0 2px 0 #16324e,0 0 14px #6fb4ff;font-size:19px}
+ .dmg.esc.raspao{top:-2px;font-size:15px;opacity:.95}   /* metade escudo, metade carne */
+ .dmgme.esc{color:#bcd9ff;text-shadow:0 2px 8px #000,0 0 12px #4a8fd8}
+ /* a carta do inimigo dá um baque seco pra trás em vez de sacudir de dor */
+ .en.apara{animation:apara .34s cubic-bezier(.2,.9,.3,1)}
+ @keyframes apara{0%{transform:translateY(0)}
+   30%{transform:translateY(-3px) scale(1.03)}
+   60%{transform:translateY(1px) scale(.995)}
+   100%{transform:translateY(0)}}
+ /* anel de faísca metálica no ponto do impacto */
+ .clang{position:absolute;left:50%;top:38%;width:54px;height:54px;margin:-27px 0 0 -27px;
+   border-radius:50%;border:2px solid #9fd0ff;pointer-events:none;z-index:4;
+   box-shadow:0 0 18px #6fb4ff,inset 0 0 12px #6fb4ff;animation:clangue .42s ease-out forwards}
+ @keyframes clangue{0%{opacity:0;transform:scale(.35)}
+   35%{opacity:1;transform:scale(.9)}
+   100%{opacity:0;transform:scale(1.45)}}
+ @media (prefers-reduced-motion:reduce){ .clang,.en.apara{animation-duration:.01s} }
  /* tremor global da HUD */
  #ini,#baixo{transform:translateX(var(--sk,0px))}
  /* ===== TELEGRAFIA (§12) ===== */
