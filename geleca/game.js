@@ -789,10 +789,12 @@ function botThink(dt){
     let bp=null,bd=1e9; for(const p of plates){ const px=p.x+p.w/2, d=Math.abs(px-cx); if(d<bd){bd=d;bp=p;} }
     if(bp){ tx=bp.x+bp.w/2; ty=bp.y; pressing=true; }
   }
-  // reabastece se a massa está baixa e há um pedaço perto
-  if(b.mass<=2){
-    let bg=null,bd=1e9; for(const g of globs){ if(!g.solid)continue; const gx=g.x+g.w/2,gy=g.y+g.h/2, d=Math.hypot(gx-cx,gy-cy); if(d<bd){bd=d;bg=g;} }
-    if(bg && bd<TILE*5){ refuel=bg; tx=bg.x+bg.w/2; ty=bg.y; pressing=false; }
+  // reabastece se a massa está baixa: mira o pedaço/gosma mais próximo (glob precisa PEGAR; 'o' coleta ao encostar)
+  if(b.mass<=3){
+    let btx=null,bty=null,bd=1e9,grabIt=false;
+    for(const g of globs){ if(!g.solid)continue; const gx=g.x+g.w/2,gy=g.y+g.h, d=Math.hypot(gx-cx,gy-feet); if(d<bd){bd=d;btx=gx;bty=gy;grabIt=true;} }
+    for(const pk of pickups){ const d=Math.hypot(pk.x-cx,pk.y-feet); if(d<bd){bd=d;btx=pk.x;bty=pk.y;grabIt=false;} }
+    if(btx!==null && bd<TILE*7){ tx=btx; ty=bty; pressing=false; refuel={x:btx,y:bty,grab:grabIt}; }
   }
 
   const dx=tx-cx;
@@ -800,7 +802,7 @@ function botThink(dt){
   const dir = mx || (b.dir||1);
 
   // reabsorve ao chegar em cima do pedaço-alvo
-  if(refuel && Math.abs((refuel.x+refuel.w/2)-cx)<TILE*0.9 && Math.abs(feet-(refuel.y+refuel.h))<TILE*1.4) bot.grab=true;
+  if(refuel && refuel.grab && Math.abs(refuel.x-cx)<TILE && Math.abs(feet-refuel.y)<TILE*1.6) bot.grab=true;
   // pressiona a placa: parado em cima dela, solta um pedaço (pulo) que fica sobre a placa
   if(pressing && Math.abs(tx-cx)<TILE*0.6 && onG && b.mass>1 && bot.jumpCD<=0){ bot.jump=true; bot.jumpCD=0.6; }
 
@@ -809,11 +811,14 @@ function botThink(dt){
   const spikeAhead = botSpikeAt(aheadX,feet+2) || botSpikeAt(cx,feet+3);
   const gapAhead = onG && mx!==0 && !botGroundBelow(aheadX,feet-2,2);
   const wallAhead = botSolidAt(aheadX,cy) && !botSolidAt(aheadX,b.y-4);   // muro no corpo, teto livre → dá pra montar/escalar
+  const stepUp  = botSolidAt(aheadX,feet-TILE*0.4) && !botSolidAt(aheadX,feet-TILE*1.5); // degrau/morro à frente
   const targetAbove = ty < feet - TILE*1.2;
+  const targetBelow = ty > feet + TILE*2;
 
   if(onG){
     if(spikeAhead) bot.jump=true;
-    else if(gapAhead) bot.jump=true;
+    else if(gapAhead && !targetBelow) bot.jump=true;    // abismo: pula — a menos que o alvo esteja lá EMBAIXO (deixa cair)
+    else if(stepUp) bot.jump=true;                      // sobe degrau/morro
     else if(wallAhead) bot.jump=true;
     else if(targetAbove && !pressing){
       if(botSolidAt(cx,b.y-TILE*1.3) || botSolidAt(aheadX,b.y-TILE*0.4)) bot.jump=true;
