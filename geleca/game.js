@@ -748,28 +748,39 @@ function updateEnemies(dt){
         e.y=e.y0+Math.sin(levelTime*22)*4; e.dir=away>0?1:-1; e.px=e.x; continue;
       }
       const dx=bx-(e.x+e.w/2), d=Math.hypot(dx, by-(e.y+e.h/2));
-      const range=boss?1e9:e.range;
       const phase = boss ? (1+(3-(e.hp||3))*0.3) : 1;    // FASE: mais rápido a cada dano (HP 3→2→1)
-      if(d<range){
-        const step=Math.sign(dx)*e.speed*(boss?120*phase:98)*dt;
-        const nx=e.x+step; if(!enemyBlocked(e,nx)) e.x=nx;
-        e.mad=Math.min(1,e.mad+dt*3); e.alert=1;
-        if(boss && Math.random()<0.5) burst(e.x+e.w*(dx>0?0:1),e.y+e.h*0.6,1,"#c04a8a",40);   // rastro
-      } else {
-        const hx=e.x0-e.x;
-        if(Math.abs(hx)>1){ const nx=e.x+Math.sign(hx)*Math.min(Math.abs(hx),e.speed*70*dt); if(!enemyBlocked(e,nx)) e.x=nx; }
-        e.mad=Math.max(0,e.mad-dt*1.6); e.alert=Math.max(0,e.alert-dt);
-      }
-      e.y = e.y0 + Math.sin(levelTime*(4+e.mad*4))*(2+e.mad*2)*(boss?1.6:1);
-      if(boss) shake=Math.max(shake, Math.max(0, (1-d/360))*3*phase);   // treme quando o chefe se aproxima
-      // ATAQUE: o CHEFE CUSPE gosma em arco no jogador — mais rápido/múltiplo a cada dano
-      if(boss){ e.windup=Math.max(0,(e.windup||0)-dt); e.shootT=(e.shootT||2.2)-dt;
-        if(e.shootT<=0){ e.shootT = 2.6 - (3-(e.hp||3))*0.55; e.windup=0.45; }   // agenda o cuspe (telegrafa)
-        if(e.windup>0 && e.windup<=dt+0.001){                                     // dispara ao fim do windup
-          const n = 1 + (3-(e.hp||3));                                            // 1 → 2 → 3 projéteis a cada dano
-          for(let k=0;k<n;k++) bossShoot(e, (k-(n-1)/2)*90);
+      if(boss && e.mode==='wind'){                        // ── TELEGRAFA o SALTO-PANCADA (agacha, pisca, treme)
+        e.windT-=dt; e.tel=1; shake=Math.max(shake,3);
+        if(Math.random()<0.5) burst(e.x+e.w/2,e.y+e.h,2,"#ff4d7e",90);
+        if(e.windT<=0){ e.mode='leap'; e.vy=-680; e.vx=Math.max(-300,Math.min(300,dx*1.8)); sfx("jump"); }
+      } else if(boss && e.mode==='leap'){                 // ── SALTO em ARCO na direção do jogador
+        e.vy+=1600*dt; e.y+=e.vy*dt; const nx=e.x+e.vx*dt; if(!enemyBlocked(e,nx)) e.x=nx;
+        if(e.y>=e.y0){ e.y=e.y0; e.mode='chase'; e.tel=0; bossSlam(e); }   // PANCADA no chão ao aterrissar
+      } else {                                            // ── CAÇA + CUSPE (padrão)
+        e.tel=0;
+        const range=boss?1e9:e.range;
+        if(d<range){
+          const step=Math.sign(dx)*e.speed*(boss?120*phase:98)*dt;
+          const nx=e.x+step; if(!enemyBlocked(e,nx)) e.x=nx;
+          e.mad=Math.min(1,e.mad+dt*3); e.alert=1;
+          if(boss && Math.random()<0.5) burst(e.x+e.w*(dx>0?0:1),e.y+e.h*0.6,1,"#c04a8a",40);
+        } else {
+          const hx=e.x0-e.x;
+          if(Math.abs(hx)>1){ const nx=e.x+Math.sign(hx)*Math.min(Math.abs(hx),e.speed*70*dt); if(!enemyBlocked(e,nx)) e.x=nx; }
+          e.mad=Math.max(0,e.mad-dt*1.6); e.alert=Math.max(0,e.alert-dt);
+        }
+        e.y = e.y0 + Math.sin(levelTime*(4+e.mad*4))*(2+e.mad*2)*(boss?1.6:1);
+        if(boss){
+          e.leapCD=(e.leapCD==null?4.0:e.leapCD)-dt;                        // agenda o SALTO-PANCADA
+          if(e.leapCD<=0 && Math.abs(dx)<600){ e.mode='wind'; e.windT=0.5; e.leapCD=5.5-(3-(e.hp||3))*0.9; }
+          else {                                                           // senão, CUSPE gosma em arco
+            e.windup=Math.max(0,(e.windup||0)-dt); e.shootT=(e.shootT||2.2)-dt;
+            if(e.shootT<=0){ e.shootT=2.6-(3-(e.hp||3))*0.55; e.windup=0.45; }
+            if(e.windup>0 && e.windup<=dt+0.001){ const n=1+(3-(e.hp||3)); for(let k=0;k<n;k++) bossShoot(e,(k-(n-1)/2)*90); }
+          }
         }
       }
+      if(boss) shake=Math.max(shake, Math.max(0, (1-d/360))*3*phase);   // treme quando o chefe se aproxima
     }
     e.dir = e.x>e.px?1:(e.x<e.px?-1:(e.dir||1));
   }
@@ -1054,7 +1065,7 @@ function handleBoss(e,dt){
   if(!overlaps(blob,box)) return;
   const feet=blob.y+blob.h, headLine=e.y+e.h*0.5;
   if(blob.vy>40 && feet < headLine){                    // PULO NA CABEÇA = dano
-    e.hp--; e.hitT=1.0;
+    e.hp--; e.hitT=1.0; e.mode='chase'; e.vy=0; e.tel=0; e.y=e.y0;   // interrompe salto/telegrafo ao levar dano
     blob.vy=-BOUNCE*0.7; blob.onGround=false; blob.onGroundPrev=false;   // quica pra cima
     burst(e.x+e.w/2, e.y, 20, "#ff8fae", 220); ring(e.x+e.w/2, e.y, e.w*1.4, "255,143,174", 4, 0.45); shake=9; hitstop(0.09); sfx("bosshit");
     if(e.hp<=0) bossDefeated(e);
@@ -1072,6 +1083,24 @@ function bossDefeated(e){
   for(let i=0;i<48;i++) burst(e.x+e.w/2,e.y+e.h/2,1,CONFCOL[i%CONFCOL.length],260);
   const idx=enemies.indexOf(e); if(idx>=0) enemies.splice(idx,1);
   shots=[]; shake=14; sfx("win"); win();                // dispara o final especial da fase secreta
+}
+// SALTO-PANCADA: onda de choque pelo chão ao aterrissar. Quem está no chão perto leva dano; pular ESCAPA.
+function bossSlam(e){
+  const cx=e.x+e.w/2, gy=e.y+e.h;
+  shake=13; hitstop(0.10); sfx("impact");
+  splat(cx,gy,16,180); ring(cx,gy,e.w*1.1,"255,143,174",5,0.42); ring(cx,gy,e.w*2.0,"255,120,150",3,0.5);
+  for(let i=0;i<22;i++){ const a=Math.PI+Math.random()*Math.PI, sp=120+Math.random()*180;   // detritos rasteiros
+    particles.push({x:cx,y:gy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*0.5,life:0.3+Math.random()*0.25,max:0.55,r:2+Math.random()*3,color:"#ff8fae"}); }
+  if(blob && !blob.gone && blob.hurtT<=0){
+    const grounded=blob.onGroundPrev||blob.onGround, near=Math.abs((blob.x+blob.w/2)-cx)<e.w*2.4;
+    if(grounded && near){                                // no chão e no alcance da onda = leva a pancada
+      blob.hurtT=1.2; const kb=(blob.x+blob.w/2<cx)?-1:1;
+      blob.vx=kb*360; blob.vy=-260; blob.onGround=false; blob.onGroundPrev=false; blob.flash=0.5;
+      blob.mass=Math.max(0,blob.mass-2); sizeBlob(); renderHud();
+      burst(blob.x+blob.w/2,blob.y+blob.h/2,12,"#ff6a6a",190); sfx("hurt");
+      if(blob.mass<1){ die(); }
+    }
+  }
 }
 // CHEFE cuspe gosma em ARCO no jogador (dodge ou perde massa)
 function bossShoot(e, spread){
@@ -1320,6 +1349,14 @@ function render(){
     }
     // ASSOMBRAÇÃO (perseguidor / chefe): fantasma escuro, translúcido, com UM olho que te segue.
     const boss=e.type==="boss";
+    // TELEGRAFO do SALTO-PANCADA: marca vermelha pulsante no chão sob o chefe (avisa pra desviar/pular)
+    if(boss && (e.mode==='wind'||e.mode==='leap')){
+      const gy=(e.y0!=null?e.y0:e.y)+e.h+2, pw=e.w*(e.mode==='leap'?1.4:1.0)*(0.8+Math.sin(T*18)*0.2);
+      ctx.save(); ctx.globalAlpha=0.5+Math.sin(T*18)*0.25;
+      ctx.strokeStyle="#ff3b6b"; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(cx,gy,pw,5,0,0,7); ctx.stroke();
+      ctx.fillStyle="rgba(255,59,107,.18)"; ctx.beginPath(); ctx.ellipse(cx,gy,pw,5,0,0,7); ctx.fill();
+      ctx.restore();
+    }
     const hitFlash = boss && e.hitT>0 && Math.floor(e.hitT*18)%2===0;   // pisca branco ao levar dano
     let bodyDark = boss ? (mad>0.1?"#7a1e5e":"#4a1440") : (mad>0.1?"#8a1830":"#5a1428");
     let bodyLite = boss ? (mad>0.1?"#c0246e":"#7a2860") : (mad>0.1?"#d0304a":"#8a2842");
@@ -1935,6 +1972,9 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
   gotoExit(){ if(blob&&exitRect){ blob.x=exitRect.x; blob.y=exitRect.y; blob.vy=0; } },
   bossHp(){ const e=enemies&&enemies.find(x=>x.type==="boss"); return e?e.hp:-1; },
+  bossMode(){ const e=enemies&&enemies.find(x=>x.type==="boss"); return e?(e.mode||'chase'):null; },
+  bossPos(){ const e=enemies&&enemies.find(x=>x.type==="boss"); return e?{x:Math.round(e.x),y:Math.round(e.y),y0:Math.round(e.y0)}:null; },
+  _forceLeap(){ const e=enemies&&enemies.find(x=>x.type==="boss"); if(e){ e.leapCD=0; e.mode='wind'; e.windT=0.5; } },
   get shotCount(){ return shots?shots.length:0; },
   _stompBoss(){ const e=enemies&&enemies.find(x=>x.type==="boss"); if(e&&blob){ blob.x=e.x+e.w/2-blob.w/2; blob.y=e.y-blob.h+3; blob.vy=260; blob.hurtT=0; e.hitT=0; } },
   get parts(){ return particles?particles.length:0; },
