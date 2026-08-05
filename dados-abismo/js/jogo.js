@@ -315,7 +315,7 @@ function telaGrimorio(foco, voltar){
 /* heróis que já têm arte em arte/herois/. Tentar carregar e cair no onerror
    custava um 404 por classe no console — melhor declarar o que existe.
    Ao adicionar a arte, acrescente o id aqui. */
-const HEROIS_COM_ARTE = new Set([]);
+const HEROIS_COM_ARTE = new Set(['carrasco','lamina','arcanista','oracula']);
 const TIPO_ANDAR = a => a===10?'chefe' : a===5?'subchefe' : (a===3||a===4||a>=6)?'elite':'comum';
 const ICO_ANDAR = { comum:'⚔', elite:'☠', subchefe:'👹', chefe:'💀' };
 function previaOnda(m,a){
@@ -922,7 +922,9 @@ function telaVitoria(){
   META.salvar(cofre);
   const C=CLASSES[P.classe];
   m.innerHTML=`<div class="fimwrap venceu">
-    <div class="fimselo ganhou"><div class="fimanel"></div><span>★</span></div>
+    ${HEROIS_COM_ARTE.has(P.classe)
+      ? `<div class="fimheroi" style="--cc:${C.cor}"><img src="arte/herois/${P.classe}.png" alt=""></div>`
+      : `<div class="fimselo ganhou"><div class="fimanel"></div><span>★</span></div>`}
     <div class="fimt vit">VOCÊ CHEGOU AO FUNDO</div>
     <div class="fimprof">100 ANDARES</div>
     <div class="fimvitsub">${C.glifo} ${C.nome} atravessou as ${META.MASMORRAS_TOTAL} masmorras

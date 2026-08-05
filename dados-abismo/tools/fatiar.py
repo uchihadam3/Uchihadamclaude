@@ -28,6 +28,35 @@ def mascara_fundo(rgb):
     return d < TOL
 
 
+# alfa contínuo: abaixo de A0 é fundo puro, acima de A1 é arte sólida
+A0, A1 = 45.0, 210.0
+
+
+def cor_e_alfa(rgb):
+    """Alfa suave + remoção do magenta que vazou na borda.
+
+    O alfa BINÁRIO deixava uma franja rosa em volta de tudo: os pixels de
+    anti-aliasing são MISTURA de arte com fundo, e viravam 100% opacos
+    carregando a cor contaminada — bem visível nos cristais do Arcanista,
+    que ficaram magenta em vez de azuis.
+
+    Aqui o pixel misturado vira semitransparente e a parte de magenta é
+    subtraída. É o inverso exato da conta que o gerador fez ao compor:
+        obs = a*arte + (1-a)*magenta   ->   arte = (obs - (1-a)*magenta) / a
+    """
+    f = np.asarray(rgb, dtype=np.float32)
+    mag = np.array(MAGENTA, dtype=np.float32)
+    d = np.sqrt(((f - mag) ** 2).sum(axis=2))
+    a = np.clip((d - A0) / (A1 - A0), 0.0, 1.0)
+
+    seguro = np.maximum(a, 1e-3)[..., None]
+    arte = (f - (1.0 - a)[..., None] * mag) / seguro
+    arte = np.clip(arte, 0, 255)
+    # onde quase não há arte, o unmultiply só amplificaria ruído
+    arte[a < 0.06] = 0
+    return arte.astype(np.uint8), (a * 255.0).astype(np.uint8)
+
+
 def rotular(obj):
     """Componentes conectados 4-vizinhos, por varredura + union-find.
     (scipy não está instalado aqui, então vai na mão mesmo.)"""
@@ -152,7 +181,8 @@ def main():
         return
 
     os.makedirs(destino, exist_ok=True)
-    rgba = np.dstack([rgb, np.where(fundo, 0, 255).astype(np.uint8)])
+    limpo, alfa = cor_e_alfa(rgb)
+    rgba = np.dstack([limpo, alfa])
     for k, (x0, y0, x1, y1, _) in enumerate(cxs):
         if k >= len(ids):
             break

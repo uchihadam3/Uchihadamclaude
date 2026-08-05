@@ -348,10 +348,12 @@
  .cmarca{position:absolute;right:-18px;top:50%;transform:translateY(-50%);font-size:150px;
    line-height:1;color:var(--cc);opacity:.045;pointer-events:none;filter:blur(.4px)}
  /* retrato: usa a arte do herói quando existir, senão o glifo aceso */
- .cretrato{position:relative;flex:none;width:58px;align-self:flex-start;margin-top:2px;
-   display:grid;place-items:center}
- .cretrato img{width:58px;height:74px;object-fit:contain;
-   filter:drop-shadow(0 3px 8px #000a) drop-shadow(0 0 12px var(--cc)55)}
+ .cretrato{position:relative;flex:none;width:84px;align-self:stretch;margin-top:2px;
+   display:flex;align-items:center;justify-content:center}
+ /* a arte é o argumento de venda da classe: merece o tamanho */
+ .cretrato img{width:84px;height:150px;object-fit:contain;object-position:center;
+   image-rendering:auto;
+   filter:drop-shadow(0 4px 10px #000c) drop-shadow(0 0 16px var(--cc)66)}
  .cretrato img+.cglifo{display:none}   /* tem arte: o glifo sai de cena */
  .cglifo{font-size:34px;filter:drop-shadow(0 0 10px var(--cc));text-align:center;
    width:auto;margin:8px 0 0}
@@ -387,6 +389,13 @@
  .fimanel{position:absolute;inset:0;border-radius:50%;border:2px dashed var(--fc);opacity:.5;
    animation:girar 16s linear infinite}
  .fimselo>span{font-size:34px;font-weight:900;color:var(--fc);text-shadow:0 0 18px var(--fc)88}
+ /* quem venceu aparece: o herói é o troféu */
+ .fimheroi{position:relative;display:grid;place-items:center;margin-bottom:2px;
+   animation:selopop .6s cubic-bezier(.2,1.4,.4,1) both}
+ .fimheroi::before{content:'';position:absolute;width:150px;height:150px;border-radius:50%;
+   background:radial-gradient(circle,var(--cc)44,transparent 66%);animation:pulsar 3.4s ease-in-out infinite}
+ .fimheroi img{position:relative;height:190px;width:auto;
+   filter:drop-shadow(0 8px 22px #000d) drop-shadow(0 0 26px var(--cc)88)}
  .fimt.vit{color:#ffd24a}
  .fimvitsub{font-size:12px;color:#8d8672;line-height:1.6;max-width:330px;margin:2px 0 4px}
  /* profundidade contra o recorde, na mesma barra */
