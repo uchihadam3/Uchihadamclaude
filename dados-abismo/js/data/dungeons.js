@@ -66,7 +66,7 @@ export const M1 = {
 
     { id:'lasca_femur',   nome:'Lasca de Fêmur', hp:8,  trava:T('fraco',3), explode:8,
       padrao:[A(10)],
-      desc:'Casca fina: dado grande estilhaça sem ferir. Explode ao morrer.' },
+      desc:'Casca fina: dado grande estilhaça sem ferir. Ao morrer EXPLODE no campo — quem estiver do lado também leva.' },
   ],
   elites:[
     { id:'sacristao',  nome:'Sacristão Pálido',  hp:36, trava:T('chave',7),
@@ -116,7 +116,7 @@ export const M2 = {
       desc:'Bloco maciço: dado pequeno se desfaz nela.' },
     { id:'bolha_mare',    nome:'Bolha de Maré', hp:11, trava:T('enxuto',1), explode:9,
       padrao:[A(12)],
-      desc:'Estoura com um toque só — dois dados a espalham. Explode ao morrer.' },
+      desc:'Estoura com um toque só — dois dados a espalham. Ao morrer EXPLODE no campo: use-a para ferir os vizinhos.' },
     { id:'coral_cantante',nome:'Coral Cantante', hp:19, trava:T('simbolo','shield'),
       padrao:[BF(),A(5)],
       desc:'Só cede ao 🛡 Escudo no golpe. Enfurece o pântano.' },
@@ -168,7 +168,7 @@ export const M3 = {
       desc:'Sopra em compasso quebrado: soma ÍMPAR. Atiça os outros.' },
     { id:'escoria',       nome:'Escória', hp:16, trava:T('fraco',3), explode:10,
       padrao:[M(3,3)],
-      desc:'Crosta quebradiça: golpe grande espalha sem ferir. Explode forte.' },
+      desc:'Crosta quebradiça: golpe grande espalha sem ferir. Ao morrer EXPLODE forte no campo inteiro.' },
     { id:'martelo_orfao', nome:'Martelo Órfão', hp:24, trava:T('multiplo',3),
       padrao:[A(12),INV()],
       desc:'Bate em três tempos: soma múltipla de 3. E inverte o seu dado.' },

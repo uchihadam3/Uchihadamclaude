@@ -84,7 +84,7 @@ export const M5 = {
       desc:'Parede de células: golpe estreito atravessa sem tocar.' },
     { id:'ferrao_solto',  nome:'Ferrão Solto',      hp:20, trava:T('enxuto',1), explode:14,
       padrao:[A(16)],
-      desc:'Uma agulha. Um dado. Explode ao morrer.' },
+      desc:'Uma agulha. Um dado. Ao morrer EXPLODE no campo — os vizinhos levam junto.' },
     { id:'cera_negra',    nome:'Cera Negra',        hp:34, trava:T('par'),
       padrao:[CONG(),A(10)],
       desc:'Endurece em compasso par. Congela seus dados na cera.' },
@@ -147,7 +147,7 @@ export const M6 = {
       desc:'Superfície lisa: só o ⚔ morde. E ele lasca os seus dados.' },
     { id:'candelabro',    nome:'Candelabro Caído',  hp:22, trava:T('enxuto',2), explode:16,
       padrao:[A(18)],
-      desc:'Dois dados exatos o derrubam. Explode em cacos.' },
+      desc:'Dois dados exatos o derrubam. Explode em cacos no campo inteiro.' },
   ],
   elites:[
     { id:'chanceler_vidro',nome:'O Chanceler de Vidro', hp:95, trava:T('espelho',60),
@@ -201,7 +201,7 @@ export const M7 = {
       desc:'Cláusula estreita: soma entre 11 e 15.' },
     { id:'fiel_da_balanca',nome:'Fiel da Balança',  hp:24, trava:T('enxuto',1), explode:18,
       padrao:[A(20)],
-      desc:'Um dado só fecha a conta. Explode ao ser quitado.' },
+      desc:'Um dado só fecha a conta. Ao ser quitado EXPLODE no campo — leve os vizinhos junto.' },
   ],
   elites:[
     { id:'usurario',      nome:'O Usurário', hp:110, trava:T('chave',13),
@@ -256,7 +256,7 @@ export const M8 = {
       desc:'Cada dedo conta uma vez só.' },
     { id:'fruto_podre',   nome:'Fruto Podre',       hp:28, trava:T('fraco',3), explode:22,
       padrao:[A(24)],
-      desc:'Casca mole: golpe grande explode ele em cima de você.' },
+      desc:'Casca mole: ao morrer explode em cima de você E dos vizinhos dele.' },
   ],
   elites:[
     { id:'jardineiro',    nome:'O Jardineiro', hp:130, trava:T('primo'),
@@ -310,7 +310,7 @@ export const M9 = {
       desc:'Vê o mundo virado: só a ✦ Essência o alcança.' },
     { id:'queda_livre',   nome:'Queda Livre',       hp:34, trava:T('primo'), explode:26,
       padrao:[A(28)],
-      desc:'Soma prima ou nada. Explode ao tocar o chão.' },
+      desc:'Soma prima ou nada. Ao tocar o chão EXPLODE no campo inteiro.' },
   ],
   elites:[
     { id:'arquiteto',     nome:'O Arquiteto Invertido', hp:165, trava:T('fraco',3),
@@ -364,7 +364,7 @@ export const M10 = {
       desc:'A Cidadela de novo: devolve 55% do que sofre.' },
     { id:'ficha_de_alma', nome:'Ficha de Alma',     hp:48, trava:T('chave',13), explode:30,
       padrao:[A(32)],
-      desc:'O Mercado de novo: preço cravado em 13. Explode ao ser paga.' },
+      desc:'O Mercado de novo: preço cravado em 13. Ao ser paga EXPLODE no campo inteiro.' },
   ],
   elites:[
     { id:'banqueiro',     nome:'O Banqueiro', hp:230, trava:T('primo'),

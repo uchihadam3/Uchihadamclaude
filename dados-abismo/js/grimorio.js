@@ -63,8 +63,10 @@ export const SECOES = [
         ex: ex('3+4 = 7 passa · 5+6 = 11 passa', '4+4 = 8 dá zero · 3+6 = 9 dá zero') },
       { id:'casal', t:'∞ Gêmeo — "imune enquanto o gêmeo viver"',
         d:'Invulnerável enquanto o par dele estiver vivo. Escolha a ordem.', ex:null },
-      { id:'espelho', t:'⇄ Espelho — "devolve 45%"',
-        d:'Este fere normalmente, mas devolve parte do dano em você. Golpe pequeno e veneno saem mais barato.', ex:null },
+      { id:'espelho', t:'⇄ Espelho — "devolve 45% do 1º golpe do turno"',
+        d:'Fere normalmente, mas o PRIMEIRO golpe que ele sofrer a cada turno volta em você — só o primeiro. A ORDEM é a jogada: abra com o golpe pequeno para pagar barato, e todo o resto do turno sai de graça. Veneno e sangramento não acordam o espelho.',
+        ex: ex('abrir com um golpe de 4 devolve 2 — e o golpão de 30 que vem depois sai limpo',
+               'abrir com o golpão de 30 devolve 13, e os golpes seguintes seriam de graça de qualquer jeito') },
     ],
   },
   {
