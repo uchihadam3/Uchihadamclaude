@@ -654,7 +654,20 @@ function solidsList(){ const l=solidTiles.slice();
   return l; }
 function moveAxis(dx,dy){ const list=solidsList();
   blob.x+=dx; for(const s of list)if(overlaps(blob,s)){ if(dx>0){blob.x=s.x-blob.w;blob.wall=1;} else if(dx<0){blob.x=s.x+s.w;blob.wall=-1;} blob.vx=0; }
-  blob.y+=dy; for(const s of list)if(overlaps(blob,s)){ if(dy>0){blob.y=s.y-blob.h;blob.onGround=true;blob.vy=0;} else if(dy<0){blob.y=s.y+s.h;blob.vy=0;} } }
+  // Y: resolve SÓ contra sólidos que o blob de fato "alcançou" nesta passada (vindo de cima ao cair,
+  // ou de baixo ao subir). Assim um bloco em que o blob esteja EMBUTIDO (ex.: cresceu dentro, ou pilha
+  // encostada) nunca ejeta o personagem pra cima — o bug do "teletransporte pra fora da tela".
+  const preTop=blob.y, preBottom=blob.y+blob.h;
+  blob.y+=dy;
+  if(dy>0){                                        // caindo → pousa no topo MAIS ALTO dentre os que vinham de baixo dos pés
+    let landY=null;
+    for(const s of list) if(overlaps(blob,s) && preBottom<=s.y+2){ landY = (landY===null)?s.y:Math.min(landY,s.y); }
+    if(landY!==null){ blob.y=landY-blob.h; blob.onGround=true; blob.vy=0; }
+  } else if(dy<0){                                  // subindo → bate no teto mais baixo dentre os que vinham de cima da cabeça
+    let ceilB=null;
+    for(const s of list) if(overlaps(blob,s) && preTop>=s.y+s.h-2){ ceilB=(ceilB===null)?s.y+s.h:Math.max(ceilB,s.y+s.h); }
+    if(ceilB!==null){ blob.y=ceilB; blob.vy=0; }
+  } }
 
 function inputState(){
   let mx=0;
