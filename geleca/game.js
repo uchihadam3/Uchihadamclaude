@@ -519,8 +519,8 @@ let toastT; function toast(m,k){ /* reservado */ }
 // MENU / SELEÇÃO DE FASES
 // ==========================================================================
 function showMenu(){
-  state="menu"; stopMusic(); winTimer=0; winThen=null;
-  el("screen-game").classList.remove("active");
+  state="menu"; stopMusic(); winTimer=0; winThen=null; customCtx=null;
+  ["screen-game","screen-custom","screen-editor"].forEach(id=>el(id).classList.remove("active"));
   el("screen-menu").classList.add("active");
   buildFireflies();
   buildLevelGrid();
@@ -641,24 +641,33 @@ function buildLevelGrid(){
   map.appendChild(pawn);
 }
 function startGame(i){
-  levelIndex=i;
+  levelIndex=i; customCtx=null;
   el("screen-menu").classList.remove("active");
   el("screen-game").classList.add("active");
   loadLevel(i);
+}
+// joga um objeto de fase (custom/editor) direto no motor. ctx: 'edit' (voltar ao editor) | 'list'
+let customCtx=null;
+function playLevelObj(obj, ctx){
+  customCtx=ctx||'list'; levelIndex=-1;
+  ["screen-menu","screen-custom","screen-editor"].forEach(id=>el(id).classList.remove("active"));
+  el("screen-game").classList.add("active");
+  loadLevelObj(obj);
 }
 
 // ==========================================================================
 // CARREGAR / RESETAR
 // ==========================================================================
-function loadLevel(idx){
-  level=LEVELS[idx]; ROWS=level.rows.length; COLS=level.rows[0].length;
+function loadLevel(idx){ loadLevelObj(LEVELS[idx]); }
+function loadLevelObj(obj){
+  level=obj; ROWS=obj.rows.length; COLS=obj.rows[0].length;
   fitCanvas();                            // dimensiona o canvas à tela e calcula o zoom
-  theme=THEMES[level.theme] || THEMES.cave;
-  if(musicOn) startMusic(level.theme);    // trilha ambiente do mundo
+  theme=THEMES[obj.theme] || THEMES.cave;
+  if(musicOn) startMusic(obj.theme);      // trilha ambiente do mundo
   // motes de fundo
   motes=[]; for(let i=0;i<26;i++) motes.push({ x:Math.random()*canvas.width, y:Math.random()*canvas.height,
     r:1+Math.random()*2.5, s:6+Math.random()*14, ph:Math.random()*6.28 });
-  showHint(level.hint);
+  showHint(obj.hint||"");
   levelTime=0; transition=1; resetLevel();
   bot.progT=0; bot.bestD=null; botWait=0;        // zera o watchdog do autopilot a cada fase
 }
@@ -1280,11 +1289,18 @@ function die(){ if(state==="dead")return; deaths++;
   sfx("impact"); sfx("die"); shake=12;
   state="dead";
   // deixa o espatifo aparecer antes de mostrar a tela de morte
+  const backBtn = customCtx==='edit' ? {t:"Editor",ghost:true,cb:()=>showEditor(false)}
+                : customCtx==='list' ? {t:"Minhas Fases",ghost:true,cb:showCustom}
+                : {t:"Menu",ghost:true,cb:showMenu};
   deferWin(()=>overlay("💥 Ai!","Espinho, queda ou derreteu.",[
-    {t:"Tentar de novo",cb:resetLevel},
-    {t:"Menu",ghost:true,cb:showMenu}]), 0.5); }
+    {t:"Tentar de novo",cb:resetLevel}, backBtn]), 0.5); }
 
 function win(){ state="complete"; sfx("win"); burst(exitRect.x+exitRect.w/2,exitRect.y+exitRect.h/2,22,"#7ee06b",190);
+  // FASE CUSTOM: sem progresso salvo — só confirma que funciona e volta ao editor/lista
+  if(customCtx){ ring(exitRect.x+exitRect.w/2,exitRect.y+exitRect.h/2,60,"126,224,107",4,0.5);
+    deferWin(()=>overlay("✅ Fase concluída!","Sua fase é jogável! 🎉",[
+      {t:"Editor",cb:()=>showEditor(false)},
+      {t:"Minhas Fases",ghost:true,cb:showCustom}]), 0.5); return; }
   const st=starsFor(levelIndex,blob.mass);
   save.stars[levelIndex]=Math.max(save.stars[levelIndex]||0, st);
   // ⭐ estrelas VISÍVEIS: contadas abertamente
@@ -2040,7 +2056,7 @@ function loop(ts){ const dt=Math.min(0.033,(ts-last)/1000||0); last=ts; update(d
     if(botOn){ botWait+=dt; if(botWait>1.3){ botWait=0;
       if(state==="complete"){ const NORMAL=LEVELS.filter(L=>!L.secret).length; startGame(levelIndex+1<NORMAL?levelIndex+1:0); }
       else resetLevel(); } } }
-  if(state!=="menu") render(); requestAnimationFrame(loop); }
+  if(state!=="menu" && state!=="editor") render(); requestAnimationFrame(loop); }
 let winTimer=0, winThen=null;
 function deferWin(fn,delay){ winThen=fn; winTimer=delay; }
 
@@ -2082,7 +2098,7 @@ function bindAct(id,fn){ const b=el(id);
 bindAct("btn-jump",()=>{ jumpEdge=true; });
 bindAct("btn-grab",()=>{ grabEdge=true; });
 el("btn-reset").addEventListener("click",()=>{ if(state==="play"||state==="dead")resetLevel(); });
-el("btn-menu").addEventListener("click",showMenu);
+el("btn-menu").addEventListener("click",()=>{ if(customCtx==='edit')showEditor(false); else if(customCtx==='list')showCustom(); else showMenu(); });
 el("btn-mute").addEventListener("click",()=>{ audio(); toggleMute(); });
 el("btn-bot").addEventListener("click",()=>{ audio(); toggleBot(); });
 { const mb=el("btn-mute"); if(mb) mb.textContent = musicOn?"🔊":"🔇"; }   // reflete estado salvo
@@ -2091,8 +2107,172 @@ el("btn-bot").addEventListener("click",()=>{ audio(); toggleBot(); });
 canvas.addEventListener("pointerdown",e=>{ if(state!=="play")return; audio(); tryPossess(e.clientX,e.clientY); });
 
 // ==========================================================================
+// EDITOR DE FASES (estilo Mario Maker) + MINHAS FASES
+// ==========================================================================
+const CUSTOM_KEY="geleca_custom_v1";
+function loadCustom(){ try{ return JSON.parse(localStorage.getItem(CUSTOM_KEY)||"{}"); }catch(e){ return {}; } }
+function saveCustom(o){ try{ localStorage.setItem(CUSTOM_KEY, JSON.stringify(o)); }catch(e){} }
+// paleta de pincéis do editor
+const PALETTE=[
+  {b:'#',      ic:'🟫', lbl:'Chão',    col:'#6a4a2a'},
+  {b:'^',      ic:'🔺', lbl:'Espinho', col:'#c02a34'},
+  {b:'o',      ic:'🟢', lbl:'Gosma',   col:'#2f7a30'},
+  {b:'*',      ic:'⭐', lbl:'Estrela',  col:'#c99320'},
+  {b:'T',      ic:'🔷', lbl:'Mola',    col:'#2f7f9e'},
+  {b:'C',      ic:'🟧', lbl:'Frágil',  col:'#a06a30'},
+  {b:'H',      ic:'🔥', lbl:'Calor',   col:'#b0431f'},
+  {b:'P',      ic:'🔘', lbl:'Placa',   col:'#35507f'},
+  {b:'D',      ic:'🟪', lbl:'Porta',   col:'#5a3a8a'},
+  {b:'S',      ic:'🧱', lbl:'Falsa',   col:'#4a5550'},
+  {b:'g',      ic:'💎', lbl:'Segredo', col:'#4a5550'},
+  {b:'patrol', ic:'🛡️', lbl:'Guardião',col:'#8a1830'},
+  {b:'chaser', ic:'👻', lbl:'Caçador', col:'#5a1440'},
+  {b:'mover',  ic:'↔️', lbl:'Móvel',   col:'#2f6f7f'},
+  {b:'@',      ic:'🟩', lbl:'Início',  col:'#2f9838'},
+  {b:'E',      ic:'🏁', lbl:'Saída',   col:'#1a2a3a'},
+  {b:'erase',  ic:'🧽', lbl:'Apagar',  col:'#20302a'},
+];
+const PMAP={}; for(const it of PALETTE) PMAP[it.b]=it;
+const ed={ W:48, H:18, grid:[], ents:[], brush:'#', cam:0, tile:24, editingSlot:null, pendingSlot:1, painting:false };
+const edCanvas=el("ed-canvas"), edCtx=edCanvas?edCanvas.getContext("2d"):null;
+
+function edNew(){
+  ed.grid=[]; for(let y=0;y<ed.H;y++){ const r=[]; for(let x=0;x<ed.W;x++) r.push((x===0||x===ed.W-1||y===0)?'#':' '); ed.grid.push(r); }
+  for(let x=1;x<ed.W-1;x++){ ed.grid[ed.H-1][x]='#'; ed.grid[ed.H-2][x]='#'; }   // chão inicial
+  ed.grid[ed.H-3][2]='@'; ed.grid[ed.H-3][ed.W-3]='E';
+  ed.ents=[]; ed.cam=0; ed.editingSlot=null;
+  const c=loadCustom(); let s=1; while(c[s]) s++; ed.pendingSlot=s;
+  if(el("ed-name")) el("ed-name").value=""; if(el("ed-mass")) el("ed-mass").value="8";
+}
+function edLoadObj(obj, slot){
+  const r=obj.rows; ed.H=r.length; ed.W=r[0].length; ed.grid=r.map(l=>l.split(''));
+  ed.ents=[];
+  for(const e of (obj.enemies||[])) ed.ents.push({x:e.x,y:e.y,kind:e.type==='chaser'?'chaser':'patrol'});
+  for(const m of (obj.movers||[])) ed.ents.push({x:m.x,y:m.y,kind:'mover'});
+  ed.cam=0; ed.editingSlot=slot; ed.pendingSlot=slot;
+  el("ed-name").value=(obj.name||"").replace(/^\d+\s*·\s*/,''); el("ed-mass").value=obj.mass;
+}
+function edBuild(){
+  const rows=ed.grid.map(r=>r.join('')); const enemies=[], movers=[];
+  for(const e of ed.ents){
+    if(e.kind==='patrol') enemies.push({x:e.x,y:e.y,dist:4,speed:1.0,axis:'x',type:'patrol'});
+    else if(e.kind==='chaser') enemies.push({x:e.x,y:e.y,speed:1.15,type:'chaser',range:8});
+    else if(e.kind==='mover') movers.push({x:e.x,y:e.y,w:3,dist:6,axis:'x',speed:0.6,phase:0});
+  }
+  const mass=Math.max(1,Math.min(20, parseInt(el("ed-mass").value)||8));
+  const nm=(el("ed-name").value||"Sem nome").trim();
+  const slot=parseInt(el("ed-slot").value)||1;
+  const obj={ name:slot+" · "+nm, mass, max:mass, theme:"grove", hint:"", rows };
+  if(enemies.length) obj.enemies=enemies; if(movers.length) obj.movers=movers;
+  return {obj, slot};
+}
+function edValidate(rows){ const flat=rows.join('');
+  const a=(flat.match(/@/g)||[]).length, e=(flat.match(/E/g)||[]).length;
+  if(a!==1) return "Coloque exatamente 1 início 🟩 (tem "+a+")";
+  if(e!==1) return "Coloque exatamente 1 saída 🏁 (tem "+e+")";
+  return null;
+}
+function edSave(){ const {obj,slot}=edBuild(); const err=edValidate(obj.rows);
+  if(err){ el("ed-hint").textContent="⚠ "+err; return false; }
+  const c=loadCustom();
+  if(ed.editingSlot!=null && ed.editingSlot!==slot) delete c[ed.editingSlot];
+  c[slot]=obj; saveCustom(c); ed.editingSlot=slot;
+  el("ed-hint").textContent="💾 Salvo como Fase "+slot+"!"; return true; }
+function edTest(){ const {obj}=edBuild(); const err=edValidate(obj.rows);
+  if(err){ el("ed-hint").textContent="⚠ "+err; return; }
+  playLevelObj(obj,'edit'); }
+
+function edFit(){ const st=el("ed-stage"); if(!st||!edCanvas) return;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  edCanvas.width=Math.max(1,Math.round(st.clientWidth*dpr));
+  edCanvas.height=Math.max(1,Math.round(st.clientHeight*dpr));
+  ed.tile=Math.max(10, Math.floor(edCanvas.height/ed.H)); }
+function edDrawCell(px,py,t,ch){
+  const it=PMAP[ch]; const col=it?it.col:'#556';
+  edCtx.fillStyle=col; edCtx.fillRect(px+1,py+1,t-2,t-2);
+  if(ch==='S'||ch==='g'){ edCtx.strokeStyle="rgba(255,255,255,.25)"; edCtx.strokeRect(px+2.5,py+2.5,t-5,t-5); }
+  edCtx.font=Math.floor(t*0.62)+"px sans-serif"; edCtx.textAlign="center"; edCtx.textBaseline="middle";
+  edCtx.fillText(it?it.ic:'?', px+t/2, py+t/2+1);
+}
+function edDrawEnt(px,py,t,kind){ const it=PMAP[kind];
+  edCtx.font=Math.floor(t*0.7)+"px sans-serif"; edCtx.textAlign="center"; edCtx.textBaseline="middle";
+  edCtx.fillText(it?it.ic:'?', px+t/2, py+t/2+1); }
+function edRender(){ if(!edCtx) return; const t=ed.tile, cw=edCanvas.width, ch=edCanvas.height;
+  edCtx.fillStyle="#0c1a13"; edCtx.fillRect(0,0,cw,ch);
+  const viewCols=Math.floor(cw/t); ed.cam=Math.max(0, Math.min(ed.cam, Math.max(0, ed.W-viewCols)));
+  for(let sx=0; sx<=viewCols; sx++){ const gx=ed.cam+sx; if(gx>=ed.W) break;
+    for(let gy=0; gy<ed.H; gy++){ const px=sx*t, py=gy*t;
+      edCtx.strokeStyle="rgba(255,255,255,.05)"; edCtx.strokeRect(px,py,t,t);
+      const c=ed.grid[gy][gx]; if(c && c!==' ') edDrawCell(px,py,t,c);
+    } }
+  for(const e of ed.ents){ if(e.x<ed.cam) continue; const sx=e.x-ed.cam; if(sx>viewCols) continue; edDrawEnt(sx*t,e.y*t,t,e.kind); }
+}
+function edCell(ev){ const r=edCanvas.getBoundingClientRect();
+  const sx=(ev.clientX-r.left)/r.width*edCanvas.width, sy=(ev.clientY-r.top)/r.height*edCanvas.height;
+  return { gx:ed.cam+Math.floor(sx/ed.tile), gy:Math.floor(sy/ed.tile) }; }
+function edApply(gx,gy){ if(gx<0||gx>=ed.W||gy<0||gy>=ed.H) return; const b=ed.brush;
+  if(b==='erase'){ ed.grid[gy][gx]=' '; ed.ents=ed.ents.filter(e=>!(e.x===gx&&e.y===gy)); }
+  else if(b==='patrol'||b==='chaser'||b==='mover'){ ed.ents=ed.ents.filter(e=>!(e.x===gx&&e.y===gy)); ed.ents.push({x:gx,y:gy,kind:b}); }
+  else if(b==='@'||b==='E'){ for(let y=0;y<ed.H;y++)for(let x=0;x<ed.W;x++) if(ed.grid[y][x]===b) ed.grid[y][x]=' '; ed.grid[gy][gx]=b; }
+  else { ed.grid[gy][gx]=b; }
+  edRender();
+}
+function edBuildPalette(){ const p=el("ed-palette"); if(!p) return; p.innerHTML="";
+  for(const it of PALETTE){ const btn=document.createElement("button"); btn.className="pal-btn"+(it.b===ed.brush?" sel":"");
+    btn.innerHTML=`<span>${it.ic}</span><span class="pl-lbl">${it.lbl}</span>`;
+    btn.addEventListener("click",()=>{ ed.brush=it.b; edBuildPalette(); el("ed-hint").textContent="Pincel: "+it.lbl; });
+    p.appendChild(btn); } }
+function edBuildSlots(){ const s=el("ed-slot"); if(!s) return; s.innerHTML="";
+  for(let i=1;i<=20;i++){ const o=document.createElement("option"); o.value=i; o.textContent=i; s.appendChild(o); } }
+function showEditor(fresh){ state="editor"; customCtx=null;
+  ["screen-menu","screen-custom","screen-game"].forEach(id=>el(id).classList.remove("active"));
+  el("screen-editor").classList.add("active");
+  if(fresh) edNew();
+  edBuildSlots(); edBuildPalette();
+  el("ed-slot").value = ed.editingSlot!=null ? ed.editingSlot : ed.pendingSlot;
+  requestAnimationFrame(()=>{ edFit(); edRender(); });
+}
+function showCustom(){ state="menu"; customCtx=null;
+  ["screen-menu","screen-editor","screen-game"].forEach(id=>el(id).classList.remove("active"));
+  el("screen-custom").classList.add("active"); buildCustomList();
+}
+function buildCustomList(){ const box=el("custom-list"); if(!box) return; const c=loadCustom();
+  const slots=Object.keys(c).map(Number).sort((a,b)=>a-b);
+  if(!slots.length){ box.innerHTML=`<div class="cl-empty">Nenhuma fase criada ainda.<br>Toque em ➕ Nova pra começar!</div>`; return; }
+  box.innerHTML="";
+  for(const s of slots){ const o=c[s], nm=(o.name||"").replace(/^\d+\s*·\s*/,'')||"Sem nome";
+    const card=document.createElement("div"); card.className="cl-card";
+    card.innerHTML=`<div class="cl-num">${s}</div><div class="cl-info"><div class="cl-name">${nm}</div><div class="cl-sub">massa ${o.mass} · ${o.rows[0].length}×${o.rows.length}</div></div>`;
+    const act=document.createElement("div"); act.className="cl-act";
+    const play=document.createElement("button"); play.className="play"; play.textContent="▶";
+    play.addEventListener("click",()=>{ audio(); playLevelObj(o,'list'); });
+    const edit=document.createElement("button"); edit.textContent="✏️";
+    edit.addEventListener("click",()=>{ audio(); edLoadObj(o,s); showEditor(false); });
+    const del=document.createElement("button"); del.textContent="🗑️";
+    del.addEventListener("click",()=>{ const cc=loadCustom(); delete cc[s]; saveCustom(cc); buildCustomList(); });
+    act.appendChild(play); act.appendChild(edit); act.appendChild(del); card.appendChild(act); box.appendChild(card);
+  }
+}
+// wiring do editor
+if(el("btn-open-custom")) el("btn-open-custom").addEventListener("click",()=>{ audio(); showCustom(); });
+if(el("btn-custom-back")) el("btn-custom-back").addEventListener("click",showMenu);
+if(el("btn-new-level")) el("btn-new-level").addEventListener("click",()=>{ audio(); showEditor(true); });
+if(el("ed-back")) el("ed-back").addEventListener("click",showCustom);
+if(el("ed-test")) el("ed-test").addEventListener("click",()=>{ audio(); edTest(); });
+if(el("ed-save")) el("ed-save").addEventListener("click",()=>{ audio(); edSave(); });
+if(el("ed-left")) el("ed-left").addEventListener("click",()=>{ ed.cam=Math.max(0,ed.cam-6); edRender(); });
+if(el("ed-right")) el("ed-right").addEventListener("click",()=>{ ed.cam+=6; edRender(); });
+if(edCanvas){
+  edCanvas.addEventListener("pointerdown",e=>{ e.preventDefault(); ed.painting=true; const {gx,gy}=edCell(e); edApply(gx,gy); });
+  edCanvas.addEventListener("pointermove",e=>{ if(!ed.painting)return; const {gx,gy}=edCell(e); edApply(gx,gy); });
+  window.addEventListener("pointerup",()=>{ ed.painting=false; });
+}
+window.addEventListener("resize",()=>{ if(state==="editor"){ edFit(); edRender(); } });
+
+// ==========================================================================
 // BOOT
 // ==========================================================================
+edNew();
 showMenu();
 requestAnimationFrame(loop);
 

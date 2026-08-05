@@ -29,8 +29,41 @@
         <div id="menu-stats" class="menu-stats"></div>
       </div>
       <div id="level-grid" class="level-map"></div>
+      <button id="btn-open-custom" class="menu-btn">🛠️ Criar / Minhas Fases</button>
       <p class="menu-hint">Cada pulo custa massa. Empilhe pedaços, reabsorva, escale paredes.</p>
     </div>
+  </section>
+
+  <!-- ===================== MINHAS FASES ===================== -->
+  <section id="screen-custom" class="screen">
+    <div class="menu-inner">
+      <div class="custom-head">
+        <button id="btn-custom-back" class="hud-btn" title="Menu">☰</button>
+        <h2 class="custom-title">🛠️ Minhas Fases</h2>
+        <button id="btn-new-level" class="menu-btn small">➕ Nova</button>
+      </div>
+      <div id="custom-list" class="custom-list"></div>
+      <p class="menu-hint">Crie suas fases e defina o número (Fase 1, 2, 3…). Ficam salvas neste aparelho.</p>
+    </div>
+  </section>
+
+  <!-- ===================== EDITOR (estilo Mario Maker) ===================== -->
+  <section id="screen-editor" class="screen">
+    <div id="ed-top">
+      <button id="ed-back" class="hud-btn" title="Sair">✕</button>
+      <input id="ed-name" class="ed-name" placeholder="Nome da fase" maxlength="22" />
+      <label class="ed-field">Fase <select id="ed-slot"></select></label>
+      <label class="ed-field">Massa <input id="ed-mass" type="number" min="1" max="20" value="8" /></label>
+      <button id="ed-test" class="ed-btn">▶ Testar</button>
+      <button id="ed-save" class="ed-btn primary">💾 Salvar</button>
+    </div>
+    <div id="ed-stage">
+      <canvas id="ed-canvas"></canvas>
+      <button id="ed-left" class="ed-pan">◀</button>
+      <button id="ed-right" class="ed-pan right">▶</button>
+    </div>
+    <div id="ed-palette"></div>
+    <div id="ed-hint" class="ed-hintbar">Pinte o cenário. Coloque 1 início 🟩 e 1 saída 🏁. Arraste pra desenhar.</div>
   </section>
 
   <!-- ===================== JOGO ===================== -->
