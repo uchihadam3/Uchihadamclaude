@@ -494,7 +494,7 @@ function starsFor(idx, massLeft){
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
 let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,iceTiles,exitRect,startPos,theme;
-let blob, globs, particles=[], motes=[], rings=[], trail=[], levelIndex=0, state="menu"; // menu|play|complete|dead
+let blob, globs, particles=[], motes=[], rings=[], trail=[], shots=[], levelIndex=0, state="menu"; // menu|play|complete|dead
 let tramp=[];   // SEGREDO: trampolins formados por 4 gelecas em 2x2
 let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
 
@@ -647,7 +647,7 @@ function buildEntities(){
 }
 function resetLevel(){
   buildEntities();                 // <-- restaura coletáveis e reseta inimigos/desmoronáveis
-  globs=[]; particles=[]; rings=[]; trail=[]; tramp=[]; winTimer=0; winThen=null; hitStop=0; cam.look=0;
+  globs=[]; particles=[]; rings=[]; trail=[]; shots=[]; tramp=[]; winTimer=0; winThen=null; hitStop=0; cam.look=0;
   blob={ x:startPos.x, y:startPos.y, w:0,h:0, vx:0,vy:0, onGround:false,wall:0,cling:false,
          mass:level.mass, flash:0, clingLock:0, meltAcc:0, climbAcc:0, hurtT:0, melting:false, blink:0, rideMover:null };
   sizeBlob(); blob.y=startPos.y+TILE-blob.h;
@@ -762,6 +762,14 @@ function updateEnemies(dt){
       }
       e.y = e.y0 + Math.sin(levelTime*(4+e.mad*4))*(2+e.mad*2)*(boss?1.6:1);
       if(boss) shake=Math.max(shake, Math.max(0, (1-d/360))*3*phase);   // treme quando o chefe se aproxima
+      // ATAQUE: o CHEFE CUSPE gosma em arco no jogador — mais rápido/múltiplo a cada dano
+      if(boss){ e.windup=Math.max(0,(e.windup||0)-dt); e.shootT=(e.shootT||2.2)-dt;
+        if(e.shootT<=0){ e.shootT = 2.6 - (3-(e.hp||3))*0.55; e.windup=0.45; }   // agenda o cuspe (telegrafa)
+        if(e.windup>0 && e.windup<=dt+0.001){                                     // dispara ao fim do windup
+          const n = 1 + (3-(e.hp||3));                                            // 1 → 2 → 3 projéteis a cada dano
+          for(let k=0;k<n;k++) bossShoot(e, (k-(n-1)/2)*90);
+        }
+      }
     }
     e.dir = e.x>e.px?1:(e.x<e.px?-1:(e.dir||1));
   }
@@ -941,7 +949,7 @@ function update(dt){
       if(blob.mass>1){ blob.mass--; sizeBlob(); renderHud(); sfx("melt"); } else { die(); return; } } }
   else if(blob.climbAcc>0) blob.climbAcc=Math.max(0,blob.climbAcc-dt*0.6);
 
-  updateParticles(dt); updateRings(dt); updateTrail(dt);
+  updateParticles(dt); updateRings(dt); updateTrail(dt); updateShots(dt);
   // RASTRO de slime: ao andar no chão, escalar/deslizar na parede, ou voar — mostra que é gosma.
   const moving = Math.abs(blob.vx)>60 || (blob.cling && Math.abs(blob.vy)>40) || (!blob.onGround && Math.abs(blob.vy)>320);
   if(!blob.gone && moving){ blob._trailAcc=(blob._trailAcc||0)+dt; if(blob._trailAcc>=0.028){ blob._trailAcc=0; pushTrail(); } }
@@ -1063,7 +1071,27 @@ function handleBoss(e,dt){
 function bossDefeated(e){
   for(let i=0;i<48;i++) burst(e.x+e.w/2,e.y+e.h/2,1,CONFCOL[i%CONFCOL.length],260);
   const idx=enemies.indexOf(e); if(idx>=0) enemies.splice(idx,1);
-  shake=14; sfx("win"); win();                          // dispara o final especial da fase secreta
+  shots=[]; shake=14; sfx("win"); win();                // dispara o final especial da fase secreta
+}
+// CHEFE cuspe gosma em ARCO no jogador (dodge ou perde massa)
+function bossShoot(e, spread){
+  const sx=e.x+e.w/2, sy=e.y+e.h*0.28, tx=(blob?blob.x+blob.w/2:sx), ty=(blob?blob.y+blob.h/2:sy);
+  const dx=tx-sx, t=Math.max(0.55, Math.min(1.15, Math.abs(dx)/380));
+  shots.push({x:sx,y:sy, vx:dx/t+(spread||0), vy:(ty-sy)/t - 0.5*1000*t, r:10, life:3.0});
+  burst(sx,sy,7,"#d24a9a",130); sfx("spit");
+}
+function updateShots(dt){
+  for(let i=shots.length-1;i>=0;i--){ const s=shots[i];
+    s.vy+=1000*dt; s.x+=s.vx*dt; s.y+=s.vy*dt; s.life-=dt;
+    if(s.life<=0 || s.y>ROWS*TILE+40){ shots.splice(i,1); continue; }
+    if(isSolidAt(s.x,s.y)){ splat(s.x,s.y,7,150); ring(s.x,s.y,20,"210,90,160",2.5,0.3); shots.splice(i,1); continue; }
+    if(blob && !blob.gone && blob.hurtT<=0 && overlaps(blob,{x:s.x-s.r,y:s.y-s.r,w:s.r*2,h:s.r*2})){
+      blob.hurtT=1.0; const kb=Math.sign(s.vx)||1; blob.vx=kb*280; blob.vy=-230; blob.flash=0.5; blob.onGround=false; blob.onGroundPrev=false;
+      blob.mass=Math.max(0,blob.mass-1); sizeBlob(); renderHud();
+      splat(s.x,s.y,6,150); burst(blob.x+blob.w/2,blob.y+blob.h/2,10,"#ff6a6a",170); shake=7; sfx("hurt");
+      shots.splice(i,1); if(blob.mass<1){ die(); return; }
+    }
+  }
 }
 
 function die(){ if(state==="dead")return; deaths++;
@@ -1397,6 +1425,12 @@ function render(){
 
   drawBlob();
 
+  // PROJÉTEIS de gosma do chefe (bolhas brilhantes com rastro)
+  for(const s of shots){ ctx.save(); ctx.shadowColor="rgba(210,74,154,.75)"; ctx.shadowBlur=13;
+    const gg=ctx.createRadialGradient(s.x-2,s.y-3,1,s.x,s.y,s.r); gg.addColorStop(0,"#ffa8d8"); gg.addColorStop(1,"#9c1e66");
+    ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill(); ctx.restore();
+    ctx.fillStyle="rgba(255,255,255,.55)"; ctx.beginPath(); ctx.arc(s.x-3,s.y-3,s.r*0.3,0,7); ctx.fill(); }
+
   for(const p of particles){ ctx.globalAlpha=Math.max(0,p.life/p.max); ctx.fillStyle=p.color;
     ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill(); }
   ctx.globalAlpha=1;
@@ -1706,6 +1740,7 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"nope":slideT(a,190,120,t,0.11,"triangle",0.045);break;                                       // recusa mais suave
     case"die":slideT(a,220,60,t,0.40,"sawtooth",0.06);break;
     case"spring":slideT(a,320,1000,t,0.18,"sine",0.06); beep(a,1320,t+0.11,0.08,"sine",0.03);break;    // boing + ping
+    case"spit":slideT(a,440,150,t,0.2,"sawtooth",0.05);break;                                          // cuspe do chefe
     case"gem":[880,1180,1560].forEach((f,i)=>beep(a,f,t+i*0.06,0.09,"sine",0.05));break;
     case"star":[988,1319,1760].forEach((f,i)=>beep(a,f,t+i*0.05,0.10,"triangle",0.05));break;          // faísca de 3 notas
     case"secret":[523,659,880,1319].forEach((f,i)=>beep(a,f,t+i*0.10,0.16,"sine",0.055));break;   // acorde misterioso
@@ -1900,6 +1935,7 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   _allSecrets(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.gems[i]=1; persist(); showMenu(); },
   gotoExit(){ if(blob&&exitRect){ blob.x=exitRect.x; blob.y=exitRect.y; blob.vy=0; } },
   bossHp(){ const e=enemies&&enemies.find(x=>x.type==="boss"); return e?e.hp:-1; },
+  get shotCount(){ return shots?shots.length:0; },
   _stompBoss(){ const e=enemies&&enemies.find(x=>x.type==="boss"); if(e&&blob){ blob.x=e.x+e.w/2-blob.w/2; blob.y=e.y-blob.h+3; blob.vy=260; blob.hurtT=0; e.hitT=0; } },
   get parts(){ return particles?particles.length:0; },
   _setCoins(){ for(let i=0;i<LEVELS.filter(L=>!L.secret).length;i++) save.coins[i]=1; persist(); },
