@@ -740,7 +740,7 @@ function flash(uid,d,morreu,aparado=0){
   // parte no escudo, parte na carne: os dois números, cada um na sua cor
   if(aparado>0){
     const s=document.createElement('div'); s.className='dmg esc raspao';
-    s.textContent='⛊'+aparado; el.appendChild(s); setTimeout(()=>s.remove(),900);
+    s.textContent='🛡'+aparado; el.appendChild(s); setTimeout(()=>s.remove(),900);
     SFX.aparado(aparado);
   }
   const n=document.createElement('div'); n.className='dmg'+(d>=18?' big':'');
@@ -749,12 +749,16 @@ function flash(uid,d,morreu,aparado=0){
   SFX.golpe(d); tremor(Math.min(11,3+d*0.35));
   if(morreu){ SFX.morte(); el.classList.add('morrendo'); }
 }
-/* golpe que morreu inteiro no escudo: som metálico, faísca azul, zero tremor */
+/* golpe que morreu inteiro no escudo: som metálico, faísca azul, zero tremor.
+   O número usa 🛡, o mesmo ícone que o BLOQUEIO tem no card e na sua barra.
+   ⛊ não serve aqui: no card ele já quer dizer ARMADURA, que é outra coisa —
+   a armadura corta um tanto de CADA golpe e nunca acaba, o bloqueio é um
+   estoque que se gasta. */
 function flashEscudo(uid, v){
   const el=document.querySelector(`.en[data-uid="${uid}"]`); if(!el) return;
   el.classList.remove('apara'); void el.offsetWidth; el.classList.add('apara');
   const n=document.createElement('div'); n.className='dmg esc';
-  n.textContent='⛊'+v; el.appendChild(n);
+  n.textContent='🛡'+v; el.appendChild(n);
   const c=document.createElement('div'); c.className='clang'; el.appendChild(c);
   setTimeout(()=>{ n.remove(); c.remove(); },900);
   SFX.aparado(v);
@@ -769,7 +773,7 @@ function flashJog(d){
 function flashJogEscudo(v){
   const f=document.createElement('div'); f.id='ferida'; f.className='azul';
   document.body.appendChild(f); setTimeout(()=>f.remove(),380);
-  const n=document.createElement('div'); n.className='dmgme esc'; n.textContent='⛊'+v;
+  const n=document.createElement('div'); n.className='dmgme esc'; n.textContent='🛡'+v;
   document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),900);
   SFX.aparado(v);
 }

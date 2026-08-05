@@ -744,6 +744,62 @@ console.log('=== PRÉVIA E PEDÁGIOS ===');
   }
 }
 
+/* =====================================================================
+   10. ESCUDO PARCIAL — 8 de escudo contra 10 de ataque apara 8 e passa 2,
+   e depois de zerado o golpe seguinte entra inteiro. Vale nos dois lados.
+   ===================================================================== */
+console.log('=== ESCUDO PARCIAL ===');
+{
+  // --- do SEU lado ---
+  {
+    const { cb, p } = cenario({ classe:'carrasco' });
+    p.hp = 100; p.block = 8;
+    cb.dmgPlayer(10, 'ataque');
+    check(p.hp === 98 && p.block === 0, 'Escudo',
+      'você: 8 de escudo contra 10 apara 8 e passa 2', `HP ${p.hp}, escudo ${p.block}`);
+    cb.dmgPlayer(10, 'ataque');
+    check(p.hp === 88, 'Escudo',
+      'você: com o escudo zerado, o golpe seguinte entra inteiro', `HP ${p.hp}`);
+  }
+  {
+    const { cb, p } = cenario({ classe:'carrasco' });
+    p.hp = 100; p.block = 30;
+    cb.dmgPlayer(10, 'ataque');
+    check(p.hp === 100 && p.block === 20, 'Escudo',
+      'você: escudo de sobra segura o golpe todo e guarda o resto', `HP ${p.hp}, escudo ${p.block}`);
+  }
+  {
+    // dois inimigos no mesmo turno: o primeiro gasta o escudo, o segundo passa
+    const { cb, p } = cenario({ classe:'carrasco' });
+    p.hp = 100; p.block = 8;
+    cb.dmgPlayer(10, 'ataque');
+    cb.dmgPlayer(6,  'ataque');
+    check(p.hp === 92 && p.block === 0, 'Escudo',
+      'você: o 1º ataque gasta o escudo e o 2º entra inteiro', `HP ${p.hp}`);
+  }
+  // --- do lado do INIMIGO ---
+  {
+    const { cb } = cenario({ classe:'carrasco',
+      inimigos:[ inimigo({ hp:200, block:8 }) ] });
+    const en = cb.enemies[0];
+    cb.dealDamage('chosen', 10, 0, false);
+    check(en.hp === 198 && en.block === 0, 'Escudo',
+      'inimigo: 8 de escudo contra 10 apara 8 e passa 2', `HP ${en.hp}, escudo ${en.block}`);
+    cb.dealDamage('chosen', 10, 0, false);
+    check(en.hp === 188, 'Escudo',
+      'inimigo: com o escudo zerado, o golpe seguinte entra inteiro', `HP ${en.hp}`);
+  }
+  {
+    const { cb } = cenario({ classe:'carrasco',
+      inimigos:[ inimigo({ hp:200, block:30 }) ] });
+    const en = cb.enemies[0];
+    cb.dealDamage('chosen', 10, 0, false);
+    check(en.hp === 200 && en.block === 20, 'Escudo',
+      'inimigo: escudo de sobra segura o golpe todo e guarda o resto',
+      `HP ${en.hp}, escudo ${en.block}`);
+  }
+}
+
 /* ---------------------------------------------------------------- */
 console.log('\n' + '─'.repeat(60));
 if (falhas.length) {
