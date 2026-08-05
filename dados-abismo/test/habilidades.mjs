@@ -932,6 +932,46 @@ console.log('=== ◈ CURINGA ===');
   }
 }
 
+/* =====================================================================
+   13. RE-ROLAGEM — dado já gasto não rola de novo, e clique que não rola
+   nada não cobra a re-rolagem.
+   ===================================================================== */
+console.log('=== RE-ROLAGEM ===');
+{
+  {
+    const { cb } = cenario({ classe:'carrasco', faces:[6,6,5,5,4,4] });
+    const gasto = cb.roll[0].dieId;
+    cb.used.add(gasto);
+    const faceGasta = cb.roll[0].face.v;
+    const rolados = cb.reroll(cb.roll.map(e=>e.dieId));
+    check(Array.isArray(rolados) && !rolados.includes(gasto), 'Re-rolagem',
+      'o dado já gasto não entra na re-rolagem', JSON.stringify(rolados));
+    check(cb.roll[0].face.v === faceGasta, 'Re-rolagem',
+      'a face do dado gasto continua a mesma', `${faceGasta} → ${cb.roll[0].face.v}`);
+  }
+  {
+    // tudo gasto: o clique não pode cobrar a re-rolagem
+    const { cb } = cenario({ classe:'carrasco', faces:[6,6,5,5] });
+    for(const e of cb.roll) cb.used.add(e.dieId);
+    const antes = cb.rerolls;
+    const r = cb.reroll(cb.roll.map(e=>e.dieId));
+    check(r === false, 'Re-rolagem', 'com tudo gasto, a re-rolagem não acontece');
+    check(cb.rerolls === antes, 'Re-rolagem',
+      'e a re-rolagem não é cobrada', `${antes} → ${cb.rerolls}`);
+  }
+  {
+    // dado congelado também fica de fora
+    const { cb } = cenario({ classe:'carrasco', faces:[6,6,5,5] });
+    cb.roll[1].die._congelado = true;
+    const congelada = cb.roll[1].face.v;
+    const rolados = cb.reroll(cb.roll.map(e=>e.dieId));
+    check(Array.isArray(rolados) && !rolados.includes(cb.roll[1].dieId), 'Re-rolagem',
+      'o dado congelado não entra na re-rolagem');
+    check(cb.roll[1].face.v === congelada, 'Re-rolagem',
+      'a face do dado congelado continua a mesma');
+  }
+}
+
 /* ---------------------------------------------------------------- */
 console.log('\n' + '─'.repeat(60));
 if (falhas.length) {

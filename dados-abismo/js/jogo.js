@@ -402,16 +402,30 @@ function zonas(n){ const cols=Math.min(n,4), rows=Math.ceil(n/cols), o=[];
   for(let i=0;i<n;i++){ const c=i%cols, r=Math.floor(i/cols);
     o.push([ (cols===1?0:(-1+2*c/(cols-1))*MESA.x*0.60)+(rng()*2-1)*0.15,
              (rows===1?0:(-1+2*r/(rows-1))*MESA.z*0.45)+(rng()*2-1)*0.15 ]); } return o; }
-function rolarVisual(){
-  const ents=cb.roll; const z=zonas(ents.length); const obst=[]; trilhas=[];
+/* `soIds` = re-rolagem: só estes dados voam de novo. Sem ele é rolagem de
+   turno novo e a mesa inteira é refeita.
+   Antes rolarVisual() sempre limpava a bandeja e animava TODA a bolsa: os
+   dados já gastos voltavam da bandeja e rolavam junto, como se pudessem ser
+   usados outra vez. */
+function rolarVisual(soIds){
+  const todos=cb.roll;
+  const ents = soIds ? todos.filter(e=>soIds.includes(e.dieId)) : todos;
+  if(!ents.length){ pintar(); return; }
+  const z=zonas(ents.length); const obst=[]; trilhas=[];
+  // numa re-rolagem, os dados que ficaram na mesa são obstáculo, não projétil
+  if(soIds) for(const e of todos){
+    if(soIds.includes(e.dieId)) continue;
+    const m=malhas.find(x=>x.userData.die.id===e.dieId);
+    if(m && !m.userData.naBandeja) obst.push({ p:[m.position.x,m.position.y,m.position.z], r:raioDe(e.tipo) });
+  }
   for(let i=0;i<ents.length;i++){
     const e=ents[i]; const mesh=malhas.find(m=>m.userData.die.id===e.dieId) || malhas[i];
     const raio=raioDe(e.tipo);
     const r=rolarPara(e.tipo, e.faceIdx||0, rng.int(1e9), MESA, 160, z[i], obst.slice(), raio);
-    trilhas.push({ tr:r?r.trilha:[{p:[z[i][0],raio,z[i][1]],q:[0,0,0,1]}], mesh, atraso:i*0.08 });
+    trilhas.push({ tr:r?r.trilha:[{p:[z[i][0],raio,z[i][1]],q:[0,0,0,1]}], mesh, atraso:i*0.08, ent:e });
     if(r&&r.fim) obst.push({p:r.fim,r:raio});
   }
-  limparBandeja();
+  if(!soIds) limparBandeja();      // turno novo: todo mundo sai da bandeja
   anima=true; const DT=1/120, VEL=1.5; let t=0, last=performance.now();
   const passo=()=>{ const now=performance.now(); t+=Math.min(0.05,(now-last)/1000)*VEL; last=now;
     let vivo=false;
@@ -424,9 +438,10 @@ function rolarVisual(){
       x.mesh.quaternion.set(s.q[0],s.q[1],s.q[2],s.q[3]);
       if(s.imp) for(const im of s.imp) SFX.dado(im.vel); }
     if(vivo) requestAnimationFrame(passo); else { anima=false;
-      // marca o RESULTADO no próprio dado (d4: número do vértice de cima em ouro)
-      for(let i=0;i<trilhas.length;i++){ const e=cb.roll[i];
-        if(e && trilhas[i].mesh) destacarResultado(trilhas[i].mesh, e.faceIdx); }
+      // marca o RESULTADO no próprio dado (d4: número do vértice de cima em ouro).
+      // usa a entrada guardada na trilha: numa re-rolagem parcial o índice de
+      // `trilhas` não bate mais com o de cb.roll
+      for(const x of trilhas){ if(x.ent && x.mesh) destacarResultado(x.mesh, x.ent.faceIdx); }
       pintar(); } };
   passo();
 }
@@ -816,8 +831,12 @@ function usar(s){
   if(cb.over){ setTimeout(fim,760); return; }
 }
 $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
-  const ids = sel.size? [...sel] : cb.pool().map(e=>e.dieId);
-  cb.reroll(ids); sel.clear(); rolarVisual(); pintar(); };
+  // só os dados AINDA NA MÃO: pool() já exclui os gastos
+  const livres = cb.pool().map(e=>e.dieId);
+  const ids = sel.size ? [...sel].filter(id=>livres.includes(id)) : livres;
+  const rolados = cb.reroll(ids);
+  if(!rolados){ SFX.soltar(); return; }      // nada rolou: não gasta nem anima
+  sel.clear(); rolarVisual(rolados); pintar(); };
 $('bfim').onclick=()=>{ if(anima) return;
   sel.clear(); previa=null; const antes=snapHP(), hpA=P.hp;
   const r=cb.endTurn();

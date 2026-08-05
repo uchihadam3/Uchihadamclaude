@@ -164,13 +164,21 @@ export class Combat {
     // Fardo M5: re-rolagens custam vida
     if(this.burdens.has('reroll_custa_vida')) this.dmgPlayer(2, 'preço da re-rolagem');
     this.rerolls--;
+    /* devolve QUAIS dados de fato rolaram. A tela precisa disso: ela animava
+       a bolsa inteira e os dados já gastos voltavam da bandeja e rolavam
+       junto, como se pudessem ser usados de novo. */
+    const rolados = [];
     for(const e of this.roll){
       if(!dieIds.includes(e.dieId) || this.used.has(e.dieId)) continue;
       if(e.die?._congelado) continue;
       const ix=this.rng.int(e.die.faces.length);
       e.face = {...e.die.faces[ix]}; e.faceIdx=ix;
+      rolados.push(e.dieId);
     }
-    return true;
+    // nada rolou (tudo gasto ou congelado): devolve a re-rolagem em vez de
+    // cobrar por um clique que não fez nada
+    if(!rolados.length){ this.rerolls++; return false; }
+    return rolados;
   }
 
   /* Sobrecarga do Carrasco: +1 no valor pagando 2 HP */
