@@ -85,6 +85,7 @@ export class Combat {
     const bag = this.p.bag;
     const entries = [];
     for(const d of bag){
+      if(d._roubado){ d._roubado--; continue; }   // roubado: não entra nesta rolagem
       const congelado = d._congelado;
       let f, fidx=0;
       if(congelado){ f = d._congeladoFace; }
@@ -230,6 +231,7 @@ export class Combat {
       ess: this.p.essence, hp: this.p.hp,
     };
     this.alocar(ents, vals);              // é isto que as fechaduras leem
+    this._gastos = ents;                  // 'bank' devolve destes, não da sobra
     // Eco (⟳): duplica o efeito do próximo (aqui: deste) uso
     const echoes = ents.filter(e=>e.face.k==='echo').length;
     for(const id of dieIds) this.used.add(id);
@@ -321,8 +323,11 @@ export class Combat {
         case 'exec': this.forTargets(e.tgt, targetIdx, en=>{
                        if(en.hp>0 && en.hp <= en.maxHp*e.pct){ en.hp=0; this.L(`EXECUÇÃO: ${en.nome}`); } }); break;
         case 'essence': this.p.essence += evalExpr(e.n,ctx); break;
-        case 'bank': { const pool=this.pool().slice(0, evalExpr(e.n,ctx));
-                       for(const p of pool){ this.circle.push({...p}); this.used.add(p.dieId); } break; }
+        case 'bank': {          // devolve ao Círculo os dados que a habilidade GASTOU
+          const n = evalExpr(e.n,ctx);
+          const fonte = (this._gastos && this._gastos.length) ? this._gastos : this.pool();
+          for(const g of fonte.slice(0, n)){ this.circle.push({...g, banked:true}); this.used.add(g.dieId); }
+          break; }
         case 'wildify': { const alvo=this.pool()[0]; if(alvo){ alvo.face=face('wild',0); } break; }
         case 'copyLast': this.dealDamage(e.tgt||'chosen', Math.round(this.lastEnemyAttack*1.2), targetIdx, false); break;
         case 'stealDie': { const en=this.aliveEnemies()[0]; if(en&&en.dice){ en.dice=Math.max(0,en.dice-1); } break; }
@@ -491,15 +496,16 @@ export class Combat {
           case 'summon': break;   // resolvido pelo encontro
 
           /* ===== ELES MEXEM NOS SEUS DADOS — é aqui que o puzzle aperta ===== */
-          case 'congelar': {      // trava um dado na face em que caiu
-            const alv=this.pool()[0] || this.roll[0];
-            if(alv?.die){ alv.die._congelado=true; alv.die._congeladoFace={...alv.face};
+          case 'congelar': {      // o dado vem travado NESTA face no próximo turno
+            const alv = this.roll.find(e=>e.die && !e.die._travadoProx) || this.roll[0];
+            if(alv?.die){ alv.die._travadoProx=true; alv.die._guardaFace={...alv.face};
               reg.dado=alv.dieId; this.L(`${en.nome} CONGELOU um dado em ${alv.face.v??'?'}`); }
             break; }
-          case 'roubar': {        // tira um dado do seu turno
-            const alv=this.pool().slice().sort((a,b)=>(entryValue(b)||0)-(entryValue(a)||0))[0];
-            if(alv){ this.used.add(alv.dieId); reg.dado=alv.dieId;
-              this.L(`${en.nome} ROUBOU o seu ${entryValue(alv)}`); }
+          case 'roubar': {        // o dado some da SUA PRÓXIMA rolagem
+            const cand = this.p.bag.filter(d=>!d._roubado);
+            const alv = cand.length ? cand[this.rng.int(cand.length)] : null;
+            if(alv){ alv._roubado = 1; reg.dado = alv.id;
+              this.L(`${en.nome} ROUBOU um dado (some da próxima rolagem)`); }
             break; }
           case 'fraturar': {      // o dado perde 1 do seu máximo, pra sempre
             const d=this.p.bag[this.rng.int(this.p.bag.length)];
@@ -507,11 +513,12 @@ export class Combat {
             if(d&&j>=0){ d.faces[j]={...d.faces[j], v:Math.max(1,d.faces[j].v-1)}; reg.dado=d.id;
               this.L(`${en.nome} FRATUROU um dado (máximo -1)`); }
             break; }
-          case 'inverter': {      // vira um dado seu pra face oposta
-            const alv=this.pool().slice().sort((a,b)=>(entryValue(b)||0)-(entryValue(a)||0))[0];
-            if(alv && entryValue(alv)!==null){ const v=entryValue(alv);
-              alv.face={...alv.face, v:(alv.n+1)-v}; reg.dado=alv.dieId;
-              this.L(`${en.nome} INVERTEU o seu ${v} → ${alv.face.v}`); }
+          case 'inverter': {      // trava o seu melhor dado na face OPOSTA
+            const alv = this.roll.slice().filter(e=>entryValue(e)!==null && e.die)
+                          .sort((a,b)=>(entryValue(b)||0)-(entryValue(a)||0))[0];
+            if(alv){ const v=entryValue(alv), inv=Math.max(1,(alv.n+1)-v);
+              alv.die._travadoProx=true; alv.die._guardaFace={k:'num', v:inv};
+              reg.dado=alv.dieId; this.L(`${en.nome} INVERTEU o seu ${v} → ${inv}`); }
             break; }
           case 'contar': {        // conta até N e então a pá desce
             en._conta=(en._conta||0)+1; reg.conta=en._conta;

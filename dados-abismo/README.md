@@ -33,3 +33,8 @@ Saída: taxa de vitória, andares médios e o andar onde cada classe mais morre.
 ## Determinismo
 Todo combate roda sobre o RNG semeado. A física dos dados 3D será *cosmética*: o motor
 sorteia o resultado e a animação é forçada a pousar nele (§11.2).
+
+## Testes
+
+    node test/habilidades.mjs   # audita TODAS as habilidades (150 checagens)
+    node test/sim.mjs 30 10 0   # balanço: runs/classe, masmorras, nível do Cofre

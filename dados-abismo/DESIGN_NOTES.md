@@ -306,6 +306,29 @@ o ◈ Curinga aparece resolvido no valor que a habilidade vai realmente usar. Na
 barra de seleção, onde ainda não há habilidade escolhida, o curinga fica como
 `Σ 7+◈` e a paridade diz "depende do ◈", em vez de mentir um número.
 
+## 3.12 AUDITORIA DE HABILIDADES (`test/habilidades.mjs`) — 3 bugs achados
+Reportado: "o inimigo roubou um dado e não funcionou". Era verdade, e não era
+só o roubar. **Três das cinco habilidades inimigas que mexem nos seus dados
+eram no-op**, todas pelo mesmo motivo: elas agem em `enemyTurn()`, que roda
+dentro de `endTurn()` — e logo depois `startTurn()` limpa `used` e re-rola tudo.
+
+| | o que fazia | por que morria | agora |
+|---|---|---|---|
+| ✋ roubar | `used.add(dado)` | `startTurn()` faz `used.clear()` | marca `_roubado`; `rollAll()` pula o dado por uma rolagem |
+| ❄ congelar | `_congelado = true` | o laço logo abaixo fazia `_congelado = false` | passa por `_travadoProx` + `_guardaFace` |
+| ⇅ inverter | mudava a face da rolagem atual | a rolagem é descartada | trava o dado na face OPOSTA pro próximo turno |
+
+E uma quarta, do jogador: **Prisma** diz "devolve 2 dados ao Círculo", mas o op
+`bank` pescava da SOBRA — e o Prisma consome 5 dados, então quase nunca sobrava
+nada. Agora ele devolve os dados que a própria habilidade acabou de gastar.
+
+O teste roda as 17 habilidades (4 classes × 4 + Respirar) com um encaixe válido
+e confere o EFEITO no estado, não o log: causou dano? deu bloqueio? aplicou
+estado? arrombou/dissolveu a fechadura? mexeu num dado da mão? Mais as 4
+passivas de classe, as 2 ferramentas do Cofre, as 9 fechaduras (o golpe certo
+fere / o errado dá zero), as 11 intenções inimigas e o ciclo do OSSÁRIO.
+**150 verificações.**
+
 ## 4. GAMIFICAÇÃO (tela inicial → batalha)
 - Tela inicial: logo animado, dados 3D rolando ao fundo, cards de classe com
   **sprite do piloto**, overall e fantasia; som ao focar.
