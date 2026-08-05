@@ -923,8 +923,9 @@ function update(dt){
   else if(blob.climbAcc>0) blob.climbAcc=Math.max(0,blob.climbAcc-dt*0.6);
 
   updateParticles(dt); updateRings(dt); updateTrail(dt);
-  // rastro: só quando corre no chão ou voa rápido (não parado)
-  if(!blob.gone && (Math.abs(blob.vx)>170 || (!blob.onGround && Math.abs(blob.vy)>360))) pushTrail();
+  // RASTRO de slime: ao andar no chão, escalar/deslizar na parede, ou voar — mostra que é gosma.
+  const moving = Math.abs(blob.vx)>60 || (blob.cling && Math.abs(blob.vy)>40) || (!blob.onGround && Math.abs(blob.vy)>320);
+  if(!blob.gone && moving){ blob._trailAcc=(blob._trailAcc||0)+dt; if(blob._trailAcc>=0.028){ blob._trailAcc=0; pushTrail(); } }
   if(shake>0) shake=Math.max(0,shake-dt*24);
   // um pedaço só vira SÓLIDO quando não está sobreposto ao jogador — senão a colisão
   // "ejetaria" o blob pra cima (teletransporte de ~1 geleca). Espera o blob sair de cima.
@@ -1362,10 +1363,14 @@ function render(){
     ctx.restore();                                        // fecha o PLOP de nascimento
   }
 
-  // RASTRO do blob (afterimages translúcidas) — desenhado ATRÁS do corpo
-  for(const gh of trail){ const al=(gh.life/gh.max)*0.28;
+  // RASTRO DE GOSMA — cópias que derretem (achatam e afundam) ao sumir, dão a leitura de slime
+  for(const gh of trail){ const k=gh.life/gh.max, al=k*0.34;                 // k: 1→0 conforme some
+    const melt=1-k;                                                          // quanto mais velho, mais "derretido"
+    const w=gh.w*(1+melt*0.28), h=gh.h*(1-melt*0.45), x=gh.x-(w-gh.w)/2, y=gh.y+(gh.h-h);  // espalha e afunda
     ctx.globalAlpha=al; ctx.fillStyle=gh.cling?"#7fe0d0":(gh.melt?"#ffbe6a":"#8bec7c");
-    roundRect(gh.x, gh.y, gh.w, gh.h, Math.min(gh.w,gh.h)*0.26); ctx.fill(); }
+    roundRect(x, y, w, h, Math.min(w,h)*0.4); ctx.fill();
+    ctx.globalAlpha=al*0.5; ctx.fillStyle="rgba(255,255,255,.5)";           // brilho úmido no topo
+    roundRect(x+w*0.2, y+h*0.12, w*0.6, h*0.28, h*0.2); ctx.fill(); }
   ctx.globalAlpha=1;
 
   drawBlob();
@@ -1630,9 +1635,9 @@ function ring(x,y,maxR,color,width,dur,inward){
 function updateRings(dt){ for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; r.life-=dt;
   if(r.life<=0){rings.splice(i,1);continue;} const t=1-r.life/r.max;
   r.r = r.inward ? Math.max(0,r.maxR*(1-t)) : r.maxR*(1-(1-t)*(1-t)); } }   // easeOut na expansão
-// RASTRO do blob (afterimages) quando se move rápido / voa
-function pushTrail(){ trail.push({x:blob.x,y:blob.y,w:blob.w,h:blob.h,life:0.17,max:0.17,
-  cling:blob.cling,melt:blob.melting}); if(trail.length>16)trail.shift(); }
+// RASTRO de gosma: cópias que ficam pra trás e "derretem" (achatam) ao sumir, cara de slime
+function pushTrail(){ trail.push({x:blob.x,y:blob.y,w:blob.w,h:blob.h,life:0.30,max:0.30,
+  cling:blob.cling,melt:blob.melting}); if(trail.length>22)trail.shift(); }
 function updateTrail(dt){ for(let i=trail.length-1;i>=0;i--){ trail[i].life-=dt; if(trail[i].life<=0)trail.splice(i,1); } }
 // CONFETE de comemoração (vitória): partículas coloridas subindo e caindo
 const CONFCOL=["#7ee06b","#ffd24a","#8be9ff","#ff8fae","#c9a6ff","#a6f08a"];
@@ -1658,7 +1663,7 @@ function sample(name, vol){ const a=actx; if(!a||!SFXBUF[name])return false;
     const g=a.createGain(); g.gain.value=vol==null?0.7:vol; s.connect(g); g.connect(busOut(a)); s.start();
     return true; }catch(e){ return false; } }
 function audio(){ if(!actx){ try{ actx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
-  if(actx){ if(actx.state==="suspended")actx.resume(); ensureMaster(actx); loadSamples(actx); } return actx; }
+  if(actx){ if(actx.state==="suspended")actx.resume(); ensureMaster(actx); loadSamples(actx); loadBgm(actx); } return actx; }
 function beep(a,f,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(busOut(a));
   o.type=ty||"triangle"; o.frequency.setValueAtTime(f,t); g.gain.setValueAtTime(v||0.06,t); g.gain.exponentialRampToValueAtTime(0.0001,t+d); o.start(t);o.stop(t+d+0.02); }
 function slideT(a,f0,f1,t,d,ty,v){ const o=a.createOscillator(),g=a.createGain(); o.connect(g);g.connect(busOut(a));
@@ -1685,9 +1690,22 @@ function sfx(type){ const a=actx; if(!a)return; const t=a.currentTime;
     case"bosshit":[200,300,140].forEach((f,i)=>slideT(a,f*2,f,t+i*0.05,0.14,"square",0.06));break;     // acerto no chefe
     case"hurt":slideT(a,320,120,t,0.18,"sawtooth",0.05);break; } }                                     // levou dano
 
-// ---------------------------------------------------------------- MÚSICA AMBIENTE (por mundo, sem arquivos)
+// ---------------------------------------------------------------- MÚSICA AMBIENTE
 let musicOn = true; try{ musicOn = localStorage.getItem("geleca_music")!=="0"; }catch(e){}
 let mus=null;
+// MUNDO 1 (Vale) — trilha em ARQUIVO (loop). Demais mundos usam a música sintetizada abaixo.
+const BGM_THEMES=new Set(["grove"]);          // temas que usam a trilha de arquivo
+let bgmBuf=null, bgmLoading=false, pendingBgm=false;
+function loadBgm(a){ if(bgmBuf||bgmLoading||!a)return; bgmLoading=true;
+  fetch("music-vale.mp3").then(r=>r.arrayBuffer())
+    .then(buf=>new Promise((res,rej)=>a.decodeAudioData(buf,res,rej)))
+    .then(dec=>{ bgmBuf=dec; bgmLoading=false; if(pendingBgm && musicOn) startBgm(); })
+    .catch(e=>{ bgmLoading=false; }); }
+function startBgm(){ const a=audio(); if(!a||!bgmBuf) return; stopMusic(); pendingBgm=true;
+  const src=a.createBufferSource(); src.buffer=bgmBuf; src.loop=true;
+  const g=a.createGain(); g.gain.value=0.42;                 // volume da trilha (ajustável)
+  src.connect(g); g.connect(busOut(a)); src.start();
+  mus={bgm:src, g}; }
 const MUSIC={
   grove: { root:130.81, wave:"triangle", scale:[0,2,4,7,9],  tempo:600, pat:[0,2,4,2,4,3,2,0] }, // MUNDO 1: dó maior, acolhedor
   cave:  { root:130.81, wave:"triangle", scale:[0,3,5,7,10], tempo:660, pat:[0,2,3,2,4,3,2,1] },
@@ -1698,6 +1716,8 @@ const MUSIC={
 };
 function startMusic(themeName){
   const a=audio(); if(!a) return; stopMusic();
+  // MUNDO 1: toca a trilha de arquivo (loop). Se ainda não decodificou, começa assim que carregar.
+  if(BGM_THEMES.has(themeName)){ pendingBgm=true; if(bgmBuf) startBgm(); else loadBgm(a); return; }
   const cfg=MUSIC[themeName]||MUSIC.grove;
   const g=a.createGain(); g.gain.value = 0.06;                 // mudo é controlado pelo barramento MESTRE
   const lp=a.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=1750; lp.Q.value=0.6;  // calor
@@ -1733,8 +1753,11 @@ function startMusic(themeName){
   }, cfg.tempo);
   mus={g, lp, oscs, timer};
 }
-function stopMusic(){ if(!mus)return; clearInterval(mus.timer);
-  mus.oscs.forEach(o=>{ try{o.stop();}catch(e){} }); try{mus.g.disconnect();}catch(e){} try{mus.lp&&mus.lp.disconnect();}catch(e){}
+function stopMusic(){ pendingBgm=false; if(!mus)return;
+  if(mus.timer) clearInterval(mus.timer);
+  if(mus.oscs) mus.oscs.forEach(o=>{ try{o.stop();}catch(e){} });
+  if(mus.bgm){ try{mus.bgm.stop();}catch(e){} }
+  try{mus.g&&mus.g.disconnect();}catch(e){} try{mus.lp&&mus.lp.disconnect();}catch(e){}
   mus=null; }
 function toggleMute(){ musicOn=!musicOn; try{localStorage.setItem("geleca_music",musicOn?"1":"0");}catch(e){}
   // o MESTRE silencia TUDO (música + efeitos), com fade curtinho pra não estalar
@@ -1842,7 +1865,8 @@ window.G={ get state(){return state;}, get mass(){return blob?blob.mass:0;}, get
   warp(wx,wy){ if(blob){ blob.x=wx; blob.y=wy; blob.vx=0; blob.vy=0; camFollow(true); } },
   get sfxReady(){ return Object.keys(SFXBUF).length; }, kick(){ audio(); },
   get hitStop(){ return Math.round(hitStop*1000); }, get camLook(){ return Math.round(cam.look); },
-  get masterGain(){ return master?Math.round(master.gain.value*100):-1; }, get padVoices(){ return mus?mus.oscs.length:0; },
+  get masterGain(){ return master?Math.round(master.gain.value*100):-1; }, get padVoices(){ return mus&&mus.oscs?mus.oscs.length:0; },
+  get bgmReady(){ return !!bgmBuf; }, get bgmPlaying(){ return !!(mus&&mus.bgm); }, get trailLen(){ return trail?trail.length:0; },
   lastFall(){ return blob?{d:blob._lastFall,vy:blob._lastVy,apex:Math.round(blob.apexY),y:Math.round(blob.y)}:null; },
   possessAt(cx,cy){ return tryPossess(cx,cy); }, _possess(wx,wy){ return possessWorld(wx,wy); },
   get camSafe(){ return Math.round(camSafeBottom); }, blobScreenBottom(){ return blob?Math.round((blob.y+blob.h-cam.y)*zoom):0; },
