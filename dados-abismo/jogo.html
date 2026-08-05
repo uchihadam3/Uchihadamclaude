@@ -279,6 +279,16 @@
    color:#e8e2d0;font-size:22px;cursor:pointer}
  .cofp{font-size:12px;color:#7a7260;line-height:1.6}
  .cofp b{color:#c9bb95}
+ /* o quanto do Cofre já foi construído, e se dá para comprar algo agora */
+ .cofprog{background:#100e09;border:1px solid #262117;border-radius:12px;padding:10px 12px}
+ .cofprog>u{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:2px;
+   color:#6b6250;text-decoration:none;margin-bottom:6px}
+ .cofprog>u b{color:#e8d9a8}
+ .cofbar{height:7px;border-radius:4px;background:#1a1610;border:1px solid #2f2a1e;overflow:hidden}
+ .cofbar>span{display:block;height:100%;border-radius:3px;
+   background:linear-gradient(90deg,#6a5a2a,#ffd24a);box-shadow:0 0 12px #ffd24a77;transition:width .6s}
+ .cofprog>em{display:block;font-style:normal;font-size:10px;color:#6b6250;margin-top:6px;letter-spacing:.5px}
+ .cofprog>em.tem{color:#ffd24a}
  .ramo{border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:11px;
    background:linear-gradient(180deg,rgba(255,255,255,.03),transparent)}
  .rh{display:flex;align-items:center;gap:8px;margin-bottom:9px}
@@ -363,6 +373,11 @@
  .fimlin{display:flex;justify-content:space-between;width:100%;font-size:12.5px;
    color:#7a7260;border-bottom:1px solid rgba(255,255,255,.06);padding:5px 2px}
  .fimlin b{color:#e8e2d0}
+ /* o combate ficava visível por trás e embolava a leitura do fim */
+ .fimwrap{position:relative}
+ .fimwrap::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+   background:radial-gradient(120% 70% at 50% 14%,#1a1114 0%,#0a0709 55%,#050406 100%)}
+ .fimwrap.venceu::before{background:radial-gradient(120% 70% at 50% 14%,#1e1a10 0%,#0b0906 55%,#050404 100%)}
  /* selo do fim: a run inteira vira um número só */
  .fimselo{position:relative;width:96px;height:96px;display:grid;place-items:center;
    --fc:#8a4a4a;animation:selopop .55s cubic-bezier(.2,1.5,.4,1) both}

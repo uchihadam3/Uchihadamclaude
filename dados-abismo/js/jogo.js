@@ -174,10 +174,25 @@ function telaCofre(){
     return `<div class="ramo" style="--rc:${r.cor}">
       <div class="rh"><span class="ri">${r.icone}</span><b>${r.nome}</b><i>${r.sub}</i></div>
       <div class="nos">${nos}</div></div>`;}).join('');
+  /* progresso do Cofre: 20 nós, mas cada um tem vários níveis. Sem isto o
+     jogador não vê o quanto já construiu nem o que já pode comprar agora. */
+  const nivTot = META.NOS.reduce((a,n)=>a+n.max,0);
+  const nivMeu = META.NOS.reduce((a,n)=>a+META.nivelDe(cofre,n.id),0);
+  const compraveis = META.NOS.filter(n=>{
+    const nv=META.nivelDe(cofre,n.id);
+    return nv<n.max && META.disponivel(cofre,n) && cofre.ecos>=META.custoDe(n,nv); }).length;
+  const pctC = Math.round(100*nivMeu/nivTot);
   m.innerHTML=`<div class="cofwrap">
     <div class="cofhd"><button class="volta" data-a="voltar">‹</button>
       <h2>O COFRE</h2><div class="ecos sm"><span class="eic">◈</span><b>${cofre.ecos}</b></div></div>
     <p class="cofp">Melhorias <b>permanentes</b>. Elas ficam entre as runs — cada descida te deixa mais forte.</p>
+    <div class="cofprog">
+      <u><span>CONSTRUÍDO</span><b>${nivMeu}/${nivTot} NÍVEIS</b></u>
+      <div class="cofbar"><span style="width:${pctC}%"></span></div>
+      <em class="${compraveis?'tem':''}">${compraveis
+        ? `${compraveis} melhoria${compraveis>1?'s':''} ao seu alcance agora`
+        : 'ecos insuficientes — desça e volte com mais'}</em>
+    </div>
     <div class="ramos">${ramos}</div>
     <button class="mb pri" data-a="voltar2">▶ DESCER AGORA</button></div>`;
   bindA(m,{ voltar:telaTitulo, voltar2:telaClasses });
@@ -1058,4 +1073,4 @@ telaTitulo();
 window.__semArte=(img,id)=>{ img.onerror=null; img.src=spriteCanvas(id); };
 window.__jogo={ get cb(){return cb;}, get P(){return P;}, usar, iniciar,
   get sel(){return sel;}, get malhas(){return malhas;},
-  get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar, SFX, fim };
+  get anima(){return anima;}, get previa(){return previa;}, calcPrevia, pintar, SFX, fim, telaVitoria };
