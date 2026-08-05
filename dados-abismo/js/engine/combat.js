@@ -5,7 +5,7 @@
 import { satisfies, resolvedValues, findSubset, entryValue } from './requirements.js';
 import { face } from '../data/faces.js';
 import { RESPIRAR } from '../data/classes.js';
-import { travaAberta, travaReflete } from '../data/travas.js';
+import { travaAberta, travaRefleteAgora } from '../data/travas.js';
 
 /* ---------- expressões dos efeitos (DSL de dados, §0.2) ---------- */
 const EXPR_CACHE = new Map();
@@ -86,8 +86,17 @@ export class Combat {
     this.trapacaUsada = false;
     this._guardou = false; this._travou = false;
     this.rerolls = Math.max(0, this.p.rerollsBase + (this.M.rerollBonus||0));
-    for(const en of this.enemies) en._arrombada = false;   // arrombamento dura 1 turno
+    for(const en of this.enemies){ en._arrombada = false;  // arrombamento dura 1 turno
+      en._refletiu = false; }                              // o espelho recarrega
     this._polegar = this.p.polegar||0;                     // Polegar Torto recarrega
+    /* CANALIZAÇÃO: o Círculo era só armazém — o Arcanista era a única classe
+       cuja sobra não devolvia nada imediato (Carrasco vira dano, Lâmina vira
+       veneno, OráculA vira bloqueio), e é justamente a que precisa esperar.
+       Agora o círculo fechado PROTEGE enquanto acumula. */
+    if(this.p.classe==='arcanista' && this.circle.length){
+      this.p.block += this.circle.length;
+      this.L(`Círculo fechado: +${this.circle.length} de bloqueio`);
+    }
     // queimadura dispara ao rolar
     const q = this.p.statuses.queimadura|0;
     if(q){ this.dmgPlayer(q, 'queimadura'); }
@@ -317,18 +326,22 @@ export class Combat {
       count:vals.length, val:vals[0]||0,
       blades:ents.filter(e=>e.face.k==='blade').length, ess:this.p.essence, hp:this.p.hp };
     // snapshot
-    const eOrig=this.enemies, pOrig=this.p, logOrig=this.doLog;
+    const eOrig=this.enemies, pOrig=this.p, logOrig=this.doLog, overOrig=this.over;
     const antesE=eOrig.map(e=>({hp:e.hp, block:e.block, st:{...e.statuses}}));
     const antesP={hp:pOrig.hp, block:pOrig.block, ess:pOrig.essence, st:{...pOrig.statuses}};
     this.enemies = eOrig.map(e=>({...e, statuses:{...e.statuses}}));
     this.p = {...pOrig, statuses:{...pOrig.statuses}};
-    this.doLog=false;
+    // SANDBOX: sem isso, simular uma jogada que te mataria (um reflexo de
+    // espelho, p.ex.) fazia checkEnd() encerrar o combate DE VERDADE — e a
+    // tela chama prever() só pra desenhar a prévia da carta.
+    this.doLog=false; this._sandbox=true;
     try{
       const echoes=ents.filter(e=>e.face.k==='echo').length;
       for(let i=0;i<1+(echoes>0?1:0);i++) this.applyEffects(skill.eff, ctx, targetIdx);
     }catch(err){}
     const depoisE=this.enemies, depoisP=this.p;
     this.enemies=eOrig; this.p=pOrig; this.doLog=logOrig;
+    this._sandbox=false; this.over=overOrig;
     // diff
     const alvos = depoisE.map((e,i)=>{
       const a=antesE[i];
@@ -464,29 +477,41 @@ export class Combat {
                          * frenesi * (M.dmgMult||1));
       if(en.statuses.marca){ d = Math.round(d*1.5); en.statuses.marca=0; }
       // ===== FECHADURA (§6): o golpe errado simplesmente não fere =====
+      let refletir = null;
       if(!pierce){
         const t = this.travaDe(en);
         if(t && !this.abre(en)){
           this.L(`  ✖ ${en.nome}: TRAVADO (${t.t}${t.v!==undefined?' '+t.v:''})`);
           return;
         }
-        if(t && travaReflete(t) && d>0){
-          const volta = Math.max(1, Math.round(d*(t.v||30)/100));
-          this.L(`  ⇄ ${en.nome} devolve ${volta}`);
-          this.dmgPlayer(volta, 'espelho');
-        }
-      }
-      if(!pierce){
         const arm = Math.max(0, (en.statuses.armadura||0) + (en.armadura||0) - (M.pierce||0));
         d = Math.max(1, d - arm);
         if(en.block>0){ const abs=Math.min(en.block,d); en.block-=abs; d-=abs; }
+        // o espelho devolve o que ENTROU, não o que foi arremessado: refletir o
+        // bruto cobrava pela armadura do próprio inimigo duas vezes
+        refletir = t;
       }
       en.hp = Math.max(0, en.hp - d);
+      if(d>0){ en._danoTurno = (en._danoTurno||0) + d; }
       if(d>0) this.L(`  → ${en.nome} sofre ${d} (HP ${en.hp}/${en.maxHp})`);
-      if(vivo && en.hp<=0 && en.explode){          // "Explode ao morrer" agora explode
-        const dano = Math.round(en.explode * (en.mult||1));
+      // só marca o espelho como "já usado neste turno" se ele de fato disparou
+      if(refletir && d>0 && travaRefleteAgora(refletir, this.aloc, en)){
+        const volta = Math.max(1, Math.round(d*(refletir.v||30)/100));
+        this.L(`  ⇄ ${en.nome} devolve ${volta}`);
+        this.dmgPlayer(volta, 'espelho');
+      }
+      if(vivo && en.hp<=0 && en.explode){
+        // A explosão estoura no CAMPO, não só na sua cara: quem está do lado
+        // também leva. Deixa de ser pedágio e vira alvo de prioridade.
+        const dano = Math.round(en.explode * (en.mult||1) * 0.55);
         this.L(`  💥 ${en.nome} EXPLODE (${dano})`);
         this.dmgPlayer(dano, 'explosão');
+        const perto = this.aliveEnemies().filter(o=>o!==en);
+        if(perto.length){
+          const esp = Math.max(1, Math.round(dano*0.9));
+          for(const o of perto){ o.hp = Math.max(0, o.hp - esp);
+            this.L(`  💥 estilhaço → ${o.nome} sofre ${esp}`); }
+        }
       }
       if(vivo && en.hp<=0){ for(const k of (this.p.relicKills||[])){
         if(k.block) this.p.block += k.block;
@@ -608,6 +633,15 @@ export class Combat {
               reg.dado=alv.dieId; this.L(`${en.nome} INVERTEU o seu ${v} → ${inv}`); }
             break; }
           case 'contar': {        // conta até N e então a pá desce
+            /* A CONTA era uma ampulheta INESCAPÁVEL: numa luta longa ela sozinha
+               matava, e punia justamente quem mata devagar (Lâmina-Sombra).
+               Agora ela é PARTE DO PUZZLE — machuque forte e a pá não desce. */
+            const limiar = Math.max(4, Math.round(en.maxHp*0.15));
+            const bateu  = (en._danoTurno||0) >= limiar;
+            en._danoTurno = 0;
+            if(bateu){ reg.conta = en._conta||0; reg.contaSegura = true;
+              this.L(`${en.nome} leva a pancada — a pá NÃO desce (${en._conta||0}/${it.ate})`);
+              break; }
             en._conta=(en._conta||0)+1; reg.conta=en._conta;
             this.L(`${en.nome} conta ${en._conta}/${it.ate}`);
             if(en._conta>=it.ate){ en._conta=0; this.dmgPlayer(Math.round(it.v*(en.mult||1)),'A CONTA'); }
@@ -646,8 +680,10 @@ export class Combat {
       for(const en of this.aliveEnemies()) en.hp = Math.min(en.maxHp, en.hp+3);
     for(const en of this.aliveEnemies()){
       if(en.statuses.veneno){ en.hp=Math.max(0,en.hp-en.statuses.veneno);
+        en._danoTurno=(en._danoTurno||0)+en.statuses.veneno;
         if(!this.flags.has('veneno_eterno')) en.statuses.veneno--; }
-      if(en.statuses.sangramento){ en.hp=Math.max(0,en.hp-en.statuses.sangramento); en.statuses.sangramento--; }
+      if(en.statuses.sangramento){ en.hp=Math.max(0,en.hp-en.statuses.sangramento);
+        en._danoTurno=(en._danoTurno||0)+en.statuses.sangramento; en.statuses.sangramento--; }
       if(en.travaOff>0) en.travaOff--;
     }
     for(const k of ['veneno','sangramento']){ if(this.p.statuses[k]){ this.dmgPlayer(this.p.statuses[k], k); this.p.statuses[k]--; } }
@@ -655,6 +691,7 @@ export class Combat {
     if(this.p.statuses.espinhos)  this.p.statuses.espinhos--;
   }
   checkEnd(){
+    if(this._sandbox) return null;   // prévia não termina combate
     if(this.over) return this.over;
     // Segundo Fôlego (Cofre): estava no bônus e nunca era lido
     if(this.p.hp<=0 && (this.p.revive>0) && !this.p._reviveuNaRun){

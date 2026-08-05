@@ -182,8 +182,13 @@ console.log('=== PASSIVAS E FERRAMENTAS ===');
   const id = cb.roll[0].dieId;
   check(cb.guardar(id) && cb.circle.length === 1 && cb.used.has(id),
         'Arcanista', 'Canalização: guarda no Círculo');
+  const guardados = cb.circle.length + cb.pool().length;   // guardado + o que vai sobrar
   cb.endTurn();
   check(cb.roll.some(e=>e.banked), 'Arcanista', 'Canalização: o dado VOLTA no turno seguinte');
+  // o Círculo fechado PROTEGE enquanto acumula — era a única sobra sem retorno
+  check(cb.p.block >= guardados, 'Arcanista',
+        'Canalização: o Círculo dá bloqueio no turno seguinte',
+        `bloqueio ${cb.p.block} para ${guardados} dados guardados`);
 }
 {
   const { cb } = cenario({ classe:'oracula', faces:[6,1,1,1,1,1] });
@@ -655,6 +660,87 @@ console.log('=== RELÍQUIAS ===');
     const rel = RELIQUIAS.find(r=>r.mods && r.mods[mod]);
     if(!rel){ check(false,'Relíquia','existe uma com '+mod); continue; }
     check(teste(comRel(rel)), 'Relíquia · '+rel.nome, `o mod ${mod} chega no motor`);
+  }
+}
+
+/* =====================================================================
+   9. PRÉVIA E PEDÁGIOS — os três buracos que a medição de balanço achou
+   ===================================================================== */
+console.log('=== PRÉVIA E PEDÁGIOS ===');
+{
+  /* (a) prever() é SANDBOX: não pode encerrar o combate de verdade.
+     A tela chama prever() só pra desenhar a prévia dourada da carta — se a
+     jogada simulada matasse o jogador (reflexo de espelho) ou limpasse o
+     campo, checkEnd() marcava this.over e a luta acabava sem ninguém jogar. */
+  {
+    const { cb } = cenario({ classe:'carrasco',
+      inimigos:[ inimigo({ hp:1 }) ], faces:[6,6,5,5] });
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='decapitar');
+    const ids = cb.roll.slice(0,1).map(e=>e.dieId);
+    cb.prever(sk, ids, 0);
+    check(!cb.over, 'prever()', 'prévia que MATA o inimigo não encerra o combate', 'over='+cb.over);
+    check(cb.enemies[0].hp === 1, 'prever()', 'prévia não fere o inimigo de verdade');
+  }
+  {
+    const { cb, p } = cenario({ classe:'carrasco', faces:[6,6,5,5] });
+    p.hp = 3;                       // qualquer reflexo mataria
+    cb.enemies = [ inimigo({ hp:200, trava:{t:'espelho', v:90} }) ];
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='decapitar');
+    cb.prever(sk, cb.roll.slice(0,1).map(e=>e.dieId), 0);
+    check(!cb.over, 'prever()', 'prévia que MATARIA você não encerra o combate', 'over='+cb.over);
+    check(p.hp === 3, 'prever()', 'prévia não tira o seu HP de verdade', 'hp='+p.hp);
+  }
+
+  /* (b) ESPELHO: uma vez por turno e sobre o dano que ENTROU.
+     Antes refletia CADA golpe — Mil Cortes (N golpinhos) pagava N vezes. */
+  {
+    const { cb, p } = cenario({ classe:'lamina',
+      bag: Array.from({length:5},()=>makeDie('d4','osso')),
+      faces:[3,3,2,2,4] });
+    cb.enemies = [ inimigo({ hp:400, trava:{t:'espelho', v:50} }) ];
+    cb.startTurn = cb.startTurn;    // (mantém o turno corrente)
+    const hp0 = p.hp;
+    const sk = CLASSES.lamina.skills.find(s=>s.id==='milcortes');
+    const ids = cb.roll.filter(e=>e.face.v===3).slice(0,2).map(e=>e.dieId);
+    cb.use(sk, ids, 0);
+    const perdido = hp0 - p.hp;
+    const golpes  = 400 - cb.enemies[0].hp;
+    check(perdido > 0, 'Espelho', 'o primeiro golpe do turno reflete', 'perdeu '+perdido);
+    check(perdido <= Math.ceil(golpes*0.5), 'Espelho',
+      'multi-golpe NÃO paga o reflexo N vezes',
+      `sofreu ${perdido} contra ${golpes} causados (teto ${Math.ceil(golpes*0.5)})`);
+  }
+  {
+    // armadura do inimigo não pode ser cobrada duas vezes: reflete o efetivo
+    const { cb, p } = cenario({ classe:'carrasco', faces:[6,6,5,5] });
+    cb.enemies = [ inimigo({ hp:400, trava:{t:'espelho', v:100} }) ];
+    cb.enemies[0].armadura = 5;
+    const hp0 = p.hp, ehp0 = cb.enemies[0].hp;
+    cb.use(CLASSES.carrasco.skills.find(s=>s.id==='decapitar'),
+            [cb.roll[0].dieId], 0);
+    const entrou = ehp0 - cb.enemies[0].hp, voltou = hp0 - p.hp;
+    check(voltou === entrou, 'Espelho', 'devolve o dano que ENTROU, não o bruto',
+          `entrou ${entrou}, voltou ${voltou}`);
+  }
+
+  /* (c) A CONTA: a pá não desce se o inimigo levou pancada.
+     Sem isso é ampulheta inescapável — e pune quem mata devagar. */
+  {
+    const conta = { padrao:[{t:'contar', ate:2, v:30}], intent:{t:'contar',ate:2,v:30} };
+    // 1) sem pancada: a pá anda e no 2º turno bate
+    const a = cenario({ classe:'carrasco', faces:[6,6,5,5] });
+    a.cb.enemies = [ inimigo({ hp:300, ...conta }) ];
+    a.cb.enemies[0]._danoTurno = 0;
+    a.cb.enemyTurn(); a.cb.enemyTurn();
+    check(a.p.hp < 100, 'A CONTA', 'sem reação, a pá desce e machuca', 'hp='+a.p.hp);
+    // 2) com pancada acima do limiar, a pá NÃO anda
+    const b = cenario({ classe:'carrasco', faces:[6,6,5,5] });
+    b.cb.enemies = [ inimigo({ hp:300, ...conta }) ];
+    const lim = Math.round(300*0.15);
+    for(let i=0;i<3;i++){ b.cb.enemies[0]._danoTurno = lim + 1; b.cb.enemyTurn(); }
+    check(b.p.hp === 100, 'A CONTA', 'bater forte segura a pá', 'hp='+b.p.hp);
+    check((b.cb.enemies[0]._conta||0) === 0, 'A CONTA', 'a contagem não avança sob pancada',
+          'conta='+(b.cb.enemies[0]._conta||0));
   }
 }
 

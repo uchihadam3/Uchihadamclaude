@@ -63,9 +63,14 @@ export const TRAVAS = {
   casal:   { ico:'∞', nome:'Gêmeo',
              txt:()=>'Invulnerável enquanto o gêmeo estiver vivo', curto:()=>'imune enquanto o gêmeo viver',
              ok:(a,v,cb,en)=> !cb.enemies.some(o=>o.hp>0 && o!==en && o.gemeo===en.gemeo) },
+  /* ESPELHO: refletia CADA golpe. Mil Cortes (N golpinhos) e qualquer AoE
+     pagavam o pedágio N vezes — o espelho sozinho era 46% de todo o dano que
+     o jogador tomava. Agora ele copia só o PRIMEIRO golpe de cada turno:
+     concentrar dano passa a ser a jogada, picotar é que sangra. */
   espelho: { ico:'⇄', nome:'Espelho',
-             txt:v=>`Devolve ${v}% do dano que sofrer`, curto:v=>`devolve ${v}%`,
-             ok:()=> true, reflete:true },
+             txt:v=>`Devolve ${v}% do PRIMEIRO golpe que sofrer a cada turno`,
+             curto:v=>`devolve ${v}% do 1º golpe do turno`,
+             ok:()=> true, reflete:true, umaVezPorTurno:true },
 };
 
 /* rótulo curto pra HUD */
@@ -81,3 +86,12 @@ export function travaAberta(t, aloc, cb, en){
   return !!d.ok(aloc, t.v, cb, en);
 }
 export const travaReflete = t => !!(t && TRAVAS[t.t]?.reflete);
+/* o reflexo dispara agora? (en carrega o controle de "uma vez por turno") */
+export function travaRefleteAgora(t, aloc, en){
+  if(!travaReflete(t)) return false;
+  if(TRAVAS[t.t].umaVezPorTurno && en){
+    if(en._refletiu) return false;
+    en._refletiu = true;
+  }
+  return true;
+}

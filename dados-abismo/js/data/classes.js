@@ -112,7 +112,11 @@ export const CLASSES = {
     skills:[
       { id:'tecer', nome:'Tecer', req:{t:'any',count:2},
         desc:'Transforma um dado da mão em ◈ Curinga e AJUSTA outro em ±2 para abrir a fechadura do alvo.',
-        eff:[{op:'wildify',n:'1'},{op:'ajustar',n:'1',passo:'2'},{op:'block',amt:'sum*2'},{op:'essence',n:'1'}] },
+        /* era block:sum*2 — com req 'any 2' (SEMPRE satisfeito) e os dados
+           grandes dela isso era ~20-30 de bloqueio incondicional por turno.
+           A OráculA não sobrevivia ao puzzle, ela ignorava o dano: 49% de
+           vitória contra ~19% das outras três. */
+        eff:[{op:'wildify',n:'1'},{op:'ajustar',n:'1',passo:'2'},{op:'block',amt:'sum'},{op:'essence',n:'1'}] },
       { id:'julgamento', nome:'Julgamento', req:{t:'sumExact',v:7},
         desc:'Dano imenso e determinístico. Perfura fechadura, bloqueio e armadura.',
         eff:[{op:'dmg',tgt:'chosen',amt:'28+sum*4',pierce:true}] },
