@@ -263,7 +263,7 @@ const LEVELS = [
     "################         ###############          ############         #############",
     "################         ###############          ############         #############",
     "################^^^^^^^^^###############^^^^^^^^^^############^^^^^^^^^#############"],
-    movers:[{"x":26,"y":18,"w":4,"axis":"x","dist":10,"speed":0.6,"phase":0},{"x":64,"y":18,"w":4,"axis":"x","dist":9,"speed":0.7,"phase":1}],
+    movers:[{"x":16,"y":17,"w":4,"axis":"x","dist":7,"speed":0.6,"phase":0},{"x":40,"y":17,"w":4,"axis":"x","dist":8,"speed":0.65,"phase":0.5},{"x":62,"y":17,"w":4,"axis":"x","dist":7,"speed":0.7,"phase":0.3}],
     enemies:[{"x":55,"y":9,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":30,"y":18,"speed":1.1,"type":"chaser","range":8}]},
 
   { name:"9 · Clareira", mass:9, max:9, theme:"grove",
@@ -452,7 +452,7 @@ const LEVELS = [
     "##############             #######               #######             #####           #######",
     "##############             #######               #######             #####           #######",
     "##############^^^^^^^^^^^^^#######^^^^^^^^^^^^^^^#######^^^^^^^^^^^^^#####^^^^^^^^^^^#######"],
-    movers:[{"x":15,"y":17,"w":4,"axis":"x","dist":10,"speed":0.6,"phase":0},{"x":57,"y":17,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0.5},{"x":75,"y":17,"w":4,"axis":"x","dist":9,"speed":0.65,"phase":0.2}],
+    movers:[{"x":15,"y":17,"w":4,"axis":"x","dist":10,"speed":0.6,"phase":0},{"x":34,"y":17,"w":4,"axis":"x","dist":12,"speed":0.62,"phase":0.3},{"x":57,"y":17,"w":4,"axis":"x","dist":11,"speed":0.6,"phase":0.5},{"x":75,"y":17,"w":4,"axis":"x","dist":9,"speed":0.65,"phase":0.2}],
     enemies:[{"x":54,"y":8,"dist":3,"speed":1,"axis":"x","type":"patrol"},{"x":30,"y":20,"speed":1.1,"type":"chaser","range":8},{"x":70,"y":20,"speed":1.15,"type":"chaser","range":9}]},
 
   { name:"16 · A Gosma-Mãe", mass:12, max:12, theme:"void", secret:true,
