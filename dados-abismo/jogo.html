@@ -568,19 +568,48 @@
  .en.bat{animation:bat .34s cubic-bezier(.2,.8,.3,1)}
  @keyframes bat{0%{transform:translateX(0)}18%{transform:translateX(-7px) scale(1.05)}
    40%{transform:translateX(5px)}70%{transform:translateX(-2px)}100%{transform:translateX(0)}}
- .en.bat .spr img{filter:brightness(3.2) drop-shadow(0 0 14px #fff);animation:none}
+ /* o flash de impacto ofuscava o número que aparece em cima dele */
+ .en.bat .spr img{filter:brightness(1.85) drop-shadow(0 0 12px #ffd9c0);animation:none}
  .en.morrendo{animation:morrer .5s forwards}
  @keyframes morrer{to{opacity:.25;transform:scale(.9) rotate(6deg);filter:grayscale(1)}}
- .dmg{position:absolute;left:50%;top:16px;transform:translateX(-50%);font-size:22px;font-weight:900;
-   color:#fff;text-shadow:0 2px 0 #8a1010,0 0 12px #ff5a3c;pointer-events:none;
-   animation:sobe .9s cubic-bezier(.1,.9,.3,1) forwards;z-index:5}
- .dmg.big{font-size:32px;color:#ffe27a;text-shadow:0 2px 0 #7a2a00,0 0 20px #ff9d2b}
- @keyframes sobe{0%{opacity:0;transform:translateX(-50%) translateY(10px) scale(.6)}
-   22%{opacity:1;transform:translateX(-50%) translateY(-6px) scale(1.25)}
-   40%{transform:translateX(-50%) translateY(-12px) scale(1)}
-   100%{opacity:0;transform:translateX(-50%) translateY(-46px) scale(.95)}}
- .dmgme{position:absolute;left:50%;top:-16px;transform:translateX(-50%);font-size:20px;font-weight:900;
-   color:#ff8a7a;text-shadow:0 2px 8px #000;animation:sobe .9s forwards;pointer-events:none}
+ /* ===== NÚMEROS FLUTUANTES =====
+    O número é o retorno mais importante do combate: é por ele que você
+    entende se o golpe entrou, se morreu no escudo, e o quanto pesou.
+    Dano sobe em vermelho e sai de lado; aparado sobe reto em azul-metal. */
+ .dmg{position:absolute;left:50%;top:24%;transform:translateX(-50%);
+   font:900 26px/1 Georgia,serif;color:#fff;pointer-events:none;z-index:6;
+   text-shadow:-2px -2px 0 #240404, 0px -2px 0 #240404, 2px -2px 0 #240404, -2px 0px 0 #240404, 2px 0px 0 #240404, -2px 2px 0 #240404, 0px 2px 0 #240404, 2px 2px 0 #240404, 0 0 18px #ff5a3c, 0 4px 12px #000;
+   animation:sobe .95s cubic-bezier(.12,.85,.25,1) forwards;
+   --dx:0px}
+ /* o sprite do inimigo tapava o número: ele tem que ficar por cima de tudo */
+ .en .dmg,.en .clang{z-index:30}
+ .dmg.big{font-size:38px;color:#ffe27a;
+   text-shadow:-3px -3px 0 #2a1000, 0px -3px 0 #2a1000, 3px -3px 0 #2a1000, -3px 0px 0 #2a1000, 3px 0px 0 #2a1000, -3px 3px 0 #2a1000, 0px 3px 0 #2a1000, 3px 3px 0 #2a1000, 0 0 30px #ff9d2b, 0 4px 14px #000}
+ /* golpe pesado ganha um clarão atrás do número */
+ .dmg.big::before{content:'';position:absolute;left:50%;top:50%;width:80px;height:80px;
+   margin:-40px 0 0 -40px;border-radius:50%;z-index:-1;
+   background:radial-gradient(circle,#ff9d2b55,transparent 68%);animation:estouro .5s ease-out forwards}
+ @keyframes estouro{0%{opacity:0;transform:scale(.3)}40%{opacity:1;transform:scale(1)}
+   100%{opacity:0;transform:scale(1.6)}}
+ @keyframes sobe{0%{opacity:0;transform:translate(calc(-50% + 0px),12px) scale(.55) rotate(-6deg)}
+   18%{opacity:1;transform:translate(calc(-50% + var(--dx)),-8px) scale(1.35) rotate(2deg)}
+   34%{transform:translate(calc(-50% + var(--dx)),-14px) scale(1) rotate(0)}
+   100%{opacity:0;transform:translate(calc(-50% + var(--dx)),-34px) scale(.92)}}
+ /* aparado: sobe reto, sem rotação, em azul-metal */
+ .dmg.esc{font-size:21px;color:#eaf4ff;
+   text-shadow:-2px -2px 0 #06182c, 0px -2px 0 #06182c, 2px -2px 0 #06182c, -2px 0px 0 #06182c, 2px 0px 0 #06182c, -2px 2px 0 #06182c, 0px 2px 0 #06182c, 2px 2px 0 #06182c, 0 0 20px #6fb4ff, 0 3px 10px #000;
+   animation:sobeesc .85s cubic-bezier(.15,.9,.3,1) forwards}
+ .dmg.esc.raspao{top:14%;font-size:16px;opacity:.95}
+ @keyframes sobeesc{0%{opacity:0;transform:translateX(-50%) translateY(8px) scale(.6)}
+   20%{opacity:1;transform:translateX(-50%) translateY(-6px) scale(1.2)}
+   100%{opacity:0;transform:translateX(-50%) translateY(-28px) scale(.95)}}
+ .dmgme{position:absolute;left:50%;top:-6px;transform:translateX(-50%);
+   font:900 24px/1 Georgia,serif;color:#ff8a7a;pointer-events:none;z-index:6;
+   text-shadow:-2px -2px 0 #240404, 0px -2px 0 #240404, 2px -2px 0 #240404, -2px 0px 0 #240404, 2px 0px 0 #240404, -2px 2px 0 #240404, 0px 2px 0 #240404, 2px 2px 0 #240404, 0 0 18px #ff5a3c, 0 3px 10px #000;
+   animation:sobe .95s forwards;--dx:0px}
+ .dmgme.esc{font-size:21px;color:#dceaff;
+   text-shadow:-2px -2px 0 #06182c, 0px -2px 0 #06182c, 2px -2px 0 #06182c, -2px 0px 0 #06182c, 2px 0px 0 #06182c, -2px 2px 0 #06182c, 0px 2px 0 #06182c, 2px 2px 0 #06182c, 0 0 20px #6fb4ff, 0 3px 10px #000;
+   animation:sobeesc .85s forwards}
  .dmgme.av{font-size:13px;font-weight:800;color:#cfe3ff;white-space:nowrap}
  #voce{position:relative}
  /* dano no jogador: borda vermelha pulsando */
@@ -602,6 +631,7 @@
    60%{transform:translateY(1px) scale(.995)}
    100%{transform:translateY(0)}}
  /* anel de faísca metálica no ponto do impacto */
+ .clang.eu{top:50%;width:64px;height:64px;margin:-32px 0 0 -32px}
  .clang{position:absolute;left:50%;top:38%;width:54px;height:54px;margin:-27px 0 0 -27px;
    border-radius:50%;border:2px solid #9fd0ff;pointer-events:none;z-index:4;
    box-shadow:0 0 18px #6fb4ff,inset 0 0 12px #6fb4ff;animation:clangue .42s ease-out forwards}

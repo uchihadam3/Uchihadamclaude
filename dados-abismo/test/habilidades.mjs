@@ -877,6 +877,61 @@ console.log('=== FECHADURA DINÂMICA ===');
   }
 }
 
+/* =====================================================================
+   12. ◈ CURINGA — vira sozinho o número que serve MELHOR, não o primeiro
+   que passa. A busca varria de 1 até N e parava no primeiro válido (o
+   MENOR): com Fúria Cega (soma ≥ 11) e 5+5+◈, o curinga virava 1 e o
+   jogador perdia dano sem entender por quê.
+   ===================================================================== */
+console.log('=== ◈ CURINGA ===');
+{
+  const curinga = () => face('wild', 0);
+  // (a) sem fechadura: escolhe o valor que dá a MAIOR soma
+  {
+    const bag = [makeDie('d6','osso'),makeDie('d6','osso'),makeDie('d6','osso'),makeDie('d6','osso')];
+    const { cb, p } = cenario({ classe:'carrasco', bag, faces:[5,5,curinga(),1] });
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='furia');   // soma >= 11
+    const ids = cb.roll.slice(0,3).map(e=>e.dieId);
+    const pv = cb.prever(sk, ids, 0);
+    // 5+5+6 = 16 é a melhor soma possível; 5+5+1 = 11 apenas passa raspando
+    check(!!pv, 'Curinga', 'a jogada com curinga é aceita');
+    const dano = pv ? pv.alvos.reduce((a,x)=>Math.max(a,x.dano),0) : 0;
+    const { cb:cb2 } = cenario({ classe:'carrasco',
+      bag:[makeDie('d6','osso'),makeDie('d6','osso'),makeDie('d6','osso'),makeDie('d6','osso')],
+      faces:[5,5,6,1] });
+    const pv2 = cb2.prever(sk, cb2.roll.slice(0,3).map(e=>e.dieId), 0);
+    const danoFixo = pv2 ? pv2.alvos.reduce((a,x)=>Math.max(a,x.dano),0) : 0;
+    check(dano === danoFixo, 'Curinga',
+      'o curinga rende o mesmo que o melhor dado real no lugar dele',
+      `com ◈ deu ${dano}, com 6 de verdade deu ${danoFixo}`);
+  }
+  // (b) com fechadura: prefere o valor que ABRE, mesmo somando menos
+  {
+    const bag = Array.from({length:4},()=>makeDie('d6','osso'));
+    const { cb } = cenario({ classe:'carrasco', bag, faces:[5,5,curinga(),1],
+      inimigos:[ inimigo({ hp:400, trava:{t:'par'} }) ] });   // soma PAR
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='furia');
+    const ids = cb.roll.slice(0,3).map(e=>e.dieId);
+    const pv = cb.prever(sk, ids, 0);
+    const dano = pv ? (pv.alvos[0]?.dano||0) : 0;
+    // 5+5+6=16 é par e abre; 5+5+1=11 é ímpar e daria ZERO
+    check(dano > 0, 'Curinga',
+      'contra fechadura PAR, o curinga assume o valor que ABRE', `dano ${dano}`);
+  }
+  {
+    const bag = Array.from({length:4},()=>makeDie('d6','osso'));
+    const { cb } = cenario({ classe:'carrasco', bag, faces:[5,5,curinga(),1],
+      inimigos:[ inimigo({ hp:400, trava:{t:'impar'} }) ] });  // soma ÍMPAR
+    const sk = CLASSES.carrasco.skills.find(s=>s.id==='furia');
+    const pv = cb.prever(sk, cb.roll.slice(0,3).map(e=>e.dieId), 0);
+    const dano = pv ? (pv.alvos[0]?.dano||0) : 0;
+    // aqui o que abre é a soma ímpar: 5+5+1=11 ou 5+5+3=13 — nunca 16
+    check(dano > 0, 'Curinga',
+      'contra fechadura ÍMPAR, o curinga troca de valor e abre do mesmo jeito',
+      `dano ${dano}`);
+  }
+}
+
 /* ---------------------------------------------------------------- */
 console.log('\n' + '─'.repeat(60));
 if (falhas.length) {

@@ -62,12 +62,32 @@ export function satisfies(req, entries){
   return ok;
 }
 
-/* valores finais escolhidos (resolve curingas do jeito mais favorável) */
-export function resolvedValues(req, entries){
+/* VALORES FINAIS — o ◈ Curinga vira sozinho o número que serve.
+
+   Isto dizia "do jeito mais favorável" e fazia o contrário: a busca varre de
+   1 até N e parava no PRIMEIRO que satisfazia, ou seja, o MENOR. Com Fúria
+   Cega (soma ≥ 11) e 5+5+◈, o curinga virava 1 (soma 11) em vez de 6 (soma
+   16) — o jogador perdia dano sem entender por quê.
+
+   Agora percorre todas as atribuições válidas e fica com a melhor. `prefere`
+   é opcional e vem do combate: serve para o curinga também escolher o valor
+   que ABRE a fechadura do alvo, não só o que soma mais. */
+export function resolvedValues(req, entries, prefere=null){
   let out = entries.map(entryValue);
   if(req && req.t!=='symbol'){
     const fn=REQ[req.t];
-    if(fn) wildAssignments(entries, vals=>{ if(fn(req,vals)){ out=vals.slice(); return true; } return false; });
+    if(fn){
+      let melhor=null, melhorNota=-Infinity;
+      wildAssignments(entries, vals=>{
+        if(!fn(req,vals)) return false;
+        const soma = vals.reduce((a,b)=>a+(b||0),0);
+        // a fechadura vale mais que o dano: golpe grande que não abre dá zero
+        const nota = (prefere ? (prefere(vals) ? 1e6 : 0) : 0) + soma;
+        if(nota > melhorNota){ melhorNota=nota; melhor=vals.slice(); }
+        return false;                       // não para: quer ver todas
+      });
+      if(melhor) out = melhor;
+    }
   }
   return out.map(v=> v===null ? 0 : v);
 }

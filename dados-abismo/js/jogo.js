@@ -751,7 +751,7 @@ function flash(uid,d,morreu,aparado=0){
     SFX.aparado(aparado);
   }
   const n=document.createElement('div'); n.className='dmg'+(d>=18?' big':'');
-  n.textContent='-'+d; el.appendChild(n);
+  n.textContent='-'+d; n.style.setProperty('--dx', proxDesvio()); el.appendChild(n);
   setTimeout(()=>n.remove(),900);
   SFX.golpe(d); tremor(Math.min(11,3+d*0.35));
   if(morreu){ SFX.morte(); el.classList.add('morrendo'); }
@@ -774,16 +774,24 @@ function flashJog(d){
   const f=document.createElement('div'); f.id='ferida'; document.body.appendChild(f);
   setTimeout(()=>f.remove(),420);
   const n=document.createElement('div'); n.className='dmgme'; n.textContent='-'+d;
+  n.style.setProperty('--dx', proxDesvio());
   document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),900);
 }
 /* o MESMO retorno quando é você que apara: sem ferida vermelha na tela */
 function flashJogEscudo(v){
   const f=document.createElement('div'); f.id='ferida'; f.className='azul';
   document.body.appendChild(f); setTimeout(()=>f.remove(),380);
+  const alvo=document.getElementById('voce');
   const n=document.createElement('div'); n.className='dmgme esc'; n.textContent='🛡'+v;
-  document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),900);
+  // o mesmo anel de faísca que o inimigo ganha: o escudo tem que ser visível
+  const c=document.createElement('div'); c.className='clang eu';
+  alvo.appendChild(n); alvo.appendChild(c);
+  setTimeout(()=>{ n.remove(); c.remove(); },900);
   SFX.aparado(v);
 }
+/* espalha os números quando vários caem no mesmo alvo, pra não empilharem */
+let desvio=0;
+function proxDesvio(){ desvio=(desvio+1)%5; return (desvio-2)*15 + 'px'; }
 let shakeT=0;
 function tremor(v){ shakeT=Math.max(shakeT,v); }
 function usar(s){

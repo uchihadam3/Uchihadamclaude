@@ -291,10 +291,23 @@ export class Combat {
     if(ents.length!==dieIds.length) return false;
     return satisfies(skill.req, ents);
   }
+  /* como o ◈ Curinga deve se resolver contra ESTE alvo: entre os valores que
+     satisfazem a habilidade, prefere os que também abrem a fechadura dele */
+  preferenciaCuringa(targetIdx){
+    const alive = this.aliveEnemies();
+    const en = alive[Math.min(targetIdx, alive.length-1)];
+    if(!en || !this.travaDe(en) || en._arrombada || en.travaOff>0) return null;
+    return vals => {
+      const v = vals.filter(x=>x!==null && x!==undefined);
+      if(!v.length) return false;
+      return this.abre(en, { sum:v.reduce((a,b)=>a+b,0), max:Math.max(...v), min:Math.min(...v),
+        count:v.length, vals:v, simbolos:[] });
+    };
+  }
   use(skill, dieIds, targetIdx=0){
     if(!this.canUse(skill, dieIds)) return { ok:false, err:'requisito não satisfeito' };
     const ents = this.roll.filter(e=>dieIds.includes(e.dieId));
-    const vals = resolvedValues(skill.req, ents);
+    const vals = resolvedValues(skill.req, ents, this.preferenciaCuringa(targetIdx));
     const ctx = {
       sum: vals.reduce((a,b)=>a+b,0),
       max: Math.max(...vals,0), min: Math.min(...vals,0),
@@ -321,10 +334,15 @@ export class Combat {
   prever(skill, dieIds, targetIdx=0){
     const ents = this.roll.filter(e=>dieIds.includes(e.dieId) && !this.used.has(e.dieId));
     if(!ents.length || !satisfies(skill.req, ents)) return null;
-    const vals = resolvedValues(skill.req, ents);
+    const vals = resolvedValues(skill.req, ents, this.preferenciaCuringa(targetIdx));
     const ctx = { sum:vals.reduce((a,b)=>a+b,0), max:Math.max(...vals,0), min:Math.min(...vals,0),
       count:vals.length, val:vals[0]||0,
       blades:ents.filter(e=>e.face.k==='blade').length, ess:this.p.essence, hp:this.p.hp };
+    /* A ALOCAÇÃO é o que as fechaduras leem — e prever() não a montava.
+       A prévia julgava a trava contra o golpe ANTERIOR: podia prometer dano
+       onde daria zero, e mostrar zero onde abriria. */
+    const alocOrig = this._aloc;
+    this.alocar(ents, vals);
     // snapshot
     const eOrig=this.enemies, pOrig=this.p, logOrig=this.doLog, overOrig=this.over;
     const antesE=eOrig.map(e=>({hp:e.hp, block:e.block, st:{...e.statuses}}));
@@ -341,7 +359,7 @@ export class Combat {
     }catch(err){}
     const depoisE=this.enemies, depoisP=this.p;
     this.enemies=eOrig; this.p=pOrig; this.doLog=logOrig;
-    this._sandbox=false; this.over=overOrig;
+    this._sandbox=false; this.over=overOrig; this._aloc=alocOrig;
     // diff
     const alvos = depoisE.map((e,i)=>{
       const a=antesE[i];
