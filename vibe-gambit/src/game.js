@@ -274,7 +274,7 @@ function buildExpeditionDOM(){
       <div class="lane enemies" id="lane-enemies"></div>
       <div class="stage-banner hidden" id="banner"></div>
     </div>
-    <div class="tabbody" style="border-radius:12px;margin-top:12px">
+    <div class="tabbody logframe" style="margin-top:12px">
       <div class="loghead">📜 Combat Log</div>
       <div class="log" id="log"></div>
     </div>`;
