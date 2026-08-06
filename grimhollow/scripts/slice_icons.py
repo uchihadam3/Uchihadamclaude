@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+"""
+Fatia as FOLHAS DE ÍCONES da interface (PROMPTS.md §31) em PNGs nomeados.
+
+A folha vem numa grade fixa — 6×4 nos atalhos, 6×3 nos atributos — e cada célula
+tem um nome combinado de antemão. Por isso o corte não precisa adivinhar nada: a
+grade é a mesma que está no prompt, e o mapa de nomes está aqui embaixo.
+
+DUAS COISAS QUE O CORTE FAZ ALÉM DE FATIAR, e que existem por experiência:
+
+ 1. APARA a moldura vazia de cada célula. O gerador quase nunca centra o desenho
+    com exatidão, e um ícone de 256px com 60px de ar de um lado e 20px do outro
+    entra torto no botão. Aparar pelo alfa e recentrar resolve — o que importa é
+    o desenho estar no meio, não a célula.
+
+ 2. IGUALA o tamanho aparente. Depois de aparar, cada ícone tem um tamanho
+    diferente, e uma fileira de botões com símbolos de alturas diferentes parece
+    quebrada. Todos são reescalados para a mesma caixa, mantendo a proporção.
+
+O fundo: se a folha vier com alfa de verdade, é só usar. Se vier com o xadrez
+pintado por dentro (acontece), passe --xadrez que o recorte do cut_sprite.py roda
+antes — é o mesmo problema que ele já resolve, e repetir a heurística aqui seria
+manter duas cópias de uma conta difícil.
+
+  python3 scripts/slice_icons.py <folha.png> a|b [--xadrez] [--caixa 200]
+"""
+import os
+import sys
+
+import numpy as np
+from PIL import Image
+
+RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SAIDA = os.path.join(RAIZ, "src", "assets", "ui", "icons")
+
+# ---- os mapas de nome, na MESMA ordem de leitura do prompt (esquerda→direita,
+# ---- linha a linha). Mudar um nome aqui sem mudar o prompt desalinha tudo.
+FOLHAS = {
+    "a": {
+        "grade": (6, 4),
+        "nomes": [
+            "amigos", "companhia", "opcoes", "diario", "chat", "buscar",
+            "fechar", "expandir", "equipar", "loja", "missao", "selado",
+            "cima", "baixo", "avancar", "voltar", "repetir", "sair",
+            "objetivo", "concluido", "lider", "caido", "somar", "ouro",
+        ],
+    },
+    "b": {
+        "grade": (6, 3),
+        "nomes": [
+            "forca", "destreza", "inteligencia", "dano", "dano_magico", "vida",
+            "mana", "defesa", "resist_magica", "precisao", "critico", "dano_critico",
+            "vel_ataque", "roubo_vida", "veneno", "regeneracao", "recarga", "bloqueio",
+        ],
+    },
+}
+
+
+def apara(im: Image.Image) -> Image.Image | None:
+    """
+    Corta o ar em volta do desenho, pelo alfa. `None` = célula sem desenho algum.
+
+    Devolver a célula inteira quando ela está vazia (a primeira versão fazia isso)
+    engana a checagem lá embaixo: 256px de nada passa por "ícone grande" e vira um
+    PNG transparente que só se descobre no jogo, quando o botão fica em branco.
+    """
+    a = np.array(im)[..., 3]
+    ys, xs = np.nonzero(a > 8)
+    if not len(ys):
+        return None
+    return im.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
+
+
+def na_caixa(im: Image.Image, lado: int) -> Image.Image:
+    """Encaixa o ícone numa caixa quadrada, centrado e sem distorcer."""
+    w, h = im.size
+    escala = lado / max(w, h)
+    novo = im.resize((max(1, round(w * escala)), max(1, round(h * escala))), Image.LANCZOS)
+    tela = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
+    tela.paste(novo, ((lado - novo.width) // 2, (lado - novo.height) // 2))
+    return tela
+
+
+def main() -> None:
+    if len(sys.argv) < 3 or sys.argv[2] not in FOLHAS:
+        raise SystemExit(__doc__)
+    ent, qual = sys.argv[1], sys.argv[2]
+    lado = 200
+    if "--caixa" in sys.argv:
+        lado = int(sys.argv[sys.argv.index("--caixa") + 1])
+
+    im = Image.open(ent).convert("RGBA")
+    if "--xadrez" in sys.argv:
+        # a folha veio opaca com o quadriculado desenhado: reaproveita o recorte
+        # que já existe em vez de reescrever a heurística
+        from cut_sprite import recorta  # noqa: PLC0415  (só quando pedido)
+        rgb = np.array(im)[..., :3]
+        im = Image.fromarray(np.dstack([rgb, recorta(rgb)]))
+
+    cols, linhas = FOLHAS[qual]["grade"]
+    nomes = FOLHAS[qual]["nomes"]
+    if len(nomes) != cols * linhas:
+        raise SystemExit(f"mapa da folha {qual}: {len(nomes)} nomes p/ {cols*linhas} células")
+    cw, ch = im.width / cols, im.height / linhas
+    os.makedirs(SAIDA, exist_ok=True)
+
+    vazias = []
+    for i, nome in enumerate(nomes):
+        c, r = i % cols, i // cols
+        cel = im.crop((round(c * cw), round(r * ch), round((c + 1) * cw), round((r + 1) * ch)))
+        cortado = apara(cel)
+        # célula vazia (ou quase) é ícone que o gerador não desenhou — avisa em
+        # vez de gravar um PNG transparente que ninguém nota até estar no jogo
+        if cortado is None or cortado.width < cw * 0.12 or cortado.height < ch * 0.12:
+            vazias.append(nome)
+            continue
+        na_caixa(cortado, lado).save(os.path.join(SAIDA, f"ico_{nome}.png"))
+        print(f"  ico_{nome}.png  ({cortado.width}x{cortado.height} → {lado}x{lado})")
+
+    print(f"\n{len(nomes) - len(vazias)}/{len(nomes)} em {SAIDA}")
+    if vazias:
+        print("CÉLULAS VAZIAS (regerar a folha):", ", ".join(vazias))
+
+
+if __name__ == "__main__":
+    main()

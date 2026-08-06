@@ -2014,3 +2014,67 @@ create policy "own_friends" on public.friends
 Se der **"Já existe uma Companhia com esse nome"**, é o `unique` do nome
 funcionando — escolha outro. Se der **"Não deu para fundar agora"**, o SQL não
 rodou ou rodou com erro: volte no SQL Editor e confira a saída.
+
+---
+
+## 31 · ÍCONES DA INTERFACE — folhas de atalhos e atributos — 🟡 arte pendente
+
+Levantei tudo que hoje é **emoji ou caractere solto** na interface: são **42**
+símbolos, do botão de amigos ao ícone de Veneno na árvore de habilidades. Eles
+funcionam, mas cada um é desenhado pela fonte do aparelho — o mesmo ⚑ sai
+diferente no Android, no iPhone e no Windows, e nenhum deles combina com a arte
+pintada do resto do jogo.
+
+**Por que DUAS folhas e não uma.** Pedir 42 ícones distintos e legíveis numa
+imagem só quase sempre volta borrado ou com metade repetida — o gerador perde a
+conta. Duas folhas de ~20 cada saem nítidas, e ainda separam duas linguagens
+visuais que são mesmo diferentes: a **A** são objetos e setas (coisas que se
+tocam), a **B** são símbolos abstratos de atributo (coisas que se leem).
+
+Gere **uma por vez**, com o nome do arquivo, que eu fatio e integro. A grade é
+fixa e está mapeada abaixo — é por ela que o corte acontece.
+
+### 🟡 31.1 — `ui_icons_a.png` (atalhos e interface) — grade 6×4
+
+**1536×1024**, seis colunas por quatro linhas, cada ícone **centrado na sua
+célula de 256×256** com folga em volta. Fundo **transparente de verdade**.
+
+| | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| **A** | jogadores | estandarte | engrenagem | pergaminho | balão de fala | lupa |
+| **B** | fechar (✕) | expandir | encaixar na barra | sacola de compras | exclamação | cadeado |
+| **C** | seta ↑ | seta ↓ | seta ▶ | seta ◀ | seta circular | seta de retorno |
+| **D** | losango de objetivo | selo de concluído | estrela de líder | caveira | cruz de somar | moeda |
+
+```
+A single flat sprite sheet of 24 medieval fantasy user-interface icons arranged in a strict 6 by 4 grid, 1536x1024, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: two overlapping human silhouettes, a hanging war banner on a pole, a mechanical gear, a rolled parchment scroll, a speech bubble, a magnifying glass. Row 2: an X close cross, a diagonal expand arrow pair pointing outward, a small square slot with an arrow entering it, a market basket, an exclamation mark, a closed padlock. Row 3: a solid triangle pointing up, a solid triangle pointing down, a solid triangle pointing right, a solid triangle pointing left, a circular refresh arrow, a curved return arrow. Row 4: a faceted diamond rhombus, a four-pointed sparkle star, a five-pointed star, a skull, a plus cross, a stamped gold coin. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, slightly worn edges, bold simple readable silhouettes with thick strokes, no thin fragile lines, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
+```
+
+### 🟡 31.2 — `ui_icons_b.png` (atributos e estatísticas) — grade 6×3
+
+**1536×768**, seis colunas por três linhas, células de 256×256. Mesmas regras.
+
+Estes são os símbolos que aparecem **ao lado de um número**: na distribuição de
+pontos, na ficha e nos cards da árvore de habilidades. Precisam ser legíveis a
+**24 px** — por isso silhueta grossa e nada de detalhe fino.
+
+| | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| **A** | Força | Destreza | Inteligência | Dano Físico | Dano Mágico | Vida |
+| **B** | Mana | Defesa | Resist. Mágica | Precisão | Chance Crítica | Dano Crítico |
+| **C** | Vel. de Ataque | Roubo de Vida | Veneno | Regeneração | Recarga | Bloqueio |
+
+```
+A single flat sprite sheet of 18 medieval fantasy RPG stat icons arranged in a strict 6 by 3 grid, 1536x768, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: a flexed muscular arm for strength, a drawn bow with arrow for agility, an open book with a glowing rune for intellect, a crossed sword and axe for physical damage, a spiral arcane orb for magic damage, a heart for health. Row 2: a teardrop mana crystal, a kite shield, a shield with a rune sigil for magic resistance, a bullseye target, a starburst impact for critical chance, a jagged shattered starburst for critical damage. Row 3: a lightning bolt for attack speed, a heart with a droplet for life steal, a skull inside a droplet for poison, a leaf with a cross for regeneration, an hourglass for cooldown, a hexagonal buckler for block. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, bold simple readable silhouettes with thick strokes, no thin fragile lines, no color coding, monochrome metal so the game can tint each one, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
+```
+
+> **Sobre o fundo.** Peça transparente de verdade. Se voltar com o xadrez
+> pintado por dentro (já aconteceu com o roster do Ato II), eu recorto — o
+> `scripts/cut_sprite.py` existe justamente para isso. O que **não** dá para
+> salvar é ícone encostando no vizinho: se as células não tiverem folga, o corte
+> leva pedaço do lado.
+
+> **O que acontece depois que você mandar.** O `scripts/slice_icons.py` fatia a
+> folha pela grade acima e nomeia cada peça (`ico_amigos.png`, `ico_forca.png`,
+> …). Daí eu troco os emoji pelas imagens no código, um lugar por vez, e o jogo
+> passa a desenhar o mesmo símbolo em qualquer aparelho.

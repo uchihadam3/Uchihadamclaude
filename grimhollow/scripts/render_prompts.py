@@ -42,7 +42,12 @@ def escreve_sql(md_text: str) -> None:
     daqui mesmo, do mesmo PROMPTS.md, p/ não virar uma segunda cópia que envelhece
     sozinha.
     """
-    sec = md_text[md_text.index("## 30 · SUPABASE"):]
+    ini = md_text.index("## 30 · SUPABASE")
+    # PARA NA PRÓXIMA SEÇÃO. Antes ia até o fim do arquivo, e no dia em que a §31
+    # entrou (folhas de ícones) os prompts de ARTE foram parar dentro do .sql —
+    # "do título até o fim" só parecia certo enquanto a §30 era a última.
+    fim = md_text.find("\n## ", ini + 1)
+    sec = md_text[ini:fim if fim > 0 else len(md_text)]
     blocos = re.findall(r"```\n(.*?)```", sec, re.S)
     if not blocos:
         print("AVISO: nenhum bloco SQL achado na §30")
