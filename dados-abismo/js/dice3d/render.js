@@ -8,7 +8,31 @@ import { MATERIAIS } from '../data/dice.js';
 import { FACE_KINDS } from '../data/faces.js';
 
 /* --- textura das faces: um atlas com N nichos, cada um com o símbolo --- */
-function atlasFaces(faces, corBase, corTinta, layouts, vencedor){
+/* ===================================================================
+   AS TEXTURAS DE MATERIAL (arte/mat/<id>.jpg).
+
+   O atlas de faces é desenhado em canvas de uma vez só, e canvas não espera
+   imagem carregar. Então as cinco texturas são pedidas UMA vez no começo e
+   ficam neste cache; enquanto não chegam, o atlas pinta a cor chapada de
+   sempre — o dado nasce certo e fica bonito alguns quadros depois, em vez de
+   nascer em branco. Quem quiser saber quando terminou usa aoCarregarMats().
+   =================================================================== */
+const MAT_IMGS = {};
+let matsPendentes = 0, matsCb = [];
+export function precarregarMateriais(ids){
+  for(const id of ids){
+    if(MAT_IMGS[id] !== undefined) continue;
+    MAT_IMGS[id] = null; matsPendentes++;
+    const img = new Image();
+    img.onload  = ()=>{ MAT_IMGS[id] = img; if(--matsPendentes===0) matsCb.splice(0).forEach(f=>f()); };
+    img.onerror = ()=>{ if(--matsPendentes===0) matsCb.splice(0).forEach(f=>f()); };
+    img.src = 'arte/mat/' + id + '.jpg';
+  }
+  if(matsPendentes===0) matsCb.splice(0).forEach(f=>f());
+}
+export function aoCarregarMats(fn){ matsPendentes===0 ? fn() : matsCb.push(fn); }
+
+function atlasFaces(faces, corBase, corTinta, layouts, vencedor, matId){
   const n = faces.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
   const S = 256, cv = document.createElement('canvas');
   cv.width = cols*S; cv.height = rows*S;
@@ -18,6 +42,23 @@ function atlasFaces(faces, corBase, corTinta, layouts, vencedor){
     const cx=(i%cols)*S, cy=Math.floor(i/cols)*S;
     // leve variação de tom por face (osso não é uniforme)
     g.fillStyle = corBase; g.fillRect(cx,cy,S,S);
+    /* a arte do material entra aqui, uma fatia diferente por face para as
+       seis faces do mesmo dado não saírem idênticas.
+
+       Depois dela vem um MULTIPLY com a cor do material. Sem esse passo a
+       foto cobre a cor e todos os cinco materiais viram a mesma pedra clara
+       — o âmbar deixa de ser laranja, a obsidiana deixa de ser preta. Com
+       ele a foto entra como GRÃO e a cor continua sendo quem manda, que é
+       como o jogador reconhece o dado de longe. */
+    const mi = MAT_IMGS[matId];
+    if(mi){
+      const q = 2, px = (i%q)*(mi.width/q), py = (Math.floor(i/q)%q)*(mi.height/q);
+      g.drawImage(mi, px, py, mi.width/q, mi.height/q, cx, cy, S, S);
+      g.save();
+      g.globalCompositeOperation='multiply'; g.globalAlpha=0.72;
+      g.fillStyle=corBase; g.fillRect(cx,cy,S,S);
+      g.restore();
+    }
     const grd=g.createRadialGradient(cx+S/2,cy+S/2,S*0.1,cx+S/2,cy+S/2,S*0.7);
     grd.addColorStop(0,'rgba(255,255,255,0.10)'); grd.addColorStop(1,'rgba(0,0,0,0.16)');
     g.fillStyle=grd; g.fillRect(cx,cy,S,S);
@@ -113,7 +154,7 @@ export function destacarResultado(mesh, vencedor){
   const M=MATERIAIS[die.material]||MATERIAIS.osso;
   const hex='#'+M.cor.toString(16).padStart(6,'0');
   const tinta = die.material==='osso'?'#2b2418':'#d8d2c4';
-  const {tex}=atlasFaces(die.faces,hex,tinta,lay,vencedor);
+  const {tex}=atlasFaces(die.faces,hex,tinta,lay,vencedor,die.material);
   mesh.material.map?.dispose(); mesh.material.map=tex; mesh.material.needsUpdate=true;
 }
 export function criarMalhaDado(die, raio=0.5){
@@ -125,7 +166,7 @@ export function criarMalhaDado(die, raio=0.5){
               : die.material==='ambar' ? '#3a1f05' : '#f0e6ff';
   const layouts = poliedro(die.tipo).porVertice ? [] : null;
   const geo = geometriaDado(die.tipo, die.faces, raio, layouts);
-  const { tex } = atlasFaces(die.faces, hex, tinta, layouts);
+  const { tex } = atlasFaces(die.faces, hex, tinta, layouts, null, die.material);
   const mat = new THREE.MeshStandardMaterial({
     map: tex, color: 0xffffff,
     roughness: M.rough, metalness: M.metal,
@@ -138,8 +179,8 @@ export function criarMalhaDado(die, raio=0.5){
 }
 
 /* --- cena da mesa (feltro escuro) --- */
-export function criarMesa(scene, mesa){
-  const g = new THREE.PlaneGeometry(mesa.x*3.2, mesa.z*3.6);
+/* o feltro desenhado em código, que serve enquanto a arte não carrega */
+function feltroProcedural(){
   const cv=document.createElement('canvas'); cv.width=cv.height=512;
   const c=cv.getContext('2d');
   c.fillStyle='#0e3222'; c.fillRect(0,0,512,512);
@@ -150,7 +191,26 @@ export function criarMesa(scene, mesa){
   c.fillStyle=vg; c.fillRect(0,0,512,512);
   const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace;
   t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(2,2);
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map:t, roughness:0.94, metalness:0 }));
+  return t;
+}
+export function criarMesa(scene, mesa){
+  const g = new THREE.PlaneGeometry(mesa.x*3.2, mesa.z*3.6);
+  const mat = new THREE.MeshStandardMaterial({ map:feltroProcedural(), roughness:0.94, metalness:0 });
+  /* A ARTE ENTRA POR CIMA, e só quando chega. O feltro de código continua
+     sendo o que a mesa mostra no primeiro quadro: se a textura demorar ou
+     faltar, a mesa aparece verde do mesmo jeito em vez de preta. */
+  const t = new THREE.TextureLoader().load('arte/mat/mesa.jpg', tex=>{
+    tex.colorSpace=THREE.SRGBColorSpace;
+    tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(2,2);
+    tex.anisotropy=8;
+    /* A FOTO CRUA ACENDE DEMAIS. São nove luzes em cima dela e o verde do
+       feltro sai mais claro que qualquer coisa na tela — a mesa rouba o olho
+       dos dados, que são o que importa. O multiply da cor derruba o brilho
+       sem lavar o tom nem mexer no grão. */
+    mat.color.setHex(0x8b9c8e);
+    mat.map=tex; mat.needsUpdate=true;
+  }, undefined, ()=>{});
+  const m = new THREE.Mesh(g, mat);
   m.rotation.x=-Math.PI/2; m.receiveShadow=true;
   scene.add(m); return m;
 }

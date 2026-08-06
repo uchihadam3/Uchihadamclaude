@@ -13,7 +13,8 @@ import { gerarOpcoes, aplicar, recalcRelics, simularGravacao } from './engine/re
 import { MATERIAIS, TIPOS as TIPOS_N } from './data/dice.js';
 import { RELIQUIAS } from './data/relics.js';
 const RELIQ_COMUNS=RELIQUIAS.filter(r=>r.r==='comum');
-import { criarMalhaDado, criarMesa, luzes, destacarResultado } from './dice3d/render.js';
+import { criarMalhaDado, criarMesa, luzes, destacarResultado,
+         precarregarMateriais, aoCarregarMats } from './dice3d/render.js';
 import { rolarPara } from './dice3d/roll.js';
 import { raioDe, pontoDeCima } from './dice3d/geometry.js';
 import { ESCALADA, MASMORRAS } from './data/dungeons.js';
@@ -650,10 +651,21 @@ function novoCombate(){
   rolarVisual(); pintar();
 }
 /* ---------- dados 3D ---------- */
+let matsJaPedidos=false, remontarQuandoChegar=false;
 function montarDados(){
   for(const m of malhas){ scene.remove(m); m.geometry.dispose(); m.material.map?.dispose(); m.material.dispose(); }
   malhas=[];
   for(const d of P.bag){ const m=criarMalhaDado(d, raioDe(d.tipo)); m.visible=false; scene.add(m); malhas.push(m); }
+  /* A ARTE DOS MATERIAIS chega depois do primeiro quadro: as imagens são
+     pedidas na primeira montagem e, quando todas respondem, os dados são
+     montados OUTRA vez — agora com a textura no lugar da cor chapada. É uma
+     remontagem só, e só se a arte de fato chegar. */
+  if(!matsJaPedidos){
+    matsJaPedidos = true; remontarQuandoChegar = true;
+    precarregarMateriais(Object.keys(MATERIAIS));
+    aoCarregarMats(()=>{ if(remontarQuandoChegar){ remontarQuandoChegar=false;
+      montarDados(); if(cb) rolarVisual(); } });
+  }
 }
 function zonas(n){ const cols=Math.min(n,4), rows=Math.ceil(n/cols), o=[];
   for(let i=0;i<n;i++){ const c=i%cols, r=Math.floor(i/cols);
