@@ -115,8 +115,8 @@
     <div class="grid" id="grid-scenes"></div>
   </section>
   <section>
-    <div class="eyebrow"><h2>Bônus</h2><span class="rule">opcional</span><span class="count">1 arte</span></div>
-    <div class="grid" id="grid-bonus"></div>
+    <div class="eyebrow"><h2>Menus &amp; Interface</h2><span class="rule">no estilo dos personagens</span><span class="count">5 artes</span></div>
+    <div class="grid" id="grid-menus"></div>
   </section>
 
   <div class="specs">
@@ -169,9 +169,18 @@
     {emoji:'🕳️', name:'Echoing Caves', file:'bg_cave.png',
       prompt:"16-bit SNES JRPG pixel art battle background, side-view, of a dark echoing underground cavern. Jagged rocky walls, clusters of glowing blue crystals, hanging stalactites, still underground pools reflecting eerie blue light, and scattered rubble. A flat rocky floor spans the bottom third for characters to stand on. Cool blue-and-teal palette with luminous crystal highlights and deep shadows, horizontal 16:9 composition, high-detail retro game background, absolutely no characters, no text, no UI."},
   ];
-  const BONUS = [
-    {emoji:'🗺️', name:'Mapa-múndi (Aethelgard)', file:'worldmap.png',
-      prompt:"16-bit JRPG overworld world map, top-down bird's-eye pixel art of a fantasy continent named Aethelgard: lush green forests, a large blue lake, a winding river, a snowy mountain range, rolling plains, and a small village, with dirt paths connecting the regions. Framed by a decorative aged-parchment border. Warm cartography colors, cohesive high-fantasy style, high detail, no text labels, no characters, no UI."},
+  // Menus & Interface — fundos (cena completa, SEM magenta) e ícones/logo (fundo MAGENTA p/ recorte)
+  const MENUS = [
+    {emoji:'🗺️', name:'Mapa-múndi (Aethelgard)', file:'bg_worldmap.png', chip:'Fundo', chipClass:'scene',
+      prompt:"16-bit SNES JRPG overworld world map, top-down bird's-eye pixel art of a fantasy realm named Aethelgard, PORTRAIT composition (taller than wide, roughly 3:4). A clear winding journey path connects distinct regions from bottom to top: lush green forests and mossy ruins at the bottom, open plains with a small bandit camp, rocky echoing caves, a ruined stone keep beside a blue lake, and a snowy mountain peak at the top; include a river, scattered trees and rolling hills. Warm hand-painted cartography colors, cohesive with a 16-bit fantasy RPG, framed by a decorative aged-parchment border. NO text, NO labels, NO location pins, NO characters, NO UI — just the illustrated map. High detail."},
+    {emoji:'🏰', name:'Fundo da Base', file:'bg_basecamp.png', chip:'Fundo', chipClass:'scene',
+      prompt:"16-bit SNES JRPG pixel art background of a cozy adventurers' base camp at the edge of a green forest, daytime, warm and inviting. Small wooden houses with red and blue rooftops, a central campfire with a cooking pot, patched tents, hanging banners, a blacksmith's anvil and forge, stacked crates and barrels, wooden fences, and a dirt path. Soft warm sunlight, cohesive with a 16-bit fantasy RPG, horizontal 16:9 composition, high detail, NO characters, NO text, NO UI."},
+    {emoji:'🪙', name:'Ícones de recursos (folha)', file:'icons_resources.png', chip:'Ícones', chipClass:'bonus',
+      prompt:"16-bit pixel art RPG item icons, a set of 5 icons arranged in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each icon roughly square and centered in its own cell. From left to right: (1) a shiny stack of gold coins, (2) a faceted blue crystal gem, (3) a grey iron ingot bar, (4) a brown wooden log, (5) a fresh green herb leaf. Chunky readable pixel art, thin dark outline, bold colors, cohesive with the fantasy RPG character style. Everything on a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons."},
+    {emoji:'🧠', name:'Ícones de menu (folha)', file:'icons_menu.png', chip:'Ícones', chipClass:'bonus',
+      prompt:"16-bit pixel art RPG menu icons, a set of 3 icons arranged in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each centered in its own cell. From left to right: (1) a glowing arcane brain-rune tactics sigil (for 'Gambits'), (2) a blacksmith anvil with a crossed hammer (for 'Forge'), (3) an open spellbook with a graduation tassel (for 'Academy'). Chunky readable pixel art, thin dark outline, bold colors, cohesive with the fantasy RPG character style. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons."},
+    {emoji:'⚔️', name:'Emblema / Logo', file:'logo.png', chip:'Logo', chipClass:'hero',
+      prompt:"16-bit pixel art fantasy game emblem/crest for an RPG (no text): a bold ornate heraldic crest featuring a crossed steel sword and a glowing arcane rune, gold-and-steel metallic look, with a small banner ribbon, cohesive with the fantasy RPG character style, chunky pixels, thick dark outline. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the emblem."},
   ];
 
   let uid=0;
@@ -194,7 +203,7 @@
   document.getElementById('grid-heroes').innerHTML  = HEROES.map(h=>card({icon:SPR[h.id], name:h.name, file:h.file, chip:'Herói',   chipClass:'hero',  prompt:h.prompt})).join('');
   document.getElementById('grid-enemies').innerHTML = ENEMIES.map(e=>card({icon:SPR[e.id], name:e.name, file:e.file, chip:'Inimigo', chipClass:'enemy', prompt:e.prompt})).join('');
   document.getElementById('grid-scenes').innerHTML  = SCENES.map(s=>card({icon:s.emoji,   name:s.name, file:s.file, chip:'Cenário', chipClass:'scene', prompt:s.prompt})).join('');
-  document.getElementById('grid-bonus').innerHTML   = BONUS.map(b=>card({icon:b.emoji,    name:b.name, file:b.file, chip:'Bônus',   chipClass:'bonus', prompt:b.prompt})).join('');
+  document.getElementById('grid-menus').innerHTML   = MENUS.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
 
   function fallbackCopy(text){
     const ta=document.createElement('textarea');
