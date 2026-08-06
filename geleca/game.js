@@ -171,7 +171,7 @@ const LEVELS = [
     enemies:[{"x":7,"y":27,"dist":4,"speed":1,"axis":"x","type":"patrol"},{"x":20,"y":19,"dist":4,"speed":1,"axis":"x","type":"patrol"}],
     fakes:[[23,28],[24,28]]},
 
-  { name:"5 · Salto do Cipó", mass:6, max:6, theme:"grove",
+  { name:"5 · Salto do Cipó", mass:4, max:4, theme:"grove",
     hint:"", rows:[
     "########################################################################",
     "#                                                                      #",
