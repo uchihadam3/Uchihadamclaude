@@ -763,7 +763,17 @@ function solidsList(){ const l=solidTiles.slice();
   if(doors.length&&!plateOn())for(const d of doors)l.push(d);
   return l; }
 function moveAxis(dx,dy){ const list=solidsList();
-  blob.x+=dx; for(const s of list)if(overlaps(blob,s)){ if(dx>0){blob.x=s.x-blob.w;blob.wall=1;} else if(dx<0){blob.x=s.x+s.w;blob.wall=-1;} blob.vx=0; }
+  blob.x+=dx;
+  for(const s of list)if(overlaps(blob,s)){
+    if(dx>0){ blob.x=s.x-blob.w; blob.wall=1; }
+    else if(dx<0){ blob.x=s.x+s.w; blob.wall=-1; }
+    else { // parado, porém EMBUTIDO (cresceu ao reabsorver, ou uma plataforma o empurrou):
+           // sai pelo lado de MENOR sobreposição em vez de ficar preso e depois ser "arremessado".
+      const outR=(s.x+s.w)-blob.x, outL=(blob.x+blob.w)-s.x;
+      if(outR<outL){ blob.x=s.x+s.w; blob.wall=-1; } else { blob.x=s.x-blob.w; blob.wall=1; }
+    }
+    blob.vx=0;
+  }
   // Y: resolve SÓ contra sólidos que o blob de fato "alcançou" nesta passada (vindo de cima ao cair,
   // ou de baixo ao subir). Assim um bloco em que o blob esteja EMBUTIDO (ex.: cresceu dentro, ou pilha
   // encostada) nunca ejeta o personagem pra cima — o bug do "teletransporte pra fora da tela".
@@ -778,6 +788,18 @@ function moveAxis(dx,dy){ const list=solidsList();
     for(const s of list) if(overlaps(blob,s) && preTop>=s.y+s.h-2){ ceilB=(ceilB===null)?s.y+s.h:Math.max(ceilB,s.y+s.h); }
     if(ceilB!==null){ blob.y=ceilB; blob.vy=0; }
   } }
+
+// Ao CRESCER (reabsorver/coletar), o blob fica mais largo e pode "inchar" pra dentro de uma
+// parede ao lado — o que fazia ele atravessar/ser arremessado. Desencrava pelo lado mais curto.
+function unstickWalls(){
+  for(let it=0; it<6; it++){ let hit=null;
+    for(const s of solidTiles){ if(overlaps(blob,s)){ hit=s; break; } }
+    if(!hit) break;
+    const outR=(hit.x+hit.w)-blob.x, outL=(blob.x+blob.w)-hit.x;
+    blob.x = (outR<=outL) ? hit.x+hit.w : hit.x-blob.w;
+    blob.vx=0;
+  }
+}
 
 function inputState(){
   if(botOn) return { mx:bot.mx, left:bot.mx<-0.25, right:bot.mx>0.25, down:bot.down };
@@ -871,9 +893,10 @@ function toggleBot(on){ botOn = (on===undefined)?!botOn:!!on; botWait=0; bot.ant
   const bd=el("bot-badge"); if(bd) bd.classList.toggle("show",botOn);
   const bb=el("btn-bot"); if(bb) bb.classList.toggle("on",botOn); }
 
+const MOVER_SLOW=0.72;   // plataformas móveis um pouco mais LENTAS → dá tempo de acertar o pulo do trampolim
 function updateMovers(dt){
   for(const m of movers){
-    const off=Math.sin(levelTime*m.speed*Math.PI*2 + m.phase)*(m.dist*0.5) + m.dist*0.5;
+    const off=Math.sin(levelTime*m.speed*MOVER_SLOW*Math.PI*2 + m.phase)*(m.dist*0.5) + m.dist*0.5;
     const nx=m.axis==="x"? m.x0+off : m.x0;
     const ny=m.axis==="y"? m.y0+off : m.y0;
     m.dx=nx-m.x; m.dy=ny-m.y; m.x=nx; m.y=ny;
@@ -1149,7 +1172,7 @@ function update(dt){
 
   for(let i=pickups.length-1;i>=0;i--){ const p=pickups[i];
     if(overlaps(blob,{x:p.x-p.r,y:p.y-p.r,w:p.r*2,h:p.r*2})){
-      if(blob.mass<level.max){blob.mass++;sizeBlob();}
+      if(blob.mass<level.max){blob.mass++;sizeBlob();unstickWalls();}
       burst(p.x,p.y,9,"#a6f08a",110); sfx("pickup"); pickups.splice(i,1); renderHud(); } }
 
   for(const s of spikes)if(overlaps(blob,{x:s.x+4,y:s.y+7,w:s.w-8,h:s.h-7})){ die(); return; }
@@ -1242,7 +1265,7 @@ function reabsorb(){ if(blob.mass>=level.max)return;
       particles.push({x:px,y:py,vx:(bx-px)*3.2,vy:(by-py)*3.2,life:0.2+Math.random()*0.12,max:0.34,r:1.6+Math.random()*2,color:"#a6f08a"}); }
     ring(gx,gy,g.w*1.5,"166,240,138",3,0.34,true);        // anel colapsando = absorção
     sfx("absorb");
-    globs.splice(best,1); blob.mass++; sizeBlob(); blob.flash=0.12; renderHud(); } }
+    globs.splice(best,1); blob.mass++; sizeBlob(); unstickWalls(); blob.flash=0.12; renderHud(); } }
 
 // LUTA DO CHEFE: pular na CABEÇA dá dano; encostar de lado tira massa (não mata na hora).
 function handleBoss(e,dt){
