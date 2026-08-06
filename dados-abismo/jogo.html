@@ -195,77 +195,18 @@
    background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
  .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
  #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
- /* ===== A BANCA DA CONTA =====
-    Cada termo diz O QUE É: número grande em cima, ícone junto, e o nome
-    embaixo. Sem isso a conta era só algarismo solto — "6 × 3" não conta se
-    o 6 são os dados ou o golpe, nem se o 3 é a habilidade ou outro dado. */
- .bancaconta{position:fixed;left:50%;top:29%;transform:translate(-50%,-50%);
-   z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;
-   padding:13px 18px;border-radius:17px;
-   background:linear-gradient(180deg,rgba(20,15,9,.975),rgba(8,6,4,.975));
-   border:1px solid rgba(255,180,90,.5);
-   box-shadow:0 0 36px rgba(255,150,60,.32),0 10px 30px rgba(0,0,0,.68);
-   font-family:Georgia,serif;animation:bcent .22s ease-out}
- @keyframes bcent{from{opacity:0;transform:translate(-50%,-50%) scale(.82)}}
- .bclinha{display:flex;flex-direction:column;align-items:center;gap:5px;min-height:64px;
-   justify-content:center}
+ .h .htopo{display:flex;align-items:center;gap:5px}
+ /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
+    vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
+ .h .hmult{flex:none;font-size:10px;font-weight:900;letter-spacing:.3px;line-height:1;
+   padding:2px 4px;border-radius:5px;color:#ffb45e;
+   background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
+ .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
+ #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
  /* o título da etapa: o que está acontecendo agora */
- .bcrot{font-size:8.5px;letter-spacing:2.4px;color:#9a8c6a;text-align:center;
-   transition:.24s}
- .bcrot.funde{opacity:0;transform:translateY(-5px)}
- .bcfila{display:flex;align-items:flex-start;justify-content:center;gap:9px}
  /* UM TERMO: valor + ícone em cima, nome embaixo */
- .bcterm{display:flex;flex-direction:column;align-items:center;gap:1px;
-   opacity:0;transform:scale(.45);
-   transition:transform .3s cubic-bezier(.2,1.7,.4,1),opacity .22s}
- .bcterm.entra,.bcterm.nasce{opacity:1;transform:none}
- .bcterm b{display:flex;align-items:center;gap:4px;font-size:28px;font-weight:900;
-   line-height:1;color:#e8e2d0;text-shadow:0 2px 7px #000}
- .bcterm i{font-style:normal;font-size:8px;letter-spacing:1.2px;color:#8d8672;
-   max-width:82px;text-align:center;line-height:1.2}
- .bci{width:17px;height:17px;flex:none}
- .bcterm.dado b{color:#cfe0f2} .bcterm.dado i{color:#7f97ad}
- .bcterm.soma b{color:#e8e2d0}
- .bcterm.skill b{color:#ffb45e} .bcterm.skill i{color:#c08a4a}
- .bcterm.skill .hico{width:18px;height:18px}
- .bcterm.bonus b{color:#7ef2a8} .bcterm.bonus i{color:#5aa87a}
- .bcterm.def b{color:#9fd6ff} .bcterm.def i{color:#6d9ec4}
- .bcop{font-size:22px;font-weight:900;color:#ffb45e;line-height:1;margin-top:3px;
-   opacity:0;transform:scale(.4);transition:.24s cubic-bezier(.2,1.7,.4,1)}
- .bcop.entra{opacity:1;transform:none}
  /* COLIDEM: deslizam para o meio e somem juntos */
- .bcfila .bcterm.funde:first-child{transform:translateX(52%) scale(.6);opacity:0}
- .bcfila .bcterm.funde:last-child{transform:translateX(-52%) scale(.6);opacity:0}
- .bcfila .bcop.funde{transform:scale(.2);opacity:0}
  /* e NASCE o resultado, maior que os termos que o geraram */
- .bcterm.res b{font-size:40px}
- .bcterm.res.nasce{animation:bcnasce .42s cubic-bezier(.2,1.8,.35,1)}
- @keyframes bcnasce{0%{transform:scale(.35);filter:brightness(3)}
-   55%{transform:scale(1.2)}100%{transform:none;filter:none}}
- .bcterm.res.quente b{color:#ffd24a;text-shadow:0 0 26px rgba(255,210,74,.95),0 2px 8px #000}
- .bcterm.res.quente i{color:#c9a24a}
- .bcterm.res.sangue b{color:#ff8a7a;text-shadow:0 0 28px rgba(255,90,70,.92),0 2px 8px #000}
- .bcterm.res.sangue i{color:#e08a7a;font-weight:900;letter-spacing:2px}
- .bancaconta .bca{font-size:8.5px;letter-spacing:1.8px;color:#ff8a7a;
-   border:1px solid rgba(255,110,90,.5);border-radius:20px;padding:2px 9px}
- .bancaconta.saindo{opacity:0;transform:translate(-50%,-50%) scale(.9);transition:.26s}
- /* O RECIBO: a mesma conta, em cima do card de cada inimigo */
- .recibo{position:fixed;transform:translate(-50%,-50%);
-   z-index:62;pointer-events:none;padding:7px 11px;border-radius:13px;
-   background:linear-gradient(180deg,rgba(22,9,9,.97),rgba(8,4,4,.97));
-   border:1px solid rgba(255,120,90,.6);
-   box-shadow:0 0 22px rgba(255,80,60,.38),0 6px 18px rgba(0,0,0,.62);
-   animation:bcent2 .2s ease-out}
- @keyframes bcent2{from{opacity:0;transform:translate(-50%,-50%) scale(.82)}}
- .recibo .bclinha{min-height:44px;gap:3px}
- .recibo .bcterm b{font-size:20px} .recibo .bcterm.res b{font-size:27px}
- .recibo .bcop{font-size:15px} .recibo .bci{width:13px;height:13px}
- .recibo .bcterm i{font-size:7px;max-width:62px}
- .recibo .bcrot{font-size:7.5px;letter-spacing:1.6px}
- .recibo.saindo{opacity:0;transform:translate(-50%,-88%) scale(.9);transition:.24s}
- @media (max-height:800px){ .bancaconta{top:25%;padding:10px 14px}
-   .bcterm b{font-size:24px} .bcterm.res b{font-size:34px} .bcop{font-size:19px}
-   .bclinha{min-height:56px} }
  .h .htopo{display:flex;align-items:center;gap:5px}
  /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
     vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
@@ -274,57 +215,9 @@
    background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
  .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
  #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
- /* ===== A BANCA DA CONTA =====
-    Um passo por vez: os dois números entram, ficam parados o tempo de ler,
-    COLIDEM no meio e nascem virados no resultado. É o mesmo gesto três ou
-    quatro vezes até sobrar só o número que entra no couro. */
- .bancaconta{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);
-   z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:5px;
-   padding:12px 20px;border-radius:16px;
-   background:linear-gradient(180deg,rgba(18,14,8,.97),rgba(8,6,4,.97));
-   border:1px solid rgba(255,180,90,.5);
-   box-shadow:0 0 34px rgba(255,150,60,.32),0 10px 30px rgba(0,0,0,.65);
-   font-family:Georgia,serif;animation:bcent .22s ease-out}
- @keyframes bcent{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
- .bclinha{display:flex;align-items:center;justify-content:center;gap:9px;min-height:44px}
  /* cada número da conta */
- .bcn{font-size:31px;font-weight:900;color:#e8e2d0;line-height:1;
-   text-shadow:0 2px 7px #000;opacity:0;transform:scale(.4);
-   transition:transform .3s cubic-bezier(.2,1.7,.4,1),opacity .22s}
- .bcn.entra{opacity:1;transform:none}
- .bcop{font-size:23px;font-weight:900;color:#ffb45e;line-height:1;opacity:0;
-   transform:scale(.4);transition:.24s cubic-bezier(.2,1.7,.4,1)}
- .bcop.entra{opacity:1;transform:none}
  /* COLIDEM: os dois deslizam para o centro e somem juntos */
- .bclinha .bcn.funde:first-child{transform:translateX(46%) scale(.62);opacity:0}
- .bclinha .bcn.funde:last-child{transform:translateX(-46%) scale(.62);opacity:0}
- .bclinha .bcop.funde{transform:scale(.2);opacity:0}
  /* e NASCE o resultado */
- .bcn.res{font-size:40px;color:#e8e2d0;opacity:0;transform:scale(.35)}
- .bcn.res.nasce{opacity:1;transform:none;
-   animation:bcnasce .42s cubic-bezier(.2,1.8,.35,1)}
- @keyframes bcnasce{0%{transform:scale(.35);filter:brightness(3)}
-   55%{transform:scale(1.24)}100%{transform:none;filter:none}}
- .bcn.res.quente{color:#ffd24a;text-shadow:0 0 26px rgba(255,210,74,.95),0 2px 8px #000}
- .bcn.res.sangue{color:#ff8a7a;text-shadow:0 0 26px rgba(255,90,70,.9),0 2px 8px #000}
- .bancaconta .bca{font-size:9px;letter-spacing:1.6px;color:#ff8a7a;
-   border:1px solid rgba(255,110,90,.5);border-radius:20px;padding:2px 8px}
- .bancaconta.saindo{opacity:0;transform:translate(-50%,-50%) scale(.9);transition:.26s}
- /* O RECIBO DO ALVO: a mesma colisão, só que em cima do card do inimigo,
-    um por um — cada um com a armadura DELE. */
- .recibo{position:fixed;transform:translate(-50%,-50%);
-   z-index:62;pointer-events:none;padding:5px 10px;border-radius:11px;
-   background:linear-gradient(180deg,rgba(20,8,8,.96),rgba(8,4,4,.96));
-   border:1px solid rgba(255,120,90,.55);
-   box-shadow:0 0 20px rgba(255,80,60,.35),0 5px 16px rgba(0,0,0,.6);
-   animation:bcent2 .2s ease-out}
- @keyframes bcent2{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
- .recibo .bclinha{min-height:26px;gap:6px}
- .recibo .bcn{font-size:19px} .recibo .bcn.res{font-size:26px} .recibo .bcop{font-size:15px}
- .recibo.saindo{opacity:0;transform:translate(-50%,-90%) scale(.9);transition:.24s}
- @media (max-height:800px){ .bancaconta{top:26%;padding:9px 15px}
-   .bcn{font-size:26px} .bcn.res{font-size:34px} .bcop{font-size:19px}
-   .bclinha{min-height:38px} }
  .h .htopo{display:flex;align-items:center;gap:5px}
  /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
     vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
@@ -333,74 +226,17 @@
    background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
  .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
  #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
- /* ===== A BANCA DA CONTA: a multiplicação acontecendo ===== */
  /* fica na FAIXA DOS INIMIGOS, onde o golpe está chegando — e não sobre o
     feltro: os dados não podem ficar tapados, nem por meio segundo. */
- .bancaconta{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%) scale(.86);
-   z-index:60;pointer-events:none;display:flex;align-items:center;gap:7px;
-   padding:9px 15px;border-radius:14px;
-   background:linear-gradient(180deg,rgba(18,14,8,.96),rgba(8,6,4,.96));
-   border:1px solid rgba(255,180,90,.5);
-   box-shadow:0 0 30px rgba(255,150,60,.3),0 8px 26px rgba(0,0,0,.6);
-   font-family:Georgia,serif;opacity:0;animation:bcent .2s ease-out forwards}
- @keyframes bcent{to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
- .bancaconta span{display:block}
  /* os dados entram UM A UM, e o parcial acompanha: dá para ler a conta,
     não só perceber que houve uma. */
- .bancaconta .bcdd{display:flex;align-items:center;gap:3px}
- .bancaconta .bcd{font-style:normal;font-size:16px;font-weight:900;color:#e8e2d0;
-   min-width:20px;height:20px;display:grid;place-items:center;border-radius:6px;
-   background:#0b1016;border:1px solid #33404d;opacity:0;transform:translateY(-9px) scale(.6);
-   transition:.19s cubic-bezier(.2,1.5,.5,1)}
- .bancaconta .bcd.on{opacity:1;transform:none;border-color:#6f8296;
-   box-shadow:0 0 9px rgba(160,190,220,.35)}
- .bancaconta .bcmais{font-size:12px;color:#6b6250;opacity:0;transition:.15s}
- .bancaconta .bcmais.on{opacity:1}
- .bancaconta .bcsoma{font-size:22px;font-weight:900;color:#e8e2d0;text-shadow:0 2px 6px #000;
-   min-width:30px;text-align:center}
- .bancaconta .bcsoma.pulsa{animation:bcpul .2s ease-out}
- @keyframes bcpul{from{transform:scale(1.45);color:#ffd24a}}
- .bancaconta .bcx{font-size:19px;font-weight:900;color:#ffb45e;
-   text-shadow:0 0 10px rgba(255,160,60,.8);opacity:0;transform:rotate(-22deg) scale(1.9);
-   transition:.26s cubic-bezier(.2,1.6,.4,1)}
- .bancaconta .bcx.on{opacity:1;transform:none}
- .bancaconta .bcp{font-size:15px;font-weight:800;color:#9fd6ff;opacity:0;transition:.2s}
- .bancaconta .bcp.on{opacity:1}
  /* o que as passivas e os estados somaram por cima da fórmula */
- .bancaconta .bcb2{font-size:15px;font-weight:800;color:#7ef2a8;opacity:0;transition:.2s}
- .bancaconta .bcb2.on{opacity:1}
- .bancaconta .bce{font-size:15px;color:#8d8672}
- .bancaconta.saindo{opacity:0;transform:translate(-50%,-50%) scale(.94);transition:.26s}
  /* ---- ATO 2: a soma recolhe e a defesa entra ----
     Os dados e o Σ já cumpriram o papel; deixá-los na tela enquanto o
     desconto acontece só divide o olho. Eles encolhem para fora e o golpe
     cheio fica sozinho para apanhar da defesa. */
- .bancaconta .bcdd,.bancaconta .bcsoma,.bancaconta .bcx,.bancaconta .bcp,
- .bancaconta .bcb2,.bancaconta .bce{transition:.3s cubic-bezier(.4,0,.2,1)}
- .bancaconta.recolhe .bcdd,.bancaconta.recolhe .bcsoma,.bancaconta.recolhe .bcb2,
- .bancaconta.recolhe .bcx,.bancaconta.recolhe .bcp,.bancaconta.recolhe .bce{
-   max-width:0;opacity:0;margin:0;padding:0;overflow:hidden;transform:scale(.5)}
- .bancaconta .bcdef,.bancaconta .bce2,.bancaconta .bcfin{
-   max-width:0;opacity:0;overflow:hidden;transition:.28s cubic-bezier(.2,1.5,.4,1)}
- .bancaconta .bcdef.on{max-width:120px;opacity:1;font-size:17px;font-weight:900;
-   color:#9fd6ff;text-shadow:0 0 10px rgba(120,190,255,.6);margin-left:6px}
- .bancaconta .bce2.on{max-width:30px;opacity:1;font-size:15px;color:#8d8672;margin:0 5px}
- .bancaconta.fechou .bcfin{max-width:150px;opacity:1;font-size:30px;font-weight:900;
-   color:#ffd24a;text-shadow:0 0 24px rgba(255,210,74,.95),0 2px 8px #000;
-   transform:scale(1.08)}
  /* golpe barrado pela fechadura: o zero não é dourado, é morto */
- .bancaconta.travado.fechou .bcfin{color:#e08a7a;text-shadow:0 0 16px rgba(220,90,70,.7)}
- .bancaconta.travado .bct{color:#6b6250;text-decoration:line-through;opacity:.7}
  /* sem defesa nenhuma: o golpe cheio JÁ é o dano, e é ele que brilha */
- .bancaconta.semdef .bcdef,.bancaconta.semdef .bce2,.bancaconta.semdef .bcfin{display:none}
- .bancaconta .bct{font-size:27px;font-weight:900;color:#6b6250;
-   text-shadow:0 2px 6px #000;transition:.24s cubic-bezier(.2,1.6,.4,1)}
- .bancaconta.estoura .bct{transform:scale(1.3);color:#ffd24a;
-   text-shadow:0 0 24px rgba(255,210,74,.95),0 2px 8px #000}
- .bancaconta .bca{font-size:9px;letter-spacing:1.5px;color:#ff8a7a;align-self:center;
-   border:1px solid rgba(255,110,90,.5);border-radius:20px;padding:2px 6px}
- @media (max-height:800px){ .bancaconta{top:26%;padding:7px 12px}
-   .bancaconta .bcb{font-size:19px} .bancaconta .bct{font-size:23px} }
  .h .hico{width:17px;height:17px;flex:none;color:var(--hc,#cfd8e3);
    filter:drop-shadow(0 0 5px color-mix(in srgb,var(--hc,#888) 55%,transparent))}
  .h .hn{font-size:12px;font-weight:700;letter-spacing:.2px;white-space:nowrap}
