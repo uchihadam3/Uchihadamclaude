@@ -13,11 +13,11 @@ import { CLASSES, RESPIRAR } from '../js/data/classes.js';
 import { Combat } from '../js/engine/combat.js';
 import { makeDie, resetDieIds } from '../js/data/dice.js';
 import { face } from '../js/data/faces.js';
-import { recalcRelics } from '../js/engine/rewards.js';
+import { recalcRelics, gerarOpcoes, aplicar } from '../js/engine/rewards.js';
 import { satisfies } from '../js/engine/requirements.js';
 import { travaAberta, travaTxt, ALTERNATIVAS, mesmaTrava, seAnulam } from '../js/data/travas.js';
 import { buildWave } from '../js/engine/encounter.js';
-import { MASMORRAS } from '../js/data/dungeons.js';
+import { MASMORRAS, ESCALADA } from '../js/data/dungeons.js';
 
 let ok = 0, falhas = [];
 const check = (cond, quem, oque, detalhe='') => {
@@ -1131,6 +1131,105 @@ console.log('=== FUNDO DO ABISMO (M5+) ===');
       'nenhuma intenção nova vaza para as masmorras 1-4', cedo+' encontradas');
     check(tarde >= 10, 'Fundo do Abismo',
       'e elas povoam as masmorras da frente', tarde+' usos de M5 em diante');
+  }
+}
+
+/* ==================================================================
+   16. VIGOR E A CURVA DAS DEZ — o HP máximo do jogador SATURAVA em 98
+   a partir da Masmorra 6, porque vida só vinha de relíquia e relíquia é
+   única. Contra uma pancada que chegava a 706 por turno, as masmorras 9
+   e 10 mediam 0% de conclusão. Estas verificações prendem as duas pontas.
+   ================================================================== */
+console.log('=== VIGOR E A CURVA DAS DEZ ===');
+{
+  const rng = makeRNG('vigor');
+  const C = CLASSES.carrasco;
+  const p = { classe:'carrasco', hp:C.hp, maxHp:C.hp, baseMaxHp:C.hp, block:0,
+              bag:C.bag(), statuses:{}, essence:0, rerollsBase:C.rerolls,
+              relics:[], unlocked:[] };
+  recalcRelics(p);
+
+  // o Vigor existe e é REPETÍVEL: sempre pode voltar a aparecer
+  let vezes = 0;
+  for(let i=0;i<40;i++) if(gerarOpcoes(rng,p,3).some(o=>o.t==='vigor')) vezes++;
+  check(vezes >= 8, 'Vigor', 'aparece entre as recompensas de forma recorrente',
+        vezes+' vezes em 40 sorteios');
+
+  // e sobe o HP máximo de verdade, quantas vezes for pego
+  const antes = p.maxHp;
+  for(let i=0;i<5;i++) aplicar({t:'vigor'}, p, rng);
+  check(p.maxHp === antes + 35, 'Vigor', 'soma +7 de HP máximo por vez',
+        antes+' → '+p.maxHp);
+  check(p.baseMaxHp === C.hp + 35, 'Vigor', 'sobe a BASE, para as relíquias multiplicarem por cima',
+        'base '+p.baseMaxHp);
+
+  // o HP máximo NÃO satura mais ao longo das dez masmorras
+  const hpEm = m => {
+    const r = makeRNG('sat'+m);
+    const q = { classe:'carrasco', hp:C.hp, maxHp:C.hp, baseMaxHp:C.hp, block:0,
+                bag:C.bag(), statuses:{}, essence:0, rerollsBase:C.rerolls,
+                relics:[], unlocked:[] };
+    recalcRelics(q);
+    const val = o => o.t==='reliquia' ? (o.r==='amaldicoada'?2 : o.r==='rara'?9 : 6)
+              : o.t==='dado' ? 5 : o.t==='grav' ? 5.5 : o.t==='vigor' ? 6 : 1;
+    for(let i=0;i<(m-1)*10;i++) aplicar(gerarOpcoes(r,q,3).reduce((a,b)=>val(b)>val(a)?b:a), q, r);
+    return q.maxHp;
+  };
+  const hp6 = hpEm(6), hp10 = hpEm(10);
+  check(hp10 > hp6 * 1.25, 'Vigor', 'o HP máximo continua crescendo depois da Masmorra 6',
+        'M6 '+hp6+' → M10 '+hp10);
+
+  /* O PRODUTO ficha × escalada é o que o jogador enfrenta, e ele precisa
+     subir SEMPRE — a coluna da escalada sozinha não, e cai de propósito da
+     M8 para a M10 porque as fichas de lá dão um salto. */
+  const produto = m => {
+    const M = MASMORRAS[m];
+    return (M.comuns.reduce((a,e)=>a+e.hp,0)/M.comuns.length) * ESCALADA[m-1].hp;
+  };
+  let sobeSempre = true, pior = '';
+  for(let m=2;m<=10;m++) if(produto(m) <= produto(m-1)){ sobeSempre=false; pior='M'+m; }
+  check(sobeSempre, 'As dez masmorras', 'o HP real do inimigo sobe a cada masmorra',
+        sobeSempre ? produto(1).toFixed(0)+' → '+produto(10).toFixed(0) : 'quebra em '+pior);
+
+  // e sobe num ritmo que o jogador acompanha: 21x era o que travava a frente
+  const cresc = produto(10)/produto(1);
+  check(cresc > 6 && cresc < 13, 'As dez masmorras',
+        'o inimigo cresce no ritmo do jogador (6x a 13x, medido)',
+        cresc.toFixed(1)+'x da M1 para a M10');
+
+  /* o fardo da Torre Invertida PROMOVE comuns a elite — não empilha corpos
+     por cima de uma onda que já cresceu */
+  let maiorOnda = 0, hpAndar1 = 0, hpAndar3 = 0;
+  for(let i=0;i<40;i++){
+    const r = makeRNG('t9-'+i);
+    const w1 = buildWave(9,1,r,new Set()), w3 = buildWave(9,3,r,new Set());
+    maiorOnda = Math.max(maiorOnda, w1.length, w3.length);
+    hpAndar1 += w1.reduce((a,e)=>a+e.maxHp,0)/40;
+    hpAndar3 += w3.reduce((a,e)=>a+e.maxHp,0)/40;
+  }
+  check(hpAndar1 < hpAndar3, 'Torre Invertida',
+        'o andar 1 é mais leve que o andar 3',
+        'andar 1 '+hpAndar1.toFixed(0)+' HP, andar 3 '+hpAndar3.toFixed(0));
+  check(maiorOnda <= 8, 'Ondas', 'nunca passam de 8 inimigos', 'máximo visto: '+maiorOnda);
+
+  /* AS HABILIDADES DA TRILHA PRECISAM GANHAR DAS BÁSICAS. Com os números
+     antigos, liberar a trilha derrubava a taxa de vitória — a habilidade
+     nova pedia o mesmo dado e batia menos. */
+  const dano = sk => {
+    const e = (sk.eff||[]).find(x=>x.op==='dmg');
+    if(!e) return 0;
+    const m = /sum\*(\d+)|val\*(\d+)/.exec(e.amt||'');
+    return m ? +(m[1]||m[2]) : 0;
+  };
+  const par = [['carrasco','quebra_ossos','decapitar'],
+               ['arcanista','fenda','raio'],
+               ['arcanista','entropia','nova'],
+               ['oracula','sentenca','julgamento']];
+  for(const [cid,nova,base] of par){
+    const N = CLASSES[cid].skills.find(s=>s.id===nova);
+    const B = CLASSES[cid].skills.find(s=>s.id===base);
+    check(dano(N) >= dano(B), 'Trilha de '+cid,
+          nova+' não bate menos que '+base, dano(N)+' vs '+dano(B));
   }
 }
 

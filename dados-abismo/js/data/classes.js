@@ -41,17 +41,24 @@ export const CLASSES = {
       /* ===== A TRILHA: liberadas fechando masmorras (§4.4) =====
          Cada uma leva a CHAVE da classe um degrau adiante. Não é "o mesmo
          golpe com número maior": o Carrasco passa de arrombar UM a arrombar
-         TODOS, e por fim a arrombar antes mesmo de bater. */
-      { id:'quebra_ossos', nome:'Quebra-Ossos', req:{t:'min',v:4}, unlock:'m1',
-        desc:'ARROMBA a fechadura de TODOS por este turno. Dano moderado no alvo.',
-        eff:[{op:'arrombar',tgt:'all'},{op:'dmg',tgt:'chosen',amt:'val*2+4'}] },
-      { id:'guilhotina', nome:'Guilhotina', req:{t:'sum',min:14}, unlock:'m3',
+         TODOS, e por fim a arrombar antes mesmo de bater.
+
+         CADA UMA PRECISA GANHAR DA BÁSICA EQUIVALENTE. Medido: com os números
+         antigos, liberar a trilha FAZIA MAL — a M3 caía 16 pontos de vitória e
+         a M5, 13. O Quebra-Ossos pedia o mesmo dado do Decapitar e batia
+         val*2+4 contra val*3+6, então a IA trocava a jogada boa pela ruim.
+         Se a progressão é liberar habilidade, a habilidade liberada tem de ser
+         melhor — não igual, não pior. */
+      { id:'quebra_ossos', nome:'Quebra-Ossos', req:{t:'min',v:4}, unlock:'m2',
+        desc:'ARROMBA a fechadura de TODOS por este turno — e o machado ainda desce inteiro no alvo.',
+        eff:[{op:'arrombar',tgt:'all'},{op:'dmg',tgt:'chosen',amt:'val*3+8'}] },
+      { id:'guilhotina', nome:'Guilhotina', req:{t:'sum',min:14}, unlock:'m5',
         desc:'Arromba e desce inteira: dano pesado que IGNORA armadura e bloqueio.',
-        eff:[{op:'arrombar',tgt:'chosen'},{op:'dmg',tgt:'chosen',amt:'sum*4',pierce:true},
+        eff:[{op:'arrombar',tgt:'chosen'},{op:'dmg',tgt:'chosen',amt:'sum*5',pierce:true},
              {op:'selfdmg',amt:'6'}] },
-      { id:'cadafalso', nome:'Cadafalso', req:{t:'each',size:3,of:{t:'min',v:4}}, unlock:'m5',
+      { id:'cadafalso', nome:'Cadafalso', req:{t:'each',size:3,of:{t:'min',v:4}}, unlock:'m8',
         desc:'O machado cai sobre o campo inteiro, arrombando tudo. Espinhos e bloqueio pra segurar o troco.',
-        eff:[{op:'arrombar',tgt:'all'},{op:'dmg',tgt:'all',amt:'sum*2'},
+        eff:[{op:'arrombar',tgt:'all'},{op:'dmg',tgt:'all',amt:'sum*3'},
              {op:'block',amt:'sum'},{op:'selfStatus',st:'espinhos',n:'4'}] },
     ],
   },
@@ -82,17 +89,24 @@ export const CLASSES = {
         eff:[{op:'hits',tgt:'all',times:'val',amt:'2+blades'},{op:'status',tgt:'all',st:'veneno',n:'3'}] },
       /* A TRILHA: o veneno já ignora fechadura — o que cresce é a ESCALA
          e a sobrevivência de quem precisa de tempo para o veneno agir. */
-      { id:'garganta', nome:'Garganta Aberta', req:{t:'set',size:2}, unlock:'m1',
+      { id:'garganta', nome:'Garganta Aberta', req:{t:'set',size:2}, unlock:'m2',
         desc:'Sangramento pesado no alvo — e ele NÃO decai enquanto você estiver invisível.',
+        /* o ganho dela vem do CORTE, não de inflar o sangramento: com
+           val*3+4 a IA parava de matar e só reaplicava sangramento — 586
+           jogadas contra 18 de Mil Cortes, e a luta ia de 5,5 para 8,2 turnos
+           com o jogador apanhando o tempo todo. */
         eff:[{op:'status',tgt:'chosen',st:'sangramento',n:'val*2+2'},
+             {op:'dmg',tgt:'chosen',amt:'sum*2'},
              {op:'selfStatus',st:'invisivel',n:'1'}] },
-      { id:'nevoa', nome:'Névoa de Bílis', req:{t:'any',count:3}, unlock:'m3',
+      { id:'nevoa', nome:'Névoa de Bílis', req:{t:'any',count:3}, unlock:'m5',
         desc:'Envenena TODOS pesado e some: você sofre 65% menos dano no turno deles.',
-        eff:[{op:'status',tgt:'all',st:'veneno',n:'count*3'},
+        /* era count*3 — com count fixo em 3 isso dava 9 de veneno e ponto, menos
+           que o Veneno Sutil básico. Agora escala com a mão, como tudo mais. */
+        eff:[{op:'status',tgt:'all',st:'veneno',n:'sum'},
              {op:'selfStatus',st:'invisivel',n:'1'},{op:'block',amt:'sum'}] },
-      { id:'ceifa', nome:'Ceifa Silenciosa', req:{t:'set',size:3}, unlock:'m5',
+      { id:'ceifa', nome:'Ceifa Silenciosa', req:{t:'set',size:3}, unlock:'m8',
         desc:'Converte o veneno em morte: cada inimigo envenenado sofre AGORA o dobro do veneno acumulado.',
-        eff:[{op:'ceifar',tgt:'all',amt:'2'},{op:'status',tgt:'all',st:'veneno',n:'val'}] },
+        eff:[{op:'ceifar',tgt:'all',amt:'2'},{op:'status',tgt:'all',st:'veneno',n:'val*2'}] },
     ],
   },
 
@@ -122,17 +136,21 @@ export const CLASSES = {
       /* A TRILHA: dissolver a regra por mais tempo, e com sequência menor —
          a classe sofre por depender de sequência, então o que cresce é a
          chance de montar uma. */
-      { id:'fenda', nome:'Fenda', req:{t:'seq',size:2}, unlock:'m1',
+      /* Fenda e Entropia pedem a MESMA sequência do Raio e da Nova. Enquanto
+         batiam sum*2 contra sum*3, liberá-las era só poluir a mão de opção
+         ruim: o dano tem de pagar a sequência, e a dissolução mais longa é o
+         que elas acrescentam por cima. */
+      { id:'fenda', nome:'Fenda', req:{t:'seq',size:2}, unlock:'m2',
         desc:'DISSOLVE a fechadura do alvo por 2 turnos e guarda 1 dado no Círculo.',
-        eff:[{op:'dissolver',tgt:'chosen',n:'2'},{op:'dmg',tgt:'chosen',amt:'sum*2'},
+        eff:[{op:'dissolver',tgt:'chosen',n:'2'},{op:'dmg',tgt:'chosen',amt:'sum*4'},
              {op:'bank',n:'1'},{op:'essence',n:'1'}] },
-      { id:'entropia', nome:'Entropia', req:{t:'seq',size:3}, unlock:'m3',
+      { id:'entropia', nome:'Entropia', req:{t:'seq',size:3}, unlock:'m5',
         desc:'Apaga a regra de TODOS por 3 turnos. Enquanto durar, qualquer dado fere qualquer um.',
-        eff:[{op:'dissolver',tgt:'all',n:'3'},{op:'dmg',tgt:'all',amt:'sum*2'},
+        eff:[{op:'dissolver',tgt:'all',n:'3'},{op:'dmg',tgt:'all',amt:'sum*4'},
              {op:'block',amt:'sum'}] },
-      { id:'singularidade', nome:'Singularidade', req:{t:'seq',size:4}, unlock:'m5',
+      { id:'singularidade', nome:'Singularidade', req:{t:'seq',size:4}, unlock:'m8',
         desc:'O Colapso levado ao fim: dano imenso em todos, perfurando tudo, e o Círculo guarda 3 dados.',
-        eff:[{op:'dmg',tgt:'all',amt:'sum*6',pierce:true},{op:'bank',n:'3'}] },
+        eff:[{op:'dmg',tgt:'all',amt:'sum*7',pierce:true},{op:'bank',n:'3'}] },
       { id:'prisma', nome:'Prisma', req:{t:'seq',size:5}, unlock:'coroa_arcanista',
         desc:'Dissolve tudo, fere todos e devolve 2 dados ao Círculo.',
         eff:[{op:'dissolver',tgt:'all',n:'3'},{op:'dmg',tgt:'all',amt:'sum*3'},{op:'bank',n:'2'}] },
@@ -167,15 +185,16 @@ export const CLASSES = {
         eff:[{op:'copyLast',tgt:'chosen'},{op:'dmg',tgt:'all',amt:'11'},{op:'marcar',tgt:'chosen'},
              {op:'ajustar',n:'2',passo:'1'}] },
       /* A TRILHA: reescrever mais dados, e por fim escolher o número. */
-      { id:'urdidura', nome:'Urdidura', req:{t:'any',count:2}, unlock:'m1',
-        desc:'CRAVA um dado da mão no valor que abre a fechadura do alvo, e bloqueia.',
-        eff:[{op:'definir',n:'1'},{op:'block',amt:'sum'},{op:'essence',n:'1'}] },
-      { id:'sentenca', nome:'Sentença', req:{t:'sumExact',v:11}, unlock:'m3',
+      { id:'urdidura', nome:'Urdidura', req:{t:'any',count:2}, unlock:'m2',
+        desc:'CRAVA um dado da mão no valor que abre a fechadura do alvo, fere e bloqueia.',
+        eff:[{op:'definir',n:'1'},{op:'dmg',tgt:'chosen',amt:'sum*2'},
+             {op:'block',amt:'sum'},{op:'essence',n:'1'}] },
+      { id:'sentenca', nome:'Sentença', req:{t:'sumExact',v:11}, unlock:'m5',
         desc:'Como o Julgamento, mais fundo: dano enorme que perfura tudo e MARCA o alvo.',
-        eff:[{op:'dmg',tgt:'chosen',amt:'34+sum*4',pierce:true},{op:'marcar',tgt:'chosen'}] },
-      { id:'novelo', nome:'Novelo do Mundo', req:{t:'each',size:3,of:{t:'parity',p:'even'}}, unlock:'m5',
+        eff:[{op:'dmg',tgt:'chosen',amt:'40+sum*5',pierce:true},{op:'marcar',tgt:'chosen'}] },
+      { id:'novelo', nome:'Novelo do Mundo', req:{t:'each',size:3,of:{t:'parity',p:'even'}}, unlock:'m8',
         desc:'Reescreve a mesa: CRAVA três dados no valor que você precisa e fere todos.',
-        eff:[{op:'definir',n:'3'},{op:'dmg',tgt:'all',amt:'sum*2'},{op:'block',amt:'sum'}] },
+        eff:[{op:'definir',n:'3'},{op:'dmg',tgt:'all',amt:'sum*3'},{op:'block',amt:'sum'}] },
       { id:'tapecaria', nome:'Tapeçaria', req:{t:'each',size:3,of:{t:'parity',p:'odd'}}, unlock:'coroa_oracula',
         desc:'CRAVA dois dados da mão no valor exato que abre a fechadura do alvo. Dano em todos.',
         eff:[{op:'definir',n:'2'},{op:'dmg',tgt:'all',amt:'sum*2'}] },

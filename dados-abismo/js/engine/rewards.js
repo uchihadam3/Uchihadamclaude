@@ -45,6 +45,16 @@ export function gerarOpcoes(rng, estado, n=3){
     pool.push({ t:'reliquia', nome:rel.nome, desc:rel.txt, r:rel.r, rel });
   }
   pool.push({ t:'cura', nome:'Cura', desc:'Recupera 18% do HP máximo.' });
+  /* VIGOR — a única fonte de HP máximo que não acaba.
+     Medido (scratchpad/pancada.mjs): o HP máximo do jogador SATURAVA em 98 a
+     partir da Masmorra 6, porque vida só vinha de relíquia e relíquia é única
+     — pegou as três que dão HP, acabou para sempre. Enquanto isso a pancada
+     da onda ia a 706 por turno. Sete vezes o HP total num turno só: não existe
+     jogada certa contra isso, e as masmorras 9 e 10 mediam 0%.
+     O Vigor devolve ao jogador uma curva de vida que acompanha a descida, e
+     — porque disputa a vaga com dado, gravação e relíquia — cobra a escolha
+     que interessa: aguentar mais um turno ou bater mais forte neste. */
+  pool.push({ t:'vigor', nome:'Vigor', desc:'+7 de HP máximo — e recupera o mesmo tanto.' });
   return rng.shuffle(pool).slice(0, n);
 }
 export function aplicar(opt, estado, rng){
@@ -72,6 +82,13 @@ export function aplicar(opt, estado, rng){
   }
   else if(opt.t==='reliquia'){ estado.relics.push(opt.rel); recalcRelics(estado); }
   else if(opt.t==='cura'){ estado.hp = Math.min(estado.maxHp, estado.hp + Math.round(estado.maxHp*0.18)); }
+  else if(opt.t==='vigor'){
+    // sobe a BASE: os multiplicadores de relíquia (Vidro Perfeito ×1/3) continuam
+    // valendo em cima dela, senão o Vigor viraria a saída barata da maldição.
+    estado.baseMaxHp = (estado.baseMaxHp || estado.maxHp) + 7;
+    recalcRelics(estado);
+    estado.hp = Math.min(estado.maxHp, estado.hp + 7);
+  }
   return estado;
 }
 /* consolida os modificadores numéricos das relíquias */

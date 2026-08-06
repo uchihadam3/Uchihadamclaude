@@ -2,17 +2,51 @@
    AS DEZ MASMORRAS (§3.3 escalada + §8 conteúdo).
    Cada masmorra: 8 comuns, 3 elites, 1 subchefe, 1 chefe — EXCLUSIVOS.
    ===================================================================== */
+/* A ESCALADA — medida, não chutada (test/masmorra.mjs, 128 descidas por
+   masmorra, começando em cada uma com o enxoval e a trilha que o jogo dá).
+
+   ESTA COLUNA NÃO É A DIFICULDADE. Ela multiplica o HP escrito na ficha, e a
+   ficha já cresce sozinha: o comum vai de 13 na M1 a 62 na M10 (4,8×). O que
+   o jogador enfrenta é o PRODUTO das duas curvas, e é o produto que precisa
+   acompanhar o jogador — medido, ele cresce 6,4× em vida e 9,5× em dano ao
+   longo das dez. Com a escalada antiga o produto crescia 21×, e a medição
+   mostrou o resultado: M6 e M7 fechando 0%, a M9 morrendo no PRIMEIRO andar.
+
+   Por isso a coluna não sobe até o fim — ela CAI da M8 para a M10, e é de
+   propósito: as fichas de lá dão um salto grande (41 → 49 → 62) e a escalada
+   é o que sobra para ajustar. O produto, que é o que importa, sobe sempre:
+     15  26  32  49  65  69  85  107  119  135      (9,0× da M1 à M10)
+   Mexer aqui sem olhar o produto quebra a curva — test/habilidades.mjs
+   verifica que ele nunca desce, e test/masmorra.mjs mede o resultado:
+     M1 75%  M2 58%  M3 33%  M4 35%  M5 30%
+     M6 30%  M7 31%  M8 27%  M9 21%  M10 10%
+   ou seja: dá para fechar UMA masmorra por descida, e cada uma cobra mais
+   que a anterior — que é exatamente o que o desenho pede. */
 export const ESCALADA = [
   { n:1,  nome:'A Cripta de Giz',        hp:1.10, dano:1.20, fardo:null,                 fardoTxt:'—' },
-  { n:2,  nome:'O Pântano de Sal',       hp:1.60, dano:1.55, fardo:'armadura_passiva',   fardoTxt:'Inimigos ganham 1 de armadura passiva' },
-  { n:3,  nome:'A Forja Afundada',       hp:2.25, dano:1.92, fardo:'dado_enferrujado',   fardoTxt:'Você começa cada combate com 1 dado Enferrujado' },
-  { n:4,  nome:'A Biblioteca Fraturada', hp:3.00, dano:2.32, fardo:'acao_dupla',         fardoTxt:'Inimigos agem 2× a cada 3 turnos' },
-  { n:5,  nome:'A Colmeia de Quitina',   hp:3.95, dano:2.72, fardo:'reroll_custa_vida',  fardoTxt:'Re-rolagens custam vida' },
-  { n:6,  nome:'A Cidadela de Vidro',    hp:4.60, dano:2.95, fardo:'um_trava',           fardoTxt:'Dados que rolarem 1 ficam Travados por um turno' },
-  { n:7,  nome:'O Mercado das Almas',    hp:5.60, dano:3.40, fardo:'rouba_dado',         fardoTxt:'Inimigos roubam 1 dado seu por combate' },
-  { n:8,  nome:'O Jardim de Carne',      hp:6.80, dano:3.85, fardo:'cura_reduzida',      fardoTxt:'Cura reduzida em 50%' },
-  { n:9,  nome:'A Torre Invertida',      hp:8.20, dano:4.35, fardo:'elites_em_par',      fardoTxt:'Toda onda tem ≥1 elite; elites vêm em pares' },
-  { n:10, nome:'O Cassino do Vazio',     hp:9.90, dano:4.90, fardo:'abismo_rerola',      fardoTxt:'O Abismo re-rola um dos seus dados depois de você jogar' },
+  { n:2,  nome:'O Pântano de Sal',       hp:1.34, dano:1.36, fardo:'armadura_passiva',   fardoTxt:'Inimigos ganham 1 de armadura passiva' },
+  { n:3,  nome:'A Forja Afundada',       hp:1.36, dano:1.52, fardo:'dado_enferrujado',   fardoTxt:'Você começa cada combate com 1 dado Enferrujado' },
+  /* O HP da escalada SOMA-SE ao HP que as fichas já ganham por masmorra: a
+     ficha do comum vai de 13 na M1 a 62 na M10 sozinha (4,8×). Multiplicando
+     as duas curvas, o inimigo crescia 21× enquanto o jogador — medido, com
+     enxoval e trilha — cresce 6,4× em vida e 9,5× em dano. Geométrico contra
+     geométrico maior só termina de um jeito. A coluna abaixo cresce devagar
+     da M4 em diante para o produto ficar perto do que o jogador acompanha;
+     a M1-M3 fica como estava, que a medição já mostrou calibrada. */
+  { n:4,  nome:'A Biblioteca Fraturada', hp:1.90, dano:1.69, fardo:'acao_dupla',         fardoTxt:'Inimigos agem 2× a cada 3 turnos' },
+  { n:5,  nome:'A Colmeia de Quitina',   hp:2.05, dano:1.87, fardo:'reroll_custa_vida',  fardoTxt:'Re-rolagens custam vida' },
+  { n:6,  nome:'A Cidadela de Vidro',    hp:2.25, dano:2.06, fardo:'um_trava',           fardoTxt:'Dados que rolarem 1 ficam Travados por um turno' },
+  { n:7,  nome:'O Mercado das Almas',    hp:2.45, dano:2.26, fardo:'rouba_dado',         fardoTxt:'Inimigos roubam 1 dado seu por combate' },
+  /* M8-M10: o multiplicador de dano CAI aqui, e é de propósito. Esta coluna
+     não é a dificuldade absoluta — é um ajuste por cima das fichas, e as
+     fichas destas três já dão um salto sozinhas. Medido: a pancada por turno
+     com dano=1 sobe 15% de M6 para M7 e 58% de M7 para M8. Multiplicar esse
+     degrau por um fator ainda maior era o que punha o andar 8 da M9 batendo
+     654 num jogador de 373 de vida. Com os valores abaixo a pancada final
+     sobe ~25%, ~22% e ~20% por masmorra — continua apertando, sem despencar. */
+  { n:8,  nome:'O Jardim de Carne',      hp:2.62, dano:1.79, fardo:'cura_reduzida',      fardoTxt:'Cura reduzida em 50%' },
+  { n:9,  nome:'A Torre Invertida',      hp:2.45, dano:1.89, fardo:'elites_em_par',      fardoTxt:'Toda onda tem ≥1 elite; do 3º andar em diante, em pares' },
+  { n:10, nome:'O Cassino do Vazio',     hp:2.18, dano:2.12, fardo:'abismo_rerola',      fardoTxt:'O Abismo re-rola um dos seus dados depois de você jogar' },
 ];
 
 /* paletas restritas (§10) — 4-6 cores + 1 acento de perigo */
@@ -160,7 +194,7 @@ export const M3 = {
   comuns:[
     { id:'brasa_afogada', nome:'Brasa Afogada', hp:20, padrao:[A(7),A(8)],
       desc:'Sem fechadura. Bate e queima, só isso.' },
-    { id:'bigorna_viva',  nome:'Bigorna Viva', hp:34, trava:T('forte',6),
+    { id:'bigorna_viva',  nome:'Bigorna Viva', hp:34, trava:T('forte',5),
       padrao:[B(14),A(7)],
       desc:'Ferro maciço: só o dado máximo marca.' },
     { id:'fole_partido',  nome:'Fole Partido', hp:18, trava:T('impar'),
@@ -195,12 +229,12 @@ export const M3 = {
       desc:'Devolve metade do que sofre. Veneno e sangramento saem mais barato.' },
   ],
   subchefe:{ id:'capataz', nome:'O CAPATAZ DE FERRO', hp:120,
-    travaCiclo:[T('multiplo',3), T('forte',6)],
+    travaCiclo:[T('multiplo',3), T('forte',5)],
     padrao:[CONT(34,3), A(13), FRAT()],
     invoca:['brasa_afogada','escoria'],
     desc:'Conta as marteladas até três. A regra alterna entre múltiplo de 3 e couraça 6.' },
   chefe:{ id:'bigorna_mae', nome:'A BIGORNA-MÃE', hp:220,
-    travaCiclo:[T('forte',6), T('chave',12), T('impar'), T('farto',3)],
+    travaCiclo:[T('forte',5), T('chave',12), T('impar'), T('farto',3)],
     padrao:[A(18), M(8,3), CONG(), A(28), INV()],
     reergue:true,
     desc:'A forja inteira é o corpo dela. Quatro regras girando: couraça 6, chave 12, ímpar, 3 dados.' },

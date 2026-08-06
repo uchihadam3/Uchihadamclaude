@@ -374,7 +374,7 @@ function iniciar(cid, deMasmorra=1){
     const opts = gerarOpcoes(rng, P, 3);
     // mesma régua da IA do simulador: prefere poder, cura só se estiver ferido
     const val = o => o.t==='reliquia' ? (o.r==='amaldicoada'?2 : o.r==='rara'?9 : 6)
-              : o.t==='dado' ? 5 : o.t==='grav' ? 5.5
+              : o.t==='dado' ? 5 : o.t==='grav' ? 5.5 : o.t==='vigor' ? 6
               : (P.hp < P.maxHp*0.55 ? 8 : 1);
     const esc = opts.reduce((a,b)=> val(b)>val(a)?b:a);
     aplicar(esc, P, rng);
@@ -1120,6 +1120,15 @@ function antesDepois(o){
     if(!L.length) L.push(`<i>passiva permanente da run</i>`);
     return `<div class="difl">${L.join('')}</div>`;   // a raridade já está na fita
   }
+  if(o.t==='vigor'){
+    // o Vigor sobe a BASE; as relíquias de multiplicador continuam por cima,
+    // então a carta mostra o máximo que vai REALMENTE ficar, não base+7
+    const mult = (P.relicMods?.hpMult)||1;
+    const fica = Math.max(1, Math.round(((P.baseMaxHp||P.maxHp)+7 + (P.relicMods?.hpBonus||0)) * mult));
+    return `<div class="difl">${linhaDif('HP máx', P.maxHp, fica)}
+      <i class="up">+${fica-P.maxHp} de vida permanente</i>
+      <i>e recupera o mesmo tanto agora</i></div>`;
+  }
   const cura = Math.round(P.maxHp*0.18);
   // carta que não avisa que não faz nada é carta que mente
   if(P.hp >= P.maxHp)
@@ -1146,6 +1155,7 @@ function rotuloRaridade(o){
   if(o.t==='reliquia') return { cls:'r-'+o.r, txt:o.r==='amaldicoada'?'AMALDIÇOADA':o.r.toUpperCase() };
   if(o.t==='dado')  return { cls:'', txt:o.tipo.toUpperCase() };
   if(o.t==='grav')  return { cls:'', txt:'FORJA' };
+  if(o.t==='vigor') return { cls:'r-rara', txt:'VIGOR' };
   return              { cls:'', txt:'DESCANSO' };
 }
 /* ===== VITÓRIA: passar da última masmorra =====
@@ -1252,7 +1262,7 @@ function fim(){
       return `<button class="rec ${o.t} ${R.cls}" data-i="${i}" style="--d:${i}">
       <div class="rrar">${R.txt}</div>
       <div class="rectopo">
-        <div class="ric">${o.t==='dado'?'🎲':o.t==='grav'?'⚒':o.t==='reliquia'?'🕯️':'✚'}</div>
+        <div class="ric">${o.t==='dado'?'🎲':o.t==='grav'?'⚒':o.t==='reliquia'?'🕯️':o.t==='vigor'?'❤️':'✚'}</div>
         <div><b>${o.nome}</b><span>${o.desc}</span></div>
       </div>
       <div class="recdif">${antesDepois(o)}</div>
@@ -1271,7 +1281,15 @@ function fim(){
         const eb = m.querySelector(`.rec[data-i="${opts.indexOf(outra)}"]`);
         if(eb) eb.classList.add('levada'); }
     }
-    if(andar===5||andar===10) P.hp=Math.min(P.maxHp,P.hp+Math.round(P.maxHp*0.15));
+    /* RESPIRO ENTRE ANDARES. Medido: com cura só nos santuários (15% nos
+       andares 5 e 10), a descida inteira devolvia ~30% de vida contra lutas
+       que cobram 25% a 50% cada uma. As lutas da Masmorra 9 se ganham 5 vezes
+       em 6 com o HP cheio — e mesmo assim a masmorra fechava 4%, porque o
+       jogador chegava no andar seguinte sem vida, não sem habilidade.
+       O fardo da Masmorra 8 corta esta cura pela metade, como corta as outras. */
+    { const pct = (andar===5||andar===10) ? 0.30 : 0.06;
+      const meio = burdensFor(masmorra).includes('cura_reduzida') ? 0.5 : 1;
+      P.hp = Math.min(P.maxHp, P.hp + Math.round(P.maxHp*pct*meio)); }
     // fechou a masmorra: a próxima passa a ser um começo possível
     if(andar===10){ cofre=META.carregar();
       if(META.abrirMasmorra(cofre, masmorra+1)) BON=META.bonus(cofre); }

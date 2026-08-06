@@ -24,7 +24,13 @@ function fechaduraDoCombate(base, rng, isElite){
   return rng.chance(0.58) ? { trava:{ t:'ou', alts:[t, alt] } } : {};
 }
 function inst(base, mult, rng, isElite=false){
-  const hp = Math.round(base.hp * mult.hp * (isElite?1.9:1));
+  /* o bônus de elite é PEQUENO porque a ficha dele já é de elite: nas dez
+     masmorras o elite escrito vale 2,8× a 4,0× o comum da mesma masmorra.
+     Multiplicar 1,9 por cima disso contava a mesma coisa duas vezes — medido,
+     o andar 1 da Masmorra 9 vinha com dois elites de 1306 e 1364 de HP ao
+     lado de comuns de 174, e o fardo de lá obriga a ter dois. O que faz o
+     elite ser elite é a ficha e a fechadura que gira, não um número inflado. */
+  const hp = Math.round(base.hp * mult.hp * (isElite?1.25:1));
   return { ...base, uid: base.id+'#'+rng.int(1e6),
     hp, maxHp:hp, block:0, statuses:{}, mult:mult.dano, elite:isElite,
     padrao: base.padrao, _ip:-1, intent:null,
@@ -64,10 +70,29 @@ export function buildWave(masmorra, andar, rng, flags=null){
   else if(andar<=2){ addC(rng.range(2,3)); if(masmorra>=2) addC(1); addC(fundo); }
   else if(andar<=4){ addC(2); addE(1); if(rng.chance(0.5)) addC(1); addC(fundo+abismo); }
   else if(andar<=7){ addE(1); addC(rng.range(3,4)+fundo+abismo); }
-  else { addE(rng.range(1,2)+abismo); addC(rng.range(2,3)+fundo); }
-  // Fardo M9: toda onda tem >=1 elite, elites vêm em pares
+  /* o corpo extra do fundo do Abismo entra como COMUM, não como elite. Medido:
+     com ele somando elite, a pancada do andar 8 pulava de 227 (M7) para 446
+     (M8) — dobrava numa troca só de masmorra. A mesa continua cheia; o que
+     muda é que ela enche de alvos, não de paredes. */
+  else { addE(rng.range(1,2)); addC(rng.range(2,3)+fundo+abismo); }
+  /* Fardo M9: toda onda tem >=1 elite, elites vêm em pares.
+     Ele PROMOVE comuns, não empilha elites por cima. O texto antigo somava dois
+     corpos novos numa onda que já tinha crescido com `fundo`/`abismo`: medido,
+     o andar 1 da M9 vinha com 6,7 inimigos e 3741 de HP — mais que o andar 10
+     da mesma masmorra. O fardo é para a onda ser mais DURA, não maior. */
   if(esc.fardo==='elites_em_par' && andar!==10){
-    const nE = out.filter(e=>e.elite).length; if(nE===0) addE(2); else if(nE%2===1) addE(1);
+    /* O PAR só vale de onde já nascem elites (andar 3+). Nos dois primeiros
+       andares a onda é de comuns, então "em pares" promovia DOIS de uma vez e
+       o andar 1 ficava mais pesado que o andar 3 — medido, era ali que 96%
+       das descidas na Torre Invertida morriam, no primeiro combate. */
+    const par = andar >= 3;
+    const faltam = () => { const n = out.filter(e=>e.elite).length;
+      return n===0 ? (par?2:1) : (par && n%2===1 ? 1 : 0); };
+    for(let q=faltam(); q>0; q=faltam()){
+      const i = out.findIndex(e=>!e.elite && !e.boss);
+      if(i<0){ addE(q); break; }                      // onda só de elites: aí soma mesmo
+      out[i] = inst(rng.pick(M.elites), esc, rng, true);
+    }
   }
   // Língua de Prata: recompensa dobrada em troca de inimigos mais gordos
   if(flags && flags.has('dobro_recompensa')) out.forEach(e=>{

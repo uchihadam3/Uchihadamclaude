@@ -15,11 +15,30 @@ function avaliar(combat, sk, ids, alvo, perigo){
     const e = combat.enemies[a.i]; if(!e) continue;
     s += Math.min(a.dano, e.hp);                      // dano útil (overkill não conta)
     if(a.morre) s += 14;                              // matar remove um atacante
-    s += a.estados.reduce((x,st)=>x + st.n*2, 0);
+    /* veneno e sangramento dão n de dano por turno e decaem 1: um status n só
+       entrega tudo se o alvo viver n turnos, e a luta não dura isso. Conta o
+       que cabe num horizonte de 3 turnos (n + n-1 + n-2), limitado pelo HP que
+       o bicho ainda tem — sobra nenhum crédito por envenenar defunto. */
+    s += a.estados.reduce((x,st)=>{
+      const dur = st.st==='veneno' || st.st==='sangramento';
+      return x + (dur ? Math.min(Math.max(0, 3*st.n - 3), e.hp) * 0.5 : st.n*2);
+    }, 0);
   }
   const util = Math.min(pv.bloqueio, perigo);         // bloqueio só vale até o golpe que vem
   s += util * (perigo >= hp*0.85 ? 3.0 : perigo >= hp*0.45 ? 1.6 : 0.55);
   s += pv.curaHP*1.2 - pv.custoHP*(hp<30 ? 3 : 1.4) + pv.essencia*1.5;
+  /* ARROMBAR vale pelos golpes SEGUINTES, não pelo próprio. O prever() roda
+     uma jogada e mede o dano dela; quem abre a fechadura de todo mundo e bate
+     de leve pontuava quase nada, então a IA nunca escolhia Quebra-Ossos nem
+     Cadafalso — e medido, a trilha inteira aparecia com ganho zero (a M3 até
+     PIORAVA 15 pontos com ela liberada). O crédito abaixo é o que um humano
+     enxerga sozinho: destravar o campo é o que deixa o resto do turno passar. */
+  const arr = (sk.eff||[]).find(e=>e.op==='arrombar');
+  if(arr){
+    const presos = combat.aliveEnemies().filter(e=>combat.travaDe(e) && !e._arrombada);
+    const n = arr.tgt==='all' ? presos.length : Math.min(1, presos.length);
+    s += n * 16;
+  }
   return s / Math.max(1, ids.length);                 // eficiência POR DADO gasto
 }
 export function playTurn(combat, skills){

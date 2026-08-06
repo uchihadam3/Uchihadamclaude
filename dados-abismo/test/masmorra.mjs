@@ -24,8 +24,11 @@ import { ESCALADA } from '../js/data/dungeons.js';
 
 /* o MESMO enxoval de jogo.js: uma recompensa por andar pulado */
 function enxovalar(p, masmorra, rng){
+  /* como um jogador razoável escolhe. Vigor entra valendo o mesmo que uma
+     relíquia comum: quem desce fundo aprende que sobreviver ao turno é
+     pré-requisito para bater no próximo. */
   const val = o => o.t==='reliquia' ? (o.r==='amaldicoada'?2 : o.r==='rara'?9 : 6)
-            : o.t==='dado' ? 5 : o.t==='grav' ? 5.5
+            : o.t==='dado' ? 5 : o.t==='grav' ? 5.5 : o.t==='vigor' ? 6
             : (p.hp < p.maxHp*0.55 ? 8 : 1);
   for(let i=0;i<(masmorra-1)*10;i++){
     const opts = gerarOpcoes(rng, p, 3);
@@ -60,7 +63,11 @@ function correr(classeId, masmorra, seed){
     const r = autoCombat(cb, liberadas);
     turnos += cb.turn; lutas++;
     if(r !== 'win') return { ok:false, andar:a, turnos, lutas, hp:p.hp };
-    p.hp = Math.min(p.maxHp, p.hp + ((a===5||a===10)? Math.round(p.maxHp*0.15) : 2));
+    /* o MESMO respiro de jogo.js — se o simulador curar diferente do jogo,
+       ele mede um jogo que ninguém joga */
+    { const pct = (a===5||a===10) ? 0.30 : 0.06;
+      const meio = burdens.includes('cura_reduzida') ? 0.5 : 1;
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp*pct*meio)); }
     aplicar(gerarOpcoes(rng,p,3)[0], p, rng);
   }
   return { ok:true, andar:10, turnos, lutas, hp:p.hp, maxHp:p.maxHp };
