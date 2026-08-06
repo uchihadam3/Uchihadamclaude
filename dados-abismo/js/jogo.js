@@ -536,23 +536,33 @@ function explicar(tipo, chave, v){
 }
 /* ---------- O GRIMÓRIO: o que cada coisa faz (§12) ---------- */
 let voltarDoGrim=null;
+let abaGrim = 'comece';   // a aba aberta do Grimório
 function telaGrimorio(foco, voltar){
   // o Grimório abre no meio do combate também: aí a batalha continua tocando
   if(!cb || cb.over) SFX.trilha('menu');
   voltarDoGrim = voltar || voltarDoGrim;
   const m=$('msg'); m.classList.remove('off'); m.className='';
+  /* UMA ABA POR VEZ. Antes as doze seções ficavam empilhadas e os botões só
+     rolavam a tela: para achar "o que é Casca Fina" você passava por tudo.
+     Se o Grimório abriu por causa de um verbete (foco), ele já abre na aba
+     onde esse verbete mora. */
+  if(foco) abaGrim = GRIM.abaDe(foco);
   m.innerHTML=`<div class="grimwrap">
     <div class="cofhd"><button class="volta" data-a="voltar">‹</button><h2>GRIMÓRIO</h2></div>
     <p class="cofp">Nada aqui é segredo. Se você não entendeu por que um golpe deu
       <b>zero</b>, a resposta está em <b>Fechaduras</b>.</p>
-    <div class="gnav">${GRIM.SECOES.map(x=>`<button class="gtab" data-g="${x.id}">${x.ico} ${x.nome.split('—')[0].trim()}</button>`).join('')}</div>
-    ${GRIM.html(foco)}
+    <div class="gnav">${GRIM.SECOES.map(x=>
+      `<button class="gtab ${x.id===abaGrim?'on':''}" data-g="${x.id}">
+        <span class="gti">${x.ico}</span><b>${x.nome}</b></button>`).join('')}</div>
+    ${GRIM.html(abaGrim, foco)}
     <button class="mb pri" data-a="voltar">◀ VOLTAR</button>
   </div>`;
   bindA(m,{ voltar:()=>{ const v=voltarDoGrim; voltarDoGrim=null;
     if(v==='combate'){ m.classList.add('off'); pintar(); } else if(typeof v==='function'){ v(); } else telaTitulo(); } });
   m.querySelectorAll('.gtab').forEach(b=>b.onclick=()=>{ SFX.pegar();
-    m.querySelector(`.gsec[data-s="${b.dataset.g}"]`)?.scrollIntoView({behavior:'smooth',block:'start'}); });
+    abaGrim=b.dataset.g; telaGrimorio(null, voltarDoGrim);
+    // a aba nova começa do topo, senão parece que nada mudou
+    $('msg').scrollTo({top:0, behavior:'auto'}); });
   if(foco) requestAnimationFrame(()=>
     m.querySelector('.gitem.foco')?.scrollIntoView({behavior:'smooth',block:'center'}));
 }

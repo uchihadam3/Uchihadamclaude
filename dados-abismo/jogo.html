@@ -112,10 +112,28 @@
  /* ===== GRIMÓRIO ===== */
  .grimwrap{width:100%;max-width:560px;margin:0 auto;padding:14px 14px 34px;
    min-height:100vh;display:flex;flex-direction:column;gap:10px;text-align:left}
- .gnav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:2px}
- .gtab{font-family:Georgia,serif;font-size:10.5px;color:#cfc4a4;cursor:pointer;
-   background:#151a20;border:1px solid #333c46;border-radius:20px;padding:5px 10px}
+ /* ABAS DE VERDADE: a que está aberta se acende, e só o conteúdo dela é
+    montado. Grade em vez de fila para caber doze no celular sem virar uma
+    tira de rolagem lateral. */
+ .gnav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:4px}
+ .gtab{font-family:Georgia,serif;cursor:pointer;display:flex;flex-direction:column;
+   align-items:center;gap:2px;padding:7px 3px;color:#8d8672;
+   background:linear-gradient(180deg,#151a20,#0e1116);border:1px solid #262d36;
+   border-radius:11px;transition:.14s;text-align:center}
+ .gtab .gti{font-size:15px;line-height:1}
+ .gtab b{font-size:8px;letter-spacing:.6px;font-weight:700;line-height:1.15}
+ .gtab.on{color:#ffd24a;border-color:#9a7f34;
+   background:linear-gradient(180deg,#2a2413,#12100a);
+   box-shadow:0 0 12px rgba(255,210,74,.22)}
  .gtab:active{transform:scale(.95)}
+ @media(max-width:360px){ .gnav{grid-template-columns:repeat(3,1fr)} }
+ /* grupos dentro de uma aba (as quatro classes, as quatro árvores...) */
+ .ggrupo{margin-top:12px;padding-left:9px;
+   border-left:2px solid color-mix(in srgb,var(--gc,#9a7f34) 55%,transparent)}
+ .ggrupo h4{font-size:11.5px;letter-spacing:2px;color:var(--gc,#e8d9a8);margin-bottom:3px}
+ .gnota{font-size:10.5px;color:#8d8672;line-height:1.45;margin-bottom:5px;font-style:italic}
+ .gsec h3 em{font-style:normal;font-size:9.5px;letter-spacing:1px;color:#6b6250;
+   margin-left:auto;text-align:right;max-width:44%;line-height:1.2}
  .gsec{border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:11px 12px;
    background:linear-gradient(180deg,rgba(255,255,255,.03),transparent)}
  .gsec h3{font-size:12px;letter-spacing:2.5px;color:#e8d9a8;font-weight:700;
