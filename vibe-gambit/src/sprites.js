@@ -177,7 +177,8 @@ export const SPRITES = { warrior, cleric, archer, mage, goblin, goblin_brute, sl
 export const ART = {
   warrior: 'assets/warrior.png',
   cleric:  'assets/cleric.png',
-  // mage/archer: aguardando reexport com transparência
+  archer:  'assets/archer.png',
+  mage:    'assets/mage.png',
 };
 
 export function spriteFor(id){
