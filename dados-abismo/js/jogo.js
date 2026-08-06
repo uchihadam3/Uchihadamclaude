@@ -837,8 +837,13 @@ function pintar(){
     /* Com UM alvo a conta fecha e é honesta. Com vários, somar tudo mentiria:
        um alvo pode ter sido barrado pela FECHADURA e não pela defesa, e o
        "24 −11🛡 = 1" faria parecer que o escudo comeu 23. */
+    /* a conta na carta é a MESMA que o recibo faz na hora do golpe:
+       bruto − defesa. Antes ela fechava no `dano`, que já vem limitado pela
+       vida que o alvo ainda tinha — e aí "26 −1🛡 = 24" não fechava com nada,
+       nem com a aritmética nem com o número que o recibo mostraria depois.
+       Que o golpe mate está dito pela caveira, não por um resultado torto. */
     const contaDano = !p2 ? '' : (feridos.length===1 && defesa>0)
-      ? `<b class="hd conta2"><i class="hbr">${bruto}</i><i class="hdf">−${defesa}🛡</i><i class="hig">=</i>${dano}</b>`
+      ? `<b class="hd conta2"><i class="hbr">${bruto}</i><i class="hdf">−${defesa}🛡</i><i class="hig">=</i>${Math.max(0,bruto-defesa)}</b>`
       : `${dano?`<b class="hd">-${dano}</b>`:''}${
           defesa>0?`<b class="hb">🛡${defesa}</b>`:''}${
           travados?`<b class="ht">✖${travados>1?travados:''}</b>`:''}`;
@@ -1165,20 +1170,54 @@ function formulaDano(sk){
 }
 const SIMB_BASE = { sum:'Σ', val:'valor', count:'n' };
 /* ===================================================================
-   A BANCA DA CONTA — a conta inteira, em dois atos.
+   A BANCA DA CONTA — cada etapa se RESOLVE antes da seguinte.
 
-   ATO 1 (a soma): os dados caem um a um somando, o parcial pulsa a cada
-   um, o multiplicador desce girando e sai o GOLPE CHEIO.
+   Antes a linha inteira já nascia escrita ("3+4 7 ×3 = 21 −10 = 11") e só
+   ia acendendo pedaço por pedaço: era uma conta pronta com holofote andando
+   por cima, não uma conta acontecendo. Agora é um passo de cada vez, e cada
+   passo COLIDE e vira o próximo:
 
-   ATO 2 (o desconto): a fileira de dados RECOLHE — ela já cumpriu o papel
-   e daqui em diante só atrapalharia —, o golpe cheio fica sozinho e a
-   defesa do alvo é subtraída na cara do jogador, até o número que vai de
-   fato entrar no couro.
+        3 + 4   →   os dois voam pro meio e viram   7
+        7 × 3   →   colidem e viram                21
+       21 − 10  →   colidem e viram                11
 
-   Sem o ato 2 a banca mentia por omissão: anunciava 21 e o inimigo perdia
-   10, porque 11 morreram na armadura e no bloqueio, e não havia onde ver
-   isso acontecendo.
+   E o desconto da defesa é POR INIMIGO. Um golpe em todos acerta cada um
+   com a armadura dele; mostrar um "−34" somado escondia justamente o que o
+   jogador precisa ver — que naquele ali o escudo comeu quase tudo, e no do
+   lado não comeu nada. Cada alvo recebe o seu próprio recibo, no card dele.
    =================================================================== */
+/* o ritmo de UMA etapa. Devagar o bastante para ler, rápido o bastante para
+   não cansar: são três etapas por golpe, e o golpe se repete o turno inteiro. */
+const BC = { ENTRA:250, LE:300, FUNDE:230, NASCE:290 };
+const BC_ETAPA = BC.ENTRA + BC.LE + BC.FUNDE + BC.NASCE;
+
+/* monta "a op b [op c...]" na banca; os termos colidem e viram o resultado.
+   Aceita VÁRIAS parcelas de uma vez: quatro dados somando aos pares davam
+   três etapas só para a soma, e o golpe passava de cinco segundos. */
+function etapaBanca(linha, termos, op, res, t0, corRes){
+  const mk = (cls, txt) => { const e=document.createElement('span');
+    e.className=cls; e.textContent=txt; return e; };
+  setTimeout(()=>{
+    linha.innerHTML='';
+    termos.forEach((v,i)=>{
+      if(i) linha.appendChild(mk('bcop', op));
+      linha.appendChild(mk('bcn', '' + v));
+    });
+    requestAnimationFrame(()=>[...linha.children].forEach(c=>c.classList.add('entra')));
+    SFX.pegar && SFX.pegar();
+  }, t0);
+  setTimeout(()=>{ [...linha.children].forEach(c=>c.classList.add('funde')); },
+             t0 + BC.ENTRA + BC.LE);
+  setTimeout(()=>{
+    linha.innerHTML='';
+    const r=mk('bcn res'+(corRes?' '+corRes:''), '' + res);
+    linha.appendChild(r);
+    requestAnimationFrame(()=>r.classList.add('nasce'));
+    SFX.golpe && SFX.golpe(6); tremor(4);
+  }, t0 + BC.ENTRA + BC.LE + BC.FUNDE);
+  return t0 + BC_ETAPA;
+}
+
 function bancaDaConta(sk, ents, pv){
   const f = formulaDano(sk); if(!f || f.mult<2) return 0;
   /* usa a mesma conta() da carta: ela resolve o ◈ Curinga pelo valor que a
@@ -1187,82 +1226,98 @@ function bancaDaConta(sk, ents, pv){
   const c = conta(ents, sk.req); if(!c) return 0;
   const base = f.base==='sum' ? c.soma : f.base==='count' ? c.n : c.maior;
   if(!base) return 0;
-  const total = base*f.mult + f.fixo;
 
-  /* O DESCONTO só fecha com UM alvo ferido. Com vários, somar as defesas
-     mentiria: um pode ter sido barrado pela FECHADURA (dano zero, defesa
-     nenhuma) e o "−34🛡" faria parecer que o escudo comeu tudo. */
   const feridos = pv ? pv.alvos.filter(a=>(a.bruto||0)>0) : [];
-  const umSo = feridos.length === 1 ? feridos[0] : null;
-  const defesa = umSo ? (umSo.defesa||0) : 0;
-  const entra  = umSo ? (umSo.dano||0)   : 0;
-  const travou = pv && pv.alvos.some(a=>a.travado) && !feridos.length;
-  /* O GOLPE CHEIO É O DO MOTOR, não o da minha fórmula. Ela conhece Σ×N+fixo,
+  /* O GOLPE CHEIO É O DO MOTOR, não o da minha fórmula: ela conhece Σ×N+fixo,
      mas o motor ainda soma o dano fixo das passivas, o Frenesi, a Marca e as
-     ⚔ Lâminas roladas. Mostrar 21 e depois "−1🛡 = 15" não fecha conta
-     nenhuma; o que sobra dessa diferença entra como parcela visível. */
-  const cheio = umSo ? (umSo.bruto||total) : total;
-  const extra = Math.max(0, cheio - total);
+     ⚔ Lâminas roladas. Se a banca mostrasse a minha conta, o "−def" seguinte
+     não fecharia com o que a vida do inimigo perde. */
+  const cheioMotor = feridos.length ? Math.max(...feridos.map(a=>a.bruto||0)) : 0;
 
-  const dados = f.base==='sum' ? c.vals.map(v=>v==null?'◈':v) : null;
-  const b=document.createElement('div'); b.className='bancaconta';
-  b.innerHTML=`<span class="bcdd">${dados
-      ? dados.map((v,i)=>`<i class="bcd" data-i="${i}">${v}</i>`).join('<u class="bcmais">+</u>')
-      : `<i class="bcd on">${base}</i>`}</span>
-    <span class="bcsoma"><b class="bcsn">0</b></span>
-    <span class="bcx">\u00d7${f.mult}</span>
-    ${f.fixo?`<span class="bcp">+${f.fixo}</span>`:''}
-    ${extra?`<span class="bcb2">+${extra}</span>`:''}
-    <span class="bce">=</span><span class="bct">?</span>
-    <span class="bcdef">\u2212${defesa}\ud83d\udee1</span>
-    <span class="bce2">=</span><span class="bcfin">?</span>
-    ${f.todos?'<span class="bca">EM TODOS</span>':''}`;
+  const b=document.createElement('div'); b.className='bancaconta viva';
+  const linha=document.createElement('div'); linha.className='bclinha';
+  b.appendChild(linha);
+  if(f.todos){ const et=document.createElement('span'); et.className='bca';
+    et.textContent='EM TODOS'; b.appendChild(et); }
   document.body.appendChild(b);
-  const chips=[...b.querySelectorAll('.bcd')], mais=[...b.querySelectorAll('.bcmais')];
-  const alvoS=b.querySelector('.bcsn'), alvoT=b.querySelector('.bct');
-  const vals = dados ? c.vals.map(v=> v==null ? 0 : v) : [base];
-  const PASSO = 230;                       // um dado por vez, no ritmo de ler
-  let acc=0, t=120;
-  chips.forEach((ch,i)=>{
-    setTimeout(()=>{ ch.classList.add('on'); if(mais[i-1]) mais[i-1].classList.add('on');
-      acc += vals[i]||0; alvoS.textContent = acc;
-      alvoS.parentElement.classList.remove('pulsa'); void alvoS.offsetWidth;
-      alvoS.parentElement.classList.add('pulsa');
-      SFX.pegar && SFX.pegar(); }, t);
-    t += PASSO;
-  });
-  // ---- ato 1 fecha: o multiplicador desce e sai o golpe cheio ----
-  setTimeout(()=>{ b.querySelector('.bcx')?.classList.add('on'); SFX.golpe && SFX.golpe(4); }, t+90);
-  setTimeout(()=>{ b.querySelector('.bcp')?.classList.add('on'); }, t+300);
-  setTimeout(()=>{ b.querySelector('.bcb2')?.classList.add('on'); }, t+340);
-  setTimeout(()=>{ alvoT.textContent = cheio; b.classList.add('estoura'); }, t+430);
 
-  /* ---- ato 2: a soma sai de cena e a defesa e descontada ----
-     So existe quando ha defesa para descontar; sem ela, anunciar "-0" seria
-     ruido e a banca fecha no golpe cheio, que ja e o dano real. */
-  let fimConta = t + 430;
-  if(umSo && defesa > 0){
-    const T1 = fimConta + 560;                                   // tempo de LER o cheio
-    setTimeout(()=>{ b.classList.add('recolhe'); }, T1);          // a soma some
-    setTimeout(()=>{ b.querySelector('.bcdef')?.classList.add('on');
-      SFX.aparado && SFX.aparado(defesa); }, T1+320);
-    setTimeout(()=>{ b.querySelector('.bce2')?.classList.add('on'); }, T1+520);
-    setTimeout(()=>{ b.querySelector('.bcfin').textContent = entra;
-      b.classList.add('fechou'); }, T1+660);
-    fimConta = T1 + 660;
-  } else if(travou){
-    // golpe grande que a FECHADURA barrou: a banca tem de dizer isso
-    setTimeout(()=>{ b.classList.add('recolhe','travado');
-      b.querySelector('.bcfin').textContent = '0';
-      b.classList.add('fechou'); }, fimConta+520);
-    fimConta += 520;
+  let t = 90, corrente = base;
+  /* ---- etapa 1: TODOS os dados somam de uma vez ---- */
+  const vals = (f.base==='sum' ? c.vals.map(v=> v==null ? 0 : v) : [base]).filter(v=>v>0);
+  if(vals.length > 1){
+    corrente = vals.reduce((a,x)=>a+x,0);
+    t = etapaBanca(linha, vals, '+', corrente, t);
   } else {
-    b.classList.add('semdef');       // sem defesa: o golpe cheio JA e o dano
+    // um dado só: ele entra sozinho e já é a base
+    setTimeout(()=>{ linha.innerHTML='';
+      const e=document.createElement('span'); e.className='bcn res';
+      e.textContent=''+corrente; linha.appendChild(e);
+      requestAnimationFrame(()=>e.classList.add('nasce')); SFX.pegar && SFX.pegar(); }, t);
+    t += BC.ENTRA + BC.LE;
   }
-  const fim = fimConta + 640;
-  setTimeout(()=>{ b.classList.add('saindo'); }, fim-260);
-  setTimeout(()=>b.remove(), fim);
-  return fimConta;                   // o golpe cai quando a conta fecha
+  /* ---- etapa 2: o multiplicador ---- */
+  const posMult = corrente * f.mult;
+  t = etapaBanca(linha, [corrente, f.mult], '×', posMult, t, 'quente');
+  corrente = posMult;
+  /* ---- etapa 3: o que se soma cru (o fixo da habilidade e o que o motor
+         acrescenta por passiva, Frenesi ou Marca) ---- */
+  const somaCrua = Math.max(0, (cheioMotor || (corrente + f.fixo)) - corrente);
+  if(somaCrua > 0){
+    t = etapaBanca(linha, [corrente, somaCrua], '+', corrente + somaCrua, t, 'quente');
+    corrente += somaCrua;
+  }
+  const cheio = corrente;
+
+  /* ---- etapa 4: a DEFESA, um inimigo de cada vez, no card de cada um ---- */
+  let tFim = t;
+  if(feridos.length){
+    // a banca sai de cena: daqui pra frente a conta acontece em cima do alvo
+    setTimeout(()=>b.classList.add('saindo'), t + 160);
+    setTimeout(()=>b.remove(), t + 420);
+    feridos.forEach((a, i)=>{
+      const atraso = t + 220 + i*420;         // um recibo de cada vez
+      reciboNoAlvo(a, atraso);
+      tFim = Math.max(tFim, atraso + BC.ENTRA + BC.LE + BC.FUNDE + 110);
+    });
+  } else {
+    setTimeout(()=>b.classList.add('saindo'), t + 520);
+    setTimeout(()=>b.remove(), t + 800);
+    tFim = t + 520;
+  }
+  return tFim;          // o dano só entra quando a última conta fechar
+}
+
+/* O RECIBO DO ALVO: "21 − 10" colide em cima do card dele e vira o que
+   entrou. Sem defesa nenhuma não há conta a fazer — o golpe cheio já é o
+   dano, e o número flutuante normal dá conta do recado.
+
+   A POSIÇÃO É CONGELADA AGORA, no momento em que o golpe é montado, e o
+   recibo vive solto na tela. Ele era filho do card do inimigo, e quando o
+   golpe MATAVA — que é a metade das vezes — o card saía no repinte antes do
+   recibo aparecer: a conta do abate, justamente a que o jogador mais quer
+   ver, era a única que nunca aparecia. */
+function reciboNoAlvo(alvo, t0){
+  const def = alvo.defesa||0;
+  if(def <= 0) return;
+  /* O BRUTO É O DAQUELE ALVO, e o resultado é a SUBTRAÇÃO — não o dano que a
+     vida perdeu. Um golpe de 24 num bicho com 1 de armadura e 15 de vida tira
+     15, mas a conta na tela é 24−1=23: escrever "24−1=15" seria pedir ao
+     jogador que aceitasse uma aritmética falsa. Que 23 tenha sido mais do que
+     ele aguentava é o que a caveira ao lado conta. */
+  const bruto = alvo.bruto||0;
+  const resta = Math.max(0, bruto - def);
+  const el = document.querySelector(`.en[data-uid="${alvo.uid}"]`);
+  if(!el) return;
+  const r = el.getBoundingClientRect();
+  const x = r.left + r.width/2, y = r.top + r.height*0.42;
+  const cx = document.createElement('div'); cx.className='recibo';
+  cx.style.left = x+'px'; cx.style.top = y+'px';
+  const linha = document.createElement('div'); linha.className='bclinha';
+  cx.appendChild(linha); document.body.appendChild(cx);
+  etapaBanca(linha, [bruto, def+'🛡'], '−', resta, t0, 'sangue');
+  const fim = t0 + BC_ETAPA + 240;
+  setTimeout(()=>cx.classList.add('saindo'), fim-240);
+  setTimeout(()=>cx.remove(), fim);
 }
 /* espalha os números quando vários caem no mesmo alvo, pra não empilharem */
 let desvio=0;

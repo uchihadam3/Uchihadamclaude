@@ -195,6 +195,65 @@
    background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
  .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
  #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
+ /* ===== A BANCA DA CONTA =====
+    Um passo por vez: os dois números entram, ficam parados o tempo de ler,
+    COLIDEM no meio e nascem virados no resultado. É o mesmo gesto três ou
+    quatro vezes até sobrar só o número que entra no couro. */
+ .bancaconta{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%);
+   z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:5px;
+   padding:12px 20px;border-radius:16px;
+   background:linear-gradient(180deg,rgba(18,14,8,.97),rgba(8,6,4,.97));
+   border:1px solid rgba(255,180,90,.5);
+   box-shadow:0 0 34px rgba(255,150,60,.32),0 10px 30px rgba(0,0,0,.65);
+   font-family:Georgia,serif;animation:bcent .22s ease-out}
+ @keyframes bcent{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
+ .bclinha{display:flex;align-items:center;justify-content:center;gap:9px;min-height:44px}
+ /* cada número da conta */
+ .bcn{font-size:31px;font-weight:900;color:#e8e2d0;line-height:1;
+   text-shadow:0 2px 7px #000;opacity:0;transform:scale(.4);
+   transition:transform .3s cubic-bezier(.2,1.7,.4,1),opacity .22s}
+ .bcn.entra{opacity:1;transform:none}
+ .bcop{font-size:23px;font-weight:900;color:#ffb45e;line-height:1;opacity:0;
+   transform:scale(.4);transition:.24s cubic-bezier(.2,1.7,.4,1)}
+ .bcop.entra{opacity:1;transform:none}
+ /* COLIDEM: os dois deslizam para o centro e somem juntos */
+ .bclinha .bcn.funde:first-child{transform:translateX(46%) scale(.62);opacity:0}
+ .bclinha .bcn.funde:last-child{transform:translateX(-46%) scale(.62);opacity:0}
+ .bclinha .bcop.funde{transform:scale(.2);opacity:0}
+ /* e NASCE o resultado */
+ .bcn.res{font-size:40px;color:#e8e2d0;opacity:0;transform:scale(.35)}
+ .bcn.res.nasce{opacity:1;transform:none;
+   animation:bcnasce .42s cubic-bezier(.2,1.8,.35,1)}
+ @keyframes bcnasce{0%{transform:scale(.35);filter:brightness(3)}
+   55%{transform:scale(1.24)}100%{transform:none;filter:none}}
+ .bcn.res.quente{color:#ffd24a;text-shadow:0 0 26px rgba(255,210,74,.95),0 2px 8px #000}
+ .bcn.res.sangue{color:#ff8a7a;text-shadow:0 0 26px rgba(255,90,70,.9),0 2px 8px #000}
+ .bancaconta .bca{font-size:9px;letter-spacing:1.6px;color:#ff8a7a;
+   border:1px solid rgba(255,110,90,.5);border-radius:20px;padding:2px 8px}
+ .bancaconta.saindo{opacity:0;transform:translate(-50%,-50%) scale(.9);transition:.26s}
+ /* O RECIBO DO ALVO: a mesma colisão, só que em cima do card do inimigo,
+    um por um — cada um com a armadura DELE. */
+ .recibo{position:fixed;transform:translate(-50%,-50%);
+   z-index:62;pointer-events:none;padding:5px 10px;border-radius:11px;
+   background:linear-gradient(180deg,rgba(20,8,8,.96),rgba(8,4,4,.96));
+   border:1px solid rgba(255,120,90,.55);
+   box-shadow:0 0 20px rgba(255,80,60,.35),0 5px 16px rgba(0,0,0,.6);
+   animation:bcent2 .2s ease-out}
+ @keyframes bcent2{from{opacity:0;transform:translate(-50%,-50%) scale(.8)}}
+ .recibo .bclinha{min-height:26px;gap:6px}
+ .recibo .bcn{font-size:19px} .recibo .bcn.res{font-size:26px} .recibo .bcop{font-size:15px}
+ .recibo.saindo{opacity:0;transform:translate(-50%,-90%) scale(.9);transition:.24s}
+ @media (max-height:800px){ .bancaconta{top:26%;padding:9px 15px}
+   .bcn{font-size:26px} .bcn.res{font-size:34px} .bcop{font-size:19px}
+   .bclinha{min-height:38px} }
+ .h .htopo{display:flex;align-items:center;gap:5px}
+ /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
+    vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
+ .h .hmult{flex:none;font-size:10px;font-weight:900;letter-spacing:.3px;line-height:1;
+   padding:2px 4px;border-radius:5px;color:#ffb45e;
+   background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
+ .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
+ #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
  /* ===== A BANCA DA CONTA: a multiplicação acontecendo ===== */
  /* fica na FAIXA DOS INIMIGOS, onde o golpe está chegando — e não sobre o
     feltro: os dados não podem ficar tapados, nem por meio segundo. */
