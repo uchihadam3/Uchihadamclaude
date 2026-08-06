@@ -1174,7 +1174,7 @@ function update(dt){
   updateParticles(dt); updateRings(dt); updateTrail(dt); updateShots(dt);
   // RASTRO de slime: ao andar no chão, escalar/deslizar na parede, ou voar — mostra que é gosma.
   const moving = Math.abs(blob.vx)>60 || (blob.cling && Math.abs(blob.vy)>40) || (!blob.onGround && Math.abs(blob.vy)>320);
-  if(!blob.gone && moving){ blob._trailAcc=(blob._trailAcc||0)+dt; if(blob._trailAcc>=0.028){ blob._trailAcc=0; pushTrail(); } }
+  if(!blob.gone && moving){ blob._trailAcc=(blob._trailAcc||0)+dt; if(blob._trailAcc>=0.022){ blob._trailAcc=0; pushTrail(); } }
   if(shake>0) shake=Math.max(0,shake-dt*24);
   // um pedaço só vira SÓLIDO quando não está sobreposto ao jogador — senão a colisão
   // "ejetaria" o blob pra cima (teletransporte de ~1 geleca). Espera o blob sair de cima.
@@ -1696,14 +1696,25 @@ function render(){
     ctx.restore();                                        // fecha o PLOP de nascimento
   }
 
-  // RASTRO DE GOSMA — cópias que derretem (achatam e afundam) ao sumir, dão a leitura de slime
-  for(const gh of trail){ const k=gh.life/gh.max, al=k*0.34;                 // k: 1→0 conforme some
-    const melt=1-k;                                                          // quanto mais velho, mais "derretido"
-    const w=gh.w*(1+melt*0.28), h=gh.h*(1-melt*0.45), x=gh.x-(w-gh.w)/2, y=gh.y+(gh.h-h);  // espalha e afunda
-    ctx.globalAlpha=al; ctx.fillStyle=gh.cling?"#7fe0d0":(gh.melt?"#ffbe6a":"#8bec7c");
-    roundRect(x, y, w, h, Math.min(w,h)*0.4); ctx.fill();
-    ctx.globalAlpha=al*0.5; ctx.fillStyle="rgba(255,255,255,.5)";           // brilho úmido no topo
-    roundRect(x+w*0.2, y+h*0.12, w*0.6, h*0.28, h*0.2); ctx.fill(); }
+  // RASTRO DE GOSMA — no CHÃO vira um borrão úmido que se espalha e some (arrasto do slime);
+  // no ar/parede, cópias que derretem. Tudo some pouco depois, dando a leitura de gosma.
+  for(const gh of trail){ const k=gh.life/gh.max, melt=1-k;                  // k: 1→0 conforme some
+    const col=gh.cling?"#7fe0d0":(gh.melt?"#ffbe6a":"#8bec7c");
+    if(gh.ground){                                                          // ---- BORRÃO no chão ----
+      const al=k*0.30, spread=1+melt*0.7, pw=gh.w*0.92*spread, ph=Math.max(4,gh.h*0.20)*(1-melt*0.3);
+      const px=gh.x+gh.w/2 - gh.dir*melt*gh.w*0.18, py=gh.foot-ph*0.5;       // escorre um tico pra trás
+      ctx.globalAlpha=al; ctx.fillStyle=col;
+      ctx.beginPath(); ctx.ellipse(px,py,pw*0.5,ph*0.75,0,0,7); ctx.fill();
+      ctx.globalAlpha=al*0.55; ctx.fillStyle="rgba(255,255,255,.55)";       // reflexo molhado
+      ctx.beginPath(); ctx.ellipse(px-gh.dir*pw*0.16,py-ph*0.18,pw*0.2,ph*0.3,0,0,7); ctx.fill();
+    } else {                                                                // ---- cópia aérea/parede ----
+      const al=k*0.32, w=gh.w*(1+melt*0.28), h=gh.h*(1-melt*0.45), x=gh.x-(w-gh.w)/2, y=gh.y+(gh.h-h);
+      ctx.globalAlpha=al; ctx.fillStyle=col;
+      roundRect(x, y, w, h, Math.min(w,h)*0.4); ctx.fill();
+      ctx.globalAlpha=al*0.5; ctx.fillStyle="rgba(255,255,255,.5)";
+      roundRect(x+w*0.2, y+h*0.12, w*0.6, h*0.28, h*0.2); ctx.fill();
+    }
+  }
   ctx.globalAlpha=1;
 
   // MURALHA DEVORADORA — mar de gosma da Gosma-Mãe avançando pela esquerda (come a tela)
@@ -1917,8 +1928,14 @@ function slime(cx,cy,rx,ry,amp,seed){
 // personagem: CUBO GELATINOSO estilo RPG (translúcido, face-topo 3D, bolhas, olhos)
 function drawBlob(){
   const b=blob; if(b.gone) return;                 // morreu: virou espatifo, não desenha o corpo
+  // ---- ANDAR: arrasto de gosma (inclina e estica no sentido do movimento) + gingado ----
+  const onG=b.onGroundPrev, spd=Math.min(1,Math.abs(b.vx)/200), dirW=b.vx>0?1:-1;
+  const walking=onG && Math.abs(b.vx)>50;
+  const wob=walking?Math.sin(T*15)*0.05*spd:0;                        // gingado (squish)
+  const strX=walking?0.12*spd:0;                                      // corpo se ESTICA na horizontal (arrasto)
+  const lean=walking?dirW*0.17*spd:0;                                 // inclina no sentido do movimento
   const sq=Math.max(-0.18,Math.min(0.18,b.vy/4000)), jig=Math.sin(T*6)*0.02;
-  const w=b.w*(1-sq*0.5+jig), h=b.h*(1+sq-jig);
+  const w=b.w*(1-sq*0.5+jig+strX+wob), h=b.h*(1+sq-jig-wob);
   const x=b.x+(b.w-w)/2, y=b.y+(b.h-h), cx=x+w/2, r=Math.min(w,h)*0.26;
   const flashing=b.flash>0&&Math.floor(b.flash*20)%2===0;
   let a,bl,ed;                                   // a=topo, bl=base, ed=cor da aresta
@@ -1927,8 +1944,12 @@ function drawBlob(){
   else if(b.cling){a="#cffaf0";bl="#33b0a0";ed="#1e7e72";}
   else {a="#e6ffc8";bl="#5ec84a";ed="#2f8f30";}
 
-  // sombra de contato (elíptica)
-  ctx.fillStyle="rgba(0,0,0,.30)"; ctx.beginPath(); ctx.ellipse(cx,b.y+b.h+2,w*0.44,5,0,0,7); ctx.fill();
+  // sombra de contato (elíptica) — no CHÃO, não inclina junto
+  ctx.fillStyle="rgba(0,0,0,.30)"; ctx.beginPath(); ctx.ellipse(b.x+b.w/2,b.y+b.h+2,w*0.46,5,0,0,7); ctx.fill();
+
+  // pivô na base: inclina o corpo (cisalhamento) sem descolar do chão
+  ctx.save();
+  if(lean!==0){ const yB=b.y+b.h, c=-lean; ctx.transform(1,0,c,1,-c*yB,0); }
 
   // ---- CORPO: cubo de geleia translúcido ----
   ctx.save(); ctx.shadowColor=b.melting?"rgba(255,150,70,.55)":(b.cling?"rgba(120,240,220,.5)":"rgba(126,224,107,.5)"); ctx.shadowBlur=14;
@@ -1964,16 +1985,63 @@ function drawBlob(){
   // specular (brilho principal)
   ctx.fillStyle="rgba(255,255,255,.7)"; ctx.beginPath(); ctx.ellipse(x+w*0.3,y+h*0.2,w*0.14,h*0.08,-0.5,0,7); ctx.fill();
 
-  // ---- OLHOS ----
-  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=w*0.2, ey=y+h*0.5, er=Math.max(2.8,w*0.11);
-  const blink=b.blink<0.12;
+  // ---- EXPRESSÃO (humor conforme o estado) ----
+  let mood="happy";
+  if(flashing) mood="hurt";
+  else if(b.melting) mood="sad";
+  else if(!onG && b.vy>300) mood="fall";
+  else if(!onG && b.vy<-120) mood="jump";
+  else if(walking) mood="go";
+  const ink="#0a2012";
+  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=w*0.21, ey=y+h*0.44, er=Math.max(3,w*0.125);
+  const pvy=(mood==="jump"?-er*0.32:mood==="fall"?er*0.34:0);          // olha p/ cima ao subir, p/ baixo ao cair
+  const blink=b.blink<0.12 && mood!=="hurt";
+
+  // bochechas (blush suave) — só quando feliz/andando, dá vida
+  if(mood==="happy"||mood==="go"){ ctx.fillStyle="rgba(255,150,120,.22)";
+    ctx.beginPath(); ctx.ellipse(cx-ex-er*0.5,ey+er*0.9,er*0.5,er*0.34,0,0,7);
+    ctx.ellipse(cx+ex+er*0.5,ey+er*0.9,er*0.5,er*0.34,0,0,7); ctx.fill(); }
+
+  // olhos
   if(!blink){ ctx.fillStyle="#fff"; eye(cx-ex,ey,er); eye(cx+ex,ey,er);
-    ctx.fillStyle="#0a2012"; pupil(cx-ex+dir*2,ey,er); pupil(cx+ex+dir*2,ey,er);
-    ctx.fillStyle="rgba(255,255,255,.95)"; ctx.beginPath(); ctx.arc(cx-ex+dir*2-1,ey-1,er*0.24,0,7); ctx.arc(cx+ex+dir*2-1,ey-1,er*0.24,0,7); ctx.fill(); }
-  else { ctx.strokeStyle="#0a2012"; ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(cx-ex-er,ey);ctx.lineTo(cx-ex+er,ey);ctx.moveTo(cx+ex-er,ey);ctx.lineTo(cx+ex+er,ey);ctx.stroke(); }
+    ctx.fillStyle=ink; pupil(cx-ex+dir*2,ey+pvy,er); pupil(cx+ex+dir*2,ey+pvy,er);
+    ctx.fillStyle="rgba(255,255,255,.95)"; ctx.beginPath();
+    ctx.arc(cx-ex+dir*2-er*0.18,ey+pvy-er*0.18,er*0.24,0,7); ctx.arc(cx+ex+dir*2-er*0.18,ey+pvy-er*0.18,er*0.24,0,7); ctx.fill(); }
+  else { ctx.strokeStyle=ink; ctx.lineWidth=2; ctx.lineCap="round";
+    ctx.beginPath();ctx.moveTo(cx-ex-er*0.7,ey);ctx.quadraticCurveTo(cx-ex,ey+er*0.5,cx-ex+er*0.7,ey);
+    ctx.moveTo(cx+ex-er*0.7,ey);ctx.quadraticCurveTo(cx+ex,ey+er*0.5,cx+ex+er*0.7,ey);ctx.stroke(); }
+
+  // sobrancelhas (só pra humores fortes)
+  ctx.strokeStyle=ink; ctx.lineWidth=Math.max(1.6,w*0.045); ctx.lineCap="round";
+  if(mood==="hurt"){ ctx.beginPath();                                  // bravo/dor: pontas internas p/ baixo
+    ctx.moveTo(cx-ex-er*0.8,ey-er*1.5); ctx.lineTo(cx-ex+er*0.6,ey-er*0.9);
+    ctx.moveTo(cx+ex+er*0.8,ey-er*1.5); ctx.lineTo(cx+ex-er*0.6,ey-er*0.9); ctx.stroke(); }
+  else if(mood==="sad"){ ctx.beginPath();                              // preocupado: pontas internas p/ cima
+    ctx.moveTo(cx-ex-er*0.7,ey-er*0.9); ctx.lineTo(cx-ex+er*0.7,ey-er*1.5);
+    ctx.moveTo(cx+ex+er*0.7,ey-er*0.9); ctx.lineTo(cx+ex-er*0.7,ey-er*1.5); ctx.stroke(); }
+
+  // ---- BOCA ----
+  const mcx=cx+dir*1, my=y+h*0.68, mw=w*0.2;
+  ctx.strokeStyle=ink; ctx.fillStyle=ink; ctx.lineWidth=Math.max(1.8,w*0.055); ctx.lineJoin="round"; ctx.lineCap="round";
+  if(mood==="hurt"){                                                   // careta tensa (boca aberta apertada)
+    ctx.beginPath(); ctx.ellipse(mcx,my,mw*0.8,mw*0.52,0,0,7); ctx.fill(); }
+  else if(mood==="fall"){                                              // "O" de susto
+    ctx.beginPath(); ctx.ellipse(mcx,my,mw*0.6,mw*0.78,0,0,7); ctx.fill();
+    ctx.fillStyle="rgba(255,120,140,.6)"; ctx.beginPath(); ctx.ellipse(mcx,my+mw*0.3,mw*0.32,mw*0.28,0,0,7); ctx.fill(); }
+  else if(mood==="jump"){                                              // grito de alegria (boca aberta sorrindo)
+    ctx.beginPath(); ctx.moveTo(mcx-mw,my-mw*0.15);
+    ctx.quadraticCurveTo(mcx,my+mw*0.95,mcx+mw,my-mw*0.15); ctx.quadraticCurveTo(mcx,my+mw*0.35,mcx-mw,my-mw*0.15); ctx.fill(); }
+  else if(mood==="sad"){                                               // derretendo: boca pra baixo
+    ctx.beginPath(); ctx.moveTo(mcx-mw*0.9,my+mw*0.35); ctx.quadraticCurveTo(mcx,my-mw*0.35,mcx+mw*0.9,my+mw*0.35); ctx.stroke(); }
+  else {                                                               // feliz/andando: sorriso simpático
+    const open=mood==="go"?mw*0.62:mw*0.5;
+    ctx.beginPath(); ctx.moveTo(mcx-mw,my-mw*0.05); ctx.quadraticCurveTo(mcx,my+open,mcx+mw,my-mw*0.05); ctx.stroke();
+    if(mood==="go"){ ctx.fillStyle="rgba(255,120,140,.55)"; ctx.beginPath(); ctx.ellipse(mcx,my+open*0.42,mw*0.42,open*0.34,0,0,7); ctx.fill(); } }
+
+  ctx.restore();                                                       // fecha o cisalhamento do arrasto
+
   function eye(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.fill(); }
-  function pupil(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr*0.52,0,7); ctx.fill(); }
+  function pupil(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr*0.54,0,7); ctx.fill(); }
 }
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
@@ -2004,8 +2072,8 @@ function updateRings(dt){ for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; 
   if(r.life<=0){rings.splice(i,1);continue;} const t=1-r.life/r.max;
   r.r = r.inward ? Math.max(0,r.maxR*(1-t)) : r.maxR*(1-(1-t)*(1-t)); } }   // easeOut na expansão
 // RASTRO de gosma: cópias que ficam pra trás e "derretem" (achatam) ao sumir, cara de slime
-function pushTrail(){ trail.push({x:blob.x,y:blob.y,w:blob.w,h:blob.h,life:0.30,max:0.30,
-  cling:blob.cling,melt:blob.melting}); if(trail.length>22)trail.shift(); }
+function pushTrail(){ trail.push({x:blob.x,y:blob.y,w:blob.w,h:blob.h,foot:blob.y+blob.h,life:0.45,max:0.45,
+  ground:!!blob.onGroundPrev,dir:(blob.vx>0?1:-1),cling:blob.cling,melt:blob.melting}); if(trail.length>28)trail.shift(); }
 function updateTrail(dt){ for(let i=trail.length-1;i>=0;i--){ trail[i].life-=dt; if(trail[i].life<=0)trail.splice(i,1); } }
 // CONFETE de comemoração (vitória): partículas coloridas subindo e caindo
 const CONFCOL=["#7ee06b","#ffd24a","#8be9ff","#ff8fae","#c9a6ff","#a6f08a"];
