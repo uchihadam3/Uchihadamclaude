@@ -953,12 +953,26 @@ function enemyRectHitsWall(e,nx){
 function waterSurfaceY(px){ if(!water||!water.length)return null; const tx=Math.floor(px/TILE); let top=null;
   for(const r of water){ if((r.x/TILE|0)===tx){ const ty=r.y/TILE|0; if(top===null||ty<top)top=ty; } }
   return top===null?null:top*TILE; }
-// GLOBS que BOIAM: um pedaço solto na água sobe e flutua na superfície (vira jangada)
+// GLOBS que BOIAM: um pedaço solto na água sobe e vira JANGADA na superfície.
+// Robusto: sobe devagar, não empilha (jangadas se espalham em fileira) e NUNCA
+// atravessa/ejeta o blob (apoia por baixo ou desliza pro lado).
 function updateGlobsWater(dt){ if(!water||!water.length)return;
+  // 1) empuxo suave até a superfície
   for(const g of globs){ const s=waterSurfaceY(g.x+g.w/2);
-    if(s!=null && g.y+g.h>s){ const target=s-g.h*0.30+Math.sin(T*2+g.x*0.05)*2;      // base um tico submersa + bob
-      g.vy=(g.vy||0)+((target-g.y)*14-(g.vy||0)*7)*dt; g.y+=g.vy*dt; g.floating=true; }
-    else { g.floating=false; g.vy=0; } } }
+    if(s!=null && g.y+g.h>s+1){ g.inWater=true;
+      const target=s-g.h*0.45+Math.sin(T*2.2+g.x*0.06)*1.6;                    // ~metade pra fora + bob
+      g.vy=(g.vy||0)+((target-g.y)*9-(g.vy||0)*5)*dt; g.vy=Math.max(-70,Math.min(70,g.vy)); g.y+=g.vy*dt;
+    } else { g.inWater=false; g.vy=0; } }
+  // 2) jangadas que se sobrepõem se afastam (fileira, não pilha)
+  for(let i=0;i<globs.length;i++){ const a=globs[i]; if(!a.inWater)continue;
+    for(let j=i+1;j<globs.length;j++){ const c=globs[j]; if(!c.inWater)continue;
+      const d=(a.x+a.w/2)-(c.x+c.w/2); if(Math.abs(d)<a.w-2 && Math.abs(a.y-c.y)<a.h*0.9){
+        const push=((a.w-2)-Math.abs(d))*0.25, s2=d>=0?1:-1; a.x+=s2*push; c.x-=s2*push; } } }
+  // 3) nunca sobrepor o blob: apoia por baixo, ou desliza pro lado
+  for(const g of globs){ if(!g.inWater)continue;
+    if(overlaps(blob,g)){ if(g.y+g.h*0.5 > blob.y+blob.h*0.55){ g.y=blob.y+blob.h; if(g.vy>0)g.vy=0; }
+      else { const s2=(g.x+g.w/2<blob.x+blob.w/2)?-1:1; g.x=blob.x+(s2<0?-g.w:blob.w); } } }
+}
 // respingo ao entrar/bater na água
 function splash(x,y,vy){ const n=Math.min(16,6+Math.abs(vy)/40);
   ring(x,y,18,"170,225,255",3.5,0.4); ring(x,y,10,"220,245,255",2.5,0.3);
@@ -1317,9 +1331,17 @@ function resolvePlace(){ const list=solidsList();
     if(!s2) break; blob.y=s2.y-blob.h-0.5; }
 }
 function reabsorb(){ if(blob.mass>=level.max)return;
-  let best=-1,bd=1e9; const foot={x:blob.x-REABSORB_R,y:blob.y-REABSORB_R,w:blob.w+REABSORB_R*2,h:blob.h+REABSORB_R*2};
-  for(let i=0;i<globs.length;i++){ const g=globs[i]; if(!g.solid)continue;
-    if(overlaps(foot,g)){ const dx=(g.x+g.w/2)-(blob.x+blob.w/2),dy=g.y-(blob.y+blob.h),d=dx*dx+dy*dy; if(d<bd){bd=d;best=i;} } }
+  const inW=!!(water&&water.length);                   // fase com água: alcance generoso por DISTÂNCIA (jangadas boiam em volta)
+  const bx=blob.x+blob.w/2, by=blob.y+blob.h/2;
+  let best=-1,bd=1e9;
+  for(let i=0;i<globs.length;i++){ const g=globs[i];
+    if(inW){ if(!(g.inWater||g.solid))continue; }       // na água: jangada boiando ou sólida
+    else if(!g.solid) continue;
+    const gx=g.x+g.w/2, gy=g.y+g.h/2, dx=gx-bx, dy=gy-by, d2=dx*dx+dy*dy;
+    let hit;
+    if(inW){ const reach=blob.w/2+g.w/2+REABSORB_R+12; hit=d2<reach*reach; }
+    else { const R=REABSORB_R; hit=overlaps({x:blob.x-R,y:blob.y-R,w:blob.w+R*2,h:blob.h+R*2}, g); }
+    if(hit && d2<bd){ bd=d2; best=i; } }
   if(best>=0){ const g=globs[best]; const gx=g.x+g.w/2, gy=g.y+g.h/2, bx=blob.x+blob.w/2, by=blob.y+blob.h/2;
     // partículas SENDO PUXADAS do pedaço PRA DENTRO do jogador (convergem)
     for(let k=0;k<10;k++){ const t=Math.random(), px=gx+(Math.random()*2-1)*8, py=gy+(Math.random()*2-1)*8;
@@ -1992,14 +2014,22 @@ function drawWater(){
   ctx.fillStyle="rgba(190,235,255,.10)"; ctx.fillRect(x0,yTop,x1-x0,Math.min(10,H*0.16));
 
   ctx.globalCompositeOperation="lighter";
-  // 3) GOD-RAYS: feixes de luz diagonais descendo da superfície
-  for(let i=0;i<6;i++){ const rx=x0+(((i*0.19)+T*0.015)%1.1)*(x1-x0)-40, ww=14+8*Math.sin(T*0.7+i);
-    const gr=ctx.createLinearGradient(rx,yTop,rx+60,yBot); gr.addColorStop(0,"rgba(170,225,255,.10)"); gr.addColorStop(1,"rgba(170,225,255,0)");
-    ctx.fillStyle=gr; ctx.beginPath(); ctx.moveTo(rx,yTop); ctx.lineTo(rx+ww,yTop); ctx.lineTo(rx+ww+46,yBot); ctx.lineTo(rx+40,yBot); ctx.closePath(); ctx.fill(); }
-  // 4) CÁUSTICAS: rede de luz ondulando (mais forte perto do topo)
-  for(let cy=yTop+6; cy<yBot; cy+=13){ const k=1-(cy-yTop)/H; ctx.strokeStyle="rgba(200,245,255,"+(0.05+0.09*k).toFixed(3)+")"; ctx.lineWidth=1.6;
-    ctx.beginPath(); for(let cx=x0;cx<=x1;cx+=7){ const yy=cy+Math.sin(cx*0.09+T*1.7+cy*0.12)*3; cx===x0?ctx.moveTo(cx,yy):ctx.lineTo(cx,yy);} ctx.stroke(); }
+  // 3) GOD-RAYS suaves: feixes de luz difusos descendo, oscilando de leve
+  for(let i=0;i<7;i++){ const rx=x0+(i/7)*(x1-x0)+Math.sin(T*0.3+i*1.3)*22;
+    const gr=ctx.createLinearGradient(rx,yTop,rx+46,yBot);
+    gr.addColorStop(0,"rgba(185,238,255,.085)"); gr.addColorStop(0.55,"rgba(185,238,255,.028)"); gr.addColorStop(1,"rgba(185,238,255,0)");
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.moveTo(rx-3,yTop); ctx.lineTo(rx+12,yTop); ctx.lineTo(rx+12+58,yBot); ctx.lineTo(rx-3+42,yBot); ctx.closePath(); ctx.fill(); }
+  // 4) CÁUSTICAS orgânicas (duas frequências) — rede de luz tremeluzente, mais forte no topo
+  for(let cy=yTop+4; cy<yBot; cy+=10){ const k=Math.pow(1-(cy-yTop)/H,1.3);
+    ctx.strokeStyle="rgba(205,249,255,"+(0.035+0.095*k).toFixed(3)+")"; ctx.lineWidth=1.4; ctx.beginPath();
+    for(let cx=x0;cx<=x1;cx+=6){ const yy=cy+Math.sin(cx*0.10+T*1.6+cy*0.15)*2.6+Math.sin(cx*0.05-T*1.1)*2.0; cx===x0?ctx.moveTo(cx,yy):ctx.lineTo(cx,yy);} ctx.stroke(); }
+  // 5) CÁUSTICAS DO FUNDO: luz dançando mais brilhante no fundo da poça
+  for(let f=0;f<2;f++){ ctx.strokeStyle="rgba(215,250,255,"+(0.13-f*0.04).toFixed(2)+")"; ctx.lineWidth=2.4-f*0.6; ctx.beginPath();
+    const fy=yBot-7-f*6; for(let cx=x0;cx<=x1;cx+=5){ const yy=fy+Math.sin(cx*0.14+T*2.1+f*1.5)*2.6; cx===x0?ctx.moveTo(cx,yy):ctx.lineTo(cx,yy);} ctx.stroke(); }
   ctx.globalCompositeOperation="source-over";
+  // 6) escurecimento de profundidade no fundo (dá volume)
+  const dg=ctx.createLinearGradient(0,yBot-22,0,yBot); dg.addColorStop(0,"rgba(2,18,46,0)"); dg.addColorStop(1,"rgba(2,14,38,.42)");
+  ctx.fillStyle=dg; ctx.fillRect(x0,yBot-22,x1-x0,22);
 
   // 5) BOLHAS subindo
   for(const r of water){ const tx=r.x/TILE|0, ty=r.y/TILE|0, seed=tx*0.7+ty*1.9, bp=((T*0.45+seed)%1);
