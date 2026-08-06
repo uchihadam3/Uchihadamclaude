@@ -62,9 +62,38 @@ export interface EuAmigo {
 }
 /** Convite de grupo que chegou por um amigo (fora da zona). */
 export interface ConviteAmigo { party: string; de: string; deId: string; para: string }
+/** Chamado de Companhia chegando pelo canal global (alcança outra área). */
+export interface ConviteCompanhiaGlobal {
+  guildId: string; nome: string; tag: string; de: string; para: string;
+}
+
+/**
+ * BUSCA POR NICK — um jogador achado pelo nome, esteja ele onde estiver.
+ *
+ * O canal global já carrega TODO MUNDO que está em jogo: cada um bate o ponto de
+ * 4 em 4 segundos dizendo quem é, que nível tem e em que área está. Até aqui essa
+ * lista era usada só p/ dizer se um amigo estava online — o resto ia p/ o lixo.
+ *
+ * Só que ela é exatamente uma LISTA TELEFÔNICA do servidor: quem está em jogo
+ * agora, com nome. Buscar por nick, então, não pede tabela nova nem consulta
+ * nenhuma ao banco — pede parar de descartar o que já chega.
+ *
+ * O limite honesto disso: só acha quem está ONLINE. E tudo bem, porque convite de
+ * grupo e chamado de Companhia são entregues ao vivo — não adiantaria achar
+ * alguém que não pode responder.
+ */
+export interface Jogador {
+  uid: string; name: string; classId: string; level: number; zone: string;
+}
+
+/** Para comparar nome: sem acento, sem caixa, sem espaço sobrando. */
+export function normalizar(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
 
 type ListaCb = (l: AmigoVivo[]) => void;
 type ConviteCb = (c: ConviteAmigo) => void;
+type ConviteCompCb = (c: ConviteCompanhiaGlobal) => void;
 
 interface RTChannel {
   on(type: string, filter: unknown, cb: (p: unknown) => void): RTChannel;
@@ -136,10 +165,47 @@ class FriendsSession {
   private beat: ReturnType<typeof setInterval> | null = null;
   private cbLista: ListaCb | null = null;
   private cbConvite: ConviteCb | null = null;
+  private cbConviteComp: ConviteCompCb | null = null;
   private userId = "";            // conta na nuvem (vazio = Convidado → navegador)
 
   onLista(cb: ListaCb | null): void { this.cbLista = cb; }
   onConvite(cb: ConviteCb | null): void { this.cbConvite = cb; }
+  onConviteCompanhia(cb: ConviteCompCb | null): void { this.cbConviteComp = cb; }
+
+  /**
+   * Quem está em jogo AGORA com este pedaço de nome (eu fora da lista).
+   *
+   * Quem COMEÇA com o termo vem antes de quem só o contém — digitar "cor" tem de
+   * trazer o Corvo antes do Escorvado. Depois disso, quem tem nível maior, que é
+   * um desempate melhor que ordem alfabética p/ quem procura companhia de caçada.
+   */
+  buscar(termo: string, limite = 12): Jogador[] {
+    const q = normalizar(termo);
+    if (q.length < 2) return [];
+    const lim = Date.now() - LIMITE_MS;
+    const achados: { j: Jogador; comeca: boolean }[] = [];
+    for (const [uid, v] of this.vistos) {
+      if (v.t < lim || uid === this.eu?.uid) continue;
+      const n = normalizar(v.e.name);
+      const i = n.indexOf(q);
+      if (i < 0) continue;
+      achados.push({
+        j: { uid, name: v.e.name, classId: v.e.classId, level: v.e.level, zone: v.e.zone },
+        comeca: i === 0,
+      });
+    }
+    achados.sort((a, b) =>
+      Number(b.comeca) - Number(a.comeca) || b.j.level - a.j.level
+      || a.j.name.localeCompare(b.j.name));
+    return achados.slice(0, limite).map((x) => x.j);
+  }
+
+  /** Um jogador pelo nome EXATO (é o que o "/convidar Fulano" precisa). */
+  achar(nome: string): Jogador | undefined {
+    const q = normalizar(nome);
+    return this.buscar(q, 40).find((j) => normalizar(j.name) === q)
+      ?? this.buscar(q, 1)[0];
+  }
 
   /** A lista pronta p/ a tela: amigo guardado + o que se sabe dele agora. */
   lista(): AmigoVivo[] {
@@ -197,6 +263,14 @@ class FriendsSession {
       if (!p?.para || p.para !== this.eu?.uid) return;
       this.cbConvite?.(p);
     });
+    // CHAMADO DE COMPANHIA por fora da zona. Ele viaja AQUI, e não no canal da
+    // zona como o chamado de quem está por perto, porque este é o único canal que
+    // alcança alguém noutra área — que é justamente o ponto de buscar por nick.
+    ch.on("broadcast", { event: "conv_comp" }, (msg: unknown) => {
+      const p = (msg as { payload?: ConviteCompanhiaGlobal })?.payload;
+      if (!p?.para || p.para !== this.eu?.uid) return;
+      this.cbConviteComp?.(p);
+    });
     ch.subscribe((st: string) => {
       if (st !== "SUBSCRIBED") return;
       void this.pulsar();
@@ -228,6 +302,10 @@ class FriendsSession {
   /** Convida um amigo p/ o grupo, esteja ele em que área estiver. */
   async convidar(uid: string, partyId: string, meuNome: string, meuIdDeGrupo: string): Promise<void> {
     await this.env("convite", { party: partyId, de: meuNome, deId: meuIdDeGrupo, para: uid });
+  }
+  /** Chama alguém p/ a Companhia pelo canal global (alcança outra área). */
+  async convidarCompanhia(uid: string, guildId: string, nome: string, tag: string, meuNome: string): Promise<void> {
+    await this.env("conv_comp", { guildId, nome, tag, de: meuNome, para: uid });
   }
 
   async sair(): Promise<void> {

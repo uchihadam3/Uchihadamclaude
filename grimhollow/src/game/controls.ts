@@ -255,6 +255,14 @@ export interface GuildMember {
   uid: string; nome: string; classId: string; nivel: number;
   posto: GuildPosto; online: boolean; onde: string;
 }
+/** Um jogador achado pela busca por nick (está sempre online — ver friends.ts). */
+export interface FoundEntry {
+  uid: string; name: string; classId: string; level: number;
+  onde: string;      // área legível
+  amigo: boolean;    // já está na minha lista?
+  naCompanhia: boolean; // já é do meu quadro?
+  perto: boolean;    // está na minha área (aí dá p/ convidar pelo canal da zona)
+}
 export interface GuildInfo {
   nome: string; tag: string; lema: string; criadaEm: number;
   meuUid: string;   // p/ marcar qual linha do quadro sou eu
@@ -303,6 +311,16 @@ export interface HUD {
   guildError(msg: string): void;
   /** Abre/fecha a janela (o atalho de teclado e o botão passam por aqui). */
   openGuild(on?: boolean): void;
+  /** Resultado da busca por nick (a tela só desenha; quem procura é o jogo). */
+  setFound(termo: string, achados: FoundEntry[]): void;
+  /** Abre o painel social já na aba de busca (o botão da Companhia usa). */
+  openSearch(): void;
+  onSearch(cbs: {
+    buscar: (termo: string) => void;
+    grupo: (uid: string) => void;
+    amigo: (uid: string) => void;
+    companhia: (uid: string) => void;
+  }): void;
   onGuild(cbs: {
     fundar: (nome: string, tag: string, lema: string) => void;
     sair: () => void;
@@ -1614,7 +1632,14 @@ export function setupControls(
   root.appendChild(socialBox);
   let nearby: NearbyEntry[] = [];
   let amigos: FriendEntry[] = [];
-  let aba: "perto" | "amigos" = "perto";
+  let aba: "perto" | "amigos" | "buscar" = "perto";
+  let buscaTermo = "";
+  let buscaAchados: FoundEntry[] = [];
+  let buscaFeita = false;   // já pesquisou? (separa "vazio" de "ainda não procurou")
+  let cbBuscar: (termo: string) => void = () => {};
+  let cbBuscaGrupo: (uid: string) => void = () => {};
+  let cbBuscaAmigo: (uid: string) => void = () => {};
+  let cbBuscaComp: (uid: string) => void = () => {};
   let cbConvidar: (id: string) => void = () => {};
   let cbSair: () => void = () => {};
   let cbAmigoAdd: (uid: string) => void = () => {};
@@ -1663,32 +1688,82 @@ export function setupControls(
     : `<div class="gh-so-vazio">Sua lista está vazia.<br>
          <small>Toque no <b>+</b> ao lado de quem estiver por perto.</small></div>`);
 
+  /**
+   * BUSCA POR NICK — a aba que faz o painel deixar de ser "quem está nesta sala".
+   *
+   * As três ações moram na MESMA linha (grupo, amizade, Companhia) porque a
+   * pergunta do jogador é uma só: "achei o Fulano, e agora?". Separar em três
+   * lugares de busca obrigaria a procurar a mesma pessoa três vezes.
+   *
+   * Cada ação some quando não faz sentido: sem Companhia (ou sem posto p/ chamar)
+   * não há ⚑, e quem já é amigo não mostra o +.
+   */
+  const pintaBusca = () => {
+    const podeComp = (gdPosto === "mestre" || gdPosto === "oficial");
+    const linhas = buscaAchados.map((f) => `
+      <div class="gh-so-row">
+        ${retrato(f.classId, inicial(f.name))}
+        <div class="gh-so-nome">${escapa(f.name.split(/[ ,]/)[0])}<span>nível ${f.level} · ${
+          escapa(f.onde || "em algum lugar")}${f.amigo ? " · amigo" : ""}</span></div>
+        ${podeComp && !f.naCompanhia
+          ? `<button class="gh-so-comp" data-buid="${escapa(f.uid)}" title="Chamar para a Companhia">⚑</button>` : ""}
+        ${!f.amigo ? `<button class="gh-so-add" data-uid="${escapa(f.uid)}" title="Adicionar aos amigos">+</button>` : ""}
+        <button class="gh-so-inv" data-buid="${escapa(f.uid)}">Convidar</button>
+      </div>`).join("");
+    const vazio = buscaFeita
+      ? `<div class="gh-so-vazio">Ninguém em jogo com esse nome.<br>
+           <small>A busca alcança quem está <b>online agora</b> — é quem pode
+           responder a um convite.</small></div>`
+      : `<div class="gh-so-vazio">Digite o nick de quem você procura.<br>
+           <small>Acha em qualquer área do mundo, não só nesta sala.</small></div>`;
+    return `<form class="gh-so-busca" id="gh-so-busca">
+        <input id="gh-so-q" placeholder="nick do jogador…" autocomplete="off"
+          maxlength="24" value="${escapa(buscaTermo)}"/>
+        <button type="submit" title="Buscar">🔎</button>
+      </form>${linhas || vazio}`;
+  };
+
   const pintaSocial = () => {
     const n = amigos.filter((a) => a.online).length;
     socialBox.innerHTML = `<div class="gh-so-abas">
         <button class="gh-so-aba${aba === "perto" ? " gh-so-ativa" : ""}" data-aba="perto">Por perto</button>
         <button class="gh-so-aba${aba === "amigos" ? " gh-so-ativa" : ""}" data-aba="amigos">Amigos${
           n ? ` <i>${n}</i>` : ""}</button>
-      </div>${aba === "perto" ? pintaPerto() : pintaAmigos()}
+        <button class="gh-so-aba${aba === "buscar" ? " gh-so-ativa" : ""}" data-aba="buscar">Buscar</button>
+      </div>${aba === "perto" ? pintaPerto() : aba === "amigos" ? pintaAmigos() : pintaBusca()}
       <button class="gh-so-sair">Sair do grupo</button>`;
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-aba").forEach((b2) =>
       b2.addEventListener("click", () => {
-        aba = (b2.dataset.aba as "perto" | "amigos") || "perto";
+        aba = (b2.dataset.aba as typeof aba) || "perto";
         pintaSocial();
+        if (aba === "buscar") (socialBox.querySelector("#gh-so-q") as HTMLInputElement)?.focus();
       }));
+    // ---- busca: enviar, e o teclado não pode mexer no herói ----
+    const form = socialBox.querySelector("#gh-so-busca") as HTMLFormElement | null;
+    const campo = socialBox.querySelector("#gh-so-q") as HTMLInputElement | null;
+    campo?.addEventListener("keydown", (e) => e.stopPropagation());
+    campo?.addEventListener("input", () => { buscaTermo = campo.value; });
+    form?.addEventListener("submit", (e) => { e.preventDefault(); cbBuscar(campo?.value ?? ""); });
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-inv").forEach((b2) =>
       b2.addEventListener("click", () => {
-        if (b2.dataset.amigo) cbAmigoInv(b2.dataset.amigo);
+        // três origens, três chaves: vizinho vai por id de SESSÃO (canal da zona),
+        // amigo e achado vão por uid do PERSONAGEM (canal global, alcança longe)
+        if (b2.dataset.buid) cbBuscaGrupo(b2.dataset.buid);
+        else if (b2.dataset.amigo) cbAmigoInv(b2.dataset.amigo);
         else cbConvidar(b2.dataset.id || "");
         socialBox.style.display = "none";
       }));
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-comp").forEach((b2) =>
       b2.addEventListener("click", () => {
-        cbCompInv(b2.dataset.id || "");
+        if (b2.dataset.buid) cbBuscaComp(b2.dataset.buid);
+        else cbCompInv(b2.dataset.id || "");
         socialBox.style.display = "none";
       }));
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-add").forEach((b2) =>
-      b2.addEventListener("click", () => cbAmigoAdd(b2.dataset.uid || "")));
+      b2.addEventListener("click", () => {
+        if (aba === "buscar") cbBuscaAmigo(b2.dataset.uid || "");
+        else cbAmigoAdd(b2.dataset.uid || "");
+      }));
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-del").forEach((b2) =>
       b2.addEventListener("click", () => cbAmigoDel(b2.dataset.uid || "")));
     (socialBox.querySelector(".gh-so-sair") as HTMLButtonElement)
@@ -1726,8 +1801,11 @@ export function setupControls(
       50%{box-shadow:0 2px 6px rgba(0,0,0,.6),0 0 10px rgba(244,200,71,.55);}}
 
     /* JANELA: a MOLDURA DE ARTE das outras janelas do jogo (eq_frame 9-slice) */
+    /* Largura: cabiam duas ações por linha; com a busca são TRÊS (grupo, amizade,
+       Companhia) e o nome passou a ser cortado no meio. O painel cresce o
+       bastante p/ o nome e a área continuarem legíveis ao lado delas. */
     #gh-socialbox{position:fixed;z-index:30;pointer-events:auto;
-      right:calc(12px + min(118px,27vw) + 8px);top:56px;width:min(250px,66vw);
+      right:calc(12px + min(118px,27vw) + 8px);top:56px;width:min(320px,80vw);
       box-sizing:border-box;border:22px solid transparent;
       border-image:url(${eqFrameUrl}) 90 fill;
       filter:drop-shadow(0 6px 18px rgba(0,0,0,.65));
@@ -1760,8 +1838,11 @@ export function setupControls(
       border:2px solid rgba(0,0,0,.45);box-shadow:inset 0 -3px 6px rgba(0,0,0,.35);}
     .gh-so-nome{flex:1;min-width:0;font-family:"Cinzel",serif;font-size:12px;
       color:#f0e2c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    /* o subtítulo (nível · área) também precisa cortar com reticências: sem isto
+       ele empurrava os botões p/ fora e o nome perdia o espaço dele */
     .gh-so-nome span{display:block;color:#a3906b;font-size:9.5px;
-      font-family:"Trebuchet MS",sans-serif;letter-spacing:.03em;}
+      font-family:"Trebuchet MS",sans-serif;letter-spacing:.03em;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .gh-so-inv,.gh-so-sair,.gh-so-add,.gh-so-del{cursor:pointer;color:#f0dca2;font-size:11px;
       font-family:"Cinzel",serif;letter-spacing:.04em;
       background:linear-gradient(#3a2c1c,#1c130a);
@@ -1770,7 +1851,8 @@ export function setupControls(
     .gh-so-inv:hover,.gh-so-sair:hover,.gh-so-add:hover,.gh-so-del:hover{color:#fff;border-color:#f4c847;}
     .gh-so-inv:active,.gh-so-sair:active,.gh-so-add:active,.gh-so-del:active{transform:scale(.94);}
     /* "+" e "×": alvos pequenos mas com área de toque decente p/ o celular */
-    .gh-so-add,.gh-so-del,.gh-so-comp{flex:none;padding:4px 8px;font-size:14px;line-height:1;}
+    .gh-so-add,.gh-so-del,.gh-so-comp{flex:none;padding:4px 7px;font-size:14px;line-height:1;}
+    .gh-so-inv{flex:none;padding:5px 8px;}
     /* ⚑ da Companhia: dourado, p/ não se confundir com o "+" de amizade */
     .gh-so-comp{color:#f4c847;border-color:rgba(244,200,71,.6);
       background:linear-gradient(#3a2c1c,#1c130a);}
@@ -1781,6 +1863,16 @@ export function setupControls(
     .gh-so-vazio{color:#9c8c6e;font-size:11.5px;line-height:1.5;
       text-align:center;padding:8px 4px 6px;}
     .gh-so-vazio small{color:#7d7057;font-size:10px;}
+    /* BUSCA: campo + lupa, colados, ocupando a largura toda do painel */
+    .gh-so-busca{display:flex;gap:5px;margin:2px 0 8px;}
+    .gh-so-busca input{flex:1;min-width:0;font-family:"Trebuchet MS",sans-serif;
+      font-size:13px;padding:6px 9px;border-radius:5px;color:#f0e2c0;
+      background:rgba(10,8,6,.72);border:1px solid rgba(201,162,74,.45);outline:none;}
+    .gh-so-busca input:focus{border-color:#f4c847;}
+    .gh-so-busca button{flex:none;width:34px;padding:0;font-size:14px;line-height:1;
+      cursor:pointer;border-radius:5px;color:#f0dca2;
+      background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.6);}
+    .gh-so-busca button:hover{color:#fff;border-color:#f4c847;}
   `;
   root.appendChild(socialCss);
 
@@ -1907,7 +1999,7 @@ export function setupControls(
       </div>
       <div class="gh-gd-quadro">${gdQuadro()}</div>
       <div class="gh-gd-pe">
-        ${podeChamar ? '<button class="gh-gd-chamar">Chamar quem está por perto</button>' : ""}
+        ${podeChamar ? '<button class="gh-gd-chamar">Chamar jogador</button>' : ""}
         <button class="gh-gd-sair">${
           gdPosto === "mestre" && gdMembros.length <= 1 ? "Dissolver a Companhia" : "Deixar a Companhia"}</button>
       </div>`;
@@ -1921,14 +2013,16 @@ export function setupControls(
       b2.addEventListener("click", () => cbGdExpulsar(b2.dataset.uid || "")));
     (guildBody.querySelector(".gh-gd-sair") as HTMLButtonElement)
       ?.addEventListener("click", () => cbGdSair());
-    // "Chamar quem está por perto" não abre uma lista nova: leva ao painel social,
-    // que já é a lista de vizinhos. Duas listas de gente por perto seria uma a mais.
+    // "Chamar jogador" não abre uma lista nova: leva ao painel social, na aba de
+    // BUSCA — de lá dá p/ achar por nick em qualquer área e também ver quem está
+    // por perto, num lugar só. Duas buscas de gente seria uma a mais.
     (guildBody.querySelector(".gh-gd-chamar") as HTMLButtonElement)
       ?.addEventListener("click", () => {
         guildWin.classList.add("gh-eq-hidden");
-        aba = "perto";
+        aba = "buscar";
         socialBox.style.display = "block";
         pintaSocial();
+        (socialBox.querySelector("#gh-so-q") as HTMLInputElement)?.focus();
       });
     const form = guildBody.querySelector("#gh-gd-form") as HTMLFormElement | null;
     form?.addEventListener("submit", (e) => {
@@ -3685,6 +3779,26 @@ export function setupControls(
       }
     },
     openGuild(on) { abrirGuild(on); },
+    setFound(termo, achados) {
+      buscaTermo = termo; buscaAchados = achados; buscaFeita = true;
+      if (socialBox.style.display !== "none" && aba === "buscar") {
+        pintaSocial();
+        // repintar recria o campo: devolve o foco e o cursor ao fim, senão
+        // procurar duas vezes seguidas exige tocar no campo de novo
+        const c = socialBox.querySelector("#gh-so-q") as HTMLInputElement | null;
+        if (c) { c.focus(); c.setSelectionRange(c.value.length, c.value.length); }
+      }
+    },
+    openSearch() {
+      aba = "buscar";
+      socialBox.style.display = "block";
+      pintaSocial();
+      (socialBox.querySelector("#gh-so-q") as HTMLInputElement)?.focus();
+    },
+    onSearch(cbs) {
+      cbBuscar = cbs.buscar; cbBuscaGrupo = cbs.grupo;
+      cbBuscaAmigo = cbs.amigo; cbBuscaComp = cbs.companhia;
+    },
     onGuild(cbs) {
       cbFundar = cbs.fundar; cbGdSair = cbs.sair; cbGdPosto = cbs.posto;
       cbGdExpulsar = cbs.expulsar; cbCompInv = cbs.convidarPeer;

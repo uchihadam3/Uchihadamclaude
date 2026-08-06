@@ -85,7 +85,7 @@ import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry, type GuildPosto } from "./controls";
 import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato, type ConviteCompanhiaNet } from "./net";
 import { party, MAX_GRUPO, type Membro, type Convite, type Efeito } from "./party";
-import { friends, heroId, type Amigo } from "./friends";
+import { friends, heroId, normalizar, type Amigo, type Jogador } from "./friends";
 import { guild, validarFundacao } from "./guild";
 // TOMBADO: quanto tempo o herói fica caído esperando um companheiro (em grupo).
 // Longo o bastante p/ alguém do outro lado da sala chegar, curto o bastante p/ não
@@ -2242,12 +2242,16 @@ export class Game {
       const cmd = t.trim().toLowerCase();
       if (cmd === "/sair" || cmd === "/grupo sair") { this.sairDoGrupo(); return; }
       if (cmd.startsWith("/convidar")) {
-        const alvo = t.trim().slice(9).trim().toLowerCase();
-        if (!alvo) { this.ui.toast("Use: /convidar <nome de quem está por perto>"); return; }
-        const achado = [...this.peers.entries()]
-          .find(([, r]) => r.name.toLowerCase().startsWith(alvo));
-        if (!achado) { this.ui.toast(`Ninguém por perto chamado "${alvo}".`); return; }
-        this.convidarParaGrupo(achado[0]);
+        const alvo = t.trim().slice(9).trim();
+        if (!alvo) { this.ui.toast("Use: /convidar <nick do jogador>"); return; }
+        // PERTO PRIMEIRO: quem está na sala vai pelo canal da zona, que é o
+        // caminho mais curto. Só se não estiver é que se procura no mundo todo.
+        const perto = [...this.peers.entries()]
+          .find(([, r]) => normalizar(r.name).startsWith(normalizar(alvo)));
+        if (perto) { this.convidarParaGrupo(perto[0]); return; }
+        const longe = friends.achar(alvo);
+        if (!longe) { this.ui.toast(`Ninguém em jogo chamado "${alvo}".`); return; }
+        this.convidarPorUid(longe.uid, longe.name.split(/[ ,]/)[0]);
         return;
       }
       // CANAL DO GRUPO: a fala vai só p/ quem está no grupo, e chega mesmo se um
@@ -2298,6 +2302,19 @@ export class Game {
       expulsar: (uid) => { void this.expulsarDaCompanhia(uid); },
       convidarPeer: (peerId) => this.convidarParaCompanhia(peerId),
     });
+    this.ui.onSearch({
+      buscar: (termo) => this.buscarJogador(termo),
+      grupo: (uid) => {
+        const j = this.busca.find((x) => x.uid === uid);
+        this.convidarPorUid(uid, j ? j.name.split(/[ ,]/)[0] : "jogador");
+      },
+      amigo: (uid) => this.adicionarAmigo(uid),
+      companhia: (uid) => this.chamarPorUid(uid),
+    });
+    // chamado de Companhia vindo de LONGE (canal global): mesmo aviso do de perto
+    friends.onConviteCompanhia((c) => this.receberConviteCompanhia({
+      guildId: c.guildId, nome: c.nome, tag: c.tag, de: c.de, para: "",
+    }));
     void guild.entrar(this.euNaCompanhia());
     window.setInterval(() => guild.meuEstado(this.euNaCompanhia()), 4000);
     void (async () => {
@@ -5503,9 +5520,12 @@ export class Game {
   }
   /** Guarda um vizinho na lista de amigos (o "+" da aba "Por perto"). */
   private adicionarAmigo(uid: string): void {
+    // o nome pode vir de duas origens: o vizinho que está na sala ou o achado da
+    // busca por nick — quem foi achado longe não tem avatar aqui p/ consultar
     const p = [...this.peers.values()].find((r) => r.uid === uid);
+    const j = this.busca.find((x) => x.uid === uid);
     const a: Amigo = {
-      uid, name: p?.name ?? "Viajante", classId: p?.classId ?? "",
+      uid, name: p?.name ?? j?.name ?? "Viajante", classId: p?.classId ?? j?.classId ?? "",
     };
     void friends.adicionar(a).then((entrou) => {
       this.ui.toast(entrou
@@ -5526,14 +5546,26 @@ export class Game {
    * Convida um AMIGO p/ o grupo. É o que ele tem de diferente do vizinho: o
    * convite não vai pelo canal da zona, então alcança quem já está noutra área.
    */
-  private convidarAmigo(uid: string): void {
+  /**
+   * Convida p/ o grupo pelo UID DO PERSONAGEM — o caminho que alcança longe.
+   *
+   * O convite do vizinho anda pelo canal da ZONA e é endereçado ao id de sessão:
+   * exige estar na mesma sala. Este anda pelo canal GLOBAL e é endereçado ao uid,
+   * então serve p/ o amigo que já desceu p/ a masmorra e p/ quem foi achado pelo
+   * nick — que é justamente quem não está por perto.
+   */
+  private convidarPorUid(uid: string, quem = "jogador"): void {
     if (party.cheio()) { this.ui.toast(`Grupo cheio (${MAX_GRUPO}).`); return; }
     void (async () => {
       if (!party.emGrupo()) await party.criar(this.euNoGrupo());
       if (!party.emGrupo()) { this.ui.toast("Sem conexão para formar grupo."); return; }
       await friends.convidar(uid, party.partyId(), this.playerName || "Viajante", this.netId());
-      this.ui.toast("Convite enviado ao seu amigo.");
+      this.ui.toast(`Convite enviado a ${quem}.`);
     })();
+  }
+  private convidarAmigo(uid: string): void {
+    const a = friends.lista().find((x) => x.uid === uid);
+    this.convidarPorUid(uid, a ? a.name.split(/[ ,]/)[0] : "seu amigo");
   }
 
   // ==================== COMPANHIA (guilda) ====================
@@ -5643,6 +5675,40 @@ export class Game {
    * entro ou saio de uma Companhia — três momentos na vida do personagem.
    */
   private marcaPublicada = "";
+  /** Último resultado da busca por nick — guardado p/ resolver uid → nome/classe
+   *  nas ações da linha (quem foi achado longe não tem avatar aqui p/ consultar). */
+  private busca: Jogador[] = [];
+
+  /**
+   * BUSCA POR NICK. Quem responde é o canal global dos amigos: ele já carrega
+   * todo mundo que está em jogo, então procurar não custa consulta ao banco.
+   *
+   * Aqui só se traduz o que a tela precisa saber além do nome: se a pessoa já é
+   * amiga, se já é do meu quadro, e a área dela em português.
+   */
+  private buscarJogador(termo: string): void {
+    const t = termo.trim();
+    this.busca = t.length >= 2 ? friends.buscar(t) : [];
+    const meuQuadro = new Set(guild.lista().map((m) => m.uid));
+    const minhaZona = this.netZoneKey();
+    this.ui.setFound(t, this.busca.map((j) => ({
+      uid: j.uid, name: j.name, classId: j.classId, level: j.level,
+      onde: nomeDaZona(j.zone),
+      amigo: friends.ehAmigo(j.uid),
+      naCompanhia: meuQuadro.has(j.uid),
+      perto: j.zone === minhaZona,
+    })));
+    if (t.length >= 2 && !this.busca.length) this.ui.toast(`Ninguém em jogo chamado "${t}".`);
+  }
+  /** Chama p/ a Companhia alguém achado pelo nick (pode estar noutra área). */
+  private chamarPorUid(uid: string): void {
+    const c = guild.companhia();
+    if (!c) { this.ui.toast("Você ainda não tem Companhia."); return; }
+    if (!guild.possoConvidar()) { this.ui.toast("Só Mestre e Oficiais chamam."); return; }
+    const j = this.busca.find((x) => x.uid === uid);
+    void friends.convidarCompanhia(uid, c.id, c.nome, c.tag, this.playerName || "Viajante");
+    this.ui.toast(`Chamado enviado a ${j ? j.name.split(/[ ,]/)[0] : "jogador"}.`);
+  }
   private atualizarEtiquetaPeer(): void {
     const marca = guild.etiqueta();
     if (marca === this.marcaPublicada) return;
