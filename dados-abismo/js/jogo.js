@@ -806,7 +806,7 @@ function pintar(){
     .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
   $('voce').innerHTML=`<span class="pill perigo ${pi.letal?'letal':''}">☠ ${pi.total}</span>
     <span class="pill">❤ <b>${P.hp}</b>/${P.maxHp}</span>
-    <span class="pill">🛡 ${P.block}</span><span class="pill">⟳ ${cb.rerolls}</span>
+    <span class="pill" id="pesc">🛡 ${P.block}</span><span class="pill">⟳ ${cb.rerolls}</span>
     ${P.essence?`<span class="pill">✦ ${P.essence}</span>`:''}${stp?`<span class="pill">${stp}</span>`:''}`;
   const pool=cb.pool(), selEnts=cb.roll.filter(e=>sel.has(e.dieId));
   const skills=habilidadesAtuais();
@@ -1015,15 +1015,28 @@ const COR_ACAO = { heal:'#7ef2a8', curse:'#c07cff', debuff:'#c07cff',
                    inverter:'#8fd8ff', contar:'#ff5a4a',
                    selar:'#c9a6ff', taxa:'#ffd24a', drenar:'#ff6a8a',
                    enterrar:'#a98a5e', exigir:'#ff9d2b', crescer:'#7ef2a8' };
-function animarInimigos(acoes){
+/* escreve o escudo no HUD; `bateu` faz o número pulsar e soltar a lasca
+   azul, para o jogador VER o pedaço que acabou de ser comido */
+function mostrarEscudo(v, bateu, quanto){
+  const el=$('pesc'); if(!el) return;
+  el.innerHTML = '🛡 ' + Math.max(0, v);
+  if(!bateu) return;
+  el.classList.remove('bateu'); void el.offsetWidth; el.classList.add('bateu');
+  if(quanto>0){
+    const l=document.createElement('b'); l.className='escl'; l.textContent='−'+quanto;
+    el.appendChild(l); setTimeout(()=>l.remove(), 900);
+  }
+}
+function animarInimigos(acoes, blocoCheio){
   if(!acoes || !acoes.length) return 0;
+  let escudo = blocoCheio==null ? null : blocoCheio;
   /* MAIS DEVAGAR. O turno inimigo passava rápido demais para acompanhar: com
      três ou quatro atacantes os golpes se atropelavam e não dava para ver
      qual card disparou nem quanto entrou. Cada golpe agora tem os seus quatro
      tempos separados — arma, bate, viaja, chega — com folga entre eles.
      Com a mesa cheia o passo encurta um pouco, mas nunca volta ao atropelo. */
-  const PASSO = acoes.length>4 ? 900 : acoes.length>2 ? 1080 : 1240;
-  const ARMA=0, BATE=420, VIAJA=540, CHEGA=1060;   // os quatro tempos
+  const PASSO = acoes.length>4 ? 1060 : acoes.length>2 ? 1260 : 1440;
+  const ARMA=0, BATE=480, VIAJA=620, CHEGA=1200;   // os quatro tempos
   acoes.forEach((a,i)=>{
     const t0=i*PASSO;
     const achaEl=()=>document.querySelector(`.en[data-uid="${a.uid}"]`);
@@ -1058,6 +1071,10 @@ function animarInimigos(acoes){
     }, t0+VIAJA);
     /* 4 · CHEGA — o estrago aparece em você */
     setTimeout(()=>{
+      /* o escudo desce AQUI, no golpe que o comeu — não lá atrás, tudo de
+         uma vez. 20 de escudo contra golpes de 8, 5 e 5 vira 12, 7 e 2 na
+         cara do jogador, um passo por atacante. */
+      if(escudo!==null && a.aparado>0){ escudo -= a.aparado; mostrarEscudo(escudo, true, a.aparado); }
       // aparado tinha só uma etiqueta silenciosa: não dava pra saber, no meio
       // da animação, se o golpe entrou ou morreu no seu bloqueio
       if(a.dano>0){ SFX.dano(); tremor(Math.min(16,5+a.dano*0.6)); flashJog(a.dano);
@@ -1216,11 +1233,21 @@ $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
   sel.clear(); rolarVisual(rolados); pintar(); };
 $('bfim').onclick=()=>{ if(anima) return;
   sel.clear(); previa=null; const antes=snapHP(), hpA=P.hp;
+  /* O ESCUDO PARECIA ZERAR DE UMA VEZ. O motor resolve o turno inimteiro
+     inteiro num instante e a animação é uma reencenação do que já aconteceu;
+     como pintar() vem antes dela, o HUD já mostrava o bloqueio todo gasto
+     enquanto o primeiro inimigo ainda estava tomando impulso. O motor sempre
+     esteve certo — cada golpe come um pedaço e o resto sobrevive até o SEU
+     próximo turno. Agora a tela conta a mesma história: guardo o escudo
+     cheio, devolvo ele ao HUD depois do repinte, e cada golpe que chega
+     desce a sua parte. */
+  const blocoCheio = P.block;
   const r=cb.endTurn();
   const acoes=cb.acoesInimigo||[];
   pintar();                                   // pinta primeiro, depois os efeitos
+  mostrarEscudo(blocoCheio);                  // ...e o escudo volta a aparecer cheio
   anima=true;                                 // trava enquanto o inimigo age
-  const espera=animarInimigos(acoes);
+  const espera=animarInimigos(acoes, blocoCheio);
   juice(antes,hpA,acoes);
   if(r){ setTimeout(fim, espera+520); return; }
   setTimeout(()=>{ anima=false; rolarVisual(); pintar(); }, Math.max(340, espera)); };

@@ -488,7 +488,17 @@ export class Combat {
                          const v = evalExpr(e.n,ctx);
                          if(e.st==='veneno'||e.st==='sangramento') this.envenenar(en, v, e.st, e.tgt==='all');
                          else en.statuses[e.st]=(en.statuses[e.st]||0)+v; }); break;
-        case 'selfStatus': this.p.statuses[e.st]=(this.p.statuses[e.st]||0)+evalExpr(e.n,ctx); break;
+        case 'selfStatus': {
+          const v = evalExpr(e.n,ctx);
+          /* ESPINHOS RENOVA, NÃO EMPILHA. Ele decai 1 por turno, mas a Muralha
+             dá +3 a cada uso: o saldo era +2 por turno e bastava repetir a
+             carta para virar uma bola de espinhos que matava a onda inteira
+             sozinha, sem o jogador atacar. Agora usar de novo devolve a
+             duração cheia — não soma outra camada por cima. */
+          if(e.st==='espinhos' || e.st==='invisivel')
+            this.p.statuses[e.st] = Math.max(this.p.statuses[e.st]||0, v);
+          else this.p.statuses[e.st] = (this.p.statuses[e.st]||0) + v;
+          break; }
         case 'exec': this.forTargets(e.tgt, targetIdx, en=>{
                        // MÃO DO CARRASCO (árvore): a lâmina cai mais cedo
                        const pct = e.pct + (this.flags.has('execucao_larga') ? 0.07 : 0);
