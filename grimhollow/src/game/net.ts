@@ -32,6 +32,15 @@ export interface PeerState {
   col: number;
   row: number;
   facing: number;    // 0=N 1=L 2=S 3=O
+  // marca da COMPANHIA, já entre chevrons («III»). Vem pronta em vez de um id
+  // porque quem vê o avatar não tem como consultar a companhia alheia — e a
+  // plaquinha sobre a cabeça precisa da marca, não da chave.
+  guild?: string;
+}
+
+/** Convite p/ uma Companhia, viajando pelo canal da zona (como o do grupo). */
+export interface ConviteCompanhiaNet {
+  guildId: string; nome: string; tag: string; de: string; para: string;
 }
 
 type PeersCb = (peers: PeerState[]) => void;
@@ -124,6 +133,7 @@ class NetSession {
   private mobsCb: MobsCb | null = null;
   private golpeCb: GolpeCb | null = null;
   private conviteCb: ((p: { party: string; de: string; deId: string; para: string }) => void) | null = null;
+  private convCompCb: ((p: ConviteCompanhiaNet) => void) | null = null;
   private lastPublish = 0;
   private pending: ReturnType<typeof setTimeout> | null = null;
   private enabled = false;
@@ -147,6 +157,10 @@ class NetSession {
   onMobs(cb: MobsCb | null): void { this.mobsCb = cb; }
   /** FASE 2 · o hospedeiro recebe aqui os golpes dos outros jogadores. */
   onGolpe(cb: GolpeCb | null): void { this.golpeCb = cb; }
+  /** COMPANHIA · convite recebido de alguém da mesma zona (só o destinatário reage). */
+  onConviteCompanhia(cb: ((p: ConviteCompanhiaNet) => void) | null): void {
+    this.convCompCb = cb;
+  }
   /** GRUPO · convite recebido de alguém da mesma zona (só o destinatário reage). */
   onConvite(cb: ((p: { party: string; de: string; deId: string; para: string }) => void) | null): void {
     this.conviteCb = cb;
@@ -210,9 +224,15 @@ class NetSession {
       diag.recebidas++;
       const p = (msg as { payload?: Partial<PeerState> })?.payload;
       if (!p || !p.id || p.id === this.self?.id) return;
+      // o `uid` FALTAVA aqui. Ele era publicado e chegava no pacote, mas esta
+      // reconstrução campo a campo o deixava de fora — e sem ele o botão "+" de
+      // adicionar amigo nunca aparecia p/ ninguém, porque a lista de vizinhos só
+      // o oferece a quem tem identidade estável. Copiar campo a campo é o que
+      // torna esse esquecimento possível; por isso o `guild` entra junto.
       this.vistos.set(p.id, {
         st: {
-          id: p.id, name: p.name ?? "Viajante", classId: p.classId ?? "guerreiro",
+          id: p.id, uid: p.uid, name: p.name ?? "Viajante",
+          classId: p.classId ?? "guerreiro", guild: p.guild,
           level: p.level ?? 1, col: p.col ?? 0, row: p.row ?? 0, facing: p.facing ?? 0,
         },
         t: Date.now(),
@@ -250,6 +270,19 @@ class NetSession {
       const p = (msg as { payload?: { party?: string; de?: string; deId?: string; para?: string } })?.payload;
       if (!p?.party || p.para !== this.self?.id) return; // convite é nominal
       this.conviteCb?.({ party: p.party, de: p.de ?? "Alguém", deId: p.deId ?? "", para: p.para ?? "" });
+    });
+
+    // ---- COMPANHIA: convite pelo mesmo caminho do grupo. Chamar alguém p/ a
+    // Companhia exige estar PERTO — é um vínculo longo, e obrigar o encontro
+    // impede a praga de convite em massa que todo canal global vira.
+    ch.on("broadcast", { event: "conv_comp" }, (msg: unknown) => {
+      diag.recebidas++;
+      const p = (msg as { payload?: ConviteCompanhiaNet })?.payload;
+      if (!p?.guildId || p.para !== this.self?.id) return;
+      this.convCompCb?.({
+        guildId: p.guildId, nome: p.nome ?? "uma Companhia", tag: p.tag ?? "",
+        de: p.de ?? "Alguém", para: p.para ?? "",
+      });
     });
 
     // ---- PRESENCE fica como reforço: serve p/ sumir na hora quem fecha a aba ----

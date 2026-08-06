@@ -93,6 +93,14 @@ class SupabaseBackend implements SaveBackend {
 
 export interface CloudUser { id: string; email?: string; name?: string; }
 
+// QUEM ESTÁ LOGADO AGORA (null = Convidado).
+// A Companhia precisa saber disso p/ decidir entre mostrar o formulário de
+// fundação ou explicar que aquilo pede conta — e precisa saber SEM ida à rede,
+// senão a janela abriria errada e se corrigiria meio segundo depois. Por isso o
+// valor fica anotado aqui, atualizado nos três pontos que o mudam.
+let usuarioAtual: CloudUser | null = null;
+export function currentUser(): CloudUser | null { return usuarioAtual; }
+
 // sessão já ativa? (voltou do OAuth ou "lembrar-me"). Se sim, liga o backend de nuvem.
 export async function restoreCloudSession(): Promise<CloudUser | null> {
   if (!isSupabaseConfigured()) return null;
@@ -104,7 +112,8 @@ export async function restoreCloudSession(): Promise<CloudUser | null> {
     if (!u.user) return null;
     setActiveBackend(new SupabaseBackend(sb, u.user.id));
     const meta = u.user.user_metadata ?? {};
-    return { id: u.user.id, email: u.user.email, name: (meta.full_name as string) || (meta.name as string) || u.user.email };
+    usuarioAtual = { id: u.user.id, email: u.user.email, name: (meta.full_name as string) || (meta.name as string) || u.user.email };
+    return usuarioAtual;
   } catch { return null; }
 }
 
@@ -120,7 +129,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
   const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error || !data.user) throw new Error(error?.message || "E-mail ou senha inválidos.");
   setActiveBackend(new SupabaseBackend(sb, data.user.id));
-  return { id: data.user.id, email: data.user.email };
+  usuarioAtual = { id: data.user.id, email: data.user.email };
+  return usuarioAtual;
 }
 // cria a conta. Se a confirmação por e-mail estiver LIGADA no Supabase, não vem
 // sessão → o jogador precisa confirmar pelo link. Se estiver DESLIGADA, já loga.
@@ -130,12 +140,14 @@ export async function signUpWithEmail(email: string, password: string): Promise<
   if (error) throw new Error(error.message || "Não foi possível criar a conta.");
   if (data.session && data.user) {
     setActiveBackend(new SupabaseBackend(sb, data.user.id));
-    return { user: { id: data.user.id, email: data.user.email }, needsConfirm: false };
+    usuarioAtual = { id: data.user.id, email: data.user.email };
+    return { user: usuarioAtual, needsConfirm: false };
   }
   return { user: null, needsConfirm: true };
 }
 
 export async function signOutCloud(): Promise<void> {
   try { if (isSupabaseConfigured()) { const sb = await getClient(); await sb.auth.signOut(); } } catch { /* ignora */ }
+  usuarioAtual = null;
   setActiveBackend(localBackend);
 }

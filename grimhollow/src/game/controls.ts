@@ -244,7 +244,21 @@ export interface DialogueChoice {
 }
 
 /** Para quem a fala vai: todos na ÁREA, ou só o GRUPO. */
-export type ChatCanal = "zona" | "grupo";
+export type ChatCanal = "zona" | "grupo" | "companhia";
+
+// ---- COMPANHIA (guilda): o que a tela precisa saber ----
+// Espelham os tipos de guild.ts de propósito. A tela não importa o módulo de
+// rede: recebe dados prontos, como já acontece com o grupo e com os amigos —
+// assim ela continua desenhável num teste sem nuvem nenhuma.
+export type GuildPosto = "mestre" | "oficial" | "membro";
+export interface GuildMember {
+  uid: string; nome: string; classId: string; nivel: number;
+  posto: GuildPosto; online: boolean; onde: string;
+}
+export interface GuildInfo {
+  nome: string; tag: string; lema: string; criadaEm: number;
+  meuUid: string;   // p/ marcar qual linha do quadro sou eu
+}
 
 /** Um jogador na mesma área (aba "Por perto" do painel social). */
 export interface NearbyEntry {
@@ -280,6 +294,23 @@ export interface HUD {
   // BATE-PAPO do co-op: registra quem envia, mostra mensagens e o estado da conexão.
   // `canal` diz se a fala é da ÁREA (todos por perto) ou só do GRUPO.
   setChat(onSend: (text: string, canal: ChatCanal) => void): void;
+  // ---- COMPANHIA ----
+  /** Repinta o quadro. `info` null = ainda não pertenço a nenhuma. */
+  setGuild(info: GuildInfo | null, membros: GuildMember[], meuPosto: GuildPosto | null): void;
+  /** Diz se há conta na nuvem — sem ela a janela explica em vez de oferecer o formulário. */
+  setGuildAccount(tem: boolean): void;
+  /** Mostra um erro dentro do formulário de fundação (nome repetido, etc). */
+  guildError(msg: string): void;
+  /** Abre/fecha a janela (o atalho de teclado e o botão passam por aqui). */
+  openGuild(on?: boolean): void;
+  onGuild(cbs: {
+    fundar: (nome: string, tag: string, lema: string) => void;
+    sair: () => void;
+    posto: (uid: string, p: GuildPosto) => void;
+    expulsar: (uid: string) => void;
+    /** Chama p/ a Companhia alguém da lista de vizinhos (o ⚑ do painel social). */
+    convidarPeer: (peerId: string) => void;
+  }): void;
   chatMessage(name: string, text: string, mine: boolean, canal?: ChatCanal): void;
   coopStatus(txt: string): void;
   /** SOCIAL: quem está na área agora (alimenta o painel de procurar grupo). */
@@ -301,7 +332,11 @@ export interface HUD {
    *  `null` apaga (o golpe estourou ou o chefe caiu). */
   bossCast(c: { nome: string; dica: string; frac: number } | null): void;
   /** CONVITE DE GRUPO: aviso na tela com Aceitar/Recusar e tempo p/ responder. */
-  showInvite(c: { de: string; classId?: string; segundos: number },
+  // O mesmo aviso serve p/ grupo e p/ Companhia: muda o título e a frase, não a
+  // mecânica (som, 45s de barra e dois botões grandes). Dois avisos idênticos com
+  // nomes diferentes só dariam duas chances de eles saírem do passo.
+  showInvite(c: { de: string; classId?: string; segundos: number;
+    titulo?: string; texto?: string },
     aceitar: () => void, recusar: () => void): void;
   hideInvite(): void;
   // LISTA de itens na MESMA célula (estilo saque de baú): o jogador escolhe o que
@@ -1596,9 +1631,15 @@ export function setupControls(
         // "+" adiciona à lista de amigos; some p/ quem já é amigo (nada de
         // botão que não faz nada). Precisa do uid: sem ele não dá p/ reencontrar.
         const podeAdd = !!n.uid && !n.amigo;
+        // ⚑ chama p/ a COMPANHIA. Só aparece p/ quem tem posto p/ chamar e sobre
+        // quem ainda não é do quadro — um estandarte que não faz nada é pior que
+        // estandarte nenhum.
+        const podeComp = (gdPosto === "mestre" || gdPosto === "oficial")
+          && !gdMembros.some((m) => m.uid === n.uid);
         return `<div class="gh-so-row">
           ${retrato(n.classId, inicial(n.name))}
           <div class="gh-so-nome">${nome}<span>nível ${n.level} · ${n.classId}${n.amigo ? " · amigo" : ""}</span></div>
+          ${podeComp ? `<button class="gh-so-comp" data-id="${n.id}" title="Chamar para a Companhia">⚑</button>` : ""}
           ${podeAdd ? `<button class="gh-so-add" data-uid="${n.uid}" title="Adicionar aos amigos">+</button>` : ""}
           <button class="gh-so-inv" data-id="${n.id}">Convidar</button>
         </div>`;
@@ -1639,6 +1680,11 @@ export function setupControls(
       b2.addEventListener("click", () => {
         if (b2.dataset.amigo) cbAmigoInv(b2.dataset.amigo);
         else cbConvidar(b2.dataset.id || "");
+        socialBox.style.display = "none";
+      }));
+    socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-comp").forEach((b2) =>
+      b2.addEventListener("click", () => {
+        cbCompInv(b2.dataset.id || "");
         socialBox.style.display = "none";
       }));
     socialBox.querySelectorAll<HTMLButtonElement>(".gh-so-add").forEach((b2) =>
@@ -1724,7 +1770,10 @@ export function setupControls(
     .gh-so-inv:hover,.gh-so-sair:hover,.gh-so-add:hover,.gh-so-del:hover{color:#fff;border-color:#f4c847;}
     .gh-so-inv:active,.gh-so-sair:active,.gh-so-add:active,.gh-so-del:active{transform:scale(.94);}
     /* "+" e "×": alvos pequenos mas com área de toque decente p/ o celular */
-    .gh-so-add,.gh-so-del{flex:none;padding:4px 8px;font-size:14px;line-height:1;}
+    .gh-so-add,.gh-so-del,.gh-so-comp{flex:none;padding:4px 8px;font-size:14px;line-height:1;}
+    /* ⚑ da Companhia: dourado, p/ não se confundir com o "+" de amizade */
+    .gh-so-comp{color:#f4c847;border-color:rgba(244,200,71,.6);
+      background:linear-gradient(#3a2c1c,#1c130a);}
     .gh-so-del{color:#dcb2a0;border-color:rgba(170,95,72,.5);
       background:linear-gradient(#3a2018,#1e100a);}
     .gh-so-sair{width:100%;margin-top:9px;color:#dcb2a0;
@@ -1734,19 +1783,363 @@ export function setupControls(
     .gh-so-vazio small{color:#7d7057;font-size:10px;}
   `;
   root.appendChild(socialCss);
+
+  // ======================= COMPANHIA (guilda) ================================
+  // Botão de atalho na coluna dos utilitários (abaixo do Diário) e uma janela
+  // própria — não uma aba do painel social. O painel social responde "quem está
+  // aqui agora"; a Companhia é o contrário disso: um quadro que continua o mesmo
+  // quando ninguém está online. Misturar os dois faria a lista de membros piscar
+  // junto com os vizinhos, que é justamente o que ela não deve fazer.
+  const guildBtn = document.createElement("button");
+  guildBtn.id = "gh-guild-btn";
+  guildBtn.title = "Companhia (G)";
+  guildBtn.innerHTML = `<span class="gh-gd-ico">⚑</span>`;
+  root.appendChild(guildBtn);
+
+  const guildWin = document.createElement("div");
+  guildWin.id = "gh-gd";
+  guildWin.className = "gh-eq-hidden";
+  guildWin.innerHTML = '<div id="gh-gd-win"><button id="gh-gd-close" title="Fechar">✕</button>'
+    + '<div id="gh-gd-body"></div></div>';
+  root.appendChild(guildWin);
+  const guildBody = guildWin.querySelector("#gh-gd-body") as HTMLElement;
+
+  let gdInfo: GuildInfo | null = null;
+  let gdMembros: GuildMember[] = [];
+  let gdPosto: GuildPosto | null = null;
+  let gdConta = false;              // tem conta na nuvem? (sem ela, não há Companhia)
+  let cbFundar: (nome: string, tag: string, lema: string) => void = () => {};
+  let cbGdSair: () => void = () => {};
+  let cbGdPosto: (uid: string, p: GuildPosto) => void = () => {};
+  let cbGdExpulsar: (uid: string) => void = () => {};
+  let cbCompInv: (peerId: string) => void = () => {};
+  const GD_POSTO_TIT: Record<GuildPosto, string> = {
+    mestre: "Mestre", oficial: "Oficiais", membro: "Companheiros",
+  };
+  const escapa = (s: string) =>
+    s.replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]!));
+  const dataCurta = (ms: number) => {
+    if (!ms) return "";
+    const d = new Date(ms);
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  };
+
+  /** Uma linha do quadro: ponto de presença, retrato da classe, nome, nível, onde. */
+  const gdLinha = (m: GuildMember): string => {
+    const nome = m.nome.split(/[ ,]/)[0];
+    const eu = gdInfo && m.uid === gdInfo.meuUid;
+    // os botões de comando só existem p/ o Mestre, e nunca sobre ele mesmo
+    const cmd = gdPosto === "mestre" && !eu
+      ? `<div class="gh-gd-cmd">
+           ${m.posto !== "mestre" ? `<button class="gh-gd-b gh-gd-sobe" data-uid="${escapa(m.uid)}" data-p="${
+             m.posto === "membro" ? "oficial" : "mestre"}" title="${
+             m.posto === "membro" ? "Promover a Oficial" : "Passar o bastão de Mestre"}">▲</button>` : ""}
+           ${m.posto === "oficial" ? `<button class="gh-gd-b gh-gd-desce" data-uid="${escapa(m.uid)}" data-p="membro" title="Rebaixar a Companheiro">▼</button>` : ""}
+           <button class="gh-gd-b gh-gd-fora" data-uid="${escapa(m.uid)}" title="Expulsar">✕</button>
+         </div>`
+      : "";
+    return `<div class="gh-gd-row${m.online ? "" : " gh-gd-off"}${eu ? " gh-gd-eu" : ""}">
+      <i class="gh-gd-luz"></i>
+      <div class="gh-gd-face" style="background:${CLASSE_COR[m.classId] ?? "#9a8f7e"}">${escapa(nome[0] ?? "?")}</div>
+      <div class="gh-gd-dados">
+        <div class="gh-gd-nome">${escapa(nome)}${eu ? ' <em>você</em>' : ""}
+          <span>nv ${m.nivel}${m.classId ? ` · ${escapa(m.classId)}` : ""}</span></div>
+        <div class="gh-gd-onde">${m.online ? escapa(m.onde || "em algum lugar") : "fora do jogo"}</div>
+      </div>${cmd}</div>`;
+  };
+
+  /** O quadro inteiro, um bloco por posto (é o que dá a hierarquia de relance). */
+  const gdQuadro = (): string => (["mestre", "oficial", "membro"] as GuildPosto[])
+    .map((p) => {
+      const l = gdMembros.filter((m) => m.posto === p);
+      if (!l.length) return "";
+      return `<div class="gh-gd-bloco">
+        <div class="gh-gd-sh">${GD_POSTO_TIT[p]}${p !== "mestre" ? ` <b>${l.length}</b>` : ""}</div>
+        ${l.map(gdLinha).join("")}</div>`;
+    }).join("");
+
+  /** Tela de quem ainda não tem Companhia: o que é, e o formulário p/ fundar. */
+  const gdFundacao = (): string => `
+    <div class="gh-gd-cabeca gh-gd-cabeca-vazia">
+      <div class="gh-gd-brasao gh-gd-brasao-vazio"><span>⚑</span></div>
+      <div class="gh-gd-titulos">
+        <h2>COMPANHIA</h2>
+        <p class="gh-gd-lema">"Quem desce, desce junto."</p>
+      </div>
+    </div>
+    <div class="gh-gd-texto">
+      Os fundadores de Grimhollow não diziam <i>guilda</i>: diziam <b>Companhia</b> —
+      a turma que descia um nível junta e voltava junta. A Terceira Companhia era
+      quem trabalhava no terceiro.<br><br>
+      Quem funda uma leva a marca sobre a cabeça, um canal de conversa que atravessa
+      qualquer área do mundo, e um quadro que continua lá quando você fecha o jogo.
+    </div>
+    ${gdConta ? `
+    <form class="gh-gd-form" id="gh-gd-form">
+      <label>Nome da Companhia
+        <input id="gh-gd-nome" maxlength="24" placeholder="Terceira Companhia" autocomplete="off"/></label>
+      <label>Marca <small>2 a 4 letras — é o que aparece sobre a cabeça</small>
+        <input id="gh-gd-tag" maxlength="4" placeholder="III" autocomplete="off"/></label>
+      <label>Lema <small>opcional</small>
+        <input id="gh-gd-lema" maxlength="60" placeholder="Quem desce, desce junto." autocomplete="off"/></label>
+      <div class="gh-gd-erro" id="gh-gd-erro"></div>
+      <button type="submit" class="gh-gd-fundar">Fundar Companhia</button>
+    </form>`
+    : `<div class="gh-gd-aviso">A Companhia acompanha a sua <b>conta</b>, não este
+        navegador — por isso ela precisa de login. Entre com a sua conta na tela
+        inicial e volte aqui.</div>`}`;
+
+  /** Tela de quem já tem: brasão, lema, números e o quadro por posto. */
+  const gdPainel = (info: GuildInfo): string => {
+    const online = gdMembros.filter((m) => m.online).length;
+    const podeChamar = gdPosto === "mestre" || gdPosto === "oficial";
+    return `
+      <div class="gh-gd-cabeca">
+        <div class="gh-gd-brasao"><span>${escapa(info.tag)}</span></div>
+        <div class="gh-gd-titulos">
+          <h2>${escapa(info.nome)}</h2>
+          ${info.lema ? `<p class="gh-gd-lema">"${escapa(info.lema)}"</p>` : ""}
+          <p class="gh-gd-num">
+            <b>${gdMembros.length}</b> ${gdMembros.length === 1 ? "membro" : "membros"}
+            · <b class="gh-gd-on">${online}</b> em jogo
+            ${info.criadaEm ? ` · desde ${dataCurta(info.criadaEm)}` : ""}</p>
+        </div>
+      </div>
+      <div class="gh-gd-quadro">${gdQuadro()}</div>
+      <div class="gh-gd-pe">
+        ${podeChamar ? '<button class="gh-gd-chamar">Chamar quem está por perto</button>' : ""}
+        <button class="gh-gd-sair">${
+          gdPosto === "mestre" && gdMembros.length <= 1 ? "Dissolver a Companhia" : "Deixar a Companhia"}</button>
+      </div>`;
+  };
+
+  const pintaGuild = () => {
+    guildBody.innerHTML = gdInfo ? gdPainel(gdInfo) : gdFundacao();
+    guildBody.querySelectorAll<HTMLButtonElement>(".gh-gd-sobe,.gh-gd-desce").forEach((b2) =>
+      b2.addEventListener("click", () => cbGdPosto(b2.dataset.uid || "", (b2.dataset.p || "membro") as GuildPosto)));
+    guildBody.querySelectorAll<HTMLButtonElement>(".gh-gd-fora").forEach((b2) =>
+      b2.addEventListener("click", () => cbGdExpulsar(b2.dataset.uid || "")));
+    (guildBody.querySelector(".gh-gd-sair") as HTMLButtonElement)
+      ?.addEventListener("click", () => cbGdSair());
+    // "Chamar quem está por perto" não abre uma lista nova: leva ao painel social,
+    // que já é a lista de vizinhos. Duas listas de gente por perto seria uma a mais.
+    (guildBody.querySelector(".gh-gd-chamar") as HTMLButtonElement)
+      ?.addEventListener("click", () => {
+        guildWin.classList.add("gh-eq-hidden");
+        aba = "perto";
+        socialBox.style.display = "block";
+        pintaSocial();
+      });
+    const form = guildBody.querySelector("#gh-gd-form") as HTMLFormElement | null;
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = (id: string) => (guildBody.querySelector(id) as HTMLInputElement)?.value ?? "";
+      cbFundar(v("#gh-gd-nome"), v("#gh-gd-tag"), v("#gh-gd-lema"));
+    });
+    // digitar dentro da janela não pode mexer no herói
+    guildBody.querySelectorAll<HTMLInputElement>("input").forEach((i) =>
+      i.addEventListener("keydown", (e) => e.stopPropagation()));
+  };
+  const abrirGuild = (on?: boolean) => {
+    const abrir = on ?? guildWin.classList.contains("gh-eq-hidden");
+    guildWin.classList.toggle("gh-eq-hidden", !abrir);
+    if (abrir) pintaGuild();
+  };
+  guildBtn.addEventListener("click", (e) => { e.preventDefault(); abrirGuild(); });
+  (guildWin.querySelector("#gh-gd-close") as HTMLElement)
+    .addEventListener("click", (e) => { e.preventDefault(); abrirGuild(false); });
+  guildWin.addEventListener("click", (e) => { if (e.target === guildWin) abrirGuild(false); });
+
+  const guildCss = document.createElement("style");
+  guildCss.textContent = `
+    /* ATALHO: quarto da coluna de utilitários, mesma moldura de botão dos outros */
+    #gh-guild-btn{position:fixed;left:14px;
+      top:calc(20px + min(230px,40vw) * 0.424 + 180px);z-index:12;pointer-events:auto;
+      width:52px;height:52px;border-radius:50%;cursor:pointer;padding:0;border:none;
+      background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+      filter:drop-shadow(0 2px 7px rgba(0,0,0,.55));
+      display:flex;align-items:center;justify-content:center;}
+    .gh-gd-ico{font-size:25px;line-height:1;color:#2a1e0e;
+      filter:drop-shadow(0 1px 1px rgba(255,235,180,.4));}
+    #gh-guild-btn:active{transform:scale(.94);filter:brightness(1.15);}
+    /* alguém da Companhia entrou em jogo: o estandarte acende sozinho */
+    #gh-guild-btn.gh-gd-viva .gh-gd-ico{color:#5a1c14;
+      filter:drop-shadow(0 0 5px rgba(244,200,71,.85));}
+
+    /* JANELA: mesma moldura 9-slice das outras, p/ pertencer ao jogo */
+    #gh-gd{position:fixed;inset:0;z-index:23;display:flex;align-items:center;
+      justify-content:center;background:rgba(0,0,0,.62);pointer-events:auto;}
+    #gh-gd.gh-eq-hidden{display:none;}
+    #gh-gd-win{position:relative;box-sizing:border-box;width:min(580px,94vw);
+      max-height:88vh;overflow-y:auto;color:#e8dcc0;
+      border:clamp(20px,3vh,30px) solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
+      filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));padding:2px 12px 14px;
+      font-family:"Trebuchet MS",sans-serif;}
+    #gh-gd-close{position:absolute;right:8px;top:8px;z-index:9;width:34px;height:34px;
+      border-radius:9px;cursor:pointer;font-size:17px;line-height:1;
+      background:rgba(20,16,11,.85);color:#e8d9b0;border:2px solid rgba(232,178,74,.6);
+      box-shadow:0 1px 4px #000;}
+
+    /* CABEÇA: brasão + nome + lema. É a parte que dá cara de "isto é nosso". */
+    .gh-gd-cabeca{display:flex;align-items:center;gap:14px;padding:6px 2px 12px;
+      border-bottom:1px solid rgba(201,162,74,.28);margin-bottom:10px;}
+    /* BRASÃO desenhado no CSS: escudo com a marca dentro. Sem arte nova — e um
+       escudo de verdade lê melhor que um quadrado com letras.
+       A ORDEM É POR FORA: o elemento é a BORDA dourada e o ::after é o campo
+       escuro, encolhido 3px. A primeira tentativa foi o contrário — borda como
+       ::before atrás, 3px maior —, e saiu um escudo inteiro dourado: o clip-path
+       cria contexto de empilhamento, então o pseudo-elemento com z-index
+       negativo fica atrás do CONTEÚDO mas à frente do FUNDO do pai, e cobria o
+       campo. Além disso o recorte do pai apararia os 3px que deviam sobrar. */
+    .gh-gd-brasao{flex:none;width:72px;height:80px;display:flex;align-items:center;
+      justify-content:center;position:relative;
+      clip-path:polygon(0% 0%,100% 0%,100% 62%,50% 100%,0% 62%);
+      background:linear-gradient(160deg,#f0d089,#c9a227 45%,#7a5f18);
+      filter:drop-shadow(0 3px 6px rgba(0,0,0,.55));}
+    .gh-gd-brasao::after{content:"";position:absolute;inset:3px;
+      clip-path:polygon(0% 0%,100% 0%,100% 62%,50% 100%,0% 62%);
+      background:linear-gradient(160deg,#6d2b21,#3a1410 55%,#25100c);
+      box-shadow:inset 0 2px 0 rgba(255,220,160,.22),inset 0 -12px 18px rgba(0,0,0,.5);}
+    .gh-gd-brasao span{position:relative;z-index:1;
+      font-family:"Cinzel",serif;font-size:23px;letter-spacing:.04em;
+      color:#f6e6b8;text-shadow:0 2px 3px #000,0 0 10px rgba(244,200,71,.35);
+      margin-bottom:14px;}
+    /* escudo em branco (ainda sem Companhia): o ⚑ precisa ser um <span> como a
+       marca — texto solto no próprio escudo fica ATRÁS do ::after do campo. */
+    .gh-gd-brasao-vazio span{font-size:30px;color:#e6cf95;margin-bottom:10px;
+      text-shadow:0 2px 4px #000;font-family:inherit;}
+    .gh-gd-titulos{min-width:0;flex:1;}
+    /* o ✕ mora no canto: o título reserva o espaço dele, senão um nome comprido
+       passa por baixo do botão e as duas coisas ficam ilegíveis */
+    .gh-gd-titulos h2{margin:0;padding-right:38px;font-family:"Cinzel",serif;
+      font-size:20px;letter-spacing:.05em;color:#f4e3ba;text-shadow:0 2px 4px #000;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .gh-gd-lema{margin:3px 0 0;font-size:12.5px;font-style:italic;color:#c3ac7e;}
+    .gh-gd-num{margin:6px 0 0;font-size:11.5px;color:#9c8c6e;letter-spacing:.02em;}
+    .gh-gd-num b{color:#e0cd9c;font-weight:400;}
+    .gh-gd-num b.gh-gd-on{color:#9ccf75;}
+
+    /* QUADRO: um bloco por posto, com uma régua fina de cabeçalho */
+    .gh-gd-bloco{margin-bottom:12px;}
+    .gh-gd-sh{font-family:"Cinzel",serif;font-size:11px;letter-spacing:.16em;
+      color:#c9a227;margin:0 0 5px 2px;display:flex;align-items:center;gap:8px;}
+    .gh-gd-sh::after{content:"";flex:1;height:1px;
+      background:linear-gradient(90deg,rgba(201,162,39,.45),transparent);}
+    .gh-gd-sh b{font-weight:400;color:#8d7c5e;font-size:10px;
+      font-family:"Trebuchet MS",sans-serif;}
+    .gh-gd-row{display:flex;align-items:center;gap:9px;padding:6px 8px;margin-bottom:4px;
+      border-radius:5px;border-left:2px solid rgba(201,162,74,.55);
+      background:linear-gradient(90deg,rgba(28,22,15,.85),rgba(28,22,15,.42));}
+    .gh-gd-row.gh-gd-eu{border-left-color:#f4c847;
+      background:linear-gradient(90deg,rgba(52,40,20,.9),rgba(30,24,14,.45));}
+    .gh-gd-row.gh-gd-off{opacity:.5;}
+    /* PONTO DE PRESENÇA: verde acesa p/ quem está em jogo. É a informação que a
+       tabela não sabe dar — ela vem do canal — e a primeira coisa que se procura. */
+    .gh-gd-luz{flex:none;width:7px;height:7px;border-radius:50%;background:#9ccf75;
+      box-shadow:0 0 6px rgba(156,207,117,.9);}
+    .gh-gd-off .gh-gd-luz{background:#4b463c;box-shadow:none;}
+    .gh-gd-face{flex:none;width:34px;height:34px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-family:"Cinzel",serif;font-size:15px;color:#160f08;
+      border:2px solid rgba(0,0,0,.45);box-shadow:inset 0 -3px 6px rgba(0,0,0,.35);}
+    .gh-gd-dados{flex:1;min-width:0;}
+    .gh-gd-nome{font-family:"Cinzel",serif;font-size:13.5px;color:#f0e2c0;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .gh-gd-nome em{font-style:normal;font-size:9px;color:#f4c847;letter-spacing:.08em;
+      border:1px solid rgba(244,200,71,.45);border-radius:3px;padding:0 4px;
+      vertical-align:middle;}
+    .gh-gd-nome span{font-family:"Trebuchet MS",sans-serif;font-size:10.5px;
+      color:#a3906b;margin-left:7px;}
+    .gh-gd-onde{font-size:10.5px;color:#8d8069;margin-top:1px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .gh-gd-cmd{flex:none;display:flex;gap:3px;}
+    .gh-gd-b{width:26px;height:26px;border-radius:5px;cursor:pointer;padding:0;
+      font-size:11px;line-height:1;color:#e8dcc0;
+      background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.5);}
+    .gh-gd-b:hover{color:#fff;border-color:#f4c847;}
+    .gh-gd-b.gh-gd-fora{color:#dcb2a0;border-color:rgba(170,95,72,.55);
+      background:linear-gradient(#3a2018,#1e100a);}
+
+    /* RODAPÉ e FUNDAÇÃO */
+    .gh-gd-pe{display:flex;gap:8px;padding-top:10px;
+      border-top:1px solid rgba(201,162,74,.28);}
+    .gh-gd-pe button,.gh-gd-fundar{flex:1;padding:9px 10px;border-radius:6px;
+      cursor:pointer;font-family:"Cinzel",serif;font-size:12px;letter-spacing:.04em;
+      color:#f0dca2;background:linear-gradient(#3a2c1c,#1c130a);
+      border:1px solid rgba(201,162,39,.6);box-shadow:0 1px 3px rgba(0,0,0,.5);}
+    .gh-gd-pe button:hover,.gh-gd-fundar:hover{color:#fff;border-color:#f4c847;}
+    .gh-gd-pe .gh-gd-sair{flex:none;color:#dcb2a0;border-color:rgba(170,95,72,.55);
+      background:linear-gradient(#3a2018,#1e100a);}
+    .gh-gd-texto{font-size:12.5px;line-height:1.6;color:#c3b493;padding:2px 2px 12px;}
+    .gh-gd-texto b{color:#e8d9b0;}
+    .gh-gd-form{display:flex;flex-direction:column;gap:9px;}
+    .gh-gd-form label{display:flex;flex-direction:column;gap:3px;
+      font-family:"Cinzel",serif;font-size:11px;letter-spacing:.1em;color:#c9a227;}
+    .gh-gd-form label small{font-family:"Trebuchet MS",sans-serif;font-size:10px;
+      letter-spacing:0;color:#8d7c5e;text-transform:none;}
+    .gh-gd-form input{font-family:"Trebuchet MS",sans-serif;font-size:14px;
+      padding:8px 10px;border-radius:5px;color:#f0e2c0;
+      background:rgba(10,8,6,.72);border:1px solid rgba(201,162,74,.45);outline:none;}
+    .gh-gd-form input:focus{border-color:#f4c847;}
+    .gh-gd-fundar{margin-top:3px;}
+    .gh-gd-erro{min-height:15px;font-size:11.5px;color:#e0836a;}
+    .gh-gd-aviso{font-size:12px;line-height:1.6;color:#c3b493;padding:10px 12px;
+      border-radius:6px;background:rgba(10,8,6,.55);
+      border-left:2px solid rgba(201,162,74,.55);}
+    .gh-gd-aviso b{color:#f0dca2;}
+    /* celular deitado: o atalho entra na fileira do topo (a quarta posição) e a
+       janela usa a tela toda; o brasão encolhe p/ o cabeçalho caber. */
+    @media (orientation:landscape) and (max-height:500px){
+      #gh-guild-btn{top:6px;left:calc(50% + 50px);width:44px;height:44px;}
+      .gh-gd-ico{font-size:21px;}
+      #gh-gd-win{width:100vw;max-height:100dvh;border-width:clamp(14px,2.6vh,22px);}
+      .gh-gd-brasao{width:54px;height:60px;}
+      .gh-gd-brasao span{font-size:17px;margin-bottom:10px;}
+      .gh-gd-titulos h2{font-size:16px;}
+      .gh-gd-texto{display:none;}
+    }
+    @media (max-width:640px){
+      #gh-gd-win{width:100vw;height:100dvh;max-height:100dvh;
+        border-width:clamp(15px,2.6vh,24px);}
+    }
+  `;
+  root.appendChild(guildCss);
+
   let chatSend: ((t: string, canal: ChatCanal) => void) | null = null;
-  // canal em que estou escrevendo. "grupo" só existe enquanto há grupo — ao sair
-  // dele o seletor some e a fala volta p/ a área (senão dá p/ escrever no vazio).
+  // canal em que estou escrevendo. "grupo" só existe enquanto há grupo e
+  // "companhia" só enquanto há companhia — ao sair, o canal some do rodízio e a
+  // fala volta p/ a área (senão dá p/ escrever no vazio).
   let canal: ChatCanal = "zona";
+  let temGrupo = false;
+  let temCompanhia = false;
+  const CANAL_ROTULO: Record<ChatCanal, string> = {
+    zona: "Área", grupo: "Grupo", companhia: "Companhia",
+  };
+  const CANAL_DICA: Record<ChatCanal, string> = {
+    zona: "Falar com quem está por perto…",
+    grupo: "Falar só com o grupo…",
+    companhia: "Falar com a Companhia inteira…",
+  };
+  /** Os canais que existem AGORA — é por esta lista que o botão roda. */
+  const canaisAbertos = (): ChatCanal[] => {
+    const l: ChatCanal[] = ["zona"];
+    if (temGrupo) l.push("grupo");
+    if (temCompanhia) l.push("companhia");
+    return l;
+  };
   const pintaCanal = () => {
-    chatCanal.textContent = canal === "grupo" ? "Grupo" : "Área";
+    const abertos = canaisAbertos();
+    if (!abertos.includes(canal)) canal = "zona";
+    chatCanal.style.display = abertos.length > 1 ? "" : "none";
+    chatCanal.textContent = CANAL_ROTULO[canal];
     chatCanal.classList.toggle("gh-chat-cgrupo", canal === "grupo");
-    chatInp.placeholder = canal === "grupo"
-      ? "Falar só com o grupo…" : "Falar com quem está por perto…";
+    chatCanal.classList.toggle("gh-chat-ccomp", canal === "companhia");
+    chatInp.placeholder = CANAL_DICA[canal];
   };
   chatCanal.addEventListener("click", (e) => {
     e.preventDefault();
-    canal = canal === "grupo" ? "zona" : "grupo";
+    const abertos = canaisAbertos();
+    canal = abertos[(abertos.indexOf(canal) + 1) % abertos.length];
     pintaCanal();
     chatInp.focus();
   });
@@ -1762,8 +2155,10 @@ export function setupControls(
     const t = chatInp.value.trim();
     chatInp.value = "";
     if (!t) return;
-    // "/g mensagem" fala com o grupo sem trocar de canal — atalho de quem digita
+    // "/g msg" fala com o grupo e "/c msg" com a companhia, sem trocar de canal —
+    // atalho de quem digita rápido e não quer perder a vez de voltar p/ a área
     if (/^\/g\s+/i.test(t)) { chatSend?.(t.replace(/^\/g\s+/i, ""), "grupo"); return; }
+    if (/^\/c\s+/i.test(t)) { chatSend?.(t.replace(/^\/c\s+/i, ""), "companhia"); return; }
     chatSend?.(t, canal);
   };
   (chat.querySelector("#gh-chat-send") as HTMLElement).addEventListener("click", (e) => { e.preventDefault(); enviar(); });
@@ -1777,10 +2172,12 @@ export function setupControls(
     const esc = (s: string) => s.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
     const row = document.createElement("div");
     row.className = "gh-chat-row" + (mine ? " gh-chat-mine" : "")
-      + (cn === "grupo" ? " gh-chat-grupo" : "");
-    // a fala do grupo vem marcada: no meio do falatório da área, é o que faz saber
-    // de cara que aquilo era só p/ vocês.
-    row.innerHTML = `${cn === "grupo" ? '<i class="gh-chat-tag">[grupo]</i> ' : ""}<b>${esc(name)}:</b> ${esc(text)}`;
+      + (cn === "grupo" ? " gh-chat-grupo" : cn === "companhia" ? " gh-chat-comp" : "");
+    // a fala do grupo e a da companhia vêm marcadas: no meio do falatório da área,
+    // é o que faz saber de cara p/ quem aquilo era.
+    const marca = cn === "grupo" ? '<i class="gh-chat-tag">[grupo]</i> '
+      : cn === "companhia" ? '<i class="gh-chat-tag gh-chat-tagc">[companhia]</i> ' : "";
+    row.innerHTML = `${marca}<b>${esc(name)}:</b> ${esc(text)}`;
     chatLog.appendChild(row);
     while (chatLog.childElementCount > 6) chatLog.removeChild(chatLog.firstChild!);
     chatLog.scrollTop = chatLog.scrollHeight;
@@ -2218,9 +2615,13 @@ export function setupControls(
     } else if (e.code === "KeyJ") {
       e.preventDefault();
       if (journal.classList.contains("gh-eq-hidden")) showJournal(); else journal.classList.add("gh-eq-hidden");
+    } else if (e.code === "KeyG") {
+      e.preventDefault();
+      abrirGuild();
     } else if (e.code === "Escape") {
       closeEq();
       journal.classList.add("gh-eq-hidden");
+      abrirGuild(false);
     }
   });
   // vinheta vermelha ao levar dano
@@ -3257,6 +3658,37 @@ export function setupControls(
     },
     showPickup(tip: ItemTip, onTake: () => void) { showPickup(tip, onTake); },
     setChat(onSend: (text: string, cn: ChatCanal) => void) { chatSend = onSend; },
+    setGuild(info, membros, meuPosto) {
+      gdInfo = info; gdMembros = membros; gdPosto = meuPosto;
+      temCompanhia = !!info;
+      pintaCanal();          // o canal "Companhia" entra/sai do rodízio do bate-papo
+      // o estandarte acende quando há companheiro em jogo além de mim: é o sinal
+      // de "tem gente lá" sem precisar abrir a janela
+      guildBtn.classList.toggle("gh-gd-viva",
+        membros.filter((m) => m.online && m.uid !== info?.meuUid).length > 0);
+      if (!guildWin.classList.contains("gh-eq-hidden")) pintaGuild();
+    },
+    setGuildAccount(tem) {
+      gdConta = tem;
+      if (!guildWin.classList.contains("gh-eq-hidden") && !gdInfo) pintaGuild();
+    },
+    guildError(msg) {
+      // com o formulário aberto o erro vai nele; fora dele (expulsar, sair,
+      // promover) não há onde encaixar, então vira aviso passageiro
+      const el = guildBody.querySelector("#gh-gd-erro");
+      if (el) el.textContent = msg;
+      else if (msg) {
+        toastEl.textContent = msg;
+        toastEl.style.animation = "none";
+        void toastEl.offsetWidth;
+        toastEl.style.animation = "gh-toast 1.8s ease-out";
+      }
+    },
+    openGuild(on) { abrirGuild(on); },
+    onGuild(cbs) {
+      cbFundar = cbs.fundar; cbGdSair = cbs.sair; cbGdPosto = cbs.posto;
+      cbGdExpulsar = cbs.expulsar; cbCompInv = cbs.convidarPeer;
+    },
     chatMessage(name: string, text: string, mine: boolean, cn: ChatCanal = "zona") { pushChat(name, text, mine, cn); },
     coopStatus(txt: string) { chatStatus.textContent = txt; },
     setNearby(list) {
@@ -3284,11 +3716,12 @@ export function setupControls(
       const total = Math.max(5, c.segundos);
       let resta = total;
       invite.style.display = "block";
-      invite.innerHTML = `<div class="gh-cv-tit">CONVITE DE GRUPO</div>
+      const corpo = c.texto ?? "quer formar um grupo com você.<br>"
+        + "Juntos vocês veem a vida um do outro, curam-se e dividem o progresso das missões.";
+      invite.innerHTML = `<div class="gh-cv-tit">${c.titulo ?? "CONVITE DE GRUPO"}</div>
         <div class="gh-cv-quem">
           <div class="gh-cv-face" style="background:${CLASSE_COR[c.classId ?? ""] ?? "#c9a94e"}">${nome[0] ?? "?"}</div>
-          <div class="gh-cv-txt"><b>${nome}</b> quer formar um grupo com você.<br>
-            Juntos vocês veem a vida um do outro, curam-se e dividem o progresso das missões.</div>
+          <div class="gh-cv-txt"><b>${nome}</b> ${corpo}</div>
         </div>
         <div class="gh-cv-btns">
           <button class="gh-cv-nao">Recusar</button>
@@ -3321,8 +3754,8 @@ export function setupControls(
       // sozinho quando não há grupo — jogando só, nada muda na tela.
       // O seletor de canal do bate-papo acompanha: sem grupo ele some e a fala
       // volta p/ a área, p/ ninguém ficar escrevendo p/ um grupo que não existe.
-      chatCanal.style.display = m.length ? "" : "none";
-      if (!m.length && canal === "grupo") { canal = "zona"; pintaCanal(); }
+      temGrupo = m.length > 0;
+      pintaCanal();   // o seletor só mostra os canais que existem agora
       if (!m.length) {
         partyBox.style.display = "none"; partyBox.innerHTML = "";
         // sem grupo o bate-papo volta p/ o lugar de sempre (inclusive a coluna e
@@ -3791,6 +4224,7 @@ function injectStyle() {
   .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
   .gh-preplay #gh-tracker, .gh-preplay #gh-hotbar,
   .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
+  .gh-preplay #gh-guild-btn, .gh-revealing #gh-guild-btn,
   .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk,
   .gh-preplay .gh-move, .gh-preplay .gh-act, .gh-preplay .gh-atk {
     opacity:0 !important; pointer-events:none !important;
@@ -5143,10 +5577,14 @@ function injectStyle() {
     #gh-tracker .gh-tk-obj { font-size:10px; margin-top:2px; }
     #gh-clock { display:none; }               /* relógio some no aperto do landscape */
     /* utilitários: fileira horizontal centralizada no TOPO (nunca sobre o d-pad) */
+    /* quatro botões agora (entrou a Companhia): a fileira é recentralizada, senão
+       o novo entraria por fora e ficaria em cima do minimapa. O do estandarte é
+       posicionado na FOLHA DA COMPANHIA — esta aqui é anexada antes dela e, com a
+       mesma especificidade, perderia. */
     #gh-char-btn, #gh-opt-btn, #gh-journal-btn { top:6px; width:44px; height:44px; }
-    #gh-char-btn    { left:calc(50% - 70px); }
-    #gh-opt-btn     { left:calc(50% - 22px); }
-    #gh-journal-btn { left:calc(50% + 26px); }
+    #gh-char-btn    { left:calc(50% - 94px); }
+    #gh-opt-btn     { left:calc(50% - 46px); }
+    #gh-journal-btn { left:calc(50% + 2px); }
     /* d-pad e ação recuados nos cantos de baixo, um pouco menores */
     .gh-move { left:10px; bottom:10px; width:116px; height:108px; }
     .gh-atk  { right:12px; bottom:12px; width:54px; height:54px; }

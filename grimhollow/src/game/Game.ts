@@ -82,10 +82,11 @@ import {
   SHOW_STATUE_W,
 } from "./showcase";
 import * as tex from "./textures";
-import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
-import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato } from "./net";
+import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry, type GuildPosto } from "./controls";
+import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato, type ConviteCompanhiaNet } from "./net";
 import { party, MAX_GRUPO, type Membro, type Convite, type Efeito } from "./party";
 import { friends, heroId, type Amigo } from "./friends";
+import { guild, validarFundacao } from "./guild";
 // TOMBADO: quanto tempo o herói fica caído esperando um companheiro (em grupo).
 // Longo o bastante p/ alguém do outro lado da sala chegar, curto o bastante p/ não
 // virar castigo quando o grupo inteiro cai.
@@ -1506,6 +1507,7 @@ interface PeerRig {
   name: string;
   classId: string;
   uid?: string;               // identidade estável dele (p/ virar amigo)
+  guild?: string;             // marca da Companhia («III»); muda → plaquinha refeita
   c: number; r: number;       // célula-alvo (a última publicada)
   bx: number; bz: number;     // posição visual atual (interpolada)
   h: number;                  // altura do billboard
@@ -2255,6 +2257,13 @@ export class Game {
         void party.falar(t);
         return;
       }
+      // CANAL DA COMPANHIA: alcança todo o quadro, esteja quem estiver onde
+      // estiver — é a diferença prática entre companheiro e vizinho.
+      if (canal === "companhia") {
+        if (!guild.naCompanhia()) { this.ui.toast("Você não tem Companhia."); return; }
+        void guild.falar(t);
+        return;
+      }
       void net.chat(t);
     });
     party.onFala((de, txt, meu) => this.ui.chatMessage(de, txt, meu, "grupo"));
@@ -2274,6 +2283,29 @@ export class Game {
     void friends.entrar(this.euNosAmigos());
     // o que publico de mim no canal global (nível e onde estou)
     window.setInterval(() => friends.meuEstado(this.euNosAmigos()), 4000);
+
+    // ---- COMPANHIA ----
+    // O quadro vem da tabela e a presença vem do canal; a tela recebe os dois já
+    // juntos. Aqui só se traduz a zona crua ("dungeon:2") p/ o nome que se lê.
+    guild.onInfo(() => this.pintarCompanhia());
+    guild.onLista(() => this.pintarCompanhia());
+    guild.onFala((de, txt, meu) => this.ui.chatMessage(de, txt, meu, "companhia"));
+    net.onConviteCompanhia((c) => this.receberConviteCompanhia(c));
+    this.ui.onGuild({
+      fundar: (nome, tag, lema) => { void this.fundarCompanhia(nome, tag, lema); },
+      sair: () => { void this.sairDaCompanhia(); },
+      posto: (uid, p) => { void this.mudarPosto(uid, p); },
+      expulsar: (uid) => { void this.expulsarDaCompanhia(uid); },
+      convidarPeer: (peerId) => this.convidarParaCompanhia(peerId),
+    });
+    void guild.entrar(this.euNaCompanhia());
+    window.setInterval(() => guild.meuEstado(this.euNaCompanhia()), 4000);
+    void (async () => {
+      // sem conta a janela explica em vez de oferecer o formulário — uma
+      // companhia que morre com o navegador não é uma companhia
+      const { currentUser } = await import("./cloud");
+      this.ui.setGuildAccount(!!currentUser());
+    })().catch(() => this.ui.setGuildAccount(false));
     // indicador AO VIVO de quem está por perto. Jogando sozinho ele some; os
     // contadores de rede ficam só no __coop(), p/ não poluir a tela do jogador.
     window.setInterval(() => {
@@ -2354,6 +2386,9 @@ export class Game {
     // o GRUPO também: sem isso não dá p/ exercitar apoio/ressurreição fora da rede
     (window as unknown as { __party?: typeof party }).__party = party;
     (window as unknown as { __MAX_GRUPO?: number }).__MAX_GRUPO = MAX_GRUPO;
+    (window as unknown as { __guild?: typeof guild }).__guild = guild;
+    (window as unknown as { __validarFundacao?: typeof validarFundacao })
+      .__validarFundacao = validarFundacao;
     (window as unknown as { __friends?: typeof friends }).__friends = friends;
     (window as unknown as { __AOE?: typeof AOE_CHEFE }).__AOE = AOE_CHEFE;
     // as leituras de mapa dos cinco mapas, p/ o teste castigar cada uma com
@@ -2523,6 +2558,9 @@ export class Game {
       uid: heroId(this.saveSlot),
       name: this.playerName || "Viajante",
       classId: this.classId,
+      // a MARCA já vai pronta («III»): quem me vê na rua não tem como consultar
+      // a minha companhia, então o que viaja é o que se lê, não a chave
+      guild: guild.etiqueta(),
       level: this.stats.level,
       col: this.col, row: this.row, facing: this.facing,
     };
@@ -2910,6 +2948,15 @@ export class Game {
       if (!rig) { rig = this.makePeerRig(p); this.peers.set(p.id, rig); }
       rig.c = p.col; rig.r = p.row; rig.seenAt = this.now; rig.level = p.level;
       rig.uid = p.uid;
+      // FUNDOU, ENTROU ou SAIU de uma Companhia: a plaquinha é uma textura
+      // desenhada uma vez, então ela não muda sozinha — só se for refeita.
+      if ((p.guild ?? "") !== (rig.guild ?? "")) {
+        rig.guild = p.guild;
+        rig.group.remove(rig.tag);
+        rig.tag = this.makeNameTag(p.name, p.guild ?? "");
+        rig.tag.position.y = rig.h + 0.22;
+        rig.group.add(rig.tag);
+      }
     }
     for (const [id, rig] of [...this.peers]) {
       if (!vistos.has(id)) { this.scene.remove(rig.group); this.peers.delete(id); }
@@ -2938,13 +2985,13 @@ export class Game {
       new THREE.MeshBasicMaterial({ map: this.shadowTex(), transparent: true, depthWrite: false, opacity: 0.5 }),
     );
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; group.add(shadow);
-    const tag = this.makeNameTag(p.name);
+    const tag = this.makeNameTag(p.name, p.guild ?? "");
     tag.position.y = h + 0.22; group.add(tag);
     // fica na CENA (não em `world`), senão o world.clear() da troca de local o apaga
     group.position.set(p.col * CELL, 0, p.row * CELL);
     this.scene.add(group);
     return {
-      group, mesh, tag, name: p.name, classId: p.classId,
+      group, mesh, tag, name: p.name, classId: p.classId, guild: p.guild,
       c: p.col, r: p.row, bx: p.col * CELL, bz: p.row * CELL, h, seenAt: this.now,
       level: p.level,
     };
@@ -5487,6 +5534,120 @@ export class Game {
       await friends.convidar(uid, party.partyId(), this.playerName || "Viajante", this.netId());
       this.ui.toast("Convite enviado ao seu amigo.");
     })();
+  }
+
+  // ==================== COMPANHIA (guilda) ====================
+  /** Como eu me apresento no canal da Companhia. */
+  private euNaCompanhia() {
+    return {
+      uid: heroId(this.saveSlot), nome: this.playerName || "Viajante",
+      classId: this.classId, nivel: this.stats.level, zona: this.netZoneKey(),
+    };
+  }
+  /**
+   * Repinta a janela da Companhia.
+   *
+   * A zona vai traduzida ("dungeon:2" vira "Catacumbas — 3º Andar"): o quadro é
+   * o lugar onde se decide com quem jogar, e uma chave de canal não ajuda
+   * ninguém a decidir nada.
+   */
+  private pintarCompanhia(): void {
+    const c = guild.companhia();
+    const meuUid = heroId(this.saveSlot);
+    this.ui.setGuild(
+      c ? { nome: c.nome, tag: c.tag, lema: c.lema, criadaEm: c.criadaEm, meuUid } : null,
+      guild.lista().map((m) => ({
+        uid: m.uid, nome: m.nome, classId: m.classId, nivel: m.nivel,
+        posto: m.posto, online: m.online, onde: m.online ? nomeDaZona(m.onde) : "",
+      })),
+      guild.meuPosto(),
+    );
+    // a marca acompanha o avatar: quem me vê na rua lê «III» sobre a cabeça
+    this.atualizarEtiquetaPeer();
+  }
+  private async fundarCompanhia(nome: string, tag: string, lema: string): Promise<void> {
+    const erro = await guild.fundar(nome, tag, lema);
+    this.ui.guildError(erro);
+    if (erro) return;
+    this.ui.toast(`Companhia fundada: ${nome.trim()}.`);
+    this.pintarCompanhia();
+  }
+  private async sairDaCompanhia(): Promise<void> {
+    const eraMestre = guild.souMestre() && guild.tamanho() <= 1;
+    const erro = await guild.sair();
+    if (erro) { this.ui.guildError(erro); return; }
+    this.ui.toast(eraMestre ? "Companhia dissolvida." : "Você deixou a Companhia.");
+    this.pintarCompanhia();
+  }
+  private async mudarPosto(uid: string, posto: GuildPosto): Promise<void> {
+    const erro = await guild.definirPosto(uid, posto);
+    if (erro) { this.ui.guildError(erro); return; }
+    await guild.avisarQuadro();   // os outros releem a tabela
+    this.pintarCompanhia();
+  }
+  private async expulsarDaCompanhia(uid: string): Promise<void> {
+    const erro = await guild.expulsar(uid);
+    if (erro) { this.ui.guildError(erro); return; }
+    await guild.avisarQuadro();
+    this.pintarCompanhia();
+  }
+  /** Chama um vizinho p/ a Companhia (o convite anda pelo canal da zona). */
+  private convidarParaCompanhia(peerId: string): void {
+    const c = guild.companhia();
+    if (!c) { this.ui.toast("Você ainda não tem Companhia."); return; }
+    if (!guild.possoConvidar()) { this.ui.toast("Só Mestre e Oficiais chamam."); return; }
+    const ch = net.canalDaZona();
+    if (!ch) { this.ui.toast("Sem conexão."); return; }
+    const rig = this.peers.get(peerId);
+    void ch.send({
+      type: "broadcast", event: "conv_comp",
+      payload: {
+        guildId: c.id, nome: c.nome, tag: c.tag,
+        de: this.playerName || "Viajante", para: peerId,
+      },
+    });
+    this.ui.toast(`Chamado enviado${rig ? ` a ${rig.name.split(/[ ,]/)[0]}` : ""}.`);
+  }
+  /** Chegou um chamado p/ uma Companhia: usa o mesmo aviso do convite de grupo. */
+  private receberConviteCompanhia(c: ConviteCompanhiaNet): void {
+    if (guild.naCompanhia()) return; // já tenho uma — ignora em silêncio
+    const quem = [...this.peers.values()].find((r) => r.name === c.de);
+    this.ui.showInvite(
+      {
+        de: c.de, classId: quem?.classId, segundos: 45,
+        titulo: "CHAMADO DE COMPANHIA",
+        texto: `quer você na <b>${c.nome}</b>${c.tag ? ` «${c.tag}»` : ""}.<br>`
+          + "A marca vai sobre a sua cabeça e o canal da Companhia alcança "
+          + "qualquer área do mundo.",
+      },
+      () => {
+        void (async () => {
+          const erro = await guild.aceitar({
+            guildId: c.guildId, nome: c.nome, tag: c.tag, de: c.de, para: "",
+          });
+          if (erro) { this.ui.toast(erro); return; }
+          await guild.avisarQuadro();
+          this.ui.toast(`Você entrou na ${c.nome}.`);
+          this.pintarCompanhia();
+        })();
+      },
+      () => { /* recusou ou deixou expirar */ },
+    );
+  }
+  /**
+   * Republica o meu estado na zona quando a MARCA muda — e só então.
+   *
+   * O quadro se repinta a cada batimento de qualquer companheiro (4s), e sair
+   * publicando a cada repintura mandaria um pacote de posição a mais o tempo
+   * todo, furando a vazão combinada do co-op. A marca só muda quando eu fundo,
+   * entro ou saio de uma Companhia — três momentos na vida do personagem.
+   */
+  private marcaPublicada = "";
+  private atualizarEtiquetaPeer(): void {
+    const marca = guild.etiqueta();
+    if (marca === this.marcaPublicada) return;
+    this.marcaPublicada = marca;
+    void net.join(this.netZoneKey(), this.netSelf());
   }
 
   /** Companheiro CAÍDO na minha área (o mirado tem preferência). */
@@ -8900,13 +9061,20 @@ export class Game {
   }
 
   // plaquinha de nome (sprite que sempre encara a câmera) acima do NPC
-  private makeNameTag(text: string): THREE.Sprite {
+  /**
+   * Plaquinha sobre a cabeça. `marca` é a etiqueta da Companhia («III»), e vem
+   * ANTES do nome, em dourado mais vivo — é o que faz dar p/ ler o vínculo de
+   * longe, sem clicar em ninguém, que é o pagamento visível de ter uma.
+   */
+  private makeNameTag(text: string, marca = ""): THREE.Sprite {
     const fontPx = 40;
     const pad = 18;
     const font = `bold ${fontPx}px "Cinzel", "MedievalSharp", system-ui, serif`;
     const meas = document.createElement("canvas").getContext("2d")!;
     meas.font = font;
-    const tw = Math.ceil(meas.measureText(text).width);
+    const prefixo = marca ? `${marca} ` : "";
+    const wPrefixo = prefixo ? Math.ceil(meas.measureText(prefixo).width) : 0;
+    const tw = Math.ceil(meas.measureText(prefixo + text).width);
     const W = tw + pad * 2;
     const H = fontPx + pad;
     const cv = document.createElement("canvas");
@@ -8927,15 +9095,23 @@ export class Game {
     ctx.lineWidth = 3;
     ctx.strokeStyle = "rgba(201,162,39,0.7)";
     ctx.stroke();
-    // texto com contorno
+    // texto com contorno. Com marca são DOIS traços de cor diferente, então o
+    // desenho passa a ser alinhado à esquerda a partir do início do bloco — com
+    // "center" cada pedaço se centralizaria sozinho e eles se sobreporiam.
     ctx.font = font;
-    ctx.textAlign = "center";
+    ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.lineWidth = 5;
     ctx.strokeStyle = "rgba(0,0,0,0.85)";
-    ctx.strokeText(text, W / 2, H / 2 + 1);
+    const x0 = (W - tw) / 2, y0 = H / 2 + 1;
+    if (prefixo) {
+      ctx.strokeText(prefixo, x0, y0);
+      ctx.fillStyle = "#f4c847";
+      ctx.fillText(prefixo, x0, y0);
+    }
+    ctx.strokeText(text, x0 + wPrefixo, y0);
     ctx.fillStyle = "#f0dca2";
-    ctx.fillText(text, W / 2, H / 2 + 1);
+    ctx.fillText(text, x0 + wPrefixo, y0);
     const t = new THREE.CanvasTexture(cv);
     t.colorSpace = THREE.SRGBColorSpace;
     t.magFilter = THREE.LinearFilter;
