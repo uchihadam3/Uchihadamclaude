@@ -118,7 +118,6 @@ function telaTitulo(){
   const m=$('msg'); m.classList.remove('off'); m.className='';
   const rec=cofre.recordes||{andar:0,masmorra:1};
   const fundo = Math.min(100, (rec.masmorra-1)*10 + rec.andar);   // 100 andares no total
-  const nos = Object.keys(cofre.comprados||{}).length;
   /* Números caindo no fundo. DÍGITOS, não glifos de dado: ◈/⚄ viram
      quadradinho em Georgia no Android — o mesmo tropeço dos ícones da
      barra de habilidades. Dígito é temático e sempre existe. */
@@ -150,7 +149,8 @@ function telaTitulo(){
           return `${CLASSES[r.classe]?.nome||''} · Masmorra ${r.masmorra}, andar ${r.andar}`;})()}</em></button>`:''}
       <button class="mb pri" data-a="jogar">▶ ${META.carregarRun()?'NOVA DESCIDA':'DESCER'}</button>
       <button class="mb" data-a="grim">📖 GRIMÓRIO <em>como se joga</em></button>
-      <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${nos}/${META.NOS.length}</em></button>
+      <button class="mb cof" data-a="cofre">🌳 PASSIVAS <em>${
+        Object.keys(PASS.ARVORES).reduce((a,c)=>a+PASS.progresso(cofre,c).meu,0)} níveis</em></button>
     </div>
     <div class="recs">
       <span><u>DESCIDAS</u><b>${cofre.runs||0}</b></span>
@@ -164,7 +164,7 @@ function bindA(root,map){ root.querySelectorAll('[data-a]').forEach(b=>{
   b.onclick=()=>{ SFX.pegar(); map[b.dataset.a](); }; }); }
 
 /* ===================================================================
-   A TRILHA DAS ALMAS — o painel do Cofre que mostra as habilidades que
+   A TRILHA DAS ALMAS — o painel das Passivas que mostra as habilidades que
    NÃO se compram com Ecos: elas abrem fechando masmorra.
 
    Elas já viviam aqui (saem de META.masmorrasAbertas, que é gravado no
@@ -176,7 +176,8 @@ function bindA(root,map){ root.querySelectorAll('[data-a]').forEach(b=>{
    =================================================================== */
 function painelTrilha(){
   const fechadas = META.masmorrasAbertas(cofre) - 1;
-  const abertoP = s => /^m\d+$/.test(s.unlock) ? fechadas >= +s.unlock.slice(1) : !!BON.quarta;
+  const coroaDe = c => !!PASS.bonusDaClasse(cofre, c).campos.quarta;
+  const abertoP = (s,c) => /^m\d+$/.test(s.unlock) ? fechadas >= +s.unlock.slice(1) : coroaDe(c);
   /* na ordem em que se PERCORRE: M2, M5, M8 e a coroa por último — na ficha
      da classe a de coroa vem antes, e listada assim a trilha parecia fora de
      ordem */
@@ -184,18 +185,18 @@ function painelTrilha(){
   const daTrilha = c => c.skills.filter(s=>s.unlock).sort((a,b)=>grau(a)-grau(b));
   let temTot=0, temMeu=0;
   for(const c of Object.values(CLASSES))
-    for(const s of daTrilha(c)){ temTot++; if(abertoP(s)) temMeu++; }
+    for(const s of daTrilha(c)){ temTot++; if(abertoP(s,c.id)) temMeu++; }
 
   const blocos = Object.values(CLASSES).map(c=>{
     const lista = daTrilha(c);
     const meus = lista.filter(abertoP).length;
     const degraus = lista.map(s=>{
-      const on = abertoP(s);
+      const on = abertoP(s, c.id);
       const mN = /^m(\d+)$/.exec(s.unlock);
       const selo = mN ? 'M'+mN[1] : '👑';
       const como = on ? 'ABERTA'
         : mN ? `feche a Masmorra ${mN[1]}`
-             : 'compre Talento no Cofre';
+             : 'compre a Coroa na árvore dela';
       return `<div class="tdeg ${on?'on':''}">
         <span class="tselo">${on?'✓':selo}</span>
         <div class="tinfo"><b>${s.nome}</b><u>${reqLabel(s.req)}</u>
@@ -224,7 +225,7 @@ function painelTrilha(){
     <div class="tclss">${blocos}</div></div>`;
 }
 /* ===================================================================
-   AS QUATRO ÁRVORES no Cofre. O tronco comum (Osso/Véu/Coroa) serve a
+   AS QUATRO ÁRVORES. O tronco comum (Osso/Véu/Coroa) servia a
    todo mundo; aqui cada alma tem a SUA, com 20 passivas que puxam a corda
    da mecânica dela. Uma aba por classe, quatro anéis por árvore, e o preço
    subindo do anel 1 ao 4 — largura e profundidade disputam os mesmos Ecos.
@@ -276,41 +277,28 @@ function painelArvore(){
 function telaCofre(){
   SFX.trilha('menu');
   const m=$('msg'); m.className='';
-  const ramos=Object.entries(META.RAMOS).map(([k,r])=>{
-    const nos=META.NOS.filter(n=>n.ramo===k).map(no=>{
-      const nv=META.nivelDe(cofre,no.id), max=nv>=no.max;
-      const disp=META.disponivel(cofre,no), c=META.custoDe(no,nv);
-      const pode=disp && cofre.ecos>=c;
-      const trav=(no.req||[]).some(q=>META.nivelDe(cofre,q)<1);
-      return `<button class="no ${max?'max':''} ${pode?'pode':''} ${trav?'trav':''}" data-no="${no.id}">
-        <div class="noh"><b>${no.nome}</b><span class="pips">${
-          Array.from({length:no.max},(_,i)=>`<i class="${i<nv?'on':''}"></i>`).join('')}</span></div>
-        <div class="notxt">${no.txt(Math.max(1,nv+(max?0:1)))}</div>
-        <div class="nofoot">${trav?`🔒 requer ${(no.req||[]).map(q=>META.NOS.find(x=>x.id===q).nome).join(', ')}`
-          : max?'MÁXIMO':`<span class="cst ${pode?'ok':''}">◈ ${c}</span>`}</div></button>`;}).join('');
-    return `<div class="ramo" style="--rc:${r.cor}">
-      <div class="rh"><span class="ri">${r.icone}</span><b>${r.nome}</b><i>${r.sub}</i></div>
-      <div class="nos">${nos}</div></div>`;}).join('');
-  /* progresso do Cofre: 20 nós, mas cada um tem vários níveis. Sem isto o
-     jogador não vê o quanto já construiu nem o que já pode comprar agora. */
-  const nivTot = META.NOS.reduce((a,n)=>a+n.max,0);
-  const nivMeu = META.NOS.reduce((a,n)=>a+META.nivelDe(cofre,n.id),0);
-  const compraveis = META.NOS.filter(n=>{
-    const nv=META.nivelDe(cofre,n.id);
-    return nv<n.max && META.disponivel(cofre,n) && cofre.ecos>=META.custoDe(n,nv); }).length;
-  const pctC = Math.round(100*nivMeu/nivTot);
+  /* A tela é a ÁRVORE DA CLASSE, e só. O tronco comum (Osso/Véu/Coroa) foi
+     desmontado: ele vendia o mesmo "+HP" e "+dano" que as árvores já vendem,
+     e comprar duas vezes a mesma coisa em dois lugares não é escolha, é
+     imposto. O que só existia lá — a 4ª habilidade, as opções de recompensa,
+     o bônus de Ecos, a forja, as faces ⚔ e as relíquias de partida — mudou
+     de casa e hoje tem nome e preço de cada alma. */
+  const totalMeu = Object.keys(PASS.ARVORES).reduce((a,c)=>a+PASS.progresso(cofre,c).meu, 0);
+  const compraveis = PASS.nosDaClasse(abaArvore).filter(n=>{
+    const nv = PASS.nivelPassiva(cofre, abaArvore, n.id);
+    return nv < n.max && PASS.disponivelPassiva(cofre, abaArvore, n)
+           && cofre.ecos >= PASS.custoDoNo(n, nv); }).length;
   m.innerHTML=`<div class="cofwrap">
     <div class="cofhd"><button class="volta" data-a="voltar">‹</button>
-      <h2>O COFRE</h2><div class="ecos sm"><span class="eic">◈</span><b>${cofre.ecos}</b></div></div>
-    <p class="cofp">Melhorias <b>permanentes</b>. Elas ficam entre as runs — cada descida te deixa mais forte.</p>
+      <h2>PASSIVAS</h2><div class="ecos sm"><span class="eic">◈</span><b>${cofre.ecos}</b></div></div>
+    <p class="cofp">Melhorias <b>permanentes</b>: ficam entre as descidas e não se perdem na morte.
+      Cada alma tem a sua árvore — o que você constrói aqui é o que te deixa descer mais fundo.</p>
     <div class="cofprog">
-      <u><span>CONSTRUÍDO</span><b>${nivMeu}/${nivTot} NÍVEIS</b></u>
-      <div class="cofbar"><span style="width:${pctC}%"></span></div>
       <em class="${compraveis?'tem':''}">${compraveis
-        ? `${compraveis} melhoria${compraveis>1?'s':''} ao seu alcance agora`
-        : 'ecos insuficientes — desça e volte com mais'}</em>
+        ? `${compraveis} passiva${compraveis>1?'s':''} ao seu alcance nesta árvore`
+        : 'Ecos insuficientes — desça e volte com mais'}
+        <span style="opacity:.6"> · ${totalMeu} níveis construídos ao todo</span></em>
     </div>
-    <div class="ramos">${ramos}</div>
     ${painelArvore()}
     ${painelTrilha()}
     <button class="mb pri" data-a="voltar2">▶ DESCER AGORA</button></div>`;
@@ -325,20 +313,18 @@ function telaCofre(){
       META.salvar(cofre); SFX.buy?SFX.buy():SFX.vitoria(); telaCofre();
       document.querySelector('.arvwrap')?.scrollIntoView({block:'start'});
     } else SFX.soltar(); });
-  m.querySelectorAll('.no').forEach(b=>b.onclick=()=>{
-    const no=META.NOS.find(x=>x.id===b.dataset.no);
-    if(META.comprar(cofre,no)){ SFX.buy?SFX.buy():SFX.vitoria(); BON=META.bonus(cofre); telaCofre(); }
-    else SFX.soltar();
-  });
 }
 /* AS CHAVES DA TRILHA: fechar a Masmorra N libera a habilidade marcada
    'mN'. É por isso que dá para descer mais fundo — não por ficar melhor
    de mira, mas por ter ferramenta nova na mão. */
+/* o bônus de Ecos vem da árvore da alma que fez a descida */
+function multEcos(){ return 1 + ((P&&P.arvore?.ecoMult)||0)/100; }
 function chavesAbertas(cid){
   const fechadas = META.masmorrasAbertas(cofre) - 1;   // abriu a N+1 => fechou a N
   const ks = [];
   for(let i=1;i<=fechadas;i++) ks.push('m'+i);
-  if(BON.quarta) ks.push('coroa_'+cid);
+  // a 4ª habilidade agora é um nó da ÁRVORE da própria classe, não do tronco
+  if(PASS.bonusDaClasse(cofre, cid).campos.quarta) ks.push('coroa_'+cid);
   return ks;
 }
 /* ===================================================================
@@ -388,13 +374,13 @@ function telaClasses(){
         <div><span style="width:${Math.round(100*v/max)}%;background:${cor}"></span></div><b>${v}</b></div>`;
       /* as HABILIDADES são o motivo real de escolher uma classe e não estavam
          na tela: o jogador escolhia por HP e vibe. As de coroa ficam com
-         cadeado — mostram o que o Cofre ainda tem pra dar. */
+         cadeado — mostram o que a árvore da alma ainda tem pra dar. */
       const chaves = chavesAbertas(c.id);
       const habs = c.skills.map(s=>{
         const preso = s.unlock && !chaves.includes(s.unlock);
-        // o cadeado diz COMO abrir: fechar a masmorra N, ou o Cofre
+        // o cadeado diz COMO abrir: fechar a masmorra N, ou a Coroa da árvore
         const como = !preso ? '' : /^m\d+$/.test(s.unlock)
-          ? ` — feche a Masmorra ${s.unlock.slice(1)}` : ' — Cofre';
+          ? ` — feche a Masmorra ${s.unlock.slice(1)}` : ' — Coroa, nas Passivas';
         return `<span class="chab${preso?' preso':''}" title="${s.desc.replace(/"/g,'&quot;')}">${preso?'🔒 ':''}${s.nome}
           <u>${reqLabel(s.req)}</u>${preso?`<i class="ccomo">${como}</i>`:''}</span>`;}).join('');
       return `<button class="cbtn" data-c="${c.id}" style="--cc:${c.cor}">
@@ -469,7 +455,7 @@ function retomarRun(){
 }
 function iniciar(cid, deMasmorra=1){
   C=CLASSES[cid];
-  /* A ÁRVORE DA CLASSE entra aqui, somada ao tronco comum do Cofre. Ela sai
+  /* A ÁRVORE DA CLASSE entra aqui. Ela sai
      no mesmo formato das relíquias, então o motor executa sem saber que veio
      de outro lugar — e os `campos` são os ajustes que moram no jogador. */
   const AR = PASS.bonusDaClasse(cofre, cid), cp = AR.campos;
@@ -483,24 +469,25 @@ function iniciar(cid, deMasmorra=1){
       rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:chavesAbertas(cid),
       polegar:somaBon('polegar',cp.polegar), gazua:somaBon('gazua',cp.gazua),
       revive:Math.max(BON.revive, cp.revive||0), pity:somaBon('pity',cp.pity),
-      ultimoLance:BON.ultimoLance||!!cp.ultimoLance, gravExtra:BON.gravExtra,
+      ultimoLance:BON.ultimoLance||!!cp.ultimoLance, gravExtra:somaBon('gravExtra',cp.gravExtra),
       presagio:somaBon('presagio',cp.presagio),
       travaDados:cp.travaDados||0, arvore:cp };
-  // gravações iniciais do Cofre (Lâmina / Curinga / Eco)
+  // gravações iniciais da árvore (Lâmina / Curinga / Eco)
   const grav=(k,q)=>{ for(let i=0;i<q;i++){ const d=P.bag[i%P.bag.length];
     const j=d.faces.findIndex(f=>f.k==='num'); if(j>=0) d.faces[j]={k, v:d.faces[j].v}; } };
-  grav('blade',BON.lamina); grav('wild',somaBon('curinga',cp.curinga)); grav('echo',somaBon('eco',cp.eco));
+  grav('blade',somaBon('lamina',cp.lamina)); grav('wild',somaBon('curinga',cp.curinga));
+  grav('echo',somaBon('eco',cp.eco));
   if(BON.dmgFlat||BON.blockStart){ P.relics.push({id:'_cofre',nome:'Cofre',r:'comum',txt:'',
     mods:{dmgFlat:BON.dmgFlat}, start:{block:BON.blockStart}}); }
   /* a árvore vira UMA passiva sintética; o resto do jogo já sabe lidar */
   P.relics.push({ id:'_arvore_'+cid, nome:PASS.ARVORES[cid].nome, r:'comum', txt:'',
     mods:AR.mods, start:AR.start, onKill:AR.onKill,
     _rolls:AR.onRoll, _flags:[...AR.flags] });
-  for(let i=0;i<BON.reliquias;i++){ const pool=RELIQ_COMUNS.filter(r=>!P.relics.some(x=>x.id===r.id));
+  for(let i=0;i<somaBon('reliquias',cp.reliquias);i++){ const pool=RELIQ_COMUNS.filter(r=>!P.relics.some(x=>x.id===r.id));
     if(pool.length) P.relics.push(pool[rng.int(pool.length)]); }
   recalcRelics(P);
   andar=1;
-  masmorra = Math.max(deMasmorra, BON.portal>1?BON.portal:1);
+  masmorra = deMasmorra;      // o ponto de partida vem dos Portais (masmorra fechada)
   /* ENXOVAL: começar na Masmorra N com a bolsa de estreia seria suicídio —
      os inimigos de lá esperam quem limpou (N-1)x10 andares e escolheu uma
      recompensa em cada um. Então é exatamente isso que entra: uma
@@ -1015,9 +1002,13 @@ const COR_ACAO = { heal:'#7ef2a8', curse:'#c07cff', debuff:'#c07cff',
                    enterrar:'#a98a5e', exigir:'#ff9d2b', crescer:'#7ef2a8' };
 function animarInimigos(acoes){
   if(!acoes || !acoes.length) return 0;
-  // muitos inimigos: encurta um pouco pra não virar novela, mas sem correr
-  const PASSO = acoes.length>4 ? 640 : acoes.length>2 ? 780 : 880;
-  const ARMA=0, BATE=280, VIAJA=360, CHEGA=760;   // os quatro tempos
+  /* MAIS DEVAGAR. O turno inimigo passava rápido demais para acompanhar: com
+     três ou quatro atacantes os golpes se atropelavam e não dava para ver
+     qual card disparou nem quanto entrou. Cada golpe agora tem os seus quatro
+     tempos separados — arma, bate, viaja, chega — com folga entre eles.
+     Com a mesa cheia o passo encurta um pouco, mas nunca volta ao atropelo. */
+  const PASSO = acoes.length>4 ? 900 : acoes.length>2 ? 1080 : 1240;
+  const ARMA=0, BATE=420, VIAJA=540, CHEGA=1060;   // os quatro tempos
   acoes.forEach((a,i)=>{
     const t0=i*PASSO;
     const achaEl=()=>document.querySelector(`.en[data-uid="${a.uid}"]`);
@@ -1070,7 +1061,7 @@ function animarInimigos(acoes){
 }
 function etiquetaEu(txt){
   const n=document.createElement('div'); n.className='dmgme av'; n.textContent=txt;
-  $('voce').appendChild(n); setTimeout(()=>n.remove(),1000);
+  $('voce').appendChild(n); setTimeout(()=>n.remove(),1500);
 }
 /* O escudo era INVISÍVEL: a tela media só o HP, então um golpe inteiramente
    aparado não fazia som nem número — dava para bater três turnos no bloqueio
@@ -1100,7 +1091,7 @@ function flash(uid,d,morreu,aparado=0){
   }
   const n=document.createElement('div'); n.className='dmg'+(d>=18?' big':'');
   n.textContent='-'+d; n.style.setProperty('--dx', proxDesvio()); el.appendChild(n);
-  setTimeout(()=>n.remove(),900);
+  setTimeout(()=>n.remove(),1450);
   SFX.golpe(d); tremor(Math.min(11,3+d*0.35));
   if(morreu){ SFX.morte(); el.classList.add('morrendo'); }
 }
@@ -1115,7 +1106,7 @@ function flashEscudo(uid, v){
   const n=document.createElement('div'); n.className='dmg esc';
   n.textContent='🛡'+v; el.appendChild(n);
   const c=document.createElement('div'); c.className='clang'; el.appendChild(c);
-  setTimeout(()=>{ n.remove(); c.remove(); },900);
+  setTimeout(()=>{ n.remove(); c.remove(); },1450);
   SFX.aparado(v);
 }
 function flashJog(d){
@@ -1123,7 +1114,7 @@ function flashJog(d){
   setTimeout(()=>f.remove(),420);
   const n=document.createElement('div'); n.className='dmgme'; n.textContent='-'+d;
   n.style.setProperty('--dx', proxDesvio());
-  document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),900);
+  document.getElementById('voce').appendChild(n); setTimeout(()=>n.remove(),1450);
 }
 /* o MESMO retorno quando é você que apara: sem ferida vermelha na tela */
 function flashJogEscudo(v){
@@ -1134,7 +1125,7 @@ function flashJogEscudo(v){
   // o mesmo anel de faísca que o inimigo ganha: o escudo tem que ser visível
   const c=document.createElement('div'); c.className='clang eu';
   alvo.appendChild(n); alvo.appendChild(c);
-  setTimeout(()=>{ n.remove(); c.remove(); },900);
+  setTimeout(()=>{ n.remove(); c.remove(); },1450);
   SFX.aparado(v);
 }
 /* ===================================================================
@@ -1168,24 +1159,50 @@ const SIMB_BASE = { sum:'Σ', val:'valor', count:'n' };
    meio segundo entre apertar a carta e o inimigo levar, e é onde o jogador
    entende POR QUE aquele golpe deu 55 e não 11. */
 function bancaDaConta(sk, ents){
-  const f = formulaDano(sk); if(!f || f.mult<2) return;
+  const f = formulaDano(sk); if(!f || f.mult<2) return 0;
   /* usa a mesma conta() da carta: ela resolve o ◈ Curinga pelo valor que a
      fechadura pediu, então a banca mostra o número que o motor vai usar de
      verdade — e não um Σ diferente do que o golpe cobrou. */
-  const c = conta(ents, sk.req); if(!c) return;
+  const c = conta(ents, sk.req); if(!c) return 0;
   const base = f.base==='sum' ? c.soma : f.base==='count' ? c.n : c.maior;
-  if(!base) return;
+  if(!base) return 0;
   const total = base*f.mult + f.fixo;
+  /* A CONTA ACONTECE, ela não aparece pronta. Antes os três números entravam
+     juntos e sumiam em 1,1s: dava para ver que havia uma conta, não para LER
+     a conta. Agora cada dado cai na banca somando ao anterior, o total
+     parcial acompanha, e só então o multiplicador desce em cima. */
+  const dados = f.base==='sum' ? c.vals.map(v=>v==null?'◈':v) : null;
   const b=document.createElement('div'); b.className='bancaconta';
-  b.innerHTML=`<span class="bcb">${SIMB_BASE[f.base]==='Σ'?'Σ':''}${base}</span>
+  b.innerHTML=`<span class="bcdd">${dados
+      ? dados.map((v,i)=>`<i class="bcd" data-i="${i}">${v}</i>`).join('<u class="bcmais">+</u>')
+      : `<i class="bcd on">${base}</i>`}</span>
+    <span class="bcsoma"><b class="bcsn">0</b></span>
     <span class="bcx">×${f.mult}</span>
     ${f.fixo?`<span class="bcp">+${f.fixo}</span>`:''}
-    <span class="bce">=</span><span class="bct">${total}</span>
+    <span class="bce">=</span><span class="bct">?</span>
     ${f.todos?'<span class="bca">EM TODOS</span>':''}`;
   document.body.appendChild(b);
-  SFX.pegar && SFX.pegar();
-  setTimeout(()=>b.classList.add('estoura'), 260);
-  setTimeout(()=>b.remove(), 1150);
+  const chips=[...b.querySelectorAll('.bcd')], mais=[...b.querySelectorAll('.bcmais')];
+  const alvoS=b.querySelector('.bcsn'), alvoT=b.querySelector('.bct');
+  const vals = dados ? c.vals.map(v=> v==null ? 0 : v) : [base];
+  const PASSO = 230;                       // um dado por vez, no ritmo de ler
+  let acc=0, t=120;
+  chips.forEach((ch,i)=>{
+    setTimeout(()=>{ ch.classList.add('on'); if(mais[i-1]) mais[i-1].classList.add('on');
+      acc += vals[i]||0; alvoS.textContent = acc;
+      alvoS.parentElement.classList.remove('pulsa'); void alvoS.offsetWidth;
+      alvoS.parentElement.classList.add('pulsa');
+      SFX.pegar && SFX.pegar(); }, t);
+    t += PASSO;
+  });
+  // a soma fecha, o multiplicador desce, o total explode
+  setTimeout(()=>{ b.querySelector('.bcx')?.classList.add('on'); SFX.golpe && SFX.golpe(4); }, t+90);
+  setTimeout(()=>{ b.querySelector('.bcp')?.classList.add('on'); }, t+300);
+  setTimeout(()=>{ alvoT.textContent = total; b.classList.add('estoura'); }, t+430);
+  const fim = t + 430 + 620;
+  setTimeout(()=>{ b.classList.add('saindo'); }, fim-260);
+  setTimeout(()=>b.remove(), fim);
+  return t + 430;                          // quanto o resto da animação deve esperar
 }
 /* espalha os números quando vários caem no mesmo alvo, pra não empilharem */
 let desvio=0;
@@ -1206,18 +1223,26 @@ function usar(s){
   const cardEl=[...document.querySelectorAll('#hab .h')]
     .find(x=>habilidadesAtuais()[+x.dataset.i]?.id===s.id);
   if(cardEl){ cardEl.classList.remove('usou'); void cardEl.offsetWidth; cardEl.classList.add('usou'); }
-  bancaDaConta(s, ents);                          // Σ11 ×5 = 55, antes de bater
+  /* A CONTA VEM ANTES DO SANGUE. bancaDaConta devolve quanto tempo ela leva
+     somando dado a dado; o golpe espera esse tempo para cair. Sem a espera,
+     o número do dano subia no inimigo enquanto a soma ainda estava no
+     terceiro dado, e as duas coisas disputavam o olho ao mesmo tempo. */
+  const espera = bancaDaConta(s, ents) || 0;
   cb.use(s, ids, alvo); sel.clear(); previa=null;
   for(const id of ids) praBandeja(id);            // os dados gastos vão pro canto
   pintar();                                       // repinta ANTES (senão apaga os efeitos)
-  efeitoHabilidade(s, alvosPrev);                 // efeito próprio da habilidade
-  juice(antes,hpA);                 // pinta primeiro, depois os efeitos
-  if(cb.over){ setTimeout(fim,760); return; }
+  if(espera) anima = true;                        // trava a mesa enquanto a conta corre
+  setTimeout(()=>{
+    anima = false;
+    efeitoHabilidade(s, alvosPrev);               // efeito próprio da habilidade
+    juice(antes,hpA);                             // pinta primeiro, depois os efeitos
+    if(cb.over) setTimeout(fim,900);
+  }, espera);
 }
 $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
   // só os dados AINDA NA MÃO: pool() já exclui os gastos
   const livres = cb.pool().map(e=>e.dieId);
-  /* MÃO ESCOLHIDA (Cofre): sem ela a re-rolagem é cega e leva a mão inteira —
+  /* MÃO ESCOLHIDA (Passivas): sem ela a re-rolagem é cega e leva a mão inteira —
      você tem um 5 e um 6 bons ao lado de dois 1, e perde os quatro. Com ela,
      a seleção manda: rolam só os dados que você marcou. */
   const podeEscolher = BON.rerollEscolhido || P.arvore?.rerollEscolhido;
@@ -1270,7 +1295,7 @@ function contaHTML(c, cls=''){
     <span class="cpar ${c.par?'p':'i'}">${pIco} ${c.curingas?'depende do ◈':pTxt}</span>
   </span>`;
 }
-/* habilidades que você REALMENTE tem agora (a 4ª só com o nó do Cofre) */
+/* habilidades que você REALMENTE tem agora (a 4ª só com a Coroa da árvore) */
 function habilidadesAtuais(){
   const lib = new Set(P&&P.unlocked ? P.unlocked : []);
   return [...(C.skills||[]).filter(s=>!s.unlock || lib.has(s.unlock)), RESPIRAR];
@@ -1393,7 +1418,7 @@ function telaVitoria(){
   SFX.vitoria(); SFX.trilha('menu');
   const m=$('msg'); m.classList.remove('off'); m.className='';
   const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
-    masmorra:META.MASMORRAS_TOTAL, venceu:true}, BON.ecoMult);
+    masmorra:META.MASMORRAS_TOTAL, venceu:true}, multEcos());
   cofre.ecos+=ganho; cofre.runs=(cofre.runs||0)+1; cofre.vitorias=(cofre.vitorias||0)+1;
   cofre.recordes={ andar:10, masmorra:META.MASMORRAS_TOTAL };
   META.salvar(cofre);
@@ -1415,7 +1440,7 @@ function telaVitoria(){
     <div class="fimeco"><span class="eic">◈</span> +${ganho} <i>ecos</i></div>
     <div class="mbtns">
       <button class="mb pri" data-a="denovo">▶ DESCER DE NOVO</button>
-      <button class="mb cof" data-a="cofre">🗝 O COFRE <em>${cofre.ecos} guardados</em></button>
+      <button class="mb cof" data-a="cofre">🌳 PASSIVAS <em>${cofre.ecos} Ecos guardados</em></button>
       <button class="mb" data-a="titulo">◂ TELA INICIAL</button>
     </div></div>`;
   bindA(m,{ denovo:telaClasses, cofre:telaCofre, titulo:telaTitulo });
@@ -1426,7 +1451,7 @@ function fim(){
   if(cb.over==='lose'){ SFX.derrota(); SFX.trilha('menu');
     META.limparRun();          // morreu: só se recomeça do zero
     const ganho=META.ecosDaRun({andares:stats.andares, elites:stats.elites, chefes:stats.chefes,
-      masmorra, venceu:false}, BON.ecoMult);
+      masmorra, venceu:false}, multEcos());
     cofre.ecos+=ganho; cofre.runs=(cofre.runs||0)+1;
     const prof=(masmorra-1)*10+andar;
     const rp=(cofre.recordes.masmorra-1)*10+cofre.recordes.andar;
@@ -1452,7 +1477,7 @@ function fim(){
       </div>
       <div class="fimeco"><span class="eic">◈</span> +${ganho} <i>ecos</i></div>
       <div class="mbtns">
-        <button class="mb cof" data-a="cofre">🗝 GASTAR NO COFRE <em>${cofre.ecos} guardados</em></button>
+        <button class="mb cof" data-a="cofre">🌳 GASTAR EM PASSIVAS <em>${cofre.ecos} Ecos guardados</em></button>
         <button class="mb pri" data-a="denovo">▶ DESCER DE NOVO</button>
       </div></div>`;
     bindA(m,{ cofre:telaCofre, denovo:telaClasses });
@@ -1462,7 +1487,7 @@ function fim(){
   stats.andares++;
   stats.elites += cb.enemies.filter(e=>e.elite).length;
   if(andar===10) stats.chefes++;
-  const opts=gerarOpcoes(rng,P,3+BON.opcoes);
+  const opts=gerarOpcoes(rng,P,3+(P.arvore?.opcoes||0));
   const S = seloDoAndar();
   const mortos = cb.enemies.length, elites = cb.enemies.filter(e=>e.elite).length;
   m.innerHTML=`<div class="recwrap">

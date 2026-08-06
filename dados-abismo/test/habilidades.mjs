@@ -1255,11 +1255,12 @@ console.log('=== AS QUATRO ÁRVORES ===');
     'golpesExtra','marcaExtra','pragaAoMatar','sangueQuente','sobraVeneno',
     'venenoFlat','venenoPct','curinga','dadosExtra','eco','gazua','pity','polegar',
     'presagio','rerollEscolhido','revive','travaDados','ultimoLance',
+    'quarta','opcoes','ecoMult','gravExtra','lamina','reliquias',
   ];
 
   /* ---- estrutura ---- */
   for(const [cid, arv] of Object.entries(PASS.ARVORES)){
-    check(arv.nos.length === 20, 'Árvore '+cid, 'tem 20 passivas', arv.nos.length+' nós');
+    check(arv.nos.length === 24, 'Árvore '+cid, 'tem 24 passivas', arv.nos.length+' nós');
     const ids = new Set();
     let custoOk = true, textoOk = true, aneisOk = true, reqOk = true;
     for(const no of arv.nos){
