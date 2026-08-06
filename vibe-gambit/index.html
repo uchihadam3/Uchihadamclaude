@@ -121,8 +121,9 @@
   .gtab.on span{color:var(--ink)}
   .gtab .dot{width:16px;height:4px;border-radius:2px;background:var(--line2);margin-top:2px}
   .gtab.on .dot{background:var(--accent)}
-  .gpanel{background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden}
-  .gphead{display:flex;align-items:center;gap:9px;padding:9px 11px;background:linear-gradient(180deg,#2c2648,#241f3c);border-bottom:1px solid var(--line)}
+  .gpanel{background:var(--panel);border-style:solid;border-color:transparent;border-width:14px 15px;
+    border-image:url(assets/frame_window.png) 62 65 / 14px 15px / 0 round;border-radius:0;background-clip:padding-box;overflow:visible}
+  .gphead{display:flex;align-items:center;gap:9px;padding:9px 11px;background:linear-gradient(180deg,#2c2648,#241f3c);border-bottom:1px solid var(--line);border-radius:6px 6px 0 0}
   .gphead .av{width:34px;height:40px;flex:none} .gphead .av svg{width:100%;height:100%}
   .gphead .hn{font-weight:900;font-size:15px;line-height:1.1;flex:1}
   .gphead .hn small{display:block;color:var(--dim);font-size:10px;font-weight:700}
