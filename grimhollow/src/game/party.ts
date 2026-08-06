@@ -14,6 +14,19 @@
 // LÍDER: quem criou. Não há eleição — se o líder some, o grupo simplesmente
 // esvazia por tempo-limite, como acontece quando alguém fecha o jogo.
 //
+// TETO DE CINCO. O grupo tem tamanho máximo (MAX_GRUPO), e ele é obedecido em
+// dois lugares porque um só não basta:
+//
+//  1. NA HORA DE CONVIDAR. Quem convida sabe quantos já são, então o convite nem
+//     sai quando o grupo está cheio. Resolve o caso normal.
+//  2. NA LOTAÇÃO. Só (1) não basta: dois convites em voo ao mesmo tempo fazem
+//     dois entrarem no mesmo instante, e não há servidor p/ recusar o sexto.
+//     Então o excedente se resolve como a eleição de hospedeiro do resto do
+//     co-op — por REGRA DETERMINÍSTICA que todo mundo calcula igual (líder
+//     primeiro, depois os menores ids) — e quem se vê fora do corte sai sozinho.
+//     Ninguém precisa mandar "você foi expulso": cada um chega à mesma conta com
+//     a lista de membros que já recebe de qualquer jeito.
+//
 // Como no resto do co-op, cada um mantém a própria lista a partir dos
 // BATIMENTOS que chegam (2s) e poda quem parou de falar (8s). Sem estado
 // central, sem nada p/ sincronizar.
@@ -83,6 +96,16 @@ interface RTClient {
 const BATIMENTO_MS = 2000;
 const LIMITE_MS = 8000;
 
+/**
+ * Teto do grupo: VOCÊ + 4.
+ *
+ * Cinco é o formato clássico de masmorra (um segura, um cura, três batem) e é o
+ * que a interface aguenta: o painel do grupo mora na coluna da esquerda e cada
+ * membro custa uma linha, então o número tem de caber na tela mais baixa que a
+ * gente serve — o celular deitado — sem cobrir a barra de habilidades.
+ */
+export const MAX_GRUPO = 5;
+
 async function getClient(): Promise<RTClient | null> {
   if (!isSupabaseConfigured()) return null;
   try {
@@ -125,6 +148,8 @@ class PartySession {
   souLider(): boolean { return !!this.eu?.lider; }
   /** Quantos SOMOS (eu + os outros) — usado p/ escalar os inimigos. */
   tamanho(): number { return this.id ? this.vistos.size + 1 : 1; }
+  /** Não cabe mais ninguém (quem convida consulta antes de mandar o convite). */
+  cheio(): boolean { return this.tamanho() >= MAX_GRUPO; }
   membros(): Membro[] {
     if (!this.id || !this.eu) return [];
     return [this.eu, ...[...this.vistos.values()].map((v) => v.m)];
@@ -143,13 +168,15 @@ class PartySession {
   async convidar(
     zoneCh: { send(m: { type: string; event: string; payload: unknown }): Promise<unknown> } | null,
     alvoId: string, eu: Omit<Membro, "lider">,
-  ): Promise<void> {
-    if (!zoneCh) return;
+  ): Promise<boolean> {
+    if (!zoneCh) return false;
+    if (this.cheio()) return false;   // grupo lotado: o convite nem sai
     if (!this.id) await this.criar(eu);
     await zoneCh.send({
       type: "broadcast", event: "convite",
       payload: { party: this.id, de: eu.name, deId: eu.id, para: alvoId },
     });
+    return true;
   }
 
   /** Cria um grupo comigo como líder (chamado sozinho pelo convidar). */
@@ -173,6 +200,7 @@ class PartySession {
       const m = (msg as { payload?: Membro })?.payload;
       if (!m?.id || m.id === this.eu?.id) return;
       this.vistos.set(m.id, { m, t: Date.now() });
+      if (this.conferirLotacao()) return; // eu sobrei e já saí — o sair() repinta
       this.emitir();
     });
     // alguém chegou e perguntou quem está aqui → responde na hora
@@ -248,6 +276,30 @@ class PartySession {
   async mandarEfeito(e: Omit<Efeito, "de" | "deId">): Promise<void> {
     if (!this.id || !this.eu) return;
     await this.env("efeito", { ...e, de: this.eu.name, deId: this.eu.id });
+  }
+
+  /**
+   * O grupo estourou o teto? Então alguém sai — e quem sai se descobre sozinho.
+   *
+   * A ordem é a mesma em todas as máquinas: o LÍDER primeiro (ele é o dono do
+   * canal, tirá-lo desmancharia o grupo), depois os menores ids. Quem não está
+   * entre os cinco primeiros sai por conta própria. É a mesma ideia da eleição de
+   * hospedeiro: em vez de mandar mensagem nova, deriva-se a resposta da lista que
+   * já chega — e como todos derivam igual, ninguém precisa concordar sobre nada.
+   *
+   * Devolve `true` se fui EU quem saiu (aí quem chamou não deve repintar: o
+   * próprio sair() já faz isso, com o grupo vazio).
+   */
+  private conferirLotacao(): boolean {
+    if (!this.id || !this.eu) return false;
+    const todos = this.membros();
+    if (todos.length <= MAX_GRUPO) return false;
+    const ordem = [...todos].sort((a, b) =>
+      a.lider !== b.lider ? (a.lider ? -1 : 1) : (a.id < b.id ? -1 : 1));
+    if (ordem.slice(0, MAX_GRUPO).some((m) => m.id === this.eu!.id)) return false;
+    this.cbAviso?.(`O grupo já estava cheio (${MAX_GRUPO}). Você não coube.`);
+    void this.sair();
+    return true;
   }
 
   private async pulsar(): Promise<void> {

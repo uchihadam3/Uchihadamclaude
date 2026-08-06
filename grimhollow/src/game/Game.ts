@@ -84,7 +84,7 @@ import {
 import * as tex from "./textures";
 import { setupControls, type Action, type HUD, type SmithData, type SmithUpgradeResult, type MiniPoi, type MiniDrop, type MiniEnemy, type StoreData, type StoreGood, type TavernData, type TavernQuest, type TavernReward, type ConsumSlot, type StashData, type DialogueChoice, type JournalData, type JournalEntry, type TrackerData, type BagEntry, type EquipUIData, type ItemTip, type TipLine, type TipDelta, type PickupEntry } from "./controls";
 import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, type MobRetrato } from "./net";
-import { party, type Membro, type Convite, type Efeito } from "./party";
+import { party, MAX_GRUPO, type Membro, type Convite, type Efeito } from "./party";
 import { friends, heroId, type Amigo } from "./friends";
 // TOMBADO: quanto tempo o herói fica caído esperando um companheiro (em grupo).
 // Longo o bastante p/ alguém do outro lado da sala chegar, curto o bastante p/ não
@@ -1883,16 +1883,47 @@ export class Game {
   // TAMANHO DO GRUPO (co-op). Hoje sempre 1 — quando o multiplayer entrar, basta
   // este número subir que os inimigos ganham vida/dano proporcionais (ver enemyScale).
   private partySize = 1;
-  // multiplicador de vida/ataque do inimigo: PROFUNDIDADE dentro do ato (o 3º andar
-  // é ~40% mais duro que o 1º) × TAMANHO DO GRUPO. Os números-base de ENEMY_TYPES
-  // valem para o 1º andar do ato, jogando sozinho.
+  /**
+   * Quantos do grupo estão AQUI, nesta zona (é este número que escala o inimigo).
+   *
+   * Contar o grupo inteiro era errado: dois companheiros comprando na cidade
+   * deixavam o esqueleto do 1º andar com o dobro de vida p/ quem ficou. O bicho
+   * só pode ficar mais duro por causa de quem realmente está batendo nele.
+   */
+  private grupoAqui(): number {
+    if (!party.emGrupo()) return Math.max(1, this.partySize);
+    const zona = this.netZoneKey();
+    const n = this.grupo.filter((m) => m.zone === zona).length;
+    return Math.min(MAX_GRUPO, Math.max(1, n));
+  }
+  /**
+   * Multiplicador de vida/ataque do inimigo: PROFUNDIDADE no ato (o 3º andar é
+   * ~40% mais duro que o 1º) × QUANTOS DO GRUPO ESTÃO NA SALA. Os números-base de
+   * ENEMY_TYPES valem p/ o 1º andar do ato, jogando sozinho.
+   *
+   * A curva de vida era 0,60 por companheiro, e com isso o grupo ficava mais
+   * FÁCIL quanto maior: n pessoas batem ~n vezes mais, e a vida do bicho crescia
+   * bem menos que isso. Uma dupla derrubava em 80% do tempo de um solo; um grupo
+   * de cinco, em 68% — e cada um ainda levava o próprio XP e o próprio saque.
+   *
+   * Agora a vida cresce um pouco ACIMA de linear (1,15 por companheiro), então a
+   * luta fica mais LONGA com gente a mais em vez de mais curta:
+   *
+   *      n:      1      2      3      4      5
+   *   vida:   1,00×  2,15×  3,30×  4,45×  5,60×
+   *   tempo:  1,00   1,08   1,10   1,11   1,12   (vida ÷ n batedores)
+   *
+   * O ataque cresce pouco (0,07) de propósito: cada jogador apanha por inteiro na
+   * própria máquina, então o perigo do grupo tem de vir da luta ser mais comprida
+   * — mais mana gasta, mais chance de errar —, não de o bicho passar a acertar
+   * pancadas que só um clérigo aguenta.
+   */
   private enemyScale(): { hp: number; atk: number } {
     const depth = this.location === "dungeon" ? this.dungeonFloor % 3 : 0;
-    // o grupo de verdade manda: com 4 na sala o bicho tem de aguentar mais
-    const n = Math.max(1, party.emGrupo() ? party.tamanho() : this.partySize);
+    const n = this.grupoAqui();
     return {
-      hp: (1 + 0.20 * depth) * (1 + 0.60 * (n - 1)),
-      atk: (1 + 0.10 * depth) * (1 + 0.10 * (n - 1)),
+      hp: (1 + 0.20 * depth) * (1 + 1.15 * (n - 1)),
+      atk: (1 + 0.10 * depth) * (1 + 0.07 * (n - 1)),
     };
   }
   // ATO do andar atual: 1 = Ato I (andares 0-2), 2 = Ato II afogado (andares 3-5).
@@ -2322,6 +2353,7 @@ export class Game {
     (window as unknown as { __game?: Game }).__game = this; // DEBUG: acesso p/ teste
     // o GRUPO também: sem isso não dá p/ exercitar apoio/ressurreição fora da rede
     (window as unknown as { __party?: typeof party }).__party = party;
+    (window as unknown as { __MAX_GRUPO?: number }).__MAX_GRUPO = MAX_GRUPO;
     (window as unknown as { __friends?: typeof friends }).__friends = friends;
     (window as unknown as { __AOE?: typeof AOE_CHEFE }).__AOE = AOE_CHEFE;
     // as leituras de mapa dos cinco mapas, p/ o teste castigar cada uma com
@@ -2657,9 +2689,14 @@ export class Game {
   }
   /** Convida quem está por perto (o alvo é escolhido na lista de vizinhos). */
   public convidarParaGrupo(peerId: string): void {
+    if (party.cheio()) { this.ui.toast(`Grupo cheio (${MAX_GRUPO}).`); return; }
     const rig = this.peers.get(peerId);
-    void party.convidar(net.canalDaZona(), peerId, this.euNoGrupo());
-    this.ui.toast(`Convite enviado${rig ? ` para ${rig.name.split(/[ ,]/)[0]}` : ""}.`);
+    void (async () => {
+      const foi = await party.convidar(net.canalDaZona(), peerId, this.euNoGrupo());
+      this.ui.toast(foi
+        ? `Convite enviado${rig ? ` para ${rig.name.split(/[ ,]/)[0]}` : ""}.`
+        : "Não deu p/ convidar agora.");
+    })();
   }
   /**
    * Chegou um convite: pergunta antes de entrar (ninguém entra em grupo à força).
@@ -5443,6 +5480,7 @@ export class Game {
    * convite não vai pelo canal da zona, então alcança quem já está noutra área.
    */
   private convidarAmigo(uid: string): void {
+    if (party.cheio()) { this.ui.toast(`Grupo cheio (${MAX_GRUPO}).`); return; }
     void (async () => {
       if (!party.emGrupo()) await party.criar(this.euNoGrupo());
       if (!party.emGrupo()) { this.ui.toast("Sem conexão para formar grupo."); return; }

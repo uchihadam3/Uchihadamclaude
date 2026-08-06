@@ -88,6 +88,9 @@ import mapFrameUrl from "../assets/ui/map_frame.png";
 import clockSunUrl from "../assets/ui/clock_sun.png";
 import clockMoonUrl from "../assets/ui/clock_moon.png";
 import levelupGifUrl from "../assets/ui/levelup.webp";
+// o teto do grupo mora na camada de rede (é ela que o faz valer); aqui ele só é
+// EXIBIDO — "GRUPO 4/5" —, e um número repetido à mão sairia de sincronia
+import { MAX_GRUPO } from "./party";
 import forgeFillUrl from "../assets/audio/forge_fill.mp3";
 import forgeFailUrl from "../assets/audio/forge_fail.mp3";
 import forgeSuccessUrl from "../assets/audio/forge_success.wav";
@@ -1315,10 +1318,40 @@ export function setupControls(
   // O painel do grupo cresce p/ baixo e ia parar em cima do bate-papo (que mora
   // logo abaixo). Em vez de chutar uma altura fixa — o painel tem 1 a 5 linhas —,
   // mede o que foi desenhado e empurra o bate-papo p/ debaixo dele.
+  // ALTURA DISPONÍVEL p/ o painel: do alto dele até a barra de habilidades. É
+  // medida, não chutada, porque a hotbar muda de lugar entre desktop, celular
+  // deitado e celular em pé.
+  const tetoDoPainel = (): number => {
+    const hb = document.getElementById("gh-hotbar");
+    return (hb ? hb.getBoundingClientRect().top : window.innerHeight) - 8;
+  };
+  // o bate-papo cabe embaixo do painel a partir daqui (registro + botão + folga);
+  // menos que isso não dá p/ ler nada e ele muda de lugar
+  const CHAT_MINIMO = 90;
+  const CHAT_CROMO = 46; // o que não é registro: barra de estado, botão e vãos
   const empurraChat = () => {
     requestAnimationFrame(() => {
+      if (partyBox.style.display === "none") {
+        chat.style.top = ""; chat.style.left = ""; chatLog.style.maxHeight = "";
+        return;
+      }
       const r = partyBox.getBoundingClientRect();
-      chat.style.top = `${Math.round(r.bottom) + 10}px`;
+      const sobra = tetoDoPainel() - (r.bottom + 10);
+      if (sobra >= CHAT_MINIMO) {
+        chat.style.top = `${Math.round(r.bottom) + 10}px`;
+        chat.style.left = "";
+        // O REGISTRO NÃO PASSA DO QUE SOBROU. Antes ele só nascia abaixo do painel
+        // e daí crescia por conta própria a cada linha nova — com o grupo cheio,
+        // crescia por cima da barra de habilidades.
+        chatLog.style.maxHeight = `${Math.round(sobra - CHAT_CROMO)}px`;
+      } else {
+        // NÃO CABE EMBAIXO — celular deitado com o grupo cheio. Aí o bate-papo vai
+        // p/ o LADO do painel, que é onde ainda sobra espaço: empurrar mais p/
+        // baixo o jogaria em cima da barra de habilidades.
+        chat.style.top = `${Math.round(r.top)}px`;
+        chat.style.left = `${Math.round(r.right) + 8}px`;
+        chatLog.style.maxHeight = "";
+      }
     });
   };
   // cor de cada classe — usada no retrato do grupo e na lista de "por perto".
@@ -1377,6 +1410,45 @@ export function setupControls(
        O "noutro lugar" entra no LUGAR do nível (era uma etiqueta solta no canto e
        ela batia no nível, deixando as duas ilegíveis). */
     .gh-pt-row.gh-pt-longe{opacity:.55;}
+    /* CABEÇALHO: "GRUPO 4/5". Serve p/ ver de relance que ainda cabe alguém —
+       sem isso o teto só aparece quando o convite é recusado. */
+    .gh-pt-cab{align-self:flex-start;font-family:"Cinzel",serif;font-size:10px;
+      letter-spacing:.12em;color:#e2cf9f;padding:1px 7px 2px;margin-bottom:-2px;
+      border-radius:3px;background:rgba(10,8,6,.72);
+      border:1px solid rgba(201,162,74,.45);
+      text-shadow:0 1px 3px #000;}
+
+    /* ------------------------------------------------------------------ MINI
+       O painel cresce uma linha por membro, e com o grupo cheio ele não cabe na
+       tela mais baixa que a gente serve (celular deitado): a moldura de arte
+       sozinha custa 32px de altura por linha. Então, quando o painel passaria da
+       barra de habilidades, ele TROCA DE FORMA — a moldura sai, o retrato encolhe
+       e os números da vida saem (a barra continua dizendo a mesma coisa).
+
+       A troca é decidida MEDINDO o que foi desenhado, não por regra de tela: o
+       que importa não é ser celular, é o painel caber — e isso depende também de
+       quantos são. Com dois membros a moldura fica mesmo no celular. */
+    #gh-party.gh-pt-mini{gap:3px;}
+    #gh-party.gh-pt-mini .gh-pt-cab{display:none;}
+    #gh-party.gh-pt-mini .gh-pt-row{width:172px;border:0;border-left:2px solid rgba(201,162,74,.75);
+      border-image:none;border-radius:0 4px 4px 0;padding:3px 6px 3px 5px;gap:6px;
+      background:linear-gradient(90deg,rgba(20,16,11,.88),rgba(20,16,11,.66));}
+    #gh-party.gh-pt-mini .gh-pt-face{width:22px;height:22px;font-size:11px;border-width:1px;}
+    #gh-party.gh-pt-mini .gh-pt-nome{font-size:10.5px;margin-bottom:1px;}
+    #gh-party.gh-pt-mini .gh-pt-nome span{font-size:8.5px;margin-left:4px;}
+    #gh-party.gh-pt-mini .gh-pt-bar{height:6px;}
+    #gh-party.gh-pt-mini .gh-pt-hp{display:none;}
+    #gh-party.gh-pt-mini .gh-pt-lev{font-size:9px;padding:3px 5px;}
+
+    /* CELULAR DEITADO: o painel sobe p/ logo abaixo do HUD (que aqui é menor e
+       mora no alto). Os 126px do desktop custariam um terço da altura da tela —
+       e é altura de que o grupo cheio precisa.
+       A regra mora AQUI, e não no bloco landscape lá de baixo, porque esta folha
+       é anexada depois: com a mesma especificidade, a última a entrar vence, e a
+       de lá simplesmente não pegava. */
+    @media (orientation: landscape) and (max-height: 500px) {
+      #gh-party{top:90px;}
+    }
   `;
   root.appendChild(partyCss);
 
@@ -3253,12 +3325,15 @@ export function setupControls(
       if (!m.length && canal === "grupo") { canal = "zona"; pintaCanal(); }
       if (!m.length) {
         partyBox.style.display = "none"; partyBox.innerHTML = "";
-        chat.style.top = ""; // sem grupo o bate-papo volta p/ o lugar de sempre
+        // sem grupo o bate-papo volta p/ o lugar de sempre (inclusive a coluna e
+        // a altura do registro, que os modos apertados podem ter mudado)
+        chat.style.top = ""; chat.style.left = ""; chatLog.style.maxHeight = "";
         return;
       }
       partyBox.style.display = "flex";
       const minhaZona = m[0]?.zone;
-      partyBox.innerHTML = m
+      const cabecalho = `<div class="gh-pt-cab">GRUPO ${m.length}/${MAX_GRUPO}</div>`;
+      partyBox.innerHTML = cabecalho + m
         .map((x) => {
           const frac = Math.max(0, Math.min(1, x.maxHp ? x.hp / x.maxHp : 0));
           const cor = frac > 0.55 ? "linear-gradient(#9ccf75,#6f9e4c)"
@@ -3283,6 +3358,12 @@ export function setupControls(
           </div>`;
         })
         .join("");
+      // COUBE? Desenha grande primeiro e, se o painel passar da barra de
+      // habilidades, refaz em modo compacto. Medir depois de desenhar \u00e9 o \u00fanico
+      // jeito honesto: a altura depende da tela E de quantos s\u00e3o.
+      partyBox.classList.remove("gh-pt-mini");
+      if (partyBox.getBoundingClientRect().bottom > tetoDoPainel())
+        partyBox.classList.add("gh-pt-mini");
       // toque na LINHA escolhe o alvo amigo; o bot\u00e3o "Levantar" n\u00e3o conta como
       // mira (sen\u00e3o levantar algu\u00e9m trocaria o alvo sem querer).
       partyBox.querySelectorAll<HTMLElement>(".gh-pt-row").forEach((row) =>
@@ -4694,7 +4775,11 @@ function injectStyle() {
     font-family:"Cinzel",serif; font-size:10.5px; color:#9fb98a; letter-spacing:.3px;
     text-shadow:0 1px 3px #000; opacity:.85;
   }
-  #gh-chat-log { display:flex; flex-direction:column; gap:2px; max-height:22vh; overflow:hidden; }
+  /* justify-content:flex-end — quando o registro estoura a altura, o que some é o
+     que já foi LIDO (o topo), não a linha que acabou de chegar. Sem isso a última
+     mensagem aparecia cortada ao meio, que é justamente a que interessa. */
+  #gh-chat-log { display:flex; flex-direction:column; justify-content:flex-end;
+    gap:2px; max-height:22vh; overflow:hidden; }
   .gh-chat-row {
     font-size:12px; line-height:1.3; color:#e8dcc0; text-shadow:0 1px 3px #000,0 0 6px #000;
     background:rgba(6,5,6,.55); border-left:2px solid rgba(201,162,74,.6);
