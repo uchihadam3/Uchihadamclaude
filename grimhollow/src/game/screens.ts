@@ -6,6 +6,10 @@ import { derive, START_POINTS, type Primaries } from "./stats";
 import { audio } from "./audio";
 import { backend as saveBackend, localBackend, setActiveBackend, MAX_SLOTS, type SaveMeta } from "./save";
 import { restoreCloudSession, loginWithProvider, signInWithEmail, signUpWithEmail, signOutCloud } from "./cloud";
+// ícones: os símbolos das telas de abertura também saem da folha de arte.
+// Entra como `arte` porque já existe um `ico` local (a arte da classe no card do
+// personagem) e sombrear o nome de quem chegou antes só criaria confusão.
+import { ico as arte } from "./icons";
 import { isSupabaseConfigured } from "./supabaseConfig";
 
 // resultado da abertura: um herói NOVO (com o slot de destino) ou CONTINUAR um save.
@@ -152,9 +156,9 @@ function showOpening(
       <div class="gh-crawl-shade" id="gh-crawl-shade"></div>
       <div class="gh-crawl-textwrap" id="gh-crawl-tw"><div class="gh-crawl-text" id="gh-crawl-text">
         ${paras.map((p) => `<p>${p}</p>`).join("")}
-        <div class="gh-crawl-end">⚜</div>
+        <div class="gh-crawl-end">${arte("concluido") || "\u269C"}</div>
       </div></div>
-      <button class="gh-pro-skip" id="gh-pro-skip">Pular ▸</button>
+      <button class="gh-pro-skip" id="gh-pro-skip">Pular ${arte("avancar") || "\u25B8"}</button>
     </div>`;
   // A imagem do título tem 2 telas PRETAS esticadas embaixo. A "câmera" começa lá
   // embaixo (só preto) e SOBE de verdade até a cena — o TÍTULO inteiro (logo +
@@ -316,7 +320,7 @@ function showCharacterSelect(
       }
       return `<div class="gh-cs-card gh-cs-filled" data-play="${slot}">
           <div class="gh-cs-portrait" style="background-image:url(${port})"></div>
-          <button class="gh-cs-del" data-del="${slot}" title="Apagar personagem">✕</button>
+          <button class="gh-cs-del" data-del="${slot}" title="Apagar personagem">${arte("fechar") || "\u2715"}</button>
           <div class="gh-cs-info">
             <div class="gh-cs-name">${ico ? `<img class="gh-cs-ico" src="${ico}" alt=""/>` : ""}${escHtml(m.name)}</div>
             <div class="gh-cs-sub">Nível ${m.level} · ${cls?.name ?? m.classId}</div>
@@ -328,7 +332,7 @@ function showCharacterSelect(
         <div class="gh-cs-wrap">
           <h2 class="gh-cs-title">Escolha seu Herói</h2>
           <div class="gh-cs-grid">${[0, 1, 2].map(card).join("")}</div>
-          <button class="gh-menu-btn gh-menu-btn-sec" id="gh-cs-back">◂ Voltar</button>
+          <button class="gh-menu-btn gh-menu-btn-sec" id="gh-cs-back">${arte("voltar") || "\u25C2"} Voltar</button>
         </div>
       </div>`;
     const q = (sel: string) => overlay.querySelectorAll(sel);
@@ -398,7 +402,7 @@ function showCreate(
       <div class="gh-class-main" id="gh-class-main"></div>
       <div class="gh-create-foot">
         <input class="gh-name-input" id="gh-name" maxlength="18" placeholder="Nome do herói" value="${initialName ? initialName.replace(/"/g, "&quot;") : ""}" />
-        <button class="gh-menu-btn" id="gh-btn-start">Continuar ▸</button>
+        <button class="gh-menu-btn" id="gh-btn-start">Continuar ${arte("avancar") || "\u25B8"}</button>
       </div>
     </div>`;
   const main = overlay.querySelector("#gh-class-main") as HTMLElement;
@@ -457,8 +461,8 @@ function showAllocate(
       <h2 class="gh-screen-h">Distribua os Atributos</h2>
       <div class="gh-class-main" id="gh-alloc-main"></div>
       <div class="gh-create-foot">
-        <button class="gh-menu-btn gh-menu-btn-sec" id="gh-back">◂ Voltar</button>
-        <button class="gh-menu-btn" id="gh-start">Iniciar Jornada ▸</button>
+        <button class="gh-menu-btn gh-menu-btn-sec" id="gh-back">${arte("voltar") || "\u25C2"} Voltar</button>
+        <button class="gh-menu-btn" id="gh-start">Iniciar Jornada ${arte("avancar") || "\u25B8"}</button>
       </div>
     </div>`;
   const main = overlay.querySelector("#gh-alloc-main") as HTMLElement;
@@ -549,7 +553,7 @@ function allocCard(
       </div>
       <div class="gh-sec-blocks">
         <div class="gh-sec-col">
-          <h4>⚔️ Ofensivo</h4>
+          <h4>${arte("dano") || "\u2694"} Ofensivo</h4>
           ${sr("Atq. Físico", sec.atkPhys)}
           ${sr("Atq. Mágico", sec.atkMag)}
           ${sr("Crítico", sec.crit + "%")}
@@ -557,14 +561,14 @@ function allocCard(
           ${sr("Precisão", sec.precision + "%")}
         </div>
         <div class="gh-sec-col">
-          <h4>🛡️ Defensivo</h4>
+          <h4>${arte("defesa") || "\u{1F6E1}"} Defensivo</h4>
           ${sr("Vida", sec.hp)}
           ${sr("Defesa", sec.def)}
           ${sr("Res. Mágica", sec.magRes)}
           ${sr("Evasão", sec.evasion + "%")}
         </div>
         <div class="gh-sec-col">
-          <h4>🔷 Recursos</h4>
+          <h4>${arte("mana") || "\u{1F537}"} Recursos</h4>
           ${sr("Mana", sec.mp)}
         </div>
       </div>
@@ -594,7 +598,7 @@ function classCard(c: GameClass): string {
         ${bar("Destreza", c.attr.dex)}
         ${bar("Inteligência", c.attr.int)}
       </div>
-      <div class="gh-vitals"><span>❤ Vida ${c.hp}</span><span>✦ Mana ${c.mp}</span></div>
+      <div class="gh-vitals"><span>${arte("vida") || "\u2764"} Vida ${c.hp}</span><span>${arte("mana") || "\u2726"} Mana ${c.mp}</span></div>
       <div class="gh-class-weapons"><b>Armas:</b> ${weps}</div>
     </div>`;
 }
@@ -645,7 +649,7 @@ function showLoading(
     txt.remove();
     const press = document.createElement("div");
     press.className = "gh-boot-press";
-    press.innerHTML = 'TOQUE PARA COMEÇAR <span class="gh-bp-arrow">▸</span>';
+    press.innerHTML = 'TOQUE PARA COMEÇAR <span class="gh-bp-arrow">' + (arte("avancar") || "\u25B8") + '</span>';
     corner.insertBefore(press, corner.firstChild); // acima da espada
     const boot = overlay.querySelector(".gh-boot") as HTMLElement;
     boot.classList.add("gh-boot-ready");

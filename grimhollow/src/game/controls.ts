@@ -47,6 +47,28 @@ import { CLASS_BY_ID } from "./classes";
 // jogo continua desenhando o caractere em vez de um quadrado vazio.
 import { ico, ICO, ICON_CSS } from "./icons";
 const ICO_FECHAR = ico("fechar") || "\u2715";
+
+/**
+ * ÍCONE DE MISSÃO — a ponte entre o emoji que a missão declara e a arte.
+ *
+ * Os ícones de missão são UM POR CONTEÚDO: cada capítulo e cada contrato tem o
+ * seu, e eles nascem junto com o texto da missão, em Game.ts. Trocar isso por um
+ * nome de arte em cada definição obrigaria quem escreve uma missão nova a saber
+ * o que existe na folha — e a resposta certa quando não existe seria "escolha
+ * outro assunto", que é absurdo.
+ *
+ * Então a tradução mora aqui: o que já tem arte equivalente vira imagem, o que
+ * não tem continua desenhado pela fonte até a folha de missões chegar. Uma
+ * missão nova nunca quebra; no pior caso ela aparece com o emoji dela.
+ */
+const MISSAO_ICO: Record<string, string> = {
+  "⚔️": "dano", "⚔": "dano",          // caçada
+  "📜": "diario",                       // recado, entrega de papel
+  "💀": "caido", "☠️": "caido", "☠": "caido", // ossos, mortos-vivos
+  "🔑": "selado",                       // chave / o que estava trancado
+  "🚪": "selado",                       // porta selada
+};
+const missaoIco = (emoji: string): string => ico(MISSAO_ICO[emoji] ?? "") || emoji;
 import type { Rarity } from "./items";
 
 // linha de atributo do item e delta de comparação (verde/vermelho) ao trocar
@@ -1206,7 +1228,7 @@ export function setupControls(
           `<div class="gh-jr-txt"><div class="gh-jr-h">${chap ? `Capítulo ${chap}: ` : ""}???</div>` +
           `<div class="gh-jr-d">Ainda não revelada.</div></div></div>`;
       const obj = e.status === "active" && e.objective ? `<div class="gh-jr-obj">${ico("objetivo") || "\u25C8"} ${e.objective}</div>` : "";
-      return `<div class="gh-jr-q gh-jr-${e.status}"><div class="gh-jr-ico">${e.icon}</div>` +
+      return `<div class="gh-jr-q gh-jr-${e.status}"><div class="gh-jr-ico">${missaoIco(e.icon)}</div>` +
         `<div class="gh-jr-txt"><div class="gh-jr-h">${chap ? `Capítulo ${chap}: ` : ""}${e.title}` +
         `<span class="gh-jr-badge gh-jr-b-${e.status}">${JR_BADGE[e.status] ?? ""}</span></div>` +
         `<div class="gh-jr-d">${e.summary}</div>${obj}</div></div>`;
@@ -1215,7 +1237,7 @@ export function setupControls(
     const sideHtml = d.side.length ? d.side.map((e) => entry(e)).join("")
       : '<div class="gh-jr-empty">Nenhuma missão secundária no momento.</div>';
     journalBody.innerHTML =
-      '<div class="gh-jr-sec"><div class="gh-jr-sh">✦ A Névoa Devoradora <small>Linha Principal</small></div>' +
+      '<div class="gh-jr-sec"><div class="gh-jr-sh">' + (ico("concluido") || "\u2726") + ' A Névoa Devoradora <small>Linha Principal</small></div>' +
       `<div class="gh-jr-list">${mainHtml}</div></div>` +
       '<div class="gh-jr-sec"><div class="gh-jr-sh">Missões</div>' +
       `<div class="gh-jr-list">${sideHtml}</div></div>`;
@@ -1803,29 +1825,47 @@ export function setupControls(
   });
   const socialCss = document.createElement("style");
   socialCss.textContent = `
-    /* botão: mesma linguagem do botão de expandir o mapa, ao lado dele */
+    /* BOTÃO: o QUINTO da coluna de atalhos, na esquerda.
+       Ele nasceu no canto superior direito, "ao lado do botão de expandir o
+       mapa" — e ali dividia a MESMA coordenada com o relógio
+       (top:8~12px, right:calc(12px + min(118px,27vw) + 8px) nos dois), então um
+       cobria o outro 94%. Não era ajuste fino: eram duas coisas no mesmo lugar.
+       Trazer o botão p/ a coluna resolve de vez e ainda junta os cinco atalhos
+       num lugar só, que é onde o jogador já procura. */
     #gh-social{position:fixed;z-index:12;pointer-events:auto;cursor:pointer;
-      right:calc(12px + min(118px,27vw) + 8px);top:12px;width:36px;height:36px;
-      border-radius:9px;padding:0;display:flex;align-items:center;
+      left:14px;top:calc(20px + min(230px, 40vw) * 0.424 + 240px);
+      width:52px;height:52px;border:none;
+      background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
+      border-radius:50%;padding:0;display:flex;align-items:center;
       justify-content:center;gap:1px;font-size:13px;line-height:1;
       font-family:"Cinzel",serif;color:#f0dca2;
-      background:linear-gradient(#2b2218,#160f08);
-      border:1.5px solid rgba(201,162,39,.6);box-shadow:0 2px 6px rgba(0,0,0,.6);}
-    #gh-social small{font-size:10px;color:#c9a227;}
-    #gh-social:hover{color:#fff;border-color:#f4c847;}
-    #gh-social:active{transform:scale(.92);}
+      filter:drop-shadow(0 2px 7px rgba(0,0,0,.55));}
+    /* o contador vira SELO no canto, como em qualquer lista com pendência —
+       dentro do disco ele disputaria espaço com o desenho */
+    #gh-social small{position:absolute;right:-2px;top:-2px;min-width:17px;height:17px;
+      display:flex;align-items:center;justify-content:center;padding:0 4px;
+      box-sizing:border-box;font-size:10px;line-height:1;color:#1a1109;
+      background:linear-gradient(#f4d074,#c9922a);border-radius:9px;
+      border:1px solid rgba(40,28,10,.7);box-shadow:0 1px 3px rgba(0,0,0,.6);}
+    #gh-social:active{transform:scale(.94);filter:brightness(1.15);}
+    /* celular deitado: o atalho entra na fileira do topo (a quinta posição) e o
+       painel abre logo abaixo dela */
+    @media (orientation:landscape) and (max-height:500px){
+      #gh-social{top:6px;left:calc(50% + 74px);width:44px;height:44px;}
+      #gh-socialbox{left:auto;right:12px;top:56px;}
+    }
     /* quando há gente por perto o botão PULSA de leve — chama sem gritar */
-    #gh-social.gh-so-tem{border-color:#f4c847;
-      animation:ghSoPulso 2.4s ease-in-out infinite;}
-    @keyframes ghSoPulso{0%,100%{box-shadow:0 2px 6px rgba(0,0,0,.6);}
-      50%{box-shadow:0 2px 6px rgba(0,0,0,.6),0 0 10px rgba(244,200,71,.55);}}
+    #gh-social.gh-so-tem{animation:ghSoPulso 2.4s ease-in-out infinite;}
+    @keyframes ghSoPulso{0%,100%{filter:drop-shadow(0 2px 7px rgba(0,0,0,.55));}
+      50%{filter:drop-shadow(0 2px 7px rgba(0,0,0,.55)) drop-shadow(0 0 7px rgba(244,200,71,.75));}}
 
     /* JANELA: a MOLDURA DE ARTE das outras janelas do jogo (eq_frame 9-slice) */
     /* Largura: cabiam duas ações por linha; com a busca são TRÊS (grupo, amizade,
        Companhia) e o nome passou a ser cortado no meio. O painel cresce o
        bastante p/ o nome e a área continuarem legíveis ao lado delas. */
+    /* o painel acompanha o botão: abre à direita da coluna de atalhos */
     #gh-socialbox{position:fixed;z-index:30;pointer-events:auto;
-      right:calc(12px + min(118px,27vw) + 8px);top:56px;width:min(320px,80vw);
+      left:76px;top:56px;width:min(320px,80vw);
       box-sizing:border-box;border:22px solid transparent;
       border-image:url(${eqFrameUrl}) 90 fill;
       filter:drop-shadow(0 6px 18px rgba(0,0,0,.65));
@@ -2204,7 +2244,7 @@ export function setupControls(
     /* celular deitado: o atalho entra na fileira do topo (a quarta posição) e a
        janela usa a tela toda; o brasão encolhe p/ o cabeçalho caber. */
     @media (orientation:landscape) and (max-height:500px){
-      #gh-guild-btn{top:6px;left:calc(50% + 50px);width:44px;height:44px;}
+      #gh-guild-btn{top:6px;left:calc(50% + 26px);width:44px;height:44px;}
       .gh-gd-ico{font-size:21px;}
       #gh-gd-win{width:100vw;max-height:100dvh;border-width:clamp(14px,2.6vh,22px);}
       .gh-gd-brasao{width:54px;height:60px;}
@@ -2544,7 +2584,7 @@ export function setupControls(
       const bits: string[] = [];
       if (cb.mana) bits.push(`${MANA_IC}${cb.mana}`);
       if (cb.cd) bits.push(`${CD_IC}${(cb.cd / 1000) % 1 ? (cb.cd / 1000).toFixed(1) : cb.cd / 1000}s`);
-      if (cb.effect === "dmg") bits.push(cb.melee ? "corpo a corpo" : `⤢ ${cb.range} cél.`);
+      if (cb.effect === "dmg") bits.push(cb.melee ? "corpo a corpo" : `${ico("expandir") || "\u2922"} ${cb.range} cél.`);
       if (bits.length) body += `<div class="gh-skc-res">${bits.map((b) => `<span>${b}</span>`).join("")}</div>`;
     } else if (sk.stat) {
       // passiva: ganho por nível + selo do atributo
@@ -3116,7 +3156,7 @@ export function setupControls(
   const renderTavern = (d: TavernData) => {
     const quests = d.quests.map((q) =>
       `<div class="gh-tv-quest ${questAccent(q)}"><div class="gh-tv-accent"></div>` +
-      `<div class="gh-tv-qic">${q.icon}</div>` +
+      `<div class="gh-tv-qic">${missaoIco(q.icon)}</div>` +
       `<div class="gh-tv-qbody">` +
       `<div class="gh-tv-qtop"><span class="gh-tv-qtitle">${q.title}</span>` +
         (q.repeatable ? `<span class="gh-tv-rib gh-tv-rib-rep">${ico("repetir") || "\u21BB"} REPETÍVEL</span>` : "") + `${questRibbon(q)}</div>` +
@@ -3131,14 +3171,14 @@ export function setupControls(
       `<div class="gh-eq-title gh-tv-title"><img class="gh-tv-portr" src="${taverneiroUrl}" alt=""/>` +
       `<span class="gh-tv-tt">Taverna do Javali<small>BRUNO, O TAVERNEIRO</small></span>` +
       `<span class="gh-gold gh-tv-gold"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +
-      `<div class="gh-tv-rule"><span>◆</span></div>` +
+      `<div class="gh-tv-rule"><span>${ico("objetivo") || "\u25C6"}</span></div>` +
       // BEBIDAS — card compacto
       `<div class="gh-tv-block"><div class="gh-tv-h"><b>NA TORNEIRA</b><i>— bebidas</i></div>` +
       `<div class="gh-tv-drinkcard"><div class="gh-tv-dslot">` +
       `${d.drink.iconUrl ? `<img class="gh-tv-dimg" src="${d.drink.iconUrl}" alt=""/>` : `<span class="gh-tv-demo">${d.drink.icon}</span>`}` +
       `${d.drink.have > 0 ? `<span class="gh-tv-dhave">${d.drink.have}</span>` : ""}</div>` +
       `<div class="gh-tv-dinfo"><div class="gh-tv-dn">${d.drink.name}</div>` +
-      `<div class="gh-tv-chip">❤ ${d.drink.desc}</div></div>` +
+      `<div class="gh-tv-chip">${ico("vida") || "\u2764"} ${d.drink.desc}</div></div>` +
       `<div class="gh-tv-buywrap"><button class="gh-tv-buybtn" id="gh-tv-buy"><img src="${coinUrl}" alt=""/>${d.drink.price}</button>` +
       `<em>COMPRAR</em></div></div></div>` +
       // MISSÕES — protagonista
@@ -3287,7 +3327,7 @@ export function setupControls(
       } else {
         html +=
           `<span class="gh-sslot gh-ss-empty" style="left:${x}%;top:${HB_Y}%">` +
-          `<span class="gh-ss-rune">◈</span></span>`;
+          `<span class="gh-ss-rune">${ico("objetivo") || "\u25C8"}</span></span>`;
       }
     }
     actbar.innerHTML = html;
@@ -3398,7 +3438,7 @@ export function setupControls(
     '<div class="gh-dlg-name"></div>' +
     '<div class="gh-dlg-text"></div>' +
     '<div class="gh-dlg-choices"></div>' +
-    '<div class="gh-dlg-hint">toque para continuar ▸</div>' +
+    '<div class="gh-dlg-hint">toque para continuar ' + (ico("avancar") || "\u25B8") + '</div>' +
     "</div>";
   dlg.addEventListener("pointerdown", (e) => {
     // com escolhas na tela, o toque no fundo NÃO avança — o jogador usa os botões
@@ -3498,9 +3538,9 @@ export function setupControls(
         const plus = s.points <= 0 ? " disabled" : "";
         const seal = attrSeal(key as PrimAttr, 20);
         return `<div class="gh-prow"><span class="gh-plabel">${seal}${label}</span><span class="gh-pstep">` +
-          `<button class="gh-pm" data-attr="${key}" data-d="-1"${minus}>−</button>` +
+          `<button class="gh-pm" data-attr="${key}" data-d="-1"${minus}>${ico("menos") || "\u2212"}</button>` +
           `<b>${v}</b>` +
-          `<button class="gh-pm" data-attr="${key}" data-d="1"${plus}>＋</button>` +
+          `<button class="gh-pm" data-attr="${key}" data-d="1"${plus}>${ico("somar") || "\uFF0B"}</button>` +
           `</span></div>`;
       };
       const sr = (label: string, val: string | number, hint = "") =>
@@ -3528,19 +3568,19 @@ export function setupControls(
           "</div>" +
           // secundários em 3 blocos emoldurados
           '<div class="gh-st2-secs">' +
-            '<div class="gh-st2-panel gh-st2-sec"><h5>⚔️ Ofensivo</h5>' +
+            '<div class="gh-st2-panel gh-st2-sec"><h5>' + (ico("dano") || "\u2694") + ' Ofensivo</h5>' +
               sr("Atq. Físico", s.atk) + sr("Atq. Mágico", s.atkMag) +
               sr("Crítico", s.crit + "%", "Chance de acerto crítico") +
               sr("Dano Crít.", s.critDmg + "%", "Multiplicador do crítico") +
               sr("Precisão", s.precision + "%", "Acerto vs. Evasão do alvo") +
             "</div>" +
-            '<div class="gh-st2-panel gh-st2-sec"><h5>🛡️ Defensivo</h5>' +
+            '<div class="gh-st2-panel gh-st2-sec"><h5>' + (ico("defesa") || "\u{1F6E1}") + ' Defensivo</h5>' +
               sr("Vida", `${s.hp}/${s.hpMax}`) +
               sr("Regen.", `${s.regen}/s`, "Regeneração de vida por segundo") +
               sr("Defesa", s.def) + sr("Res. Mágica", s.magRes) +
               sr("Evasão", s.evasion + "%", "Chance de esquivar") +
             "</div>" +
-            '<div class="gh-st2-panel gh-st2-sec"><h5>🔷 Recursos</h5>' +
+            '<div class="gh-st2-panel gh-st2-sec"><h5>' + (ico("mana") || "\u{1F537}") + ' Recursos</h5>' +
               sr("Mana", `${s.mp}/${s.mpMax}`) + sr("Ouro", s.gold) +
             "</div>" +
           "</div>" +
@@ -4360,7 +4400,7 @@ function injectStyle() {
   .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
   .gh-preplay #gh-tracker, .gh-preplay #gh-hotbar,
   .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
-  .gh-preplay #gh-guild-btn,
+  .gh-preplay #gh-guild-btn, .gh-preplay #gh-social,
   .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk,
   .gh-preplay .gh-move, .gh-preplay .gh-act, .gh-preplay .gh-atk {
     opacity:0 !important; pointer-events:none !important;
@@ -4370,7 +4410,7 @@ function injectStyle() {
   .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
   .gh-revealing #gh-tracker, .gh-revealing #gh-hotbar,
   .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,
-  .gh-revealing #gh-guild-btn,
+  .gh-revealing #gh-guild-btn, .gh-revealing #gh-social,
   .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk,
   .gh-revealing .gh-move, .gh-revealing .gh-act, .gh-revealing .gh-atk {
     animation:gh-hud-in .55s ease both;
@@ -4456,7 +4496,7 @@ function injectStyle() {
     filter:drop-shadow(0 1px 2px rgba(0,0,0,.85)); border-radius:9%; }
   .gh-ss-empty { cursor:default; }
   .gh-ss-empty:active { filter:none; }
-  .gh-ss-rune { font-size:0.9rem; color:rgba(220,200,150,.32); pointer-events:none;
+  .gh-ss-rune { font-size:0.9rem; color:rgba(220,200,150,.32); pointer-events:none; opacity:.34;
     text-shadow:0 1px 2px rgba(0,0,0,.8); }
   .gh-ss-x { font-size:1.1rem; color:#e6d29a; }
   /* recarga: setor escuro (conic) que ENCOLHE conforme --gh-cd cai */
@@ -5732,10 +5772,13 @@ function injectStyle() {
        o novo entraria por fora e ficaria em cima do minimapa. O do estandarte é
        posicionado na FOLHA DA COMPANHIA — esta aqui é anexada antes dela e, com a
        mesma especificidade, perderia. */
+    /* Companhia e Jogadores são posicionados nas FOLHAS DELES: esta aqui é
+       anexada antes das duas e, com a mesma especificidade, perderia. Já custou
+       três correções — o dia em que entrar um sexto atalho, é o mesmo cuidado. */
     #gh-char-btn, #gh-opt-btn, #gh-journal-btn { top:6px; width:44px; height:44px; }
-    #gh-char-btn    { left:calc(50% - 94px); }
-    #gh-opt-btn     { left:calc(50% - 46px); }
-    #gh-journal-btn { left:calc(50% + 2px); }
+    #gh-char-btn    { left:calc(50% - 118px); }
+    #gh-opt-btn     { left:calc(50% - 70px); }
+    #gh-journal-btn { left:calc(50% - 22px); }
     /* d-pad e ação recuados nos cantos de baixo, um pouco menores */
     .gh-move { left:10px; bottom:10px; width:116px; height:108px; }
     .gh-atk  { right:12px; bottom:12px; width:54px; height:54px; }

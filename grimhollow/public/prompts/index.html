@@ -1868,6 +1868,62 @@ folha pela grade acima e nomeia cada peça (<code>ico_amigos.png</code>, <code>i
 …). Daí eu troco os emoji pelas imagens no código, um lugar por vez, e o jogo
 passa a desenhar o mesmo símbolo em qualquer aparelho.</p>
 </blockquote>
+<hr />
+<h2 id="32--ícones-de-missão--a-terceira-folha---arte-pendente">32 · ÍCONES DE MISSÃO — a terceira folha — 🟡 arte pendente</h2>
+<p>As folhas §31 cobriram a <strong>moldura</strong> do jogo: atalhos, setas, atributos. Sobraram
+os ícones de <strong>conteúdo</strong> — o desenho que cada capítulo e cada contrato leva no
+Diário e no mural da taverna.</p>
+<p>Quatro deles já foram resolvidos reaproveitando a §31 (a caçada usa o ícone de
+dano, o recado usa o pergaminho, os ossos usam a caveira, a porta selada usa o
+cadeado). <strong>Estes nove é que não têm equivalente</strong> — mais três que faltarão assim
+que houver missão de taverna, de alquimia ou de forja.</p>
+<p>Depois desta folha, <strong>nenhum símbolo do jogo é mais desenhado pela fonte do
+aparelho</strong>. O único emoji que sobra no código é o das classes, e ele nunca chega
+à tela: é a reserva de quando a arte da classe não carregou.</p>
+<h3 id="-321--ui_icons_cpng-missões--grade-62">🟡 32.1 — <code>ui_icons_c.png</code> (missões) — grade 6×2</h3>
+<p><strong>1536×512</strong>, seis colunas por duas linhas, células de 256×256. <strong>Mesmo estilo
+das outras duas</strong> — metal dourado gravado, silhueta grossa, sem cor própria.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+<th>6</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A</strong></td>
+<td>bússola</td>
+<td>vilarejo</td>
+<td>lanterna</td>
+<td>onda</td>
+<td>leviatã</td>
+<td>caixote</td>
+</tr>
+<tr>
+<td><strong>B</strong></td>
+<td>rato</td>
+<td>aranha</td>
+<td>chama</td>
+<td>caneca</td>
+<td>frasco</td>
+<td>bigorna</td>
+</tr>
+</tbody>
+</table>
+<pre><code>A single flat sprite sheet of 12 medieval fantasy quest icons arranged in a strict 6 by 2 grid, 1536x512, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: a mariner compass with a needle, a cluster of three small peaked-roof houses seen from the front, a hanging paper lantern on a hook, a curling ocean wave, a breaching whale silhouette with a broad tail, a wooden crate with iron banding. Row 2: a rat in profile with a long tail, a spider seen from above with eight legs, a single flame, a foaming tankard of ale, a stoppered potion flask, a blacksmith anvil. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, bold simple readable silhouettes with thick strokes, no thin fragile lines, monochrome metal so the game can tint each one, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
+</code></pre>
+<blockquote>
+<p>Mesma observação das outras: se vier com o xadrez pintado, o corte roda com
+<code>--xadrez</code>. E as células precisam de folga entre si — ícone encostando no
+vizinho o corte não salva.</p>
+<p>Depois de mandar: <code>python3 scripts/slice_icons.py ui_icons_c.png c --xadrez</code>.</p>
+</blockquote>
 <div class="foot">Nethergloam — referência de arte gerada a partir de PROMPTS.md · atualiza sozinho a cada deploy do jogo</div>
 </div>
 <script>

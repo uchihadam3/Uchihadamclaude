@@ -2082,3 +2082,40 @@ A single flat sprite sheet of 18 medieval fantasy RPG stat icons arranged in a s
 > folha pela grade acima e nomeia cada peça (`ico_amigos.png`, `ico_forca.png`,
 > …). Daí eu troco os emoji pelas imagens no código, um lugar por vez, e o jogo
 > passa a desenhar o mesmo símbolo em qualquer aparelho.
+
+---
+
+## 32 · ÍCONES DE MISSÃO — a terceira folha — 🟡 arte pendente
+
+As folhas §31 cobriram a **moldura** do jogo: atalhos, setas, atributos. Sobraram
+os ícones de **conteúdo** — o desenho que cada capítulo e cada contrato leva no
+Diário e no mural da taverna.
+
+Quatro deles já foram resolvidos reaproveitando a §31 (a caçada usa o ícone de
+dano, o recado usa o pergaminho, os ossos usam a caveira, a porta selada usa o
+cadeado). **Estes nove é que não têm equivalente** — mais três que faltarão assim
+que houver missão de taverna, de alquimia ou de forja.
+
+Depois desta folha, **nenhum símbolo do jogo é mais desenhado pela fonte do
+aparelho**. O único emoji que sobra no código é o das classes, e ele nunca chega
+à tela: é a reserva de quando a arte da classe não carregou.
+
+### 🟡 32.1 — `ui_icons_c.png` (missões) — grade 6×2
+
+**1536×512**, seis colunas por duas linhas, células de 256×256. **Mesmo estilo
+das outras duas** — metal dourado gravado, silhueta grossa, sem cor própria.
+
+| | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| **A** | bússola | vilarejo | lanterna | onda | leviatã | caixote |
+| **B** | rato | aranha | chama | caneca | frasco | bigorna |
+
+```
+A single flat sprite sheet of 12 medieval fantasy quest icons arranged in a strict 6 by 2 grid, 1536x512, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: a mariner compass with a needle, a cluster of three small peaked-roof houses seen from the front, a hanging paper lantern on a hook, a curling ocean wave, a breaching whale silhouette with a broad tail, a wooden crate with iron banding. Row 2: a rat in profile with a long tail, a spider seen from above with eight legs, a single flame, a foaming tankard of ale, a stoppered potion flask, a blacksmith anvil. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, bold simple readable silhouettes with thick strokes, no thin fragile lines, monochrome metal so the game can tint each one, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
+```
+
+> Mesma observação das outras: se vier com o xadrez pintado, o corte roda com
+> `--xadrez`. E as células precisam de folga entre si — ícone encostando no
+> vizinho o corte não salva.
+>
+> Depois de mandar: `python3 scripts/slice_icons.py ui_icons_c.png c --xadrez`.

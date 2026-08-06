@@ -2,7 +2,8 @@
 """
 Fatia as FOLHAS DE ÍCONES da interface (PROMPTS.md §31) em PNGs nomeados.
 
-A folha vem numa grade fixa — 6×4 nos atalhos, 6×3 nos atributos — e cada célula
+A folha vem numa grade fixa — 6×4 nos atalhos, 6×3 nos atributos, 6×2 nas missões —
+e cada célula
 tem um nome combinado de antemão. Por isso o corte não precisa adivinhar nada: a
 grade é a mesma que está no prompt, e o mapa de nomes está aqui embaixo.
 
@@ -22,7 +23,7 @@ pintado por dentro (acontece), passe --xadrez que o recorte do cut_sprite.py rod
 antes — é o mesmo problema que ele já resolve, e repetir a heurística aqui seria
 manter duas cópias de uma conta difícil.
 
-  python3 scripts/slice_icons.py <folha.png> a|b [--xadrez] [--caixa 200]
+  python3 scripts/slice_icons.py <folha.png> a|b|c [--xadrez] [--caixa 200]
 """
 import os
 import sys
@@ -44,6 +45,17 @@ FOLHAS = {
             "fechar", "expandir", "equipar", "loja", "missao", "selado",
             "cima", "baixo", "avancar", "voltar", "repetir", "sair",
             "objetivo", "concluido", "lider", "caido", "somar", "ouro",
+        ],
+    },
+    # a folha C é de ÍCONES DE MISSÃO: um por assunto, não por função da tela.
+    # Eles são traduzidos em controls.ts (MISSAO_ICO), e não citados direto pelas
+    # definições de missão — quem escreve uma missão nova continua escolhendo um
+    # emoji, e ele vira arte se houver equivalente.
+    "c": {
+        "grade": (6, 2),
+        "nomes": [
+            "bussola", "vilarejo", "lanterna", "onda", "leviata", "caixa",
+            "rato", "aranha", "chama", "caneca", "frasco", "bigorna",
         ],
     },
     "b": {
