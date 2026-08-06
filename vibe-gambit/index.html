@@ -32,11 +32,18 @@
   .brand small{display:block;font-size:8px;color:var(--dim);letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
   .logo-emblem{height:36px;width:auto;image-rendering:pixelated;filter:drop-shadow(0 2px 2px #0009);flex:none}
   .ticon{width:20px;height:20px;object-fit:contain;image-rendering:pixelated;vertical-align:-4px;margin-right:4px}
-  .base-banner{position:relative;border-radius:12px;overflow:hidden;height:118px;margin-bottom:12px;border:1px solid var(--line);box-shadow:0 3px 0 #120b04}
-  .base-banner img{width:100%;height:100%;object-fit:cover;display:block;image-rendering:pixelated}
-  .base-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 38%,#120b04dd)}
-  .bb-title{position:absolute;left:14px;bottom:9px;font-size:19px;font-weight:900;text-shadow:0 2px 5px #000,0 0 4px #000;z-index:1}
-  .bb-title small{display:block;font-size:11px;color:var(--gold);font-weight:800;text-shadow:0 1px 3px #000}
+  /* ---------- moldura enxuta da Base (ref. Acampamento Base) ---------- */
+  #screen-base{position:relative;padding:24px 4px 6px}
+  .base-frame{position:relative;background:var(--panel);
+    border:4px solid #6f7580;border-radius:16px;
+    box-shadow:inset 0 0 0 3px #a9803f, 0 8px 22px rgba(10,14,20,.4);
+    padding:20px 12px 14px}
+  .base-title{position:absolute;top:-17px;left:50%;transform:translateX(-50%);z-index:3;white-space:nowrap;
+    background:linear-gradient(180deg,#a9743f,#7a5024);color:#fbeecb;
+    border:3px solid #4a2f16;border-radius:10px;padding:5px 20px;
+    font-size:15px;font-weight:900;letter-spacing:.3px;
+    text-shadow:0 1px 0 #3a2410;box-shadow:0 3px 0 #3a2410,0 6px 12px rgba(20,12,4,.4)}
+  .base-frame .tabbody{background:transparent;border:none;box-shadow:none;padding:12px 2px 2px}
   .nav{display:flex;gap:6px;flex:0 0 auto}
   .res{order:3;flex-basis:100%;display:flex;justify-content:space-between;gap:6px;font-weight:800;font-size:12px;
     background:#2c2114;border:1px solid #23190e;border-radius:10px;padding:6px 10px;color:#f2e7d2}
