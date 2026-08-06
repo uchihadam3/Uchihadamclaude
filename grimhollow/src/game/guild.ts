@@ -202,6 +202,33 @@ export function validarFundacao(nome: string, tag: string): string {
   return "";
 }
 
+/**
+ * O QUE DEU ERRADO, dito em português — e sem esconder o resto.
+ *
+ * Todas as falhas de banco caíam num "não deu agora" só, que é o bastante para o
+ * jogador e é NADA para quem precisa consertar: recusa da RLS, tabela que não
+ * existe e rede caída viram a mesma frase. Aqui os casos que dá para explicar
+ * ganham nome, e o que sobra leva o texto cru do Postgres junto — feio, mas é
+ * exatamente o que se precisa ler quando a Companhia não sai do lugar.
+ */
+function porQue(e: unknown, oQue: string): string {
+  const err = e as { message?: string; code?: string } | null | undefined;
+  const msg = String(err?.message ?? e ?? "");
+  const cod = String(err?.code ?? "");
+  if (/duplicate key|already exists|unique/i.test(msg) && /guilds_nome/.test(msg))
+    return "Já existe uma Companhia com esse nome.";
+  if (/duplicate key|unique/i.test(msg))
+    return "Este personagem já pertence a uma Companhia.";
+  if (/row-level security|violates row-level/i.test(msg) || cod === "42501")
+    return "O banco recusou: você não tem permissão para isso.";
+  if (/does not exist|relation .* does not exist/i.test(msg) || cod === "42P01")
+    return "As tabelas da Companhia ainda não existem no Supabase (§30 dos prompts).";
+  if (/JWT|not authenticated|invalid token/i.test(msg))
+    return "Sua sessão expirou — entre com a conta de novo.";
+  if (/fetch|network|Failed to fetch/i.test(msg)) return "Sem conexão com o servidor.";
+  return msg ? `${oQue}: ${msg.slice(0, 120)}` : oQue;
+}
+
 async function getClient(): Promise<RTClient | null> {
   if (!isSupabaseConfigured()) return null;
   try {
@@ -319,18 +346,19 @@ class GuildSession {
       dono_uid: this.eu.uid, dono_conta: conta,
     };
     try {
-      const { error } = await cli.from("guilds").insert(linha) as unknown as { error: { message?: string } | null };
-      if (error) return /duplicate|unique/i.test(error.message ?? "")
-        ? "Já existe uma Companhia com esse nome."
-        : "Não deu para fundar agora.";
-    } catch { return "Não deu para fundar agora."; }
+      const { error } = await cli.from("guilds").insert(linha) as unknown as { error: unknown };
+      if (error) return porQue(error, "Não deu para fundar");
+    } catch (e) { return porQue(e, "Não deu para fundar"); }
     const eu: Membro = {
       uid: this.eu.uid, nome: this.eu.nome, classId: this.eu.classId,
       nivel: this.eu.nivel, posto: "mestre", entrouEm: Date.now(),
     };
-    if (!await this.inserirMembro(cli, conta, id, eu)) {
+    const falha = await this.inserirMembro(cli, conta, id, eu);
+    if (falha) {
+      // a companhia nasceu mas eu fiquei de fora: desfaço, senão sobra uma
+      // companhia sem ninguém e com o nome ocupado p/ sempre
       try { await cli.from("guilds").delete().eq("id", id); } catch { /* melhor esforço */ }
-      return "Não deu para fundar agora.";
+      return falha;
     }
     this.info = {
       id, nome: linha.nome, tag: linha.tag, lema: linha.lema,
@@ -355,7 +383,8 @@ class GuildSession {
       uid: this.eu.uid, nome: this.eu.nome, classId: this.eu.classId,
       nivel: this.eu.nivel, posto: "membro", entrouEm: Date.now(),
     };
-    if (!await this.inserirMembro(cli, conta, c.guildId, eu)) return "Não deu para entrar agora.";
+    const erro = await this.inserirMembro(cli, conta, c.guildId, eu);
+    if (erro) return erro;
     await this.carregar(this.eu.uid);
     this.anotarLocal();
     this.cbInfo?.(this.info);
@@ -374,7 +403,7 @@ class GuildSession {
       if (this.souMestre()) await cli?.from("guilds").delete().eq("id", this.info.id);
       else await cli?.from("guild_members").delete()
         .eq("guild_id", this.info.id).eq("hero_uid", this.eu.uid);
-    } catch { return "Não deu para sair agora."; }
+    } catch (e) { return porQue(e, "Não deu para sair"); }
     await this.fecharCanal();
     this.info = null; this.guardados = []; this.vistos.clear();
     this.anotarLocal();
@@ -393,7 +422,7 @@ class GuildSession {
     try {
       await cli.from("guild_members").update({ posto })
         .eq("guild_id", this.info.id).eq("hero_uid", uid);
-    } catch { return "Não deu para mudar agora."; }
+    } catch (e) { return porQue(e, "Não deu para mudar o posto"); }
     if (this.eu) await this.carregar(this.eu.uid);
     this.cbInfo?.(this.info);
     this.emitir();
@@ -430,7 +459,7 @@ class GuildSession {
         .eq("guild_id", gid).eq("hero_uid", meu);
       // por último: a partir daqui a companhia é dele, e eu não escrevo mais
       await cli.from("guilds").update({ dono_uid: uid, dono_conta: conta }).eq("id", gid);
-    } catch { return "Não deu para passar o bastão agora."; }
+    } catch (e) { return porQue(e, "Não deu para passar o bastão"); }
     await this.carregar(meu);
     this.cbInfo?.(this.info);
     this.emitir();
@@ -444,7 +473,7 @@ class GuildSession {
     const cli = await getClient();
     try {
       await cli?.from("guild_members").delete().eq("guild_id", this.info.id).eq("hero_uid", uid);
-    } catch { return "Não deu para expulsar agora."; }
+    } catch (e) { return porQue(e, "Não deu para expulsar"); }
     this.guardados = this.guardados.filter((m) => m.uid !== uid);
     this.emitir();
     return "";
@@ -524,15 +553,16 @@ class GuildSession {
     } catch { this.userId = ""; }
     return this.userId;
   }
-  private async inserirMembro(cli: RTClient, conta: string, guildId: string, m: Membro): Promise<boolean> {
+  /** Põe alguém no quadro. Devolve "" se deu certo, ou o motivo em português. */
+  private async inserirMembro(cli: RTClient, conta: string, guildId: string, m: Membro): Promise<string> {
     try {
       const { error } = await cli.from("guild_members").insert({
         guild_id: guildId, hero_uid: m.uid, user_id: conta, nome: m.nome,
         class_id: m.classId, nivel: m.nivel, posto: m.posto,
       }) as unknown as { error: unknown };
-      if (error) return false;
-    } catch { return false; }
-    return true;
+      if (error) return porQue(error, "Não deu para entrar");
+    } catch (e) { return porQue(e, "Não deu para entrar"); }
+    return "";
   }
 
   /**
