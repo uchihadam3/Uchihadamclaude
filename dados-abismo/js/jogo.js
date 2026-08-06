@@ -766,11 +766,20 @@ function pintar(){
     const proxT = gira ? travaTxt(e.travaCiclo[(cb.turn + (e._giro||0)) % e.travaCiclo.length]) : null;
     // sem o prefixo: "muda para: só sofre dano com dado 4+" fica redundante
     const prox = proxT ? { curto: proxT.curto.replace(/^só sofre dano\s*/i,'') } : null;
+    /* A FECHADURA VIRA UM SELO, não um parágrafo. O texto inteiro ("só sofre
+       dano com ⚔ Lâmina no golpe OU gastando 2 dados") fazia cada card ter
+       uma altura diferente — e com fechadura composta esticava o card a ponto
+       de empurrar os inimigos seguintes para fora da fileira. Agora fica o
+       ícone e o nome curto da regra; o toque abre a explicação inteira, que é
+       onde ela se lê com calma. Todos os cards ficam do mesmo tamanho. */
+    const nomeCurto = e._arrombada ? 'ARROMBADA'
+      : e.travaOff>0 ? `DISSOLVIDA ${e.travaOff}`
+      : (tr && tr.t==='ou') ? '2 CHAVES' : (td?.nome || '');
     const travaHTML = td ? `<div class="trava ${e._arrombada||e.travaOff>0?'off':(alocSel? (aberta?'abre':'fecha') : '')}"
-        data-tr="${tr?tr.t:''}" title="${td.txt}${prox?` — no próximo turno vira: ${prox.curto}`:''} — toque para entender"><span class="tico">${td.ico}</span><span class="ttx">${
-        e._arrombada?'ARROMBADA' : e.travaOff>0?`DISSOLVIDA (${e.travaOff})` : td.curto}${
-        gira&&!e._arrombada&&!(e.travaOff>0) ? `<i class="tgira">⟳ muda no próximo turno${prox?': '+prox.curto:''}</i>` : ''}</span>${
-        alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓ ABRE':'✕ TRAVA'}</span>`
+        data-tr="${tr?tr.t:''}" title="${td.txt}${prox?` — no próximo turno vira: ${prox.curto}`:''} — toque para entender"
+        ><span class="tico">${td.ico}</span><span class="ttx">${nomeCurto}${
+        gira&&!e._arrombada&&!(e.travaOff>0) ? '<i class="tgira">⟳</i>' : ''}</span>${
+        alocSel&&tr&&!e._arrombada&&!(e.travaOff>0) ? `<span class="tst">${aberta?'✓':'✕'}</span>`
           : '<span class="tq">?</span>'}</div>` : '';
     const st=Object.entries(e.statuses||{}).filter(([,v])=>v>0)
       .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''}${v}</b>`).join(' ');
@@ -801,13 +810,18 @@ function pintar(){
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
     if(previa) previa=calcPrevia(previa.skill); SFX.pegar(); pintar(); });
   // onda cheia aperta as cartas para sobrar mesa (ver #ini.cheia no CSS)
-  $('ini').classList.toggle('cheia', naFila.length >= 4);   // conta o que está À VISTA
+  /* o modo compacto vale quando a fileira passa de UMA fila — com a grade de
+     quatro colunas, isso é do quinto inimigo em diante. Apertar já no quarto
+     encolhia os cards sem necessidade nenhuma. */
+  $('ini').classList.toggle('cheia', naFila.length >= 5);
   const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0)
     .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
-  $('voce').innerHTML=`<span class="pill perigo ${pi.letal?'letal':''}">☠ ${pi.total}</span>
-    <span class="pill">❤ <b>${P.hp}</b>/${P.maxHp}</span>
-    <span class="pill" id="pesc">🛡 ${P.block}</span><span class="pill">⟳ ${cb.rerolls}</span>
-    ${P.essence?`<span class="pill">✦ ${P.essence}</span>`:''}${stp?`<span class="pill">${stp}</span>`:''}`;
+  /* SEU STATUS, no painel do rodapé: vida e escudo em destaque, como na
+     referência; o resto (essência, estados, perigo) fica na mesma coluna. */
+  $('voceval').innerHTML=`<span class="vhp">❤ <b>${P.hp}</b>/${P.maxHp}</span>
+    <span id="pesc" class="vesc">🛡 <b>${P.block}</b></span>
+    <span class="vper ${pi.letal?'letal':''}">☠ ${pi.total}</span>
+    ${P.essence?`<span class="vess">✦ ${P.essence}</span>`:''}${stp?`<span>${stp}</span>`:''}`;
   const pool=cb.pool(), selEnts=cb.roll.filter(e=>sel.has(e.dieId));
   const skills=habilidadesAtuais();
   /* MÃO CHEIA: com a trilha aberta são 8 cartas, e em duas colunas isso dava
@@ -815,7 +829,13 @@ function pintar(){
      as cartas apertam para caber três por fila. Habilidade que você não vê é
      habilidade que não existe. */
   $('hab').classList.toggle('densa', skills.length >= 6);
-  $('habtit').textContent = sel.size ? 'ESCOLHA UMA HABILIDADE' : 'TOQUE NOS DADOS OU NUMA HABILIDADE';
+  /* MESA LOTADA: com mais de quatro habilidades ou mais de quatro inimigos a
+     tela ganha uma fila inteira a mais, e aí não é a altura do aparelho que
+     falta — é o conteúdo que sobra. A legenda e a dica saem, porque são as
+     únicas coisas ali que ninguém precisa para decidir a jogada. */
+  $('baixo').classList.toggle('lotado',
+    skills.length > 4 || cb.aliveEnemies().length > 4);
+  $('habtit').textContent = 'ESCOLHA UMA HABILIDADE';
   $('hab').innerHTML=skills.map((s,i)=>{
     const ok=selEnts.length&&satisfies(s.req,selEnts);
     const poss=findSubset(s.req,pool);
@@ -862,9 +882,11 @@ function pintar(){
       <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span>${
         (()=>{ const f=formulaDano(s); return f && f.mult>1
           ? `<span class="hmult${f.todos?' todos':''}" title="dano = ${SIMB_BASE[f.base]} × ${f.mult}${f.fixo?' + '+f.fixo:''}${f.todos?' em TODOS':''}">×${f.mult}</span>` : ''; })()}</span>
-      <span class="hreq">${reqChips(s.req)}</span>
+      <span class="hlin">Requer: <em>${reqChips(s.req)}</em></span>
       ${selo}
-      ${cPre ? contaHTML(cPre) : ''}
+      <span class="hcusto">${custoTxt(s.req)}</span>
+      ${cPre && (ok||ativa) ? contaHTML(cPre) : ''}
+      ${bonusTxt(s) ? `<span class="hbonus">${bonusTxt(s)}</span>` : ''}
       ${estado?`<span class="hest">${estado}</span>`:''}
     </button>`;}).join('');
   $('hab').querySelectorAll('.h').forEach(d=>{
@@ -905,15 +927,45 @@ function pintar(){
     + `<i>◆</i><span class="tnome">${ESCALADA[masmorra-1].nome}</span>`
     + (vivos>1?`<span class="tinim">${vivos} inimigo${vivos>1?'s':''} ☠</span>`:'');
   $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
+  /* LEGENDA RÁPIDA: só os símbolos que ESTÃO na mesa agora — uma legenda
+     fixa de tudo que existe viraria parede de texto que ninguém lê. */
+  { const vis=new Set(); for(const e of cb.aliveEnemies()){
+      const t=e.intent?.t; if(t) vis.add(t);
+      if(e.armadura||e.statuses?.armadura) vis.add('_arm');
+      if(cb.travaDe(e)) vis.add('_trava'); }
+    const L=[['_trava','🗝','Fechadura'],['_arm','⛊','Armadura'],
+             ['roubar','✋','Rouba dado'],['congelar','❄','Congela dado'],
+             ['fraturar','✖','Fratura dado'],['curse','☠','Maldição'],
+             ['buff','▲','Fúria'],['heal','✚','Cura'],['block','🛡','Defende'],
+             ['contar','🕳','A Conta'],['drenar','🩸','Drena escudo'],
+             ['selar','🔒','Sela habilidade'],['taxa','💰','Pedágio']]
+      .filter(([k])=>vis.has(k));
+    $('legenda').innerHTML = L.length
+      ? `<div class="lgt">LEGENDA RÁPIDA</div>` + L.map(([,i,n])=>`<span>${i} ${n}</span>`).join('')
+      : ''; }
+  /* DADOS USADOS: os que já foram gastos neste turno, apagados */
+  { const gastos = cb.roll.filter(e=>cb.used.has(e.dieId));
+    $('usadoslst').innerHTML = gastos.length
+      ? gastos.map(e=>`<span class="dgasto">${e.face.k==='wild'?'◈':(e.face.v??'☠')}</span>`).join('')
+      : '<span class="dgasto vazio">—</span>'; }
+  /* CONSUMÍVEIS: o que se gasta e acaba dentro do combate — as ferramentas
+     que a árvore deu. É o painel da referência com o que o jogo tem de
+     verdade; inventar poções seria desenhar um botão que não faz nada. */
+  { const c=[];
+    if(P.polegar)     c.push(['👍','Polegar', cb._polegar]);
+    if(P.gazua)       c.push(['🗝','Gazua',   cb._gazua]);
+    if(P.ultimoLance) c.push(['🎲','Lance',   cb._ultimoUsado?0:1]);
+    $('consum').style.display = c.length ? '' : 'none';
+    $('consumlst').innerHTML = c.map(([i,n,q])=>
+      `<span class="cons ${q?'':'vazio'}" title="${n}">${i} <b>${q}</b></span>`).join(''); }
   $('brer').disabled = cb.rerolls<=0 || anima;
   /* o botão DIZ o que vai rolar. Antes ele só dizia "Re-rolar" e o jogador
      não tinha como saber se ia perder a mão inteira ou só o que marcou. */
   { const livres = cb.pool().length;
     const escolhe = BON.rerollEscolhido || P.arvore?.rerollEscolhido;
     const escolhidos = escolhe ? [...sel].filter(id=>cb.pool().some(e=>e.dieId===id)).length : 0;
-    $('brer').innerHTML = escolhidos
-      ? `⟳ Re-rolar <b>${escolhidos}</b>`
-      : `⟳ Re-rolar${livres?` <i class="rtd">${livres}</i>`:''}`; }
+    $('brer').innerHTML = `<span class="rico">⟳</span><b>Re-rolar</b>`
+      + `<i>${escolhidos ? escolhidos+' dado'+(escolhidos>1?'s':'') : cb.rerolls}</i>`; }
   // tocar num efeito do inimigo explica AQUELE efeito, sem sair do combate
   $('ini').querySelectorAll('.trava').forEach(el=>el.onclick=ev=>{ ev.stopPropagation();
     explicar('trava', el.dataset.tr); });
@@ -928,9 +980,14 @@ function pintar(){
       m.material.emissiveIntensity=0; continue; }
     const usado=cb.used.has(id), selec=sel.has(id);
     const napre = previa && previa.ids.includes(id);
-    m.material.emissive?.setHex(napre?0x8a6a00 : selec?0x554400 : 0x000000);
-    m.material.emissiveIntensity = napre?1.5 : selec?0.8 : 0;
-    m.scale.setScalar(napre?1.16:1);
+    /* TODO DADO NA MESA ACENDE, como na referência: um halo violeta baixo nos
+       que estão livres, âmbar forte no que a jogada vai gastar. Antes só o
+       selecionado brilhava e o resto ficava apagado no feltro — a mesa
+       parecia morta enquanto o jogo esperava justamente que você olhasse
+       para ela. */
+    m.material.emissive?.setHex(napre?0x8a6a00 : selec?0x554400 : usado?0x000000 : 0x2a1550);
+    m.material.emissiveIntensity = napre?1.6 : selec?0.9 : usado?0 : 0.55;
+    m.scale.setScalar(napre?1.16 : selec?1.07 : 1);
     m.material.opacity = usado?0.22:1; m.material.transparent = usado; }
 }
 /* rótulo curto de uma intenção (usado pelo Presságio) */
@@ -942,6 +999,29 @@ function rotuloIntent(it, e){
     : it.t==='contar'?'🕳' : '—';
 }
 /* a PASSIVA da classe é o verbo de fechadura grátis de cada uma (§7) */
+/* "Custo: 2 dados" — o requisito já diz em símbolo quantos dados a jogada
+   leva, mas em palavra fica imediato, que é como a referência escreve. */
+function custoTxt(req){
+  if(!req) return '';
+  const n = req.t==='sum' || req.t==='sumExact' ? 0
+          : (req.t==='set'||req.t==='seq'||req.t==='each') ? req.size
+          : (req.count || 1);
+  if(!n) return 'Custo: soma';
+  return `Custo: ${n} dado${n>1?'s':''}`;
+}
+/* "Bônus: ÍMPAR" — o que a habilidade acrescenta além do dano cru */
+function bonusTxt(sk){
+  const e = sk.eff||[];
+  if(e.some(x=>x.op==='arrombar')) return 'ARROMBA';
+  if(e.some(x=>x.op==='dissolver')) return 'DISSOLVE';
+  if(e.some(x=>x.pierce)) return 'PERFURA';
+  if(e.some(x=>x.op==='exec')) return 'EXECUTA';
+  const st = e.find(x=>x.op==='status');
+  if(st) return String(st.st||'').toUpperCase();
+  if(e.some(x=>x.op==='definir'||x.op==='ajustar'||x.op==='wildify')) return 'REESCREVE';
+  if(e.some(x=>x.op==='block')) return 'BLOQUEIA';
+  return '';
+}
 function passivaBtn(selEnts){
   if(selEnts.length!==1 || !cb) return '';
   const e=selEnts[0], num = e.face.k!=='wild' && e.face.v!=null;

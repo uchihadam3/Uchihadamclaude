@@ -168,5 +168,11 @@ export function luzes(scene){
   const lado=new THREE.DirectionalLight(0xdfe9ff, 0.9); lado.position.set(-6,2.6,4); scene.add(lado);
   // vela quente rasante — dá o clima de cripta e realça o relevo das faces
   const vela=new THREE.PointLight(0xffb45e, 22, 14, 2); vela.position.set(-2.2,1.5,2.4); scene.add(vela);
+  /* DUAS LUZES DE ARCANO, arroxeadas e baixas, uma de cada lado. Elas não
+     iluminam para ler — para isso já existem a chave e a frontal — mas
+     lambem a lateral dos dados e desenham o halo violeta que a referência
+     tem: a mesa deixa de ser um feltro no escuro e vira um objeto aceso. */
+  const arc1=new THREE.PointLight(0x9a5cff, 16, 12, 2); arc1.position.set(3.4,1.1,3.2); scene.add(arc1);
+  const arc2=new THREE.PointLight(0x6f3fd8, 12, 12, 2); arc2.position.set(-3.6,1.0,-1.8); scene.add(arc2);
   return key;
 }
