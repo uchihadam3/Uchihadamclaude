@@ -138,15 +138,15 @@
   .torch-glow{position:absolute;width:120px;height:120px;transform:translate(-50%,-50%);pointer-events:none;
     background:radial-gradient(circle,rgba(255,170,60,.32),rgba(255,140,40,.09) 45%,transparent 70%);animation:flicker 1.4s ease-in-out infinite}
   @keyframes flicker{0%,100%{opacity:.82;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-51%) scale(1.07)}}
-  .lane{position:absolute;bottom:16px;width:46%;display:flex;flex-wrap:wrap;gap:2px 4px;align-content:flex-end}
-  .lane.heroes{left:4%;justify-content:flex-start}
-  .lane.enemies{right:4%;justify-content:flex-end}
-  .battler{position:relative;width:52px;display:flex;flex-direction:column;align-items:center;transition:opacity .4s,transform .4s}
-  .battler .nmtag{font-size:10px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;margin-bottom:1px;white-space:nowrap;max-width:60px;overflow:hidden;text-overflow:ellipsis}
+  .lane{position:absolute;bottom:16px;display:flex;flex-wrap:nowrap;gap:0;align-items:flex-end}
+  .lane.heroes{left:2%}
+  .lane.enemies{right:2%}
+  .battler{position:relative;width:44px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;transition:opacity .4s,transform .4s}
+  .battler .nmtag{font-size:9px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000,0 0 3px #000;margin-bottom:1px;white-space:nowrap}
   .battler .ohp{width:44px;height:5px;background:#0b0912;border:1px solid #000;border-radius:3px;overflow:hidden;margin-bottom:1px}
   .battler .ohp>i{display:block;height:100%;background:linear-gradient(90deg,var(--hp),var(--hp2));transition:width .25s}
   .battler.foe .ohp>i{background:linear-gradient(90deg,#ff6a5a,#c0342a)}
-  .battler .spr{width:48px;height:56px;filter:drop-shadow(0 5px 3px #0009);animation:bob 2.4s ease-in-out infinite}
+  .battler .spr{width:44px;height:60px;filter:drop-shadow(0 5px 3px #0009);animation:bob 2.4s ease-in-out infinite}
   .lane.enemies .battler .spr{transform:scaleX(-1)}
   .battler .shadow{width:34px;height:6px;border-radius:50%;background:#0008;filter:blur(2px);margin-top:-5px}
   /* artes 2D (PNG) */
