@@ -486,6 +486,25 @@ const LEVELS = [
     devourer:{"x0":-4,"speed":72,"accel":1.8}}
 ];
 
+// PROTÓTIPO VISUAL — Mundo 2 (Água). Só cenário aquático pra ver o clima; sem mecânica de água ainda.
+// '~' = água (não-sólida por enquanto). Abre pelo botão "🌊 Protótipo: Água" no menu.
+const WATER_PROTO = { name:"~ · Protótipo · Gruta Alagada", mass:6, max:6, theme:"deep", hint:"", rows:[
+  "##################################",
+  "#                                #",
+  "#                                #",
+  "#                                #",
+  "#              *                 #",
+  "#                                #",
+  "#         ####                   #",
+  "#                                #",
+  "#                                #",
+  "#                                #",
+  "#                                #",
+  "#  @                          E  #",
+  "#########~~~~~~~~~~~~~~~##########",
+  "#########~~~~~~~~~~~~~~~##########",
+  "##################################"] };
+
 // -------------------------------------------------------------------------- PROGRESSO
 const SAVE_KEY="geleca_save_v2";
 function loadSave(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY))||{}; return {unlocked:s.unlocked||0, stars:s.stars||{}, coins:s.coins||{}, gems:s.gems||{}}; }catch(e){ return {unlocked:0,stars:{},coins:{},gems:{}}; } }
@@ -501,7 +520,7 @@ function starsFor(idx, massLeft){
 // -------------------------------------------------------------------------- ESTADO
 const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
 const el=id=>document.getElementById(id);
-let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,iceTiles,exitRect,startPos,theme;
+let COLS,ROWS, level, solidTiles,spikes,pickups,plates,doors,heatZones,movers,springs,enemies,gems,stars,fakes,crumbles,iceTiles,water,exitRect,startPos,theme;
 let blob, globs, particles=[], motes=[], rings=[], trail=[], shots=[], levelIndex=0, state="menu"; // menu|play|complete|dead
 let tramp=[];   // SEGREDO: trampolins formados por 4 gelecas em 2x2
 let levelTime=0, T=0, shake=0, last=0, deaths=0, transition=0;
@@ -693,7 +712,7 @@ function loadLevelObj(obj){
 // (re)constrói TODAS as entidades a partir do grid — chamado no load E no reinício,
 // então coletáveis (gosma extra, estrelas), desmoronáveis, molas e inimigos SEMPRE voltam ao morrer/reiniciar.
 function buildEntities(){
-  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];stars=[];fakes=[];crumbles=[];iceTiles=[];
+  solidTiles=[];spikes=[];pickups=[];plates=[];doors=[];heatZones=[];movers=[];springs=[];enemies=[];gems=[];stars=[];fakes=[];crumbles=[];iceTiles=[];water=[];
   for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
     const ch=level.rows[y][x], r={x:x*TILE,y:y*TILE,w:TILE,h:TILE};
     if(ch==="#")solidTiles.push(r);
@@ -710,6 +729,7 @@ function buildEntities(){
     else if(ch==="*")stars.push({x:x*TILE+16,y:y*TILE+16,r:9,got:false});                   // estrela = coletável VISÍVEL
     else if(ch==="S")fakes.push({x:r.x,y:r.y,w:TILE,h:TILE,rev:0});                         // parede FANTASMA: parece sólida, mas você atravessa (some ao entrar)
     else if(ch==="C")crumbles.push({x:r.x,y:r.y,w:TILE,h:TILE,solid:true,t:0,resp:0});     // plataforma que desmorona
+    else if(ch==="~")water.push(r);                                                        // ÁGUA (protótipo visual: só cenário por enquanto)
     else if(ch==="E")exitRect={x:x*TILE+4,y:y*TILE+2,w:TILE-8,h:TILE-4};
     else if(ch==="@")startPos={x:x*TILE,y:y*TILE};
   }
@@ -1732,6 +1752,7 @@ function render(){
   }
 
   drawBlob();
+  drawWater();                     // ÁGUA por cima → quem está submerso ganha tom azulado (protótipo visual)
 
   // PROJÉTEIS de gosma do chefe (bolhas brilhantes com rastro)
   for(const s of shots){ ctx.save(); ctx.shadowColor="rgba(210,74,154,.75)"; ctx.shadowBlur=13;
@@ -1915,6 +1936,38 @@ function slime(cx,cy,rx,ry,amp,seed){
   ctx.closePath();
 }
 // personagem: CUBO GELATINOSO estilo RPG (translúcido, face-topo 3D, bolhas, olhos)
+// ÁGUA (protótipo visual): corpo translúcido azul + superfície ONDULANDO contínua + espuma,
+// cáusticas e bolhinhas subindo. Sem física ainda — só pra ver o clima do Mundo 2.
+function drawWater(){
+  if(!water||!water.length) return;
+  const isW=(tx,ty)=>(ty>=0&&ty<ROWS&&tx>=0&&tx<COLS&&level.rows[ty][tx]==="~");
+  const waveY=(xabs)=>2.4*Math.sin(xabs*0.045 + T*2.0) + 1.1*Math.sin(xabs*0.09 - T*1.3);   // onda contínua no mundo
+  ctx.save();
+  for(const r of water){
+    const tx=(r.x/TILE)|0, ty=(r.y/TILE)|0, surface=!isW(tx,ty-1);
+    const g=ctx.createLinearGradient(0,r.y,0,r.y+TILE);
+    g.addColorStop(0,"rgba(74,176,228,.40)"); g.addColorStop(1,"rgba(28,104,176,.52)");
+    ctx.fillStyle=g;
+    if(surface){
+      const N=5; ctx.beginPath(); ctx.moveTo(r.x, r.y+TILE); ctx.lineTo(r.x, r.y+waveY(r.x));
+      for(let i=1;i<=N;i++){ const xx=r.x+i/N*TILE; ctx.lineTo(xx, r.y+waveY(xx)); }
+      ctx.lineTo(r.x+TILE, r.y+TILE); ctx.closePath(); ctx.fill();
+      // linha de ESPUMA/brilho seguindo a onda
+      ctx.strokeStyle="rgba(206,242,255,.6)"; ctx.lineWidth=1.6; ctx.beginPath();
+      for(let i=0;i<=N;i++){ const xx=r.x+i/N*TILE, yy=r.y+waveY(xx); i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }
+      ctx.stroke();
+    } else { ctx.fillRect(r.x, r.y, TILE, TILE); }
+    // CÁUSTICAS: risquinhos de luz diagonal se mexendo
+    ctx.strokeStyle="rgba(190,235,255,.10)"; ctx.lineWidth=2;
+    const cph=(tx*13+ty*7)+T*30; for(let k=0;k<2;k++){ const off=((cph+k*17)%TILE);
+      ctx.beginPath(); ctx.moveTo(r.x+off, r.y+2); ctx.lineTo(r.x+off-6, r.y+TILE-2); ctx.stroke(); }
+    // BOLHINHAS subindo (loop)
+    const bseed=(tx*0.7+ty*1.9); const bp=((T*0.5+bseed)%1);
+    const bx=r.x+TILE*(0.3+0.4*Math.sin(bseed*6)), by=r.y+TILE*(1-bp), br=1+ (bseed*3%1)*1.6;
+    ctx.fillStyle="rgba(220,245,255,.35)"; ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill();
+  }
+  ctx.restore();
+}
 function drawBlob(){
   const b=blob; if(b.gone) return;                 // morreu: virou espatifo, não desenha o corpo
   const sq=Math.max(-0.18,Math.min(0.18,b.vy/4000)), jig=Math.sin(T*6)*0.02;
@@ -2396,6 +2449,7 @@ function buildCustomList(){ const box=el("custom-list"); if(!box) return; box.in
 }
 // wiring do editor
 if(el("btn-open-custom")) el("btn-open-custom").addEventListener("click",()=>{ audio(); showCustom(); });
+if(el("btn-water-proto")) el("btn-water-proto").addEventListener("click",()=>{ audio(); playLevelObj(WATER_PROTO,'proto'); });
 if(el("btn-custom-back")) el("btn-custom-back").addEventListener("click",showMenu);
 if(el("btn-new-level")) el("btn-new-level").addEventListener("click",()=>{ audio(); showEditor(true); });
 if(el("ed-back")) el("ed-back").addEventListener("click",showCustom);
