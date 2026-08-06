@@ -171,6 +171,12 @@
   /* ---------- abas do painel inferior ---------- */
   .tabbar{display:flex;gap:4px;margin-bottom:-1px}
   .tabbody{background:var(--panel2);border:1px solid var(--line);border-radius:0 12px 12px 12px;padding:11px}
+  .loghead{font-size:13px;font-weight:800;color:var(--dim);margin-bottom:8px}
+  /* preparação */
+  .prep-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .prep-title{font-weight:900;font-size:18px;line-height:1.15}
+  .prep-title small{display:block;color:var(--dim);font-size:11px;font-weight:700;margin-top:2px}
+  .prep-head #prep-start{font-size:15px;padding:11px 20px}
   .log{height:120px;overflow-y:auto;background:#0e0b17;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:var(--mono);font-size:11px;line-height:1.55}
   .log .ev{color:var(--dim)} .log .ev b{color:var(--ink)}
   .log .ev .h{color:var(--hero)} .log .ev .e{color:var(--enemy)} .log .ev .c{color:var(--crit)} .log .ev .g{color:var(--heal)}
@@ -197,6 +203,7 @@
     <main>
       <section id="screen-map" class="screen active"></section>
       <section id="screen-base" class="screen"></section>
+      <section id="screen-prep" class="screen"></section>
       <section id="screen-expedition" class="screen"></section>
     </main>
   </div>

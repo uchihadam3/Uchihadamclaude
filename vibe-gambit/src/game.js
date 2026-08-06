@@ -93,9 +93,30 @@ function renderMap(){
       ${nodes}
       <div class="party-panel"><h4>Party</h4><div class="party-row">${heroesMini}</div></div>
     </div>
-    <p class="muted tiny" style="text-align:center;margin-top:8px">Clique numa fase disponível para iniciar a expedição · programe seus heróis na aba 🏰 Base → Gambits</p>`;
+    <p class="muted tiny" style="text-align:center;margin-top:8px">Clique numa fase disponível para abrir a preparação (ajustar gambits) e iniciar a batalha</p>`;
   $('screen-map').querySelectorAll('.node.active').forEach(n =>
-    n.onclick = () => startExpedition(n.dataset.stage));
+    n.onclick = () => showPrep(n.dataset.stage));
+}
+
+// ================================================================ PREPARAÇÃO (ajustar gambits antes da batalha)
+function showPrep(stageId){
+  stopExpo(); expo = null;
+  const stage = STAGES.find(s => s.id === stageId);
+  screen = 'prep';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $('screen-prep').classList.add('active');
+  renderHud();
+  const icon = ({forest:'🌲',plains:'⚔️',cave:'🕳️',keep:'🏯',peak:'🏔️'})[stage.biome] || '📍';
+  $('screen-prep').innerHTML = `
+    <div class="panel prep-head">
+      <div class="prep-title">${icon} ${stage.name}<small>${stage.waves.length} ondas · ajuste os gambits antes de entrar</small></div>
+      <button class="primary" id="prep-start">▶ Iniciar Batalha</button>
+    </div>
+    <h3 style="padding:2px 2px 8px;font-size:14px">🧠 Programe a party</h3>
+    <div id="prep-gboard"></div>
+    <p class="muted tiny" style="margin-top:8px">A IA lê de cima → baixo; a 1ª condição verdadeira executa e para. Compre condições e slots em 🏰 Base → Academia.</p>`;
+  renderGambitBoard($('prep-gboard'));
+  $('prep-start').onclick = () => startExpedition(stageId);
 }
 
 // ================================================================ BASE
@@ -252,21 +273,10 @@ function buildExpeditionDOM(){
       <div class="lane enemies" id="lane-enemies"></div>
       <div class="stage-banner hidden" id="banner"></div>
     </div>
-    <div class="tabbar" style="margin-top:12px">
-      <button class="tab on" data-t="gambits">🧠 Gambit Board</button>
-      <button class="tab" data-t="log">📜 Combat Log</button>
-    </div>
-    <div class="tabbody">
-      <div id="tab-gambits"><div id="gboard-expo"></div></div>
-      <div id="tab-log" class="hidden"><div class="log" id="log"></div></div>
+    <div class="tabbody" style="border-radius:12px;margin-top:12px">
+      <div class="loghead">📜 Combat Log</div>
+      <div class="log" id="log"></div>
     </div>`;
-  const tabs = $('screen-expedition').querySelectorAll('.tabbar .tab');
-  tabs.forEach(b => b.onclick = () => {
-    tabs.forEach(t=>t.classList.remove('on')); b.classList.add('on');
-    $('tab-gambits').classList.toggle('hidden', b.dataset.t!=='gambits');
-    $('tab-log').classList.toggle('hidden', b.dataset.t!=='log');
-  });
-  renderGambitBoard($('gboard-expo'));
   const cv = $('dungeon');
   if(cv) requestAnimationFrame(()=>{ cv.width = cv.clientWidth; cv.height = cv.clientHeight; drawDungeon(cv); placeTorches(); });
 }
