@@ -162,6 +162,66 @@ function telaTitulo(){
 function bindA(root,map){ root.querySelectorAll('[data-a]').forEach(b=>{
   b.onclick=()=>{ SFX.pegar(); map[b.dataset.a](); }; }); }
 
+/* ===================================================================
+   A TRILHA DAS ALMAS — o painel do Cofre que mostra as habilidades que
+   NÃO se compram com Ecos: elas abrem fechando masmorra.
+
+   Elas já viviam aqui (saem de META.masmorrasAbertas, que é gravado no
+   Cofre e sobrevive à morte), mas não apareciam em lugar nenhum a não ser
+   como um cadeado na tela de escolher classe — depois de escolher já era
+   tarde para planejar. O Cofre é onde se olha o que é permanente, então é
+   aqui que a trilha inteira das quatro almas fica à vista: o que já abriu,
+   o que falta, e exatamente o que abre cada degrau.
+   =================================================================== */
+function painelTrilha(){
+  const fechadas = META.masmorrasAbertas(cofre) - 1;
+  const abertoP = s => /^m\d+$/.test(s.unlock) ? fechadas >= +s.unlock.slice(1) : !!BON.quarta;
+  /* na ordem em que se PERCORRE: M2, M5, M8 e a coroa por último — na ficha
+     da classe a de coroa vem antes, e listada assim a trilha parecia fora de
+     ordem */
+  const grau = s => { const m=/^m(\d+)$/.exec(s.unlock); return m ? +m[1] : 99; };
+  const daTrilha = c => c.skills.filter(s=>s.unlock).sort((a,b)=>grau(a)-grau(b));
+  let temTot=0, temMeu=0;
+  for(const c of Object.values(CLASSES))
+    for(const s of daTrilha(c)){ temTot++; if(abertoP(s)) temMeu++; }
+
+  const blocos = Object.values(CLASSES).map(c=>{
+    const lista = daTrilha(c);
+    const meus = lista.filter(abertoP).length;
+    const degraus = lista.map(s=>{
+      const on = abertoP(s);
+      const mN = /^m(\d+)$/.exec(s.unlock);
+      const selo = mN ? 'M'+mN[1] : '👑';
+      const como = on ? 'ABERTA'
+        : mN ? `feche a Masmorra ${mN[1]}`
+             : 'compre Talento no Cofre';
+      return `<div class="tdeg ${on?'on':''}">
+        <span class="tselo">${on?'✓':selo}</span>
+        <div class="tinfo"><b>${s.nome}</b><u>${reqLabel(s.req)}</u>
+          <span>${s.desc}</span></div>
+        <i class="tst">${on?'✔ ABERTA':'🔒 '+como}</i></div>`;}).join('');
+    return `<div class="tcls" style="--cc:${c.cor}">
+      <div class="tclsh"><span class="tglifo">${c.glifo}</span><b>${c.nome}</b>
+        <em>${meus}/${lista.length}</em></div>
+      <div class="tdegs">${degraus}</div></div>`;}).join('');
+
+  const pct = temTot ? Math.round(100*temMeu/temTot) : 0;
+  const prox = fechadas + 1;
+  return `<div class="trilhawrap">
+    <div class="th"><span class="thi">🗝</span>
+      <div><b>A TRILHA DAS ALMAS</b>
+        <i>Estas não se compram com Ecos. Abrem fechando masmorras — e são
+           elas que deixam você descer mais fundo.</i></div></div>
+    <div class="cofprog">
+      <u><span>ABERTAS</span><b>${temMeu}/${temTot} HABILIDADES</b></u>
+      <div class="cofbar"><span style="width:${pct}%"></span></div>
+      <em class="${fechadas>0?'tem':''}">${fechadas>0
+        ? `${fechadas} masmorra${fechadas>1?'s':''} fechada${fechadas>1?'s':''}`
+        : 'nenhuma masmorra fechada ainda'}${prox<=META.MASMORRAS_TOTAL
+        ? ` — a próxima é a Masmorra ${prox}` : ' — o Abismo inteiro é seu'}</em>
+    </div>
+    <div class="tclss">${blocos}</div></div>`;
+}
 function telaCofre(){
   SFX.trilha('menu');
   const m=$('msg'); m.className='';
@@ -200,6 +260,7 @@ function telaCofre(){
         : 'ecos insuficientes — desça e volte com mais'}</em>
     </div>
     <div class="ramos">${ramos}</div>
+    ${painelTrilha()}
     <button class="mb pri" data-a="voltar2">▶ DESCER AGORA</button></div>`;
   bindA(m,{ voltar:telaTitulo, voltar2:telaClasses });
   m.querySelectorAll('.no').forEach(b=>b.onclick=()=>{
@@ -655,7 +716,7 @@ function pintar(){
   $('ini').querySelectorAll('.en').forEach(d=>d.onclick=()=>{ alvo=+d.dataset.i;
     if(previa) previa=calcPrevia(previa.skill); SFX.pegar(); pintar(); });
   // onda cheia aperta as cartas para sobrar mesa (ver #ini.cheia no CSS)
-  $('ini').classList.toggle('cheia', naFila.length >= 5);   // conta o que está À VISTA
+  $('ini').classList.toggle('cheia', naFila.length >= 4);   // conta o que está À VISTA
   const stp=Object.entries(P.statuses||{}).filter(([,v])=>v>0)
     .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
   $('voce').innerHTML=`<span class="pill perigo ${pi.letal?'letal':''}">☠ ${pi.total}</span>
@@ -664,6 +725,11 @@ function pintar(){
     ${P.essence?`<span class="pill">✦ ${P.essence}</span>`:''}${stp?`<span class="pill">${stp}</span>`:''}`;
   const pool=cb.pool(), selEnts=cb.roll.filter(e=>sel.has(e.dieId));
   const skills=habilidadesAtuais();
+  /* MÃO CHEIA: com a trilha aberta são 8 cartas, e em duas colunas isso dava
+     quatro filas — metade delas caía fora da tela no celular. A partir de 6
+     as cartas apertam para caber três por fila. Habilidade que você não vê é
+     habilidade que não existe. */
+  $('hab').classList.toggle('densa', skills.length >= 6);
   $('hab').innerHTML=skills.map((s,i)=>{
     const ok=selEnts.length&&satisfies(s.req,selEnts);
     const poss=findSubset(s.req,pool);
