@@ -26,8 +26,15 @@
   #hud{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
     background:linear-gradient(180deg,#241f3c,#1b1730);border:1px solid var(--line);
     border-radius:12px;padding:9px 12px;box-shadow:0 3px 0 #0d0a17}
-  .brand{font-size:16px;font-weight:900;letter-spacing:.3px;display:flex;align-items:center;gap:6px;flex:1 1 auto}
+  .brand{font-size:16px;font-weight:900;letter-spacing:.3px;display:flex;align-items:center;gap:8px;flex:1 1 auto}
   .brand small{display:block;font-size:8px;color:var(--dim2);letter-spacing:1.4px;text-transform:uppercase;font-weight:700}
+  .logo-emblem{height:36px;width:auto;image-rendering:pixelated;filter:drop-shadow(0 2px 2px #0009);flex:none}
+  .ticon{width:20px;height:20px;object-fit:contain;image-rendering:pixelated;vertical-align:-4px;margin-right:4px}
+  .base-banner{position:relative;border-radius:12px;overflow:hidden;height:118px;margin-bottom:12px;border:1px solid var(--line);box-shadow:0 3px 0 #0d0a17}
+  .base-banner img{width:100%;height:100%;object-fit:cover;display:block;image-rendering:pixelated}
+  .base-banner::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 38%,#0e0b16d0)}
+  .bb-title{position:absolute;left:14px;bottom:9px;font-size:19px;font-weight:900;text-shadow:0 2px 5px #000,0 0 4px #000;z-index:1}
+  .bb-title small{display:block;font-size:11px;color:var(--gold);font-weight:800;text-shadow:0 1px 3px #000}
   .nav{display:flex;gap:6px;flex:0 0 auto}
   .res{order:3;flex-basis:100%;display:flex;justify-content:space-between;gap:6px;font-weight:800;font-size:12px;
     background:#0e0b17aa;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
@@ -196,7 +203,7 @@
 <body>
   <div id="app">
     <header id="hud">
-      <div class="brand">⚔️ Vibe Gambit<small>Idle RPG Tático</small></div>
+      <div class="brand"><img class="logo-emblem" src="assets/logo.png" alt="" /><span>Vibe Gambit<small>Idle RPG Tático</small></span></div>
       <div class="nav" id="nav"></div>
       <div class="res" id="res"></div>
     </header>

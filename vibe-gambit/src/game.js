@@ -122,9 +122,10 @@ function showPrep(stageId){
 // ================================================================ BASE
 let baseTab = 'gambits';
 function renderBase(){
-  const tabs = [['gambits','🧠 Gambits'],['forge','🔨 Forja'],['academy','🎓 Academia']];
+  const tabs = [['gambits','menu_gambits','Gambits'],['forge','menu_forge','Forja'],['academy','menu_academy','Academia']];
   $('screen-base').innerHTML = `
-    <div class="tabbar">${tabs.map(([k,l])=>`<button class="tab ${baseTab===k?'on':''}" data-tab="${k}">${l}</button>`).join('')}</div>
+    <div class="base-banner"><img src="assets/bg_basecamp.png" alt="" /><div class="bb-title">Base Camp<small>Aethelgard</small></div></div>
+    <div class="tabbar">${tabs.map(([k,ic,l])=>`<button class="tab ${baseTab===k?'on':''}" data-tab="${k}"><img class="ticon" src="assets/${ic}.png" alt="" />${l}</button>`).join('')}</div>
     <div class="tabbody" id="base-body"></div>`;
   $('screen-base').querySelectorAll('.tab').forEach(b => b.onclick = () => { baseTab=b.dataset.tab; renderBase(); });
   const body = $('base-body');

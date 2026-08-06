@@ -65,7 +65,7 @@
   .meta h3{font-size:17px;font-weight:800}
   .meta .fn{font-family:var(--mono);font-size:12.5px;color:var(--gold);word-break:break-all}
   .chip{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;border-radius:20px;flex:none;border:1px solid currentColor}
-  .chip.hero{color:var(--hero)} .chip.enemy{color:var(--enemy)} .chip.scene{color:var(--scene)} .chip.bonus{color:var(--bonus)}
+  .chip.hero{color:var(--hero)} .chip.enemy{color:var(--enemy)} .chip.scene{color:var(--scene)} .chip.bonus{color:var(--bonus)} .chip.frame{color:#e6c07a}
 
   .prompt{font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--dim);white-space:pre-wrap;background:var(--inset);border:1px solid var(--border);border-radius:10px;padding:11px 12px}
 
@@ -117,6 +117,14 @@
   <section>
     <div class="eyebrow"><h2>Menus &amp; Interface</h2><span class="rule">no estilo dos personagens</span><span class="count">5 artes</span></div>
     <div class="grid" id="grid-menus"></div>
+  </section>
+
+  <section>
+    <div class="eyebrow"><h2>Molduras &amp; Janelas</h2><span class="rule">9-slice · fundo magenta</span><span class="count">4 artes</span></div>
+    <div class="callout" style="border-left-color:#e6c07a;border-color:#8a6a2a;background:linear-gradient(180deg,#2a2114,#1f1810);color:#eaddc0">
+      <b>🧩 Molduras esticáveis (9-slice):</b> gere um quadro <b>simétrico</b>, com <b>borda de espessura uniforme</b> nos 4 lados e <b>centro vazio em magenta</b> (`#FF00FF`). Assim eu corto em 9 pedaços e a moldura estica pra qualquer tamanho (painéis, janela de gambits, botões). Pode precisar de 1–2 tentativas pra sair bem simétrica.
+    </div>
+    <div class="grid" id="grid-frames"></div>
   </section>
 
   <div class="specs">
@@ -203,7 +211,18 @@
   document.getElementById('grid-heroes').innerHTML  = HEROES.map(h=>card({icon:SPR[h.id], name:h.name, file:h.file, chip:'Herói',   chipClass:'hero',  prompt:h.prompt})).join('');
   document.getElementById('grid-enemies').innerHTML = ENEMIES.map(e=>card({icon:SPR[e.id], name:e.name, file:e.file, chip:'Inimigo', chipClass:'enemy', prompt:e.prompt})).join('');
   document.getElementById('grid-scenes').innerHTML  = SCENES.map(s=>card({icon:s.emoji,   name:s.name, file:s.file, chip:'Cenário', chipClass:'scene', prompt:s.prompt})).join('');
+  const FRAMES = [
+    {emoji:'🪟', name:'Moldura de janela (9-slice)', file:'frame_window.png', chip:'Moldura', chipClass:'frame',
+      prompt:"16-bit pixel art UI window frame / panel border for a fantasy RPG, ornate but clean, in a wood-and-gold-metal style that matches the game's characters. A SYMMETRIC rectangular frame with UNIFORM border thickness on all four sides and simple matching corner ornaments; the four edges are straight and seamlessly repeatable (tileable). The CENTER is completely EMPTY/HOLLOW, filled with SOLID FLAT MAGENTA (#FF00FF), and the outside background is that SAME flat magenta — so only the border art survives a chroma-key. Thick dark outline, no text, no glow, no shadow, no gradient. Designed to be used as a 9-slice / 9-patch stretchable frame."},
+    {emoji:'📜', name:'Banner de título', file:'banner_title.png', chip:'Moldura', chipClass:'frame',
+      prompt:"16-bit pixel art fantasy RPG title banner / ribbon plaque for a UI header: a horizontal wooden sign or cloth ribbon with gold-metal trim and small scroll ends, EMPTY in the middle (no text), left-right symmetric so the middle section can stretch. On a SOLID FLAT MAGENTA background (#FF00FF), thick dark outline, cohesive with the game's character style, no text, no glow, no shadow, no gradient. Clean hard edges for chroma-key."},
+    {emoji:'🔲', name:'Slot / célula', file:'frame_slot.png', chip:'Moldura', chipClass:'frame',
+      prompt:"16-bit pixel art fantasy RPG UI slot: a single small SQUARE socket/cell with a beveled inner recess and metal-cornered frame (like an item slot), symmetric on all sides. The inner recess AND the outside background are SOLID FLAT MAGENTA (#FF00FF). Thick dark outline, cohesive with the game's character style, no text, no glow, no shadow, no gradient. Clean hard edges for chroma-key, usable as a 9-slice."},
+    {emoji:'🔘', name:'Botão', file:'btn.png', chip:'Moldura', chipClass:'frame',
+      prompt:"16-bit pixel art fantasy RPG UI button: a rounded-rectangular wooden button with gold-metal rivets and a soft bevel/highlight (idle state), EMPTY face (no text), left-right symmetric so it can stretch horizontally. On a SOLID FLAT MAGENTA background (#FF00FF), thick dark outline, cohesive with the game's character style, no text, no glow, no shadow, no gradient. Clean hard edges for chroma-key."},
+  ];
   document.getElementById('grid-menus').innerHTML   = MENUS.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
+  document.getElementById('grid-frames').innerHTML  = FRAMES.map(m=>card({icon:m.emoji,   name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
 
   function fallbackCopy(text){
     const ta=document.createElement('textarea');
