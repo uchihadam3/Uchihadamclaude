@@ -5,7 +5,7 @@
 //   - Persistência simples em LocalStorage (save/load).
 // =============================================================================
 
-import { HERO_DEFS, RESOURCES_INIT, STAGES } from './data.js';
+import { HERO_DEFS, RESOURCES_INIT, STAGES, CONDITIONS } from './data.js';
 
 const SAVE_KEY = 'vibe_gambit_save_v1';
 
@@ -14,15 +14,16 @@ export function newGame(){
   return {
     version: 1,
     resources: { ...RESOURCES_INIT },
+    // Condições GLOBAIS desbloqueadas (a loja da Academia adiciona novas).
+    unlockedConditions: Object.values(CONDITIONS).filter(c => c.starter).map(c => c.id),
     heroes: HERO_DEFS.map(h => ({
       id: h.id,
       weaponLevel: h.weaponLevel,
-      slots: h.slots,
-      gambits: h.gambits.map(g => ({ ...g })),                       // cópia editável
-      ownedConditions: [...new Set(h.gambits.map(g => g.condition))],// condicionais já possuídas
+      slots: h.slots,                          // linhas de gambit ativas (2..maxSlots)
+      gambits: h.gambits.map(g => ({ ...g })), // cópia editável
     })),
     stagesUnlocked: Object.fromEntries(STAGES.map(s => [s.id, s.unlocked])),
-    progress: { currentStage: 'mossy_glen', floor: 1 },
+    progress: { currentStage: 'mossy_glen', clears: 0 },
   };
 }
 

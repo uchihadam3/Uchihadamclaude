@@ -66,11 +66,20 @@ export const HERO_DEFS = [
     weaponLevel:0, slots:2, maxSlots:5,
     skills:['power_shot','basic_attack'],
     gambits:[
-      { condition:'enemy_lowest_hp', action:'power_shot' },
-      { condition:'enemy_nearest',   action:'basic_attack' },
+      { condition:'enemy_nearest', action:'power_shot' },
+      { condition:'enemy_any',     action:'basic_attack' },
     ],
   },
-  // 4º herói (Mago) fica trivial de adicionar depois: mesmo formato + skill 'fireball'.
+  {
+    id:'mage', name:'Mago', klass:'Mage', sprite:'🔮',
+    base:{ hp:70, atk:5, def:3, mag:16, mp:45, spd:8 },
+    weaponLevel:0, slots:2, maxSlots:5,
+    skills:['fireball','basic_attack'],
+    gambits:[
+      { condition:'enemy_any',     action:'fireball' },
+      { condition:'enemy_nearest', action:'basic_attack' },
+    ],
+  },
 ];
 
 // --- INIMIGOS ----------------------------------------------------------------
@@ -87,9 +96,9 @@ export const ENEMY_GAMBITS = [ { condition:'enemy_nearest', action:'basic_attack
 // --- MAPA / FASES ------------------------------------------------------------
 // waves: cada sub-array é uma leva de inimigos (ids de ENEMY_DEFS).
 export const STAGES = [
-  { id:'mossy_glen',  name:'Mossy Glen',    biome:'forest', unlocked:true,  waves:[['slime','goblin'], ['goblin','goblin'], ['goblin_brute']] },
-  { id:'bandit_camp', name:'Bandit Camp',   biome:'plains', unlocked:false, waves:[['goblin','goblin'], ['goblin_brute','goblin']] },
-  { id:'echoing_caves',name:'Echoing Caves',biome:'cave',   unlocked:false, waves:[['goblin_brute','goblin_brute']] },
+  { id:'mossy_glen',  name:'Mossy Glen',    biome:'forest', unlocked:true,  waves:[['slime','goblin','goblin'], ['goblin','goblin','slime'], ['goblin','goblin_brute','goblin']] },
+  { id:'bandit_camp', name:'Bandit Camp',   biome:'plains', unlocked:false, waves:[['goblin','goblin','goblin'], ['goblin_brute','goblin','goblin'], ['goblin_brute','goblin','goblin_brute']] },
+  { id:'echoing_caves',name:'Echoing Caves',biome:'cave',   unlocked:false, waves:[['goblin_brute','goblin_brute','goblin'], ['goblin_brute','goblin_brute','goblin_brute']] },
 ];
 
 // --- FORJA (upgrade linear de arma por classe) ------------------------------
