@@ -949,6 +949,22 @@ function enemyRectHitsWall(e,nx){
   }
   return false;
 }
+// ÁGUA: y da SUPERFÍCIE na coluna px (topo do tile d'água mais alto), ou null se não há água ali
+function waterSurfaceY(px){ if(!water||!water.length)return null; const tx=Math.floor(px/TILE); let top=null;
+  for(const r of water){ if((r.x/TILE|0)===tx){ const ty=r.y/TILE|0; if(top===null||ty<top)top=ty; } }
+  return top===null?null:top*TILE; }
+// GLOBS que BOIAM: um pedaço solto na água sobe e flutua na superfície (vira jangada)
+function updateGlobsWater(dt){ if(!water||!water.length)return;
+  for(const g of globs){ const s=waterSurfaceY(g.x+g.w/2);
+    if(s!=null && g.y+g.h>s){ const target=s-g.h*0.30+Math.sin(T*2+g.x*0.05)*2;      // base um tico submersa + bob
+      g.vy=(g.vy||0)+((target-g.y)*14-(g.vy||0)*7)*dt; g.y+=g.vy*dt; g.floating=true; }
+    else { g.floating=false; g.vy=0; } } }
+// respingo ao entrar/bater na água
+function splash(x,y,vy){ const n=Math.min(16,6+Math.abs(vy)/40);
+  ring(x,y,18,"170,225,255",3.5,0.4); ring(x,y,10,"220,245,255",2.5,0.3);
+  for(let i=0;i<n;i++){ const a=-Math.PI/2+(Math.random()*2-1)*1.0, s=60+Math.random()*Math.min(220,Math.abs(vy)*0.8);
+    particles.push({x:x+(Math.random()*2-1)*8,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.3+Math.random()*0.3,max:0.6,r:1.4+Math.random()*2.4,color:"#bfeaff"}); }
+  sfx("land"); }
 // o blob está pisando num tile de GELO agora? (checa o piso logo abaixo dos pés)
 function onIceUnder(){ if(!iceTiles||!iceTiles.length)return false; const fy=blob.y+blob.h;
   for(const t of iceTiles){ if(blob.x+blob.w>t.x+2 && blob.x<t.x+t.w-2 && Math.abs(fy-t.y)<4) return true; }
@@ -1073,16 +1089,30 @@ function update(dt){
   else if(Math.abs(mx)>0.25) blob.vx=mx*MOVE*ctrl;
   else blob.vx*= onG?0.6:0.92;
 
-  if(cling) blob.vy = down?CLIMB:-CLIMB;
+  // ÁGUA (Mundo 2): FLUTUAÇÃO POR MASSA — leve boia, pesado afunda — + arrasto pastoso. Só onde há água.
+  const surfY = (water&&water.length)? waterSurfaceY(blob.x+blob.w/2) : null;
+  const inW = surfY!=null && (blob.y+blob.h) > surfY+2;
+  if(!blob._wasInW && inW && Math.abs(blob.vy)>120) splash(blob.x+blob.w/2, surfY, blob.vy);   // respingo ao entrar
+  blob._wasInW=inW; blob._inWater=inW;
+  if(cling){ blob.vy = down?CLIMB:-CLIMB; }
+  else if(inW){
+    const sub=Math.max(0,Math.min(1,(blob.y+blob.h-surfY)/blob.h));         // fração submersa
+    const light=Math.max(0,Math.min(1,(5.5-blob.mass)/4.5));                // massa<=1 boia forte; >=5.5 afunda
+    let buoy=1500*light*sub; if(down) buoy*=0.30;                           // segurar ↓ mergulha
+    blob.vy += (GRAVITY*0.25 - buoy)*dt;                                    // gravidade reduzida - empuxo
+    blob.vy*=0.90; blob.vx*=0.88;                                           // arrasto da água
+    blob.vy=Math.max(-260, Math.min(MAX_FALL*0.4, blob.vy));
+    blob.boosted=true; blob.apexY=blob.y;                                   // sem punição de queda dentro d'água
+  }
   else { blob.vy+=GRAVITY*dt; if(blob.vy>MAX_FALL)blob.vy=MAX_FALL; }
 
   // JUMP BUFFER: registra a intenção de pulo por uma janelinha (perdoa apertar cedo demais)
   if(jumpEdge){ hideHint(); blob.jumpBuf=JUMPBUF; }
   // COYOTE TIME: dá pra pular por um instante mesmo após sair da borda
-  const canJump = onG || cling || (blob.coyote||0)>0;
+  const canJump = onG || cling || (blob.coyote||0)>0 || inW;    // dentro d'água dá pra "nadar" (soltar massa e subir)
   if((blob.jumpBuf||0)>0 && canJump && blob.mass>1){
     dropGlob(cling?wall:0); blob.mass-=1; sizeBlob();
-    blob.vy=-JUMP_V; if(cling){blob.vx=-wall*MOVE*0.9;blob.clingLock=0.18;}
+    blob.vy=-(inW?JUMP_V*0.6:JUMP_V); if(cling){blob.vx=-wall*MOVE*0.9;blob.clingLock=0.18;}
     burst(blob.x+blob.w/2,blob.y+blob.h,7,"#7ee06b",130);
     ring(blob.x+blob.w/2,blob.y+blob.h,blob.w*0.95,cling?"120,230,220":"126,224,107",3,0.34);  // impulso do salto
     sfx("jump"); renderHud(); blob.jumpBuf=0; blob.coyote=0;
@@ -1092,6 +1122,7 @@ function update(dt){
   if(grabEdge){ reabsorb(); grabEdge=false; }
   if(Math.abs(mx)>0.3) hideHint();
 
+  updateGlobsWater(dt);                 // jangadas: pedaços boiam na superfície ANTES da colisão do blob
   const preVy=blob.vy, preG=blob.onGroundPrev;
   blob.onGround=false; blob.wall=0;
   moveAxis(blob.vx*dt, blob.vy*dt);
@@ -1936,36 +1967,63 @@ function slime(cx,cy,rx,ry,amp,seed){
   ctx.closePath();
 }
 // personagem: CUBO GELATINOSO estilo RPG (translúcido, face-topo 3D, bolhas, olhos)
-// ÁGUA (protótipo visual): corpo translúcido azul + superfície ONDULANDO contínua + espuma,
-// cáusticas e bolhinhas subindo. Sem física ainda — só pra ver o clima do Mundo 2.
+// ÁGUA REALISTA (Mundo 2): gradiente de profundidade, raios de luz (god-rays), cáusticas animadas,
+// superfície com espuma + brilho especular, bolhas subindo e reflexo. Corpo translúcido → submerso azula.
 function drawWater(){
   if(!water||!water.length) return;
-  const isW=(tx,ty)=>(ty>=0&&ty<ROWS&&tx>=0&&tx<COLS&&level.rows[ty][tx]==="~");
-  const waveY=(xabs)=>2.4*Math.sin(xabs*0.045 + T*2.0) + 1.1*Math.sin(xabs*0.09 - T*1.3);   // onda contínua no mundo
+  // bounds + superfície (tile-topo mais alto) por coluna
+  let minTX=1e9,maxTX=-1e9,yTop=1e9,yBot=-1e9; const surf={};
+  for(const r of water){ const tx=r.x/TILE|0, ty=r.y/TILE|0;
+    if(tx<minTX)minTX=tx; if(tx>maxTX)maxTX=tx; if(r.y<yTop)yTop=r.y; if(r.y+TILE>yBot)yBot=r.y+TILE;
+    if(surf[tx]===undefined||ty<surf[tx])surf[tx]=ty; }
+  const x0=minTX*TILE, x1=(maxTX+1)*TILE, H=yBot-yTop;
+  const wave=xa=>2.7*Math.sin(xa*0.05+T*1.9)+1.4*Math.sin(xa*0.11-T*1.35)+0.6*Math.sin(xa*0.22+T*2.7);
+
   ctx.save();
-  for(const r of water){
-    const tx=(r.x/TILE)|0, ty=(r.y/TILE)|0, surface=!isW(tx,ty-1);
-    const g=ctx.createLinearGradient(0,r.y,0,r.y+TILE);
-    g.addColorStop(0,"rgba(74,176,228,.40)"); g.addColorStop(1,"rgba(28,104,176,.52)");
-    ctx.fillStyle=g;
-    if(surface){
-      const N=5; ctx.beginPath(); ctx.moveTo(r.x, r.y+TILE); ctx.lineTo(r.x, r.y+waveY(r.x));
-      for(let i=1;i<=N;i++){ const xx=r.x+i/N*TILE; ctx.lineTo(xx, r.y+waveY(xx)); }
-      ctx.lineTo(r.x+TILE, r.y+TILE); ctx.closePath(); ctx.fill();
-      // linha de ESPUMA/brilho seguindo a onda
-      ctx.strokeStyle="rgba(206,242,255,.6)"; ctx.lineWidth=1.6; ctx.beginPath();
-      for(let i=0;i<=N;i++){ const xx=r.x+i/N*TILE, yy=r.y+waveY(xx); i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy); }
-      ctx.stroke();
-    } else { ctx.fillRect(r.x, r.y, TILE, TILE); }
-    // CÁUSTICAS: risquinhos de luz diagonal se mexendo
-    ctx.strokeStyle="rgba(190,235,255,.10)"; ctx.lineWidth=2;
-    const cph=(tx*13+ty*7)+T*30; for(let k=0;k<2;k++){ const off=((cph+k*17)%TILE);
-      ctx.beginPath(); ctx.moveTo(r.x+off, r.y+2); ctx.lineTo(r.x+off-6, r.y+TILE-2); ctx.stroke(); }
-    // BOLHINHAS subindo (loop)
-    const bseed=(tx*0.7+ty*1.9); const bp=((T*0.5+bseed)%1);
-    const bx=r.x+TILE*(0.3+0.4*Math.sin(bseed*6)), by=r.y+TILE*(1-bp), br=1+ (bseed*3%1)*1.6;
-    ctx.fillStyle="rgba(220,245,255,.35)"; ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill();
-  }
+  // ---- clip ao corpo d'água (tiles) ----
+  ctx.beginPath(); for(const r of water) ctx.rect(r.x,r.y,TILE,TILE); ctx.clip();
+
+  // 1) GRADIENTE DE PROFUNDIDADE (raso/claro em cima → fundo escuro)
+  const g=ctx.createLinearGradient(0,yTop,0,yBot);
+  g.addColorStop(0,"rgba(120,210,236,.42)"); g.addColorStop(0.45,"rgba(40,142,203,.54)"); g.addColorStop(1,"rgba(9,52,104,.66)");
+  ctx.fillStyle=g; ctx.fillRect(x0,yTop,x1-x0,H);
+
+  // 2) reflexo aerado logo abaixo da superfície (faixa clara)
+  ctx.fillStyle="rgba(190,235,255,.10)"; ctx.fillRect(x0,yTop,x1-x0,Math.min(10,H*0.16));
+
+  ctx.globalCompositeOperation="lighter";
+  // 3) GOD-RAYS: feixes de luz diagonais descendo da superfície
+  for(let i=0;i<6;i++){ const rx=x0+(((i*0.19)+T*0.015)%1.1)*(x1-x0)-40, ww=14+8*Math.sin(T*0.7+i);
+    const gr=ctx.createLinearGradient(rx,yTop,rx+60,yBot); gr.addColorStop(0,"rgba(170,225,255,.10)"); gr.addColorStop(1,"rgba(170,225,255,0)");
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.moveTo(rx,yTop); ctx.lineTo(rx+ww,yTop); ctx.lineTo(rx+ww+46,yBot); ctx.lineTo(rx+40,yBot); ctx.closePath(); ctx.fill(); }
+  // 4) CÁUSTICAS: rede de luz ondulando (mais forte perto do topo)
+  for(let cy=yTop+6; cy<yBot; cy+=13){ const k=1-(cy-yTop)/H; ctx.strokeStyle="rgba(200,245,255,"+(0.05+0.09*k).toFixed(3)+")"; ctx.lineWidth=1.6;
+    ctx.beginPath(); for(let cx=x0;cx<=x1;cx+=7){ const yy=cy+Math.sin(cx*0.09+T*1.7+cy*0.12)*3; cx===x0?ctx.moveTo(cx,yy):ctx.lineTo(cx,yy);} ctx.stroke(); }
+  ctx.globalCompositeOperation="source-over";
+
+  // 5) BOLHAS subindo
+  for(const r of water){ const tx=r.x/TILE|0, ty=r.y/TILE|0, seed=tx*0.7+ty*1.9, bp=((T*0.45+seed)%1);
+    const bx=r.x+TILE*(0.25+0.5*(0.5+0.5*Math.sin(seed*6))), by=r.y+TILE*(1-bp)-bp*4, br=0.8+((seed*3)%1)*1.7;
+    ctx.fillStyle="rgba(225,247,255,"+(0.4*(1-bp)).toFixed(2)+")"; ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill(); }
+  ctx.restore();  // fim do clip
+
+  // 6) SUPERFÍCIE ondulada (fora do clip → crista passa um tico acima): espuma + fill aerado + brilho
+  ctx.save();
+  // fill aerado logo abaixo da linha da onda
+  ctx.beginPath(); let started=false;
+  for(let tx=minTX;tx<=maxTX;tx++){ if(surf[tx]===undefined){ if(started){ctx.lineTo((tx)*TILE,yBot);} continue; }
+    const sx=tx*TILE, sy=surf[tx]*TILE; for(let s=0;s<=2;s++){ const xx=sx+s/2*TILE, yy=sy+wave(xx); started?ctx.lineTo(xx,yy):(ctx.moveTo(xx,yy),started=true);} }
+  const lastX=(maxTX+1)*TILE; ctx.lineTo(lastX, (surf[maxTX]||minTX)*TILE+8); ctx.lineTo(x0,(surf[minTX]||minTX)*TILE+8); ctx.closePath();
+  const sg=ctx.createLinearGradient(0,yTop-4,0,yTop+12); sg.addColorStop(0,"rgba(210,245,255,.5)"); sg.addColorStop(1,"rgba(150,220,245,0)");
+  ctx.fillStyle=sg; ctx.fill();
+  // linha de ESPUMA brilhante seguindo a onda
+  ctx.strokeStyle="rgba(232,250,255,.8)"; ctx.lineWidth=1.8; ctx.lineCap="round"; ctx.beginPath(); started=false;
+  for(let tx=minTX;tx<=maxTX;tx++){ if(surf[tx]===undefined){started=false;continue;} const sx=tx*TILE, sy=surf[tx]*TILE;
+    for(let s=0;s<=3;s++){ const xx=sx+s/3*TILE, yy=sy+wave(xx); started?ctx.lineTo(xx,yy):(ctx.moveTo(xx,yy),started=true);} }
+  ctx.stroke();
+  // BRILHOS especulares cintilando nas cristas
+  for(let tx=minTX;tx<=maxTX;tx++){ if(surf[tx]===undefined)continue; const xx=tx*TILE+TILE*0.5, sy=surf[tx]*TILE+wave(xx);
+    const tw=Math.sin(T*3+tx*1.7); if(tw>0.6){ ctx.fillStyle="rgba(255,255,255,"+(0.5*(tw-0.6)/0.4).toFixed(2)+")"; ctx.beginPath(); ctx.arc(xx,sy-1,1.6,0,7); ctx.fill(); } }
   ctx.restore();
 }
 function drawBlob(){
