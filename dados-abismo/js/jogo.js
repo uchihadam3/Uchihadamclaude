@@ -1206,8 +1206,16 @@ function numeroSolto(el, cls, txt, dur=1450){
   const r = el.getBoundingClientRect();
   const n = document.createElement('div');
   n.className = cls; n.textContent = txt;
+  /* O NÚMERO NUNCA SOBE ALÉM DO CABEÇALHO. Ele nasce a um terço do card e a
+     animação ainda o leva 34px para cima; com o card encostado no alto da
+     fileira — inimigo da primeira fila, ou card alto de onda pequena — isso
+     o punha atrás da barra "Masmorra 1 ◆ Andar 8/10", cortado pela metade.
+     O piso abaixo é a borda de baixo do cabeçalho mais a folga que a
+     animação vai consumir. */
+  const topo = document.getElementById('topo');
+  const limite = (topo ? topo.getBoundingClientRect().bottom : 0) + 40;
   n.style.left = (r.left + r.width/2)+'px';
-  n.style.top  = (r.top + r.height*0.34)+'px';
+  n.style.top  = Math.max(limite, r.top + r.height*0.34)+'px';
   n.style.setProperty('--dx', proxDesvio());
   document.body.appendChild(n);
   setTimeout(()=>n.remove(), dur);
