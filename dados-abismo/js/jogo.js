@@ -815,6 +815,7 @@ function pintar(){
      as cartas apertam para caber três por fila. Habilidade que você não vê é
      habilidade que não existe. */
   $('hab').classList.toggle('densa', skills.length >= 6);
+  $('habtit').textContent = sel.size ? 'ESCOLHA UMA HABILIDADE' : 'TOQUE NOS DADOS OU NUMA HABILIDADE';
   $('hab').innerHTML=skills.map((s,i)=>{
     const ok=selEnts.length&&satisfies(s.req,selEnts);
     const poss=findSubset(s.req,pool);
@@ -898,10 +899,11 @@ function pintar(){
              arcanista:()=>cb.guardar(id),  oracula:()=>cb.travar(id)}[C.id];
     if(f&&f()){ SFX.pegar(); if(C.id==='arcanista') sel.delete(id); pintar(); } else SFX.soltar(); };
   const vivos=cb.aliveEnemies().length;
-  $('topo').innerHTML=`Masmorra ${masmorra} · Andar ${andar}/10 <span style="opacity:.6">— ${ESCALADA[masmorra-1].nome}</span>`
-    // a dica "arraste" existia porque a fileira rolava de lado e escondia os
-    // inimigos a partir do 4º; agora todos cabem, então só conto quantos são
-    + (vivos>3?` <span class="tinim">${vivos} inimigos</span>`:'');
+  /* cabeçalho em três blocos separados por losango, com a contagem de
+     inimigos destacada à direita */
+  $('topo').innerHTML=`<b>Masmorra ${masmorra}</b><i>◆</i><b>Andar ${andar}/10</b>`
+    + `<i>◆</i><span class="tnome">${ESCALADA[masmorra-1].nome}</span>`
+    + (vivos>1?`<span class="tinim">${vivos} inimigo${vivos>1?'s':''} ☠</span>`:'');
   $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
   /* o botão DIZ o que vai rolar. Antes ele só dizia "Re-rolar" e o jogador

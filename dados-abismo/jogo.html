@@ -28,9 +28,17 @@
    z-index:10;pointer-events:auto;max-height:calc(52vh + env(safe-area-inset-top));
    overflow-y:auto;scrollbar-width:none}
  #ini::-webkit-scrollbar{display:none}
- .en{pointer-events:auto;background:rgba(8,11,15,.96);border:1px solid rgba(255,255,255,.13);
-   border-radius:11px;padding:6px 7px;cursor:pointer;backdrop-filter:blur(6px);
+ /* CARD DE INIMIGO: fundo em gradiente, moldura de fio dourado e um brilho
+    interno no topo — a mesma linguagem das cartas de habilidade, para a
+    tela inteira parecer um objeto só e não três telas coladas. */
+ .en{pointer-events:auto;position:relative;
+   background:linear-gradient(180deg,#151a21 0%,#0b0e13 62%,#080a0e 100%);
+   border:1px solid rgba(220,180,80,.22);
+   box-shadow:inset 0 1px 0 rgba(255,235,190,.10),0 3px 10px rgba(0,0,0,.5);
+   border-radius:12px;padding:7px 7px 6px;cursor:pointer;backdrop-filter:blur(6px);
    flex:1 1 96px;min-width:84px;max-width:132px}
+ .en::after{content:'';position:absolute;inset:3px;border-radius:8px;pointer-events:none;
+   border:1px solid rgba(220,180,80,.09)}
  /* onda cheia: a carta aperta pra sobrar mesa. Sem isto, com 6 inimigos em
     duas linhas a fileira comia quase todo o feltro. */
  #ini.cheia .en{padding:5px 6px}
@@ -38,7 +46,9 @@
  #ini.cheia .en .nm{font-size:10.5px}
  #ini.cheia .en .trava{font-size:8.5px;padding:2px 4px}
  #ini.cheia .en .hp{font-size:9.5px}
- .en.alvo{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a55}
+ .en.alvo{border-color:#ffd24a;box-shadow:inset 0 1px 0 rgba(255,235,190,.16),
+   0 0 0 1px rgba(255,210,74,.45),0 0 18px rgba(255,190,70,.28)}
+ .en.alvo::after{border-color:rgba(255,210,74,.30)}
  .en.morto{opacity:.28;filter:grayscale(1)}
  .en .nm{font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  .en .el{color:#ff7a5c;font-size:9px;letter-spacing:1px}
@@ -174,11 +184,17 @@
    font-size:13px;font-weight:900;color:#9fd6ff;text-shadow:0 0 9px rgba(120,190,255,.9),0 1px 3px #000;
    pointer-events:none;animation:escsobe .9s cubic-bezier(.12,.85,.25,1) forwards}
  @keyframes escsobe{to{transform:translate(-50%,-26px);opacity:0}}
+ /* título da faixa, como uma placa da seção */
+ .faixatit{text-align:center;font-size:8.5px;letter-spacing:3px;color:#8a7a50;
+   margin:0 0 5px;display:flex;align-items:center;gap:8px;justify-content:center}
+ .faixatit::before,.faixatit::after{content:'';height:1px;flex:1;max-width:64px;
+   background:linear-gradient(90deg,transparent,rgba(220,180,80,.35),transparent)}
  #hab{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;pointer-events:auto;align-items:stretch}
  /* ===== CARTA DE HABILIDADE ===== */
  .h{position:relative;overflow:hidden;cursor:pointer;transition:.13s;
    font-family:Georgia,serif;color:#e8e2d0;text-align:center;
-   background:linear-gradient(180deg,#1e242c,#0f141a);border:1px solid rgba(255,255,255,.14);
+   background:linear-gradient(180deg,#1b212a 0%,#12171e 55%,#0c1015 100%);
+   box-shadow:inset 0 1px 0 rgba(255,235,190,.07);border:1px solid rgba(220,180,80,.16);
    border-left:3px solid color-mix(in srgb,var(--hc,#888) 70%,transparent);
    border-radius:12px;padding:6px 8px 5px;min-width:96px;max-width:174px;
    display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -250,7 +266,8 @@
  /* sem defesa nenhuma: o golpe cheio JÁ é o dano, e é ele que brilha */
  .h .hico{width:17px;height:17px;flex:none;color:var(--hc,#cfd8e3);
    filter:drop-shadow(0 0 5px color-mix(in srgb,var(--hc,#888) 55%,transparent))}
- .h .hn{font-size:12px;font-weight:700;letter-spacing:.2px;white-space:nowrap}
+ .h .hn{font-size:12.5px;font-weight:700;letter-spacing:.3px;white-space:nowrap;
+   color:var(--hc,#e8e2d0)}
  /* requisito desenhado como DADOS */
  .h .hreq{display:flex;align-items:center;gap:2px;flex-wrap:wrap;justify-content:center}
  .h .hreq .op{font-size:10px;color:#8fb0d8;font-weight:900}
@@ -263,8 +280,13 @@
  .dchip.sb{color:#ffd24a;border-color:#5c4718} .dchip.qq{color:#7d8894;border-color:#333c46}
  /* selo do que a jogada FAZ */
  .h .hsel{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:1px}
- .h .hsel b{font-size:10.5px;font-weight:900;line-height:1;padding:1px 4px;border-radius:5px;
-   background:rgba(0,0,0,.4)}
+ /* O NÚMERO DO GOLPE é o que decide a carta — ele cresce e ganha peso, como
+    na referência: o resto da carta existe para explicar de onde ele vem. */
+ .h .hsel b{font-size:13px;font-weight:900;line-height:1;padding:1px 5px;border-radius:6px;
+   background:rgba(0,0,0,.45)}
+ .h .hd{font-size:15px;text-shadow:0 0 10px rgba(255,90,70,.45)}
+ #hab.densa .h .hsel b{font-size:11px;padding:1px 4px}
+ #hab.densa .h .hd{font-size:12.5px}
  .h .hd{color:#ff8a7a} .h .hb{color:#8fd8ff} .h .hc{color:#7ef2a8}
  .h .hx{color:#e0a0a0} .h .hk{color:#ffd24a} .h .ht{color:#9aa3ad}
  /* A CONTA DO GOLPE contra a defesa: golpe cheio, o que a defesa come, e o
@@ -298,7 +320,7 @@
  .conta.grande .cpar{font-size:11.5px;padding:2px 7px}
  /* estados */
  .h.pode{border-color:rgba(255,255,255,.22)}
- .h.ok{border-color:#4ad98a;box-shadow:0 0 14px #4ad98a3a,inset 0 0 18px #4ad98a14}
+ .h.ok{border-color:#4ad98a;box-shadow:0 0 15px #4ad98a44,inset 0 1px 0 rgba(200,255,220,.14),inset 0 0 18px #4ad98a14}
  .h.ok .hest{color:#7ef2a8;font-weight:900}
  .h.off{opacity:.38;filter:saturate(.3)}
  .h.pre{border-color:#ffd24a;box-shadow:0 0 18px #ffd24a55;transform:translateY(-2px)}
@@ -320,6 +342,14 @@
     inimigos cede altura e as cartas de habilidade ficam mais rasas. Nenhum
     deles some — o que se perde é folga, não informação. */
  @media (max-height:800px){
+   /* o título da faixa é placa, não decisão: some antes de qualquer outra
+      coisa quando a altura aperta */
+   .faixatit{display:none}
+   .h .hsel b{font-size:11.5px;padding:0 4px}
+   .h .hd{font-size:13px}
+   .en{padding:5px 6px 4px}
+   .b.pri{padding:7px 16px}
+   .h{padding:5px 7px 4px}
    /* a fileira mantém altura, mas o CARD encolhe: com 5+ inimigos e a mão
       cheia, o que não pode acontecer é um inimigo ficar escondido — a
       fechadura e a intenção dele são a metade do quebra-cabeça. */
@@ -344,12 +374,13 @@
    #acoes{margin-top:4px}
    .h{padding:4px 7px 4px;gap:1px}
    .b{padding:6px 12px}
-   body{grid-template-rows:auto minmax(112px,1fr) auto}   /* a mesa cede 38px */
+   body{grid-template-rows:auto minmax(104px,1fr) auto}   /* a mesa cede 46px */
    #ini{padding-top:calc(19px + env(safe-area-inset-top));padding-bottom:4px}
    #baixo{padding-top:3px}
  }
  @media (max-height:600px){
    #ini{max-height:calc(47vh + env(safe-area-inset-top))}
+   .faixatit{display:none}
    #log{display:none}          /* o log é o primeiro a sair: é histórico, não decisão */
    /* tela mínima: a fechadura cabe em uma linha e o retrato quase some.
       Continua dando para ler quem é, quanto tem de vida, qual a regra e o
@@ -371,7 +402,14 @@
  }
  .b{background:linear-gradient(180deg,#2a323d,#181d24);border:1px solid rgba(255,255,255,.16);
    border-radius:10px;padding:8px 14px;font-family:Georgia,serif;color:#e8e2d0;font-size:13px;font-weight:700;cursor:pointer}
- .b.pri{background:linear-gradient(180deg,#7a1f2b,#4d1119);border-color:#a33}
+ /* AÇÃO PRINCIPAL: destacada, com losangos nas pontas — o botão que fecha
+    o turno tem de ser o mais pesado da tela sem virar poluição. */
+ .b.pri{background:linear-gradient(180deg,#8a2331,#4d1119);border-color:#b8434f;
+   letter-spacing:2px;font-weight:900;padding:9px 20px;
+   box-shadow:inset 0 1px 0 rgba(255,190,180,.22),0 0 16px rgba(180,50,60,.28)}
+ .b.pri::before,.b.pri::after{content:'◆';font-size:7px;color:#e8a0a8;opacity:.75;
+   vertical-align:2px}
+ .b.pri::before{margin-right:9px} .b.pri::after{margin-left:9px}
  #brer b{color:#ffd24a;font-size:14px}      /* quantos dados a SELEÇÃO vai rolar */
  #brer .rtd{font-style:normal;opacity:.6;font-size:11px}
  .b:disabled{opacity:.4}
@@ -846,10 +884,18 @@
     achatava a carta nova: prendia em 330px, engordava os números das barras
     (.cbtn b{16px}) e desbotava as pastilhas de dado (.cbtn span{opacity:.7}). */
  /* faixa fina no topo: as cartas começam ABAIXO dela, então nunca a cobrem */
- #topo{position:fixed;top:0;left:0;right:0;z-index:12;font-size:10.5px;opacity:.82;text-align:center;
-   padding:calc(4px + env(safe-area-inset-top)) 8px 4px;pointer-events:none;line-height:1.3;
-   background:linear-gradient(180deg,rgba(4,6,9,.94) 60%,transparent)}
- #topo .tinim{color:#ffb45e;font-weight:700}
+ /* CABEÇALHO: três blocos separados por losango, e a contagem de inimigos
+    puxada para a direita em vermelho — dá para ler a situação sem procurar. */
+ #topo{position:fixed;top:0;left:0;right:0;z-index:12;font-size:11px;text-align:center;
+   padding:calc(5px + env(safe-area-inset-top)) 10px 5px;pointer-events:none;line-height:1.3;
+   display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;
+   background:linear-gradient(180deg,rgba(6,8,11,.97) 55%,transparent);
+   border-bottom:1px solid rgba(220,180,80,.10)}
+ #topo b{font-weight:700;color:#e8e2d0;letter-spacing:.4px}
+ #topo i{font-style:normal;font-size:6px;color:#8a7a50;transform:translateY(-1px)}
+ #topo .tnome{color:#9a927e;font-style:italic}
+ #topo .tinim{color:#e0574a;font-weight:700;margin-left:auto;padding-right:2px;
+   text-shadow:0 0 8px rgba(224,87,74,.45)}
  #log{position:static;font-size:10.5px;opacity:.66;pointer-events:none;line-height:1.45;
    text-align:center;margin-bottom:4px;max-height:44px;overflow:hidden;text-shadow:0 1px 3px #000}
  /* ===== sprite do inimigo ===== */
@@ -1172,6 +1218,7 @@
 <div id="baixo" class="lay">
   <div id="log"></div>
   <div id="sel"></div>
+  <div id="habtit" class="faixatit">ESCOLHA UMA HABILIDADE</div>
   <div id="voce"></div>
   <div id="hab"></div>
   <div id="acoes">
