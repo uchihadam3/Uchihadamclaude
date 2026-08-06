@@ -87,6 +87,7 @@ import { net, diag as netDiagObj, SESSION_TAG, type PeerState, type MobTupla, ty
 import { party, MAX_GRUPO, type Membro, type Convite, type Efeito } from "./party";
 import { friends, heroId, normalizar, type Amigo, type Jogador } from "./friends";
 import { guild, validarFundacao } from "./guild";
+import { ICO } from "./icons";
 // TOMBADO: quanto tempo o herói fica caído esperando um companheiro (em grupo).
 // Longo o bastante p/ alguém do outro lado da sala chegar, curto o bastante p/ não
 // virar castigo quando o grupo inteiro cai.
@@ -2404,6 +2405,7 @@ export class Game {
     (window as unknown as { __party?: typeof party }).__party = party;
     (window as unknown as { __MAX_GRUPO?: number }).__MAX_GRUPO = MAX_GRUPO;
     (window as unknown as { __guild?: typeof guild }).__guild = guild;
+    (window as unknown as { __ICO?: Record<string, string> }).__ICO = ICO;
     (window as unknown as { __validarFundacao?: typeof validarFundacao })
       .__validarFundacao = validarFundacao;
     (window as unknown as { __friends?: typeof friends }).__friends = friends;

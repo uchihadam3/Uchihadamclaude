@@ -42,23 +42,28 @@ export type StatKey =
   | "prec" | "crit" | "critd" | "eva" | "aspd" | "leech"
   | "poison" | "regen" | "cdr" | "block" | "rage";
 
-export const STAT_META: Record<StatKey, { sym: string; color: string; label: string }> = {
-  dmg:   { sym: "⚔", color: "#d9694c", label: "Dano Físico" },
-  mdmg:  { sym: "✦", color: "#8a6cff", label: "Dano Mágico" },
-  life:  { sym: "❤", color: "#e0564c", label: "Vida" },
-  mana:  { sym: "◆", color: "#4f9be0", label: "Mana" },
-  def:   { sym: "🛡", color: "#9fb0c4", label: "Defesa" },
-  mres:  { sym: "◈", color: "#7fa0d8", label: "Resist. Mágica" },
-  prec:  { sym: "◎", color: "#d8c86a", label: "Precisão" },
-  crit:  { sym: "✸", color: "#e0b84c", label: "Chance Crítica" },
-  critd: { sym: "✷", color: "#e08a3c", label: "Dano Crítico" },
+/**
+ * `sym` é o glifo antigo (reserva) e `ico` é o nome da peça de arte fatiada da
+ * folha §31. A tela prefere a arte e cai no glifo se ela ainda não existir —
+ * assim uma peça que falte some sozinha em vez de virar quadrado quebrado.
+ */
+export const STAT_META: Record<StatKey, { sym: string; ico?: string; color: string; label: string }> = {
+  dmg:   { sym: "⚔", ico: "dano", color: "#d9694c", label: "Dano Físico" },
+  mdmg:  { sym: "✦", ico: "dano_magico", color: "#8a6cff", label: "Dano Mágico" },
+  life:  { sym: "❤", ico: "vida", color: "#e0564c", label: "Vida" },
+  mana:  { sym: "◆", ico: "mana", color: "#4f9be0", label: "Mana" },
+  def:   { sym: "🛡", ico: "defesa", color: "#9fb0c4", label: "Defesa" },
+  mres:  { sym: "◈", ico: "resist_magica", color: "#7fa0d8", label: "Resist. Mágica" },
+  prec:  { sym: "◎", ico: "precisao", color: "#d8c86a", label: "Precisão" },
+  crit:  { sym: "✸", ico: "critico", color: "#e0b84c", label: "Chance Crítica" },
+  critd: { sym: "✷", ico: "dano_critico", color: "#e08a3c", label: "Dano Crítico" },
   eva:   { sym: "≈", color: "#9fd8c0", label: "Evasão" },
-  aspd:  { sym: "⚡", color: "#e6d24a", label: "Vel. de Ataque" },
-  leech: { sym: "❦", color: "#c0463c", label: "Roubo de Vida" },
-  poison:{ sym: "☣", color: "#7fc04c", label: "Veneno" },
-  regen: { sym: "✚", color: "#7fd08a", label: "Regeneração" },
-  cdr:   { sym: "⧗", color: "#c0a0e0", label: "Redução de Recarga" },
-  block: { sym: "⬡", color: "#b8c0cc", label: "Bloqueio" },
+  aspd:  { sym: "⚡", ico: "vel_ataque", color: "#e6d24a", label: "Vel. de Ataque" },
+  leech: { sym: "❦", ico: "roubo_vida", color: "#c0463c", label: "Roubo de Vida" },
+  poison:{ sym: "☣", ico: "veneno", color: "#7fc04c", label: "Veneno" },
+  regen: { sym: "✚", ico: "regeneracao", color: "#7fd08a", label: "Regeneração" },
+  cdr:   { sym: "⧗", ico: "recarga", color: "#c0a0e0", label: "Redução de Recarga" },
+  block: { sym: "⬡", ico: "bloqueio", color: "#b8c0cc", label: "Bloqueio" },
   rage:  { sym: "🔥", color: "#e06a3c", label: "Fúria" },
 };
 

@@ -29,6 +29,7 @@ import sys
 
 import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAIDA = os.path.join(RAIZ, "src", "assets", "ui", "icons")
@@ -54,6 +55,40 @@ FOLHAS = {
         ],
     },
 }
+
+
+def so_o_dourado(im: Image.Image, croma_min: float = 22.0) -> Image.Image:
+    """
+    Joga fora os CACOS DE XADREZ que sobraram do recorte, dentro da célula.
+
+    O recorte do cut_sprite.py é feito p/ bichos com aura e, numa folha de
+    ícones, deixa passar pedacinhos do quadriculado espalhados entre as células —
+    apareceram aos montes na folha de atributos.
+
+    Aqui existe uma regra que não existe lá e resolve sozinha: o prompt pede os
+    ícones em METAL DOURADO e o xadrez é CINZA PURO. Então cada mancha isolada é
+    julgada pela cor: dourado fica, cinza sai. É melhor que julgar pelo tamanho —
+    algumas peças legítimas são pequenas (as quatro setas do "expandir", os cacos
+    do "dano crítico"), e um corte por área levaria essas junto.
+
+    O vidro da lupa e a areia da ampulheta são acinzentados, mas vêm GRUDADOS no
+    aro dourado: são a mesma mancha, e a mediana dela continua dourada.
+    """
+    px = np.array(im)
+    alfa = px[..., 3] > 24
+    if not alfa.any():
+        return im
+    rgb = px[..., :3].astype(np.float32)
+    croma = rgb.max(2) - rgb.min(2)
+    ilhas, n = ndimage.label(alfa)
+    if n <= 1:
+        return im
+    fora = np.zeros(n + 1, bool)
+    for i in range(1, n + 1):
+        m = ilhas == i
+        fora[i] = float(np.median(croma[m])) < croma_min
+    px[..., 3] = np.where(fora[ilhas], 0, px[..., 3])
+    return Image.fromarray(px)
 
 
 def apara(im: Image.Image) -> Image.Image | None:
@@ -108,7 +143,7 @@ def main() -> None:
     for i, nome in enumerate(nomes):
         c, r = i % cols, i // cols
         cel = im.crop((round(c * cw), round(r * ch), round((c + 1) * cw), round((r + 1) * ch)))
-        cortado = apara(cel)
+        cortado = apara(so_o_dourado(cel))
         # célula vazia (ou quase) é ícone que o gerador não desenhou — avisa em
         # vez de gravar um PNG transparente que ninguém nota até estar no jogo
         if cortado is None or cortado.width < cw * 0.12 or cortado.height < ch * 0.12:

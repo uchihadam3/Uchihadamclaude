@@ -11,10 +11,10 @@ const ATTR_ICON_URLS = import.meta.glob("../assets/ui/attr_*.png", {
 }) as Record<string, string>;
 const ATTR_FILE: Record<PrimAttr, string> = { str: "attr_forca", dex: "attr_destreza", int: "attr_int" };
 // metadados dos PRIMÁRIOS (não estão em STAT_META, que é só de passivas)
-const ATTR_META: Record<PrimAttr, { sym: string; color: string; label: string }> = {
-  str: { sym: "⚔", color: "#e0623c", label: "Força" },
-  dex: { sym: "➹", color: "#5fbf6a", label: "Destreza" },
-  int: { sym: "✦", color: "#4f9be0", label: "Inteligência" },
+const ATTR_META: Record<PrimAttr, { sym: string; ico: string; color: string; label: string }> = {
+  str: { sym: "⚔", ico: "forca", color: "#e0623c", label: "Força" },
+  dex: { sym: "➹", ico: "destreza", color: "#5fbf6a", label: "Destreza" },
+  int: { sym: "✦", ico: "inteligencia", color: "#4f9be0", label: "Inteligência" },
 };
 const attrIconUrl = (a: PrimAttr): string | null => {
   const file = ATTR_FILE[a];
@@ -25,8 +25,12 @@ const attrIconUrl = (a: PrimAttr): string | null => {
 const attrSeal = (a: PrimAttr, size = 16): string => {
   const url = attrIconUrl(a);
   const m = ATTR_META[a];
-  return url
-    ? `<img class="gh-attr-seal" src="${url}" alt="${m.label}" title="${m.label}" style="width:${size}px;height:${size}px"/>`
+  // três origens, nesta ordem: o selo pintado que já existia, a peça da folha de
+  // ícones, e o glifo como último recurso
+  const daFolha = ICO[m.ico];
+  const arte = url || daFolha;
+  return arte
+    ? `<img class="gh-attr-seal" src="${arte}" alt="${m.label}" title="${m.label}" style="width:${size}px;height:${size}px"/>`
     : `<span class="gh-attr-seal gh-attr-glyph" title="${m.label}" style="width:${size}px;height:${size}px;color:${m.color}">${m.sym}</span>`;
 };
 // ícones do card de skill: mana (gema recortada da placa) e recarga (ampulheta
@@ -38,6 +42,11 @@ const CD_IC =
   `<path d="M6 3h12M6 21h12"/><path d="M7 3c0 4 2 6 5 9 3-3 5-5 5-9"/>` +
   `<path d="M7 21c0-4 2-6 5-9 3 3 5 5 5 9"/></svg>`;
 import { CLASS_BY_ID } from "./classes";
+// ÍCONES: os símbolos pequenos deixaram de ser emoji (ver icons.ts). Cada troca
+// abaixo mantém o glifo antigo como reserva — se a peça ainda não foi fatiada, o
+// jogo continua desenhando o caractere em vez de um quadrado vazio.
+import { ico, ICO, ICON_CSS } from "./icons";
+const ICO_FECHAR = ico("fechar") || "\u2715";
 import type { Rarity } from "./items";
 
 // linha de atributo do item e delta de comparação (verde/vermelho) ao trocar
@@ -753,7 +762,11 @@ export function setupControls(
     if (!data || !data.title) { tracker.style.display = "none"; return; }
     tracker.style.display = "block";
     tkTitle.textContent = data.title;
-    tkObj.textContent = data.objective ? "▸ " + data.objective : "";
+    // o marcador virou imagem, então a linha é montada como HTML; o objetivo é
+    // texto do jogo, mas passa pelo escape do mesmo jeito (custa nada e fecha a porta)
+    tkObj.innerHTML = data.objective
+      ? `${ico("avancar") || "\u25B8"} ${data.objective.replace(/[<>&]/g, "")}`
+      : "";
     tkGuide.classList.toggle("gh-tk-guide-off", !data.guideOn);
     tkGuide.title = data.guideOn ? "Ocultar guia no mapa" : "Mostrar guia no mapa";
   };
@@ -763,7 +776,7 @@ export function setupControls(
   bigMap.id = "gh-bigmap";
   bigMap.className = "gh-bigmap-hidden";
   bigMap.innerHTML =
-    '<div id="gh-bigmap-win"><button id="gh-bigmap-close" title="Fechar (Esc/M)">✕</button>' +
+    '<div id="gh-bigmap-win"><button id="gh-bigmap-close" title="Fechar (Esc/M)">' + ICO_FECHAR + '</button>' +
     '<canvas id="gh-bigmap-canvas" width="720" height="720"></canvas></div>';
   root.appendChild(bigMap);
   const bigCanvas = bigMap.querySelector("#gh-bigmap-canvas") as HTMLCanvasElement;
@@ -1117,7 +1130,7 @@ export function setupControls(
   const optBtn = document.createElement("button");
   optBtn.id = "gh-opt-btn";
   optBtn.title = "Opções";
-  optBtn.innerHTML = `<span class="gh-opt-gear">⚙</span>`;
+  optBtn.innerHTML = ico("opcoes", "gh-ico-btn") || `<span class="gh-opt-gear">⚙</span>`;
   root.appendChild(optBtn);
 
   const opt = document.createElement("div");
@@ -1129,7 +1142,7 @@ export function setupControls(
     `<input type="range" min="0" max="100" value="${pct(val)}" class="gh-opt-slider" data-ch="${ch}"/>` +
     `<span class="gh-opt-val" data-for="${ch}">${pct(val)}%</span></div>`;
   opt.innerHTML =
-    '<div id="gh-opt-win"><button id="gh-opt-close" title="Fechar">✕</button>' +
+    '<div id="gh-opt-win"><button id="gh-opt-close" title="Fechar">' + ICO_FECHAR + '</button>' +
     '<div class="gh-opt-title">OPÇÕES</div>' +
     `<div class="gh-opt-sec${audio.muted ? " gh-opt-mutedsec" : ""}" id="gh-opt-audio">` +
     '<div class="gh-opt-sh">ÁUDIO</div>' +
@@ -1176,12 +1189,12 @@ export function setupControls(
   const jbtn = document.createElement("button");
   jbtn.id = "gh-journal-btn";
   jbtn.title = "Diário de Missões (J)";
-  jbtn.innerHTML = `<span class="gh-journal-ico">📜</span>`;
+  jbtn.innerHTML = ico("diario", "gh-ico-btn") || `<span class="gh-journal-ico">📜</span>`;
   root.appendChild(jbtn);
   const journal = document.createElement("div");
   journal.id = "gh-journal";
   journal.className = "gh-eq-hidden";
-  journal.innerHTML = '<div id="gh-journal-win"><button id="gh-journal-close" title="Fechar">✕</button>' +
+  journal.innerHTML = '<div id="gh-journal-win"><button id="gh-journal-close" title="Fechar">' + ICO_FECHAR + '</button>' +
     '<div class="gh-jr-title">DIÁRIO DE MISSÕES</div><div id="gh-journal-body"></div></div>';
   root.appendChild(journal);
   const journalBody = journal.querySelector("#gh-journal-body") as HTMLElement;
@@ -1189,10 +1202,10 @@ export function setupControls(
   const renderJournal = (d: JournalData) => {
     const entry = (e: JournalEntry, chap?: number) => {
       if (e.status === "locked")
-        return `<div class="gh-jr-q gh-jr-locked"><div class="gh-jr-ico">🔒</div>` +
+        return `<div class="gh-jr-q gh-jr-locked"><div class="gh-jr-ico">${ico("selado") || "\u{1F512}"}</div>` +
           `<div class="gh-jr-txt"><div class="gh-jr-h">${chap ? `Capítulo ${chap}: ` : ""}???</div>` +
           `<div class="gh-jr-d">Ainda não revelada.</div></div></div>`;
-      const obj = e.status === "active" && e.objective ? `<div class="gh-jr-obj">◈ ${e.objective}</div>` : "";
+      const obj = e.status === "active" && e.objective ? `<div class="gh-jr-obj">${ico("objetivo") || "\u25C8"} ${e.objective}</div>` : "";
       return `<div class="gh-jr-q gh-jr-${e.status}"><div class="gh-jr-ico">${e.icon}</div>` +
         `<div class="gh-jr-txt"><div class="gh-jr-h">${chap ? `Capítulo ${chap}: ` : ""}${e.title}` +
         `<span class="gh-jr-badge gh-jr-b-${e.status}">${JR_BADGE[e.status] ?? ""}</span></div>` +
@@ -1247,7 +1260,7 @@ export function setupControls(
   eq.id = "gh-eq";
   eq.className = "gh-eq-hidden";
   eq.innerHTML =
-    '<div id="gh-eq-win"><button id="gh-eq-close" title="Fechar (Esc)">✕</button>' +
+    '<div id="gh-eq-win"><button id="gh-eq-close" title="Fechar (Esc)">' + ICO_FECHAR + '</button>' +
     '<div id="gh-eq-inner">' +
     '<div class="gh-eq-title">Personagem</div>' +
     '<div class="gh-eq-tabs">' +
@@ -1351,7 +1364,7 @@ export function setupControls(
       '<input id="gh-chat-inp" type="text" maxlength="140" placeholder="Falar com quem está por perto…" />' +
       '<button id="gh-chat-send">Enviar</button>' +
     "</div>" +
-    '<button id="gh-chat-toggle" title="Bate-papo">💬</button>';
+    '<button id="gh-chat-toggle" title="Bate-papo">' + (ico("chat") || "\u{1F4AC}") + '</button>';
   root.appendChild(chat);
   const chatLog = chat.querySelector("#gh-chat-log") as HTMLElement;
   const chatInp = chat.querySelector("#gh-chat-inp") as HTMLInputElement;
@@ -1414,10 +1427,15 @@ export function setupControls(
     clerigo: "#c9a94e", cacador: "#6d8f7a",
   };
   const partyCss = document.createElement("style");
-  partyCss.textContent = `
+  partyCss.textContent = ICON_CSS + `
     /* GRUPO: mesma MOLDURA DE ARTE das outras janelas (eq_frame 9-slice), p/ o
        painel pertencer ao jogo em vez de parecer um HUD colado por cima. */
-    #gh-party{position:absolute;left:10px;top:126px;z-index:26;display:flex;
+    /* LEFT 76 e não 10: a coluna de atalhos (personagem, opções, diário,
+       Companhia) mora em left:14 com 52px de largura, e o painel passava por
+       cima dela — não só escondia, INTERCEPTAVA o toque, então com grupo na tela
+       era impossível abrir o diário ou a Companhia. Quem chegou depois é que se
+       move; os botões o jogador já sabia onde estavam. */
+    #gh-party{position:absolute;left:76px;top:126px;z-index:26;display:flex;
       flex-direction:column;gap:6px;pointer-events:none;font-family:"Trebuchet MS",sans-serif;}
     /* a linha é CLICÁVEL: é assim que se escolhe em quem a cura vai cair */
     .gh-pt-row{position:relative;width:198px;box-sizing:border-box;
@@ -1500,7 +1518,9 @@ export function setupControls(
        é anexada depois: com a mesma especificidade, a última a entrar vence, e a
        de lá simplesmente não pegava. */
     @media (orientation: landscape) and (max-height: 500px) {
-      #gh-party{top:90px;}
+      /* no celular deitado os atalhos já moram numa fileira no TOPO, então aqui
+         a coluna da esquerda está livre e o painel volta p/ a borda */
+      #gh-party{top:90px;left:10px;}
     }
   `;
   root.appendChild(partyCss);
@@ -1623,7 +1643,7 @@ export function setupControls(
   // ainda exige acertar o nome. Aqui é um toque p/ abrir e um toque p/ convidar.
   const socialBtn = document.createElement("button");
   socialBtn.id = "gh-social";
-  socialBtn.innerHTML = "\u{1F465}"; // silhuetas de duas pessoas
+  socialBtn.innerHTML = ico("amigos", "gh-ico-btn") || "\u{1F465}";
   socialBtn.title = "Jogadores por perto";
   root.appendChild(socialBtn);
   const socialBox = document.createElement("div");
@@ -1664,8 +1684,8 @@ export function setupControls(
         return `<div class="gh-so-row">
           ${retrato(n.classId, inicial(n.name))}
           <div class="gh-so-nome">${nome}<span>nível ${n.level} · ${n.classId}${n.amigo ? " · amigo" : ""}</span></div>
-          ${podeComp ? `<button class="gh-so-comp" data-id="${n.id}" title="Chamar para a Companhia">⚑</button>` : ""}
-          ${podeAdd ? `<button class="gh-so-add" data-uid="${n.uid}" title="Adicionar aos amigos">+</button>` : ""}
+          ${podeComp ? `<button class="gh-so-comp" data-id="${n.id}" title="Chamar para a Companhia">${ico("companhia", "gh-ico-sm") || "\u2691"}</button>` : ""}
+          ${podeAdd ? `<button class="gh-so-add" data-uid="${n.uid}" title="Adicionar aos amigos">${ico("somar", "gh-ico-sm") || "+"}</button>` : ""}
           <button class="gh-so-inv" data-id="${n.id}">Convidar</button>
         </div>`;
       }).join("")
@@ -1706,8 +1726,8 @@ export function setupControls(
         <div class="gh-so-nome">${escapa(f.name.split(/[ ,]/)[0])}<span>nível ${f.level} · ${
           escapa(f.onde || "em algum lugar")}${f.amigo ? " · amigo" : ""}</span></div>
         ${podeComp && !f.naCompanhia
-          ? `<button class="gh-so-comp" data-buid="${escapa(f.uid)}" title="Chamar para a Companhia">⚑</button>` : ""}
-        ${!f.amigo ? `<button class="gh-so-add" data-uid="${escapa(f.uid)}" title="Adicionar aos amigos">+</button>` : ""}
+          ? `<button class="gh-so-comp" data-buid="${escapa(f.uid)}" title="Chamar para a Companhia">${ico("companhia", "gh-ico-sm") || "\u2691"}</button>` : ""}
+        ${!f.amigo ? `<button class="gh-so-add" data-uid="${escapa(f.uid)}" title="Adicionar aos amigos">${ico("somar", "gh-ico-sm") || "+"}</button>` : ""}
         <button class="gh-so-inv" data-buid="${escapa(f.uid)}">Convidar</button>
       </div>`).join("");
     const vazio = buscaFeita
@@ -1719,7 +1739,7 @@ export function setupControls(
     return `<form class="gh-so-busca" id="gh-so-busca">
         <input id="gh-so-q" placeholder="nick do jogador…" autocomplete="off"
           maxlength="24" value="${escapa(buscaTermo)}"/>
-        <button type="submit" title="Buscar">🔎</button>
+        <button type="submit" title="Buscar">${ico("buscar") || "\u{1F50E}"}</button>
       </form>${linhas || vazio}`;
   };
 
@@ -1773,7 +1793,7 @@ export function setupControls(
   // gente sem abrir nada. É o número que decide se o botão pulsa.
   const pintaBotaoSocial = () => {
     const n = nearby.length + amigos.filter((a) => a.online).length;
-    socialBtn.innerHTML = `\u{1F465}${n ? `<small>${n}</small>` : ""}`;
+    socialBtn.innerHTML = `${ico("amigos") || "\u{1F465}"}${n ? `<small>${n}</small>` : ""}`;
     socialBtn.classList.toggle("gh-so-tem", n > 0);
   };
   socialBtn.addEventListener("click", () => {
@@ -1885,13 +1905,13 @@ export function setupControls(
   const guildBtn = document.createElement("button");
   guildBtn.id = "gh-guild-btn";
   guildBtn.title = "Companhia (G)";
-  guildBtn.innerHTML = `<span class="gh-gd-ico">⚑</span>`;
+  guildBtn.innerHTML = ico("companhia", "gh-ico-btn") || `<span class="gh-gd-ico">⚑</span>`;
   root.appendChild(guildBtn);
 
   const guildWin = document.createElement("div");
   guildWin.id = "gh-gd";
   guildWin.className = "gh-eq-hidden";
-  guildWin.innerHTML = '<div id="gh-gd-win"><button id="gh-gd-close" title="Fechar">✕</button>'
+  guildWin.innerHTML = '<div id="gh-gd-win"><button id="gh-gd-close" title="Fechar">' + ICO_FECHAR + '</button>'
     + '<div id="gh-gd-body"></div></div>';
   root.appendChild(guildWin);
   const guildBody = guildWin.querySelector("#gh-gd-body") as HTMLElement;
@@ -1925,9 +1945,9 @@ export function setupControls(
       ? `<div class="gh-gd-cmd">
            ${m.posto !== "mestre" ? `<button class="gh-gd-b gh-gd-sobe" data-uid="${escapa(m.uid)}" data-p="${
              m.posto === "membro" ? "oficial" : "mestre"}" title="${
-             m.posto === "membro" ? "Promover a Oficial" : "Passar o bastão de Mestre"}">▲</button>` : ""}
-           ${m.posto === "oficial" ? `<button class="gh-gd-b gh-gd-desce" data-uid="${escapa(m.uid)}" data-p="membro" title="Rebaixar a Companheiro">▼</button>` : ""}
-           <button class="gh-gd-b gh-gd-fora" data-uid="${escapa(m.uid)}" title="Expulsar">✕</button>
+             m.posto === "membro" ? "Promover a Oficial" : "Passar o bastão de Mestre"}">${ico("cima", "gh-ico-sm") || "\u25B2"}</button>` : ""}
+           ${m.posto === "oficial" ? `<button class="gh-gd-b gh-gd-desce" data-uid="${escapa(m.uid)}" data-p="membro" title="Rebaixar a Companheiro">${ico("baixo", "gh-ico-sm") || "\u25BC"}</button>` : ""}
+           <button class="gh-gd-b gh-gd-fora" data-uid="${escapa(m.uid)}" title="Expulsar">${ICO_FECHAR}</button>
          </div>`
       : "";
     return `<div class="gh-gd-row${m.online ? "" : " gh-gd-off"}${eu ? " gh-gd-eu" : ""}">
@@ -1953,7 +1973,7 @@ export function setupControls(
   /** Tela de quem ainda não tem Companhia: o que é, e o formulário p/ fundar. */
   const gdFundacao = (): string => `
     <div class="gh-gd-cabeca gh-gd-cabeca-vazia">
-      <div class="gh-gd-brasao gh-gd-brasao-vazio"><span>⚑</span></div>
+      <div class="gh-gd-brasao gh-gd-brasao-vazio">${ico("companhia") || "<span>\u2691</span>"}</div>
       <div class="gh-gd-titulos">
         <h2>COMPANHIA</h2>
         <p class="gh-gd-lema">"Quem desce, desce junto."</p>
@@ -2321,7 +2341,7 @@ export function setupControls(
   const sm = document.createElement("div");
   sm.id = "gh-sm";
   sm.className = "gh-eq-hidden";
-  sm.innerHTML = '<div id="gh-sm-win"><button id="gh-sm-close" title="Fechar">✕</button><div id="gh-sm-body"></div><div id="gh-sm-flash"></div></div>';
+  sm.innerHTML = '<div id="gh-sm-win"><button id="gh-sm-close" title="Fechar">' + ICO_FECHAR + '</button><div id="gh-sm-body"></div><div id="gh-sm-flash"></div></div>';
   root.appendChild(sm);
   const smBody = sm.querySelector("#gh-sm-body") as HTMLElement;
   const smFlash = sm.querySelector("#gh-sm-flash") as HTMLElement;
@@ -2543,7 +2563,7 @@ export function setupControls(
       btn = `<button class="gh-sk-cbtn gh-sk-cbuy" id="gh-sk-confirm">${rank > 0 ? `Melhorar → ${rank + 1}/${sk.maxRank}` : "Aprender"} · 1 ponto</button>`;
     // habilidade ATIVA já aprendida → pode ser posta na barra de atalho
     const equipBtn = (sk.kind === "active" && rank >= 1)
-      ? `<button class="gh-sk-cbtn gh-sk-cequip" id="gh-sk-equip">⌗ Equipar na barra</button>`
+      ? `<button class="gh-sk-cbtn gh-sk-cequip" id="gh-sk-equip">${ico("equipar") || "\u2317"} Equipar na barra</button>`
       : "";
     return (
       `<div class="gh-skc-head"><b>${sk.name}</b><i>${typeTxt} · ${rank}/${sk.maxRank}</i></div>` +
@@ -2645,7 +2665,9 @@ export function setupControls(
                 ? `<img src="${sk.icon}" alt=""/>`
                 : passIcon
                   ? `<img src="${passIcon}" alt=""/>`
-                  : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
+                  : sk.stat && STAT_META[sk.stat].ico && ICO[STAT_META[sk.stat].ico!]
+                    ? `<img src="${ICO[STAT_META[sk.stat].ico!]}" alt="" title="${STAT_META[sk.stat].label}"/>`
+                    : `<span class="gh-sk-sym" style="color:${sk.stat ? STAT_META[sk.stat].color : "#ccc"}">${sk.stat ? STAT_META[sk.stat].sym : "?"}</span>`;
             const line = i > 0 ? `<div class="gh-sk-line" style="background:${b.color}"></div>` : "";
             return `${line}<button class="gh-sk-node ${kindCls} ${state}" data-sk="${sk.id}">${inner}<span class="gh-sk-rank">${rank}/${sk.maxRank}</span></button>`;
           })
@@ -2807,7 +2829,7 @@ export function setupControls(
   const st = document.createElement("div");
   st.id = "gh-st";
   st.className = "gh-eq-hidden";
-  st.innerHTML = '<div id="gh-st-win"><button id="gh-st-close" title="Fechar">✕</button><div id="gh-st-body"></div><div id="gh-st-qty" class="gh-st-qty-hidden"></div></div>';
+  st.innerHTML = '<div id="gh-st-win"><button id="gh-st-close" title="Fechar">' + ICO_FECHAR + '</button><div id="gh-st-body"></div><div id="gh-st-qty" class="gh-st-qty-hidden"></div></div>';
   root.appendChild(st);
   const stBody = st.querySelector("#gh-st-body") as HTMLElement;
   const stQty = st.querySelector("#gh-st-qty") as HTMLElement;
@@ -2901,7 +2923,7 @@ export function setupControls(
   const stash = document.createElement("div");
   stash.id = "gh-stash";
   stash.className = "gh-eq-hidden";
-  stash.innerHTML = '<div id="gh-stash-win"><button id="gh-stash-close" title="Fechar">✕</button><div id="gh-stash-body"></div><div id="gh-stash-qty" class="gh-st-qty-hidden"></div></div>';
+  stash.innerHTML = '<div id="gh-stash-win"><button id="gh-stash-close" title="Fechar">' + ICO_FECHAR + '</button><div id="gh-stash-body"></div><div id="gh-stash-qty" class="gh-st-qty-hidden"></div></div>';
   root.appendChild(stash);
   const stashBody = stash.querySelector("#gh-stash-body") as HTMLElement;
   const stashQtyEl = stash.querySelector("#gh-stash-qty") as HTMLElement;
@@ -3066,7 +3088,7 @@ export function setupControls(
   const tv = document.createElement("div");
   tv.id = "gh-tv";
   tv.className = "gh-eq-hidden";
-  tv.innerHTML = '<div id="gh-tv-win"><button id="gh-tv-close" title="Fechar">✕</button><div id="gh-tv-body"></div></div>';
+  tv.innerHTML = '<div id="gh-tv-win"><button id="gh-tv-close" title="Fechar">' + ICO_FECHAR + '</button><div id="gh-tv-body"></div></div>';
   root.appendChild(tv);
   const tvBody = tv.querySelector("#gh-tv-body") as HTMLElement;
   (tv.querySelector("#gh-tv-close") as HTMLElement).addEventListener("click", (e) => {
@@ -3097,7 +3119,7 @@ export function setupControls(
       `<div class="gh-tv-qic">${q.icon}</div>` +
       `<div class="gh-tv-qbody">` +
       `<div class="gh-tv-qtop"><span class="gh-tv-qtitle">${q.title}</span>` +
-        (q.repeatable ? `<span class="gh-tv-rib gh-tv-rib-rep">↻ REPETÍVEL</span>` : "") + `${questRibbon(q)}</div>` +
+        (q.repeatable ? `<span class="gh-tv-rib gh-tv-rib-rep">${ico("repetir") || "\u21BB"} REPETÍVEL</span>` : "") + `${questRibbon(q)}</div>` +
       `<div class="gh-tv-qdesc">${q.desc}</div>` +
       (q.progress ? `<div class="gh-tv-qprog">Progresso: ${q.progress}</div>` : "") +
       `<div class="gh-tv-rewards">${q.reward.map(rewardChip).join("")}</div>` +
@@ -3894,9 +3916,9 @@ export function setupControls(
           const cls = [longe ? "gh-pt-longe" : "", x.caido ? "gh-pt-caido" : "",
             alvo && alvo === x.id ? "gh-pt-alvo" : ""].filter(Boolean).join(" ");
           return `<div class="gh-pt-row${cls ? " " + cls : ""}" data-id="${x.id}">
-            <div class="gh-pt-face" style="background:${CLASSE_COR[x.classId] ?? "#9a8f7e"}">${x.caido ? "\u2620" : (nome[0] ?? "?")}</div>
+            <div class="gh-pt-face" style="background:${CLASSE_COR[x.classId] ?? "#9a8f7e"}">${x.caido ? (ico("caido") || "\u2620") : (nome[0] ?? "?")}</div>
             <div class="gh-pt-dados">
-              <div class="gh-pt-nome">${x.lider ? "\u2605 " : ""}${nome}<span>${
+              <div class="gh-pt-nome">${x.lider ? (ico("lider", "gh-ico-sm") || "\u2605") + " " : ""}${nome}<span>${
                 x.caido ? "ca\u00eddo" : longe ? "noutro lugar" : `nv ${x.level}`}</span></div>
               <div class="gh-pt-bar"><i style="width:${(frac * 100).toFixed(0)}%;background:${cor}"></i>
                 <b class="gh-pt-hp">${Math.max(0, Math.round(x.hp))} / ${Math.round(x.maxHp)}</b></div>
@@ -4338,7 +4360,7 @@ function injectStyle() {
   .gh-preplay #gh-hud, .gh-preplay #gh-map, .gh-preplay #gh-clock,
   .gh-preplay #gh-tracker, .gh-preplay #gh-hotbar,
   .gh-preplay #gh-char-btn, .gh-preplay #gh-opt-btn, .gh-preplay #gh-journal-btn,
-  .gh-preplay #gh-guild-btn, .gh-revealing #gh-guild-btn,
+  .gh-preplay #gh-guild-btn,
   .gh-preplay #gh-weapon-rig, .gh-preplay #gh-weapon-atk,
   .gh-preplay .gh-move, .gh-preplay .gh-act, .gh-preplay .gh-atk {
     opacity:0 !important; pointer-events:none !important;
@@ -4348,6 +4370,7 @@ function injectStyle() {
   .gh-revealing #gh-hud, .gh-revealing #gh-map, .gh-revealing #gh-clock,
   .gh-revealing #gh-tracker, .gh-revealing #gh-hotbar,
   .gh-revealing #gh-char-btn, .gh-revealing #gh-opt-btn, .gh-revealing #gh-journal-btn,
+  .gh-revealing #gh-guild-btn,
   .gh-revealing #gh-weapon-rig, .gh-revealing #gh-weapon-atk,
   .gh-revealing .gh-move, .gh-revealing .gh-act, .gh-revealing .gh-atk {
     animation:gh-hud-in .55s ease both;
@@ -5317,7 +5340,11 @@ function injectStyle() {
     100% { opacity:0; transform:translate(-50%,-16px) scale(1); }
   }
   /* --- BATE-PAPO do co-op (canto superior esquerdo, discreto) --- */
-  #gh-chat { position:fixed; left:8px; top:32%; z-index:16; width:min(300px,62vw);
+  /* LEFT 76: o botão de abrir o bate-papo tem z-index maior que a coluna de
+     atalhos e caía bem em cima do Diário — o toque abria o bate-papo achando que
+     abria o diário. Mesma correção do painel do grupo, pelo mesmo motivo: quem
+     chegou depois é que sai da frente. */
+  #gh-chat { position:fixed; left:76px; top:32%; z-index:16; width:min(300px,62vw);
     display:flex; flex-direction:column; gap:4px; pointer-events:none; }
   #gh-chat-status {
     font-family:"Cinzel",serif; font-size:10.5px; color:#9fb98a; letter-spacing:.3px;
@@ -5659,11 +5686,21 @@ function injectStyle() {
     font-size:11px; color:#12100a; background:rgba(244,216,115,.85); border-radius:6px; padding:1px 7px; }
   /* tipos: missão (dourado, com selo), loja (âmbar), sair (apagado) */
   .gh-dlg-menu .gh-dlg-c-quest { color:#f4d883; border-color:rgba(244,216,115,.65); box-shadow:0 0 10px rgba(240,200,90,.16), 0 2px 6px #000; }
-  .gh-dlg-menu .gh-dlg-c-quest .gh-dlg-clabel::before { content:"❕ "; color:#ffd873; }
-  .gh-dlg-menu .gh-dlg-c-shop .gh-dlg-clabel::before { content:"🛒 "; }
+  /* MENU DE DIÁLOGO: era content:"emoji" — e CSS content só aceita texto. A arte
+     entra como MÁSCARA pintada com a cor do item, e não como imagem de fundo:
+     assim o ícone acompanha o dourado da linha (e o cinza do "sair") em vez de
+     trazer a própria cor e brigar com ela. */
+  .gh-dlg-menu .gh-dlg-clabel::before { content:""; display:inline-block;
+    width:1em; height:1em; vertical-align:-0.14em; margin-right:5px;
+    background-color:currentColor; -webkit-mask-size:contain; mask-size:contain;
+    -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+    -webkit-mask-position:center; mask-position:center; }
+  .gh-dlg-menu .gh-dlg-c-quest .gh-dlg-clabel::before { color:#ffd873;
+    -webkit-mask-image:url(${ICO.missao}); mask-image:url(${ICO.missao}); }
+  .gh-dlg-menu .gh-dlg-c-shop .gh-dlg-clabel::before { -webkit-mask-image:url(${ICO.loja}); mask-image:url(${ICO.loja}); }
   .gh-dlg-menu .gh-dlg-c-exit { color:#a2957a; border-color:rgba(150,140,110,.4); }
-  .gh-dlg-menu .gh-dlg-c-exit .gh-dlg-clabel::before { content:"↩ "; }
-  .gh-dlg-menu .gh-dlg-c-back .gh-dlg-clabel::before { content:"◂ "; }
+  .gh-dlg-menu .gh-dlg-c-exit .gh-dlg-clabel::before { -webkit-mask-image:url(${ICO.sair}); mask-image:url(${ICO.sair}); }
+  .gh-dlg-menu .gh-dlg-c-back .gh-dlg-clabel::before { -webkit-mask-image:url(${ICO.voltar}); mask-image:url(${ICO.voltar}); }
   @media (min-width: 900px) {
     .gh-btn { opacity:0.75; }
     .gh-act { opacity:0.5; }

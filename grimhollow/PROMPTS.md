@@ -2017,7 +2017,7 @@ rodou ou rodou com erro: volte no SQL Editor e confira a saída.
 
 ---
 
-## 31 · ÍCONES DA INTERFACE — folhas de atalhos e atributos — 🟡 arte pendente
+## 31 · ÍCONES DA INTERFACE — folhas de atalhos e atributos — ✅ NO JOGO
 
 Levantei tudo que hoje é **emoji ou caractere solto** na interface: são **42**
 símbolos, do botão de amigos ao ícone de Veneno na árvore de habilidades. Eles
@@ -2034,7 +2034,7 @@ tocam), a **B** são símbolos abstratos de atributo (coisas que se leem).
 Gere **uma por vez**, com o nome do arquivo, que eu fatio e integro. A grade é
 fixa e está mapeada abaixo — é por ela que o corte acontece.
 
-### 🟡 31.1 — `ui_icons_a.png` (atalhos e interface) — grade 6×4
+### ✅ 31.1 — `ui_icons_a.png` (atalhos e interface) — grade 6×4
 
 **1536×1024**, seis colunas por quatro linhas, cada ícone **centrado na sua
 célula de 256×256** com folga em volta. Fundo **transparente de verdade**.
@@ -2050,7 +2050,7 @@ célula de 256×256** com folga em volta. Fundo **transparente de verdade**.
 A single flat sprite sheet of 24 medieval fantasy user-interface icons arranged in a strict 6 by 4 grid, 1536x1024, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: two overlapping human silhouettes, a hanging war banner on a pole, a mechanical gear, a rolled parchment scroll, a speech bubble, a magnifying glass. Row 2: an X close cross, a diagonal expand arrow pair pointing outward, a small square slot with an arrow entering it, a market basket, an exclamation mark, a closed padlock. Row 3: a solid triangle pointing up, a solid triangle pointing down, a solid triangle pointing right, a solid triangle pointing left, a circular refresh arrow, a curved return arrow. Row 4: a faceted diamond rhombus, a four-pointed sparkle star, a five-pointed star, a skull, a plus cross, a stamped gold coin. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, slightly worn edges, bold simple readable silhouettes with thick strokes, no thin fragile lines, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
 ```
 
-### 🟡 31.2 — `ui_icons_b.png` (atributos e estatísticas) — grade 6×3
+### ✅ 31.2 — `ui_icons_b.png` (atributos e estatísticas) — grade 6×3
 
 **1536×768**, seis colunas por três linhas, células de 256×256. Mesmas regras.
 
@@ -2074,6 +2074,10 @@ A single flat sprite sheet of 18 medieval fantasy RPG stat icons arranged in a s
 > salvar é ícone encostando no vizinho: se as células não tiverem folga, o corte
 > leva pedaço do lado.
 
+> **As duas folhas já vieram e estão no jogo** (as folhas brutas ficaram em
+> `src/assets/ui/icons/_folha_*.png`, para refatiar sem pedir de novo). Vieram com
+> o xadrez pintado por dentro, como sempre — o corte roda com `--xadrez`.
+>
 > **O que acontece depois que você mandar.** O `scripts/slice_icons.py` fatia a
 > folha pela grade acima e nomeia cada peça (`ico_amigos.png`, `ico_forca.png`,
 > …). Daí eu troco os emoji pelas imagens no código, um lugar por vez, e o jogo

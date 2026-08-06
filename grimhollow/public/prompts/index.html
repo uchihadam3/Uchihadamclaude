@@ -1736,7 +1736,7 @@ create policy &quot;own_friends&quot; on public.friends
 funcionando — escolha outro. Se der <strong>"Não deu para fundar agora"</strong>, o SQL não
 rodou ou rodou com erro: volte no SQL Editor e confira a saída.</p>
 <hr />
-<h2 id="31--ícones-da-interface--folhas-de-atalhos-e-atributos---arte-pendente">31 · ÍCONES DA INTERFACE — folhas de atalhos e atributos — 🟡 arte pendente</h2>
+<h2 id="31--ícones-da-interface--folhas-de-atalhos-e-atributos---no-jogo">31 · ÍCONES DA INTERFACE — folhas de atalhos e atributos — ✅ NO JOGO</h2>
 <p>Levantei tudo que hoje é <strong>emoji ou caractere solto</strong> na interface: são <strong>42</strong>
 símbolos, do botão de amigos ao ícone de Veneno na árvore de habilidades. Eles
 funcionam, mas cada um é desenhado pela fonte do aparelho — o mesmo ⚑ sai
@@ -1749,7 +1749,7 @@ visuais que são mesmo diferentes: a <strong>A</strong> são objetos e setas (co
 tocam), a <strong>B</strong> são símbolos abstratos de atributo (coisas que se leem).</p>
 <p>Gere <strong>uma por vez</strong>, com o nome do arquivo, que eu fatio e integro. A grade é
 fixa e está mapeada abaixo — é por ela que o corte acontece.</p>
-<h3 id="-311--ui_icons_apng-atalhos-e-interface--grade-64">🟡 31.1 — <code>ui_icons_a.png</code> (atalhos e interface) — grade 6×4</h3>
+<h3 id="-311--ui_icons_apng-atalhos-e-interface--grade-64">✅ 31.1 — <code>ui_icons_a.png</code> (atalhos e interface) — grade 6×4</h3>
 <p><strong>1536×1024</strong>, seis colunas por quatro linhas, cada ícone <strong>centrado na sua
 célula de 256×256</strong> com folga em volta. Fundo <strong>transparente de verdade</strong>.</p>
 <table>
@@ -1805,7 +1805,7 @@ célula de 256×256</strong> com folga em volta. Fundo <strong>transparente de v
 </table>
 <pre><code>A single flat sprite sheet of 24 medieval fantasy user-interface icons arranged in a strict 6 by 4 grid, 1536x1024, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: two overlapping human silhouettes, a hanging war banner on a pole, a mechanical gear, a rolled parchment scroll, a speech bubble, a magnifying glass. Row 2: an X close cross, a diagonal expand arrow pair pointing outward, a small square slot with an arrow entering it, a market basket, an exclamation mark, a closed padlock. Row 3: a solid triangle pointing up, a solid triangle pointing down, a solid triangle pointing right, a solid triangle pointing left, a circular refresh arrow, a curved return arrow. Row 4: a faceted diamond rhombus, a four-pointed sparkle star, a five-pointed star, a skull, a plus cross, a stamped gold coin. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, slightly worn edges, bold simple readable silhouettes with thick strokes, no thin fragile lines, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
 </code></pre>
-<h3 id="-312--ui_icons_bpng-atributos-e-estatísticas--grade-63">🟡 31.2 — <code>ui_icons_b.png</code> (atributos e estatísticas) — grade 6×3</h3>
+<h3 id="-312--ui_icons_bpng-atributos-e-estatísticas--grade-63">✅ 31.2 — <code>ui_icons_b.png</code> (atributos e estatísticas) — grade 6×3</h3>
 <p><strong>1536×768</strong>, seis colunas por três linhas, células de 256×256. Mesmas regras.</p>
 <p>Estes são os símbolos que aparecem <strong>ao lado de um número</strong>: na distribuição de
 pontos, na ficha e nos cards da árvore de habilidades. Precisam ser legíveis a
@@ -1860,6 +1860,9 @@ pintado por dentro (já aconteceu com o roster do Ato II), eu recorto — o
 <code>scripts/cut_sprite.py</code> existe justamente para isso. O que <strong>não</strong> dá para
 salvar é ícone encostando no vizinho: se as células não tiverem folga, o corte
 leva pedaço do lado.</p>
+<p><strong>As duas folhas já vieram e estão no jogo</strong> (as folhas brutas ficaram em
+<code>src/assets/ui/icons/_folha_*.png</code>, para refatiar sem pedir de novo). Vieram com
+o xadrez pintado por dentro, como sempre — o corte roda com <code>--xadrez</code>.</p>
 <p><strong>O que acontece depois que você mandar.</strong> O <code>scripts/slice_icons.py</code> fatia a
 folha pela grade acima e nomeia cada peça (<code>ico_amigos.png</code>, <code>ico_forca.png</code>,
 …). Daí eu troco os emoji pelas imagens no código, um lugar por vez, e o jogo
