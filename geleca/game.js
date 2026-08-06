@@ -893,10 +893,14 @@ function toggleBot(on){ botOn = (on===undefined)?!botOn:!!on; botWait=0; bot.ant
   const bd=el("bot-badge"); if(bd) bd.classList.toggle("show",botOn);
   const bb=el("btn-bot"); if(bb) bb.classList.toggle("on",botOn); }
 
-const MOVER_SLOW=0.72;   // plataformas móveis um pouco mais LENTAS → dá tempo de acertar o pulo do trampolim
+const MOVER_SLOW=0.35, MOVER_DWELL=0.6;   // plataformas mais lentas e que ESPERAM nas pontas (janela p/ pular do trampolim)
 function updateMovers(dt){
   for(const m of movers){
-    const off=Math.sin(levelTime*m.speed*MOVER_SLOW*Math.PI*2 + m.phase)*(m.dist*0.5) + m.dist*0.5;
+    let s=Math.sin(levelTime*m.speed*MOVER_SLOW*Math.PI*2 + m.phase);       // oscilação base [-1,1]
+    // DWELL: expoente <1 achata a curva perto de ±1 → a plataforma "descansa" nas pontas,
+    // criando uma janela clara pra você saltar do trampolim e pousar nela.
+    const sh = Math.sign(s)*Math.pow(Math.abs(s), MOVER_DWELL);
+    const off = (sh*0.5+0.5)*m.dist;
     const nx=m.axis==="x"? m.x0+off : m.x0;
     const ny=m.axis==="y"? m.y0+off : m.y0;
     m.dx=nx-m.x; m.dy=ny-m.y; m.x=nx; m.y=ny;
