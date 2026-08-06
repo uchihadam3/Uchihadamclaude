@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Vibe Gambit — Prompts de Arte</title>
+<style>
+  :root{
+    color-scheme: dark;
+    --ground:#0f0b18; --surface:#1a1530; --surface2:#221b3d; --inset:#120d22;
+    --border:#372c5c; --border2:#4a3c78;
+    --ink:#efe9fb; --dim:#aca2cd; --dim2:#7a7099;
+    --violet:#9a6bff; --violet-d:#6f47d6; --gold:#f4c95d;
+    --hero:#7fb2ff; --enemy:#ff8f7c; --scene:#f0b95e; --bonus:#8ce6b0;
+    --mono:ui-monospace,"SFMono-Regular","Consolas","Liberation Mono",monospace;
+    --sans:"Trebuchet MS","Segoe UI",system-ui,-apple-system,sans-serif;
+    --maxw:900px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(130% 80% at 50% -8%, #2a1f4d 0%, transparent 55%),
+      radial-gradient(60% 40% at 88% 6%, #3a2668 0%, transparent 60%),
+      var(--ground);
+    color:var(--ink); font-family:var(--sans); line-height:1.5;
+    min-height:100vh; padding:22px 16px 60px; -webkit-font-smoothing:antialiased;
+    background-attachment:fixed;
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;display:flex;flex-direction:column;gap:26px}
+
+  /* ---------- header ---------- */
+  header{display:flex;flex-direction:column;gap:14px}
+  .mark{display:inline-flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.4px;color:var(--gold);font-size:13px;text-transform:uppercase}
+  .mark .sw{width:26px;height:26px;display:grid;place-items:center;background:linear-gradient(180deg,#2c2350,#1d1637);border:1px solid var(--border);border-radius:7px;font-size:15px}
+  h1{font-size:clamp(30px,6vw,46px);line-height:1.02;font-weight:900;letter-spacing:-.5px;text-wrap:balance;
+    background:linear-gradient(180deg,#fff,#c9bdf0);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{color:var(--dim);max-width:60ch;font-size:15.5px}
+  .lede b{color:var(--ink);font-weight:700}
+
+  .how{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
+  .how .step{flex:1 1 200px;background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);
+    border-radius:12px;padding:12px 14px}
+  .how .step .n{font-family:var(--mono);font-size:12px;color:var(--violet);font-weight:700}
+  .how .step p{font-size:13.5px;color:var(--dim);margin-top:3px}
+  .how .step b{color:var(--ink)}
+
+  /* ---------- style anchors ---------- */
+  .anchors{display:grid;gap:12px}
+  .anchor{background:linear-gradient(180deg,#1d1636,#181130);border:1px solid var(--border);border-left:3px solid var(--gold);
+    border-radius:12px;padding:13px 15px}
+  .anchor .lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+  .anchor .lbl h4{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold)}
+  .anchor p{font-family:var(--mono);font-size:12.5px;color:var(--dim);line-height:1.6}
+
+  /* ---------- sections ---------- */
+  section{display:flex;flex-direction:column;gap:14px}
+  .eyebrow{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--border);padding-bottom:9px}
+  .eyebrow h2{font-size:20px;font-weight:900;letter-spacing:-.2px}
+  .eyebrow .count{font-family:var(--mono);font-size:12px;color:var(--dim2);margin-left:auto}
+  .eyebrow .rule{font-size:13px;color:var(--dim)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px}
+  @media(max-width:520px){ .grid{grid-template-columns:1fr} }
+
+  .card{background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);
+    border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,transform .15s}
+  .card:hover{border-color:var(--border2)}
+  .chead{display:flex;align-items:center;gap:12px}
+  .pv{width:52px;height:60px;flex:none;border-radius:10px;display:grid;place-items:center;
+    background:radial-gradient(circle at 50% 38%, #2a2350 0%, #14102a 72%);border:1px solid var(--border)}
+  .pv svg{width:44px;height:52px;filter:drop-shadow(0 3px 3px #0007)}
+  .pv .emoji{font-size:30px;filter:drop-shadow(0 2px 3px #0009)}
+  .meta{flex:1;min-width:0}
+  .meta h3{font-size:17px;font-weight:800}
+  .meta .fn{font-family:var(--mono);font-size:12.5px;color:var(--gold);word-break:break-all}
+  .chip{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;border-radius:20px;flex:none;
+    border:1px solid currentColor}
+  .chip.hero{color:var(--hero)} .chip.enemy{color:var(--enemy)} .chip.scene{color:var(--scene)} .chip.bonus{color:var(--bonus)}
+
+  .prompt{font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--dim);white-space:pre-wrap;
+    background:var(--inset);border:1px solid var(--border);border-radius:10px;padding:11px 12px;max-height:none}
+  .prompt .hl{color:#cbb8ff}
+
+  .copy{display:inline-flex;align-items:center;justify-content:center;gap:8px;align-self:flex-start;
+    background:linear-gradient(180deg,var(--violet),var(--violet-d));color:#fff;border:1px solid #a982ff;
+    border-radius:9px;padding:9px 16px;font-family:var(--sans);font-weight:800;font-size:13.5px;cursor:pointer;
+    box-shadow:0 3px 0 #2c1d5a;transition:transform .08s,box-shadow .08s,background .2s}
+  .copy:hover{filter:brightness(1.06)}
+  .copy:active{transform:translateY(2px);box-shadow:0 1px 0 #2c1d5a}
+  .copy:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .copy svg{width:15px;height:15px}
+  .copy.done{background:linear-gradient(180deg,#3fbf72,#2a9a55);border-color:#5fd98c;box-shadow:0 3px 0 #145c30}
+
+  /* ---------- specs ---------- */
+  .specs{background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:14px;padding:16px 18px}
+  .specs h3{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .specs ul{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .specs li{display:flex;gap:10px;font-size:14px;color:var(--dim);align-items:flex-start}
+  .specs li::before{content:"◆";color:var(--violet);font-size:10px;margin-top:5px}
+  .specs b{color:var(--ink)} .specs code{font-family:var(--mono);color:var(--gold);font-size:13px;background:var(--inset);padding:1px 6px;border-radius:5px}
+
+  footer{color:var(--dim2);font-size:12.5px;text-align:center;border-top:1px solid var(--border);padding-top:16px}
+  footer a{color:var(--violet)}
+
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark"><span class="sw">⚔️</span>Vibe Gambit · Pixel Art 16-bit</div>
+    <h1>Prompts de Arte</h1>
+    <p class="lede">Todos os prompts prontos pra colar no seu gerador de imagem. Cada bloco já inclui a <b>âncora de estilo</b>, então é só <b>copiar com 1 clique</b> e gerar. Mantenha os <b>nomes de arquivo</b> pra eu encaixar direto no jogo.</p>
+
+    <div class="how">
+      <div class="step"><span class="n">01</span><p><b>Copie</b> o prompt do card (botão roxo).</p></div>
+      <div class="step"><span class="n">02</span><p><b>Gere</b> a imagem no seu gerador favorito.</p></div>
+      <div class="step"><span class="n">03</span><p><b>Envie</b> pra mim com o nome de arquivo indicado.</p></div>
+    </div>
+
+    <div class="anchors">
+      <div class="anchor">
+        <div class="lbl"><h4>Base de estilo · Personagens</h4><button class="copy" data-for="anchor-char"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copiar</span></button></div>
+        <p id="anchor-char">2D game character sprite, 16-bit SNES JRPG pixel art, clean chunky pixels, cohesive high-fantasy style, bold readable silhouette, subtle two-tone cel shading, thin dark outline, warm palette. Full body, 3/4 side view facing RIGHT, neutral idle standing pose, centered, feet near the bottom. Fully transparent background (alpha), no shadow, no ground, no props, single character only.</p>
+      </div>
+      <div class="anchor">
+        <div class="lbl"><h4>Base de estilo · Cenários</h4><button class="copy" data-for="anchor-scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copiar</span></button></div>
+        <p id="anchor-scene">16-bit SNES JRPG pixel art battle background, side-view, atmospheric, empty with NO characters, horizontal 16:9 composition, flat ground along the bottom third for characters to stand on.</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERÓIS -->
+  <section>
+    <div class="eyebrow"><h2>Heróis</h2><span class="rule">viram para a direita</span><span class="count">4 sprites</span></div>
+    <div class="grid" id="grid-heroes"></div>
+  </section>
+
+  <!-- INIMIGOS -->
+  <section>
+    <div class="eyebrow"><h2>Inimigos</h2><span class="rule">também para a direita (espelho no jogo)</span><span class="count">3 sprites</span></div>
+    <div class="grid" id="grid-enemies"></div>
+  </section>
+
+  <!-- CENÁRIOS -->
+  <section>
+    <div class="eyebrow"><h2>Cenários</h2><span class="rule">fundo 16:9, sem personagens</span><span class="count">3 fundos</span></div>
+    <div class="grid" id="grid-scenes"></div>
+  </section>
+
+  <!-- BÔNUS -->
+  <section>
+    <div class="eyebrow"><h2>Bônus</h2><span class="rule">opcional</span><span class="count">1 arte</span></div>
+    <div class="grid" id="grid-bonus"></div>
+  </section>
+
+  <div class="specs">
+    <h3>📐 Especificações técnicas</h3>
+    <ul>
+      <li><b>Personagens (sprites):</b> PNG com <b>fundo transparente</b>, ~<code>512×640</code>, todos na <b>mesma escala</b> (personagem ~80% da altura, pés perto da base).</li>
+      <li><b>Cenários (fundos):</b> PNG ou JPG <b>16:9</b>, ~<code>1536×864</code>, sem personagens.</li>
+      <li><b>Nomes de arquivo:</b> exatamente como no card (ex.: <code>warrior.png</code>, <code>bg_forest.png</code>) — facilita o encaixe automático.</li>
+      <li><b>Consistência:</b> gere todos os personagens com a mesma âncora e, se possível, a mesma <b>seed/estilo</b>, pra ficarem da mesma família.</li>
+    </ul>
+  </div>
+
+  <footer>Quando os arquivos chegarem, eu monto o sistema de sprites (imagem quando existir, SVG como fallback) e troco o fundo por bioma. · <a href="#" onclick="return false">Vibe Gambit</a></footer>
+</div>
+
+<script>
+  const CHAR = "2D game character sprite, 16-bit SNES JRPG pixel art, clean chunky pixels, cohesive high-fantasy style, bold readable silhouette, subtle two-tone cel shading, thin dark outline, warm palette. Full body, 3/4 side view facing RIGHT, neutral idle standing pose, centered, feet near the bottom. Fully transparent background (alpha), no shadow, no ground, no props, single character only.";
+  const SCENE = "16-bit SNES JRPG pixel art battle background, side-view, atmospheric, empty with NO characters, horizontal 16:9 composition, flat ground along the bottom third for characters to stand on.";
+
+  const SPR = {
+    warrior:`<svg viewBox="0 0 48 56"><rect x="18" y="40" width="5" height="12" rx="2" fill="#5a5560"/><rect x="25" y="40" width="5" height="12" rx="2" fill="#484450"/><rect x="16" y="49" width="9" height="4.5" rx="1.6" fill="#2b2833"/><rect x="24" y="49" width="9" height="4.5" rx="1.6" fill="#2b2833"/><ellipse cx="12" cy="33" rx="6.2" ry="8.4" fill="#caa24b"/><ellipse cx="12" cy="33" rx="6.2" ry="8.4" fill="none" stroke="#7d5f27" stroke-width="1.6"/><path d="M12 26 v14 M6 33 h12" stroke="#7d5f27" stroke-width="1.2"/><rect x="15" y="23" width="18" height="20" rx="5" fill="#bcc5d4"/><rect x="15" y="34" width="18" height="9" rx="4" fill="#8f99ab"/><rect x="22" y="23" width="4" height="20" fill="#a4aec0"/><circle cx="16" cy="25" r="4.2" fill="#d3dbe8"/><circle cx="32" cy="25" r="4.2" fill="#d3dbe8"/><circle cx="24" cy="15" r="8" fill="#e8b58c"/><path d="M16 16 a8 8 0 0 1 16 0 v-2 h-16 z" fill="#b6bfce"/><rect x="16" y="8.5" width="16" height="4.5" rx="2" fill="#b6bfce"/><rect x="21.5" y="13" width="5" height="6" rx="1" fill="#6d7686"/><path d="M24 5 q7 -3 5.5 5 q-3 -1.5 -5.5 1 z" fill="#d7433a"/><rect x="19.5" y="15" width="2" height="3" rx="1" fill="#241d2a"/><rect x="26" y="15" width="2" height="3" rx="1" fill="#241d2a"/><rect x="36" y="9" width="3.2" height="27" rx="1.6" fill="#e6edf7"/><rect x="36" y="9" width="1.4" height="27" fill="#fff" opacity=".6"/><rect x="33" y="34" width="9" height="3" rx="1.5" fill="#7d5f27"/><rect x="37" y="36" width="1.6" height="6" rx=".8" fill="#7d5f27"/></svg>`,
+    cleric:`<svg viewBox="0 0 48 56"><path d="M15 52 L18 26 q6 -5 12 0 L33 52 Z" fill="#efe8d6"/><path d="M24 26 v26" stroke="#d9cfae" stroke-width="1.4"/><path d="M15 52 L18 26 q6 -5 12 0 L33 52 Z" fill="none" stroke="#cbbf9a" stroke-width="1"/><rect x="19" y="40" width="10" height="3.4" fill="#caa24b"/><path d="M17 28 q-4 6 -3 12 l4 -1 q-1 -6 2 -10 z" fill="#e7dfc9"/><circle cx="24" cy="15" r="8" fill="#f0c197"/><path d="M15 16 q0 -12 9 -12 q9 0 9 12 q-4 -6 -9 -6 q-5 0 -9 6z" fill="#f6f1e4"/><path d="M16 16 h16" stroke="#e6dcc2" stroke-width="1"/><rect x="20" y="15" width="2" height="3" rx="1" fill="#3a2f28"/><rect x="26" y="15" width="2" height="3" rx="1" fill="#3a2f28"/><rect x="35" y="16" width="2.6" height="30" rx="1.3" fill="#9c7b46"/><circle cx="36.3" cy="13" r="4.6" fill="#ffe58a"/><circle cx="36.3" cy="13" r="4.6" fill="none" stroke="#e0b64e" stroke-width="1.2"/><circle cx="34.7" cy="11.4" r="1.4" fill="#fff" opacity=".8"/></svg>`,
+    archer:`<svg viewBox="0 0 48 56"><rect x="18" y="40" width="5" height="12" rx="2" fill="#5c4a33"/><rect x="25" y="40" width="5" height="12" rx="2" fill="#4a3b28"/><rect x="16" y="49" width="9" height="4.5" rx="1.6" fill="#33281a"/><rect x="24" y="49" width="9" height="4.5" rx="1.6" fill="#33281a"/><path d="M15 43 L17 25 q7 -5 14 0 L33 43 Z" fill="#4f8a4a"/><path d="M15 43 L17 33 h14 l2 10 z" fill="#3c6d39"/><rect x="20" y="30" width="8" height="3" fill="#8a6a2a"/><circle cx="24" cy="15" r="8" fill="#e8b58c"/><path d="M15 16 q-1 -13 9 -13 q10 0 9 13 q-3 -7 -9 -7 q-6 0 -9 7z" fill="#3c6d39"/><path d="M33 15 l4 -3 -2 6 z" fill="#3c6d39"/><rect x="20" y="15" width="2" height="3" rx="1" fill="#241d2a"/><rect x="26" y="15" width="2" height="3" rx="1" fill="#241d2a"/><path d="M37 6 q7 16 0 32" fill="none" stroke="#8a6a2a" stroke-width="2.4"/><path d="M37 7 L37 37" stroke="#d8d2c2" stroke-width="1" opacity=".8"/><path d="M30 21 L40 21" stroke="#c9b98f" stroke-width="1.4"/><path d="M40 21 l-2.6 -1.6 v3.2 z" fill="#d7433a"/></svg>`,
+    mage:`<svg viewBox="0 0 48 56"><path d="M14 52 L18 25 q6 -5 12 0 L34 52 Z" fill="#4a6bd6"/><path d="M14 52 L17 34 h14 l3 18 z" fill="#3a55b3"/><path d="M24 25 v27" stroke="#3a55b3" stroke-width="1.2"/><circle cx="24" cy="33" r="2" fill="#ffd34d"/><circle cx="24" cy="16" r="7.5" fill="#f0c197"/><rect x="19" y="17" width="2" height="3" rx="1" fill="#3a2f28"/><rect x="25.5" y="17" width="2" height="3" rx="1" fill="#3a2f28"/><path d="M13 12 q11 -5 22 0 q-4 3 -11 3 q-7 0 -11 -3z" fill="#38509e"/><path d="M24 -3 q-2 8 -9 15 q9 3 18 0 q-7 -7 -9 -15z" fill="#4a6bd6"/><circle cx="20" cy="8" r="1.4" fill="#ffd34d"/><circle cx="27" cy="10" r="1" fill="#fff" opacity=".7"/><rect x="35" y="15" width="2.6" height="31" rx="1.3" fill="#7a5b34"/><path d="M36.3 6 l4 6 -4 5 -4 -5 z" fill="#8fe3ff"/><path d="M36.3 6 l4 6 -4 5 z" fill="#5cc0e8"/></svg>`,
+    goblin:`<svg viewBox="0 0 48 56"><rect x="18" y="40" width="5" height="11" rx="2" fill="#3f6a2f"/><rect x="25" y="40" width="5" height="11" rx="2" fill="#345a27"/><rect x="16" y="48" width="9" height="4.5" rx="1.6" fill="#2a2018"/><rect x="24" y="48" width="9" height="4.5" rx="1.6" fill="#2a2018"/><rect x="15" y="25" width="18" height="18" rx="6" fill="#5c9a41"/><rect x="15" y="35" width="18" height="8" rx="5" fill="#4a7f34"/><rect x="17" y="36" width="14" height="4" fill="#7a5a33"/><circle cx="24" cy="16" r="9" fill="#66a84a"/><path d="M15 15 l-6 -4 5 8 z" fill="#5c9a41"/><path d="M33 15 l6 -4 -5 8 z" fill="#5c9a41"/><path d="M18 20 q6 4 12 0" fill="none" stroke="#2c4a1f" stroke-width="1.4"/><rect x="19" y="14" width="3" height="3" rx="1" fill="#ffd34d"/><rect x="26" y="14" width="3" height="3" rx="1" fill="#ffd34d"/><rect x="19.6" y="14.8" width="1.4" height="1.6" fill="#241d2a"/><rect x="26.6" y="14.8" width="1.4" height="1.6" fill="#241d2a"/><rect x="36" y="20" width="2.2" height="12" rx="1" fill="#cfd6e0"/><rect x="34.5" y="31" width="5.4" height="2.2" rx="1" fill="#7d5f27"/></svg>`,
+    goblin_brute:`<svg viewBox="0 0 48 56"><rect x="16" y="41" width="6" height="11" rx="2.5" fill="#2f5222"/><rect x="26" y="41" width="6" height="11" rx="2.5" fill="#274419"/><rect x="14" y="49" width="11" height="5" rx="1.8" fill="#241a12"/><rect x="24" y="49" width="11" height="5" rx="1.8" fill="#241a12"/><rect x="11" y="23" width="26" height="21" rx="7" fill="#4c7d38"/><rect x="11" y="35" width="26" height="9" rx="6" fill="#3c6530"/><rect x="14" y="35" width="20" height="5" fill="#6b4f2c"/><circle cx="12" cy="26" r="5" fill="#5c9a41"/><circle cx="36" cy="26" r="5" fill="#5c9a41"/><circle cx="24" cy="15" r="9" fill="#548a3c"/><path d="M15 14 l-6 -4 5 8 z" fill="#4c7d38"/><path d="M33 14 l6 -4 -5 8 z" fill="#4c7d38"/><path d="M18 12 l4 3 M30 12 l-4 3" stroke="#eae0c0" stroke-width="2"/><rect x="19" y="13" width="3" height="3" rx="1" fill="#ff5a3a"/><rect x="26" y="13" width="3" height="3" rx="1" fill="#ff5a3a"/><path d="M20 20 q4 3 8 0" fill="none" stroke="#22380f" stroke-width="1.6"/><path d="M21 22 l1 2 M26 22 l1 2" stroke="#fff" stroke-width="1.4"/><rect x="37" y="14" width="4" height="26" rx="2" fill="#6b4f2c"/><circle cx="39" cy="12" r="5.5" fill="#5a4225"/><circle cx="37" cy="10" r="1.3" fill="#3d2c17"/><circle cx="41" cy="13" r="1.3" fill="#3d2c17"/></svg>`,
+    slime:`<svg viewBox="0 0 48 56"><ellipse cx="24" cy="47" rx="15" ry="4" fill="#000" opacity=".18"/><path d="M9 46 q-1 -22 15 -22 q16 0 15 22 q-15 4 -30 0z" fill="#6fd36a"/><path d="M9 46 q-1 -22 15 -22 q16 0 15 22 q-15 4 -30 0z" fill="none" stroke="#4fae4a" stroke-width="1.4"/><ellipse cx="18" cy="32" rx="4" ry="5" fill="#bff5b0" opacity=".7"/><circle cx="19" cy="38" r="2.4" fill="#1f3a17"/><circle cx="30" cy="38" r="2.4" fill="#1f3a17"/><circle cx="19.8" cy="37.2" r=".9" fill="#fff"/><circle cx="30.8" cy="37.2" r=".9" fill="#fff"/><path d="M20 43 q4 3 8 0" fill="none" stroke="#1f3a17" stroke-width="1.4"/></svg>`
+  };
+
+  const HEROES = [
+    {id:'warrior', name:'Guerreiro', file:'warrior.png', d:"A stout human knight in polished steel plate armor with a red-plume helmet, holding a longsword and a round golden shield."},
+    {id:'cleric',  name:'Clérigo',   file:'cleric.png',  d:"A gentle human cleric in a cream-white hooded robe with gold trim, holding a wooden staff topped with a glowing golden orb."},
+    {id:'archer',  name:'Arqueiro',  file:'archer.png',  d:"A nimble human archer in a green hooded tunic and leather boots, holding a wooden longbow with an arrow nocked."},
+    {id:'mage',    name:'Mago',      file:'mage.png',    d:"A young human mage in a deep-blue robe and a tall pointed wizard hat with a star, holding a staff tipped with a glowing cyan crystal."},
+  ];
+  const ENEMIES = [
+    {id:'goblin',       name:'Goblin',       file:'goblin.png',       d:"A small green-skinned goblin with big pointy ears and yellow eyes, wearing a brown loincloth, holding a rusty dagger, menacing grin."},
+    {id:'goblin_brute', name:'Bruto Goblin', file:'goblin_brute.png', d:"A large muscular dark-green goblin brute with tusks and battle scars, wearing bone armor, wielding a huge spiked wooden club."},
+    {id:'slime',        name:'Gosma',        file:'slime.png',        d:"A cute translucent green slime blob monster with two simple eyes and a glossy highlight."},
+  ];
+  const SCENES = [
+    {emoji:'🌲', name:'Mossy Glen', file:'bg_forest.png', d:"Ancient mossy stone ruins in a dark forest, cracked stone-brick walls covered in green moss and vines, dim wall torches, misty background trees."},
+    {emoji:'⛺', name:'Bandit Camp', file:'bg_plains.png', d:"A bandit camp clearing at dusk, wooden palisade fence, tents, warm campfire glow, plains and distant hills."},
+    {emoji:'🕳️', name:'Echoing Caves', file:'bg_cave.png', d:"A dark echoing cavern, jagged rock walls, glowing crystals and stalactites, underground pools, eerie blue light."},
+  ];
+  const BONUS = [
+    {emoji:'🗺️', name:'Mapa-múndi (Aethelgard)', file:'worldmap.png', anchor:'', d:"16-bit JRPG overworld map, bird's-eye pixel art of a fantasy land, green forests, a blue lake, snowy mountains, a winding river, decorative parchment border, no text labels, cohesive high-fantasy style."},
+  ];
+
+  let uid=0;
+  const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
+
+  function card({icon, name, file, chip, chipClass, full}){
+    const pid = 'p'+(uid++);
+    const iconHtml = icon.startsWith('<svg') ? icon : `<span class="emoji">${icon}</span>`;
+    return `<article class="card">
+      <div class="chead">
+        <div class="pv">${iconHtml}</div>
+        <div class="meta"><h3>${name}</h3><code class="fn">${file}</code></div>
+        <span class="chip ${chipClass}">${chip}</span>
+      </div>
+      <pre class="prompt" id="${pid}">${full}</pre>
+      <button class="copy" data-for="${pid}">${copyIcon}<span>Copiar prompt</span></button>
+    </article>`;
+  }
+
+  document.getElementById('grid-heroes').innerHTML  = HEROES.map(h=>card({icon:SPR[h.id], name:h.name, file:h.file, chip:'Herói',   chipClass:'hero',  full:CHAR+' '+h.d})).join('');
+  document.getElementById('grid-enemies').innerHTML = ENEMIES.map(e=>card({icon:SPR[e.id], name:e.name, file:e.file, chip:'Inimigo', chipClass:'enemy', full:CHAR+' '+e.d})).join('');
+  document.getElementById('grid-scenes').innerHTML  = SCENES.map(s=>card({icon:s.emoji,   name:s.name, file:s.file, chip:'Cenário', chipClass:'scene', full:SCENE+' '+s.d})).join('');
+  document.getElementById('grid-bonus').innerHTML   = BONUS.map(b=>card({icon:b.emoji,    name:b.name, file:b.file, chip:'Bônus',   chipClass:'bonus', full:b.d})).join('');
+
+  function fallbackCopy(text){
+    const ta=document.createElement('textarea');
+    ta.value=text; ta.setAttribute('readonly','');
+    ta.style.position='fixed'; ta.style.top='-1000px'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,text.length);
+    let ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta); return ok;
+  }
+  function flash(btn){
+    const span=btn.querySelector('span'); const old=span.textContent;
+    btn.classList.add('done'); span.textContent='Copiado ✓';
+    setTimeout(()=>{ btn.classList.remove('done'); span.textContent=old; }, 1500);
+  }
+  document.addEventListener('click', ev=>{
+    const btn=ev.target.closest('.copy'); if(!btn) return;
+    const el=document.getElementById(btn.dataset.for); if(!el) return;
+    const text=el.textContent.trim();
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(()=>flash(btn)).catch(()=>{ if(fallbackCopy(text)) flash(btn); });
+    } else { if(fallbackCopy(text)) flash(btn); }
+  });
+</script>
+
+</body>
+</html>
