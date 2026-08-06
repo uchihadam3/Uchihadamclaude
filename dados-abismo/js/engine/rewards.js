@@ -98,6 +98,10 @@ export function recalcRelics(estado){
   for(const r of estado.relics){
     for(const k in (r.mods||{})){ if(k==='dmgMult'||k==='hpMult') m[k]*=r.mods[k]; else m[k]+=r.mods[k]; }
     if(r.flag) flags.add(r.flag);
+    /* a árvore da classe entrega VÁRIAS flags e várias regras de rolagem numa
+       passiva só — as relíquias comuns trazem uma de cada */
+    for(const f of (r._flags||[])) flags.add(f);
+    for(const g of (r._rolls||[])) rolls.push(g);
     if(r.start) starts.push(r.start);
     if(r.onKill) kills.push(r.onKill);
     if(r.onRoll) rolls.push(r.onRoll);

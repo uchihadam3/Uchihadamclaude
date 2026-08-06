@@ -2,7 +2,7 @@
    MOTOR DE COMBATE (§6) — PURO e testável. Sem UI, sem three.js.
    Determinístico: todo aleatório vem do RNG semeado passado no construtor.
    ===================================================================== */
-import { satisfies, resolvedValues, findSubset, entryValue } from './requirements.js';
+import { satisfies, resolvedValues, findSubset, entryValue, ajustarRegras } from './requirements.js';
 import { face } from '../data/faces.js';
 import { RESPIRAR } from '../data/classes.js';
 import { travaAberta, travaRefleteAgora } from '../data/travas.js';
@@ -78,6 +78,13 @@ export class Combat {
       if(st.block) this.p.block += st.block;
       if(st.essence) this.p.essence += st.essence;
     }
+    /* as regras que a árvore muda valem para o motor, a IA e a tela — ligadas
+       aqui, no começo da luta, porque satisfies() é chamada sem o jogador */
+    ajustarRegras(this.flags);
+    /* copas da árvore que valem já na primeira rolagem */
+    if(this.flags.has('comeca_invisivel')) this.p.statuses.invisivel = 1;
+    if(this.flags.has('veneno_de_entrada'))
+      for(const en of this.enemies) en.statuses.veneno = (en.statuses.veneno||0) + 4;
   }
   L(s){ if(this.doLog) this.logLines.push(`[T${this.turn}] ${s}`); }
 
@@ -88,6 +95,9 @@ export class Combat {
     this.p.block = 0;
     this.trapacaUsada = false;
     this._guardou = false; this._travou = false;
+    // contadores das ferramentas — a árvore pode dar mais de um uso por turno
+    this._trapacas = 0; this._guardados = 0; this._travados = 0;
+    this._rerollGratisUsado = false;
     this.rerolls = Math.max(0, this.p.rerollsBase + (this.M.rerollBonus||0));
     for(const en of this.enemies){ en._arrombada = false;  // arrombamento dura 1 turno
       en._refletiu = false; }                              // o espelho recarrega
@@ -102,9 +112,15 @@ export class Combat {
        veneno, OráculA vira bloqueio), e é justamente a que precisa esperar.
        Agora o círculo fechado PROTEGE enquanto acumula. */
     if(this.p.classe==='arcanista' && this.circle.length){
-      this.p.block += this.circle.length;
-      this.L(`Círculo fechado: +${this.circle.length} de bloqueio`);
-    }
+      const n = this.circle.length;
+      // BANCO FUNDO / CÍRCULO SEM FIM (árvore): o que está guardado rende mais
+      const porDado = this.flags.has('circulo_dobro') ? 2 : 1;
+      this.p.block += n*porDado;
+      if(this.flags.has('circulo_essencia')) this.p.essence += n;
+      // RESSONÂNCIA: o que ficou guardado vira dano no turno que começa
+      this._bonusCirculo = n * (this.p.arvore?.circuloDano||0);
+      this.L(`Círculo fechado: +${n*porDado} de bloqueio`);
+    } else this._bonusCirculo = 0;
     // queimadura dispara ao rolar
     const q = this.p.statuses.queimadura|0;
     if(q){ this.dmgPlayer(q, 'queimadura'); }
@@ -168,10 +184,12 @@ export class Combat {
 
   /* re-rola um subconjunto (§5.2) */
   reroll(dieIds){
-    if(this.rerolls<=0) return false;
+    // ROCA (copa da OráculA): a primeira re-rolagem de cada turno é de graça
+    const gratis = this.flags.has('reroll_turno_gratis') && !this._rerollGratisUsado;
+    if(!gratis && this.rerolls<=0) return false;
     // Fardo M5: re-rolagens custam vida
-    if(this.burdens.has('reroll_custa_vida')) this.dmgPlayer(2, 'preço da re-rolagem');
-    this.rerolls--;
+    if(this.burdens.has('reroll_custa_vida') && !gratis) this.dmgPlayer(2, 'preço da re-rolagem');
+    if(!gratis) this.rerolls--;
     /* devolve QUAIS dados de fato rolaram. A tela precisa disso: ela animava
        a bolsa inteira e os dados já gastos voltavam da bandeja e rolavam
        junto, como se pudessem ser usados de novo. */
@@ -185,7 +203,8 @@ export class Combat {
     }
     // nada rolou (tudo gasto ou congelado): devolve a re-rolagem em vez de
     // cobrar por um clique que não fez nada
-    if(!rolados.length){ this.rerolls++; return false; }
+    if(!rolados.length){ if(!gratis) this.rerolls++; return false; }
+    if(gratis){ this._rerollGratisUsado = true; this.L('Roca: re-rolagem do turno, de graça'); }
     return rolados;
   }
 
@@ -193,38 +212,60 @@ export class Combat {
   sobrecarga(dieId){
     const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
     if(!e || entryValue(e)===null) return false;
-    if(this.p.hp<=2) return false;
-    this.dmgPlayer(2, 'sobrecarga');
+    // PUNHO CALEJADO (árvore do Carrasco): o mesmo +1 por metade do sangue
+    const custo = this.flags.has('sobrecarga_barata') ? 1 : 2;
+    if(this.p.hp<=custo) return false;
+    this.dmgPlayer(custo, 'sobrecarga');
     e.face = {...e.face, v: e.face.v+1};
     return true;
   }
   /* Canalização do Arcanista: guarda um dado no Círculo AGORA (volta no próximo turno) */
   guardar(dieId){
-    if(this._guardou) return false;
+    // CÍRCULO AMPLO (árvore do Arcanista): mais de um dado por turno
+    const teto = 1 + (this.p.arvore?.circuloExtra||0);
+    if((this._guardados||0) >= teto) return false;
     const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
     if(!e) return false;
-    this.circle.push({...e}); this.used.add(dieId); this._guardou=true;
+    this.circle.push({...e}); this.used.add(dieId);
+    this._guardados = (this._guardados||0) + 1; this._guardou=true;
     this.L(`Círculo: guardou ${entryValue(e)??e.face.k}`);
     return true;
   }
   /* Prever da OráculA: este dado mantém ESTA face no próximo turno */
   travar(dieId){
-    if(this._travou) return false;
+    // NÓ CEGO (árvore da OráculA): trava mais de um dado entre turnos
+    const teto = 1 + (this.p.travaDados||0);
+    if((this._travados||0) >= teto) return false;
     const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
     if(!e || !e.die) return false;
-    e.die._travadoProx = true; e.die._guardaFace = {...e.face}; this._travou=true;
+    e.die._travadoProx = true; e.die._guardaFace = {...e.face};
+    this._travados = (this._travados||0) + 1; this._travou=true;
     this.L(`Fio: dado travado em ${entryValue(e)??e.face.k} para o próximo turno`);
     return true;
   }
   /* Trapaça da Lâmina: face oposta, 1x/turno */
   trapaca(dieId){
-    if(this.trapacaUsada) return false;
+    // TRAPAÇA DUPLA (árvore da Lâmina)
+    const teto = this.flags.has('trapaca_dupla') ? 2 : 1;
+    if((this._trapacas||0) >= teto) return false;
     const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
     if(!e || entryValue(e)===null) return false;
     e.face = {...e.face, v: (e.n+1) - e.face.v };
-    this.trapacaUsada = true;
+    this._trapacas = (this._trapacas||0) + 1;
+    this.trapacaUsada = (this._trapacas >= teto);
     return true;
   }
+
+  /* quantos usos ainda restam de cada ferramenta de classe neste turno —
+     a árvore pode dar mais de um, e a tela precisa dizer quantos */
+  restam(qual){
+    if(qual==='trapaca') return (this.flags.has('trapaca_dupla')?2:1) - (this._trapacas||0);
+    if(qual==='guardar') return 1 + (this.p.arvore?.circuloExtra||0) - (this._guardados||0);
+    if(qual==='travar')  return 1 + (this.p.travaDados||0) - (this._travados||0);
+    return 0;
+  }
+  podeGuardar(){ return this.restam('guardar') > 0; }
+  podeTravar(){  return this.restam('travar')  > 0; }
 
   pool(){ return this.roll.filter(e=>!this.used.has(e.dieId)); }
 
@@ -245,7 +286,9 @@ export class Combat {
     if(this._polegar<=0) return false;
     const e = this.roll.find(x=>x.dieId===dieId && !this.used.has(x.dieId));
     if(!e || entryValue(e)===null) return false;
-    const v = entryValue(e) + delta;
+    // TEAR FIRME (árvore da OráculA): o empurrão vale 2
+    const passo = this.flags.has('polegar_forte') ? 2 : 1;
+    const v = entryValue(e) + delta*passo;
     if(v<1 || v>e.n) return false;
     e.face = {...e.face, v}; this._polegar--;
     this.L(`polegar: dado ${v-delta} → ${v}`);
@@ -433,17 +476,23 @@ export class Combat {
       const amt = e.amt!==undefined ? evalExpr(e.amt, ctx) : 0;
       switch(e.op){
         case 'dmg': this.dealDamage(e.tgt, amt, targetIdx, !!e.pierce); break;
-        case 'hits': { const t=evalExpr(e.times,ctx);
+        case 'hits': { // MIL E UM (copa da Lâmina): mais estocadas no mesmo golpe
+          const t=evalExpr(e.times,ctx) + (this.p.arvore?.golpesExtra||0);
           for(let i=0;i<t;i++) this.dealDamage(e.tgt, evalExpr(e.amt,ctx), targetIdx, !!e.pierce, i===0?1:0); break; }
         case 'block': this.p.block += amt + (this.M.blockBonus||0); break;
         case 'heal': { if(this.flags.has('sem_cura')) break;
                        const cut = this.burdens.has('cura_reduzida') ? 0.5 : 1;
                        this.p.hp = Math.min(this.p.maxHp, this.p.hp + Math.round(amt*cut)); break; }
         case 'selfdmg': this.dmgPlayer(amt, 'custo'); break;
-        case 'status': this.forTargets(e.tgt, targetIdx, en=>{ en.statuses[e.st]=(en.statuses[e.st]||0)+evalExpr(e.n,ctx); }); break;
+        case 'status': this.forTargets(e.tgt, targetIdx, en=>{
+                         const v = evalExpr(e.n,ctx);
+                         if(e.st==='veneno'||e.st==='sangramento') this.envenenar(en, v, e.st, e.tgt==='all');
+                         else en.statuses[e.st]=(en.statuses[e.st]||0)+v; }); break;
         case 'selfStatus': this.p.statuses[e.st]=(this.p.statuses[e.st]||0)+evalExpr(e.n,ctx); break;
         case 'exec': this.forTargets(e.tgt, targetIdx, en=>{
-                       if(en.hp>0 && en.hp <= en.maxHp*e.pct){ en.hp=0; this.L(`EXECUÇÃO: ${en.nome}`); } }); break;
+                       // MÃO DO CARRASCO (árvore): a lâmina cai mais cedo
+                       const pct = e.pct + (this.flags.has('execucao_larga') ? 0.07 : 0);
+                       if(en.hp>0 && en.hp <= en.maxHp*pct){ en.hp=0; this.L(`EXECUÇÃO: ${en.nome}`); } }); break;
         case 'essence': this.p.essence += evalExpr(e.n,ctx); break;
         /* CEIFA (Lâmina, M5): converte o veneno acumulado em dano AGORA.
            A classe monta veneno por turnos; sem isto, contra inimigo que
@@ -468,11 +517,15 @@ export class Combat {
 
         /* ===== VERBOS DE QUEBRA-CABEÇA (§6) — cada classe abre a fechadura
            de um jeito diferente. É isto que faz a escolha de classe importar. */
-        case 'arrombar':                         // CARRASCO: força bruta, só neste turno
-          this.forTargets(e.tgt, targetIdx, en=>{ en._arrombada=true;
-            this.L(`  ⚒ ${en.nome}: fechadura ARROMBADA`); }); break;
+        case 'arrombar': {                       // CARRASCO: força bruta, só neste turno
+          // SOMBRA DO CADAFALSO (copa): o que abre uma porta abre a fileira
+          const alcance = this.flags.has('arromba_campo') ? 'all' : e.tgt;
+          this.forTargets(alcance, targetIdx, en=>{ en._arrombada=true;
+            this.L(`  ⚒ ${en.nome}: fechadura ARROMBADA`); }); break; }
         case 'dissolver':                        // ARCANISTA: apaga a regra por N turnos
-          this.forTargets(e.tgt, targetIdx, en=>{ en.travaOff=(en.travaOff||0)+evalExpr(e.n,ctx);
+          // PRISMA MENOR (árvore do Arcanista): a regra fica apagada mais tempo
+          this.forTargets(e.tgt, targetIdx, en=>{
+            en.travaOff=(en.travaOff||0)+evalExpr(e.n,ctx)+(this.p.arvore?.dissolveExtra||0);
             this.L(`  ✦ ${en.nome}: fechadura DISSOLVIDA`); }); break;
         case 'ajustar': {                        // ORÁCULA: empurra dados na mão ±passo
           const passo=evalExpr(e.passo,ctx)||1, quantos=evalExpr(e.n,ctx)||1;
@@ -527,11 +580,35 @@ export class Combat {
   dealDamage(tgt, amt, idx, pierce, flatK=1){
     const frenesi = this.p.statuses.frenesi ? 1.5 : 1;
     const M = this.M||{};
+    const AR = this.p.arvore || {};              // campos da árvore da classe
+    /* PRIMEIRO GOLPE PERFURA (copa do Carrasco e do Arcanista) */
+    if(this.flags.has('primeiro_perfura') && !this._perfurouPrimeiro){
+      this._perfurouPrimeiro = true; pierce = true;
+    }
+    /* SANGUE QUENTE (Carrasco): ferido é mais perigoso */
+    let bonusPct = 0;
+    if(AR.sangueQuente && this.p.hp < this.p.maxHp*0.5) bonusPct += AR.sangueQuente;
+    /* COLAPSO CONTIDO (Arcanista): golpe que pega todo mundo bate mais */
+    if(this.flags.has('area_forte') && tgt==='all') bonusPct += 25;
+    /* MARTÍRIO (Carrasco): o que você apanhou volta no próximo golpe */
+    const martirio = this.flags.has('martirio') ? (this._martirio||0) : 0;
     this.forTargets(tgt, idx, en=>{
       const vivo = en.hp>0;
-      let d = Math.round((amt + ((M.dmgFlat||0) + (this._laminasRoladas||0))*flatK)
-                         * frenesi * (M.dmgMult||1));
-      if(en.statuses.marca){ d = Math.round(d*1.5); en.statuses.marca=0; }
+      let d = Math.round((amt + ((M.dmgFlat||0) + (this._laminasRoladas||0) + martirio
+                                 + (this._bonusCirculo||0))*flatK)
+                         * frenesi * (M.dmgMult||1) * (1 + bonusPct/100));
+      /* ARROMBA-PORTAS (Carrasco): fechadura quebrada dói mais */
+      if(AR.furiaArromba && en._arrombada) d += AR.furiaArromba;
+      /* ENTROPIA FRIA (Arcanista): regra apagada é ferida aberta */
+      if(AR.danoDissolvido && en.travaOff>0) d += AR.danoDissolvido;
+      /* CEIFA ANTECIPADA (Lâmina): alvo saturado de veneno recebe o dobro */
+      if(this.flags.has('ceifa_antecipada') && (en.statuses.veneno|0) >= 15) d *= 2;
+      if(en.statuses.marca){
+        // MARCA FUNDA (OráculA) sobe o multiplicador de 1,5 para até 2,0
+        d = Math.round(d * (1.5 + (AR.marcaExtra||0)/100)); en.statuses.marca=0;
+      }
+      // SENTENÇA (OráculA): quem apanha sai marcado para o golpe seguinte
+      else if(this.flags.has('marca_sempre') && vivo) en._marcarDepois = true;
       /* CONTABILIDADE do golpe (§12): a prévia mostrava só o que sobra no HP,
          então 11 de dano contra 11 de defesa aparecia como "0" e parecia que
          a habilidade não fazia nada. Aqui fica registrado o golpe cheio, o
@@ -581,20 +658,54 @@ export class Combat {
       }
       if(vivo && en.hp<=0){ for(const k of (this.p.relicKills||[])){
         if(k.block) this.p.block += k.block;
-        if(k.heal && !this.flags.has('sem_cura')) this.p.hp=Math.min(this.p.maxHp, this.p.hp+k.heal); } }
+        if(k.heal && !this.flags.has('sem_cura')) this.p.hp=Math.min(this.p.maxHp, this.p.hp+k.heal); }
+        /* PRAGA (Lâmina): a morte respinga nos vizinhos */
+        if(AR.pragaAoMatar) for(const o of this.aliveEnemies())
+          o.statuses.veneno = (o.statuses.veneno||0) + AR.pragaAoMatar;
+        /* PASSO DE FUGA (Lâmina): matou, sumiu */
+        if(this.flags.has('some_ao_matar')) this.p.statuses.invisivel =
+          Math.max(this.p.statuses.invisivel||0, 1);
+      }
     });
+    /* SENTENÇA (OráculA): a marca só entra DEPOIS do golpe, senão ela
+       multiplicaria o próprio golpe que a colocou */
+    if(this.flags.has('marca_sempre'))
+      for(const en of this.aliveEnemies()) if(en._marcarDepois){
+        en._marcarDepois=false; if(!en.statuses.marca) en.statuses.marca=1; }
+    if(martirio) this._martirio = 0;      // gastou o que tinha acumulado
+  }
+  /* ===================================================================
+     A DOSE — todo veneno e sangramento passa por aqui, venha de habilidade
+     ou da sobra, para que a árvore da Lâmina valha em TODOS os casos e não
+     só nos que alguém lembrou de somar.
+     =================================================================== */
+  envenenar(en, n, tipo='veneno', jaEmTodos=false){
+    const AR = this.p.arvore || {};
+    let v = n + (AR.venenoFlat||0);
+    if(AR.venenoPct) v = Math.round(v * (1 + AR.venenoPct/100));
+    if(v<=0) return;
+    en.statuses[tipo] = (en.statuses[tipo]||0) + v;
+    /* EPIDEMIA (copa da Lâmina): a dose pinga nos vizinhos. Não repete quando
+       o golpe já era em todos, senão o mesmo efeito contaria duas vezes. */
+    if(!jaEmTodos && this.flags.has('epidemia'))
+      for(const o of this.aliveEnemies()) if(o!==en)
+        o.statuses[tipo] = (o.statuses[tipo]||0) + 2;
   }
   dmgPlayer(amt, motivo){
     if(amt<=0) return;
     // Invisível NÃO anula mais o turno inimigo: some 65% do golpe. Anular tudo
     // por 1 dado fazia a Lâmina-Sombra ignorar a dificuldade inteira.
     if(this.p.statuses.invisivel && motivo==='ataque'){
-      const antes=amt; amt = Math.max(1, Math.round(amt*0.35));
+      // SOMBRA LONGA (Lâmina) aprofunda o corte de 65% para 80%
+      const fator = this.flags.has('invisivel_forte') ? 0.20 : 0.35;
+      const antes=amt; amt = Math.max(1, Math.round(amt*fator));
       this.L(`  (invisível: ${antes} → ${amt})`); }
     let d = amt;
     const abs = Math.min(this.p.block, d); this.p.block-=abs; d-=abs;
     this.p.hp = Math.max(0, this.p.hp - d);
     if(d>0) this.L(`  ← você sofre ${d} de ${motivo} (HP ${this.p.hp})`);
+    /* MARTÍRIO (Carrasco): a dor vira juros no próximo golpe */
+    if(d>0 && this.flags.has('martirio')) this._martirio = (this._martirio||0) + 2;
     this.checkEnd();
   }
 
@@ -604,11 +715,15 @@ export class Combat {
     const sobra = this.pool();
     const cid = this.p.classe;
     if(sobra.length){
-      if(cid==='carrasco'){ const dano=Math.floor(sobra.reduce((a,e)=>a+(entryValue(e)||0),0)/2);
+      if(cid==='carrasco'){
+        // RETAGUARDA FARTA (árvore): a sobra bate pelo valor cheio, não pela metade
+        const bruto = sobra.reduce((a,e)=>a+(entryValue(e)||0),0);
+        const dano = this.flags.has('retaguarda_cheia') ? bruto : Math.floor(bruto/2);
         if(dano>0){ this.dealDamage('front', dano, 0, false); this.L(`sobra → retaguarda ${dano}`); } }
       else if(cid==='lamina'){ const alvo=this.aliveEnemies().slice().sort((a,b)=>a.hp-b.hp)[0];
-        const v=Math.ceil(sobra.length/2);
-        if(alvo){ alvo.statuses.veneno=(alvo.statuses.veneno||0)+v; this.L(`sobra → +${v} veneno`); } }
+        // ACÚMULO (árvore): cada dado largado pesa mais na dose
+        const v=Math.ceil(sobra.length/2) + (this.p.arvore?.sobraVeneno||0)*sobra.length;
+        if(alvo){ this.envenenar(alvo, v); this.L(`sobra → +${v} veneno`); } }
       else if(cid==='arcanista'){ for(const s of sobra) this.circle.push({...s}); this.L(`sobra → Círculo (${sobra.length})`); }
       else if(cid==='oracula'){ this.p.block += sobra.length; this.p.essence += Math.floor(sobra.length/2); }
     }

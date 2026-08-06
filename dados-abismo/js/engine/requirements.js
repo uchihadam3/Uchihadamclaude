@@ -19,6 +19,16 @@ export const isSymbol   = (e,s) => e.face.k===s;
    Acima do teto, os curingas extras assumem o maior valor do próprio dado
    (o palpite certo na esmagadora maioria dos casos) e só os primeiros são
    realmente pesquisados. */
+/* REGRAS LIGADAS PELA ÁRVORE DA CLASSE. Ficam num objeto de módulo porque
+   satisfies() é chamada de todo lado (motor, IA, tela) sem carregar o estado
+   do jogador junto; o combate acende e apaga no começo de cada luta. */
+export const REGRAS = { seqFrouxa:false, curingaSimbolo:false, curingaLivre:false };
+export function ajustarRegras(flags){
+  REGRAS.seqFrouxa      = !!(flags && flags.has('seq_frouxa'));
+  REGRAS.curingaSimbolo = !!(flags && flags.has('curinga_simbolo'));
+  REGRAS.curingaLivre   = !!(flags && flags.has('curinga_livre'));
+}
+
 const TETO_CURINGA = 4096;
 function wildAssignments(entries, cb){
   const wilds = entries.map((e,i)=>({e,i})).filter(x=>isWild(x.e));
@@ -32,7 +42,10 @@ function wildAssignments(entries, cb){
   const rec=(k)=>{
     if(k===livres){ if(cb(base.slice())) return true; return false; }
     const w = wilds[k];
-    for(let v=1; v<=w.e.n; v++){ base[w.i]=v; if(rec(k+1)) return true; }
+    /* NOVELO DO MUNDO (copa da OráculA): o Curinga deixa de ser limitado pela
+       face máxima do próprio dado e passa a assumir qualquer valor da mesa. */
+    const teto = REGRAS.curingaLivre ? Math.max(w.e.n, 12) : w.e.n;
+    for(let v=1; v<=teto; v++){ base[w.i]=v; if(rec(k+1)) return true; }
     base[w.i]=null; return false;
   };
   return rec(0);
@@ -46,9 +59,18 @@ const REQ = {
   /* N dados de valor IGUAL (par/trinca/quadra) */
   set:    (r,vals)=> vals.length===r.size && vals.every(v=>v!==null && v===vals[0]),
   /* sequência de N (n, n+1, n+2...) */
+  /* DEGRAU (árvore do Arcanista): com `seqFrouxa` a sequência aceita UM
+     buraco no caminho — 1-2-4 conta como sequência de 3. É a passiva que
+     torna a classe de sequência jogável sem depender de rolagem perfeita. */
   seq:    (r,vals)=>{ if(vals.length!==r.size || vals.some(v=>v===null)) return false;
                       const s=[...vals].sort((a,b)=>a-b);
-                      return s.every((v,i)=> i===0 || v===s[i-1]+1); },
+                      let buracos=0;
+                      for(let i=1;i<s.length;i++){
+                        const d=s[i]-s[i-1];
+                        if(d===1) continue;
+                        if(d===2 && REGRAS.seqFrouxa && buracos<1){ buracos++; continue; }
+                        return false; }
+                      return true; },
   /* soma EXATA (aceita vários dados) — "Julgamento [=7]" da OráculA */
   sumExact:(r,vals)=> vals.length>=1 && vals.every(v=>v!==null) && vals.reduce((a,b)=>a+b,0) === r.v,
   /* soma mínima, aceita quantos dados quiser */
@@ -64,7 +86,9 @@ const REQ = {
 /* símbolo é validado FORA da busca de valores (não depende do valor) */
 function checkSymbol(req, entries){
   if(entries.length !== (req.count||1)) return false;
-  return entries.every(e=> e.face.k===req.s);
+  /* FIO DO DESTINO (copa da OráculA): o ◈ Curinga também vale como selo —
+     ele já assume qualquer NÚMERO, e passa a assumir qualquer SÍMBOLO. */
+  return entries.every(e=> e.face.k===req.s || (REGRAS.curingaSimbolo && isWild(e)));
 }
 
 export function satisfies(req, entries){

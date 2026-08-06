@@ -17,6 +17,7 @@ import { criarMalhaDado, criarMesa, luzes, destacarResultado } from './dice3d/re
 import { rolarPara } from './dice3d/roll.js';
 import { raioDe, pontoDeCima } from './dice3d/geometry.js';
 import { ESCALADA, MASMORRAS } from './data/dungeons.js';
+import * as PASS from './data/passivas.js';
 import { travaTxt } from './data/travas.js';
 import * as GRIM from './grimorio.js';
 import * as META from './meta.js';
@@ -222,6 +223,56 @@ function painelTrilha(){
     </div>
     <div class="tclss">${blocos}</div></div>`;
 }
+/* ===================================================================
+   AS QUATRO ÁRVORES no Cofre. O tronco comum (Osso/Véu/Coroa) serve a
+   todo mundo; aqui cada alma tem a SUA, com 20 passivas que puxam a corda
+   da mecânica dela. Uma aba por classe, quatro anéis por árvore, e o preço
+   subindo do anel 1 ao 4 — largura e profundidade disputam os mesmos Ecos.
+   =================================================================== */
+let abaArvore = 'carrasco';
+function painelArvore(){
+  const cid = abaArvore, AR = PASS.ARVORES[cid];
+  const pg = PASS.progresso(cofre, cid);
+  const abas = Object.entries(PASS.ARVORES).map(([k,a])=>{
+    const p = PASS.progresso(cofre,k);
+    return `<button class="aba ${k===cid?'on':''}" data-aba="${k}" style="--cc:${a.cor}">
+      <span class="abag">${a.glifo}</span><b>${a.nome}</b><i>${p.meu}/${p.tot}</i></button>`;}).join('');
+
+  const aneis = PASS.ANEIS.map(an=>{
+    const nos = AR.nos.filter(n=>n.anel===an.n).map(no=>{
+      const nv = PASS.nivelPassiva(cofre,cid,no.id);
+      const max = nv >= no.max;
+      const disp = PASS.disponivelPassiva(cofre,cid,no);
+      const c = PASS.custoDoNo(no, Math.min(nv, no.custo.length-1));
+      const pode = disp && cofre.ecos >= c;
+      const trav = (no.req||[]).some(q=>PASS.nivelPassiva(cofre,cid,q) < 1);
+      const nomeReq = (no.req||[]).map(q=>PASS.noPorId(cid,q)?.nome).filter(Boolean).join(' + ');
+      return `<button class="pno ${max?'max':''} ${pode?'pode':''} ${trav?'trav':''}"
+          data-pno="${no.id}" style="--cc:${AR.cor}">
+        <div class="pnoh"><b>${no.nome}</b><span class="pips">${
+          Array.from({length:no.max},(_,i)=>`<i class="${i<nv?'on':''}"></i>`).join('')}</span></div>
+        <div class="pnotxt">${no.txt(Math.max(1, nv + (max?0:1)))}</div>
+        <div class="pnofoot">${
+          trav ? `🔒 exige ${nomeReq}`
+          : max ? '★ MÁXIMO'
+          : `<span class="cst ${pode?'ok':''}">◈ ${c}</span>`}</div></button>`;}).join('');
+    return `<div class="anel">
+      <div class="anelh"><span class="aneln">${an.n}</span><b>${an.nome}</b><i>${an.sub}</i></div>
+      <div class="pnos">${nos}</div></div>`;}).join('');
+
+  return `<div class="arvwrap" style="--cc:${AR.cor}">
+    <div class="th"><span class="thi">${AR.glifo}</span>
+      <div><b>A ÁRVORE DA SUA ALMA</b>
+        <i>Cada classe tem a sua, com 20 passivas. Elas ficam entre as runs e
+           são o que faz um Carrasco jogar diferente de uma OráculA.</i></div></div>
+    <div class="abas">${abas}</div>
+    <div class="arvhd"><b style="color:${AR.cor}">${AR.nome}</b><em>${AR.lema}</em></div>
+    <div class="cofprog">
+      <u><span>CONSTRUÍDO</span><b>${pg.meu}/${pg.tot} NÍVEIS</b></u>
+      <div class="cofbar"><span style="width:${pg.pct}%;background:${AR.cor}"></span></div>
+    </div>
+    ${aneis}</div>`;
+}
 function telaCofre(){
   SFX.trilha('menu');
   const m=$('msg'); m.className='';
@@ -260,9 +311,20 @@ function telaCofre(){
         : 'ecos insuficientes — desça e volte com mais'}</em>
     </div>
     <div class="ramos">${ramos}</div>
+    ${painelArvore()}
     ${painelTrilha()}
     <button class="mb pri" data-a="voltar2">▶ DESCER AGORA</button></div>`;
   bindA(m,{ voltar:telaTitulo, voltar2:telaClasses });
+  m.querySelectorAll('.aba').forEach(b=>b.onclick=()=>{
+    abaArvore=b.dataset.aba; SFX.pegar(); telaCofre();
+    // volta o olhar para a árvore, senão a troca de aba parece não ter feito nada
+    document.querySelector('.arvwrap')?.scrollIntoView({block:'start'}); });
+  m.querySelectorAll('.pno').forEach(b=>b.onclick=()=>{
+    const no=PASS.noPorId(abaArvore, b.dataset.pno);
+    if(no && PASS.comprarPassiva(cofre, abaArvore, no)){
+      META.salvar(cofre); SFX.buy?SFX.buy():SFX.vitoria(); telaCofre();
+      document.querySelector('.arvwrap')?.scrollIntoView({block:'start'});
+    } else SFX.soltar(); });
   m.querySelectorAll('.no').forEach(b=>b.onclick=()=>{
     const no=META.NOS.find(x=>x.id===b.dataset.no);
     if(META.comprar(cofre,no)){ SFX.buy?SFX.buy():SFX.vitoria(); BON=META.bonus(cofre); telaCofre(); }
@@ -407,19 +469,33 @@ function retomarRun(){
 }
 function iniciar(cid, deMasmorra=1){
   C=CLASSES[cid];
+  /* A ÁRVORE DA CLASSE entra aqui, somada ao tronco comum do Cofre. Ela sai
+     no mesmo formato das relíquias, então o motor executa sem saber que veio
+     de outro lugar — e os `campos` são os ajustes que moram no jogador. */
+  const AR = PASS.bonusDaClasse(cofre, cid), cp = AR.campos;
+  const somaBon = (k,extra)=> (BON[k]||0) + (extra||0);
   const bag=C.bag();
-  for(let i=0;i<BON.dadosExtra;i++) bag.push(bag[i%bag.length] ? {...bag[0], id:'X'+i, faces:bag[0].faces.map(f=>({...f}))} : null);
-  P={ classe:cid, hp:C.hp+BON.hpBonus, maxHp:C.hp+BON.hpBonus, baseMaxHp:C.hp+BON.hpBonus, block:0,
+  const dadosExtra = somaBon('dadosExtra', cp.dadosExtra);
+  for(let i=0;i<dadosExtra;i++) bag.push(bag[i%bag.length] ? {...bag[0], id:'X'+i, faces:bag[0].faces.map(f=>({...f}))} : null);
+  const hp0 = C.hp + BON.hpBonus;
+  P={ classe:cid, hp:hp0, maxHp:hp0, baseMaxHp:hp0, block:0,
       bag:bag.filter(Boolean), statuses:{}, essence:0,
       rerollsBase:C.rerolls+BON.rerolls, relics:[], unlocked:chavesAbertas(cid),
-      polegar:BON.polegar, gazua:BON.gazua, revive:BON.revive, pity:BON.pity,
-      ultimoLance:BON.ultimoLance, gravExtra:BON.gravExtra, presagio:BON.presagio };
+      polegar:somaBon('polegar',cp.polegar), gazua:somaBon('gazua',cp.gazua),
+      revive:Math.max(BON.revive, cp.revive||0), pity:somaBon('pity',cp.pity),
+      ultimoLance:BON.ultimoLance||!!cp.ultimoLance, gravExtra:BON.gravExtra,
+      presagio:somaBon('presagio',cp.presagio),
+      travaDados:cp.travaDados||0, arvore:cp };
   // gravações iniciais do Cofre (Lâmina / Curinga / Eco)
   const grav=(k,q)=>{ for(let i=0;i<q;i++){ const d=P.bag[i%P.bag.length];
     const j=d.faces.findIndex(f=>f.k==='num'); if(j>=0) d.faces[j]={k, v:d.faces[j].v}; } };
-  grav('blade',BON.lamina); grav('wild',BON.curinga); grav('echo',BON.eco);
+  grav('blade',BON.lamina); grav('wild',somaBon('curinga',cp.curinga)); grav('echo',somaBon('eco',cp.eco));
   if(BON.dmgFlat||BON.blockStart){ P.relics.push({id:'_cofre',nome:'Cofre',r:'comum',txt:'',
     mods:{dmgFlat:BON.dmgFlat}, start:{block:BON.blockStart}}); }
+  /* a árvore vira UMA passiva sintética; o resto do jogo já sabe lidar */
+  P.relics.push({ id:'_arvore_'+cid, nome:PASS.ARVORES[cid].nome, r:'comum', txt:'',
+    mods:AR.mods, start:AR.start, onKill:AR.onKill,
+    _rolls:AR.onRoll, _flags:[...AR.flags] });
   for(let i=0;i<BON.reliquias;i++){ const pool=RELIQ_COMUNS.filter(r=>!P.relics.some(x=>x.id===r.id));
     if(pool.length) P.relics.push(pool[rng.int(pool.length)]); }
   recalcRelics(P);
@@ -598,7 +674,19 @@ function rolarVisual(soIds){
     if(m && !m.userData.naBandeja) obst.push({ p:[m.position.x,m.position.y,m.position.z], r:raioDe(e.tipo) });
   }
   for(let i=0;i<ents.length;i++){
-    const e=ents[i]; const mesh=malhas.find(m=>m.userData.die.id===e.dieId) || malhas[i];
+    const e=ents[i];
+    /* NEM TODO DADO QUE ROLA SAIU DA BOLSA. O Enferrujado do Fardo da
+       Masmorra 3 nasce dentro do combate e nunca teve malha 3D: a lista de
+       entradas ficava maior que a de malhas, o índice de reserva caía fora do
+       array e a mesa inteira quebrava com "undefined.userData" — o combate
+       abria vazio, sem dados e sem inimigos, de qualquer classe. Agora quem
+       aparecer no meio da luta ganha a sua malha na hora. */
+    let mesh = malhas.find(m=>m.userData.die.id===e.dieId);
+    if(!mesh && e.die){
+      mesh = criarMalhaDado(e.die, raioDe(e.tipo));
+      mesh.visible=false; scene.add(mesh); malhas.push(mesh);
+    }
+    if(!mesh) continue;                       // sem dado por trás, não há o que rolar
     const raio=raioDe(e.tipo);
     const r=rolarPara(e.tipo, e.faceIdx||0, rng.int(1e9), MESA, 160, z[i], obst.slice(), raio);
     trilhas.push({ tr:r?r.trilha:[{p:[z[i][0],raio,z[i][1]],q:[0,0,0,1]}], mesh, atraso:i*0.08, ent:e });
@@ -817,7 +905,8 @@ function pintar(){
   /* o botão DIZ o que vai rolar. Antes ele só dizia "Re-rolar" e o jogador
      não tinha como saber se ia perder a mão inteira ou só o que marcou. */
   { const livres = cb.pool().length;
-    const escolhidos = BON.rerollEscolhido ? [...sel].filter(id=>cb.pool().some(e=>e.dieId===id)).length : 0;
+    const escolhe = BON.rerollEscolhido || P.arvore?.rerollEscolhido;
+    const escolhidos = escolhe ? [...sel].filter(id=>cb.pool().some(e=>e.dieId===id)).length : 0;
     $('brer').innerHTML = escolhidos
       ? `⟳ Re-rolar <b>${escolhidos}</b>`
       : `⟳ Re-rolar${livres?` <i class="rtd">${livres}</i>`:''}`; }
@@ -852,10 +941,16 @@ function rotuloIntent(it, e){
 function passivaBtn(selEnts){
   if(selEnts.length!==1 || !cb) return '';
   const e=selEnts[0], num = e.face.k!=='wild' && e.face.v!=null;
-  const P_={ carrasco:{t:`⚒ +1 (−2 ❤)`, ok:num && P.hp>2},
-             lamina:  {t:`🗡 virar (${e.n+1-(e.face.v||0)})`, ok:num && !cb.trapacaUsada},
-             arcanista:{t:`✦ guardar no Círculo`, ok:!cb._guardou},
-             oracula: {t:`◈ travar p/ o próximo`, ok:!cb._travou} }[C.id];
+  /* quantos usos ainda sobram nesta ferramenta neste turno */
+  const sobras = qual => { const r = cb.restam(qual); return r>1 ? ` <i class="fq">×${r}</i>` : ''; };
+  const custoSob = cb.flags?.has('sobrecarga_barata') ? 1 : 2;
+  const P_={ carrasco:{t:`⚒ +1 (−${custoSob} ❤)`, ok:num && P.hp>custoSob},
+             /* a árvore pode dar mais de um uso por turno; o botão mostra
+                quantos ainda sobram em vez de sumir depois do primeiro */
+             lamina:  {t:`🗡 virar (${e.n+1-(e.face.v||0)})`+sobras('trapaca'),
+                       ok:num && !cb.trapacaUsada},
+             arcanista:{t:`✦ guardar no Círculo`+sobras('guardar'), ok:cb.podeGuardar()},
+             oracula: {t:`◈ travar p/ o próximo`+sobras('travar'), ok:cb.podeTravar()} }[C.id];
   if(!P_ || !P_.ok) return '';
   return `<button class="fer pas" id="bpass">${P_.t}</button>`;
 }
@@ -1125,7 +1220,8 @@ $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
   /* MÃO ESCOLHIDA (Cofre): sem ela a re-rolagem é cega e leva a mão inteira —
      você tem um 5 e um 6 bons ao lado de dois 1, e perde os quatro. Com ela,
      a seleção manda: rolam só os dados que você marcou. */
-  const ids = (BON.rerollEscolhido && sel.size)
+  const podeEscolher = BON.rerollEscolhido || P.arvore?.rerollEscolhido;
+  const ids = (podeEscolher && sel.size)
     ? [...sel].filter(id=>livres.includes(id)) : livres;
   const rolados = cb.reroll(ids);
   if(!rolados){ SFX.soltar(); return; }      // nada rolou: não gasta nem anima

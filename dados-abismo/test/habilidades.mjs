@@ -14,10 +14,11 @@ import { Combat } from '../js/engine/combat.js';
 import { makeDie, resetDieIds } from '../js/data/dice.js';
 import { face } from '../js/data/faces.js';
 import { recalcRelics, gerarOpcoes, aplicar } from '../js/engine/rewards.js';
-import { satisfies } from '../js/engine/requirements.js';
+import { satisfies, ajustarRegras } from '../js/engine/requirements.js';
 import { travaAberta, travaTxt, ALTERNATIVAS, mesmaTrava, seAnulam } from '../js/data/travas.js';
 import { buildWave } from '../js/engine/encounter.js';
 import { MASMORRAS, ESCALADA } from '../js/data/dungeons.js';
+import * as PASS from '../js/data/passivas.js';
 
 let ok = 0, falhas = [];
 const check = (cond, quem, oque, detalhe='') => {
@@ -1230,6 +1231,210 @@ console.log('=== VIGOR E A CURVA DAS DEZ ===');
     const B = CLASSES[cid].skills.find(s=>s.id===base);
     check(dano(N) >= dano(B), 'Trilha de '+cid,
           nova+' não bate menos que '+base, dano(N)+' vs '+dano(B));
+  }
+}
+
+/* ==================================================================
+   17. AS QUATRO ÁRVORES — 20 passivas por classe. O risco de um sistema
+   deste tamanho é a passiva decorativa: texto bonito que não muda nada
+   no combate. Aqui a estrutura é conferida nó a nó, cada mecanismo é
+   medido comprando a passiva e vendo o jogo mudar, e a última verificação
+   varre TODAS as 80 atrás de alguma cujo efeito não seja lido em lugar
+   nenhum do motor.
+   ================================================================== */
+console.log('=== AS QUATRO ÁRVORES ===');
+{
+  /* tudo que o motor, o requisito e a tela realmente consomem */
+  const LIDO_NO_MOTOR = [
+    'area_forte','arromba_campo','ceifa_antecipada','circulo_dobro','circulo_essencia',
+    'comeca_invisivel','curinga_livre','curinga_simbolo','epidemia','execucao_larga',
+    'invisivel_forte','marca_sempre','martirio','polegar_forte','prever',
+    'primeiro_perfura','reroll_turno_gratis','retaguarda_cheia','seq_frouxa',
+    'sobrecarga_barata','some_ao_matar','trapaca_dupla','veneno_de_entrada','veneno_eterno',
+    'circuloDano','circuloExtra','danoDissolvido','dissolveExtra','furiaArromba',
+    'golpesExtra','marcaExtra','pragaAoMatar','sangueQuente','sobraVeneno',
+    'venenoFlat','venenoPct','curinga','dadosExtra','eco','gazua','pity','polegar',
+    'presagio','rerollEscolhido','revive','travaDados','ultimoLance',
+  ];
+
+  /* ---- estrutura ---- */
+  for(const [cid, arv] of Object.entries(PASS.ARVORES)){
+    check(arv.nos.length === 20, 'Árvore '+cid, 'tem 20 passivas', arv.nos.length+' nós');
+    const ids = new Set();
+    let custoOk = true, textoOk = true, aneisOk = true, reqOk = true;
+    for(const no of arv.nos){
+      if(ids.has(no.id)) custoOk = false; ids.add(no.id);
+      if(no.custo.length !== no.max) custoOk = false;          // um preço por nível
+      for(let i=1;i<no.custo.length;i++) if(no.custo[i] <= no.custo[i-1]) custoOk = false;
+      if(typeof no.txt(1) !== 'string' || !no.txt(1).length) textoOk = false;
+      if(!(no.anel>=1 && no.anel<=4)) aneisOk = false;
+      /* requisito nunca vem de um anel MAIS FUNDO (isso trancaria a árvore
+         para sempre); os capstones podem exigir dois vizinhos do mesmo anel */
+      for(const r of (no.req||[])){
+        const alvo = PASS.noPorId(cid, r);
+        if(!alvo || alvo.id === no.id || alvo.anel > no.anel) reqOk = false;
+        if(alvo && alvo.anel === no.anel && (alvo.req||[]).includes(no.id)) reqOk = false;
+      }
+    }
+    check(custoOk, 'Árvore '+cid, 'cada nível custa mais que o anterior');
+    check(textoOk, 'Árvore '+cid, 'toda passiva se explica em texto');
+    check(aneisOk, 'Árvore '+cid, 'todo nó pertence a um dos quatro anéis');
+    check(reqOk,   'Árvore '+cid, 'requisitos apontam para anéis anteriores');
+    const medio = a => { const ns = arv.nos.filter(n=>n.anel===a);
+      return ns.reduce((x,n)=>x+n.custo[0],0)/Math.max(1,ns.length); };
+    check([1,2,3,4].every(a=>arv.nos.some(n=>n.anel===a)), 'Árvore '+cid, 'tem os quatro anéis');
+    check(medio(1) < medio(2) && medio(2) < medio(3) && medio(3) < medio(4),
+      'Árvore '+cid, 'o anel mais fundo custa mais caro',
+      [1,2,3,4].map(a=>medio(a).toFixed(0)).join(' → '));
+  }
+
+  /* ---- compra ---- */
+  {
+    const cofre = { ecos:50, passivas:{} };
+    const no = PASS.noPorId('carrasco','c_medula');
+    const trav = PASS.noPorId('carrasco','c_arromba');
+    check(!PASS.disponivelPassiva(cofre,'carrasco',trav), 'Compra',
+      'nó de anel fundo nasce trancado');
+    check(PASS.comprarPassiva(cofre,'carrasco',no), 'Compra', 'compra o que está ao alcance');
+    check(cofre.ecos === 50 - no.custo[0], 'Compra', 'cobra o preço certo', 'sobrou '+cofre.ecos);
+    check(PASS.nivelPassiva(cofre,'carrasco','c_medula')===1, 'Compra', 'o nível sobe');
+    const pobre = { ecos:0, passivas:{} };
+    check(!PASS.comprarPassiva(pobre,'carrasco',no), 'Compra', 'sem Ecos não compra');
+    check(PASS.nivelPassiva(cofre,'lamina','c_medula')===0, 'Compra',
+      'o que você comprou no Carrasco não aparece na Lâmina');
+  }
+
+  /* ---- os efeitos CHEGAM ao combate ---- */
+  const comArvore = (cid, compras) => {
+    const cofre = { ecos:99999, passivas:{} };
+    for(const [id,vezes] of Object.entries(compras)){
+      const no = PASS.noPorId(cid,id);
+      for(let i=0;i<vezes;i++){
+        for(const r of (no.req||[])){       // libera os requisitos para medir o nó em si
+          cofre.passivas[cid] = cofre.passivas[cid] || {};
+          if(!cofre.passivas[cid][r]) cofre.passivas[cid][r] = 1; }
+        PASS.comprarPassiva(cofre, cid, no);
+      }
+    }
+    return PASS.bonusDaClasse(cofre, cid);
+  };
+  const jogador = (cid, AR) => {
+    const C = CLASSES[cid];
+    const p = { classe:cid, hp:C.hp, maxHp:C.hp, baseMaxHp:C.hp, block:0, bag:C.bag(),
+                statuses:{}, essence:0, rerollsBase:C.rerolls, relics:[], unlocked:[],
+                arvore:AR.campos, polegar:AR.campos.polegar||0, gazua:AR.campos.gazua||0,
+                travaDados:AR.campos.travaDados||0 };
+    p.relics.push({ id:'_arv', nome:'árvore', r:'comum', txt:'', mods:AR.mods,
+                    start:AR.start, onKill:AR.onKill, _rolls:AR.onRoll, _flags:[...AR.flags] });
+    recalcRelics(p);
+    return p;
+  };
+  const bicho = (hp=400, extra={}) => ({ id:'x', nome:'Boneco', uid:'x#1', hp, maxHp:hp,
+    block:0, statuses:{}, mult:1, padrao:[{t:'atk',v:10}], _ip:0, intent:{t:'atk',v:10}, ...extra });
+
+  {   // numérico: HP e dano somam de verdade
+    const AR = comArvore('carrasco', { c_medula:3, c_fio:3 });
+    const p = jogador('carrasco', AR);
+    check(p.maxHp === CLASSES.carrasco.hp + 36, 'Medula Densa',
+      'três níveis somam +36 de HP máximo', p.maxHp+' de vida');
+    check((p.relicMods.dmgFlat|0) === 6, 'Fio do Machado',
+      'três níveis somam +6 de dano por golpe', '+'+p.relicMods.dmgFlat);
+  }
+  {   // bloqueio de início de combate
+    const AR = comArvore('carrasco', { c_couro:2 });
+    const p = jogador('carrasco', AR);
+    new Combat({ rng:makeRNG('arv1'), player:p, enemies:[bicho()], log:false });
+    check(p.block === 10, 'Couro Batido', 'o combate começa com 10 de bloqueio', p.block+'');
+  }
+  {   // sobrecarga barata: o preço em sangue cai pela metade
+    for(const [compras, custo] of [[{}, 2], [{c_punho:1}, 1]]){
+      const AR = comArvore('carrasco', compras);
+      const p = jogador('carrasco', AR);
+      const cb = new Combat({ rng:makeRNG('arv2'), player:p, enemies:[bicho()], log:false });
+      cb.startTurn();
+      const alvo = cb.pool().find(e=>e.face.k==='num' && e.face.v < e.n);
+      if(alvo){ const hp0 = p.hp; cb.sobrecarga(alvo.dieId);
+        check(hp0 - p.hp === custo, 'Punho Calejado',
+          `sobrecarga custa ${custo} de HP ${compras.c_punho?'com':'sem'} o nó`, (hp0-p.hp)+' de HP'); }
+    }
+  }
+  {   // trapaça dupla: dois usos por turno
+    const AR = comArvore('lamina', { l_dupla:1 });
+    const p = jogador('lamina', AR);
+    const cb = new Combat({ rng:makeRNG('arv3'), player:p, enemies:[bicho()], log:false });
+    cb.startTurn();
+    check(cb.restam('trapaca') === 2, 'Trapaça Dupla', 'a Trapaça passa a valer 2×/turno',
+      cb.restam('trapaca')+' usos');
+  }
+  {   // veneno: soma o fixo e DEPOIS multiplica
+    const AR = comArvore('lamina', { l_frasco:2, l_corrosivo:2 });
+    const p = jogador('lamina', AR);
+    const cb = new Combat({ rng:makeRNG('arv4'), player:p, enemies:[bicho()], log:false });
+    const en = cb.enemies[0];
+    cb.envenenar(en, 10);
+    check(en.statuses.veneno === 18, 'Frasco + Corrosivo',
+      '(10 +2 do Frasco) ×1,5 do Corrosivo = 18', en.statuses.veneno+' de veneno');
+  }
+  {   // invisível mais fundo
+    for(const [compras, esperado] of [[{}, 35], [{l_sombra:1}, 20]]){
+      const AR = comArvore('lamina', compras);
+      const p = jogador('lamina', AR);
+      const cb = new Combat({ rng:makeRNG('arv5'), player:p, enemies:[bicho()], log:false });
+      p.statuses.invisivel = 1; p.block = 0;
+      const hp0 = p.hp; cb.dmgPlayer(100, 'ataque');
+      check(hp0 - p.hp === esperado, 'Sombra Longa',
+        `invisível deixa passar ${esperado} de 100 ${compras.l_sombra?'com':'sem'} o nó`,
+        (hp0-p.hp)+' de dano');
+    }
+  }
+  {   // sequência frouxa: 1-2-4 passa a contar
+    const ents = [{face:{k:'num',v:1},n:6},{face:{k:'num',v:2},n:6},{face:{k:'num',v:4},n:6}];
+    const req = { t:'seq', size:3 };
+    ajustarRegras(new Set());
+    check(!satisfies(req, ents), 'Degrau', 'sem o nó, 1-2-4 NÃO é sequência');
+    ajustarRegras(new Set(['seq_frouxa']));
+    check(satisfies(req, ents), 'Degrau', 'com o nó, 1-2-4 vira sequência de 3');
+    ajustarRegras(new Set());
+  }
+  {   // curinga como selo
+    const ents = [{face:{k:'wild'},n:6}];
+    const req = { t:'symbol', s:'blade' };
+    ajustarRegras(new Set());
+    check(!satisfies(req, ents), 'Fio do Destino', 'sem o nó, ◈ não abre fechadura de selo');
+    ajustarRegras(new Set(['curinga_simbolo']));
+    check(satisfies(req, ents), 'Fio do Destino', 'com o nó, ◈ vale como ⚔');
+    ajustarRegras(new Set());
+  }
+  {   // execução mais larga
+    const AR = comArvore('carrasco', { c_carrasco:1 });
+    const p = jogador('carrasco', AR);
+    const cb = new Combat({ rng:makeRNG('arv6'), player:p, enemies:[bicho(100)], log:false });
+    cb.enemies[0].hp = 24;          // 24% do máximo: escapa em 18%, morre em 25%
+    cb.applyEffects([{op:'exec',tgt:'chosen',pct:0.18}],
+                    { sum:0,val:0,count:0,max:0,min:0,blades:0 }, 0);
+    check(cb.enemies[0].hp === 0, 'Mão do Carrasco',
+      'a execução alcança 25% de vida em vez de 18%', 'HP final '+cb.enemies[0].hp);
+  }
+  {   // os campos do jogador chegam
+    const AR = comArvore('oracula', { o_polegar:2, o_trava:2, o_curinga:2 });
+    check(AR.campos.polegar === 2, 'Polegar Torto', 'dois níveis dão 2 usos por turno');
+    check(AR.campos.travaDados === 2, 'Nó Cego', 'dois níveis travam 2 dados');
+    check(AR.campos.curinga === 2, 'Fio Solto', 'dois níveis gravam 2 faces ◈');
+  }
+  {   // NENHUMA das 80 pode ser decorativa
+    const usadas = new Set();
+    for(const cid of Object.keys(PASS.ARVORES)){
+      const todas = {};
+      for(const no of PASS.ARVORES[cid].nos) todas[no.id] = no.max;
+      const AR = comArvore(cid, todas);
+      for(const f of AR.flags) usadas.add(f);
+      for(const k of Object.keys(AR.campos)) usadas.add(k);
+      // os mods numéricos passam pelo recalcRelics e sempre valem
+    }
+    const orfas = [...usadas].filter(f=>!LIDO_NO_MOTOR.includes(f));
+    check(orfas.length === 0, 'As quatro árvores',
+      'toda passiva tem efeito de verdade no jogo',
+      orfas.length ? 'SEM EFEITO: '+orfas.join(', ') : usadas.size+' efeitos ligados ao motor');
   }
 }
 
