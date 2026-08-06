@@ -45,7 +45,7 @@ import { CLASS_BY_ID } from "./classes";
 // ÍCONES: os símbolos pequenos deixaram de ser emoji (ver icons.ts). Cada troca
 // abaixo mantém o glifo antigo como reserva — se a peça ainda não foi fatiada, o
 // jogo continua desenhando o caractere em vez de um quadrado vazio.
-import { ico, ICO, ICON_CSS } from "./icons";
+import { ico, ICO } from "./icons";
 const ICO_FECHAR = ico("fechar") || "\u2715";
 
 /**
@@ -1468,7 +1468,7 @@ export function setupControls(
     clerigo: "#c9a94e", cacador: "#6d8f7a",
   };
   const partyCss = document.createElement("style");
-  partyCss.textContent = ICON_CSS + `
+  partyCss.textContent = `
     /* GRUPO: mesma MOLDURA DE ARTE das outras janelas (eq_frame 9-slice), p/ o
        painel pertencer ao jogo em vez de parecer um HUD colado por cima. */
     /* LEFT 76 e não 10: a coluna de atalhos (personagem, opções, diário,
@@ -4511,7 +4511,11 @@ function injectStyle() {
     touch-action:none; user-select:none; -webkit-user-select:none; /* segurar p/ remover não seleciona/rola */
   }
   .gh-sslot:active { filter:brightness(1.2); }
-  .gh-sslot img { width:90%; height:90%; object-fit:contain; pointer-events:none;
+  /* img:not(.gh-ico) — esta regra é p/ o ícone DA HABILIDADE, que preenche o
+     slot. Escrita como ".gh-sslot img" ela também pegava a runa decorativa do
+     slot vazio — e com especificidade maior que a classe .gh-ico, então a runa
+     saía com 90% do slot em vez do tamanho de uma letra. */
+  .gh-sslot img:not(.gh-ico) { width:90%; height:90%; object-fit:contain; pointer-events:none;
     filter:drop-shadow(0 1px 2px rgba(0,0,0,.85)); border-radius:9%; }
   .gh-ss-empty { cursor:default; }
   .gh-ss-empty:active { filter:none; }

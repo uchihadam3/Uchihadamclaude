@@ -51,19 +51,42 @@ export function ico(nome: string, cls = "", titulo = ""): string {
 export function temIcone(nome: string): boolean { return !!ICO[nome]; }
 
 /**
- * CSS base dos ícones. Fica aqui junto do resto para não se perder no meio da
- * folha gigante do controls.ts.
+ * CSS base dos ícones — INJETADO POR ESTE MÓDULO, e não pela tela do jogo.
  *
- * `1em` e não um tamanho fixo: o ícone entra onde antes havia uma letra, então
- * ele tem de acompanhar o corpo do texto daquele lugar — a mesma tag serve para
- * um botão de 52px e para uma linha de 10px.
+ * Ele morava dentro do setupControls, que só roda depois que a partida começa.
+ * Resultado: nas telas de abertura (título, escolha de personagem, prólogo) a
+ * regra não existia e os `<img>` saíam no TAMANHO NATURAL — 200px. A seta do
+ * "Voltar" virou um triângulo do tamanho do botão inteiro.
+ *
+ * O estilo pertence a quem gera a marcação. Injetar aqui, uma vez, garante que
+ * qualquer tela que chame `ico()` receba o tamanho certo — inclusive as que
+ * ainda não existem.
+ *
+ * `em` e não pixel: o ícone entra onde antes havia uma letra, então acompanha o
+ * corpo do texto do lugar. 0,9em porque um glifo não preenche a própria caixa —
+ * a 1em o desenho fica visivelmente maior que o caractere que ele substituiu.
+ * E um TETO em pixels, porque "acompanhar o texto" deixa de fazer sentido num
+ * título de 60px: ali o ícone viraria um cartaz.
  */
 export const ICON_CSS = `
-  .gh-ico{width:1em;height:1em;object-fit:contain;vertical-align:-0.14em;
+  .gh-ico{width:0.9em;height:0.9em;max-width:26px;max-height:26px;
+    object-fit:contain;vertical-align:-0.1em;
     flex:none;pointer-events:none;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));}
   /* nos botões redondos do HUD o ícone ocupa o disco quase todo */
-  .gh-ico-btn{width:60%;height:60%;vertical-align:0;}
+  .gh-ico-btn{width:60%;height:60%;max-width:none;max-height:none;vertical-align:0;}
   /* dentro de um botão pequeno (▲ ▼ ✕ da Companhia, + do painel social) */
   .gh-ico-sm{width:15px;height:15px;vertical-align:-0.22em;}
+  /* lugares que QUEREM o ícone grande dizem isso explicitamente */
+  .gh-ico-lg{width:1.1em;height:1.1em;max-width:52px;max-height:52px;}
 `;
+
+/** Põe a folha no documento uma única vez (o módulo é carregado uma vez só). */
+function instalarCss(): void {
+  if (typeof document === "undefined" || document.getElementById("gh-icons-css")) return;
+  const el = document.createElement("style");
+  el.id = "gh-icons-css";
+  el.textContent = ICON_CSS;
+  (document.head ?? document.documentElement).appendChild(el);
+}
+instalarCss();
