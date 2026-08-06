@@ -58,6 +58,12 @@
 //     constraint guild_members_pkey primary key (guild_id, hero_uid)
 //   );
 //   create index if not exists guild_members_conta on public.guild_members (user_id);
+//   -- UMA COMPANHIA POR PERSONAGEM. O jogo já recusa entrar numa segunda, mas
+//   -- isso é regra de cliente e a chave anon é pública: sem o índice, dois
+//   -- convites aceitos em abas diferentes deixariam o herói em dois quadros, e a
+//   -- leitura do "meu quadro" (que espera uma linha só) passaria a falhar.
+//   create unique index if not exists guild_members_um_por_heroi
+//     on public.guild_members (hero_uid);
 //
 //   alter table public.guilds        enable row level security;
 //   alter table public.guild_members enable row level security;
@@ -382,21 +388,50 @@ class GuildSession {
     if (!this.info || !this.souMestre()) return "Só o Mestre muda os postos.";
     if (uid === this.eu?.uid) return "";
     const cli = await getClient();
+    if (!cli) return "Sem conexão.";
+    if (posto === "mestre") return this.passarOBastao(cli, uid);
     try {
-      await cli?.from("guild_members").update({ posto })
+      await cli.from("guild_members").update({ posto })
         .eq("guild_id", this.info.id).eq("hero_uid", uid);
     } catch { return "Não deu para mudar agora."; }
-    // PASSAR O BASTÃO: promover alguém a mestre me rebaixa a oficial, senão a
-    // companhia fica com dois mestres e nenhuma regra p/ desempatar.
-    if (posto === "mestre") {
-      const meu = this.eu?.uid;
-      try {
-        await cli?.from("guilds").update({ dono_uid: uid }).eq("id", this.info.id);
-        if (meu) await cli?.from("guild_members").update({ posto: "oficial" })
-          .eq("guild_id", this.info.id).eq("hero_uid", meu);
-      } catch { /* melhor esforço: o recarregar abaixo mostra o que valeu */ }
-    }
     if (this.eu) await this.carregar(this.eu.uid);
+    this.cbInfo?.(this.info);
+    this.emitir();
+    return "";
+  }
+
+  /**
+   * PASSAR O BASTÃO — o caso que quase saiu errado e por isso ganhou método
+   * próprio.
+   *
+   * Quem manda tem DUAS marcas, e elas moram em lugares diferentes: a tela lê o
+   * `posto` do quadro, mas a RLS lê o `dono_conta` da companhia. Trocar só o
+   * posto (e o `dono_uid`, que é só o herói) deixava o novo Mestre com todos os
+   * botões na tela e nenhum poder no banco — cada comando dele seria recusado —,
+   * enquanto o antigo, já rebaixado a Oficial, continuaria mandando de verdade.
+   *
+   * Daí também a ORDEM: a troca de `dono_conta` é a ÚLTIMA escrita, porque no
+   * instante em que ela vale eu deixo de poder escrever. Promover o outro e me
+   * rebaixar têm de acontecer enquanto a companhia ainda é minha.
+   */
+  private async passarOBastao(cli: RTClient, uid: string): Promise<string> {
+    if (!this.info || !this.eu) return "Sem conexão.";
+    const gid = this.info.id, meu = this.eu.uid;
+    try {
+      // a CONTA do sucessor: é o que a RLS compara com auth.uid(). Ler é público,
+      // então dá p/ pegar daqui mesmo.
+      const { data } = await cli.from("guild_members")
+        .select("user_id").eq("guild_id", gid).eq("hero_uid", uid).maybeSingle();
+      const conta = (data as { user_id?: string } | null)?.user_id;
+      if (!conta) return "Não achei a conta de quem receberia o bastão.";
+      await cli.from("guild_members").update({ posto: "mestre" })
+        .eq("guild_id", gid).eq("hero_uid", uid);
+      await cli.from("guild_members").update({ posto: "oficial" })
+        .eq("guild_id", gid).eq("hero_uid", meu);
+      // por último: a partir daqui a companhia é dele, e eu não escrevo mais
+      await cli.from("guilds").update({ dono_uid: uid, dono_conta: conta }).eq("id", gid);
+    } catch { return "Não deu para passar o bastão agora."; }
+    await this.carregar(meu);
     this.cbInfo?.(this.info);
     this.emitir();
     return "";
