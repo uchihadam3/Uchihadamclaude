@@ -135,7 +135,7 @@ const LEVELS = [
     enemies:[{"x":23,"y":26,"dist":6,"speed":1,"axis":"x","type":"patrol"},{"x":8,"y":12,"dist":5,"speed":1,"axis":"x","type":"patrol"}],
     fakes:[[22,16],[23,16],[24,16],[22,17],[23,17],[24,17],[22,18],[23,18],[24,18]]},
 
-  { name:"4 · Encosta Íngreme", mass:8, max:8, theme:"grove",
+  { name:"4 · Encosta Íngreme", mass:6, max:6, theme:"grove",
     hint:"", rows:[
     "##########################",
     "#                        #",
