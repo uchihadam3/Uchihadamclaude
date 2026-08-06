@@ -253,6 +253,17 @@
    font-size:13px;font-weight:900;color:#9fd6ff;text-shadow:0 0 9px rgba(120,190,255,.9),0 1px 3px #000;
    pointer-events:none;animation:escsobe .9s cubic-bezier(.12,.85,.25,1) forwards}
  @keyframes escsobe{to{transform:translate(-50%,-26px);opacity:0}}
+ /* A VIDA SENDO COMIDA, golpe a golpe — mesma ideia do escudo, em vermelho.
+    O escudo já descia um passo por atacante, mas o HP caía inteiro antes do
+    primeiro golpe sair: o jogador via 70→41 e só depois assistia aos três
+    inimigos baterem em nada. */
+ #php{position:relative;transition:.18s;border-radius:20px;padding:1px 6px;margin:-1px -6px}
+ #php.bateu{background:rgba(255,90,74,.22);color:#ffdcd6;
+   animation:hpbate .34s cubic-bezier(.2,1.7,.4,1)}
+ @keyframes hpbate{0%{transform:scale(1.28)}60%{transform:scale(.94)}100%{transform:none}}
+ #php .hpl{position:absolute;left:50%;top:-4px;transform:translateX(-50%);
+   font-size:13px;font-weight:900;color:#ff8a7a;text-shadow:0 0 9px rgba(255,90,74,.9),0 1px 3px #000;
+   pointer-events:none;animation:escsobe .9s cubic-bezier(.12,.85,.25,1) forwards}
  /* título da faixa, como uma placa da seção */
  .faixatit{text-align:center;font-size:8.5px;letter-spacing:3px;color:#8a7a50;
    margin:0 0 5px;display:flex;align-items:center;gap:8px;justify-content:center}

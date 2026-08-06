@@ -7,32 +7,15 @@ import { poliedro } from './geometry.js';
 import { MATERIAIS } from '../data/dice.js';
 import { FACE_KINDS } from '../data/faces.js';
 
-/* --- textura das faces: um atlas com N nichos, cada um com o símbolo --- */
-/* ===================================================================
-   AS TEXTURAS DE MATERIAL (arte/mat/<id>.jpg).
+/* --- textura das faces: um atlas com N nichos, cada um com o símbolo ---
 
-   O atlas de faces é desenhado em canvas de uma vez só, e canvas não espera
-   imagem carregar. Então as cinco texturas são pedidas UMA vez no começo e
-   ficam neste cache; enquanto não chegam, o atlas pinta a cor chapada de
-   sempre — o dado nasce certo e fica bonito alguns quadros depois, em vez de
-   nascer em branco. Quem quiser saber quando terminou usa aoCarregarMats().
-   =================================================================== */
-const MAT_IMGS = {};
-let matsPendentes = 0, matsCb = [];
-export function precarregarMateriais(ids){
-  for(const id of ids){
-    if(MAT_IMGS[id] !== undefined) continue;
-    MAT_IMGS[id] = null; matsPendentes++;
-    const img = new Image();
-    img.onload  = ()=>{ MAT_IMGS[id] = img; if(--matsPendentes===0) matsCb.splice(0).forEach(f=>f()); };
-    img.onerror = ()=>{ if(--matsPendentes===0) matsCb.splice(0).forEach(f=>f()); };
-    img.src = 'arte/mat/' + id + '.jpg';
-  }
-  if(matsPendentes===0) matsCb.splice(0).forEach(f=>f());
-}
-export function aoCarregarMats(fn){ matsPendentes===0 ? fn() : matsCb.push(fn); }
-
-function atlasFaces(faces, corBase, corTinta, layouts, vencedor, matId){
+   AQUI JÁ TEVE FOTO DE MATERIAL, e saiu. A pedra fotografada brigava com o
+   glifo: o grão competia com o número pela leitura e o dado ficava sujo em vez
+   de gravado. A cor chapada com o gradiente radial por cima lê melhor em
+   qualquer tamanho, que é o que importa num dado de 40px na tela do celular.
+   As pré-cargas de arte que existiam para isso foram embora junto — o feltro
+   da mesa, esse sim, continua vindo de imagem. */
+function atlasFaces(faces, corBase, corTinta, layouts, vencedor){
   const n = faces.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n/cols);
   const S = 256, cv = document.createElement('canvas');
   cv.width = cols*S; cv.height = rows*S;
@@ -42,23 +25,6 @@ function atlasFaces(faces, corBase, corTinta, layouts, vencedor, matId){
     const cx=(i%cols)*S, cy=Math.floor(i/cols)*S;
     // leve variação de tom por face (osso não é uniforme)
     g.fillStyle = corBase; g.fillRect(cx,cy,S,S);
-    /* a arte do material entra aqui, uma fatia diferente por face para as
-       seis faces do mesmo dado não saírem idênticas.
-
-       Depois dela vem um MULTIPLY com a cor do material. Sem esse passo a
-       foto cobre a cor e todos os cinco materiais viram a mesma pedra clara
-       — o âmbar deixa de ser laranja, a obsidiana deixa de ser preta. Com
-       ele a foto entra como GRÃO e a cor continua sendo quem manda, que é
-       como o jogador reconhece o dado de longe. */
-    const mi = MAT_IMGS[matId];
-    if(mi){
-      const q = 2, px = (i%q)*(mi.width/q), py = (Math.floor(i/q)%q)*(mi.height/q);
-      g.drawImage(mi, px, py, mi.width/q, mi.height/q, cx, cy, S, S);
-      g.save();
-      g.globalCompositeOperation='multiply'; g.globalAlpha=0.72;
-      g.fillStyle=corBase; g.fillRect(cx,cy,S,S);
-      g.restore();
-    }
     const grd=g.createRadialGradient(cx+S/2,cy+S/2,S*0.1,cx+S/2,cy+S/2,S*0.7);
     grd.addColorStop(0,'rgba(255,255,255,0.10)'); grd.addColorStop(1,'rgba(0,0,0,0.16)');
     g.fillStyle=grd; g.fillRect(cx,cy,S,S);
@@ -154,7 +120,7 @@ export function destacarResultado(mesh, vencedor){
   const M=MATERIAIS[die.material]||MATERIAIS.osso;
   const hex='#'+M.cor.toString(16).padStart(6,'0');
   const tinta = die.material==='osso'?'#2b2418':'#d8d2c4';
-  const {tex}=atlasFaces(die.faces,hex,tinta,lay,vencedor,die.material);
+  const {tex}=atlasFaces(die.faces,hex,tinta,lay,vencedor);
   mesh.material.map?.dispose(); mesh.material.map=tex; mesh.material.needsUpdate=true;
 }
 export function criarMalhaDado(die, raio=0.5){
@@ -166,7 +132,7 @@ export function criarMalhaDado(die, raio=0.5){
               : die.material==='ambar' ? '#3a1f05' : '#f0e6ff';
   const layouts = poliedro(die.tipo).porVertice ? [] : null;
   const geo = geometriaDado(die.tipo, die.faces, raio, layouts);
-  const { tex } = atlasFaces(die.faces, hex, tinta, layouts, null, die.material);
+  const { tex } = atlasFaces(die.faces, hex, tinta, layouts);
   const mat = new THREE.MeshStandardMaterial({
     map: tex, color: 0xffffff,
     roughness: M.rough, metalness: M.metal,

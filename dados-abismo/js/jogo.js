@@ -13,8 +13,7 @@ import { gerarOpcoes, aplicar, recalcRelics, simularGravacao } from './engine/re
 import { MATERIAIS, TIPOS as TIPOS_N } from './data/dice.js';
 import { RELIQUIAS } from './data/relics.js';
 const RELIQ_COMUNS=RELIQUIAS.filter(r=>r.r==='comum');
-import { criarMalhaDado, criarMesa, luzes, destacarResultado,
-         precarregarMateriais, aoCarregarMats } from './dice3d/render.js';
+import { criarMalhaDado, criarMesa, luzes, destacarResultado } from './dice3d/render.js';
 import { rolarPara } from './dice3d/roll.js';
 import { raioDe, pontoDeCima } from './dice3d/geometry.js';
 import { ESCALADA, MASMORRAS } from './data/dungeons.js';
@@ -651,21 +650,10 @@ function novoCombate(){
   rolarVisual(); pintar();
 }
 /* ---------- dados 3D ---------- */
-let matsJaPedidos=false, remontarQuandoChegar=false;
 function montarDados(){
   for(const m of malhas){ scene.remove(m); m.geometry.dispose(); m.material.map?.dispose(); m.material.dispose(); }
   malhas=[];
   for(const d of P.bag){ const m=criarMalhaDado(d, raioDe(d.tipo)); m.visible=false; scene.add(m); malhas.push(m); }
-  /* A ARTE DOS MATERIAIS chega depois do primeiro quadro: as imagens são
-     pedidas na primeira montagem e, quando todas respondem, os dados são
-     montados OUTRA vez — agora com a textura no lugar da cor chapada. É uma
-     remontagem só, e só se a arte de fato chegar. */
-  if(!matsJaPedidos){
-    matsJaPedidos = true; remontarQuandoChegar = true;
-    precarregarMateriais(Object.keys(MATERIAIS));
-    aoCarregarMats(()=>{ if(remontarQuandoChegar){ remontarQuandoChegar=false;
-      montarDados(); if(cb) rolarVisual(); } });
-  }
 }
 function zonas(n){ const cols=Math.min(n,4), rows=Math.ceil(n/cols), o=[];
   for(let i=0;i<n;i++){ const c=i%cols, r=Math.floor(i/cols);
@@ -835,7 +823,7 @@ function pintar(){
     .map(([k,v])=>`<b class="stc" data-est="${k}" data-estn="${v}">${ICO[k]||''} ${k} ${v}</b>`).join(' ');
   /* SEU STATUS, no painel do rodapé: vida e escudo em destaque, como na
      referência; o resto (essência, estados, perigo) fica na mesma coluna. */
-  $('voceval').innerHTML=`<span class="vhp">❤ <b>${P.hp}</b>/${P.maxHp}</span>
+  $('voceval').innerHTML=`<span id="php" class="vhp">❤ <b>${P.hp}</b>/${P.maxHp}</span>
     <span id="pesc" class="vesc">🛡 <b>${P.block}</b></span>
     <span class="vper ${pi.letal?'letal':''}">☠ ${pi.total}</span>
     ${P.essence?`<span class="vess">✦ ${P.essence}</span>`:''}${stp?`<span>${stp}</span>`:''}`;
@@ -1124,9 +1112,22 @@ function mostrarEscudo(v, bateu, quanto){
     el.appendChild(l); setTimeout(()=>l.remove(), 900);
   }
 }
-function animarInimigos(acoes, blocoCheio){
+/* a vida, na mesma lógica do escudo: o número pulsa em vermelho e solta a
+   lasca do que acabou de entrar */
+function mostrarHP(v, bateu, quanto){
+  const el=$('php'); if(!el) return;
+  el.innerHTML = '❤ <b>'+Math.max(0,v)+'</b>/'+P.maxHp;
+  if(!bateu) return;
+  el.classList.remove('bateu'); void el.offsetWidth; el.classList.add('bateu');
+  if(quanto>0){
+    const l=document.createElement('b'); l.className='hpl'; l.textContent='−'+quanto;
+    el.appendChild(l); setTimeout(()=>l.remove(), 900);
+  }
+}
+function animarInimigos(acoes, blocoCheio, vidaCheia){
   if(!acoes || !acoes.length) return 0;
   let escudo = blocoCheio==null ? null : blocoCheio;
+  let vida = vidaCheia==null ? null : vidaCheia;
   /* MAIS DEVAGAR. O turno inimigo passava rápido demais para acompanhar: com
      três ou quatro atacantes os golpes se atropelavam e não dava para ver
      qual card disparou nem quanto entrou. Cada golpe agora tem os seus quatro
@@ -1172,6 +1173,8 @@ function animarInimigos(acoes, blocoCheio){
          uma vez. 20 de escudo contra golpes de 8, 5 e 5 vira 12, 7 e 2 na
          cara do jogador, um passo por atacante. */
       if(escudo!==null && a.aparado>0){ escudo -= a.aparado; mostrarEscudo(escudo, true, a.aparado); }
+      /* e a VIDA junto, pelo mesmo motivo: só desce no golpe que a comeu */
+      if(vida!==null && a.dano>0){ vida -= a.dano; mostrarHP(vida, true, a.dano); }
       // aparado tinha só uma etiqueta silenciosa: não dava pra saber, no meio
       // da animação, se o golpe entrou ou morreu no seu bloqueio
       if(a.dano>0){ SFX.dano(); tremor(Math.min(16,5+a.dano*0.6)); flashJog(a.dano);
@@ -1186,7 +1189,15 @@ function animarInimigos(acoes, blocoCheio){
       else if(a.t==='contar') etiquetaEu('🕳 conta '+(a.conta||1));
     }, t0+CHEGA);
   });
-  return (acoes.length-1)*PASSO + CHEGA + 420;
+  const total = (acoes.length-1)*PASSO + CHEGA + 420;
+  /* FECHA A CONTA no fim. Nem tudo que a vida perdeu veio de um golpe — veneno
+     e sangramento entram fora da fila, e sem este passo o HUD ficaria parado no
+     valor do último atacante até o próximo repinte. */
+  if(vida!==null) setTimeout(()=>{
+    const resto = vida - P.hp;
+    resto>0 ? mostrarHP(P.hp, true, resto) : mostrarHP(P.hp);
+  }, total-300);
+  return total;
 }
 function etiquetaEu(txt){
   const n=document.createElement('div'); n.className='dmgme av'; n.textContent=txt;
@@ -1196,7 +1207,7 @@ function etiquetaEu(txt){
    aparado não fazia som nem número — dava para bater três turnos no bloqueio
    sem perceber. Agora o instantâneo guarda o bloqueio junto. */
 function snapHP(){ return cb.enemies.map(e=>({ hp:e.hp, bl:e.block||0 })); }
-function juice(antes, hpAntes, acoes){
+function juice(antes, hpAntes, acoes, atraso=0){
   cb.enemies.forEach((e,i)=>{
     const a = antes[i]; if(!a) return;
     const d = a.hp - e.hp;                       // o que entrou no couro
@@ -1207,7 +1218,11 @@ function juice(antes, hpAntes, acoes){
   // o que os inimigos tiraram já aparece na animação deles — aqui só o resto (veneno etc.)
   const daInvestida = acoes ? acoes.reduce((a,x)=>a+(x.dano||0),0) : 0;
   const dp = (hpAntes-P.hp) - daInvestida;
-  if(dp>0){ SFX.dano(); tremor(Math.min(14,4+dp*0.5)); flashJog(dp); }
+  /* e o resto espera a investida terminar. Piscando na hora ele contava a
+     história errada: o vermelho do veneno estourava na tela antes do primeiro
+     inimigo levantar o braço, e parecia que o dano todo já tinha entrado. */
+  if(dp>0){ const bate=()=>{ SFX.dano(); tremor(Math.min(14,4+dp*0.5)); flashJog(dp); };
+    atraso>0 ? setTimeout(bate, atraso) : bate(); }
 }
 /* O NÚMERO DO DANO NÃO PODE SER FILHO DO CARD. A fileira de inimigos rola
    (overflow-y:auto, para caber a segunda fila), e tudo que sai do card é
@@ -1355,14 +1370,18 @@ $('bfim').onclick=()=>{ if(anima) return;
      próximo turno. Agora a tela conta a mesma história: guardo o escudo
      cheio, devolvo ele ao HUD depois do repinte, e cada golpe que chega
      desce a sua parte. */
-  const blocoCheio = P.block;
+  /* A VIDA TINHA O MESMO PROBLEMA e é mais grave: o HUD já mostrava 70→41
+     enquanto os três inimigos ainda tomavam impulso, e o jogador assistia a
+     três golpes baterem em nada. Guardo a vida cheia junto com o escudo. */
+  const blocoCheio = P.block, vidaCheia = P.hp;
   const r=cb.endTurn();
   const acoes=cb.acoesInimigo||[];
   pintar();                                   // pinta primeiro, depois os efeitos
   mostrarEscudo(blocoCheio);                  // ...e o escudo volta a aparecer cheio
+  mostrarHP(vidaCheia);                       // ...a vida também
   anima=true;                                 // trava enquanto o inimigo age
-  const espera=animarInimigos(acoes, blocoCheio);
-  juice(antes,hpA,acoes);
+  const espera=animarInimigos(acoes, blocoCheio, vidaCheia);
+  juice(antes,hpA,acoes,Math.max(0,espera-300));
   if(r){ setTimeout(fim, espera+520); return; }
   setTimeout(()=>{ anima=false; rolarVisual(); pintar(); }, Math.max(340, espera)); };
 addEventListener('pointerdown', ev=>{
