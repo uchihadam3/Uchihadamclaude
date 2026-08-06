@@ -196,6 +196,85 @@
  .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
  #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
  /* ===== A BANCA DA CONTA =====
+    Cada termo diz O QUE É: número grande em cima, ícone junto, e o nome
+    embaixo. Sem isso a conta era só algarismo solto — "6 × 3" não conta se
+    o 6 são os dados ou o golpe, nem se o 3 é a habilidade ou outro dado. */
+ .bancaconta{position:fixed;left:50%;top:29%;transform:translate(-50%,-50%);
+   z-index:60;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px;
+   padding:13px 18px;border-radius:17px;
+   background:linear-gradient(180deg,rgba(20,15,9,.975),rgba(8,6,4,.975));
+   border:1px solid rgba(255,180,90,.5);
+   box-shadow:0 0 36px rgba(255,150,60,.32),0 10px 30px rgba(0,0,0,.68);
+   font-family:Georgia,serif;animation:bcent .22s ease-out}
+ @keyframes bcent{from{opacity:0;transform:translate(-50%,-50%) scale(.82)}}
+ .bclinha{display:flex;flex-direction:column;align-items:center;gap:5px;min-height:64px;
+   justify-content:center}
+ /* o título da etapa: o que está acontecendo agora */
+ .bcrot{font-size:8.5px;letter-spacing:2.4px;color:#9a8c6a;text-align:center;
+   transition:.24s}
+ .bcrot.funde{opacity:0;transform:translateY(-5px)}
+ .bcfila{display:flex;align-items:flex-start;justify-content:center;gap:9px}
+ /* UM TERMO: valor + ícone em cima, nome embaixo */
+ .bcterm{display:flex;flex-direction:column;align-items:center;gap:1px;
+   opacity:0;transform:scale(.45);
+   transition:transform .3s cubic-bezier(.2,1.7,.4,1),opacity .22s}
+ .bcterm.entra,.bcterm.nasce{opacity:1;transform:none}
+ .bcterm b{display:flex;align-items:center;gap:4px;font-size:28px;font-weight:900;
+   line-height:1;color:#e8e2d0;text-shadow:0 2px 7px #000}
+ .bcterm i{font-style:normal;font-size:8px;letter-spacing:1.2px;color:#8d8672;
+   max-width:82px;text-align:center;line-height:1.2}
+ .bci{width:17px;height:17px;flex:none}
+ .bcterm.dado b{color:#cfe0f2} .bcterm.dado i{color:#7f97ad}
+ .bcterm.soma b{color:#e8e2d0}
+ .bcterm.skill b{color:#ffb45e} .bcterm.skill i{color:#c08a4a}
+ .bcterm.skill .hico{width:18px;height:18px}
+ .bcterm.bonus b{color:#7ef2a8} .bcterm.bonus i{color:#5aa87a}
+ .bcterm.def b{color:#9fd6ff} .bcterm.def i{color:#6d9ec4}
+ .bcop{font-size:22px;font-weight:900;color:#ffb45e;line-height:1;margin-top:3px;
+   opacity:0;transform:scale(.4);transition:.24s cubic-bezier(.2,1.7,.4,1)}
+ .bcop.entra{opacity:1;transform:none}
+ /* COLIDEM: deslizam para o meio e somem juntos */
+ .bcfila .bcterm.funde:first-child{transform:translateX(52%) scale(.6);opacity:0}
+ .bcfila .bcterm.funde:last-child{transform:translateX(-52%) scale(.6);opacity:0}
+ .bcfila .bcop.funde{transform:scale(.2);opacity:0}
+ /* e NASCE o resultado, maior que os termos que o geraram */
+ .bcterm.res b{font-size:40px}
+ .bcterm.res.nasce{animation:bcnasce .42s cubic-bezier(.2,1.8,.35,1)}
+ @keyframes bcnasce{0%{transform:scale(.35);filter:brightness(3)}
+   55%{transform:scale(1.2)}100%{transform:none;filter:none}}
+ .bcterm.res.quente b{color:#ffd24a;text-shadow:0 0 26px rgba(255,210,74,.95),0 2px 8px #000}
+ .bcterm.res.quente i{color:#c9a24a}
+ .bcterm.res.sangue b{color:#ff8a7a;text-shadow:0 0 28px rgba(255,90,70,.92),0 2px 8px #000}
+ .bcterm.res.sangue i{color:#e08a7a;font-weight:900;letter-spacing:2px}
+ .bancaconta .bca{font-size:8.5px;letter-spacing:1.8px;color:#ff8a7a;
+   border:1px solid rgba(255,110,90,.5);border-radius:20px;padding:2px 9px}
+ .bancaconta.saindo{opacity:0;transform:translate(-50%,-50%) scale(.9);transition:.26s}
+ /* O RECIBO: a mesma conta, em cima do card de cada inimigo */
+ .recibo{position:fixed;transform:translate(-50%,-50%);
+   z-index:62;pointer-events:none;padding:7px 11px;border-radius:13px;
+   background:linear-gradient(180deg,rgba(22,9,9,.97),rgba(8,4,4,.97));
+   border:1px solid rgba(255,120,90,.6);
+   box-shadow:0 0 22px rgba(255,80,60,.38),0 6px 18px rgba(0,0,0,.62);
+   animation:bcent2 .2s ease-out}
+ @keyframes bcent2{from{opacity:0;transform:translate(-50%,-50%) scale(.82)}}
+ .recibo .bclinha{min-height:44px;gap:3px}
+ .recibo .bcterm b{font-size:20px} .recibo .bcterm.res b{font-size:27px}
+ .recibo .bcop{font-size:15px} .recibo .bci{width:13px;height:13px}
+ .recibo .bcterm i{font-size:7px;max-width:62px}
+ .recibo .bcrot{font-size:7.5px;letter-spacing:1.6px}
+ .recibo.saindo{opacity:0;transform:translate(-50%,-88%) scale(.9);transition:.24s}
+ @media (max-height:800px){ .bancaconta{top:25%;padding:10px 14px}
+   .bcterm b{font-size:24px} .bcterm.res b{font-size:34px} .bcop{font-size:19px}
+   .bclinha{min-height:56px} }
+ .h .htopo{display:flex;align-items:center;gap:5px}
+ /* O MULTIPLICADOR na carta: dá para ver de relance que o Colapso vale cinco
+    vezes a soma e o Raio três, que é o que decide onde gastar o dado grande. */
+ .h .hmult{flex:none;font-size:10px;font-weight:900;letter-spacing:.3px;line-height:1;
+   padding:2px 4px;border-radius:5px;color:#ffb45e;
+   background:rgba(255,140,60,.14);border:1px solid rgba(255,150,70,.42)}
+ .h .hmult.todos{color:#ff8a7a;background:rgba(255,80,60,.16);border-color:rgba(255,110,90,.5)}
+ #hab.densa .h .hmult{font-size:9px;padding:1px 3px}
+ /* ===== A BANCA DA CONTA =====
     Um passo por vez: os dois números entram, ficam parados o tempo de ler,
     COLIDEM no meio e nascem virados no resultado. É o mesmo gesto três ou
     quatro vezes até sobrar só o número que entra no couro. */

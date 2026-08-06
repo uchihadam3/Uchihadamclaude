@@ -1170,53 +1170,57 @@ function formulaDano(sk){
 }
 const SIMB_BASE = { sum:'Σ', val:'valor', count:'n' };
 /* ===================================================================
-   A BANCA DA CONTA — cada etapa se RESOLVE antes da seguinte.
+   A BANCA DA CONTA — cada etapa se RESOLVE, e cada número DIZ O QUE É.
 
-   Antes a linha inteira já nascia escrita ("3+4 7 ×3 = 21 −10 = 11") e só
-   ia acendendo pedaço por pedaço: era uma conta pronta com holofote andando
-   por cima, não uma conta acontecendo. Agora é um passo de cada vez, e cada
-   passo COLIDE e vira o próximo:
+   A primeira versão mostrava só algarismos: "6 × 3", "50 − 1". Números
+   soltos não explicam nada — o 6 é a soma dos dados ou o valor de um dado?
+   o 3 é a habilidade ou um dado? o 1 é armadura, bloqueio, o quê? Agora
+   todo termo entra com ÍCONE e NOME embaixo, e a etapa tem um título
+   dizendo o que está acontecendo:
 
-        3 + 4   →   os dois voam pro meio e viram   7
-        7 × 3   →   colidem e viram                21
-       21 − 10  →   colidem e viram                11
+     SEUS DADOS        [🎲3] + [🎲4]   →   7 soma
+     O GOLPE MULTIPLICA    7 × [⚒3]    →  21 golpe
+     A DEFESA DELE COME   21 − [🛡1]   →  20 dano
 
-   E o desconto da defesa é POR INIMIGO. Um golpe em todos acerta cada um
-   com a armadura dele; mostrar um "−34" somado escondia justamente o que o
-   jogador precisa ver — que naquele ali o escudo comeu quase tudo, e no do
-   lado não comeu nada. Cada alvo recebe o seu próprio recibo, no card dele.
+   O desconto da defesa é por inimigo: cada alvo recebe o seu recibo em cima
+   do card dele, com a armadura DELE.
    =================================================================== */
-/* o ritmo de UMA etapa. Devagar o bastante para ler, rápido o bastante para
-   não cansar: são três etapas por golpe, e o golpe se repete o turno inteiro. */
-const BC = { ENTRA:250, LE:300, FUNDE:230, NASCE:290 };
+/* o ritmo de UMA etapa. Devagar para dar tempo de LER o rótulo de cada
+   termo, rápido o bastante para não cansar: são três ou quatro etapas por
+   golpe, e o golpe se repete o turno inteiro. */
+const BC = { ENTRA:230, LE:330, FUNDE:210, NASCE:290 };
 const BC_ETAPA = BC.ENTRA + BC.LE + BC.FUNDE + BC.NASCE;
 
-/* monta "a op b [op c...]" na banca; os termos colidem e viram o resultado.
-   Aceita VÁRIAS parcelas de uma vez: quatro dados somando aos pares davam
-   três etapas só para a soma, e o golpe passava de cinco segundos. */
-function etapaBanca(linha, termos, op, res, t0, corRes){
-  const mk = (cls, txt) => { const e=document.createElement('span');
-    e.className=cls; e.textContent=txt; return e; };
+/* um termo da conta: o número grande, e embaixo o que ele é */
+function termoHTML(t){
+  return `<span class="bcterm ${t.cls||''}">
+    <b>${t.ico||''}${t.v}</b><i>${t.lbl||''}</i></span>`;
+}
+/* monta "termo op termo [...]" com um título em cima; eles colidem e viram
+   o resultado, que também diz o que é */
+function etapaBanca(linha, titulo, termos, op, res, t0){
   setTimeout(()=>{
-    linha.innerHTML='';
-    termos.forEach((v,i)=>{
-      if(i) linha.appendChild(mk('bcop', op));
-      linha.appendChild(mk('bcn', '' + v));
-    });
-    requestAnimationFrame(()=>[...linha.children].forEach(c=>c.classList.add('entra')));
+    linha.innerHTML = `<div class="bcrot">${titulo}</div>
+      <div class="bcfila">${termos.map(termoHTML).join(`<span class="bcop">${op}</span>`)}</div>`;
+    requestAnimationFrame(()=>
+      linha.querySelectorAll('.bcterm,.bcop').forEach(c=>c.classList.add('entra')));
     SFX.pegar && SFX.pegar();
   }, t0);
-  setTimeout(()=>{ [...linha.children].forEach(c=>c.classList.add('funde')); },
-             t0 + BC.ENTRA + BC.LE);
   setTimeout(()=>{
-    linha.innerHTML='';
-    const r=mk('bcn res'+(corRes?' '+corRes:''), '' + res);
-    linha.appendChild(r);
-    requestAnimationFrame(()=>r.classList.add('nasce'));
+    linha.querySelectorAll('.bcterm,.bcop').forEach(c=>c.classList.add('funde'));
+    linha.querySelector('.bcrot')?.classList.add('funde');
+  }, t0 + BC.ENTRA + BC.LE);
+  setTimeout(()=>{
+    linha.innerHTML = `<div class="bcfila">${termoHTML({...res, cls:(res.cls||'')+' res'})}</div>`;
+    requestAnimationFrame(()=>linha.querySelector('.bcterm')?.classList.add('nasce'));
     SFX.golpe && SFX.golpe(6); tremor(4);
   }, t0 + BC.ENTRA + BC.LE + BC.FUNDE);
   return t0 + BC_ETAPA;
 }
+
+const ICO_DADO = '<svg class="bci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r="1.4" fill="currentColor"/><circle cx="15" cy="15" r="1.4" fill="currentColor"/></svg>';
+const ICO_ESCUDO = '<svg class="bci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/></svg>';
+const ICO_GOLPE = '<svg class="bci" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>';
 
 function bancaDaConta(sk, ents, pv){
   const f = formulaDano(sk); if(!f || f.mult<2) return 0;
@@ -1228,54 +1232,58 @@ function bancaDaConta(sk, ents, pv){
   if(!base) return 0;
 
   const feridos = pv ? pv.alvos.filter(a=>(a.bruto||0)>0) : [];
-  /* O GOLPE CHEIO É O DO MOTOR, não o da minha fórmula: ela conhece Σ×N+fixo,
-     mas o motor ainda soma o dano fixo das passivas, o Frenesi, a Marca e as
-     ⚔ Lâminas roladas. Se a banca mostrasse a minha conta, o "−def" seguinte
-     não fecharia com o que a vida do inimigo perde. */
+  /* O GOLPE CHEIO É O DO MOTOR: a fórmula conhece Σ×N+fixo, mas o motor ainda
+     soma o dano fixo das passivas, o Frenesi, a Marca e as ⚔ roladas. */
   const cheioMotor = feridos.length ? Math.max(...feridos.map(a=>a.bruto||0)) : 0;
 
   const b=document.createElement('div'); b.className='bancaconta viva';
   const linha=document.createElement('div'); linha.className='bclinha';
   b.appendChild(linha);
   if(f.todos){ const et=document.createElement('span'); et.className='bca';
-    et.textContent='EM TODOS'; b.appendChild(et); }
+    et.textContent='ATINGE TODOS'; b.appendChild(et); }
   document.body.appendChild(b);
 
   let t = 90, corrente = base;
-  /* ---- etapa 1: TODOS os dados somam de uma vez ---- */
+  /* ---- etapa 1: OS DADOS QUE VOCÊ GASTOU ---- */
   const vals = (f.base==='sum' ? c.vals.map(v=> v==null ? 0 : v) : [base]).filter(v=>v>0);
+  const rotDado = f.base==='count' ? 'dados' : 'dado';
   if(vals.length > 1){
     corrente = vals.reduce((a,x)=>a+x,0);
-    t = etapaBanca(linha, vals, '+', corrente, t);
+    t = etapaBanca(linha, 'OS DADOS QUE VOCÊ GASTOU',
+      vals.map(v=>({ v, ico:ICO_DADO, lbl:rotDado, cls:'dado' })), '+',
+      { v:corrente, lbl:'soma dos dados', cls:'soma' }, t);
   } else {
-    // um dado só: ele entra sozinho e já é a base
-    setTimeout(()=>{ linha.innerHTML='';
-      const e=document.createElement('span'); e.className='bcn res';
-      e.textContent=''+corrente; linha.appendChild(e);
-      requestAnimationFrame(()=>e.classList.add('nasce')); SFX.pegar && SFX.pegar(); }, t);
+    setTimeout(()=>{ linha.innerHTML =
+        `<div class="bcrot">O DADO QUE VOCÊ GASTOU</div><div class="bcfila">${
+          termoHTML({ v:corrente, ico:ICO_DADO, lbl:rotDado, cls:'dado res' })}</div>`;
+      requestAnimationFrame(()=>linha.querySelector('.bcterm')?.classList.add('nasce'));
+      SFX.pegar && SFX.pegar(); }, t);
     t += BC.ENTRA + BC.LE;
   }
-  /* ---- etapa 2: o multiplicador ---- */
+  /* ---- etapa 2: O MULTIPLICADOR DA HABILIDADE ---- */
   const posMult = corrente * f.mult;
-  t = etapaBanca(linha, [corrente, f.mult], '×', posMult, t, 'quente');
+  t = etapaBanca(linha, 'A HABILIDADE MULTIPLICA',
+    [ { v:corrente, lbl:'soma dos dados', cls:'soma' },
+      { v:f.mult, ico:iconeDe(sk.id), lbl:sk.nome, cls:'skill' } ], '×',
+    { v:posMult, ico:ICO_GOLPE, lbl:'golpe', cls:'quente' }, t);
   corrente = posMult;
-  /* ---- etapa 3: o que se soma cru (o fixo da habilidade e o que o motor
-         acrescenta por passiva, Frenesi ou Marca) ---- */
+  /* ---- etapa 3: o que se soma cru (fixo da habilidade + passivas) ---- */
   const somaCrua = Math.max(0, (cheioMotor || (corrente + f.fixo)) - corrente);
   if(somaCrua > 0){
-    t = etapaBanca(linha, [corrente, somaCrua], '+', corrente + somaCrua, t, 'quente');
+    t = etapaBanca(linha, 'BÔNUS DE DANO',
+      [ { v:corrente, ico:ICO_GOLPE, lbl:'golpe', cls:'quente' },
+        { v:somaCrua, lbl:'bônus fixo', cls:'bonus' } ], '+',
+      { v:corrente+somaCrua, ico:ICO_GOLPE, lbl:'golpe cheio', cls:'quente' }, t);
     corrente += somaCrua;
   }
-  const cheio = corrente;
 
   /* ---- etapa 4: a DEFESA, um inimigo de cada vez, no card de cada um ---- */
   let tFim = t;
   if(feridos.length){
-    // a banca sai de cena: daqui pra frente a conta acontece em cima do alvo
     setTimeout(()=>b.classList.add('saindo'), t + 160);
     setTimeout(()=>b.remove(), t + 420);
     feridos.forEach((a, i)=>{
-      const atraso = t + 220 + i*420;         // um recibo de cada vez
+      const atraso = t + 220 + i*400;
       reciboNoAlvo(a, atraso);
       tFim = Math.max(tFim, atraso + BC.ENTRA + BC.LE + BC.FUNDE + 110);
     });
@@ -1284,37 +1292,35 @@ function bancaDaConta(sk, ents, pv){
     setTimeout(()=>b.remove(), t + 800);
     tFim = t + 520;
   }
-  return tFim;          // o dano só entra quando a última conta fechar
+  return tFim;
 }
 
-/* O RECIBO DO ALVO: "21 − 10" colide em cima do card dele e vira o que
-   entrou. Sem defesa nenhuma não há conta a fazer — o golpe cheio já é o
-   dano, e o número flutuante normal dá conta do recado.
+/* O RECIBO DO ALVO: "golpe − defesa" colide em cima do card dele e vira o
+   que entrou. Sem defesa não há conta — o golpe cheio já é o dano.
 
-   A POSIÇÃO É CONGELADA AGORA, no momento em que o golpe é montado, e o
-   recibo vive solto na tela. Ele era filho do card do inimigo, e quando o
-   golpe MATAVA — que é a metade das vezes — o card saía no repinte antes do
-   recibo aparecer: a conta do abate, justamente a que o jogador mais quer
-   ver, era a única que nunca aparecia. */
+   A POSIÇÃO É CONGELADA AGORA e o recibo vive solto na tela. Ele era filho
+   do card do inimigo, e quando o golpe MATAVA — metade das vezes — o card
+   saía no repinte antes de o recibo aparecer: a conta do abate era a única
+   que nunca dava para ver. */
 function reciboNoAlvo(alvo, t0){
   const def = alvo.defesa||0;
   if(def <= 0) return;
-  /* O BRUTO É O DAQUELE ALVO, e o resultado é a SUBTRAÇÃO — não o dano que a
-     vida perdeu. Um golpe de 24 num bicho com 1 de armadura e 15 de vida tira
-     15, mas a conta na tela é 24−1=23: escrever "24−1=15" seria pedir ao
-     jogador que aceitasse uma aritmética falsa. Que 23 tenha sido mais do que
-     ele aguentava é o que a caveira ao lado conta. */
-  const bruto = alvo.bruto||0;
-  const resta = Math.max(0, bruto - def);
   const el = document.querySelector(`.en[data-uid="${alvo.uid}"]`);
   if(!el) return;
   const r = el.getBoundingClientRect();
-  const x = r.left + r.width/2, y = r.top + r.height*0.42;
   const cx = document.createElement('div'); cx.className='recibo';
-  cx.style.left = x+'px'; cx.style.top = y+'px';
+  cx.style.left = (r.left + r.width/2)+'px';
+  cx.style.top  = (r.top + r.height*0.40)+'px';
   const linha = document.createElement('div'); linha.className='bclinha';
   cx.appendChild(linha); document.body.appendChild(cx);
-  etapaBanca(linha, [bruto, def+'🛡'], '−', resta, t0, 'sangue');
+  /* o resultado é a SUBTRAÇÃO, não o dano que a vida perdeu: um golpe de 26
+     num bicho com 1 de armadura e 15 de vida tira 15, mas a conta é 26−1=25.
+     Que isso fosse mais do que ele aguentava é o que a caveira conta. */
+  const bruto = alvo.bruto||0, resta = Math.max(0, bruto - def);
+  etapaBanca(linha, 'A DEFESA DELE COME',
+    [ { v:bruto, ico:ICO_GOLPE, lbl:'golpe', cls:'quente' },
+      { v:def, ico:ICO_ESCUDO, lbl:'defesa dele', cls:'def' } ], '−',
+    { v:resta, lbl:'DANO', cls:'sangue' }, t0);
   const fim = t0 + BC_ETAPA + 240;
   setTimeout(()=>cx.classList.add('saindo'), fim-240);
   setTimeout(()=>cx.remove(), fim);
