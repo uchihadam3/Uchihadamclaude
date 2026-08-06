@@ -17,6 +17,9 @@ const RES_ICON = { gold:'🪙', crystals:'💎', iron:'⛓️', wood:'🪵', her
 const randInt = (a,b) => a + Math.floor(Math.random()*(b-a+1));
 // Fundos de combate 2D por bioma (quando existe imagem, usa; senão desenha a masmorra procedural)
 const BG = { forest:'assets/bg_forest.png' };
+// Cor de destaque por herói (cabeçalhos dos cards, estilo referência)
+const HERO_ACCENT = { warrior:'#3d7fc4', cleric:'#d0a13c', archer:'#4a9a4a', mage:'#7d5fd0' };
+const accentOf = id => HERO_ACCENT[id] || '#8a7a45';
 
 let screen = 'map';
 let expo = null;                    // runtime da expedição
@@ -147,7 +150,7 @@ function renderForge(body){
       const {def, atk} = heroRuntimeStats(hs);
       const next = FORGE_LEVELS[hs.weaponLevel];
       const wl = Array.from({length:5},(_,i)=>`<i class="${i<hs.weaponLevel?'on':''}"></i>`).join('');
-      return `<div class="hcard">
+      return `<div class="hcard" style="--acc:${accentOf(def.id)}">
         <div class="top"><div class="av">${spriteFor(def.id)}</div>
           <div><div class="nm">${def.name}</div><div class="kl">Arma nível ${hs.weaponLevel}/5</div></div></div>
         <div class="wl">${wl}</div>
@@ -173,7 +176,7 @@ function renderAcademy(body){
       <div class="hero-cards">${S.heroes.map(hs=>{
         const def = HERO_DEFS.find(h=>h.id===hs.id); const nextSlot = hs.slots+1;
         const cost = ACADEMY.slotCosts[nextSlot];
-        return `<div class="hcard"><div class="top"><div class="av">${spriteFor(def.id)}</div>
+        return `<div class="hcard" style="--acc:${accentOf(def.id)}"><div class="top"><div class="av">${spriteFor(def.id)}</div>
           <div><div class="nm">${def.name}</div><div class="kl">${hs.slots}/${def.maxSlots} slots</div></div></div>
           ${ cost
             ? `${costHTML(cost)}<button class="small primary slot-btn" data-id="${hs.id}" ${canAfford(cost)?'':'disabled'} style="margin-top:8px;width:100%">Desbloquear slot ${nextSlot}</button>`
@@ -211,7 +214,7 @@ function renderGambitBoard(mount){
   const condOpts = S.unlockedConditions;
   const tabs = S.heroes.map(h=>{
     const d = HERO_DEFS.find(x=>x.id===h.id);
-    return `<button class="gtab ${h.id===boardHero?'on':''}" data-h="${h.id}">
+    return `<button class="gtab ${h.id===boardHero?'on':''}" data-h="${h.id}" style="--acc:${accentOf(h.id)}">
       <div class="av">${spriteFor(h.id)}</div><span>${d.name}</span><div class="dot"></div></button>`;
   }).join('');
   const lines  = hs.gambits.map((g,i)=>gambitLineHTML(g,i,def,condOpts)).join('') || '<div class="gline locked">sem linhas — adicione abaixo</div>';
@@ -221,7 +224,7 @@ function renderGambitBoard(mount){
   mount.className = '';
   mount.innerHTML = `
     <div class="gtabs">${tabs}</div>
-    <div class="gpanel">
+    <div class="gpanel" style="--acc:${accentOf(hs.id)}">
       <div class="gphead"><div class="av">${spriteFor(def.id)}</div>
         <div class="hn">${def.name}<small>${hs.gambits.length}/${hs.slots} linhas ativas · lido de cima → baixo</small></div></div>
       <div class="glines">${lines}${locked}</div>
