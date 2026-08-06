@@ -75,6 +75,8 @@ const MISSAO_ICO: Record<string, string> = {
   "🏮": "lanterna",  // as luzes da muralha
   "🌊": "onda",      // a água que subiu
   "🐋": "leviata",   // o dono da água
+  "🗺️": "bussola", "🗺": "bussola",  // a estrada p/ fora do vale
+  "🕯️": "lanterna", "🕯": "lanterna", // Vaurstead: os lampiões apagados
 };
 const missaoIco = (emoji: string): string => ico(MISSAO_ICO[emoji] ?? "") || emoji;
 

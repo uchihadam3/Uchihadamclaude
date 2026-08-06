@@ -153,8 +153,8 @@ export function forestSignText(col: number, row: number): string[] {
       return [
         "Encruzilhada da Mata.",
         "Ao sul: Vilarejo de Grimhollow.",
-        "Norte: Montanhas Cinzentas · Leste: o Charco · Oeste: as Ruínas.",
-        "(Esses caminhos se abrirão em breve.)",
+        "Norte: Planície de Arden · Oeste: as Ruínas de Vaurstead · Leste: o Charco.",
+        "Alguém riscou a palavra VAURSTEAD com a ponta de uma faca. Várias vezes.",
       ];
     case "N":
       return [
@@ -169,10 +169,15 @@ export function forestSignText(col: number, row: number): string[] {
         "(Bloqueado — em breve.)",
       ];
     case "W":
+      // Este texto só aparece ENQUANTO a trilha está fechada — assim que o Leviatã
+      // cai, o Game troca a placa pela passagem (ver facingTarget). Por isso ele diz
+      // por que está fechada, e não "em breve": quem lê isto ainda não terminou o
+      // Ato II, e a frase é uma promessa que o jogo vai cumprir.
       return [
-        "Trilha das Ruínas.",
-        "Pedras antigas espreitam entre as árvores a oeste.",
-        "(Bloqueado — em breve.)",
+        "Trilha de Vaurstead.",
+        "A tábua é velha e o nome foi escrito por cima de outro, apagado a fogo.",
+        "Pedra lavrada espreita entre as árvores a oeste — muros, e muros são cidade.",
+        "O mato fechou o caminho. Ninguém daqui abre essa trilha por vontade própria.",
       ];
     default:
       return ["Uma placa de madeira, gasta pelo tempo."];

@@ -54,6 +54,7 @@ import {
   getDungeonFloor,
   DUNGEON_FLOOR_COUNT,
   DUNGEON_FLOOR_NAMES,
+  ATO_ENTRADA,
 } from "./dungeon";
 import {
   STATIONS,
@@ -274,6 +275,11 @@ const ENEMY_TYPES: Record<string, {
   // largura extra do billboard (1 = proporção natural da arte). É assim que um
   // chefe fica IMPONENTE sem esbarrar no teto: ocupa mais chão, não mais altura.
   wide?: number;
+  // TINTA do billboard. Serve p/ um bicho que ainda usa arte emprestada não ser
+  // lido como o mesmo bicho — foi assim que o Guardião deixou de ser o Leviatã.
+  // Some sozinha no dia em que a arte própria entrar? Não: a tinta é do PERFIL,
+  // então quem a quiser fora tira daqui, de um lugar só.
+  tint?: number;
 }> = {
   // BALANCE (Difícil): atk calibrado p/ a mitigação por Defesa/Res.Mág. — o tanque
   // amortece bem, os frágeis precisam esquivar/kitar. rato/aranha são a introdução leve.
@@ -316,8 +322,41 @@ const ENEMY_TYPES: Record<string, {
   // que se chegasse lá, ele não é uma luta — é uma parede.
   // ARTE PENDENTE (§29 do PROMPTS.md): por ora usa a folha do Leviatã tingida de
   // pálido/dourado, p/ não parecer o mesmo bicho.
-  guardiao:  { art: enemyBossA2Url,   hp: 2900, atk: 62, xp: 1800, gold: 760, vision: 14, h: 4.35, lvl: 12, ai: "relentless", spd: 720, tier: "boss", wide: 1.3 },
+  guardiao:  { art: enemyBossA2Url,   hp: 2900, atk: 62, xp: 1800, gold: 760, vision: 14, h: 4.35, lvl: 12, ai: "relentless", spd: 720, tier: "boss", wide: 1.3, tint: 0xe8d9a8 },
+  // ===== ATO III — Vaurstead, a cidade que não segurou (andares 7-9; herói ~nv10-15)
+  // ARTE PENDENTE (§33 do PROMPTS.md). Enquanto ela não vem, cada um destes usa a
+  // folha de um bicho já existente TINGIDA DE CINZA-OSSO. Não é disfarce: o Ato III
+  // inteiro é cinza de cinza, e um roster pálido lê como "cobertos de pó" mesmo
+  // antes de a arte chegar. No dia em que o PNG `enemy_<id>.png` existir em
+  // assets/env/, ele ganha da folha emprestada sozinho (ver artDoInimigo) — e a
+  // única linha a mudar aqui é apagar o `tint`.
+  //
+  // cinzento: o morador de Vaurstead que nunca saiu. É o "esqueleto" do ato.
+  cinzento:  { art: enemyAfogadoUrl,  hp: 250, atk: 36, xp: 130, gold: 28, vision: 5, h: 2.8, lvl: 7, ai: "chase", spd: 800, tint: 0xbfc0bb },
+  // sabujo: corre. É o que ensina que nesta cidade não dá p/ recuar andando.
+  sabujo:    { art: enemyRatoUrl,     hp: 215, atk: 33, xp: 120, gold: 24, vision: 6, h: 2.1, lvl: 7, ai: "chase", spd: 540, tint: 0xa9a49c },
+  // vigia: fica no alto do que sobrou da muralha e atira. Só à distância.
+  vigia:     { art: enemyArqueiroUrl, hp: 235, atk: 35, xp: 145, gold: 34, vision: 8, h: 2.6, lvl: 8, melee: false, ranged: true, range: 7, proj: "arrow", ai: "kite", spd: 1150, tint: 0xc6c2b4 },
+  // lamento: o que sobrou de quem gritou. Conjura de longe e cola quando você chega.
+  lamento:   { art: enemyCultistaUrl, hp: 225, atk: 38, xp: 150, gold: 34, vision: 7, h: 2.7, lvl: 8, ranged: true, melee: true, range: 6, proj: "orb", ai: "caster", spd: 1100, tint: 0xd6dae0 },
+  // carrasco: o mini-elite. Vaurstead teve quem executasse gente p/ conter aquilo.
+  carrasco:  { art: enemyCarnicalUrl, hp: 440, atk: 50, xp: 200, gold: 52, vision: 5, h: 3.0, lvl: 9, ai: "relentless", spd: 900, tier: "mini", tint: 0xb0aca4 },
+  // CHEFE do Ato III — O Décimo Terceiro. Usa a folha do CAVALEIRO do Ato I, e isso
+  // é escolha, não economia: ele é a mesma coisa que o fundador riscado de
+  // Grimhollow, só que trezentos anos mais velho e do lado errado da pergunta.
+  boss_a3:   { art: enemyBossUrl,     hp: 2150, atk: 58, xp: 1500, gold: 620, vision: 14, h: 4.4, lvl: 12, ai: "relentless", spd: 690, tier: "boss", wide: 1.2, tint: 0xcfd4dc },
 };
+
+// ARTE DO INIMIGO: se existir `enemy_<id>.png` (ou `boss_<id>.png`) em assets/env,
+// ela GANHA da folha declarada no perfil. É o que deixa o Ato III entrar com arte
+// emprestada hoje e trocar por arte própria amanhã sem tocar em código.
+const ENEMY_ART_GLOB = import.meta.glob("../assets/env/{enemy,boss}_*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
+const artDoInimigo = (typeId: string, padrao: string): string =>
+  ENEMY_ART_GLOB[`../assets/env/enemy_${typeId}.png`]
+  ?? ENEMY_ART_GLOB[`../assets/env/${typeId}.png`]
+  ?? padrao;
 import decWindowUrl from "../assets/env/dec_window.png";
 // ---- ARTE DA CIDADE (§28): fachadas, soco e props de rua ----
 // Painéis de parede: UM por face de rua (não ladrilhado), porque cada um tem
@@ -976,6 +1015,131 @@ const MAIN_QUESTS: MainQuestDef[] = [
     reward: [{ gold: true, label: "600" }, { iconUrl: icoPotHpUrl, label: "×3" }, { iconUrl: icoPotMpUrl, label: "×3" }],
     done: [],
   },
+  // ==========================================================================
+  // ATO III — VAURSTEAD
+  //
+  // O Ato I perguntou o que havia embaixo de Grimhollow. O Ato II respondeu que o
+  // embaixo era a casa de outro. O Ato III faz a única pergunta que sobra: se a
+  // nossa montanha é uma porta, quem ENSINOU os Doze a fechá-la?
+  //
+  // A resposta é uma cidade a oeste que ninguém nomeia — e o desenho dela é o
+  // argumento inteiro. Vaurstead tem rua estreita, quarteirão colado e suporte de
+  // lampião em cada parede, exatamente como Grimhollow. A diferença é que os
+  // lampiões estão apagados há seiscentos anos. O jogador entende antes de o Frei
+  // Anselmo explicar: já andou nessa cidade. Ela é a dele, uma geração adiante.
+  // ==========================================================================
+  {
+    // CAP.10 — abrir a estrada. Curto de propósito: depois de nove capítulos dentro
+    // da montanha, o que este precisa fazer é tirar o jogador de lá.
+    id: "mq10", order: 10, giver: "Anselmo", icon: "🗺️",
+    title: "A Oeste da Mata",
+    summary: "As marcas da Câmara Selada apontam para a ruína a oeste — a que ninguém em Grimhollow chama pelo nome.",
+    offer: [
+      "Passei três semanas com as suas marcas copiadas na mesa. Não avancei um passo. E aí percebi que estava lendo errado: elas não são um AVISO. São uma ASSINATURA.",
+      "Quem sela uma porta assina. Não por vaidade — por responsabilidade, p/ que o próximo saiba quem passou por ali e o que já foi tentado.",
+      "E essa assinatura não é dos Doze, meu caro. Ela é mais velha que Grimhollow inteira.",
+      "Tem uma ruína a oeste da mata. Toda criança daqui sabe apontar onde fica e nenhuma sabe o nome. Eu fui atrás nos livros de imposto: Vaurstead. Escrito uma vez, em trezentos anos de papel, e riscado na linha seguinte.",
+      "Abra aquela trilha. Vá ver o que tem lá.",
+    ],
+    active: [
+      "A oeste, pelo marco da encruzilhada. E leve tudo o que puder carregar: de lá não dá p/ voltar correndo.",
+    ],
+    steps: [
+      {
+        kind: "kill", goal: 12, typeIds: ["cinzento", "sabujo", "vigia", "lamento", "carrasco"],
+        objective: "Alcance Vaurstead e abra caminho pelas ruas (12 criaturas)",
+      },
+      {
+        kind: "talk", target: "Anselmo",
+        objective: "Conte a Frei Anselmo o que há a oeste",
+        atLines: [
+          "Espere. Espere. Repita a parte das ruas.",
+          "...Estreitas. Casas de dois andares coladas. Suporte de lampião em cada parede.",
+          "Meu caro, você acabou de descrever a rua onde nós dois estamos parados.",
+        ],
+      },
+    ],
+    grant: { gold: 500, items: [["pot_hp", 2], ["scroll_return", 1]] },
+    reward: [{ gold: true, label: "500" }, { iconUrl: icoPotHpUrl, label: "×2" }],
+    done: [],
+  },
+  {
+    // CAP.11 — a cidade gêmea. Aqui a Hedda entra porque a revelação é dela: foi
+    // ela que abriu o arco dizendo "a cidade foi feita assim", no capítulo 2.
+    id: "mq11", order: 11, giver: "Hedda", icon: "🕯️",
+    title: "A Cidade que Não Segurou",
+    summary: "Vaurstead foi construída como Grimhollow, contra a mesma coisa, e caiu. Hedda quer saber o que aconteceu na noite em que caiu.",
+    offer: [
+      "O Anselmo me contou e eu ri. Ri de nervoso, daquele riso feio. Depois fiquei a tarde inteira sentada olhando p/ a minha própria parede.",
+      "Setenta anos limpando o vidro do lampião daquela parede. Todo dia. Sem perguntar por quê, porque a minha mãe limpava e a mãe dela também.",
+      "Se existe uma cidade igual a esta com os lampiões apagados, então limpar aquele vidro é a única coisa que nos separa dela.",
+      "Volte lá e desça até as ruas de baixo. Eu preciso saber o que falhou primeiro. Não p/ chorar por eles — p/ não fazer igual.",
+    ],
+    active: [
+      "As ruas de baixo, filho. A parte que afundou. É lá que fica o que ninguém teve tempo de levar.",
+    ],
+    steps: [
+      {
+        kind: "kill", goal: 16, typeIds: ["cinzento", "sabujo", "vigia", "lamento", "carrasco"],
+        objective: "Vasculhe as Ruas de Baixo de Vaurstead (16 criaturas)",
+      },
+      {
+        kind: "talk", target: "Hedda",
+        objective: "Volte a Hedda com o que encontrou lá embaixo",
+        atLines: [
+          "Óleo nos reservatórios. Todos cheios. Você tem certeza?",
+          "Então não acabou o óleo, não faltou dinheiro, não teve cerco. Os lampiões de Vaurstead estavam CARREGADOS na noite em que a cidade caiu.",
+          "Alguém apagou aquilo, filho. Um por um, com a mão.",
+          "Isso não foi uma cidade que perdeu. Foi uma cidade que ALGUÉM ABRIU. Vá contar isso ao Anselmo antes que eu perca a coragem de ter dito.",
+        ],
+      },
+    ],
+    grant: { gold: 700, items: [["pot_hp", 3], ["pot_mp", 2]] },
+    reward: [{ gold: true, label: "700" }, { iconUrl: icoPotHpUrl, label: "×3" }, { iconUrl: icoPotMpUrl, label: "×2" }],
+    done: [],
+  },
+  {
+    // CAP.12 — o chefe do ato, e a virada do jogo inteiro: até aqui o inimigo era
+    // uma COISA (um selo cedendo, uma água subindo). A partir daqui é uma PESSOA,
+    // com um argumento — e o argumento não é insano, que é o que o torna ruim.
+    // o mesmo ⚔️ do capítulo 6, e de propósito: os dois são o capítulo em que se
+    // encara o guarda que sobrou. A repetição do símbolo é a rima.
+    id: "mq12", order: 12, giver: "Anselmo", icon: "⚔️",
+    title: "O Décimo Terceiro",
+    summary: "Onze fundadores subiram. O décimo segundo ficou. E ninguém nunca perguntou quem foi que ENSINOU os Doze a selar.",
+    offer: [
+      "Apagados com a mão. Sim. Eu cheguei aí por outro caminho e cheguei junto com você, e é isso que me convence.",
+      "Olhe o nosso Livro dos Doze. Doze nomes, doze lápides, onze corpos. Está tudo lá, sempre esteve, e ninguém nunca fez a pergunta seguinte.",
+      "QUEM ENSINOU? Doze mineiros de aldeia não inventam do nada um selo que segura trezentos anos. Alguém desceu com eles. Alguém que já tinha feito aquilo antes.",
+      "E alguém que já tinha feito aquilo antes tinha, por força, uma cidade própria — que caiu.",
+      "Ele está lá, meu caro. No salão do fundo de Vaurstead. Ele nunca foi embora, e não é fantasma: aquilo que os nossos seguraram é o que segura ELE, e nesses seiscentos anos ele mudou de ideia.",
+      "Vá. E ouça o que ele tem a dizer antes de decidir o que fazer com ele. Eu sei que é pedir demais.",
+    ],
+    active: [
+      "No Salão dos Doze, no fundo de Vaurstead. Não vá sozinho se puder evitar.",
+    ],
+    steps: [
+      {
+        kind: "kill", goal: 1, typeIds: ["boss_a3"],
+        objective: "Enfrente o Décimo Terceiro (Salão dos Doze, Vaurstead)",
+      },
+      {
+        kind: "talk", target: "Anselmo",
+        objective: "Leve a Frei Anselmo as palavras do Décimo Terceiro",
+        atLines: [
+          "Sente. Beba isso. Não, beba primeiro.",
+          "...Ele disse que selar foi o erro. Que uma porta fechada não fica fechada — ela só junta pressão do outro lado, e que os nossos Doze não salvaram Grimhollow, apenas escolheram a geração que ia pagar.",
+          "E o pior é que ele não está louco, meu caro. Está errado, eu acho que está errado, mas é um argumento. Um argumento que ele teve seiscentos anos p/ aperfeiçoar.",
+          "Ele veio ensinar os Doze a selar, e ficou p/ ver funcionar. Viu funcionar. E foi vendo funcionar que ele decidiu que não devia ter funcionado.",
+          "Anote o que eu vou dizer, porque amanhã eu vou querer ter dito: nós não estamos mais tapando um buraco. Nós estamos discutindo com alguém — e ele já começou a abrir as outras.",
+          "Descanse. Grimhollow está de pé, Vaurstead está enterrada, e a estrada continua.",
+        ],
+      },
+    ],
+    grant: { gold: 1200, items: [["pot_hp", 4], ["pot_mp", 4], ["scroll_return", 2]] },
+    reward: [{ gold: true, label: "1200" }, { iconUrl: icoPotHpUrl, label: "×4" }, { iconUrl: icoPotMpUrl, label: "×4" }],
+    done: [],
+  },
 ];
 
 // Papéis das lojas (cada uma vende UMA coisa — assim o jogador sabe onde ir):
@@ -1091,6 +1255,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
         "Dizem que você desceu até onde ninguém desce e voltou com o rosto inteiro.",
         "Então escute o vigia: se um dia sair pela estrada, não vá procurar outra montanha. Elas é que acham a gente.",
       ]],
+      [12, [
+        "Mandei fazer ferrolho novo, do lado de FORA. Continuo virado p/ dentro, mas agora eu sei que isso é escolha de alguém, não é o jeito do mundo.",
+        "Se aquele homem lá do oeste passar por este portão, eu não vou conseguir segurar. Mas vou estar aqui. É o que um vigia faz.",
+      ]],
     ],
   },
   {
@@ -1116,6 +1284,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
       [9, [
         "Guarde o troco, moço. Hoje quem tem menos é você: eu só tenho a rua, você tem o resto do caminho.",
         "E o caminho é comprido. Esta montanha aqui é a primeira porta. Não é a única.",
+      ]],
+      [12, [
+        "Guarde a moeda, moço, sério. Eu comprei vela p/ um mês com o que a Hedda me deu p/ ficar calado, e eu não fiquei.",
+        "Uma cidade inteira igual à nossa, com a luz apagada. Eu durmo no largo há vinte anos por causa dos lampiões. Agora eu durmo de olho neles.",
       ]],
     ],
   },
@@ -1143,6 +1315,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
         "Agora eu tenho a canção inteira e ninguém em Grimhollow quer ouvir. Vou levá-la p/ a estrada.",
         "Se eu encontrar outra cidade com as ruas estreitas assim e lampião em cada parede, eu volto e te conto. Porque isso, meu caro, não é estilo de construção. É medo virado pedra.",
       ]],
+      [12, [
+        "Escrevi a balada de Vaurstead e não vou cantar. Testei em casa: a segunda estrofe é boa demais, e coisa boa demais sobre um homem daqueles vira convite.",
+        "Fiz outra, ruim de propósito, com rima de almanaque. Essa eu canto. É o serviço público que um bardo presta.",
+      ]],
     ],
   },
   {
@@ -1168,6 +1344,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
       [9, [
         "Então era isso que estava embaixo da minha plantação esse tempo todo.",
         "Vou morrer aqui mesmo, moço. Mas vou morrer sabendo o nome — e isso é mais do que meu pai teve.",
+      ]],
+      [12, [
+        "Plantei mais cedo este ano. Não por causa da chuva: por causa de você, que anda voltando com notícia pior a cada vez.",
+        "Meu avô dizia que a terra daqui é boa porque o vale é fundo. Fundo é o que a gente chama de buraco quando gosta dele.",
       ]],
     ],
   },
@@ -1195,6 +1375,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
         "Copiei o que você me trouxe. Copiei três vezes, porque na terceira minha mão já não tremia.",
         "As marcas da câmara aparecem em documentos de fora do vale. Se estão lá também, então não é a nossa montanha que é amaldiçoada. É o mundo que tem porão.",
       ]],
+      [12, [
+        "Estou copiando o Livro dos Doze inteiro, à mão, em três cópias. Uma fica, uma vai p/ o porto, uma fica com você.",
+        "Riscar um nome apagou o décimo segundo. Não deixar cópia foi o que apagou Vaurstead. Eu não vou cometer os dois erros na mesma vida.",
+      ]],
     ],
   },
   {
@@ -1220,6 +1404,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
       [9, [
         "Vou tapar aquele poço direito, com pedra e cal, e vou dormir melhor.",
         "Mas o senhor e eu sabemos: tapar buraco não fecha caverna.",
+      ]],
+      [12, [
+        "Abri a trilha oeste com machado. Levei nove dias. E toda noite, quando eu voltava, o mato tinha crescido meio palmo do lado de lá.",
+        "Não do meu lado. Do lado de lá. Aquela cidade não quer visita, e eu abri a porta assim mesmo. Boa sorte, moço.",
       ]],
     ],
   },
@@ -1247,6 +1435,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
         "Pronto. Agora eu sei o que ele viu, e não foi tão terrível quanto eu inventei em onze anos.",
         "Obrigada, moço. Inventar é pior. Inventar não acaba nunca.",
       ]],
+      [12, [
+        "Meu filho perguntou por que a gente limpa o vidro do lampião. Eu abri a boca p/ dizer 'porque sempre foi assim' e não consegui.",
+        "Contei a verdade. Ele tem sete anos e ficou quieto, e depois foi limpar o dele sem ninguém mandar. Não sei se fiz bem.",
+      ]],
     ],
   },
   {
@@ -1272,6 +1464,10 @@ const VILLAGE_NPCS: VillageNPC[] = [
       [9, [
         "Trouxe a capa inteira. Em onze anos você é o segundo.",
         "Vou remendar de graça, e não é bondade: é que eu quero ver até onde essa capa vai.",
+      ]],
+      [12, [
+        "Remendei essa capa tantas vezes que já não sei que pano era o original. Você também não é mais o mesmo homem da estrada.",
+        "Costurei um forro por dentro, na altura do peito. Não é p/ o frio. Se um dia isso salvar você, eu quero saber, p/ fazer nos outros também.",
       ]],
     ],
   },
@@ -1432,6 +1628,13 @@ const A2OPT_GLOB = import.meta.glob("../assets/env/tex_a2{wall_clean,ceil_2}.png
   eager: true, query: "?url", import: "default",
 }) as Record<string, string>;
 const a2OptUrl = (name: string): string | undefined => A2OPT_GLOB[`../assets/env/${name}.png`];
+// texturas OPCIONAIS do ATO III (§33). O ato inteiro roda sem elas — a alvenaria da
+// cidade tingida de osso já dá o bioma —, e cada PNG que aparecer aqui assume o
+// lugar da emprestada sem tocar em código.
+const A3OPT_GLOB = import.meta.glob("../assets/env/tex_a3*.png", {
+  eager: true, query: "?url", import: "default",
+}) as Record<string, string>;
+const a3OptUrl = (name: string): string | undefined => A3OPT_GLOB[`../assets/env/${name}.png`];
 
 // CO-OP: arte do avatar dos outros jogadores, por classe. Se existir
 // `avatar_<classe>.png` em assets/npc/ ela vence; senão usa o placeholder.
@@ -1491,6 +1694,8 @@ type Target =
   | { kind: "tovillage" }
   | { kind: "toplains" }   // marco N da floresta → Planície de Arden
   | { kind: "plainstoforest" } // portão sul da planície → floresta
+  | { kind: "toruins" }    // marco O da floresta → Ruínas de Vaurstead (Ato III)
+  | { kind: "ruinstoforest" } // porta norte de Vaurstead → volta ao marco O da mata
   | { kind: "sign"; lines: string[] }
   | { kind: "pickup"; uid: string; name: string } // item caído no chão à frente
   | { kind: "chest"; key: string } // baú da masmorra (chocalha e abre ao interagir)
@@ -1694,11 +1899,29 @@ export const AOE_CHEFE: AoeChefe[] = [
       return out;
     },
   },
+  {
+    // AS DIAGONAIS: o X dele. É o par da Fenda Sísmica e existe justamente p/ ser
+    // confundido com ela — no meio da luta, a diferença entre sair na diagonal e
+    // sair na reta é meio segundo de leitura. É o golpe do Décimo Terceiro porque
+    // ele é o chefe que pune quem repete o que aprendeu no ato anterior.
+    nome: "Os Lampiões Apagados", canal: 2400, dano: 2.3, dica: "Saia na reta",
+    cells: (c, r) => {
+      const out: [number, number][] = [];
+      for (let d = -5; d <= 5; d++) {
+        if (d !== 0) out.push([c + d, r + d], [c + d, r - d]);
+      }
+      out.push([c, r]);
+      return out;
+    },
+  },
 ];
 // Quais padrões cada chefe usa. O Guardião é o único com o Colapso — e é o único
 // que exige duas pessoas p/ ser alcançado, então pode cobrar mais.
 const AOE_POR_CHEFE: Record<string, number[]> = {
   guardiao: [1, 2, 3, 4],
+  // o Décimo Terceiro troca o Anel pelas Diagonais: quem chegou até ele já tem o
+  // reflexo de "sair da linha", e este é o chefe que cobra o reflexo errado.
+  boss_a3: [1, 3, 5],
 };
 const AOE_PADRAO = [1, 2, 3];
 
@@ -1929,8 +2152,12 @@ export class Game {
       atk: (1 + 0.10 * depth) * (1 + 0.07 * (n - 1)),
     };
   }
-  // ATO do andar atual: 1 = Ato I (andares 0-2), 2 = Ato II afogado (andares 3-5).
-  private dungeonAct(): 1 | 2 { return this.dungeonFloor >= 3 ? 2 : 1; }
+  // ATO do andar atual: 1 = mina (0-2), 2 = afogado (3-5), 3 = Vaurstead (6-8).
+  private dungeonAct(): 1 | 2 | 3 {
+    return this.dungeonFloor >= 6 ? 3 : this.dungeonFloor >= 3 ? 2 : 1;
+  }
+  /** O andar atual é a arena do chefe do seu ato? (o 3º de cada trinca) */
+  private andarDeChefe(): boolean { return this.dungeonFloor % 3 === 2; }
   private dungeonMaxFloor = 0;                                    // andar MAIS FUNDO já alcançado (checkpoint p/ "continuar")
   private dungeonSession = 0;                                     // muda a cada (re)build → invalida respawns pendentes
   private dropGlowTex?: THREE.Texture;                            // textura do facho sutil (radial macia)
@@ -2490,19 +2717,32 @@ export class Game {
       // 8-9 → clima fechado/corredor, mas dá pra ver os inimigos que se aproximam.
       // BIOMA muda no 3º andar (cripta do chefe): névoa/fundo mais quentes e
       // avermelhados, ar mais pesado (névoa um tico mais curta) — clima de perigo.
-      // andar de CHEFE: 3º do Ato I (floor 2) e 6º do Ato II (floor 5).
-      const boss = this.dungeonFloor === 2 || this.dungeonFloor === 5;
-      const a2 = this.dungeonAct() === 2;
+      // andar de CHEFE: o 3º de cada ato (andares 2, 5 e 8).
+      const boss = this.andarDeChefe();
+      const ato = this.dungeonAct();
+      const a2 = ato === 2, a3 = ato === 3;
       // NÉVOA EXPONENCIAL (FogExp2): a escuridão cresce a cada quadrado — perto nítido
       // (a tocha do herói ilumina), e vai fechando gradualmente até o BREU total lá na
       // frente (~7-8 células). Sem corte seco. O chefe tem o ar um tico mais denso.
       // O ATO II agora é CINZA/neutro (o teal saiu) — só um azul-frio bem sutil pra
       // não ficar idêntico ao Ato I; os cogumelos dão o acento ciano localmente.
-      const fogCol2 = a2 ? (boss ? 0x0c1114 : 0x0a0e10) : (boss ? 0x120609 : 0x090c10);
-      const bgCol2 = a2 ? (boss ? 0x070b0d : 0x05080a) : (boss ? 0x0c0406 : 0x05070a);
-      this.scene.fog = new THREE.FogExp2(fogCol2, boss ? 0.058 : 0.052);
+      //
+      // O ATO III é o oposto dos dois: NÃO é subsolo, é uma cidade a céu aberto de
+      // noite. Então o ar não é preto — é uma poeira PÁLIDA iluminada pela lua, e a
+      // névoa abre bem mais (0,034) porque numa rua reta o jogador tem de enxergar
+      // até a esquina. É essa distância de visão que faz Vaurstead parecer grande.
+      // O céu do Ato III é a única coisa da cena que o jogador vê SEM luz nenhuma
+      // batendo nela: é o `background` puro. A 0x101215 ele saía preto, e um céu
+      // preto lê como buraco, não como noite. Levantado até dar um azul-ardósia que
+      // se distingue da silhueta das paredes — a linha do telhado contra o céu é o
+      // que faz uma rua parecer rua.
+      const fogCol2 = a3 ? (boss ? 0x22242e : 0x1f232b)
+        : a2 ? (boss ? 0x0c1114 : 0x0a0e10) : (boss ? 0x120609 : 0x090c10);
+      const bgCol2 = a3 ? (boss ? 0x1b1d26 : 0x1a1e26)
+        : a2 ? (boss ? 0x070b0d : 0x05080a) : (boss ? 0x0c0406 : 0x05070a);
+      this.scene.fog = new THREE.FogExp2(fogCol2, a3 ? (boss ? 0.040 : 0.034) : boss ? 0.058 : 0.052);
       this.scene.background = new THREE.Color(bgCol2);
-      this.addDungeonLights(boss, a2); // Ato II: cinza neutro, com o teto mais claro
+      this.addDungeonLights(boss, ato);
       this.buildDungeon();
     } else if (loc === "showcase") {
       // mini-santuário: NÉVOA volumétrica densa (exponencial) — moody, não "céu".
@@ -3950,11 +4190,11 @@ export class Game {
       opacity: 0,
       alphaTest: 0.4,
       side: THREE.DoubleSide,
-      // O GUARDIÃO ainda usa a folha do Leviatã (arte própria pendente, §29 do
-      // PROMPTS.md). Sem tratamento de cor os dois seriam o mesmo bicho na tela;
-      // tingido de pálido/dourado ele já lê como outra coisa — como algo que foi
-      // SELADO, não como algo que se afogou.
-      ...(typeId === "guardiao" ? { color: new THREE.Color(0xe8d9a8) } : {}),
+      // TINTA do perfil: quem ainda usa folha emprestada (o Guardião, todo o Ato
+      // III) vem tingido, senão dois bichos diferentes seriam o mesmo na tela.
+      // A tinta some no dia em que a arte própria entrar — e ela entra sozinha,
+      // pelo artDoInimigo, sem passar por aqui.
+      ...(T.tint ? { color: new THREE.Color(T.tint) } : {}),
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(worldH * 0.47 * larg, worldH), mat);
     mesh.position.set(c * CELL, worldH / 2, r * CELL);
@@ -4033,7 +4273,7 @@ export class Game {
     //  de uniforms do shader no mobile → cena PRETA. A tocha do herói já ilumina.)
     // pré-carrega o sprite-sheet da explosão (pronto quando o inimigo morrer)
     if (!this.poofTex) this.loadArt(deathPoofUrl, (t) => (this.poofTex = this.fxFilter(t)));
-    this.loadArt(T.art, (t) => {
+    this.loadArt(artDoInimigo(typeId, T.art), (t) => {
       const im = t.image as { width: number; height: number } | undefined;
       const asp = im && im.width && im.height ? im.width / im.height : 0.47;
       mesh.geometry.dispose();
@@ -5167,6 +5407,12 @@ export class Game {
     // e a passagem obviamente já estavam abertos — deduz em vez de trancar de novo.
     this.cityPortalActive = s.portalUnlocked ?? this.dungeonMaxFloor >= 3;
     this.actsUnlocked = s.actsUnlocked ?? (this.dungeonMaxFloor >= 3 ? 2 : 1);
+    // ATO III em save ANTIGO. O `actsUnlocked` gravado antes do Ato III existir vale
+    // 2, e como o destravamento só acontece no instante em que o Leviatã cai, quem
+    // já o derrotou ficaria trancado p/ sempre — teria de matá-lo de novo p/ receber
+    // uma passagem que a história dele já pagou. O capítulo 8 concluído é a prova de
+    // que caiu, e ela está no save; então deduz daí, e uma vez só.
+    if (this.mainQuests.mq8?.status === "done") this.actsUnlocked = Math.max(this.actsUnlocked, 3);
     this.currentWeapon = s.currentWeapon ? (WEAPON_BY_ID[s.currentWeapon] ?? null) : null;
     // empurra o contador de uid dos itens p/ não colidir com os salvos
     reserveItemUid([
@@ -5354,6 +5600,13 @@ export class Game {
     if (act === 1 && this.actsUnlocked < 2) {
       this.actsUnlocked = 2;
       this.ui.questPopup("Passagem aberta", "As Catacumbas Afogadas agora são alcançáveis pelo Portal", true);
+    }
+    // O Ato III não é "mais fundo": é a estrada. Cair o Leviatã abre a TRILHA OESTE
+    // da mata (e, por conveniência, o destino no Portal) — a placa que dizia
+    // "bloqueado — em breve" passa a levar a algum lugar.
+    if (act === 2 && this.actsUnlocked < 3) {
+      this.actsUnlocked = 3;
+      this.ui.questPopup("A trilha oeste se abre", "As Ruínas de Vaurstead, além da mata", true);
     }
     this.scheduleSave();
   }
@@ -7166,7 +7419,27 @@ export class Game {
   }
 
   // luz da masmorra: bem escura (só ambiente fraco; as tochas fazem o resto)
-  private addDungeonLights(boss = false, a2 = false) {
+  private addDungeonLights(boss = false, ato: 1 | 2 | 3 = 1) {
+    const a2 = ato === 2;
+    // ATO III — VAURSTEAD À NOITE. Aqui a luz não sai de tocha nenhuma: sai da LUA,
+    // de cima, sobre uma cidade sem teto. Por isso o hemisfério é o dobro do dos
+    // outros atos e a cor de cima é azul-lua enquanto a de baixo é o pó bege das
+    // ruas — é esse contraste que faz cada parede ter um lado claro e um escuro, e
+    // é o que dá volume a uma cidade que, de resto, é feita de caixas de pedra.
+    if (ato === 3) {
+      this.world.add(new THREE.AmbientLight(0x8a93a8, boss ? 0.85 : 0.95));
+      this.world.add(new THREE.HemisphereLight(0xaebdd8, 0x6b6154, 2.1));
+      const lua = new THREE.DirectionalLight(boss ? 0xd8d0ee : 0xcdd8f2, 1.5);
+      lua.position.set(-9, 18, -6);
+      this.world.add(lua);
+      // a lanterna do herói é MENOR aqui do que nos outros atos, e é isso que faz o
+      // ato parecer noturno em vez de subterrâneo: com ela no tamanho do Ato I, o
+      // quente dela cobria as duas paredes do beco e a lua não chegava a existir.
+      this.playerTorch = new THREE.PointLight(0xffc07a, 1.05, 11, 2);
+      this.playerTorch.position.set(this.col * CELL, EYE_H, this.row * CELL);
+      this.world.add(this.playerTorch);
+      return;
+    }
     // masmorra-labirinto é grande e as tochas (limitadas) se espalham → sobe a luz
     // ambiente base p/ os corredores sem tocha não ficarem pretos (visível como o
     // Arcmaze), mantendo a paleta fria/pedra.
@@ -7706,7 +7979,13 @@ export class Game {
   // tochas, props e a parede ilusória do segredo.
   private buildDungeon() {
     this.dungeonSession++; // nova "sessão" do andar → cancela respawns pendentes do anterior
-    const W = DUNGEON_COLS, H = DUNGEON_ROWS, CH = DUNGEON_CH;
+    const W = DUNGEON_COLS, H = DUNGEON_ROWS;
+    // PÉ-DIREITO: baixo nos dois primeiros atos (é subsolo, e o teto em cima da
+    // cabeça é metade do clima). O Ato III NÃO TEM TETO — é rua —, e por isso as
+    // paredes precisam ser MAIS ALTAS: sem teto e com parede baixa o jogador
+    // enxergaria por cima dos quarteirões e veria a cidade inteira de uma vez, que
+    // é justo o contrário do que uma rua faz. Alto assim, a rua vira desfiladeiro.
+    const CH = this.dungeonAct() === 3 ? 9.2 : DUNGEON_CH;
     const HALF = CELL / 2;
     const hash = (a: number, b: number, s = 0) =>
       Math.abs((Math.sin(a * 12.9 + b * 78.2 + s * 3.1) * 43758.5) % 1);
@@ -7717,20 +7996,52 @@ export class Game {
     // das casas (tex_stonewall) nas paredes/arcos/escadas.
     void texA2FloorUrl; void texA2CeilUrl; void texCobbleUrl;
     const a2 = this.dungeonAct() === 2;
+    const a3 = this.dungeonAct() === 3;
     // ATO II — PAREDE: cinza LIMPA por padrão (tex_a2wall_clean) e a versão MUSGOSA
     // (tex_a2wall_1) só ÀS VEZES. Enquanto a limpa não existir, usa a musgosa em tudo.
     const a2CleanUrl = a2OptUrl("tex_a2wall_clean");
     const a2MossyUrl = A2WALL_PNG[0] ?? texA2WallUrl; // tex_a2wall_1 (com musgo)
-    const rockMat = a2
-      ? this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2clean", { rough: 0.86, normal: 1.5 })
-      : this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
-    const rockMatMossy = a2 ? this.pbrStone(a2MossyUrl, "a2mossy", { rough: 0.86, normal: 1.5 }) : rockMat;
-    // só mistura a musgosa quando a limpa existe (senão tudo musgoso, como antes)
-    const useMossy = (c: number, r: number): boolean => a2 && !!a2CleanUrl && hash(c, r, 4) < 0.18;
+    // ATO III — a parede de Vaurstead é ALVENARIA, não rocha: são casas.
+    //
+    // A primeira versão usou a pedra lavrada das construções (tex_stonewall) tingida
+    // de osso, e MEDIDO na tela deu errado: aquela textura tem croma 56 (é arenito
+    // quente), e tinta MULTIPLICA — ela escurece, nunca dessatura. A rua saía
+    // laranja, que é a cor de uma cidade viva ao pôr do sol, o oposto do que este
+    // ato é. A pedra cinza do Ato II tem croma 7: partindo dela, a mesma tinta
+    // bege devolve o osso pálido que a de Vaurstead pede.
+    // Arte própria (tex_a3wall.png) tem prioridade assim que existir (§33).
+    // Repete 2,1× na vertical porque a parede aqui tem o dobro da altura, e pedra
+    // esticada denuncia a caixa.
+    const a3WallUrl = a3OptUrl("tex_a3wall")
+      ?? a2OptUrl("tex_a2wall_clean") ?? A2WALL_PNG[0] ?? texA2WallUrl;
+    const rockMat = a3
+      ? this.pbrStone(a3WallUrl, "a3wall", { rough: 0.88, normal: 1.35, tint: 0xf2e8d4, repeat: [1, 2.1] })
+      : a2
+        ? this.pbrStone(a2CleanUrl ?? a2MossyUrl, "a2clean", { rough: 0.86, normal: 1.5 })
+        : this.pbrStone(texStoneUrl, "dwall", { rough: 0.92, normal: 1.6 });
+    // no Ato III a "variante" é a casa QUEIMADA: a mesma pedra, escurecida de fumaça.
+    const rockMatMossy = a3
+      ? this.pbrStone(a3WallUrl, "a3burn", { rough: 0.93, normal: 1.35, tint: 0x7d7871, repeat: [1, 2.1] })
+      : a2 ? this.pbrStone(a2MossyUrl, "a2mossy", { rough: 0.86, normal: 1.5 }) : rockMat;
+    // só mistura a musgosa quando a limpa existe (senão tudo musgoso, como antes).
+    // No Ato III a queimada aparece MUITO mais (um quarteirão em cada três): a
+    // cidade não foi abandonada, foi perdida, e o fogo é a evidência disso.
+    const useMossy = (c: number, r: number): boolean =>
+      a3 ? hash(c, r, 4) < 0.34 : a2 && !!a2CleanUrl && hash(c, r, 4) < 0.18;
     // CHÃO do Ato II: MESMA calçada de pedra da PRAÇA da cidade (cobblestone
     // procedural), com normal map gerado p/ o relevo. Ato I mantém a lajota de caverna.
+    // O Ato III usa a mesma calçada — é rua de cidade, é literalmente o que ela é —
+    // porém acinzentada de pó, que é o que separa a rua viva da rua morta.
     let floorMat: THREE.Material;
-    if (a2) {
+    if (a3) {
+      const cob = tex.cobblestone(11); cob.wrapS = cob.wrapT = THREE.RepeatWrapping;
+      const fm = new THREE.MeshStandardMaterial({
+        side: THREE.DoubleSide, map: cob, color: 0x9a948a, roughness: 0.95, metalness: 0,
+      });
+      const ci = cob.image as HTMLCanvasElement | undefined;
+      if (ci) { const nrm = this.normalFromImage(ci, ci.width, ci.height, "a3cobfloor"); if (nrm) { fm.normalMap = nrm; fm.normalScale.set(0.85, 0.85); } }
+      floorMat = fm;
+    } else if (a2) {
       const cob = tex.cobblestone(7); cob.wrapS = cob.wrapT = THREE.RepeatWrapping;
       const fm = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, map: cob, roughness: 0.92, metalness: 0 });
       const ci = cob.image as HTMLCanvasElement | undefined;
@@ -7783,7 +8094,12 @@ export class Game {
         // TETO BAIXO quase liso (masmorra fechada) — relevo suave p/ não descer na
         // cara do jogador com o pé-direito reduzido. A escada de DESCIDA ('down') faz o
         // SEU próprio teto em rampa (o vão que desce), então aqui não desenha.
-        if (k !== "down")
+        //
+        // ATO III NÃO TEM TETO. É rua a céu aberto, e o "céu" é o background da cena
+        // (a mesma cor da névoa) — olhar p/ cima devolve a noite, não uma tampa. É a
+        // troca mais barata e mais eficaz do ato inteiro: sem teto, sem tocha de
+        // parede e com pé-direito alto, o mesmo motor de corredor vira cidade.
+        if (k !== "down" && !a3)
           this.caveMesh([cx - HALF, CH, cz - HALF], [CELL, 0, 0], [0, 0, CELL], [0, -1, 0], 5, 5, 0.5, ceilMat, 1, 1);
         // paredes de ROCHA com relevo
         for (const [dc, dr] of DIRS) {
@@ -7807,7 +8123,12 @@ export class Game {
           // tocha esporádica em paredes de rocha (ilumina). LIMITE BAIXO: muitas
           // point lights estouram o shader no mobile (cena preta); a tocha do
           // herói cobre o resto. Mantém só algumas poças de luz de ambiente.
-          if (nk === "wall" && !secret && torches < 12 && hash(c, r, dc * 5 + dr) < 0.2) {
+          //
+          // NO ATO III NÃO HÁ TOCHA ACESA. Grimhollow tem lampião em cada parede e
+          // isso é o que a mantém de pé; Vaurstead tinha os mesmos suportes e estão
+          // todos apagados há seiscentos anos. A luz ali é só a lua — e é essa
+          // ausência, mais que qualquer textura, que diz o que aconteceu na cidade.
+          if (!a3 && nk === "wall" && !secret && torches < 12 && hash(c, r, dc * 5 + dr) < 0.2) {
             this.addWallDecal(c, r, dc, dr, torchMat, 0.85, 1.4, 2.1);
             this.glowLight(cx + dc * 0.3, 2.3, cz + dr * 0.3, 0xffa040, 4.4, 12);
             torches++;
@@ -8446,7 +8767,11 @@ export class Game {
     // variedade de tipos espalhados (mais fracos comuns, tanque/conjurador raros).
     // andares mais fundos → pool mais perigoso. O ATO II (andares 4-6) troca o
     // roster inteiro pelo bioma afogado/fúngico.
-    const pool = this.dungeonAct() === 2
+    const pool = this.dungeonAct() === 3
+      ? (this.dungeonFloor >= 7
+          ? ["cinzento", "vigia", "lamento", "carrasco", "sabujo", "lamento", "carrasco", "vigia"]
+          : ["cinzento", "cinzento", "sabujo", "vigia", "cinzento", "lamento", "sabujo", "carrasco"])
+      : this.dungeonAct() === 2
       ? (this.dungeonFloor >= 4
           ? ["afogado", "limo", "naja", "aberracao", "afogado", "naja", "aberracao", "limo"]
           : ["afogado", "afogado", "limo", "naja", "afogado", "aberracao", "naja", "limo"])
@@ -8459,8 +8784,8 @@ export class Game {
       const t = pool[(i + Math.floor(Math.random() * pool.length)) % pool.length];
       this.buildDungeonEnemy(p.col, p.row, t);
     });
-    // CHEFE: nasce nas células 'Z' — Ato I usa o "boss"; Ato II, o Leviatã (boss_a2).
-    const bossType = this.dungeonAct() === 2 ? "boss_a2" : "boss";
+    // CHEFE: nasce nas células 'Z' — um por ato (Cavaleiro, Leviatã, o Décimo Terceiro).
+    const bossType = ["boss", "boss_a2", "boss_a3"][this.dungeonAct() - 1];
     for (const z of dungeonAll("Z")) this.buildDungeonEnemy(z.col, z.row, bossType);
     // GUARDIÃO DO SELO ('Y'): nasce trancado na câmara. Não persegue ninguém
     // através da porta — a linha de visão dele bate na parede.
@@ -10522,7 +10847,11 @@ export class Game {
         { id: "f0", label: `${DUNGEON_FLOOR_NAMES[0]}`, primary: true, note: "Ato I" },
       ];
       if (this.actsUnlocked >= 2) choices.push({ id: "f3", label: `${DUNGEON_FLOOR_NAMES[3]}`, note: "Ato II" });
-      if (deep > 0 && deep !== 3) choices.push({ id: "deep", label: `${DUNGEON_FLOOR_NAMES[deep]}`, note: "mais fundo" });
+      if (this.actsUnlocked >= 3) choices.push({ id: "f6", label: `${DUNGEON_FLOOR_NAMES[6]}`, note: "Ato III" });
+      // o atalho do checkpoint só faz sentido quando NÃO é a entrada de um ato — do
+      // contrário o menu repetiria uma linha que já está logo acima dela.
+      if (deep > 0 && !ATO_ENTRADA.includes(deep))
+        choices.push({ id: "deep", label: `${DUNGEON_FLOOR_NAMES[deep]}`, note: "mais fundo" });
       choices.push({ id: "close", kind: "exit", label: "Fechar o portal" });
       this.openDialogue("Portal de Grimhollow", [
         "O vórtice gira, e o ar cheira a pedra molhada e coisas antigas.",
@@ -10532,7 +10861,7 @@ export class Game {
         onChoice: (id) => {
           this.closeDialogue();
           if (id === "close") return;
-          const floor = id === "f0" ? 0 : id === "f3" ? 3 : deep;
+          const floor = id === "f0" ? 0 : id === "f3" ? 3 : id === "f6" ? 6 : deep;
           void this.doorTransition(() => this.enterDungeonFloor(floor));
         },
       });
@@ -10613,6 +10942,13 @@ export class Game {
       // portão sul da planície → volta ao marco NORTE da floresta, de costas p/ ele
       const n = forestFind("N");
       void this.doorTransition(() => this.enterLocation("forest", n.col, n.row + 1, 2));
+    } else if (t.kind === "toruins") {
+      // marco OESTE da mata → Vaurstead. Entra pela PORTA NORTE (o 'S' do andar 7).
+      void this.doorTransition(() => this.enterDungeonFloor(6));
+    } else if (t.kind === "ruinstoforest") {
+      // porta norte de Vaurstead → de volta à trilha, de costas p/ o marco oeste
+      const w = forestFind("W");
+      void this.doorTransition(() => this.enterLocation("forest", w.col + 1, w.row, 1));
     } else if (t.kind === "sign") {
       const pages = paginate(t.lines);
       this.dialogue = { name: "Placa", lines: pages, idx: 0, portrait: null };
@@ -12644,6 +12980,8 @@ export class Game {
       else if (t.kind === "tovillage") text = "Voltar ao Vilarejo";
       else if (t.kind === "toplains") text = "Seguir para a Planície";
       else if (t.kind === "plainstoforest") text = "Voltar à Floresta";
+      else if (t.kind === "toruins") text = "Seguir para as Ruínas";
+      else if (t.kind === "ruinstoforest") text = "Sair pela Porta Norte";
       else if (t.kind === "sign") text = "Ler a placa";
       else if (t.kind === "lockgate") text = "Portão selado";
       else if (t.kind === "sanctuary") text = "Subir a escadaria";
@@ -12712,6 +13050,13 @@ export class Game {
       // marco NORTE ('N'): deixou de ser só placa — agora abre a Planície de Arden
       const aqui = FOREST[this.row]?.[this.col], frente = FOREST[fr]?.[fc];
       if (frente === "N" || aqui === "N") return { kind: "toplains" };
+      // marco OESTE ('W'): a trilha p/ Vaurstead. Só depois que o Leviatã cai — antes
+      // disso continua sendo a placa, que agora diz POR QUE está fechada em vez do
+      // "em breve" genérico (ver forestSignText).
+      if (frente === "W" || aqui === "W")
+        return this.actsUnlocked >= 3
+          ? { kind: "toruins" }
+          : { kind: "sign", lines: forestSignText(fc, fr) };
       if (k === "sign") return { kind: "sign", lines: forestSignText(fc, fr) };
     } else if (this.location === "plains") {
       const k = plainsCell(fc, fr);
@@ -12728,7 +13073,11 @@ export class Game {
       // escada de SUBIDA 'U' (de frente ou em cima): 1º andar volta ao vilarejo;
       // andares 2/3 sobem um andar.
       if (dungeonCell(fc, fr) === "stairs" || dungeonCell(this.col, this.row) === "stairs")
-        return this.dungeonFloor > 0 ? { kind: "ascend" } : { kind: "exit" };
+        // a 'U' do 1º andar de Vaurstead não é escada: é a PORTA NORTE da cidade, e
+        // ela dá na mata, não no vilarejo. Sem esta linha o jogador subiria de uma
+        // cidade a oeste p/ o fundo alagado da mina, que fica noutro lugar do mundo.
+        return this.dungeonFloor === 6 ? { kind: "ruinstoforest" }
+          : this.dungeonFloor > 0 ? { kind: "ascend" } : { kind: "exit" };
       // escada de DESCIDA 'D' → desce um andar
       if (dungeonCell(fc, fr) === "down" || dungeonCell(this.col, this.row) === "down")
         return { kind: "descend" };

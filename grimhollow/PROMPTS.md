@@ -2130,3 +2130,107 @@ A single flat sprite sheet of 12 medieval fantasy quest icons arranged in a stri
 >
 > A caneca e o frasco estão fatiados mas ainda sem uso: entram quando houver
 > missão de taverna ou de alquimia para marcar.
+
+---
+
+## 33 · ATO III — VAURSTEAD, a cidade que não segurou — 🟡 arte pendente
+
+O Ato III **já está jogável** com arte emprestada: as ruas usam a alvenaria da
+cidade tingida de osso, e os cinco inimigos usam folhas de bichos existentes
+tingidas de cinza. Nada aqui é bloqueante — cada PNG que chegar **entra sozinho**,
+sem uma linha de código, porque o Game procura o arquivo pelo nome antes de cair
+na folha emprestada (`artDoInimigo` e o glob `tex_a3*`).
+
+**O que Vaurstead é.** Uma cidade a oeste da mata, seiscentos anos morta,
+construída **exatamente como Grimhollow**: ruas de uma pessoa de largura, casas de
+dois andares coladas, suporte de lampião em cada parede. A diferença é que os
+lampiões estão apagados — e o capítulo 11 revela que estavam **cheios de óleo** na
+noite em que a cidade caiu. Alguém os apagou com a mão.
+
+Por isso a direção de arte inteira do ato é uma só ideia: **é a nossa cidade, com
+a luz desligada.** Nada de arquitetura exótica, nada de outra cultura. O jogador
+tem de reconhecer o lugar antes de o Frei Anselmo explicar.
+
+E por isso, também, o ato **não tem teto e não tem tocha acesa**: é rua a céu
+aberto de noite, e a única luz é a lua. Foi a troca mais barata e mais eficaz do
+ato — o mesmo motor de corredor dos dois primeiros atos, sem tampa em cima e com
+parede alta, já lê como cidade.
+
+### 33.1 — `tex_a3wall.png` (a parede de Vaurstead)
+
+Hoje usa `tex_stonewall` tingida de bege-osso, repetida 2,1× na vertical (a
+parede do Ato III tem o dobro da altura e pedra esticada denuncia a caixa). Uma
+textura própria resolve o esticamento e traz o que a tinta não traz: **o suporte
+de lampião vazio**, que é o detalhe que conta a história inteira.
+
+```
+A seamless tileable stone wall texture of a ruined medieval city house facade, tall format, pale bone-grey ashlar masonry with fine mortar joints, weathered and pitted by six hundred years, dark soot staining creeping up from below on part of the surface, a single empty rusted iron lantern bracket bolted to the stone with no lantern in it, a boarded-up shuttered window opening, dry dead ivy clinging in places, no people, no light sources, no glow, cold moonlit night lighting from above, grim dark medieval fantasy game texture, painterly realistic, high detail, no text, no watermark, seamless edges on all four sides
+```
+
+### 33.2 — `tex_a3floor.png` (a rua)
+
+Hoje usa a mesma calçada procedural da praça de Grimhollow, acinzentada. Uma
+textura própria acrescenta o pó e o que ficou caído.
+
+```
+A seamless tileable top-down texture of an abandoned medieval city street, irregular cobblestones in pale grey and dusty beige, thick layer of fine grey ash and dust settled between the stones, dry cracks, scattered small rubble and broken roof tiles, faded dark stains, dead weeds pushing between a few stones, no people, no footprints, cold moonlit night, grim dark medieval fantasy game texture, painterly realistic, high detail, no text, no watermark, seamless edges on all four sides
+```
+
+### 33.3 — o roster do ato — cinco folhas soltas
+
+Todas com **fundo transparente de verdade** e a criatura **inteira dentro do
+quadro** — foi a aura larga que estragou o recorte da aberração do Ato II. Nome
+do arquivo exatamente como está na tabela; é por ele que o jogo acha a arte.
+
+| arquivo | quem é | hoje usa emprestado |
+|---|---|---|
+| `enemy_cinzento.png` | o morador que nunca saiu | afogado, tingido |
+| `enemy_sabujo.png` | o cão de rua que sobrou | rato, tingido |
+| `enemy_vigia.png` | o arqueiro no alto do muro | arqueiro, tingido |
+| `enemy_lamento.png` | o que restou de quem gritou | cultista, tingido |
+| `enemy_carrasco.png` | o mini-elite, o que executava | carniçal, tingido |
+
+**`enemy_cinzento.png`**
+```
+Full body front view of a standing humanoid figure completely coated in grey ash, a long-dead townsfolk of a ruined medieval city, plain simple working clothes turned to stiff grey rags, skin cracked like dried clay, eyes two dark hollows, arms hanging heavy at the sides, mouth slightly open, still wearing a leather apron and one worn boot, dust falling from the shoulders, no weapon, no glow, no aura, no magic effects, cold moonlight from above, grim dark medieval fantasy game enemy sprite, painterly realistic, high detail, FULLY TRANSPARENT background, isolated subject fully inside frame with margin on all sides, no ground, no shadow on the ground, no text, no watermark
+```
+
+**`enemy_sabujo.png`**
+```
+Full body side view of a gaunt starved hound covered in grey ash, a street dog of a dead medieval city, ribs showing through stiff dusty fur, lips pulled back over long teeth, ears flat, one eye milky white, a broken leather collar with a rusted tag still around its neck, low crouched running stance, no glow, no aura, no magic effects, cold moonlight from above, grim dark medieval fantasy game enemy sprite, painterly realistic, high detail, FULLY TRANSPARENT background, isolated subject fully inside frame with margin on all sides, no ground, no shadow on the ground, no text, no watermark
+```
+
+**`enemy_vigia.png`**
+```
+Full body front view of a dead city watchman standing at his post, ash-grey and desiccated, wearing the faded padded gambeson and dented kettle helm of a medieval town guard, drawing a short bow with a black arrow nocked, quiver at the hip, one shoulder pauldron missing, dust in every fold of cloth, eyes dark hollows under the helm brim, no glow, no aura, no magic effects, cold moonlight from above, grim dark medieval fantasy game enemy sprite, painterly realistic, high detail, FULLY TRANSPARENT background, isolated subject fully inside frame with margin on all sides, no ground, no shadow on the ground, no text, no watermark
+```
+
+**`enemy_lamento.png`**
+```
+Full body front view of a gaunt pale humanoid figure with its head tilted back and its mouth open far too wide in a silent scream, the remains of a medieval townswoman in a long tattered shift gone grey with ash, extremely thin arms reaching forward with clawed fingers, hair hanging like dry straw, the throat visibly stretched and cracked, faint pale grey dust streaming from the open mouth, no bright glow, no coloured aura, no magic effects, cold moonlight from above, grim dark medieval fantasy game enemy sprite, painterly realistic, high detail, FULLY TRANSPARENT background, isolated subject fully inside frame with margin on all sides, no ground, no shadow on the ground, no text, no watermark
+```
+
+**`enemy_carrasco.png`**
+```
+Full body front view of a massive broad executioner of a ruined medieval city, ash-grey dead flesh, thick leather hood with no eye holes stitched shut, heavy blood-blackened leather apron over a bare barrel chest, enormous notched two-handed cleaver held low in one hand, forearms wrapped in filthy bandages, hunched forward and heavy, no glow, no aura, no magic effects, cold moonlight from above, grim dark medieval fantasy game enemy sprite, painterly realistic, high detail, FULLY TRANSPARENT background, isolated subject fully inside frame with margin on all sides, no ground, no shadow on the ground, no text, no watermark
+```
+
+### 33.4 — `boss_a3.png` — O DÉCIMO TERCEIRO
+
+O chefe do ato, e a peça mais importante da lista. Hoje usa a folha do **Cavaleiro
+do Ato I** tingida de pálido-azulado, e isso foi escolha e não economia: ele é a
+mesma coisa que o fundador riscado de Grimhollow, trezentos anos mais velho e do
+lado errado da pergunta.
+
+A arte própria precisa dizer três coisas ao mesmo tempo: **é um homem**, não um
+monstro; ele está aqui **há seiscentos anos**; e ele **não perdeu** — ele mudou de
+ideia. Nada de garra, nada de chifre, nada de brilho. O que assusta nele é ser
+alguém que ainda parece capaz de conversar.
+
+```
+Full body front view of an ancient human sealer standing perfectly upright and composed, a man and not a monster, six hundred years old and still wearing the ceremonial dark plate armour of a medieval sealing order over a long grey robe, the armour dulled and pitted but carefully maintained, a heavy iron key ring hanging at his belt with a dozen large old keys, holding a long staff of dark wood topped with a broken stone seal, his face gaunt and human and calm with pale grey skin and clear pale eyes that are still lucid, close-cropped white hair, engraved sigils covering the breastplate, a snuffed-out lantern hanging dark from his other hand, no glow, no fire, no coloured aura, no magic effects, no claws, no horns, imposing and quiet, cold moonlight from above, grim dark medieval fantasy game boss sprite, painterly realistic, very high detail, FULLY TRANSPARENT background, isolated subject fully inside frame with margin on all sides, no ground, no shadow on the ground, no text, no watermark
+```
+
+> **Ordem de prioridade, se for gerar aos poucos:** `boss_a3` primeiro (é o único
+> que o jogador para p/ olhar), depois `enemy_cinzento` (é o que mais aparece),
+> depois `tex_a3wall`, e o resto conforme der. O ato roda inteiro sem nenhum deles.
