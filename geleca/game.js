@@ -1026,11 +1026,7 @@ function update(dt){
   if(hitStop>0){ hitStop-=dt; return; }              // HIT-STOP: congela o mundo por instantes no impacto
   levelTime+=dt;
   if(blob.flash>0)blob.flash-=dt; if(blob.clingLock>0)blob.clingLock-=dt; if(blob.hurtT>0)blob.hurtT-=dt;
-  // PISCADA aleatória (às vezes uma piscadinha dupla)
-  blob.blink-=dt; if(blob.blink<-0.15) blob.blink = (Math.random()<0.22? 0.34 : 1.4+Math.random()*3.0);
-  // LÍNGUA de vez em quando (aparece por um instante, some, e demora pra voltar)
-  blob._tongT=(blob._tongT==null?1.5:blob._tongT)-dt;
-  if(blob._tongT<=0){ blob.tongueShow=!blob.tongueShow; blob._tongT = blob.tongueShow ? (0.5+Math.random()*0.6) : (2.5+Math.random()*4); }
+  blob.blink-=dt; if(blob.blink<-0.15)blob.blink=1.6+Math.random()*2.5;
 
   if(transition>0) transition=Math.max(0,transition-dt*2.6);
   updateMovers(dt); updateEnemies(dt);
@@ -1178,10 +1174,7 @@ function update(dt){
   updateParticles(dt); updateRings(dt); updateTrail(dt); updateShots(dt);
   // RASTRO de slime: ao andar no chão, escalar/deslizar na parede, ou voar — mostra que é gosma.
   const moving = Math.abs(blob.vx)>60 || (blob.cling && Math.abs(blob.vy)>40) || (!blob.onGround && Math.abs(blob.vy)>320);
-  if(!blob.gone && moving){ blob._trailAcc=(blob._trailAcc||0)+dt; if(blob._trailAcc>=0.022){ blob._trailAcc=0; pushTrail(); } }
-  // OCIOSA (idle): parada no chão, sem nada acontecendo → conta o tempo pra reagir (olhar em volta, gingar, dançar)
-  const idleNow = blob.onGroundPrev && Math.abs(blob.vx)<12 && Math.abs(blob.vy)<40 && !blob.melting && (blob.hurtT||0)<=0 && !blob.cling;
-  blob.idleT = idleNow ? (blob.idleT||0)+dt : 0;
+  if(!blob.gone && moving){ blob._trailAcc=(blob._trailAcc||0)+dt; if(blob._trailAcc>=0.028){ blob._trailAcc=0; pushTrail(); } }
   if(shake>0) shake=Math.max(0,shake-dt*24);
   // um pedaço só vira SÓLIDO quando não está sobreposto ao jogador — senão a colisão
   // "ejetaria" o blob pra cima (teletransporte de ~1 geleca). Espera o blob sair de cima.
@@ -1703,25 +1696,14 @@ function render(){
     ctx.restore();                                        // fecha o PLOP de nascimento
   }
 
-  // RASTRO DE GOSMA — no CHÃO vira um borrão úmido que se espalha e some (arrasto do slime);
-  // no ar/parede, cópias que derretem. Tudo some pouco depois, dando a leitura de gosma.
-  for(const gh of trail){ const k=gh.life/gh.max, melt=1-k;                  // k: 1→0 conforme some
-    const col=gh.cling?"#7fe0d0":(gh.melt?"#ffbe6a":"#8bec7c");
-    if(gh.ground){                                                          // ---- BORRÃO no chão ----
-      const al=k*0.30, spread=1+melt*0.7, pw=gh.w*0.92*spread, ph=Math.max(4,gh.h*0.20)*(1-melt*0.3);
-      const px=gh.x+gh.w/2 - gh.dir*melt*gh.w*0.18, py=gh.foot-ph*0.5;       // escorre um tico pra trás
-      ctx.globalAlpha=al; ctx.fillStyle=col;
-      ctx.beginPath(); ctx.ellipse(px,py,pw*0.5,ph*0.75,0,0,7); ctx.fill();
-      ctx.globalAlpha=al*0.55; ctx.fillStyle="rgba(255,255,255,.55)";       // reflexo molhado
-      ctx.beginPath(); ctx.ellipse(px-gh.dir*pw*0.16,py-ph*0.18,pw*0.2,ph*0.3,0,0,7); ctx.fill();
-    } else {                                                                // ---- cópia aérea/parede ----
-      const al=k*0.32, w=gh.w*(1+melt*0.28), h=gh.h*(1-melt*0.45), x=gh.x-(w-gh.w)/2, y=gh.y+(gh.h-h);
-      ctx.globalAlpha=al; ctx.fillStyle=col;
-      roundRect(x, y, w, h, Math.min(w,h)*0.4); ctx.fill();
-      ctx.globalAlpha=al*0.5; ctx.fillStyle="rgba(255,255,255,.5)";
-      roundRect(x+w*0.2, y+h*0.12, w*0.6, h*0.28, h*0.2); ctx.fill();
-    }
-  }
+  // RASTRO DE GOSMA — cópias que derretem (achatam e afundam) ao sumir, dão a leitura de slime
+  for(const gh of trail){ const k=gh.life/gh.max, al=k*0.34;                 // k: 1→0 conforme some
+    const melt=1-k;                                                          // quanto mais velho, mais "derretido"
+    const w=gh.w*(1+melt*0.28), h=gh.h*(1-melt*0.45), x=gh.x-(w-gh.w)/2, y=gh.y+(gh.h-h);  // espalha e afunda
+    ctx.globalAlpha=al; ctx.fillStyle=gh.cling?"#7fe0d0":(gh.melt?"#ffbe6a":"#8bec7c");
+    roundRect(x, y, w, h, Math.min(w,h)*0.4); ctx.fill();
+    ctx.globalAlpha=al*0.5; ctx.fillStyle="rgba(255,255,255,.5)";           // brilho úmido no topo
+    roundRect(x+w*0.2, y+h*0.12, w*0.6, h*0.28, h*0.2); ctx.fill(); }
   ctx.globalAlpha=1;
 
   // MURALHA DEVORADORA — mar de gosma da Gosma-Mãe avançando pela esquerda (come a tela)
@@ -1932,136 +1914,66 @@ function slime(cx,cy,rx,ry,amp,seed){
     const x=cx+Math.cos(a)*rx*w, y=cy+Math.sin(a)*ry*w; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }
   ctx.closePath();
 }
-// contorno de GOSMA irregular e SUAVE (gota jiggly): dois harmônicos animados + base mais pesada.
-function blobShape(cx,cy,rx,ry,amp,seed){
-  const N=20, P=[];
-  for(let i=0;i<N;i++){ const a=(i/N)*Math.PI*2;
-    const wob=1 + amp*Math.sin(a*3+T*3.2+seed) + amp*0.6*Math.sin(a*2-T*2.3+seed*1.7);
-    const heavy=Math.sin(a)>0?1.05:0.96;                 // parte de baixo mais "pesada" (gota)
-    P.push([cx+Math.cos(a)*rx*wob, cy+Math.sin(a)*ry*wob*heavy]); }
-  const p0=P[N-1]; ctx.beginPath(); ctx.moveTo((p0[0]+P[0][0])/2,(p0[1]+P[0][1])/2);
-  for(let i=0;i<N;i++){ const p=P[i], n=P[(i+1)%N]; ctx.quadraticCurveTo(p[0],p[1],(p[0]+n[0])/2,(p[1]+n[1])/2); }
-  ctx.closePath();
-}
 // personagem: CUBO GELATINOSO estilo RPG (translúcido, face-topo 3D, bolhas, olhos)
 function drawBlob(){
   const b=blob; if(b.gone) return;                 // morreu: virou espatifo, não desenha o corpo
-  // ---- ANDAR: arrasto de gosma (inclina e estica no sentido do movimento) + gingado ----
-  const onG=b.onGroundPrev, spd=Math.min(1,Math.abs(b.vx)/200), dirW=b.vx>0?1:-1;
-  const walking=onG && Math.abs(b.vx)>50;
-  // ---- OCIOSA: depois de um tempo parada, olha em volta e depois DANÇA ----
-  const idleT=b.idleT||0, curious=idleT>2.2&&idleT<6, dancing=idleT>=6;
-  let dLean=0, dBob=0, dPulse=0, lookX=0, lookY=0;
-  if(curious){ lookX=Math.sin(idleT*1.7)*0.9; lookY=Math.sin(idleT*0.9)*0.28; }
-  if(dancing){ const bt=T*5.4; dLean=Math.sin(bt)*0.15; dBob=-Math.abs(Math.sin(bt))*2.6;
-    dPulse=Math.sin(bt*2)*0.06; lookX=Math.sin(bt)*0.8; lookY=-0.14; }
-  const wob=walking?Math.sin(T*15)*0.05*spd:0;                        // gingado (squish)
-  const strX=walking?0.12*spd:0;                                      // corpo se ESTICA na horizontal (arrasto)
-  const lean=(walking?dirW*0.17*spd:0)+dLean;                         // inclina no movimento + ginga na dança
   const sq=Math.max(-0.18,Math.min(0.18,b.vy/4000)), jig=Math.sin(T*6)*0.02;
-  const w=b.w*(1-sq*0.5+jig+strX+wob+dPulse), h=b.h*(1+sq-jig-wob-dPulse);
-  const x=b.x+(b.w-w)/2, y=b.y+(b.h-h), cx=x+w/2, cy=y+h/2, rx=w/2, ry=h/2;
+  const w=b.w*(1-sq*0.5+jig), h=b.h*(1+sq-jig);
+  const x=b.x+(b.w-w)/2, y=b.y+(b.h-h), cx=x+w/2, r=Math.min(w,h)*0.26;
   const flashing=b.flash>0&&Math.floor(b.flash*20)%2===0;
-  const amp=b.melting?0.075:0.05;                                     // derretendo ondula mais
   let a,bl,ed;                                   // a=topo, bl=base, ed=cor da aresta
   if(flashing){a="#ffd0d0";bl="#ff6a6a";ed="#c83030";}
   else if(b.melting){a="#ffe0a8";bl="#e0842a";ed="#b45a10";}
   else if(b.cling){a="#cffaf0";bl="#33b0a0";ed="#1e7e72";}
   else {a="#e6ffc8";bl="#5ec84a";ed="#2f8f30";}
 
-  // sombra de contato (elíptica) — no CHÃO, não inclina/pula junto
-  ctx.fillStyle="rgba(0,0,0,.30)"; ctx.beginPath(); ctx.ellipse(b.x+b.w/2,b.y+b.h+2,w*0.46,5,0,0,7); ctx.fill();
+  // sombra de contato (elíptica)
+  ctx.fillStyle="rgba(0,0,0,.30)"; ctx.beginPath(); ctx.ellipse(cx,b.y+b.h+2,w*0.44,5,0,0,7); ctx.fill();
 
-  // pivô na base: inclina (cisalhamento) + pulinho da dança, sem descolar do chão
-  ctx.save();
-  if(lean!==0||dBob!==0){ const yB=b.y+b.h, c=-lean; ctx.transform(1,0,c,1,-c*yB,dBob); }
-
-  // ---- CORPO: GOSMA translúcida com contorno irregular que ondula ----
+  // ---- CORPO: cubo de geleia translúcido ----
   ctx.save(); ctx.shadowColor=b.melting?"rgba(255,150,70,.55)":(b.cling?"rgba(120,240,220,.5)":"rgba(126,224,107,.5)"); ctx.shadowBlur=14;
   const gr=ctx.createLinearGradient(0,y,0,y+h);
   gr.addColorStop(0,a); gr.addColorStop(0.5,bl); gr.addColorStop(1,ed);
-  ctx.globalAlpha=0.92; ctx.fillStyle=gr; blobShape(cx,cy,rx,ry,amp,0); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
+  ctx.globalAlpha=0.9; ctx.fillStyle=gr; roundRect(x,y,w,h,r); ctx.fill(); ctx.globalAlpha=1; ctx.restore();
 
-  // volume interno (clip no formato de gosma)
-  ctx.save(); blobShape(cx,cy,rx,ry,amp,0); ctx.clip();
-  const side=ctx.createLinearGradient(x,0,x+w,0); side.addColorStop(0,"rgba(255,255,255,.12)"); side.addColorStop(0.5,"rgba(0,0,0,0)"); side.addColorStop(1,"rgba(0,30,10,.24)");
+  // sombreamento das FACES do cubo (lado direito e base mais escuros = volume 3D)
+  ctx.save(); roundRect(x,y,w,h,r); ctx.clip();
+  const side=ctx.createLinearGradient(x,0,x+w,0); side.addColorStop(0,"rgba(255,255,255,.10)"); side.addColorStop(0.5,"rgba(0,0,0,0)"); side.addColorStop(1,"rgba(0,30,10,.22)");
   ctx.fillStyle=side; ctx.fillRect(x,y,w,h);
-  ctx.fillStyle="rgba(0,40,12,.13)"; ctx.beginPath(); ctx.ellipse(cx,cy+h*0.16,w*0.30,h*0.24,0,0,7); ctx.fill();   // núcleo mais escuro embaixo
-  ctx.strokeStyle="rgba(255,255,255,.14)"; ctx.lineWidth=Math.max(2,w*0.06);                                      // refração curva
-  ctx.beginPath(); ctx.moveTo(x+w*0.15,y+h*0.62); ctx.quadraticCurveTo(cx,y+h*0.5,x+w*0.9,y+h*0.66); ctx.stroke();
-  // bolhas internas
+  // núcleo interno (volume de geleia, mais escuro no centro-baixo)
+  ctx.fillStyle="rgba(0,40,12,.14)"; roundRect(x+w*0.22,y+h*0.40,w*0.56,h*0.46,r*0.5); ctx.fill();
+  // refração/cáustica: faixa curva clara atravessando
+  ctx.strokeStyle="rgba(255,255,255,.14)"; ctx.lineWidth=Math.max(2,w*0.06);
+  ctx.beginPath(); ctx.moveTo(x+w*0.15,y+h*0.62); ctx.quadraticCurveTo(x+w*0.5,y+h*0.5,x+w*0.9,y+h*0.66); ctx.stroke();
+  ctx.restore();
+
+  // FACE-TOPO do cubo (lid brilhante = leitura de cubo 3D)
+  ctx.fillStyle="rgba(255,255,255,.26)"; roundRect(x+w*0.14,y+h*0.05,w*0.72,h*0.20,r*0.55); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.14)"; roundRect(x+w*0.14,y+h*0.05,w*0.72,h*0.34,r*0.55); ctx.fill();
+
+  // bolhas internas (mais e com brilho)
   for(let i=0;i<4;i++){ const bx=x+w*(0.28+0.16*i)+Math.sin(T*1.5+i*2)*2, by=y+h*(0.46+0.11*i)+Math.cos(T*1.3+i)*2, br=1.3+((i*7)%3)*0.7;
     ctx.fillStyle="rgba(255,255,255,.34)"; ctx.beginPath(); ctx.arc(bx,by,br,0,7); ctx.fill();
     ctx.fillStyle="rgba(255,255,255,.6)"; ctx.beginPath(); ctx.arc(bx-br*0.4,by-br*0.4,br*0.4,0,7); ctx.fill(); }
-  // gloss do topo (arredondado, não mais "tampa de cubo")
-  ctx.fillStyle="rgba(255,255,255,.22)"; ctx.beginPath(); ctx.ellipse(cx-w*0.02,y+h*0.16,w*0.34,h*0.16,0,0,7); ctx.fill();
-  ctx.restore();
 
-  // contorno de gosma (aresta úmida) + specular
-  ctx.strokeStyle="rgba(255,255,255,.26)"; ctx.lineWidth=1.5; blobShape(cx,cy,rx,ry,amp,0); ctx.stroke();
-  ctx.fillStyle="rgba(255,255,255,.72)"; ctx.beginPath(); ctx.ellipse(x+w*0.32,y+h*0.2,w*0.13,h*0.075,-0.5,0,7); ctx.fill();
+  // rim light (aresta superior-esquerda acesa)
+  ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.arc(x+r+2,y+r+2,r-1,Math.PI,Math.PI*1.5); ctx.stroke();
+  // contorno geral sutil
+  ctx.strokeStyle="rgba(255,255,255,.22)"; ctx.lineWidth=1.5; roundRect(x+1,y+1,w-2,h-2,r-1); ctx.stroke();
+  // specular (brilho principal)
+  ctx.fillStyle="rgba(255,255,255,.7)"; ctx.beginPath(); ctx.ellipse(x+w*0.3,y+h*0.2,w*0.14,h*0.08,-0.5,0,7); ctx.fill();
 
-  // ---- EXPRESSÃO (humor conforme o estado) ----
-  let mood="happy";
-  if(flashing) mood="hurt";
-  else if(b.melting) mood="sad";
-  else if(!onG && b.vy>300) mood="fall";
-  else if(!onG && b.vy<-120) mood="jump";
-  else if(walking) mood="go";
-  else if(dancing) mood="dance";
-  const ink="#0a2012";
-  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=w*0.21, ey=y+h*0.44, er=Math.max(3,w*0.125);
-  const pdx=dir*2 + lookX*er*0.7;                                     // pupila: direção + olhar da ociosa/dança
-  const pdy=(mood==="jump"?-er*0.32:mood==="fall"?er*0.34:0) + lookY*er;
-  const blink=b.blink<0.12 && mood!=="hurt";
-  const smiley=(mood==="happy"||mood==="go"||mood==="dance");
-  const tongue=b.tongueShow && smiley;                                // língua só de vez em quando
-
-  // bochechas (blush suave)
-  if(smiley){ ctx.fillStyle="rgba(255,150,120,.22)";
-    ctx.beginPath(); ctx.ellipse(cx-ex-er*0.5,ey+er*0.9,er*0.5,er*0.34,0,0,7);
-    ctx.ellipse(cx+ex+er*0.5,ey+er*0.9,er*0.5,er*0.34,0,0,7); ctx.fill(); }
-
-  // olhos
+  // ---- OLHOS ----
+  const dir=b.vx>12?1:(b.vx<-12?-1:0), ex=w*0.2, ey=y+h*0.5, er=Math.max(2.8,w*0.11);
+  const blink=b.blink<0.12;
   if(!blink){ ctx.fillStyle="#fff"; eye(cx-ex,ey,er); eye(cx+ex,ey,er);
-    ctx.fillStyle=ink; pupil(cx-ex+pdx,ey+pdy,er); pupil(cx+ex+pdx,ey+pdy,er);
-    ctx.fillStyle="rgba(255,255,255,.95)"; ctx.beginPath();
-    ctx.arc(cx-ex+pdx-er*0.18,ey+pdy-er*0.18,er*0.24,0,7); ctx.arc(cx+ex+pdx-er*0.18,ey+pdy-er*0.18,er*0.24,0,7); ctx.fill(); }
-  else { ctx.strokeStyle=ink; ctx.lineWidth=2; ctx.lineCap="round";
-    ctx.beginPath();ctx.moveTo(cx-ex-er*0.7,ey);ctx.quadraticCurveTo(cx-ex,ey+er*0.5,cx-ex+er*0.7,ey);
-    ctx.moveTo(cx+ex-er*0.7,ey);ctx.quadraticCurveTo(cx+ex,ey+er*0.5,cx+ex+er*0.7,ey);ctx.stroke(); }
-
-  // sobrancelhas (humores fortes)
-  ctx.strokeStyle=ink; ctx.lineWidth=Math.max(1.6,w*0.045); ctx.lineCap="round";
-  if(mood==="hurt"){ ctx.beginPath();
-    ctx.moveTo(cx-ex-er*0.8,ey-er*1.5); ctx.lineTo(cx-ex+er*0.6,ey-er*0.9);
-    ctx.moveTo(cx+ex+er*0.8,ey-er*1.5); ctx.lineTo(cx+ex-er*0.6,ey-er*0.9); ctx.stroke(); }
-  else if(mood==="sad"){ ctx.beginPath();
-    ctx.moveTo(cx-ex-er*0.7,ey-er*0.9); ctx.lineTo(cx-ex+er*0.7,ey-er*1.5);
-    ctx.moveTo(cx+ex+er*0.7,ey-er*0.9); ctx.lineTo(cx+ex-er*0.7,ey-er*1.5); ctx.stroke(); }
-
-  // ---- BOCA ----
-  const mcx=cx+dir*1, my=y+h*0.68, mw=w*0.2;
-  ctx.strokeStyle=ink; ctx.fillStyle=ink; ctx.lineWidth=Math.max(1.8,w*0.055); ctx.lineJoin="round"; ctx.lineCap="round";
-  if(mood==="hurt"){
-    ctx.beginPath(); ctx.ellipse(mcx,my,mw*0.8,mw*0.52,0,0,7); ctx.fill(); }
-  else if(mood==="fall"){
-    ctx.beginPath(); ctx.ellipse(mcx,my,mw*0.6,mw*0.78,0,0,7); ctx.fill();
-    ctx.fillStyle="rgba(255,120,140,.6)"; ctx.beginPath(); ctx.ellipse(mcx,my+mw*0.3,mw*0.32,mw*0.28,0,0,7); ctx.fill(); }
-  else if(mood==="jump"){
-    ctx.beginPath(); ctx.moveTo(mcx-mw,my-mw*0.15);
-    ctx.quadraticCurveTo(mcx,my+mw*0.95,mcx+mw,my-mw*0.15); ctx.quadraticCurveTo(mcx,my+mw*0.35,mcx-mw,my-mw*0.15); ctx.fill(); }
-  else if(mood==="sad"){
-    ctx.beginPath(); ctx.moveTo(mcx-mw*0.9,my+mw*0.35); ctx.quadraticCurveTo(mcx,my-mw*0.35,mcx+mw*0.9,my+mw*0.35); ctx.stroke(); }
-  else {                                                               // feliz/andando/dançando: sorriso (língua só às vezes)
-    const open=mood==="dance"?mw*0.85:(mood==="go"?mw*0.6:mw*0.48);
-    ctx.beginPath(); ctx.moveTo(mcx-mw,my-mw*0.05); ctx.quadraticCurveTo(mcx,my+open,mcx+mw,my-mw*0.05); ctx.stroke();
-    if(tongue){ ctx.fillStyle="rgba(255,120,140,.6)"; ctx.beginPath(); ctx.ellipse(mcx,my+open*0.5,mw*0.4,open*0.34,0,0,7); ctx.fill(); } }
-
-  ctx.restore();                                                       // fecha o cisalhamento do arrasto
-
+    ctx.fillStyle="#0a2012"; pupil(cx-ex+dir*2,ey,er); pupil(cx+ex+dir*2,ey,er);
+    ctx.fillStyle="rgba(255,255,255,.95)"; ctx.beginPath(); ctx.arc(cx-ex+dir*2-1,ey-1,er*0.24,0,7); ctx.arc(cx+ex+dir*2-1,ey-1,er*0.24,0,7); ctx.fill(); }
+  else { ctx.strokeStyle="#0a2012"; ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx-ex-er,ey);ctx.lineTo(cx-ex+er,ey);ctx.moveTo(cx+ex-er,ey);ctx.lineTo(cx+ex+er,ey);ctx.stroke(); }
   function eye(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr,0,7); ctx.fill(); }
-  function pupil(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr*0.54,0,7); ctx.fill(); }
+  function pupil(px,py,rr){ ctx.beginPath(); ctx.arc(px,py,rr*0.52,0,7); ctx.fill(); }
 }
 function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
@@ -2092,8 +2004,8 @@ function updateRings(dt){ for(let i=rings.length-1;i>=0;i--){ const r=rings[i]; 
   if(r.life<=0){rings.splice(i,1);continue;} const t=1-r.life/r.max;
   r.r = r.inward ? Math.max(0,r.maxR*(1-t)) : r.maxR*(1-(1-t)*(1-t)); } }   // easeOut na expansão
 // RASTRO de gosma: cópias que ficam pra trás e "derretem" (achatam) ao sumir, cara de slime
-function pushTrail(){ trail.push({x:blob.x,y:blob.y,w:blob.w,h:blob.h,foot:blob.y+blob.h,life:0.45,max:0.45,
-  ground:!!blob.onGroundPrev,dir:(blob.vx>0?1:-1),cling:blob.cling,melt:blob.melting}); if(trail.length>28)trail.shift(); }
+function pushTrail(){ trail.push({x:blob.x,y:blob.y,w:blob.w,h:blob.h,life:0.30,max:0.30,
+  cling:blob.cling,melt:blob.melting}); if(trail.length>22)trail.shift(); }
 function updateTrail(dt){ for(let i=trail.length-1;i>=0;i--){ trail[i].life-=dt; if(trail[i].life<=0)trail.splice(i,1); } }
 // CONFETE de comemoração (vitória): partículas coloridas subindo e caindo
 const CONFCOL=["#7ee06b","#ffd24a","#8be9ff","#ff8fae","#c9a6ff","#a6f08a"];
