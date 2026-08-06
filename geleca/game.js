@@ -2335,8 +2335,9 @@ function buildCustomList(){ const box=el("custom-list"); if(!box) return; box.in
   const oh=document.createElement("div"); oh.className="cl-section"; oh.textContent="✏️ Editar uma fase oficial (vira base pra alterar)";
   box.appendChild(oh);
   const orow=document.createElement("div"); orow.className="cl-officials";
-  for(let i=0;i<NORMAL;i++){ const btn=document.createElement("button"); btn.className="cl-off"; btn.textContent=(i+1);
-    btn.title=LEVELS[i].name;
+  const cAll=loadCustom();
+  for(let i=0;i<NORMAL;i++){ const btn=document.createElement("button"); btn.className="cl-off"+(cAll[i+1]?" customized":""); btn.textContent=(i+1);
+    btn.title=LEVELS[i].name+(cAll[i+1]?" (você já editou)":"");
     // edita a oficial i: o slot JÁ vem como Fase i+1, então salvar SUBSTITUI aquela fase no mapa
     btn.addEventListener("click",()=>{ audio(); const c=loadCustom(); edLoadObj(c[i+1]||LEVELS[i], null); ed.pendingSlot=i+1; ed.editingSlot=(c[i+1]?i+1:null); showEditor(false); });
     orow.appendChild(btn); }
