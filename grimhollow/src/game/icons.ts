@@ -69,16 +69,18 @@ export function temIcone(nome: string): boolean { return !!ICO[nome]; }
  * título de 60px: ali o ícone viraria um cartaz.
  */
 export const ICON_CSS = `
-  .gh-ico{width:0.9em;height:0.9em;max-width:26px;max-height:26px;
+  .gh-ico{width:0.9em;height:0.9em;
+    max-width:calc(26px * var(--gh-ui,1));max-height:calc(26px * var(--gh-ui,1));
     object-fit:contain;vertical-align:-0.1em;
     flex:none;pointer-events:none;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));}
   /* nos botões redondos do HUD o ícone ocupa o disco quase todo */
   .gh-ico-btn{width:60%;height:60%;max-width:none;max-height:none;vertical-align:0;}
   /* dentro de um botão pequeno (▲ ▼ ✕ da Companhia, + do painel social) */
-  .gh-ico-sm{width:15px;height:15px;vertical-align:-0.22em;}
+  .gh-ico-sm{width:calc(15px * var(--gh-ui,1));height:calc(15px * var(--gh-ui,1));vertical-align:-0.22em;}
   /* lugares que QUEREM o ícone grande dizem isso explicitamente */
-  .gh-ico-lg{width:1.1em;height:1.1em;max-width:52px;max-height:52px;}
+  .gh-ico-lg{width:1.1em;height:1.1em;
+    max-width:calc(52px * var(--gh-ui,1));max-height:calc(52px * var(--gh-ui,1));}
 `;
 
 /** Põe a folha no documento uma única vez (o módulo é carregado uma vez só). */

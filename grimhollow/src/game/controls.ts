@@ -46,6 +46,8 @@ import { CLASS_BY_ID } from "./classes";
 // abaixo mantém o glifo antigo como reserva — se a peça ainda não foi fatiada, o
 // jogo continua desenhando o caractere em vez de um quadrado vazio.
 import { ico, ICO } from "./icons";
+// só pelo efeito: instala --gh-ui no <html> (ver uiscale.ts)
+import "./uiscale";
 const ICO_FECHAR = ico("fechar") || "\u2715";
 
 /**
@@ -1258,7 +1260,7 @@ export function setupControls(
     const sideHtml = d.side.length ? d.side.map((e) => entry(e)).join("")
       : '<div class="gh-jr-empty">Nenhuma missão secundária no momento.</div>';
     journalBody.innerHTML =
-      '<div class="gh-jr-sec"><div class="gh-jr-sh">' + (ico("concluido") || "\u2726") + ' A Névoa Devoradora <small>Linha Principal</small></div>' +
+      '<div class="gh-jr-sec"><div class="gh-jr-sh">' + (ico("concluido") || "\u2726") + ' As Portas de Baixo <small>Linha Principal</small></div>' +
       `<div class="gh-jr-list">${mainHtml}</div></div>` +
       '<div class="gh-jr-sec"><div class="gh-jr-sh">Missões</div>' +
       `<div class="gh-jr-list">${sideHtml}</div></div>`;
@@ -1478,11 +1480,11 @@ export function setupControls(
        cima dela — não só escondia, INTERCEPTAVA o toque, então com grupo na tela
        era impossível abrir o diário ou a Companhia. Quem chegou depois é que se
        move; os botões o jogador já sabia onde estavam. */
-    #gh-party{position:absolute;left:76px;top:126px;z-index:26;display:flex;
+    #gh-party{position:absolute;left:calc(76 * var(--gh-u,1px));top:calc(126 * var(--gh-u,1px));z-index:26;display:flex;
       flex-direction:column;gap:6px;pointer-events:none;font-family:"Trebuchet MS",sans-serif;}
     /* a linha é CLICÁVEL: é assim que se escolhe em quem a cura vai cair */
-    .gh-pt-row{position:relative;width:198px;box-sizing:border-box;
-      border:16px solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
+    .gh-pt-row{position:relative;width:calc(198 * var(--gh-u,1px));box-sizing:border-box;
+      border:calc(16 * var(--gh-u,1px)) solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
       filter:drop-shadow(0 3px 9px rgba(0,0,0,.6));pointer-events:auto;cursor:pointer;
       padding:1px 2px 2px;display:flex;align-items:center;gap:7px;}
     .gh-pt-row:hover .gh-pt-nome{color:#fff;}
@@ -1493,7 +1495,7 @@ export function setupControls(
     /* CAÍDO: a linha esmorece e o retrato vira uma caveira — dá p/ ver de longe */
     .gh-pt-row.gh-pt-caido .gh-pt-face{background:#3b322a !important;color:#c9bda6;}
     .gh-pt-row.gh-pt-caido .gh-pt-nome{color:#a08e78;}
-    .gh-pt-lev{flex:none;cursor:pointer;font-family:"Cinzel",serif;font-size:10px;
+    .gh-pt-lev{flex:none;cursor:pointer;font-family:"Cinzel",serif;font-size:calc(10 * var(--gh-u,1px));
       letter-spacing:.04em;color:#f0dca2;padding:4px 7px;border-radius:5px;
       background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.6);
       box-shadow:0 1px 3px rgba(0,0,0,.5);animation:ghLevPulso 1.6s ease-in-out infinite;}
@@ -1505,20 +1507,20 @@ export function setupControls(
        saber quem é quem sem ler o nome. */
     .gh-pt-face{flex:none;width:30px;height:30px;border-radius:50%;
       display:flex;align-items:center;justify-content:center;
-      font-family:"Cinzel",serif;font-size:14px;color:#160f08;
+      font-family:"Cinzel",serif;font-size:calc(14 * var(--gh-u,1px));color:#160f08;
       border:2px solid rgba(0,0,0,.45);box-shadow:inset 0 -3px 6px rgba(0,0,0,.35);}
     .gh-pt-dados{flex:1;min-width:0;}
     .gh-pt-nome{display:flex;justify-content:space-between;align-items:baseline;
-      color:#f0e2c0;font-family:"Cinzel",serif;font-size:12px;letter-spacing:.02em;
+      color:#f0e2c0;font-family:"Cinzel",serif;font-size:calc(12 * var(--gh-u,1px));letter-spacing:.02em;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
-    .gh-pt-nome span{flex:none;color:#a3906b;font-size:9.5px;
+    .gh-pt-nome span{flex:none;color:#a3906b;font-size:calc(9.5 * var(--gh-u,1px));
       font-family:"Trebuchet MS",sans-serif;margin-left:6px;}
     .gh-pt-bar{position:relative;height:10px;background:#1a140d;
       border:1px solid #5b4a2e;border-radius:2px;overflow:hidden;}
     .gh-pt-bar i{display:block;height:100%;transition:width .25s ease-out;
       box-shadow:inset 0 -3px 5px rgba(0,0,0,.35);}
     .gh-pt-hp{position:absolute;inset:0;display:flex;align-items:center;
-      justify-content:center;font-size:8px;color:#f2e6c8;font-weight:400;
+      justify-content:center;font-size:calc(8 * var(--gh-u,1px));color:#f2e6c8;font-weight:400;
       text-shadow:0 1px 2px #000;letter-spacing:.03em;}
     /* quem está noutra zona fica esmaecido — é informação, não decoração.
        O "noutro lugar" entra no LUGAR do nível (era uma etiqueta solta no canto e
@@ -1526,7 +1528,7 @@ export function setupControls(
     .gh-pt-row.gh-pt-longe{opacity:.55;}
     /* CABEÇALHO: "GRUPO 4/5". Serve p/ ver de relance que ainda cabe alguém —
        sem isso o teto só aparece quando o convite é recusado. */
-    .gh-pt-cab{align-self:flex-start;font-family:"Cinzel",serif;font-size:10px;
+    .gh-pt-cab{align-self:flex-start;font-family:"Cinzel",serif;font-size:calc(10 * var(--gh-u,1px));
       letter-spacing:.12em;color:#e2cf9f;padding:1px 7px 2px;margin-bottom:-2px;
       border-radius:3px;background:rgba(10,8,6,.72);
       border:1px solid rgba(201,162,74,.45);
@@ -1547,12 +1549,12 @@ export function setupControls(
     #gh-party.gh-pt-mini .gh-pt-row{width:172px;border:0;border-left:2px solid rgba(201,162,74,.75);
       border-image:none;border-radius:0 4px 4px 0;padding:3px 6px 3px 5px;gap:6px;
       background:linear-gradient(90deg,rgba(20,16,11,.88),rgba(20,16,11,.66));}
-    #gh-party.gh-pt-mini .gh-pt-face{width:22px;height:22px;font-size:11px;border-width:1px;}
-    #gh-party.gh-pt-mini .gh-pt-nome{font-size:10.5px;margin-bottom:1px;}
-    #gh-party.gh-pt-mini .gh-pt-nome span{font-size:8.5px;margin-left:4px;}
+    #gh-party.gh-pt-mini .gh-pt-face{width:22px;height:22px;font-size:calc(11 * var(--gh-u,1px));border-width:1px;}
+    #gh-party.gh-pt-mini .gh-pt-nome{font-size:calc(10.5 * var(--gh-u,1px));margin-bottom:1px;}
+    #gh-party.gh-pt-mini .gh-pt-nome span{font-size:calc(8.5 * var(--gh-u,1px));margin-left:4px;}
     #gh-party.gh-pt-mini .gh-pt-bar{height:6px;}
     #gh-party.gh-pt-mini .gh-pt-hp{display:none;}
-    #gh-party.gh-pt-mini .gh-pt-lev{font-size:9px;padding:3px 5px;}
+    #gh-party.gh-pt-mini .gh-pt-lev{font-size:calc(9 * var(--gh-u,1px));padding:3px 5px;}
 
     /* CELULAR DEITADO: o painel sobe p/ logo abaixo do HUD (que aqui é menor e
        mora no alto). Os 126px do desktop custariam um terço da altura da tela —
@@ -1586,11 +1588,11 @@ export function setupControls(
       -webkit-backdrop-filter:saturate(.25) contrast(.85);
       animation:ghCaiuEntra .5s ease-out;}
     @keyframes ghCaiuEntra{from{opacity:0;}to{opacity:1;}}
-    #gh-fallen .gh-fa-tit{font-size:clamp(26px,6vw,46px);letter-spacing:.16em;
+    #gh-fallen .gh-fa-tit{font-size:clamp(26px,6vw,calc(46px * var(--gh-ui,1)));letter-spacing:.16em;
       color:#c14a3c;text-shadow:0 2px 10px #000,0 0 26px rgba(193,74,60,.45);}
-    #gh-fallen .gh-fa-sub{font-family:"Trebuchet MS",sans-serif;font-size:13px;
+    #gh-fallen .gh-fa-sub{font-family:"Trebuchet MS",sans-serif;font-size:calc(13 * var(--gh-u,1px));
       color:#c8b391;letter-spacing:.04em;text-shadow:0 1px 3px #000;max-width:74vw;}
-    #gh-fallen .gh-fa-rel{font-size:clamp(30px,8vw,54px);color:#e7d3a4;
+    #gh-fallen .gh-fa-rel{font-size:clamp(30px,8vw,calc(54px * var(--gh-ui,1)));color:#e7d3a4;
       text-shadow:0 2px 8px #000;letter-spacing:.06em;}
   `;
   root.appendChild(fallenCss);
@@ -1614,26 +1616,26 @@ export function setupControls(
   const inviteCss = document.createElement("style");
   inviteCss.textContent = `
     #gh-invite{position:fixed;left:50%;top:12%;transform:translateX(-50%);z-index:64;
-      pointer-events:auto;width:min(320px,84vw);box-sizing:border-box;
+      pointer-events:auto;width:min(calc(320px * var(--gh-ui,1)),84vw);box-sizing:border-box;
       border:22px solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
       filter:drop-shadow(0 8px 24px rgba(0,0,0,.7));padding:2px 6px 8px;
       color:#e9dcbe;font-family:"Trebuchet MS",sans-serif;text-align:center;
       animation:ghCvEntra .35s cubic-bezier(.2,1.4,.5,1);}
     @keyframes ghCvEntra{from{opacity:0;transform:translateX(-50%) translateY(-14px) scale(.94);}
       to{opacity:1;transform:translateX(-50%) translateY(0) scale(1);}}
-    #gh-invite .gh-cv-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:12.5px;
+    #gh-invite .gh-cv-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:calc(12.5 * var(--gh-u,1px));
       letter-spacing:.1em;text-shadow:0 1px 2px #000;margin:2px 0 8px;
       border-bottom:1px solid rgba(201,162,39,.3);padding-bottom:6px;}
     #gh-invite .gh-cv-quem{display:flex;align-items:center;gap:9px;text-align:left;
       margin:0 0 8px;}
     #gh-invite .gh-cv-face{flex:none;width:34px;height:34px;border-radius:50%;
       display:flex;align-items:center;justify-content:center;font-family:"Cinzel",serif;
-      font-size:15px;color:#160f08;border:2px solid rgba(0,0,0,.45);
+      font-size:calc(15 * var(--gh-u,1px));color:#160f08;border:2px solid rgba(0,0,0,.45);
       box-shadow:inset 0 -3px 6px rgba(0,0,0,.35),0 0 10px rgba(244,200,71,.5);}
-    #gh-invite .gh-cv-txt{flex:1;min-width:0;font-size:12px;line-height:1.45;color:#d8c8a6;}
-    #gh-invite .gh-cv-txt b{font-family:"Cinzel",serif;color:#f0e2c0;font-size:13px;}
+    #gh-invite .gh-cv-txt{flex:1;min-width:0;font-size:calc(12 * var(--gh-u,1px));line-height:1.45;color:#d8c8a6;}
+    #gh-invite .gh-cv-txt b{font-family:"Cinzel",serif;color:#f0e2c0;font-size:calc(13 * var(--gh-u,1px));}
     #gh-invite .gh-cv-btns{display:flex;gap:8px;}
-    #gh-invite button{flex:1;cursor:pointer;font-family:"Cinzel",serif;font-size:12px;
+    #gh-invite button{flex:1;cursor:pointer;font-family:"Cinzel",serif;font-size:calc(12 * var(--gh-u,1px));
       letter-spacing:.05em;color:#f0dca2;padding:9px 6px;border-radius:6px;
       background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.6);
       box-shadow:0 2px 5px rgba(0,0,0,.55);}
@@ -1665,14 +1667,14 @@ export function setupControls(
   const bcastCss = document.createElement("style");
   bcastCss.textContent = `
     #gh-bcast{position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:22;
-      pointer-events:none;width:min(340px,80vw);text-align:center;
+      pointer-events:none;width:min(calc(340px * var(--gh-ui,1)),80vw);text-align:center;
       font-family:"Cinzel",serif;}
-    #gh-bcast .gh-bc-nome{font-size:clamp(15px,3.4vw,21px);letter-spacing:.1em;
+    #gh-bcast .gh-bc-nome{font-size:clamp(15px,3.4vw,calc(21px * var(--gh-ui,1)));letter-spacing:.1em;
       color:#ff7a52;text-shadow:0 2px 6px #000,0 0 18px rgba(255,90,60,.55);
       animation:ghBcPulso .7s ease-in-out infinite alternate;}
     @keyframes ghBcPulso{from{opacity:.82;}to{opacity:1;}}
     #gh-bcast .gh-bc-dica{margin-top:2px;font-family:"Trebuchet MS",sans-serif;
-      font-size:11.5px;letter-spacing:.06em;color:#e6c9a8;text-shadow:0 1px 3px #000;}
+      font-size:calc(11.5 * var(--gh-u,1px));letter-spacing:.06em;color:#e6c9a8;text-shadow:0 1px 3px #000;}
     #gh-bcast .gh-bc-bar{margin:6px auto 0;height:7px;width:78%;background:rgba(10,6,5,.8);
       border:1px solid rgba(255,120,80,.55);border-radius:3px;overflow:hidden;
       box-shadow:0 2px 6px rgba(0,0,0,.6);}
@@ -1849,23 +1851,23 @@ export function setupControls(
     /* BOTÃO: o QUINTO da coluna de atalhos, na esquerda.
        Ele nasceu no canto superior direito, "ao lado do botão de expandir o
        mapa" — e ali dividia a MESMA coordenada com o relógio
-       (top:8~12px, right:calc(12px + min(118px,27vw) + 8px) nos dois), então um
+       (top:8~12px, right:calc(12px + min(calc(118px * var(--gh-ui,1)),27vw) + 8px) nos dois), então um
        cobria o outro 94%. Não era ajuste fino: eram duas coisas no mesmo lugar.
        Trazer o botão p/ a coluna resolve de vez e ainda junta os cinco atalhos
        num lugar só, que é onde o jogador já procura. */
     #gh-social{position:fixed;z-index:12;pointer-events:auto;cursor:pointer;
-      left:14px;top:calc(20px + min(230px, 40vw) * 0.424 + 240px);
-      width:52px;height:52px;border:none;
+      left:calc(14 * var(--gh-u,1px));top:calc(calc(20 * var(--gh-u,1px)) + min(calc(230px * var(--gh-ui,1)),40vw) * 0.424 + calc(240 * var(--gh-u,1px)));
+      width:calc(52 * var(--gh-u,1px));height:calc(52 * var(--gh-u,1px));border:none;
       background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
       border-radius:50%;padding:0;display:flex;align-items:center;
-      justify-content:center;gap:1px;font-size:13px;line-height:1;
+      justify-content:center;gap:1px;font-size:calc(13 * var(--gh-u,1px));line-height:1;
       font-family:"Cinzel",serif;color:#f0dca2;
       filter:drop-shadow(0 2px 7px rgba(0,0,0,.55));}
     /* o contador vira SELO no canto, como em qualquer lista com pendência —
        dentro do disco ele disputaria espaço com o desenho */
     #gh-social small{position:absolute;right:-2px;top:-2px;min-width:17px;height:17px;
       display:flex;align-items:center;justify-content:center;padding:0 4px;
-      box-sizing:border-box;font-size:10px;line-height:1;color:#1a1109;
+      box-sizing:border-box;font-size:calc(10 * var(--gh-u,1px));line-height:1;color:#1a1109;
       background:linear-gradient(#f4d074,#c9922a);border-radius:9px;
       border:1px solid rgba(40,28,10,.7);box-shadow:0 1px 3px rgba(0,0,0,.6);}
     #gh-social:active{transform:scale(.94);filter:brightness(1.15);}
@@ -1886,12 +1888,12 @@ export function setupControls(
        bastante p/ o nome e a área continuarem legíveis ao lado delas. */
     /* o painel acompanha o botão: abre à direita da coluna de atalhos */
     #gh-socialbox{position:fixed;z-index:30;pointer-events:auto;
-      left:76px;top:56px;width:min(320px,80vw);
+      left:calc(76 * var(--gh-u,1px));top:calc(56 * var(--gh-u,1px));width:min(calc(320px * var(--gh-ui,1)),80vw);
       box-sizing:border-box;border:22px solid transparent;
       border-image:url(${eqFrameUrl}) 90 fill;
       filter:drop-shadow(0 6px 18px rgba(0,0,0,.65));
       padding:2px 4px 6px;color:#e9dcbe;font-family:"Trebuchet MS",sans-serif;}
-    .gh-so-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:13.5px;
+    .gh-so-tit{font-family:"Cinzel",serif;color:#f0dca2;font-size:calc(13.5 * var(--gh-u,1px));
       letter-spacing:.08em;text-align:center;margin:0 0 8px;
       border-bottom:1px solid rgba(201,162,39,.3);padding-bottom:6px;
       text-shadow:0 1px 2px #000;}
@@ -1899,14 +1901,14 @@ export function setupControls(
        formato de linha — muda o conteúdo, não a leitura. */
     .gh-so-abas{display:flex;gap:4px;margin:0 0 8px;
       border-bottom:1px solid rgba(201,162,39,.3);padding-bottom:6px;}
-    .gh-so-aba{flex:1;cursor:pointer;font-family:"Cinzel",serif;font-size:12px;
+    .gh-so-aba{flex:1;cursor:pointer;font-family:"Cinzel",serif;font-size:calc(12 * var(--gh-u,1px));
       letter-spacing:.05em;color:#a3906b;padding:5px 4px;border-radius:5px;
       background:transparent;border:1px solid transparent;text-shadow:0 1px 2px #000;}
     .gh-so-aba:hover{color:#f0dca2;}
     .gh-so-aba.gh-so-ativa{color:#f0dca2;border-color:rgba(201,162,39,.5);
       background:linear-gradient(rgba(58,44,28,.85),rgba(28,19,10,.85));}
     /* contador de amigos online, colado no rótulo da aba */
-    .gh-so-aba i{font-style:normal;font-size:10px;color:#8fcf82;}
+    .gh-so-aba i{font-style:normal;font-size:calc(10 * var(--gh-u,1px));color:#8fcf82;}
     /* amigo fora do jogo: presente na lista, apagado na tela */
     .gh-so-row.gh-so-fora{opacity:.5;}
     .gh-so-face.gh-so-off{filter:grayscale(1) brightness(.7);}
@@ -1915,16 +1917,16 @@ export function setupControls(
     .gh-so-row:last-of-type{border-bottom:0;}
     .gh-so-face{flex:none;width:26px;height:26px;border-radius:50%;
       display:flex;align-items:center;justify-content:center;
-      font-family:"Cinzel",serif;font-size:12px;color:#160f08;
+      font-family:"Cinzel",serif;font-size:calc(12 * var(--gh-u,1px));color:#160f08;
       border:2px solid rgba(0,0,0,.45);box-shadow:inset 0 -3px 6px rgba(0,0,0,.35);}
-    .gh-so-nome{flex:1;min-width:0;font-family:"Cinzel",serif;font-size:12px;
+    .gh-so-nome{flex:1;min-width:0;font-family:"Cinzel",serif;font-size:calc(12 * var(--gh-u,1px));
       color:#f0e2c0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     /* o subtítulo (nível · área) também precisa cortar com reticências: sem isto
        ele empurrava os botões p/ fora e o nome perdia o espaço dele */
-    .gh-so-nome span{display:block;color:#a3906b;font-size:9.5px;
+    .gh-so-nome span{display:block;color:#a3906b;font-size:calc(9.5 * var(--gh-u,1px));
       font-family:"Trebuchet MS",sans-serif;letter-spacing:.03em;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .gh-so-inv,.gh-so-sair,.gh-so-add,.gh-so-del{cursor:pointer;color:#f0dca2;font-size:11px;
+    .gh-so-inv,.gh-so-sair,.gh-so-add,.gh-so-del{cursor:pointer;color:#f0dca2;font-size:calc(11 * var(--gh-u,1px));
       font-family:"Cinzel",serif;letter-spacing:.04em;
       background:linear-gradient(#3a2c1c,#1c130a);
       border:1px solid rgba(201,162,39,.55);border-radius:5px;padding:5px 9px;
@@ -1932,7 +1934,7 @@ export function setupControls(
     .gh-so-inv:hover,.gh-so-sair:hover,.gh-so-add:hover,.gh-so-del:hover{color:#fff;border-color:#f4c847;}
     .gh-so-inv:active,.gh-so-sair:active,.gh-so-add:active,.gh-so-del:active{transform:scale(.94);}
     /* "+" e "×": alvos pequenos mas com área de toque decente p/ o celular */
-    .gh-so-add,.gh-so-del,.gh-so-comp{flex:none;padding:4px 7px;font-size:14px;line-height:1;}
+    .gh-so-add,.gh-so-del,.gh-so-comp{flex:none;padding:4px 7px;font-size:calc(14 * var(--gh-u,1px));line-height:1;}
     .gh-so-inv{flex:none;padding:5px 8px;}
     /* ⚑ da Companhia: dourado, p/ não se confundir com o "+" de amizade */
     .gh-so-comp{color:#f4c847;border-color:rgba(244,200,71,.6);
@@ -1941,16 +1943,16 @@ export function setupControls(
       background:linear-gradient(#3a2018,#1e100a);}
     .gh-so-sair{width:100%;margin-top:9px;color:#dcb2a0;
       border-color:rgba(170,95,72,.55);background:linear-gradient(#3a2018,#1e100a);}
-    .gh-so-vazio{color:#9c8c6e;font-size:11.5px;line-height:1.5;
+    .gh-so-vazio{color:#9c8c6e;font-size:calc(11.5 * var(--gh-u,1px));line-height:1.5;
       text-align:center;padding:8px 4px 6px;}
-    .gh-so-vazio small{color:#7d7057;font-size:10px;}
+    .gh-so-vazio small{color:#7d7057;font-size:calc(10 * var(--gh-u,1px));}
     /* BUSCA: campo + lupa, colados, ocupando a largura toda do painel */
     .gh-so-busca{display:flex;gap:5px;margin:2px 0 8px;}
     .gh-so-busca input{flex:1;min-width:0;font-family:"Trebuchet MS",sans-serif;
-      font-size:13px;padding:6px 9px;border-radius:5px;color:#f0e2c0;
+      font-size:calc(13 * var(--gh-u,1px));padding:6px 9px;border-radius:5px;color:#f0e2c0;
       background:rgba(10,8,6,.72);border:1px solid rgba(201,162,74,.45);outline:none;}
     .gh-so-busca input:focus{border-color:#f4c847;}
-    .gh-so-busca button{flex:none;width:34px;padding:0;font-size:14px;line-height:1;
+    .gh-so-busca button{flex:none;width:34px;padding:0;font-size:calc(14 * var(--gh-u,1px));line-height:1;
       cursor:pointer;border-radius:5px;color:#f0dca2;
       background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.6);}
     .gh-so-busca button:hover{color:#fff;border-color:#f4c847;}
@@ -2128,13 +2130,13 @@ export function setupControls(
   const guildCss = document.createElement("style");
   guildCss.textContent = `
     /* ATALHO: quarto da coluna de utilitários, mesma moldura de botão dos outros */
-    #gh-guild-btn{position:fixed;left:14px;
-      top:calc(20px + min(230px,40vw) * 0.424 + 180px);z-index:12;pointer-events:auto;
-      width:52px;height:52px;border-radius:50%;cursor:pointer;padding:0;border:none;
+    #gh-guild-btn{position:fixed;left:calc(14 * var(--gh-u,1px));
+      top:calc(calc(20 * var(--gh-u,1px)) + min(calc(230px * var(--gh-ui,1)),40vw) * 0.424 + calc(180 * var(--gh-u,1px)));z-index:12;pointer-events:auto;
+      width:calc(52 * var(--gh-u,1px));height:calc(52 * var(--gh-u,1px));border-radius:50%;cursor:pointer;padding:0;border:none;
       background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
       filter:drop-shadow(0 2px 7px rgba(0,0,0,.55));
       display:flex;align-items:center;justify-content:center;}
-    .gh-gd-ico{font-size:25px;line-height:1;color:#2a1e0e;
+    .gh-gd-ico{font-size:calc(25 * var(--gh-u,1px));line-height:1;color:#2a1e0e;
       filter:drop-shadow(0 1px 1px rgba(255,235,180,.4));}
     #gh-guild-btn:active{transform:scale(.94);filter:brightness(1.15);}
     /* alguém da Companhia entrou em jogo: o estandarte acende sozinho */
@@ -2145,13 +2147,13 @@ export function setupControls(
     #gh-gd{position:fixed;inset:0;z-index:23;display:flex;align-items:center;
       justify-content:center;background:rgba(0,0,0,.62);pointer-events:auto;}
     #gh-gd.gh-eq-hidden{display:none;}
-    #gh-gd-win{position:relative;box-sizing:border-box;width:min(580px,94vw);
+    #gh-gd-win{position:relative;box-sizing:border-box;width:min(calc(580px * var(--gh-ui,1)),94vw);
       max-height:88vh;overflow-y:auto;color:#e8dcc0;
-      border:clamp(20px,3vh,30px) solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
+      border:clamp(20px,3vh,calc(30px * var(--gh-ui,1))) solid transparent;border-image:url(${eqFrameUrl}) 90 fill;
       filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));padding:2px 12px 14px;
       font-family:"Trebuchet MS",sans-serif;}
     #gh-gd-close{position:absolute;right:8px;top:8px;z-index:9;width:34px;height:34px;
-      border-radius:9px;cursor:pointer;font-size:17px;line-height:1;
+      border-radius:9px;cursor:pointer;font-size:calc(17 * var(--gh-u,1px));line-height:1;
       background:rgba(20,16,11,.85);color:#e8d9b0;border:2px solid rgba(232,178,74,.6);
       box-shadow:0 1px 4px #000;}
 
@@ -2176,31 +2178,31 @@ export function setupControls(
       background:linear-gradient(160deg,#6d2b21,#3a1410 55%,#25100c);
       box-shadow:inset 0 2px 0 rgba(255,220,160,.22),inset 0 -12px 18px rgba(0,0,0,.5);}
     .gh-gd-brasao span{position:relative;z-index:1;
-      font-family:"Cinzel",serif;font-size:23px;letter-spacing:.04em;
+      font-family:"Cinzel",serif;font-size:calc(23 * var(--gh-u,1px));letter-spacing:.04em;
       color:#f6e6b8;text-shadow:0 2px 3px #000,0 0 10px rgba(244,200,71,.35);
       margin-bottom:14px;}
     /* escudo em branco (ainda sem Companhia): o ⚑ precisa ser um <span> como a
        marca — texto solto no próprio escudo fica ATRÁS do ::after do campo. */
-    .gh-gd-brasao-vazio span{font-size:30px;color:#e6cf95;margin-bottom:10px;
+    .gh-gd-brasao-vazio span{font-size:calc(30 * var(--gh-u,1px));color:#e6cf95;margin-bottom:10px;
       text-shadow:0 2px 4px #000;font-family:inherit;}
     .gh-gd-titulos{min-width:0;flex:1;}
     /* o ✕ mora no canto: o título reserva o espaço dele, senão um nome comprido
        passa por baixo do botão e as duas coisas ficam ilegíveis */
     .gh-gd-titulos h2{margin:0;padding-right:38px;font-family:"Cinzel",serif;
-      font-size:20px;letter-spacing:.05em;color:#f4e3ba;text-shadow:0 2px 4px #000;
+      font-size:calc(20 * var(--gh-u,1px));letter-spacing:.05em;color:#f4e3ba;text-shadow:0 2px 4px #000;
       overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .gh-gd-lema{margin:3px 0 0;font-size:12.5px;font-style:italic;color:#c3ac7e;}
-    .gh-gd-num{margin:6px 0 0;font-size:11.5px;color:#9c8c6e;letter-spacing:.02em;}
+    .gh-gd-lema{margin:3px 0 0;font-size:calc(12.5 * var(--gh-u,1px));font-style:italic;color:#c3ac7e;}
+    .gh-gd-num{margin:6px 0 0;font-size:calc(11.5 * var(--gh-u,1px));color:#9c8c6e;letter-spacing:.02em;}
     .gh-gd-num b{color:#e0cd9c;font-weight:400;}
     .gh-gd-num b.gh-gd-on{color:#9ccf75;}
 
     /* QUADRO: um bloco por posto, com uma régua fina de cabeçalho */
     .gh-gd-bloco{margin-bottom:12px;}
-    .gh-gd-sh{font-family:"Cinzel",serif;font-size:11px;letter-spacing:.16em;
+    .gh-gd-sh{font-family:"Cinzel",serif;font-size:calc(11 * var(--gh-u,1px));letter-spacing:.16em;
       color:#c9a227;margin:0 0 5px 2px;display:flex;align-items:center;gap:8px;}
     .gh-gd-sh::after{content:"";flex:1;height:1px;
       background:linear-gradient(90deg,rgba(201,162,39,.45),transparent);}
-    .gh-gd-sh b{font-weight:400;color:#8d7c5e;font-size:10px;
+    .gh-gd-sh b{font-weight:400;color:#8d7c5e;font-size:calc(10 * var(--gh-u,1px));
       font-family:"Trebuchet MS",sans-serif;}
     .gh-gd-row{display:flex;align-items:center;gap:9px;padding:6px 8px;margin-bottom:4px;
       border-radius:5px;border-left:2px solid rgba(201,162,74,.55);
@@ -2215,21 +2217,21 @@ export function setupControls(
     .gh-gd-off .gh-gd-luz{background:#4b463c;box-shadow:none;}
     .gh-gd-face{flex:none;width:34px;height:34px;border-radius:50%;
       display:flex;align-items:center;justify-content:center;
-      font-family:"Cinzel",serif;font-size:15px;color:#160f08;
+      font-family:"Cinzel",serif;font-size:calc(15 * var(--gh-u,1px));color:#160f08;
       border:2px solid rgba(0,0,0,.45);box-shadow:inset 0 -3px 6px rgba(0,0,0,.35);}
     .gh-gd-dados{flex:1;min-width:0;}
-    .gh-gd-nome{font-family:"Cinzel",serif;font-size:13.5px;color:#f0e2c0;
+    .gh-gd-nome{font-family:"Cinzel",serif;font-size:calc(13.5 * var(--gh-u,1px));color:#f0e2c0;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .gh-gd-nome em{font-style:normal;font-size:9px;color:#f4c847;letter-spacing:.08em;
+    .gh-gd-nome em{font-style:normal;font-size:calc(9 * var(--gh-u,1px));color:#f4c847;letter-spacing:.08em;
       border:1px solid rgba(244,200,71,.45);border-radius:3px;padding:0 4px;
       vertical-align:middle;}
-    .gh-gd-nome span{font-family:"Trebuchet MS",sans-serif;font-size:10.5px;
+    .gh-gd-nome span{font-family:"Trebuchet MS",sans-serif;font-size:calc(10.5 * var(--gh-u,1px));
       color:#a3906b;margin-left:7px;}
-    .gh-gd-onde{font-size:10.5px;color:#8d8069;margin-top:1px;
+    .gh-gd-onde{font-size:calc(10.5 * var(--gh-u,1px));color:#8d8069;margin-top:1px;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .gh-gd-cmd{flex:none;display:flex;gap:3px;}
     .gh-gd-b{width:26px;height:26px;border-radius:5px;cursor:pointer;padding:0;
-      font-size:11px;line-height:1;color:#e8dcc0;
+      font-size:calc(11 * var(--gh-u,1px));line-height:1;color:#e8dcc0;
       background:linear-gradient(#3a2c1c,#1c130a);border:1px solid rgba(201,162,39,.5);}
     .gh-gd-b:hover{color:#fff;border-color:#f4c847;}
     .gh-gd-b.gh-gd-fora{color:#dcb2a0;border-color:rgba(170,95,72,.55);
@@ -2239,26 +2241,26 @@ export function setupControls(
     .gh-gd-pe{display:flex;gap:8px;padding-top:10px;
       border-top:1px solid rgba(201,162,74,.28);}
     .gh-gd-pe button,.gh-gd-fundar{flex:1;padding:9px 10px;border-radius:6px;
-      cursor:pointer;font-family:"Cinzel",serif;font-size:12px;letter-spacing:.04em;
+      cursor:pointer;font-family:"Cinzel",serif;font-size:calc(12 * var(--gh-u,1px));letter-spacing:.04em;
       color:#f0dca2;background:linear-gradient(#3a2c1c,#1c130a);
       border:1px solid rgba(201,162,39,.6);box-shadow:0 1px 3px rgba(0,0,0,.5);}
     .gh-gd-pe button:hover,.gh-gd-fundar:hover{color:#fff;border-color:#f4c847;}
     .gh-gd-pe .gh-gd-sair{flex:none;color:#dcb2a0;border-color:rgba(170,95,72,.55);
       background:linear-gradient(#3a2018,#1e100a);}
-    .gh-gd-texto{font-size:12.5px;line-height:1.6;color:#c3b493;padding:2px 2px 12px;}
+    .gh-gd-texto{font-size:calc(12.5 * var(--gh-u,1px));line-height:1.6;color:#c3b493;padding:2px 2px 12px;}
     .gh-gd-texto b{color:#e8d9b0;}
     .gh-gd-form{display:flex;flex-direction:column;gap:9px;}
     .gh-gd-form label{display:flex;flex-direction:column;gap:3px;
-      font-family:"Cinzel",serif;font-size:11px;letter-spacing:.1em;color:#c9a227;}
-    .gh-gd-form label small{font-family:"Trebuchet MS",sans-serif;font-size:10px;
+      font-family:"Cinzel",serif;font-size:calc(11 * var(--gh-u,1px));letter-spacing:.1em;color:#c9a227;}
+    .gh-gd-form label small{font-family:"Trebuchet MS",sans-serif;font-size:calc(10 * var(--gh-u,1px));
       letter-spacing:0;color:#8d7c5e;text-transform:none;}
-    .gh-gd-form input{font-family:"Trebuchet MS",sans-serif;font-size:14px;
+    .gh-gd-form input{font-family:"Trebuchet MS",sans-serif;font-size:calc(14 * var(--gh-u,1px));
       padding:8px 10px;border-radius:5px;color:#f0e2c0;
       background:rgba(10,8,6,.72);border:1px solid rgba(201,162,74,.45);outline:none;}
     .gh-gd-form input:focus{border-color:#f4c847;}
     .gh-gd-fundar{margin-top:3px;}
-    .gh-gd-erro{min-height:15px;font-size:11.5px;color:#e0836a;}
-    .gh-gd-aviso{font-size:12px;line-height:1.6;color:#c3b493;padding:10px 12px;
+    .gh-gd-erro{min-height:15px;font-size:calc(11.5 * var(--gh-u,1px));color:#e0836a;}
+    .gh-gd-aviso{font-size:calc(12 * var(--gh-u,1px));line-height:1.6;color:#c3b493;padding:10px 12px;
       border-radius:6px;background:rgba(10,8,6,.55);
       border-left:2px solid rgba(201,162,74,.55);}
     .gh-gd-aviso b{color:#f0dca2;}
@@ -2266,16 +2268,16 @@ export function setupControls(
        janela usa a tela toda; o brasão encolhe p/ o cabeçalho caber. */
     @media (orientation:landscape) and (max-height:500px){
       #gh-guild-btn{top:6px;left:calc(50% + 26px);width:44px;height:44px;}
-      .gh-gd-ico{font-size:21px;}
-      #gh-gd-win{width:100vw;max-height:100dvh;border-width:clamp(14px,2.6vh,22px);}
+      .gh-gd-ico{font-size:calc(21 * var(--gh-u,1px));}
+      #gh-gd-win{width:100vw;max-height:100dvh;border-width:clamp(14px,2.6vh,calc(22px * var(--gh-ui,1)));}
       .gh-gd-brasao{width:54px;height:60px;}
-      .gh-gd-brasao span{font-size:17px;margin-bottom:10px;}
-      .gh-gd-titulos h2{font-size:16px;}
+      .gh-gd-brasao span{font-size:calc(17 * var(--gh-u,1px));margin-bottom:10px;}
+      .gh-gd-titulos h2{font-size:calc(16 * var(--gh-u,1px));}
       .gh-gd-texto{display:none;}
     }
     @media (max-width:640px){
       #gh-gd-win{width:100vw;height:100dvh;max-height:100dvh;
-        border-width:clamp(15px,2.6vh,24px);}
+        border-width:clamp(15px,2.6vh,calc(24px * var(--gh-ui,1)));}
     }
   `;
   root.appendChild(guildCss);
@@ -4033,7 +4035,12 @@ export function setupControls(
         weapon!.src = w.url;
         if (weaponRig) {
           weaponRig.style.height = `${(62 * w.scale).toFixed(1)}vh`;
-          weaponRig.style.maxHeight = `${Math.round(640 * w.scale)}px`;
+          // O TETO PRECISA DA ESCALA — e escrito aqui, em estilo embutido, ele
+          // ganhava da folha. Era por isso que a espada continuava do mesmo
+          // tamanho num monitor de 1440: a folha dizia 640×escala, e esta linha
+          // dizia 640 e vencia. Com o calc a variável entra também no embutido,
+          // e ele continua acompanhando a janela quando ela muda de tamanho.
+          weaponRig.style.maxHeight = `calc(${Math.round(640 * w.scale)}px * var(--gh-ui,1))`;
         }
         root.classList.toggle("gh-wpn-arcane", w.tint === "arcane");
         putIcon("main");
@@ -4209,13 +4216,34 @@ function injectStyle() {
   const s = document.createElement("style");
   s.id = "gh-style";
   s.textContent = `
+  /* --- A ESCALA (ver uiscale.ts) ---
+     Declarada aqui com o valor 1 p/ que a folha funcione sozinha caso o módulo
+     nunca rode: nesse caso a interface fica exatamente como era antes de ela
+     existir, que é o comportamento certo p/ um erro. O uiscale.ts sobrescreve
+     este valor no <html> e o mantém em dia quando a janela muda de tamanho.
+     A --gh-u é a mesma coisa em forma de UNIDADE, p/ escrever
+     calc(52 * var(--gh-u,1px)) onde antes havia um 52px cravado. */
+  :root { --gh-ui:1; --gh-u:calc(1px * var(--gh-ui,1)); }
+
   /* rig da arma: base à direita, punho no canto inferior. A rotação 3D do golpe
      é aplicada AQUI, e a espada + o rastro de corte (filhos) giram juntos, então
      o corte segue a lâmina de forma travada. perspective() habilita rotação 3D
-     (rotateX/Y) — é o que dá a PROFUNDIDADE. */
+     (rotateX/Y) — é o que dá a PROFUNDIDADE.
+
+     ONDE A ARMA FICA, e por que não é mais uma % da largura.
+     Era 'right:12%'. Numa tela 16:9 isso põe o punho logo ao lado da mira; num
+     ultrawide 21:9 a mesma porcentagem joga a espada a mais de mil pixels do
+     centro, e o golpe passa a sair no canto da tela enquanto o inimigo está no
+     meio — foi exatamente o que o jogador descreveu. A arma não pertence à
+     BORDA da tela, pertence à MIRA.
+     A conta abaixo trava a distância até o centro na mesma que um monitor 16:9
+     da mesma ALTURA teria: 12% de (16/9·H) medidos da direita são 0,675·H a
+     partir do centro. Num 1920x1080 o resultado é idêntico ao antigo (é 16:9);
+     num 3440x1440 a espada volta p/ perto da mira; e no retrato do celular o
+     o max() devolve os 12% de sempre, porque ali a conta dá negativa. */
   #gh-weapon-rig {
-    position:fixed; right:12%; bottom:-4%;
-    height:62vh; max-height:640px;
+    position:fixed; right:max(12%, calc(50vw - 67.5vh)); bottom:-4%;
+    height:62vh; max-height:calc(640px * var(--gh-ui,1));
     pointer-events:none; z-index:8;
     transform-origin:72% 90%;
     transform:perspective(760px) rotateX(0deg) rotateY(0deg) rotateZ(16deg) translate(0,2%) scale(1); /* REPOUSO */
@@ -4233,9 +4261,10 @@ function injectStyle() {
   }
   /* sprite de golpe: já vem na diagonal com o rastro pintado, então tem base
      e pivô próprios (punho no canto inferior-direito), escondido até o golpe */
+  /* mesma conta do rig, com o 6% dele: 0,782·H a partir do centro. */
   #gh-weapon-atk {
-    position:fixed; right:6%; bottom:-6%;
-    height:72vh; max-height:720px; width:auto;
+    position:fixed; right:max(6%, calc(50vw - 78.2vh)); bottom:-6%;
+    height:72vh; max-height:calc(720px * var(--gh-ui,1)); width:auto;
     pointer-events:none; z-index:9; opacity:0;
     transform-origin:82% 86%;
     transform:translate(0,0) rotate(0deg) scale(1);
@@ -4340,7 +4369,7 @@ function injectStyle() {
   /* placa de status (vida + mana) — arte com encaixes preenchidos por código */
   #gh-hud {
     position:fixed; left:12px; top:10px; z-index:11; pointer-events:none;
-    width:min(230px,40vw); aspect-ratio:793 / 336;
+    width:min(calc(230px * var(--gh-ui,1)),40vw); aspect-ratio:793 / 336;
     background:url(${hudPlateUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 2px 5px rgba(0,0,0,.55));
   }
@@ -4354,7 +4383,7 @@ function injectStyle() {
   .gh-hud-num {
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-family:"Cinzel",serif; font-weight:700; letter-spacing:.3px;
-    font-size:clamp(9px,2.4vw,12px); color:#fff3d6;
+    font-size:clamp(9px,2.4vw,calc(12px * var(--gh-ui,1))); color:#fff3d6;
     text-shadow:0 1px 2px #000, 0 0 3px rgba(0,0,0,.9); font-variant-numeric:tabular-nums;
     pointer-events:none; line-height:1;
   }
@@ -4362,8 +4391,8 @@ function injectStyle() {
   /* MAPA (canto superior direito): moldura 9-slice + canvas do minimapa no miolo */
   #gh-map {
     position:fixed; right:12px; top:10px; z-index:11; pointer-events:none;
-    width:min(118px,27vw); aspect-ratio:1; box-sizing:border-box;
-    border:clamp(13px,3.6vw,20px) solid transparent;
+    width:min(calc(118px * var(--gh-ui,1)),27vw); aspect-ratio:1; box-sizing:border-box;
+    border:clamp(13px,3.6vw,calc(20px * var(--gh-ui,1))) solid transparent;
     border-image:url(${mapFrameUrl}) 130 repeat;
     filter:drop-shadow(0 2px 6px rgba(0,0,0,.55));
   }
@@ -4375,7 +4404,7 @@ function injectStyle() {
   /* botão de expandir o mapa (canto inferior direito do minimapa) */
   #gh-map-expand {
     position:absolute; right:2px; bottom:2px; z-index:3; pointer-events:auto;
-    width:22px; height:22px; border-radius:6px; cursor:pointer; padding:0;
+    width:calc(22 * var(--gh-u,1px)); height:calc(22 * var(--gh-u,1px)); border-radius:6px; cursor:pointer; padding:0;
     display:flex; align-items:center; justify-content:center;
     color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
     border:1.5px solid rgba(201,162,39,.6);
@@ -4386,9 +4415,9 @@ function injectStyle() {
   /* RASTREADOR DE MISSÃO: painel logo abaixo do minimapa (canto sup. direito) */
   #gh-tracker {
     position:fixed; right:12px; z-index:11; pointer-events:none;
-    top:calc(10px + min(118px,27vw) + 6px);
-    width:min(198px,46vw); box-sizing:border-box;
-    padding:7px 9px 8px; border-radius:8px;
+    top:calc(10px + min(calc(118px * var(--gh-ui,1)),27vw) + 6px);
+    width:min(calc(198px * var(--gh-ui,1)),46vw); box-sizing:border-box;
+    padding:calc(7 * var(--gh-u,1px)) calc(9 * var(--gh-u,1px)) calc(8 * var(--gh-u,1px)); border-radius:8px;
     background:linear-gradient(180deg, rgba(14,12,9,.86), rgba(10,9,7,.8));
     border:1px solid rgba(201,162,39,.42);
     box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 0 0 1px rgba(0,0,0,.35);
@@ -4397,11 +4426,12 @@ function injectStyle() {
   #gh-tracker .gh-tk-head { display:flex; align-items:center; gap:6px; }
   #gh-tracker .gh-tk-title {
     flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    font-family:"Cinzel",serif; font-weight:700; font-size:12.5px; color:#f2d891;
+    font-family:"Cinzel",serif; font-weight:700; font-size:calc(12.5 * var(--gh-u,1px)); color:#f2d891;
     text-shadow:0 1px 2px #000; letter-spacing:.3px;
   }
   #gh-tracker .gh-tk-guide {
-    flex:0 0 auto; pointer-events:auto; cursor:pointer; width:22px; height:20px; padding:0;
+    flex:0 0 auto; pointer-events:auto; cursor:pointer;
+    width:calc(22 * var(--gh-u,1px)); height:calc(20 * var(--gh-u,1px)); padding:0;
     display:flex; align-items:center; justify-content:center; border-radius:5px;
     color:#ffd66e; background:rgba(60,44,16,.55); border:1px solid rgba(201,162,39,.55);
     transition:color .12s, border-color .12s, opacity .12s, transform .08s;
@@ -4411,7 +4441,7 @@ function injectStyle() {
   /* guia DESLIGADO: estrela apagada/vazada */
   #gh-tracker .gh-tk-guide.gh-tk-guide-off { color:#8b7f5f; background:rgba(30,26,18,.5); opacity:.75; }
   #gh-tracker .gh-tk-obj {
-    margin-top:3px; font-size:11.5px; line-height:1.32; color:#d7c9a3;
+    margin-top:3px; font-size:calc(11.5 * var(--gh-u,1px)); line-height:1.32; color:#d7c9a3;
     text-shadow:0 1px 2px #000;
   }
   /* --- ABERTURA: esconder/revelar o HUD (só a visão do jogador no início) --- */
@@ -4446,14 +4476,14 @@ function injectStyle() {
   #gh-bigmap.gh-bigmap-hidden { display:none; }
   #gh-bigmap-win {
     position:relative; width:min(88vw,88vh); aspect-ratio:1; box-sizing:border-box;
-    border:clamp(20px,6vw,42px) solid transparent;
+    border:clamp(20px,6vw,calc(42px * var(--gh-ui,1))) solid transparent;
     border-image:url(${mapFrameUrl}) 130 repeat;
     filter:drop-shadow(0 6px 22px rgba(0,0,0,.7));
   }
   #gh-bigmap-canvas { position:absolute; inset:0; width:100%; height:100%; }
   #gh-bigmap-close {
-    position:absolute; top:calc(-8px - clamp(20px,6vw,42px)); right:0; z-index:3; cursor:pointer;
-    width:34px; height:34px; border-radius:8px; font-size:17px; line-height:1;
+    position:absolute; top:calc(-8px - clamp(20px,6vw,calc(42px * var(--gh-ui,1)))); right:0; z-index:3; cursor:pointer;
+    width:34px; height:34px; border-radius:8px; font-size:calc(17 * var(--gh-u,1px)); line-height:1;
     color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
     border:2px solid rgba(201,162,39,.6); display:flex; align-items:center; justify-content:center;
   }
@@ -4462,8 +4492,8 @@ function injectStyle() {
      topo-centro colado no limite da tela. Sol e lua orbitam na linha do anel. */
   #gh-clock {
     position:fixed; z-index:12; pointer-events:none;
-    top:8px; right:calc(12px + min(118px,27vw) + 8px);
-    width:38px; height:38px; border-radius:50%;
+    top:calc(8 * var(--gh-u,1px)); right:calc(12px + min(calc(118px * var(--gh-ui,1)),27vw) + calc(8 * var(--gh-u,1px)));
+    width:calc(38 * var(--gh-u,1px)); height:calc(38 * var(--gh-u,1px)); border-radius:50%;
     border:1.5px solid rgba(201,162,39,.6);
     background:radial-gradient(circle, rgba(8,9,14,.24), rgba(8,9,14,.08) 72%, rgba(8,9,14,0));
     box-shadow:0 1px 4px rgba(0,0,0,.45);
@@ -4491,7 +4521,7 @@ function injectStyle() {
      centro. Mantém a proporção da arte (1934x340). Os slots e o XP entram por cima. */
   #gh-hotbar {
     position:fixed; left:50%; transform:translateX(-50%); bottom:6px;
-    width:min(600px, 94vw); aspect-ratio:1934 / 340;
+    width:min(calc(600px * var(--gh-ui,1)),94vw); aspect-ratio:1934 / 340;
     background:url(${hotbarUrl}) no-repeat center / 100% 100%;
     z-index:11; pointer-events:none;
     filter:drop-shadow(0 3px 10px rgba(0,0,0,0.55));
@@ -4550,7 +4580,7 @@ function injectStyle() {
   .gh-tray-cnt {
     position:absolute; right:4%; bottom:2%; min-width:15px; height:15px; padding:0 3px;
     border-radius:8px; background:rgba(12,10,6,.9); border:1px solid rgba(201,162,39,.6);
-    color:#f2e2b4; font-size:10px; font-weight:700; line-height:15px; text-align:center;
+    color:#f2e2b4; font-size:calc(10 * var(--gh-u,1px)); font-weight:700; line-height:15px; text-align:center;
     pointer-events:none;
   }
   /* CALHA DA BARRA DE XP — acoplada na base da hotbar (medida na arte). */
@@ -4566,7 +4596,7 @@ function injectStyle() {
   }
   #gh-hotbar-xp-lv {
     position:absolute; left:6px; top:50%; transform:translateY(-50%);
-    font-family:"Cinzel",serif; font-weight:700; font-size:9px; letter-spacing:.4px;
+    font-family:"Cinzel",serif; font-weight:700; font-size:calc(9 * var(--gh-u,1px)); letter-spacing:.4px;
     color:#f6e6b4; white-space:nowrap; text-shadow:0 1px 2px #000, 0 0 4px rgba(0,0,0,.9);
   }
   /* ---- MODO EQUIPAR (escolher slot p/ a habilidade) ---- */
@@ -4578,7 +4608,7 @@ function injectStyle() {
     background:rgba(4,4,8,.5);
   }
   #gh-hb-assign-bar {
-    position:fixed; left:50%; bottom:calc(6px + min(105px,17.2vw) + 12px);
+    position:fixed; left:50%; bottom:calc(6px + min(calc(105px * var(--gh-ui,1)),17.2vw) + 12px);
     transform:translateX(-50%); z-index:17; pointer-events:auto;
     display:flex; align-items:center; gap:12px;
     background:linear-gradient(#2a2114,#160f08);
@@ -4586,10 +4616,10 @@ function injectStyle() {
     padding:8px 10px 8px 16px; box-shadow:0 6px 20px rgba(0,0,0,.6);
     max-width:92vw;
   }
-  .gh-hbab-txt { color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700; font-size:14px;
+  .gh-hbab-txt { color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700; font-size:calc(14 * var(--gh-u,1px));
     text-shadow:0 1px 2px #000; }
   .gh-hbab-cancel {
-    flex:0 0 auto; cursor:pointer; font-family:"Cinzel",serif; font-weight:700; font-size:13px;
+    flex:0 0 auto; cursor:pointer; font-family:"Cinzel",serif; font-weight:700; font-size:calc(13 * var(--gh-u,1px));
     color:#e7d3a0; background:linear-gradient(#3a2c1a,#1c130a);
     border:1.5px solid rgba(201,162,39,.55); border-radius:8px; padding:6px 12px;
     -webkit-tap-highlight-color:transparent;
@@ -4613,8 +4643,8 @@ function injectStyle() {
   /* botão de abrir a janela de personagem — no lado ESQUERDO, logo abaixo da placa
      de vida/mana (o canto superior direito fica livre p/ o mapa). */
   #gh-char-btn {
-    position:fixed; left:14px; top:calc(20px + min(230px, 40vw) * 0.424); z-index:12; pointer-events:auto;
-    width:52px; height:52px; border-radius:50%; cursor:pointer;
+    position:fixed; left:calc(14 * var(--gh-u,1px)); top:calc(calc(20 * var(--gh-u,1px)) + min(calc(230px * var(--gh-ui,1)),40vw) * 0.424); z-index:12; pointer-events:auto;
+    width:calc(52 * var(--gh-u,1px)); height:calc(52 * var(--gh-u,1px)); border-radius:50%; cursor:pointer;
     background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
     border:none; padding:0;
     filter:drop-shadow(0 2px 7px rgba(0,0,0,.55));
@@ -4627,64 +4657,75 @@ function injectStyle() {
   #gh-char-btn:active { transform:scale(.94); filter:brightness(1.25) drop-shadow(0 1px 4px rgba(0,0,0,.6)); }
   /* botão de OPÇÕES (engrenagem, abaixo do botão de personagem) */
   #gh-opt-btn {
-    position:fixed; left:14px; top:calc(20px + min(230px, 40vw) * 0.424 + 60px); z-index:12; pointer-events:auto;
-    width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0; border:none;
+    position:fixed; left:calc(14 * var(--gh-u,1px)); top:calc(calc(20 * var(--gh-u,1px)) + min(calc(230px * var(--gh-ui,1)),40vw) * 0.424 + calc(60 * var(--gh-u,1px))); z-index:12; pointer-events:auto;
+    width:calc(52 * var(--gh-u,1px)); height:calc(52 * var(--gh-u,1px)); border-radius:50%; cursor:pointer; padding:0; border:none;
     background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 2px 7px rgba(0,0,0,.55)); display:flex; align-items:center; justify-content:center;
   }
-  .gh-opt-gear { font-size:26px; line-height:1; color:#2a1e0e; filter:drop-shadow(0 1px 1px rgba(255,235,180,.4)); }
+  .gh-opt-gear { font-size:calc(26 * var(--gh-u,1px)); line-height:1; color:#2a1e0e; filter:drop-shadow(0 1px 1px rgba(255,235,180,.4)); }
   #gh-opt-btn:active { transform:scale(.94); filter:brightness(1.15); }
   /* botão do DIÁRIO DE MISSÕES (pergaminho, abaixo da engrenagem) */
   #gh-journal-btn {
-    position:fixed; left:14px; top:calc(20px + min(230px, 40vw) * 0.424 + 120px); z-index:12; pointer-events:auto;
-    width:52px; height:52px; border-radius:50%; cursor:pointer; padding:0; border:none;
+    position:fixed; left:calc(14 * var(--gh-u,1px)); top:calc(calc(20 * var(--gh-u,1px)) + min(calc(230px * var(--gh-ui,1)),40vw) * 0.424 + calc(120 * var(--gh-u,1px))); z-index:12; pointer-events:auto;
+    width:calc(52 * var(--gh-u,1px)); height:calc(52 * var(--gh-u,1px)); border-radius:50%; cursor:pointer; padding:0; border:none;
     background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 2px 7px rgba(0,0,0,.55)); display:flex; align-items:center; justify-content:center;
   }
-  .gh-journal-ico { font-size:24px; line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.5)); }
+  .gh-journal-ico { font-size:calc(24 * var(--gh-u,1px)); line-height:1; filter:drop-shadow(0 1px 1px rgba(0,0,0,.5)); }
   #gh-journal-btn:active { transform:scale(.94); filter:brightness(1.15); }
   /* janela do DIÁRIO */
   #gh-journal { position:fixed; inset:0; z-index:23; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
   #gh-journal.gh-eq-hidden { display:none; }
-  #gh-journal-win { position:relative; box-sizing:border-box; width:min(560px,94vw); max-height:88vh; overflow-y:auto;
-    border:clamp(20px,3vh,30px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); padding:2px 10px 14px; color:#e8dcc0; }
+  #gh-journal-win { position:relative; box-sizing:border-box; width:min(calc(560px * var(--gh-ui,1)),94vw); max-height:88vh; overflow-y:auto;
+    border:clamp(20px,3vh,calc(30px * var(--gh-ui,1))) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); padding:2px 10px 14px; color:#e8dcc0; }
   #gh-journal-close { position:absolute; right:8px; top:8px; z-index:9; width:34px; height:34px; border-radius:9px; cursor:pointer;
-    font-size:16px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
-  .gh-jr-title { text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(18px,2.8vh,22px); letter-spacing:3px; color:#f2e4bf; text-shadow:0 2px 5px #000; margin:2px 0 10px; }
+    font-size:calc(16 * var(--gh-u,1px)); line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
+  .gh-jr-title { text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(18px,2.8vh,calc(22px * var(--gh-ui,1))); letter-spacing:3px; color:#f2e4bf; text-shadow:0 2px 5px #000; margin:2px 0 10px; }
   .gh-jr-sec { margin-bottom:14px; }
-  .gh-jr-sh { font-family:"Cinzel",serif; font-weight:700; font-size:15px; letter-spacing:1.5px; color:#e6b45a; border-bottom:1px solid rgba(201,162,39,.35); padding-bottom:5px; margin-bottom:9px; }
-  .gh-jr-sh small { font-family:"MedievalSharp",serif; font-weight:400; letter-spacing:2px; color:#a8966a; font-size:11px; margin-left:6px; }
+  .gh-jr-sh { font-family:"Cinzel",serif; font-weight:700; font-size:calc(15 * var(--gh-u,1px)); letter-spacing:1.5px; color:#e6b45a; border-bottom:1px solid rgba(201,162,39,.35); padding-bottom:5px; margin-bottom:9px; }
+  .gh-jr-sh small { font-family:"MedievalSharp",serif; font-weight:400; letter-spacing:2px; color:#a8966a; font-size:calc(11 * var(--gh-u,1px)); margin-left:6px; }
   .gh-jr-list { display:flex; flex-direction:column; gap:8px; }
   .gh-jr-q { display:flex; gap:11px; align-items:flex-start; padding:9px 11px; border-radius:10px; background:rgba(20,15,9,.5); border:1px solid rgba(201,162,39,.22); }
   .gh-jr-q.gh-jr-done { opacity:.62; }
   .gh-jr-q.gh-jr-active { background:rgba(46,36,16,.6); border-color:rgba(230,180,90,.55); }
   .gh-jr-q.gh-jr-locked { opacity:.5; }
-  .gh-jr-ico { font-size:26px; line-height:1.1; flex:0 0 auto; width:30px; text-align:center; }
+  .gh-jr-ico { font-size:calc(26 * var(--gh-u,1px)); line-height:1.1; flex:0 0 auto; width:30px; text-align:center; }
   .gh-jr-txt { flex:1; min-width:0; }
-  .gh-jr-h { font-family:"Cinzel",serif; font-weight:700; font-size:14px; color:#f2e4bf; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .gh-jr-badge { font-family:"MedievalSharp",serif; font-weight:400; font-size:10px; letter-spacing:1px; padding:1px 7px; border-radius:6px; }
+  .gh-jr-h { font-family:"Cinzel",serif; font-weight:700; font-size:calc(14 * var(--gh-u,1px)); color:#f2e4bf; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .gh-jr-badge { font-family:"MedievalSharp",serif; font-weight:400; font-size:calc(10 * var(--gh-u,1px)); letter-spacing:1px; padding:1px 7px; border-radius:6px; }
   .gh-jr-b-done { background:rgba(120,150,110,.3); color:#bcd7ac; }
   .gh-jr-b-active { background:rgba(230,180,90,.28); color:#f2d79a; }
   .gh-jr-b-available { background:rgba(120,150,200,.28); color:#bcd0ea; }
   .gh-jr-b-locked { background:rgba(120,120,120,.25); color:#bbb; }
-  .gh-jr-d { font-size:12.5px; line-height:1.4; color:#cdbf9c; margin-top:3px; }
-  .gh-jr-obj { font-size:12.5px; line-height:1.35; color:#f2d79a; margin-top:5px; font-weight:600; }
-  .gh-jr-empty { font-size:13px; color:#a8966a; padding:8px 4px; }
+  .gh-jr-d { font-size:calc(12.5 * var(--gh-u,1px)); line-height:1.4; color:#cdbf9c; margin-top:3px; }
+  .gh-jr-obj { font-size:calc(12.5 * var(--gh-u,1px)); line-height:1.35; color:#f2d79a; margin-top:5px; font-weight:600; }
+  .gh-jr-empty { font-size:calc(13 * var(--gh-u,1px)); color:#a8966a; padding:8px 4px; }
+  /* O DIÁRIO NUM MONITOR. Crescer a janela junto com a escala resolve o tamanho
+     mas não a FORMA: uma coluna de fichas com 1000px de largura vira uma tira de
+     texto atravessando a tela, e continua rolando o mesmo tanto. Numa tela larga
+     as fichas passam a duas colunas — a janela deixa de ser um tubo e vira uma
+     página, que é o que o jogador de PC espera de um diário aberto.
+     Só a partir de 1200px: abaixo disso duas colunas espremeriam o título de
+     cada capítulo em três linhas. */
+  @media (min-width:1200px) and (orientation:landscape) {
+    #gh-journal-win { width:min(calc(940px * var(--gh-ui,1)),92vw); }
+    .gh-jr-list { display:grid; grid-template-columns:1fr 1fr; gap:9px; align-items:start; }
+  }
   /* janela de OPÇÕES */
   #gh-opt { position:fixed; inset:0; z-index:23; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
   #gh-opt.gh-eq-hidden { display:none; }
-  #gh-opt-win { position:relative; box-sizing:border-box; width:min(420px,92vw); max-height:90vh; overflow-y:auto;
-    border:clamp(20px,3vh,30px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); padding:2px 6px 10px; }
+  #gh-opt-win { position:relative; box-sizing:border-box; width:min(calc(420px * var(--gh-ui,1)),92vw); max-height:90vh; overflow-y:auto;
+    border:clamp(20px,3vh,calc(30px * var(--gh-ui,1))) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); padding:2px 6px 10px; }
   #gh-opt-close { position:absolute; right:8px; top:8px; z-index:9; width:34px; height:34px; border-radius:9px; cursor:pointer;
-    font-size:16px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
-  .gh-opt-title { text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(18px,2.8vh,22px); letter-spacing:3px;
+    font-size:calc(16 * var(--gh-u,1px)); line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
+  .gh-opt-title { text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(18px,2.8vh,calc(22px * var(--gh-ui,1))); letter-spacing:3px;
     color:#f6e7c2; text-shadow:0 2px 6px #000; padding:6px 40px 10px; }
-  .gh-opt-sec { border:clamp(12px,1.9vh,15px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; padding:4% 6% 6%; }
-  .gh-opt-sh { text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.8vh,14px); color:#e8b24a;
+  .gh-opt-sec { border:clamp(12px,1.9vh,calc(15px * var(--gh-ui,1))) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; padding:4% 6% 6%; }
+  .gh-opt-sh { text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.8vh,calc(14px * var(--gh-ui,1))); color:#e8b24a;
     letter-spacing:2px; text-shadow:0 1px 3px #000; margin-bottom:6%; }
   .gh-opt-row { display:flex; align-items:center; gap:12px; margin:5% 0; }
-  .gh-opt-row label { flex:0 0 42%; font-family:"MedievalSharp",serif; font-size:clamp(12px,1.8vh,14px); color:#e8dcc0; }
-  .gh-opt-val { flex:0 0 44px; text-align:right; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.8vh,14px); color:#f4d074; }
+  .gh-opt-row label { flex:0 0 42%; font-family:"MedievalSharp",serif; font-size:clamp(12px,1.8vh,calc(14px * var(--gh-ui,1))); color:#e8dcc0; }
+  .gh-opt-val { flex:0 0 44px; text-align:right; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.8vh,calc(14px * var(--gh-ui,1))); color:#f4d074; }
   .gh-opt-slider { flex:1; -webkit-appearance:none; appearance:none; height:7px; border-radius:5px; cursor:pointer;
     background:linear-gradient(#3a2c16,#241a0d); box-shadow:inset 0 0 0 1px rgba(201,162,39,.35); outline:none; }
   .gh-opt-slider::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:19px; height:19px; border-radius:50%;
@@ -4713,8 +4754,8 @@ function injectStyle() {
      sem deformar a borda ornamentada. */
   #gh-eq-win {
     position:relative; box-sizing:border-box;
-    width:min(58vh,440px); height:min(90vh,780px);
-    border:clamp(22px,3.4vh,34px) solid transparent;
+    width:min(58vh,calc(440px * var(--gh-ui,1))); height:min(90vh,calc(780px * var(--gh-ui,1)));
+    border:clamp(22px,3.4vh,calc(34px * var(--gh-ui,1))) solid transparent;
     border-image:url(${eqFrameUrl}) 90 fill;
     filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));
   }
@@ -4724,52 +4765,52 @@ function injectStyle() {
     #gh-eq { padding:0; }
     #gh-eq-win {
       width:100vw; height:100vh; height:100dvh;
-      border-width:clamp(15px,2.6vh,24px);
+      border-width:clamp(15px,2.6vh,calc(24px * var(--gh-ui,1)));
     }
   }
   #gh-eq-close {
     position:absolute; right:6px; top:6px; z-index:2; width:34px; height:34px;
-    border-radius:8px; cursor:pointer; font-size:16px; line-height:1;
+    border-radius:8px; cursor:pointer; font-size:calc(16 * var(--gh-u,1px)); line-height:1;
     background:rgba(20,16,11,.66); color:#e8d9b0; border:2px solid rgba(201,162,39,.55);
   }
   /* ---- FERREIRO (janela de aprimoramento) ---- */
   #gh-sm { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
   #gh-sm.gh-eq-hidden { display:none; }
   #gh-sm-win {
-    position:relative; box-sizing:border-box; width:min(58vh,440px); height:min(94vh,820px);
-    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill;
+    position:relative; box-sizing:border-box; width:min(58vh,calc(440px * var(--gh-ui,1))); height:min(94vh,calc(820px * var(--gh-ui,1)));
+    border:clamp(22px,3.4vh,calc(34px * var(--gh-ui,1))) solid transparent; border-image:url(${eqFrameUrl}) 90 fill;
     filter:drop-shadow(0 6px 20px rgba(0,0,0,.6));
   }
-  @media (max-width:640px){ #gh-sm-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
-  #gh-sm-close { position:absolute; right:6px; top:6px; z-index:2; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:16px; background:rgba(20,16,11,.66); color:#e8d9b0; border:2px solid rgba(201,162,39,.55); }
+  @media (max-width:640px){ #gh-sm-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,calc(24px * var(--gh-ui,1))); } }
+  #gh-sm-close { position:absolute; right:6px; top:6px; z-index:2; width:34px; height:34px; border-radius:8px; cursor:pointer; font-size:calc(16 * var(--gh-u,1px)); background:rgba(20,16,11,.66); color:#e8d9b0; border:2px solid rgba(201,162,39,.55); }
   /* TUDO numa janela só, SEM rolagem (mobile mostra os 20 slots de uma vez) */
   #gh-sm-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.4%; color:#e8dcc0; overflow:hidden; }
   .gh-sm-title { flex:0 0 auto; position:relative; padding:0 8px; }
   .gh-sm-sec { flex:0 0 auto; padding:2% 3.5% 2.6%; }
   .gh-sm-forge { display:flex; align-items:flex-start; justify-content:center; gap:2%; }
   .gh-sm-col { display:flex; flex-direction:column; align-items:center; gap:3px; width:42%; }
-  .gh-sm-lbl { font-size:clamp(10px,1.5vh,12px); letter-spacing:1px; color:#b39a63; font-family:"Cinzel",serif; }
+  .gh-sm-lbl { font-size:clamp(10px,1.5vh,calc(12px * var(--gh-ui,1))); letter-spacing:1px; color:#b39a63; font-family:"Cinzel",serif; }
   /* slot da forja num WRAPPER que NÃO corta → o selo +N fica fora, inteiro */
-  .gh-sm-slotwrap { position:relative; width:clamp(58px,10vh,84px); height:clamp(58px,10vh,84px); overflow:visible; }
+  .gh-sm-slotwrap { position:relative; width:clamp(58px,10vh,calc(84px * var(--gh-ui,1))); height:clamp(58px,10vh,calc(84px * var(--gh-ui,1))); overflow:visible; }
   .gh-sm-slot { width:100%; height:100%; }
-  .gh-sm-tier { position:absolute; top:-9px; right:-11px; z-index:3; font-family:"Cinzel",serif; font-size:clamp(11px,1.7vh,14px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:7px; padding:1px 7px; border:1px solid #6b4f18; box-shadow:0 1px 4px #000; }
+  .gh-sm-tier { position:absolute; top:-9px; right:-11px; z-index:3; font-family:"Cinzel",serif; font-size:clamp(11px,1.7vh,calc(14px * var(--gh-ui,1))); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:7px; padding:1px 7px; border:1px solid #6b4f18; box-shadow:0 1px 4px #000; }
   .gh-sm-tier-up { background:linear-gradient(#8fe07a,#3f9a2e); border-color:#215016; box-shadow:0 0 8px rgba(120,240,110,.6); }
   .gh-sm-res { box-shadow:0 0 16px 3px rgba(244,216,115,.5); border-radius:8px; }
   .gh-sm-res .gh-item-ico { filter:drop-shadow(0 0 8px rgba(255,224,130,.9)); }
-  .gh-sm-nm { font-size:clamp(12px,1.7vh,14px); color:#efe2c0; text-align:center; line-height:1.12; min-height:2.3em; margin-top:6px; }
+  .gh-sm-nm { font-size:clamp(12px,1.7vh,calc(14px * var(--gh-ui,1))); color:#efe2c0; text-align:center; line-height:1.12; min-height:2.3em; margin-top:6px; }
   .gh-sm-nm.gh-up { color:#f6ead0; }
-  .gh-sm-dmg { font-size:clamp(11px,1.6vh,13px); color:#c7b789; }
+  .gh-sm-dmg { font-size:clamp(11px,1.6vh,calc(13px * var(--gh-ui,1))); color:#c7b789; }
   .gh-sm-dmg .gh-g { color:#8fdf7a; font-weight:700; }
   /* NO LUGAR DA SETINHA: a espada do loading, apagada; enche esq→dir ao aprimorar.
      Efeito rico: frente derretida, brasas subindo, brilho e lâmina esquentando.
      margin-top centraliza a espada na ALTURA dos dois slots. --fk (0→1) = progresso. */
   .gh-sm-anvil { position:relative; align-self:flex-start; flex:0 0 auto; overflow:visible;
-    width:clamp(44px,8.6vh,72px); aspect-ratio:332/81;
-    margin-top:calc(clamp(10px,1.5vh,12px) + 3px + (clamp(58px,10vh,84px) - clamp(44px,8.6vh,72px) * 0.244) / 2); }
+    width:clamp(44px,8.6vh,calc(72px * var(--gh-ui,1))); aspect-ratio:332/81;
+    margin-top:calc(clamp(10px,1.5vh,calc(12px * var(--gh-ui,1))) + 3px + (clamp(58px,10vh,calc(84px * var(--gh-ui,1))) - clamp(44px,8.6vh,calc(72px * var(--gh-ui,1))) * 0.244) / 2); }
   .gh-sm-sword-base { position:relative; z-index:1; width:100%; height:100%; display:block; filter:brightness(.24) saturate(.3) drop-shadow(0 2px 4px #000); transition:filter .3s; }
   .gh-sm-sword-fill { position:absolute; left:0; top:0; bottom:0; width:0%; overflow:hidden; z-index:2; }
   .gh-sm-sword-lava {
-    position:absolute; left:0; top:0; height:100%; width:clamp(44px,8.6vh,72px);
+    position:absolute; left:0; top:0; height:100%; width:clamp(44px,8.6vh,calc(72px * var(--gh-ui,1)));
     -webkit-mask:url(${loadSwordUrl}) left center / 100% 100% no-repeat;
     mask:url(${loadSwordUrl}) left center / 100% 100% no-repeat;
     background:
@@ -4824,25 +4865,25 @@ function injectStyle() {
   @keyframes gh-smpulse { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.05); } }
   @keyframes gh-smflash { 0%{ transform:scale(1.2); filter:brightness(1.9) drop-shadow(0 0 32px #fff); } 100%{ transform:scale(1); } }
   @keyframes gh-smshake { 0%,100%{ transform:translateX(0); } 20%{ transform:translateX(-3px); } 60%{ transform:translateX(3px); } }
-  .gh-sm-mats-h { text-align:center; font-size:clamp(11px,1.5vh,12px); color:#b39a63; letter-spacing:1px; margin:2.6% 0 1.8%; font-family:"Cinzel",serif; border-top:1px solid rgba(201,162,39,.28); padding-top:2.4%; }
+  .gh-sm-mats-h { text-align:center; font-size:clamp(11px,1.5vh,calc(12px * var(--gh-ui,1))); color:#b39a63; letter-spacing:1px; margin:2.6% 0 1.8%; font-family:"Cinzel",serif; border-top:1px solid rgba(201,162,39,.28); padding-top:2.4%; }
   .gh-sm-mats { display:flex; justify-content:center; gap:3%; }
   .gh-sm-mat { width:23%; display:flex; flex-direction:column; align-items:center; gap:2px; }
-  .gh-sm-mslot { width:clamp(40px,6.8vh,54px); height:clamp(40px,6.8vh,54px); display:flex; align-items:center; justify-content:center; border:8px solid transparent; border-image:url(${eqSlotUrl}) 89 fill; font-size:clamp(19px,3vh,25px); }
+  .gh-sm-mslot { width:clamp(40px,6.8vh,calc(54px * var(--gh-ui,1))); height:clamp(40px,6.8vh,calc(54px * var(--gh-ui,1))); display:flex; align-items:center; justify-content:center; border:8px solid transparent; border-image:url(${eqSlotUrl}) 89 fill; font-size:clamp(19px,3vh,calc(25px * var(--gh-ui,1))); }
   .gh-sm-mslot img { width:62%; height:62%; }
   /* números FORA do slot: "precisa/tem" (verde ou vermelho) */
-  .gh-sm-mnum { font-size:clamp(13px,1.9vh,16px); font-weight:700; font-family:"Cinzel",serif; line-height:1; margin-top:1px; }
-  .gh-sm-mhave { font-size:clamp(9px,1.35vh,11px); font-weight:400; color:#a89468; }
+  .gh-sm-mnum { font-size:clamp(13px,1.9vh,calc(16px * var(--gh-ui,1))); font-weight:700; font-family:"Cinzel",serif; line-height:1; margin-top:1px; }
+  .gh-sm-mhave { font-size:clamp(9px,1.35vh,calc(11px * var(--gh-ui,1))); font-weight:400; color:#a89468; }
   .gh-ok { color:#8fdf7a; } .gh-no { color:#e17b6b; }
-  .gh-sm-cap { font-size:clamp(9px,1.25vh,11px); color:#a89468; text-align:center; line-height:1.05; }
+  .gh-sm-cap { font-size:clamp(9px,1.25vh,calc(11px * var(--gh-ui,1))); color:#a89468; text-align:center; line-height:1.05; }
   /* BOTÃO = a placa "APRIMORAR" (btn_base), igual ao resto da HUD */
-  .gh-sm-btn { display:block; margin:2.8% auto 0.4%; width:78%; max-width:280px; min-height:clamp(42px,6.6vh,52px); cursor:pointer;
-    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(15px,2.2vh,19px); letter-spacing:2px; color:#12100a;
-    border:clamp(12px,1.9vh,15px) solid transparent; border-image:url(${btnBaseUrl}) 40 fill; background:transparent;
+  .gh-sm-btn { display:block; margin:2.8% auto 0.4%; width:78%; max-width:280px; min-height:clamp(42px,6.6vh,calc(52px * var(--gh-ui,1))); cursor:pointer;
+    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(15px,2.2vh,calc(19px * var(--gh-ui,1))); letter-spacing:2px; color:#12100a;
+    border:clamp(12px,1.9vh,calc(15px * var(--gh-ui,1))) solid transparent; border-image:url(${btnBaseUrl}) 40 fill; background:transparent;
     text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-sm-btn:active { filter:brightness(1.16); transform:scale(.97); }
-  .gh-sm-btn.gh-sm-dim { filter:grayscale(.72) brightness(.6); cursor:default; font-size:clamp(11px,1.7vh,13px); letter-spacing:1px; }
+  .gh-sm-btn.gh-sm-dim { filter:grayscale(.72) brightness(.6); cursor:default; font-size:clamp(11px,1.7vh,calc(13px * var(--gh-ui,1))); letter-spacing:1px; }
   .gh-sm-btn.gh-sm-busy { pointer-events:none; filter:brightness(1.12); }
-  .gh-sm-max, .gh-sm-empty { text-align:center; color:#c7b789; padding:6% 4%; font-size:clamp(12px,1.7vh,14px); }
+  .gh-sm-max, .gh-sm-empty { text-align:center; color:#c7b789; padding:6% 4%; font-size:clamp(12px,1.7vh,calc(14px * var(--gh-ui,1))); }
   /* INVENTÁRIO (20 slots, 5 col). Células QUADRADAS de tamanho FIXO (--cell) em
      linha E coluna — não depende de aspect-ratio/flex (que quebrava em alguns
      aparelhos deixando as células "esticadas"). As separações vêm só do "gap"
@@ -4858,12 +4899,12 @@ function injectStyle() {
     align-self:center; margin-block:auto;
     gap:3px; background:rgba(212,175,55,.7); border:2px solid rgba(212,175,55,.6); }
   .gh-bag.gh-sm-bag .gh-sm-cell { aspect-ratio:auto; width:auto; height:auto; min-width:0; min-height:0; cursor:pointer; }
-  .gh-sm-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.35vh,12px); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; box-shadow:0 1px 2px #000; }
+  .gh-sm-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.35vh,calc(12px * var(--gh-ui,1))); font-weight:700; color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; box-shadow:0 1px 2px #000; }
   .gh-sm-sel { background:rgba(40,32,16,.95); box-shadow:inset 0 0 0 2px #f4d873, 0 0 12px 2px rgba(244,216,115,.7); }
   /* LETREIRO garrafal SUCESSO!/FALHOU! após a forja (aparece breve e some) */
   #gh-sm-flash { position:absolute; inset:0; z-index:12; display:flex; align-items:center; justify-content:center;
     pointer-events:none; opacity:0; font-family:"Cinzel",serif; font-weight:700; letter-spacing:2px;
-    font-size:clamp(30px,7.6vh,54px); text-transform:uppercase; text-align:center; white-space:nowrap;
+    font-size:clamp(30px,7.6vh,calc(54px * var(--gh-ui,1))); text-transform:uppercase; text-align:center; white-space:nowrap;
     overflow:hidden; -webkit-text-stroke:1.5px rgba(0,0,0,.55); }
   #gh-sm-flash.gh-flash-show { animation:gh-flash-pop 1.6s cubic-bezier(.18,1.3,.32,1) 1; }
   #gh-sm-flash.gh-flash-ok { color:#93ec7c; text-shadow:0 0 24px rgba(120,240,110,.95), 0 0 8px rgba(200,255,180,.9), 0 4px 8px #000; }
@@ -4879,20 +4920,20 @@ function injectStyle() {
   /* ---- MERCADOR (comprar/vender + caixa de quantidade) ---- */
   #gh-st { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
   #gh-st.gh-eq-hidden { display:none; }
-  #gh-st-win { position:relative; box-sizing:border-box; width:min(60vh,460px); height:min(94vh,820px);
-    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
-  @media (max-width:640px){ #gh-st-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
+  #gh-st-win { position:relative; box-sizing:border-box; width:min(60vh,calc(460px * var(--gh-ui,1))); height:min(94vh,calc(820px * var(--gh-ui,1)));
+    border:clamp(22px,3.4vh,calc(34px * var(--gh-ui,1))) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
+  @media (max-width:640px){ #gh-st-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,calc(24px * var(--gh-ui,1))); } }
   #gh-st-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
-    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
+    font-size:calc(17 * var(--gh-u,1px)); line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
   #gh-st-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.6%; color:#e8dcc0; overflow:hidden; }
   /* BAÚ: reaproveita todo o interior gh-st-*; só os ids externos são próprios */
   #gh-stash { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); pointer-events:auto; }
   #gh-stash.gh-eq-hidden { display:none; }
-  #gh-stash-win { position:relative; box-sizing:border-box; width:min(60vh,460px); height:min(94vh,820px);
-    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
-  @media (max-width:640px){ #gh-stash-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
+  #gh-stash-win { position:relative; box-sizing:border-box; width:min(60vh,calc(460px * var(--gh-ui,1))); height:min(94vh,calc(820px * var(--gh-ui,1)));
+    border:clamp(22px,3.4vh,calc(34px * var(--gh-ui,1))) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
+  @media (max-width:640px){ #gh-stash-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,calc(24px * var(--gh-ui,1))); } }
   #gh-stash-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
-    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
+    font-size:calc(17 * var(--gh-u,1px)); line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(201,162,39,.6); box-shadow:0 1px 4px #000; }
   #gh-stash-body { width:100%; height:100%; display:flex; flex-direction:column; gap:1.6%; color:#e8dcc0; overflow:hidden; }
   #gh-stash-qty { position:absolute; inset:0; z-index:8; display:flex; align-items:center; justify-content:center; background:rgba(6,4,2,.72); }
   #gh-stash-qty.gh-st-qty-hidden { display:none; }
@@ -4900,7 +4941,7 @@ function injectStyle() {
      escala menor), rolável quando cheia. Cabeçalho mostra a lotação. */
   .gh-stash-sec { padding:2% 3.5% 3%; }
   .gh-stash-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .gh-stash-cap { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(10px,1.5vh,12px); color:#d8bd72; letter-spacing:1px; flex:0 0 auto; }
+  .gh-stash-cap { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(10px,1.5vh,calc(12px * var(--gh-ui,1))); color:#d8bd72; letter-spacing:1px; flex:0 0 auto; }
   .gh-bag.gh-stash-grid {
     grid-template-columns:repeat(5,1fr); grid-auto-rows:1fr; gap:5px;
     flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; align-content:start;
@@ -4913,23 +4954,23 @@ function injectStyle() {
   .gh-stash-cell[data-gid]:active { filter:brightness(1.16); }
   .gh-stash-empty { background:rgba(8,6,3,.5); box-shadow:inset 0 0 0 1px rgba(201,162,39,.12); }
   .gh-stash-cell .gh-item-ico { width:82%; height:82%; object-fit:contain; }
-  .gh-stash-cell .gh-st-emo { font-size:clamp(18px,3.4vh,26px); line-height:1; }
+  .gh-stash-cell .gh-st-emo { font-size:clamp(18px,3.4vh,calc(26px * var(--gh-ui,1))); line-height:1; }
   .gh-stash-badge { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-weight:700;
-    font-size:clamp(9px,1.35vh,12px); color:#fff; text-shadow:0 1px 2px #000,0 0 3px #000; pointer-events:none; }
+    font-size:clamp(9px,1.35vh,calc(12px * var(--gh-ui,1))); color:#fff; text-shadow:0 1px 2px #000,0 0 3px #000; pointer-events:none; }
   .gh-stash-lvl { color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-radius:5px; padding:0 4px; line-height:1.25; text-shadow:none; box-shadow:0 1px 2px #000; }
   .gh-stash-gold { background:rgba(48,38,14,.55); box-shadow:inset 0 0 0 1px rgba(201,162,39,.5); }
-  .gh-stash-goldn { right:3px; bottom:2px; color:#f4d873; font-size:clamp(9px,1.4vh,12px); }
+  .gh-stash-goldn { right:3px; bottom:2px; color:#f4d873; font-size:clamp(9px,1.4vh,calc(12px * var(--gh-ui,1))); }
   .gh-stash-off { opacity:.4; }
   .gh-st-title { display:flex; align-items:center; gap:10px; flex:0 0 auto; padding:0 46px 0 2px; }
-  .gh-st-portr { width:clamp(38px,6vh,50px); height:clamp(38px,6vh,50px); border-radius:9px; border:2px solid rgba(201,162,39,.6);
+  .gh-st-portr { width:clamp(38px,6vh,calc(50px * var(--gh-ui,1))); height:clamp(38px,6vh,calc(50px * var(--gh-ui,1))); border-radius:9px; border:2px solid rgba(201,162,39,.6);
     background:#1a130c; object-fit:cover; object-position:50% 20%; box-shadow:inset 0 0 10px #000; flex:0 0 auto; }
-  .gh-st-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(17px,2.6vh,23px);
+  .gh-st-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(17px,2.6vh,calc(23px * var(--gh-ui,1)));
     letter-spacing:2px; color:#f2e4bf; text-shadow:0 2px 5px #000; line-height:1.05; }
-  .gh-st-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.3vh,11px); color:#b39a63; letter-spacing:3px; margin-top:1px; }
-  .gh-gold.gh-st-gold { position:static; transform:none; flex:0 0 auto; font-size:clamp(13px,2vh,16px); }
+  .gh-st-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.3vh,calc(11px * var(--gh-ui,1))); color:#b39a63; letter-spacing:3px; margin-top:1px; }
+  .gh-gold.gh-st-gold { position:static; transform:none; flex:0 0 auto; font-size:clamp(13px,2vh,calc(16px * var(--gh-ui,1))); }
   .gh-st-tabs { display:flex; gap:8px; justify-content:center; flex:0 0 auto; }
-  .gh-st-tab { flex:1; max-width:170px; min-height:clamp(34px,5vh,42px); cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
-    font-size:clamp(13px,2vh,16px); letter-spacing:2px; color:#c9b478; border:clamp(10px,1.6vh,12px) solid transparent;
+  .gh-st-tab { flex:1; max-width:170px; min-height:clamp(34px,5vh,calc(42px * var(--gh-ui,1))); cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(13px,2vh,calc(16px * var(--gh-ui,1))); letter-spacing:2px; color:#c9b478; border:clamp(10px,1.6vh,calc(12px * var(--gh-ui,1))) solid transparent;
     border-image:url(${btnBaseUrl}) 40 fill; background:transparent; filter:grayscale(.55) brightness(.7); }
   .gh-st-tab.gh-st-on { color:#12100a; filter:none; text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-st-sec { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; padding:2% 3.5% 3%; }
@@ -4937,38 +4978,38 @@ function injectStyle() {
     gap:8px; align-content:start; padding-right:2px; overscroll-behavior:contain; }
   .gh-st-good { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; }
   .gh-st-gslot { width:100%; aspect-ratio:1; position:relative; }
-  .gh-st-emo { font-size:clamp(22px,4.4vh,34px); line-height:1; }
-  .gh-st-cnt { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.4vh,12px); font-weight:700; color:#fff; text-shadow:0 1px 2px #000,0 0 3px #000; }
-  .gh-st-gname { font-size:clamp(9px,1.4vh,11px); color:#efe2c0; text-align:center; line-height:1.05; min-height:2.1em; }
-  .gh-st-gprice { display:flex; align-items:center; gap:3px; font-family:"Cinzel",serif; font-size:clamp(11px,1.7vh,13px); color:#f4d873; font-weight:700; }
+  .gh-st-emo { font-size:clamp(22px,4.4vh,calc(34px * var(--gh-ui,1))); line-height:1; }
+  .gh-st-cnt { position:absolute; right:2px; bottom:1px; font-family:"Cinzel",serif; font-size:clamp(9px,1.4vh,calc(12px * var(--gh-ui,1))); font-weight:700; color:#fff; text-shadow:0 1px 2px #000,0 0 3px #000; }
+  .gh-st-gname { font-size:clamp(9px,1.4vh,calc(11px * var(--gh-ui,1))); color:#efe2c0; text-align:center; line-height:1.05; min-height:2.1em; }
+  .gh-st-gprice { display:flex; align-items:center; gap:3px; font-family:"Cinzel",serif; font-size:clamp(11px,1.7vh,calc(13px * var(--gh-ui,1))); color:#f4d873; font-weight:700; }
   .gh-st-gprice img { width:13px; height:13px; }
   .gh-st-good:active .gh-st-gslot { filter:brightness(1.16); }
-  .gh-st-empty { grid-column:1/-1; text-align:center; color:#c7b789; padding:14% 6%; font-size:clamp(13px,1.9vh,15px); }
+  .gh-st-empty { grid-column:1/-1; text-align:center; color:#c7b789; padding:14% 6%; font-size:clamp(13px,1.9vh,calc(15px * var(--gh-ui,1))); }
   #gh-st-qty { position:absolute; inset:0; z-index:8; display:flex; align-items:center; justify-content:center; background:rgba(6,4,2,.72); }
   #gh-st-qty.gh-st-qty-hidden { display:none; }
-  .gh-st-qbox { width:min(90%,320px); padding:6% 6%; border:clamp(20px,3vh,26px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill;
+  .gh-st-qbox { width:min(90%,320px); padding:6% 6%; border:clamp(20px,3vh,calc(26px * var(--gh-ui,1))) solid transparent; border-image:url(${eqContainerUrl}) 88 fill;
     display:flex; flex-direction:column; align-items:center; gap:4%; }
   .gh-st-qtop { display:flex; align-items:center; gap:10px; width:100%; }
-  .gh-st-qico { width:clamp(48px,8vh,60px); height:clamp(48px,8vh,60px); flex:0 0 auto; }
+  .gh-st-qico { width:clamp(48px,8vh,calc(60px * var(--gh-ui,1))); height:clamp(48px,8vh,calc(60px * var(--gh-ui,1))); flex:0 0 auto; }
   .gh-st-qinfo { flex:1; min-width:0; }
-  .gh-st-qn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(14px,2.1vh,16px); color:#f2e4bf; }
-  .gh-st-qu { display:flex; align-items:center; gap:4px; font-size:clamp(10px,1.5vh,12px); color:#b39a63; margin-top:2px; }
+  .gh-st-qn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(14px,2.1vh,calc(16px * var(--gh-ui,1))); color:#f2e4bf; }
+  .gh-st-qu { display:flex; align-items:center; gap:4px; font-size:clamp(10px,1.5vh,calc(12px * var(--gh-ui,1))); color:#b39a63; margin-top:2px; }
   .gh-st-qu img { width:12px; height:12px; }
-  .gh-st-qh { font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,12px); color:#c9b478; letter-spacing:1px; margin-top:4px; }
+  .gh-st-qh { font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,calc(12px * var(--gh-ui,1))); color:#c9b478; letter-spacing:1px; margin-top:4px; }
   .gh-st-stepper { display:flex; align-items:center; gap:14px; }
-  .gh-st-step { width:clamp(38px,6.4vh,44px); height:clamp(38px,6.4vh,44px); border-radius:9px; cursor:pointer;
-    font-size:clamp(22px,3.6vh,26px); font-weight:700; color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
+  .gh-st-step { width:clamp(38px,6.4vh,calc(44px * var(--gh-ui,1))); height:clamp(38px,6.4vh,calc(44px * var(--gh-ui,1))); border-radius:9px; cursor:pointer;
+    font-size:clamp(22px,3.6vh,calc(26px * var(--gh-ui,1))); font-weight:700; color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
     border:2px solid rgba(201,162,39,.55); box-shadow:0 1px 3px #000; display:flex; align-items:center; justify-content:center; }
-  .gh-st-qnum { font-family:"Cinzel",serif; font-size:clamp(26px,5vh,32px); font-weight:700; color:#f7ecc9; min-width:2ch; text-align:center; text-shadow:0 2px 4px #000; }
-  .gh-st-max { font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,12px); letter-spacing:1px; color:#e6d3a0; cursor:pointer;
+  .gh-st-qnum { font-family:"Cinzel",serif; font-size:clamp(26px,5vh,calc(32px * var(--gh-ui,1))); font-weight:700; color:#f7ecc9; min-width:2ch; text-align:center; text-shadow:0 2px 4px #000; }
+  .gh-st-max { font-family:"Cinzel",serif; font-size:clamp(10px,1.5vh,calc(12px * var(--gh-ui,1))); letter-spacing:1px; color:#e6d3a0; cursor:pointer;
     padding:4px 14px; border-radius:6px; background:rgba(30,24,14,.85); border:1px solid rgba(201,162,39,.5); }
   .gh-st-total { display:flex; align-items:center; justify-content:center; gap:6px; font-family:"Cinzel",serif;
-    font-size:clamp(16px,2.6vh,19px); color:#f4d873; font-weight:700; border-top:1px solid rgba(201,162,39,.28); padding-top:4%; width:100%; }
+    font-size:clamp(16px,2.6vh,calc(19px * var(--gh-ui,1))); color:#f4d873; font-weight:700; border-top:1px solid rgba(201,162,39,.28); padding-top:4%; width:100%; }
   .gh-st-total img { width:18px; height:18px; }
-  .gh-st-x { color:#b39a63; font-size:clamp(12px,1.7vh,14px); font-weight:400; }
+  .gh-st-x { color:#b39a63; font-size:clamp(12px,1.7vh,calc(14px * var(--gh-ui,1))); font-weight:400; }
   .gh-st-qbtns { display:flex; gap:10px; width:100%; }
-  .gh-st-qbtn { flex:1; min-height:clamp(40px,6vh,46px); cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
-    font-size:clamp(13px,2vh,15px); letter-spacing:1px; color:#12100a; border:clamp(11px,1.7vh,13px) solid transparent;
+  .gh-st-qbtn { flex:1; min-height:clamp(40px,6vh,calc(46px * var(--gh-ui,1))); cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
+    font-size:clamp(13px,2vh,calc(15px * var(--gh-ui,1))); letter-spacing:1px; color:#12100a; border:clamp(11px,1.7vh,calc(13px * var(--gh-ui,1))) solid transparent;
     border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-st-qbtn.gh-st-cancel { filter:grayscale(.6) brightness(.72); }
   #gh-eq-inner {
@@ -4978,7 +5019,7 @@ function injectStyle() {
   }
   .gh-eq-title {
     text-align:center; font-family:"Cinzel",serif; font-weight:700;
-    font-size:clamp(15px,2.4vh,23px); letter-spacing:1.5px;
+    font-size:clamp(15px,2.4vh,calc(23px * var(--gh-ui,1))); letter-spacing:1.5px;
     color:#f0e2bd; text-shadow:0 2px 4px rgba(0,0,0,.7);
   }
   /* abas (Equipamento / Atributos) */
@@ -4986,7 +5027,7 @@ function injectStyle() {
   .gh-tab {
     padding:4px 15px; cursor:pointer; border-radius:7px;
     font-family:"Cinzel",serif; font-weight:600; letter-spacing:.5px;
-    font-size:clamp(11px,1.6vh,14px);
+    font-size:clamp(11px,1.6vh,calc(14px * var(--gh-ui,1)));
     background:rgba(20,16,11,.5); color:#c9b98c; border:1px solid rgba(201,162,39,.4);
   }
   .gh-tab-on { background:rgba(201,162,39,.24); color:#f6ead0; border-color:rgba(201,162,39,.7); }
@@ -4998,13 +5039,13 @@ function injectStyle() {
   /* CAIXAS que separam "Equipado" da "Mochila": painel pintado em 9-slice
      (cantos ornamentados fixos, interior de pedra escura esticando). */
   .gh-section {
-    border:clamp(13px,2.2vh,24px) solid transparent;
+    border:clamp(13px,2.2vh,calc(24px * var(--gh-ui,1))) solid transparent;
     border-image:url(${eqContainerUrl}) 88 fill;
     box-sizing:border-box; padding:1% 2% 2%;
   }
   .gh-sec-head {
     text-align:center; font-family:"Cinzel",serif; font-weight:600;
-    font-size:clamp(12px,1.8vh,16px); color:#e0cf9e;
+    font-size:clamp(12px,1.8vh,calc(16px * var(--gh-ui,1))); color:#e0cf9e;
     letter-spacing:1px; margin:0 0 2.2%; text-shadow:0 1px 3px rgba(0,0,0,.8);
   }
   /* cabeçalho "Inventário" com o saldo de ouro à direita (ícone de moeda) */
@@ -5016,14 +5057,14 @@ function injectStyle() {
     display:inline-flex; align-items:center; gap:4px;
     font-family:"Cinzel",serif; letter-spacing:.5px;
   }
-  .gh-gold img { width:clamp(15px,2.2vh,20px); height:auto; filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
-  .gh-gold b { color:#f4d873; font-size:clamp(12px,1.7vh,15px); text-shadow:0 1px 3px rgba(0,0,0,.85); }
+  .gh-gold img { width:clamp(15px,2.2vh,calc(20px * var(--gh-ui,1))); height:auto; filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+  .gh-gold b { color:#f4d873; font-size:clamp(12px,1.7vh,calc(15px * var(--gh-ui,1))); text-shadow:0 1px 3px rgba(0,0,0,.85); }
   /* grade "boneco" 14×10 (célula quadrada) — disposição PoE com tamanhos
      variados: elmo/peitoral grandes, amuleto/anéis quadradinhos (2×2) e cinto
      ACHATADO (4×2). Grade fina p/ dar essas proporções; gap pequeno. */
   .gh-eq-doll {
     display:grid; grid-template-columns:repeat(14,1fr); grid-template-rows:repeat(10,1fr);
-    gap:clamp(2px,0.45vh,4px); width:96%; aspect-ratio:7 / 5; margin:0 auto;
+    gap:clamp(2px,0.45vh,calc(4px * var(--gh-ui,1))); width:96%; aspect-ratio:7 / 5; margin:0 auto;
   }
   /* MOCHILA: um ÚNICO container escuro dividido por LINHAS FINAS (sem molduras
      grossas por célula). As linhas são a cor de fundo aparecendo no gap de 1px. */
@@ -5042,18 +5083,18 @@ function injectStyle() {
   .gh-bag-slot[data-wid]:hover { background:rgba(34,27,15,.9); filter:none; }
   /* contador de pilha (consumíveis empilhados) — usado quando houver itens */
   .gh-bag-slot .gh-count {
-    position:absolute; right:2px; bottom:1px; font-size:clamp(9px,1.4vh,12px);
+    position:absolute; right:2px; bottom:1px; font-size:clamp(9px,1.4vh,calc(12px * var(--gh-ui,1)));
     color:#fff; font-weight:700; text-shadow:0 1px 2px #000, 0 0 3px #000; line-height:1;
   }
   .gh-slot {
-    border:clamp(5px,1.05vh,8px) solid transparent;
+    border:clamp(5px,1.05vh,calc(8px * var(--gh-ui,1))) solid transparent;
     border-image:url(${eqSlotUrl}) 89 fill;
     box-sizing:border-box; min-width:0; min-height:0;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
   }
   /* ACESSÓRIOS (amuleto/anéis/cinto): slot menor/achatado → moldura mais FINA e
      ícone maior (preenche mais) p/ não ficar minúsculo como antes. */
-  .gh-slot-acc { border-width:clamp(3px,0.62vh,5px); }
+  .gh-slot-acc { border-width:clamp(3px,0.62vh,calc(5px * var(--gh-ui,1))); }
   .gh-slot-acc .gh-item-ico { max-width:94%; max-height:94%; }
   /* arma de 2 MÃOS: a cópia no slot secundário fica esmaecida (é a mesma peça
      ocupando a 2ª mão, não um item separado) — estilo Path of Exile. */
@@ -5074,7 +5115,7 @@ function injectStyle() {
   .gh-rname-raro     { --rc:#f4f472; --rcb:rgba(222,205,95,.5);   --rch:rgba(190,170,50,.18); }
   .gh-rname-lendario { --rc:#e08a3c; --rcb:rgba(205,120,48,.55);  --rch:rgba(170,85,25,.22); }
   #gh-itip {
-    position:fixed; z-index:30; pointer-events:auto; width:min(292px,86vw);
+    position:fixed; z-index:30; pointer-events:auto; width:min(calc(292px * var(--gh-ui,1)),86vw);
     box-sizing:border-box; padding:0; text-align:center;
     /* MOLDURA do jogo (mesma das outras janelas), SEM 'fill' → a arte faz a borda e
        o interior fica escuro, no estilo PoE. SLICE 65 = espessura REAL da borda na
@@ -5115,17 +5156,17 @@ function injectStyle() {
   }
   .gh-itip-ic img { width:88%; height:88%; object-fit:contain; filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
   .gh-itip-name {
-    font-family:"Cinzel",serif; font-weight:700; font-size:15px; line-height:1.2;
+    font-family:"Cinzel",serif; font-weight:700; font-size:calc(15 * var(--gh-u,1px)); line-height:1.2;
     color:var(--rc,#d6d6d6); letter-spacing:.7px; text-shadow:0 1px 3px #000;
   }
   .gh-itip-sub {
-    font-size:11px; color:var(--rc,#d6d6d6); opacity:.78; margin-top:2px; letter-spacing:.4px;
+    font-size:calc(11 * var(--gh-u,1px)); color:var(--rc,#d6d6d6); opacity:.78; margin-top:2px; letter-spacing:.4px;
   }
   .gh-itip-body { padding:10px 13px 8px; }
   /* linhas de atributo — rótulo cinza, valor no AZUL de modificador (PoE) */
   .gh-itip-lines, .gh-itip-cmp { display:flex; flex-direction:column; gap:3px; }
-  .gh-itip-k { font-size:12.5px; color:#7f7f7f; letter-spacing:.2px; }
-  .gh-itip-l { font-size:12.5px; line-height:1.35; }
+  .gh-itip-k { font-size:calc(12.5 * var(--gh-u,1px)); color:#7f7f7f; letter-spacing:.2px; }
+  .gh-itip-l { font-size:calc(12.5 * var(--gh-u,1px)); line-height:1.35; }
   .gh-itip-l b { color:#8f8fff; font-weight:700; font-variant-numeric:tabular-nums; }
   /* divisória fina com uma gema no meio */
   .gh-itip-sep {
@@ -5134,17 +5175,17 @@ function injectStyle() {
   }
   .gh-itip-sep::after {
     content:"◆"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    font-size:6px; color:var(--rc,#d6d6d6); background:#040405; padding:0 6px; opacity:.85;
+    font-size:calc(6 * var(--gh-u,1px)); color:var(--rc,#d6d6d6); background:#040405; padding:0 6px; opacity:.85;
   }
-  .gh-itip-cmph { font-size:10.5px; color:#6f6f6f; font-style:italic; margin-bottom:2px; }
-  .gh-itip-d { font-size:12.5px; line-height:1.35; }
+  .gh-itip-cmph { font-size:calc(10.5 * var(--gh-u,1px)); color:#6f6f6f; font-style:italic; margin-bottom:2px; }
+  .gh-itip-d { font-size:calc(12.5 * var(--gh-u,1px)); line-height:1.35; }
   .gh-itip-d b { font-weight:700; font-variant-numeric:tabular-nums; margin-left:4px; }
-  .gh-itip-up b { color:#6fdc78; } .gh-itip-up b::after { content:" ▲"; font-size:9px; }
-  .gh-itip-down b { color:#e8695f; } .gh-itip-down b::after { content:" ▼"; font-size:9px; }
+  .gh-itip-up b { color:#6fdc78; } .gh-itip-up b::after { content:" ▲"; font-size:calc(9 * var(--gh-u,1px)); }
+  .gh-itip-down b { color:#e8695f; } .gh-itip-down b::after { content:" ▼"; font-size:calc(9 * var(--gh-u,1px)); }
   .gh-itip-same b { color:#8a8a8a; }
   .gh-itip-act {
     display:block; width:100%; margin-top:11px; cursor:pointer;
-    font-family:"Cinzel",serif; font-weight:700; font-size:12px; letter-spacing:1.1px;
+    font-family:"Cinzel",serif; font-weight:700; font-size:calc(12 * var(--gh-u,1px)); letter-spacing:1.1px;
     text-transform:uppercase; color:#ded6c2; padding:8px 10px; border-radius:3px;
     background:linear-gradient(180deg,rgba(42,38,30,.95),rgba(16,15,12,.95));
     border:1px solid var(--rcb, rgba(190,190,190,.42));
@@ -5176,7 +5217,7 @@ function injectStyle() {
   }
   .gh-eq-lvl {
     text-align:center; font-family:"Cinzel",serif; font-weight:600;
-    font-size:clamp(13px,2vh,18px); color:#f0e2bd; margin-bottom:6px;
+    font-size:clamp(13px,2vh,calc(18px * var(--gh-ui,1))); color:#f0e2bd; margin-bottom:6px;
   }
   .gh-xp {
     height:8px; border-radius:5px; margin-top:4px; overflow:hidden;
@@ -5185,14 +5226,14 @@ function injectStyle() {
   .gh-xp-fill { height:100%; background:linear-gradient(#d8c24a,#8a7016); }
   .gh-stat-cols {
     display:grid; grid-template-columns:1fr 1fr; gap:2px 12px;
-    font-size:clamp(10px,1.55vh,14px);
+    font-size:clamp(10px,1.55vh,calc(14px * var(--gh-ui,1)));
   }
   .gh-stat { display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
   .gh-stat span { color:#bfae82; }
   .gh-stat b { color:#f0e6cc; font-weight:600; }
   /* --- distribuição de atributos (aba Atributos, em jogo) --- */
   .gh-alloc-pts {
-    text-align:center; margin:8px 0 6px; font-size:clamp(11px,1.7vh,14px); color:#b6a877;
+    text-align:center; margin:8px 0 6px; font-size:clamp(11px,1.7vh,calc(14px * var(--gh-ui,1))); color:#b6a877;
   }
   .gh-alloc-pts b { color:#8f8262; font-family:"Cinzel",serif; }
   .gh-alloc-pts.gh-pts-on b { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.55); }
@@ -5202,21 +5243,21 @@ function injectStyle() {
     background:rgba(0,0,0,.28); border:1px solid rgba(201,162,39,.28);
   }
   .gh-prow { display:flex; align-items:center; justify-content:space-between; }
-  .gh-prow > span { color:#d7c79a; font-size:clamp(11px,1.7vh,14px); }
+  .gh-prow > span { color:#d7c79a; font-size:clamp(11px,1.7vh,calc(14px * var(--gh-ui,1))); }
   .gh-pstep { display:flex; align-items:center; gap:9px; }
-  .gh-pstep > b { min-width:22px; text-align:center; color:#f0e6cc; font-weight:700; font-size:clamp(12px,1.9vh,15px); }
+  .gh-pstep > b { min-width:22px; text-align:center; color:#f0e6cc; font-weight:700; font-size:clamp(12px,1.9vh,calc(15px * var(--gh-ui,1))); }
   .gh-pm {
     width:26px; height:26px; border-radius:50%; flex:0 0 auto; cursor:pointer;
     border:1px solid rgba(201,162,39,.6); background:linear-gradient(#4a3f28,#2c2519);
-    color:#f0d98c; font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center;
+    color:#f0d98c; font-size:calc(16 * var(--gh-u,1px)); line-height:1; display:flex; align-items:center; justify-content:center;
     -webkit-tap-highlight-color:transparent;
   }
   .gh-pm:active { transform:scale(.9); filter:brightness(1.2); }
   .gh-pm[disabled] { opacity:.32; cursor:default; }
-  .gh-sec-blocks { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:clamp(10px,1.5vh,13px); }
+  .gh-sec-blocks { display:grid; grid-template-columns:1fr 1fr; gap:4px 12px; font-size:clamp(10px,1.5vh,calc(13px * var(--gh-ui,1))); }
   .gh-sec-col:last-child { grid-column:1 / -1; }
   .gh-sec-col h4 {
-    margin:4px 0 2px; font-size:clamp(10px,1.5vh,13px); color:#e0cf9e;
+    margin:4px 0 2px; font-size:clamp(10px,1.5vh,calc(13px * var(--gh-ui,1))); color:#e0cf9e;
     font-family:"Cinzel",serif; font-weight:600; letter-spacing:.5px;
   }
   .gh-sec-row { display:flex; justify-content:space-between; gap:6px; padding:1px 0; }
@@ -5231,7 +5272,7 @@ function injectStyle() {
     padding:4px 8px;
   }
   .gh-st2-portr {
-    flex:0 0 auto; width:clamp(64px,12vh,86px); aspect-ratio:3/4; border-radius:7px; overflow:hidden;
+    flex:0 0 auto; width:clamp(64px,12vh,calc(86px * var(--gh-ui,1))); aspect-ratio:3/4; border-radius:7px; overflow:hidden;
     border:2px solid rgba(201,162,39,.65);
     box-shadow:0 2px 7px rgba(0,0,0,.6), inset 0 0 0 1px rgba(0,0,0,.5);
     background:rgba(8,7,5,.6);
@@ -5240,16 +5281,16 @@ function injectStyle() {
   .gh-st2-id { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:3px; }
   .gh-st2-cls {
     font-family:"Cinzel",serif; font-weight:800; letter-spacing:.5px;
-    font-size:clamp(17px,3vh,24px); color:#f4dc92; text-shadow:0 2px 5px #000, 0 0 16px rgba(220,160,60,.25);
+    font-size:clamp(17px,3vh,calc(24px * var(--gh-ui,1))); color:#f4dc92; text-shadow:0 2px 5px #000, 0 0 16px rgba(220,160,60,.25);
   }
-  .gh-st2-lvl { font-size:clamp(12px,1.8vh,15px); color:#cdbd90; }
+  .gh-st2-lvl { font-size:clamp(12px,1.8vh,calc(15px * var(--gh-ui,1))); color:#cdbd90; }
   .gh-st2-lvl b { color:#ffe6a6; font-family:"Cinzel",serif; }
   .gh-st2-xp {
     height:9px; border-radius:6px; overflow:hidden; margin-top:3px;
     background:rgba(0,0,0,.55); border:1px solid rgba(201,162,39,.45);
   }
   .gh-st2-xp i { display:block; height:100%; background:linear-gradient(90deg,#a9741f,#f4d074 65%,#fff2cc); box-shadow:0 0 6px rgba(244,208,116,.5); }
-  .gh-st2-xptxt { font-size:10.5px; color:#b1a279; text-align:right; font-variant-numeric:tabular-nums; }
+  .gh-st2-xptxt { font-size:calc(10.5 * var(--gh-u,1px)); color:#b1a279; text-align:right; font-variant-numeric:tabular-nums; }
   /* PAINÉIS limpos (fundo pergaminho escuro + fio dourado + sombra interna) */
   .gh-st2-panel {
     background:linear-gradient(180deg, rgba(34,27,17,.62), rgba(18,14,9,.62));
@@ -5258,11 +5299,11 @@ function injectStyle() {
   }
   .gh-st2-ph {
     display:flex; align-items:center; justify-content:space-between;
-    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2vh,16px); color:#eccf82;
+    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2vh,calc(16px * var(--gh-ui,1))); color:#eccf82;
     border-bottom:1px solid rgba(201,162,39,.25); padding-bottom:5px; margin-bottom:6px;
   }
   .gh-st2-pts {
-    font-family:"MedievalSharp",serif; font-size:11px; color:#8f8262; padding:2px 9px; border-radius:9px;
+    font-family:"MedievalSharp",serif; font-size:calc(11 * var(--gh-u,1px)); color:#8f8262; padding:2px 9px; border-radius:9px;
     background:rgba(0,0,0,.32); border:1px solid rgba(201,162,39,.25);
   }
   .gh-st2-pts.on { color:#12100a; background:linear-gradient(#f4d074,#c9922a); border-color:#f4d873; text-shadow:0 1px 0 rgba(255,240,200,.5); box-shadow:0 0 9px rgba(240,200,90,.55); }
@@ -5271,12 +5312,12 @@ function injectStyle() {
   .gh-st2-sec:last-child { grid-column:1 / -1; }
   .gh-st2-sec h5 {
     margin:0 0 5px; font-family:"Cinzel",serif; font-weight:700; letter-spacing:.5px;
-    font-size:clamp(12px,1.8vh,15px); color:#e8d199;
+    font-size:clamp(12px,1.8vh,calc(15px * var(--gh-ui,1))); color:#e8d199;
     border-bottom:1px solid rgba(201,162,39,.22); padding-bottom:3px;
   }
   .gh-sr {
     display:flex; justify-content:space-between; gap:8px; padding:3px 0;
-    font-size:clamp(11px,1.6vh,13.5px); border-bottom:1px dashed rgba(201,162,39,.1);
+    font-size:clamp(11px,1.6vh,calc(13.5px * var(--gh-ui,1))); border-bottom:1px dashed rgba(201,162,39,.1);
   }
   .gh-sr:last-child { border-bottom:0; }
   .gh-sr span { color:#c2b184; }
@@ -5289,11 +5330,11 @@ function injectStyle() {
     text-shadow:0 2px 4px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.7);
     animation:gh-float-rise 1s ease-out forwards; will-change:transform,opacity;
   }
-  .gh-fl-hit  { color:#fbe6b6; font-size:22px; }
-  .gh-fl-crit { color:#ff8a3c; font-size:34px; text-shadow:0 2px 5px rgba(0,0,0,.95), 0 0 12px rgba(255,120,40,.7); }
-  .gh-fl-player { color:#ff5a4e; font-size:24px; }
-  .gh-fl-heal { color:#8ff0a0; font-size:22px; }
-  .gh-fl-mana { color:#7fc4ff; font-size:18px; }
+  .gh-fl-hit  { color:#fbe6b6; font-size:calc(22 * var(--gh-u,1px)); }
+  .gh-fl-crit { color:#ff8a3c; font-size:calc(34 * var(--gh-u,1px)); text-shadow:0 2px 5px rgba(0,0,0,.95), 0 0 12px rgba(255,120,40,.7); }
+  .gh-fl-player { color:#ff5a4e; font-size:calc(24 * var(--gh-u,1px)); }
+  .gh-fl-heal { color:#8ff0a0; font-size:calc(22 * var(--gh-u,1px)); }
+  .gh-fl-mana { color:#7fc4ff; font-size:calc(18 * var(--gh-u,1px)); }
   @keyframes gh-float-rise {
     0%   { opacity:0; transform:translate(-50%,-40%) scale(.7); }
     15%  { opacity:1; transform:translate(-50%,-55%) scale(1.08); }
@@ -5303,13 +5344,13 @@ function injectStyle() {
   /* --- árvore de habilidades --- */
   #gh-skills { position:relative; border-radius:8px; padding:8px; }
   .gh-sk-soon { text-align:center; padding:34px 12px; font-style:italic; color:#b6a877; }
-  .gh-sk-top { text-align:center; font-size:13px; color:#d7c79a; margin-bottom:8px; }
-  .gh-sk-top b { font-family:"Cinzel",serif; font-size:16px; color:#8f8262; padding:0 3px; }
+  .gh-sk-top { text-align:center; font-size:calc(13 * var(--gh-u,1px)); color:#d7c79a; margin-bottom:8px; }
+  .gh-sk-top b { font-family:"Cinzel",serif; font-size:calc(16 * var(--gh-u,1px)); color:#8f8262; padding:0 3px; }
   .gh-sk-top b.gh-sk-pts { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.5); }
   .gh-sk-cols { display:flex; gap:6px; justify-content:space-between; align-items:flex-start; }
   .gh-sk-branch { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; }
   .gh-sk-bhead {
-    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.6vh,14px);
+    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.6vh,calc(14px * var(--gh-ui,1)));
     margin-bottom:6px; text-shadow:0 1px 3px #000; text-align:center; letter-spacing:.5px;
   }
   .gh-sk-line { width:3px; height:11px; opacity:.5; border-radius:2px; }
@@ -5319,10 +5360,10 @@ function injectStyle() {
     border:2px solid #6a5a2e; transition:box-shadow .15s, transform .08s, filter .15s;
   }
   .gh-sk-node:active { transform:scale(.92); }
-  .gh-sk-active { width:clamp(38px,6.6vh,50px); height:clamp(38px,6.6vh,50px); border-color:#c9a24a; }
-  .gh-sk-passive { width:clamp(28px,5vh,38px); height:clamp(28px,5vh,38px); border-color:#9aa2ad; }
+  .gh-sk-active { width:clamp(38px,6.6vh,calc(50px * var(--gh-ui,1))); height:clamp(38px,6.6vh,calc(50px * var(--gh-ui,1))); border-color:#c9a24a; }
+  .gh-sk-passive { width:clamp(28px,5vh,calc(38px * var(--gh-ui,1))); height:clamp(28px,5vh,calc(38px * var(--gh-ui,1))); border-color:#9aa2ad; }
   .gh-sk-node img { width:100%; height:100%; object-fit:contain; border-radius:50%; pointer-events:none; }
-  .gh-sk-sym { font-size:clamp(13px,2.2vh,18px); line-height:1; pointer-events:none; }
+  .gh-sk-sym { font-size:clamp(13px,2.2vh,calc(18px * var(--gh-ui,1))); line-height:1; pointer-events:none; }
   .gh-sk-node.gh-sk-locked { opacity:.32; filter:grayscale(.65); }
   .gh-sk-node.gh-sk-on { box-shadow:0 0 0 2px rgba(255,215,100,.55), 0 0 10px rgba(255,200,80,.4); }
   .gh-sk-node.gh-sk-sel { border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.85), 0 0 12px rgba(255,240,180,.6); }
@@ -5331,17 +5372,17 @@ function injectStyle() {
   .gh-sk-rank {
     position:absolute; right:-5px; bottom:-5px; background:rgba(8,7,5,.94);
     border:1px solid rgba(201,162,39,.6); border-radius:6px; padding:0 3px;
-    font-size:10px; color:#f0dca2; line-height:1.35; font-variant-numeric:tabular-nums;
+    font-size:calc(10 * var(--gh-u,1px)); color:#f0dca2; line-height:1.35; font-variant-numeric:tabular-nums;
   }
-  .gh-sk-hint { display:block; font-size:10.5px; font-style:italic; color:#8a7f63; margin-top:1px; }
+  .gh-sk-hint { display:block; font-size:calc(10.5 * var(--gh-u,1px)); font-style:italic; color:#8a7f63; margin-top:1px; }
   /* selo de atributo (imagem própria ou glifo) */
   .gh-attr-seal { display:inline-block; vertical-align:middle; object-fit:contain; }
   .gh-attr-glyph { text-align:center; line-height:1; font-weight:700; }
   .gh-plabel { display:inline-flex; align-items:center; gap:7px; }
   /* --- CARD FLUTUANTE da habilidade --- */
   #gh-sk-card {
-    position:fixed; z-index:31; width:min(260px,84vw); max-width:88vw;
-    padding:11px 13px 12px; border-radius:11px; color:#d8cba0; font-size:12.5px; line-height:1.42;
+    position:fixed; z-index:31; width:min(calc(260px * var(--gh-ui,1)),84vw); max-width:88vw;
+    padding:11px 13px 12px; border-radius:11px; color:#d8cba0; font-size:calc(12.5 * var(--gh-u,1px)); line-height:1.42;
     background:linear-gradient(180deg,rgba(26,22,15,.98),rgba(14,11,7,.98));
     border:1px solid rgba(201,162,39,.5); box-shadow:0 10px 30px rgba(0,0,0,.6), inset 0 0 18px rgba(0,0,0,.5);
     animation:gh-skc-in .13s ease-out;
@@ -5349,19 +5390,19 @@ function injectStyle() {
   #gh-sk-card.gh-sk-card-hidden { display:none; }
   @keyframes gh-skc-in { from{ opacity:0; transform:translateY(4px) scale(.97);} to{ opacity:1; transform:none;} }
   .gh-skc-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:5px; }
-  .gh-skc-head b { color:#f4e6bf; font-family:"Cinzel",serif; font-size:15px; }
-  .gh-skc-head i { color:#c9a84f; font-style:italic; font-size:11px; white-space:nowrap; }
+  .gh-skc-head b { color:#f4e6bf; font-family:"Cinzel",serif; font-size:calc(15 * var(--gh-u,1px)); }
+  .gh-skc-head i { color:#c9a84f; font-style:italic; font-size:calc(11 * var(--gh-u,1px)); white-space:nowrap; }
   .gh-skc-desc { color:#c8bc98; margin-bottom:8px; }
   .gh-skc-eff {
     display:flex; align-items:center; gap:7px; padding:6px 9px; margin-bottom:6px;
     background:rgba(8,7,5,.6); border:1px solid rgba(201,162,39,.25); border-radius:7px;
   }
-  .gh-skc-eff .gh-skc-k { color:#a99c78; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
-  .gh-skc-eff b { color:#ffe089; font-size:15px; font-variant-numeric:tabular-nums; }
-  .gh-skc-arrow { color:#8fce7a; font-size:12.5px; font-weight:700; }
+  .gh-skc-eff .gh-skc-k { color:#a99c78; font-size:calc(11 * var(--gh-u,1px)); text-transform:uppercase; letter-spacing:.5px; }
+  .gh-skc-eff b { color:#ffe089; font-size:calc(15 * var(--gh-u,1px)); font-variant-numeric:tabular-nums; }
+  .gh-skc-arrow { color:#8fce7a; font-size:calc(12.5 * var(--gh-u,1px)); font-weight:700; }
   /* selo do atributo LOGO após o número (colado, não empurrado p/ a borda) */
   .gh-skc-seals { display:inline-flex; align-items:center; gap:3px; margin-left:5px; vertical-align:middle; }
-  .gh-skc-res { display:flex; flex-wrap:wrap; gap:5px 12px; font-size:12px; color:#c6b78a; margin-bottom:9px; }
+  .gh-skc-res { display:flex; flex-wrap:wrap; gap:5px 12px; font-size:calc(12 * var(--gh-u,1px)); color:#c6b78a; margin-bottom:9px; }
   .gh-skc-res span { display:inline-flex; align-items:center; gap:4px; white-space:nowrap; }
   /* ícone de recurso (mana/recarga) alinhado ao número */
   .gh-ic-res { width:16px; height:16px; object-fit:contain; vertical-align:middle; flex:0 0 auto; }
@@ -5377,7 +5418,7 @@ function injectStyle() {
   .gh-sk-cequip:active { transform:translateY(1px) scale(.98); }
   /* botão de CONFIRMAR a alocação do ponto */
   .gh-sk-cbtn {
-    display:inline-block; font-family:"Cinzel",serif; font-size:13px; letter-spacing:.5px;
+    display:inline-block; font-family:"Cinzel",serif; font-size:calc(13 * var(--gh-u,1px)); letter-spacing:.5px;
     padding:8px 18px; border-radius:8px; text-align:center;
   }
   .gh-sk-cbuy {
@@ -5393,7 +5434,7 @@ function injectStyle() {
     position:fixed; top:24%; left:50%; transform:translateX(-50%); z-index:14;
     pointer-events:none; opacity:0; text-align:center; white-space:nowrap;
     font-family:"Cinzel",serif; font-weight:700; letter-spacing:1.5px;
-    font-size:clamp(22px,5vw,34px);
+    font-size:clamp(22px,5vw,calc(34px * var(--gh-ui,1)));
     color:#ffe089; -webkit-text-stroke:0.6px rgba(60,40,10,.6);
     text-shadow:0 3px 10px #000, 0 0 22px rgba(240,190,70,.6);
   }
@@ -5409,10 +5450,17 @@ function injectStyle() {
      atalhos e caía bem em cima do Diário — o toque abria o bate-papo achando que
      abria o diário. Mesma correção do painel do grupo, pelo mesmo motivo: quem
      chegou depois é que sai da frente. */
-  #gh-chat { position:fixed; left:76px; top:32%; z-index:16; width:min(300px,62vw);
+  /* ONDE O BATE-PAPO FICA. Estava a 32% da altura — no celular isso é logo
+     abaixo dos atalhos, mas num monitor de 1440 são 460px de altura, bem no meio
+     do campo de visão, atravessado na frente do que o jogador está olhando.
+     Ancorado EMBAIXO ele sai da vista e encosta onde a conversa pertence: perto
+     da barra, junto do resto da interface de baixo. */
+  #gh-chat { position:fixed; left:calc(76 * var(--gh-u,1px));
+    bottom:calc(150 * var(--gh-u,1px)); top:auto; z-index:16;
+    width:min(calc(300px * var(--gh-ui,1)),62vw);
     display:flex; flex-direction:column; gap:4px; pointer-events:none; }
   #gh-chat-status {
-    font-family:"Cinzel",serif; font-size:10.5px; color:#9fb98a; letter-spacing:.3px;
+    font-family:"Cinzel",serif; font-size:calc(10.5 * var(--gh-u,1px)); color:#9fb98a; letter-spacing:.3px;
     text-shadow:0 1px 3px #000; opacity:.85;
   }
   /* justify-content:flex-end — quando o registro estoura a altura, o que some é o
@@ -5420,8 +5468,11 @@ function injectStyle() {
      mensagem aparecia cortada ao meio, que é justamente a que interessa. */
   #gh-chat-log { display:flex; flex-direction:column; justify-content:flex-end;
     gap:2px; max-height:22vh; overflow:hidden; }
+  /* ancorado embaixo, a ORDEM da coluna se inverte: a barra de digitar tem de
+     ficar por baixo do registro, senão ela subiria junto com as mensagens. */
+  #gh-chat { flex-direction:column; }
   .gh-chat-row {
-    font-size:12px; line-height:1.3; color:#e8dcc0; text-shadow:0 1px 3px #000,0 0 6px #000;
+    font-size:calc(12 * var(--gh-u,1px)); line-height:1.3; color:#e8dcc0; text-shadow:0 1px 3px #000,0 0 6px #000;
     background:rgba(6,5,6,.55); border-left:2px solid rgba(201,162,74,.6);
     padding:2px 6px; border-radius:0 4px 4px 0; transition:opacity .8s ease;
     word-break:break-word;
@@ -5432,9 +5483,9 @@ function injectStyle() {
   /* FALA DO GRUPO: filete verde e etiqueta — distingue do falatório da área sem
      precisar de uma segunda janela na tela. */
   .gh-chat-row.gh-chat-grupo { border-left-color:#7fbf72; }
-  .gh-chat-tag { color:#8fcf82; font-style:normal; font-size:10.5px; letter-spacing:.03em; }
+  .gh-chat-tag { color:#8fcf82; font-style:normal; font-size:calc(10.5 * var(--gh-u,1px)); letter-spacing:.03em; }
   #gh-chat-canal {
-    flex:none; padding:7px 8px; border-radius:5px; cursor:pointer; font-size:11.5px;
+    flex:none; padding:7px 8px; border-radius:5px; cursor:pointer; font-size:calc(11.5 * var(--gh-u,1px));
     font-family:"Cinzel",serif; color:#e9dcc0; letter-spacing:.03em;
     background:rgba(28,22,15,.95); border:1px solid rgba(201,162,74,.5);
   }
@@ -5442,18 +5493,18 @@ function injectStyle() {
   #gh-chat-bar { display:none; gap:5px; pointer-events:auto; }
   #gh-chat-bar.gh-chat-on { display:flex; }
   #gh-chat-inp {
-    flex:1; min-width:0; padding:7px 9px; border-radius:5px; font-size:13px;
+    flex:1; min-width:0; padding:7px 9px; border-radius:5px; font-size:calc(13 * var(--gh-u,1px));
     font-family:"Georgia",serif; color:#efe6cf; background:rgba(8,7,6,.92);
     border:1px solid rgba(201,162,74,.5); outline:none;
   }
   #gh-chat-send {
     padding:7px 10px; border-radius:5px; cursor:pointer; font-family:"Cinzel",serif;
-    font-weight:700; font-size:12px; color:#e9dcc0;
+    font-weight:700; font-size:calc(12 * var(--gh-u,1px)); color:#e9dcc0;
     background:rgba(28,22,15,.95); border:1px solid rgba(201,162,74,.5);
   }
   #gh-chat-toggle {
     align-self:flex-start; pointer-events:auto; cursor:pointer; margin-top:2px;
-    width:34px; height:34px; border-radius:50%; font-size:16px; line-height:1;
+    width:34px; height:34px; border-radius:50%; font-size:calc(16 * var(--gh-u,1px)); line-height:1;
     background:rgba(16,13,10,.8); border:1px solid rgba(201,162,74,.55); color:#e8dcc0;
   }
   /* --- LISTA DE SAQUE: vários itens caídos na mesma célula --- */
@@ -5463,7 +5514,7 @@ function injectStyle() {
   }
   #gh-plist.gh-plist-hidden { display:none; }
   #gh-plist .gh-pl-win {
-    pointer-events:auto; min-width:min(310px,82vw); max-width:min(370px,88vw);
+    pointer-events:auto; min-width:min(calc(310px * var(--gh-ui,1)),82vw); max-width:min(calc(370px * var(--gh-ui,1)),88vw);
     max-height:94vh; box-sizing:border-box; color:#e8dcc0; /* nunca estoura a tela */
     display:flex; flex-direction:column; position:relative; /* âncora do ::before */
     /* MESMA moldura das outras janelas (sem 'fill') + interior escuro.
@@ -5480,7 +5531,7 @@ function injectStyle() {
   }
   #gh-plist .gh-pl-hd {
     font-family:"Cinzel",serif; font-weight:700; text-align:center; color:#f0d074;
-    font-size:clamp(13px,2vh,15px); letter-spacing:1px; padding:2px 0 7px;
+    font-size:clamp(13px,2vh,calc(15px * var(--gh-ui,1))); letter-spacing:1px; padding:2px 0 7px;
   }
   #gh-plist .gh-pl-rows {
     display:flex; flex-direction:column; gap:5px;
@@ -5503,16 +5554,16 @@ function injectStyle() {
   #gh-plist .gh-pl-ic img { max-width:100%; max-height:100%; }
   #gh-plist .gh-pl-txt { display:flex; flex-direction:column; min-width:0; }
   #gh-plist .gh-pl-name {
-    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.9vh,14px);
+    font-family:"Cinzel",serif; font-weight:700; font-size:clamp(12px,1.9vh,calc(14px * var(--gh-ui,1)));
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     color:var(--rc,#e8dcc0); /* cor da RARIDADE (mesmas vars do popup) */
   }
   #gh-plist .gh-pl-row { border-color:var(--rcb,rgba(201,162,74,.3)); }
-  #gh-plist .gh-pl-sub { font-size:clamp(10px,1.5vh,11.5px); color:#b6a883; }
+  #gh-plist .gh-pl-sub { font-size:clamp(10px,1.5vh,calc(11.5px * var(--gh-ui,1))); color:#b6a883; }
   #gh-plist .gh-pl-foot { display:flex; gap:7px; margin-top:8px; }
   #gh-plist .gh-pl-foot button {
     flex:1; cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
-    font-size:clamp(11px,1.7vh,13px); padding:7px 6px; border-radius:7px;
+    font-size:clamp(11px,1.7vh,calc(13px * var(--gh-ui,1))); padding:7px 6px; border-radius:7px;
     background:rgba(28,22,15,.9); color:#e9dcc0; border:1px solid rgba(201,162,74,.5);
     transition:border-color .12s, color .12s;
   }
@@ -5526,13 +5577,13 @@ function injectStyle() {
   }
   #gh-questpop .gh-qp-title {
     font-family:"Cinzel",serif; font-weight:700; letter-spacing:1px;
-    font-size:clamp(15px,2.6vw,20px); color:#ffe089;
+    font-size:clamp(15px,2.6vw,calc(20px * var(--gh-ui,1))); color:#ffe089;
     -webkit-text-stroke:0.5px rgba(60,40,10,.55);
   }
   #gh-questpop .gh-qp-title.gh-qp-done { color:#8fe89a; }
   #gh-questpop .gh-qp-detail {
     font-family:"Cinzel",serif; font-weight:600; margin-top:2px;
-    font-size:clamp(13px,2.1vw,17px); color:#f2ead2;
+    font-size:clamp(13px,2.1vw,calc(17px * var(--gh-ui,1))); color:#f2ead2;
   }
   @keyframes gh-questpop {
     0% { opacity:0; transform:translate(-50%,-10px) scale(.9); }
@@ -5550,7 +5601,7 @@ function injectStyle() {
   #gh-levelup.gh-lu-on { visibility:visible; }
   #gh-levelup .gh-lu-gif {
     position:absolute; left:50%; top:50%; transform:translate(-50%,-54%);
-    width:min(340px,72vw); height:auto; opacity:0;
+    width:min(calc(340px * var(--gh-ui,1)),72vw); height:auto; opacity:0;
     /* o fundo já foi RECORTADO no arquivo (WebP com alfa): só a seta e os brilhos
        aparecem — sem blend, sem máscara e sem drop-shadow (que criava o "quadrado"). */
   }
@@ -5564,7 +5615,7 @@ function injectStyle() {
   /* palavra garrafal: fonte pesada, contorno escuro grosso + preenchimento dourado */
   #gh-levelup .gh-lu-word {
     position:relative; z-index:1; font-family:"Cinzel",serif; font-weight:900;
-    font-size:clamp(34px,10vw,78px); letter-spacing:3px; line-height:1;
+    font-size:clamp(34px,10vw,calc(78px * var(--gh-ui,1))); letter-spacing:3px; line-height:1;
     background:linear-gradient(180deg,#fff3c4 0%,#ffd979 32%,#e0a233 60%,#c07f1e 100%);
     -webkit-background-clip:text; background-clip:text;
     color:transparent; -webkit-text-fill-color:transparent;
@@ -5582,7 +5633,7 @@ function injectStyle() {
   }
   #gh-levelup .gh-lu-sub {
     position:relative; z-index:1; margin-top:6px; font-family:"Cinzel",serif; font-weight:700;
-    font-size:clamp(15px,3.2vw,22px); letter-spacing:2px; color:#ffe6a6;
+    font-size:clamp(15px,3.2vw,calc(22px * var(--gh-ui,1))); letter-spacing:2px; color:#ffe6a6;
     text-shadow:0 2px 5px #000, 0 0 14px rgba(240,190,70,.6); opacity:0;
   }
   #gh-levelup.gh-lu-on .gh-lu-sub { animation:gh-lu-sub 2.6s ease-out both; }
@@ -5594,25 +5645,25 @@ function injectStyle() {
      como container, igual ao minimapa, p/ combinar com o resto do HUD. */
   #gh-cast {
     position:fixed; left:50%; bottom:29%; transform:translate(-50%,0);
-    z-index:13; pointer-events:none; width:min(300px,58vw);
+    z-index:13; pointer-events:none; width:min(calc(300px * var(--gh-ui,1)),58vw);
     display:flex; flex-direction:column; align-items:center; gap:6px;
     opacity:0; transition:opacity .12s ease;
   }
   #gh-cast.gh-cast-on { opacity:1; }
   .gh-cast-name {
     font-family:"Cinzel",serif; font-weight:700; letter-spacing:1px;
-    font-size:clamp(13px,3.4vw,17px); color:#f0e6c8;
+    font-size:clamp(13px,3.4vw,calc(17px * var(--gh-ui,1))); color:#f0e6c8;
     text-shadow:0 2px 6px #000, 0 0 12px rgba(120,160,230,.55);
   }
   .gh-cast-frame {
     width:100%; box-sizing:border-box;
-    border:clamp(12px,3vw,16px) solid transparent;
+    border:clamp(12px,3vw,calc(16px * var(--gh-ui,1))) solid transparent;
     border-image:url(${mapFrameUrl}) 130 repeat;
     background:rgba(6,9,16,.92); background-clip:padding-box;
     filter:drop-shadow(0 2px 7px rgba(0,0,0,.6));
   }
   .gh-cast-track {
-    display:block; height:clamp(9px,2.3vw,12px); overflow:hidden;
+    display:block; height:clamp(9px,2.3vw,calc(12px * var(--gh-ui,1))); overflow:hidden;
     border-radius:2px; background:rgba(4,6,12,.9);
     box-shadow:inset 0 1px 3px rgba(0,0,0,.85);
   }
@@ -5642,9 +5693,13 @@ function injectStyle() {
   #pad { position:fixed; inset:0; pointer-events:none; z-index:10; font-family:inherit; }
   .gh-cluster { position:absolute; pointer-events:none; }
   /* botões: a base é a arte redonda pintada; o ícone (svg) fica por cima */
+  /* Os CONTROLES em pixel cravado eram os piores no PC: 52px de botão são um
+     polegar num celular e uma cabeça de alfinete num monitor de 27". Tudo aqui
+     passa a ser medido em var(--gh-u,1px), que é 1px no celular e ~1,95px no
+     monitor grande — o mesmo desenho, no mesmo tamanho APARENTE. */
   .gh-btn {
     pointer-events:auto;
-    width:52px; height:52px; border-radius:50%; flex:0 0 auto;
+    width:calc(52 * var(--gh-u,1px)); height:calc(52 * var(--gh-u,1px)); border-radius:50%; flex:0 0 auto;
     background:url(${btnBaseUrl}) no-repeat center / 100% 100%;
     border:none; padding:0; color:#ecd9a6;
     display:flex; align-items:center; justify-content:center;
@@ -5664,7 +5719,8 @@ function injectStyle() {
   /* MOVIMENTO — D-pad em CRUZ (arte única). As 4 zonas de toque ficam por cima
      dos braços; a do braço pressionado acende. */
   .gh-move {
-    left:16px; bottom:20px; width:132px; height:124px;
+    left:calc(16 * var(--gh-u,1px)); bottom:calc(20 * var(--gh-u,1px));
+    width:calc(132 * var(--gh-u,1px)); height:calc(124 * var(--gh-u,1px));
     background:url(${dpadUrl}) no-repeat center / 100% 100%;
     filter:drop-shadow(0 3px 9px rgba(0,0,0,0.55));
   }
@@ -5689,15 +5745,15 @@ function injectStyle() {
   /* AÇÃO — canto inferior DIREITO (perto da arma/polegar): ataque em destaque
      embaixo, interagir logo acima. */
   .gh-atk {
-    position:absolute; right:18px; bottom:22px;
-    width:58px; height:58px; color:#f0b48a;
+    position:absolute; right:calc(18 * var(--gh-u,1px)); bottom:calc(22 * var(--gh-u,1px));
+    width:calc(58 * var(--gh-u,1px)); height:calc(58 * var(--gh-u,1px)); color:#f0b48a;
     filter:drop-shadow(0 0 12px rgba(200,70,40,0.5)) drop-shadow(0 3px 8px rgba(0,0,0,.55));
   }
   .gh-atk:active { transform:scale(0.9); filter:drop-shadow(0 0 8px rgba(220,90,50,0.75)) brightness(1.15); }
   /* interagir: à ESQUERDA do ataque (lado a lado), um tico menor */
   .gh-act {
-    position:absolute; right:88px; bottom:24px;
-    width:54px; height:54px;
+    position:absolute; right:calc(88 * var(--gh-u,1px)); bottom:calc(24 * var(--gh-u,1px));
+    width:calc(54 * var(--gh-u,1px)); height:calc(54 * var(--gh-u,1px));
     opacity:0.5; transition:opacity .15s, filter .15s;
   }
   .gh-act.gh-act-on {
@@ -5710,14 +5766,15 @@ function injectStyle() {
   @property --gh-cd { syntax:'<angle>'; inherits:false; initial-value:0deg; }
   #gh-prompt {
     pointer-events:none; position:absolute; left:50%; transform:translateX(-50%);
-    bottom:104px; max-width:70%; text-align:center;
+    bottom:calc(104 * var(--gh-u,1px)); max-width:70%; text-align:center;
     background:rgba(20,16,10,0.82); color:#f0dca2;
     border:1px solid rgba(201,162,39,0.55); border-radius:10px;
-    padding:6px 14px; font-size:15px; white-space:nowrap;
+    padding:calc(6 * var(--gh-u,1px)) calc(14 * var(--gh-u,1px));
+    font-size:calc(15 * var(--gh-u,1px)); white-space:nowrap;
   }
   #gh-dialogue {
     pointer-events:auto; position:absolute; left:50%; transform:translateX(-50%);
-    bottom:110px; width:min(560px,88%);
+    bottom:calc(110 * var(--gh-u,1px)); width:min(calc(560px * var(--gh-ui,1)),88%);
     display:flex; align-items:stretch; gap:12px;
     background:rgba(18,14,9,0.92); color:#ece0c4;
     border:2px solid rgba(201,162,39,0.6); border-radius:12px;
@@ -5725,30 +5782,35 @@ function injectStyle() {
     cursor:pointer; touch-action:none;
   }
   .gh-dlg-portrait {
-    flex:0 0 auto; width:64px; height:64px; border-radius:9px; object-fit:cover;
+    flex:0 0 auto; width:calc(64 * var(--gh-u,1px)); height:calc(64 * var(--gh-u,1px));
+    border-radius:9px; object-fit:cover;
     object-position:top center; background:rgba(0,0,0,0.35);
     border:2px solid rgba(201,162,39,0.6);
     image-rendering:auto; align-self:flex-start;
   }
   .gh-dlg-body { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
-  .gh-dlg-name { color:#f0c040; font-family:"Cinzel",serif; font-weight:700; letter-spacing:.5px; font-size:16px; margin-bottom:4px; }
+  .gh-dlg-name { color:#f0c040; font-family:"Cinzel",serif; font-weight:700; letter-spacing:.5px;
+    font-size:calc(16 * var(--gh-u,1px)); margin-bottom:4px; }
   /* altura fixa do texto: a caixa fica sempre do mesmo tamanho (falas longas
      são paginadas no código, então nunca ultrapassam este espaço) */
-  .gh-dlg-text { font-size:16px; line-height:1.35; min-height:66px; }
-  .gh-dlg-hint { text-align:right; font-size:12px; color:#a8966a; margin-top:6px; }
+  .gh-dlg-text { font-size:calc(16 * var(--gh-u,1px)); line-height:1.35; min-height:calc(66 * var(--gh-u,1px)); }
+  .gh-dlg-hint { text-align:right; font-size:calc(12 * var(--gh-u,1px)); color:#a8966a; margin-top:6px; }
   .gh-dlg-choices { display:none; gap:8px; margin-top:8px; flex-wrap:wrap; }
   .gh-dlg-choice { flex:1 1 auto; min-width:120px; cursor:pointer; font-family:"Cinzel",serif; font-weight:700;
-    font-size:14px; letter-spacing:1px; color:#c9b478; padding:9px 14px; border-radius:9px;
+    font-size:calc(14 * var(--gh-u,1px)); letter-spacing:1px; color:#c9b478;
+    padding:calc(9 * var(--gh-u,1px)) calc(14 * var(--gh-u,1px)); border-radius:9px;
     background:linear-gradient(#2b2218,#160f08); border:2px solid rgba(201,162,39,.5); box-shadow:0 2px 6px #000; }
   .gh-dlg-choice-on { color:#12100a; background:linear-gradient(#e9cf72,#b7862a); border-color:#f4d873; text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-dlg-choice:active { transform:translateY(1px); }
   /* MENU vertical (estilo WoW) quando há mais de 2 opções */
   .gh-dlg-choices.gh-dlg-menu { flex-direction:column; gap:6px; flex-wrap:nowrap; }
   .gh-dlg-menu .gh-dlg-choice { width:100%; min-width:0; display:flex; align-items:center; justify-content:space-between;
-    gap:10px; text-align:left; padding:9px 13px; font-size:14px; }
+    gap:10px; text-align:left; padding:calc(9 * var(--gh-u,1px)) calc(13 * var(--gh-u,1px));
+    font-size:calc(14 * var(--gh-u,1px)); }
   .gh-dlg-menu .gh-dlg-clabel { flex:1 1 auto; min-width:0; }
   .gh-dlg-cnote { flex:0 0 auto; font-family:"MedievalSharp",serif; font-weight:400; letter-spacing:.5px;
-    font-size:11px; color:#12100a; background:rgba(244,216,115,.85); border-radius:6px; padding:1px 7px; }
+    font-size:calc(11 * var(--gh-u,1px)); color:#12100a; background:rgba(244,216,115,.85);
+    border-radius:6px; padding:1px calc(7 * var(--gh-u,1px)); }
   /* tipos: missão (dourado, com selo), loja (âmbar), sair (apagado) */
   .gh-dlg-menu .gh-dlg-c-quest { color:#f4d883; border-color:rgba(244,216,115,.65); box-shadow:0 0 10px rgba(240,200,90,.16), 0 2px 6px #000; }
   /* MENU DE DIÁLOGO: era content:"emoji" — e CSS content só aceita texto. A arte
@@ -5779,18 +5841,18 @@ function injectStyle() {
      topo, os 3 botões utilitários numa FILEIRA no topo-centro (longe do d-pad),
      e os controles recuados nos cantos de baixo. */
   @media (orientation: landscape) and (max-height: 500px) {
-    #gh-hud { top:6px; left:8px; width:min(188px,30vw); }
+    #gh-hud { top:6px; left:8px; width:min(calc(188px * var(--gh-ui,1)),30vw); }
     .gh-hud-bar { left:19.2%; width:72.2%; }
     #gh-map {
-      top:6px; right:8px; width:min(104px,22vh);
-      border-width:clamp(10px,2.6vh,16px);
+      top:6px; right:8px; width:min(calc(104px * var(--gh-ui,1)),22vh);
+      border-width:clamp(10px,2.6vh,calc(16px * var(--gh-ui,1)));
     }
     #gh-tracker {
-      top:calc(6px + min(104px,22vh) + 4px); right:8px; width:min(196px,36vw);
+      top:calc(6px + min(calc(104px * var(--gh-ui,1)),22vh) + 4px); right:8px; width:min(calc(196px * var(--gh-ui,1)),36vw);
       padding:5px 8px 6px;
     }
-    #gh-tracker .gh-tk-title { font-size:11px; }
-    #gh-tracker .gh-tk-obj { font-size:10px; margin-top:2px; }
+    #gh-tracker .gh-tk-title { font-size:calc(11 * var(--gh-u,1px)); }
+    #gh-tracker .gh-tk-obj { font-size:calc(10 * var(--gh-u,1px)); margin-top:2px; }
     #gh-clock { display:none; }               /* relógio some no aperto do landscape */
     /* utilitários: fileira horizontal centralizada no TOPO (nunca sobre o d-pad) */
     /* quatro botões agora (entrou a Companhia): a fileira é recentralizada, senão
@@ -5809,24 +5871,24 @@ function injectStyle() {
     .gh-atk  { right:12px; bottom:12px; width:54px; height:54px; }
     .gh-act  { right:76px; bottom:14px; width:50px; height:50px; }
     /* HOTBAR centrada no vão entre o d-pad (esq) e o ataque (dir) */
-    #gh-hotbar { width:min(560px, 58vw); bottom:8px; }
+    #gh-hotbar { width:min(calc(560px * var(--gh-ui,1)),58vw); bottom:8px; }
     /* caixa de diálogo e dica ACIMA da hotbar */
-    #gh-dialogue { bottom:108px; width:min(560px,58%); }
+    #gh-dialogue { bottom:108px; width:min(calc(560px * var(--gh-ui,1)),58%); }
     #gh-prompt { bottom:110px; }
     .gh-dlg-portrait { width:52px; height:52px; }
-    .gh-dlg-text { min-height:44px; font-size:14px; }
+    .gh-dlg-text { min-height:44px; font-size:calc(14 * var(--gh-u,1px)); }
   }
 
   /* RETRATO (celular em pé): a hotbar ocupa quase toda a largura embaixo e o d-pad
      e o ataque sobem p/ ACIMA dela (senão a barra cobre os slots das pontas). A
-     altura da hotbar ≈ largura/5.688, então usamos min(105px, 17.2vw) como base. */
+     altura da hotbar ≈ largura/5.688, então usamos min(calc(105px * var(--gh-ui,1)),17.2vw) como base. */
   @media (orientation: portrait) {
     #gh-hotbar { width:98vw; bottom:6px; }
-    .gh-move { bottom: calc(min(105px, 17.2vw) + 18px); }
-    .gh-atk  { bottom: calc(min(105px, 17.2vw) + 20px); }
-    .gh-act  { bottom: calc(min(105px, 17.2vw) + 22px); }
-    #gh-prompt   { bottom: calc(min(105px, 17.2vw) + 152px); }
-    #gh-dialogue { bottom: calc(min(105px, 17.2vw) + 150px); }
+    .gh-move { bottom: calc(min(calc(105px * var(--gh-ui,1)),17.2vw) + 18px); }
+    .gh-atk  { bottom: calc(min(calc(105px * var(--gh-ui,1)),17.2vw) + 20px); }
+    .gh-act  { bottom: calc(min(calc(105px * var(--gh-ui,1)),17.2vw) + 22px); }
+    #gh-prompt   { bottom: calc(min(calc(105px * var(--gh-ui,1)),17.2vw) + 152px); }
+    #gh-dialogue { bottom: calc(min(calc(105px * var(--gh-ui,1)),17.2vw) + 150px); }
   }
 
   /* (bandeja de consumíveis agora vive nos slots 6..7 da hotbar — estilo no bloco HOTBAR) */
@@ -5834,56 +5896,56 @@ function injectStyle() {
   /* ---- TAVERNA (bebidas + missões, tema âmbar) ---- */
   #gh-tv { position:fixed; inset:0; z-index:21; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.62); pointer-events:auto; }
   #gh-tv.gh-eq-hidden { display:none; }
-  #gh-tv-win { position:relative; box-sizing:border-box; width:min(60vh,460px); height:min(94vh,820px);
-    border:clamp(22px,3.4vh,34px) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
-  @media (max-width:640px){ #gh-tv-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,24px); } }
+  #gh-tv-win { position:relative; box-sizing:border-box; width:min(60vh,calc(460px * var(--gh-ui,1))); height:min(94vh,calc(820px * var(--gh-ui,1)));
+    border:clamp(22px,3.4vh,calc(34px * var(--gh-ui,1))) solid transparent; border-image:url(${eqFrameUrl}) 90 fill; filter:drop-shadow(0 6px 20px rgba(0,0,0,.6)); }
+  @media (max-width:640px){ #gh-tv-win { width:100vw; height:100dvh; border-width:clamp(15px,2.6vh,calc(24px * var(--gh-ui,1))); } }
   #gh-tv-close { position:absolute; right:10px; top:10px; z-index:9; width:36px; height:36px; border-radius:9px; cursor:pointer;
-    font-size:17px; line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
+    font-size:calc(17 * var(--gh-u,1px)); line-height:1; background:rgba(20,16,11,.85); color:#e8d9b0; border:2px solid rgba(232,178,74,.6); box-shadow:0 1px 4px #000; }
   #gh-tv-body { width:100%; height:100%; display:flex; flex-direction:column; gap:2.2%; color:#e8dcc0; overflow-y:auto; }
   .gh-tv-title { display:flex; align-items:center; gap:11px; flex:0 0 auto; padding:0 46px 0 2px; }
-  .gh-tv-portr { width:clamp(40px,6.4vh,52px); height:clamp(40px,6.4vh,52px); border-radius:10px; border:2px solid rgba(232,178,74,.65);
+  .gh-tv-portr { width:clamp(40px,6.4vh,calc(52px * var(--gh-ui,1))); height:clamp(40px,6.4vh,calc(52px * var(--gh-ui,1))); border-radius:10px; border:2px solid rgba(232,178,74,.65);
     background:#1a130c; object-fit:cover; object-position:50% 22%; box-shadow:inset 0 0 10px #000, 0 0 12px rgba(232,178,74,.25); flex:0 0 auto; }
-  .gh-tv-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(15px,2.3vh,20px);
+  .gh-tv-tt { flex:1; text-align:center; font-family:"Cinzel",serif; font-weight:800; font-size:clamp(15px,2.3vh,calc(20px * var(--gh-ui,1)));
     letter-spacing:1px; color:#f6e7c2; text-shadow:0 2px 6px #000; line-height:1.02; white-space:nowrap; }
-  .gh-tv-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.2vh,10.5px); color:#c39a5a; letter-spacing:3px; margin-top:2px; white-space:nowrap; }
-  .gh-gold.gh-tv-gold { position:static; transform:none; flex:0 0 auto; font-size:clamp(13px,2vh,16px); }
+  .gh-tv-tt small { display:block; font-family:"MedievalSharp",serif; font-weight:400; font-size:clamp(9px,1.2vh,calc(10.5px * var(--gh-ui,1))); color:#c39a5a; letter-spacing:3px; margin-top:2px; white-space:nowrap; }
+  .gh-gold.gh-tv-gold { position:static; transform:none; flex:0 0 auto; font-size:clamp(13px,2vh,calc(16px * var(--gh-ui,1))); }
   .gh-gold.gh-tv-gold b { color:#f4d074; }
   /* divisória ornamental */
   .gh-tv-rule { flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:8px; color:#9a7c44; margin:-1% 0; }
   .gh-tv-rule::before, .gh-tv-rule::after { content:""; height:1px; flex:1; max-width:150px; background:linear-gradient(90deg,transparent,rgba(232,178,74,.5),transparent); }
-  .gh-tv-rule span { font-size:11px; color:#c9a24f; }
+  .gh-tv-rule span { font-size:calc(11 * var(--gh-u,1px)); color:#c9a24f; }
   /* cabeçalho de bloco */
   .gh-tv-block { flex:0 0 auto; }
   .gh-tv-h { display:flex; align-items:center; gap:7px; justify-content:center; margin-bottom:2.4%; }
-  .gh-tv-h b { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,13px); color:#e8b24a; letter-spacing:2px; text-shadow:0 1px 3px #000; }
-  .gh-tv-h i { font-style:normal; color:#8a6f3f; font-size:clamp(10px,1.5vh,12px); }
+  .gh-tv-h b { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,calc(13px * var(--gh-ui,1))); color:#e8b24a; letter-spacing:2px; text-shadow:0 1px 3px #000; }
+  .gh-tv-h i { font-style:normal; color:#8a6f3f; font-size:clamp(10px,1.5vh,calc(12px * var(--gh-ui,1))); }
   /* card da bebida */
   .gh-tv-drinkcard { display:flex; align-items:center; gap:13px; padding:3% 4%; border-radius:12px;
     background:linear-gradient(180deg, rgba(58,42,20,.5), rgba(30,20,10,.45)); box-shadow:inset 0 0 0 1.5px rgba(232,178,74,.32), 0 2px 10px rgba(0,0,0,.4); }
-  .gh-tv-dslot { position:relative; width:clamp(60px,10vh,76px); height:clamp(60px,10vh,76px); flex:0 0 auto;
-    display:flex; align-items:center; justify-content:center; border:clamp(8px,1.5vh,10px) solid transparent; border-image:url(${eqSlotUrl}) 89 fill;
+  .gh-tv-dslot { position:relative; width:clamp(60px,10vh,calc(76px * var(--gh-ui,1))); height:clamp(60px,10vh,calc(76px * var(--gh-ui,1))); flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center; border:clamp(8px,1.5vh,calc(10px * var(--gh-ui,1))) solid transparent; border-image:url(${eqSlotUrl}) 89 fill;
     box-shadow:0 0 16px 2px rgba(232,178,74,.32); }
-  .gh-tv-demo { font-size:clamp(28px,5.4vh,36px); line-height:1; }
+  .gh-tv-demo { font-size:clamp(28px,5.4vh,calc(36px * var(--gh-ui,1))); line-height:1; }
   .gh-tv-dimg { width:86%; height:86%; object-fit:contain; filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
   .gh-tv-dhave { position:absolute; right:-4px; bottom:-4px; min-width:18px; height:18px; padding:0 4px; border-radius:9px;
     background:#1a130c; border:1.5px solid rgba(232,178,74,.75); color:#f4e2b0; font-family:"Cinzel",serif; font-weight:700;
-    font-size:11px; line-height:15px; text-align:center; box-shadow:0 1px 3px #000; }
+    font-size:calc(11 * var(--gh-u,1px)); line-height:15px; text-align:center; box-shadow:0 1px 3px #000; }
   .gh-tv-dinfo { flex:1; min-width:0; }
-  .gh-tv-dn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(15px,2.3vh,17px); color:#f4ebd4; }
+  .gh-tv-dn { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(15px,2.3vh,calc(17px * var(--gh-ui,1))); color:#f4ebd4; }
   .gh-tv-chip { display:inline-flex; align-items:center; gap:4px; margin-top:6px; padding:3px 10px; border-radius:20px;
-    font-size:clamp(10px,1.5vh,11px); background:rgba(90,60,30,.5); color:#f0c98a; box-shadow:inset 0 0 0 1px rgba(232,178,74,.35); }
+    font-size:clamp(10px,1.5vh,calc(11px * var(--gh-ui,1))); background:rgba(90,60,30,.5); color:#f0c98a; box-shadow:inset 0 0 0 1px rgba(232,178,74,.35); }
   .gh-tv-buywrap { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:2px; }
   .gh-tv-buybtn { display:inline-flex; align-items:center; gap:5px; cursor:pointer; padding:9px 15px; font-family:"Cinzel",serif;
-    font-weight:700; font-size:clamp(13px,2vh,14px); color:#1a1408; border:clamp(10px,1.7vh,12px) solid transparent;
+    font-weight:700; font-size:clamp(13px,2vh,calc(14px * var(--gh-ui,1))); color:#1a1408; border:clamp(10px,1.7vh,calc(12px * var(--gh-ui,1))) solid transparent;
     border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-tv-buybtn img { width:14px; height:14px; }
-  .gh-tv-buywrap em { font-style:normal; font-size:clamp(9px,1.3vh,10px); color:#a8905f; font-family:"Cinzel",serif; letter-spacing:1px; }
+  .gh-tv-buywrap em { font-style:normal; font-size:clamp(9px,1.3vh,calc(10px * var(--gh-ui,1))); color:#a8905f; font-family:"Cinzel",serif; letter-spacing:1px; }
   /* mural de missões (protagonista) */
   .gh-tv-board { flex:1 1 auto; display:flex; flex-direction:column; padding:3% 3.5% 3.5%;
-    border:clamp(13px,2vh,15px) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; }
+    border:clamp(13px,2vh,calc(15px * var(--gh-ui,1))) solid transparent; border-image:url(${eqContainerUrl}) 88 fill; }
   .gh-tv-h-c { margin-bottom:3.4%; }
   .gh-tv-quests { display:flex; flex-direction:column; gap:10px; }
-  .gh-tv-empty { text-align:center; color:#8a7550; font-size:clamp(11px,1.7vh,13px); line-height:1.6; padding:16% 6%; font-family:"MedievalSharp",serif; }
+  .gh-tv-empty { text-align:center; color:#8a7550; font-size:clamp(11px,1.7vh,calc(13px * var(--gh-ui,1))); line-height:1.6; padding:16% 6%; font-family:"MedievalSharp",serif; }
   .gh-tv-quest { position:relative; display:flex; gap:11px; align-items:stretch; padding:3% 3%; border-radius:11px; overflow:hidden;
     background:linear-gradient(180deg, rgba(40,30,17,.55), rgba(22,15,9,.5)); box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.28); }
   .gh-tv-accent { position:absolute; left:0; top:0; bottom:0; width:4px; }
@@ -5891,26 +5953,26 @@ function injectStyle() {
   .gh-tv-q-ready .gh-tv-accent { background:linear-gradient(#f4d074,#c98a2a); }
   .gh-tv-q-active .gh-tv-accent { background:linear-gradient(#c9a24f,#7a5a1e); }
   .gh-tv-q-done .gh-tv-accent { background:linear-gradient(#8aa07a,#4a5a3a); }
-  .gh-tv-qic { width:clamp(42px,7vh,48px); height:clamp(42px,7vh,48px); flex:0 0 auto; align-self:center; display:flex; align-items:center; justify-content:center;
-    font-size:clamp(23px,4vh,26px); border-radius:9px; background:#0d0a07; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.35); }
+  .gh-tv-qic { width:clamp(42px,7vh,calc(48px * var(--gh-ui,1))); height:clamp(42px,7vh,calc(48px * var(--gh-ui,1))); flex:0 0 auto; align-self:center; display:flex; align-items:center; justify-content:center;
+    font-size:clamp(23px,4vh,calc(26px * var(--gh-ui,1))); border-radius:9px; background:#0d0a07; box-shadow:inset 0 0 0 1.5px rgba(201,162,39,.35); }
   .gh-tv-qbody { flex:1; min-width:0; }
   .gh-tv-qtop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-  .gh-tv-qtitle { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2.1vh,15px); color:#f4ebd4; }
-  .gh-tv-rib { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(8px,1.3vh,9px); letter-spacing:.5px; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+  .gh-tv-qtitle { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(13px,2.1vh,calc(15px * var(--gh-ui,1))); color:#f4ebd4; }
+  .gh-tv-rib { font-family:"Cinzel",serif; font-weight:700; font-size:clamp(8px,1.3vh,calc(9px * var(--gh-ui,1))); letter-spacing:.5px; padding:2px 8px; border-radius:20px; white-space:nowrap; }
   .gh-tv-rib-new { background:#2f4a22; color:#bfe89a; box-shadow:inset 0 0 0 1px rgba(150,220,120,.4); }
   .gh-tv-rib-ready { background:#5a4415; color:#ffd98a; box-shadow:inset 0 0 0 1px rgba(240,200,120,.4); }
   .gh-tv-rib-active { background:#4a3a18; color:#f0d477; box-shadow:inset 0 0 0 1px rgba(201,162,39,.35); }
   .gh-tv-rib-done { background:#3a4a2f; color:#bfe89a; box-shadow:inset 0 0 0 1px rgba(150,200,120,.35); }
   .gh-tv-rib-rep { background:#1f3a4a; color:#8fd0e8; box-shadow:inset 0 0 0 1px rgba(120,190,220,.4); margin-right:5px; }
-  .gh-tv-qdesc { font-size:clamp(10px,1.55vh,11.5px); color:#b6a883; margin-top:3px; line-height:1.3; }
-  .gh-tv-qprog { font-size:clamp(10px,1.5vh,11px); color:#9fb98a; margin-top:4px; font-family:"Cinzel",serif; }
+  .gh-tv-qdesc { font-size:clamp(10px,1.55vh,calc(11.5px * var(--gh-ui,1))); color:#b6a883; margin-top:3px; line-height:1.3; }
+  .gh-tv-qprog { font-size:clamp(10px,1.5vh,calc(11px * var(--gh-ui,1))); color:#9fb98a; margin-top:4px; font-family:"Cinzel",serif; }
   .gh-tv-rewards { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
-  .gh-tv-rw { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:7px; font-size:clamp(10px,1.5vh,11px); color:#e8c56a;
+  .gh-tv-rw { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:7px; font-size:clamp(10px,1.5vh,calc(11px * var(--gh-ui,1))); color:#e8c56a;
     background:rgba(12,9,6,.6); box-shadow:inset 0 0 0 1px rgba(201,162,39,.3); }
   .gh-tv-rw img { width:15px; height:15px; object-fit:contain; }
   .gh-tv-qact { flex:0 0 auto; align-self:center; }
-  .gh-tv-qbtn { cursor:pointer; padding:9px 14px; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,12px);
-    color:#1a1408; border:clamp(9px,1.5vh,11px) solid transparent; border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
+  .gh-tv-qbtn { cursor:pointer; padding:9px 14px; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(11px,1.7vh,calc(12px * var(--gh-ui,1)));
+    color:#1a1408; border:clamp(9px,1.5vh,calc(11px * var(--gh-ui,1))) solid transparent; border-image:url(${btnBaseUrl}) 40 fill; background:transparent; text-shadow:0 1px 0 rgba(255,235,180,.5); }
   .gh-tv-qready { animation:gh-tv-pulse 1.4s ease-in-out infinite; }
   @keyframes gh-tv-pulse { 0%,100%{filter:none} 50%{filter:brightness(1.22)} }
   `;

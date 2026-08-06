@@ -638,7 +638,7 @@ const QUEST_DEFS: QuestDef[] = [
 ];
 
 // ============================ MAIN QUEST LINE ============================
-// "A Névoa Devoradora" — a névoa eterna de Grimhollow é uma maldição viva que
+// (nome antigo: "A Névoa Devoradora"; a premissa da névoa caiu — ver abaixo)
 // consome a memória e o descanso dos mortos. O herói descobre sua origem nas
 // profundezas e precisa romper o Portão Selado p/ libertar o vilarejo.
 //

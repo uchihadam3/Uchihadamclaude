@@ -10,6 +10,8 @@ import { restoreCloudSession, loginWithProvider, signInWithEmail, signUpWithEmai
 // Entra como `arte` porque já existe um `ico` local (a arte da classe no card do
 // personagem) e sombrear o nome de quem chegou antes só criaria confusão.
 import { ico as arte } from "./icons";
+// só pelo efeito: instala --gh-ui no <html> (ver uiscale.ts)
+import "./uiscale";
 import { isSupabaseConfigured } from "./supabaseConfig";
 
 // resultado da abertura: um herói NOVO (com o slot de destino) ou CONTINUAR um save.
@@ -837,15 +839,15 @@ function injectStyle() {
     font-size:clamp(17px,3vh,24px); line-height:1.62; margin:0 0 2.3em;
     text-shadow:0 2px 8px #000, 0 0 18px rgba(0,0,0,.92); letter-spacing:.3px;
   }
-  #gh-intro .gh-crawl-end { color:#e8b24a; font-size:34px; margin-top:.3em; text-shadow:0 2px 10px #000; }
+  #gh-intro .gh-crawl-end { color:#e8b24a; font-size:calc(34 * var(--gh-u,1px)); margin-top:.3em; text-shadow:0 2px 10px #000; }
   #gh-intro .gh-pro-skip {
     position:absolute; top:16px; right:16px; z-index:3; cursor:pointer;
-    font-family:"Cinzel",serif; font-size:13px; letter-spacing:1px; color:#d8c48a;
+    font-family:"Cinzel",serif; font-size:calc(13 * var(--gh-u,1px)); letter-spacing:1px; color:#d8c48a;
     background:rgba(10,8,5,.55); border:1px solid rgba(201,162,39,.5); border-radius:8px; padding:7px 14px;
     text-shadow:0 1px 3px #000; transition:color .15s, border-color .15s;
   }
   #gh-intro .gh-pro-skip:hover { color:#fff; border-color:#f4c847; }
-  #gh-intro .gh-pro-hint { position:absolute; right:20px; bottom:16px; z-index:3; font-size:11px; color:#b6a877; opacity:.7; animation:gh-pro-blink 1.8s ease-in-out infinite; }
+  #gh-intro .gh-pro-hint { position:absolute; right:20px; bottom:16px; z-index:3; font-size:calc(11 * var(--gh-u,1px)); color:#b6a877; opacity:.7; animation:gh-pro-blink 1.8s ease-in-out infinite; }
   @keyframes gh-pro-blink { 0%,100% { opacity:.35; } 50% { opacity:.8; } }
   @media (prefers-reduced-motion: reduce) {
     #gh-intro .gh-crawl-curtain, #gh-intro .gh-crawl-text { animation-duration:6s; }
@@ -891,7 +893,7 @@ function injectStyle() {
      ficam mais apagados. */
   #gh-intro .gh-class-tab {
     display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
-    padding:2px 4px; color:#b6a877; font-family:"Cinzel",serif; font-size:13px;
+    padding:2px 4px; color:#b6a877; font-family:"Cinzel",serif; font-size:calc(13 * var(--gh-u,1px));
     background:none; border:0; border-radius:0;
     opacity:.6; filter:grayscale(.25); transition:opacity .15s, filter .15s, color .15s, transform .1s;
   }
@@ -918,21 +920,21 @@ function injectStyle() {
     border:2px solid rgba(201,162,39,.45); background:rgba(8,7,5,.6);
   }
   #gh-intro .gh-class-ph { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
-  #gh-intro .gh-ph-emoji { font-size:64px; filter:drop-shadow(0 3px 8px #000); }
-  #gh-intro .gh-ph-txt { font-style:italic; opacity:.6; font-size:13px; }
+  #gh-intro .gh-ph-emoji { font-size:calc(64 * var(--gh-u,1px)); filter:drop-shadow(0 3px 8px #000); }
+  #gh-intro .gh-ph-txt { font-style:italic; opacity:.6; font-size:calc(13 * var(--gh-u,1px)); }
   #gh-intro .gh-class-info { flex:1 1 auto; min-width:0; }
   #gh-intro .gh-class-name { display:flex; align-items:center; gap:8px; font-family:"Cinzel",serif; font-weight:700; font-size:clamp(18px,2.8vh,24px); color:#f0dca2; }
   #gh-intro .gh-name-ico { width:30px; height:30px; object-fit:contain; flex:0 0 auto; filter:drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
-  #gh-intro .gh-class-tag { color:#c9a84f; font-style:italic; margin-bottom:6px; font-size:14px; }
+  #gh-intro .gh-class-tag { color:#c9a84f; font-style:italic; margin-bottom:6px; font-size:calc(14 * var(--gh-u,1px)); }
   #gh-intro .gh-class-desc { font-size:clamp(13px,1.9vh,15px); line-height:1.4; margin:0 0 10px; color:#ddd0b0; }
   #gh-intro .gh-attrs { display:flex; flex-direction:column; gap:5px; margin-bottom:8px; }
-  #gh-intro .gh-attr { display:flex; align-items:center; gap:8px; font-size:13px; }
+  #gh-intro .gh-attr { display:flex; align-items:center; gap:8px; font-size:calc(13 * var(--gh-u,1px)); }
   #gh-intro .gh-attr > span { width:88px; color:#c6b58a; }
   #gh-intro .gh-attr > b { width:18px; text-align:right; color:#f0dca2; }
   #gh-intro .gh-attr-bar { flex:1; height:9px; background:rgba(0,0,0,.5); border:1px solid rgba(201,162,39,.4); border-radius:6px; overflow:hidden; }
   #gh-intro .gh-attr-bar i { display:block; height:100%; background:linear-gradient(#d8c24a,#8a7016); }
-  #gh-intro .gh-vitals { display:flex; gap:16px; font-size:14px; color:#e6d6ac; margin-bottom:6px; }
-  #gh-intro .gh-class-weapons { font-size:13px; color:#cbbb8e; }
+  #gh-intro .gh-vitals { display:flex; gap:16px; font-size:calc(14 * var(--gh-u,1px)); color:#e6d6ac; margin-bottom:6px; }
+  #gh-intro .gh-class-weapons { font-size:calc(13 * var(--gh-u,1px)); color:#cbbb8e; }
   #gh-intro .gh-class-weapons b { color:#e6d09a; font-family:"Cinzel",serif; }
   /* --- distribuição de atributos (passo 2) --- */
   /* ocupa toda a altura fixa da moldura; se faltar espaço, rola POR DENTRO (a
@@ -941,19 +943,19 @@ function injectStyle() {
     display:flex; flex-direction:column; gap:4px;
     height:100%; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:4px;
   }
-  #gh-intro .gh-alloc-points { font-size:13px; color:#d7c79a; }
-  #gh-intro .gh-alloc-points b { font-family:"Cinzel",serif; font-size:15px; color:#8f8262; padding:0 2px; }
+  #gh-intro .gh-alloc-points { font-size:calc(13 * var(--gh-u,1px)); color:#d7c79a; }
+  #gh-intro .gh-alloc-points b { font-family:"Cinzel",serif; font-size:calc(15 * var(--gh-u,1px)); color:#8f8262; padding:0 2px; }
   #gh-intro .gh-alloc-points b.gh-pts-on { color:#ffd964; text-shadow:0 0 8px rgba(240,200,90,.5); }
   #gh-intro .gh-prim { display:flex; flex-direction:column; gap:2px; padding:4px 0; border-top:1px solid rgba(201,162,39,.22); border-bottom:1px solid rgba(201,162,39,.22); }
   /* linha do primário: nome ELÁSTICO (encolhe, com reticências) + stepper compacto
      à direita — nunca vaza a moldura. */
   #gh-intro .gh-prim-row { display:flex; align-items:center; gap:8px; }
-  #gh-intro .gh-prim-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:"Cinzel",serif; font-size:14px; color:#e7d7a6; }
+  #gh-intro .gh-prim-name { flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:"Cinzel",serif; font-size:calc(14 * var(--gh-u,1px)); color:#e7d7a6; }
   #gh-intro .gh-prim-step { flex:0 0 auto; display:flex; align-items:center; gap:6px; }
-  #gh-intro .gh-prim-val { min-width:30px; text-align:center; font-size:16px; color:#fff; }
-  #gh-intro .gh-prim-up { font-style:normal; font-size:10px; color:#7ee08a; margin-left:2px; vertical-align:super; }
+  #gh-intro .gh-prim-val { min-width:30px; text-align:center; font-size:calc(16 * var(--gh-u,1px)); color:#fff; }
+  #gh-intro .gh-prim-up { font-style:normal; font-size:calc(10 * var(--gh-u,1px)); color:#7ee08a; margin-left:2px; vertical-align:super; }
   #gh-intro .gh-pm {
-    width:24px; height:24px; flex:0 0 auto; cursor:pointer; font-size:16px; line-height:1;
+    width:24px; height:24px; flex:0 0 auto; cursor:pointer; font-size:calc(16 * var(--gh-u,1px)); line-height:1;
     color:#f0dca2; background:linear-gradient(#2b2218,#160f08);
     border:2px solid rgba(201,162,39,.6); border-radius:7px;
     display:flex; align-items:center; justify-content:center; padding:0;
@@ -970,17 +972,17 @@ function injectStyle() {
   #gh-intro .gh-sec-blocks { display:grid; grid-template-columns:repeat(auto-fit, minmax(84px, 1fr)); gap:3px 10px; align-content:start; }
   #gh-intro .gh-sec-col { min-width:0; }
   #gh-intro .gh-sec-col h4 {
-    margin:2px 0 3px; font-family:"Cinzel",serif; font-size:12px; color:#eccf82; white-space:nowrap;
+    margin:2px 0 3px; font-family:"Cinzel",serif; font-size:calc(12 * var(--gh-u,1px)); color:#eccf82; white-space:nowrap;
     border-bottom:1px solid rgba(201,162,39,.28); padding-bottom:2px;
   }
-  #gh-intro .gh-sec-row { display:flex; justify-content:space-between; gap:6px; font-size:12px; color:#cdbd90; padding:0.5px 0; }
+  #gh-intro .gh-sec-row { display:flex; justify-content:space-between; gap:6px; font-size:calc(12 * var(--gh-u,1px)); color:#cdbd90; padding:0.5px 0; }
   #gh-intro .gh-sec-row span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #gh-intro .gh-sec-row b { color:#f0e0b0; font-variant-numeric:tabular-nums; flex:0 0 auto; }
-  #gh-intro .gh-sec-note { font-size:10.5px; font-style:italic; color:#9c8f6d; margin-top:5px; line-height:1.3; }
+  #gh-intro .gh-sec-note { font-size:calc(10.5 * var(--gh-u,1px)); font-style:italic; color:#9c8f6d; margin-top:5px; line-height:1.3; }
   #gh-intro .gh-menu-btn-sec { min-width:120px; padding:15px 22px; opacity:.9; }
   #gh-intro .gh-create-foot { display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; margin:2px 0 12px; }
   #gh-intro .gh-name-input {
-    font-family:"MedievalSharp",serif; font-size:16px; color:#f0e6c8; text-align:center;
+    font-family:"MedievalSharp",serif; font-size:calc(16 * var(--gh-u,1px)); color:#f0e6c8; text-align:center;
     padding:10px 16px; width:min(260px,70vw); background:rgba(12,9,6,.8);
     border:2px solid rgba(201,162,39,.55); border-radius:9px; outline:none;
   }
@@ -1045,7 +1047,7 @@ function injectStyle() {
     50%     { filter:drop-shadow(0 0 15px rgba(255,150,50,.95)) drop-shadow(0 0 6px rgba(255,236,150,1)) brightness(1.14); }
   }
   #gh-intro .gh-boot-txt {
-    font-family:"Cinzel",serif; letter-spacing:1px; font-size:12px;
+    font-family:"Cinzel",serif; letter-spacing:1px; font-size:calc(12 * var(--gh-u,1px));
     color:#cbb98a; text-shadow:0 1px 3px #000;
   }
   /* ---------------- SELEÇÃO DE PERSONAGEM ---------------- */
@@ -1078,19 +1080,19 @@ function injectStyle() {
      está sempre à vista (discreto), com alvo de toque de 32px. */
   #gh-intro .gh-cs-del { position:absolute; top:6px; right:6px; z-index:2; width:32px; height:32px;
     border-radius:50%; border:1px solid rgba(230,120,90,.55); background:rgba(20,10,10,.78); color:#e88a6a;
-    font-size:15px; line-height:1; cursor:pointer; opacity:.8; box-shadow:0 2px 6px rgba(0,0,0,.5);
+    font-size:calc(15 * var(--gh-u,1px)); line-height:1; cursor:pointer; opacity:.8; box-shadow:0 2px 6px rgba(0,0,0,.5);
     transition:opacity .15s ease, background .15s ease; }
   #gh-intro .gh-cs-card:hover .gh-cs-del { opacity:1; }
   #gh-intro .gh-cs-del:hover { background:rgba(150,40,30,.85); color:#fff; }
   #gh-intro .gh-cs-empty { justify-content:center; gap:10px; border-style:dashed; color:#9a8f78; }
   #gh-intro .gh-cs-empty:hover { color:#e9dcc0; }
-  #gh-intro .gh-cs-plus { font-size:44px; font-weight:300; line-height:1; color:#c9a24a; text-shadow:0 0 16px rgba(201,162,74,.4); }
+  #gh-intro .gh-cs-plus { font-size:calc(44 * var(--gh-u,1px)); font-weight:300; line-height:1; color:#c9a24a; text-shadow:0 0 16px rgba(201,162,74,.4); }
   #gh-intro .gh-cs-emptytxt { font-size:clamp(11px,1.6vw,13px); letter-spacing:1px; }
   #gh-intro .gh-cs-confirm { justify-content:center; gap:14px; cursor:default; background:rgba(24,10,10,.82); border-color:rgba(230,120,90,.5); }
   #gh-intro .gh-cs-cfxt { text-align:center; font-size:clamp(12px,1.7vw,15px); line-height:1.4; padding:0 10px; }
   #gh-intro .gh-cs-cfxt span { font-size:.82em; color:#b8a48a; }
   #gh-intro .gh-cs-cfrow { display:flex; gap:10px; }
-  #gh-intro .gh-cs-cfbtn { font-family:"Cinzel",serif; padding:8px 16px; border-radius:7px; cursor:pointer; font-size:13px;
+  #gh-intro .gh-cs-cfbtn { font-family:"Cinzel",serif; padding:8px 16px; border-radius:7px; cursor:pointer; font-size:calc(13 * var(--gh-u,1px));
     border:1px solid rgba(201,162,74,.4); background:rgba(20,16,12,.8); color:#e9dcc0; }
   #gh-intro .gh-cs-cfyes { border-color:rgba(200,60,40,.7); background:rgba(120,32,24,.7); color:#ffd9cf; }
   #gh-intro .gh-cs-cfyes:hover { background:rgba(160,44,32,.9); }
@@ -1103,7 +1105,7 @@ function injectStyle() {
   #gh-intro .gh-login-btns { width:100%; display:flex; flex-direction:column; gap:12px; }
   #gh-intro .gh-login-btn { display:flex; align-items:center; justify-content:center; gap:11px;
     width:100%; padding:13px 16px; border-radius:10px; cursor:pointer; font-family:"Cinzel",serif;
-    font-size:15px; font-weight:600; letter-spacing:.3px; border:1px solid rgba(0,0,0,.25);
+    font-size:calc(15 * var(--gh-u,1px)); font-weight:600; letter-spacing:.3px; border:1px solid rgba(0,0,0,.25);
     transition:transform .14s ease, filter .14s ease, box-shadow .14s ease; box-shadow:0 4px 14px rgba(0,0,0,.4); }
   #gh-intro .gh-login-btn:hover { transform:translateY(-2px); filter:brightness(1.06); }
   #gh-intro .gh-login-btn:active { transform:translateY(0) scale(.99); }
@@ -1114,7 +1116,7 @@ function injectStyle() {
     font-weight:700; border:1px solid rgba(240,208,116,.7); box-shadow:0 0 18px rgba(240,192,64,.3); }
   #gh-intro .gh-lg-resume b { font-weight:800; }
   #gh-intro .gh-lg-resume:hover { box-shadow:0 0 24px rgba(240,192,64,.5); }
-  #gh-intro .gh-login-linkbtn { background:none; border:none; color:#b7ab90; font-size:12px;
+  #gh-intro .gh-login-linkbtn { background:none; border:none; color:#b7ab90; font-size:calc(12 * var(--gh-u,1px));
     cursor:pointer; text-decoration:underline; text-underline-offset:3px; padding:2px; align-self:center;
     transition:color .14s ease; }
   #gh-intro .gh-login-linkbtn:hover { color:#f0d074; }
@@ -1122,13 +1124,13 @@ function injectStyle() {
     font-weight:500; }
   #gh-intro .gh-lg-guest:hover { border-color:rgba(240,208,116,.85); color:#fff; box-shadow:0 0 16px rgba(240,192,64,.32); }
   #gh-intro .gh-login-or { display:flex; align-items:center; gap:10px; margin:2px 0;
-    color:#9a8f78; font-size:11px; letter-spacing:2px; text-transform:uppercase; }
+    color:#9a8f78; font-size:calc(11 * var(--gh-u,1px)); letter-spacing:2px; text-transform:uppercase; }
   #gh-intro .gh-login-or::before, #gh-intro .gh-login-or::after { content:""; flex:1; height:1px; background:rgba(201,162,74,.28); }
-  #gh-intro .gh-login-note { text-align:center; font-size:12px; line-height:1.5; color:#b7ab90;
+  #gh-intro .gh-login-note { text-align:center; font-size:calc(12 * var(--gh-u,1px)); line-height:1.5; color:#b7ab90;
     max-width:320px; margin:0; text-shadow:0 1px 3px #000; }
   #gh-intro .gh-login-note.gh-login-warn { color:#e8c06a; }
   #gh-intro .gh-login-inp { width:100%; padding:12px 14px; border-radius:9px; font-family:"Georgia",serif;
-    font-size:14px; color:#efe6cf; background:rgba(10,9,7,.72); border:1px solid rgba(201,162,74,.34);
+    font-size:calc(14 * var(--gh-u,1px)); color:#efe6cf; background:rgba(10,9,7,.72); border:1px solid rgba(201,162,74,.34);
     outline:none; transition:border-color .14s ease, box-shadow .14s ease; }
   #gh-intro .gh-login-inp::placeholder { color:#8c8168; }
   #gh-intro .gh-login-inp:focus { border-color:rgba(240,208,116,.8); box-shadow:0 0 12px rgba(240,192,64,.25); }
