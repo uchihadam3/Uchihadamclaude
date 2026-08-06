@@ -57,9 +57,9 @@ function show(id){
 }
 
 // ================================================================ MAPA
-const NODE_POS = { // % dentro do mapa
-  mossy_glen:{x:22,y:52}, bandit_camp:{x:44,y:30}, echoing_caves:{x:66,y:34},
-  ruined_keep:{x:63,y:70}, peak_of_trials:{x:86,y:26},
+const NODE_POS = { // % dentro do mapa — caminho serpenteante (retrato), acima do painel Party
+  mossy_glen:{x:30,y:60}, bandit_camp:{x:62,y:44}, echoing_caves:{x:32,y:27},
+  ruined_keep:{x:64,y:15}, peak_of_trials:{x:44,y:8},
 };
 function renderMap(){
   const heroesMini = S.heroes.map(hs => {
@@ -178,48 +178,49 @@ function renderAcademy(body){
   });
 }
 
-// ================================================================ GAMBIT BOARD
+// ================================================================ GAMBIT BOARD (mobile: seletor + 1 herói)
+let boardHero = null;
 function renderGambitBoard(mount){
-  mount.className = 'gboard';
-  mount.innerHTML = S.heroes.map(hs => {
-    const def = HERO_DEFS.find(h=>h.id===hs.id);
-    const condOpts = S.unlockedConditions;
-    const lines = hs.gambits.map((g,i) => gambitLineHTML(hs, def, g, i, condOpts)).join('');
-    const locked = Array.from({length: def.maxSlots - hs.slots}, () =>
-      `<div class="gline locked">🔒 slot na Academia</div>`).join('');
-    const canAdd = hs.gambits.length < hs.slots;
-    return `<div class="gcol" data-hero="${hs.id}">
-      <div class="ghead"><div class="av">${spriteFor(def.id)}</div>
-        <div class="hn">${def.name}<small>${hs.gambits.length}/${hs.slots} linhas</small></div></div>
-      <div class="glines">${lines || '<div class="gline locked">sem linhas</div>'}${locked}</div>
-      <button class="gadd small ${canAdd?'':''}" data-hero="${hs.id}" ${canAdd?'':'disabled'}>+ Linha</button>
-    </div>`;
+  if(!boardHero || !S.heroes.find(h=>h.id===boardHero)) boardHero = S.heroes[0].id;
+  const hs  = S.heroes.find(h=>h.id===boardHero);
+  const def = HERO_DEFS.find(h=>h.id===hs.id);
+  const condOpts = S.unlockedConditions;
+  const tabs = S.heroes.map(h=>{
+    const d = HERO_DEFS.find(x=>x.id===h.id);
+    return `<button class="gtab ${h.id===boardHero?'on':''}" data-h="${h.id}">
+      <div class="av">${spriteFor(h.id)}</div><span>${d.name}</span><div class="dot"></div></button>`;
   }).join('');
-
-  // change handlers
+  const lines  = hs.gambits.map((g,i)=>gambitLineHTML(g,i,def,condOpts)).join('') || '<div class="gline locked">sem linhas — adicione abaixo</div>';
+  const locked = Array.from({length: def.maxSlots - hs.slots}, () =>
+    `<div class="gline locked">🔒 desbloqueie um slot na Academia</div>`).join('');
+  const canAdd = hs.gambits.length < hs.slots;
+  mount.className = '';
+  mount.innerHTML = `
+    <div class="gtabs">${tabs}</div>
+    <div class="gpanel">
+      <div class="gphead"><div class="av">${spriteFor(def.id)}</div>
+        <div class="hn">${def.name}<small>${hs.gambits.length}/${hs.slots} linhas ativas · lido de cima → baixo</small></div></div>
+      <div class="glines">${lines}${locked}</div>
+      <button class="gadd small primary" ${canAdd?'':'disabled'}>+ Adicionar linha</button>
+    </div>`;
+  mount.querySelectorAll('.gtab').forEach(b => b.onclick = () => { boardHero = b.dataset.h; renderGambitBoard(mount); });
   mount.querySelectorAll('select').forEach(sel => sel.onchange = () => {
-    const hs = S.heroes.find(h=>h.id===sel.dataset.hero);
-    const g = hs.gambits[+sel.dataset.line];
-    g[sel.dataset.kind] = sel.value; save(S);
+    hs.gambits[+sel.dataset.line][sel.dataset.kind] = sel.value; save(S);
   });
-  mount.querySelectorAll('.rm').forEach(x => x.onclick = () => {
-    const hs = S.heroes.find(h=>h.id===x.dataset.hero);
-    hs.gambits.splice(+x.dataset.line,1); save(S); renderGambitBoard(mount);
-  });
-  mount.querySelectorAll('.gadd').forEach(b => b.onclick = () => {
-    const hs = S.heroes.find(h=>h.id===b.dataset.hero);
+  mount.querySelectorAll('.rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.line,1); save(S); renderGambitBoard(mount); });
+  const add = mount.querySelector('.gadd');
+  if(add) add.onclick = () => {
     if(hs.gambits.length >= hs.slots) return;
-    const def = HERO_DEFS.find(h=>h.id===hs.id);
     hs.gambits.push({ condition: S.unlockedConditions[0], action: def.skills[0] });
     save(S); renderGambitBoard(mount);
-  });
+  };
 }
-function gambitLineHTML(hs, def, g, i, condOpts){
-  const cond = `<select class="cond" data-hero="${hs.id}" data-line="${i}" data-kind="condition">${
+function gambitLineHTML(g, i, def, condOpts){
+  const cond = `<select class="cond" data-line="${i}" data-kind="condition">${
     condOpts.map(c=>`<option value="${c}" ${g.condition===c?'selected':''}>${CONDITIONS[c].label}</option>`).join('')}</select>`;
-  const act = `<select class="act" data-hero="${hs.id}" data-line="${i}" data-kind="action">${
+  const act = `<select class="act" data-line="${i}" data-kind="action">${
     def.skills.map(s=>`<option value="${s}" ${g.action===s?'selected':''}>${SKILLS[s].name}</option>`).join('')}</select>`;
-  return `<div class="gline"><span class="idx">${i+1}</span>${cond}<span class="arw">→</span>${act}<span class="rm" data-hero="${hs.id}" data-line="${i}" title="Remover">✕</span></div>`;
+  return `<div class="gline"><span class="idx">${i+1}</span>${cond}<span class="arw">→</span>${act}<span class="rm" data-line="${i}" title="Remover">✕</span></div>`;
 }
 
 // ================================================================ EXPEDIÇÃO
