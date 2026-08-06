@@ -68,6 +68,11 @@ bonito fica o movimento de subida.</p>
 <h2 id="-o-que-falta-agora--a-fazer">🎯 O que falta agora — a fazer</h2>
 <p>Só <strong>isto</strong> está pendente. O resto já está no jogo (referência abaixo). Manda
 <strong>uma imagem por vez com o nome</strong> que eu recorto e integro.</p>
+<blockquote>
+<p>⚙️ <strong>Não é arte:</strong> o <a href="#30--supabase--o-sql-das-tabelas--não-é-arte">§30</a> traz o
+<strong>SQL do Supabase</strong> (save na nuvem, amigos e Companhias). Esse bloco vai no
+painel do Supabase, não no gerador de imagens.</p>
+</blockquote>
 <table>
 <thead>
 <tr>
@@ -104,6 +109,7 @@ bonito fica o movimento de subida.</p>
 <p><strong>Mundo/cenário:</strong> <a href="#01--árvores-individuais">01 Árvores</a> · <a href="#02--aglomerados-de-mata">02 Aglomerados de mata</a> · <a href="#03--placas-das-lojas">03 Placas de loja</a> · <a href="#04--adereços-da-cidade">04 Adereços da cidade</a> · <a href="#05--panos-de-fundo-backdrops">05 Panos de fundo</a> · <a href="#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar">16 Texturas de parede da masmorra</a>
 <strong>Combate/jogo:</strong> <a href="#06--combate--espada-protótipo-de-ação">06 Espada</a> · <a href="#07--inimigos-billboard-2d">07 Inimigos</a> · <a href="#10--ícones-de-itens-folhas-por-tier">10 Ícones de itens</a> · <a href="#armaduras-early">🛡️ Armaduras early (T1–T3)</a> · <a href="#17--baú-3d--faces-em-png-objeto-3d-vestido-com-arte--🟡-a-gerar">17 Baú 3D (faces)</a>
 <strong>Interface:</strong> <a href="#08--interface--hud">08 HUD/janelas</a> · <a href="#11--botões-de-controle-hud">11 Botões de controle</a> · <a href="#12--telas-de-abertura-título--classes">12 Telas de abertura</a></p>
+<p><strong>Servidor (não é arte):</strong> <a href="#30--supabase--o-sql-das-tabelas--não-é-arte">30 SQL do Supabase</a> — save na nuvem, amigos e Companhias.</p>
 <p>Mais abaixo: <a href="#-catálogo-de-itens-planejamento-de-design">📜 Catálogo de Itens</a> (mapa de design — sem prompts ainda).</p>
 <hr />
 <h2 id="regras-que-valem-pra-tudo">Regras que valem pra tudo</h2>
@@ -1482,6 +1488,244 @@ detalhe fino — é cenário distante.</p>
 anuncia as <strong>Montanhas Cinzentas</strong> — a área seguinte, que reaproveita esta
 mesma engine de corredor externo com outro tileset e outro horizonte.</p>
 </blockquote>
+<hr />
+<h2 id="28--cidade-de-corredor--fachadas-e-tralha-de-rua---parcial">28 · CIDADE DE CORREDOR — fachadas e tralha de rua — 🟡 parcial</h2>
+<p>Grimhollow virou uma cidade de <strong>ruas de uma célula</strong> ligando três largos: você
+só vê uma fatia por vez — duas fachadas colando dos lados, uma faixa de
+calçamento e uma fresta de céu. As casas ganharam <strong>dois pavimentos</strong>, soco de
+pedra na base, cinta de enxaimel na divisa dos andares e montantes de madeira
+subindo dela.</p>
+<p>Falta a arte. Hoje a fachada usa a <strong>mesma alvenaria da masmorra</strong> repetida em
+todas as casas — funciona, mas é o que ainda entrega que é uma caixa com
+textura. Os painéis abaixo resolvem isso.</p>
+<p>Salve em <code>src/assets/env/</code> com os nomes exatos.</p>
+<blockquote>
+<p><strong>28.1 a 28.6 já estão no jogo — mas não como eu tinha feito primeiro.</strong>
+Sortear três fachadas diferentes por casa deixou a rua POLUÍDA. Faz sentido:
+numa rua de uma célula você vê duas fachadas por vez, então coerência lê como
+ARQUITETURA e variedade lê como bagunça — e cidade de verdade também tira tudo
+da mesma pedreira. Hoje a rua inteira é a <strong>pedra lavrada</strong> (28.3), em três
+tons quase iguais só p/ uma rua comprida não parecer copiar e colar. A
+variedade vem do que está SOBRE a parede: tabuleta, lanterna, janela, hera,
+tralha.</p>
+<p>A <strong>taipa</strong> (28.1) e o <strong>reboco</strong> (28.2) mudaram de lugar e agora valem POR
+DENTRO: taipa nas casas de aldeão, reboco nas lojas. Por fora a vila é sólida,
+por dentro é pobre — e dá p/ saber onde se está só de olhar a parede.</p>
+<p>As duas artes de prop vieram com o "fundo transparente" DESENHADO (xadrez
+pintado, alfa opaco). O <code>scripts/prep_city_art.py</code> desfaz isso pela AMPLITUDE
+do xadrez, não pela cor: onde o padrão aparece com força total é fundo, onde
+some é objeto sólido, e no meio-termo é o vidro — que assim continua vidro em
+vez de virar buraco. Se você conseguir gerar com alfa DE VERDADE, melhor: o
+vidro ainda fica com um leve mosqueado.</p>
+</blockquote>
+<p><strong>Regra comum:</strong> textura de PAINEL DE PAREDE <strong>repetível na horizontal</strong> (borda
+esquerda casa com a direita), vista <strong>de frente e sem perspectiva</strong> (ortográfica,
+como um decalque), iluminação neutra e chapada — quem faz sombra é o jogo.
+Quadrada, ~1024×1024. Sem texto, sem moldura, sem fundo transparente.</p>
+<h3 id="-281--tw_facade_taipa-a-casa-pobre-a-mais-comum">✅ 28.1 — <code>tw_facade_taipa</code> (a casa pobre, a mais comum)</h3>
+<pre><code>A seamless tileable FLAT-ON wall texture panel of a poor medieval half-timbered house facade, 1024x1024, orthographic front view with no perspective. Cream-grey lime plaster infill between dark weathered oak timber framing, the plaster cracked and water-stained near the bottom, patches where it has fallen away exposing wattle and daub underneath. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
+</code></pre>
+<h3 id="-282--tw_facade_reboco-a-casa-remediada">✅ 28.2 — <code>tw_facade_reboco</code> (a casa remediada)</h3>
+<pre><code>A seamless tileable FLAT-ON wall texture panel of a modest medieval townhouse facade, 1024x1024, orthographic front view with no perspective. Smooth ochre lime-washed plaster over stone, worn and patchy with damp rising from the base, a few hairline cracks and old repair patches in a slightly different tone. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
+</code></pre>
+<h3 id="-283--tw_facade_pedra-a-casa-rica--as-lojas">✅ 28.3 — <code>tw_facade_pedra</code> (a casa rica / as lojas)</h3>
+<pre><code>A seamless tileable FLAT-ON wall texture panel of a wealthy medieval merchant house facade, 1024x1024, orthographic front view with no perspective. Well-cut dressed ashlar stone blocks in warm grey with fine mortar joints, a carved string course band, subtle soot staining and lichen in the joints. Neutral flat lighting, no cast shadows, no window, no door, no border. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark.
+</code></pre>
+<h3 id="-284--tw_soco_pedra-o-soco--a-base-da-parede">✅ 28.4 — <code>tw_soco_pedra</code> (o soco / a base da parede)</h3>
+<pre><code>A seamless HORIZONTALLY tileable FLAT-ON texture strip of a medieval building plinth course, wide strip ~1024x256, orthographic front view. Large rough grey foundation stones, splashed with mud at the very bottom, moss and damp in the joints, a worn chamfered top edge. Neutral flat lighting, no cast shadows, no border. Grim dark fantasy, hand-painted, no text, no watermark.
+</code></pre>
+<h3 id="-285--prop_janela_postigo-janela-com-postigos--decalque">✅ 28.5 — <code>prop_janela_postigo</code> (janela com postigos — decalque)</h3>
+<pre><code>A single medieval window with wooden shutters, centered, on a FULLY TRANSPARENT background (PNG alpha), ~512x512. Small leaded glass panes in a dark oak frame, one shutter half-open showing warm candlelight inside, iron hinges, a narrow sill with a clay pot. Orthographic front view, no wall around it, no perspective, no cast shadow, nothing but the window itself. Grim dark fantasy, hand-painted, no text, no watermark.
+</code></pre>
+<h3 id="-286--prop_lanterna_parede-lanterna-de-parede-em-braçadeira">✅ 28.6 — <code>prop_lanterna_parede</code> (lanterna de parede em braçadeira)</h3>
+<pre><code>A single medieval wrought-iron wall lantern on a bracket arm, on a FULLY TRANSPARENT background (PNG alpha), ~512x512. Black twisted iron arm projecting to the LEFT from where it would meet the wall, a four-sided glass lantern hanging from it with a lit candle inside casting warm amber light on the glass, soot on the top vent. Seen from the side, orthographic, no wall, no cast shadow on anything. Grim dark fantasy, hand-painted, no text, no watermark.
+</code></pre>
+<h3 id="-287--folha-de-tralha-de-rua-prop_rua_">🟡 28.7 — folha de TRALHA DE RUA (<code>prop_rua_*</code>)</h3>
+<p>Hoje esses objetos são caixinhas e cilindros feitos em código. São o que mais
+faz a cidade parecer habitada, então valem arte de verdade — cada um num PNG
+separado, <strong>fundo transparente</strong>, vista de frente, ~512×512:
+<code>prop_rua_barril</code>, <code>prop_rua_caixotes</code>, <code>prop_rua_lenha</code>, <code>prop_rua_sacos</code>,
+<code>prop_rua_carroca</code>, <code>prop_rua_varal</code>.</p>
+<pre><code>A single medieval street prop, isolated on a FULLY TRANSPARENT background (PNG alpha), ~512x512, orthographic front view, no ground shadow, no scenery. Grim dark fantasy, hand-painted, muted desaturated palette, no text, no watermark. THE PROP: {a weathered oak barrel bound with rusted iron hoops, lid slightly ajar}
+</code></pre>
+<p>Troque o trecho entre chaves por cada um:
+- <strong>caixotes</strong> — <code>a stack of three rough wooden crates of different sizes, boards warped, straw poking out of the top one</code>
+- <strong>lenha</strong> — <code>a neat stack of split firewood logs against nothing, bark still on, a rusty axe leaning on it</code>
+- <strong>sacos</strong> — <code>three bulging burlap grain sacks stacked, one tied with frayed rope, dusty and patched</code>
+- <strong>carroça</strong> — <code>a small wooden handcart with two spoked wheels, tipped slightly, empty, mud on the rims</code>
+- <strong>varal</strong> — <code>a sagging clothesline strung with grey linen rags and a patched tunic, wooden pegs</code></p>
+<h3 id="-288--atendentes-novos-retratos-de-corpo-inteiro-mesmo-padrão-dos-aldeões">🟡 28.8 — atendentes novos (retratos de corpo inteiro, mesmo padrão dos aldeões)</h3>
+<p>A Armaria e o Templo são novos e os atendentes ainda usam sprite procedural.
+Mesmo enquadramento dos outros NPCs (848×1264, corpo inteiro, fundo transparente,
+pés rentes à base).
+- <code>npc_odile</code> — <code>a stern middle-aged woman armorer in a leather apron over a wool dress, hair tied back, holding a mail hauberk over one arm, burn scars on her hands</code>
+- <code>npc_gervais</code> — <code>a lean older man weaponsmith with a close-cropped grey beard, sleeves rolled, resting a longsword point-down on the floor, one eye clouded</code>
+- <code>npc_corvina</code> — <code>a gaunt elderly priestess in pale grey robes with a faded flame embroidered on the chest, holding a small guttering lantern, hollow-eyed and calm</code></p>
+<hr />
+<h2 id="29--câmara-selada--o-guardião-do-selo---arte-pendente">29 · CÂMARA SELADA — o Guardião do Selo — 🟡 arte pendente</h2>
+<p>A ala nova no fundo da masmorra (6º andar). A porta só cede com <strong>duas placas
+pisadas ao mesmo tempo</strong>, a oito casas uma da outra: é o único conteúdo do jogo
+que não dá para fazer sozinho. Atrás dela está o chefe mais duro que existe.</p>
+<p><strong>Enquanto a arte não vem</strong>, ele usa a folha do Leviatã tingida de pálido/dourado
+— dá para jogar, mas os dois ainda são o mesmo desenho.</p>
+<h3 id="-291--boss_guardiao-o-guardião-do-selo">🟡 29.1 — <code>boss_guardiao</code> (o GUARDIÃO DO SELO)</h3>
+<p>Mesmo enquadramento dos outros chefes (<strong>848×1264, corpo inteiro, fundo
+transparente de verdade, pés rentes à base</strong>). Ele não é um morto-vivo nem uma
+aberração: é uma coisa <strong>antiga e cerimonial</strong>, que foi posta ali para guardar e
+nunca saiu. Pedra, ouro velho e corrente — nada de carne.</p>
+<pre><code>A colossal ancient sealed guardian, full body, standing facing the viewer, isolated on a FULLY TRANSPARENT background (PNG alpha), feet flush with the bottom edge, 848x1264 vertical. A towering armored construct of cracked pale stone and tarnished gold, roughly humanoid but too broad and too still, faceless helm with a single carved sigil where the face should be, heavy chains bolted through its shoulders and wrists as if it were the thing being imprisoned, dim amber light bleeding out from the cracks between its stone plates, a long ceremonial greatsword held point-down into the ground with both hands. Grim dark fantasy, painterly digital art, muted palette of bone-grey and old gold with faint amber glow, weathered and monumental, absolutely no background, no ground shadow, no text, no watermark
+</code></pre>
+<h3 id="-292--dec_placa_selo-a-placa-de-pressão-no-chão--opcional">⚪ 29.2 — <code>dec_placa_selo</code> (a placa de pressão no chão) — opcional</h3>
+<p>Hoje é um anel de runas desenhado em código, e funciona. Se um dia render arte:
+disco de pedra circular visto <strong>de cima</strong>, ~512×512, fundo transparente,
+runas gravadas e um sulco em volta (para o disco parecer que afunda).</p>
+<hr />
+<h2 id="30--supabase--o-sql-das-tabelas--não-é-arte">30 · SUPABASE — o SQL das tabelas (⚙️ não é arte)</h2>
+<p>O único bloco desta página que <strong>não vai no gerador de imagens</strong>: vai no
+<strong>SQL Editor do Supabase</strong> (painel do projeto → menu lateral → <em>SQL Editor</em> →
+<em>New query</em> → colar → <strong>Run</strong>).</p>
+<p>É o que liga tudo que sobrevive ao fechar o jogo. Sem rodar isto, o jogo funciona
+normalmente como <strong>Convidado</strong> (save no navegador), mas save na nuvem, lista de
+amigos e Companhias ficam sem lugar onde morar — e a Companhia responde
+<em>"Não deu para fundar agora"</em>.</p>
+<p><strong>Pode colar os três de uma vez</strong>, na ordem em que estão. Tudo é
+<code>if not exists</code> / <code>drop policy if exists</code>, então <strong>rodar de novo não faz mal</strong> —
+serve inclusive para atualizar as regras depois de uma mudança.</p>
+<blockquote>
+<p><strong>Sobre a chave.</strong> O jogo carrega a chave <strong>anon</strong> (pública por design, dá para
+ver no código de qualquer site que use Supabase). Quem protege os dados são as
+políticas de <strong>RLS</strong> abaixo — é por isso que cada tabela liga a RLS e declara
+quem pode ler e escrever o quê. A chave <strong>service_role</strong> não entra no jogo em
+hipótese alguma.</p>
+</blockquote>
+<h3 id="-301--guilds--guild_members-companhias">⚙️ 30.1 — <code>guilds</code> + <code>guild_members</code> (Companhias)</h3>
+<p>Duas tabelas. <code>guilds</code> é a companhia em si; <code>guild_members</code> é o quadro.</p>
+<p>A regra que mais importa aqui é a última: <strong>só o Mestre muda postos</strong>. Sem ela,
+qualquer membro se promoveria a Mestre pelo console do navegador — é a única
+política do jogo que existe contra trapaça, e não contra engano.</p>
+<pre><code>create table if not exists public.guilds (
+  id         uuid        primary key default gen_random_uuid(),
+  nome       text        not null unique,
+  tag        text        not null,
+  lema       text        not null default '',
+  dono_uid   text        not null,
+  dono_conta uuid        not null references auth.users (id) on delete cascade,
+  criada_em  timestamptz not null default now()
+);
+
+create table if not exists public.guild_members (
+  guild_id  uuid        not null references public.guilds (id) on delete cascade,
+  hero_uid  text        not null,
+  user_id   uuid        not null references auth.users (id) on delete cascade,
+  nome      text        not null,
+  class_id  text        not null default '',
+  nivel     integer     not null default 1,
+  posto     text        not null default 'membro',
+  entrou_em timestamptz not null default now(),
+  constraint guild_members_pkey primary key (guild_id, hero_uid)
+);
+
+create index if not exists guild_members_conta
+  on public.guild_members (user_id);
+
+-- uma companhia por personagem (o jogo já recusa a segunda, mas isso é regra
+-- de cliente: sem o índice, dois convites aceitos em abas diferentes deixariam
+-- o herói em dois quadros)
+create unique index if not exists guild_members_um_por_heroi
+  on public.guild_members (hero_uid);
+
+alter table public.guilds        enable row level security;
+alter table public.guild_members enable row level security;
+
+-- LER é público: p/ pedir entrada numa companhia é preciso poder vê-la
+drop policy if exists &quot;ler_guildas&quot; on public.guilds;
+create policy &quot;ler_guildas&quot; on public.guilds for select using (true);
+drop policy if exists &quot;ler_membros&quot; on public.guild_members;
+create policy &quot;ler_membros&quot; on public.guild_members for select using (true);
+
+-- FUNDAR: só em nome próprio. ADMINISTRAR e DISSOLVER: só o dono
+drop policy if exists &quot;fundar&quot; on public.guilds;
+create policy &quot;fundar&quot; on public.guilds for insert to authenticated
+  with check (auth.uid() = dono_conta);
+drop policy if exists &quot;administrar&quot; on public.guilds;
+create policy &quot;administrar&quot; on public.guilds for update to authenticated
+  using (auth.uid() = dono_conta) with check (auth.uid() = dono_conta);
+drop policy if exists &quot;dissolver&quot; on public.guilds;
+create policy &quot;dissolver&quot; on public.guilds for delete to authenticated
+  using (auth.uid() = dono_conta);
+
+-- ENTRAR/SAIR: cada um por si (não dá p/ inscrever os outros).
+-- O Mestre também pode remover, que é o expulsar.
+drop policy if exists &quot;entrar&quot; on public.guild_members;
+create policy &quot;entrar&quot; on public.guild_members for insert to authenticated
+  with check (auth.uid() = user_id);
+drop policy if exists &quot;sair&quot; on public.guild_members;
+create policy &quot;sair&quot; on public.guild_members for delete to authenticated
+  using (auth.uid() = user_id
+    or exists (select 1 from public.guilds g
+               where g.id = guild_id and g.dono_conta = auth.uid()));
+
+-- MUDAR DE POSTO: só o Mestre
+drop policy if exists &quot;promover&quot; on public.guild_members;
+create policy &quot;promover&quot; on public.guild_members for update to authenticated
+  using (exists (select 1 from public.guilds g
+                 where g.id = guild_id and g.dono_conta = auth.uid()));
+</code></pre>
+<h3 id="-302--characters-save-na-nuvem">⚙️ 30.2 — <code>characters</code> (save na nuvem)</h3>
+<p>Uma linha por personagem: até 3 fichas por conta, e o save inteiro vai no <code>data</code>
+como JSON. Se você já roda o jogo com login e os personagens aparecem em qualquer
+aparelho, <strong>esta já está criada</strong> — rodar de novo não muda nada.</p>
+<pre><code>create table if not exists public.characters (
+  user_id    uuid        not null references auth.users (id) on delete cascade,
+  slot       smallint    not null,
+  name       text        not null,
+  class_id   text        not null,
+  level      integer     not null default 1,
+  data       jsonb       not null,
+  updated_at timestamptz not null default now(),
+  constraint characters_pkey primary key (user_id, slot),
+  constraint characters_slot_range check (slot &gt;= 0 and slot &lt;= 2)
+);
+
+alter table public.characters enable row level security;
+
+drop policy if exists &quot;own_characters&quot; on public.characters;
+create policy &quot;own_characters&quot; on public.characters
+  for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+</code></pre>
+<h3 id="-303--friends-lista-de-amigos">⚙️ 30.3 — <code>friends</code> (lista de amigos)</h3>
+<p>Uma linha por amizade. É privada de ponta a ponta: <strong>só o dono lê e só o dono
+escreve</strong> — bem diferente das Companhias, que qualquer um precisa poder ver.</p>
+<pre><code>create table if not exists public.friends (
+  user_id     uuid        not null references auth.users (id) on delete cascade,
+  friend_uid  text        not null,
+  friend_name text        not null,
+  class_id    text        not null default '',
+  added_at    timestamptz not null default now(),
+  constraint friends_pkey primary key (user_id, friend_uid)
+);
+
+alter table public.friends enable row level security;
+
+drop policy if exists &quot;own_friends&quot; on public.friends;
+create policy &quot;own_friends&quot; on public.friends
+  for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+</code></pre>
+<h3 id="-como-saber-se-pegou">✅ Como saber se pegou</h3>
+<ol>
+<li>No painel, <strong>Table Editor</strong> deve listar <code>characters</code>, <code>friends</code>, <code>guilds</code> e
+   <code>guild_members</code>, cada uma com o cadeado de <strong>RLS enabled</strong>.</li>
+<li>No jogo, <strong>entre com a sua conta</strong> (Companhia não existe para Convidado — uma
+   companhia guardada só no seu navegador seria uma companhia de um membro que
+   ninguém enxerga).</li>
+<li>Abra a Companhia pelo estandarte ⚑ na coluna da esquerda (ou tecla <strong>G</strong>) e
+   funde uma. Se aparecer o brasão com a sua marca, está no ar.</li>
+</ol>
+<p>Se der <strong>"Já existe uma Companhia com esse nome"</strong>, é o <code>unique</code> do nome
+funcionando — escolha outro. Se der <strong>"Não deu para fundar agora"</strong>, o SQL não
+rodou ou rodou com erro: volte no SQL Editor e confira a saída.</p>
 <div class="foot">Nethergloam — referência de arte gerada a partir de PROMPTS.md · atualiza sozinho a cada deploy do jogo</div>
 </div>
 <script>

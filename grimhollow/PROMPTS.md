@@ -34,6 +34,10 @@ A tall vertical dark-fantasy key-art painting, same grim painterly style as a mo
 Só **isto** está pendente. O resto já está no jogo (referência abaixo). Manda
 **uma imagem por vez com o nome** que eu recorto e integro.
 
+> ⚙️ **Não é arte:** o [§30](#30--supabase--o-sql-das-tabelas--não-é-arte) traz o
+> **SQL do Supabase** (save na nuvem, amigos e Companhias). Esse bloco vai no
+> painel do Supabase, não no gerador de imagens.
+
 | Prioridade | Peça | Onde está o prompt |
 |:--:|---|---|
 | 🟡 | **Moldura MOBILE** (2 colunas + ataque + ação + XP) | [§11 Peça E](#11--botões-de-controle-hud) |
@@ -48,6 +52,8 @@ Só **isto** está pendente. O resto já está no jogo (referência abaixo). Man
 **Mundo/cenário:** [01 Árvores](#01--árvores-individuais) · [02 Aglomerados de mata](#02--aglomerados-de-mata) · [03 Placas de loja](#03--placas-das-lojas) · [04 Adereços da cidade](#04--adereços-da-cidade) · [05 Panos de fundo](#05--panos-de-fundo-backdrops) · [16 Texturas de parede da masmorra](#16--texturas-de-parede-da-masmorra-variações--🟡-a-gerar)
 **Combate/jogo:** [06 Espada](#06--combate--espada-protótipo-de-ação) · [07 Inimigos](#07--inimigos-billboard-2d) · [10 Ícones de itens](#10--ícones-de-itens-folhas-por-tier) · [🛡️ Armaduras early (T1–T3)](#armaduras-early) · [17 Baú 3D (faces)](#17--baú-3d--faces-em-png-objeto-3d-vestido-com-arte--🟡-a-gerar)
 **Interface:** [08 HUD/janelas](#08--interface--hud) · [11 Botões de controle](#11--botões-de-controle-hud) · [12 Telas de abertura](#12--telas-de-abertura-título--classes)
+
+**Servidor (não é arte):** [30 SQL do Supabase](#30--supabase--o-sql-das-tabelas--não-é-arte) — save na nuvem, amigos e Companhias.
 
 Mais abaixo: [📜 Catálogo de Itens](#-catálogo-de-itens-planejamento-de-design) (mapa de design — sem prompts ainda).
 
@@ -1831,3 +1837,168 @@ A colossal ancient sealed guardian, full body, standing facing the viewer, isola
 Hoje é um anel de runas desenhado em código, e funciona. Se um dia render arte:
 disco de pedra circular visto **de cima**, ~512×512, fundo transparente,
 runas gravadas e um sulco em volta (para o disco parecer que afunda).
+
+---
+
+## 30 · SUPABASE — o SQL das tabelas (⚙️ não é arte)
+
+O único bloco desta página que **não vai no gerador de imagens**: vai no
+**SQL Editor do Supabase** (painel do projeto → menu lateral → *SQL Editor* →
+*New query* → colar → **Run**).
+
+É o que liga tudo que sobrevive ao fechar o jogo. Sem rodar isto, o jogo funciona
+normalmente como **Convidado** (save no navegador), mas save na nuvem, lista de
+amigos e Companhias ficam sem lugar onde morar — e a Companhia responde
+*"Não deu para fundar agora"*.
+
+**Pode colar os três de uma vez**, na ordem em que estão. Tudo é
+`if not exists` / `drop policy if exists`, então **rodar de novo não faz mal** —
+serve inclusive para atualizar as regras depois de uma mudança.
+
+> **Sobre a chave.** O jogo carrega a chave **anon** (pública por design, dá para
+> ver no código de qualquer site que use Supabase). Quem protege os dados são as
+> políticas de **RLS** abaixo — é por isso que cada tabela liga a RLS e declara
+> quem pode ler e escrever o quê. A chave **service_role** não entra no jogo em
+> hipótese alguma.
+
+### ⚙️ 30.1 — `guilds` + `guild_members` (Companhias)
+
+Duas tabelas. `guilds` é a companhia em si; `guild_members` é o quadro.
+
+A regra que mais importa aqui é a última: **só o Mestre muda postos**. Sem ela,
+qualquer membro se promoveria a Mestre pelo console do navegador — é a única
+política do jogo que existe contra trapaça, e não contra engano.
+
+```
+create table if not exists public.guilds (
+  id         uuid        primary key default gen_random_uuid(),
+  nome       text        not null unique,
+  tag        text        not null,
+  lema       text        not null default '',
+  dono_uid   text        not null,
+  dono_conta uuid        not null references auth.users (id) on delete cascade,
+  criada_em  timestamptz not null default now()
+);
+
+create table if not exists public.guild_members (
+  guild_id  uuid        not null references public.guilds (id) on delete cascade,
+  hero_uid  text        not null,
+  user_id   uuid        not null references auth.users (id) on delete cascade,
+  nome      text        not null,
+  class_id  text        not null default '',
+  nivel     integer     not null default 1,
+  posto     text        not null default 'membro',
+  entrou_em timestamptz not null default now(),
+  constraint guild_members_pkey primary key (guild_id, hero_uid)
+);
+
+create index if not exists guild_members_conta
+  on public.guild_members (user_id);
+
+-- uma companhia por personagem (o jogo já recusa a segunda, mas isso é regra
+-- de cliente: sem o índice, dois convites aceitos em abas diferentes deixariam
+-- o herói em dois quadros)
+create unique index if not exists guild_members_um_por_heroi
+  on public.guild_members (hero_uid);
+
+alter table public.guilds        enable row level security;
+alter table public.guild_members enable row level security;
+
+-- LER é público: p/ pedir entrada numa companhia é preciso poder vê-la
+drop policy if exists "ler_guildas" on public.guilds;
+create policy "ler_guildas" on public.guilds for select using (true);
+drop policy if exists "ler_membros" on public.guild_members;
+create policy "ler_membros" on public.guild_members for select using (true);
+
+-- FUNDAR: só em nome próprio. ADMINISTRAR e DISSOLVER: só o dono
+drop policy if exists "fundar" on public.guilds;
+create policy "fundar" on public.guilds for insert to authenticated
+  with check (auth.uid() = dono_conta);
+drop policy if exists "administrar" on public.guilds;
+create policy "administrar" on public.guilds for update to authenticated
+  using (auth.uid() = dono_conta) with check (auth.uid() = dono_conta);
+drop policy if exists "dissolver" on public.guilds;
+create policy "dissolver" on public.guilds for delete to authenticated
+  using (auth.uid() = dono_conta);
+
+-- ENTRAR/SAIR: cada um por si (não dá p/ inscrever os outros).
+-- O Mestre também pode remover, que é o expulsar.
+drop policy if exists "entrar" on public.guild_members;
+create policy "entrar" on public.guild_members for insert to authenticated
+  with check (auth.uid() = user_id);
+drop policy if exists "sair" on public.guild_members;
+create policy "sair" on public.guild_members for delete to authenticated
+  using (auth.uid() = user_id
+    or exists (select 1 from public.guilds g
+               where g.id = guild_id and g.dono_conta = auth.uid()));
+
+-- MUDAR DE POSTO: só o Mestre
+drop policy if exists "promover" on public.guild_members;
+create policy "promover" on public.guild_members for update to authenticated
+  using (exists (select 1 from public.guilds g
+                 where g.id = guild_id and g.dono_conta = auth.uid()));
+```
+
+### ⚙️ 30.2 — `characters` (save na nuvem)
+
+Uma linha por personagem: até 3 fichas por conta, e o save inteiro vai no `data`
+como JSON. Se você já roda o jogo com login e os personagens aparecem em qualquer
+aparelho, **esta já está criada** — rodar de novo não muda nada.
+
+```
+create table if not exists public.characters (
+  user_id    uuid        not null references auth.users (id) on delete cascade,
+  slot       smallint    not null,
+  name       text        not null,
+  class_id   text        not null,
+  level      integer     not null default 1,
+  data       jsonb       not null,
+  updated_at timestamptz not null default now(),
+  constraint characters_pkey primary key (user_id, slot),
+  constraint characters_slot_range check (slot >= 0 and slot <= 2)
+);
+
+alter table public.characters enable row level security;
+
+drop policy if exists "own_characters" on public.characters;
+create policy "own_characters" on public.characters
+  for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+```
+
+### ⚙️ 30.3 — `friends` (lista de amigos)
+
+Uma linha por amizade. É privada de ponta a ponta: **só o dono lê e só o dono
+escreve** — bem diferente das Companhias, que qualquer um precisa poder ver.
+
+```
+create table if not exists public.friends (
+  user_id     uuid        not null references auth.users (id) on delete cascade,
+  friend_uid  text        not null,
+  friend_name text        not null,
+  class_id    text        not null default '',
+  added_at    timestamptz not null default now(),
+  constraint friends_pkey primary key (user_id, friend_uid)
+);
+
+alter table public.friends enable row level security;
+
+drop policy if exists "own_friends" on public.friends;
+create policy "own_friends" on public.friends
+  for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+```
+
+### ✅ Como saber se pegou
+
+1. No painel, **Table Editor** deve listar `characters`, `friends`, `guilds` e
+   `guild_members`, cada uma com o cadeado de **RLS enabled**.
+2. No jogo, **entre com a sua conta** (Companhia não existe para Convidado — uma
+   companhia guardada só no seu navegador seria uma companhia de um membro que
+   ninguém enxerga).
+3. Abra a Companhia pelo estandarte ⚑ na coluna da esquerda (ou tecla **G**) e
+   funde uma. Se aparecer o brasão com a sua marca, está no ar.
+
+Se der **"Já existe uma Companhia com esse nome"**, é o `unique` do nome
+funcionando — escolha outro. Se der **"Não deu para fundar agora"**, o SQL não
+rodou ou rodou com erro: volte no SQL Editor e confira a saída.
