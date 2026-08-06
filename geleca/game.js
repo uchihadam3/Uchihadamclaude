@@ -597,17 +597,23 @@ function buildLevelGrid(){
   const svg=document.createElementNS(NS,"svg"); svg.setAttribute("class","map-trail");
   svg.setAttribute("viewBox","0 0 "+W+" "+H); svg.setAttribute("preserveAspectRatio","none");
   const P=[]; for(let k=0;k<NORMAL;k++) P.push({x:MAP_SPOTS[k].x/100*W, y:MAP_SPOTS[k].y/100*H});
-  // curva suave (Catmull-Rom → Bézier): serpenteia naturalmente pelos nós, sem cantos secos
-  let d="M "+P[0].x.toFixed(1)+" "+P[0].y.toFixed(1);
+  // curva suave (Catmull-Rom → Bézier): serpenteia naturalmente pelos nós, sem cantos secos.
+  // Guardo cada segmento pra poder pintar SÓ o trecho já percorrido (progresso na trilha).
+  const head="M "+P[0].x.toFixed(1)+" "+P[0].y.toFixed(1), seg=[];
   for(let k=0;k<P.length-1;k++){
     const p0=P[k-1]||P[k], p1=P[k], p2=P[k+1], p3=P[k+2]||P[k+1];
     const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
     const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
-    d+=" C "+c1x.toFixed(1)+" "+c1y.toFixed(1)+" "+c2x.toFixed(1)+" "+c2y.toFixed(1)+" "+p2.x.toFixed(1)+" "+p2.y.toFixed(1);
+    seg.push(" C "+c1x.toFixed(1)+" "+c1y.toFixed(1)+" "+c2x.toFixed(1)+" "+c2y.toFixed(1)+" "+p2.x.toFixed(1)+" "+p2.y.toFixed(1));
   }
+  const d=head+seg.join("");
+  const doneN=Math.max(0,Math.min(nextIdx, seg.length));        // trecho já concluído (até o nó atual)
+  const dDone=doneN>0 ? head+seg.slice(0,doneN).join("") : "";
   const base=document.createElementNS(NS,"path"); base.setAttribute("d",d); base.setAttribute("class","trail-base");
   const dash=document.createElementNS(NS,"path"); dash.setAttribute("d",d); dash.setAttribute("class","trail-dash");
-  svg.appendChild(base); svg.appendChild(dash); map.appendChild(svg);
+  svg.appendChild(base); svg.appendChild(dash);
+  if(dDone){ const done=document.createElementNS(NS,"path"); done.setAttribute("d",dDone); done.setAttribute("class","trail-done"); svg.appendChild(done); }
+  map.appendChild(svg);
 
   // --- 15 NÓS de fase (o segredo NÃO entra aqui) ---
   const customLv=loadCustom();

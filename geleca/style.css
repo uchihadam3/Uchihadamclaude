@@ -95,22 +95,30 @@ body{
   background:radial-gradient(125% 78% at 50% 42%, transparent 52%, rgba(0,24,8,.34) 100%); }
 
 .map-trail{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
-.trail-base{ fill:none; stroke:rgba(12,30,18,.22); stroke-width:6; stroke-linecap:round; stroke-linejoin:round; }
-.trail-dash{ fill:none; stroke:rgba(255,252,240,.6); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round;
-  stroke-dasharray:0.1 13; }   /* pontinhos discretos */
+.trail-base{ fill:none; stroke:rgba(10,26,15,.34); stroke-width:8; stroke-linecap:round; stroke-linejoin:round; }
+.trail-dash{ fill:none; stroke:rgba(255,250,228,.82); stroke-width:3.6; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1.5 11; filter:drop-shadow(0 0 2.5px rgba(255,240,190,.55)); }   /* pedrinhas iluminadas */
+/* trecho JÁ percorrido: pedrinhas douradas mais fortes (mostra o progresso na trilha) */
+.trail-done{ fill:none; stroke:#ffd66a; stroke-width:4.2; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:1.5 10.5; filter:drop-shadow(0 0 3px rgba(255,196,74,.75)); }
 
-.map-node{ position:absolute; z-index:3; width:34px; height:34px; transform:translate(-50%,-50%);
+.map-node{ position:absolute; z-index:3; width:39px; height:39px; transform:translate(-50%,-50%);
   border:0; padding:0; cursor:pointer; border-radius:50%;
-  background:radial-gradient(circle at 38% 30%, #c6ff9e, #6fc94f 55%, #3a9838);
-  box-shadow:0 3px 0 #256b26, 0 4px 8px rgba(0,0,0,.4), inset 0 1px 3px rgba(255,255,255,.5);
+  background:radial-gradient(circle at 38% 28%, #d6ffab, #74d152 52%, #359632);
+  box-shadow:0 3px 0 #226425, 0 5px 10px rgba(0,0,0,.45), inset 0 -3px 6px rgba(0,60,20,.35), inset 0 2px 4px rgba(255,255,255,.6);
   display:flex; align-items:center; justify-content:center; color:#0a2a12; line-height:1;
   transition:transform .12s, box-shadow .12s; animation:nodePop .4s both cubic-bezier(.2,.85,.3,1.35); }
+/* brilho de geleia molhada (lid) no topo do nó */
+.map-node::before{ content:""; position:absolute; left:19%; top:9%; width:62%; height:34%; z-index:0;
+  border-radius:50%; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.06)); }
+.map-node>*{ position:relative; z-index:1; }
 @keyframes nodePop{ 0%{ opacity:0; transform:translate(-50%,-50%) scale(.4) } 100%{ opacity:1; transform:translate(-50%,-50%) scale(1) } }
 .map-node:not(.locked):hover{ transform:translate(-50%,-54%) scale(1.1);
   box-shadow:0 5px 0 #256b26, 0 8px 14px rgba(0,0,0,.45), 0 0 16px rgba(126,224,107,.55); }
 .map-node:not(.locked):active{ transform:translate(-50%,-47%) scale(.95); box-shadow:0 2px 0 #256b26; }
 /* número centrado dentro do círculo (sem emoji) */
-.map-node .mn-num{ font-size:.86rem; font-weight:900; color:#0a2a12; text-shadow:0 1px 0 rgba(255,255,255,.4); }
+.map-node .mn-num{ font-size:.95rem; font-weight:900; color:#0a2a12; text-shadow:0 1px 0 rgba(255,255,255,.45); }
 .map-node .mn-stars{ position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
   display:flex; gap:0; font-size:.42rem; line-height:1; white-space:nowrap; text-shadow:0 1px 1px rgba(0,0,0,.55); }
 .map-node .mn-stars i{ color:rgba(0,0,0,.3); font-style:normal; }
@@ -120,10 +128,11 @@ body{
   font-size:.5rem; color:#fff; background:#2f7f9e; border:1px solid #bfe9ff;
   display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,.5); }
 /* nome da fase (legenda discreta abaixo do nó) */
-.map-node .mn-name{ position:absolute; top:calc(100% + 3px); left:50%; transform:translateX(-50%);
-  font-size:.48rem; font-weight:800; color:#f4ffe9; white-space:nowrap; line-height:1; letter-spacing:.2px;
-  text-shadow:0 1px 2px rgba(0,0,0,.9), 0 0 3px rgba(0,0,0,.7); pointer-events:none; }
-.map-node.locked .mn-name{ color:#b9c7bd; }
+.map-node .mn-name{ position:absolute; top:calc(100% + 4px); left:50%; transform:translateX(-50%);
+  font-size:.5rem; font-weight:800; color:#f4ffe9; white-space:nowrap; line-height:1; letter-spacing:.2px;
+  padding:2px 6px; border-radius:7px; background:rgba(7,20,11,.62); border:1px solid rgba(255,255,255,.1);
+  box-shadow:0 2px 5px rgba(0,0,0,.4); text-shadow:0 1px 1px rgba(0,0,0,.6); pointer-events:none; }
+.map-node.locked .mn-name{ color:#b9c7bd; background:rgba(10,16,12,.55); }
 @media (prefers-reduced-motion:reduce){ .map-node,.map-pawn{ animation:none; } }
 
 /* estados */
@@ -133,11 +142,12 @@ body{
   color:var(--ink); background:var(--slime); width:11px; height:11px; border-radius:50%;
   display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,.4); }
 .map-node.locked{ background:radial-gradient(circle at 38% 30%,#728379,#46554d 55%,#2c382f);
-  box-shadow:0 3px 0 #1c241e, 0 4px 8px rgba(0,0,0,.4); cursor:not-allowed; color:#9fb0a4; }
+  box-shadow:0 3px 0 #1c241e, 0 4px 8px rgba(0,0,0,.4), inset 0 -3px 6px rgba(0,0,0,.28); cursor:not-allowed; color:#9fb0a4; }
+.map-node.locked::before{ opacity:.35; }
 .map-node.locked .mn-num{ color:#c2d0c6; text-shadow:0 1px 0 rgba(0,0,0,.3); }
 .map-node.next{ animation:nodePulse 1.4s ease-in-out infinite; z-index:3; }
-@keyframes nodePulse{ 0%,100%{ box-shadow:0 4px 0 #256b26, 0 6px 12px rgba(0,0,0,.4), 0 0 0 rgba(126,224,107,.6) }
-  50%{ box-shadow:0 4px 0 #256b26, 0 6px 12px rgba(0,0,0,.4), 0 0 24px 5px rgba(126,224,107,.75) } }
+@keyframes nodePulse{ 0%,100%{ box-shadow:0 3px 0 #226425, 0 5px 10px rgba(0,0,0,.45), inset 0 2px 4px rgba(255,255,255,.6), 0 0 0 rgba(126,224,107,.6) }
+  50%{ box-shadow:0 3px 0 #226425, 0 5px 10px rgba(0,0,0,.45), inset 0 2px 4px rgba(255,255,255,.6), 0 0 22px 5px rgba(126,224,107,.82) } }
 
 /* DICA da fase SECRETA: cintilância discreta no cenário — NÃO é um nó rotulado.
    Só umas fagulhas suaves piscando; quem repara desconfia que há algo ali. */
