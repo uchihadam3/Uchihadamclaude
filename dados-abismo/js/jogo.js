@@ -1164,11 +1164,22 @@ function formulaDano(sk){
   return melhor;
 }
 const SIMB_BASE = { sum:'Σ', val:'valor', count:'n' };
-/* A BANCA DA CONTA: a multiplicação acontece na tela, em três tempos —
-   a base sai dos dados, o multiplicador cai em cima, o total explode. É o
-   meio segundo entre apertar a carta e o inimigo levar, e é onde o jogador
-   entende POR QUE aquele golpe deu 55 e não 11. */
-function bancaDaConta(sk, ents){
+/* ===================================================================
+   A BANCA DA CONTA — a conta inteira, em dois atos.
+
+   ATO 1 (a soma): os dados caem um a um somando, o parcial pulsa a cada
+   um, o multiplicador desce girando e sai o GOLPE CHEIO.
+
+   ATO 2 (o desconto): a fileira de dados RECOLHE — ela já cumpriu o papel
+   e daqui em diante só atrapalharia —, o golpe cheio fica sozinho e a
+   defesa do alvo é subtraída na cara do jogador, até o número que vai de
+   fato entrar no couro.
+
+   Sem o ato 2 a banca mentia por omissão: anunciava 21 e o inimigo perdia
+   10, porque 11 morreram na armadura e no bloqueio, e não havia onde ver
+   isso acontecendo.
+   =================================================================== */
+function bancaDaConta(sk, ents, pv){
   const f = formulaDano(sk); if(!f || f.mult<2) return 0;
   /* usa a mesma conta() da carta: ela resolve o ◈ Curinga pelo valor que a
      fechadura pediu, então a banca mostra o número que o motor vai usar de
@@ -1177,19 +1188,34 @@ function bancaDaConta(sk, ents){
   const base = f.base==='sum' ? c.soma : f.base==='count' ? c.n : c.maior;
   if(!base) return 0;
   const total = base*f.mult + f.fixo;
-  /* A CONTA ACONTECE, ela não aparece pronta. Antes os três números entravam
-     juntos e sumiam em 1,1s: dava para ver que havia uma conta, não para LER
-     a conta. Agora cada dado cai na banca somando ao anterior, o total
-     parcial acompanha, e só então o multiplicador desce em cima. */
+
+  /* O DESCONTO só fecha com UM alvo ferido. Com vários, somar as defesas
+     mentiria: um pode ter sido barrado pela FECHADURA (dano zero, defesa
+     nenhuma) e o "−34🛡" faria parecer que o escudo comeu tudo. */
+  const feridos = pv ? pv.alvos.filter(a=>(a.bruto||0)>0) : [];
+  const umSo = feridos.length === 1 ? feridos[0] : null;
+  const defesa = umSo ? (umSo.defesa||0) : 0;
+  const entra  = umSo ? (umSo.dano||0)   : 0;
+  const travou = pv && pv.alvos.some(a=>a.travado) && !feridos.length;
+  /* O GOLPE CHEIO É O DO MOTOR, não o da minha fórmula. Ela conhece Σ×N+fixo,
+     mas o motor ainda soma o dano fixo das passivas, o Frenesi, a Marca e as
+     ⚔ Lâminas roladas. Mostrar 21 e depois "−1🛡 = 15" não fecha conta
+     nenhuma; o que sobra dessa diferença entra como parcela visível. */
+  const cheio = umSo ? (umSo.bruto||total) : total;
+  const extra = Math.max(0, cheio - total);
+
   const dados = f.base==='sum' ? c.vals.map(v=>v==null?'◈':v) : null;
   const b=document.createElement('div'); b.className='bancaconta';
   b.innerHTML=`<span class="bcdd">${dados
       ? dados.map((v,i)=>`<i class="bcd" data-i="${i}">${v}</i>`).join('<u class="bcmais">+</u>')
       : `<i class="bcd on">${base}</i>`}</span>
     <span class="bcsoma"><b class="bcsn">0</b></span>
-    <span class="bcx">×${f.mult}</span>
+    <span class="bcx">\u00d7${f.mult}</span>
     ${f.fixo?`<span class="bcp">+${f.fixo}</span>`:''}
+    ${extra?`<span class="bcb2">+${extra}</span>`:''}
     <span class="bce">=</span><span class="bct">?</span>
+    <span class="bcdef">\u2212${defesa}\ud83d\udee1</span>
+    <span class="bce2">=</span><span class="bcfin">?</span>
     ${f.todos?'<span class="bca">EM TODOS</span>':''}`;
   document.body.appendChild(b);
   const chips=[...b.querySelectorAll('.bcd')], mais=[...b.querySelectorAll('.bcmais')];
@@ -1205,14 +1231,38 @@ function bancaDaConta(sk, ents){
       SFX.pegar && SFX.pegar(); }, t);
     t += PASSO;
   });
-  // a soma fecha, o multiplicador desce, o total explode
+  // ---- ato 1 fecha: o multiplicador desce e sai o golpe cheio ----
   setTimeout(()=>{ b.querySelector('.bcx')?.classList.add('on'); SFX.golpe && SFX.golpe(4); }, t+90);
   setTimeout(()=>{ b.querySelector('.bcp')?.classList.add('on'); }, t+300);
-  setTimeout(()=>{ alvoT.textContent = total; b.classList.add('estoura'); }, t+430);
-  const fim = t + 430 + 620;
+  setTimeout(()=>{ b.querySelector('.bcb2')?.classList.add('on'); }, t+340);
+  setTimeout(()=>{ alvoT.textContent = cheio; b.classList.add('estoura'); }, t+430);
+
+  /* ---- ato 2: a soma sai de cena e a defesa e descontada ----
+     So existe quando ha defesa para descontar; sem ela, anunciar "-0" seria
+     ruido e a banca fecha no golpe cheio, que ja e o dano real. */
+  let fimConta = t + 430;
+  if(umSo && defesa > 0){
+    const T1 = fimConta + 560;                                   // tempo de LER o cheio
+    setTimeout(()=>{ b.classList.add('recolhe'); }, T1);          // a soma some
+    setTimeout(()=>{ b.querySelector('.bcdef')?.classList.add('on');
+      SFX.aparado && SFX.aparado(defesa); }, T1+320);
+    setTimeout(()=>{ b.querySelector('.bce2')?.classList.add('on'); }, T1+520);
+    setTimeout(()=>{ b.querySelector('.bcfin').textContent = entra;
+      b.classList.add('fechou'); }, T1+660);
+    fimConta = T1 + 660;
+  } else if(travou){
+    // golpe grande que a FECHADURA barrou: a banca tem de dizer isso
+    setTimeout(()=>{ b.classList.add('recolhe','travado');
+      b.querySelector('.bcfin').textContent = '0';
+      b.classList.add('fechou'); }, fimConta+520);
+    fimConta += 520;
+  } else {
+    b.classList.add('semdef');       // sem defesa: o golpe cheio JA e o dano
+  }
+  const fim = fimConta + 640;
   setTimeout(()=>{ b.classList.add('saindo'); }, fim-260);
   setTimeout(()=>b.remove(), fim);
-  return t + 430;                          // quanto o resto da animação deve esperar
+  return fimConta;                   // o golpe cai quando a conta fecha
 }
 /* espalha os números quando vários caem no mesmo alvo, pra não empilharem */
 let desvio=0;
@@ -1237,7 +1287,7 @@ function usar(s){
      somando dado a dado; o golpe espera esse tempo para cair. Sem a espera,
      o número do dano subia no inimigo enquanto a soma ainda estava no
      terceiro dado, e as duas coisas disputavam o olho ao mesmo tempo. */
-  const espera = bancaDaConta(s, ents) || 0;
+  const espera = bancaDaConta(s, ents, alvosPrev) || 0;
   cb.use(s, ids, alvo); sel.clear(); previa=null;
   for(const id of ids) praBandeja(id);            // os dados gastos vão pro canto
   pintar();                                       // repinta ANTES (senão apaga os efeitos)

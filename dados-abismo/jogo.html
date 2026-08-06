@@ -228,8 +228,33 @@
  .bancaconta .bcx.on{opacity:1;transform:none}
  .bancaconta .bcp{font-size:15px;font-weight:800;color:#9fd6ff;opacity:0;transition:.2s}
  .bancaconta .bcp.on{opacity:1}
+ /* o que as passivas e os estados somaram por cima da fórmula */
+ .bancaconta .bcb2{font-size:15px;font-weight:800;color:#7ef2a8;opacity:0;transition:.2s}
+ .bancaconta .bcb2.on{opacity:1}
  .bancaconta .bce{font-size:15px;color:#8d8672}
  .bancaconta.saindo{opacity:0;transform:translate(-50%,-50%) scale(.94);transition:.26s}
+ /* ---- ATO 2: a soma recolhe e a defesa entra ----
+    Os dados e o Σ já cumpriram o papel; deixá-los na tela enquanto o
+    desconto acontece só divide o olho. Eles encolhem para fora e o golpe
+    cheio fica sozinho para apanhar da defesa. */
+ .bancaconta .bcdd,.bancaconta .bcsoma,.bancaconta .bcx,.bancaconta .bcp,
+ .bancaconta .bcb2,.bancaconta .bce{transition:.3s cubic-bezier(.4,0,.2,1)}
+ .bancaconta.recolhe .bcdd,.bancaconta.recolhe .bcsoma,.bancaconta.recolhe .bcb2,
+ .bancaconta.recolhe .bcx,.bancaconta.recolhe .bcp,.bancaconta.recolhe .bce{
+   max-width:0;opacity:0;margin:0;padding:0;overflow:hidden;transform:scale(.5)}
+ .bancaconta .bcdef,.bancaconta .bce2,.bancaconta .bcfin{
+   max-width:0;opacity:0;overflow:hidden;transition:.28s cubic-bezier(.2,1.5,.4,1)}
+ .bancaconta .bcdef.on{max-width:120px;opacity:1;font-size:17px;font-weight:900;
+   color:#9fd6ff;text-shadow:0 0 10px rgba(120,190,255,.6);margin-left:6px}
+ .bancaconta .bce2.on{max-width:30px;opacity:1;font-size:15px;color:#8d8672;margin:0 5px}
+ .bancaconta.fechou .bcfin{max-width:150px;opacity:1;font-size:30px;font-weight:900;
+   color:#ffd24a;text-shadow:0 0 24px rgba(255,210,74,.95),0 2px 8px #000;
+   transform:scale(1.08)}
+ /* golpe barrado pela fechadura: o zero não é dourado, é morto */
+ .bancaconta.travado.fechou .bcfin{color:#e08a7a;text-shadow:0 0 16px rgba(220,90,70,.7)}
+ .bancaconta.travado .bct{color:#6b6250;text-decoration:line-through;opacity:.7}
+ /* sem defesa nenhuma: o golpe cheio JÁ é o dano, e é ele que brilha */
+ .bancaconta.semdef .bcdef,.bancaconta.semdef .bce2,.bancaconta.semdef .bcfin{display:none}
  .bancaconta .bct{font-size:27px;font-weight:900;color:#6b6250;
    text-shadow:0 2px 6px #000;transition:.24s cubic-bezier(.2,1.6,.4,1)}
  .bancaconta.estoura .bct{transform:scale(1.3);color:#ffd24a;
