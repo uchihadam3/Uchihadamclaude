@@ -62,13 +62,32 @@ const ICO_FECHAR = ico("fechar") || "\u2715";
  * missão nova nunca quebra; no pior caso ela aparece com o emoji dela.
  */
 const MISSAO_ICO: Record<string, string> = {
-  "⚔️": "dano", "⚔": "dano",          // caçada
-  "📜": "diario",                       // recado, entrega de papel
-  "💀": "caido", "☠️": "caido", "☠": "caido", // ossos, mortos-vivos
-  "🔑": "selado",                       // chave / o que estava trancado
-  "🚪": "selado",                       // porta selada
+  // --- TIPO de missão (serve p/ qualquer bicho, hoje e depois) ---
+  "⚔️": "dano", "⚔": "dano",                   // caçada / contrato de abate
+  "📦": "caixa",                                 // entrega
+  "📜": "diario",                                // recado, papel
+  "💀": "caido", "☠️": "caido", "☠": "caido",    // mortos-vivos
+  "🔥": "chama",                                 // fogo, culto, queima
+  "🔑": "selado", "🚪": "selado",                // o que estava trancado
+  // --- ASSUNTO do capítulo (narrativa, um por capítulo) ---
+  "🧭": "bussola",   // chegar, se orientar
+  "🏘️": "vilarejo",  // a cidade
+  "🏮": "lanterna",  // as luzes da muralha
+  "🌊": "onda",      // a água que subiu
+  "🐋": "leviata",   // o dono da água
 };
 const missaoIco = (emoji: string): string => ico(MISSAO_ICO[emoji] ?? "") || emoji;
+
+/**
+ * NÃO HÁ ÍCONE POR CRIATURA, e isso é decisão, não falta.
+ *
+ * Os contratos eram um rato, uma aranha, uma caveira e uma chama — um desenho
+ * por bicho. Só que bicho novo vai ter sempre, e cada um pediria um desenho
+ * novo: em pouco tempo a folha de ícones vira um bestiário que envelhece a cada
+ * inimigo escrito. Contrato de abate agora usa a marca de CAÇADA, seja de rato
+ * ou de leviatã, e o que continua variando é o assunto (mortos-vivos, fogo) —
+ * que é tema, e tema se repete.
+ */
 import type { Rarity } from "./items";
 
 // linha de atributo do item e delta de comparação (verde/vermelho) ao trocar
@@ -2455,7 +2474,7 @@ export function setupControls(
       );
     }
     smBody.innerHTML =
-      '<div class="gh-eq-title gh-sm-title">Ferreiro — A Bigorna</div>' +
+      '<div class="gh-eq-title gh-sm-title">' + (ico("bigorna") || "") + ' Ferreiro — A Bigorna</div>' +
       `<div class="gh-section gh-sm-sec">${forge}</div>` +
       '<div class="gh-section gh-sm-sec gh-sm-sec-inv"><div class="gh-sec-head gh-sec-inv">Inventário' +
       `<span class="gh-gold"><img src="${coinUrl}" alt=""/><b>${d.gold}</b></span></div>` +

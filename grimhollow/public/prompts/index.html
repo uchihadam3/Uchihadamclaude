@@ -1869,7 +1869,7 @@ folha pela grade acima e nomeia cada peça (<code>ico_amigos.png</code>, <code>i
 passa a desenhar o mesmo símbolo em qualquer aparelho.</p>
 </blockquote>
 <hr />
-<h2 id="32--ícones-de-missão--a-terceira-folha---arte-pendente">32 · ÍCONES DE MISSÃO — a terceira folha — 🟡 arte pendente</h2>
+<h2 id="32--ícones-de-missão--a-terceira-folha---no-jogo">32 · ÍCONES DE MISSÃO — a terceira folha — ✅ NO JOGO</h2>
 <p>As folhas §31 cobriram a <strong>moldura</strong> do jogo: atalhos, setas, atributos. Sobraram
 os ícones de <strong>conteúdo</strong> — o desenho que cada capítulo e cada contrato leva no
 Diário e no mural da taverna.</p>
@@ -1880,7 +1880,7 @@ que houver missão de taverna, de alquimia ou de forja.</p>
 <p>Depois desta folha, <strong>nenhum símbolo do jogo é mais desenhado pela fonte do
 aparelho</strong>. O único emoji que sobra no código é o das classes, e ele nunca chega
 à tela: é a reserva de quando a arte da classe não carregou.</p>
-<h3 id="-321--ui_icons_cpng-missões--grade-62">🟡 32.1 — <code>ui_icons_c.png</code> (missões) — grade 6×2</h3>
+<h3 id="-321--ui_icons_cpng-missões--grade-62">✅ 32.1 — <code>ui_icons_c.png</code> (missões) — grade 6×2</h3>
 <p><strong>1536×512</strong>, seis colunas por duas linhas, células de 256×256. <strong>Mesmo estilo
 das outras duas</strong> — metal dourado gravado, silhueta grossa, sem cor própria.</p>
 <table>
@@ -1919,10 +1919,19 @@ das outras duas</strong> — metal dourado gravado, silhueta grossa, sem cor pr�
 <pre><code>A single flat sprite sheet of 12 medieval fantasy quest icons arranged in a strict 6 by 2 grid, 1536x512, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: a mariner compass with a needle, a cluster of three small peaked-roof houses seen from the front, a hanging paper lantern on a hook, a curling ocean wave, a breaching whale silhouette with a broad tail, a wooden crate with iron banding. Row 2: a rat in profile with a long tail, a spider seen from above with eight legs, a single flame, a foaming tankard of ale, a stoppered potion flask, a blacksmith anvil. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, bold simple readable silhouettes with thick strokes, no thin fragile lines, monochrome metal so the game can tint each one, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
 </code></pre>
 <blockquote>
-<p>Mesma observação das outras: se vier com o xadrez pintado, o corte roda com
-<code>--xadrez</code>. E as células precisam de folga entre si — ícone encostando no
-vizinho o corte não salva.</p>
-<p>Depois de mandar: <code>python3 scripts/slice_icons.py ui_icons_c.png c --xadrez</code>.</p>
+<p><strong>A folha veio e está no jogo.</strong> Duas coisas aprendidas nela:</p>
+<p><strong>O corte precisou de <code>--croma 12</code>.</strong> O padrão (22) trata cor apagada como
+fundo, e aqui há madeira e pedra em SOMBRA — o caixote perdia a face direita
+inteira. Comando usado:
+<code>python3 scripts/slice_icons.py ui_icons_c.png c --xadrez --croma 12</code>.</p>
+<p><strong>O rato e a aranha ficaram de fora do jogo, de propósito.</strong> Contrato de abate
+agora usa a marca de CAÇADA, seja de rato ou de leviatã: um desenho por criatura
+não escala, porque criatura nova vai ter sempre e a folha viraria um bestiário
+que envelhece a cada inimigo escrito. O que continua variando é o ASSUNTO
+(mortos-vivos, fogo, entrega), que é tema — e tema se repete. As duas peças
+continuam na folha bruta se um dia houver bestiário.</p>
+<p>A caneca e o frasco estão fatiados mas ainda sem uso: entram quando houver
+missão de taverna ou de alquimia para marcar.</p>
 </blockquote>
 <div class="foot">Nethergloam — referência de arte gerada a partir de PROMPTS.md · atualiza sozinho a cada deploy do jogo</div>
 </div>

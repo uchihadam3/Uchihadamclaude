@@ -23,7 +23,12 @@ pintado por dentro (acontece), passe --xadrez que o recorte do cut_sprite.py rod
 antes — é o mesmo problema que ele já resolve, e repetir a heurística aqui seria
 manter duas cópias de uma conta difícil.
 
-  python3 scripts/slice_icons.py <folha.png> a|b|c [--xadrez] [--caixa 200]
+O `--croma` regula o quanto o recorte considera "cinza demais para ser desenho".
+O padrão (22) serve p/ arte saturada, mas a folha de missões tem madeira e pedra
+em sombra — cor apagada de verdade — e a 22 o caixote perdia a face direita
+inteira. A 12 ele fica inteiro e o xadrez continua saindo.
+
+  python3 scripts/slice_icons.py <folha.png> a|b|c [--xadrez] [--croma 12] [--caixa 200]
 """
 import os
 import sys
@@ -100,6 +105,28 @@ def so_o_dourado(im: Image.Image, croma_min: float = 22.0) -> Image.Image:
         m = ilhas == i
         fora[i] = float(np.median(croma[m])) < croma_min
     px[..., 3] = np.where(fora[ilhas], 0, px[..., 3])
+
+    # SEGUNDO PASSE, por PIXEL: às vezes o caco de xadrez encosta no desenho e
+    # vira a mesma mancha — aí a mediana dela continua dourada e o teste por ilha
+    # não pega (aconteceu com o caixote e com a bigorna). Cinza QUASE PURO é
+    # sempre resto de fundo: mesmo as partes pálidas da arte (o vidro da lupa, a
+    # areia da ampulheta) têm o tom quente do metal, e só 0,3% dos pixels delas
+    # ficam abaixo deste limite — contra 6% da peça contaminada.
+    quase_cinza = (croma < 8) & (px[..., 3] > 0)
+    px[..., 3] = np.where(quase_cinza, 0, px[..., 3])
+
+    # e agora que os apêndices se soltaram, some com as lascas: o que sobrou de
+    # cinza vira ilhas minúsculas ao lado de um desenho grande
+    alfa2 = px[..., 3] > 24
+    ilhas2, n2 = ndimage.label(alfa2)
+    if n2 > 1:
+        areas = ndimage.sum(np.ones_like(alfa2, float), ilhas2, range(1, n2 + 1))
+        limite = areas.max() * 0.02          # 2% da maior parte do ícone
+        # peças legítimas e pequenas existem (as setas do "expandir", os cacos do
+        # "dano crítico"), e todas são DOURADAS — por isso o corte por tamanho só
+        # vale depois do corte por cor, nunca antes
+        mata = np.array([False] + [a < limite for a in areas])
+        px[..., 3] = np.where(mata[ilhas2], 0, px[..., 3])
     return Image.fromarray(px)
 
 
@@ -141,8 +168,11 @@ def main() -> None:
         # a folha veio opaca com o quadriculado desenhado: reaproveita o recorte
         # que já existe em vez de reescrever a heurística
         from cut_sprite import recorta  # noqa: PLC0415  (só quando pedido)
+        cm = 22.0
+        if "--croma" in sys.argv:
+            cm = float(sys.argv[sys.argv.index("--croma") + 1])
         rgb = np.array(im)[..., :3]
-        im = Image.fromarray(np.dstack([rgb, recorta(rgb)]))
+        im = Image.fromarray(np.dstack([rgb, recorta(rgb, cm)]))
 
     cols, linhas = FOLHAS[qual]["grade"]
     nomes = FOLHAS[qual]["nomes"]

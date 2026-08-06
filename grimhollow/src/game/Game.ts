@@ -573,7 +573,7 @@ const QUEST_DEFS: QuestDef[] = [
   // ===== BOUNTIES REPETÍVEIS — o loop de farm da taverna. Resetam ao entregar,
   // dão OURO + XP (e às vezes poções) e contam abates por tipo na masmorra. =====
   {
-    id: "b_vermes", icon: "🐀", title: "Contrato: Praga dos Túneis", repeatable: true,
+    id: "b_vermes", icon: "⚔️", title: "Contrato: Praga dos Túneis", repeatable: true,
     desc: "A masmorra fervilha. Abata 10 criaturas quaisquer lá embaixo.",
     reward: [{ gold: true, label: "90" }, { label: "+70 XP" }],
     grant: { gold: 90, xp: 70 }, kind: "kill", goal: 10, unit: "inimigos",
@@ -585,7 +585,7 @@ const QUEST_DEFS: QuestDef[] = [
     grant: { gold: 140, xp: 110, items: [["pot_hp", 1]] }, kind: "kill", goal: 8, enemyTypes: ["esqueleto"], unit: "esqueletos",
   },
   {
-    id: "b_teias", icon: "🕷️", title: "Contrato: Ninho de Teias", repeatable: true,
+    id: "b_teias", icon: "⚔️", title: "Contrato: Ninho de Teias", repeatable: true,
     desc: "As aranhas se multiplicam no breu. Elimine 6 aranhas.",
     reward: [{ gold: true, label: "110" }, { label: "+85 XP" }],
     grant: { gold: 110, xp: 85 }, kind: "kill", goal: 6, enemyTypes: ["aranha"], unit: "aranhas",

@@ -2085,7 +2085,7 @@ A single flat sprite sheet of 18 medieval fantasy RPG stat icons arranged in a s
 
 ---
 
-## 32 · ÍCONES DE MISSÃO — a terceira folha — 🟡 arte pendente
+## 32 · ÍCONES DE MISSÃO — a terceira folha — ✅ NO JOGO
 
 As folhas §31 cobriram a **moldura** do jogo: atalhos, setas, atributos. Sobraram
 os ícones de **conteúdo** — o desenho que cada capítulo e cada contrato leva no
@@ -2100,7 +2100,7 @@ Depois desta folha, **nenhum símbolo do jogo é mais desenhado pela fonte do
 aparelho**. O único emoji que sobra no código é o das classes, e ele nunca chega
 à tela: é a reserva de quando a arte da classe não carregou.
 
-### 🟡 32.1 — `ui_icons_c.png` (missões) — grade 6×2
+### ✅ 32.1 — `ui_icons_c.png` (missões) — grade 6×2
 
 **1536×512**, seis colunas por duas linhas, células de 256×256. **Mesmo estilo
 das outras duas** — metal dourado gravado, silhueta grossa, sem cor própria.
@@ -2114,8 +2114,19 @@ das outras duas** — metal dourado gravado, silhueta grossa, sem cor própria.
 A single flat sprite sheet of 12 medieval fantasy quest icons arranged in a strict 6 by 2 grid, 1536x512, each icon centered inside its own 256x256 cell with generous empty padding around it, cells evenly spaced, nothing touching or overlapping between cells, FULLY TRANSPARENT background (PNG alpha), no cell borders, no frames, no grid lines, no text, no letters, no numbers, no watermark. Row 1 left to right: a mariner compass with a needle, a cluster of three small peaked-roof houses seen from the front, a hanging paper lantern on a hook, a curling ocean wave, a breaching whale silhouette with a broad tail, a wooden crate with iron banding. Row 2: a rat in profile with a long tail, a spider seen from above with eight legs, a single flame, a foaming tankard of ale, a stoppered potion flask, a blacksmith anvil. Consistent style across every icon: engraved metal emblem look, aged gold and bronze with dark carved shadow, bold simple readable silhouettes with thick strokes, no thin fragile lines, monochrome metal so the game can tint each one, grim dark medieval fantasy game UI, painterly but clean, uniform lighting from above, all icons the same visual weight and the same size
 ```
 
-> Mesma observação das outras: se vier com o xadrez pintado, o corte roda com
-> `--xadrez`. E as células precisam de folga entre si — ícone encostando no
-> vizinho o corte não salva.
+> **A folha veio e está no jogo.** Duas coisas aprendidas nela:
 >
-> Depois de mandar: `python3 scripts/slice_icons.py ui_icons_c.png c --xadrez`.
+> **O corte precisou de `--croma 12`.** O padrão (22) trata cor apagada como
+> fundo, e aqui há madeira e pedra em SOMBRA — o caixote perdia a face direita
+> inteira. Comando usado:
+> `python3 scripts/slice_icons.py ui_icons_c.png c --xadrez --croma 12`.
+>
+> **O rato e a aranha ficaram de fora do jogo, de propósito.** Contrato de abate
+> agora usa a marca de CAÇADA, seja de rato ou de leviatã: um desenho por criatura
+> não escala, porque criatura nova vai ter sempre e a folha viraria um bestiário
+> que envelhece a cada inimigo escrito. O que continua variando é o ASSUNTO
+> (mortos-vivos, fogo, entrega), que é tema — e tema se repete. As duas peças
+> continuam na folha bruta se um dia houver bestiário.
+>
+> A caneca e o frasco estão fatiados mas ainda sem uso: entram quando houver
+> missão de taverna ou de alquimia para marcar.
