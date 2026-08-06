@@ -1855,6 +1855,18 @@ amigos e Companhias ficam sem lugar onde morar — e a Companhia responde
 `if not exists` / `drop policy if exists`, então **rodar de novo não faz mal** —
 serve inclusive para atualizar as regras depois de uma mudança.
 
+> ### 📄 Se o botão Copiar der erro de sintaxe, use o arquivo puro
+>
+> **[nethergloam.sql](nethergloam.sql)** — os três blocos juntos, em texto cru,
+> sem HTML nem botão no meio. Abre no navegador, **Ctrl+A** (ou ⌘A), **Ctrl+C**,
+> cola no SQL Editor.
+>
+> É o caminho à prova de tudo: o botão passa por HTML, JavaScript e área de
+> transferência, e qualquer um desses degraus pode mexer no texto — uma quebra de
+> linha a mais onde a linha dobrou na tela, um espaço que virou espaço-duro. Num
+> prompt de arte isso não muda nada; num SQL, parte um comando no meio e o banco
+> recusa com `syntax error`.
+
 > **Sobre a chave.** O jogo carrega a chave **anon** (pública por design, dá para
 > ver no código de qualquer site que use Supabase). Quem protege os dados são as
 > políticas de **RLS** abaixo — é por isso que cada tabela liga a RLS e declara

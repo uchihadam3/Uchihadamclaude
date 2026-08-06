@@ -25,6 +25,36 @@ def main():
     os.makedirs(OUTDIR, exist_ok=True)
     open(OUT, "w", encoding="utf-8").write(TEMPLATE.replace("__BODY__", body))
     print("prompts page ->", OUT, len(body), "bytes de corpo")
+    escreve_sql(md_text)
+
+
+def escreve_sql(md_text: str) -> None:
+    """
+    Despeja o SQL da §30 num ARQUIVO DE TEXTO PURO, ao lado da página.
+
+    O botão Copiar passa por HTML, JS e área de transferência, e cada um desses
+    degraus já mexeu no texto alheio alguma vez — quebra de linha injetada onde a
+    linha dobrou na tela, espaço que virou espaço-duro. Num prompt de arte isso
+    não faz diferença; em SQL, faz o banco recusar tudo.
+
+    Um .sql servido cru não tem degrau nenhum: abre no navegador como texto,
+    seleciona tudo, cola. É o caminho que sobra quando o outro falha — e sai
+    daqui mesmo, do mesmo PROMPTS.md, p/ não virar uma segunda cópia que envelhece
+    sozinha.
+    """
+    sec = md_text[md_text.index("## 30 · SUPABASE"):]
+    blocos = re.findall(r"```\n(.*?)```", sec, re.S)
+    if not blocos:
+        print("AVISO: nenhum bloco SQL achado na §30")
+        return
+    cab = (
+        "-- Nethergloam - tabelas do Supabase\n"
+        "-- Cole TUDO no SQL Editor do projeto e rode (Run).\n"
+        "-- Pode rodar de novo quantas vezes quiser: e' tudo if-not-exists.\n"
+    )
+    saida = os.path.join(OUTDIR, "nethergloam.sql")
+    open(saida, "w", encoding="utf-8").write(cab + "\n" + "\n".join(blocos))
+    print("sql ->", saida)
 
 TEMPLATE = '''<!doctype html><html lang="pt-BR"><head>
 <meta charset="utf-8"/>
@@ -78,7 +108,14 @@ __BODY__
 document.querySelectorAll('pre').forEach(function(pre){
   var b=document.createElement('button');b.className='copybtn';b.textContent='Copiar';
   b.addEventListener('click',function(){
-    var t=(pre.querySelector('code')||pre).innerText;
+    /* textContent, e nao innerText: o innerText devolve o texto COMO FOI
+       DESENHADO, e em alguns navegadores isso injeta uma quebra de linha onde a
+       linha dobrou na tela. Num prompt de arte ninguem nota; num SQL, parte um
+       comando no meio e o banco recusa. O textContent devolve a fonte. */
+    var el=pre.querySelector('code');
+    var t;
+    if(el){t=el.textContent;}
+    else{var c=pre.cloneNode(true);var x=c.querySelector('.copybtn');if(x)x.remove();t=c.textContent;}
     navigator.clipboard.writeText(t).then(function(){b.textContent='Copiado!';b.classList.add('ok');
       setTimeout(function(){b.textContent='Copiar';b.classList.remove('ok');},1400);});
   });
