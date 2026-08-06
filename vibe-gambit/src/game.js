@@ -15,6 +15,8 @@ const $  = id => document.getElementById(id);
 const el = html => { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild; };
 const RES_ICON = { gold:'🪙', crystals:'💎', iron:'⛓️', wood:'🪵', herbs:'🌿' };
 const randInt = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+// Fundos de combate 2D por bioma (quando existe imagem, usa; senão desenha a masmorra procedural)
+const BG = { forest:'assets/bg_forest.png' };
 
 let screen = 'map';
 let expo = null;                    // runtime da expedição
@@ -240,9 +242,11 @@ function stopExpo(){ if(expo && expo.timer){ clearInterval(expo.timer); expo.tim
 function retreat(){ stopExpo(); expo=null; show('base'); }
 
 function buildExpeditionDOM(){
+  const bgArt = BG[expo.stage.biome];
+  const bgLayer = bgArt ? `<img class="stage-bg" src="${bgArt}" alt="">` : `<canvas class="dungeon" id="dungeon"></canvas>`;
   $('screen-expedition').innerHTML = `
     <div class="combat-stage" id="stage">
-      <canvas class="dungeon" id="dungeon"></canvas>
+      ${bgLayer}
       <div class="expo-info" id="expo-info"></div>
       <div class="lane heroes" id="lane-heroes"></div>
       <div class="lane enemies" id="lane-enemies"></div>
@@ -264,7 +268,7 @@ function buildExpeditionDOM(){
   });
   renderGambitBoard($('gboard-expo'));
   const cv = $('dungeon');
-  requestAnimationFrame(()=>{ cv.width = cv.clientWidth; cv.height = cv.clientHeight; drawDungeon(cv); placeTorches(); });
+  if(cv) requestAnimationFrame(()=>{ cv.width = cv.clientWidth; cv.height = cv.clientHeight; drawDungeon(cv); placeTorches(); });
 }
 
 function startWave(i){

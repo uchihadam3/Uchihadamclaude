@@ -173,4 +173,14 @@ const slime = `
 
 export const SPRITES = { warrior, cleric, archer, mage, goblin, goblin_brute, slime };
 
-export function spriteFor(id){ return SPRITES[id] || slime; }
+// Artes 2D (PNG) já entregues. Quando existe imagem, usa ela; senão cai no SVG.
+export const ART = {
+  warrior: 'assets/warrior.png',
+  cleric:  'assets/cleric.png',
+  // mage/archer: aguardando reexport com transparência
+};
+
+export function spriteFor(id){
+  if(ART[id]) return `<img class="sart" src="${ART[id]}" alt="" draggable="false">`;
+  return SPRITES[id] || slime;
+}
