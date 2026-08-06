@@ -1,4 +1,4 @@
-# ⚔️ Vibe Gambit — Idle RPG Tático
+# ⚔️ Sigil Tactics — Idle RPG Tático
 
 Idle RPG de gerenciamento de equipe com automação de combate no estilo **sistema de Gambits do Final Fantasy XII**. O jogador não comanda no combate: ele **programa a lógica** de cada herói (condição → ação) e assiste a expedição rodar sozinha.
 
