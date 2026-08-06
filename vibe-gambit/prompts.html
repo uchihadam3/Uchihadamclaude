@@ -28,33 +28,23 @@
   }
   .wrap{max-width:var(--maxw);margin:0 auto;display:flex;flex-direction:column;gap:26px}
 
-  /* ---------- header ---------- */
   header{display:flex;flex-direction:column;gap:14px}
   .mark{display:inline-flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.4px;color:var(--gold);font-size:13px;text-transform:uppercase}
   .mark .sw{width:26px;height:26px;display:grid;place-items:center;background:linear-gradient(180deg,#2c2350,#1d1637);border:1px solid var(--border);border-radius:7px;font-size:15px}
   h1{font-size:clamp(30px,6vw,46px);line-height:1.02;font-weight:900;letter-spacing:-.5px;text-wrap:balance;
     background:linear-gradient(180deg,#fff,#c9bdf0);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .lede{color:var(--dim);max-width:60ch;font-size:15.5px}
+  .lede{color:var(--dim);max-width:62ch;font-size:15.5px}
   .lede b{color:var(--ink);font-weight:700}
+  .lede .em{color:var(--gold);font-weight:800}
 
   .how{display:flex;flex-wrap:wrap;gap:10px;margin-top:2px}
-  .how .step{flex:1 1 200px;background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);
-    border-radius:12px;padding:12px 14px}
+  .how .step{flex:1 1 200px;background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:12px;padding:12px 14px}
   .how .step .n{font-family:var(--mono);font-size:12px;color:var(--violet);font-weight:700}
   .how .step p{font-size:13.5px;color:var(--dim);margin-top:3px}
   .how .step b{color:var(--ink)}
 
-  /* ---------- style anchors ---------- */
-  .anchors{display:grid;gap:12px}
-  .anchor{background:linear-gradient(180deg,#1d1636,#181130);border:1px solid var(--border);border-left:3px solid var(--gold);
-    border-radius:12px;padding:13px 15px}
-  .anchor .lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
-  .anchor .lbl h4{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold)}
-  .anchor p{font-family:var(--mono);font-size:12.5px;color:var(--dim);line-height:1.6}
-
-  /* ---------- sections ---------- */
   section{display:flex;flex-direction:column;gap:14px}
-  .eyebrow{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--border);padding-bottom:9px}
+  .eyebrow{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--border);padding-bottom:9px;flex-wrap:wrap}
   .eyebrow h2{font-size:20px;font-weight:900;letter-spacing:-.2px}
   .eyebrow .count{font-family:var(--mono);font-size:12px;color:var(--dim2);margin-left:auto}
   .eyebrow .rule{font-size:13px;color:var(--dim)}
@@ -62,94 +52,64 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px}
   @media(max-width:520px){ .grid{grid-template-columns:1fr} }
 
-  .card{background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);
-    border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,transform .15s}
+  .card{background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s}
   .card:hover{border-color:var(--border2)}
   .chead{display:flex;align-items:center;gap:12px}
-  .pv{width:52px;height:60px;flex:none;border-radius:10px;display:grid;place-items:center;
-    background:radial-gradient(circle at 50% 38%, #2a2350 0%, #14102a 72%);border:1px solid var(--border)}
+  .pv{width:52px;height:60px;flex:none;border-radius:10px;display:grid;place-items:center;background:radial-gradient(circle at 50% 38%, #2a2350 0%, #14102a 72%);border:1px solid var(--border)}
   .pv svg{width:44px;height:52px;filter:drop-shadow(0 3px 3px #0007)}
   .pv .emoji{font-size:30px;filter:drop-shadow(0 2px 3px #0009)}
   .meta{flex:1;min-width:0}
   .meta h3{font-size:17px;font-weight:800}
   .meta .fn{font-family:var(--mono);font-size:12.5px;color:var(--gold);word-break:break-all}
-  .chip{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;border-radius:20px;flex:none;
-    border:1px solid currentColor}
+  .chip{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;padding:4px 9px;border-radius:20px;flex:none;border:1px solid currentColor}
   .chip.hero{color:var(--hero)} .chip.enemy{color:var(--enemy)} .chip.scene{color:var(--scene)} .chip.bonus{color:var(--bonus)}
 
-  .prompt{font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--dim);white-space:pre-wrap;
-    background:var(--inset);border:1px solid var(--border);border-radius:10px;padding:11px 12px;max-height:none}
-  .prompt .hl{color:#cbb8ff}
+  .prompt{font-family:var(--mono);font-size:12.5px;line-height:1.62;color:var(--dim);white-space:pre-wrap;background:var(--inset);border:1px solid var(--border);border-radius:10px;padding:11px 12px}
 
-  .copy{display:inline-flex;align-items:center;justify-content:center;gap:8px;align-self:flex-start;
-    background:linear-gradient(180deg,var(--violet),var(--violet-d));color:#fff;border:1px solid #a982ff;
-    border-radius:9px;padding:9px 16px;font-family:var(--sans);font-weight:800;font-size:13.5px;cursor:pointer;
-    box-shadow:0 3px 0 #2c1d5a;transition:transform .08s,box-shadow .08s,background .2s}
+  .copy{display:inline-flex;align-items:center;justify-content:center;gap:8px;align-self:flex-start;background:linear-gradient(180deg,var(--violet),var(--violet-d));color:#fff;border:1px solid #a982ff;border-radius:9px;padding:9px 16px;font-family:var(--sans);font-weight:800;font-size:13.5px;cursor:pointer;box-shadow:0 3px 0 #2c1d5a;transition:transform .08s,box-shadow .08s,background .2s}
   .copy:hover{filter:brightness(1.06)}
   .copy:active{transform:translateY(2px);box-shadow:0 1px 0 #2c1d5a}
   .copy:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .copy svg{width:15px;height:15px}
   .copy.done{background:linear-gradient(180deg,#3fbf72,#2a9a55);border-color:#5fd98c;box-shadow:0 3px 0 #145c30}
 
-  /* ---------- specs ---------- */
   .specs{background:linear-gradient(180deg,var(--surface),var(--surface2));border:1px solid var(--border);border-radius:14px;padding:16px 18px}
-  .specs h3{font-size:15px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .specs h3{font-size:15px;margin-bottom:10px}
   .specs ul{list-style:none;display:flex;flex-direction:column;gap:9px}
   .specs li{display:flex;gap:10px;font-size:14px;color:var(--dim);align-items:flex-start}
   .specs li::before{content:"◆";color:var(--violet);font-size:10px;margin-top:5px}
   .specs b{color:var(--ink)} .specs code{font-family:var(--mono);color:var(--gold);font-size:13px;background:var(--inset);padding:1px 6px;border-radius:5px}
 
   footer{color:var(--dim2);font-size:12.5px;text-align:center;border-top:1px solid var(--border);padding-top:16px}
-  footer a{color:var(--violet)}
 
   @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
-
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="mark"><span class="sw">⚔️</span>Vibe Gambit · Pixel Art 16-bit</div>
     <h1>Prompts de Arte</h1>
-    <p class="lede">Todos os prompts prontos pra colar no seu gerador de imagem. Cada bloco já inclui a <b>âncora de estilo</b>, então é só <b>copiar com 1 clique</b> e gerar. Mantenha os <b>nomes de arquivo</b> pra eu encaixar direto no jogo.</p>
-
+    <p class="lede">Cada prompt abaixo está <span class="em">100% completo</span> — estilo, descrição, enquadramento e fundo transparente, tudo num bloco só. É <b>copiar e colar direto</b> no seu gerador de imagem, <b>sem juntar nem alterar nada</b>. Mantenha os <b>nomes de arquivo</b> pra eu encaixar no jogo.</p>
     <div class="how">
       <div class="step"><span class="n">01</span><p><b>Copie</b> o prompt do card (botão roxo).</p></div>
-      <div class="step"><span class="n">02</span><p><b>Gere</b> a imagem no seu gerador favorito.</p></div>
+      <div class="step"><span class="n">02</span><p><b>Gere</b> a imagem — cole sem editar nada.</p></div>
       <div class="step"><span class="n">03</span><p><b>Envie</b> pra mim com o nome de arquivo indicado.</p></div>
-    </div>
-
-    <div class="anchors">
-      <div class="anchor">
-        <div class="lbl"><h4>Base de estilo · Personagens</h4><button class="copy" data-for="anchor-char"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copiar</span></button></div>
-        <p id="anchor-char">2D game character sprite, 16-bit SNES JRPG pixel art, clean chunky pixels, cohesive high-fantasy style, bold readable silhouette, subtle two-tone cel shading, thin dark outline, warm palette. Full body, 3/4 side view facing RIGHT, neutral idle standing pose, centered, feet near the bottom. Fully transparent background (alpha), no shadow, no ground, no props, single character only.</p>
-      </div>
-      <div class="anchor">
-        <div class="lbl"><h4>Base de estilo · Cenários</h4><button class="copy" data-for="anchor-scene"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span>Copiar</span></button></div>
-        <p id="anchor-scene">16-bit SNES JRPG pixel art battle background, side-view, atmospheric, empty with NO characters, horizontal 16:9 composition, flat ground along the bottom third for characters to stand on.</p>
-      </div>
     </div>
   </header>
 
-  <!-- HERÓIS -->
   <section>
     <div class="eyebrow"><h2>Heróis</h2><span class="rule">viram para a direita</span><span class="count">4 sprites</span></div>
     <div class="grid" id="grid-heroes"></div>
   </section>
-
-  <!-- INIMIGOS -->
   <section>
     <div class="eyebrow"><h2>Inimigos</h2><span class="rule">também para a direita (espelho no jogo)</span><span class="count">3 sprites</span></div>
     <div class="grid" id="grid-enemies"></div>
   </section>
-
-  <!-- CENÁRIOS -->
   <section>
     <div class="eyebrow"><h2>Cenários</h2><span class="rule">fundo 16:9, sem personagens</span><span class="count">3 fundos</span></div>
     <div class="grid" id="grid-scenes"></div>
   </section>
-
-  <!-- BÔNUS -->
   <section>
     <div class="eyebrow"><h2>Bônus</h2><span class="rule">opcional</span><span class="count">1 arte</span></div>
     <div class="grid" id="grid-bonus"></div>
@@ -160,18 +120,15 @@
     <ul>
       <li><b>Personagens (sprites):</b> PNG com <b>fundo transparente</b>, ~<code>512×640</code>, todos na <b>mesma escala</b> (personagem ~80% da altura, pés perto da base).</li>
       <li><b>Cenários (fundos):</b> PNG ou JPG <b>16:9</b>, ~<code>1536×864</code>, sem personagens.</li>
-      <li><b>Nomes de arquivo:</b> exatamente como no card (ex.: <code>warrior.png</code>, <code>bg_forest.png</code>) — facilita o encaixe automático.</li>
-      <li><b>Consistência:</b> gere todos os personagens com a mesma âncora e, se possível, a mesma <b>seed/estilo</b>, pra ficarem da mesma família.</li>
+      <li><b>Nomes de arquivo:</b> exatamente como no card (ex.: <code>warrior.png</code>, <code>bg_forest.png</code>).</li>
+      <li><b>Consistência:</b> gere os personagens no mesmo gerador/estilo (e, se der, a mesma seed) pra ficarem da mesma família.</li>
     </ul>
   </div>
 
-  <footer>Quando os arquivos chegarem, eu monto o sistema de sprites (imagem quando existir, SVG como fallback) e troco o fundo por bioma. · <a href="#" onclick="return false">Vibe Gambit</a></footer>
+  <footer>Quando os arquivos chegarem, eu monto o sistema de sprites (imagem quando existir, SVG como fallback) e troco o fundo por bioma. · Vibe Gambit</footer>
 </div>
 
 <script>
-  const CHAR = "2D game character sprite, 16-bit SNES JRPG pixel art, clean chunky pixels, cohesive high-fantasy style, bold readable silhouette, subtle two-tone cel shading, thin dark outline, warm palette. Full body, 3/4 side view facing RIGHT, neutral idle standing pose, centered, feet near the bottom. Fully transparent background (alpha), no shadow, no ground, no props, single character only.";
-  const SCENE = "16-bit SNES JRPG pixel art battle background, side-view, atmospheric, empty with NO characters, horizontal 16:9 composition, flat ground along the bottom third for characters to stand on.";
-
   const SPR = {
     warrior:`<svg viewBox="0 0 48 56"><rect x="18" y="40" width="5" height="12" rx="2" fill="#5a5560"/><rect x="25" y="40" width="5" height="12" rx="2" fill="#484450"/><rect x="16" y="49" width="9" height="4.5" rx="1.6" fill="#2b2833"/><rect x="24" y="49" width="9" height="4.5" rx="1.6" fill="#2b2833"/><ellipse cx="12" cy="33" rx="6.2" ry="8.4" fill="#caa24b"/><ellipse cx="12" cy="33" rx="6.2" ry="8.4" fill="none" stroke="#7d5f27" stroke-width="1.6"/><path d="M12 26 v14 M6 33 h12" stroke="#7d5f27" stroke-width="1.2"/><rect x="15" y="23" width="18" height="20" rx="5" fill="#bcc5d4"/><rect x="15" y="34" width="18" height="9" rx="4" fill="#8f99ab"/><rect x="22" y="23" width="4" height="20" fill="#a4aec0"/><circle cx="16" cy="25" r="4.2" fill="#d3dbe8"/><circle cx="32" cy="25" r="4.2" fill="#d3dbe8"/><circle cx="24" cy="15" r="8" fill="#e8b58c"/><path d="M16 16 a8 8 0 0 1 16 0 v-2 h-16 z" fill="#b6bfce"/><rect x="16" y="8.5" width="16" height="4.5" rx="2" fill="#b6bfce"/><rect x="21.5" y="13" width="5" height="6" rx="1" fill="#6d7686"/><path d="M24 5 q7 -3 5.5 5 q-3 -1.5 -5.5 1 z" fill="#d7433a"/><rect x="19.5" y="15" width="2" height="3" rx="1" fill="#241d2a"/><rect x="26" y="15" width="2" height="3" rx="1" fill="#241d2a"/><rect x="36" y="9" width="3.2" height="27" rx="1.6" fill="#e6edf7"/><rect x="36" y="9" width="1.4" height="27" fill="#fff" opacity=".6"/><rect x="33" y="34" width="9" height="3" rx="1.5" fill="#7d5f27"/><rect x="37" y="36" width="1.6" height="6" rx=".8" fill="#7d5f27"/></svg>`,
     cleric:`<svg viewBox="0 0 48 56"><path d="M15 52 L18 26 q6 -5 12 0 L33 52 Z" fill="#efe8d6"/><path d="M24 26 v26" stroke="#d9cfae" stroke-width="1.4"/><path d="M15 52 L18 26 q6 -5 12 0 L33 52 Z" fill="none" stroke="#cbbf9a" stroke-width="1"/><rect x="19" y="40" width="10" height="3.4" fill="#caa24b"/><path d="M17 28 q-4 6 -3 12 l4 -1 q-1 -6 2 -10 z" fill="#e7dfc9"/><circle cx="24" cy="15" r="8" fill="#f0c197"/><path d="M15 16 q0 -12 9 -12 q9 0 9 12 q-4 -6 -9 -6 q-5 0 -9 6z" fill="#f6f1e4"/><path d="M16 16 h16" stroke="#e6dcc2" stroke-width="1"/><rect x="20" y="15" width="2" height="3" rx="1" fill="#3a2f28"/><rect x="26" y="15" width="2" height="3" rx="1" fill="#3a2f28"/><rect x="35" y="16" width="2.6" height="30" rx="1.3" fill="#9c7b46"/><circle cx="36.3" cy="13" r="4.6" fill="#ffe58a"/><circle cx="36.3" cy="13" r="4.6" fill="none" stroke="#e0b64e" stroke-width="1.2"/><circle cx="34.7" cy="11.4" r="1.4" fill="#fff" opacity=".8"/></svg>`,
@@ -183,29 +140,40 @@
   };
 
   const HEROES = [
-    {id:'warrior', name:'Guerreiro', file:'warrior.png', d:"A stout human knight in polished steel plate armor with a red-plume helmet, holding a longsword and a round golden shield."},
-    {id:'cleric',  name:'Clérigo',   file:'cleric.png',  d:"A gentle human cleric in a cream-white hooded robe with gold trim, holding a wooden staff topped with a glowing golden orb."},
-    {id:'archer',  name:'Arqueiro',  file:'archer.png',  d:"A nimble human archer in a green hooded tunic and leather boots, holding a wooden longbow with an arrow nocked."},
-    {id:'mage',    name:'Mago',      file:'mage.png',    d:"A young human mage in a deep-blue robe and a tall pointed wizard hat with a star, holding a staff tipped with a glowing cyan crystal."},
+    {id:'warrior', name:'Guerreiro', file:'warrior.png',
+      prompt:"2D game character sprite of a brave human knight, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, expressive two-tone cel shading, thin dark outline, soft rim light. Polished silver-steel plate armor with blue-grey shadows and gold trim, a rounded helmet with a narrow visor slit and a flowing red plume, holding a shining steel longsword upright in one hand and a round golden shield in the other. Sturdy heroic proportions, confident idle standing pose, full body, 3/4 side view facing right, centered, feet at the bottom edge. Warm torch-lit palette, bold readable silhouette, game-ready asset. Fully transparent background (alpha channel), isolated single character, no shadow, no ground, no props, no text."},
+    {id:'cleric', name:'Clérigo', file:'cleric.png',
+      prompt:"2D game character sprite of a kind human cleric healer, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, expressive two-tone cel shading, thin dark outline, soft holy glow. Flowing cream-white hooded robe with gold trim and a golden sash, a gentle calm face, holding a polished wooden staff topped with a radiant glowing golden orb. Graceful idle standing pose, full body, 3/4 side view facing right, centered, feet at the bottom edge. Warm palette with soft golden light, bold readable silhouette, game-ready asset. Fully transparent background (alpha channel), isolated single character, no shadow, no ground, no props, no text."},
+    {id:'archer', name:'Arqueiro', file:'archer.png',
+      prompt:"2D game character sprite of a nimble human ranger archer, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, expressive two-tone cel shading, thin dark outline, soft rim light. Forest-green hooded tunic, brown leather bracers, belt and boots, a quiver of arrows on the back, holding a wooden recurve longbow with an arrow nocked and half-drawn. Lean agile proportions, alert idle stance, full body, 3/4 side view facing right, centered, feet at the bottom edge. Earthy green-and-brown palette, bold readable silhouette, game-ready asset. Fully transparent background (alpha channel), isolated single character, no shadow, no ground, no props, no text."},
+    {id:'mage', name:'Mago', file:'mage.png',
+      prompt:"2D game character sprite of a young human wizard mage, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, expressive two-tone cel shading, thin dark outline, soft magical glow. Deep-blue robe with subtle star patterns and gold accents, a tall pointed wizard hat with a small star, holding a wooden staff tipped with a glowing cyan crystal shard emitting faint sparkles. Slender proportions, focused idle casting stance, full body, 3/4 side view facing right, centered, feet at the bottom edge. Cool blue palette with glowing cyan highlights, bold readable silhouette, game-ready asset. Fully transparent background (alpha channel), isolated single character, no shadow, no ground, no props, no text."},
   ];
   const ENEMIES = [
-    {id:'goblin',       name:'Goblin',       file:'goblin.png',       d:"A small green-skinned goblin with big pointy ears and yellow eyes, wearing a brown loincloth, holding a rusty dagger, menacing grin."},
-    {id:'goblin_brute', name:'Bruto Goblin', file:'goblin_brute.png', d:"A large muscular dark-green goblin brute with tusks and battle scars, wearing bone armor, wielding a huge spiked wooden club."},
-    {id:'slime',        name:'Gosma',        file:'slime.png',        d:"A cute translucent green slime blob monster with two simple eyes and a glossy highlight."},
+    {id:'goblin', name:'Goblin', file:'goblin.png',
+      prompt:"2D game enemy sprite of a small mischievous goblin, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, expressive two-tone cel shading, thin dark outline. Green skin, big pointy ears, glowing yellow eyes, a menacing toothy grin, wearing a tattered brown loincloth and a leather belt, gripping a small rusty dagger. Short hunched aggressive proportions, ready idle stance, full body, 3/4 side view facing right, centered, feet at the bottom edge. Muted green-and-brown palette, bold readable silhouette, game-ready asset. Fully transparent background (alpha channel), isolated single character, no shadow, no ground, no props, no text."},
+    {id:'goblin_brute', name:'Bruto Goblin', file:'goblin_brute.png',
+      prompt:"2D game enemy sprite of a large hulking goblin brute warboss, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, expressive two-tone cel shading, thin dark outline. Dark-green muscular body, protruding tusks, battle scars, small angry red eyes, wearing crude bone-and-leather armor, wielding a massive spiked wooden club resting on the shoulder. Bulky imposing proportions, menacing idle stance, full body, 3/4 side view facing right, centered, feet at the bottom edge. Dark-green palette with bone-white accents, bold readable silhouette, game-ready asset. Fully transparent background (alpha channel), isolated single character, no shadow, no ground, no props, no text."},
+    {id:'slime', name:'Gosma', file:'slime.png',
+      prompt:"2D game enemy sprite of a cute gelatinous slime monster, 16-bit SNES JRPG pixel art, crisp clean chunky pixels, cohesive high-fantasy RPG style, soft two-tone shading, thin dark outline. Glossy translucent green jelly blob body with a bright highlight and a lighter green core, two simple round eyes and a tiny smile, a slightly wobbling rounded shape. Small and squishy, resting idle pose, full body, 3/4 side view facing right, centered, feet at the bottom edge. Fresh green palette, bold readable silhouette, game-ready asset. Fully transparent background (alpha channel), isolated single character, no shadow, no ground, no props, no text."},
   ];
   const SCENES = [
-    {emoji:'🌲', name:'Mossy Glen', file:'bg_forest.png', d:"Ancient mossy stone ruins in a dark forest, cracked stone-brick walls covered in green moss and vines, dim wall torches, misty background trees."},
-    {emoji:'⛺', name:'Bandit Camp', file:'bg_plains.png', d:"A bandit camp clearing at dusk, wooden palisade fence, tents, warm campfire glow, plains and distant hills."},
-    {emoji:'🕳️', name:'Echoing Caves', file:'bg_cave.png', d:"A dark echoing cavern, jagged rock walls, glowing crystals and stalactites, underground pools, eerie blue light."},
+    {emoji:'🌲', name:'Mossy Glen', file:'bg_forest.png',
+      prompt:"16-bit SNES JRPG pixel art battle background, side-view, of ancient mossy stone ruins deep in a dark enchanted forest. Cracked grey stone-brick walls heavily covered in green moss and hanging vines, two dim flickering wall torches casting a warm orange glow, a flat mossy stone-tile floor spanning the bottom third for characters to stand on, and misty silhouettes of tall trees with faint god-rays in the background. Atmospheric and moody, deep greens with cool blue shadows and warm torch highlights, horizontal 16:9 composition, high-detail retro game background, absolutely no characters, no text, no UI."},
+    {emoji:'⛺', name:'Bandit Camp', file:'bg_plains.png',
+      prompt:"16-bit SNES JRPG pixel art battle background, side-view, of a bandit camp clearing on open plains at dusk. A rough wooden palisade fence, patched tents, a glowing campfire, scattered crates and barrels, trampled grass, and distant rolling hills under an orange-and-purple sunset sky. A flat grassy dirt ground spans the bottom third for characters to stand on. Warm dusk palette with campfire glow, horizontal 16:9 composition, high-detail retro game background, absolutely no characters, no text, no UI."},
+    {emoji:'🕳️', name:'Echoing Caves', file:'bg_cave.png',
+      prompt:"16-bit SNES JRPG pixel art battle background, side-view, of a dark echoing underground cavern. Jagged rocky walls, clusters of glowing blue crystals, hanging stalactites, still underground pools reflecting eerie blue light, and scattered rubble. A flat rocky floor spans the bottom third for characters to stand on. Cool blue-and-teal palette with luminous crystal highlights and deep shadows, horizontal 16:9 composition, high-detail retro game background, absolutely no characters, no text, no UI."},
   ];
   const BONUS = [
-    {emoji:'🗺️', name:'Mapa-múndi (Aethelgard)', file:'worldmap.png', anchor:'', d:"16-bit JRPG overworld map, bird's-eye pixel art of a fantasy land, green forests, a blue lake, snowy mountains, a winding river, decorative parchment border, no text labels, cohesive high-fantasy style."},
+    {emoji:'🗺️', name:'Mapa-múndi (Aethelgard)', file:'worldmap.png',
+      prompt:"16-bit JRPG overworld world map, top-down bird's-eye pixel art of a fantasy continent named Aethelgard: lush green forests, a large blue lake, a winding river, a snowy mountain range, rolling plains, and a small village, with dirt paths connecting the regions. Framed by a decorative aged-parchment border. Warm cartography colors, cohesive high-fantasy style, high detail, no text labels, no characters, no UI."},
   ];
 
   let uid=0;
   const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
 
-  function card({icon, name, file, chip, chipClass, full}){
+  function card({icon, name, file, chip, chipClass, prompt}){
     const pid = 'p'+(uid++);
     const iconHtml = icon.startsWith('<svg') ? icon : `<span class="emoji">${icon}</span>`;
     return `<article class="card">
@@ -214,15 +182,15 @@
         <div class="meta"><h3>${name}</h3><code class="fn">${file}</code></div>
         <span class="chip ${chipClass}">${chip}</span>
       </div>
-      <pre class="prompt" id="${pid}">${full}</pre>
+      <pre class="prompt" id="${pid}">${prompt}</pre>
       <button class="copy" data-for="${pid}">${copyIcon}<span>Copiar prompt</span></button>
     </article>`;
   }
 
-  document.getElementById('grid-heroes').innerHTML  = HEROES.map(h=>card({icon:SPR[h.id], name:h.name, file:h.file, chip:'Herói',   chipClass:'hero',  full:CHAR+' '+h.d})).join('');
-  document.getElementById('grid-enemies').innerHTML = ENEMIES.map(e=>card({icon:SPR[e.id], name:e.name, file:e.file, chip:'Inimigo', chipClass:'enemy', full:CHAR+' '+e.d})).join('');
-  document.getElementById('grid-scenes').innerHTML  = SCENES.map(s=>card({icon:s.emoji,   name:s.name, file:s.file, chip:'Cenário', chipClass:'scene', full:SCENE+' '+s.d})).join('');
-  document.getElementById('grid-bonus').innerHTML   = BONUS.map(b=>card({icon:b.emoji,    name:b.name, file:b.file, chip:'Bônus',   chipClass:'bonus', full:b.d})).join('');
+  document.getElementById('grid-heroes').innerHTML  = HEROES.map(h=>card({icon:SPR[h.id], name:h.name, file:h.file, chip:'Herói',   chipClass:'hero',  prompt:h.prompt})).join('');
+  document.getElementById('grid-enemies').innerHTML = ENEMIES.map(e=>card({icon:SPR[e.id], name:e.name, file:e.file, chip:'Inimigo', chipClass:'enemy', prompt:e.prompt})).join('');
+  document.getElementById('grid-scenes').innerHTML  = SCENES.map(s=>card({icon:s.emoji,   name:s.name, file:s.file, chip:'Cenário', chipClass:'scene', prompt:s.prompt})).join('');
+  document.getElementById('grid-bonus').innerHTML   = BONUS.map(b=>card({icon:b.emoji,    name:b.name, file:b.file, chip:'Bônus',   chipClass:'bonus', prompt:b.prompt})).join('');
 
   function fallbackCopy(text){
     const ta=document.createElement('textarea');
@@ -246,6 +214,5 @@
     } else { if(fallbackCopy(text)) flash(btn); }
   });
 </script>
-
 </body>
 </html>
