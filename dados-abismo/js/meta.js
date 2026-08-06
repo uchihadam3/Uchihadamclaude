@@ -73,6 +73,9 @@ export const NOS = [
    txt:n=>`Começa com ${n} face${n>1?'s':''} ⚔ Lâmina (abre o Selo ⚔ dos inimigos)`, ef:(r,n)=>{ r.lamina+=n; }},
   {id:'curinga',    ramo:'veu', nome:'Fio Solto',     max:2, custo:[16,38], req:['lapidar'],
    txt:n=>`Começa com ${n} ◈ Curinga (assume o valor que a fechadura pedir)`, ef:(r,n)=>{ r.curinga+=n; }},
+  {id:'escolhida',  ramo:'veu', nome:'Mão Escolhida', max:1, custo:[13],
+   txt:()=>`Re-rolagem CIRÚRGICA: selecione os dados e só eles rolam de novo`,
+   ef:(r)=>{ r.rerollEscolhido=true; }},
   {id:'polegar',    ramo:'veu', nome:'Polegar Torto', max:2, custo:[11,26],
    txt:n=>`${n}×/turno: empurra um dado em ±1 (abre fechadura de soma/paridade)`,
    ef:(r,n)=>{ r.polegar+=n; }},
@@ -115,7 +118,7 @@ export function bonus(m){
   const r={ hpBonus:0, dmgFlat:0, blockStart:0, dadosExtra:0, rerolls:0, revive:0,
             gravExtra:0, opcoes:0, lamina:0, curinga:0, reliquias:0, eco:0,
             quarta:false, portal:1, pity:0, presagio:0, ecoMult:1, ultimoLance:false,
-            polegar:0, gazua:0 };
+            polegar:0, gazua:0, rerollEscolhido:false };
   for(const no of NOS){ const n=nivelDe(m,no.id); if(n>0) no.ef(r,n); }
   return r;
 }

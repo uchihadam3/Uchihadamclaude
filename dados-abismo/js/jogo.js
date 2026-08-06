@@ -768,7 +768,9 @@ function pintar(){
     return `<button class="h ${ok?'ok':(poss?'pode':'off')} ${ativa?'pre':''}" data-i="${i}"
         style="--hc:${C.cor}" title="${s.desc.replace(/"/g,'&quot;')}">
       <span class="hbrilho"></span>
-      <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span></span>
+      <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span>${
+        (()=>{ const f=formulaDano(s); return f && f.mult>1
+          ? `<span class="hmult${f.todos?' todos':''}" title="dano = ${SIMB_BASE[f.base]} × ${f.mult}${f.fixo?' + '+f.fixo:''}${f.todos?' em TODOS':''}">×${f.mult}</span>` : ''; })()}</span>
       <span class="hreq">${reqChips(s.req)}</span>
       ${selo}
       ${cPre ? contaHTML(cPre) : ''}
@@ -812,6 +814,13 @@ function pintar(){
     + (vivos>3?` <span class="tinim">${vivos} inimigos</span>`:'');
   $('log').innerHTML=cb.logLines.slice(-3).join('<br>');
   $('brer').disabled = cb.rerolls<=0 || anima;
+  /* o botão DIZ o que vai rolar. Antes ele só dizia "Re-rolar" e o jogador
+     não tinha como saber se ia perder a mão inteira ou só o que marcou. */
+  { const livres = cb.pool().length;
+    const escolhidos = BON.rerollEscolhido ? [...sel].filter(id=>cb.pool().some(e=>e.dieId===id)).length : 0;
+    $('brer').innerHTML = escolhidos
+      ? `⟳ Re-rolar <b>${escolhidos}</b>`
+      : `⟳ Re-rolar${livres?` <i class="rtd">${livres}</i>`:''}`; }
   // tocar num efeito do inimigo explica AQUELE efeito, sem sair do combate
   $('ini').querySelectorAll('.trava').forEach(el=>el.onclick=ev=>{ ev.stopPropagation();
     explicar('trava', el.dataset.tr); });
@@ -1033,6 +1042,56 @@ function flashJogEscudo(v){
   setTimeout(()=>{ n.remove(); c.remove(); },900);
   SFX.aparado(v);
 }
+/* ===================================================================
+   A FÓRMULA DO GOLPE — de onde sai o número.
+
+   As habilidades sempre multiplicaram (Colapso é sum*5, Julgamento é
+   28+sum*4), mas isso só aparecia na descrição em prosa: na carta e no
+   combate o jogador via um total pronto e não tinha como saber que uma
+   dava três vezes a soma e a outra cinco. Sem enxergar o multiplicador não
+   dá para escolher entre gastar os dados grandes aqui ou ali.
+   =================================================================== */
+function formulaDano(sk){
+  let melhor = null;
+  for(const e of (sk.eff||[])){
+    if(e.op!=='dmg' && e.op!=='hits') continue;
+    const amt = String(e.amt||'');
+    const m = /(?:^|\+)\s*(sum|val|count)\s*\*\s*(\d+)/.exec(amt);
+    const mult = m ? +m[2] : (/(?:^|\+)\s*(sum|val|count)\s*(?:$|\+)/.test(amt) ? 1 : 0);
+    if(!mult) continue;
+    const base = m ? m[1] : (/sum/.test(amt)?'sum':/val/.test(amt)?'val':'count');
+    const fx = /(\d+)\s*\+\s*(?:sum|val|count)/.exec(amt);
+    const fixo = fx ? +fx[1] : (/\*\s*\d+\s*\+\s*(\d+)/.exec(amt)?.[1] | 0);
+    const cand = { mult, base, fixo:+fixo||0, todos:e.tgt==='all', vezes:e.op==='hits' };
+    if(!melhor || cand.mult>melhor.mult) melhor = cand;
+  }
+  return melhor;
+}
+const SIMB_BASE = { sum:'Σ', val:'valor', count:'n' };
+/* A BANCA DA CONTA: a multiplicação acontece na tela, em três tempos —
+   a base sai dos dados, o multiplicador cai em cima, o total explode. É o
+   meio segundo entre apertar a carta e o inimigo levar, e é onde o jogador
+   entende POR QUE aquele golpe deu 55 e não 11. */
+function bancaDaConta(sk, ents){
+  const f = formulaDano(sk); if(!f || f.mult<2) return;
+  /* usa a mesma conta() da carta: ela resolve o ◈ Curinga pelo valor que a
+     fechadura pediu, então a banca mostra o número que o motor vai usar de
+     verdade — e não um Σ diferente do que o golpe cobrou. */
+  const c = conta(ents, sk.req); if(!c) return;
+  const base = f.base==='sum' ? c.soma : f.base==='count' ? c.n : c.maior;
+  if(!base) return;
+  const total = base*f.mult + f.fixo;
+  const b=document.createElement('div'); b.className='bancaconta';
+  b.innerHTML=`<span class="bcb">${SIMB_BASE[f.base]==='Σ'?'Σ':''}${base}</span>
+    <span class="bcx">×${f.mult}</span>
+    ${f.fixo?`<span class="bcp">+${f.fixo}</span>`:''}
+    <span class="bce">=</span><span class="bct">${total}</span>
+    ${f.todos?'<span class="bca">EM TODOS</span>':''}`;
+  document.body.appendChild(b);
+  SFX.pegar && SFX.pegar();
+  setTimeout(()=>b.classList.add('estoura'), 260);
+  setTimeout(()=>b.remove(), 1150);
+}
 /* espalha os números quando vários caem no mesmo alvo, pra não empilharem */
 let desvio=0;
 function proxDesvio(){ desvio=(desvio+1)%5; return (desvio-2)*15 + 'px'; }
@@ -1052,6 +1111,7 @@ function usar(s){
   const cardEl=[...document.querySelectorAll('#hab .h')]
     .find(x=>habilidadesAtuais()[+x.dataset.i]?.id===s.id);
   if(cardEl){ cardEl.classList.remove('usou'); void cardEl.offsetWidth; cardEl.classList.add('usou'); }
+  bancaDaConta(s, ents);                          // Σ11 ×5 = 55, antes de bater
   cb.use(s, ids, alvo); sel.clear(); previa=null;
   for(const id of ids) praBandeja(id);            // os dados gastos vão pro canto
   pintar();                                       // repinta ANTES (senão apaga os efeitos)
@@ -1062,7 +1122,11 @@ function usar(s){
 $('brer').onclick=()=>{ if(anima||cb.rerolls<=0) return;
   // só os dados AINDA NA MÃO: pool() já exclui os gastos
   const livres = cb.pool().map(e=>e.dieId);
-  const ids = sel.size ? [...sel].filter(id=>livres.includes(id)) : livres;
+  /* MÃO ESCOLHIDA (Cofre): sem ela a re-rolagem é cega e leva a mão inteira —
+     você tem um 5 e um 6 bons ao lado de dois 1, e perde os quatro. Com ela,
+     a seleção manda: rolam só os dados que você marcou. */
+  const ids = (BON.rerollEscolhido && sel.size)
+    ? [...sel].filter(id=>livres.includes(id)) : livres;
   const rolados = cb.reroll(ids);
   if(!rolados){ SFX.soltar(); return; }      // nada rolou: não gasta nem anima
   sel.clear(); rolarVisual(rolados); pintar(); };
