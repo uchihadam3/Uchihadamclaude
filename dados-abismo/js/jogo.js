@@ -57,6 +57,7 @@ function badgeDe(id){ let b=badges.get(id);
 function atualizarBadges(){
   if(!cb || anima){ for(const b of badges.values()) b.style.opacity=0; return; }
   const v=new THREE.Vector3();
+  const rc = renderer.domElement.getBoundingClientRect();
   for(const m of malhas){
     const id=m.userData.die.id, b=badgeDe(id);
     const e=cb.roll.find(x=>x.dieId===id);
@@ -66,8 +67,12 @@ function atualizarBadges(){
     const q=[m.quaternion.x,m.quaternion.y,m.quaternion.z,m.quaternion.w];
     const o=pontoDeCima(tp, q, raioDe(tp));
     v.set(m.position.x+o[0], m.position.y+o[1]+0.15, m.position.z+o[2]); v.project(camera);
-    const cw=renderer.domElement.clientWidth, ch=renderer.domElement.clientHeight;
-    const x=(v.x*0.5+0.5)*cw, y=faixa.top+(-v.y*0.5+0.5)*ch;
+    /* a posição do canvas é lida AGORA, não a que o resize guardou. O resize
+       só dispara quando o canvas muda de TAMANHO, e o título da mesa o
+       empurrou para baixo sem redimensionar: os números continuaram sendo
+       desenhados na altura antiga e foram parar em cima dos inimigos,
+       enquanto os dados na mesa ficavam sem número nenhum. */
+    const x=(v.x*0.5+0.5)*rc.width + rc.left, y=rc.top+(-v.y*0.5+0.5)*rc.height;
     const f=e.face, txt = f.k==='num'? f.v : (FACE_KINDS[f.k]?.glifo||'?');
     b.textContent=txt;
     b.className='lbl'+(cb.used.has(id)?' usado':'')+(sel.has(id)?' sel':'')
@@ -882,11 +887,9 @@ function pintar(){
       <span class="htopo">${iconeDe(s.id)}<span class="hn">${s.nome}</span>${
         (()=>{ const f=formulaDano(s); return f && f.mult>1
           ? `<span class="hmult${f.todos?' todos':''}" title="dano = ${SIMB_BASE[f.base]} × ${f.mult}${f.fixo?' + '+f.fixo:''}${f.todos?' em TODOS':''}">×${f.mult}</span>` : ''; })()}</span>
-      <span class="hlin">Requer: <em>${reqChips(s.req)}</em></span>
-      ${selo}
-      <span class="hcusto">${custoTxt(s.req)}</span>
-      ${cPre && (ok||ativa) ? contaHTML(cPre) : ''}
-      ${bonusTxt(s) ? `<span class="hbonus">${bonusTxt(s)}</span>` : ''}
+      <span class="hlin"><u>REQUER</u><em>${reqChips(s.req)}</em></span>
+      <span class="hres">${selo || '<b class="hvazio">—</b>'}</span>
+      <span class="hpe">${custoTxt(s.req)}${bonusTxt(s)?` · <i>${bonusTxt(s)}</i>`:''}</span>
       ${estado?`<span class="hest">${estado}</span>`:''}
     </button>`;}).join('');
   $('hab').querySelectorAll('.h').forEach(d=>{
@@ -1006,8 +1009,8 @@ function custoTxt(req){
   const n = req.t==='sum' || req.t==='sumExact' ? 0
           : (req.t==='set'||req.t==='seq'||req.t==='each') ? req.size
           : (req.count || 1);
-  if(!n) return 'Custo: soma';
-  return `Custo: ${n} dado${n>1?'s':''}`;
+  if(!n) return 'soma livre';
+  return `${n} dado${n>1?'s':''}`;
 }
 /* "Bônus: ÍMPAR" — o que a habilidade acrescenta além do dano cru */
 function bonusTxt(sk){
@@ -1194,18 +1197,28 @@ function juice(antes, hpAntes, acoes){
   const dp = (hpAntes-P.hp) - daInvestida;
   if(dp>0){ SFX.dano(); tremor(Math.min(14,4+dp*0.5)); flashJog(dp); }
 }
+/* O NÚMERO DO DANO NÃO PODE SER FILHO DO CARD. A fileira de inimigos rola
+   (overflow-y:auto, para caber a segunda fila), e tudo que sai do card é
+   CORTADO pela borda dela — o número subia e era decepado no meio, ou sumia
+   inteiro quando o card estava na fila de cima. Ele nasce solto na tela, na
+   posição do card no instante do golpe. */
+function numeroSolto(el, cls, txt, dur=1450){
+  const r = el.getBoundingClientRect();
+  const n = document.createElement('div');
+  n.className = cls; n.textContent = txt;
+  n.style.left = (r.left + r.width/2)+'px';
+  n.style.top  = (r.top + r.height*0.34)+'px';
+  n.style.setProperty('--dx', proxDesvio());
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(), dur);
+  return n;
+}
 function flash(uid,d,morreu,aparado=0){
   const el=document.querySelector(`.en[data-uid="${uid}"]`); if(!el) return;
   el.classList.remove('bat'); void el.offsetWidth; el.classList.add('bat');
   // parte no escudo, parte na carne: os dois números, cada um na sua cor
-  if(aparado>0){
-    const s=document.createElement('div'); s.className='dmg esc raspao';
-    s.textContent='🛡'+aparado; el.appendChild(s); setTimeout(()=>s.remove(),900);
-    SFX.aparado(aparado);
-  }
-  const n=document.createElement('div'); n.className='dmg'+(d>=18?' big':'');
-  n.textContent='-'+d; n.style.setProperty('--dx', proxDesvio()); el.appendChild(n);
-  setTimeout(()=>n.remove(),1450);
+  if(aparado>0){ numeroSolto(el,'dmg solto esc raspao','🛡'+aparado,900); SFX.aparado(aparado); }
+  numeroSolto(el, 'dmg solto'+(d>=18?' big':''), '-'+d);
   SFX.golpe(d); tremor(Math.min(11,3+d*0.35));
   if(morreu){ SFX.morte(); el.classList.add('morrendo'); }
 }
@@ -1217,10 +1230,9 @@ function flash(uid,d,morreu,aparado=0){
 function flashEscudo(uid, v){
   const el=document.querySelector(`.en[data-uid="${uid}"]`); if(!el) return;
   el.classList.remove('apara'); void el.offsetWidth; el.classList.add('apara');
-  const n=document.createElement('div'); n.className='dmg esc';
-  n.textContent='🛡'+v; el.appendChild(n);
+  numeroSolto(el, 'dmg solto esc', '🛡'+v);
   const c=document.createElement('div'); c.className='clang'; el.appendChild(c);
-  setTimeout(()=>{ n.remove(); c.remove(); },1450);
+  setTimeout(()=>c.remove(),1450);
   SFX.aparado(v);
 }
 function flashJog(d){

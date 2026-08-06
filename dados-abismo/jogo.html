@@ -341,14 +341,22 @@
    filter:drop-shadow(0 0 5px color-mix(in srgb,var(--hc,#888) 55%,transparent))}
  .h .hn{font-size:11.5px;font-weight:700;letter-spacing:.2px;color:var(--hc,#e8e2d0);
    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
- /* "Requer: ≥5" e "Custo: 2 dados" — as mesmas palavras da referência, que
-    dizem em português o que os chips dizem em símbolo */
- .h .hlin{font-size:8px;color:#8d8672;display:flex;align-items:center;gap:2px;
-   justify-content:center;flex-wrap:wrap;line-height:1.1}
- .h .hlin em{font-style:normal;color:#cfc4a4}
- .h .hcusto{font-size:7.5px;color:#7d8894;letter-spacing:.2px;line-height:1.1}
- .h .hbonus{font-size:7.5px;color:#ffd24a;border:1px solid rgba(220,180,80,.3);
-   border-radius:5px;padding:0 4px;line-height:1.3;margin-top:1px}
+ /* A CARTA EM TRÊS ANDARES FIXOS, sempre na mesma ordem e na mesma altura:
+      nome  ·  REQUER (o que a jogada pede)  ·  o RESULTADO  ·  o custo
+    Antes as linhas variavam de tamanho e ordem conforme o que a habilidade
+    fazia, e quatro cartas lado a lado viravam quatro alturas diferentes. */
+ .h .hlin{display:flex;flex-direction:column;align-items:center;gap:1px;
+   width:100%;padding:2px 0;border-top:1px solid rgba(255,255,255,.06);
+   border-bottom:1px solid rgba(255,255,255,.06)}
+ .h .hlin u{text-decoration:none;font-size:6.5px;letter-spacing:1.6px;color:#6b7580}
+ .h .hlin em{font-style:normal;display:flex;align-items:center;gap:2px;
+   justify-content:center;flex-wrap:wrap}
+ /* o RESULTADO no meio da carta, que é o que se compara entre elas */
+ .h .hres{display:flex;align-items:center;justify-content:center;gap:3px;
+   flex-wrap:wrap;min-height:19px;margin:1px 0}
+ .h .hvazio{color:#4a525c;font-size:13px}
+ .h .hpe{font-size:7.5px;color:#6b7580;letter-spacing:.2px;line-height:1.2}
+ .h .hpe i{font-style:normal;color:#c9a24a}
  /* requisito desenhado como DADOS */
  .h .hreq{display:flex;align-items:center;gap:2px;flex-wrap:wrap;justify-content:center}
  .h .hreq .op{font-size:10px;color:#8fb0d8;font-weight:900}
@@ -360,7 +368,7 @@
  .dchip.so{color:#ffb45e;border-color:#6a4a1e} .dchip.pr{color:#c9a6ff;border-color:#4a3a6a;font-size:8.5px}
  .dchip.sb{color:#ffd24a;border-color:#5c4718} .dchip.qq{color:#7d8894;border-color:#333c46}
  /* selo do que a jogada FAZ */
- .h .hsel{display:flex;gap:4px;align-items:center;flex-wrap:wrap;justify-content:center;margin-top:1px}
+ .h .hsel{display:flex;gap:3px;align-items:center;flex-wrap:wrap;justify-content:center}
  /* O NÚMERO DO GOLPE é o que decide a carta — ele cresce e ganha peso, como
     na referência: o resto da carta existe para explicar de onde ele vem. */
  .h .hsel b{font-size:13px;font-weight:900;line-height:1;padding:1px 5px;border-radius:6px;
@@ -474,6 +482,14 @@
  @media (max-height:600px){
    #ini{max-height:calc(47vh + env(safe-area-inset-top))}
    #usados{display:none}
+   /* aparelho curto com a mão cheia: a carta fica no osso — nome, o que
+      pede e o que faz. O rótulo REQUER sai; os chips continuam. */
+   .h .hlin u{display:none}
+   .h .hlin{padding:1px 0;border:0}
+   .h .hres{min-height:16px;margin:0}
+   #hab{gap:4px}
+   .painel{padding:3px 6px} #voceval{font-size:10px} #voceval b{font-size:12px}
+   .b.pri{padding:6px 12px;font-size:11px}
    .faixatit{display:none}
    #log{display:none}          /* o log é o primeiro a sair: é histórico, não decisão */
    /* tela mínima: a fechadura cabe em uma linha e o retrato quase some.
@@ -1016,6 +1032,8 @@
     O número é o retorno mais importante do combate: é por ele que você
     entende se o golpe entrou, se morreu no escudo, e o quanto pesou.
     Dano sobe em vermelho e sai de lado; aparado sobe reto em azul-metal. */
+ /* solto na tela: a fileira de inimigos rola e cortaria o número no meio */
+ .dmg.solto{position:fixed;top:auto;transform:translate(-50%,-50%);z-index:64}
  .dmg{position:absolute;left:50%;top:24%;transform:translateX(-50%);
    font:900 26px/1 Georgia,serif;color:#fff;pointer-events:none;z-index:6;
    text-shadow:-2px -2px 0 #240404, 0px -2px 0 #240404, 2px -2px 0 #240404, -2px 0px 0 #240404, 2px 0px 0 #240404, -2px 2px 0 #240404, 0px 2px 0 #240404, 2px 2px 0 #240404, 0 0 18px #ff5a3c, 0 4px 12px #000;
