@@ -288,31 +288,19 @@ function renderHubCenter(mount){
 
 // ================================================================ EDITOR DE GAMBITS (HUD estilo FF XII)
 let ghHero = null;
-let ghPick = null;   // {line, kind} quando o jogador está trocando condição/ação (lista inline)
-// Lista de blocos INLINE (dentro da própria janela de gambits) p/ trocar condição/ação
-function renderGhPicker(mount){
-  const hs = S.heroes.find(h=>h.id===ghHero); const def = HERO_DEFS.find(h=>h.id===hs.id);
-  const { line, kind } = ghPick; const isCond = kind==='condition';
+let ghPick = null;   // {line, kind} quando a lista inline está aberta naquela linha
+// Lista de blocos INLINE que abre logo abaixo do bloco clicado (na própria linha)
+function ghInlineList(hs, def, line, kind){
+  const isCond = kind==='condition';
   const options = isCond ? S.unlockedConditions.map(c=>({id:c,label:CONDITIONS[c].label}))
                          : def.skills.map(s=>({id:s,label:SKILLS[s].name}));
-  const current = isCond ? hs.gambits[line]?.condition : hs.gambits[line]?.action;
+  const current = isCond ? hs.gambits[line].condition : hs.gambits[line].action;
   const badge = isCond ? 'CONDIÇÃO' : 'AÇÃO';
-  mount.innerHTML = `
-    <div class="gh-pkhead">
-      <button class="gh-back">← Voltar</button>
-      <div class="gh-pktitle">${isCond?'🛡️ Escolha a condição':'⚔️ Escolha a ação'}<small>Linha ${line+1}</small></div>
-    </div>
-    <div class="pk-list">${options.map(o=>`
-      <button class="pk-block ${isCond?'pk-cond':'pk-act'} ${o.id===current?'sel':''}" data-id="${o.id}">
-        <span class="pk-ic">${isCond?'🎯':'✦'}</span>
-        <span class="pk-tx"><small>${badge}</small><b>${o.label}</b></span>
-        ${o.id===current?'<span class="pk-ck">✓</span>':''}</button>`).join('')}</div>`;
-  mount.querySelector('.gh-back').onclick = () => { ghPick=null; renderGambitHUD(mount); };
-  mount.querySelectorAll('.pk-block').forEach(b => b.onclick = () => {
-    const id = b.dataset.id;
-    if(isCond) hs.gambits[line].condition = id; else hs.gambits[line].action = id;
-    save(S); ghPick=null; renderGambitHUD(mount);
-  });
+  return `<div class="gh-inline">${options.map(o=>`
+    <button class="pk-block ${isCond?'pk-cond':'pk-act'} ${o.id===current?'sel':''}" data-line="${line}" data-kind="${kind}" data-id="${o.id}">
+      <span class="pk-ic">${isCond?'🎯':'✦'}</span>
+      <span class="pk-tx"><small>${badge}</small><b>${o.label}</b></span>
+      ${o.id===current?'<span class="pk-ck">✓</span>':''}</button>`).join('')}</div>`;
 }
 function openGambitHUD(){
   if(!ghHero || !S.heroes.find(h=>h.id===ghHero)) ghHero = selHero || S.heroes[0].id;
@@ -332,7 +320,6 @@ function renderGambitHUD(mount){
   const hs = S.heroes.find(h=>h.id===ghHero); const def = HERO_DEFS.find(h=>h.id===hs.id);
   const condOpts = S.unlockedConditions;
   const rr = () => renderGambitHUD(mount);
-  if(ghPick){ renderGhPicker(mount); return; }   // trocando condição/ação -> mostra a lista inline
   const tabs = S.heroes.map(h=>{ const d = HERO_DEFS.find(x=>x.id===h.id);
     return `<button class="gh-tab ${h.id===ghHero?'on':''}" data-h="${h.id}" style="--acc:${accentOf(h.id)}">
       <img src="assets/${h.id}_face.png" alt=""><span>${d.name}</span></button>`; }).join('');
@@ -340,14 +327,18 @@ function renderGambitHUD(mount){
     const on = g.enabled !== false;
     const cLabel = CONDITIONS[g.condition]?.label || '—';
     const aLabel = SKILLS[g.action]?.name || '—';
-    const cond = `<button class="gpick cond" data-line="${i}" data-kind="condition">${cLabel}<span class="gpick-ar">▾</span></button>`;
-    const act  = `<button class="gpick act" data-line="${i}" data-kind="action">${aLabel}<span class="gpick-ar">▾</span></button>`;
+    const cOpen = ghPick && ghPick.line===i && ghPick.kind==='condition';
+    const aOpen = ghPick && ghPick.line===i && ghPick.kind==='action';
+    const cond = `<button class="gpick cond ${cOpen?'open':''}" data-line="${i}" data-kind="condition">${cLabel}<span class="gpick-ar">${cOpen?'▴':'▾'}</span></button>`;
+    const act  = `<button class="gpick act ${aOpen?'open':''}" data-line="${i}" data-kind="action">${aLabel}<span class="gpick-ar">${aOpen?'▴':'▾'}</span></button>`;
     return `<div class="gh-row ${on?'':'off'}" data-i="${i}">
       <div class="gh-drag" title="Arraste para reordenar">⠿</div>
       <span class="gh-pri">${i+1}</span>
       <div class="gh-conds">
         <div class="gh-cline"><span class="gh-if">SE</span>${cond}</div>
+        ${cOpen ? ghInlineList(hs, def, i, 'condition') : ''}
         <div class="gh-cline"><span class="gh-arw">➜</span>${act}</div>
+        ${aOpen ? ghInlineList(hs, def, i, 'action') : ''}
       </div>
       <div class="gh-tools">
         <button class="gh-toggle ${on?'on':''}" data-i="${i}" title="${on?'Desligar':'Ligar'} esta linha"><span class="gh-knob"></span></button>
@@ -374,8 +365,15 @@ function renderGambitHUD(mount){
     <button class="gh-add small primary" ${canAdd?'':'disabled'}>+ Adicionar linha</button>`;
   mount.querySelectorAll('.gh-tab').forEach(b => b.onclick = () => { ghHero=b.dataset.h; rr(); });
   mount.querySelectorAll('.gpick').forEach(btn => btn.onclick = () => {
-    ghPick = { line:+btn.dataset.line, kind:btn.dataset.kind };
+    const line = +btn.dataset.line, kind = btn.dataset.kind;
+    // clicar de novo no mesmo fecha; senão abre a lista naquela linha
+    ghPick = (ghPick && ghPick.line===line && ghPick.kind===kind) ? null : { line, kind };
     rr();
+  });
+  mount.querySelectorAll('.pk-block').forEach(b => b.onclick = () => {
+    const line = +b.dataset.line, kind = b.dataset.kind, id = b.dataset.id;
+    if(kind==='condition') hs.gambits[line].condition = id; else hs.gambits[line].action = id;
+    save(S); ghPick = null; rr();
   });
   mount.querySelectorAll('.gh-rm').forEach(x => x.onclick = () => { hs.gambits.splice(+x.dataset.i,1); save(S); rr(); });
   mount.querySelectorAll('.gh-toggle').forEach(t => t.onclick = () => { const g=hs.gambits[+t.dataset.i]; g.enabled = (g.enabled===false); save(S); rr(); });

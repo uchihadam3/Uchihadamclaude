@@ -197,14 +197,15 @@
   .gpick.act{background-color:#fbeae4;color:#b1483c;border-color:#e6c3b8}
 
   /* seletor de BLOCOS (overlay) */
-  /* cabeçalho da lista INLINE (dentro da janela de gambits) */
-  .gh-pkhead{display:flex;align-items:center;gap:10px;margin:8px 0 12px}
-  .gh-back{flex:none;padding:8px 12px;font-size:12.5px;border-radius:10px}
-  .gh-pktitle{font-size:15px;font-weight:400;color:var(--ink);display:flex;flex-direction:column;line-height:1.1}
-  .gh-pktitle small{font-size:10px;color:var(--dim);font-weight:800;letter-spacing:.5px}
-  .pk-list{display:flex;flex-direction:column;gap:8px;padding:2px}
-  .pk-block{display:flex;align-items:center;gap:10px;text-align:left;border:none;border-radius:12px;padding:9px 11px;color:#fff;
+  /* lista INLINE que abre logo abaixo do bloco clicado (sanfona na própria linha) */
+  .gh-inline{display:flex;flex-direction:column;gap:6px;margin:2px 0 4px;
+    background:rgba(0,0,0,.05);border-radius:10px;padding:6px;animation:ghpop .12s ease-out}
+  @keyframes ghpop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+  .gpick.open{outline:2px solid var(--gold);outline-offset:-1px}
+  .pk-block{display:flex;align-items:center;gap:8px;text-align:left;border:none;border-radius:10px;padding:7px 9px;color:#fff;
     box-shadow:0 2px 0 rgba(0,0,0,.18);position:relative}
+  .gh-inline .pk-ic{width:28px;height:28px;font-size:15px}
+  .gh-inline .pk-tx b{font-size:12.5px} .gh-inline .pk-tx small{font-size:8px}
   .pk-block.pk-cond{background:linear-gradient(180deg,#4a92d6,#3475b8)}
   .pk-block.pk-act{background:linear-gradient(180deg,#d75b50,#bd4238)}
   .pk-block.sel{outline:3px solid var(--gold);outline-offset:1px}
