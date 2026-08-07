@@ -15,6 +15,7 @@
    data/passivas.js. Grimório escrito à mão envelhece na primeira mudança de
    número; este acompanha o jogo porque lê o mesmo dado que o jogo lê.
    ===================================================================== */
+import * as SIM from './data/simbolos.js';
 import { CLASSES, RESPIRAR } from './data/classes.js';
 import { MASMORRAS, ESCALADA } from './data/dungeons.js';
 import { ARVORES, ANEIS } from './data/passivas.js';
@@ -132,7 +133,7 @@ export const SECOES = [
   /* ================= 4 · FECHADURAS ================= */
   {
     id:'travas', ico:'🗝', nome:'FECHADURAS', sub:'por que meu golpe deu zero',
-    intro:'A fechadura NÃO é armadura. Se o golpe não a abre, o dano é ZERO — não é reduzido, é zero. Ela olha os dados que você gastou naquele golpe: a soma, o maior deles, quantos foram e quais símbolos tinham.',
+    intro:'A fechadura NÃO é armadura. Se o golpe não a abre, o dano é ZERO — não é reduzido, é zero. Ela olha os dados que você gastou naquele golpe: a soma, o maior deles, quantos foram e quais símbolos tinham. O NOME NA CARTA JÁ DIZ A REGRA, com o número junto: COURAÇA 4 pede um dado 4 ou mais e COURAÇA 5 pede 5 ou mais — são fechaduras diferentes e por isso têm nomes diferentes. Quando o inimigo aceita dois caminhos, a carta traz os dois selos e o nome das duas partes: ÍMPAR ou ENXUTO 2.',
     itens:[
       { id:'forte', t:'▲ Couraça — "só sofre dano com dado 4+"',
         d:'Olha o MAIOR dado do golpe. Se o maior for menor que 4, o dano é zero.',

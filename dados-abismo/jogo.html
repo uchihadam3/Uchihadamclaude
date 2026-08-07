@@ -253,6 +253,36 @@
  .exg .e1{display:flex;align-items:center;gap:3px;color:#e8c86a;font-size:9.5px;
    font-weight:700;letter-spacing:.02em;line-height:1.15}
  .exg .e1 .sic{font-size:12px}
+ /* a COMPOSTA traz os dois selos: ver ◐ ao lado de ① já diz qual das
+    compostas é, antes mesmo de ler o nome */
+ .exg .e1 .sic+.sic{margin-left:-1px}
+ /* A COMPOSTA tem nome de duas partes ("PAR ou ENXUTO 2") e dois selos, então
+    o corpo aperta para o nome caber inteiro nas duas linhas. Cortar o nome
+    seria voltar ao problema: "PAR OU ENXU…" não distingue de "PAR OU ENXU…"
+    de outra coisa. */
+ .exg.dupla .e1{font-size:8.5px;letter-spacing:-.01em;gap:1px}
+ .exg.dupla .e1 .sic{font-size:10px}
+ #ini.cheia .exg.dupla .e1{font-size:8px}
+ /* NA COMPOSTA O NOME GANHA A LINHA QUE A FRASE PERDE.
+    "SELO LÂMINA ou FARTO 3" não cabe em duas linhas, e cortar o nome é
+    exatamente o defeito que estamos consertando — um nome pela metade volta
+    a não identificar a regra. Como o nome agora CARREGA a condição, a frase
+    abaixo virou apoio: ela cede para uma linha, e a versão inteira continua
+    na ficha, a um toque. */
+ .exg.dupla .e1n{-webkit-line-clamp:3;flex-basis:100%;width:100%}
+ /* e os DOIS SELOS sobem para uma linha só deles. Lado a lado com o nome
+    sobravam 48px de largura para "SELO LÂMINA ou FARTO 3" — o nome quebrava
+    em quatro linhas e era cortado de qualquer jeito. Em cima, eles ocupam
+    20px de altura e devolvem os 70px inteiros ao nome. */
+ .exg.dupla .e1{flex-wrap:wrap}
+ .exg.dupla .e2{-webkit-line-clamp:1}
+ /* o nome agora carrega a condição ("COURAÇA 4", "ÍMPAR ou ENXUTO 2") e pode
+    passar de uma linha. O corte fica no TEXTO, não na faixa: clampar a faixa
+    inteira quebraria o flex que alinha os selos ao lado do nome. */
+ .exg .e1{align-items:flex-start}
+ .exg .e1 .sic{margin-top:1px}
+ .exg .e1n{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+   overflow:hidden;min-width:0}
  .exg .e2{color:#cfc09a;font-size:8.5px;line-height:1.25;margin-top:1px;
    font-family:Georgia,serif;letter-spacing:0}
  .exg.abre{background:rgba(111,216,154,.10);border-color:rgba(111,216,154,.48)}

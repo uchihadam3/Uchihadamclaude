@@ -205,25 +205,56 @@ const FRASE = {
   casal:   ()=> 'matar o gêmeo primeiro',
   espelho: v => `devolve ${v||30}% do 1º golpe`,
 };
-/* {ico, nome, frase} da fechadura — inclusive a de duas chaves */
+/* ===================================================================
+   O NOME DA FECHADURA CARREGA A CONDIÇÃO.
+
+   Antes o nome era só a FAMÍLIA da regra, e famílias se repetem: dois
+   inimigos lado a lado diziam "DUAS CHAVES" com condições completamente
+   diferentes, e "Couraça" servia tanto para dado 4+ quanto para dado 5+. Ler
+   o nome não ensinava nada — era preciso reler a frase toda vez.
+
+   Agora o nome é único por condição: COURAÇA 4 e COURAÇA 5 são nomes
+   diferentes, e a composta se chama pelas duas partes que a formam
+   (ÍMPAR ou ENXUTO 2). Isso é aprendível porque as partes já são conhecidas:
+   quem viu ÍMPAR sozinho reconhece ÍMPAR dentro da composta.
+   =================================================================== */
+const NOME = {
+  impar:   ()=> 'Ímpar',
+  par:     ()=> 'Par',
+  forte:   v => 'Couraça '+v,
+  fraco:   v => 'Casca '+v,
+  chave:   v => 'Chave '+v,
+  multiplo:v => 'Múltiplo '+v,
+  enxuto:  v => 'Enxuto '+v,
+  farto:   v => 'Farto '+v,
+  simbolo: v => 'Selo '+(FACE_NOME[v]||v),
+  distintos:()=> 'Avesso',
+  iguais:  v => 'Uníssono '+(v||2),
+  faixa:   v => 'Janela '+v?.[0]+'–'+v?.[1],
+  primo:   ()=> 'Indivisível',
+  casal:   ()=> 'Gêmeo',
+  espelho: v => 'Espelho '+(v||30)+'%',
+};
+/* {ico, nome, frase} da fechadura — inclusive a composta */
 export function selo(t){
   if(!t) return null;
   if(t.t==='ou'){
     const p=(t.alts||[]).map(selo).filter(Boolean);
     if(!p.length) return null;
     if(p.length===1) return p[0];
-    return { ico:'ou', nome:'Duas Chaves',
+    /* o ícone também vira os DOIS: ver ◐ ao lado de ① já diz qual composta é */
+    return { ico:p.map(x=>x.ico), nome:p.map(x=>x.nome).join(' ou '),
              frase: p.map(x=>x.frase).join('  ou  '), alts:p };
   }
-  const f=FRASE[t.t]; if(!f) return null;
+  const f=FRASE[t.t], n=NOME[t.t]; if(!f) return null;
   return { ico:TRAVA_ICO[t.t]||'fechadura',
-           nome:(t.t==='espelho'?'Espelho':null) || NOME[t.t] || t.t.toUpperCase(),
-           frase:f(t.v) };
+           nome:(n?n(t.v):t.t.toUpperCase()), frase:f(t.v) };
 }
-const NOME = { impar:'Ímpar', par:'Par', forte:'Couraça', fraco:'Casca Fina',
-  chave:'Chave', multiplo:'Múltiplo', enxuto:'Enxuto', farto:'Farto',
-  simbolo:'Selo', distintos:'Avesso', iguais:'Uníssono', faixa:'Janela',
-  primo:'Indivisível', casal:'Gêmeo', espelho:'Espelho' };
+/* o selo pode ter um ícone ou dois (composta) — quem desenha usa isto */
+export function icoSelo(sl, cls='sic'){
+  if(!sl) return '';
+  return Array.isArray(sl.ico) ? sl.ico.map(i=>ico(i,cls)).join('') : ico(sl.ico,cls);
+}
 
 /* ---- O REQUISITO DA HABILIDADE, em frase ----
    Os dadinhos "≥ 5" são ótimos para quem já sabe e opacos para quem não

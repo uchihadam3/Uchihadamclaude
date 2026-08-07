@@ -15,7 +15,9 @@ import { makeDie, resetDieIds } from '../js/data/dice.js';
 import { face } from '../js/data/faces.js';
 import { recalcRelics, gerarOpcoes, aplicar } from '../js/engine/rewards.js';
 import { satisfies, ajustarRegras } from '../js/engine/requirements.js';
-import { travaAberta, travaTxt, ALTERNATIVAS, mesmaTrava, seAnulam } from '../js/data/travas.js';
+import { travaAberta, travaTxt, ALTERNATIVAS, mesmaTrava, seAnulam, TRAVAS } from '../js/data/travas.js';
+import * as SIM from '../js/data/simbolos.js';
+import * as DUNGEONS2 from '../js/data/dungeons2.js';
 import { buildWave } from '../js/engine/encounter.js';
 import { MASMORRAS, ESCALADA } from '../js/data/dungeons.js';
 import * as PASS from '../js/data/passivas.js';
@@ -1437,6 +1439,76 @@ console.log('=== AS QUATRO ÁRVORES ===');
       'toda passiva tem efeito de verdade no jogo',
       orfas.length ? 'SEM EFEITO: '+orfas.join(', ') : usadas.size+' efeitos ligados ao motor');
   }
+}
+
+/* =====================================================================
+   18. O NOME DA FECHADURA IDENTIFICA A CONDIÇÃO
+
+   Dois inimigos apareciam lado a lado dizendo "DUAS CHAVES" com regras
+   completamente diferentes, e "Couraça" servia para dado 4+ e para dado 5+.
+   Ler o nome não ensinava nada.
+
+   A regra que este teste protege: se duas fechaduras têm condições
+   diferentes, têm nomes diferentes. Vale para as simples com parâmetro e
+   para todas as combinações que o sorteio de duas chaves pode montar.
+   ===================================================================== */
+console.log('\n=== NOMES DAS FECHADURAS ===');
+{
+  /* toda fechadura que o jogo consegue montar: as escritas nas masmorras,
+     as alternativas sorteáveis, e todo par possível entre elas */
+  const simples = [];
+  const vasculhar = obj => { if(!obj || typeof obj!=='object') return;
+    if(typeof obj.t==='string' && TRAVAS[obj.t]) simples.push(obj);
+    for(const v of Object.values(obj)) vasculhar(v); };
+  vasculhar(MASMORRAS); vasculhar(DUNGEONS2);
+  for(const a of ALTERNATIVAS) simples.push(a);
+
+  const chave = t => JSON.stringify(t);            // a condição, crua
+  const unicas = [...new Map(simples.map(t=>[chave(t),t])).values()];
+  check(unicas.length >= 12, 'Fechaduras', 'o jogo usa um leque de regras',
+    unicas.length+' condições distintas em uso');
+
+  const todas = [...unicas];
+  for(let i=0;i<unicas.length;i++) for(let j=i+1;j<unicas.length;j++){
+    const a=unicas[i], b=unicas[j];
+    if(mesmaTrava(a,b) || seAnulam(a,b)) continue;
+    todas.push({t:'ou', alts:[a,b]});
+  }
+
+  const porNome = new Map();
+  const colisoes = [];
+  for(const t of todas){
+    const s = SIM.selo(t); if(!s) continue;
+    const n = s.nome.toUpperCase();
+    const c = chave(t);
+    if(porNome.has(n) && porNome.get(n) !== c)
+      colisoes.push(`${n}: ${porNome.get(n)} vs ${c}`);
+    else porNome.set(n, c);
+  }
+  check(colisoes.length===0, 'Fechaduras',
+    'nome diferente para condição diferente',
+    colisoes.length ? colisoes.slice(0,4).join(' | ')
+                    : porNome.size+' nomes, todos únicos (simples e compostas)');
+
+  /* e o nome tem que dizer o PARÂMETRO: Couraça 4 e Couraça 5 são regras
+     diferentes e não podem se chamar igual */
+  const paramMudaNome = [
+    [{t:'forte',v:4},{t:'forte',v:5}], [{t:'chave',v:7},{t:'chave',v:9}],
+    [{t:'enxuto',v:1},{t:'enxuto',v:2}], [{t:'farto',v:2},{t:'farto',v:3}],
+    [{t:'multiplo',v:2},{t:'multiplo',v:3}], [{t:'fraco',v:2},{t:'fraco',v:3}],
+    [{t:'faixa',v:[6,9]},{t:'faixa',v:[8,12]}], [{t:'iguais',v:2},{t:'iguais',v:3}],
+  ];
+  for(const [a,b] of paramMudaNome)
+    check(SIM.selo(a).nome !== SIM.selo(b).nome, 'Fechadura '+a.t,
+      'o número faz parte do nome',
+      SIM.selo(a).nome+' vs '+SIM.selo(b).nome);
+
+  /* a composta mostra os DOIS selos, não um genérico */
+  const comp = SIM.selo({t:'ou', alts:[{t:'impar'},{t:'enxuto',v:2}]});
+  check(Array.isArray(comp.ico) && comp.ico.length===2, 'Fechadura composta',
+    'traz os dois ícones', JSON.stringify(comp.ico));
+  check(/Ímpar/.test(comp.nome) && /Enxuto/.test(comp.nome), 'Fechadura composta',
+    'o nome cita as duas partes', comp.nome);
 }
 
 /* ---------------------------------------------------------------- */

@@ -784,7 +784,7 @@ function fichaHTML(){
   const chips=[...SIM.chipsIntencao(e.intent,e), ...SIM.chipsTraco(e)];
   el.className='ficha'; el.style.setProperty('--fc','#c0392b');
   el.innerHTML=`<div class="ftit">${e.nome}${e.elite?' · ELITE':''}</div>
-    ${sl?`<div class="freq">${SIM.ico(sl.ico,'sic')}<b>${sl.nome}</b> ${
+    ${sl?`<div class="freq">${SIM.icoSelo(sl,'sic')}<b>${sl.nome}</b> ${
       e._arrombada?'— ARROMBADA neste turno':
       e.travaOff>0?`— apagada por ${e.travaOff} turno${e.travaOff>1?'s':''}`:sl.frase}</div>`:''}
     <div class="flin">${chips.map(c=>SIM.chip(c.id,c.v)).join('')}</div>
@@ -859,10 +859,10 @@ function pintar(){
     /* sem fechadura, a faixa vira uma nota — e não um buraco */
     const travaHTML = !sl ? `<div class="exg semtrava"><div class="e1">${
         SIM.ico('aberta')}SEM FECHADURA</div><div class="e2">qualquer golpe fere</div></div>`
-      : `<div class="exg ${estadoTrava}" data-tr="${tr?tr.t:''}"
-        ><div class="e1">${e._arrombada ? SIM.ico('aberta')+'ARROMBADA'
-          : e.travaOff>0 ? SIM.ico('dissolve')+`DISSOLVIDA ${e.travaOff}`
-          : SIM.ico(sl.ico)+sl.nome.toUpperCase()}${
+      : `<div class="exg ${estadoTrava}${sl.alts?' dupla':''}" data-tr="${tr?tr.t:''}"
+        ><div class="e1">${e._arrombada ? SIM.ico('aberta')+'<span class="e1n">ARROMBADA</span>'
+          : e.travaOff>0 ? SIM.ico('dissolve')+`<span class="e1n">DISSOLVIDA ${e.travaOff}</span>`
+          : SIM.icoSelo(sl)+`<span class="e1n">${sl.nome.toUpperCase()}</span>`}${
           gira&&!e._arrombada&&!(e.travaOff>0)?'<i class="egira">⟳ vira</i>':''}</div>
         <div class="e2">${e._arrombada ? 'a regra caiu: pode ferir de qualquer jeito'
           : e.travaOff>0 ? `a regra está apagada por ${e.travaOff} turno${e.travaOff>1?'s':''}`
