@@ -32,12 +32,14 @@ export function unitFrom(def, side, opts = {}){
     id:    def.id,
     name:  def.name,
     sprite:def.sprite,
+    type:  def.type || null,                // 'besta'|'humanoide'|'voador'|'morto-vivo'
     side,                                   // 'hero' | 'enemy'
     maxHp, hp: maxHp,
     maxMp, mp: maxMp,
     stats: { atk: b.atk + (opts.atkBonus || 0) + (bon.atk || 0), def: b.def + (bon.def || 0), mag: b.mag + (bon.mag || 0), spd: b.spd + (bon.spd || 0) },
     gambits: opts.gambits || def.gambits || [],
     isBoss: !!opts.isBoss,
+    taunt: 0,                               // ticks restantes de provocação (aggro)
   };
 }
 
@@ -96,7 +98,17 @@ export class Combat {
       if(this.isOver()) break;
       this.act(u);
     }
+    // decai a provocação (aggro) ao fim do tick
+    for(const u of this.units){ if(u.taunt > 0) u.taunt--; }
     return this.log;
+  }
+
+  // Aggro: se algum alvo-herói está provocando, o inimigo é forçado a mirá-lo.
+  tauntRedirect(u, target){
+    if(u.side !== 'enemy' || !target) return target;
+    const taunters = this.enemiesOf(u).filter(h => h.hp > 0 && h.taunt > 0);
+    if(!taunters.length) return target;
+    return taunters.reduce((a, b) => (b.taunt > a.taunt ? b : a));
   }
 
   // Resolve UMA unidade: varre gambits topo→baixo, executa a 1ª aplicável, para.
@@ -107,9 +119,11 @@ export class Combat {
       const condFn = CONDITION_FNS[g.condition];
       const skill  = SKILLS[g.action];
       if(!condFn || !skill) continue;       // linha inválida → ignora
-      const target = condFn(u, ctx);
+      let target = condFn(u, ctx);
       if(!target) continue;                 // condição FALSA → próxima linha
       if(!canPay(u, skill)) continue;       // sem MP → tenta a próxima (fallback)
+      // aggro: ataque de inimigo contra herói é redirecionado p/ quem provocou
+      if(skill.targetType === 'enemy') target = this.tauntRedirect(u, target);
       const ev = execute(u, skill, target, ctx);
       ev.tick = this.tick;
       this.log.push(ev);

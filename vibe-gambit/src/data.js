@@ -19,6 +19,7 @@ export const SKILLS = {
   fireball:     { id:'fireball',     name:'Bola de Fogo',    kind:'damage', targetType:'enemy', stat:'mag', power:1.60, mp:6, element:'fire' },
   holy_strike:  { id:'holy_strike',  name:'Ataque Sagrado',  kind:'damage', targetType:'enemy', stat:'mag', power:1.10, mp:4, element:'holy' },
   heal:         { id:'heal',         name:'Curar',           kind:'heal',   targetType:'ally',  stat:'mag', power:1.40, mp:5 },
+  provocar:     { id:'provocar',     name:'Provocar',        kind:'taunt',  targetType:'self',  duration:2, mp:0 },
 };
 
 // --- CONDIÇÕES DE GAMBIT (metadados) ----------------------------------------
@@ -30,9 +31,20 @@ export const CONDITIONS = {
   enemy_any:       { id:'enemy_any',       label:'Inimigo: Qualquer',     scope:'enemy', starter:true },
   enemy_lowest_hp: { id:'enemy_lowest_hp', label:'Inimigo: Menor HP',     scope:'enemy' },
   enemy_boss:      { id:'enemy_boss',      label:'Inimigo: Chefe',        scope:'enemy' },
+  // HP% numérico do INIMIGO (foca quem está abaixo do limite — execução/finalização)
+  enemy_hp_50:     { id:'enemy_hp_50',     label:'Inimigo: HP < 50%',     scope:'enemy', starter:true },
+  enemy_hp_30:     { id:'enemy_hp_30',     label:'Inimigo: HP < 30%',     scope:'enemy' },
+  // TIPO do inimigo
+  enemy_flying:    { id:'enemy_flying',    label:'Inimigo: Voador',       scope:'enemy' },
+  enemy_undead:    { id:'enemy_undead',    label:'Inimigo: Morto-vivo',   scope:'enemy' },
+  // ALIADO
+  ally_hp_75:      { id:'ally_hp_75',      label:'Aliado: HP < 75%',      scope:'ally' },
   ally_hp_50:      { id:'ally_hp_50',      label:'Aliado: HP < 50%',      scope:'ally',  starter:true },
   ally_hp_25:      { id:'ally_hp_25',      label:'Aliado: HP < 25%',      scope:'ally' },
   ally_dead:       { id:'ally_dead',       label:'Aliado: Morto',         scope:'ally' },
+  // EU (auto — enrage/defensivo)
+  self_hp_50:      { id:'self_hp_50',      label:'Eu: HP < 50%',          scope:'self',  starter:true },
+  self_hp_30:      { id:'self_hp_30',      label:'Eu: HP < 30%',          scope:'self' },
   self_mp_low:     { id:'self_mp_low',     label:'Eu: MP < 10',           scope:'self' },
 };
 
@@ -45,9 +57,10 @@ export const HERO_DEFS = [
     id:'warrior', name:'Guerreiro', klass:'Cavaleiro', sprite:'🛡️',
     armorWeight:'heavy', weaponStyle:'shield', weaponStyles:['shield','twohand'],
     base:{ hp:120, atk:14, def:8, mag:2, mp:10, spd:6 },
-    weaponLevel:0, slots:2, maxSlots:5,
-    skills:['basic_attack'],
+    weaponLevel:0, slots:3, maxSlots:5,
+    skills:['basic_attack','provocar'],
     gambits:[
+      { condition:'ally_hp_50',    action:'provocar' },
       { condition:'enemy_nearest', action:'basic_attack' },
     ],
   },
@@ -66,11 +79,11 @@ export const HERO_DEFS = [
     id:'archer', name:'Arqueiro', klass:'Arqueiro Caçador', sprite:'🏹',
     armorWeight:'medium', weaponStyle:'ranged', weaponStyles:['ranged','dual'],
     base:{ hp:80, atk:12, def:4, mag:4, mp:20, spd:9 },
-    weaponLevel:0, slots:2, maxSlots:5,
+    weaponLevel:0, slots:3, maxSlots:5,
     skills:['power_shot','basic_attack'],
     gambits:[
-      { condition:'enemy_nearest', action:'power_shot' },
-      { condition:'enemy_any',     action:'basic_attack' },
+      { condition:'enemy_hp_50',   action:'power_shot' },
+      { condition:'enemy_nearest', action:'basic_attack' },
     ],
   },
   {
@@ -88,10 +101,13 @@ export const HERO_DEFS = [
 
 // --- INIMIGOS ----------------------------------------------------------------
 // gold: [min,max] de ouro dropado. drops: tabela de recursos por chance.
+// type: 'besta' | 'humanoide' | 'voador' | 'morto-vivo'  (usado por condições de tipo)
 export const ENEMY_DEFS = {
-  slime:        { id:'slime',        name:'Gosma',        sprite:'🟢', base:{hp:30, atk:6,  def:2, mag:0, mp:0, spd:3}, gold:[2,5],  drops:[{res:'herbs', chance:0.50, qty:[1,2]}] },
-  goblin:       { id:'goblin',       name:'Goblin',       sprite:'👺', base:{hp:40, atk:9,  def:3, mag:0, mp:0, spd:5}, gold:[3,7],  drops:[{res:'iron',  chance:0.40, qty:[1,2]}] },
-  goblin_brute: { id:'goblin_brute', name:'Bruto Goblin', sprite:'👹', base:{hp:75, atk:14, def:6, mag:0, mp:0, spd:4}, gold:[6,12], drops:[{res:'iron',  chance:0.60, qty:[1,3]}] },
+  slime:        { id:'slime',        name:'Gosma',        sprite:'🟢', type:'besta',      base:{hp:30, atk:6,  def:2, mag:0, mp:0, spd:3}, gold:[2,5],  drops:[{res:'herbs', chance:0.50, qty:[1,2]}] },
+  goblin:       { id:'goblin',       name:'Goblin',       sprite:'👺', type:'humanoide',  base:{hp:40, atk:9,  def:3, mag:0, mp:0, spd:5}, gold:[3,7],  drops:[{res:'iron',  chance:0.40, qty:[1,2]}] },
+  goblin_brute: { id:'goblin_brute', name:'Bruto Goblin', sprite:'👹', type:'humanoide',  base:{hp:75, atk:14, def:6, mag:0, mp:0, spd:4}, gold:[6,12], drops:[{res:'iron',  chance:0.60, qty:[1,3]}] },
+  bat:          { id:'bat',          name:'Morcego',      sprite:'🦇', type:'voador',     base:{hp:26, atk:8,  def:1, mag:0, mp:0, spd:11}, gold:[3,6], drops:[{res:'herbs', chance:0.35, qty:[1,2]}] },
+  skeleton:     { id:'skeleton',     name:'Esqueleto',    sprite:'💀', type:'morto-vivo', base:{hp:55, atk:11, def:4, mag:0, mp:0, spd:6}, gold:[5,10], drops:[{res:'iron', chance:0.45, qty:[1,2]}] },
 };
 
 // Gambit padrão dos inimigos (IA simples: sempre bate no mais próximo).
@@ -100,9 +116,9 @@ export const ENEMY_GAMBITS = [ { condition:'enemy_nearest', action:'basic_attack
 // --- MAPA / FASES ------------------------------------------------------------
 // waves: cada sub-array é uma leva de inimigos (ids de ENEMY_DEFS).
 export const STAGES = [
-  { id:'mossy_glen',  name:'Mossy Glen',    biome:'forest', unlocked:true,  waves:[['slime','goblin','goblin'], ['goblin','goblin','slime'], ['goblin','goblin_brute','goblin']] },
-  { id:'bandit_camp', name:'Bandit Camp',   biome:'plains', unlocked:false, waves:[['goblin','goblin','goblin'], ['goblin_brute','goblin','goblin'], ['goblin_brute','goblin','goblin_brute']] },
-  { id:'echoing_caves',name:'Echoing Caves',biome:'cave',   unlocked:false, waves:[['goblin_brute','goblin_brute','goblin'], ['goblin_brute','goblin_brute','goblin_brute']] },
+  { id:'mossy_glen',  name:'Mossy Glen',    biome:'forest', unlocked:true,  waves:[['slime','goblin','goblin'], ['goblin','bat','slime'], ['goblin','goblin_brute','bat']] },
+  { id:'bandit_camp', name:'Bandit Camp',   biome:'plains', unlocked:false, waves:[['goblin','bat','goblin'], ['goblin_brute','goblin','bat'], ['goblin_brute','skeleton','goblin_brute']] },
+  { id:'echoing_caves',name:'Echoing Caves',biome:'cave',   unlocked:false, waves:[['skeleton','bat','skeleton'], ['skeleton','goblin_brute','skeleton'], ['goblin_brute','skeleton','skeleton']] },
 ];
 
 // --- FORJA (upgrade linear de arma por classe) ------------------------------
@@ -122,9 +138,14 @@ export const ACADEMY = {
   slotCosts: { 3:{ gold:100, crystals:1 }, 4:{ gold:250, crystals:3 }, 5:{ gold:600, crystals:6 } },
   conditionShop: {
     enemy_lowest_hp: { gold:80,  crystals:1 },
+    enemy_hp_30:     { gold:110, crystals:1 },
     enemy_boss:      { gold:150, crystals:2 },
+    enemy_flying:    { gold:120, crystals:1 },
+    enemy_undead:    { gold:120, crystals:1 },
+    ally_hp_75:      { gold:90,  crystals:1 },
     ally_hp_25:      { gold:120, crystals:1 },
     ally_dead:       { gold:200, crystals:3 },
+    self_hp_30:      { gold:110, crystals:1 },
     self_mp_low:     { gold:120, crystals:1 },
   },
 };

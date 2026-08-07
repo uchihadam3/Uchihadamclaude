@@ -673,6 +673,15 @@ function expoTick(){
 function presentEvent(ev){
   // loot ao matar inimigo
   if(ev.type==='damage' && ev.dead && ev.target.side==='enemy') awardLoot(ev.target);
+  const skill = SKILLS[ev.skill]?.name || ev.skill;
+  const s = ev.source.side==='hero'?'h':'e', t = ev.target.side==='hero'?'h':'e';
+  // PROVOCAR: sem número flutuante de dano — marca visual + log próprio
+  if(ev.type==='taunt'){
+    const be = battlerEl(ev.source);
+    if(be){ const f=document.createElement('div'); f.className='float taunt'; f.textContent='🛡️!'; be.appendChild(f); setTimeout(()=>f.remove(),1000); }
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} <span class="c">PROVOCA os inimigos</span>`);
+    return;
+  }
   // dano/cura flutuante + hit flash
   const be = battlerEl(ev.target);
   if(be){
@@ -682,10 +691,8 @@ function presentEvent(ev){
     if(ev.type!=='heal'){ be.classList.add('hit'); setTimeout(()=>be.classList.remove('hit'),300); }
   }
   // log
-  const skill = SKILLS[ev.skill]?.name || ev.skill;
-  const s = ev.source.side==='hero'?'h':'e', t = ev.target.side==='hero'?'h':'e';
   if(ev.type==='damage')
-    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="${ev.crit?'c':''}">${ev.amount}${ev.crit?' CRIT':''} DMG</span>${ev.dead?' ☠️':''}`);
+    logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="${ev.crit?'c':''}">${ev.amount}${ev.crit?' CRIT':''} DMG</span>${ev.holy?' ✨':''}${ev.dead?' ☠️':''}`);
   else
     logLine(`t${ev.tick} <b class="${s}">${ev.source.name}</b> · ${skill} → <b class="${t}">${ev.target.name}</b> <span class="g">+${ev.amount} HP</span>`);
 }

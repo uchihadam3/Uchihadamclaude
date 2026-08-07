@@ -33,6 +33,10 @@ export function newGame(){
 export function migrate(state){
   if(!state) return state;
   if(!Array.isArray(state.inventory)) state.inventory = [...STARTER_INVENTORY];
+  // garante que as condições STARTER novas (Fase 1) fiquem disponíveis em saves antigos
+  const starters = Object.values(CONDITIONS).filter(c => c.starter).map(c => c.id);
+  if(!Array.isArray(state.unlockedConditions)) state.unlockedConditions = [];
+  for(const id of starters) if(!state.unlockedConditions.includes(id)) state.unlockedConditions.push(id);
   for(const hs of state.heroes || []){
     const base = { head:null, chest:null, hands:null, feet:null, weapon:null, trinket:null };
     hs.equip = Object.assign(base, hs.equip || {});

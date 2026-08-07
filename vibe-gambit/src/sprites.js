@@ -171,7 +171,40 @@ const slime = `
   <path d="M20 43 q4 3 8 0" fill="none" stroke="#1f3a17" stroke-width="1.4"/>
 </svg>`;
 
-export const SPRITES = { warrior, cleric, archer, mage, goblin, goblin_brute, slime };
+const bat = `
+<svg viewBox="0 0 48 56" class="spr" aria-hidden="true">
+  <path d="M24 28 C14 18 8 20 4 24 C9 24 8 29 5 32 C11 32 11 35 10 38 C18 32 22 32 24 32 Z" fill="#5b4a6b"/>
+  <path d="M24 28 C34 18 40 20 44 24 C39 24 40 29 43 32 C37 32 37 35 38 38 C30 32 26 32 24 32 Z" fill="#4a3b58"/>
+  <ellipse cx="24" cy="31" rx="6" ry="7.5" fill="#3b2f47"/>
+  <path d="M20 25 l-2 -5 4 3 z" fill="#3b2f47"/>
+  <path d="M28 25 l2 -5 -4 3 z" fill="#3b2f47"/>
+  <circle cx="21.5" cy="30" r="1.7" fill="#ffd34d"/>
+  <circle cx="26.5" cy="30" r="1.7" fill="#ffd34d"/>
+  <path d="M22 36 l1 2 1 -2 z" fill="#fff"/>
+  <path d="M25 36 l1 2 1 -2 z" fill="#fff"/>
+</svg>`;
+
+const skeleton = `
+<svg viewBox="0 0 48 56" class="spr" aria-hidden="true">
+  <rect x="20" y="42" width="3" height="11" rx="1.5" fill="#e8e6da"/>
+  <rect x="25" y="42" width="3" height="11" rx="1.5" fill="#d8d6c8"/>
+  <rect x="16" y="49" width="8" height="4" rx="1.4" fill="#cfccbe"/>
+  <rect x="24" y="49" width="8" height="4" rx="1.4" fill="#cfccbe"/>
+  <rect x="18" y="26" width="12" height="16" rx="4" fill="#e8e6da"/>
+  <path d="M20 30 h8 M20 33 h8 M20 36 h8" stroke="#b9b7a8" stroke-width="1.4"/>
+  <rect x="23" y="26" width="2" height="16" fill="#cfccbe"/>
+  <rect x="13.5" y="27" width="3" height="13" rx="1.5" fill="#d8d6c8"/>
+  <rect x="31.5" y="27" width="3" height="13" rx="1.5" fill="#d8d6c8"/>
+  <circle cx="24" cy="17" r="8" fill="#f2f0e6"/>
+  <ellipse cx="21" cy="17" rx="2.2" ry="2.8" fill="#241d2a"/>
+  <ellipse cx="27" cy="17" rx="2.2" ry="2.8" fill="#241d2a"/>
+  <path d="M22.2 22 l1.8 2 1.8 -2 z" fill="#241d2a"/>
+  <path d="M20 24 h8" stroke="#b9b7a8" stroke-width="1.2"/>
+  <rect x="36" y="12" width="2.6" height="24" rx="1.3" fill="#b9b0a0"/>
+  <rect x="33" y="34" width="8" height="2.6" rx="1.3" fill="#7d5f27"/>
+</svg>`;
+
+export const SPRITES = { warrior, cleric, archer, mage, goblin, goblin_brute, slime, bat, skeleton };
 
 // Artes 2D (PNG) já entregues. Quando existe imagem, usa ela; senão cai no SVG.
 export const ART = {
