@@ -43,7 +43,7 @@
   .base-frame > *{image-rendering:auto}
   /* placa: aspect-ratio real (586x81) pra NÃO esticar/cortar espada+escudo, acima da moldura */
   .base-title{position:absolute;top:-24px;left:50%;transform:translateX(-50%);z-index:4;
-    width:min(370px,54%);aspect-ratio:586/81;
+    width:min(370px,54%);aspect-ratio:582/83;
     background:url(assets/ribbon.png) center/100% 100% no-repeat;image-rendering:pixelated;
     display:flex;align-items:center;justify-content:center;
     color:#f7ead0;font-size:14px;font-weight:900;letter-spacing:.4px;
@@ -91,7 +91,7 @@
   .npc-box{display:flex;align-items:center;gap:10px;background:#fff8e8;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
   .npc-box .npc{width:64px;height:auto;aspect-ratio:184/260;image-rendering:pixelated;flex:none}
   .npc-say{font-size:13px;font-style:italic;color:var(--ink2);font-weight:700}
-  .shop-list{display:flex;flex-direction:column;gap:6px}
+  .shop-list{display:flex;flex-direction:column;gap:6px;max-height:206px;overflow-y:auto}
   .shop-item{display:flex;align-items:center;gap:6px;background:#fff8e8;border:1px solid var(--line);
     border-radius:9px;padding:6px 8px;min-width:0}
   .shop-item.owned{opacity:.72}
@@ -99,9 +99,8 @@
   .si-cost{font-size:13px;white-space:nowrap} .si-owned{font-size:12px;font-weight:800;color:var(--heal)}
   .shop-buy{padding:5px 10px;font-size:12.5px;flex:none}
 
-  /* rodapé: engrenagem + botão dourado */
-  .hub-foot{display:flex;align-items:center;gap:10px;margin-top:12px}
-  .hub-foot-spacer{display:none}
+  /* rodapé de AÇÕES da base (fora do hub escalado): engrenagem + botão dourado */
+  .base-actions{display:flex;align-items:center;gap:9px;max-width:460px;margin:2px auto 0}
   .hub-gear{flex:none;width:46px;height:46px;padding:0;font-size:20px;border-radius:10px}
   .gold-cta{flex:1;background:linear-gradient(180deg,#ffd76b,#eab032);border:2px solid #c88f20;
     color:#4a3410;font-size:17px;font-weight:900;text-shadow:0 1px 0 #ffe9a8;
@@ -120,13 +119,13 @@
   .party-card.sel{box-shadow:0 0 0 2px var(--acc,#8a6a34),0 2px 6px rgba(30,20,8,.25)}
 
   /* --- painel inferior: DETALHES + INVENTÁRIO (mesma moldura das janelas) --- */
-  .detail-frame{position:relative;margin:18px auto 6px;max-width:460px;
+  .detail-frame{position:relative;margin:6px auto 4px;max-width:460px;
     border:18px solid transparent;border-image:url(assets/frame9.png) 46 round;
     background:var(--panel);background-clip:padding-box;border-radius:10px;
     padding:16px 12px 12px;image-rendering:pixelated}
   .detail-frame > *{image-rendering:auto}
   .detail-title{position:absolute;top:-22px;left:50%;transform:translateX(-50%);z-index:4;
-    width:min(300px,74%);aspect-ratio:586/81;background:url(assets/ribbon.png) center/100% 100% no-repeat;image-rendering:pixelated;
+    width:min(300px,74%);aspect-ratio:582/83;background:url(assets/ribbon.png) center/100% 100% no-repeat;image-rendering:pixelated;
     display:flex;align-items:center;justify-content:center;color:#f7ead0;font-size:13px;font-weight:900;text-shadow:0 1px 0 #2c1a0c,0 0 3px #2c1a0c}
   .detail-title span{image-rendering:auto;padding-bottom:2px}
   .detail-body{display:flex;flex-direction:column;gap:10px}
@@ -144,14 +143,15 @@
   .ds-ic{font-size:22px;flex:none;line-height:1} .ds-tx{min-width:0} .ds-tx b{display:block;font-size:12px;color:var(--ink)} .ds-tx small{font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
   .ds-x{position:absolute;top:3px;right:6px;font-size:11px;color:var(--enemy);font-weight:900}
   .inv-cap{font-size:13px;font-weight:900;color:var(--ink2);margin-top:2px} .inv-cap small{font-weight:700;font-size:10px;color:var(--dim)}
-  .inv-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-  .inv-item{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:9px;align-items:center;
+  /* inventário: faixa HORIZONTAL rolável (economiza altura) */
+  .inv-grid{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .inv-item{flex:0 0 158px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:9px;align-items:center;
     background:#fff8e8;border:1px solid var(--line);border-radius:10px;padding:7px 10px;text-align:left;box-shadow:none;min-width:0}
-  .inv-item .ii-ic{grid-row:1/3;font-size:26px;line-height:1} .ii-nm{font-size:12.5px;font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ii-bo{font-size:10.5px;font-weight:800;color:var(--heal)}
+  .inv-item .ii-ic{grid-row:1/3;font-size:26px;line-height:1} .ii-nm{font-size:12.5px;font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .ii-bo{font-size:10.5px;font-weight:800;color:var(--heal);white-space:nowrap}
   .ii-slot{display:none}
   .inv-item.r-raro{border-color:#a98be6;box-shadow:inset 0 0 0 1px #cbb8f0}
   .inv-item:active{transform:translateY(1px)}
-  .inv-empty{grid-column:1/-1;text-align:center;color:var(--dim);font-size:12px;padding:12px}
+  .inv-empty{text-align:center;color:var(--dim);font-size:12px;padding:12px;flex:1}
   .loot .drop{color:var(--purple);font-weight:800}
 
   /* --- Editor de Gambits (HUD estilo FF XII) --- */
@@ -347,7 +347,10 @@
   .log .sys{color:var(--gold-d)}
 
   /* ---------- modal ---------- */
-  .modal{position:fixed;inset:0;background:#000b;display:grid;place-items:center;z-index:30;padding:16px}
+  .modal{position:fixed;inset:0;background:#000b;display:grid;place-items:start center;z-index:30;padding:16px;overflow-y:auto}
+  .modal .box{position:relative;margin:auto}
+  .modal-x{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;padding:0;font-size:15px;border-radius:9px;
+    background:linear-gradient(180deg,#8a95a2,#5f6772);border:2px solid #3f454d;color:#fff;font-weight:900;box-shadow:0 2px 0 #3f454d}
   .modal .box{background:var(--panel);background-clip:padding-box;
     border:17px solid transparent;border-image:url(assets/frame9.png) 46 round;border-radius:14px;
     padding:16px 16px 14px;width:100%;max-width:400px;text-align:center;box-shadow:0 16px 50px rgba(0,0,0,.55);image-rendering:pixelated}

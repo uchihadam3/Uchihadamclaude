@@ -146,14 +146,14 @@ function renderBase(){
             <div class="hub-center" id="hub-center"></div>
             <div class="hub-panel hub-right" id="hub-right"></div>
           </div>
-          <div class="hub-foot">
-            <button class="hub-gear" title="Opções">⚙️</button>
-            <button class="gold-cta" id="hub-cta">⚔️ Partir em Expedição</button>
-          </div>
         </div>
       </div>
     </div>
-    <div class="base-frame detail-frame" id="detail-frame"></div>`;
+    <div class="base-frame detail-frame" id="detail-frame"></div>
+    <div class="base-actions">
+      <button class="hub-gear" title="Opções">⚙️</button>
+      <button class="gold-cta" id="hub-cta">⚔️ Partir em Expedição</button>
+    </div>`;
   renderHubParty($('hub-left'));
   renderHubCenter($('hub-center'));
   renderHubShop($('hub-right'));
@@ -213,12 +213,12 @@ function renderDetail(){
   const slotsHTML = EQUIP_SLOTS.map(s=>{
     if(s.key==='weapon'){
       return `<button class="d-slot on" data-slot="weapon" style="--acc:${accentOf(hs.id)}">
-        <span class="ds-ic">⚔️</span><span class="ds-tx"><b>Arma</b><small>Nível ${hs.weaponLevel}/5 · Forja</small></span></button>`;
+        <span class="ds-ic">⚔️</span><span class="ds-tx"><b>Arma</b><small>Nv ${hs.weaponLevel}/5</small></span></button>`;
     }
     const it = ITEMS[eq[s.key]];
     return `<button class="d-slot ${it?'on':''}" data-slot="${s.key}" style="--acc:${accentOf(hs.id)}">
       <span class="ds-ic" style="${it?'':'opacity:.4'}">${it?it.icon:s.icon}</span>
-      <span class="ds-tx"><b>${s.label}</b><small>${it?it.name:'— vazio —'}</small></span>
+      <span class="ds-tx"><b>${s.label}</b><small>${it?it.name:'vazio'}</small></span>
       ${it?'<span class="ds-x" title="Desequipar">✕</span>':''}</button>`;
   }).join('');
   const inv = S.inventory || [];
@@ -294,6 +294,7 @@ let ghHero = null;
 function openGambitHUD(){
   if(!ghHero || !S.heroes.find(h=>h.id===ghHero)) ghHero = selHero || S.heroes[0].id;
   $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide gh-box">
+    <button class="modal-x" title="Fechar">✕</button>
     <h2>🧠 Editor de Gambits</h2>
     <p class="muted tiny gh-lede">Programe a IA de cada herói. A cada turno a lista é lida de <b>cima → baixo</b>; a <b>1ª condição verdadeira</b> executa sua ação e <b>para</b>.</p>
     <div id="gh-mount"></div>
@@ -301,6 +302,7 @@ function openGambitHUD(){
   </div></div>`;
   renderGambitHUD($('gh-mount'));
   $('gh-close').onclick = closeModal;
+  bindModalDismiss();
 }
 function renderGambitHUD(mount){
   const hs = S.heroes.find(h=>h.id===ghHero); const def = HERO_DEFS.find(h=>h.id===hs.id);
@@ -372,16 +374,25 @@ function renderHubShop(mount){
 
 // ---- MODAIS ----
 function closeModal(){ $('modal-root').innerHTML=''; }
+// fecha por clique no fundo escuro + botão ✕
+function bindModalDismiss(){
+  const m = $('modal-root').querySelector('.modal'); if(!m) return;
+  m.addEventListener('click', e => { if(e.target === m) closeModal(); });
+  const x = m.querySelector('.modal-x'); if(x) x.onclick = closeModal;
+}
 function openPanelModal(title, renderFn){
   $('modal-root').innerHTML = `<div class="modal"><div class="box box-wide">
+    <button class="modal-x" title="Fechar">✕</button>
     <h2>${title}</h2><div id="pm-body" style="text-align:left"></div>
     <div class="row" style="justify-content:center;margin-top:12px"><button id="pm-close">Fechar</button></div>
   </div></div>`;
   renderFn($('pm-body'));
   $('pm-close').onclick = closeModal;
+  bindModalDismiss();
 }
 function openOptions(){
   $('modal-root').innerHTML = `<div class="modal"><div class="box">
+    <button class="modal-x" title="Fechar">✕</button>
     <h2>⚙️ Opções</h2>
     <div class="row" style="justify-content:center;margin-top:10px">
       <button class="primary" id="op-save">💾 Salvar agora</button>
@@ -393,6 +404,7 @@ function openOptions(){
   $('op-save').onclick  = () => { save(S); $('op-msg').textContent='Progresso salvo ✓'; };
   $('op-reset').onclick = () => { if(confirm('Reiniciar todo o progresso?')){ const n=newGame(); Object.assign(S,n); save(S); closeModal(); renderHud(); renderBase(); } };
   $('op-close').onclick = closeModal;
+  bindModalDismiss();
 }
 
 function heroRuntimeStats(hs){
@@ -409,7 +421,7 @@ function heroRuntimeStats(hs){
 
 function renderForge(body, onlyId){
   const list = onlyId ? S.heroes.filter(h=>h.id===onlyId) : S.heroes;
-  body.innerHTML = `${onlyId?'':'<h3 style="padding:0 2px 8px">🔨 Forja — melhore as armas (ATK permanente)</h3>'}
+  body.innerHTML = `${onlyId?'':'<p class="muted tiny" style="margin:0 2px 10px;text-align:center">Melhore as armas — bônus de ATK permanente.</p>'}
     <div class="hero-cards">${list.map(hs=>{
       const {def, atk} = heroRuntimeStats(hs);
       const next = FORGE_LEVELS[hs.weaponLevel];
