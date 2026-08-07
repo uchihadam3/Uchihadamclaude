@@ -72,7 +72,23 @@ function ir(nome){
 /* leva a run para onde ela estiver: é o único lugar que decide isso, para
    não haver dois caminhos discordando sobre em que sala o jogador está */
 function seguir(){
-  if(!run) return ir('titulo');
+  if(!run) return /* QUE VERSÃO É ESTA.
+   O link do jogo é fixo e serve sempre a última versão, o que é bom até o
+   momento em que alguém precisa saber se o que está na tela já é a correção
+   de ontem. `document.lastModified` responde isso sem nenhuma manutenção: é a
+   data do arquivo que o navegador realmente baixou. Se ela não avançou depois
+   de uma atualização, o que está na tela veio do cache. */
+(function versao(){
+  const el = $('#creditos'); if(!el) return;
+  const d = new Date(document.lastModified);
+  const q = n => String(n).padStart(2,'0');
+  const quando = Number.isNaN(d.getTime()) ? ''
+    : ` · versão de ${q(d.getDate())}/${q(d.getMonth()+1)} ${q(d.getHours())}:${q(d.getMinutes())}`;
+  el.textContent = `${SALAS.length*MUNDOS} salas · ${LISTA_BOSSES.length} chefes · `
+    + `${RELIQUIAS.length} relíquias${quando}`;
+})();
+
+ir('titulo');
   if(run.acabou())         return ir('fim');
   if(run.sala)             return ir('sala');
   if(run.aguardandoPremio) return ir('premio');
@@ -1677,7 +1693,23 @@ function telaLivro(){
     if(run?.sala){ ir('sala'); setTimeout(()=>guia(0), 350); }
     else aviso('PRONTO', 'o guia volta na próxima sala'); };
   const v = $('#voltarLivro');
-  if(v) v.onclick = ()=>{ SFX.clique(); run ? seguir() : ir('titulo'); };
+  if(v) v.onclick = ()=>{ SFX.clique(); run ? seguir() : /* QUE VERSÃO É ESTA.
+   O link do jogo é fixo e serve sempre a última versão, o que é bom até o
+   momento em que alguém precisa saber se o que está na tela já é a correção
+   de ontem. `document.lastModified` responde isso sem nenhuma manutenção: é a
+   data do arquivo que o navegador realmente baixou. Se ela não avançou depois
+   de uma atualização, o que está na tela veio do cache. */
+(function versao(){
+  const el = $('#creditos'); if(!el) return;
+  const d = new Date(document.lastModified);
+  const q = n => String(n).padStart(2,'0');
+  const quando = Number.isNaN(d.getTime()) ? ''
+    : ` · versão de ${q(d.getDate())}/${q(d.getMonth()+1)} ${q(d.getHours())}:${q(d.getMinutes())}`;
+  el.textContent = `${SALAS.length*MUNDOS} salas · ${LISTA_BOSSES.length} chefes · `
+    + `${RELIQUIAS.length} relíquias${quando}`;
+})();
+
+ir('titulo'); };
 }
 
 /* ═══════════════════════════════════════════ salvar e retomar */
@@ -1735,6 +1767,22 @@ if(retomar()){
   pinta();
   $('#t-titulo .menu').appendChild(b);
 })();
+/* QUE VERSÃO É ESTA.
+   O link do jogo é fixo e serve sempre a última versão, o que é bom até o
+   momento em que alguém precisa saber se o que está na tela já é a correção
+   de ontem. `document.lastModified` responde isso sem nenhuma manutenção: é a
+   data do arquivo que o navegador realmente baixou. Se ela não avançou depois
+   de uma atualização, o que está na tela veio do cache. */
+(function versao(){
+  const el = $('#creditos'); if(!el) return;
+  const d = new Date(document.lastModified);
+  const q = n => String(n).padStart(2,'0');
+  const quando = Number.isNaN(d.getTime()) ? ''
+    : ` · versão de ${q(d.getDate())}/${q(d.getMonth()+1)} ${q(d.getHours())}:${q(d.getMinutes())}`;
+  el.textContent = `${SALAS.length*MUNDOS} salas · ${LISTA_BOSSES.length} chefes · `
+    + `${RELIQUIAS.length} relíquias${quando}`;
+})();
+
 ir('titulo');
 
 /* deixa o motor à mão no console — é assim que se investiga um bug de regra */

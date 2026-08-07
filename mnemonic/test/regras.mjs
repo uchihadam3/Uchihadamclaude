@@ -443,6 +443,58 @@ secao('8c. Relíquia que promete tem de fazer');
     ok(porR[grau] >= 10, `há ${porR[grau]} relíquias ${grau} — variedade em cada degrau`);
 }
 
+/* ════════════════════════════════════════════════════════ 8d */
+secao('8d. Todo evento é uma troca, e toda troca acontece de verdade');
+{
+  /* A regra escrita no alto de eventos.js: se uma das opções é sempre a
+     melhor, o evento é um botão "continuar" com texto bonito. Aqui se prova o
+     mínimo que dá para provar por fora — que toda opção MEXE na run, e que
+     nenhuma delas explode com uma run recém-nascida ou com uma run vazia. */
+  const ids = EVENTOS.map(e=>e.id);
+  eq(new Set(ids).size, ids.length, 'nenhum evento repete o id de outro');
+  ok(EVENTOS.length >= 25, `o jogo tem ${EVENTOS.length} eventos`);
+  ok(EVENTOS.every(e=>e.ops.length >= 2), 'todo evento oferece pelo menos duas saídas');
+  ok(EVENTOS.every(e=>e.ops.every(o=>o.txt && o.d)),
+     'toda opção diz o que faz antes de ser escolhida');
+
+  /* O QUE O EVENTO PROMETE TEM DE CHEGAR NA SALA. Um evento que diz "+4 de
+     pontos na base de toda carta" e mexe num campo que ninguém lê é pior que
+     não existir: o jogador paga o preço e não recebe. */
+  const motorTodo = readFileSync(new URL('../js/engine/run.js', import.meta.url), 'utf8')
+                  + readFileSync(new URL('../js/engine/tabuleiro.js', import.meta.url), 'utf8');
+  const fonteEv = readFileSync(new URL('../js/data/eventos.js', import.meta.url), 'utf8');
+  const campos = new Set([...fonteEv.matchAll(/\br\.([a-zA-Z]+)\s*=/g)].map(m=>m[1]));
+  for(const c of campos)
+    ok(motorTodo.includes('this.'+c) || motorTodo.includes('.'+c+' '),
+       `o motor usa "${c}", que algum evento mexe`);
+
+  const foto = r => JSON.stringify({ f:r.foco, m:r.moedas, v:r.bonusViradas,
+    rel:[...r.reliquias].sort(), e:r.espiaExtra, b:r.baseExtra, mu:r.multExtra,
+    me:r.memoriaExtra, so:r.semeaOuro, pv:r.pavioDobro, pg:r.parGratis });
+
+  for(const ev of EVENTOS) for(let i=0;i<ev.ops.length;i++){
+    /* run cheia: a opção tem de fazer alguma coisa */
+    const rico = new Run({ semente:'ev-'+ev.id+i, classe:'detetive' });
+    rico.moedas = 500; rico.reliquias = ['coroa','ima','luva'];
+    const antes = foto(rico);
+    let txt;
+    try { txt = ev.ops[i].ef(rico); }
+    catch(e){ ok(false, `${ev.id}/${i} explodiu: ${e.message}`); continue; }
+    ok(typeof txt === 'string' && txt.length > 3,
+       `${ev.id}/${i} conta o que aconteceu`);
+    ok(foto(rico) !== antes || /nada|não|recusa|continua|espera|sai|sorri/i.test(txt),
+       `${ev.id}/${i} muda a run, ou explica por que não mudou`);
+    /* run pelada: não pode explodir por falta de moeda ou de relíquia */
+    const pobre = new Run({ semente:'ev2-'+ev.id+i, classe:'detetive' });
+    pobre.moedas = 0; pobre.reliquias = [];
+    try { ok(typeof ev.ops[i].ef(pobre) === 'string',
+             `${ev.id}/${i} aguenta uma run sem moeda e sem relíquia`); }
+    catch(e){ ok(false, `${ev.id}/${i} explodiu com a run vazia: ${e.message}`); }
+    ok(pobre.foco >= 1, `${ev.id}/${i} nunca deixa o Foco abaixo de 1`);
+    ok(pobre.moedas >= 0, `${ev.id}/${i} nunca deixa a moeda negativa`);
+  }
+}
+
 /* ════════════════════════════════════════════════════════ 9 */
 secao('9. Fim de sala');
 {

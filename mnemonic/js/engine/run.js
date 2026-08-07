@@ -104,6 +104,11 @@ export class Run {
     this.venceu = false;
     this.sala = null;
     this.chances = {};                 // segunda chance já usada, por mundo
+    /* o dado dos eventos nasce aqui e é TROCADO a cada escolha por um
+       derivado do lugar. Nascer aqui é o que garante que nenhum evento
+       explode se alguém chamar o efeito por fora de `escolher` — foi assim
+       que "O Jogo do Guarda" pareceu quebrado num teste. */
+    this.sorte = makeRNG(this.semente+'|sorte');
     this.estatisticas = { acertos:0, erros:0, maiorCombo:0, salas:0,
                           viradasSobrando:0, moedasGanhas:0 };
     if(this.C.reliquiaExtra) this._darReliquia();
@@ -151,6 +156,17 @@ export class Run {
   _mods(){
     const m = { ...(this.C.mods||{}) };
     if(this.C.veTipos) m.veTipos = true;
+    /* O QUE OS EVENTOS DEIXARAM. Um evento que promete "+4 de pontos na base
+       de toda carta" e não passa por aqui é texto bonito: o jogador escolhe,
+       paga o preço e não recebe nada. Cada campo destes é uma promessa feita
+       numa sala de evento, cobrada em todas as salas seguintes. */
+    if(this.baseExtra)    m.pontoBase = (m.pontoBase||0) + this.baseExtra;
+    if(this.multExtra)    m.multCombo = (m.multCombo||0) + this.multExtra;
+    if(this.memoriaExtra) m.memoria   = (m.memoria||0)   + this.memoriaExtra;
+    if(this.espiaExtra)   m.espiar    = (m.espiar||0)    + this.espiaExtra;
+    if(this.semeaOuro)    m.semeaOuro = (m.semeaOuro||0) + this.semeaOuro;
+    if(this.pavioDobro)   m.pavioDobro = true;
+    if(this.parGratis)    m.parGratis = (m.parGratis||0) + this.parGratis;
     for(const id of this.reliquias){
       const r = POR_ID[id]; if(!r?.mods) continue;
       for(const [k,v] of Object.entries(r.mods)){

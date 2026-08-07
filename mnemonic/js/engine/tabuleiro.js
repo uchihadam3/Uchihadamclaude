@@ -145,7 +145,21 @@ export class Sala {
     this._perdoou = false;             // o perdão do primeiro erro já foi gasto?
     this._marcou = false;              // a primeira carta da sala já foi marcada?
     this.cartas = this._montar();
+    /* O QUE OS EVENTOS SEMEARAM NO TABULEIRO.
+       Tudo aqui roda ANTES do chefe e antes das relíquias, e sempre pelo RNG
+       da sala — um sorteio fora dele desencaixaria o replay do ranking. */
+    if(this.mods.semeaOuro)
+      for(const c of this.rng.sample(this.cartas, this.mods.semeaOuro)) c.tipo = 'ouro';
+    if(this.mods.pavioDobro)
+      for(const c of this.cartas) if(c.pavio) c.pavio *= 2;
+    if(this.mods.parGratis){
+      /* um par já resolvido de brinde: sai do tabuleiro sem gastar virada */
+      const pares = [...new Set(this.cartas.map(c=>c.par))];
+      for(const p of this.rng.sample(pares, this.mods.parGratis))
+        for(const c of this.cartas) if(c.par===p){ c.resolvida = true; c.conhecida = true; }
+    }
     this.colunas = colunasPara(this.cartas.length);
+    if(this.mods.espiar) this.espiar(this.mods.espiar);
     if(this.boss?.inicio) this.boss.inicio(this);
   }
 
