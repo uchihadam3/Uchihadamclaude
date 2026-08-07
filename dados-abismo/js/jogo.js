@@ -1068,6 +1068,7 @@ function pintar(){
           `<span>${SIM.ico(c,'sic')} ${SIM.CONCEITO[c]?.p||c}</span>`).join('')
       : ''; }
   fichaHTML();                  // a explicação por extenso, do que foi tocado
+  medirTopo();                  // o cabeçalho pode ter crescido de linha
   /* DADOS USADOS: os que já foram gastos neste turno, apagados */
   { const gastos = cb.roll.filter(e=>cb.used.has(e.dieId));
     $('usadoslst').innerHTML = gastos.length
@@ -1807,7 +1808,18 @@ function fim(){
    subtraindo as outras duas — conta que ficava velha assim que o rodapé
    crescia, e aí a HUD tapava os dados —, ele apenas OBEDECE ao tamanho que o
    navegador já lhe deu. */
+/* O CABEÇALHO NÃO TEM ALTURA FIXA. "Masmorra 1 ◆ Andar 1/10 ◆ A Cripta de Giz
+   ◆ 3 inimigos" cabe numa linha em 390px e quebra em duas num aparelho mais
+   estreito ou com a fonte do sistema aumentada. A fileira de inimigos reservava
+   28px chapados para ele: quando ele crescia, o primeiro card ia parar por
+   baixo — e com ele a etiqueta do dano, que era o que aparecia escrita atrás
+   do título. A folga passa a ser medida do elemento, não chutada. */
+function medirTopo(){
+  const t=document.getElementById('topo'); if(!t) return;
+  document.documentElement.style.setProperty('--topoh', Math.ceil(t.offsetHeight)+'px');
+}
 function resize(){
+  medirTopo();
   const el = renderer.domElement;
   const r  = el.getBoundingClientRect();
   const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));

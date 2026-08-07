@@ -101,7 +101,7 @@
     além de não bater com a imagem, era o que empurrava os botões do rodapé
     para fora da tela. Em grade, quatro sempre cabem numa fila só; do quinto
     em diante começa a segunda. */
- #ini{padding:calc(28px + env(safe-area-inset-top)) 6px 8px;
+ #ini{padding:calc(var(--topoh,28px) + 6px) 6px 8px;
    display:grid;grid-template-columns:repeat(4,1fr);gap:5px;align-items:start;
    z-index:10;pointer-events:auto;max-height:calc(52vh + env(safe-area-inset-top));
    overflow-y:auto;scrollbar-width:none}
@@ -593,7 +593,9 @@
    .h{padding:4px 7px 4px;gap:1px}
    .b{padding:6px 12px}
    body{grid-template-rows:auto minmax(104px,1fr) auto}   /* a mesa cede 46px */
-   #ini{padding-top:calc(19px + env(safe-area-inset-top));padding-bottom:4px}
+   /* tela baixa: a folga encolhe, mas continua saindo da altura medida do
+      cabeçalho — nunca de um número fixo que ele pode passar */
+   #ini{padding-top:calc(var(--topoh,19px) + 1px);padding-bottom:4px}
    #baixo{padding-top:3px}
  }
  @media (max-height:720px){
@@ -1225,8 +1227,17 @@
  #ini,#baixo{transform:translateX(var(--sk,0px))}
  /* ===== TELEGRAFIA (§12) ===== */
  .en.napre{border-color:#ffd24a;box-shadow:0 0 0 1px #ffd24a66,0 0 22px #ffd24a33}
- .en .prev{position:absolute;top:-13px;left:50%;transform:translateX(-50%);display:flex;gap:4px;
-   align-items:center;z-index:6;white-space:nowrap;animation:pin .18s ease-out}
+ /* A ETIQUETA DA PRÉVIA MORA DENTRO DO CARD.
+    Ela ficava pendurada 13px ACIMA dele, e ali havia dois jeitos de sumir: o
+    cabeçalho "Masmorra 1 ◆ Andar 1/10" é fixo com z-index 12 e passava por
+    cima da etiqueta da primeira fila — era o que se via, o dano escrito
+    atrás do título; e a fileira de inimigos rola por dentro, então bastava
+    arrastar um pouco para a etiqueta ser decepada pela borda de cima.
+    Encostada no topo do card ela não depende nem da altura do cabeçalho nem
+    da posição da rolagem. A sombra a separa do retrato. */
+ .en .prev{position:absolute;top:2px;left:50%;transform:translateX(-50%);display:flex;gap:4px;
+   align-items:center;z-index:6;white-space:nowrap;animation:pin .18s ease-out;
+   filter:drop-shadow(0 2px 5px rgba(0,0,0,.95)) drop-shadow(0 0 3px rgba(0,0,0,.9))}
  @keyframes pin{from{opacity:0;transform:translateX(-50%) translateY(6px) scale(.8)}}
  .en .prev .pd{background:#7a1420;border:1px solid #ff6a5a;color:#fff;font-size:14px;font-weight:900;
    border-radius:7px;padding:1px 7px;text-shadow:0 1px 3px #000}
