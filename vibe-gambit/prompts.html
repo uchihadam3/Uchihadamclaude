@@ -127,6 +127,14 @@
     <div class="grid" id="grid-frames"></div>
   </section>
 
+  <section>
+    <div class="eyebrow"><h2>Equipamento &amp; Itens</h2><span class="rule">folhas de ícones · fundo magenta</span><span class="count">3 folhas</span></div>
+    <div class="callout" style="border-left-color:#7fb2ff;border-color:#2f5a8a;background:linear-gradient(180deg,#141f30,#0f1622);color:#cfe0f0">
+      <b>🎒 Ícones em FOLHA:</b> cada arte é uma <b>folha com vários ícones numa linha</b>, bem espaçados, cada um centralizado na sua célula, em <b>fundo magenta</b> (`#FF00FF`). Eu recorto e encaixo nos slots/inventário. Estilo pixel chunky, contorno escuro, combinando com os personagens.
+    </div>
+    <div class="grid" id="grid-equip"></div>
+  </section>
+
   <div class="specs">
     <h3>📐 Especificações técnicas</h3>
     <ul>
@@ -221,8 +229,17 @@
     {emoji:'🔘', name:'Botão', file:'btn.png', chip:'Moldura', chipClass:'frame',
       prompt:"16-bit pixel art fantasy RPG UI button: a rounded-rectangular wooden button with a thin dark outline and a soft bevel/highlight (idle state), simple and clean to match the stone-and-wood window frame, EMPTY face (no text), left-right symmetric so it can stretch horizontally. On a SOLID FLAT MAGENTA background (#FF00FF), thick dark outline, cohesive with the game's character style, no text, no glow, no drop shadow, no gradient. Clean hard edges for chroma-key."},
   ];
+  const EQUIP = [
+    {emoji:'🎽', name:'Ícones de SLOT vazio (folha · 6)', file:'icons_slots.png', chip:'Ícones', chipClass:'bonus',
+      prompt:"16-bit pixel art RPG equipment SLOT-TYPE icons, a set of 6 icons arranged in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each roughly square and centered in its own cell. From left to right: (1) a knight HELMET (head slot), (2) a chest BREASTPLATE armor (chest slot), (3) a pair of leather GLOVES (hands slot), (4) a pair of BOOTS (feet slot), (5) a SWORD blade (weapon slot), (6) a RING with a small gem (accessory slot). Simple clean readable silhouettes, thin dark outline, muted metallic-and-leather colors, cohesive with the fantasy RPG character style. Everything on a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons."},
+    {emoji:'🛡️', name:'Itens A — cabeça & peito (folha · 5)', file:'icons_items_a.png', chip:'Ícones', chipClass:'bonus',
+      prompt:"16-bit pixel art RPG equipment ITEM icons, a set of 5 icons arranged in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each roughly square and centered in its own cell. From left to right: (1) an iron knight HELMET (grey steel), (2) a pointed blue ARCANE WIZARD HAT with a small star, (3) a brown LEATHER ARMOR vest, (4) a grey CHAIN-MAIL shirt, (5) a royal-blue ARCANE ROBE with gold trim. Chunky readable pixel art, thin dark outline, bold cohesive colors matching the fantasy RPG character style. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons."},
+    {emoji:'💍', name:'Itens B — mãos, pés & acessórios (folha · 5)', file:'icons_items_b.png', chip:'Ícones', chipClass:'bonus',
+      prompt:"16-bit pixel art RPG equipment ITEM icons, a set of 5 icons arranged in ONE horizontal row, evenly spaced with WIDE empty gaps between them, each roughly square and centered in its own cell. From left to right: (1) a pair of brown LEATHER GLOVES, (2) a spiked steel POWER GAUNTLET, (3) a pair of brown leather BOOTS, (4) a gold RING with a red gem, (5) a glowing blue VITAL AMULET pendant on a chain. Chunky readable pixel art, thin dark outline, bold cohesive colors matching the fantasy RPG character style. On a SOLID FLAT UNIFORM MAGENTA background (pure magenta #FF00FF) filling the frame — no gradient, no glow, no shadow, no text. Clean hard edges for easy chroma-key cutout, and NO magenta or pink inside the icons."},
+  ];
   document.getElementById('grid-menus').innerHTML   = MENUS.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
   document.getElementById('grid-frames').innerHTML  = FRAMES.map(m=>card({icon:m.emoji,   name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
+  document.getElementById('grid-equip').innerHTML   = EQUIP.map(m=>card({icon:m.emoji,    name:m.name, file:m.file, chip:m.chip,   chipClass:m.chipClass, prompt:m.prompt})).join('');
 
   function fallbackCopy(text){
     const ta=document.createElement('textarea');
