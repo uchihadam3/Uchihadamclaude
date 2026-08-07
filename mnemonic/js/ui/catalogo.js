@@ -22,9 +22,12 @@ import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
 import { BOSSES, LISTA_BOSSES } from '../data/bosses.js';
 import { COMBOS, degrauCombo } from '../engine/tabuleiro.js';
 import { svgGlifo } from '../arte/glifos.js';
-import { ICO, ICO_CLASSE, ICO_CHEFE } from './icones.js';
+import { ICO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, icoReliquia } from './icones.js';
 
 const vg = n => String(n).replace('.', ',');
+
+/* a capa do capítulo das relíquias é a mais reconhecível delas */
+const ICO_RELIQUIA_CAPA = icoReliquia('coroa');
 
 /* a escada de combo também é uma escada de COR: o degrau se reconhece pela
    cor antes de o nome ser lido */
@@ -114,11 +117,11 @@ export const FAMILIA_DE_PECA = {
                        ...(t.pavio ? [['pavio', t.pavio+' viradas']] : []) ] }; },
   },
   familia: {
-    nome:'As famílias', ico:ICO.reliquia, cor:'#ffc23c',
+    nome:'As famílias', ico:ICO_FAM.runas, cor:'#ffc23c',
     resumo:'Cada sala sorteia duas ou três. A família manda no tabuleiro inteiro.',
     lista: () => LISTA_FAMILIAS.map(f => f.id),
     peca: id => { const f = FAMILIAS[id];
-      return { cor:f.cor, ico:svgGlifo(f.id, 0, 'gl'), nome:f.nome, tag:f.traco,
+      return { cor:f.cor, ico:ICO_FAM[f.id] || svgGlifo(f.id, 0, 'gl'), nome:f.nome, tag:f.traco,
                texto:f.regra,
                amostra: f.s.slice(0,6).map(i => svgGlifo(f.id, i, 'gl')) }; },
   },
@@ -141,11 +144,11 @@ export const FAMILIA_DE_PECA = {
                texto:b.regra, nota:b.dica }; },
   },
   reliquia: {
-    nome:'As relíquias', ico:ICO.reliquia, cor:'#b478ff',
+    nome:'As relíquias', ico:ICO_RELIQUIA_CAPA, cor:'#b478ff',
     resumo:'Nenhuma dá só "+N". Cada uma muda uma regra ou muda a conta.',
     lista: () => RELIQUIAS.map(r => r.id),
     peca: id => { const r = POR_ID[id];
-      return { cor:RARIDADE[r.r], ico:ICO.reliquia, nome:r.nome, tag:r.r, texto:r.d }; },
+      return { cor:RARIDADE[r.r], ico:icoReliquia(r.id), nome:r.nome, tag:r.r, texto:r.d }; },
   },
   combo: {
     nome:'A escada do combo', ico:ICO.combo, cor:'#ffa24d',

@@ -24,7 +24,8 @@ import { RELIQUIAS, POR_ID, sortearReliquias } from '../js/data/reliquias.js';
 import { BOSSES, LISTA_BOSSES, BOSS_DO_MUNDO } from '../js/data/bosses.js';
 import { EVENTOS } from '../js/data/eventos.js';
 import { glifo, POR_FAMILIA } from '../js/arte/glifos.js';
-import { ICO, ICO_CLASSE, ICO_CHEFE, TEM_ARTE } from '../js/ui/icones.js';
+import { ICO, ICO_CLASSE, ICO_CHEFE, ICO_FAM, ICO_RELIQUIA, TEM_ARTE,
+         icoReliquia } from '../js/ui/icones.js';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { Sala, COMBOS, degrauCombo, pontosPerfeitos, colunasPara } from '../js/engine/tabuleiro.js';
 import { Run, verificar, planoDaSala, SALAS, MUNDOS, COMBATE, MAX_JOGADAS } from '../js/engine/run.js';
@@ -739,7 +740,16 @@ secao('16b. Todo nome do jogo tem um desenho');
   const SALA_ICO = ['combate','elite','chefe','loja','evento','fogueira','tesouro'];
   for(const v of SALA_ICO) ok(!!ICO[v], `o tipo de sala "${v}" tem ícone desenhado`);
 
-  const todos = [...Object.values(ICO), ...Object.values(ICO_CLASSE), ...Object.values(ICO_CHEFE)];
+  /* cada relíquia e cada família também precisam da sua marca: enquanto as
+     vinte e uma relíquias dividiam um amuleto genérico, a loja oferecia três
+     coisas visualmente idênticas e a escolha virava leitura de parágrafo */
+  for(const r of RELIQUIAS) ok(!!ICO_RELIQUIA[r.id], `a relíquia ${r.id} tem marca própria`);
+  for(const f of LISTA_FAMILIAS) ok(!!ICO_FAM[f.id], `a família ${f.id} tem brasão`);
+  eq(new Set(Object.values(ICO_RELIQUIA)).size, RELIQUIAS.length,
+     'nenhuma relíquia usa a marca de outra');
+
+  const todos = [...Object.values(ICO), ...Object.values(ICO_CLASSE), ...Object.values(ICO_CHEFE),
+                 ...Object.values(ICO_FAM), ...Object.values(ICO_RELIQUIA)];
   /* um ícone é DESENHADO (svg no mesmo viewBox) ou PINTADO (arte que chegou
      como imagem). Os dois valem; o que não vale é um conceito sem marca. */
   ok(todos.every(s=>(s.startsWith('<svg') && s.includes('viewBox="0 0 24 24"'))
@@ -773,13 +783,55 @@ secao('16c. Nenhuma arte apontada existe só no CSS');
 
   /* e o caminho contrário: arte recortada que ninguém usa é peso morto no
      repositório e sinal de que o recorte saiu do lugar */
+  const src = m => /src="([^"]+)"/.exec(m || '')?.[1];
   const usados = new Set([...alvos,
-    ...[...TEM_ARTE].map(id=>/src="([^"]+)"/.exec(ICO[id])?.[1])].filter(Boolean));
-  for(const pasta of ['ico','fx','ui']){
+    ...[...TEM_ARTE].map(id=>src(ICO[id])),
+    ...Object.values(ICO_CLASSE).map(src), ...Object.values(ICO_CHEFE).map(src),
+    ...Object.values(ICO_FAM).map(src),    ...Object.values(ICO_RELIQUIA).map(src),
+  ].filter(Boolean));
+  for(const pasta of ['ico','fx','ui','classe','chefe','fam','rel']){
     const dir = new URL('../arte/'+pasta+'/', import.meta.url);
-    for(const f of readdirSync(dir))
+    for(const f of readdirSync(dir)){
+      if(f.endsWith('.json')) continue;   /* medida, não arte */
       ok(usados.has('arte/'+pasta+'/'+f), `arte/${pasta}/${f} está em uso`);
+    }
   }
+}
+
+/* ════════════════════════════════════════════════════════ 16d */
+secao('16d. Texto claro nunca cai em placa clara');
+{
+  /* Este teste existe porque o mesmo erro já aconteceu duas vezes, e das duas
+     por OLHAR a arte e anotar numa lista quais placas eram claras. A placa
+     ouro tem 186 de luminância e a roxa tem 141; as duas parecem apenas
+     "coloridas", e a segunda engole texto branco do mesmo jeito.
+
+     A medida está gravada por tools/luz.py, e o que se confere aqui é que a
+     lista do código continua concordando com ela. Se chegar arte nova para uma
+     placa e ela ficar mais clara, o teste quebra antes de alguém publicar uma
+     tela ilegível. */
+  const medida = JSON.parse(readFileSync(new URL('../arte/ui/placas.json', import.meta.url), 'utf8'));
+  const css = readFileSync(new URL('../jogo.html', import.meta.url), 'utf8');
+  const jogo = readFileSync(new URL('../js/ui/jogo.js', import.meta.url), 'utf8');
+  const claras = new Set((/PLACA_CLARA = new Set\(\[([^\]]*)\]/.exec(jogo)?.[1] || '')
+    .split(',').map(s=>s.trim().replace(/'/g,'')).filter(Boolean));
+  ok(claras.size > 0, 'o código declara quais placas são claras');
+
+  /* cada classe de cor aponta para um arquivo; o CSS é quem sabe qual */
+  const porClasse = {};
+  for(const m of css.matchAll(/\.op\.(c-[a-z]+)\{border-image-source:url\(arte\/ui\/([^)]+)\)/g))
+    porClasse[m[1]] = m[2];
+  ok(Object.keys(porClasse).length >= 5, `o CSS liga ${Object.keys(porClasse).length} cores a placas`);
+
+  for(const [classe, arquivo] of Object.entries(porClasse)){
+    const m = medida[arquivo];
+    ok(m, `a placa ${arquivo} foi medida`);
+    if(!m) continue;
+    eq(claras.has(classe), m.clara,
+       `${classe} usa ${arquivo} (luz ${m.luz}) e a lista ${m.clara?'devia':'não devia'} marcá-la como clara`);
+  }
+  /* a placa padrão, sem classe de cor, é a que sustenta o texto claro */
+  ok(!medida['placa-azul.png'].clara, 'a placa padrão é escura o bastante para texto claro');
 }
 
 /* ════════════════════════════════════════════════════════ 17 */

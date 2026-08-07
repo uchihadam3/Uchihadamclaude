@@ -558,7 +558,14 @@ img.gl{object-fit:contain;stroke:none;
   transition:transform .08s, box-shadow .08s}
 .lad:active{transform:translateY(4px);
   box-shadow:inset 0 2px 0 color-mix(in srgb,var(--fc) 50%,transparent), 0 0 0 var(--traco)}
-.lad .ic:has(img.gl){background:none;border:0;box-shadow:none}
+/* Arte pintada não entra na pastilha: ela já tem cor, contorno e volume, e
+   dentro de um quadrado de 48px sobraria uma miniatura de 26px. A pastilha
+   sai da frente e a peça ocupa o ladrilho. Classe e chefe chegaram já
+   emolduradas, e por isso pedem mais espaço ainda que as outras. */
+.lad .ic:has(img.gl){background:none;border:0;box-shadow:none;width:62px;height:62px}
+.lad .ic:has(img.gl) .gl{width:62px;height:62px}
+.lad .ic:has(img.mold){width:88px;height:88px;margin:-6px 0 -8px}
+.lad .ic:has(img.mold) .gl{width:88px;height:88px}
 .lad .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;
   color:#fff;flex:0 0 auto;position:relative;z-index:1;
   background:linear-gradient(180deg,var(--fc),color-mix(in srgb,var(--fc) 45%,#000));
@@ -672,10 +679,16 @@ img.gl{object-fit:contain;stroke:none;
 /* ═══════════ CARTÕES DE ESCOLHA ═══════════ */
 .grade{display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
 .grade.um{grid-template-columns:1fr}
-.op{position:relative;overflow:hidden;text-align:left;padding:17px;
+.op{position:relative;overflow:hidden;text-align:left;
+    /* o texto recua para DENTRO da moldura pintada: 24px de lado é o que tira
+       a primeira letra de cima dos rebites do canto */
+    padding:19px 24px;
     --c:var(--fc,var(--ouro));display:flex;flex-direction:column;gap:7px;
     background:none;border:0;
-    border-image:url(arte/ui/placa-azul.png) 68 fill / 34px / 0 stretch;
+    /* 26px de largura de borda, e não 34: numa placa de duas linhas as fatias
+       de cima e de baixo somavam 68px e não sobrava miolo — a moldura ficava
+       esticada e a peça virava uma barra preta com um filete de cor no meio */
+    border-image:url(arte/ui/placa-azul.png) 68 fill / 26px / 0 stretch;
     filter:drop-shadow(0 7px 16px rgba(0,0,0,.5));
     transition:transform .08s, filter .08s}
 /* a folha veio com seis cores, e as seis são exatamente as do jogo */
@@ -730,7 +743,17 @@ img.gl{object-fit:contain;stroke:none;
 .op .lm{font-size:11.5px;color:color-mix(in srgb,var(--fc,var(--ouro)) 60%,#fff);
   font-weight:800;font-style:italic}
 .op p{margin:0;font-size:13px;color:var(--osso2);line-height:1.5;font-weight:600}
-.op .gf:has(img.gl){background:none;border:0;box-shadow:none}
+/* A PASTILHA E A PEÇA PINTADA SÃO COISAS DIFERENTES.
+   O desenho em SVG é uma marca de uma cor só e precisa da pastilha colorida
+   atrás para não sumir. A arte pintada já traz cor, contorno e volume — posta
+   dentro da pastilha, ela vira uma miniatura de 25px dentro de um quadrado de
+   44px, e todo o trabalho do desenho se perde. Então quando a peça é pintada,
+   a pastilha sai da frente e a arte ocupa o espaço inteiro. */
+.op .gf:has(img.gl){background:none;border:0;box-shadow:none;
+  flex:0 0 58px;width:58px;height:58px}
+.op .gf:has(img.gl) .gl{width:58px;height:58px}
+.op .gf:has(img.mold){flex:0 0 82px;width:82px;height:82px}
+.op .gf:has(img.mold) .gl{width:82px;height:82px}
 .op .gf{position:relative;flex:0 0 44px;width:44px;height:44px;border-radius:13px;
   display:grid;place-items:center;color:#fff;
   background:linear-gradient(180deg,var(--fc,var(--ouro)),color-mix(in srgb,var(--fc,var(--ouro)) 45%,#000));

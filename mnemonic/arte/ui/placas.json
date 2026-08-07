@@ -1,0 +1,51 @@
+{
+  "botao-azul-baixo.png": {
+    "luz": 44.3,
+    "clara": false
+  },
+  "botao-azul.png": {
+    "luz": 44.9,
+    "clara": false
+  },
+  "botao-ouro-baixo.png": {
+    "luz": 195.0,
+    "clara": true
+  },
+  "botao-ouro.png": {
+    "luz": 194.9,
+    "clara": true
+  },
+  "botao-verde.png": {
+    "luz": 182.9,
+    "clara": true
+  },
+  "botao-vermelho.png": {
+    "luz": 116.0,
+    "clara": true
+  },
+  "placa-azul.png": {
+    "luz": 32.3,
+    "clara": false
+  },
+  "placa-ciano.png": {
+    "luz": 166.6,
+    "clara": true
+  },
+  "placa-ouro.png": {
+    "luz": 186.3,
+    "clara": true
+  },
+  "placa-roxa.png": {
+    "luz": 141.3,
+    "clara": true
+  },
+  "placa-verde.png": {
+    "luz": 184.1,
+    "clara": true
+  },
+  "placa-vermelha.png": {
+    "luz": 116.1,
+    "clara": true
+  },
+  "_limiar": 105.0
+}

@@ -136,9 +136,38 @@ export const ICO_CHEFE = {
    nunca fica com um buraco no lugar de um ícone. */
 const PINTADOS = ['combate','elite','chefe','loja','evento','fogueira','tesouro',
   'meta','virada','foco','combo','vista','conhecida','feito','orfa','curinga',
-  'semente','prova'];
+  'semente','prova',
+  /* os catorze tipos de carta, e mais três marcas que aparecem em toda tela */
+  'normal','ouro','cristal','lendaria','fantasma','camaleao','espelho','bomba',
+  'gelo','corrente','portal','mimic','veneno','raio','reliquia','recusa','moeda'];
 export const TEM_ARTE = new Set(PINTADOS);
-for(const id of PINTADOS)
-  ICO[id] = `<img class="gl art" src="arte/ico/${id}.png" alt="" aria-hidden="true">`;
+/* `mold` marca a arte que JÁ VEM emoldurada — classe e chefe chegaram dentro
+   de um quadro de madeira. Essa arte não pode ser exibida no tamanho de um
+   ícone: a moldura come metade dos pixels e o que está dentro dela vira uma
+   mancha. A tela lê essa marca e dá mais espaço. */
+const pintura = (pasta, id, mold='') =>
+  `<img class="gl art ${mold}" src="arte/${pasta}/${id}.png" alt="" aria-hidden="true">`;
+for(const id of PINTADOS) ICO[id] = pintura('ico', id);
+for(const id of Object.keys(ICO_CLASSE)) ICO_CLASSE[id] = pintura('classe', id, 'mold');
+for(const id of Object.keys(ICO_CHEFE))  ICO_CHEFE[id]  = pintura('chefe', id, 'mold');
+
+/* ─────────── DUAS COLEÇÕES NOVAS ───────────
+   Até agora as vinte e uma relíquias dividiam UM ícone genérico, e a loja
+   oferecia três amuletos iguais com nomes diferentes. Escolher entre coisas
+   que se parecem não é escolher — é ler três parágrafos e chutar. Cada uma
+   passa a ter a sua marca, e o brasão faz o mesmo pela família. */
+export const ICO_RELIQUIA = {};
+for(const id of ['olho_coruja','caderno','ima','luva','ampulheta','lampada',
+  'moeda_torta','dado_viciado','memoria_fotografica','espelho_antigo','coroa',
+  'biblioteca','pena','bussola','sino','cofre','mente_palacio','relogio_parado',
+  'olho_abismo','mao_do_tempo','nucleo']) ICO_RELIQUIA[id] = pintura('rel', id);
+
+export const ICO_FAM = {};
+for(const id of ['runas','espaco','alquimia','xadrez','mitologia','tecnologia',
+  'dragoes','egito']) ICO_FAM[id] = pintura('fam', id);
+
+/* a marca de uma relíquia, com o amuleto genérico como rede de segurança:
+   relíquia nova entra no jogo sem quebrar a tela enquanto a arte não chega */
+export const icoReliquia = id => ICO_RELIQUIA[id] || ICO.reliquia;
 
 export default ICO;

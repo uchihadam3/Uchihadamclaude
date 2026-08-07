@@ -36,7 +36,7 @@ import { RELIQUIAS, POR_ID, RARIDADE } from '../data/reliquias.js';
 import { LISTA_BOSSES } from '../data/bosses.js';
 import { svgGlifo } from '../arte/glifos.js';
 import { SFX, acordar, mudo, estaMudo } from './sfx.js';
-import { ICO, ICO_CLASSE, ICO_CHEFE } from './icones.js';
+import { ICO, ICO_CLASSE, ICO_CHEFE, icoReliquia } from './icones.js';
 import { CAPITULOS, FAMILIA_DE_PECA, peca, PALAVRAS, COR_COMBO, corDoCombo }
   from './catalogo.js';
 import * as RANK from '../net/ranking.js';
@@ -120,8 +120,14 @@ const PLACA_POR_COR = {
   '#4fe08a':'c-verde', '#8ad46a':'c-verde', '#7ee3a8':'c-verde',
   '#b478ff':'c-roxo', '#b06bff':'c-roxo', '#a98bff':'c-roxo',
 };
-/* das seis, três são placas CLARAS e por isso pedem texto escuro */
-const PLACA_CLARA = new Set(['c-ouro','c-verde','c-azul']);
+/* QUAIS PLACAS PEDEM TEXTO ESCURO — medido, não achado.
+   Cinco das seis placas pintadas são claras o bastante para engolir texto
+   branco. Isso não dá para decidir olhando: a placa ouro tem 186 de
+   luminância e a roxa tem 141, e as duas parecem só "coloridas". A medida
+   está em arte/ui/placas.json (tools/luz.py), e o teste confere que esta
+   lista continua batendo com ela — a lista é uma afirmação, não uma lembrança.
+   A única escura é a azul, que é o fundo padrão de toda placa sem cor. */
+const PLACA_CLARA = new Set(['c-ouro','c-verde','c-azul','c-vermelho','c-roxo']);
 const classePlaca = cor => {
   const c = PLACA_POR_COR[String(cor).toLowerCase().trim()] || '';
   return c ? (PLACA_CLARA.has(c) ? c+' claro' : c) : '';
@@ -181,7 +187,7 @@ const medalha = (ico, valor, rotulo, cor='var(--ouro)', forte=false) =>
 const chipReliquia = id => {
   const r = POR_ID[id]; if(!r) return '';
   return `<button class="chip" data-peca="reliquia:${id}" style="--fc:${RARIDADE[r.r]}">
-    <span class="ic">${ICO.reliquia}</span><span>${esc(r.nome)}</span></button>`;
+    <span class="ic">${icoReliquia(id)}</span><span>${esc(r.nome)}</span></button>`;
 };
 const chipsReliquias = ids => ids.length
   ? `<div class="chips">${ids.map(chipReliquia).join('')}</div>`
@@ -422,7 +428,7 @@ function medidores(){
     rq.innerHTML = run.reliquias.map((id,i)=>{
       const r = POR_ID[id];
       return `<b data-peca="reliquia:${id}" class="${i===run.reliquias.length-1?'nova':''}"
-        style="color:${RARIDADE[r.r]}" title="${esc(r.nome)}">${ICO.reliquia}</b>`;
+        style="color:${RARIDADE[r.r]}" title="${esc(r.nome)}">${icoReliquia(id)}</b>`;
     }).join('');
   }
 }
@@ -989,8 +995,8 @@ function telaPremio(){
         <button class="op ${classePlaca(RARIDADE[r.r])} ${r.r!=='comum'?'brilha':''}"
                 data-pega="${r.id}" style="--fc:${RARIDADE[r.r]};animation-delay:${i*70}ms">
           ${r.r==='lendaria' ? '<span class="fita">lendária</span>' : ''}
-          <span class="agua">${ICO.reliquia}</span>
-          <span class="cab"><span class="gf">${ICO.reliquia}</span>
+          <span class="agua">${icoReliquia(r.id)}</span>
+          <span class="cab"><span class="gf">${icoReliquia(r.id)}</span>
             <h3>${esc(r.nome)}</h3></span>
           <p>${esc(r.d)}</p>
           <div class="pr" style="color:${RARIDADE[r.r]}">${r.r}</div>
@@ -1023,8 +1029,8 @@ function telaLoja(){
           <button class="op ${classePlaca(cor)} ${i.r==='lendaria'?'brilha':''}"
             data-compra="${i.id}" style="--fc:${cor}" ${i.vendido || caro ? 'disabled' : ''}>
             ${i.vendido ? '<span class="vendido">vendido</span>' : ''}
-            <span class="agua">${i.id.startsWith('__') ? ICO.tesouro : ICO.reliquia}</span>
-            <span class="cab"><span class="gf">${i.id.startsWith('__') ? ICO.tesouro : ICO.reliquia}</span>
+            <span class="agua">${i.id.startsWith('__') ? ICO.tesouro : icoReliquia(i.id)}</span>
+            <span class="cab"><span class="gf">${i.id.startsWith('__') ? ICO.tesouro : icoReliquia(i.id)}</span>
               <h3>${esc(i.nome)}</h3></span>
             <p>${esc(i.d)}</p>
             <div class="pr" style="color:${caro ? 'var(--osso3)' : 'var(--ouro)'}">
