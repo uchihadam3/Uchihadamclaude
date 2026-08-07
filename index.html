@@ -247,11 +247,17 @@ const GAMES = [
     desc:'Dê petelecos, desvie de buracos e cruze a linha em primeiro. Online também!',
     cover:'arcade/covers/tampinha.png', url:'tampinha-rally/dist/index.html',
     ac:'#5fbfe0', ac2:'#1f6a8a', acl:'#b6ecff', acd:'rgba(30,90,120,.8)', acg:'rgba(95,191,224,.3)' },
+  { id:'abismo', title:'Dados do Abismo', genre:'Roguelike Tático · Dados', emoji:'🎯',
+    desc:'Cada inimigo é uma REGRA, não um saco de vida. O golpe errado causa zero.',
+    cover:'arcade/covers/dados-abismo.png', url:'dados-abismo/jogo.html',
+    ac:'#a06bff', ac2:'#4a2a7a', acl:'#d9c2ff', acd:'rgba(70,40,120,.8)', acg:'rgba(160,107,255,.3)' },
 ];
 const AVATARS = ['🎲','🎮','🗡️','🏰','🥤','👑','🐉','🔥','⚡','🎯','🍀','💀','🌙','⭐','🦉','🧙'];
 const ACHS = [
   { id:'first', ico:'🎮', t:'Primeira Partida', d:'Abra qualquer jogo.' },
-  { id:'all3',  ico:'🌟', t:'Explorador', d:'Jogue os 3 jogos.' },
+  /* o texto sai de GAMES.length: com o quarto jogo entrando, "os 3 jogos"
+     viraria mentira na tela e ninguém lembraria de trocar */
+  { id:'all3',  ico:'🌟', t:'Explorador', d:'Jogue todos os jogos.' },
   { id:'lv5',   ico:'⚡', t:'Veterano', d:'Alcance o nível 5.' },
   { id:'fav',   ico:'⭐', t:'Curador', d:'Favorite um jogo.' },
   { id:'plays10',ico:'🔥', t:'Viciado', d:'Abra jogos 10 vezes.' },

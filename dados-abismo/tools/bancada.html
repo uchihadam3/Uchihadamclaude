@@ -10,13 +10,17 @@ import { criarMalhaDado, luzes, destacarResultado } from '../js/dice3d/render.js
 import { raioDe, assentar, poliedro, faceParaCima } from '../js/dice3d/geometry.js';
 import { FACE_KINDS } from '../js/data/faces.js';
 
-const W=1200, H=280;
+/* ?w= e ?h= deixam a bancada servir de gerador de capa: a mesma cena, no
+   tamanho que a arte precisar */
+const _q=new URLSearchParams(location.search);
+const W=+(_q.get('w')||1200), H=+(_q.get('h')||280);
 const cv=document.getElementById('c');
 const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
 renderer.setSize(W,H); renderer.setPixelRatio(2);
 const scene=new THREE.Scene(); scene.background=new THREE.Color(0x10141c);
 const camera=new THREE.PerspectiveCamera(26, W/H, 0.1, 100);
-camera.position.set(0,3.1,4.4); camera.lookAt(0,0.15,0);
+const _far=+(_q.get('cam')||1), _look=+(_q.get('look')||0.15);
+camera.position.set(0,3.1*_far,4.4*_far); camera.lookAt(0,_look,0);
 luzes(scene);
 
 const params=new URLSearchParams(location.search);
