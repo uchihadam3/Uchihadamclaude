@@ -1757,6 +1757,7 @@ function fim(){
     <div class="recs2">${opts.map((o,i)=>{
       const R = rotuloRaridade(o);
       return `<button class="rec ${o.t} ${R.cls}" data-i="${i}" style="--d:${i}">
+      <div class="moldura"></div>
       <div class="rrar">${R.txt}</div>
       <div class="rectopo">
         <div class="ric">${o.t==='dado'?'🎲':o.t==='grav'?'⚒':o.t==='reliquia'?'🕯️':o.t==='vigor'?'❤️':'✚'}</div>

@@ -1062,6 +1062,29 @@
  .rec:active{transform:scale(.985)}
  .rec.dado{--c:#4a9ad8} .rec.grav{--c:#d8a04a} .rec.cura{--c:#4ad88a} .rec.reliquia{--c:#8a6ad8}
  .rec.r-comum{--c:#9aa3ad} .rec.r-rara{--c:#ffd24a} .rec.r-amaldicoada{--c:#d84a7a}
+ /* =====================================================================
+    A MOLDURA DESENHADA, por raridade.
+
+    Ela entra como border-image de um pseudo-elemento sobreposto, e não como
+    borda da própria carta: assim os cantos ornamentados esticam sem deformar
+    e, principalmente, a moldura não rouba largura do conteúdo — o que numa
+    carta de 90px seria um quarto do espaço útil.
+
+    Por isso ela vive AQUI, na tela de recompensa, e não na fileira de
+    habilidades: aqui a carta ocupa a largura toda e o ornamento tem onde
+    respirar. O recorte de 26 é a região dos cantos na arte de 125×154.
+    ===================================================================== */
+ .rec .moldura{position:absolute;inset:0;pointer-events:none;z-index:3;
+   border:15px solid transparent;border-image-slice:26;border-image-width:15px;
+   border-image-repeat:stretch;opacity:.92}
+ .rec.r-comum .moldura{border-image-source:url(arte/molduras/cinza.png)}
+ .rec.r-rara  .moldura{border-image-source:url(arte/molduras/ouro.png)}
+ .rec.r-amaldicoada .moldura{border-image-source:url(arte/molduras/vermelho.png)}
+ .rec.dado    .moldura{border-image-source:url(arte/molduras/azul.png)}
+ .rec.grav    .moldura{border-image-source:url(arte/molduras/roxo.png)}
+ .rec.cura    .moldura{border-image-source:url(arte/molduras/verde.png)}
+ /* a carta escolhida acende a moldura junto com o resto */
+ .recs2.escolhido .rec.levada .moldura{opacity:1;filter:brightness(1.25)}
  /* a rara e a amaldiçoada respiram — dá para sentir a raridade sem ler */
  .rec.r-rara{box-shadow:0 6px 20px #0009, inset 0 1px 0 #ffffff12, 0 0 20px -6px #ffd24a;
    animation:cartaentra .5s cubic-bezier(.2,1,.35,1) both, raro 2.8s ease-in-out infinite 1s}
