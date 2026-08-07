@@ -224,10 +224,9 @@ function renderDetail(){
   const inv = S.inventory || [];
   const invHTML = inv.length ? inv.map((iid,idx)=>{
     const it = ITEMS[iid]; if(!it) return '';
-    const bon = Object.entries(it.bonus).map(([k,v])=>`+${v} ${k.toUpperCase()}`).join(' · ');
-    return `<button class="inv-item r-${it.rarity}" data-idx="${idx}" title="Equipar em ${def.name}">
-      <span class="ii-ic">${it.icon}</span><span class="ii-nm">${it.name}</span><span class="ii-bo">${bon}</span>
-      <span class="ii-slot">${it.slot==='armor'?'Armadura':'Acessório'}</span></button>`;
+    const bon = Object.entries(it.bonus).map(([k,v])=>`+${v}${k.toUpperCase()}`).join(' ');
+    return `<button class="inv-item r-${it.rarity}" data-idx="${idx}" title="${it.name} (${bon}) — tocar p/ equipar em ${def.name}">
+      <span class="ii-ic">${it.icon}</span><span class="ii-bo">${bon}</span></button>`;
   }).join('') : `<div class="inv-empty">Inventário vazio — itens caem nas expedições.</div>`;
 
   frame.innerHTML = `
