@@ -452,6 +452,9 @@ def celulas_por_fundo(caminho, cols, linhas):
     a = np.array(Image.open(caminho).convert('RGB'))
     xs = fronteiras(a, cols, 1)
     ys = fronteiras(a, linhas, 0)
+    # a chave da FOLHA: quando ela também aparece na borda da célula, é ela que
+    # manda — ver o porquê logo abaixo
+    kg = cor_da_borda(a)
     fora = []
     for l in range(linhas):
         for c in range(cols):
@@ -460,7 +463,26 @@ def celulas_por_fundo(caminho, cols, linhas):
             y0, y1 = ys[l] + 2, ys[l+1] - 2
             x0, x1 = xs[c] + 2, xs[c+1] - 2
             cel = a[y0:y1, x0:x1]
-            k = cor_da_borda(cel)
+
+            # QUEM DECIDE A CHAVE DA CÉLULA.
+            # A moda da borda da célula erra quando a peça é grande: numa folha
+            # em que os símbolos quase encostam nas bordas, a moda da borda deu
+            # MARFIM, e o cortador apagou o miolo das peças e deixou só o
+            # contorno — sete símbolos saíram ocos. Se a cor de fundo da folha
+            # inteira ainda aparece na moldura da célula, é ela o fundo, por
+            # mais apertada que a peça esteja. Só quando ela sumiu de vez é que
+            # a célula tem fundo próprio (a folha dos tipos veio assim, uma cor
+            # diferente por célula).
+            m = max(2, min(cel.shape[:2]) // 40)
+            borda = np.concatenate([cel[:m].reshape(-1,3), cel[-m:].reshape(-1,3),
+                                    cel[:, :m].reshape(-1,3), cel[:, -m:].reshape(-1,3)])
+            quanto = (np.abs(borda.astype(int) - kg).max(axis=1) < 24).mean()
+            # 2% separa os dois mundos com folga: numa folha de fundo comum a
+            # célula mais apertada ainda mostrou 6% de fundo na moldura, e numa
+            # folha em que cada célula tem a sua cor o fundo da folha aparece em
+            # exatamente 0,0% delas
+            k = kg if quanto > 0.02 else cor_da_borda(cel)
+
             alfa = alfa_chave(cel, k)
             rgba = np.dstack([descontaminar(cel, k, alfa), alfa])
             fora.append(aparar(limpar_sobras(Image.fromarray(rgba, 'RGBA'))))

@@ -93,8 +93,12 @@ if __name__ == '__main__':
     alvos = sys.argv[1:] or sorted(p.name for p in pathlib.Path('arte/glifo').iterdir() if p.is_dir())
     ruim = 0
     for fam in alvos:
-        n, pares = conferir('arte/glifo/' + fam)
-        print(f'\n── {fam}: {n} símbolos, {len(pares)} pares')
+        # aceita o nome de uma família OU o caminho de uma pasta qualquer, para
+        # dar para medir uma folha nova antes de decidir se ela substitui a que
+        # já está no jogo
+        pasta = fam if pathlib.Path(fam).is_dir() else 'arte/glifo/' + fam
+        n, pares = conferir(pasta)
+        print(f'\n── {pathlib.Path(pasta).name}: {n} símbolos, {len(pares)} pares')
         for d, a, b in pares[:4]:
             marca = '  ✗ PERTO DEMAIS' if d < PERTO else ''
             print(f'   {a} × {b}   {d:6.1f}{marca}')
